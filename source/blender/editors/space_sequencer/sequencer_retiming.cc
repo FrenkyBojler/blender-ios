@@ -119,7 +119,7 @@ void SEQUENCER_OT_retiming_show(wmOperatorType *ot)
 
   /* API callbacks. */
   ot->exec = sequencer_retiming_data_show_exec;
-  ot->poll = sequencer_strip_editable_poll_timeline;
+  ot->poll = sequencer_strip_editable_poll;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;

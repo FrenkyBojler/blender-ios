@@ -2731,7 +2731,7 @@ void SEQUENCER_OT_select_grouped(wmOperatorType *ot)
   /* API callbacks. */
   ot->invoke = WM_menu_invoke;
   ot->exec = sequencer_select_grouped_exec;
-  ot->poll = sequencer_strip_editable_poll_timeline;
+  ot->poll = sequencer_strip_editable_poll;
 
   /* Flags. */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;

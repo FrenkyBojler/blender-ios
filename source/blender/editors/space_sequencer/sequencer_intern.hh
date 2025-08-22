@@ -183,13 +183,11 @@ StringRef effect_inputs_validate(const VectorSet<Strip *> &inputs, int num_input
 
 /* Operator helpers. */
 bool sequencer_edit_poll(bContext *C);
-bool sequencer_edit_poll_timeline(bContext *C);
 bool sequencer_edit_with_channel_region_poll(bContext *C);
 bool sequencer_editing_initialized_and_active(bContext *C);
 /* UNUSED */
 // bool sequencer_strip_poll( bContext *C);
 bool sequencer_strip_editable_poll(bContext *C);
-bool sequencer_strip_editable_poll_timeline(bContext *C);
 bool sequencer_strip_has_path_poll(bContext *C);
 bool sequencer_view_has_preview_poll(bContext *C);
 bool sequencer_view_preview_only_poll(const bContext *C);

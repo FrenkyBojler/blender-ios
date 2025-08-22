@@ -121,17 +121,6 @@ bool check_show_strip(const SpaceSeq &sseq)
   return ELEM(sseq.view, SEQ_VIEW_SEQUENCE, SEQ_VIEW_SEQUENCE_PREVIEW);
 }
 
-/* Checks if the active region of the active screen matches the specified type.
- * This is different from #CTX_wm_region, as that includes popovers. */
-static bool check_active_region(bContext *C, eRegion_Type type)
-{
-  const wmWindow *win = CTX_wm_window(C);
-  const bScreen *screen = WM_window_get_active_screen(win);
-  const ARegion *region = screen->active_region;
-
-  return region && region->regiontype == type;
-}
-
 static bool sequencer_fcurves_targets_color_strip(const FCurve *fcurve)
 {
   if (!BLI_str_startswith(fcurve->rna_path, "sequence_editor.strips_all[\"")) {
@@ -174,11 +163,6 @@ bool sequencer_edit_poll(bContext *C)
   return (seq::editing_get(CTX_data_sequencer_scene(C)) != nullptr);
 }
 
-bool sequencer_edit_poll_timeline(bContext *C)
-{
-  return sequencer_edit_poll(C) && !check_active_region(C, RGN_TYPE_UI);
-}
-
 bool sequencer_edit_with_channel_region_poll(bContext *C)
 {
   if (!sequencer_edit_poll(C)) {
@@ -212,11 +196,6 @@ bool sequencer_strip_editable_poll(bContext *C)
   }
   Strip *strip = active_strip_from_context(C);
   return strip != nullptr;
-}
-
-bool sequencer_strip_editable_poll_timeline(bContext *C)
-{
-  return sequencer_strip_editable_poll(C) && !check_active_region(C, RGN_TYPE_UI);
 }
 
 bool sequencer_strip_has_path_poll(bContext *C)
@@ -296,11 +275,6 @@ static bool sequencer_effect_poll(bContext *C)
   }
 
   return false;
-}
-
-static bool sequencer_effect_poll_timeline(bContext *C)
-{
-  return sequencer_effect_poll(C) && !check_active_region(C, RGN_TYPE_UI);
 }
 
 static bool sequencer_swap_inputs_poll(bContext *C)
@@ -1388,6 +1362,16 @@ static wmOperatorStatus sequencer_reassign_inputs_exec(bContext *C, wmOperator *
 
   Strip *active_strip = active_strip_from_context(C);
 
+  /* Make sure the active strip is part of the active meta.
+   * This may not be the case if the operator is ran from the N-panel. */
+  ListBase *seqbase = seq::get_seqbase_by_strip(scene, active_strip);
+  if (seqbase != seq::active_seqbase_get(seq::editing_get(scene))) {
+    BKE_report(op->reports,
+               RPT_ERROR,
+               "Cannot reassign inputs: active strip not part of active meta strip");
+    return OPERATOR_CANCELLED;
+  }
+
   const int num_inputs = seq::effect_get_num_inputs(active_strip->type);
   if (num_inputs == 0) {
     BKE_report(op->reports, RPT_ERROR, "Cannot reassign inputs: strip has no inputs");
@@ -1441,7 +1425,7 @@ void SEQUENCER_OT_reassign_inputs(wmOperatorType *ot)
 
   /* API callbacks. */
   ot->exec = sequencer_reassign_inputs_exec;
-  ot->poll = sequencer_effect_poll_timeline;
+  ot->poll = sequencer_effect_poll;
 
   /* Flags. */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -2189,7 +2173,7 @@ void SEQUENCER_OT_meta_toggle(wmOperatorType *ot)
 
   /* API callbacks. */
   ot->exec = sequencer_meta_toggle_exec;
-  ot->poll = sequencer_edit_poll_timeline;
+  ot->poll = sequencer_edit_poll;
 
   /* Flags. */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -2273,7 +2257,7 @@ void SEQUENCER_OT_meta_make(wmOperatorType *ot)
 
   /* API callbacks. */
   ot->exec = sequencer_meta_make_exec;
-  ot->poll = sequencer_edit_poll_timeline;
+  ot->poll = sequencer_edit_poll;
 
   /* Flags. */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -2326,9 +2310,9 @@ static wmOperatorStatus sequencer_meta_separate_exec(bContext *C, wmOperator * /
   return OPERATOR_FINISHED;
 }
 
-static bool sequencer_meta_poll_timeline(bContext *C)
+static bool sequencer_meta_poll(bContext *C)
 {
-  if (sequencer_strip_editable_poll_timeline(C)) {
+  if (sequencer_strip_editable_poll(C)) {
     return active_strip_from_context(C)->type == STRIP_TYPE_META;
   }
   return false;
@@ -2343,7 +2327,7 @@ void SEQUENCER_OT_meta_separate(wmOperatorType *ot)
 
   /* API callbacks. */
   ot->exec = sequencer_meta_separate_exec;
-  ot->poll = sequencer_meta_poll_timeline;
+  ot->poll = sequencer_meta_poll;
 
   /* Flags. */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -2580,7 +2564,7 @@ void SEQUENCER_OT_swap(wmOperatorType *ot)
 
   /* API callbacks. */
   ot->exec = sequencer_swap_exec;
-  ot->poll = sequencer_strip_editable_poll_timeline;
+  ot->poll = sequencer_strip_editable_poll;
 
   /* Flags. */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -2763,7 +2747,7 @@ void SEQUENCER_OT_swap_data(wmOperatorType *ot)
 
   /* API callbacks. */
   ot->exec = sequencer_swap_data_exec;
-  ot->poll = sequencer_strip_editable_poll_timeline;
+  ot->poll = sequencer_strip_editable_poll;
 
   /* Flags. */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
