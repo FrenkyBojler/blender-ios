@@ -8,6 +8,7 @@
 
 #include "DNA_node_types.h"
 #include "DNA_scene_types.h"
+#include "DNA_space_types.h"
 
 #include "BLI_listbase.h"
 
@@ -35,6 +36,16 @@ static void composite_get_from_context(const bContext *C,
                                        ID **r_id,
                                        ID **r_from)
 {
+  const SpaceNode *snode = CTX_wm_space_node(C);
+  if (snode->node_tree_sub_type == SNODE_COMPOSITOR_VSE_MODIFIER) {
+    if (snode->selected_node_group && snode->selected_node_group->type == NTREE_COMPOSIT) {
+      *r_ntree = snode->selected_node_group;
+      return;
+    }
+    *r_ntree = nullptr;
+    return;
+  }
+
   Scene *scene = CTX_data_scene(C);
 
   *r_from = nullptr;

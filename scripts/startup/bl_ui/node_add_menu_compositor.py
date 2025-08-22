@@ -51,7 +51,8 @@ class NODE_MT_category_compositor_input_scene(Menu):
 
     def draw(self, context):
         layout = self.layout
-        node_add_menu.add_node_type(layout, "CompositorNodeRLayers")
+        if context.space_data.node_tree_sub_type == 'SCENE':
+            node_add_menu.add_node_type(layout, "CompositorNodeRLayers")
         node_add_menu.add_node_type_with_outputs(context, layout, "CompositorNodeSceneTime", ["Frame", "Seconds"])
         node_add_menu.add_node_type(layout, "CompositorNodeTime")
 

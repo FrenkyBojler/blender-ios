@@ -142,13 +142,17 @@ class NODE_HT_header(Header):
                     layout.template_ID(id_from, "active_texture", new="texture.new")
 
         elif snode.tree_type == 'CompositorNodeTree':
-
+            layout.prop(snode, "node_tree_sub_type", text="")
             NODE_MT_editor_menus.draw_collapsible(context, layout)
-
             layout.separator_spacer()
-            row = layout.row()
-            row.enabled = not snode.pin
-            row.template_ID(scene, "compositing_node_group", new="node.new_compositing_node_group")
+
+            if snode.node_tree_sub_type == 'SCENE':
+                row = layout.row()
+                row.enabled = not snode.pin
+                row.template_ID(scene, "compositing_node_group", new="node.new_compositing_node_group")
+            elif snode.node_tree_sub_type == 'VSE_MODIFIER':
+                layout.template_ID(snode, "selected_node_group", new="node.new_compositor_vse_modifier_node_group")
+                display_pin = False
 
         elif snode.tree_type == 'GeometryNodeTree':
             layout.prop(snode, "node_tree_sub_type", text="")

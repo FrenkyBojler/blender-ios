@@ -2701,10 +2701,15 @@ static void rna_SpaceNodeEditor_node_tree_set(PointerRNA *ptr,
   ED_node_tree_start(region, snode, (bNodeTree *)value.data, nullptr, nullptr);
 }
 
-static bool rna_SpaceNodeEditor_selected_node_group_poll(PointerRNA * /*ptr*/,
+static bool rna_SpaceNodeEditor_selected_node_group_poll(PointerRNA *space_node_pointer,
                                                          const PointerRNA value)
 {
+  SpaceNode *space_node = space_node_pointer->data_as<SpaceNode>();
   const bNodeTree &ntree = *static_cast<const bNodeTree *>(value.data);
+  if (ED_node_is_compositor(space_node)) {
+    return ntree.type == NTREE_COMPOSIT;
+  }
+
   if (ntree.type != NTREE_GEOMETRY) {
     return false;
   }
@@ -2762,13 +2767,59 @@ static void rna_SpaceNodeEditor_node_tree_update(const bContext *C, PointerRNA *
   blender::ed::space_node::tree_update(C);
 }
 
+static const EnumPropertyItem *rna_SpaceNodeEditor_node_tree_sub_type_itemf(
+    bContext * /*context*/,
+    PointerRNA *space_node_pointer,
+    PropertyRNA * /*property*/,
+    bool * /*r_free*/)
+{
+  static const EnumPropertyItem geometry_nodes_sub_type_items[] = {
+      {SNODE_GEOMETRY_MODIFIER,
+       "MODIFIER",
+       0,
+       "Modifier",
+       "Edit node group from active object's active modifier"},
+      {SNODE_GEOMETRY_TOOL,
+       "TOOL",
+       0,
+       "Tool",
+       "Edit any geometry node group for use as an operator"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  static const EnumPropertyItem compositor_sub_type_items[] = {
+      {SNODE_COMPOSITOR_SCENE, "SCENE", 0, "Scene", "Edit node group for the current scene"},
+      {SNODE_COMPOSITOR_VSE_MODIFIER,
+       "VSE_MODIFIER",
+       0,
+       "VSE Modifier",
+       "Edit any compositor node group for use as VSE modifier"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  SpaceNode *space_node = space_node_pointer->data_as<SpaceNode>();
+  if (ED_node_is_geometry(space_node)) {
+    return geometry_nodes_sub_type_items;
+  }
+  else {
+    return compositor_sub_type_items;
+  }
+}
+
 static void rna_SpaceNodeEditor_node_tree_sub_type_update(Main * /*main*/,
                                                           Scene * /*scene*/,
-                                                          PointerRNA *ptr)
+                                                          PointerRNA *space_node_pointer)
 {
-  SpaceNode *snode = static_cast<SpaceNode *>(ptr->data);
-  if (snode->node_tree_sub_type == SNODE_GEOMETRY_TOOL) {
-    snode->flag &= ~SNODE_PIN;
+  SpaceNode *space_node = space_node_pointer->data_as<SpaceNode>();
+  if (ED_node_is_geometry(space_node)) {
+    if (space_node->node_tree_sub_type == SNODE_GEOMETRY_TOOL) {
+      space_node->flag &= ~SNODE_PIN;
+    }
+  }
+  else {
+    if (space_node->node_tree_sub_type == SNODE_COMPOSITOR_VSE_MODIFIER) {
+      space_node->flag &= ~SNODE_PIN;
+    }
   }
 }
 
@@ -8036,20 +8087,6 @@ static void rna_def_space_node(BlenderRNA *brna)
       {0, nullptr, 0, nullptr, nullptr},
   };
 
-  static const EnumPropertyItem geometry_nodes_type_items[] = {
-      {SNODE_GEOMETRY_MODIFIER,
-       "MODIFIER",
-       0,
-       "Modifier",
-       "Edit node group from active object's active modifier"},
-      {SNODE_GEOMETRY_TOOL,
-       "TOOL",
-       0,
-       "Tool",
-       "Edit any geometry node group for use as an operator"},
-      {0, nullptr, 0, nullptr, nullptr},
-  };
-
   static const EnumPropertyItem backdrop_channels_items[] = {
       {SNODE_USE_ALPHA,
        "COLOR_ALPHA",
@@ -8103,7 +8140,9 @@ static void rna_def_space_node(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "node_tree_sub_type", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_sdna(prop, nullptr, "node_tree_sub_type");
-  RNA_def_property_enum_items(prop, geometry_nodes_type_items);
+  RNA_def_property_enum_items(prop, rna_enum_dummy_NULL_items);
+  RNA_def_property_enum_funcs(
+      prop, nullptr, nullptr, "rna_SpaceNodeEditor_node_tree_sub_type_itemf");
   RNA_def_property_ui_text(prop, "Node Tree Sub-Type", "");
   RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_ID);
   RNA_def_property_update(

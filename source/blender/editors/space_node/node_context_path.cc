@@ -131,7 +131,7 @@ static void get_context_path_node_compositor(const bContext &C,
                                              SpaceNode &snode,
                                              Vector<ui::ContextPathItem> &path)
 {
-  if (snode.flag & SNODE_PIN) {
+  if (snode.flag & SNODE_PIN || snode.node_tree_sub_type == SNODE_COMPOSITOR_VSE_MODIFIER) {
     context_path_add_node_tree_and_node_groups(snode, path);
   }
   else {
