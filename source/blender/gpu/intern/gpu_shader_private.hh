@@ -151,6 +151,7 @@ class ShaderCompiler {
     Vector<std::unique_ptr<ParallelWork>> works;
 
     std::atomic<int> pending_compilations = 0;
+    bool is_cancelled = false;
 
     bool is_specialization_batch()
     {
@@ -209,7 +210,7 @@ class ShaderCompiler {
 
   BatchHandle batch_compile(Span<const shader::ShaderCreateInfo *> &infos,
                             CompilationPriority priority);
-  void batch_cancel(BatchHandle &handle);
+  void batch_cancel(BatchHandle &handle, bool wait = true);
   bool batch_is_ready(BatchHandle handle);
   Vector<Shader *> batch_finalize(BatchHandle &handle);
 

@@ -80,12 +80,7 @@ struct GPUPass {
 
   ~GPUPass()
   {
-    if (compilation_handle) {
-      GPU_shader_batch_cancel(compilation_handle);
-    }
-    else {
-      BLI_assert(create_info == nullptr || (is_optimization_pass && status == GPU_PASS_QUEUED));
-    }
+    BLI_assert(!compilation_handle);
     MEM_delete(create_info);
     GPU_SHADER_FREE_SAFE(shader);
   }
@@ -225,6 +220,22 @@ class GPUPassCache {
   std::mutex mutex_;
 
  public:
+  ~GPUPassCache()
+  {
+    for (int engine : IndexRange(GPU_MAT_ENGINE_MAX)) {
+      for (int optimization : IndexRange(2)) {
+        for (std::unique_ptr<GPUPass> &pass : passes_[engine][optimization].values()) {
+          if (pass->compilation_handle) {
+            GPU_shader_batch_cancel(pass->compilation_handle, false);
+          }
+        }
+      }
+    }
+    /* We have to wait for ongoing compilations that could not be cancelled before we delete their
+     * ShaderCreateInfos. */
+    GPU_shader_batch_wait_for_all();
+  }
+
   void add(eGPUMaterialEngine engine,
            GPUCodegen &codegen,
            bool deferred_compilation,
