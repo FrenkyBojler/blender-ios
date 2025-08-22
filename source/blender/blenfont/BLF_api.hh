@@ -14,6 +14,7 @@
 #include "BLI_bounds_types.hh"
 #include "BLI_compiler_attrs.h"
 #include "BLI_function_ref.hh"
+#include "BLI_rect.h"
 #include "BLI_string_ref.hh"
 #include "BLI_sys_types.h"
 #include "BLI_vector.hh"
@@ -292,6 +293,7 @@ int BLF_height_max(int fontid) ATTR_WARN_UNUSED_RESULT;
 int BLF_width_max(int fontid) ATTR_WARN_UNUSED_RESULT;
 int BLF_descender(int fontid) ATTR_WARN_UNUSED_RESULT;
 int BLF_ascender(int fontid) ATTR_WARN_UNUSED_RESULT;
+bool BLF_bounds_max(int fontid, rctf *r_bounds) ATTR_NONNULL(2);
 
 /**
  * The following function return the width and height of the string, but
