@@ -64,28 +64,30 @@ using namespace blender::math;
 
 static void node_build_multi_function(blender::nodes::NodeMultiFunctionBuilder &builder)
 {
-  static auto function = mf::build::SI5_SO<ColorGeometry4f, float, float, float, float, ColorGeometry4f>(
-      "Hue Saturation Value",
-      [](const ColorGeometry4f &color,
-         const float hue,
-         const float saturation,
-         const float value,
-         const float factor) -> ColorGeometry4f {
-         float3 hsv;
-        rgb_to_hsv_v(float3(color.r, color.g, color.b), hsv);
+  static auto function =
+      mf::build::SI5_SO<float, float, float, float, ColorGeometry4f, ColorGeometry4f>(
+          "Hue Saturation Value",
+          [](const float hue,
+             const float saturation,
+             const float value,
+             const float factor,
+             const ColorGeometry4f &color) -> ColorGeometry4f {
+            float3 hsv;
+            rgb_to_hsv_v(float3(color.r, color.g, color.b), hsv);
 
-        hsv.x = math::fract(hsv.x + hue + 0.5f);
-        hsv.y = hsv.y * saturation;
-        hsv.z = hsv.z * value;
+            hsv.x = math::fract(hsv.x + hue + 0.5f);
+            hsv.y = hsv.y * saturation;
+            hsv.z = hsv.z * value;
 
-       float3 rgb_result = float3(color.r, color.g, color.b);
-        hsv_to_rgb_v(hsv, rgb_result);
-        rgb_result = math::max(rgb_result, float3(0.0f));
+            float3 rgb_result = float3(color.r, color.g, color.b);
+            hsv_to_rgb_v(hsv, rgb_result);
+            rgb_result = math::max(rgb_result, float3(0.0f));
 
-        float3 interp = math::interpolate(float3(color.r, color.g, color.b), rgb_result, factor);
-        return ColorGeometry4f(interp.x, interp.y, interp.z, color.a);
-      },
-      mf::build::exec_presets::SomeSpanOrSingle<0>());
+            float3 interp = math::interpolate(
+                float3(color.r, color.g, color.b), rgb_result, factor);
+            return ColorGeometry4f(interp.x, interp.y, interp.z, color.a);
+          },
+          mf::build::exec_presets::SomeSpanOrSingle<4>());
   builder.set_matching_fn(function);
 }
 
