@@ -65,7 +65,6 @@
 #include "BKE_paint_types.hh"
 #include "BKE_scene.hh"
 #include "BKE_subdiv_ccg.hh"
-#include "BKE_subsurf.hh"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_query.hh"
@@ -643,7 +642,7 @@ const Brush *BKE_paint_brush_for_read(const Paint *paint)
   return paint ? paint->brush : nullptr;
 }
 
-bool BKE_paint_brush_poll(const Paint *paint, const Brush *brush)
+bool BKE_paint_can_use_brush(const Paint *paint, const Brush *brush)
 {
   if (paint == nullptr) {
     return false;
@@ -678,7 +677,7 @@ bool BKE_paint_brush_set(Main *bmain,
 
   /* Ensure we have a brush with appropriate mode to assign.
    * Could happen if contents of asset blend were manually changed. */
-  if (brush == nullptr || !BKE_paint_brush_poll(paint, brush)) {
+  if (brush == nullptr || !BKE_paint_can_use_brush(paint, brush)) {
     return false;
   }
 
@@ -700,7 +699,7 @@ bool BKE_paint_brush_set(Main *bmain,
 
 bool BKE_paint_brush_set(Paint *paint, Brush *brush)
 {
-  if (!BKE_paint_brush_poll(paint, brush)) {
+  if (!BKE_paint_can_use_brush(paint, brush)) {
     return false;
   }
 
@@ -2105,8 +2104,8 @@ bool paint_is_bmesh_face_hidden(const BMFace *f)
 
 float paint_grid_paint_mask(const GridPaintMask *gpm, uint level, uint x, uint y)
 {
-  int factor = BKE_ccg_factor(level, gpm->level);
-  int gridsize = BKE_ccg_gridsize(gpm->level);
+  int factor = CCG_grid_factor(level, gpm->level);
+  int gridsize = CCG_grid_size(gpm->level);
 
   return gpm->data[(y * factor) * gridsize + (x * factor)];
 }
@@ -2770,7 +2769,7 @@ void BKE_sculpt_mask_layers_ensure(Depsgraph *depsgraph,
    * isn't one already */
   if (mmd && !CustomData_has_layer(&mesh->corner_data, CD_GRID_PAINT_MASK)) {
     int level = max_ii(1, mmd->sculptlvl);
-    int gridsize = BKE_ccg_gridsize(level);
+    int gridsize = CCG_grid_size(level);
     int gridarea = gridsize * gridsize;
 
     GridPaintMask *gmask = static_cast<GridPaintMask *>(CustomData_add_layer(

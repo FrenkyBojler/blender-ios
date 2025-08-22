@@ -1262,7 +1262,7 @@ static void preview_draw_all_image_overlays(const bContext *C,
 {
   ListBase *channels = seq::channels_displayed_get(&editing);
   VectorSet strips = seq::query_rendered_strips(
-      scene, channels, editing.current_strips(), timeline_frame, 0);
+      scene, channels, editing.seqbasep, timeline_frame, 0);
   Strip *active_seq = seq::select_active_get(scene);
   for (Strip *strip : strips) {
     /* TODO(sergey): Avoid having per-strip strip-independent checks. */
@@ -1442,7 +1442,7 @@ static blender::gpu::Texture *create_texture(const ImBuf &ibuf)
 static const char *get_texture_colorspace_name(const ImBuf &ibuf)
 {
   if (ibuf.float_buffer.data) {
-    if (ibuf.byte_buffer.colorspace) {
+    if (ibuf.float_buffer.colorspace) {
       return IMB_colormanagement_colorspace_get_name(ibuf.float_buffer.colorspace);
     }
     return IMB_colormanagement_role_colorspace_name_get(COLOR_ROLE_SCENE_LINEAR);
@@ -1566,7 +1566,7 @@ static void sequencer_preview_draw_overlays(const bContext *C,
     GPU_blend(GPU_BLEND_OVERLAY_MASK_FROM_ALPHA);
 
     immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
-    immUniformColor3f(-.0f, 1.0f, 1.0f);
+    immUniformColor3f(1.0f, 1.0f, 1.0f);
     immRectf(pos, position.xmin, position.ymin, position.xmax, position.ymax);
     immUnbindProgram();
 
