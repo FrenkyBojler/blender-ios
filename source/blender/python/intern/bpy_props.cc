@@ -475,10 +475,23 @@ static void bpy_prop_gil_rna_writable_end(const BPyPropGIL_RNAWritable_State &pr
  * \{ */
 
 struct BPyPropArrayLength {
-  int len_total;
+  int len_total = 0;
   /** Ignore `dims` when `dims_len == 0`. */
-  int dims[RNA_MAX_ARRAY_DIMENSION];
-  int dims_len;
+  int dims[RNA_MAX_ARRAY_DIMENSION] = {};
+  int dims_len = 0;
+
+  BPyPropArrayLength() = default;
+  BPyPropArrayLength(PointerRNA *ptr, PropertyRNA *prop)
+  {
+    this->len_total = RNA_property_array_length(ptr, prop);
+    this->dims_len = RNA_property_array_dimension(ptr, prop, this->dims);
+  }
+
+  bool operator==(const BPyPropArrayLength &other) const
+  {
+    return (this->len_total == other.len_total) && (this->dims == other.dims) &&
+           (this->dims_len == other.dims_len);
+  }
 };
 
 /**
@@ -566,6 +579,51 @@ static int bpy_prop_array_from_py_with_dims(void *values,
   const int *dims = array_len_info->dims;
   const int dims_len = array_len_info->dims_len;
   return PyC_AsArray_Multi(values, values_elem_size, py_values, dims, dims_len, type, error_str);
+}
+
+/* NOTE: Always increases refcount of the returned value. */
+static PyObject *bpy_py_object_from_prop_array_with_dims(const void *values,
+                                                         const BPyPropArrayLength &array_len_info,
+                                                         const PyTypeObject &type)
+{
+  PyObject *py_values = nullptr;
+
+  if (&type == &PyBool_Type) {
+    if (array_len_info.dims_len == 0) {
+      py_values = PyC_Tuple_PackArray_Bool(static_cast<const bool *>(values),
+                                           uint(array_len_info.len_total));
+    }
+    else {
+      py_values = PyC_Tuple_PackArray_Multi_Bool(
+          static_cast<const bool *>(values), array_len_info.dims, array_len_info.dims_len);
+    }
+  }
+  else if (&type == &PyLong_Type) {
+    if (array_len_info.dims_len == 0) {
+      py_values = PyC_Tuple_PackArray_I32(static_cast<const int *>(values),
+                                          uint(array_len_info.len_total));
+    }
+    else {
+      py_values = PyC_Tuple_PackArray_Multi_I32(
+          static_cast<const int *>(values), array_len_info.dims, array_len_info.dims_len);
+    }
+  }
+  else if (&type == &PyFloat_Type) {
+    if (array_len_info.dims_len == 0) {
+      py_values = PyC_Tuple_PackArray_F32(static_cast<const float *>(values),
+                                          uint(array_len_info.len_total));
+    }
+    else {
+      /* No need for matrix column/row swapping here unless the matrix data is read directly. */
+      py_values = PyC_Tuple_PackArray_Multi_F32(
+          static_cast<const float *>(values), array_len_info.dims, array_len_info.dims_len);
+    }
+  }
+  else {
+    BLI_assert_unreachable();
+  }
+
+  return py_values;
 }
 
 static bool bpy_prop_array_is_matrix_compatible_ex(int subtype,
@@ -1235,19 +1293,52 @@ static void bpy_prop_float_set_fn(PointerRNA *ptr, PropertyRNA *prop, float valu
   bpy_prop_gil_rna_writable_end(bpy_state);
 }
 
-static void bpy_prop_float_array_get_fn(PointerRNA *ptr, PropertyRNA *prop, float *values)
+static void bpy_prop_float_array_from_callback_or_error(PropertyRNA *prop,
+                                                        PyObject *float_array_obj,
+                                                        const BPyPropArrayLength &array_len_info,
+                                                        PyObject *py_func,
+                                                        const bool do_matrix_row_col_swap,
+                                                        float *r_values)
 {
-  const BPyPropGIL_RNAWritable_State bpy_state = bpy_prop_gil_rna_writable_begin();
+  bool is_values_set = false;
 
+  if (float_array_obj != nullptr) {
+    if (bpy_prop_array_from_py_with_dims(r_values,
+                                         sizeof(*r_values),
+                                         float_array_obj,
+                                         &array_len_info,
+                                         &PyFloat_Type,
+                                         "FloatVectorProperty get callback") == -1)
+    {
+      PyC_Err_PrintWithFunc(py_func);
+    }
+    else {
+      /* Only for float types. */
+      if (do_matrix_row_col_swap && bpy_prop_array_is_matrix_compatible(prop, &array_len_info)) {
+        bpy_prop_array_matrix_swap_row_column_vn(r_values, &array_len_info);
+      }
+      is_values_set = true;
+    }
+  }
+
+  if (is_values_set == false) {
+    /* This is the flattened length for multi-dimensional arrays. */
+    for (int i = 0; i < array_len_info.len_total; i++) {
+      r_values[i] = 0.0f;
+    }
+  }
+
+  Py_XDECREF(float_array_obj);
+}
+
+static void bpy_prop_float_array_get_locked_fn(PointerRNA *ptr,
+                                               PropertyRNA *prop,
+                                               const BPyPropArrayLength &array_len_info,
+                                               float *r_values)
+{
   BPyPropStore *prop_store = static_cast<BPyPropStore *>(RNA_property_py_data_get(prop));
   PyObject *py_func;
   PyObject *ret;
-
-  bool is_values_set = false;
-  int i, len = RNA_property_array_length(ptr, prop);
-  BPyPropArrayLength array_len_info{};
-  array_len_info.len_total = len;
-  array_len_info.dims_len = RNA_property_array_dimension(ptr, prop, array_len_info.dims);
 
   BLI_assert(prop_store != nullptr);
 
@@ -1263,32 +1354,61 @@ static void bpy_prop_float_array_get_fn(PointerRNA *ptr, PropertyRNA *prop, floa
     Py_DECREF(args);
   }
 
-  if (ret != nullptr) {
-    if (bpy_prop_array_from_py_with_dims(values,
-                                         sizeof(*values),
-                                         ret,
-                                         &array_len_info,
-                                         &PyFloat_Type,
-                                         "FloatVectorProperty get callback") == -1)
-    {
-      PyC_Err_PrintWithFunc(py_func);
-    }
-    else {
-      /* Only for float types. */
-      if (bpy_prop_array_is_matrix_compatible(prop, &array_len_info)) {
-        bpy_prop_array_matrix_swap_row_column_vn(values, &array_len_info);
-      }
-      is_values_set = true;
-    }
-    Py_DECREF(ret);
+  bpy_prop_float_array_from_callback_or_error(prop, ret, array_len_info, py_func, true, r_values);
+}
+
+static void bpy_prop_float_array_get_fn(PointerRNA *ptr, PropertyRNA *prop, float *values)
+{
+  const BPyPropGIL_RNAWritable_State bpy_state = bpy_prop_gil_rna_writable_begin();
+
+  const BPyPropArrayLength array_len_info{ptr, prop};
+
+  bpy_prop_float_array_get_locked_fn(ptr, prop, array_len_info, values);
+
+  bpy_prop_gil_rna_writable_end(bpy_state);
+}
+
+static void bpy_prop_float_array_get_transform_locked_fn(PointerRNA *ptr,
+                                                         PropertyRNA *prop,
+                                                         const BPyPropArrayLength &array_len_info,
+                                                         const float *curr_values,
+                                                         bool is_set,
+                                                         float *r_values)
+{
+  BPyPropStore *prop_store = static_cast<BPyPropStore *>(RNA_property_py_data_get(prop));
+  PyObject *py_func;
+  PyObject *ret;
+
+  BLI_assert(prop_store != nullptr);
+
+  py_func = prop_store->py_data.get_transform_fn;
+
+  {
+    PyObject *args = PyTuple_New(3);
+    PyObject *self = pyrna_struct_as_instance(ptr);
+    PyTuple_SET_ITEMS(
+        args,
+        self,
+        bpy_py_object_from_prop_array_with_dims(curr_values, array_len_info, PyFloat_Type),
+        PyBool_FromLong(is_set));
+
+    ret = PyObject_CallObject(py_func, args);
+
+    Py_DECREF(args);
   }
 
-  if (is_values_set == false) {
-    /* This is the flattened length for multi-dimensional arrays. */
-    for (i = 0; i < len; i++) {
-      values[i] = 0.0f;
-    }
-  }
+  bpy_prop_float_array_from_callback_or_error(prop, ret, array_len_info, py_func, true, r_values);
+}
+
+static void bpy_prop_float_array_get_transform_fn(
+    PointerRNA *ptr, PropertyRNA *prop, const float *curr_values, bool is_set, float *r_values)
+{
+  const BPyPropGIL_RNAWritable_State bpy_state = bpy_prop_gil_rna_writable_begin();
+
+  const BPyPropArrayLength array_len_info{ptr, prop};
+
+  bpy_prop_float_array_get_transform_locked_fn(
+      ptr, prop, array_len_info, curr_values, is_set, r_values);
 
   bpy_prop_gil_rna_writable_end(bpy_state);
 }
@@ -1301,10 +1421,7 @@ static void bpy_prop_float_array_set_fn(PointerRNA *ptr, PropertyRNA *prop, cons
   PyObject *py_func;
   PyObject *ret;
 
-  const int len = RNA_property_array_length(ptr, prop);
-  BPyPropArrayLength array_len_info{};
-  array_len_info.len_total = len;
-  array_len_info.dims_len = RNA_property_array_dimension(ptr, prop, array_len_info.dims);
+  const BPyPropArrayLength array_len_info{ptr, prop};
 
   BLI_assert(prop_store != nullptr);
 
@@ -1313,17 +1430,8 @@ static void bpy_prop_float_array_set_fn(PointerRNA *ptr, PropertyRNA *prop, cons
   {
     PyObject *args = PyTuple_New(2);
     PyObject *self = pyrna_struct_as_instance(ptr);
-
-    PyObject *py_values;
-    if (array_len_info.dims_len == 0) {
-      py_values = PyC_Tuple_PackArray_F32(values, len);
-    }
-    else {
-      /* No need for matrix column/row swapping here unless the matrix data is read directly. */
-      py_values = PyC_Tuple_PackArray_Multi_F32(
-          values, array_len_info.dims, array_len_info.dims_len);
-    }
-    PyTuple_SET_ITEMS(args, self, py_values);
+    PyTuple_SET_ITEMS(
+        args, self, bpy_py_object_from_prop_array_with_dims(values, array_len_info, PyFloat_Type));
 
     ret = PyObject_CallObject(py_func, args);
 
@@ -1341,6 +1449,47 @@ static void bpy_prop_float_array_set_fn(PointerRNA *ptr, PropertyRNA *prop, cons
 
     Py_DECREF(ret);
   }
+
+  bpy_prop_gil_rna_writable_end(bpy_state);
+}
+
+static void bpy_prop_float_array_set_transform_fn(PointerRNA *ptr,
+                                                  PropertyRNA *prop,
+                                                  const float *new_values,
+                                                  const float *curr_values,
+                                                  bool is_set,
+                                                  float *r_final_values)
+{
+  const BPyPropGIL_RNAWritable_State bpy_state = bpy_prop_gil_rna_writable_begin();
+
+  BPyPropStore *prop_store = static_cast<BPyPropStore *>(RNA_property_py_data_get(prop));
+  PyObject *py_func;
+  PyObject *ret;
+
+  const BPyPropArrayLength array_len_info{ptr, prop};
+
+  BLI_assert(prop_store != nullptr);
+
+  py_func = prop_store->py_data.set_transform_fn;
+
+  {
+    PyObject *args = PyTuple_New(4);
+    PyObject *self = pyrna_struct_as_instance(ptr);
+    PyTuple_SET_ITEMS(
+        args,
+        self,
+        bpy_py_object_from_prop_array_with_dims(new_values, array_len_info, PyFloat_Type),
+        bpy_py_object_from_prop_array_with_dims(curr_values, array_len_info, PyFloat_Type),
+        PyBool_FromLong(is_set));
+
+    ret = PyObject_CallObject(py_func, args);
+
+    Py_DECREF(args);
+  }
+
+  /* No need for matrix column/row swapping here unless the matrix data is read directly. */
+  bpy_prop_float_array_from_callback_or_error(
+      prop, ret, array_len_info, py_func, false, r_final_values);
 
   bpy_prop_gil_rna_writable_end(bpy_state);
 }
@@ -2357,10 +2506,14 @@ static void bpy_prop_callback_assign_float(PropertyRNA *prop, PyObject *get_fn, 
 
 static void bpy_prop_callback_assign_float_array(PropertyRNA *prop,
                                                  PyObject *get_fn,
-                                                 PyObject *set_fn)
+                                                 PyObject *set_fn,
+                                                 PyObject *get_transform_fn,
+                                                 PyObject *set_transform_fn)
 {
   FloatArrayPropertyGetFunc rna_get_fn = nullptr;
+  FloatArrayPropertyGetTransformFunc rna_get_transform_fn = nullptr;
   FloatArrayPropertySetFunc rna_set_fn = nullptr;
+  FloatArrayPropertySetTransformFunc rna_set_transform_fn = nullptr;
 
   if (get_fn && get_fn != Py_None) {
     BPyPropStore *prop_store = bpy_prop_py_data_ensure(prop);
@@ -2370,13 +2523,34 @@ static void bpy_prop_callback_assign_float_array(PropertyRNA *prop,
   }
 
   if (set_fn && set_fn != Py_None) {
+    if (!rna_get_fn) {
+      PyErr_SetString(PyExc_ValueError,
+                      "The `set` callback is defined without a matching `get` function, this is "
+                      "not supported. `set_transform` should probably be used instead?");
+    }
+
     BPyPropStore *prop_store = bpy_prop_py_data_ensure(prop);
 
     rna_set_fn = bpy_prop_float_array_set_fn;
     ASSIGN_PYOBJECT_INCREF(prop_store->py_data.set_fn, set_fn);
   }
 
-  RNA_def_property_float_array_funcs_runtime(prop, rna_get_fn, rna_set_fn, nullptr);
+  if (get_transform_fn && get_transform_fn != Py_None) {
+    BPyPropStore *prop_store = bpy_prop_py_data_ensure(prop);
+
+    rna_get_transform_fn = bpy_prop_float_array_get_transform_fn;
+    ASSIGN_PYOBJECT_INCREF(prop_store->py_data.get_transform_fn, get_transform_fn);
+  }
+
+  if (set_transform_fn && set_transform_fn != Py_None) {
+    BPyPropStore *prop_store = bpy_prop_py_data_ensure(prop);
+
+    rna_set_transform_fn = bpy_prop_float_array_set_transform_fn;
+    ASSIGN_PYOBJECT_INCREF(prop_store->py_data.set_transform_fn, set_transform_fn);
+  }
+
+  RNA_def_property_float_array_funcs_runtime(
+      prop, rna_get_fn, rna_set_fn, nullptr, rna_get_transform_fn, rna_set_transform_fn);
 }
 
 static bool bpy_prop_callback_assign_string(PropertyRNA *prop,
@@ -3810,14 +3984,16 @@ static PyObject *BPy_FloatVectorProperty(PyObject *self, PyObject *args, PyObjec
   PyObject *update_fn = nullptr;
   PyObject *get_fn = nullptr;
   PyObject *set_fn = nullptr;
+  PyObject *get_transform_fn = nullptr;
+  PyObject *set_transform_fn = nullptr;
 
   static const char *_keywords[] = {
-      "attr",     "name",   "description", "translation_context",
-      "default",  "min",    "max",         "soft_min",
-      "soft_max", "step",   "precision",   "options",
-      "override", "tags",   "subtype",     "unit",
-      "size",     "update", "get",         "set",
-      nullptr,
+      "attr",          "name",          "description", "translation_context",
+      "default",       "min",           "max",         "soft_min",
+      "soft_max",      "step",          "precision",   "options",
+      "override",      "tags",          "subtype",     "unit",
+      "size",          "update",        "get",         "set",
+      "get_transform", "set_transform", nullptr,
   };
   static _PyArg_Parser _parser = {
       PY_ARG_PARSER_HEAD_COMPAT()
@@ -3842,6 +4018,8 @@ static PyObject *BPy_FloatVectorProperty(PyObject *self, PyObject *args, PyObjec
       "O"  /* `update` */
       "O"  /* `get` */
       "O"  /* `set` */
+      "O"  /* `get_transform` */
+      "O"  /* `set_transform` */
       ":FloatVectorProperty",
       _keywords,
       nullptr,
@@ -3875,7 +4053,9 @@ static PyObject *BPy_FloatVectorProperty(PyObject *self, PyObject *args, PyObjec
                                         &array_len_info,
                                         &update_fn,
                                         &get_fn,
-                                        &set_fn))
+                                        &set_fn,
+                                        &get_transform_fn,
+                                        &set_transform_fn))
   {
     return nullptr;
   }
@@ -3903,6 +4083,12 @@ static PyObject *BPy_FloatVectorProperty(PyObject *self, PyObject *args, PyObjec
     return nullptr;
   }
   if (bpy_prop_callback_check(set_fn, "set", 2) == -1) {
+    return nullptr;
+  }
+  if (bpy_prop_callback_check(get_transform_fn, "get_transform", 3) == -1) {
+    return nullptr;
+  }
+  if (bpy_prop_callback_check(set_transform_fn, "set_transform", 4) == -1) {
     return nullptr;
   }
 
@@ -3942,7 +4128,7 @@ static PyObject *BPy_FloatVectorProperty(PyObject *self, PyObject *args, PyObjec
     bpy_prop_assign_flag_override(prop, override_enum.value);
   }
   bpy_prop_callback_assign_update(prop, update_fn);
-  bpy_prop_callback_assign_float_array(prop, get_fn, set_fn);
+  bpy_prop_callback_assign_float_array(prop, get_fn, set_fn, get_transform_fn, set_transform_fn);
   RNA_def_property_duplicate_pointers(srna, prop);
 
   Py_RETURN_NONE;

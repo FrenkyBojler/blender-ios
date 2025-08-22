@@ -3455,49 +3455,73 @@ static void rna_property_float_get_default_array_values(PointerRNA *ptr,
   }
 
   int length = fprop->property.totarraylength;
-  int out_length = RNA_property_array_length(ptr, (PropertyRNA *)fprop);
+  int out_length = RNA_property_array_length(ptr, &fprop->property);
 
   rna_property_float_fill_default_array_values(
       fprop->defaultarray, length, fprop->defaultvalue, out_length, r_values);
 }
 
-void RNA_property_float_get_array(PointerRNA *ptr, PropertyRNA *prop, float *values)
+void property_float_get_array(PointerRNA *ptr, PropertyRNAOrID &prop_rna_or_id, float *r_values)
 {
-  FloatPropertyRNA *fprop = (FloatPropertyRNA *)prop;
-  IDProperty *idprop;
-  int i;
-
-  BLI_assert(RNA_property_type(prop) == PROP_FLOAT);
-  BLI_assert(RNA_property_array_check(prop) != false);
-
-  if ((idprop = rna_idproperty_check(&prop, ptr))) {
-    BLI_assert(idprop->len == RNA_property_array_length(ptr, prop) ||
-               (prop->flag & PROP_IDPROPERTY));
-    if (prop->arraydimension == 0) {
-      values[0] = RNA_property_float_get(ptr, prop);
+  PropertyRNA *rna_prop = prop_rna_or_id.rnaprop;
+  FloatPropertyRNA *fprop = reinterpret_cast<FloatPropertyRNA *>(rna_prop);
+  if (prop_rna_or_id.idprop) {
+    IDProperty *idprop = prop_rna_or_id.idprop;
+    BLI_assert(idprop->len == RNA_property_array_length(ptr, rna_prop) ||
+               (rna_prop->flag & PROP_IDPROPERTY));
+    if (rna_prop->arraydimension == 0) {
+      r_values[0] = RNA_property_float_get(ptr, rna_prop);
     }
     else if (idprop->subtype == IDP_FLOAT) {
-      memcpy(values, IDP_Array(idprop), sizeof(float) * idprop->len);
+      memcpy(r_values, IDP_Array(idprop), sizeof(*r_values) * idprop->len);
     }
     else {
-      for (i = 0; i < idprop->len; i++) {
-        values[i] = float(((double *)IDP_Array(idprop))[i]);
+      for (int i = 0; i < idprop->len; i++) {
+        r_values[i] = float(((double *)IDP_Array(idprop))[i]);
       }
     }
   }
-  else if (prop->arraydimension == 0) {
-    values[0] = RNA_property_float_get(ptr, prop);
+  else if (rna_prop->arraydimension == 0) {
+    r_values[0] = RNA_property_float_get(ptr, rna_prop);
   }
   else if (fprop->getarray) {
-    fprop->getarray(ptr, values);
+    fprop->getarray(ptr, r_values);
   }
   else if (fprop->getarray_ex) {
-    fprop->getarray_ex(ptr, prop, values);
+    fprop->getarray_ex(ptr, rna_prop, r_values);
   }
   else {
-    rna_property_float_get_default_array_values(ptr, fprop, values);
+    rna_property_float_get_default_array_values(ptr, fprop, r_values);
   }
 }
+
+void RNA_property_float_get_array(PointerRNA *ptr, PropertyRNA *prop, float *values)
+{
+  BLI_assert(RNA_property_type(prop) == PROP_FLOAT);
+  BLI_assert(RNA_property_array_check(prop) != false);
+
+  PropertyRNAOrID prop_rna_or_id;
+  rna_property_rna_or_id_get(prop, ptr, &prop_rna_or_id);
+  /* NOTE: `prop` is kept unchanged, to allow e.g. call to `RNA_property_float_get_array` without
+   * further complications.
+   * `fprop->property` should be used when access to an actual RNA property is required.
+   */
+  FloatPropertyRNA *fprop = reinterpret_cast<FloatPropertyRNA *>(prop_rna_or_id.rnaprop);
+
+  property_float_get_array(ptr, prop_rna_or_id, values);
+  if (fprop->getarray_transform) {
+    /* NOTE: Given current implementation, it would _probably_ be safe to use `values` for both
+     * input 'current values' and output 'final values', since python will make a copy of the input
+     * anyways. Think it's better to keep it clean and make a copy here to avoid any potential
+     * issues in the future though. */
+    const int64_t values_num = int64_t(RNA_property_array_length(ptr, prop));
+    blender::Array<float, 16> curr_values(values_num);
+    memcpy(curr_values.data(), values, sizeof(*values) * values_num);
+    fprop->getarray_transform(
+        ptr, &fprop->property, curr_values.data(), prop_rna_or_id.is_set, values);
+  }
+}
+
 void RNA_property_float_get_array_at_most(PointerRNA *ptr,
                                           PropertyRNA *prop,
                                           float *values,
@@ -3578,55 +3602,79 @@ float RNA_property_float_get_index(PointerRNA *ptr, PropertyRNA *prop, int index
 
 void RNA_property_float_set_array(PointerRNA *ptr, PropertyRNA *prop, const float *values)
 {
-  FloatPropertyRNA *fprop = (FloatPropertyRNA *)prop;
-  IDProperty *idprop;
-  int i;
-
   BLI_assert(RNA_property_type(prop) == PROP_FLOAT);
   BLI_assert(RNA_property_array_check(prop) != false);
 
-  if ((idprop = rna_idproperty_check(&prop, ptr))) {
-    BLI_assert(idprop->len == RNA_property_array_length(ptr, prop) ||
-               (prop->flag & PROP_IDPROPERTY));
-    if (prop->arraydimension == 0) {
+  PropertyRNAOrID prop_rna_or_id;
+  rna_property_rna_or_id_get(prop, ptr, &prop_rna_or_id);
+  /* NOTE: `prop` is kept unchanged, to allow e.g. call to `RNA_property_boolean_get` without
+   * further complications.
+   * `fprop->property` or `prop_rna_or_id.rnaprop` should be used when access to an actual RNA
+   * property is required.
+   */
+  IDProperty *idprop = prop_rna_or_id.idprop;
+  PropertyRNA *rna_prop = prop_rna_or_id.rnaprop;
+  FloatPropertyRNA *fprop = reinterpret_cast<FloatPropertyRNA *>(rna_prop);
+
+  const float *final_values = values;
+  const int64_t values_num = int64_t(prop_rna_or_id.array_len);
+  /* Default init does not allocate anything, so it's cheap. This is only reinitialized with actual
+   * `values_num` items if `setarray_transform` is called. */
+  blender::Array<float, 16> final_values_storage{};
+  if (fprop->setarray_transform) {
+    /* Get raw, untransformed (aka 'storage') value. */
+    blender::Array<float, 16> curr_values(values_num);
+    property_float_get_array(ptr, prop_rna_or_id, curr_values.data());
+
+    final_values_storage.reinitialize(values_num);
+    fprop->setarray_transform(
+        ptr, prop, values, curr_values.data(), prop_rna_or_id.is_set, final_values_storage.data());
+    final_values = final_values_storage.data();
+  }
+
+  if (idprop) {
+    BLI_assert(idprop->len == values_num || (rna_prop->flag & PROP_IDPROPERTY));
+    if (rna_prop->arraydimension == 0) {
       if (idprop->type == IDP_FLOAT) {
-        IDP_Float(idprop) = values[0];
+        IDP_Float(idprop) = final_values[0];
       }
       else {
-        IDP_Double(idprop) = values[0];
+        IDP_Double(idprop) = double(final_values[0]);
       }
     }
     else if (idprop->subtype == IDP_FLOAT) {
-      memcpy(IDP_Array(idprop), values, sizeof(float) * idprop->len);
+      memcpy(IDP_Array(idprop), final_values, sizeof(*final_values) * idprop->len);
     }
     else {
-      for (i = 0; i < idprop->len; i++) {
-        ((double *)IDP_Array(idprop))[i] = values[i];
+      for (int i = 0; i < idprop->len; i++) {
+        static_cast<double *>(IDP_Array(idprop))[i] = double(final_values[i]);
       }
     }
 
     rna_idproperty_touch(idprop);
   }
-  else if (prop->arraydimension == 0) {
-    RNA_property_float_set(ptr, prop, values[0]);
+  else if (rna_prop->arraydimension == 0) {
+    RNA_property_float_set(ptr, rna_prop, final_values[0]);
   }
   else if (fprop->setarray) {
-    fprop->setarray(ptr, values);
+    fprop->setarray(ptr, final_values);
   }
   else if (fprop->setarray_ex) {
-    fprop->setarray_ex(ptr, prop, values);
+    fprop->setarray_ex(ptr, rna_prop, final_values);
   }
-  else if (prop->flag & PROP_EDITABLE) {
+  else if (rna_prop->flag & PROP_EDITABLE) {
     // RNA_property_float_clamp_array(ptr, prop, &value); /* TODO. */
     if (IDProperty *group = RNA_struct_system_idprops(ptr, true)) {
-      IDP_AddToGroup(group,
-                     blender::bke::idprop::create(prop->identifier,
-                                                  blender::Span(values, prop->totarraylength),
-                                                  IDP_FLAG_STATIC_TYPE)
-                         .release());
+      IDP_AddToGroup(
+          group,
+          blender::bke::idprop::create(rna_prop->identifier,
+                                       blender::Span(final_values, rna_prop->totarraylength),
+                                       IDP_FLAG_STATIC_TYPE)
+              .release());
     }
   }
 }
+
 void RNA_property_float_set_array_at_most(PointerRNA *ptr,
                                           PropertyRNA *prop,
                                           const float *values,

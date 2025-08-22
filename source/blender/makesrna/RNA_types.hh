@@ -703,14 +703,24 @@ using IntArrayPropertyGetFunc = void (*)(PointerRNA *ptr, PropertyRNA *prop, int
 using IntArrayPropertySetFunc = void (*)(PointerRNA *ptr, PropertyRNA *prop, const int *values);
 using IntPropertyRangeFunc =
     void (*)(PointerRNA *ptr, PropertyRNA *prop, int *min, int *max, int *softmin, int *softmax);
+
 using FloatPropertyGetFunc = float (*)(PointerRNA *ptr, PropertyRNA *prop);
 using FloatPropertySetFunc = void (*)(PointerRNA *ptr, PropertyRNA *prop, float value);
 using FloatArrayPropertyGetFunc = void (*)(PointerRNA *ptr, PropertyRNA *prop, float *values);
 using FloatArrayPropertySetFunc = void (*)(PointerRNA *ptr,
                                            PropertyRNA *prop,
                                            const float *values);
+using FloatArrayPropertyGetTransformFunc = void (*)(
+    PointerRNA *ptr, PropertyRNA *prop, const float *curr_values, bool is_set, float *r_values);
+using FloatArrayPropertySetTransformFunc = void (*)(PointerRNA *ptr,
+                                                    PropertyRNA *prop,
+                                                    const float *new_values,
+                                                    const float *curr_values,
+                                                    bool is_set,
+                                                    float *r_values);
 using FloatPropertyRangeFunc = void (*)(
     PointerRNA *ptr, PropertyRNA *prop, float *min, float *max, float *softmin, float *softmax);
+
 using StringPropertyGetFunc = std::string (*)(PointerRNA *ptr, PropertyRNA *prop);
 using StringPropertyLengthFunc = int (*)(PointerRNA *ptr, PropertyRNA *prop);
 using StringPropertySetFunc = void (*)(PointerRNA *ptr,

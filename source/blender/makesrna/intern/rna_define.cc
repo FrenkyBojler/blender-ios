@@ -3534,10 +3534,13 @@ void RNA_def_property_float_funcs_runtime(PropertyRNA *prop,
   }
 }
 
-void RNA_def_property_float_array_funcs_runtime(PropertyRNA *prop,
-                                                FloatArrayPropertyGetFunc getfunc,
-                                                FloatArrayPropertySetFunc setfunc,
-                                                FloatPropertyRangeFunc rangefunc)
+void RNA_def_property_float_array_funcs_runtime(
+    PropertyRNA *prop,
+    FloatArrayPropertyGetFunc getfunc,
+    FloatArrayPropertySetFunc setfunc,
+    FloatPropertyRangeFunc rangefunc,
+    FloatArrayPropertyGetTransformFunc get_transform_fn,
+    FloatArrayPropertySetTransformFunc set_transform_fn)
 {
   FloatPropertyRNA *fprop = (FloatPropertyRNA *)prop;
 
@@ -3558,6 +3561,13 @@ void RNA_def_property_float_array_funcs_runtime(PropertyRNA *prop,
     if (!setfunc) {
       RNA_def_property_clear_flag(prop, PROP_EDITABLE);
     }
+  }
+
+  if (get_transform_fn) {
+    fprop->getarray_transform = get_transform_fn;
+  }
+  if (set_transform_fn) {
+    fprop->setarray_transform = set_transform_fn;
   }
 }
 

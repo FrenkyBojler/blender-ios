@@ -137,6 +137,8 @@ using PropEnumSetFuncEx = void (*)(PointerRNA *ptr, PropertyRNA *prop, int value
 
 using PropBooleanGetTransformFunc = BooleanPropertyGetTransformFunc;
 using PropBooleanSetTransformFunc = BooleanPropertySetTransformFunc;
+using PropFloatArrayGetTransformFunc = FloatArrayPropertyGetTransformFunc;
+using PropFloatArraySetTransformFunc = FloatArrayPropertySetTransformFunc;
 using PropStringGetTransformFunc = StringPropertyGetTransformFunc;
 using PropStringSetTransformFunc = StringPropertySetTransformFunc;
 
@@ -526,6 +528,9 @@ struct FloatPropertyRNA {
   PropFloatArrayGetFuncEx getarray_ex;
   PropFloatArraySetFuncEx setarray_ex;
   PropFloatRangeFuncEx range_ex;
+
+  PropFloatArrayGetTransformFunc getarray_transform;
+  PropFloatArraySetTransformFunc setarray_transform;
 
   PropertyScaleType ui_scale_type;
   float softmin, softmax;

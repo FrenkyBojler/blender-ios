@@ -593,10 +593,13 @@ void RNA_def_property_float_funcs_runtime(PropertyRNA *prop,
                                           FloatPropertyGetFunc getfunc,
                                           FloatPropertySetFunc setfunc,
                                           FloatPropertyRangeFunc rangefunc);
-void RNA_def_property_float_array_funcs_runtime(PropertyRNA *prop,
-                                                FloatArrayPropertyGetFunc getfunc,
-                                                FloatArrayPropertySetFunc setfunc,
-                                                FloatPropertyRangeFunc rangefunc);
+void RNA_def_property_float_array_funcs_runtime(
+    PropertyRNA *prop,
+    FloatArrayPropertyGetFunc getfunc,
+    FloatArrayPropertySetFunc setfunc,
+    FloatPropertyRangeFunc rangefunc,
+    FloatArrayPropertyGetTransformFunc get_transform_fn,
+    FloatArrayPropertySetTransformFunc set_transform_fn);
 void RNA_def_property_enum_funcs_runtime(PropertyRNA *prop,
                                          EnumPropertyGetFunc getfunc,
                                          EnumPropertySetFunc setfunc,

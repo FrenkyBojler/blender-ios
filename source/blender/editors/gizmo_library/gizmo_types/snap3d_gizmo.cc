@@ -339,8 +339,12 @@ static void GIZMO_GT_snap_3d(wmGizmoType *gzt)
                              "Point that defines the location of the perpendicular snap",
                              FLT_MIN,
                              FLT_MAX);
-  RNA_def_property_float_array_funcs_runtime(
-      prop, gizmo_snap_rna_prevpoint_get_fn, gizmo_snap_rna_prevpoint_set_fn, nullptr);
+  RNA_def_property_float_array_funcs_runtime(prop,
+                                             gizmo_snap_rna_prevpoint_get_fn,
+                                             gizmo_snap_rna_prevpoint_set_fn,
+                                             nullptr,
+                                             nullptr,
+                                             nullptr);
 
   /* Returns. */
   prop = RNA_def_float_translation(gzt->srna,
@@ -353,8 +357,12 @@ static void GIZMO_GT_snap_3d(wmGizmoType *gzt)
                                    "Snap Point Location",
                                    FLT_MIN,
                                    FLT_MAX);
-  RNA_def_property_float_array_funcs_runtime(
-      prop, gizmo_snap_rna_location_get_fn, gizmo_snap_rna_location_set_fn, nullptr);
+  RNA_def_property_float_array_funcs_runtime(prop,
+                                             gizmo_snap_rna_location_get_fn,
+                                             gizmo_snap_rna_location_set_fn,
+                                             nullptr,
+                                             nullptr,
+                                             nullptr);
 
   prop = RNA_def_float_vector_xyz(gzt->srna,
                                   "normal",
@@ -366,7 +374,8 @@ static void GIZMO_GT_snap_3d(wmGizmoType *gzt)
                                   "Snap Point Normal",
                                   FLT_MIN,
                                   FLT_MAX);
-  RNA_def_property_float_array_funcs_runtime(prop, gizmo_snap_rna_normal_get_fn, nullptr, nullptr);
+  RNA_def_property_float_array_funcs_runtime(
+      prop, gizmo_snap_rna_normal_get_fn, nullptr, nullptr, nullptr, nullptr);
 
   prop = RNA_def_int_vector(gzt->srna,
                             "snap_elem_index",

@@ -87,6 +87,7 @@ def _run_runtime_group_register_access(args):
     property_transform_get_cb = {
         'BoolProperty': lambda v: not v,
         'IntProperty': lambda v: v - 1,
+        'FloatVectorProperty': lambda v: [v[0], v[1], v[2]],
         'StringProperty': lambda v: ("B" if (v and v[0] == "A") else "A") + v[1:],
     }.get(property_type, lambda v: v)
 
@@ -185,8 +186,10 @@ def generate(env):
                    {"do_access": True, "do_get_set": True, "property_type": 'FloatVectorProperty'}),
         BPYRNATest("Py-Defined StringProperty Custom Get/Set Access", _run_runtime_group_register_access, 10 * 1000,
                    {"do_access": True, "do_get_set": True, "property_type": 'StringProperty'}),
-        BPYRNATest("Py-Defined BoolProperty Custom Transform Access", _run_runtime_group_register_access, 10 * 100000,
+        BPYRNATest("Py-Defined BoolProperty Custom Transform Access", _run_runtime_group_register_access, 1000 * 1000,
                    {"do_access": True, "do_transform": True, "property_type": 'BoolProperty'}),
-        BPYRNATest("Py-Defined StringProperty Custom Transform Access", _run_runtime_group_register_access, 10 * 100000,
+        BPYRNATest("Py-Defined FloatVectorProperty Custom Transform Access", _run_runtime_group_register_access, 1000 * 1000,
+                   {"do_access": True, "do_transform": True, "property_type": 'FloatVectorProperty'}),
+        BPYRNATest("Py-Defined StringProperty Custom Transform Access", _run_runtime_group_register_access, 1000 * 1000,
                    {"do_access": True, "do_transform": True, "property_type": 'StringProperty'}),
     ]
