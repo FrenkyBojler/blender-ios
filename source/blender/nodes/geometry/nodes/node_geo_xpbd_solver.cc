@@ -11,7 +11,7 @@
 #include "DNA_mesh_types.h"
 #include "DNA_pointcloud_types.h"
 
-#include "GEO_xpbd.hh"
+#include "GEO_xpbd_old.hh"
 
 #include "node_geometry_util.hh"
 

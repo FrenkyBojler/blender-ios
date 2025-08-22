@@ -18,7 +18,7 @@
 #include "GEO_join_geometries.hh"
 #include "GEO_jolt.hh"
 #include "GEO_shape_hash.hh"
-#include "GEO_xpbd.hh"
+#include "GEO_xpbd_old.hh"
 
 #include "NOD_geometry_nodes_bundle.hh"
 #include "NOD_geometry_nodes_bundle_parse.hh"
