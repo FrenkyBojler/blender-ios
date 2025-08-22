@@ -898,6 +898,8 @@ static void update_gpu_scopes(const ImBuf *input_ibuf,
       "seq_scope_display_buf", width, height, 1, format, usage, nullptr);
   GPU_texture_filter_mode(display_texture, false);
 
+  GPU_matrix_push();
+  GPU_matrix_push_projection();
   GPU_matrix_ortho_set(0.0f, 1.0f, 0.0f, 1.0f, -1.0, 1.0f);
   GPU_matrix_identity_set();
 
@@ -927,10 +929,10 @@ static void update_gpu_scopes(const ImBuf *input_ibuf,
     IMB_colormanagement_finish_glsl_draw();
   }
 
+  GPU_FRAMEBUFFER_FREE_SAFE(fb);
+
   GPU_matrix_pop();
   GPU_matrix_pop_projection();
-
-  GPU_FRAMEBUFFER_FREE_SAFE(fb);
 
   seq::preview_cache_set_gpu_display_texture(scene, timeline_frame, display_texture);
 }
