@@ -815,10 +815,10 @@ static void sequencer_draw_scopes(Scene *scene,
         /* Depending on resolution of the image, different amounts of pixels are expected
          * to hit the same locations of the scope. Adjust the scope transparency mapping
          * exponent so that the scope has decent visibility without saturating or being too dark:
-         * 0.05 at height=2160 (4K) and up, 0.3 at height=360 and below, and interpolating between
+         * 0.07 at height=2160 (4K) and up, 0.5 at height=360 and below, and interpolating between
          * those. */
         float alpha = math::clamp(ratiof(360.0f, 2160.0f, image_height), 0.0f, 1.0f);
-        float exponent = math::interpolate(0.3f, 0.05f, alpha);
+        float exponent = math::interpolate(0.5f, 0.07f, alpha);
 
         gpu::Shader *shader = GPU_shader_get_builtin_shader(GPU_SHADER_SEQUENCER_SCOPE_RESOLVE);
         BLI_assert(shader);
