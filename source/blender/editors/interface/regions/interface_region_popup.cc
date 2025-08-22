@@ -329,7 +329,7 @@ static void ui_popup_block_position(wmWindow *window,
 
     /* when you are outside parent button, safety there should be smaller */
 
-    const int s1 = (U.flag & USER_MENU_KEEP_OPEN ? 80 : 40) * UI_SCALE_FAC;
+    const int s1 = (U.flag & USER_MENU_KEEP_OPEN) ? win_size[0] : 40 * UI_SCALE_FAC;
     const int s2 = 3 * UI_SCALE_FAC;
 
     /* parent button to left */
