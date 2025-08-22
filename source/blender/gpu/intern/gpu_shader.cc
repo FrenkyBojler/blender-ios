@@ -132,15 +132,7 @@ void GPU_shader_free(blender::gpu::Shader *shader)
 
 const GPUShaderCreateInfo *GPU_shader_create_info_get(const char *info_name)
 {
-  using namespace blender::gpu::shader;
-  const GPUShaderCreateInfo *_info = gpu_shader_create_info_get(info_name);
-  const ShaderCreateInfo &info = *reinterpret_cast<const ShaderCreateInfo *>(_info);
-  if (!info.do_static_compilation_) {
-    std::cerr << "Warning: Trying to compile \"" << info.name_
-              << "\" which was not marked for static compilation.\n";
-    BLI_assert_unreachable();
-  }
-  return _info;
+  return gpu_shader_create_info_get(info_name);
 }
 
 bool GPU_shader_create_info_check_error(const GPUShaderCreateInfo *_info, char r_error[128])
@@ -158,8 +150,14 @@ bool GPU_shader_create_info_check_error(const GPUShaderCreateInfo *_info, char r
 
 blender::gpu::Shader *GPU_shader_create_from_info_name(const char *info_name)
 {
-  const GPUShaderCreateInfo *info = GPU_shader_create_info_get(info_name);
-  return GPU_shader_create_from_info(info);
+  using namespace blender::gpu::shader;
+  const GPUShaderCreateInfo *_info = gpu_shader_create_info_get(info_name);
+  const ShaderCreateInfo &info = *reinterpret_cast<const ShaderCreateInfo *>(_info);
+  if (!info.do_static_compilation_) {
+    std::cerr << "Warning: Trying to compile \"" << info.name_
+              << "\" which was not marked for static compilation.\n";
+  }
+  return GPU_shader_create_from_info(_info);
 }
 
 blender::gpu::Shader *GPU_shader_create_from_info(const GPUShaderCreateInfo *_info)
