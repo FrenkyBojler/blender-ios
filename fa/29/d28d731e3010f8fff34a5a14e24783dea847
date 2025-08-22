@@ -1,2 +1,3 @@
 Referenced by issue #113346, Unable to Append All
 Referenced by issue #113350, Fix #113346: Append/Link fails if no name is specified
+Referenced by commit ffbd078c555b9d41697977a68f734fb9ef63fe74, Fix: failure to append with an unsaved blend file
