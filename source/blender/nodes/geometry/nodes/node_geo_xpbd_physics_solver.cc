@@ -913,7 +913,7 @@ static void gather_edge_length_constraints(
     const VectorSet<SimPointsKey> &keys,
     const Map<SimPointsKey, SimPointsWorldProperties> &sim_points_props,
     const float delta_time,
-    Vector<const geometry::xpbd_constraint_solver::ConstraintSetEvaluator *> &r_constraint_sets)
+    Vector<const geometry::xpbd_constraint_solver::ConstraintSet *> &r_constraint_sets)
 {
   const float compliance_factor = compute_compliance_factor(delta_time);
 
@@ -985,7 +985,7 @@ static void gather_curve_segment_constraints(
     const VectorSet<SimPointsKey> &keys,
     const Map<SimPointsKey, SimPointsWorldProperties> &sim_points_props,
     const float delta_time,
-    Vector<const geometry::xpbd_constraint_solver::ConstraintSetEvaluator *> &r_constraint_sets)
+    Vector<const geometry::xpbd_constraint_solver::ConstraintSet *> &r_constraint_sets)
 {
   const float compliance_factor = compute_compliance_factor(delta_time);
 
@@ -1059,7 +1059,7 @@ static void gather_overpressure_constraints(
     const Span<GeometrySet> applied_geometries,
     const VectorSet<SimPointsKey> &keys,
     const Map<SimPointsKey, SimPointsWorldProperties> &sim_points_props,
-    Vector<const geometry::xpbd_constraint_solver::ConstraintSetEvaluator *> &r_constraint_sets)
+    Vector<const geometry::xpbd_constraint_solver::ConstraintSet *> &r_constraint_sets)
 {
   for (const int key_i : keys.index_range()) {
     const SimPointsKey &key = keys[key_i];
@@ -1107,7 +1107,7 @@ static void gather_curves_rod_stretch_and_shear_constraints(
     const VectorSet<SimPointsKey> &keys,
     const Map<SimPointsKey, SimPointsWorldProperties> &sim_points_props,
     const float delta_time,
-    Vector<const geometry::xpbd_constraint_solver::ConstraintSetEvaluator *> &r_constraint_sets)
+    Vector<const geometry::xpbd_constraint_solver::ConstraintSet *> &r_constraint_sets)
 {
   const float compliance_factor = compute_compliance_factor(delta_time);
 
@@ -1178,7 +1178,7 @@ static void gather_curves_rod_bend_and_twist_constraints(
     const VectorSet<SimPointsKey> &keys,
     const Map<SimPointsKey, SimPointsWorldProperties> &sim_points_props,
     const float delta_time,
-    Vector<const geometry::xpbd_constraint_solver::ConstraintSetEvaluator *> &r_constraint_sets)
+    Vector<const geometry::xpbd_constraint_solver::ConstraintSet *> &r_constraint_sets)
 {
   const float compliance_factor = compute_compliance_factor(delta_time);
 
@@ -1244,7 +1244,7 @@ static Map<SimPointsKey, MutableSpan<float3>> gather_soft_pinned_position_constr
     const Map<SimPointsKey, SimPointsWorldProperties> &sim_points_props,
     const Map<SimPointsKey, PinnedPositions> &pinned_positions_map,
     const float delta_time,
-    Vector<const geometry::xpbd_constraint_solver::ConstraintSetEvaluator *> &r_constraint_sets)
+    Vector<const geometry::xpbd_constraint_solver::ConstraintSet *> &r_constraint_sets)
 {
   const float compliance_factor = compute_compliance_factor(delta_time);
   Map<SimPointsKey, MutableSpan<float3>> result;
@@ -1283,7 +1283,7 @@ static Map<SimPointsKey, MutableSpan<math::Quaternion>> gather_soft_pinned_rotat
     const Map<SimPointsKey, SimPointsWorldProperties> &sim_points_props,
     const Map<SimPointsKey, PinnedRotations> &pinned_rotations_map,
     const float delta_time,
-    Vector<const geometry::xpbd_constraint_solver::ConstraintSetEvaluator *> &r_constraint_sets)
+    Vector<const geometry::xpbd_constraint_solver::ConstraintSet *> &r_constraint_sets)
 {
   const float compliance_factor = compute_compliance_factor(delta_time);
   Map<SimPointsKey, MutableSpan<math::Quaternion>> result;
@@ -1324,7 +1324,7 @@ static void gather_align_positions_constraints(
     const VectorSet<SimPointsKey> &keys,
     const Map<SimPointsKey, SimPointsWorldProperties> &sim_points_props,
     const float delta_time,
-    Vector<const geometry::xpbd_constraint_solver::ConstraintSetEvaluator *> &r_constraint_sets)
+    Vector<const geometry::xpbd_constraint_solver::ConstraintSet *> &r_constraint_sets)
 {
   const float compliance_factor = compute_compliance_factor(delta_time);
 
@@ -1430,7 +1430,7 @@ static void gather_attach_uv_surface_constraints(
     const VectorSet<SimPointsKey> &keys,
     const Map<SimPointsKey, SimPointsWorldProperties> &sim_points_props,
     const float delta_time,
-    Vector<const geometry::xpbd_constraint_solver::ConstraintSetEvaluator *> &r_constraint_sets)
+    Vector<const geometry::xpbd_constraint_solver::ConstraintSet *> &r_constraint_sets)
 {
   const float compliance_factor = compute_compliance_factor(delta_time);
 
@@ -1554,7 +1554,7 @@ static void gather_distance_based_edge_bending_constraints(
     const VectorSet<SimPointsKey> &keys,
     const Map<SimPointsKey, SimPointsWorldProperties> &sim_points_props,
     const float delta_time,
-    Vector<const geometry::xpbd_constraint_solver::ConstraintSetEvaluator *> &r_constraint_sets)
+    Vector<const geometry::xpbd_constraint_solver::ConstraintSet *> &r_constraint_sets)
 {
   const float compliance_factor = compute_compliance_factor(delta_time);
 
@@ -1805,7 +1805,7 @@ static void generate_collision_constraint_sets(
     const VectorSet<SimPointsKey> &keys,
     const Map<SimPointsKey, SimPointsWorldProperties> &sim_points_props,
     const float delta_time,
-    Vector<const geometry::xpbd_constraint_solver::ConstraintSetEvaluator *> &r_constraint_sets)
+    Vector<const geometry::xpbd_constraint_solver::ConstraintSet *> &r_constraint_sets)
 {
   for (auto item : contacts.static_plane_contacts.items()) {
     const int key_i = keys.index_of(item.key);
@@ -1899,7 +1899,7 @@ static void remove_unused_states(XPBDState &state)
 static void solve_constraints(
     const SolverType solver_type,
     const Span<geometry::xpbd_constraint_solver::MutablePointsRef> points_refs,
-    const Span<const geometry::xpbd_constraint_solver::ConstraintSetEvaluator *> constraint_sets)
+    const Span<const geometry::xpbd_constraint_solver::ConstraintSet *> constraint_sets)
 {
   switch (solver_type) {
     case SolverType::SerialGaussSeidel: {
@@ -2243,7 +2243,7 @@ static void update_and_step_xpbd_state(XPBDState &state,
 
   const float sub_delta_time = math::safe_divide<float>(total_delta_time, substeps);
 
-  Vector<const geometry::xpbd_constraint_solver::ConstraintSetEvaluator *> static_constraint_sets;
+  Vector<const geometry::xpbd_constraint_solver::ConstraintSet *> static_constraint_sets;
   gather_edge_length_constraints(scope,
                                  state,
                                  world,
@@ -2352,7 +2352,7 @@ static void update_and_step_xpbd_state(XPBDState &state,
     update_pinned_rotations(state, pinned_rotations_map, soft_pinned_rotations_map, factor);
 
     /* Find current collisisons and generate constraints to resolve them. */
-    Vector<const geometry::xpbd_constraint_solver::ConstraintSetEvaluator *> constraint_sets =
+    Vector<const geometry::xpbd_constraint_solver::ConstraintSet *> constraint_sets =
         static_constraint_sets;
     const Contacts contacts = gather_contacts(
         state, world, applied_geometries, keys, sim_points_props);

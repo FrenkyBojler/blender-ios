@@ -75,18 +75,18 @@ class NonDeterministicJacobianUpdater {
  * Base class for constraint evaluators. It evaluates batches of constraints and writes back the
  * results using a passed in "updater".
  *
- * Use #TemplatedConstraintSetEvaluator to instantiate the constraint evaluation for each updater
+ * Use #TemplatedConstraintSet to instantiate the constraint evaluation for each updater
  * automatically. This avoids having to implement separate Jacobian and Gauss Seidel code paths for
  * such constraints.
  */
-class ConstraintSetEvaluator {
+class ConstraintSet {
  protected:
   Vector<int> affected_points_refs_;
 
  public:
-  ConstraintSetEvaluator(Vector<int> affected_points_refs);
+  ConstraintSet(Vector<int> affected_points_refs);
 
-  virtual ~ConstraintSetEvaluator() = default;
+  virtual ~ConstraintSet() = default;
 
   virtual void evaluate_parallel_non_deterministic_jacobian(
       NonDeterministicJacobianUpdater &updater, Span<PointsRef> points_refs) const = 0;
@@ -104,7 +104,7 @@ class ConstraintSetEvaluator {
  *
  * Child classes have to implement the templated #evaluate_single method.
  */
-template<typename Child> class TemplatedConstraintSetEvaluator : public ConstraintSetEvaluator {
+template<typename Child> class TemplatedConstraintSet : public ConstraintSet {
  protected:
   const int constraints_num_;
   const int grain_size_ = 256;
@@ -115,7 +115,7 @@ template<typename Child> class TemplatedConstraintSetEvaluator : public Constrai
   mutable Vector<IndexMask> independent_masks_;
 
  public:
-  TemplatedConstraintSetEvaluator(int constraints_num, Vector<int> affected_points_refs);
+  TemplatedConstraintSet(int constraints_num, Vector<int> affected_points_refs);
 
   void evaluate_parallel_non_deterministic_jacobian(NonDeterministicJacobianUpdater &updater,
                                                     Span<PointsRef> points_refs) const override;
@@ -153,20 +153,20 @@ Vector<IndexMask> n_ary_constraints_to_independent_masks_multi(
  * any parallelism.
  */
 void solve_gauss_seidel_one_at_a_time(Span<MutablePointsRef> points_refs,
-                                      Span<const ConstraintSetEvaluator *> constraint_sets);
+                                      Span<const ConstraintSet *> constraint_sets);
 
 /**
  * Fully parallel Jacobian solver, but it is not deterministic. This is mainly for testing
  * purposes.
  */
 void solve_jacobian_non_deterministic(Span<MutablePointsRef> points_refs,
-                                      Span<const ConstraintSetEvaluator *> constraint_sets);
+                                      Span<const ConstraintSet *> constraint_sets);
 
 /**
  * A Gauss Seidel solver that attempts to parallelize the evaluation of constraints.
  */
 void solve_gauss_seidel_parallel(Span<MutablePointsRef> points_refs,
-                                 Span<const ConstraintSetEvaluator *> constraint_sets);
+                                 Span<const ConstraintSet *> constraint_sets);
 
 /* -------------------------------------------------------------------- */
 /** \name Inline Functions
@@ -288,13 +288,13 @@ inline Vector<IndexMask> detect_independent_constraints(
   return masks;
 }
 
-inline Span<int> ConstraintSetEvaluator::get_affected_points_refs() const
+inline Span<int> ConstraintSet::get_affected_points_refs() const
 {
   return affected_points_refs_;
 }
 
 template<typename Child>
-inline Span<IndexMask> TemplatedConstraintSetEvaluator<Child>::get_independent_masks() const
+inline Span<IndexMask> TemplatedConstraintSet<Child>::get_independent_masks() const
 {
   independent_masks_mutex_.ensure(
       [&]() { independent_masks_ = this->generate_independent_masks(independent_masks_memory_); });
@@ -302,14 +302,14 @@ inline Span<IndexMask> TemplatedConstraintSetEvaluator<Child>::get_independent_m
 }
 
 template<typename Child>
-inline TemplatedConstraintSetEvaluator<Child>::TemplatedConstraintSetEvaluator(
-    int constraints_num, Vector<int> affected_points_refs)
-    : ConstraintSetEvaluator(std::move(affected_points_refs)), constraints_num_(constraints_num)
+inline TemplatedConstraintSet<Child>::TemplatedConstraintSet(int constraints_num,
+                                                             Vector<int> affected_points_refs)
+    : ConstraintSet(std::move(affected_points_refs)), constraints_num_(constraints_num)
 {
 }
 
 template<typename Child>
-inline void TemplatedConstraintSetEvaluator<Child>::evaluate_parallel_non_deterministic_jacobian(
+inline void TemplatedConstraintSet<Child>::evaluate_parallel_non_deterministic_jacobian(
     NonDeterministicJacobianUpdater &updater, const Span<PointsRef> points_refs) const
 {
   const Child &self = static_cast<const Child &>(*this);
@@ -321,7 +321,7 @@ inline void TemplatedConstraintSetEvaluator<Child>::evaluate_parallel_non_determ
 }
 
 template<typename Child>
-inline void TemplatedConstraintSetEvaluator<Child>::evaluate_parallel_gauss_seidel(
+inline void TemplatedConstraintSet<Child>::evaluate_parallel_gauss_seidel(
     GaussSeidelUpdater &updater, const Span<PointsRef> points_refs) const
 {
   const Child &self = static_cast<const Child &>(*this);
@@ -335,7 +335,7 @@ inline void TemplatedConstraintSetEvaluator<Child>::evaluate_parallel_gauss_seid
 }
 
 template<typename Child>
-inline void TemplatedConstraintSetEvaluator<Child>::evaluate_serial_gauss_seidel(
+inline void TemplatedConstraintSet<Child>::evaluate_serial_gauss_seidel(
     GaussSeidelUpdater &updater, const Span<PointsRef> points_refs) const
 {
   const Child &self = static_cast<const Child &>(*this);

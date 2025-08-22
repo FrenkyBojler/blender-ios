@@ -83,7 +83,7 @@ inline AlignRotationsConstraintResult evaluate_align_rotations_constraint(
 }
 
 class PinnedPositionConstraintEvaluator
-    : public TemplatedConstraintSetEvaluator<PinnedPositionConstraintEvaluator> {
+    : public TemplatedConstraintSet<PinnedPositionConstraintEvaluator> {
  private:
   int points_ref_i_;
 
@@ -101,8 +101,7 @@ class PinnedPositionConstraintEvaluator
                                     const Span<float3> pin_positions,
                                     const Span<float> compliance_terms,
                                     const Span<float> inverse_masses)
-      : TemplatedConstraintSetEvaluator<PinnedPositionConstraintEvaluator>(indices.size(),
-                                                                           {points_ref_i}),
+      : TemplatedConstraintSet<PinnedPositionConstraintEvaluator>(indices.size(), {points_ref_i}),
         points_ref_i_(points_ref_i),
         indices_(indices),
         pin_positions_(pin_positions),
@@ -134,7 +133,7 @@ class PinnedPositionConstraintEvaluator
 };
 
 class PinRotationConstraintEvaluator
-    : public TemplatedConstraintSetEvaluator<PinRotationConstraintEvaluator> {
+    : public TemplatedConstraintSet<PinRotationConstraintEvaluator> {
  private:
   int points_ref_i_;
 
@@ -152,8 +151,7 @@ class PinRotationConstraintEvaluator
                                  const Span<math::Quaternion> pin_rotations,
                                  const Span<float> compliance_terms,
                                  const Span<float3> inertias)
-      : TemplatedConstraintSetEvaluator<PinRotationConstraintEvaluator>(indices.size(),
-                                                                        {points_ref_i}),
+      : TemplatedConstraintSet<PinRotationConstraintEvaluator>(indices.size(), {points_ref_i}),
         points_ref_i_(points_ref_i),
         indices_(indices),
         pin_rotations_(pin_rotations),
@@ -184,8 +182,7 @@ class PinRotationConstraintEvaluator
   }
 };
 
-class DistanceConstraintEvaluator
-    : public TemplatedConstraintSetEvaluator<DistanceConstraintEvaluator> {
+class DistanceConstraintEvaluator : public TemplatedConstraintSet<DistanceConstraintEvaluator> {
  private:
   int points_ref_i_;
 
@@ -203,8 +200,7 @@ class DistanceConstraintEvaluator
                               const Span<int2> point_pairs,
                               const Span<float> distances,
                               const Span<float> compliance_terms)
-      : TemplatedConstraintSetEvaluator<DistanceConstraintEvaluator>(point_pairs.size(),
-                                                                     {points_ref_i}),
+      : TemplatedConstraintSet<DistanceConstraintEvaluator>(point_pairs.size(), {points_ref_i}),
         points_ref_i_(points_ref_i),
         point_pairs_(point_pairs),
         distances_(distances),
@@ -241,7 +237,7 @@ class DistanceConstraintEvaluator
 };
 
 class CollisionPlaneConstraintEvaluator
-    : public TemplatedConstraintSetEvaluator<CollisionPlaneConstraintEvaluator> {
+    : public TemplatedConstraintSet<CollisionPlaneConstraintEvaluator> {
  private:
   int points_ref_i_;
 
@@ -255,8 +251,7 @@ class CollisionPlaneConstraintEvaluator
                                     const Span<int> points,
                                     const Span<float3> plane_positions,
                                     const Span<float3> plane_normals)
-      : TemplatedConstraintSetEvaluator<CollisionPlaneConstraintEvaluator>(points.size(),
-                                                                           {points_ref_i}),
+      : TemplatedConstraintSet<CollisionPlaneConstraintEvaluator>(points.size(), {points_ref_i}),
         points_ref_i_(points_ref_i),
         points_(points),
         plane_positions_(plane_positions),
@@ -291,7 +286,7 @@ class CollisionPlaneConstraintEvaluator
 };
 
 class MinimumDistanceConstraintEvaluator
-    : public TemplatedConstraintSetEvaluator<MinimumDistanceConstraintEvaluator> {
+    : public TemplatedConstraintSet<MinimumDistanceConstraintEvaluator> {
  private:
   int points_ref_i_;
 
@@ -309,8 +304,7 @@ class MinimumDistanceConstraintEvaluator
                                      const Span<float> min_distances,
                                      const Span<float> inverse_masses,
                                      const Span<float> compliance_terms)
-      : TemplatedConstraintSetEvaluator<MinimumDistanceConstraintEvaluator>(points.size(),
-                                                                            {points_ref_i}),
+      : TemplatedConstraintSet<MinimumDistanceConstraintEvaluator>(points.size(), {points_ref_i}),
         points_ref_i_(points_ref_i),
         points_(points),
         min_distances_(min_distances),
@@ -356,7 +350,7 @@ class MinimumDistanceConstraintEvaluator
 };
 
 class OverpressureConstraintEvaluator
-    : public TemplatedConstraintSetEvaluator<OverpressureConstraintEvaluator> {
+    : public TemplatedConstraintSet<OverpressureConstraintEvaluator> {
  private:
   int points_ref_i_;
   Span<int3> tris_;
@@ -372,7 +366,7 @@ class OverpressureConstraintEvaluator
                                   const Span<float> inverse_masses,
                                   const float overpressure,
                                   const float initial_volume)
-      : TemplatedConstraintSetEvaluator<OverpressureConstraintEvaluator>(1, {points_ref_i}),
+      : TemplatedConstraintSet<OverpressureConstraintEvaluator>(1, {points_ref_i}),
         points_ref_i_(points_ref_i),
         tris_(tris),
         corner_verts_(corner_verts),
@@ -469,7 +463,7 @@ class OverpressureConstraintEvaluator
  * and rotation of the frame. At the same time, it enforces a certain length.
  */
 class RodStretchAndShearConstraintEvaluator
-    : public TemplatedConstraintSetEvaluator<RodStretchAndShearConstraintEvaluator> {
+    : public TemplatedConstraintSet<RodStretchAndShearConstraintEvaluator> {
  private:
   int points_ref_i_;
 
@@ -489,8 +483,8 @@ class RodStretchAndShearConstraintEvaluator
                                         const Span<float3> inertias,
                                         const Span<float> rest_lengths,
                                         const Span<float> compliance_terms)
-      : TemplatedConstraintSetEvaluator<RodStretchAndShearConstraintEvaluator>(point_pairs.size(),
-                                                                               {points_ref_i}),
+      : TemplatedConstraintSet<RodStretchAndShearConstraintEvaluator>(point_pairs.size(),
+                                                                      {points_ref_i}),
         points_ref_i_(points_ref_i),
         point_pairs_(point_pairs),
         rest_lengths_(rest_lengths),
@@ -560,7 +554,7 @@ class RodStretchAndShearConstraintEvaluator
 
 /* Aligns rotations of two consecutive rods based on a rest rotation. */
 class RodBendAndTwistConstraintEvaluator
-    : public TemplatedConstraintSetEvaluator<RodBendAndTwistConstraintEvaluator> {
+    : public TemplatedConstraintSet<RodBendAndTwistConstraintEvaluator> {
  private:
   int points_ref_i_;
 
@@ -578,8 +572,8 @@ class RodBendAndTwistConstraintEvaluator
                                      const Span<float3> inertias,
                                      const Span<math::Quaternion> rest_rotations,
                                      const Span<float> compliance_terms)
-      : TemplatedConstraintSetEvaluator<RodBendAndTwistConstraintEvaluator>(point_pairs.size(),
-                                                                            {points_ref_i}),
+      : TemplatedConstraintSet<RodBendAndTwistConstraintEvaluator>(point_pairs.size(),
+                                                                   {points_ref_i}),
         points_ref_i_(points_ref_i),
         point_pairs_(point_pairs),
         rest_rotations_(rest_rotations),
@@ -615,7 +609,7 @@ class RodBendAndTwistConstraintEvaluator
 };
 
 class AlignPositionsConstraintEvaluator
-    : public TemplatedConstraintSetEvaluator<AlignPositionsConstraintEvaluator> {
+    : public TemplatedConstraintSet<AlignPositionsConstraintEvaluator> {
  private:
   /* Indexed by constraint index. */
   OffsetIndices<int> offsets_;
@@ -632,7 +626,7 @@ class AlignPositionsConstraintEvaluator
                                     Span<int> points_ref_indices,
                                     Span<int> point_indices,
                                     Span<float> inverse_masses)
-      : TemplatedConstraintSetEvaluator<AlignPositionsConstraintEvaluator>(
+      : TemplatedConstraintSet<AlignPositionsConstraintEvaluator>(
             point_indices.size(), VectorSet<int>(points_ref_indices).extract_vector()),
         offsets_(offsets),
         compliance_terms_(compliance_terms),
@@ -697,7 +691,7 @@ class AlignPositionsConstraintEvaluator
 };
 
 class AttachUVSurfaceConstraintEvaluator
-    : public TemplatedConstraintSetEvaluator<AttachUVSurfaceConstraintEvaluator> {
+    : public TemplatedConstraintSet<AttachUVSurfaceConstraintEvaluator> {
  private:
   /* Mesh data. */
   int mesh_points_ref_i_;
@@ -724,7 +718,7 @@ class AttachUVSurfaceConstraintEvaluator
                                      const Span<float3> bary_weights,
                                      const Span<float> inv_masses,
                                      const Span<float> compliance_terms)
-      : TemplatedConstraintSetEvaluator<AttachUVSurfaceConstraintEvaluator>(
+      : TemplatedConstraintSet<AttachUVSurfaceConstraintEvaluator>(
             indices.size(), {mesh_points_ref_i, points_ref_i}),
         mesh_points_ref_i_(mesh_points_ref_i),
         mesh_inv_masses_(mesh_inv_masses),
