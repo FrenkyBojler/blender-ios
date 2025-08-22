@@ -2,10 +2,10 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "BLI_array_utils.hh"
 #include "BLI_multi_value_map.hh"
 
-#include "GEO_xpbd_constraint_solver.hh"
+#include "GEO_xpbd.hh"
+#include "GEO_xpbd_constraint_utils.hh"
 
 namespace blender::xpbd {
 

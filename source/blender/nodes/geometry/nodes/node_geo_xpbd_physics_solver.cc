@@ -20,8 +20,7 @@
 #include "NOD_geometry_nodes_bundle_parse.hh"
 #include "NOD_geometry_nodes_physics_bundles.hh"
 
-#include "GEO_xpbd_common_constraint_evaluators.hh"
-#include "GEO_xpbd_constraint_solver.hh"
+#include "GEO_xpbd_constraint_sets_common.hh"
 
 #include "node_geometry_util.hh"
 

@@ -5,7 +5,7 @@
 #pragma once
 
 #include "BLI_math_base.h"
-#include "GEO_xpbd_constraint_solver.hh"
+#include "GEO_xpbd_constraint_utils.hh"
 
 #include "BLI_math_vector.hh"
 
