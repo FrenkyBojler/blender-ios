@@ -803,6 +803,26 @@ if (add_modifiers) {
   return OPERATOR_FINISHED;
 }
 
+static bool object_add_poll_property(const bContext *C,
+                                     wmOperator *op,
+                                     const PropertyRNA *prop)
+{
+  UNUSED_VARS(C); 
+  const char *prop_id = RNA_property_identifier(prop);
+
+  if (STREQ(prop_id, "radius")) {
+    if (RNA_boolean_get(op->ptr, "fit_to_selected")) {
+      return false;
+    }
+  }
+  else if (STREQ(prop_id, "offset")) {
+    if (!RNA_boolean_get(op->ptr, "fit_to_selected")) {
+      return false;
+    }
+  }
+  return true;
+}
+
 void OBJECT_OT_add(wmOperatorType *ot)
 {
   /* identifiers */
@@ -813,21 +833,21 @@ void OBJECT_OT_add(wmOperatorType *ot)
   /* API callbacks. */
   ot->exec = object_add_exec;
   ot->poll = ED_operator_objectmode;
+  ot->poll_property = object_add_poll_property; 
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
   /* properties */
-  add_unit_props_radius(ot);
   PropertyRNA *prop = RNA_def_enum(ot->srna, "type", rna_enum_object_type_items, 0, "Type", "");
   RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_ID);
 
-  add_generic_props(ot, true);
   prop = RNA_def_boolean(ot->srna, "fit_to_selected", true, 
                         "Fit to Selected", 
                         "Resize lattice to fit selected deformable objects");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
   
+  add_unit_props_radius(ot);
   prop = RNA_def_float(ot->srna, "offset", 0.0f, -FLT_MAX, FLT_MAX,
                       "Offset", 
                       "Add offset to lattice dimensions", 
@@ -845,14 +865,15 @@ void OBJECT_OT_add(wmOperatorType *ot)
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
   
   prop = RNA_def_int(ot->srna, "resolution_v", 2, 1, 64,
-                    "Resolution V", "Lattice resolution in V direction", 
+                    "V", "Lattice resolution in V direction", 
                     1, 10);
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
   
   prop = RNA_def_int(ot->srna, "resolution_w", 2, 1, 64,
-                    "Resolution W", "Lattice resolution in W direction",
+                    " W", "Lattice resolution in W direction",
                     1, 10);
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+  add_generic_props(ot, true);
 }
 
 /** \} */
