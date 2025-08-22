@@ -546,7 +546,7 @@ class CollisionShapeCache {
   }
 };
 
-class JoltState : public xpbd::PhysicsState {
+class JoltState : public xpbd_old::PhysicsState {
  public:
   JoltState()
   {
@@ -1071,7 +1071,7 @@ static void collide_shape(const JoltState &state,
 
 }  // namespace blender::geometry::jolt_physics
 
-namespace blender::geometry::xpbd {
+namespace blender::geometry::xpbd_old {
 
 using nodes::nested_bundle_path_is_selected;
 
@@ -3332,4 +3332,4 @@ void solve(Behaviors &behaviors, const float total_delta_time, const int substep
   }
 }
 
-}  // namespace blender::geometry::xpbd
+}  // namespace blender::geometry::xpbd_old

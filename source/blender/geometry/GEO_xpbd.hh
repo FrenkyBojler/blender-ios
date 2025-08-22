@@ -15,7 +15,7 @@
 
 #include "FN_field.hh"
 
-namespace blender::geometry::xpbd {
+namespace blender::geometry::xpbd_old {
 
 class ConstraintCorrections;
 class PhysicsState;
@@ -279,4 +279,4 @@ inline void LocalConstraintCorrections::add_rotation_correction(const int geomet
   correction.num_corrections++;
 }
 
-}  // namespace blender::geometry::xpbd
+}  // namespace blender::geometry::xpbd_old

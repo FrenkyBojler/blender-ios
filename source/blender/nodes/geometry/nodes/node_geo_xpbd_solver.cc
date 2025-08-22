@@ -35,7 +35,7 @@ struct ParseBehaviorParams {
   const Span<StringRef> path_elems;
   const Bundle &bundle;
   ResourceScope &scope;
-  geometry::xpbd::Behaviors &r_behaviors;
+  geometry::xpbd_old::Behaviors &r_behaviors;
 
   std::string self_path() const
   {
@@ -49,7 +49,7 @@ static void parse_behavior__geometry(ParseBehaviorParams &params)
   if (!geometry) {
     return;
   }
-  auto &sim_geometry_set = params.scope.construct<geometry::xpbd::SimGeometrySet>();
+  auto &sim_geometry_set = params.scope.construct<geometry::xpbd_old::SimGeometrySet>();
   sim_geometry_set.path = params.self_path();
   sim_geometry_set.geometry = *geometry;
   sim_geometry_set.mass_attribute =
@@ -75,7 +75,7 @@ static void parse_behavior__force(ParseBehaviorParams &params)
   if (!force_field) {
     return;
   }
-  geometry::xpbd::ForceField force;
+  geometry::xpbd_old::ForceField force;
   force.force_field = *force_field;
   force.self_path = params.self_path();
   force.filter = params.bundle.lookup<std::string>("Filter").value_or("");
@@ -89,7 +89,7 @@ static void parse_behavior__acceleration(ParseBehaviorParams &params)
   if (!acceleration_field) {
     return;
   }
-  geometry::xpbd::AccelerationField acceleration;
+  geometry::xpbd_old::AccelerationField acceleration;
   acceleration.acceleration_field = *acceleration_field;
   acceleration.self_path = params.self_path();
   acceleration.filter = params.bundle.lookup<std::string>("Filter").value_or("");
@@ -100,7 +100,7 @@ static void parse_behavior__damping(ParseBehaviorParams &params)
 {
   float linear_damping = params.bundle.lookup<float>("Linear Damping").value_or(0.0f);
   float angular_damping = params.bundle.lookup<float>("Angular Damping").value_or(0.0f);
-  geometry::xpbd::Damping damping;
+  geometry::xpbd_old::Damping damping;
   damping.linear_damping = linear_damping;
   damping.angular_damping = angular_damping;
   damping.self_path = params.self_path();
@@ -121,11 +121,11 @@ static void parse_behavior__edge_lengths(ParseBehaviorParams &params)
   std::string filter = params.bundle.lookup<std::string>("Filter").value_or("");
   const float compliance = params.bundle.lookup<float>("Compliance").value_or(0.0f);
   params.r_behaviors.constraint_sets.append(
-      &geometry::xpbd::create_constraint__edge_lengths(params.scope,
-                                                       params.self_path(),
-                                                       std::move(filter),
-                                                       std::move(*rest_length_attribute),
-                                                       compliance));
+      &geometry::xpbd_old::create_constraint__edge_lengths(params.scope,
+                                                           params.self_path(),
+                                                           std::move(filter),
+                                                           std::move(*rest_length_attribute),
+                                                           compliance));
 }
 
 static void parse_behavior__curve_lengths(ParseBehaviorParams &params)
@@ -141,11 +141,11 @@ static void parse_behavior__curve_lengths(ParseBehaviorParams &params)
   std::string filter = params.bundle.lookup<std::string>("Filter").value_or("");
   const float compliance = params.bundle.lookup<float>("Compliance").value_or(0.0f);
   params.r_behaviors.constraint_sets.append(
-      &geometry::xpbd::create_constraint__curve_lengths(params.scope,
-                                                        params.self_path(),
-                                                        std::move(filter),
-                                                        std::move(*rest_length_attribute),
-                                                        compliance));
+      &geometry::xpbd_old::create_constraint__curve_lengths(params.scope,
+                                                            params.self_path(),
+                                                            std::move(filter),
+                                                            std::move(*rest_length_attribute),
+                                                            compliance));
 }
 
 static void parse_behavior__cosserat_rod_lengths(ParseBehaviorParams &params)
@@ -158,11 +158,12 @@ static void parse_behavior__cosserat_rod_lengths(ParseBehaviorParams &params)
   std::string filter = params.bundle.lookup<std::string>("Filter").value_or("");
   const float compliance = params.bundle.lookup<float>("Compliance").value_or(0.0f);
   params.r_behaviors.constraint_sets.append(
-      &geometry::xpbd::create_constraint__cosserat_rod_lengths(params.scope,
-                                                               params.self_path(),
-                                                               std::move(filter),
-                                                               std::move(*rest_length_attribute),
-                                                               compliance));
+      &geometry::xpbd_old::create_constraint__cosserat_rod_lengths(
+          params.scope,
+          params.self_path(),
+          std::move(filter),
+          std::move(*rest_length_attribute),
+          compliance));
 }
 
 static void parse_behavior__cosserat_rod_bending(ParseBehaviorParams &params)
@@ -180,12 +181,13 @@ static void parse_behavior__cosserat_rod_bending(ParseBehaviorParams &params)
   std::string filter = params.bundle.lookup<std::string>("Filter").value_or("");
   const float compliance = params.bundle.lookup<float>("Compliance").value_or(0.0f);
   params.r_behaviors.constraint_sets.append(
-      &geometry::xpbd::create_constraint__cosserat_rod_bending(params.scope,
-                                                               params.self_path(),
-                                                               std::move(filter),
-                                                               std::move(*rest_length_attribute),
-                                                               std::move(*rest_shape_attribute),
-                                                               compliance));
+      &geometry::xpbd_old::create_constraint__cosserat_rod_bending(
+          params.scope,
+          params.self_path(),
+          std::move(filter),
+          std::move(*rest_length_attribute),
+          std::move(*rest_shape_attribute),
+          compliance));
 }
 
 static void parse_behavior__fixed_positions(ParseBehaviorParams &params)
@@ -196,8 +198,12 @@ static void parse_behavior__fixed_positions(ParseBehaviorParams &params)
     return;
   }
   std::string filter = params.bundle.lookup<std::string>("Filter").value_or("");
-  params.r_behaviors.constraint_sets.append(&geometry::xpbd::create_constraint__fixed_positions(
-      params.scope, params.self_path(), std::move(filter), *selection_field, *positions_field));
+  params.r_behaviors.constraint_sets.append(
+      &geometry::xpbd_old::create_constraint__fixed_positions(params.scope,
+                                                              params.self_path(),
+                                                              std::move(filter),
+                                                              *selection_field,
+                                                              *positions_field));
 }
 
 static void parse_behavior__fixed_rotations(ParseBehaviorParams &params)
@@ -211,12 +217,12 @@ static void parse_behavior__fixed_rotations(ParseBehaviorParams &params)
   std::string filter = params.bundle.lookup<std::string>("Filter").value_or("");
   const float compliance = params.bundle.lookup<float>("Compliance").value_or(0.0f);
   params.r_behaviors.constraint_sets.append(
-      &geometry::xpbd::create_constraint__fixed_rotations(params.scope,
-                                                          params.self_path(),
-                                                          std::move(filter),
-                                                          *selection_field,
-                                                          *rotations_field,
-                                                          compliance));
+      &geometry::xpbd_old::create_constraint__fixed_rotations(params.scope,
+                                                              params.self_path(),
+                                                              std::move(filter),
+                                                              *selection_field,
+                                                              *rotations_field,
+                                                              compliance));
 }
 
 static void parse_behavior__infinite_collision_plane(ParseBehaviorParams &params)
@@ -228,7 +234,7 @@ static void parse_behavior__infinite_collision_plane(ParseBehaviorParams &params
   }
   std::string filter = params.bundle.lookup<std::string>("Filter").value_or("");
   params.r_behaviors.constraint_sets.append(
-      &geometry::xpbd::create_constraint__infinite_collision_plane(
+      &geometry::xpbd_old::create_constraint__infinite_collision_plane(
           params.scope, params.self_path(), std::move(filter), *position, *normal));
 }
 
@@ -242,11 +248,11 @@ static void parse_behavior__global_volume(ParseBehaviorParams &params)
   std::string filter = params.bundle.lookup<std::string>("Filter").value_or("");
   const float overpressure = params.bundle.lookup<float>("Overpressure").value_or(1.0f);
   params.r_behaviors.constraint_sets.append(
-      &geometry::xpbd::create_constraint__global_volume(params.scope,
-                                                        params.self_path(),
-                                                        std::move(filter),
-                                                        std::move(*rest_volume_name),
-                                                        overpressure));
+      &geometry::xpbd_old::create_constraint__global_volume(params.scope,
+                                                            params.self_path(),
+                                                            std::move(filter),
+                                                            std::move(*rest_volume_name),
+                                                            overpressure));
 }
 
 static void parse_behavior__collision(ParseBehaviorParams &params)
@@ -259,12 +265,12 @@ static void parse_behavior__collision(ParseBehaviorParams &params)
   float speculative_contact_distance =
       params.bundle.lookup<float>("Speculative Contact Distance").value_or(0.0f);
   params.r_behaviors.constraint_sets.append(
-      &geometry::xpbd::create_constraint__collision(params.scope,
-                                                    params.self_path(),
-                                                    std::move(filter),
-                                                    std::move(selection_field),
-                                                    std::move(radius_field),
-                                                    speculative_contact_distance));
+      &geometry::xpbd_old::create_constraint__collision(params.scope,
+                                                        params.self_path(),
+                                                        std::move(filter),
+                                                        std::move(selection_field),
+                                                        std::move(radius_field),
+                                                        speculative_contact_distance));
 }
 
 static void parse_behavior__rigid_body_instances(ParseBehaviorParams &params)
@@ -279,7 +285,7 @@ static void parse_behavior__rigid_body_instances(ParseBehaviorParams &params)
   if (!geometry_set || !collision_shape || !motion_type || !friction || !bounciness || !density) {
     return;
   }
-  geometry::xpbd::RigidBodyInstances rigid_bodies;
+  geometry::xpbd_old::RigidBodyInstances rigid_bodies;
   rigid_bodies.self_path = params.self_path();
   rigid_bodies.instances_geometry = *geometry_set;
   rigid_bodies.collision_shape_type = *collision_shape;
@@ -300,7 +306,7 @@ static void parse_behavior__soft_body_mesh(ParseBehaviorParams &params)
   if (!geometry_set || !stretch_stiffness || !bend_stiffness) {
     return;
   }
-  geometry::xpbd::SoftBodyMesh soft_body;
+  geometry::xpbd_old::SoftBodyMesh soft_body;
   soft_body.self_path = params.self_path();
   soft_body.mesh_geometry = *geometry_set;
   soft_body.stretch_stiffness = *stretch_stiffness;
@@ -332,13 +338,13 @@ static Map<std::string, BehaviorParserFn> build_behavior_parsers()
   return behavior_parsers;
 }
 
-static geometry::xpbd::Behaviors parse_behaviors(const BundlePtr &behaviors_bundle,
-                                                 ResourceScope &scope)
+static geometry::xpbd_old::Behaviors parse_behaviors(const BundlePtr &behaviors_bundle,
+                                                     ResourceScope &scope)
 {
   if (!behaviors_bundle) {
     return {};
   }
-  geometry::xpbd::Behaviors behaviors;
+  geometry::xpbd_old::Behaviors behaviors;
   static const Map<std::string, BehaviorParserFn> behavior_parsers = build_behavior_parsers();
   nested_bundle_foreach(*behaviors_bundle, [&](HandleNestedBundleParams &params) {
     ParseBehaviorParams my_params{params.path, params.bundle, scope, behaviors};
@@ -352,11 +358,11 @@ static geometry::xpbd::Behaviors parse_behaviors(const BundlePtr &behaviors_bund
 class PhysicsStateOwner : public BundleItemInternalValueMixin {
  public:
   mutable Mutex mutex;
-  mutable geometry::xpbd::PhysicsState *state;
+  mutable geometry::xpbd_old::PhysicsState *state;
 
   PhysicsStateOwner()
   {
-    state = geometry::xpbd::PhysicsState::create();
+    state = geometry::xpbd_old::PhysicsState::create();
   }
   ~PhysicsStateOwner()
   {
@@ -397,7 +403,7 @@ static void copy_attribute_data(const bke::AttributeAccessor src,
 static void copy_xpbd_simulated_attributes(
     const bke::AttributeAccessor src,
     bke::MutableAttributeAccessor dst,
-    const geometry::xpbd::SimGeometrySet &sim_geometry_params)
+    const geometry::xpbd_old::SimGeometrySet &sim_geometry_params)
 {
   Vector<std::string> attributes_to_copy;
   attributes_to_copy.append("position");
@@ -417,7 +423,7 @@ static void copy_xpbd_simulated_attributes(
 static GeometrySet merge_behavior_with_sim_geometry(
     const GeometrySet &behavior_geometry,
     const GeometrySet &sim_geometry,
-    const geometry::xpbd::SimGeometrySet &sim_geometry_params)
+    const geometry::xpbd_old::SimGeometrySet &sim_geometry_params)
 {
   GeometrySet merged_geometry = behavior_geometry;
   if (Mesh *mesh = merged_geometry.get_mesh_for_write()) {
@@ -457,7 +463,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   const int substeps = std::clamp(params.extract_input<int>("Substeps"), 0, 239);
 
   ResourceScope scope;
-  geometry::xpbd::Behaviors behaviors = parse_behaviors(behaviors_bundle, scope);
+  geometry::xpbd_old::Behaviors behaviors = parse_behaviors(behaviors_bundle, scope);
   const bool has_physics_behaviors = !behaviors.rigid_body_instances.is_empty();
 
   PhysicsStateOwnerPtr physics_state_owner;
@@ -493,7 +499,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   });
 
   if (old_data_bundle) {
-    for (geometry::xpbd::SimGeometrySet *sim_geometry : behaviors.sim_geometry_sets) {
+    for (geometry::xpbd_old::SimGeometrySet *sim_geometry : behaviors.sim_geometry_sets) {
       BundlePtr item =
           old_data_bundle->lookup_path<BundlePtr>(sim_geometry->path).value_or(nullptr);
       if (!item) {
@@ -513,21 +519,21 @@ static void node_geo_exec(GeoNodeExecParams params)
     behaviors.update_counter = old_data_bundle->lookup<int>("_counter").value_or(0);
   }
 
-  geometry::xpbd::solve(behaviors, delta_time, substeps);
+  geometry::xpbd_old::solve(behaviors, delta_time, substeps);
 
   BundlePtr new_data_bundle_ptr = Bundle::create();
   Bundle &new_data_bundle = const_cast<Bundle &>(*new_data_bundle_ptr);
-  for (geometry::xpbd::SimGeometrySet *sim_geometry : behaviors.sim_geometry_sets) {
+  for (geometry::xpbd_old::SimGeometrySet *sim_geometry : behaviors.sim_geometry_sets) {
     new_data_bundle.add_path_override(sim_geometry->path + "/Geometry", sim_geometry->geometry);
     if (sim_geometry->extra && !sim_geometry->extra->items().is_empty()) {
       new_data_bundle.add_path_override(sim_geometry->path + "/Extra", sim_geometry->extra);
     }
   }
-  for (geometry::xpbd::RigidBodyInstances &rigid_bodies : behaviors.rigid_body_instances) {
+  for (geometry::xpbd_old::RigidBodyInstances &rigid_bodies : behaviors.rigid_body_instances) {
     new_data_bundle.add_path_override(rigid_bodies.self_path + "/Instances",
                                       rigid_bodies.instances_geometry);
   }
-  for (geometry::xpbd::SoftBodyMesh &soft_body : behaviors.soft_body_meshes) {
+  for (geometry::xpbd_old::SoftBodyMesh &soft_body : behaviors.soft_body_meshes) {
     new_data_bundle.add_path_override(soft_body.self_path + "/Mesh", soft_body.mesh_geometry);
   }
   if (physics_state_owner) {
@@ -543,7 +549,7 @@ static void node_register()
   static blender::bke::bNodeType ntype;
 
   geo_node_type_base(&ntype, "GeometryNodeXPBDSolver");
-  ntype.ui_name = "XPBD Solver";
+  ntype.ui_name = "Old XPBD Solver";
   ntype.ui_description = "Solve geometry constraints using the XPBD solver framework";
   ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.geometry_node_execute = node_geo_exec;
