@@ -897,11 +897,31 @@ static void rna_Space_show_region_channels_update(bContext *C, PointerRNA *ptr)
 /* UI Region */
 static bool rna_Space_show_region_ui_get(PointerRNA *ptr)
 {
-  return !rna_Space_bool_from_region_flag_get_by_type(ptr, RGN_TYPE_UI, RGN_FLAG_HIDDEN);
+  ScrArea *area = rna_area_from_space(ptr);
+  ARegion *region = BKE_area_find_region_type(area, RGN_TYPE_UI);
+  if (region && !(region->flag & RGN_FLAG_HIDDEN)) {
+    return region->sizex > UI_PANEL_CATEGORY_MIN_WIDTH;
+  }
+  return false;
 }
 static void rna_Space_show_region_ui_set(PointerRNA *ptr, bool value)
 {
   rna_Space_bool_from_region_flag_set_by_type(ptr, RGN_TYPE_UI, RGN_FLAG_HIDDEN, !value);
+
+  ScrArea *area = rna_area_from_space(ptr);
+  ARegion *region = BKE_area_find_region_type(area, RGN_TYPE_UI);
+  if (region) {
+    if (value) {
+      region->flag &= ~RGN_FLAG_HIDDEN;
+      if (region->sizex > 0 && region->sizex <= UI_PANEL_CATEGORY_MIN_WIDTH) {
+        region->sizex = UI_SIDEBAR_PANEL_WIDTH;
+      }
+    }
+    else {
+      region->flag |= RGN_FLAG_HIDDEN;
+    }
+  }
+  ED_region_tag_redraw(region);
 }
 static void rna_Space_show_region_ui_update(bContext *C, PointerRNA *ptr)
 {
