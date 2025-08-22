@@ -60,7 +60,7 @@ static NestedBundleTypePtr make_world_type()
   types.append(InfiniteGroundPlaneBundle::get_bundle_type());
   types.append(SphericalSelfCollisionXPBDConstraintBundle::get_bundle_type());
   types.append(CurveSegmentXPBDConstraintBundle::get_bundle_type());
-  types.append(OverpressureXPBDConstraintBundle::get_bundle_type());
+  types.append(PressureXPBDConstraintBundle::get_bundle_type());
   types.append(DampingBundle::get_bundle_type());
   types.append(TorqueBundle::get_bundle_type());
   types.append(PinnedRotationXPBDConstraintBundle::get_bundle_type());
@@ -221,7 +221,7 @@ struct WorldData {
   BundleVectorSet<PinnedPositionXPBDConstraintBundle> pinned_position_constraints;
   BundleVectorSet<InfiniteGroundPlaneBundle> infinite_ground_planes;
   BundleVectorSet<SphericalSelfCollisionXPBDConstraintBundle> spherical_self_collision_constraints;
-  BundleVectorSet<OverpressureXPBDConstraintBundle> overpressure_constraints;
+  BundleVectorSet<PressureXPBDConstraintBundle> overpressure_constraints;
   BundleVectorSet<DampingBundle> dampings;
   BundleVectorSet<TorqueBundle> torques;
   BundleVectorSet<PinnedRotationXPBDConstraintBundle> pinned_rotation_constraints;
@@ -1040,12 +1040,12 @@ static void gather_curve_segment_constraints(
   }
 }
 
-static void gather_overpressure_constraints(ResourceScope &scope,
-                                            XPBDState &state,
-                                            const WorldData &world,
-                                            const Span<GeometrySet> applied_geometries,
-                                            const VectorSet<SimPointsKey> &keys,
-                                            Vector<const xpbd::ConstraintSet *> &r_constraint_sets)
+static void gather_pressure_constraints(ResourceScope &scope,
+                                        XPBDState &state,
+                                        const WorldData &world,
+                                        const Span<GeometrySet> applied_geometries,
+                                        const VectorSet<SimPointsKey> &keys,
+                                        Vector<const xpbd::ConstraintSet *> &r_constraint_sets)
 {
   for (const int key_i : keys.index_range()) {
     const SimPointsKey &key = keys[key_i];
@@ -1059,15 +1059,13 @@ static void gather_overpressure_constraints(ResourceScope &scope,
     const Span<int> corner_verts = mesh.corner_verts();
     const Span<float3> positions = mesh.vert_positions();
 
-    const Vector overpressure_constraints =
-        filter_bundles_for_path<OverpressureXPBDConstraintBundle>(world.overpressure_constraints,
-                                                                  key.path);
+    const Vector overpressure_constraints = filter_bundles_for_path<PressureXPBDConstraintBundle>(
+        world.overpressure_constraints, key.path);
 
-    for (const OverpressureXPBDConstraintBundle *constraint_bundle : overpressure_constraints) {
-      const float overpressure = constraint_bundle->overpressure;
+    for (const PressureXPBDConstraintBundle *constraint_bundle : overpressure_constraints) {
+      const float pressure = constraint_bundle->pressure;
       const float initial_volume = state.initial_volumes.lookup_or_add_cb(key, [&]() {
-        return xpbd::OverpressureConstraintEvaluator::compute_volume(
-            tris, corner_verts, positions);
+        return xpbd::PressureConstraintEvaluator::compute_volume(tris, corner_verts, positions);
       });
       if (initial_volume <= 0.0f) {
         continue;
@@ -1077,8 +1075,8 @@ static void gather_overpressure_constraints(ResourceScope &scope,
       offsets[0] = 0;
       offsets[1] = affected_points.size();
       array_utils::fill_index_range<int>(affected_points);
-      r_constraint_sets.append(&scope.construct<xpbd::OverpressureConstraintEvaluator>(
-          key_i, tris, corner_verts, overpressure, initial_volume));
+      r_constraint_sets.append(&scope.construct<xpbd::PressureConstraintEvaluator>(
+          key_i, tris, corner_verts, pressure, initial_volume));
     }
   }
 }
@@ -2169,7 +2167,7 @@ static void update_and_step_xpbd_state(XPBDState &state,
       scope, state, world, applied_geometries, keys, sub_delta_time, static_constraint_sets);
   gather_curve_segment_constraints(
       scope, state, world, applied_geometries, keys, sub_delta_time, static_constraint_sets);
-  gather_overpressure_constraints(
+  gather_pressure_constraints(
       scope, state, world, applied_geometries, keys, static_constraint_sets);
   gather_curves_rod_stretch_and_shear_constraints(
       scope, state, world, applied_geometries, keys, sub_delta_time, static_constraint_sets);

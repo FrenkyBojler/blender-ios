@@ -318,26 +318,25 @@ class MinimumDistanceConstraintEvaluator
   }
 };
 
-class OverpressureConstraintEvaluator
-    : public TemplatedConstraintSet<OverpressureConstraintEvaluator> {
+class PressureConstraintEvaluator : public TemplatedConstraintSet<PressureConstraintEvaluator> {
  private:
   int geo_i_;
   Span<int3> tris_;
   Span<int> corner_verts_;
-  float overpressure_;
+  float pressure_;
   float initial_volume_;
 
  public:
-  OverpressureConstraintEvaluator(const int geo_i,
-                                  const Span<int3> tris,
-                                  const Span<int> corner_verts,
-                                  const float overpressure,
-                                  const float initial_volume)
-      : TemplatedConstraintSet<OverpressureConstraintEvaluator>(1, {geo_i}),
+  PressureConstraintEvaluator(const int geo_i,
+                              const Span<int3> tris,
+                              const Span<int> corner_verts,
+                              const float pressure,
+                              const float initial_volume)
+      : TemplatedConstraintSet<PressureConstraintEvaluator>(1, {geo_i}),
         geo_i_(geo_i),
         tris_(tris),
         corner_verts_(corner_verts),
-        overpressure_(overpressure),
+        pressure_(pressure),
         initial_volume_(initial_volume)
   {
   }
@@ -354,7 +353,7 @@ class OverpressureConstraintEvaluator
     const Span<float3> positions = params.positions(geo_i_);
     const Span<float> inverse_masses = params.inverse_masses(geo_i_);
     const float current_volume = compute_volume(tris_, corner_verts_, positions);
-    const float volume_diff = current_volume - overpressure_ * initial_volume_;
+    const float volume_diff = current_volume - pressure_ * initial_volume_;
 
     const int points_num = positions.size();
     Array<float3> gradients(points_num, float3(0.0f));

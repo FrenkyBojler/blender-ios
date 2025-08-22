@@ -171,16 +171,16 @@ class PinnedRotationXPBDConstraintBundle : public NestedBundleCommon {
                                                                  BundleParseErrors &r_errors);
 };
 
-class OverpressureXPBDConstraintBundle : public NestedBundleCommon {
+class PressureXPBDConstraintBundle : public NestedBundleCommon {
  public:
-  static constexpr StringRefNull name = "Blender.OverpressureXPBDConstraint";
+  static constexpr StringRefNull name = "Blender.PressureXPBDConstraint";
 
   std::string filter;
-  float overpressure;
+  float pressure;
 
   static const FlatBundleTypePtr &get_bundle_type();
-  static std::optional<OverpressureXPBDConstraintBundle> parse(const Bundle &bundle,
-                                                               BundleParseErrors &r_errors);
+  static std::optional<PressureXPBDConstraintBundle> parse(const Bundle &bundle,
+                                                           BundleParseErrors &r_errors);
 };
 
 class InfiniteGroundPlaneBundle : public NestedBundleCommon {
