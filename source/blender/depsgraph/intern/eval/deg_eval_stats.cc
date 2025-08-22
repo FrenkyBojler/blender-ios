@@ -6,6 +6,8 @@
  * \ingroup depsgraph
  */
 
+#include "DEG_depsgraph_query.hh"
+
 #include "intern/eval/deg_eval_stats.h"
 
 #include "intern/depsgraph.hh"
@@ -34,6 +36,27 @@ void deg_eval_stats_aggregate(Depsgraph *graph)
     IDNode *id_node = comp_node->owner;
     id_node->stats.current_time += op_node->stats.current_time;
     comp_node->stats.current_time += op_node->stats.current_time;
+  }
+
+  Map<Node *, double> accumulated_dependent_times;
+  for (Node *node : graph->id_nodes) {
+    IDNode *id_node = (IDNode *)node;
+
+    double &node_time = accumulated_dependent_times.lookup_or_add(node,
+                                                                  id_node->stats.current_time);
+    DEG_foreach_dependent_ID(
+        (const ::Depsgraph *)graph, id_node->id_orig, [&](const ID *dependent_id) {
+          const deg::IDNode *dependent_id_node = graph->find_id_node(dependent_id);
+          if (!dependent_id_node) {
+            return;
+          }
+          node_time += dependent_id_node->stats.current_time;
+        });
+  }
+
+  for (Node *node : graph->id_nodes) {
+    IDNode *id_node = (IDNode *)node;
+    id_node->stats.current_dependent_time = accumulated_dependent_times.lookup(node);
   }
 }
 

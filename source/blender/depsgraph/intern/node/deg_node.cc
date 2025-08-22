@@ -269,11 +269,13 @@ Node::Stats::Stats()
 void Node::Stats::reset()
 {
   current_time = 0.0;
+  current_dependent_time = 0.0;
 }
 
 void Node::Stats::reset_current()
 {
   current_time = 0.0;
+  current_dependent_time = 0.0;
 }
 
 /*******************************************************************************

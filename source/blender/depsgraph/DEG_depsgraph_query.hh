@@ -379,6 +379,6 @@ void DEG_foreach_ID(const Depsgraph *depsgraph, DEGForeachIDCallback callback);
 /** \name DEG query node evaluation timings
  * \{ */
 
-double DEG_get_id_evaluation_time(const Depsgraph *depsgraph, const ID &id_orig);
+std::optional<double> DEG_get_id_evaluation_time(const Depsgraph *depsgraph, const ID &id_orig);
 
 /** \} */
