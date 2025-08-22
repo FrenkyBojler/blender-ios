@@ -106,12 +106,8 @@ blender::Vector<blender::gpu::Shader *> GPU_shader_batch_finalize(BatchHandle &h
 /**
  * Cancel the compilation of the batch.
  * WARNING: The handle will be invalidated by this call.
- *
- * \param wait: If true, it's safe to delete the batch `ShaderCreateInfo` once the function
- * returns, otherwise `GPU_shader_batch_wait_for_all()` should be called before deleting the
- * `ShaderCreateInfo`.
  */
-void GPU_shader_batch_cancel(BatchHandle &handle, bool wait = true);
+void GPU_shader_batch_cancel(BatchHandle &handle);
 /**
  *  Returns true if there's any batch still being compiled.
  */
@@ -473,9 +469,7 @@ class StaticShader : NonCopyable {
   ~StaticShader()
   {
     if (compilation_handle_) {
-      /* We don't need to wait, since static ShaderCreateInfos are deleted after compiler
-       * destruction. */
-      GPU_shader_batch_cancel(compilation_handle_, false);
+      GPU_shader_batch_cancel(compilation_handle_);
     }
     GPU_SHADER_FREE_SAFE(shader_);
   }

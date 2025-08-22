@@ -210,7 +210,7 @@ class ShaderCompiler {
 
   BatchHandle batch_compile(Span<const shader::ShaderCreateInfo *> &infos,
                             CompilationPriority priority);
-  void batch_cancel(BatchHandle &handle, bool wait = true);
+  void batch_cancel(BatchHandle &handle);
   bool batch_is_ready(BatchHandle handle);
   Vector<Shader *> batch_finalize(BatchHandle &handle);
 

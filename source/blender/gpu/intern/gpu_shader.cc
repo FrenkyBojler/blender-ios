@@ -222,9 +222,9 @@ Vector<blender::gpu::Shader *> GPU_shader_batch_finalize(BatchHandle &handle)
   return reinterpret_cast<Vector<blender::gpu::Shader *> &>(result);
 }
 
-void GPU_shader_batch_cancel(BatchHandle &handle, bool wait)
+void GPU_shader_batch_cancel(BatchHandle &handle)
 {
-  GPUBackend::get()->get_compiler()->batch_cancel(handle, wait);
+  GPUBackend::get()->get_compiler()->batch_cancel(handle);
 }
 
 bool GPU_shader_batch_is_compiling()
@@ -380,9 +380,7 @@ bool GPU_shader_batch_specializations_is_ready(SpecializationBatchHandle &handle
 
 void GPU_shader_batch_specializations_cancel(SpecializationBatchHandle &handle)
 {
-  /* Specialization cancelations should always wait, since otherwise the base shader might be
-   * deleted before an ongoing specialization finishes. */
-  GPUBackend::get()->get_compiler()->batch_cancel(handle, true);
+  GPUBackend::get()->get_compiler()->batch_cancel(handle);
 }
 
 /** \} */
@@ -910,7 +908,7 @@ BatchHandle ShaderCompiler::batch_compile(Span<const shader::ShaderCreateInfo *>
   return handle;
 }
 
-void ShaderCompiler::batch_cancel(BatchHandle &handle, bool wait)
+void ShaderCompiler::batch_cancel(BatchHandle &handle)
 {
   std::unique_lock lock(mutex_);
 
