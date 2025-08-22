@@ -119,7 +119,7 @@ class USDMaterialReader {
  public:
   USDMaterialReader(const USDImportParams &params, Main &bmain, Mutex &reader_mutex);
 
-  /* Create the Blender material for the given UsdShadeMaterial. The caller is respondible for
+  /* Create the Blender material for the given UsdShadeMaterial. The caller is responsible for
    * holding any locks necessary for concurrency. */
   static Material *create_blender_material(Main &bmain, const pxr::UsdShadeMaterial &usd_material);
 
