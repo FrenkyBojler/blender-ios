@@ -1639,7 +1639,7 @@ class CYCLES_LIGHT_PT_beam_shape(CyclesButtonsPanel, Panel):
 
         col = layout.column()
         if light.type == 'SPOT':
-            col.prop(light, "spot_size", text="Spot Size")
+            col.prop(light, "spot_size", text="Angle")
             col.prop(light, "spot_blend", text="Blend", slider=True)
             col.prop(light, "show_cone")
         elif light.type == 'AREA':
@@ -2148,7 +2148,7 @@ class CYCLES_RENDER_PT_bake_output(CyclesButtonsPanel, Panel):
 
         if rd.use_bake_multires:
             layout.prop(rd, "use_bake_clear", text="Clear Image")
-            if rd.bake_type == 'DISPLACEMENT':
+            if rd.bake_type in {'DISPLACEMENT', 'VECTOR_DISPLACEMENT'}:
                 layout.prop(rd, "use_bake_lores_mesh")
         else:
             layout.prop(cbk, "target")

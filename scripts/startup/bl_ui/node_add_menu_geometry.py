@@ -33,6 +33,7 @@ class NODE_MT_gn_utilities_color_base(Menu):
     def draw(self, context):
         layout = self.layout
         self.node_operator(layout, "ShaderNodeBlackbody")
+        self.node_operator(layout, "ShaderNodeGamma")
         self.node_operator(layout, "ShaderNodeValToRGB")
         self.node_operator(layout, "ShaderNodeRGBCurve")
         layout.separator()
@@ -242,7 +243,7 @@ class NODE_MT_gn_geometry_read_base(Menu):
         self.node_operator(layout, "GeometryNodeInputNormal")
         self.node_operator(layout, "GeometryNodeInputPosition", search_weight=1.0)
         self.node_operator(layout, "GeometryNodeInputRadius")
-        if context.space_data.geometry_nodes_type == 'TOOL':
+        if context.space_data.node_tree_sub_type == 'TOOL':
             self.node_operator(layout, "GeometryNodeToolSelection")
             self.node_operator(layout, "GeometryNodeToolActiveElement")
 
@@ -259,7 +260,7 @@ class NODE_MT_gn_geometry_write_base(Menu):
         self.node_operator(layout, "GeometryNodeSetGeometryName")
         self.node_operator(layout, "GeometryNodeSetID")
         self.node_operator(layout, "GeometryNodeSetPosition", search_weight=1.0)
-        if context.space_data.geometry_nodes_type == 'TOOL':
+        if context.space_data.node_tree_sub_type == 'TOOL':
             self.node_operator(layout, "GeometryNodeToolSetSelection")
 
         if self.draw_assets:
@@ -311,7 +312,7 @@ class NODE_MT_gn_input_base(Menu):
     def draw(self, context):
         layout = self.layout
         self.draw_menu(layout, path="Input/Constant")
-        if context.space_data.geometry_nodes_type != 'TOOL':
+        if context.space_data.node_tree_sub_type != 'TOOL':
             self.draw_menu(layout, path="Input/Gizmo")
         self.draw_menu(layout, path="Input/Group")
         self.draw_menu(layout, path="Input/Import")
@@ -361,7 +362,7 @@ class NODE_MT_gn_input_scene_base(Menu):
 
     def draw(self, context):
         layout = self.layout
-        if context.space_data.geometry_nodes_type == 'TOOL':
+        if context.space_data.node_tree_sub_type == 'TOOL':
             self.node_operator(layout, "GeometryNodeTool3DCursor")
         self.node_operator(layout, "GeometryNodeInputActiveCamera")
         self.node_operator_with_outputs(
@@ -383,7 +384,7 @@ class NODE_MT_gn_input_scene_base(Menu):
         self.node_operator(layout, "GeometryNodeCollectionInfo")
         self.node_operator(layout, "GeometryNodeImageInfo")
         self.node_operator(layout, "GeometryNodeIsViewport")
-        if context.space_data.geometry_nodes_type == 'TOOL':
+        if context.space_data.node_tree_sub_type == 'TOOL':
             self.node_operator_with_outputs(
                 context, layout, "GeometryNodeToolMousePosition",
                 ["Mouse X", "Mouse Y", "Region Width", "Region Height"],
@@ -391,7 +392,7 @@ class NODE_MT_gn_input_scene_base(Menu):
         self.node_operator(layout, "GeometryNodeObjectInfo")
         self.node_operator_with_outputs(context, layout, "GeometryNodeInputSceneTime", ["Frame", "Seconds"])
         self.node_operator(layout, "GeometryNodeSelfObject")
-        if context.space_data.geometry_nodes_type == 'TOOL':
+        if context.space_data.node_tree_sub_type == 'TOOL':
             self.node_operator_with_outputs(
                 context, layout, "GeometryNodeViewportTransform",
                 ["Projection", "View", "Is Orthographic"],
@@ -483,7 +484,7 @@ class NODE_MT_gn_mesh_read_base(Menu):
         self.node_operator(layout, "GeometryNodeInputMeshFaceArea")
         self.node_operator(layout, "GeometryNodeMeshFaceSetBoundaries")
         self.node_operator(layout, "GeometryNodeInputMeshFaceNeighbors")
-        if context.space_data.geometry_nodes_type == 'TOOL':
+        if context.space_data.node_tree_sub_type == 'TOOL':
             self.node_operator(layout, "GeometryNodeToolFaceSet")
         self.node_operator(layout, "GeometryNodeInputMeshFaceIsPlanar")
         self.node_operator(layout, "GeometryNodeInputShadeSmooth")
@@ -515,7 +516,7 @@ class NODE_MT_gn_mesh_write_base(Menu):
 
     def draw(self, context):
         layout = self.layout
-        if context.space_data.geometry_nodes_type == 'TOOL':
+        if context.space_data.node_tree_sub_type == 'TOOL':
             self.node_operator(layout, "GeometryNodeToolSetFaceSet")
         self.node_operator(layout, "GeometryNodeSetMeshNormal")
         self.node_operator(layout, "GeometryNodeSetShadeSmooth")

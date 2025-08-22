@@ -438,8 +438,8 @@ void WM_main_remove_notifier_reference(const void *reference)
 
     /* Remap instead. */
 #if 0
-    if (wm->message_bus) {
-      WM_msg_id_remove(wm->message_bus, reference);
+    if (wm->runtime->message_bus) {
+      WM_msg_id_remove(wm->runtime->message_bus, reference);
     }
 #endif
   }
@@ -461,7 +461,7 @@ void WM_main_remap_editor_id_reference(const blender::bke::id::IDRemapper &mappi
       [](ID *old_id, ID *new_id) { blender::ed::asset::list::storage_id_remap(old_id, new_id); });
 
   if (wmWindowManager *wm = static_cast<wmWindowManager *>(bmain->wm.first)) {
-    if (wmMsgBus *mbus = wm->message_bus) {
+    if (wmMsgBus *mbus = wm->runtime->message_bus) {
       mappings.iter([&](ID *old_id, ID *new_id) {
         if (new_id != nullptr) {
           WM_msg_id_update(mbus, old_id, new_id);
@@ -793,7 +793,7 @@ void wm_event_do_notifiers(bContext *C)
   {
     LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
       CTX_wm_window_set(C, win);
-      WM_msgbus_handle(wm->message_bus, C);
+      WM_msgbus_handle(wm->runtime->message_bus, C);
     }
     CTX_wm_window_set(C, nullptr);
   }
@@ -803,8 +803,8 @@ void wm_event_do_notifiers(bContext *C)
   RE_FreeUnusedGPUResources();
 
   /* Status bar. */
-  if (wm->winactive) {
-    wmWindow *win = wm->winactive;
+  if (wm->runtime->winactive) {
+    wmWindow *win = wm->runtime->winactive;
     CTX_wm_window_set(C, win);
     WM_window_cursor_keymap_status_refresh(C, win);
     CTX_wm_window_set(C, nullptr);
@@ -972,7 +972,7 @@ static void wm_event_handler_ui_cancel(bContext *C)
 void WM_report_banner_show(wmWindowManager *wm, wmWindow *win)
 {
   if (win == nullptr) {
-    win = wm->winactive;
+    win = wm->runtime->winactive;
     if (win == nullptr) {
       win = static_cast<wmWindow *>(wm->windows.first);
     }
@@ -1061,8 +1061,8 @@ void WM_global_reportf(eReportType type, const char *format, ...)
  */
 static intptr_t wm_operator_undo_active_id(const wmWindowManager *wm)
 {
-  if (wm->undo_stack) {
-    return intptr_t(wm->undo_stack->step_active);
+  if (wm->runtime->undo_stack) {
+    return intptr_t(wm->runtime->undo_stack->step_active);
   }
   return -1;
 }
@@ -2900,7 +2900,7 @@ static eHandlerActionFlag wm_handler_fileselect_do(bContext *C,
             if (wm_cursor_position_get(root_win, &xy[0], &xy[1])) {
               copy_v2_v2_int(eventstate->xy, xy);
             }
-            wm->winactive = root_win; /* Reports use this... */
+            wm->runtime->winactive = root_win; /* Reports use this... */
           }
           else if (file_area->full) {
             ED_screen_full_prevspace(C, file_area);
@@ -3510,6 +3510,9 @@ static eHandlerActionFlag wm_handlers_do_intern(bContext *C,
           LISTBASE_FOREACH (wmDropBox *, drop, handler->dropboxes) {
             /* Other drop custom types allowed. */
             if (event->custom == EVT_DATA_DRAGDROP) {
+              /* Drop handlers can perform multiple operations (e.g., collection drag-and-drop),
+               * but we want to treat it as a single operation. */
+              ED_undo_group_begin(C);
               ListBase *lb = (ListBase *)event->customdata;
               LISTBASE_FOREACH_MUTABLE (wmDrag *, drag, lb) {
                 if (drop->poll(C, drag, event)) {
@@ -3553,6 +3556,7 @@ static eHandlerActionFlag wm_handlers_do_intern(bContext *C,
               }
               /* Always exit all drags on a drop event, even if poll didn't succeed. */
               wm_drags_exit(wm, win);
+              ED_undo_group_end(C);
             }
           }
         }
@@ -4852,7 +4856,7 @@ static void wm_event_get_keymap_from_toolsystem_ex(wmWindowManager *wm,
     BLI_assert(keymap_id && keymap_id[0]);
 
     wmKeyMap *km = WM_keymap_list_find_spaceid_or_empty(
-        &wm->userconf->keymaps, keymap_id, area->spacetype, RGN_TYPE_WINDOW);
+        &wm->runtime->userconf->keymaps, keymap_id, area->spacetype, RGN_TYPE_WINDOW);
     /* We shouldn't use key-maps from unrelated spaces. */
     if (km == nullptr) {
       printf("Key-map: '%s' not found for tool '%s'\n", keymap_id, area->runtime.tool->idname);
@@ -5150,7 +5154,7 @@ wmEventHandler_Dropbox *WM_event_add_dropbox_handler(ListBase *handlers, ListBas
   return handler;
 }
 
-void WM_event_remove_area_handler(ListBase *handlers, void *area)
+void WM_event_remove_handlers_by_area(ListBase *handlers, const ScrArea *area)
 {
   /* XXX(@ton): solution works, still better check the real cause. */
 
@@ -5945,9 +5949,11 @@ void wm_event_add_ghostevent(wmWindowManager *wm,
 
   /* Always use modifiers from the active window since
    * changes to modifiers aren't sent to inactive windows, see: #66088. */
-  if ((wm->winactive != win) && (wm->winactive && wm->winactive->eventstate)) {
-    event.modifier = wm->winactive->eventstate->modifier;
-    event.keymodifier = wm->winactive->eventstate->keymodifier;
+  if ((wm->runtime->winactive != win) &&
+      (wm->runtime->winactive && wm->runtime->winactive->eventstate))
+  {
+    event.modifier = wm->runtime->winactive->eventstate->modifier;
+    event.keymodifier = wm->runtime->winactive->eventstate->keymodifier;
   }
 
   /* Ensure the event state is correct, any deviation from this may cause bugs.

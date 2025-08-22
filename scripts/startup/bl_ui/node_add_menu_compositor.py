@@ -107,7 +107,7 @@ class NODE_MT_compositor_node_color_adjust_base(Menu):
         self.node_operator(layout, "CompositorNodeColorBalance")
         self.node_operator(layout, "CompositorNodeColorCorrection")
         self.node_operator(layout, "CompositorNodeExposure")
-        self.node_operator(layout, "CompositorNodeGamma")
+        self.node_operator(layout, "ShaderNodeGamma")
         self.node_operator(layout, "CompositorNodeHueCorrect")
         self.node_operator(layout, "CompositorNodeHueSat")
         self.node_operator(layout, "CompositorNodeCurveRGB")

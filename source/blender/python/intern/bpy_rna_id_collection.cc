@@ -368,7 +368,7 @@ PyDoc_STRVAR(
     "   :type subset: sequence\n"
     "   :arg key_types: When given, filter the keys mapped by ID types. Ignored if ``subset`` is "
     "also given.\n"
-    "   :type key_types: set of strings\n"
+    "   :type key_types: set[str]\n"
     "   :arg include_libraries: Include library file paths of linked data. False by default.\n"
     "   :type include_libraries: bool\n"
     "   :return: dictionary of :class:`bpy.types.ID` instances, with sets of file path "
@@ -432,7 +432,7 @@ static PyObject *bpy_file_path_map(PyObject *self, PyObject *args, PyObject *kwd
   filepathmap_data.include_libraries = (include_libraries == Py_True);
 
   if (subset) {
-    PyObject *subset_fast = PySequence_Fast(subset, "user_map");
+    PyObject *subset_fast = PySequence_Fast(subset, "subset");
     if (subset_fast == nullptr) {
       goto error;
     }

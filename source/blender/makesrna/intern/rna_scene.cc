@@ -3344,6 +3344,7 @@ static void rna_def_tool_settings(BlenderRNA *brna)
   RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE | PROP_DEG_SYNC_ONLY);
   RNA_def_property_enum_sdna(prop, nullptr, "weightuser");
   RNA_def_property_enum_items(prop, draw_groupuser_items);
+  RNA_def_property_enum_default(prop, OB_DRAW_GROUPUSER_ACTIVE);
   RNA_def_property_ui_text(prop, "Mask Non-Group Vertices", "Display unweighted vertices");
   RNA_def_property_update(prop, 0, "rna_Scene_update_active_object_data");
 
@@ -4268,18 +4269,6 @@ static void rna_def_sequencer_tool_settings(BlenderRNA *brna)
   StructRNA *srna;
   PropertyRNA *prop;
 
-  static const EnumPropertyItem scale_fit_methods[] = {
-      {SEQ_SCALE_TO_FIT, "FIT", 0, "Scale to Fit", "Scale image to fit within the canvas"},
-      {SEQ_SCALE_TO_FILL, "FILL", 0, "Scale to Fill", "Scale image to completely fill the canvas"},
-      {SEQ_STRETCH_TO_FILL, "STRETCH", 0, "Stretch to Fill", "Stretch image to fill the canvas"},
-      {SEQ_USE_ORIGINAL_SIZE,
-       "ORIGINAL",
-       0,
-       "Use Original Size",
-       "Keep image at its original size"},
-      {0, nullptr, 0, nullptr, nullptr},
-  };
-
   static const EnumPropertyItem scale_overlap_modes[] = {
       {SEQ_OVERLAP_EXPAND, "EXPAND", 0, "Expand", "Move strips so transformed strips fit"},
       {SEQ_OVERLAP_OVERWRITE,
@@ -4314,7 +4303,7 @@ static void rna_def_sequencer_tool_settings(BlenderRNA *brna)
 
   /* Add strip settings. */
   prop = RNA_def_property(srna, "fit_method", PROP_ENUM, PROP_NONE);
-  RNA_def_property_enum_items(prop, scale_fit_methods);
+  RNA_def_property_enum_items(prop, rna_enum_strip_scale_method_items);
   RNA_def_property_ui_text(prop, "Fit Method", "Scale fit method");
 
   /* Transform snapping. */
@@ -6764,6 +6753,15 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
       //{RE_BAKE_AO, "AO", 0, "Ambient Occlusion", "Bake ambient occlusion"},
       {RE_BAKE_NORMALS, "NORMALS", 0, "Normals", "Bake normals"},
       {RE_BAKE_DISPLACEMENT, "DISPLACEMENT", 0, "Displacement", "Bake displacement"},
+
+      /* TODO(sergey): Uncomment once tangent space displacement is supported. */
+      /* Use C++ style comment because #if 0 breaks indentation. */
+      // {RE_BAKE_VECTOR_DISPLACEMENT,
+      //  "VECTOR_DISPLACEMENT",
+      //  0,
+      //  "Vector Displacement",
+      //  "Bake vector displacement"},
+
       {0, nullptr, 0, nullptr, nullptr},
   };
 
