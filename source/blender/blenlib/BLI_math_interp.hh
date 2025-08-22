@@ -346,6 +346,20 @@ void interpolate_cubic_bspline_wrapmode_fl(const float *buffer,
 void interpolate_cubic_mitchell_fl(
     const float *buffer, float *output, int width, int height, int components, float u, float v);
 
+/* EWA sampling.
+ * Implements the screen-space elliptical weighted average over the build ellipsoid.
+ * This implementation does not make use of mipmapping, but implements a single level only.
+ * The arguments u, v and the gradients are expected to be normalized. */
+
+[[nodiscard]] float4 interpolate_ewa_wrapmode(const float *buffer,
+                                              const int width,
+                                              const int height,
+                                              const float u,
+                                              const float v,
+                                              const float2 &x_gradient,
+                                              const float2 &y_gradient,
+                                              const InterpWrapMode &wrap_u,
+                                              const InterpWrapMode &wrap_v);
 }  // namespace blender::math
 
 /* -------------------------------------------------------------------- */
@@ -373,16 +387,3 @@ void BLI_ewa_filter(int width,
                     ewa_filter_read_pixel_cb read_pixel_cb,
                     void *userdata,
                     float result[4]);
-
-namespace blender::math {
-void BLI_ewa_single_level(const int2 &dimensions,
-                          const float2 &uv_center,
-                          const float2 &x_gradient,
-                          const float2 &y_gradient,
-                          const float *buffer,
-                          float4 &result,
-                          const InterpWrapMode &wrap_u = InterpWrapMode::Border,
-                          const InterpWrapMode &wrap_v = InterpWrapMode::Border,
-                          const float &max_ratio_between_axes = 8.0f,
-                          const float &smoothness = 2.0f);
-}

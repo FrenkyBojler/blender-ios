@@ -442,13 +442,15 @@ class Result {
   float4 sample_ewa_extended(const float2 &coordinates,
                              const float2 &x_gradient,
                              const float2 &y_gradient,
-                             const ExtensionMode &modex,
-                             const ExtensionMode &modey) const;
+                             const ExtensionMode &extend_mode_x,
+                             const ExtensionMode &extend_mode_y) const;
 
   /* Identical to sample_ewa_extended but with zero boundary condition. */
   float4 sample_ewa_zero(const float2 &coordinates,
                          const float2 &x_gradient,
-                         const float2 &y_gradient) const;
+                         const float2 &y_gradient,
+                         const ExtensionMode &extend_mode_x,
+                         const ExtensionMode &extend_mode_y) const;
 
  private:
   /* Allocates the image data for the given size.
@@ -884,22 +886,19 @@ BLI_INLINE_METHOD float4 Result::sample_cubic_extended(const float2 &coordinates
 }
 
 /**
- * Given a Result as the userdata argument, sample it at the given coordinates using extended
- * boundary condition and write the result to the result argument.
- */
-// static void sample_ewa_extended_read_callback(void *userdata, int x, int y, float result[4])
-// {
-//   const Result *input = static_cast<const Result *>(userdata);
-//   const float4 sampled_result = input->load_pixel_extended<float4>(int2(x, y));
-//   copy_v4_v4(result, sampled_result);
-// }
-
+ * Sample the result buffer using **elliptically weighted average (EWA) filtering**
+ * with zero initialization and extend extension modes.
+ *
+ * This function evaluates the image at arbitrary continuous coordinates
+ * using an EWA footprint defined by the supplied gradients. The lookup
+ * performs anisotropic filtering to reduce aliasing in cases where the
+ * pixel footprint is elongated or rotated relative to the pixel grid. */
 BLI_INLINE_METHOD float4
 Result::sample_ewa_extended(const float2 &coordinates,
                             const float2 &x_gradient,
                             const float2 &y_gradient,
-                            const ExtensionMode &modex = ExtensionMode::Clip,
-                            const ExtensionMode &modey = ExtensionMode::Clip) const
+                            const ExtensionMode &extend_mode_x = ExtensionMode::Extend,
+                            const ExtensionMode &extend_mode_y = ExtensionMode::Extend) const
 {
   BLI_assert(type_ == ResultType::Color);
 
@@ -911,33 +910,35 @@ Result::sample_ewa_extended(const float2 &coordinates,
 
   const int2 size = domain_.size;
   const float *buffer = static_cast<const float *>(this->cpu_data().data());
-  const math::InterpWrapMode extension_mode_x = map_extension_mode_to_wrap_mode(modex);
-  const math::InterpWrapMode extension_mode_y = map_extension_mode_to_wrap_mode(modey);
-  math::BLI_ewa_single_level(size,
-                             coordinates,
-                             x_gradient,
-                             y_gradient,
-                             buffer,
-                             pixel_value,
-                             extension_mode_x,
-                             extension_mode_y);
+  const math::InterpWrapMode extension_mode_x = map_extension_mode_to_wrap_mode(extend_mode_x);
+  const math::InterpWrapMode extension_mode_y = map_extension_mode_to_wrap_mode(extend_mode_y);
+
+  pixel_value = math::interpolate_ewa_wrapmode(buffer,
+                                               size.x,
+                                               size.y,
+                                               coordinates.x,
+                                               coordinates.y,
+                                               x_gradient,
+                                               y_gradient,
+                                               extension_mode_x,
+                                               extension_mode_y);
   return pixel_value;
 }
 
 /**
- * Given a Result as the userdata argument, sample it at the given coordinates using zero boundary
- * condition and write the result to the result argument.
- */
-// static void sample_ewa_zero_read_callback(void *userdata, int x, int y, float result[4])
-// {
-//   const Result *input = static_cast<const Result *>(userdata);
-//   const float4 sampled_result = input->load_pixel_zero<float4>(int2(x, y));
-//   copy_v4_v4(result, sampled_result);
-// }
-
-BLI_INLINE_METHOD float4 Result::sample_ewa_zero(const float2 &coordinates,
-                                                 const float2 &x_gradient,
-                                                 const float2 &y_gradient) const
+ * Sample the result buffer using **elliptically weighted average (EWA) filtering**
+ * with zero initialization and clip extension modes.
+ *
+ * This function evaluates the image at arbitrary continuous coordinates
+ * using an EWA footprint defined by the supplied gradients. The lookup
+ * performs anisotropic filtering to reduce aliasing in cases where the
+ * pixel footprint is elongated or rotated relative to the pixel grid. */
+BLI_INLINE_METHOD float4
+Result::sample_ewa_zero(const float2 &coordinates,
+                        const float2 &x_gradient,
+                        const float2 &y_gradient,
+                        const ExtensionMode &extend_mode_x = ExtensionMode::Clip,
+                        const ExtensionMode &extend_mode_y = ExtensionMode::Clip) const
 {
   BLI_assert(type_ == ResultType::Color);
 
@@ -949,7 +950,18 @@ BLI_INLINE_METHOD float4 Result::sample_ewa_zero(const float2 &coordinates,
 
   const int2 size = domain_.size;
   const float *buffer = static_cast<const float *>(this->cpu_data().data());
-  math::BLI_ewa_single_level(size, coordinates, x_gradient, y_gradient, buffer, pixel_value);
+  const math::InterpWrapMode extension_mode_x = map_extension_mode_to_wrap_mode(extend_mode_x);
+  const math::InterpWrapMode extension_mode_y = map_extension_mode_to_wrap_mode(extend_mode_y);
+
+  pixel_value = math::interpolate_ewa_wrapmode(buffer,
+                                               size.x,
+                                               size.y,
+                                               coordinates.x,
+                                               coordinates.y,
+                                               x_gradient,
+                                               y_gradient,
+                                               extension_mode_x,
+                                               extension_mode_y);
   return pixel_value;
 }
 
