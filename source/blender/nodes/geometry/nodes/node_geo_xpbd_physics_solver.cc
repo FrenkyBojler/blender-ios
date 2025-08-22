@@ -21,7 +21,6 @@
 #include "NOD_geometry_nodes_physics_bundles.hh"
 
 #include "GEO_xpbd_common_constraint_evaluators.hh"
-#include "GEO_xpbd_common_constraint_set_indices.hh"
 #include "GEO_xpbd_constraint_solver.hh"
 
 #include "node_geometry_util.hh"
@@ -914,7 +913,7 @@ static void gather_edge_length_constraints(
     const VectorSet<SimPointsKey> &keys,
     const Map<SimPointsKey, SimPointsWorldProperties> &sim_points_props,
     const float delta_time,
-    Vector<geometry::xpbd_constraint_solver::ConstraintSet> &r_constraint_sets)
+    Vector<const geometry::xpbd_constraint_solver::ConstraintSetEvaluator *> &r_constraint_sets)
 {
   const float compliance_factor = compute_compliance_factor(delta_time);
 
@@ -972,10 +971,8 @@ static void gather_edge_length_constraints(
 
       /* Add the actual constraint. */
       r_constraint_sets.append(
-          {scope.construct<geometry::xpbd_constraint_solver::BinaryConstraintSetIndices>(
-               key_i, constraint_edges),
-           scope.construct<geometry::xpbd_constraint_solver::DistanceConstraintEvaluator>(
-               key_i, inverse_masses, constraint_edges, constraint_lengths, compliance_terms)});
+          &scope.construct<geometry::xpbd_constraint_solver::DistanceConstraintEvaluator>(
+              key_i, inverse_masses, constraint_edges, constraint_lengths, compliance_terms));
     }
   }
 }
@@ -988,7 +985,7 @@ static void gather_curve_segment_constraints(
     const VectorSet<SimPointsKey> &keys,
     const Map<SimPointsKey, SimPointsWorldProperties> &sim_points_props,
     const float delta_time,
-    Vector<geometry::xpbd_constraint_solver::ConstraintSet> &r_constraint_sets)
+    Vector<const geometry::xpbd_constraint_solver::ConstraintSetEvaluator *> &r_constraint_sets)
 {
   const float compliance_factor = compute_compliance_factor(delta_time);
 
@@ -1045,14 +1042,12 @@ static void gather_curve_segment_constraints(
           scope, state, positions, key, constraint_segments);
 
       r_constraint_sets.append(
-          {scope.construct<geometry::xpbd_constraint_solver::BinaryConstraintSetIndices>(
-               key_i, constraint_segments),
-           scope.construct<geometry::xpbd_constraint_solver::DistanceConstraintEvaluator>(
-               key_i,
-               inverse_masses,
-               constraint_segments,
-               constraint_lengths,
-               constraint_compliance_terms)});
+          &scope.construct<geometry::xpbd_constraint_solver::DistanceConstraintEvaluator>(
+              key_i,
+              inverse_masses,
+              constraint_segments,
+              constraint_lengths,
+              constraint_compliance_terms));
     }
   }
 }
@@ -1064,7 +1059,7 @@ static void gather_overpressure_constraints(
     const Span<GeometrySet> applied_geometries,
     const VectorSet<SimPointsKey> &keys,
     const Map<SimPointsKey, SimPointsWorldProperties> &sim_points_props,
-    Vector<geometry::xpbd_constraint_solver::ConstraintSet> &r_constraint_sets)
+    Vector<const geometry::xpbd_constraint_solver::ConstraintSetEvaluator *> &r_constraint_sets)
 {
   for (const int key_i : keys.index_range()) {
     const SimPointsKey &key = keys[key_i];
@@ -1098,10 +1093,8 @@ static void gather_overpressure_constraints(
       offsets[1] = affected_points.size();
       array_utils::fill_index_range<int>(affected_points);
       r_constraint_sets.append(
-          {scope.construct<geometry::xpbd_constraint_solver::NAryConstraintSetIndices>(
-               key_i, GroupedSpan<int>(OffsetIndices<int>(offsets), affected_points)),
-           scope.construct<geometry::xpbd_constraint_solver::OverpressureConstraintEvaluator>(
-               key_i, tris, corner_verts, inverse_masses, overpressure, initial_volume)});
+          &scope.construct<geometry::xpbd_constraint_solver::OverpressureConstraintEvaluator>(
+              key_i, tris, corner_verts, inverse_masses, overpressure, initial_volume));
     }
   }
 }
@@ -1114,7 +1107,7 @@ static void gather_curves_rod_stretch_and_shear_constraints(
     const VectorSet<SimPointsKey> &keys,
     const Map<SimPointsKey, SimPointsWorldProperties> &sim_points_props,
     const float delta_time,
-    Vector<geometry::xpbd_constraint_solver::ConstraintSet> &r_constraint_sets)
+    Vector<const geometry::xpbd_constraint_solver::ConstraintSetEvaluator *> &r_constraint_sets)
 {
   const float compliance_factor = compute_compliance_factor(delta_time);
 
@@ -1165,16 +1158,14 @@ static void gather_curves_rod_stretch_and_shear_constraints(
       const Span<float> constraint_lenghts = prepare_distance_constraint_lengths(
           scope, state, sim_points.positions, key, constraint_segments);
       r_constraint_sets.append(
-          {scope.construct<geometry::xpbd_constraint_solver::BinaryConstraintSetIndices>(
-               key_i, constraint_segments),
-           scope
+          &scope
                .construct<geometry::xpbd_constraint_solver::RodStretchAndShearConstraintEvaluator>(
                    key_i,
                    constraint_segments,
                    props.inverse_masses,
                    props.inertias,
                    constraint_lenghts,
-                   constraint_compliance_terms)});
+                   constraint_compliance_terms));
     }
   }
 }
@@ -1187,7 +1178,7 @@ static void gather_curves_rod_bend_and_twist_constraints(
     const VectorSet<SimPointsKey> &keys,
     const Map<SimPointsKey, SimPointsWorldProperties> &sim_points_props,
     const float delta_time,
-    Vector<geometry::xpbd_constraint_solver::ConstraintSet> &r_constraint_sets)
+    Vector<const geometry::xpbd_constraint_solver::ConstraintSetEvaluator *> &r_constraint_sets)
 {
   const float compliance_factor = compute_compliance_factor(delta_time);
 
@@ -1237,14 +1228,12 @@ static void gather_curves_rod_bend_and_twist_constraints(
       const Span<math::Quaternion> rest_rotations = prepare_relative_rotations(
           scope, state, sim_points.rotations, key, constraint_segments);
       r_constraint_sets.append(
-          {scope.construct<geometry::xpbd_constraint_solver::BinaryConstraintSetIndices>(
-               key_i, constraint_segments),
-           scope.construct<geometry::xpbd_constraint_solver::RodBendAndTwistConstraintEvaluator>(
-               key_i,
-               constraint_segments,
-               props.inertias,
-               rest_rotations,
-               constraint_compliance_terms)});
+          &scope.construct<geometry::xpbd_constraint_solver::RodBendAndTwistConstraintEvaluator>(
+              key_i,
+              constraint_segments,
+              props.inertias,
+              rest_rotations,
+              constraint_compliance_terms));
     }
   }
 }
@@ -1255,7 +1244,7 @@ static Map<SimPointsKey, MutableSpan<float3>> gather_soft_pinned_position_constr
     const Map<SimPointsKey, SimPointsWorldProperties> &sim_points_props,
     const Map<SimPointsKey, PinnedPositions> &pinned_positions_map,
     const float delta_time,
-    Vector<geometry::xpbd_constraint_solver::ConstraintSet> &r_constraint_sets)
+    Vector<const geometry::xpbd_constraint_solver::ConstraintSetEvaluator *> &r_constraint_sets)
 {
   const float compliance_factor = compute_compliance_factor(delta_time);
   Map<SimPointsKey, MutableSpan<float3>> result;
@@ -1278,14 +1267,12 @@ static Map<SimPointsKey, MutableSpan<float3>> gather_soft_pinned_position_constr
     result.add(key, soft_pinned_positions);
 
     r_constraint_sets.append(
-        {scope.construct<geometry::xpbd_constraint_solver::UnaryConstraintSetIndices>(
-             key_i, pinned_positions.soft_indices),
-         scope.construct<geometry::xpbd_constraint_solver::PinnedPositionConstraintEvaluator>(
-             key_i,
-             pinned_positions.soft_indices,
-             soft_pinned_positions,
-             compliance_terms,
-             inverse_masses)});
+        &scope.construct<geometry::xpbd_constraint_solver::PinnedPositionConstraintEvaluator>(
+            key_i,
+            pinned_positions.soft_indices,
+            soft_pinned_positions,
+            compliance_terms,
+            inverse_masses));
   }
   return result;
 }
@@ -1296,7 +1283,7 @@ static Map<SimPointsKey, MutableSpan<math::Quaternion>> gather_soft_pinned_rotat
     const Map<SimPointsKey, SimPointsWorldProperties> &sim_points_props,
     const Map<SimPointsKey, PinnedRotations> &pinned_rotations_map,
     const float delta_time,
-    Vector<geometry::xpbd_constraint_solver::ConstraintSet> &r_constraint_sets)
+    Vector<const geometry::xpbd_constraint_solver::ConstraintSetEvaluator *> &r_constraint_sets)
 {
   const float compliance_factor = compute_compliance_factor(delta_time);
   Map<SimPointsKey, MutableSpan<math::Quaternion>> result;
@@ -1320,14 +1307,12 @@ static Map<SimPointsKey, MutableSpan<math::Quaternion>> gather_soft_pinned_rotat
     result.add(key, soft_pinned_rotations);
 
     r_constraint_sets.append(
-        {scope.construct<geometry::xpbd_constraint_solver::UnaryConstraintSetIndices>(
-             key_i, pinned_rotations.soft_indices),
-         scope.construct<geometry::xpbd_constraint_solver::PinRotationConstraintEvaluator>(
-             key_i,
-             pinned_rotations.soft_indices,
-             soft_pinned_rotations,
-             compliance_terms,
-             sim_points_props.lookup(key).inverse_inertias)});
+        &scope.construct<geometry::xpbd_constraint_solver::PinRotationConstraintEvaluator>(
+            key_i,
+            pinned_rotations.soft_indices,
+            soft_pinned_rotations,
+            compliance_terms,
+            sim_points_props.lookup(key).inverse_inertias));
   }
   return result;
 }
@@ -1339,7 +1324,7 @@ static void gather_align_positions_constraints(
     const VectorSet<SimPointsKey> &keys,
     const Map<SimPointsKey, SimPointsWorldProperties> &sim_points_props,
     const float delta_time,
-    Vector<geometry::xpbd_constraint_solver::ConstraintSet> &r_constraint_sets)
+    Vector<const geometry::xpbd_constraint_solver::ConstraintSetEvaluator *> &r_constraint_sets)
 {
   const float compliance_factor = compute_compliance_factor(delta_time);
 
@@ -1429,15 +1414,12 @@ static void gather_align_positions_constraints(
     }
 
     r_constraint_sets.append(
-        {scope.construct<geometry::xpbd_constraint_solver::MultiNAryConstraintSetIndices>(
-             GroupedSpan<int>(offset_indices, constraint_points_ref_indices),
-             GroupedSpan<int>(offset_indices, constraint_point_indices)),
-         scope.construct<geometry::xpbd_constraint_solver::AlignPositionsConstraintEvaluator>(
-             offset_indices,
-             constraint_compliance_terms,
-             constraint_points_ref_indices,
-             constraint_point_indices,
-             constraint_inverse_masses)});
+        &scope.construct<geometry::xpbd_constraint_solver::AlignPositionsConstraintEvaluator>(
+            offset_indices,
+            constraint_compliance_terms,
+            constraint_points_ref_indices,
+            constraint_point_indices,
+            constraint_inverse_masses));
   }
 }
 
@@ -1448,7 +1430,7 @@ static void gather_attach_uv_surface_constraints(
     const VectorSet<SimPointsKey> &keys,
     const Map<SimPointsKey, SimPointsWorldProperties> &sim_points_props,
     const float delta_time,
-    Vector<geometry::xpbd_constraint_solver::ConstraintSet> &r_constraint_sets)
+    Vector<const geometry::xpbd_constraint_solver::ConstraintSetEvaluator *> &r_constraint_sets)
 {
   const float compliance_factor = compute_compliance_factor(delta_time);
 
@@ -1551,18 +1533,15 @@ static void gather_attach_uv_surface_constraints(
       const OffsetIndices<int> all_affected_points_offset_indices(all_affected_points_offsets);
 
       r_constraint_sets.append(
-          {scope.construct<geometry::xpbd_constraint_solver::MultiNAryConstraintSetIndices>(
-               GroupedSpan<int>{all_affected_points_offset_indices, all_affected_points_refs},
-               GroupedSpan<int>{all_affected_points_offset_indices, all_affected_points}),
-           scope.construct<geometry::xpbd_constraint_solver::AttachUVSurfaceConstraintEvaluator>(
-               mesh_key_i,
-               mesh_inverse_masses,
-               key_i,
-               indices,
-               triangle_indices,
-               bary_weights,
-               inverse_masses,
-               compliance_terms)});
+          &scope.construct<geometry::xpbd_constraint_solver::AttachUVSurfaceConstraintEvaluator>(
+              mesh_key_i,
+              mesh_inverse_masses,
+              key_i,
+              indices,
+              triangle_indices,
+              bary_weights,
+              inverse_masses,
+              compliance_terms));
     }
   }
 }
@@ -1575,7 +1554,7 @@ static void gather_distance_based_edge_bending_constraints(
     const VectorSet<SimPointsKey> &keys,
     const Map<SimPointsKey, SimPointsWorldProperties> &sim_points_props,
     const float delta_time,
-    Vector<geometry::xpbd_constraint_solver::ConstraintSet> &r_constraint_sets)
+    Vector<const geometry::xpbd_constraint_solver::ConstraintSetEvaluator *> &r_constraint_sets)
 {
   const float compliance_factor = compute_compliance_factor(delta_time);
 
@@ -1649,10 +1628,8 @@ static void gather_distance_based_edge_bending_constraints(
           scope, state, mesh_positions, key, point_pairs);
 
       r_constraint_sets.append(
-          {scope.construct<geometry::xpbd_constraint_solver::BinaryConstraintSetIndices>(
-               key_i, point_pairs),
-           scope.construct<geometry::xpbd_constraint_solver::DistanceConstraintEvaluator>(
-               key_i, inverse_masses, point_pairs, constraint_lengths, compliance_terms)});
+          &scope.construct<geometry::xpbd_constraint_solver::DistanceConstraintEvaluator>(
+              key_i, inverse_masses, point_pairs, constraint_lengths, compliance_terms));
     }
   }
 }
@@ -1828,34 +1805,30 @@ static void generate_collision_constraint_sets(
     const VectorSet<SimPointsKey> &keys,
     const Map<SimPointsKey, SimPointsWorldProperties> &sim_points_props,
     const float delta_time,
-    Vector<geometry::xpbd_constraint_solver::ConstraintSet> &r_constraint_sets)
+    Vector<const geometry::xpbd_constraint_solver::ConstraintSetEvaluator *> &r_constraint_sets)
 {
   for (auto item : contacts.static_plane_contacts.items()) {
     const int key_i = keys.index_of(item.key);
     const StaticPlaneContacts &plane_contacts = item.value;
     r_constraint_sets.append(
-        {scope.construct<geometry::xpbd_constraint_solver::UnaryConstraintSetIndices>(
-             key_i, plane_contacts.indices),
-         scope.construct<geometry::xpbd_constraint_solver::CollisionPlaneConstraintEvaluator>(
-             key_i,
-             plane_contacts.indices,
-             plane_contacts.plane_positions,
-             plane_contacts.plane_normals)});
+        &scope.construct<geometry::xpbd_constraint_solver::CollisionPlaneConstraintEvaluator>(
+            key_i,
+            plane_contacts.indices,
+            plane_contacts.plane_positions,
+            plane_contacts.plane_normals));
   }
   for (auto item : contacts.dynamic_sphere_contacts.items()) {
     const int key_i = keys.index_of(item.key);
     const DynamicSphereContacts &sphere_contacts = item.value;
     const float compliance_term = math::safe_divide(1e-4f, pow2f(delta_time));
     r_constraint_sets.append(
-        {scope.construct<geometry::xpbd_constraint_solver::BinaryConstraintSetIndices>(
-             key_i, sphere_contacts.indices),
-         scope.construct<geometry::xpbd_constraint_solver::MinimumDistanceConstraintEvaluator>(
-             key_i,
-             sphere_contacts.indices,
-             sphere_contacts.min_distance,
-             sim_points_props.lookup(item.key).inverse_masses,
-             scope.allocator().construct_array<float>(sphere_contacts.indices.size(),
-                                                      compliance_term))});
+        &scope.construct<geometry::xpbd_constraint_solver::MinimumDistanceConstraintEvaluator>(
+            key_i,
+            sphere_contacts.indices,
+            sphere_contacts.min_distance,
+            sim_points_props.lookup(item.key).inverse_masses,
+            scope.allocator().construct_array<float>(sphere_contacts.indices.size(),
+                                                     compliance_term)));
   }
 }
 
@@ -1926,7 +1899,7 @@ static void remove_unused_states(XPBDState &state)
 static void solve_constraints(
     const SolverType solver_type,
     const Span<geometry::xpbd_constraint_solver::MutablePointsRef> points_refs,
-    const Span<geometry::xpbd_constraint_solver::ConstraintSet> constraint_sets)
+    const Span<const geometry::xpbd_constraint_solver::ConstraintSetEvaluator *> constraint_sets)
 {
   switch (solver_type) {
     case SolverType::SerialGaussSeidel: {
@@ -2270,7 +2243,7 @@ static void update_and_step_xpbd_state(XPBDState &state,
 
   const float sub_delta_time = math::safe_divide<float>(total_delta_time, substeps);
 
-  Vector<geometry::xpbd_constraint_solver::ConstraintSet> static_constraint_sets;
+  Vector<const geometry::xpbd_constraint_solver::ConstraintSetEvaluator *> static_constraint_sets;
   gather_edge_length_constraints(scope,
                                  state,
                                  world,
@@ -2379,7 +2352,7 @@ static void update_and_step_xpbd_state(XPBDState &state,
     update_pinned_rotations(state, pinned_rotations_map, soft_pinned_rotations_map, factor);
 
     /* Find current collisisons and generate constraints to resolve them. */
-    Vector<geometry::xpbd_constraint_solver::ConstraintSet> constraint_sets =
+    Vector<const geometry::xpbd_constraint_solver::ConstraintSetEvaluator *> constraint_sets =
         static_constraint_sets;
     const Contacts contacts = gather_contacts(
         state, world, applied_geometries, keys, sim_points_props);

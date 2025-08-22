@@ -80,19 +80,22 @@ class NonDeterministicJacobianUpdater {
  * such constraints.
  */
 class ConstraintSetEvaluator {
+ protected:
+  Vector<int> affected_points_refs_;
+
  public:
+  ConstraintSetEvaluator(Vector<int> affected_points_refs);
+
   virtual ~ConstraintSetEvaluator() = default;
 
   virtual void evaluate_parallel_non_deterministic_jacobian(
-      NonDeterministicJacobianUpdater &updater,
-      Span<PointsRef> points_refs,
-      const IndexMask &constraint_mask) const = 0;
+      NonDeterministicJacobianUpdater &updater, Span<PointsRef> points_refs) const = 0;
   virtual void evaluate_parallel_gauss_seidel(GaussSeidelUpdater &updater,
-                                              Span<PointsRef> points_refs,
-                                              const IndexMask &constraint_mask) const = 0;
+                                              Span<PointsRef> points_refs) const = 0;
   virtual void evaluate_serial_gauss_seidel(GaussSeidelUpdater &updater,
-                                            Span<PointsRef> points_refs,
-                                            Span<int> constraint_mask) const = 0;
+                                            Span<PointsRef> points_refs) const = 0;
+
+  Span<int> get_affected_points_refs() const;
 };
 
 /**
@@ -102,29 +105,28 @@ class ConstraintSetEvaluator {
  * Child classes have to implement the templated #evaluate_single method.
  */
 template<typename Child> class TemplatedConstraintSetEvaluator : public ConstraintSetEvaluator {
-  TemplatedConstraintSetEvaluator() = default;
-  friend Child;
+ protected:
+  const int constraints_num_;
+  const int grain_size_ = 256;
+
+ private:
+  mutable CacheMutex independent_masks_mutex_;
+  mutable IndexMaskMemory independent_masks_memory_;
+  mutable Vector<IndexMask> independent_masks_;
 
  public:
-  void evaluate_parallel_non_deterministic_jacobian(
-      NonDeterministicJacobianUpdater &updater,
-      Span<PointsRef> points_refs,
-      const IndexMask &constraint_mask) const override;
-  void evaluate_parallel_gauss_seidel(GaussSeidelUpdater &updater,
-                                      Span<PointsRef> points_refs,
-                                      const IndexMask &constraint_mask) const override;
-  void evaluate_serial_gauss_seidel(GaussSeidelUpdater &updater,
-                                    Span<PointsRef> points_refs,
-                                    Span<int> constraint_mask) const override;
+  TemplatedConstraintSetEvaluator(int constraints_num, Vector<int> affected_points_refs);
 
-  template<typename UpdaterT>
-  void evaluate_parallel_templated(UpdaterT &updater,
-                                   Span<PointsRef> points_refs,
-                                   const IndexMask &constraint_mask) const;
-  template<typename UpdaterT>
-  void evaluate_serial_templated(UpdaterT &updater,
-                                 Span<PointsRef> points_refs,
-                                 Span<int> constraint_mask) const;
+  void evaluate_parallel_non_deterministic_jacobian(NonDeterministicJacobianUpdater &updater,
+                                                    Span<PointsRef> points_refs) const override;
+  void evaluate_parallel_gauss_seidel(GaussSeidelUpdater &updater,
+                                      Span<PointsRef> points_refs) const override;
+  void evaluate_serial_gauss_seidel(GaussSeidelUpdater &updater,
+                                    Span<PointsRef> points_refs) const override;
+
+  Span<IndexMask> get_independent_masks() const;
+
+  virtual Vector<IndexMask> generate_independent_masks(IndexMaskMemory &memory) const = 0;
 
   /**
    * Evaluate a single constraint using the given updater. This has to be implemented on child
@@ -135,67 +137,36 @@ template<typename Child> class TemplatedConstraintSetEvaluator : public Constrai
   //   UpdaterT &updater, const Span<PointsRef> points_refs, const int constraint_i) const;
 };
 
-/**
- * Has information about which points are effected by a #ConstraintSetEvaluator. This is used by
- * the solver to make decisions about which constraints can be evaluated in parallel.
- */
-class ConstraintSetIndices {
- private:
-  mutable CacheMutex independent_masks_mutex_;
-  mutable IndexMaskMemory independent_masks_memory_;
-  mutable Vector<IndexMask> independent_masks_;
-
- public:
-  virtual ~ConstraintSetIndices() = default;
-
-  /** The number of constraints in this set. */
-  int constraints_num;
-  /** The indices of the affected #PointsRef. */
-  Vector<int> target_points_refs;
-
-  ConstraintSetIndices(const int constraints_num, Vector<int> target_points_refs);
-
-  /**
-   * Returns index masks where the constraints in each mask are independent, i.e. they can be
-   * solved in parallel using a Gauss Seidel solver. This method only care about independentness
-   * within this constraint set, not globally across all constraint sets.
-   */
-  Span<IndexMask> get_independent_masks() const;
-
- protected:
-  virtual Vector<IndexMask> generate_independent_masks(IndexMaskMemory &memory) const;
-};
-
-/**
- * A constraint set is the combination of a #ConstraintSetEvaluator and the corresponding
- * #ConstraintSetIndices.
- */
-struct ConstraintSet {
-  const ConstraintSetIndices *indices;
-  const ConstraintSetEvaluator *evaluator;
-
-  ConstraintSet(ConstraintSetIndices &indices, ConstraintSetEvaluator &evaluator);
-};
+Vector<IndexMask> unary_constraints_to_independent_masks(const Span<int> affected_points,
+                                                         IndexMaskMemory &memory);
+Vector<IndexMask> binary_constraints_to_independent_masks(const Span<int2> affected_points,
+                                                          IndexMaskMemory &memory);
+Vector<IndexMask> n_ary_constraints_to_independent_masks(const GroupedSpan<int> affected_points,
+                                                         IndexMaskMemory &memory);
+Vector<IndexMask> n_ary_constraints_to_independent_masks_multi(
+    const GroupedSpan<int> affected_points,
+    const GroupedSpan<int> effected_points_refs,
+    IndexMaskMemory &memory);
 
 /**
  * Slow but simple iterative Gauss Seidel solver. It evaluates each constraints serially without
  * any parallelism.
  */
 void solve_gauss_seidel_one_at_a_time(Span<MutablePointsRef> points_refs,
-                                      Span<ConstraintSet> constraint_sets);
+                                      Span<const ConstraintSetEvaluator *> constraint_sets);
 
 /**
  * Fully parallel Jacobian solver, but it is not deterministic. This is mainly for testing
  * purposes.
  */
 void solve_jacobian_non_deterministic(Span<MutablePointsRef> points_refs,
-                                      Span<ConstraintSet> constraint_sets);
+                                      Span<const ConstraintSetEvaluator *> constraint_sets);
 
 /**
  * A Gauss Seidel solver that attempts to parallelize the evaluation of constraints.
  */
 void solve_gauss_seidel_parallel(Span<MutablePointsRef> points_refs,
-                                 Span<ConstraintSet> constraint_sets);
+                                 Span<const ConstraintSetEvaluator *> constraint_sets);
 
 /* -------------------------------------------------------------------- */
 /** \name Inline Functions
@@ -317,54 +288,58 @@ inline Vector<IndexMask> detect_independent_constraints(
   return masks;
 }
 
+inline Span<int> ConstraintSetEvaluator::get_affected_points_refs() const
+{
+  return affected_points_refs_;
+}
+
+template<typename Child>
+inline Span<IndexMask> TemplatedConstraintSetEvaluator<Child>::get_independent_masks() const
+{
+  independent_masks_mutex_.ensure(
+      [&]() { independent_masks_ = this->generate_independent_masks(independent_masks_memory_); });
+  return independent_masks_;
+}
+
+template<typename Child>
+inline TemplatedConstraintSetEvaluator<Child>::TemplatedConstraintSetEvaluator(
+    int constraints_num, Vector<int> affected_points_refs)
+    : ConstraintSetEvaluator(std::move(affected_points_refs)), constraints_num_(constraints_num)
+{
+}
+
 template<typename Child>
 inline void TemplatedConstraintSetEvaluator<Child>::evaluate_parallel_non_deterministic_jacobian(
-    NonDeterministicJacobianUpdater &updater,
-    const Span<PointsRef> points_refs,
-    const IndexMask &constraint_mask) const
+    NonDeterministicJacobianUpdater &updater, const Span<PointsRef> points_refs) const
 {
   const Child &self = static_cast<const Child &>(*this);
-  self.evaluate_parallel_templated(updater, points_refs, constraint_mask);
-}
-
-template<typename Child>
-inline void TemplatedConstraintSetEvaluator<Child>::evaluate_parallel_gauss_seidel(
-    GaussSeidelUpdater &updater,
-    const Span<PointsRef> points_refs,
-    const IndexMask &constraint_mask) const
-{
-  const Child &self = static_cast<const Child &>(*this);
-  self.evaluate_parallel_templated(updater, points_refs, constraint_mask);
-}
-
-template<typename Child>
-inline void TemplatedConstraintSetEvaluator<Child>::evaluate_serial_gauss_seidel(
-    GaussSeidelUpdater &updater,
-    const Span<PointsRef> points_refs,
-    const Span<int> constraint_mask) const
-{
-  const Child &self = static_cast<const Child &>(*this);
-  self.evaluate_serial_templated(updater, points_refs, constraint_mask);
-}
-
-template<typename Child>
-template<typename UpdaterT>
-inline void TemplatedConstraintSetEvaluator<Child>::evaluate_parallel_templated(
-    UpdaterT &updater, const Span<PointsRef> points_refs, const IndexMask &constraint_mask) const
-{
-  constraint_mask.foreach_index(GrainSize(256), [&](const int constraint_i) {
-    const Child &self = static_cast<const Child &>(*this);
-    self.evaluate_single(updater, points_refs, constraint_i);
+  threading::parallel_for(IndexRange(constraints_num_), grain_size_, [&](const IndexRange range) {
+    for (const int constraint_i : range) {
+      self.evaluate_single(updater, points_refs, constraint_i);
+    }
   });
 }
 
 template<typename Child>
-template<typename UpdaterT>
-inline void TemplatedConstraintSetEvaluator<Child>::evaluate_serial_templated(
-    UpdaterT &updater, const Span<PointsRef> points_refs, const Span<int> constraint_mask) const
+inline void TemplatedConstraintSetEvaluator<Child>::evaluate_parallel_gauss_seidel(
+    GaussSeidelUpdater &updater, const Span<PointsRef> points_refs) const
 {
   const Child &self = static_cast<const Child &>(*this);
-  for (const int constraint_i : constraint_mask) {
+  const Span<IndexMask> constraint_masks = this->get_independent_masks();
+  for (const int color_i : constraint_masks.index_range()) {
+    const IndexMask &constraint_mask = constraint_masks[color_i];
+    constraint_mask.foreach_index(GrainSize(grain_size_), [&](const int constraint_i) {
+      self.evaluate_single(updater, points_refs, constraint_i);
+    });
+  }
+}
+
+template<typename Child>
+inline void TemplatedConstraintSetEvaluator<Child>::evaluate_serial_gauss_seidel(
+    GaussSeidelUpdater &updater, const Span<PointsRef> points_refs) const
+{
+  const Child &self = static_cast<const Child &>(*this);
+  for (const int constraint_i : IndexRange(constraints_num_)) {
     self.evaluate_single(updater, points_refs, constraint_i);
   }
 }

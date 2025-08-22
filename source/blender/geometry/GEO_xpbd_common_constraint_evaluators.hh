@@ -101,7 +101,9 @@ class PinnedPositionConstraintEvaluator
                                     const Span<float3> pin_positions,
                                     const Span<float> compliance_terms,
                                     const Span<float> inverse_masses)
-      : points_ref_i_(points_ref_i),
+      : TemplatedConstraintSetEvaluator<PinnedPositionConstraintEvaluator>(indices.size(),
+                                                                           {points_ref_i}),
+        points_ref_i_(points_ref_i),
         indices_(indices),
         pin_positions_(pin_positions),
         compliance_terms_(compliance_terms),
@@ -124,6 +126,11 @@ class PinnedPositionConstraintEvaluator
         compliance_terms_[constraint_i]);
     updater.update_position(points_ref_i_, point_i, result.offset0);
   }
+
+  Vector<IndexMask> generate_independent_masks(IndexMaskMemory &memory) const override
+  {
+    return unary_constraints_to_independent_masks(indices_, memory);
+  }
 };
 
 class PinRotationConstraintEvaluator
@@ -145,7 +152,9 @@ class PinRotationConstraintEvaluator
                                  const Span<math::Quaternion> pin_rotations,
                                  const Span<float> compliance_terms,
                                  const Span<float3> inertias)
-      : points_ref_i_(points_ref_i),
+      : TemplatedConstraintSetEvaluator<PinRotationConstraintEvaluator>(indices.size(),
+                                                                        {points_ref_i}),
+        points_ref_i_(points_ref_i),
         indices_(indices),
         pin_rotations_(pin_rotations),
         compliance_terms_(compliance_terms),
@@ -168,6 +177,11 @@ class PinRotationConstraintEvaluator
         compliance_terms_[constraint_i]);
     updater.update_rotation(points_ref_i_, point_i, result.offset0);
   }
+
+  Vector<IndexMask> generate_independent_masks(IndexMaskMemory &memory) const override
+  {
+    return unary_constraints_to_independent_masks(indices_, memory);
+  }
 };
 
 class DistanceConstraintEvaluator
@@ -189,7 +203,9 @@ class DistanceConstraintEvaluator
                               const Span<int2> point_pairs,
                               const Span<float> distances,
                               const Span<float> compliance_terms)
-      : points_ref_i_(points_ref_i),
+      : TemplatedConstraintSetEvaluator<DistanceConstraintEvaluator>(point_pairs.size(),
+                                                                     {points_ref_i}),
+        points_ref_i_(points_ref_i),
         point_pairs_(point_pairs),
         distances_(distances),
         compliance_terms_(compliance_terms),
@@ -217,6 +233,11 @@ class DistanceConstraintEvaluator
     updater.update_position(points_ref_i_, point_i0, result.offset0);
     updater.update_position(points_ref_i_, point_i1, result.offset1);
   }
+
+  Vector<IndexMask> generate_independent_masks(IndexMaskMemory &memory) const override
+  {
+    return binary_constraints_to_independent_masks(point_pairs_, memory);
+  }
 };
 
 class CollisionPlaneConstraintEvaluator
@@ -234,7 +255,9 @@ class CollisionPlaneConstraintEvaluator
                                     const Span<int> points,
                                     const Span<float3> plane_positions,
                                     const Span<float3> plane_normals)
-      : points_ref_i_(points_ref_i),
+      : TemplatedConstraintSetEvaluator<CollisionPlaneConstraintEvaluator>(points.size(),
+                                                                           {points_ref_i}),
+        points_ref_i_(points_ref_i),
         points_(points),
         plane_positions_(plane_positions),
         plane_normals_(plane_normals)
@@ -260,6 +283,11 @@ class CollisionPlaneConstraintEvaluator
     const float3 offset = plane_normal * -distance;
     updater.update_position(points_ref_i_, point_i, offset);
   }
+
+  Vector<IndexMask> generate_independent_masks(IndexMaskMemory &memory) const override
+  {
+    return unary_constraints_to_independent_masks(points_, memory);
+  }
 };
 
 class MinimumDistanceConstraintEvaluator
@@ -281,7 +309,9 @@ class MinimumDistanceConstraintEvaluator
                                      const Span<float> min_distances,
                                      const Span<float> inverse_masses,
                                      const Span<float> compliance_terms)
-      : points_ref_i_(points_ref_i),
+      : TemplatedConstraintSetEvaluator<MinimumDistanceConstraintEvaluator>(points.size(),
+                                                                            {points_ref_i}),
+        points_ref_i_(points_ref_i),
         points_(points),
         min_distances_(min_distances),
         compliance_terms_(compliance_terms),
@@ -318,6 +348,11 @@ class MinimumDistanceConstraintEvaluator
     updater.update_position(points_ref_i_, point_i0, offset0);
     updater.update_position(points_ref_i_, point_i1, offset1);
   }
+
+  Vector<IndexMask> generate_independent_masks(IndexMaskMemory &memory) const override
+  {
+    return binary_constraints_to_independent_masks(points_, memory);
+  }
 };
 
 class OverpressureConstraintEvaluator
@@ -337,7 +372,8 @@ class OverpressureConstraintEvaluator
                                   const Span<float> inverse_masses,
                                   const float overpressure,
                                   const float initial_volume)
-      : points_ref_i_(points_ref_i),
+      : TemplatedConstraintSetEvaluator<OverpressureConstraintEvaluator>(1, {points_ref_i}),
+        points_ref_i_(points_ref_i),
         tris_(tris),
         corner_verts_(corner_verts),
         inverse_masses_(inverse_masses),
@@ -420,6 +456,11 @@ class OverpressureConstraintEvaluator
         [&](const float a, const float b) { return a + b; });
     return volume / 6.0f;
   }
+
+  Vector<IndexMask> generate_independent_masks(IndexMaskMemory & /*memory*/) const override
+  {
+    return {IndexMask(1)};
+  }
 };
 
 /**
@@ -448,7 +489,9 @@ class RodStretchAndShearConstraintEvaluator
                                         const Span<float3> inertias,
                                         const Span<float> rest_lengths,
                                         const Span<float> compliance_terms)
-      : points_ref_i_(points_ref_i),
+      : TemplatedConstraintSetEvaluator<RodStretchAndShearConstraintEvaluator>(point_pairs.size(),
+                                                                               {points_ref_i}),
+        points_ref_i_(points_ref_i),
         point_pairs_(point_pairs),
         rest_lengths_(rest_lengths),
         compliance_terms_(compliance_terms),
@@ -508,6 +551,11 @@ class RodStretchAndShearConstraintEvaluator
     updater.update_position(points_ref_i_, point_i1, offset1);
     updater.update_rotation(points_ref_i_, rotation_i, offset_rot);
   }
+
+  Vector<IndexMask> generate_independent_masks(IndexMaskMemory &memory) const override
+  {
+    return binary_constraints_to_independent_masks(point_pairs_, memory);
+  }
 };
 
 /* Aligns rotations of two consecutive rods based on a rest rotation. */
@@ -530,7 +578,9 @@ class RodBendAndTwistConstraintEvaluator
                                      const Span<float3> inertias,
                                      const Span<math::Quaternion> rest_rotations,
                                      const Span<float> compliance_terms)
-      : points_ref_i_(points_ref_i),
+      : TemplatedConstraintSetEvaluator<RodBendAndTwistConstraintEvaluator>(point_pairs.size(),
+                                                                            {points_ref_i}),
+        points_ref_i_(points_ref_i),
         point_pairs_(point_pairs),
         rest_rotations_(rest_rotations),
         compliance_terms_(compliance_terms),
@@ -557,6 +607,11 @@ class RodBendAndTwistConstraintEvaluator
     updater.update_rotation(points_ref_i_, point_i0, result.offset0);
     updater.update_rotation(points_ref_i_, point_i1, result.offset1);
   }
+
+  Vector<IndexMask> generate_independent_masks(IndexMaskMemory &memory) const override
+  {
+    return binary_constraints_to_independent_masks(point_pairs_, memory);
+  }
 };
 
 class AlignPositionsConstraintEvaluator
@@ -577,7 +632,9 @@ class AlignPositionsConstraintEvaluator
                                     Span<int> points_ref_indices,
                                     Span<int> point_indices,
                                     Span<float> inverse_masses)
-      : offsets_(offsets),
+      : TemplatedConstraintSetEvaluator<AlignPositionsConstraintEvaluator>(
+            point_indices.size(), VectorSet<int>(points_ref_indices).extract_vector()),
+        offsets_(offsets),
         compliance_terms_(compliance_terms),
         points_ref_indices_(points_ref_indices),
         point_indices_(point_indices),
@@ -631,6 +688,12 @@ class AlignPositionsConstraintEvaluator
     const float3 center = center_sum / mass_sum;
     return center;
   }
+
+  Vector<IndexMask> generate_independent_masks(IndexMaskMemory &memory) const override
+  {
+    return n_ary_constraints_to_independent_masks_multi(
+        {offsets_, point_indices_}, {offsets_, points_ref_indices_}, memory);
+  }
 };
 
 class AttachUVSurfaceConstraintEvaluator
@@ -661,7 +724,9 @@ class AttachUVSurfaceConstraintEvaluator
                                      const Span<float3> bary_weights,
                                      const Span<float> inv_masses,
                                      const Span<float> compliance_terms)
-      : mesh_points_ref_i_(mesh_points_ref_i),
+      : TemplatedConstraintSetEvaluator<AttachUVSurfaceConstraintEvaluator>(
+            indices.size(), {mesh_points_ref_i, points_ref_i}),
+        mesh_points_ref_i_(mesh_points_ref_i),
         mesh_inv_masses_(mesh_inv_masses),
         points_ref_i_(points_ref_i),
         indices_(indices),
@@ -716,6 +781,22 @@ class AttachUVSurfaceConstraintEvaluator
         mesh_points_ref_i_, mesh_i1, -bary_weights[1] * mesh_inv_mass1 * lambda);
     updater.update_position(
         mesh_points_ref_i_, mesh_i2, -bary_weights[2] * mesh_inv_mass2 * lambda);
+  }
+
+  Vector<IndexMask> generate_independent_masks(IndexMaskMemory &memory) const override
+  {
+    return detect_independent_constraints<std::pair<int, int>>(
+        [&](const int constraint_i) {
+          const int3 &tri = triangle_indices_[constraint_i];
+          std::array<std::pair<int, int>, 4> affected_points;
+          affected_points[0] = {mesh_points_ref_i_, tri[0]};
+          affected_points[1] = {mesh_points_ref_i_, tri[1]};
+          affected_points[2] = {mesh_points_ref_i_, tri[2]};
+          affected_points[3] = {points_ref_i_, indices_[constraint_i]};
+          return affected_points;
+        },
+        indices_.size(),
+        memory);
   }
 };
 
