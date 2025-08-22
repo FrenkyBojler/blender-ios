@@ -259,6 +259,7 @@ class NODE_MT_editor_menus(Menu):
         #layout.menu("NODE_MT_view")
         layout.menu("NODE_MT_select")
         layout.menu("NODE_MT_add")
+        layout.menu("NODE_MT_swap")
         layout.menu("NODE_MT_node")
 
 
@@ -303,15 +304,10 @@ class NODE_MT_swap(Menu):
     @classmethod
     def poll(cls, context):
         snode = context.space_data
-
-        if snode.tree_type == 'TextureNodeTree':
-            return False
-
+        
         return (
             (snode is not None )
-            and (snode.node_tree is not None)
-            and (context.active_node is not None)
-            and (context.active_node.select)
+            and (snode.tree_type != 'TextureNodeTree')
         )
     
     def draw(self, context):
