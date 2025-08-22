@@ -73,7 +73,7 @@ def _run_runtime_group_register_access(args):
     property_type = args.get("property_type", 'IntProperty')
     property_definition_cb = getattr(bpy.props, property_type)
 
-    assert(not (do_get_set and do_transform))
+    assert (not (do_get_set and do_transform))
 
     # Define basic 'transform' callbacks to test setting value,
     # default to just setting untransformed value for 'unknown'/undefined property types.
