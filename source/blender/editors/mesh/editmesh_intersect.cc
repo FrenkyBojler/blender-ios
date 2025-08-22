@@ -224,9 +224,11 @@ static wmOperatorStatus edbm_intersect_exec(bContext *C, wmOperator *op)
       BM_mesh_separate_faces(
           em->bm, BM_elem_cb_check_hflag_enabled_simple(const BMFace *, BM_ELEM_SELECT));
     }
+    if (scene->toolsettings->automerge & AUTO_MERGE) {
+      EDBM_automerge_connected(obedit, true, BM_ELEM_SELECT, scene->toolsettings->doublimit);
+    }
 
     edbm_intersect_select(em, static_cast<Mesh *>(obedit->data), has_isect);
-
     if (!has_isect) {
       isect_len++;
     }
@@ -386,7 +388,9 @@ static wmOperatorStatus edbm_intersect_boolean_exec(bContext *C, wmOperator *op)
     }
 
     edbm_intersect_select(em, static_cast<Mesh *>(obedit->data), has_isect);
-
+    if (scene->toolsettings->automerge & AUTO_MERGE) {
+      EDBM_automerge(obedit, false, BM_ELEM_SELECT, scene->toolsettings->doublimit);
+    }
     if (!has_isect) {
       isect_len++;
     }
