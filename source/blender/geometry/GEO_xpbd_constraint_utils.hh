@@ -8,6 +8,7 @@
 #include "BLI_index_mask.hh"
 #include "BLI_multi_value_map.hh"
 
+#include "BLI_resource_scope.hh"
 #include "GEO_xpbd.hh"
 
 namespace blender::xpbd {
@@ -54,11 +55,15 @@ template<typename Child> class TemplatedConstraintSet : public ConstraintSet {
 class CurveLocalConstraintSet {
  protected:
   int geo_i_;
+  OffsetIndices<int> points_by_curve_;
 
   friend class CurveLocalConstraintSets;
 
  public:
-  CurveLocalConstraintSet(const int geo_i) : geo_i_(geo_i) {}
+  CurveLocalConstraintSet(const int geo_i, const OffsetIndices<int> points_by_curve)
+      : geo_i_(geo_i), points_by_curve_(points_by_curve)
+  {
+  }
   virtual ~CurveLocalConstraintSet() = default;
 
   virtual void evaluate_gauss_seidel_one_at_a_time(GaussSeidelUpdater &updater,
@@ -71,11 +76,24 @@ class CurveLocalConstraintSet {
       NonDeterministicJacobianUpdater &updater,
       ConstraintSetParams &params,
       IndexRange curves_range) const = 0;
+
+  int affected_geo_i() const
+  {
+    return geo_i_;
+  }
+
+  OffsetIndices<int> points_by_curve() const
+  {
+    return points_by_curve_;
+  }
 };
 
 template<typename Child> class TemplatedCurveLocalConstraintSet : public CurveLocalConstraintSet {
  public:
-  TemplatedCurveLocalConstraintSet(const int geo_i) : CurveLocalConstraintSet(geo_i) {}
+  TemplatedCurveLocalConstraintSet(const int geo_i, const OffsetIndices<int> points_by_curve)
+      : CurveLocalConstraintSet(geo_i, points_by_curve)
+  {
+  }
 
   void evaluate_gauss_seidel_one_at_a_time(GaussSeidelUpdater &updater,
                                            ConstraintSetParams &params,
@@ -119,9 +137,18 @@ class CurveLocalConstraintSets : public ConstraintSet {
   OffsetIndices<int> points_by_curve_;
 
  public:
-  CurveLocalConstraintSets(const int geo_i, const OffsetIndices<int> points_by_curve)
-      : ConstraintSet({geo_i}), points_by_curve_(points_by_curve)
+  CurveLocalConstraintSets(const int geo_i,
+                           Vector<const CurveLocalConstraintSet *> constraint_sets)
+      : ConstraintSet({geo_i}), constraint_sets_(std::move(constraint_sets))
   {
+    if (!constraint_sets_.is_empty()) {
+      points_by_curve_ = constraint_sets_[0]->points_by_curve();
+    }
+#ifndef NDEBUG
+    for (const CurveLocalConstraintSet *constraint_set : constraint_sets_) {
+      BLI_assert(constraint_set->affected_geo_i() == geo_i);
+    }
+#endif
   }
 
   void evaluate_gauss_seidel_one_at_a_time(GaussSeidelUpdater &updater,
@@ -154,12 +181,6 @@ class CurveLocalConstraintSets : public ConstraintSet {
       }
     });
   }
-
-  void add(const CurveLocalConstraintSet &constraint_set)
-  {
-    BLI_assert(affected_geo_indices_.contains(constraint_set.geo_i_));
-    constraint_sets_.append(&constraint_set);
-  }
 };
 
 Vector<IndexMask> unary_constraints_to_independent_masks(const Span<int> affected_points,
@@ -172,6 +193,33 @@ Vector<IndexMask> n_ary_constraints_to_independent_masks_multi(
     const GroupedSpan<int> affected_geometries,
     const GroupedSpan<int> affected_points,
     IndexMaskMemory &memory);
+
+class ConstraintSetCollector {
+ public:
+  Vector<const ConstraintSet *> general;
+  Vector<const CurveLocalConstraintSet *> curve_local;
+
+  static Vector<const ConstraintSet *> combine(ResourceScope &scope,
+                                               const Span<ConstraintSetCollector *> collectors)
+  {
+    Vector<const ConstraintSet *> result;
+    MultiValueMap<int, const CurveLocalConstraintSet *> curve_local_constraint_sets_by_geometry;
+    for (const ConstraintSetCollector *collector : collectors) {
+      result.extend(collector->general);
+      for (const CurveLocalConstraintSet *curve_local_constraint_set : collector->curve_local) {
+        const int geo_i = curve_local_constraint_set->affected_geo_i();
+        curve_local_constraint_sets_by_geometry.add(geo_i, curve_local_constraint_set);
+      }
+    }
+    for (const auto item : curve_local_constraint_sets_by_geometry.items()) {
+      const int geo_i = item.key;
+      const Span<const CurveLocalConstraintSet *> local_constraint_sets = item.value;
+      auto &combined_set = scope.construct<CurveLocalConstraintSets>(geo_i, local_constraint_sets);
+      result.append(&combined_set);
+    }
+    return result;
+  }
+};
 
 /* -------------------------------------------------------------------- */
 /** \name Inline Functions

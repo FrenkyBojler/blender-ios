@@ -483,7 +483,6 @@ class PressureConstraintSet : public TemplatedConstraintSet<PressureConstraintSe
 class RodStretchAndShearCurveLocalConstraintSet
     : public TemplatedCurveLocalConstraintSet<RodStretchAndShearCurveLocalConstraintSet> {
  private:
-  OffsetIndices<int> points_by_curve_;
   Span<float> rest_lengths_;
   Span<float> compliance_terms_;
 
@@ -492,8 +491,8 @@ class RodStretchAndShearCurveLocalConstraintSet
                                             const OffsetIndices<int> points_by_curve,
                                             const Span<float> rest_lengths,
                                             const Span<float> compliance_terms)
-      : TemplatedCurveLocalConstraintSet<RodStretchAndShearCurveLocalConstraintSet>(geo_i),
-        points_by_curve_(points_by_curve),
+      : TemplatedCurveLocalConstraintSet<RodStretchAndShearCurveLocalConstraintSet>(
+            geo_i, points_by_curve),
         rest_lengths_(rest_lengths),
         compliance_terms_(compliance_terms)
   {
@@ -527,7 +526,6 @@ class RodStretchAndShearCurveLocalConstraintSet
 class RodBendAndTwistCurveLocalConstraintSet
     : public TemplatedCurveLocalConstraintSet<RodBendAndTwistCurveLocalConstraintSet> {
  private:
-  OffsetIndices<int> points_by_curve_;
   Span<math::Quaternion> rest_rotations_;
   Span<float> compliance_terms_;
 
@@ -536,8 +534,8 @@ class RodBendAndTwistCurveLocalConstraintSet
                                          const OffsetIndices<int> points_by_curve,
                                          const Span<math::Quaternion> rest_rotations,
                                          const Span<float> compliance_terms)
-      : TemplatedCurveLocalConstraintSet<RodBendAndTwistCurveLocalConstraintSet>(geo_i),
-        points_by_curve_(points_by_curve),
+      : TemplatedCurveLocalConstraintSet<RodBendAndTwistCurveLocalConstraintSet>(geo_i,
+                                                                                 points_by_curve),
         rest_rotations_(rest_rotations),
         compliance_terms_(compliance_terms)
   {

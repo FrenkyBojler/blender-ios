@@ -912,7 +912,7 @@ static void gather_edge_length_constraints(ResourceScope &scope,
                                            const Span<GeometrySet> applied_geometries,
                                            const VectorSet<SimPointsKey> &keys,
                                            const float delta_time,
-                                           Vector<const xpbd::ConstraintSet *> &r_constraint_sets)
+                                           xpbd::ConstraintSetCollector &r_constraints)
 {
   const float compliance_factor = compute_compliance_factor(delta_time);
 
@@ -968,20 +968,19 @@ static void gather_edge_length_constraints(ResourceScope &scope,
           scope, state, mesh_positions, key, constraint_edges);
 
       /* Add the actual constraint. */
-      r_constraint_sets.append(&scope.construct<xpbd::DistanceConstraintSet>(
+      r_constraints.general.append(&scope.construct<xpbd::DistanceConstraintSet>(
           key_i, constraint_edges, constraint_lengths, compliance_terms));
     }
   }
 }
 
-static void gather_curve_segment_constraints(
-    ResourceScope &scope,
-    XPBDState &state,
-    const WorldData &world,
-    const Span<GeometrySet> applied_geometries,
-    const VectorSet<SimPointsKey> &keys,
-    const float delta_time,
-    Vector<const xpbd::ConstraintSet *> &r_constraint_sets)
+static void gather_curve_segment_constraints(ResourceScope &scope,
+                                             XPBDState &state,
+                                             const WorldData &world,
+                                             const Span<GeometrySet> applied_geometries,
+                                             const VectorSet<SimPointsKey> &keys,
+                                             const float delta_time,
+                                             xpbd::ConstraintSetCollector &r_constraints)
 {
   const float compliance_factor = compute_compliance_factor(delta_time);
 
@@ -1036,7 +1035,7 @@ static void gather_curve_segment_constraints(
       const Span<float> constraint_lengths = prepare_distance_constraint_lengths(
           scope, state, positions, key, constraint_segments);
 
-      r_constraint_sets.append(&scope.construct<xpbd::DistanceConstraintSet>(
+      r_constraints.general.append(&scope.construct<xpbd::DistanceConstraintSet>(
           key_i, constraint_segments, constraint_lengths, constraint_compliance_terms));
     }
   }
@@ -1047,7 +1046,7 @@ static void gather_pressure_constraints(ResourceScope &scope,
                                         const WorldData &world,
                                         const Span<GeometrySet> applied_geometries,
                                         const VectorSet<SimPointsKey> &keys,
-                                        Vector<const xpbd::ConstraintSet *> &r_constraint_sets)
+                                        xpbd::ConstraintSetCollector &r_constraints)
 {
   for (const int key_i : keys.index_range()) {
     const SimPointsKey &key = keys[key_i];
@@ -1077,7 +1076,7 @@ static void gather_pressure_constraints(ResourceScope &scope,
       offsets[0] = 0;
       offsets[1] = affected_points.size();
       array_utils::fill_index_range<int>(affected_points);
-      r_constraint_sets.append(&scope.construct<xpbd::PressureConstraintSet>(
+      r_constraints.general.append(&scope.construct<xpbd::PressureConstraintSet>(
           key_i, tris, corner_verts, pressure, initial_volume));
     }
   }
@@ -1090,7 +1089,7 @@ static void gather_curves_rod_stretch_and_shear_constraints(
     const Span<GeometrySet> applied_geometries,
     const VectorSet<SimPointsKey> &keys,
     const float delta_time,
-    Map<SimPointsKey, xpbd::CurveLocalConstraintSets *> &r_curve_local_constraint_sets)
+    xpbd::ConstraintSetCollector &r_constraints)
 {
   const float compliance_factor = compute_compliance_factor(delta_time);
 
@@ -1140,12 +1139,9 @@ static void gather_curves_rod_stretch_and_shear_constraints(
       const Span<float> constraint_lenghts = prepare_distance_constraint_lengths(
           scope, state, sim_points.positions, key, constraint_segments);
 
-      xpbd::CurveLocalConstraintSets &constraint_sets =
-          *r_curve_local_constraint_sets.lookup_or_add_cb(key, [&]() {
-            return &scope.construct<xpbd::CurveLocalConstraintSets>(key_i, points_by_curve);
-          });
-      constraint_sets.add(scope.construct<xpbd::RodStretchAndShearCurveLocalConstraintSet>(
-          key_i, points_by_curve, constraint_lenghts, compliance_terms));
+      r_constraints.curve_local.append(
+          &scope.construct<xpbd::RodStretchAndShearCurveLocalConstraintSet>(
+              key_i, points_by_curve, constraint_lenghts, compliance_terms));
     }
   }
 }
@@ -1157,7 +1153,7 @@ static void gather_curves_rod_bend_and_twist_constraints(
     const Span<GeometrySet> applied_geometries,
     const VectorSet<SimPointsKey> &keys,
     const float delta_time,
-    Map<SimPointsKey, xpbd::CurveLocalConstraintSets *> &r_curve_local_constraint_sets)
+    xpbd::ConstraintSetCollector &r_constraints)
 {
   const float compliance_factor = compute_compliance_factor(delta_time);
 
@@ -1205,12 +1201,9 @@ static void gather_curves_rod_bend_and_twist_constraints(
       }
       const Span<math::Quaternion> rest_rotations = prepare_relative_rotations(
           scope, state, sim_points.rotations, key, constraint_segments);
-      xpbd::CurveLocalConstraintSets &constraint_sets =
-          *r_curve_local_constraint_sets.lookup_or_add_cb(key, [&]() {
-            return &scope.construct<xpbd::CurveLocalConstraintSets>(key_i, points_by_curve);
-          });
-      constraint_sets.add(scope.construct<xpbd::RodBendAndTwistCurveLocalConstraintSet>(
-          key_i, points_by_curve, rest_rotations, compliance_terms));
+      r_constraints.curve_local.append(
+          &scope.construct<xpbd::RodBendAndTwistCurveLocalConstraintSet>(
+              key_i, points_by_curve, rest_rotations, compliance_terms));
     }
   }
 }
@@ -1220,7 +1213,7 @@ static Map<SimPointsKey, MutableSpan<float3>> gather_soft_pinned_position_constr
     const VectorSet<SimPointsKey> &keys,
     const Map<SimPointsKey, PinnedPositions> &pinned_positions_map,
     const float delta_time,
-    Vector<const xpbd::ConstraintSet *> &r_constraint_sets)
+    xpbd::ConstraintSetCollector &r_constraints)
 {
   const float compliance_factor = compute_compliance_factor(delta_time);
   Map<SimPointsKey, MutableSpan<float3>> result;
@@ -1241,7 +1234,7 @@ static Map<SimPointsKey, MutableSpan<float3>> gather_soft_pinned_position_constr
         constraints_num);
     result.add(key, soft_pinned_positions);
 
-    r_constraint_sets.append(&scope.construct<xpbd::PinnedPositionConstraintSet>(
+    r_constraints.general.append(&scope.construct<xpbd::PinnedPositionConstraintSet>(
         key_i, pinned_positions.soft_indices, soft_pinned_positions, compliance_terms));
   }
   return result;
@@ -1252,7 +1245,7 @@ static Map<SimPointsKey, MutableSpan<math::Quaternion>> gather_soft_pinned_rotat
     const VectorSet<SimPointsKey> &keys,
     const Map<SimPointsKey, PinnedRotations> &pinned_rotations_map,
     const float delta_time,
-    Vector<const xpbd::ConstraintSet *> &r_constraint_sets)
+    xpbd::ConstraintSetCollector &r_constraints)
 {
   const float compliance_factor = compute_compliance_factor(delta_time);
   Map<SimPointsKey, MutableSpan<math::Quaternion>> result;
@@ -1275,19 +1268,18 @@ static Map<SimPointsKey, MutableSpan<math::Quaternion>> gather_soft_pinned_rotat
         scope.allocator().allocate_array<math::Quaternion>(constraints_num);
     result.add(key, soft_pinned_rotations);
 
-    r_constraint_sets.append(&scope.construct<xpbd::PinRotationConstraintSet>(
+    r_constraints.general.append(&scope.construct<xpbd::PinRotationConstraintSet>(
         key_i, pinned_rotations.soft_indices, soft_pinned_rotations, compliance_terms));
   }
   return result;
 }
 
-static void gather_align_positions_constraints(
-    ResourceScope &scope,
-    const WorldData &world,
-    const Span<GeometrySet> applied_geometries,
-    const VectorSet<SimPointsKey> &keys,
-    const float delta_time,
-    Vector<const xpbd::ConstraintSet *> &r_constraint_sets)
+static void gather_align_positions_constraints(ResourceScope &scope,
+                                               const WorldData &world,
+                                               const Span<GeometrySet> applied_geometries,
+                                               const VectorSet<SimPointsKey> &keys,
+                                               const float delta_time,
+                                               xpbd::ConstraintSetCollector &r_constraints)
 {
   const float compliance_factor = compute_compliance_factor(delta_time);
 
@@ -1373,7 +1365,7 @@ static void gather_align_positions_constraints(
       continue;
     }
 
-    r_constraint_sets.append(
+    r_constraints.general.append(
         &scope.construct<xpbd::AlignPositionsConstraintSet>(offset_indices,
                                                             constraint_compliance_terms,
                                                             constraint_geo_indices,
@@ -1381,13 +1373,12 @@ static void gather_align_positions_constraints(
   }
 }
 
-static void gather_attach_uv_surface_constraints(
-    ResourceScope &scope,
-    const WorldData &world,
-    const Span<GeometrySet> applied_geometries,
-    const VectorSet<SimPointsKey> &keys,
-    const float delta_time,
-    Vector<const xpbd::ConstraintSet *> &r_constraint_sets)
+static void gather_attach_uv_surface_constraints(ResourceScope &scope,
+                                                 const WorldData &world,
+                                                 const Span<GeometrySet> applied_geometries,
+                                                 const VectorSet<SimPointsKey> &keys,
+                                                 const float delta_time,
+                                                 xpbd::ConstraintSetCollector &r_constraints)
 {
   const float compliance_factor = compute_compliance_factor(delta_time);
 
@@ -1474,7 +1465,7 @@ static void gather_attach_uv_surface_constraints(
         continue;
       }
 
-      r_constraint_sets.append(&scope.construct<xpbd::AttachUVSurfaceConstraintSet>(
+      r_constraints.general.append(&scope.construct<xpbd::AttachUVSurfaceConstraintSet>(
           mesh_key_i, key_i, indices, triangle_indices, bary_weights, compliance_terms));
     }
   }
@@ -1487,7 +1478,7 @@ static void gather_distance_based_edge_bending_constraints(
     const Span<GeometrySet> applied_geometries,
     const VectorSet<SimPointsKey> &keys,
     const float delta_time,
-    Vector<const xpbd::ConstraintSet *> &r_constraint_sets)
+    xpbd::ConstraintSetCollector &r_constraints)
 {
   const float compliance_factor = compute_compliance_factor(delta_time);
 
@@ -1559,7 +1550,7 @@ static void gather_distance_based_edge_bending_constraints(
       const Span<float> constraint_lengths = prepare_distance_constraint_lengths(
           scope, state, mesh_positions, key, point_pairs);
 
-      r_constraint_sets.append(&scope.construct<xpbd::DistanceConstraintSet>(
+      r_constraints.general.append(&scope.construct<xpbd::DistanceConstraintSet>(
           key_i, point_pairs, constraint_lengths, compliance_terms));
     }
   }
@@ -1730,17 +1721,16 @@ static Contacts gather_contacts(
   return contacts;
 }
 
-static void generate_collision_constraint_sets(
-    ResourceScope &scope,
-    const Contacts &contacts,
-    const VectorSet<SimPointsKey> &keys,
-    const float delta_time,
-    Vector<const xpbd::ConstraintSet *> &r_constraint_sets)
+static void generate_collision_constraint_sets(ResourceScope &scope,
+                                               const Contacts &contacts,
+                                               const VectorSet<SimPointsKey> &keys,
+                                               const float delta_time,
+                                               xpbd::ConstraintSetCollector &r_constraints)
 {
   for (auto item : contacts.static_plane_contacts.items()) {
     const int key_i = keys.index_of(item.key);
     const StaticPlaneContacts &plane_contacts = item.value;
-    r_constraint_sets.append(
+    r_constraints.general.append(
         &scope.construct<xpbd::CollisionPlaneConstraintSet>(key_i,
                                                             plane_contacts.indices,
                                                             plane_contacts.plane_positions,
@@ -1750,7 +1740,7 @@ static void generate_collision_constraint_sets(
     const int key_i = keys.index_of(item.key);
     const DynamicSphereContacts &sphere_contacts = item.value;
     const float compliance_term = math::safe_divide(1e-4f, pow2f(delta_time));
-    r_constraint_sets.append(&scope.construct<xpbd::MinimumDistanceConstraintSet>(
+    r_constraints.general.append(&scope.construct<xpbd::MinimumDistanceConstraintSet>(
         key_i,
         sphere_contacts.indices,
         sphere_contacts.min_distance,
@@ -2173,8 +2163,7 @@ static void update_and_step_xpbd_state(XPBDState &state,
 
   const float sub_delta_time = math::safe_divide<float>(total_delta_time, substeps);
 
-  Vector<const xpbd::ConstraintSet *> static_constraint_sets;
-  Map<SimPointsKey, xpbd::CurveLocalConstraintSets *> curve_local_constraint_sets;
+  xpbd::ConstraintSetCollector static_constraint_sets;
   gather_edge_length_constraints(
       scope, state, world, applied_geometries, keys, sub_delta_time, static_constraint_sets);
   gather_curve_segment_constraints(
@@ -2182,9 +2171,9 @@ static void update_and_step_xpbd_state(XPBDState &state,
   gather_pressure_constraints(
       scope, state, world, applied_geometries, keys, static_constraint_sets);
   gather_curves_rod_stretch_and_shear_constraints(
-      scope, state, world, applied_geometries, keys, sub_delta_time, curve_local_constraint_sets);
+      scope, state, world, applied_geometries, keys, sub_delta_time, static_constraint_sets);
   gather_curves_rod_bend_and_twist_constraints(
-      scope, state, world, applied_geometries, keys, sub_delta_time, curve_local_constraint_sets);
+      scope, state, world, applied_geometries, keys, sub_delta_time, static_constraint_sets);
   const Map<SimPointsKey, MutableSpan<float3>> soft_pinned_positions_map =
       gather_soft_pinned_position_constraints(
           scope, keys, pinned_positions_map, sub_delta_time, static_constraint_sets);
@@ -2197,10 +2186,6 @@ static void update_and_step_xpbd_state(XPBDState &state,
       scope, world, applied_geometries, keys, sub_delta_time, static_constraint_sets);
   gather_distance_based_edge_bending_constraints(
       scope, state, world, applied_geometries, keys, sub_delta_time, static_constraint_sets);
-
-  for (xpbd::CurveLocalConstraintSets *set : curve_local_constraint_sets.values()) {
-    static_constraint_sets.append(set);
-  }
 
   Array<Array<float3>> all_prev_positions(keys.size());
   Array<Array<math::Quaternion>> all_prev_rotations(keys.size());
@@ -2239,13 +2224,19 @@ static void update_and_step_xpbd_state(XPBDState &state,
     update_pinned_rotations(state, pinned_rotations_map, soft_pinned_rotations_map, factor);
 
     /* Find current collisisons and generate constraints to resolve them. */
-    Vector<const xpbd::ConstraintSet *> constraint_sets = static_constraint_sets;
+    xpbd::ConstraintSetCollector dynamic_constraint_sets;
     const Contacts contacts = gather_contacts(
         state, world, applied_geometries, keys, sim_points_props);
-    generate_collision_constraint_sets(scope, contacts, keys, sub_delta_time, constraint_sets);
+    generate_collision_constraint_sets(
+        scope, contacts, keys, sub_delta_time, dynamic_constraint_sets);
+
+    /* Combine static and dynamic constraint sets. */
+    const Vector<const xpbd::ConstraintSet *> current_constraint_sets =
+        xpbd::ConstraintSetCollector::combine(scope,
+                                              {&static_constraint_sets, &dynamic_constraint_sets});
 
     /* Actually solve the constraints. */
-    solve_constraints(solver_type, geometry_refs, constraint_sets);
+    solve_constraints(solver_type, geometry_refs, current_constraint_sets);
 
     if (sub_delta_time > 0.0f) {
       /* Apply friction by updating current positions before the new velocity is computed. */
