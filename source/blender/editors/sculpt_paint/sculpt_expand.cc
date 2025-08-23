@@ -1614,6 +1614,8 @@ static void sculpt_expand_cancel(bContext *C, wmOperator * /*op*/)
 
   undo::push_end(ob);
   expand_cache_free(ss);
+
+  ED_workspace_status_text(C, nullptr);
 }
 
 /* Functions to update the sculpt mesh data. */
