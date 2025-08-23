@@ -930,6 +930,12 @@ class CurvesPenToolOperation : public PenToolOperation {
     bke::CurvesGeometry &curves = curves_id->geometry.wrap();
     curves.tag_topology_changed();
   }
+
+  bke::CurvesGeometry &get_curves(const int curves_index) const
+  {
+    Curves *curves_id = this->all_curves[curves_index];
+    return curves_id->geometry.wrap();
+  }
 };
 
 static float2 calculate_center_of_mass(const CurvesPenToolOperation &ptd, const bool ends_only)

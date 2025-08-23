@@ -84,6 +84,12 @@ class GreasePencilPenToolOperation : public PenToolOperation {
     const MutableDrawingInfo &info = this->drawings[curves_index];
     info.drawing.tag_topology_changed();
   }
+
+  bke::CurvesGeometry &get_curves(const int curves_index) const
+  {
+    const MutableDrawingInfo &info = this->drawings[curves_index];
+    return info.drawing.strokes_for_write();
+  }
 };
 
 static void grease_pencil_pen_update_view(bContext *C, GreasePencilPenToolOperation &ptd)
@@ -173,8 +179,7 @@ static float2 calculate_center_of_mass(const GreasePencilPenToolOperation &ptd,
   int num = 0;
 
   for (const int drawing_index : ptd.drawings.index_range()) {
-    const MutableDrawingInfo &info = ptd.drawings[drawing_index];
-    const bke::CurvesGeometry &curves = info.drawing.strokes();
+    const bke::CurvesGeometry &curves = ptd.get_curves(drawing_index);
     const float4x4 &layer_to_object = ptd.layer_to_objects[drawing_index];
     const Span<float3> positions = curves.positions();
     const OffsetIndices<int> points_by_curve = curves.points_by_curve();
