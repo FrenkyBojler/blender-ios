@@ -26,6 +26,10 @@
 
 #include "BLT_translation.hh"
 
+/* Need to do our own padding in some cases because we use low-level ui code to draw the
+ * spreadsheet. */
+#define CELL_PADDING_X (0.15f * SPREADSHEET_WIDTH_UNIT)
+
 namespace blender::ed::spreadsheet {
 
 class SpreadsheetLayoutDrawer : public SpreadsheetDrawer {
@@ -258,9 +262,9 @@ class SpreadsheetLayoutDrawer : public SpreadsheetDrawer {
                        0,
                        ICON_NONE,
                        *value_ptr.get<std::string>(),
-                       params.xmin,
+                       params.xmin + CELL_PADDING_X,
                        params.ymin,
-                       params.width,
+                       params.width - 2.0f * CELL_PADDING_X,
                        params.height,
                        nullptr,
                        std::nullopt);
@@ -274,9 +278,9 @@ class SpreadsheetLayoutDrawer : public SpreadsheetDrawer {
                                     0,
                                     ICON_NONE,
                                     StringRef(prop->s, prop->s_len),
-                                    params.xmin,
+                                    params.xmin + CELL_PADDING_X,
                                     params.ymin,
-                                    params.width,
+                                    params.width - 2.0f * CELL_PADDING_X,
                                     params.height,
                                     nullptr,
                                     std::nullopt);
