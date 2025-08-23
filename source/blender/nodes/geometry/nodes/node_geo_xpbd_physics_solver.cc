@@ -2114,6 +2114,38 @@ PROFILE_FUNCTION static Map<SimPointsKey, PinnedRotations> computed_pinned_rotat
   return result;
 }
 
+template<typename T>
+static IndexRange find_indices_in_range(const Span<T> indices, const IndexRange range)
+{
+  if (range.is_empty()) {
+    return {};
+  }
+  const int64_t start = binary_search::first_if(
+      indices.begin(), indices.end(), [&](const int index) { return index >= range.start(); });
+  const int64_t last = binary_search::last_if(
+      indices.begin(), indices.end(), [&](const int index) {
+        return index < range.one_after_last();
+      });
+  return IndexRange::from_begin_end_inclusive(start, last);
+}
+
+PROFILE_FUNCTION static void update_pinned_positions(SimPoints &sim_points,
+                                                     const IndexRange range,
+                                                     const PinnedPositions &pinned_positions,
+                                                     const float factor,
+                                                     MutableSpan<float3> r_soft_pinned_positions)
+{
+  for (const int i : find_indices_in_range<int>(pinned_positions.hard_indices, range)) {
+    const int point_i = pinned_positions.hard_indices[i];
+    const float3 current_position = pinned_positions.hard_animations[i].interpolate(factor);
+    sim_points.positions[point_i] = current_position;
+  }
+  for (const int i : find_indices_in_range<int>(pinned_positions.soft_indices, range)) {
+    const float3 current_position = pinned_positions.soft_animations[i].interpolate(factor);
+    r_soft_pinned_positions[i] = current_position;
+  }
+}
+
 PROFILE_FUNCTION static void update_pinned_positions(
     XPBDState &state,
     const Map<SimPointsKey, PinnedPositions> &pinned_positions_map,
@@ -2137,6 +2169,26 @@ PROFILE_FUNCTION static void update_pinned_positions(
         soft_pinned_positions[i] = current_position;
       }
     }
+  }
+}
+
+PROFILE_FUNCTION static void updated_pinned_rotations(
+    SimPoints &sim_points,
+    const IndexRange range,
+    const PinnedRotations &pinned_rotations,
+    const float factor,
+    MutableSpan<math::Quaternion> r_soft_pinned_rotations)
+{
+  for (const int i : find_indices_in_range<int>(pinned_rotations.hard_indices, range)) {
+    const int point_i = pinned_rotations.hard_indices[i];
+    const math::Quaternion current_rotation = pinned_rotations.hard_animations[i].interpolate(
+        factor);
+    sim_points.rotations[point_i] = current_rotation;
+  }
+  for (const int i : find_indices_in_range<int>(pinned_rotations.soft_indices, range)) {
+    const math::Quaternion current_rotation = pinned_rotations.soft_animations[i].interpolate(
+        factor);
+    r_soft_pinned_rotations[i] = current_rotation;
   }
 }
 
@@ -2187,6 +2239,11 @@ static void pre_solve_per_point_steps(SimPoints &sim_points,
                                       const SimPointsWorldProperties &props,
                                       const Span<float3> accelerations,
                                       const std::optional<Span<float3>> torques,
+                                      const PinnedPositions *pinned_positions,
+                                      const PinnedRotations *pinned_rotations,
+                                      const float substep_factor,
+                                      MutableSpan<float3> soft_pinned_positions,
+                                      MutableSpan<math::Quaternion> soft_pinned_rotations,
                                       const float delta_time)
 {
   remember_previous_state(sim_points, range, prev_positions, prev_rotations);
@@ -2195,6 +2252,14 @@ static void pre_solve_per_point_steps(SimPoints &sim_points,
     if (sim_points.has_rotation) {
       integrate_angular_velocities(sim_points, range, torques, props, delta_time);
     }
+  }
+  if (pinned_positions) {
+    update_pinned_positions(
+        sim_points, range, *pinned_positions, substep_factor, soft_pinned_positions);
+  }
+  if (pinned_rotations) {
+    updated_pinned_rotations(
+        sim_points, range, *pinned_rotations, substep_factor, soft_pinned_rotations);
   }
 }
 
@@ -2280,7 +2345,7 @@ PROFILE_FUNCTION static void update_and_step_xpbd_state(XPBDState &state,
       state, keys, sim_points_props);
 
   for ([[maybe_unused]] const int substep_i : IndexRange(substeps)) {
-    const float factor = substeps <= 1 ? 1.0f : float(substep_i) / (substeps - 1);
+    const float substep_factor = substeps <= 1 ? 1.0f : float(substep_i) / (substeps - 1);
     const bool is_first_substep = substep_i == 0;
     const bool is_last_substep = substep_i == substeps - 1;
 
@@ -2294,6 +2359,13 @@ PROFILE_FUNCTION static void update_and_step_xpbd_state(XPBDState &state,
           const Span<float3> accelerations = accelerations_map.lookup(key);
           const std::optional<Span<float3>> torques = torques_map.lookup_try(key);
           const SimPointsWorldProperties &props = sim_points_props.lookup(key);
+          const PinnedPositions *pinned_positions = pinned_positions_map.lookup_ptr(key);
+          const PinnedRotations *pinned_rotations = pinned_rotations_map.lookup_ptr(key);
+          MutableSpan<float3> soft_pinned_positions =
+              soft_pinned_positions_map.lookup_try(key).value_or(MutableSpan<float3>({}));
+          MutableSpan<math::Quaternion> soft_pinned_rotations =
+              soft_pinned_rotations_map.lookup_try(key).value_or(
+                  MutableSpan<math::Quaternion>({}));
           threading::parallel_for(
               IndexRange(sim_points.points_num), 1024, [&](const IndexRange range) {
                 pre_solve_per_point_steps(sim_points,
@@ -2303,15 +2375,16 @@ PROFILE_FUNCTION static void update_and_step_xpbd_state(XPBDState &state,
                                           props,
                                           accelerations,
                                           torques,
+                                          pinned_positions,
+                                          pinned_rotations,
+                                          substep_factor,
+                                          soft_pinned_positions,
+                                          soft_pinned_rotations,
                                           sub_delta_time);
               });
         }
       });
     }
-
-    /* Move pinned points to the correct position for the current substep. */
-    update_pinned_positions(state, pinned_positions_map, soft_pinned_positions_map, factor);
-    update_pinned_rotations(state, pinned_rotations_map, soft_pinned_rotations_map, factor);
 
     /* Find current collisions and generate constraints to resolve them. */
     xpbd::ConstraintSetCollector dynamic_constraint_sets;
@@ -2339,6 +2412,13 @@ PROFILE_FUNCTION static void update_and_step_xpbd_state(XPBDState &state,
           const Span<float3> accelerations = accelerations_map.lookup(key);
           const std::optional<Span<float3>> torques = torques_map.lookup_try(key);
           const SimPointsWorldProperties &props = sim_points_props.lookup(key);
+          const PinnedPositions *pinned_positions = pinned_positions_map.lookup_ptr(key);
+          const PinnedRotations *pinned_rotations = pinned_rotations_map.lookup_ptr(key);
+          MutableSpan<float3> soft_pinned_positions =
+              soft_pinned_positions_map.lookup_try(key).value_or(MutableSpan<float3>({}));
+          MutableSpan<math::Quaternion> soft_pinned_rotations =
+              soft_pinned_rotations_map.lookup_try(key).value_or(
+                  MutableSpan<math::Quaternion>({}));
           threading::parallel_for(
               IndexRange(sim_points.points_num), 1024, [&](const IndexRange range) {
                 post_solve_per_point_steps(sim_points,
@@ -2354,6 +2434,11 @@ PROFILE_FUNCTION static void update_and_step_xpbd_state(XPBDState &state,
                                             props,
                                             accelerations,
                                             torques,
+                                            pinned_positions,
+                                            pinned_rotations,
+                                            substep_factor,
+                                            soft_pinned_positions,
+                                            soft_pinned_rotations,
                                             sub_delta_time);
                 }
               });
