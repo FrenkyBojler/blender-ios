@@ -135,7 +135,7 @@ static void import_startjob(void *customdata, wmJobWorkerStatus *worker_status)
 
   data->params.worker_status = worker_status;
 
-  WM_set_locked_interface(data->wm, true);
+  WM_locked_interface_set(data->wm, true);
   G.is_break = false;
 
   if (data->params.create_collection) {
@@ -166,14 +166,11 @@ static void import_startjob(void *customdata, wmJobWorkerStatus *worker_status)
   *data->do_update = true;
   *data->progress = 0.1f;
 
-  std::string prim_path_mask(data->params.prim_path_mask);
   pxr::UsdStagePopulationMask pop_mask;
-  if (!prim_path_mask.empty()) {
-    for (const std::string &mask_token : pxr::TfStringTokenize(prim_path_mask, ",;")) {
-      pxr::SdfPath prim_path(mask_token);
-      if (!prim_path.IsEmpty()) {
-        pop_mask.Add(prim_path);
-      }
+  for (const std::string &mask_token : pxr::TfStringTokenize(data->params.prim_path_mask, ",;")) {
+    pxr::SdfPath prim_path(mask_token);
+    if (!prim_path.IsEmpty()) {
+      pop_mask.Add(prim_path);
     }
   }
 
@@ -396,7 +393,7 @@ static void import_endjob(void *customdata)
     }
   }
 
-  WM_set_locked_interface(data->wm, false);
+  WM_locked_interface_set(data->wm, false);
 
   switch (data->error_code) {
     default:
@@ -409,8 +406,6 @@ static void import_endjob(void *customdata)
                  "Could not open USD archive for reading, see console for detail");
       break;
   }
-
-  MEM_SAFE_FREE(data->params.prim_path_mask);
 
   WM_main_add_notifier(NC_ID | NA_ADDED, nullptr);
   report_job_duration(data);
@@ -454,7 +449,7 @@ bool USD_import(const bContext *C,
     wmJob *wm_job = WM_jobs_get(CTX_wm_manager(C),
                                 CTX_wm_window(C),
                                 job->scene,
-                                "USD Import",
+                                "Importing USD...",
                                 WM_JOB_PROGRESS,
                                 WM_JOB_TYPE_USD_IMPORT);
 

@@ -13,7 +13,7 @@
 
 #include "BLI_listbase.h"
 #include "BLI_rect.h"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_string_utils.hh"
 #include "BLI_time.h"
 #include "BLI_timecode.h"
@@ -417,8 +417,8 @@ static void make_renderinfo_string(const RenderStats *rs,
   const uintptr_t mem_in_use = MEM_get_memory_in_use();
   const uintptr_t peak_memory = MEM_get_peak_memory();
 
-  const float megs_used_memory = (mem_in_use) / (1024.0 * 1024.0);
-  const float megs_peak_memory = (peak_memory) / (1024.0 * 1024.0);
+  const int megs_used_memory = ceilf(mem_in_use / (1024.0 * 1024.0));
+  const int megs_peak_memory = ceilf(peak_memory / (1024.0 * 1024.0));
 
   /* local view */
   if (rs->localview) {
@@ -431,7 +431,7 @@ static void make_renderinfo_string(const RenderStats *rs,
   }
 
   /* frame number */
-  SNPRINTF(info_buffers.frame, "%d ", scene->r.cfra);
+  SNPRINTF_UTF8(info_buffers.frame, "%d ", scene->r.cfra);
   ret_array[i++] = RPT_("Frame:");
   ret_array[i++] = info_buffers.frame;
 
@@ -468,14 +468,14 @@ static void make_renderinfo_string(const RenderStats *rs,
     }
     else {
       if (rs->mem_peak == 0.0f) {
-        SNPRINTF(info_buffers.statistics,
-                 RPT_("Mem:%.2fM (Peak %.2fM)"),
-                 megs_used_memory,
-                 megs_peak_memory);
+        SNPRINTF_UTF8(info_buffers.statistics,
+                      RPT_("Mem:%dM, Peak %dM"),
+                      megs_used_memory,
+                      megs_peak_memory);
       }
       else {
-        SNPRINTF(
-            info_buffers.statistics, RPT_("Mem:%.2fM, Peak: %.2fM"), rs->mem_used, rs->mem_peak);
+        SNPRINTF_UTF8(
+            info_buffers.statistics, RPT_("Mem:%dM, Peak: %dM"), rs->mem_used, rs->mem_peak);
       }
       info_statistics = info_buffers.statistics;
     }
@@ -843,7 +843,7 @@ static void render_endjob(void *rjv)
      * and using one from Global will unlock exactly the same manager as
      * was locked before running the job.
      */
-    WM_set_locked_interface(static_cast<wmWindowManager *>(G_MAIN->wm.first), false);
+    WM_locked_interface_set(static_cast<wmWindowManager *>(G_MAIN->wm.first), false);
     DEG_tag_on_visible_update(G_MAIN, false);
   }
 }
@@ -882,7 +882,7 @@ static void render_drawlock(void *rjv, bool lock)
 
   /* If interface is locked, renderer callback shall do nothing. */
   if (!rj->interface_locked) {
-    BKE_spacedata_draw_locks(lock);
+    BKE_spacedata_draw_locks(lock ? REGION_DRAW_LOCK_RENDER : REGION_DRAW_LOCK_NONE);
   }
 }
 
@@ -1062,7 +1062,7 @@ static wmOperatorStatus screen_render_invoke(bContext *C, wmOperator *op, const 
 
   /* Lock the user interface depending on render settings. */
   if (scene->r.use_lock_interface) {
-    WM_set_locked_interface(CTX_wm_manager(C), true);
+    WM_locked_interface_set_with_flags(CTX_wm_manager(C), REGION_DRAW_LOCK_RENDER);
 
     /* Set flag interface need to be unlocked.
      *
@@ -1080,10 +1080,10 @@ static wmOperatorStatus screen_render_invoke(bContext *C, wmOperator *op, const 
 
   /* setup job */
   if (RE_seq_render_active(scene, &scene->r)) {
-    name = "Sequence Render";
+    name = RPT_("Rendering sequence...");
   }
   else {
-    name = "Render";
+    name = RPT_("Rendering...");
   }
 
   wm_job = WM_jobs_get(CTX_wm_manager(C),

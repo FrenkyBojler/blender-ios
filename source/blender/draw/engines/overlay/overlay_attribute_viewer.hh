@@ -9,7 +9,6 @@
 #pragma once
 
 #include "BKE_curves.hh"
-#include "BKE_customdata.hh"
 #include "BKE_geometry_set.hh"
 #include "DNA_curve_types.h"
 #include "DNA_pointcloud_types.h"
@@ -47,7 +46,7 @@ class AttributeViewer : Overlay {
     ps_.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_DEPTH_LESS_EQUAL | DRW_STATE_BLEND_ALPHA,
                   state.clipping_plane_count);
 
-    auto create_sub = [&](const char *name, GPUShader *shader) {
+    auto create_sub = [&](const char *name, gpu::Shader *shader) {
       auto &sub = ps_.sub(name);
       sub.shader_set(shader);
       return &sub;
@@ -159,10 +158,9 @@ class AttributeViewer : Overlay {
     }
   }
 
-  static bool attribute_type_supports_viewer_overlay(const eCustomDataType data_type)
+  static bool attribute_type_supports_viewer_overlay(const bke::AttrType data_type)
   {
-    return CD_TYPE_AS_MASK(data_type) &
-           (CD_MASK_PROP_ALL & ~(CD_MASK_PROP_QUATERNION | CD_MASK_PROP_FLOAT4X4));
+    return !ELEM(data_type, bke::AttrType::Quaternion, bke::AttrType::Float4x4);
   }
 
   void populate_for_geometry(const ObjectRef &ob_ref, const State &state, Manager &manager)

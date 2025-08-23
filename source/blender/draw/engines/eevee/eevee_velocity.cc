@@ -76,7 +76,7 @@ static void step_object_sync_render(Instance &inst, ObjectRef &ob_ref)
   }
 
   /* NOTE: Dummy resource handle since this won't be used for drawing. */
-  ResourceHandleRange resource_handle(0);
+  ResourceHandleRange resource_handle = {};
   ObjectHandle &ob_handle = inst.sync.sync_object(ob_ref);
 
   if (partsys_is_visible) {
@@ -207,7 +207,7 @@ bool VelocityModule::step_object_sync(ObjectKey &object_key,
 
     const VelocityGeometryData &data = geometry_map.lookup_or_add_cb(vel.id, add_cb);
 
-    if (!data.pos_buf_get()) {
+    if (!data.has_data()) {
       has_deform = false;
     }
   }

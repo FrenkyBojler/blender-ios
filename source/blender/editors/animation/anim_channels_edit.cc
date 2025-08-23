@@ -16,6 +16,7 @@
 #include "BLI_listbase.h"
 #include "BLI_span.hh"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 #include "DNA_anim_types.h"
@@ -300,6 +301,7 @@ void ANIM_set_active_channel(bAnimContext *ac,
       case ANIMTYPE_DSHAIR:
       case ANIMTYPE_DSPOINTCLOUD:
       case ANIMTYPE_DSVOLUME:
+      case ANIMTYPE_DSLIGHTPROBE:
       case ANIMTYPE_NLAACTION: {
         /* need to verify that this data is valid for now */
         if (ale->adt) {
@@ -382,6 +384,7 @@ void ANIM_set_active_channel(bAnimContext *ac,
       case ANIMTYPE_DSHAIR:
       case ANIMTYPE_DSPOINTCLOUD:
       case ANIMTYPE_DSVOLUME:
+      case ANIMTYPE_DSLIGHTPROBE:
       case ANIMTYPE_NLAACTION: {
         /* need to verify that this data is valid for now */
         if (ale && ale->adt) {
@@ -438,6 +441,7 @@ bool ANIM_is_active_channel(bAnimListElem *ale)
     case ANIMTYPE_DSHAIR:
     case ANIMTYPE_DSPOINTCLOUD:
     case ANIMTYPE_DSVOLUME:
+    case ANIMTYPE_DSLIGHTPROBE:
     case ANIMTYPE_NLAACTION: {
       return ale->adt && (ale->adt->flag & ADT_UI_ACTIVE);
     }
@@ -599,6 +603,7 @@ static eAnimChannels_SetFlag anim_channels_selection_flag_for_toggle(const ListB
       case ANIMTYPE_DSHAIR:
       case ANIMTYPE_DSPOINTCLOUD:
       case ANIMTYPE_DSVOLUME:
+      case ANIMTYPE_DSLIGHTPROBE:
       case ANIMTYPE_NLAACTION: {
         if ((ale->adt) && (ale->adt->flag & ADT_UI_SELECTED)) {
           return ACHANNEL_SETFLAG_CLEAR;
@@ -771,6 +776,7 @@ static void anim_channels_select_set(bAnimContext *ac,
       case ANIMTYPE_DSHAIR:
       case ANIMTYPE_DSPOINTCLOUD:
       case ANIMTYPE_DSVOLUME:
+      case ANIMTYPE_DSLIGHTPROBE:
       case ANIMTYPE_NLAACTION: {
         /* need to verify that this data is valid for now */
         if (ale->adt) {
@@ -1630,7 +1636,7 @@ static void split_groups_action_temp(bAction *act, bActionGroup *tgrp)
   *tgrp = bActionGroup{};
   tgrp->cs = ThemeWireColor{};
   tgrp->flag |= (AGRP_EXPANDED | AGRP_TEMP | AGRP_EXPANDED_G);
-  STRNCPY(tgrp->name, "#TempGroup");
+  STRNCPY_UTF8(tgrp->name, "#TempGroup");
 
   /* Move any action-channels not already moved, to the temp group */
   if (act->curves.first) {
@@ -2878,6 +2884,7 @@ static bool animchannels_delete_containers(const bContext *C, bAnimContext *ac)
       case ANIMTYPE_DSHAIR:
       case ANIMTYPE_DSPOINTCLOUD:
       case ANIMTYPE_DSVOLUME:
+      case ANIMTYPE_DSLIGHTPROBE:
       case ANIMTYPE_SHAPEKEY:
       case ANIMTYPE_GPLAYER:
       case ANIMTYPE_GREASE_PENCIL_DATABLOCK:
@@ -3054,6 +3061,7 @@ static wmOperatorStatus animchannels_delete_exec(bContext *C, wmOperator * /*op*
       case ANIMTYPE_DSHAIR:
       case ANIMTYPE_DSPOINTCLOUD:
       case ANIMTYPE_DSVOLUME:
+      case ANIMTYPE_DSLIGHTPROBE:
       case ANIMTYPE_SHAPEKEY:
       case ANIMTYPE_GREASE_PENCIL_DATABLOCK:
       case ANIMTYPE_GREASE_PENCIL_LAYER_GROUP:
@@ -3883,6 +3891,7 @@ static void box_select_anim_channels(bAnimContext *ac, const rcti &rect, short s
         case ANIMTYPE_DSHAIR:
         case ANIMTYPE_DSPOINTCLOUD:
         case ANIMTYPE_DSVOLUME:
+        case ANIMTYPE_DSLIGHTPROBE:
         case ANIMTYPE_SHAPEKEY:
         case ANIMTYPE_GPLAYER:
         case ANIMTYPE_GREASE_PENCIL_DATABLOCK:
@@ -4501,6 +4510,10 @@ static int click_select_channel_shapekey(bAnimContext *ac,
                                          const short /* eEditKeyframes_Select or -1 */ selectmode)
 {
   KeyBlock *kb = static_cast<KeyBlock *>(ale->data);
+  Key *key = reinterpret_cast<Key *>(ale->id);
+  Object &ob = *ac->obact;
+
+  ob.shapenr = BLI_findindex(&key->block, kb) + 1;
 
   /* select/deselect */
   if (selectmode == SELECT_INVERT) {
@@ -4749,6 +4762,7 @@ static int mouse_anim_channels(bContext *C,
     case ANIMTYPE_DSHAIR:
     case ANIMTYPE_DSPOINTCLOUD:
     case ANIMTYPE_DSVOLUME:
+    case ANIMTYPE_DSLIGHTPROBE:
       notifierFlags |= click_select_channel_dummy(ac, ale, selectmode);
       break;
     case ANIMTYPE_GROUP:
@@ -5427,7 +5441,7 @@ static wmOperatorStatus slot_channels_move_to_new_action_exec(bContext *C, wmOpe
   Main *bmain = CTX_data_main(C);
   if (slots.size() == 1) {
     char actname[MAX_ID_NAME - 2];
-    SNPRINTF(actname, DATA_("%sAction"), slots[0].first->identifier + 2);
+    SNPRINTF_UTF8(actname, DATA_("%sAction"), slots[0].first->identifier + 2);
     target_action = &action_add(*bmain, actname);
   }
   else {
@@ -5495,7 +5509,7 @@ static wmOperatorStatus separate_slots_exec(bContext *C, wmOperator *op)
   while (action->slot_array_num) {
     Slot *slot = action->slot(action->slot_array_num - 1);
     char actname[MAX_ID_NAME - 2];
-    SNPRINTF(actname, DATA_("%sAction"), slot->identifier + 2);
+    SNPRINTF_UTF8(actname, DATA_("%sAction"), slot->identifier + 2);
     Action &target_action = action_add(*bmain, actname);
     created_actions++;
     Layer &layer = target_action.layer_add(std::nullopt);

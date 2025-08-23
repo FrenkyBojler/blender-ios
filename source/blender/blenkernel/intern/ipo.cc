@@ -39,6 +39,7 @@
 #include "BLI_dynstr.h"
 #include "BLI_listbase.h"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_string_utils.hh"
 #include "BLI_utildefines.h"
 
@@ -72,7 +73,7 @@
 #  include "BLI_math_base.h" /* M_PI */
 #endif
 
-static CLG_LogRef LOG = {"bke.ipo"};
+static CLG_LogRef LOG = {"anim.ipo"};
 
 using namespace blender;
 
@@ -422,7 +423,7 @@ static char *shapekey_adrcodes_to_paths(ID *id, int adrcode, int * /*r_array_ind
   /* block will be attached to ID_KE block... */
   if (adrcode == 0) {
     /* adrcode=0 was the misnamed "speed" curve (now "evaluation time") */
-    STRNCPY(buf, "eval_time");
+    STRNCPY_UTF8(buf, "eval_time");
   }
   else {
     /* Find the name of the ShapeKey (i.e. KeyBlock) to look for */
@@ -434,11 +435,11 @@ static char *shapekey_adrcodes_to_paths(ID *id, int adrcode, int * /*r_array_ind
       /* Use the keyblock name, escaped, so that path lookups for this will work */
       char kb_name_esc[sizeof(kb->name) * 2];
       BLI_str_escape(kb_name_esc, kb->name, sizeof(kb_name_esc));
-      SNPRINTF(buf, "key_blocks[\"%s\"].value", kb_name_esc);
+      SNPRINTF_UTF8(buf, "key_blocks[\"%s\"].value", kb_name_esc);
     }
     else {
       /* Fallback - Use the adrcode as index directly, so that this can be manually fixed */
-      SNPRINTF(buf, "key_blocks[%d].value", adrcode);
+      SNPRINTF_UTF8(buf, "key_blocks[%d].value", adrcode);
     }
   }
   return buf;
@@ -557,7 +558,7 @@ static const char *mtex_adrcodes_to_paths(int adrcode, int * /*r_array_index*/)
 
   /* only build and return path if there's a property */
   if (prop) {
-    SNPRINTF(buf, "%s.%s", base, prop);
+    SNPRINTF_UTF8(buf, "%s.%s", base, prop);
     return buf;
   }
 
@@ -1131,7 +1132,7 @@ static char *get_rna_access(ID *id,
     char constname_esc[sizeof(bConstraint::name) * 2];
     BLI_str_escape(actname_esc, actname, sizeof(actname_esc));
     BLI_str_escape(constname_esc, constname, sizeof(constname_esc));
-    SNPRINTF(buf, "pose.bones[\"%s\"].constraints[\"%s\"]", actname_esc, constname_esc);
+    SNPRINTF_UTF8(buf, "pose.bones[\"%s\"].constraints[\"%s\"]", actname_esc, constname_esc);
   }
   else if (actname && actname[0]) {
     if ((blocktype == ID_OB) && STREQ(actname, "Object")) {
@@ -1141,26 +1142,26 @@ static char *get_rna_access(ID *id,
     else if ((blocktype == ID_KE) && STREQ(actname, "Shape")) {
       /* Actionified "Shape" IPO's -
        * these are forced onto object level via the action container there... */
-      STRNCPY(buf, "data.shape_keys");
+      STRNCPY_UTF8(buf, "data.shape_keys");
     }
     else {
       /* Pose-Channel */
       char actname_esc[sizeof(bActionChannel::name) * 2];
       BLI_str_escape(actname_esc, actname, sizeof(actname_esc));
-      SNPRINTF(buf, "pose.bones[\"%s\"]", actname_esc);
+      SNPRINTF_UTF8(buf, "pose.bones[\"%s\"]", actname_esc);
     }
   }
   else if (constname && constname[0]) {
     /* Constraint in Object */
     char constname_esc[sizeof(bConstraint::name) * 2];
     BLI_str_escape(constname_esc, constname, sizeof(constname_esc));
-    SNPRINTF(buf, "constraints[\"%s\"]", constname_esc);
+    SNPRINTF_UTF8(buf, "constraints[\"%s\"]", constname_esc);
   }
   else if (strip) {
     /* Strip names in Scene */
     char strip_name_esc[(sizeof(strip->name) - 2) * 2];
     BLI_str_escape(strip_name_esc, strip->name + 2, sizeof(strip_name_esc));
-    SNPRINTF(buf, "sequence_editor.sequences_all[\"%s\"]", strip_name_esc);
+    SNPRINTF_UTF8(buf, "sequence_editor.sequences_all[\"%s\"]", strip_name_esc);
   }
   else {
     buf[0] = '\0'; /* empty string */
@@ -1178,7 +1179,7 @@ static char *get_rna_access(ID *id,
 
   /* if there was no array index pointer provided, add it to the path */
   if (r_array_index == nullptr) {
-    SNPRINTF(buf, "[\"%d\"]", dummy_index);
+    SNPRINTF_UTF8(buf, "[\"%d\"]", dummy_index);
     BLI_dynstr_append(path, buf);
   }
 
@@ -1237,7 +1238,7 @@ static ChannelDriver *idriver_to_cdriver(IpoDriver *idriver)
     /* FIXME: expression will be useless due to API changes, but at least not totally lost */
     cdriver->type = DRIVER_TYPE_PYTHON;
     if (idriver->name[0]) {
-      STRNCPY(cdriver->expression, idriver->name);
+      STRNCPY_UTF8(cdriver->expression, idriver->name);
     }
   }
   else {
@@ -1259,7 +1260,7 @@ static ChannelDriver *idriver_to_cdriver(IpoDriver *idriver)
         dtar->id = (ID *)idriver->ob;
         dtar->idtype = ID_OB;
         if (idriver->name[0]) {
-          STRNCPY(dtar->pchan_name, idriver->name);
+          STRNCPY_UTF8(dtar->pchan_name, idriver->name);
         }
 
         /* second bone target (name was stored in same var as the first one) */
@@ -1267,7 +1268,7 @@ static ChannelDriver *idriver_to_cdriver(IpoDriver *idriver)
         dtar->id = (ID *)idriver->ob;
         dtar->idtype = ID_OB;
         if (idriver->name[0]) { /* XXX: for safety. */
-          STRNCPY(dtar->pchan_name, idriver->name + DRIVER_NAME_OFFS);
+          STRNCPY_UTF8(dtar->pchan_name, idriver->name + DRIVER_NAME_OFFS);
         }
       }
       else {
@@ -1280,7 +1281,7 @@ static ChannelDriver *idriver_to_cdriver(IpoDriver *idriver)
         dtar->id = (ID *)idriver->ob;
         dtar->idtype = ID_OB;
         if (idriver->name[0]) {
-          STRNCPY(dtar->pchan_name, idriver->name);
+          STRNCPY_UTF8(dtar->pchan_name, idriver->name);
         }
         dtar->transChan = adrcode_to_dtar_transchan(idriver->adrcode);
         dtar->flag |= DTAR_FLAG_LOCALSPACE; /* old drivers took local space */
@@ -1336,7 +1337,7 @@ static void fcurve_add_to_list(
         agrp->flag |= AGRP_MUTED;
       }
 
-      STRNCPY(agrp->name, grpname);
+      STRNCPY_UTF8(agrp->name, grpname);
 
       BLI_addtail(&tmp_act.groups, agrp);
       BLI_uniquename(&tmp_act.groups,
@@ -1908,7 +1909,7 @@ static void ipo_to_animdata(
     if (adt->action == nullptr) {
       char nameBuf[MAX_ID_NAME];
 
-      SNPRINTF(nameBuf, "CDA:%s", ipo->id.name + 2);
+      SNPRINTF_UTF8(nameBuf, "CDA:%s", ipo->id.name + 2);
 
       bAction *action = BKE_action_add(bmain, nameBuf);
       id_us_min(&action->id);
@@ -2076,14 +2077,15 @@ struct Seq_callback_data {
 
 static bool strip_convert_callback(Strip *strip, void *userdata)
 {
-  IpoCurve *icu = static_cast<IpoCurve *>((strip->ipo) ? strip->ipo->curve.first : nullptr);
+  IpoCurve *icu = static_cast<IpoCurve *>((strip->ipo_legacy) ? strip->ipo_legacy->curve.first :
+                                                                nullptr);
   short adrcode = STRIP_FAC1;
 
   if (G.debug & G_DEBUG) {
     printf("\tconverting sequence strip %s\n", strip->name + 2);
   }
 
-  if (ELEM(nullptr, strip->ipo, icu)) {
+  if (ELEM(nullptr, strip->ipo_legacy, icu)) {
     strip->flag |= SEQ_USE_EFFECT_DEFAULT_FADE;
     return true;
   }
@@ -2106,14 +2108,14 @@ static bool strip_convert_callback(Strip *strip, void *userdata)
   Seq_callback_data *cd = (Seq_callback_data *)userdata;
 
   /* convert IPO */
-  ipo_to_animdata(cd->bmain, (ID *)cd->scene, strip->ipo, nullptr, nullptr, strip);
+  ipo_to_animdata(cd->bmain, (ID *)cd->scene, strip->ipo_legacy, nullptr, nullptr, strip);
 
   if (cd->adt->action && !blender::animrig::versioning::action_is_layered(*cd->adt->action)) {
     cd->adt->action->idroot = ID_SCE; /* scene-rooted */
   }
 
-  id_us_min(&strip->ipo->id);
-  strip->ipo = nullptr;
+  id_us_min(&strip->ipo_legacy->id);
+  strip->ipo_legacy = nullptr;
   return true;
 }
 
@@ -2385,7 +2387,7 @@ void do_versions_ipos_to_layered_actions(Main *bmain)
   for (id = static_cast<ID *>(bmain->scenes.first); id; id = static_cast<ID *>(id->next)) {
     Scene *scene = (Scene *)id;
     Editing *ed = scene->ed;
-    if (ed && ed->seqbasep) {
+    if (ed && ed->current_strips()) {
       Seq_callback_data cb_data = {bmain, scene, BKE_animdata_ensure_id(id)};
       seq::for_each_callback(&ed->seqbase, strip_convert_callback, &cb_data);
     }

@@ -571,14 +571,11 @@ static void panel_draw(const bContext *C, Panel *panel)
     sub->op("OBJECT_OT_grease_pencil_time_modifier_segment_remove", "", ICON_REMOVE);
     col->separator();
     sub = &col->column(true);
-    uiItemEnumO_string(
-        sub, "", ICON_TRIA_UP, "OBJECT_OT_grease_pencil_time_modifier_segment_move", "type", "UP");
-    uiItemEnumO_string(sub,
-                       "",
-                       ICON_TRIA_DOWN,
-                       "OBJECT_OT_grease_pencil_time_modifier_segment_move",
-                       "type",
-                       "DOWN");
+    PointerRNA op_ptr = layout->op(
+        "OBJECT_OT_grease_pencil_dash_modifier_segment_move", "", ICON_TRIA_UP);
+    RNA_enum_set(&op_ptr, "type", /* blender::ed::object::DashSegmentMoveDirection::Up */ -1);
+    op_ptr = layout->op("OBJECT_OT_grease_pencil_dash_modifier_segment_move", "", ICON_TRIA_DOWN);
+    RNA_enum_set(&op_ptr, "type", /* blender::ed::object::DashSegmentMoveDirection::Down */ 1);
 
     if (tmd->segments().index_range().contains(tmd->segment_active_index)) {
       PointerRNA segment_ptr = RNA_pointer_create_discrete(
@@ -639,7 +636,7 @@ static void panel_register(ARegionType *region_type)
   modifier_panel_register(region_type, eModifierType_GreasePencilTime, panel_draw);
 
   uiListType *list_type = MEM_callocN<uiListType>("Grease Pencil Time modifier segments");
-  STRNCPY(list_type->idname, "MOD_UL_grease_pencil_time_modifier_segments");
+  STRNCPY_UTF8(list_type->idname, "MOD_UL_grease_pencil_time_modifier_segments");
   list_type->draw_item = segment_list_item_draw;
   WM_uilisttype_add(list_type);
 }
