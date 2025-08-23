@@ -175,6 +175,42 @@ struct PinRotationsState {
   Map<int, Item> rotations;
 };
 
+struct CurveSegmentRestLengthsState {
+ private:
+  /**
+   * The segment length for the segment after each point.
+   * For curve-end-points in non-cyclic curves, this is the distance to the first point in the
+   * curve. For single-point curves, this is zero.
+   */
+  Vector<float> rest_lengths_;
+
+ public:
+  CurveSegmentRestLengthsState(const bke::CurvesGeometry &curves)
+  {
+    const int points_num = curves.points_num();
+    const int curves_num = curves.curves_num();
+    rest_lengths_.resize(points_num);
+    const Span<float3> positions = curves.positions();
+    const OffsetIndices<int> points_by_curve = curves.points_by_curve();
+    threading::parallel_for(IndexRange(curves_num), 128, [&](const IndexRange curves_range) {
+      for (const int curve_i : curves_range) {
+        const IndexRange points = points_by_curve[curve_i];
+        for (const int point_i : points.drop_back(1)) {
+          rest_lengths_[point_i] = math::distance(positions[point_i], positions[point_i + 1]);
+        }
+        /* The cyclic length is computed even if it might not be needed. */
+        rest_lengths_[points.last()] = math::distance(positions[points.last()],
+                                                      positions[points.first()]);
+      }
+    });
+  }
+
+  Span<float> rest_lengths() const
+  {
+    return rest_lengths_;
+  }
+};
+
 class XPBDState {
  public:
   /**
@@ -189,6 +225,7 @@ class XPBDState {
   Map<SimPointsKey, PinPositionsState> pin_positions;
   Map<SimPointsKey, PinRotationsState> pin_rotations;
   Map<SimPointsKey, float> initial_volumes;
+  Map<SimPointsKey, std::unique_ptr<CurveSegmentRestLengthsState>> curve_segment_rest_lengths;
 };
 
 class XPBDStateOwner : public BundleItemInternalValueMixin {
@@ -575,6 +612,8 @@ PROFILE_FUNCTION static void update_xpbd_state_for_geometry(
       }
     }
     if (!new_sim_points) {
+      state.curve_segment_rest_lengths.remove(key);
+
       SimPoints sim_points;
       sim_points.points_num = current_curves.points_num();
       sim_points.positions = current_curves.positions();
@@ -1112,22 +1151,15 @@ PROFILE_FUNCTION static void gather_curves_rod_stretch_and_shear_constraints(
         }
       });
 
-      Vector<int2> constraint_segments;
-
-      for (const int curve_i : curves.curves_range()) {
-        const IndexRange points = points_by_curve[curve_i];
-        for (const int i : points.index_range().drop_back(1)) {
-          const int point_i = points[i];
-          constraint_segments.append({point_i, point_i + 1});
-        }
-        constraint_segments.append(int2(points.last(), points.first()));
-      }
-      const Span<float> constraint_lenghts = prepare_distance_constraint_lengths(
-          scope, state, sim_points.positions, key, constraint_segments);
+      const Span<float> rest_lengths =
+          state.curve_segment_rest_lengths
+              .lookup_or_add_cb(
+                  key, [&]() { return std::make_unique<CurveSegmentRestLengthsState>(curves); })
+              ->rest_lengths();
 
       r_constraints.curve_local.append(
           &scope.construct<xpbd::RodStretchAndShearCurveLocalConstraintSet>(
-              key_i, points_by_curve, constraint_lenghts, compliance_terms));
+              key_i, points_by_curve, rest_lengths, compliance_terms));
     }
   }
 }
