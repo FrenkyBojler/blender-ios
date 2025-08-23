@@ -8,7 +8,6 @@
 void main()
 {
   int2 texel = int2(gl_GlobalInvocationID.xy);
-  float2 output_size = float2(imageSize(output_img));
 
   float3 uvw = to_float3x3(imat) * float3(texel.x, texel.y, 1.0f);
 

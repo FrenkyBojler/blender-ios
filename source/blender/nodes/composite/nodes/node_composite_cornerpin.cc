@@ -158,30 +158,69 @@ class CornerPinOperation : public NodeOperation {
     float3x3 from_bounds = math::scale(math::from_location<float3x3>(float2(-0.5f)), float2(domain.size));
     float3x3 imat = from_bounds * homography_matrix * to_bounds;
 
-    gpu::Shader *shader = this->context().get_shader(this->get_shader_name());
-    GPU_shader_bind(shader);
-
-    GPU_shader_uniform_mat3_as_mat4(shader, "imat", imat.ptr());
-
-    Result &input_image = get_input("Image");
     const Interpolation interpolation = this->get_interpolation();
     ExtensionMode extension_mode_x = this->get_extension_mode_x();
-    const bool is_x_clipped = extension_mode_x == ExtensionMode::Clip; if (is_x_clipped) extension_mode_x = ExtensionMode::Extend;
     ExtensionMode extension_mode_y = this->get_extension_mode_y();
-    const bool is_y_clipped = extension_mode_y == ExtensionMode::Clip; if (is_y_clipped) extension_mode_y = ExtensionMode::Extend;
 
-    if (is_x_clipped || is_y_clipped) {
-      GPU_shader_uniform_2f(shader, "mask_mult", is_x_clipped ? 0.0f : 1.0f, is_y_clipped ? 0.0f : 1.0f);
+    // can we use texture() call:
+    char shader_name[100];
+    strcpy(shader_name, "compositor_plane_deform");
+    bool fast = false; // true means texture() call is being used
+
+    switch (interpolation) {
+      case Interpolation::Nearest:
+        fast = true;
+        strcat(shader_name, "_fast");
+        break;
+      case Interpolation::Bilinear:
+        strcat(shader_name, "_box");
+        break;
+      case Interpolation::Bicubic:
+        strcat(shader_name, "_bspline");
+        break;
+      case Interpolation::Anisotropic:
+        strcat(shader_name, "_anisotropic");
+        break;
     }
 
+    bool masked = false;
+    if (!fast && (extension_mode_x == ExtensionMode::Clip || extension_mode_y == ExtensionMode::Clip
+                  || interpolation == Interpolation::Anisotropic)) { // Anisotropic has to be masked
+      masked = true;
+      strcat(shader_name, "_masked");
+    }
+
+    gpu::Shader *shader = this->context().get_shader(shader_name);
+    GPU_shader_bind(shader);
+
+    if (fast) { // make matrix produce uv texture coordinates
+      imat = to_bounds * imat;
+    }
+    GPU_shader_uniform_mat3_as_mat4(shader, "imat", imat.ptr());
+
+    if (masked) {
+      float mx = 1;
+      if (extension_mode_x == ExtensionMode::Clip) {
+        mx = 0;
+        extension_mode_x = ExtensionMode::Extend;
+      }
+      float my = 1;
+      if (extension_mode_y == ExtensionMode::Clip) {
+        my = 0;
+        extension_mode_y = ExtensionMode::Extend;
+      }
+      GPU_shader_uniform_2f(shader, "mask_mult", mx, my);
+    }
+
+    Result &input_image = get_input("Image");
     if (interpolation == Interpolation::Anisotropic) {
       GPU_texture_mipmap_mode(input_image, true, true);
       GPU_texture_anisotropic_filter(input_image, true);
     } else {
-      GPU_texture_filter_mode(input_image, false); // sampleRect always uses nearest
+      GPU_texture_filter_mode(input_image, false); // all versions use nearest sampling
+      GPU_texture_extend_mode_x(input_image, map_extension_mode_to_extend_mode(extension_mode_x));
+      GPU_texture_extend_mode_y(input_image, map_extension_mode_to_extend_mode(extension_mode_y));
     }
-    GPU_texture_extend_mode_x(input_image, map_extension_mode_to_extend_mode(extension_mode_x));
-    GPU_texture_extend_mode_y(input_image, map_extension_mode_to_extend_mode(extension_mode_y));
     input_image.bind_as_texture(shader, "input_tx");
 
     Result &output_image = get_result("Image");
@@ -368,36 +407,6 @@ class CornerPinOperation : public NodeOperation {
     }
 
     return ExtensionMode::Clip;
-  }
-
-  const char *get_shader_name()
-  {
-    if (this->should_compute_mask()) {
-      switch (this->get_interpolation()) {
-        case Interpolation::Nearest:
-          return "compositor_plane_deform_nearest_masked"; // this should not be needed
-        case Interpolation::Bilinear:
-          return "compositor_plane_deform_box_masked";
-        case Interpolation::Bicubic:
-          return "compositor_plane_deform_bspline_masked";
-        case Interpolation::Anisotropic:
-          return "compositor_plane_deform_anisotropic_masked";
-      }
-    }
-
-    switch (this->get_interpolation()) {
-      case Interpolation::Nearest:
-        return "compositor_plane_deform_nearest";
-      case Interpolation::Bilinear:
-        return "compositor_plane_deform_box";
-      case Interpolation::Bicubic:
-        return "compositor_plane_deform_bspline";
-      /* Anisotropic does not implement extension modes. Return masked shader. */
-      case Interpolation::Anisotropic:
-        break;
-    }
-
-    return "compositor_plane_deform_anisotropic_masked";
   }
 
   bool should_compute_mask()
