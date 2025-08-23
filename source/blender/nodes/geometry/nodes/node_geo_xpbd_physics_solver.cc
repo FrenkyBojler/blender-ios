@@ -2281,27 +2281,33 @@ PROFILE_FUNCTION static void update_and_step_xpbd_state(XPBDState &state,
 
   for ([[maybe_unused]] const int substep_i : IndexRange(substeps)) {
     const float factor = substeps <= 1 ? 1.0f : float(substep_i) / (substeps - 1);
+    const bool is_first_substep = substep_i == 0;
+    const bool is_last_substep = substep_i == substeps - 1;
 
-    threading::parallel_for(keys.index_range(), 1, [&](const IndexRange range) {
-      for (const int key_i : range) {
-        const SimPointsKey &key = keys[key_i];
-        SimPoints &sim_points = state.sim_points.lookup(key);
-        const Span<float3> accelerations = accelerations_map.lookup(key);
-        const std::optional<Span<float3>> torques = torques_map.lookup_try(key);
-        const SimPointsWorldProperties &props = sim_points_props.lookup(key);
-        threading::parallel_for(
-            IndexRange(sim_points.points_num), 1024, [&](const IndexRange range) {
-              pre_solve_per_point_steps(sim_points,
-                                        range,
-                                        all_prev_positions[key_i],
-                                        all_prev_rotations[key_i],
-                                        props,
-                                        accelerations,
-                                        torques,
-                                        sub_delta_time);
-            });
-      }
-    });
+    /* In all other substeps, this is done at the end of the previous step already to improve
+     * parallelism and cache locality. */
+    if (is_first_substep) {
+      threading::parallel_for(keys.index_range(), 1, [&](const IndexRange range) {
+        for (const int key_i : range) {
+          const SimPointsKey &key = keys[key_i];
+          SimPoints &sim_points = state.sim_points.lookup(key);
+          const Span<float3> accelerations = accelerations_map.lookup(key);
+          const std::optional<Span<float3>> torques = torques_map.lookup_try(key);
+          const SimPointsWorldProperties &props = sim_points_props.lookup(key);
+          threading::parallel_for(
+              IndexRange(sim_points.points_num), 1024, [&](const IndexRange range) {
+                pre_solve_per_point_steps(sim_points,
+                                          range,
+                                          all_prev_positions[key_i],
+                                          all_prev_rotations[key_i],
+                                          props,
+                                          accelerations,
+                                          torques,
+                                          sub_delta_time);
+              });
+        }
+      });
+    }
 
     /* Move pinned points to the correct position for the current substep. */
     update_pinned_positions(state, pinned_positions_map, soft_pinned_positions_map, factor);
@@ -2328,7 +2334,11 @@ PROFILE_FUNCTION static void update_and_step_xpbd_state(XPBDState &state,
 
       threading::parallel_for(keys.index_range(), 1, [&](const IndexRange range) {
         for (const int key_i : range) {
+          const SimPointsKey &key = keys[key_i];
           SimPoints &sim_points = state.sim_points.lookup(keys[key_i]);
+          const Span<float3> accelerations = accelerations_map.lookup(key);
+          const std::optional<Span<float3>> torques = torques_map.lookup_try(key);
+          const SimPointsWorldProperties &props = sim_points_props.lookup(key);
           threading::parallel_for(
               IndexRange(sim_points.points_num), 1024, [&](const IndexRange range) {
                 post_solve_per_point_steps(sim_points,
@@ -2336,6 +2346,16 @@ PROFILE_FUNCTION static void update_and_step_xpbd_state(XPBDState &state,
                                            all_prev_positions[key_i],
                                            all_prev_rotations[key_i],
                                            sub_delta_time);
+                if (!is_last_substep) {
+                  pre_solve_per_point_steps(sim_points,
+                                            range,
+                                            all_prev_positions[key_i],
+                                            all_prev_rotations[key_i],
+                                            props,
+                                            accelerations,
+                                            torques,
+                                            sub_delta_time);
+                }
               });
         }
       });
