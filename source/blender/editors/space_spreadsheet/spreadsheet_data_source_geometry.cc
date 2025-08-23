@@ -710,7 +710,10 @@ void BundleDataSource::collect_flat_items(const nodes::Bundle &bundle, const Str
       if (value->value.is_single()) {
         const GPointer ptr = value->value.get_single_ptr();
         if (ptr.is_type<nodes::BundlePtr>()) {
-          this->collect_flat_items(**ptr.get<nodes::BundlePtr>(), path);
+          const nodes::BundlePtr child_bundle = *ptr.get<nodes::BundlePtr>();
+          if (child_bundle) {
+            this->collect_flat_items(*child_bundle, path);
+          }
         }
       }
     }
