@@ -1288,46 +1288,57 @@ static void deselect_markers(ListBase *markers)
 }
 
 static void select_marker_camera_switch(
-    bContext *C, bool camera, bool extend, ListBase *markers, int cfra)
+    bContext *C, bool camera, bool /*extend*/, ListBase *markers, int cfra)
 {
   using namespace blender::ed;
-  if (camera) {
-    BLI_assert(CTX_data_mode_enum(C) == CTX_MODE_OBJECT);
-    Scene *scene = CTX_data_scene(C);
-    ViewLayer *view_layer = CTX_data_view_layer(C);
-    Base *base;
-    int sel = 0;
 
-    if (!extend) {
-      BKE_view_layer_base_deselect_all(scene, view_layer);
-    }
-
-    LISTBASE_FOREACH (TimeMarker *, marker, markers) {
-      if (marker->frame == cfra) {
-        sel = (marker->flag & SELECT);
-        break;
-      }
-    }
-
-    BKE_view_layer_synced_ensure(scene, view_layer);
-    LISTBASE_FOREACH (TimeMarker *, marker, markers) {
-      if (marker->camera) {
-        if (marker->frame == cfra) {
-          base = BKE_view_layer_base_find(view_layer, marker->camera);
-          if (base) {
-            object::base_select(base, object::eObjectSelect_Mode(sel));
-            if (sel) {
-              object::base_activate(C, base);
-            }
-          }
-        }
-      }
-    }
-
-    DEG_id_tag_update(&scene->id, ID_RECALC_SELECT);
-    WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, scene);
+  if (!camera) {
+    return;
   }
+
+  BLI_assert(CTX_data_mode_enum(C) == CTX_MODE_OBJECT);
+
+  Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  BKE_view_layer_synced_ensure(scene, view_layer);
+
+  /* Find marker at clicked frame with a camera */
+  TimeMarker *target_marker = nullptr;
+  Object *camera_obj = nullptr;
+  Base *camera_base = nullptr;
+
+  LISTBASE_FOREACH (TimeMarker *, marker, markers) {
+    if (marker->frame == cfra && marker->camera) {
+      target_marker = marker;
+      camera_obj = marker->camera;
+      camera_base = BKE_view_layer_base_find(view_layer, camera_obj);
+      break;
+    }
+  }
+
+  if (!target_marker || !camera_base) {
+    return;
+  }
+
+  const bool marker_selected = (target_marker->flag & SELECT) != 0;
+  const bool camera_selected = (camera_base->flag & BASE_SELECTED) != 0;
+
+  if (marker_selected && camera_selected) {
+    /* Case: both selected → deselect both */
+    target_marker->flag &= ~SELECT;
+    object::base_select(camera_base, object::eObjectSelect_Mode(false));
+  }
+  else {
+    /* In all other cases, ensure both are selected */
+    target_marker->flag |= SELECT;
+    object::base_select(camera_base, object::eObjectSelect_Mode(true));
+    object::base_activate(C, camera_base);  // Optional: make active
+  }
+
+  DEG_id_tag_update(&scene->id, ID_RECALC_SELECT);
+  WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, scene);
 }
+
 
 static wmOperatorStatus ed_marker_select(bContext *C,
                                          const int mval[2],
