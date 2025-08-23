@@ -48,14 +48,7 @@ void transverts_from_curves_positions_create(bke::CurvesGeometry &curves,
     selection[0] = ed::curves::retrieve_selected_points(curves, memory);
   }
   else {
-    const IndexMask bezier_points = bke::curves::curve_to_point_selection(
-        curves.points_by_curve(),
-        bke::curves::indices_for_type(curves.curve_types(),
-                                      curves.curve_type_counts(),
-                                      CURVE_TYPE_BEZIER,
-                                      curves.curves_range(),
-                                      memory),
-        memory);
+    const IndexMask bezier_points = bke::curves::bezier::get_bezier_points(curves, memory);
 
     for (const int i : selection_names.index_range()) {
       if (selection_names[i] == ".selection") {

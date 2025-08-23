@@ -558,6 +558,11 @@ void write_all_positions(bke::CurvesGeometry &curves,
                          const IndexMask &curves_selection,
                          Span<float3> all_positions);
 
+/**
+ * Returns all the points that are in the bezier curves.
+ */
+IndexMask get_bezier_points(const bke::CurvesGeometry &curves, IndexMaskMemory &memory);
+
 }  // namespace bezier
 
 namespace nurbs {

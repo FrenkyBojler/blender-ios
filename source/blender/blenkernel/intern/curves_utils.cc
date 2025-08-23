@@ -219,6 +219,17 @@ void write_all_positions(bke::CurvesGeometry &curves,
   });
 }
 
+IndexMask get_bezier_points(const bke::CurvesGeometry &curves, IndexMaskMemory &memory)
+{
+  return curve_to_point_selection(curves.points_by_curve(),
+                                  indices_for_type(curves.curve_types(),
+                                                   curves.curve_type_counts(),
+                                                   CURVE_TYPE_BEZIER,
+                                                   curves.curves_range(),
+                                                   memory),
+                                  memory);
+}
+
 }  // namespace bezier
 
 namespace nurbs {
