@@ -45,6 +45,20 @@ constexpr int CURVE_HANDLE_TYPES_NUM = 4;
 
 using namespace blender::ed::curves::pen_tool;
 
+static IndexMask retrieve_editable_and_all_selected_points(
+    Object &object,
+    const bke::greasepencil::Drawing &drawing,
+    int layer_index,
+    IndexMaskMemory &memory)
+{
+  const bke::CurvesGeometry &curves = drawing.strokes();
+
+  const IndexMask editable_points = retrieve_editable_points(object, drawing, layer_index, memory);
+  const IndexMask selected_points = ed::curves::retrieve_all_selected_points(curves, memory);
+
+  return IndexMask::from_intersection(editable_points, selected_points, memory);
+}
+
 class GreasePencilPenToolOperation : public PenToolOperation {
  public:
   GreasePencil *grease_pencil;
@@ -60,6 +74,13 @@ class GreasePencilPenToolOperation : public PenToolOperation {
   float3 project(const float2 &screen_co) const
   {
     return this->placement.project(screen_co);
+  }
+
+  IndexMask all_selected_points(const int curves_index, IndexMaskMemory &memory) const
+  {
+    const MutableDrawingInfo &info = this->drawings[curves_index];
+    return ed::greasepencil::retrieve_editable_and_all_selected_points(
+        *this->vc.obact, info.drawing, info.layer_index, memory);
   }
 };
 
@@ -143,20 +164,6 @@ static bool pen_can_create_new_curve(const GreasePencilPenToolOperation &ptd, wm
   return true;
 }
 
-static IndexMask retrieve_editable_and_all_selected_points(
-    Object &object,
-    const bke::greasepencil::Drawing &drawing,
-    int layer_index,
-    IndexMaskMemory &memory)
-{
-  const bke::CurvesGeometry &curves = drawing.strokes();
-
-  const IndexMask editable_points = retrieve_editable_points(object, drawing, layer_index, memory);
-  const IndexMask selected_points = ed::curves::retrieve_all_selected_points(curves, memory);
-
-  return IndexMask::from_intersection(editable_points, selected_points, memory);
-}
-
 static float2 calculate_center_of_mass(const GreasePencilPenToolOperation &ptd,
                                        const bool ends_only)
 {
@@ -173,8 +180,7 @@ static float2 calculate_center_of_mass(const GreasePencilPenToolOperation &ptd,
     const VArray<bool> &cyclic = curves.cyclic();
 
     IndexMaskMemory memory;
-    const IndexMask selection = ed::greasepencil::retrieve_editable_and_all_selected_points(
-        *ptd.vc.obact, info.drawing, info.layer_index, memory);
+    const IndexMask selection = ptd.all_selected_points(drawing_index, memory);
 
     selection.foreach_index([&](const int64_t point_i) {
       if (ends_only) {

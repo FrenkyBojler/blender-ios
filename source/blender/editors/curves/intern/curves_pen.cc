@@ -916,6 +916,13 @@ class CurvesPenToolOperation : public PenToolOperation {
   {
     return this->screen_to_layer(float4x4::identity(), screen_co, float3(0.0f));
   }
+
+  IndexMask all_selected_points(const int curves_index, IndexMaskMemory &memory) const
+  {
+    const Curves *curves_id = this->all_curves[curves_index];
+    const bke::CurvesGeometry &curves = curves_id->geometry.wrap();
+    return retrieve_all_selected_points(curves, memory);
+  }
 };
 
 static float2 calculate_center_of_mass(const CurvesPenToolOperation &ptd, const bool ends_only)
@@ -932,7 +939,7 @@ static float2 calculate_center_of_mass(const CurvesPenToolOperation &ptd, const 
     const VArray<bool> &cyclic = curves.cyclic();
 
     IndexMaskMemory memory;
-    const IndexMask selection = retrieve_all_selected_points(curves, memory);
+    const IndexMask selection = ptd.all_selected_points(curves_index, memory);
 
     selection.foreach_index([&](const int64_t point_i) {
       if (ends_only) {
