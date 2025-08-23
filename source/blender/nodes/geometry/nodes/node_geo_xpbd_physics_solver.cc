@@ -248,7 +248,6 @@ class XPBDState {
 
   Map<SimPointsKey, SimPoints> sim_points;
   Map<SimPointsKey, DistanceConstraintLengths> distance_constraint_lengths;
-  Map<SimPointsKey, PinPositionsState> pin_positions;
   Map<SimPointsKey, PinRotationsState> pin_rotations;
   Map<SimPointsKey, float> initial_volumes;
   Map<SimPointsKey, std::unique_ptr<CurveSegmentRestLengthsState>> curve_segment_rest_lengths;
@@ -262,6 +261,11 @@ class XPBDState {
       count += sim_points.points_num;
     }
     return count;
+  }
+
+  bool is_initialization() const
+  {
+    return this->update_counter == 0;
   }
 };
 
@@ -1820,11 +1824,6 @@ PROFILE_FUNCTION static void reset_state_usages(XPBDState &state)
       length_item.used = false;
     }
   }
-  for (PinPositionsState &pin_positions : state.pin_positions.values()) {
-    for (PinPositionsState::Item &item : pin_positions.positions.values()) {
-      item.used = false;
-    }
-  }
   for (PinRotationsState &pin_rotations : state.pin_rotations.values()) {
     for (PinRotationsState::Item &item : pin_rotations.rotations.values()) {
       item.used = false;
@@ -1839,9 +1838,6 @@ PROFILE_FUNCTION static void remove_unused_states(XPBDState &state)
   {
     distance_constraint_lengths.lengths.remove_if(
         [](const auto &item) { return !item.value.used; });
-  }
-  for (PinPositionsState &pin_positions : state.pin_positions.values()) {
-    pin_positions.positions.remove_if([](const auto &item) { return !item.value.used; });
   }
   for (PinRotationsState &pin_rotations : state.pin_rotations.values()) {
     pin_rotations.rotations.remove_if([](const auto &item) { return !item.value.used; });
@@ -1969,6 +1965,7 @@ PROFILE_FUNCTION static Map<SimPointsKey, PinnedPositions> compute_pinned_positi
     const SimPointsKey &key = keys[key_i];
     const int geometry_bundle_i = world.geometries.index_of_as(key.path);
     const GeometrySet &applied_geometry = applied_geometries[geometry_bundle_i];
+    const SimPoints &sim_points = state.sim_points.lookup(key);
 
     const Vector constraint_bundle = filter_bundles_for_path<PinnedPositionXPBDConstraintBundle>(
         world.pinned_position_constraints, key.path);
@@ -1983,7 +1980,6 @@ PROFILE_FUNCTION static Map<SimPointsKey, PinnedPositions> compute_pinned_positi
     const AttrDomain domain = get_simulation_domain(type);
     const int domain_size = component->attribute_domain_size(domain);
 
-    PinPositionsState &pinned_positions_state = state.pin_positions.lookup_or_add_default(key);
     PinnedPositions pinned_positions;
 
     bke::GeometryFieldContext field_context(*component, domain);
@@ -1999,25 +1995,51 @@ PROFILE_FUNCTION static Map<SimPointsKey, PinnedPositions> compute_pinned_positi
       }
       const VArray<float3> pinned_positions_varray = field_evaluator.get_evaluated<float3>(0);
       const VArray<float> compliances_varray = field_evaluator.get_evaluated<float>(1);
-      mask.foreach_index([&](const int point_i) {
-        PinPositionsState::Item &old_position_item =
-            pinned_positions_state.positions.lookup_or_add(point_i,
-                                                           {pinned_positions_varray[point_i]});
-        old_position_item.used = true;
-        const float3 &new_position = pinned_positions_varray[point_i];
-        const float compliance = std::max(0.0f, compliances_varray[point_i]);
-        StartStopPair<float3> animation{old_position_item.position, new_position};
+      if (std::optional<float> compliance_opt = compliances_varray.get_if_single()) {
+        const float compliance = std::max(0.0f, *compliance_opt);
         if (compliance == 0.0f) {
-          pinned_positions.hard_indices.append(point_i);
-          pinned_positions.hard_animations.append(animation);
+          pinned_positions.hard_indices.resize(mask.size());
+          pinned_positions.hard_animations.resize(mask.size());
+          mask.foreach_index(GrainSize(512), [&](const int point_i, const int pos) {
+            const float3 &new_position = pinned_positions_varray[point_i];
+            const float3 &old_position = state.is_initialization() ? new_position :
+                                                                     sim_points.positions[point_i];
+            pinned_positions.hard_indices[pos] = point_i;
+            pinned_positions.hard_animations[pos] = {old_position, new_position};
+          });
         }
         else {
-          pinned_positions.soft_indices.append(point_i);
-          pinned_positions.soft_compliances.append(compliance);
-          pinned_positions.soft_animations.append(animation);
+          pinned_positions.soft_indices.resize(mask.size());
+          pinned_positions.soft_animations.resize(mask.size());
+          pinned_positions.soft_compliances.resize(mask.size());
+          mask.foreach_index(GrainSize(512), [&](const int point_i, const int pos) {
+            const float3 &new_position = pinned_positions_varray[point_i];
+            const float3 &old_position = state.is_initialization() ? new_position :
+                                                                     sim_points.positions[point_i];
+            pinned_positions.soft_indices[pos] = point_i;
+            pinned_positions.soft_compliances[pos] = compliance;
+            pinned_positions.soft_animations[pos] = {old_position, new_position};
+          });
         }
-        old_position_item.position = new_position;
-      });
+      }
+      else {
+        mask.foreach_index([&](const int point_i) {
+          const float3 &new_position = pinned_positions_varray[point_i];
+          const float3 &old_position = state.is_initialization() ? new_position :
+                                                                   sim_points.positions[point_i];
+          const float compliance = std::max(0.0f, compliances_varray[point_i]);
+          StartStopPair<float3> animation{old_position, new_position};
+          if (compliance == 0.0f) {
+            pinned_positions.hard_indices.append(point_i);
+            pinned_positions.hard_animations.append(animation);
+          }
+          else {
+            pinned_positions.soft_indices.append(point_i);
+            pinned_positions.soft_compliances.append(compliance);
+            pinned_positions.soft_animations.append(animation);
+          }
+        });
+      }
     }
     if (!pinned_positions.hard_indices.is_empty() || !pinned_positions.soft_indices.is_empty()) {
       result.add(key, std::move(pinned_positions));
