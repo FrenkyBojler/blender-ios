@@ -7,6 +7,7 @@
  */
 
 #include "BLI_array_utils.hh"
+#include "BLI_atomic_disjoint_set.hh"
 #include "BLI_math_base.h"
 #include "BLI_ordered_edge.hh"
 #include "BLI_set.hh"
@@ -52,6 +53,11 @@ static void reserve_hash_maps(const Mesh &mesh,
       edge_maps, [&](EdgeMap &edge_map) { edge_map.reserve(totedge_guess / edge_maps.size()); });
 }
 
+static int edge_to_hash_map_i(const OrderedEdge edge, const uint32_t parallel_mask)
+{
+  return parallel_mask & edge_hash_2(ordered_edge);
+}
+
 static void add_existing_edges_to_hash_maps(const Mesh &mesh,
                                             const uint32_t parallel_mask,
                                             MutableSpan<EdgeMap> edge_maps)
@@ -63,7 +69,7 @@ static void add_existing_edges_to_hash_maps(const Mesh &mesh,
     for (const int2 edge : edges) {
       const OrderedEdge ordered_edge(edge);
       /* Only add the edge when it belongs into this map. */
-      if (task_index == (parallel_mask & edge_hash_2(ordered_edge))) {
+      if (task_index == edge_to_hash_map_i(ordered_edge, parallel_mask)) {
         edge_map.add(ordered_edge);
       }
     }
@@ -87,7 +93,7 @@ static void add_face_edges_to_hash_maps(const Mesh &mesh,
         if (LIKELY(vert_prev != vert)) {
           const OrderedEdge ordered_edge(vert_prev, vert);
           /* Only add the edge when it belongs into this map. */
-          if (task_index == (parallel_mask & edge_hash_2(ordered_edge))) {
+          if (task_index == edge_to_hash_map_i(ordered_edge, parallel_mask)) {
             edge_map.add(ordered_edge);
           }
         }
@@ -133,7 +139,7 @@ static void update_edge_indices_in_face_loops(const OffsetIndices<int> faces,
         }
 
         const OrderedEdge ordered_edge(vert_prev, vert);
-        const int task_index = parallel_mask & edge_hash_2(ordered_edge);
+        const int task_index = edge_to_hash_map_i(ordered_edge, parallel_mask);
         const EdgeMap &edge_map = edge_maps[task_index];
         const int edge_i = edge_map.index_of(ordered_edge);
         const int edge_index = edge_offsets[task_index][edge_i];
@@ -169,7 +175,7 @@ static void known_edges_to_new(const OffsetIndices<int> edge_offsets,
   threading::parallel_for(known_edges.index_range(), 2048, [&](const IndexRange range) {
     for (const int src_edge_i : range) {
       const OrderedEdge ordered_edge(known_edges[src_edge_i]);
-      const int task_index = parallel_mask & edge_hash_2(ordered_edge);
+      const int task_index = edge_to_hash_map_i(ordered_edge, parallel_mask);
       const EdgeMap &edge_map = edge_maps[task_index];
       const int edge_i = edge_map.index_of(ordered_edge);
       const int dst_edge_i = edge_offsets[task_index][edge_i];
@@ -179,26 +185,6 @@ static void known_edges_to_new(const OffsetIndices<int> edge_offsets,
 }
 
 }  // namespace calc_edges
-
-static Vector<std::pair<std::string, AttributeDomainAndType>> filer_attributes(const AttributeAccessor attributes,
-                                                                              const AttrDomain domain,
-                                                                              const AttributeFilter &attribute_filter)
-{
-  Vector<std::pair<std::string, AttributeDomainAndType>> attributes_metadata;
-  attributes.foreach_attribute([&](const bke::AttributeIter &attribute) {
-    if (attribute.domain != domain) {
-      return;
-    }
-    if (attribute_filter.allow_skip(attribute.name)) {
-      return;
-    }
-    if (attribute.data_type == CD_PROP_STRING) {
-      return;
-    }
-    attributes_metadata.append_as(attribute.name, AttributeDomainAndType{attribute.domain, attribute.data_type});
-  });
-  return attributes_metadata;
-}
 
 static void add_new_mesh_edges(Mesh &mesh,
                                const Span<calc_edges::EdgeMap> edge_maps,
@@ -227,13 +213,19 @@ static void add_new_mesh_edges(Mesh &mesh,
   const Span<int> corner_verts = mesh.corner_verts();
   MutableSpan<int> corner_edges = mesh.corner_edges_for_write();
 
-  threading::parallel_for(edge_maps.index_range(), 2048, [&](const IndexRange range) {
-    for (const int task_i : range) {
-      const IndexRange new_edges_range = new_edges_offsets[task_i];
-      const Span<OrderedEdge> new_task_edges = edge_maps[task_i].as_span().take_back(new_edges_range.size());
-      edges.slice(new_edges_range).copy_from(new_task_edges.cast<int2>());
-    }
-  }, threading::accumulated_task_sizes([&](const IndexRange range) { return new_edges_offsets[range].size(); }));
+  threading::parallel_for(
+      edge_maps.index_range(),
+      2048,
+      [&](const IndexRange range) {
+        for (const int task_i : range) {
+          const IndexRange new_edges_range = new_edges_offsets[task_i];
+          const Span<OrderedEdge> new_task_edges = edge_maps[task_i].as_span().take_back(
+              new_edges_range.size());
+          edges.slice(new_edges_range).copy_from(new_task_edges.cast<int2>());
+        }
+      },
+      threading::accumulated_task_sizes(
+          [&](const IndexRange range) { return new_edges_offsets[range].size(); }));
 
   threading::parallel_for(faces.index_range(), 100, [&](IndexRange range) {
     for (const int face_index : range) {
@@ -249,7 +241,8 @@ static void add_new_mesh_edges(Mesh &mesh,
         const IndexRange original_edges_in_task = existing_edge_offsets[task_i];
         const bool is_new_edge = original_edges_in_task.size() <= edge_i;
         if (is_new_edge) {
-          const int new_edge_index = new_edges_offsets[task_i][edge_i - original_edges_in_task.one_after_last()];
+          const int new_edge_index =
+              new_edges_offsets[task_i][edge_i - original_edges_in_task.one_after_last()];
           BLI_assert(OrderedEdge(edges[new_edge_index]) == ordered_edge);
           corner_edges[corner] = new_edge_index;
           continue;
@@ -283,8 +276,6 @@ static void deduplicate_mesh_edges(Mesh &mesh,
                                                 parallel_mask,
                                                 edge_offsets,
                                                 mesh.corner_edges_for_write());
-  
-  
 }
 
 static void new_mesh_edges(Mesh &mesh,
@@ -297,8 +288,31 @@ static void new_mesh_edges(Mesh &mesh,
   const int old_edges_num = mesh.edges_num;
   mesh.edges_num += edge_offsets.total_size();
   CustomData_realloc(&mesh.edge_data, old_edges_num, mesh.edges_num);
-  
-  
+}
+
+static void delete_attributes(const Span<std::string> attributes_list,
+                              MutableAttributeAccessor attributes)
+{
+  for (const std::string &attribute : attributes_list) {
+    attributes.remove(attribute);
+  }
+}
+
+static Vector<std::string> attributes_by_domain(const AttributeAccessor attributes,
+                                                const AttrDomain domain)
+{
+  Vector<std::string> attributes_list;
+  ;
+  attributes.foreach_attribute([&](const bke::AttributeIter &attribute) {
+    if (attribute.domain != domain) {
+      return;
+    }
+    if (attribute.data_type == AttrType::String) {
+      return;
+    }
+    attributes_list.append_as(attribute.name);
+  });
+  return attributes_list;
 }
 
 void mesh_calc_edges(Mesh &mesh,
@@ -306,6 +320,14 @@ void mesh_calc_edges(Mesh &mesh,
                      const bool select_new_edges,
                      const AttributeFilter &attribute_filter)
 {
+  const Vector<std::string> edge_attributes = attributes_by_domain(mesh.attributes(),
+                                                                   AttrDomain::Edge);
+  if (mesh.corners_num == 0 && !keep_existing_edges) {
+    delete_attributes(edge_attributes, mesh.attributes_for_write());
+    mesh.edges_num = 0;
+    return;
+  }
+
   /* Parallelization is achieved by having multiple hash tables for different subsets of edges.
    * Each edge is assigned to one of the hash maps based on the lower bits of a hash value. */
   const int parallel_maps = calc_edges::get_parallel_maps_count(mesh);
@@ -314,21 +336,20 @@ void mesh_calc_edges(Mesh &mesh,
   Array<calc_edges::EdgeMap> edge_maps(parallel_maps);
   calc_edges::reserve_hash_maps(mesh, keep_existing_edges, edge_maps);
 
-  Vector<std::pair<std::string, AttributeDomainAndType>> edge_attributes;
-  if (keep_existing_edges) {
-    edge_attributes = filer_attributes(mesh.attributes(), AttrDomain::Edge, attribute_filter);
-  }
-
-  Array<int> existing_edge_sizes;
+  Array<int> original_edge_maps_prefix;
   if (keep_existing_edges) {
     calc_edges::add_existing_edges_to_hash_maps(mesh, parallel_mask, edge_maps);
-
-    existing_edge_sizes.reinitialize(edge_maps.size() + 1);
+    original_edge_maps_prefix.reinitialize(edge_maps.size());
     for (const int i : edge_maps.index_range()) {
-      existing_edge_sizes[i] = edge_maps[i].size();
+      original_edge_maps_prefix[i] = edge_maps[i].size();
     }
   }
-  const OffsetIndices<int> existing_edge_offsets = offset_indices::accumulate_counts_to_offsets(existing_edge_sizes);
+  const int original_unique_edge_num = std::accumulate(
+      original_edge_maps_prefix.begin(), original_edge_maps_prefix.end(), 0);
+  const bool original_edges_are_distinct = original_unique_edge_num == mesh.edges_num;
+  if (mesh.corners_num == 0 && keep_existing_edges && original_edges_are_distinct) {
+    return;
+  }
 
   calc_edges::add_face_edges_to_hash_maps(mesh, parallel_mask, edge_maps);
   Array<int> edge_sizes(edge_maps.size() + 1);
@@ -336,33 +357,145 @@ void mesh_calc_edges(Mesh &mesh,
     edge_sizes[i] = edge_maps[i].size();
   }
   const OffsetIndices<int> edge_offsets = offset_indices::accumulate_counts_to_offsets(edge_sizes);
-
-  const bool original_edges_are_distinct = existing_edge_offsets.total_size() == mesh.edges_num;
   const bool no_new_edges = edge_offsets.total_size() == mesh.edges_num;
   if (keep_existing_edges && original_edges_are_distinct && no_new_edges) {
+    /* We need a way to say from caller side if we should generate corner edge attribute even in
+     * that case. */
     return;
   }
 
-  if (!keep_existing_edges && no_new_edges) {
-    CustomData_free(&mesh.edge_data);
-    CustomData_reset(&mesh.edge_data);
-    mesh.edges_num = 0;
-    return;
-  }
+  BLI_assert_msg(keep_existing_edges || !no_new_edges,
+                 "Mesh must not contain corners at this point");
 
+  IndexMaskMemory memory;
+  IndexMask mask_new_edges;
+  IndexMask dst_to_src_mask;
+  MutableSpan<int> corner_edges(MEM_malloc_arrayN<int>(mesh.corners_num, AT), mesh.corners_num);
+  MutableSpan<int2> edge_verts(MEM_malloc_arrayN<int2>(edge_offsets.total_size(), AT),
+                               edge_offsets.total_size());
+
+  const OffsetIndices<int> faces = mesh.faces();
+  const Span<int2> original_edges = mesh.edges();
+  const Span<int> corner_verts = mesh.corner_verts();
   if (keep_existing_edges && original_edges_are_distinct && !no_new_edges) {
-    add_new_mesh_edges(mesh, edge_maps, parallel_mask, edge_offsets, existing_edge_offsets);
+    mask_new_edges = IndexRange(edge_offsets.total_size()).drop_front(mesh.edges_num);
+    dst_to_src_mask = IndexRange(mesh.edges_num);
+    array_utils::copy(original_edges, edge_verts.take_front(mesh.edges_num));
+
+    Array<Vector<int>> map_edge_to_dst(edge_maps.size());
+    for (const int i : edge_maps.index_range()) {
+      map_edge_to_dst[i].reinitialize(edge_maps[i].size());
+    }
+    Array<int> map_iter(edge_maps.size(), 0);
+    for (const int edge_i : IndexRange(mesh.edges_num)) {
+      const int edge_map = calc_edges::edge_to_hash_map_i(original_edges[edge_i], parallel_mask);
+      map_edge_to_dst[edge_map][map_iter[edge_map]] = edge_i;
+      map_iter[edge_map]++;
+    }
+
+    Array<Vector<int>> new_edge_sizes(edge_maps.size() + 1);
+    for (const int i : edge_maps.index_range()) {
+      new_edge_sizes[i] = edge_offsets[i].size() - original_edge_maps_prefix[i];
+    }
+    const OffsetIndices<int> new_edge_offsets = offset_indices::accumulate_counts_to_offsets(
+        new_edge_sizes);
+    BLI_assert(edge_offsets.total_size() == mesh.edges_num + new_edge_offsets.total_size());
+
+    const int new_edges_start = mesh.edges_num;
+    for (const int i : edge_maps.index_range()) {
+      const int map_new_edges_start = new_edge_offsets[i].start();
+      array_utils::fill_index_range(map_edge_to_dst[i].drop_front(original_edge_maps_prefix[i]),
+                                    new_edges_start + map_new_edges_start);
+    }
+
+    threading::parallel_for(IndexRange(mesh.faces_num), 2048, [&](const IndexRange range) {
+      for (const int face_i : range) {
+        const IndexRange face = faces[face_i];
+        for (const int corner : face) {
+          const int next_corner = face_corner_next(face, corner);
+          const OrderedEdge corner_edge(corner_verts[corner], corner_verts[next_corner]);
+          const int edge_map = calc_edges::hash_maps_to_edges(corner_edge, parallel_mask);
+          const int edge_index = edge_maps[edge_map].index_of(corner_edge);
+          corner_edges[corner] = map_edge_to_dst[edge_map][edge_index];
+        }
+      }
+    });
+  }
+  else if (keep_existing_edges && !original_edges_are_distinct && no_new_edges) {
+    constexpr int no_original_edge = std::numeric_limits<int>::max();
+    Array<Array<int>> map_edge_to_first_original(edge_maps.size());
+    for (const int i : edge_maps.index_range()) {
+      map_edge_number_of[i].reinitialize(edge_maps[i].size());
+      map_edge_number_of[i].as_mutable_span().fill(no_original_edge);
+    }
+
+    for (const int edge_i : original_edges.index_range()) {
+      const OrderedEdge edge = original_edges[edge_i];
+      const int map_i = calc_edges::edge_to_hash_map_i(edge, parallel_mask);
+      const int edge_index = edge_maps[map_i].index_of(edge);
+      int &original_edge = map_edge_number_of[map_i][edge_index];
+      original_edge = math::min(original_edge, edge_i);
+    }
+
+    BLI_assert(
+        std::all_of(map_edge_to_first_original.begin(),
+                    map_edge_to_first_original.end(),
+                    [&](const auto &edge_indices) { !edge_indices.contains(no_original_edge); }));
+
+    dst_to_src_mask = IndexMask::from_predicate(
+        original_edges.index_range(), GrainSize(2048), memory, [&](const int srd_edge_i) {
+          const OrderedEdge edge = original_edges[srd_edge_i];
+          const int map_i = calc_edges::edge_to_hash_map_i(edge, parallel_mask);
+          const int edge_index = edge_maps[map_i].index_of(edge);
+          return map_edge_number_of[map_i][edge_index]
+        });
+
+    array_utils::gather(original_edges, dst_to_src_mask, edge_verts);
+
+    Array<Array<int>> map_edge_to_dst(edge_maps.size());
+    for (const int i : edge_maps.index_range()) {
+      map_edge_to_dst[i].reinitialize(edge_maps[i].size());
+#ifndef NDEBUG
+      map_edge_number_of[i].as_mutable_span().fill(-1);
+#endif
+    }
+
+    dst_to_src_mask.foreach_index([&](const int src_index, const int dst_index) {
+      const OrderedEdge edge = original_edges[src_index];
+      const int map_i = calc_edges::edge_to_hash_map_i(edge, parallel_mask);
+      const int edge_index = edge_maps[map_i].index_of(edge);
+      map_edge_to_dst[map_i][edge_index] = dst_index;
+    });
+
+    BLI_assert(std::all_of(map_edge_to_dst.begin(),
+                           map_edge_to_dst.end(),
+                           [&](const auto &edge_indices) { !edge_indices.contains(-1); }));
+
+    threading::parallel_for(IndexRange(mesh.faces_num), 2048, [&](const IndexRange range) {
+      for (const int face_i : range) {
+        const IndexRange face = faces[face_i];
+        for (const int corner : face) {
+          const int next_corner = face_corner_next(face, corner);
+          const OrderedEdge corner_edge(corner_verts[corner], corner_verts[next_corner]);
+          const int edge_map = calc_edges::hash_maps_to_edges(corner_edge, parallel_mask);
+          const int edge_index = edge_maps[edge_map].index_of(corner_edge);
+          corner_edges[corner] = map_edge_to_dst[edge_map][edge_index];
+        }
+      }
+    });
+  }
+  else if (!keep_existing_edges && !no_new_edges && !original_edges_are_distinct) {
+    hash_maps_to_edges();
+  }
+  else if (!keep_existing_edges && !no_new_edges) {
+    new_mesh_edges(mesh, edge_maps, parallel_mask, edge_offsets, original_edge_maps_prefix);
+  }
+  else {
+    BLI_assert_unreachable();
   }
 
-  if (keep_existing_edges && !original_edges_are_distinct && no_new_edges) {
-    deduplicate_mesh_edges(mesh, edge_maps, parallel_mask, edge_offsets);
-  }
-
-  if (!keep_existing_edges && !no_new_edges) {
-    new_mesh_edges(mesh, edge_maps, parallel_mask, edge_offsets, existing_edge_offsets);
-  }
-  
-  /* We have to totally rebuild original edges due to duplicates and add new edges due to lack of them in faces. */
+  /* We have to totally rebuild original edges due to duplicates and add new edges due to lack of
+   * them in faces. */
 
   {
     MutableAttributeAccessor attributes = mesh.attributes_for_write();
