@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <variant>
+
 #include "BLI_math_quaternion.hh"
 #include "BLI_math_quaternion_types.hh"
 #include "BLI_math_vector_types.hh"
@@ -92,6 +94,20 @@ class NonDeterministicJacobianUpdater {
   void update_rotation(const int geo_i, const int point_i, const math::Quaternion &offset);
 };
 
+using UpdaterVariant = std::variant<GaussSeidelUpdater, NonDeterministicJacobianUpdater>;
+
+enum class SolveStrategyType {
+  GaussSeidelOneAtATime,
+  GaussSeidelParallel,
+  JacobianNonDeterministic,
+};
+
+class SolveStrategy {
+ public:
+  SolveStrategyType type;
+  UpdaterVariant updater;
+};
+
 /**
  * Base class for constraint evaluators. It evaluate a batch of constraints and writes back the
  * results using a passed in "updater".
@@ -109,27 +125,7 @@ class ConstraintSet {
 
   virtual ~ConstraintSet() = default;
 
-  /**
-   * Simplest evaluation method. It evaluates all the constraints serially, one at a time. This is
-   * mainly meant for debugging purposes.
-   */
-  virtual void evaluate_gauss_seidel_one_at_a_time(GaussSeidelUpdater &updater,
-                                                   ConstraintSetParams &params) = 0;
-
-  /**
-   * Evaluates the constraints in parallel if possible. Internally, it may use
-   * constraint-graph-coloring or other strategies to split up the constraints into independent
-   * sets that can be solved in parallel.
-   */
-  virtual void evaluate_gauss_seidel_parallel(GaussSeidelUpdater &updater,
-                                              ConstraintSetParams &params) = 0;
-
-  /**
-   * Evaluates the constraints in parallel.
-   * TODO: Replace this with a deterministic Jacobian solver.
-   */
-  virtual void evaluate_jacobian_non_deterministic_parallel(
-      NonDeterministicJacobianUpdater &updater, ConstraintSetParams &params) = 0;
+  virtual void solve_step(SolveStrategy &method, ConstraintSetParams &params) = 0;
 
   Span<int> get_affected_geo_indices() const;
 };

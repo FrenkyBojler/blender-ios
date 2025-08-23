@@ -65,9 +65,10 @@ void solve_gauss_seidel_one_at_a_time(const Span<GeometryRef> geometry_refs,
                                       const Span<ConstraintSet *> constraint_sets)
 {
   ConstraintSetParams params{geometry_refs};
-  GaussSeidelUpdater updater{geometry_refs};
+  SolveStrategy strategy{SolveStrategyType::GaussSeidelOneAtATime,
+                         GaussSeidelUpdater{geometry_refs}};
   for (ConstraintSet *constraint_set : constraint_sets) {
-    constraint_set->evaluate_gauss_seidel_one_at_a_time(updater, params);
+    constraint_set->solve_step(strategy, params);
   }
 }
 
@@ -75,7 +76,6 @@ void solve_jacobian_non_deterministic(const Span<GeometryRef> geometry_refs,
                                       const Span<ConstraintSet *> constraint_sets)
 {
   using Item = NonDeterministicJacobianUpdater::Item;
-  ConstraintSetParams params{geometry_refs};
 
   Array<Array<Item>> items_arrays(geometry_refs.size());
   Array<MutableSpan<Item>> items_spans(geometry_refs.size());
@@ -84,12 +84,14 @@ void solve_jacobian_non_deterministic(const Span<GeometryRef> geometry_refs,
     items_spans[point_set_i] = items_arrays[point_set_i];
   }
 
-  NonDeterministicJacobianUpdater updater{items_spans};
+  ConstraintSetParams params{geometry_refs};
+  SolveStrategy strategy{SolveStrategyType::JacobianNonDeterministic,
+                         NonDeterministicJacobianUpdater{items_spans}};
   threading::parallel_for(
       constraint_sets.index_range(), 1, [&](const IndexRange constraint_sets_range) {
         for (const int constraint_set_i : constraint_sets_range) {
           ConstraintSet *constraint_set = constraint_sets[constraint_set_i];
-          constraint_set->evaluate_jacobian_non_deterministic_parallel(updater, params);
+          constraint_set->solve_step(strategy, params);
         }
       });
 
@@ -151,7 +153,8 @@ void solve_gauss_seidel_parallel(const Span<GeometryRef> geometry_refs,
     single_target_constraint_sets.append(constraint_sets);
   }
 
-  GaussSeidelUpdater updater{geometry_refs};
+  SolveStrategy strategy{SolveStrategyType::GaussSeidelParallel,
+                         GaussSeidelUpdater{geometry_refs}};
 
   threading::parallel_for(
       single_target_constraint_sets.index_range(), 1, [&](const IndexRange range) {
@@ -159,13 +162,13 @@ void solve_gauss_seidel_parallel(const Span<GeometryRef> geometry_refs,
           /* These constraint sets have to be evaluated serially because they effect the same
            * points.*/
           for (ConstraintSet *constraint_set : single_target_constraint_sets[i]) {
-            constraint_set->evaluate_gauss_seidel_parallel(updater, params);
+            constraint_set->solve_step(strategy, params);
           }
         }
       });
 
   for (ConstraintSet *constraint_set : multi_target_constraints) {
-    constraint_set->evaluate_gauss_seidel_parallel(updater, params);
+    constraint_set->solve_step(strategy, params);
   }
 }
 
