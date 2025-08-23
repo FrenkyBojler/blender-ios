@@ -2227,30 +2227,32 @@ PROFILE_FUNCTION static void update_and_step_xpbd_state(XPBDState &state,
   const Vector<xpbd::GeometryRef> geometry_refs = prepare_geometry_refs_for_solver(
       state, keys, sim_points_props);
 
-  for ([[maybe_unused]] const int substep_i : IndexRange(substeps)) {
-    const float substep_factor = substeps <= 1 ? 1.0f : float(substep_i) / (substeps - 1);
-    const bool is_first_substep = substep_i == 0;
-    const bool is_last_substep = substep_i == substeps - 1;
-
-    /* In all other substeps, this is done at the end of the previous step already to improve
-     * parallelism and cache locality. */
-    if (is_first_substep) {
-      threading::parallel_for(keys.index_range(), 1, [&](const IndexRange range) {
-        for (const int key_i : range) {
-          const SimPointsKey &key = keys[key_i];
-          SimPoints &sim_points = state.sim_points.lookup(key);
-          const Span<float3> accelerations = accelerations_map.lookup(key);
-          const std::optional<Span<float3>> torques = torques_map.lookup_try(key);
-          const SimPointsWorldProperties &props = sim_points_props.lookup(key);
-          const PinnedPositions *pinned_positions = pinned_positions_map.lookup_ptr(key);
-          const PinnedRotations *pinned_rotations = pinned_rotations_map.lookup_ptr(key);
-          MutableSpan<float3> soft_pinned_positions =
-              soft_pinned_positions_map.lookup_try(key).value_or(MutableSpan<float3>({}));
-          MutableSpan<math::Quaternion> soft_pinned_rotations =
-              soft_pinned_rotations_map.lookup_try(key).value_or(
-                  MutableSpan<math::Quaternion>({}));
-          threading::parallel_for(
-              IndexRange(sim_points.points_num), 1024, [&](const IndexRange range) {
+  auto run_per_point_update = [&](const float substep_factor,
+                                  const bool do_pre_solve,
+                                  const bool do_post_solve) {
+    threading::parallel_for(keys.index_range(), 1, [&](const IndexRange range) {
+      for (const int key_i : range) {
+        const SimPointsKey &key = keys[key_i];
+        SimPoints &sim_points = state.sim_points.lookup(keys[key_i]);
+        const Span<float3> accelerations = accelerations_map.lookup(key);
+        const std::optional<Span<float3>> torques = torques_map.lookup_try(key);
+        const SimPointsWorldProperties &props = sim_points_props.lookup(key);
+        const PinnedPositions *pinned_positions = pinned_positions_map.lookup_ptr(key);
+        const PinnedRotations *pinned_rotations = pinned_rotations_map.lookup_ptr(key);
+        MutableSpan<float3> soft_pinned_positions =
+            soft_pinned_positions_map.lookup_try(key).value_or(MutableSpan<float3>({}));
+        MutableSpan<math::Quaternion> soft_pinned_rotations =
+            soft_pinned_rotations_map.lookup_try(key).value_or(MutableSpan<math::Quaternion>({}));
+        threading::parallel_for(
+            IndexRange(sim_points.points_num), 128, [&](const IndexRange range) {
+              if (do_post_solve) {
+                post_solve_per_point_steps(sim_points,
+                                           range,
+                                           all_prev_positions[key_i],
+                                           all_prev_rotations[key_i],
+                                           sub_delta_time);
+              }
+              if (do_pre_solve) {
                 pre_solve_per_point_steps(sim_points,
                                           range,
                                           all_prev_positions[key_i],
@@ -2264,9 +2266,21 @@ PROFILE_FUNCTION static void update_and_step_xpbd_state(XPBDState &state,
                                           soft_pinned_positions,
                                           soft_pinned_rotations,
                                           sub_delta_time);
-              });
-        }
-      });
+              }
+            });
+      }
+    });
+  };
+
+  for ([[maybe_unused]] const int substep_i : IndexRange(substeps)) {
+    const float substep_factor = substeps <= 1 ? 1.0f : float(substep_i) / (substeps - 1);
+    const bool is_first_substep = substep_i == 0;
+    const bool is_last_substep = substep_i == substeps - 1;
+
+    /* In all other substeps, this is done at the end of the previous step already to improve
+     * parallelism and cache locality. */
+    if (is_first_substep) {
+      run_per_point_update(substep_factor, true, false);
     }
 
     /* Find current collisions and generate constraints to resolve them. */
@@ -2288,45 +2302,7 @@ PROFILE_FUNCTION static void update_and_step_xpbd_state(XPBDState &state,
       /* Apply friction by updating current positions before the new velocity is computed. */
       apply_friction(state, contacts, keys, all_prev_positions);
 
-      threading::parallel_for(keys.index_range(), 1, [&](const IndexRange range) {
-        for (const int key_i : range) {
-          const SimPointsKey &key = keys[key_i];
-          SimPoints &sim_points = state.sim_points.lookup(keys[key_i]);
-          const Span<float3> accelerations = accelerations_map.lookup(key);
-          const std::optional<Span<float3>> torques = torques_map.lookup_try(key);
-          const SimPointsWorldProperties &props = sim_points_props.lookup(key);
-          const PinnedPositions *pinned_positions = pinned_positions_map.lookup_ptr(key);
-          const PinnedRotations *pinned_rotations = pinned_rotations_map.lookup_ptr(key);
-          MutableSpan<float3> soft_pinned_positions =
-              soft_pinned_positions_map.lookup_try(key).value_or(MutableSpan<float3>({}));
-          MutableSpan<math::Quaternion> soft_pinned_rotations =
-              soft_pinned_rotations_map.lookup_try(key).value_or(
-                  MutableSpan<math::Quaternion>({}));
-          threading::parallel_for(
-              IndexRange(sim_points.points_num), 128, [&](const IndexRange range) {
-                post_solve_per_point_steps(sim_points,
-                                           range,
-                                           all_prev_positions[key_i],
-                                           all_prev_rotations[key_i],
-                                           sub_delta_time);
-                if (!is_last_substep) {
-                  pre_solve_per_point_steps(sim_points,
-                                            range,
-                                            all_prev_positions[key_i],
-                                            all_prev_rotations[key_i],
-                                            props,
-                                            accelerations,
-                                            torques,
-                                            pinned_positions,
-                                            pinned_rotations,
-                                            substep_factor,
-                                            soft_pinned_positions,
-                                            soft_pinned_rotations,
-                                            sub_delta_time);
-                }
-              });
-        }
-      });
+      run_per_point_update(substep_factor, !is_last_substep, true);
     }
   }
 
