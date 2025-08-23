@@ -254,6 +254,15 @@ class XPBDState {
   Map<SimPointsKey, std::unique_ptr<CurveSegmentRestLengthsState>> curve_segment_rest_lengths;
   Map<SimPointsKey, std::unique_ptr<CurveSegmentRelativeRestRotationsState>>
       curve_segment_relative_rest_rotations;
+
+  int total_points_num() const
+  {
+    int count = 0;
+    for (const SimPoints &sim_points : this->sim_points.values()) {
+      count += sim_points.points_num;
+    }
+    return count;
+  }
 };
 
 class XPBDStateOwner : public BundleItemInternalValueMixin {
@@ -432,7 +441,7 @@ static void store_rotation_if_necessary(const XPBDGeometryBundle &bundle,
   bke::SpanAttributeWriter<math::Quaternion> attribute =
       attributes.lookup_or_add_for_write_only_span<math::Quaternion>(bundle.output_rotation_name,
                                                                      domain);
-  attribute.span.copy_from(sim_points.rotations);
+  array_utils::copy<math::Quaternion>(sim_points.rotations, attribute.span);
   attribute.finish();
 }
 
@@ -448,7 +457,7 @@ PROFILE_FUNCTION static void apply_simulation_to_mesh(const XPBDGeometryBundle &
   }
   Mesh *mesh = geometry.get_mesh_for_write();
   MutableSpan<float3> mesh_positions = mesh->vert_positions_for_write();
-  mesh_positions.copy_from(sim_points.positions);
+  array_utils::copy<float3>(sim_points.positions, mesh_positions);
   mesh->tag_positions_changed();
 
   store_rotation_if_necessary(bundle, sim_points, AttrDomain::Point, mesh->attributes_for_write());
@@ -466,7 +475,7 @@ PROFILE_FUNCTION static void apply_simulation_to_pointcloud(const XPBDGeometryBu
   }
   PointCloud *pointcloud = geometry.get_pointcloud_for_write();
   MutableSpan<float3> pointcloud_positions = pointcloud->positions_for_write();
-  pointcloud_positions.copy_from(sim_points.positions);
+  array_utils::copy<float3>(sim_points.positions, pointcloud_positions);
   pointcloud->tag_positions_changed();
 
   store_rotation_if_necessary(
@@ -486,7 +495,7 @@ PROFILE_FUNCTION static void apply_simulation_to_curves(const XPBDGeometryBundle
   Curves *curves_id = geometry.get_curves_for_write();
   bke::CurvesGeometry &curves = curves_id->geometry.wrap();
   MutableSpan<float3> curves_positions = curves.positions_for_write();
-  curves_positions.copy_from(sim_points.positions);
+  array_utils::copy<float3>(sim_points.positions, curves_positions);
   curves.tag_positions_changed();
 
   store_rotation_if_necessary(
@@ -1777,12 +1786,14 @@ PROFILE_FUNCTION static Array<GeometrySet> gather_applied_geometries(const XPBDS
                                                                      const WorldData &world)
 {
   Array<GeometrySet> applied_geometries(world.geometries.size());
-
-  for (const int bundle_i : world.geometries.index_range()) {
-    const XPBDGeometryBundle &geometry_bundle = world.geometries[bundle_i];
-    GeometrySet &applied_geometry = applied_geometries[bundle_i];
-    applied_geometry = apply_simulation(geometry_bundle, state);
-  }
+  const int points_num = state.total_points_num();
+  threading::memory_bandwidth_bound_task(points_num * sizeof(float3), [&]() {
+    for (const int bundle_i : world.geometries.index_range()) {
+      const XPBDGeometryBundle &geometry_bundle = world.geometries[bundle_i];
+      GeometrySet &applied_geometry = applied_geometries[bundle_i];
+      applied_geometry = apply_simulation(geometry_bundle, state);
+    }
+  });
   return applied_geometries;
 }
 
@@ -2415,8 +2426,11 @@ static void node_geo_exec(GeoNodeExecParams params)
     world_bundle_ptr->tag_ensured_mutable();
   }
   Bundle &world_bundle = const_cast<Bundle &>(*world_bundle_ptr);
-  for (const XPBDGeometryBundle &bundle : world.geometries) {
-    GeometrySet applied_geometry = apply_simulation(bundle, state);
+
+  Array<GeometrySet> applied_geometries = gather_applied_geometries(state, world);
+  for (const int bundle_i : world.geometries.index_range()) {
+    const XPBDGeometryBundle &bundle = world.geometries[bundle_i];
+    GeometrySet &applied_geometry = applied_geometries[bundle_i];
     world_bundle.add_path_override(bundle.self_path + "/geometry", std::move(applied_geometry));
   }
 
