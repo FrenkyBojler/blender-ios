@@ -24,6 +24,8 @@
 
 #include "node_geometry_util.hh"
 
+#define PROFILE_FUNCTION BLI_NOINLINE
+
 namespace blender::nodes::node_geo_xpbd_physics_solver_cc {
 
 using namespace physics_bundles;
@@ -283,7 +285,7 @@ static void parse_bundle(HandleNestedBundleParams &params,
   r_bundles.add_new(std::move(*parsed_bundle));
 }
 
-static WorldData parse_world(const Bundle &world_bundle)
+PROFILE_FUNCTION static WorldData parse_world(const Bundle &world_bundle)
 {
   WorldData world;
   nested_bundle_foreach(world_bundle, [&](HandleNestedBundleParams &params) {
@@ -309,7 +311,7 @@ static WorldData parse_world(const Bundle &world_bundle)
   return world;
 }
 
-static void integrate_linear_velocities(
+PROFILE_FUNCTION static void integrate_linear_velocities(
     XPBDState &state,
     const Map<SimPointsKey, Span<float3>> &accelerations_map,
     const Map<SimPointsKey, SimPointsWorldProperties> &sim_points_props,
@@ -335,7 +337,7 @@ static void integrate_linear_velocities(
   }
 }
 
-static void integrate_angular_velocities(
+PROFILE_FUNCTION static void integrate_angular_velocities(
     XPBDState &state,
     const Map<SimPointsKey, Span<float3>> &torques_map,
     const Map<SimPointsKey, SimPointsWorldProperties> &sim_points_props,
@@ -391,9 +393,9 @@ static void store_rotation_if_necessary(const XPBDGeometryBundle &bundle,
   attribute.finish();
 }
 
-static void apply_simulation_to_mesh(const XPBDGeometryBundle &bundle,
-                                     GeometrySet &geometry,
-                                     const SimPoints &sim_points)
+PROFILE_FUNCTION static void apply_simulation_to_mesh(const XPBDGeometryBundle &bundle,
+                                                      GeometrySet &geometry,
+                                                      const SimPoints &sim_points)
 {
   if (!geometry.has_mesh()) {
     return;
@@ -409,9 +411,9 @@ static void apply_simulation_to_mesh(const XPBDGeometryBundle &bundle,
   store_rotation_if_necessary(bundle, sim_points, AttrDomain::Point, mesh->attributes_for_write());
 }
 
-static void apply_simulation_to_pointcloud(const XPBDGeometryBundle &bundle,
-                                           GeometrySet &geometry,
-                                           const SimPoints &sim_points)
+PROFILE_FUNCTION static void apply_simulation_to_pointcloud(const XPBDGeometryBundle &bundle,
+                                                            GeometrySet &geometry,
+                                                            const SimPoints &sim_points)
 {
   if (!geometry.has_pointcloud()) {
     return;
@@ -428,9 +430,9 @@ static void apply_simulation_to_pointcloud(const XPBDGeometryBundle &bundle,
       bundle, sim_points, AttrDomain::Point, pointcloud->attributes_for_write());
 }
 
-static void apply_simulation_to_curves(const XPBDGeometryBundle &bundle,
-                                       GeometrySet &geometry,
-                                       const SimPoints &sim_points)
+PROFILE_FUNCTION static void apply_simulation_to_curves(const XPBDGeometryBundle &bundle,
+                                                        GeometrySet &geometry,
+                                                        const SimPoints &sim_points)
 {
   if (!geometry.has_curves()) {
     return;
@@ -448,9 +450,9 @@ static void apply_simulation_to_curves(const XPBDGeometryBundle &bundle,
       bundle, sim_points, AttrDomain::Point, curves.attributes_for_write());
 }
 
-static void apply_simulation_to_instances(const XPBDGeometryBundle &bundle,
-                                          GeometrySet &geometry,
-                                          const SimPoints &sim_points)
+PROFILE_FUNCTION static void apply_simulation_to_instances(const XPBDGeometryBundle &bundle,
+                                                           GeometrySet &geometry,
+                                                           const SimPoints &sim_points)
 {
   if (!geometry.has_instances()) {
     return;
@@ -536,10 +538,11 @@ static void ensure_rotation_data(SimPoints &sim_points,
   }
 }
 
-static void update_xpbd_state_for_geometry(XPBDState &state,
-                                           const XPBDGeometryBundle &bundle,
-                                           const GeometrySet &current_geometry,
-                                           Map<SimPointsKey, SimPoints> &r_sim_points)
+PROFILE_FUNCTION static void update_xpbd_state_for_geometry(
+    XPBDState &state,
+    const XPBDGeometryBundle &bundle,
+    const GeometrySet &current_geometry,
+    Map<SimPointsKey, SimPoints> &r_sim_points)
 {
   if (current_geometry.has_mesh()) {
     const SimPointsKey key = {bundle.self_path, bke::GeometryComponent::Type::Mesh};
@@ -662,7 +665,7 @@ static Vector<int> filter_sim_points_keys(const StringRef self_path,
   return filtered_keys;
 }
 
-static Map<SimPointsKey, Span<float3>> compute_external_accelerations(
+PROFILE_FUNCTION static Map<SimPointsKey, Span<float3>> compute_external_accelerations(
     ResourceScope &scope,
     const WorldData &world,
     const Span<SimPointsKey> keys,
@@ -717,7 +720,7 @@ static Map<SimPointsKey, Span<float3>> compute_external_accelerations(
   return accelerations_map;
 }
 
-static Map<SimPointsKey, Span<float3>> compute_external_torques(
+PROFILE_FUNCTION static Map<SimPointsKey, Span<float3>> compute_external_torques(
     ResourceScope &scope,
     const XPBDState &state,
     const WorldData &world,
@@ -763,13 +766,13 @@ static Map<SimPointsKey, Span<float3>> compute_external_torques(
   return torques_map;
 }
 
-static Map<SimPointsKey, SimPointsWorldProperties> compute_sim_point_world_properties(
-    ResourceScope &scope,
-    const WorldData &world,
-    const Span<SimPointsKey> keys,
-    const Span<GeometrySet> applied_geometries,
-    const Map<SimPointsKey, PinnedPositions> &pinned_positions_map,
-    const Map<SimPointsKey, PinnedRotations> &pinned_rotations_map)
+PROFILE_FUNCTION static Map<SimPointsKey, SimPointsWorldProperties>
+compute_sim_point_world_properties(ResourceScope &scope,
+                                   const WorldData &world,
+                                   const Span<SimPointsKey> keys,
+                                   const Span<GeometrySet> applied_geometries,
+                                   const Map<SimPointsKey, PinnedPositions> &pinned_positions_map,
+                                   const Map<SimPointsKey, PinnedRotations> &pinned_rotations_map)
 {
   Map<SimPointsKey, SimPointsWorldProperties> properties_map;
   for (const SimPointsKey &key : keys) {
@@ -853,11 +856,12 @@ static Map<SimPointsKey, SimPointsWorldProperties> compute_sim_point_world_prope
   return properties_map;
 }
 
-static Span<float> prepare_distance_constraint_lengths(ResourceScope &scope,
-                                                       XPBDState &state,
-                                                       const Span<float3> positions,
-                                                       const SimPointsKey &key,
-                                                       const Span<int2> segments)
+PROFILE_FUNCTION static Span<float> prepare_distance_constraint_lengths(
+    ResourceScope &scope,
+    XPBDState &state,
+    const Span<float3> positions,
+    const SimPointsKey &key,
+    const Span<int2> segments)
 {
   MutableSpan<float> constraint_lengths = scope.allocator().allocate_array<float>(segments.size());
   DistanceConstraintLengths &distance_constraint_lengths =
@@ -877,11 +881,12 @@ static Span<float> prepare_distance_constraint_lengths(ResourceScope &scope,
   return constraint_lengths;
 }
 
-static Span<math::Quaternion> prepare_relative_rotations(ResourceScope &scope,
-                                                         XPBDState &state,
-                                                         const Span<math::Quaternion> rotations,
-                                                         const SimPointsKey &key,
-                                                         const Span<int2> pairs)
+PROFILE_FUNCTION static Span<math::Quaternion> prepare_relative_rotations(
+    ResourceScope &scope,
+    XPBDState &state,
+    const Span<math::Quaternion> rotations,
+    const SimPointsKey &key,
+    const Span<int2> pairs)
 {
   MutableSpan<math::Quaternion> results = scope.allocator().allocate_array<math::Quaternion>(
       pairs.size());
@@ -906,13 +911,14 @@ static float compute_compliance_factor(const float delta_time)
   return math::safe_rcp(pow2f(delta_time));
 }
 
-static void gather_edge_length_constraints(ResourceScope &scope,
-                                           XPBDState &state,
-                                           const WorldData &world,
-                                           const Span<GeometrySet> applied_geometries,
-                                           const VectorSet<SimPointsKey> &keys,
-                                           const float delta_time,
-                                           xpbd::ConstraintSetCollector &r_constraints)
+PROFILE_FUNCTION static void gather_edge_length_constraints(
+    ResourceScope &scope,
+    XPBDState &state,
+    const WorldData &world,
+    const Span<GeometrySet> applied_geometries,
+    const VectorSet<SimPointsKey> &keys,
+    const float delta_time,
+    xpbd::ConstraintSetCollector &r_constraints)
 {
   const float compliance_factor = compute_compliance_factor(delta_time);
 
@@ -974,13 +980,14 @@ static void gather_edge_length_constraints(ResourceScope &scope,
   }
 }
 
-static void gather_curve_segment_constraints(ResourceScope &scope,
-                                             XPBDState &state,
-                                             const WorldData &world,
-                                             const Span<GeometrySet> applied_geometries,
-                                             const VectorSet<SimPointsKey> &keys,
-                                             const float delta_time,
-                                             xpbd::ConstraintSetCollector &r_constraints)
+PROFILE_FUNCTION static void gather_curve_segment_constraints(
+    ResourceScope &scope,
+    XPBDState &state,
+    const WorldData &world,
+    const Span<GeometrySet> applied_geometries,
+    const VectorSet<SimPointsKey> &keys,
+    const float delta_time,
+    xpbd::ConstraintSetCollector &r_constraints)
 {
   const float compliance_factor = compute_compliance_factor(delta_time);
 
@@ -1041,12 +1048,13 @@ static void gather_curve_segment_constraints(ResourceScope &scope,
   }
 }
 
-static void gather_pressure_constraints(ResourceScope &scope,
-                                        XPBDState &state,
-                                        const WorldData &world,
-                                        const Span<GeometrySet> applied_geometries,
-                                        const VectorSet<SimPointsKey> &keys,
-                                        xpbd::ConstraintSetCollector &r_constraints)
+PROFILE_FUNCTION static void gather_pressure_constraints(
+    ResourceScope &scope,
+    XPBDState &state,
+    const WorldData &world,
+    const Span<GeometrySet> applied_geometries,
+    const VectorSet<SimPointsKey> &keys,
+    xpbd::ConstraintSetCollector &r_constraints)
 {
   for (const int key_i : keys.index_range()) {
     const SimPointsKey &key = keys[key_i];
@@ -1082,7 +1090,7 @@ static void gather_pressure_constraints(ResourceScope &scope,
   }
 }
 
-static void gather_curves_rod_stretch_and_shear_constraints(
+PROFILE_FUNCTION static void gather_curves_rod_stretch_and_shear_constraints(
     ResourceScope &scope,
     XPBDState &state,
     const WorldData &world,
@@ -1146,7 +1154,7 @@ static void gather_curves_rod_stretch_and_shear_constraints(
   }
 }
 
-static void gather_curves_rod_bend_and_twist_constraints(
+PROFILE_FUNCTION static void gather_curves_rod_bend_and_twist_constraints(
     ResourceScope &scope,
     XPBDState &state,
     const WorldData &world,
@@ -1208,7 +1216,8 @@ static void gather_curves_rod_bend_and_twist_constraints(
   }
 }
 
-static Map<SimPointsKey, MutableSpan<float3>> gather_soft_pinned_position_constraints(
+PROFILE_FUNCTION static Map<SimPointsKey, MutableSpan<float3>>
+gather_soft_pinned_position_constraints(
     ResourceScope &scope,
     const VectorSet<SimPointsKey> &keys,
     const Map<SimPointsKey, PinnedPositions> &pinned_positions_map,
@@ -1274,12 +1283,13 @@ static Map<SimPointsKey, MutableSpan<math::Quaternion>> gather_soft_pinned_rotat
   return result;
 }
 
-static void gather_align_positions_constraints(ResourceScope &scope,
-                                               const WorldData &world,
-                                               const Span<GeometrySet> applied_geometries,
-                                               const VectorSet<SimPointsKey> &keys,
-                                               const float delta_time,
-                                               xpbd::ConstraintSetCollector &r_constraints)
+PROFILE_FUNCTION static void gather_align_positions_constraints(
+    ResourceScope &scope,
+    const WorldData &world,
+    const Span<GeometrySet> applied_geometries,
+    const VectorSet<SimPointsKey> &keys,
+    const float delta_time,
+    xpbd::ConstraintSetCollector &r_constraints)
 {
   const float compliance_factor = compute_compliance_factor(delta_time);
 
@@ -1373,12 +1383,13 @@ static void gather_align_positions_constraints(ResourceScope &scope,
   }
 }
 
-static void gather_attach_uv_surface_constraints(ResourceScope &scope,
-                                                 const WorldData &world,
-                                                 const Span<GeometrySet> applied_geometries,
-                                                 const VectorSet<SimPointsKey> &keys,
-                                                 const float delta_time,
-                                                 xpbd::ConstraintSetCollector &r_constraints)
+PROFILE_FUNCTION static void gather_attach_uv_surface_constraints(
+    ResourceScope &scope,
+    const WorldData &world,
+    const Span<GeometrySet> applied_geometries,
+    const VectorSet<SimPointsKey> &keys,
+    const float delta_time,
+    xpbd::ConstraintSetCollector &r_constraints)
 {
   const float compliance_factor = compute_compliance_factor(delta_time);
 
@@ -1471,7 +1482,7 @@ static void gather_attach_uv_surface_constraints(ResourceScope &scope,
   }
 }
 
-static void gather_distance_based_edge_bending_constraints(
+PROFILE_FUNCTION static void gather_distance_based_edge_bending_constraints(
     ResourceScope &scope,
     XPBDState &state,
     const WorldData &world,
@@ -1575,11 +1586,12 @@ struct Contacts {
   Map<SimPointsKey, DynamicSphereContacts> dynamic_sphere_contacts;
 };
 
-static void gather_ground_plane_contacts(const SimPoints &sim_points,
-                                         const InfiniteGroundPlaneBundle &ground_plane,
-                                         const Span<float> sim_points_frictions,
-                                         const Span<float> sim_points_inverse_masses,
-                                         StaticPlaneContacts &r_contacts)
+PROFILE_FUNCTION static void gather_ground_plane_contacts(
+    const SimPoints &sim_points,
+    const InfiniteGroundPlaneBundle &ground_plane,
+    const Span<float> sim_points_frictions,
+    const Span<float> sim_points_inverse_masses,
+    StaticPlaneContacts &r_contacts)
 {
   const float3 plane_normal = math::normalize(ground_plane.normal);
   if (math::is_zero(plane_normal)) {
@@ -1608,9 +1620,9 @@ static void gather_ground_plane_contacts(const SimPoints &sim_points,
   }
 }
 
-static void gather_sphere_contacts(const SimPoints &sim_points,
-                                   const Span<float> radii,
-                                   DynamicSphereContacts &r_contacts)
+PROFILE_FUNCTION static void gather_sphere_contacts(const SimPoints &sim_points,
+                                                    const Span<float> radii,
+                                                    DynamicSphereContacts &r_contacts)
 {
   if (sim_points.points_num == 0) {
     return;
@@ -1650,7 +1662,7 @@ static void gather_sphere_contacts(const SimPoints &sim_points,
   }
 }
 
-static Contacts gather_contacts(
+PROFILE_FUNCTION static Contacts gather_contacts(
     const XPBDState &state,
     const WorldData &world,
     const Span<GeometrySet> applied_geometries,
@@ -1721,11 +1733,12 @@ static Contacts gather_contacts(
   return contacts;
 }
 
-static void generate_collision_constraint_sets(ResourceScope &scope,
-                                               const Contacts &contacts,
-                                               const VectorSet<SimPointsKey> &keys,
-                                               const float delta_time,
-                                               xpbd::ConstraintSetCollector &r_constraints)
+PROFILE_FUNCTION static void generate_collision_constraint_sets(
+    ResourceScope &scope,
+    const Contacts &contacts,
+    const VectorSet<SimPointsKey> &keys,
+    const float delta_time,
+    xpbd::ConstraintSetCollector &r_constraints)
 {
   for (auto item : contacts.static_plane_contacts.items()) {
     const int key_i = keys.index_of(item.key);
@@ -1749,7 +1762,8 @@ static void generate_collision_constraint_sets(ResourceScope &scope,
   }
 }
 
-static Array<GeometrySet> gather_applied_geometries(const XPBDState &state, const WorldData &world)
+PROFILE_FUNCTION static Array<GeometrySet> gather_applied_geometries(const XPBDState &state,
+                                                                     const WorldData &world)
 {
   Array<GeometrySet> applied_geometries(world.geometries.size());
 
@@ -1761,9 +1775,8 @@ static Array<GeometrySet> gather_applied_geometries(const XPBDState &state, cons
   return applied_geometries;
 }
 
-static void update_sim_points_from_world(XPBDState &state,
-                                         const WorldData &world,
-                                         const Span<GeometrySet> applied_geometries)
+PROFILE_FUNCTION static void update_sim_points_from_world(
+    XPBDState &state, const WorldData &world, const Span<GeometrySet> applied_geometries)
 {
   Map<SimPointsKey, SimPoints> new_sim_points;
   for (const int bundle_i : world.geometries.index_range()) {
@@ -1774,7 +1787,7 @@ static void update_sim_points_from_world(XPBDState &state,
   state.sim_points = std::move(new_sim_points);
 }
 
-static void reset_state_usages(XPBDState &state)
+PROFILE_FUNCTION static void reset_state_usages(XPBDState &state)
 {
   for (DistanceConstraintLengths &distance_constraint_lengths :
        state.distance_constraint_lengths.values())
@@ -1797,7 +1810,7 @@ static void reset_state_usages(XPBDState &state)
   }
 }
 
-static void remove_unused_states(XPBDState &state)
+PROFILE_FUNCTION static void remove_unused_states(XPBDState &state)
 {
   for (DistanceConstraintLengths &distance_constraint_lengths :
        state.distance_constraint_lengths.values())
@@ -1813,9 +1826,9 @@ static void remove_unused_states(XPBDState &state)
   }
 }
 
-static void solve_constraints(const SolverType solver_type,
-                              const Span<xpbd::GeometryRef> geometry_refs,
-                              const Span<xpbd::ConstraintSet *> constraint_sets)
+PROFILE_FUNCTION static void solve_constraints(const SolverType solver_type,
+                                               const Span<xpbd::GeometryRef> geometry_refs,
+                                               const Span<xpbd::ConstraintSet *> constraint_sets)
 {
   switch (solver_type) {
     case SolverType::SerialGaussSeidel: {
@@ -1833,10 +1846,10 @@ static void solve_constraints(const SolverType solver_type,
   }
 }
 
-static void apply_friction(XPBDState &state,
-                           const Contacts &contacts,
-                           const VectorSet<SimPointsKey> &keys,
-                           const Span<Array<float3>> all_prev_positions)
+PROFILE_FUNCTION static void apply_friction(XPBDState &state,
+                                            const Contacts &contacts,
+                                            const VectorSet<SimPointsKey> &keys,
+                                            const Span<Array<float3>> all_prev_positions)
 {
   for (const auto item : contacts.static_plane_contacts.items()) {
     const int key_i = keys.index_of(item.key);
@@ -1864,10 +1877,10 @@ static void apply_friction(XPBDState &state,
   }
 }
 
-static void update_linear_velocities(XPBDState &state,
-                                     const VectorSet<SimPointsKey> &keys,
-                                     const Span<Array<float3>> all_prev_positions,
-                                     const float delta_time)
+PROFILE_FUNCTION static void update_linear_velocities(XPBDState &state,
+                                                      const VectorSet<SimPointsKey> &keys,
+                                                      const Span<Array<float3>> all_prev_positions,
+                                                      const float delta_time)
 {
   const float inv_delta_time = math::safe_rcp(delta_time);
   for (const int key_i : keys.index_range()) {
@@ -1887,10 +1900,11 @@ static void update_linear_velocities(XPBDState &state,
   }
 }
 
-static void update_angular_velocities(XPBDState &state,
-                                      const VectorSet<SimPointsKey> &keys,
-                                      const Span<Array<math::Quaternion>> all_prev_rotations,
-                                      const float delta_time)
+PROFILE_FUNCTION static void update_angular_velocities(
+    XPBDState &state,
+    const VectorSet<SimPointsKey> &keys,
+    const Span<Array<math::Quaternion>> all_prev_rotations,
+    const float delta_time)
 {
   const float inv_delta_time = math::safe_rcp(delta_time);
   for (const int key_i : keys.index_range()) {
@@ -1918,7 +1932,7 @@ static void update_angular_velocities(XPBDState &state,
   }
 }
 
-static Vector<xpbd::GeometryRef> prepare_geometry_refs_for_solver(
+PROFILE_FUNCTION static Vector<xpbd::GeometryRef> prepare_geometry_refs_for_solver(
     XPBDState &state,
     const Span<SimPointsKey> keys,
     const Map<SimPointsKey, SimPointsWorldProperties> &sim_points_props)
@@ -1940,7 +1954,7 @@ static Vector<xpbd::GeometryRef> prepare_geometry_refs_for_solver(
   return geometry_refs;
 }
 
-static Map<SimPointsKey, PinnedPositions> compute_pinned_positions(
+PROFILE_FUNCTION static Map<SimPointsKey, PinnedPositions> compute_pinned_positions(
     XPBDState &state,
     const WorldData &world,
     const Span<GeometrySet> applied_geometries,
@@ -2008,7 +2022,7 @@ static Map<SimPointsKey, PinnedPositions> compute_pinned_positions(
   return result;
 }
 
-static Map<SimPointsKey, PinnedRotations> computed_pinned_rotation_animations(
+PROFILE_FUNCTION static Map<SimPointsKey, PinnedRotations> computed_pinned_rotation_animations(
     XPBDState &state,
     const WorldData &world,
     const Span<GeometrySet> applied_geometries,
@@ -2077,7 +2091,7 @@ static Map<SimPointsKey, PinnedRotations> computed_pinned_rotation_animations(
   return result;
 }
 
-static void update_pinned_positions(
+PROFILE_FUNCTION static void update_pinned_positions(
     XPBDState &state,
     const Map<SimPointsKey, PinnedPositions> &pinned_positions_map,
     const Map<SimPointsKey, MutableSpan<float3>> &soft_pinned_positions_map,
@@ -2103,7 +2117,7 @@ static void update_pinned_positions(
   }
 }
 
-static void update_pinned_rotations(
+PROFILE_FUNCTION static void update_pinned_rotations(
     XPBDState &state,
     const Map<SimPointsKey, PinnedRotations> &pinned_rotations_map,
     const Map<SimPointsKey, MutableSpan<math::Quaternion>> &soft_pinned_rotations_map,
@@ -2131,11 +2145,11 @@ static void update_pinned_rotations(
   }
 }
 
-static void update_and_step_xpbd_state(XPBDState &state,
-                                       const WorldData &world,
-                                       const float total_delta_time,
-                                       const SolverType solver_type,
-                                       const int substeps)
+PROFILE_FUNCTION static void update_and_step_xpbd_state(XPBDState &state,
+                                                        const WorldData &world,
+                                                        const float total_delta_time,
+                                                        const SolverType solver_type,
+                                                        const int substeps)
 {
   ResourceScope scope;
   const Array<GeometrySet> applied_geometries = gather_applied_geometries(state, world);
