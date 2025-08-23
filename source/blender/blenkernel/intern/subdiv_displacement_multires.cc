@@ -42,7 +42,7 @@ struct MultiresDisplacementData {
   int level = 0;
   int grid_size = 0;
   /* Mesh is used to read external displacement. */
-  Mesh *mesh = nullptr;
+  const Mesh *mesh = nullptr;
   Span<float3> level_displacements = {};
   const MultiresModifierData *mmd = nullptr;
   OffsetIndices<int> faces = {};
@@ -382,7 +382,7 @@ static void initialize(Displacement *displacement)
 {
   MultiresDisplacementData &data = *static_cast<MultiresDisplacementData *>(
       displacement->user_data);
-  multiresModifier_ensure_external_read(data.mesh, data.mmd);
+  multiresModifier_ensure_external_read(const_cast<Mesh *>(data.mesh), data.mmd);
   data.is_initialized = true;
 }
 
@@ -502,8 +502,7 @@ static void displacement_data_init_mapping(Displacement &displacement, const Mes
 
 static void displacement_init_data(Displacement &displacement,
                                    Subdiv &subdiv,
-                                   Object &object,
-                                   Mesh &mesh,
+                                   const Mesh &mesh,
                                    const MultiresModifierData &mmd)
 {
   MultiresDisplacementData &data = *static_cast<MultiresDisplacementData *>(
@@ -536,8 +535,7 @@ static void displacement_init_functions(Displacement *displacement)
 }
 
 void displacement_attach_from_multires(Subdiv *subdiv,
-                                       Object *object,
-                                       Mesh *mesh,
+                                       const Mesh *mesh,
                                        const MultiresModifierData *mmd)
 {
   /* Make sure we don't have previously assigned displacement. */
