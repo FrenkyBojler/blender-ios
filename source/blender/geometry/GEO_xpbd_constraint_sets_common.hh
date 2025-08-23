@@ -83,6 +83,61 @@ inline AlignRotationsConstraintResult evaluate_align_rotations_constraint(
   return {offset0, offset1};
 }
 
+struct RodStretchAndShearConstraintResult {
+  float3 offset0 = float3(0.0f);
+  float3 offset1 = float3(0.0f);
+  math::Quaternion offset_rot = math::Quaternion(0.0f, 0.0f, 0.0f, 0.0f);
+};
+
+inline RodStretchAndShearConstraintResult evaluate_rod_stretch_and_shear_constraint(
+    const float3 &p0,
+    const float3 &p1,
+    const math::Quaternion &rot,
+    const float inv_m0,
+    const float inv_m1,
+    const float3 &inertia,
+    const float rest_length,
+    const float compliance_term)
+{
+  /* Lumped weight for the rotation influence. The higher the inertia, the lower the change of
+   * the rotation should be compared to the change in point positions. */
+  const float inv_lumped_inertia = math::safe_rcp(0.5f * (inertia.x + inertia.y + inertia.z));
+
+  if (inv_m0 == 0.0f && inv_m1 == 0.0f && inv_lumped_inertia == 0.0f) {
+    /* Everything is pinned, so the constraint can't do anything. */
+    return {};
+  }
+
+  /* TODO The positional and rotational parts use different residuals to avoid errors when the
+   * current segment length deviates too much from the rest length. The rotational offset uses
+   * the residual as the angle of rotation which becomes larger with stretching. To avoid
+   * instabilities the rotation residual is computed relative to the current length.
+   * This should be cleaned up and optimized if possible. */
+
+  /* Current non-normalized tangent of the rod. */
+  const float3 p_diff = p1 - p0;
+  const float p_len = math::length(p_diff);
+  /* Expected non-normalized tangent of the rod based on the rotation. */
+  const float3 forward_rest = math::transform_point(rot, float3(0.0f, 0.0f, rest_length));
+  const float3 forward = math::transform_point(rot, float3(0.0f, 0.0f, p_len));
+  /* How much the rod is stretched and sheared. */
+  const float3 residual_pos = p_diff - forward_rest;
+  const float3 residual_rot = p_diff - forward;
+
+  /* Based on "Position and Orientation Based Cosserat Rods" (Kugelstadt, Schömer, 2016). */
+  const float weight_sum = inv_m0 + inv_m1 + 4.0f * inv_lumped_inertia * pow2f(rest_length);
+  const float weight_sum_rot = inv_m0 + inv_m1 + 4.0f * inv_lumped_inertia * pow2f(p_len);
+  const float3 lambda_pos = residual_pos / (weight_sum + compliance_term);
+  const float3 lambda_rot = residual_rot / (weight_sum_rot + compliance_term);
+
+  RodStretchAndShearConstraintResult result;
+  result.offset0 = lambda_pos * inv_m0;
+  result.offset1 = -lambda_pos * inv_m1;
+  result.offset_rot = math::Quaternion(0.0f, lambda_rot * inv_lumped_inertia * p_len) * rot *
+                      math::Quaternion(0, 0, 0, -1);
+  return result;
+}
+
 class PinnedPositionConstraintSet : public TemplatedConstraintSet<PinnedPositionConstraintSet> {
  private:
   int geo_i_;
@@ -454,58 +509,21 @@ class RodStretchAndShearConstraintSet
     const int2 &point_pair = point_pairs_[constraint_i];
     const int point_i0 = point_pair[0];
     const int point_i1 = point_pair[1];
-
     const int rotation_i = point_i0;
 
-    const float3 &p0 = params.position(geo_i_, point_i0);
-    const float3 &p1 = params.position(geo_i_, point_i1);
-    const math::Quaternion &rot = params.rotation(geo_i_, rotation_i);
-    const float inv_m0 = params.inverse_mass(geo_i_, point_i0);
-    const float inv_m1 = params.inverse_mass(geo_i_, point_i1);
-    const float3 &inertia = params.inertia(geo_i_, point_i0);
-    const float compliance_term = compliance_terms_[constraint_i];
-    const float rest_length = rest_lengths_[constraint_i];
+    RodStretchAndShearConstraintResult result = evaluate_rod_stretch_and_shear_constraint(
+        params.position(geo_i_, point_i0),
+        params.position(geo_i_, point_i1),
+        params.rotation(geo_i_, rotation_i),
+        params.inverse_mass(geo_i_, point_i0),
+        params.inverse_mass(geo_i_, point_i1),
+        params.inertia(geo_i_, point_i0),
+        rest_lengths_[constraint_i],
+        compliance_terms_[constraint_i]);
 
-    /* Lumped weight for the rotation influence. The higher the inertia, the lower the change of
-     * the rotation should be compared to the change in point positions. */
-    const float inv_lumped_inertia = math::safe_rcp(0.5f * (inertia.x + inertia.y + inertia.z));
-
-    if (inv_m0 == 0.0f && inv_m1 == 0.0f && inv_lumped_inertia == 0.0f) {
-      /* Everything is pinned, so the constraint can't do anything. */
-      return;
-    }
-
-    /* TODO The positional and rotational parts use different residuals to avoid errors when the
-     * current segment length deviates too much from the rest length. The rotational offset uses
-     * the residual as the angle of rotation which becomes larger with stretching. To avoid
-     * instabilities the rotation residual is computed relative to the current length.
-     * This should be cleaned up and optimized if possible. */
-
-    /* Current non-normalized tangent of the rod. */
-    const float3 p_diff = p1 - p0;
-    const float p_len = math::length(p_diff);
-    /* Expected non-normalized tangent of the rod based on the rotation. */
-    const float3 forward_rest = math::transform_point(rot, float3(0.0f, 0.0f, rest_length));
-    const float3 forward = math::transform_point(rot, float3(0.0f, 0.0f, p_len));
-    /* How much the rod is stretched and sheared. */
-    const float3 residual_pos = p_diff - forward_rest;
-    const float3 residual_rot = p_diff - forward;
-
-    /* Based on "Position and Orientation Based Cosserat Rods" (Kugelstadt, Schömer, 2016). */
-    const float weight_sum = inv_m0 + inv_m1 + 4.0f * inv_lumped_inertia * pow2f(rest_length);
-    const float weight_sum_rot = inv_m0 + inv_m1 + 4.0f * inv_lumped_inertia * pow2f(p_len);
-    const float3 lambda_pos = residual_pos / (weight_sum + compliance_term);
-    const float3 lambda_rot = residual_rot / (weight_sum_rot + compliance_term);
-
-    const float3 offset0 = lambda_pos * inv_m0;
-    const float3 offset1 = -lambda_pos * inv_m1;
-    const math::Quaternion offset_rot = math::Quaternion(0.0f,
-                                                         lambda_rot * inv_lumped_inertia * p_len) *
-                                        rot * math::Quaternion(0, 0, 0, -1);
-
-    updater.update_position(geo_i_, point_i0, offset0);
-    updater.update_position(geo_i_, point_i1, offset1);
-    updater.update_rotation(geo_i_, rotation_i, offset_rot);
+    updater.update_position(geo_i_, point_i0, result.offset0);
+    updater.update_position(geo_i_, point_i1, result.offset1);
+    updater.update_rotation(geo_i_, rotation_i, result.offset_rot);
   }
 
   Vector<IndexMask> generate_independent_masks(IndexMaskMemory &memory) const override
