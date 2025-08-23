@@ -284,7 +284,11 @@ class XPBDState {
     std::lock_guard<Mutex> lock(this->curve_segment_rest_lengths_mutex);
     return this->curve_segment_rest_lengths
         .lookup_or_add_cb(key,
-                          [&]() { return std::make_unique<CurveSegmentRestLengthsState>(curves); })
+                          [&]() {
+                            return threading::isolate_task([&]() {
+                              return std::make_unique<CurveSegmentRestLengthsState>(curves);
+                            });
+                          })
         ->rest_lengths();
   }
 
@@ -296,8 +300,10 @@ class XPBDState {
     return this->curve_segment_relative_rest_rotations
         .lookup_or_add_cb(key,
                           [&]() {
-                            return std::make_unique<CurveSegmentRelativeRestRotationsState>(
-                                curves, sim_points.rotations);
+                            return threading::isolate_task([&]() {
+                              return std::make_unique<CurveSegmentRelativeRestRotationsState>(
+                                  curves, sim_points.rotations);
+                            });
                           })
         ->rest_rotations();
   }
@@ -1168,14 +1174,15 @@ PROFILE_FUNCTION static void gather_pressure_constraints(
 }
 
 PROFILE_FUNCTION static void gather_curves_rod_stretch_and_shear_constraints(
-    ResourceScope &scope,
-    XPBDState &state,
+    ThreadLocalStorage &tls,
+    const XPBDState &state,
     const WorldData &world,
     const Span<GeometrySet> applied_geometries,
     const VectorSet<SimPointsKey> &keys,
     const float delta_time,
     xpbd::ConstraintSetCollector &r_constraints)
 {
+  ResourceScope &scope = tls.local_resource_scope();
   const float compliance_factor = compute_compliance_factor(delta_time);
 
   for (const int key_i : keys.index_range()) {
@@ -1221,7 +1228,7 @@ PROFILE_FUNCTION static void gather_curves_rod_stretch_and_shear_constraints(
 }
 
 PROFILE_FUNCTION static void gather_curves_rod_bend_and_twist_constraints(
-    ResourceScope &scope,
+    ThreadLocalStorage &tls,
     const XPBDState &state,
     const WorldData &world,
     const Span<GeometrySet> applied_geometries,
@@ -1229,6 +1236,7 @@ PROFILE_FUNCTION static void gather_curves_rod_bend_and_twist_constraints(
     const float delta_time,
     xpbd::ConstraintSetCollector &r_constraints)
 {
+  ResourceScope &scope = tls.local_resource_scope();
   const float compliance_factor = compute_compliance_factor(delta_time);
 
   for (const int key_i : keys.index_range()) {
@@ -2289,6 +2297,8 @@ PROFILE_FUNCTION static void update_and_step_xpbd_state(XPBDState &state,
 {
   ThreadLocalStorage tls;
   ResourceScope &scope = tls.local_resource_scope();
+  const float sub_delta_time = math::safe_divide<float>(total_delta_time, substeps);
+
   const Array<GeometrySet> applied_geometries = gather_applied_geometries(state, world);
   update_sim_points_from_world(state, world, applied_geometries);
 
@@ -2301,12 +2311,32 @@ PROFILE_FUNCTION static void update_and_step_xpbd_state(XPBDState &state,
 
   Map<SimPointsKey, PinnedPositions> pinned_positions_map;
   Map<SimPointsKey, PinnedRotations> pinned_rotations_map;
+  xpbd::ConstraintSetCollector rod_stretch_and_shear_constraints;
+  xpbd::ConstraintSetCollector rod_bend_and_twist_constraints;
   threading::parallel_invoke(
       [&]() {
         pinned_positions_map = compute_pinned_positions(state, world, applied_geometries, keys);
       },
       [&]() {
         pinned_rotations_map = compute_pinned_rotations(state, world, applied_geometries, keys);
+      },
+      [&]() {
+        gather_curves_rod_stretch_and_shear_constraints(tls,
+                                                        state,
+                                                        world,
+                                                        applied_geometries,
+                                                        keys,
+                                                        sub_delta_time,
+                                                        rod_stretch_and_shear_constraints);
+      },
+      [&]() {
+        gather_curves_rod_bend_and_twist_constraints(tls,
+                                                     state,
+                                                     world,
+                                                     applied_geometries,
+                                                     keys,
+                                                     sub_delta_time,
+                                                     rod_bend_and_twist_constraints);
       });
 
   const Map<SimPointsKey, SimPointsWorldProperties> sim_points_props =
@@ -2317,8 +2347,6 @@ PROFILE_FUNCTION static void update_and_step_xpbd_state(XPBDState &state,
   const Map<SimPointsKey, Span<float3>> torques_map = compute_external_torques(
       tls, state, world, keys, applied_geometries);
 
-  const float sub_delta_time = math::safe_divide<float>(total_delta_time, substeps);
-
   xpbd::ConstraintSetCollector static_constraint_sets;
   gather_edge_length_constraints(
       scope, state, world, applied_geometries, keys, sub_delta_time, static_constraint_sets);
@@ -2326,10 +2354,6 @@ PROFILE_FUNCTION static void update_and_step_xpbd_state(XPBDState &state,
       scope, state, world, applied_geometries, keys, sub_delta_time, static_constraint_sets);
   gather_pressure_constraints(
       scope, state, world, applied_geometries, keys, static_constraint_sets);
-  gather_curves_rod_stretch_and_shear_constraints(
-      scope, state, world, applied_geometries, keys, sub_delta_time, static_constraint_sets);
-  gather_curves_rod_bend_and_twist_constraints(
-      scope, state, world, applied_geometries, keys, sub_delta_time, static_constraint_sets);
   const Map<SimPointsKey, MutableSpan<float3>> soft_pinned_positions_map =
       gather_soft_pinned_position_constraints(
           scope, keys, pinned_positions_map, sub_delta_time, static_constraint_sets);
@@ -2427,7 +2451,10 @@ PROFILE_FUNCTION static void update_and_step_xpbd_state(XPBDState &state,
     /* Combine static and dynamic constraint sets. */
     const Vector<xpbd::ConstraintSet *> current_constraint_sets =
         xpbd::ConstraintSetCollector::combine(scope,
-                                              {&static_constraint_sets, &dynamic_constraint_sets});
+                                              {&rod_stretch_and_shear_constraints,
+                                               &rod_bend_and_twist_constraints,
+                                               &static_constraint_sets,
+                                               &dynamic_constraint_sets});
 
     /* Actually solve the constraints. */
     solve_constraints(solver_type, geometry_refs, current_constraint_sets);
