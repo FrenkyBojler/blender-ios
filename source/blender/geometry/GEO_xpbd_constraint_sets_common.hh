@@ -511,7 +511,7 @@ class RodStretchAndShearConstraintSet
     const int point_i1 = point_pair[1];
     const int rotation_i = point_i0;
 
-    RodStretchAndShearConstraintResult result = evaluate_rod_stretch_and_shear_constraint(
+    const RodStretchAndShearConstraintResult result = evaluate_rod_stretch_and_shear_constraint(
         params.position(geo_i_, point_i0),
         params.position(geo_i_, point_i1),
         params.rotation(geo_i_, rotation_i),
