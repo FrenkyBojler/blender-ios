@@ -584,6 +584,7 @@ void WM_xr_session_state_navigation_reset(wmXrSessionState *state)
   state->nav_scale = 1.0f;
   state->is_navigation_dirty = true;
   state->vignette_aperture = 1.0f;
+  state->swap_hands = false;
 }
 
 /* -------------------------------------------------------------------- */

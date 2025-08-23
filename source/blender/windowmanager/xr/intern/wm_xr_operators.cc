@@ -1056,7 +1056,7 @@ static wmOperatorStatus wm_xr_navigation_fly_modal(bContext *C,
   wmWindowManager *wm = CTX_wm_manager(C);
   wmXrData *xr = &wm->xr;
   eXrFlyMode mode;
-  bool turn, snap_turn, invert_rotation, locz_lock, dir_lock, speed_frame_based;
+  bool turn, snap_turn, invert_rotation, swap_hands, locz_lock, dir_lock, speed_frame_based;
   bool speed_interp_cubic = false;
   float speed, speed_max, speed_p0[2], speed_p1[2];
   GHOST_XrPose nav_pose;
@@ -1065,14 +1065,14 @@ static wmOperatorStatus wm_xr_navigation_fly_modal(bContext *C,
   const double time_now = BLI_time_now_seconds(), delta_time = time_now - data->time_prev;
   data->time_prev = time_now;
 
-  mode = (eXrFlyMode)RNA_enum_get(op->ptr, "mode");
+  swap_hands = xr->runtime->session_state.swap_hands;
+  mode = (eXrFlyMode)RNA_enum_get(op->ptr, swap_hands ? "alt_mode" : "mode");  
   turn = ELEM(mode, XR_FLY_TURNLEFT, XR_FLY_TURNRIGHT);
-
   snap_turn = U.xr_navigation.flag & USER_XR_NAV_SNAP_TURN;
   invert_rotation = U.xr_navigation.flag & USER_XR_NAV_INVERT_ROTATION;
 
-  locz_lock = RNA_boolean_get(op->ptr, "lock_location_z");
-  dir_lock = RNA_boolean_get(op->ptr, "lock_direction");
+  locz_lock = RNA_boolean_get(op->ptr, swap_hands ? "alt_lock_location_z" : "lock_location_z");
+  dir_lock = RNA_boolean_get(op->ptr, swap_hands ? "alt_lock_direction" : "lock_direction");
 
   if (turn) {
     speed_frame_based = false;
@@ -1309,7 +1309,7 @@ static void WM_OT_xr_navigation_fly(wmOperatorType *ot)
                   "lock_direction",
                   false,
                   "Lock Direction",
-                  "Limit movement to viewer's initial direction");
+                  "Limit movement to viewer's initial direction");  
   RNA_def_boolean(ot->srna,
                   "speed_frame_based",
                   false,
@@ -1353,6 +1353,20 @@ static void WM_OT_xr_navigation_fly(wmOperatorType *ot)
                        "Second cubic spline control point between min/max speeds",
                        0.0f,
                        1.0f);
+  
+  RNA_def_enum(ot->srna, 
+               "alt_mode",
+               fly_modes,
+               XR_FLY_VIEWER_FORWARD,
+               "Mode (Alt)",
+               "Fly mode when hands are swapped");
+  RNA_def_boolean(ot->srna,
+                  "alt_lock_location_z", false, "Lock Elevation (Alt)", "When hands are swapped, prevent changes to viewer elevation");
+  RNA_def_boolean(ot->srna,
+                  "alt_lock_direction",
+                  false,
+                  "Lock Direction (Alt)",
+                  "When hands are swapped, limit movement to viewer's initial direction");
 }
 
 /** \} */
@@ -1792,6 +1806,74 @@ static void WM_OT_xr_navigation_reset(wmOperatorType *ot)
 /** \} */
 
 /* -------------------------------------------------------------------- */
+/** \name XR Navigation Swap Hands
+ *
+ * Resets XR navigation deltas relative to session base pose.
+ * \{ */
+
+static wmOperatorStatus wm_xr_navigation_swap_hands_invoke(bContext *C,
+                                                     wmOperator *op,
+                                                     const wmEvent *event)
+{
+  if (!wm_xr_operator_test_event(op, event)) {
+    return OPERATOR_PASS_THROUGH;
+  }
+
+  WM_event_add_modal_handler(C, op);
+
+  wmWindowManager *wm = CTX_wm_manager(C);
+  wmXrData *xr = &wm->xr;
+
+  xr->runtime->session_state.swap_hands = true;
+
+  return OPERATOR_RUNNING_MODAL;
+}
+
+static wmOperatorStatus wm_xr_navigation_swap_hands_exec(bContext *C, wmOperator *op)
+{
+  return OPERATOR_CANCELLED;
+}
+
+static wmOperatorStatus wm_xr_navigation_swap_hands_modal(bContext *C,
+                                                        wmOperator *op,
+                                                        const wmEvent *event)
+{
+  if (!wm_xr_operator_test_event(op, event)) {
+    return OPERATOR_PASS_THROUGH;
+  }
+
+  wmWindowManager *wm = CTX_wm_manager(C);
+  wmXrData *xr = &wm->xr;
+
+  switch (event->val) {
+    case KM_PRESS:
+      return OPERATOR_RUNNING_MODAL;
+    case KM_RELEASE:
+      xr->runtime->session_state.swap_hands = false;
+      return OPERATOR_FINISHED;
+    default:
+      BLI_assert_unreachable();
+      return OPERATOR_CANCELLED;
+  }
+}
+
+static void WM_OT_xr_navigation_swap_hands(wmOperatorType *ot)
+{
+  /* Identifiers. */
+  ot->name = "XR Navigation Swap Hands";
+  ot->idname = "WM_OT_xr_navigation_swap_hands";
+  ot->description = "Swap VR navigation controls between left / right controllers";
+
+  /* Callbacks. */
+  ot->invoke = wm_xr_navigation_swap_hands_invoke;
+  ot->exec = wm_xr_navigation_swap_hands_exec;
+  ot->modal = wm_xr_navigation_swap_hands_modal;
+  ot->poll = wm_xr_operator_sessionactive;
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
 /** \name Operator Registration
  * \{ */
 
@@ -1802,6 +1884,7 @@ void wm_xr_operatortypes_register()
   WM_operatortype_append(WM_OT_xr_navigation_fly);
   WM_operatortype_append(WM_OT_xr_navigation_teleport);
   WM_operatortype_append(WM_OT_xr_navigation_reset);
+  WM_operatortype_append(WM_OT_xr_navigation_swap_hands);
 }
 
 /** \} */
