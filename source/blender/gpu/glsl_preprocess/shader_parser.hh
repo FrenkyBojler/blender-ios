@@ -695,10 +695,6 @@ struct Scope {
     const std::string_view scope_tokens =
         std::string_view(data->token_types).substr(range().start, range().size);
 
-    if (range().size < pattern.size()) {
-      return;
-    }
-
     auto count_match = [](const std::string_view &s, const std::string_view &pattern) {
       size_t pos = 0, occurrences = 0;
       while ((pos = s.find(pattern, pos)) != std::string::npos) {
@@ -707,8 +703,11 @@ struct Scope {
       }
       return occurrences;
     };
+    const int control_token_count = count_match(pattern, "?") * 2 + count_match(pattern, "..") * 2;
 
-    const int control_token_count = count_match(pattern, "?") + count_match(pattern, "..") * 2;
+    if (range().size < pattern.size() - control_token_count) {
+      return;
+    }
 
     const size_t searchable_range = scope_tokens.size() -
                                     (pattern.size() - 1 - control_token_count);

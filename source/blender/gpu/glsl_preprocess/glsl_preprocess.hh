@@ -369,9 +369,11 @@ class Preprocessor {
         template_args.foreach_match("w<..>", [&parser](const vector<Token> &tokens) {
           string args_concat;
           tokens[1].scope().foreach_scope(ScopeType::TemplateArg, [&](const Scope &scope) {
-            args_concat += scope.start().str() + "_";
+            args_concat += '_' + scope.start().str();
           });
-          parser.replace(tokens[1].scope(), "_" + args_concat);
+          /* This is already contained in a template. Don't output trailing underscore as double
+           * underscore is reserved in GLSL. */
+          parser.replace(tokens[1].scope(), args_concat);
         });
       });
 
@@ -1694,8 +1696,6 @@ class Preprocessor {
       }
       guard_else += "#else\n";
       guard_else += line_start;
-
-      guard_else += "  " + fn_type.str() + " result;\n";
       guard_else += "  return " + type + (is_trivial ? "(0)" : "::zero()") + ";\n";
     }
     string guard_end = "#endif\n";
