@@ -2463,9 +2463,6 @@ static wmOperatorStatus vse_lasso_select_exec(bContext *C, wmOperator *op)
   }
 
   if (region->regiontype == RGN_TYPE_PREVIEW) {
-    if (!sequencer_view_preview_only_poll(C)) {
-      return OPERATOR_CANCELLED;
-    }
     changed = do_lasso_select_vse(C, mcoords, sel_op);
   }
   else {
