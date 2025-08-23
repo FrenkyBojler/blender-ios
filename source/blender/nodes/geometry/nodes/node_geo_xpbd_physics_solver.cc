@@ -2250,6 +2250,8 @@ PROFILE_FUNCTION static void update_and_step_xpbd_state(XPBDState &state,
             soft_pinned_rotations_map.lookup_try(key).value_or(MutableSpan<math::Quaternion>({}));
         threading::parallel_for(
             IndexRange(sim_points.points_num), 256, [&](const IndexRange range) {
+              /* The post-solve steps are run first here, because this code runs at the end of the
+               * time-step after the constraints are solved. */
               if (do_post_solve) {
                 post_solve_per_point_steps(sim_points,
                                            range,
