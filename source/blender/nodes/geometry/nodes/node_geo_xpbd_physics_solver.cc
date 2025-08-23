@@ -2152,9 +2152,11 @@ static void post_solve_per_point_steps(SimPoints &sim_points,
                                        const Span<math::Quaternion> prev_rotations,
                                        const float delta_time)
 {
-  update_linear_velocities(sim_points, prev_positions, range, delta_time);
-  if (sim_points.has_rotation) {
-    update_angular_velocities(sim_points, prev_rotations, range, delta_time);
+  if (delta_time > 0.0f) {
+    update_linear_velocities(sim_points, prev_positions, range, delta_time);
+    if (sim_points.has_rotation) {
+      update_angular_velocities(sim_points, prev_rotations, range, delta_time);
+    }
   }
 }
 
@@ -2227,9 +2229,12 @@ PROFILE_FUNCTION static void update_and_step_xpbd_state(XPBDState &state,
   const Vector<xpbd::GeometryRef> geometry_refs = prepare_geometry_refs_for_solver(
       state, keys, sim_points_props);
 
-  auto run_per_point_update = [&](const float substep_factor,
-                                  const bool do_pre_solve,
-                                  const bool do_post_solve) {
+  /* Instead of doing various stages like remembering old positions and updating velocities one
+   * after another, interleave them to improve cache locality and thread utilization. This is
+   * possible because each point is processed independently here. */
+  auto run_per_point_updates = [&](const float substep_factor,
+                                   const bool do_pre_solve,
+                                   const bool do_post_solve) {
     threading::parallel_for(keys.index_range(), 1, [&](const IndexRange range) {
       for (const int key_i : range) {
         const SimPointsKey &key = keys[key_i];
@@ -2244,7 +2249,7 @@ PROFILE_FUNCTION static void update_and_step_xpbd_state(XPBDState &state,
         MutableSpan<math::Quaternion> soft_pinned_rotations =
             soft_pinned_rotations_map.lookup_try(key).value_or(MutableSpan<math::Quaternion>({}));
         threading::parallel_for(
-            IndexRange(sim_points.points_num), 128, [&](const IndexRange range) {
+            IndexRange(sim_points.points_num), 256, [&](const IndexRange range) {
               if (do_post_solve) {
                 post_solve_per_point_steps(sim_points,
                                            range,
@@ -2280,7 +2285,7 @@ PROFILE_FUNCTION static void update_and_step_xpbd_state(XPBDState &state,
     /* In all other substeps, this is done at the end of the previous step already to improve
      * parallelism and cache locality. */
     if (is_first_substep) {
-      run_per_point_update(substep_factor, true, false);
+      run_per_point_updates(substep_factor, true, false);
     }
 
     /* Find current collisions and generate constraints to resolve them. */
@@ -2301,9 +2306,11 @@ PROFILE_FUNCTION static void update_and_step_xpbd_state(XPBDState &state,
     if (sub_delta_time > 0.0f) {
       /* Apply friction by updating current positions before the new velocity is computed. */
       apply_friction(state, contacts, keys, all_prev_positions);
-
-      run_per_point_update(substep_factor, !is_last_substep, true);
     }
+
+    /* Does remaining per-point updates at the end of this time step (like updating velocities) and
+     * also does the beginning of the next timestep already unless this is the last substep. */
+    run_per_point_updates(substep_factor, !is_last_substep, true);
   }
 
   remove_unused_states(state);
