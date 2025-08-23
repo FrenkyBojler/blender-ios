@@ -51,7 +51,7 @@ static void reserve_hash_maps(const Mesh &mesh,
 
 static int edge_to_hash_map_i(const OrderedEdge edge, const uint32_t parallel_mask)
 {
-  return parallel_mask & edge_hash_2(ordered_edge);
+  return parallel_mask & edge_hash_2(edge);
 }
 
 static void add_existing_edges_to_hash_maps(const Mesh &mesh,
@@ -288,22 +288,23 @@ void mesh_calc_edges(Mesh &mesh,
       constexpr int no_original_edge = std::numeric_limits<int>::max();
       Array<Array<int>> map_edge_to_first_original(edge_maps.size());
       for (const int i : edge_maps.index_range()) {
-        map_edge_number_of[i].reinitialize(edge_maps[i].size());
-        map_edge_number_of[i].as_mutable_span().fill(no_original_edge);
+        map_edge_to_first_original[i].reinitialize(edge_maps[i].size());
+        map_edge_to_first_original[i].as_mutable_span().fill(no_original_edge);
       }
 
       for (const int edge_i : original_edges.index_range()) {
         const OrderedEdge edge = original_edges[edge_i];
         const int map_i = calc_edges::edge_to_hash_map_i(edge, parallel_mask);
         const int edge_index = edge_maps[map_i].index_of(edge);
-        int &original_edge = map_edge_number_of[map_i][edge_index];
+        int &original_edge = map_edge_to_first_original[map_i][edge_index];
         original_edge = math::min(original_edge, edge_i);
       }
 
-      BLI_assert(std::all_of(
-          map_edge_to_first_original.begin(),
-          map_edge_to_first_original.end(),
-          [&](const auto &edge_indices) { !edge_indices.contains(no_original_edge); }));
+      BLI_assert(std::all_of(map_edge_to_first_original.begin(),
+                             map_edge_to_first_original.end(),
+                             [&](const auto &edge_indices) {
+                               return !edge_indices.as_span().contains(no_original_edge);
+                             }));
 
       dst_to_src_mask = IndexMask::from_predicate(
           IndexRange(mesh.edges_num), GrainSize(2048), memory, [&](const int srd_edge_i) {
@@ -345,7 +346,7 @@ void mesh_calc_edges(Mesh &mesh,
     }
 
     if (!no_new_edges) {
-      Array<Vector<int>> new_edge_sizes(edge_maps.size() + 1);
+      Array<int> new_edge_sizes(edge_maps.size() + 1);
       for (const int i : edge_maps.index_range()) {
         new_edge_sizes[i] = edge_offsets[i].size() - original_edge_maps_prefix[i];
       }
@@ -356,22 +357,24 @@ void mesh_calc_edges(Mesh &mesh,
       const int new_edges_start = original_unique_edge_num;
       for (const int i : edge_maps.index_range()) {
         const int map_new_edges_start = new_edge_offsets[i].start();
-        array_utils::fill_index_range(map_edge_to_dst[i].drop_front(original_edge_maps_prefix[i]),
-                                      new_edges_start + map_new_edges_start);
+        array_utils::fill_index_range(
+            map_edge_to_dst[i].as_mutable_span().drop_front(original_edge_maps_prefix[i]),
+            new_edges_start + map_new_edges_start);
       }
     }
 
-    BLI_assert(std::all_of(map_edge_to_dst.begin(),
-                           map_edge_to_dst.end(),
-                           [&](const auto &edge_indices) { !edge_indices.contains(-1); }));
+    BLI_assert(
+        std::all_of(map_edge_to_dst.begin(), map_edge_to_dst.end(), [&](const auto &edge_indices) {
+          return !edge_indices.as_span().contains(-1);
+        }));
 
     threading::parallel_for(IndexRange(mesh.faces_num), 2048, [&](const IndexRange range) {
       for (const int face_i : range) {
         const IndexRange face = faces[face_i];
         for (const int corner : face) {
-          const int next_corner = face_corner_next(face, corner);
+          const int next_corner = bke::mesh::face_corner_next(face, corner);
           const OrderedEdge corner_edge(corner_verts[corner], corner_verts[next_corner]);
-          const int edge_map = calc_edges::hash_maps_to_edges(corner_edge, parallel_mask);
+          const int edge_map = calc_edges::edge_to_hash_map_i(corner_edge, parallel_mask);
           const int edge_index = edge_maps[edge_map].index_of(corner_edge);
           corner_edges[corner] = map_edge_to_dst[edge_map][edge_index];
         }
@@ -381,9 +384,9 @@ void mesh_calc_edges(Mesh &mesh,
   else {
     if (mesh.edges_num != 0) {
       dst_to_src_mask = IndexMask::from_predicate(
-          IndexRange(mesh.edges_num), GrainSize(1024), [&](const int edge_i) {
+          IndexRange(mesh.edges_num), GrainSize(1024), memory, [&](const int edge_i) {
             const OrderedEdge edge = original_edges[edge_i];
-            const int edge_map = calc_edges::hash_maps_to_edges(edge, parallel_mask);
+            const int edge_map = calc_edges::edge_to_hash_map_i(edge, parallel_mask);
             return edge_maps[edge_map].contains(edge);
           });
       const int total_face_old_edges = dst_to_src_mask.size();
@@ -400,7 +403,7 @@ void mesh_calc_edges(Mesh &mesh,
 
       dst_to_src_mask.foreach_index([&](const int original_edge_i) {
         const OrderedEdge edge = original_edges[original_edge_i];
-        const int edge_map = calc_edges::hash_maps_to_edges(edge, parallel_mask);
+        const int edge_map = calc_edges::edge_to_hash_map_i(edge, parallel_mask);
         const int edge_index = edge_maps[edge_map].index_of(edge);
         map_edge_is_new[edge_map][edge_index] = false;
       });
@@ -411,12 +414,12 @@ void mesh_calc_edges(Mesh &mesh,
         for (const int i : edge_maps[i].index_range()) {
           new_map_edge_sizes[map_range[i]] = 1;
         }
-        offset_indices::accumulate_counts_to_offsets(new_map_edge_sizes[i].as_mutable_span());
       }
+      offset_indices::accumulate_counts_to_offsets(new_map_edge_sizes.as_mutable_span());
 
       dst_to_src_mask.foreach_index([&](const int original_edge_i, const int dst_edge_i) {
         const OrderedEdge edge = original_edges[original_edge_i];
-        const int edge_map = calc_edges::hash_maps_to_edges(edge, parallel_mask);
+        const int edge_map = calc_edges::edge_to_hash_map_i(edge, parallel_mask);
         const int edge_index = edge_maps[edge_map].index_of(edge);
         const IndexRange map_range = edge_offsets[edge_map];
         new_map_edge_sizes[map_range[edge_index]] = dst_edge_i;
@@ -426,9 +429,9 @@ void mesh_calc_edges(Mesh &mesh,
         for (const int face_i : range) {
           const IndexRange face = faces[face_i];
           for (const int corner : face) {
-            const int next_corner = face_corner_next(face, corner);
+            const int next_corner = bke::mesh::face_corner_next(face, corner);
             const OrderedEdge corner_edge(corner_verts[corner], corner_verts[next_corner]);
-            const int edge_map = calc_edges::hash_maps_to_edges(corner_edge, parallel_mask);
+            const int edge_map = calc_edges::edge_to_hash_map_i(corner_edge, parallel_mask);
             const int edge_index = edge_maps[edge_map].index_of(corner_edge);
             const IndexRange map_range = edge_offsets[edge_map];
             corner_edges[corner] = new_map_edge_sizes[map_range[edge_index]];
@@ -449,14 +452,13 @@ void mesh_calc_edges(Mesh &mesh,
 
   MutableAttributeAccessor attributes = mesh.attributes_for_write();
   attributes.add<int>(
-      ".corner_edge", AttrDomain::Corner, AttributeMoveConstruct(corner_edges.data()));
+      ".corner_edge", AttrDomain::Corner, AttributeInitMoveArray(corner_edges.data()));
 
   if (select_new_edges) {
     SpanAttributeWriter<bool> select_edge = attributes.lookup_or_add_for_write_span<bool>(
-        ".select_edge", AttrDomain::Edge, false);
-    if (!mask_new_edges.is_empty()) {
-      index_mask::masked_fill<bool>(select_edge.span, mask_new_edges, true);
-    }
+        ".select_edge", AttrDomain::Edge);
+    select_edge.span.fill(false);
+    index_mask::masked_fill<bool>(select_edge.span, true, mask_new_edges);
     select_edge.finish();
   }
 
