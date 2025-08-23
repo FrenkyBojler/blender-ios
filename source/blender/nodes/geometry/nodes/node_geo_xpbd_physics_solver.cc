@@ -355,46 +355,6 @@ PROFILE_FUNCTION static void integrate_angular_velocities(
   }
 }
 
-PROFILE_FUNCTION static void integrate_angular_velocities(
-    XPBDState &state,
-    const Map<SimPointsKey, Span<float3>> &torques_map,
-    const Map<SimPointsKey, SimPointsWorldProperties> &sim_points_props,
-    const float delta_time)
-{
-  for (auto item : state.sim_points.items()) {
-    SimPoints &sim_points = item.value;
-    if (!sim_points.has_rotation) {
-      continue;
-    }
-    const std::optional<Span<float3>> torques = torques_map.lookup_try(item.key);
-
-    const SimPointsWorldProperties &props = sim_points_props.lookup(item.key);
-    const int points_num = sim_points.positions.size();
-
-    /* Approximation of exponential decay. */
-    const float angular_damping_factor = std::max(1.0f - props.angular_damping * delta_time, 0.0f);
-
-    threading::parallel_for(IndexRange(points_num), 1024, [&](const IndexRange range) {
-      for (const int i : range) {
-        const float3 &external_torque = torques.has_value() ? (*torques)[i] : float3(0.0f);
-        const float3 &inertia = props.inertias[i];
-        const float3 &inverse_inertia = props.inverse_inertias[i];
-        if (math::is_zero(inverse_inertia)) {
-          continue;
-        }
-        float3 &angular_velocity = sim_points.angular_velocities[i];
-        const float3 precession = math::cross(angular_velocity, angular_velocity * inertia);
-        angular_velocity += delta_time * (external_torque - precession) * inverse_inertia;
-        angular_velocity *= angular_damping_factor;
-        math::Quaternion &rotation = sim_points.rotations[i];
-        const math::Quaternion direction = rotation * math::Quaternion(0, angular_velocity);
-        rotation = math::normalize(
-            math::Quaternion(float4(rotation) + delta_time * 0.5f * float4(direction)));
-      }
-    });
-  }
-}
-
 static void store_rotation_if_necessary(const XPBDGeometryBundle &bundle,
                                         const SimPoints &sim_points,
                                         const bke::AttrDomain domain,
@@ -1895,29 +1855,6 @@ PROFILE_FUNCTION static void apply_friction(XPBDState &state,
   }
 }
 
-PROFILE_FUNCTION static void update_linear_velocities(XPBDState &state,
-                                                      const VectorSet<SimPointsKey> &keys,
-                                                      const Span<Array<float3>> all_prev_positions,
-                                                      const float delta_time)
-{
-  const float inv_delta_time = math::safe_rcp(delta_time);
-  for (const int key_i : keys.index_range()) {
-    const Span<float3> prev_positions = all_prev_positions[key_i];
-    SimPoints &sim_points = state.sim_points.lookup(keys[key_i]);
-    Span<float3> new_positions = sim_points.positions;
-    MutableSpan<float3> velocities = sim_points.velocities;
-    threading::parallel_for(IndexRange(sim_points.points_num), 1024, [&](const IndexRange range) {
-      for (const int i : range) {
-        const float3 &prev_position = prev_positions[i];
-        const float3 &new_position = new_positions[i];
-        const float3 diff = new_position - prev_position;
-        const float3 velocity = diff * inv_delta_time;
-        velocities[i] = velocity;
-      }
-    });
-  }
-}
-
 PROFILE_FUNCTION static void update_linear_velocities(SimPoints &sim_points,
                                                       const Span<float3> prev_positions,
                                                       const IndexRange range,
@@ -2146,32 +2083,6 @@ PROFILE_FUNCTION static void update_pinned_positions(SimPoints &sim_points,
   }
 }
 
-PROFILE_FUNCTION static void update_pinned_positions(
-    XPBDState &state,
-    const Map<SimPointsKey, PinnedPositions> &pinned_positions_map,
-    const Map<SimPointsKey, MutableSpan<float3>> &soft_pinned_positions_map,
-    const float factor)
-{
-  for (const auto item : pinned_positions_map.items()) {
-    const SimPointsKey &key = item.key;
-    SimPoints &sim_points = state.sim_points.lookup(key);
-    const PinnedPositions &pinned_positions = item.value;
-    for (const int i : pinned_positions.hard_indices.index_range()) {
-      const int point_i = pinned_positions.hard_indices[i];
-      const float3 current_position = pinned_positions.hard_animations[i].interpolate(factor);
-      sim_points.positions[point_i] = current_position;
-    }
-    if (!pinned_positions.soft_indices.is_empty()) {
-      /* These positions are referenced by the constraints, so they get the new position. */
-      MutableSpan<float3> soft_pinned_positions = soft_pinned_positions_map.lookup(key);
-      for (const int i : pinned_positions.soft_indices.index_range()) {
-        const float3 current_position = pinned_positions.soft_animations[i].interpolate(factor);
-        soft_pinned_positions[i] = current_position;
-      }
-    }
-  }
-}
-
 PROFILE_FUNCTION static void updated_pinned_rotations(
     SimPoints &sim_points,
     const IndexRange range,
@@ -2189,34 +2100,6 @@ PROFILE_FUNCTION static void updated_pinned_rotations(
     const math::Quaternion current_rotation = pinned_rotations.soft_animations[i].interpolate(
         factor);
     r_soft_pinned_rotations[i] = current_rotation;
-  }
-}
-
-PROFILE_FUNCTION static void update_pinned_rotations(
-    XPBDState &state,
-    const Map<SimPointsKey, PinnedRotations> &pinned_rotations_map,
-    const Map<SimPointsKey, MutableSpan<math::Quaternion>> &soft_pinned_rotations_map,
-    const float factor)
-{
-  for (const auto item : pinned_rotations_map.items()) {
-    const SimPointsKey &key = item.key;
-    SimPoints &sim_points = state.sim_points.lookup(key);
-    const PinnedRotations &pinned_rotations = item.value;
-    for (const int i : pinned_rotations.hard_indices.index_range()) {
-      const int point_i = pinned_rotations.hard_indices[i];
-      const math::Quaternion current_rotation = pinned_rotations.hard_animations[i].interpolate(
-          factor);
-      sim_points.rotations[point_i] = current_rotation;
-    }
-    if (!pinned_rotations.soft_indices.is_empty()) {
-      /* These rotations are referenced by the constraints, so they get the new rotation. */
-      MutableSpan<math::Quaternion> soft_pinned_rotations = soft_pinned_rotations_map.lookup(key);
-      for (const int i : pinned_rotations.soft_indices.index_range()) {
-        const math::Quaternion current_rotation = pinned_rotations.soft_animations[i].interpolate(
-            factor);
-        soft_pinned_rotations[i] = current_rotation;
-      }
-    }
   }
 }
 
@@ -2420,7 +2303,7 @@ PROFILE_FUNCTION static void update_and_step_xpbd_state(XPBDState &state,
               soft_pinned_rotations_map.lookup_try(key).value_or(
                   MutableSpan<math::Quaternion>({}));
           threading::parallel_for(
-              IndexRange(sim_points.points_num), 1024, [&](const IndexRange range) {
+              IndexRange(sim_points.points_num), 128, [&](const IndexRange range) {
                 post_solve_per_point_steps(sim_points,
                                            range,
                                            all_prev_positions[key_i],
