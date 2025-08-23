@@ -4080,7 +4080,7 @@ static float brush_dynamic_size_get(const Brush &brush,
                                     const StrokeCache &cache,
                                     float initial_size)
 {
-  float pressure_eval = BKE_curvemapping_evaluateF(brush.curve_size, 0, cache.pressure);
+  const float pressure_eval = BKE_curvemapping_evaluateF(brush.curve_size, 0, cache.pressure);
   switch (brush.sculpt_brush_type) {
     case SCULPT_BRUSH_TYPE_CLAY:
       return max_ff(initial_size * 0.20f, initial_size * pow3f(pressure_eval));

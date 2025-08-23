@@ -247,7 +247,6 @@ static void brush_blend_write(BlendWriter *writer, ID *id, const void *id_addres
     BKE_curvemapping_blend_write(writer, brush->curve_rand_value);
   }
 
-  /* Texture/Image Paint pressure mapping curves. */
   if (brush->curve_size) {
     BKE_curvemapping_blend_write(writer, brush->curve_size);
   }
@@ -348,7 +347,6 @@ static void brush_blend_read_data(BlendDataReader *reader, ID *id)
     brush->curve_rand_value = BKE_paint_default_curve();
   }
 
-  /* Texture/Image Paint pressure mapping curves. */
   BLO_read_struct(reader, CurveMapping, &brush->curve_size);
   if (brush->curve_size) {
     BKE_curvemapping_blend_read(reader, brush->curve_size);

@@ -533,9 +533,7 @@ void paint_stroke_jitter_pos(const PaintStroke &stroke,
     float factor = stroke.zoom_2d;
 
     if (brush.flag & BRUSH_JITTER_PRESSURE) {
-      float pressure_eval = pressure;
-      pressure_eval = BKE_curvemapping_evaluateF(brush.curve_jitter, 0, pressure);
-      factor *= pressure_eval;
+      factor *= BKE_curvemapping_evaluateF(brush.curve_jitter, 0, pressure);
     }
 
     BKE_brush_jitter_pos(*stroke.paint, brush, mval, r_mouse_out);
