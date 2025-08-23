@@ -923,6 +923,13 @@ class CurvesPenToolOperation : public PenToolOperation {
     const bke::CurvesGeometry &curves = curves_id->geometry.wrap();
     return retrieve_all_selected_points(curves, memory);
   }
+
+  void tag_curve_changed(const int curves_index) const
+  {
+    Curves *curves_id = this->all_curves[curves_index];
+    bke::CurvesGeometry &curves = curves_id->geometry.wrap();
+    curves.tag_topology_changed();
+  }
 };
 
 static float2 calculate_center_of_mass(const CurvesPenToolOperation &ptd, const bool ends_only)
@@ -1308,18 +1315,21 @@ static wmOperatorStatus curves_pen_modal(bContext *C, wmOperator *op, const wmEv
     changed.store(true, std::memory_order_relaxed);
   }
   else {
-    threading::parallel_for_each(ptd.all_curves, [&](Curves *curves_id) {
-      bke::CurvesGeometry &curves = curves_id->geometry.wrap();
+    threading::parallel_for(ptd.all_curves.index_range(), 1, [&](const IndexRange curves_range) {
+      for (const int curves_index : curves_range) {
+        Curves *curves_id = ptd.all_curves[curves_index];
+        bke::CurvesGeometry &curves = curves_id->geometry.wrap();
 
-      const float4x4 layer_to_object = float4x4::identity();
-      const float4x4 layer_to_world = float4x4::identity();
+        const float4x4 layer_to_object = float4x4::identity();
+        const float4x4 layer_to_world = float4x4::identity();
 
-      IndexMaskMemory memory;
-      const IndexMask selection = retrieve_all_selected_points(curves, memory);
+        IndexMaskMemory memory;
+        const IndexMask selection = ptd.all_selected_points(curves_index, memory);
 
-      if (ptd.move_handles_in_curve(curves, selection, layer_to_world, layer_to_object)) {
-        changed.store(true, std::memory_order_relaxed);
-        curves.tag_topology_changed();
+        if (ptd.move_handles_in_curve(curves, selection, layer_to_world, layer_to_object)) {
+          changed.store(true, std::memory_order_relaxed);
+          ptd.tag_curve_changed(curves_index);
+        }
       }
     });
   }

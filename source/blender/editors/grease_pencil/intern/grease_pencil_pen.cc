@@ -78,6 +78,12 @@ class GreasePencilPenToolOperation : public PenToolOperation {
     return ed::greasepencil::retrieve_editable_and_all_selected_points(
         *this->vc.obact, info.drawing, info.layer_index, memory);
   }
+
+  void tag_curve_changed(const int curves_index) const
+  {
+    const MutableDrawingInfo &info = this->drawings[curves_index];
+    info.drawing.tag_topology_changed();
+  }
 };
 
 static void grease_pencil_pen_update_view(bContext *C, GreasePencilPenToolOperation &ptd)
@@ -458,12 +464,11 @@ static wmOperatorStatus grease_pencil_pen_modal(bContext *C, wmOperator *op, con
         const float4x4 &layer_to_world = ptd.layer_to_worlds[drawing_index];
 
         IndexMaskMemory memory;
-        const IndexMask selection = retrieve_editable_and_all_selected_points(
-            *ptd.vc.obact, info.drawing, info.layer_index, memory);
+        const IndexMask selection = ptd.all_selected_points(drawing_index, memory);
 
         if (ptd.move_handles_in_curve(curves, selection, layer_to_world, layer_to_object)) {
           changed.store(true, std::memory_order_relaxed);
-          info.drawing.tag_topology_changed();
+          ptd.tag_curve_changed(drawing_index);
         }
       }
     });
