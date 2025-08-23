@@ -20,15 +20,18 @@ NODE_STORAGE_FUNCS(NodeGeometryInputNamedAttribute)
 static void node_declare(NodeDeclarationBuilder &b)
 {
   const bNode *node = b.node_or_null();
+  b.use_custom_socket_order();
+  b.allow_any_socket_order();
+  b.add_default_layout();
 
-  b.add_input<decl::String>("Name").is_attribute_name().hide_label();
+  b.add_output<decl::Bool>("Exists").field_source();
 
   if (node != nullptr) {
     const NodeGeometryInputNamedAttribute &storage = node_storage(*node);
     const eCustomDataType data_type = eCustomDataType(storage.data_type);
     b.add_output(data_type, "Attribute").field_source();
   }
-  b.add_output<decl::Bool>("Exists").field_source();
+  b.add_input<decl::String>("Name").is_attribute_name().hide_label();
 }
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
