@@ -502,6 +502,7 @@ static void displacement_data_init_mapping(Displacement &displacement, const Mes
 
 static void displacement_init_data(Displacement &displacement,
                                    Subdiv &subdiv,
+                                   Object *object,
                                    const Mesh &mesh,
                                    const MultiresModifierData &mmd)
 {
@@ -518,9 +519,11 @@ static void displacement_init_data(Displacement &displacement,
   printf("Init Data - Addr: %p\n", &object.sculpt->multires.runtime);
   printf("Current: %d Total Levels: %lld\n", data.level, object.sculpt->multires.runtime.disp_at_level.size());
 #endif
-  data.level_displacements = object.sculpt->multires.runtime.disp_at_level[data.level - 1];
-  BLI_assert(data.level_displacements.size() ==
-             data.mesh->corners_num * data.grid_size * data.grid_size);
+  if (object != nullptr) {
+    data.level_displacements = object->sculpt->multires.runtime.disp_at_level[data.level - 1];
+    BLI_assert(data.level_displacements.size() ==
+               data.mesh->corners_num * data.grid_size * data.grid_size);
+  }
   data.mdisps = static_cast<const MDisps *>(CustomData_get_layer(&mesh.corner_data, CD_MDISPS));
   data.face_ptex_offset = face_ptex_offset_get(&subdiv);
   data.is_initialized = false;
@@ -538,6 +541,15 @@ void displacement_attach_from_multires(Subdiv *subdiv,
                                        const Mesh *mesh,
                                        const MultiresModifierData *mmd)
 {
+  displacement_attach_from_multires(subdiv, nullptr, mesh, mmd);
+}
+
+
+void displacement_attach_from_multires(Subdiv *subdiv,
+                                       Object *object,
+                                       const Mesh *mesh,
+                                       const MultiresModifierData *mmd)
+{
   /* Make sure we don't have previously assigned displacement. */
   displacement_detach(subdiv);
   /* It is possible to have mesh without CD_MDISPS layer. Happens when using
@@ -548,7 +560,7 @@ void displacement_attach_from_multires(Subdiv *subdiv,
   /* Allocate all required memory. */
   Displacement *displacement = MEM_callocN<Displacement>("multires displacement");
   displacement->user_data = MEM_new<MultiresDisplacementData>("multires displacement data");
-  displacement_init_data(*displacement, *subdiv, *object, *mesh, *mmd);
+  displacement_init_data(*displacement, *subdiv, object, *mesh, *mmd);
   displacement_init_functions(displacement);
   /* Finish. */
   subdiv->displacement_evaluator = displacement;

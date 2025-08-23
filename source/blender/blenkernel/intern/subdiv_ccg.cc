@@ -445,7 +445,7 @@ Mesh *BKE_subdiv_to_ccg_mesh(blender::bke::subdiv::Subdiv &subdiv,
   /* Make sure evaluator is ready. */
   stats_begin(&subdiv.stats, SUBDIV_STATS_SUBDIV_TO_CCG);
   if (!eval_begin_from_mesh(
-          &subdiv, &coarse_mesh, existing_ccg.positions, SUBDIV_EVALUATOR_TYPE_CPU, nullptr))
+          &subdiv, &coarse_mesh, SUBDIV_EVALUATOR_TYPE_CPU, existing_ccg.positions, nullptr))
   {
     if (coarse_mesh.faces_num) {
       return nullptr;
