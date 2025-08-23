@@ -157,15 +157,6 @@ struct PinPositionsState {
   Map<int, Item> positions;
 };
 
-struct PinRotationsState {
-  struct Item {
-    math::Quaternion rotation;
-    bool used = true;
-  };
-
-  Map<int, Item> rotations;
-};
-
 struct CurveSegmentRestLengthsState {
  private:
   /**
@@ -248,7 +239,6 @@ class XPBDState {
 
   Map<SimPointsKey, SimPoints> sim_points;
   Map<SimPointsKey, DistanceConstraintLengths> distance_constraint_lengths;
-  Map<SimPointsKey, PinRotationsState> pin_rotations;
   Map<SimPointsKey, float> initial_volumes;
   Map<SimPointsKey, std::unique_ptr<CurveSegmentRestLengthsState>> curve_segment_rest_lengths;
   Map<SimPointsKey, std::unique_ptr<CurveSegmentRelativeRestRotationsState>>
@@ -1824,11 +1814,6 @@ PROFILE_FUNCTION static void reset_state_usages(XPBDState &state)
       length_item.used = false;
     }
   }
-  for (PinRotationsState &pin_rotations : state.pin_rotations.values()) {
-    for (PinRotationsState::Item &item : pin_rotations.rotations.values()) {
-      item.used = false;
-    }
-  }
 }
 
 PROFILE_FUNCTION static void remove_unused_states(XPBDState &state)
@@ -1838,9 +1823,6 @@ PROFILE_FUNCTION static void remove_unused_states(XPBDState &state)
   {
     distance_constraint_lengths.lengths.remove_if(
         [](const auto &item) { return !item.value.used; });
-  }
-  for (PinRotationsState &pin_rotations : state.pin_rotations.values()) {
-    pin_rotations.rotations.remove_if([](const auto &item) { return !item.value.used; });
   }
 }
 
@@ -1995,7 +1977,7 @@ PROFILE_FUNCTION static Map<SimPointsKey, PinnedPositions> compute_pinned_positi
       }
       const VArray<float3> pinned_positions_varray = field_evaluator.get_evaluated<float3>(0);
       const VArray<float> compliances_varray = field_evaluator.get_evaluated<float>(1);
-      if (std::optional<float> compliance_opt = compliances_varray.get_if_single()) {
+      if (const std::optional<float> compliance_opt = compliances_varray.get_if_single()) {
         const float compliance = std::max(0.0f, *compliance_opt);
         if (compliance == 0.0f) {
           pinned_positions.hard_indices.resize(mask.size());
@@ -2048,7 +2030,7 @@ PROFILE_FUNCTION static Map<SimPointsKey, PinnedPositions> compute_pinned_positi
   return result;
 }
 
-PROFILE_FUNCTION static Map<SimPointsKey, PinnedRotations> computed_pinned_rotation_animations(
+PROFILE_FUNCTION static Map<SimPointsKey, PinnedRotations> computed_pinned_rotations(
     XPBDState &state,
     const WorldData &world,
     const Span<GeometrySet> applied_geometries,
@@ -2074,7 +2056,6 @@ PROFILE_FUNCTION static Map<SimPointsKey, PinnedRotations> computed_pinned_rotat
     const Vector constraint_bundles = filter_bundles_for_path<PinnedRotationXPBDConstraintBundle>(
         world.pinned_rotation_constraints, key.path);
 
-    PinRotationsState &pinned_rotations_state = state.pin_rotations.lookup_or_add_default(key);
     PinnedRotations pinned_rotations;
 
     bke::GeometryFieldContext field_context(*component, domain);
@@ -2091,24 +2072,55 @@ PROFILE_FUNCTION static Map<SimPointsKey, PinnedRotations> computed_pinned_rotat
       const VArray<math::Quaternion> rotations_varray =
           field_evaluator.get_evaluated<math::Quaternion>(0);
       const VArray<float> compliances_varray = field_evaluator.get_evaluated<float>(1);
-      mask.foreach_index([&](const int point_i) {
-        PinRotationsState::Item &old_rotation_item =
-            pinned_rotations_state.rotations.lookup_or_add(point_i, {rotations_varray[point_i]});
-        old_rotation_item.used = true;
-        const math::Quaternion &new_rotation = rotations_varray[point_i];
-        const float compliance = std::max(0.0f, compliances_varray[point_i]);
-        StartStopPair<math::Quaternion> animation{old_rotation_item.rotation, new_rotation};
+
+      if (const std::optional<float> compliance_opt = compliances_varray.get_if_single()) {
+        const float compliance = std::max(0.0f, *compliance_opt);
         if (compliance == 0.0f) {
-          pinned_rotations.hard_indices.append(point_i);
-          pinned_rotations.hard_animations.append(animation);
+          pinned_rotations.hard_indices.resize(mask.size());
+          pinned_rotations.hard_animations.resize(mask.size());
+          mask.foreach_index(GrainSize(512), [&](const int point_i, const int pos) {
+            const math::Quaternion &new_rotation = rotations_varray[point_i];
+            const math::Quaternion &old_rotation = state.is_initialization() ?
+                                                       new_rotation :
+                                                       sim_points.rotations[point_i];
+            pinned_rotations.hard_indices[pos] = point_i;
+            pinned_rotations.hard_animations[pos] = {old_rotation, new_rotation};
+          });
         }
         else {
-          pinned_rotations.soft_indices.append(point_i);
-          pinned_rotations.soft_compliances.append(compliance);
-          pinned_rotations.soft_animations.append(animation);
+          pinned_rotations.soft_indices.resize(mask.size());
+          pinned_rotations.soft_animations.resize(mask.size());
+          pinned_rotations.soft_compliances.resize(mask.size());
+          mask.foreach_index(GrainSize(512), [&](const int point_i, const int pos) {
+            const math::Quaternion &new_rotation = rotations_varray[point_i];
+            const math::Quaternion &old_rotation = state.is_initialization() ?
+                                                       new_rotation :
+                                                       sim_points.rotations[point_i];
+            pinned_rotations.soft_indices[pos] = point_i;
+            pinned_rotations.soft_compliances[pos] = compliance;
+            pinned_rotations.soft_animations[pos] = {old_rotation, new_rotation};
+          });
         }
-        old_rotation_item.rotation = new_rotation;
-      });
+      }
+      else {
+        mask.foreach_index([&](const int point_i) {
+          const math::Quaternion &new_rotation = rotations_varray[point_i];
+          const math::Quaternion &old_rotation = state.is_initialization() ?
+                                                     new_rotation :
+                                                     sim_points.rotations[point_i];
+          const float compliance = std::max(0.0f, compliances_varray[point_i]);
+          StartStopPair<math::Quaternion> animation{old_rotation, new_rotation};
+          if (compliance == 0.0f) {
+            pinned_rotations.hard_indices.append(point_i);
+            pinned_rotations.hard_animations.append(animation);
+          }
+          else {
+            pinned_rotations.soft_indices.append(point_i);
+            pinned_rotations.soft_compliances.append(compliance);
+            pinned_rotations.soft_animations.append(animation);
+          }
+        });
+      }
     }
     if (!pinned_rotations.hard_indices.is_empty() || !pinned_rotations.soft_indices.is_empty()) {
       result.add(key, std::move(pinned_rotations));
@@ -2245,8 +2257,8 @@ PROFILE_FUNCTION static void update_and_step_xpbd_state(XPBDState &state,
 
   const Map<SimPointsKey, PinnedPositions> pinned_positions_map = compute_pinned_positions(
       state, world, applied_geometries, keys);
-  const Map<SimPointsKey, PinnedRotations> pinned_rotations_map =
-      computed_pinned_rotation_animations(state, world, applied_geometries, keys);
+  const Map<SimPointsKey, PinnedRotations> pinned_rotations_map = computed_pinned_rotations(
+      state, world, applied_geometries, keys);
 
   const Map<SimPointsKey, SimPointsWorldProperties> sim_points_props =
       compute_sim_point_world_properties(
