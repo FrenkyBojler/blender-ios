@@ -872,17 +872,23 @@ compute_sim_point_world_properties(ResourceScope &scope,
 
     /* Set mass of pinned points to infinity (i.e. the inverse mass is 0). */
     if (pinned_positions) {
-      for (const int i : pinned_positions->hard_indices) {
-        result_masses[i] = 0.0f;
-      }
+      threading::parallel_for(
+          pinned_positions->hard_indices.index_range(), 4096, [&](const IndexRange range) {
+            for (const int i : pinned_positions->hard_indices.as_span().slice(range)) {
+              result_masses[i] = 0.0f;
+            }
+          });
     }
 
     /* Set inertia of pinned rotations to infinity (i.e. the inverse inertia is 0). */
     if (pinned_rotations) {
-      for (const int i : pinned_rotations->hard_indices) {
-        result_inertias[i] = float3(std::numeric_limits<float>::infinity());
-        result_inverse_inertias[i] = float3(0.0f);
-      }
+      threading::parallel_for(
+          pinned_rotations->hard_indices.index_range(), 4096, [&](const IndexRange range) {
+            for (const int i : pinned_rotations->hard_indices.as_span().slice(range)) {
+              result_inertias[i] = float3(std::numeric_limits<float>::infinity());
+              result_inverse_inertias[i] = float3(0.0f);
+            }
+          });
     }
 
     const Vector damping_bundles = filter_bundles_for_path<DampingBundle>(world.dampings,
