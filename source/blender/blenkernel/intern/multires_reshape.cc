@@ -295,8 +295,8 @@ void multiresModifier_subdivide_to_level_v2(Object *object,
   multires_reshape_ensure_grids(coarse_mesh, reshape_context.top.level);
 
   /* The refine CCG should be the "current" / flushed displacements */
-  /* TODO: Implement a "multires_reshape_assign_base_coords_from_runtime"
-  //multires_reshape_assign_final_coords_from_mdisps(&reshape_context);
+  /* TODO: Implement a "multires_reshape_assign_base_coords_from_runtime" */
+  multires_reshape_assign_final_coords_from_mdisps(&reshape_context);
 
   /* Smooth the reshape CCG and use that to get the new tangent displacments */
   /* TODO: Have this read from the runtime data */
@@ -304,7 +304,7 @@ void multiresModifier_subdivide_to_level_v2(Object *object,
   multires_reshape_object_grids_to_tangent_displacement(&reshape_context);
 
   /* At this point, the "canonical" MDisp data should be updated so that later when the subdiv CCG
-   * is created it can use that to create the new object space positions /
+   * is created it can use that to create the new object space positions */
   /* All levels of `multires_runtime` should be zeroed out */
   /* TODO: Is there a simpler way of storing the current object space data such that we don't have
    * to do this many round trip conversions? */
