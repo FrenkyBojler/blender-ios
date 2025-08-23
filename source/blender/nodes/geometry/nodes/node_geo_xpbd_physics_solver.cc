@@ -2261,10 +2261,15 @@ PROFILE_FUNCTION static void update_and_step_xpbd_state(XPBDState &state,
 
   reset_state_usages(state);
 
-  const Map<SimPointsKey, PinnedPositions> pinned_positions_map = compute_pinned_positions(
-      state, world, applied_geometries, keys);
-  const Map<SimPointsKey, PinnedRotations> pinned_rotations_map = computed_pinned_rotations(
-      state, world, applied_geometries, keys);
+  Map<SimPointsKey, PinnedPositions> pinned_positions_map;
+  Map<SimPointsKey, PinnedRotations> pinned_rotations_map;
+  threading::parallel_invoke(
+      [&]() {
+        pinned_positions_map = compute_pinned_positions(state, world, applied_geometries, keys);
+      },
+      [&]() {
+        pinned_rotations_map = computed_pinned_rotations(state, world, applied_geometries, keys);
+      });
 
   const Map<SimPointsKey, SimPointsWorldProperties> sim_points_props =
       compute_sim_point_world_properties(
