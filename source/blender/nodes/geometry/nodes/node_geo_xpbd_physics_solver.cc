@@ -1900,35 +1900,52 @@ PROFILE_FUNCTION static void update_linear_velocities(XPBDState &state,
   }
 }
 
-PROFILE_FUNCTION static void update_angular_velocities(
-    XPBDState &state,
-    const VectorSet<SimPointsKey> &keys,
-    const Span<Array<math::Quaternion>> all_prev_rotations,
-    const float delta_time)
+PROFILE_FUNCTION static void update_linear_velocities(SimPoints &sim_points,
+                                                      const Span<float3> prev_positions,
+                                                      const IndexRange range,
+                                                      const float delta_time)
 {
   const float inv_delta_time = math::safe_rcp(delta_time);
-  for (const int key_i : keys.index_range()) {
-    SimPoints &sim_points = state.sim_points.lookup(keys[key_i]);
-    if (!sim_points.has_rotation) {
-      continue;
-    }
-    const Span<math::Quaternion> prev_rotations = all_prev_rotations[key_i];
-    const Span<math::Quaternion> new_rotations = sim_points.rotations;
-    MutableSpan<float3> angular_velocities = sim_points.angular_velocities;
-    threading::parallel_for(IndexRange(sim_points.points_num), 1024, [&](const IndexRange range) {
-      for (const int i : range) {
-        float3 diff =
-            (math::invert_normalized(prev_rotations[i]) * new_rotations[i]).imaginary_part();
-        for (const int j : IndexRange(3)) {
-          if (math::abs(diff[j]) < 1e-5f) {
-            diff[j] = 0.0f;
-          }
-        }
+  Span<float3> new_positions = sim_points.positions;
+  MutableSpan<float3> velocities = sim_points.velocities;
+  for (const int i : range) {
+    const float3 &prev_position = prev_positions[i];
+    const float3 &new_position = new_positions[i];
+    const float3 diff = new_position - prev_position;
+    const float3 velocity = diff * inv_delta_time;
+    velocities[i] = velocity;
+  }
+}
 
-        const float3 new_angular_velocity = 2.0f * diff * inv_delta_time;
-        angular_velocities[i] = new_angular_velocity;
+PROFILE_FUNCTION static void update_angular_velocities(SimPoints &sim_points,
+                                                       const Span<math::Quaternion> prev_rotations,
+                                                       const IndexRange range,
+                                                       const float delta_time)
+{
+  const float inv_delta_time = math::safe_rcp(delta_time);
+  const Span<math::Quaternion> new_rotations = sim_points.rotations;
+  MutableSpan<float3> angular_velocities = sim_points.angular_velocities;
+  for (const int i : range) {
+    float3 diff = (math::invert_normalized(prev_rotations[i]) * new_rotations[i]).imaginary_part();
+    for (const int j : IndexRange(3)) {
+      if (math::abs(diff[j]) < 1e-5f) {
+        diff[j] = 0.0f;
       }
-    });
+    }
+    const float3 new_angular_velocity = 2.0f * diff * inv_delta_time;
+    angular_velocities[i] = new_angular_velocity;
+  }
+}
+
+static void post_solve_per_point_steps(SimPoints &sim_points,
+                                       const IndexRange range,
+                                       const Span<float3> prev_positions,
+                                       const Span<math::Quaternion> prev_rotations,
+                                       const float delta_time)
+{
+  update_linear_velocities(sim_points, prev_positions, range, delta_time);
+  if (sim_points.has_rotation) {
+    update_angular_velocities(sim_points, prev_rotations, range, delta_time);
   }
 }
 
@@ -2263,10 +2280,20 @@ PROFILE_FUNCTION static void update_and_step_xpbd_state(XPBDState &state,
     if (sub_delta_time > 0.0f) {
       /* Apply friction by updating current positions before the new velocity is computed. */
       apply_friction(state, contacts, keys, all_prev_positions);
-      /* Update velocities based on previous and new positions. */
-      update_linear_velocities(state, keys, all_prev_positions, sub_delta_time);
-      /* Update angular velocities based on previous and new rotations. */
-      update_angular_velocities(state, keys, all_prev_rotations, sub_delta_time);
+
+      threading::parallel_for(keys.index_range(), 1, [&](const IndexRange range) {
+        for (const int key_i : range) {
+          SimPoints &sim_points = state.sim_points.lookup(keys[key_i]);
+          threading::parallel_for(
+              IndexRange(sim_points.points_num), 1024, [&](const IndexRange range) {
+                post_solve_per_point_steps(sim_points,
+                                           range,
+                                           all_prev_positions[key_i],
+                                           all_prev_rotations[key_i],
+                                           sub_delta_time);
+              });
+        }
+      });
     }
   }
 
