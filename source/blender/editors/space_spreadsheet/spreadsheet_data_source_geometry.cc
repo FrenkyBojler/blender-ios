@@ -2,6 +2,8 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include <fmt/format.h>
+
 #include "BLI_listbase.h"
 #include "BLI_math_matrix.hh"
 #include "BLI_virtual_array.hh"
@@ -680,7 +682,21 @@ std::unique_ptr<ColumnValues> BundleDataSource::get_column_values(
               const nodes::BundleItemValue &value = *items[index];
               if (const auto *socket_value = std::get_if<nodes::BundleItemSocketValue>(
                       &value.value)) {
-                return socket_value->type->label;
+                const bke::SocketValueVariant &value_variant = socket_value->value;
+                const StringRef type_name = IFACE_(socket_value->type->label);
+                if (value_variant.is_single()) {
+                  return type_name;
+                }
+                if (value_variant.is_context_dependent_field()) {
+                  return fmt::format("{} {}", type_name, IFACE_("Field"));
+                }
+                if (value_variant.is_volume_grid()) {
+                  return fmt::format("{} {}", type_name, IFACE_("Grid"));
+                }
+                if (value_variant.is_list()) {
+                  return fmt::format("{} {}", type_name, IFACE_("List"));
+                }
+                return type_name;
               }
               if (const auto *internal_value = std::get_if<nodes::BundleItemInternalValue>(
                       &value.value)) {
