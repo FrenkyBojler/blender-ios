@@ -600,6 +600,16 @@ Copyright (c) 2003, 2007-14 Matteo Frigo.
 Copyright (c) 2003, 2007-14 Massachusetts Institute of Technology
 ]=])
 
+set(RUBBERBAND_VERSION 4.0.0)
+set(RUBBERBAND_NAME rubberband)
+set(RUBBERBAND_URI https://breakfastquay.com/files/releases/rubberband-${RUBBERBAND_VERSION}.tar.bz2)
+set(RUBBERBAND_HASH 93bf3159eb91048e76eba35cf1bf766f)
+set(RUBBERBAND_HASH_TYPE MD5)
+set(RUBBERBAND_FILE rubberband-${RUBBERBAND_VERSION}.tar.bz2)
+set(RUBBERBAND_HOMEPAGE https://breakfastquay.com/rubberband/)
+set(RUBBERBAND_LICENSE SPDX:GPL-2.0-or-later)
+set(RUBBERBAND_COPYRIGHT "Copyright (c) 2025 Particular Programs Ltd")
+
 set(ICONV_VERSION 1.16)
 set(ICONV_URI http://ftp.gnu.org/pub/gnu/libiconv/libiconv-${ICONV_VERSION}.tar.gz)
 set(ICONV_HASH 7d2a800b952942bb2880efb00cfd524c)

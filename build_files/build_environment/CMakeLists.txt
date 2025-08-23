@@ -184,6 +184,7 @@ include(cmake/spirv-reflect.cmake)
 include(cmake/pybind11.cmake)
 include(cmake/nanobind.cmake)
 include(cmake/manifold.cmake)
+include(cmake/rubberband.cmake)
 # Keep these last.
 include(cmake/deps_html.cmake)
 include(cmake/cve_check.cmake)
