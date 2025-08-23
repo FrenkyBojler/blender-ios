@@ -2036,7 +2036,7 @@ PROFILE_FUNCTION static Map<SimPointsKey, PinnedPositions> compute_pinned_positi
   return result;
 }
 
-PROFILE_FUNCTION static Map<SimPointsKey, PinnedRotations> computed_pinned_rotations(
+PROFILE_FUNCTION static Map<SimPointsKey, PinnedRotations> compute_pinned_rotations(
     const XPBDState &state,
     const WorldData &world,
     const Span<GeometrySet> applied_geometries,
@@ -2268,7 +2268,7 @@ PROFILE_FUNCTION static void update_and_step_xpbd_state(XPBDState &state,
         pinned_positions_map = compute_pinned_positions(state, world, applied_geometries, keys);
       },
       [&]() {
-        pinned_rotations_map = computed_pinned_rotations(state, world, applied_geometries, keys);
+        pinned_rotations_map = compute_pinned_rotations(state, world, applied_geometries, keys);
       });
 
   const Map<SimPointsKey, SimPointsWorldProperties> sim_points_props =
