@@ -75,6 +75,7 @@ bool sequencer_retiming_mode_is_active(const bContext *C);
  * \return collection of strips (`Strip`)
  */
 blender::VectorSet<Strip *> selected_strips_from_context(bContext *C);
+/* Returns the active strip if it's in the active seqbase. */
 Strip *active_strip_from_context(bContext *C);
 bool active_strip_pair_from_context(bContext *C, Strip **r_strip_act, Strip **r_strip_other);
 
