@@ -62,17 +62,17 @@ Vector<IndexMask> n_ary_constraints_to_independent_masks_multi(
 }
 
 void solve_gauss_seidel_one_at_a_time(const Span<GeometryRef> geometry_refs,
-                                      const Span<const ConstraintSet *> constraint_sets)
+                                      const Span<ConstraintSet *> constraint_sets)
 {
   ConstraintSetParams params{geometry_refs};
   GaussSeidelUpdater updater{geometry_refs};
-  for (const ConstraintSet *constraint_set : constraint_sets) {
+  for (ConstraintSet *constraint_set : constraint_sets) {
     constraint_set->evaluate_gauss_seidel_one_at_a_time(updater, params);
   }
 }
 
 void solve_jacobian_non_deterministic(const Span<GeometryRef> geometry_refs,
-                                      const Span<const ConstraintSet *> constraint_sets)
+                                      const Span<ConstraintSet *> constraint_sets)
 {
   using Item = NonDeterministicJacobianUpdater::Item;
   ConstraintSetParams params{geometry_refs};
@@ -88,7 +88,7 @@ void solve_jacobian_non_deterministic(const Span<GeometryRef> geometry_refs,
   threading::parallel_for(
       constraint_sets.index_range(), 1, [&](const IndexRange constraint_sets_range) {
         for (const int constraint_set_i : constraint_sets_range) {
-          const ConstraintSet *constraint_set = constraint_sets[constraint_set_i];
+          ConstraintSet *constraint_set = constraint_sets[constraint_set_i];
           constraint_set->evaluate_jacobian_non_deterministic_parallel(updater, params);
         }
       });
@@ -124,13 +124,13 @@ void solve_jacobian_non_deterministic(const Span<GeometryRef> geometry_refs,
 }
 
 void solve_gauss_seidel_parallel(const Span<GeometryRef> geometry_refs,
-                                 const Span<const ConstraintSet *> constraint_sets)
+                                 const Span<ConstraintSet *> constraint_sets)
 {
   ConstraintSetParams params{geometry_refs};
-  MultiValueMap<int, const ConstraintSet *> single_target_constraints_by_geo_index;
-  Vector<const ConstraintSet *> multi_target_constraints;
+  MultiValueMap<int, ConstraintSet *> single_target_constraints_by_geo_index;
+  Vector<ConstraintSet *> multi_target_constraints;
 
-  for (const ConstraintSet *constraint_set : constraint_sets) {
+  for (ConstraintSet *constraint_set : constraint_sets) {
     const Span<int> affected_geo_refs = constraint_set->get_affected_geo_indices();
     if (affected_geo_refs.is_empty()) {
       continue;
@@ -144,8 +144,8 @@ void solve_gauss_seidel_parallel(const Span<GeometryRef> geometry_refs,
     }
   }
 
-  Vector<Span<const ConstraintSet *>> single_target_constraint_sets;
-  for (const Span<const ConstraintSet *> constraint_sets :
+  Vector<Span<ConstraintSet *>> single_target_constraint_sets;
+  for (const Span<ConstraintSet *> constraint_sets :
        single_target_constraints_by_geo_index.values())
   {
     single_target_constraint_sets.append(constraint_sets);
@@ -158,13 +158,13 @@ void solve_gauss_seidel_parallel(const Span<GeometryRef> geometry_refs,
         for (const int i : range) {
           /* These constraint sets have to be evaluated serially because they effect the same
            * points.*/
-          for (const ConstraintSet *constraint_set : single_target_constraint_sets[i]) {
+          for (ConstraintSet *constraint_set : single_target_constraint_sets[i]) {
             constraint_set->evaluate_gauss_seidel_parallel(updater, params);
           }
         }
       });
 
-  for (const ConstraintSet *constraint_set : multi_target_constraints) {
+  for (ConstraintSet *constraint_set : multi_target_constraints) {
     constraint_set->evaluate_gauss_seidel_parallel(updater, params);
   }
 }

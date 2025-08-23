@@ -114,7 +114,7 @@ class ConstraintSet {
    * mainly meant for debugging purposes.
    */
   virtual void evaluate_gauss_seidel_one_at_a_time(GaussSeidelUpdater &updater,
-                                                   ConstraintSetParams &params) const = 0;
+                                                   ConstraintSetParams &params) = 0;
 
   /**
    * Evaluates the constraints in parallel if possible. Internally, it may use
@@ -122,14 +122,14 @@ class ConstraintSet {
    * sets that can be solved in parallel.
    */
   virtual void evaluate_gauss_seidel_parallel(GaussSeidelUpdater &updater,
-                                              ConstraintSetParams &params) const = 0;
+                                              ConstraintSetParams &params) = 0;
 
   /**
    * Evaluates the constraints in parallel.
    * TODO: Replace this with a deterministic Jacobian solver.
    */
   virtual void evaluate_jacobian_non_deterministic_parallel(
-      NonDeterministicJacobianUpdater &updater, ConstraintSetParams &params) const = 0;
+      NonDeterministicJacobianUpdater &updater, ConstraintSetParams &params) = 0;
 
   Span<int> get_affected_geo_indices() const;
 };
@@ -139,20 +139,20 @@ class ConstraintSet {
  * any parallelism.
  */
 void solve_gauss_seidel_one_at_a_time(Span<GeometryRef> geometry_refs,
-                                      Span<const ConstraintSet *> constraint_sets);
+                                      Span<ConstraintSet *> constraint_sets);
 
 /**
  * Fully parallel Jacobian solver, but it is not deterministic. This is mainly for testing
  * purposes.
  */
 void solve_jacobian_non_deterministic(Span<GeometryRef> geometry_refs,
-                                      Span<const ConstraintSet *> constraint_sets);
+                                      Span<ConstraintSet *> constraint_sets);
 
 /**
  * A Gauss Seidel solver that attempts to parallelize the evaluation of constraints.
  */
 void solve_gauss_seidel_parallel(Span<GeometryRef> geometry_refs,
-                                 Span<const ConstraintSet *> constraint_sets);
+                                 Span<ConstraintSet *> constraint_sets);
 
 /* -------------------------------------------------------------------- */
 /** \name Inline Functions

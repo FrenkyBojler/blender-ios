@@ -1815,7 +1815,7 @@ static void remove_unused_states(XPBDState &state)
 
 static void solve_constraints(const SolverType solver_type,
                               const Span<xpbd::GeometryRef> geometry_refs,
-                              const Span<const xpbd::ConstraintSet *> constraint_sets)
+                              const Span<xpbd::ConstraintSet *> constraint_sets)
 {
   switch (solver_type) {
     case SolverType::SerialGaussSeidel: {
@@ -2231,7 +2231,7 @@ static void update_and_step_xpbd_state(XPBDState &state,
         scope, contacts, keys, sub_delta_time, dynamic_constraint_sets);
 
     /* Combine static and dynamic constraint sets. */
-    const Vector<const xpbd::ConstraintSet *> current_constraint_sets =
+    const Vector<xpbd::ConstraintSet *> current_constraint_sets =
         xpbd::ConstraintSetCollector::combine(scope,
                                               {&static_constraint_sets, &dynamic_constraint_sets});
 

@@ -33,11 +33,11 @@ template<typename Child> class TemplatedConstraintSet : public ConstraintSet {
   TemplatedConstraintSet(int constraints_num, Vector<int> affected_geo_indices);
 
   void evaluate_jacobian_non_deterministic_parallel(NonDeterministicJacobianUpdater &updater,
-                                                    ConstraintSetParams &params) const override;
+                                                    ConstraintSetParams &params) override;
   void evaluate_gauss_seidel_parallel(GaussSeidelUpdater &updater,
-                                      ConstraintSetParams &params) const override;
+                                      ConstraintSetParams &params) override;
   void evaluate_gauss_seidel_one_at_a_time(GaussSeidelUpdater &updater,
-                                           ConstraintSetParams &params) const override;
+                                           ConstraintSetParams &params) override;
 
   Span<IndexMask> get_independent_masks() const;
 
@@ -68,14 +68,14 @@ class CurveLocalConstraintSet {
 
   virtual void evaluate_gauss_seidel_one_at_a_time(GaussSeidelUpdater &updater,
                                                    ConstraintSetParams &params,
-                                                   IndexRange curves_range) const = 0;
+                                                   IndexRange curves_range) = 0;
   virtual void evaluate_gauss_seidel_parallel(GaussSeidelUpdater &updater,
                                               ConstraintSetParams &params,
-                                              IndexRange curves_range) const = 0;
+                                              IndexRange curves_range) = 0;
   virtual void evaluate_jacobian_non_deterministic_parallel(
       NonDeterministicJacobianUpdater &updater,
       ConstraintSetParams &params,
-      IndexRange curves_range) const = 0;
+      IndexRange curves_range) = 0;
 
   int affected_geo_i() const
   {
@@ -97,7 +97,7 @@ template<typename Child> class TemplatedCurveLocalConstraintSet : public CurveLo
 
   void evaluate_gauss_seidel_one_at_a_time(GaussSeidelUpdater &updater,
                                            ConstraintSetParams &params,
-                                           IndexRange curves_range) const override
+                                           IndexRange curves_range) override
   {
     const Child &self = static_cast<const Child &>(*this);
     for (const int curve_i : curves_range) {
@@ -107,7 +107,7 @@ template<typename Child> class TemplatedCurveLocalConstraintSet : public CurveLo
 
   void evaluate_gauss_seidel_parallel(GaussSeidelUpdater &updater,
                                       ConstraintSetParams &params,
-                                      IndexRange curves_range) const override
+                                      IndexRange curves_range) override
   {
     const Child &self = static_cast<const Child &>(*this);
     for (const int curve_i : curves_range) {
@@ -117,7 +117,7 @@ template<typename Child> class TemplatedCurveLocalConstraintSet : public CurveLo
 
   void evaluate_jacobian_non_deterministic_parallel(NonDeterministicJacobianUpdater &updater,
                                                     ConstraintSetParams &params,
-                                                    IndexRange curves_range) const override
+                                                    IndexRange curves_range) override
   {
     const Child &self = static_cast<const Child &>(*this);
     for (const int curve_i : curves_range) {
@@ -133,50 +133,49 @@ template<typename Child> class TemplatedCurveLocalConstraintSet : public CurveLo
 
 class CurveLocalConstraintSets : public ConstraintSet {
  private:
-  Vector<const CurveLocalConstraintSet *> constraint_sets_;
+  Vector<CurveLocalConstraintSet *> constraint_sets_;
   OffsetIndices<int> points_by_curve_;
 
  public:
-  CurveLocalConstraintSets(const int geo_i,
-                           Vector<const CurveLocalConstraintSet *> constraint_sets)
+  CurveLocalConstraintSets(const int geo_i, Vector<CurveLocalConstraintSet *> constraint_sets)
       : ConstraintSet({geo_i}), constraint_sets_(std::move(constraint_sets))
   {
     if (!constraint_sets_.is_empty()) {
       points_by_curve_ = constraint_sets_[0]->points_by_curve();
     }
 #ifndef NDEBUG
-    for (const CurveLocalConstraintSet *constraint_set : constraint_sets_) {
+    for (CurveLocalConstraintSet *constraint_set : constraint_sets_) {
       BLI_assert(constraint_set->affected_geo_i() == geo_i);
     }
 #endif
   }
 
   void evaluate_gauss_seidel_one_at_a_time(GaussSeidelUpdater &updater,
-                                           ConstraintSetParams &params) const override
+                                           ConstraintSetParams &params) override
   {
     const int curves_num = points_by_curve_.size();
-    for (const CurveLocalConstraintSet *constraint_set : constraint_sets_) {
+    for (CurveLocalConstraintSet *constraint_set : constraint_sets_) {
       constraint_set->evaluate_gauss_seidel_one_at_a_time(updater, params, IndexRange(curves_num));
     }
   }
 
   void evaluate_gauss_seidel_parallel(GaussSeidelUpdater &updater,
-                                      ConstraintSetParams &params) const override
+                                      ConstraintSetParams &params) override
   {
     const int curves_num = points_by_curve_.size();
     threading::parallel_for(IndexRange(curves_num), 256, [&](const IndexRange range) {
-      for (const CurveLocalConstraintSet *constraint_set : constraint_sets_) {
+      for (CurveLocalConstraintSet *constraint_set : constraint_sets_) {
         constraint_set->evaluate_gauss_seidel_parallel(updater, params, range);
       }
     });
   }
 
   void evaluate_jacobian_non_deterministic_parallel(NonDeterministicJacobianUpdater &updater,
-                                                    ConstraintSetParams &params) const override
+                                                    ConstraintSetParams &params) override
   {
     const int curves_num = points_by_curve_.size();
     threading::parallel_for(IndexRange(curves_num), 256, [&](const IndexRange range) {
-      for (const CurveLocalConstraintSet *constraint_set : constraint_sets_) {
+      for (CurveLocalConstraintSet *constraint_set : constraint_sets_) {
         constraint_set->evaluate_jacobian_non_deterministic_parallel(updater, params, range);
       }
     });
@@ -196,24 +195,24 @@ Vector<IndexMask> n_ary_constraints_to_independent_masks_multi(
 
 class ConstraintSetCollector {
  public:
-  Vector<const ConstraintSet *> general;
-  Vector<const CurveLocalConstraintSet *> curve_local;
+  Vector<ConstraintSet *> general;
+  Vector<CurveLocalConstraintSet *> curve_local;
 
-  static Vector<const ConstraintSet *> combine(ResourceScope &scope,
-                                               const Span<ConstraintSetCollector *> collectors)
+  static Vector<ConstraintSet *> combine(ResourceScope &scope,
+                                         const Span<ConstraintSetCollector *> collectors)
   {
-    Vector<const ConstraintSet *> result;
-    MultiValueMap<int, const CurveLocalConstraintSet *> curve_local_constraint_sets_by_geometry;
+    Vector<ConstraintSet *> result;
+    MultiValueMap<int, CurveLocalConstraintSet *> curve_local_constraint_sets_by_geometry;
     for (const ConstraintSetCollector *collector : collectors) {
       result.extend(collector->general);
-      for (const CurveLocalConstraintSet *curve_local_constraint_set : collector->curve_local) {
+      for (CurveLocalConstraintSet *curve_local_constraint_set : collector->curve_local) {
         const int geo_i = curve_local_constraint_set->affected_geo_i();
         curve_local_constraint_sets_by_geometry.add(geo_i, curve_local_constraint_set);
       }
     }
     for (const auto item : curve_local_constraint_sets_by_geometry.items()) {
       const int geo_i = item.key;
-      const Span<const CurveLocalConstraintSet *> local_constraint_sets = item.value;
+      const Span<CurveLocalConstraintSet *> local_constraint_sets = item.value;
       auto &combined_set = scope.construct<CurveLocalConstraintSets>(geo_i, local_constraint_sets);
       result.append(&combined_set);
     }
@@ -297,7 +296,7 @@ inline TemplatedConstraintSet<Child>::TemplatedConstraintSet(int constraints_num
 
 template<typename Child>
 inline void TemplatedConstraintSet<Child>::evaluate_jacobian_non_deterministic_parallel(
-    NonDeterministicJacobianUpdater &updater, ConstraintSetParams &params) const
+    NonDeterministicJacobianUpdater &updater, ConstraintSetParams &params)
 {
   const Child &self = static_cast<const Child &>(*this);
   threading::parallel_for(IndexRange(constraints_num_), grain_size_, [&](const IndexRange range) {
@@ -309,7 +308,7 @@ inline void TemplatedConstraintSet<Child>::evaluate_jacobian_non_deterministic_p
 
 template<typename Child>
 inline void TemplatedConstraintSet<Child>::evaluate_gauss_seidel_parallel(
-    GaussSeidelUpdater &updater, ConstraintSetParams &params) const
+    GaussSeidelUpdater &updater, ConstraintSetParams &params)
 {
   const Child &self = static_cast<const Child &>(*this);
   const Span<IndexMask> constraint_masks = this->get_independent_masks();
@@ -323,7 +322,7 @@ inline void TemplatedConstraintSet<Child>::evaluate_gauss_seidel_parallel(
 
 template<typename Child>
 inline void TemplatedConstraintSet<Child>::evaluate_gauss_seidel_one_at_a_time(
-    GaussSeidelUpdater &updater, ConstraintSetParams &params) const
+    GaussSeidelUpdater &updater, ConstraintSetParams &params)
 {
   const Child &self = static_cast<const Child &>(*this);
   for (const int constraint_i : IndexRange(constraints_num_)) {
