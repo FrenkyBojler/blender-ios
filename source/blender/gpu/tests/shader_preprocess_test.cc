@@ -567,7 +567,7 @@ int func2(int a)
 )";
     string expect = R"(
 
-struct A_S {};
+struct A_S {int _pad;};
 #line 4
 int A_func(int a)
 {
@@ -705,7 +705,7 @@ void test() {
     string expect = R"(
 
 void A_B_func() {}
-struct A_B_S {};
+struct A_B_S {int _pad;};
 #line 5
 
 
@@ -948,8 +948,7 @@ uint my_func() {
   return i;
 #else
 #line 3
-  uint result;
-  return result;
+  return uint(0);
 #endif
 #line 6
 }
@@ -1033,10 +1032,21 @@ static void test_preprocess_empty_struct()
     string input = R"(
 class S {};
 struct T {};
+struct U {
+  static void fn() {}
+};
 )";
     string expect = R"(
-class S {int _pad;};
+struct S {int _pad;};
+#line 3
 struct T {int _pad;};
+#line 4
+struct U {
+
+int _pad;};
+#line 5
+  static void U_fn() {}
+#line 7
 )";
     string error;
     string output = process_test_string(input, error);
