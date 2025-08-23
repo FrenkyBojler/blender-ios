@@ -2405,7 +2405,7 @@ static bool do_lasso_select_timeline(bContext *C,
   return changed;
 }
 
-static bool do_lasso_select_vse(bContext *C, const Span<int2> mcoords, const eSelectOp sel_op)
+static bool do_lasso_select_preview(bContext *C, const Span<int2> mcoords, const eSelectOp sel_op)
 {
   Scene *scene = CTX_data_scene(C);
   Editing *ed = seq::editing_get(scene);
@@ -2463,13 +2463,11 @@ static wmOperatorStatus vse_lasso_select_exec(bContext *C, wmOperator *op)
   }
 
   if (region->regiontype == RGN_TYPE_PREVIEW) {
-    changed = do_lasso_select_vse(C, mcoords, sel_op);
+    changed = do_lasso_select_preview(C, mcoords, sel_op);
   }
   else {
     changed = do_lasso_select_timeline(C, mcoords, region, sel_op);
   }
-
-  /* Timeline */
 
   if (changed) {
     sequencer_select_do_updates(C, scene);
