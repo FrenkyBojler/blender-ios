@@ -32,40 +32,7 @@ template<typename Child> class TemplatedConstraintSet : public ConstraintSet {
  public:
   TemplatedConstraintSet(int constraints_num, Vector<int> affected_geo_indices);
 
-  void solve_step(SolveStrategy &strategy, ConstraintSetParams &params) override
-  {
-    const Child &self = static_cast<const Child &>(*this);
-    switch (strategy.type) {
-      case SolveStrategyType::GaussSeidelOneAtATime: {
-        auto &updater = std::get<GaussSeidelUpdater>(strategy.updater);
-        for (const int constraint_i : IndexRange(constraints_num_)) {
-          self.evaluate_single(updater, params, constraint_i);
-        }
-        break;
-      }
-      case SolveStrategyType::GaussSeidelParallel: {
-        auto &updater = std::get<GaussSeidelUpdater>(strategy.updater);
-        const Span<IndexMask> constraint_masks = this->get_independent_masks();
-        for (const int color_i : constraint_masks.index_range()) {
-          const IndexMask &constraint_mask = constraint_masks[color_i];
-          constraint_mask.foreach_index(GrainSize(grain_size_), [&](const int constraint_i) {
-            self.evaluate_single(updater, params, constraint_i);
-          });
-        }
-        break;
-      }
-      case SolveStrategyType::JacobianNonDeterministic: {
-        auto &updater = std::get<NonDeterministicJacobianUpdater>(strategy.updater);
-        threading::parallel_for(
-            IndexRange(constraints_num_), grain_size_, [&](const IndexRange range) {
-              for (const int constraint_i : range) {
-                self.evaluate_single(updater, params, constraint_i);
-              }
-            });
-        break;
-      }
-    }
-  }
+  void solve_step(SolveStrategy &strategy, ConstraintSetParams &params) override;
 
   Span<IndexMask> get_independent_masks() const;
   virtual Vector<IndexMask> generate_independent_masks(IndexMaskMemory &memory) const = 0;
@@ -96,54 +63,19 @@ class CurveLocalConstraintSet {
   virtual void solve_step(SolveStrategy &strategy,
                           ConstraintSetParams &params,
                           IndexRange curves_range) = 0;
+  virtual int accumulated_task_size(IndexRange curves_range) const;
 
-  int affected_geo_i() const
-  {
-    return geo_i_;
-  }
-
-  OffsetIndices<int> points_by_curve() const
-  {
-    return points_by_curve_;
-  }
-
-  virtual int accumulated_task_size(const IndexRange curves_range) const
-  {
-    /* By default, assume that the task size is relative to the number of points in the curves. */
-    return points_by_curve_[curves_range].size();
-  }
+  int affected_geo_i() const;
+  OffsetIndices<int> points_by_curve() const;
 };
 
 template<typename Child> class TemplatedCurveLocalConstraintSet : public CurveLocalConstraintSet {
  public:
-  TemplatedCurveLocalConstraintSet(const int geo_i, const OffsetIndices<int> points_by_curve)
-      : CurveLocalConstraintSet(geo_i, points_by_curve)
-  {
-  }
+  TemplatedCurveLocalConstraintSet(const int geo_i, const OffsetIndices<int> points_by_curve);
 
   void solve_step(SolveStrategy &strategy,
                   ConstraintSetParams &params,
-                  IndexRange curves_range) override
-  {
-    Child &self = static_cast<Child &>(*this);
-    switch (strategy.type) {
-      case SolveStrategyType::GaussSeidelOneAtATime:
-      case SolveStrategyType::GaussSeidelParallel: {
-        auto &updater = std::get<GaussSeidelUpdater>(strategy.updater);
-        for (const int curve_i : curves_range) {
-          self.evaluate_curve(updater, params, curve_i);
-        }
-        break;
-      }
-      case SolveStrategyType::JacobianNonDeterministic: {
-        auto &updater = std::get<NonDeterministicJacobianUpdater>(strategy.updater);
-        for (const int curve_i : curves_range) {
-          self.evaluate_curve(updater, params, curve_i);
-        }
-        break;
-      }
-    }
-  }
+                  IndexRange curves_range) override;
 };
 
 class CurveLocalConstraintSets : public ConstraintSet {
@@ -152,52 +84,9 @@ class CurveLocalConstraintSets : public ConstraintSet {
   OffsetIndices<int> points_by_curve_;
 
  public:
-  CurveLocalConstraintSets(const int geo_i, Vector<CurveLocalConstraintSet *> constraint_sets)
-      : ConstraintSet({geo_i}), constraint_sets_(std::move(constraint_sets))
-  {
-    if (!constraint_sets_.is_empty()) {
-      points_by_curve_ = constraint_sets_[0]->points_by_curve();
-    }
-#ifndef NDEBUG
-    for (CurveLocalConstraintSet *constraint_set : constraint_sets_) {
-      BLI_assert(constraint_set->affected_geo_i() == geo_i);
-    }
-#endif
-  }
+  CurveLocalConstraintSets(int geo_i, Vector<CurveLocalConstraintSet *> constraint_sets);
 
-  void solve_step(SolveStrategy &strategy, ConstraintSetParams &params) override
-  {
-    const int curves_num = points_by_curve_.size();
-    switch (strategy.type) {
-      case SolveStrategyType::GaussSeidelOneAtATime: {
-        /* Solve constraints serially without any parallelism. */
-        for (CurveLocalConstraintSet *constraint_set : constraint_sets_) {
-          constraint_set->solve_step(strategy, params, IndexRange(curves_num));
-        }
-        break;
-      }
-      case SolveStrategyType::JacobianNonDeterministic:
-      case SolveStrategyType::GaussSeidelParallel: {
-        /* Evaluate constraints in parallel. */
-        threading::parallel_for(
-            IndexRange(curves_num),
-            256,
-            [&](const IndexRange range) {
-              for (CurveLocalConstraintSet *constraint_set : constraint_sets_) {
-                constraint_set->solve_step(strategy, params, range);
-              }
-            },
-            threading::accumulated_task_sizes([&](const IndexRange range) {
-              int cost = 0;
-              for (const CurveLocalConstraintSet *constraint_set : constraint_sets_) {
-                cost += constraint_set->accumulated_task_size(range);
-              }
-              return cost;
-            }));
-        break;
-      }
-    }
-  }
+  void solve_step(SolveStrategy &strategy, ConstraintSetParams &params) override;
 };
 
 Vector<IndexMask> unary_constraints_to_independent_masks(const Span<int> affected_points,
@@ -217,25 +106,7 @@ class ConstraintSetCollector {
   Vector<CurveLocalConstraintSet *> curve_local;
 
   static Vector<ConstraintSet *> combine(ResourceScope &scope,
-                                         const Span<ConstraintSetCollector *> collectors)
-  {
-    Vector<ConstraintSet *> result;
-    MultiValueMap<int, CurveLocalConstraintSet *> curve_local_constraint_sets_by_geometry;
-    for (const ConstraintSetCollector *collector : collectors) {
-      result.extend(collector->general);
-      for (CurveLocalConstraintSet *curve_local_constraint_set : collector->curve_local) {
-        const int geo_i = curve_local_constraint_set->affected_geo_i();
-        curve_local_constraint_sets_by_geometry.add(geo_i, curve_local_constraint_set);
-      }
-    }
-    for (const auto item : curve_local_constraint_sets_by_geometry.items()) {
-      const int geo_i = item.key;
-      const Span<CurveLocalConstraintSet *> local_constraint_sets = item.value;
-      auto &combined_set = scope.construct<CurveLocalConstraintSets>(geo_i, local_constraint_sets);
-      result.append(&combined_set);
-    }
-    return result;
-  }
+                                         const Span<ConstraintSetCollector *> collectors);
 };
 
 /* -------------------------------------------------------------------- */
@@ -310,6 +181,85 @@ inline TemplatedConstraintSet<Child>::TemplatedConstraintSet(int constraints_num
                                                              Vector<int> affected_geo_indices)
     : ConstraintSet(std::move(affected_geo_indices)), constraints_num_(constraints_num)
 {
+}
+
+template<typename Child>
+inline void TemplatedConstraintSet<Child>::solve_step(SolveStrategy &strategy,
+                                                      ConstraintSetParams &params)
+{
+  const Child &self = static_cast<const Child &>(*this);
+  switch (strategy.type) {
+    case SolveStrategyType::GaussSeidelOneAtATime: {
+      auto &updater = std::get<GaussSeidelUpdater>(strategy.updater);
+      for (const int constraint_i : IndexRange(constraints_num_)) {
+        self.evaluate_single(updater, params, constraint_i);
+      }
+      break;
+    }
+    case SolveStrategyType::GaussSeidelParallel: {
+      auto &updater = std::get<GaussSeidelUpdater>(strategy.updater);
+      const Span<IndexMask> constraint_masks = this->get_independent_masks();
+      for (const int color_i : constraint_masks.index_range()) {
+        const IndexMask &constraint_mask = constraint_masks[color_i];
+        constraint_mask.foreach_index(GrainSize(grain_size_), [&](const int constraint_i) {
+          self.evaluate_single(updater, params, constraint_i);
+        });
+      }
+      break;
+    }
+    case SolveStrategyType::JacobianNonDeterministic: {
+      auto &updater = std::get<NonDeterministicJacobianUpdater>(strategy.updater);
+      threading::parallel_for(
+          IndexRange(constraints_num_), grain_size_, [&](const IndexRange range) {
+            for (const int constraint_i : range) {
+              self.evaluate_single(updater, params, constraint_i);
+            }
+          });
+      break;
+    }
+  }
+}
+
+inline int CurveLocalConstraintSet::affected_geo_i() const
+{
+  return geo_i_;
+}
+
+inline OffsetIndices<int> CurveLocalConstraintSet::points_by_curve() const
+{
+  return points_by_curve_;
+}
+
+template<typename Child>
+inline TemplatedCurveLocalConstraintSet<Child>::TemplatedCurveLocalConstraintSet(
+    const int geo_i, const OffsetIndices<int> points_by_curve)
+    : CurveLocalConstraintSet(geo_i, points_by_curve)
+{
+}
+
+template<typename Child>
+void TemplatedCurveLocalConstraintSet<Child>::solve_step(SolveStrategy &strategy,
+                                                         ConstraintSetParams &params,
+                                                         IndexRange curves_range)
+{
+  Child &self = static_cast<Child &>(*this);
+  switch (strategy.type) {
+    case SolveStrategyType::GaussSeidelOneAtATime:
+    case SolveStrategyType::GaussSeidelParallel: {
+      auto &updater = std::get<GaussSeidelUpdater>(strategy.updater);
+      for (const int curve_i : curves_range) {
+        self.evaluate_curve(updater, params, curve_i);
+      }
+      break;
+    }
+    case SolveStrategyType::JacobianNonDeterministic: {
+      auto &updater = std::get<NonDeterministicJacobianUpdater>(strategy.updater);
+      for (const int curve_i : curves_range) {
+        self.evaluate_curve(updater, params, curve_i);
+      }
+      break;
+    }
+  }
 }
 
 /** \} */

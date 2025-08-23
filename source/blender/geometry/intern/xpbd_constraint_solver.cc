@@ -72,6 +72,81 @@ void solve_gauss_seidel_one_at_a_time(const Span<GeometryRef> geometry_refs,
   }
 }
 
+int CurveLocalConstraintSet::accumulated_task_size(const IndexRange curves_range) const
+{
+  /* By default, assume that the task size is relative to the number of points in the curves. */
+  return points_by_curve_[curves_range].size();
+}
+
+CurveLocalConstraintSets::CurveLocalConstraintSets(
+    const int geo_i, Vector<CurveLocalConstraintSet *> constraint_sets)
+    : ConstraintSet({geo_i}), constraint_sets_(std::move(constraint_sets))
+{
+  if (!constraint_sets_.is_empty()) {
+    points_by_curve_ = constraint_sets_[0]->points_by_curve();
+  }
+#ifndef NDEBUG
+  for (CurveLocalConstraintSet *constraint_set : constraint_sets_) {
+    BLI_assert(constraint_set->affected_geo_i() == geo_i);
+  }
+#endif
+}
+
+void CurveLocalConstraintSets::solve_step(SolveStrategy &strategy, ConstraintSetParams &params)
+{
+  const int curves_num = points_by_curve_.size();
+  switch (strategy.type) {
+    case SolveStrategyType::GaussSeidelOneAtATime: {
+      /* Solve constraints serially without any parallelism. */
+      for (CurveLocalConstraintSet *constraint_set : constraint_sets_) {
+        constraint_set->solve_step(strategy, params, IndexRange(curves_num));
+      }
+      break;
+    }
+    case SolveStrategyType::JacobianNonDeterministic:
+    case SolveStrategyType::GaussSeidelParallel: {
+      /* Evaluate constraints in parallel. */
+      threading::parallel_for(
+          IndexRange(curves_num),
+          256,
+          [&](const IndexRange range) {
+            for (CurveLocalConstraintSet *constraint_set : constraint_sets_) {
+              constraint_set->solve_step(strategy, params, range);
+            }
+          },
+          threading::accumulated_task_sizes([&](const IndexRange range) {
+            int cost = 0;
+            for (const CurveLocalConstraintSet *constraint_set : constraint_sets_) {
+              cost += constraint_set->accumulated_task_size(range);
+            }
+            return cost;
+          }));
+      break;
+    }
+  }
+}
+
+Vector<ConstraintSet *> ConstraintSetCollector::combine(
+    ResourceScope &scope, const Span<ConstraintSetCollector *> collectors)
+{
+  Vector<ConstraintSet *> result;
+  MultiValueMap<int, CurveLocalConstraintSet *> curve_local_constraint_sets_by_geometry;
+  for (const ConstraintSetCollector *collector : collectors) {
+    result.extend(collector->general);
+    for (CurveLocalConstraintSet *curve_local_constraint_set : collector->curve_local) {
+      const int geo_i = curve_local_constraint_set->affected_geo_i();
+      curve_local_constraint_sets_by_geometry.add(geo_i, curve_local_constraint_set);
+    }
+  }
+  for (const auto item : curve_local_constraint_sets_by_geometry.items()) {
+    const int geo_i = item.key;
+    const Span<CurveLocalConstraintSet *> local_constraint_sets = item.value;
+    auto &combined_set = scope.construct<CurveLocalConstraintSets>(geo_i, local_constraint_sets);
+    result.append(&combined_set);
+  }
+  return result;
+}
+
 void solve_jacobian_non_deterministic(const Span<GeometryRef> geometry_refs,
                                       const Span<ConstraintSet *> constraint_sets)
 {
