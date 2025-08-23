@@ -42,9 +42,6 @@ void transverts_from_curves_positions_create(bke::CurvesGeometry &curves,
 {
   const Span<StringRef> selection_names = ed::curves::get_curves_selection_attribute_names(curves);
 
-  const Array<int> point_to_curve_map = curves.point_to_curve_map();
-  const VArray<int8_t> types = curves.curve_types();
-
   IndexMaskMemory memory;
   std::array<IndexMask, 3> selection;
   if (selection_names.size() == 1) {
