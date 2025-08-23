@@ -15,6 +15,8 @@
 
 #include "BKE_instances.hh"
 
+#include "NOD_geometry_nodes_bundle.hh"
+
 #include "spreadsheet_column_values.hh"
 #include "spreadsheet_data_source_geometry.hh"
 #include "spreadsheet_layout.hh"
@@ -295,6 +297,22 @@ class SpreadsheetLayoutDrawer : public SpreadsheetDrawer {
           MEM_freeN);
       return;
     }
+    if (type.is<nodes::BundleItemValue>()) {
+      const nodes::BundleItemValue &value = *value_ptr.get<nodes::BundleItemValue>();
+      if (const nodes::BundleItemSocketValue *socket_value =
+              std::get_if<nodes::BundleItemSocketValue>(&value.value))
+      {
+        const bke::SocketValueVariant &value_variant = socket_value->value;
+        if (value_variant.is_single()) {
+          const GPointer single_value_ptr = value_variant.get_single_ptr();
+          this->draw_content_cell_value(single_value_ptr, params);
+          return;
+        }
+      }
+      this->draw_undrawable(params);
+      return;
+    }
+    this->draw_undrawable(params);
   }
 
   void draw_float_vector(const CellDrawParams &params, const Span<float> values) const
@@ -408,17 +426,7 @@ class SpreadsheetLayoutDrawer : public SpreadsheetDrawer {
 
   void draw_float4x4(const CellDrawParams &params, const float4x4 &value) const
   {
-    uiBut *but = uiDefIconTextBut(params.block,
-                                  ButType::Label,
-                                  0,
-                                  ICON_NONE,
-                                  "...",
-                                  params.xmin,
-                                  params.ymin,
-                                  params.width,
-                                  params.height,
-                                  nullptr,
-                                  std::nullopt);
+    uiBut *but = this->draw_undrawable(params);
     /* Center alignment. */
     UI_but_drawflag_disable(but, UI_BUT_TEXT_LEFT);
     UI_but_func_tooltip_set(
@@ -435,6 +443,24 @@ class SpreadsheetLayoutDrawer : public SpreadsheetDrawer {
         },
         MEM_dupallocN<float4x4>(__func__, value),
         MEM_freeN);
+  }
+
+  uiBut *draw_undrawable(const CellDrawParams &params) const
+  {
+    uiBut *but = uiDefIconTextBut(params.block,
+                                  ButType::Label,
+                                  0,
+                                  ICON_NONE,
+                                  "...",
+                                  params.xmin,
+                                  params.ymin,
+                                  params.width,
+                                  params.height,
+                                  nullptr,
+                                  std::nullopt);
+    /* Center alignment. */
+    UI_but_drawflag_disable(but, UI_BUT_TEXT_LEFT);
+    return but;
   }
 
   int column_width(int column_index) const final
@@ -593,6 +619,9 @@ float ColumnValues::fit_column_values_width_px(const std::optional<int64_t> &max
             [](const MStringProperty &value) { return StringRef(value.s, value.s_len); });
       }
       break;
+    }
+    case SPREADSHEET_VALUE_TYPE_BUNDLE_ITEM: {
+      return 12 * SPREADSHEET_WIDTH_UNIT;
     }
     case SPREADSHEET_VALUE_TYPE_UNKNOWN: {
       break;
