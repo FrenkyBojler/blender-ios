@@ -566,6 +566,9 @@ float ColumnValues::fit_column_values_width_px(const std::optional<int64_t> &max
       }
       break;
     }
+    case SPREADSHEET_VALUE_TYPE_BUNDLE_ITEM: {
+      return get_min_width(12 * SPREADSHEET_WIDTH_UNIT);
+    }
     case SPREADSHEET_VALUE_TYPE_UNKNOWN: {
       break;
     }
