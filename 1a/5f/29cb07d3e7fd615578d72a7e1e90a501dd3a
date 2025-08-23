@@ -1,3 +1,4 @@
 Referenced by issue #78971, Viewport render image not showing edge length and related info
 Referenced by issue #131760, Viewport text (object/bone names, motion path keyframe numbers, ...) is not rendered with viewport rendering
 Referenced by issue #93361, Some Overlays are not rendered in Viewport Render (Text Info incl object name, Statistics, 3D Cursor)
+Referenced by issue #145027, Geometry Nodes: Attribute Text in Viewport Overlay not visible
