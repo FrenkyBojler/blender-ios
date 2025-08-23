@@ -326,7 +326,7 @@ class XPBDStateOwner : public BundleItemInternalValueMixin {
 };
 using XPBDStateOwnerPtr = ImplicitSharingPtr<XPBDStateOwner>;
 
-struct WorldData {
+struct WorldBundles {
   struct SelfPathGetter {
     StringRefNull operator()(const NestedBundleCommon &bundle)
     {
@@ -390,7 +390,7 @@ static AttrDomain get_simulation_domain(const bke::GeometryComponent::Type type)
 template<typename T>
 static void parse_bundle(HandleNestedBundleParams &params,
                          BundleParseErrors errors,
-                         WorldData::BundleVectorSet<T> &r_bundles)
+                         WorldBundles::BundleVectorSet<T> &r_world_bundles)
 {
   if (params.type != T::name) {
     return;
@@ -400,33 +400,33 @@ static void parse_bundle(HandleNestedBundleParams &params,
     return;
   }
   parsed_bundle->self_path = Bundle::combine_path(params.path);
-  r_bundles.add_new(std::move(*parsed_bundle));
+  r_world_bundles.add_new(std::move(*parsed_bundle));
 }
 
-PROFILE_FUNCTION static WorldData parse_world(const Bundle &world_bundle)
+PROFILE_FUNCTION static WorldBundles parse_world(const Bundle &world_bundle)
 {
-  WorldData world;
+  WorldBundles world_bundles;
   nested_bundle_foreach(world_bundle, [&](HandleNestedBundleParams &params) {
     BundleParseErrors errors;
-    parse_bundle(params, errors, world.forces);
-    parse_bundle(params, errors, world.gravities);
-    parse_bundle(params, errors, world.geometries);
-    parse_bundle(params, errors, world.edge_length_constraints);
-    parse_bundle(params, errors, world.curve_segment_constraints);
-    parse_bundle(params, errors, world.pinned_position_constraints);
-    parse_bundle(params, errors, world.infinite_ground_planes);
-    parse_bundle(params, errors, world.spherical_self_collision_constraints);
-    parse_bundle(params, errors, world.overpressure_constraints);
-    parse_bundle(params, errors, world.dampings);
-    parse_bundle(params, errors, world.torques);
-    parse_bundle(params, errors, world.pinned_rotation_constraints);
-    parse_bundle(params, errors, world.rod_stretch_and_shear_constraints);
-    parse_bundle(params, errors, world.rod_bend_and_twist_constraints);
-    parse_bundle(params, errors, world.align_position_constraints);
-    parse_bundle(params, errors, world.attach_uv_surface_constraints);
-    parse_bundle(params, errors, world.distance_based_bending_constraints);
+    parse_bundle(params, errors, world_bundles.forces);
+    parse_bundle(params, errors, world_bundles.gravities);
+    parse_bundle(params, errors, world_bundles.geometries);
+    parse_bundle(params, errors, world_bundles.edge_length_constraints);
+    parse_bundle(params, errors, world_bundles.curve_segment_constraints);
+    parse_bundle(params, errors, world_bundles.pinned_position_constraints);
+    parse_bundle(params, errors, world_bundles.infinite_ground_planes);
+    parse_bundle(params, errors, world_bundles.spherical_self_collision_constraints);
+    parse_bundle(params, errors, world_bundles.overpressure_constraints);
+    parse_bundle(params, errors, world_bundles.dampings);
+    parse_bundle(params, errors, world_bundles.torques);
+    parse_bundle(params, errors, world_bundles.pinned_rotation_constraints);
+    parse_bundle(params, errors, world_bundles.rod_stretch_and_shear_constraints);
+    parse_bundle(params, errors, world_bundles.rod_bend_and_twist_constraints);
+    parse_bundle(params, errors, world_bundles.align_position_constraints);
+    parse_bundle(params, errors, world_bundles.attach_uv_surface_constraints);
+    parse_bundle(params, errors, world_bundles.distance_based_bending_constraints);
   });
-  return world;
+  return world_bundles;
 }
 
 PROFILE_FUNCTION static void integrate_linear_velocities(SimPoints &sim_points,
@@ -766,22 +766,22 @@ static Vector<int> filter_sim_points_keys(const StringRef self_path,
 
 PROFILE_FUNCTION static Map<SimPointsKey, Span<float3>> compute_external_accelerations(
     ThreadLocalStorage &tls,
-    const WorldData &world,
+    const WorldBundles &world_bundles,
     const Span<SimPointsKey> keys,
     const Map<SimPointsKey, SimPointsWorldProperties> &sim_points_props,
     const Span<GeometrySet> applied_geometries)
 {
   ResourceScope &scope = tls.local_resource_scope();
   float3 gravity(0.0f);
-  for (const GravityBundle &gravity_bundle : world.gravities) {
+  for (const GravityBundle &gravity_bundle : world_bundles.gravities) {
     gravity = gravity_bundle.gravity;
   }
   Map<SimPointsKey, Span<float3>> accelerations_map;
   for (const SimPointsKey &sim_points_key : keys) {
-    const int geometry_i = world.geometries.index_of_as(sim_points_key.path);
+    const int geometry_i = world_bundles.geometries.index_of_as(sim_points_key.path);
     const GeometrySet &applied_geometry = applied_geometries[geometry_i];
     Vector<const ForceBundle *> used_forces = filter_bundles_for_path<ForceBundle>(
-        world.forces, sim_points_key.path);
+        world_bundles.forces, sim_points_key.path);
     const bke::GeometryComponent::Type type = sim_points_key.type;
     const bke::GeometryComponent *component = applied_geometry.get_component(type);
     if (!component) {
@@ -823,14 +823,14 @@ PROFILE_FUNCTION static Map<SimPointsKey, Span<float3>> compute_external_acceler
 PROFILE_FUNCTION static Map<SimPointsKey, Span<float3>> compute_external_torques(
     ThreadLocalStorage &tls,
     const XPBDState &state,
-    const WorldData &world,
+    const WorldBundles &world_bundles,
     const Span<SimPointsKey> keys,
     const Span<GeometrySet> applied_geometries)
 {
   ResourceScope &scope = tls.local_resource_scope();
   Map<SimPointsKey, Span<float3>> torques_map;
   for (const SimPointsKey &sim_points_key : keys) {
-    const int geometry_i = world.geometries.index_of_as(sim_points_key.path);
+    const int geometry_i = world_bundles.geometries.index_of_as(sim_points_key.path);
     const GeometrySet &applied_geometry = applied_geometries[geometry_i];
     const SimPoints &sim_points = state.sim_points.lookup(sim_points_key);
     if (!sim_points.has_rotation) {
@@ -841,7 +841,7 @@ PROFILE_FUNCTION static Map<SimPointsKey, Span<float3>> compute_external_torques
     if (!component) {
       continue;
     }
-    Vector used_torques = filter_bundles_for_path<TorqueBundle>(world.torques,
+    Vector used_torques = filter_bundles_for_path<TorqueBundle>(world_bundles.torques,
                                                                 sim_points_key.path);
     if (used_torques.is_empty()) {
       continue;
@@ -869,7 +869,7 @@ PROFILE_FUNCTION static Map<SimPointsKey, Span<float3>> compute_external_torques
 
 PROFILE_FUNCTION static Map<SimPointsKey, SimPointsWorldProperties>
 compute_sim_point_world_properties(ThreadLocalStorage &tls,
-                                   const WorldData &world,
+                                   const WorldBundles &world_bundles,
                                    const Span<SimPointsKey> keys,
                                    const Span<GeometrySet> applied_geometries,
                                    const Map<SimPointsKey, PinnedPositions> &pinned_positions_map,
@@ -878,8 +878,8 @@ compute_sim_point_world_properties(ThreadLocalStorage &tls,
   ResourceScope &scope = tls.local_resource_scope();
   Map<SimPointsKey, SimPointsWorldProperties> properties_map;
   for (const SimPointsKey &key : keys) {
-    const int geometry_i = world.geometries.index_of_as(key.path);
-    const XPBDGeometryBundle &geometry_bundle = world.geometries[geometry_i];
+    const int geometry_i = world_bundles.geometries.index_of_as(key.path);
+    const XPBDGeometryBundle &geometry_bundle = world_bundles.geometries[geometry_i];
     const GeometrySet &applied_geometry = applied_geometries[geometry_i];
     const PinnedPositions *pinned_positions = pinned_positions_map.lookup_ptr(key);
     const PinnedRotations *pinned_rotations = pinned_rotations_map.lookup_ptr(key);
@@ -944,7 +944,7 @@ compute_sim_point_world_properties(ThreadLocalStorage &tls,
           });
     }
 
-    const Vector damping_bundles = filter_bundles_for_path<DampingBundle>(world.dampings,
+    const Vector damping_bundles = filter_bundles_for_path<DampingBundle>(world_bundles.dampings,
                                                                           key.path);
     float linear_damping = 0.0f;
     float angular_damping = 0.0f;
@@ -997,7 +997,7 @@ static float compute_compliance_factor(const float delta_time)
 PROFILE_FUNCTION static void gather_edge_length_constraints(
     ResourceScope &scope,
     XPBDState &state,
-    const WorldData &world,
+    const WorldBundles &world_bundles,
     const Span<GeometrySet> applied_geometries,
     const VectorSet<SimPointsKey> &keys,
     const float delta_time,
@@ -1010,8 +1010,8 @@ PROFILE_FUNCTION static void gather_edge_length_constraints(
     if (key.type != bke::GeometryComponent::Type::Mesh) {
       continue;
     }
-    const int geometry_bundle_i = world.geometries.index_of_as(key.path);
-    const XPBDGeometryBundle &geometry_bundle = world.geometries[geometry_bundle_i];
+    const int geometry_bundle_i = world_bundles.geometries.index_of_as(key.path);
+    const XPBDGeometryBundle &geometry_bundle = world_bundles.geometries[geometry_bundle_i];
     const GeometrySet &applied_geometry = applied_geometries[geometry_bundle_i];
 
     const Mesh &mesh = *applied_geometry.get_mesh();
@@ -1019,7 +1019,7 @@ PROFILE_FUNCTION static void gather_edge_length_constraints(
     const Span<int2> mesh_edges = mesh.edges();
 
     const Vector edge_length_constraints = filter_bundles_for_path<EdgeLengthXPBDConstraintBundle>(
-        world.edge_length_constraints, geometry_bundle.self_path);
+        world_bundles.edge_length_constraints, geometry_bundle.self_path);
 
     bke::MeshFieldContext edge_field_context(mesh, bke::AttrDomain::Edge);
     for (const EdgeLengthXPBDConstraintBundle *constraint_bundle : edge_length_constraints) {
@@ -1066,7 +1066,7 @@ PROFILE_FUNCTION static void gather_edge_length_constraints(
 PROFILE_FUNCTION static void gather_curve_segment_constraints(
     ResourceScope &scope,
     XPBDState &state,
-    const WorldData &world,
+    const WorldBundles &world_bundles,
     const Span<GeometrySet> applied_geometries,
     const VectorSet<SimPointsKey> &keys,
     const float delta_time,
@@ -1079,7 +1079,7 @@ PROFILE_FUNCTION static void gather_curve_segment_constraints(
     if (key.type != bke::GeometryComponent::Type::Curve) {
       continue;
     }
-    const int geometry_bundle_i = world.geometries.index_of_as(key.path);
+    const int geometry_bundle_i = world_bundles.geometries.index_of_as(key.path);
     const GeometrySet &applied_geometry = applied_geometries[geometry_bundle_i];
 
     const Curves &curves_id = *applied_geometry.get_curves();
@@ -1089,7 +1089,7 @@ PROFILE_FUNCTION static void gather_curve_segment_constraints(
     const VArray<bool> cyclics = curves.cyclic();
 
     const Vector constraint_bundles = filter_bundles_for_path<CurveSegmentXPBDConstraintBundle>(
-        world.curve_segment_constraints, key.path);
+        world_bundles.curve_segment_constraints, key.path);
 
     bke::CurvesFieldContext field_context(curves, bke::AttrDomain::Point);
     for (const CurveSegmentXPBDConstraintBundle *constraint_bundle : constraint_bundles) {
@@ -1134,7 +1134,7 @@ PROFILE_FUNCTION static void gather_curve_segment_constraints(
 PROFILE_FUNCTION static void gather_pressure_constraints(
     ResourceScope &scope,
     XPBDState &state,
-    const WorldData &world,
+    const WorldBundles &world_bundles,
     const Span<GeometrySet> applied_geometries,
     const VectorSet<SimPointsKey> &keys,
     xpbd::ConstraintSetCollector &r_constraints)
@@ -1144,7 +1144,7 @@ PROFILE_FUNCTION static void gather_pressure_constraints(
     if (key.type != bke::GeometryComponent::Type::Mesh) {
       continue;
     }
-    const int geometry_bundle_i = world.geometries.index_of_as(key.path);
+    const int geometry_bundle_i = world_bundles.geometries.index_of_as(key.path);
     const GeometrySet &applied_geometry = applied_geometries[geometry_bundle_i];
     const Mesh &mesh = *applied_geometry.get_mesh();
     const Span<int3> tris = mesh.corner_tris();
@@ -1152,7 +1152,7 @@ PROFILE_FUNCTION static void gather_pressure_constraints(
     const Span<float3> positions = mesh.vert_positions();
 
     const Vector overpressure_constraints = filter_bundles_for_path<PressureXPBDConstraintBundle>(
-        world.overpressure_constraints, key.path);
+        world_bundles.overpressure_constraints, key.path);
 
     for (const PressureXPBDConstraintBundle *constraint_bundle : overpressure_constraints) {
       const float pressure = constraint_bundle->pressure;
@@ -1176,7 +1176,7 @@ PROFILE_FUNCTION static void gather_pressure_constraints(
 PROFILE_FUNCTION static void gather_curves_rod_stretch_and_shear_constraints(
     ThreadLocalStorage &tls,
     const XPBDState &state,
-    const WorldData &world,
+    const WorldBundles &world_bundles,
     const Span<GeometrySet> applied_geometries,
     const VectorSet<SimPointsKey> &keys,
     const float delta_time,
@@ -1194,7 +1194,7 @@ PROFILE_FUNCTION static void gather_curves_rod_stretch_and_shear_constraints(
     if (!sim_points.has_rotation) {
       continue;
     }
-    const int geometry_bundle_i = world.geometries.index_of_as(key.path);
+    const int geometry_bundle_i = world_bundles.geometries.index_of_as(key.path);
     const GeometrySet &applied_geometry = applied_geometries[geometry_bundle_i];
     const Curves &curves_id = *applied_geometry.get_curves();
     const bke::CurvesGeometry &curves = curves_id.geometry.wrap();
@@ -1202,7 +1202,7 @@ PROFILE_FUNCTION static void gather_curves_rod_stretch_and_shear_constraints(
 
     const Vector constraint_bundles =
         filter_bundles_for_path<RodStretchAndShearXPBDConstraintBundle>(
-            world.rod_stretch_and_shear_constraints, key.path);
+            world_bundles.rod_stretch_and_shear_constraints, key.path);
 
     bke::CurvesFieldContext field_context(curves, bke::AttrDomain::Point);
     for (const RodStretchAndShearXPBDConstraintBundle *constraint_bundle : constraint_bundles) {
@@ -1230,7 +1230,7 @@ PROFILE_FUNCTION static void gather_curves_rod_stretch_and_shear_constraints(
 PROFILE_FUNCTION static void gather_curves_rod_bend_and_twist_constraints(
     ThreadLocalStorage &tls,
     const XPBDState &state,
-    const WorldData &world,
+    const WorldBundles &world_bundles,
     const Span<GeometrySet> applied_geometries,
     const VectorSet<SimPointsKey> &keys,
     const float delta_time,
@@ -1248,14 +1248,14 @@ PROFILE_FUNCTION static void gather_curves_rod_bend_and_twist_constraints(
     if (!sim_points.has_rotation) {
       continue;
     }
-    const int geometry_bundle_i = world.geometries.index_of_as(key.path);
+    const int geometry_bundle_i = world_bundles.geometries.index_of_as(key.path);
     const GeometrySet &applied_geometry = applied_geometries[geometry_bundle_i];
     const Curves &curves_id = *applied_geometry.get_curves();
     const bke::CurvesGeometry &curves = curves_id.geometry.wrap();
     const OffsetIndices<int> points_by_curve = curves.points_by_curve();
 
     const Vector constraint_bundles = filter_bundles_for_path<RodBendAndTwistXPBDConstraintBundle>(
-        world.rod_bend_and_twist_constraints, key.path);
+        world_bundles.rod_bend_and_twist_constraints, key.path);
 
     bke::CurvesFieldContext field_context(curves, bke::AttrDomain::Point);
     for (const RodBendAndTwistXPBDConstraintBundle *constraint_bundle : constraint_bundles) {
@@ -1350,7 +1350,7 @@ static Map<SimPointsKey, MutableSpan<math::Quaternion>> gather_soft_pinned_rotat
 
 PROFILE_FUNCTION static void gather_align_positions_constraints(
     ResourceScope &scope,
-    const WorldData &world,
+    const WorldBundles &world_bundles,
     const Span<GeometrySet> applied_geometries,
     const VectorSet<SimPointsKey> &keys,
     const float delta_time,
@@ -1358,7 +1358,8 @@ PROFILE_FUNCTION static void gather_align_positions_constraints(
 {
   const float compliance_factor = compute_compliance_factor(delta_time);
 
-  for (const AlignPositionsConstraintBundle &constraint_bundle : world.align_position_constraints)
+  for (const AlignPositionsConstraintBundle &constraint_bundle :
+       world_bundles.align_position_constraints)
   {
     Vector<int> filtered_keys = filter_sim_points_keys(
         constraint_bundle.self_path, constraint_bundle.filter, keys);
@@ -1376,7 +1377,7 @@ PROFILE_FUNCTION static void gather_align_positions_constraints(
     for (const int key_i : filtered_keys) {
       const SimPointsKey &key = keys[key_i];
       const bke::GeometryComponent::Type type = key.type;
-      const int geometry_bundle_i = world.geometries.index_of_as(key.path);
+      const int geometry_bundle_i = world_bundles.geometries.index_of_as(key.path);
       const bke::GeometryComponent *component =
           applied_geometries[geometry_bundle_i].get_component(type);
       if (!component) {
@@ -1450,7 +1451,7 @@ PROFILE_FUNCTION static void gather_align_positions_constraints(
 
 PROFILE_FUNCTION static void gather_attach_uv_surface_constraints(
     ResourceScope &scope,
-    const WorldData &world,
+    const WorldBundles &world_bundles,
     const Span<GeometrySet> applied_geometries,
     const VectorSet<SimPointsKey> &keys,
     const float delta_time,
@@ -1459,7 +1460,7 @@ PROFILE_FUNCTION static void gather_attach_uv_surface_constraints(
   const float compliance_factor = compute_compliance_factor(delta_time);
 
   for (const AttachUVSurfaceConstraintBundle &constraint_bundle :
-       world.attach_uv_surface_constraints)
+       world_bundles.attach_uv_surface_constraints)
   {
     const SimPointsKey mesh_key{constraint_bundle.mesh_path, bke::GeometryComponent::Type::Mesh};
     const int mesh_key_i = keys.index_of_try(mesh_key);
@@ -1472,8 +1473,8 @@ PROFILE_FUNCTION static void gather_attach_uv_surface_constraints(
       continue;
     }
 
-    const int constraint_bundle_i = world.geometries.index_of_as(mesh_key.path);
-    const XPBDGeometryBundle &geometry_bundle = world.geometries[constraint_bundle_i];
+    const int constraint_bundle_i = world_bundles.geometries.index_of_as(mesh_key.path);
+    const XPBDGeometryBundle &geometry_bundle = world_bundles.geometries[constraint_bundle_i];
     const Mesh *original_mesh = geometry_bundle.geometry.get_mesh();
     if (!original_mesh) {
       continue;
@@ -1492,7 +1493,7 @@ PROFILE_FUNCTION static void gather_attach_uv_surface_constraints(
     for (const int key_i : filtered_keys) {
       const SimPointsKey &key = keys[key_i];
       const bke::GeometryComponent::Type type = key.type;
-      const int geometry_bundle_i = world.geometries.index_of_as(key.path);
+      const int geometry_bundle_i = world_bundles.geometries.index_of_as(key.path);
       const bke::GeometryComponent *component =
           applied_geometries[geometry_bundle_i].get_component(type);
       if (!component) {
@@ -1550,7 +1551,7 @@ PROFILE_FUNCTION static void gather_attach_uv_surface_constraints(
 PROFILE_FUNCTION static void gather_distance_based_edge_bending_constraints(
     ResourceScope &scope,
     XPBDState &state,
-    const WorldData &world,
+    const WorldBundles &world_bundles,
     const Span<GeometrySet> applied_geometries,
     const VectorSet<SimPointsKey> &keys,
     const float delta_time,
@@ -1563,7 +1564,7 @@ PROFILE_FUNCTION static void gather_distance_based_edge_bending_constraints(
     if (key.type != bke::GeometryComponent::Type::Mesh) {
       continue;
     }
-    const int geometry_bundle_i = world.geometries.index_of_as(key.path);
+    const int geometry_bundle_i = world_bundles.geometries.index_of_as(key.path);
     const GeometrySet &applied_geometry = applied_geometries[geometry_bundle_i];
 
     const Mesh &mesh = *applied_geometry.get_mesh();
@@ -1585,7 +1586,7 @@ PROFILE_FUNCTION static void gather_distance_based_edge_bending_constraints(
 
     const Vector constraint_bundles =
         filter_bundles_for_path<DistanceBasedEdgeBendingConstraintBundle>(
-            world.distance_based_bending_constraints, key.path);
+            world_bundles.distance_based_bending_constraints, key.path);
 
     Vector<int2> &point_pairs = scope.construct<Vector<int2>>();
     Vector<float> &compliance_terms = scope.construct<Vector<float>>();
@@ -1729,7 +1730,7 @@ PROFILE_FUNCTION static void gather_sphere_contacts(const SimPoints &sim_points,
 
 PROFILE_FUNCTION static Contacts gather_contacts(
     const XPBDState &state,
-    const WorldData &world,
+    const WorldBundles &world_bundles,
     const Span<GeometrySet> applied_geometries,
     const Span<SimPointsKey> keys,
     const Map<SimPointsKey, SimPointsWorldProperties> &sim_points_props)
@@ -1737,7 +1738,7 @@ PROFILE_FUNCTION static Contacts gather_contacts(
   Contacts contacts;
   for (const int key_i : keys.index_range()) {
     const SimPointsKey &key = keys[key_i];
-    const int geometry_bundle_i = world.geometries.index_of_as(key.path);
+    const int geometry_bundle_i = world_bundles.geometries.index_of_as(key.path);
     const bke::GeometryComponent::Type type = key.type;
     const bke::GeometryComponent *component = applied_geometries[geometry_bundle_i].get_component(
         type);
@@ -1749,7 +1750,7 @@ PROFILE_FUNCTION static Contacts gather_contacts(
 
     {
       const Vector ground_plane_bundles = filter_bundles_for_path<InfiniteGroundPlaneBundle>(
-          world.infinite_ground_planes, key.path);
+          world_bundles.infinite_ground_planes, key.path);
       StaticPlaneContacts plane_contacts;
       for (const InfiniteGroundPlaneBundle *ground_plane_bundle : ground_plane_bundles) {
         gather_ground_plane_contacts(sim_points,
@@ -1764,7 +1765,7 @@ PROFILE_FUNCTION static Contacts gather_contacts(
     }
     const Vector spherical_self_collision_constraints =
         filter_bundles_for_path<SphericalSelfCollisionXPBDConstraintBundle>(
-            world.spherical_self_collision_constraints, key.path);
+            world_bundles.spherical_self_collision_constraints, key.path);
     std::optional<VArray<float>> radii;
     if (type == bke::GeometryComponent::Type::PointCloud) {
       const bke::PointCloudComponent &pointcloud_component =
@@ -1827,14 +1828,14 @@ PROFILE_FUNCTION static void generate_collision_constraint_sets(
   }
 }
 
-PROFILE_FUNCTION static Array<GeometrySet> gather_applied_geometries(const XPBDState &state,
-                                                                     const WorldData &world)
+PROFILE_FUNCTION static Array<GeometrySet> gather_applied_geometries(
+    const XPBDState &state, const WorldBundles &world_bundles)
 {
-  Array<GeometrySet> applied_geometries(world.geometries.size());
+  Array<GeometrySet> applied_geometries(world_bundles.geometries.size());
   const int points_num = state.total_points_num();
   threading::memory_bandwidth_bound_task(points_num * sizeof(float3), [&]() {
-    for (const int bundle_i : world.geometries.index_range()) {
-      const XPBDGeometryBundle &geometry_bundle = world.geometries[bundle_i];
+    for (const int bundle_i : world_bundles.geometries.index_range()) {
+      const XPBDGeometryBundle &geometry_bundle = world_bundles.geometries[bundle_i];
       GeometrySet &applied_geometry = applied_geometries[bundle_i];
       applied_geometry = apply_simulation(geometry_bundle, state);
     }
@@ -1843,13 +1844,15 @@ PROFILE_FUNCTION static Array<GeometrySet> gather_applied_geometries(const XPBDS
 }
 
 PROFILE_FUNCTION static void update_sim_points_from_world(
-    XPBDState &state, const WorldData &world, const Span<GeometrySet> applied_geometries)
+    XPBDState &state,
+    const WorldBundles &world_bundles,
+    const Span<GeometrySet> applied_geometries)
 {
   Map<SimPointsKey, SimPoints> new_sim_points;
-  for (const int bundle_i : world.geometries.index_range()) {
+  for (const int bundle_i : world_bundles.geometries.index_range()) {
     const GeometrySet &applied_geometry = applied_geometries[bundle_i];
     update_xpbd_state_for_geometry(
-        state, world.geometries[bundle_i], applied_geometry, new_sim_points);
+        state, world_bundles.geometries[bundle_i], applied_geometry, new_sim_points);
   }
   state.sim_points = std::move(new_sim_points);
 }
@@ -1989,19 +1992,19 @@ PROFILE_FUNCTION static Vector<xpbd::GeometryRef> prepare_geometry_refs_for_solv
 
 PROFILE_FUNCTION static Map<SimPointsKey, PinnedPositions> compute_pinned_positions(
     const XPBDState &state,
-    const WorldData &world,
+    const WorldBundles &world_bundles,
     const Span<GeometrySet> applied_geometries,
     const VectorSet<SimPointsKey> &keys)
 {
   Map<SimPointsKey, PinnedPositions> result;
   for (const int key_i : keys.index_range()) {
     const SimPointsKey &key = keys[key_i];
-    const int geometry_bundle_i = world.geometries.index_of_as(key.path);
+    const int geometry_bundle_i = world_bundles.geometries.index_of_as(key.path);
     const GeometrySet &applied_geometry = applied_geometries[geometry_bundle_i];
     const SimPoints &sim_points = state.sim_points.lookup(key);
 
     const Vector constraint_bundles = filter_bundles_for_path<PinnedPositionXPBDConstraintBundle>(
-        world.pinned_position_constraints, key.path);
+        world_bundles.pinned_position_constraints, key.path);
     if (constraint_bundles.is_empty()) {
       continue;
     }
@@ -2087,14 +2090,14 @@ PROFILE_FUNCTION static Map<SimPointsKey, PinnedPositions> compute_pinned_positi
 
 PROFILE_FUNCTION static Map<SimPointsKey, PinnedRotations> compute_pinned_rotations(
     const XPBDState &state,
-    const WorldData &world,
+    const WorldBundles &world_bundles,
     const Span<GeometrySet> applied_geometries,
     const VectorSet<SimPointsKey> &keys)
 {
   Map<SimPointsKey, PinnedRotations> result;
   for (const int key_i : keys.index_range()) {
     const SimPointsKey &key = keys[key_i];
-    const int geometry_bundle_i = world.geometries.index_of_as(key.path);
+    const int geometry_bundle_i = world_bundles.geometries.index_of_as(key.path);
     const GeometrySet &applied_geometry = applied_geometries[geometry_bundle_i];
     const SimPoints &sim_points = state.sim_points.lookup(key);
     if (!sim_points.has_rotation) {
@@ -2109,7 +2112,7 @@ PROFILE_FUNCTION static Map<SimPointsKey, PinnedRotations> compute_pinned_rotati
     const int domain_size = component->attribute_domain_size(domain);
 
     const Vector constraint_bundles = filter_bundles_for_path<PinnedRotationXPBDConstraintBundle>(
-        world.pinned_rotation_constraints, key.path);
+        world_bundles.pinned_rotation_constraints, key.path);
 
     PinnedRotations pinned_rotations;
 
@@ -2297,7 +2300,7 @@ static void post_solve_per_point_steps(SimPoints &sim_points,
 }
 
 PROFILE_FUNCTION static void update_and_step_xpbd_state(XPBDState &state,
-                                                        const WorldData &world,
+                                                        const WorldBundles &world_bundles,
                                                         const float total_delta_time,
                                                         const SolverType solver_type,
                                                         const int substeps)
@@ -2306,8 +2309,8 @@ PROFILE_FUNCTION static void update_and_step_xpbd_state(XPBDState &state,
   ResourceScope &scope = tls.local_resource_scope();
   const float sub_delta_time = math::safe_divide<float>(total_delta_time, substeps);
 
-  const Array<GeometrySet> applied_geometries = gather_applied_geometries(state, world);
-  update_sim_points_from_world(state, world, applied_geometries);
+  const Array<GeometrySet> applied_geometries = gather_applied_geometries(state, world_bundles);
+  update_sim_points_from_world(state, world_bundles, applied_geometries);
 
   VectorSet<SimPointsKey> keys;
   for (const SimPointsKey &key : state.sim_points.keys()) {
@@ -2322,15 +2325,17 @@ PROFILE_FUNCTION static void update_and_step_xpbd_state(XPBDState &state,
   xpbd::ConstraintSetCollector rod_bend_and_twist_constraints;
   threading::parallel_invoke(
       [&]() {
-        pinned_positions_map = compute_pinned_positions(state, world, applied_geometries, keys);
+        pinned_positions_map = compute_pinned_positions(
+            state, world_bundles, applied_geometries, keys);
       },
       [&]() {
-        pinned_rotations_map = compute_pinned_rotations(state, world, applied_geometries, keys);
+        pinned_rotations_map = compute_pinned_rotations(
+            state, world_bundles, applied_geometries, keys);
       },
       [&]() {
         gather_curves_rod_stretch_and_shear_constraints(tls,
                                                         state,
-                                                        world,
+                                                        world_bundles,
                                                         applied_geometries,
                                                         keys,
                                                         sub_delta_time,
@@ -2339,7 +2344,7 @@ PROFILE_FUNCTION static void update_and_step_xpbd_state(XPBDState &state,
       [&]() {
         gather_curves_rod_bend_and_twist_constraints(tls,
                                                      state,
-                                                     world,
+                                                     world_bundles,
                                                      applied_geometries,
                                                      keys,
                                                      sub_delta_time,
@@ -2347,20 +2352,34 @@ PROFILE_FUNCTION static void update_and_step_xpbd_state(XPBDState &state,
       });
 
   const Map<SimPointsKey, SimPointsWorldProperties> sim_points_props =
-      compute_sim_point_world_properties(
-          tls, world, keys, applied_geometries, pinned_positions_map, pinned_rotations_map);
+      compute_sim_point_world_properties(tls,
+                                         world_bundles,
+                                         keys,
+                                         applied_geometries,
+                                         pinned_positions_map,
+                                         pinned_rotations_map);
   const Map<SimPointsKey, Span<float3>> accelerations_map = compute_external_accelerations(
-      tls, world, keys, sim_points_props, applied_geometries);
+      tls, world_bundles, keys, sim_points_props, applied_geometries);
   const Map<SimPointsKey, Span<float3>> torques_map = compute_external_torques(
-      tls, state, world, keys, applied_geometries);
+      tls, state, world_bundles, keys, applied_geometries);
 
   xpbd::ConstraintSetCollector static_constraint_sets;
-  gather_edge_length_constraints(
-      scope, state, world, applied_geometries, keys, sub_delta_time, static_constraint_sets);
-  gather_curve_segment_constraints(
-      scope, state, world, applied_geometries, keys, sub_delta_time, static_constraint_sets);
+  gather_edge_length_constraints(scope,
+                                 state,
+                                 world_bundles,
+                                 applied_geometries,
+                                 keys,
+                                 sub_delta_time,
+                                 static_constraint_sets);
+  gather_curve_segment_constraints(scope,
+                                   state,
+                                   world_bundles,
+                                   applied_geometries,
+                                   keys,
+                                   sub_delta_time,
+                                   static_constraint_sets);
   gather_pressure_constraints(
-      scope, state, world, applied_geometries, keys, static_constraint_sets);
+      scope, state, world_bundles, applied_geometries, keys, static_constraint_sets);
   const Map<SimPointsKey, MutableSpan<float3>> soft_pinned_positions_map =
       gather_soft_pinned_position_constraints(
           scope, keys, pinned_positions_map, sub_delta_time, static_constraint_sets);
@@ -2368,11 +2387,16 @@ PROFILE_FUNCTION static void update_and_step_xpbd_state(XPBDState &state,
       gather_soft_pinned_rotation_constraints(
           scope, keys, pinned_rotations_map, sub_delta_time, static_constraint_sets);
   gather_align_positions_constraints(
-      scope, world, applied_geometries, keys, sub_delta_time, static_constraint_sets);
+      scope, world_bundles, applied_geometries, keys, sub_delta_time, static_constraint_sets);
   gather_attach_uv_surface_constraints(
-      scope, world, applied_geometries, keys, sub_delta_time, static_constraint_sets);
-  gather_distance_based_edge_bending_constraints(
-      scope, state, world, applied_geometries, keys, sub_delta_time, static_constraint_sets);
+      scope, world_bundles, applied_geometries, keys, sub_delta_time, static_constraint_sets);
+  gather_distance_based_edge_bending_constraints(scope,
+                                                 state,
+                                                 world_bundles,
+                                                 applied_geometries,
+                                                 keys,
+                                                 sub_delta_time,
+                                                 static_constraint_sets);
 
   Array<Array<float3>> all_prev_positions(keys.size());
   Array<Array<math::Quaternion>> all_prev_rotations(keys.size());
@@ -2451,7 +2475,7 @@ PROFILE_FUNCTION static void update_and_step_xpbd_state(XPBDState &state,
     /* Find current collisions and generate constraints to resolve them. */
     xpbd::ConstraintSetCollector dynamic_constraint_sets;
     const Contacts contacts = gather_contacts(
-        state, world, applied_geometries, keys, sim_points_props);
+        state, world_bundles, applied_geometries, keys, sim_points_props);
     generate_collision_constraint_sets(
         scope, contacts, keys, sub_delta_time, dynamic_constraint_sets);
 
@@ -2520,13 +2544,13 @@ static void node_geo_exec(GeoNodeExecParams params)
   }
   BLI_SCOPED_DEFER([&]() { xpbd_state_owner->mutex.unlock(); });
 
-  WorldData world = parse_world(*world_bundle_ptr);
+  WorldBundles world_bundles = parse_world(*world_bundle_ptr);
   XPBDState &state = xpbd_state_owner->state;
 
   const bool is_resimulating = update_counter < state.update_counter;
   update_counter++;
   if (!is_resimulating) {
-    update_and_step_xpbd_state(state, world, delta_time, solver_type, substeps);
+    update_and_step_xpbd_state(state, world_bundles, delta_time, solver_type, substeps);
     state.update_counter = update_counter;
   }
 
@@ -2544,9 +2568,9 @@ static void node_geo_exec(GeoNodeExecParams params)
   }
   Bundle &world_bundle = const_cast<Bundle &>(*world_bundle_ptr);
 
-  Array<GeometrySet> applied_geometries = gather_applied_geometries(state, world);
-  for (const int bundle_i : world.geometries.index_range()) {
-    const XPBDGeometryBundle &bundle = world.geometries[bundle_i];
+  Array<GeometrySet> applied_geometries = gather_applied_geometries(state, world_bundles);
+  for (const int bundle_i : world_bundles.geometries.index_range()) {
+    const XPBDGeometryBundle &bundle = world_bundles.geometries[bundle_i];
     GeometrySet &applied_geometry = applied_geometries[bundle_i];
     world_bundle.add_path_override(bundle.self_path + "/geometry", std::move(applied_geometry));
   }
