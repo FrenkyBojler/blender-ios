@@ -376,7 +376,7 @@ class ZoneOperator:
         "GeometryNodeSimulationInput" : "Simulate the execution of nodes across a time span",
         "GeometryNodeRepeatInput" : "Execute nodes with a dynamic number of repetitions",
         "GeometryNodeForeachGeometryElementInput" : "Perform operations separately for each geometry element (e.g. vertices, edges, etc.)",
-        "GeometryNodeClosureInput" : "Wrap nodes inside a closure that can be executed at a different part of the nodetree",
+        "NodeClosureInput" : "Wrap nodes inside a closure that can be executed at a different part of the nodetree",
     }
 
     @classmethod
