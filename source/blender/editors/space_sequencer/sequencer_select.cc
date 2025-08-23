@@ -2331,7 +2331,7 @@ static bool strip_circle_select_radius_image_isect(const Scene *scene,
                                                    const int *radius,
                                                    const float2 mval)
 {
-  blender::float2 origin = seq::image_transform_origin_offset_pixelspace_get(scene, strip);
+  float2 origin = seq::image_transform_origin_offset_pixelspace_get(scene, strip);
 
   float dx = origin.x - float(mval[0]);
   float dy = origin.y - float(mval[1]);
@@ -2351,7 +2351,7 @@ static void seq_circle_select_strip_from_preview(bContext *C,
   ListBase *channels = seq::channels_displayed_get(ed);
   SpaceSeq *sseq = CTX_wm_space_seq(C);
 
-  blender::VectorSet strips = seq::query_rendered_strips(
+  VectorSet strips = seq::query_rendered_strips(
       scene, channels, seqbase, scene->r.cfra, sseq->chanshown);
   for (Strip *strip : strips) {
     if (!strip_circle_select_radius_image_isect(scene, strip, &radius, mval)) {
