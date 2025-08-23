@@ -2300,14 +2300,17 @@ static void sculpt_expand_status(bContext *C, wmOperator *op, Cache *expand_cach
   status.opmodal(IFACE_("Move"), op->type, SCULPT_EXPAND_MODAL_MOVE_TOGGLE, expand_cache->move);
   status.opmodal(
       IFACE_("Preserve"), op->type, SCULPT_EXPAND_MODAL_PRESERVE_TOGGLE, expand_cache->preserve);
-  status.opmodal(IFACE_("Falloff Gradient"),
-                 op->type,
-                 SCULPT_EXPAND_MODAL_GRADIENT_TOGGLE,
-                 expand_cache->falloff_gradient);
-  status.opmodal(IFACE_("Brush Gradient"),
-                 op->type,
-                 SCULPT_EXPAND_MODAL_BRUSH_GRADIENT_TOGGLE,
-                 expand_cache->brush_gradient);
+
+  if (expand_cache->target != TargetType::FaceSets) {
+    status.opmodal(IFACE_("Falloff Gradient"),
+                   op->type,
+                   SCULPT_EXPAND_MODAL_GRADIENT_TOGGLE,
+                   expand_cache->falloff_gradient);
+    status.opmodal(IFACE_("Brush Gradient"),
+                   op->type,
+                   SCULPT_EXPAND_MODAL_BRUSH_GRADIENT_TOGGLE,
+                   expand_cache->brush_gradient);
+  }
 
   status.opmodal(IFACE_("Geodesic Step"), op->type, SCULPT_EXPAND_MODAL_RECURSION_STEP_GEODESIC);
   status.opmodal(IFACE_("Topology Step"), op->type, SCULPT_EXPAND_MODAL_RECURSION_STEP_TOPOLOGY);
@@ -2315,17 +2318,32 @@ static void sculpt_expand_status(bContext *C, wmOperator *op, Cache *expand_cach
   status.opmodal({}, op->type, SCULPT_EXPAND_MODAL_LOOP_COUNT_INCREASE);
   status.opmodal(IFACE_("Loop Count +/-"), op->type, SCULPT_EXPAND_MODAL_LOOP_COUNT_DECREASE);
 
-  status.opmodal({}, op->type, SCULPT_EXPAND_MODAL_TEXTURE_DISTORTION_INCREASE);
-  status.opmodal(
-      IFACE_("Texture Distortion +/-"), op->type, SCULPT_EXPAND_MODAL_TEXTURE_DISTORTION_DECREASE);
+  const MTex *mask_tex = BKE_brush_mask_texture_get(expand_cache->brush, OB_MODE_SCULPT);
+  if (mask_tex->tex) {
+    status.opmodal({}, op->type, SCULPT_EXPAND_MODAL_TEXTURE_DISTORTION_INCREASE);
+    status.opmodal(IFACE_("Texture Distortion +/-"),
+                   op->type,
+                   SCULPT_EXPAND_MODAL_TEXTURE_DISTORTION_DECREASE);
+  }
 
   status.opmodal(IFACE_("Falloff Cycle"), op->type, SCULPT_EXPAND_MODAL_FALLOFF_CYCLE);
 
-  status.opmodal(IFACE_("Geodesic Falloff"), op->type, SCULPT_EXPAND_MODAL_FALLOFF_GEODESIC);
-  status.opmodal(IFACE_("Topology Falloff"), op->type, SCULPT_EXPAND_MODAL_FALLOFF_TOPOLOGY);
-  status.opmodal(
-      IFACE_("Diagonals Falloff"), op->type, SCULPT_EXPAND_MODAL_FALLOFF_TOPOLOGY_DIAGONALS);
-  status.opmodal(IFACE_("Spherical Falloff"), op->type, SCULPT_EXPAND_MODAL_FALLOFF_SPHERICAL);
+  status.opmodal(IFACE_("Geodesic Falloff"),
+                 op->type,
+                 SCULPT_EXPAND_MODAL_FALLOFF_GEODESIC,
+                 expand_cache->falloff_type == FalloffType::Geodesic);
+  status.opmodal(IFACE_("Topology Falloff"),
+                 op->type,
+                 SCULPT_EXPAND_MODAL_FALLOFF_TOPOLOGY,
+                 expand_cache->falloff_type == FalloffType::Topology);
+  status.opmodal(IFACE_("Diagonals Falloff"),
+                 op->type,
+                 SCULPT_EXPAND_MODAL_FALLOFF_TOPOLOGY_DIAGONALS,
+                 expand_cache->falloff_type == FalloffType::TopologyNormals);
+  status.opmodal(IFACE_("Spherical Falloff"),
+                 op->type,
+                 SCULPT_EXPAND_MODAL_FALLOFF_SPHERICAL,
+                 expand_cache->falloff_type == FalloffType::Sphere);
 }
 
 static wmOperatorStatus sculpt_expand_modal(bContext *C, wmOperator *op, const wmEvent *event)
