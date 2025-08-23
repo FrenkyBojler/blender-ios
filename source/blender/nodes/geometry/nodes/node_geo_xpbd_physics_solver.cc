@@ -126,6 +126,21 @@ struct SimPointsKey {
   }
 };
 
+class ThreadLocalStorage {
+ private:
+  struct Item {
+    ResourceScope scope;
+  };
+
+  threading::EnumerableThreadSpecific<Item> items_;
+
+ public:
+  ResourceScope &local_resource_scope()
+  {
+    return items_.local().scope;
+  }
+};
+
 /**
  * Properties of simulated points which are retrieved from the world instead of being stored in
  * the state.
@@ -715,12 +730,13 @@ static Vector<int> filter_sim_points_keys(const StringRef self_path,
 }
 
 PROFILE_FUNCTION static Map<SimPointsKey, Span<float3>> compute_external_accelerations(
-    ResourceScope &scope,
+    ThreadLocalStorage &tls,
     const WorldData &world,
     const Span<SimPointsKey> keys,
     const Map<SimPointsKey, SimPointsWorldProperties> &sim_points_props,
     const Span<GeometrySet> applied_geometries)
 {
+  ResourceScope &scope = tls.local_resource_scope();
   float3 gravity(0.0f);
   for (const GravityBundle &gravity_bundle : world.gravities) {
     gravity = gravity_bundle.gravity;
@@ -770,12 +786,13 @@ PROFILE_FUNCTION static Map<SimPointsKey, Span<float3>> compute_external_acceler
 }
 
 PROFILE_FUNCTION static Map<SimPointsKey, Span<float3>> compute_external_torques(
-    ResourceScope &scope,
+    ThreadLocalStorage &tls,
     const XPBDState &state,
     const WorldData &world,
     const Span<SimPointsKey> keys,
     const Span<GeometrySet> applied_geometries)
 {
+  ResourceScope &scope = tls.local_resource_scope();
   Map<SimPointsKey, Span<float3>> torques_map;
   for (const SimPointsKey &sim_points_key : keys) {
     const int geometry_i = world.geometries.index_of_as(sim_points_key.path);
@@ -816,13 +833,14 @@ PROFILE_FUNCTION static Map<SimPointsKey, Span<float3>> compute_external_torques
 }
 
 PROFILE_FUNCTION static Map<SimPointsKey, SimPointsWorldProperties>
-compute_sim_point_world_properties(ResourceScope &scope,
+compute_sim_point_world_properties(ThreadLocalStorage &tls,
                                    const WorldData &world,
                                    const Span<SimPointsKey> keys,
                                    const Span<GeometrySet> applied_geometries,
                                    const Map<SimPointsKey, PinnedPositions> &pinned_positions_map,
                                    const Map<SimPointsKey, PinnedRotations> &pinned_rotations_map)
 {
+  ResourceScope &scope = tls.local_resource_scope();
   Map<SimPointsKey, SimPointsWorldProperties> properties_map;
   for (const SimPointsKey &key : keys) {
     const int geometry_i = world.geometries.index_of_as(key.path);
@@ -2250,7 +2268,8 @@ PROFILE_FUNCTION static void update_and_step_xpbd_state(XPBDState &state,
                                                         const SolverType solver_type,
                                                         const int substeps)
 {
-  ResourceScope scope;
+  ThreadLocalStorage tls;
+  ResourceScope &scope = tls.local_resource_scope();
   const Array<GeometrySet> applied_geometries = gather_applied_geometries(state, world);
   update_sim_points_from_world(state, world, applied_geometries);
 
@@ -2273,11 +2292,11 @@ PROFILE_FUNCTION static void update_and_step_xpbd_state(XPBDState &state,
 
   const Map<SimPointsKey, SimPointsWorldProperties> sim_points_props =
       compute_sim_point_world_properties(
-          scope, world, keys, applied_geometries, pinned_positions_map, pinned_rotations_map);
+          tls, world, keys, applied_geometries, pinned_positions_map, pinned_rotations_map);
   const Map<SimPointsKey, Span<float3>> accelerations_map = compute_external_accelerations(
-      scope, world, keys, sim_points_props, applied_geometries);
+      tls, world, keys, sim_points_props, applied_geometries);
   const Map<SimPointsKey, Span<float3>> torques_map = compute_external_torques(
-      scope, state, world, keys, applied_geometries);
+      tls, state, world, keys, applied_geometries);
 
   const float sub_delta_time = math::safe_divide<float>(total_delta_time, substeps);
 
