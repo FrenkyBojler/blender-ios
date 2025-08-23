@@ -2145,6 +2145,22 @@ PROFILE_FUNCTION static void update_pinned_rotations(
   }
 }
 
+PROFILE_FUNCTION static void remember_previous_state(
+    const VectorSet<SimPointsKey> &keys,
+    Array<Array<float3>> &all_prev_positions,
+    Array<Array<math::Quaternion>> &all_prev_rotations,
+    XPBDState &state)
+{
+  for (const int i : keys.index_range()) {
+    const SimPointsKey &key = keys[i];
+    const SimPoints &sim_points = state.sim_points.lookup(key);
+    all_prev_positions[i].as_mutable_span().copy_from(sim_points.positions);
+    if (sim_points.has_rotation) {
+      all_prev_rotations[i].as_mutable_span().copy_from(sim_points.rotations);
+    }
+  }
+}
+
 PROFILE_FUNCTION static void update_and_step_xpbd_state(XPBDState &state,
                                                         const WorldData &world,
                                                         const float total_delta_time,
@@ -2217,15 +2233,7 @@ PROFILE_FUNCTION static void update_and_step_xpbd_state(XPBDState &state,
   for ([[maybe_unused]] const int substep_i : IndexRange(substeps)) {
     const float factor = substeps <= 1 ? 1.0f : float(substep_i) / (substeps - 1);
 
-    /* Remember previous positions and rotations. */
-    for (const int i : keys.index_range()) {
-      const SimPointsKey &key = keys[i];
-      const SimPoints &sim_points = state.sim_points.lookup(key);
-      all_prev_positions[i].as_mutable_span().copy_from(sim_points.positions);
-      if (sim_points.has_rotation) {
-        all_prev_rotations[i].as_mutable_span().copy_from(sim_points.rotations);
-      }
-    }
+    remember_previous_state(keys, all_prev_positions, all_prev_rotations, state);
 
     /* Integrate linear and angular velocities. This also applies external forces. */
     if (sub_delta_time > 0.0f) {
@@ -2237,7 +2245,7 @@ PROFILE_FUNCTION static void update_and_step_xpbd_state(XPBDState &state,
     update_pinned_positions(state, pinned_positions_map, soft_pinned_positions_map, factor);
     update_pinned_rotations(state, pinned_rotations_map, soft_pinned_rotations_map, factor);
 
-    /* Find current collisisons and generate constraints to resolve them. */
+    /* Find current collisions and generate constraints to resolve them. */
     xpbd::ConstraintSetCollector dynamic_constraint_sets;
     const Contacts contacts = gather_contacts(
         state, world, applied_geometries, keys, sim_points_props);
