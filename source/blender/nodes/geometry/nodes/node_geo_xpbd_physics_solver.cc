@@ -742,7 +742,7 @@ PROFILE_FUNCTION static Map<SimPointsKey, Span<float3>> compute_external_acceler
 
     /* Initially this is the sums of forces and then the acceleration. */
     MutableSpan<float3> result = scope.allocator().allocate_array<float3>(domain_size);
-    result.fill(float3(0.0f));
+    array_utils::copy(VArray<float3>::from_single(float3(0.0f), domain_size), result);
 
     bke::GeometryFieldContext field_context(*component, domain);
     for (const ForceBundle *force_bundle : used_forces) {
@@ -752,7 +752,7 @@ PROFILE_FUNCTION static Map<SimPointsKey, Span<float3>> compute_external_acceler
       field_evaluator.evaluate();
       const IndexMask mask = field_evaluator.get_evaluated_selection_as_mask();
       const VArray<float3> force = field_evaluator.get_evaluated<float3>(0);
-      mask.foreach_index([&](const int i) { result[i] += force[i]; });
+      mask.foreach_index(GrainSize(1024), [&](const int i) { result[i] += force[i]; });
     }
 
     threading::parallel_for(IndexRange(domain_size), 1024, [&](const IndexRange range) {
