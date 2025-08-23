@@ -480,101 +480,89 @@ class PressureConstraintSet : public TemplatedConstraintSet<PressureConstraintSe
  * the actual tangent of the rod. If it is misaligned, it moves the start position, end position
  * and rotation of the frame. At the same time, it enforces a certain length.
  */
-class RodStretchAndShearConstraintSet
-    : public TemplatedConstraintSet<RodStretchAndShearConstraintSet> {
+class RodStretchAndShearCurveLocalConstraintSet
+    : public TemplatedCurveLocalConstraintSet<RodStretchAndShearCurveLocalConstraintSet> {
  private:
-  int geo_i_;
-  Span<int2> point_pairs_;
+  OffsetIndices<int> points_by_curve_;
   Span<float> rest_lengths_;
   Span<float> compliance_terms_;
 
  public:
-  RodStretchAndShearConstraintSet(const int geo_i,
-                                  const Span<int2> point_pairs,
-                                  const Span<float> rest_lengths,
-                                  const Span<float> compliance_terms)
-      : TemplatedConstraintSet<RodStretchAndShearConstraintSet>(point_pairs.size(), {geo_i}),
-        geo_i_(geo_i),
-        point_pairs_(point_pairs),
+  RodStretchAndShearCurveLocalConstraintSet(const int geo_i,
+                                            const OffsetIndices<int> points_by_curve,
+                                            const Span<float> rest_lengths,
+                                            const Span<float> compliance_terms)
+      : TemplatedCurveLocalConstraintSet<RodStretchAndShearCurveLocalConstraintSet>(geo_i),
+        points_by_curve_(points_by_curve),
         rest_lengths_(rest_lengths),
         compliance_terms_(compliance_terms)
   {
   }
 
   template<typename UpdaterT>
-  void evaluate_single(UpdaterT &updater,
-                       ConstraintSetParams &params,
-                       const int constraint_i) const
+  void evaluate_curve(UpdaterT &updater, ConstraintSetParams &params, const int curve_i) const
   {
-    const int2 &point_pair = point_pairs_[constraint_i];
-    const int point_i0 = point_pair[0];
-    const int point_i1 = point_pair[1];
-    const int rotation_i = point_i0;
+    const IndexRange points = points_by_curve_[curve_i];
 
-    const RodStretchAndShearConstraintResult result = evaluate_rod_stretch_and_shear_constraint(
-        params.position(geo_i_, point_i0),
-        params.position(geo_i_, point_i1),
-        params.rotation(geo_i_, rotation_i),
-        params.inverse_mass(geo_i_, point_i0),
-        params.inverse_mass(geo_i_, point_i1),
-        params.inertia(geo_i_, point_i0),
-        rest_lengths_[constraint_i],
-        compliance_terms_[constraint_i]);
-
-    updater.update_position(geo_i_, point_i0, result.offset0);
-    updater.update_position(geo_i_, point_i1, result.offset1);
-    updater.update_rotation(geo_i_, rotation_i, result.offset_rot);
-  }
-
-  Vector<IndexMask> generate_independent_masks(IndexMaskMemory &memory) const override
-  {
-    return binary_constraints_to_independent_masks(point_pairs_, memory);
+    /* TODO: Implement bilateral interleaving ordering for better stability. */
+    for (const int point_i0 : points.drop_back(1)) {
+      const int point_i1 = point_i0 + 1;
+      const RodStretchAndShearConstraintResult result = evaluate_rod_stretch_and_shear_constraint(
+          params.position(geo_i_, point_i0),
+          params.position(geo_i_, point_i1),
+          params.rotation(geo_i_, point_i0),
+          params.inverse_mass(geo_i_, point_i0),
+          params.inverse_mass(geo_i_, point_i1),
+          params.inertia(geo_i_, point_i0),
+          rest_lengths_[point_i0],
+          compliance_terms_[point_i0]);
+      updater.update_position(geo_i_, point_i0, result.offset0);
+      updater.update_position(geo_i_, point_i1, result.offset1);
+      updater.update_rotation(geo_i_, point_i0, result.offset_rot);
+    }
   }
 };
 
-/* Aligns rotations of two consecutive rods based on a rest rotation. */
-class RodBendAndTwistConstraintSet : public TemplatedConstraintSet<RodBendAndTwistConstraintSet> {
+/** Aligns rotations of two consecutive rods based on a rest rotation. */
+class RodBendAndTwistCurveLocalConstraintSet
+    : public TemplatedCurveLocalConstraintSet<RodBendAndTwistCurveLocalConstraintSet> {
  private:
-  int geo_i_;
-  Span<int2> point_pairs_;
+  OffsetIndices<int> points_by_curve_;
   Span<math::Quaternion> rest_rotations_;
   Span<float> compliance_terms_;
 
  public:
-  RodBendAndTwistConstraintSet(const int geo_i,
-                               const Span<int2> point_pairs,
-                               const Span<math::Quaternion> rest_rotations,
-                               const Span<float> compliance_terms)
-      : TemplatedConstraintSet<RodBendAndTwistConstraintSet>(point_pairs.size(), {geo_i}),
-        geo_i_(geo_i),
-        point_pairs_(point_pairs),
+  RodBendAndTwistCurveLocalConstraintSet(const int geo_i,
+                                         const OffsetIndices<int> points_by_curve,
+                                         const Span<math::Quaternion> rest_rotations,
+                                         const Span<float> compliance_terms)
+      : TemplatedCurveLocalConstraintSet<RodBendAndTwistCurveLocalConstraintSet>(geo_i),
+        points_by_curve_(points_by_curve),
         rest_rotations_(rest_rotations),
         compliance_terms_(compliance_terms)
   {
   }
 
   template<typename UpdaterT>
-  void evaluate_single(UpdaterT &updater,
-                       ConstraintSetParams &params,
-                       const int constraint_i) const
+  void evaluate_curve(UpdaterT &updater, ConstraintSetParams &params, const int curve_i) const
   {
-    const int2 &point_pair = point_pairs_[constraint_i];
-    const int point_i0 = point_pair[0];
-    const int point_i1 = point_pair[1];
-    const AlignRotationsConstraintResult result = evaluate_align_rotations_constraint(
-        params.rotation(geo_i_, point_i0),
-        params.rotation(geo_i_, point_i1),
-        params.inertia(geo_i_, point_i0),
-        params.inertia(geo_i_, point_i1),
-        rest_rotations_[constraint_i],
-        compliance_terms_[constraint_i]);
-    updater.update_rotation(geo_i_, point_i0, result.offset0);
-    updater.update_rotation(geo_i_, point_i1, result.offset1);
-  }
+    const IndexRange points = points_by_curve_[curve_i];
 
-  Vector<IndexMask> generate_independent_masks(IndexMaskMemory &memory) const override
-  {
-    return binary_constraints_to_independent_masks(point_pairs_, memory);
+    /* TODO: Implement bilateral interleaving ordering for better stability. */
+    /* Note that the last segment does not have this constraint, because the rotation of the last
+     * point in the rod is meaningless.*/
+    for (const int point_i0 : points.drop_back(2)) {
+      const int point_i1 = point_i0 + 1;
+      const AlignRotationsConstraintResult result = evaluate_align_rotations_constraint(
+          params.rotation(geo_i_, point_i0),
+          params.rotation(geo_i_, point_i1),
+          params.inertia(geo_i_, point_i0),
+          params.inertia(geo_i_, point_i1),
+          rest_rotations_[point_i0],
+          compliance_terms_[point_i0]);
+      updater.update_rotation(geo_i_, point_i0, result.offset0);
+      updater.update_rotation(geo_i_, point_i1, result.offset1);
+    }
   }
 };
 

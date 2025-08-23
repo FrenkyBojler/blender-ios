@@ -1090,7 +1090,7 @@ static void gather_curves_rod_stretch_and_shear_constraints(
     const Span<GeometrySet> applied_geometries,
     const VectorSet<SimPointsKey> &keys,
     const float delta_time,
-    Vector<const xpbd::ConstraintSet *> &r_constraint_sets)
+    Map<SimPointsKey, xpbd::CurveLocalConstraintSets *> &r_curve_local_constraint_sets)
 {
   const float compliance_factor = compute_compliance_factor(delta_time);
 
@@ -1115,32 +1115,37 @@ static void gather_curves_rod_stretch_and_shear_constraints(
 
     bke::CurvesFieldContext field_context(curves, bke::AttrDomain::Point);
     for (const RodStretchAndShearXPBDConstraintBundle *constraint_bundle : constraint_bundles) {
+      MutableSpan<float> compliance_terms = scope.allocator().allocate_array<float>(
+          curves.points_num());
       fn::FieldEvaluator field_evaluator{field_context, curves.points_num()};
-      field_evaluator.add(constraint_bundle->compliance);
+      field_evaluator.add_with_destination(constraint_bundle->compliance, compliance_terms);
       field_evaluator.evaluate();
-      const VArray<float> compliances = field_evaluator.get_evaluated<float>(0);
 
-      Vector<int2> &constraint_segments = scope.construct<Vector<int2>>();
-      Vector<float> &constraint_compliance_terms = scope.construct<Vector<float>>();
+      threading::parallel_for(compliance_terms.index_range(), 1024, [&](const IndexRange range) {
+        for (float &compliance_term : compliance_terms.slice(range)) {
+          compliance_term *= compliance_factor;
+        }
+      });
+
+      Vector<int2> constraint_segments;
 
       for (const int curve_i : curves.curves_range()) {
         const IndexRange points = points_by_curve[curve_i];
-        if (points.size() <= 1) {
-          continue;
-        }
         for (const int i : points.index_range().drop_back(1)) {
           const int point_i = points[i];
-          const int next_point_i = point_i + 1;
-          const float compliance = compliances[point_i];
-          constraint_segments.append({point_i, next_point_i});
-          constraint_compliance_terms.append(compliance * compliance_factor);
+          constraint_segments.append({point_i, point_i + 1});
         }
-        /* TODO: Handle cyclic curves. */
+        constraint_segments.append(int2(points.last(), points.first()));
       }
       const Span<float> constraint_lenghts = prepare_distance_constraint_lengths(
           scope, state, sim_points.positions, key, constraint_segments);
-      r_constraint_sets.append(&scope.construct<xpbd::RodStretchAndShearConstraintSet>(
-          key_i, constraint_segments, constraint_lenghts, constraint_compliance_terms));
+
+      xpbd::CurveLocalConstraintSets &constraint_sets =
+          *r_curve_local_constraint_sets.lookup_or_add_cb(key, [&]() {
+            return &scope.construct<xpbd::CurveLocalConstraintSets>(key_i, points_by_curve);
+          });
+      constraint_sets.add(scope.construct<xpbd::RodStretchAndShearCurveLocalConstraintSet>(
+          key_i, points_by_curve, constraint_lenghts, compliance_terms));
     }
   }
 }
@@ -1152,7 +1157,7 @@ static void gather_curves_rod_bend_and_twist_constraints(
     const Span<GeometrySet> applied_geometries,
     const VectorSet<SimPointsKey> &keys,
     const float delta_time,
-    Vector<const xpbd::ConstraintSet *> &r_constraint_sets)
+    Map<SimPointsKey, xpbd::CurveLocalConstraintSets *> &r_curve_local_constraint_sets)
 {
   const float compliance_factor = compute_compliance_factor(delta_time);
 
@@ -1176,32 +1181,36 @@ static void gather_curves_rod_bend_and_twist_constraints(
 
     bke::CurvesFieldContext field_context(curves, bke::AttrDomain::Point);
     for (const RodBendAndTwistXPBDConstraintBundle *constraint_bundle : constraint_bundles) {
+      MutableSpan<float> compliance_terms = scope.allocator().allocate_array<float>(
+          curves.points_num());
       fn::FieldEvaluator field_evaluator{field_context, curves.points_num()};
-      field_evaluator.add(constraint_bundle->compliance);
+      field_evaluator.add_with_destination(constraint_bundle->compliance, compliance_terms);
       field_evaluator.evaluate();
-      const VArray<float> compliances = field_evaluator.get_evaluated<float>(0);
 
-      Vector<int2> &constraint_segments = scope.construct<Vector<int2>>();
-      Vector<float> &constraint_compliance_terms = scope.construct<Vector<float>>();
+      threading::parallel_for(compliance_terms.index_range(), 1024, [&](const IndexRange range) {
+        for (float &compliance_term : compliance_terms.slice(range)) {
+          compliance_term *= compliance_factor;
+        }
+      });
+
+      Vector<int2> constraint_segments;
 
       for (const int curve_i : curves.curves_range()) {
         const IndexRange points = points_by_curve[curve_i];
-        if (points.size() <= 2) {
-          continue;
-        }
         for (const int i : points.index_range().drop_back(2)) {
           const int point_i = points[i];
-          const int next_point_i = point_i + 1;
-          const float compliance = compliances[point_i];
-          constraint_segments.append({point_i, next_point_i});
-          constraint_compliance_terms.append(compliance * compliance_factor);
+          constraint_segments.append({point_i, point_i + 1});
         }
-        /* TODO: Handle cyclic curves. */
+        constraint_segments.append(int2(points.last(), points.first()));
       }
       const Span<math::Quaternion> rest_rotations = prepare_relative_rotations(
           scope, state, sim_points.rotations, key, constraint_segments);
-      r_constraint_sets.append(&scope.construct<xpbd::RodBendAndTwistConstraintSet>(
-          key_i, constraint_segments, rest_rotations, constraint_compliance_terms));
+      xpbd::CurveLocalConstraintSets &constraint_sets =
+          *r_curve_local_constraint_sets.lookup_or_add_cb(key, [&]() {
+            return &scope.construct<xpbd::CurveLocalConstraintSets>(key_i, points_by_curve);
+          });
+      constraint_sets.add(scope.construct<xpbd::RodBendAndTwistCurveLocalConstraintSet>(
+          key_i, points_by_curve, rest_rotations, compliance_terms));
     }
   }
 }
@@ -2165,6 +2174,7 @@ static void update_and_step_xpbd_state(XPBDState &state,
   const float sub_delta_time = math::safe_divide<float>(total_delta_time, substeps);
 
   Vector<const xpbd::ConstraintSet *> static_constraint_sets;
+  Map<SimPointsKey, xpbd::CurveLocalConstraintSets *> curve_local_constraint_sets;
   gather_edge_length_constraints(
       scope, state, world, applied_geometries, keys, sub_delta_time, static_constraint_sets);
   gather_curve_segment_constraints(
@@ -2172,9 +2182,9 @@ static void update_and_step_xpbd_state(XPBDState &state,
   gather_pressure_constraints(
       scope, state, world, applied_geometries, keys, static_constraint_sets);
   gather_curves_rod_stretch_and_shear_constraints(
-      scope, state, world, applied_geometries, keys, sub_delta_time, static_constraint_sets);
+      scope, state, world, applied_geometries, keys, sub_delta_time, curve_local_constraint_sets);
   gather_curves_rod_bend_and_twist_constraints(
-      scope, state, world, applied_geometries, keys, sub_delta_time, static_constraint_sets);
+      scope, state, world, applied_geometries, keys, sub_delta_time, curve_local_constraint_sets);
   const Map<SimPointsKey, MutableSpan<float3>> soft_pinned_positions_map =
       gather_soft_pinned_position_constraints(
           scope, keys, pinned_positions_map, sub_delta_time, static_constraint_sets);
@@ -2187,6 +2197,10 @@ static void update_and_step_xpbd_state(XPBDState &state,
       scope, world, applied_geometries, keys, sub_delta_time, static_constraint_sets);
   gather_distance_based_edge_bending_constraints(
       scope, state, world, applied_geometries, keys, sub_delta_time, static_constraint_sets);
+
+  for (xpbd::CurveLocalConstraintSets *set : curve_local_constraint_sets.values()) {
+    static_constraint_sets.append(set);
+  }
 
   Array<Array<float3>> all_prev_positions(keys.size());
   Array<Array<math::Quaternion>> all_prev_rotations(keys.size());
