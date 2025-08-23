@@ -936,6 +936,11 @@ class CurvesPenToolOperation : public PenToolOperation {
     Curves *curves_id = this->all_curves[curves_index];
     return curves_id->geometry.wrap();
   }
+
+  IndexRange curves_range() const
+  {
+    return this->all_curves.index_range();
+  }
 };
 
 static float2 calculate_center_of_mass(const CurvesPenToolOperation &ptd, const bool ends_only)
@@ -943,7 +948,7 @@ static float2 calculate_center_of_mass(const CurvesPenToolOperation &ptd, const 
   float2 pos = float2(0.0f, 0.0f);
   int num = 0;
 
-  for (const int curves_index : ptd.all_curves.index_range()) {
+  for (const int curves_index : ptd.curves_range()) {
     const Curves *curves_id = ptd.all_curves[curves_index];
     const bke::CurvesGeometry &curves = curves_id->geometry.wrap();
     const Span<float3> positions = curves.positions();
