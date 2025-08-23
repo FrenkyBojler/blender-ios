@@ -21,6 +21,8 @@
 
 namespace blender::gpu::shader {
 
+#define ERROR_TOK(token) (token).line_number(), (token).char_number(), (token).line_str()
+
 /* Metadata extracted from shader source file.
  * These are then converted to their GPU module equivalent. */
 /* TODO(fclem): Make GPU enums standalone and directly use them instead of using separate enums
@@ -354,10 +356,6 @@ class Preprocessor {
 
   std::string template_struct_mutation(const std::string &str, report_callback &report_error)
   {
-    if (str.find("template") == std::string::npos) {
-      return str;
-    }
-
     using namespace std;
     using namespace shader::parser;
 
@@ -366,19 +364,30 @@ class Preprocessor {
     {
       Parser parser(out_str, report_error);
 
-      parser.foreach_scope(ScopeType::Global, [&](Scope scope) {
-        /* Replace full specialization by simple struct. */
-        scope.foreach_match("t<>sw<", [&](const std::vector<Token> &tokens) {
-          const Scope template_args = tokens[5].scope();
-          const Token struct_name = tokens[4];
-          string struct_name_str = struct_name.str() + "_";
-          template_args.foreach_scope(ScopeType::TemplateArg, [&](Scope arg) {
-            struct_name_str += arg.start().str() + "_";
+      parser.foreach_match("w<..>(..)", [&](const vector<Token> &tokens) {
+        const Scope template_args = tokens[1].scope();
+        template_args.foreach_match("w<..>", [&parser](const vector<Token> &tokens) {
+          string args_concat;
+          tokens[1].scope().foreach_scope(ScopeType::TemplateArg, [&](const Scope &scope) {
+            args_concat += scope.start().str() + "_";
           });
-          parser.erase(template_args);
-          parser.erase(tokens[0], tokens[2]);
-          parser.replace(struct_name, struct_name_str);
+          parser.replace(tokens[1].scope(), "_" + args_concat);
         });
+      });
+
+      parser.apply_mutations();
+
+      /* Replace full specialization by simple struct. */
+      parser.foreach_match("t<>sw<..>", [&](const std::vector<Token> &tokens) {
+        const Scope template_args = tokens[5].scope();
+        const Token struct_name = tokens[4];
+        string struct_name_str = struct_name.str() + "_";
+        template_args.foreach_scope(ScopeType::TemplateArg, [&](Scope arg) {
+          struct_name_str += arg.start().str() + "_";
+        });
+        parser.erase(template_args);
+        parser.erase(tokens[0], tokens[2]);
+        parser.replace(struct_name, struct_name_str);
       });
 
       out_str = parser.result_get();
@@ -397,9 +406,7 @@ class Preprocessor {
 
         bool error = false;
         temp.foreach_match("=", [&](const std::vector<Token> &tokens) {
-          report_error(tokens[0].line_number(),
-                       tokens[0].char_number(),
-                       tokens[0].line_str(),
+          report_error(ERROR_TOK(tokens[0]),
                        "Default arguments are not supported inside template declaration");
           error = true;
         });
@@ -427,10 +434,7 @@ class Preprocessor {
             arg_pattern += ",0";
           }
           else {
-            report_error(type.line_number(),
-                         type.char_number(),
-                         type.line_str(),
-                         "Invalid template argument type");
+            report_error(ERROR_TOK(type), "Invalid template argument type");
           }
         });
 
@@ -545,11 +549,14 @@ class Preprocessor {
     {
       Parser parser(out_str, report_error);
 
-      parser.foreach_scope(ScopeType::Template, [&](Scope temp) {
+      parser.foreach_match("t<..>ww(..)c?{..}", [&](const vector<Token> &tokens) {
         /* Parse template declaration. */
-        Token fn_start = temp.end().next();
-        Token fn_name = (fn_start == Static) ? fn_start.next().next() : fn_start.next();
-        Scope fn_args = fn_name.next().scope();
+        Token fn_start = tokens[5];
+        Token fn_name = tokens[6];
+        Scope fn_args = tokens[7].scope();
+        Scope temp = tokens[1].scope();
+        Scope fn_body = tokens[13].scope();
+        Token fn_end = fn_body.end();
 
         bool error = false;
         temp.foreach_match("=", [&](const std::vector<Token> &tokens) {
@@ -597,26 +604,18 @@ class Preprocessor {
             all_template_args_in_function_signature = false;
           }
           else {
-            report_error(type.line_number(),
-                         type.char_number(),
-                         type.line_str(),
-                         "Invalid template argument type");
+            report_error(ERROR_TOK(type), "Invalid template argument type");
           }
         });
 
         Token fn_args_start = fn_name.next();
 
         if (fn_args_start != '(') {
-          report_error(fn_args_start.line_number(),
-                       fn_args_start.char_number(),
-                       fn_args_start.line_str(),
+          report_error(ERROR_TOK(fn_args_start),
                        "Expected open parenthesis after template function name");
           return;
         }
 
-        Token after_args = fn_name.next().scope().end().next();
-        Scope fn_body = (after_args == Const) ? after_args.next().scope() : after_args.scope();
-        Token fn_end = fn_body.end();
         const string fn_decl = parser.substr_range_inclusive(fn_start.str_index_start(),
                                                              fn_end.line_end());
 
@@ -626,7 +625,7 @@ class Preprocessor {
 
         /* Replace instantiations. */
         Scope parent_scope = temp.scope();
-        string specialization_pattern = "tww<" + arg_pattern.substr(1) + ">(";
+        string specialization_pattern = "tww<" + arg_pattern.substr(1) + ">(..);";
         parent_scope.foreach_match(specialization_pattern, [&](const std::vector<Token> &tokens) {
           if (fn_name.str() != tokens[2].str()) {
             return;
@@ -654,7 +653,7 @@ class Preprocessor {
             instance_parser.insert_after(pos + fn_name.str().size(), template_args);
           }
           /* Paste template content in place of instantiation. */
-          Token end_of_instantiation = tokens.back().scope().end().next();
+          Token end_of_instantiation = tokens.back();
           string instance = instance_parser.result_get();
           parser.insert_line_number(tokens.front().str_index_start() - 1, fn_start.line_number());
           parser.replace(tokens.front().str_index_start(),
