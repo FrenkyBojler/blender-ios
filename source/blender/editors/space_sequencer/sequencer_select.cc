@@ -2368,10 +2368,10 @@ static void seq_circle_select_strip_from_preview(bContext *C,
   }
 }
 
-bool check_circle_intersection_in_timeline(const rctf *rect,
-                                           const float xy[2],
-                                           const float x_radius,
-                                           const float y_radius)
+static bool check_circle_intersection_in_timeline(const rctf *rect,
+                                                  const float xy[2],
+                                                  const float x_radius,
+                                                  const float y_radius)
 {
   float dx, dy;
 
@@ -2447,7 +2447,7 @@ static wmOperatorStatus vse_circle_select_exec(bContext *C, wmOperator *op)
       }
     }
   }
-  if (changed){
+  if (changed) {
     sequencer_select_do_updates(C, scene);
   }
   return OPERATOR_FINISHED;
