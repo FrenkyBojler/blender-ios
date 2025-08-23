@@ -2400,7 +2400,6 @@ static bool do_lasso_select_timeline(bContext *C,
 
     if (rcti_in_lasso(region_rct, mcoords)) {
       SET_FLAG_FROM_TEST(strip->flag, select, SELECT);
-      strip->flag &= ~(SEQ_LEFTSEL | SEQ_RIGHTSEL);
       changed = true;
     }
   }
