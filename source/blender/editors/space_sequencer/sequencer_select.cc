@@ -2326,10 +2326,10 @@ void SEQUENCER_OT_select_box(wmOperatorType *ot)
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
-static bool do_lasso_select_strip_is_origin_inside(const ARegion *region,
-                                                   const rcti *clip_rect,
-                                                   const Span<int2> mcoords,
-                                                   const float co_test[2])
+static bool do_lasso_select_is_origin_inside(const ARegion *region,
+                                             const rcti *clip_rect,
+                                             const Span<int2> mcoords,
+                                             const float co_test[2])
 {
   int co_screen[2];
   if (UI_view2d_view_to_region_clip(
@@ -2342,7 +2342,7 @@ static bool do_lasso_select_strip_is_origin_inside(const ARegion *region,
   return false;
 }
 
-bool rcti_in_lasso(const rcti rect, const Span<int2> mcoords)
+static bool rcti_in_lasso(const rcti rect, const Span<int2> mcoords)
 {
   /* Check if edge of strip is in the lasso. */
   if (BLI_lasso_is_edge_inside(
@@ -2406,15 +2406,12 @@ static bool do_lasso_select_timeline(bContext *C,
   return changed;
 }
 
-static bool do_lasso_select_preview(bContext *C, const Span<int2> mcoords, const eSelectOp sel_op)
+static bool do_lasso_select_preview(bContext *C,
+                                    Editing *ed,
+                                    const Span<int2> mcoords,
+                                    const eSelectOp sel_op)
 {
   Scene *scene = CTX_data_scene(C);
-  Editing *ed = seq::editing_get(scene);
-
-  if (ed == nullptr) {
-    return OPERATOR_CANCELLED;
-  }
-
   const ARegion *region = CTX_wm_region(C);
 
   bool changed = false;
@@ -2429,7 +2426,7 @@ static bool do_lasso_select_preview(bContext *C, const Span<int2> mcoords, const
       scene, channels, seqbase, scene->r.cfra, sseq->chanshown);
   for (Strip *strip : strips) {
     float2 origin = seq::image_transform_origin_offset_pixelspace_get(scene, strip);
-    if (do_lasso_select_strip_is_origin_inside(region, &rect, mcoords, origin)) {
+    if (do_lasso_select_is_origin_inside(region, &rect, mcoords, origin)) {
       changed = true;
       if (ELEM(sel_op, SEL_OP_ADD, SEL_OP_SET)) {
         strip->flag |= SELECT;
@@ -2449,8 +2446,11 @@ static wmOperatorStatus vse_lasso_select_exec(bContext *C, wmOperator *op)
   Scene *scene = CTX_data_scene(C);
   ARegion *region = CTX_wm_region(C);
   Array<int2> mcoords = WM_gesture_lasso_path_to_array(C, op);
+  Editing *ed = seq::editing_get(scene);
 
-  bool changed = false;
+  if (ed == nullptr) {
+    return OPERATOR_CANCELLED;
+  }
 
   if (mcoords.is_empty()) {
     return OPERATOR_PASS_THROUGH;
@@ -2458,13 +2458,14 @@ static wmOperatorStatus vse_lasso_select_exec(bContext *C, wmOperator *op)
 
   const eSelectOp sel_op = eSelectOp(RNA_enum_get(op->ptr, "mode"));
   const bool use_pre_deselect = SEL_OP_USE_PRE_DESELECT(sel_op);
+  bool changed = false;
 
   if (use_pre_deselect) {
     changed |= deselect_all_strips(scene);
   }
 
   if (region->regiontype == RGN_TYPE_PREVIEW) {
-    changed = do_lasso_select_preview(C, mcoords, sel_op);
+    changed = do_lasso_select_preview(C, ed, mcoords, sel_op);
   }
   else {
     changed = do_lasso_select_timeline(C, mcoords, region, sel_op);
