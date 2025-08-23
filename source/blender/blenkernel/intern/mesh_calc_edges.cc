@@ -450,6 +450,14 @@ void mesh_calc_edges(Mesh &mesh,
   BLI_assert(!corner_edges.contains(-1));
   BLI_assert(!edge_verts.contains(int2(-1)));
 
+  const Mesh src_mesh = mesh;
+  gather_attributes(src_mesh.attributes(),
+                    AttrDomain::Edge,
+                    AttrDomain::Edge,
+                    attribute_filter,
+                    dst_to_src_mask,
+                    mesh.attributes_for_write());
+
   MutableAttributeAccessor attributes = mesh.attributes_for_write();
   attributes.add<int>(
       ".corner_edge", AttrDomain::Corner, AttributeInitMoveArray(corner_edges.data()));
