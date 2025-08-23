@@ -143,6 +143,20 @@ static bool pen_can_create_new_curve(const GreasePencilPenToolOperation &ptd, wm
   return true;
 }
 
+static IndexMask retrieve_editable_and_all_selected_points(
+    Object &object,
+    const bke::greasepencil::Drawing &drawing,
+    int layer_index,
+    IndexMaskMemory &memory)
+{
+  const bke::CurvesGeometry &curves = drawing.strokes();
+
+  const IndexMask editable_points = retrieve_editable_points(object, drawing, layer_index, memory);
+  const IndexMask selected_points = ed::curves::retrieve_all_selected_points(curves, memory);
+
+  return IndexMask::from_intersection(editable_points, selected_points, memory);
+}
+
 static float2 calculate_center_of_mass(const GreasePencilPenToolOperation &ptd,
                                        const bool ends_only)
 {
@@ -159,13 +173,10 @@ static float2 calculate_center_of_mass(const GreasePencilPenToolOperation &ptd,
     const VArray<bool> &cyclic = curves.cyclic();
 
     IndexMaskMemory memory;
-    const IndexMask selection = ed::greasepencil::retrieve_editable_and_selected_points(
+    const IndexMask selection = ed::greasepencil::retrieve_editable_and_all_selected_points(
         *ptd.vc.obact, info.drawing, info.layer_index, memory);
-    const IndexMask bezier_points = ed::greasepencil::retrieve_visible_bezier_handle_points(
-        *ptd.vc.obact, info.drawing, info.layer_index, ptd.vc.v3d->overlay.handle_display, memory);
-    const IndexMask all_points = IndexMask::from_union(selection, bezier_points, memory);
 
-    all_points.foreach_index([&](const int64_t point_i) {
+    selection.foreach_index([&](const int64_t point_i) {
       if (ends_only) {
         const int curve_i = point_to_curve_map[point_i];
         const IndexRange points = points_by_curve[curve_i];
@@ -445,14 +456,10 @@ static wmOperatorStatus grease_pencil_pen_modal(bContext *C, wmOperator *op, con
         const float4x4 &layer_to_world = ptd.layer_to_worlds[drawing_index];
 
         IndexMaskMemory memory;
-        const IndexMask bezier_points = ed::greasepencil::retrieve_visible_bezier_handle_points(
-            *ptd.vc.obact,
-            info.drawing,
-            info.layer_index,
-            ptd.vc.v3d->overlay.handle_display,
-            memory);
+        const IndexMask selection = retrieve_editable_and_all_selected_points(
+            *ptd.vc.obact, info.drawing, info.layer_index, memory);
 
-        if (ptd.move_handles_in_curve(curves, bezier_points, layer_to_world, layer_to_object)) {
+        if (ptd.move_handles_in_curve(curves, selection, layer_to_world, layer_to_object)) {
           changed.store(true, std::memory_order_relaxed);
           info.drawing.tag_topology_changed();
         }

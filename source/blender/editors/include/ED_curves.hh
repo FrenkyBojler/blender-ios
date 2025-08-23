@@ -117,7 +117,7 @@ class PenToolOperation {
 
   void move_segment(bke::CurvesGeometry &curves, const float4x4 &layer_to_world) const;
   bool move_handles_in_curve(bke::CurvesGeometry &curves,
-                             const IndexMask &bezier_points,
+                             const IndexMask &selection,
                              const float4x4 &layer_to_world,
                              const float4x4 &layer_to_object) const;
 

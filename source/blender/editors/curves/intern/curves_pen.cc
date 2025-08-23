@@ -213,11 +213,11 @@ void PenToolOperation::move_segment(bke::CurvesGeometry &curves,
 }
 
 bool PenToolOperation::move_handles_in_curve(bke::CurvesGeometry &curves,
-                                             const IndexMask &bezier_points,
+                                             const IndexMask &selection,
                                              const float4x4 &layer_to_world,
                                              const float4x4 &layer_to_object) const
 {
-  if (bezier_points.is_empty()) {
+  if (selection.is_empty()) {
     return false;
   }
 
@@ -235,7 +235,7 @@ bool PenToolOperation::move_handles_in_curve(bke::CurvesGeometry &curves,
   const VArray<bool> right_selected = *attributes.lookup_or_default<bool>(
       ".selection_handle_right", bke::AttrDomain::Point, true);
 
-  bezier_points.foreach_index(GrainSize(2048), [&](const int64_t point_i) {
+  selection.foreach_index(GrainSize(2048), [&](const int64_t point_i) {
     const float3 depth_point = positions[point_i];
     float2 offset = this->xy - this->prev_xy;
 
@@ -1304,9 +1304,9 @@ static wmOperatorStatus curves_pen_modal(bContext *C, wmOperator *op, const wmEv
       const float4x4 layer_to_world = float4x4::identity();
 
       IndexMaskMemory memory;
-      const IndexMask bezier_points = retrieve_all_selected_points(curves, memory);
+      const IndexMask selection = retrieve_all_selected_points(curves, memory);
 
-      if (ptd.move_handles_in_curve(curves, bezier_points, layer_to_world, layer_to_object)) {
+      if (ptd.move_handles_in_curve(curves, selection, layer_to_world, layer_to_object)) {
         changed.store(true, std::memory_order_relaxed);
         curves.tag_topology_changed();
       }
