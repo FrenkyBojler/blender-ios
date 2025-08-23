@@ -1716,7 +1716,7 @@ PROFILE_FUNCTION static Contacts gather_contacts(
         radii.emplace(curves.radius());
       }
     }
-    if (radii.has_value()) {
+    if (radii.has_value() && !spherical_self_collision_constraints.is_empty()) {
       const VArraySpan<float> radii_span = *radii;
       DynamicSphereContacts sphere_contacts;
       for ([[maybe_unused]] const SphericalSelfCollisionXPBDConstraintBundle *constraint_bundle :
