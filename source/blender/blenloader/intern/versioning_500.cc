@@ -17,6 +17,7 @@
 #include "DNA_curves_types.h"
 #include "DNA_grease_pencil_types.h"
 #include "DNA_mesh_types.h"
+#include "DNA_modifier_types.h"
 #include "DNA_node_types.h"
 #include "DNA_rigidbody_types.h"
 #include "DNA_screen_types.h"
@@ -34,9 +35,11 @@
 #include "BLI_sys_types.h"
 
 #include "BKE_animsys.h"
+#include "BKE_armature.hh"
 #include "BKE_attribute_legacy_convert.hh"
 #include "BKE_colortools.hh"
 #include "BKE_curves.hh"
+#include "BKE_grease_pencil.hh"
 #include "BKE_idprop.hh"
 #include "BKE_image_format.hh"
 #include "BKE_lib_id.hh"
@@ -894,7 +897,7 @@ static void do_version_map_value_node(bNodeTree *node_tree, bNode *node)
 
   bNode *frame = blender::bke::node_add_static_node(nullptr, *node_tree, NODE_FRAME);
   frame->parent = node->parent;
-  STRNCPY(frame->label, IFACE_("Versioning: Map Value node was removed"));
+  STRNCPY(frame->label, RPT_("Versioning: Map Value node was removed"));
   NodeFrame *frame_data = static_cast<NodeFrame *>(frame->storage);
   frame_data->label_size = 10;
 
@@ -1241,23 +1244,19 @@ static void do_version_split_node_rotation(bNodeTree *node_tree, bNode *node)
 
 static void do_version_remove_lzo_and_lzma_compression(FileData *fd, Object *object)
 {
-  constexpr int PTCACHE_COMPRESS_LZO = 1;
-  constexpr int PTCACHE_COMPRESS_LZMA = 2;
   ListBase pidlist;
 
   BKE_ptcache_ids_from_object(&pidlist, object, nullptr, 0);
 
   LISTBASE_FOREACH (PTCacheID *, pid, &pidlist) {
     bool found_incompatible_cache = false;
-    if (pid->cache->compression == PTCACHE_COMPRESS_LZO) {
-      pid->cache->compression = PTCACHE_COMPRESS_ZSTD_FAST;
+    if (ELEM(pid->cache->compression,
+             PTCACHE_COMPRESS_LZO_DEPRECATED,
+             PTCACHE_COMPRESS_LZMA_DEPRECATED))
+    {
+      pid->cache->compression = PTCACHE_COMPRESS_ZSTD_FILTERED;
       found_incompatible_cache = true;
     }
-    else if (pid->cache->compression == PTCACHE_COMPRESS_LZMA) {
-      pid->cache->compression = PTCACHE_COMPRESS_ZSTD_SLOW;
-      found_incompatible_cache = true;
-    }
-
     if (pid->type == PTCACHE_TYPE_DYNAMICPAINT) {
       /* Dynamicpaint was hardcoded to use LZO. */
       found_incompatible_cache = true;
@@ -1346,6 +1345,69 @@ static void do_version_convert_gp_jitter_values(Brush *brush)
   }
 }
 
+/* The Sun beams node was removed and the Glare node should be used instead, so we need to
+ * make the replacement. */
+static void do_version_sun_beams(bNodeTree &node_tree, bNode &node)
+{
+  blender::bke::node_tree_set_type(node_tree);
+
+  bNodeSocket *old_image_input = blender::bke::node_find_socket(node, SOCK_IN, "Image");
+  bNodeSocket *old_source_input = blender::bke::node_find_socket(node, SOCK_IN, "Source");
+  bNodeSocket *old_length_input = blender::bke::node_find_socket(node, SOCK_IN, "Length");
+  bNodeSocket *old_image_output = blender::bke::node_find_socket(node, SOCK_OUT, "Image");
+
+  bNode *glare_node = blender::bke::node_add_node(nullptr, node_tree, "CompositorNodeGlare");
+  static_cast<NodeGlare *>(glare_node->storage)->type = CMP_NODE_GLARE_SUN_BEAMS;
+  static_cast<NodeGlare *>(glare_node->storage)->quality = 0;
+  glare_node->parent = node.parent;
+  glare_node->location[0] = node.location[0];
+  glare_node->location[1] = node.location[1];
+
+  bNodeSocket *image_input = blender::bke::node_find_socket(*glare_node, SOCK_IN, "Image");
+  bNodeSocket *threshold_input = blender::bke::node_find_socket(
+      *glare_node, SOCK_IN, "Highlights Threshold");
+  bNodeSocket *size_input = blender::bke::node_find_socket(*glare_node, SOCK_IN, "Size");
+  bNodeSocket *source_input = blender::bke::node_find_socket(*glare_node, SOCK_IN, "Sun Position");
+  bNodeSocket *glare_output = blender::bke::node_find_socket(*glare_node, SOCK_OUT, "Glare");
+
+  copy_v4_v4(image_input->default_value_typed<bNodeSocketValueRGBA>()->value,
+             old_image_input->default_value_typed<bNodeSocketValueRGBA>()->value);
+  threshold_input->default_value_typed<bNodeSocketValueFloat>()->value = 0.0f;
+  size_input->default_value_typed<bNodeSocketValueFloat>()->value =
+      old_length_input->default_value_typed<bNodeSocketValueFloat>()->value;
+  copy_v2_v2(source_input->default_value_typed<bNodeSocketValueVector>()->value,
+             old_source_input->default_value_typed<bNodeSocketValueVector>()->value);
+
+  LISTBASE_FOREACH_BACKWARD_MUTABLE (bNodeLink *, link, &node_tree.links) {
+    if (link->tosock == old_image_input) {
+      version_node_add_link(
+          node_tree, *link->fromnode, *link->fromsock, *glare_node, *image_input);
+      blender::bke::node_remove_link(&node_tree, *link);
+      continue;
+    }
+
+    if (link->tosock == old_source_input) {
+      version_node_add_link(
+          node_tree, *link->fromnode, *link->fromsock, *glare_node, *source_input);
+      blender::bke::node_remove_link(&node_tree, *link);
+      continue;
+    }
+
+    if (link->tosock == old_length_input) {
+      version_node_add_link(node_tree, *link->fromnode, *link->fromsock, *glare_node, *size_input);
+      blender::bke::node_remove_link(&node_tree, *link);
+      continue;
+    }
+
+    if (link->fromsock == old_image_output) {
+      version_node_add_link(node_tree, *link->tonode, *link->tosock, *glare_node, *glare_output);
+      blender::bke::node_remove_link(&node_tree, *link);
+    }
+  }
+
+  version_node_remove(node_tree, node);
+}
+
 /* The Composite node was removed and a Group Output node should be used instead, so we need to
  * make the replacement. But first note that the Group Output node relies on the node tree
  * interface, so we ensure a default interface with a single input and output. This is only for
@@ -1388,6 +1450,59 @@ static void do_version_composite_node_in_scene_tree(bNodeTree &node_tree, bNode 
   }
 
   version_node_remove(node_tree, node);
+}
+
+/* The file output node started using item accessors, so we need to free socket storage and copy
+ * them to the new items members. Additionally, the base path was split into a directory and a file
+ * name, so we need to split it. */
+static void do_version_file_output_node(bNode &node)
+{
+  if (node.storage == nullptr) {
+    return;
+  }
+
+  NodeCompositorFileOutput *data = static_cast<NodeCompositorFileOutput *>(node.storage);
+
+  /* The directory previously stored both the directory and the file name. */
+  char directory[FILE_MAX] = "";
+  char file_name[FILE_MAX] = "";
+  BLI_path_split_dir_file(data->directory, directory, FILE_MAX, file_name, FILE_MAX);
+  BLI_strncpy(data->directory, directory, FILE_MAX);
+  data->file_name = BLI_strdup_null(file_name);
+
+  data->items_count = BLI_listbase_count(&node.inputs);
+  data->items = MEM_calloc_arrayN<NodeCompositorFileOutputItem>(data->items_count, __func__);
+  int i = 0;
+  LISTBASE_FOREACH_INDEX (bNodeSocket *, input, &node.inputs, i) {
+    NodeImageMultiFileSocket *old_item_data = static_cast<NodeImageMultiFileSocket *>(
+        input->storage);
+    NodeCompositorFileOutputItem *item_data = &data->items[i];
+
+    item_data->identifier = i;
+    BKE_image_format_copy(&item_data->format, &old_item_data->format);
+    item_data->save_as_render = old_item_data->save_as_render;
+    item_data->override_node_format = !bool(old_item_data->use_node_format);
+
+    item_data->socket_type = input->type;
+    if (item_data->socket_type == SOCK_VECTOR) {
+      item_data->vector_socket_dimensions =
+          input->default_value_typed<bNodeSocketValueVector>()->dimensions;
+    }
+
+    if (data->format.imtype == R_IMF_IMTYPE_MULTILAYER) {
+      item_data->name = BLI_strdup(old_item_data->layer);
+    }
+    else {
+      item_data->name = BLI_strdup(old_item_data->path);
+    }
+
+    const std::string identifier = "Item_" + std::to_string(item_data->identifier);
+    STRNCPY(input->identifier, identifier.c_str());
+
+    BKE_image_format_free(&old_item_data->format);
+    MEM_freeN(old_item_data);
+    input->storage = nullptr;
+  }
 }
 
 /* Updates the media type of the given format to match its imtype. */
@@ -1468,6 +1583,7 @@ static void do_version_world_remove_use_nodes(Main *bmain, World *world)
   new_output.location[1] = background.location[1];
 
   bNode *frame = blender::bke::node_add_static_node(nullptr, *ntree, NODE_FRAME);
+  STRNCPY(frame->label, RPT_("Versioning: Use Nodes was removed"));
   background.parent = frame;
   new_output.parent = frame;
 }
@@ -1523,6 +1639,36 @@ void do_versions_after_linking_500(FileData *fd, Main *bmain)
           if (node->type_legacy == CMP_NODE_COMPOSITE_DEPRECATED) {
             /* See do_version_composite_node_in_scene_tree. */
             version_node_remove(*node_tree, *node);
+          }
+        }
+      }
+    }
+    FOREACH_NODETREE_END;
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 54)) {
+    LISTBASE_FOREACH (Object *, object, &bmain->objects) {
+      if (object->type != OB_ARMATURE || !object->data) {
+        continue;
+      }
+      BKE_pose_rebuild(nullptr, object, static_cast<bArmature *>(object->data), false);
+      LISTBASE_FOREACH (bPoseChannel *, pose_bone, &object->pose->chanbase) {
+        if (pose_bone->bone->flag & BONE_HIDDEN_P) {
+          pose_bone->drawflag |= PCHAN_DRAW_HIDDEN;
+        }
+        else {
+          pose_bone->drawflag &= ~PCHAN_DRAW_HIDDEN;
+        }
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 57)) {
+    FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
+      if (node_tree->type == NTREE_COMPOSIT) {
+        LISTBASE_FOREACH_BACKWARD_MUTABLE (bNode *, node, &node_tree->nodes) {
+          if (node->type_legacy == CMP_NODE_SUNBEAMS_DEPRECATED) {
+            do_version_sun_beams(*node_tree, *node);
           }
         }
       }
@@ -1898,8 +2044,8 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
     }
   }
 
-  /* ImageFormatData gained a new media type which we need to be set according to the existing
-   * imtype. */
+  /* ImageFormatData gained a new media type which we need to be set according to the
+   * existing imtype. */
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 42)) {
     LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
       update_format_media_type(&scene->r.im_format);
@@ -1915,7 +2061,7 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
           continue;
         }
 
-        NodeImageMultiFile *storage = static_cast<NodeImageMultiFile *>(node->storage);
+        NodeCompositorFileOutput *storage = static_cast<NodeCompositorFileOutput *>(node->storage);
         update_format_media_type(&storage->format);
 
         LISTBASE_FOREACH (bNodeSocket *, input, &node->inputs) {
@@ -2107,6 +2253,68 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
     }
   }
 
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 54)) {
+    FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
+      if (node_tree->type != NTREE_COMPOSIT) {
+        continue;
+      }
+      LISTBASE_FOREACH (bNode *, node, &node_tree->nodes) {
+        if (node->type_legacy == CMP_NODE_OUTPUT_FILE) {
+          do_version_file_output_node(*node);
+        }
+      }
+      FOREACH_NODETREE_END;
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 58)) {
+    LISTBASE_FOREACH (Object *, object, &bmain->objects) {
+      LISTBASE_FOREACH (ModifierData *, modifier, &object->modifiers) {
+        if (modifier->type != eModifierType_GreasePencilLineart) {
+          continue;
+        }
+        GreasePencilLineartModifierData *lmd = reinterpret_cast<GreasePencilLineartModifierData *>(
+            modifier);
+        if (lmd->radius != 0.0f) {
+          continue;
+        }
+        lmd->radius = float(lmd->thickness_legacy) *
+                      bke::greasepencil::LEGACY_RADIUS_CONVERSION_FACTOR;
+      }
+    }
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 61)) {
+    FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
+      if (ntree->type != NTREE_COMPOSIT) {
+        continue;
+      }
+      version_node_input_socket_name(ntree, CMP_NODE_GAMMA_DEPRECATED, "Image", "Color");
+      version_node_output_socket_name(ntree, CMP_NODE_GAMMA_DEPRECATED, "Image", "Color");
+
+      LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
+        if (node->type_legacy == CMP_NODE_GAMMA_DEPRECATED) {
+          node->type_legacy = SH_NODE_GAMMA;
+          STRNCPY_UTF8(node->idname, "ShaderNodeGamma");
+        }
+      }
+    }
+    FOREACH_NODETREE_END;
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 62)) {
+    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+      if (scene->r.bake_flag & R_BAKE_MULTIRES) {
+        scene->r.bake.type = scene->r.bake_mode;
+        scene->r.bake.flag |= (scene->r.bake_flag & (R_BAKE_MULTIRES | R_BAKE_LORES_MESH));
+        scene->r.bake.margin_type = scene->r.bake_margin_type;
+        scene->r.bake.margin = scene->r.bake_margin;
+      }
+      else {
+        scene->r.bake.type = R_BAKE_NORMALS;
+      }
+    }
+  }
+
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a MAIN_VERSION_FILE_ATLEAST check.
@@ -2114,8 +2322,8 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
    * \note Keep this message at the bottom of the function.
    */
 
-  /* Keep this versioning always enabled at the bottom of the function; it can only be moved behind
-   * a subversion bump when the file format is changed. */
+  /* Keep this versioning always enabled at the bottom of the function; it can only be moved
+   * behind a subversion bump when the file format is changed. */
   LISTBASE_FOREACH (Mesh *, mesh, &bmain->meshes) {
     bke::mesh_freestyle_marks_to_generic(*mesh);
   }
