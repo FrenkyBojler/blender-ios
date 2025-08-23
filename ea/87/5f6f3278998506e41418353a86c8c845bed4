@@ -3,3 +3,4 @@ Referenced by issue #132493, Fix: Geometry Nodes: Ensure Triangulate node genera
 Referenced by issue #132405, Fix: Geometry Nodes: Triangulate Mesh node assertion case
 Referenced by issue #116729, Refactoring: Geometry Nodes: Rewrite Ico Sphere mesh primitive
 Referenced by pull request #132493, Fix: Geometry Nodes: Ensure Triangulate node generate only unique faces and edges
+Referenced by issue #144983, Geometry nodes triangulate and armature modifier on a mesh with UV map vertex group name collision crashes Blender
