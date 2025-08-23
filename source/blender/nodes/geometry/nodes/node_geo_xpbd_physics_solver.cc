@@ -311,29 +311,47 @@ PROFILE_FUNCTION static WorldData parse_world(const Bundle &world_bundle)
   return world;
 }
 
-PROFILE_FUNCTION static void integrate_linear_velocities(
-    XPBDState &state,
-    const Map<SimPointsKey, Span<float3>> &accelerations_map,
-    const Map<SimPointsKey, SimPointsWorldProperties> &sim_points_props,
+PROFILE_FUNCTION static void integrate_linear_velocities(SimPoints &sim_points,
+                                                         const IndexRange range,
+                                                         const Span<float3> accelerations,
+                                                         const SimPointsWorldProperties &props,
+                                                         const float delta_time)
+{
+  const float linear_damping_factor = std::max(1.0f - props.linear_damping * delta_time, 0.0f);
+  for (const int i : range) {
+    const float3 &acceleration = accelerations[i];
+    sim_points.velocities[i] += acceleration * delta_time;
+    sim_points.velocities[i] *= linear_damping_factor;
+    sim_points.positions[i] += sim_points.velocities[i] * delta_time;
+  }
+}
+
+PROFILE_FUNCTION static void integrate_angular_velocities(
+    SimPoints &sim_points,
+    const IndexRange range,
+    const std::optional<Span<float3>> torques,
+    const SimPointsWorldProperties &props,
     const float delta_time)
 {
-  for (auto item : state.sim_points.items()) {
-    SimPoints &sim_points = item.value;
-    const Span<float3> accelerations = accelerations_map.lookup(item.key);
-    const SimPointsWorldProperties &props = sim_points_props.lookup(item.key);
-    const int points_num = sim_points.positions.size();
+  BLI_assert(sim_points.has_rotation);
+  /* Approximation of exponential decay. */
+  const float angular_damping_factor = std::max(1.0f - props.angular_damping * delta_time, 0.0f);
 
-    /* Approximation of exponential decay. */
-    const float linear_damping_factor = std::max(1.0f - props.linear_damping * delta_time, 0.0f);
-
-    threading::parallel_for(IndexRange(points_num), 1024, [&](const IndexRange range) {
-      for (const int i : range) {
-        const float3 &acceleration = accelerations[i];
-        sim_points.velocities[i] += acceleration * delta_time;
-        sim_points.velocities[i] *= linear_damping_factor;
-        sim_points.positions[i] += sim_points.velocities[i] * delta_time;
-      }
-    });
+  for (const int i : range) {
+    const float3 &external_torque = torques.has_value() ? (*torques)[i] : float3(0.0f);
+    const float3 &inertia = props.inertias[i];
+    const float3 &inverse_inertia = props.inverse_inertias[i];
+    if (math::is_zero(inverse_inertia)) {
+      continue;
+    }
+    float3 &angular_velocity = sim_points.angular_velocities[i];
+    const float3 precession = math::cross(angular_velocity, angular_velocity * inertia);
+    angular_velocity += delta_time * (external_torque - precession) * inverse_inertia;
+    angular_velocity *= angular_damping_factor;
+    math::Quaternion &rotation = sim_points.rotations[i];
+    const math::Quaternion direction = rotation * math::Quaternion(0, angular_velocity);
+    rotation = math::normalize(
+        math::Quaternion(float4(rotation) + delta_time * 0.5f * float4(direction)));
   }
 }
 
@@ -1937,18 +1955,6 @@ PROFILE_FUNCTION static void update_angular_velocities(SimPoints &sim_points,
   }
 }
 
-static void post_solve_per_point_steps(SimPoints &sim_points,
-                                       const IndexRange range,
-                                       const Span<float3> prev_positions,
-                                       const Span<math::Quaternion> prev_rotations,
-                                       const float delta_time)
-{
-  update_linear_velocities(sim_points, prev_positions, range, delta_time);
-  if (sim_points.has_rotation) {
-    update_angular_velocities(sim_points, prev_rotations, range, delta_time);
-  }
-}
-
 PROFILE_FUNCTION static Vector<xpbd::GeometryRef> prepare_geometry_refs_for_solver(
     XPBDState &state,
     const Span<SimPointsKey> keys,
@@ -2163,18 +2169,44 @@ PROFILE_FUNCTION static void update_pinned_rotations(
 }
 
 PROFILE_FUNCTION static void remember_previous_state(
-    const VectorSet<SimPointsKey> &keys,
-    Array<Array<float3>> &all_prev_positions,
-    Array<Array<math::Quaternion>> &all_prev_rotations,
-    XPBDState &state)
+    const SimPoints &sim_points,
+    const IndexRange range,
+    const MutableSpan<float3> dst_positions,
+    const MutableSpan<math::Quaternion> dst_rotations)
 {
-  for (const int i : keys.index_range()) {
-    const SimPointsKey &key = keys[i];
-    const SimPoints &sim_points = state.sim_points.lookup(key);
-    all_prev_positions[i].as_mutable_span().copy_from(sim_points.positions);
+  dst_positions.slice(range).copy_from(sim_points.positions.as_span().slice(range));
+  if (sim_points.has_rotation) {
+    dst_rotations.slice(range).copy_from(sim_points.rotations.as_span().slice(range));
+  }
+}
+
+static void pre_solve_per_point_steps(SimPoints &sim_points,
+                                      const IndexRange range,
+                                      MutableSpan<float3> prev_positions,
+                                      MutableSpan<math::Quaternion> prev_rotations,
+                                      const SimPointsWorldProperties &props,
+                                      const Span<float3> accelerations,
+                                      const std::optional<Span<float3>> torques,
+                                      const float delta_time)
+{
+  remember_previous_state(sim_points, range, prev_positions, prev_rotations);
+  if (delta_time > 0.0f) {
+    integrate_linear_velocities(sim_points, range, accelerations, props, delta_time);
     if (sim_points.has_rotation) {
-      all_prev_rotations[i].as_mutable_span().copy_from(sim_points.rotations);
+      integrate_angular_velocities(sim_points, range, torques, props, delta_time);
     }
+  }
+}
+
+static void post_solve_per_point_steps(SimPoints &sim_points,
+                                       const IndexRange range,
+                                       const Span<float3> prev_positions,
+                                       const Span<math::Quaternion> prev_rotations,
+                                       const float delta_time)
+{
+  update_linear_velocities(sim_points, prev_positions, range, delta_time);
+  if (sim_points.has_rotation) {
+    update_angular_velocities(sim_points, prev_rotations, range, delta_time);
   }
 }
 
@@ -2250,13 +2282,26 @@ PROFILE_FUNCTION static void update_and_step_xpbd_state(XPBDState &state,
   for ([[maybe_unused]] const int substep_i : IndexRange(substeps)) {
     const float factor = substeps <= 1 ? 1.0f : float(substep_i) / (substeps - 1);
 
-    remember_previous_state(keys, all_prev_positions, all_prev_rotations, state);
-
-    /* Integrate linear and angular velocities. This also applies external forces. */
-    if (sub_delta_time > 0.0f) {
-      integrate_linear_velocities(state, accelerations_map, sim_points_props, sub_delta_time);
-      integrate_angular_velocities(state, torques_map, sim_points_props, sub_delta_time);
-    }
+    threading::parallel_for(keys.index_range(), 1, [&](const IndexRange range) {
+      for (const int key_i : range) {
+        const SimPointsKey &key = keys[key_i];
+        SimPoints &sim_points = state.sim_points.lookup(key);
+        const Span<float3> accelerations = accelerations_map.lookup(key);
+        const std::optional<Span<float3>> torques = torques_map.lookup_try(key);
+        const SimPointsWorldProperties &props = sim_points_props.lookup(key);
+        threading::parallel_for(
+            IndexRange(sim_points.points_num), 1024, [&](const IndexRange range) {
+              pre_solve_per_point_steps(sim_points,
+                                        range,
+                                        all_prev_positions[key_i],
+                                        all_prev_rotations[key_i],
+                                        props,
+                                        accelerations,
+                                        torques,
+                                        sub_delta_time);
+            });
+      }
+    });
 
     /* Move pinned points to the correct position for the current substep. */
     update_pinned_positions(state, pinned_positions_map, soft_pinned_positions_map, factor);
