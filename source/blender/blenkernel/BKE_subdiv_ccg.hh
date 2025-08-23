@@ -95,17 +95,15 @@ struct SubdivCCGCoord {
 
 /* Definition of an edge which is adjacent to at least one of the faces. */
 struct SubdivCCGAdjacentEdge {
-  int num_adjacent_faces;
   /* Indexed by adjacent face index, then by point index on the edge.
    * points to a coordinate into the grids. */
-  SubdivCCGCoord **boundary_coords;
+  blender::Vector<blender::Array<SubdivCCGCoord>> boundary_coords;
 };
 
 /* Definition of a vertex which is adjacent to at least one of the faces. */
 struct SubdivCCGAdjacentVertex {
-  int num_adjacent_faces;
   /* Indexed by adjacent face index, points to a coordinate in the grids. */
-  SubdivCCGCoord *corner_coords;
+  blender::Vector<SubdivCCGCoord> corner_coords;
 };
 
 /* Representation of subdivision surface which uses CCG grids. */
@@ -141,11 +139,18 @@ struct SubdivCCG : blender::NonCopyable {
   blender::Span<int> grid_to_face_map;
 
   /* Edges which are adjacent to faces.
+   *
+   * Maps from coarse edge to a directional `grid_size` * 2 map of indices to `SubdivCCGCoord`,
+   * indexed by OpenSubdiv base mesh edge.
+   *
    * Used for faster grid stitching, at the cost of extra memory.
    */
   blender::Array<SubdivCCGAdjacentEdge> adjacent_edges;
 
-  /* Vertices which are adjacent to faces
+  /* Vertices which are adjacent to faces.
+   *
+   * Maps from coarse vertex to `SubdivCCGCoord`, indexed by OpenSubdiv base mesh vertex.
+   *
    * Used for faster grid stitching, at the cost of extra memory.
    */
   blender::Array<SubdivCCGAdjacentVertex> adjacent_verts;
@@ -171,12 +176,6 @@ struct SubdivCCG : blender::NonCopyable {
     bool hidden = false;
   } dirty;
 
-  /* Cached values, are not supposed to be accessed directly. */
-  struct {
-    /* Indexed by face, indicates index of the first grid which corresponds to the face. */
-    blender::Array<int> start_face_grid_index;
-  } cache_;
-
   ~SubdivCCG();
 };
 
@@ -194,7 +193,7 @@ struct SubdivCCG : blender::NonCopyable {
 std::unique_ptr<SubdivCCG> BKE_subdiv_to_ccg(blender::bke::subdiv::Subdiv &subdiv,
                                              const SubdivToCCGSettings &settings,
                                              const Mesh &coarse_mesh,
-                                             SubdivCCGMaskEvaluator *mask_evaluator);
+                                             SubdivCCGMaskEvaluator *mask_evaluator = nullptr);
 
 /* Helper function, creates Mesh structure which is properly setup to use
  * grids.
@@ -273,9 +272,6 @@ inline int BKE_subdiv_ccg_grid_to_face_index(const SubdivCCG &subdiv_ccg, const 
   return subdiv_ccg.grid_to_face_map[grid_index];
 }
 
-void BKE_subdiv_ccg_eval_limit_point(const SubdivCCG &subdiv_ccg,
-                                     const SubdivCCGCoord &coord,
-                                     blender::float3 &r_point);
 void BKE_subdiv_ccg_eval_limit_positions(const SubdivCCG &subdiv_ccg,
                                          const CCGKey &key,
                                          int grid_index,
@@ -304,15 +300,6 @@ bool BKE_subdiv_ccg_coord_is_mesh_boundary(blender::OffsetIndices<int> faces,
                                            blender::BitSpan boundary_verts,
                                            const SubdivCCG &subdiv_ccg,
                                            SubdivCCGCoord coord);
-
-/* Get array which is indexed by face index and contains index of a first grid of the face.
- *
- * The "ensure" version allocates the mapping if it's not known yet and stores it in the subdiv_ccg
- * descriptor. This function is NOT safe for threading.
- *
- * The "get" version simply returns cached array. */
-const int *BKE_subdiv_ccg_start_face_grid_index_ensure(SubdivCCG &subdiv_ccg);
-const int *BKE_subdiv_ccg_start_face_grid_index_get(const SubdivCCG &subdiv_ccg);
 
 blender::BitGroupVector<> &BKE_subdiv_ccg_grid_hidden_ensure(SubdivCCG &subdiv_ccg);
 void BKE_subdiv_ccg_grid_hidden_free(SubdivCCG &subdiv_ccg);

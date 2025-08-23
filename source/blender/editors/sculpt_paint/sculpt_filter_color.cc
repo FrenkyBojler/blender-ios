@@ -44,7 +44,6 @@
 #include "UI_resources.hh"
 
 #include <cmath>
-#include <cstdlib>
 
 namespace blender::ed::sculpt_paint::color {
 
@@ -509,7 +508,9 @@ static int sculpt_color_filter_init(bContext *C, wmOperator *op)
   const SculptSession &ss = *ob.sculpt;
   filter::Cache *filter_cache = ss.filter_cache;
   filter_cache->active_face_set = SCULPT_FACE_SET_NONE;
-  auto_mask::filter_cache_ensure(*depsgraph, sd, ob);
+  if (auto_mask::is_enabled(sd, ob, nullptr)) {
+    auto_mask::filter_cache_ensure(*depsgraph, sd, ob);
+  }
 
   return OPERATOR_PASS_THROUGH;
 }

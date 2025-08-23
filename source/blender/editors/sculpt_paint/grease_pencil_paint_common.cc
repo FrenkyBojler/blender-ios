@@ -80,9 +80,9 @@ void init_brush(Brush &brush)
   BKE_curvemapping_init(brush.gpencil_settings->curve_rand_pressure);
   BKE_curvemapping_init(brush.gpencil_settings->curve_rand_strength);
   BKE_curvemapping_init(brush.gpencil_settings->curve_rand_uv);
-  BKE_curvemapping_init(brush.gpencil_settings->curve_rand_hue);
-  BKE_curvemapping_init(brush.gpencil_settings->curve_rand_saturation);
-  BKE_curvemapping_init(brush.gpencil_settings->curve_rand_value);
+  BKE_curvemapping_init(brush.curve_rand_hue);
+  BKE_curvemapping_init(brush.curve_rand_saturation);
+  BKE_curvemapping_init(brush.curve_rand_value);
 }
 
 float brush_radius(const Paint &paint, const Brush &brush, const float pressure = 1.0f)
@@ -338,7 +338,7 @@ bke::crazyspace::GeometryDeformation get_drawing_deformation(
     const GreasePencilStrokeParams &params)
 {
   return bke::crazyspace::get_evaluated_grease_pencil_drawing_deformation(
-      &params.ob_eval, params.ob_orig, params.layer_index, params.frame_number);
+      &params.ob_eval, params.ob_orig, params.drawing);
 }
 
 Array<float2> calculate_view_positions(const GreasePencilStrokeParams &params,

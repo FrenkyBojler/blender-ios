@@ -24,27 +24,6 @@ namespace blender::eevee {
 
 class Instance;
 
-/* -------------------------------------------------------------------- */
-/** \name Default World Node-Tree
- *
- * In order to support worlds without node-tree we reuse and configure a standalone node-tree that
- * we pass for shader generation. The GPUMaterial is still stored inside the World even if
- * it does not use a node-tree.
- * \{ */
-
-class DefaultWorldNodeTree {
- private:
-  bNodeTree *ntree_;
-  bNodeSocketValueRGBA *color_socket_;
-
- public:
-  DefaultWorldNodeTree();
-  ~DefaultWorldNodeTree();
-
-  /** Configure a default node-tree with the given world. */
-  bNodeTree *nodetree_get(::World *world);
-};
-
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -56,13 +35,12 @@ class World {
  public:
   /**
    * Buffer containing the sun light for the world.
-   * Filled by #LightProbeModule and read by #LightModule.  */
+   * Filled by #LightProbeModule and read by #LightModule.
+   */
   UniformBuffer<LightData> sunlight = {"sunlight"};
 
  private:
   Instance &inst_;
-
-  DefaultWorldNodeTree default_tree;
 
   /* Used to detect if world change. */
   ::World *prev_original_world = nullptr;

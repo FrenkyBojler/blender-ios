@@ -652,6 +652,25 @@ macro(add_cxx_flag
   string(APPEND CMAKE_CXX_FLAGS " ${flag}")
 endmacro()
 
+# Needed to "negate" options: `-Wno-example`
+# as this doesn't work when added to `CMAKE_CXX_FLAGS`.
+macro(add_c_flag_per_config
+  flag)
+
+  string(APPEND CMAKE_C_FLAGS_DEBUG " ${flag}")
+  string(APPEND CMAKE_C_FLAGS_RELEASE " ${flag}")
+  string(APPEND CMAKE_C_FLAGS_MINSIZEREL " ${flag}")
+  string(APPEND CMAKE_C_FLAGS_RELWITHDEBINFO " ${flag}")
+endmacro()
+macro(add_cxx_flag_per_config
+  flag)
+
+  string(APPEND CMAKE_CXX_FLAGS_DEBUG " ${flag}")
+  string(APPEND CMAKE_CXX_FLAGS_RELEASE " ${flag}")
+  string(APPEND CMAKE_CXX_FLAGS_MINSIZEREL " ${flag}")
+  string(APPEND CMAKE_CXX_FLAGS_RELWITHDEBINFO " ${flag}")
+endmacro()
+
 macro(remove_strict_flags)
 
   if(CMAKE_COMPILER_IS_GNUCC)
@@ -999,7 +1018,6 @@ function(data_to_c
 
   add_custom_command(
     OUTPUT ${file_to}
-    COMMAND ${CMAKE_COMMAND} -E make_directory ${_file_to_path}
     COMMAND "$<TARGET_FILE:datatoc>" ${file_from} ${file_to}
     DEPENDS ${file_from} datatoc)
 
@@ -1026,7 +1044,6 @@ function(data_to_c_simple
 
   add_custom_command(
     OUTPUT  ${_file_to}
-    COMMAND ${CMAKE_COMMAND} -E make_directory ${_file_to_path}
     COMMAND "$<TARGET_FILE:datatoc>" ${_file_from} ${_file_to}
     DEPENDS ${_file_from} datatoc)
 
@@ -1055,7 +1072,6 @@ function(glsl_to_c
 
   add_custom_command(
     OUTPUT  ${_file_to} ${_file_meta}
-    COMMAND ${CMAKE_COMMAND} -E make_directory ${_file_to_path}
     COMMAND "$<TARGET_FILE:glsl_preprocess>" ${_file_from} ${_file_tmp} ${_file_meta}
     COMMAND "$<TARGET_FILE:datatoc>" ${_file_tmp} ${_file_to}
     DEPENDS ${_file_from} datatoc glsl_preprocess)

@@ -51,7 +51,7 @@
 
 using blender::Vector;
 
-static CLG_LogRef LOG = {"bke.context"};
+static CLG_LogRef LOG = {"context"};
 
 /* struct */
 
@@ -292,18 +292,18 @@ static void *ctx_wm_python_context_get(const bContext *C,
 #ifdef WITH_PYTHON
   if (UNLIKELY(C && CTX_py_dict_get(C))) {
     bContextDataResult result{};
-    BPY_context_member_get((bContext *)C, member, &result);
+    if (BPY_context_member_get((bContext *)C, member, &result)) {
+      if (result.ptr.data) {
+        if (RNA_struct_is_a(result.ptr.type, member_type)) {
+          return result.ptr.data;
+        }
 
-    if (result.ptr.data) {
-      if (RNA_struct_is_a(result.ptr.type, member_type)) {
-        return result.ptr.data;
+        CLOG_WARN(&LOG,
+                  "PyContext '%s' is a '%s', expected a '%s'",
+                  member,
+                  RNA_struct_identifier(result.ptr.type),
+                  RNA_struct_identifier(member_type));
       }
-
-      CLOG_WARN(&LOG,
-                "PyContext '%s' is a '%s', expected a '%s'",
-                member,
-                RNA_struct_identifier(result.ptr.type),
-                RNA_struct_identifier(member_type));
     }
   }
 #else
@@ -822,7 +822,7 @@ wmGizmoGroup *CTX_wm_gizmo_group(const bContext *C)
 
 wmMsgBus *CTX_wm_message_bus(const bContext *C)
 {
-  return C->wm.manager ? C->wm.manager->message_bus : nullptr;
+  return C->wm.manager ? C->wm.manager->runtime->message_bus : nullptr;
 }
 
 ReportList *CTX_wm_reports(const bContext *C)
@@ -1155,6 +1155,16 @@ Scene *CTX_data_scene(const bContext *C)
     return scene;
   }
 
+  return C->data.scene;
+}
+
+Scene *CTX_data_sequencer_scene(const bContext *C)
+{
+  Scene *scene;
+  if (ctx_data_pointer_verify(C, "sequencer_scene", (void **)&scene)) {
+    return scene;
+  }
+  /* TODO: Use sequencer scene. */
   return C->data.scene;
 }
 

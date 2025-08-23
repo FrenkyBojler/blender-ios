@@ -8,8 +8,10 @@
 
 #include <string>
 
+#include "BLI_bounds.hh"
 #include "BLI_listbase.h"
 #include "BLI_map.hh"
+#include "BLI_math_vector.h"
 #include "BLI_set.hh"
 #include "BLI_sort.hh"
 #include "BLI_string.h"
@@ -20,6 +22,8 @@
 #include "BKE_geometry_set.hh"
 #include "BKE_instances.hh"
 #include "BKE_layer.hh"
+#include "BKE_lib_id.hh"
+#include "BKE_object.hh"
 
 #include "DEG_depsgraph_build.hh"
 
@@ -94,6 +98,9 @@ static void geometry_to_blender_geometry_set(const OBJImportParams &import_param
       Curve *curve = curve_ob_from_geometry.create_curve(import_params);
       Curves *curves_id = bke::curve_legacy_to_curves(*curve);
       geometry_set = bke::GeometrySet::from_curves(curves_id);
+
+      /* Free temporary legacy curve object. */
+      BKE_id_free(nullptr, curve);
     }
 
     geometry_set.name = geometry->geometry_name_;
@@ -146,6 +153,23 @@ static void geometry_to_blender_objects(Main *bmain,
 
       BKE_collection_object_add(bmain, target_collection, obj);
       objects.append(obj);
+    }
+  }
+
+  /* Clamp object size if needed. */
+  if (import_params.clamp_size > 0.0f) {
+    std::optional<Bounds<float3>> bounds = std::nullopt;
+    for (Object *obj : objects) {
+      bounds = blender::bounds::merge(bounds, BKE_object_boundbox_get(obj));
+    }
+    if (bounds.has_value()) {
+      const float max_diff = math::reduce_max(bounds->max - bounds->min);
+      if (import_params.clamp_size < max_diff * import_params.global_scale) {
+        const float scale = import_params.clamp_size / max_diff;
+        for (Object *obj : objects) {
+          copy_v3_fl(obj->scale, scale);
+        }
+      }
     }
   }
 

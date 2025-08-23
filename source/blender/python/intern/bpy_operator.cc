@@ -39,8 +39,9 @@
 #include "MEM_guardedalloc.h"
 
 #include "BKE_context.hh"
-#include "BKE_global.hh"
 #include "BKE_report.hh"
+
+#include "CLG_log.h"
 
 /* so operators called can spawn threads which acquire the GIL */
 #define BPY_RELEASE_GIL
@@ -68,14 +69,14 @@ static PyObject *pyop_poll(PyObject * /*self*/, PyObject *args)
   const char *context_str = nullptr;
   PyObject *ret;
 
-  wmOperatorCallContext context = WM_OP_EXEC_DEFAULT;
+  blender::wm::OpCallContext context = blender::wm::OpCallContext::ExecDefault;
 
   /* XXX TODO: work out a better solution for passing on context,
    * could make a tuple from self and pack the name and Context into it. */
   bContext *C = BPY_context_get();
 
   if (C == nullptr) {
-    PyErr_SetString(PyExc_RuntimeError, "Context is None, can't poll any operators");
+    PyErr_SetString(PyExc_RuntimeError, "Context is None, cannot poll any operators");
     return nullptr;
   }
 
@@ -105,7 +106,7 @@ static PyObject *pyop_poll(PyObject * /*self*/, PyObject *args)
   }
 
   if (context_str) {
-    int context_int = context;
+    int context_int = int(context);
 
     if (RNA_enum_value_from_id(rna_enum_operator_context_items, context_str, &context_int) == 0) {
       char *enum_str = pyrna_enum_repr(rna_enum_operator_context_items);
@@ -118,7 +119,7 @@ static PyObject *pyop_poll(PyObject * /*self*/, PyObject *args)
       return nullptr;
     }
     /* Copy back to the properly typed enum. */
-    context = wmOperatorCallContext(context_int);
+    context = blender::wm::OpCallContext(context_int);
   }
 
   /* main purpose of this function */
@@ -138,7 +139,7 @@ static PyObject *pyop_call(PyObject * /*self*/, PyObject *args)
   const char *context_str = nullptr;
   PyObject *kw = nullptr; /* optional args */
 
-  wmOperatorCallContext context = WM_OP_EXEC_DEFAULT;
+  blender::wm::OpCallContext context = blender::wm::OpCallContext::ExecDefault;
   int is_undo = false;
 
   /* XXX TODO: work out a better solution for passing on context,
@@ -146,7 +147,7 @@ static PyObject *pyop_call(PyObject * /*self*/, PyObject *args)
   bContext *C = BPY_context_get();
 
   if (C == nullptr) {
-    PyErr_SetString(PyExc_RuntimeError, "Context is None, can't poll any operators");
+    PyErr_SetString(PyExc_RuntimeError, "Context is None, cannot poll any operators");
     return nullptr;
   }
 
@@ -182,13 +183,13 @@ static PyObject *pyop_call(PyObject * /*self*/, PyObject *args)
   if (!pyrna_write_check()) {
     PyErr_Format(PyExc_RuntimeError,
                  "Calling operator \"bpy.ops.%s\" error, "
-                 "can't modify blend data in this state (drawing/rendering)",
+                 "cannot modify blend data in this state (drawing/rendering)",
                  opname);
     return nullptr;
   }
 
   if (context_str) {
-    int context_int = context;
+    int context_int = int(context);
 
     if (RNA_enum_value_from_id(rna_enum_operator_context_items, context_str, &context_int) == 0) {
       char *enum_str = pyrna_enum_repr(rna_enum_operator_context_items);
@@ -201,7 +202,7 @@ static PyObject *pyop_call(PyObject * /*self*/, PyObject *args)
       return nullptr;
     }
     /* Copy back to the properly typed enum. */
-    context = wmOperatorCallContext(context_int);
+    context = blender::wm::OpCallContext(context_int);
   }
 
   if (WM_operator_poll_context(C, ot, context) == false) {
@@ -257,7 +258,7 @@ static PyObject *pyop_call(PyObject * /*self*/, PyObject *args)
       if (!BLI_listbase_is_empty(&reports->list)) {
         /* Restore the print level as this is owned by the operator now. */
         eReportType level = eReportType(reports->printlevel);
-        BKE_report_print_level_set(reports, G.quiet ? RPT_WARNING : RPT_DEBUG);
+        BKE_report_print_level_set(reports, CLG_quiet_get() ? RPT_WARNING : RPT_DEBUG);
         BPy_reports_write_stdout(reports, nullptr);
         BKE_report_print_level_set(reports, level);
       }
@@ -285,7 +286,7 @@ static PyObject *pyop_call(PyObject * /*self*/, PyObject *args)
         return nullptr;
       }
 
-      WM_operator_name_call(C, opname, WM_OP_EXEC_DEFAULT, nullptr, nullptr);
+      WM_operator_name_call(C, opname, blender::wm::OpCallContext::ExecDefault, nullptr, nullptr);
     }
 #endif
   }
@@ -318,7 +319,7 @@ static PyObject *pyop_as_string(PyObject * /*self*/, PyObject *args)
 
   if (C == nullptr) {
     PyErr_SetString(PyExc_RuntimeError,
-                    "Context is None, can't get the string representation of this object.");
+                    "Context is None, cannot get the string representation of this object.");
     return nullptr;
   }
 

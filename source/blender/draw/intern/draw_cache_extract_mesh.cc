@@ -94,7 +94,9 @@ static bool use_normals_simplify(const Scene &scene, const MeshRenderData &mr)
   if (!meta_data) {
     return false;
   }
-  if (meta_data->domain == bke::AttrDomain::Corner && meta_data->data_type == CD_PROP_INT16_2D) {
+  if (meta_data->domain == bke::AttrDomain::Corner &&
+      meta_data->data_type == bke::AttrType::Int16_2D)
+  {
     return true;
   }
   return false;
@@ -358,7 +360,10 @@ void mesh_buffer_cache_create_requested_subdiv(MeshBatchCache &cache,
 
   if (vbos_to_create.contains(VBOType::Position) || vbos_to_create.contains(VBOType::Orco)) {
     gpu::VertBufPtr orco_vbo;
-    buffers.vbos.add_new(
+    /* Don't use `add_new` because #VBOType::Orco might be requested after #VBOType::Position
+     * already exists. It's inefficient to build the position VBO a second time but that's the API
+     * that GPU subdivision provides. */
+    buffers.vbos.add(
         VBOType::Position,
         extract_positions_subdiv(
             subdiv_cache, mr, vbos_to_create.contains(VBOType::Orco) ? &orco_vbo : nullptr));

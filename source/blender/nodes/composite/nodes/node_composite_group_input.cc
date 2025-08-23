@@ -32,10 +32,9 @@ class GroupInputOperation : public NodeOperation {
         continue;
       }
 
-      const char *pass_name = StringRef(output->name) == "Image" ? "Combined" : output->name;
-      this->context().populate_meta_data_for_pass(&scene, 0, pass_name, result.meta_data);
+      this->context().populate_meta_data_for_pass(&scene, 0, output->name, result.meta_data);
 
-      const Result pass = this->context().get_pass(&scene, 0, pass_name);
+      const Result pass = this->context().get_input(&scene, 0, output->name);
       this->execute_pass(pass, result);
     }
   }
@@ -45,7 +44,6 @@ class GroupInputOperation : public NodeOperation {
     if (!pass.is_allocated()) {
       /* Pass not rendered yet, or not supported by viewport. */
       result.allocate_invalid();
-      this->context().set_info_message("Viewport compositor setup not fully supported");
       return;
     }
 
@@ -67,14 +65,13 @@ class GroupInputOperation : public NodeOperation {
 
   void execute_pass_gpu(const Result &pass, Result &result)
   {
-    GPUShader *shader = this->context().get_shader(this->get_shader_name(pass),
-                                                   result.precision());
+    gpu::Shader *shader = this->context().get_shader(this->get_shader_name(pass),
+                                                     result.precision());
     GPU_shader_bind(shader);
 
     /* The compositing space might be limited to a subset of the pass texture, so only read that
      * compositing region into an appropriately sized result. */
-    const rcti compositing_region = this->context().get_compositing_region();
-    const int2 lower_bound = int2(compositing_region.xmin, compositing_region.ymin);
+    const int2 lower_bound = this->context().get_compositing_region().min;
     GPU_shader_uniform_2iv(shader, "lower_bound", lower_bound);
 
     pass.bind_as_texture(shader, "input_tx");
@@ -102,7 +99,13 @@ class GroupInputOperation : public NodeOperation {
       case ResultType::Int2:
       case ResultType::Float2:
       case ResultType::Bool:
+      case ResultType::Menu:
         /* Not supported. */
+        break;
+      case ResultType::String:
+        /* Single only types do not support GPU code path. */
+        BLI_assert(Result::is_single_value_only_type(pass.type()));
+        BLI_assert_unreachable();
         break;
     }
 
@@ -114,8 +117,7 @@ class GroupInputOperation : public NodeOperation {
   {
     /* The compositing space might be limited to a subset of the pass texture, so only read that
      * compositing region into an appropriately sized result. */
-    const rcti compositing_region = this->context().get_compositing_region();
-    const int2 lower_bound = int2(compositing_region.xmin, compositing_region.ymin);
+    const int2 lower_bound = this->context().get_compositing_region().min;
 
     result.allocate_texture(Domain(this->context().get_compositing_region_size()));
 

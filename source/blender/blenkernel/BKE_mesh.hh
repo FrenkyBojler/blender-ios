@@ -19,6 +19,7 @@
 namespace blender::bke {
 
 enum class AttrDomain : int8_t;
+enum class AttrType : int16_t;
 struct AttributeAccessorFunctions;
 
 namespace mesh {
@@ -148,15 +149,10 @@ struct CornerNormalSpace {
 
 /**
  * Storage for corner fan coordinate spaces for an entire mesh.
+ * For performance reason the distribution of #spaces and index mapping of them in
+ * #corner_space_indices are non-deterministic.
  */
 struct CornerNormalSpaceArray {
-  /**
-   * Results are added from multiple threads. The lock is an easy way to parallelize adding results
-   * for each corner fan. This method means the order of spaces in the `spaces` vector and
-   * `corners_by_face` is non-deterministic. That shouldn't affect the final output for the user
-   * though.
-   */
-  Mutex build_mutex;
   /**
    * The normal coordinate spaces, potentially shared between multiple face corners in a smooth fan
    * connected to a vertex (and not per face corner). Depending on the mesh (the amount of sharing
@@ -414,7 +410,7 @@ void mesh_select_face_flush(Mesh &mesh);
 void mesh_ensure_default_color_attribute_on_add(Mesh &mesh,
                                                 StringRef id,
                                                 AttrDomain domain,
-                                                eCustomDataType data_type);
+                                                bke::AttrType data_type);
 
 void mesh_data_update(Depsgraph &depsgraph,
                       const Scene &scene,
@@ -424,6 +420,7 @@ void mesh_data_update(Depsgraph &depsgraph,
 /** Remove strings referring to attributes if they no longer exist. */
 void mesh_remove_invalid_attribute_strings(Mesh &mesh);
 
+void mesh_apply_spatial_organization(Mesh &mesh);
 const AttributeAccessorFunctions &mesh_attribute_accessor_functions();
 
 }  // namespace blender::bke

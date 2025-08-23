@@ -42,7 +42,6 @@
 #include "RNA_prototypes.hh"
 
 #include "BKE_callbacks.hh"
-#include "BKE_grease_pencil_legacy_convert.hh"
 #include "BKE_idtype.hh"
 #include "BKE_key.hh"
 #include "BKE_layer.hh"
@@ -52,6 +51,7 @@
 #include "BKE_lib_remap.hh"
 #include "BKE_library.hh"
 #include "BKE_main.hh"
+#include "BKE_main_invariants.hh"
 #include "BKE_main_namemap.hh"
 #include "BKE_material.hh"
 #include "BKE_mesh_legacy_convert.hh"
@@ -64,7 +64,7 @@
 
 #include "BLO_writefile.hh"
 
-static CLG_LogRef LOG = {"bke.blendfile_link_append"};
+static CLG_LogRef LOG = {"lib.link_append"};
 
 using namespace blender::bke;
 
@@ -370,6 +370,8 @@ void BKE_blendfile_link_append_context_finalize(BlendfileLinkAppendContext *lapp
                   BlendfileLinkAppendContext::ProcessStage::Appending,
                   BlendfileLinkAppendContext::ProcessStage::Instantiating));
   lapp_context->process_stage = BlendfileLinkAppendContext::ProcessStage::Done;
+
+  BKE_main_ensure_invariants(*lapp_context->params->bmain);
 
   PointerRNA ctx_ptr = RNA_pointer_create_discrete(nullptr, &RNA_BlendImportContext, lapp_context);
   PointerRNA *pointers[1] = {&ctx_ptr};
@@ -732,9 +734,12 @@ static void loose_data_instantiate_object_process(LooseDataInstantiateContext *i
   ViewLayer *view_layer = lapp_context->params->context.view_layer;
   const View3D *v3d = lapp_context->params->context.v3d;
 
+  const bool do_object_active_done = (lapp_context->params->flag &
+                                      BLO_LIBLINK_APPEND_SET_OB_ACTIVE_CLIPBOARD);
+
   /* Do NOT make base active here! screws up GUI stuff,
-   * if you want it do it at the editor level. */
-  const bool object_set_active = false;
+   * if you want it do it at the editor level (unless `do_object_active_done` is set). */
+  bool object_set_active = false;
 
   const bool is_linking = (lapp_context->params->flag & FILE_LINK) != 0;
 
@@ -768,6 +773,8 @@ static void loose_data_instantiate_object_process(LooseDataInstantiateContext *i
 
     CLAMP_MIN(ob->id.us, 0);
     ob->mode = OB_MODE_OBJECT;
+
+    object_set_active = do_object_active_done && (ob->flag & OB_FLAG_ACTIVE_CLIPBOARD);
 
     loose_data_instantiate_object_base_instance_init(bmain,
                                                      active_collection,
@@ -1055,11 +1062,10 @@ static int foreach_libblock_append_finalize_action_callback(LibraryIDLinkCallbac
   BLI_assert(data->item->action == LINK_APPEND_ACT_KEEP_LINKED);
 
   if (item->action == LINK_APPEND_ACT_MAKE_LOCAL) {
-    CLOG_INFO(&LOG,
-              3,
-              "Appended ID '%s' was to be made directly local, but is also used by data that is "
-              "kept linked, so duplicating it instead.",
-              id->name);
+    CLOG_DEBUG(&LOG,
+               "Appended ID '%s' was to be made directly local, but is also used by data that is "
+               "kept linked, so duplicating it instead.",
+               id->name);
     item->action = LINK_APPEND_ACT_COPY_LOCAL;
   }
   return IDWALK_RET_NOP;
@@ -1140,9 +1146,8 @@ static void blendfile_append_define_actions(BlendfileLinkAppendContext &lapp_con
     }
     /* IDs exclusively used as liboverride reference should not be made local at all. */
     if ((item.tag & LINK_APPEND_TAG_LIBOVERRIDE_DEPENDENCY_ONLY) != 0) {
-      CLOG_INFO(
+      CLOG_DEBUG(
           &LOG,
-          3,
           "Appended ID '%s' is only used as a liboverride linked dependency, keeping it linked.",
           id->name);
       item.action = LINK_APPEND_ACT_KEEP_LINKED;
@@ -1151,11 +1156,10 @@ static void blendfile_append_define_actions(BlendfileLinkAppendContext &lapp_con
     /* In non-recursive append case, only IDs from the same libraries as the directly appended
      * ones are made local. All dependencies from other libraries are kept linked. */
     if (!do_recursive && !direct_libraries.contains(id->lib)) {
-      CLOG_INFO(&LOG,
-                3,
-                "Appended ID '%s' belongs to another library and recursive append is disabled, "
-                "keeping it linked.",
-                id->name);
+      CLOG_DEBUG(&LOG,
+                 "Appended ID '%s' belongs to another library and recursive append is disabled, "
+                 "keeping it linked.",
+                 id->name);
       item.action = LINK_APPEND_ACT_KEEP_LINKED;
       item.reusable_local_id = nullptr;
     }
@@ -1215,17 +1219,16 @@ static void blendfile_append_define_actions(BlendfileLinkAppendContext &lapp_con
     BLI_assert((item.tag & LINK_APPEND_TAG_LIBOVERRIDE_DEPENDENCY_ONLY) == 0);
 
     if (do_reuse_local_id && item.reusable_local_id != nullptr) {
-      CLOG_INFO(&LOG, 3, "Appended ID '%s' as a matching local one, re-using it.", id->name);
+      CLOG_DEBUG(&LOG, "Appended ID '%s' as a matching local one, re-using it.", id->name);
       item.action = LINK_APPEND_ACT_REUSE_LOCAL;
     }
     else if (id->tag & ID_TAG_PRE_EXISTING) {
-      CLOG_INFO(&LOG, 3, "Appended ID '%s' was already linked, duplicating it.", id->name);
+      CLOG_DEBUG(&LOG, "Appended ID '%s' was already linked, duplicating it.", id->name);
       item.action = LINK_APPEND_ACT_COPY_LOCAL;
     }
     else if (item.tag & LINK_APPEND_TAG_LIBOVERRIDE_DEPENDENCY) {
-      CLOG_INFO(
+      CLOG_DEBUG(
           &LOG,
-          3,
           "Appended ID '%s' is also used as a liboverride linked dependency, duplicating it.",
           id->name);
       item.action = LINK_APPEND_ACT_COPY_LOCAL;
@@ -1236,7 +1239,7 @@ static void blendfile_append_define_actions(BlendfileLinkAppendContext &lapp_con
        * made local, etc.
        *
        * So for now, simpler to always duplicate linked liboverrides. */
-      CLOG_INFO(&LOG, 3, "Appended ID '%s' is a liboverride, duplicating it.", id->name);
+      CLOG_DEBUG(&LOG, "Appended ID '%s' is a liboverride, duplicating it.", id->name);
       item.action = LINK_APPEND_ACT_COPY_LOCAL;
     }
     else {
@@ -1244,7 +1247,7 @@ static void blendfile_append_define_actions(BlendfileLinkAppendContext &lapp_con
        * #LINK_APPEND_ACT_COPY_LOCAL in the last checks below. This can happen in rare cases with
        * complex relationships involving IDs that are kept linked and IDs that are made local,
        * both using some same dependencies. */
-      CLOG_INFO(&LOG, 3, "Appended ID '%s' will be made local.", id->name);
+      CLOG_DEBUG(&LOG, "Appended ID '%s' will be made local.", id->name);
       item.action = LINK_APPEND_ACT_MAKE_LOCAL;
     }
   }
@@ -1698,12 +1701,12 @@ void BKE_blendfile_override(BlendfileLinkAppendContext *lapp_context,
 /** \name Library relocating code.
  * \{ */
 
-static void blendfile_library_relocate_id_remap_do(Main *bmain,
-                                                   ID *old_id,
-                                                   ID *new_id,
-                                                   ReportList *reports,
-                                                   const bool do_reload,
-                                                   const int remap_flags)
+static void blendfile_library_relocate_id_remap_prepare(
+    id::IDRemapper &remapper,
+    blender::Map<ID *, ID *> &old_owner_id_to_shapekey,
+    ID *old_id,
+    ID *new_id,
+    const bool do_reload)
 {
   BLI_assert(old_id);
   if (do_reload) {
@@ -1712,36 +1715,74 @@ static void blendfile_library_relocate_id_remap_do(Main *bmain,
     BLI_assert(new_id);
   }
   if (new_id) {
-    CLOG_INFO(&LOG,
-              4,
-              "Before remap of %s, old_id users: %d, new_id users: %d",
-              old_id->name,
-              old_id->us,
-              new_id->us);
-    BKE_libblock_remap_locked(bmain, old_id, new_id, remap_flags);
+    CLOG_DEBUG(&LOG,
+               "Before remap of %s, old_id users: %d, new_id users: %d",
+               old_id->name,
+               old_id->us,
+               new_id->us);
+    remapper.add(old_id, new_id);
+  }
 
-    if (old_id->flag & ID_FLAG_FAKEUSER) {
-      id_fake_user_clear(old_id);
-      id_fake_user_set(new_id);
-    }
+  /* Usual special code for ShapeKeys snowflakes...
+   *
+   * NOTE: Unfortunately, actual reasons for why the old shapekeys needs to be removed from their
+   * old owner ID was not documented in the initial commit. Suspect it's related to the fact that
+   * the old ID should not end up using the new shapekeys? */
+  Key **old_key_p = BKE_key_from_id_p(old_id);
+  if (old_key_p == nullptr) {
+    return;
+  }
+  Key *old_key = *old_key_p;
+  Key *new_key = BKE_key_from_id(new_id);
+  if (old_key != nullptr) {
+    old_owner_id_to_shapekey.add(old_id, &old_key->id);
+    *old_key_p = nullptr;
+    id_us_min(&old_key->id);
+    remapper.add(&old_key->id, &new_key->id);
+  }
+}
 
-    CLOG_INFO(&LOG,
-              4,
-              "After remap of %s, old_id users: %d, new_id users: %d",
-              old_id->name,
-              old_id->us,
-              new_id->us);
-
-    /* In some cases, new_id might become direct link, remove parent of library in this case. */
-    if (new_id->lib->runtime->parent && (new_id->tag & ID_TAG_INDIRECT) == 0) {
-      if (do_reload) {
-        BLI_assert_unreachable(); /* Should not happen in 'pure' reload case... */
-      }
-      new_id->lib->runtime->parent = nullptr;
+static void blendfile_library_relocate_id_remap_finalize(
+    Main *bmain,
+    blender::Map<ID *, ID *> &old_owner_id_to_shapekey,
+    ID *old_id,
+    ID *new_id,
+    ReportList *reports,
+    const bool do_reload)
+{
+  /* Restore old shapekey pointer in old id (see also
+   * #blendfile_library_relocate_id_remap_prepare above). */
+  Key **old_key_p = BKE_key_from_id_p(old_id);
+  if (old_key_p) {
+    Key *old_key = reinterpret_cast<Key *>(
+        old_owner_id_to_shapekey.lookup_default_as(old_id, nullptr));
+    if (old_key) {
+      BLI_assert(GS(old_key->id.name) == ID_KE);
+      *old_key_p = old_key;
+      id_us_plus_no_lib(&old_key->id);
     }
   }
 
-  if (old_id->us > 0 && new_id && old_id->lib == new_id->lib) {
+  if (old_id->flag & ID_FLAG_FAKEUSER) {
+    id_fake_user_clear(old_id);
+    id_fake_user_set(new_id);
+  }
+
+  CLOG_DEBUG(&LOG,
+             "After remap of %s, old_id users: %d, new_id users: %d",
+             old_id->name,
+             old_id->us,
+             new_id->us);
+
+  /* In some cases, new_id might become direct link, remove parent of library in this case. */
+  if (new_id->lib->runtime->parent && (new_id->tag & ID_TAG_INDIRECT) == 0) {
+    if (do_reload) {
+      BLI_assert_unreachable(); /* Should not happen in 'pure' reload case... */
+    }
+    new_id->lib->runtime->parent = nullptr;
+  }
+
+  if (old_id->us > 0 && old_id->lib == new_id->lib) {
     /* Note that this *should* not happen - but better be safe than sorry in this area,
      * at least until we are 100% sure this cannot ever happen.
      * Also, we can safely assume names were unique so far,
@@ -1784,31 +1825,36 @@ static void blendfile_library_relocate_id_remap_do(Main *bmain,
   }
 }
 
-static void blendfile_library_relocate_id_remap(Main *bmain,
-                                                ID *old_id,
-                                                ID *new_id,
+static void blendfile_library_relocate_id_remap(BlendfileLinkAppendContext &lapp_context,
                                                 ReportList *reports,
                                                 const bool do_reload,
                                                 const int remap_flags)
 {
-  blendfile_library_relocate_id_remap_do(bmain, old_id, new_id, reports, do_reload, remap_flags);
-  if (new_id == nullptr) {
-    return;
+  Main *bmain = lapp_context.params->bmain;
+
+  id::IDRemapper remapper;
+  blender::Map<ID *, ID *> old_owner_id_to_shapekey;
+
+  for (BlendfileLinkAppendContextItem &item : lapp_context.items) {
+    ID *old_id = static_cast<ID *>(item.userdata);
+    if (!old_id) {
+      continue;
+    }
+    ID *new_id = item.new_id;
+    blendfile_library_relocate_id_remap_prepare(
+        remapper, old_owner_id_to_shapekey, old_id, new_id, do_reload);
   }
-  /* Usual special code for ShapeKeys snowflakes... */
-  Key **old_key_p = BKE_key_from_id_p(old_id);
-  if (old_key_p == nullptr) {
-    return;
-  }
-  Key *old_key = *old_key_p;
-  Key *new_key = BKE_key_from_id(new_id);
-  if (old_key != nullptr) {
-    *old_key_p = nullptr;
-    id_us_min(&old_key->id);
-    blendfile_library_relocate_id_remap_do(
-        bmain, &old_key->id, &new_key->id, reports, do_reload, remap_flags);
-    *old_key_p = old_key;
-    id_us_plus_no_lib(&old_key->id);
+
+  BKE_libblock_remap_multiple_locked(bmain, remapper, remap_flags);
+
+  for (BlendfileLinkAppendContextItem &item : lapp_context.items) {
+    ID *old_id = static_cast<ID *>(item.userdata);
+    if (!old_id) {
+      continue;
+    }
+    ID *new_id = item.new_id;
+    blendfile_library_relocate_id_remap_finalize(
+        bmain, old_owner_id_to_shapekey, old_id, new_id, reports, do_reload);
   }
 }
 
@@ -1986,7 +2032,7 @@ void BKE_blendfile_library_relocate(BlendfileLinkAppendContext *lapp_context,
             lapp_context, BKE_id_name(*id), idcode, id);
         item->libraries.fill(true);
 
-        CLOG_INFO(&LOG, 4, "Datablock to seek for: %s", id->name);
+        CLOG_DEBUG(&LOG, "Data-block to seek for: %s", id->name);
       }
     }
   }
@@ -2039,18 +2085,21 @@ void BKE_blendfile_library_relocate(BlendfileLinkAppendContext *lapp_context,
    * new data. */
   blender::Map<Library *, Library *> new_to_old_libraries_map;
 
-  BKE_layer_collection_resync_forbid();
-  /* Note that in reload case, we also want to replace indirect usages. */
-  const int remap_flags = ID_REMAP_SKIP_NEVER_NULL_USAGE |
-                          (do_reload ? 0 : ID_REMAP_SKIP_INDIRECT_USAGE);
   for (BlendfileLinkAppendContextItem &item : lapp_context->items) {
     ID *old_id = static_cast<ID *>(item.userdata);
     ID *new_id = item.new_id;
     if (new_id) {
       new_to_old_libraries_map.add(new_id->lib, old_id->lib);
     }
-    blendfile_library_relocate_id_remap(bmain, old_id, new_id, reports, do_reload, remap_flags);
   }
+
+  BKE_layer_collection_resync_forbid();
+
+  /* Note that in reload case, we also want to replace indirect usages. */
+  const int remap_flags = ID_REMAP_SKIP_NEVER_NULL_USAGE |
+                          (do_reload ? 0 : ID_REMAP_SKIP_INDIRECT_USAGE);
+  blendfile_library_relocate_id_remap(*lapp_context, reports, do_reload, remap_flags);
+
   BKE_layer_collection_resync_allow();
   BKE_main_collection_sync_remap(bmain);
 
@@ -2116,7 +2165,7 @@ void BKE_blendfile_id_relocate(BlendfileLinkAppendContext &lapp_context, ReportL
 
   /* Do not affect indirect usages. */
   const int remap_flags = ID_REMAP_SKIP_NEVER_NULL_USAGE | ID_REMAP_SKIP_INDIRECT_USAGE;
-  blendfile_library_relocate_id_remap(bmain, old_id, new_id, reports, false, remap_flags);
+  blendfile_library_relocate_id_remap(lapp_context, reports, false, remap_flags);
 
   BKE_layer_collection_resync_allow();
   BKE_main_collection_sync_remap(bmain);
