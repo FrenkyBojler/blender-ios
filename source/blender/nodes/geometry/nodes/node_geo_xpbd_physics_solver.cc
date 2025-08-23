@@ -255,8 +255,13 @@ class XPBDState {
   Map<SimPointsKey, SimPoints> sim_points;
   Map<SimPointsKey, DistanceConstraintLengths> distance_constraint_lengths;
   Map<SimPointsKey, float> initial_volumes;
-  Map<SimPointsKey, std::unique_ptr<CurveSegmentRestLengthsState>> curve_segment_rest_lengths;
-  Map<SimPointsKey, std::unique_ptr<CurveSegmentRelativeRestRotationsState>>
+
+  mutable Mutex curve_segment_rest_lengths_mutex;
+  mutable Map<SimPointsKey, std::unique_ptr<CurveSegmentRestLengthsState>>
+      curve_segment_rest_lengths;
+
+  mutable Mutex curve_segment_relative_rest_rotations_mutex;
+  mutable Map<SimPointsKey, std::unique_ptr<CurveSegmentRelativeRestRotationsState>>
       curve_segment_relative_rest_rotations;
 
   int total_points_num() const
@@ -271,6 +276,30 @@ class XPBDState {
   bool is_initialization() const
   {
     return this->update_counter == 0;
+  }
+
+  Span<float> ensure_curve_segment_rest_lengths(const SimPointsKey &key,
+                                                const bke::CurvesGeometry &curves) const
+  {
+    std::lock_guard<Mutex> lock(this->curve_segment_rest_lengths_mutex);
+    return this->curve_segment_rest_lengths
+        .lookup_or_add_cb(key,
+                          [&]() { return std::make_unique<CurveSegmentRestLengthsState>(curves); })
+        ->rest_lengths();
+  }
+
+  Span<math::Quaternion> ensure_curve_segment_relative_rest_rotations(
+      const SimPointsKey &key, const bke::CurvesGeometry &curves) const
+  {
+    std::lock_guard<Mutex> lock(this->curve_segment_relative_rest_rotations_mutex);
+    const SimPoints &sim_points = this->sim_points.lookup(key);
+    return this->curve_segment_relative_rest_rotations
+        .lookup_or_add_cb(key,
+                          [&]() {
+                            return std::make_unique<CurveSegmentRelativeRestRotationsState>(
+                                curves, sim_points.rotations);
+                          })
+        ->rest_rotations();
   }
 };
 
@@ -1182,11 +1211,7 @@ PROFILE_FUNCTION static void gather_curves_rod_stretch_and_shear_constraints(
         }
       });
 
-      const Span<float> rest_lengths =
-          state.curve_segment_rest_lengths
-              .lookup_or_add_cb(
-                  key, [&]() { return std::make_unique<CurveSegmentRestLengthsState>(curves); })
-              ->rest_lengths();
+      const Span<float> rest_lengths = state.ensure_curve_segment_rest_lengths(key, curves);
 
       r_constraints.curve_local.append(
           &scope.construct<xpbd::RodStretchAndShearCurveLocalConstraintSet>(
@@ -1197,7 +1222,7 @@ PROFILE_FUNCTION static void gather_curves_rod_stretch_and_shear_constraints(
 
 PROFILE_FUNCTION static void gather_curves_rod_bend_and_twist_constraints(
     ResourceScope &scope,
-    XPBDState &state,
+    const XPBDState &state,
     const WorldData &world,
     const Span<GeometrySet> applied_geometries,
     const VectorSet<SimPointsKey> &keys,
@@ -1239,13 +1264,7 @@ PROFILE_FUNCTION static void gather_curves_rod_bend_and_twist_constraints(
       });
 
       const Span<math::Quaternion> rest_rotations =
-          state.curve_segment_relative_rest_rotations
-              .lookup_or_add_cb(key,
-                                [&]() {
-                                  return std::make_unique<CurveSegmentRelativeRestRotationsState>(
-                                      curves, sim_points.rotations);
-                                })
-              ->rest_rotations();
+          state.ensure_curve_segment_relative_rest_rotations(key, curves);
 
       r_constraints.curve_local.append(
           &scope.construct<xpbd::RodBendAndTwistCurveLocalConstraintSet>(
