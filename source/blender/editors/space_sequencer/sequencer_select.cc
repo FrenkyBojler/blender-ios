@@ -2342,8 +2342,9 @@ static bool do_lasso_select_strip_is_origin_inside(const ARegion *region,
   return false;
 }
 
-bool lasso_rect_edge_intersection(const rcti rect, const Span<int2> mcoords)
+bool rcti_in_lasso(const rcti rect, const Span<int2> mcoords)
 {
+  /* Check if edge of strip is in the lasso. */
   if (BLI_lasso_is_edge_inside(
           mcoords, rect.xmin, rect.ymin, rect.xmax, rect.ymin, V2D_IS_CLIPPED) ||
       BLI_lasso_is_edge_inside(
@@ -2356,13 +2357,14 @@ bool lasso_rect_edge_intersection(const rcti rect, const Span<int2> mcoords)
     return true;
   }
 
-  float rect_quad[4][2] = {{static_cast<float>(rect.xmax), static_cast<float>(rect.ymax)},
-                           {static_cast<float>(rect.xmax), static_cast<float>(rect.ymin)},
-                           {static_cast<float>(rect.xmin), static_cast<float>(rect.ymin)},
-                           {static_cast<float>(rect.xmin), static_cast<float>(rect.ymax)}};
+  /* Check if lasso is in the strip rect. Used when the lasso is only inside one strip. */
+  float2 rect_quad[4] = {{static_cast<float>(rect.xmax), static_cast<float>(rect.ymax)},
+                         {static_cast<float>(rect.xmax), static_cast<float>(rect.ymin)},
+                         {static_cast<float>(rect.xmin), static_cast<float>(rect.ymin)},
+                         {static_cast<float>(rect.xmin), static_cast<float>(rect.ymax)}};
   for (const int64_t i : mcoords.index_range()) {
     if (isect_point_quad_v2(
-            (float[2]){static_cast<float>(mcoords[i][0]), static_cast<float>(mcoords[i][1])},
+            float2{static_cast<float>(mcoords[i][0]), static_cast<float>(mcoords[i][1])},
             rect_quad[0],
             rect_quad[1],
             rect_quad[2],
@@ -2396,7 +2398,7 @@ static bool do_lasso_select_timeline(bContext *C,
     UI_view2d_view_to_region_clip(
         &region->v2d, strip_rct.xmax, strip_rct.ymax, &region_rct.xmax, &region_rct.ymax);
 
-    if (lasso_rect_edge_intersection(region_rct, mcoords)) {
+    if (rcti_in_lasso(region_rct, mcoords)) {
       SET_FLAG_FROM_TEST(strip->flag, select, SELECT);
       strip->flag &= ~(SEQ_LEFTSEL | SEQ_RIGHTSEL);
       changed = true;
@@ -2427,7 +2429,7 @@ static bool do_lasso_select_preview(bContext *C, const Span<int2> mcoords, const
   blender::VectorSet strips = seq::query_rendered_strips(
       scene, channels, seqbase, scene->r.cfra, sseq->chanshown);
   for (Strip *strip : strips) {
-    blender::float2 origin = seq::image_transform_origin_offset_pixelspace_get(scene, strip);
+    float2 origin = seq::image_transform_origin_offset_pixelspace_get(scene, strip);
     if (do_lasso_select_strip_is_origin_inside(region, &rect, mcoords, origin)) {
       changed = true;
       if (ELEM(sel_op, SEL_OP_ADD, SEL_OP_SET)) {
