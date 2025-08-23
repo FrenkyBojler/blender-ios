@@ -301,7 +301,7 @@ struct LogCursor {
   int source = -1;
   int row = -1;
   int column = -1;
-  StringRef file_name_and_error_line = {};
+  std::string file_name_and_error_line;
 };
 
 struct GPULogItem {

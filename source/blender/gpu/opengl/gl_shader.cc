@@ -1268,11 +1268,25 @@ GLuint GLShader::create_shader_stage(GLenum gl_stage,
     return 0;
   }
 
-  Array<const char *, 16> c_str_sources(sources.size());
-  for (const int i : sources.index_range()) {
-    c_str_sources[i] = sources[i].c_str();
+  size_t source_len = 0;
+  for (const StringRefNull src : sources) {
+    source_len += src.size();
   }
-  glShaderSource(shader, c_str_sources.size(), c_str_sources.data(), nullptr);
+
+  std::string concat_source;
+  concat_source.reserve(source_len);
+  for (const StringRefNull src : sources) {
+    concat_source += src;
+  }
+
+  /* Patch line directives so that we can make error reporting consistent. */
+  size_t start_pos = 0;
+  while ((start_pos = concat_source.find("#line ", start_pos)) != std::string::npos) {
+    concat_source[start_pos] = '/';
+    concat_source[start_pos + 1] = '/';
+  }
+
+  glShaderSource(shader, concat_source.size(), concat_source.c_str(), nullptr);
   glCompileShader(shader);
 
   GLint status;
