@@ -2330,19 +2330,20 @@ static void sculpt_expand_status(bContext *C, wmOperator *op, Cache *expand_cach
 
   status.opmodal(IFACE_("Falloff Cycle"), op->type, SCULPT_EXPAND_MODAL_FALLOFF_CYCLE);
 
-  status.opmodal(IFACE_("Geodesic Falloff"),
+  status.item(IFACE_("Falloff:"), 0);
+  status.opmodal(IFACE_("Geodesic"),
                  op->type,
                  SCULPT_EXPAND_MODAL_FALLOFF_GEODESIC,
                  expand_cache->falloff_type == FalloffType::Geodesic);
-  status.opmodal(IFACE_("Topology Falloff"),
+  status.opmodal(IFACE_("Topology"),
                  op->type,
                  SCULPT_EXPAND_MODAL_FALLOFF_TOPOLOGY,
                  expand_cache->falloff_type == FalloffType::Topology);
-  status.opmodal(IFACE_("Diagonals Falloff"),
+  status.opmodal(IFACE_("Diagonals"),
                  op->type,
                  SCULPT_EXPAND_MODAL_FALLOFF_TOPOLOGY_DIAGONALS,
                  expand_cache->falloff_type == FalloffType::TopologyNormals);
-  status.opmodal(IFACE_("Spherical Falloff"),
+  status.opmodal(IFACE_("Spherical"),
                  op->type,
                  SCULPT_EXPAND_MODAL_FALLOFF_SPHERICAL,
                  expand_cache->falloff_type == FalloffType::Sphere);
