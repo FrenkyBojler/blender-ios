@@ -148,15 +148,6 @@ struct DistanceConstraintLengths {
   Map<OrderedEdge, LengthItem> lengths;
 };
 
-struct RelativeRotations {
-  struct RotationItem {
-    math::Quaternion rotation;
-    bool used = true;
-  };
-
-  Map<int2, RotationItem> rotations;
-};
-
 struct PinPositionsState {
   struct Item {
     float3 position;
@@ -211,6 +202,42 @@ struct CurveSegmentRestLengthsState {
   }
 };
 
+struct CurveSegmentRelativeRestRotationsState {
+ private:
+  Vector<math::Quaternion> rest_rotations_;
+
+ public:
+  CurveSegmentRelativeRestRotationsState(const bke::CurvesGeometry &curves,
+                                         const Span<math::Quaternion> rotations)
+  {
+    const int points_num = curves.points_num();
+    const int curves_num = curves.curves_num();
+    rest_rotations_.resize(points_num);
+    const OffsetIndices<int> points_by_curve = curves.points_by_curve();
+    threading::parallel_for(IndexRange(curves_num), 128, [&](const IndexRange curves_range) {
+      for (const int curve_i : curves_range) {
+        const IndexRange points = points_by_curve[curve_i];
+        for (const int point_i : points.drop_back(1)) {
+          const math::Quaternion &r0 = rotations[point_i];
+          const math::Quaternion &r1 = rotations[point_i + 1];
+          const math::Quaternion relative = math::invert_normalized(r0) * r1;
+          rest_rotations_[point_i] = relative;
+        }
+        /* Cyclic element. */
+        const math::Quaternion &r0 = rotations[points.last()];
+        const math::Quaternion &r1 = rotations[points.first()];
+        const math::Quaternion relative = math::invert_normalized(r0) * r1;
+        rest_rotations_[points.last()] = relative;
+      }
+    });
+  }
+
+  Span<math::Quaternion> rest_rotations() const
+  {
+    return rest_rotations_;
+  }
+};
+
 class XPBDState {
  public:
   /**
@@ -221,11 +248,12 @@ class XPBDState {
 
   Map<SimPointsKey, SimPoints> sim_points;
   Map<SimPointsKey, DistanceConstraintLengths> distance_constraint_lengths;
-  Map<SimPointsKey, RelativeRotations> relative_rotations;
   Map<SimPointsKey, PinPositionsState> pin_positions;
   Map<SimPointsKey, PinRotationsState> pin_rotations;
   Map<SimPointsKey, float> initial_volumes;
   Map<SimPointsKey, std::unique_ptr<CurveSegmentRestLengthsState>> curve_segment_rest_lengths;
+  Map<SimPointsKey, std::unique_ptr<CurveSegmentRelativeRestRotationsState>>
+      curve_segment_relative_rest_rotations;
 };
 
 class XPBDStateOwner : public BundleItemInternalValueMixin {
@@ -613,6 +641,7 @@ PROFILE_FUNCTION static void update_xpbd_state_for_geometry(
     }
     if (!new_sim_points) {
       state.curve_segment_rest_lengths.remove(key);
+      state.curve_segment_relative_rest_rotations.remove(key);
 
       SimPoints sim_points;
       sim_points.points_num = current_curves.points_num();
@@ -896,31 +925,6 @@ PROFILE_FUNCTION static Span<float> prepare_distance_constraint_lengths(
     constraint_lengths[i] = length_item.length;
   }
   return constraint_lengths;
-}
-
-PROFILE_FUNCTION static Span<math::Quaternion> prepare_relative_rotations(
-    ResourceScope &scope,
-    XPBDState &state,
-    const Span<math::Quaternion> rotations,
-    const SimPointsKey &key,
-    const Span<int2> pairs)
-{
-  MutableSpan<math::Quaternion> results = scope.allocator().allocate_array<math::Quaternion>(
-      pairs.size());
-  RelativeRotations &relative_rotations = state.relative_rotations.lookup_or_add_default(key);
-  for (const int i : pairs.index_range()) {
-    const int2 &pair = pairs[i];
-    RelativeRotations::RotationItem &rotation_item = relative_rotations.rotations.lookup_or_add_cb(
-        pair, [&]() {
-          const math::Quaternion &r0 = rotations[pair[0]];
-          const math::Quaternion &r1 = rotations[pair[1]];
-          const math::Quaternion rotation = math::invert_normalized(r0) * r1;
-          return RelativeRotations::RotationItem{rotation};
-        });
-    rotation_item.used = true;
-    results[i] = rotation_item.rotation;
-  }
-  return results;
 }
 
 static float compute_compliance_factor(const float delta_time)
@@ -1207,18 +1211,15 @@ PROFILE_FUNCTION static void gather_curves_rod_bend_and_twist_constraints(
         }
       });
 
-      Vector<int2> constraint_segments;
+      const Span<math::Quaternion> rest_rotations =
+          state.curve_segment_relative_rest_rotations
+              .lookup_or_add_cb(key,
+                                [&]() {
+                                  return std::make_unique<CurveSegmentRelativeRestRotationsState>(
+                                      curves, sim_points.rotations);
+                                })
+              ->rest_rotations();
 
-      for (const int curve_i : curves.curves_range()) {
-        const IndexRange points = points_by_curve[curve_i];
-        for (const int i : points.index_range().drop_back(1)) {
-          const int point_i = points[i];
-          constraint_segments.append({point_i, point_i + 1});
-        }
-        constraint_segments.append(int2(points.last(), points.first()));
-      }
-      const Span<math::Quaternion> rest_rotations = prepare_relative_rotations(
-          scope, state, sim_points.rotations, key, constraint_segments);
       r_constraints.curve_local.append(
           &scope.construct<xpbd::RodBendAndTwistCurveLocalConstraintSet>(
               key_i, points_by_curve, rest_rotations, compliance_terms));
