@@ -64,6 +64,13 @@ class CurveLocalConstraintSet {
   virtual void evaluate_gauss_seidel_one_at_a_time(GaussSeidelUpdater &updater,
                                                    ConstraintSetParams &params,
                                                    IndexRange curves_range) const = 0;
+  virtual void evaluate_gauss_seidel_parallel(GaussSeidelUpdater &updater,
+                                              ConstraintSetParams &params,
+                                              IndexRange curves_range) const = 0;
+  virtual void evaluate_jacobian_non_deterministic_parallel(
+      NonDeterministicJacobianUpdater &updater,
+      ConstraintSetParams &params,
+      IndexRange curves_range) const = 0;
 };
 
 template<typename Child> class TemplatedCurveLocalConstraintSet : public CurveLocalConstraintSet {
@@ -73,6 +80,26 @@ template<typename Child> class TemplatedCurveLocalConstraintSet : public CurveLo
   void evaluate_gauss_seidel_one_at_a_time(GaussSeidelUpdater &updater,
                                            ConstraintSetParams &params,
                                            IndexRange curves_range) const override
+  {
+    const Child &self = static_cast<const Child &>(*this);
+    for (const int curve_i : curves_range) {
+      self.evaluate_curve(updater, params, curve_i);
+    }
+  }
+
+  void evaluate_gauss_seidel_parallel(GaussSeidelUpdater &updater,
+                                      ConstraintSetParams &params,
+                                      IndexRange curves_range) const override
+  {
+    const Child &self = static_cast<const Child &>(*this);
+    for (const int curve_i : curves_range) {
+      self.evaluate_curve(updater, params, curve_i);
+    }
+  }
+
+  void evaluate_jacobian_non_deterministic_parallel(NonDeterministicJacobianUpdater &updater,
+                                                    ConstraintSetParams &params,
+                                                    IndexRange curves_range) const override
   {
     const Child &self = static_cast<const Child &>(*this);
     for (const int curve_i : curves_range) {
@@ -101,23 +128,31 @@ class CurveLocalConstraintSets : public ConstraintSet {
                                            ConstraintSetParams &params) const override
   {
     const int curves_num = points_by_curve_.size();
-    threading::parallel_for(IndexRange(curves_num), 256, [&](const IndexRange range) {
-      for (const CurveLocalConstraintSet *constraint_set : constraint_sets_) {
-        constraint_set->evaluate_gauss_seidel_one_at_a_time(updater, params, range);
-      }
-    });
+    for (const CurveLocalConstraintSet *constraint_set : constraint_sets_) {
+      constraint_set->evaluate_gauss_seidel_one_at_a_time(updater, params, IndexRange(curves_num));
+    }
   }
 
   void evaluate_gauss_seidel_parallel(GaussSeidelUpdater &updater,
                                       ConstraintSetParams &params) const override
   {
-    // TODO
+    const int curves_num = points_by_curve_.size();
+    threading::parallel_for(IndexRange(curves_num), 256, [&](const IndexRange range) {
+      for (const CurveLocalConstraintSet *constraint_set : constraint_sets_) {
+        constraint_set->evaluate_gauss_seidel_parallel(updater, params, range);
+      }
+    });
   }
 
   void evaluate_jacobian_non_deterministic_parallel(NonDeterministicJacobianUpdater &updater,
                                                     ConstraintSetParams &params) const override
   {
-    // TODO
+    const int curves_num = points_by_curve_.size();
+    threading::parallel_for(IndexRange(curves_num), 256, [&](const IndexRange range) {
+      for (const CurveLocalConstraintSet *constraint_set : constraint_sets_) {
+        constraint_set->evaluate_jacobian_non_deterministic_parallel(updater, params, range);
+      }
+    });
   }
 
   void add(const CurveLocalConstraintSet &constraint_set)
