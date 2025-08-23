@@ -67,10 +67,6 @@ class GreasePencilPenToolOperation : public PenToolOperation {
   /* Helper class to project screen space coordinates to 3D. */
   DrawingPlacement placement;
 
-  Vector<float4x4> layer_to_objects;
-  Vector<float4x4> layer_to_worlds;
-  std::optional<int> active_drawing_index;
-
   float3 project(const float2 &screen_co) const
   {
     return this->placement.project(screen_co);

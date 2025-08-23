@@ -107,6 +107,10 @@ class PenToolOperation {
   float2 center_of_mass_co;
   ClosestElement closest_element;
 
+  Vector<float4x4> layer_to_objects;
+  Vector<float4x4> layer_to_worlds;
+  std::optional<int> active_drawing_index;
+
   virtual float3 project(const float2 &screen_co) const = 0;
   virtual IndexMask all_selected_points(const int curves_index, IndexMaskMemory &memory) const = 0;
 

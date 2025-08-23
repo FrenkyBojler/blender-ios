@@ -1121,6 +1121,10 @@ static wmOperatorStatus curves_pen_invoke(bContext *C, wmOperator *op, const wmE
     ptd.all_curves.append(curves_id);
   }
 
+  /* TODO. */
+  ptd.layer_to_objects.append_n_times(float4x4::identity(), ptd.all_curves.size());
+  ptd.layer_to_worlds.append_n_times(float4x4::identity(), ptd.all_curves.size());
+
   ptd.center_of_mass_co = calculate_center_of_mass(ptd, true);
   ptd.closest_element = pen_find_closest_element(ptd, ptd.mouse_co);
 
