@@ -727,6 +727,47 @@ bool PenToolOperation::close_curve_and_select(bke::CurvesGeometry &curves,
   return changed;
 }
 
+float2 PenToolOperation::calculate_center_of_mass(const bool ends_only) const
+{
+  float2 pos = float2(0.0f, 0.0f);
+  int num = 0;
+
+  for (const int curves_index : this->curves_range()) {
+    const bke::CurvesGeometry &curves = this->get_curves(curves_index);
+    const float4x4 &layer_to_object = this->layer_to_objects[curves_index];
+    const Span<float3> positions = curves.positions();
+    const OffsetIndices<int> points_by_curve = curves.points_by_curve();
+    const Array<int> point_to_curve_map = curves.point_to_curve_map();
+    const VArray<bool> &cyclic = curves.cyclic();
+
+    IndexMaskMemory memory;
+    const IndexMask selection = this->all_selected_points(curves_index, memory);
+
+    selection.foreach_index([&](const int64_t point_i) {
+      if (ends_only) {
+        const int curve_i = point_to_curve_map[point_i];
+        const IndexRange points = points_by_curve[curve_i];
+
+        /* Skip cyclic curves unless they only have one point. */
+        if (cyclic[curve_i] && points.size() != 1) {
+          return;
+        }
+
+        if (point_i != points.first() && point_i != points.last()) {
+          return;
+        }
+      }
+      pos += this->layer_to_screen(layer_to_object, positions[point_i]);
+      num++;
+    });
+  }
+
+  if (num == 0) {
+    return pos;
+  }
+  return pos / num;
+}
+
 /* Will check if the point is closer than the existing element. */
 void pen_find_closest_point(const PenToolOperation &ptd,
                             const bke::CurvesGeometry &curves,
@@ -943,47 +984,6 @@ class CurvesPenToolOperation : public PenToolOperation {
   }
 };
 
-static float2 calculate_center_of_mass(const CurvesPenToolOperation &ptd, const bool ends_only)
-{
-  float2 pos = float2(0.0f, 0.0f);
-  int num = 0;
-
-  for (const int curves_index : ptd.curves_range()) {
-    const Curves *curves_id = ptd.all_curves[curves_index];
-    const bke::CurvesGeometry &curves = curves_id->geometry.wrap();
-    const Span<float3> positions = curves.positions();
-    const OffsetIndices<int> points_by_curve = curves.points_by_curve();
-    const Array<int> point_to_curve_map = curves.point_to_curve_map();
-    const VArray<bool> &cyclic = curves.cyclic();
-
-    IndexMaskMemory memory;
-    const IndexMask selection = ptd.all_selected_points(curves_index, memory);
-
-    selection.foreach_index([&](const int64_t point_i) {
-      if (ends_only) {
-        const int curve_i = point_to_curve_map[point_i];
-        const IndexRange points = points_by_curve[curve_i];
-
-        /* Skip cyclic curves unless they only have one point. */
-        if (cyclic[curve_i] && points.size() != 1) {
-          return;
-        }
-
-        if (point_i != points.first() && point_i != points.last()) {
-          return;
-        }
-      }
-      pos += ptd.layer_to_screen(float4x4::identity(), positions[point_i]);
-      num++;
-    });
-  }
-
-  if (num == 0) {
-    return pos;
-  }
-  return pos / num;
-}
-
 static void pen_update_view(bContext *C, CurvesPenToolOperation &ptd)
 {
   for (Curves *curves_id : ptd.all_curves) {
@@ -1143,7 +1143,7 @@ static wmOperatorStatus curves_pen_invoke(bContext *C, wmOperator *op, const wmE
   ptd.layer_to_objects.append_n_times(float4x4::identity(), ptd.all_curves.size());
   ptd.layer_to_worlds.append_n_times(float4x4::identity(), ptd.all_curves.size());
 
-  ptd.center_of_mass_co = calculate_center_of_mass(ptd, true);
+  ptd.center_of_mass_co = ptd.calculate_center_of_mass(true);
   ptd.closest_element = pen_find_closest_element(ptd, ptd.mouse_co);
 
   threading::parallel_for(ptd.all_curves.index_range(), 1, [&](const IndexRange curves_range) {
@@ -1315,7 +1315,7 @@ static wmOperatorStatus curves_pen_modal(bContext *C, wmOperator *op, const wmEv
   }
 
   std::atomic<bool> changed = false;
-  ptd.center_of_mass_co = calculate_center_of_mass(ptd, false);
+  ptd.center_of_mass_co = ptd.calculate_center_of_mass(false);
 
   if (ptd.move_seg && ptd.closest_element.element_mode == ElementMode::Edge) {
     Curves *curves_id = static_cast<Curves *>(ptd.vc.obedit->data);

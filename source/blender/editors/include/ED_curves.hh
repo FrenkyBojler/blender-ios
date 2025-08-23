@@ -142,6 +142,8 @@ class PenToolOperation {
                               const IndexRange points,
                               bool clear_selection);
 
+  float2 calculate_center_of_mass(const bool ends_only) const;
+
   bool initialize(bContext *C, wmOperator *op, const wmEvent *event);
 };
 

@@ -177,48 +177,6 @@ static bool pen_can_create_new_curve(const GreasePencilPenToolOperation &ptd, wm
   return true;
 }
 
-static float2 calculate_center_of_mass(const GreasePencilPenToolOperation &ptd,
-                                       const bool ends_only)
-{
-  float2 pos = float2(0.0f, 0.0f);
-  int num = 0;
-
-  for (const int drawing_index : ptd.curves_range()) {
-    const bke::CurvesGeometry &curves = ptd.get_curves(drawing_index);
-    const float4x4 &layer_to_object = ptd.layer_to_objects[drawing_index];
-    const Span<float3> positions = curves.positions();
-    const OffsetIndices<int> points_by_curve = curves.points_by_curve();
-    const Array<int> point_to_curve_map = curves.point_to_curve_map();
-    const VArray<bool> &cyclic = curves.cyclic();
-
-    IndexMaskMemory memory;
-    const IndexMask selection = ptd.all_selected_points(drawing_index, memory);
-
-    selection.foreach_index([&](const int64_t point_i) {
-      if (ends_only) {
-        const int curve_i = point_to_curve_map[point_i];
-        const IndexRange points = points_by_curve[curve_i];
-
-        /* Skip cyclic curves unless they only have one point. */
-        if (cyclic[curve_i] && points.size() != 1) {
-          return;
-        }
-
-        if (point_i != points.first() && point_i != points.last()) {
-          return;
-        }
-      }
-      pos += ptd.layer_to_screen(layer_to_object, positions[point_i]);
-      num++;
-    });
-  }
-
-  if (num == 0) {
-    return pos;
-  }
-  return pos / num;
-}
-
 /* Invoke handler: Initialize the operator. */
 static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
@@ -290,7 +248,7 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
     }
   }
 
-  ptd.center_of_mass_co = calculate_center_of_mass(ptd, true);
+  ptd.center_of_mass_co = ptd.calculate_center_of_mass(true);
   ptd.closest_element = pen_find_closest_element(ptd, ptd.mouse_co);
 
   threading::parallel_for(ptd.drawings.index_range(), 1, [&](const IndexRange drawing_range) {
@@ -454,7 +412,7 @@ static wmOperatorStatus grease_pencil_pen_modal(bContext *C, wmOperator *op, con
   }
 
   std::atomic<bool> changed = false;
-  ptd.center_of_mass_co = calculate_center_of_mass(ptd, false);
+  ptd.center_of_mass_co = ptd.calculate_center_of_mass(false);
 
   if (ptd.move_seg && ptd.closest_element.element_mode == ElementMode::Edge) {
     const MutableDrawingInfo &info = ptd.drawings[ptd.closest_element.drawing_index];
