@@ -1943,7 +1943,7 @@ PROFILE_FUNCTION static Vector<xpbd::GeometryRef> prepare_geometry_refs_for_solv
 }
 
 PROFILE_FUNCTION static Map<SimPointsKey, PinnedPositions> compute_pinned_positions(
-    XPBDState &state,
+    const XPBDState &state,
     const WorldData &world,
     const Span<GeometrySet> applied_geometries,
     const VectorSet<SimPointsKey> &keys)
@@ -2037,7 +2037,7 @@ PROFILE_FUNCTION static Map<SimPointsKey, PinnedPositions> compute_pinned_positi
 }
 
 PROFILE_FUNCTION static Map<SimPointsKey, PinnedRotations> computed_pinned_rotations(
-    XPBDState &state,
+    const XPBDState &state,
     const WorldData &world,
     const Span<GeometrySet> applied_geometries,
     const VectorSet<SimPointsKey> &keys)
