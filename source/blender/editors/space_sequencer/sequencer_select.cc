@@ -2395,27 +2395,22 @@ static wmOperatorStatus vse_circle_select_exec(bContext *C, wmOperator *op)
 {
   const int radius = RNA_int_get(op->ptr, "radius");
   const int mval[2] = {RNA_int_get(op->ptr, "x"), RNA_int_get(op->ptr, "y")};
+  const eSelectOp sel_op = eSelectOp(RNA_enum_get(op->ptr, "mode"));
 
   Scene *scene = CTX_data_scene(C);
   View2D *v2d = UI_view2d_fromcontext(C);
   Editing *ed = seq::editing_get(scene);
+  ARegion *region = CTX_wm_region(C);
 
   if (ed == nullptr) {
     return OPERATOR_CANCELLED;
   }
-
-  const eSelectOp sel_op = eSelectOp(RNA_enum_get(op->ptr, "mode"));
-
-  ARegion *region = CTX_wm_region(C);
 
   float2 view_mval;
   UI_view2d_region_to_view(v2d, mval[0], mval[1], &view_mval[0], &view_mval[1]);
   float pixel_radius = radius / UI_view2d_scale_get_x(v2d);
 
   if (region->regiontype == RGN_TYPE_PREVIEW) {
-    if (!sequencer_view_preview_only_poll(C)) {
-      return OPERATOR_CANCELLED;
-    }
     seq_circle_select_strip_from_preview(C, pixel_radius, view_mval, sel_op);
     sequencer_select_do_updates(C, scene);
     return OPERATOR_FINISHED;
