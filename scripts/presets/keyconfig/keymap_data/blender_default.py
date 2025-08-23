@@ -3253,10 +3253,6 @@ def km_sequencer_preview(params):
         ("anim.keying_set_active_set", {"type": 'K', "value": 'PRESS', "shift": True}, None),
         ("anim.keyframe_insert_menu", {"type": 'K', "value": 'PRESS'}, {"properties": [("always_prompt", True)]}),
         ("anim.keyframe_delete_vse", {"type": 'I', "value": 'PRESS', "alt": True}, None),
-        ("sequencer.copy", {"type": 'C', "value": 'PRESS', "ctrl": True}, None),
-        ("sequencer.paste", {"type": 'V', "value": 'PRESS', "ctrl": True}, None),
-        ("sequencer.paste", {"type": 'V', "value": 'PRESS', "ctrl": True, "shift": True},
-         {"properties": [("keep_offset", True)]}),
 
         *_template_items_context_menu("SEQUENCER_MT_preview_context_menu", params.context_menu_event),
     ])
