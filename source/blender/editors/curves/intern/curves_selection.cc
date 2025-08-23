@@ -16,6 +16,7 @@
 #include "BKE_attribute.hh"
 #include "BKE_crazyspace.hh"
 #include "BKE_curves.hh"
+#include "BKE_curves_utils.hh"
 
 #include "ED_curves.hh"
 #include "ED_select_utils.hh"
@@ -85,14 +86,14 @@ IndexMask retrieve_selected_points(const bke::CurvesGeometry &curves, IndexMaskM
 
 IndexMask retrieve_all_selected_points(const bke::CurvesGeometry &curves, IndexMaskMemory &memory)
 {
-  const Array<int> point_to_curve_map = curves.point_to_curve_map();
-  const VArray<int8_t> types = curves.curve_types();
-
-  const IndexMask bezier_points = IndexMask::from_predicate(
-      curves.points_range(), GrainSize(4096), memory, [&](const int64_t point_i) {
-        const bool is_bezier = types[point_to_curve_map[point_i]] == CURVE_TYPE_BEZIER;
-        return is_bezier;
-      });
+  const IndexMask bezier_points = bke::curves::curve_to_point_selection(
+      curves.points_by_curve(),
+      bke::curves::indices_for_type(curves.curve_types(),
+                                    curves.curve_type_counts(),
+                                    CURVE_TYPE_BEZIER,
+                                    curves.curves_range(),
+                                    memory),
+      memory);
 
   Vector<IndexMask> selection_by_attribute;
   for (const StringRef selection_name : ed::curves::get_curves_selection_attribute_names(curves)) {
