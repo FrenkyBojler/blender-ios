@@ -88,25 +88,80 @@ void RealizeOnDomainOperation::realize_on_domain_gpu(const float3x3 &inverse_tra
   // matrix is between pixel corners, change to pixel centers:
   float3x3 imat = math::from_location<float3x3>(float2(-0.5f)) * inverse_transformation * math::from_location<float3x3>(float2(0.5f));
 
-  gpu::Shader *shader = this->context().get_shader(this->get_realization_shader_name());
+  // derivatives converted to nearest rectangle:
+  float2 wh{hypotf(imat[0][0], imat[1][0]), hypotf(imat[0][1], imat[1][1])};
+
+  Result &input = this->get_input();
+  const RealizationOptions& realization_options = input.get_realization_options();
+  const Interpolation interpolation = realization_options.interpolation;
+  ExtensionMode extension_x = realization_options.extension_x;
+  ExtensionMode extension_y = realization_options.extension_y;
+  char shader_name[100];
+  strcpy(shader_name, "compositor_realize_on_domain");
+
+  bool fast = false;
+  bool bilinear = false;
+  switch (interpolation) {
+    case Interpolation::Nearest:
+      fast = true;
+      break;
+    case Interpolation::Bicubic:
+      // this cannot use fast texture()
+      strcat(shader_name, "_bspline");
+      break;
+    default:
+      if (wh[0] < 1.1f && wh[1] < 1.1f) {
+        fast = true;
+        bilinear = true;
+      } else {
+        strcat(shader_name, "_box");
+      }
+      break;
+  }
+
+  if (fast) {
+    strcat(shader_name, "_fast");
+    // change matrix to go to bounds
+    float3x3 to_bounds = math::translate(math::from_scale<float3x3>(1.0f/float2(input.domain().size)), float2(0.5f));
+    imat = to_bounds * imat;
+  }
+
+  switch (input.type()) {
+    case ResultType::Float:
+      strcat(shader_name, "_float");
+      break;
+    case ResultType::Color:
+    case ResultType::Float3:
+    case ResultType::Float4:
+      strcat(shader_name, "_float4");
+      break;
+    case ResultType::Float2:
+      strcat(shader_name, "_float2");
+      break;
+    case ResultType::Int:
+    case ResultType::Int2:
+    case ResultType::Bool:
+    case ResultType::Menu:
+      /* Not supported. */
+    case ResultType::String:
+      /* Single only types do not support GPU code path. */
+      BLI_assert(Result::is_single_value_only_type(this->get_input().type()));
+      BLI_assert_unreachable();
+      break;
+  }
+
+  gpu::Shader *shader = this->context().get_shader(shader_name);
   GPU_shader_bind(shader);
 
   GPU_shader_uniform_mat3_as_mat4(shader, "imat", imat.ptr());
+  if (!fast) {
+    GPU_shader_uniform_2fv(shader, "wh", wh);
+  }
 
-  GPU_shader_uniform_2f(shader, "wh", hypotf(imat[0][0], imat[1][0]), hypotf(imat[0][1], imat[1][1]));
-
-  /* The texture sampler should use bilinear interpolation for both the bilinear and bicubic
-   * cases, as the logic used by the bicubic realization shader expects textures to use bilinear
-   * interpolation. */
-  Result &input = this->get_input();
-  const RealizationOptions realization_options = input.get_realization_options();
-  GPU_texture_filter_mode(input, false); // false=nearest, true=bilinear
+  GPU_texture_filter_mode(input, bilinear);
   //GPU_texture_anisotropic_filter(input, false);
-
-  GPU_texture_extend_mode_x(input,
-                            map_extension_mode_to_extend_mode(realization_options.extension_x));
-  GPU_texture_extend_mode_y(input,
-                            map_extension_mode_to_extend_mode(realization_options.extension_y));
+  GPU_texture_extend_mode_x(input, map_extension_mode_to_extend_mode(extension_x));
+  GPU_texture_extend_mode_y(input, map_extension_mode_to_extend_mode(extension_y));
 
   input.bind_as_texture(shader, "input_tx");
 
@@ -120,53 +175,6 @@ void RealizeOnDomainOperation::realize_on_domain_gpu(const float3x3 &inverse_tra
   input.unbind_as_texture();
   output.unbind_as_image();
   GPU_shader_unbind();
-}
-
-const char *RealizeOnDomainOperation::get_realization_shader_name()
-{
-  switch (this->get_input().type()) {
-    case ResultType::Float:
-      switch (this->get_input().get_realization_options().interpolation) {
-        case Interpolation::Nearest:
-          return "compositor_realize_on_domain_nearest_float";
-        case Interpolation::Bicubic:
-          return "compositor_realize_on_domain_bspline_float";
-        default:
-          return "compositor_realize_on_domain_box_float";
-      }
-    case ResultType::Color:
-    case ResultType::Float3:
-    case ResultType::Float4:
-      switch (this->get_input().get_realization_options().interpolation) {
-        case Interpolation::Nearest:
-          return "compositor_realize_on_domain_nearest_float4";
-        case Interpolation::Bicubic:
-          return "compositor_realize_on_domain_bspline_float4";
-        default:
-          return "compositor_realize_on_domain_box_float4";
-      }
-    case ResultType::Float2:
-      switch (this->get_input().get_realization_options().interpolation) {
-        case Interpolation::Nearest:
-          return "compositor_realize_on_domain_nearest_float2";
-        case Interpolation::Bicubic:
-          return "compositor_realize_on_domain_bspline_float2";
-        default:
-          return "compositor_realize_on_domain_box_float2";
-      }
-    case ResultType::Int:
-    case ResultType::Int2:
-    case ResultType::Bool:
-    case ResultType::Menu:
-      /* Not supported. */
-    case ResultType::String:
-      /* Single only types do not support GPU code path. */
-      BLI_assert(Result::is_single_value_only_type(this->get_input().type()));
-      BLI_assert_unreachable();
-      break;
-  }
-  BLI_assert_unreachable();
-  return nullptr;
 }
 
 void RealizeOnDomainOperation::realize_on_domain_cpu(const float3x3 &inverse_transformation)

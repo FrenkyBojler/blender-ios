@@ -159,8 +159,8 @@ class CornerPinOperation : public NodeOperation {
     float3x3 imat = from_bounds * homography_matrix * to_bounds;
 
     const Interpolation interpolation = this->get_interpolation();
-    ExtensionMode extension_mode_x = this->get_extension_mode_x();
-    ExtensionMode extension_mode_y = this->get_extension_mode_y();
+    ExtensionMode extension_x = this->get_extension_mode_x();
+    ExtensionMode extension_y = this->get_extension_mode_y();
 
     // can we use texture() call:
     char shader_name[100];
@@ -184,7 +184,7 @@ class CornerPinOperation : public NodeOperation {
     }
 
     bool masked = false;
-    if (!fast && (extension_mode_x == ExtensionMode::Clip || extension_mode_y == ExtensionMode::Clip
+    if (!fast && (extension_x == ExtensionMode::Clip || extension_y == ExtensionMode::Clip
                   || interpolation == Interpolation::Anisotropic)) { // Anisotropic has to be masked
       masked = true;
       strcat(shader_name, "_masked");
@@ -200,14 +200,14 @@ class CornerPinOperation : public NodeOperation {
 
     if (masked) {
       float mx = 1;
-      if (extension_mode_x == ExtensionMode::Clip) {
+      if (extension_x == ExtensionMode::Clip) {
         mx = 0;
-        extension_mode_x = ExtensionMode::Extend;
+        extension_x = ExtensionMode::Extend;
       }
       float my = 1;
-      if (extension_mode_y == ExtensionMode::Clip) {
+      if (extension_y == ExtensionMode::Clip) {
         my = 0;
-        extension_mode_y = ExtensionMode::Extend;
+        extension_y = ExtensionMode::Extend;
       }
       GPU_shader_uniform_2f(shader, "mask_mult", mx, my);
     }
@@ -218,8 +218,8 @@ class CornerPinOperation : public NodeOperation {
       GPU_texture_anisotropic_filter(input_image, true);
     } else {
       GPU_texture_filter_mode(input_image, false); // all versions use nearest sampling
-      GPU_texture_extend_mode_x(input_image, map_extension_mode_to_extend_mode(extension_mode_x));
-      GPU_texture_extend_mode_y(input_image, map_extension_mode_to_extend_mode(extension_mode_y));
+      GPU_texture_extend_mode_x(input_image, map_extension_mode_to_extend_mode(extension_x));
+      GPU_texture_extend_mode_y(input_image, map_extension_mode_to_extend_mode(extension_y));
     }
     input_image.bind_as_texture(shader, "input_tx");
 
@@ -243,8 +243,8 @@ class CornerPinOperation : public NodeOperation {
     Result &output = get_result("Image");
     output.allocate_texture(domain);
     const Interpolation interpolation = this->get_interpolation();
-    const ExtensionMode extension_mode_x = this->get_extension_mode_x();
-    const ExtensionMode extension_mode_y = this->get_extension_mode_y();
+    const ExtensionMode extension_x = this->get_extension_mode_x();
+    const ExtensionMode extension_y = this->get_extension_mode_y();
 
     const int2 size = domain.size;
     parallel_for(size, [&](const int2 texel) {
@@ -262,7 +262,7 @@ class CornerPinOperation : public NodeOperation {
 
       if (interpolation != Interpolation::Anisotropic) {
         sampled_color = input.sample(
-            projected_coordinates, interpolation, extension_mode_x, extension_mode_y);
+            projected_coordinates, interpolation, extension_x, extension_y);
       }
       else {
         /* The derivatives of the projected coordinates with respect to x and y are the first and
