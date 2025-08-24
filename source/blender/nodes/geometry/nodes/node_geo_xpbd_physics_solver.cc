@@ -448,6 +448,10 @@ struct InfinitePlaneColliderData {
   float friction;
 };
 
+struct SphericalSelfCollisionData {
+  int key_i;
+};
+
 struct SimPointsPropertiesData {
   fn::FieldEvaluator *evaluator;
   MutableSpan<float> inverse_masses;
@@ -488,6 +492,7 @@ struct WorldPreprocessData {
   Vector<PressureConstraintData> pressure_constraints;
 
   Vector<InfinitePlaneColliderData> infinite_plane_colliders;
+  Vector<SphericalSelfCollisionData> spherical_self_collisions;
 };
 
 static const Field<bool> &get_constant_true_field()
@@ -1743,9 +1748,6 @@ PROFILE_FUNCTION static void prepare_evaluation__infinite_plane_colliders(
     const SimPointsKey &key = keys[key_i];
     const Vector constraint_bundles = filter_bundles_for_path<InfiniteGroundPlaneBundle>(
         world_bundles.infinite_ground_planes, key.path);
-    if (constraint_bundles.is_empty()) {
-      continue;
-    }
     for (const InfiniteGroundPlaneBundle *constraint_bundle : constraint_bundles) {
       if (math::is_zero(constraint_bundle->normal)) {
         continue;
@@ -1754,6 +1756,24 @@ PROFILE_FUNCTION static void prepare_evaluation__infinite_plane_colliders(
                                                   constraint_bundle->position,
                                                   constraint_bundle->normal,
                                                   constraint_bundle->friction});
+    }
+  }
+}
+
+PROFILE_FUNCTION static void prepare_evaluation__spherical_self_collisions(
+    WorldPreprocessData &world_info,
+    const WorldBundles &world_bundles,
+    const VectorSet<SimPointsKey> &keys)
+{
+  for (const int key_i : keys.index_range()) {
+    const SimPointsKey &key = keys[key_i];
+    const Vector constraint_bundles =
+        filter_bundles_for_path<SphericalSelfCollisionXPBDConstraintBundle>(
+            world_bundles.spherical_self_collision_constraints, key.path);
+    for ([[maybe_unused]] const SphericalSelfCollisionXPBDConstraintBundle *constraint_bundle :
+         constraint_bundles)
+    {
+      world_info.spherical_self_collisions.append({key_i});
     }
   }
 }
@@ -2258,9 +2278,7 @@ PROFILE_FUNCTION static Contacts gather_contacts(
         contacts.static_plane_contacts.add_new(key, std::move(plane_contacts));
       }
     }
-    const Vector spherical_self_collision_constraints =
-        filter_bundles_for_path<SphericalSelfCollisionXPBDConstraintBundle>(
-            world_bundles.spherical_self_collision_constraints, key.path);
+
     std::optional<VArray<float>> radii;
     if (type == bke::GeometryComponent::Type::PointCloud) {
       const bke::PointCloudComponent &pointcloud_component =
@@ -2277,13 +2295,13 @@ PROFILE_FUNCTION static Contacts gather_contacts(
         radii.emplace(curves.radius());
       }
     }
-    if (radii.has_value() && !spherical_self_collision_constraints.is_empty()) {
+    if (radii.has_value()) {
       const VArraySpan<float> radii_span = *radii;
       DynamicSphereContacts sphere_contacts;
-      for ([[maybe_unused]] const SphericalSelfCollisionXPBDConstraintBundle *constraint_bundle :
-           spherical_self_collision_constraints)
-      {
-        /* TODO: Avoid self collisions with direct neighbor.*/
+      for (const SphericalSelfCollisionData &constraint : world_info.spherical_self_collisions) {
+        if (constraint.key_i != key_i) {
+          continue;
+        }
         gather_sphere_contacts(sim_points, radii_span, sphere_contacts);
       }
       if (!sphere_contacts.indices.is_empty()) {
@@ -2783,6 +2801,7 @@ PROFILE_FUNCTION static void update_and_step_xpbd_state(XPBDState &state,
       scope, world_info, world_bundles, applied_geometries, keys, sub_delta_time);
   prepare_evaluation__pressure_constraints(world_info, world_bundles, applied_geometries, keys);
   prepare_evaluation__infinite_plane_colliders(world_info, world_bundles, keys);
+  prepare_evaluation__spherical_self_collisions(world_info, world_bundles, keys);
 
   Vector<fn::FieldEvaluator *> field_evaluators;
   for (fn::FieldEvaluator *evaluator : world_info.field_evaluators.values()) {
@@ -2911,23 +2930,24 @@ PROFILE_FUNCTION static void update_and_step_xpbd_state(XPBDState &state,
                 post_solve_per_point_steps(sim_points,
                                            range,
                                            all_prev_positions[key_i].as_span().slice(range),
-                                           all_prev_rotations[key_i].as_span().slice(range),
+                                           all_prev_rotations[key_i].as_span().slice_safe(range),
                                            sub_delta_time);
               }
               if (do_pre_solve) {
-                pre_solve_per_point_steps(sim_points,
-                                          range,
-                                          all_prev_positions[key_i].as_mutable_span().slice(range),
-                                          all_prev_rotations[key_i].as_mutable_span().slice(range),
-                                          props,
-                                          accelerations,
-                                          torques,
-                                          pinned_positions,
-                                          pinned_rotations,
-                                          substep_factor,
-                                          soft_pinned_positions,
-                                          soft_pinned_rotations,
-                                          sub_delta_time);
+                pre_solve_per_point_steps(
+                    sim_points,
+                    range,
+                    all_prev_positions[key_i].as_mutable_span().slice(range),
+                    all_prev_rotations[key_i].as_mutable_span().slice_safe(range),
+                    props,
+                    accelerations,
+                    torques,
+                    pinned_positions,
+                    pinned_rotations,
+                    substep_factor,
+                    soft_pinned_positions,
+                    soft_pinned_rotations,
+                    sub_delta_time);
               }
             });
       }
