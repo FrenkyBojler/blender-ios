@@ -34,6 +34,7 @@ def cast_value(source, target):
 
     value=source.default_value
 
+    to_bool = lambda value: value > 0
     single_value_to_color = lambda value : Vector((value, value, value, 1.0))
     single_value_to_vector = lambda value : Vector([value,] * len(target.default_value))
     color_to_float = lambda color : (0.2126 * color[0]) + (0.7152 * color[1]) + (0.0722 * color[2])
@@ -41,21 +42,22 @@ def cast_value(source, target):
 
     func_map = {
         ('VALUE', 'INT') : int,
-        ('VALUE', 'BOOLEAN') : bool,
+        ('VALUE', 'BOOLEAN') : to_bool,
         ('VALUE', 'RGBA') : single_value_to_color,
         ('VALUE', 'VECTOR') : single_value_to_vector,
-        ('INT', 'BOOLEAN') : bool,
+        ('INT', 'BOOLEAN') : to_bool,
         ('INT', 'RGBA') : single_value_to_color,
         ('INT', 'VECTOR') : single_value_to_vector,
         ('BOOLEAN', 'RGBA') : single_value_to_color,
         ('BOOLEAN', 'VECTOR') : single_value_to_vector,
         ('RGBA', 'VALUE') : color_to_float,
         ('RGBA', 'INT') : lambda color : int(color_to_float(color)),
-        ('RGBA', 'BOOLEAN') : lambda color : bool(color_to_float(color)),
+        ('RGBA', 'BOOLEAN') : lambda color : to_bool(color_to_float(color)),
         ('RGBA', 'VECTOR') : lambda color : color[:len(target.default_value)],
         ('VECTOR', 'VALUE') : vector_to_float,
         ('VECTOR', 'INT') : lambda vector : int(vector_to_float(vector)),
-        ('VECTOR', 'BOOLEAN') : lambda vector : bool(vector_to_float(vector)),
+        # Even negative vectors get implicitly converted to True, hence to_bool is not used
+        ('VECTOR', 'BOOLEAN') : lambda vector : bool(vector_to_float(vector)), 
         ('VECTOR', 'RGBA') : lambda vector : list(vector).extend([0.0] * (len(target.default_value) - len(vector))) 
     }
 
