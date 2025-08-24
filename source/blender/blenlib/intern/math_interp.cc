@@ -1144,6 +1144,3 @@ void BLI_ewa_filter(const int width,
   /* Clipping can be ignored if alpha used, `texr->trgba[3]` already includes filtered edge. */
   result[3] = use_alpha ? result[3] * d : 1.0f;
 }
-
-namespace blender::math {
-}  // namespace blender::math
