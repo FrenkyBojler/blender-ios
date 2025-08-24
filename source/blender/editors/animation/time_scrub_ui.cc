@@ -88,12 +88,15 @@ static void draw_current_frame(const Scene *scene,
 
   char frame_str[64];
   get_current_time_str(scene, display_seconds, current_frame, frame_str, sizeof(frame_str));
-  float text_width = UI_fontstyle_string_width(fstyle, frame_str);
-  float box_width = std::max(text_width + 8 * UI_SCALE_FAC, 24 * UI_SCALE_FAC);
-  float box_padding = 3 * UI_SCALE_FAC;
 
-  float bg_color[4];
-  UI_GetThemeColorShade4fv(TH_CFRAME, -5, bg_color);
+  const float box_min_width = 24 * UI_SCALE_FAC;
+  const float text_padding = 4 * UI_SCALE_FAC;
+  const float text_width = UI_fontstyle_string_width(fstyle, frame_str);
+  const float box_width = std::max(text_width + (2.0f * text_padding), box_min_width);
+  const float box_margin = 4 * UI_SCALE_FAC;
+
+  float color[4];
+  UI_GetThemeColor4fv(TH_CFRAME, color);
 
   if (display_stalk) {
     /* Draw vertical line from the bottom of the current frame box to the bottom of the screen. */
@@ -107,45 +110,45 @@ static void draw_current_frame(const Scene *scene,
      * used to force an odd width (but still pixel-aligned) to better
      * line up with the odd widths of the keyframe icons. #98089. */
 
-    /* Outline. */
-    immUniformThemeColorShadeAlpha(TH_BACK, -25, -100);
-    immRectf(pos,
-             floor(subframe_x - U.pixelsize - U.pixelsize),
-             scrub_region_rect->ymax - box_padding - U.pixelsize,
-             floor(subframe_x + U.pixelsize + 1.0f + U.pixelsize),
-             0.0f);
-
     /* Line. */
-    immUniformThemeColor(TH_CFRAME);
+    immUniformColor4fv(color);
     immRectf(pos,
              floor(subframe_x - U.pixelsize),
-             scrub_region_rect->ymax - box_padding - U.pixelsize,
+             scrub_region_rect->ymin,
              floor(subframe_x + U.pixelsize + 1.0f),
              0.0f);
+
+    /* Triangular base. */
+    const float tri_top = scrub_region_rect->ymin + box_margin;
+    const float tri_half_width = 7 * UI_SCALE_FAC;
+    const float tri_height = 10 * UI_SCALE_FAC;
+    GPU_polygon_smooth(true);
+    immUniformColor4fv(color);
+    immBegin(GPU_PRIM_TRIS, 3);
+    immVertex2f(pos, frame_x - tri_half_width, tri_top);
+    immVertex2f(pos, frame_x + tri_half_width + 1, tri_top);
+    immVertex2f(pos, frame_x + 0.5f, tri_top - tri_height);
+    immEnd();
     immUnbindProgram();
+    GPU_polygon_smooth(false);
     GPU_blend(GPU_BLEND_NONE);
   }
 
+  /* Box. */
   UI_draw_roundbox_corner_set(UI_CNR_ALL);
-
-  float outline_color[4];
-  UI_GetThemeColorShade4fv(TH_CFRAME, 5, outline_color);
-
+  const float box_corner_radius = 2 * UI_SCALE_FAC;
   rctf rect{};
-  rect.xmin = floor(frame_x - (box_width / 2.0f) + U.pixelsize + 1.0f);
-  rect.xmax = ceil(frame_x + (box_width / 2.0f));
-  rect.ymin = floor(scrub_region_rect->ymin + box_padding);
-  rect.ymax = ceil(scrub_region_rect->ymax - box_padding);
-  UI_draw_roundbox_4fv_ex(
-      &rect, bg_color, nullptr, 1.0f, outline_color, U.pixelsize, 4 * UI_SCALE_FAC);
+  rect.xmin = frame_x - (box_width / 2.0f);
+  rect.xmax = frame_x + (box_width / 2.0f) + 1.0f;
+  rect.ymin = floor(scrub_region_rect->ymin + box_margin);
+  rect.ymax = ceil(scrub_region_rect->ymax - box_margin);
+  UI_draw_roundbox_4fv_ex(&rect, color, nullptr, 1.0f, nullptr, U.pixelsize, box_corner_radius);
 
+  /* Frame number text. */
   uchar text_color[4];
   UI_GetThemeColor4ubv(TH_HEADER_TEXT_HI, text_color);
-
   const int y = BLI_rcti_cent_y(scrub_region_rect) - int(fstyle->points * UI_SCALE_FAC * 0.38f);
-
-  UI_fontstyle_draw_simple(
-      fstyle, ceil(frame_x - (text_width / 2.0f) + 1.0f), y, frame_str, text_color);
+  UI_fontstyle_draw_simple(fstyle, frame_x - (text_width / 2.0f), y, frame_str, text_color);
 }
 
 void ED_time_scrub_draw_current_frame(const ARegion *region,
