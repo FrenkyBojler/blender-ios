@@ -11,7 +11,6 @@
  * - #UI_OT_eyedropper_grease_pencil_color
  */
 
-#include "BLI_math_color.h"
 #include "MEM_guardedalloc.h"
 
 #include "BLI_listbase.h"

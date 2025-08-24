@@ -768,7 +768,9 @@ static void copy_unified_paint_settings(Scene &scene, Paint *paint)
   ups.alpha = scene_ups.alpha;
   ups.weight = scene_ups.weight;
   copy_v3_v3(ups.color, scene_ups.color);
+  copy_v3_v3(ups.rgb, scene_ups.rgb);
   copy_v3_v3(ups.secondary_color, scene_ups.secondary_color);
+  copy_v3_v3(ups.secondary_rgb, scene_ups.secondary_rgb);
   ups.color_jitter_flag = scene_ups.color_jitter_flag;
   copy_v3_v3(ups.hsv_jitter, scene_ups.hsv_jitter);
 

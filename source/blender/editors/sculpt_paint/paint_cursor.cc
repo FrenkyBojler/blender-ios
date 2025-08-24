@@ -1660,7 +1660,6 @@ static void grease_pencil_brush_cursor_draw(PaintCursorContext &pcontext)
                                                   GPPAINT_MODE_BOTH);
         if (use_vertex_color_stroke) {
           IMB_colormanagement_scene_linear_to_srgb_v3(color, brush->color);
-          color[3] = 1.0f;
         }
         else {
           color = float4(gp_style->stroke_rgba).xyz();
