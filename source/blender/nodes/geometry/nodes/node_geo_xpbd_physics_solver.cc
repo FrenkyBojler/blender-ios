@@ -441,6 +441,13 @@ struct TorqueFieldsData {
   Vector<Item> items;
 };
 
+struct InfinitePlaneColliderData {
+  int key_i;
+  float3 position;
+  float3 normal;
+  float friction;
+};
+
 struct SimPointsPropertiesData {
   fn::FieldEvaluator *evaluator;
   MutableSpan<float> inverse_masses;
@@ -479,6 +486,8 @@ struct WorldPreprocessData {
   Vector<AttachUVSurfaceConstraintData> attach_uv_surface_constraints;
   Vector<DistanceBasedEdgeBendingConstraintData> distance_based_edge_bending_constraints;
   Vector<PressureConstraintData> pressure_constraints;
+
+  Vector<InfinitePlaneColliderData> infinite_plane_colliders;
 };
 
 static const Field<bool> &get_constant_true_field()
@@ -1725,6 +1734,30 @@ PROFILE_FUNCTION static void prepare_evaluation__pressure_constraints(
   }
 }
 
+PROFILE_FUNCTION static void prepare_evaluation__infinite_plane_colliders(
+    WorldPreprocessData &world_info,
+    const WorldBundles &world_bundles,
+    const VectorSet<SimPointsKey> &keys)
+{
+  for (const int key_i : keys.index_range()) {
+    const SimPointsKey &key = keys[key_i];
+    const Vector constraint_bundles = filter_bundles_for_path<InfiniteGroundPlaneBundle>(
+        world_bundles.infinite_ground_planes, key.path);
+    if (constraint_bundles.is_empty()) {
+      continue;
+    }
+    for (const InfiniteGroundPlaneBundle *constraint_bundle : constraint_bundles) {
+      if (math::is_zero(constraint_bundle->normal)) {
+        continue;
+      }
+      world_info.infinite_plane_colliders.append({key_i,
+                                                  constraint_bundle->position,
+                                                  constraint_bundle->normal,
+                                                  constraint_bundle->friction});
+    }
+  }
+}
+
 PROFILE_FUNCTION static Vector<xpbd::RodStretchAndShearCurveLocalConstraintSet *>
 build_constraint_sets__curves_rod_stretch_and_shear(ThreadLocalStorage &tls,
                                                     const WorldPreprocessData &world_info,
@@ -2117,12 +2150,12 @@ struct Contacts {
 
 PROFILE_FUNCTION static void gather_ground_plane_contacts(
     const SimPoints &sim_points,
-    const InfiniteGroundPlaneBundle &ground_plane,
+    const InfinitePlaneColliderData &collider,
     const Span<float> sim_points_frictions,
     const Span<float> sim_points_inverse_masses,
     StaticPlaneContacts &r_contacts)
 {
-  const float3 plane_normal = math::normalize(ground_plane.normal);
+  const float3 plane_normal = math::normalize(collider.normal);
   if (math::is_zero(plane_normal)) {
     return;
   }
@@ -2134,15 +2167,15 @@ PROFILE_FUNCTION static void gather_ground_plane_contacts(
     }
 
     const float3 &position = sim_points.positions[point_i];
-    const float distance = math::dot(position - ground_plane.position, plane_normal);
+    const float distance = math::dot(position - collider.position, plane_normal);
     if (distance >= 0.0f) {
       continue;
     }
     r_contacts.indices.append(point_i);
-    r_contacts.plane_positions.append(ground_plane.position);
+    r_contacts.plane_positions.append(collider.position);
     r_contacts.plane_normals.append(plane_normal);
     const float point_friction = sim_points_frictions[point_i];
-    const float friction = math::sqrt(point_friction * ground_plane.friction);
+    const float friction = math::sqrt(point_friction * collider.friction);
     r_contacts.static_frictions.append(friction);
     r_contacts.dynamic_frictions.append(friction);
     r_contacts.depths.append(-distance);
@@ -2193,6 +2226,7 @@ PROFILE_FUNCTION static void gather_sphere_contacts(const SimPoints &sim_points,
 
 PROFILE_FUNCTION static Contacts gather_contacts(
     const XPBDState &state,
+    const WorldPreprocessData &world_info,
     const WorldBundles &world_bundles,
     const Span<GeometrySet> applied_geometries,
     const Span<SimPointsKey> keys,
@@ -2212,15 +2246,13 @@ PROFILE_FUNCTION static Contacts gather_contacts(
     const SimPointsWorldProperties &props = sim_points_props.lookup(key);
 
     {
-      const Vector ground_plane_bundles = filter_bundles_for_path<InfiniteGroundPlaneBundle>(
-          world_bundles.infinite_ground_planes, key.path);
       StaticPlaneContacts plane_contacts;
-      for (const InfiniteGroundPlaneBundle *ground_plane_bundle : ground_plane_bundles) {
-        gather_ground_plane_contacts(sim_points,
-                                     *ground_plane_bundle,
-                                     props.frictions,
-                                     props.inverse_masses,
-                                     plane_contacts);
+      for (const InfinitePlaneColliderData &collider : world_info.infinite_plane_colliders) {
+        if (collider.key_i != key_i) {
+          continue;
+        }
+        gather_ground_plane_contacts(
+            sim_points, collider, props.frictions, props.inverse_masses, plane_contacts);
       }
       if (!plane_contacts.indices.is_empty()) {
         contacts.static_plane_contacts.add_new(key, std::move(plane_contacts));
@@ -2750,6 +2782,7 @@ PROFILE_FUNCTION static void update_and_step_xpbd_state(XPBDState &state,
   prepare_evaluation__distance_based_edge_bending_constraints(
       scope, world_info, world_bundles, applied_geometries, keys, sub_delta_time);
   prepare_evaluation__pressure_constraints(world_info, world_bundles, applied_geometries, keys);
+  prepare_evaluation__infinite_plane_colliders(world_info, world_bundles, keys);
 
   Vector<fn::FieldEvaluator *> field_evaluators;
   for (fn::FieldEvaluator *evaluator : world_info.field_evaluators.values()) {
@@ -2915,7 +2948,7 @@ PROFILE_FUNCTION static void update_and_step_xpbd_state(XPBDState &state,
     /* Find current collisions and generate constraints to resolve them. */
     xpbd::ConstraintSetCollector dynamic_constraint_sets;
     const Contacts contacts = gather_contacts(
-        state, world_bundles, applied_geometries, keys, sim_points_props);
+        state, world_info, world_bundles, applied_geometries, keys, sim_points_props);
     generate_collision_constraint_sets(
         scope, contacts, keys, sub_delta_time, dynamic_constraint_sets);
 
