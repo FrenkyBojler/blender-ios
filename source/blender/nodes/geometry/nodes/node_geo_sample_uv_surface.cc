@@ -26,7 +26,16 @@ using geometry::ReverseUVSampler;
 static void node_declare(NodeDeclarationBuilder &b)
 {
   const bNode *node = b.node_or_null();
-
+  b.use_custom_socket_order();
+  b.allow_any_socket_order();
+  b.add_default_layout();
+  if (node != nullptr) {
+    b.add_output<decl::Bool>("Is Valid")
+      .dependent_field({3})
+      .description("Whether the node could find a single face to sample at the UV coordinate");
+    const eCustomDataType data_type = eCustomDataType(node->custom1);
+    b.add_output(data_type, "Value").dependent_field({3});
+  }
   b.add_input<decl::Geometry>("Mesh")
       .supported_type(GeometryComponent::Type::Mesh)
       .description("Mesh whose UV map is used");
@@ -39,17 +48,11 @@ static void node_declare(NodeDeclarationBuilder &b)
       .field_on_all()
       .description("The mesh UV map to sample. Should not have overlapping faces");
   b.add_input<decl::Vector>("Sample UV")
+      .dimensions(2)
       .supports_field()
       .description("The coordinates to sample within the UV map")
       .structure_type(StructureType::Dynamic);
 
-  if (node != nullptr) {
-    const eCustomDataType data_type = eCustomDataType(node->custom1);
-    b.add_output(data_type, "Value").dependent_field({3});
-  }
-  b.add_output<decl::Bool>("Is Valid")
-      .dependent_field({3})
-      .description("Whether the node could find a single face to sample at the UV coordinate");
 }
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)

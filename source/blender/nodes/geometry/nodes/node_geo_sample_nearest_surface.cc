@@ -25,7 +25,17 @@ using namespace blender::bke::mesh_surface_sample;
 static void node_declare(NodeDeclarationBuilder &b)
 {
   const bNode *node = b.node_or_null();
-
+  b.use_custom_socket_order();
+  b.allow_any_socket_order();
+  b.add_default_layout();
+  if (node != nullptr) {
+    b.add_output<decl::Bool>("Is Valid")
+      .dependent_field({3, 4})
+      .description(
+          "Whether the sampling was successful. It can fail when the sampled group is empty");
+    const eCustomDataType data_type = eCustomDataType(node->custom1);
+    b.add_output(data_type, "Value").dependent_field({3, 4});
+  }
   b.add_input<decl::Geometry>("Mesh")
       .supported_type(GeometryComponent::Type::Mesh)
       .description("Mesh to find the closest surface point on");
@@ -46,14 +56,6 @@ static void node_declare(NodeDeclarationBuilder &b)
       .supports_field()
       .structure_type(StructureType::Dynamic);
 
-  if (node != nullptr) {
-    const eCustomDataType data_type = eCustomDataType(node->custom1);
-    b.add_output(data_type, "Value").dependent_field({3, 4});
-  }
-  b.add_output<decl::Bool>("Is Valid")
-      .dependent_field({3, 4})
-      .description(
-          "Whether the sampling was successful. It can fail when the sampled group is empty");
 }
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)

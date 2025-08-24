@@ -23,6 +23,15 @@ NODE_STORAGE_FUNCS(NodeGeometryProximity)
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
+  b.use_custom_socket_order();
+  b.allow_any_socket_order();
+  b.add_default_layout();
+  b.add_output<decl::Bool>("Is Valid")
+      .dependent_field({2, 3})
+      .description(
+          "Whether the sampling was successful. It can fail when the sampled group is empty");
+  b.add_output<decl::Vector>("Position").dependent_field({2, 3}).reference_pass_all();
+  b.add_output<decl::Float>("Distance").dependent_field({2, 3}).reference_pass_all();
   b.add_input<decl::Geometry>("Geometry", "Target")
       .only_realized_data()
       .supported_type({GeometryComponent::Type::Mesh, GeometryComponent::Type::PointCloud})
@@ -39,12 +48,6 @@ static void node_declare(NodeDeclarationBuilder &b)
       .hide_value()
       .supports_field()
       .structure_type(StructureType::Dynamic);
-  b.add_output<decl::Vector>("Position").dependent_field({2, 3}).reference_pass_all();
-  b.add_output<decl::Float>("Distance").dependent_field({2, 3}).reference_pass_all();
-  b.add_output<decl::Bool>("Is Valid")
-      .dependent_field({2, 3})
-      .description(
-          "Whether the sampling was successful. It can fail when the sampled group is empty");
 }
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
