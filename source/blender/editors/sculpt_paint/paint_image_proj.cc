@@ -50,6 +50,8 @@
 #include "DNA_object_enums.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
+#include "DNA_screen_types.h"
+#include "DNA_space_types.h"
 
 #include "BKE_attribute.hh"
 #include "BKE_brush.hh"
@@ -77,8 +79,6 @@
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
 #include "BKE_screen.hh"
-#include "DNA_screen_types.h"
-#include "DNA_space_types.h"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_query.hh"
@@ -486,7 +486,10 @@ struct ProjPixel {
 
   short x_px, y_px;
 
-  /** if anyone wants to paint onto more than 65535 images they can bite me. */
+  /**
+   * Use a short to reduce memory use.
+   * This limits the total number of supported images to 65535 which seems reasonable.
+   */
   ushort image_index;
   uchar bb_cell_index;
 
@@ -5746,6 +5749,17 @@ static bool project_paint_op(void *state, const float lastpos[2], const float po
   return touch_any;
 }
 
+static bool has_data_projection_paint_image(const ProjPaintState &ps)
+{
+  for (int i = 0; i < ps.image_tot; i++) {
+    const ImBuf *ibuf = ps.projImages[i].ibuf;
+    if (ibuf->colormanage_flag & IMB_COLORMANAGE_IS_DATA) {
+      return true;
+    }
+  }
+  return false;
+}
+
 static void paint_proj_stroke_ps(const bContext * /*C*/,
                                  void *ps_handle_p,
                                  const float prev_pos[2],
@@ -5773,13 +5787,11 @@ static void paint_proj_stroke_ps(const bContext * /*C*/,
     paint_brush_color_get(paint,
                           brush,
                           ps_handle->initial_hsv_jitter,
-                          false,
                           ps->mode == BRUSH_STROKE_INVERT,
                           distance,
                           pressure,
-                          nullptr,
+                          has_data_projection_paint_image(*ps),
                           ps->paint_color);
-    srgb_to_linearrgb_v3_v3(ps->paint_color_linear, ps->paint_color);
   }
   else if (ps->brush_type == IMAGE_PAINT_BRUSH_TYPE_MASK) {
     ps->stencil_value = brush->weight;
@@ -6786,7 +6798,7 @@ static bool proj_paint_add_slot(bContext *C, wmOperator *op)
       if (in_sock != nullptr && link == nullptr) {
         blender::bke::node_add_link(*ntree, *out_node, *out_sock, *in_node, *in_sock);
 
-        blender::bke::node_position_relative(*out_node, *in_node, *out_sock, *in_sock);
+        blender::bke::node_position_relative(*out_node, *in_node, out_sock, *in_sock);
       }
     }
 
@@ -6842,7 +6854,8 @@ static void get_default_texture_layer_name_for_object(Object *ob,
 {
   Material *ma = BKE_object_material_get(ob, ob->actcol);
   const char *base_name = ma ? &ma->id.name[2] : &ob->id.name[2];
-  BLI_snprintf(dst, dst_maxncpy, "%s %s", base_name, DATA_(layer_type_items[texture_type].name));
+  BLI_snprintf_utf8(
+      dst, dst_maxncpy, "%s %s", base_name, DATA_(layer_type_items[texture_type].name));
 }
 
 static wmOperatorStatus texture_paint_add_texture_paint_slot_invoke(bContext *C,

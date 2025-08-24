@@ -15,7 +15,7 @@
 
 #include "BLI_function_ref.hh"
 #include "BLI_listbase.h"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 
 #include "BKE_context.hh"
 #include "BKE_main.hh"
@@ -160,7 +160,7 @@ AssetShelf *create_shelf_from_type(AssetShelfType &type)
   shelf->settings.asset_library_reference = asset_system::all_library_reference();
   shelf->type = &type;
   shelf->preferred_row_count = 1;
-  STRNCPY(shelf->idname, type.idname);
+  STRNCPY_UTF8(shelf->idname, type.idname);
   return shelf;
 }
 
@@ -365,7 +365,7 @@ void region_init(wmWindowManager *wm, ARegion *region)
   UI_view2d_region_reinit(&region->v2d, V2D_COMMONVIEW_PANELS_UI, region->winx, region->winy);
 
   wmKeyMap *keymap = WM_keymap_ensure(
-      wm->defaultconf, "View2D Buttons List", SPACE_EMPTY, RGN_TYPE_WINDOW);
+      wm->runtime->defaultconf, "View2D Buttons List", SPACE_EMPTY, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler(&region->runtime->handlers, keymap);
 
   region->v2d.scroll = V2D_SCROLL_RIGHT | V2D_SCROLL_VERTICAL_HIDE;
@@ -863,7 +863,7 @@ static void asset_shelf_header_draw(const bContext *C, Header *header)
 static void header_regiontype_register(ARegionType *region_type, const int space_type)
 {
   HeaderType *ht = MEM_callocN<HeaderType>(__func__);
-  STRNCPY(ht->idname, "ASSETSHELF_HT_settings");
+  STRNCPY_UTF8(ht->idname, "ASSETSHELF_HT_settings");
   ht->space_type = space_type;
   ht->region_type = RGN_TYPE_ASSET_SHELF_HEADER;
   ht->draw = asset_shelf_header_draw;
