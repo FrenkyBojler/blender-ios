@@ -2171,6 +2171,7 @@ struct Contacts {
 
 PROFILE_FUNCTION static void gather_ground_plane_contacts(
     const SimPoints &sim_points,
+    const IndexRange points_range,
     const InfinitePlaneColliderData &collider,
     const Span<float> sim_points_frictions,
     const Span<float> sim_points_inverse_masses,
@@ -2180,7 +2181,7 @@ PROFILE_FUNCTION static void gather_ground_plane_contacts(
   if (math::is_zero(plane_normal)) {
     return;
   }
-  for (const int point_i : IndexRange(sim_points.points_num)) {
+  for (const int point_i : points_range) {
     const float inverse_mass = sim_points_inverse_masses[point_i];
     if (math::is_zero(inverse_mass)) {
       /* Points with infinite mass are pinned and don't collide dynamically. */
@@ -2245,7 +2246,35 @@ PROFILE_FUNCTION static void gather_sphere_contacts(const SimPoints &sim_points,
   }
 }
 
-PROFILE_FUNCTION static Contacts gather_contacts(
+PROFILE_FUNCTION static Contacts gather_contacts_curve_local(
+    const int key_i,
+    const IndexRange curves_range,
+    const OffsetIndices<int> points_by_curve,
+    const XPBDState &state,
+    const WorldPreprocessData &world_info,
+    const Span<SimPointsKey> keys,
+    const SimPointsWorldProperties &props)
+{
+  Contacts contacts;
+  const SimPointsKey &key = keys[key_i];
+  const SimPoints &sim_points = state.sim_points.lookup(key);
+  const IndexRange points_range = points_by_curve[curves_range];
+
+  StaticPlaneContacts plane_contacts;
+  for (const InfinitePlaneColliderData &collider : world_info.infinite_plane_colliders) {
+    if (collider.key_i != key_i) {
+      continue;
+    }
+    gather_ground_plane_contacts(
+        sim_points, points_range, collider, props.frictions, props.inverse_masses, plane_contacts);
+  }
+  if (!plane_contacts.indices.is_empty()) {
+    contacts.static_plane_contacts.add_new(key, std::move(plane_contacts));
+  }
+  return contacts;
+}
+
+PROFILE_FUNCTION static Contacts gather_contacts_global(
     const Span<int> key_group,
     const XPBDState &state,
     const WorldPreprocessData &world_info,
@@ -2273,8 +2302,12 @@ PROFILE_FUNCTION static Contacts gather_contacts(
         if (collider.key_i != key_i) {
           continue;
         }
-        gather_ground_plane_contacts(
-            sim_points, collider, props.frictions, props.inverse_masses, plane_contacts);
+        gather_ground_plane_contacts(sim_points,
+                                     IndexRange(sim_points.points_num),
+                                     collider,
+                                     props.frictions,
+                                     props.inverse_masses,
+                                     plane_contacts);
       }
       if (!plane_contacts.indices.is_empty()) {
         contacts.static_plane_contacts.add_new(key, std::move(plane_contacts));
@@ -2415,6 +2448,31 @@ PROFILE_FUNCTION static void solve_constraints(const SolverType solver_type,
   }
 }
 
+PROFILE_FUNCTION static void apply_static_plane_contact_friction(
+    SimPoints &sim_points,
+    const StaticPlaneContacts &plane_contacts,
+    const Span<float3> prev_positions,
+    const int prev_positions_offset)
+{
+  MutableSpan<float3> new_positions = sim_points.positions;
+  for (const int contact_i : plane_contacts.indices.index_range()) {
+    const int point_i = plane_contacts.indices[contact_i];
+    const float3 &plane_normal = plane_contacts.plane_normals[contact_i];
+    const float static_friction = plane_contacts.static_frictions[contact_i];
+    const float dynamic_friction = plane_contacts.dynamic_frictions[contact_i];
+    const float depth = plane_contacts.depths[contact_i];
+    const float3 pos_diff = new_positions[point_i] -
+                            prev_positions[point_i - prev_positions_offset];
+    const float3 tangential_pos_diff = pos_diff - plane_normal * math::dot(pos_diff, plane_normal);
+    float3 offset = tangential_pos_diff;
+    const float tangential_dist = math::length(tangential_pos_diff);
+    if (tangential_dist >= static_friction * depth) {
+      offset *= std::min(dynamic_friction * depth / tangential_dist, 1.0f);
+    }
+    new_positions[point_i] -= offset;
+  }
+}
+
 PROFILE_FUNCTION static void apply_friction(XPBDState &state,
                                             const Span<int> key_group,
                                             const Contacts &contacts,
@@ -2426,25 +2484,7 @@ PROFILE_FUNCTION static void apply_friction(XPBDState &state,
     const int key_in_group_i = key_group.first_index(key_i);
     SimPoints &sim_points = state.sim_points.lookup(item.key);
     const Span<float3> prev_positions = all_prev_positions[key_in_group_i];
-    MutableSpan<float3> new_positions = sim_points.positions;
-    const StaticPlaneContacts &plane_contacts = item.value;
-    for (const int contact_i : plane_contacts.indices.index_range()) {
-      const int point_i = plane_contacts.indices[contact_i];
-      const float3 &plane_normal = plane_contacts.plane_normals[contact_i];
-      const float static_friction = plane_contacts.static_frictions[contact_i];
-      const float dynamic_friction = plane_contacts.dynamic_frictions[contact_i];
-      const float depth = plane_contacts.depths[contact_i];
-      const float3 pos_diff = new_positions[point_i] - prev_positions[point_i];
-      const float3 tangential_pos_diff = pos_diff -
-                                         plane_normal * math::dot(pos_diff, plane_normal);
-      float3 offset = tangential_pos_diff;
-      const float tangential_dist = math::length(tangential_pos_diff);
-      if (tangential_dist >= static_friction * depth) {
-        offset *= std::min(dynamic_friction * depth / tangential_dist, 1.0f);
-      }
-
-      new_positions[point_i] -= offset;
-    }
+    apply_static_plane_contact_friction(sim_points, item.value, prev_positions, 0);
   }
 }
 
@@ -2760,9 +2800,8 @@ static void post_solve_per_point_steps(SimPoints &sim_points,
   }
 }
 
-PROFILE_FUNCTION static void simulate_key_group(
+PROFILE_FUNCTION static void simulate_key_group_global(
     const Span<int> key_group,
-
     ThreadLocalStorage &tls,
     XPBDState &state,
     const WorldBundles &world_bundles,
@@ -2778,13 +2817,13 @@ PROFILE_FUNCTION static void simulate_key_group(
     const Span<GeometrySet> applied_geometries,
     const SolverType solver_type,
     const Span<xpbd::GeometryRef> geometry_refs,
-    const xpbd::ConstraintSetCollector &static_constraint_sets,
+    const xpbd::ConstraintSetCollector &filtered_static_constraint_sets,
     const int substeps,
     const float sub_delta_time)
 {
   ResourceScope &scope = tls.local_resource_scope();
-
   const int keys_in_group_num = key_group.size();
+
   Array<Array<float3>> all_prev_positions(keys_in_group_num);
   Array<Array<math::Quaternion>> all_prev_rotations(keys_in_group_num);
   for (const int key_in_group_i : key_group.index_range()) {
@@ -2794,19 +2833,6 @@ PROFILE_FUNCTION static void simulate_key_group(
     all_prev_positions[key_in_group_i].reinitialize(sim_points.points_num);
     if (sim_points.has_rotation) {
       all_prev_rotations[key_in_group_i].reinitialize(sim_points.points_num);
-    }
-  }
-
-  xpbd::ConstraintSetCollector filtered_constraint_sets;
-  for (xpbd::ConstraintSet *constraint_set : static_constraint_sets.general) {
-    const Span<int> affected_keys = constraint_set->get_affected_geo_indices();
-    if (key_group.contains(affected_keys[0])) {
-      filtered_constraint_sets.general.append(constraint_set);
-    }
-  }
-  for (xpbd::CurveLocalConstraintSet *constraint_set : static_constraint_sets.curve_local) {
-    if (key_group.contains(constraint_set->affected_geo_i())) {
-      filtered_constraint_sets.curve_local.append(constraint_set);
     }
   }
 
@@ -2875,16 +2901,16 @@ PROFILE_FUNCTION static void simulate_key_group(
     }
 
     /* Find current collisions and generate constraints to resolve them. */
-    xpbd::ConstraintSetCollector dynamic_constraint_sets;
-    const Contacts contacts = gather_contacts(
+    const Contacts contacts = gather_contacts_global(
         key_group, state, world_info, world_bundles, applied_geometries, keys, sim_points_props);
+    xpbd::ConstraintSetCollector dynamic_constraint_sets;
     generate_collision_constraint_sets(
         scope, contacts, keys, sub_delta_time, dynamic_constraint_sets);
 
     /* Combine static and dynamic constraint sets. */
     const Vector<xpbd::ConstraintSet *> current_constraint_sets =
         xpbd::ConstraintSetCollector::combine(
-            scope, {&filtered_constraint_sets, &dynamic_constraint_sets});
+            scope, {&filtered_static_constraint_sets, &dynamic_constraint_sets});
 
     /* Actually solve the constraints. */
     solve_constraints(solver_type, geometry_refs, current_constraint_sets);
@@ -2897,6 +2923,211 @@ PROFILE_FUNCTION static void simulate_key_group(
     /* Does remaining per-point updates at the end of this time step (like updating velocities) and
      * also does the beginning of the next timestep already unless this is the last substep. */
     run_per_point_updates(substep_factor, !is_last_substep, true);
+  }
+}
+
+PROFILE_FUNCTION static void simulate_curve_local(
+    const int key_i,
+    ThreadLocalStorage &tls,
+    XPBDState &state,
+    const WorldBundles &world_bundles,
+    const WorldPreprocessData &world_info,
+    const VectorSet<SimPointsKey> &keys,
+    const Map<SimPointsKey, Span<float3>> &accelerations_map,
+    const Map<SimPointsKey, Span<float3>> &torques_map,
+    const Map<SimPointsKey, SimPointsWorldProperties> &sim_points_props,
+    const Map<SimPointsKey, PinnedPositions> &pinned_positions_map,
+    const Map<SimPointsKey, PinnedRotations> &pinned_rotations_map,
+    const Map<SimPointsKey, MutableSpan<float3>> &soft_pinned_positions_map,
+    const Map<SimPointsKey, MutableSpan<math::Quaternion>> &soft_pinned_rotations_map,
+    const Span<GeometrySet> applied_geometries,
+    const SolverType /*solver_type*/,
+    const Span<xpbd::GeometryRef> geometry_refs,
+    const xpbd::ConstraintSetCollector &filtered_static_constraint_sets,
+    const int substeps,
+    const float sub_delta_time)
+{
+  const SimPointsKey &key = keys[key_i];
+  SimPoints &sim_points = state.sim_points.lookup(key);
+  const int geometry_bundle_i = world_bundles.geometries.index_of_as(key.path);
+  const Curves &curves_id = *applied_geometries[geometry_bundle_i].get_curves();
+  const bke::CurvesGeometry &curves = curves_id.geometry.wrap();
+  const OffsetIndices<int> points_by_curve = curves.points_by_curve();
+
+  const Span<float3> accelerations = accelerations_map.lookup(key);
+  const std::optional<Span<float3>> torques = torques_map.lookup_try(key);
+  const SimPointsWorldProperties &props = sim_points_props.lookup(key);
+  const PinnedPositions *pinned_positions = pinned_positions_map.lookup_ptr(key);
+  const PinnedRotations *pinned_rotations = pinned_rotations_map.lookup_ptr(key);
+  MutableSpan<float3> soft_pinned_positions = soft_pinned_positions_map.lookup_try(key).value_or(
+      MutableSpan<float3>({}));
+  MutableSpan<math::Quaternion> soft_pinned_rotations =
+      soft_pinned_rotations_map.lookup_try(key).value_or(MutableSpan<math::Quaternion>({}));
+
+  threading::parallel_for(
+      curves.curves_range(),
+      256,
+      [&](const IndexRange curves_range) {
+        ResourceScope &scope = tls.local_resource_scope();
+        const IndexRange points_range = points_by_curve[curves_range];
+        const int points_num = points_range.size();
+        Array<float3, 1024> prev_positions(points_num);
+        Array<math::Quaternion, 1024> prev_rotations(points_num);
+        /* TODO: Support other solve strategies for curve-local evaluation. */
+        xpbd::SolveStrategy solve_strategy{xpbd::SolveStrategyType::GaussSeidelParallel,
+                                           xpbd::GaussSeidelUpdater{geometry_refs}};
+        xpbd::ConstraintSetParams params{geometry_refs};
+        for ([[maybe_unused]] const int substep_i : IndexRange(substeps)) {
+          const float substep_factor = substeps <= 1 ? 1.0f : float(substep_i) / (substeps - 1);
+          pre_solve_per_point_steps(sim_points,
+                                    points_range,
+                                    prev_positions,
+                                    prev_rotations,
+                                    props,
+                                    accelerations,
+                                    torques,
+                                    pinned_positions,
+                                    pinned_rotations,
+                                    substep_factor,
+                                    soft_pinned_positions,
+                                    soft_pinned_rotations,
+                                    sub_delta_time);
+
+          const Contacts contacts = gather_contacts_curve_local(
+              key_i, curves_range, points_by_curve, state, world_info, keys, props);
+          xpbd::ConstraintSetCollector dynamic_constraint_sets;
+          generate_collision_constraint_sets(
+              scope, contacts, keys, sub_delta_time, dynamic_constraint_sets);
+          for (xpbd::CurveLocalConstraintSet *constraint_set :
+               filtered_static_constraint_sets.curve_local)
+          {
+            constraint_set->solve_step(solve_strategy, params, curves_range);
+          }
+          for (xpbd::ConstraintSet *constraint_set : dynamic_constraint_sets.general) {
+            constraint_set->solve_step(solve_strategy, params);
+          }
+
+          if (sub_delta_time > 0.0f) {
+            /* Apply friction by updating current positions before the new velocity is computed.*/
+            if (const StaticPlaneContacts *plane_contacts =
+                    contacts.static_plane_contacts.lookup_ptr(key))
+            {
+              apply_static_plane_contact_friction(
+                  sim_points, *plane_contacts, prev_positions, points_range.start());
+            }
+          }
+
+          post_solve_per_point_steps(
+              sim_points, points_range, prev_positions, prev_rotations, sub_delta_time);
+        }
+      },
+      threading::accumulated_task_sizes(
+          [&](const IndexRange curves_range) { return points_by_curve[curves_range].size(); }));
+}
+
+static bool supports_curve_local_evaluation(const Span<int> key_group,
+                                            const VectorSet<SimPointsKey> &keys,
+                                            const WorldPreprocessData &world_info,
+                                            const xpbd::ConstraintSetCollector &constraint_sets)
+{
+  if (key_group.size() != 1) {
+    /* If the group is larger, it means that there are interactions between multiple geometries, so
+     * it can't be curve-local. */
+    return false;
+  }
+  const int key_i = key_group[0];
+  const SimPointsKey &key = keys[key_i];
+  if (key.type != bke::GeometryComponent::Type::Curve) {
+    return false;
+  }
+  if (!constraint_sets.general.is_empty()) {
+    /* General constraints are not curve-local. */
+    return false;
+  }
+  for (const SphericalSelfCollisionData &constraint : world_info.spherical_self_collisions) {
+    if (constraint.key_i == key_i) {
+      /* Spherical self collisions are not curve-local. */
+      return false;
+    }
+  }
+  return true;
+}
+
+PROFILE_FUNCTION static void simulate_key_group(
+    const Span<int> key_group,
+    ThreadLocalStorage &tls,
+    XPBDState &state,
+    const WorldBundles &world_bundles,
+    const WorldPreprocessData &world_info,
+    const VectorSet<SimPointsKey> &keys,
+    const Map<SimPointsKey, Span<float3>> &accelerations_map,
+    const Map<SimPointsKey, Span<float3>> &torques_map,
+    const Map<SimPointsKey, SimPointsWorldProperties> &sim_points_props,
+    const Map<SimPointsKey, PinnedPositions> &pinned_positions_map,
+    const Map<SimPointsKey, PinnedRotations> &pinned_rotations_map,
+    const Map<SimPointsKey, MutableSpan<float3>> &soft_pinned_positions_map,
+    const Map<SimPointsKey, MutableSpan<math::Quaternion>> &soft_pinned_rotations_map,
+    const Span<GeometrySet> applied_geometries,
+    const SolverType solver_type,
+    const Span<xpbd::GeometryRef> geometry_refs,
+    const xpbd::ConstraintSetCollector &static_constraint_sets,
+    const int substeps,
+    const float sub_delta_time)
+{
+  xpbd::ConstraintSetCollector filtered_constraint_sets;
+  for (xpbd::ConstraintSet *constraint_set : static_constraint_sets.general) {
+    const Span<int> affected_keys = constraint_set->get_affected_geo_indices();
+    if (key_group.contains(affected_keys[0])) {
+      filtered_constraint_sets.general.append(constraint_set);
+    }
+  }
+  for (xpbd::CurveLocalConstraintSet *constraint_set : static_constraint_sets.curve_local) {
+    if (key_group.contains(constraint_set->affected_geo_i())) {
+      filtered_constraint_sets.curve_local.append(constraint_set);
+    }
+  }
+
+  if (supports_curve_local_evaluation(key_group, keys, world_info, filtered_constraint_sets)) {
+    simulate_curve_local(key_group[0],
+                         tls,
+                         state,
+                         world_bundles,
+                         world_info,
+                         keys,
+                         accelerations_map,
+                         torques_map,
+                         sim_points_props,
+                         pinned_positions_map,
+                         pinned_rotations_map,
+                         soft_pinned_positions_map,
+                         soft_pinned_rotations_map,
+                         applied_geometries,
+                         solver_type,
+                         geometry_refs,
+                         filtered_constraint_sets,
+                         substeps,
+                         sub_delta_time);
+  }
+  else {
+    simulate_key_group_global(key_group,
+                              tls,
+                              state,
+                              world_bundles,
+                              world_info,
+                              keys,
+                              accelerations_map,
+                              torques_map,
+                              sim_points_props,
+                              pinned_positions_map,
+                              pinned_rotations_map,
+                              soft_pinned_positions_map,
+                              soft_pinned_rotations_map,
+                              applied_geometries,
+                              solver_type,
+                              geometry_refs,
+                              filtered_constraint_sets,
+                              substeps,
+                              sub_delta_time);
   }
 }
 
