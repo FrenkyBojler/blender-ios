@@ -158,6 +158,12 @@ class TestPropArrayIndex(unittest.TestCase):
             set=set_,
         )
 
+        id_type.test_array_f_3d_transform = FloatVectorProperty(
+            size=self.size_3d,
+            get_transform=lambda s, c_v, isset: seq_items_xform(c_v, lambda v: v * 2.0),
+            set_transform=lambda s, n_v, c_v, isset: seq_items_xform(n_v, lambda v: v / 2.0),
+        )
+
     def tearDown(self):
         del id_type.test_array_f_1d
         del id_type.test_array_f_2d
@@ -172,6 +178,8 @@ class TestPropArrayIndex(unittest.TestCase):
         del id_type.test_array_f_2d_getset
         del id_type.test_array_i_2d_getset
         del id_type.test_array_b_2d_getset
+
+        del id_type.test_array_f_3d_transform
 
     @staticmethod
     def compute_slice_len(s):
@@ -278,6 +286,11 @@ class TestPropArrayIndex(unittest.TestCase):
     def test_indices_access_f_2d_getset(self):
         self.do_test_indices_access(
             id_inst.test_array_f_2d_getset, self.size_2d, self.valid_indices_2d, self.invalid_indices_2d
+        )
+
+    def test_indices_access_f_3d_transform(self):
+        self.do_test_indices_access(
+            id_inst.test_array_f_3d_transform, self.size_3d, self.valid_indices_3d, self.invalid_indices_3d
         )
 
 
@@ -467,7 +480,7 @@ class TestPropArrayMultiDimensional(unittest.TestCase):
         self.assertEqual(data_as_tuple, data_native)
         del id_type.temp
 
-    def test_matrix_with_callbacks(self):
+    def test_matrix_with_get_set_callbacks(self):
         # """
         # Internally matrices have rows/columns swapped,
         # This test ensures this is being done properly.
@@ -482,7 +495,27 @@ class TestPropArrayMultiDimensional(unittest.TestCase):
         def set_fn(id_arg, value):
             local_data["array"] = value
 
+        def get_tx_fn(id_arg, curr_value, is_set):
+            return seq_items_xform(curr_value, lambda v: v + 1.0)
+
+        def set_tx_fn(id_arg, new_value, curr_value, is_set):
+            return seq_items_xform(new_value, lambda v: v - 1.0)
+
         id_type.temp = FloatVectorProperty(size=(4, 4), subtype='MATRIX', get=get_fn, set=set_fn)
+        id_inst.temp = data_native
+        data_as_tuple = seq_items_as_tuple(id_inst.temp)
+        self.assertEqual(data_as_tuple, data_native)
+        del id_type.temp
+
+        id_type.temp = FloatVectorProperty(
+            size=(4, 4), subtype='MATRIX', get_transform=get_tx_fn, set_transform=set_tx_fn)
+        id_inst.temp = data_native
+        data_as_tuple = seq_items_as_tuple(id_inst.temp)
+        self.assertEqual(data_as_tuple, data_native)
+        del id_type.temp
+
+        id_type.temp = FloatVectorProperty(
+            size=(4, 4), subtype='MATRIX', get=get_fn, set=set_fn, get_transform=get_tx_fn, set_transform=set_tx_fn)
         id_inst.temp = data_native
         data_as_tuple = seq_items_as_tuple(id_inst.temp)
         self.assertEqual(data_as_tuple, data_native)

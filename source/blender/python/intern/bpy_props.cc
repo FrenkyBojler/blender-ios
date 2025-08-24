@@ -1313,6 +1313,7 @@ static void bpy_prop_float_array_from_callback_or_error(PropertyRNA *prop,
     }
     else {
       /* Only for float types. */
+      /* TODO: Clear and comnplete explanations about this matrix swap? */
       if (do_matrix_row_col_swap && bpy_prop_array_is_matrix_compatible(prop, &array_len_info)) {
         bpy_prop_array_matrix_swap_row_column_vn(r_values, &array_len_info);
       }
@@ -1330,11 +1331,11 @@ static void bpy_prop_float_array_from_callback_or_error(PropertyRNA *prop,
   Py_XDECREF(float_array_obj);
 }
 
-static void bpy_prop_float_array_get_locked_fn(PointerRNA *ptr,
-                                               PropertyRNA *prop,
-                                               const BPyPropArrayLength &array_len_info,
-                                               float *r_values)
+static void bpy_prop_float_array_get_fn(PointerRNA *ptr, PropertyRNA *prop, float *values)
 {
+  const BPyPropGIL_RNAWritable_State bpy_state = bpy_prop_gil_rna_writable_begin();
+
+  const BPyPropArrayLength array_len_info{ptr, prop};
   BPyPropStore *prop_store = static_cast<BPyPropStore *>(RNA_property_py_data_get(prop));
   PyObject *py_func;
   PyObject *ret;
@@ -1353,27 +1354,18 @@ static void bpy_prop_float_array_get_locked_fn(PointerRNA *ptr,
     Py_DECREF(args);
   }
 
-  bpy_prop_float_array_from_callback_or_error(prop, ret, array_len_info, py_func, true, r_values);
-}
-
-static void bpy_prop_float_array_get_fn(PointerRNA *ptr, PropertyRNA *prop, float *values)
-{
-  const BPyPropGIL_RNAWritable_State bpy_state = bpy_prop_gil_rna_writable_begin();
-
-  const BPyPropArrayLength array_len_info{ptr, prop};
-
-  bpy_prop_float_array_get_locked_fn(ptr, prop, array_len_info, values);
+  /* Custom getter always needs to perform the matrix row/col swap. */
+  bpy_prop_float_array_from_callback_or_error(prop, ret, array_len_info, py_func, true, values);
 
   bpy_prop_gil_rna_writable_end(bpy_state);
 }
 
-static void bpy_prop_float_array_get_transform_locked_fn(PointerRNA *ptr,
-                                                         PropertyRNA *prop,
-                                                         const BPyPropArrayLength &array_len_info,
-                                                         const float *curr_values,
-                                                         bool is_set,
-                                                         float *r_values)
+static void bpy_prop_float_array_get_transform_fn(
+    PointerRNA *ptr, PropertyRNA *prop, const float *curr_values, bool is_set, float *r_values)
 {
+  const BPyPropGIL_RNAWritable_State bpy_state = bpy_prop_gil_rna_writable_begin();
+
+  const BPyPropArrayLength array_len_info{ptr, prop};
   BPyPropStore *prop_store = static_cast<BPyPropStore *>(RNA_property_py_data_get(prop));
   PyObject *py_func;
   PyObject *ret;
@@ -1396,18 +1388,11 @@ static void bpy_prop_float_array_get_transform_locked_fn(PointerRNA *ptr,
     Py_DECREF(args);
   }
 
-  bpy_prop_float_array_from_callback_or_error(prop, ret, array_len_info, py_func, true, r_values);
-}
-
-static void bpy_prop_float_array_get_transform_fn(
-    PointerRNA *ptr, PropertyRNA *prop, const float *curr_values, bool is_set, float *r_values)
-{
-  const BPyPropGIL_RNAWritable_State bpy_state = bpy_prop_gil_rna_writable_begin();
-
-  const BPyPropArrayLength array_len_info{ptr, prop};
-
-  bpy_prop_float_array_get_transform_locked_fn(
-      ptr, prop, array_len_info, curr_values, is_set, r_values);
+  /* If there is a custom py-defined 'get' callback, the row/col matrix swap has already been
+   * performed, otherwise it needs to be done here. */
+  const bool do_matrix_row_col_swap = prop_store->py_data.get_fn == nullptr;
+  bpy_prop_float_array_from_callback_or_error(
+      prop, ret, array_len_info, py_func, do_matrix_row_col_swap, r_values);
 
   bpy_prop_gil_rna_writable_end(bpy_state);
 }
