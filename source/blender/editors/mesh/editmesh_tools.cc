@@ -7760,9 +7760,11 @@ static wmOperatorStatus mesh_symmetrize_exec(bContext *C, wmOperator *op)
 
     BMO_slot_buffer_hflag_enable(
         em->bm, bmop.slots_out, "geom.out", BM_ALL_NOLOOP, BM_ELEM_SELECT, true);
+
     if (scene->toolsettings->automerge & AUTO_MERGE) {
-      EDBM_automerge(obedit, false, BM_ELEM_SELECT, scene->toolsettings->doublimit);
+      EDBM_automerge_connected(obedit, false, BM_ELEM_SELECT, scene->toolsettings->doublimit);
     }
+
     if (!EDBM_op_finish(em, &bmop, op, true)) {
       continue;
     }
