@@ -301,15 +301,6 @@ class NODE_MT_swap(Menu):
     bl_label = "Swap"
     bl_translation_context = i18n_contexts.operator_default
     bl_options = {'SEARCH_ON_KEY_PRESS'}
-
-    @classmethod
-    def poll(cls, context):
-        snode = context.space_data
-        
-        return (
-            (snode is not None )
-            and (snode.tree_type != 'TextureNodeTree')
-        )
     
     def draw(self, context):
         layout = self.layout
@@ -329,7 +320,7 @@ class NODE_MT_swap(Menu):
         elif snode.tree_type == 'ShaderNodeTree':
             layout.menu_contents("NODE_MT_shader_node_swap_all")
         elif snode.tree_type == 'TextureNodeTree':
-            layout.label(text="This feature is not implemented as the Texture Node Editor is deprecated.", icon='WARNING')
+            layout.menu_contents("NODE_MT_texture_node_swap_all")
 
 
 class NODE_MT_view(Menu):
