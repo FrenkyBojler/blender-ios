@@ -354,6 +354,199 @@ struct WorldBundles {
   BundleVectorSet<DistanceBasedEdgeBendingConstraintBundle> distance_based_bending_constraints;
 };
 
+struct CurveRodStretchAndShearConstraintData {
+  int key_i;
+  Span<float> compliance_terms;
+};
+
+struct CurveRodBendAndTwistConstraintData {
+  int key_i;
+  Span<float> compliance_terms;
+};
+
+struct PinnedPositionConstraintData {
+  int key_i;
+  const fn::FieldEvaluator *evaluator;
+  int position_index;
+  int compliance_terms_index;
+};
+
+struct PinnedRotationConstraintData {
+  int key_i;
+  const fn::FieldEvaluator *evaluator;
+  int rotation_index;
+  int compliance_terms_index;
+};
+
+struct EdgeLengthConstraintData {
+  int key_i;
+  const fn::FieldEvaluator *evaluator;
+  int compliance_terms_index;
+};
+
+struct CurveSegmentLengthConstraintData {
+  int key_i;
+  const fn::FieldEvaluator *evaluator;
+  int compliance_terms_index;
+};
+
+struct AlignPositionsConstraintData {
+  struct Item {
+    int key_i;
+    const fn::FieldEvaluator *evaluator;
+    int group_id_index;
+    int compliance_index;
+  };
+
+  Vector<Item> items;
+};
+
+struct AttachUVSurfaceConstraintData {
+  int mesh_key_i;
+  const fn::FieldEvaluator *mesh_evaluator;
+  int uv_map_index;
+
+  int points_key_i;
+  const fn::FieldEvaluator *point_evaluator;
+  int sample_uv_index;
+  int compliance_term_index;
+};
+
+struct DistanceBasedEdgeBendingConstraintData {
+  int key_i;
+  const fn::FieldEvaluator *evaluator;
+  int compliance_term_index;
+};
+
+struct ForceFieldsData {
+  struct Item {
+    fn::FieldEvaluator *evaluator;
+    int force_index;
+  };
+
+  Vector<Item> items;
+};
+
+struct TorqueFieldsData {
+  struct Item {
+    fn::FieldEvaluator *evaluator;
+    int torque_index;
+  };
+
+  Vector<Item> items;
+};
+
+struct SimPointsPropertiesData {
+  fn::FieldEvaluator *evaluator;
+  MutableSpan<float> inverse_masses;
+  MutableSpan<float> frictions;
+  MutableSpan<float3> inertias;
+  MutableSpan<float3> inverse_inertias;
+};
+
+struct FieldEvaluatorKey {
+  const bke::GeometryComponent *component;
+  AttrDomain domain;
+  Field<bool> selection;
+
+  BLI_STRUCT_EQUALITY_OPERATORS_3(FieldEvaluatorKey, component, domain, selection)
+
+  uint64_t hash() const
+  {
+    return get_default_hash(this->component, this->domain, this->selection ? this->selection : 0);
+  }
+};
+
+struct WorldPreprocessData {
+  Map<FieldEvaluatorKey, fn::FieldEvaluator *> field_evaluators;
+
+  Vector<ForceFieldsData> forces_by_key_i;
+  Vector<TorqueFieldsData> torques_by_key_i;
+  Vector<SimPointsPropertiesData> sim_points_props_by_key_i;
+
+  Vector<PinnedPositionConstraintData> pinned_position_constraints;
+  Vector<PinnedRotationConstraintData> pinned_rotation_constraints;
+  Vector<CurveRodStretchAndShearConstraintData> rod_stretch_and_shear_constraints;
+  Vector<CurveRodBendAndTwistConstraintData> rod_bend_and_twist_constraints;
+  Vector<EdgeLengthConstraintData> edge_length_constraints;
+  Vector<CurveSegmentLengthConstraintData> curve_segment_length_constraints;
+  Vector<AlignPositionsConstraintData> align_positions_constraints;
+  Vector<AttachUVSurfaceConstraintData> attach_uv_surface_constraints;
+  Vector<DistanceBasedEdgeBendingConstraintData> distance_based_edge_bending_constraints;
+};
+
+static const Field<bool> &get_constant_true_field()
+{
+  static const Field<bool> field = fn::make_constant_field<bool>(true);
+  return field;
+}
+
+static fn::FieldEvaluator &get_field_evaluator(ResourceScope &scope,
+                                               WorldPreprocessData &world_info,
+                                               const bke::GeometryComponent &component,
+                                               const bke::AttrDomain domain,
+                                               const std::optional<Field<bool>> selection)
+{
+  FieldEvaluatorKey key{&component, domain, selection ? *selection : get_constant_true_field()};
+  return *world_info.field_evaluators.lookup_or_add_cb(key, [&]() {
+    auto &field_context = scope.construct<bke::GeometryFieldContext>(component, domain);
+    const int domain_size = component.attribute_domain_size(domain);
+    auto &evaluator = scope.construct<fn::FieldEvaluator>(field_context, domain_size);
+    if (selection) {
+      evaluator.set_selection(*selection);
+    }
+    return &evaluator;
+  });
+}
+
+static float compute_compliance_factor(const float delta_time)
+{
+  return math::safe_rcp(pow2f(delta_time));
+}
+
+static Field<float> convert_to_compliance_term_field(const Field<float> &compliance_field,
+                                                     const float delta_time)
+{
+  const float compliance_factor = compute_compliance_factor(delta_time);
+  static auto prepare_compliance_term_fn = mf::build::SI2_SO<float, float, float>(
+      "Prepare Compliance Term", [](const float compliance, const float factor) {
+        return std::max(0.0f, compliance * factor);
+      });
+  return Field<float>(fn::FieldOperation::from(
+      prepare_compliance_term_fn, {compliance_field, fn::make_constant_field(compliance_factor)}));
+}
+
+static Field<float> convert_to_inverse_mass_field(const Field<float> &mass_field)
+{
+  static auto convert_to_inverse_mass_fn = mf::build::SI1_SO<float, float>(
+      "Convert to Inverse Mass", [](const float mass) {
+        if (mass <= 0.0f) {
+          return 0.0f;
+        }
+        return 1.0f / mass;
+      });
+  return Field<float>(fn::FieldOperation::from(convert_to_inverse_mass_fn, {mass_field}));
+}
+
+static Field<float> convert_to_clamped_friction_field(const Field<float> &friction_field)
+{
+  static auto convert_to_clamped_friction_fn = mf::build::SI1_SO<float, float>(
+      "Convert to Clamped Friction", [](const float friction) {
+        if (friction <= 0.0f) {
+          return 0.0f;
+        }
+        return friction;
+      });
+  return Field<float>(fn::FieldOperation::from(convert_to_clamped_friction_fn, {friction_field}));
+}
+
+static Field<float3> convert_to_inverse_inertia_field(const Field<float3> &inertia_field)
+{
+  static auto convert_to_inverse_inertia_fn = mf::build::SI1_SO<float3, float3>(
+      "Convert to Inverse Inertia", [](const float3 inertia) { return math::safe_rcp(inertia); });
+  return Field<float3>(fn::FieldOperation::from(convert_to_inverse_inertia_fn, {inertia_field}));
+}
+
 template<typename T> struct StartStopPair {
   T start;
   T stop;
@@ -369,7 +562,7 @@ struct PinnedPositions {
   Vector<StartStopPair<float3>> hard_animations;
 
   Vector<int> soft_indices;
-  Vector<float> soft_compliances;
+  Vector<float> soft_compliance_terms;
   Vector<StartStopPair<float3>> soft_animations;
 };
 
@@ -378,7 +571,7 @@ struct PinnedRotations {
   Vector<StartStopPair<math::Quaternion>> hard_animations;
 
   Vector<int> soft_indices;
-  Vector<float> soft_compliances;
+  Vector<float> soft_compliance_terms;
   Vector<StartStopPair<math::Quaternion>> soft_animations;
 };
 
@@ -767,9 +960,10 @@ static Vector<int> filter_sim_points_keys(const StringRef self_path,
 PROFILE_FUNCTION static Map<SimPointsKey, Span<float3>> compute_external_accelerations(
     ThreadLocalStorage &tls,
     const WorldBundles &world_bundles,
+    const WorldPreprocessData &world_info,
+    const XPBDState &state,
     const Span<SimPointsKey> keys,
-    const Map<SimPointsKey, SimPointsWorldProperties> &sim_points_props,
-    const Span<GeometrySet> applied_geometries)
+    const Map<SimPointsKey, SimPointsWorldProperties> &sim_points_props)
 {
   ResourceScope &scope = tls.local_resource_scope();
   float3 gravity(0.0f);
@@ -777,36 +971,24 @@ PROFILE_FUNCTION static Map<SimPointsKey, Span<float3>> compute_external_acceler
     gravity = gravity_bundle.gravity;
   }
   Map<SimPointsKey, Span<float3>> accelerations_map;
-  for (const SimPointsKey &sim_points_key : keys) {
-    const int geometry_i = world_bundles.geometries.index_of_as(sim_points_key.path);
-    const GeometrySet &applied_geometry = applied_geometries[geometry_i];
-    Vector<const ForceBundle *> used_forces = filter_bundles_for_path<ForceBundle>(
-        world_bundles.forces, sim_points_key.path);
-    const bke::GeometryComponent::Type type = sim_points_key.type;
-    const bke::GeometryComponent *component = applied_geometry.get_component(type);
-    if (!component) {
-      continue;
-    }
-    const bke::AttrDomain domain = get_simulation_domain(type);
-    const int domain_size = component->attribute_domain_size(domain);
-    const Span<float> inverse_masses = sim_points_props.lookup(sim_points_key).inverse_masses;
+  for (const int key_i : keys.index_range()) {
+    const SimPointsKey &key = keys[key_i];
+    const SimPoints &sim_points = state.sim_points.lookup(key);
+    const Span<float> inverse_masses = sim_points_props.lookup(key).inverse_masses;
+    const int points_num = sim_points.points_num;
 
     /* Initially this is the sums of forces and then the acceleration. */
-    MutableSpan<float3> result = scope.allocator().allocate_array<float3>(domain_size);
-    array_utils::copy(VArray<float3>::from_single(float3(0.0f), domain_size), result);
+    MutableSpan<float3> result = scope.allocator().allocate_array<float3>(points_num);
+    array_utils::copy(VArray<float3>::from_single(float3(0.0f), points_num), result);
 
-    bke::GeometryFieldContext field_context(*component, domain);
-    for (const ForceBundle *force_bundle : used_forces) {
-      fn::FieldEvaluator field_evaluator{field_context, domain_size};
-      field_evaluator.set_selection(force_bundle->selection);
-      field_evaluator.add(force_bundle->force);
-      field_evaluator.evaluate();
-      const IndexMask mask = field_evaluator.get_evaluated_selection_as_mask();
-      const VArray<float3> force = field_evaluator.get_evaluated<float3>(0);
+    const ForceFieldsData &forces_info = world_info.forces_by_key_i[key_i];
+    for (const ForceFieldsData::Item &item : forces_info.items) {
+      const IndexMask &mask = item.evaluator->get_evaluated_selection_as_mask();
+      const VArray<float3> force = item.evaluator->get_evaluated<float3>(item.force_index);
       mask.foreach_index(GrainSize(1024), [&](const int i) { result[i] += force[i]; });
     }
 
-    threading::parallel_for(IndexRange(domain_size), 1024, [&](const IndexRange range) {
+    threading::parallel_for(IndexRange(points_num), 1024, [&](const IndexRange range) {
       for (const int i : range) {
         const float inverse_mass = inverse_masses[i];
         const float3 &force = result[i];
@@ -815,7 +997,7 @@ PROFILE_FUNCTION static Map<SimPointsKey, Span<float3>> compute_external_acceler
       }
     });
 
-    accelerations_map.add_new(sim_points_key, result);
+    accelerations_map.add_new(key, result);
   }
   return accelerations_map;
 }
@@ -823,63 +1005,47 @@ PROFILE_FUNCTION static Map<SimPointsKey, Span<float3>> compute_external_acceler
 PROFILE_FUNCTION static Map<SimPointsKey, Span<float3>> compute_external_torques(
     ThreadLocalStorage &tls,
     const XPBDState &state,
-    const WorldBundles &world_bundles,
-    const Span<SimPointsKey> keys,
-    const Span<GeometrySet> applied_geometries)
+    const WorldPreprocessData &world_info,
+    const Span<SimPointsKey> keys)
 {
   ResourceScope &scope = tls.local_resource_scope();
   Map<SimPointsKey, Span<float3>> torques_map;
-  for (const SimPointsKey &sim_points_key : keys) {
-    const int geometry_i = world_bundles.geometries.index_of_as(sim_points_key.path);
-    const GeometrySet &applied_geometry = applied_geometries[geometry_i];
-    const SimPoints &sim_points = state.sim_points.lookup(sim_points_key);
+  for (const int key_i : keys.index_range()) {
+    const SimPointsKey &key = keys[key_i];
+    const SimPoints &sim_points = state.sim_points.lookup(key);
     if (!sim_points.has_rotation) {
       continue;
     }
-    const bke::GeometryComponent::Type type = sim_points_key.type;
-    const bke::GeometryComponent *component = applied_geometry.get_component(type);
-    if (!component) {
-      continue;
-    }
-    Vector used_torques = filter_bundles_for_path<TorqueBundle>(world_bundles.torques,
-                                                                sim_points_key.path);
-    if (used_torques.is_empty()) {
-      continue;
-    }
-    const AttrDomain domain = get_simulation_domain(type);
-    const int domain_size = component->attribute_domain_size(domain);
-    MutableSpan<float3> result = scope.allocator().allocate_array<float3>(domain_size);
+    const int points_num = sim_points.points_num;
+
+    MutableSpan<float3> result = scope.allocator().allocate_array<float3>(points_num);
     result.fill(float3(0.0f));
 
-    bke::GeometryFieldContext field_context(*component, domain);
-    for (const TorqueBundle *torque_bundle : used_torques) {
-      fn::FieldEvaluator field_evaluator{field_context, domain_size};
-      field_evaluator.set_selection(torque_bundle->selection);
-      field_evaluator.add(torque_bundle->torque);
-      field_evaluator.evaluate();
-      const IndexMask mask = field_evaluator.get_evaluated_selection_as_mask();
-      const VArray<float3> torques_varray = field_evaluator.get_evaluated<float3>(0);
-      mask.foreach_index([&](const int i) { result[i] += torques_varray[i]; });
+    const TorqueFieldsData &torques_info = world_info.torques_by_key_i[key_i];
+    for (const TorqueFieldsData::Item &item : torques_info.items) {
+      const IndexMask &mask = item.evaluator->get_evaluated_selection_as_mask();
+      const VArray<float3> &torques_varray = item.evaluator->get_evaluated<float3>(
+          item.torque_index);
+      mask.foreach_index(GrainSize(1024), [&](const int i) { result[i] += torques_varray[i]; });
     }
 
-    torques_map.add(sim_points_key, result);
+    torques_map.add(key, result);
   }
   return torques_map;
 }
 
 PROFILE_FUNCTION static Map<SimPointsKey, SimPointsWorldProperties>
-compute_sim_point_world_properties(ThreadLocalStorage &tls,
-                                   const WorldBundles &world_bundles,
+compute_sim_point_world_properties(const WorldBundles &world_bundles,
+                                   const WorldPreprocessData &world_info,
                                    const Span<SimPointsKey> keys,
                                    const Span<GeometrySet> applied_geometries,
                                    const Map<SimPointsKey, PinnedPositions> &pinned_positions_map,
                                    const Map<SimPointsKey, PinnedRotations> &pinned_rotations_map)
 {
-  ResourceScope &scope = tls.local_resource_scope();
   Map<SimPointsKey, SimPointsWorldProperties> properties_map;
-  for (const SimPointsKey &key : keys) {
+  for (const int key_i : keys.index_range()) {
+    const SimPointsKey &key = keys[key_i];
     const int geometry_i = world_bundles.geometries.index_of_as(key.path);
-    const XPBDGeometryBundle &geometry_bundle = world_bundles.geometries[geometry_i];
     const GeometrySet &applied_geometry = applied_geometries[geometry_i];
     const PinnedPositions *pinned_positions = pinned_positions_map.lookup_ptr(key);
     const PinnedRotations *pinned_rotations = pinned_rotations_map.lookup_ptr(key);
@@ -890,45 +1056,14 @@ compute_sim_point_world_properties(ThreadLocalStorage &tls,
       continue;
     }
 
-    const bke::AttrDomain domain = get_simulation_domain(type);
-    const int domain_size = component->attribute_domain_size(domain);
-
-    MutableSpan<float> result_masses = scope.allocator().allocate_array<float>(domain_size);
-    MutableSpan<float> result_frictions = scope.allocator().allocate_array<float>(domain_size);
-
-    MutableSpan<float3> result_inertias;
-    MutableSpan<float3> result_inverse_inertias;
-
-    auto &field_context = scope.construct<bke::GeometryFieldContext>(*component, domain);
-    auto &field_evaluator = scope.construct<fn::FieldEvaluator>(field_context, domain_size);
-    field_evaluator.add_with_destination(geometry_bundle.mass, result_masses);
-    field_evaluator.add_with_destination(geometry_bundle.friction, result_frictions);
-    if (geometry_bundle.has_rotation) {
-      result_inertias = scope.allocator().allocate_array<float3>(domain_size);
-      result_inverse_inertias = scope.allocator().allocate_array<float3>(domain_size);
-      field_evaluator.add_with_destination(geometry_bundle.inertia, result_inertias);
-    }
-    field_evaluator.evaluate();
-
-    /* Invert masses and inertias and clamp frictions. */
-    threading::parallel_for(IndexRange(domain_size), 1024, [&](const IndexRange range) {
-      for (const int i : range) {
-        result_masses[i] = std::max(0.0f, math::safe_rcp(result_masses[i]));
-        result_frictions[i] = std::max(0.0f, result_frictions[i]);
-      }
-      if (geometry_bundle.has_rotation) {
-        for (const int i : range) {
-          result_inverse_inertias[i] = math::safe_rcp(result_inertias[i]);
-        }
-      }
-    });
+    const SimPointsPropertiesData &props_info = world_info.sim_points_props_by_key_i[key_i];
 
     /* Set mass of pinned points to infinity (i.e. the inverse mass is 0). */
     if (pinned_positions) {
       threading::parallel_for(
           pinned_positions->hard_indices.index_range(), 4096, [&](const IndexRange range) {
             for (const int i : pinned_positions->hard_indices.as_span().slice(range)) {
-              result_masses[i] = 0.0f;
+              props_info.inverse_masses[i] = 0.0f;
             }
           });
     }
@@ -938,8 +1073,8 @@ compute_sim_point_world_properties(ThreadLocalStorage &tls,
       threading::parallel_for(
           pinned_rotations->hard_indices.index_range(), 4096, [&](const IndexRange range) {
             for (const int i : pinned_rotations->hard_indices.as_span().slice(range)) {
-              result_inertias[i] = float3(std::numeric_limits<float>::infinity());
-              result_inverse_inertias[i] = float3(0.0f);
+              props_info.inertias[i] = float3(std::numeric_limits<float>::infinity());
+              props_info.inverse_inertias[i] = float3(0.0f);
             }
           });
     }
@@ -954,10 +1089,10 @@ compute_sim_point_world_properties(ThreadLocalStorage &tls,
     }
 
     properties_map.add_new(key,
-                           {result_masses,
-                            result_frictions,
-                            result_inertias,
-                            result_inverse_inertias,
+                           {props_info.inverse_masses,
+                            props_info.frictions,
+                            props_info.inertias,
+                            props_info.inverse_inertias,
                             linear_damping,
                             angular_damping});
   }
@@ -989,156 +1124,117 @@ PROFILE_FUNCTION static Span<float> prepare_distance_constraint_lengths(
   return constraint_lengths;
 }
 
-static float compute_compliance_factor(const float delta_time)
-{
-  return math::safe_rcp(pow2f(delta_time));
-}
-
-PROFILE_FUNCTION static void gather_edge_length_constraints(
+PROFILE_FUNCTION static Vector<xpbd::DistanceConstraintSet *> gather_edge_length_constraints(
     ResourceScope &scope,
     XPBDState &state,
+    const WorldPreprocessData &world_info,
     const WorldBundles &world_bundles,
     const Span<GeometrySet> applied_geometries,
-    const VectorSet<SimPointsKey> &keys,
-    const float delta_time,
-    xpbd::ConstraintSetCollector &r_constraints)
+    const VectorSet<SimPointsKey> &keys)
 {
-  const float compliance_factor = compute_compliance_factor(delta_time);
-
-  for (const int key_i : keys.index_range()) {
+  Vector<xpbd::DistanceConstraintSet *> result;
+  for (const EdgeLengthConstraintData &constraint : world_info.edge_length_constraints) {
+    const int key_i = constraint.key_i;
     const SimPointsKey &key = keys[key_i];
-    if (key.type != bke::GeometryComponent::Type::Mesh) {
-      continue;
-    }
     const int geometry_bundle_i = world_bundles.geometries.index_of_as(key.path);
-    const XPBDGeometryBundle &geometry_bundle = world_bundles.geometries[geometry_bundle_i];
     const GeometrySet &applied_geometry = applied_geometries[geometry_bundle_i];
 
     const Mesh &mesh = *applied_geometry.get_mesh();
     const Span<float3> mesh_positions = mesh.vert_positions();
     const Span<int2> mesh_edges = mesh.edges();
 
-    const Vector edge_length_constraints = filter_bundles_for_path<EdgeLengthXPBDConstraintBundle>(
-        world_bundles.edge_length_constraints, geometry_bundle.self_path);
-
-    bke::MeshFieldContext edge_field_context(mesh, bke::AttrDomain::Edge);
-    for (const EdgeLengthXPBDConstraintBundle *constraint_bundle : edge_length_constraints) {
-      fn::FieldEvaluator field_evaluator{edge_field_context, mesh_edges.size()};
-      field_evaluator.set_selection(constraint_bundle->selection);
-      field_evaluator.add(constraint_bundle->compliance);
-      field_evaluator.evaluate();
-      const IndexMask mask = field_evaluator.get_evaluated_selection_as_mask();
-      if (mask.is_empty()) {
-        continue;
-      }
-
-      /* Gather selected constraint edges. */
-      Span<int2> constraint_edges;
-      if (mask.size() == mesh_edges.size()) {
-        constraint_edges = mesh_edges;
-      }
-      else {
-        MutableSpan<int2> masked_edges = scope.allocator().allocate_array<int2>(mask.size());
-        array_utils::gather(mesh_edges, mask, masked_edges);
-        constraint_edges = masked_edges;
-      }
-
-      /* Prepare per-constraint compliance. */
-      MutableSpan<float> compliance_terms = scope.allocator().allocate_array<float>(mask.size());
-      field_evaluator.get_evaluated<float>(0).materialize_compressed(mask, compliance_terms);
-      threading::parallel_for(mask.index_range(), 512, [&](const IndexRange range) {
-        for (float &compliance_term : compliance_terms.slice(range)) {
-          compliance_term *= compliance_factor;
-        }
-      });
-
-      /* Prepare per-constraint length. */
-      const Span<float> constraint_lengths = prepare_distance_constraint_lengths(
-          scope, state, mesh_positions, key, constraint_edges);
-
-      /* Add the actual constraint. */
-      r_constraints.general.append(&scope.construct<xpbd::DistanceConstraintSet>(
-          key_i, constraint_edges, constraint_lengths, compliance_terms));
-    }
-  }
-}
-
-PROFILE_FUNCTION static void gather_curve_segment_constraints(
-    ResourceScope &scope,
-    XPBDState &state,
-    const WorldBundles &world_bundles,
-    const Span<GeometrySet> applied_geometries,
-    const VectorSet<SimPointsKey> &keys,
-    const float delta_time,
-    xpbd::ConstraintSetCollector &r_constraints)
-{
-  const float compliance_factor = compute_compliance_factor(delta_time);
-
-  for (const int key_i : keys.index_range()) {
-    const SimPointsKey &key = keys[key_i];
-    if (key.type != bke::GeometryComponent::Type::Curve) {
+    const IndexMask &edge_mask = constraint.evaluator->get_evaluated_selection_as_mask();
+    if (edge_mask.is_empty()) {
       continue;
     }
+
+    Span<int2> constraint_edges;
+    if (edge_mask.size() == mesh_edges.size()) {
+      constraint_edges = mesh_edges;
+    }
+    else {
+      MutableSpan<int2> masked_edges = scope.allocator().allocate_array<int2>(edge_mask.size());
+      array_utils::gather(mesh_edges, edge_mask, masked_edges);
+      constraint_edges = masked_edges;
+    }
+
+    MutableSpan<float> compliance_terms = scope.allocator().allocate_array<float>(
+        edge_mask.size());
+    constraint.evaluator->get_evaluated<float>(constraint.compliance_terms_index)
+        .materialize_compressed_to_uninitialized(edge_mask, compliance_terms);
+
+    const Span<float> constraint_lengths = prepare_distance_constraint_lengths(
+        scope, state, mesh_positions, key, constraint_edges);
+    result.append(&scope.construct<xpbd::DistanceConstraintSet>(
+        key_i, constraint_edges, constraint_lengths, compliance_terms));
+  }
+  return result;
+}
+
+PROFILE_FUNCTION static Vector<xpbd::DistanceConstraintSet *> gather_curve_segment_constraints(
+    ResourceScope &scope,
+    XPBDState &state,
+    const WorldPreprocessData &world_info,
+    const WorldBundles &world_bundles,
+    const Span<GeometrySet> applied_geometries,
+    const VectorSet<SimPointsKey> &keys)
+{
+  Vector<xpbd::DistanceConstraintSet *> result;
+  for (const CurveSegmentLengthConstraintData &constraint :
+       world_info.curve_segment_length_constraints)
+  {
+    const int key_i = constraint.key_i;
+    const SimPointsKey &key = keys[key_i];
     const int geometry_bundle_i = world_bundles.geometries.index_of_as(key.path);
     const GeometrySet &applied_geometry = applied_geometries[geometry_bundle_i];
 
     const Curves &curves_id = *applied_geometry.get_curves();
     const bke::CurvesGeometry &curves = curves_id.geometry.wrap();
-    const Span<float3> positions = curves.positions();
     const OffsetIndices<int> points_by_curve = curves.points_by_curve();
     const VArray<bool> cyclics = curves.cyclic();
 
-    const Vector constraint_bundles = filter_bundles_for_path<CurveSegmentXPBDConstraintBundle>(
-        world_bundles.curve_segment_constraints, key.path);
+    const VArray<float> compliance_terms = constraint.evaluator->get_evaluated<float>(
+        constraint.compliance_terms_index);
 
-    bke::CurvesFieldContext field_context(curves, bke::AttrDomain::Point);
-    for (const CurveSegmentXPBDConstraintBundle *constraint_bundle : constraint_bundles) {
-      fn::FieldEvaluator field_evaluator{field_context, curves.points_num()};
-      field_evaluator.add(constraint_bundle->compliance);
-      field_evaluator.evaluate();
-      const VArray<float> compliances = field_evaluator.get_evaluated<float>(0);
-
-      Vector<int2> &constraint_segments = scope.construct<Vector<int2>>();
-      Vector<float> &constraint_compliance_terms = scope.construct<Vector<float>>();
-      for (const int curve_i : curves.curves_range()) {
-        const IndexRange points = points_by_curve[curve_i];
-        if (points.size() <= 1) {
-          continue;
-        }
-        for (const int i : points.index_range().drop_back(1)) {
-          const int point_i = points[i];
-          const int next_point_i = point_i + 1;
-          const float compliance = compliances[point_i];
-          constraint_segments.append({point_i, next_point_i});
-          constraint_compliance_terms.append(compliance * compliance_factor);
-        }
-        const bool cyclic = cyclics[curve_i];
-        if (cyclic) {
-          const int point_i = points.last();
-          const int next_point_i = points.first();
-          const float compliance = compliances[point_i];
-          constraint_segments.append({point_i, next_point_i});
-          constraint_compliance_terms.append(compliance * compliance_factor);
-        }
+    Vector<int2> &constraint_segments = scope.construct<Vector<int2>>();
+    Vector<float> &constraint_compliance_terms = scope.construct<Vector<float>>();
+    for (const int curve_i : curves.curves_range()) {
+      const IndexRange points = points_by_curve[curve_i];
+      if (points.size() <= 1) {
+        continue;
       }
-
-      const Span<float> constraint_lengths = prepare_distance_constraint_lengths(
-          scope, state, positions, key, constraint_segments);
-
-      r_constraints.general.append(&scope.construct<xpbd::DistanceConstraintSet>(
-          key_i, constraint_segments, constraint_lengths, constraint_compliance_terms));
+      for (const int i : points.index_range().drop_back(1)) {
+        const int point_i = points[i];
+        const int next_point_i = point_i + 1;
+        constraint_segments.append({point_i, next_point_i});
+        constraint_compliance_terms.append(compliance_terms[point_i]);
+      }
+      const bool cyclic = cyclics[curve_i];
+      if (cyclic) {
+        const int point_i = points.last();
+        const int next_point_i = points.first();
+        constraint_segments.append({point_i, next_point_i});
+        constraint_compliance_terms.append(compliance_terms[point_i]);
+      }
     }
+
+    const Span<float> constraint_lengths = prepare_distance_constraint_lengths(
+        scope, state, curves.positions(), key, constraint_segments);
+
+    result.append(&scope.construct<xpbd::DistanceConstraintSet>(
+        key_i, constraint_segments, constraint_lengths, constraint_compliance_terms));
   }
+  return result;
 }
 
-PROFILE_FUNCTION static void gather_pressure_constraints(
+PROFILE_FUNCTION static Vector<xpbd::PressureConstraintSet *> gather_pressure_constraints(
     ResourceScope &scope,
     XPBDState &state,
     const WorldBundles &world_bundles,
     const Span<GeometrySet> applied_geometries,
-    const VectorSet<SimPointsKey> &keys,
-    xpbd::ConstraintSetCollector &r_constraints)
+    const VectorSet<SimPointsKey> &keys)
 {
+  Vector<xpbd::PressureConstraintSet *> result;
   for (const int key_i : keys.index_range()) {
     const SimPointsKey &key = keys[key_i];
     if (key.type != bke::GeometryComponent::Type::Mesh) {
@@ -1167,24 +1263,215 @@ PROFILE_FUNCTION static void gather_pressure_constraints(
       offsets[0] = 0;
       offsets[1] = affected_points.size();
       array_utils::fill_index_range<int>(affected_points);
-      r_constraints.general.append(&scope.construct<xpbd::PressureConstraintSet>(
+      result.append(&scope.construct<xpbd::PressureConstraintSet>(
           key_i, tris, corner_verts, pressure, initial_volume));
     }
   }
+  return result;
 }
 
-PROFILE_FUNCTION static void gather_curves_rod_stretch_and_shear_constraints(
-    ThreadLocalStorage &tls,
+PROFILE_FUNCTION static void prepare_evaluation__forces(ResourceScope &scope,
+                                                        WorldPreprocessData &world_info,
+                                                        const WorldBundles &world_bundles,
+                                                        const Span<GeometrySet> applied_geometries,
+                                                        const VectorSet<SimPointsKey> &keys)
+{
+  world_info.forces_by_key_i.resize(keys.size());
+  for (const int key_i : keys.index_range()) {
+    const SimPointsKey &key = keys[key_i];
+    const int geometry_bundle_i = world_bundles.geometries.index_of_as(key.path);
+    const GeometrySet &applied_geometry = applied_geometries[geometry_bundle_i];
+    Vector force_bundles = filter_bundles_for_path<ForceBundle>(world_bundles.forces, key.path);
+    if (force_bundles.is_empty()) {
+      continue;
+    }
+    const bke::GeometryComponent::Type type = key.type;
+    const bke::GeometryComponent *component = applied_geometry.get_component(type);
+    if (!component) {
+      continue;
+    }
+    const bke::AttrDomain domain = get_simulation_domain(type);
+    ForceFieldsData &force_fields_info = world_info.forces_by_key_i[key_i];
+    for (const ForceBundle *force_bundle : force_bundles) {
+      fn::FieldEvaluator &evaluator = get_field_evaluator(
+          scope, world_info, *component, domain, force_bundle->selection);
+      force_fields_info.items.append({&evaluator, evaluator.add(force_bundle->force)});
+    }
+  }
+}
+
+PROFILE_FUNCTION static void prepare_evaluation__torques(
+    ResourceScope &scope,
+    WorldPreprocessData &world_info,
+    const WorldBundles &world_bundles,
+    const XPBDState &state,
+    const Span<GeometrySet> applied_geometries,
+    const VectorSet<SimPointsKey> &keys)
+{
+  world_info.torques_by_key_i.resize(keys.size());
+  for (const int key_i : keys.index_range()) {
+    const SimPointsKey &key = keys[key_i];
+    const int geometry_bundle_i = world_bundles.geometries.index_of_as(key.path);
+    const GeometrySet &applied_geometry = applied_geometries[geometry_bundle_i];
+    const SimPoints &sim_points = state.sim_points.lookup(key);
+    if (!sim_points.has_rotation) {
+      continue;
+    }
+    const bke::GeometryComponent::Type type = key.type;
+    const bke::GeometryComponent *component = applied_geometry.get_component(type);
+    if (!component) {
+      continue;
+    }
+    Vector used_torques = filter_bundles_for_path<TorqueBundle>(world_bundles.torques, key.path);
+    if (used_torques.is_empty()) {
+      continue;
+    }
+    const AttrDomain domain = get_simulation_domain(type);
+    TorqueFieldsData &torque_fields_info = world_info.torques_by_key_i[key_i];
+    for (const TorqueBundle *torque_bundle : used_torques) {
+      fn::FieldEvaluator &evaluator = get_field_evaluator(
+          scope, world_info, *component, domain, torque_bundle->selection);
+      torque_fields_info.items.append({&evaluator, evaluator.add(torque_bundle->torque)});
+    }
+  }
+}
+
+PROFILE_FUNCTION static void prepare_evaluation__sim_points_props(
+    ResourceScope &scope,
+    WorldPreprocessData &world_info,
+    const WorldBundles &world_bundles,
+    const XPBDState &state,
+    const Span<GeometrySet> applied_geometries,
+    const VectorSet<SimPointsKey> &keys)
+{
+  world_info.sim_points_props_by_key_i.resize(keys.size());
+  for (const int key_i : keys.index_range()) {
+    const SimPointsKey &key = keys[key_i];
+    const int geometry_bundle_i = world_bundles.geometries.index_of_as(key.path);
+    const XPBDGeometryBundle &geometry_bundle = world_bundles.geometries[geometry_bundle_i];
+    const GeometrySet &applied_geometry = applied_geometries[geometry_bundle_i];
+    const SimPoints &sim_points = state.sim_points.lookup(key);
+
+    const bke::GeometryComponent *component = applied_geometry.get_component(key.type);
+    if (!component) {
+      continue;
+    }
+
+    const AttrDomain domain = get_simulation_domain(key.type);
+    SimPointsPropertiesData &sim_points_props_info = world_info.sim_points_props_by_key_i[key_i];
+    sim_points_props_info.evaluator = &get_field_evaluator(
+        scope, world_info, *component, domain, std::nullopt);
+
+    sim_points_props_info.inverse_masses = scope.allocator().allocate_array<float>(
+        sim_points.points_num);
+    sim_points_props_info.evaluator->add_with_destination(
+        convert_to_inverse_mass_field(geometry_bundle.mass), sim_points_props_info.inverse_masses);
+
+    sim_points_props_info.frictions = scope.allocator().allocate_array<float>(
+        sim_points.points_num);
+    sim_points_props_info.evaluator->add_with_destination(
+        convert_to_clamped_friction_field(geometry_bundle.friction),
+        sim_points_props_info.frictions);
+
+    if (geometry_bundle.has_rotation) {
+      sim_points_props_info.inertias = scope.allocator().allocate_array<float3>(
+          sim_points.points_num);
+      sim_points_props_info.evaluator->add_with_destination(geometry_bundle.inertia,
+                                                            sim_points_props_info.inertias);
+
+      sim_points_props_info.inverse_inertias = scope.allocator().allocate_array<float3>(
+          sim_points.points_num);
+      sim_points_props_info.evaluator->add_with_destination(
+          convert_to_inverse_inertia_field(geometry_bundle.inertia),
+          sim_points_props_info.inverse_inertias);
+    }
+  }
+}
+
+PROFILE_FUNCTION static void prepare_evaluation__pinned_position_constraints(
+    ResourceScope &scope,
+    WorldPreprocessData &world_info,
+    const WorldBundles &world_bundles,
+    const Span<GeometrySet> applied_geometries,
+    const VectorSet<SimPointsKey> &keys,
+    const float delta_time)
+{
+  for (const int key_i : keys.index_range()) {
+    const SimPointsKey &key = keys[key_i];
+    const int geometry_bundle_i = world_bundles.geometries.index_of_as(key.path);
+    const GeometrySet &applied_geometry = applied_geometries[geometry_bundle_i];
+    const Vector constraint_bundles = filter_bundles_for_path<PinnedPositionXPBDConstraintBundle>(
+        world_bundles.pinned_position_constraints, key.path);
+    if (constraint_bundles.is_empty()) {
+      continue;
+    }
+    const bke::GeometryComponent *component = applied_geometry.get_component(key.type);
+    if (!component) {
+      continue;
+    }
+    const AttrDomain domain = get_simulation_domain(key.type);
+    for (const PinnedPositionXPBDConstraintBundle *constraint_bundle : constraint_bundles) {
+      fn::FieldEvaluator &evaluator = get_field_evaluator(
+          scope, world_info, *component, domain, constraint_bundle->selection);
+      world_info.pinned_position_constraints.append(
+          {key_i,
+           &evaluator,
+           evaluator.add(constraint_bundle->position),
+           evaluator.add(
+               convert_to_compliance_term_field(constraint_bundle->compliance, delta_time))});
+    }
+  }
+}
+
+PROFILE_FUNCTION static void prepare_evaluation__pinned_rotation_constraints(
+    ResourceScope &scope,
+    WorldPreprocessData &world_info,
     const XPBDState &state,
     const WorldBundles &world_bundles,
     const Span<GeometrySet> applied_geometries,
     const VectorSet<SimPointsKey> &keys,
-    const float delta_time,
-    xpbd::ConstraintSetCollector &r_constraints)
+    const float delta_time)
 {
-  ResourceScope &scope = tls.local_resource_scope();
-  const float compliance_factor = compute_compliance_factor(delta_time);
+  for (const int key_i : keys.index_range()) {
+    const SimPointsKey &key = keys[key_i];
+    const int geometry_bundle_i = world_bundles.geometries.index_of_as(key.path);
+    const GeometrySet &applied_geometry = applied_geometries[geometry_bundle_i];
+    const SimPoints &sim_points = state.sim_points.lookup(key);
+    if (!sim_points.has_rotation) {
+      continue;
+    }
+    const Vector constraint_bundles = filter_bundles_for_path<PinnedRotationXPBDConstraintBundle>(
+        world_bundles.pinned_rotation_constraints, key.path);
+    if (constraint_bundles.is_empty()) {
+      continue;
+    }
+    const bke::GeometryComponent *component = applied_geometry.get_component(key.type);
+    if (!component) {
+      continue;
+    }
+    const AttrDomain domain = get_simulation_domain(key.type);
+    for (const PinnedRotationXPBDConstraintBundle *constraint_bundle : constraint_bundles) {
+      fn::FieldEvaluator &evaluator = get_field_evaluator(
+          scope, world_info, *component, domain, constraint_bundle->selection);
+      world_info.pinned_rotation_constraints.append(
+          {key_i,
+           &evaluator,
+           evaluator.add(constraint_bundle->rotation),
+           evaluator.add(
+               convert_to_compliance_term_field(constraint_bundle->compliance, delta_time))});
+    }
+  }
+}
 
+PROFILE_FUNCTION static void prepare_evaluation__curves_rod_stretch_and_shear_constraints(
+    ResourceScope &scope,
+    WorldPreprocessData &world_info,
+    const XPBDState &state,
+    const WorldBundles &world_bundles,
+    const Span<GeometrySet> applied_geometries,
+    const VectorSet<SimPointsKey> &keys,
+    const float delta_time)
+{
   for (const int key_i : keys.index_range()) {
     const SimPointsKey &key = keys[key_i];
     if (key.type != bke::GeometryComponent::Type::Curve) {
@@ -1194,51 +1481,268 @@ PROFILE_FUNCTION static void gather_curves_rod_stretch_and_shear_constraints(
     if (!sim_points.has_rotation) {
       continue;
     }
-    const int geometry_bundle_i = world_bundles.geometries.index_of_as(key.path);
-    const GeometrySet &applied_geometry = applied_geometries[geometry_bundle_i];
-    const Curves &curves_id = *applied_geometry.get_curves();
-    const bke::CurvesGeometry &curves = curves_id.geometry.wrap();
-    const OffsetIndices<int> points_by_curve = curves.points_by_curve();
-
     const Vector constraint_bundles =
         filter_bundles_for_path<RodStretchAndShearXPBDConstraintBundle>(
             world_bundles.rod_stretch_and_shear_constraints, key.path);
+    if (constraint_bundles.is_empty()) {
+      continue;
+    }
+    const int geometry_bundle_i = world_bundles.geometries.index_of_as(key.path);
+    const GeometrySet &applied_geometry = applied_geometries[geometry_bundle_i];
+    const bke::CurveComponent &component = *applied_geometry.get_component<bke::CurveComponent>();
 
-    bke::CurvesFieldContext field_context(curves, bke::AttrDomain::Point);
+    fn::FieldEvaluator &evaluator = get_field_evaluator(
+        scope, world_info, component, bke::AttrDomain::Point, std::nullopt);
     for (const RodStretchAndShearXPBDConstraintBundle *constraint_bundle : constraint_bundles) {
       MutableSpan<float> compliance_terms = scope.allocator().allocate_array<float>(
-          curves.points_num());
-      fn::FieldEvaluator field_evaluator{field_context, curves.points_num()};
-      field_evaluator.add_with_destination(constraint_bundle->compliance, compliance_terms);
-      field_evaluator.evaluate();
-
-      threading::parallel_for(compliance_terms.index_range(), 1024, [&](const IndexRange range) {
-        for (float &compliance_term : compliance_terms.slice(range)) {
-          compliance_term *= compliance_factor;
-        }
-      });
-
-      const Span<float> rest_lengths = state.ensure_curve_segment_rest_lengths(key, curves);
-
-      r_constraints.curve_local.append(
-          &scope.construct<xpbd::RodStretchAndShearCurveLocalConstraintSet>(
-              key_i, points_by_curve, rest_lengths, compliance_terms));
+          sim_points.points_num);
+      evaluator.add_with_destination(
+          convert_to_compliance_term_field(constraint_bundle->compliance, delta_time),
+          compliance_terms);
+      world_info.rod_stretch_and_shear_constraints.append(
+          CurveRodStretchAndShearConstraintData{key_i, compliance_terms});
     }
   }
 }
 
-PROFILE_FUNCTION static void gather_curves_rod_bend_and_twist_constraints(
-    ThreadLocalStorage &tls,
+PROFILE_FUNCTION static void prepare_evaluation__edge_length_constraints(
+    ResourceScope &scope,
+    WorldPreprocessData &world_info,
+    const WorldBundles &world_bundles,
+    const Span<GeometrySet> applied_geometries,
+    const VectorSet<SimPointsKey> &keys,
+    const float delta_time)
+{
+  for (const int key_i : keys.index_range()) {
+    const SimPointsKey &key = keys[key_i];
+    if (key.type != bke::GeometryComponent::Type::Mesh) {
+      continue;
+    }
+    const int geometry_bundle_i = world_bundles.geometries.index_of_as(key.path);
+    const GeometrySet &applied_geometry = applied_geometries[geometry_bundle_i];
+
+    const Vector constraint_bundles = filter_bundles_for_path<EdgeLengthXPBDConstraintBundle>(
+        world_bundles.edge_length_constraints, key.path);
+    if (constraint_bundles.is_empty()) {
+      continue;
+    }
+    const bke::MeshComponent &mesh_component =
+        *applied_geometry.get_component<bke::MeshComponent>();
+    for (const EdgeLengthXPBDConstraintBundle *constraint_bundle : constraint_bundles) {
+      fn::FieldEvaluator &evaluator = get_field_evaluator(
+          scope, world_info, mesh_component, bke::AttrDomain::Edge, constraint_bundle->selection);
+      world_info.edge_length_constraints.append({key_i,
+                                                 &evaluator,
+                                                 evaluator.add(convert_to_compliance_term_field(
+                                                     constraint_bundle->compliance, delta_time))});
+    }
+  }
+}
+
+PROFILE_FUNCTION static void prepare_evaluation__curve_length_constraints(
+    ResourceScope &scope,
+    WorldPreprocessData &world_info,
+    const WorldBundles &world_bundles,
+    const Span<GeometrySet> applied_geometries,
+    const VectorSet<SimPointsKey> &keys,
+    const float delta_time)
+{
+  for (const int key_i : keys.index_range()) {
+    const SimPointsKey &key = keys[key_i];
+    if (key.type != bke::GeometryComponent::Type::Curve) {
+      continue;
+    }
+    const int geometry_bundle_i = world_bundles.geometries.index_of_as(key.path);
+    const GeometrySet &applied_geometry = applied_geometries[geometry_bundle_i];
+    const bke::CurveComponent &component = *applied_geometry.get_component<bke::CurveComponent>();
+
+    Vector constraint_bundles = filter_bundles_for_path<CurveSegmentXPBDConstraintBundle>(
+        world_bundles.curve_segment_constraints, key.path);
+    if (constraint_bundles.is_empty()) {
+      continue;
+    }
+
+    fn::FieldEvaluator &evaluator = get_field_evaluator(
+        scope, world_info, component, bke::AttrDomain::Point, std::nullopt);
+    for (const CurveSegmentXPBDConstraintBundle *constraint_bundle : constraint_bundles) {
+      world_info.curve_segment_length_constraints.append(
+          {key_i,
+           &evaluator,
+           evaluator.add(
+               convert_to_compliance_term_field(constraint_bundle->compliance, delta_time))});
+    }
+  }
+}
+
+PROFILE_FUNCTION static void prepare_evaluation__align_positions_constraints(
+    ResourceScope &scope,
+    WorldPreprocessData &world_info,
+    const WorldBundles &world_bundles,
+    const Span<GeometrySet> applied_geometries,
+    const VectorSet<SimPointsKey> &keys)
+{
+  for (const AlignPositionsConstraintBundle &constraint_bundle :
+       world_bundles.align_position_constraints)
+  {
+    const Vector<int> filtered_key_indices = filter_sim_points_keys(
+        constraint_bundle.self_path, constraint_bundle.filter, keys);
+    if (filtered_key_indices.is_empty()) {
+      continue;
+    }
+    AlignPositionsConstraintData constraint;
+    for (const int key_i : filtered_key_indices) {
+      const SimPointsKey &key = keys[key_i];
+      const bke::GeometryComponent::Type type = key.type;
+      const int geometry_bundle_i = world_bundles.geometries.index_of_as(key.path);
+      const GeometrySet &applied_geometry = applied_geometries[geometry_bundle_i];
+      const bke::GeometryComponent *component = applied_geometry.get_component(type);
+      if (!component) {
+        continue;
+      }
+      const bke::AttrDomain domain = get_simulation_domain(type);
+      fn::FieldEvaluator &evaluator = get_field_evaluator(
+          scope, world_info, *component, domain, constraint_bundle.selection);
+      constraint.items.append({key_i,
+                               &evaluator,
+                               evaluator.add(constraint_bundle.group_id),
+                               evaluator.add(constraint_bundle.compliance)});
+    }
+    if (constraint.items.is_empty()) {
+      continue;
+    }
+    world_info.align_positions_constraints.append(std::move(constraint));
+  }
+}
+
+PROFILE_FUNCTION static void prepare_evaluation__attach_uv_surface_constraints(
+    ResourceScope &scope,
+    WorldPreprocessData &world_info,
+    const WorldBundles &world_bundles,
+    const Span<GeometrySet> applied_geometries,
+    const VectorSet<SimPointsKey> &keys,
+    const float delta_time)
+{
+  for (const AttachUVSurfaceConstraintBundle &constraint_bundle :
+       world_bundles.attach_uv_surface_constraints)
+  {
+    const SimPointsKey mesh_key{constraint_bundle.mesh_path, bke::GeometryComponent::Type::Mesh};
+    const int mesh_key_i = keys.index_of_try(mesh_key);
+    if (mesh_key_i == -1) {
+      continue;
+    }
+    Vector<int> filtered_points_keys = filter_sim_points_keys(
+        constraint_bundle.self_path, constraint_bundle.filter, keys);
+    if (filtered_points_keys.is_empty()) {
+      continue;
+    }
+    const int mesh_bundle_i = world_bundles.geometries.index_of_as(mesh_key.path);
+    const bke::MeshComponent *mesh_component =
+        applied_geometries[mesh_bundle_i].get_component<bke::MeshComponent>();
+    if (!mesh_component) {
+      continue;
+    }
+
+    fn::FieldEvaluator &mesh_evaluator = get_field_evaluator(
+        scope, world_info, *mesh_component, bke::AttrDomain::Corner, std::nullopt);
+
+    for (const int points_key_i : filtered_points_keys) {
+      AttachUVSurfaceConstraintData constraint;
+      constraint.mesh_key_i = mesh_key_i;
+      constraint.mesh_evaluator = &mesh_evaluator;
+      constraint.uv_map_index = mesh_evaluator.add(constraint_bundle.uv_map);
+      const SimPointsKey &points_key = keys[points_key_i];
+      const int points_bundle_i = world_bundles.geometries.index_of_as(points_key.path);
+      const bke::GeometryComponent *points_component =
+          applied_geometries[points_bundle_i].get_component(points_key.type);
+      if (!points_component) {
+        continue;
+      }
+      const AttrDomain domain = get_simulation_domain(points_key.type);
+      fn::FieldEvaluator &point_evaluator = get_field_evaluator(
+          scope, world_info, *points_component, domain, constraint_bundle.selection);
+      constraint.points_key_i = points_key_i;
+      constraint.point_evaluator = &point_evaluator;
+      constraint.sample_uv_index = point_evaluator.add(constraint_bundle.sample_uv);
+      constraint.compliance_term_index = point_evaluator.add(
+          convert_to_compliance_term_field(constraint_bundle.compliance, delta_time));
+      world_info.attach_uv_surface_constraints.append(std::move(constraint));
+    }
+  }
+}
+
+PROFILE_FUNCTION static void prepare_evaluation__distance_based_edge_bending_constraints(
+    ResourceScope &scope,
+    WorldPreprocessData &world_info,
+    const WorldBundles &world_bundles,
+    const Span<GeometrySet> applied_geometries,
+    const VectorSet<SimPointsKey> &keys,
+    const float delta_time)
+{
+  for (const int key_i : keys.index_range()) {
+    const SimPointsKey &key = keys[key_i];
+    if (key.type != bke::GeometryComponent::Type::Mesh) {
+      continue;
+    }
+    const int geometry_bundle_i = world_bundles.geometries.index_of_as(key.path);
+    const GeometrySet &applied_geometry = applied_geometries[geometry_bundle_i];
+
+    const Vector constraint_bundles =
+        filter_bundles_for_path<DistanceBasedEdgeBendingConstraintBundle>(
+            world_bundles.distance_based_bending_constraints, key.path);
+    if (constraint_bundles.is_empty()) {
+      continue;
+    }
+
+    const bke::MeshComponent &mesh_component = *static_cast<const bke::MeshComponent *>(
+        applied_geometry.get_component(bke::GeometryComponent::Type::Mesh));
+    for (const DistanceBasedEdgeBendingConstraintBundle *constraint_bundle : constraint_bundles) {
+      fn::FieldEvaluator &evaluator = get_field_evaluator(
+          scope, world_info, mesh_component, bke::AttrDomain::Edge, constraint_bundle->selection);
+      world_info.distance_based_edge_bending_constraints.append(
+          {key_i,
+           &evaluator,
+           evaluator.add(
+               convert_to_compliance_term_field(constraint_bundle->compliance, delta_time))});
+    }
+  }
+}
+
+PROFILE_FUNCTION static Vector<xpbd::RodStretchAndShearCurveLocalConstraintSet *>
+build_constraint_sets__curves_rod_stretch_and_shear(ThreadLocalStorage &tls,
+                                                    const WorldPreprocessData &world_info,
+                                                    const XPBDState &state,
+                                                    const WorldBundles &world_bundles,
+                                                    const Span<GeometrySet> applied_geometries,
+                                                    const VectorSet<SimPointsKey> &keys)
+{
+  ResourceScope &scope = tls.local_resource_scope();
+  Vector<xpbd::RodStretchAndShearCurveLocalConstraintSet *> result;
+  for (const CurveRodStretchAndShearConstraintData &constraint_info :
+       world_info.rod_stretch_and_shear_constraints)
+  {
+    const int key_i = constraint_info.key_i;
+    const SimPointsKey &key = keys[key_i];
+    const int geometry_bundle_i = world_bundles.geometries.index_of_as(key.path);
+    const GeometrySet &applied_geometry = applied_geometries[geometry_bundle_i];
+    const Curves &curves_id = *applied_geometry.get_curves();
+    const bke::CurvesGeometry &curves = curves_id.geometry.wrap();
+    const OffsetIndices<int> points_by_curve = curves.points_by_curve();
+    const Span<float> rest_lengths = state.ensure_curve_segment_rest_lengths(key, curves);
+    result.append(&scope.construct<xpbd::RodStretchAndShearCurveLocalConstraintSet>(
+        key_i, points_by_curve, rest_lengths, constraint_info.compliance_terms));
+  }
+  return result;
+}
+
+PROFILE_FUNCTION static void prepare_evaluation__curves_rod_bend_and_twist_constraints(
+    ResourceScope &scope,
+    WorldPreprocessData &world_info,
     const XPBDState &state,
     const WorldBundles &world_bundles,
     const Span<GeometrySet> applied_geometries,
     const VectorSet<SimPointsKey> &keys,
-    const float delta_time,
-    xpbd::ConstraintSetCollector &r_constraints)
+    const float delta_time)
 {
-  ResourceScope &scope = tls.local_resource_scope();
-  const float compliance_factor = compute_compliance_factor(delta_time);
-
   for (const int key_i : keys.index_range()) {
     const SimPointsKey &key = keys[key_i];
     if (key.type != bke::GeometryComponent::Type::Curve) {
@@ -1248,37 +1752,55 @@ PROFILE_FUNCTION static void gather_curves_rod_bend_and_twist_constraints(
     if (!sim_points.has_rotation) {
       continue;
     }
+    const Vector constraint_bundles = filter_bundles_for_path<RodBendAndTwistXPBDConstraintBundle>(
+        world_bundles.rod_bend_and_twist_constraints, key.path);
+    if (constraint_bundles.is_empty()) {
+      continue;
+    }
+    const int geometry_bundle_i = world_bundles.geometries.index_of_as(key.path);
+    const GeometrySet &applied_geometry = applied_geometries[geometry_bundle_i];
+    const bke::CurveComponent &component = *applied_geometry.get_component<bke::CurveComponent>();
+
+    fn::FieldEvaluator &evaluator = get_field_evaluator(
+        scope, world_info, component, bke::AttrDomain::Point, std::nullopt);
+    for (const RodBendAndTwistXPBDConstraintBundle *constraint_bundle : constraint_bundles) {
+      MutableSpan<float> compliance_terms = scope.allocator().allocate_array<float>(
+          evaluator.evaluation_mask().min_array_size());
+      evaluator.add_with_destination(
+          convert_to_compliance_term_field(constraint_bundle->compliance, delta_time),
+          compliance_terms);
+      world_info.rod_bend_and_twist_constraints.append(
+          CurveRodBendAndTwistConstraintData{key_i, compliance_terms});
+    }
+  }
+}
+
+PROFILE_FUNCTION static Vector<xpbd::RodBendAndTwistCurveLocalConstraintSet *>
+build_constraint_sets__curves_rod_bend_and_twist(ThreadLocalStorage &tls,
+                                                 const WorldPreprocessData &world_info,
+                                                 const XPBDState &state,
+                                                 const WorldBundles &world_bundles,
+                                                 const Span<GeometrySet> applied_geometries,
+                                                 const VectorSet<SimPointsKey> &keys)
+{
+  ResourceScope &scope = tls.local_resource_scope();
+  Vector<xpbd::RodBendAndTwistCurveLocalConstraintSet *> result;
+  for (const CurveRodBendAndTwistConstraintData &constraint_info :
+       world_info.rod_bend_and_twist_constraints)
+  {
+    const int key_i = constraint_info.key_i;
+    const SimPointsKey &key = keys[key_i];
     const int geometry_bundle_i = world_bundles.geometries.index_of_as(key.path);
     const GeometrySet &applied_geometry = applied_geometries[geometry_bundle_i];
     const Curves &curves_id = *applied_geometry.get_curves();
     const bke::CurvesGeometry &curves = curves_id.geometry.wrap();
     const OffsetIndices<int> points_by_curve = curves.points_by_curve();
-
-    const Vector constraint_bundles = filter_bundles_for_path<RodBendAndTwistXPBDConstraintBundle>(
-        world_bundles.rod_bend_and_twist_constraints, key.path);
-
-    bke::CurvesFieldContext field_context(curves, bke::AttrDomain::Point);
-    for (const RodBendAndTwistXPBDConstraintBundle *constraint_bundle : constraint_bundles) {
-      MutableSpan<float> compliance_terms = scope.allocator().allocate_array<float>(
-          curves.points_num());
-      fn::FieldEvaluator field_evaluator{field_context, curves.points_num()};
-      field_evaluator.add_with_destination(constraint_bundle->compliance, compliance_terms);
-      field_evaluator.evaluate();
-
-      threading::parallel_for(compliance_terms.index_range(), 1024, [&](const IndexRange range) {
-        for (float &compliance_term : compliance_terms.slice(range)) {
-          compliance_term *= compliance_factor;
-        }
-      });
-
-      const Span<math::Quaternion> rest_rotations =
-          state.ensure_curve_segment_relative_rest_rotations(key, curves);
-
-      r_constraints.curve_local.append(
-          &scope.construct<xpbd::RodBendAndTwistCurveLocalConstraintSet>(
-              key_i, points_by_curve, rest_rotations, compliance_terms));
-    }
+    const Span<math::Quaternion> rest_rotations =
+        state.ensure_curve_segment_relative_rest_rotations(key, curves);
+    result.append(&scope.construct<xpbd::RodBendAndTwistCurveLocalConstraintSet>(
+        key_i, points_by_curve, rest_rotations, constraint_info.compliance_terms));
   }
+  return result;
 }
 
 PROFILE_FUNCTION static Map<SimPointsKey, MutableSpan<float3>>
@@ -1286,10 +1808,8 @@ gather_soft_pinned_position_constraints(
     ResourceScope &scope,
     const VectorSet<SimPointsKey> &keys,
     const Map<SimPointsKey, PinnedPositions> &pinned_positions_map,
-    const float delta_time,
     xpbd::ConstraintSetCollector &r_constraints)
 {
-  const float compliance_factor = compute_compliance_factor(delta_time);
   Map<SimPointsKey, MutableSpan<float3>> result;
   for (const auto item : pinned_positions_map.items()) {
     const SimPointsKey &key = item.key;
@@ -1299,17 +1819,17 @@ gather_soft_pinned_position_constraints(
     if (constraints_num == 0) {
       continue;
     }
-    MutableSpan<float> compliance_terms = scope.allocator().allocate_array<float>(constraints_num);
-    for (const int i : pinned_positions.soft_indices.index_range()) {
-      compliance_terms[i] = pinned_positions.soft_compliances[i] * compliance_factor;
-    }
+
     /* Positions are initialized in #update_pinned_positions. */
     MutableSpan<float3> soft_pinned_positions = scope.allocator().allocate_array<float3>(
         constraints_num);
     result.add(key, soft_pinned_positions);
 
     r_constraints.general.append(&scope.construct<xpbd::PinnedPositionConstraintSet>(
-        key_i, pinned_positions.soft_indices, soft_pinned_positions, compliance_terms));
+        key_i,
+        pinned_positions.soft_indices,
+        soft_pinned_positions,
+        pinned_positions.soft_compliance_terms));
   }
   return result;
 }
@@ -1318,10 +1838,8 @@ static Map<SimPointsKey, MutableSpan<math::Quaternion>> gather_soft_pinned_rotat
     ResourceScope &scope,
     const VectorSet<SimPointsKey> &keys,
     const Map<SimPointsKey, PinnedRotations> &pinned_rotations_map,
-    const float delta_time,
     xpbd::ConstraintSetCollector &r_constraints)
 {
-  const float compliance_factor = compute_compliance_factor(delta_time);
   Map<SimPointsKey, MutableSpan<math::Quaternion>> result;
   for (const auto item : pinned_rotations_map.items()) {
     const SimPointsKey &key = item.key;
@@ -1332,71 +1850,43 @@ static Map<SimPointsKey, MutableSpan<math::Quaternion>> gather_soft_pinned_rotat
       continue;
     }
 
-    MutableSpan<float> compliance_terms = scope.allocator().allocate_array<float>(constraints_num);
-    for (const int i : pinned_rotations.soft_indices.index_range()) {
-      compliance_terms[i] = pinned_rotations.soft_compliances[i] * compliance_factor;
-    }
-
     /* Rotations are initialized in #update_pinned_rotations. */
     MutableSpan<math::Quaternion> soft_pinned_rotations =
         scope.allocator().allocate_array<math::Quaternion>(constraints_num);
     result.add(key, soft_pinned_rotations);
 
-    r_constraints.general.append(&scope.construct<xpbd::PinRotationConstraintSet>(
-        key_i, pinned_rotations.soft_indices, soft_pinned_rotations, compliance_terms));
+    r_constraints.general.append(
+        &scope.construct<xpbd::PinRotationConstraintSet>(key_i,
+                                                         pinned_rotations.soft_indices,
+                                                         soft_pinned_rotations,
+                                                         pinned_rotations.soft_compliance_terms));
   }
   return result;
 }
 
-PROFILE_FUNCTION static void gather_align_positions_constraints(
-    ResourceScope &scope,
-    const WorldBundles &world_bundles,
-    const Span<GeometrySet> applied_geometries,
-    const VectorSet<SimPointsKey> &keys,
-    const float delta_time,
-    xpbd::ConstraintSetCollector &r_constraints)
+PROFILE_FUNCTION static Vector<xpbd::AlignPositionsConstraintSet *>
+gather_align_positions_constraints(ResourceScope &scope,
+                                   const WorldPreprocessData &world_info,
+                                   const float delta_time)
 {
   const float compliance_factor = compute_compliance_factor(delta_time);
-
-  for (const AlignPositionsConstraintBundle &constraint_bundle :
-       world_bundles.align_position_constraints)
-  {
-    Vector<int> filtered_keys = filter_sim_points_keys(
-        constraint_bundle.self_path, constraint_bundle.filter, keys);
-    if (filtered_keys.is_empty()) {
-      continue;
-    }
-
+  Vector<xpbd::AlignPositionsConstraintSet *> result;
+  for (const AlignPositionsConstraintData &constraint : world_info.align_positions_constraints) {
     struct PointInfo {
       int key_i;
       int point_i;
       float compliance;
     };
-
     MultiValueMap<int, PointInfo> infos_by_group_id;
-    for (const int key_i : filtered_keys) {
-      const SimPointsKey &key = keys[key_i];
-      const bke::GeometryComponent::Type type = key.type;
-      const int geometry_bundle_i = world_bundles.geometries.index_of_as(key.path);
-      const bke::GeometryComponent *component =
-          applied_geometries[geometry_bundle_i].get_component(type);
-      if (!component) {
-        continue;
-      }
-      const bke::AttrDomain domain = get_simulation_domain(type);
-      const int domain_size = component->attribute_domain_size(domain);
-      const bke::GeometryFieldContext field_context(*component, domain);
-      fn::FieldEvaluator field_evaluator{field_context, domain_size};
-      field_evaluator.set_selection(constraint_bundle.selection);
-      field_evaluator.add(constraint_bundle.group_id);
-      field_evaluator.add(constraint_bundle.compliance);
-      field_evaluator.evaluate();
-      const IndexMask mask = field_evaluator.get_evaluated_selection_as_mask();
+    for (const AlignPositionsConstraintData::Item &item : constraint.items) {
+      const int key_i = item.key_i;
+      const IndexMask &mask = item.evaluator->get_evaluated_selection_as_mask();
       if (mask.is_empty()) {
         continue;
       }
-      const VArray<int> group_ids = field_evaluator.get_evaluated<int>(0);
-      const VArray<float> compliances = field_evaluator.get_evaluated<float>(1);
+      const VArray<int> group_ids = item.evaluator->get_evaluated<int>(item.group_id_index);
+      const VArray<float> compliances = item.evaluator->get_evaluated<float>(
+          item.compliance_index);
       mask.foreach_index([&](const int point_i) {
         const int group_id = group_ids[point_i];
         const float compliance = compliances[point_i];
@@ -1441,133 +1931,101 @@ PROFILE_FUNCTION static void gather_align_positions_constraints(
       continue;
     }
 
-    r_constraints.general.append(
-        &scope.construct<xpbd::AlignPositionsConstraintSet>(offset_indices,
-                                                            constraint_compliance_terms,
-                                                            constraint_geo_indices,
-                                                            constraint_point_indices));
+    result.append(&scope.construct<xpbd::AlignPositionsConstraintSet>(offset_indices,
+                                                                      constraint_compliance_terms,
+                                                                      constraint_geo_indices,
+                                                                      constraint_point_indices));
   }
+  return result;
 }
 
-PROFILE_FUNCTION static void gather_attach_uv_surface_constraints(
-    ResourceScope &scope,
-    const WorldBundles &world_bundles,
-    const Span<GeometrySet> applied_geometries,
-    const VectorSet<SimPointsKey> &keys,
-    const float delta_time,
-    xpbd::ConstraintSetCollector &r_constraints)
+PROFILE_FUNCTION static Vector<xpbd::AttachUVSurfaceConstraintSet *>
+gather_attach_uv_surface_constraints(ResourceScope &scope,
+                                     const WorldPreprocessData &world_info,
+                                     const WorldBundles &world_bundles,
+                                     const VectorSet<SimPointsKey> &keys)
 {
-  const float compliance_factor = compute_compliance_factor(delta_time);
-
-  for (const AttachUVSurfaceConstraintBundle &constraint_bundle :
-       world_bundles.attach_uv_surface_constraints)
+  Vector<xpbd::AttachUVSurfaceConstraintSet *> result;
+  for (const AttachUVSurfaceConstraintData &constraint : world_info.attach_uv_surface_constraints)
   {
-    const SimPointsKey mesh_key{constraint_bundle.mesh_path, bke::GeometryComponent::Type::Mesh};
-    const int mesh_key_i = keys.index_of_try(mesh_key);
-    if (mesh_key_i == -1) {
+    const IndexMask &mask = constraint.point_evaluator->get_evaluated_selection_as_mask();
+    if (mask.is_empty()) {
       continue;
     }
-    Vector<int> filtered_keys = filter_sim_points_keys(
-        constraint_bundle.self_path, constraint_bundle.filter, keys);
-    if (filtered_keys.is_empty()) {
+    const SimPointsKey &mesh_key = keys[constraint.mesh_key_i];
+
+    const int mesh_bundle_i = world_bundles.geometries.index_of_as(mesh_key.path);
+    const Mesh &original_mesh = *world_bundles.geometries[mesh_bundle_i].geometry.get_mesh();
+
+    const Span<int3> corner_tris = original_mesh.corner_tris();
+    const Span<int> corner_verts = original_mesh.corner_verts();
+
+    const VArraySpan<float2> uv_map = constraint.mesh_evaluator->get_evaluated<float2>(
+        constraint.uv_map_index);
+    const geometry::ReverseUVSampler reverse_uv_sampler(uv_map, corner_tris);
+
+    const VArray<float2> sample_uvs_varray = constraint.point_evaluator->get_evaluated<float2>(
+        constraint.sample_uv_index);
+    const VArray<float> compliance_terms_varray = constraint.point_evaluator->get_evaluated<float>(
+        constraint.compliance_term_index);
+
+    Vector<int> &indices = scope.construct<Vector<int>>();
+    Vector<int3> &triangle_indices = scope.construct<Vector<int3>>();
+    Vector<float3> &bary_weights = scope.construct<Vector<float3>>();
+    Vector<float> &compliance_terms = scope.construct<Vector<float>>();
+    mask.foreach_index([&](const int point_i) {
+      const float2 sample_uv = sample_uvs_varray[point_i];
+      const geometry::ReverseUVSampler::Result result = reverse_uv_sampler.sample(sample_uv);
+      if (result.type != geometry::ReverseUVSampler::ResultType::Ok) {
+        return;
+      }
+      indices.append(point_i);
+      bary_weights.append(result.bary_weights);
+
+      const int3 corners = corner_tris[result.tri_index];
+      const int3 triangle_verts{
+          corner_verts[corners[0]], corner_verts[corners[1]], corner_verts[corners[2]]};
+      triangle_indices.append(triangle_verts);
+      compliance_terms.append(compliance_terms_varray[point_i]);
+    });
+
+    if (indices.is_empty()) {
       continue;
     }
 
-    const int constraint_bundle_i = world_bundles.geometries.index_of_as(mesh_key.path);
-    const XPBDGeometryBundle &geometry_bundle = world_bundles.geometries[constraint_bundle_i];
-    const Mesh *original_mesh = geometry_bundle.geometry.get_mesh();
-    if (!original_mesh) {
-      continue;
-    }
-    const Span<int3> corner_tris = original_mesh->corner_tris();
-    const Span<int> corner_verts = original_mesh->corner_verts();
-
-    bke::MeshFieldContext uv_map_field_context{*original_mesh, bke::AttrDomain::Corner};
-    fn::FieldEvaluator uv_map_field_evaluator{uv_map_field_context, original_mesh->corners_num};
-    uv_map_field_evaluator.add(constraint_bundle.uv_map);
-    uv_map_field_evaluator.evaluate();
-    const VArraySpan<float2> uv_map = uv_map_field_evaluator.get_evaluated<float2>(0);
-
-    geometry::ReverseUVSampler reverse_uv_sampler(uv_map, corner_tris);
-
-    for (const int key_i : filtered_keys) {
-      const SimPointsKey &key = keys[key_i];
-      const bke::GeometryComponent::Type type = key.type;
-      const int geometry_bundle_i = world_bundles.geometries.index_of_as(key.path);
-      const bke::GeometryComponent *component =
-          applied_geometries[geometry_bundle_i].get_component(type);
-      if (!component) {
-        continue;
-      }
-      const bke::AttrDomain domain = get_simulation_domain(type);
-      const int domain_size = component->attribute_domain_size(domain);
-
-      const bke::GeometryFieldContext field_context(*component, domain);
-      fn::FieldEvaluator field_evaluator{field_context, domain_size};
-      field_evaluator.set_selection(constraint_bundle.selection);
-      field_evaluator.add(constraint_bundle.sample_uv);
-      field_evaluator.add(constraint_bundle.compliance);
-      field_evaluator.evaluate();
-      const IndexMask mask = field_evaluator.get_evaluated_selection_as_mask();
-      if (mask.is_empty()) {
-        continue;
-      }
-      const VArray<float2> sample_uvs = field_evaluator.get_evaluated<float2>(0);
-      const VArray<float> compliances = field_evaluator.get_evaluated<float>(1);
-
-      Vector<int> &indices = scope.construct<Vector<int>>();
-      Vector<int3> &triangle_indices = scope.construct<Vector<int3>>();
-      Vector<float3> &bary_weights = scope.construct<Vector<float3>>();
-      Vector<float> &compliance_terms = scope.construct<Vector<float>>();
-      mask.foreach_index([&](const int point_i) {
-        const float2 sample_uv = sample_uvs[point_i];
-        const geometry::ReverseUVSampler::Result result = reverse_uv_sampler.sample(sample_uv);
-        if (result.type != geometry::ReverseUVSampler::ResultType::Ok) {
-          return;
-        }
-        indices.append(point_i);
-        bary_weights.append(result.bary_weights);
-
-        const int3 corners = corner_tris[result.tri_index];
-        const int3 triangle_verts{
-            corner_verts[corners[0]], corner_verts[corners[1]], corner_verts[corners[2]]};
-        triangle_indices.append(triangle_verts);
-
-        const float compliance = compliances[point_i];
-        const float compliance_term = compliance * compliance_factor;
-        compliance_terms.append(compliance_term);
-      });
-
-      if (indices.is_empty()) {
-        continue;
-      }
-
-      r_constraints.general.append(&scope.construct<xpbd::AttachUVSurfaceConstraintSet>(
-          mesh_key_i, key_i, indices, triangle_indices, bary_weights, compliance_terms));
-    }
+    result.append(&scope.construct<xpbd::AttachUVSurfaceConstraintSet>(constraint.mesh_key_i,
+                                                                       constraint.points_key_i,
+                                                                       indices,
+                                                                       triangle_indices,
+                                                                       bary_weights,
+                                                                       compliance_terms));
   }
+  return result;
 }
 
-PROFILE_FUNCTION static void gather_distance_based_edge_bending_constraints(
-    ResourceScope &scope,
-    XPBDState &state,
-    const WorldBundles &world_bundles,
-    const Span<GeometrySet> applied_geometries,
-    const VectorSet<SimPointsKey> &keys,
-    const float delta_time,
-    xpbd::ConstraintSetCollector &r_constraints)
+PROFILE_FUNCTION static Vector<xpbd::DistanceConstraintSet *>
+gather_distance_based_edge_bending_constraints(ResourceScope &scope,
+                                               XPBDState &state,
+                                               const WorldPreprocessData &world_info,
+                                               const WorldBundles &world_bundles,
+                                               const Span<GeometrySet> applied_geometries,
+                                               const VectorSet<SimPointsKey> &keys)
 {
-  const float compliance_factor = compute_compliance_factor(delta_time);
-
-  for (const int key_i : keys.index_range()) {
-    const SimPointsKey &key = keys[key_i];
-    if (key.type != bke::GeometryComponent::Type::Mesh) {
+  Vector<xpbd::DistanceConstraintSet *> result;
+  for (const DistanceBasedEdgeBendingConstraintData &constraint :
+       world_info.distance_based_edge_bending_constraints)
+  {
+    const IndexMask &mask = constraint.evaluator->get_evaluated_selection_as_mask();
+    if (mask.is_empty()) {
       continue;
     }
+
+    const int key_i = constraint.key_i;
+    const SimPointsKey &key = keys[key_i];
     const int geometry_bundle_i = world_bundles.geometries.index_of_as(key.path);
     const GeometrySet &applied_geometry = applied_geometries[geometry_bundle_i];
-
     const Mesh &mesh = *applied_geometry.get_mesh();
+
     const Span<int2> edges = mesh.edges();
     const Span<float3> mesh_positions = mesh.vert_positions();
     const Span<int3> corners_tris = mesh.corner_tris();
@@ -1584,53 +2042,40 @@ PROFILE_FUNCTION static void gather_distance_based_edge_bending_constraints(
       tris_by_edge.add(OrderedEdge{v2, v0}, tri_i);
     }
 
-    const Vector constraint_bundles =
-        filter_bundles_for_path<DistanceBasedEdgeBendingConstraintBundle>(
-            world_bundles.distance_based_bending_constraints, key.path);
-
+    const VArray<float> compliance_terms_varray = constraint.evaluator->get_evaluated<float>(
+        constraint.compliance_term_index);
     Vector<int2> &point_pairs = scope.construct<Vector<int2>>();
     Vector<float> &compliance_terms = scope.construct<Vector<float>>();
 
-    const bke::MeshFieldContext mesh_field_context(mesh, bke::AttrDomain::Edge);
-    for (const DistanceBasedEdgeBendingConstraintBundle *constraint_bundle : constraint_bundles) {
-      fn::FieldEvaluator field_evaluator(mesh_field_context, mesh.edges_num);
-      field_evaluator.set_selection(constraint_bundle->selection);
-      field_evaluator.add(constraint_bundle->compliance);
-      field_evaluator.evaluate();
-      const IndexMask mask = field_evaluator.get_evaluated_selection_as_mask();
-      if (mask.is_empty()) {
-        continue;
+    mask.foreach_index([&](const int edge_i) {
+      const int2 &edge = edges[edge_i];
+      const Span<int> tris_at_edge = tris_by_edge.lookup(OrderedEdge(edge));
+      if (tris_at_edge.size() <= 1) {
+        /* Bending constraint needs at least two triangles. */
+        return;
       }
-      const VArray<float> compliances = field_evaluator.get_evaluated<float>(0);
-      mask.foreach_index([&](const int edge_i) {
-        const int2 &edge = edges[edge_i];
-        const Span<int> tris_at_edge = tris_by_edge.lookup(OrderedEdge(edge));
-        if (tris_at_edge.size() <= 1) {
-          /* Bending constraint needs at least two triangles. */
-          return;
+      const float compliance_term = compliance_terms_varray[edge_i];
+      for (const int tri0 : tris_at_edge.index_range()) {
+        for (const int tri1 : tris_at_edge.index_range().drop_front(tri0 + 1)) {
+          const int3 &tri0_corners = corners_tris[tris_at_edge[tri0]];
+          const int3 &tri1_corners = corners_tris[tris_at_edge[tri1]];
+          const int point_i0 = edge[0] ^ edge[1] ^ corners_verts[tri0_corners[0]] ^
+                               corners_verts[tri0_corners[1]] ^ corners_verts[tri0_corners[2]];
+          const int point_i1 = edge[0] ^ edge[1] ^ corners_verts[tri1_corners[0]] ^
+                               corners_verts[tri1_corners[1]] ^ corners_verts[tri1_corners[2]];
+          point_pairs.append({point_i0, point_i1});
+          compliance_terms.append(compliance_term);
         }
-        const float compliance = compliances[edge_i];
-        for (const int tri0 : tris_at_edge.index_range()) {
-          for (const int tri1 : tris_at_edge.index_range().drop_front(tri0 + 1)) {
-            const int3 &tri0_corners = corners_tris[tris_at_edge[tri0]];
-            const int3 &tri1_corners = corners_tris[tris_at_edge[tri1]];
-            const int point_i0 = edge[0] ^ edge[1] ^ corners_verts[tri0_corners[0]] ^
-                                 corners_verts[tri0_corners[1]] ^ corners_verts[tri0_corners[2]];
-            const int point_i1 = edge[0] ^ edge[1] ^ corners_verts[tri1_corners[0]] ^
-                                 corners_verts[tri1_corners[1]] ^ corners_verts[tri1_corners[2]];
-            point_pairs.append({point_i0, point_i1});
-            compliance_terms.append(compliance_factor * compliance);
-          }
-        }
-      });
+      }
+    });
 
-      const Span<float> constraint_lengths = prepare_distance_constraint_lengths(
-          scope, state, mesh_positions, key, point_pairs);
+    const Span<float> constraint_lengths = prepare_distance_constraint_lengths(
+        scope, state, mesh_positions, key, point_pairs);
 
-      r_constraints.general.append(&scope.construct<xpbd::DistanceConstraintSet>(
-          key_i, point_pairs, constraint_lengths, compliance_terms));
-    }
+    result.append(&scope.construct<xpbd::DistanceConstraintSet>(
+        key_i, point_pairs, constraint_lengths, compliance_terms));
   }
+  return result;
 }
 
 struct StaticPlaneContacts {
@@ -1992,97 +2437,68 @@ PROFILE_FUNCTION static Vector<xpbd::GeometryRef> prepare_geometry_refs_for_solv
 
 PROFILE_FUNCTION static Map<SimPointsKey, PinnedPositions> compute_pinned_positions(
     const XPBDState &state,
-    const WorldBundles &world_bundles,
-    const Span<GeometrySet> applied_geometries,
+    const WorldPreprocessData &world_info,
     const VectorSet<SimPointsKey> &keys)
 {
   Map<SimPointsKey, PinnedPositions> result;
-  for (const int key_i : keys.index_range()) {
+  for (const PinnedPositionConstraintData &constraint : world_info.pinned_position_constraints) {
+    const int key_i = constraint.key_i;
     const SimPointsKey &key = keys[key_i];
-    const int geometry_bundle_i = world_bundles.geometries.index_of_as(key.path);
-    const GeometrySet &applied_geometry = applied_geometries[geometry_bundle_i];
     const SimPoints &sim_points = state.sim_points.lookup(key);
 
-    const Vector constraint_bundles = filter_bundles_for_path<PinnedPositionXPBDConstraintBundle>(
-        world_bundles.pinned_position_constraints, key.path);
-    if (constraint_bundles.is_empty()) {
-      continue;
-    }
-    const bke::GeometryComponent::Type type = key.type;
-    const bke::GeometryComponent *component = applied_geometry.get_component(type);
-    if (!component) {
-      continue;
-    }
-    const AttrDomain domain = get_simulation_domain(type);
-    const int domain_size = component->attribute_domain_size(domain);
+    PinnedPositions &pinned_positions = result.lookup_or_add_default(key);
+    const IndexMask &mask = constraint.evaluator->get_evaluated_selection_as_mask();
+    const int mask_size = mask.size();
+    const VArray<float3> positions = constraint.evaluator->get_evaluated<float3>(
+        constraint.position_index);
+    const VArray<float> compliance_terms = constraint.evaluator->get_evaluated<float>(
+        constraint.compliance_terms_index);
 
-    PinnedPositions pinned_positions;
-
-    bke::GeometryFieldContext field_context(*component, domain);
-    for (const PinnedPositionXPBDConstraintBundle *constraint_bundle : constraint_bundles) {
-      fn::FieldEvaluator field_evaluator{field_context, domain_size};
-      field_evaluator.set_selection(constraint_bundle->selection);
-      field_evaluator.add(constraint_bundle->position);
-      field_evaluator.add(constraint_bundle->compliance);
-      field_evaluator.evaluate();
-      const IndexMask mask = field_evaluator.get_evaluated_selection_as_mask();
-      if (mask.is_empty()) {
-        continue;
-      }
-      const VArray<float3> pinned_positions_varray = field_evaluator.get_evaluated<float3>(0);
-      const VArray<float> compliances_varray = field_evaluator.get_evaluated<float>(1);
-      const int mask_size = mask.size();
-
-      if (const std::optional<float> compliance_opt = compliances_varray.get_if_single()) {
-        const float compliance = std::max(0.0f, *compliance_opt);
-        if (compliance == 0.0f) {
-          const int old_size = pinned_positions.hard_indices.size();
-          pinned_positions.hard_indices.resize(old_size + mask_size);
-          pinned_positions.hard_animations.resize(old_size + mask_size);
-          mask.foreach_index(GrainSize(512), [&](const int point_i, const int pos) {
-            const float3 &new_position = pinned_positions_varray[point_i];
-            const float3 &old_position = state.is_initialization() ? new_position :
-                                                                     sim_points.positions[point_i];
-            pinned_positions.hard_indices[old_size + pos] = point_i;
-            pinned_positions.hard_animations[old_size + pos] = {old_position, new_position};
-          });
-        }
-        else {
-          const int old_size = pinned_positions.soft_indices.size();
-          pinned_positions.soft_indices.resize(old_size + mask_size);
-          pinned_positions.soft_animations.resize(old_size + mask_size);
-          pinned_positions.soft_compliances.resize(old_size + mask_size);
-          mask.foreach_index(GrainSize(512), [&](const int point_i, const int pos) {
-            const float3 &new_position = pinned_positions_varray[point_i];
-            const float3 &old_position = state.is_initialization() ? new_position :
-                                                                     sim_points.positions[point_i];
-            pinned_positions.soft_indices[old_size + pos] = point_i;
-            pinned_positions.soft_compliances[old_size + pos] = compliance;
-            pinned_positions.soft_animations[old_size + pos] = {old_position, new_position};
-          });
-        }
-      }
-      else {
-        mask.foreach_index([&](const int point_i) {
-          const float3 &new_position = pinned_positions_varray[point_i];
+    if (const std::optional<float> compliance_term = compliance_terms.get_if_single()) {
+      if (compliance_term == 0.0f) {
+        const int old_size = pinned_positions.hard_indices.size();
+        pinned_positions.hard_indices.resize(old_size + mask_size);
+        pinned_positions.hard_animations.resize(old_size + mask_size);
+        mask.foreach_index(GrainSize(512), [&](const int point_i, const int pos) {
+          const float3 &new_position = positions[point_i];
           const float3 &old_position = state.is_initialization() ? new_position :
                                                                    sim_points.positions[point_i];
-          const float compliance = std::max(0.0f, compliances_varray[point_i]);
-          StartStopPair<float3> animation{old_position, new_position};
-          if (compliance == 0.0f) {
-            pinned_positions.hard_indices.append(point_i);
-            pinned_positions.hard_animations.append(animation);
-          }
-          else {
-            pinned_positions.soft_indices.append(point_i);
-            pinned_positions.soft_compliances.append(compliance);
-            pinned_positions.soft_animations.append(animation);
-          }
+          pinned_positions.hard_indices[old_size + pos] = point_i;
+          pinned_positions.hard_animations[old_size + pos] = {old_position, new_position};
+        });
+      }
+      else {
+        const int old_size = pinned_positions.soft_indices.size();
+        pinned_positions.soft_indices.resize(old_size + mask_size);
+        pinned_positions.soft_animations.resize(old_size + mask_size);
+        pinned_positions.soft_compliance_terms.resize(old_size + mask_size);
+        mask.foreach_index(GrainSize(512), [&](const int point_i, const int pos) {
+          const float3 &new_position = positions[point_i];
+          const float3 &old_position = state.is_initialization() ? new_position :
+                                                                   sim_points.positions[point_i];
+          pinned_positions.soft_indices[old_size + pos] = point_i;
+          pinned_positions.soft_compliance_terms[old_size + pos] = compliance_terms[point_i];
+          pinned_positions.soft_animations[old_size + pos] = {old_position, new_position};
         });
       }
     }
-    if (!pinned_positions.hard_indices.is_empty() || !pinned_positions.soft_indices.is_empty()) {
-      result.add(key, std::move(pinned_positions));
+    else {
+      mask.foreach_index([&](const int point_i) {
+        const float3 &new_position = positions[point_i];
+        const float3 &old_position = state.is_initialization() ? new_position :
+                                                                 sim_points.positions[point_i];
+        const float compliance_term = compliance_terms[point_i];
+        StartStopPair<float3> animation{old_position, new_position};
+        if (compliance_term == 0.0f) {
+          pinned_positions.hard_indices.append(point_i);
+          pinned_positions.hard_animations.append(animation);
+        }
+        else {
+          pinned_positions.soft_indices.append(point_i);
+          pinned_positions.soft_compliance_terms.append(compliance_term);
+          pinned_positions.soft_animations.append(animation);
+        }
+      });
     }
   }
   return result;
@@ -2090,101 +2506,71 @@ PROFILE_FUNCTION static Map<SimPointsKey, PinnedPositions> compute_pinned_positi
 
 PROFILE_FUNCTION static Map<SimPointsKey, PinnedRotations> compute_pinned_rotations(
     const XPBDState &state,
-    const WorldBundles &world_bundles,
-    const Span<GeometrySet> applied_geometries,
+    const WorldPreprocessData &world_info,
     const VectorSet<SimPointsKey> &keys)
 {
   Map<SimPointsKey, PinnedRotations> result;
-  for (const int key_i : keys.index_range()) {
+  for (const PinnedRotationConstraintData &constraint : world_info.pinned_rotation_constraints) {
+    const int key_i = constraint.key_i;
     const SimPointsKey &key = keys[key_i];
-    const int geometry_bundle_i = world_bundles.geometries.index_of_as(key.path);
-    const GeometrySet &applied_geometry = applied_geometries[geometry_bundle_i];
     const SimPoints &sim_points = state.sim_points.lookup(key);
-    if (!sim_points.has_rotation) {
-      continue;
-    }
-    const bke::GeometryComponent::Type type = key.type;
-    const bke::GeometryComponent *component = applied_geometry.get_component(type);
-    if (!component) {
-      continue;
-    }
-    const AttrDomain domain = get_simulation_domain(type);
-    const int domain_size = component->attribute_domain_size(domain);
 
-    const Vector constraint_bundles = filter_bundles_for_path<PinnedRotationXPBDConstraintBundle>(
-        world_bundles.pinned_rotation_constraints, key.path);
+    PinnedRotations &pinned_rotations = result.lookup_or_add_default(key);
+    const IndexMask &mask = constraint.evaluator->get_evaluated_selection_as_mask();
+    const int mask_size = mask.size();
+    const VArray<math::Quaternion> &rotations =
+        constraint.evaluator->get_evaluated<math::Quaternion>(constraint.rotation_index);
+    const VArray<float> &compliance_terms = constraint.evaluator->get_evaluated<float>(
+        constraint.compliance_terms_index);
 
-    PinnedRotations pinned_rotations;
-
-    bke::GeometryFieldContext field_context(*component, domain);
-    for (const PinnedRotationXPBDConstraintBundle *constraint_bundle : constraint_bundles) {
-      fn::FieldEvaluator field_evaluator{field_context, domain_size};
-      field_evaluator.set_selection(constraint_bundle->selection);
-      field_evaluator.add(constraint_bundle->rotation);
-      field_evaluator.add(constraint_bundle->compliance);
-      field_evaluator.evaluate();
-      const IndexMask mask = field_evaluator.get_evaluated_selection_as_mask();
-      if (mask.is_empty()) {
-        continue;
-      }
-      const VArray<math::Quaternion> rotations_varray =
-          field_evaluator.get_evaluated<math::Quaternion>(0);
-      const VArray<float> compliances_varray = field_evaluator.get_evaluated<float>(1);
-      const int mask_size = mask.size();
-
-      if (const std::optional<float> compliance_opt = compliances_varray.get_if_single()) {
-        const float compliance = std::max(0.0f, *compliance_opt);
-        if (compliance == 0.0f) {
-          const int old_size = pinned_rotations.hard_indices.size();
-          pinned_rotations.hard_indices.resize(old_size + mask_size);
-          pinned_rotations.hard_animations.resize(old_size + mask_size);
-          mask.foreach_index(GrainSize(512), [&](const int point_i, const int pos) {
-            const math::Quaternion &new_rotation = rotations_varray[point_i];
-            const math::Quaternion &old_rotation = state.is_initialization() ?
-                                                       new_rotation :
-                                                       sim_points.rotations[point_i];
-            pinned_rotations.hard_indices[old_size + pos] = point_i;
-            pinned_rotations.hard_animations[old_size + pos] = {old_rotation, new_rotation};
-          });
-        }
-        else {
-          const int old_size = pinned_rotations.soft_indices.size();
-          pinned_rotations.soft_indices.resize(old_size + mask_size);
-          pinned_rotations.soft_animations.resize(old_size + mask_size);
-          pinned_rotations.soft_compliances.resize(old_size + mask_size);
-          mask.foreach_index(GrainSize(512), [&](const int point_i, const int pos) {
-            const math::Quaternion &new_rotation = rotations_varray[point_i];
-            const math::Quaternion &old_rotation = state.is_initialization() ?
-                                                       new_rotation :
-                                                       sim_points.rotations[point_i];
-            pinned_rotations.soft_indices[old_size + pos] = point_i;
-            pinned_rotations.soft_compliances[old_size + pos] = compliance;
-            pinned_rotations.soft_animations[old_size + pos] = {old_rotation, new_rotation};
-          });
-        }
-      }
-      else {
-        mask.foreach_index([&](const int point_i) {
-          const math::Quaternion &new_rotation = rotations_varray[point_i];
+    if (const std::optional<float> compliance_term = compliance_terms.get_if_single()) {
+      if (compliance_term == 0.0f) {
+        const int old_size = pinned_rotations.hard_indices.size();
+        pinned_rotations.hard_indices.resize(old_size + mask_size);
+        pinned_rotations.hard_animations.resize(old_size + mask_size);
+        mask.foreach_index(GrainSize(512), [&](const int point_i, const int pos) {
+          const math::Quaternion &new_rotation = rotations[point_i];
           const math::Quaternion &old_rotation = state.is_initialization() ?
                                                      new_rotation :
                                                      sim_points.rotations[point_i];
-          const float compliance = std::max(0.0f, compliances_varray[point_i]);
-          StartStopPair<math::Quaternion> animation{old_rotation, new_rotation};
-          if (compliance == 0.0f) {
-            pinned_rotations.hard_indices.append(point_i);
-            pinned_rotations.hard_animations.append(animation);
-          }
-          else {
-            pinned_rotations.soft_indices.append(point_i);
-            pinned_rotations.soft_compliances.append(compliance);
-            pinned_rotations.soft_animations.append(animation);
-          }
+          pinned_rotations.hard_indices[old_size + pos] = point_i;
+          pinned_rotations.hard_animations[old_size + pos] = {old_rotation, new_rotation};
+        });
+      }
+      else {
+        const int old_size = pinned_rotations.soft_indices.size();
+        pinned_rotations.soft_indices.resize(old_size + mask_size);
+        pinned_rotations.soft_animations.resize(old_size + mask_size);
+        pinned_rotations.soft_compliance_terms.resize(old_size + mask_size);
+        mask.foreach_index(GrainSize(512), [&](const int point_i, const int pos) {
+          const math::Quaternion &new_rotation = rotations[point_i];
+          const math::Quaternion &old_rotation = state.is_initialization() ?
+                                                     new_rotation :
+                                                     sim_points.rotations[point_i];
+          pinned_rotations.soft_indices[old_size + pos] = point_i;
+          pinned_rotations.soft_compliance_terms[old_size + pos] = compliance_terms[point_i];
+          pinned_rotations.soft_animations[old_size + pos] = {old_rotation, new_rotation};
         });
       }
     }
-    if (!pinned_rotations.hard_indices.is_empty() || !pinned_rotations.soft_indices.is_empty()) {
-      result.add(key, std::move(pinned_rotations));
+    else {
+      mask.foreach_index([&](const int point_i) {
+        const math::Quaternion &new_rotation = rotations[point_i];
+        const math::Quaternion &old_rotation = state.is_initialization() ?
+                                                   new_rotation :
+                                                   sim_points.rotations[point_i];
+        const float compliance_term = compliance_terms[point_i];
+        StartStopPair<math::Quaternion> animation{old_rotation, new_rotation};
+        if (compliance_term == 0.0f) {
+          pinned_rotations.hard_indices.append(point_i);
+          pinned_rotations.hard_animations.append(animation);
+        }
+        else {
+          pinned_rotations.soft_indices.append(point_i);
+          pinned_rotations.soft_compliance_terms.append(compliance_term);
+          pinned_rotations.soft_animations.append(animation);
+        }
+      });
     }
   }
   return result;
@@ -2319,84 +2705,114 @@ PROFILE_FUNCTION static void update_and_step_xpbd_state(XPBDState &state,
 
   reset_state_usages(state);
 
-  Map<SimPointsKey, PinnedPositions> pinned_positions_map;
-  Map<SimPointsKey, PinnedRotations> pinned_rotations_map;
-  xpbd::ConstraintSetCollector rod_stretch_and_shear_constraints;
-  xpbd::ConstraintSetCollector rod_bend_and_twist_constraints;
-  threading::parallel_invoke(
-      [&]() {
-        pinned_positions_map = compute_pinned_positions(
-            state, world_bundles, applied_geometries, keys);
+  WorldPreprocessData world_info;
+  prepare_evaluation__forces(scope, world_info, world_bundles, applied_geometries, keys);
+  prepare_evaluation__torques(scope, world_info, world_bundles, state, applied_geometries, keys);
+  prepare_evaluation__curves_rod_stretch_and_shear_constraints(
+      scope, world_info, state, world_bundles, applied_geometries, keys, sub_delta_time);
+  prepare_evaluation__curves_rod_bend_and_twist_constraints(
+      scope, world_info, state, world_bundles, applied_geometries, keys, sub_delta_time);
+  prepare_evaluation__pinned_position_constraints(
+      scope, world_info, world_bundles, applied_geometries, keys, sub_delta_time);
+  prepare_evaluation__pinned_rotation_constraints(
+      scope, world_info, state, world_bundles, applied_geometries, keys, sub_delta_time);
+  prepare_evaluation__sim_points_props(
+      scope, world_info, world_bundles, state, applied_geometries, keys);
+  prepare_evaluation__edge_length_constraints(
+      scope, world_info, world_bundles, applied_geometries, keys, sub_delta_time);
+  prepare_evaluation__curve_length_constraints(
+      scope, world_info, world_bundles, applied_geometries, keys, sub_delta_time);
+  prepare_evaluation__align_positions_constraints(
+      scope, world_info, world_bundles, applied_geometries, keys);
+  prepare_evaluation__attach_uv_surface_constraints(
+      scope, world_info, world_bundles, applied_geometries, keys, sub_delta_time);
+  prepare_evaluation__distance_based_edge_bending_constraints(
+      scope, world_info, world_bundles, applied_geometries, keys, sub_delta_time);
+
+  Vector<fn::FieldEvaluator *> field_evaluators;
+  for (fn::FieldEvaluator *evaluator : world_info.field_evaluators.values()) {
+    field_evaluators.append(evaluator);
+  }
+
+  threading::parallel_for(
+      field_evaluators.index_range(),
+      1024,
+      [&](const IndexRange range) {
+        for (fn::FieldEvaluator *evaluator : field_evaluators.as_span().slice(range)) {
+          evaluator->evaluate();
+        }
       },
-      [&]() {
-        pinned_rotations_map = compute_pinned_rotations(
-            state, world_bundles, applied_geometries, keys);
-      },
-      [&]() {
-        gather_curves_rod_stretch_and_shear_constraints(tls,
-                                                        state,
-                                                        world_bundles,
-                                                        applied_geometries,
-                                                        keys,
-                                                        sub_delta_time,
-                                                        rod_stretch_and_shear_constraints);
-      },
-      [&]() {
-        gather_curves_rod_bend_and_twist_constraints(tls,
-                                                     state,
-                                                     world_bundles,
-                                                     applied_geometries,
-                                                     keys,
-                                                     sub_delta_time,
-                                                     rod_bend_and_twist_constraints);
-      });
+      threading::individual_task_sizes(
+          [&](const int i) { return field_evaluators[i]->evaluation_mask().size(); }));
+
+  Map<SimPointsKey, PinnedPositions> pinned_positions_map = compute_pinned_positions(
+      state, world_info, keys);
+  Map<SimPointsKey, PinnedRotations> pinned_rotations_map = compute_pinned_rotations(
+      state, world_info, keys);
 
   const Map<SimPointsKey, SimPointsWorldProperties> sim_points_props =
-      compute_sim_point_world_properties(tls,
-                                         world_bundles,
+      compute_sim_point_world_properties(world_bundles,
+                                         world_info,
                                          keys,
                                          applied_geometries,
                                          pinned_positions_map,
                                          pinned_rotations_map);
   const Map<SimPointsKey, Span<float3>> accelerations_map = compute_external_accelerations(
-      tls, world_bundles, keys, sim_points_props, applied_geometries);
+      tls, world_bundles, world_info, state, keys, sim_points_props);
   const Map<SimPointsKey, Span<float3>> torques_map = compute_external_torques(
-      tls, state, world_bundles, keys, applied_geometries);
+      tls, state, world_info, keys);
 
   xpbd::ConstraintSetCollector static_constraint_sets;
-  gather_edge_length_constraints(scope,
-                                 state,
-                                 world_bundles,
-                                 applied_geometries,
-                                 keys,
-                                 sub_delta_time,
-                                 static_constraint_sets);
-  gather_curve_segment_constraints(scope,
-                                   state,
-                                   world_bundles,
-                                   applied_geometries,
-                                   keys,
-                                   sub_delta_time,
-                                   static_constraint_sets);
-  gather_pressure_constraints(
-      scope, state, world_bundles, applied_geometries, keys, static_constraint_sets);
+
+  for (xpbd::CurveLocalConstraintSet *constraint_set :
+       build_constraint_sets__curves_rod_stretch_and_shear(
+           tls, world_info, state, world_bundles, applied_geometries, keys))
+  {
+    static_constraint_sets.curve_local.append(constraint_set);
+  }
+  for (xpbd::CurveLocalConstraintSet *constraint_set :
+       build_constraint_sets__curves_rod_bend_and_twist(
+           tls, world_info, state, world_bundles, applied_geometries, keys))
+  {
+    static_constraint_sets.curve_local.append(constraint_set);
+  }
+  for (xpbd::DistanceConstraintSet *constraint_set : gather_edge_length_constraints(
+           scope, state, world_info, world_bundles, applied_geometries, keys))
+  {
+    static_constraint_sets.general.append(constraint_set);
+  }
+  for (xpbd::PressureConstraintSet *constraint_set :
+       gather_pressure_constraints(scope, state, world_bundles, applied_geometries, keys))
+  {
+    static_constraint_sets.general.append(constraint_set);
+  }
+  for (xpbd::DistanceConstraintSet *constraint_set : gather_curve_segment_constraints(
+           scope, state, world_info, world_bundles, applied_geometries, keys))
+  {
+    static_constraint_sets.general.append(constraint_set);
+  }
+  for (xpbd::AlignPositionsConstraintSet *constraint_set :
+       gather_align_positions_constraints(scope, world_info, sub_delta_time))
+  {
+    static_constraint_sets.general.append(constraint_set);
+  }
+  for (xpbd::AttachUVSurfaceConstraintSet *constraint_set :
+       gather_attach_uv_surface_constraints(scope, world_info, world_bundles, keys))
+  {
+    static_constraint_sets.general.append(constraint_set);
+  }
+  for (xpbd::DistanceConstraintSet *constraint_set :
+       gather_distance_based_edge_bending_constraints(
+           scope, state, world_info, world_bundles, applied_geometries, keys))
+  {
+    static_constraint_sets.general.append(constraint_set);
+  }
   const Map<SimPointsKey, MutableSpan<float3>> soft_pinned_positions_map =
       gather_soft_pinned_position_constraints(
-          scope, keys, pinned_positions_map, sub_delta_time, static_constraint_sets);
+          scope, keys, pinned_positions_map, static_constraint_sets);
   const Map<SimPointsKey, MutableSpan<math::Quaternion>> soft_pinned_rotations_map =
       gather_soft_pinned_rotation_constraints(
-          scope, keys, pinned_rotations_map, sub_delta_time, static_constraint_sets);
-  gather_align_positions_constraints(
-      scope, world_bundles, applied_geometries, keys, sub_delta_time, static_constraint_sets);
-  gather_attach_uv_surface_constraints(
-      scope, world_bundles, applied_geometries, keys, sub_delta_time, static_constraint_sets);
-  gather_distance_based_edge_bending_constraints(scope,
-                                                 state,
-                                                 world_bundles,
-                                                 applied_geometries,
-                                                 keys,
-                                                 sub_delta_time,
-                                                 static_constraint_sets);
+          scope, keys, pinned_rotations_map, static_constraint_sets);
 
   Array<Array<float3>> all_prev_positions(keys.size());
   Array<Array<math::Quaternion>> all_prev_rotations(keys.size());
@@ -2482,10 +2898,7 @@ PROFILE_FUNCTION static void update_and_step_xpbd_state(XPBDState &state,
     /* Combine static and dynamic constraint sets. */
     const Vector<xpbd::ConstraintSet *> current_constraint_sets =
         xpbd::ConstraintSetCollector::combine(scope,
-                                              {&rod_stretch_and_shear_constraints,
-                                               &rod_bend_and_twist_constraints,
-                                               &static_constraint_sets,
-                                               &dynamic_constraint_sets});
+                                              {&static_constraint_sets, &dynamic_constraint_sets});
 
     /* Actually solve the constraints. */
     solve_constraints(solver_type, geometry_refs, current_constraint_sets);
