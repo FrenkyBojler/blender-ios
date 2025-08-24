@@ -49,6 +49,7 @@
 #include "BKE_animsys.h"
 #include "BKE_armature.hh"
 #include "BKE_brush.hh"
+#include "BKE_collection.hh"
 #include "BKE_colortools.hh"
 #include "BKE_context.hh"
 #include "BKE_global.hh"
@@ -370,6 +371,40 @@ static World *preview_get_localized_world(ShaderPreview *sp, World *world)
   return sp->worldcopy;
 }
 
+World *ED_preview_prepare_world_simple(Main *pr_main)
+{
+  using namespace blender::bke;
+
+  World *world = BKE_world_add(pr_main, "SimpleWorld");
+  bNodeTree *ntree = world->nodetree;
+  ntree = blender::bke::node_tree_add_tree_embedded(
+      nullptr, &world->id, "World Nodetree", "ShaderNodeTree");
+
+  bNode *background = node_add_node(nullptr, *ntree, "ShaderNodeBackground");
+  bNode *output = node_add_node(nullptr, *ntree, "ShaderNodeOutputWorld");
+  node_add_link(*world->nodetree,
+                *background,
+                *node_find_socket(*background, SOCK_OUT, "Background"),
+                *output,
+                *node_find_socket(*output, SOCK_IN, "Surface"));
+  node_set_active(*ntree, *output);
+
+  world->nodetree = ntree;
+  return world;
+}
+
+void ED_preview_world_simple_set_rgb(World *world, const float color[4])
+{
+  BLI_assert(world != nullptr);
+
+  bNode *background = blender::bke::node_find_node_by_name(*world->nodetree, "Background");
+  BLI_assert(background != nullptr);
+
+  auto color_socket = static_cast<bNodeSocketValueRGBA *>(
+      blender::bke::node_find_socket(*background, SOCK_IN, "Color")->default_value);
+  copy_v4_v4(color_socket->value, color);
+}
+
 static ID *duplicate_ids(ID *id, const bool allow_failure)
 {
   if (id == nullptr) {
@@ -534,17 +569,16 @@ static Scene *preview_prepare_scene(
         else if (sce->world && sp->pr_method != PR_ICON_RENDER) {
           /* Use a default world color. Using the current
            * scene world can be slow if it has big textures. */
-          sce->world->use_nodes = false;
+          sce->world = ED_preview_prepare_world_simple(sp->bmain);
+
           /* Use brighter world color for grease pencil. */
           if (sp->pr_main == G_pr_main_grease_pencil) {
-            sce->world->horr = 1.0f;
-            sce->world->horg = 1.0f;
-            sce->world->horb = 1.0f;
+            const float white[4] = {1.0f, 1.0f, 1.0f, 1.0f};
+            ED_preview_world_simple_set_rgb(sce->world, white);
           }
           else {
-            sce->world->horr = 0.05f;
-            sce->world->horg = 0.05f;
-            sce->world->horb = 0.05f;
+            const float dark[4] = {0.05f, 0.05f, 0.05f, 0.05f};
+            ED_preview_world_simple_set_rgb(sce->world, dark);
           }
         }
 
@@ -601,10 +635,9 @@ static Scene *preview_prepare_scene(
 
       if (sce->world) {
         /* Only use lighting from the light. */
-        sce->world->use_nodes = false;
-        sce->world->horr = 0.0f;
-        sce->world->horg = 0.0f;
-        sce->world->horb = 0.0f;
+        sce->world = ED_preview_prepare_world_simple(pr_main);
+        const float black[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+        ED_preview_world_simple_set_rgb(sce->world, black);
       }
 
       BKE_view_layer_synced_ensure(sce, view_layer);
@@ -925,34 +958,6 @@ static void object_preview_render(IconPreview *preview, IconPreviewSize *preview
  * object and rendering that.
  *
  * \{ */
-
-/**
- * Check if the collection contains any geometry that can be rendered. Otherwise there's nothing to
- * display in the preview, so don't generate one.
- * Objects and sub-collections hidden in the render will be skipped.
- */
-static bool collection_preview_contains_geometry_recursive(const Collection *collection)
-{
-  LISTBASE_FOREACH (CollectionObject *, col_ob, &collection->gobject) {
-    if (col_ob->ob->visibility_flag & OB_HIDE_RENDER) {
-      continue;
-    }
-    if (OB_TYPE_IS_GEOMETRY(col_ob->ob->type)) {
-      return true;
-    }
-  }
-
-  LISTBASE_FOREACH (CollectionChild *, child_col, &collection->children) {
-    if (child_col->collection->flag & COLLECTION_HIDE_RENDER) {
-      continue;
-    }
-    if (collection_preview_contains_geometry_recursive(child_col->collection)) {
-      return true;
-    }
-  }
-
-  return false;
-}
 
 /** \} */
 
@@ -1658,7 +1663,8 @@ static void icon_preview_startjob_all_sizes(void *customdata, wmJobWorkerStatus 
           }
           continue;
         case ID_GR:
-          BLI_assert(collection_preview_contains_geometry_recursive((Collection *)ip->id));
+          BLI_assert(BKE_collection_contains_geometry_recursive(
+              reinterpret_cast<const Collection *>(ip->id)));
           /* A collection instance empty was created, so this can just reuse the object preview
            * rendering. */
           object_preview_render(ip, cur_size);
@@ -1800,7 +1806,7 @@ PreviewLoadJob::~PreviewLoadJob()
 PreviewLoadJob &PreviewLoadJob::ensure_job(wmWindowManager *wm, wmWindow *win)
 {
   wmJob *wm_job = WM_jobs_get(
-      wm, win, nullptr, "Load Previews", eWM_JobFlag(0), WM_JOB_TYPE_LOAD_PREVIEW);
+      wm, win, nullptr, "Loading previews...", eWM_JobFlag(0), WM_JOB_TYPE_LOAD_PREVIEW);
 
   if (!WM_jobs_is_running(wm_job)) {
     PreviewLoadJob *job_data = MEM_new<PreviewLoadJob>("PreviewLoadJobData");
@@ -1987,7 +1993,7 @@ bool ED_preview_id_is_supported(const ID *id, const char **r_disabled_hint)
                 RPT_("Object type does not support automatic previews")};
       case ID_GR:
         return {
-            collection_preview_contains_geometry_recursive((const Collection *)id),
+            BKE_collection_contains_geometry_recursive(reinterpret_cast<const Collection *>(id)),
             RPT_("Collection does not contain object types that can be rendered for the automatic "
                  "preview")};
       case ID_SCE:
@@ -2082,7 +2088,7 @@ void ED_preview_icon_job(
   wmJob *wm_job = WM_jobs_get(CTX_wm_manager(C),
                               CTX_wm_window(C),
                               prv_img,
-                              "Icon Preview",
+                              "Generating icon preview...",
                               WM_JOB_EXCL_RENDER,
                               WM_JOB_TYPE_RENDER_PREVIEW);
 
@@ -2159,7 +2165,7 @@ void ED_preview_shader_job(const bContext *C,
   wm_job = WM_jobs_get(CTX_wm_manager(C),
                        CTX_wm_window(C),
                        owner,
-                       "Shader Preview",
+                       "Generating shader preview...",
                        WM_JOB_EXCL_RENDER,
                        WM_JOB_TYPE_RENDER_PREVIEW);
   sp = MEM_callocN<ShaderPreview>("shader preview");

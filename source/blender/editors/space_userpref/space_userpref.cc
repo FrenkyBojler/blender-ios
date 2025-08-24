@@ -111,6 +111,8 @@ static void userpref_main_region_layout(const bContext *C, ARegion *region)
   char id_lower[64];
   const char *contexts[2] = {id_lower, nullptr};
 
+  region->flag |= RGN_FLAG_INDICATE_OVERFLOW;
+
   /* Avoid duplicating identifiers, use existing RNA enum. */
   {
     const EnumPropertyItem *items = rna_enum_preference_section_items;
@@ -121,7 +123,7 @@ static void userpref_main_region_layout(const bContext *C, ARegion *region)
     }
     const char *id = items[i].identifier;
     BLI_assert(strlen(id) < sizeof(id_lower));
-    STRNCPY(id_lower, id);
+    STRNCPY_UTF8(id_lower, id);
     BLI_str_tolower_ascii(id_lower, strlen(id_lower));
   }
 
@@ -152,6 +154,7 @@ static void userpref_header_region_draw(const bContext *C, ARegion *region)
 static void userpref_navigation_region_init(wmWindowManager *wm, ARegion *region)
 {
   region->v2d.scroll = V2D_SCROLL_RIGHT | V2D_SCROLL_VERTICAL_HIDE;
+  region->flag |= RGN_FLAG_INDICATE_OVERFLOW;
 
   ED_region_panels_init(wm, region);
 }

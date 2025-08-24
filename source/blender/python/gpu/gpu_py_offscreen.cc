@@ -14,7 +14,7 @@
 
 #include <Python.h>
 
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 
 #include "BKE_global.hh"
 #include "BKE_lib_id.hh" /* For #BKE_id_is_in_global_main. */
@@ -315,7 +315,7 @@ static PyObject *pygpu_offscreen__tp_new(PyTypeObject * /*self*/, PyObject *args
                                err_out);
   }
   else {
-    STRNCPY(err_out, "No active GPU context found");
+    STRNCPY_UTF8(err_out, "No active GPU context found");
   }
 
   if (ofs == nullptr) {
@@ -333,7 +333,7 @@ PyDoc_STRVAR(
     pygpu_offscreen_width_doc,
     "Width of the texture.\n"
     "\n"
-    ":type: int");
+    ":type: int\n");
 static PyObject *pygpu_offscreen_width_get(BPyGPUOffScreen *self, void * /*type*/)
 {
   BPY_GPU_OFFSCREEN_CHECK_OBJ(self);
@@ -345,7 +345,7 @@ PyDoc_STRVAR(
     pygpu_offscreen_height_doc,
     "Height of the texture.\n"
     "\n"
-    ":type: int");
+    ":type: int\n");
 static PyObject *pygpu_offscreen_height_get(BPyGPUOffScreen *self, void * /*type*/)
 {
   BPY_GPU_OFFSCREEN_CHECK_OBJ(self);
@@ -357,7 +357,7 @@ PyDoc_STRVAR(
     pygpu_offscreen_texture_color_doc,
     "The color texture attached.\n"
     "\n"
-    ":type: :class:`gpu.types.GPUTexture`");
+    ":type: :class:`gpu.types.GPUTexture`\n");
 static PyObject *pygpu_offscreen_texture_color_get(BPyGPUOffScreen *self, void * /*type*/)
 {
   BPY_GPU_OFFSCREEN_CHECK_OBJ(self);
@@ -598,10 +598,10 @@ PyDoc_STRVAR(
     "   :type height: int\n"
     "   :arg format: Internal data format inside GPU memory for color attachment "
     "texture. Possible values are:\n"
-    "      `RGBA8`,\n"
-    "      `RGBA16`,\n"
-    "      `RGBA16F`,\n"
-    "      `RGBA32F`,\n"
+    "      ``RGBA8``,\n"
+    "      ``RGBA16``,\n"
+    "      ``RGBA16F``,\n"
+    "      ``RGBA32F``.\n"
     "   :type format: str\n");
 PyTypeObject BPyGPUOffScreen_Type = {
     /*ob_base*/ PyVarObject_HEAD_INIT(nullptr, 0)

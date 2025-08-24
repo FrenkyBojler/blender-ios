@@ -1245,7 +1245,7 @@ static StructRNA *rna_AssetShelf_register(Main *bmain,
                 RPT_ERROR,
                 "Registering asset shelf class: '%s' is too long, maximum length is %d",
                 identifier,
-                (int)sizeof(shelf_type->idname));
+                int(sizeof(shelf_type->idname)));
     return nullptr;
   }
 
@@ -1936,9 +1936,9 @@ static void rna_def_panel(BlenderRNA *brna)
                            "possible combinations bl_context/bl_region_type/bl_space_type)");
 
   prop = RNA_def_property(srna, "bl_options", PROP_ENUM, PROP_NONE);
+  RNA_def_property_flag(prop, PROP_REGISTER_OPTIONAL | PROP_ENUM_FLAG);
   RNA_def_property_enum_sdna(prop, nullptr, "type->flag");
   RNA_def_property_enum_items(prop, panel_flag_items);
-  RNA_def_property_flag(prop, PROP_REGISTER_OPTIONAL | PROP_ENUM_FLAG);
   RNA_def_property_ui_text(prop, "Options", "Options for this panel type");
 
   prop = RNA_def_property(srna, "bl_parent_id", PROP_STRING, PROP_NONE);
@@ -2288,9 +2288,9 @@ static void rna_def_menu(BlenderRNA *brna)
   RNA_def_property_flag(prop, PROP_REGISTER_OPTIONAL);
 
   prop = RNA_def_property(srna, "bl_options", PROP_ENUM, PROP_NONE);
+  RNA_def_property_flag(prop, PROP_REGISTER_OPTIONAL | PROP_ENUM_FLAG);
   RNA_def_property_enum_sdna(prop, nullptr, "type->flag");
   RNA_def_property_enum_items(prop, menu_flag_items);
-  RNA_def_property_flag(prop, PROP_REGISTER_OPTIONAL | PROP_ENUM_FLAG);
   RNA_def_property_ui_text(prop, "Options", "Options for this menu type");
 
   RNA_define_verify_sdna(true);
@@ -2351,9 +2351,9 @@ static void rna_def_asset_shelf(BlenderRNA *brna)
       prop, "Space Type", "The space where the asset shelf is going to be used in");
 
   prop = RNA_def_property(srna, "bl_options", PROP_ENUM, PROP_NONE);
+  RNA_def_property_flag(prop, PROP_REGISTER_OPTIONAL | PROP_ENUM_FLAG);
   RNA_def_property_enum_sdna(prop, nullptr, "type->flag");
   RNA_def_property_enum_items(prop, asset_shelf_flag_items);
-  RNA_def_property_flag(prop, PROP_REGISTER_OPTIONAL | PROP_ENUM_FLAG);
   RNA_def_property_ui_text(prop, "Options", "Options for this asset shelf type");
 
   prop = RNA_def_property(srna, "bl_activate_operator", PROP_STRING, PROP_NONE);
@@ -2505,7 +2505,7 @@ static void rna_def_file_handler(BlenderRNA *brna)
       "File Extensions",
       "Formatted string of file extensions supported by the file handler, each extension should "
       "start with a \".\" and be separated by \";\"."
-      "\nFor Example: `\".blend;.ble\"`");
+      "\nFor Example: ``\".blend;.ble\"``");
 
   PropertyRNA *parm;
   FunctionRNA *func;

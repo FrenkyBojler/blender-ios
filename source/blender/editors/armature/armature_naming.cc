@@ -182,7 +182,7 @@ void ED_armature_bone_rename(Main *bmain,
           BLI_ghash_remove(arm->bonehash, bone->name, nullptr, nullptr);
         }
 
-        STRNCPY(bone->name, newname);
+        STRNCPY_UTF8(bone->name, newname);
 
         if (arm->bonehash) {
           BLI_ghash_insert(arm->bonehash, bone->name, bone);
@@ -314,7 +314,7 @@ void ED_armature_bone_rename(Main *bmain,
         Camera *cam = static_cast<Camera *>(ob->data);
         if ((cam->dof.focus_object != nullptr) && (cam->dof.focus_object->data == arm)) {
           if (STREQ(cam->dof.focus_subtarget, oldname)) {
-            STRNCPY(cam->dof.focus_subtarget, newname);
+            STRNCPY_UTF8(cam->dof.focus_subtarget, newname);
             DEG_id_tag_update(&cam->id, ID_RECALC_SYNC_TO_EVAL);
           }
         }
@@ -451,15 +451,13 @@ static wmOperatorStatus armature_flip_names_exec(bContext *C, wmOperator *op)
     ListBase bones_names = {nullptr};
 
     LISTBASE_FOREACH (EditBone *, ebone, arm->edbo) {
-      if (blender::animrig::bone_is_visible_editbone(arm, ebone)) {
-        if (ebone->flag & BONE_SELECTED) {
-          BLI_addtail(&bones_names, BLI_genericNodeN(ebone->name));
+      if (blender::animrig::bone_is_selected(arm, ebone)) {
+        BLI_addtail(&bones_names, BLI_genericNodeN(ebone->name));
 
-          if (arm->flag & ARM_MIRROR_EDIT) {
-            EditBone *flipbone = ED_armature_ebone_get_mirrored(arm->edbo, ebone);
-            if ((flipbone) && !(flipbone->flag & BONE_SELECTED)) {
-              BLI_addtail(&bones_names, BLI_genericNodeN(flipbone->name));
-            }
+        if (arm->flag & ARM_MIRROR_EDIT) {
+          EditBone *flipbone = ED_armature_ebone_get_mirrored(arm->edbo, ebone);
+          if ((flipbone) && !(flipbone->flag & BONE_SELECTED)) {
+            BLI_addtail(&bones_names, BLI_genericNodeN(flipbone->name));
           }
         }
       }

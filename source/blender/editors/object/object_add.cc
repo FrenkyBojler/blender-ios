@@ -1467,7 +1467,7 @@ static wmOperatorStatus object_grease_pencil_add_exec(bContext *C, wmOperator *o
         md->source_type = LINEART_SOURCE_SCENE;
       }
       /* Only created one layer and one material. */
-      STRNCPY(md->target_layer, grease_pencil->get_active_layer()->name().c_str());
+      STRNCPY_UTF8(md->target_layer, grease_pencil->get_active_layer()->name().c_str());
       md->target_material = BKE_object_material_get(object, 0);
       if (md->target_material) {
         id_us_plus(&md->target_material->id);
@@ -1543,7 +1543,7 @@ void OBJECT_OT_grease_pencil_add(wmOperatorType *ot)
                 0.0f,
                 0.5f);
   RNA_def_boolean(
-      ot->srna, "use_lights", false, "Use Lights", "Use lights for this Grease Pencil object");
+      ot->srna, "use_lights", true, "Use Lights", "Use lights for this Grease Pencil object");
   RNA_def_enum(
       ot->srna,
       "stroke_depth_order",
@@ -2341,7 +2341,7 @@ static void copy_object_set_idnew(bContext *C)
   Main *bmain = CTX_data_main(C);
 
   CTX_DATA_BEGIN (C, Object *, ob, selected_editable_objects) {
-    BKE_libblock_relink_to_newid(bmain, &ob->id, 0);
+    BKE_libblock_relink_to_newid(bmain, &ob->id, ID_REMAP_SKIP_USER_CLEAR);
   }
   CTX_DATA_END;
 
