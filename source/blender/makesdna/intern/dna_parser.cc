@@ -94,6 +94,20 @@ std::string to_string(const CppFile &cpp_file)
 }  // namespace blender::dna::parser
 
 namespace blender::dna::parser::ast {
+    
+/** Non null terminated fixed string. */
+template<size_t n> struct FixedString {
+  char str_[n];
+  constexpr FixedString(const char (&str)[n + 1])
+  {
+    std::copy(str, str + n, str_);
+  }
+  constexpr StringRef str()const
+  {
+    return StringRef(str_, n);
+  }
+};
+template<std::size_t n> FixedString(const char (&str)[n]) -> FixedString<n - 1>;
 
 using namespace lex;
 
@@ -162,7 +176,7 @@ template<typename T> ParseResult<T> parse_t(TokenIterator &token_iterator)
 /**
  * Parser that matches a sequence of elements to parse, fails if any `Args` in `Args...` fails to
  * parse.
- * The sequence: `Sequence<Symbol<'#'>,  Keyword<pragma_str>, Keyword<once_str>>` parses
+ * The sequence: `Sequence<Symbol<'#'>,  Keyword<"pragma">, Keyword<"once">>` parses
  * when the text contains `#pragma once`.
  */
 template<class... Args> using Sequence = std::tuple<Args...>;
@@ -201,7 +215,7 @@ template<class... Args> struct Parser<Sequence<Args...>> {
 
 /**
  * Parser that don't fails if `T` can't be parsed.
- * The sequence `Sequence<Optional<Keyword<const_str>>, Keyword<int_str>, Identifier, Symbol<';'>>`
+ * The sequence `Sequence<Optional<Keyword<"const">>, Keyword<"int">, Identifier, Symbol<';'>>`
  * success either if text is `const int num;` or `int num;`
  */
 template<typename T> using Optional = std::optional<T>;
@@ -219,7 +233,7 @@ template<typename T> struct Parser<Optional<T>> {
 
 /**
  * Parser that tries to match any `Arg` in `Args...`
- * The sequence `Sequence<Variant<Keyword<int_str>,  Keyword<float_str>>, Identifier, Symbol<';'>>`
+ * The sequence `Sequence<Variant<Keyword<"int">,  Keyword<"float">>, Identifier, Symbol<';'>>`
  * success either if text is `int num;` or `float num;`
  */
 template<class... Args> using Variant = std::variant<Args...>;
@@ -248,19 +262,17 @@ template<class... Args> struct Parser<Variant<Args...>> {
 };
 
 /** Keyword parser. */
-template<const char *word> struct Keyword {
-  static_assert(Span(keywords, ARRAY_SIZE(keywords)).contains(StringRef(word)),
-                "Template string parameter is not a Keyword Type");
-  StringRef str;
+template<FixedString keyword_t> struct Keyword {
+    StringRef str;
 };
 
-template<const char *Type> struct Parser<Keyword<Type>> {
-  static ParseResult<Keyword<Type>> parse(TokenIterator &token_iterator)
+template<FixedString keyword_t> struct Parser<Keyword<keyword_t>> {
+  static ParseResult<Keyword<keyword_t>> parse(TokenIterator &token_iterator)
   {
     if (KeywordToken *keyword = token_iterator.next<KeywordToken>();
-        keyword && keyword->where == Type)
+        keyword && keyword->where == keyword_t.str())
     {
-      return Keyword<Type>{keyword->where};
+      return Keyword<keyword_t>{keyword->where};
     }
     return parse_failed;
   }
@@ -268,8 +280,6 @@ template<const char *Type> struct Parser<Keyword<Type>> {
 
 /** Symbol parser. */
 template<char type> struct Symbol {
-  static_assert(symbols.find(type) != symbols.not_found,
-                "Template char parameter is not a Symbol Type");
   StringRef str;
 };
 template<char Type> struct Parser<Symbol<Type>> {
@@ -287,17 +297,17 @@ template<char Type> struct Parser<Symbol<Type>> {
 static void skip_until_match_paired_symbols(char left, char right, TokenIterator &token_iterator);
 
 /**
- * Parses a macro call, `MacroCall<Keyword<DNA_DEFINE_CXX_METHODS_str>>` parses
+ * Parses a macro call, `MacroCall<Keyword<"DNA_DEFINE_CXX_METHODS">>` parses
  * `DNA_DEFINE_CXX_METHODS(...)`.
  */
-template<const char *Type> struct MacroCall {};
-template<const char *Type> struct Parser<MacroCall<Type>> {
-  static ParseResult<MacroCall<Type>> parse(TokenIterator &token_iterator)
+template<FixedString macro_t> struct MacroCall {};
+template<FixedString macro_t> struct Parser<MacroCall<macro_t>> {
+  static ParseResult<MacroCall<macro_t>> parse(TokenIterator &token_iterator)
   {
-    if (parse_t<Sequence<Keyword<Type>, Symbol<'('>>>(token_iterator).success()) {
+    if (parse_t<Sequence<Keyword<macro_t>, Symbol<'('>>>(token_iterator).success()) {
       skip_until_match_paired_symbols('(', ')', token_iterator);
       parse_t<Symbol<';'>>(token_iterator);
-      return MacroCall<Type>{};
+      return MacroCall<macro_t>{};
     }
     return parse_failed;
   }
@@ -350,7 +360,7 @@ struct Include {};
 template<> struct Parser<Include> {
   static ParseResult<Include> parse(TokenIterator &token_iterator)
   {
-    if (parse_t<Sequence<Symbol<'#'>, Keyword<include_str>>>(token_iterator).success()) {
+    if (parse_t<Sequence<Symbol<'#'>, Keyword<"include">>>(token_iterator).success()) {
       TokenVariant *token = token_iterator.next_variant();
       while (token && !std::holds_alternative<BreakLineToken>(*token)) {
         token = token_iterator.next_variant();
@@ -373,7 +383,7 @@ struct Define {};
 template<> struct Parser<Define> {
   static ParseResult<Define> parse(TokenIterator &token_iterator)
   {
-    if (!parse_t<Sequence<Symbol<'#'>, Keyword<define_str>>>(token_iterator).success()) {
+    if (!parse_t<Sequence<Symbol<'#'>, Keyword<"define">>>(token_iterator).success()) {
       return parse_failed;
     }
     bool scape_bl = false;
@@ -396,7 +406,7 @@ template<> struct Parser<Define> {
 template<> struct Parser<IntDeclaration> {
   static ParseResult<IntDeclaration> parse(TokenIterator &token_iterator)
   {
-    using DefineConstIntSeq = Sequence<Symbol<'#'>, Keyword<define_str>, Identifier, IntLiteral>;
+    using DefineConstIntSeq = Sequence<Symbol<'#'>, Keyword<"define">, Identifier, IntLiteral>;
     ParseResult<DefineConstIntSeq> def_int_seq = parse_t<DefineConstIntSeq>(token_iterator);
     if (!def_int_seq.success() || !token_iterator.next<BreakLineToken>()) {
       return parse_failed;
@@ -414,23 +424,23 @@ template<> struct Parser<PrimitiveType> {
   static ParseResult<PrimitiveType> parse(TokenIterator &token_iterator)
   {
     /* TODO: Add all primitive types. */
-    const bool is_unsigned = parse_t<Keyword<unsigned_str>>(token_iterator).success();
-    using PrimitiveTypeVariants = Variant<Keyword<int_str>,
-                                          Keyword<char_str>,
-                                          Keyword<short_str>,
-                                          Keyword<float_str>,
-                                          Keyword<double_str>,
-                                          Keyword<void_str>,
-                                          Keyword<int8_t_str>,
-                                          Keyword<int16_t_str>,
-                                          Keyword<int32_t_str>,
-                                          Keyword<int64_t_str>,
-                                          Keyword<uint8_t_str>,
-                                          Keyword<uint16_t_str>,
-                                          Keyword<uint32_t_str>,
-                                          Keyword<uint64_t_str>,
-                                          Keyword<long_str>,
-                                          Keyword<ulong_str>>;
+    const bool is_unsigned = parse_t<Keyword<"unsigned">>(token_iterator).success();
+    using PrimitiveTypeVariants = Variant<Keyword<"int">,
+                                          Keyword<"char">,
+                                          Keyword<"short">,
+                                          Keyword<"float">,
+                                          Keyword<"double">,
+                                          Keyword<"void">,
+                                          Keyword<"int8_t">,
+                                          Keyword<"int16_t">,
+                                          Keyword<"int32_t">,
+                                          Keyword<"int64_t">,
+                                          Keyword<"uint8_t">,
+                                          Keyword<"uint16_t">,
+                                          Keyword<"uint32_t">,
+                                          Keyword<"uint64_t">,
+                                          Keyword<"long">,
+                                          Keyword<"ulong">>;
     ParseResult<PrimitiveTypeVariants> type = parse_t<PrimitiveTypeVariants>(token_iterator);
     /* Only int, char or short could be unsigned. */
     if (type.fail() || (is_unsigned && type.value().index() > 2)) {
@@ -451,9 +461,8 @@ struct Type {
 template<> struct Parser<Type> {
   static ParseResult<Type> parse(TokenIterator &token_iterator)
   {
-    using TypeVariant =
-        Variant<PrimitiveType, Sequence<Optional<Keyword<struct_str>>, Identifier>>;
-    using TypeSequence = Sequence<Optional<Keyword<const_str>>, TypeVariant>;
+    using TypeVariant = Variant<PrimitiveType, Sequence<Optional<Keyword<"struct">>, Identifier>>;
+    using TypeSequence = Sequence<Optional<Keyword<"const">>, TypeVariant>;
 
     ParseResult<TypeSequence> type_seq = parse_t<TypeSequence>(token_iterator);
     if (!type_seq.success()) {
@@ -528,7 +537,7 @@ template<> struct Parser<VariableDeclaration> {
       item.name = name.value().str;
       item.array_size = variable_array_size_parse(token_iterator);
       var_decl.items.append(std::move(item));
-      parse_t<Keyword<DNA_DEPRECATED_str>>(token_iterator);
+      parse_t<Keyword<"DNA_DEPRECATED">>(token_iterator);
       if (parse_t<Symbol<';'>>(token_iterator).success()) {
         break;
       }
@@ -627,7 +636,7 @@ template<> struct Parser<IfDef> {
   static ParseResult<IfDef> parse(TokenIterator &token_iterator)
   {
     using IfDefBeginSequence =
-        Sequence<Symbol<'#'>, Variant<Keyword<ifdef_str>, Keyword<if_str>, Keyword<ifndef_str>>>;
+        Sequence<Symbol<'#'>, Variant<Keyword<"ifdef">, Keyword<"if">, Keyword<"ifndef">>>;
     const ParseResult<IfDefBeginSequence> ifdef_seq = parse_t<IfDefBeginSequence>(token_iterator);
     if (!ifdef_seq.success()) {
       return parse_failed;
@@ -639,8 +648,8 @@ template<> struct Parser<IfDef> {
     {
       if (std::holds_alternative<KeywordToken>(*token)) {
         KeywordToken &keyword = std::get<KeywordToken>(*token);
-        ifdef_deep += (hash_carried && ELEM(keyword.where, if_str, ifdef_str, ifndef_str));
-        ifdef_deep -= hash_carried && keyword.where == endif_str;
+        ifdef_deep += (hash_carried && ELEM(keyword.where, "if", "ifdef", "ifndef"));
+        ifdef_deep -= hash_carried && keyword.where == "endif";
       }
       if (ifdef_deep == 0) {
         break;
@@ -661,8 +670,8 @@ template<> struct Parser<IfDef> {
 template<> struct Parser<StructDeclaration> {
   static ParseResult<StructDeclaration> parse(TokenIterator &token_iterator)
   {
-    using StructBeginSequence = Sequence<Optional<Keyword<typedef_str>>,
-                                         Keyword<struct_str>,
+    using StructBeginSequence = Sequence<Optional<Keyword<"typedef">>,
+                                         Keyword<"struct">,
                                          Optional<Identifier>,
                                          Symbol<'{'>>;
     ParseResult<StructBeginSequence> struct_seq = parse_t<StructBeginSequence>(token_iterator);
@@ -674,7 +683,7 @@ template<> struct Parser<StructDeclaration> {
       struct_decl.name = std::get<2>(struct_seq.value()).value().str;
     }
     while (true) {
-      using DNA_DEF_CCX_Macro = MacroCall<DNA_DEFINE_CXX_METHODS_str>;
+      using DNA_DEF_CCX_Macro = MacroCall<"DNA_DEFINE_CXX_METHODS">;
       using MemberVariant = Variant<VariableDeclaration,
                                     FunctionPtrDeclaration,
                                     ArrayPtrDeclaration,
@@ -712,17 +721,17 @@ template<> struct Parser<UnusedDeclaration> {
         Define,
         Include,
         IfDef,
-        Sequence<Symbol<'#'>, Keyword<pragma_str>, Keyword<once_str>>,
+        Sequence<Symbol<'#'>, Keyword<"pragma">, Keyword<"once">>,
         Sequence<Symbol<'#'>, Symbol<'#'>, StructDeclaration>,
-        Sequence<Keyword<extern_str>, VariableDeclaration>,
-        MacroCall<BLI_STATIC_ASSERT_ALIGN_str>,
-        MacroCall<ENUM_OPERATORS_str>,
-        Sequence<Keyword<typedef_str>, Keyword<struct_str>, Identifier, Identifier, Symbol<';'>>>;
+        Sequence<Keyword<"extern">, VariableDeclaration>,
+        MacroCall<"BLI_STATIC_ASSERT_ALIGN">,
+        MacroCall<"ENUM_OPERATORS">,
+        Sequence<Keyword<"typedef">, Keyword<"struct">, Identifier, Identifier, Symbol<';'>>>;
     if (parse_t<UnusedDeclarations>(token_iterator).success()) {
       return UnusedDeclaration{};
     }
     /* Forward declarations. */
-    if (parse_t<Sequence<Keyword<struct_str>, Identifier>>(token_iterator).success()) {
+    if (parse_t<Sequence<Keyword<"struct">, Identifier>>(token_iterator).success()) {
       for (; parse_t<Sequence<Symbol<','>, Identifier>>(token_iterator).success();) {
       }
       if (parse_t<Symbol<';'>>(token_iterator).success()) {
@@ -740,9 +749,9 @@ template<> struct Parser<UnusedDeclaration> {
 template<> struct Parser<EnumDeclaration> {
   static ParseResult<EnumDeclaration> parse(TokenIterator &token_iterator)
   {
-    using EnumBeginSequence = Sequence<Optional<Keyword<typedef_str>>,
-                                       Keyword<enum_str>,
-                                       Optional<Keyword<class_str>>,
+    using EnumBeginSequence = Sequence<Optional<Keyword<"typedef">>,
+                                       Keyword<"enum">,
+                                       Optional<Keyword<"class">>,
                                        Optional<Identifier>,
                                        Optional<Sequence<Symbol<':'>, PrimitiveType>>,
                                        Symbol<'{'>>;
@@ -761,7 +770,7 @@ template<> struct Parser<EnumDeclaration> {
     skip_until_match_paired_symbols('{', '}', token_iterator);
 
     using EnumEndSeq =
-        Sequence<Optional<Identifier>, Optional<Keyword<DNA_DEPRECATED_str>>, Symbol<';'>>;
+        Sequence<Optional<Identifier>, Optional<Keyword<"DNA_DEPRECATED">>, Symbol<';'>>;
     if (!parse_t<EnumEndSeq>(token_iterator).success()) {
       return parse_failed;
     }
@@ -814,16 +823,15 @@ std::optional<CppFile> parse_file(StringRef filepath)
 
   int dna_deprecated_allow_count = 0;
   using DNADeprecatedAllowSeq =
-      Sequence<Symbol<'#'>, Keyword<ifdef_str>, Keyword<DNA_DEPRECATED_ALLOW_str>>;
-  using EndIfSeq = Sequence<Symbol<'#'>, Keyword<endif_str>>;
+      Sequence<Symbol<'#'>, Keyword<"ifdef">, Keyword<"DNA_DEPRECATED_ALLOW">>;
+  using EndIfSeq = Sequence<Symbol<'#'>, Keyword<"endif">>;
 
   while (!token_iterator.has_finish()) {
-    using CPPTypeVariant =
-        Variant<Sequence<Optional<Keyword<typedef_str>>, FunctionPtrDeclaration>,
-                VariableDeclaration,
-                DNADeprecatedAllowSeq,
-                EndIfSeq,
-                UnusedDeclaration>;
+    using CPPTypeVariant = Variant<Sequence<Optional<Keyword<"typedef">>, FunctionPtrDeclaration>,
+                                   VariableDeclaration,
+                                   DNADeprecatedAllowSeq,
+                                   EndIfSeq,
+                                   UnusedDeclaration>;
 
     if (auto struct_decl = parse_t<StructDeclaration>(token_iterator); struct_decl.success()) {
       cpp_file.cpp_defs.append(std::move(struct_decl.value()));

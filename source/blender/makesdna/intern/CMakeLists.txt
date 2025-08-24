@@ -2,6 +2,8 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
+set(CMAKE_CXX_STANDARD 20)
+
 set(INC
   PUBLIC ..
   PUBLIC ${CMAKE_CURRENT_BINARY_DIR}

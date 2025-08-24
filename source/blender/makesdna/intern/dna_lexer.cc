@@ -26,6 +26,53 @@ void TokenIterator::eval_break_line(const char *&itr, const char * /*end*/)
   itr++;
 }
 
+static Span<StringRef> keywords()
+{
+  static StringRef keywords[] = {"include",
+                                 "struct",
+                                 "typedef",
+                                 "class",
+                                 "enum",
+                                 "define",
+                                 "public",
+                                 "private",
+                                 "const",
+                                 "void",
+                                 "char",
+                                 "char16_t",
+                                 "char32_t",
+                                 "unsigned",
+                                 "signed",
+                                 "short",
+                                 "long",
+                                 "ulong",
+                                 "int",
+                                 "int8_t",
+                                 "int16_t",
+                                 "int32_t",
+                                 "int64_t",
+                                 "uint8_t",
+                                 "uint16_t",
+                                 "uint32_t",
+                                 "uint64_t",
+                                 "float",
+                                 "double",
+                                 "if",
+                                 "ifdef",
+                                 "ifndef",
+                                 "endif",
+                                 "extern",
+                                 "pragma",
+                                 "once",
+                                 /* Common Blender macros in DNA. */
+                                 "BLI_STATIC_ASSERT_ALIGN",
+                                 "DNA_DEFINE_CXX_METHODS",
+                                 "DNA_DEPRECATED",
+                                 "DNA_DEPRECATED_ALLOW",
+                                 "ENUM_OPERATORS"};
+  return Span(keywords, ARRAY_SIZE(keywords));
+}
+
 void TokenIterator::eval_identifier(const char *&itr, const char *end)
 {
   if (!(std::isalpha(itr[0]) || itr[0] == '_')) {
@@ -35,9 +82,8 @@ void TokenIterator::eval_identifier(const char *&itr, const char *end)
   while (itr < end && (std::isalnum(itr[0]) || itr[0] == '_')) {
     itr++;
   }
-
   StringRef str = StringRef(start, itr);
-  if (Span(keywords, ARRAY_SIZE(keywords)).contains(str)) {
+  if (keywords().contains(str)) {
     this->append(KeywordToken{str});
     return;
   }
@@ -92,7 +138,7 @@ void TokenIterator::eval_multiline_comment(const char *&itr, const char *end)
 
 void TokenIterator::eval_symbol(const char *&itr, const char * /* end */)
 {
-  if (symbols.find(itr[0]) != symbols.not_found) {
+  if (StringRef(":;()[]{}=#.,*<>|&+-!%^?~\\/").find(itr[0]) != StringRef::not_found) {
     this->append(SymbolToken{StringRef(itr, itr + 1)});
     itr++;
   }
