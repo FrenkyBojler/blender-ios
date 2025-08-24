@@ -2402,12 +2402,13 @@ PROFILE_FUNCTION static void update_linear_velocities(SimPoints &sim_points,
   const float inv_delta_time = math::safe_rcp(delta_time);
   Span<float3> new_positions = sim_points.positions;
   MutableSpan<float3> velocities = sim_points.velocities;
-  for (const int i : range) {
+  for (const int i : range.index_range()) {
+    const int point_i = range[i];
     const float3 &prev_position = prev_positions[i];
-    const float3 &new_position = new_positions[i];
+    const float3 &new_position = new_positions[point_i];
     const float3 diff = new_position - prev_position;
     const float3 velocity = diff * inv_delta_time;
-    velocities[i] = velocity;
+    velocities[point_i] = velocity;
   }
 }
 
@@ -2419,15 +2420,17 @@ PROFILE_FUNCTION static void update_angular_velocities(SimPoints &sim_points,
   const float inv_delta_time = math::safe_rcp(delta_time);
   const Span<math::Quaternion> new_rotations = sim_points.rotations;
   MutableSpan<float3> angular_velocities = sim_points.angular_velocities;
-  for (const int i : range) {
-    float3 diff = (math::invert_normalized(prev_rotations[i]) * new_rotations[i]).imaginary_part();
+  for (const int i : range.index_range()) {
+    const int point_i = range[i];
+    float3 diff =
+        (math::invert_normalized(prev_rotations[i]) * new_rotations[point_i]).imaginary_part();
     for (const int j : IndexRange(3)) {
       if (math::abs(diff[j]) < 1e-5f) {
         diff[j] = 0.0f;
       }
     }
     const float3 new_angular_velocity = 2.0f * diff * inv_delta_time;
-    angular_velocities[i] = new_angular_velocity;
+    angular_velocities[point_i] = new_angular_velocity;
   }
 }
 
@@ -2652,9 +2655,9 @@ PROFILE_FUNCTION static void remember_previous_state(
     const MutableSpan<float3> dst_positions,
     const MutableSpan<math::Quaternion> dst_rotations)
 {
-  dst_positions.slice(range).copy_from(sim_points.positions.as_span().slice(range));
+  dst_positions.copy_from(sim_points.positions.as_span().slice(range));
   if (sim_points.has_rotation) {
-    dst_rotations.slice(range).copy_from(sim_points.rotations.as_span().slice(range));
+    dst_rotations.copy_from(sim_points.rotations.as_span().slice(range));
   }
 }
 
@@ -2833,6 +2836,11 @@ PROFILE_FUNCTION static void update_and_step_xpbd_state(XPBDState &state,
       gather_soft_pinned_rotation_constraints(
           scope, keys, pinned_rotations_map, static_constraint_sets);
 
+  remove_unused_states(state);
+
+  const Vector<xpbd::GeometryRef> geometry_refs = prepare_geometry_refs_for_solver(
+      state, keys, sim_points_props);
+
   Array<Array<float3>> all_prev_positions(keys.size());
   Array<Array<math::Quaternion>> all_prev_rotations(keys.size());
   for (const int i : keys.index_range()) {
@@ -2842,9 +2850,6 @@ PROFILE_FUNCTION static void update_and_step_xpbd_state(XPBDState &state,
       all_prev_rotations[i].reinitialize(sim_points.points_num);
     }
   }
-
-  const Vector<xpbd::GeometryRef> geometry_refs = prepare_geometry_refs_for_solver(
-      state, keys, sim_points_props);
 
   /* Instead of doing various stages like remembering old positions and updating velocities one
    * after another, interleave them to improve cache locality and thread utilization. This is
@@ -2872,15 +2877,15 @@ PROFILE_FUNCTION static void update_and_step_xpbd_state(XPBDState &state,
               if (do_post_solve) {
                 post_solve_per_point_steps(sim_points,
                                            range,
-                                           all_prev_positions[key_i],
-                                           all_prev_rotations[key_i],
+                                           all_prev_positions[key_i].as_span().slice(range),
+                                           all_prev_rotations[key_i].as_span().slice(range),
                                            sub_delta_time);
               }
               if (do_pre_solve) {
                 pre_solve_per_point_steps(sim_points,
                                           range,
-                                          all_prev_positions[key_i],
-                                          all_prev_rotations[key_i],
+                                          all_prev_positions[key_i].as_mutable_span().slice(range),
+                                          all_prev_rotations[key_i].as_mutable_span().slice(range),
                                           props,
                                           accelerations,
                                           torques,
@@ -2896,7 +2901,7 @@ PROFILE_FUNCTION static void update_and_step_xpbd_state(XPBDState &state,
     });
   };
 
-  for ([[maybe_unused]] const int substep_i : IndexRange(substeps)) {
+  for (const int substep_i : IndexRange(substeps)) {
     const float substep_factor = substeps <= 1 ? 1.0f : float(substep_i) / (substeps - 1);
     const bool is_first_substep = substep_i == 0;
     const bool is_last_substep = substep_i == substeps - 1;
@@ -2931,8 +2936,6 @@ PROFILE_FUNCTION static void update_and_step_xpbd_state(XPBDState &state,
      * also does the beginning of the next timestep already unless this is the last substep. */
     run_per_point_updates(substep_factor, !is_last_substep, true);
   }
-
-  remove_unused_states(state);
 }
 
 static void initialize_state(XPBDState & /*state*/)
