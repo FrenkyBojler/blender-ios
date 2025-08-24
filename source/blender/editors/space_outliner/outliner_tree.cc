@@ -265,6 +265,9 @@ TreeElement *AbstractTreeDisplay::add_element(ListBase *lb,
   else if (ELEM(type, TSE_GENERIC_LABEL)) {
     persistent_dataptr = nullptr;
   }
+  else if ((owner_id == nullptr) && type == TSE_DEPSGRAPH_ID_NODE) {
+    persistent_dataptr = nullptr;
+  }
   else if (persistent_dataptr == nullptr) {
     return nullptr;
   }

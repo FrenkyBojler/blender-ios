@@ -2991,7 +2991,7 @@ TreeElementIcon tree_element_get_icon(TreeStoreElem *tselem, TreeElement *te)
     }
   }
   else if (tselem->type == TSE_DEPSGRAPH_ID_NODE) {
-    data.icon = tree_element_get_icon_from_id(tselem->id);
+    data.icon = tselem->id ? tree_element_get_icon_from_id(tselem->id) : ICON_DOT;
   }
   else if (tselem->id) {
     data.drag_id = tselem->id;

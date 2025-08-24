@@ -62,6 +62,10 @@ void TreeElementDepsgraphIDNode::expand(SpaceOutliner & /*soops*/) const
       this->expand_scene(scene);
       break;
     }
+    case ID_OB: {
+      const_cast<ID *>(orig_id_)->newid = (ID *)(&legacy_te_);
+      break;
+    }
     default:
       break;
   }
