@@ -569,11 +569,8 @@ class CYCLES_RENDER_PT_volumes(CyclesButtonsPanel, Panel):
         scene = context.scene
         cscene = scene.cycles
 
-        col = layout.column(align=True)
-        col.prop(cscene, "volume_step_rate", text="Step Rate Render")
-        col.prop(cscene, "volume_preview_step_rate", text="Viewport")
-
-        layout.prop(cscene, "volume_max_steps", text="Max Steps")
+        col = layout.column()
+        col.prop(cscene, "volume_unbiased", text="Unbiased")
 
 
 class CYCLES_RENDER_PT_light_paths(CyclesButtonsPanel, Panel):
@@ -1057,6 +1054,13 @@ class CYCLES_RENDER_PT_passes_light(CyclesButtonsPanel, Panel):
         col.prop(cycles_view_layer, "use_pass_volume_direct", text="Direct")
         col.prop(cycles_view_layer, "use_pass_volume_indirect", text="Indirect")
 
+        prefs = context.preferences
+        use_debug = prefs.experimental.use_cycles_debug and prefs.view.show_developer_ui
+        if use_debug:
+            col.prop(cycles_view_layer, "use_pass_volume_scatter", text="Scatter")
+            col.prop(cycles_view_layer, "use_pass_volume_transmit", text="Transmit")
+            col.prop(cycles_view_layer, "use_pass_volume_majorant", text="Majorant")
+
         col = layout.column(heading="Other", align=True)
         col.prop(view_layer, "use_pass_emit", text="Emission")
         col.prop(view_layer, "use_pass_environment")
@@ -1456,7 +1460,7 @@ class CYCLES_OBJECT_PT_visibility_culling(CyclesButtonsPanel, Panel):
 def panel_node_draw(layout, id_data, output_type, input_name):
     from bpy_extras.node_utils import find_node_input
 
-    if not id_data.use_nodes:
+    if output_type != 'OUTPUT_WORLD' and not id_data.use_nodes:
         layout.operator("cycles.use_shading_nodes", icon='NODETREE')
         return False
 
@@ -1518,6 +1522,7 @@ class CYCLES_LIGHT_PT_light(CyclesButtonsPanel, Panel):
         col = layout.column()
         heading = col.column(align=True, heading="Temperature")
         row = heading.column(align=True).row(align=True)
+        row.use_property_decorate = False
         row.prop(light, "use_temperature", text="")
         # Don't show color preview for now, it is grayed out so the color
         # is not accurate. Would not a change in the UI code to allow
@@ -1531,6 +1536,7 @@ class CYCLES_LIGHT_PT_light(CyclesButtonsPanel, Panel):
             sub = row.row()
             sub.active = light.use_temperature
             sub.prop(light, "temperature", text="")
+            row.prop_decorator(light, "temperature")
 
         if light.use_temperature:
             col.prop(light, "color", text="Tint")
@@ -1815,10 +1821,6 @@ class CYCLES_WORLD_PT_settings_volume(CyclesButtonsPanel, Panel):
         sub = col.column()
         col.prop(cworld, "volume_sampling", text="Sampling")
         col.prop(cworld, "volume_interpolation", text="Interpolation")
-        col.prop(cworld, "homogeneous_volume", text="Homogeneous")
-        sub = col.column()
-        sub.active = not cworld.homogeneous_volume
-        sub.prop(cworld, "volume_step_size")
 
 
 class CYCLES_WORLD_PT_settings_light_group(CyclesButtonsPanel, Panel):
@@ -1991,10 +1993,6 @@ class CYCLES_MATERIAL_PT_settings_volume(CyclesButtonsPanel, Panel):
         sub = col.column()
         col.prop(cmat, "volume_sampling", text="Sampling")
         col.prop(cmat, "volume_interpolation", text="Interpolation")
-        col.prop(cmat, "homogeneous_volume", text="Homogeneous")
-        sub = col.column()
-        sub.active = not cmat.homogeneous_volume
-        sub.prop(cmat, "volume_step_rate")
 
     def draw(self, context):
         self.draw_shared(self, context, context.material)

@@ -5,6 +5,8 @@
 #include "BKE_curves.hh"
 #include "BKE_grease_pencil.hh"
 
+#include "GEO_foreach_geometry.hh"
+
 #include "node_geometry_util.hh"
 
 namespace blender::nodes::node_geo_set_curve_tilt_cc {
@@ -13,8 +15,9 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   b.use_custom_socket_order();
   b.allow_any_socket_order();
-  b.add_input<decl::Geometry>("Curve").supported_type(
-      {GeometryComponent::Type::Curve, GeometryComponent::Type::GreasePencil});
+  b.add_input<decl::Geometry>("Curve")
+      .supported_type({GeometryComponent::Type::Curve, GeometryComponent::Type::GreasePencil})
+      .description("Curves to set tilt on");
   b.add_output<decl::Geometry>("Curve").propagate_all().align_with_previous();
   b.add_input<decl::Bool>("Selection").default_value(true).hide_value().field_on_all();
   b.add_input<decl::Float>("Tilt").subtype(PROP_ANGLE).field_on_all();
@@ -57,7 +60,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   const Field<bool> selection = params.extract_input<Field<bool>>("Selection");
   const Field<float> tilt = params.extract_input<Field<float>>("Tilt");
 
-  geometry_set.modify_geometry_sets([&](GeometrySet &geometry_set) {
+  geometry::foreach_real_geometry(geometry_set, [&](GeometrySet &geometry_set) {
     if (Curves *curves_id = geometry_set.get_curves_for_write()) {
       bke::CurvesGeometry &curves = curves_id->geometry.wrap();
       const bke::CurvesFieldContext field_context(*curves_id, AttrDomain::Point);

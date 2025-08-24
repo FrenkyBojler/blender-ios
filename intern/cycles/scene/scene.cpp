@@ -5,7 +5,9 @@
 #include <cstdlib>
 
 #include "bvh/bvh.h"
+
 #include "device/device.h"
+
 #include "scene/alembic.h"
 #include "scene/background.h"
 #include "scene/bake.h"
@@ -27,6 +29,7 @@
 #include "scene/svm.h"
 #include "scene/tables.h"
 #include "scene/volume.h"
+
 #include "session/session.h"
 
 #include "util/guarded_allocator.h"
@@ -64,6 +67,7 @@ Scene ::Scene(const SceneParams &params_, Device *device)
   particle_system_manager = make_unique<ParticleSystemManager>();
   bake_manager = make_unique<BakeManager>();
   procedural_manager = make_unique<ProceduralManager>();
+  volume_manager = make_unique<VolumeManager>();
 
   /* Create nodes after managers, since create_node() can tag the managers. */
   camera = create_node<Camera>();
@@ -135,10 +139,9 @@ void Scene::free_memory(bool final)
     shader_manager->device_free(device, &dscene, this);
     osl_manager->device_free(device, &dscene, this);
     light_manager->device_free(device, &dscene);
-
     particle_system_manager->device_free(device, &dscene);
-
     bake_manager->device_free(device, &dscene);
+    volume_manager->device_free(&dscene);
 
     if (final) {
       image_manager->device_free(device);
@@ -162,6 +165,7 @@ void Scene::free_memory(bool final)
     bake_manager.reset();
     update_stats.reset();
     procedural_manager.reset();
+    volume_manager.reset();
   }
 }
 
@@ -305,6 +309,14 @@ void Scene::device_update(Device *device_, Progress &progress)
    * Some images may have been uploaded early for displacement already at this point. */
   progress.set_status("Updating Images");
   image_manager->device_update(device, this, progress);
+
+  if (progress.get_cancel() || device->have_error()) {
+    return;
+  }
+
+  /* Evaluate volume shader to build volume octrees. */
+  progress.set_status("Updating Volume");
+  volume_manager->device_update(device, &dscene, this, progress);
 
   if (progress.get_cancel() || device->have_error()) {
     return;
@@ -500,9 +512,10 @@ void Scene::update_kernel_features()
 
   const bool use_motion = need_motion() == Scene::MotionType::MOTION_BLUR;
   kernel_features |= KERNEL_FEATURE_PATH_TRACING;
-  if (params.hair_shape == CURVE_THICK) {
-    kernel_features |= KERNEL_FEATURE_HAIR_THICK;
-  }
+
+  /* Track the max prim count in case the backend needs to rebuild BVHs or
+   * kernels to support different limits. */
+  size_t kernel_max_prim_count = 0;
 
   /* Figure out whether the scene will use shader ray-trace we need at least
    * one caustic light, one caustic caster and one caustic receiver to use
@@ -528,10 +541,19 @@ void Scene::update_kernel_features()
       kernel_features |= KERNEL_FEATURE_SHADOW_CATCHER;
     }
     if (geom->is_hair()) {
-      kernel_features |= KERNEL_FEATURE_HAIR;
+      const Hair *hair = static_cast<const Hair *>(geom);
+      kernel_features |= (hair->curve_shape == CURVE_RIBBON) ? KERNEL_FEATURE_HAIR_RIBBON :
+                                                               KERNEL_FEATURE_HAIR_THICK;
+      kernel_max_prim_count = max(kernel_max_prim_count, hair->num_segments());
     }
     else if (geom->is_pointcloud()) {
       kernel_features |= KERNEL_FEATURE_POINTCLOUD;
+      kernel_max_prim_count = max(kernel_max_prim_count,
+                                  static_cast<PointCloud *>(geom)->num_points());
+    }
+    else if (geom->is_mesh()) {
+      kernel_max_prim_count = max(kernel_max_prim_count,
+                                  static_cast<Mesh *>(geom)->num_triangles());
     }
     else if (geom->is_light()) {
       const Light *light = static_cast<const Light *>(object->get_geometry());
@@ -573,6 +595,16 @@ void Scene::update_kernel_features()
   const uint max_closures = (params.background) ? get_max_closure_count() : MAX_CLOSURE;
   dscene.data.max_closures = max_closures;
   dscene.data.max_shaders = shaders.size();
+
+  /* Inform the device of the BVH limits. If this returns true, all BVHs
+   * and kernels need to be rebuilt. */
+  if (device->set_bvh_limits(objects.size(), kernel_max_prim_count)) {
+    kernels_loaded = false;
+    for (Geometry *geom : geometry) {
+      geom->need_update_rebuild = true;
+      geom->tag_modified();
+    }
+  }
 }
 
 bool Scene::update(Progress &progress)
@@ -621,6 +653,7 @@ static void log_kernel_features(const uint features)
   LOG_INFO << "Use Subsurface " << string_from_bool(features & KERNEL_FEATURE_SUBSURFACE);
   LOG_INFO << "Use Volume " << string_from_bool(features & KERNEL_FEATURE_VOLUME);
   LOG_INFO << "Use Shadow Catcher " << string_from_bool(features & KERNEL_FEATURE_SHADOW_CATCHER);
+  LOG_INFO << "Use Portal Node " << string_from_bool(features & KERNEL_FEATURE_NODE_PORTAL);
 }
 
 bool Scene::load_kernels(Progress &progress)
@@ -726,7 +759,7 @@ int Scene::get_volume_stack_size() const
 
   volume_stack_size = min(volume_stack_size, MAX_VOLUME_STACK_SIZE);
 
-  LOG_WORK << "Detected required volume stack size " << volume_stack_size;
+  LOG_DEBUG << "Detected required volume stack size " << volume_stack_size;
 
   return volume_stack_size;
 }
@@ -754,6 +787,22 @@ bool Scene::has_shadow_catcher()
 void Scene::tag_shadow_catcher_modified()
 {
   shadow_catcher_modified_ = true;
+}
+
+bool Scene::has_volume()
+{
+  has_volume_modified_ = false;
+  return dscene.data.integrator.use_volumes;
+}
+
+bool Scene::has_volume_modified() const
+{
+  return has_volume_modified_;
+}
+
+void Scene::tag_has_volume_modified()
+{
+  has_volume_modified_ = true;
 }
 
 template<> Light *Scene::create_node<Light>()
@@ -941,6 +990,9 @@ template<> void Scene::delete_node(Geometry *node)
   }
   else {
     flag = GeometryManager::MESH_REMOVED;
+    if (node->has_volume) {
+      volume_manager->tag_update(node);
+    }
   }
 
   geometry.erase_by_swap(node);
@@ -950,8 +1002,14 @@ template<> void Scene::delete_node(Geometry *node)
 template<> void Scene::delete_node(Object *node)
 {
   assert(node->get_owner() == this);
+
+  uint flag = ObjectManager::OBJECT_REMOVED;
+  if (node->get_geometry()->has_volume) {
+    volume_manager->tag_update(node, flag);
+  }
+
   objects.erase_by_swap(node);
-  object_manager->tag_update(this, ObjectManager::OBJECT_REMOVED);
+  object_manager->tag_update(this, flag);
 }
 
 template<> void Scene::delete_node(ParticleSystem *node)
