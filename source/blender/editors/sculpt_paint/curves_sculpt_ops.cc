@@ -19,6 +19,7 @@
 #include "BKE_modifier.hh"
 #include "BKE_object.hh"
 #include "BKE_paint.hh"
+#include "BKE_paint_types.hh"
 
 #include "BLT_translation.hh"
 
@@ -50,6 +51,7 @@
 #include "paint_intern.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "GPU_immediate.hh"
@@ -94,11 +96,11 @@ float brush_radius_factor(const Brush &brush, const StrokeExtension &stroke_exte
   return 1.0f;
 }
 
-float brush_radius_get(const Scene &scene,
+float brush_radius_get(const Paint &paint,
                        const Brush &brush,
                        const StrokeExtension &stroke_extension)
 {
-  return BKE_brush_size_get(&scene, &brush) * brush_radius_factor(brush, stroke_extension);
+  return BKE_brush_size_get(&paint, &brush) * brush_radius_factor(brush, stroke_extension);
 }
 
 float brush_strength_factor(const Brush &brush, const StrokeExtension &stroke_extension)
@@ -109,11 +111,11 @@ float brush_strength_factor(const Brush &brush, const StrokeExtension &stroke_ex
   return 1.0f;
 }
 
-float brush_strength_get(const Scene &scene,
+float brush_strength_get(const Paint &paint,
                          const Brush &brush,
                          const StrokeExtension &stroke_extension)
 {
-  return BKE_brush_alpha_get(&scene, &brush) * brush_strength_factor(brush, stroke_extension);
+  return BKE_brush_alpha_get(&paint, &brush) * brush_strength_factor(brush, stroke_extension);
 }
 
 static std::unique_ptr<CurvesSculptStrokeOperation> start_brush_operation(
@@ -308,7 +310,7 @@ static void curves_sculptmode_enter(bContext *C)
   paint->paint_cursor_col[3] = 128;
 
   ED_paint_cursor_start(&curves_sculpt->paint, curves_sculpt_poll_view3d);
-  paint_init_pivot(ob, scene);
+  paint_init_pivot(ob, scene, paint);
 
   /* Necessary to change the object mode on the evaluated object. */
   DEG_id_tag_update(&ob->id, ID_RECALC_SYNC_TO_EVAL);
@@ -783,8 +785,8 @@ static wmOperatorStatus select_grow_modal(bContext *C, wmOperator *op, const wmE
           attributes.add(
               ".selection",
               bke::AttrDomain(curves_id.selection_domain),
-              bke::cpp_type_to_custom_data_type(curve_op_data->original_selection.type()),
-              bke::AttributeInitVArray(GVArray::ForSpan(curve_op_data->original_selection)));
+              bke::cpp_type_to_attribute_type(curve_op_data->original_selection.type()),
+              bke::AttributeInitVArray(GVArray::from_span(curve_op_data->original_selection)));
         }
 
         /* Use #ID_RECALC_GEOMETRY instead of #ID_RECALC_SELECT because it is handled as a generic
@@ -870,11 +872,11 @@ struct MinDistanceEditData {
 
 static int calculate_points_per_side(bContext *C, MinDistanceEditData &op_data)
 {
-  Scene *scene = CTX_data_scene(C);
+  Paint *paint = BKE_paint_get_active_from_context(C);
   ARegion *region = op_data.region;
 
   const float min_distance = op_data.brush->curves_sculpt_settings->minimum_distance;
-  const float brush_radius = BKE_brush_size_get(scene, op_data.brush);
+  const float brush_radius = BKE_brush_size_get(paint, op_data.brush);
 
   float3 tangent_x_cu = math::cross(op_data.normal_cu, float3{0, 0, 1});
   if (math::is_zero(tangent_x_cu)) {
@@ -917,7 +919,7 @@ static void min_distance_edit_draw(bContext *C,
                                    const blender::float2 & /*tilt*/,
                                    void *customdata)
 {
-  Scene *scene = CTX_data_scene(C);
+  Paint *paint = BKE_paint_get_active_from_context(C);
   MinDistanceEditData &op_data = *static_cast<MinDistanceEditData *>(customdata);
 
   const float min_distance = op_data.brush->curves_sculpt_settings->minimum_distance;
@@ -947,7 +949,7 @@ static void min_distance_edit_draw(bContext *C,
 
   float4 circle_col = float4(op_data.brush->add_col);
   float circle_alpha = op_data.brush->cursor_overlay_alpha;
-  float brush_radius_re = BKE_brush_size_get(scene, op_data.brush);
+  float brush_radius_re = BKE_brush_size_get(paint, op_data.brush);
 
   /* Draw the grid. */
   GPU_matrix_push();
@@ -1095,8 +1097,8 @@ static wmOperatorStatus min_distance_edit_invoke(bContext *C, wmOperator *op, co
 
   /* Temporarily disable other paint cursors. */
   wmWindowManager *wm = CTX_wm_manager(C);
-  op_data->orig_paintcursors = wm->paintcursors;
-  BLI_listbase_clear(&wm->paintcursors);
+  op_data->orig_paintcursors = wm->runtime->paintcursors;
+  BLI_listbase_clear(&wm->runtime->paintcursors);
 
   /* Add minimum distance paint cursor. */
   op_data->cursor = WM_paint_cursor_activate(
@@ -1121,7 +1123,7 @@ static wmOperatorStatus min_distance_edit_modal(bContext *C, wmOperator *op, con
     /* Remove cursor. */
     WM_paint_cursor_end(static_cast<wmPaintCursor *>(op_data.cursor));
     /* Restore original paint cursors. */
-    wm->paintcursors = op_data.orig_paintcursors;
+    wm->runtime->paintcursors = op_data.orig_paintcursors;
 
     ED_region_tag_redraw(region);
     MEM_delete(&op_data);

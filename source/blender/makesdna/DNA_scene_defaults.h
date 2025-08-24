@@ -29,6 +29,7 @@
   { \
     .im_format = _DNA_DEFAULT_ImageFormatData, \
     .filepath = "//", \
+    .type = R_BAKE_NORMALS, \
     .flag = R_BAKE_CLEAR, \
     .pass_filter = R_BAKE_PASS_FILTER_ALL, \
     .width = 512, \
@@ -89,13 +90,6 @@
  \
     .gauss = 1.5, \
     .dither_intensity = 1.0f, \
- \
-    .bake_mode = 0, \
-    .bake_margin = 16, \
-    .bake_margin_type = R_BAKE_ADJACENT_FACES, \
-    .bake_flag = R_BAKE_CLEAR, \
-    .bake_samples = 256, \
-    .bake_biasdist = 0.001f, \
  \
     /* BakeData */ \
     .bake = _DNA_DEFAULT_BakeData, \
@@ -286,7 +280,10 @@
 
 #define _DNA_DEFAULTS_ImagePaintSettings \
   { \
-    .paint.flags = PAINT_SHOW_BRUSH, \
+    .paint = { \
+      .flags = PAINT_SHOW_BRUSH, \
+      .unified_paint_settings = _DNA_DEFAULTS_UnifiedPaintSettings, \
+    }, \
     .normal_angle = 80, \
     .seam_bleed = 2, \
     .clone_alpha = 0.5f, \
@@ -391,6 +388,9 @@
     .snap_angle_increment_3d_precision = DEG2RADF(1.0f), \
     .snap_angle_increment_2d_precision = DEG2RADF(1.0f), \
  \
+    /* Weight Paint */ \
+    .weightuser = OB_DRAW_GROUPUSER_ACTIVE, \
+ \
     .curve_paint_settings = _DNA_DEFAULTS_CurvePaintSettings, \
  \
     .unified_paint_settings = _DNA_DEFAULTS_UnifiedPaintSettings, \
@@ -433,6 +433,7 @@
     .automasking_boundary_edges_propagation_steps = 1, \
     .flags = SCULPT_DYNTOPO_SUBDIVIDE | SCULPT_DYNTOPO_COLLAPSE,\
     .paint = {\
+      .unified_paint_settings = _DNA_DEFAULTS_UnifiedPaintSettings, \
       .symmetry_flags = PAINT_SYMMETRY_FEATHER,\
       .tile_offset = {1.0f, 1.0f, 1.0f},\
     }\

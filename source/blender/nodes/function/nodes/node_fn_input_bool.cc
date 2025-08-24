@@ -6,7 +6,7 @@
 
 #include "NOD_geometry_nodes_gizmos.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 namespace blender::nodes::node_fn_input_bool_cc {
@@ -15,7 +15,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_output<decl::Bool>("Boolean").custom_draw([](CustomSocketDrawParams &params) {
     uiLayout &row = params.layout.row(true);
-    row.prop(&params.node_ptr, "boolean", UI_ITEM_NONE, "Boolean", ICON_NONE);
+    row.prop(&params.node_ptr, "boolean", UI_ITEM_NONE, IFACE_("Boolean"), ICON_NONE);
     if (gizmos::value_node_has_gizmo(params.tree, params.node)) {
       row.prop(&params.socket_ptr, "pin_gizmo", UI_ITEM_NONE, "", ICON_GIZMO);
     }

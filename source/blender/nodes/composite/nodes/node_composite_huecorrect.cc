@@ -6,7 +6,6 @@
  * \ingroup cmpnodes
  */
 
-#include "BKE_node.hh"
 #include "BLI_math_base.hh"
 #include "BLI_math_color.h"
 #include "BLI_math_vector.hh"
@@ -17,6 +16,7 @@
 #include "NOD_multi_function.hh"
 
 #include "BKE_colortools.hh"
+#include "BKE_node.hh"
 
 #include "GPU_material.hh"
 
@@ -26,6 +26,7 @@ namespace blender::nodes::node_composite_huecorrect_cc {
 
 static void cmp_node_huecorrect_declare(NodeDeclarationBuilder &b)
 {
+  b.is_function_node();
   b.add_input<decl::Float>("Fac")
       .default_value(1.0f)
       .min(0.0f)

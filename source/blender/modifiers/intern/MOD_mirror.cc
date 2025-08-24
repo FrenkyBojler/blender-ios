@@ -19,7 +19,7 @@
 #include "BKE_mesh_mirror.hh"
 #include "BKE_modifier.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "RNA_access.hh"
@@ -143,7 +143,7 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
                      (MOD_MIR_BISECT_AXIS_X | MOD_MIR_BISECT_AXIS_Y | MOD_MIR_BISECT_AXIS_Z));
 
   col = &layout->column(false);
-  uiLayoutSetPropSep(col, true);
+  col->use_property_split_set(true);
 
   prop = RNA_struct_find_property(ptr, "use_axis");
   row = &col->row(true, IFACE_("Axis"));
@@ -191,26 +191,26 @@ static void data_panel_draw(const bContext * /*C*/, Panel *panel)
 
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, nullptr);
 
-  uiLayoutSetPropSep(layout, true);
+  layout->use_property_split_set(true);
 
   col = &layout->column(true);
   row = &col->row(true, IFACE_("Mirror U"));
-  uiLayoutSetPropDecorate(row, false);
+  row->use_property_decorate_set(false);
   sub = &row->row(true);
   sub->prop(ptr, "use_mirror_u", UI_ITEM_NONE, "", ICON_NONE);
   sub = &sub->row(true);
   sub->active_set(RNA_boolean_get(ptr, "use_mirror_u"));
   sub->prop(ptr, "mirror_offset_u", UI_ITEM_R_SLIDER, "", ICON_NONE);
-  uiItemDecoratorR(row, ptr, "mirror_offset_u", 0);
+  row->decorator(ptr, "mirror_offset_u", 0);
 
   row = &col->row(true, IFACE_("V"));
-  uiLayoutSetPropDecorate(row, false);
+  row->use_property_decorate_set(false);
   sub = &row->row(true);
   sub->prop(ptr, "use_mirror_v", UI_ITEM_NONE, "", ICON_NONE);
   sub = &sub->row(true);
   sub->active_set(RNA_boolean_get(ptr, "use_mirror_v"));
   sub->prop(ptr, "mirror_offset_v", UI_ITEM_R_SLIDER, "", ICON_NONE);
-  uiItemDecoratorR(row, ptr, "mirror_offset_v", 0);
+  row->decorator(ptr, "mirror_offset_v", 0);
 
   col = &layout->column(true);
   col->prop(ptr, "offset_u", UI_ITEM_R_SLIDER, IFACE_("Offset U"), ICON_NONE);

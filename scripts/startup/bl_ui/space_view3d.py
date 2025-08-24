@@ -250,10 +250,9 @@ class _draw_tool_settings_context_mode:
         if brush is None:
             return False
 
-        tool_settings = context.tool_settings
         capabilities = brush.sculpt_capabilities
 
-        ups = tool_settings.unified_paint_settings
+        ups = paint.unified_paint_settings
 
         if capabilities.has_color:
             row = layout.row(align=True)
@@ -393,10 +392,9 @@ class _draw_tool_settings_context_mode:
 
         BrushAssetShelf.draw_popup_selector(layout, context, brush)
 
-        tool_settings = context.tool_settings
         capabilities = brush.sculpt_capabilities
 
-        ups = tool_settings.unified_paint_settings
+        ups = paint.unified_paint_settings
 
         size = "size"
         size_owner = ups if ups.use_unified_size else brush
@@ -487,7 +485,7 @@ class _draw_tool_settings_context_mode:
 
         if brush.gpencil_vertex_brush_type not in {'BLUR', 'AVERAGE', 'SMEAR'}:
             layout.separator(factor=0.4)
-            ups = context.tool_settings.unified_paint_settings
+            ups = paint.unified_paint_settings
             prop_owner = ups if ups.use_unified_color else brush
             layout.prop_with_popover(prop_owner, "color", text="", panel="TOPBAR_PT_grease_pencil_vertex_color")
 
@@ -1382,6 +1380,7 @@ class VIEW3D_MT_transform_armature(VIEW3D_MT_transform_base, Menu):
 
 class VIEW3D_MT_mirror(Menu):
     bl_label = "Mirror"
+    bl_translation_context = i18n_contexts.operator_default
 
     def draw(self, _context):
         layout = self.layout
@@ -1441,7 +1440,7 @@ class VIEW3D_MT_uv_map(Menu):
 
         layout.separator()
 
-        layout.operator("mesh.mark_seam").clear = False
+        layout.operator("mesh.mark_seam", icon='EDGE_SEAM').clear = False
         layout.operator("mesh.mark_seam", text="Clear Seam").clear = True
 
         layout.separator()
@@ -3050,11 +3049,11 @@ class VIEW3D_MT_object_context_menu(Menu):
             if light.type == 'SPOT':
                 layout.separator()
 
-                props = layout.operator("wm.context_modal_mouse", text="Adjust Spot Light Size")
+                props = layout.operator("wm.context_modal_mouse", text="Adjust Spot Light Beam Angle")
                 props.data_path_iter = "selected_editable_objects"
                 props.data_path_item = "data.spot_size"
                 props.input_scale = 0.01
-                props.header_text = rpt_("Spot Size: %.2f")
+                props.header_text = rpt_("Beam Angle: %.2f")
 
                 props = layout.operator("wm.context_modal_mouse", text="Adjust Spot Light Blend")
                 props.data_path_iter = "selected_editable_objects"
@@ -3124,7 +3123,7 @@ class VIEW3D_MT_object_context_menu(Menu):
         if view and view.local_view:
             layout.operator("view3d.localview_remove_from")
         else:
-            layout.operator("object.move_to_collection")
+            layout.menu("OBJECT_MT_move_to_collection")
 
         layout.separator()
 
@@ -3260,8 +3259,8 @@ class VIEW3D_MT_object_collection(Menu):
     def draw(self, _context):
         layout = self.layout
 
-        layout.operator("object.move_to_collection")
-        layout.operator("object.link_to_collection")
+        layout.menu("OBJECT_MT_move_to_collection")
+        layout.menu("OBJECT_MT_link_to_collection")
 
         layout.separator()
 
@@ -3603,7 +3602,10 @@ class VIEW3D_MT_paint_weight(Menu):
 
         layout.separator()
 
-        layout.operator("object.vertex_group_mirror", text="Mirror")
+        # Using default context for 'flipping along axis', to differentiate from 'symmetrizing' (i.e.
+        # 'mirrored copy').
+        # See https://projects.blender.org/blender/blender/issues/43295#issuecomment-1400465
+        layout.operator("object.vertex_group_mirror", text="Mirror", text_ctxt=i18n_contexts.default)
         layout.operator("object.vertex_group_invert", text="Invert")
         layout.operator("object.vertex_group_clean", text="Clean")
 
@@ -4451,7 +4453,9 @@ class VIEW3D_MT_edit_mesh(Menu):
 
         layout.operator("mesh.bisect")
         layout.operator("mesh.knife_project")
-        layout.operator("mesh.knife_tool")
+        props = layout.operator("mesh.knife_tool")
+        props.use_occlude_geometry = True
+        props.only_selected = False
 
         if with_bullet:
             layout.operator("mesh.convex_hull")
@@ -4562,7 +4566,7 @@ class VIEW3D_MT_edit_mesh_context_menu(Menu):
 
             col.separator()
 
-            col.operator("transform.vert_crease")
+            col.operator("transform.vert_crease", icon='VERTEX_CREASE')
 
             col.separator()
 
@@ -4614,17 +4618,17 @@ class VIEW3D_MT_edit_mesh_context_menu(Menu):
             col.separator()
 
             # Edge Flags
-            col.operator("transform.edge_crease")
-            col.operator("transform.edge_bevelweight")
+            col.operator("transform.edge_bevelweight", icon='EDGE_BEVEL')
+            col.operator("transform.edge_crease", icon='EDGE_CREASE')
 
             col.separator()
 
-            col.operator("mesh.mark_seam").clear = False
+            col.operator("mesh.mark_seam", icon='EDGE_SEAM').clear = False
             col.operator("mesh.mark_seam", text="Clear Seam").clear = True
 
             col.separator()
 
-            col.operator("mesh.mark_sharp")
+            col.operator("mesh.mark_sharp", icon='EDGE_SHARP').clear = False
             col.operator("mesh.mark_sharp", text="Clear Sharp").clear = True
             col.operator("mesh.set_sharpness_by_angle")
 
@@ -4770,7 +4774,7 @@ class VIEW3D_MT_edit_mesh_vertices(Menu):
 
         layout.separator()
 
-        layout.operator("transform.vert_crease")
+        layout.operator("transform.vert_crease", icon='VERTEX_CREASE')
 
         layout.separator()
 
@@ -4824,17 +4828,17 @@ class VIEW3D_MT_edit_mesh_edges(Menu):
 
         layout.separator()
 
-        layout.operator("transform.edge_crease")
-        layout.operator("transform.edge_bevelweight")
+        layout.operator("transform.edge_bevelweight", icon='EDGE_BEVEL')
+        layout.operator("transform.edge_crease", icon='EDGE_CREASE')
 
         layout.separator()
 
-        layout.operator("mesh.mark_seam").clear = False
+        layout.operator("mesh.mark_seam", icon='EDGE_SEAM').clear = False
         layout.operator("mesh.mark_seam", text="Clear Seam").clear = True
 
         layout.separator()
 
-        layout.operator("mesh.mark_sharp")
+        layout.operator("mesh.mark_sharp", icon='EDGE_SHARP')
         layout.operator("mesh.mark_sharp", text="Clear Sharp").clear = True
 
         layout.operator("mesh.mark_sharp", text="Mark Sharp from Vertices").use_verts = True
@@ -6743,12 +6747,11 @@ class VIEW3D_PT_shading_options(Panel):
             sub.active = shading.show_object_outline
             sub.prop(shading, "object_outline_color", text="")
 
-        if shading.type == 'SOLID':
-            col = col.column()
-            if shading.light in {'STUDIO', 'MATCAP'}:
-                studio_light = shading.selected_studio_light
-                col.active = (studio_light is not None) and studio_light.has_specular_highlight_pass
-                col.prop(shading, "show_specular_highlight", text="Specular Lighting")
+        if shading.type == 'SOLID' and shading.light in {'STUDIO', 'MATCAP'}:
+            sub = col.row()
+            studio_light = shading.selected_studio_light
+            sub.active = (studio_light is not None) and studio_light.has_specular_highlight_pass
+            sub.prop(shading, "show_specular_highlight", text="Specular Lighting")
 
         row = col.row(align=True)
 
@@ -7184,7 +7187,7 @@ class VIEW3D_PT_overlay_edit_mesh(Panel):
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'HEADER'
     bl_label = "Mesh Edit Mode"
-    bl_ui_units_x = 12
+    bl_ui_units_x = 14
 
     @classmethod
     def poll(cls, context):
@@ -7204,6 +7207,20 @@ class VIEW3D_PT_overlay_edit_mesh(Panel):
         col = layout.column()
         col.active = display_all
 
+        row = col.row(align=True)
+        row.prop(overlay, "show_edge_bevel_weight", text="Bevel", icon='EDGE_BEVEL', toggle=True)
+        row.prop(overlay, "show_edge_crease", text="Crease", icon='EDGE_CREASE', toggle=True)
+        row.prop(overlay, "show_edge_seams", text="Seam", icon='EDGE_SEAM', toggle=True)
+        row.prop(
+            overlay,
+            "show_edge_sharp",
+            text="Sharp",
+            icon='EDGE_SHARP',
+            text_ctxt=i18n_contexts.plural,
+            toggle=True,
+        )
+
+        col.separator()
         split = col.split()
 
         sub = split.column()
@@ -7212,13 +7229,6 @@ class VIEW3D_PT_overlay_edit_mesh(Panel):
         sub.active = is_any_solid_shading
         sub.prop(overlay, "show_face_center", text="Center")
 
-        row = col.row(align=True)
-        row.prop(overlay, "show_edge_crease", text="Creases", toggle=True)
-        row.prop(overlay, "show_edge_sharp", text="Sharp", text_ctxt=i18n_contexts.plural, toggle=True)
-        row.prop(overlay, "show_edge_bevel_weight", text="Bevel", toggle=True)
-        row.prop(overlay, "show_edge_seams", text="Seams", toggle=True)
-
-        col.separator()
         col.prop(overlay, "show_extra_indices", text="Indices")
 
 
@@ -7947,6 +7957,8 @@ class VIEW3D_PT_overlay_grease_pencil_options(Panel):
             col.prop(overlay, "use_gpencil_edit_lines", text="Edit Lines")
             col = split.column()
             col.prop(overlay, "use_gpencil_multiedit_line_only", text="Only in Multiframe")
+            row = layout.row()
+            row.prop(overlay, "display_handle", text="Handles")
 
         if ob.mode == 'EDIT':
             split = layout.split()
@@ -8380,7 +8392,7 @@ class VIEW3D_MT_greasepencil_edit_context_menu(Menu):
 
             col.separator()
 
-            col.menu("VIEW3D_MT_mirror", text="Mirror")
+            col.menu("VIEW3D_MT_mirror", text="Mirror", text_ctxt=i18n_contexts.operator_default)
 
             col.separator()
 
@@ -8458,12 +8470,22 @@ class VIEW3D_PT_greasepencil_draw_context_menu(Panel):
             col.separator()
 
         if brush.gpencil_brush_type not in {'FILL', 'CUTTER', 'ERASE'}:
-            radius = "size" if (brush.use_locked_size == 'VIEW') else "unprojected_radius"
-            layout.prop(brush, radius, text="Radius", slider=True)
+            if brush.use_locked_size == 'VIEW':
+                row = layout.row(align=True)
+                row.prop(brush, "size", slider=True)
+                row.prop(brush, "use_pressure_size", text="", icon='STYLUS_PRESSURE')
+            else:
+                row = layout.row(align=True)
+                row.prop(brush, "unprojected_radius", text="Size", slider=True)
+                row.prop(brush, "use_pressure_size", text="", icon='STYLUS_PRESSURE')
         if brush.gpencil_brush_type == 'ERASE':
-            layout.prop(brush, "size", slider=True)
+            row = layout.row(align=True)
+            row.prop(brush, "size", slider=True)
+            row.prop(brush, "use_pressure_size", text="", icon='STYLUS_PRESSURE')
         if brush.gpencil_brush_type not in {'ERASE', 'FILL', 'CUTTER'}:
-            layout.prop(gp_settings, "pen_strength")
+            row = layout.row(align=True)
+            row.prop(brush, "strength", slider=True)
+            row.prop(brush, "use_pressure_strength", text="", icon='STYLUS_PRESSURE')
 
         layer = context.object.data.layers.active
 
@@ -8491,14 +8513,21 @@ class VIEW3D_PT_greasepencil_sculpt_context_menu(Panel):
 
     def draw(self, context):
         tool_settings = context.tool_settings
-        brush = tool_settings.gpencil_sculpt_paint.brush
+        paint = tool_settings.gpencil_sculpt_paint
+        brush = paint.brush
         layout = self.layout
 
-        ups = tool_settings.unified_paint_settings
+        ups = paint.unified_paint_settings
         size_owner = ups if ups.use_unified_size else brush
         strength_owner = ups if ups.use_unified_strength else brush
-        layout.prop(size_owner, "size", text="")
-        layout.prop(strength_owner, "strength", text="")
+        row = layout.row(align=True)
+        row.prop(size_owner, "size", text="")
+        row.prop(brush, "use_pressure_size", text="", icon='STYLUS_PRESSURE')
+        row.prop(ups, "use_unified_size", text="", icon='BRUSHES_ALL')
+        row = layout.row(align=True)
+        row.prop(strength_owner, "strength", text="")
+        row.prop(brush, "use_pressure_strength", text="", icon='STYLUS_PRESSURE')
+        row.prop(ups, "use_unified_strength", text="", icon='BRUSHES_ALL')
 
         layer = context.object.data.layers.active
 
@@ -8528,8 +8557,8 @@ class VIEW3D_PT_greasepencil_vertex_paint_context_menu(Panel):
 
         if brush.gpencil_vertex_brush_type in {'DRAW', 'REPLACE'}:
             split = layout.split(factor=0.1)
-            split.prop(tool_settings.unified_paint_settings, "color", text="")
-            split.template_color_picker(tool_settings.unified_paint_settings, "color", value_slider=True)
+            split.prop(settings.unified_paint_settings, "color", text="")
+            split.template_color_picker(settings.unified_paint_settings, "color", value_slider=True)
 
             col = layout.column()
             col.separator()
@@ -8537,13 +8566,16 @@ class VIEW3D_PT_greasepencil_vertex_paint_context_menu(Panel):
             col.separator()
 
         row = col.row(align=True)
-        row.prop(tool_settings.unified_paint_settings, "size", text="Radius")
+        row.prop(settings.unified_paint_settings, "size", text="Radius")
         row.prop(brush, "use_pressure_size", text="", icon='STYLUS_PRESSURE')
 
         if brush.gpencil_vertex_brush_type in {'DRAW', 'BLUR', 'SMEAR'}:
+            ups = settings.unified_paint_settings
+            strength_owner = ups if ups.use_unified_strength else brush
             row = layout.row(align=True)
-            row.prop(brush, "strength", slider=True)
+            row.prop(strength_owner, "strength", text="")
             row.prop(brush, "use_pressure_strength", text="", icon='STYLUS_PRESSURE')
+            row.prop(ups, "use_unified_strength", text="", icon='BRUSHES_ALL')
 
         layer = context.object.data.layers.active
 
@@ -8802,7 +8834,8 @@ class VIEW3D_PT_sculpt_context_menu(Panel):
     def draw(self, context):
         layout = self.layout
 
-        brush = context.tool_settings.sculpt.brush
+        paint = context.tool_settings.sculpt
+        brush = paint.brush
         capabilities = brush.sculpt_capabilities
 
         if capabilities.has_color:
@@ -8811,7 +8844,7 @@ class VIEW3D_PT_sculpt_context_menu(Panel):
             UnifiedPaintPanel.prop_unified_color_picker(split, context, brush, "color", value_slider=True)
             layout.prop(brush, "blend", text="")
 
-        ups = context.tool_settings.unified_paint_settings
+        ups = paint.unified_paint_settings
         size = "size"
         size_owner = ups if ups.use_unified_size else brush
         if size_owner.use_locked_size == 'SCENE':
@@ -8895,7 +8928,7 @@ class TOPBAR_PT_grease_pencil_vertex_color(Panel):
             paint = context.scene.tool_settings.gpencil_vertex_paint
         use_unified_paint = (ob.mode != 'PAINT_GREASE_PENCIL')
 
-        ups = context.tool_settings.unified_paint_settings
+        ups = paint.unified_paint_settings
         brush = paint.brush
         prop_owner = ups if use_unified_paint and ups.use_unified_color else brush
 

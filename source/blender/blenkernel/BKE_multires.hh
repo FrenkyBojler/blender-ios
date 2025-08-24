@@ -8,12 +8,11 @@
  * \ingroup bke
  */
 
-#include "BKE_subsurf.hh"
+#include "BLI_array.hh"
 #include "BLI_math_matrix_types.hh"
 #include "BLI_utildefines.h"
 
 struct Depsgraph;
-struct DerivedMesh;
 struct MDisps;
 struct Mesh;
 struct ModifierData;
@@ -25,6 +24,14 @@ namespace blender::bke::subdiv {
 struct Settings;
 struct ToMeshSettings;
 }  // namespace blender::bke::subdiv
+
+enum MultiresModifiedFlags {
+  /* indicates the grids have been sculpted on, so MDisps
+   * have to be updated */
+  MULTIRES_COORDS_MODIFIED = 1,
+  /* indicates elements have been hidden or unhidden */
+  MULTIRES_HIDDEN_MODIFIED = 2,
+};
 
 /**
  * Delete mesh mdisps and grid paint masks.
@@ -39,10 +46,6 @@ void multires_flush_sculpt_updates(Object *object);
 void multires_force_sculpt_rebuild(Object *object);
 void multires_force_external_reload(Object *object);
 
-/* internal, only called in subsurf_ccg.cc */
-void multires_modifier_update_mdisps(DerivedMesh *dm, Scene *scene);
-void multires_modifier_update_hidden(DerivedMesh *dm);
-
 /**
  * Reset the multi-res levels to match the number of mdisps.
  */
@@ -55,9 +58,6 @@ enum class MultiresFlags : uint8_t {
   IgnoreSimplify = 8,
 };
 ENUM_OPERATORS(MultiresFlags, MultiresFlags::IgnoreSimplify);
-
-DerivedMesh *multires_make_derived_from_derived(
-    DerivedMesh *dm, MultiresModifierData *mmd, Scene *scene, Object *ob, MultiresFlags flags);
 
 MultiresModifierData *find_multires_modifier_before(Scene *scene, ModifierData *lastmd);
 /**
@@ -130,18 +130,8 @@ void multiresModifier_ensure_external_read(Mesh *mesh, const MultiresModifierDat
 /* Adapted from `sculptmode.c` */
 
 void old_mdisps_bilinear(float out[3], float (*disps)[3], int st, float u, float v);
-/**
- * Find per-corner coordinate with given per-face UV coord.
- */
-int mdisp_rot_face_to_crn(int face_size, int face_side, float u, float v, float *x, float *y);
 
 /* Reshaping, define in multires_reshape.cc */
-
-bool multiresModifier_reshapeFromVertcos(Depsgraph *depsgraph,
-                                         Object *object,
-                                         MultiresModifierData *mmd,
-                                         const float (*vert_coords)[3],
-                                         int num_vert_coords);
 /**
  * Returns truth on success, false otherwise.
  *

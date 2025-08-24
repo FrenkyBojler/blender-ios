@@ -77,6 +77,14 @@ void ED_region_tag_refresh_ui(ARegion *region);
 void ED_region_tag_redraw_editor_overlays(ARegion *region);
 
 /**
+ * If the region has tag RGN_FLAG_INDICATE_OVERFLOW then draw
+ * a line or gradient on edges if there is content overflowing.
+ */
+void ED_region_draw_overflow_indication(const ScrArea *area,
+                                        ARegion *region,
+                                        rcti *mask = nullptr);
+
+/**
  * Set the temporary update flag for property search.
  */
 void ED_region_search_filter_update(const ScrArea *area, ARegion *region);
@@ -88,7 +96,7 @@ const char *ED_area_region_search_filter_get(const ScrArea *area, const ARegion 
 void ED_region_panels_init(wmWindowManager *wm, ARegion *region);
 void ED_region_panels_ex(const bContext *C,
                          ARegion *region,
-                         wmOperatorCallContext op_context,
+                         blender::wm::OpCallContext op_context,
                          const char *contexts[]);
 void ED_region_panels(const bContext *C, ARegion *region);
 /**
@@ -99,7 +107,7 @@ void ED_region_panels(const bContext *C, ARegion *region);
 void ED_region_panels_layout_ex(const bContext *C,
                                 ARegion *region,
                                 ListBase *paneltypes,
-                                wmOperatorCallContext op_context,
+                                blender::wm::OpCallContext op_context,
                                 const char *contexts[],
                                 const char *category_override);
 /**
@@ -377,7 +385,7 @@ ScrArea *ED_screen_temp_space_open(bContext *C,
                                    const rcti *rect_unscaled,
                                    eSpace_Type space_type,
                                    int display_type,
-                                   bool dialog) ATTR_NONNULL(1, 2, 3);
+                                   bool dialog) ATTR_NONNULL(1, 3);
 void ED_screens_header_tools_menu_create(bContext *C, uiLayout *layout, void *arg);
 void ED_screens_footer_tools_menu_create(bContext *C, uiLayout *layout, void *arg);
 void ED_screens_region_flip_menu_create(bContext *C, uiLayout *layout, void *arg);
@@ -644,7 +652,7 @@ bUserMenuItem_Op *ED_screen_user_menu_item_find_operator(ListBase *lb,
                                                          const wmOperatorType *ot,
                                                          IDProperty *prop,
                                                          const char *op_prop_enum,
-                                                         wmOperatorCallContext opcontext);
+                                                         blender::wm::OpCallContext opcontext);
 bUserMenuItem_Menu *ED_screen_user_menu_item_find_menu(ListBase *lb, const MenuType *mt);
 bUserMenuItem_Prop *ED_screen_user_menu_item_find_prop(ListBase *lb,
                                                        const char *context_data_path,
@@ -656,7 +664,7 @@ void ED_screen_user_menu_item_add_operator(ListBase *lb,
                                            const wmOperatorType *ot,
                                            const IDProperty *prop,
                                            const char *op_prop_enum,
-                                           wmOperatorCallContext opcontext);
+                                           blender::wm::OpCallContext opcontext);
 void ED_screen_user_menu_item_add_menu(ListBase *lb, const char *ui_name, const MenuType *mt);
 void ED_screen_user_menu_item_add_prop(ListBase *lb,
                                        const char *ui_name,

@@ -13,7 +13,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_listbase.h"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 #include "BLT_translation.hh"
@@ -46,6 +46,7 @@
 #include "ED_screen.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "WM_api.hh"
@@ -1165,7 +1166,7 @@ int /*eContextResult*/ buttons_context(const bContext *C,
     return CTX_RESULT_OK;
   }
   if (CTX_data_equals(member, "gpencil")) {
-    set_pointer_type(path, result, &RNA_GreasePencil);
+    set_pointer_type(path, result, &RNA_Annotation);
     return CTX_RESULT_OK;
   }
   if (CTX_data_equals(member, "grease_pencil")) {
@@ -1251,7 +1252,7 @@ static void buttons_panel_context_draw(const bContext *C, Panel *panel)
 
   uiLayout *pin_row = &row->row(false);
   pin_row->alignment_set(blender::ui::LayoutAlign::Right);
-  uiItemSpacer(pin_row);
+  pin_row->separator_spacer();
   pin_row->emboss_set(blender::ui::EmbossType::None);
   pin_row->op(
       "BUTTONS_OT_toggle_pin", "", (sbuts->flag & SB_PIN_CONTEXT) ? ICON_PINNED : ICON_UNPINNED);
@@ -1260,9 +1261,9 @@ static void buttons_panel_context_draw(const bContext *C, Panel *panel)
 void buttons_context_register(ARegionType *art)
 {
   PanelType *pt = MEM_callocN<PanelType>("spacetype buttons panel context");
-  STRNCPY(pt->idname, "PROPERTIES_PT_context");
-  STRNCPY(pt->label, N_("Context")); /* XXX C panels unavailable through RNA bpy.types! */
-  STRNCPY(pt->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
+  STRNCPY_UTF8(pt->idname, "PROPERTIES_PT_context");
+  STRNCPY_UTF8(pt->label, N_("Context")); /* XXX C panels unavailable through RNA bpy.types! */
+  STRNCPY_UTF8(pt->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
   pt->poll = buttons_panel_context_poll;
   pt->draw = buttons_panel_context_draw;
   pt->flag = PANEL_TYPE_NO_HEADER | PANEL_TYPE_NO_SEARCH;

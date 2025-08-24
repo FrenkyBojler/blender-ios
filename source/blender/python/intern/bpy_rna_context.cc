@@ -23,7 +23,7 @@
 
 #include "bpy_rna_context.hh"
 
-#include "../generic/python_compat.hh"
+#include "../generic/python_compat.hh" /* IWYU pragma: keep. */
 
 #include "RNA_access.hh"
 #include "RNA_prototypes.hh"
@@ -592,18 +592,39 @@ static PyTypeObject BPyContextTempOverride_Type = {
 static PyObject *bpy_context_temp_override_extract_known_args(const char *const *kwds_static,
                                                               PyObject *kwds)
 {
-  PyObject *sentinel = Py_Ellipsis;
   PyObject *kwds_parse = PyDict_New();
   for (int i = 0; kwds_static[i]; i++) {
     PyObject *key = PyUnicode_FromString(kwds_static[i]);
-    PyObject *val = _PyDict_Pop(kwds, key, sentinel);
+    PyObject *val;
+
+#if PY_VERSION_HEX >= 0x030d0000
+    switch (PyDict_Pop(kwds, key, &val)) {
+      case 1: {
+        if (PyDict_SetItem(kwds_parse, key, val) == -1) {
+          BLI_assert_unreachable();
+        }
+        Py_DECREF(val);
+        break;
+      }
+      case -1: {
+        /* Not expected, but allow for an error. */
+        BLI_assert(false);
+        PyErr_Clear();
+        break;
+      }
+    }
+#else /* Remove when Python 3.12 support is dropped. */
+    PyObject *sentinel = Py_Ellipsis;
+    val = _PyDict_Pop(kwds, key, sentinel);
     if (val != sentinel) {
       if (PyDict_SetItem(kwds_parse, key, val) == -1) {
         BLI_assert_unreachable();
       }
     }
-    Py_DECREF(key);
     Py_DECREF(val);
+#endif
+
+    Py_DECREF(key);
   }
   return kwds_parse;
 }
@@ -613,7 +634,7 @@ static PyObject *bpy_context_temp_override_extract_known_args(const char *const 
 PyDoc_STRVAR(
     /* Wrap. */
     bpy_context_temp_override_doc,
-    ".. method:: temp_override(*, window=None, area=None, region=None, **keywords)\n"
+    ".. method:: temp_override(*, window=None, screen=None, area=None, region=None, **keywords)\n"
     "\n"
     "   Context manager to temporarily override members in the context.\n"
     "\n"

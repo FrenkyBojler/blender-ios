@@ -372,7 +372,7 @@ class TOPBAR_MT_file_import(Menu):
             self.layout.operator("wm.stl_import", text="STL (.stl)")
 
         if bpy.app.build_options.io_fbx:
-            self.layout.operator("wm.fbx_import", text="FBX (.fbx) (experimental)")
+            self.layout.operator("wm.fbx_import", text="FBX (.fbx)")
 
 
 class TOPBAR_MT_file_export(Menu):
@@ -632,8 +632,10 @@ class TOPBAR_MT_workspace_menu(Menu):
         layout = self.layout
 
         layout.operator("workspace.duplicate", text="Duplicate", icon='DUPLICATE')
-        if len(bpy.data.workspaces) > 1:
-            layout.operator("workspace.delete", text="Delete", icon='REMOVE')
+        if len(bpy.data.workspaces) <= 1:
+            return
+
+        layout.operator("workspace.delete", text="Delete", icon='REMOVE')
 
         layout.separator()
 
@@ -647,6 +649,10 @@ class TOPBAR_MT_workspace_menu(Menu):
         props.direction = 'PREV'
         props = layout.operator("screen.workspace_cycle", text="Next Workspace")
         props.direction = 'NEXT'
+
+        layout.separator()
+
+        layout.operator("workspace.delete_all_others")
 
 
 # Grease Pencil Object - Primitive curve

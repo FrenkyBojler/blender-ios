@@ -43,7 +43,6 @@
 #include "WM_api.hh"
 #include "WM_types.hh"
 
-#include "UI_interface.hh"
 #include "UI_resources.hh"
 #include "UI_string_search.hh"
 #include "UI_view2d.hh"
@@ -643,6 +642,15 @@ static bool node_mouse_select(bContext *C,
     if (node == nullptr) {
       /* Disable existing active viewer. */
       WorkSpace *workspace = CTX_wm_workspace(C);
+      if (const std::optional<viewer_path::ViewerPathForGeometryNodesViewer> parsed_path =
+              viewer_path::parse_geometry_nodes_viewer(workspace->viewer_path))
+      {
+        /* The object needs to be reevaluated, because the viewer path is changed which means that
+         * the object may generate different viewer geometry as a side effect. */
+        Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
+        DEG_id_tag_update_for_side_effect_request(
+            depsgraph, &parsed_path->object->id, ID_RECALC_GEOMETRY);
+      }
       BKE_viewer_path_clear(&workspace->viewer_path);
       WM_event_add_notifier(C, NC_VIEWER_PATH, nullptr);
     }
@@ -1366,7 +1374,7 @@ static uiBlock *node_find_menu(bContext *C, ARegion *region, void *arg_optype)
   uiBut *but;
   wmOperatorType *optype = (wmOperatorType *)arg_optype;
 
-  block = UI_block_begin(C, region, "_popup", blender::ui::EmbossType::Emboss);
+  block = UI_block_begin(C, region, "_popup", ui::EmbossType::Emboss);
   UI_block_flag_enable(block, UI_BLOCK_LOOP | UI_BLOCK_MOVEMOUSE_QUIT | UI_BLOCK_SEARCH_MENU);
   UI_block_theme_style_set(block, UI_BLOCK_THEME_STYLE_POPUP);
 
@@ -1381,7 +1389,7 @@ static uiBlock *node_find_menu(bContext *C, ARegion *region, void *arg_optype)
   /* Fake button holds space for search items. */
   const int height = UI_searchbox_size_y() - UI_SEARCHBOX_BOUNDS;
   uiDefBut(
-      block, UI_BTYPE_LABEL, 0, "", 0, -height, box_width, height, nullptr, 0, 0, std::nullopt);
+      block, ButType::Label, 0, "", 0, -height, box_width, height, nullptr, 0, 0, std::nullopt);
 
   /* Move it downwards, mouse over button. */
   std::array<int, 2> bounds_offset = {0, -UI_UNIT_Y};

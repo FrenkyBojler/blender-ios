@@ -23,6 +23,7 @@ namespace blender::nodes::node_composite_rgb_to_bw_cc {
 
 static void cmp_node_rgbtobw_declare(NodeDeclarationBuilder &b)
 {
+  b.is_function_node();
   b.add_input<decl::Color>("Image")
       .default_value({0.8f, 0.8f, 0.8f, 1.0f})
       .compositor_domain_priority(0);
@@ -76,7 +77,6 @@ static void register_node_type_cmp_rgbtobw()
   blender::bke::node_type_size_preset(ntype, blender::bke::eNodeSizePreset::Default);
   ntype.gpu_fn = file_ns::node_gpu_material;
   ntype.build_multi_function = file_ns::node_build_multi_function;
-  ntype.gather_link_search_ops = nullptr;
 
   blender::bke::node_register_type(ntype);
 }

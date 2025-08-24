@@ -12,7 +12,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_listbase.h"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 #include "BLT_translation.hh"
@@ -43,7 +43,7 @@
 #include "RNA_access.hh"
 #include "RNA_prototypes.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "ED_node.hh"
@@ -153,13 +153,7 @@ static void buttons_texture_users_find_nodetree(ListBase *users,
 {
   if (ntree) {
     for (bNode *node : ntree->all_nodes()) {
-      if (node->type_legacy == CMP_NODE_TEXTURE) {
-        PointerRNA ptr = RNA_pointer_create_discrete(&ntree->id, &RNA_Node, node);
-        PropertyRNA *prop = RNA_struct_find_property(&ptr, "texture");
-        buttons_texture_user_node_add(
-            users, id, ntree, node, ptr, prop, category, RNA_struct_ui_icon(ptr.type), node->name);
-      }
-      else if (node->typeinfo->nclass == NODE_CLASS_TEXTURE) {
+      if (node->typeinfo->nclass == NODE_CLASS_TEXTURE) {
         PointerRNA ptr = RNA_pointer_create_discrete(&ntree->id, &RNA_Node, node);
         buttons_texture_user_node_add(users,
                                       id,
@@ -512,29 +506,18 @@ static void template_texture_user_menu(bContext *C, uiLayout *layout, void * /*a
       Tex *tex = static_cast<Tex *>(texptr.data);
 
       if (tex) {
-        SNPRINTF(name, "  %s - %s", user->name, tex->id.name + 2);
+        SNPRINTF_UTF8(name, "  %s - %s", user->name, tex->id.name + 2);
       }
       else {
-        SNPRINTF(name, "  %s", user->name);
+        SNPRINTF_UTF8(name, "  %s", user->name);
       }
     }
     else {
-      SNPRINTF(name, "  %s", user->name);
+      SNPRINTF_UTF8(name, "  %s", user->name);
     }
 
-    but = uiDefIconTextBut(block,
-                           UI_BTYPE_BUT,
-                           0,
-                           user->icon,
-                           name,
-                           0,
-                           0,
-                           UI_UNIT_X * 4,
-                           UI_UNIT_Y,
-                           nullptr,
-                           0.0,
-                           0.0,
-                           "");
+    but = uiDefIconTextBut(
+        block, ButType::But, 0, user->icon, name, 0, 0, UI_UNIT_X * 4, UI_UNIT_Y, nullptr, "");
     UI_but_funcN_set(but,
                      template_texture_select,
                      MEM_new<ButsTextureUser>("ButsTextureUser", *user),
@@ -571,7 +554,7 @@ void uiTemplateTextureUser(uiLayout *layout, bContext *C)
   }
 
   /* create button */
-  STRNCPY(name, user->name);
+  STRNCPY_UTF8(name, user->name);
 
   if (user->icon) {
     but = uiDefIconTextMenuBut(block,
@@ -698,7 +681,7 @@ void uiTemplateTextureShow(uiLayout *layout, const bContext *C, PointerRNA *ptr,
   uiBlock *block = layout->block();
   uiBut *but;
   but = uiDefIconBut(block,
-                     UI_BTYPE_BUT,
+                     ButType::But,
                      0,
                      ICON_PROPERTIES,
                      0,

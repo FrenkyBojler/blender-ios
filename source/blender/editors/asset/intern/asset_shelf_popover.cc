@@ -13,11 +13,12 @@
 #include "BKE_screen.hh"
 
 #include "BLI_listbase.h"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 
 #include "BLT_translation.hh"
 
 #include "UI_interface_c.hh"
+#include "UI_interface_layout.hh"
 #include "UI_tree_view.hh"
 
 #include "ED_asset_filter.hh"
@@ -243,7 +244,7 @@ static void popover_panel_draw(const bContext *C, Panel *panel)
   uiLayout *row = &layout->row(false);
   uiLayout *catalogs_col = &row->column(false);
   catalogs_col->ui_units_x_set(LEFT_COL_WIDTH_UNITS);
-  uiLayoutSetFixedSize(catalogs_col, true);
+  catalogs_col->fixed_size_set(true);
   library_selector_draw(C, catalogs_col, *shelf);
   catalog_tree_draw(*C, *catalogs_col, *shelf);
 
@@ -261,7 +262,7 @@ static void popover_panel_draw(const bContext *C, Panel *panel)
   uiLayout *asset_view_col = &right_col->column(false);
   BLI_assert((layout_width_units - LEFT_COL_WIDTH_UNITS) > 0);
   asset_view_col->ui_units_x_set(layout_width_units - LEFT_COL_WIDTH_UNITS);
-  uiLayoutSetFixedSize(asset_view_col, true);
+  asset_view_col->fixed_size_set(true);
 
   build_asset_view(*asset_view_col, shelf->settings.asset_library_reference, *shelf, *C);
 }
@@ -285,9 +286,9 @@ void popover_panel_register(ARegionType *region_type)
   }
 
   PanelType *pt = MEM_callocN<PanelType>(__func__);
-  STRNCPY(pt->idname, "ASSETSHELF_PT_popover_panel");
-  STRNCPY(pt->label, N_("Asset Shelf Panel"));
-  STRNCPY(pt->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
+  STRNCPY_UTF8(pt->idname, "ASSETSHELF_PT_popover_panel");
+  STRNCPY_UTF8(pt->label, N_("Asset Shelf Panel"));
+  STRNCPY_UTF8(pt->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
   pt->description = N_("Display an asset shelf in a popover panel");
   pt->draw = popover_panel_draw;
   pt->poll = popover_panel_poll;

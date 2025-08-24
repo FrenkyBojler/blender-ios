@@ -23,6 +23,7 @@
 #include "BLI_math_vector_types.hh"
 #include "BLI_mempool.h"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 #include "DNA_camera_types.h"
@@ -60,6 +61,7 @@
 #include "BKE_node_runtime.hh"
 #include "BKE_node_tree_update.hh"
 #include "BKE_paint.hh"
+#include "BKE_paint_types.hh"
 #include "BKE_screen.hh"
 #include "BKE_workspace.hh"
 
@@ -347,11 +349,43 @@ void BLO_update_defaults_workspace(WorkSpace *workspace, const char *app_templat
   }
 }
 
+static void blo_update_defaults_paint(Paint *paint)
+{
+  if (!paint) {
+    return;
+  }
+
+  /* Ensure input_samples has a correct default value of 1. */
+  if (paint->unified_paint_settings.input_samples == 0) {
+    paint->unified_paint_settings.input_samples = 1;
+  }
+
+  const UnifiedPaintSettings &default_ups = *DNA_struct_default_get(UnifiedPaintSettings);
+  paint->unified_paint_settings.size = default_ups.size;
+  paint->unified_paint_settings.input_samples = default_ups.input_samples;
+  paint->unified_paint_settings.unprojected_radius = default_ups.unprojected_radius;
+  paint->unified_paint_settings.alpha = default_ups.alpha;
+  paint->unified_paint_settings.weight = default_ups.weight;
+  paint->unified_paint_settings.flag = default_ups.flag;
+  copy_v3_v3(paint->unified_paint_settings.rgb, default_ups.rgb);
+  copy_v3_v3(paint->unified_paint_settings.secondary_rgb, default_ups.secondary_rgb);
+
+  if (paint->unified_paint_settings.curve_rand_hue == nullptr) {
+    paint->unified_paint_settings.curve_rand_hue = BKE_paint_default_curve();
+  }
+  if (paint->unified_paint_settings.curve_rand_saturation == nullptr) {
+    paint->unified_paint_settings.curve_rand_saturation = BKE_paint_default_curve();
+  }
+  if (paint->unified_paint_settings.curve_rand_value == nullptr) {
+    paint->unified_paint_settings.curve_rand_value = BKE_paint_default_curve();
+  }
+}
+
 static void blo_update_defaults_scene(Main *bmain, Scene *scene)
 {
   ToolSettings *ts = scene->toolsettings;
 
-  STRNCPY(scene->r.engine, RE_engine_id_BLENDER_EEVEE);
+  STRNCPY_UTF8(scene->r.engine, RE_engine_id_BLENDER_EEVEE);
 
   scene->r.cfra = 1.0f;
 
@@ -369,7 +403,7 @@ static void blo_update_defaults_scene(Main *bmain, Scene *scene)
 
   /* Disable Z pass by default. */
   LISTBASE_FOREACH (ViewLayer *, view_layer, &scene->view_layers) {
-    view_layer->passflag &= ~SCE_PASS_Z;
+    view_layer->passflag &= ~SCE_PASS_DEPTH;
     view_layer->eevee.ambient_occlusion_distance = 10.0f;
   }
 
@@ -470,6 +504,18 @@ static void blo_update_defaults_scene(Main *bmain, Scene *scene)
   if (ts->unified_paint_settings.curve_rand_value == nullptr) {
     ts->unified_paint_settings.curve_rand_value = BKE_paint_default_curve();
   }
+
+  blo_update_defaults_paint(reinterpret_cast<Paint *>(ts->vpaint));
+  blo_update_defaults_paint(reinterpret_cast<Paint *>(ts->wpaint));
+  blo_update_defaults_paint(reinterpret_cast<Paint *>(ts->sculpt));
+  blo_update_defaults_paint(reinterpret_cast<Paint *>(ts->gp_paint));
+  blo_update_defaults_paint(reinterpret_cast<Paint *>(ts->gp_vertexpaint));
+  blo_update_defaults_paint(reinterpret_cast<Paint *>(ts->gp_sculptpaint));
+  blo_update_defaults_paint(reinterpret_cast<Paint *>(ts->curves_sculpt));
+  blo_update_defaults_paint(reinterpret_cast<Paint *>(&ts->imapaint));
+
+  /* Weight Paint settings */
+  ts->weightuser = OB_DRAW_GROUPUSER_ACTIVE;
 }
 
 void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
@@ -600,12 +646,12 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
 
     if (app_template && STR_ELEM(app_template, "Video_Editing", "2D_Animation")) {
       /* Filmic is too slow, use standard until it is optimized. */
-      STRNCPY(scene->view_settings.view_transform, "Standard");
-      STRNCPY(scene->view_settings.look, "None");
+      STRNCPY_UTF8(scene->view_settings.view_transform, "Standard");
+      STRNCPY_UTF8(scene->view_settings.look, "None");
     }
     else {
       /* Default to AgX view transform. */
-      STRNCPY(scene->view_settings.view_transform, "AgX");
+      STRNCPY_UTF8(scene->view_settings.view_transform, "AgX");
     }
 
     if (app_template && STREQ(app_template, "Video_Editing")) {
@@ -764,6 +810,16 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
           }
         }
       }
+    }
+  }
+
+  /* Grease Pencil Anti-Aliasing. */
+  {
+    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+      scene->grease_pencil_settings.smaa_threshold = 1.0f;
+      scene->grease_pencil_settings.smaa_threshold_render = 0.25f;
+      scene->grease_pencil_settings.aa_samples = 8;
+      scene->grease_pencil_settings.motion_blur_steps = 8;
     }
   }
 }

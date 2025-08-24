@@ -68,7 +68,6 @@ struct PrefetchJob {
   RenderData context = {};
   RenderData context_cpy = {};
   ListBase *seqbasep = nullptr;
-  ListBase *seqbasep_cpy = nullptr;
 
   /* prefetch area */
   int cfra = 0;
@@ -420,7 +419,7 @@ static bool strip_is_cached(PrefetchJob *pfjob, Strip *strip, bool can_have_fina
   }
 
   if (can_have_final_image) {
-    ibuf = final_image_cache_get(pfjob->context.scene, cfra, pfjob->context.view_id);
+    ibuf = final_image_cache_get(pfjob->context.scene, cfra, pfjob->context.view_id, 0);
     if (ibuf != nullptr) {
       IMB_freeImBuf(ibuf);
       return true;
@@ -615,7 +614,7 @@ void seq_prefetch_start(const RenderData *context, float timeline_frame)
 {
   Scene *scene = context->scene;
   Editing *ed = scene->ed;
-  bool has_strips = bool(ed->seqbasep->first);
+  bool has_strips = bool(ed->current_strips()->first);
 
   if (!context->is_prefetch_render && !context->is_proxy_render) {
     bool playing = context->is_playing;

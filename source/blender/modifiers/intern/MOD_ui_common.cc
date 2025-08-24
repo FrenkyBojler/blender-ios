@@ -7,7 +7,7 @@
  */
 
 #include "BLI_listbase.h"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 
 #include "MEM_guardedalloc.h"
 
@@ -25,6 +25,7 @@
 #include "BLT_translation.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "RNA_access.hh"
@@ -64,7 +65,7 @@ static void modifier_reorder(bContext *C, Panel *panel, int new_index)
   WM_operator_properties_create_ptr(&props_ptr, ot);
   RNA_string_set(&props_ptr, "modifier", md->name);
   RNA_int_set(&props_ptr, "index", new_index);
-  WM_operator_name_call_ptr(C, ot, WM_OP_INVOKE_DEFAULT, &props_ptr, nullptr);
+  WM_operator_name_call_ptr(C, ot, blender::wm::OpCallContext::InvokeDefault, &props_ptr, nullptr);
   WM_operator_properties_free(&props_ptr);
 }
 
@@ -132,11 +133,11 @@ void modifier_vgroup_ui(uiLayout *layout,
   bool has_vertex_group = RNA_string_length(ptr, vgroup_prop.c_str()) != 0;
 
   uiLayout *row = &layout->row(true);
-  uiItemPointerR(row, ptr, vgroup_prop, ob_ptr, "vertex_groups", text, ICON_GROUP_VERTEX);
+  row->prop_search(ptr, vgroup_prop, ob_ptr, "vertex_groups", text, ICON_GROUP_VERTEX);
   if (invert_vgroup_prop) {
     uiLayout *sub = &row->row(true);
     sub->active_set(has_vertex_group);
-    uiLayoutSetPropDecorate(sub, false);
+    sub->use_property_decorate_set(false);
     sub->prop(ptr, *invert_vgroup_prop, UI_ITEM_NONE, "", ICON_ARROW_LEFTRIGHT);
   }
 }
@@ -216,7 +217,7 @@ static void modifier_ops_extra_draw(bContext *C, uiLayout *layout, void *md_v)
   Object *ob = blender::ed::object::context_active_object(C);
   PointerRNA ptr = RNA_pointer_create_discrete(&ob->id, &RNA_Modifier, md);
   layout->context_ptr_set("modifier", &ptr);
-  layout->operator_context_set(WM_OP_INVOKE_DEFAULT);
+  layout->operator_context_set(blender::wm::OpCallContext::InvokeDefault);
 
   layout->ui_units_x_set(4.0f);
 
@@ -229,7 +230,7 @@ static void modifier_ops_extra_draw(bContext *C, uiLayout *layout, void *md_v)
     op_ptr = layout->op("OBJECT_OT_modifier_apply",
                         IFACE_("Apply (All Keyframes)"),
                         ICON_KEYFRAME,
-                        WM_OP_INVOKE_DEFAULT,
+                        blender::wm::OpCallContext::InvokeDefault,
                         UI_ITEM_NONE);
     RNA_boolean_set(&op_ptr, "all_keyframes", true);
   }
@@ -277,7 +278,7 @@ static void modifier_ops_extra_draw(bContext *C, uiLayout *layout, void *md_v)
   op_ptr = layout->op("OBJECT_OT_modifier_move_to_index",
                       IFACE_("Move to First"),
                       ICON_TRIA_UP,
-                      WM_OP_INVOKE_DEFAULT,
+                      blender::wm::OpCallContext::InvokeDefault,
                       UI_ITEM_NONE);
   RNA_int_set(&op_ptr, "index", 0);
 
@@ -285,7 +286,7 @@ static void modifier_ops_extra_draw(bContext *C, uiLayout *layout, void *md_v)
   op_ptr = layout->op("OBJECT_OT_modifier_move_to_index",
                       IFACE_("Move to Last"),
                       ICON_TRIA_DOWN,
-                      WM_OP_INVOKE_DEFAULT,
+                      blender::wm::OpCallContext::InvokeDefault,
                       UI_ITEM_NONE);
   RNA_int_set(&op_ptr, "index", BLI_listbase_count(&ob->modifiers) - 1);
 
@@ -298,7 +299,7 @@ static void modifier_ops_extra_draw(bContext *C, uiLayout *layout, void *md_v)
     op_ptr = layout->op("OBJECT_OT_geometry_nodes_move_to_nodes",
                         std::nullopt,
                         ICON_NONE,
-                        WM_OP_INVOKE_DEFAULT,
+                        blender::wm::OpCallContext::InvokeDefault,
                         UI_ITEM_NONE);
     layout->prop(&ptr, "show_group_selector", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
@@ -324,7 +325,7 @@ static void modifier_panel_header(const bContext *C, Panel *panel)
   sub = &layout->row(true);
   sub->emboss_set(blender::ui::EmbossType::None);
   if (mti->is_disabled && mti->is_disabled(scene, md, false)) {
-    uiLayoutSetRedAlert(sub, true);
+    sub->red_alert_set(true);
   }
   PointerRNA op_ptr = sub->op("OBJECT_OT_modifier_set_active", "", RNA_struct_ui_icon(ptr->type));
   RNA_string_set(&op_ptr, "modifier", md->name);
@@ -357,7 +358,7 @@ static void modifier_panel_header(const bContext *C, Panel *panel)
       uiBlock *block = sub->block();
       static int apply_on_spline_always_off_hack = 0;
       uiBut *but = uiDefIconButBitI(block,
-                                    UI_BTYPE_TOGGLE,
+                                    ButType::Toggle,
                                     eModifierMode_ApplyOnSpline,
                                     0,
                                     ICON_SURFACE_DATA,
@@ -381,7 +382,7 @@ static void modifier_panel_header(const bContext *C, Panel *panel)
       uiBlock *block = sub->block();
       static int apply_on_spline_always_on_hack = eModifierMode_ApplyOnSpline;
       uiBut *but = uiDefIconButBitI(block,
-                                    UI_BTYPE_TOGGLE,
+                                    ButType::Toggle,
                                     eModifierMode_ApplyOnSpline,
                                     0,
                                     ICON_SURFACE_DATA,
@@ -466,11 +467,11 @@ PanelType *modifier_panel_register(ARegionType *region_type, ModifierType type, 
   PanelType *panel_type = MEM_callocN<PanelType>(__func__);
 
   BKE_modifier_type_panel_id(type, panel_type->idname);
-  STRNCPY(panel_type->label, "");
-  STRNCPY(panel_type->context, "modifier");
-  STRNCPY(panel_type->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
-  STRNCPY(panel_type->active_property, "is_active");
-  STRNCPY(panel_type->pin_to_last_property, "use_pin_to_last");
+  STRNCPY_UTF8(panel_type->label, "");
+  STRNCPY_UTF8(panel_type->context, "modifier");
+  STRNCPY_UTF8(panel_type->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
+  STRNCPY_UTF8(panel_type->active_property, "is_active");
+  STRNCPY_UTF8(panel_type->pin_to_last_property, "use_pin_to_last");
 
   panel_type->draw_header = modifier_panel_header;
   panel_type->draw = draw;
@@ -498,18 +499,18 @@ PanelType *modifier_subpanel_register(ARegionType *region_type,
   PanelType *panel_type = MEM_callocN<PanelType>(__func__);
 
   BLI_assert(parent != nullptr);
-  SNPRINTF(panel_type->idname, "%s_%s", parent->idname, name);
-  STRNCPY(panel_type->label, label);
-  STRNCPY(panel_type->context, "modifier");
-  STRNCPY(panel_type->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
-  STRNCPY(panel_type->active_property, "is_active");
+  SNPRINTF_UTF8(panel_type->idname, "%s_%s", parent->idname, name);
+  STRNCPY_UTF8(panel_type->label, label);
+  STRNCPY_UTF8(panel_type->context, "modifier");
+  STRNCPY_UTF8(panel_type->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
+  STRNCPY_UTF8(panel_type->active_property, "is_active");
 
   panel_type->draw_header = draw_header;
   panel_type->draw = draw;
   panel_type->poll = modifier_ui_poll;
   panel_type->flag = PANEL_TYPE_DEFAULT_CLOSED;
 
-  STRNCPY(panel_type->parent_id, parent->idname);
+  STRNCPY_UTF8(panel_type->parent_id, parent->idname);
   panel_type->parent = parent;
   BLI_addtail(&parent->children, BLI_genericNodeN(panel_type));
   BLI_addtail(&region_type->paneltypes, panel_type);

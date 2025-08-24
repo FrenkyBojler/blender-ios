@@ -463,14 +463,11 @@ typedef struct GreasePencil {
   /* Root group of the layer tree. */
   GreasePencilLayerTreeGroup *root_group_ptr;
 
-  /**
-   * All attributes stored on the grease pencil layers (#AttrDomain::Layer).
-   */
-  CustomData layers_data;
+  /** Used only for backward compatibility with old files. */
+  CustomData layers_data_legacy;
 
   /**
-   * Layer domain attributes. Currently unused at runtime, but used for forward
-   * compatibility when reading files (see #122398).
+   * Layer domain attributes.
    */
   struct AttributeStorage attribute_storage;
 
@@ -566,11 +563,15 @@ typedef struct GreasePencil {
       bool check_name_is_unique = true);
   /** Duplicates a layer from the same object to the top of the root group. */
   blender::bke::greasepencil::Layer &duplicate_layer(
-      const blender::bke::greasepencil::Layer &duplicate_layer);
+      const blender::bke::greasepencil::Layer &duplicate_layer,
+      bool duplicate_frames = false,
+      bool duplicate_drawings = false);
   /** Duplicates a layer from the same object to the top of the given group. */
   blender::bke::greasepencil::Layer &duplicate_layer(
       blender::bke::greasepencil::LayerGroup &parent_group,
-      const blender::bke::greasepencil::Layer &duplicate_layer);
+      const blender::bke::greasepencil::Layer &duplicate_layer,
+      bool duplicate_frames = false,
+      bool duplicate_drawings = false);
   /** Add new layer group into the root group. */
   blender::bke::greasepencil::LayerGroup &add_layer_group(blender::StringRef name,
                                                           bool check_name_is_unique = true);
@@ -746,7 +747,14 @@ typedef struct GreasePencil {
 
   void count_memory(blender::MemoryCounter &memory) const;
 
+  /**
+   * Compute the user counts of the drawings by iterating through the keyframes of all the layers
+   * and counting the number of references to each drawing.
+   */
+  blender::Array<int> count_frame_users_for_drawings() const;
+
   /* For debugging purposes. */
   void print_layer_tree();
+  void validate_drawing_user_counts();
 #endif
 } GreasePencil;

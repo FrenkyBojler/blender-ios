@@ -17,7 +17,7 @@
 #include "BLI_alloca.h"
 #include "BLI_math_color.h"
 #include "BLI_math_vector.h"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 #include "DNA_customdata_types.h"
@@ -899,19 +899,19 @@ static void particle_batch_cache_ensure_procedural_strand_data(PTCacheEdit *edit
   /* Strand Data */
   cache->proc_strand_buf = GPU_vertbuf_create_with_format_ex(
       format_data, GPU_USAGE_STATIC | GPU_USAGE_FLAG_BUFFER_TEXTURE_ONLY);
-  GPU_vertbuf_data_alloc(*cache->proc_strand_buf, cache->strands_len);
+  GPU_vertbuf_data_alloc(*cache->proc_strand_buf, max_ii(1, cache->strands_len));
   GPU_vertbuf_attr_get_raw_data(cache->proc_strand_buf, data_id, &data_step);
 
   cache->proc_strand_seg_buf = GPU_vertbuf_create_with_format_ex(
       format_seg, GPU_USAGE_STATIC | GPU_USAGE_FLAG_BUFFER_TEXTURE_ONLY);
-  GPU_vertbuf_data_alloc(*cache->proc_strand_seg_buf, cache->strands_len);
+  GPU_vertbuf_data_alloc(*cache->proc_strand_seg_buf, max_ii(1, cache->strands_len));
   GPU_vertbuf_attr_get_raw_data(cache->proc_strand_seg_buf, seg_id, &seg_step);
 
   /* UV layers */
   for (int i = 0; i < cache->num_uv_layers; i++) {
     cache->proc_uv_buf[i] = GPU_vertbuf_create_with_format_ex(
         format_uv, GPU_USAGE_STATIC | GPU_USAGE_FLAG_BUFFER_TEXTURE_ONLY);
-    GPU_vertbuf_data_alloc(*cache->proc_uv_buf[i], cache->strands_len);
+    GPU_vertbuf_data_alloc(*cache->proc_uv_buf[i], max_ii(1, cache->strands_len));
     GPU_vertbuf_attr_get_raw_data(cache->proc_uv_buf[i], uv_id, &uv_step[i]);
 
     char attr_safe_name[GPU_MAX_SAFE_ATTR_NAME];
@@ -920,15 +920,15 @@ static void particle_batch_cache_ensure_procedural_strand_data(PTCacheEdit *edit
     GPU_vertformat_safe_attr_name(name, attr_safe_name, GPU_MAX_SAFE_ATTR_NAME);
 
     int n = 0;
-    SNPRINTF(cache->uv_layer_names[i][n], "a%s", attr_safe_name);
+    SNPRINTF_UTF8(cache->uv_layer_names[i][n], "a%s", attr_safe_name);
     n++;
 
     if (i == active_uv) {
-      STRNCPY(cache->uv_layer_names[i][n], "au");
+      STRNCPY_UTF8(cache->uv_layer_names[i][n], "au");
       n++;
     }
     if (i == render_uv) {
-      STRNCPY(cache->uv_layer_names[i][n], "a");
+      STRNCPY_UTF8(cache->uv_layer_names[i][n], "a");
       n++;
     }
   }
@@ -938,7 +938,7 @@ static void particle_batch_cache_ensure_procedural_strand_data(PTCacheEdit *edit
   MEM_SAFE_FREE(cache->col_layer_names);
 
   cache->proc_col_buf = MEM_calloc_arrayN<gpu::VertBuf *>(cache->num_col_layers, "proc_col_buf");
-  cache->col_tex = MEM_calloc_arrayN<GPUTexture *>(cache->num_col_layers, "col_tex");
+  cache->col_tex = MEM_calloc_arrayN<gpu::Texture *>(cache->num_col_layers, "col_tex");
   cache->col_layer_names = MEM_calloc_arrayN<char[4][14]>(cache->num_col_layers,
                                                           "col_layer_names");
 
@@ -946,7 +946,7 @@ static void particle_batch_cache_ensure_procedural_strand_data(PTCacheEdit *edit
   for (int i = 0; i < cache->num_col_layers; i++) {
     cache->proc_col_buf[i] = GPU_vertbuf_create_with_format_ex(
         format_col, GPU_USAGE_STATIC | GPU_USAGE_FLAG_BUFFER_TEXTURE_ONLY);
-    GPU_vertbuf_data_alloc(*cache->proc_col_buf[i], cache->strands_len);
+    GPU_vertbuf_data_alloc(*cache->proc_col_buf[i], max_ii(1, cache->strands_len));
     GPU_vertbuf_attr_get_raw_data(cache->proc_col_buf[i], col_id, &col_step[i]);
 
     char attr_safe_name[GPU_MAX_SAFE_ATTR_NAME];
@@ -955,15 +955,15 @@ static void particle_batch_cache_ensure_procedural_strand_data(PTCacheEdit *edit
     GPU_vertformat_safe_attr_name(name, attr_safe_name, GPU_MAX_SAFE_ATTR_NAME);
 
     int n = 0;
-    SNPRINTF(cache->col_layer_names[i][n], "a%s", attr_safe_name);
+    SNPRINTF_UTF8(cache->col_layer_names[i][n], "a%s", attr_safe_name);
     n++;
 
     if (i == active_col) {
-      STRNCPY(cache->col_layer_names[i][n], "ac");
+      STRNCPY_UTF8(cache->col_layer_names[i][n], "ac");
       n++;
     }
     if (i == render_col) {
-      STRNCPY(cache->col_layer_names[i][n], "c");
+      STRNCPY_UTF8(cache->col_layer_names[i][n], "c");
       n++;
     }
   }
@@ -1226,7 +1226,7 @@ static void particle_batch_cache_ensure_pos_and_seg(PTCacheEdit *edit,
           &psmd->mesh_final->corner_data, CD_PROP_FLOAT2, i);
       GPU_vertformat_safe_attr_name(name, attr_safe_name, GPU_MAX_SAFE_ATTR_NAME);
 
-      SNPRINTF(uuid, "a%s", attr_safe_name);
+      SNPRINTF_UTF8(uuid, "a%s", attr_safe_name);
       uv_id[i] = GPU_vertformat_attr_add(&format, uuid, blender::gpu::VertAttrType::SFLOAT_32_32);
 
       if (i == active_uv) {
@@ -1240,7 +1240,7 @@ static void particle_batch_cache_ensure_pos_and_seg(PTCacheEdit *edit,
           &psmd->mesh_final->corner_data, CD_PROP_BYTE_COLOR, i);
       GPU_vertformat_safe_attr_name(name, attr_safe_name, GPU_MAX_SAFE_ATTR_NAME);
 
-      SNPRINTF(uuid, "a%s", attr_safe_name);
+      SNPRINTF_UTF8(uuid, "a%s", attr_safe_name);
       col_id[i] = GPU_vertformat_attr_add(
           &format, uuid, blender::gpu::VertAttrType::UNORM_16_16_16_16);
 
