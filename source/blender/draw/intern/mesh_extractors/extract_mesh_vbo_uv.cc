@@ -83,7 +83,7 @@ gpu::VertBufPtr extract_uv_maps(const MeshRenderData &mr, const MeshBatchCache &
 {
   GPUVertFormat format = {0};
 
-     // TODO_MESH_ATTR
+  // TODO_MESH_ATTR
   const CustomData *cd_ldata = (mr.extract_type == MeshExtractType::BMesh) ? &mr.bm->ldata :
                                                                              &mr.mesh->corner_data;
   int v_len = mr.corners_num;

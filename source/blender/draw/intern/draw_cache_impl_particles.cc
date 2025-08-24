@@ -525,7 +525,7 @@ static int particle_batch_cache_fill_segments(ParticleSystem *psys,
   const bool is_child = (particle_source == PARTICLE_SOURCE_CHILDREN);
   if (is_simple && *r_parent_uvs == nullptr) {
     /* TODO(sergey): For edit mode it should be edit->totcached. */
-    *r_parent_uvs = static_cast<float (**)[2]>(
+    *r_parent_uvs = static_cast<float(**)[2]>(
         MEM_callocN(sizeof(*r_parent_uvs) * psys->totpart, "Parent particle UVs"));
   }
   if (is_simple && *r_parent_mcol == nullptr) {
@@ -539,7 +539,7 @@ static int particle_batch_cache_fill_segments(ParticleSystem *psys,
       continue;
     }
     float tangent[3];
-    float (*uv)[2] = nullptr;
+    float(*uv)[2] = nullptr;
     MCol *mcol = nullptr;
     particle_calculate_mcol(psys,
                             psmd,
@@ -755,7 +755,7 @@ static int particle_batch_cache_fill_strands_data(ParticleSystem *psys,
   const bool is_child = (particle_source == PARTICLE_SOURCE_CHILDREN);
   if (is_simple && *r_parent_uvs == nullptr) {
     /* TODO(sergey): For edit mode it should be edit->totcached. */
-    *r_parent_uvs = static_cast<float (**)[2]>(
+    *r_parent_uvs = static_cast<float(**)[2]>(
         MEM_callocN(sizeof(*r_parent_uvs) * psys->totpart, "Parent particle UVs"));
   }
   if (is_simple && *r_parent_mcol == nullptr) {
@@ -774,7 +774,7 @@ static int particle_batch_cache_fill_strands_data(ParticleSystem *psys,
     curr_point += path->segments + 1;
 
     if (psmd != nullptr) {
-      float (*uv)[2] = nullptr;
+      float(*uv)[2] = nullptr;
       MCol *mcol = nullptr;
 
       particle_calculate_uvs(psys,
@@ -879,7 +879,7 @@ static void particle_batch_cache_ensure_procedural_strand_data(PTCacheEdit *edit
 
   const MTFace *mtfaces[MAX_MTFACE] = {nullptr};
   const MCol **mcols = BLI_array_alloca(mcols, cache->num_col_layers);
-  float (**parent_uvs)[2] = nullptr;
+  float(**parent_uvs)[2] = nullptr;
   MCol **parent_mcol = nullptr;
 
   GPUVertFormat format_data = {0};
@@ -1194,7 +1194,7 @@ static void particle_batch_cache_ensure_pos_and_seg(PTCacheEdit *edit,
   int active_col = 0;
   const MTFace **mtfaces = nullptr;
   const MCol **mcols = nullptr;
-  float (**parent_uvs)[2] = nullptr;
+  float(**parent_uvs)[2] = nullptr;
   MCol **parent_mcol = nullptr;
 
   if (psmd != nullptr) {

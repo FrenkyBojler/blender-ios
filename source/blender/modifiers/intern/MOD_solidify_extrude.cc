@@ -174,7 +174,7 @@ Mesh *MOD_solidify_extrude_modifyMesh(ModifierData *md, const ModifierEvalContex
   uint *edge_users = nullptr;
   int *edge_order = nullptr;
 
-  float (*vert_nors)[3] = nullptr;
+  float(*vert_nors)[3] = nullptr;
   blender::Span<blender::float3> face_normals;
 
   const bool need_face_normals = (smd->flag & MOD_SOLIDIFY_NORMAL_CALC) ||
@@ -387,8 +387,8 @@ Mesh *MOD_solidify_extrude_modifyMesh(ModifierData *md, const ModifierEvalContex
     }
 
     /* will be created later */
-        // TODO_MESH_ATTR
- CustomData_copy_data(&mesh->corner_data, &result->corner_data, 0, 0, int(loops_num));
+    // TODO_MESH_ATTR
+    CustomData_copy_data(&mesh->corner_data, &result->corner_data, 0, 0, int(loops_num));
     CustomData_copy_data(&mesh->face_data, &result->face_data, 0, 0, int(faces_num));
     face_offsets.take_front(faces_num).copy_from(mesh->face_offsets().drop_back(1));
   }

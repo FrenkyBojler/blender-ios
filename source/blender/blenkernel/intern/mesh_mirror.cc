@@ -285,7 +285,7 @@ Mesh *BKE_mesh_mirror_apply_mirror_on_axis_for_modifier(MirrorModifierData *mmd,
   /* handle shape keys */
   totshape = CustomData_number_of_layers(&result->vert_data, CD_SHAPEKEY);
   for (a = 0; a < totshape; a++) {
-    float (*cos)[3] = static_cast<float (*)[3]>(
+    float(*cos)[3] = static_cast<float(*)[3]>(
         CustomData_get_layer_n_for_write(&result->vert_data, CD_SHAPEKEY, a, result->verts_num));
     for (int i = src_verts_num; i < result->verts_num; i++) {
       mul_m4_v3(mtx, cos[i]);
@@ -340,7 +340,7 @@ Mesh *BKE_mesh_mirror_apply_mirror_on_axis_for_modifier(MirrorModifierData *mmd,
 
     for (const StringRef name : result->uv_map_names()) {
       bke::SpanAttributeWriter uv_map_attr = attributes.lookup_for_write_span<float2>(name);
-      float (*dmloopuv)[2] = reinterpret_cast<float (*)[2]>(uv_map_attr.span.data());
+      float(*dmloopuv)[2] = reinterpret_cast<float(*)[2]>(uv_map_attr.span.data());
       int j = src_loops_num;
       dmloopuv += j; /* second set of loops only */
       for (; j-- > 0; dmloopuv++) {

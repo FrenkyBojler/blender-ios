@@ -116,9 +116,9 @@ static void subdiv_mesh_ctx_cache_custom_data_layers(SubdivMeshContext *ctx)
   /* UV layers interpolation. */
   subdiv_mesh_ctx_cache_uv_layers(ctx);
   /* Orco interpolation. */
-  ctx->orco = static_cast<float (*)[3]>(
+  ctx->orco = static_cast<float(*)[3]>(
       CustomData_get_layer_for_write(&subdiv_mesh->vert_data, CD_ORCO, subdiv_mesh->verts_num));
-  ctx->cloth_orco = static_cast<float (*)[3]>(CustomData_get_layer_for_write(
+  ctx->cloth_orco = static_cast<float(*)[3]>(CustomData_get_layer_for_write(
       &subdiv_mesh->vert_data, CD_CLOTH_ORCO, subdiv_mesh->verts_num));
 }
 
@@ -574,8 +574,8 @@ static bool subdiv_mesh_topology_info(const ForeachContext *foreach_context,
   CustomData_free_layer_named(&subdiv_context->coarse_corner_data_interp, ".corner_vert");
   CustomData_free_layer_named(&subdiv_context->coarse_corner_data_interp, ".corner_edge");
   CustomData_free(&subdiv_mesh.corner_data);
-                  // TODO_MESH_ATTR
- CustomData_init_layout_from(&subdiv_context->coarse_corner_data_interp,
+  // TODO_MESH_ATTR
+  CustomData_init_layout_from(&subdiv_context->coarse_corner_data_interp,
                               &subdiv_mesh.corner_data,
                               mask.lmask,
                               CD_SET_DEFAULT,
@@ -1208,16 +1208,16 @@ Mesh *subdiv_to_mesh(Subdiv *subdiv, const ToMeshSettings *settings, const Mesh 
   stats_end(&subdiv->stats, SUBDIV_STATS_SUBDIV_TO_MESH_GEOMETRY);
   Mesh *result = subdiv_context.subdiv_mesh;
 
-                  // TODO_MESH_ATTR
- CustomData_add_layer_named_with_data(&result->corner_data,
+  // TODO_MESH_ATTR
+  CustomData_add_layer_named_with_data(&result->corner_data,
                                        CD_PROP_INT32,
                                        subdiv_context.subdiv_corner_verts,
                                        result->corners_num,
                                        ".corner_vert",
                                        nullptr);
   subdiv_context.subdiv_corner_verts = nullptr;
-                  // TODO_MESH_ATTR
- CustomData_add_layer_named_with_data(&result->corner_data,
+  // TODO_MESH_ATTR
+  CustomData_add_layer_named_with_data(&result->corner_data,
                                        CD_PROP_INT32,
                                        subdiv_context.subdiv_corner_edges,
                                        result->corners_num,

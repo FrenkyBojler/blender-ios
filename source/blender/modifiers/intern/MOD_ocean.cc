@@ -263,8 +263,8 @@ static Mesh *generate_ocean_geometry(OceanModifierData *omd, Mesh *mesh_orig, co
   blender::bke::mesh_calc_edges(*result, false, false);
 
   /* add uvs */
-      // TODO_MESH_ATTR
- if (CustomData_number_of_layers(&result->corner_data, CD_PROP_FLOAT2) < MAX_MTFACE) {
+  // TODO_MESH_ATTR
+  if (CustomData_number_of_layers(&result->corner_data, CD_PROP_FLOAT2) < MAX_MTFACE) {
     gogd.mloopuvs = static_cast<float(*)[2]>(CustomData_add_layer_named(
         &result->corner_data, CD_PROP_FLOAT2, CD_SET_DEFAULT, faces_num * 4, "UVMap"));
 
