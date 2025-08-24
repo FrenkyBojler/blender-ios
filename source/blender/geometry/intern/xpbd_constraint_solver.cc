@@ -127,7 +127,7 @@ void CurveLocalConstraintSets::solve_step(SolveStrategy &strategy, ConstraintSet
 }
 
 Vector<ConstraintSet *> ConstraintSetCollector::combine(
-    ResourceScope &scope, const Span<ConstraintSetCollector *> collectors)
+    ResourceScope &scope, const Span<const ConstraintSetCollector *> collectors)
 {
   Vector<ConstraintSet *> result;
   MultiValueMap<int, CurveLocalConstraintSet *> curve_local_constraint_sets_by_geometry;

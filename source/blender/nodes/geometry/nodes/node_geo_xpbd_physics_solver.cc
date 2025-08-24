@@ -6,6 +6,7 @@
 #include "BKE_instances.hh"
 
 #include "BLI_array_utils.hh"
+#include "BLI_disjoint_set.hh"
 #include "BLI_kdtree.h"
 #include "BLI_math_matrix.hh"
 #include "BLI_math_rotation.hh"
@@ -2245,6 +2246,7 @@ PROFILE_FUNCTION static void gather_sphere_contacts(const SimPoints &sim_points,
 }
 
 PROFILE_FUNCTION static Contacts gather_contacts(
+    const Span<int> key_group,
     const XPBDState &state,
     const WorldPreprocessData &world_info,
     const WorldBundles &world_bundles,
@@ -2253,7 +2255,7 @@ PROFILE_FUNCTION static Contacts gather_contacts(
     const Map<SimPointsKey, SimPointsWorldProperties> &sim_points_props)
 {
   Contacts contacts;
-  for (const int key_i : keys.index_range()) {
+  for (const int key_i : key_group) {
     const SimPointsKey &key = keys[key_i];
     const int geometry_bundle_i = world_bundles.geometries.index_of_as(key.path);
     const bke::GeometryComponent::Type type = key.type;
@@ -2414,14 +2416,16 @@ PROFILE_FUNCTION static void solve_constraints(const SolverType solver_type,
 }
 
 PROFILE_FUNCTION static void apply_friction(XPBDState &state,
+                                            const Span<int> key_group,
                                             const Contacts &contacts,
                                             const VectorSet<SimPointsKey> &keys,
                                             const Span<Array<float3>> all_prev_positions)
 {
   for (const auto item : contacts.static_plane_contacts.items()) {
     const int key_i = keys.index_of(item.key);
+    const int key_in_group_i = key_group.first_index(key_i);
     SimPoints &sim_points = state.sim_points.lookup(item.key);
-    const Span<float3> prev_positions = all_prev_positions[key_i];
+    const Span<float3> prev_positions = all_prev_positions[key_in_group_i];
     MutableSpan<float3> new_positions = sim_points.positions;
     const StaticPlaneContacts &plane_contacts = item.value;
     for (const int contact_i : plane_contacts.indices.index_range()) {
@@ -2756,6 +2760,146 @@ static void post_solve_per_point_steps(SimPoints &sim_points,
   }
 }
 
+PROFILE_FUNCTION static void simulate_key_group(
+    const Span<int> key_group,
+
+    ThreadLocalStorage &tls,
+    XPBDState &state,
+    const WorldBundles &world_bundles,
+    const WorldPreprocessData &world_info,
+    const VectorSet<SimPointsKey> &keys,
+    const Map<SimPointsKey, Span<float3>> &accelerations_map,
+    const Map<SimPointsKey, Span<float3>> &torques_map,
+    const Map<SimPointsKey, SimPointsWorldProperties> &sim_points_props,
+    const Map<SimPointsKey, PinnedPositions> &pinned_positions_map,
+    const Map<SimPointsKey, PinnedRotations> &pinned_rotations_map,
+    const Map<SimPointsKey, MutableSpan<float3>> &soft_pinned_positions_map,
+    const Map<SimPointsKey, MutableSpan<math::Quaternion>> &soft_pinned_rotations_map,
+    const Span<GeometrySet> applied_geometries,
+    const SolverType solver_type,
+    const Span<xpbd::GeometryRef> geometry_refs,
+    const xpbd::ConstraintSetCollector &static_constraint_sets,
+    const int substeps,
+    const float sub_delta_time)
+{
+  ResourceScope &scope = tls.local_resource_scope();
+
+  const int keys_in_group_num = key_group.size();
+  Array<Array<float3>> all_prev_positions(keys_in_group_num);
+  Array<Array<math::Quaternion>> all_prev_rotations(keys_in_group_num);
+  for (const int key_in_group_i : key_group.index_range()) {
+    const int key_i = key_group[key_in_group_i];
+    const SimPointsKey &key = keys[key_i];
+    const SimPoints &sim_points = state.sim_points.lookup(key);
+    all_prev_positions[key_in_group_i].reinitialize(sim_points.points_num);
+    if (sim_points.has_rotation) {
+      all_prev_rotations[key_in_group_i].reinitialize(sim_points.points_num);
+    }
+  }
+
+  xpbd::ConstraintSetCollector filtered_constraint_sets;
+  for (xpbd::ConstraintSet *constraint_set : static_constraint_sets.general) {
+    const Span<int> affected_keys = constraint_set->get_affected_geo_indices();
+    if (key_group.contains(affected_keys[0])) {
+      filtered_constraint_sets.general.append(constraint_set);
+    }
+  }
+  for (xpbd::CurveLocalConstraintSet *constraint_set : static_constraint_sets.curve_local) {
+    if (key_group.contains(constraint_set->affected_geo_i())) {
+      filtered_constraint_sets.curve_local.append(constraint_set);
+    }
+  }
+
+  /* Instead of doing various stages like remembering old positions and updating velocities one
+   * after another, interleave them to improve cache locality and thread utilization. This is
+   * possible because each point is processed independently here. */
+  auto run_per_point_updates = [&](const float substep_factor,
+                                   const bool do_pre_solve,
+                                   const bool do_post_solve) {
+    threading::parallel_for(IndexRange(keys_in_group_num), 1, [&](const IndexRange range) {
+      for (const int key_in_group_i : range) {
+        const int key_i = key_group[key_in_group_i];
+        const SimPointsKey &key = keys[key_i];
+        SimPoints &sim_points = state.sim_points.lookup(keys[key_i]);
+        const Span<float3> accelerations = accelerations_map.lookup(key);
+        const std::optional<Span<float3>> torques = torques_map.lookup_try(key);
+        const SimPointsWorldProperties &props = sim_points_props.lookup(key);
+        const PinnedPositions *pinned_positions = pinned_positions_map.lookup_ptr(key);
+        const PinnedRotations *pinned_rotations = pinned_rotations_map.lookup_ptr(key);
+        MutableSpan<float3> soft_pinned_positions =
+            soft_pinned_positions_map.lookup_try(key).value_or(MutableSpan<float3>({}));
+        MutableSpan<math::Quaternion> soft_pinned_rotations =
+            soft_pinned_rotations_map.lookup_try(key).value_or(MutableSpan<math::Quaternion>({}));
+        threading::parallel_for(
+            IndexRange(sim_points.points_num), 256, [&](const IndexRange range) {
+              /* The post-solve steps are run first here, because this code runs at the end of the
+               * time-step after the constraints are solved. */
+              if (do_post_solve) {
+                post_solve_per_point_steps(
+                    sim_points,
+                    range,
+                    all_prev_positions[key_in_group_i].as_span().slice(range),
+                    all_prev_rotations[key_in_group_i].as_span().slice_safe(range),
+                    sub_delta_time);
+              }
+              if (do_pre_solve) {
+                pre_solve_per_point_steps(
+                    sim_points,
+                    range,
+                    all_prev_positions[key_in_group_i].as_mutable_span().slice(range),
+                    all_prev_rotations[key_in_group_i].as_mutable_span().slice_safe(range),
+                    props,
+                    accelerations,
+                    torques,
+                    pinned_positions,
+                    pinned_rotations,
+                    substep_factor,
+                    soft_pinned_positions,
+                    soft_pinned_rotations,
+                    sub_delta_time);
+              }
+            });
+      }
+    });
+  };
+
+  for (const int substep_i : IndexRange(substeps)) {
+    const float substep_factor = substeps <= 1 ? 1.0f : float(substep_i) / (substeps - 1);
+    const bool is_first_substep = substep_i == 0;
+    const bool is_last_substep = substep_i == substeps - 1;
+
+    /* In all other substeps, this is done at the end of the previous step already to improve
+     * parallelism and cache locality. */
+    if (is_first_substep) {
+      run_per_point_updates(substep_factor, true, false);
+    }
+
+    /* Find current collisions and generate constraints to resolve them. */
+    xpbd::ConstraintSetCollector dynamic_constraint_sets;
+    const Contacts contacts = gather_contacts(
+        key_group, state, world_info, world_bundles, applied_geometries, keys, sim_points_props);
+    generate_collision_constraint_sets(
+        scope, contacts, keys, sub_delta_time, dynamic_constraint_sets);
+
+    /* Combine static and dynamic constraint sets. */
+    const Vector<xpbd::ConstraintSet *> current_constraint_sets =
+        xpbd::ConstraintSetCollector::combine(
+            scope, {&filtered_constraint_sets, &dynamic_constraint_sets});
+
+    /* Actually solve the constraints. */
+    solve_constraints(solver_type, geometry_refs, current_constraint_sets);
+
+    if (sub_delta_time > 0.0f) {
+      /* Apply friction by updating current positions before the new velocity is computed. */
+      apply_friction(state, key_group, contacts, keys, all_prev_positions);
+    }
+
+    /* Does remaining per-point updates at the end of this time step (like updating velocities) and
+     * also does the beginning of the next timestep already unless this is the last substep. */
+    run_per_point_updates(substep_factor, !is_last_substep, true);
+  }
+}
+
 PROFILE_FUNCTION static void update_and_step_xpbd_state(XPBDState &state,
                                                         const WorldBundles &world_bundles,
                                                         const float total_delta_time,
@@ -2893,102 +3037,47 @@ PROFILE_FUNCTION static void update_and_step_xpbd_state(XPBDState &state,
   const Vector<xpbd::GeometryRef> geometry_refs = prepare_geometry_refs_for_solver(
       state, keys, sim_points_props);
 
-  Array<Array<float3>> all_prev_positions(keys.size());
-  Array<Array<math::Quaternion>> all_prev_rotations(keys.size());
-  for (const int i : keys.index_range()) {
-    const SimPoints &sim_points = state.sim_points.lookup(keys[i]);
-    all_prev_positions[i].reinitialize(sim_points.points_num);
-    if (sim_points.has_rotation) {
-      all_prev_rotations[i].reinitialize(sim_points.points_num);
+  DisjointSet<int> disjoint_set(keys.size());
+  for (const xpbd::ConstraintSet *constraint_set : static_constraint_sets.general) {
+    const Span<int> affected_keys = constraint_set->get_affected_geo_indices();
+    for (const int i : affected_keys.index_range().drop_back(1)) {
+      disjoint_set.join(affected_keys[i], affected_keys[i + 1]);
     }
   }
-
-  /* Instead of doing various stages like remembering old positions and updating velocities one
-   * after another, interleave them to improve cache locality and thread utilization. This is
-   * possible because each point is processed independently here. */
-  auto run_per_point_updates = [&](const float substep_factor,
-                                   const bool do_pre_solve,
-                                   const bool do_post_solve) {
-    threading::parallel_for(keys.index_range(), 1, [&](const IndexRange range) {
-      for (const int key_i : range) {
-        const SimPointsKey &key = keys[key_i];
-        SimPoints &sim_points = state.sim_points.lookup(keys[key_i]);
-        const Span<float3> accelerations = accelerations_map.lookup(key);
-        const std::optional<Span<float3>> torques = torques_map.lookup_try(key);
-        const SimPointsWorldProperties &props = sim_points_props.lookup(key);
-        const PinnedPositions *pinned_positions = pinned_positions_map.lookup_ptr(key);
-        const PinnedRotations *pinned_rotations = pinned_rotations_map.lookup_ptr(key);
-        MutableSpan<float3> soft_pinned_positions =
-            soft_pinned_positions_map.lookup_try(key).value_or(MutableSpan<float3>({}));
-        MutableSpan<math::Quaternion> soft_pinned_rotations =
-            soft_pinned_rotations_map.lookup_try(key).value_or(MutableSpan<math::Quaternion>({}));
-        threading::parallel_for(
-            IndexRange(sim_points.points_num), 256, [&](const IndexRange range) {
-              /* The post-solve steps are run first here, because this code runs at the end of the
-               * time-step after the constraints are solved. */
-              if (do_post_solve) {
-                post_solve_per_point_steps(sim_points,
-                                           range,
-                                           all_prev_positions[key_i].as_span().slice(range),
-                                           all_prev_rotations[key_i].as_span().slice_safe(range),
-                                           sub_delta_time);
-              }
-              if (do_pre_solve) {
-                pre_solve_per_point_steps(
-                    sim_points,
-                    range,
-                    all_prev_positions[key_i].as_mutable_span().slice(range),
-                    all_prev_rotations[key_i].as_mutable_span().slice_safe(range),
-                    props,
-                    accelerations,
-                    torques,
-                    pinned_positions,
-                    pinned_rotations,
-                    substep_factor,
-                    soft_pinned_positions,
-                    soft_pinned_rotations,
-                    sub_delta_time);
-              }
-            });
-      }
-    });
-  };
-
-  for (const int substep_i : IndexRange(substeps)) {
-    const float substep_factor = substeps <= 1 ? 1.0f : float(substep_i) / (substeps - 1);
-    const bool is_first_substep = substep_i == 0;
-    const bool is_last_substep = substep_i == substeps - 1;
-
-    /* In all other substeps, this is done at the end of the previous step already to improve
-     * parallelism and cache locality. */
-    if (is_first_substep) {
-      run_per_point_updates(substep_factor, true, false);
-    }
-
-    /* Find current collisions and generate constraints to resolve them. */
-    xpbd::ConstraintSetCollector dynamic_constraint_sets;
-    const Contacts contacts = gather_contacts(
-        state, world_info, world_bundles, applied_geometries, keys, sim_points_props);
-    generate_collision_constraint_sets(
-        scope, contacts, keys, sub_delta_time, dynamic_constraint_sets);
-
-    /* Combine static and dynamic constraint sets. */
-    const Vector<xpbd::ConstraintSet *> current_constraint_sets =
-        xpbd::ConstraintSetCollector::combine(scope,
-                                              {&static_constraint_sets, &dynamic_constraint_sets});
-
-    /* Actually solve the constraints. */
-    solve_constraints(solver_type, geometry_refs, current_constraint_sets);
-
-    if (sub_delta_time > 0.0f) {
-      /* Apply friction by updating current positions before the new velocity is computed. */
-      apply_friction(state, contacts, keys, all_prev_positions);
-    }
-
-    /* Does remaining per-point updates at the end of this time step (like updating velocities) and
-     * also does the beginning of the next timestep already unless this is the last substep. */
-    run_per_point_updates(substep_factor, !is_last_substep, true);
+  MultiValueMap<int, int> independent_key_groups_map;
+  for (const int key_i : keys.index_range()) {
+    const int group_id = disjoint_set.find_root(key_i);
+    independent_key_groups_map.add(group_id, key_i);
   }
+  Vector<Span<int>> independent_key_groups;
+  independent_key_groups.extend(independent_key_groups_map.values().begin(),
+                                independent_key_groups_map.values().end());
+
+  threading::parallel_for(
+      independent_key_groups.index_range(), 1, [&](const IndexRange key_group_range) {
+        for (const int key_group_i : key_group_range) {
+          const Span<int> key_group = independent_key_groups[key_group_i];
+          simulate_key_group(key_group,
+                             tls,
+                             state,
+                             world_bundles,
+                             world_info,
+                             keys,
+                             accelerations_map,
+                             torques_map,
+                             sim_points_props,
+                             pinned_positions_map,
+                             pinned_rotations_map,
+                             soft_pinned_positions_map,
+                             soft_pinned_rotations_map,
+                             applied_geometries,
+                             solver_type,
+                             geometry_refs,
+                             static_constraint_sets,
+                             substeps,
+                             sub_delta_time);
+        }
+      });
 }
 
 static void initialize_state(XPBDState & /*state*/)

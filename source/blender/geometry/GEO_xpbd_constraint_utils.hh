@@ -106,7 +106,7 @@ class ConstraintSetCollector {
   Vector<CurveLocalConstraintSet *> curve_local;
 
   static Vector<ConstraintSet *> combine(ResourceScope &scope,
-                                         const Span<ConstraintSetCollector *> collectors);
+                                         const Span<const ConstraintSetCollector *> collectors);
 };
 
 /* -------------------------------------------------------------------- */
