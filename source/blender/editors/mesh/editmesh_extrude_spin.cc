@@ -93,7 +93,7 @@ static wmOperatorStatus edbm_spin_exec(bContext *C, wmOperator *op)
           bm, spinop.slots_out, "geom_last.out", BM_ALL_NOLOOP, BM_ELEM_SELECT, true);
     }
     if (use_automerge) {
-      EDBM_automerge(obedit, false, BM_ELEM_TAG, scene->toolsettings->doublimit);
+      EDBM_automerge_connected(obedit, false, BM_ELEM_TAG, scene->toolsettings->doublimit);
       EDBM_flag_disable_all(em, BM_ELEM_TAG);
     }
 
