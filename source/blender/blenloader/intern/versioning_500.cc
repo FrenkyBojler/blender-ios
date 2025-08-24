@@ -526,24 +526,25 @@ static void do_version_remove_old_sky_textures(bNodeTree *node_tree, bNode *node
   NodeTexSky &tex = *static_cast<NodeTexSky *>(node->storage);
   if (tex.sky_model != 2) {
     /* old_sky_model == 2 was Nishita prior to the removal of the other sky textures. */
-    /* Do some extra versioning to try and generally match the look of Nishita with
-     * the old sky textures. */
+    /* Do some extra versioning to try and generally match the look of the old sky textures. */
 
-    /* The old sky textures did not have sun discs */
+    /* The old sky textures did not have sun discs. */
     tex.sun_disc = false;
+
+    /* TODO: Figure out how to take the direction input of the old sky texture and use it to
+     * set the Sun elevantion/rotation in Nishita. */
 
     /* Nishita is brighter than the old sky texture, so reduce it's brightness. */
     bNodeSocket *color_output = blender::bke::node_find_socket(*node, SOCK_OUT, "Color");
     LISTBASE_FOREACH_BACKWARD_MUTABLE (bNodeLink *, link, &node_tree->links) {
       if (link->fromsock == color_output) {
-        /* Add a HSV node with the value set to 0.05 to try and match Nishita's brightness to the
-         * old sky textures. */
+        /* Use a HSV node to control the brightness. */
         bNode &hsv = version_node_add_empty(*node_tree, "ShaderNodeHueSaturation");
         hsv.parent = node->parent;
         hsv.location[0] = node->location[0] + node->width + 20.0f;
         hsv.location[1] = node->location[1];
 
-        /* Set value input to 0.05. */
+        /* Set value input to 0.05 to reduce the brightness of the texture. */
         bNodeSocket &hsv_v_in = version_node_add_socket(
             *node_tree, hsv, SOCK_IN, "NodeSocketFloat", "Value");
         static_cast<bNodeSocketValueFloat *>(hsv_v_in.default_value)->value = 0.05f;
@@ -554,16 +555,13 @@ static void do_version_remove_old_sky_textures(bNodeTree *node_tree, bNode *node
         blender::bke::node_add_link(
             *node_tree, *link->fromnode, *link->fromsock, hsv, hsv_color_in);
 
-        /* Connect HSV node to whatever the sky texture was connected to. */
+        /* Connect HSV node to whatever the sky texture was previously connected to. */
         bNodeSocket &hsv_color_out = version_node_add_socket(
             *node_tree, hsv, SOCK_OUT, "NodeSocketColor", "Color");
         blender::bke::node_add_link(*node_tree, hsv, hsv_color_out, *link->tonode, *link->tosock);
 
-        /* Remove old link */
+        /* Remove old link. */
         blender::bke::node_remove_link(node_tree, *link);
-
-        /* TODO: Figure out how to take the direction input of the old sky texture and use it to
-         * set the Sun elevantion/rotation. */
       }
     }
   }
