@@ -418,6 +418,11 @@ struct DistanceBasedEdgeBendingConstraintData {
   int compliance_term_index;
 };
 
+struct PressureConstraintData {
+  int key_i;
+  float pressure;
+};
+
 struct ForceFieldsData {
   struct Item {
     fn::FieldEvaluator *evaluator;
@@ -473,6 +478,7 @@ struct WorldPreprocessData {
   Vector<AlignPositionsConstraintData> align_positions_constraints;
   Vector<AttachUVSurfaceConstraintData> attach_uv_surface_constraints;
   Vector<DistanceBasedEdgeBendingConstraintData> distance_based_edge_bending_constraints;
+  Vector<PressureConstraintData> pressure_constraints;
 };
 
 static const Field<bool> &get_constant_true_field()
@@ -1230,16 +1236,14 @@ PROFILE_FUNCTION static Vector<xpbd::DistanceConstraintSet *> gather_curve_segme
 PROFILE_FUNCTION static Vector<xpbd::PressureConstraintSet *> gather_pressure_constraints(
     ResourceScope &scope,
     XPBDState &state,
+    const WorldPreprocessData &world_info,
     const WorldBundles &world_bundles,
     const Span<GeometrySet> applied_geometries,
     const VectorSet<SimPointsKey> &keys)
 {
   Vector<xpbd::PressureConstraintSet *> result;
-  for (const int key_i : keys.index_range()) {
-    const SimPointsKey &key = keys[key_i];
-    if (key.type != bke::GeometryComponent::Type::Mesh) {
-      continue;
-    }
+  for (const PressureConstraintData &constraint : world_info.pressure_constraints) {
+    const SimPointsKey &key = keys[constraint.key_i];
     const int geometry_bundle_i = world_bundles.geometries.index_of_as(key.path);
     const GeometrySet &applied_geometry = applied_geometries[geometry_bundle_i];
     const Mesh &mesh = *applied_geometry.get_mesh();
@@ -1247,25 +1251,14 @@ PROFILE_FUNCTION static Vector<xpbd::PressureConstraintSet *> gather_pressure_co
     const Span<int> corner_verts = mesh.corner_verts();
     const Span<float3> positions = mesh.vert_positions();
 
-    const Vector overpressure_constraints = filter_bundles_for_path<PressureXPBDConstraintBundle>(
-        world_bundles.overpressure_constraints, key.path);
-
-    for (const PressureXPBDConstraintBundle *constraint_bundle : overpressure_constraints) {
-      const float pressure = constraint_bundle->pressure;
-      const float initial_volume = state.initial_volumes.lookup_or_add_cb(key, [&]() {
-        return xpbd::PressureConstraintSet::compute_volume(tris, corner_verts, positions);
-      });
-      if (initial_volume <= 0.0f) {
-        continue;
-      }
-      Vector<int> &affected_points = scope.construct<Vector<int>>(positions.size());
-      std::array<int, 2> &offsets = scope.construct<std::array<int, 2>>();
-      offsets[0] = 0;
-      offsets[1] = affected_points.size();
-      array_utils::fill_index_range<int>(affected_points);
-      result.append(&scope.construct<xpbd::PressureConstraintSet>(
-          key_i, tris, corner_verts, pressure, initial_volume));
+    const float initial_volume = state.initial_volumes.lookup_or_add_cb(key, [&]() {
+      return xpbd::PressureConstraintSet::compute_volume(tris, corner_verts, positions);
+    });
+    if (initial_volume <= 0.0f) {
+      continue;
     }
+    result.append(&scope.construct<xpbd::PressureConstraintSet>(
+        constraint.key_i, tris, corner_verts, constraint.pressure, initial_volume));
   }
   return result;
 }
@@ -1703,6 +1696,31 @@ PROFILE_FUNCTION static void prepare_evaluation__distance_based_edge_bending_con
            &evaluator,
            evaluator.add(
                convert_to_compliance_term_field(constraint_bundle->compliance, delta_time))});
+    }
+  }
+}
+
+PROFILE_FUNCTION static void prepare_evaluation__pressure_constraints(
+    WorldPreprocessData &world_info,
+    const WorldBundles &world_bundles,
+    const Span<GeometrySet> applied_geometries,
+    const VectorSet<SimPointsKey> &keys)
+{
+  for (const int key_i : keys.index_range()) {
+    const SimPointsKey &key = keys[key_i];
+    if (key.type != bke::GeometryComponent::Type::Mesh) {
+      continue;
+    }
+    const int geometry_bundle_i = world_bundles.geometries.index_of_as(key.path);
+    const GeometrySet &applied_geometry = applied_geometries[geometry_bundle_i];
+    const Mesh &mesh = *applied_geometry.get_mesh();
+    if (mesh.faces_num == 0) {
+      continue;
+    }
+    const Vector constraint_bundles = filter_bundles_for_path<PressureXPBDConstraintBundle>(
+        world_bundles.overpressure_constraints, key.path);
+    for (const PressureXPBDConstraintBundle *constraint_bundle : constraint_bundles) {
+      world_info.pressure_constraints.append({key_i, constraint_bundle->pressure});
     }
   }
 }
@@ -2728,6 +2746,7 @@ PROFILE_FUNCTION static void update_and_step_xpbd_state(XPBDState &state,
       scope, world_info, world_bundles, applied_geometries, keys, sub_delta_time);
   prepare_evaluation__distance_based_edge_bending_constraints(
       scope, world_info, world_bundles, applied_geometries, keys, sub_delta_time);
+  prepare_evaluation__pressure_constraints(world_info, world_bundles, applied_geometries, keys);
 
   Vector<fn::FieldEvaluator *> field_evaluators;
   for (fn::FieldEvaluator *evaluator : world_info.field_evaluators.values()) {
@@ -2781,8 +2800,8 @@ PROFILE_FUNCTION static void update_and_step_xpbd_state(XPBDState &state,
   {
     static_constraint_sets.general.append(constraint_set);
   }
-  for (xpbd::PressureConstraintSet *constraint_set :
-       gather_pressure_constraints(scope, state, world_bundles, applied_geometries, keys))
+  for (xpbd::PressureConstraintSet *constraint_set : gather_pressure_constraints(
+           scope, state, world_info, world_bundles, applied_geometries, keys))
   {
     static_constraint_sets.general.append(constraint_set);
   }
