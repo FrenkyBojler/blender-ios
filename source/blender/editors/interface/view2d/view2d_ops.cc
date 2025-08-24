@@ -19,6 +19,7 @@
 #include "BLI_utildefines.h"
 
 #include "BKE_context.hh"
+#include "BKE_screen.hh"
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
@@ -710,13 +711,18 @@ static bool view_zoom_poll(bContext *C)
 {
   ARegion *region = CTX_wm_region(C);
 
+  if (region->regiontype == RGN_TYPE_HEADER) {
+    region = BKE_area_find_region_type(CTX_wm_area(C), RGN_TYPE_WINDOW);
+  }
+
   /* check if there's a region in context to work with */
   if (region == nullptr) {
     return false;
   }
 
   /* Do not show that in 3DView context. */
-  if (CTX_wm_region_view3d(C)) {
+  ScrArea *area = CTX_wm_area(C);
+  if (area && area->spacetype == SPACE_VIEW3D && region && region->regiontype == RGN_TYPE_WINDOW) {
     return false;
   }
 
@@ -742,7 +748,13 @@ static void view_zoomdrag_init(bContext *C, wmOperator *op)
   op->customdata = vzd;
 
   /* set pointers to owners */
-  vzd->region = CTX_wm_region(C);
+
+  ARegion *region = CTX_wm_region(C);
+  if (region->regiontype == RGN_TYPE_HEADER) {
+    region = BKE_area_find_region_type(CTX_wm_area(C), RGN_TYPE_WINDOW);
+  }
+
+  vzd->region = region;
   vzd->v2d = &vzd->region->v2d;
   /* False by default. Interactive callbacks (ie invoke()) can set it to true. */
   vzd->zoom_to_mouse_pos = false;

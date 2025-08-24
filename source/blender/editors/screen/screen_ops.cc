@@ -4450,6 +4450,8 @@ static void screen_area_touch_menu_create(bContext *C, ScrArea *area)
 
   layout->separator();
 
+  layout->op("VIEW2D_OT_zoom", IFACE_("Zoom"), ICON_ZOOM_IN);
+
   layout->op("SCREEN_OT_screen_full_area",
              area->full ? IFACE_("Restore Areas") : IFACE_("Maximize Area"),
              ICON_NONE);
