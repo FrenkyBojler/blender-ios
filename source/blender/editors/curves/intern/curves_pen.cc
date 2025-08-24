@@ -965,6 +965,13 @@ class CurvesPenToolOperation : public PenToolOperation {
     return retrieve_all_selected_points(curves, memory);
   }
 
+  IndexMask editable_curves(const int curves_index, IndexMaskMemory & /*memory*/) const
+  {
+    const Curves *curves_id = this->all_curves[curves_index];
+    const bke::CurvesGeometry &curves = curves_id->geometry.wrap();
+    return curves.curves_range();
+  }
+
   void tag_curve_changed(const int curves_index) const
   {
     Curves *curves_id = this->all_curves[curves_index];
@@ -1045,7 +1052,7 @@ static ClosestElement pen_find_closest_element(const CurvesPenToolOperation &ptd
     const IndexMask editable_points = curves.points_range();
     const IndexMask bezier_points = retrieve_visible_bezier_handle_points(
         curves, ptd.vc.v3d->overlay.handle_display, memory);
-    const IndexMask editable_curves = curves.curves_range();
+    const IndexMask editable_curves = ptd.editable_curves(drawing_index, memory);
 
     pen_find_closest_point(
         ptd, curves, editable_points, layer_to_object, curves_index, mouse_co, closest_element);
@@ -1167,8 +1174,10 @@ static wmOperatorStatus curves_pen_invoke(bContext *C, wmOperator *op, const wmE
 
       if (ptd.closest_element.element_mode == ElementMode::None) {
         if (ptd.extrude_point) {
+          const IndexMask editable_curves = ptd.editable_curves(drawing_index, memory);
+
           if (std::optional<bke::CurvesGeometry> result = ptd.extrude_curves(
-                  curves, float4x4::identity(), curves.curves_range()))
+                  curves, float4x4::identity(), editable_curves))
           {
             curves = std::move(*result);
           }

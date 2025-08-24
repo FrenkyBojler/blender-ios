@@ -79,6 +79,13 @@ class GreasePencilPenToolOperation : public PenToolOperation {
         *this->vc.obact, info.drawing, info.layer_index, memory);
   }
 
+  IndexMask editable_curves(const int curves_index, IndexMaskMemory &memory) const
+  {
+    const MutableDrawingInfo &info = this->drawings[curves_index];
+    return ed::greasepencil::retrieve_editable_strokes(
+        *this->vc.obact, info.drawing, info.layer_index, memory);
+  }
+
   void tag_curve_changed(const int curves_index) const
   {
     const MutableDrawingInfo &info = this->drawings[curves_index];
@@ -123,8 +130,7 @@ static ClosestElement pen_find_closest_element(const GreasePencilPenToolOperatio
         *ptd.vc.obact, info.drawing, info.layer_index, memory);
     const IndexMask bezier_points = ed::greasepencil::retrieve_visible_bezier_handle_points(
         *ptd.vc.obact, info.drawing, info.layer_index, ptd.vc.v3d->overlay.handle_display, memory);
-    const IndexMask editable_curves = ed::greasepencil::retrieve_editable_strokes(
-        *ptd.vc.obact, info.drawing, info.layer_index, memory);
+    const IndexMask editable_curves = ptd.editable_curves(drawing_index, memory);
 
     pen_find_closest_point(
         ptd, curves, editable_points, layer_to_object, drawing_index, mouse_co, closest_element);
@@ -275,8 +281,7 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
           const float4x4 &layer_to_object = ptd.layer_to_objects[drawing_index];
 
           IndexMaskMemory memory;
-          const IndexMask editable_curves = ed::greasepencil::retrieve_editable_strokes(
-              *ptd.vc.obact, info.drawing, info.layer_index, memory);
+          const IndexMask editable_curves = ptd.editable_curves(drawing_index, memory);
           const bke::CurvesGeometry &src = info.drawing.strokes();
 
           if (std::optional<bke::CurvesGeometry> result = ptd.extrude_curves(
