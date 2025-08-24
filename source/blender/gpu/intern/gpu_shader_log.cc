@@ -250,10 +250,10 @@ void Shader::print_log(Span<StringRefNull> sources,
 
   if (CLOG_CHECK(&LOG, level)) {
     if (DEBUG_LOG_SHADER_SRC_ON_ERROR && error) {
-      CLG_log_str(LOG.type, level, this->name, stage, sources_combined.c_str());
+      CLG_log_raw(LOG.type, sources_combined.c_str());
     }
     const char *_str = BLI_dynstr_get_cstring(dynstr);
-    CLG_log_str(LOG.type, level, this->name, stage, _str);
+    CLOG_AT_LEVEL(&LOG, level, "%s %s: %s", this->name, stage, _str);
     MEM_freeN(_str);
   }
 
@@ -330,8 +330,8 @@ void printf_begin(Context *ctx)
   if (!shader::gpu_shader_dependency_has_printf()) {
     return;
   }
-  GPUStorageBuf *printf_buf = GPU_storagebuf_create(GPU_SHADER_PRINTF_MAX_CAPACITY *
-                                                    sizeof(uint32_t));
+  StorageBuf *printf_buf = GPU_storagebuf_create(GPU_SHADER_PRINTF_MAX_CAPACITY *
+                                                 sizeof(uint32_t));
   GPU_storagebuf_clear_to_zero(printf_buf);
   ctx->printf_buf.append(printf_buf);
 }
@@ -344,7 +344,7 @@ void printf_end(Context *ctx)
   if (ctx->printf_buf.is_empty()) {
     return;
   }
-  GPUStorageBuf *printf_buf = ctx->printf_buf.pop_last();
+  StorageBuf *printf_buf = ctx->printf_buf.pop_last();
 
   Vector<uint32_t> data(GPU_SHADER_PRINTF_MAX_CAPACITY);
   GPU_storagebuf_read(printf_buf, data.data());

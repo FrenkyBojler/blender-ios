@@ -16,7 +16,7 @@
 
 #include "BLI_math_base.h"
 #include "BLI_rect.h"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_timecode.h"
 #include "BLI_utildefines.h"
 #include "BLI_vector.hh"
@@ -60,10 +60,10 @@ static float select_major_distance(const float *possible_distances,
 }
 
 static const float discrete_value_scales[] = {
-    1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000, 100000};
+    1, 2, 4, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000, 100000};
 
-static const float continuous_value_scales[] = {0.01, 0.02, 0.05,  0.1,   0.2,   0.5,   1,   2,
-                                                5,    10,   20,    50,    100,   200,   500, 1000,
+static const float continuous_value_scales[] = {0.01, 0.02, 0.04,  0.1,   0.2,   0.4,   1,   2,
+                                                4,    10,   20,    50,    100,   200,   500, 1000,
                                                 2000, 5000, 10000, 20000, 50000, 100000};
 
 static uint view2d_major_step_x__discrete(const View2D *v2d)
@@ -92,7 +92,7 @@ static float view2d_major_step_y__continuous(const View2D *v2d)
 
 static float view2d_major_step_x__time(const View2D *v2d, const Scene *scene)
 {
-  const double fps = FPS;
+  const double fps = scene->frames_per_second();
 
   blender::Vector<float, 32> possible_distances;
 
@@ -252,9 +252,10 @@ static void view2d_draw_lines(const View2D *v2d,
     uchar minor_color[3];
     UI_GetThemeColorShade3ubv(TH_GRID, 16, minor_color);
     ParallelLinesSet minor_lines;
-    /* Draw minor lines at every second major line. */
-    minor_lines.distance = major_distance * 2.0f;
-    minor_lines.offset = major_distance;
+    /* Draw minor between major lines. In order for the lines to be on full frames values in
+     * `discrete_value_scales` have to be even numbers. */
+    minor_lines.distance = major_distance;
+    minor_lines.offset = major_distance / 2.0f;
     view2d_draw_lines_internal(v2d, &minor_lines, minor_color, direction);
   }
 }
@@ -410,7 +411,7 @@ static void draw_vertical_scale_indicators(const ARegion *region,
 static void view_to_string__frame_number(
     void * /*user_data*/, float v2d_pos, float /*v2d_step*/, char *r_str, uint str_maxncpy)
 {
-  BLI_snprintf(r_str, str_maxncpy, "%d", int(v2d_pos));
+  BLI_snprintf_utf8(r_str, str_maxncpy, "%d", int(v2d_pos));
 }
 
 static void view_to_string__time(
@@ -419,28 +420,32 @@ static void view_to_string__time(
   const Scene *scene = (const Scene *)user_data;
 
   int brevity_level = -1;
-  if (U.timecode_style == USER_TIMECODE_MINIMAL && v2d_step >= FPS) {
+  if (U.timecode_style == USER_TIMECODE_MINIMAL && v2d_step >= scene->frames_per_second()) {
     brevity_level = 1;
   }
 
-  BLI_timecode_string_from_time(
-      r_str, str_maxncpy, brevity_level, v2d_pos / float(FPS), FPS, U.timecode_style);
+  BLI_timecode_string_from_time(r_str,
+                                str_maxncpy,
+                                brevity_level,
+                                v2d_pos / float(scene->frames_per_second()),
+                                scene->frames_per_second(),
+                                U.timecode_style);
 }
 
 static void view_to_string__value(
     void * /*user_data*/, float v2d_pos, float v2d_step, char *r_str, uint str_maxncpy)
 {
   if (v2d_step >= 1.0f) {
-    BLI_snprintf(r_str, str_maxncpy, "%d", int(v2d_pos));
+    BLI_snprintf_utf8(r_str, str_maxncpy, "%d", int(v2d_pos));
   }
   else if (v2d_step >= 0.1f) {
-    BLI_snprintf(r_str, str_maxncpy, "%.1f", v2d_pos);
+    BLI_snprintf_utf8(r_str, str_maxncpy, "%.1f", v2d_pos);
   }
   else if (v2d_step >= 0.01f) {
-    BLI_snprintf(r_str, str_maxncpy, "%.2f", v2d_pos);
+    BLI_snprintf_utf8(r_str, str_maxncpy, "%.2f", v2d_pos);
   }
   else {
-    BLI_snprintf(r_str, str_maxncpy, "%.3f", v2d_pos);
+    BLI_snprintf_utf8(r_str, str_maxncpy, "%.3f", v2d_pos);
   }
 }
 

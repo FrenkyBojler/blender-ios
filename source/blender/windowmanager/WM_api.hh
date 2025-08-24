@@ -156,6 +156,8 @@ void WM_init_splash(bContext *C);
 
 void WM_init_gpu();
 
+bool WM_gpu_is_initialized();
+
 /**
  * Return an identifier for the underlying GHOST implementation.
  * \warning Use of this function should be limited & never for compatibility checks.
@@ -203,6 +205,8 @@ enum eWM_CapabilitiesFlag {
   WM_CAPABILITY_KEYBOARD_HYPER_KEY = (1 << 9),
   /** Support for RGBA Cursors. */
   WM_CAPABILITY_CURSOR_RGBA = (1 << 10),
+  /** Support on demand cursor generation. */
+  WM_CAPABILITY_CURSOR_GENERATOR = (1 << 11),
   /** The initial value, indicates the value needs to be set by inspecting GHOST. */
   WM_CAPABILITY_INITIALIZED = (1u << 31),
 };
@@ -446,7 +450,7 @@ void WM_file_autoexec_init(const char *filepath);
 /**
  * \param use_scripts_autoexec_check: When true, script auto-execution checks excluded directories.
  * Note that this is passed in as an argument because `filepath` may reference a path to recover.
- * In this case the that used for exclusion is the recovery path which is only known once
+ * In this case the file-path used for exclusion is the recovery path which is only known once
  * the file has been loaded.
  */
 bool WM_file_read(bContext *C,
@@ -489,6 +493,16 @@ void WM_lib_reload(Library *lib, bContext *C, ReportList *reports);
 
 void WM_cursor_set(wmWindow *win, int curs);
 bool WM_cursor_set_from_tool(wmWindow *win, const ScrArea *area, const ARegion *region);
+/**
+ * Check the cursor isn't set elsewhere.
+ * When false setting the modal cursor can be done but may overwrite an existing cursor.
+ *
+ * Use this check for modal navigation operators that may be activated while other modal operators
+ * are running.
+ *
+ * \note A cursor "stack" would remove the need for this.
+ */
+bool WM_cursor_modal_is_set_ok(const wmWindow *win);
 void WM_cursor_modal_set(wmWindow *win, int val);
 void WM_cursor_modal_restore(wmWindow *win);
 /**
@@ -514,6 +528,11 @@ void WM_cursor_grab_disable(wmWindow *win, const int mouse_ungrab_xy[2]);
  * After this you can call restore too.
  */
 void WM_cursor_time(wmWindow *win, int nr);
+
+/**
+ * Show progress in the cursor (0.0..1.0 when complete).
+ */
+void WM_cursor_progress(wmWindow *win, float progress_factor);
 
 wmPaintCursor *WM_paint_cursor_activate(short space_type,
                                         short region_type,
@@ -802,13 +821,6 @@ wmTimer *WM_event_timer_add_notifier(wmWindowManager *wm,
                                      double time_step);
 
 void WM_event_timer_free_data(wmTimer *timer);
-/**
- * Free all timers immediately.
- *
- * \note This should only be used on-exit,
- * in all other cases timers should be tagged for removal by #WM_event_timer_remove.
- */
-void WM_event_timers_free_all(wmWindowManager *wm);
 
 /**
  * Mark the given `timer` to be removed, actual removal and deletion is deferred and handled
@@ -1957,10 +1969,10 @@ void WM_autosave_write(wmWindowManager *wm, Main *bmain);
 
 /**
  * Lock the interface for any communication.
- * For #WM_set_locked_interface_with_flags, #lock_flags is #ARegionDrawLockFlags
+ * For #WM_locked_interface_set_with_flags, #lock_flags is #ARegionDrawLockFlags
  */
-void WM_set_locked_interface(wmWindowManager *wm, bool lock);
-void WM_set_locked_interface_with_flags(wmWindowManager *wm, short lock_flags);
+void WM_locked_interface_set(wmWindowManager *wm, bool lock);
+void WM_locked_interface_set_with_flags(wmWindowManager *wm, short lock_flags);
 
 void WM_event_tablet_data_default_set(wmTabletData *tablet_data);
 

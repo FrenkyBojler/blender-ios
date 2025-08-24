@@ -19,26 +19,56 @@
 
 #include "WM_types.hh"
 
+#include "UI_resources.hh"
+
 using blender::bke::AttrDomain;
 
 const EnumPropertyItem rna_enum_attribute_type_items[] = {
-    {CD_PROP_FLOAT, "FLOAT", 0, "Float", "Floating-point value"},
-    {CD_PROP_INT32, "INT", 0, "Integer", "32-bit integer"},
-    {CD_PROP_FLOAT3, "FLOAT_VECTOR", 0, "Vector", "3D vector with floating-point values"},
-    {CD_PROP_COLOR, "FLOAT_COLOR", 0, "Color", "RGBA color with 32-bit floating-point values"},
+    {CD_PROP_FLOAT, "FLOAT", ICON_NODE_SOCKET_FLOAT, "Float", "Floating-point value"},
+    {CD_PROP_INT32, "INT", ICON_NODE_SOCKET_INT, "Integer", "32-bit integer"},
+    {CD_PROP_FLOAT3,
+     "FLOAT_VECTOR",
+     ICON_NODE_SOCKET_VECTOR,
+     "Vector",
+     "3D vector with floating-point values"},
+    {CD_PROP_COLOR,
+     "FLOAT_COLOR",
+     ICON_NODE_SOCKET_RGBA,
+     "Color",
+     "RGBA color with 32-bit floating-point values"},
     {CD_PROP_BYTE_COLOR,
      "BYTE_COLOR",
-     0,
+     ICON_NODE_SOCKET_RGBA,
      "Byte Color",
      "RGBA color with 8-bit positive integer values"},
-    {CD_PROP_STRING, "STRING", 0, "String", "Text string"},
-    {CD_PROP_BOOL, "BOOLEAN", 0, "Boolean", "True or false"},
-    {CD_PROP_FLOAT2, "FLOAT2", 0, "2D Vector", "2D vector with floating-point values"},
-    {CD_PROP_INT8, "INT8", 0, "8-Bit Integer", "Smaller integer with a range from -128 to 127"},
-    {CD_PROP_INT16_2D, "INT16_2D", 0, "2D 16-Bit Integer Vector", "16-bit signed integer vector"},
-    {CD_PROP_INT32_2D, "INT32_2D", 0, "2D Integer Vector", "32-bit signed integer vector"},
-    {CD_PROP_QUATERNION, "QUATERNION", 0, "Quaternion", "Floating point quaternion rotation"},
-    {CD_PROP_FLOAT4X4, "FLOAT4X4", 0, "4x4 Matrix", "Floating point matrix"},
+    {CD_PROP_STRING, "STRING", ICON_NODE_SOCKET_STRING, "String", "Text string"},
+    {CD_PROP_BOOL, "BOOLEAN", ICON_NODE_SOCKET_BOOLEAN, "Boolean", "True or false"},
+    {CD_PROP_FLOAT2,
+     "FLOAT2",
+     ICON_NODE_SOCKET_VECTOR,
+     "2D Vector",
+     "2D vector with floating-point values"},
+    {CD_PROP_INT8,
+     "INT8",
+     ICON_NODE_SOCKET_INT,
+     "8-Bit Integer",
+     "Smaller integer with a range from -128 to 127"},
+    {CD_PROP_INT16_2D,
+     "INT16_2D",
+     ICON_NODE_SOCKET_VECTOR,
+     "2D 16-Bit Integer Vector",
+     "16-bit signed integer vector"},
+    {CD_PROP_INT32_2D,
+     "INT32_2D",
+     ICON_NODE_SOCKET_VECTOR,
+     "2D Integer Vector",
+     "32-bit signed integer vector"},
+    {CD_PROP_QUATERNION,
+     "QUATERNION",
+     ICON_NODE_SOCKET_ROTATION,
+     "Quaternion",
+     "Floating point quaternion rotation"},
+    {CD_PROP_FLOAT4X4, "FLOAT4X4", ICON_NODE_SOCKET_MATRIX, "4x4 Matrix", "Floating point matrix"},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -533,7 +563,7 @@ static void rna_Attribute_data_begin(CollectionPropertyIterator *iter, PointerRN
   }
 
   CustomDataLayer *layer = (CustomDataLayer *)ptr->data;
-  if (!(CD_TYPE_AS_MASK(layer->type) & CD_MASK_PROP_ALL)) {
+  if (!(CD_TYPE_AS_MASK(eCustomDataType(layer->type)) & CD_MASK_PROP_ALL)) {
     iter->valid = false;
   }
 
@@ -662,7 +692,7 @@ static PointerRNA rna_AttributeGroupID_new(
         attributes.unique_name_calc(name),
         AttrDomain(domain),
         *bke::custom_data_type_to_attr_type(eCustomDataType(type)),
-        bke::Attribute::ArrayData::ForDefaultValue(cpp_type, domain_size));
+        bke::Attribute::ArrayData::from_default_value(cpp_type, domain_size));
 
     DEG_id_tag_update(id, ID_RECALC_GEOMETRY);
     WM_main_add_notifier(NC_GEOM | ND_DATA, id);
@@ -701,7 +731,7 @@ static void rna_AttributeGroupID_remove(ID *id, ReportList *reports, PointerRNA 
   if (owner.type() != AttributeOwnerType::Mesh) {
     const bke::Attribute *attr = static_cast<const bke::Attribute *>(attribute_ptr->data);
     if (BKE_attribute_required(owner, attr->name())) {
-      BKE_report(reports, RPT_ERROR, "Attribute is required and can't be removed");
+      BKE_report(reports, RPT_ERROR, "Attribute is required and cannot be removed");
       return;
     }
 
@@ -726,7 +756,7 @@ static void rna_AttributeGroupID_remove(ID *id, ReportList *reports, PointerRNA 
 static bool rna_Attributes_layer_skip(CollectionPropertyIterator * /*iter*/, void *data)
 {
   CustomDataLayer *layer = (CustomDataLayer *)data;
-  return !(CD_TYPE_AS_MASK(layer->type) & CD_MASK_PROP_ALL);
+  return !(CD_TYPE_AS_MASK(eCustomDataType(layer->type)) & CD_MASK_PROP_ALL);
 }
 
 static bool rna_Attributes_noncolor_layer_skip(CollectionPropertyIterator *iter, void *data)
@@ -741,20 +771,8 @@ static bool rna_Attributes_noncolor_layer_skip(CollectionPropertyIterator *iter,
     return true;
   }
 
-  return !(CD_TYPE_AS_MASK(layer->type) & CD_MASK_COLOR_ALL) || (layer->flag & CD_FLAG_TEMPORARY);
-}
-
-static bool rna_AttributeStorage_noncolor_skip(CollectionPropertyIterator * /*iter*/, void *data)
-{
-  using namespace blender;
-  bke::Attribute *attr = static_cast<bke::Attribute *>(data);
-  if (!(ATTR_DOMAIN_AS_MASK(attr->domain()) & ATTR_DOMAIN_MASK_COLOR)) {
-    return true;
-  }
-  if (!(CD_TYPE_AS_MASK(attr->data_type()) & CD_MASK_COLOR_ALL)) {
-    return true;
-  }
-  return false;
+  return !(CD_TYPE_AS_MASK(eCustomDataType(layer->type)) & CD_MASK_COLOR_ALL) ||
+         (layer->flag & CD_FLAG_TEMPORARY);
 }
 
 /* Attributes are spread over multiple domains in separate CustomData, we use repeated
@@ -831,14 +849,40 @@ PointerRNA rna_AttributeGroup_iterator_get(CollectionPropertyIterator *iter)
 
 void rna_AttributeGroup_color_iterator_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
 {
-  memset(&iter->internal.array, 0, sizeof(iter->internal.array));
+  using namespace blender;
   AttributeOwner owner = owner_from_pointer_rna(ptr);
+  if (owner.type() != AttributeOwnerType::Mesh) {
+    bke::AttributeStorage &storage = *owner.get_storage();
+    Vector<bke::Attribute *> attributes;
+    storage.foreach([&](bke::Attribute &attr) {
+      if (!(ATTR_DOMAIN_AS_MASK(attr.domain()) & ATTR_DOMAIN_MASK_COLOR)) {
+        return;
+      }
+      if (!(CD_TYPE_AS_MASK(*bke::attr_type_to_custom_data_type(attr.data_type())) &
+            CD_MASK_COLOR_ALL))
+      {
+        return;
+      }
+      attributes.append(&attr);
+    });
+    VectorData data = attributes.release();
+    rna_iterator_array_begin(
+        iter, ptr, data.data, sizeof(bke::Attribute *), data.size, true, nullptr);
+    return;
+  }
+
+  memset(&iter->internal.array, 0, sizeof(iter->internal.array));
   rna_AttributeGroup_next_domain(owner, iter, ptr, rna_Attributes_noncolor_layer_skip);
 }
 
 void rna_AttributeGroup_color_iterator_next(CollectionPropertyIterator *iter)
 {
+  using namespace blender;
   rna_iterator_array_next(iter);
+  AttributeOwner owner = owner_from_pointer_rna(&iter->parent);
+  if (owner.type() != AttributeOwnerType::Mesh) {
+    return;
+  }
 
   if (!iter->valid) {
     AttributeOwner owner = owner_from_pointer_rna(&iter->parent);
@@ -848,33 +892,21 @@ void rna_AttributeGroup_color_iterator_next(CollectionPropertyIterator *iter)
 
 PointerRNA rna_AttributeGroup_color_iterator_get(CollectionPropertyIterator *iter)
 {
-  /* Refine to the proper type. */
+  using namespace blender;
+  AttributeOwner owner = owner_from_pointer_rna(&iter->parent);
+  if (owner.type() != AttributeOwnerType::Mesh) {
+    bke::Attribute *attr = *static_cast<bke::Attribute **>(rna_iterator_array_get(iter));
+    const eCustomDataType data_type = *bke::attr_type_to_custom_data_type(attr->data_type());
+    StructRNA *type = srna_by_custom_data_layer_type(data_type);
+    return RNA_pointer_create_with_parent(iter->parent, type, attr);
+  }
+
   CustomDataLayer *layer = static_cast<CustomDataLayer *>(rna_iterator_array_get(iter));
   StructRNA *type = srna_by_custom_data_layer_type(eCustomDataType(layer->type));
   if (type == nullptr) {
     return PointerRNA_NULL;
   }
   return RNA_pointer_create_with_parent(iter->parent, type, layer);
-}
-
-void rna_AttributeStorage_color_iterator_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
-{
-  using namespace blender;
-  memset(&iter->internal.array, 0, sizeof(iter->internal.array));
-  AttributeOwner owner = owner_from_pointer_rna(ptr);
-  if (owner.type() != AttributeOwnerType::Mesh) {
-    bke::AttributeStorage &storage = *owner.get_storage();
-    Vector<bke::Attribute *> attributes;
-    storage.foreach([&](bke::Attribute &attr) { attributes.append(&attr); });
-    VectorData data = attributes.release();
-    rna_iterator_array_begin(iter,
-                             ptr,
-                             data.data,
-                             sizeof(bke::Attribute *),
-                             data.size,
-                             true,
-                             rna_AttributeStorage_noncolor_skip);
-  }
 }
 
 int rna_AttributeGroup_color_length(PointerRNA *ptr)
@@ -888,7 +920,9 @@ int rna_AttributeGroup_color_length(PointerRNA *ptr)
       if (!(ATTR_DOMAIN_AS_MASK(attr.domain()) & ATTR_DOMAIN_MASK_COLOR)) {
         return;
       }
-      if (!(CD_TYPE_AS_MASK(attr.data_type()) & CD_MASK_COLOR_ALL)) {
+      if (!(CD_TYPE_AS_MASK(*bke::attr_type_to_custom_data_type(attr.data_type())) &
+            CD_MASK_COLOR_ALL))
+      {
         return;
       }
       count++;
@@ -1201,7 +1235,7 @@ static PointerRNA rna_AttributeGroupGreasePencilDrawing_new(ID *grease_pencil_id
       attributes.unique_name_calc(name),
       AttrDomain(domain),
       *bke::custom_data_type_to_attr_type(eCustomDataType(type)),
-      bke::Attribute::ArrayData::ForDefaultValue(cpp_type, domain_size));
+      bke::Attribute::ArrayData::from_default_value(cpp_type, domain_size));
 
   DEG_id_tag_update(grease_pencil_id, ID_RECALC_GEOMETRY);
   WM_main_add_notifier(NC_GEOM | ND_DATA, grease_pencil_id);
@@ -1218,7 +1252,7 @@ static void rna_AttributeGroupGreasePencilDrawing_remove(ID *grease_pencil_id,
   AttributeOwner owner = AttributeOwner(AttributeOwnerType::GreasePencilDrawing, drawing);
   const bke::Attribute *attr = static_cast<const bke::Attribute *>(attribute_ptr->data);
   if (BKE_attribute_required(owner, attr->name())) {
-    BKE_report(reports, RPT_ERROR, "Attribute is required and can't be removed");
+    BKE_report(reports, RPT_ERROR, "Attribute is required and cannot be removed");
     return;
   }
 

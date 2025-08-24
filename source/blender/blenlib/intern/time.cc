@@ -19,7 +19,7 @@
 /* timeapi.h needs to be included after windows.h. */
 #  include <timeapi.h>
 
-double BLI_time_now_seconds(void)
+double BLI_time_now_seconds()
 {
   static int hasperfcounter = -1; /* (-1 == unknown) */
   static double perffreq;
@@ -27,7 +27,7 @@ double BLI_time_now_seconds(void)
   if (hasperfcounter == -1) {
     __int64 ifreq;
     hasperfcounter = QueryPerformanceFrequency((LARGE_INTEGER *)&ifreq);
-    perffreq = (double)ifreq;
+    perffreq = double(ifreq);
   }
 
   if (hasperfcounter) {
@@ -54,7 +54,7 @@ double BLI_time_now_seconds(void)
   }
 }
 
-long int BLI_time_now_seconds_i(void)
+long int BLI_time_now_seconds_i()
 {
   return (long int)BLI_time_now_seconds();
 }
