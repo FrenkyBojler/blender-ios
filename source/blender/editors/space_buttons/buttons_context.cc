@@ -547,6 +547,31 @@ static bool buttons_context_linestyle_pinnable(const bContext *C, ViewLayer *vie
 }
 #endif
 
+static eSpaceButtons_Context context_from_path(const bContext *C,
+                                               ButsContextPath *path,
+                                               PointerRNA *ptr)
+{
+  wmWindow *window = CTX_wm_window(C);
+  SpaceProperties *sbuts = CTX_wm_space_properties(C);
+  Scene *scene = WM_window_get_active_scene(window);
+  ViewLayer *view_layer = WM_window_get_active_view_layer(window);
+
+  if (buttons_context_path_scene(path)) {
+    return BCONTEXT_SCENE;
+  }
+  else if (buttons_context_path_collection(C, path, window)) {
+    return BCONTEXT_COLLECTION;
+  }
+  else if (buttons_context_path_object(path)) {
+    return BCONTEXT_OBJECT;
+  }
+  else if (buttons_context_path_data(path, -1)) {
+    return BCONTEXT_DATA;
+  }
+
+  return BCONTEXT_TOT;
+}
+
 static bool buttons_context_path(
     const bContext *C, SpaceProperties *sbuts, ButsContextPath *path, int mainb, int flag)
 {
@@ -1235,10 +1260,17 @@ static void buttons_panel_context_draw(const bContext *C, Panel *panel)
     int icon = RNA_struct_ui_icon(ptr->type);
     char namebuf[128];
     char *name = RNA_struct_name_get_alloc(ptr, namebuf, sizeof(namebuf), nullptr);
-
     if (name) {
-      uiItemLDrag(row, ptr, name, icon);
-
+      eSpaceButtons_Context context = context_from_path(C, path, ptr);
+      if (context != BCONTEXT_TOT) {
+        row->emboss_set(blender::ui::EmbossType::None);
+        row->button(name, icon, [sbuts, ptr, context](const bContext &C) {
+          ED_buttons_set_context(&C, sbuts, ptr, context);
+        });
+      }
+      else {
+        row->label(name, icon);
+      }
       if (name != namebuf) {
         MEM_freeN(name);
       }
