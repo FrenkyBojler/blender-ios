@@ -55,7 +55,7 @@ set(INC
 set(INC_SYS
   ${USD_INCLUDE_DIRS}
   ${BOOST_INCLUDE_DIR}
-  ${TBB_INCLUDE_DIR}
+  ${TBB_INCLUDE_DIRS}
   ${PYTHON_INCLUDE_DIR}
 
 )
@@ -221,19 +221,6 @@ list(APPEND LIB
   ${USD_LIBRARIES}
   ${TBB_LIBRARIES}
 )
-
-if(WITH_OPENVDB)
-  add_definitions(-DWITH_OPENVDB ${OPENVDB_DEFINITIONS})
-  list(APPEND INC
-    ../../../../intern/openvdb
-  )
-  list(APPEND INC_SYS
-    ${OPENVDB_INCLUDE_DIRS}
-  )
-  list(APPEND LIB
-    ${OPENVDB_LIBRARIES}
-  )
-endif()
 
 if(WITH_MATERIALX)
   add_definitions(-DWITH_MATERIALX)
