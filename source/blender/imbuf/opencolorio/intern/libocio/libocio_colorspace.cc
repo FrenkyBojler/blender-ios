@@ -133,10 +133,11 @@ LibOCIOColorSpace::LibOCIOColorSpace(const int index,
   is_invertible_ = color_space_is_invertible(ocio_color_space);
 
   /* In OpenColorIO 2.5 there will be native support for this. For older configs and
-   * older OpenColorIO versions, check the first alias. This a convention used in the
+   * older OpenColorIO versions, check the aliases. This a convention used in the
    * Blender and ACES 2.0 configs. */
-  if (ocio_color_space->getNumAliases() > 0) {
-    StringRefNull first_alias = ocio_color_space->getAlias(0);
+  const int num_aliases = ocio_color_space->getNumAliases();
+  for (int i = 0; i < num_aliases; i++) {
+    StringRefNull first_alias = ocio_color_space->getAlias(i);
     if (first_alias == "srgb_display") {
       interop_id_ = "srgb_rec709_display";
     }
@@ -174,6 +175,10 @@ LibOCIOColorSpace::LibOCIOColorSpace(const int index,
              (first_alias.endswith("_scene") || first_alias.endswith("_display")))
     {
       interop_id_ = first_alias;
+    }
+
+    if (!interop_id_.is_empty()) {
+      break;
     }
   }
 }
