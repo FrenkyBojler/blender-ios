@@ -804,6 +804,8 @@ static void sequencer_draw_scopes(Scene *scene,
 
         GPU_shader_unbind();
         GPU_storagebuf_unbind(raster_ssbo);
+        /* Make computed results consistently visible in the following resolve pass. */
+        GPU_memory_barrier(GPU_BARRIER_SHADER_STORAGE);
       }
 
       /* Resolve pass. */
