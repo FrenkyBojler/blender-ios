@@ -198,69 +198,6 @@ std::optional<eCustomDataType> attr_type_to_custom_data_type(const AttrType attr
   return std::nullopt;
 }
 
-struct CustomDataAndSizeMutable {
-  CustomData &data;
-  int size;
-};
-
-static void convert_storage_to_customdata(
-    AttributeStorage &storage,
-    const Map<AttrDomain, CustomDataAndSizeMutable> &custom_data_domains)
-{
-  /* Name uniqueness is handled by the #CustomData API. */
-  storage.foreach([&](const Attribute &attribute) {
-    const std::optional<eCustomDataType> data_type = attr_type_to_custom_data_type(
-        attribute.data_type());
-    if (!data_type) {
-      return;
-    }
-    CustomData &custom_data = custom_data_domains.lookup(attribute.domain()).data;
-    const int domain_size = custom_data_domains.lookup(attribute.domain()).size;
-    if (const auto *array_data = std::get_if<Attribute::ArrayData>(&attribute.data())) {
-      BLI_assert(array_data->size == domain_size);
-      CustomData_add_layer_named_with_data(&custom_data,
-                                           *data_type,
-                                           array_data->data,
-                                           array_data->size,
-                                           attribute.name(),
-                                           array_data->sharing_info.get());
-    }
-    else if (const auto *single_data = std::get_if<Attribute::SingleData>(&attribute.data())) {
-      const CPPType &cpp_type = *custom_data_type_to_cpp_type(*data_type);
-      auto *value = new ImplicitSharedValue<GArray<>>(cpp_type, domain_size);
-      cpp_type.fill_construct_n(single_data->value, value->data.data(), domain_size);
-      CustomData_add_layer_named_with_data(
-          &custom_data, *data_type, value->data.data(), domain_size, attribute.name(), value);
-    }
-  });
-  storage = {};
-}
-
-void mesh_convert_storage_to_customdata(Mesh &mesh)
-{
-  // TODO_MESH_ATTR
-  convert_storage_to_customdata(mesh.attribute_storage.wrap(),
-                                {{AttrDomain::Point, {mesh.vert_data, mesh.verts_num}},
-                                 {AttrDomain::Edge, {mesh.edge_data, mesh.edges_num}},
-                                 {AttrDomain::Face, {mesh.face_data, mesh.faces_num}},
-                                 {AttrDomain::Corner, {mesh.corner_data, mesh.corners_num}}});
-  if (const char *name = mesh.active_uv_map_attribute) {
-    const int layer_n = CustomData_get_named_layer(&mesh.corner_data, CD_PROP_FLOAT2, name);
-    if (layer_n != -1) {
-      CustomData_set_layer_active(&mesh.corner_data, CD_PROP_FLOAT2, layer_n);
-    }
-    MEM_freeN(mesh.active_uv_map_attribute);
-    mesh.active_uv_map_attribute = nullptr;
-  }
-  if (const char *name = mesh.default_uv_map_attribute) {
-    const int layer_n = CustomData_get_named_layer(&mesh.corner_data, CD_PROP_FLOAT2, name);
-    if (layer_n != -1) {
-      CustomData_set_layer_render(&mesh.corner_data, CD_PROP_FLOAT2, layer_n);
-    }
-    MEM_freeN(mesh.default_uv_map_attribute);
-    mesh.default_uv_map_attribute = nullptr;
-  }
-}
 void mesh_convert_customdata_to_storage(Mesh &mesh)
 {
   bke::attribute_legacy_convert_customdata_to_storage(

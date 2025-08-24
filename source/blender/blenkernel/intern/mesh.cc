@@ -434,9 +434,6 @@ static void mesh_blend_read_data(BlendDataReader *reader, ID *id)
   BLO_read_string(reader, &mesh->active_uv_map_attribute);
   BLO_read_string(reader, &mesh->default_uv_map_attribute);
 
-  /* Forward compatibility. To be removed when runtime format changes. */
-  blender::bke::mesh_convert_storage_to_customdata(*mesh);
-
   mesh->texspace_flag &= ~ME_TEXSPACE_FLAG_AUTO_EVALUATED;
 
   mesh->runtime = new blender::bke::MeshRuntime();
@@ -1063,10 +1060,10 @@ void BKE_mesh_face_offsets_ensure_alloc(Mesh *mesh)
 
 Span<float3> Mesh::vert_positions() const
 {
-  return blender::bke::get_span_attribute<float3>(this->attribute_storage.wrap(),
-                                                  blender::bke::AttrDomain::Point,
-                                                  "position",
-                                                  this->verts_num);
+  return *blender::bke::get_span_attribute<float3>(this->attribute_storage.wrap(),
+                                                   blender::bke::AttrDomain::Point,
+                                                   "position",
+                                                   this->verts_num);
 }
 MutableSpan<float3> Mesh::vert_positions_for_write()
 {
@@ -1078,10 +1075,10 @@ MutableSpan<float3> Mesh::vert_positions_for_write()
 
 Span<int2> Mesh::edges() const
 {
-  return blender::bke::get_span_attribute<int2>(this->attribute_storage.wrap(),
-                                                blender::bke::AttrDomain::Edge,
-                                                ".edge_verts",
-                                                this->edges_num);
+  return *blender::bke::get_span_attribute<int2>(this->attribute_storage.wrap(),
+                                                 blender::bke::AttrDomain::Edge,
+                                                 ".edge_verts",
+                                                 this->edges_num);
 }
 MutableSpan<int2> Mesh::edges_for_write()
 {
@@ -1114,10 +1111,10 @@ MutableSpan<int> Mesh::face_offsets_for_write()
 
 Span<int> Mesh::corner_verts() const
 {
-  return blender::bke::get_span_attribute<int>(this->attribute_storage.wrap(),
-                                               blender::bke::AttrDomain::Corner,
-                                               ".corner_vert",
-                                               this->corners_num);
+  return *blender::bke::get_span_attribute<int>(this->attribute_storage.wrap(),
+                                                blender::bke::AttrDomain::Corner,
+                                                ".corner_vert",
+                                                this->corners_num);
 }
 MutableSpan<int> Mesh::corner_verts_for_write()
 {
@@ -1129,10 +1126,10 @@ MutableSpan<int> Mesh::corner_verts_for_write()
 
 Span<int> Mesh::corner_edges() const
 {
-  return blender::bke::get_span_attribute<int>(this->attribute_storage.wrap(),
-                                               blender::bke::AttrDomain::Corner,
-                                               ".corner_edge",
-                                               this->corners_num);
+  return *blender::bke::get_span_attribute<int>(this->attribute_storage.wrap(),
+                                                blender::bke::AttrDomain::Corner,
+                                                ".corner_edge",
+                                                this->corners_num);
 }
 MutableSpan<int> Mesh::corner_edges_for_write()
 {
