@@ -102,6 +102,12 @@ class GreasePencilPenToolOperation : public PenToolOperation {
   {
     return this->drawings.index_range();
   }
+
+  void single_point_attributes(bke::CurvesGeometry & /*curves*/, const int curves_index) const
+  {
+    const MutableDrawingInfo &info = this->drawings[curves_index];
+    info.drawing.opacities_for_write().last() = 1.0f;
+  }
 };
 
 static void grease_pencil_pen_update_view(bContext *C, GreasePencilPenToolOperation &ptd)
@@ -362,13 +368,14 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
 
   if (add_single) {
     if (pen_can_create_new_curve(ptd, op)) {
-      const MutableDrawingInfo &info = ptd.drawings[*ptd.active_drawing_index];
-      const float4x4 &layer_to_world = ptd.layer_to_worlds[*ptd.active_drawing_index];
-      bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
+      const int curves_index = *ptd.active_drawing_index;
+
+      const float4x4 &layer_to_world = ptd.layer_to_worlds[curves_index];
+      bke::CurvesGeometry &curves = ptd.get_curves(curves_index);
 
       ptd.add_single_point_and_curve(curves, layer_to_world);
-      info.drawing.opacities_for_write().last() = 1.0f;
-      info.drawing.tag_topology_changed();
+      ptd.single_point_attributes(curves, curves_index);
+      ptd.tag_curve_changed(curves_index);
 
       changed.store(true, std::memory_order_relaxed);
       point_added = true;

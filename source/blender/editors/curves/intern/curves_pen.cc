@@ -989,6 +989,11 @@ class CurvesPenToolOperation : public PenToolOperation {
   {
     return this->all_curves.index_range();
   }
+
+  void single_point_attributes(bke::CurvesGeometry & /*curves*/, const int /*curves_index*/) const
+  {
+    return;
+  }
 };
 
 static void pen_update_view(bContext *C, CurvesPenToolOperation &ptd)
