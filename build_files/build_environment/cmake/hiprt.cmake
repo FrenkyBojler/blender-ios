@@ -50,7 +50,6 @@ ExternalProject_Add(external_hiprt
 add_dependencies(
   external_hiprt
   external_python
-  #external_zstd
 )
 
 if(WIN32)

@@ -93,9 +93,11 @@ set(SRC_KERNEL_DEVICE_HIPRT_HEADERS
 set(SRC_KERNEL_DEVICE_HIPRT_SDK
   hiprt/impl/Aabb.h
   hiprt/impl/BvhNode.h
+  hiprt/impl/Header.h
   hiprt/impl/hiprt_device_impl.h
   hiprt/impl/hiprt_kernels_bitcode.h
   hiprt/impl/Instance.h
+  hiprt/impl/Obb.h
   hiprt/impl/QrDecomposition.h
   hiprt/impl/Quaternion.h
   hiprt/impl/Transform.h
