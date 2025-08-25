@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.0.0 Alpha (b'a7042ca30c82')\n"
+"Project-Id-Version: Blender 5.0.0 Alpha (b'68abaa12d581')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-07-29 08:51+0000\n"
+"POT-Creation-Date: 2025-08-25 08:31+0000\n"
 "PO-Revision-Date: 2025-07-23 15:34+0000\n"
 "Last-Translator: Just Adam <adam.abbas2009@gmail.com>\n"
 "Language-Team: Bulgarian <https://translate.blender.org/projects/blender-ui/ui/bg/>\n"
@@ -1136,6 +1136,10 @@ msgid "Mask"
 msgstr "Маскиране"
 
 
+msgid "UV Mapping"
+msgstr "UV Картиране"
+
+
 msgid "Light"
 msgstr "Светлина"
 
@@ -1166,10 +1170,6 @@ msgstr "Слей"
 
 msgid "Text"
 msgstr "Текст"
-
-
-msgid "UV Mapping"
-msgstr "UV Картиране"
 
 
 msgid "Languages..."
@@ -2199,16 +2199,16 @@ msgid "Strand"
 msgstr "Нишка"
 
 
-msgid "Bias"
-msgstr "Отклонение"
-
-
 msgid "FPS"
 msgstr "FPS"
 
 
 msgid "Viscosity"
 msgstr "Вискозитет"
+
+
+msgid "Bias"
+msgstr "Отклонение"
 
 
 msgid "Edge spring friction"

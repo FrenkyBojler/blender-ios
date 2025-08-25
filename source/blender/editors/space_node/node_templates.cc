@@ -26,6 +26,7 @@
 
 #include "BKE_context.hh"
 #include "BKE_lib_id.hh"
+#include "BKE_library.hh"
 #include "BKE_main.hh"
 #include "BKE_main_invariants.hh"
 #include "BKE_node_runtime.hh"
@@ -244,7 +245,7 @@ static void node_socket_add_replace(const bContext *C,
     }
     else {
       sock_from_tmp = (bNodeSocket *)BLI_findlink(&node_from->outputs, item->socket_index);
-      bke::node_position_relative(*node_from, *node_to, *sock_from_tmp, *sock_to);
+      bke::node_position_relative(*node_from, *node_to, sock_from_tmp, *sock_to);
     }
 
     node_link_item_apply(ntree, node_from, item);
@@ -713,6 +714,10 @@ void uiTemplateNodeLink(
       but->flag |= UI_BUT_NODE_ACTIVE;
     }
   }
+
+  if (!ID_IS_EDITABLE(ntree)) {
+    UI_but_disable(but, "Cannot edit linked node tree");
+  }
 }
 
 namespace blender::ed::space_node {
@@ -802,6 +807,11 @@ static void ui_node_draw_node(
           ui_node_draw_input(
               layout, C, ntree, node, node.socket_by_decl(*socket_decl), depth + 1, nullptr);
         }
+      }
+      else if (const auto *layout_decl = dynamic_cast<const nodes::LayoutDeclaration *>(item_decl))
+      {
+        PointerRNA nodeptr = RNA_pointer_create_discrete(&ntree.id, &RNA_Node, &node);
+        layout_decl->draw(&layout, &C, &nodeptr);
       }
     }
   }

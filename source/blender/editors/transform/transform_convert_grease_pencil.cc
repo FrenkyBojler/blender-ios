@@ -114,7 +114,7 @@ static void createTransGreasePencilVerts(bContext *C, TransInfo *t)
       /* Alter selection as in legacy curves bezt_select_to_transform_triple_flag(). */
       if (!bezier_points.is_empty()) {
         if (curves::update_handle_types_for_transform(
-                curves, selection_per_attribute, bezier_points))
+                t->mode, selection_per_attribute, bezier_points, curves))
         {
           info.drawing.tag_topology_changed();
         }
@@ -134,12 +134,14 @@ static void createTransGreasePencilVerts(bContext *C, TransInfo *t)
       }
 
       if (use_proportional_edit) {
-        tc.data_len += editable_points.size() + 2 * bezier_points.size();
+        const IndexMask editable_bezier_points = IndexMask::from_intersection(
+            editable_points, bezier_points, curves_transform_data->memory);
+        tc.data_len += editable_points.size() + 2 * editable_bezier_points.size();
         points_to_transform_per_attribute[layer_offset].append(editable_points);
 
         if (selection_attribute_names.size() > 1) {
-          points_to_transform_per_attribute[layer_offset].append(bezier_points);
-          points_to_transform_per_attribute[layer_offset].append(bezier_points);
+          points_to_transform_per_attribute[layer_offset].append(editable_bezier_points);
+          points_to_transform_per_attribute[layer_offset].append(editable_bezier_points);
         }
       }
       else {

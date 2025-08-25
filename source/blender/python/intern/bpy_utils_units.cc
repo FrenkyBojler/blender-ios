@@ -203,11 +203,11 @@ static PyObject *bpyunits_to_value(PyObject * /*self*/, PyObject *args, PyObject
     return nullptr;
   }
 
-  str_len = str_len * 2 + 64;
-  str = static_cast<char *>(PyMem_MALLOC(sizeof(*str) * size_t(str_len)));
-  BLI_strncpy(str, inpt, size_t(str_len));
+  const size_t str_maxncpy = str_len * 2 + 64;
+  str = static_cast<char *>(PyMem_MALLOC(sizeof(*str) * str_maxncpy));
+  BLI_strncpy(str, inpt, str_maxncpy);
 
-  BKE_unit_replace_string(str, int(str_len), uref, scale, usys, ucat);
+  BKE_unit_replace_string(str, int(str_maxncpy), uref, scale, usys, ucat);
 
   if (!PyC_RunString_AsNumber(nullptr, str, "<bpy_units_api>", &result)) {
     if (PyErr_Occurred()) {
@@ -366,8 +366,7 @@ static PyMethodDef bpyunits_methods[] = {
 PyDoc_STRVAR(
     /* Wrap. */
     bpyunits_doc,
-    "This module contains some data/methods regarding units handling.");
-
+    "This module contains some data/methods regarding units handling.\n");
 static PyModuleDef bpyunits_module = {
     /*m_base*/ PyModuleDef_HEAD_INIT,
     /*m_name*/ "bpy.utils.units",

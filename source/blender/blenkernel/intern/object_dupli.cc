@@ -847,8 +847,15 @@ static void make_duplis_font(const DupliContext *ctx)
 
   /* In `par` the family name is stored, use this to find the other objects. */
 
-  BKE_vfont_to_curve_ex(
-      par, (Curve *)par->data, FO_DUPLI, nullptr, &text, &text_len, &text_free, &chartransdata);
+  BKE_vfont_to_curve_ex(par,
+                        (Curve *)par->data,
+                        FO_DUPLI,
+                        nullptr,
+                        &text,
+                        &text_len,
+                        &text_free,
+                        &chartransdata,
+                        nullptr);
 
   if (text == nullptr || chartransdata == nullptr) {
     return;
@@ -986,12 +993,12 @@ static void make_duplis_geometry_set_impl(const DupliContext *ctx,
 
   Span<float4x4> instance_offset_matrices = instances->transforms();
   Span<int> reference_handles = instances->reference_handles();
-  Span<int> almost_unique_ids = instances->almost_unique_ids();
+  Span<int> unique_ids = instances->unique_ids();
   Span<InstanceReference> references = instances->references();
 
   for (int64_t i : instance_offset_matrices.index_range()) {
     const InstanceReference &reference = references[reference_handles[i]];
-    const int id = almost_unique_ids[i];
+    const int id = unique_ids[i];
 
     const DupliContext *ctx_for_instance = instances_ctx;
     /* Set the #preview_instance_index when necessary. */
