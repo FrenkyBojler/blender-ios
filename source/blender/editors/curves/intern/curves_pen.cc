@@ -321,37 +321,20 @@ static ClosestElement find_closest_element(const PenToolOperation &ptd, const fl
   return closest_element;
 }
 
-/* Snaps to the closest diagonal, horizontal or vertical. */
-static float2 snap_8_angles(const float2 &p)
-{
-  using namespace math;
-  const float sin225 = sin(AngleRadian::from_degree(22.5f));
-  return sign(p) * length(p) * normalize(sign(normalize(abs(p)) - sin225) + 1.0f);
-}
-
-float2 PenToolOperation::layer_to_screen(const float4x4 &layer_to_object,
-                                         const float3 &point) const
-{
-  return ED_view3d_project_float_v2_m4(
-      vc.region, math::transform_point(layer_to_object, point), projection);
-}
-
-float3 PenToolOperation::screen_to_layer(const float4x4 &layer_to_world,
-                                         const float2 &screen_co,
-                                         const float3 &depth_point_layer) const
-{
-  const float3 depth_point = math::transform_point(layer_to_world, depth_point_layer);
-  float3 proj_point;
-  ED_view3d_win_to_3d(vc.v3d, vc.region, depth_point, screen_co, proj_point);
-  return math::transform_point(math::invert(layer_to_world), proj_point);
-}
-
 static void pen_status_indicators(bContext *C, wmOperator *op)
 {
   WorkspaceStatus status(C);
   status.opmodal(IFACE_("Snap Angle"), op->type, int(PenModal::SnapAngle));
   status.opmodal(IFACE_("Move Current Handle"), op->type, int(PenModal::MoveHandle));
   status.opmodal(IFACE_("Move Entire Point"), op->type, int(PenModal::MoveEntire));
+}
+
+/* Snaps to the closest diagonal, horizontal or vertical. */
+static float2 snap_8_angles(const float2 &p)
+{
+  using namespace math;
+  const float sin225 = sin(AngleRadian::from_degree(22.5f));
+  return sign(p) * length(p) * normalize(sign(normalize(abs(p)) - sin225) + 1.0f);
 }
 
 static void move_segment(const PenToolOperation &ptd,
@@ -1156,6 +1139,140 @@ static IndexMask retrieve_visible_bezier_handle_points(const bke::CurvesGeometry
   return selected_points;
 }
 
+float2 PenToolOperation::layer_to_screen(const float4x4 &layer_to_object,
+                                         const float3 &point) const
+{
+  return ED_view3d_project_float_v2_m4(
+      vc.region, math::transform_point(layer_to_object, point), projection);
+}
+
+float3 PenToolOperation::screen_to_layer(const float4x4 &layer_to_world,
+                                         const float2 &screen_co,
+                                         const float3 &depth_point_layer) const
+{
+  const float3 depth_point = math::transform_point(layer_to_world, depth_point_layer);
+  float3 proj_point;
+  ED_view3d_win_to_3d(vc.v3d, vc.region, depth_point, screen_co, proj_point);
+  return math::transform_point(math::invert(layer_to_world), proj_point);
+}
+
+wmOperatorStatus PenToolOperation::invoke(bContext *C, wmOperator *op, const wmEvent *event)
+{
+  /* If in tools region, wait till we get to the main (3D-space)
+   * region before allowing drawing to take place. */
+  op->flag |= OP_IS_MODAL_CURSOR_REGION;
+
+  wmWindow *win = CTX_wm_window(C);
+  /* Set cursor to indicate modal. */
+  WM_cursor_modal_set(win, WM_CURSOR_CROSS);
+
+  ViewContext vc = ED_view3d_viewcontext_init(C, CTX_data_depsgraph_pointer(C));
+
+  this->vc = vc;
+  this->projection = ED_view3d_ob_project_mat_get(this->vc.rv3d, this->vc.obact);
+
+  /* Distance threshold for mouse clicks to affect the spline or its points */
+  this->mouse_co = float2(event->mval);
+  this->threshold_distance = ED_view3d_select_dist_px() * selection_distance_factor;
+  this->threshold_distance_edge = ED_view3d_select_dist_px() * selection_distance_factor_edge;
+
+  this->extrude_point = RNA_boolean_get(op->ptr, "extrude_point");
+  this->delete_point = RNA_boolean_get(op->ptr, "delete_point");
+  this->insert_point = RNA_boolean_get(op->ptr, "insert_point");
+  this->move_seg = RNA_boolean_get(op->ptr, "move_segment");
+  this->select_point = RNA_boolean_get(op->ptr, "select_point");
+  this->move_point = RNA_boolean_get(op->ptr, "move_point");
+  this->cycle_handle_type = RNA_boolean_get(op->ptr, "cycle_handle_type");
+  this->extrude_handle = RNA_enum_get(op->ptr, "extrude_handle");
+  this->radius = RNA_float_get(op->ptr, "radius");
+
+  this->move_entire = false;
+  this->snap_angle = false;
+
+  /* Add a modal handler for this operator. */
+  WM_event_add_modal_handler(C, op);
+
+  if (!(ELEM(event->type, LEFTMOUSE) && ELEM(event->val, KM_PRESS, KM_DBL_CLICK))) {
+    return OPERATOR_RUNNING_MODAL;
+  }
+
+  if (std::optional<wmOperatorStatus> result = this->initialize(C, op, event)) {
+    return *result;
+  }
+
+  invoke_curves(*this, C, op, event);
+
+  return OPERATOR_RUNNING_MODAL;
+}
+
+wmOperatorStatus PenToolOperation::modal(bContext *C, wmOperator *op, const wmEvent *event)
+{
+  this->mouse_co = float2(event->mval);
+  this->xy = float2(event->xy);
+  this->prev_xy = float2(event->prev_xy);
+
+  if (event->type == EVENT_NONE) {
+    return OPERATOR_RUNNING_MODAL;
+  }
+
+  if (event->type == LEFTMOUSE && event->val == KM_RELEASE) {
+    return OPERATOR_FINISHED;
+  }
+  if (this->point_removed) {
+    return OPERATOR_FINISHED;
+  }
+
+  if (event->type == EVT_MODAL_MAP) {
+    if (event->val == int(PenModal::MoveEntire)) {
+      this->move_entire = !this->move_entire;
+    }
+    else if (event->val == int(PenModal::SnapAngle)) {
+      this->snap_angle = !this->snap_angle;
+    }
+    else if (event->val == int(PenModal::MoveHandle)) {
+      this->move_handle = !this->move_handle;
+    }
+  }
+
+  std::atomic<bool> changed = false;
+  this->center_of_mass_co = calculate_center_of_mass(*this, false);
+
+  if (this->move_seg && this->closest_element.element_mode == ElementMode::Edge) {
+    const int curves_index = this->closest_element.drawing_index;
+    const float4x4 &layer_to_world = this->layer_to_worlds[curves_index];
+    bke::CurvesGeometry &curves = this->get_curves(curves_index);
+
+    move_segment(*this, curves, layer_to_world);
+    this->tag_curve_changed(curves_index);
+    changed.store(true, std::memory_order_relaxed);
+  }
+  else {
+    threading::parallel_for(this->curves_range(), 1, [&](const IndexRange curves_range) {
+      for (const int curves_index : curves_range) {
+        bke::CurvesGeometry &curves = this->get_curves(curves_index);
+        const float4x4 &layer_to_object = this->layer_to_objects[curves_index];
+        const float4x4 &layer_to_world = this->layer_to_worlds[curves_index];
+
+        IndexMaskMemory memory;
+        const IndexMask selection = this->all_selected_points(curves_index, memory);
+
+        if (move_handles_in_curve(*this, curves, selection, layer_to_world, layer_to_object)) {
+          changed.store(true, std::memory_order_relaxed);
+          this->tag_curve_changed(curves_index);
+        }
+      }
+    });
+  }
+
+  pen_status_indicators(C, op);
+  if (changed) {
+    this->update_view(C);
+  }
+
+  /* Still running... */
+  return OPERATOR_RUNNING_MODAL;
+}
+
 class CurvesPenToolOperation : public PenToolOperation {
  public:
   Vector<Curves *> all_curves;
@@ -1282,55 +1399,6 @@ static void curves_pen_exit(bContext *C, wmOperator *op)
   op->customdata = nullptr;
 }
 
-wmOperatorStatus PenToolOperation::invoke(bContext *C, wmOperator *op, const wmEvent *event)
-{
-  /* If in tools region, wait till we get to the main (3D-space)
-   * region before allowing drawing to take place. */
-  op->flag |= OP_IS_MODAL_CURSOR_REGION;
-
-  wmWindow *win = CTX_wm_window(C);
-  /* Set cursor to indicate modal. */
-  WM_cursor_modal_set(win, WM_CURSOR_CROSS);
-
-  ViewContext vc = ED_view3d_viewcontext_init(C, CTX_data_depsgraph_pointer(C));
-
-  this->vc = vc;
-  this->projection = ED_view3d_ob_project_mat_get(this->vc.rv3d, this->vc.obact);
-
-  /* Distance threshold for mouse clicks to affect the spline or its points */
-  this->mouse_co = float2(event->mval);
-  this->threshold_distance = ED_view3d_select_dist_px() * selection_distance_factor;
-  this->threshold_distance_edge = ED_view3d_select_dist_px() * selection_distance_factor_edge;
-
-  this->extrude_point = RNA_boolean_get(op->ptr, "extrude_point");
-  this->delete_point = RNA_boolean_get(op->ptr, "delete_point");
-  this->insert_point = RNA_boolean_get(op->ptr, "insert_point");
-  this->move_seg = RNA_boolean_get(op->ptr, "move_segment");
-  this->select_point = RNA_boolean_get(op->ptr, "select_point");
-  this->move_point = RNA_boolean_get(op->ptr, "move_point");
-  this->cycle_handle_type = RNA_boolean_get(op->ptr, "cycle_handle_type");
-  this->extrude_handle = RNA_enum_get(op->ptr, "extrude_handle");
-  this->radius = RNA_float_get(op->ptr, "radius");
-
-  this->move_entire = false;
-  this->snap_angle = false;
-
-  /* Add a modal handler for this operator. */
-  WM_event_add_modal_handler(C, op);
-
-  if (!(ELEM(event->type, LEFTMOUSE) && ELEM(event->val, KM_PRESS, KM_DBL_CLICK))) {
-    return OPERATOR_RUNNING_MODAL;
-  }
-
-  if (std::optional<wmOperatorStatus> result = this->initialize(C, op, event)) {
-    return *result;
-  }
-
-  invoke_curves(*this, C, op, event);
-
-  return OPERATOR_RUNNING_MODAL;
-}
-
 /* Invoke handler: Initialize the operator. */
 static wmOperatorStatus curves_pen_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
@@ -1340,74 +1408,6 @@ static wmOperatorStatus curves_pen_invoke(bContext *C, wmOperator *op, const wmE
   CurvesPenToolOperation &ptd = *ptd_pointer;
 
   return ptd.invoke(C, op, event);
-}
-
-wmOperatorStatus PenToolOperation::modal(bContext *C, wmOperator *op, const wmEvent *event)
-{
-  this->mouse_co = float2(event->mval);
-  this->xy = float2(event->xy);
-  this->prev_xy = float2(event->prev_xy);
-
-  if (event->type == EVENT_NONE) {
-    return OPERATOR_RUNNING_MODAL;
-  }
-
-  if (event->type == LEFTMOUSE && event->val == KM_RELEASE) {
-    return OPERATOR_FINISHED;
-  }
-  if (this->point_removed) {
-    return OPERATOR_FINISHED;
-  }
-
-  if (event->type == EVT_MODAL_MAP) {
-    if (event->val == int(PenModal::MoveEntire)) {
-      this->move_entire = !this->move_entire;
-    }
-    else if (event->val == int(PenModal::SnapAngle)) {
-      this->snap_angle = !this->snap_angle;
-    }
-    else if (event->val == int(PenModal::MoveHandle)) {
-      this->move_handle = !this->move_handle;
-    }
-  }
-
-  std::atomic<bool> changed = false;
-  this->center_of_mass_co = calculate_center_of_mass(*this, false);
-
-  if (this->move_seg && this->closest_element.element_mode == ElementMode::Edge) {
-    const int curves_index = this->closest_element.drawing_index;
-    const float4x4 &layer_to_world = this->layer_to_worlds[curves_index];
-    bke::CurvesGeometry &curves = this->get_curves(curves_index);
-
-    move_segment(*this, curves, layer_to_world);
-    this->tag_curve_changed(curves_index);
-    changed.store(true, std::memory_order_relaxed);
-  }
-  else {
-    threading::parallel_for(this->curves_range(), 1, [&](const IndexRange curves_range) {
-      for (const int curves_index : curves_range) {
-        bke::CurvesGeometry &curves = this->get_curves(curves_index);
-        const float4x4 &layer_to_object = this->layer_to_objects[curves_index];
-        const float4x4 &layer_to_world = this->layer_to_worlds[curves_index];
-
-        IndexMaskMemory memory;
-        const IndexMask selection = this->all_selected_points(curves_index, memory);
-
-        if (move_handles_in_curve(*this, curves, selection, layer_to_world, layer_to_object)) {
-          changed.store(true, std::memory_order_relaxed);
-          this->tag_curve_changed(curves_index);
-        }
-      }
-    });
-  }
-
-  pen_status_indicators(C, op);
-  if (changed) {
-    this->update_view(C);
-  }
-
-  /* Still running... */
-  return OPERATOR_RUNNING_MODAL;
 }
 
 /* Modal handler: Events handling during interactive part. */
