@@ -992,7 +992,8 @@ class CurvesPenToolOperation : public PenToolOperation {
 
   float3 project(const float2 &screen_co) const
   {
-    return this->screen_to_layer(float4x4::identity(), screen_co, float3(0.0f));
+    const float4x4 &layer_to_world = this->layer_to_worlds[*this->active_drawing_index];
+    return this->screen_to_layer(layer_to_world, screen_co, float3(0.0f));
   }
 
   IndexMask all_selected_points(const int curves_index, IndexMaskMemory &memory) const
@@ -1295,25 +1296,32 @@ static wmOperatorStatus curves_pen_invoke(bContext *C, wmOperator *op, const wmE
     return OPERATOR_RUNNING_MODAL;
   }
 
-  VectorSet<Curves *> unique_curves = get_unique_editable_curves(*C);
+  ptd.active_drawing_index = std::nullopt;
+  VectorSet<Curves *> unique_curves;
+
+  const Main &bmain = *CTX_data_main(C);
+
+  Object *object = CTX_data_active_object(C);
+  if (object && object_has_editable_curves(bmain, *object)) {
+    unique_curves.add_new(static_cast<Curves *>(object->data));
+    ptd.layer_to_worlds.append(object->object_to_world());
+    ptd.active_drawing_index = 0;
+  }
+
+  CTX_DATA_BEGIN (C, Object *, object, selected_objects) {
+    if (object_has_editable_curves(bmain, *object)) {
+      if (unique_curves.add(static_cast<Curves *>(object->data))) {
+        ptd.layer_to_worlds.append(object->object_to_world());
+      }
+    }
+  }
+  CTX_DATA_END;
+
   for (Curves *curves_id : unique_curves) {
     ptd.all_curves.append(curves_id);
   }
 
-  /* TODO. */
   ptd.layer_to_objects.append_n_times(float4x4::identity(), ptd.all_curves.size());
-  ptd.layer_to_worlds.append_n_times(float4x4::identity(), ptd.all_curves.size());
-
-  ptd.active_drawing_index = std::nullopt;
-
-  Curves *active_curves_id = static_cast<Curves *>(ptd.vc.obedit->data);
-  for (const int curves_index : ptd.all_curves.index_range()) {
-    Curves *curves_id = ptd.all_curves[curves_index];
-    if (curves_id == active_curves_id) {
-      BLI_assert(ptd.active_drawing_index == std::nullopt);
-      ptd.active_drawing_index = curves_index;
-    }
-  }
 
   ptd.invoke_curves(C, op, event);
 
@@ -1373,8 +1381,9 @@ static wmOperatorStatus curves_pen_modal(bContext *C, wmOperator *op, const wmEv
   if (ptd.move_seg && ptd.closest_element.element_mode == ElementMode::Edge) {
     Curves *curves_id = static_cast<Curves *>(ptd.vc.obedit->data);
     bke::CurvesGeometry &curves = curves_id->geometry.wrap();
+    const float4x4 &layer_to_world = ptd.layer_to_worlds[ptd.closest_element.drawing_index];
 
-    ptd.move_segment(curves, float4x4::identity());
+    ptd.move_segment(curves, layer_to_world);
     curves.tag_topology_changed();
     changed.store(true, std::memory_order_relaxed);
   }
@@ -1384,8 +1393,8 @@ static wmOperatorStatus curves_pen_modal(bContext *C, wmOperator *op, const wmEv
         Curves *curves_id = ptd.all_curves[curves_index];
         bke::CurvesGeometry &curves = curves_id->geometry.wrap();
 
-        const float4x4 layer_to_object = float4x4::identity();
-        const float4x4 layer_to_world = float4x4::identity();
+        const float4x4 layer_to_object = ptd.layer_to_objects[curves_index];
+        const float4x4 layer_to_world = ptd.layer_to_worlds[curves_index];
 
         IndexMaskMemory memory;
         const IndexMask selection = ptd.all_selected_points(curves_index, memory);
