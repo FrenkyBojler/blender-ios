@@ -150,6 +150,7 @@ class PenToolOperation {
 
   float2 calculate_center_of_mass(const bool ends_only) const;
 
+  void invoke_curves(wmOperator *op, const wmEvent *event);
   bool initialize(bContext *C, wmOperator *op, const wmEvent *event);
 };
 
