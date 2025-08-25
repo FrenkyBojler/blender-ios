@@ -3510,6 +3510,9 @@ static eHandlerActionFlag wm_handlers_do_intern(bContext *C,
           LISTBASE_FOREACH (wmDropBox *, drop, handler->dropboxes) {
             /* Other drop custom types allowed. */
             if (event->custom == EVT_DATA_DRAGDROP) {
+              /* Drop handlers can perform multiple operations (e.g., collection drag-and-drop),
+               * but we want to treat it as a single operation. */
+              ED_undo_group_begin(C);
               ListBase *lb = (ListBase *)event->customdata;
               LISTBASE_FOREACH_MUTABLE (wmDrag *, drag, lb) {
                 if (drop->poll(C, drag, event)) {
@@ -3553,6 +3556,7 @@ static eHandlerActionFlag wm_handlers_do_intern(bContext *C,
               }
               /* Always exit all drags on a drop event, even if poll didn't succeed. */
               wm_drags_exit(wm, win);
+              ED_undo_group_end(C);
             }
           }
         }
@@ -5150,7 +5154,7 @@ wmEventHandler_Dropbox *WM_event_add_dropbox_handler(ListBase *handlers, ListBas
   return handler;
 }
 
-void WM_event_remove_area_handler(ListBase *handlers, void *area)
+void WM_event_remove_handlers_by_area(ListBase *handlers, const ScrArea *area)
 {
   /* XXX(@ton): solution works, still better check the real cause. */
 

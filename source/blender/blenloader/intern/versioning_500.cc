@@ -2304,6 +2304,20 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
     FOREACH_NODETREE_END;
   }
 
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 62)) {
+    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+      if (scene->r.bake_flag & R_BAKE_MULTIRES) {
+        scene->r.bake.type = scene->r.bake_mode;
+        scene->r.bake.flag |= (scene->r.bake_flag & (R_BAKE_MULTIRES | R_BAKE_LORES_MESH));
+        scene->r.bake.margin_type = scene->r.bake_margin_type;
+        scene->r.bake.margin = scene->r.bake_margin;
+      }
+      else {
+        scene->r.bake.type = R_BAKE_NORMALS;
+      }
+    }
+  }
+
   {
     LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
       ScrArea *docked_area = [&]() -> ScrArea * {
