@@ -14,9 +14,6 @@
 
 #include "BlenderStrokeRenderer.h"
 
-using namespace std;
-using namespace Freestyle;
-
 #include "MEM_guardedalloc.h"
 
 #include "DNA_collection_types.h"
@@ -49,6 +46,9 @@ using namespace Freestyle;
 #include "pipeline.hh"
 
 #include "FRS_freestyle.h"
+
+using namespace std;
+using namespace Freestyle;
 
 FreestyleGlobals g_freestyle;
 
@@ -444,7 +444,7 @@ static void prepare(Render *re, ViewLayer *view_layer, Depsgraph *depsgraph)
       controller->setPassDiffuse(rpass_buffer_data, rpass->rectx, rpass->recty);
       diffuse = true;
     }
-    if (STREQ(rpass->name, RE_PASSNAME_Z)) {
+    if (STREQ(rpass->name, RE_PASSNAME_DEPTH)) {
       controller->setPassZ(rpass_buffer_data, rpass->rectx, rpass->recty);
       z = true;
     }

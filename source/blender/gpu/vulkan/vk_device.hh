@@ -39,10 +39,6 @@ struct VKExtensions {
    * VkPhysicalDeviceFragmentShaderBarycentricFeaturesKHR::fragmentShaderBarycentric.
    */
   bool fragment_shader_barycentric = false;
-  /**
-   * Does the device support VK_KHR_dynamic_rendering enabled.
-   */
-  bool dynamic_rendering = false;
 
   /**
    * Does the device support VK_KHR_dynamic_rendering_local_read enabled.
@@ -59,6 +55,9 @@ struct VKExtensions {
    */
   bool external_memory = false;
 
+  /** VK_KHR_maintenance4 */
+  bool maintenance4 = false;
+
   /**
    * Does the device support VK_EXT_descriptor_buffer.
    */
@@ -68,6 +67,16 @@ struct VKExtensions {
    * Does the device support logic ops.
    */
   bool logic_ops = false;
+
+  /**
+   * Does the device support VK_EXT_memory_priority
+   */
+  bool memory_priority = false;
+
+  /**
+   * Does the device support VK_EXT_pageable_device_local_memory
+   */
+  bool pageable_device_local_memory = false;
 
   /** Log enabled features and extensions. */
   void log() const;
@@ -108,7 +117,7 @@ class VKThreadData : public NonCopyable, NonMovable {
   /** Thread ID this instance belongs to. */
   pthread_t thread_id;
   /**
-   * Index of the active resource pool. Is in sync with the active swap chain image or cycled when
+   * Index of the active resource pool. Is in sync with the active swap-chain image or cycled when
    * rendering.
    *
    * NOTE: Initialized to `UINT32_MAX` to detect first change.
@@ -127,7 +136,6 @@ class VKThreadData : public NonCopyable, NonMovable {
   int32_t rendering_depth = 0;
 
   VKThreadData(VKDevice &device, pthread_t thread_id);
-  void deinit(VKDevice &device);
 
   /**
    * Get the active resource pool.
@@ -162,18 +170,8 @@ class VKDevice : public NonCopyable {
   VkQueue vk_queue_ = VK_NULL_HANDLE;
   std::mutex *queue_mutex_ = nullptr;
 
-  /**
-   * Lifetime of the device.
-   *
-   * Used for de-initialization of the command builder thread.
-   */
-  enum Lifetime {
-    UNINITIALIZED,
-    RUNNING,
-    DEINITIALIZING,
-    DESTROYED,
-  };
-  Lifetime lifetime = Lifetime::UNINITIALIZED;
+  bool is_initialized_ = false;
+
   /**
    * Task pool for render graph submission.
    *
@@ -189,7 +187,12 @@ class VKDevice : public NonCopyable {
   ThreadQueue *submitted_render_graphs_ = nullptr;
   ThreadQueue *unused_render_graphs_ = nullptr;
   VkSemaphore vk_timeline_semaphore_ = VK_NULL_HANDLE;
-  std::atomic<uint_least64_t> timeline_value_ = 0;
+  /**
+   * Last used timeline value.
+   *
+   * Must be externally synced by orphaned_data.mutex_get()
+   */
+  TimelineValue timeline_value_ = 0;
 
   VKSamplers samplers_;
   VKDescriptorSetLayouts descriptor_set_layouts_;
@@ -364,10 +367,13 @@ class VKDevice : public NonCopyable {
     return samplers_;
   }
 
-  bool is_initialized() const;
   void init(void *ghost_context);
   void reinit();
   void deinit();
+  bool is_initialized() const
+  {
+    return is_initialized_;
+  }
 
   eGPUDeviceType device_type() const;
   eGPUDriverType driver_type() const;
@@ -421,7 +427,16 @@ class VKDevice : public NonCopyable {
   {
     BLI_assert(vk_timeline_semaphore_ != VK_NULL_HANDLE);
     TimelineValue current_timeline;
-    vkGetSemaphoreCounterValue(vk_device_, vk_timeline_semaphore_, &current_timeline);
+    VkResult result = vkGetSemaphoreCounterValue(
+        vk_device_, vk_timeline_semaphore_, &current_timeline);
+    UNUSED_VARS(result);
+    BLI_assert_msg(
+        result == VK_SUCCESS && current_timeline != UINT64_MAX,
+        "Potential driver crash has happened. Several drivers will report UINT64_MAX when "
+        "requesting a counter value of an timeline semaphore right after/during a driver reset. "
+        "If this happen we should investigate what makes the driver crash. In the past this has "
+        "been detected on QUALCOMM and NVIDIA drivers. The result code of the call is "
+        "VK_SUCCESS.");
     return current_timeline;
   }
 

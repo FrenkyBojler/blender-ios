@@ -39,7 +39,7 @@ from bpy.app.translations import (
 )
 
 
-class ImagePaintPanel:
+class ImagePaintPanel(UnifiedPaintPanel):
     bl_space_type = 'IMAGE_EDITOR'
     bl_region_type = 'UI'
 
@@ -347,6 +347,7 @@ class IMAGE_MT_uvs_snap(Menu):
 
 class IMAGE_MT_uvs_mirror(Menu):
     bl_label = "Mirror"
+    bl_translation_context = i18n_contexts.operator_default
 
     def draw(self, _context):
         layout = self.layout
@@ -468,7 +469,7 @@ class IMAGE_MT_uvs(Menu):
 
         layout.separator()
 
-        layout.operator("uv.mark_seam").clear = False
+        layout.operator("uv.mark_seam", icon='EDGE_SEAM').clear = False
         layout.operator("uv.mark_seam", text="Clear Seam").clear = True
         layout.operator("uv.seams_from_islands")
 
@@ -542,9 +543,9 @@ class IMAGE_MT_uvs_select_mode(Menu):
             props.value = 'FACE'
             props.data_path = "tool_settings.uv_select_mode"
 
-            props = layout.operator("wm.context_set_string", text="Island", icon='UV_ISLANDSEL')
-            props.value = 'ISLAND'
-            props.data_path = "tool_settings.uv_select_mode"
+        layout.separator()
+
+        layout.prop(tool_settings, "use_uv_select_island", text="Island")
 
 
 class IMAGE_MT_uvs_context_menu(Menu):
@@ -565,7 +566,7 @@ class IMAGE_MT_uvs_context_menu(Menu):
                 is_vert_mode = uv_select_mode == 'VERTEX'
                 is_edge_mode = uv_select_mode == 'EDGE'
                 # is_face_mode = uv_select_mode == 'FACE'
-                # is_island_mode = uv_select_mode == 'ISLAND'
+                # is_island_mode = ts.use_uv_select_island
 
             # Add
             layout.operator("uv.unwrap")
@@ -635,14 +636,14 @@ class IMAGE_MT_uvs_snap_pie(Menu):
         layout.operator_context = 'EXEC_REGION_WIN'
 
         pie.operator(
-            "uv.snap_selected",
-            text="Selected to Pixels",
-            icon='RESTRICT_SELECT_OFF',
-        ).target = 'PIXELS'
-        pie.operator(
             "uv.snap_cursor",
             text="Cursor to Pixels",
             icon='PIVOT_CURSOR',
+        ).target = 'PIXELS'
+        pie.operator(
+            "uv.snap_selected",
+            text="Selected to Pixels",
+            icon='RESTRICT_SELECT_OFF',
         ).target = 'PIXELS'
         pie.operator(
             "uv.snap_cursor",
@@ -732,11 +733,11 @@ class IMAGE_HT_tool_header(Header):
         if tool_mode == 'PAINT':
             if (tool is not None) and tool.use_brushes:
                 layout.popover("IMAGE_PT_paint_settings_advanced")
+                layout.popover("IMAGE_PT_tools_brush_texture")
+                layout.popover("IMAGE_PT_tools_mask_texture")
                 layout.popover("IMAGE_PT_paint_stroke")
                 layout.popover("IMAGE_PT_paint_curve")
                 layout.popover("IMAGE_PT_tools_brush_display")
-                layout.popover("IMAGE_PT_tools_brush_texture")
-                layout.popover("IMAGE_PT_tools_mask_texture")
 
     def draw_mode_settings(self, context):
         layout = self.layout
@@ -874,9 +875,12 @@ class IMAGE_HT_header(Header):
             if tool_settings.use_uv_select_sync:
                 layout.template_edit_mode_selection()
 
+                layout.prop(tool_settings, "use_uv_select_island", icon_only=True)
+
                 # Currently this only works for edge-select & face-select modes.
                 row = layout.row()
-                if tool_settings.mesh_select_mode[0]:
+                mesh_select_mode = tool_settings.mesh_select_mode
+                if mesh_select_mode[0]:
                     row.active = False
                 row.prop(tool_settings, "uv_sticky_select_mode", icon_only=True)
             else:
@@ -888,9 +892,8 @@ class IMAGE_HT_header(Header):
                              depress=(uv_select_mode == 'EDGE')).type = 'EDGE'
                 row.operator("uv.select_mode", text="", icon='UV_FACESEL',
                              depress=(uv_select_mode == 'FACE')).type = 'FACE'
-                row.operator("uv.select_mode", text="", icon='UV_ISLANDSEL',
-                             depress=(uv_select_mode == 'ISLAND')).type = 'ISLAND'
 
+                layout.prop(tool_settings, "use_uv_select_island", icon_only=True)
                 layout.prop(tool_settings, "uv_sticky_select_mode", icon_only=True)
 
         IMAGE_MT_editor_menus.draw_collapsible(context, layout)
@@ -1249,13 +1252,18 @@ class IMAGE_PT_paint_settings(Panel, ImagePaintPanel):
     bl_category = "Tool"
     bl_label = "Brush Settings"
 
+    @classmethod
+    def poll(cls, context):
+        settings = cls.paint_settings(context)
+        return settings and settings.brush is not None
+
     def draw(self, context):
         layout = self.layout
 
         layout.use_property_split = True
         layout.use_property_decorate = False
 
-        settings = context.tool_settings.image_paint
+        settings = self.paint_settings(context)
         brush = settings.brush
 
         if brush:
@@ -1269,13 +1277,18 @@ class IMAGE_PT_paint_settings_advanced(Panel, ImagePaintPanel):
     bl_label = "Advanced"
     bl_ui_units_x = 12
 
+    @classmethod
+    def poll(cls, context):
+        settings = cls.paint_settings(context)
+        return settings and settings.brush is not None
+
     def draw(self, context):
         layout = self.layout
 
         layout.use_property_split = True
         layout.use_property_decorate = False  # No animation.
 
-        settings = context.tool_settings.image_paint
+        settings = self.paint_settings(context)
         brush = settings.brush
         if brush:
             brush_settings_advanced(layout.column(), context, settings, brush, self.is_popover)

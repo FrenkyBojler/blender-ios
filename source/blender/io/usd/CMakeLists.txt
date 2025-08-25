@@ -55,7 +55,7 @@ set(INC
 set(INC_SYS
   ${USD_INCLUDE_DIRS}
   ${BOOST_INCLUDE_DIR}
-  ${TBB_INCLUDE_DIR}
+  ${TBB_INCLUDE_DIRS}
   ${PYTHON_INCLUDE_DIR}
 
 )
@@ -83,14 +83,15 @@ set(SRC
   intern/usd_writer_material.cc
   intern/usd_writer_mesh.cc
   intern/usd_writer_metaball.cc
+  intern/usd_writer_pointinstancer.cc
   intern/usd_writer_points.cc
   intern/usd_writer_text.cc
   intern/usd_writer_transform.cc
   intern/usd_writer_volume.cc
 
   intern/usd_reader_camera.cc
-  intern/usd_reader_domelight.cc
   intern/usd_reader_curve.cc
+  intern/usd_reader_domelight.cc
   intern/usd_reader_geom.cc
   intern/usd_reader_instance.cc
   intern/usd_reader_light.cc
@@ -134,6 +135,7 @@ set(SRC
   intern/usd_writer_material.hh
   intern/usd_writer_mesh.hh
   intern/usd_writer_metaball.hh
+  intern/usd_writer_pointinstancer.hh
   intern/usd_writer_points.hh
   intern/usd_writer_text.hh
   intern/usd_writer_transform.hh
@@ -163,6 +165,7 @@ set(SRC
 
 if(WITH_HYDRA)
   list(APPEND SRC
+    hydra/camera_delegate.cc
     hydra/curves.cc
     hydra/hydra_scene_delegate.cc
     hydra/id.cc
@@ -177,6 +180,7 @@ if(WITH_HYDRA)
     hydra/volume_modifier.cc
     hydra/world.cc
 
+    hydra/camera_delegate.hh
     hydra/curves.hh
     hydra/hydra_scene_delegate.hh
     hydra/id.hh
@@ -218,19 +222,6 @@ list(APPEND LIB
   ${TBB_LIBRARIES}
 )
 
-if(WITH_OPENVDB)
-  add_definitions(-DWITH_OPENVDB ${OPENVDB_DEFINITIONS})
-  list(APPEND INC
-    ../../../../intern/openvdb
-  )
-  list(APPEND INC_SYS
-    ${OPENVDB_INCLUDE_DIRS}
-  )
-  list(APPEND LIB
-    ${OPENVDB_LIBRARIES}
-  )
-endif()
-
 if(WITH_MATERIALX)
   add_definitions(-DWITH_MATERIALX)
   list(APPEND LIB MaterialXCore)
@@ -249,7 +240,6 @@ if(WITH_GTESTS)
   set(TEST_SRC
     tests/usd_export_test.cc
     tests/usd_stage_creation_test.cc
-    tests/usd_usdz_export_test.cc
     intern/usd_writer_material.hh
   )
 

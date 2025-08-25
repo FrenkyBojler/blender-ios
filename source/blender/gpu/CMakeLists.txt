@@ -112,6 +112,7 @@ set(SRC
   GPU_compute.hh
   GPU_context.hh
   GPU_debug.hh
+  GPU_format.hh
   GPU_framebuffer.hh
   GPU_immediate.hh
   GPU_immediate_util.hh
@@ -179,7 +180,6 @@ set(OPENGL_SRC
   opengl/gl_compute.cc
   opengl/gl_context.cc
   opengl/gl_debug.cc
-  opengl/gl_debug_layer.cc
   opengl/gl_framebuffer.cc
   opengl/gl_immediate.cc
   opengl/gl_index_buffer.cc
@@ -422,16 +422,6 @@ endif()
 
 
 if(WITH_VULKAN_BACKEND)
-  if(APPLE)
-    list(APPEND INC_SYS
-      ${MOLTENVK_INCLUDE_DIRS}
-    )
-
-    list(APPEND LIB
-      ${MOLTENVK_LIBRARIES}
-    )
-  endif()
-
   list(APPEND INC
     ../../../extern/vulkan_memory_allocator
   )
@@ -558,8 +548,6 @@ set(GLSL_SRC
   shaders/material/gpu_shader_material_camera.glsl
   shaders/material/gpu_shader_material_clamp.glsl
   shaders/material/gpu_shader_material_combine_color.glsl
-  shaders/material/gpu_shader_material_combine_hsv.glsl
-  shaders/material/gpu_shader_material_combine_rgb.glsl
   shaders/material/gpu_shader_material_combine_xyz.glsl
   shaders/material/gpu_shader_material_diffuse.glsl
   shaders/material/gpu_shader_material_displacement.glsl
@@ -599,8 +587,6 @@ set(GLSL_SRC
   shaders/material/gpu_shader_material_refraction.glsl
   shaders/material/gpu_shader_material_rgb_to_bw.glsl
   shaders/material/gpu_shader_material_separate_color.glsl
-  shaders/material/gpu_shader_material_separate_hsv.glsl
-  shaders/material/gpu_shader_material_separate_rgb.glsl
   shaders/material/gpu_shader_material_separate_xyz.glsl
   shaders/material/gpu_shader_material_set.glsl
   shaders/material/gpu_shader_material_shader_to_rgba.glsl
@@ -763,7 +749,7 @@ target_link_libraries(bf_gpu PUBLIC
   bf_imbuf_opencolorio_shaders
 )
 
-if(WITH_OPENGL_BACKEND AND UNIX)
+if(WITH_OPENGL_BACKEND AND CMAKE_SYSTEM_NAME STREQUAL "Linux")
   target_link_libraries(bf_gpu PUBLIC rt)
 endif()
 
@@ -799,8 +785,8 @@ if(WITH_GTESTS)
       tests/index_buffer_test.cc
       tests/push_constants_test.cc
       tests/shader_create_info_test.cc
-      tests/shader_test.cc
       tests/shader_preprocess_test.cc
+      tests/shader_test.cc
       tests/specialization_constants_test.cc
       tests/state_blend_test.cc
       tests/storage_buffer_test.cc

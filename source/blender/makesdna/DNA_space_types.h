@@ -338,10 +338,8 @@ typedef struct SpaceSeq {
 
   /** Deprecated: offset for drawing the image preview. */
   float xof DNA_DEPRECATED, yof DNA_DEPRECATED;
-  /** Weird name for the sequencer subtype (seq, image, luma... etc). */
-  short mainb;
-  /** ESpaceSeq_Proxy_RenderSize. */
-  short render_size;
+  short mainb; /* eSpaceSeq_RegionType; strange name for view type (image, histogram, ...). */
+  short render_size; /* eSpaceSeq_Proxy_RenderSize. */
   short chanshown;
   short zebra;
   int flag;
@@ -396,10 +394,10 @@ typedef struct FileSelectParams {
   /**
    * Directory.
    *
-   * \note #FILE_MAX_LIBEXTRA == `1024 + 66`, this is for extreme case when 1023 length path
+   * \note #FILE_MAX_LIBEXTRA == `1024 + 258`, this is for extreme case when 1023 length path
    * needs to be linked in, where `foo.blend/Armature` need adding.
    */
-  char dir[/*FILE_MAX_LIBEXTRA*/ 1090];
+  char dir[/*FILE_MAX_LIBEXTRA*/ 1282];
   char file[/*FILE_MAXFILE*/ 256];
 
   char renamefile[/*FILE_MAXFILE*/ 256];
@@ -419,7 +417,8 @@ typedef struct FileSelectParams {
   /** Same as filter, but for ID types (aka library groups). */
   uint64_t filter_id;
 
-  /** Active file used for keyboard navigation. */
+  /** Active file used for keyboard navigation. -1 means no active file (cleared e.g. after
+   * directory change or search update). */
   int active_file;
   /** File under cursor. */
   int highlight_file;
@@ -873,17 +872,18 @@ typedef struct SpaceNode {
   /** Shader from object or world (#eSpaceNode_ShaderFrom). */
   char shaderfrom;
   /**
-   * Whether to edit any geometry node group, or follow the active modifier context.
-   * #SpaceNodeGeometryNodesType.
+   * The sub type of the node tree being edited.
+   * #SpaceNodeGeometryNodesType or #SpaceNodeCompositorNodesType.
    */
-  char geometry_nodes_type;
+  char node_tree_sub_type;
 
   /**
-   * Used as the editor's top-level node group for #SNODE_GEOMETRY_TOOL. This is stored in the
-   * node editor because it isn't part of the context otherwise, and it isn't meant to be set
-   * separately from the editor's regular node group.
+   * Used as the editor's top-level node group for node trees that are not part of the context and
+   * thus needs to be stored in the node editor. For instance #SNODE_GEOMETRY_MODIFIER is part of
+   * the context since it is stored on the active modifier, while #SNODE_GEOMETRY_TOOL is not part
+   * of the context.
    */
-  struct bNodeTree *geometry_nodes_tool_tree;
+  struct bNodeTree *selected_node_group;
 
   /** Grease-pencil data. */
   struct bGPdata *gpd;

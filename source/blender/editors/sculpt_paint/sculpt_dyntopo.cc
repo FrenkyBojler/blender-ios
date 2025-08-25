@@ -35,6 +35,7 @@
 #include "sculpt_undo.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "bmesh.hh"
@@ -236,7 +237,7 @@ static wmOperatorStatus dyntopo_warning_popup(bContext *C, wmOperatorType *ot, e
     layout->separator();
   }
 
-  layout->op(ot, IFACE_("OK"), ICON_NONE, WM_OP_EXEC_DEFAULT, UI_ITEM_NONE);
+  layout->op(ot, IFACE_("OK"), ICON_NONE, wm::OpCallContext::ExecDefault, UI_ITEM_NONE);
 
   UI_popup_menu_end(C, pup);
 
@@ -248,7 +249,7 @@ static bool dyntopo_supports_layer(const CustomDataLayer &layer)
   if (layer.type == CD_PROP_FLOAT && STREQ(layer.name, ".sculpt_mask")) {
     return true;
   }
-  if (CD_TYPE_AS_MASK(layer.type) & CD_MASK_PROP_ALL) {
+  if (CD_TYPE_AS_MASK(eCustomDataType(layer.type)) & CD_MASK_PROP_ALL) {
     return BM_attribute_stored_in_bmesh_builtin(layer.name);
   }
   return ELEM(layer.type, CD_ORIGINDEX);

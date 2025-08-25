@@ -57,6 +57,7 @@
 #include "WM_types.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 #include "UI_view2d.hh"
 
@@ -204,7 +205,7 @@ void ED_uvedit_foreach_uv(const Scene *scene,
                           FunctionRef<void(float[2])> user_fn)
 {
   /* Check selection for quick return. */
-  const bool synced_selection = (scene->toolsettings->uv_flag & UV_SYNC_SELECTION) != 0;
+  const bool synced_selection = (scene->toolsettings->uv_flag & UV_FLAG_SYNC_SELECT) != 0;
   if (synced_selection && bm->totvertsel == (selected ? 0 : bm->totvert)) {
     return;
   }
@@ -308,7 +309,7 @@ bool ED_uvedit_center_multi(const Scene *scene,
   return changed;
 }
 
-bool ED_uvedit_center_from_pivot_ex(SpaceImage *sima,
+bool ED_uvedit_center_from_pivot_ex(const SpaceImage *sima,
                                     Scene *scene,
                                     ViewLayer *view_layer,
                                     float r_center[2],
@@ -1398,7 +1399,7 @@ static wmOperatorStatus uv_pin_exec(bContext *C, wmOperator *op)
   const ToolSettings *ts = scene->toolsettings;
   const bool clear = RNA_boolean_get(op->ptr, "clear");
   const bool invert = RNA_boolean_get(op->ptr, "invert");
-  const bool synced_selection = (ts->uv_flag & UV_SYNC_SELECTION) != 0;
+  const bool synced_selection = (ts->uv_flag & UV_FLAG_SYNC_SELECT) != 0;
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
       scene, view_layer, nullptr);
@@ -1518,6 +1519,7 @@ static wmOperatorStatus uv_hide_exec(bContext *C, wmOperator *op)
   const ToolSettings *ts = scene->toolsettings;
   const bool swap = RNA_boolean_get(op->ptr, "unselected");
   const bool use_face_center = (ts->uv_selectmode == UV_SELECT_FACE);
+  const bool use_select_linked = ED_uvedit_select_island_check(ts);
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
       scene, view_layer, nullptr);
@@ -1528,7 +1530,7 @@ static wmOperatorStatus uv_hide_exec(bContext *C, wmOperator *op)
     BMLoop *l;
     BMIter iter, liter;
 
-    if (ts->uv_flag & UV_SYNC_SELECTION) {
+    if (ts->uv_flag & UV_FLAG_SYNC_SELECT) {
       /* Pass. */
     }
     else {
@@ -1539,7 +1541,7 @@ static wmOperatorStatus uv_hide_exec(bContext *C, wmOperator *op)
     }
     const BMUVOffsets offsets = BM_uv_map_offsets_get(em->bm);
 
-    if (ts->uv_flag & UV_SYNC_SELECTION) {
+    if (ts->uv_flag & UV_FLAG_SYNC_SELECT) {
       if (EDBM_mesh_hide(em, swap)) {
         Mesh *mesh = static_cast<Mesh *>(ob->data);
         EDBMUpdate_Params params = {0};
@@ -1605,7 +1607,7 @@ static wmOperatorStatus uv_hide_exec(bContext *C, wmOperator *op)
               BM_face_select_set(em->bm, efa, false);
               break;
             }
-            if (ts->uv_selectmode == UV_SELECT_ISLAND) {
+            if (use_select_linked) {
               BM_face_select_set(em->bm, efa, false);
               break;
             }
@@ -1701,7 +1703,7 @@ static wmOperatorStatus uv_reveal_exec(bContext *C, wmOperator *op)
     BMLoop *l;
     BMIter iter, liter;
 
-    if (ts->uv_flag & UV_SYNC_SELECTION) {
+    if (ts->uv_flag & UV_FLAG_SYNC_SELECT) {
       /* Pass. */
     }
     else {
@@ -1718,7 +1720,7 @@ static wmOperatorStatus uv_reveal_exec(bContext *C, wmOperator *op)
      * visibility checks internally. Current implementation handles each case separately. */
 
     /* call the mesh function if we are in mesh sync sel */
-    if (ts->uv_flag & UV_SYNC_SELECTION) {
+    if (ts->uv_flag & UV_FLAG_SYNC_SELECT) {
       if (EDBM_mesh_reveal(em, select)) {
         Mesh *mesh = static_cast<Mesh *>(ob->data);
         EDBMUpdate_Params params = {0};
@@ -2013,7 +2015,7 @@ static wmOperatorStatus uv_mark_seam_exec(bContext *C, wmOperator *op)
   BMIter iter, liter;
 
   const bool flag_set = !RNA_boolean_get(op->ptr, "clear");
-  const bool synced_selection = (ts->uv_flag & UV_SYNC_SELECTION) != 0;
+  const bool synced_selection = (ts->uv_flag & UV_FLAG_SYNC_SELECT) != 0;
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
       scene, view_layer, nullptr);
@@ -2067,7 +2069,7 @@ static wmOperatorStatus uv_mark_seam_invoke(bContext *C, wmOperator *op, const w
   pup = UI_popup_menu_begin(C, IFACE_("Edges"), ICON_NONE);
   layout = UI_popup_menu_layout(pup);
 
-  layout->operator_context_set(WM_OP_EXEC_DEFAULT);
+  layout->operator_context_set(blender::wm::OpCallContext::ExecDefault);
   PointerRNA op_ptr = layout->op(
       op->type->idname, CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Mark Seam"), ICON_NONE);
   RNA_boolean_set(&op_ptr, "clear", false);

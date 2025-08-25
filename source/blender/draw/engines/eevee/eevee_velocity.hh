@@ -58,6 +58,18 @@ class VelocityModule {
       }
       return nullptr;
     }
+
+    /* Returns true if the data is or **will** be available after the end of sync. */
+    bool has_data() const
+    {
+      if (std::holds_alternative<gpu::VertBuf *>(this->pos_buf)) {
+        return true;
+      }
+      if (std::holds_alternative<gpu::Batch *>(this->pos_buf)) {
+        return true;
+      }
+      return false;
+    }
   };
   /**
    * The map contains indirection indices to the obmat and geometry in each step buffer.
@@ -127,7 +139,7 @@ class VelocityModule {
   bool step_object_sync(ObjectKey &object_key,
                         const ObjectRef &object_ref,
                         int recalc,
-                        ResourceHandle resource_handle,
+                        ResourceHandleRange resource_handle,
                         ModifierData *modifier_data = nullptr,
                         ParticleSystem *particle_sys = nullptr);
 

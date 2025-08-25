@@ -385,7 +385,7 @@ static void view_pan_init(bContext *C, wmOperator *op, const wmEvent *event)
   op->customdata = vpd = MEM_callocN<ViewPanData>("ClipViewPanData");
 
   /* Grab will be set when running from gizmo. */
-  vpd->own_cursor = (win->grabcursor == 0);
+  vpd->own_cursor = WM_cursor_modal_is_set_ok(win);
   if (vpd->own_cursor) {
     WM_cursor_modal_set(win, WM_CURSOR_NSEW_SCROLL);
   }
@@ -565,7 +565,7 @@ static void view_zoom_init(bContext *C, wmOperator *op, const wmEvent *event)
   op->customdata = vpd = MEM_callocN<ViewZoomData>("ClipViewZoomData");
 
   /* Grab will be set when running from gizmo. */
-  vpd->own_cursor = (win->grabcursor == 0);
+  vpd->own_cursor = WM_cursor_modal_is_set_ok(win);
   if (vpd->own_cursor) {
     WM_cursor_modal_set(win, WM_CURSOR_NSEW_SCROLL);
   }
@@ -1537,7 +1537,7 @@ static wmOperatorStatus clip_rebuild_proxy_exec(bContext *C, wmOperator * /*op*/
   wm_job = WM_jobs_get(CTX_wm_manager(C),
                        CTX_wm_window(C),
                        scene,
-                       "Building Proxies",
+                       "Building proxies...",
                        WM_JOB_PROGRESS,
                        WM_JOB_TYPE_CLIP_BUILD_PROXY);
 
@@ -1649,14 +1649,11 @@ static wmOperatorStatus clip_view_ndof_invoke(bContext *C,
 
   SpaceClip *sc = CTX_wm_space_clip(C);
   ARegion *region = CTX_wm_region(C);
-  float pan_vec[3];
 
-  const wmNDOFMotionData *ndof = static_cast<wmNDOFMotionData *>(event->customdata);
+  const wmNDOFMotionData &ndof = *static_cast<wmNDOFMotionData *>(event->customdata);
   const float pan_speed = NDOF_PIXELS_PER_SECOND;
 
-  WM_event_ndof_pan_get(ndof, pan_vec);
-
-  mul_v3_fl(pan_vec, ndof->dt);
+  blender::float3 pan_vec = ndof.time_delta * WM_event_ndof_translation_get_for_navigation(ndof);
   mul_v2_fl(pan_vec, pan_speed / sc->zoom);
 
   sclip_zoom_set_factor(C, max_ff(0.0f, 1.0f - pan_vec[2]), nullptr, false);
@@ -1897,7 +1894,7 @@ void ED_operatormacros_clip()
                                     OPTYPE_UNDO | OPTYPE_REGISTER);
   WM_operatortype_macro_define(ot, "CLIP_OT_add_marker");
   otmacro = WM_operatortype_macro_define(ot, "TRANSFORM_OT_translate");
-  RNA_struct_idprops_unset(otmacro->ptr, "release_confirm");
+  RNA_struct_system_idprops_unset(otmacro->ptr, "release_confirm");
 
   ot = WM_operatortype_append_macro(
       "CLIP_OT_add_marker_slide",

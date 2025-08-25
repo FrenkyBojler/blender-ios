@@ -6,25 +6,29 @@
  * \ingroup edinterface
  */
 
+#include <fmt/format.h>
+
 #include "BKE_context.hh"
 #include "BKE_key.hh"
+#include "BKE_object.hh"
 
 #include "BLI_listbase.h"
 #include "BLT_translation.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_tree_view.hh"
 
 #include "RNA_access.hh"
 #include "RNA_prototypes.hh"
 
 #include "DEG_depsgraph.hh"
+
 #include "DNA_key_types.h"
+
 #include "WM_api.hh"
+#include "WM_types.hh"
 
 #include "ED_undo.hh"
-#include "WM_types.hh"
-#include <fmt/format.h>
 
 namespace blender::ed::object::shapekey {
 
@@ -33,7 +37,10 @@ class ShapeKeyTreeView : public ui::AbstractTreeView {
   Object &object_;
 
  public:
-  ShapeKeyTreeView(Object &ob) : object_(ob){};
+  ShapeKeyTreeView(Object &ob) : object_(ob)
+  {
+    is_flat_ = true;
+  };
 
   void build_tree() override;
 };
@@ -109,6 +116,9 @@ class ShapeKeyDropTarget : public ui::TreeViewItemDropTarget {
         BLI_assert_unreachable();
         break;
       case ui::DropLocation::Before:
+        if (drop_index_ == 0) {
+          return TIP_("Cannot move above basis shape key");
+        }
         return fmt::format(fmt::runtime(TIP_("Move {} above {}")), drag_name, drop_name);
       case ui::DropLocation::After:
         return fmt::format(fmt::runtime(TIP_("Move {} below {}")), drag_name, drop_name);
@@ -131,6 +141,9 @@ class ShapeKeyDropTarget : public ui::TreeViewItemDropTarget {
         BLI_assert_unreachable();
         break;
       case ui::DropLocation::Before:
+        if (drop_index == 0) {
+          return false;
+        }
         drop_index -= int(drag_index < drop_index);
         break;
       case ui::DropLocation::After:
@@ -166,7 +179,7 @@ class ShapeKeyItem : public ui::AbstractTreeViewItem {
   {
     uiItemL_ex(&row, this->label_, ICON_SHAPEKEY_DATA, false, false);
     uiLayout *sub = &row.row(true);
-    uiLayoutSetPropDecorate(sub, false);
+    sub->use_property_decorate_set(false);
     PointerRNA shapekey_ptr = RNA_pointer_create_discrete(
         &shape_key_.key->id, &RNA_ShapeKey, shape_key_.kb);
 
@@ -194,6 +207,17 @@ class ShapeKeyItem : public ui::AbstractTreeViewItem {
     ED_undo_push(&C, "Set Active Shape Key");
   }
 
+  std::optional<bool> should_be_selected() const override
+  {
+    return shape_key_.kb->flag & KEYBLOCK_SEL;
+  }
+
+  void set_selected(const bool select) override
+  {
+    AbstractViewItem::set_selected(select);
+    SET_FLAG_FROM_TEST(shape_key_.kb->flag, select, KEYBLOCK_SEL);
+  }
+
   bool supports_renaming() const override
   {
     return true;
@@ -213,8 +237,30 @@ class ShapeKeyItem : public ui::AbstractTreeViewItem {
     return label_;
   }
 
+  void delete_item(bContext *C) override
+  {
+    Main *bmain = CTX_data_main(C);
+    BKE_object_shapekey_remove(bmain, shape_key_.object, shape_key_.kb);
+    DEG_id_tag_update(&shape_key_.object->id, ID_RECALC_GEOMETRY);
+    WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, nullptr);
+    ED_undo_grouped_push(C, "Delete Shape Key");
+  }
+
+  void build_context_menu(bContext &C, uiLayout &layout) const override
+  {
+    MenuType *mt = WM_menutype_find("MESH_MT_shape_key_tree_context_menu", true);
+    if (!mt) {
+      return;
+    }
+    UI_menutype_draw(&C, mt, &layout);
+  }
+
   std::unique_ptr<ui::AbstractViewItemDragController> create_drag_controller() const override
   {
+    if (shape_key_.index == 0) {
+      /* Prevent basis shape key from dragging. */
+      return nullptr;
+    }
     return std::make_unique<ShapeKeyDragController>(
         static_cast<ShapeKeyTreeView &>(get_tree_view()), shape_key_);
   }
@@ -245,7 +291,7 @@ void template_tree(uiLayout *layout, bContext *C)
     return;
   }
 
-  uiBlock *block = uiLayoutGetBlock(layout);
+  uiBlock *block = layout->block();
 
   ui::AbstractTreeView *tree_view = UI_block_add_view(
       *block,
@@ -253,6 +299,7 @@ void template_tree(uiLayout *layout, bContext *C)
       std::make_unique<ed::object::shapekey::ShapeKeyTreeView>(*ob));
   tree_view->set_context_menu_title("Shape Key");
   tree_view->set_default_rows(4);
+  tree_view->allow_multiselect_items();
 
   ui::TreeViewBuilder::build_tree_view(*C, *tree_view, *layout);
 }

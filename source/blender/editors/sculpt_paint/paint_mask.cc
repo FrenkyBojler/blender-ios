@@ -42,7 +42,6 @@
 
 #include "mesh_brush_common.hh"
 #include "paint_intern.hh"
-#include "sculpt_automask.hh"
 #include "sculpt_gesture.hh"
 #include "sculpt_hide.hh"
 #include "sculpt_intern.hh"
@@ -92,6 +91,15 @@ Array<float> duplicate_mask(const Object &object)
   }
   BLI_assert_unreachable();
   return {};
+}
+
+void mix_new_masks(const Span<float> new_masks, const float factor, const MutableSpan<float> masks)
+{
+  BLI_assert(new_masks.size() == masks.size());
+
+  for (const int i : masks.index_range()) {
+    masks[i] += (new_masks[i] - masks[i]) * factor;
+  }
 }
 
 void mix_new_masks(const Span<float> new_masks,

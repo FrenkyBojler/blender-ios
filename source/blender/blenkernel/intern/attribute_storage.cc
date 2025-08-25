@@ -15,13 +15,14 @@
 
 #include "DNA_attribute_types.h"
 #include "DNA_meshdata_types.h"
+#include "DNA_userdef_types.h"
 
 #include "BKE_attribute.hh"
 #include "BKE_attribute_legacy_convert.hh"
 #include "BKE_attribute_storage.hh"
 #include "BKE_attribute_storage_blend_write.hh"
 
-static CLG_LogRef LOG = {"bke.attribute_storage"};
+static CLG_LogRef LOG = {"geom.attribute"};
 
 namespace blender::bke {
 
@@ -57,12 +58,12 @@ class ArrayDataImplicitSharing : public ImplicitSharingInfo {
   }
 };
 
-Attribute::ArrayData Attribute::ArrayData::ForValue(const GPointer &value,
-                                                    const int64_t domain_size)
+Attribute::ArrayData Attribute::ArrayData::from_value(const GPointer &value,
+                                                      const int64_t domain_size)
 {
   Attribute::ArrayData data{};
   const CPPType &type = *value.type();
-  const void *value_ptr = type.default_value();
+  const void *value_ptr = value.get();
 
   /* Prefer `calloc` to zeroing after allocation since it is faster. */
   if (BLI_memory_is_zero(value_ptr, type.size)) {
@@ -79,25 +80,32 @@ Attribute::ArrayData Attribute::ArrayData::ForValue(const GPointer &value,
   return data;
 }
 
-Attribute::ArrayData Attribute::ArrayData::ForDefaultValue(const CPPType &type,
-                                                           const int64_t domain_size)
+Attribute::ArrayData Attribute::ArrayData::from_default_value(const CPPType &type,
+                                                              const int64_t domain_size)
 {
-  return ForValue(GPointer(type, type.default_value()), domain_size);
+  return from_value(GPointer(type, type.default_value()), domain_size);
 }
 
-Attribute::ArrayData Attribute::ArrayData::ForConstructed(const CPPType &type,
-                                                          const int64_t domain_size)
+Attribute::ArrayData Attribute::ArrayData::from_uninitialized(const CPPType &type,
+                                                              const int64_t domain_size)
 {
   Attribute::ArrayData data{};
   data.data = MEM_malloc_arrayN_aligned(domain_size, type.size, type.alignment, __func__);
-  type.default_construct_n(data.data, domain_size);
   data.size = domain_size;
   BLI_assert(type.is_trivially_destructible);
   data.sharing_info = ImplicitSharingPtr<>(implicit_sharing::info_for_mem_free(data.data));
   return data;
 }
 
-Attribute::SingleData Attribute::SingleData::ForValue(const GPointer &value)
+Attribute::ArrayData Attribute::ArrayData::from_constructed(const CPPType &type,
+                                                            const int64_t domain_size)
+{
+  Attribute::ArrayData data = Attribute::ArrayData::from_uninitialized(type, domain_size);
+  type.default_construct_n(data.data, domain_size);
+  return data;
+}
+
+Attribute::SingleData Attribute::SingleData::from_value(const GPointer &value)
 {
   Attribute::SingleData data{};
   const CPPType &type = *value.type();
@@ -108,9 +116,9 @@ Attribute::SingleData Attribute::SingleData::ForValue(const GPointer &value)
   return data;
 }
 
-Attribute::SingleData Attribute::SingleData::ForDefaultValue(const CPPType &type)
+Attribute::SingleData Attribute::SingleData::from_default_value(const CPPType &type)
 {
-  return ForValue(GPointer(type, type.default_value()));
+  return from_value(GPointer(type, type.default_value()));
 }
 
 void AttributeStorage::foreach(FunctionRef<void(Attribute &)> fn)
@@ -158,12 +166,16 @@ AttrStorageType Attribute::storage_type() const
 Attribute::DataVariant &Attribute::data_for_write()
 {
   if (auto *data = std::get_if<Attribute::ArrayData>(&data_)) {
+    if (!data->sharing_info) {
+      BLI_assert(data->size == 0);
+      return data_;
+    }
     if (data->sharing_info->is_mutable()) {
       data->sharing_info->tag_ensured_mutable();
       return data_;
     }
     const CPPType &type = attribute_type_to_cpp_type(type_);
-    ArrayData new_data = ArrayData::ForConstructed(type, data->size);
+    ArrayData new_data = ArrayData::from_uninitialized(type, data->size);
     type.copy_construct_n(data->data, new_data.data, data->size);
     *data = std::move(new_data);
   }
@@ -173,7 +185,7 @@ Attribute::DataVariant &Attribute::data_for_write()
       return data_;
     }
     const CPPType &type = attribute_type_to_cpp_type(type_);
-    *data = SingleData::ForValue(GPointer(type, data->value));
+    *data = SingleData::from_value(GPointer(type, data->value));
   }
   return data_;
 }
@@ -182,6 +194,7 @@ AttributeStorage::AttributeStorage()
 {
   this->dna_attributes = nullptr;
   this->dna_attributes_num = 0;
+  memset(this->_pad, 0, sizeof(this->_pad));
   this->runtime = MEM_new<AttributeStorageRuntime>(__func__);
 }
 
@@ -288,7 +301,7 @@ bool AttributeStorage::remove(const StringRef name)
   return this->runtime->attributes.remove_as(name);
 }
 
-std::string AttributeStorage::unique_name_calc(const StringRef name)
+std::string AttributeStorage::unique_name_calc(const StringRef name) const
 {
   return BLI_uniquename_cb(
       [&](const StringRef check_name) { return this->lookup(check_name) != nullptr; }, '.', name);
@@ -305,6 +318,34 @@ void AttributeStorage::rename(const StringRef old_name, std::string new_name)
   for (std::unique_ptr<Attribute> &attribute : old_vector) {
     this->runtime->attributes.add_new(std::move(attribute));
   }
+}
+
+void AttributeStorage::resize(const AttrDomain domain, const int64_t new_size)
+{
+  this->foreach([&](Attribute &attr) {
+    if (attr.domain() != domain) {
+      return;
+    }
+    const CPPType &type = attribute_type_to_cpp_type(attr.data_type());
+    switch (attr.storage_type()) {
+      case bke::AttrStorageType::Array: {
+        const auto &data = std::get<bke::Attribute::ArrayData>(attr.data());
+        const int64_t old_size = data.size;
+
+        auto new_data = bke::Attribute::ArrayData::from_uninitialized(type, new_size);
+        type.copy_construct_n(data.data, new_data.data, std::min(old_size, new_size));
+        if (old_size < new_size) {
+          type.default_construct_n(POINTER_OFFSET(new_data.data, type.size * old_size),
+                                   new_size - old_size);
+        }
+
+        attr.assign_data(std::move(new_data));
+      }
+      case bke::AttrStorageType::Single: {
+        return;
+      }
+    }
+  });
 }
 
 static void read_array_data(BlendDataReader &reader,
@@ -387,7 +428,7 @@ static std::optional<Attribute::DataVariant> read_attr_data(BlendDataReader &rea
       BLO_read_struct(&reader, AttributeArray, &dna_attr.data);
       auto &data = *static_cast<::AttributeArray *>(dna_attr.data);
       read_shared_array(reader, dna_attr_type, data.size, &data.data, &data.sharing_info);
-      if (!data.data) {
+      if (data.size != 0 && !data.data) {
         return std::nullopt;
       }
       return Attribute::ArrayData{data.data, data.size, ImplicitSharingPtr<>(data.sharing_info)};
@@ -447,6 +488,7 @@ void AttributeStorage::blend_read(BlendDataReader &reader)
   for (const int i : IndexRange(this->dna_attributes_num)) {
     ::Attribute &dna_attr = this->dna_attributes[i];
     BLO_read_string(&reader, &dna_attr.name);
+    BLI_SCOPED_DEFER([&]() { MEM_SAFE_FREE(dna_attr.name); });
 
     const std::optional<AttrDomain> domain = read_attr_domain(dna_attr.domain);
     if (!domain) {
@@ -455,6 +497,7 @@ void AttributeStorage::blend_read(BlendDataReader &reader)
 
     std::optional<Attribute::DataVariant> data = read_attr_data(
         reader, dna_attr.storage_type, dna_attr.data_type, dna_attr);
+    BLI_SCOPED_DEFER([&]() { MEM_SAFE_FREE(dna_attr.data); });
     if (!data) {
       continue;
     }
@@ -468,9 +511,6 @@ void AttributeStorage::blend_read(BlendDataReader &reader)
     if (!this->runtime->attributes.add(std::move(attribute))) {
       CLOG_ERROR(&LOG, "Ignoring attribute with duplicate name: \"%s\"", dna_attr.name);
     }
-
-    MEM_SAFE_FREE(dna_attr.name);
-    MEM_SAFE_FREE(dna_attr.data);
   }
 
   /* These fields are not used at runtime. */
@@ -528,52 +568,10 @@ static void write_array_data(BlendWriter &writer,
   }
 }
 
-void attribute_storage_blend_write_prepare(
-    AttributeStorage &data,
-    const Map<AttrDomain, Vector<CustomDataLayer, 16> *> &layers_to_write,
-    AttributeStorage::BlendWriteData &write_data)
+void attribute_storage_blend_write_prepare(AttributeStorage &data,
+                                           AttributeStorage::BlendWriteData &write_data)
 {
-  Set<std::string, 16> all_names_written;
-  for (Vector<CustomDataLayer, 16> *const layers : layers_to_write.values()) {
-    for (const CustomDataLayer &layer : *layers) {
-      all_names_written.add(layer.name);
-    }
-  }
   data.foreach([&](Attribute &attr) {
-    if (!U.experimental.use_attribute_storage_write && !layers_to_write.is_empty()) {
-      /* In version 4.5, all attribute data is written in the #CustomData format (at least when the
-       * debug option is not enabled), so the #Attribute needs to be converted to a
-       * #CustomDataLayer in the proper list. This is only relevant when #AttributeStorage is
-       * actually used at runtime.
-       *
-       * When removing this option to always write the new format in 5.0, #BLENDER_FILE_MIN_VERSION
-       * must be increased. */
-      if (const std::optional data_type = attr_type_to_custom_data_type(attr.data_type())) {
-        if (const auto *array_data = std::get_if<Attribute::ArrayData>(&attr.data())) {
-          CustomDataLayer layer{};
-          layer.type = *data_type;
-          layer.data = array_data->data;
-          layer.sharing_info = array_data->sharing_info.get();
-
-          /* Because the #Attribute::name_ `std::string` has no length limit (unlike
-           * #CustomDataLayer::name), we have to manually make the name unique in case it exceeds
-           * the limit. */
-          BLI_uniquename_cb(
-              [&](const StringRefNull name) { return all_names_written.contains(name); },
-              attr.name().c_str(),
-              '.',
-              layer.name,
-              MAX_CUSTOMDATA_LAYER_NAME);
-          all_names_written.add(layer.name);
-
-          layers_to_write.lookup(attr.domain())->append(layer);
-        }
-      }
-      return;
-    }
-
-    /* Names within an AttributeStorage are unique. */
-    all_names_written.add(attr.name());
     ::Attribute attribute_dna{};
     attribute_dna.name = attr.name().c_str();
     attribute_dna.data_type = int16_t(attr.data_type());
@@ -603,18 +601,24 @@ void attribute_storage_blend_write_prepare(
 
     write_data.attributes.append(attribute_dna);
   });
+  data.runtime = nullptr;
 }
 
 static void write_shared_array(BlendWriter &writer,
                                const AttrType data_type,
                                const void *data,
                                const int64_t size,
-                               const ImplicitSharingInfo &sharing_info)
+                               const ImplicitSharingInfo *sharing_info)
 {
   const CPPType &cpp_type = attribute_type_to_cpp_type(data_type);
-  BLO_write_shared(&writer, data, cpp_type.size * size, &sharing_info, [&]() {
+  BLO_write_shared(&writer, data, cpp_type.size * size, sharing_info, [&]() {
     write_array_data(writer, data_type, data, size);
   });
+}
+
+AttributeStorage::BlendWriteData::BlendWriteData(ResourceScope &scope)
+    : scope(scope), attributes(scope.construct<Vector<::Attribute, 16>>())
+{
 }
 
 void AttributeStorage::blend_write(BlendWriter &writer,
@@ -630,7 +634,7 @@ void AttributeStorage::blend_write(BlendWriter &writer,
         ::AttributeSingle *single_dna = static_cast<::AttributeSingle *>(attr_dna.data);
         BLO_write_struct(&writer, AttributeSingle, single_dna);
         write_shared_array(
-            writer, AttrType(attr_dna.data_type), single_dna->data, 1, *single_dna->sharing_info);
+            writer, AttrType(attr_dna.data_type), single_dna->data, 1, single_dna->sharing_info);
         break;
       }
       case AttrStorageType::Array: {
@@ -640,7 +644,7 @@ void AttributeStorage::blend_write(BlendWriter &writer,
                            AttrType(attr_dna.data_type),
                            array_dna->data,
                            array_dna->size,
-                           *array_dna->sharing_info);
+                           array_dna->sharing_info);
         break;
       }
     }

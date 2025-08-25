@@ -37,7 +37,6 @@
 #include "BKE_curve.hh"
 #include "BKE_curves.hh"
 #include "BKE_editmesh.hh"
-#include "BKE_gpencil_legacy.h"
 #include "BKE_grease_pencil.hh"
 #include "BKE_idtype.hh"
 #include "BKE_lattice.hh"
@@ -61,7 +60,7 @@
 #include "RNA_access.hh"
 #include "RNA_define.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_icons.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -753,7 +752,7 @@ static wmOperatorStatus apply_objects_internal(bContext *C,
         BKE_reportf(
             reports,
             RPT_ERROR,
-            R"(Rotation/Location can't apply to a 2D curve: Object "%s", %s "%s", aborting)",
+            R"(Rotation/Location cannot apply to a 2D curve: Object "%s", %s "%s", aborting)",
             ob->id.name + 2,
             BKE_idtype_idcode_to_name(GS(obdata->name)),
             obdata->name + 2);
@@ -835,12 +834,11 @@ static wmOperatorStatus apply_objects_internal(bContext *C,
       /* correct for scale, note mul_m3_m3m3 has swapped args! */
       BKE_object_scale_to_mat3(ob, tmat);
       if (!invert_m3_m3(timat, tmat)) {
-        BKE_reportf(reports,
-                    RPT_WARNING,
-                    "%s \"%s\" %s",
-                    RPT_("Object"),
-                    ob->id.name + 2,
-                    RPT_("have non-invertable transformation matrix, not applying transform."));
+        BKE_reportf(
+            reports,
+            RPT_WARNING,
+            "Object \"%s\" has a non-invertible transformation matrix, not applying transform",
+            ob->id.name + 2);
         has_non_invertable_matrix = true;
         continue;
       }

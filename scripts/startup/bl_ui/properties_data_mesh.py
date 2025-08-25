@@ -59,28 +59,39 @@ class MESH_MT_shape_key_context_menu(Menu):
     def draw(self, _context):
         layout = self.layout
 
-        layout.operator("object.shape_key_add", icon='ADD', text="New Shape from Mix").from_mix = True
-        layout.operator("object.shape_key_copy", icon='DUPLICATE', text="Duplicate Shape Key")
+        layout.operator("object.shape_key_add", icon='ADD', text="New Combined").from_mix = True
+        layout.operator("object.shape_key_copy", icon='DUPLICATE', text="Duplicate")
+        layout.operator("object.shape_key_transfer", text="Copy from Objects")
         layout.separator()
-        layout.operator("object.shape_key_mirror", icon='ARROW_LEFTRIGHT').use_topology = False
-        layout.operator("object.shape_key_mirror", text="Mirror Shape Key (Topology)").use_topology = True
+        layout.operator("object.join_shapes", text="New from Objects")
+        layout.operator("object.update_shapes", icon='FILE_REFRESH')
         layout.separator()
-        layout.operator("object.join_shapes")
-        layout.operator("object.update_shapes")
-        layout.operator("object.shape_key_transfer")
-        layout.separator()
-        props = layout.operator("object.shape_key_remove", icon='X', text="Delete All Shape Keys")
-        props.all = True
-        props.apply_mix = False
-        props = layout.operator("object.shape_key_remove", text="Apply All Shape Keys")
-        props.all = True
-        props.apply_mix = True
+        layout.operator("object.shape_key_mirror", icon='ARROW_LEFTRIGHT', text="Flip").use_topology = False
+        layout.operator("object.shape_key_mirror", text="Flip (Topology)").use_topology = True
         layout.separator()
         layout.operator("object.shape_key_lock", icon='LOCKED', text="Lock All").action = 'LOCK'
         layout.operator("object.shape_key_lock", icon='UNLOCKED', text="Unlock All").action = 'UNLOCK'
         layout.separator()
-        layout.operator("object.shape_key_move", icon='TRIA_UP_BAR', text="Move to Top").type = 'TOP'
-        layout.operator("object.shape_key_move", icon='TRIA_DOWN_BAR', text="Move to Bottom").type = 'BOTTOM'
+        layout.operator("object.shape_key_make_basis", text="Make Basis")
+        layout.separator()
+        props = layout.operator("object.shape_key_remove", text="Apply All")
+        props.all = True
+        props.apply_mix = True
+        props = layout.operator("object.shape_key_remove", icon='X', text="Delete All")
+        props.all = True
+        props.apply_mix = False
+
+
+class MESH_MT_shape_key_tree_context_menu(Menu):
+    bl_label = "Shape Key context menu"
+
+    def draw(self, _context):
+        layout = self.layout
+        layout.operator("object.shape_key_make_basis", text="Make Basis")
+        layout.operator("object.shape_key_copy", icon='DUPLICATE', text="Duplicate")
+        layout.separator()
+        layout.operator("object.shape_key_move", icon='TRIA_UP_BAR', text="Move After Basis").type = 'TOP'
+        layout.operator("object.shape_key_move", icon='TRIA_DOWN_BAR', text="Move to Last").type = 'BOTTOM'
 
 
 class MESH_MT_color_attribute_context_menu(Menu):
@@ -109,25 +120,17 @@ class MESH_UL_vgroups(UIList):
     def draw_item(self, _context, layout, _data, item, icon, _active_data_, _active_propname, _index):
         # assert(isinstance(item, bpy.types.VertexGroup))
         vgroup = item
-        if self.layout_type in {'DEFAULT', 'COMPACT'}:
-            layout.prop(vgroup, "name", text="", emboss=False, icon_value=icon)
-            icon = 'LOCKED' if vgroup.lock_weight else 'UNLOCKED'
-            layout.prop(vgroup, "lock_weight", text="", icon=icon, emboss=False)
-        elif self.layout_type == 'GRID':
-            layout.alignment = 'CENTER'
-            layout.label(text="", icon_value=icon)
+        layout.prop(vgroup, "name", text="", emboss=False, icon_value=icon)
+        icon = 'LOCKED' if vgroup.lock_weight else 'UNLOCKED'
+        layout.prop(vgroup, "lock_weight", text="", icon=icon, emboss=False)
 
 
 class MESH_UL_uvmaps(UIList):
     def draw_item(self, _context, layout, _data, item, icon, _active_data, _active_propname, _index):
         # assert(isinstance(item, (bpy.types.MeshTexturePolyLayer, bpy.types.MeshLoopColorLayer)))
-        if self.layout_type in {'DEFAULT', 'COMPACT'}:
-            layout.prop(item, "name", text="", emboss=False, icon='GROUP_UVS')
-            icon = 'RESTRICT_RENDER_OFF' if item.active_render else 'RESTRICT_RENDER_ON'
-            layout.prop(item, "active_render", text="", icon=icon, emboss=False)
-        elif self.layout_type == 'GRID':
-            layout.alignment = 'CENTER'
-            layout.label(text="", icon_value=icon)
+        layout.prop(item, "name", text="", emboss=False, icon='GROUP_UVS')
+        icon = 'RESTRICT_RENDER_OFF' if item.active_render else 'RESTRICT_RENDER_ON'
+        layout.prop(item, "active_render", text="", icon=icon, emboss=False)
 
 
 class MeshButtonsPanel:
@@ -146,7 +149,7 @@ class DATA_PT_context_mesh(MeshButtonsPanel, Panel):
     bl_options = {'HIDE_HEADER'}
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
-        'BLENDER_EEVEE_NEXT',
+        'BLENDER_EEVEE',
         'BLENDER_WORKBENCH',
     }
 
@@ -168,7 +171,7 @@ class DATA_PT_texture_space(MeshButtonsPanel, Panel):
     bl_options = {'DEFAULT_CLOSED'}
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
-        'BLENDER_EEVEE_NEXT',
+        'BLENDER_EEVEE',
         'BLENDER_WORKBENCH',
     }
 
@@ -192,7 +195,7 @@ class DATA_PT_vertex_groups(MeshButtonsPanel, Panel):
     bl_label = "Vertex Groups"
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
-        'BLENDER_EEVEE_NEXT',
+        'BLENDER_EEVEE',
         'BLENDER_WORKBENCH',
     }
 
@@ -259,7 +262,7 @@ class DATA_PT_shape_keys(MeshButtonsPanel, Panel):
     bl_label = "Shape Keys"
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
-        'BLENDER_EEVEE_NEXT',
+        'BLENDER_EEVEE',
         'BLENDER_WORKBENCH',
     }
 
@@ -357,7 +360,7 @@ class DATA_PT_uv_texture(MeshButtonsPanel, Panel):
     bl_options = {'DEFAULT_CLOSED'}
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
-        'BLENDER_EEVEE_NEXT',
+        'BLENDER_EEVEE',
         'BLENDER_WORKBENCH',
     }
 
@@ -383,7 +386,7 @@ class DATA_PT_remesh(MeshButtonsPanel, Panel):
     bl_options = {'DEFAULT_CLOSED'}
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
-        'BLENDER_EEVEE_NEXT',
+        'BLENDER_EEVEE',
         'BLENDER_WORKBENCH',
     }
 
@@ -415,7 +418,7 @@ class DATA_PT_customdata(MeshButtonsPanel, Panel):
     bl_options = {'DEFAULT_CLOSED'}
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
-        'BLENDER_EEVEE_NEXT',
+        'BLENDER_EEVEE',
         'BLENDER_WORKBENCH',
     }
 
@@ -429,7 +432,7 @@ class DATA_PT_customdata(MeshButtonsPanel, Panel):
 
         col.operator("mesh.customdata_mask_clear", icon='X')
         col.operator("mesh.customdata_skin_clear", icon='X')
-
+        col.operator("mesh.reorder_vertices_spatial")
         if me.has_custom_normals:
             col.operator("mesh.customdata_custom_splitnormals_clear", icon='X')
         else:
@@ -439,7 +442,7 @@ class DATA_PT_customdata(MeshButtonsPanel, Panel):
 class DATA_PT_mesh_animation(MeshButtonsPanel, PropertiesAnimationMixin, PropertyPanel, Panel):
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
-        'BLENDER_EEVEE_NEXT',
+        'BLENDER_EEVEE',
         'BLENDER_WORKBENCH',
     }
 
@@ -464,7 +467,7 @@ class DATA_PT_mesh_animation(MeshButtonsPanel, PropertiesAnimationMixin, Propert
 class DATA_PT_custom_props_mesh(MeshButtonsPanel, PropertyPanel, Panel):
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
-        'BLENDER_EEVEE_NEXT',
+        'BLENDER_EEVEE',
         'BLENDER_WORKBENCH',
     }
     _context_path = "object.data"
@@ -524,7 +527,7 @@ class DATA_PT_mesh_attributes(MeshButtonsPanel, Panel):
     bl_options = {'DEFAULT_CLOSED'}
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
-        'BLENDER_EEVEE_NEXT',
+        'BLENDER_EEVEE',
         'BLENDER_WORKBENCH',
     }
 
@@ -662,7 +665,7 @@ class DATA_PT_vertex_colors(MeshButtonsPanel, Panel):
     bl_options = {'DEFAULT_CLOSED'}
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
-        'BLENDER_EEVEE_NEXT',
+        'BLENDER_EEVEE',
         'BLENDER_WORKBENCH',
     }
 
@@ -697,6 +700,7 @@ class DATA_PT_vertex_colors(MeshButtonsPanel, Panel):
 classes = (
     MESH_MT_vertex_group_context_menu,
     MESH_MT_shape_key_context_menu,
+    MESH_MT_shape_key_tree_context_menu,
     MESH_MT_color_attribute_context_menu,
     MESH_MT_attribute_context_menu,
     MESH_UL_vgroups,

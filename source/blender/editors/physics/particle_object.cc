@@ -20,7 +20,7 @@
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_bvhutils.hh"
@@ -761,8 +761,7 @@ static bool remap_hair_emitter(Depsgraph *depsgraph,
     bvhtree = mesh->bvh_legacy_faces();
   }
   else if (mesh->edges_num != 0) {
-    edges = static_cast<const blender::int2 *>(
-        CustomData_get_layer_named(&mesh->edge_data, CD_PROP_INT32_2D, ".edge_verts"));
+    edges = mesh->edges().data();
     bvhtree = mesh->bvh_edges();
   }
   else {
@@ -959,7 +958,7 @@ static wmOperatorStatus connect_hair_exec(bContext *C, wmOperator *op)
   if (!any_connected) {
     BKE_report(op->reports,
                RPT_WARNING,
-               "No hair connected (can't connect hair if particle system modifier is disabled)");
+               "No hair connected (cannot connect hair if particle system modifier is disabled)");
     return OPERATOR_CANCELLED;
   }
 
@@ -1150,7 +1149,7 @@ static bool copy_particle_systems_to_object(const bContext *C,
     BLI_addtail(&ob_to->modifiers, md);
     BKE_modifiers_persistent_uid_init(*ob_to, *md);
 
-    SNPRINTF(md->name, "ParticleSystem %i", i);
+    SNPRINTF_UTF8(md->name, "ParticleSystem %i", i);
     BKE_modifier_unique_name(&ob_to->modifiers, (ModifierData *)psmd);
 
     psmd->psys = psys;
@@ -1376,6 +1375,21 @@ void PARTICLE_OT_duplicate_particle_system(wmOperatorType *ot)
                   "Duplicate settings as well, so the new particle system uses its own settings");
 }
 
+static bool remove_all_particle_systems_poll(bContext *C)
+{
+  if (!ED_operator_object_active_local_editable(C)) {
+    return false;
+  }
+  const Object *ob = blender::ed::object::context_active_object(C);
+  if (BLI_listbase_is_empty(&ob->particlesystem)) {
+    return false;
+  }
+  if (ob->mode != OB_MODE_OBJECT) {
+    CTX_wm_operator_poll_msg_set(C, "Object must be in object mode");
+    return false;
+  }
+  return true;
+}
 static wmOperatorStatus particle_system_remove_all_exec(bContext *C, wmOperator * /*op*/)
 {
   Main *bmain = CTX_data_main(C);
@@ -1416,7 +1430,7 @@ void PARTICLE_OT_particle_system_remove_all(wmOperatorType *ot)
   ot->description = "Remove all particle system within the active object";
   ot->idname = "PARTICLE_OT_particle_system_remove_all";
 
-  ot->poll = ED_operator_object_active_local_editable;
+  ot->poll = remove_all_particle_systems_poll;
   ot->exec = particle_system_remove_all_exec;
 
   /* flags */

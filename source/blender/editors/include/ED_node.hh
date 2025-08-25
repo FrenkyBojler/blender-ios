@@ -13,7 +13,9 @@
 
 #include "BKE_compute_context_cache_fwd.hh"
 
+#include "NOD_geometry_nodes_bundle_signature.hh"
 #include "NOD_geometry_nodes_closure_location.hh"
+#include "NOD_geometry_nodes_closure_signature.hh"
 #include "NOD_nested_node_id.hh"
 
 #include "ED_node_c.hh"
@@ -120,17 +122,6 @@ bool node_editor_is_for_geometry_nodes_modifier(const SpaceNode &snode,
     const SpaceNode &snode, bke::ComputeContextCache &compute_context_cache, const bNode &node);
 
 /**
- * Attempts to find a compute context that the closure is evaluated in. If none is found, null is
- * returned. If multiple are found, it currently picks the first one it finds which is somewhat
- * arbitrary.
- */
-[[nodiscard]] const ComputeContext *compute_context_for_closure_evaluation(
-    const ComputeContext *closure_socket_context,
-    const bNodeSocket &closure_socket,
-    bke::ComputeContextCache &compute_context_cache,
-    const std::optional<nodes::ClosureSourceLocation> &source_location);
-
-/**
  * Creates a compute context for the given zone. It takes e.g. the current inspection index into
  * account.
  */
@@ -138,9 +129,16 @@ bool node_editor_is_for_geometry_nodes_modifier(const SpaceNode &snode,
     const bke::bNodeTreeZone &zone,
     bke::ComputeContextCache &compute_context_cache,
     const ComputeContext *parent_compute_context);
+[[nodiscard]] const ComputeContext *compute_context_for_zones(
+    const Span<const bke::bNodeTreeZone *> zones,
+    bke::ComputeContextCache &compute_context_cache,
+    const ComputeContext *parent_compute_context);
 
 void ui_template_node_asset_menu_items(uiLayout &layout,
                                        const bContext &C,
                                        StringRef catalog_path);
+
+/** See #SpaceNode_Runtime::node_can_sync_states. */
+Map<int, bool> &node_can_sync_cache_get(SpaceNode &snode);
 
 }  // namespace blender::ed::space_node

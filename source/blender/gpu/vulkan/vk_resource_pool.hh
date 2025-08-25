@@ -25,8 +25,6 @@ template<typename Item> class TimelineResources : Vector<std::pair<TimelineValue
  public:
   void append_timeline(TimelineValue timeline, Item item)
   {
-    BLI_assert_msg(this->is_empty() || this->last().first <= timeline,
-                   "Timeline must be added in order");
     this->append(std::pair(timeline, item));
   }
 
@@ -114,12 +112,25 @@ class VKDiscardPool {
    * Move discarded resources from src_pool into this.
    *
    * GPU resources that are discarded from the dependency graph are stored in the device orphaned
-   * data. When a swap chain context list is made active the orphaned data can be merged into a
-   * swap chain discard pool.
+   * data. When a swap-chain context list is made active the orphaned data can be merged into a
+   * swap-chain discard pool.
    *
    * All moved items will receive a new timeline.
+   *
+   * Function must be externally synced (
+   *
+   * <source>
+   * {
+   *   std::scoped_lock lock(pool.mutex_get()));
+   *   pool.move_data(src_pool, timeline);
+   * }
+   * </source>
    */
   void move_data(VKDiscardPool &src_pool, TimelineValue timeline);
+  inline Mutex &mutex_get()
+  {
+    return mutex_;
+  }
   void destroy_discarded_resources(VKDevice &device, bool force = false);
 
   /**
@@ -136,10 +147,7 @@ class VKResourcePool {
  public:
   VKDescriptorPools descriptor_pools;
   VKDescriptorSetTracker descriptor_set;
-  VKImmediate immediate;
 
   void init(VKDevice &device);
-  void deinit(VKDevice &device);
-  void reset();
 };
 }  // namespace blender::gpu

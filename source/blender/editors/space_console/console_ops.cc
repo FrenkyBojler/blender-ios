@@ -31,6 +31,7 @@
 #include "WM_types.hh"
 
 #include "ED_screen.hh"
+
 #include "UI_view2d.hh"
 
 #include "RNA_access.hh"
@@ -90,7 +91,7 @@ static char *console_select_to_buffer(SpaceConsole *sc)
 
 static void console_select_update_primary_clipboard(SpaceConsole *sc)
 {
-  if ((WM_capabilities_flag() & WM_CAPABILITY_PRIMARY_CLIPBOARD) == 0) {
+  if ((WM_capabilities_flag() & WM_CAPABILITY_CLIPBOARD_PRIMARY) == 0) {
     return;
   }
   if (sc->sel_start == sc->sel_end) {
@@ -382,15 +383,26 @@ static wmOperatorStatus console_move_exec(bContext *C, wmOperator *op)
   ARegion *region = BKE_area_find_region_type(area, RGN_TYPE_WINDOW);
 
   int type = RNA_enum_get(op->ptr, "type");
-  bool select = RNA_boolean_get(op->ptr, "select");
+  const bool select = RNA_boolean_get(op->ptr, "select");
 
   bool done = false;
-  int old_pos = ci->cursor;
+  const int old_pos = ci->cursor;
   int pos = 0;
 
   if (!select && sc->sel_start != sc->sel_end) {
     /* Clear selection if we are not extending it. */
     sc->sel_start = sc->sel_end;
+  }
+  const bool had_select = sc->sel_start != sc->sel_end;
+
+  int select_side = 0;
+  if (had_select) {
+    if (sc->sel_start == ci->len - old_pos) {
+      select_side = -1;
+    }
+    else if (sc->sel_end == ci->len - old_pos) {
+      select_side = 1;
+    }
   }
 
   switch (type) {
@@ -430,15 +442,32 @@ static wmOperatorStatus console_move_exec(bContext *C, wmOperator *op)
   }
 
   if (select) {
-    if (sc->sel_start == sc->sel_end || sc->sel_start > ci->len || sc->sel_end > ci->len) {
-      sc->sel_start = ci->len - old_pos;
-      sc->sel_end = sc->sel_start;
-    }
-    if (pos > old_pos) {
-      sc->sel_start = ci->len - pos;
+    if (had_select) {
+      if (select_side != 0) {
+        /* Modify the current selection if either side was was positioned at the cursor. */
+        if (select_side == -1) {
+          sc->sel_start = ci->len - pos;
+        }
+        else if (select_side == 1) {
+          sc->sel_end = ci->len - pos;
+        }
+        if (sc->sel_start > sc->sel_end) {
+          std::swap(sc->sel_start, sc->sel_end);
+        }
+      }
     }
     else {
-      sc->sel_end = ci->len - pos;
+      /* Create a new selection. */
+      if (old_pos > pos) {
+        sc->sel_start = ci->len - old_pos;
+        sc->sel_end = ci->len - pos;
+        BLI_assert(sc->sel_start < sc->sel_end);
+      }
+      else if (old_pos < pos) {
+        sc->sel_start = ci->len - pos;
+        sc->sel_end = ci->len - old_pos;
+        BLI_assert(sc->sel_start < sc->sel_end);
+      }
     }
   }
 
@@ -573,10 +602,12 @@ static wmOperatorStatus console_indent_or_autocomplete_exec(bContext *C, wmOpera
   }
 
   if (text_before_cursor) {
-    WM_operator_name_call(C, "CONSOLE_OT_autocomplete", WM_OP_INVOKE_DEFAULT, nullptr, nullptr);
+    WM_operator_name_call(
+        C, "CONSOLE_OT_autocomplete", blender::wm::OpCallContext::InvokeDefault, nullptr, nullptr);
   }
   else {
-    WM_operator_name_call(C, "CONSOLE_OT_indent", WM_OP_EXEC_DEFAULT, nullptr, nullptr);
+    WM_operator_name_call(
+        C, "CONSOLE_OT_indent", blender::wm::OpCallContext::ExecDefault, nullptr, nullptr);
   }
   return OPERATOR_FINISHED;
 }
@@ -1180,7 +1211,8 @@ static wmOperatorStatus console_paste_exec(bContext *C, wmOperator *op)
     buf_step = (char *)BLI_strchr_or_end(buf, '\n');
     const int buf_len = buf_step - buf;
     if (buf != buf_str) {
-      WM_operator_name_call(C, "CONSOLE_OT_execute", WM_OP_EXEC_DEFAULT, nullptr, nullptr);
+      WM_operator_name_call(
+          C, "CONSOLE_OT_execute", blender::wm::OpCallContext::ExecDefault, nullptr, nullptr);
       ci = console_history_verify(C);
     }
     console_delete_editable_selection(sc);

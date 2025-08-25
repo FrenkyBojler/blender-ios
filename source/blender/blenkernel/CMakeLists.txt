@@ -26,6 +26,7 @@ set(INC
 
 set(INC_SYS
   ${ZLIB_INCLUDE_DIRS}
+  ${ZSTD_INCLUDE_DIRS}
 
   # For `vfontdata_freetype.cc`.
   ${FREETYPE_INCLUDE_DIRS}
@@ -57,8 +58,9 @@ set(SRC
   intern/attribute.cc
   intern/attribute_access.cc
   intern/attribute_legacy_convert.cc
-  intern/attribute_storage.cc
   intern/attribute_math.cc
+  intern/attribute_storage.cc
+  intern/attribute_storage_access.cc
   intern/autoexec.cc
   intern/bake_data_block_map.cc
   intern/bake_geometry_nodes_modifier.cc
@@ -252,6 +254,7 @@ set(SRC
   intern/packedFile.cc
   intern/paint.cc
   intern/paint_canvas.cc
+  intern/paint_runtime.cc
   intern/particle.cc
   intern/particle_child.cc
   intern/particle_distribute.cc
@@ -478,6 +481,7 @@ set(SRC
   BKE_node_legacy_types.hh
   BKE_node_runtime.hh
   BKE_node_socket_value.hh
+  BKE_node_socket_value_fwd.hh
   BKE_node_tree_dot_export.hh
   BKE_node_tree_interface.hh
   BKE_node_tree_reference_lifetimes.hh
@@ -492,6 +496,7 @@ set(SRC
   BKE_paint.hh
   BKE_paint_bvh.hh
   BKE_paint_bvh_pixels.hh
+  BKE_paint_types.hh
   BKE_particle.h
   BKE_path_templates.hh
   BKE_pointcache.h
@@ -552,6 +557,7 @@ set(SRC
   intern/CCGSubSurf_inline.h
   intern/CCGSubSurf_intern.h
   intern/attribute_access_intern.hh
+  intern/attribute_storage_access.hh
   intern/data_transfer_intern.hh
   intern/lib_intern.hh
   intern/multires_inline.hh
@@ -585,6 +591,7 @@ set(LIB
   PRIVATE bf::intern::clog
   bf_intern_ghost
   PRIVATE bf::intern::guardedalloc
+  PUBLIC bf::intern::optional::openvdb  # Contains intern-openvdb items in public headers
   bf_intern_libmv  # Uses stub when disabled.
   bf_intern_mikktspace
   bf_intern_opensubdiv  # Uses stub when disabled.
@@ -784,20 +791,6 @@ if(WITH_OPENSUBDIV)
   add_definitions(-DWITH_OPENSUBDIV)
 endif()
 
-if(WITH_OPENVDB)
-  list(APPEND INC
-    ../../../intern/openvdb
-  )
-  list(APPEND INC_SYS
-    ${OPENVDB_INCLUDE_DIRS}
-  )
-  list(APPEND LIB
-    bf_intern_openvdb
-    ${OPENVDB_LIBRARIES}
-  )
-  add_definitions(-DWITH_OPENVDB ${OPENVDB_DEFINITIONS})
-endif()
-
 if(WITH_QUADRIFLOW)
   list(APPEND INC
     ../../../intern/quadriflow
@@ -831,13 +824,15 @@ add_dependencies(bf_blenkernel bf_rna)
 if(WITH_GTESTS)
   set(TEST_SRC
     intern/action_test.cc
-    intern/attribute_storage_test.cc
+    intern/armature_deform_test.cc
     intern/armature_test.cc
     intern/asset_metadata_test.cc
+    intern/attribute_storage_test.cc
     intern/bpath_test.cc
     intern/brush_test.cc
     intern/cryptomatte_test.cc
     intern/curves_geometry_test.cc
+    intern/deform_test.cc
     intern/fcurve_test.cc
     intern/file_handler_test.cc
     intern/grease_pencil_test.cc

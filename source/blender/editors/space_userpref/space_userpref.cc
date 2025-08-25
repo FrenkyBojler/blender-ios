@@ -12,6 +12,7 @@
 
 #include "BLI_listbase.h"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 
 #include "BKE_context.hh"
 #include "BKE_screen.hh"
@@ -110,6 +111,8 @@ static void userpref_main_region_layout(const bContext *C, ARegion *region)
   char id_lower[64];
   const char *contexts[2] = {id_lower, nullptr};
 
+  region->flag |= RGN_FLAG_INDICATE_OVERFLOW;
+
   /* Avoid duplicating identifiers, use existing RNA enum. */
   {
     const EnumPropertyItem *items = rna_enum_preference_section_items;
@@ -120,12 +123,16 @@ static void userpref_main_region_layout(const bContext *C, ARegion *region)
     }
     const char *id = items[i].identifier;
     BLI_assert(strlen(id) < sizeof(id_lower));
-    STRNCPY(id_lower, id);
+    STRNCPY_UTF8(id_lower, id);
     BLI_str_tolower_ascii(id_lower, strlen(id_lower));
   }
 
-  ED_region_panels_layout_ex(
-      C, region, &region->runtime->type->paneltypes, WM_OP_INVOKE_REGION_WIN, contexts, nullptr);
+  ED_region_panels_layout_ex(C,
+                             region,
+                             &region->runtime->type->paneltypes,
+                             blender::wm::OpCallContext::InvokeRegionWin,
+                             contexts,
+                             nullptr);
 }
 
 static void userpref_operatortypes() {}
@@ -147,6 +154,7 @@ static void userpref_header_region_draw(const bContext *C, ARegion *region)
 static void userpref_navigation_region_init(wmWindowManager *wm, ARegion *region)
 {
   region->v2d.scroll = V2D_SCROLL_RIGHT | V2D_SCROLL_VERTICAL_HIDE;
+  region->flag |= RGN_FLAG_INDICATE_OVERFLOW;
 
   ED_region_panels_init(wm, region);
 }
@@ -188,7 +196,7 @@ void ED_spacetype_userpref()
   ARegionType *art;
 
   st->spaceid = SPACE_USERPREF;
-  STRNCPY(st->name, "Userpref");
+  STRNCPY_UTF8(st->name, "Userpref");
 
   st->create = userpref_create;
   st->free = userpref_free;
