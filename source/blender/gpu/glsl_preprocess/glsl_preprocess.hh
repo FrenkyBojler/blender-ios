@@ -144,6 +144,9 @@ struct Source {
 };
 
 struct ParsedResource {
+  /* Line this resource was defined. */
+  size_t line;
+
   std::string var_type;
   std::string var_name;
   std::string var_array;
@@ -202,7 +205,61 @@ struct ParsedResource {
     else if (type == "frequency") {
       res_frequency = attribute[2].str();
     }
-  };
+  }
+
+  std::string serialize(const std::string &filename) const
+  {
+    std::stringstream ss;
+    ss << "#line " << std::to_string(line) << "\"" << filename << "\"\n";
+    if (res_type == "sampler") {
+      if (res_frequency.empty()) {
+        ss << "IMAGE(" << res_slot << ", " << var_type << ", " << var_name << ")";
+      }
+      else {
+        ss << "IMAGE_FREQ(" << res_slot << ", " << var_type << ", " << var_name << ")";
+      }
+    }
+    else if (res_type == "image") {
+      if (res_frequency.empty()) {
+        ss << "IMAGE(" << res_slot << ", " << res_format << ", " << res_qualifier << ", "
+           << var_type << ", " << var_name << ")";
+      }
+      else {
+        ss << "IMAGE_FREQ(" << res_slot << ", " << res_format << ", " << res_qualifier << ", "
+           << var_type << ", " << var_name << ")";
+      }
+    }
+    else if (res_type == "uniform") {
+      if (res_frequency.empty()) {
+        ss << "UNIFORM_BUF(" << res_slot << ", " << var_type << ", " << var_name << var_array
+           << ")";
+      }
+      else {
+        ss << "UNIFORM_BUF_FREQ(" << res_slot << ", " << var_type << ", " << var_name << var_array
+           << ", " << res_frequency << ")";
+      }
+    }
+    else if (res_type == "storage") {
+      if (res_frequency.empty()) {
+        ss << "STORAGE_BUF(" << res_slot << ", " << res_qualifier << ", " << var_type << ", "
+           << var_name << var_array << ")";
+      }
+      else {
+        ss << "STORAGE_BUF_FREQ(" << res_slot << ", " << res_qualifier << ", " << var_type << ", "
+           << var_name << var_array << ", " << res_frequency << ")";
+      }
+    }
+    else if (res_type == "push_constant") {
+      ss << "PUSH_CONSTANT(" << var_type << ", " << var_name << ")";
+    }
+    else if (res_type == "compilation_constant") {
+      ss << "COMPILATION_CONSTANT(" << var_type << ", " << var_name << ", " << res_value << ")";
+    }
+    else if (res_type == "specialization_constant") {
+      ss << "SPECIALIZATION_CONSTANT(" << var_type << ", " << var_name << ", " << res_value << ")";
+    }
+    return ss.str();
+  }
 };
 
 }  // namespace metadata
@@ -1286,9 +1343,10 @@ class Preprocessor {
         Scope body = tokens[8].scope();
 
         auto parse_resource =
-            [&](Scope attributes, bool is_static, Token type, Token name, Scope array) {
+            [&](Scope attributes, bool /*is_static*/, Token type, Token name, Scope array) {
               assert(attributes.type() == ScopeType::Attributes);
-              metadata::ParsedResource resource{type.str(), name.str(), array.str()};
+              metadata::ParsedResource resource{
+                  type.line_number(), type.str(), name.str(), array.str()};
               attributes.foreach_scope(ScopeType::Attribute, [&](const Scope &attribute) {
                 resource.parse_attribute(attribute);
               });
