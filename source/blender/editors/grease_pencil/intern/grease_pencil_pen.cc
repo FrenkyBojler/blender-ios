@@ -163,41 +163,6 @@ class GreasePencilPenToolOperation : public curves::pen_tool::PenToolOperation {
     ED_region_tag_redraw(this->vc.region);
   }
 
-  curves::pen_tool::ClosestElement find_closest_element(const float2 &mouse_co) const
-  {
-    using namespace curves::pen_tool;
-    ClosestElement closest_element;
-    closest_element.element_mode = ElementMode::None;
-
-    for (const int drawing_index : this->drawings.index_range()) {
-      const MutableDrawingInfo &info = this->drawings[drawing_index];
-      const bke::CurvesGeometry &curves = info.drawing.strokes();
-      const float4x4 &layer_to_object = this->layer_to_objects[drawing_index];
-
-      IndexMaskMemory memory;
-      const IndexMask bezier_points = this->visible_bezier_handle_points(drawing_index, memory);
-      const IndexMask editable_curves = this->editable_curves(drawing_index, memory);
-
-      pen_find_closest_point(*this,
-                             curves,
-                             editable_curves,
-                             layer_to_object,
-                             drawing_index,
-                             mouse_co,
-                             closest_element);
-      pen_find_closest_handle(
-          *this, curves, bezier_points, layer_to_object, drawing_index, mouse_co, closest_element);
-      pen_find_closest_edge_point(*this,
-                                  curves,
-                                  editable_curves,
-                                  layer_to_object,
-                                  drawing_index,
-                                  mouse_co,
-                                  closest_element);
-    }
-    return closest_element;
-  }
-
   std::optional<wmOperatorStatus> initialize(bContext *C,
                                              wmOperator *op,
                                              const wmEvent * /*event*/)

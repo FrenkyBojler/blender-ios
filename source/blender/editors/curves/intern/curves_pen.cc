@@ -121,6 +121,206 @@ bool ClosestElement::is_closer(const float new_distance_squared,
   return false;
 }
 
+/* Will check if the point is closer than the existing element. */
+void pen_find_closest_point(const PenToolOperation &ptd,
+                            const bke::CurvesGeometry &curves,
+                            const IndexMask &editable_curves,
+                            const float4x4 &layer_to_object,
+                            const int drawing_index,
+                            const float2 &mouse_co,
+                            ClosestElement &r_closest_element)
+{
+  const Span<float3> positions = curves.positions();
+  const OffsetIndices<int> points_by_curve = curves.points_by_curve();
+
+  editable_curves.foreach_index([&](const int curve_i) {
+    const IndexRange points = points_by_curve[curve_i];
+    for (const int point_i : points) {
+      const float2 pos_proj = ptd.layer_to_screen(layer_to_object, positions[point_i]);
+      const float distance_squared = math::distance_squared(pos_proj, mouse_co);
+
+      /* Save the closest point. */
+      if (r_closest_element.is_closer(
+              distance_squared, ElementMode::Point, ptd.threshold_distance))
+      {
+        r_closest_element.curve_index = curve_i;
+        r_closest_element.point_index = point_i;
+        r_closest_element.element_mode = ElementMode::Point;
+        r_closest_element.distance_squared = distance_squared;
+        r_closest_element.drawing_index = drawing_index;
+      }
+    }
+  });
+}
+
+/* Will check if the handle is closer than the existing element. */
+void pen_find_closest_handle(const PenToolOperation &ptd,
+                             const bke::CurvesGeometry &curves,
+                             const IndexMask &bezier_points,
+                             const float4x4 &layer_to_object,
+                             const int drawing_index,
+                             const float2 &mouse_co,
+                             ClosestElement &r_closest_element)
+{
+  const Array<int> point_to_curve_map = curves.point_to_curve_map();
+  const Span<float3> handle_left = *curves.handle_positions_left();
+  const Span<float3> handle_right = *curves.handle_positions_right();
+
+  bezier_points.foreach_index([&](const int point_i) {
+    const float2 pos_proj = ptd.layer_to_screen(layer_to_object, handle_left[point_i]);
+    const float distance_squared = math::distance_squared(pos_proj, mouse_co);
+
+    /* Save the closest point. */
+    if (r_closest_element.is_closer(
+            distance_squared, ElementMode::HandleLeft, ptd.threshold_distance))
+    {
+      r_closest_element.curve_index = point_to_curve_map[point_i];
+      r_closest_element.point_index = point_i;
+      r_closest_element.element_mode = ElementMode::HandleLeft;
+      r_closest_element.distance_squared = distance_squared;
+      r_closest_element.drawing_index = drawing_index;
+    }
+  });
+
+  bezier_points.foreach_index([&](const int point_i) {
+    const float2 pos_proj = ptd.layer_to_screen(layer_to_object, handle_right[point_i]);
+    const float distance_squared = math::distance_squared(pos_proj, mouse_co);
+
+    /* Save the closest point. */
+    if (r_closest_element.is_closer(
+            distance_squared, ElementMode::HandleRight, ptd.threshold_distance))
+    {
+      r_closest_element.curve_index = point_to_curve_map[point_i];
+      r_closest_element.point_index = point_i;
+      r_closest_element.element_mode = ElementMode::HandleRight;
+      r_closest_element.distance_squared = distance_squared;
+      r_closest_element.drawing_index = drawing_index;
+    }
+  });
+}
+
+static float2 line_segment_closest_point(const float2 &pos_1,
+                                         const float2 &pos_2,
+                                         const float2 &pos,
+                                         float &r_local_t)
+{
+  const float2 dif_m = pos - pos_1;
+  const float2 dif_l = pos_2 - pos_1;
+  const float d = math::dot(dif_m, dif_l);
+  const float l2 = math::dot(dif_l, dif_l);
+  const float t = math::clamp(d / l2, 0.0f, 1.0f);
+  r_local_t = t;
+  return dif_l * t + pos_1;
+}
+
+/* Will check if the edge point is closer than the existing element. */
+void pen_find_closest_edge_point(const PenToolOperation &ptd,
+                                 const bke::CurvesGeometry &curves,
+                                 const IndexMask &editable_curves,
+                                 const float4x4 &layer_to_object,
+                                 const int drawing_index,
+                                 const float2 &mouse_co,
+                                 ClosestElement &r_closest_element)
+{
+  const OffsetIndices<int> points_by_curve = curves.points_by_curve();
+  const OffsetIndices<int> evaluated_points_by_curve = curves.evaluated_points_by_curve();
+  const Span<float3> positions = curves.positions();
+  const Span<float3> evaluated_positions = curves.evaluated_positions();
+  const VArray<bool> cyclic = curves.cyclic();
+  const VArray<int8_t> types = curves.curve_types();
+
+  editable_curves.foreach_index([&](const int curve_i) {
+    const IndexRange src_points = points_by_curve[curve_i];
+    const IndexRange eval_points = evaluated_points_by_curve[curve_i];
+
+    for (const int src_i : src_points.index_range().drop_back(cyclic[curve_i] ? 0 : 1)) {
+      if (types[curve_i] != CURVE_TYPE_BEZIER) {
+        const int src_i_1 = src_i + src_points.first();
+        const int src_i_2 = (src_i + 1) % src_points.size() + src_points.first();
+        const float2 pos_1_proj = ptd.layer_to_screen(layer_to_object, positions[src_i_1]);
+        const float2 pos_2_proj = ptd.layer_to_screen(layer_to_object, positions[src_i_2]);
+        float local_t;
+        const float2 closest_pos = line_segment_closest_point(
+            pos_1_proj, pos_2_proj, mouse_co, local_t);
+
+        const float distance_squared = math::distance_squared(closest_pos, mouse_co);
+        const float t = local_t;
+
+        /* Save the closest point. */
+        if (r_closest_element.is_closer(
+                distance_squared, ElementMode::Edge, ptd.threshold_distance_edge))
+        {
+          r_closest_element.point_index = src_points.first() + src_i;
+          r_closest_element.edge_t = t;
+          r_closest_element.element_mode = ElementMode::Edge;
+          r_closest_element.curve_index = curve_i;
+          r_closest_element.distance_squared = distance_squared;
+          r_closest_element.drawing_index = drawing_index;
+        }
+      }
+      else {
+        const Span<int> offsets = curves.bezier_evaluated_offsets_for_curve(curve_i);
+        const IndexRange eval_range = IndexRange::from_begin_end_inclusive(offsets[src_i],
+                                                                           offsets[src_i + 1])
+                                          .shift(eval_points.first());
+        const int point_num = eval_range.size() - 1;
+
+        for (const int eval_i : IndexRange(point_num)) {
+          const int eval_point_i_1 = eval_range.first() + eval_i;
+          const int eval_point_i_2 = (eval_range.first() + eval_i + 1 - eval_points.first()) %
+                                         eval_points.size() +
+                                     eval_points.first();
+          const float2 pos_1_proj = ptd.layer_to_screen(layer_to_object,
+                                                        evaluated_positions[eval_point_i_1]);
+          const float2 pos_2_proj = ptd.layer_to_screen(layer_to_object,
+                                                        evaluated_positions[eval_point_i_2]);
+          float local_t;
+          const float2 closest_pos = line_segment_closest_point(
+              pos_1_proj, pos_2_proj, mouse_co, local_t);
+
+          const float distance_squared = math::distance_squared(closest_pos, mouse_co);
+          const float t = (eval_i + local_t) / float(point_num);
+
+          /* Save the closest point. */
+          if (r_closest_element.is_closer(
+                  distance_squared, ElementMode::Edge, ptd.threshold_distance_edge))
+          {
+            r_closest_element.point_index = src_points.first() + src_i;
+            r_closest_element.element_mode = ElementMode::Edge;
+            r_closest_element.edge_t = t;
+            r_closest_element.curve_index = curve_i;
+            r_closest_element.distance_squared = distance_squared;
+            r_closest_element.drawing_index = drawing_index;
+          }
+        }
+      }
+    }
+  });
+}
+
+static ClosestElement find_closest_element(const PenToolOperation &ptd, const float2 &mouse_co)
+{
+  ClosestElement closest_element;
+  closest_element.element_mode = ElementMode::None;
+
+  for (const int curves_index : ptd.curves_range()) {
+    const bke::CurvesGeometry &curves = ptd.get_curves(curves_index);
+    const float4x4 layer_to_object = ptd.layer_to_objects[curves_index];
+
+    IndexMaskMemory memory;
+    const IndexMask bezier_points = ptd.visible_bezier_handle_points(curves_index, memory);
+    const IndexMask editable_curves = ptd.editable_curves(curves_index, memory);
+
+    pen_find_closest_point(
+        ptd, curves, editable_curves, layer_to_object, curves_index, mouse_co, closest_element);
+    pen_find_closest_handle(
+        ptd, curves, bezier_points, layer_to_object, curves_index, mouse_co, closest_element);
+    pen_find_closest_edge_point(
+        ptd, curves, editable_curves, layer_to_object, curves_index, mouse_co, closest_element);
+  }
+  return closest_element;
+}
+
 /* Snaps to the closest diagonal, horizontal or vertical. */
 static float2 snap_8_angles(const float2 &p)
 {
@@ -787,7 +987,7 @@ static float2 calculate_center_of_mass(const PenToolOperation &ptd, const bool e
 static void invoke_curves(PenToolOperation &ptd, bContext *C, wmOperator *op, const wmEvent *event)
 {
   ptd.center_of_mass_co = calculate_center_of_mass(ptd, true);
-  ptd.closest_element = ptd.find_closest_element(ptd.mouse_co);
+  ptd.closest_element = find_closest_element(ptd, ptd.mouse_co);
 
   std::atomic<bool> add_single = ptd.extrude_point;
   std::atomic<bool> changed = false;
@@ -919,183 +1119,6 @@ static void invoke_curves(PenToolOperation &ptd, bContext *C, wmOperator *op, co
   }
 }
 
-/* Will check if the point is closer than the existing element. */
-void pen_find_closest_point(const PenToolOperation &ptd,
-                            const bke::CurvesGeometry &curves,
-                            const IndexMask &editable_curves,
-                            const float4x4 &layer_to_object,
-                            const int drawing_index,
-                            const float2 &mouse_co,
-                            ClosestElement &r_closest_element)
-{
-  const Span<float3> positions = curves.positions();
-  const OffsetIndices<int> points_by_curve = curves.points_by_curve();
-
-  editable_curves.foreach_index([&](const int curve_i) {
-    const IndexRange points = points_by_curve[curve_i];
-    for (const int point_i : points) {
-      const float2 pos_proj = ptd.layer_to_screen(layer_to_object, positions[point_i]);
-      const float distance_squared = math::distance_squared(pos_proj, mouse_co);
-
-      /* Save the closest point. */
-      if (r_closest_element.is_closer(
-              distance_squared, ElementMode::Point, ptd.threshold_distance))
-      {
-        r_closest_element.curve_index = curve_i;
-        r_closest_element.point_index = point_i;
-        r_closest_element.element_mode = ElementMode::Point;
-        r_closest_element.distance_squared = distance_squared;
-        r_closest_element.drawing_index = drawing_index;
-      }
-    }
-  });
-}
-
-/* Will check if the handle is closer than the existing element. */
-void pen_find_closest_handle(const PenToolOperation &ptd,
-                             const bke::CurvesGeometry &curves,
-                             const IndexMask &bezier_points,
-                             const float4x4 &layer_to_object,
-                             const int drawing_index,
-                             const float2 &mouse_co,
-                             ClosestElement &r_closest_element)
-{
-  const Array<int> point_to_curve_map = curves.point_to_curve_map();
-  const Span<float3> handle_left = *curves.handle_positions_left();
-  const Span<float3> handle_right = *curves.handle_positions_right();
-
-  bezier_points.foreach_index([&](const int point_i) {
-    const float2 pos_proj = ptd.layer_to_screen(layer_to_object, handle_left[point_i]);
-    const float distance_squared = math::distance_squared(pos_proj, mouse_co);
-
-    /* Save the closest point. */
-    if (r_closest_element.is_closer(
-            distance_squared, ElementMode::HandleLeft, ptd.threshold_distance))
-    {
-      r_closest_element.curve_index = point_to_curve_map[point_i];
-      r_closest_element.point_index = point_i;
-      r_closest_element.element_mode = ElementMode::HandleLeft;
-      r_closest_element.distance_squared = distance_squared;
-      r_closest_element.drawing_index = drawing_index;
-    }
-  });
-
-  bezier_points.foreach_index([&](const int point_i) {
-    const float2 pos_proj = ptd.layer_to_screen(layer_to_object, handle_right[point_i]);
-    const float distance_squared = math::distance_squared(pos_proj, mouse_co);
-
-    /* Save the closest point. */
-    if (r_closest_element.is_closer(
-            distance_squared, ElementMode::HandleRight, ptd.threshold_distance))
-    {
-      r_closest_element.curve_index = point_to_curve_map[point_i];
-      r_closest_element.point_index = point_i;
-      r_closest_element.element_mode = ElementMode::HandleRight;
-      r_closest_element.distance_squared = distance_squared;
-      r_closest_element.drawing_index = drawing_index;
-    }
-  });
-}
-
-static float2 line_segment_closest_point(const float2 &pos_1,
-                                         const float2 &pos_2,
-                                         const float2 &pos,
-                                         float &r_local_t)
-{
-  const float2 dif_m = pos - pos_1;
-  const float2 dif_l = pos_2 - pos_1;
-  const float d = math::dot(dif_m, dif_l);
-  const float l2 = math::dot(dif_l, dif_l);
-  const float t = math::clamp(d / l2, 0.0f, 1.0f);
-  r_local_t = t;
-  return dif_l * t + pos_1;
-}
-
-/* Will check if the edge point is closer than the existing element. */
-void pen_find_closest_edge_point(const PenToolOperation &ptd,
-                                 const bke::CurvesGeometry &curves,
-                                 const IndexMask &editable_curves,
-                                 const float4x4 &layer_to_object,
-                                 const int drawing_index,
-                                 const float2 &mouse_co,
-                                 ClosestElement &r_closest_element)
-{
-  const OffsetIndices<int> points_by_curve = curves.points_by_curve();
-  const OffsetIndices<int> evaluated_points_by_curve = curves.evaluated_points_by_curve();
-  const Span<float3> positions = curves.positions();
-  const Span<float3> evaluated_positions = curves.evaluated_positions();
-  const VArray<bool> cyclic = curves.cyclic();
-  const VArray<int8_t> types = curves.curve_types();
-
-  editable_curves.foreach_index([&](const int curve_i) {
-    const IndexRange src_points = points_by_curve[curve_i];
-    const IndexRange eval_points = evaluated_points_by_curve[curve_i];
-
-    for (const int src_i : src_points.index_range().drop_back(cyclic[curve_i] ? 0 : 1)) {
-      if (types[curve_i] != CURVE_TYPE_BEZIER) {
-        const int src_i_1 = src_i + src_points.first();
-        const int src_i_2 = (src_i + 1) % src_points.size() + src_points.first();
-        const float2 pos_1_proj = ptd.layer_to_screen(layer_to_object, positions[src_i_1]);
-        const float2 pos_2_proj = ptd.layer_to_screen(layer_to_object, positions[src_i_2]);
-        float local_t;
-        const float2 closest_pos = line_segment_closest_point(
-            pos_1_proj, pos_2_proj, mouse_co, local_t);
-
-        const float distance_squared = math::distance_squared(closest_pos, mouse_co);
-        const float t = local_t;
-
-        /* Save the closest point. */
-        if (r_closest_element.is_closer(
-                distance_squared, ElementMode::Edge, ptd.threshold_distance_edge))
-        {
-          r_closest_element.point_index = src_points.first() + src_i;
-          r_closest_element.edge_t = t;
-          r_closest_element.element_mode = ElementMode::Edge;
-          r_closest_element.curve_index = curve_i;
-          r_closest_element.distance_squared = distance_squared;
-          r_closest_element.drawing_index = drawing_index;
-        }
-      }
-      else {
-        const Span<int> offsets = curves.bezier_evaluated_offsets_for_curve(curve_i);
-        const IndexRange eval_range = IndexRange::from_begin_end_inclusive(offsets[src_i],
-                                                                           offsets[src_i + 1])
-                                          .shift(eval_points.first());
-        const int point_num = eval_range.size() - 1;
-
-        for (const int eval_i : IndexRange(point_num)) {
-          const int eval_point_i_1 = eval_range.first() + eval_i;
-          const int eval_point_i_2 = (eval_range.first() + eval_i + 1 - eval_points.first()) %
-                                         eval_points.size() +
-                                     eval_points.first();
-          const float2 pos_1_proj = ptd.layer_to_screen(layer_to_object,
-                                                        evaluated_positions[eval_point_i_1]);
-          const float2 pos_2_proj = ptd.layer_to_screen(layer_to_object,
-                                                        evaluated_positions[eval_point_i_2]);
-          float local_t;
-          const float2 closest_pos = line_segment_closest_point(
-              pos_1_proj, pos_2_proj, mouse_co, local_t);
-
-          const float distance_squared = math::distance_squared(closest_pos, mouse_co);
-          const float t = (eval_i + local_t) / float(point_num);
-
-          /* Save the closest point. */
-          if (r_closest_element.is_closer(
-                  distance_squared, ElementMode::Edge, ptd.threshold_distance_edge))
-          {
-            r_closest_element.point_index = src_points.first() + src_i;
-            r_closest_element.element_mode = ElementMode::Edge;
-            r_closest_element.edge_t = t;
-            r_closest_element.curve_index = curve_i;
-            r_closest_element.distance_squared = distance_squared;
-            r_closest_element.drawing_index = drawing_index;
-          }
-        }
-      }
-    }
-  });
-}
-
 static IndexMask retrieve_visible_bezier_handle_points(const bke::CurvesGeometry &curves,
                                                        const int handle_display,
                                                        IndexMaskMemory &memory)
@@ -1205,40 +1228,6 @@ class CurvesPenToolOperation : public PenToolOperation {
       WM_event_add_notifier(C, NC_GEOM | ND_DATA, curves_id);
     }
     ED_region_tag_redraw(this->vc.region);
-  }
-
-  ClosestElement find_closest_element(const float2 &mouse_co) const
-  {
-    ClosestElement closest_element;
-    closest_element.element_mode = ElementMode::None;
-
-    for (const int curves_index : this->all_curves.index_range()) {
-      const Curves *curves_id = this->all_curves[curves_index];
-      const bke::CurvesGeometry &curves = curves_id->geometry.wrap();
-      const float4x4 layer_to_object = float4x4::identity();
-
-      IndexMaskMemory memory;
-      const IndexMask bezier_points = this->visible_bezier_handle_points(curves_index, memory);
-      const IndexMask editable_curves = this->editable_curves(curves_index, memory);
-
-      pen_find_closest_point(*this,
-                             curves,
-                             editable_curves,
-                             layer_to_object,
-                             curves_index,
-                             mouse_co,
-                             closest_element);
-      pen_find_closest_handle(
-          *this, curves, bezier_points, layer_to_object, curves_index, mouse_co, closest_element);
-      pen_find_closest_edge_point(*this,
-                                  curves,
-                                  editable_curves,
-                                  layer_to_object,
-                                  curves_index,
-                                  mouse_co,
-                                  closest_element);
-    }
-    return closest_element;
   }
 
   std::optional<wmOperatorStatus> initialize(bContext *C,
