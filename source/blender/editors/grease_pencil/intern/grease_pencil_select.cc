@@ -611,14 +611,17 @@ void insert_selected_values(Object *object,
       local_value_set.add(values[index]);
     });
   }
-  else {
-    BLI_assert(domain == bke::AttrDomain::Curve);
+  else if (domain == bke::AttrDomain::Curve) {
     const IndexMask strokes = ed::greasepencil::retrieve_editable_and_selected_strokes(
         *object, info.drawing, info.layer_index, memory);
+
     strokes.foreach_index(GrainSize(1024), [&](const int index) {
       Set<T> &local_value_set = value_set_by_thread.local();
       local_value_set.add(values[index]);
     });
+  }
+  else {
+    BLI_assert_unreachable();
   }
 
   for (const Set<T> &local_value_set : value_set_by_thread) {
