@@ -287,51 +287,11 @@ static wmOperatorStatus grease_pencil_pen_modal(bContext *C, wmOperator *op, con
   GreasePencilPenToolOperation &ptd = *reinterpret_cast<GreasePencilPenToolOperation *>(
       op->customdata);
 
-  if (std::optional<wmOperatorStatus> result = modal_start(ptd, C, op, event)) {
-    if (*result == OPERATOR_FINISHED) {
-      grease_pencil_pen_exit(C, op);
-    }
-    return *result;
+  const wmOperatorStatus result = modal_start(ptd, C, op, event);
+  if (result == OPERATOR_FINISHED) {
+    grease_pencil_pen_exit(C, op);
   }
-
-  std::atomic<bool> changed = false;
-  ptd.center_of_mass_co = ptd.calculate_center_of_mass(false);
-
-  if (ptd.move_seg && ptd.closest_element.element_mode == ElementMode::Edge) {
-    const MutableDrawingInfo &info = ptd.drawings[ptd.closest_element.drawing_index];
-    const float4x4 &layer_to_world = ptd.layer_to_worlds[ptd.closest_element.drawing_index];
-    bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
-
-    ptd.move_segment(curves, layer_to_world);
-    info.drawing.tag_topology_changed();
-    changed.store(true, std::memory_order_relaxed);
-  }
-  else {
-    threading::parallel_for(ptd.drawings.index_range(), 1, [&](const IndexRange drawing_range) {
-      for (const int drawing_index : drawing_range) {
-        const MutableDrawingInfo &info = ptd.drawings[drawing_index];
-        bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
-        const float4x4 &layer_to_object = ptd.layer_to_objects[drawing_index];
-        const float4x4 &layer_to_world = ptd.layer_to_worlds[drawing_index];
-
-        IndexMaskMemory memory;
-        const IndexMask selection = ptd.all_selected_points(drawing_index, memory);
-
-        if (ptd.move_handles_in_curve(curves, selection, layer_to_world, layer_to_object)) {
-          changed.store(true, std::memory_order_relaxed);
-          ptd.tag_curve_changed(drawing_index);
-        }
-      }
-    });
-  }
-
-  pen_status_indicators(C, op);
-  if (changed) {
-    ptd.update_view(C);
-  }
-
-  /* Still running... */
-  return OPERATOR_RUNNING_MODAL;
+  return result;
 }
 
 static void GREASE_PENCIL_OT_pen(wmOperatorType *ot)
