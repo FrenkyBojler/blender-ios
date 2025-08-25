@@ -172,7 +172,7 @@ void BKE_sound_set_scene_sound_pitch_constant_range(void *handle,
 
 void BKE_sound_set_scene_sound_time_stretch_at_frame(void *handle,
                                                      int frame,
-                                                     float pitch,
+                                                     float time_stretch,
                                                      char animated);
 
 void BKE_sound_set_scene_sound_time_stretch_constant_range(void *handle,
