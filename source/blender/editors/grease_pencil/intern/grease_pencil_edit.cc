@@ -4029,7 +4029,7 @@ static void GREASE_PENCIL_OT_set_handle_type(wmOperatorType *ot)
   ot->prop = RNA_def_enum(ot->srna,
                           "type",
                           ed::curves::rna_enum_set_handle_type_items,
-                          CURVE_TYPE_POLY,
+                          int(ed::curves::SetHandleType::Auto),
                           "Type",
                           nullptr);
 }
