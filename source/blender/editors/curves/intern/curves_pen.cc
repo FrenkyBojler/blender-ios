@@ -922,27 +922,31 @@ static void invoke_curves(PenToolOperation &ptd, bContext *C, wmOperator *op, co
 /* Will check if the point is closer than the existing element. */
 void pen_find_closest_point(const PenToolOperation &ptd,
                             const bke::CurvesGeometry &curves,
-                            const IndexMask &editable_points,
+                            const IndexMask &editable_curves,
                             const float4x4 &layer_to_object,
                             const int drawing_index,
                             const float2 &mouse_co,
                             ClosestElement &r_closest_element)
 {
   const Span<float3> positions = curves.positions();
-  const Array<int> point_to_curve_map = curves.point_to_curve_map();
+  const OffsetIndices<int> points_by_curve = curves.points_by_curve();
 
-  editable_points.foreach_index([&](const int point_i) {
-    const float2 pos_proj = ptd.layer_to_screen(layer_to_object, positions[point_i]);
-    const float distance_squared = math::distance_squared(pos_proj, mouse_co);
+  editable_curves.foreach_index([&](const int curve_i) {
+    const IndexRange points = points_by_curve[curve_i];
+    for (const int point_i : points) {
+      const float2 pos_proj = ptd.layer_to_screen(layer_to_object, positions[point_i]);
+      const float distance_squared = math::distance_squared(pos_proj, mouse_co);
 
-    /* Save the closest point. */
-    if (r_closest_element.is_closer(distance_squared, ElementMode::Point, ptd.threshold_distance))
-    {
-      r_closest_element.curve_index = point_to_curve_map[point_i];
-      r_closest_element.point_index = point_i;
-      r_closest_element.element_mode = ElementMode::Point;
-      r_closest_element.distance_squared = distance_squared;
-      r_closest_element.drawing_index = drawing_index;
+      /* Save the closest point. */
+      if (r_closest_element.is_closer(
+              distance_squared, ElementMode::Point, ptd.threshold_distance))
+      {
+        r_closest_element.curve_index = curve_i;
+        r_closest_element.point_index = point_i;
+        r_closest_element.element_mode = ElementMode::Point;
+        r_closest_element.distance_squared = distance_squared;
+        r_closest_element.drawing_index = drawing_index;
+      }
     }
   });
 }
@@ -1206,14 +1210,13 @@ class CurvesPenToolOperation : public PenToolOperation {
       const float4x4 layer_to_object = float4x4::identity();
 
       IndexMaskMemory memory;
-      const IndexMask editable_points = curves.points_range();
       const IndexMask bezier_points = retrieve_visible_bezier_handle_points(
           curves, this->vc.v3d->overlay.handle_display, memory);
       const IndexMask editable_curves = this->editable_curves(curves_index, memory);
 
       pen_find_closest_point(*this,
                              curves,
-                             editable_points,
+                             editable_curves,
                              layer_to_object,
                              curves_index,
                              mouse_co,

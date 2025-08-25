@@ -131,7 +131,7 @@ class PenToolOperation {
 
 void pen_find_closest_point(const PenToolOperation &ptd,
                             const bke::CurvesGeometry &curves,
-                            const IndexMask &editable_points,
+                            const IndexMask &editable_curves,
                             const float4x4 &layer_to_object,
                             int drawing_index,
                             const float2 &mouse_co,
