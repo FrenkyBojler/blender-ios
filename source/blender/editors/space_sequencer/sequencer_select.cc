@@ -153,6 +153,10 @@ blender::VectorSet<Strip *> selected_strips_from_context(bContext *C)
 Strip *active_strip_from_context(bContext *C)
 {
   const Scene *scene = CTX_data_sequencer_scene(C);
+  if (!scene) {
+    return nullptr;
+  }
+
   const Editing *ed = seq::editing_get(scene);
 
   Strip *strip = seq::select_active_get(scene);
