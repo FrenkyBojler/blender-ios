@@ -15,13 +15,13 @@ void main()
   }
 
   fragColor = float4(0.0);
-  int phase = int(mod((gl_FragCoord.x + gl_FragCoord.y), 6.0));
+  int phase = int(mod((gl_FragCoord.x + gl_FragCoord.y), 6.0f));
   if (any(greaterThan(color.rgb, float3(zebra_limit)))) {
     if (phase == 4) {
-      fragColor = float4(0.0, 0.0, 0.0, 0.85);
+      fragColor = float4(0.0f, 0.0f, 0.0f, 0.85f);
     }
     else if (phase >= 3) {
-      fragColor = float4(1.0, 0.0, 0.5, 0.95);
+      fragColor = float4(1.0f, 0.0f, 0.5f, 0.95f);
     }
   }
 }

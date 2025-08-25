@@ -27,7 +27,7 @@ void put_pixel(int x, int y, float4 col)
 
   /* Use 24.8 fixed point; this allows 16M points to hit the same
    * location without overflowing the values. */
-  uint4 col_fx = uint4(col * 255.0 + 0.5);
+  uint4 col_fx = uint4(col * 255.0f + 0.5f);
   atomicAdd(raster_buf[index].col_r, col_fx.r);
   atomicAdd(raster_buf[index].col_g, col_fx.g);
   atomicAdd(raster_buf[index].col_b, col_fx.b);
@@ -51,7 +51,7 @@ void main()
   if (scope_mode == SEQ_DRAW_IMG_WAVEFORM) {
     /* Waveform: pixel height based on luminance. */
     pos.x = texel.x - image_width / 2;
-    pos.y = (get_luminance(color.rgb, luma_coeffs) - 0.5) * image_height;
+    pos.y = (get_luminance(color.rgb, luma_coeffs) - 0.5f) * image_height;
   }
   else if (scope_mode == SEQ_DRAW_IMG_RGBPARADE) {
     /* RGB parade: similar to waveform, except three different "bands"
@@ -64,17 +64,17 @@ void main()
     float factor = 0.4;
     if (channel == 0) {
       pos.x = column - image_width / 2;
-      pos.y = (color.r - 0.5) * image_height;
+      pos.y = (color.r - 0.5f) * image_height;
       color.rgb = mix(color.rgb, float3(1, other_channels, other_channels), factor);
     }
     if (channel == 1) {
       pos.x = column - image_width / 2 + image_width / 3;
-      pos.y = (color.g - 0.5) * image_height;
+      pos.y = (color.g - 0.5f) * image_height;
       color.rgb = mix(color.rgb, float3(other_channels, 1, other_channels), factor);
     }
     if (channel == 2) {
       pos.x = column - image_width / 2 + image_width * 2 / 3;
-      pos.y = (color.b - 0.5) * image_height;
+      pos.y = (color.b - 0.5f) * image_height;
       color.rgb = mix(color.rgb, float3(other_channels, other_channels, 1), factor);
     }
   }
@@ -94,14 +94,14 @@ void main()
   rgb_to_hsv(color, hsv);
   if (scope_mode != SEQ_DRAW_IMG_RGBPARADE) {
     /* Saturation adjustments for parade mode are already done above. */
-    hsv.y *= 0.5;
+    hsv.y *= 0.5f;
   }
-  hsv.z = 1.0;
+  hsv.z = 1.0f;
   hsv_to_rgb(hsv, color);
 
   /* Calculate final point position in integer pixels. */
   float4 clip_pos = ModelViewProjectionMatrix * float4(pos, 0.0f, 1.0f);
-  int2 view_pos = int2((clip_pos.xy * 0.5 + float2(0.5)) * float2(view_width, view_height));
+  int2 view_pos = int2((clip_pos.xy * 0.5f + float2(0.5f)) * float2(view_width, view_height));
   if (any(lessThan(view_pos, int2(0))) ||
       any(greaterThanEqual(view_pos, int2(view_width, view_height))))
   {
@@ -116,16 +116,20 @@ void main()
     return;
   }
 
+  /* Adjust point transparency based on ratio of wanted point size vs
+   * quantized to integer pixel count point size. */
   float raster_size = scope_point_size;
-
   int px_size = max(int(ceil(raster_size)), 1);
-  float factor = max(raster_size / px_size, 1.0 / 255.0);
+  float factor = max(raster_size / px_size, 1.0f / 255.0f);
   color.rgb *= factor;
   color.a = factor;
+
   if (px_size <= 1) {
+    /* Single pixel. */
     put_pixel(view_pos.x, view_pos.y, color);
   }
   else {
+    /* Multiple pixels. */
     px_size = min(px_size, 16);
     int x_min = view_pos.x - px_size / 2;
     int x_max = x_min + px_size;
