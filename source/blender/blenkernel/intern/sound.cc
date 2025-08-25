@@ -1053,25 +1053,6 @@ void BKE_sound_set_scene_sound_pitch_constant_range(void *handle,
       handle, AUD_AP_PITCH, frame_start, frame_end, &pitch);
 }
 
-void BKE_sound_set_scene_sound_time_stretch_at_frame(void *handle,
-                                                     int frame,
-                                                     float time_stretch,
-                                                     char animated)
-{
-  AUD_Sound_animateableTimeStretchPitchScale_setAnimationData(
-      handle, AUD_AP_TIME_STRETCH, frame, &time_stretch, animated);
-}
-void BKE_sound_set_scene_sound_time_stretch_constant_range(void *handle,
-                                                           int frame_start,
-                                                           int frame_end,
-                                                           float time_stretch)
-{
-  frame_start = max_ii(0, frame_start);
-  frame_end = max_ii(0, frame_end);
-  AUD_Sound_animateableTimeStretchPitchScale_setConstantRangeAnimationData(
-      handle, AUD_AP_TIME_STRETCH, frame_start, frame_end, &time_stretch);
-}
-
 void BKE_sound_set_scene_sound_pan_at_frame(void *handle,
                                             const int frame,
                                             float pan,
@@ -1541,16 +1522,32 @@ bool BKE_sound_stream_info_get(Main *main,
   return true;
 }
 
-/* Should probably make this like a modifier & move this with the equalizer code?
- * Also add ifdef for Rubber Band Library later.
- */
-// #ifdef WITH_RUBBERBAND
+#ifdef WITH_RUBBERBAND
 void *BKE_sound_add_time_stretch_modifier(void *sound_handle, float fps, float time_stretch)
 {
   return AUD_Sound_animateableTimeStretchPitchScale(
       sound_handle, fps, time_stretch, 1.0, AUD_STRETCHER_QUALITY_HIGH, false);
 }
-// #endif
+void BKE_sound_set_scene_sound_time_stretch_at_frame(void *handle,
+                                                     int frame,
+                                                     float time_stretch,
+                                                     char animated)
+{
+  AUD_Sound_animateableTimeStretchPitchScale_setAnimationData(
+      handle, AUD_AP_TIME_STRETCH, frame, &time_stretch, animated);
+}
+void BKE_sound_set_scene_sound_time_stretch_constant_range(void *handle,
+                                                           int frame_start,
+                                                           int frame_end,
+                                                           float time_stretch)
+{
+  frame_start = max_ii(0, frame_start);
+  frame_end = max_ii(0, frame_end);
+  AUD_Sound_animateableTimeStretchPitchScale_setConstantRangeAnimationData(
+      handle, AUD_AP_TIME_STRETCH, frame_start, frame_end, &time_stretch);
+}
+#endif /* WITH_RUBBERBAND */
+
 
 #else /* WITH_AUDASPACE */
 
@@ -1620,23 +1617,6 @@ void BKE_sound_read_waveform(Main *bmain,
 {
   UNUSED_VARS(sound, stop, bmain);
 }
-void *BKE_sound_add_time_stretch_modifier(void * /*sound_handle*/, float /*time_stretch*/)
-{
-  return nullptr;
-}
-
-void BKE_sound_set_scene_sound_time_stretch_at_frame(void * /*handle*/,
-                                                     int /*frame*/,
-                                                     float /*time_stretch*/,
-                                                     char /*animated*/)
-{
-}
-void BKE_sound_set_scene_sound_time_stretch_constant_range(void * /*handle*/,
-                                                           int /*frame_start*/,
-                                                           int /*frame_end*/,
-                                                           float /*time_stretch*/)
-{
-}
 
 void BKE_sound_update_sequencer(Main * /*main*/, bSound * /*sound*/) {}
 void BKE_sound_update_scene(Depsgraph * /*depsgraph*/, Scene * /*scene*/) {}
@@ -1691,6 +1671,24 @@ bool BKE_sound_stream_info_get(Main * /*main*/,
                                SoundStreamInfo * /*sound_info*/)
 {
   return false;
+}
+
+void *BKE_sound_add_time_stretch_modifier(void * /*sound_handle*/, float /*time_stretch*/)
+{
+  return nullptr;
+}
+
+void BKE_sound_set_scene_sound_time_stretch_at_frame(void * /*handle*/,
+                                                     int /*frame*/,
+                                                     float /*time_stretch*/,
+                                                     char /*animated*/)
+{
+}
+void BKE_sound_set_scene_sound_time_stretch_constant_range(void * /*handle*/,
+                                                           int /*frame_start*/,
+                                                           int /*frame_end*/,
+                                                           float /*time_stretch*/)
+{
 }
 
 #endif /* WITH_AUDASPACE */
