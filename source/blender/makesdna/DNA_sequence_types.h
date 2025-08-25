@@ -736,7 +736,7 @@ typedef enum eStripFlag {
   SEQ_SCENE_STRIPS = (1 << 30),
 
   SEQ_AUDIO_PITCH_CORRECTION = (1u << 31)
-};
+} eStripFlag;
 
 /** #StripProxy.storage */
 typedef enum eStripProxyStorageFlag {
