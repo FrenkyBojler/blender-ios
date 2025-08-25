@@ -538,7 +538,7 @@ if(WITH_CYCLES_CUDA_BINARIES)
         --ptxas-options="-v")
     endif()
 
-    if(NOT WITH_CYCLES_CUDA_BUILD_SERIAL)
+    if(NOT WITH_CYCLES_CUDA_BUILD_SERIAL AND "${CUDA_VERSION}" GREATER_EQUAL 129)
       set(cuda_flags ${cuda_flags}
         --split-compile=0)
     endif()
@@ -874,7 +874,7 @@ if(WITH_CYCLES_CUDA_BINARIES AND WITH_CYCLES_DEVICE_OPTIX)
         -D WITH_CYCLES_DEBUG)
     endif()
 
-    if(NOT WITH_CYCLES_CUDA_BUILD_SERIAL)
+    if(NOT WITH_CYCLES_CUDA_BUILD_SERIAL AND "${CUDA_VERSION}" GREATER_EQUAL 129)
       set(cuda_flags ${cuda_flags}
         --split-compile=0)
     endif()
