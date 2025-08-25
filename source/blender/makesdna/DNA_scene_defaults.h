@@ -113,6 +113,8 @@
  \
     .simplify_subsurf = 2, \
     .simplify_particles = 0.5f, \
+    .simplify_subsurf_render = 6, \
+    .simplify_particles_render = 1.0f, \
     .simplify_volumes = 1.0f, \
  \
     .border.xmin = 0.0f, \
