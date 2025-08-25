@@ -287,7 +287,7 @@ struct StepData {
     applied_ = false;
   }
 };
-namespace zstd_compressor {
+namespace zstd_compress {
 
 template<typename T> Array<std::byte> compress_data(const Span<T> src)
 {
@@ -312,12 +312,13 @@ template<typename T> Array<T> decompress_data(const Span<std::byte> src)
   return dst;
 }
 
-}  // namespace zstd_compressor
+}  // namespace zstd_compress
 
 struct PositionUndoStorage : NonMovable {
-  IndexMaskMemory mask_memory;
-  IndexMask mask;
-  Array<std::byte> compressed_data;
+  Array<Array<std::byte>> compressed_indices;
+  Array<Array<std::byte>> compressed_positions;
+
+  Array<int> unique_verts_nums;
 
   TaskPool *compression_task_pool;
   std::atomic<bool> compression_ready = false;
@@ -325,38 +326,19 @@ struct PositionUndoStorage : NonMovable {
   StepData *owner_step_data = nullptr;
 
   PositionUndoStorage() = default;
-  PositionUndoStorage(const StepData &step_data, const Span<std::unique_ptr<Node>> nodes)
+  PositionUndoStorage(const StepData &step_data, Vector<std::unique_ptr<Node>> nodes)
       : owner_step_data(const_cast<StepData *>(&step_data))
   {
-    Array<bool> selected_verts(step_data.mesh.verts_num, false);
-    threading::memory_bandwidth_bound_task(selected_verts.as_span().size_in_bytes(), [&]() {
-      threading::parallel_for(nodes.index_range(), 4, [&](const IndexRange range) {
-        for (const std::unique_ptr<Node> &node : nodes.slice(range)) {
-          const Span<int> verts = node->vert_indices.as_span().take_front(node->unique_verts_num);
-          selected_verts.as_mutable_span().fill_indices(verts, true);
-        }
-      });
-    });
-    this->mask = IndexMask::from_bools(selected_verts, this->mask_memory);
-
-    Array<float3> all_positions(step_data.mesh.verts_num);
-    for (const std::unique_ptr<Node> &node : nodes) {
-      const Span<float3> node_positions = node->position.as_span().take_front(
-          node->unique_verts_num);
-      const Span<int> node_indices = node->vert_indices.as_span().take_front(
-          node->unique_verts_num);
-      array_utils::scatter(node_positions, node_indices, all_positions.as_mutable_span());
+    unique_verts_nums.reinitialize(nodes.size());
+    for (const int i : nodes.index_range()) {
+      unique_verts_nums[i] = nodes[i]->unique_verts_num;
     }
-
-    Array<float3> positions(this->mask.size());
-    array_utils::gather(all_positions.as_span(), this->mask, positions.as_mutable_span());
 
     compression_task_pool = BLI_task_pool_create_background(this, TASK_PRIORITY_LOW);
     compression_started = true;
 
-    CompressionData *task_data = MEM_new<CompressionData>(__func__, std::move(positions), this);
-    BLI_task_pool_push(
-        compression_task_pool, compression_task_function, task_data, true, compression_task_free);
+    CompressData *task_data = MEM_new<CompressData>(__func__, std::move(nodes), this);
+    BLI_task_pool_push(compression_task_pool, compress_fn, task_data, true, compress_task_free);
   }
 
   ~PositionUndoStorage()
@@ -374,32 +356,52 @@ struct PositionUndoStorage : NonMovable {
     }
   }
 
-  struct CompressionData {
-    Array<float3> positions;
+  struct CompressData {
+    Vector<std::unique_ptr<Node>> nodes;
     PositionUndoStorage *storage;
-    CompressionData(Array<float3> pos, PositionUndoStorage *stor)
-        : positions(std::move(pos)), storage(stor)
+    CompressData(Vector<std::unique_ptr<Node>> nodes, PositionUndoStorage *storage)
+        : nodes(std::move(nodes)), storage(storage)
     {
     }
   };
 
-  static void compression_task_function(TaskPool * /*pool*/, void *task_data)
+  static void compress_fn(TaskPool * /*pool*/, void *task_data)
   {
 #ifdef DEBUG_TIME
     SCOPED_TIMER(__func__);
 #endif
-    CompressionData *data = static_cast<CompressionData *>(task_data);
-    Array<std::byte> result = zstd_compressor::compress_data(data->positions.as_span());
-    data->storage->compressed_data = std::move(result);
-    if (data->storage->owner_step_data) {
-      size_t compressed_size = data->storage->compressed_data.size();
-      data->storage->owner_step_data->undo_size += compressed_size;
+    auto *data = static_cast<CompressData *>(task_data);
+    Span<std::unique_ptr<Node>> nodes = data->nodes;
+    Array<Array<std::byte>> compressed_indices(nodes.size(), NoInitialization());
+    Array<Array<std::byte>> compressed_data(nodes.size(), NoInitialization());
+
+    threading::isolate_task([&]() {
+      threading::parallel_for(nodes.index_range(), 1, [&](const IndexRange range) {
+        for (const int i : range) {
+          new (&compressed_indices[i])
+              Array<std::byte>(zstd_compress::compress_data<int>(nodes[i]->vert_indices));
+          new (&compressed_data[i])
+              Array<std::byte>(zstd_compress::compress_data<float3>(nodes[i]->position));
+        }
+      });
+    });
+
+    size_t memory_size = 0;
+    for (const int i : nodes.index_range()) {
+      memory_size += compressed_indices[i].as_span().size_in_bytes();
+      memory_size += compressed_data[i].as_span().size_in_bytes();
     }
+
+    data->storage->compressed_indices = std::move(compressed_indices);
+    data->storage->compressed_positions = std::move(compressed_data);
+    data->storage->owner_step_data->undo_size += memory_size;
+
     data->storage->compression_ready.store(true, std::memory_order_release);
   }
-  static void compression_task_free(TaskPool * /*pool*/, void *task_data)
+
+  static void compress_task_free(TaskPool * /*pool*/, void *task_data)
   {
-    MEM_delete(static_cast<CompressionData *>(task_data));
+    MEM_delete(static_cast<CompressData *>(task_data));
   }
 };
 
@@ -521,18 +523,33 @@ static void restore_position_mesh(Object &object, PositionUndoStorage &undo_data
 
   undo_data.ensure_compression_complete();
 
-  Array<float3> decompressed = zstd_compressor::decompress_data<float3>(undo_data.compressed_data);
-  BLI_assert(decompressed.size() == undo_data.mask.size());
+  const int nodes_num = undo_data.unique_verts_nums.size();
+  Array<Array<int>> decompressed_indices(nodes_num);
+  Array<Array<float3>> decompressed_positions(nodes_num);
 
-  threading::parallel_for(undo_data.mask.index_range(), 1, [&](const IndexRange range) {
-    const IndexMask &verts = undo_data.mask.slice(range);
-    MutableSpan<float3> undo_positions = decompressed.as_mutable_span().slice(range);
+  threading::parallel_for(IndexRange(nodes_num), 1, [&](const IndexRange range) {
+    for (const int i : range) {
+      decompressed_indices[i] = zstd_compress::decompress_data<int>(
+          undo_data.compressed_indices[i]);
+      decompressed_positions[i] = zstd_compress::decompress_data<float3>(
+          undo_data.compressed_positions[i]);
+    }
+  });
+
+  for (const int i : IndexRange(nodes_num)) {
+    const Span<int> node_indices = decompressed_indices[i];
+    MutableSpan<float3> node_positions = decompressed_positions[i];
+    const int unique_verts_num = undo_data.unique_verts_nums[i];
+
+    IndexMaskMemory memory;
+    const IndexMask node_verts = IndexMask::from_indices(node_indices.take_front(unique_verts_num),
+                                                         memory);
 
     if (!ss.deform_modifiers_active) {
       /* When original positions aren't written separately in the undo step, there are no
        * deform modifiers. Therefore the original and evaluated deform positions will be the
        * same, and modifying the positions from the original mesh is enough. */
-      swap_indexed_data(undo_positions, verts, positions);
+      swap_indexed_data(node_positions, node_verts, positions);
     }
     else {
       /* When original positions are stored in the undo step, undo/redo will cause a reevaluation
@@ -542,33 +559,35 @@ static void restore_position_mesh(Object &object, PositionUndoStorage &undo_data
         MutableSpan<float3> active_data = shape_key_data->active_key_data;
 
         if (!shape_key_data->dependent_keys.is_empty()) {
-          Array<float3, 1024> translations(verts.size());
-          translations_from_new_positions(undo_positions, verts, active_data, translations);
+          Array<float3, 1024> translations(node_verts.size());
+          translations_from_new_positions(
+              node_positions.take_front(unique_verts_num), node_verts, active_data, translations);
           for (MutableSpan<float3> data : shape_key_data->dependent_keys) {
-            apply_translations(translations, verts, data);
+            apply_translations(translations, node_verts, data);
           }
         }
 
         if (shape_key_data->basis_key_active) {
           /* The basis key positions and the mesh positions are always kept in sync. */
-          scatter_data_mesh(undo_positions.as_span(), verts, positions);
+          scatter_data_mesh(
+              node_positions.as_span().take_front(unique_verts_num), node_verts, positions);
         }
-        swap_indexed_data(undo_positions, verts, active_data);
+        swap_indexed_data(node_positions, node_verts, active_data);
       }
       else {
         /* There is a deform modifier, but no shape keys. */
-        swap_indexed_data(undo_positions, verts, positions);
+        swap_indexed_data(node_positions, node_verts, positions);
       }
     }
+  }
+
+  threading::parallel_for(IndexRange(nodes_num), 1, [&](const IndexRange range) {
+    for (const int i : range) {
+      undo_data.compressed_indices[i] = zstd_compress::compress_data<int>(decompressed_indices[i]);
+      undo_data.compressed_positions[i] = zstd_compress::compress_data<float3>(
+          decompressed_positions[i]);
+    }
   });
-  PositionUndoStorage::CompressionData *task_data = MEM_new<PositionUndoStorage::CompressionData>(
-      __func__, std::move(decompressed), &undo_data);
-  BLI_task_pool_push(undo_data.compression_task_pool,
-                     PositionUndoStorage::compression_task_function,
-                     task_data,
-                     true,
-                     PositionUndoStorage::compression_task_free);
-  undo_data.compression_ready = false;
 }
 
 static void restore_position_grids(const MutableSpan<float3> positions,
@@ -1054,7 +1073,16 @@ static void restore_list(bContext *C, Depsgraph *depsgraph, StepData &step_data)
         const Mesh &mesh = *static_cast<const Mesh *>(object.data);
         restore_position_mesh(object, *step_data.position_step_storage);
         BitVector<> modified_verts(mesh.verts_num);
-        step_data.position_step_storage->mask.set_bits(modified_verts);
+        step_data.position_step_storage->ensure_compression_complete();
+        for (const int i : step_data.position_step_storage->compressed_indices.index_range()) {
+          Array<int> decompressed_indices = zstd_compress::decompress_data<int>(
+              step_data.position_step_storage->compressed_indices[i]);
+          const int unique_verts_num = step_data.position_step_storage->unique_verts_nums[i];
+          for (const int vert_index : decompressed_indices.as_span().take_front(unique_verts_num))
+          {
+            modified_verts[vert_index].set(true);
+          }
+        }
         const IndexMask changed_nodes = IndexMask::from_predicate(
             node_mask, GrainSize(1), memory, [&](const int i) {
               return indices_contain_true(modified_verts, nodes[i].all_verts());
@@ -1968,8 +1996,8 @@ void push_end_ex(Object &ob, const bool use_nested_undo)
    * deform modifiers. */
 
   if (step_data->type == Type::Position) {
-    step_data->position_step_storage = std::make_unique<PositionUndoStorage>(*step_data,
-                                                                             step_data->nodes);
+    step_data->position_step_storage = std::make_unique<PositionUndoStorage>(
+        *step_data, move(step_data->nodes));
     step_data->nodes.clear_and_shrink();
   }
   else {
