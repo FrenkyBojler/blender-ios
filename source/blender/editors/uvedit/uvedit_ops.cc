@@ -309,7 +309,7 @@ bool ED_uvedit_center_multi(const Scene *scene,
   return changed;
 }
 
-bool ED_uvedit_center_from_pivot_ex(SpaceImage *sima,
+bool ED_uvedit_center_from_pivot_ex(const SpaceImage *sima,
                                     Scene *scene,
                                     ViewLayer *view_layer,
                                     float r_center[2],
@@ -1951,7 +1951,7 @@ static wmOperatorStatus uv_mark_seam_invoke(bContext *C, wmOperator *op, const w
   pup = UI_popup_menu_begin(C, IFACE_("Edges"), ICON_NONE);
   layout = UI_popup_menu_layout(pup);
 
-  layout->operator_context_set(WM_OP_EXEC_DEFAULT);
+  layout->operator_context_set(blender::wm::OpCallContext::ExecDefault);
   PointerRNA op_ptr = layout->op(
       op->type->idname, CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Mark Seam"), ICON_NONE);
   RNA_boolean_set(&op_ptr, "clear", false);

@@ -36,17 +36,23 @@ NODE_STORAGE_FUNCS(NodeBlurData)
 
 static void cmp_node_blur_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Color>("Image").default_value({1.0f, 1.0f, 1.0f, 1.0f});
-  b.add_input<decl::Vector>("Size").dimensions(2).default_value({0.0f, 0.0f}).min(0.0f);
-  b.add_input<decl::Bool>("Extend Bounds").default_value(false).compositor_expects_single_value();
+  b.add_input<decl::Color>("Image")
+      .default_value({1.0f, 1.0f, 1.0f, 1.0f})
+      .structure_type(StructureType::Dynamic);
+  b.add_input<decl::Vector>("Size")
+      .dimensions(2)
+      .default_value({0.0f, 0.0f})
+      .min(0.0f)
+      .structure_type(StructureType::Dynamic);
+  b.add_input<decl::Bool>("Extend Bounds").default_value(false);
   b.add_input<decl::Bool>("Separable")
       .default_value(true)
-      .compositor_expects_single_value()
+
       .description(
           "Use faster approximation by blurring along the horizontal and vertical directions "
           "independently");
 
-  b.add_output<decl::Color>("Image");
+  b.add_output<decl::Color>("Image").structure_type(StructureType::Dynamic);
 }
 
 static void node_composit_init_blur(bNodeTree * /*ntree*/, bNode *node)
@@ -140,7 +146,7 @@ class BlurOperation : public NodeOperation {
 
   void execute_constant_size_gpu(const Result &input, Result &output)
   {
-    GPUShader *shader = context().get_shader("compositor_symmetric_blur");
+    gpu::Shader *shader = context().get_shader("compositor_symmetric_blur");
     GPU_shader_bind(shader);
 
     input.bind_as_texture(shader, "input_tx");
@@ -235,7 +241,7 @@ class BlurOperation : public NodeOperation {
     const Result &weights = context().cache_manager().symmetric_blur_weights.get(
         context(), node_storage(bnode()).filtertype, blur_radius);
 
-    GPUShader *shader = context().get_shader("compositor_symmetric_blur_variable_size");
+    gpu::Shader *shader = context().get_shader("compositor_symmetric_blur_variable_size");
     GPU_shader_bind(shader);
 
     input.bind_as_texture(shader, "input_tx");

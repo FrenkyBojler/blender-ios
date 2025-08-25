@@ -37,22 +37,20 @@ NODE_STORAGE_FUNCS(NodeDilateErode)
 
 static void cmp_node_dilate_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Float>("Mask").default_value(0.0f).min(0.0f).max(1.0f);
-  b.add_input<decl::Int>("Size")
-      .default_value(0)
-      .description(
-          "The size of dilation/erosion in pixels. Positive values dilates and negative values "
-          "erodes")
-      .compositor_expects_single_value();
+  b.add_input<decl::Float>("Mask").default_value(0.0f).min(0.0f).max(1.0f).structure_type(
+      StructureType::Dynamic);
+  b.add_input<decl::Int>("Size").default_value(0).description(
+      "The size of dilation/erosion in pixels. Positive values dilates and negative values "
+      "erodes");
   b.add_input<decl::Float>("Falloff Size")
       .default_value(0.0f)
       .min(0.0f)
+      .make_available([](bNode &node) { node.custom1 = CMP_NODE_DILATE_ERODE_DISTANCE_THRESHOLD; })
       .description(
           "The size of the falloff from the edges in pixels. If less than two pixels, the edges "
-          "will be anti-aliased")
-      .compositor_expects_single_value();
+          "will be anti-aliased");
 
-  b.add_output<decl::Float>("Mask");
+  b.add_output<decl::Float>("Mask").structure_type(StructureType::Dynamic);
 }
 
 static void node_composit_init_dilateerode(bNodeTree * /*ntree*/, bNode *node)
@@ -132,7 +130,7 @@ class DilateErodeOperation : public NodeOperation {
 
   Result execute_step_horizontal_pass_gpu()
   {
-    GPUShader *shader = context().get_shader(get_morphological_step_shader_name());
+    gpu::Shader *shader = context().get_shader(get_morphological_step_shader_name());
     GPU_shader_bind(shader);
 
     GPU_shader_uniform_1i(shader, "radius", this->get_structuring_element_size() / 2);
@@ -204,7 +202,7 @@ class DilateErodeOperation : public NodeOperation {
 
   void execute_step_vertical_pass_gpu(Result &horizontal_pass_result)
   {
-    GPUShader *shader = context().get_shader(get_morphological_step_shader_name());
+    gpu::Shader *shader = context().get_shader(get_morphological_step_shader_name());
     GPU_shader_bind(shader);
 
     GPU_shader_uniform_1i(shader, "radius", this->get_structuring_element_size() / 2);
@@ -366,7 +364,7 @@ class DilateErodeOperation : public NodeOperation {
 
   void execute_distance_threshold_gpu(Result &output)
   {
-    GPUShader *shader = context().get_shader("compositor_morphological_distance_threshold");
+    gpu::Shader *shader = context().get_shader("compositor_morphological_distance_threshold");
     GPU_shader_bind(shader);
 
     GPU_shader_uniform_1f(shader, "inset", math::max(this->get_falloff_size(), 10e-6f));

@@ -14,6 +14,7 @@
 
 #include "DNA_defaults.h"
 #include "DNA_modifier_types.h"
+#include "DNA_object_types.h"
 #include "DNA_screen_types.h"
 
 #include "RNA_access.hh"
@@ -230,8 +231,7 @@ static void panel_draw(const bContext *C, Panel *panel)
   layout->use_property_split_set(true);
 
   row = &layout->row(true);
-  uiItemPointerR(
-      row, ptr, "target_vertex_group", &ob_ptr, "vertex_groups", std::nullopt, ICON_NONE);
+  row->prop_search(ptr, "target_vertex_group", &ob_ptr, "vertex_groups", std::nullopt, ICON_NONE);
 
   sub = &row->row(true);
   bool has_output = RNA_string_length(ptr, "target_vertex_group") != 0;

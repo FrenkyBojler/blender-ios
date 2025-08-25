@@ -113,7 +113,7 @@ static wmOperatorStatus outliner_highlight_update_invoke(bContext *C,
 
   /* Drag and drop does its own highlighting. */
   wmWindowManager *wm = CTX_wm_manager(C);
-  if (wm->drags.first) {
+  if (wm->runtime->drags.first) {
     return OPERATOR_PASS_THROUGH;
   }
 
@@ -276,7 +276,7 @@ static wmOperatorStatus outliner_item_openclose_invoke(bContext *C,
     outliner_tag_redraw_avoid_rebuild_on_open_change(space_outliner, region);
 
     /* Only toggle once for single click toggling */
-    if ((event->type == LEFTMOUSE) && (event->val != KM_CLICK_DRAG)) {
+    if ((event->type == LEFTMOUSE) && (event->val != KM_PRESS_DRAG)) {
       return OPERATOR_FINISHED;
     }
 
@@ -792,7 +792,7 @@ void id_remap_fn(bContext *C,
   RNA_enum_set(&op_props, "id_type", GS(tselem->id->name));
   RNA_enum_set_identifier(C, &op_props, "old_id", tselem->id->name + 2);
 
-  WM_operator_name_call_ptr(C, ot, WM_OP_INVOKE_DEFAULT, &op_props, nullptr);
+  WM_operator_name_call_ptr(C, ot, wm::OpCallContext::InvokeDefault, &op_props, nullptr);
 
   WM_operator_properties_free(&op_props);
 }
@@ -950,7 +950,7 @@ static wmOperatorStatus outliner_id_relocate_invoke(bContext *C,
   RNA_int_set(&op_props, "id_session_uid", *reinterpret_cast<int *>(&id_linked->session_uid));
 
   const wmOperatorStatus ret = WM_operator_name_call_ptr(
-      C, ot, WM_OP_INVOKE_DEFAULT, &op_props, nullptr);
+      C, ot, wm::OpCallContext::InvokeDefault, &op_props, nullptr);
 
   WM_operator_properties_free(&op_props);
 
@@ -1010,10 +1010,10 @@ static wmOperatorStatus lib_relocate(
     RNA_string_set(&op_props, "directory", dir);
     RNA_string_set(&op_props, "filename", filename);
 
-    ret = WM_operator_name_call_ptr(C, ot, WM_OP_EXEC_DEFAULT, &op_props, nullptr);
+    ret = WM_operator_name_call_ptr(C, ot, wm::OpCallContext::ExecDefault, &op_props, nullptr);
   }
   else {
-    ret = WM_operator_name_call_ptr(C, ot, WM_OP_INVOKE_DEFAULT, &op_props, nullptr);
+    ret = WM_operator_name_call_ptr(C, ot, wm::OpCallContext::InvokeDefault, &op_props, nullptr);
   }
 
   WM_operator_properties_free(&op_props);
@@ -2416,7 +2416,7 @@ static void outliner_orphans_purge_ui(bContext * /*C*/, wmOperator *op)
   uiLayout *layout = op->layout;
   PointerRNA *ptr = op->ptr;
   if (!op->customdata) {
-    /* This should only happen on 'adjust last operation' case, since `invoke` will not have  been
+    /* This should only happen on 'adjust last operation' case, since `invoke` will not have been
      * called then before showing the UI (the 'redo panel' UI uses WM-stored operator properties
      * and a newly-created operator).
      *

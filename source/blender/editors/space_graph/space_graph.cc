@@ -19,7 +19,7 @@
 #include "BLI_listbase.h"
 #include "BLI_math_color.h"
 #include "BLI_math_vector.h"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_context.hh"
@@ -186,10 +186,12 @@ static void graph_main_region_init(wmWindowManager *wm, ARegion *region)
   UI_view2d_region_reinit(&region->v2d, V2D_COMMONVIEW_CUSTOM, region->winx, region->winy);
 
   /* own keymap */
-  keymap = WM_keymap_ensure(wm->defaultconf, "Graph Editor", SPACE_GRAPH, RGN_TYPE_WINDOW);
+  keymap = WM_keymap_ensure(
+      wm->runtime->defaultconf, "Graph Editor", SPACE_GRAPH, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler_poll(
       &region->runtime->handlers, keymap, WM_event_handler_region_v2d_mask_no_marker_poll);
-  keymap = WM_keymap_ensure(wm->defaultconf, "Graph Editor Generic", SPACE_GRAPH, RGN_TYPE_WINDOW);
+  keymap = WM_keymap_ensure(
+      wm->runtime->defaultconf, "Graph Editor Generic", SPACE_GRAPH, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler(&region->runtime->handlers, keymap);
 }
 
@@ -227,7 +229,7 @@ static void graph_main_region_draw(const bContext *C, ARegion *region)
   const int min_height = UI_ANIM_MINY;
 
   /* clear and setup matrix */
-  UI_ThemeClearColor(region->winy > min_height ? TH_BACK : TH_TIME_SCRUB_BACKGROUND);
+  UI_ThemeClearColor(TH_BACK);
 
   UI_view2d_view_ortho(v2d);
 
@@ -260,7 +262,7 @@ static void graph_main_region_draw(const bContext *C, ARegion *region)
 
     /* XXX(ton): the slow way to set tot rect... but for nice sliders needed. */
     /* Excluding handles from the calculation to save performance. This cuts the time it takes for
-     * this function to run in half which is a major performance bottleneck on heavy scenes.  */
+     * this function to run in half which is a major performance bottleneck on heavy scenes. */
     get_graph_keyframe_extents(
         &ac, &v2d->tot.xmin, &v2d->tot.xmax, &v2d->tot.ymin, &v2d->tot.ymax, false, false);
     /* extra offset so that these items are visible */
@@ -315,7 +317,7 @@ static void graph_main_region_draw(const bContext *C, ARegion *region)
   if (sipo->mode != SIPO_MODE_DRIVERS) {
     UI_view2d_view_orthoSpecial(region, v2d, true);
     int marker_draw_flag = DRAW_MARKERS_MARGIN;
-    if (sipo->flag & SIPO_SHOW_MARKERS) {
+    if (sipo->flag & SIPO_SHOW_MARKERS && region->winy > (UI_ANIM_MINY + UI_MARKER_MARGIN_Y)) {
       ED_markers_draw(C, marker_draw_flag);
     }
   }
@@ -388,9 +390,11 @@ static void graph_channel_region_init(wmWindowManager *wm, ARegion *region)
   UI_view2d_region_reinit(&region->v2d, V2D_COMMONVIEW_LIST, region->winx, region->winy);
 
   /* own keymap */
-  keymap = WM_keymap_ensure(wm->defaultconf, "Animation Channels", SPACE_EMPTY, RGN_TYPE_WINDOW);
+  keymap = WM_keymap_ensure(
+      wm->runtime->defaultconf, "Animation Channels", SPACE_EMPTY, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler_v2d_mask(&region->runtime->handlers, keymap);
-  keymap = WM_keymap_ensure(wm->defaultconf, "Graph Editor Generic", SPACE_GRAPH, RGN_TYPE_WINDOW);
+  keymap = WM_keymap_ensure(
+      wm->runtime->defaultconf, "Graph Editor Generic", SPACE_GRAPH, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler(&region->runtime->handlers, keymap);
 }
 
@@ -453,7 +457,8 @@ static void graph_buttons_region_init(wmWindowManager *wm, ARegion *region)
 
   ED_region_panels_init(wm, region);
 
-  keymap = WM_keymap_ensure(wm->defaultconf, "Graph Editor Generic", SPACE_GRAPH, RGN_TYPE_WINDOW);
+  keymap = WM_keymap_ensure(
+      wm->runtime->defaultconf, "Graph Editor Generic", SPACE_GRAPH, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler_v2d_mask(&region->runtime->handlers, keymap);
 }
 
@@ -751,23 +756,7 @@ static void graph_refresh_fcurve_colors(const bContext *C)
             break;
 
           case 0: {
-            /* Special Case: "W" channel should be yellowish, so blend X and Y channel colors... */
-            float c1[3], c2[3];
-            float h1[3], h2[3];
-            float hresult[3];
-
-            /* - get colors (rgb) */
-            UI_GetThemeColor3fv(TH_AXIS_X, c1);
-            UI_GetThemeColor3fv(TH_AXIS_Y, c2);
-
-            /* - perform blending in HSV space (to keep brightness similar) */
-            rgb_to_hsv_v(c1, h1);
-            rgb_to_hsv_v(c2, h2);
-
-            interp_v3_v3v3(hresult, h1, h2, 0.5f);
-
-            /* - convert back to RGB for display */
-            hsv_to_rgb_v(hresult, col);
+            UI_GetThemeColor3fv(TH_AXIS_W, col);
             break;
           }
 
@@ -940,7 +929,7 @@ void ED_spacetype_ipo()
   ARegionType *art;
 
   st->spaceid = SPACE_GRAPH;
-  STRNCPY(st->name, "Graph");
+  STRNCPY_UTF8(st->name, "Graph");
 
   st->create = graph_create;
   st->free = graph_free;

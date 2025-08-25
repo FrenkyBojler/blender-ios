@@ -154,7 +154,7 @@ struct Profile {
   float *prof_co;
   /** Like prof_co, but for seg power of 2 >= seg. */
   float *prof_co_2;
-  /** Mark a special case so the these parameters aren't reset with others. */
+  /** Mark a special case so these parameters aren't reset with others. */
   bool special_params;
 };
 #define PRO_SQUARE_R 1e4f
@@ -334,7 +334,7 @@ enum AngleKind {
 /** Container for loops representing UV verts which should be merged together in a UV map. */
 using UVVertBucket = Set<BMLoop *>;
 
-/** Mapping of vertex to UV vert buckets (i.e. loops belonging to that key `BMVert`). */
+/** Mapping of vertex to UV vert buckets (i.e. loops belonging to that `BMVert` key). */
 using UVVertMap = Map<BMVert *, Vector<UVVertBucket>>;
 
 /** Bevel parameters and state. */
@@ -644,6 +644,10 @@ static bool edges_face_connected_at_vert(BMEdge *bme1, BMEdge *bme2)
  */
 static UVFace *register_uv_face(BevelParams *bp, BMFace *fnew, BMFace *frep, BMFace **frep_arr)
 {
+  if (!fnew) {
+    return nullptr;
+  }
+
   UVFace *uv_face = (UVFace *)BLI_memarena_alloc(bp->mem_arena, sizeof(UVFace));
   uv_face->f = fnew;
   uv_face->attached_frep = nullptr;
@@ -706,7 +710,7 @@ static void update_uv_vert_map(BevelParams *bp,
         }
 
         UVFace *uv_face2 = find_uv_face(bp, l2->f);
-        if (!uv_face2) {
+        if (!uv_face2 || !uv_face2->attached_frep) {
           continue;
         }
 
@@ -2669,6 +2673,12 @@ static void bevel_harden_normals(BevelParams *bp, BMesh *bm)
 
   if (cd_clnors_offset == -1) {
     cd_clnors_offset = CustomData_get_offset_named(&bm->ldata, CD_PROP_INT16_2D, "custom_normal");
+  }
+
+  /* If the custom normals attribute still hasn't been added with the correct type, at least don't
+   * crash. */
+  if (cd_clnors_offset == -1) {
+    return;
   }
 
   BMIter fiter;
@@ -7126,7 +7136,6 @@ static void bevel_build_edge_polygons(BMesh *bm, BevelParams *bp, BMEdge *bme)
 
   int odd = nseg % 2;
   int mid = nseg / 2;
-  BMEdge *center_bme = nullptr;
   BMFace *fchoices[2] = {f1, f2};
   BMFace *f_choice = nullptr;
   int center_adj_k = -1;
@@ -7190,8 +7199,6 @@ static void bevel_build_edge_polygons(BMesh *bm, BevelParams *bp, BMEdge *bme)
       BMEdge *edges[4] = {nullptr, nullptr, bme, bme};
       r_f = bev_create_ngon(
           bp, bm, verts, 4, nullptr, f1, edges, nullptr, &nv_bv_map, mat_nr, true);
-      center_bme = BM_edge_exists(verts[2], verts[3]);
-      BLI_assert(center_bme != nullptr);
     }
     else if (!odd && k == mid + 1) {
       /* Right poly that touches an even center line on left. */
@@ -7969,8 +7976,8 @@ void BM_mesh_bevel(BMesh *bm,
       bv = bevel_vert_construct(bm, &bp, v);
       if (!limit_offset && bv) {
         build_boundary(&bp, bv, true);
+        determine_uv_vert_connectivity(&bp, bm, v);
       }
-      determine_uv_vert_connectivity(&bp, bm, v);
     }
   }
 
@@ -7984,6 +7991,7 @@ void BM_mesh_bevel(BMesh *bm,
         bv = find_bevvert(&bp, v);
         if (bv) {
           build_boundary(&bp, bv, true);
+          determine_uv_vert_connectivity(&bp, bm, v);
         }
       }
     }

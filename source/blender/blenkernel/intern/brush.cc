@@ -29,7 +29,6 @@
 #include "BKE_bpath.hh"
 #include "BKE_brush.hh"
 #include "BKE_colortools.hh"
-#include "BKE_gpencil_legacy.h"
 #include "BKE_grease_pencil.hh"
 #include "BKE_idprop.hh"
 #include "BKE_idtype.hh"
@@ -39,6 +38,7 @@
 #include "BKE_main.hh"
 #include "BKE_material.hh"
 #include "BKE_paint.hh"
+#include "BKE_paint_types.hh"
 #include "BKE_preview_image.hh"
 #include "BKE_texture.h"
 
@@ -196,7 +196,6 @@ static void brush_foreach_id(ID *id, LibraryForeachIDData *data)
 {
   Brush *brush = reinterpret_cast<Brush *>(id);
 
-  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, brush->toggle_brush, IDWALK_CB_NOP);
   BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, brush->paint_curve, IDWALK_CB_USER);
   if (brush->gpencil_settings) {
     BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, brush->gpencil_settings->material, IDWALK_CB_USER);
@@ -472,7 +471,7 @@ IDTypeInfo IDType_ID_BR = {
     /*id_code*/ Brush::id_type,
     /*id_filter*/ FILTER_ID_BR,
     /*dependencies_id_types*/
-    (FILTER_ID_BR | FILTER_ID_IM | FILTER_ID_PC | FILTER_ID_TE | FILTER_ID_MA),
+    (FILTER_ID_IM | FILTER_ID_PC | FILTER_ID_TE | FILTER_ID_MA),
     /*main_listbase_index*/ INDEX_ID_BR,
     /*struct_size*/ sizeof(Brush),
     /*name*/ "Brush",
@@ -675,7 +674,7 @@ Brush *BKE_brush_duplicate(Main *bmain,
 
   if (!is_subprocess) {
     /* This code will follow into all ID links using an ID tagged with ID_TAG_NEW. */
-    BKE_libblock_relink_to_newid(bmain, &new_brush->id, 0);
+    BKE_libblock_relink_to_newid(bmain, &new_brush->id, ID_REMAP_SKIP_USER_CLEAR);
 
 #ifndef NDEBUG
     /* Call to `BKE_libblock_relink_to_newid` above is supposed to have cleared all those flags. */
@@ -873,7 +872,7 @@ float BKE_brush_sample_tex_3d(const Paint *paint,
                               const int thread,
                               ImagePool *pool)
 {
-  const UnifiedPaintSettings *ups = &paint->unified_paint_settings;
+  const blender::bke::PaintRuntime *paint_runtime = paint->runtime;
   float intensity = 1.0;
   bool hasrgb = false;
 
@@ -925,30 +924,30 @@ float BKE_brush_sample_tex_3d(const Paint *paint,
     if (mtex->brush_map_mode == MTEX_MAP_MODE_VIEW) {
       /* keep coordinates relative to mouse */
 
-      rotation -= ups->brush_rotation;
+      rotation -= paint_runtime->brush_rotation;
 
-      x = point_2d[0] - ups->tex_mouse[0];
-      y = point_2d[1] - ups->tex_mouse[1];
+      x = point_2d[0] - paint_runtime->tex_mouse[0];
+      y = point_2d[1] - paint_runtime->tex_mouse[1];
 
       /* use pressure adjusted size for fixed mode */
-      invradius = 1.0f / ups->pixel_radius;
+      invradius = 1.0f / paint_runtime->pixel_radius;
     }
     else if (mtex->brush_map_mode == MTEX_MAP_MODE_TILED) {
       /* leave the coordinates relative to the screen */
 
       /* use unadjusted size for tiled mode */
-      invradius = 1.0f / ups->start_pixel_radius;
+      invradius = 1.0f / paint_runtime->start_pixel_radius;
 
       x = point_2d[0];
       y = point_2d[1];
     }
     else if (mtex->brush_map_mode == MTEX_MAP_MODE_RANDOM) {
-      rotation -= ups->brush_rotation;
+      rotation -= paint_runtime->brush_rotation;
       /* these contain a random coordinate */
-      x = point_2d[0] - ups->tex_mouse[0];
-      y = point_2d[1] - ups->tex_mouse[1];
+      x = point_2d[0] - paint_runtime->tex_mouse[0];
+      y = point_2d[1] - paint_runtime->tex_mouse[1];
 
-      invradius = 1.0f / ups->pixel_radius;
+      invradius = 1.0f / paint_runtime->pixel_radius;
     }
 
     x *= invradius;
@@ -981,8 +980,8 @@ float BKE_brush_sample_tex_3d(const Paint *paint,
     rgba[3] = 1.0f;
   }
   /* For consistency, sampling always returns color in linear space */
-  else if (ups->do_linear_conversion) {
-    IMB_colormanagement_colorspace_to_scene_linear_v3(rgba, ups->colorspace);
+  else if (paint_runtime->do_linear_conversion) {
+    IMB_colormanagement_colorspace_to_scene_linear_v3(rgba, paint_runtime->colorspace);
   }
 
   return intensity;
@@ -991,7 +990,7 @@ float BKE_brush_sample_tex_3d(const Paint *paint,
 float BKE_brush_sample_masktex(
     const Paint *paint, Brush *br, const float point[2], const int thread, ImagePool *pool)
 {
-  const UnifiedPaintSettings *ups = &paint->unified_paint_settings;
+  const blender::bke::PaintRuntime *paint_runtime = paint->runtime;
   MTex *mtex = &br->mask_mtex;
   float rgba[4], intensity;
 
@@ -1038,30 +1037,30 @@ float BKE_brush_sample_masktex(
     if (mtex->brush_map_mode == MTEX_MAP_MODE_VIEW) {
       /* keep coordinates relative to mouse */
 
-      rotation -= ups->brush_rotation_sec;
+      rotation -= paint_runtime->brush_rotation_sec;
 
-      x = point_2d[0] - ups->mask_tex_mouse[0];
-      y = point_2d[1] - ups->mask_tex_mouse[1];
+      x = point_2d[0] - paint_runtime->mask_tex_mouse[0];
+      y = point_2d[1] - paint_runtime->mask_tex_mouse[1];
 
       /* use pressure adjusted size for fixed mode */
-      invradius = 1.0f / ups->pixel_radius;
+      invradius = 1.0f / paint_runtime->pixel_radius;
     }
     else if (mtex->brush_map_mode == MTEX_MAP_MODE_TILED) {
       /* leave the coordinates relative to the screen */
 
       /* use unadjusted size for tiled mode */
-      invradius = 1.0f / ups->start_pixel_radius;
+      invradius = 1.0f / paint_runtime->start_pixel_radius;
 
       x = point_2d[0];
       y = point_2d[1];
     }
     else if (mtex->brush_map_mode == MTEX_MAP_MODE_RANDOM) {
-      rotation -= ups->brush_rotation_sec;
+      rotation -= paint_runtime->brush_rotation_sec;
       /* these contain a random coordinate */
-      x = point_2d[0] - ups->mask_tex_mouse[0];
-      y = point_2d[1] - ups->mask_tex_mouse[1];
+      x = point_2d[0] - paint_runtime->mask_tex_mouse[0];
+      y = point_2d[1] - paint_runtime->mask_tex_mouse[1];
 
-      invradius = 1.0f / ups->pixel_radius;
+      invradius = 1.0f / paint_runtime->pixel_radius;
     }
 
     x *= invradius;
@@ -1089,10 +1088,11 @@ float BKE_brush_sample_masktex(
 
   switch (br->mask_pressure) {
     case BRUSH_MASK_PRESSURE_CUTOFF:
-      intensity = ((1.0f - intensity) < ups->size_pressure_value) ? 1.0f : 0.0f;
+      intensity = ((1.0f - intensity) < paint_runtime->size_pressure_value) ? 1.0f : 0.0f;
       break;
     case BRUSH_MASK_PRESSURE_RAMP:
-      intensity = ups->size_pressure_value + intensity * (1.0f - ups->size_pressure_value);
+      intensity = paint_runtime->size_pressure_value +
+                  intensity * (1.0f - paint_runtime->size_pressure_value);
       break;
     default:
       break;
@@ -1353,17 +1353,18 @@ void BKE_brush_jitter_pos(const Paint &paint,
   jitterpos[1] = pos[1] + 2 * rand_pos[1] * diameter * spread;
 }
 
-void BKE_brush_randomize_texture_coords(UnifiedPaintSettings *ups, bool mask)
+void BKE_brush_randomize_texture_coords(Paint *paint, bool mask)
 {
+  blender::bke::PaintRuntime &paint_runtime = *paint->runtime;
   /* we multiply with brush radius as an optimization for the brush
    * texture sampling functions */
   if (mask) {
-    ups->mask_tex_mouse[0] = BLI_rng_get_float(brush_rng) * ups->pixel_radius;
-    ups->mask_tex_mouse[1] = BLI_rng_get_float(brush_rng) * ups->pixel_radius;
+    paint_runtime.mask_tex_mouse[0] = BLI_rng_get_float(brush_rng) * paint_runtime.pixel_radius;
+    paint_runtime.mask_tex_mouse[1] = BLI_rng_get_float(brush_rng) * paint_runtime.pixel_radius;
   }
   else {
-    ups->tex_mouse[0] = BLI_rng_get_float(brush_rng) * ups->pixel_radius;
-    ups->tex_mouse[1] = BLI_rng_get_float(brush_rng) * ups->pixel_radius;
+    paint_runtime.tex_mouse[0] = BLI_rng_get_float(brush_rng) * paint_runtime.pixel_radius;
+    paint_runtime.tex_mouse[1] = BLI_rng_get_float(brush_rng) * paint_runtime.pixel_radius;
   }
 }
 

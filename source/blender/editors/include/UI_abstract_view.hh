@@ -76,6 +76,7 @@ class AbstractView {
   std::string context_menu_title;
   /** See #set_popup_keep_open(). */
   bool popup_keep_open_ = false;
+  bool is_multiselect_supported_ = false;
 
  public:
   virtual ~AbstractView() = default;
@@ -152,6 +153,8 @@ class AbstractView {
   void set_popup_keep_open();
 
   void clear_search_highlight();
+  void allow_multiselect_items();
+  bool is_multiselect_supported() const;
 
  protected:
   AbstractView() = default;
@@ -199,6 +202,7 @@ class AbstractViewItem {
   bool is_activatable_ = true;
   bool is_interactive_ = true;
   bool is_active_ = false;
+  bool is_selected_ = false;
   bool is_renaming_ = false;
   /** See #is_search_highlight(). */
   bool is_highlighted_search_ = false;
@@ -232,6 +236,8 @@ class AbstractViewItem {
    */
   virtual std::optional<bool> should_be_active() const;
 
+  virtual std::optional<bool> should_be_selected() const;
+  virtual void set_selected(const bool select);
   /**
    * Queries if the view item supports renaming in principle. Renaming may still fail, e.g. if
    * another item is already being renamed.
@@ -278,7 +284,7 @@ class AbstractViewItem {
   AbstractView &get_view() const;
 
   /**
-   * Get the view item button (button of type #UI_BTYPE_VIEW_ITEM) created for this item. Every
+   * Get the view item button (button of type #ButType::ViewItem) created for this item. Every
    * visible item gets one during the layout building. Items that are not visible may not have one,
    * so null is a valid return value.
    */
@@ -296,6 +302,8 @@ class AbstractViewItem {
    * click), not if the view reflects an external change (e.g.
    * #AbstractViewItem::should_be_active() changes from returning false to returning true).
    *
+   * Also ensures the item is selected if it's active.
+   *
    * Requires the view to have completed reconstruction, see #is_reconstructed(). Otherwise the
    * actual item state is unknown, possibly calling state-change update functions incorrectly.
    */
@@ -306,6 +314,7 @@ class AbstractViewItem {
    * can't be sure about the item state.
    */
   bool is_active() const;
+  bool is_selected() const;
   /**
    * Should this item be highlighted as matching search result? Only one item should be highlighted
    * this way at a time. Pressing enter will activate it.
@@ -316,6 +325,8 @@ class AbstractViewItem {
   void begin_renaming();
   void end_renaming();
   void rename_apply(const bContext &C);
+
+  virtual void delete_item(bContext *C);
 
  protected:
   AbstractViewItem() = default;

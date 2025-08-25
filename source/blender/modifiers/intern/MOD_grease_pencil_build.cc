@@ -16,6 +16,7 @@
 #include "DNA_defaults.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
+#include "DNA_screen_types.h"
 
 #include "DEG_depsgraph_query.hh"
 
@@ -511,7 +512,7 @@ static float get_factor_from_draw_speed(const bke::CurvesGeometry &curves,
   /* Calculates the maximum time of this frame, which is the time between the beginning of the
    * first stroke and the end of the last stroke. `start_times.last()` gives the starting time of
    * the last stroke related to frame beginning, and `delta_time.last()` gives how long that stroke
-   * lasted.  */
+   * lasted. */
   const float max_time = start_times.last() + delta_times.last();
 
   /* If the time needed for building the frame is shorter than frame length, this gives the
@@ -817,13 +818,8 @@ static void panel_draw(const bContext *C, Panel *panel)
     subcol->prop(ptr, "fade_thickness_strength", UI_ITEM_NONE, IFACE_("Thickness"), ICON_NONE);
     subcol->prop(ptr, "fade_opacity_strength", UI_ITEM_NONE, IFACE_("Opacity"), ICON_NONE);
 
-    uiItemPointerR(col,
-                   ptr,
-                   "target_vertex_group",
-                   &ob_ptr,
-                   "vertex_groups",
-                   IFACE_("Weight Output"),
-                   ICON_NONE);
+    col->prop_search(
+        ptr, "target_vertex_group", &ob_ptr, "vertex_groups", IFACE_("Weight Output"), ICON_NONE);
   }
 
   if (uiLayout *influence_panel = layout->panel_prop(

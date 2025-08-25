@@ -20,6 +20,7 @@
 #include "BLT_translation.hh"
 
 #include "ED_asset.hh"
+#include "ED_asset_catalog.hh"
 #include "ED_fileselect.hh"
 #include "ED_undo.hh"
 
@@ -88,6 +89,7 @@ class AssetCatalogTreeViewItem : public ui::BasicTreeViewItem {
 
   bool supports_renaming() const override;
   bool rename(const bContext &C, StringRefNull new_name) override;
+  void delete_item(bContext *C) override;
 
   /** Add drag support for catalog items. */
   std::unique_ptr<ui::AbstractViewItemDragController> create_drag_controller() const override;
@@ -288,7 +290,7 @@ void AssetCatalogTreeViewItem::build_row(uiLayout &row)
   PointerRNA *props;
 
   props = UI_but_extra_operator_icon_add(
-      (uiBut *)view_item_but, "ASSET_OT_catalog_new", WM_OP_INVOKE_DEFAULT, ICON_ADD);
+      (uiBut *)view_item_but, "ASSET_OT_catalog_new", wm::OpCallContext::InvokeDefault, ICON_ADD);
   RNA_string_set(props, "parent_path", catalog_item_.catalog_path().c_str());
 }
 
@@ -299,14 +301,14 @@ void AssetCatalogTreeViewItem::build_context_menu(bContext &C, uiLayout &column)
   props = column.op("ASSET_OT_catalog_new",
                     IFACE_("New Catalog"),
                     ICON_NONE,
-                    WM_OP_INVOKE_DEFAULT,
+                    wm::OpCallContext::InvokeDefault,
                     UI_ITEM_NONE);
   RNA_string_set(&props, "parent_path", catalog_item_.catalog_path().c_str());
 
   props = column.op("ASSET_OT_catalog_delete",
                     IFACE_("Delete Catalog"),
                     ICON_NONE,
-                    WM_OP_INVOKE_DEFAULT,
+                    wm::OpCallContext::InvokeDefault,
                     UI_ITEM_NONE);
   RNA_string_set(&props, "catalog_id", catalog_item_.get_catalog_id().str().c_str());
   column.op("UI_OT_view_item_rename", IFACE_("Rename"), ICON_NONE);
@@ -337,6 +339,13 @@ bool AssetCatalogTreeViewItem::rename(const bContext &C, StringRefNull new_name)
       this->get_tree_view());
   asset::catalog_rename(tree_view.asset_library_, catalog_item_.get_catalog_id(), new_name);
   return true;
+}
+
+void AssetCatalogTreeViewItem::delete_item(bContext * /*C*/)
+{
+  const AssetCatalogTreeView &tree_view = static_cast<const AssetCatalogTreeView &>(
+      this->get_tree_view());
+  ed::asset::catalog_remove(tree_view.asset_library_, catalog_item_.get_catalog_id());
 }
 
 std::unique_ptr<ui::TreeViewItemDropTarget> AssetCatalogTreeViewItem::create_drop_target()
@@ -573,12 +582,12 @@ void AssetCatalogTreeViewAllItem::build_row(uiLayout &row)
 
   UI_but_extra_operator_icon_add(reinterpret_cast<uiBut *>(this->view_item_button()),
                                  "ASSET_OT_catalogs_save",
-                                 WM_OP_INVOKE_DEFAULT,
+                                 wm::OpCallContext::InvokeDefault,
                                  ICON_FILE_TICK);
 
   props = UI_but_extra_operator_icon_add(reinterpret_cast<uiBut *>(this->view_item_button()),
                                          "ASSET_OT_catalog_new",
-                                         WM_OP_INVOKE_DEFAULT,
+                                         wm::OpCallContext::InvokeDefault,
                                          ICON_ADD);
   /* No parent path to use the root level. */
   RNA_string_set(props, "parent_path", nullptr);
@@ -758,7 +767,7 @@ void file_create_asset_catalog_tree_view_in_layout(const bContext *C,
 {
   uiBlock *block = layout->block();
 
-  UI_block_layout_set_current(block, layout);
+  ui::block_layout_set_current(block, layout);
 
   ui::AbstractTreeView *tree_view = UI_block_add_view(
       *block,

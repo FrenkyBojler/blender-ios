@@ -19,6 +19,8 @@
 
 #include "RNA_types.hh"
 
+#include "NOD_socket_usage_inference_fwd.hh"
+
 struct bContext;
 struct bNode;
 struct uiLayout;
@@ -190,6 +192,8 @@ struct CustomSocketDrawParams {
 };
 
 using CustomSocketDrawFn = std::function<void(CustomSocketDrawParams &params)>;
+using InputSocketUsageInferenceFn = std::function<std::optional<bool>(
+    const socket_usage_inference::InputSocketUsageParams &params)>;
 
 /**
  * Describes a single input or output socket. This is subclassed for different socket types.
@@ -237,10 +241,6 @@ class SocketDeclaration : public ItemDeclaration {
    * See compositor::InputDescriptor for more information. */
   int compositor_domain_priority_ = -1;
 
-  /** This input expects a single value and can't operate on non-single values. See
-   * compositor::InputDescriptor for more information. */
-  bool compositor_expects_single_value_ = false;
-
   /** Utility method to make the socket available if there is a straightforward way to do so. */
   std::function<void(bNode &)> make_available_fn_;
 
@@ -256,6 +256,11 @@ class SocketDeclaration : public ItemDeclaration {
    * Draw function that overrides how the socket is drawn for a specific node.
    */
   std::unique_ptr<CustomSocketDrawFn> custom_draw_fn;
+  /**
+   * Determines whether this input socket is used based on other input values and based on which
+   * outputs are used.
+   */
+  std::unique_ptr<InputSocketUsageInferenceFn> usage_inference_fn;
 
   friend NodeDeclarationBuilder;
   friend class BaseSocketDeclarationBuilder;
@@ -282,7 +287,6 @@ class SocketDeclaration : public ItemDeclaration {
 
   const CompositorInputRealizationMode &compositor_realization_mode() const;
   int compositor_domain_priority() const;
-  bool compositor_expects_single_value() const;
 
  protected:
   void set_common_flags(bNodeSocket &socket) const;
@@ -400,12 +404,6 @@ class BaseSocketDeclarationBuilder {
   BaseSocketDeclarationBuilder &compositor_domain_priority(int priority);
 
   /**
-   * This input expects a single value and can't operate on non-single values. See
-   * compositor::InputDescriptor for more information.
-   */
-  BaseSocketDeclarationBuilder &compositor_expects_single_value(bool value = true);
-
-  /**
    * Pass a function that sets properties on the node required to make the corresponding socket
    * available, if it is not available on the default state of the node. The function is allowed to
    * make other sockets unavailable, since it is meant to be called when the node is first added.
@@ -417,6 +415,18 @@ class BaseSocketDeclarationBuilder {
    * Provide a fully custom draw function for the socket that overrides any default behavior.
    */
   BaseSocketDeclarationBuilder &custom_draw(CustomSocketDrawFn fn);
+
+  /**
+   * Provide a function that determines whether this input socket is used based on other input
+   * values and based on which outputs are used.
+   */
+  BaseSocketDeclarationBuilder &usage_inference(InputSocketUsageInferenceFn fn);
+
+  /**
+   * Utility method for the case when the node has a single menu input and this socket is only used
+   * when the menu input has a specific value.
+   */
+  BaseSocketDeclarationBuilder &usage_by_single_menu(const int menu_value);
 
   /**
    * Puts this socket on the same row as the previous socket. This only works when one of them is
