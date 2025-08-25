@@ -1252,6 +1252,31 @@ def km_property_editor(_params):
 # ------------------------------------------------------------------------------
 # Editor (Outliner)
 
+def outliner_item_select(params, select_mouse):
+        prefs = [
+        ("outliner.item_activate", {"type": select_mouse, "value": 'CLICK'},
+         {"properties": [("deselect_all", not params.legacy)]}),
+        ("outliner.item_activate", {"type": select_mouse, "value": 'CLICK', "ctrl": True},
+         {"properties": [("extend", True), ("deselect_all", not params.legacy)]}),
+        ("outliner.item_activate", {"type": select_mouse, "value": 'CLICK', "shift": True},
+         {"properties": [("extend_range", True), ("deselect_all", not params.legacy)]}),
+        ("outliner.item_activate", {"type": select_mouse, "value": 'CLICK', "ctrl": True, "shift": True},
+         {"properties": [("extend", True), ("extend_range", True), ("deselect_all", not params.legacy)]}),
+        ("outliner.item_activate", {"type": select_mouse, "value": 'DOUBLE_CLICK'},
+         {"properties": [("recurse", True), ("deselect_all", True)]}),
+        ("outliner.item_activate", {"type": select_mouse, "value": 'DOUBLE_CLICK', "ctrl": True},
+         {"properties": [("recurse", True), ("extend", True), ("deselect_all", True)]}),
+        ("outliner.item_activate", {"type": select_mouse, "value": 'DOUBLE_CLICK', "shift": True},
+         {"properties": [("recurse", True), ("extend_range", True), ("deselect_all", True)]}),
+        ("outliner.item_activate", {"type": select_mouse, "value": 'DOUBLE_CLICK', "ctrl": True, "shift": True},
+         {"properties": [("recurse", True), ("extend", True), ("extend_range", True), ("deselect_all", True)]})]
+
+        if select_mouse == 'RIGHTMOUSE':
+            prefs.extend([*outliner_item_select(params, 'LEFTMOUSE')])
+
+        return prefs
+
+
 def km_outliner(params):
     items = []
     keymap = (
@@ -1265,22 +1290,7 @@ def km_outliner(params):
         ("outliner.item_rename", {"type": 'LEFTMOUSE', "value": 'DOUBLE_CLICK'}, None),
         ("outliner.item_rename", {"type": 'F2', "value": 'PRESS'},
          {"properties": [("use_active", True)]}),
-        ("outliner.item_activate", {"type": params.select_mouse, "value": 'CLICK'},
-         {"properties": [("deselect_all", not params.legacy)]}),
-        ("outliner.item_activate", {"type": params.select_mouse, "value": 'CLICK', "ctrl": True},
-         {"properties": [("extend", True), ("deselect_all", not params.legacy)]}),
-        ("outliner.item_activate", {"type": params.select_mouse, "value": 'CLICK', "shift": True},
-         {"properties": [("extend_range", True), ("deselect_all", not params.legacy)]}),
-        ("outliner.item_activate", {"type": params.select_mouse, "value": 'CLICK', "ctrl": True, "shift": True},
-         {"properties": [("extend", True), ("extend_range", True), ("deselect_all", not params.legacy)]}),
-        ("outliner.item_activate", {"type": params.select_mouse, "value": 'DOUBLE_CLICK'},
-         {"properties": [("recurse", True), ("deselect_all", True)]}),
-        ("outliner.item_activate", {"type": params.select_mouse, "value": 'DOUBLE_CLICK', "ctrl": True},
-         {"properties": [("recurse", True), ("extend", True), ("deselect_all", True)]}),
-        ("outliner.item_activate", {"type": params.select_mouse, "value": 'DOUBLE_CLICK', "shift": True},
-         {"properties": [("recurse", True), ("extend_range", True), ("deselect_all", True)]}),
-        ("outliner.item_activate", {"type": params.select_mouse, "value": 'DOUBLE_CLICK', "ctrl": True, "shift": True},
-            {"properties": [("recurse", True), ("extend", True), ("extend_range", True), ("deselect_all", True)]}),
+        *outliner_item_select(params, params.select_mouse),
         ("outliner.select_box", {"type": 'B', "value": 'PRESS'}, None),
         ("outliner.select_box", {"type": 'LEFTMOUSE', "value": 'CLICK_DRAG'}, {"properties": [("tweak", True)]}),
         ("outliner.select_box", {"type": 'LEFTMOUSE', "value": 'CLICK_DRAG', "shift": True},
