@@ -3454,7 +3454,6 @@ static wmOperatorStatus grease_pencil_snap_to_grid_exec(bContext *C, wmOperator 
     IndexMaskMemory memory;
     const IndexMask bezier_points = bke::curves::curve_type_point_selection(
         curves, CURVE_TYPE_BEZIER, memory);
-    // const IndexMask bezier_points = bke::curves::bezier::get_bezier_points(curves, memory);
 
     for (const StringRef selection_name : ed::curves::get_curves_selection_attribute_names(curves))
     {

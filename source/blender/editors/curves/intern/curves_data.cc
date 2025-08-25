@@ -52,13 +52,8 @@ void transverts_from_curves_positions_create(bke::CurvesGeometry &curves,
         curves, CURVE_TYPE_BEZIER, memory);
 
     for (const int i : selection_names.index_range()) {
-      if (selection_names[i] == ".selection") {
-        selection[i] = ed::curves::retrieve_selected_points(curves, memory);
-      }
-      else {
-        selection[i] = ed::curves::retrieve_selected_points(
-            curves, selection_names[i], bezier_points, memory);
-      }
+      selection[i] = ed::curves::retrieve_selected_points(
+          curves, selection_names[i], bezier_points, memory);
     }
   }
 

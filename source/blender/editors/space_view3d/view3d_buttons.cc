@@ -388,7 +388,6 @@ static CurvesPointSelectionStatus init_curves_point_selection_status(
 
   const IndexMask bezier_points = bke::curves::curve_type_point_selection(
       curves, CURVE_TYPE_BEZIER, memory);
-  // const IndexMask bezier_points = bke::curves::bezier::get_bezier_points(curves, memory);
 
   auto add_handles = [&](StringRef selection_attribute, std::optional<Span<float3>> positions) {
     if (!positions) {
