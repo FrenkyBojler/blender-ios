@@ -110,6 +110,24 @@ static void draw_current_frame(const Scene *scene,
      * used to force an odd width (but still pixel-aligned) to better
      * line up with the odd widths of the keyframe icons. #98089. */
 
+    const float shadow_width = U.pixelsize;
+    const float tri_top = scrub_region_rect->ymin + box_margin;
+    const float tri_half_width = 7 * UI_SCALE_FAC;
+    const float tri_height = 10 * UI_SCALE_FAC;
+
+    /* Shadow. */
+    GPU_polygon_smooth(true);
+    immUniformThemeColorAlpha(TH_BLACK, 0.3f);
+    immBegin(GPU_PRIM_TRI_STRIP, 6);
+    immVertex2f(pos, floor(subframe_x + U.pixelsize + 1.0f + shadow_width), 0.0f);
+    immVertex2f(pos, floor(subframe_x - U.pixelsize - shadow_width), 0.0f);
+    immVertex2f(pos, floor(subframe_x + U.pixelsize + 1.0f + shadow_width), tri_top - tri_height);
+    immVertex2f(pos, floor(subframe_x - U.pixelsize - shadow_width), tri_top - tri_height);
+    immVertex2f(pos, floor(frame_x + tri_half_width + 1 + shadow_width), tri_top);
+    immVertex2f(pos, floor(frame_x - tri_half_width - shadow_width), tri_top);
+    immEnd();
+    GPU_polygon_smooth(false);
+
     /* Line. */
     immUniformColor4fv(color);
     immRectf(pos,
@@ -119,9 +137,6 @@ static void draw_current_frame(const Scene *scene,
              0.0f);
 
     /* Triangular base. */
-    const float tri_top = scrub_region_rect->ymin + box_margin;
-    const float tri_half_width = 7 * UI_SCALE_FAC;
-    const float tri_height = 10 * UI_SCALE_FAC;
     GPU_polygon_smooth(true);
     immUniformColor4fv(color);
     immBegin(GPU_PRIM_TRIS, 3);
