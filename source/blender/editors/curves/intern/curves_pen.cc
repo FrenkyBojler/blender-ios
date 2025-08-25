@@ -1165,8 +1165,16 @@ static wmOperatorStatus curves_pen_invoke(bContext *C, wmOperator *op, const wmE
   ptd.layer_to_objects.append_n_times(float4x4::identity(), ptd.all_curves.size());
   ptd.layer_to_worlds.append_n_times(float4x4::identity(), ptd.all_curves.size());
 
-  /* TODO. */
-  ptd.active_drawing_index = 0;
+  ptd.active_drawing_index = std::nullopt;
+
+  Curves *active_curves_id = static_cast<Curves *>(ptd.vc.obedit->data);
+  for (const int curves_index : ptd.all_curves.index_range()) {
+    Curves *curves_id = ptd.all_curves[curves_index];
+    if (curves_id == active_curves_id) {
+      BLI_assert(ptd.active_drawing_index == std::nullopt);
+      ptd.active_drawing_index = curves_index;
+    }
+  }
 
   ptd.center_of_mass_co = ptd.calculate_center_of_mass(true);
   ptd.closest_element = pen_find_closest_element(ptd, ptd.mouse_co);
@@ -1273,11 +1281,14 @@ static wmOperatorStatus curves_pen_invoke(bContext *C, wmOperator *op, const wmE
 
   if (add_single) {
     if (ptd.can_create_new_curve(op)) {
-      Curves *curves_id = static_cast<Curves *>(ptd.vc.obedit->data);
-      bke::CurvesGeometry &curves = curves_id->geometry.wrap();
+      const int curves_index = *ptd.active_drawing_index;
 
-      ptd.add_single_point_and_curve(curves, float4x4::identity());
-      curves.tag_topology_changed();
+      const float4x4 &layer_to_world = ptd.layer_to_worlds[curves_index];
+      bke::CurvesGeometry &curves = ptd.get_curves(curves_index);
+
+      ptd.add_single_point_and_curve(curves, layer_to_world);
+      ptd.single_point_attributes(curves, curves_index);
+      ptd.tag_curve_changed(curves_index);
 
       changed.store(true, std::memory_order_relaxed);
       point_added = true;
