@@ -17,15 +17,27 @@
 #include "GPU_texture.hh"
 #include "GPU_vertex_format.hh"
 
-struct GPUUniformBuf;
+namespace blender::gpu {
+class UniformBuf;
+}  // namespace blender::gpu
 
 /** Returns a cleared vertex format, ready for #add_attr. */
 GPUVertFormat *immVertexFormat();
 
 /** Every #immBegin must have a program bound first. */
-void immBindShader(GPUShader *shader);
+void immBindShader(blender::gpu::Shader *shader);
 /** Call after your last immEnd, or before binding another program. */
 void immUnbindProgram();
+/**
+ * Check if there is a shader bound.
+ *
+ * Useful to trigger asserts when immediate mode drawing and
+ * batch based drawing are mixed. It isn't allowed to have an immediate mode shader bound when a
+ * batch is drawn.
+ *
+ * TODO: We should move these asserts to batch drawing, but didn't do that as it was never forced.
+ */
+bool immIsShaderBound();
 
 /** Must supply exactly vertex_len vertices. */
 void immBegin(GPUPrimType, uint vertex_len);
@@ -97,9 +109,9 @@ void immUniform4fv(const char *name, const float data[4]);
 void immUniformArray4fv(const char *bare_name, const float *data, int count);
 void immUniformMatrix4fv(const char *name, const float data[4][4]);
 
-void immBindTexture(const char *name, GPUTexture *tex);
-void immBindTextureSampler(const char *name, GPUTexture *tex, GPUSamplerState state);
-void immBindUniformBuf(const char *name, GPUUniformBuf *ubo);
+void immBindTexture(const char *name, blender::gpu::Texture *tex);
+void immBindTextureSampler(const char *name, blender::gpu::Texture *tex, GPUSamplerState state);
+void immBindUniformBuf(const char *name, blender::gpu::UniformBuf *ubo);
 
 /* Convenience functions for setting "uniform vec4 color". */
 /* The RGB functions have implicit alpha = 1.0. */

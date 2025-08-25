@@ -441,7 +441,7 @@ typedef enum eSpaceSeq_Proxy_RenderSize {
   SEQ_RENDER_SIZE_PROXY_50 = 50,
   SEQ_RENDER_SIZE_PROXY_75 = 75,
   SEQ_RENDER_SIZE_PROXY_100 = 99,
-  SEQ_RENDER_SIZE_FULL = 100,
+  SEQ_RENDER_SIZE_FULL_DEPRECATED = 100, /* deprecated, for versioning only */
 } eSpaceSeq_Proxy_RenderSize;
 
 /** #SpaceSeq.gizmo_flag */
@@ -632,7 +632,7 @@ typedef enum eFileSel_File_Types {
   /** represents folders for filtering */
   FILE_TYPE_FOLDER = (1 << 11),
   FILE_TYPE_BTX = (1 << 12),
-  FILE_TYPE_COLLADA = (1 << 13),
+  FILE_TYPE_UNUSED_13 = (1 << 13), /* Was FILE_TYPE_COLLADA */
   /** from filter_glob operator property */
   FILE_TYPE_OPERATOR = (1 << 14),
   FILE_TYPE_BUNDLE = (1 << 15),
@@ -651,7 +651,7 @@ ENUM_OPERATORS(eFileSel_File_Types, FILE_TYPE_BLENDERLIB);
 
 /** Selection Flags #FileList::selection_state. */
 typedef enum eDirEntry_SelectFlag {
-  /*  FILE_SEL_ACTIVE         = (1 << 1), */ /* UNUSED */
+  // FILE_SEL_ACTIVE = (1 << 1), /* UNUSED */
   FILE_SEL_HIGHLIGHTED = (1 << 2),
   FILE_SEL_SELECTED = (1 << 3),
   FILE_SEL_EDITING = (1 << 4),
@@ -851,6 +851,13 @@ typedef enum eSpaceNode_Flag {
   SNODE_FLAG_UNUSED_12 = (1 << 13),
 } eSpaceNode_Flag;
 
+/** #SpaceNode.gizmo_flag */
+enum {
+  /** All gizmos. */
+  SNODE_GIZMO_HIDE = (1 << 0),
+  SNODE_GIZMO_HIDE_ACTIVE_NODE = (1 << 1),
+};
+
 /** #SpaceNode.texfrom */
 typedef enum eSpaceNode_TexFrom {
   /* SNODE_TEX_OBJECT   = 0, */
@@ -866,7 +873,7 @@ typedef enum eSpaceNode_ShaderFrom {
   SNODE_SHADER_LINESTYLE = 2,
 } eSpaceNode_ShaderFrom;
 
-/** #SpaceNode.geometry_nodes_type */
+/** #SpaceNode.nodes_type */
 typedef enum SpaceNodeGeometryNodesType {
   SNODE_GEOMETRY_MODIFIER = 0,
   SNODE_GEOMETRY_TOOL = 1,
@@ -917,7 +924,7 @@ typedef enum eSpaceClip_Flag {
   SC_SHOW_FILTERS = (1 << 13),
   SC_SHOW_GRAPH_FRAMES = (1 << 14),
   SC_SHOW_GRAPH_TRACKS_MOTION = (1 << 15),
-  /*  SC_SHOW_PYRAMID_LEVELS      = (1 << 16), */ /* UNUSED */
+  // SC_SHOW_PYRAMID_LEVELS = (1 << 16), /* UNUSED */
   SC_LOCK_TIMECURSOR = (1 << 17),
   SC_SHOW_SECONDS = (1 << 18),
   SC_SHOW_GRAPH_SEL_ONLY = (1 << 19),
@@ -971,6 +978,7 @@ typedef enum eSpaceSpreadsheet_Flag {
    * versioning first.
    */
   SPREADSHEET_FLAG_CONTEXT_PATH_COLLAPSED_LEGACY = (1 << 1),
+  SPREADSHEET_FLAG_SHOW_INTERNAL_ATTRIBUTES = (1 << 2),
 } eSpaceSpreadsheet_Flag;
 
 typedef enum eSpaceSpreadsheet_FilterFlag {
@@ -1018,6 +1026,15 @@ typedef enum eSpreadsheetColumnValueType {
   SPREADSHEET_VALUE_TYPE_QUATERNION = 11,
   SPREADSHEET_VALUE_TYPE_FLOAT4X4 = 12,
 } eSpreadsheetColumnValueType;
+
+typedef enum eSpreadsheetColumnFlag {
+  /**
+   * There is no data for this column currently, so it's not displayed. However, it is still kept
+   * around so that the column remembers its position and width when the data becomes available
+   * again.
+   */
+  SPREADSHEET_COLUMN_FLAG_UNAVAILABLE = (1 << 0),
+} eSpreadsheetColumnFlag;
 
 typedef enum eSpreadsheetTableIDType {
   /** This table uses the #SpreadsheetTableIDGeometry key. */

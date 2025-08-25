@@ -75,8 +75,10 @@ set(SRC
   algorithms/intern/morphological_blur.cc
   algorithms/intern/morphological_distance.cc
   algorithms/intern/morphological_distance_feather.cc
+  algorithms/intern/pad.cc
   algorithms/intern/parallel_reduction.cc
   algorithms/intern/recursive_gaussian_blur.cc
+  algorithms/intern/sample_pixel.cc
   algorithms/intern/smaa.cc
   algorithms/intern/summed_area_table.cc
   algorithms/intern/symmetric_separable_blur.cc
@@ -90,8 +92,10 @@ set(SRC
   algorithms/COM_algorithm_morphological_blur.hh
   algorithms/COM_algorithm_morphological_distance.hh
   algorithms/COM_algorithm_morphological_distance_feather.hh
+  algorithms/COM_algorithm_pad.hh
   algorithms/COM_algorithm_parallel_reduction.hh
   algorithms/COM_algorithm_recursive_gaussian_blur.hh
+  algorithms/COM_algorithm_sample_pixel.hh
   algorithms/COM_algorithm_smaa.hh
   algorithms/COM_algorithm_summed_area_table.hh
   algorithms/COM_algorithm_symmetric_separable_blur.hh
@@ -102,18 +106,16 @@ set(SRC
   cached_resources/intern/cached_image.cc
   cached_resources/intern/cached_mask.cc
   cached_resources/intern/cached_shader.cc
-  cached_resources/intern/cached_texture.cc
   cached_resources/intern/deriche_gaussian_coefficients.cc
   cached_resources/intern/distortion_grid.cc
   cached_resources/intern/fog_glow_kernel.cc
+  cached_resources/intern/image_coordinates.cc
   cached_resources/intern/keying_screen.cc
   cached_resources/intern/morphological_distance_feather_weights.cc
   cached_resources/intern/ocio_color_space_conversion_shader.cc
-  cached_resources/intern/pixel_coordinates.cc
   cached_resources/intern/smaa_precomputed_textures.cc
   cached_resources/intern/symmetric_blur_weights.cc
   cached_resources/intern/symmetric_separable_blur_weights.cc
-  cached_resources/intern/texture_coordinates.cc
   cached_resources/intern/van_vliet_gaussian_coefficients.cc
 
   cached_resources/COM_bokeh_kernel.hh
@@ -121,18 +123,16 @@ set(SRC
   cached_resources/COM_cached_mask.hh
   cached_resources/COM_cached_resource.hh
   cached_resources/COM_cached_shader.hh
-  cached_resources/COM_cached_texture.hh
   cached_resources/COM_deriche_gaussian_coefficients.hh
   cached_resources/COM_distortion_grid.hh
   cached_resources/COM_fog_glow_kernel.hh
+  cached_resources/COM_image_coordinates.hh
   cached_resources/COM_keying_screen.hh
   cached_resources/COM_morphological_distance_feather_weights.hh
   cached_resources/COM_ocio_color_space_conversion_shader.hh
-  cached_resources/COM_pixel_coordinates.hh
   cached_resources/COM_smaa_precomputed_textures.hh
   cached_resources/COM_symmetric_blur_weights.hh
   cached_resources/COM_symmetric_separable_blur_weights.hh
-  cached_resources/COM_texture_coordinates.hh
   cached_resources/COM_van_vliet_gaussian_coefficients.hh
 
   derived_resources/intern/denoised_auxiliary_pass.cc
@@ -182,6 +182,7 @@ set(GLSL_SRC
   shaders/compositor_deriche_gaussian_blur_sum.glsl
   shaders/compositor_directional_blur.glsl
   shaders/compositor_displace.glsl
+  shaders/compositor_displace_anisotropic.glsl
   shaders/compositor_double_edge_mask_compute_boundary.glsl
   shaders/compositor_double_edge_mask_compute_gradient.glsl
   shaders/compositor_edge_filter.glsl
@@ -201,10 +202,14 @@ set(GLSL_SRC
   shaders/compositor_glare_simple_star_vertical_pass.glsl
   shaders/compositor_glare_streaks_accumulate.glsl
   shaders/compositor_glare_streaks_filter.glsl
+  shaders/compositor_glare_sun_beams.glsl
   shaders/compositor_glare_write_glare_output.glsl
   shaders/compositor_glare_write_highlights_output.glsl
   shaders/compositor_horizontal_lens_distortion.glsl
   shaders/compositor_id_mask.glsl
+  shaders/compositor_image_coordinates_normalized.glsl
+  shaders/compositor_image_coordinates_pixel.glsl
+  shaders/compositor_image_coordinates_uniform.glsl
   shaders/compositor_image_crop.glsl
   shaders/compositor_inpaint_compute_boundary.glsl
   shaders/compositor_inpaint_compute_region.glsl
@@ -219,8 +224,8 @@ set(GLSL_SRC
   shaders/compositor_kuwahara_anisotropic.glsl
   shaders/compositor_kuwahara_anisotropic_compute_structure_tensor.glsl
   shaders/compositor_kuwahara_classic.glsl
+  shaders/compositor_map_uv.glsl
   shaders/compositor_map_uv_anisotropic.glsl
-  shaders/compositor_map_uv_nearest_neighbour.glsl
   shaders/compositor_morphological_blur.glsl
   shaders/compositor_morphological_distance.glsl
   shaders/compositor_morphological_distance_feather.glsl
@@ -230,8 +235,8 @@ set(GLSL_SRC
   shaders/compositor_motion_blur_max_velocity_dilate.glsl
   shaders/compositor_movie_distortion.glsl
   shaders/compositor_normalize.glsl
+  shaders/compositor_pad.glsl
   shaders/compositor_parallel_reduction.glsl
-  shaders/compositor_pixel_coordinates.glsl
   shaders/compositor_pixelate.glsl
   shaders/compositor_plane_deform_anisotropic.glsl
   shaders/compositor_plane_deform_mask.glsl
@@ -242,6 +247,7 @@ set(GLSL_SRC
   shaders/compositor_radial_lens_distortion.glsl
   shaders/compositor_read_input.glsl
   shaders/compositor_realize_on_domain.glsl
+  shaders/compositor_sample_pixel.glsl
   shaders/compositor_scale_variable.glsl
   shaders/compositor_smaa_blending_weight_calculation.glsl
   shaders/compositor_smaa_edge_detection.glsl
@@ -251,12 +257,10 @@ set(GLSL_SRC
   shaders/compositor_summed_area_table_compute_complete_x_prologues.glsl
   shaders/compositor_summed_area_table_compute_complete_y_prologues.glsl
   shaders/compositor_summed_area_table_compute_incomplete_prologues.glsl
-  shaders/compositor_sun_beams.glsl
   shaders/compositor_symmetric_blur.glsl
   shaders/compositor_symmetric_blur_variable_size.glsl
   shaders/compositor_symmetric_separable_blur.glsl
   shaders/compositor_symmetric_separable_blur_variable_size.glsl
-  shaders/compositor_texture_coordinates.glsl
   shaders/compositor_tone_map_photoreceptor.glsl
   shaders/compositor_tone_map_simple.glsl
   shaders/compositor_translate_wrapped.glsl
@@ -281,7 +285,6 @@ set(GLSL_SRC
   shaders/library/gpu_shader_compositor_difference_matte.glsl
   shaders/library/gpu_shader_compositor_distance_matte.glsl
   shaders/library/gpu_shader_compositor_exposure.glsl
-  shaders/library/gpu_shader_compositor_gamma.glsl
   shaders/library/gpu_shader_compositor_hue_correct.glsl
   shaders/library/gpu_shader_compositor_hue_saturation_value.glsl
   shaders/library/gpu_shader_compositor_image_diagonals.glsl
@@ -291,7 +294,6 @@ set(GLSL_SRC
   shaders/library/gpu_shader_compositor_main.glsl
   shaders/library/gpu_shader_compositor_map_value.glsl
   shaders/library/gpu_shader_compositor_motion_blur_lib.glsl
-  shaders/library/gpu_shader_compositor_normal.glsl
   shaders/library/gpu_shader_compositor_ocio_processor.glsl
   shaders/library/gpu_shader_compositor_posterize.glsl
   shaders/library/gpu_shader_compositor_separate_combine.glsl

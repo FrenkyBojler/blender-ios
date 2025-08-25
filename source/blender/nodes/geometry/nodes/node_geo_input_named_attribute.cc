@@ -4,7 +4,7 @@
 
 #include "NOD_rna_define.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "NOD_socket_search_link.hh"
@@ -92,7 +92,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   }
   if (bke::attribute_name_is_anonymous(name)) {
     params.error_message_add(NodeWarningType::Info,
-                             TIP_("Anonymous attributes can't be accessed by name"));
+                             TIP_("Anonymous attributes cannot be accessed by name"));
     params.set_default_remaining_outputs();
     return;
   }
@@ -101,8 +101,8 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   const CPPType &type = *bke::custom_data_type_to_cpp_type(data_type);
 
-  params.set_output<GField>("Attribute", AttributeFieldInput::Create(name, type));
-  params.set_output("Exists", bke::AttributeExistsFieldInput::Create(std::move(name)));
+  params.set_output<GField>("Attribute", AttributeFieldInput::from(name, type));
+  params.set_output("Exists", bke::AttributeExistsFieldInput::from(std::move(name)));
 }
 
 static void node_rna(StructRNA *srna)

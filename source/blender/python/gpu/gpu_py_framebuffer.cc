@@ -19,7 +19,7 @@
 #include "GPU_init_exit.hh"
 
 #include "../generic/py_capi_utils.hh"
-#include "../generic/python_compat.hh"
+#include "../generic/python_compat.hh" /* IWYU pragma: keep. */
 #include "../generic/python_utildefines.hh"
 
 #include "../mathutils/mathutils.hh"
@@ -295,14 +295,14 @@ static bool pygpu_framebuffer_new_parse_arg(PyObject *o, GPUAttachment *r_attach
         return false;
       }
 
-      if (c_texture && PyUnicode_CompareWithASCIIString(key, c_texture)) {
+      if (c_texture && PyUnicode_CompareWithASCIIString(key, c_texture) == 0) {
         /* Compare only once. */
         c_texture = nullptr;
         if (!bpygpu_ParseTexture(value, &tmp_attach.tex)) {
           return false;
         }
       }
-      else if (c_layer && PyUnicode_CompareWithASCIIString(key, c_layer)) {
+      else if (c_layer && PyUnicode_CompareWithASCIIString(key, c_layer) == 0) {
         /* Compare only once. */
         c_layer = nullptr;
         tmp_attach.layer = PyLong_AsLong(value);
@@ -310,7 +310,7 @@ static bool pygpu_framebuffer_new_parse_arg(PyObject *o, GPUAttachment *r_attach
           return false;
         }
       }
-      else if (c_mip && PyUnicode_CompareWithASCIIString(key, c_mip)) {
+      else if (c_mip && PyUnicode_CompareWithASCIIString(key, c_mip) == 0) {
         /* Compare only once. */
         c_mip = nullptr;
         tmp_attach.mip = PyLong_AsLong(value);
@@ -407,7 +407,7 @@ static PyObject *pygpu_framebuffer__tp_new(PyTypeObject * /*self*/, PyObject *ar
 PyDoc_STRVAR(
     /* Wrap. */
     pygpu_framebuffer_is_bound_doc,
-    "Checks if this is the active framebuffer in the context.");
+    "Checks if this is the active frame-buffer in the context.");
 static PyObject *pygpu_framebuffer_is_bound(BPyGPUFrameBuffer *self, void * /*type*/)
 {
   PYGPU_FRAMEBUFFER_CHECK_OBJ(self);
@@ -549,7 +549,9 @@ PyDoc_STRVAR(
     "   :arg slot: The framebuffer slot to read data from.\n"
     "   :type slot: int\n"
     "   :arg format: The format that describes the content of a single channel.\n"
-    "      Possible values are `FLOAT`, `INT`, `UINT`, `UBYTE`, `UINT_24_8` and `10_11_11_REV`.\n"
+    "      Possible values are ``FLOAT``, ``INT``, ``UINT``, ``UBYTE``, ``UINT_24_8`` & "
+    "``10_11_11_REV``.\n"
+    "      ``UINT_24_8`` is deprecated, use ``FLOAT`` instead.\n"
     "   :type format: str\n"
     "   :arg data: Optional Buffer object to fill with the pixels values.\n"
     "   :type data: :class:`gpu.types.Buffer`\n"
@@ -562,7 +564,8 @@ static PyObject *pygpu_framebuffer_read_color(BPyGPUFrameBuffer *self,
   PYGPU_FRAMEBUFFER_CHECK_OBJ(self);
   int x, y, w, h, channels;
   uint slot;
-  PyC_StringEnum pygpu_dataformat = {bpygpu_dataformat_items, GPU_RGBA8};
+  PyC_StringEnum pygpu_dataformat = {bpygpu_dataformat_items,
+                                     int(blender::gpu::TextureFormat::UNORM_8_8_8_8)};
   BPyGPUBuffer *py_buffer = nullptr;
 
   static const char *_keywords[] = {
@@ -597,6 +600,10 @@ static PyObject *pygpu_framebuffer_read_color(BPyGPUFrameBuffer *self,
                                         &py_buffer))
   {
     return nullptr;
+  }
+
+  if (pygpu_dataformat.value_found == GPU_DATA_UINT_24_8_DEPRECATED) {
+    PyErr_WarnEx(PyExc_DeprecationWarning, "`UINT_24_8` is deprecated, use `FLOAT` instead", 1);
   }
 
   if (!IN_RANGE_INCL(channels, 1, 4)) {
@@ -792,8 +799,8 @@ static PyMethodDef pygpu_framebuffer__tp_methods[] = {
 #  endif
 #endif
 
-/* Ideally type aliases would de-duplicate: `GPUTexture | dict[str, int | GPUTexture]`
- * in this doc-string. */
+/* Ideally type aliases would de-duplicate:
+ * `GPUTexture | dict[str, int | GPUTexture]` in this doc-string. */
 PyDoc_STRVAR(
     /* Wrap. */
     pygpu_framebuffer__tp_doc,
@@ -804,14 +811,15 @@ PyDoc_STRVAR(
     "texture is attached to the frame-buffer.\n"
     "   For cube map textures, layer is translated into a cube map face.\n"
     "\n"
-    "   :arg depth_slot: GPUTexture to attach or a `dict` containing keywords: "
+    "   :arg depth_slot: GPUTexture to attach or a ``dict`` containing keywords: "
     "'texture', 'layer' and 'mip'.\n"
     "   :type depth_slot: :class:`gpu.types.GPUTexture` | dict[] | None\n"
-    "   :arg color_slots: Tuple where each item can be a GPUTexture or a `dict` "
+    "   :arg color_slots: Tuple where each item can be a GPUTexture or a ``dict`` "
     "containing keywords: 'texture', 'layer' and 'mip'.\n"
     "   :type color_slots: :class:`gpu.types.GPUTexture` | "
     "dict[str, int | :class:`gpu.types.GPUTexture`] | "
-    "Sequence[:class:`gpu.types.GPUTexture` | dict[str, int | :class:`gpu.types.GPUTexture`]] | "
+    "Sequence[:class:`gpu.types.GPUTexture` | dict[str, int | "
+    ":class:`gpu.types.GPUTexture`]] | "
     "None\n");
 PyTypeObject BPyGPUFrameBuffer_Type = {
     /*ob_base*/ PyVarObject_HEAD_INIT(nullptr, 0)

@@ -29,6 +29,8 @@ from bpy.app.translations import (
 
 
 class NodeSetting(PropertyGroup):
+    __slots__ = ()
+
     value: StringProperty(
         name="Value",
         description="Python expression to be evaluated "
@@ -59,8 +61,14 @@ class NodeAddOperator:
 
         # convert mouse position to the View2D for later node placement
         if context.region.type == 'WINDOW':
+            area = context.area
+            horizontal_pad = int(area.width / 10)
+            vertical_pad = int(area.height / 10)
+
+            inspace_x = min(max(horizontal_pad, event.mouse_region_x), area.width - horizontal_pad)
+            inspace_y = min(max(vertical_pad, event.mouse_region_y), area.height - vertical_pad)
             # convert mouse position to the View2D for later node placement
-            space.cursor_location_from_region(event.mouse_region_x, event.mouse_region_y)
+            space.cursor_location_from_region(inspace_x, inspace_y)
         else:
             space.cursor_location = tree.view_center
 
@@ -139,11 +147,21 @@ class NODE_OT_add_node(NodeAddOperator, Operator):
         description="Node type",
     )
 
+    visible_output: StringProperty(
+        name="Output Name",
+        description="If provided, all outputs that are named differently will be hidden",
+        options={'SKIP_SAVE'},
+    )
+
     # Default execute simply adds a node.
     def execute(self, context):
         if self.properties.is_property_set("type"):
             self.deselect_nodes(context)
-            self.create_node(context, self.type)
+            if node := self.create_node(context, self.type):
+                if self.visible_output:
+                    for socket in node.outputs:
+                        if socket.name != self.visible_output:
+                            socket.hide = True
             return {'FINISHED'}
         else:
             return {'CANCELLED'}
@@ -268,8 +286,8 @@ class NODE_OT_add_closure_zone(NodeAddZoneOperator, Operator):
     bl_label = "Add Closure Zone"
     bl_options = {'REGISTER', 'UNDO'}
 
-    input_node_type = "GeometryNodeClosureInput"
-    output_node_type = "GeometryNodeClosureOutput"
+    input_node_type = "NodeClosureInput"
+    output_node_type = "NodeClosureOutput"
     add_default_geometry_link = False
 
 
@@ -310,6 +328,12 @@ class NODE_OT_tree_path_parent(Operator):
     bl_label = "Parent Node Tree"
     bl_options = {'REGISTER', 'UNDO'}
 
+    parent_tree_index: IntProperty(
+        name="Parent Index",
+        description="Parent index in context path",
+        default=0,
+    )
+
     @classmethod
     def poll(cls, context):
         space = context.space_data
@@ -319,7 +343,9 @@ class NODE_OT_tree_path_parent(Operator):
     def execute(self, context):
         space = context.space_data
 
-        space.path.pop()
+        parent_number_to_pop = len(space.path) - 1 - self.parent_tree_index
+        for _ in range(parent_number_to_pop):
+            space.path.pop()
 
         return {'FINISHED'}
 
@@ -470,12 +496,18 @@ class NODE_OT_interface_item_remove(NodeInterfaceOperator, Operator):
 
         if item:
             if item.item_type == 'PANEL':
-                child = item.interface_items
-                if child and child[0].is_panel_toggle:
-                    panel_toggle = item.interface_items[0]
-                    interface.remove(panel_toggle)
+                children = item.interface_items
+                if len(children) > 0:
+                    first_child = children[0]
+                    if isinstance(first_child, bpy.types.NodeTreeInterfaceSocket) and first_child.is_panel_toggle:
+                        interface.remove(first_child)
             interface.remove(item)
             interface.active_index = min(interface.active_index, len(interface.items_tree) - 1)
+
+            # If the active selection lands on internal toggle socket, move selection to parent instead.
+            new_active = interface.active
+            if isinstance(new_active, bpy.types.NodeTreeInterfaceSocket) and new_active.is_panel_toggle:
+                interface.active_index = new_active.parent.index
 
         return {'FINISHED'}
 
@@ -649,7 +681,7 @@ class NODE_OT_viewer_shortcut_set(Operator):
             bpy.ops.node.activate_viewer()
 
         viewer_node.ui_shortcut = self.viewer_index
-        self.report({'INFO'}, "Assigned shortcut {:d} to {:s}".format(self.viewer_index, viewer_node.name))
+        self.report({'INFO'}, rpt_("Assigned shortcut {:d} to {:s}").format(self.viewer_index, viewer_node.name))
 
         return {'FINISHED'}
 
@@ -685,7 +717,7 @@ class NODE_OT_viewer_shortcut_get(Operator):
                 viewer_node = n
 
         if not viewer_node:
-            self.report({'INFO'}, "Shortcut {:d} is not assigned to a Viewer node yet".format(self.viewer_index))
+            self.report({'INFO'}, rpt_("Shortcut {:d} is not assigned to a Viewer node yet").format(self.viewer_index))
             return {'CANCELLED'}
 
         with bpy.context.temp_override(node=viewer_node):

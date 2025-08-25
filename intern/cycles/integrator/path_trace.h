@@ -107,7 +107,7 @@ class PathTrace {
   void set_display_driver(unique_ptr<DisplayDriver> driver);
 
   /* Clear the display buffer by filling it in with all zeroes. */
-  void clear_display();
+  void zero_display();
 
   /* Perform drawing of the current state of the DisplayDriver. */
   void draw();
@@ -210,6 +210,7 @@ class PathTrace {
   void path_trace(RenderWork &render_work);
   void adaptive_sample(RenderWork &render_work);
   void denoise(const RenderWork &render_work);
+  void denoise_volume_guiding_buffers(const RenderWork &render_work, const bool has_volume);
   void cryptomatte_postprocess(const RenderWork &render_work);
   void update_display(const RenderWork &render_work);
   void rebalance(const RenderWork &render_work);

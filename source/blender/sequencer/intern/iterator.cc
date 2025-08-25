@@ -39,9 +39,31 @@ static bool strip_for_each_recursive(ListBase *seqbase, ForEachFunc callback, vo
   return true;
 }
 
+static bool strip_for_each_recursive(ListBase *seqbase,
+                                     blender::FunctionRef<bool(Strip *)> callback)
+{
+  LISTBASE_FOREACH (Strip *, strip, seqbase) {
+    if (!callback(strip)) {
+      /* Callback signaled stop, return. */
+      return false;
+    }
+    if (strip->type == STRIP_TYPE_META) {
+      if (!strip_for_each_recursive(&strip->seqbase, callback)) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
 void for_each_callback(ListBase *seqbase, ForEachFunc callback, void *user_data)
 {
   strip_for_each_recursive(seqbase, callback, user_data);
+}
+
+void for_each_callback(ListBase *seqbase, blender::FunctionRef<bool(Strip *)> callback)
+{
+  strip_for_each_recursive(seqbase, callback);
 }
 
 VectorSet<Strip *> query_by_reference(Strip *strip_reference,
@@ -90,6 +112,31 @@ VectorSet<Strip *> query_all_strips_recursive(const ListBase *seqbase)
 {
   VectorSet<Strip *> strips;
   query_all_strips_recursive(seqbase, strips);
+  return strips;
+}
+
+static void query_strips_recursive_at_frame(const Scene *scene,
+                                            const ListBase *seqbase,
+                                            const int timeline_frame,
+                                            VectorSet<Strip *> &strips)
+{
+  LISTBASE_FOREACH (Strip *, strip, seqbase) {
+    if (!time_strip_intersects_frame(scene, strip, timeline_frame)) {
+      continue;
+    }
+    if (strip->type == STRIP_TYPE_META) {
+      query_strips_recursive_at_frame(scene, &strip->seqbase, timeline_frame, strips);
+    }
+    strips.add(strip);
+  }
+}
+
+VectorSet<Strip *> query_strips_recursive_at_frame(const Scene *scene,
+                                                   const ListBase *seqbase,
+                                                   const int timeline_frame)
+{
+  VectorSet<Strip *> strips;
+  query_strips_recursive_at_frame(scene, seqbase, timeline_frame, strips);
   return strips;
 }
 

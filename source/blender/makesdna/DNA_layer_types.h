@@ -19,7 +19,7 @@
  */
 typedef enum eViewLayerEEVEEPassType {
   EEVEE_RENDER_PASS_COMBINED = (1 << 0),
-  EEVEE_RENDER_PASS_Z = (1 << 1),
+  EEVEE_RENDER_PASS_DEPTH = (1 << 1),
   EEVEE_RENDER_PASS_MIST = (1 << 2),
   EEVEE_RENDER_PASS_NORMAL = (1 << 3),
   EEVEE_RENDER_PASS_DIFFUSE_LIGHT = (1 << 4),
@@ -117,7 +117,7 @@ typedef struct LayerCollection {
 /* Type containing EEVEE settings per view-layer */
 typedef struct ViewLayerEEVEE {
   int render_passes;
-  int _pad[1];
+  float ambient_occlusion_distance;
 } ViewLayerEEVEE;
 
 /** AOV Render-pass definition. */
@@ -176,17 +176,19 @@ typedef struct ViewLayer {
 
   struct Material *mat_override;
   struct World *world_override;
-  /** Equivalent to datablocks ID properties. */
+  /** Equivalent to data-blocks user-defined ID properties. */
   struct IDProperty *id_properties;
+  /** Equivalent to data-blocks system-defined ID properties. */
+  struct IDProperty *system_properties;
 
   struct FreestyleConfig freestyle_config;
   struct ViewLayerEEVEE eevee;
 
-  /* List containing the `ViewLayerAOV`s */
+  /** List containing #ViewLayerAOV. */
   ListBase aovs;
   ViewLayerAOV *active_aov;
 
-  /* List containing the 'ViewLayerLightgroup`s */
+  /** List containing #ViewLayerLightgroup. */
   ListBase lightgroups;
   ViewLayerLightgroup *active_lightgroup;
 

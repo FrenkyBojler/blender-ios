@@ -38,7 +38,7 @@ struct GPUPass {
 
   GPUCodegenCreateInfo *create_info = nullptr;
   BatchHandle compilation_handle = 0;
-  std::atomic<GPUShader *> shader = nullptr;
+  std::atomic<blender::gpu::Shader *> shader = nullptr;
   std::atomic<eGPUPassStatus> status = GPU_PASS_QUEUED;
   /* Orphaned GPUPasses gets freed by the garbage collector. */
   std::atomic<int> refcount = 1;
@@ -70,7 +70,7 @@ struct GPUPass {
 
     if (deferred_compilation) {
       compilation_handle = GPU_shader_batch_create_from_infos(
-          Span<GPUShaderCreateInfo *>(&base_info, 1));
+          Span<GPUShaderCreateInfo *>(&base_info, 1), compilation_priority());
     }
     else {
       shader = GPU_shader_create_from_info(base_info);
@@ -90,6 +90,11 @@ struct GPUPass {
     GPU_SHADER_FREE_SAFE(shader);
   }
 
+  CompilationPriority compilation_priority()
+  {
+    return is_optimization_pass ? CompilationPriority::Low : CompilationPriority::Medium;
+  }
+
   void finalize_compilation()
   {
     BLI_assert_msg(create_info, "GPUPass::finalize_compilation() called more than once.");
@@ -101,7 +106,7 @@ struct GPUPass {
     compilation_timestamp = ++compilation_counts;
 
     if (!shader && !gpu_pass_validate(create_info)) {
-      fprintf(stderr, "GPUShader: error: too many samplers in shader.\n");
+      fprintf(stderr, "blender::gpu::Shader: error: too many samplers in shader.\n");
     }
 
     status = shader ? GPU_PASS_SUCCESS : GPU_PASS_FAILED;
@@ -127,7 +132,7 @@ struct GPUPass {
       BLI_assert(is_optimization_pass);
       GPUShaderCreateInfo *base_info = reinterpret_cast<GPUShaderCreateInfo *>(create_info);
       compilation_handle = GPU_shader_batch_create_from_infos(
-          Span<GPUShaderCreateInfo *>(&base_info, 1));
+          Span<GPUShaderCreateInfo *>(&base_info, 1), compilation_priority());
     }
   }
 
@@ -158,15 +163,9 @@ bool GPU_pass_should_optimize(GPUPass *pass)
    * NOTE: Only enabled on Metal, since it doesn't seem to yield any performance improvements for
    * other backends. */
   return (GPU_backend_get_type() == GPU_BACKEND_METAL) && pass->should_optimize;
-
-#if 0
-  /* Returns optimization heuristic prepared during initial codegen.
-   * NOTE: Optimization limited to parallel compilation as it causes CPU stalls otherwise. */
-  return pass->should_optimize && GPU_use_parallel_compilation();
-#endif
 }
 
-GPUShader *GPU_pass_shader_get(GPUPass *pass)
+blender::gpu::Shader *GPU_pass_shader_get(GPUPass *pass)
 {
   return pass->shader;
 }
@@ -207,10 +206,12 @@ uint64_t GPU_pass_compilation_timestamp(GPUPass *pass)
 
 class GPUPassCache {
 
-  /* Number of seconds with 0 users required before garbage collecting a pass.*/
+  /** Number of seconds with 0 users required before garbage collecting a pass. */
   static constexpr float gc_collect_rate_ = 60.0f;
-  /* Number of seconds without base compilations required before starting to compile optimization
-   * passes.*/
+  /**
+   * Number of seconds without base compilations required before starting to compile optimization
+   * passes.
+   */
   static constexpr float optimization_delay_ = 10.0f;
 
   double last_base_compilation_timestamp_ = -1.0;

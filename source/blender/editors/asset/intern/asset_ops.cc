@@ -10,6 +10,7 @@
 #include "AS_asset_representation.hh"
 
 #include "BKE_asset_edit.hh"
+#include "BKE_blendfile.hh"
 #include "BKE_bpath.hh"
 #include "BKE_context.hh"
 #include "BKE_global.hh"
@@ -23,7 +24,9 @@
 
 #include "BLI_fnmatch.h"
 #include "BLI_path_utils.hh"
+#include "BLI_rect.h"
 #include "BLI_set.hh"
+#include "BLI_string.h"
 
 #include "ED_asset.hh"
 #include "ED_screen.hh"
@@ -40,12 +43,14 @@
 #include "RNA_prototypes.hh"
 
 #include "IMB_imbuf.hh"
+#include "IMB_thumbs.hh"
 
 #include "WM_api.hh"
 
 #include "DNA_space_types.h"
 
 #include "GPU_immediate.hh"
+
 #include "UI_interface_c.hh"
 #include "UI_resources.hh"
 
@@ -477,7 +482,7 @@ static wmOperatorStatus asset_catalog_new_exec(bContext *C, wmOperator *op)
 {
   SpaceFile *sfile = CTX_wm_space_file(C);
   asset_system::AssetLibrary *asset_library = ED_fileselect_active_asset_library_get(sfile);
-  char *parent_path = RNA_string_get_alloc(op->ptr, "parent_path", nullptr, 0, nullptr);
+  std::string parent_path = RNA_string_get(op->ptr, "parent_path");
 
   asset_system::AssetCatalog *new_catalog = catalog_add(
       asset_library, DATA_("Catalog"), parent_path);
@@ -485,8 +490,6 @@ static wmOperatorStatus asset_catalog_new_exec(bContext *C, wmOperator *op)
   if (sfile) {
     ED_fileselect_activate_asset_catalog(sfile, new_catalog->catalog_id);
   }
-
-  MEM_freeN(parent_path);
 
   WM_event_add_notifier_ex(
       CTX_wm_manager(C), CTX_wm_window(C), NC_ASSET | ND_ASSET_CATALOGS, nullptr);
@@ -517,15 +520,13 @@ static wmOperatorStatus asset_catalog_delete_exec(bContext *C, wmOperator *op)
 {
   SpaceFile *sfile = CTX_wm_space_file(C);
   asset_system::AssetLibrary *asset_library = ED_fileselect_active_asset_library_get(sfile);
-  char *catalog_id_str = RNA_string_get_alloc(op->ptr, "catalog_id", nullptr, 0, nullptr);
+  std::string catalog_id_str = RNA_string_get(op->ptr, "catalog_id");
   asset_system::CatalogID catalog_id;
-  if (!BLI_uuid_parse_string(&catalog_id, catalog_id_str)) {
+  if (!BLI_uuid_parse_string(&catalog_id, catalog_id_str.c_str())) {
     return OPERATOR_CANCELLED;
   }
 
   catalog_remove(asset_library, catalog_id);
-
-  MEM_freeN(catalog_id_str);
 
   WM_event_add_notifier_ex(
       CTX_wm_manager(C), CTX_wm_window(C), NC_ASSET | ND_ASSET_CATALOGS, nullptr);
@@ -793,7 +794,7 @@ static wmOperatorStatus asset_bundle_install_exec(bContext *C, wmOperator *op)
   cat_service->prepare_to_merge_on_write();
 
   const wmOperatorStatus operator_result = WM_operator_name_call(
-      C, "WM_OT_save_mainfile", WM_OP_EXEC_DEFAULT, op->ptr, nullptr);
+      C, "WM_OT_save_mainfile", wm::OpCallContext::ExecDefault, op->ptr, nullptr);
   WM_cursor_wait(false);
 
   if (operator_result != OPERATOR_FINISHED) {
@@ -1001,22 +1002,39 @@ static inline void sort_points(int2 &p1, int2 &p2)
   }
 }
 
-/* Ensures that the x and y distance to from p1 to p2 is equal. The two points can be in any
- * spacial relation to each other i.e. if p1 was top left, it remains top left. */
-static inline void square_points(const int2 &p1, int2 &p2)
+/* Clamps the point to the window bounds. */
+static inline int2 clamp_point_to_window(const int2 &point, const wmWindow *window)
 {
-  int2 delta = p2 - p1;
+  const int2 win_size = WM_window_native_pixel_size(window);
+  return {clamp_i(point.x, 0, win_size.x - 1), clamp_i(point.y, 0, win_size.y - 1)};
+}
+
+/* Ensures that the x and y distance to from p1 to p2 is equal and the resulting square remains
+ * fully within the window bounds. The two points can be in any spacial relation to each other i.e.
+ * if p1 was top left, it remains top left. */
+static inline void square_points_clamp_to_window(const int2 &p1, int2 &p2, const wmWindow *window)
+{
+  const int2 delta = p2 - p1;
+
+  /* Determine the drag direction for each axis. */
+  const int dir_x = (delta.x >= 0) ? 1 : -1;
+  const int dir_y = (delta.y >= 0) ? 1 : -1;
 
   const int size_x = std::abs(delta.x);
   const int size_y = std::abs(delta.y);
-  if (size_x < size_y) {
-    delta.x = std::copysignf(size_y, delta.x);
-  }
-  else if (size_y < size_x) {
-    delta.y = std::copysign(size_x, delta.y);
-  }
-  p2.x = p1.x + delta.x;
-  p2.y = p1.y + delta.y;
+  int square_size = std::max(size_x, size_y);
+
+  /* Compute maximum size that fits within window bounds in the drag direction. */
+  const int2 win_size = WM_window_native_pixel_size(window);
+  const int max_size_x = (dir_x > 0) ? win_size.x - p1.x - 1 : p1.x;
+  const int max_size_y = (dir_y > 0) ? win_size.y - p1.y - 1 : p1.y;
+
+  /* Clamp the square size so it does not exceed window bounds. */
+  square_size = std::min(square_size, std::min(max_size_x, max_size_y));
+
+  /* Update p2 to form a clamped square in the same direction as the drag. */
+  p2.x = p1.x + dir_x * square_size;
+  p2.y = p1.y + dir_y * square_size;
 }
 
 static void generate_previewimg_from_buffer(ID *id, const ImBuf *image_buffer)
@@ -1028,21 +1046,35 @@ static void generate_previewimg_from_buffer(ID *id, const ImBuf *image_buffer)
     BKE_previewimg_ensure(preview_image, size_type);
     int width = image_buffer->x;
     int height = image_buffer->y;
-    if (size_type == ICON_SIZE_ICON) {
-      /* Scales down the image to `ICON_RENDER_DEFAULT_HEIGHT` while maintaining the
-       * aspect ratio. */
-      if (image_buffer->x > image_buffer->y) {
-        width = ICON_RENDER_DEFAULT_HEIGHT;
-        height = image_buffer->y * (width / float(image_buffer->x));
-      }
-      else if (image_buffer->y > image_buffer->x) {
-        height = ICON_RENDER_DEFAULT_HEIGHT;
-        width = image_buffer->x * (height / float(image_buffer->y));
-      }
-      else {
-        width = height = ICON_RENDER_DEFAULT_HEIGHT;
-      }
+    int max_size = 0;
+    switch (size_type) {
+      case ICON_SIZE_ICON:
+        max_size = ICON_RENDER_DEFAULT_HEIGHT;
+        break;
+      case ICON_SIZE_PREVIEW:
+        max_size = PREVIEW_RENDER_LARGE_HEIGHT;
+        break;
     }
+    if (max_size == 0) {
+      /* Can only be reached if a new icon size is added. */
+      BLI_assert_unreachable();
+      continue;
+    }
+
+    /* Scales down the image to `max_size` while maintaining the
+     * aspect ratio. */
+    if (image_buffer->x > image_buffer->y) {
+      width = max_size;
+      height = image_buffer->y * (width / float(image_buffer->x));
+    }
+    else if (image_buffer->y > image_buffer->x) {
+      height = max_size;
+      width = image_buffer->x * (height / float(image_buffer->y));
+    }
+    else {
+      width = height = max_size;
+    }
+
     ImBuf *scaled_imbuf = IMB_scale_into_new(
         image_buffer, width, height, IMBScaleFilter::Nearest, false);
     preview_image->rect[size_type] = (uint *)MEM_dupallocN(scaled_imbuf->byte_buffer.data);
@@ -1063,25 +1095,43 @@ static ImBuf *take_screenshot_crop(bContext *C, const rcti &crop_rect)
   wmWindow *win = CTX_wm_window(C);
   uint8_t *dumprect = WM_window_pixels_read(C, win, dumprect_size);
 
+  /* Clamp coordinates to window bounds. */
+  rcti safe_rect = crop_rect;
+  safe_rect.xmin = max_ii(0, crop_rect.xmin);
+  safe_rect.ymin = max_ii(0, crop_rect.ymin);
+  safe_rect.xmax = min_ii(dumprect_size[0] - 1, crop_rect.xmax);
+  safe_rect.ymax = min_ii(dumprect_size[1] - 1, crop_rect.ymax);
+
+  /* Validate rectangle. */
+  if (!BLI_rcti_is_valid(&safe_rect)) {
+    MEM_freeN(dumprect);
+    return nullptr;
+  }
+
   ImBuf *image_buffer = IMB_allocImBuf(dumprect_size[0], dumprect_size[1], 24, 0);
   /* Using IB_TAKE_OWNERSHIP because the crop does kind of take ownership already it seems. At
    * least freeing the memory after would cause a crash if ownership isn't taken. */
   IMB_assign_byte_buffer(image_buffer, dumprect, IB_TAKE_OWNERSHIP);
 
-  IMB_rect_crop(image_buffer, &crop_rect);
+  IMB_rect_crop(image_buffer, &safe_rect);
   return image_buffer;
 }
 
 static wmOperatorStatus screenshot_preview_exec(bContext *C, wmOperator *op)
 {
   int2 p1, p2;
+  wmWindow *win = CTX_wm_window(C);
   RNA_int_get_array(op->ptr, "p1", p1);
   RNA_int_get_array(op->ptr, "p2", p2);
+
+  /* Clamp points to window bounds, so the screenshot area is always valid. */
+  p1 = clamp_point_to_window(p1, win);
+  p2 = clamp_point_to_window(p2, win);
 
   /* Squaring has to happen before sorting so the area is squared from the point where
    * dragging started. */
   if (RNA_boolean_get(op->ptr, "force_square")) {
-    square_points(p1, p2);
+    square_points_clamp_to_window(p1, p2, win);
   }
 
   sort_points(p1, p2);
@@ -1102,7 +1152,23 @@ static wmOperatorStatus screenshot_preview_exec(bContext *C, wmOperator *op)
    * render to support transparency. Render settings are used as currently set up in the viewport
    * to comply with WYSIWYG as much as possible. One limitation is that GUI elements will not be
    * visible in the render. */
-  if (area_p1 == area_p2 && area_p1->spacetype == SPACE_VIEW3D) {
+  bool render_offscreen = false;
+  if (area_p1 == area_p2 && area_p1 != nullptr && area_p1->spacetype == SPACE_VIEW3D) {
+    Scene *scene = CTX_data_scene(C);
+    View3D *v3d = static_cast<View3D *>(area_p1->spacedata.first);
+    /* For #ED_view3d_draw_offscreen_imbuf only EEVEE only produces a good result. See #141732. */
+    if (eDrawType(v3d->shading.type) == OB_RENDER) {
+      const char *engine_name = scene->r.engine;
+      render_offscreen = STR_ELEM(engine_name,
+                                  RE_engine_id_BLENDER_EEVEE,
+                                  RE_engine_id_BLENDER_EEVEE_NEXT,
+                                  RE_engine_id_BLENDER_WORKBENCH);
+    }
+    else {
+      render_offscreen = true;
+    }
+  }
+  if (render_offscreen) {
     View3D *v3d = static_cast<View3D *>(area_p1->spacedata.first);
     ARegion *region = BKE_area_find_region_type(area_p1, RGN_TYPE_WINDOW);
     if (!region) {
@@ -1136,6 +1202,10 @@ static wmOperatorStatus screenshot_preview_exec(bContext *C, wmOperator *op)
   else {
     const rcti crop_rect = {p1.x, p2.x, p1.y, p2.y};
     image_buffer = take_screenshot_crop(C, crop_rect);
+    if (!image_buffer) {
+      BKE_report(op->reports, RPT_ERROR, "Invalid screenshot area selection");
+      return OPERATOR_CANCELLED;
+    }
   }
 
   const AssetRepresentationHandle *asset_handle = CTX_wm_asset(C);
@@ -1173,9 +1243,16 @@ static void screenshot_preview_draw(const wmWindow *window, void *operator_data)
   int2 p1 = data->p1;
   int2 p2 = data->p2;
 
+  /* Clamp points to window bounds, so the screenshot area is always valid. */
+  p1 = clamp_point_to_window(p1, window);
+  p2 = clamp_point_to_window(p2, window);
+
+  /* Squaring has to happen before sorting so the area is squared from the point where
+   * dragging started. */
   if (data->force_square) {
-    square_points(p1, p2);
+    square_points_clamp_to_window(p1, p2, window);
   }
+
   sort_points(p1, p2);
 
   /* Drawing rect just out of the screenshot area to not capture the box in the picture. */
@@ -1184,15 +1261,16 @@ static void screenshot_preview_draw(const wmWindow *window, void *operator_data)
 
   /* Drawing a semi-transparent mask to highlight the area that will be captured. */
   float4 mask_color = {1, 1, 1, 0.25};
-  const rctf mask_rect_bottom = {0, float(window->sizex), 0, screenshot_rect.ymin};
+  const int2 win_size = WM_window_native_pixel_size(window);
+  const rctf mask_rect_bottom = {0, float(win_size.x), 0, screenshot_rect.ymin};
   UI_draw_roundbox_aa(&mask_rect_bottom, true, 0, mask_color);
-  const rctf mask_rect_top = {0, float(window->sizex), screenshot_rect.ymax, float(window->sizey)};
+  const rctf mask_rect_top = {0, float(win_size.x), screenshot_rect.ymax, float(win_size.y)};
   UI_draw_roundbox_aa(&mask_rect_top, true, 0, mask_color);
   const rctf mask_rect_left = {
       0, screenshot_rect.xmin, screenshot_rect.ymin, screenshot_rect.ymax};
   UI_draw_roundbox_aa(&mask_rect_left, true, 0, mask_color);
   const rctf mask_rect_right = {
-      screenshot_rect.xmax, float(window->sizex), screenshot_rect.ymin, screenshot_rect.ymax};
+      screenshot_rect.xmax, float(win_size.x), screenshot_rect.ymin, screenshot_rect.ymax};
   UI_draw_roundbox_aa(&mask_rect_right, true, 0, mask_color);
 
   float4 color;
@@ -1220,7 +1298,7 @@ static inline void screenshot_area_transfer_to_rna(wmOperator *op, ScreenshotOpe
 static wmOperatorStatus screenshot_preview_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   ARegion *region = CTX_wm_region(C);
-
+  wmWindow *win = CTX_wm_window(C);
   ScreenshotOperatorData *data = static_cast<ScreenshotOperatorData *>(op->customdata);
 
   const int2 screen_space_cursor = {
@@ -1237,7 +1315,7 @@ static wmOperatorStatus screenshot_preview_modal(bContext *C, wmOperator *op, co
           break;
         case KM_RELEASE:
           data->is_mouse_down = false;
-          data->drag_end = screen_space_cursor;
+          data->drag_end = clamp_point_to_window(screen_space_cursor, win);
           screenshot_area_transfer_to_rna(op, data);
           screenshot_preview_exec(C, op);
           screenshot_preview_exit(C, op);
@@ -1293,27 +1371,40 @@ static wmOperatorStatus screenshot_preview_modal(bContext *C, wmOperator *op, co
     }
 
     case MOUSEMOVE: {
-      if (!data->crossed_threshold) {
-        const int2 delta = data->drag_end - data->drag_start;
-        if (std::abs(delta.x) > DRAG_THRESHOLD && std::abs(delta.y) > DRAG_THRESHOLD) {
-          /* Only set the points once the threshold has been crossed. This allows to just
-           * click to confirm using a potentially existing screenshot rect. */
-          data->crossed_threshold = true;
-          data->p1 = data->drag_start;
+      if (data->shift_area) {
+        const int2 delta = screen_space_cursor - data->last_cursor;
+        const int2 new_p1 = data->p1 + delta;
+        const int2 new_p2 = data->p2 + delta;
+
+        auto is_within_window = [win](const int2 &pt) -> bool {
+          const int2 win_size = WM_window_native_pixel_size(win);
+          return pt.x >= 0 && pt.x < win_size.x && pt.y >= 0 && pt.y < win_size.y;
+        };
+
+        /* Apply movement only if the entire rectangle stays within window bounds. */
+        if (is_within_window(new_p1) && is_within_window(new_p2)) {
+          data->p1 = new_p1;
+          data->p2 = new_p2;
+        }
+      }
+      else if (data->is_mouse_down) {
+        data->drag_end = clamp_point_to_window(screen_space_cursor, win);
+
+        if (!data->crossed_threshold) {
+          const int2 delta = data->drag_end - data->drag_start;
+          if (std::abs(delta.x) > DRAG_THRESHOLD && std::abs(delta.y) > DRAG_THRESHOLD) {
+            /* Only set the points once the threshold has been crossed. This allows to just
+             * click to confirm using a potentially existing screenshot rect. */
+            data->crossed_threshold = true;
+            data->p1 = data->drag_start;
+          }
+        }
+
+        if (data->crossed_threshold) {
+          data->p2 = data->drag_end;
         }
       }
 
-      if (data->shift_area) {
-        const int2 delta = screen_space_cursor - data->last_cursor;
-        data->p1 += delta;
-        data->p2 += delta;
-      }
-      else if (data->is_mouse_down) {
-        data->drag_end = screen_space_cursor;
-        if (data->crossed_threshold) {
-          data->p2 = screen_space_cursor;
-        }
-      }
       CTX_wm_screen(C)->do_draw = true;
       data->last_cursor = screen_space_cursor;
       break;
@@ -1361,47 +1452,35 @@ static wmOperatorStatus screenshot_preview_invoke(bContext *C,
   return OPERATOR_RUNNING_MODAL;
 }
 
-static ID *id_from_selected_asset(bContext *C)
-{
-  const AssetRepresentationHandle *asset_handle = CTX_wm_asset(C);
-  if (!asset_handle) {
-    return nullptr;
-  }
-
-  AssetWeakReference asset_reference = asset_handle->make_weak_reference();
-  Main *bmain = CTX_data_main(C);
-  return bke::asset_edit_id_from_weak_reference(
-      *bmain, asset_handle->get_id_type(), asset_reference);
-}
-
 static bool screenshot_preview_poll(bContext *C)
 {
   if (G.background) {
     return false;
   }
 
-  ID *id = id_from_selected_asset(C);
-  if (!id) {
+  const AssetRepresentationHandle *asset_handle = CTX_wm_asset(C);
+  if (!asset_handle) {
     CTX_wm_operator_poll_msg_set(C, "No selected asset");
     return false;
   }
-
-  if (!ID_IS_LINKED(id)) {
+  if (asset_handle->is_local_id()) {
     return WM_operator_winactive(C);
   }
 
-  if (!bke::asset_edit_id_is_editable(*id)) {
-    return false;
+  std::string lib_path = asset_handle->full_library_path();
+  if (StringRef(lib_path).endswith(BLENDER_ASSET_FILE_SUFFIX)) {
+    return true;
   }
 
-  return WM_operator_winactive(C);
+  CTX_wm_operator_poll_msg_set(C, "Asset cannot be modified from this file");
+  return false;
 }
 
 static void ASSET_OT_screenshot_preview(wmOperatorType *ot)
 {
   /* This should be a generic operator for assets not linked to the pose-library. */
 
-  ot->name = "Capture screenshot preview";
+  ot->name = "Capture Screenshot Preview";
   ot->description = "Capture a screenshot to use as a preview for the selected asset";
   ot->idname = "ASSET_OT_screenshot_preview";
 

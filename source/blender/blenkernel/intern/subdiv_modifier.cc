@@ -73,7 +73,7 @@ bool BKE_subsurf_modifier_use_custom_loop_normals(const SubsurfModifierData *smd
   const std::optional<AttributeMetaData> meta_data = mesh->attributes().lookup_meta_data(
       "custom_normal");
   return meta_data && meta_data->domain == AttrDomain::Corner &&
-         meta_data->data_type == CD_PROP_INT16_2D;
+         meta_data->data_type == AttrType::Int16_2D;
 }
 
 bool BKE_subsurf_modifier_has_split_normals(const SubsurfModifierData *smd, const Mesh *mesh)
@@ -118,12 +118,6 @@ bool BKE_subsurf_modifier_can_do_gpu_subdiv(const SubsurfModifierData *smd, cons
   return (U.gpu_flag & USER_GPU_FLAG_SUBDIVISION_EVALUATION) &&
          is_subdivision_evaluation_possible_on_gpu() &&
          !BKE_subsurf_modifier_has_split_normals(smd, mesh);
-}
-
-bool BKE_subsurf_modifier_has_gpu_subdiv(const Mesh *mesh)
-{
-  SubsurfRuntimeData *runtime_data = mesh->runtime->subsurf_runtime_data;
-  return runtime_data && runtime_data->has_gpu_subdiv;
 }
 
 void (*BKE_subsurf_modifier_free_gpu_cache_cb)(subdiv::Subdiv *subdiv) = nullptr;

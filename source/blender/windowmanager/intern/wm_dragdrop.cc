@@ -21,7 +21,6 @@
 
 #include "BLT_translation.hh"
 
-#include "BLI_linear_allocator.hh"
 #include "BLI_listbase.h"
 #include "BLI_math_color.h"
 #include "BLI_path_utils.hh"
@@ -311,7 +310,7 @@ void WM_event_start_prepared_drag(bContext *C, wmDrag *drag)
 {
   wmWindowManager *wm = CTX_wm_manager(C);
 
-  BLI_addtail(&wm->drags, drag);
+  BLI_addtail(&wm->runtime->drags, drag);
   wm_dropbox_invoke(C, drag);
 }
 
@@ -365,21 +364,15 @@ void WM_event_drag_image(wmDrag *drag, const ImBuf *imb, float scale)
 void WM_event_drag_path_override_poin_data_with_space_file_paths(const bContext *C, wmDrag *drag)
 {
   BLI_assert(drag->type == WM_DRAG_PATH);
-  if (!CTX_wm_space_file(C)) {
+  const SpaceFile *sfile = CTX_wm_space_file(C);
+  if (!sfile) {
     return;
   }
-  char dirpath[FILE_MAX];
-  BLI_path_split_dir_part(WM_drag_get_single_path(drag), dirpath, FILE_MAX);
-
-  blender::LinearAllocator<> allocator;
+  const blender::Vector<std::string> selected_paths = ED_fileselect_selected_files_full_paths(
+      sfile);
   blender::Vector<const char *> paths;
-  const blender::Vector<PointerRNA> files = CTX_data_collection_get(C, "selected_files");
-  for (const PointerRNA &file_ptr : files) {
-    const FileDirEntry *file = static_cast<const FileDirEntry *>(file_ptr.data);
-    char filepath[FILE_MAX];
-    BLI_path_join(filepath, sizeof(filepath), dirpath, file->name);
-
-    paths.append(allocator.copy_string(filepath).c_str());
+  for (const std::string &path : selected_paths) {
+    paths.append(path.c_str());
   }
   if (paths.is_empty()) {
     return;
@@ -490,7 +483,7 @@ static wmDropBox *dropbox_active(bContext *C,
             continue;
           }
 
-          const wmOperatorCallContext opcontext = wm_drop_operator_context_get(drop);
+          const blender::wm::OpCallContext opcontext = wm_drop_operator_context_get(drop);
           if (drop->ot && WM_operator_poll_context(C, drop->ot, opcontext)) {
             /* Get dropbox tooltip now, #wm_drag_draw_tooltip can use a different draw context. */
             drag->drop_state.tooltip = dropbox_tooltip(C, drag, event->xy, drop);
@@ -580,7 +573,7 @@ static void wm_drop_update_active(bContext *C, wmDrag *drag, const wmEvent *even
 
 void wm_drop_prepare(bContext *C, wmDrag *drag, wmDropBox *drop)
 {
-  const wmOperatorCallContext opcontext = wm_drop_operator_context_get(drop);
+  const blender::wm::OpCallContext opcontext = wm_drop_operator_context_get(drop);
 
   if (drag->drop_state.ui_context) {
     CTX_store_set(C, drag->drop_state.ui_context.get());
@@ -606,7 +599,7 @@ void wm_drags_check_ops(bContext *C, const wmEvent *event)
   wmWindowManager *wm = CTX_wm_manager(C);
 
   bool any_active = false;
-  LISTBASE_FOREACH (wmDrag *, drag, &wm->drags) {
+  LISTBASE_FOREACH (wmDrag *, drag, &wm->runtime->drags) {
     wm_drop_update_active(C, drag, event);
 
     if (drag->drop_state.active_dropbox) {
@@ -616,14 +609,14 @@ void wm_drags_check_ops(bContext *C, const wmEvent *event)
 
   /* Change the cursor to display that dropping isn't possible here. But only if there is something
    * being dragged actually. Cursor will be restored in #wm_drags_exit(). */
-  if (!BLI_listbase_is_empty(&wm->drags)) {
+  if (!BLI_listbase_is_empty(&wm->runtime->drags)) {
     WM_cursor_modal_set(CTX_wm_window(C), any_active ? WM_CURSOR_DEFAULT : WM_CURSOR_STOP);
   }
 }
 
-wmOperatorCallContext wm_drop_operator_context_get(const wmDropBox * /*drop*/)
+blender::wm::OpCallContext wm_drop_operator_context_get(const wmDropBox * /*drop*/)
 {
-  return WM_OP_INVOKE_DEFAULT;
+  return blender::wm::OpCallContext::InvokeDefault;
 }
 
 /* ************** IDs ***************** */
@@ -1070,12 +1063,23 @@ static void wm_drag_draw_icon(bContext * /*C*/, wmWindow * /*win*/, wmDrag *drag
 {
   int x, y;
 
-  /* This could also get the preview image of an ID when dragging one. But the big preview icon may
-   * actually not always be wanted, for example when dragging objects in the Outliner it gets in
-   * the way). So make the drag user set an image buffer explicitly (e.g. through
-   * #UI_but_drag_attach_image()). */
+  if (const int64_t path_count = WM_drag_get_paths(drag).size(); path_count > 1) {
+    /* Custom scale to improve path count readability. */
+    const float scale = UI_SCALE_FAC * 1.15f;
+    x = xy[0] - int(8.0f * scale);
+    y = xy[1] - int(scale);
+    const uchar text_col[] = {255, 255, 255, 255};
+    IconTextOverlay text_overlay;
+    UI_icon_text_overlay_init_from_count(&text_overlay, path_count);
+    UI_icon_draw_ex(
+        x, y, ICON_DOCUMENTS, 1.0f / scale, 1.0f, 0.0f, text_col, false, &text_overlay);
+  }
+  else if (drag->imb) {
+    /* This could also get the preview image of an ID when dragging one. But the big preview icon
+     * may actually not always be wanted, for example when dragging objects in the Outliner it gets
+     * in the way). So make the drag user set an image buffer explicitly (e.g. through
+     * #UI_but_drag_attach_image()). */
 
-  if (drag->imb) {
     x = xy[0] - (wm_drag_imbuf_icon_width_get(drag) / 2);
     y = xy[1] - (wm_drag_imbuf_icon_height_get(drag) / 2);
 
@@ -1086,7 +1090,7 @@ static void wm_drag_draw_icon(bContext * /*C*/, wmWindow * /*win*/, wmDrag *drag
                                   y,
                                   drag->imb->x,
                                   drag->imb->y,
-                                  GPU_RGBA8,
+                                  blender::gpu::TextureFormat::UNORM_8_8_8_8,
                                   false,
                                   drag->imb->byte_buffer.data,
                                   drag->imbuf_scale,
@@ -1160,7 +1164,17 @@ static void wm_drag_draw_tooltip(bContext *C, wmWindow *win, wmDrag *drag, const
       y = xy[1] - (icon_height / 2) - padding - iconsize - padding - iconsize;
     }
   }
-  if (drag->preview_icon_id) {
+  if (WM_drag_get_paths(drag).size() > 1) {
+    x = xy[0] - 2 * padding;
+
+    if (xy[1] + 2 * 1.15 * iconsize < winsize_y) {
+      y = xy[1] + 1.15f * (iconsize + 6 * UI_SCALE_FAC);
+    }
+    else {
+      y = xy[1] - 1.15f * (iconsize + padding);
+    }
+  }
+  else if (drag->preview_icon_id) {
     const int size = wm_drag_preview_icon_size_get();
 
     x = xy[0] - (size / 2);
@@ -1214,7 +1228,9 @@ static void wm_drag_draw_default(bContext *C, wmWindow *win, wmDrag *drag, const
     xy_tmp[0] = xy[0] + 10 * UI_SCALE_FAC;
     xy_tmp[1] = xy[1] + 1 * UI_SCALE_FAC;
   }
-  wm_drag_draw_item_name(drag, UNPACK2(xy_tmp));
+  if (WM_drag_get_paths(drag).size() < 2) {
+    wm_drag_draw_item_name(drag, UNPACK2(xy_tmp));
+  }
 
   /* Operator name with round-box. */
   wm_drag_draw_tooltip(C, win, drag, xy);
@@ -1248,7 +1264,7 @@ void wm_drags_draw(bContext *C, wmWindow *win)
 
   /* Should we support multi-line drag draws? Maybe not, more types mixed won't work well. */
   GPU_blend(GPU_BLEND_ALPHA);
-  LISTBASE_FOREACH (wmDrag *, drag, &wm->drags) {
+  LISTBASE_FOREACH (wmDrag *, drag, &wm->runtime->drags) {
     if (drag->drop_state.active_dropbox) {
       CTX_wm_area_set(C, drag->drop_state.area_from);
       CTX_wm_region_set(C, drag->drop_state.region_from);

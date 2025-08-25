@@ -17,7 +17,7 @@
 #include <cstddef>
 
 #include "../generic/py_capi_utils.hh"
-#include "../generic/python_compat.hh"
+#include "../generic/python_compat.hh" /* IWYU pragma: keep. */
 
 #include "BLI_string.h"
 
@@ -147,7 +147,6 @@ PyDoc_STRVAR(
     "\n"
     "   :return: Blend file data which is freed once the context exists.\n"
     "   :rtype: :class:`bpy.types.BlendData`\n");
-
 static PyObject *bpy_rna_data_temp_data(PyObject * /*self*/, PyObject *args, PyObject *kw)
 {
   PyC_UnicodeAsBytesAndSize_Data filepath_data = {nullptr};

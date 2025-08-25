@@ -10,9 +10,13 @@
 
 #include "BKE_node.hh"
 
+#include "NOD_derived_node_tree.hh"
+
 namespace blender::compositor {
 class RenderContext;
 class Profiler;
+class Context;
+class NodeOperation;
 }  // namespace blender::compositor
 namespace blender::bke {
 struct bNodeTreeType;
@@ -59,27 +63,6 @@ void ntreeCompositUpdateRLayers(bNodeTree *ntree);
 
 void ntreeCompositClearTags(bNodeTree *ntree);
 
-bNodeSocket *ntreeCompositOutputFileAddSocket(bNodeTree *ntree,
-                                              bNode *node,
-                                              const char *name,
-                                              const ImageFormatData *im_format);
-
-int ntreeCompositOutputFileRemoveActiveSocket(bNodeTree *ntree, bNode *node);
-void ntreeCompositOutputFileSetPath(bNode *node, bNodeSocket *sock, const char *name);
-void ntreeCompositOutputFileSetLayer(bNode *node, bNodeSocket *sock, const char *name);
-/* needed in do_versions */
-void ntreeCompositOutputFileUniquePath(ListBase *list,
-                                       bNodeSocket *sock,
-                                       const char defname[],
-                                       char delim);
-void ntreeCompositOutputFileUniqueLayer(ListBase *list,
-                                        bNodeSocket *sock,
-                                        const char defname[],
-                                        char delim);
-
-void ntreeCompositColorBalanceSyncFromLGG(bNodeTree *ntree, bNode *node);
-void ntreeCompositColorBalanceSyncFromCDL(bNodeTree *ntree, bNode *node);
-
 void ntreeCompositCryptomatteSyncFromAdd(bNode *node);
 void ntreeCompositCryptomatteSyncFromRemove(bNode *node);
 bNodeSocket *ntreeCompositCryptomatteAddSocket(bNodeTree *ntree, bNode *node);
@@ -92,3 +75,13 @@ void ntreeCompositCryptomatteLayerPrefix(const bNode *node, char *r_prefix, size
  */
 void ntreeCompositCryptomatteUpdateLayerNames(bNode *node);
 CryptomatteSession *ntreeCompositCryptomatteSession(bNode *node);
+
+namespace blender::nodes {
+
+compositor::NodeOperation *get_group_input_compositor_operation(compositor::Context &context,
+                                                                DNode node);
+compositor::NodeOperation *get_group_output_compositor_operation(compositor::Context &context,
+                                                                 DNode node);
+void get_compositor_group_output_extra_info(blender::nodes::NodeExtraInfoParams &parameters);
+
+}  // namespace blender::nodes

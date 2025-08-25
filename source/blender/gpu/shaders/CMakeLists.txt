@@ -31,6 +31,7 @@ set(SRC_GLSL_VERT
   gpu_shader_3D_normal_vert.glsl
   gpu_shader_3D_point_uniform_size_aa_vert.glsl
   gpu_shader_3D_point_varying_size_varying_color_vert.glsl
+  gpu_shader_3D_point_flat_color_vert.glsl
   gpu_shader_3D_smooth_color_vert.glsl
   gpu_shader_display_fallback_vert.glsl
   gpu_shader_gpencil_stroke_vert.glsl
@@ -81,6 +82,14 @@ set(SRC_GLSL_COMP
   # gpu_shader_index_2d_array_points.glsl
   # gpu_shader_index_2d_array_tris.glsl
 )
+
+set(SRC_VULKAN_GLSL_COMP
+    vk_backbuffer_blit_comp.glsl
+)
+
+if(WITH_VULKAN_BACKEND)
+  list(APPEND SRC_GLSL_COMP ${SRC_VULKAN_GLSL_COMP})
+endif()
 
 set(SRC_GLSL_LIB
   common/gpu_shader_print_lib.glsl

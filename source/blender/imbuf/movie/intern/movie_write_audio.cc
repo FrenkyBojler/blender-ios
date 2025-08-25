@@ -6,6 +6,13 @@
  * \ingroup imbuf
  */
 
+#ifdef _MSC_VER
+/* This needs to be included first to prevent ffmpegs headers adding defines for various math
+ * constants leading to duplicate definitions. */
+#  define _USE_MATH_DEFINES
+#  include <cmath>
+#endif
+
 #include "movie_util.hh"
 #include "movie_write.hh"
 
@@ -27,6 +34,10 @@
 
 #  include "BKE_report.hh"
 #  include "BKE_sound.h"
+
+#  include "CLG_log.h"
+
+static CLG_LogRef LOG = {"video.write"};
 
 /* If any of these codecs, we prefer the float sample format (if supported) */
 static bool request_float_audio_buffer(int codec_id)
@@ -91,7 +102,7 @@ static int write_audio_frame(MovieWriter *context)
   if (ret < 0) {
     /* Can't send frame to encoder. This shouldn't happen. */
     av_make_error_string(error_str, AV_ERROR_MAX_STRING_SIZE, ret);
-    fprintf(stderr, "Can't send audio frame: %s\n", error_str);
+    CLOG_ERROR(&LOG, "Can't send audio frame: %s", error_str);
     success = -1;
   }
 
@@ -105,7 +116,7 @@ static int write_audio_frame(MovieWriter *context)
     }
     if (ret < 0) {
       av_make_error_string(error_str, AV_ERROR_MAX_STRING_SIZE, ret);
-      fprintf(stderr, "Error encoding audio frame: %s\n", error_str);
+      CLOG_ERROR(&LOG, "Error encoding audio frame: %s", error_str);
       success = -1;
     }
 
@@ -120,7 +131,7 @@ static int write_audio_frame(MovieWriter *context)
     int write_ret = av_interleaved_write_frame(context->outfile, pkt);
     if (write_ret != 0) {
       av_make_error_string(error_str, AV_ERROR_MAX_STRING_SIZE, ret);
-      fprintf(stderr, "Error writing audio packet: %s\n", error_str);
+      CLOG_ERROR(&LOG, "Error writing audio packet: %s", error_str);
       success = -1;
       break;
     }
@@ -220,7 +231,7 @@ AVStream *alloc_audio_stream(MovieWriter *context,
 
   codec = avcodec_find_encoder(codec_id);
   if (!codec) {
-    fprintf(stderr, "Couldn't find valid audio codec\n");
+    CLOG_ERROR(&LOG, "Couldn't find valid audio codec");
     context->audio_codec = nullptr;
     return nullptr;
   }
@@ -267,13 +278,14 @@ AVStream *alloc_audio_stream(MovieWriter *context,
     c->sample_fmt = AV_SAMPLE_FMT_FLT;
   }
 
-  if (codec->sample_fmts) {
+  const enum AVSampleFormat *sample_fmts = ffmpeg_get_sample_fmts(c, codec);
+  if (sample_fmts) {
     /* Check if the preferred sample format for this codec is supported.
      * this is because, depending on the version of LIBAV,
      * and with the whole FFMPEG/LIBAV fork situation,
      * you have various implementations around.
      * Float samples in particular are not always supported. */
-    const enum AVSampleFormat *p = codec->sample_fmts;
+    const enum AVSampleFormat *p = sample_fmts;
     for (; *p != -1; p++) {
       if (*p == c->sample_fmt) {
         break;
@@ -281,12 +293,13 @@ AVStream *alloc_audio_stream(MovieWriter *context,
     }
     if (*p == -1) {
       /* sample format incompatible with codec. Defaulting to a format known to work */
-      c->sample_fmt = codec->sample_fmts[0];
+      c->sample_fmt = sample_fmts[0];
     }
   }
 
-  if (codec->supported_samplerates) {
-    const int *p = codec->supported_samplerates;
+  const int *supported_samplerates = ffmpeg_get_sample_rates(c, codec);
+  if (supported_samplerates) {
+    const int *p = supported_samplerates;
     int best = 0;
     int best_dist = INT_MAX;
     for (; *p; p++) {
@@ -309,7 +322,7 @@ AVStream *alloc_audio_stream(MovieWriter *context,
   if (ret < 0) {
     char error_str[AV_ERROR_MAX_STRING_SIZE];
     av_make_error_string(error_str, AV_ERROR_MAX_STRING_SIZE, ret);
-    fprintf(stderr, "Couldn't initialize audio codec: %s\n", error_str);
+    CLOG_ERROR(&LOG, "Couldn't initialize audio codec: %s", error_str);
     BLI_strncpy(error, ffmpeg_last_error(), error_size);
     avcodec_free_context(&c);
     context->audio_codec = nullptr;

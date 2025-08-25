@@ -97,6 +97,7 @@
 
 #include "UI_interface.hh"
 #include "UI_interface_icons.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "WM_api.hh"
@@ -402,7 +403,7 @@ static const char *wm_context_member_from_ptr(bContext *C, const PointerRNA *ptr
         break;
       }
       if (is_id) {
-        /* Found a reference to this ID, so fallback to it if there is no direct reference. */
+        /* Found a reference to this ID, so fall back to it if there is no direct reference. */
         member_id = identifier;
       }
     }
@@ -713,7 +714,7 @@ std::optional<std::string> WM_prop_pystring_assign(bContext *C,
                                        std::nullopt;
 
   if (!lhs.has_value()) {
-    /* Fallback to `bpy.data.foo[id]` if we don't find in the context. */
+    /* Fall back to `bpy.data.foo[id]` if we don't find in the context. */
     if (std::optional<std::string> lhs_str = RNA_path_full_property_py(ptr, prop, index)) {
       lhs = lhs_str;
     }
@@ -834,7 +835,7 @@ void WM_operator_properties_reset(wmOperator *op)
 
       if ((RNA_property_flag(prop) & (PROP_SKIP_SAVE | PROP_SKIP_PRESET)) == 0) {
         const char *identifier = RNA_property_identifier(prop);
-        RNA_struct_idprops_unset(op->ptr, identifier);
+        RNA_struct_system_idprops_unset(op->ptr, identifier);
       }
     }
     RNA_PROP_END;
@@ -899,7 +900,7 @@ static bool operator_last_properties_init_impl(wmOperator *op, IDProperty *last_
   RNA_PROP_END;
 
   if (changed) {
-    CLOG_INFO(WM_LOG_OPERATORS, 1, "loading previous properties for '%s'", op->type->idname);
+    CLOG_DEBUG(WM_LOG_OPERATORS, "Loading previous properties for '%s'", op->type->idname);
   }
   IDP_MergeGroup(op->properties, replaceprops, true);
   IDP_FreeProperty(replaceprops);
@@ -930,7 +931,7 @@ bool WM_operator_last_properties_store(wmOperator *op)
 
   if (op->properties) {
     if (!BLI_listbase_is_empty(&op->properties->data.group)) {
-      CLOG_INFO(WM_LOG_OPERATORS, 1, "storing properties for '%s'", op->type->idname);
+      CLOG_DEBUG(WM_LOG_OPERATORS, "Storing properties for '%s'", op->type->idname);
     }
     op->type->last_properties = IDP_CopyProperty(op->properties);
   }
@@ -1082,7 +1083,9 @@ int WM_operator_smooth_viewtx_get(const wmOperator *op)
   return (op->flag & OP_IS_INVOKE) ? U.smooth_viewtx : 0;
 }
 
-wmOperatorStatus WM_menu_invoke_ex(bContext *C, wmOperator *op, wmOperatorCallContext opcontext)
+wmOperatorStatus WM_menu_invoke_ex(bContext *C,
+                                   wmOperator *op,
+                                   blender::wm::OpCallContext opcontext)
 {
   PropertyRNA *prop = op->type->prop;
 
@@ -1105,13 +1108,12 @@ wmOperatorStatus WM_menu_invoke_ex(bContext *C, wmOperator *op, wmOperatorCallCo
         C, WM_operatortype_name(op->type, op->ptr).c_str(), ICON_NONE);
     uiLayout *layout = UI_popup_menu_layout(pup);
     /* Set this so the default execution context is the same as submenus. */
-    uiLayoutSetOperatorContext(layout, opcontext);
-    uiItemsFullEnumO(layout,
-                     op->type->idname,
-                     RNA_property_identifier(prop),
-                     static_cast<IDProperty *>(op->ptr->data),
-                     opcontext,
-                     UI_ITEM_NONE);
+    layout->operator_context_set(opcontext);
+    layout->op_enum(op->type->idname,
+                    RNA_property_identifier(prop),
+                    static_cast<IDProperty *>(op->ptr->data),
+                    opcontext,
+                    UI_ITEM_NONE);
     UI_popup_menu_end(C, pup);
     return OPERATOR_INTERFACE;
   }
@@ -1121,7 +1123,7 @@ wmOperatorStatus WM_menu_invoke_ex(bContext *C, wmOperator *op, wmOperatorCallCo
 
 wmOperatorStatus WM_menu_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
-  return WM_menu_invoke_ex(C, op, WM_OP_INVOKE_REGION_WIN);
+  return WM_menu_invoke_ex(C, op, blender::wm::OpCallContext::InvokeRegionWin);
 }
 
 struct EnumSearchMenu {
@@ -1147,7 +1149,7 @@ static uiBlock *wm_enum_search_menu(bContext *C, ARegion *region, void *arg)
   search[0] = '\0';
 #if 0 /* Ok, this isn't so easy. */
   uiDefBut(block,
-           UI_BTYPE_LABEL,
+           ButType::Label,
            0,
            WM_operatortype_name(op->type, op->ptr),
            0,
@@ -1173,7 +1175,7 @@ static uiBlock *wm_enum_search_menu(bContext *C, ARegion *region, void *arg)
                                    "");
 
   /* Fake button, it holds space for search items. */
-  uiDefBut(block, UI_BTYPE_LABEL, 0, "", 0, -height, width, height, nullptr, 0, 0, std::nullopt);
+  uiDefBut(block, ButType::Label, 0, "", 0, -height, width, height, nullptr, 0, 0, std::nullopt);
 
   /* Move it downwards, mouse over button. */
   UI_block_bounds_set_popup(block, UI_SEARCHBOX_BOUNDS, blender::int2{0, -UI_UNIT_Y});
@@ -1198,7 +1200,7 @@ wmOperatorStatus WM_operator_confirm_message_ex(bContext *C,
                                                 const char *title,
                                                 const int icon,
                                                 const char *message,
-                                                const wmOperatorCallContext /*opcontext*/)
+                                                const blender::wm::OpCallContext /*opcontext*/)
 {
   int alert_icon = ALERT_ICON_QUESTION;
   switch (icon) {
@@ -1290,7 +1292,7 @@ wmOperator *WM_operator_last_redo(const bContext *C)
   wmWindowManager *wm = CTX_wm_manager(C);
 
   /* Only for operators that are registered and did an undo push. */
-  LISTBASE_FOREACH_BACKWARD (wmOperator *, op, &wm->operators) {
+  LISTBASE_FOREACH_BACKWARD (wmOperator *, op, &wm->runtime->operators) {
     if ((op->type->flag & OPTYPE_REGISTER) && (op->type->flag & OPTYPE_UNDO)) {
       return op;
     }
@@ -1431,20 +1433,27 @@ static uiBlock *wm_block_create_redo(bContext *C, ARegion *region, void *arg_op)
 
   UI_block_func_handle_set(block, wm_block_redo_cb, arg_op);
   UI_popup_dummy_panel_set(region, block);
-  uiLayout *layout = UI_block_layout(
-      block, UI_LAYOUT_VERTICAL, UI_LAYOUT_PANEL, 0, 0, width, UI_UNIT_Y, 0, style);
+  uiLayout &layout = blender::ui::block_layout(block,
+                                               blender::ui::LayoutDirection::Vertical,
+                                               blender::ui::LayoutType::Panel,
+                                               0,
+                                               0,
+                                               width,
+                                               UI_UNIT_Y,
+                                               0,
+                                               style);
 
   if (op == WM_operator_last_redo(C)) {
     if (!WM_operator_check_ui_enabled(C, op->type->name)) {
-      uiLayoutSetEnabled(layout, false);
+      layout.enabled_set(false);
     }
   }
 
-  uiItemL_ex(layout, WM_operatortype_name(op->type, op->ptr), ICON_NONE, true, false);
-  layout->separator(0.2f, LayoutSeparatorType::Line);
-  layout->separator(0.5f);
+  uiItemL_ex(&layout, WM_operatortype_name(op->type, op->ptr), ICON_NONE, true, false);
+  layout.separator(0.2f, LayoutSeparatorType::Line);
+  layout.separator(0.5f);
 
-  uiLayout *col = &layout->column(false);
+  uiLayout *col = &layout.column(false);
   uiTemplateOperatorPropertyButs(C, col, op, UI_BUT_LABEL_ALIGN_NONE, 0);
 
   UI_block_bounds_set_popup(block, 7 * UI_SCALE_FAC, nullptr);
@@ -1561,8 +1570,15 @@ static uiBlock *wm_block_dialog_create(bContext *C, ARegion *region, void *user_
         block, style, dialog_width + icon_size, eAlertIcon(data->icon), icon_size);
   }
   else {
-    layout = UI_block_layout(
-        block, UI_LAYOUT_VERTICAL, UI_LAYOUT_PANEL, 0, 0, dialog_width, 0, 0, style);
+    layout = &blender::ui::block_layout(block,
+                                        blender::ui::LayoutDirection::Vertical,
+                                        blender::ui::LayoutType::Panel,
+                                        0,
+                                        0,
+                                        dialog_width,
+                                        0,
+                                        0,
+                                        style);
   }
 
   /* Title. */
@@ -1578,7 +1594,7 @@ static uiBlock *wm_block_dialog_create(bContext *C, ARegion *region, void *user_
   /* Message lines. */
   if (message_lines.size() > 0) {
     uiLayout *lines = &layout->column(false);
-    uiLayoutSetScaleY(lines, 0.65f);
+    lines->scale_y_set(0.65f);
     lines->separator(0.1f);
     for (auto &st : message_lines) {
       lines->label(st, ICON_NONE);
@@ -1601,21 +1617,21 @@ static uiBlock *wm_block_dialog_create(bContext *C, ARegion *region, void *user_
   const bool windows_layout = false;
 #endif
 
-  /* Check there are no active default buttons, allowing a dialog to define it's own
+  /* Check there are no active default buttons, allowing a dialog to define its own
    * confirmation buttons which are shown instead of these, see: #124098. */
-  if (!UI_block_has_active_default_button(uiLayoutGetBlock(layout))) {
+  if (!UI_block_has_active_default_button(layout->block())) {
     /* New column so as not to interfere with custom layouts, see: #26436. */
     uiLayout *col = &layout->column(false);
-    uiBlock *col_block = uiLayoutGetBlock(col);
+    uiBlock *col_block = col->block();
     uiBut *confirm_but;
     uiBut *cancel_but;
 
     col = &col->split(0.0f, true);
-    uiLayoutSetScaleY(col, small ? 1.0f : 1.2f);
+    col->scale_y_set(small ? 1.0f : 1.2f);
 
     if (windows_layout) {
       confirm_but = uiDefBut(col_block,
-                             UI_BTYPE_BUT,
+                             ButType::But,
                              0,
                              data->confirm_text.c_str(),
                              0,
@@ -1630,12 +1646,12 @@ static uiBlock *wm_block_dialog_create(bContext *C, ARegion *region, void *user_
     }
 
     cancel_but = uiDefBut(
-        col_block, UI_BTYPE_BUT, 0, IFACE_("Cancel"), 0, 0, 0, UI_UNIT_Y, nullptr, 0, 0, "");
+        col_block, ButType::But, 0, IFACE_("Cancel"), 0, 0, 0, UI_UNIT_Y, nullptr, 0, 0, "");
 
     if (!windows_layout) {
       col->column(false);
       confirm_but = uiDefBut(col_block,
-                             UI_BTYPE_BUT,
+                             ButType::But,
                              0,
                              data->confirm_text.c_str(),
                              0,
@@ -1658,7 +1674,7 @@ static uiBlock *wm_block_dialog_create(bContext *C, ARegion *region, void *user_
   if (data->position == WM_POPUP_POSITION_MOUSE) {
     const float button_center_x = windows_layout ? -0.4f : -0.90f;
     const float button_center_y = small ? 2.0f : 3.1f;
-    const int bounds_offset[2] = {int(button_center_x * uiLayoutGetWidth(layout)),
+    const int bounds_offset[2] = {int(button_center_x * layout->width()),
                                   int(button_center_y * UI_UNIT_X)};
     UI_block_bounds_set_popup(block, padding, bounds_offset);
   }
@@ -1682,11 +1698,18 @@ static uiBlock *wm_operator_ui_create(bContext *C, ARegion *region, void *user_d
 
   UI_popup_dummy_panel_set(region, block);
 
-  uiLayout *layout = UI_block_layout(
-      block, UI_LAYOUT_VERTICAL, UI_LAYOUT_PANEL, 0, 0, data->width, 0, 0, style);
+  uiLayout &layout = blender::ui::block_layout(block,
+                                               blender::ui::LayoutDirection::Vertical,
+                                               blender::ui::LayoutType::Panel,
+                                               0,
+                                               0,
+                                               data->width,
+                                               0,
+                                               0,
+                                               style);
 
   /* Since UI is defined the auto-layout args are not used. */
-  uiTemplateOperatorPropertyButs(C, layout, op, UI_BUT_LABEL_ALIGN_COLUMN, 0);
+  uiTemplateOperatorPropertyButs(C, &layout, op, UI_BUT_LABEL_ALIGN_COLUMN, 0);
 
   UI_block_func_set(block, nullptr, nullptr, nullptr);
 
@@ -2023,7 +2046,7 @@ static uiBlock *wm_block_search_menu(bContext *C, ARegion *region, void *userdat
   /* Fake button, it holds space for search items. */
   const int height = init_data->size[1] - UI_SEARCHBOX_BOUNDS;
   uiDefBut(block,
-           UI_BTYPE_LABEL,
+           ButType::Label,
            0,
            "",
            0,
@@ -2088,16 +2111,10 @@ static wmOperatorStatus wm_search_menu_invoke(bContext *C, wmOperator *op, const
   static SearchPopupInit_Data data{};
 
   if (search_type == SEARCH_TYPE_SINGLE_MENU) {
-    {
-      char *buffer = RNA_string_get_alloc(op->ptr, "menu_idname", nullptr, 0, nullptr);
-      data.single_menu_idname = buffer;
-      MEM_SAFE_FREE(buffer);
-    }
-    {
-      char *buffer = RNA_string_get_alloc(op->ptr, "initial_query", nullptr, 0, nullptr);
-      STRNCPY(g_search_text, buffer);
-      MEM_SAFE_FREE(buffer);
-    }
+    data.single_menu_idname = RNA_string_get(op->ptr, "menu_idname");
+
+    std::string buffer = RNA_string_get(op->ptr, "initial_query");
+    STRNCPY(g_search_text, buffer.c_str());
   }
   else {
     g_search_text[0] = '\0';
@@ -2278,8 +2295,7 @@ static wmOperatorStatus asset_shelf_popover_invoke(bContext *C,
                                                    wmOperator *op,
                                                    const wmEvent * /*event*/)
 {
-  char *asset_shelf_id = RNA_string_get_alloc(op->ptr, "name", nullptr, 0, nullptr);
-  BLI_SCOPED_DEFER([&]() { MEM_freeN(asset_shelf_id); });
+  std::string asset_shelf_id = RNA_string_get(op->ptr, "name");
 
   if (!blender::ui::asset_shelf_popover_invoke(*C, asset_shelf_id, *op->reports)) {
     return OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH;
@@ -2473,7 +2489,7 @@ wmPaintCursor *WM_paint_cursor_activate(short space_type,
 
   wmPaintCursor *pc = MEM_callocN<wmPaintCursor>("paint cursor");
 
-  BLI_addtail(&wm->paintcursors, pc);
+  BLI_addtail(&wm->runtime->paintcursors, pc);
 
   pc->customdata = customdata;
   pc->poll = poll;
@@ -2488,9 +2504,9 @@ wmPaintCursor *WM_paint_cursor_activate(short space_type,
 bool WM_paint_cursor_end(wmPaintCursor *handle)
 {
   wmWindowManager *wm = static_cast<wmWindowManager *>(G_MAIN->wm.first);
-  LISTBASE_FOREACH (wmPaintCursor *, pc, &wm->paintcursors) {
+  LISTBASE_FOREACH (wmPaintCursor *, pc, &wm->runtime->paintcursors) {
     if (pc == handle) {
-      BLI_remlink(&wm->paintcursors, pc);
+      BLI_remlink(&wm->runtime->paintcursors, pc);
       MEM_freeN(pc);
       return true;
     }
@@ -2500,12 +2516,12 @@ bool WM_paint_cursor_end(wmPaintCursor *handle)
 
 void WM_paint_cursor_remove_by_type(wmWindowManager *wm, void *draw_fn, void (*free)(void *))
 {
-  LISTBASE_FOREACH_MUTABLE (wmPaintCursor *, pc, &wm->paintcursors) {
+  LISTBASE_FOREACH_MUTABLE (wmPaintCursor *, pc, &wm->runtime->paintcursors) {
     if (pc->draw == draw_fn) {
       if (free) {
         free(pc->customdata);
       }
-      BLI_remlink(&wm->paintcursors, pc);
+      BLI_remlink(&wm->runtime->paintcursors, pc);
       MEM_freeN(pc);
     }
   }
@@ -2540,12 +2556,14 @@ struct RadialControl {
   float current_value = 0.0f;
   float min_value = 0.0f;
   float max_value = 0.0f;
-  int initial_mouse[2] = {};
+  /* Original screen space coordinates that the operator started on. */
   int initial_co[2] = {};
+  /* Modified value of #initial_co to simplify calculating new values. */
+  int initial_radial_center[2] = {};
   int slow_mouse[2] = {};
   bool slow_mode = false;
   Dial *dial = nullptr;
-  GPUTexture *texture = nullptr;
+  blender::gpu::Texture *texture = nullptr;
   ListBase orig_paintcursors = {};
   bool use_secondary_tex = false;
   void *cursor = nullptr;
@@ -2585,7 +2603,7 @@ static void radial_control_update_header(wmOperator *op, bContext *C)
         SNPRINTF(msg, "%s: %3.2f", ui_name, RAD2DEGF(rc->current_value));
         break;
       default:
-        SNPRINTF(msg, "%s", ui_name); /* XXX: No value? */
+        STRNCPY(msg, ui_name); /* XXX: No value? */
         break;
     }
   }
@@ -2598,7 +2616,7 @@ static void radial_control_set_initial_mouse(RadialControl *rc, const wmEvent *e
   float d[2] = {0, 0};
   float zoom[2] = {1, 1};
 
-  copy_v2_v2_int(rc->initial_mouse, event->xy);
+  copy_v2_v2_int(rc->initial_radial_center, event->xy);
   copy_v2_v2_int(rc->initial_co, event->xy);
 
   switch (rc->subtype) {
@@ -2629,8 +2647,8 @@ static void radial_control_set_initial_mouse(RadialControl *rc, const wmEvent *e
     d[1] *= zoom[1];
   }
 
-  rc->initial_mouse[0] -= d[0];
-  rc->initial_mouse[1] -= d[1];
+  rc->initial_radial_center[0] -= d[0];
+  rc->initial_radial_center[1] -= d[1];
 }
 
 static void radial_control_set_tex(RadialControl *rc)
@@ -2649,7 +2667,7 @@ static void radial_control_set_tex(RadialControl *rc)
                                             ibuf->x,
                                             ibuf->y,
                                             1,
-                                            GPU_R8,
+                                            blender::gpu::TextureFormat::UNORM_8,
                                             GPU_TEXTURE_USAGE_SHADER_READ,
                                             ibuf->float_buffer.data);
 
@@ -2689,10 +2707,11 @@ static void radial_control_paint_tex(RadialControl *rc, float radius, float alph
   }
 
   GPUVertFormat *format = immVertexFormat();
-  uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+  uint pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
 
   if (rc->texture) {
-    uint texCoord = GPU_vertformat_attr_add(format, "texCoord", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+    uint texCoord = GPU_vertformat_attr_add(
+        format, "texCoord", blender::gpu::VertAttrType::SFLOAT_32_32);
 
     /* Set up rotation if available. */
     if (rc->rot_prop) {
@@ -2818,8 +2837,8 @@ static void radial_control_paint_cursor(bContext * /*C*/,
   if (rc->subtype == PROP_ANGLE) {
     /* Use the initial mouse position to draw the rotation preview. This avoids starting the
      * rotation in a random direction. */
-    x = rc->initial_mouse[0];
-    y = rc->initial_mouse[1];
+    x = rc->initial_radial_center[0];
+    y = rc->initial_radial_center[1];
   }
   else {
     /* Keep cursor in the original place. */
@@ -2846,7 +2865,7 @@ static void radial_control_paint_cursor(bContext * /*C*/,
   }
 
   GPUVertFormat *format = immVertexFormat();
-  uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+  uint pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
 
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
@@ -2939,16 +2958,11 @@ static int radial_control_get_path(PointerRNA *ctx_ptr,
   }
 
   /* Get an rna string path from the operator's properties. */
-  char *str;
-  if (!(str = RNA_string_get_alloc(op->ptr, name, nullptr, 0, nullptr))) {
-    return 1;
-  }
-
-  if (str[0] == '\0') {
+  std::string str = RNA_string_get(op->ptr, name);
+  if (str.empty()) {
     if (r_prop) {
       *r_prop = nullptr;
     }
-    MEM_freeN(str);
     return 1;
   }
 
@@ -2957,8 +2971,7 @@ static int radial_control_get_path(PointerRNA *ctx_ptr,
   }
 
   /* Get rna from path. */
-  if (!RNA_path_resolve(ctx_ptr, str, r_ptr, r_prop)) {
-    MEM_freeN(str);
+  if (!RNA_path_resolve(ctx_ptr, str.c_str(), r_ptr, r_prop)) {
     if (flags & RC_PROP_ALLOW_MISSING) {
       return 1;
     }
@@ -2973,7 +2986,6 @@ static int radial_control_get_path(PointerRNA *ctx_ptr,
     if (((flags & RC_PROP_REQUIRE_BOOL) && (prop_type != PROP_BOOLEAN)) ||
         ((flags & RC_PROP_REQUIRE_FLOAT) && (prop_type != PROP_FLOAT)))
     {
-      MEM_freeN(str);
       BKE_reportf(op->reports, RPT_ERROR, "Property from path '%s' is not a float", name);
       return 0;
     }
@@ -2982,7 +2994,6 @@ static int radial_control_get_path(PointerRNA *ctx_ptr,
   /* Check property's array length. */
   int len;
   if (*r_prop && (len = RNA_property_array_length(r_ptr, *r_prop)) != req_length) {
-    MEM_freeN(str);
     BKE_reportf(op->reports,
                 RPT_ERROR,
                 "Property from path '%s' has length %d instead of %d",
@@ -2993,7 +3004,6 @@ static int radial_control_get_path(PointerRNA *ctx_ptr,
   }
 
   /* Success. */
-  MEM_freeN(str);
   return 1;
 }
 
@@ -3185,8 +3195,8 @@ static wmOperatorStatus radial_control_invoke(bContext *C, wmOperator *op, const
 
   /* Temporarily disable other paint cursors. */
   wmWindowManager *wm = CTX_wm_manager(C);
-  rc->orig_paintcursors = wm->paintcursors;
-  BLI_listbase_clear(&wm->paintcursors);
+  rc->orig_paintcursors = wm->runtime->paintcursors;
+  BLI_listbase_clear(&wm->runtime->paintcursors);
 
   /* Add radial control paint cursor. */
   rc->cursor = WM_paint_cursor_activate(
@@ -3227,7 +3237,7 @@ static void radial_control_cancel(bContext *C, wmOperator *op)
   WM_paint_cursor_end(static_cast<wmPaintCursor *>(rc->cursor));
 
   /* Restore original paint cursors. */
-  wm->paintcursors = rc->orig_paintcursors;
+  wm->runtime->paintcursors = rc->orig_paintcursors;
 
   /* Not sure if this is a good notifier to use;
    * intended purpose is to update the UI so that the
@@ -3302,8 +3312,8 @@ static wmOperatorStatus radial_control_modal(bContext *C, wmOperator *op, const 
         if (rc->slow_mode) {
           if (rc->subtype == PROP_ANGLE) {
             /* Calculate the initial angle here first. */
-            delta[0] = rc->initial_mouse[0] - rc->slow_mouse[0];
-            delta[1] = rc->initial_mouse[1] - rc->slow_mouse[1];
+            delta[0] = rc->initial_radial_center[0] - rc->slow_mouse[0];
+            delta[1] = rc->initial_radial_center[1] - rc->slow_mouse[1];
 
             /* Precision angle gets calculated from dial and gets added later. */
             angle_precision = -0.1f * BLI_dial_angle(rc->dial,
@@ -3311,7 +3321,7 @@ static wmOperatorStatus radial_control_modal(bContext *C, wmOperator *op, const 
                                                                      float(event->xy[1])});
           }
           else {
-            delta[0] = rc->initial_mouse[0] - rc->slow_mouse[0];
+            delta[0] = rc->initial_radial_center[0] - rc->slow_mouse[0];
             delta[1] = 0.0f;
 
             if (rc->zoom_prop) {
@@ -3331,8 +3341,8 @@ static wmOperatorStatus radial_control_modal(bContext *C, wmOperator *op, const 
           }
         }
         else {
-          delta[0] = float(rc->initial_mouse[0] - event->xy[0]);
-          delta[1] = float(rc->initial_mouse[1] - event->xy[1]);
+          delta[0] = float(rc->initial_radial_center[0] - event->xy[0]);
+          delta[1] = float(rc->initial_radial_center[1] - event->xy[1]);
           if (rc->zoom_prop) {
             RNA_property_float_get_array(&rc->zoom_ptr, rc->zoom_prop, zoom);
             delta[0] /= zoom[0];
@@ -3403,8 +3413,8 @@ static wmOperatorStatus radial_control_modal(bContext *C, wmOperator *op, const 
         rc->slow_mouse[1] = event->xy[1];
         rc->slow_mode = true;
         if (rc->subtype == PROP_ANGLE) {
-          const float initial_position[2] = {float(rc->initial_mouse[0]),
-                                             float(rc->initial_mouse[1])};
+          const float initial_position[2] = {float(rc->initial_radial_center[0]),
+                                             float(rc->initial_radial_center[1])};
           const float current_position[2] = {float(rc->slow_mouse[0]), float(rc->slow_mouse[1])};
           rc->dial = BLI_dial_init(initial_position, 0.0f);
           /* Immediately set the position to get a an initial direction. */
@@ -4074,7 +4084,7 @@ static wmOperatorStatus doc_view_manual_ui_context_exec(bContext *C, wmOperator 
 
     retval = WM_operator_name_call_ptr(C,
                                        WM_operatortype_find("WM_OT_doc_view_manual", false),
-                                       WM_OP_EXEC_DEFAULT,
+                                       blender::wm::OpCallContext::ExecDefault,
                                        &ptr_props,
                                        nullptr);
 
@@ -4568,17 +4578,17 @@ const EnumPropertyItem *RNA_scene_local_itemf(bContext *C,
   return rna_id_itemf(
       r_free, C ? (ID *)CTX_data_main(C)->scenes.first : nullptr, true, nullptr, nullptr);
 }
-const EnumPropertyItem *RNA_scene_without_active_itemf(bContext *C,
-                                                       PointerRNA * /*ptr*/,
-                                                       PropertyRNA * /*prop*/,
-                                                       bool *r_free)
+const EnumPropertyItem *RNA_scene_without_sequencer_scene_itemf(bContext *C,
+                                                                PointerRNA * /*ptr*/,
+                                                                PropertyRNA * /*prop*/,
+                                                                bool *r_free)
 {
-  Scene *scene_active = C ? CTX_data_scene(C) : nullptr;
+  Scene *sequencer_scene = C ? CTX_data_sequencer_scene(C) : nullptr;
   return rna_id_itemf(r_free,
                       C ? (ID *)CTX_data_main(C)->scenes.first : nullptr,
                       false,
                       rna_id_enum_filter_single,
-                      scene_active);
+                      sequencer_scene);
 }
 const EnumPropertyItem *RNA_movieclip_itemf(bContext *C,
                                             PointerRNA * /*ptr*/,

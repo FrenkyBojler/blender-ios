@@ -32,6 +32,8 @@
 #include "BLI_time.h"
 #include "BLI_utildefines.h"
 
+#include "BLT_translation.hh"
+
 #include "BKE_bvhutils.hh"
 #include "BKE_context.hh"
 #include "BKE_customdata.hh"
@@ -591,7 +593,7 @@ static bool key_test_depth(const PEData *data, const float co[3], const int scre
     return true;
   }
 
-/* used to calculate here but all callers have  the screen_co already, so pass as arg */
+/* used to calculate here but all callers have the screen_co already, so pass as arg */
 #if 0
   if (ED_view3d_project_int_global(data->vc.region,
                                    co,
@@ -3409,7 +3411,8 @@ static void brush_drawcursor(bContext *C,
   brush = &pset->brush[pset->brushtype];
 
   if (brush) {
-    uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+    uint pos = GPU_vertformat_attr_add(
+        immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
     immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
     immUniformColor4ub(255, 255, 255, 128);
@@ -3723,6 +3726,10 @@ void PARTICLE_OT_mirror(wmOperatorType *ot)
 {
   /* identifiers */
   ot->name = "Mirror";
+  /* Using default context for 'flipping along axis', to differentiate from 'symmetrizing' (i.e.
+   * 'mirrored copy').
+   * See https://projects.blender.org/blender/blender/issues/43295#issuecomment-1400465 */
+  ot->translation_context = BLT_I18NCONTEXT_DEFAULT;
   ot->idname = "PARTICLE_OT_mirror";
   ot->description = "Duplicate and mirror the selected particles along the local X axis";
 

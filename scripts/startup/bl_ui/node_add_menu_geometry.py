@@ -6,7 +6,6 @@ import bpy
 from bpy.types import Menu
 from bl_ui import node_add_menu
 from bpy.app.translations import (
-    pgettext_iface as iface_,
     contexts as i18n_contexts,
 )
 
@@ -34,6 +33,7 @@ class NODE_MT_geometry_node_GEO_COLOR(Menu):
     def draw(self, context):
         layout = self.layout
         node_add_menu.add_node_type(layout, "ShaderNodeBlackbody")
+        node_add_menu.add_node_type(layout, "ShaderNodeGamma")
         node_add_menu.add_node_type(layout, "ShaderNodeValToRGB")
         node_add_menu.add_node_type(layout, "ShaderNodeRGBCurve")
         layout.separator()
@@ -111,9 +111,9 @@ class NODE_MT_geometry_node_GEO_CURVE_OPERATIONS(Menu):
 
     def draw(self, _context):
         layout = self.layout
-        node_add_menu.add_node_type(layout, "GeometryNodeCurvesToGreasePencil")
         node_add_menu.add_node_type(layout, "GeometryNodeCurveToMesh")
         node_add_menu.add_node_type(layout, "GeometryNodeCurveToPoints")
+        node_add_menu.add_node_type(layout, "GeometryNodeCurvesToGreasePencil")
         node_add_menu.add_node_type(layout, "GeometryNodeDeformCurvesOnSurface")
         node_add_menu.add_node_type(layout, "GeometryNodeFillCurve")
         node_add_menu.add_node_type(layout, "GeometryNodeFilletCurve")
@@ -229,7 +229,7 @@ class NODE_MT_geometry_node_GEO_GEOMETRY_READ(Menu):
         node_add_menu.add_node_type(layout, "GeometryNodeInputNormal")
         node_add_menu.add_node_type(layout, "GeometryNodeInputPosition", search_weight=1.0)
         node_add_menu.add_node_type(layout, "GeometryNodeInputRadius")
-        if context.space_data.geometry_nodes_type == 'TOOL':
+        if context.space_data.node_tree_sub_type == 'TOOL':
             node_add_menu.add_node_type(layout, "GeometryNodeToolSelection")
             node_add_menu.add_node_type(layout, "GeometryNodeToolActiveElement")
         node_add_menu.draw_assets_for_catalog(layout, "Geometry/Read")
@@ -244,7 +244,7 @@ class NODE_MT_geometry_node_GEO_GEOMETRY_WRITE(Menu):
         node_add_menu.add_node_type(layout, "GeometryNodeSetGeometryName")
         node_add_menu.add_node_type(layout, "GeometryNodeSetID")
         node_add_menu.add_node_type(layout, "GeometryNodeSetPosition", search_weight=1.0)
-        if context.space_data.geometry_nodes_type == 'TOOL':
+        if context.space_data.node_tree_sub_type == 'TOOL':
             node_add_menu.add_node_type(layout, "GeometryNodeToolSetSelection")
         node_add_menu.draw_assets_for_catalog(layout, "Geometry/Write")
 
@@ -291,7 +291,7 @@ class NODE_MT_geometry_node_GEO_INPUT(Menu):
     def draw(self, context):
         layout = self.layout
         layout.menu("NODE_MT_geometry_node_GEO_INPUT_CONSTANT")
-        if context.space_data.geometry_nodes_type != 'TOOL':
+        if context.space_data.node_tree_sub_type != 'TOOL':
             layout.menu("NODE_MT_geometry_node_GEO_INPUT_GIZMO")
         layout.menu("NODE_MT_geometry_node_GEO_INPUT_GROUP")
         layout.menu("NODE_MT_category_import")
@@ -336,20 +336,41 @@ class NODE_MT_geometry_node_GEO_INPUT_SCENE(Menu):
 
     def draw(self, context):
         layout = self.layout
-        if context.space_data.geometry_nodes_type == 'TOOL':
+        if context.space_data.node_tree_sub_type == 'TOOL':
             node_add_menu.add_node_type(layout, "GeometryNodeTool3DCursor")
         node_add_menu.add_node_type(layout, "GeometryNodeInputActiveCamera")
-        node_add_menu.add_node_type(layout, "GeometryNodeCameraInfo")
+        node_add_menu.add_node_type_with_outputs(
+            context,
+            layout,
+            "GeometryNodeCameraInfo",
+            [
+                "Projection Matrix",
+                "Focal Length",
+                "Sensor",
+                "Shift",
+                "Clip Start",
+                "Clip End",
+                "Focus Distance",
+                "Is Orthographic",
+                "Orthographic Scale",
+            ],
+        )
         node_add_menu.add_node_type(layout, "GeometryNodeCollectionInfo")
         node_add_menu.add_node_type(layout, "GeometryNodeImageInfo")
         node_add_menu.add_node_type(layout, "GeometryNodeIsViewport")
-        if context.space_data.geometry_nodes_type == 'TOOL':
-            node_add_menu.add_node_type(layout, "GeometryNodeToolMousePosition")
+        if context.space_data.node_tree_sub_type == 'TOOL':
+            node_add_menu.add_node_type_with_outputs(
+                context, layout, "GeometryNodeToolMousePosition",
+                ["Mouse X", "Mouse Y", "Region Width", "Region Height"],
+            )
         node_add_menu.add_node_type(layout, "GeometryNodeObjectInfo")
-        node_add_menu.add_node_type_with_subnames(context, layout, "GeometryNodeInputSceneTime", ["Frame", "Seconds"])
+        node_add_menu.add_node_type_with_outputs(context, layout, "GeometryNodeInputSceneTime", ["Frame", "Seconds"])
         node_add_menu.add_node_type(layout, "GeometryNodeSelfObject")
-        if context.space_data.geometry_nodes_type == 'TOOL':
-            node_add_menu.add_node_type(layout, "GeometryNodeViewportTransform")
+        if context.space_data.node_tree_sub_type == 'TOOL':
+            node_add_menu.add_node_type_with_outputs(
+                context, layout, "GeometryNodeViewportTransform",
+                ["Projection", "View", "Is Orthographic"],
+            )
         node_add_menu.draw_assets_for_catalog(layout, "Input/Scene")
 
 
@@ -433,7 +454,7 @@ class NODE_MT_geometry_node_GEO_MESH_READ(Menu):
         node_add_menu.add_node_type(layout, "GeometryNodeInputMeshFaceArea")
         node_add_menu.add_node_type(layout, "GeometryNodeMeshFaceSetBoundaries")
         node_add_menu.add_node_type(layout, "GeometryNodeInputMeshFaceNeighbors")
-        if context.space_data.geometry_nodes_type == 'TOOL':
+        if context.space_data.node_tree_sub_type == 'TOOL':
             node_add_menu.add_node_type(layout, "GeometryNodeToolFaceSet")
         node_add_menu.add_node_type(layout, "GeometryNodeInputMeshFaceIsPlanar")
         node_add_menu.add_node_type(layout, "GeometryNodeInputShadeSmooth")
@@ -461,7 +482,7 @@ class NODE_MT_geometry_node_GEO_MESH_WRITE(Menu):
 
     def draw(self, context):
         layout = self.layout
-        if context.space_data.geometry_nodes_type == 'TOOL':
+        if context.space_data.node_tree_sub_type == 'TOOL':
             node_add_menu.add_node_type(layout, "GeometryNodeToolSetFaceSet")
         node_add_menu.add_node_type(layout, "GeometryNodeSetMeshNormal")
         node_add_menu.add_node_type(layout, "GeometryNodeSetShadeSmooth")
@@ -548,11 +569,11 @@ class NODE_MT_category_GEO_OUTPUT(Menu):
     bl_idname = "NODE_MT_category_GEO_OUTPUT"
     bl_label = "Output"
 
-    def draw(self, _context):
+    def draw(self, context):
         layout = self.layout
         node_add_menu.add_node_type(layout, "NodeGroupOutput")
         node_add_menu.add_node_type(layout, "GeometryNodeViewer")
-        node_add_menu.add_node_type(layout, "GeometryNodeWarning")
+        node_add_menu.add_node_type_with_searchable_enum(context, layout, "GeometryNodeWarning", "warning_type")
         node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
 
 
@@ -594,13 +615,14 @@ class NODE_MT_category_GEO_TEXT(Menu):
 
     def draw(self, _context):
         layout = self.layout
+        node_add_menu.add_node_type(layout, "FunctionNodeFormatString")
         node_add_menu.add_node_type(layout, "GeometryNodeStringJoin")
         node_add_menu.add_node_type(layout, "FunctionNodeMatchString")
         node_add_menu.add_node_type(layout, "FunctionNodeReplaceString")
         node_add_menu.add_node_type(layout, "FunctionNodeSliceString")
         layout.separator()
-        node_add_menu.add_node_type(layout, "FunctionNodeStringLength")
         node_add_menu.add_node_type(layout, "FunctionNodeFindInString")
+        node_add_menu.add_node_type(layout, "FunctionNodeStringLength")
         node_add_menu.add_node_type(layout, "GeometryNodeStringToCurves")
         node_add_menu.add_node_type(layout, "FunctionNodeValueToString")
         layout.separator()
@@ -637,24 +659,22 @@ class NODE_MT_category_GEO_UTILITIES(Menu):
         layout.menu("NODE_MT_category_GEO_TEXT")
         layout.menu("NODE_MT_category_GEO_VECTOR")
         layout.separator()
+        layout.menu("NODE_MT_category_utilities_bundle")
+        layout.menu("NODE_MT_category_utilities_closure")
         layout.menu("NODE_MT_category_GEO_UTILITIES_FIELD")
+        if context.preferences.experimental.use_geometry_nodes_lists:
+            layout.menu("NODE_MT_category_utilities_list")
         layout.menu("NODE_MT_category_GEO_UTILITIES_MATH")
         layout.menu("NODE_MT_category_utilities_matrix")
         layout.menu("NODE_MT_category_GEO_UTILITIES_ROTATION")
         layout.menu("NODE_MT_category_GEO_UTILITIES_DEPRECATED")
         layout.separator()
-        if context.preferences.experimental.use_bundle_and_closure_nodes:
-            node_add_menu.add_closure_zone(layout, label="Closure")
-            node_add_menu.add_node_type(layout, "GeometryNodeEvaluateClosure")
         node_add_menu.add_foreach_geometry_element_zone(layout, label="For Each Element")
         node_add_menu.add_node_type(layout, "GeometryNodeIndexSwitch")
         node_add_menu.add_node_type(layout, "GeometryNodeMenuSwitch")
         node_add_menu.add_node_type(layout, "FunctionNodeRandomValue")
         node_add_menu.add_repeat_zone(layout, label="Repeat")
         node_add_menu.add_node_type(layout, "GeometryNodeSwitch")
-        if context.preferences.experimental.use_bundle_and_closure_nodes:
-            node_add_menu.add_node_type(layout, "GeometryNodeCombineBundle")
-            node_add_menu.add_node_type(layout, "GeometryNodeSeparateBundle")
         node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
 
 
@@ -724,6 +744,40 @@ class NODE_MT_category_utilities_matrix(Menu):
         node_add_menu.draw_assets_for_catalog(layout, "Utilities/Matrix")
 
 
+class NODE_MT_category_utilities_bundle(Menu):
+    bl_idname = "NODE_MT_category_utilities_bundle"
+    bl_label = "Bundle"
+
+    def draw(self, context):
+        layout = self.layout
+        node_add_menu.add_node_type(layout, "NodeCombineBundle")
+        node_add_menu.add_node_type(layout, "NodeSeparateBundle")
+        node_add_menu.draw_assets_for_catalog(layout, "Utilities/Bundle")
+
+
+class NODE_MT_category_utilities_closure(Menu):
+    bl_idname = "NODE_MT_category_utilities_closure"
+    bl_label = "Closure"
+
+    def draw(self, context):
+        layout = self.layout
+        node_add_menu.add_closure_zone(layout, label="Closure")
+        node_add_menu.add_node_type(layout, "NodeEvaluateClosure")
+        node_add_menu.draw_assets_for_catalog(layout, "Utilities/Closure")
+
+
+class NODE_MT_category_utilities_list(Menu):
+    bl_idname = "NODE_MT_category_utilities_list"
+    bl_label = "List"
+
+    def draw(self, _context):
+        layout = self.layout
+        node_add_menu.add_node_type(layout, "GeometryNodeList")
+        node_add_menu.add_node_type(layout, "GeometryNodeListGetItem")
+        node_add_menu.add_node_type(layout, "GeometryNodeListLength")
+        node_add_menu.draw_assets_for_catalog(layout, "Utilities/List")
+
+
 class NODE_MT_category_GEO_UTILITIES_MATH(Menu):
     bl_idname = "NODE_MT_category_GEO_UTILITIES_MATH"
     bl_label = "Math"
@@ -731,7 +785,8 @@ class NODE_MT_category_GEO_UTILITIES_MATH(Menu):
     def draw(self, context):
         layout = self.layout
         node_add_menu.add_node_type_with_searchable_enum(
-            context, layout, "FunctionNodeBitMath", "operation", search_weight=-1.0)
+            context, layout, "FunctionNodeBitMath", "operation", search_weight=-1.0,
+        )
         node_add_menu.add_node_type_with_searchable_enum(context, layout, "FunctionNodeBooleanMath", "operation")
         node_add_menu.add_node_type_with_searchable_enum(context, layout, "FunctionNodeIntegerMath", "operation")
         node_add_menu.add_node_type(layout, "ShaderNodeClamp")
@@ -767,7 +822,7 @@ class NODE_MT_category_GEO_VECTOR(Menu):
         node_add_menu.add_node_type(layout, "ShaderNodeVectorRotate")
         layout.separator()
         node_add_menu.add_node_type(layout, "ShaderNodeCombineXYZ")
-        props = node_add_menu.add_node_type(layout, "ShaderNodeMix", label=iface_("Mix Vector"))
+        props = node_add_menu.add_node_type(layout, "ShaderNodeMix", label="Mix Vector")
         ops = props.settings.add()
         ops.name = "data_type"
         ops.value = "'VECTOR'"
@@ -939,7 +994,10 @@ classes = (
     NODE_MT_category_GEO_UTILITIES_MATH,
     NODE_MT_category_GEO_UTILITIES_ROTATION,
     NODE_MT_geometry_node_GEO_INPUT_GIZMO,
+    NODE_MT_category_utilities_list,
     NODE_MT_category_utilities_matrix,
+    NODE_MT_category_utilities_bundle,
+    NODE_MT_category_utilities_closure,
     NODE_MT_category_GEO_UTILITIES_DEPRECATED,
     NODE_MT_category_GEO_GROUP,
 )

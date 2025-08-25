@@ -115,7 +115,7 @@ class Shader {
     return parent_shader_;
   }
 
-  static void set_srgb_uniform(Context *ctx, GPUShader *shader);
+  static void set_srgb_uniform(Context *ctx, gpu::Shader *shader);
   static void set_framebuffer_srgb_target(int use_srgb_to_linear);
 
  protected:
@@ -125,20 +125,6 @@ class Shader {
                  bool error,
                  GPULogParser *parser);
 };
-
-/* Syntactic sugar. */
-static inline GPUShader *wrap(Shader *vert)
-{
-  return reinterpret_cast<GPUShader *>(vert);
-}
-static inline Shader *unwrap(GPUShader *vert)
-{
-  return reinterpret_cast<Shader *>(vert);
-}
-static inline const Shader *unwrap(const GPUShader *vert)
-{
-  return reinterpret_cast<const Shader *>(vert);
-}
 
 class ShaderCompiler {
   struct Sources {
@@ -172,7 +158,7 @@ class ShaderCompiler {
     {
       for (Shader *shader : shaders) {
         if (shader) {
-          GPU_shader_free(wrap(shader));
+          GPU_shader_free(shader);
         }
       }
       shaders.clear();
@@ -186,15 +172,89 @@ class ShaderCompiler {
     Batch *batch = nullptr;
     int shader_index = 0;
   };
-  std::deque<ParallelWork> compilation_queue_;
+
+  struct CompilationQueue {
+    std::deque<ParallelWork> low_priority;
+    std::deque<ParallelWork> normal_priority;
+    std::deque<ParallelWork> high_priority;
+
+    void push(ParallelWork &&work, CompilationPriority priority)
+    {
+      switch (priority) {
+        case CompilationPriority::Low:
+          low_priority.push_back(work);
+          break;
+        case CompilationPriority::Medium:
+          normal_priority.push_back(work);
+          break;
+        case CompilationPriority::High:
+          high_priority.push_back(work);
+          break;
+        default:
+          BLI_assert_unreachable();
+          break;
+      }
+    }
+
+    ParallelWork pop()
+    {
+      if (!high_priority.empty()) {
+        ParallelWork work = high_priority.front();
+        high_priority.pop_front();
+        return work;
+      }
+      if (!normal_priority.empty()) {
+        ParallelWork work = normal_priority.front();
+        normal_priority.pop_front();
+        return work;
+      }
+      if (!low_priority.empty()) {
+        ParallelWork work = low_priority.front();
+        low_priority.pop_front();
+        return work;
+      }
+      BLI_assert_unreachable();
+      return {};
+    }
+
+    bool is_empty()
+    {
+      return low_priority.empty() && normal_priority.empty() && high_priority.empty();
+    }
+
+    void remove_batch(Batch *batch)
+    {
+      auto remove = [](std::deque<ParallelWork> &queue, Batch *batch) {
+        for (ParallelWork &work : queue) {
+          if (work.batch == batch) {
+            work = {};
+            batch->pending_compilations--;
+          }
+        }
+
+        queue.erase(std::remove_if(queue.begin(),
+                                   queue.end(),
+                                   [](const ParallelWork &work) { return !work.batch; }),
+                    queue.end());
+      };
+
+      remove(low_priority, batch);
+      remove(normal_priority, batch);
+      remove(high_priority, batch);
+    }
+  };
+  CompilationQueue compilation_queue_;
 
   std::unique_ptr<GPUWorker> compilation_worker_;
 
   bool support_specializations_;
 
-  void run_thread();
+  void *pop_work();
+  void do_work(void *work_payload);
 
   BatchHandle next_batch_handle_ = 1;
+
+  bool is_compiling_impl();
 
  protected:
   /* Must be called earlier from the destructor of the subclass if the compilation process relies
@@ -215,15 +275,18 @@ class ShaderCompiler {
   virtual Shader *compile_shader(const shader::ShaderCreateInfo &info);
   virtual void specialize_shader(ShaderSpecialization & /*specialization*/){};
 
-  BatchHandle batch_compile(Span<const shader::ShaderCreateInfo *> &infos);
+  BatchHandle batch_compile(Span<const shader::ShaderCreateInfo *> &infos,
+                            CompilationPriority priority);
   void batch_cancel(BatchHandle &handle);
   bool batch_is_ready(BatchHandle handle);
   Vector<Shader *> batch_finalize(BatchHandle &handle);
 
-  SpecializationBatchHandle precompile_specializations(Span<ShaderSpecialization> specializations);
+  SpecializationBatchHandle precompile_specializations(Span<ShaderSpecialization> specializations,
+                                                       CompilationPriority priority);
 
   bool specialization_batch_is_ready(SpecializationBatchHandle &handle);
 
+  bool is_compiling();
   void wait_for_all();
 };
 
@@ -273,4 +336,4 @@ void printf_end(Context *ctx);
 }  // namespace blender::gpu
 
 /* XXX do not use it. Special hack to use OCIO with batch API. */
-GPUShader *immGetShader();
+blender::gpu::Shader *immGetShader();

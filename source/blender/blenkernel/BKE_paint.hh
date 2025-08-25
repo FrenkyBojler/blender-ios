@@ -31,6 +31,7 @@ struct BMesh;
 struct BlendDataReader;
 struct BlendWriter;
 struct Brush;
+struct BrushColorJitterSettings;
 struct CurveMapping;
 struct Depsgraph;
 struct EnumPropertyItem;
@@ -64,6 +65,7 @@ struct MultiresModifierData;
 struct Object;
 struct Paint;
 struct PaintCurve;
+enum class PaintMode : int8_t;
 struct PaintModeSettings;
 struct Palette;
 struct PaletteColor;
@@ -88,27 +90,6 @@ extern const uchar PAINT_CURSOR_TEXTURE_PAINT[3];
 extern const uchar PAINT_CURSOR_SCULPT_CURVES[3];
 extern const uchar PAINT_CURSOR_PAINT_GREASE_PENCIL[3];
 extern const uchar PAINT_CURSOR_SCULPT_GREASE_PENCIL[3];
-
-enum class PaintMode : int8_t {
-  Sculpt = 0,
-  /** Vertex color. */
-  Vertex = 1,
-  Weight = 2,
-  /** 3D view (projection painting). */
-  Texture3D = 3,
-  /** Image space (2D painting). */
-  Texture2D = 4,
-  GPencil = 6,
-  /* Grease Pencil Vertex Paint */
-  VertexGPencil = 7,
-  SculptGPencil = 8,
-  WeightGPencil = 9,
-  /** Curves. */
-  SculptCurves = 10,
-
-  /** Keep last. */
-  Invalid = 11,
-};
 
 /* overlay invalidation */
 enum ePaintOverlayControlFlags {
@@ -146,7 +127,7 @@ void BKE_paint_invalidate_cursor_overlay(Scene *scene, ViewLayer *view_layer, Cu
 void BKE_paint_invalidate_overlay_all();
 ePaintOverlayControlFlags BKE_paint_get_overlay_flags();
 void BKE_paint_reset_overlay_invalid(ePaintOverlayControlFlags flag);
-void BKE_paint_set_overlay_override(enum eOverlayFlags flag);
+void BKE_paint_set_overlay_override(eOverlayFlags flag);
 
 /* Palettes. */
 
@@ -193,27 +174,25 @@ bool BKE_paint_ensure_from_paintmode(Scene *sce, PaintMode mode);
 Paint *BKE_paint_get_active_from_paintmode(Scene *sce, PaintMode mode);
 const EnumPropertyItem *BKE_paint_get_tool_enum_from_paintmode(PaintMode mode);
 uint BKE_paint_get_brush_type_offset_from_paintmode(PaintMode mode);
-std::optional<int> BKE_paint_get_brush_type_from_obmode(const Brush *brush,
-                                                        const eObjectMode ob_mode);
-std::optional<int> BKE_paint_get_brush_type_from_paintmode(const Brush *brush,
-                                                           const PaintMode mode);
+std::optional<int> BKE_paint_get_brush_type_from_obmode(const Brush *brush, eObjectMode ob_mode);
+std::optional<int> BKE_paint_get_brush_type_from_paintmode(const Brush *brush, PaintMode mode);
 Paint *BKE_paint_get_active(Scene *sce, ViewLayer *view_layer);
 Paint *BKE_paint_get_active_from_context(const bContext *C);
 PaintMode BKE_paintmode_get_active_from_context(const bContext *C);
 PaintMode BKE_paintmode_get_from_tool(const bToolRef *tref);
-bool BKE_paint_use_unified_color(const ToolSettings *tool_settings, const Paint *paint);
+bool BKE_paint_use_unified_color(const Paint *paint);
 
 /* Paint brush retrieval and assignment. */
 
 Brush *BKE_paint_brush(Paint *paint);
 const Brush *BKE_paint_brush_for_read(const Paint *paint);
-Brush *BKE_paint_brush_from_essentials(Main *bmain, eObjectMode ob_mode, const char *name);
+Brush *BKE_paint_brush_from_essentials(Main *bmain, PaintMode paint_mode, const char *name);
 
 /**
  * Check if brush \a brush may be set/activated for \a paint. Passing null for \a brush will return
  * true.
  */
-bool BKE_paint_brush_poll(const Paint *paint, const Brush *brush);
+bool BKE_paint_can_use_brush(const Paint *paint, const Brush *brush);
 
 /**
  * Activates \a brush for painting, and updates #Paint.brush_asset_reference so the brush can be
@@ -232,10 +211,12 @@ bool BKE_paint_brush_set(Paint *paint, Brush *brush);
 /**
  * Version of #BKE_paint_brush_set() that takes an asset reference instead of a brush, importing
  * the brush if necessary.
+ *
+ * \return False if unable to set the brush to the provided asset reference. True otherwise.
  */
 bool BKE_paint_brush_set(Main *bmain,
                          Paint *paint,
-                         const AssetWeakReference *brush_asset_reference);
+                         const AssetWeakReference &brush_asset_reference);
 bool BKE_paint_brush_set_default(Main *bmain, Paint *paint);
 bool BKE_paint_brush_set_essentials(Main *bmain, Paint *paint, const char *name);
 void BKE_paint_previous_asset_reference_set(Paint *paint,
@@ -243,7 +224,7 @@ void BKE_paint_previous_asset_reference_set(Paint *paint,
 void BKE_paint_previous_asset_reference_clear(Paint *paint);
 
 std::optional<AssetWeakReference> BKE_paint_brush_type_default_reference(
-    eObjectMode ob_mode, std::optional<int> brush_type);
+    PaintMode paint_mode, std::optional<int> brush_type);
 void BKE_paint_brushes_set_default_references(ToolSettings *ts);
 /**
  * Make sure the active brush asset is available as active brush, importing it if necessary. If
@@ -264,7 +245,7 @@ Brush *BKE_paint_eraser_brush(Paint *paint);
 const Brush *BKE_paint_eraser_brush_for_read(const Paint *paint);
 
 bool BKE_paint_eraser_brush_set(Paint *paint, Brush *brush);
-Brush *BKE_paint_eraser_brush_from_essentials(Main *bmain, eObjectMode ob_mode, const char *name);
+Brush *BKE_paint_eraser_brush_from_essentials(Main *bmain, PaintMode paint_mode, const char *name);
 bool BKE_paint_eraser_brush_set_default(Main *bmain, Paint *paint);
 bool BKE_paint_eraser_brush_set_essentials(Main *bmain, Paint *paint, const char *name);
 
@@ -316,16 +297,24 @@ void BKE_paint_face_set_overlay_color_get(int face_set, int seed, uchar r_color[
 
 /* Stroke related. */
 
-bool paint_calculate_rake_rotation(UnifiedPaintSettings &ups,
+/* Random values are generated on each new stroke so each stroke
+ * gets a different starting point in the perlin noise. */
+blender::float3 seed_hsv_jitter();
+
+bool paint_calculate_rake_rotation(Paint &paint,
                                    const Brush &brush,
                                    const float mouse_pos[2],
                                    PaintMode paint_mode,
                                    bool stroke_has_started);
-void paint_update_brush_rake_rotation(UnifiedPaintSettings &ups,
-                                      const Brush &brush,
-                                      float rotation);
+void paint_update_brush_rake_rotation(Paint &paint, const Brush &brush, float rotation);
 
-void BKE_paint_stroke_get_average(const Scene *scene, const Object *ob, float stroke[3]);
+void BKE_paint_stroke_get_average(const Paint *paint, const Object *ob, float stroke[3]);
+
+blender::float3 BKE_paint_randomize_color(const BrushColorJitterSettings &color_jitter,
+                                          const blender::float3 &initial_hsv_jitter,
+                                          const float distance,
+                                          const float pressure,
+                                          const blender::float3 &color);
 
 /* .blend I/O */
 
@@ -587,7 +576,7 @@ void BKE_sculptsession_free(Object *ob);
 void BKE_sculptsession_free_deformMats(SculptSession *ss);
 void BKE_sculptsession_free_vwpaint_data(SculptSession *ss);
 void BKE_sculptsession_free_pbvh(Object &object);
-void BKE_sculptsession_bm_to_me(Object *ob, bool reorder);
+void BKE_sculptsession_bm_to_me(Object *ob);
 void BKE_sculptsession_bm_to_me_for_render(Object *object);
 
 /**
@@ -660,5 +649,6 @@ bool BKE_paint_canvas_image_get(PaintModeSettings *settings,
                                 Image **r_image,
                                 ImageUser **r_image_user);
 int BKE_paint_canvas_uvmap_layer_index_get(const PaintModeSettings *settings, Object *ob);
-void BKE_sculpt_check_cavity_curves(Sculpt *sd);
+void BKE_sculpt_cavity_curves_ensure(Sculpt *sd);
 CurveMapping *BKE_sculpt_default_cavity_curve();
+CurveMapping *BKE_paint_default_curve();

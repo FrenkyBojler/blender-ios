@@ -58,16 +58,13 @@
 #include "BKE_curves.h"
 #include "BKE_curves.hh"
 #include "BKE_customdata.hh"
+#include "BKE_deform.hh"
 #include "BKE_displist.h"
 #include "BKE_duplilist.hh"
 #include "BKE_effect.h"
 #include "BKE_geometry_set.hh"
 #include "BKE_geometry_set_instances.hh"
-#include "BKE_gpencil_geom_legacy.h"
-#include "BKE_gpencil_legacy.h"
-#include "BKE_gpencil_modifier_legacy.h"
 #include "BKE_grease_pencil.hh"
-#include "BKE_grease_pencil_legacy_convert.hh"
 #include "BKE_key.hh"
 #include "BKE_lattice.hh"
 #include "BKE_layer.hh"
@@ -107,7 +104,7 @@
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -395,7 +392,7 @@ float new_primitive_matrix(bContext *C,
 
 static void view_align_update(Main * /*main*/, Scene * /*scene*/, PointerRNA *ptr)
 {
-  RNA_struct_idprops_unset(ptr, "rotation");
+  RNA_struct_system_idprops_unset(ptr, "rotation");
 }
 
 void add_unit_props_size(wmOperatorType *ot)
@@ -1470,7 +1467,7 @@ static wmOperatorStatus object_grease_pencil_add_exec(bContext *C, wmOperator *o
         md->source_type = LINEART_SOURCE_SCENE;
       }
       /* Only created one layer and one material. */
-      STRNCPY(md->target_layer, grease_pencil->get_active_layer()->name().c_str());
+      STRNCPY_UTF8(md->target_layer, grease_pencil->get_active_layer()->name().c_str());
       md->target_material = BKE_object_material_get(object, 0);
       if (md->target_material) {
         id_us_plus(&md->target_material->id);
@@ -1546,7 +1543,7 @@ void OBJECT_OT_grease_pencil_add(wmOperatorType *ot)
                 0.0f,
                 0.5f);
   RNA_def_boolean(
-      ot->srna, "use_lights", false, "Use Lights", "Use lights for this Grease Pencil object");
+      ot->srna, "use_lights", true, "Use Lights", "Use lights for this Grease Pencil object");
   RNA_def_enum(
       ot->srna,
       "stroke_depth_order",
@@ -2137,7 +2134,6 @@ static wmOperatorStatus object_pointcloud_add_exec(bContext *C, wmOperator *op)
   Object *object = add_type(C, OB_POINTCLOUD, nullptr, loc, rot, false, local_view_bits);
   PointCloud &pointcloud = *static_cast<PointCloud *>(object->data);
   pointcloud.totpoint = 400;
-  CustomData_realloc(&pointcloud.pdata, 0, pointcloud.totpoint);
 
   bke::MutableAttributeAccessor attributes = pointcloud.attributes_for_write();
   bke::SpanAttributeWriter<float3> position = attributes.lookup_or_add_for_write_only_span<float3>(
@@ -2346,7 +2342,7 @@ static void copy_object_set_idnew(bContext *C)
   Main *bmain = CTX_data_main(C);
 
   CTX_DATA_BEGIN (C, Object *, ob, selected_editable_objects) {
-    BKE_libblock_relink_to_newid(bmain, &ob->id, 0);
+    BKE_libblock_relink_to_newid(bmain, &ob->id, ID_REMAP_SKIP_USER_CLEAR);
   }
   CTX_DATA_END;
 
@@ -2498,10 +2494,10 @@ static void make_object_duplilist_real(bContext *C,
     return;
   }
 
-  ListBase *lb_duplis = object_duplilist(depsgraph, scene, object_eval);
+  DupliList duplilist;
+  object_duplilist(depsgraph, scene, object_eval, nullptr, duplilist);
 
-  if (BLI_listbase_is_empty(lb_duplis)) {
-    free_object_duplilist(lb_duplis);
+  if (duplilist.is_empty()) {
     return;
   }
 
@@ -2515,8 +2511,8 @@ static void make_object_duplilist_real(bContext *C,
     }
   }
 
-  LISTBASE_FOREACH (DupliObject *, dob, lb_duplis) {
-    Object *ob_src = DEG_get_original(dob->ob);
+  for (DupliObject &dob : duplilist) {
+    Object *ob_src = DEG_get_original(dob.ob);
     Object *ob_dst = static_cast<Object *>(ID_NEW_SET(ob_src, BKE_id_copy(bmain, &ob_src->id)));
     id_us_min(&ob_dst->id);
 
@@ -2551,32 +2547,32 @@ static void make_object_duplilist_real(bContext *C,
     id_us_min((ID *)ob_dst->instance_collection);
     ob_dst->instance_collection = nullptr;
 
-    copy_m4_m4(ob_dst->runtime->object_to_world.ptr(), dob->mat);
+    copy_m4_m4(ob_dst->runtime->object_to_world.ptr(), dob.mat);
     BKE_object_apply_mat4(ob_dst, ob_dst->object_to_world().ptr(), false, false);
 
-    dupli_map.add(dob, ob_dst);
+    dupli_map.add(&dob, ob_dst);
 
     if (parent_gh) {
       void **val;
       /* Due to nature of hash/comparison of this ghash, a lot of duplis may be considered as
        * 'the same', this avoids trying to insert same key several time and
        * raise asserts in debug builds... */
-      if (!BLI_ghash_ensure_p(parent_gh, dob, &val)) {
+      if (!BLI_ghash_ensure_p(parent_gh, &dob, &val)) {
         *val = ob_dst;
       }
 
       if (is_dupli_instancer && instancer_gh) {
         /* Same as above, we may have several 'hits'. */
-        if (!BLI_ghash_ensure_p(instancer_gh, dob, &val)) {
+        if (!BLI_ghash_ensure_p(instancer_gh, &dob, &val)) {
           *val = ob_dst;
         }
       }
     }
   }
 
-  LISTBASE_FOREACH (DupliObject *, dob, lb_duplis) {
-    Object *ob_src = dob->ob;
-    Object *ob_dst = dupli_map.lookup(dob);
+  for (DupliObject &dob : duplilist) {
+    Object *ob_src = dob.ob;
+    Object *ob_dst = dupli_map.lookup(&dob);
 
     /* Remap new object to itself, and clear again newid pointer of orig object. */
     BKE_libblock_relink_to_newid(bmain, &ob_dst->id, 0);
@@ -2594,14 +2590,14 @@ static void make_object_duplilist_real(bContext *C,
          * they won't be read, this is simply for a hash lookup. */
         DupliObject dob_key;
         dob_key.ob = ob_src_par;
-        dob_key.type = dob->type;
-        if (dob->type == OB_DUPLICOLLECTION) {
+        dob_key.type = dob.type;
+        if (dob.type == OB_DUPLICOLLECTION) {
           memcpy(&dob_key.persistent_id[1],
-                 &dob->persistent_id[1],
-                 sizeof(dob->persistent_id[1]) * (MAX_DUPLI_RECUR - 1));
+                 &dob.persistent_id[1],
+                 sizeof(dob.persistent_id[1]) * (MAX_DUPLI_RECUR - 1));
         }
         else {
-          dob_key.persistent_id[0] = dob->persistent_id[0];
+          dob_key.persistent_id[0] = dob.persistent_id[0];
         }
         ob_dst_par = static_cast<Object *>(BLI_ghash_lookup(parent_gh, &dob_key));
       }
@@ -2609,7 +2605,7 @@ static void make_object_duplilist_real(bContext *C,
       if (ob_dst_par) {
         /* allow for all possible parent types */
         ob_dst->partype = ob_src->partype;
-        STRNCPY(ob_dst->parsubstr, ob_src->parsubstr);
+        STRNCPY_UTF8(ob_dst->parsubstr, ob_src->parsubstr);
         ob_dst->par1 = ob_src->par1;
         ob_dst->par2 = ob_src->par2;
         ob_dst->par3 = ob_src->par3;
@@ -2630,7 +2626,7 @@ static void make_object_duplilist_real(bContext *C,
          * ignoring the first item.
          * We only check on persistent_id here, since we have no idea what object it might be. */
         memcpy(&dob_key.persistent_id[0],
-               &dob->persistent_id[1],
+               &dob.persistent_id[1],
                sizeof(dob_key.persistent_id[0]) * (MAX_DUPLI_RECUR - 1));
         ob_dst_par = static_cast<Object *>(BLI_ghash_lookup(instancer_gh, &dob_key));
       }
@@ -2648,7 +2644,7 @@ static void make_object_duplilist_real(bContext *C,
     if (ob_dst->parent) {
       /* NOTE: this may be the parent of other objects, but it should
        * still work out ok */
-      BKE_object_apply_mat4(ob_dst, dob->mat, false, true);
+      BKE_object_apply_mat4(ob_dst, dob.mat, false, true);
 
       /* to set ob_dst->orig and in case there's any other discrepancies */
       DEG_id_tag_update(&ob_dst->id, ID_RECALC_TRANSFORM);
@@ -2668,8 +2664,6 @@ static void make_object_duplilist_real(bContext *C,
   if (instancer_gh) {
     BLI_ghash_free(instancer_gh, nullptr, nullptr);
   }
-
-  free_object_duplilist(lb_duplis);
 
   BKE_main_id_newptr_and_tag_clear(bmain);
 
@@ -2745,18 +2739,12 @@ static const EnumPropertyItem convert_target_items[] = {
      "MESH",
      ICON_OUTLINER_OB_MESH,
      "Mesh",
-#ifdef WITH_POINTCLOUD
      "Mesh from Curve, Surface, Metaball, Text, or Point Cloud objects"},
-#else
-     "Mesh from Curve, Surface, Metaball, or Text objects"},
-#endif
-#ifdef WITH_POINTCLOUD
     {OB_POINTCLOUD,
      "POINTCLOUD",
      ICON_OUTLINER_OB_POINTCLOUD,
      "Point Cloud",
      "Point Cloud from Mesh objects"},
-#endif
     {OB_CURVES, "CURVES", ICON_OUTLINER_OB_CURVES, "Curves", "Curves from evaluated curve data"},
     {OB_GREASE_PENCIL,
      "GREASEPENCIL",
@@ -2833,14 +2821,14 @@ static bool object_convert_poll(bContext *C)
   ViewLayer *view_layer = CTX_data_view_layer(C);
   BKE_view_layer_synced_ensure(scene, view_layer);
   /* Don't use `active_object` in the context, it's important this value
-   * is from the view-layer as it's used to check if Blender is in edit-mode. */
+   * is from the view-layer as it's used to check if Blender is in object mode. */
   Object *obact = BKE_view_layer_active_object_get(view_layer);
-  if (obact && BKE_object_is_in_editmode(obact)) {
+  if (obact && obact->mode != OB_MODE_OBJECT) {
     return false;
   }
 
   /* Note that `obact` may not be editable,
-   * only check the active object to ensure Blender is not in edit-mode. */
+   * only check the active object to ensure Blender is in object mode. */
   return true;
 }
 
@@ -3259,8 +3247,8 @@ static void mesh_data_to_grease_pencil(const Mesh &mesh_eval,
   mesh_copied->attributes_for_write().add(
       unique_attribute_id,
       bke::AttrDomain::Point,
-      CD_PROP_FLOAT3,
-      bke::AttributeInitVArray(VArray<float3>::ForSpan(normals)));
+      bke::AttrType::Float3,
+      bke::AttributeInitVArray(VArray<float3>::from_span(normals)));
 
   const int edges_num = mesh_copied->edges_num;
   bke::CurvesGeometry curves = geometry::mesh_edges_to_curves_convert(
@@ -3275,6 +3263,8 @@ static void mesh_data_to_grease_pencil(const Mesh &mesh_eval,
       curve_positions[point_i] += offset * point_normals[point_i];
     }
   });
+
+  BKE_defgroup_copy_list(&grease_pencil.vertex_group_names, &mesh_copied->vertex_group_names);
 
   curves.radius_for_write().fill(stroke_radius);
 
@@ -3617,6 +3607,7 @@ static Object *convert_font_to_curve_legacy_generic(Object *ob,
                         nullptr,
                         nullptr,
                         nullptr,
+                        nullptr,
                         nullptr);
 
   newob->type = OB_CURVES_LEGACY;
@@ -3697,6 +3688,42 @@ static Object *convert_font_to_curves(Base &base, ObjectConversionInfo &info, Ba
   return curve_ob;
 }
 
+/* Currently neither Grease Pencil nor legacy curves supports per-stroke/curve fill attribute, thus
+ * the #fill argument applies on all strokes that are converted. */
+static void add_grease_pencil_materials_for_conversion(Main &bmain,
+                                                       ID &from_id,
+                                                       Object &gp_object,
+                                                       const bool use_fill)
+{
+  short *len_p = BKE_id_material_len_p(&from_id);
+  if (!len_p || *len_p == 0) {
+    return;
+  }
+  Material ***materials = BKE_id_material_array_p(&from_id);
+  if (!materials || !(*materials)) {
+    return;
+  }
+  for (short i = 0; i < *len_p; i++) {
+    const Material *orig_material = (*materials)[i];
+    const char *name = orig_material ? BKE_id_name(orig_material->id) : IFACE_("Empty Material");
+
+    Material *gp_material = BKE_grease_pencil_object_material_new(
+        &bmain, &gp_object, name, nullptr);
+
+    /* If the original object has this material slot but didn't assign any material, then we don't
+     * have anything to copy color information from. In those cases we still added an empty
+     * material to keep the material index matching. */
+    if (!orig_material) {
+      continue;
+    }
+
+    copy_v4_v4(gp_material->gp_style->fill_rgba, &orig_material->r);
+
+    SET_FLAG_FROM_TEST(gp_material->gp_style->flag, !use_fill, GP_MATERIAL_STROKE_SHOW);
+    SET_FLAG_FROM_TEST(gp_material->gp_style->flag, use_fill, GP_MATERIAL_FILL_SHOW);
+  }
+}
+
 static Object *convert_font_to_grease_pencil(Base &base,
                                              ObjectConversionInfo &info,
                                              Base **r_new_base)
@@ -3727,6 +3754,10 @@ static Object *convert_font_to_grease_pencil(Base &base,
 
   curve_ob->data = grease_pencil;
   curve_ob->type = OB_GREASE_PENCIL;
+  curve_ob->totcol = grease_pencil->material_array_num;
+
+  const bool use_fill = (legacy_curve_id->flag & (CU_FRONT | CU_BACK)) != 0;
+  add_grease_pencil_materials_for_conversion(*info.bmain, legacy_curve_id->id, *newob, use_fill);
 
   /* We don't need the intermediate font/curve data ID any more. */
   BKE_id_delete(info.bmain, legacy_curve_id);
@@ -3828,6 +3859,18 @@ static Object *convert_curves_legacy_to_grease_pencil(Base &base,
 
   newob->data = grease_pencil;
   newob->type = OB_GREASE_PENCIL;
+
+  /* Some functions like #BKE_id_material_len_p still uses Object::totcol so this value must be in
+   * sync. */
+  newob->totcol = grease_pencil->material_array_num;
+
+  const bool use_fill = (legacy_curve_id->flag & (CU_FRONT | CU_BACK)) != 0;
+  add_grease_pencil_materials_for_conversion(*info.bmain, legacy_curve_id->id, *newob, use_fill);
+
+  /* For some reason this must be called, otherwise evaluated id_cow will still be the original
+   * curves id (and that seems to only happen if "Keep Original" is enabled, and only with this
+   * specific conversion combination), not sure why. Ref: #138793 */
+  DEG_id_tag_update(&grease_pencil->id, ID_RECALC_GEOMETRY);
 
   BKE_id_free(nullptr, curves_nomain);
 
@@ -4172,18 +4215,16 @@ static wmOperatorStatus object_convert_exec(bContext *C, wmOperator *op)
     if (incompatible_count == selected_editable_bases.size()) {
       BKE_reportf(op->reports,
                   RPT_INFO,
-                  "%s \"%s\"",
-                  RPT_("None of the objects are compatible of conversion to"),
-                  IFACE_(target_type_name));
+                  "None of the objects are compatible with a conversion to \"%s\"",
+                  RPT_(target_type_name));
     }
     else {
-      BKE_reportf(op->reports,
-                  RPT_INFO,
-                  "%s %d %s \"%s\"",
-                  RPT_("The selection included"),
-                  incompatible_count,
-                  RPT_("object(s) types which don't support conversion to"),
-                  IFACE_(target_type_name));
+      BKE_reportf(
+          op->reports,
+          RPT_INFO,
+          "The selection included %d object type(s) which do not support conversion to \"%s\"",
+          incompatible_count,
+          RPT_(target_type_name));
     }
   }
 
@@ -4200,7 +4241,7 @@ static void object_convert_ui(bContext * /*C*/, wmOperator *op)
 {
   uiLayout *layout = op->layout;
 
-  uiLayoutSetPropSep(layout, true);
+  layout->use_property_split_set(true);
 
   layout->prop(op->ptr, "target", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   layout->prop(op->ptr, "keep_original", UI_ITEM_NONE, std::nullopt, ICON_NONE);
@@ -4926,6 +4967,20 @@ static wmOperatorStatus update_all_shape_keys_exec(bContext *C, wmOperator *op)
   return ED_mesh_shapes_join_objects_exec(C, false, op->reports);
 }
 
+static bool object_update_shapes_poll(bContext *C)
+{
+  if (!active_shape_key_editable_poll(C)) {
+    return false;
+  }
+
+  Object *ob = CTX_data_active_object(C);
+  const Key *key = BKE_key_from_object(ob);
+  if (!key || BLI_listbase_is_empty(&key->block)) {
+    return false;
+  }
+  return true;
+}
+
 void OBJECT_OT_update_shapes(wmOperatorType *ot)
 {
   ot->name = "Update from Objects";
@@ -4935,7 +4990,7 @@ void OBJECT_OT_update_shapes(wmOperatorType *ot)
   ot->idname = "OBJECT_OT_update_shapes";
 
   ot->exec = update_all_shape_keys_exec;
-  ot->poll = active_shape_key_editable_poll;
+  ot->poll = object_update_shapes_poll;
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }

@@ -49,7 +49,6 @@ struct NodeInsertOfsData {
   bNodeTree *ntree;
   bNode *insert;      /* Inserted node. */
   bNode *prev, *next; /* Previous/next node in the chain. */
-  bNode *insert_parent;
 
   wmTimer *anim_timer;
 
@@ -159,8 +158,9 @@ static void pick_input_link_by_link_intersect(const bContext &C,
   }
 }
 
-static bool socket_is_available(bNodeTree * /*ntree*/, bNodeSocket *sock, const bool allow_used)
+static bool socket_is_available(bNodeTree *ntree, bNodeSocket *sock, const bool allow_used)
 {
+  ntree->ensure_topology_cache();
   if (!sock->is_visible()) {
     return false;
   }
@@ -217,6 +217,34 @@ static bNodeSocket *best_socket_output(bNodeTree *ntree,
     }
   }
 
+  /* If the target is an extend socket, then connect the first available socket that is not
+   * already linked to the target node. */
+  ntree->ensure_topology_cache();
+  if (STREQ(sock_target->idname, "NodeSocketVirtual")) {
+    LISTBASE_FOREACH (bNodeSocket *, output, &node->outputs) {
+      if (!output->is_icon_visible()) {
+        continue;
+      }
+
+      /* Find out if the socket is already linked to the target node. */
+      const Span<bNodeSocket *> directly_linked_sockets = output->directly_linked_sockets();
+      bool is_output_linked_to_target_node = false;
+      for (bNodeSocket *socket : directly_linked_sockets) {
+        if (&socket->owner_node() == &sock_target->owner_node()) {
+          is_output_linked_to_target_node = true;
+          break;
+        }
+      }
+
+      /* Already linked, ignore it. */
+      if (is_output_linked_to_target_node) {
+        continue;
+      }
+
+      return output;
+    }
+  }
+
   /* Always allow linking to an reroute node. The socket type of the reroute sockets might change
    * after the link has been created. */
   if (node->is_reroute()) {
@@ -237,7 +265,7 @@ static bNodeSocket *best_socket_input(bNodeTree *ntree, bNode *node, int num, in
 
   /* Find sockets of higher 'types' first (i.e. image). */
   int a = 0;
-  for (int socktype = maxtype; socktype >= 0; socktype--) {
+  for (int socktype = maxtype; socktype >= SOCK_CUSTOM; socktype--) {
     LISTBASE_FOREACH (bNodeSocket *, sock, &node->inputs) {
       if (!socket_is_available(ntree, sock, replace)) {
         a++;
@@ -258,7 +286,8 @@ static bNodeSocket *best_socket_input(bNodeTree *ntree, bNode *node, int num, in
   return nullptr;
 }
 
-static bool snode_autoconnect_input(SpaceNode &snode,
+static bool snode_autoconnect_input(bContext &C,
+                                    SpaceNode &snode,
                                     bNode *node_fr,
                                     bNodeSocket *sock_fr,
                                     bNode *node_to,
@@ -271,7 +300,23 @@ static bool snode_autoconnect_input(SpaceNode &snode,
     bke::node_remove_socket_links(*ntree, *sock_to);
   }
 
-  bke::node_add_link(*ntree, *node_fr, *sock_fr, *node_to, *sock_to);
+  bNodeLink &link = bke::node_add_link(*ntree, *node_fr, *sock_fr, *node_to, *sock_to);
+
+  if (link.fromnode->typeinfo->insert_link) {
+    bke::NodeInsertLinkParams params{*ntree, *link.fromnode, link, &C};
+    if (!link.fromnode->typeinfo->insert_link(params)) {
+      bke::node_remove_link(ntree, link);
+      return false;
+    }
+  }
+  if (link.tonode->typeinfo->insert_link) {
+    bke::NodeInsertLinkParams params{*ntree, *link.tonode, link, &C};
+    if (!link.tonode->typeinfo->insert_link(params)) {
+      bke::node_remove_link(ntree, link);
+      return false;
+    }
+  }
+
   return true;
 }
 
@@ -321,7 +366,10 @@ void update_multi_input_indices_for_removed_links(bNode &node)
   }
 }
 
-static void snode_autoconnect(SpaceNode &snode, const bool allow_multiple, const bool replace)
+static void snode_autoconnect(bContext &C,
+                              SpaceNode &snode,
+                              const bool allow_multiple,
+                              const bool replace)
 {
   bNodeTree *ntree = snode.edittree;
   Vector<bNode *> sorted_nodes = get_selected_nodes(*ntree).extract_vector();
@@ -357,7 +405,7 @@ static void snode_autoconnect(SpaceNode &snode, const bool allow_multiple, const
           continue;
         }
 
-        if (snode_autoconnect_input(snode, node_fr, sock_fr, node_to, sock_to, replace)) {
+        if (snode_autoconnect_input(C, snode, node_fr, sock_fr, node_to, sock_to, replace)) {
           // numlinks++;
         }
       }
@@ -381,7 +429,7 @@ static void snode_autoconnect(SpaceNode &snode, const bool allow_multiple, const
           continue;
         }
 
-        if (snode_autoconnect_input(snode, node_fr, sock_fr, node_to, sock_to, replace)) {
+        if (snode_autoconnect_input(C, snode, node_fr, sock_fr, node_to, sock_to, replace)) {
           // numlinks++;
           break;
         }
@@ -865,7 +913,7 @@ static bool node_active_link_viewer_poll(bContext *C)
     return true;
   }
   if (ED_node_is_geometry(snode)) {
-    if (snode->geometry_nodes_type == SNODE_GEOMETRY_TOOL) {
+    if (snode->node_tree_sub_type == SNODE_GEOMETRY_TOOL) {
       /* The viewer node is not supported in the "Tool" context. */
       return false;
     }
@@ -1216,13 +1264,15 @@ static void add_dragged_links_to_tree(bContext &C, bNodeLinkDrag &nldrag)
     bNodeLink *new_link = MEM_mallocN<bNodeLink>(__func__);
     *new_link = link;
     if (link.fromnode->typeinfo->insert_link) {
-      if (!link.fromnode->typeinfo->insert_link(&ntree, link.fromnode, new_link)) {
+      bke::NodeInsertLinkParams params{ntree, *link.fromnode, *new_link, &C};
+      if (!link.fromnode->typeinfo->insert_link(params)) {
         MEM_freeN(new_link);
         continue;
       }
     }
     if (link.tonode->typeinfo->insert_link) {
-      if (!link.tonode->typeinfo->insert_link(&ntree, link.tonode, new_link)) {
+      bke::NodeInsertLinkParams params{ntree, *link.tonode, *new_link, &C};
+      if (!link.tonode->typeinfo->insert_link(params)) {
         MEM_freeN(new_link);
         continue;
       }
@@ -1614,7 +1664,7 @@ static wmOperatorStatus node_make_link_exec(bContext *C, wmOperator *op)
 
   ED_preview_kill_jobs(CTX_wm_manager(C), &bmain);
 
-  snode_autoconnect(snode, true, replace);
+  snode_autoconnect(*C, snode, true, replace);
 
   /* Deselect sockets after linking. */
   node_deselect_all_input_sockets(node_tree, false);
@@ -2491,14 +2541,14 @@ void node_insert_on_link_flags(Main &bmain, SpaceNode &snode, bool is_new_node)
   if (!node_to_insert->is_reroute()) {
     /* Ignore main sockets when the types don't match. */
     if (best_input != nullptr && ntree.typeinfo->validate_link != nullptr &&
-        !ntree.typeinfo->validate_link(static_cast<eNodeSocketDatatype>(old_link->fromsock->type),
-                                       static_cast<eNodeSocketDatatype>(best_input->type)))
+        !ntree.typeinfo->validate_link(eNodeSocketDatatype(old_link->fromsock->type),
+                                       eNodeSocketDatatype(best_input->type)))
     {
       best_input = nullptr;
     }
     if (best_output != nullptr && ntree.typeinfo->validate_link != nullptr &&
-        !ntree.typeinfo->validate_link(static_cast<eNodeSocketDatatype>(best_output->type),
-                                       static_cast<eNodeSocketDatatype>(old_link->tosock->type)))
+        !ntree.typeinfo->validate_link(eNodeSocketDatatype(best_output->type),
+                                       eNodeSocketDatatype(old_link->tosock->type)))
     {
       best_output = nullptr;
     }
@@ -2551,19 +2601,21 @@ void node_insert_on_link_flags(Main &bmain, SpaceNode &snode, bool is_new_node)
 
 static int get_main_socket_priority(const bNodeSocket *socket)
 {
-  switch ((eNodeSocketDatatype)socket->type) {
+  switch (eNodeSocketDatatype(socket->type)) {
     case SOCK_CUSTOM:
       return 0;
-    case SOCK_BOOLEAN:
+    case SOCK_MENU:
       return 1;
-    case SOCK_INT:
+    case SOCK_BOOLEAN:
       return 2;
-    case SOCK_FLOAT:
+    case SOCK_INT:
       return 3;
-    case SOCK_VECTOR:
+    case SOCK_FLOAT:
       return 4;
-    case SOCK_RGBA:
+    case SOCK_VECTOR:
       return 5;
+    case SOCK_RGBA:
+      return 6;
     case SOCK_STRING:
     case SOCK_SHADER:
     case SOCK_OBJECT:
@@ -2574,10 +2626,9 @@ static int get_main_socket_priority(const bNodeSocket *socket)
     case SOCK_COLLECTION:
     case SOCK_TEXTURE:
     case SOCK_MATERIAL:
-    case SOCK_MENU:
     case SOCK_BUNDLE:
     case SOCK_CLOSURE:
-      return 6;
+      return 7;
   }
   return -1;
 }
@@ -2642,59 +2693,7 @@ static void node_offset_apply(bNode &node, const float offset_x)
   }
 }
 
-static void node_parent_offset_apply(NodeInsertOfsData *data, bNode *parent, const float offset_x)
-{
-  node_offset_apply(*parent, offset_x);
-
-  /* Flag all children as offset to prevent them from being offset
-   * separately (they've already moved with the parent). */
-  for (bNode *node : data->ntree->all_nodes()) {
-    if (bke::node_is_parent_and_child(*parent, *node)) {
-      /* NODE_TEST is used to flag nodes that shouldn't be offset (again) */
-      node->flag |= NODE_TEST;
-    }
-  }
-}
-
 #define NODE_INSOFS_ANIM_DURATION 0.25f
-
-/**
- * Callback that applies #NodeInsertOfsData.offset_x to a node or its parent, similar
- * to node_link_insert_offset_output_chain_cb below, but with slightly different logic
- */
-static bool node_link_insert_offset_frame_chain_cb(bNode *fromnode,
-                                                   bNode *tonode,
-                                                   void *userdata,
-                                                   const bool reversed)
-{
-  NodeInsertOfsData *data = (NodeInsertOfsData *)userdata;
-  bNode *ofs_node = reversed ? fromnode : tonode;
-
-  if (ofs_node->parent && ofs_node->parent != data->insert_parent) {
-    node_offset_apply(*ofs_node->parent, data->offset_x);
-  }
-  else {
-    node_offset_apply(*ofs_node, data->offset_x);
-  }
-
-  return true;
-}
-
-/**
- * Applies #NodeInsertOfsData.offset_x to all children of \a parent.
- */
-static void node_link_insert_offset_frame_chains(bNodeTree *ntree,
-                                                 const bNode *parent,
-                                                 NodeInsertOfsData *data,
-                                                 const bool reversed)
-{
-  for (bNode *node : ntree->all_nodes()) {
-    if (bke::node_is_parent_and_child(*parent, *node)) {
-      bke::node_chain_iterator(
-          ntree, node, node_link_insert_offset_frame_chain_cb, data, reversed);
-    }
-  }
-}
 
 /**
  * Callback that applies NodeInsertOfsData.offset_x to a node or its parent,
@@ -2708,26 +2707,7 @@ static bool node_link_insert_offset_chain_cb(bNode *fromnode,
   NodeInsertOfsData *data = (NodeInsertOfsData *)userdata;
   bNode *ofs_node = reversed ? fromnode : tonode;
 
-  if (data->insert_parent) {
-    if (ofs_node->parent && (ofs_node->parent->flag & NODE_TEST) == 0) {
-      node_parent_offset_apply(data, ofs_node->parent, data->offset_x);
-      node_link_insert_offset_frame_chains(data->ntree, ofs_node->parent, data, reversed);
-    }
-    else {
-      node_offset_apply(*ofs_node, data->offset_x);
-    }
-
-    if (!bke::node_is_parent_and_child(*data->insert_parent, *ofs_node)) {
-      data->insert_parent = nullptr;
-    }
-  }
-  else if (ofs_node->parent) {
-    bNode *node = bke::node_find_root_parent(*ofs_node);
-    node_offset_apply(*node, data->offset_x);
-  }
-  else {
-    node_offset_apply(*ofs_node, data->offset_x);
-  }
+  node_offset_apply(*ofs_node, data->offset_x);
 
   return true;
 }
@@ -2818,14 +2798,7 @@ static void node_link_insert_offset_ntree(NodeInsertOfsData *iofsd,
     const float addval = (min_margin - dist) * (right_alignment ? 1.0f : -1.0f);
     if (needs_alignment) {
       bNode *offs_node = right_alignment ? next : prev;
-      if (!offs_node->parent || offs_node->parent == insert.parent ||
-          bke::node_is_parent_and_child(*offs_node->parent, insert))
-      {
-        node_offset_apply(*offs_node, addval);
-      }
-      else if (!insert.parent && offs_node->parent) {
-        node_offset_apply(*bke::node_find_root_parent(*offs_node), addval);
-      }
+      node_offset_apply(*offs_node, addval);
       margin = addval;
     }
     /* enough room is available, but we want to ensure the min margin at the right */
@@ -2836,7 +2809,6 @@ static void node_link_insert_offset_ntree(NodeInsertOfsData *iofsd,
   }
 
   if (needs_alignment) {
-    iofsd->insert_parent = insert.parent;
     iofsd->offset_x = margin;
 
     /* flag all parents of insert as offset to prevent them from being offset */

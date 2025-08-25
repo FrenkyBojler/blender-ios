@@ -16,7 +16,7 @@
 #include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 #include "BLT_translation.hh"
@@ -67,6 +67,7 @@
 #include "ANIM_animdata.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "object_intern.hh"
@@ -186,7 +187,7 @@ static void set_constraint_nth_target(bConstraint *con,
     for (ct = static_cast<bConstraintTarget *>(targets.first), i = 0; ct; ct = ct->next, i++) {
       if (i == index) {
         ct->tar = target;
-        STRNCPY(ct->subtarget, subtarget);
+        STRNCPY_UTF8(ct->subtarget, subtarget);
         break;
       }
     }
@@ -1381,7 +1382,7 @@ static wmOperatorStatus constraint_delete_exec(bContext *C, wmOperator *op)
 
   /* Store name temporarily for report. */
   char name[MAX_NAME];
-  STRNCPY(name, con->name);
+  STRNCPY_UTF8(name, con->name);
 
   /* free the constraint */
   if (BKE_constraint_remove_ex(lb, ob, con)) {
@@ -1454,7 +1455,7 @@ static wmOperatorStatus constraint_apply_exec(bContext *C, wmOperator *op)
 
   /* Store name temporarily for report. */
   char name[MAX_NAME];
-  STRNCPY(name, con->name);
+  STRNCPY_UTF8(name, con->name);
   const bool is_first_constraint = con != constraints->first;
 
   /* Copy the constraint. */
@@ -1551,7 +1552,7 @@ static wmOperatorStatus constraint_copy_exec(bContext *C, wmOperator *op)
 
   /* Store name temporarily for report. */
   char name[MAX_NAME];
-  STRNCPY(name, con->name);
+  STRNCPY_UTF8(name, con->name);
 
   /* Copy the constraint. */
   bConstraint *copy_con;
@@ -2187,6 +2188,11 @@ static bool get_new_constraint_target(
       only_ob = true;
       add = false;
       break;
+
+    /* Armature only. */
+    case CONSTRAINT_TYPE_ARMATURE:
+      add = false;
+      break;
   }
 
   /* if the active Object is Armature, and we can search for bones, do so... */
@@ -2335,6 +2341,18 @@ static wmOperatorStatus constraint_add_exec(
 
     /* get the target objects, adding them as need be */
     if (get_new_constraint_target(C, type, &tar_ob, &tar_pchan, true)) {
+
+      /* Armature constraints don't have a target by default, add one. */
+      if (type == CONSTRAINT_TYPE_ARMATURE) {
+        bArmatureConstraint *acon = static_cast<bArmatureConstraint *>(con->data);
+        bConstraintTarget *ct = MEM_callocN<bConstraintTarget>("Constraint Target");
+
+        ct->weight = 1.0f;
+        BLI_addtail(&acon->targets, ct);
+
+        constraint_dependency_tag_update(bmain, ob, con);
+      }
+
       /* Method of setting target depends on the type of target we've got - by default,
        * just set the first target (distinction here is only for multiple-targeted constraints).
        */

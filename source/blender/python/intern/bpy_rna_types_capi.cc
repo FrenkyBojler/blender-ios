@@ -9,7 +9,7 @@
  *
  * We should avoid adding code here, and prefer:
  * - `source/blender/makesrna/intern/rna_context.cc` using the RNA C API.
- * - `scripts/modules/bpy_types.py` when additions c an be written in Python.
+ * - `scripts/modules/_bpy_types.py` when additions c an be written in Python.
  *
  * Otherwise functions can be added here as a last resort.
  */
@@ -112,7 +112,7 @@ PyDoc_STRVAR(
     pyrna_WindowManager_clipboard_doc,
     "Clipboard text storage.\n"
     "\n"
-    ":type: str");
+    ":type: str\n");
 static PyObject *pyrna_WindowManager_clipboard_get(PyObject * /*self*/, void * /*flag*/)
 {
   int text_len = 0;
@@ -155,9 +155,9 @@ PyDoc_STRVAR(
     "\n"
     "   :arg callback:\n"
     "      A function that will be called when the cursor is drawn.\n"
-    "      It gets the specified arguments as input with the mouse position (tuple) as last "
-    "argument.\n"
-    "   :type callback: Callable[[Any, ..., tuple[int, int]], Any]\n"
+    "      It gets the specified arguments as input with the mouse position "
+    "(``tuple[int, int]``) as last argument.\n"
+    "   :type callback: Callable[..., Any]\n"
     "   :arg args: Arguments that will be passed to the callback.\n"
     "   :type args: tuple[Any, ...]\n"
     "   :arg space_type: The space type the callback draws in; for example ``VIEW_3D``. "
@@ -168,7 +168,6 @@ PyDoc_STRVAR(
     "   :type region_type: str\n"
     "   :return: Handler that can be removed later on.\n"
     "   :rtype: object\n");
-
 PyDoc_STRVAR(
     /* Wrap. */
     pyrna_draw_cursor_remove_doc,
@@ -229,7 +228,7 @@ PyDoc_STRVAR(
     "   :arg callback:\n"
     "      A function that will be called when the region is drawn.\n"
     "      It gets the specified arguments as input, it's return value is ignored.\n"
-    "   :type callback: Callable[[Any, ...], Any]\n"
+    "   :type callback: Callable[..., Any]\n"
     "   :arg args: Arguments that will be passed to the callback.\n"
     "   :type args: tuple[Any, ...]\n"
     "   :arg region_type: The region type the callback draws in; usually ``WINDOW``. "
@@ -240,8 +239,7 @@ PyDoc_STRVAR(
     "editor.\n"
     "   :type draw_type: str\n"
     "   :return: Handler that can be removed later on.\n"
-    "   :rtype: object");
-
+    "   :rtype: object\n");
 PyDoc_STRVAR(
     /* Wrap. */
     pyrna_draw_handler_remove_doc,

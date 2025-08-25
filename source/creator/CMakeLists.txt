@@ -52,10 +52,7 @@ endif()
 
 if(WITH_CYCLES)
   add_definitions(-DWITH_CYCLES)
-  if(WITH_CYCLES_LOGGING)
-    list(APPEND INC ../../intern/cycles/blender)
-    add_definitions(-DWITH_CYCLES_LOGGING)
-  endif()
+  list(APPEND INC ../../intern/cycles/blender)
 endif()
 
 if(WITH_OPENGL_BACKEND)
@@ -1422,7 +1419,18 @@ elseif(WIN32)
 
   # Filenames change slightly between FFMPEG versions check both 6.0 and fallback to 5.0
   # to ease the transition between versions.
-  if(EXISTS "${LIBDIR}/ffmpeg/lib/avcodec-60.dll")
+  if(EXISTS "${LIBDIR}/ffmpeg/lib/avcodec-61.dll")
+    windows_install_shared_manifest(
+      FILES
+        ${LIBDIR}/ffmpeg/lib/avcodec-61.dll
+        ${LIBDIR}/ffmpeg/lib/avformat-61.dll
+        ${LIBDIR}/ffmpeg/lib/avdevice-61.dll
+        ${LIBDIR}/ffmpeg/lib/avutil-59.dll
+        ${LIBDIR}/ffmpeg/lib/swscale-8.dll
+        ${LIBDIR}/ffmpeg/lib/swresample-5.dll
+      ALL
+    )
+  elseif(EXISTS "${LIBDIR}/ffmpeg/lib/avcodec-60.dll")
     windows_install_shared_manifest(
       FILES
         ${LIBDIR}/ffmpeg/lib/avcodec-60.dll
@@ -1558,6 +1566,9 @@ elseif(WIN32)
         ${CMAKE_SOURCE_DIR}/release/windows/batch/blender_debug_gpu_glitchworkaround.cmd
         ${CMAKE_SOURCE_DIR}/release/windows/batch/blender_debug_log.cmd
         ${CMAKE_SOURCE_DIR}/release/windows/batch/blender_factory_startup.cmd
+        ${CMAKE_SOURCE_DIR}/release/windows/batch/blender_factory_startup_vulkan.cmd
+        ${CMAKE_SOURCE_DIR}/release/windows/batch/blender_startup_opengl.cmd
+        ${CMAKE_SOURCE_DIR}/release/windows/batch/blender_startup_vulkan.cmd
         ${CMAKE_SOURCE_DIR}/release/windows/batch/blender_oculus.cmd
         ${CMAKE_SOURCE_DIR}/release/windows/batch/oculus.json
       DESTINATION ${TARGETDIR_EXE}
@@ -1661,7 +1672,7 @@ elseif(APPLE)
 
   if(WITH_VULKAN_BACKEND)
     install(
-      FILES ${VULKAN_LIBRARY} ${MOLTENVK_LIBRARY}
+      FILES ${VULKAN_LIBRARY}
       DESTINATION ${TARGETDIR_LIB}
     )
   endif()

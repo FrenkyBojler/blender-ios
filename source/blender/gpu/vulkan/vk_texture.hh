@@ -29,7 +29,8 @@ enum class VKImageViewFlags {
 ENUM_OPERATORS(VKImageViewFlags, VKImageViewFlags::NO_SWIZZLING)
 
 class VKTexture : public Texture {
-  friend class VKDescriptorSetTracker;
+  friend class VKDescriptorSetUpdator;
+  friend class VKContext;
 
   /**
    * Texture format how the texture is stored on the device.
@@ -37,7 +38,7 @@ class VKTexture : public Texture {
    * This can be a different format then #Texture.format_ in case the texture format isn't natively
    * supported by the device.
    */
-  eGPUTextureFormat device_format_ = (eGPUTextureFormat)-1;
+  TextureFormat device_format_ = TextureFormat::Invalid;
 
   /** When set the instance is considered to be a texture view from `source_texture_` */
   VKTexture *source_texture_ = nullptr;
@@ -60,12 +61,6 @@ class VKTexture : public Texture {
    */
   Vector<VKImageView> image_views_;
 
-  /* Last image layout of the texture. Frame-buffer and barriers can alter/require the actual
-   * layout to be changed. During this it requires to set the current layout in order to know which
-   * conversion should happen. #current_layout_ keep track of the layout so the correct conversion
-   * can be done. */
-  VkImageLayout current_layout_ = VK_IMAGE_LAYOUT_UNDEFINED;
-
   int layer_offset_ = 0;
   bool use_stencil_ = false;
 
@@ -82,8 +77,6 @@ class VKTexture : public Texture {
   VKTexture(const char *name) : Texture(name) {}
 
   virtual ~VKTexture() override;
-
-  void init(VkImage vk_image, VkImageLayout layout, eGPUTextureFormat texture_format);
 
   void generate_mipmap() override;
   void copy_to(Texture *tex) override;
@@ -133,7 +126,7 @@ class VKTexture : public Texture {
   /**
    * Get the texture format how the texture is stored on the device.
    */
-  eGPUTextureFormat device_format_get() const
+  TextureFormat device_format_get() const
   {
     return device_format_;
   }
@@ -152,7 +145,12 @@ class VKTexture : public Texture {
  protected:
   bool init_internal() override;
   bool init_internal(VertBuf *vbo) override;
-  bool init_internal(GPUTexture *src, int mip_offset, int layer_offset, bool use_stencil) override;
+  bool init_internal(gpu::Texture *src,
+                     int mip_offset,
+                     int layer_offset,
+                     bool use_stencil) override;
+  /* Initialize VKTexture with a swapchain image. */
+  void init_swapchain(VkImage vk_image, TextureFormat gpu_format);
 
  private:
   /** Is this texture a view of another texture. */

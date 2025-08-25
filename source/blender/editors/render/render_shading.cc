@@ -181,6 +181,14 @@ static bool object_materials_supported_poll(bContext *C)
   return object_materials_supported_poll_ex(C, ob);
 }
 
+static bool material_slot_populated_poll(bContext *C)
+{
+  const Object *ob_active = CTX_data_active_object(C);
+  if (ob_active == nullptr) {
+    return false;
+  }
+  return ob_active->actcol > 0;
+}
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -232,17 +240,31 @@ void OBJECT_OT_material_slot_add(wmOperatorType *ot)
 /** \name Material Slot Remove Operator
  * \{ */
 
-static wmOperatorStatus material_slot_remove_exec(bContext *C, wmOperator *op)
+static bool material_slot_remove_poll(bContext *C)
+{
+  const Object *ob = blender::ed::object::context_object(C);
+
+  if (!object_materials_supported_poll_ex(C, ob)) {
+    return false;
+  }
+
+  /* Removing material slots in edit mode screws things up, see bug #21822. */
+  if (BKE_object_is_in_editmode(ob)) {
+    CTX_wm_operator_poll_msg_set(C, "Unable to remove material slot in edit mode");
+    return false;
+  }
+  if (!material_slot_populated_poll(C)) {
+    return false;
+  }
+
+  return true;
+}
+
+static wmOperatorStatus material_slot_remove_exec(bContext *C, wmOperator * /*op*/)
 {
   Object *ob = blender::ed::object::context_object(C);
 
   if (!ob) {
-    return OPERATOR_CANCELLED;
-  }
-
-  /* Removing material slots in edit mode screws things up, see bug #21822. */
-  if (ob == CTX_data_edit_object(C)) {
-    BKE_report(op->reports, RPT_ERROR, "Unable to remove material slot in edit mode");
     return OPERATOR_CANCELLED;
   }
 
@@ -271,7 +293,7 @@ void OBJECT_OT_material_slot_remove(wmOperatorType *ot)
 
   /* API callbacks. */
   ot->exec = material_slot_remove_exec;
-  ot->poll = object_materials_supported_poll;
+  ot->poll = material_slot_remove_poll;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_INTERNAL;
@@ -346,10 +368,11 @@ static wmOperatorStatus material_slot_assign_exec(bContext *C, wmOperator * /*op
       }
     }
     else if (ob->type == OB_FONT) {
-      EditFont *ef = ((Curve *)ob->data)->editfont;
+      const Curve *cu = static_cast<const Curve *>(ob->data);
+      EditFont *ef = cu->editfont;
       int i, selstart, selend;
 
-      if (ef && BKE_vfont_select_get(ob, &selstart, &selend)) {
+      if (ef && BKE_vfont_select_get(cu, &selstart, &selend)) {
         for (i = selstart; i <= selend; i++) {
           changed = true;
           ef->textbufinfo[i].mat_nr = mat_nr_active;
@@ -582,6 +605,7 @@ void OBJECT_OT_material_slot_copy(wmOperatorType *ot)
 
   /* API callbacks. */
   ot->exec = material_slot_copy_exec;
+  ot->poll = material_slot_populated_poll;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_INTERNAL;
@@ -676,13 +700,6 @@ void OBJECT_OT_material_slot_move(wmOperatorType *ot)
 
 static wmOperatorStatus material_slot_remove_unused_exec(bContext *C, wmOperator *op)
 {
-  /* Removing material slots in edit mode screws things up, see bug #21822. */
-  Object *ob_active = CTX_data_active_object(C);
-  if (ob_active && BKE_object_is_in_editmode(ob_active)) {
-    BKE_report(op->reports, RPT_ERROR, "Unable to remove material slot in edit mode");
-    return OPERATOR_CANCELLED;
-  }
-
   Main *bmain = CTX_data_main(C);
   int removed = 0;
 
@@ -712,6 +729,7 @@ static wmOperatorStatus material_slot_remove_unused_exec(bContext *C, wmOperator
 
   BKE_reportf(op->reports, RPT_INFO, "Removed %d slots", removed);
 
+  Object *ob_active = CTX_data_active_object(C);
   if (ob_active->mode & OB_MODE_TEXTURE_PAINT) {
     Scene *scene = CTX_data_scene(C);
     ED_paint_proj_mesh_data_check(*scene, *ob_active, nullptr, nullptr, nullptr, nullptr);
@@ -734,7 +752,7 @@ void OBJECT_OT_material_slot_remove_unused(wmOperatorType *ot)
 
   /* API callbacks. */
   ot->exec = material_slot_remove_unused_exec;
-  ot->poll = object_materials_supported_poll;
+  ot->poll = material_slot_remove_poll;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -744,10 +762,6 @@ static wmOperatorStatus material_slot_remove_all_exec(bContext *C, wmOperator *o
 {
   /* Removing material slots in edit mode screws things up, see bug #21822. */
   Object *ob_active = CTX_data_active_object(C);
-  if (ob_active && BKE_object_is_in_editmode(ob_active)) {
-    BKE_report(op->reports, RPT_ERROR, "Unable to remove material slot in edit mode");
-    return OPERATOR_CANCELLED;
-  }
   Main *bmain = CTX_data_main(C);
   int removed = 0;
 
@@ -799,7 +813,7 @@ void OBJECT_OT_material_slot_remove_all(wmOperatorType *ot)
 
   /* API callbacks. */
   ot->exec = material_slot_remove_all_exec;
-  ot->poll = object_materials_supported_poll;
+  ot->poll = material_slot_remove_poll;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -970,7 +984,6 @@ static wmOperatorStatus new_world_exec(bContext *C, wmOperator * /*op*/)
   else {
     wo = BKE_world_add(bmain, CTX_DATA_(BLT_I18NCONTEXT_ID_WORLD, "World"));
     ED_node_shader_default(C, &wo->id);
-    wo->use_nodes = true;
   }
 
   /* hook into UI */
@@ -1136,8 +1149,8 @@ static wmOperatorStatus view_layer_add_aov_exec(bContext *C, wmOperator * /*op*/
     engine = nullptr;
   }
 
-  if (scene->nodetree) {
-    ntreeCompositUpdateRLayers(scene->nodetree);
+  if (scene->compositing_node_group) {
+    ntreeCompositUpdateRLayers(scene->compositing_node_group);
   }
 
   DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
@@ -1188,8 +1201,8 @@ static wmOperatorStatus view_layer_remove_aov_exec(bContext *C, wmOperator * /*o
     engine = nullptr;
   }
 
-  if (scene->nodetree) {
-    ntreeCompositUpdateRLayers(scene->nodetree);
+  if (scene->compositing_node_group) {
+    ntreeCompositUpdateRLayers(scene->compositing_node_group);
   }
 
   DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
@@ -1240,8 +1253,8 @@ static wmOperatorStatus view_layer_add_lightgroup_exec(bContext *C, wmOperator *
 
   BKE_view_layer_add_lightgroup(view_layer, name);
 
-  if (scene->nodetree) {
-    ntreeCompositUpdateRLayers(scene->nodetree);
+  if (scene->compositing_node_group) {
+    ntreeCompositUpdateRLayers(scene->compositing_node_group);
   }
 
   DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
@@ -1290,8 +1303,8 @@ static wmOperatorStatus view_layer_remove_lightgroup_exec(bContext *C, wmOperato
 
   BKE_view_layer_remove_lightgroup(view_layer, view_layer->active_lightgroup);
 
-  if (scene->nodetree) {
-    ntreeCompositUpdateRLayers(scene->nodetree);
+  if (scene->compositing_node_group) {
+    ntreeCompositUpdateRLayers(scene->compositing_node_group);
   }
 
   DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
@@ -1354,8 +1367,8 @@ static wmOperatorStatus view_layer_add_used_lightgroups_exec(bContext *C, wmOper
     }
   }
 
-  if (scene->nodetree) {
-    ntreeCompositUpdateRLayers(scene->nodetree);
+  if (scene->compositing_node_group) {
+    ntreeCompositUpdateRLayers(scene->compositing_node_group);
   }
 
   DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
@@ -1397,8 +1410,8 @@ static wmOperatorStatus view_layer_remove_unused_lightgroups_exec(bContext *C, w
     }
   }
 
-  if (scene->nodetree) {
-    ntreeCompositUpdateRLayers(scene->nodetree);
+  if (scene->compositing_node_group) {
+    ntreeCompositUpdateRLayers(scene->compositing_node_group);
   }
 
   DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
@@ -1526,7 +1539,7 @@ static wmOperatorStatus lightprobe_cache_bake_invoke(bContext *C,
       wm, win, bmain, view_layer, scene, probes, data->report, scene->r.cfra, 0);
   if (wm_job == nullptr) {
     MEM_delete(data);
-    BKE_report(op->reports, RPT_WARNING, "Can't bake light probe while rendering");
+    BKE_report(op->reports, RPT_WARNING, "Cannot bake light probe while rendering");
     return OPERATOR_CANCELLED;
   }
 
@@ -2735,6 +2748,7 @@ void MATERIAL_OT_copy(wmOperatorType *ot)
 
   /* API callbacks. */
   ot->exec = copy_material_exec;
+  ot->poll = material_slot_populated_poll;
 
   /* flags */
   /* no undo needed since no changes are made to the material */

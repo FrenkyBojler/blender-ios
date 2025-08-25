@@ -7,6 +7,7 @@
 
 #include "BLI_listbase.h"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 
 #include "BKE_screen.hh"
 #include "BKE_viewer_path.hh"
@@ -23,6 +24,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 #include "UI_view2d.hh"
 
@@ -190,14 +192,16 @@ static void spreadsheet_main_region_init(wmWindowManager *wm, ARegion *region)
 
   UI_view2d_region_reinit(&region->v2d, V2D_COMMONVIEW_LIST, region->winx, region->winy);
 
+  region->flag |= RGN_FLAG_INDICATE_OVERFLOW;
+
   {
     wmKeyMap *keymap = WM_keymap_ensure(
-        wm->defaultconf, "View2D Buttons List", SPACE_EMPTY, RGN_TYPE_WINDOW);
+        wm->runtime->defaultconf, "View2D Buttons List", SPACE_EMPTY, RGN_TYPE_WINDOW);
     WM_event_add_keymap_handler(&region->runtime->handlers, keymap);
   }
   {
     wmKeyMap *keymap = WM_keymap_ensure(
-        wm->defaultconf, "Spreadsheet Generic", SPACE_SPREADSHEET, RGN_TYPE_WINDOW);
+        wm->runtime->defaultconf, "Spreadsheet Generic", SPACE_SPREADSHEET, RGN_TYPE_WINDOW);
     WM_event_add_keymap_handler(&region->runtime->handlers, keymap);
   }
 }
@@ -384,15 +388,11 @@ static void update_visible_columns(SpreadsheetTable &table, DataSource &data_sou
   Set<std::reference_wrapper<const SpreadsheetColumnID>> handled_columns;
   Vector<SpreadsheetColumn *, 32> new_columns;
   for (SpreadsheetColumn *column : Span{table.columns, table.num_columns}) {
-    const bool still_exists = data_source.get_column_values(*column->id) != nullptr;
-    if (still_exists) {
-      if (handled_columns.add(*column->id)) {
-        new_columns.append(column);
-        continue;
-      }
+    if (handled_columns.add(*column->id)) {
+      const bool has_data = data_source.get_column_values(*column->id) != nullptr;
+      SET_FLAG_FROM_TEST(column->flag, !has_data, SPREADSHEET_COLUMN_FLAG_UNAVAILABLE);
+      new_columns.append(column);
     }
-    /* Free columns that don't exist anymore or are duplicates for some reason. */
-    spreadsheet_column_free(column);
   }
 
   data_source.foreach_default_column_ids(
@@ -404,6 +404,7 @@ static void update_visible_columns(SpreadsheetTable &table, DataSource &data_sou
         if (!values) {
           return;
         }
+        table.column_use_clock++;
         SpreadsheetColumn *column = spreadsheet_column_new(spreadsheet_column_id_copy(&column_id));
         if (is_extra) {
           new_columns.insert(0, column);
@@ -419,11 +420,22 @@ static void update_visible_columns(SpreadsheetTable &table, DataSource &data_sou
     return;
   }
 
+  /* Update last used times of the columns to support garbage collection. */
+  for (SpreadsheetColumn *column : new_columns) {
+    const bool clock_was_reset = table.column_use_clock < column->last_used;
+    if (clock_was_reset || column->is_available()) {
+      column->last_used = table.column_use_clock;
+    }
+  }
+
   /* Update the stored column pointers. */
   MEM_SAFE_FREE(table.columns);
   table.columns = MEM_calloc_arrayN<SpreadsheetColumn *>(new_columns.size(), __func__);
   table.num_columns = new_columns.size();
   std::copy_n(new_columns.begin(), new_columns.size(), table.columns);
+
+  /* Remove columns that have not been used for a while when there are too many. */
+  spreadsheet_table_remove_unused_columns(table);
 }
 
 static void spreadsheet_main_region_draw(const bContext *C, ARegion *region)
@@ -442,6 +454,10 @@ static void spreadsheet_main_region_draw(const bContext *C, ARegion *region)
     spreadsheet_table_remove_unused(*sspreadsheet);
     table = spreadsheet_table_new(spreadsheet_table_id_copy(*active_table_id));
     spreadsheet_table_add(*sspreadsheet, table);
+  }
+  if (table) {
+    /* Move to the front of the tables list to make it cheaper to find the table in future. */
+    spreadsheet_table_move_to_front(*sspreadsheet, *table);
   }
 
   /* Update the last used time on the table. */
@@ -468,11 +484,13 @@ static void spreadsheet_main_region_draw(const bContext *C, ARegion *region)
 
   for (SpreadsheetColumn *column : Span{table->columns, table->num_columns}) {
     std::unique_ptr<ColumnValues> values_ptr = data_source->get_column_values(*column->id);
-    /* Should have been removed before if it does not exist anymore. */
-    BLI_assert(values_ptr);
+    if (!values_ptr) {
+      continue;
+    }
     const ColumnValues *values = scope.add(std::move(values_ptr));
+    const eSpreadsheetColumnValueType column_type = values->type();
 
-    if (column->width <= 0.0f) {
+    if (column->width <= 0.0f || column_type != column->data_type) {
       column->width = values->fit_column_width_px(100) / SPREADSHEET_WIDTH_UNIT;
     }
     const int width_in_pixels = column->width * SPREADSHEET_WIDTH_UNIT;
@@ -482,7 +500,7 @@ static void spreadsheet_main_region_draw(const bContext *C, ARegion *region)
     x += width_in_pixels;
     column->runtime->right_x = x;
 
-    spreadsheet_column_assign_runtime_data(column, values->type(), values->name());
+    spreadsheet_column_assign_runtime_data(column, column_type, values->name());
   }
 
   spreadsheet_layout.row_indices = spreadsheet_filter_rows(
@@ -497,6 +515,11 @@ static void spreadsheet_main_region_draw(const bContext *C, ARegion *region)
 
   sspreadsheet->runtime->top_row_height = drawer->top_row_height;
   sspreadsheet->runtime->left_column_width = drawer->left_column_width;
+
+  rcti mask;
+  UI_view2d_mask_from_win(&region->v2d, &mask);
+  mask.ymax -= sspreadsheet->runtime->top_row_height;
+  ED_region_draw_overflow_indication(CTX_wm_area(C), region, &mask);
 
   /* Tag other regions for redraw, because the main region updates data for them. */
   ARegion *footer = BKE_area_find_region_type(CTX_wm_area(C), RGN_TYPE_FOOTER);
@@ -633,21 +656,21 @@ static void spreadsheet_footer_region_draw(const bContext *C, ARegion *region)
 
   UI_ThemeClearColor(TH_BACK);
 
-  uiBlock *block = UI_block_begin(C, region, __func__, blender::ui::EmbossType::Emboss);
+  uiBlock *block = UI_block_begin(C, region, __func__, ui::EmbossType::Emboss);
   const uiStyle *style = UI_style_get_dpi();
-  uiLayout *layout = UI_block_layout(block,
-                                     UI_LAYOUT_HORIZONTAL,
-                                     UI_LAYOUT_HEADER,
-                                     UI_HEADER_OFFSET,
-                                     region->winy - (region->winy - UI_UNIT_Y) / 2.0f,
-                                     region->winx,
-                                     1,
-                                     0,
-                                     style);
-  uiItemSpacer(layout);
-  uiLayoutSetAlignment(layout, UI_LAYOUT_ALIGN_RIGHT);
-  layout->label(stats_str, ICON_NONE);
-  UI_block_layout_resolve(block, nullptr, nullptr);
+  uiLayout &layout = ui::block_layout(block,
+                                      ui::LayoutDirection::Horizontal,
+                                      ui::LayoutType::Header,
+                                      UI_HEADER_OFFSET,
+                                      region->winy - (region->winy - UI_UNIT_Y) / 2.0f,
+                                      region->winx,
+                                      1,
+                                      0,
+                                      style);
+  layout.separator_spacer();
+  layout.alignment_set(ui::LayoutAlign::Right);
+  layout.label(stats_str, ICON_NONE);
+  ui::block_layout_resolve(block);
   UI_block_align_end(block);
   UI_block_end(C, block);
   UI_block_draw(C, block);
@@ -691,7 +714,7 @@ static void spreadsheet_sidebar_init(wmWindowManager *wm, ARegion *region)
   ED_region_panels_init(wm, region);
 
   wmKeyMap *keymap = WM_keymap_ensure(
-      wm->defaultconf, "Spreadsheet Generic", SPACE_SPREADSHEET, RGN_TYPE_WINDOW);
+      wm->runtime->defaultconf, "Spreadsheet Generic", SPACE_SPREADSHEET, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler(&region->runtime->handlers, keymap);
 }
 
@@ -760,7 +783,7 @@ void register_spacetype()
   ARegionType *art;
 
   st->spaceid = SPACE_SPREADSHEET;
-  STRNCPY(st->name, "Spreadsheet");
+  STRNCPY_UTF8(st->name, "Spreadsheet");
 
   st->create = spreadsheet_create;
   st->free = spreadsheet_free;
@@ -778,7 +801,7 @@ void register_spacetype()
   art = MEM_callocN<ARegionType>("spacetype spreadsheet region");
   art->regionid = RGN_TYPE_WINDOW;
   art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_VIEW2D | ED_KEYMAP_FRAMES;
-  art->lock = 1;
+  art->lock = REGION_DRAW_LOCK_ALL;
 
   art->init = spreadsheet_main_region_init;
   art->draw = spreadsheet_main_region_draw;
@@ -793,7 +816,7 @@ void register_spacetype()
   art->prefsizey = HEADERY;
   art->keymapflag = 0;
   art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_VIEW2D | ED_KEYMAP_HEADER | ED_KEYMAP_FRAMES;
-  art->lock = 1;
+  art->lock = REGION_DRAW_LOCK_ALL;
 
   art->init = spreadsheet_header_region_init;
   art->draw = spreadsheet_header_region_draw;
@@ -807,7 +830,7 @@ void register_spacetype()
   art->prefsizey = HEADERY;
   art->keymapflag = 0;
   art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_VIEW2D | ED_KEYMAP_HEADER | ED_KEYMAP_FRAMES;
-  art->lock = 1;
+  art->lock = REGION_DRAW_LOCK_ALL;
 
   art->init = spreadsheet_footer_region_init;
   art->draw = spreadsheet_footer_region_draw;
@@ -820,7 +843,7 @@ void register_spacetype()
   art->regionid = RGN_TYPE_UI;
   art->prefsizex = UI_SIDEBAR_PANEL_WIDTH;
   art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_FRAMES;
-  art->lock = 1;
+  art->lock = REGION_DRAW_LOCK_ALL;
 
   art->init = spreadsheet_sidebar_init;
   art->layout = ED_region_panels_layout;
@@ -836,7 +859,7 @@ void register_spacetype()
   art->regionid = RGN_TYPE_TOOLS;
   art->prefsizex = 150 + V2D_SCROLL_WIDTH;
   art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_FRAMES;
-  art->lock = 1;
+  art->lock = REGION_DRAW_LOCK_ALL;
   art->init = ED_region_panels_init;
   art->draw = spreadsheet_dataset_region_draw;
   art->listener = spreadsheet_dataset_region_listener;

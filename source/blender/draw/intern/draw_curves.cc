@@ -55,7 +55,7 @@ CurvesInfosBuf &CurvesUniformBufPool::alloc()
 gpu::VertBuf *CurvesModule::drw_curves_ensure_dummy_vbo()
 {
   GPUVertFormat format = {0};
-  uint dummy_id = GPU_vertformat_attr_add(&format, "dummy", GPU_COMP_F32, 4, GPU_FETCH_FLOAT);
+  uint dummy_id = GPU_vertformat_attr_add(&format, "dummy", gpu::VertAttrType::SFLOAT_32_32_32_32);
 
   gpu::VertBuf *vbo = GPU_vertbuf_create_with_format_ex(
       format, GPU_USAGE_STATIC | GPU_USAGE_FLAG_BUFFER_TEXTURE_ONLY);
@@ -76,6 +76,10 @@ void DRW_curves_init(DRWData *drw_data)
   if (drw_data->curves_module == nullptr) {
     drw_data->curves_module = MEM_new<CurvesModule>("CurvesModule");
   }
+}
+
+void DRW_curves_begin_sync(DRWData *drw_data)
+{
   drw_data->curves_module->init();
 }
 
@@ -91,7 +95,7 @@ static void drw_curves_cache_update_compute(CurvesEvalCache *cache,
 {
   BLI_assert(input_buf != nullptr);
   BLI_assert(output_buf != nullptr);
-  GPUShader *shader = DRW_shader_curves_refine_get(CURVES_EVAL_CATMULL_ROM);
+  gpu::Shader *shader = DRW_shader_curves_refine_get(CURVES_EVAL_CATMULL_ROM);
 
   /* TODO(fclem): Remove Global access. */
   PassSimple &pass = drw_get().data->curves_module->refine;
@@ -266,6 +270,18 @@ gpu::VertBuf *curves_pos_buffer_get(Scene *scene, Object *object)
   return cache->final.proc_buf;
 }
 
+static std::optional<StringRef> get_first_uv_name(const bke::AttributeAccessor &attributes)
+{
+  std::optional<StringRef> name;
+  attributes.foreach_attribute([&](const bke::AttributeIter &iter) {
+    if (iter.data_type == bke::AttrType::Float2) {
+      name = iter.name;
+      iter.stop();
+    }
+  });
+  return name;
+}
+
 template<typename PassT>
 gpu::Batch *curves_sub_pass_setup_implementation(PassT &sub_ps,
                                                  const Scene *scene,
@@ -285,13 +301,21 @@ gpu::Batch *curves_sub_pass_setup_implementation(PassT &sub_ps,
   CurvesEvalCache *curves_cache = drw_curves_cache_get(
       curves_id, gpu_material, subdiv, thickness_res);
 
-  /* Fix issue with certain driver not drawing anything if there is nothing bound to
-   * "ac", "au", "u" or "c". */
+  /* Ensure we have no unbound resources.
+   * Required for Vulkan.
+   * Fixes issues with certain GL drivers not drawing anything. */
   sub_ps.bind_texture("u", module.dummy_vbo);
   sub_ps.bind_texture("au", module.dummy_vbo);
+  sub_ps.bind_texture("a", module.dummy_vbo);
   sub_ps.bind_texture("c", module.dummy_vbo);
   sub_ps.bind_texture("ac", module.dummy_vbo);
-  sub_ps.bind_texture("a", module.dummy_vbo);
+  if (gpu_material) {
+    ListBase attr_list = GPU_material_attributes(gpu_material);
+    ListBaseWrapper<GPUMaterialAttribute> attrs(attr_list);
+    for (const GPUMaterialAttribute *attr : attrs) {
+      sub_ps.bind_texture(attr->input_name, module.dummy_vbo);
+    }
+  }
 
   /* TODO: Generalize radius implementation for curves data type. */
   float hair_rad_shape = 0.0f;
@@ -322,17 +346,8 @@ gpu::Batch *curves_sub_pass_setup_implementation(PassT &sub_ps,
     sub_ps.bind_texture("l", curves_cache->proc_length_buf);
   }
 
-  StringRef curve_data_render_uv;
-  StringRef point_data_render_uv;
-  if (CustomData_has_layer(&curves_id.geometry.curve_data, CD_PROP_FLOAT2)) {
-    curve_data_render_uv = CustomData_get_render_layer_name(&curves_id.geometry.curve_data,
-                                                            CD_PROP_FLOAT2);
-  }
-  if (CustomData_has_layer(&curves_id.geometry.point_data, CD_PROP_FLOAT2)) {
-    point_data_render_uv = CustomData_get_render_layer_name(&curves_id.geometry.point_data,
-                                                            CD_PROP_FLOAT2);
-  }
-
+  const std::optional<StringRef> uv_name = get_first_uv_name(
+      curves_id.geometry.wrap().attributes());
   const VectorSet<std::string> &attrs = curves_cache->final.attr_used;
   for (const int i : attrs.index_range()) {
     const StringRef name = attrs[i];
@@ -344,7 +359,7 @@ gpu::Batch *curves_sub_pass_setup_implementation(PassT &sub_ps,
         continue;
       }
       sub_ps.bind_texture(sampler_name, curves_cache->proc_attributes_buf[i]);
-      if (name == curve_data_render_uv) {
+      if (name == uv_name) {
         sub_ps.bind_texture("a", curves_cache->proc_attributes_buf[i]);
       }
     }
@@ -353,7 +368,7 @@ gpu::Batch *curves_sub_pass_setup_implementation(PassT &sub_ps,
         continue;
       }
       sub_ps.bind_texture(sampler_name, curves_cache->final.attributes_buf[i]);
-      if (name == point_data_render_uv) {
+      if (name == uv_name) {
         sub_ps.bind_texture("a", curves_cache->final.attributes_buf[i]);
       }
     }

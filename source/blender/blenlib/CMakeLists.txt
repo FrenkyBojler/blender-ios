@@ -40,6 +40,7 @@ set(SRC
   intern/BLI_subprocess.cc
   intern/BLI_timer.cc
   intern/array_store.cc
+  intern/array_store_rle.cc
   intern/array_store_utils.cc
   intern/array_utils.cc
   intern/array_utils_c.cc
@@ -51,8 +52,8 @@ set(SRC
   intern/bitmap.cc
   intern/bitmap_draw_2d.cc
   intern/boxpack_2d.cc
-  intern/buffer.cc
   intern/cache_mutex.cc
+  intern/compression.cc
   intern/compute_context.cc
   intern/convexhull_2d.cc
   intern/cpp_type.cc
@@ -199,7 +200,6 @@ set(SRC
   BLI_bounds.hh
   BLI_bounds_types.hh
   BLI_boxpack_2d.h
-  BLI_buffer.h
   BLI_build_config.h
   BLI_cache_mutex.hh
   BLI_color.hh
@@ -207,10 +207,11 @@ set(SRC
   BLI_compiler_attrs.h
   BLI_compiler_compat.h
   BLI_compiler_typecheck.h
+  BLI_compression.hh
   BLI_compute_context.hh
   BLI_concurrent_map.hh
   BLI_console.h
-  BLI_convexhull_2d.h
+  BLI_convexhull_2d.hh
   BLI_cpp_type.hh
   BLI_cpp_type_make.hh
   BLI_cpp_types.hh
@@ -251,6 +252,7 @@ set(SRC
   BLI_gsqueue.h
   BLI_hash.h
   BLI_hash.hh
+  BLI_hash_fwd.hh
   BLI_hash_md5.hh
   BLI_hash_mm2a.hh
   BLI_hash_mm3.hh
@@ -528,6 +530,7 @@ if(WITH_GTESTS)
     tests/BLI_bounds_test.cc
     tests/BLI_build_config_test.cc
     tests/BLI_color_test.cc
+    tests/BLI_compression_test.cc
     tests/BLI_convexhull_2d_test.cc
     tests/BLI_cpp_type_test.cc
     tests/BLI_csv_parse_test.cc
@@ -603,6 +606,7 @@ if(WITH_GTESTS)
     tests/BLI_unique_sorted_indices_test.cc
     tests/BLI_utildefines_test.cc
     tests/BLI_uuid_test.cc
+    tests/BLI_vector_list_test.cc
     tests/BLI_vector_set_test.cc
     tests/BLI_vector_test.cc
     tests/BLI_virtual_array_test.cc

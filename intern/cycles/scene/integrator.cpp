@@ -57,8 +57,7 @@ NODE_DEFINE(Integrator)
   SOCKET_FLOAT(ao_distance, "AO Distance", FLT_MAX);
   SOCKET_FLOAT(ao_additive_factor, "AO Additive Factor", 0.0f);
 
-  SOCKET_INT(volume_max_steps, "Volume Max Steps", 1024);
-  SOCKET_FLOAT(volume_step_rate, "Volume Step Rate", 1.0f);
+  SOCKET_BOOLEAN(volume_unbiased, "Unbiased", false);
 
   static NodeEnum guiding_distribution_enum;
   guiding_distribution_enum.insert("PARALLAX_AWARE_VMM", GUIDING_TYPE_PARALLAX_AWARE_VMM);
@@ -227,8 +226,7 @@ void Integrator::device_update(Device *device, DeviceScene *dscene, Scene *scene
     }
   }
 
-  kintegrator->volume_max_steps = volume_max_steps;
-  kintegrator->volume_step_rate = volume_step_rate;
+  kintegrator->volume_unbiased = volume_unbiased;
 
   kintegrator->caustics_reflective = caustics_reflective;
   kintegrator->caustics_refractive = caustics_refractive;
@@ -400,7 +398,7 @@ AdaptiveSampling Integrator::get_adaptive_sampling() const
 
   if (clamped_aa_samples > 0 && adaptive_threshold == 0.0f) {
     adaptive_sampling.threshold = max(0.001f, 1.0f / (float)aa_samples);
-    VLOG_INFO << "Cycles adaptive sampling: automatic threshold = " << adaptive_sampling.threshold;
+    LOG_INFO << "Adaptive sampling: automatic threshold = " << adaptive_sampling.threshold;
   }
   else {
     adaptive_sampling.threshold = adaptive_threshold;
@@ -421,8 +419,7 @@ AdaptiveSampling Integrator::get_adaptive_sampling() const
      * in various test scenes. */
     const int min_samples = (int)ceilf(16.0f / powf(adaptive_sampling.threshold, 0.3f));
     adaptive_sampling.min_samples = max(4, min_samples);
-    VLOG_INFO << "Cycles adaptive sampling: automatic min samples = "
-              << adaptive_sampling.min_samples;
+    LOG_INFO << "Adaptive sampling: automatic min samples = " << adaptive_sampling.min_samples;
   }
   else {
     adaptive_sampling.min_samples = max(4, adaptive_min_samples);

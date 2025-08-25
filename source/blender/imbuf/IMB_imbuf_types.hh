@@ -16,7 +16,9 @@
 #include "IMB_imbuf_enums.h"
 
 struct ColormanageCache;
-struct GPUTexture;
+namespace blender::gpu {
+class Texture;
+}
 struct IDProperty;
 
 namespace blender::ocio {
@@ -24,7 +26,6 @@ class ColorSpace;
 }
 using ColorSpace = blender::ocio::ColorSpace;
 
-#define IMB_MIPMAP_LEVELS 20
 #define IMB_FILEPATH_SIZE 1024
 
 /**
@@ -167,7 +168,7 @@ struct ImBufGPU {
    * De-referencing the ImBuf or its GPU texture can happen from any state. */
   /* TODO(sergey): This should become a list of textures, to support having high-res ImBuf on GPU
    * without hitting hardware limitations. */
-  GPUTexture *texture;
+  blender::gpu::Texture *texture;
 };
 
 /** \} */
@@ -220,11 +221,6 @@ struct ImBuf {
   /** Amount of dithering to apply, when converting float -> byte. */
   float dither;
 
-  /* mipmapping */
-  /** MipMap levels, a series of halved images */
-  ImBuf *mipmap[IMB_MIPMAP_LEVELS];
-  int miptot, miplevel;
-
   /* externally used data */
   /** reference index for ImBuf lists */
   int index;
@@ -242,6 +238,8 @@ struct ImBuf {
   ImbFormatOptions foptions;
   /** The absolute file path associated with this image. */
   char filepath[IMB_FILEPATH_SIZE];
+  /* For movie files, the frame number loaded from the file. */
+  int fileframe;
 
   /** reference counter for multiple users */
   int32_t refcounter;
@@ -273,8 +271,6 @@ struct ImBuf {
 enum {
   /** image needs to be saved is not the same as filename */
   IB_BITMAPDIRTY = (1 << 1),
-  /** image mipmaps are invalid, need recreate */
-  IB_MIPMAP_INVALID = (1 << 2),
   /** float buffer changed, needs recreation of byte rect */
   IB_RECT_INVALID = (1 << 3),
   /** either float or byte buffer changed, need to re-calculate display buffers */

@@ -23,6 +23,7 @@ std::optional<AttrType> custom_data_type_to_attr_type(const eCustomDataType data
   switch (data_type) {
     case CD_NUMTYPES:
     case CD_AUTO_FROM_NAME:
+    case CD_TANGENT:
       /* These type is not used for actual #CustomData layers. */
       BLI_assert_unreachable();
       return std::nullopt;
@@ -41,12 +42,14 @@ std::optional<AttrType> custom_data_type_to_attr_type(const eCustomDataType data
     case CD_SCULPT_FACE_SETS:
     case CD_MTFACE:
     case CD_TESSLOOPNORMAL:
+    case CD_FREESTYLE_EDGE:
+    case CD_FREESTYLE_FACE:
       /* These types are only used for versioning old files. */
       return std::nullopt;
-    /* These types are only used for #BMesh. */
     case CD_SHAPEKEY:
     case CD_SHAPE_KEYINDEX:
     case CD_BM_ELEM_PYPTR:
+      /* These types are only used for #BMesh. */
       return std::nullopt;
     case CD_MDEFORMVERT:
     case CD_MFACE:
@@ -55,14 +58,11 @@ std::optional<AttrType> custom_data_type_to_attr_type(const eCustomDataType data
     case CD_NORMAL:
     case CD_ORIGSPACE:
     case CD_ORCO:
-    case CD_TANGENT:
     case CD_MDISPS:
     case CD_CLOTH_ORCO:
     case CD_ORIGSPACE_MLOOP:
     case CD_GRID_PAINT_MASK:
     case CD_MVERT_SKIN:
-    case CD_FREESTYLE_EDGE:
-    case CD_FREESTYLE_FACE:
     case CD_MLOOPTANGENT:
       /* These types are not generic. They will either be moved to some generic data type or
        * #AttributeStorage will be extended to be able to support a similar format. */
@@ -98,36 +98,42 @@ std::optional<AttrType> custom_data_type_to_attr_type(const eCustomDataType data
 }
 
 struct CustomDataAndSize {
-  const CustomData &data;
+  CustomData &data;
   int size;
 };
 
-static AttributeStorage attribute_legacy_convert_customdata_to_storage(
-    const Map<AttrDomain, CustomDataAndSize> &domains)
+/**
+ * Move generic attributes from #CustomData to #AttributeStorage. All other non-generic layers are
+ * left in #CustomData.
+ */
+static void attribute_legacy_convert_customdata_to_storage(
+    const Map<AttrDomain, CustomDataAndSize> &domains, AttributeStorage &storage)
 {
-  AttributeStorage storage{};
   struct AttributeToAdd {
-    std::string name;
+    StringRef name;
     AttrDomain domain;
     AttrType type;
     void *array_data;
     int array_size;
     const ImplicitSharingInfo *sharing_info;
   };
+  Map<AttrDomain, Vector<CustomDataLayer>> layers_to_keep;
   Vector<AttributeToAdd> attributes_to_add;
   for (const auto &item : domains.items()) {
     const AttrDomain domain = item.key;
     const CustomData &custom_data = item.value.data;
     const int domain_size = item.value.size;
     for (const CustomDataLayer &layer : MutableSpan(custom_data.layers, custom_data.totlayer)) {
-      const std::optional<AttrType> attr_type = custom_data_type_to_attr_type(
-          eCustomDataType(layer.type));
-      if (!attr_type) {
-        continue;
+      if (const std::optional<AttrType> attr_type = custom_data_type_to_attr_type(
+              eCustomDataType(layer.type)))
+      {
+        /* Skip adding a user. This #CustomDataLayer is just freed below. */
+        attributes_to_add.append(
+            {layer.name, domain, *attr_type, layer.data, domain_size, layer.sharing_info});
       }
-      attributes_to_add.append(
-          {layer.name, domain, *attr_type, layer.data, domain_size, layer.sharing_info});
-      layer.sharing_info->add_user();
+      else {
+        layers_to_keep.lookup_or_add_default(domain).append(layer);
+      }
     }
   }
 
@@ -142,7 +148,21 @@ static AttributeStorage attribute_legacy_convert_customdata_to_storage(
                 std::move(array_data));
   }
 
-  return storage;
+  for (const auto &[domain, custom_data] : domains.items()) {
+    Vector layers_vector = layers_to_keep.pop_default(domain, {});
+    MEM_SAFE_FREE(custom_data.data.layers);
+    custom_data.data.totlayer = 0;
+    custom_data.data.maxlayer = 0;
+    if (layers_vector.is_empty()) {
+      CustomData_update_typemap(&custom_data.data);
+      continue;
+    }
+    VectorData data = layers_vector.release();
+    custom_data.data.layers = data.data;
+    custom_data.data.totlayer = data.size;
+    custom_data.data.maxlayer = data.capacity;
+    CustomData_update_typemap(&custom_data.data);
+  }
 }
 
 std::optional<eCustomDataType> attr_type_to_custom_data_type(const AttrType attr_type)
@@ -223,51 +243,60 @@ void mesh_convert_storage_to_customdata(Mesh &mesh)
                                  {AttrDomain::Edge, {mesh.edge_data, mesh.edges_num}},
                                  {AttrDomain::Face, {mesh.face_data, mesh.faces_num}},
                                  {AttrDomain::Corner, {mesh.corner_data, mesh.corners_num}}});
+  if (const char *name = mesh.active_uv_map_attribute) {
+    const int layer_n = CustomData_get_named_layer(&mesh.corner_data, CD_PROP_FLOAT2, name);
+    if (layer_n != -1) {
+      CustomData_set_layer_active(&mesh.corner_data, CD_PROP_FLOAT2, layer_n);
+    }
+    MEM_freeN(mesh.active_uv_map_attribute);
+    mesh.active_uv_map_attribute = nullptr;
+  }
+  if (const char *name = mesh.default_uv_map_attribute) {
+    const int layer_n = CustomData_get_named_layer(&mesh.corner_data, CD_PROP_FLOAT2, name);
+    if (layer_n != -1) {
+      CustomData_set_layer_render(&mesh.corner_data, CD_PROP_FLOAT2, layer_n);
+    }
+    MEM_freeN(mesh.default_uv_map_attribute);
+    mesh.default_uv_map_attribute = nullptr;
+  }
 }
-AttributeStorage mesh_convert_customdata_to_storage(const Mesh &mesh)
+void mesh_convert_customdata_to_storage(Mesh &mesh)
 {
-  return bke::attribute_legacy_convert_customdata_to_storage(
+  bke::attribute_legacy_convert_customdata_to_storage(
       {{AttrDomain::Point, {mesh.vert_data, mesh.verts_num}},
        {AttrDomain::Edge, {mesh.edge_data, mesh.edges_num}},
        {AttrDomain::Face, {mesh.face_data, mesh.faces_num}},
-       {AttrDomain::Corner, {mesh.corner_data, mesh.corners_num}}});
+       {AttrDomain::Corner, {mesh.corner_data, mesh.corners_num}}},
+      mesh.attribute_storage.wrap());
 }
 
-void curves_convert_storage_to_customdata(CurvesGeometry &curves)
+void curves_convert_customdata_to_storage(CurvesGeometry &curves)
 {
-  convert_storage_to_customdata(curves.attribute_storage.wrap(),
-                                {{AttrDomain::Point, {curves.point_data, curves.points_num()}},
-                                 {AttrDomain::Curve, {curves.curve_data, curves.curves_num()}}});
-}
-AttributeStorage curves_convert_customdata_to_storage(const CurvesGeometry &curves)
-{
-  return attribute_legacy_convert_customdata_to_storage(
+  attribute_legacy_convert_customdata_to_storage(
       {{AttrDomain::Point, {curves.point_data, curves.points_num()}},
-       {AttrDomain::Curve, {curves.curve_data, curves.curves_num()}}});
+       {AttrDomain::Curve, {curves.curve_data_legacy, curves.curves_num()}}},
+      curves.attribute_storage.wrap());
+  CustomData_reset(&curves.curve_data_legacy);
+  /* Update the curve type count again (the first time was done on file-read, where
+   * #AttributeStorage data doesn't exist yet for older files). */
+  curves.update_curve_types();
 }
 
-void pointcloud_convert_storage_to_customdata(PointCloud &pointcloud)
+void pointcloud_convert_customdata_to_storage(PointCloud &pointcloud)
 {
-  convert_storage_to_customdata(pointcloud.attribute_storage.wrap(),
-                                {{AttrDomain::Point, {pointcloud.pdata, pointcloud.totpoint}}});
+  attribute_legacy_convert_customdata_to_storage(
+      {{AttrDomain::Point, {pointcloud.pdata_legacy, pointcloud.totpoint}}},
+      pointcloud.attribute_storage.wrap());
+  CustomData_reset(&pointcloud.pdata_legacy);
 }
 
-AttributeStorage pointcloud_convert_customdata_to_storage(const PointCloud &pointcloud)
+void grease_pencil_convert_customdata_to_storage(GreasePencil &grease_pencil)
 {
-  return attribute_legacy_convert_customdata_to_storage(
-      {{AttrDomain::Point, {pointcloud.pdata, pointcloud.totpoint}}});
-}
-
-void grease_pencil_convert_storage_to_customdata(GreasePencil &grease_pencil)
-{
-  convert_storage_to_customdata(
-      grease_pencil.attribute_storage.wrap(),
-      {{AttrDomain::Layer, {grease_pencil.layers_data, int(grease_pencil.layers().size())}}});
-}
-AttributeStorage grease_pencil_convert_customdata_to_storage(const GreasePencil &grease_pencil)
-{
-  return attribute_legacy_convert_customdata_to_storage(
-      {{AttrDomain::Layer, {grease_pencil.layers_data, int(grease_pencil.layers().size())}}});
+  attribute_legacy_convert_customdata_to_storage(
+      {{AttrDomain::Layer,
+        {grease_pencil.layers_data_legacy, int(grease_pencil.layers().size())}}},
+      grease_pencil.attribute_storage.wrap());
+  CustomData_reset(&grease_pencil.layers_data_legacy);
 }
 
 }  // namespace blender::bke

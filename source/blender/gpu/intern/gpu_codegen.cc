@@ -170,7 +170,7 @@ void GPUCodegen::generate_attribs()
   /* Input declaration, loading / assignment to interface and geometry shader passthrough. */
   std::stringstream load_ss;
 
-  int slot = GPU_shader_draw_parameters_support() ? 15 : 14;
+  int slot = 15;
   LISTBASE_FOREACH (GPUMaterialAttribute *, attr, &graph.attributes) {
     if (slot == -1) {
       BLI_assert_msg(0, "Too many attributes");
@@ -306,7 +306,7 @@ void GPUCodegen::generate_library()
 
   std::sort(source_files.begin(), source_files.end());
   for (auto &key : source_files) {
-    auto deps = gpu_shader_dependency_get_resolved_source(key.c_str());
+    auto deps = gpu_shader_dependency_get_resolved_source(key.c_str(), {});
     info.dependencies_generated.extend_non_duplicates(deps);
   }
 }

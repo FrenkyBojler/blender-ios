@@ -22,9 +22,12 @@ void VolumePass::sync(SceneResources &resources)
   ps_.init();
   ps_.bind_ubo(WB_WORLD_SLOT, resources.world_buf);
 
-  dummy_shadow_tx_.ensure_3d(GPU_RGBA8, int3(1), GPU_TEXTURE_USAGE_SHADER_READ, float4(1));
-  dummy_volume_tx_.ensure_3d(GPU_RGBA8, int3(1), GPU_TEXTURE_USAGE_SHADER_READ, float4(0));
-  dummy_coba_tx_.ensure_1d(GPU_RGBA8, 1, GPU_TEXTURE_USAGE_SHADER_READ, float4(0));
+  dummy_shadow_tx_.ensure_3d(
+      gpu::TextureFormat::UNORM_8_8_8_8, int3(1), GPU_TEXTURE_USAGE_SHADER_READ, float4(1));
+  dummy_volume_tx_.ensure_3d(
+      gpu::TextureFormat::UNORM_8_8_8_8, int3(1), GPU_TEXTURE_USAGE_SHADER_READ, float4(0));
+  dummy_coba_tx_.ensure_1d(
+      gpu::TextureFormat::UNORM_8_8_8_8, 1, GPU_TEXTURE_USAGE_SHADER_READ, float4(0));
 }
 
 void VolumePass::object_sync_volume(Manager &manager,
@@ -220,7 +223,7 @@ void VolumePass::draw_slice_ps(Manager &manager,
   ps.push_constant("slice_axis", axis);
   ps.push_constant("step_length", step_length);
 
-  ps.draw(resources.volume_cube_batch, manager.resource_handle(ob_ref));
+  ps.draw(resources.volume_cube_batch, manager.unique_handle(ob_ref));
 }
 
 void VolumePass::draw_volume_ps(Manager &manager,
@@ -242,7 +245,7 @@ void VolumePass::draw_volume_ps(Manager &manager,
   ps.push_constant("step_length", step_length);
   ps.push_constant("noise_ofs", float(noise_offset));
 
-  ps.draw(resources.volume_cube_batch, manager.resource_handle(ob_ref));
+  ps.draw(resources.volume_cube_batch, manager.unique_handle(ob_ref));
 }
 
 }  // namespace blender::workbench

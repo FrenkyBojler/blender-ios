@@ -29,9 +29,9 @@
 #include "BKE_subdiv_ccg.hh"
 #include "BKE_subdiv_deform.hh"
 #include "BKE_subdiv_mesh.hh"
-#include "BKE_subsurf.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "RNA_access.hh"
@@ -297,7 +297,7 @@ static void panel_draw(const bContext *C, Panel *panel)
 
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, nullptr);
 
-  uiLayoutSetPropSep(layout, true);
+  layout->use_property_split_set(true);
 
   col = &layout->column(true);
   col->prop(ptr, "levels", UI_ITEM_NONE, IFACE_("Levels Viewport"), ICON_NONE);
@@ -305,7 +305,7 @@ static void panel_draw(const bContext *C, Panel *panel)
   col->prop(ptr, "render_levels", UI_ITEM_NONE, IFACE_("Render"), ICON_NONE);
 
   const bool is_sculpt_mode = CTX_data_active_object(C)->mode & OB_MODE_SCULPT;
-  uiBlock *block = uiLayoutGetBlock(panel->layout);
+  uiBlock *block = panel->layout->block();
   UI_block_lock_set(block, !is_sculpt_mode, N_("Sculpt Base Mesh"));
   col->prop(ptr, "use_sculpt_base_mesh", UI_ITEM_NONE, IFACE_("Sculpt Base Mesh"), ICON_NONE);
   UI_block_lock_clear(block);
@@ -323,7 +323,7 @@ static void subdivisions_panel_draw(const bContext * /*C*/, Panel *panel)
   PointerRNA ob_ptr;
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, &ob_ptr);
 
-  uiLayoutSetEnabled(layout, RNA_enum_get(&ob_ptr, "mode") != OB_MODE_EDIT);
+  layout->enabled_set(RNA_enum_get(&ob_ptr, "mode") != OB_MODE_EDIT);
 
   MultiresModifierData *mmd = (MultiresModifierData *)ptr->data;
 
@@ -342,7 +342,7 @@ static void subdivisions_panel_draw(const bContext * /*C*/, Panel *panel)
   op_ptr = layout->op("OBJECT_OT_multires_subdivide",
                       IFACE_("Subdivide"),
                       ICON_NONE,
-                      WM_OP_EXEC_DEFAULT,
+                      blender::wm::OpCallContext::ExecDefault,
                       UI_ITEM_NONE);
   RNA_enum_set(&op_ptr, "mode", int8_t(MultiresSubdivideModeType::CatmullClark));
   RNA_string_set(&op_ptr, "modifier", ((ModifierData *)mmd)->name);
@@ -351,14 +351,14 @@ static void subdivisions_panel_draw(const bContext * /*C*/, Panel *panel)
   op_ptr = row->op("OBJECT_OT_multires_subdivide",
                    IFACE_("Simple"),
                    ICON_NONE,
-                   WM_OP_EXEC_DEFAULT,
+                   blender::wm::OpCallContext::ExecDefault,
                    UI_ITEM_NONE);
   RNA_enum_set(&op_ptr, "mode", int8_t(MultiresSubdivideModeType::Simple));
   RNA_string_set(&op_ptr, "modifier", ((ModifierData *)mmd)->name);
   op_ptr = row->op("OBJECT_OT_multires_subdivide",
                    IFACE_("Linear"),
                    ICON_NONE,
-                   WM_OP_EXEC_DEFAULT,
+                   blender::wm::OpCallContext::ExecDefault,
                    UI_ITEM_NONE);
   RNA_enum_set(&op_ptr, "mode", int8_t(MultiresSubdivideModeType::Linear));
   RNA_string_set(&op_ptr, "modifier", ((ModifierData *)mmd)->name);
@@ -377,7 +377,7 @@ static void shape_panel_draw(const bContext * /*C*/, Panel *panel)
   PointerRNA ob_ptr;
   modifier_panel_get_property_pointers(panel, &ob_ptr);
 
-  uiLayoutSetEnabled(layout, RNA_enum_get(&ob_ptr, "mode") != OB_MODE_EDIT);
+  layout->enabled_set(RNA_enum_get(&ob_ptr, "mode") != OB_MODE_EDIT);
 
   row = &layout->row(false);
   row->op("OBJECT_OT_multires_reshape", IFACE_("Reshape"), ICON_NONE);
@@ -402,7 +402,7 @@ static void generate_panel_draw(const bContext * /*C*/, Panel *panel)
   row = &col->row(false);
   if (is_external) {
     row->op("OBJECT_OT_multires_external_pack", IFACE_("Pack External"), ICON_NONE);
-    uiLayoutSetPropSep(col, true);
+    col->use_property_split_set(true);
     row = &col->row(false);
     row->prop(ptr, "filepath", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
@@ -420,14 +420,14 @@ static void advanced_panel_draw(const bContext * /*C*/, Panel *panel)
 
   bool has_displacement = RNA_int_get(ptr, "total_levels") != 0;
 
-  uiLayoutSetPropSep(layout, true);
+  layout->use_property_split_set(true);
 
-  uiLayoutSetActive(layout, !has_displacement);
+  layout->active_set(!has_displacement);
 
   layout->prop(ptr, "quality", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   col = &layout->column(false);
-  uiLayoutSetActive(col, true);
+  col->active_set(true);
   col->prop(ptr, "uv_smooth", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   col->prop(ptr, "boundary_smooth", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 

@@ -40,6 +40,7 @@
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
 #include "BLI_string_utils.hh"
+#include "BLI_threads.h"
 #include "BLI_utildefines.h"
 
 #include "BLT_translation.hh"
@@ -62,6 +63,7 @@
 #include "BKE_multires.hh"
 #include "BKE_object.hh"
 #include "BKE_pointcache.h"
+#include "BKE_report.hh"
 #include "BKE_screen.hh"
 
 /* may move these, only for BKE_modifier_path_relbase */
@@ -77,7 +79,7 @@
 
 #include "CLG_log.h"
 
-static CLG_LogRef LOG = {"bke.modifier"};
+static CLG_LogRef LOG = {"object.modifier"};
 static ModifierTypeInfo *modifier_types[NUM_MODIFIER_TYPES] = {nullptr};
 static VirtualModifierData virtualModifierCommonData;
 
@@ -305,7 +307,7 @@ ModifierData *BKE_modifier_copy_ex(const ModifierData *md, int flag)
 {
   ModifierData *md_dst = modifier_allocate_and_init(ModifierType(md->type));
 
-  STRNCPY(md_dst->name, md->name);
+  STRNCPY_UTF8(md_dst->name, md->name);
   BKE_modifier_copydata_ex(md, md_dst, flag);
 
   return md_dst;
@@ -988,6 +990,9 @@ Mesh *BKE_modifier_get_evaluated_mesh_from_evaluated_object(Object *ob_eval)
     /* 'em' might not exist yet in some cases, just after loading a .blend file, see #57878. */
     if (em != nullptr) {
       mesh = const_cast<Mesh *>(BKE_object_get_editmesh_eval_final(ob_eval));
+      if (mesh != nullptr) {
+        mesh = BKE_mesh_wrapper_ensure_subdivision(mesh);
+      }
     }
   }
   if (mesh == nullptr) {
