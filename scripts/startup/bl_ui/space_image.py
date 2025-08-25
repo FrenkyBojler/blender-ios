@@ -371,7 +371,7 @@ class IMAGE_MT_uvs_align(Menu):
         layout.operator_enum("uv.align", "axis")
 
 
-class IMAGE_MT_shift_selected_move(nenu):
+class IMAGE_MT_shift_selected(Menu):
     bl_label = "Shift Selected"
 
     def draw(self, _context):
