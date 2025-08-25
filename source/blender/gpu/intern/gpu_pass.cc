@@ -42,6 +42,7 @@ struct GPUPass {
   std::atomic<eGPUPassStatus> status = GPU_PASS_QUEUED;
   /* Orphaned GPUPasses gets freed by the garbage collector. */
   std::atomic<int> refcount = 1;
+  double creation_timestamp = 0.0f;
   /* The last time the refcount was greater than 0. */
   double gc_timestamp = 0.0f;
 
@@ -52,13 +53,17 @@ struct GPUPass {
   bool should_optimize = false;
   bool is_optimization_pass = false;
 
+  /* Number of seconds after creation required before compiling an optimization pass. */
+  static constexpr float optimization_delay = 3.0f;
+
   GPUPass(GPUCodegenCreateInfo *info,
           bool deferred_compilation,
           bool is_optimization_pass,
           bool should_optimize)
       : create_info(info),
         should_optimize(should_optimize),
-        is_optimization_pass(is_optimization_pass)
+        is_optimization_pass(is_optimization_pass),
+        creation_timestamp(BLI_time_now_seconds())
   {
     BLI_assert(!is_optimization_pass || !should_optimize);
     if (is_optimization_pass && deferred_compilation) {
@@ -117,18 +122,20 @@ struct GPUPass {
 
   void update(double timestamp)
   {
-    update_compilation();
+    update_compilation(timestamp);
     update_gc_timestamp(timestamp);
   }
 
-  void update_compilation()
+  void update_compilation(double timestamp)
   {
     if (compilation_handle) {
       if (GPU_shader_batch_is_ready(compilation_handle)) {
         finalize_compilation();
       }
     }
-    else if (status == GPU_PASS_QUEUED && refcount > 0) {
+    else if (status == GPU_PASS_QUEUED && refcount > 0 &&
+             ((creation_timestamp + optimization_delay) <= timestamp))
+    {
       BLI_assert(is_optimization_pass);
       GPUShaderCreateInfo *base_info = reinterpret_cast<GPUShaderCreateInfo *>(create_info);
       compilation_handle = GPU_shader_batch_create_from_infos(
@@ -292,7 +299,7 @@ class GPUPassCache {
     /* Optimization Passes Compilation. */
     for (auto &engine_passes : passes_) {
       for (std::unique_ptr<GPUPass> &pass : engine_passes[true].values()) {
-        pass->update_compilation();
+        pass->update_compilation(timestamp);
       }
     }
   }
