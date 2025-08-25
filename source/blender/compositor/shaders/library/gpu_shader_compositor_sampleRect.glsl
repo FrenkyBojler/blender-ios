@@ -5,8 +5,8 @@
 #if defined(SAMPLER_NEAREST)
 float4 sampleRect(float2 uv, float2 wh)
 {
-  return texture(input_tx, (uv + 0.5f) / float2(textureSize(input_tx, 0)));
-  //return texelFetch(input_tx, int2(floor(uv + 0.5f)), 0);
+  return texture(input_tx, uv / float2(textureSize(input_tx, 0)));
+  //return texelFetch(input_tx, int2(uv), 0);
 }
 #else
 
@@ -48,14 +48,14 @@ float samplerWeight(float x, float w)
 }
 
 // Sample orthogonal rectangle of size wh centered on uv.
-// Integers are at pixel centers
+// Integers are at pixel corners
 float4 sampleRect(float2 uv, float2 wh)
 {
   float2 w1 = max(wh, 1.0f);
   float2 r = float2(SAMPLER_RADIUS(w1.x), SAMPLER_RADIUS(w1.y));
   float2 d = ceil(w1 / 8.0f);
-  float2 a = ceil(uv - r); // first non-zero sample
-  int2 n = int2((floor(uv + r) - a) / d) + 1; // how many samples
+  float2 a = ceil(uv - 0.5f - r) + 0.5f; // first non-zero sample
+  int2 n = int2((floor(uv - 0.5f + r) + 0.5f - a) / d) + 1; // how many samples
   float4 sum = float4(0.0f);
   float div = 0.0f;
   for (int i = 0; i < n.y; i++) { // vertical filter
@@ -65,7 +65,7 @@ float4 sampleRect(float2 uv, float2 wh)
     for (int j = 0; j < n.x; j++) { // horizontal filter
       float u = a.x + j * d.x;
       float weight = samplerWeight(u - uv.x, w1.x);
-      sumx += texture(input_tx, (float2(u, v) + 0.5) / float2(textureSize(input_tx, 0))) * weight;
+      sumx += texture(input_tx, float2(u, v) / float2(textureSize(input_tx, 0))) * weight;
       divx += weight;
     }
     float weight = samplerWeight(v - uv.y, w1.y);

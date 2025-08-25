@@ -39,7 +39,7 @@ void main()
 
 #if defined(PREMULTIPLY_MASK)
   float2 pixels = float2(textureSize(input_tx, 0));
-  float2 mm = clamp(min(uv + 0.5f, pixels - uv - 0.5f) / wh + 0.5f, 0, 1); // coverage of wh by image
+  float2 mm = clamp(min(uv, pixels - uv) / wh + 0.5f, 0, 1); // coverage of wh by image
   if (m < 1) mm = float2(0); // remove artifacts at horizon
   mm = max(mm, mask_mult); // keep unclipped sides
   m *= mm.x * mm.y;

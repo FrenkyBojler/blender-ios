@@ -151,11 +151,11 @@ class CornerPinOperation : public NodeOperation {
 
   void compute_plane_gpu(const float3x3 &homography_matrix)
   {
-    // convert the matrix to translate pixel centers to pixel centers
+    // convert the matrix to translate pixel centers to pixel corners
     // todo: this calculation should be done by caller
     const Domain domain = compute_domain();
     float3x3 to_bounds = math::translate(math::from_scale<float3x3>(1.0f/float2(domain.size)), float2(0.5f));
-    float3x3 from_bounds = math::scale(math::from_location<float3x3>(float2(-0.5f)), float2(domain.size));
+    float3x3 from_bounds = math::from_scale<float3x3>(float2(domain.size));
     float3x3 imat = from_bounds * homography_matrix * to_bounds;
 
     const Interpolation interpolation = this->get_interpolation();
@@ -193,8 +193,8 @@ class CornerPinOperation : public NodeOperation {
     gpu::Shader *shader = this->context().get_shader(shader_name);
     GPU_shader_bind(shader);
 
-    if (fast) { // make matrix produce uv texture coordinates
-      imat = to_bounds * imat;
+    if (fast) { // make matrix produce texture coordinates
+      imat = math::from_scale<float3x3>(1.0f/float2(domain.size)) * imat;
     }
     GPU_shader_uniform_mat3_as_mat4(shader, "imat", imat.ptr());
 

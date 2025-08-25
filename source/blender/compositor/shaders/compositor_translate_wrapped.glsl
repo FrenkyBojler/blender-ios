@@ -10,7 +10,7 @@ void main()
 {
   int2 texel = int2(gl_GlobalInvocationID.xy);
 
-  float2 uv = (float2(texel) - translation);
+  float2 uv = float2(texel) + 0.5f - translation;
   float2 wh = float2(1.0f);
 
   imageStore(output_img, texel, sampleRect(uv, wh));

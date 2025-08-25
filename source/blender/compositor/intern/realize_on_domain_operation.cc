@@ -85,8 +85,8 @@ float2 RealizeOnDomainOperation::compute_corrective_translation()
 
 void RealizeOnDomainOperation::realize_on_domain_gpu(const float3x3 &inverse_transformation)
 {
-  // matrix is between pixel corners, change to pixel centers:
-  float3x3 imat = math::from_location<float3x3>(float2(-0.5f)) * inverse_transformation * math::from_location<float3x3>(float2(0.5f));
+  // matrix is between pixel corners, change so input is pixel centers / texel
+  float3x3 imat = inverse_transformation * math::from_location<float3x3>(float2(0.5f));
 
   // derivatives converted to nearest rectangle:
   float2 wh{hypotf(imat[0][0], imat[1][0]), hypotf(imat[0][1], imat[1][1])};
@@ -121,9 +121,8 @@ void RealizeOnDomainOperation::realize_on_domain_gpu(const float3x3 &inverse_tra
 
   if (fast) {
     strcat(shader_name, "_fast");
-    // change matrix to go to bounds
-    float3x3 to_bounds = math::translate(math::from_scale<float3x3>(1.0f/float2(input.domain().size)), float2(0.5f));
-    imat = to_bounds * imat;
+    // make matrix produce texture coordinates
+    imat = math::from_scale<float3x3>(1.0f/float2(input.domain().size)) * imat;
   }
 
   switch (input.type()) {
