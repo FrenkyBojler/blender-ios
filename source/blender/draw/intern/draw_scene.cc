@@ -43,7 +43,7 @@ void foreach_obref_in_scene(DRWContext &draw_ctx,
                             FunctionRef<void(ObjectRef &)> draw_object_cb)
 {
   DupliList duplilist;
-  Map<DrawObjectKey, VectorList<DupliObject *>> dupli_map;
+  Map<InstancesKey, VectorList<DupliObject *>> dupli_map;
 
   Object tmp_object;
   ObjectRuntimeHandle tmp_runtime;
@@ -132,15 +132,15 @@ void foreach_obref_in_scene(DRWContext &draw_ctx,
         continue;
       }
 
-      DrawObjectFlags flags = DrawObjectFlags(0);
+      InstancesFlags flags = InstancesFlags(0);
       {
-        SET_FLAG_FROM_TEST(flags, is_negative_m4(dupli.mat), DrawObjectFlags::IsNegativeScale);
+        SET_FLAG_FROM_TEST(flags, is_negative_m4(dupli.mat), InstancesFlags::IsNegativeScale);
       }
-      DrawObjectKey key(dupli.ob,
-                        dupli.ob_data,
-                        flags,
-                        dupli.preview_base_geometry,
-                        dupli.preview_instance_index);
+      InstancesKey key(dupli.ob,
+                       dupli.ob_data,
+                       flags,
+                       dupli.preview_base_geometry,
+                       dupli.preview_instance_index);
 
       dupli_map.lookup_or_add_default(key).append(&dupli);
     }
@@ -157,7 +157,7 @@ void foreach_obref_in_scene(DRWContext &draw_ctx,
 
       tmp_object.light_linking = ob->light_linking;
       SET_FLAG_FROM_TEST(
-          tmp_object.transflag, bool(key.flags & DrawObjectFlags::IsNegativeScale), OB_NEG_SCALE);
+          tmp_object.transflag, bool(key.flags & InstancesFlags::IsNegativeScale), OB_NEG_SCALE);
       /* Should use DrawInstances data instead. */
       tmp_object.runtime->object_to_world = float4x4();
       tmp_object.runtime->world_to_object = float4x4();

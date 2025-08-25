@@ -25,25 +25,25 @@ class ObjectRef;
 
 namespace blender::draw {
 
-enum class DrawObjectFlags : uint8_t {
+enum class InstancesFlags : uint8_t {
   IsNegativeScale = 1 << 0,
 };
-ENUM_OPERATORS(DrawObjectFlags, DrawObjectFlags::IsNegativeScale);
+ENUM_OPERATORS(InstancesFlags, InstancesFlags::IsNegativeScale);
 
-struct DrawObjectKey {
+struct InstancesKey {
   uint64_t hash_value;
 
   Object *object;
   ID *ob_data;
   const blender::bke::GeometrySet *preview_base_geometry;
   int preview_instance_index;
-  DrawObjectFlags flags;
+  InstancesFlags flags;
 
-  DrawObjectKey(Object *object,
-                ID *ob_data,
-                DrawObjectFlags flags,
-                const blender::bke::GeometrySet *preview_base_geometry,
-                int preview_instance_index)
+  InstancesKey(Object *object,
+               ID *ob_data,
+               InstancesFlags flags,
+               const blender::bke::GeometrySet *preview_base_geometry,
+               int preview_instance_index)
       : object(object),
         ob_data(ob_data),
         preview_base_geometry(preview_base_geometry),
@@ -62,7 +62,7 @@ struct DrawObjectKey {
     return hash_value;
   }
 
-  bool operator<(const DrawObjectKey &k) const
+  bool operator<(const InstancesKey &k) const
   {
     if (hash_value != k.hash_value) {
       return hash_value < k.hash_value;
@@ -85,7 +85,7 @@ struct DrawObjectKey {
     return false;
   }
 
-  bool operator==(const DrawObjectKey &k) const
+  bool operator==(const InstancesKey &k) const
   {
     if (hash_value != k.hash_value) {
       return false;
