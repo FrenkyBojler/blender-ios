@@ -406,9 +406,14 @@ static void subdiv_foreach_edge_vertices_regular_do(ForeachTaskContext *ctx,
 {
   const IndexRange coarse_face = ctx->coarse_faces[coarse_face_index];
   const int resolution = ctx->settings->resolution;
+  const int num_subdiv_vertices_per_coarse_edge = resolution - 2;
+  if (num_subdiv_vertices_per_coarse_edge <= 0) {
+    /* Early exit if we have no work to do. */
+    return;
+  }
+
   const int resolution_1 = resolution - 1;
   const float inv_resolution_1 = 1.0f / float(resolution_1);
-  const int num_subdiv_vertices_per_coarse_edge = resolution - 2;
   const int ptex_face_index = ctx->face_ptex_offset[coarse_face_index];
   for (int corner = 0; corner < coarse_face.size(); corner++) {
     const int coarse_vert = ctx->coarse_corner_verts[coarse_face[corner]];
@@ -472,6 +477,11 @@ static void subdiv_foreach_edge_vertices_special_do(ForeachTaskContext *ctx,
   const int resolution = ctx->settings->resolution;
   const int num_subdiv_vertices_per_coarse_edge = resolution - 2;
   const int num_vertices_per_ptex_edge = ((resolution >> 1) + 1);
+  if (num_vertices_per_ptex_edge <= 1) {
+    /* Early exit if we have no work to do. */
+    return;
+  }
+
   const float inv_ptex_resolution_1 = 1.0f / float(num_vertices_per_ptex_edge - 1);
   const int ptex_face_start_index = ctx->face_ptex_offset[coarse_face_index];
   int ptex_face_index = ptex_face_start_index;

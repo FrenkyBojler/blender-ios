@@ -364,18 +364,22 @@ namespace clay_strips {
 
 /**
  * Checks whether the node's bounding box overlaps with the region affected by the brush.
- * Clay Strips affects only vertices below the brush plane. The brush-local coordinate
- * system is oriented so that vertices below the plane have positive local z-coordinates.
- * Therefore, we only need to check if the node intersects the [-1,1] x [-1,1] x [0,1] volume in
- * local space.
+ *
+ * In normal operation, Clay Strips affects only vertices below the brush plane.
+ * The brush-local coordinate system is oriented so that vertices below the plane have positive
+ * local z-coordinates.
+ *
+ * Ideally, we only need to check if the node intersects the [-1,1] x [-1,1] x [0,1] volume in
+ * local space. However, to account for atypical brush operations using a fixed sculpt plane, the
+ * `use_half_box_text` parameter is available to extend this check.
  */
-static bool node_in_box(const float4x4 &mat, const Bounds<float3> &bounds)
+static bool node_in_box(const float4x4 &mat, const Bounds<float3> &bounds, const bool use_half_box_test = true)
 {
   const float3 brush_center = float3(0.0f, 0.0f, 0.5f);
   const float3 node_center = math::transform_point(mat, (bounds.max + bounds.min) * 0.5f);
   const float3 center_diff = brush_center - node_center;
 
-  const float3 brush_half_lengths = float3(1.0f, 1.0f, 0.5f);
+  const float3 brush_half_lengths = use_half_box_test ? float3(1.0f, 1.0f, 0.5f) : float3(1.0f, 1.0f, 1.0f);
   const float3 node_half_lengths = (bounds.max - bounds.min) * 0.5f;
 
   const float3 &node_x_axis = mat.x_axis();
@@ -484,22 +488,14 @@ CursorSampleResult calc_node_mask(const Depsgraph &depsgraph,
                                                    memory);
 
   float3 plane_center;
-  float3 sculpt_plane_normal;
-  calc_brush_plane(depsgraph, brush, object, initial_node_mask, sculpt_plane_normal, plane_center);
-
-  float3 plane_normal = sculpt_plane_normal;
-  /* Ignore brush settings and recalculate the area normal. */
-  if (brush.sculpt_plane != SCULPT_DISP_DIR_AREA || (brush.flag & BRUSH_ORIGINAL_NORMAL)) {
-    plane_normal =
-        calc_area_normal(depsgraph, brush, object, initial_node_mask).value_or(float3(0));
-  }
-
+  float3 plane_normal;
+  calc_brush_plane(depsgraph, brush, object, initial_node_mask, plane_normal, plane_center);
   plane_normal = tilt_apply_to_normal(plane_normal, *ss.cache, brush.tilt_strength_factor);
   plane_center += plane_normal * ss.cache->scale * displace;
 
   if (math::is_zero(ss.cache->grab_delta_symm) || math::is_zero(plane_normal)) {
     /* The brush local matrix is degenerate: return an empty index mask. */
-    return {IndexMask(), plane_normal, plane_center};
+    return {IndexMask(), plane_center, plane_normal};
   }
 
   const float4x4 mat = calc_local_matrix(brush, *ss.cache, plane_normal, plane_center, flip);
@@ -509,7 +505,7 @@ CursorSampleResult calc_node_mask(const Depsgraph &depsgraph,
         if (node_fully_masked_or_hidden(node)) {
           return false;
         }
-        return node_in_box(mat, node.bounds());
+        return node_in_box(mat, node.bounds(), brush.sculpt_plane == SCULPT_DISP_DIR_AREA);
       });
 
   return {plane_mask, plane_center, plane_normal};
