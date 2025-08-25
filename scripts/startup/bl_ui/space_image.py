@@ -371,13 +371,13 @@ class IMAGE_MT_uvs_align(Menu):
         layout.operator_enum("uv.align", "axis")
 
 
-class IMAGE_MT_arrow_move(Menu):
-    bl_label = "Arrow Move"
+class IMAGE_MT_shift_selected_move(nenu):
+    bl_label = "Shift Selected"
 
     def draw(self, _context):
         layout = self.layout
 
-        layout.operator_enum("uv.arrow_move", "type")
+        layout.operator_enum("uv.shift_selected", "type")
 
 
 class IMAGE_MT_uvs_merge(Menu):
@@ -488,7 +488,7 @@ class IMAGE_MT_uvs(Menu):
         layout.operator_context = 'EXEC_REGION_WIN'
         layout.menu("IMAGE_MT_uvs_align")
         layout.operator("uv.align_rotation")
-        layout.menu("IMAGE_MT_arrow_move")
+        layout.menu("IMAGE_MT_shift_selected")
 
         layout.separator()
 
@@ -1830,7 +1830,7 @@ classes = (
     IMAGE_MT_uvs_snap,
     IMAGE_MT_uvs_mirror,
     IMAGE_MT_uvs_align,
-    IMAGE_MT_arrow_move,
+    IMAGE_MT_shift_selected,
     IMAGE_MT_uvs_merge,
     IMAGE_MT_uvs_split,
     IMAGE_MT_uvs_unwrap,

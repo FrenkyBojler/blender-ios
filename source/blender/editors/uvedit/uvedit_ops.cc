@@ -353,7 +353,7 @@ enum eUVMoveDirection {
   Y,
 };
 
-static wmOperatorStatus uv_arrow_move_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus uv_shift_selected_exec(bContext *C, wmOperator *op)
 
 {
   Scene *scene = CTX_data_scene(C);
@@ -410,9 +410,9 @@ static wmOperatorStatus uv_arrow_move_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static void UV_OT_arrow_move(wmOperatorType *ot)
+static void UV_OT_shift_selected(wmOperatorType *ot)
 {
-  static const EnumPropertyItem move_items[] = {
+  static const EnumPropertyItem shift_items[] = {
       {DYNAMIC,
        "DYNAMIC",
        0,
@@ -439,17 +439,17 @@ static void UV_OT_arrow_move(wmOperatorType *ot)
   };
 
   /* identifiers */
-  ot->name = "Arrow Move";
-  ot->description = "Move selected UV vertices on a line";
-  ot->idname = "UV_OT_arrow_move";
+  ot->name = "Shift Selected";
+  ot->description = "Shift selected UV vertices on a line";
+  ot->idname = "UV_OT_shift_selected";
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
   /* API callbacks. */
-  ot->exec = uv_arrow_move_exec;
+  ot->exec = uv_shift_selected_exec;
   ot->poll = ED_operator_uvedit;
 
   /* properties */
-  RNA_def_enum(ot->srna, "type", move_items, DYNAMIC, "Type", "Axis to align UV locations on");
+  RNA_def_enum(ot->srna, "type", shift_items, DYNAMIC, "Type", "Axis to align UV locations on");
   RNA_def_enum(ot->srna, "axis", axis_items, X, "Axis", "Axis to move UV vertices on");
   RNA_def_int(ot->srna,
               "distance",
@@ -457,7 +457,7 @@ static void UV_OT_arrow_move(wmOperatorType *ot)
               INT_MIN,
               INT_MAX,
               "Distance",
-              "Distance to move UV vertices",
+              "Distance to shift UV vertices",
               INT_MIN,
               INT_MAX);
 }
@@ -2159,7 +2159,7 @@ void ED_operatortypes_uvedit()
   WM_operatortype_append(UV_OT_paste);
 
   WM_operatortype_append(UV_OT_cursor_set);
-  WM_operatortype_append(UV_OT_arrow_move);
+  WM_operatortype_append(UV_OT_shift_selected);
 }
 
 void ED_operatormacros_uvedit()
