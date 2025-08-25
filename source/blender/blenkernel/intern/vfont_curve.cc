@@ -768,7 +768,22 @@ static bool vfont_to_curve(Object *ob,
     custrinfo = cu->strinfo;
   }
 
-  if (ef != nullptr && ob != nullptr) {
+  /* Only manipulate the edit-font if this object is in edit-mode, otherwise it's unnecessary
+   * as well as crashing since manipulating the #EditFont here isn't thread-safe, see: #144970. */
+  if (ef) {
+    if (ob && (ob->mode & OB_MODE_EDIT)) {
+      /* Pass. */
+    }
+    else {
+      /* Other modes manipulate `ef->pos` which must only be done when this object is in edit-mode.
+       * Not when a curve that happens to have edit-mode data is evaluated
+       * (typically a linked duplicate). */
+      BLI_assert(!FO_CURS_IS_MOTION(mode));
+      ef = nullptr;
+    }
+  }
+
+  if (ef != nullptr) {
     if (ef->selboxes) {
       MEM_freeN(ef->selboxes);
     }
