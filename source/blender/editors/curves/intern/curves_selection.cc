@@ -97,7 +97,7 @@ IndexMask retrieve_all_selected_points(const bke::CurvesGeometry &curves,
     }
 
     selection_by_attribute.append(
-        ed::curves::retrieve_selected_points(curves, selection_name, memory));
+        ed::curves::retrieve_selected_points(curves, selection_name, bezier_points, memory));
   }
   return IndexMask::from_union(selection_by_attribute, memory);
 }
