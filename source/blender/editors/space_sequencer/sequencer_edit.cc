@@ -210,7 +210,7 @@ bool sequencer_strip_editable_poll(bContext *C)
 
 bool sequencer_strip_has_path_poll(bContext *C)
 {
-  if (active_strip_region_poll(C)) {
+  if (sequencer_active_strip_region_poll(C)) {
     Scene *scene = CTX_data_sequencer_scene(C);
     return STRIP_HAS_PATH(seq::select_active_get(scene));
   }
@@ -290,7 +290,7 @@ static bool sequencer_effect_poll(bContext *C)
   return false;
 }
 
-bool active_strip_region_poll(bContext *C)
+bool sequencer_active_strip_region_poll(bContext *C)
 {
   Scene *scene = CTX_data_sequencer_scene(C);
 
@@ -313,7 +313,7 @@ static bool sequencer_swap_inputs_poll(bContext *C)
   if (active_strip && (active_strip->type & STRIP_TYPE_EFFECT) &&
       (seq::effect_get_num_inputs(active_strip->type) == 2))
   {
-    return active_strip_region_poll(C);
+    return sequencer_active_strip_region_poll(C);
   }
 
   return false;

@@ -81,7 +81,7 @@ void SEQUENCER_OT_strip_modifier_add(wmOperatorType *ot)
 
   /* API callbacks. */
   ot->exec = strip_modifier_add_exec;
-  ot->poll = active_strip_region_poll;
+  ot->poll = sequencer_active_strip_region_poll;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -137,7 +137,7 @@ void SEQUENCER_OT_strip_modifier_remove(wmOperatorType *ot)
 
   /* API callbacks. */
   ot->exec = strip_modifier_remove_exec;
-  ot->poll = active_strip_region_poll;
+  ot->poll = sequencer_active_strip_region_poll;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -216,7 +216,7 @@ void SEQUENCER_OT_strip_modifier_move(wmOperatorType *ot)
 
   /* API callbacks. */
   ot->exec = strip_modifier_move_exec;
-  ot->poll = active_strip_region_poll;
+  ot->poll = sequencer_active_strip_region_poll;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -315,7 +315,7 @@ void SEQUENCER_OT_strip_modifier_copy(wmOperatorType *ot)
   /* API callbacks. */
   ot->invoke = WM_menu_invoke;
   ot->exec = strip_modifier_copy_exec;
-  ot->poll = active_strip_region_poll;
+  ot->poll = sequencer_active_strip_region_poll;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -370,7 +370,7 @@ void SEQUENCER_OT_strip_modifier_equalizer_redefine(wmOperatorType *ot)
 
   /* API callbacks. */
   ot->exec = strip_modifier_equalizer_redefine_exec;
-  ot->poll = active_strip_region_poll;
+  ot->poll = sequencer_active_strip_region_poll;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;

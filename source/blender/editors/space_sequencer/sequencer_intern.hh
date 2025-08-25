@@ -193,7 +193,7 @@ bool sequencer_view_has_preview_poll(bContext *C);
 bool sequencer_view_preview_only_poll(const bContext *C);
 bool sequencer_view_strips_poll(bContext *C);
 /* For operators that can also be run from the N-panel buttons. */
-bool active_strip_region_poll(bContext *C);
+bool sequencer_active_strip_region_poll(bContext *C);
 
 /**
  * Returns collection with all strips presented to user. If operation is done in preview,
