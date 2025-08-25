@@ -1310,14 +1310,15 @@ static void select_marker_camera_switch(
     }
 
     BKE_view_layer_synced_ensure(scene, view_layer);
+
     LISTBASE_FOREACH (TimeMarker *, marker, markers) {
-      if (marker->camera) {
-        if (marker->frame == cfra) {
-          base = BKE_view_layer_base_find(view_layer, marker->camera);
-          if (base) {
-            object::base_select(base, object::eObjectSelect_Mode(SEL_OP_ADD));
+      if (marker->camera && marker->frame == cfra) {
+        Base *base = BKE_view_layer_base_find(view_layer, marker->camera);
+        if (base) {
+          object::base_select(base, object::eObjectSelect_Mode(SEL_OP_ADD));
+
+          if (!extend) {
             object::base_activate(C, base);
-            
           }
         }
       }
@@ -1403,6 +1404,11 @@ static wmOperatorStatus ed_marker_select(bContext *C,
         marker_found->flag |= SELECT;
       }
     }
+  }
+  /* if extend is set (but holding Shift), then add the camera to the selection too*/
+  if (found && camera) {
+    const int marker_frame = nearest_marker->frame;
+    select_marker_camera_switch(C, true, extend, markers, marker_frame);
   }
 
   WM_event_add_notifier(C, NC_SCENE | ND_MARKERS, nullptr);
