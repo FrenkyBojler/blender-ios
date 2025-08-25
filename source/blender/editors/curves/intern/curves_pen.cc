@@ -987,7 +987,7 @@ static void invoke_curves(PenToolOperation &ptd, bContext *C, wmOperator *op, co
 
       if (ptd.closest_element.element_mode == ElementMode::Edge) {
         add_single.store(false, std::memory_order_relaxed);
-        if (ptd.insert_point && ptd.closest_element.drawing_index == drawing_index) {
+        if (ptd.insert_point && ptd.closest_element.drawing_index == curves_index) {
           insert_point_to_curve(ptd, curves);
           ptd.tag_curve_changed(curves_index);
           changed.store(true, std::memory_order_relaxed);
@@ -1287,7 +1287,7 @@ class CurvesPenToolOperation : public PenToolOperation {
   {
     const Curves *curves_id = this->all_curves[curves_index];
     const bke::CurvesGeometry &curves = curves_id->geometry.wrap();
-    return retrieve_all_selected_points(curves, memory);
+    return retrieve_all_selected_points(curves, this->vc.v3d->overlay.handle_display, memory);
   }
 
   IndexMask visible_bezier_handle_points(const int curves_index, IndexMaskMemory &memory) const
