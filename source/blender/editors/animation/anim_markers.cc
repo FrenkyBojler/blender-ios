@@ -1367,7 +1367,6 @@ static wmOperatorStatus ed_marker_select(bContext *C,
       /* Deselect all markers. */
       deselect_markers(markers);
 
-      select_marker_camera_switch(C, camera, extend, markers, cfra);
     }
   }
 
