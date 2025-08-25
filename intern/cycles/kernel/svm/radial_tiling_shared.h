@@ -1066,23 +1066,18 @@ ccl_device float4 calculate_out_variables(bool calculate_r_gon_parameter_field,
     }
   }
 
-  if (normalize_r_gon_parameter) {
-    out_variables.y = float(0.5) * out_variables.y + float(0.5);
-  }
-  else {
-    out_variables.x -= float(1.0);
-  }
-
-  if (!normalize_r_gon_parameter) {
-    out_variables.x -= float(1.0);
-  }
-  else if ((coord.x == float(0.0)) && (coord.y == float(0.0))) {
-    /* The r_gon_parameter is defined to 0 when the input coordinate is the zero vector. */
+  if ((coord.x == float(0.0)) && (coord.y == float(0.0))) {
+    /* The r_gon_parameter is defined to 0 when it is not normalized and the input coordinate is
+     * the zero vector. */
     out_variables.y = float(0.0);
   }
-  else {
+
+  if (normalize_r_gon_parameter) {
     /* Normalize r_gon_parameter from a [-1, 1] interval to a [0, 1] interval. */
     out_variables.y = float(0.5) * out_variables.y + float(0.5);
+  }
+  else {
+    out_variables.x -= float(1.0);
   }
 
   return out_variables;
