@@ -190,6 +190,8 @@ Vector<int> calculate_multiplicity_sequence(const Span<float> knots)
   return multiplicity;
 }
 
+/* Basis function calculation, implementation based on 'The NURBS Book' p. 70, ISBN: 3540615458.
+ */
 static void calculate_basis_for_point(const Span<float> knots,
                                       const int degree,
                                       const float parameter,
@@ -205,8 +207,6 @@ static void calculate_basis_for_point(const Span<float> knots,
 
   r_start_index = span_index - degree;
 
-  /* Basis function calculation, implementation based on 'The NURBS Book' p. 70, ISBN: 3540615458.
-   */
   Array<float, 12> left(order);
   Array<float, 12> right(order);
   r_weights[0] = 1.0f;
