@@ -1070,7 +1070,6 @@ void retiming_sound_animation_data_set(const Scene *scene, const Strip *strip)
 
   RetimingRangeData retiming_data = strip_retiming_range_data_get(scene, strip);
 
-  int64_t range_count = retiming_data.ranges.size();
   for (int i = 0; i < retiming_data.ranges.size(); i++) {
     RetimingRange range = retiming_data.ranges[i];
     if (range.type == TRANSITION) {
@@ -1106,7 +1105,6 @@ void retiming_sound_animation_data_set(const Scene *scene, const Strip *strip)
       }
     }
   }
-  // }
 
   if (pitch_correction) {
     BKE_sound_update_sequence_handle(strip->scene_sound, sound_handle);
