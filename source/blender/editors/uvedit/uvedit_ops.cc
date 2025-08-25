@@ -52,6 +52,7 @@
 #include "RNA_access.hh"
 #include "RNA_define.hh"
 
+#include "RNA_types.hh"
 #include "WM_api.hh"
 #include "WM_message.hh"
 #include "WM_types.hh"
@@ -62,6 +63,7 @@
 #include "UI_view2d.hh"
 
 #include "bmesh_class.hh"
+#include "intern/rna_internal_types.hh"
 #include "uvedit_intern.hh"
 
 using namespace blender;
@@ -537,7 +539,11 @@ static bool uvedit_uv_straighten(Scene *scene, BMesh *bm, eUVWeldAlign tool)
   BM_uv_element_map_free(element_map);
   return changed;
 }
-
+enum eUVAlignStartPosition {
+  BOUNDING_BOX,
+  UV_BOX,
+  CURSOR,
+};
 enum eUVAlignIslandAxis {
   X,
   Y,
@@ -602,15 +608,11 @@ static float2 uvedit_uv_island_arrange(Scene *scene,
           if (axis == X) {
             return a->min[0] < b->min[0];
           }
-          else {
-            return a->max[1] > b->max[1];
-          }
+          return a->max[1] > b->max[1];
         }
-        else {
-          float size_a = (a->cent[0] * a->cent[1]);
-          float size_b = (b->cent[0] * b->cent[1]);
-          return (order == LARGE_TO_SMALL) ? (size_a > size_b) : (size_a < size_b);
-        }
+        float size_a = (a->cent[0] * a->cent[1]);
+        float size_b = (b->cent[0] * b->cent[1]);
+        return (order == LARGE_TO_SMALL) ? (size_a >= size_b) : (size_a < size_b);
       });
 
   for (int i = 0; i < aabbs.size(); i++) {
@@ -627,7 +629,7 @@ static float2 uvedit_uv_island_arrange(Scene *scene,
         else if (align == MAX) {
           luv[0] += position[0] - aabbs[i]->max[0];
         }
-        luv[1] += position[1] - aabbs[i]->max[1];
+        luv[1] += position[1] - aabbs[i]->min[1];
       }
       else {
         if (align == MIN) {
@@ -643,7 +645,7 @@ static float2 uvedit_uv_island_arrange(Scene *scene,
       }
     }
     if (axis == Y) {
-      position[1] -= aabbs[i]->max[1] - aabbs[i]->min[1] + offset;
+      position[1] += aabbs[i]->max[1] - aabbs[i]->min[1] + offset;
     }
     else {
       position[0] += aabbs[i]->max[0] - aabbs[i]->min[0] + offset;
@@ -662,7 +664,9 @@ static wmOperatorStatus uv_align_island_exec(bContext *C, wmOperator *op)
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
       scene, view_layer, nullptr);
 
-  float2 position = {0, (float)sima->tile_grid_shape[1]};
+  float2 position = {0, 0};
+
+  eUVAlignStartPosition start = eUVAlignStartPosition(RNA_enum_get(op->ptr, "start"));
   eUVAlignIslandAxis axis = eUVAlignIslandAxis(RNA_enum_get(op->ptr, "axis"));
   eUVAlignIsland align = eUVAlignIsland(RNA_enum_get(op->ptr, "align"));
 
@@ -670,36 +674,49 @@ static wmOperatorStatus uv_align_island_exec(bContext *C, wmOperator *op)
   float offset = RNA_float_get(op->ptr, "offset");
 
   float bound_min[2], bound_max[2];
-  INIT_MINMAX2(bound_min, bound_max);
-
-  for (Object *obedit : objects) {
-    BMesh *bm = BKE_editmesh_from_object(obedit)->bm;
-    ED_uvedit_foreach_uv(
-        scene, bm, true, true, [&](float luv[2]) { minmax_v2v2_v2(bound_min, bound_max, luv); });
+  if (start == BOUNDING_BOX) {
+    INIT_MINMAX2(bound_min, bound_max);
+    for (Object *obedit : objects) {
+      BMesh *bm = BKE_editmesh_from_object(obedit)->bm;
+      ED_uvedit_foreach_uv(
+          scene, bm, true, true, [&](float luv[2]) { minmax_v2v2_v2(bound_min, bound_max, luv); });
+    }
   }
-  if (axis == Y) {
-    if (align == MIN) {
-      position[0] = bound_min[0];
-    }
-    else if (align == CENTER) {
-      position[0] = bound_min[0] + ((bound_max[0] - bound_min[0]) / 2.0);
-    }
-    else {
-      position[0] = (bound_max[0]);
-    }
-    position[1] = bound_max[1];
+  else if (start == UV_BOX) {
+    bound_min[0] = 0.0f;
+    bound_min[0] = 0.0f;
+    bound_max[0] = sima->tile_grid_shape[0];
+    bound_max[1] = sima->tile_grid_shape[1];
   }
   else {
-    if (align == MAX) {
-      position[1] = bound_max[1];
-    }
-    else if (align == CENTER) {
-      position[1] = bound_min[1] + ((bound_max[1] - bound_min[1]) / 2.0);
-    }
-    else {
+    position[0] = scene->cursor.location[0];
+    position[1] = scene->cursor.location[1];
+  }
+  if (ELEM(start, BOUNDING_BOX, UV_BOX)) {
+    if (axis == Y) {
+      if (align == MIN) {
+        position[0] = bound_min[0];
+      }
+      else if (align == CENTER) {
+        position[0] = bound_min[0] + ((bound_max[0] - bound_min[0]) / 2.0);
+      }
+      else {
+        position[0] = (bound_max[0]);
+      }
       position[1] = bound_min[1];
     }
-    position[0] = bound_min[0];
+    else {
+      if (align == MAX) {
+        position[1] = bound_max[1];
+      }
+      else if (align == CENTER) {
+        position[1] = bound_min[1] + ((bound_max[1] - bound_min[1]) / 2.0);
+      }
+      else {
+        position[1] = bound_min[1];
+      }
+      position[0] = bound_min[0];
+    }
   }
   for (Object *obedit : objects) {
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
@@ -719,6 +736,17 @@ static wmOperatorStatus uv_align_island_exec(bContext *C, wmOperator *op)
 static void UV_OT_align_island(wmOperatorType *ot)
 {
 
+  static const EnumPropertyItem initial_position[] = {
+      {BOUNDING_BOX,
+       "Bounding Box",
+       0,
+       "Bounding Box",
+       "Initial alignment based on the islands boundig box"},
+      {UV_BOX, "UV Box", 0, "UV Box", "Initial alignemnt based on UV box"},
+      {CURSOR, "2D Cursor", 0, "2D Cursor", "Initial alignment based on 2D cursor"},
+      {0, nullptr, 0, nullptr, nullptr},
+
+  };
   static const EnumPropertyItem axis_items[] = {
       {X, "X", 0, "X", "Align UV islands along the X axis"},
       {Y, "Y", 0, "Y", "Align UV islands along the Y axis"},
@@ -757,6 +785,12 @@ static void UV_OT_align_island(wmOperatorType *ot)
   ot->poll = ED_operator_uvedit;
 
   /* properties */
+  RNA_def_enum(ot->srna,
+               "start",
+               initial_position,
+               BOUNDING_BOX,
+               "Initial Position",
+               "Initial position to arrange islands from");
   RNA_def_enum(ot->srna, "axis", axis_items, Y, "Axis", "Axis to arrange UV islands on");
   RNA_def_enum(ot->srna, "align", align_items, MIN, "Align", "Location to align islands on");
   RNA_def_enum(
