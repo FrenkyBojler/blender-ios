@@ -469,6 +469,10 @@ IndexMask curve_to_point_selection(OffsetIndices<int> points_by_curve,
                                    const IndexMask &curve_selection,
                                    IndexMaskMemory &memory);
 
+IndexMask curve_type_point_selection(const bke::CurvesGeometry &curves,
+                                     const CurveType curve_type,
+                                     IndexMaskMemory &memory);
+
 void fill_points(OffsetIndices<int> points_by_curve,
                  const IndexMask &curve_selection,
                  GPointer value,
@@ -557,11 +561,6 @@ Array<float3> retrieve_all_positions(const bke::CurvesGeometry &curves,
 void write_all_positions(bke::CurvesGeometry &curves,
                          const IndexMask &curves_selection,
                          Span<float3> all_positions);
-
-/**
- * Returns all the points that are in the bezier curves.
- */
-IndexMask get_bezier_points(const bke::CurvesGeometry &curves, IndexMaskMemory &memory);
 
 }  // namespace bezier
 

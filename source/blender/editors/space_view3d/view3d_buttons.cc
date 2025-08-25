@@ -386,7 +386,9 @@ static CurvesPointSelectionStatus init_curves_point_selection_status(
     return status;
   }
 
-  const IndexMask bezier_points = bke::curves::bezier::get_bezier_points(curves, memory);
+  const IndexMask bezier_points = bke::curves::curve_type_point_selection(
+      curves, CURVE_TYPE_BEZIER, memory);
+  // const IndexMask bezier_points = bke::curves::bezier::get_bezier_points(curves, memory);
 
   auto add_handles = [&](StringRef selection_attribute, std::optional<Span<float3>> positions) {
     if (!positions) {
@@ -471,7 +473,8 @@ static bool apply_to_curves_point_selection(const int tot,
     return changed;
   }
 
-  const IndexMask bezier_points = bke::curves::bezier::get_bezier_points(curves, memory);
+  const IndexMask bezier_points = bke::curves::curve_type_point_selection(
+      curves, CURVE_TYPE_BEZIER, memory);
 
   auto apply_to_handles = [&](StringRef selection_attribute, StringRef handles_attribute) {
     const IndexMask selection = retrieve_selected_points(

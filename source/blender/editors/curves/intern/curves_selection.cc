@@ -88,7 +88,8 @@ IndexMask retrieve_all_selected_points(const bke::CurvesGeometry &curves,
                                        const int handle_display,
                                        IndexMaskMemory &memory)
 {
-  const IndexMask bezier_points = bke::curves::bezier::get_bezier_points(curves, memory);
+  const IndexMask bezier_points = bke::curves::curve_type_point_selection(
+      curves, CURVE_TYPE_BEZIER, memory);
 
   Vector<IndexMask> selection_by_attribute;
   for (const StringRef selection_name : ed::curves::get_curves_selection_attribute_names(curves)) {
