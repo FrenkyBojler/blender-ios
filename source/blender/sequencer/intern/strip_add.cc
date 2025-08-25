@@ -352,7 +352,7 @@ Strip *add_sound_strip(Main *bmain, Scene *scene, ListBase *seqbase, LoadData *l
     strip->flag |= SEQ_AUDIO_DRAW_WAVEFORM;
 
     /* Turn on Preserve Pitch by default. */
-    strip->flag |= SEQ_AUDIO_PRESERVE_PITCH;
+    strip->flag |= SEQ_AUDIO_PITCH_CORRECTION;
   }
 
   strip_add_set_name(scene, strip, load_data);
