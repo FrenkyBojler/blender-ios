@@ -1,2 +1,3 @@
 Referenced by issue #145111, The Clear Parent (Alt+P) Menu in Edit Mode for Armature Has Become Two Columns
 Referenced by pull request #145115, Fix #145111: Typo in armature unparenting popup UI code
+Referenced by commit e4c489e5c9197234879f112aa127ce6010f141f2, Fix #145111: Typo in armature unparenting popup UI code
