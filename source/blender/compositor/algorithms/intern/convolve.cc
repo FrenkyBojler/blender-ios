@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2024 Blender Authors
+/* SPDX-FileCopyrightText: 2025 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -52,8 +52,7 @@ void convolve(Context &context,
    * more information. */
   const int2 frequency_size = int2(spatial_size.x / 2 + 1, spatial_size.y);
 
-  /* We only process the color channels, the alpha channel is written to the output as is. */
-  constexpr int input_channels_count = 3;
+  constexpr int input_channels_count = 4;
   const int64_t spatial_pixels_count = int64_t(spatial_size.x) * spatial_size.y;
   const int64_t frequency_pixels_count = int64_t(frequency_size.x) * frequency_size.y;
 
@@ -138,7 +137,7 @@ void convolve(Context &context,
   });
 
   /* Zero pad the image to the required spatial domain size, storing each channel in planar
-   * format for better cache locality, that is, RRRR...GGGG...BBBB. */
+   * format for better cache locality, that is, RRRR...GGGG...BBBB...AAAA. */
   threading::memory_bandwidth_bound_task(spatial_pixels_count * sizeof(float), [&]() {
     parallel_for(spatial_size, [&](const int2 texel) {
       const float4 pixel_color = input_cpu.load_pixel_zero<float4>(texel);
@@ -225,7 +224,6 @@ void convolve(Context &context,
         const int64_t index = texel.x + texel.y * int64_t(spatial_size.x);
         color[channel] = image_spatial_domain_channels[channel][index];
       }
-      color.w = input_cpu.load_pixel<float4>(texel).w;
       output_cpu.store_pixel(texel, color);
     });
   });
