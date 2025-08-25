@@ -570,6 +570,19 @@ void VKFrameBuffer::rendering_ensure_dynamic_rendering(VKContext &context,
   {
     const GPUAttachment &attachment = attachments_[color_attachment_index];
     if (attachment.tex == nullptr) {
+      color_attachment_formats_.append(VK_FORMAT_UNDEFINED);
+      VkRenderingAttachmentInfo &attachment_info =
+          begin_rendering.node_data.color_attachments[begin_rendering.node_data.vk_rendering_info
+                                                          .colorAttachmentCount++];
+      attachment_info = {VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+                         nullptr,
+                         VK_NULL_HANDLE,
+                         VK_IMAGE_LAYOUT_UNDEFINED,
+                         VK_RESOLVE_MODE_NONE,
+                         VK_NULL_HANDLE,
+                         VK_IMAGE_LAYOUT_UNDEFINED,
+                         VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+                         VK_ATTACHMENT_STORE_OP_DONT_CARE};
       continue;
     }
 
