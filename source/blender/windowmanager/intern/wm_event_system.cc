@@ -40,6 +40,7 @@
 #include "BKE_customdata.hh"
 #include "BKE_global.hh"
 #include "BKE_idprop.hh"
+#include "BKE_layer.hh"
 #include "BKE_lib_remap.hh"
 #include "BKE_library.hh"
 #include "BKE_main.hh"
@@ -510,6 +511,19 @@ void wm_event_do_depsgraph(bContext *C, bool is_after_open_file)
     Scene *scene = WM_window_get_active_scene(win);
     ViewLayer *view_layer = WM_window_get_active_view_layer(win);
     Main *bmain = CTX_data_main(C);
+
+    /* Update dependency graph of sequencer scene. */
+    Scene *sequencer_scene = CTX_data_sequencer_scene(C);
+    if (sequencer_scene && sequencer_scene != scene) {
+      Depsgraph *depsgraph = BKE_scene_ensure_depsgraph(
+          bmain, sequencer_scene, BKE_view_layer_default_render(sequencer_scene));
+      if (is_after_open_file) {
+        DEG_graph_relations_update(depsgraph);
+        DEG_tag_on_visible_update(bmain, depsgraph);
+      }
+      BKE_scene_graph_update_tagged(depsgraph, bmain);
+    }
+
     /* Copied to set's in #scene_update_tagged_recursive(). */
     scene->customdata_mask = win_combine_v3d_datamask;
     /* XXX, hack so operators can enforce data-masks #26482, GPU render. */
@@ -731,7 +745,9 @@ void wm_event_do_notifiers(bContext *C)
       {
         /* Pass. */
       }
-      else if (note->category == NC_SCENE && note->reference && note->reference != scene) {
+      else if (note->category == NC_SCENE && note->reference &&
+               (note->reference != scene && note->reference != workspace->sequencer_scene))
+      {
         /* Pass. */
       }
       else {
@@ -3510,6 +3526,9 @@ static eHandlerActionFlag wm_handlers_do_intern(bContext *C,
           LISTBASE_FOREACH (wmDropBox *, drop, handler->dropboxes) {
             /* Other drop custom types allowed. */
             if (event->custom == EVT_DATA_DRAGDROP) {
+              /* Drop handlers can perform multiple operations (e.g., collection drag-and-drop),
+               * but we want to treat it as a single operation. */
+              ED_undo_group_begin(C);
               ListBase *lb = (ListBase *)event->customdata;
               LISTBASE_FOREACH_MUTABLE (wmDrag *, drag, lb) {
                 if (drop->poll(C, drag, event)) {
@@ -3553,6 +3572,7 @@ static eHandlerActionFlag wm_handlers_do_intern(bContext *C,
               }
               /* Always exit all drags on a drop event, even if poll didn't succeed. */
               wm_drags_exit(wm, win);
+              ED_undo_group_end(C);
             }
           }
         }
@@ -5150,7 +5170,7 @@ wmEventHandler_Dropbox *WM_event_add_dropbox_handler(ListBase *handlers, ListBas
   return handler;
 }
 
-void WM_event_remove_area_handler(ListBase *handlers, void *area)
+void WM_event_remove_handlers_by_area(ListBase *handlers, const ScrArea *area)
 {
   /* XXX(@ton): solution works, still better check the real cause. */
 
