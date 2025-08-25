@@ -949,6 +949,43 @@ void pen_status_indicators(bContext *C, wmOperator *op)
   status.opmodal(IFACE_("Move Entire Point"), op->type, int(PenModal::MoveEntire));
 }
 
+static IndexMask retrieve_visible_bezier_handle_points(const bke::CurvesGeometry &curves,
+                                                       const int handle_display,
+                                                       IndexMaskMemory &memory)
+{
+  if (handle_display == CURVE_HANDLE_NONE) {
+    return IndexMask(0);
+  }
+  else if (handle_display == CURVE_HANDLE_ALL) {
+    return curves.points_range();
+  }
+  /* else handle_display == CURVE_HANDLE_SELECTED */
+
+  if (!curves.has_curve_with_type(CURVE_TYPE_BEZIER)) {
+    return IndexMask(0);
+  }
+
+  const Array<int> point_to_curve_map = curves.point_to_curve_map();
+  const VArray<int8_t> types = curves.curve_types();
+
+  const VArray<bool> selected_point = *curves.attributes().lookup_or_default<bool>(
+      ".selection", bke::AttrDomain::Point, true);
+  const VArray<bool> selected_left = *curves.attributes().lookup_or_default<bool>(
+      ".selection_handle_left", bke::AttrDomain::Point, true);
+  const VArray<bool> selected_right = *curves.attributes().lookup_or_default<bool>(
+      ".selection_handle_right", bke::AttrDomain::Point, true);
+
+  const IndexMask selected_points = IndexMask::from_predicate(
+      curves.points_range(), GrainSize(4096), memory, [&](const int64_t point_i) {
+        const bool is_selected = selected_point[point_i] || selected_left[point_i] ||
+                                 selected_right[point_i];
+        const bool is_bezier = types[point_to_curve_map[point_i]] == CURVE_TYPE_BEZIER;
+        return is_selected && is_bezier;
+      });
+
+  return selected_points;
+}
+
 class CurvesPenToolOperation : public PenToolOperation {
  public:
   Vector<Curves *> all_curves;
@@ -1013,71 +1050,43 @@ class CurvesPenToolOperation : public PenToolOperation {
     }
     ED_region_tag_redraw(this->vc.region);
   }
+
+  ClosestElement find_closest_element(const float2 &mouse_co) const
+  {
+    ClosestElement closest_element;
+    closest_element.element_mode = ElementMode::None;
+
+    for (const int curves_index : this->all_curves.index_range()) {
+      const Curves *curves_id = this->all_curves[curves_index];
+      const bke::CurvesGeometry &curves = curves_id->geometry.wrap();
+      const float4x4 layer_to_object = float4x4::identity();
+
+      IndexMaskMemory memory;
+      const IndexMask editable_points = curves.points_range();
+      const IndexMask bezier_points = retrieve_visible_bezier_handle_points(
+          curves, this->vc.v3d->overlay.handle_display, memory);
+      const IndexMask editable_curves = this->editable_curves(curves_index, memory);
+
+      pen_find_closest_point(*this,
+                             curves,
+                             editable_points,
+                             layer_to_object,
+                             curves_index,
+                             mouse_co,
+                             closest_element);
+      pen_find_closest_handle(
+          *this, curves, bezier_points, layer_to_object, curves_index, mouse_co, closest_element);
+      pen_find_closest_edge_point(*this,
+                                  curves,
+                                  editable_curves,
+                                  layer_to_object,
+                                  curves_index,
+                                  mouse_co,
+                                  closest_element);
+    }
+    return closest_element;
+  }
 };
-
-static IndexMask retrieve_visible_bezier_handle_points(const bke::CurvesGeometry &curves,
-                                                       const int handle_display,
-                                                       IndexMaskMemory &memory)
-{
-  if (handle_display == CURVE_HANDLE_NONE) {
-    return IndexMask(0);
-  }
-  else if (handle_display == CURVE_HANDLE_ALL) {
-    return curves.points_range();
-  }
-  /* else handle_display == CURVE_HANDLE_SELECTED */
-
-  if (!curves.has_curve_with_type(CURVE_TYPE_BEZIER)) {
-    return IndexMask(0);
-  }
-
-  const Array<int> point_to_curve_map = curves.point_to_curve_map();
-  const VArray<int8_t> types = curves.curve_types();
-
-  const VArray<bool> selected_point = *curves.attributes().lookup_or_default<bool>(
-      ".selection", bke::AttrDomain::Point, true);
-  const VArray<bool> selected_left = *curves.attributes().lookup_or_default<bool>(
-      ".selection_handle_left", bke::AttrDomain::Point, true);
-  const VArray<bool> selected_right = *curves.attributes().lookup_or_default<bool>(
-      ".selection_handle_right", bke::AttrDomain::Point, true);
-
-  const IndexMask selected_points = IndexMask::from_predicate(
-      curves.points_range(), GrainSize(4096), memory, [&](const int64_t point_i) {
-        const bool is_selected = selected_point[point_i] || selected_left[point_i] ||
-                                 selected_right[point_i];
-        const bool is_bezier = types[point_to_curve_map[point_i]] == CURVE_TYPE_BEZIER;
-        return is_selected && is_bezier;
-      });
-
-  return selected_points;
-}
-
-static ClosestElement pen_find_closest_element(const CurvesPenToolOperation &ptd,
-                                               const float2 &mouse_co)
-{
-  ClosestElement closest_element;
-  closest_element.element_mode = ElementMode::None;
-
-  for (const int curves_index : ptd.all_curves.index_range()) {
-    const Curves *curves_id = ptd.all_curves[curves_index];
-    const bke::CurvesGeometry &curves = curves_id->geometry.wrap();
-    const float4x4 layer_to_object = float4x4::identity();
-
-    IndexMaskMemory memory;
-    const IndexMask editable_points = curves.points_range();
-    const IndexMask bezier_points = retrieve_visible_bezier_handle_points(
-        curves, ptd.vc.v3d->overlay.handle_display, memory);
-    const IndexMask editable_curves = ptd.editable_curves(curves_index, memory);
-
-    pen_find_closest_point(
-        ptd, curves, editable_points, layer_to_object, curves_index, mouse_co, closest_element);
-    pen_find_closest_handle(
-        ptd, curves, bezier_points, layer_to_object, curves_index, mouse_co, closest_element);
-    pen_find_closest_edge_point(
-        ptd, curves, editable_curves, layer_to_object, curves_index, mouse_co, closest_element);
-  }
-  return closest_element;
-}
 
 /* Exit and free memory. */
 static void curves_pen_exit(bContext *C, wmOperator *op)
@@ -1299,7 +1308,7 @@ static wmOperatorStatus curves_pen_invoke(bContext *C, wmOperator *op, const wmE
   }
 
   ptd.center_of_mass_co = ptd.calculate_center_of_mass(true);
-  ptd.closest_element = pen_find_closest_element(ptd, ptd.mouse_co);
+  ptd.closest_element = ptd.find_closest_element(ptd.mouse_co);
   ptd.invoke_curves(op, event);
 
   /* TODO. */
