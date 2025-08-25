@@ -285,7 +285,7 @@ static wmOperatorStatus grease_pencil_pen_modal(bContext *C, wmOperator *op, con
   GreasePencilPenToolOperation &ptd = *reinterpret_cast<GreasePencilPenToolOperation *>(
       op->customdata);
 
-  const wmOperatorStatus result = modal_start(ptd, C, op, event);
+  const wmOperatorStatus result = ptd.modal(C, op, event);
   if (result == OPERATOR_FINISHED) {
     grease_pencil_pen_exit(C, op);
   }

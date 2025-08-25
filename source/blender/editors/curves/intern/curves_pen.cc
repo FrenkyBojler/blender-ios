@@ -1334,14 +1334,11 @@ static wmOperatorStatus curves_pen_invoke(bContext *C, wmOperator *op, const wmE
   return ptd.invoke(C, op, event);
 }
 
-wmOperatorStatus modal_start(PenToolOperation &ptd,
-                             bContext *C,
-                             wmOperator *op,
-                             const wmEvent *event)
+wmOperatorStatus PenToolOperation::modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  ptd.mouse_co = float2(event->mval);
-  ptd.xy = float2(event->xy);
-  ptd.prev_xy = float2(event->prev_xy);
+  this->mouse_co = float2(event->mval);
+  this->xy = float2(event->xy);
+  this->prev_xy = float2(event->prev_xy);
 
   if (event->type == EVENT_NONE) {
     return OPERATOR_RUNNING_MODAL;
@@ -1350,47 +1347,47 @@ wmOperatorStatus modal_start(PenToolOperation &ptd,
   if (event->type == LEFTMOUSE && event->val == KM_RELEASE) {
     return OPERATOR_FINISHED;
   }
-  if (ptd.point_removed) {
+  if (this->point_removed) {
     return OPERATOR_FINISHED;
   }
 
   if (event->type == EVT_MODAL_MAP) {
     if (event->val == int(PenModal::MoveEntire)) {
-      ptd.move_entire = !ptd.move_entire;
+      this->move_entire = !this->move_entire;
     }
     else if (event->val == int(PenModal::SnapAngle)) {
-      ptd.snap_angle = !ptd.snap_angle;
+      this->snap_angle = !this->snap_angle;
     }
     else if (event->val == int(PenModal::MoveHandle)) {
-      ptd.move_handle = !ptd.move_handle;
+      this->move_handle = !this->move_handle;
     }
   }
 
   std::atomic<bool> changed = false;
-  ptd.center_of_mass_co = calculate_center_of_mass(ptd, false);
+  this->center_of_mass_co = calculate_center_of_mass(*this, false);
 
-  if (ptd.move_seg && ptd.closest_element.element_mode == ElementMode::Edge) {
-    const int curves_index = ptd.closest_element.drawing_index;
-    const float4x4 &layer_to_world = ptd.layer_to_worlds[curves_index];
-    bke::CurvesGeometry &curves = ptd.get_curves(curves_index);
+  if (this->move_seg && this->closest_element.element_mode == ElementMode::Edge) {
+    const int curves_index = this->closest_element.drawing_index;
+    const float4x4 &layer_to_world = this->layer_to_worlds[curves_index];
+    bke::CurvesGeometry &curves = this->get_curves(curves_index);
 
-    move_segment(ptd, curves, layer_to_world);
-    ptd.tag_curve_changed(curves_index);
+    move_segment(*this, curves, layer_to_world);
+    this->tag_curve_changed(curves_index);
     changed.store(true, std::memory_order_relaxed);
   }
   else {
-    threading::parallel_for(ptd.curves_range(), 1, [&](const IndexRange curves_range) {
+    threading::parallel_for(this->curves_range(), 1, [&](const IndexRange curves_range) {
       for (const int curves_index : curves_range) {
-        bke::CurvesGeometry &curves = ptd.get_curves(curves_index);
-        const float4x4 &layer_to_object = ptd.layer_to_objects[curves_index];
-        const float4x4 &layer_to_world = ptd.layer_to_worlds[curves_index];
+        bke::CurvesGeometry &curves = this->get_curves(curves_index);
+        const float4x4 &layer_to_object = this->layer_to_objects[curves_index];
+        const float4x4 &layer_to_world = this->layer_to_worlds[curves_index];
 
         IndexMaskMemory memory;
-        const IndexMask selection = ptd.all_selected_points(curves_index, memory);
+        const IndexMask selection = this->all_selected_points(curves_index, memory);
 
-        if (move_handles_in_curve(ptd, curves, selection, layer_to_world, layer_to_object)) {
+        if (move_handles_in_curve(*this, curves, selection, layer_to_world, layer_to_object)) {
           changed.store(true, std::memory_order_relaxed);
-          ptd.tag_curve_changed(curves_index);
+          this->tag_curve_changed(curves_index);
         }
       }
     });
@@ -1398,7 +1395,7 @@ wmOperatorStatus modal_start(PenToolOperation &ptd,
 
   pen_status_indicators(C, op);
   if (changed) {
-    ptd.update_view(C);
+    this->update_view(C);
   }
 
   /* Still running... */
@@ -1410,7 +1407,7 @@ static wmOperatorStatus curves_pen_modal(bContext *C, wmOperator *op, const wmEv
 {
   CurvesPenToolOperation &ptd = *reinterpret_cast<CurvesPenToolOperation *>(op->customdata);
 
-  const wmOperatorStatus result = modal_start(ptd, C, op, event);
+  const wmOperatorStatus result = ptd.modal(C, op, event);
   if (result == OPERATOR_FINISHED) {
     curves_pen_exit(C, op);
   }

@@ -135,6 +135,7 @@ class PenToolOperation {
                          const float3 &depth_point_layer) const;
 
   wmOperatorStatus invoke(bContext *C, wmOperator *op, const wmEvent *event);
+  wmOperatorStatus modal(bContext *C, wmOperator *op, const wmEvent *event);
 };
 
 void pen_find_closest_point(const PenToolOperation &ptd,
@@ -159,10 +160,6 @@ void pen_find_closest_edge_point(const PenToolOperation &ptd,
                                  const float2 &mouse_co,
                                  ClosestElement &r_closest_element);
 
-wmOperatorStatus modal_start(PenToolOperation &ptd,
-                             bContext *C,
-                             wmOperator *op,
-                             const wmEvent *event);
 void pen_status_indicators(bContext *C, wmOperator *op);
 void pen_tool_common_props(wmOperatorType *ot);
 wmKeyMap *ensure_keymap(wmKeyConfig *keyconf);
