@@ -74,6 +74,17 @@ class GreasePencilPenToolOperation : public curves::pen_tool::PenToolOperation {
         *this->vc.obact, info.drawing, info.layer_index, memory);
   }
 
+  IndexMask visible_bezier_handle_points(const int curves_index, IndexMaskMemory &memory) const
+  {
+    const MutableDrawingInfo &info = this->drawings[curves_index];
+    return ed::greasepencil::retrieve_visible_bezier_handle_points(
+        *this->vc.obact,
+        info.drawing,
+        info.layer_index,
+        this->vc.v3d->overlay.handle_display,
+        memory);
+  }
+
   IndexMask editable_curves(const int curves_index, IndexMaskMemory &memory) const
   {
     const MutableDrawingInfo &info = this->drawings[curves_index];
@@ -164,12 +175,7 @@ class GreasePencilPenToolOperation : public curves::pen_tool::PenToolOperation {
       const float4x4 &layer_to_object = this->layer_to_objects[drawing_index];
 
       IndexMaskMemory memory;
-      const IndexMask bezier_points = ed::greasepencil::retrieve_visible_bezier_handle_points(
-          *this->vc.obact,
-          info.drawing,
-          info.layer_index,
-          this->vc.v3d->overlay.handle_display,
-          memory);
+      const IndexMask bezier_points = this->visible_bezier_handle_points(drawing_index, memory);
       const IndexMask editable_curves = this->editable_curves(drawing_index, memory);
 
       pen_find_closest_point(*this,

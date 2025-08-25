@@ -104,6 +104,8 @@ class PenToolOperation {
 
   virtual float3 project(const float2 &screen_co) const = 0;
   virtual IndexMask all_selected_points(int curves_index, IndexMaskMemory &memory) const = 0;
+  virtual IndexMask visible_bezier_handle_points(int curves_index,
+                                                 IndexMaskMemory &memory) const = 0;
   virtual IndexMask editable_curves(int curves_index, IndexMaskMemory &memory) const = 0;
   virtual void tag_curve_changed(int curves_index) const = 0;
   virtual bke::CurvesGeometry &get_curves(int curves_index) const = 0;

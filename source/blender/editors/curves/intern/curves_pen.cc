@@ -1150,6 +1150,14 @@ class CurvesPenToolOperation : public PenToolOperation {
     return retrieve_all_selected_points(curves, memory);
   }
 
+  IndexMask visible_bezier_handle_points(const int curves_index, IndexMaskMemory &memory) const
+  {
+    const Curves *curves_id = this->all_curves[curves_index];
+    const bke::CurvesGeometry &curves = curves_id->geometry.wrap();
+    return retrieve_visible_bezier_handle_points(
+        curves, this->vc.v3d->overlay.handle_display, memory);
+  }
+
   IndexMask editable_curves(const int curves_index, IndexMaskMemory & /*memory*/) const
   {
     const Curves *curves_id = this->all_curves[curves_index];
@@ -1210,8 +1218,7 @@ class CurvesPenToolOperation : public PenToolOperation {
       const float4x4 layer_to_object = float4x4::identity();
 
       IndexMaskMemory memory;
-      const IndexMask bezier_points = retrieve_visible_bezier_handle_points(
-          curves, this->vc.v3d->overlay.handle_display, memory);
+      const IndexMask bezier_points = this->visible_bezier_handle_points(curves_index, memory);
       const IndexMask editable_curves = this->editable_curves(curves_index, memory);
 
       pen_find_closest_point(*this,
