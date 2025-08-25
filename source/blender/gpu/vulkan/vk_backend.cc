@@ -11,6 +11,7 @@
 #include "GHOST_C-api.h"
 
 #include "BLI_path_utils.hh"
+#include "BLI_string_ref.hh"
 #include "BLI_threads.h"
 
 #include "CLG_log.h"
@@ -86,6 +87,17 @@ bool GPU_vulkan_is_supported_driver(VkPhysicalDevice vk_physical_device)
    */
   if (vk_physical_device_driver_properties.driverID == VK_DRIVER_ID_NVIDIA_PROPRIETARY &&
       conformance_version < VK_MAKE_API_VERSION(1, 3, 7, 2))
+  {
+    return false;
+  }
+
+  /* NVIDIA driver 580.76.05 doesn't start using specific Wayland configurations #144625. There are
+   * multiple reports also not Blender related and NVIDIA mentions that a new driver will be
+   * released. It is unclear if that driver will fix our issue. For now disabling this driver on
+   * Linux. This also disables it for configurations that are working as well (including X11). */
+  if (vk_physical_device_driver_properties.driverID == VK_DRIVER_ID_NVIDIA_PROPRIETARY &&
+      StringRefNull(vk_physical_device_driver_properties.driverInfo).find("580.76.05", 0) !=
+          StringRef::not_found)
   {
     return false;
   }
