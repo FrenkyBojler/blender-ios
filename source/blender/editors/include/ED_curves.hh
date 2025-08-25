@@ -46,15 +46,6 @@ void ED_curves_pentool_modal_keymap(wmKeyConfig *keyconf);
 
 namespace pen_tool {
 
-enum class PenModal : int8_t {
-  /* Move the handles of the adjacent control point. */
-  MoveHandle = 0,
-  /* Move the entire point even if only the handles are selected. */
-  MoveEntire = 1,
-  /* Snap the handles to multiples of 45 degrees. */
-  SnapAngle = 2,
-};
-
 enum class ElementMode : int8_t {
   None = 0,
   Point = 1,
@@ -160,7 +151,6 @@ void pen_find_closest_edge_point(const PenToolOperation &ptd,
                                  const float2 &mouse_co,
                                  ClosestElement &r_closest_element);
 
-void pen_status_indicators(bContext *C, wmOperator *op);
 void pen_tool_common_props(wmOperatorType *ot);
 wmKeyMap *ensure_keymap(wmKeyConfig *keyconf);
 

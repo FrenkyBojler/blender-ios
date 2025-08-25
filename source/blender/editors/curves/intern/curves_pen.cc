@@ -42,6 +42,15 @@ namespace blender::ed::curves {
 
 namespace pen_tool {
 
+enum class PenModal : int8_t {
+  /* Move the handles of the adjacent control point. */
+  MoveHandle = 0,
+  /* Move the entire point even if only the handles are selected. */
+  MoveEntire = 1,
+  /* Snap the handles to multiples of 45 degrees. */
+  SnapAngle = 2,
+};
+
 static const EnumPropertyItem prop_handle_types[] = {
     {BEZIER_HANDLE_AUTO, "AUTO", 0, "Auto", ""},
     {BEZIER_HANDLE_VECTOR, "VECTOR", 0, "Vector", ""},
@@ -135,6 +144,14 @@ float3 PenToolOperation::screen_to_layer(const float4x4 &layer_to_world,
   float3 proj_point;
   ED_view3d_win_to_3d(vc.v3d, vc.region, depth_point, screen_co, proj_point);
   return math::transform_point(math::invert(layer_to_world), proj_point);
+}
+
+static void pen_status_indicators(bContext *C, wmOperator *op)
+{
+  WorkspaceStatus status(C);
+  status.opmodal(IFACE_("Snap Angle"), op->type, int(PenModal::SnapAngle));
+  status.opmodal(IFACE_("Move Current Handle"), op->type, int(PenModal::MoveHandle));
+  status.opmodal(IFACE_("Move Entire Point"), op->type, int(PenModal::MoveEntire));
 }
 
 static void move_segment(const PenToolOperation &ptd,
@@ -1073,14 +1090,6 @@ void pen_find_closest_edge_point(const PenToolOperation &ptd,
       }
     }
   });
-}
-
-void pen_status_indicators(bContext *C, wmOperator *op)
-{
-  WorkspaceStatus status(C);
-  status.opmodal(IFACE_("Snap Angle"), op->type, int(PenModal::SnapAngle));
-  status.opmodal(IFACE_("Move Current Handle"), op->type, int(PenModal::MoveHandle));
-  status.opmodal(IFACE_("Move Entire Point"), op->type, int(PenModal::MoveEntire));
 }
 
 static IndexMask retrieve_visible_bezier_handle_points(const bke::CurvesGeometry &curves,
