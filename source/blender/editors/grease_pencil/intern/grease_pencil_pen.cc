@@ -197,6 +197,60 @@ class GreasePencilPenToolOperation : public PenToolOperation {
     }
     return closest_element;
   }
+
+  std::optional<wmOperatorStatus> invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+  {
+    if (this->vc.scene->toolsettings->gpencil_selectmode_edit != GP_SELECTMODE_POINT) {
+      BKE_report(op->reports, RPT_ERROR, "Selection Mode must be Points");
+      return OPERATOR_CANCELLED;
+    }
+
+    GreasePencil *grease_pencil = static_cast<GreasePencil *>(this->vc.obact->data);
+    this->grease_pencil = grease_pencil;
+    View3D *view3d = CTX_wm_view3d(C);
+
+    /* Initialize helper class for projecting screen space coordinates. */
+    DrawingPlacement placement = DrawingPlacement(*this->vc.scene,
+                                                  *this->vc.region,
+                                                  *view3d,
+                                                  *this->vc.obact,
+                                                  grease_pencil->get_active_layer());
+    if (placement.use_project_to_surface()) {
+      placement.cache_viewport_depths(CTX_data_depsgraph_pointer(C), this->vc.region, view3d);
+    }
+    else if (placement.use_project_to_stroke()) {
+      placement.cache_viewport_depths(CTX_data_depsgraph_pointer(C), this->vc.region, view3d);
+    }
+
+    this->placement = placement;
+    this->drawings = retrieve_editable_drawings(*this->vc.scene, *this->grease_pencil);
+
+    for (const int drawing_index : this->drawings.index_range()) {
+      const MutableDrawingInfo &info = this->drawings[drawing_index];
+      const bke::greasepencil::Layer &layer = this->grease_pencil->layer(info.layer_index);
+      this->layer_to_objects.append(layer.local_transform());
+      this->layer_to_worlds.append(layer.to_world_space(*this->vc.obact));
+    }
+
+    this->active_drawing_index = std::nullopt;
+    const bke::greasepencil::Layer *active_layer = this->grease_pencil->get_active_layer();
+
+    if (active_layer != nullptr) {
+      const bke::greasepencil::Drawing *active_drawing =
+          this->grease_pencil->get_editable_drawing_at(*active_layer, this->vc.scene->r.cfra);
+
+      for (const int drawing_index : this->drawings.index_range()) {
+        const MutableDrawingInfo &info = this->drawings[drawing_index];
+
+        if (active_drawing == &info.drawing) {
+          BLI_assert(this->active_drawing_index == std::nullopt);
+          this->active_drawing_index = drawing_index;
+        }
+      }
+    }
+
+    return std::nullopt;
+  }
 };
 
 /* Invoke handler: Initialize the operator. */
@@ -219,50 +273,8 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
     return OPERATOR_RUNNING_MODAL;
   }
 
-  if (ptd.vc.scene->toolsettings->gpencil_selectmode_edit != GP_SELECTMODE_POINT) {
-    BKE_report(op->reports, RPT_ERROR, "Selection Mode must be Points");
-    return OPERATOR_CANCELLED;
-  }
-
-  GreasePencil *grease_pencil = static_cast<GreasePencil *>(ptd.vc.obact->data);
-  ptd.grease_pencil = grease_pencil;
-  View3D *view3d = CTX_wm_view3d(C);
-
-  /* Initialize helper class for projecting screen space coordinates. */
-  DrawingPlacement placement = DrawingPlacement(
-      *ptd.vc.scene, *ptd.vc.region, *view3d, *ptd.vc.obact, grease_pencil->get_active_layer());
-  if (placement.use_project_to_surface()) {
-    placement.cache_viewport_depths(CTX_data_depsgraph_pointer(C), ptd.vc.region, view3d);
-  }
-  else if (placement.use_project_to_stroke()) {
-    placement.cache_viewport_depths(CTX_data_depsgraph_pointer(C), ptd.vc.region, view3d);
-  }
-
-  ptd.placement = placement;
-  ptd.drawings = retrieve_editable_drawings(*ptd.vc.scene, *ptd.grease_pencil);
-
-  for (const int drawing_index : ptd.drawings.index_range()) {
-    const MutableDrawingInfo &info = ptd.drawings[drawing_index];
-    const bke::greasepencil::Layer &layer = ptd.grease_pencil->layer(info.layer_index);
-    ptd.layer_to_objects.append(layer.local_transform());
-    ptd.layer_to_worlds.append(layer.to_world_space(*ptd.vc.obact));
-  }
-
-  ptd.active_drawing_index = std::nullopt;
-  const bke::greasepencil::Layer *active_layer = ptd.grease_pencil->get_active_layer();
-
-  if (active_layer != nullptr) {
-    const bke::greasepencil::Drawing *active_drawing = ptd.grease_pencil->get_editable_drawing_at(
-        *active_layer, ptd.vc.scene->r.cfra);
-
-    for (const int drawing_index : ptd.drawings.index_range()) {
-      const MutableDrawingInfo &info = ptd.drawings[drawing_index];
-
-      if (active_drawing == &info.drawing) {
-        BLI_assert(ptd.active_drawing_index == std::nullopt);
-        ptd.active_drawing_index = drawing_index;
-      }
-    }
+  if (std::optional<wmOperatorStatus> result = ptd.invoke(C, op, event)) {
+    return *result;
   }
 
   ptd.invoke_curves(C, op, event);

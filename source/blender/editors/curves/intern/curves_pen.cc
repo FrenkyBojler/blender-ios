@@ -1087,6 +1087,40 @@ class CurvesPenToolOperation : public PenToolOperation {
     }
     return closest_element;
   }
+
+  std::optional<wmOperatorStatus> invoke(bContext *C,
+                                         wmOperator * /*op*/,
+                                         const wmEvent * /*event*/)
+  {
+    this->active_drawing_index = std::nullopt;
+    VectorSet<Curves *> unique_curves;
+
+    const Main &bmain = *CTX_data_main(C);
+
+    Object *object = CTX_data_active_object(C);
+    if (object && object_has_editable_curves(bmain, *object)) {
+      unique_curves.add_new(static_cast<Curves *>(object->data));
+      this->layer_to_worlds.append(object->object_to_world());
+      this->active_drawing_index = 0;
+    }
+
+    CTX_DATA_BEGIN (C, Object *, object, selected_objects) {
+      if (object_has_editable_curves(bmain, *object)) {
+        if (unique_curves.add(static_cast<Curves *>(object->data))) {
+          this->layer_to_worlds.append(object->object_to_world());
+        }
+      }
+    }
+    CTX_DATA_END;
+
+    for (Curves *curves_id : unique_curves) {
+      this->all_curves.append(curves_id);
+    }
+
+    this->layer_to_objects.append_n_times(float4x4::identity(), this->all_curves.size());
+
+    return std::nullopt;
+  }
 };
 
 /* Exit and free memory. */
@@ -1296,32 +1330,9 @@ static wmOperatorStatus curves_pen_invoke(bContext *C, wmOperator *op, const wmE
     return OPERATOR_RUNNING_MODAL;
   }
 
-  ptd.active_drawing_index = std::nullopt;
-  VectorSet<Curves *> unique_curves;
-
-  const Main &bmain = *CTX_data_main(C);
-
-  Object *object = CTX_data_active_object(C);
-  if (object && object_has_editable_curves(bmain, *object)) {
-    unique_curves.add_new(static_cast<Curves *>(object->data));
-    ptd.layer_to_worlds.append(object->object_to_world());
-    ptd.active_drawing_index = 0;
+  if (std::optional<wmOperatorStatus> result = ptd.invoke(C, op, event)) {
+    return *result;
   }
-
-  CTX_DATA_BEGIN (C, Object *, object, selected_objects) {
-    if (object_has_editable_curves(bmain, *object)) {
-      if (unique_curves.add(static_cast<Curves *>(object->data))) {
-        ptd.layer_to_worlds.append(object->object_to_world());
-      }
-    }
-  }
-  CTX_DATA_END;
-
-  for (Curves *curves_id : unique_curves) {
-    ptd.all_curves.append(curves_id);
-  }
-
-  ptd.layer_to_objects.append_n_times(float4x4::identity(), ptd.all_curves.size());
 
   ptd.invoke_curves(C, op, event);
 
