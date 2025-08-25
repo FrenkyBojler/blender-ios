@@ -54,16 +54,16 @@ struct GPUPass {
   bool is_optimization_pass = false;
 
   /* Number of seconds after creation required before compiling an optimization pass. */
-  static constexpr float optimization_delay = 3.0f;
+  static constexpr float optimization_delay = 10.0f;
 
   GPUPass(GPUCodegenCreateInfo *info,
           bool deferred_compilation,
           bool is_optimization_pass,
           bool should_optimize)
       : create_info(info),
+        creation_timestamp(BLI_time_now_seconds()),
         should_optimize(should_optimize),
-        is_optimization_pass(is_optimization_pass),
-        creation_timestamp(BLI_time_now_seconds())
+        is_optimization_pass(is_optimization_pass)
   {
     BLI_assert(!is_optimization_pass || !should_optimize);
     if (is_optimization_pass && deferred_compilation) {
@@ -215,13 +215,7 @@ class GPUPassCache {
 
   /** Number of seconds with 0 users required before garbage collecting a pass. */
   static constexpr float gc_collect_rate_ = 60.0f;
-  /**
-   * Number of seconds without base compilations required before starting to compile optimization
-   * passes.
-   */
-  static constexpr float optimization_delay_ = 10.0f;
-
-  double last_base_compilation_timestamp_ = -1.0;
+  static constexpr float optimization_gc_collect_rate_ = 1.0f;
 
   Map<uint32_t, std::unique_ptr<GPUPass>> passes_[GPU_MAT_ENGINE_MAX][2 /*is_optimization_pass*/];
   std::mutex mutex_;
@@ -261,46 +255,25 @@ class GPUPassCache {
 
     double timestamp = BLI_time_now_seconds();
 
-    bool base_passes_ready = true;
-
     /* Base Passes. */
     for (auto &engine_passes : passes_) {
       for (std::unique_ptr<GPUPass> &pass : engine_passes[false].values()) {
         pass->update(timestamp);
-        if (pass->status == GPU_PASS_QUEUED) {
-          base_passes_ready = false;
-        }
       }
 
       engine_passes[false].remove_if(
           [&](auto item) { return item.value->should_gc(gc_collect_rate_, timestamp); });
     }
 
-    /* Optimization Passes GC. */
+    /* Optimization Passes */
     for (auto &engine_passes : passes_) {
       for (std::unique_ptr<GPUPass> &pass : engine_passes[true].values()) {
-        pass->update_gc_timestamp(timestamp);
+        pass->update(timestamp);
       }
 
-      engine_passes[true].remove_if(
-          /* TODO: Use lower rate for optimization passes? */
-          [&](auto item) { return item.value->should_gc(gc_collect_rate_, timestamp); });
-    }
-
-    if (!base_passes_ready) {
-      last_base_compilation_timestamp_ = timestamp;
-      return;
-    }
-
-    if ((timestamp - last_base_compilation_timestamp_) < optimization_delay_) {
-      return;
-    }
-
-    /* Optimization Passes Compilation. */
-    for (auto &engine_passes : passes_) {
-      for (std::unique_ptr<GPUPass> &pass : engine_passes[true].values()) {
-        pass->update_compilation(timestamp);
-      }
+      engine_passes[true].remove_if([&](auto item) {
+        return item.value->should_gc(optimization_gc_collect_rate_, timestamp);
+      });
     }
   }
 
