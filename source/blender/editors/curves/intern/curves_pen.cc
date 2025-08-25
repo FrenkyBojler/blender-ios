@@ -122,13 +122,13 @@ bool ClosestElement::is_closer(const float new_distance_squared,
 }
 
 /* Will check if the point is closer than the existing element. */
-void pen_find_closest_point(const PenToolOperation &ptd,
-                            const bke::CurvesGeometry &curves,
-                            const IndexMask &editable_curves,
-                            const float4x4 &layer_to_object,
-                            const int drawing_index,
-                            const float2 &mouse_co,
-                            ClosestElement &r_closest_element)
+static void pen_find_closest_point(const PenToolOperation &ptd,
+                                   const bke::CurvesGeometry &curves,
+                                   const IndexMask &editable_curves,
+                                   const float4x4 &layer_to_object,
+                                   const int drawing_index,
+                                   const float2 &mouse_co,
+                                   ClosestElement &r_closest_element)
 {
   const Span<float3> positions = curves.positions();
   const OffsetIndices<int> points_by_curve = curves.points_by_curve();
@@ -154,13 +154,13 @@ void pen_find_closest_point(const PenToolOperation &ptd,
 }
 
 /* Will check if the handle is closer than the existing element. */
-void pen_find_closest_handle(const PenToolOperation &ptd,
-                             const bke::CurvesGeometry &curves,
-                             const IndexMask &bezier_points,
-                             const float4x4 &layer_to_object,
-                             const int drawing_index,
-                             const float2 &mouse_co,
-                             ClosestElement &r_closest_element)
+static void pen_find_closest_handle(const PenToolOperation &ptd,
+                                    const bke::CurvesGeometry &curves,
+                                    const IndexMask &bezier_points,
+                                    const float4x4 &layer_to_object,
+                                    const int drawing_index,
+                                    const float2 &mouse_co,
+                                    ClosestElement &r_closest_element)
 {
   const Array<int> point_to_curve_map = curves.point_to_curve_map();
   const Span<float3> handle_left = *curves.handle_positions_left();
@@ -214,13 +214,13 @@ static float2 line_segment_closest_point(const float2 &pos_1,
 }
 
 /* Will check if the edge point is closer than the existing element. */
-void pen_find_closest_edge_point(const PenToolOperation &ptd,
-                                 const bke::CurvesGeometry &curves,
-                                 const IndexMask &editable_curves,
-                                 const float4x4 &layer_to_object,
-                                 const int drawing_index,
-                                 const float2 &mouse_co,
-                                 ClosestElement &r_closest_element)
+static void pen_find_closest_edge_point(const PenToolOperation &ptd,
+                                        const bke::CurvesGeometry &curves,
+                                        const IndexMask &editable_curves,
+                                        const float4x4 &layer_to_object,
+                                        const int drawing_index,
+                                        const float2 &mouse_co,
+                                        ClosestElement &r_closest_element)
 {
   const OffsetIndices<int> points_by_curve = curves.points_by_curve();
   const OffsetIndices<int> evaluated_points_by_curve = curves.evaluated_points_by_curve();
