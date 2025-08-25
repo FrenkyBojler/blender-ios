@@ -994,6 +994,16 @@ class CurvesPenToolOperation : public PenToolOperation {
   {
     return;
   }
+
+  bool can_create_new_curve(wmOperator *op) const
+  {
+    if (this->active_drawing_index == std::nullopt) {
+      BKE_report(op->reports, RPT_ERROR, "No active Curves Object");
+      return false;
+    }
+
+    return true;
+  }
 };
 
 static void pen_update_view(bContext *C, CurvesPenToolOperation &ptd)
@@ -1155,6 +1165,9 @@ static wmOperatorStatus curves_pen_invoke(bContext *C, wmOperator *op, const wmE
   ptd.layer_to_objects.append_n_times(float4x4::identity(), ptd.all_curves.size());
   ptd.layer_to_worlds.append_n_times(float4x4::identity(), ptd.all_curves.size());
 
+  /* TODO. */
+  ptd.active_drawing_index = 0;
+
   ptd.center_of_mass_co = ptd.calculate_center_of_mass(true);
   ptd.closest_element = pen_find_closest_element(ptd, ptd.mouse_co);
 
@@ -1259,7 +1272,7 @@ static wmOperatorStatus curves_pen_invoke(bContext *C, wmOperator *op, const wmE
   });
 
   if (add_single) {
-    if (true) {
+    if (ptd.can_create_new_curve(op)) {
       Curves *curves_id = static_cast<Curves *>(ptd.vc.obedit->data);
       bke::CurvesGeometry &curves = curves_id->geometry.wrap();
 

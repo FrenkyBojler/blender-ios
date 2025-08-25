@@ -108,6 +108,44 @@ class GreasePencilPenToolOperation : public PenToolOperation {
     const MutableDrawingInfo &info = this->drawings[curves_index];
     info.drawing.opacities_for_write().last() = 1.0f;
   }
+
+  bool can_create_new_curve(wmOperator *op) const
+  {
+    if (!this->grease_pencil->has_active_layer()) {
+      BKE_report(op->reports, RPT_ERROR, "No active Grease Pencil layer");
+      return false;
+    }
+
+    bke::greasepencil::Layer &layer = *this->grease_pencil->get_active_layer();
+    if (!layer.is_editable()) {
+      BKE_report(op->reports, RPT_ERROR, "Active layer is locked or hidden");
+      return false;
+    }
+
+    const int material_index = this->vc.obact->actcol - 1;
+    Material *material = BKE_object_material_get(this->vc.obact, material_index + 1);
+    /* The editable materials are unlocked and not hidden. */
+    if (material != nullptr && material->gp_style != nullptr &&
+        ((material->gp_style->flag & GP_MATERIAL_LOCKED) != 0 ||
+         (material->gp_style->flag & GP_MATERIAL_HIDE) != 0))
+    {
+      BKE_report(op->reports, RPT_ERROR, "Active Material is locked or hidden");
+      return false;
+    }
+
+    /* Ensure a drawing at the current keyframe. */
+    bool inserted_keyframe = false;
+    if (!ed::greasepencil::ensure_active_keyframe(
+            *this->vc.scene, *this->grease_pencil, layer, false, inserted_keyframe))
+    {
+      BKE_report(op->reports, RPT_ERROR, "No Grease Pencil frame to draw on");
+      return false;
+    }
+
+    BLI_assert(this->active_drawing_index != std::nullopt);
+
+    return true;
+  }
 };
 
 static void grease_pencil_pen_update_view(bContext *C, GreasePencilPenToolOperation &ptd)
@@ -146,47 +184,6 @@ static ClosestElement pen_find_closest_element(const GreasePencilPenToolOperatio
         ptd, curves, editable_curves, layer_to_object, drawing_index, mouse_co, closest_element);
   }
   return closest_element;
-}
-
-/**
- * Will return true if a new curve can be created, and report any errors.
- */
-static bool pen_can_create_new_curve(const GreasePencilPenToolOperation &ptd, wmOperator *op)
-{
-  if (!ptd.grease_pencil->has_active_layer()) {
-    BKE_report(op->reports, RPT_ERROR, "No active Grease Pencil layer");
-    return false;
-  }
-
-  bke::greasepencil::Layer &layer = *ptd.grease_pencil->get_active_layer();
-  if (!layer.is_editable()) {
-    BKE_report(op->reports, RPT_ERROR, "Active layer is locked or hidden");
-    return false;
-  }
-
-  const int material_index = ptd.vc.obact->actcol - 1;
-  Material *material = BKE_object_material_get(ptd.vc.obact, material_index + 1);
-  /* The editable materials are unlocked and not hidden. */
-  if (material != nullptr && material->gp_style != nullptr &&
-      ((material->gp_style->flag & GP_MATERIAL_LOCKED) != 0 ||
-       (material->gp_style->flag & GP_MATERIAL_HIDE) != 0))
-  {
-    BKE_report(op->reports, RPT_ERROR, "Active Material is locked or hidden");
-    return false;
-  }
-
-  /* Ensure a drawing at the current keyframe. */
-  bool inserted_keyframe = false;
-  if (!ed::greasepencil::ensure_active_keyframe(
-          *ptd.vc.scene, *ptd.grease_pencil, layer, false, inserted_keyframe))
-  {
-    BKE_report(op->reports, RPT_ERROR, "No Grease Pencil frame to draw on");
-    return false;
-  }
-
-  BLI_assert(ptd.active_drawing_index != std::nullopt);
-
-  return true;
 }
 
 /* Invoke handler: Initialize the operator. */
@@ -367,7 +364,7 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
   });
 
   if (add_single) {
-    if (pen_can_create_new_curve(ptd, op)) {
+    if (ptd.can_create_new_curve(op)) {
       const int curves_index = *ptd.active_drawing_index;
 
       const float4x4 &layer_to_world = ptd.layer_to_worlds[curves_index];

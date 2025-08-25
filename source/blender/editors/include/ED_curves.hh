@@ -118,6 +118,10 @@ class PenToolOperation {
   virtual bke::CurvesGeometry &get_curves(int curves_index) const = 0;
   virtual IndexRange curves_range() const = 0;
   virtual void single_point_attributes(bke::CurvesGeometry &curves, int curves_index) const = 0;
+  /**
+   * Will return true if a new curve can be created, and report any errors.
+   */
+  virtual bool can_create_new_curve(wmOperator *op) const = 0;
 
   float2 layer_to_screen(const float4x4 &layer_to_object, const float3 &point) const;
 
