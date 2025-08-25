@@ -146,17 +146,17 @@ class GreasePencilPenToolOperation : public PenToolOperation {
 
     return true;
   }
+
+  void update_view(bContext *C) const
+  {
+    GreasePencil *grease_pencil = this->grease_pencil;
+
+    DEG_id_tag_update(&grease_pencil->id, ID_RECALC_GEOMETRY);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, grease_pencil);
+
+    ED_region_tag_redraw(this->vc.region);
+  }
 };
-
-static void grease_pencil_pen_update_view(bContext *C, GreasePencilPenToolOperation &ptd)
-{
-  GreasePencil *grease_pencil = ptd.grease_pencil;
-
-  DEG_id_tag_update(&grease_pencil->id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(C, NC_GEOM | ND_DATA, grease_pencil);
-
-  ED_region_tag_redraw(ptd.vc.region);
-}
 
 static ClosestElement pen_find_closest_element(const GreasePencilPenToolOperation &ptd,
                                                const float2 &mouse_co)
@@ -261,7 +261,7 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
 
   pen_status_indicators(C, op);
   if (changed) {
-    grease_pencil_pen_update_view(C, ptd);
+    ptd.update_view(C);
   }
 
   return OPERATOR_RUNNING_MODAL;
@@ -277,7 +277,7 @@ static void grease_pencil_pen_exit(bContext *C, wmOperator *op)
 
   WM_cursor_modal_restore(ptd->vc.win);
 
-  grease_pencil_pen_update_view(C, *ptd);
+  ptd->update_view(C);
 
   MEM_delete(ptd);
   /* Clear pointer. */
@@ -330,7 +330,7 @@ static wmOperatorStatus grease_pencil_pen_modal(bContext *C, wmOperator *op, con
 
   pen_status_indicators(C, op);
   if (changed) {
-    grease_pencil_pen_update_view(C, ptd);
+    ptd.update_view(C);
   }
 
   /* Still running... */

@@ -1004,16 +1004,16 @@ class CurvesPenToolOperation : public PenToolOperation {
 
     return true;
   }
-};
 
-static void pen_update_view(bContext *C, CurvesPenToolOperation &ptd)
-{
-  for (Curves *curves_id : ptd.all_curves) {
-    DEG_id_tag_update(&curves_id->id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(C, NC_GEOM | ND_DATA, curves_id);
+  void update_view(bContext *C) const
+  {
+    for (Curves *curves_id : this->all_curves) {
+      DEG_id_tag_update(&curves_id->id, ID_RECALC_GEOMETRY);
+      WM_event_add_notifier(C, NC_GEOM | ND_DATA, curves_id);
+    }
+    ED_region_tag_redraw(this->vc.region);
   }
-  ED_region_tag_redraw(ptd.vc.region);
-}
+};
 
 static IndexMask retrieve_visible_bezier_handle_points(const bke::CurvesGeometry &curves,
                                                        const int handle_display,
@@ -1089,7 +1089,7 @@ static void curves_pen_exit(bContext *C, wmOperator *op)
 
   WM_cursor_modal_restore(ptd->vc.win);
 
-  pen_update_view(C, *ptd);
+  ptd->update_view(C);
 
   MEM_delete(ptd);
   /* Clear pointer. */
@@ -1307,7 +1307,7 @@ static wmOperatorStatus curves_pen_invoke(bContext *C, wmOperator *op, const wmE
 
   pen_status_indicators(C, op);
   if (changed) {
-    pen_update_view(C, ptd);
+    ptd.update_view(C);
   }
 
   return OPERATOR_RUNNING_MODAL;
@@ -1393,7 +1393,7 @@ static wmOperatorStatus curves_pen_modal(bContext *C, wmOperator *op, const wmEv
 
   pen_status_indicators(C, op);
   if (changed) {
-    pen_update_view(C, ptd);
+    ptd.update_view(C);
   }
 
   /* Still running... */

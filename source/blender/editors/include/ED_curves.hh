@@ -122,6 +122,7 @@ class PenToolOperation {
    * Will return true if a new curve can be created, and report any errors.
    */
   virtual bool can_create_new_curve(wmOperator *op) const = 0;
+  virtual void update_view(bContext *C) const = 0;
 
   float2 layer_to_screen(const float4x4 &layer_to_object, const float3 &point) const;
 
