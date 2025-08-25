@@ -1736,7 +1736,7 @@ static wmOperatorStatus exec(bContext *C, wmOperator *op)
   const int dst = RNA_enum_get(op->ptr, "type");
 
   auto new_handle_type = [&](const int8_t handle_type) {
-    if (dst == BEZIER_HANDLE_TOGGLE) {
+    if (dst == int(ed::curves::SetHandleType::Toggle)) {
       return int8_t(handle_type == BEZIER_HANDLE_FREE ? BEZIER_HANDLE_ALIGN : BEZIER_HANDLE_FREE);
     }
     return int8_t(dst);
@@ -1779,27 +1779,27 @@ static wmOperatorStatus exec(bContext *C, wmOperator *op)
 }  // namespace set_handle_type
 
 const EnumPropertyItem rna_enum_set_handle_type_items[] = {
-    {BEZIER_HANDLE_AUTO,
+    {int(SetHandleType::Auto),
      "AUTO",
      0,
      "Auto",
      "The location is automatically calculated to be smooth"},
-    {BEZIER_HANDLE_VECTOR,
+    {int(SetHandleType::Vector),
      "VECTOR",
      0,
      "Vector",
      "The location is calculated to point to the next/previous control point"},
-    {BEZIER_HANDLE_ALIGN,
+    {int(SetHandleType::Align),
      "ALIGN",
      0,
      "Align",
      "The location is constrained to point in the opposite direction as the other handle"},
-    {BEZIER_HANDLE_FREE,
+    {int(SetHandleType::Free),
      "FREE_ALIGN",
      0,
      "Free",
      "The handle can be moved anywhere, and does not influence the point's other handle"},
-    {BEZIER_HANDLE_TOGGLE,
+    {int(SetHandleType::Toggle),
      "TOGGLE_FREE_ALIGN",
      0,
      "Toggle Free/Align",

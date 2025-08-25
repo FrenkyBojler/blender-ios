@@ -469,9 +469,14 @@ void reorder_curves(bke::CurvesGeometry &curves, Span<int> old_by_new_indices_ma
 
 wmOperatorStatus join_objects_exec(bContext *C, wmOperator *op);
 
-constexpr int BEZIER_HANDLE_TOGGLE = 4;
-BLI_STATIC_ASSERT(BEZIER_HANDLE_TOGGLE >= BEZIER_HANDLES_NUM,
-                  "Handle Toggle must be greater than number of handle types");
+enum class SetHandleType : uint8_t {
+  Free = 0,
+  Auto = 1,
+  Vector = 2,
+  Align = 3,
+  Toggle = 4,
+};
+
 extern const EnumPropertyItem rna_enum_set_handle_type_items[];
 
 /** \} */

@@ -3957,7 +3957,7 @@ static wmOperatorStatus grease_pencil_set_handle_type_exec(bContext *C, wmOperat
   const int dst = RNA_enum_get(op->ptr, "type");
 
   auto new_handle_type = [&](const int8_t handle_type) {
-    if (dst == ed::curves::BEZIER_HANDLE_TOGGLE) {
+    if (dst == int(ed::curves::SetHandleType::Toggle)) {
       return int8_t(handle_type == BEZIER_HANDLE_FREE ? BEZIER_HANDLE_ALIGN : BEZIER_HANDLE_FREE);
     }
     return int8_t(dst);
