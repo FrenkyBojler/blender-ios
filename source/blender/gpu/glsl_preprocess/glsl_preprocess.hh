@@ -143,6 +143,68 @@ struct Source {
   }
 };
 
+struct ParsedResource {
+  std::string var_type;
+  std::string var_name;
+  std::string var_array;
+
+  std::string res_type;
+  /* For images, storages, uniforms and samplers. */
+  std::string res_frequency;
+  /* For images, storages, uniforms and samplers. */
+  std::string res_slot;
+  /* For images & storages. */
+  std::string res_qualifier;
+  /* For specialization & compilation constants. */
+  std::string res_value;
+  /* For images. */
+  std::string res_format;
+  /* Optional condition to enable this resource. */
+  std::string res_condition;
+
+  void parse_attribute(parser::Scope attribute)
+  {
+    parser::Token attribute_id = attribute[0];
+    std::string type = attribute_id.str();
+    if (type == "sampler") {
+      res_type = type;
+      res_slot = attribute[2].str();
+    }
+    else if (type == "image") {
+      res_type = type;
+      res_slot = attribute[2].str();
+      res_qualifier = attribute[4].str();
+      res_format = attribute[6].str();
+    }
+    else if (type == "uniform") {
+      res_type = type;
+      res_slot = attribute[2].str();
+    }
+    else if (type == "storage") {
+      res_type = type;
+      res_slot = attribute[2].str();
+      res_qualifier = attribute[4].str();
+    }
+    else if (type == "push_constant") {
+      res_type = type;
+    }
+    else if (type == "compilation_constant") {
+      res_type = type;
+      res_value = attribute[2].str();
+    }
+    else if (type == "specialization_constant") {
+      res_type = type;
+      res_value = attribute[2].str();
+    }
+    else if (type == "condition") {
+      res_condition = attribute[1].scope().str();
+    }
+    else if (type == "frequency") {
+      res_frequency = attribute[2].str();
+    }
+  };
+};
+
 }  // namespace metadata
 
 /**
@@ -220,6 +282,7 @@ class Preprocessor {
       str = swizzle_function_mutation(str, report_error);
       str = enum_macro_injection(str, language == CPP, report_error);
       if (language == BLENDER_GLSL) {
+        str = resource_table_parsing(str, report_error);
         str = struct_method_mutation(str, report_error);
         str = method_call_mutation(str, report_error);
         str = stage_function_mutation(str);
@@ -1207,6 +1270,56 @@ class Preprocessor {
       str = std::regex_replace(str, regex, std::to_string(hash_string(str_var)) + 'u');
     }
     return str;
+  }
+
+  /* Move all method definition outside of struct definition blocks. */
+  std::string resource_table_parsing(const std::string &str, report_callback report_error)
+  {
+    using namespace std;
+    using namespace shader::parser;
+
+    Parser parser(str, report_error);
+
+    parser.foreach_match("s[[..]]w{..};", [&](const std::vector<Token> &tokens) {
+      if (tokens[1].scope().str() == "[shader_resource_table]") {
+        Token srt_name = tokens[7];
+        Scope body = tokens[8].scope();
+
+        auto parse_resource =
+            [&](Scope attributes, bool is_static, Token type, Token name, Scope array) {
+              assert(attributes.type() == ScopeType::Attributes);
+              metadata::ParsedResource resource{type.str(), name.str(), array.str()};
+              attributes.foreach_scope(ScopeType::Attribute, [&](const Scope &attribute) {
+                resource.parse_attribute(attribute);
+              });
+
+              std::cout << "var_type " << resource.var_type << std::endl;
+              std::cout << "var_name " << resource.var_name << std::endl;
+              std::cout << "var_array " << resource.var_array << std::endl;
+              std::cout << "res_type " << resource.res_type << std::endl;
+              std::cout << "res_frequency " << resource.res_frequency << std::endl;
+              std::cout << "res_slot " << resource.res_slot << std::endl;
+              std::cout << "res_qualifier " << resource.res_qualifier << std::endl;
+              std::cout << "res_value " << resource.res_value << std::endl;
+              std::cout << "res_format " << resource.res_format << std::endl;
+              std::cout << "res_condition " << resource.res_condition << std::endl;
+            };
+
+        body.foreach_match("[[..]]m?ww;", [&](const std::vector<Token> &tokens) {
+          parse_resource(
+              tokens[1].scope(), tokens[6].is_valid(), tokens[8], tokens[9], Scope::invalid());
+        });
+        body.foreach_match("[[..]]m?ww[..];", [&](const std::vector<Token> &tokens) {
+          parse_resource(
+              tokens[1].scope(), tokens[6].is_valid(), tokens[8], tokens[9], tokens[10].scope());
+        });
+      }
+      /* Erase SRT definition. The resources are defined by the backend at runtime. */
+      /* Note that this might change in the future. */
+      parser.erase(tokens[0], tokens.back());
+    });
+
+    return parser.result_get();
   }
 
   /* Move all method definition outside of struct definition blocks. */
