@@ -422,7 +422,6 @@ class _defs_transform:
         )
 
 
-
 class _defs_view3d_select:
 
     @ToolDef.from_fn

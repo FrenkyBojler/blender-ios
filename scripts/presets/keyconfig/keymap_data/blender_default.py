@@ -1832,7 +1832,6 @@ def km_view3d(params):
             op_tool_cycle("builtin.select_box", {"type": 'W', "value": 'PRESS'}),
         ])
 
-
     return keymap
 
 
@@ -7314,8 +7313,6 @@ def km_3d_view_tool_move(params):
              {"properties": [("release_confirm", True)]}),
         ]},
     )
-
-
 
 
 def km_3d_view_tool_rotate(params):

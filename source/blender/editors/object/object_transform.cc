@@ -60,6 +60,7 @@
 #include "RNA_access.hh"
 #include "RNA_define.hh"
 
+#include "UI_interface.hh"
 #include "UI_interface_icons.hh"
 
 #include "WM_api.hh"
@@ -2305,6 +2306,15 @@ static wmOperatorStatus object_transform_axis_target_modal(bContext *C,
     
 
     xfd->light_mode = modal_mode;
+
+    /* Display modifier keys in status bar for light positioning */
+    WorkspaceStatus status(C);
+    status.item(IFACE_("Confirm"), ICON_EVENT_RETURN);
+    status.item(IFACE_("Cancel"), ICON_EVENT_ESC);
+    status.item_bool(IFACE_("Target"), event->modifier, ICON_EVENT_CTRL, ICON_EVENT_T);
+    status.item_bool(IFACE_("Normal/Diffuse"), event->modifier & KM_CTRL, ICON_EVENT_CTRL);
+    status.item_bool(IFACE_("Reflection/Specular"), (event->modifier & KM_CTRL) && (event->modifier & KM_ALT), ICON_EVENT_CTRL, ICON_EVENT_ALT);
+    status.item_bool(IFACE_("Shadow"), event->modifier & KM_ALT, ICON_EVENT_ALT);
   }
 
   const bool is_translate = event->modifier & KM_CTRL;
@@ -2373,7 +2383,8 @@ static wmOperatorStatus object_transform_axis_target_modal(bContext *C,
                     /* Reflection positioning: calculate reflection direction */
                     {
                       float view_dir[3];
-                      ED_view3d_win_to_vector(xfd->vc.region, (float[]){float(event->mval[0]), float(event->mval[1])}, view_dir);
+                      float mval[2] = {float(event->mval[0]), float(event->mval[1])};
+                      ED_view3d_win_to_vector(xfd->vc.region, mval, view_dir);
                       normalize_v3(view_dir);
                       
                       /* Calculate reflection direction using Blender's reflect function */

@@ -30,7 +30,6 @@ struct wmOperatorType;
 
 void VIEW3D_OT_toggle_matcap_flip(wmOperatorType *ot);
 
-
 /* `view3d_context.cc` */
 
 int view3d_context(const bContext *C, const char *member, bContextDataResult *result);
