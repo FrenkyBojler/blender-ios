@@ -244,8 +244,9 @@ class ObjectRef {
   float random() const
   {
     if (duplis_) {
-      /* NOTE: This code is currently reachable, since ObjectInfos always call it,
-         but the value is only used in EEVEE. */
+      /* NOTE: The random property is only used by EEVEE, which currently doesn't support
+      instancing optimizations. However, ObjectInfos always call this function so the code is still
+      reachable even if its result won't be used. */
       // BLI_assert_unreachable();
       /* TODO: This should fill a span instead. */
       return 0.0;
@@ -262,6 +263,8 @@ class ObjectRef {
   bool find_rgba_attribute(const GPUUniformAttr &attr, float r_value[4]) const
   {
     if (duplis_) {
+      /* NOTE: This function is only called for EEVEE, which currently doesn't support instancing
+       * optimizations, so this code should be unreachable. */
       BLI_assert_unreachable();
       /* TODO: r_value should be a Span. */
       return false;
@@ -304,6 +307,8 @@ class ObjectRef {
   float4x4 particles_matrix() const
   {
     if (duplis_) {
+      /* NOTE: Objects with particles don't support instancing optimizations yet, so this code
+       * should be unreachable. */
       BLI_assert_unreachable();
       /* TODO: This should fill a span instead. */
       return float4x4::identity();
