@@ -65,6 +65,9 @@ const char *GLLogParser::parse_line(const char *source_combined,
     size_t line_number = source_line_get(source_combined, line_start_character);
     log_item.cursor.file_name_and_error_line = std::string(filename) + ':' +
                                                std::to_string(line_number);
+    if (log_item.cursor.column != -1) {
+      log_item.cursor.file_name_and_error_line += ':' + std::to_string(log_item.cursor.column + 1);
+    }
   }
 
   log_line = skip_separators(log_line, ":) ");
