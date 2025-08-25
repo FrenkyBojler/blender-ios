@@ -336,10 +336,10 @@ size_t GPULogParser::line_start_get(StringRefNull source_combined, size_t target
 StringRef GPULogParser::filename_get(StringRefNull source_combined, size_t pos)
 {
   StringRef sub_str = source_combined.substr(0, pos);
-  StringRefNull directive = "//ine 1 \"";
+  StringRefNull directive = "#line 1 \"";
   size_t nearest_line_directive = sub_str.rfind(directive);
   if (nearest_line_directive != std::string::npos) {
-    size_t start_of_file_name = nearest_line_directive + directive.size() + 1;
+    size_t start_of_file_name = nearest_line_directive + directive.size();
     size_t end_of_file_name = sub_str.find('\"', start_of_file_name);
     if (end_of_file_name != std::string::npos) {
       return sub_str.substr(start_of_file_name, end_of_file_name - start_of_file_name);
@@ -348,16 +348,16 @@ StringRef GPULogParser::filename_get(StringRefNull source_combined, size_t pos)
   return {};
 }
 
-/* Original source file line. Found by looking up commented #line directives. */
+/* Original source file line. Found by looking up #line directives. */
 size_t GPULogParser::source_line_get(StringRefNull source_combined, size_t pos)
 {
   StringRef sub_str = source_combined.substr(0, pos);
-  StringRefNull directive = "//ine ";
+  StringRefNull directive = "#line ";
   size_t nearest_line_directive = sub_str.rfind(directive);
   size_t line_count = 1;
   if (nearest_line_directive != std::string::npos) {
     sub_str = sub_str.substr(nearest_line_directive + directive.size());
-    line_count = std::stoll(sub_str) - 1;
+    line_count = std::stoll(sub_str) + 1;
   }
   return line_count + std::count(sub_str.begin(), sub_str.end(), '\n');
 }
