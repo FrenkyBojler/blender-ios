@@ -2318,7 +2318,7 @@ static void sculpt_expand_status(bContext *C, wmOperator *op, Cache *expand_cach
   status.opmodal(IFACE_("Topology Step"), op->type, SCULPT_EXPAND_MODAL_RECURSION_STEP_TOPOLOGY);
 
   status.opmodal({}, op->type, SCULPT_EXPAND_MODAL_LOOP_COUNT_INCREASE);
-  status.opmodal(IFACE_("Loop Count +/-"), op->type, SCULPT_EXPAND_MODAL_LOOP_COUNT_DECREASE);
+  status.opmodal(IFACE_("Change Loop Count"), op->type, SCULPT_EXPAND_MODAL_LOOP_COUNT_DECREASE);
 
   const MTex *mask_tex = BKE_brush_mask_texture_get(expand_cache->brush, OB_MODE_SCULPT);
   if (mask_tex->tex) {
@@ -2327,8 +2327,6 @@ static void sculpt_expand_status(bContext *C, wmOperator *op, Cache *expand_cach
                    op->type,
                    SCULPT_EXPAND_MODAL_TEXTURE_DISTORTION_DECREASE);
   }
-
-  status.opmodal(IFACE_("Falloff Cycle"), op->type, SCULPT_EXPAND_MODAL_FALLOFF_CYCLE);
 
   status.item(IFACE_("Falloff:"), 0);
   status.opmodal(IFACE_("Geodesic"),
