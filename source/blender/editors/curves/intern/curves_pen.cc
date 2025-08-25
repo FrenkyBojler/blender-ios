@@ -1140,7 +1140,7 @@ static void curves_pen_exit(bContext *C, wmOperator *op)
   op->customdata = nullptr;
 }
 
-bool PenToolOperation::initialize(bContext *C, wmOperator *op, const wmEvent *event)
+wmOperatorStatus PenToolOperation::initialize(bContext *C, wmOperator *op, const wmEvent *event)
 {
   /* If in tools region, wait till we get to the main (3D-space)
    * region before allowing drawing to take place. */
@@ -1177,10 +1177,16 @@ bool PenToolOperation::initialize(bContext *C, wmOperator *op, const wmEvent *ev
   WM_event_add_modal_handler(C, op);
 
   if (!(ELEM(event->type, LEFTMOUSE) && ELEM(event->val, KM_PRESS, KM_DBL_CLICK))) {
-    return true;
+    return OPERATOR_RUNNING_MODAL;
   }
 
-  return false;
+  if (std::optional<wmOperatorStatus> result = this->invoke(C, op, event)) {
+    return *result;
+  }
+
+  this->invoke_curves(C, op, event);
+
+  return OPERATOR_RUNNING_MODAL;
 }
 
 void PenToolOperation::invoke_curves(bContext *C, wmOperator *op, const wmEvent *event)
@@ -1326,17 +1332,7 @@ static wmOperatorStatus curves_pen_invoke(bContext *C, wmOperator *op, const wmE
   op->customdata = ptd_pointer;
   CurvesPenToolOperation &ptd = *ptd_pointer;
 
-  if (ptd.initialize(C, op, event)) {
-    return OPERATOR_RUNNING_MODAL;
-  }
-
-  if (std::optional<wmOperatorStatus> result = ptd.invoke(C, op, event)) {
-    return *result;
-  }
-
-  ptd.invoke_curves(C, op, event);
-
-  return OPERATOR_RUNNING_MODAL;
+  return ptd.initialize(C, op, event);
 }
 
 std::optional<wmOperatorStatus> modal_start(PenToolOperation &ptd,

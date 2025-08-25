@@ -261,17 +261,7 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
   op->customdata = ptd_pointer;
   GreasePencilPenToolOperation &ptd = *ptd_pointer;
 
-  if (ptd.initialize(C, op, event)) {
-    return OPERATOR_RUNNING_MODAL;
-  }
-
-  if (std::optional<wmOperatorStatus> result = ptd.invoke(C, op, event)) {
-    return *result;
-  }
-
-  ptd.invoke_curves(C, op, event);
-
-  return OPERATOR_RUNNING_MODAL;
+  return ptd.initialize(C, op, event);
 }
 
 /* Exit and free memory. */
