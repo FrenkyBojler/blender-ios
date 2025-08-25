@@ -111,8 +111,8 @@
  \
     .threads = 1, \
  \
-    .simplify_subsurf = 6, \
-    .simplify_particles = 1.0f, \
+    .simplify_subsurf = 2, \
+    .simplify_particles = 0.5f, \
     .simplify_volumes = 1.0f, \
  \
     .border.xmin = 0.0f, \
