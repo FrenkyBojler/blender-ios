@@ -2752,15 +2752,15 @@ static void uvedit_unwrap_uniform(const Scene *scene,
   }
   for (int i = 0; i < element_map->total_islands; i++) {
     UvElement *element = element_map->storage + element_map->island_indices[i];
-    std::unique_ptr<UVIsland> aabb = std::make_unique<UVIsland>();
-    INIT_MINMAX2(aabb->min, aabb->max);
+    std::unique_ptr<UVIsland> island = std::make_unique<UVIsland>();
+    INIT_MINMAX2(island->min, island->max);
     for (int j = 0; j < element_map->island_total_uvs[i]; j++) {
       float *luv = BM_ELEM_CD_GET_FLOAT_P(element[j].l, offsets.uv);
-      minmax_v2v2_v2(aabb->min, aabb->max, luv);
+      minmax_v2v2_v2(island->min, island->max, luv);
     }
-    aabb->cent[0] = (aabb->max[0] - aabb->min[0]) / 2.0;
-    aabb->cent[1] = (aabb->max[1] - aabb->min[1]) / 2.0;
-    original_island[i] = std::move(aabb);
+    island->cent[0] = (island->max[0] - island->min[0]) / 2.0;
+    island->cent[1] = (island->max[1] - island->min[1]) / 2.0;
+    original_island[i] = std::move(island);
   }
 
   uvedit_unwrap_islands(scene, obedit, em, options, r_count_changed, r_count_failed);
