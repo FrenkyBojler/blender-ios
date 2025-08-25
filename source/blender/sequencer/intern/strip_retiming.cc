@@ -1048,10 +1048,23 @@ static RetimingRangeData strip_retiming_range_data_get(const Scene *scene, const
 
 void retiming_sound_animation_data_set(const Scene *scene, const Strip *strip)
 {
-  bool correct_pitch = strip->flag & SEQ_AUDIO_PITCH_CORRECTION;
+
+  RetimingRangeData retiming_data = strip_retiming_range_data_get(scene, strip);
+
+  /* No need to apply the time-stretch modifier if all the retiming range speed are 1, as the
+   * effect itself is still expensive while the audio is playing and want to avoid having to use it
+   * if we can. */
+  bool correct_pitch = (strip->flag & SEQ_AUDIO_PRESERVE_PITCH) &&
+                       std::any_of(retiming_data.ranges.begin(),
+                                   retiming_data.ranges.end(),
+                                   [](const RetimingRange &range) {
+                                     return range.type != TRANSITION && range.speed != 1.0;
+                                   });
+
   void *sound_handle = strip->sound->playback_handle;
+  const float scene_fps = float(scene->r.frs_sec) / float(scene->r.frs_sec_base);
   if (correct_pitch) {
-    sound_handle = BKE_sound_add_time_stretch_modifier(sound_handle, scene->frames_per_second());
+    sound_handle = BKE_sound_add_time_stretch_modifier(sound_handle, scene_fps);
     BKE_sound_set_scene_sound_pitch_constant_range(
         strip->scene_sound, 0, strip->start + strip->len, 1.0f);
   }
@@ -1064,13 +1077,10 @@ void retiming_sound_animation_data_set(const Scene *scene, const Strip *strip)
         strip->scene_sound, strip_start - strip->anim_startofs, strip_start, 1.0f);
   }
 
-  const float scene_fps = float(scene->r.frs_sec) / float(scene->r.frs_sec_base);
   const int sound_offset = time_get_rounded_sound_offset(strip, scene_fps);
 
-  RetimingRangeData retiming_data = strip_retiming_range_data_get(scene, strip);
-
   for (int i = 0; i < retiming_data.ranges.size(); i++) {
-    RetimingRange range = retiming_data.ranges[i];
+    const RetimingRange &range = retiming_data.ranges[i];
     if (range.type == TRANSITION) {
       const int range_length = range.end - range.start;
       for (int i = 0; i <= range_length; i++) {
