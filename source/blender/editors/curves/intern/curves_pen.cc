@@ -1222,9 +1222,9 @@ class CurvesPenToolOperation : public PenToolOperation {
     return closest_element;
   }
 
-  std::optional<wmOperatorStatus> invoke(bContext *C,
-                                         wmOperator * /*op*/,
-                                         const wmEvent * /*event*/)
+  std::optional<wmOperatorStatus> initialize(bContext *C,
+                                             wmOperator * /*op*/,
+                                             const wmEvent * /*event*/)
   {
     this->active_drawing_index = std::nullopt;
     VectorSet<Curves *> unique_curves;
@@ -1274,7 +1274,7 @@ static void curves_pen_exit(bContext *C, wmOperator *op)
   op->customdata = nullptr;
 }
 
-wmOperatorStatus PenToolOperation::initialize(bContext *C, wmOperator *op, const wmEvent *event)
+wmOperatorStatus PenToolOperation::invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   /* If in tools region, wait till we get to the main (3D-space)
    * region before allowing drawing to take place. */
@@ -1314,7 +1314,7 @@ wmOperatorStatus PenToolOperation::initialize(bContext *C, wmOperator *op, const
     return OPERATOR_RUNNING_MODAL;
   }
 
-  if (std::optional<wmOperatorStatus> result = this->invoke(C, op, event)) {
+  if (std::optional<wmOperatorStatus> result = this->initialize(C, op, event)) {
     return *result;
   }
 
@@ -1331,7 +1331,7 @@ static wmOperatorStatus curves_pen_invoke(bContext *C, wmOperator *op, const wmE
   op->customdata = ptd_pointer;
   CurvesPenToolOperation &ptd = *ptd_pointer;
 
-  return ptd.initialize(C, op, event);
+  return ptd.invoke(C, op, event);
 }
 
 wmOperatorStatus modal_start(PenToolOperation &ptd,

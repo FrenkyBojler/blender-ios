@@ -124,9 +124,9 @@ class PenToolOperation {
   virtual bool can_create_new_curve(wmOperator *op) const = 0;
   virtual void update_view(bContext *C) const = 0;
   virtual ClosestElement find_closest_element(const float2 &mouse_co) const = 0;
-  virtual std::optional<wmOperatorStatus> invoke(bContext *C,
-                                                 wmOperator *op,
-                                                 const wmEvent *event) = 0;
+  virtual std::optional<wmOperatorStatus> initialize(bContext *C,
+                                                     wmOperator *op,
+                                                     const wmEvent *event) = 0;
 
   float2 layer_to_screen(const float4x4 &layer_to_object, const float3 &point) const;
 
@@ -134,7 +134,7 @@ class PenToolOperation {
                          const float2 &screen_co,
                          const float3 &depth_point_layer) const;
 
-  wmOperatorStatus initialize(bContext *C, wmOperator *op, const wmEvent *event);
+  wmOperatorStatus invoke(bContext *C, wmOperator *op, const wmEvent *event);
 };
 
 void pen_find_closest_point(const PenToolOperation &ptd,

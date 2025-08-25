@@ -194,7 +194,9 @@ class GreasePencilPenToolOperation : public curves::pen_tool::PenToolOperation {
     return closest_element;
   }
 
-  std::optional<wmOperatorStatus> invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+  std::optional<wmOperatorStatus> initialize(bContext *C,
+                                             wmOperator *op,
+                                             const wmEvent * /*event*/)
   {
     if (this->vc.scene->toolsettings->gpencil_selectmode_edit != GP_SELECTMODE_POINT) {
       BKE_report(op->reports, RPT_ERROR, "Selection Mode must be Points");
@@ -257,7 +259,7 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
   op->customdata = ptd_pointer;
   GreasePencilPenToolOperation &ptd = *ptd_pointer;
 
-  return ptd.initialize(C, op, event);
+  return ptd.invoke(C, op, event);
 }
 
 /* Exit and free memory. */
