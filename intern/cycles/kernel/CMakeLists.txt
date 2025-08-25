@@ -538,7 +538,7 @@ if(WITH_CYCLES_CUDA_BINARIES)
         --ptxas-options="-v")
     endif()
 
-    if(NOT WITH_CYCLES_CUDA_BUILD_SERIAL AND "${CUDA_VERSION}" GREATER_EQUAL 129)
+    if(NOT WITH_CYCLES_CUDA_BUILD_SERIAL AND "${cuda_version}" GREATER_EQUAL 129)
       set(cuda_flags ${cuda_flags}
         --split-compile=0)
     endif()
@@ -874,20 +874,22 @@ if(WITH_CYCLES_CUDA_BINARIES AND WITH_CYCLES_DEVICE_OPTIX)
         -D WITH_CYCLES_DEBUG)
     endif()
 
-    if(NOT WITH_CYCLES_CUDA_BUILD_SERIAL AND "${CUDA_VERSION}" GREATER_EQUAL 129)
-      set(cuda_flags ${cuda_flags}
-        --split-compile=0)
-    endif()
-
     set(arch compute_50)
     set(cuda_nvcc_executable ${CUDA_NVCC_EXECUTABLE})
+    set(cuda_version ${CUDA_VERSION})
     if("${CUDA_VERSION}" GREATER_EQUAL 130) # Support for Maxwell, Pascal and Volta was dropped in CUDA 13
       if(DEFINED CUDA11_NVCC_EXECUTABLE)
         # Use CUDA 11 for the OptiX PTX kernel, to retain support for older achitectures
         set(cuda_nvcc_executable ${CUDA11_NVCC_EXECUTABLE})
+        set(cuda_version 110)
       else()
         set(arch compute_75)
       endif()
+    endif()
+
+    if(NOT WITH_CYCLES_CUDA_BUILD_SERIAL AND "${cuda_version}" GREATER_EQUAL 129)
+      set(cuda_flags ${cuda_flags}
+        --split-compile=0)
     endif()
 
     add_custom_command(
