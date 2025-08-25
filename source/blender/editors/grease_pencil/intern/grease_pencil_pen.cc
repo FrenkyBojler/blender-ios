@@ -40,20 +40,6 @@
 
 namespace blender::ed::greasepencil {
 
-static IndexMask retrieve_editable_and_all_selected_points(
-    Object &object,
-    const bke::greasepencil::Drawing &drawing,
-    int layer_index,
-    IndexMaskMemory &memory)
-{
-  const bke::CurvesGeometry &curves = drawing.strokes();
-
-  const IndexMask editable_points = retrieve_editable_points(object, drawing, layer_index, memory);
-  const IndexMask selected_points = ed::curves::retrieve_all_selected_points(curves, memory);
-
-  return IndexMask::from_intersection(editable_points, selected_points, memory);
-}
-
 class GreasePencilPenToolOperation : public curves::pen_tool::PenToolOperation {
  public:
   GreasePencil *grease_pencil;
@@ -71,7 +57,11 @@ class GreasePencilPenToolOperation : public curves::pen_tool::PenToolOperation {
   {
     const MutableDrawingInfo &info = this->drawings[curves_index];
     return ed::greasepencil::retrieve_editable_and_all_selected_points(
-        *this->vc.obact, info.drawing, info.layer_index, memory);
+        *this->vc.obact,
+        info.drawing,
+        info.layer_index,
+        this->vc.v3d->overlay.handle_display,
+        memory);
   }
 
   IndexMask visible_bezier_handle_points(const int curves_index, IndexMaskMemory &memory) const
