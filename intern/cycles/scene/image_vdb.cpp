@@ -102,23 +102,7 @@ bool VDBImageLoader::load_metadata(const ImageDeviceFeatures &features, ImageMet
     }
   }
 
-  Transform texture_to_index;
-#  ifdef WITH_NANOVDB
-  if (nanogrid) {
-    texture_to_index = transform_identity();
-  }
-  else
-#  endif
-  {
-    openvdb::Coord min = bbox.min();
-    openvdb::Coord dim = bbox.dim();
-    texture_to_index = transform_translate(min.x(), min.y(), min.z()) *
-                       transform_scale(dim.x(), dim.y(), dim.z());
-  }
-  /* Map to voxel centers instead of corners. */
-  texture_to_index = transform_translate(-0.5f, -0.5f, -0.5f) * texture_to_index;
-
-  metadata.transform_3d = transform_inverse(index_to_object * texture_to_index);
+  metadata.transform_3d = transform_inverse(index_to_object);
   metadata.use_transform_3d = true;
 
   /* Only NanoGrid needed now, free OpenVDB grid. */
