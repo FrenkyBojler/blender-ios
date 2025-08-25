@@ -1054,7 +1054,7 @@ void retiming_sound_animation_data_set(const Scene *scene, const Strip *strip)
   /* No need to apply the time-stretch modifier if all the retiming range speed are 1, as the
    * effect itself is still expensive while the audio is playing and want to avoid having to use it
    * if we can. */
-  bool correct_pitch = (strip->flag & SEQ_AUDIO_PRESERVE_PITCH) &&
+  bool correct_pitch = (strip->flag & SEQ_AUDIO_PITCH_CORRECTION) &&
                        std::any_of(retiming_data.ranges.begin(),
                                    retiming_data.ranges.end(),
                                    [](const RetimingRange &range) {
