@@ -1505,15 +1505,12 @@ static void CURVES_OT_pen(wmOperatorType *ot)
 
 void ED_operatortypes_curves_pen()
 {
-  using namespace blender::ed::curves;
   WM_operatortype_append(CURVES_OT_pen);
 }
 
 void ED_curves_pentool_modal_keymap(wmKeyConfig *keyconf)
 {
-  using namespace blender::ed::curves::pen_tool;
-
-  wmKeyMap *keymap = ensure_keymap(keyconf);
+  wmKeyMap *keymap = pen_tool::ensure_keymap(keyconf);
   WM_modalkeymap_assign(keymap, "CURVES_OT_pen");
 }
 

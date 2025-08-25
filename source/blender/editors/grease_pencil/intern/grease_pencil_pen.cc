@@ -40,11 +40,6 @@
 
 namespace blender::ed::greasepencil {
 
-/* Total number of curve handle types. */
-constexpr int CURVE_HANDLE_TYPES_NUM = 4;
-
-using namespace blender::ed::curves::pen_tool;
-
 static IndexMask retrieve_editable_and_all_selected_points(
     Object &object,
     const bke::greasepencil::Drawing &drawing,
@@ -59,7 +54,7 @@ static IndexMask retrieve_editable_and_all_selected_points(
   return IndexMask::from_intersection(editable_points, selected_points, memory);
 }
 
-class GreasePencilPenToolOperation : public PenToolOperation {
+class GreasePencilPenToolOperation : public curves::pen_tool::PenToolOperation {
  public:
   GreasePencil *grease_pencil;
   Vector<MutableDrawingInfo> drawings;
@@ -157,8 +152,9 @@ class GreasePencilPenToolOperation : public PenToolOperation {
     ED_region_tag_redraw(this->vc.region);
   }
 
-  ClosestElement find_closest_element(const float2 &mouse_co) const
+  curves::pen_tool::ClosestElement find_closest_element(const float2 &mouse_co) const
   {
+    using namespace curves::pen_tool;
     ClosestElement closest_element;
     closest_element.element_mode = ElementMode::None;
 
@@ -309,21 +305,18 @@ static void GREASE_PENCIL_OT_pen(wmOperatorType *ot)
   ot->flag = OPTYPE_UNDO;
 
   /* Properties. */
-  ed::curves::pen_tool::pen_tool_common_props(ot);
+  curves::pen_tool::pen_tool_common_props(ot);
 }
 
 }  // namespace blender::ed::greasepencil
 
 void ED_operatortypes_grease_pencil_pen()
 {
-  using namespace blender::ed::greasepencil;
-  WM_operatortype_append(GREASE_PENCIL_OT_pen);
+  WM_operatortype_append(blender::ed::greasepencil::GREASE_PENCIL_OT_pen);
 }
 
 void ED_grease_pencil_pentool_modal_keymap(wmKeyConfig *keyconf)
 {
-  using namespace blender::ed::curves::pen_tool;
-
-  wmKeyMap *keymap = ensure_keymap(keyconf);
+  wmKeyMap *keymap = blender::ed::curves::pen_tool::ensure_keymap(keyconf);
   WM_modalkeymap_assign(keymap, "GREASE_PENCIL_OT_pen");
 }
