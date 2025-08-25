@@ -1321,6 +1321,7 @@ static bNodeTree *node_group_make_wrapper(const bContext &C,
 
   bNodeTree *dst_group = bke::node_tree_add_tree(
       &bmain, bke::node_label(src_tree, src_node), src_tree.idname);
+  dst_group->color_tag = int(bke::node_color_tag(src_node));
 
   const nodes::NodeDeclaration &node_decl = *src_node.declaration();
   for (const nodes::ItemDeclaration *item_decl : node_decl.root_items) {
@@ -1331,7 +1332,10 @@ static bNodeTree *node_group_make_wrapper(const bContext &C,
   /* Add the node that make up the wrapper node group. */
   bNode &input_node = *bke::node_add_static_node(&C, *dst_group, NODE_GROUP_INPUT);
   bNode &output_node = *bke::node_add_static_node(&C, *dst_group, NODE_GROUP_OUTPUT);
-  bNode &inner_node = *bke::node_copy(dst_group, src_node, 0, true);
+
+  Map<const bNodeSocket *, bNodeSocket *> inner_node_socket_mapping;
+  bNode &inner_node = *bke::node_copy_with_mapping(
+      dst_group, src_node, 0, std::nullopt, std::nullopt, inner_node_socket_mapping);
 
   /* Position nodes. */
   input_node.location[0] = -300 - input_node.width;

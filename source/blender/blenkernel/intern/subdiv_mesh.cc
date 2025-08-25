@@ -20,6 +20,7 @@
 #include "BKE_mesh.hh"
 #include "BKE_mesh_mapping.hh"
 #include "BKE_subdiv.hh"
+#include "BKE_subdiv_deform.hh"
 #include "BKE_subdiv_eval.hh"
 #include "BKE_subdiv_foreach.hh"
 #include "BKE_subdiv_mesh.hh"
@@ -643,7 +644,7 @@ static void evaluate_vertex_and_apply_displacement_copy(const SubdivMeshContext 
   }
   /* Copy custom data and evaluate position. */
   subdiv_vertex_data_copy(ctx, coarse_vertex_index, subdiv_vertex_index);
-  eval_limit_point(ctx->subdiv, ptex_face_index, u, v, subdiv_position);
+  subdiv_position = eval_limit_point(ctx->subdiv, ptex_face_index, u, v);
   /* Apply displacement. */
   subdiv_position += D;
   /* Evaluate undeformed texture coordinate. */
@@ -671,7 +672,7 @@ static void evaluate_vertex_and_apply_displacement_interpolate(
   }
   /* Interpolate custom data and evaluate position. */
   subdiv_vertex_data_interpolate(ctx, subdiv_vertex_index, vertex_interpolation, u, v);
-  eval_limit_point(ctx->subdiv, ptex_face_index, u, v, subdiv_position);
+  subdiv_position = eval_limit_point(ctx->subdiv, ptex_face_index, u, v);
   /* Apply displacement. */
   add_v3_v3(subdiv_position, D);
   /* Evaluate undeformed texture coordinate. */
@@ -824,10 +825,9 @@ static void subdiv_mesh_vertex_inner(const ForeachContext *foreach_context,
   Subdiv *subdiv = ctx->subdiv;
   const IndexRange coarse_face = ctx->coarse_faces[coarse_face_index];
   Mesh *subdiv_mesh = ctx->subdiv_mesh;
-  float3 &subdiv_position = ctx->subdiv_positions[subdiv_vertex_index];
   subdiv_mesh_ensure_vertex_interpolation(ctx, tls, coarse_face_index, coarse_corner);
   subdiv_vertex_data_interpolate(ctx, subdiv_vertex_index, &tls->vertex_interpolation, u, v);
-  eval_final_point(subdiv, ptex_face_index, u, v, subdiv_position);
+  ctx->subdiv_positions[subdiv_vertex_index] = eval_final_point(subdiv, ptex_face_index, u, v);
   subdiv_mesh_tag_center_vertex(coarse_face, subdiv_vertex_index, u, v, subdiv_mesh);
   subdiv_vertex_orco_evaluate(ctx, ptex_face_index, u, v, subdiv_vertex_index);
 }
@@ -1126,7 +1126,7 @@ static void subdiv_mesh_vertex_of_loose_edge(const ForeachContext *foreach_conte
 static void setup_foreach_callbacks(const SubdivMeshContext *subdiv_context,
                                     ForeachContext *foreach_context)
 {
-  memset(foreach_context, 0, sizeof(*foreach_context));
+  *foreach_context = {};
   /* General information. */
   foreach_context->topology_info = subdiv_mesh_topology_info;
   /* Every boundary geometry. Used for displacement averaging. */
@@ -1157,11 +1157,10 @@ Mesh *subdiv_to_mesh(Subdiv *subdiv, const ToMeshSettings *settings, const Mesh 
   stats_begin(&subdiv->stats, SUBDIV_STATS_SUBDIV_TO_MESH);
   /* Make sure evaluator is up to date with possible new topology, and that
    * it is refined for the new positions of coarse vertices. */
-  if (!eval_begin_from_mesh(subdiv, coarse_mesh, {}, SUBDIV_EVALUATOR_TYPE_CPU, nullptr)) {
+  if (!eval_begin_from_mesh(subdiv, coarse_mesh, SUBDIV_EVALUATOR_TYPE_CPU)) {
     /* This could happen in two situations:
      * - OpenSubdiv is disabled.
-     * - Something totally bad happened, and OpenSubdiv rejected our
-     *   topology.
+     * - Something totally bad happened, and OpenSubdiv rejected our topology.
      * In either way, we can't safely continue. */
     if (coarse_mesh->faces_num) {
       stats_end(&subdiv->stats, SUBDIV_STATS_SUBDIV_TO_MESH);
@@ -1242,6 +1241,37 @@ Mesh *subdiv_to_mesh(Subdiv *subdiv, const ToMeshSettings *settings, const Mesh 
   stats_end(&subdiv->stats, SUBDIV_STATS_SUBDIV_TO_MESH);
   subdiv_mesh_context_free(&subdiv_context);
   return result;
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Limit surface
+ * \{ */
+
+void calculate_limit_positions(Mesh *mesh, MutableSpan<float3> limit_positions)
+{
+  BLI_assert(mesh->verts_num == limit_positions.size());
+
+  limit_positions.copy_from(mesh->vert_positions());
+
+  Settings settings{};
+  settings.is_simple = false;
+  settings.is_adaptive = true;
+  settings.level = 1;
+  settings.use_creases = true;
+
+  /* Default subdivision surface modifier settings:
+   * - UV Smooth:Keep Corners.
+   * - BoundarySmooth: All. */
+  settings.vtx_boundary_interpolation = SUBDIV_VTX_BOUNDARY_EDGE_ONLY;
+  settings.fvar_linear_interpolation = SUBDIV_FVAR_LINEAR_INTERPOLATION_CORNERS_AND_JUNCTIONS;
+
+  Subdiv *subdiv = update_from_mesh(nullptr, &settings, mesh);
+  if (subdiv) {
+    deform_coarse_vertices(subdiv, mesh, limit_positions);
+    free(subdiv);
+  }
 }
 
 /** \} */

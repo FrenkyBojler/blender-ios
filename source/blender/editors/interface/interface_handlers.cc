@@ -43,6 +43,7 @@
 #include "BKE_curveprofile.h"
 #include "BKE_movieclip.h"
 #include "BKE_paint.hh"
+#include "BKE_paint_types.hh"
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
 #include "BKE_screen.hh"
@@ -70,6 +71,8 @@
 #include "RNA_access.hh"
 #include "RNA_prototypes.hh"
 
+#include "CLG_log.h"
+
 #include "WM_api.hh"
 #include "WM_types.hh"
 #include "wm_event_system.hh"
@@ -79,6 +82,8 @@
 #endif
 
 using blender::StringRef;
+
+static CLG_LogRef LOG = {"ui.handler"};
 
 /* -------------------------------------------------------------------- */
 /** \name Feature Defines
@@ -1576,7 +1581,7 @@ static void ui_multibut_states_apply(bContext *C, uiHandleButtonData *data, uiBl
 
     if (mbut_state == nullptr) {
       /* Highly unlikely. */
-      printf("%s: Can't find button\n", __func__);
+      CLOG_WARN(&LOG, "%s: Can't find button", __func__);
       /* While this avoids crashing, multi-button dragging will fail,
        * which is still a bug from the user perspective. See #83651. */
       continue;
@@ -1647,11 +1652,8 @@ static bool ui_drag_toggle_but_is_supported(const uiBut *but)
     return true;
   }
   if (UI_but_is_decorator(but)) {
-    return ELEM(but->icon,
-                ICON_DECORATE,
-                ICON_DECORATE_KEYFRAME,
-                ICON_DECORATE_ANIMATE,
-                ICON_DECORATE_OVERRIDE);
+    const uiButDecorator *but_decorate = static_cast<const uiButDecorator *>(but);
+    return but_decorate->toggle_keyframe_on_click;
   }
   return false;
 }
@@ -3606,7 +3608,7 @@ static void ui_textedit_end(bContext *C, uiBut *but, uiHandleButtonData *data)
        * This could check could be made into an assertion if `but->editstr`
        * is valid UTF8 when #ui_textedit_begin assigns the string. */
       if (strip) {
-        printf("%s: invalid utf8 - stripped chars %d\n", __func__, strip);
+        CLOG_INFO_NOCHECK(&LOG, "%s: invalid utf8 - stripped chars %d", __func__, strip);
       }
     }
 
@@ -4385,6 +4387,9 @@ static void ui_block_open_begin(bContext *C, uiBut *but, uiHandleButtonData *dat
   uiBlockHandleCreateFunc handlefunc = nullptr;
   uiMenuCreateFunc menufunc = nullptr;
   uiMenuCreateFunc popoverfunc = nullptr;
+  /* The checks for the panel type being null are for exceptional cases where script
+   * authors intentionally unregister built-in panels for example.
+   * While this should only ever happen rarely, it shouldn't crash, see #144716. */
   PanelType *popover_panel_type = nullptr;
   void *arg = nullptr;
 
@@ -4409,9 +4414,12 @@ static void ui_block_open_begin(bContext *C, uiBut *but, uiHandleButtonData *dat
     case ButType::Menu:
       BLI_assert(but->menu_create_func);
       if (ui_but_menu_draw_as_popover(but)) {
-        popoverfunc = but->menu_create_func;
         const char *idname = static_cast<const char *>(but->func_argN);
         popover_panel_type = WM_paneltype_find(idname, false);
+      }
+
+      if (popover_panel_type) {
+        popoverfunc = but->menu_create_func;
       }
       else {
         menufunc = but->menu_create_func;
@@ -4429,9 +4437,12 @@ static void ui_block_open_begin(bContext *C, uiBut *but, uiHandleButtonData *dat
       but->editvec = data->vec;
 
       if (ui_but_menu_draw_as_popover(but)) {
-        popoverfunc = but->menu_create_func;
         const char *idname = static_cast<const char *>(but->func_argN);
         popover_panel_type = WM_paneltype_find(idname, false);
+      }
+
+      if (popover_panel_type) {
+        popoverfunc = but->menu_create_func;
       }
       else {
         handlefunc = ui_block_func_COLOR;
@@ -8263,7 +8274,7 @@ static int ui_do_button(bContext *C, uiBlock *block, uiBut *but, const wmEvent *
 
   const bool is_disabled = but->flag & UI_BUT_DISABLED || data->disable_force;
 
-  /* if but->pointype is set, but->poin should be too */
+  /* If `but->pointype` is set, `but->poin` should be too. */
   BLI_assert(!bool(but->pointype) || but->poin);
 
   /* Only hard-coded stuff here, button interactions with configurable
@@ -8611,7 +8622,7 @@ static void button_tooltip_timer_reset(bContext *C, uiBut *but)
 
   if ((U.flag & USER_TOOLTIPS) || (data->tooltip_force)) {
     if (!but->block->tooltipdisabled) {
-      if (!wm->drags.first) {
+      if (!wm->runtime->drags.first) {
         const bool is_quick_tip = UI_but_has_quick_tooltip(but);
         const double delay = is_quick_tip ? UI_TOOLTIP_DELAY_QUICK : UI_TOOLTIP_DELAY;
         WM_tooltip_timer_init_ex(
@@ -9503,7 +9514,7 @@ static bool ui_handle_button_activate_by_type(bContext *C, ARegion *region, uiBu
   }
   else {
 #ifndef NDEBUG
-    printf("%s: error, unhandled type: %d\n", __func__, int(but->type));
+    CLOG_WARN(&LOG, "%s: error, unhandled type: %d", __func__, int(but->type));
 #endif
     return false;
   }
