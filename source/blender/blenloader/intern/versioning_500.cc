@@ -2434,6 +2434,7 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
       }
       version_dynamic_viewer_node_items(*ntree);
     }
+    FOREACH_NODETREE_END;
   }
 
   /**
