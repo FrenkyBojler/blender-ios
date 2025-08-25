@@ -436,32 +436,21 @@ static void node_foreach_path(ID *id, BPathForeachPathData *bpath_data)
     }
     case NTREE_GEOMETRY: {
       for (bNode *node : ntree->all_nodes()) {
-        if (!BLI_str_startswith(node->idname, "GeometryNodeImport")) {
-          continue;
-        }
+        for (bNodeSocket *socket : node->input_sockets()) {
+          /* Find file path input sockets. */
+          if (socket->type != SOCK_STRING) {
+            continue;
+          }
+          bNodeSocketValueString *socket_value = static_cast<bNodeSocketValueString *>(
+              socket->default_value);
+          if (socket_value->value[0] == '\0' || socket_value->subtype != PROP_FILEPATH) {
+            continue;
+          }
 
-        bNodeSocket *path_socket = node->input_by_identifier("Path");
-        BLI_assert_msg(path_socket,
-                       "Expecting each GeometryNodeImportXXX node to have a 'Path' input socket");
-        if (!path_socket) {
-          continue;
+          /* Process the file path. */
+          BKE_bpath_foreach_path_fixed_process(
+              bpath_data, socket_value->value, sizeof(socket_value->value));
         }
-
-        BLI_assert_msg(
-            path_socket->type == SOCK_STRING,
-            "Expecting GeometryNodeImportXXX nodes to have a 'Path' input socket of type STRING");
-        if (path_socket->type != SOCK_STRING) {
-          continue;
-        }
-
-        bNodeSocketValueString *path_value = static_cast<bNodeSocketValueString *>(
-            path_socket->default_value);
-        if (path_value->value[0] == '\0') {
-          continue;
-        }
-
-        BKE_bpath_foreach_path_fixed_process(
-            bpath_data, path_value->value, sizeof(path_value->value));
       }
       break;
     }
