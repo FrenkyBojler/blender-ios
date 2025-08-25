@@ -29,7 +29,7 @@ class TestFileImportNodes(unittest.TestCase):
         # Go through Path(...) to ensure platform-native slashes.
         relative_path = f"//{Path('../obj/all_tris.obj')!s}"
 
-        self.assertIn(node_tree, list(file_path_map.keys()))
+        self.assertIn(node_tree, file_path_map)
         self.assertEqual({relative_path}, file_path_map[node_tree],
                          "The path to the OBJ file should be reported, as relative path")
 
