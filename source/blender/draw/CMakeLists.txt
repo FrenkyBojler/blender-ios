@@ -80,7 +80,6 @@ set(SRC
   intern/draw_pbvh.cc
   intern/draw_pointcloud.cc
   intern/draw_resource.cc
-  intern/draw_scene.cc
   intern/draw_sculpt.cc
   intern/draw_select_buffer.cc
   intern/draw_shader.cc
@@ -175,7 +174,6 @@ set(SRC
   intern/draw_manager_text.hh
   intern/draw_pass.hh
   intern/draw_resource.hh
-  intern/draw_scene.hh
   intern/draw_sculpt.hh
   intern/draw_shader.hh
   intern/draw_shader_shared.hh
