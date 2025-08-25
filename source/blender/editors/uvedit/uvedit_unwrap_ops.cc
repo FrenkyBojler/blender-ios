@@ -1508,6 +1508,7 @@ static void uvedit_pack_islands_multi(const Scene *scene,
 
   for (int index = 0; index < island_vector.size(); index++) {
     FaceIsland *island = island_vector[index];
+
     for (int i = 0; i < island->faces_len; i++) {
       BMFace *f = island->faces[i];
       BM_face_uv_minmax(f, selection_min_co, selection_max_co, island->offsets.uv);
@@ -2711,7 +2712,6 @@ static void uvedit_unwrap_islands(const Scene *scene,
   modifier_unwrap_state(obedit, options, &use_subsurf);
 
   ParamHandle *handle;
-
   if (use_subsurf) {
     handle = construct_param_handle_subsurfed(scene, obedit, em, options, r_count_failed);
   }
@@ -2733,6 +2733,7 @@ static void uvedit_unwrap_islands(const Scene *scene,
   blender::geometry::uv_parametrizer_flush(handle);
   delete (handle);
 }
+
 static void uvedit_unwrap_uniform(const Scene *scene,
                                   Object *obedit,
                                   BMEditMesh *em,
@@ -2742,7 +2743,7 @@ static void uvedit_unwrap_uniform(const Scene *scene,
 {
   UvElementMap *element_map = BM_uv_element_map_create(em->bm, scene, true, false, true, true);
   const BMUVOffsets offsets = BM_uv_map_offsets_get(em->bm);
-  blender::Array<std::unique_ptr<UVIsland>> aabbs(element_map->total_islands);
+  blender::Array<std::unique_ptr<UVIsland>> original_island(element_map->total_islands);
   if (element_map == nullptr) {
     return;
   }
@@ -2759,14 +2760,14 @@ static void uvedit_unwrap_uniform(const Scene *scene,
     }
     aabb->cent[0] = (aabb->max[0] - aabb->min[0]) / 2.0;
     aabb->cent[1] = (aabb->max[1] - aabb->min[1]) / 2.0;
-    aabbs[i] = std::move(aabb);
+    original_island[i] = std::move(aabb);
   }
 
   uvedit_unwrap_islands(scene, obedit, em, options, r_count_changed, r_count_failed);
 
   for (int i = 0; i < element_map->total_islands; i++) {
     UvElement *element = element_map->storage + element_map->island_indices[i];
-    std::unique_ptr<UVIsland> aabb = std::move(aabbs[i]);
+    std::unique_ptr<UVIsland> island = std::move(original_island[i]);
     float cent[2], min[2], max[2];
 
     INIT_MINMAX2(min, max);
@@ -2779,7 +2780,7 @@ static void uvedit_unwrap_uniform(const Scene *scene,
     cent[1] = (max[1] - min[1]) / 2.0;
     float dx = (max[0] - min[0]);
     float dy = (max[1] - min[1]);
-    float max_bound = std::max(aabb->cent[0] * 2, aabb->cent[1] * 2);
+    float max_bound = std::max(island->cent[0], island->cent[1]) * 2;
 
     if (dx > 0.0f) {
       dx = max_bound / dx;
@@ -2790,12 +2791,8 @@ static void uvedit_unwrap_uniform(const Scene *scene,
 
     for (int j = 0; j < element_map->island_total_uvs[i]; j++) {
       float *luv = BM_ELEM_CD_GET_FLOAT_P(element[j].l, offsets.uv);
-      // Resize UVs to fit the island AABB.
-      luv[0] = (luv[0] - (min[0] + cent[0])) * dx + (min[0] + cent[0]);
-      luv[1] = (luv[1] - (min[1] + cent[1])) * dy + (min[1] + cent[1]);
-      // Translate UVs to the AABB center.
-      luv[0] += (aabb->min[0] + aabb->cent[0]) - (min[0] + cent[0]);
-      luv[1] += (aabb->min[1] + aabb->cent[1]) - (min[1] + cent[1]);
+      luv[0] = ((luv[0] - (min[0] + cent[0])) * dx) + island->min[0] + island->cent[0];
+      luv[1] = ((luv[1] - (min[1] + cent[1])) * dy) + island->min[1] + island->cent[1];
     }
   }
 }
@@ -4301,7 +4298,7 @@ static wmOperatorStatus cube_project_exec(bContext *C, wmOperator *op)
     }
 
     float bounds[2][3];
-    float(*bounds_buf)[3] = nullptr;
+    float (*bounds_buf)[3] = nullptr;
 
     if (!RNA_property_is_set(op->ptr, prop_cube_size)) {
       bounds_buf = bounds;
