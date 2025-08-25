@@ -11,7 +11,6 @@
 #include "GHOST_C-api.h"
 
 #include "BLI_path_utils.hh"
-#include "BLI_string_ref.hh"
 #include "BLI_threads.h"
 
 #include "CLG_log.h"
