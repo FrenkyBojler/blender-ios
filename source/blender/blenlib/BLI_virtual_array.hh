@@ -129,18 +129,20 @@ template<typename T> class VArrayImpl {
    * in virtual array is not the same as the index in the output span. Instead, the span is filled
    * without gaps.
    */
-  virtual void materialize_compressed(const IndexMask &mask, T *dst) const
+  virtual void materialize_compressed(const IndexMask &mask, T *dst, const bool construct) const
   {
-    mask.foreach_index([&](const int64_t i, const int64_t pos) { dst[pos] = this->get(i); });
-  }
-
-  /**
-   * Same as #materialize_compressed but #r_span is expected to be uninitialized.
-   */
-  virtual void materialize_compressed_to_uninitialized(const IndexMask &mask, T *dst) const
-  {
-    mask.foreach_index(
-        [&](const int64_t i, const int64_t pos) { new (dst + pos) T(this->get(i)); });
+    if constexpr (std::is_trivially_copyable_v<T>) {
+      mask.foreach_index([&](const int64_t i, const int64_t pos) { dst[pos] = this->get(i); });
+    }
+    else {
+      if (construct) {
+        mask.foreach_index(
+            [&](const int64_t i, const int64_t pos) { new (dst + pos) T(this->get(i)); });
+      }
+      else {
+        mask.foreach_index([&](const int64_t i, const int64_t pos) { dst[pos] = this->get(i); });
+      }
+    }
   }
 
   /**
@@ -239,16 +241,22 @@ template<typename T> class VArrayImpl_For_Span : public VMutableArrayImpl<T> {
     }
   }
 
-  void materialize_compressed(const IndexMask &mask, T *dst) const override
+  void materialize_compressed(const IndexMask &mask, T *dst, const bool construct) const override
   {
-    mask.foreach_index_optimized<int64_t>(
-        [&](const int64_t i, const int64_t pos) { dst[pos] = data_[i]; });
-  }
-
-  void materialize_compressed_to_uninitialized(const IndexMask &mask, T *dst) const override
-  {
-    mask.foreach_index_optimized<int64_t>(
-        [&](const int64_t i, const int64_t pos) { new (dst + pos) T(data_[i]); });
+    if constexpr (std::is_trivially_copyable_v<T>) {
+      mask.foreach_index_optimized<int64_t>(
+          [&](const int64_t i, const int64_t pos) { dst[pos] = data_[i]; });
+    }
+    else {
+      if (construct) {
+        mask.foreach_index_optimized<int64_t>(
+            [&](const int64_t i, const int64_t pos) { new (dst + pos) T(data_[i]); });
+      }
+      else {
+        mask.foreach_index_optimized<int64_t>(
+            [&](const int64_t i, const int64_t pos) { dst[pos] = data_[i]; });
+      }
+    }
   }
 };
 
@@ -336,14 +344,19 @@ template<typename T> class VArrayImpl_For_Single final : public VArrayImpl<T> {
     }
   }
 
-  void materialize_compressed(const IndexMask &mask, T *dst) const override
+  void materialize_compressed(const IndexMask &mask, T *dst, const bool construct) const override
   {
-    initialized_fill_n(dst, mask.size(), value_);
-  }
-
-  void materialize_compressed_to_uninitialized(const IndexMask &mask, T *dst) const override
-  {
-    uninitialized_fill_n(dst, mask.size(), value_);
+    if constexpr (std::is_trivially_copyable_v<T>) {
+      initialized_fill_n(dst, mask.size(), value_);
+    }
+    else {
+      if (construct) {
+        uninitialized_fill_n(dst, mask.size(), value_);
+      }
+      else {
+        initialized_fill_n(dst, mask.size(), value_);
+      }
+    }
   }
 };
 
@@ -385,15 +398,20 @@ template<typename T, typename GetFunc> class VArrayImpl_For_Func final : public 
     }
   }
 
-  void materialize_compressed(const IndexMask &mask, T *dst) const override
+  void materialize_compressed(const IndexMask &mask, T *dst, const bool construct) const override
   {
-    mask.foreach_index([&](const int64_t i, const int64_t pos) { dst[pos] = get_func_(i); });
-  }
-
-  void materialize_compressed_to_uninitialized(const IndexMask &mask, T *dst) const override
-  {
-    mask.foreach_index(
-        [&](const int64_t i, const int64_t pos) { new (dst + pos) T(get_func_(i)); });
+    if constexpr (std::is_trivially_copyable_v<T>) {
+      mask.foreach_index([&](const int64_t i, const int64_t pos) { dst[pos] = get_func_(i); });
+    }
+    else {
+      if (construct) {
+        mask.foreach_index(
+            [&](const int64_t i, const int64_t pos) { new (dst + pos) T(get_func_(i)); });
+      }
+      else {
+        mask.foreach_index([&](const int64_t i, const int64_t pos) { dst[pos] = get_func_(i); });
+      }
+    }
   }
 };
 
@@ -448,16 +466,24 @@ class VArrayImpl_For_DerivedSpan final : public VMutableArrayImpl<ElemT> {
     }
   }
 
-  void materialize_compressed(const IndexMask &mask, ElemT *dst) const override
+  void materialize_compressed(const IndexMask &mask,
+                              ElemT *dst,
+                              const bool construct) const override
   {
-    mask.foreach_index_optimized<int64_t>(
-        [&](const int64_t i, const int64_t pos) { dst[pos] = GetFunc(data_[i]); });
-  }
-
-  void materialize_compressed_to_uninitialized(const IndexMask &mask, ElemT *dst) const override
-  {
-    mask.foreach_index_optimized<int64_t>(
-        [&](const int64_t i, const int64_t pos) { new (dst + pos) ElemT(GetFunc(data_[i])); });
+    if constexpr (std::is_trivially_copyable_v<ElemT>) {
+      mask.foreach_index_optimized<int64_t>(
+          [&](const int64_t i, const int64_t pos) { dst[pos] = GetFunc(data_[i]); });
+    }
+    else {
+      if (construct) {
+        mask.foreach_index_optimized<int64_t>(
+            [&](const int64_t i, const int64_t pos) { new (dst + pos) ElemT(GetFunc(data_[i])); });
+      }
+      else {
+        mask.foreach_index_optimized<int64_t>(
+            [&](const int64_t i, const int64_t pos) { dst[pos] = GetFunc(data_[i]); });
+      }
+    }
   }
 };
 
@@ -778,12 +804,12 @@ template<typename T> class VArrayCommon {
   /** Copy some elements of the virtual array into a span. */
   void materialize_compressed(const IndexMask &mask, MutableSpan<T> r_span) const
   {
-    impl_->materialize_compressed(mask, r_span.data());
+    impl_->materialize_compressed(mask, r_span.data(), false);
   }
 
   void materialize_compressed_to_uninitialized(const IndexMask &mask, MutableSpan<T> r_span) const
   {
-    impl_->materialize_compressed_to_uninitialized(mask, r_span.data());
+    impl_->materialize_compressed(mask, r_span.data(), true);
   }
 
   /** See #GVArrayImpl::try_assign_GVArray. */
