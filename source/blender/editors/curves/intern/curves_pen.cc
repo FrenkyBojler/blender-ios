@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
- * \ingroup edgreasepencil
+ * \ingroup edcurves
  * Operator for creating bézier splines.
  */
 
