@@ -327,6 +327,10 @@ class GPULogParser {
   bool at_any(const char *log_line, const StringRef chars) const;
   int parse_number(const char *log_line, const char **r_new_position) const;
 
+  static size_t line_start_get(StringRefNull source_combined, size_t target_line);
+  static StringRef filename_get(StringRefNull source_combined, size_t pos);
+  static size_t source_line_get(StringRefNull source_combined, size_t pos);
+
   MEM_CXX_CLASS_ALLOC_FUNCS("GPULogParser");
 };
 

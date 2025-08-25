@@ -1286,7 +1286,8 @@ GLuint GLShader::create_shader_stage(GLenum gl_stage,
     concat_source[start_pos + 1] = '/';
   }
 
-  glShaderSource(shader, concat_source.size(), concat_source.c_str(), nullptr);
+  const char *str_ptr = concat_source.c_str();
+  glShaderSource(shader, 1, &str_ptr, nullptr);
   glCompileShader(shader);
 
   GLint status;

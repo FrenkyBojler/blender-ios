@@ -12,52 +12,6 @@
 
 namespace blender::gpu {
 
-size_t line_start_get(StringRefNull source_combined, size_t target_line)
-{
-  size_t cursor = 0;
-  size_t current_line = 1;
-  for (char c : source_combined) {
-    if (current_line >= target_line) {
-      return cursor;
-    }
-    if (c == '\n') {
-      current_line++;
-    }
-    cursor++;
-  }
-  return -1;
-}
-
-StringRef filename_get(StringRefNull source_combined, size_t pos)
-{
-  StringRef sub_str = source_combined.substr(0, pos);
-  StringRefNull directive = "//ine 1 \"";
-  size_t nearest_line_directive = sub_str.rfind(directive);
-  size_t line_count = 1;
-  if (nearest_line_directive != std::string::npos) {
-    size_t start_of_file_name = nearest_line_directive + directive.size() + 1;
-    size_t end_of_file_name = sub_str.find('\"', start_of_file_name);
-    if (end_of_file_name != std::string::npos) {
-      return sub_str.substr(start_of_file_name, end_of_file_name - start_of_file_name);
-    }
-  }
-  return {};
-}
-
-/* Original source file line. Found by looking up commented #line directives. */
-size_t source_line_get(StringRefNull source_combined, size_t pos)
-{
-  StringRef sub_str = source_combined.substr(0, pos);
-  StringRefNull directive = "//ine ";
-  size_t nearest_line_directive = sub_str.rfind(directive);
-  size_t line_count = 1;
-  if (nearest_line_directive != std::string::npos) {
-    sub_str = sub_str.substr(nearest_line_directive + directive.size());
-    line_count = std::stoll(sub_str) - 1;
-  }
-  return line_count + std::count(sub_str.begin(), sub_str.end(), '\n');
-}
-
 const char *GLLogParser::parse_line(const char *source_combined,
                                     const char *log_line,
                                     GPULogItem &log_item)
@@ -106,10 +60,11 @@ const char *GLLogParser::parse_line(const char *source_combined,
 
   if (log_item.cursor.row != -1) {
     /* Get to the wanted line. */
-    size_t line_start_character = line_start_get(log_item.cursor.row);
+    size_t line_start_character = line_start_get(source_combined, log_item.cursor.row);
     StringRef filename = filename_get(source_combined, line_start_character);
     size_t line_number = source_line_get(source_combined, line_start_character);
-    log_item.cursor.file_name_and_error_line = filename + ':' + std::to_string(line_number);
+    log_item.cursor.file_name_and_error_line = std::string(filename) + ':' +
+                                               std::to_string(line_number);
   }
 
   log_line = skip_separators(log_line, ":) ");
