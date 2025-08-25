@@ -170,6 +170,16 @@ void BKE_sound_set_scene_sound_pitch_constant_range(void *handle,
                                                     int frame_end,
                                                     float pitch);
 
+void BKE_sound_set_scene_sound_time_stretch_at_frame(void *handle,
+                                                     int frame,
+                                                     float pitch,
+                                                     char animated);
+
+void BKE_sound_set_scene_sound_time_stretch_constant_range(void *handle,
+                                                           int frame_start,
+                                                           int frame_end,
+                                                           float time_stretch);
+
 void BKE_sound_set_scene_sound_pan_at_frame(void *handle, int frame, float pan, char animated);
 
 void BKE_sound_update_sequencer(struct Main *main, struct bSound *sound);
@@ -205,4 +215,4 @@ struct Depsgraph;
 
 void BKE_sound_evaluate(struct Depsgraph *depsgraph, struct Main *bmain, struct bSound *sound);
 
-void *BKE_sound_add_time_stretch_modifier(void *sound_handle, float time_ratio);
+void *BKE_sound_add_time_stretch_modifier(void *sound_handle, float fps, float time_stretch);
