@@ -256,14 +256,6 @@ class GreasePencilPenToolOperation : public PenToolOperation {
 /* Invoke handler: Initialize the operator. */
 static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  /* If in tools region, wait till we get to the main (3D-space)
-   * region before allowing drawing to take place. */
-  op->flag |= OP_IS_MODAL_CURSOR_REGION;
-
-  wmWindow *win = CTX_wm_window(C);
-  /* Set cursor to indicate modal. */
-  WM_cursor_modal_set(win, WM_CURSOR_CROSS);
-
   /* Allocate new data. */
   GreasePencilPenToolOperation *ptd_pointer = MEM_new<GreasePencilPenToolOperation>(__func__);
   op->customdata = ptd_pointer;

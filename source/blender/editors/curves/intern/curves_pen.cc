@@ -1142,6 +1142,14 @@ static void curves_pen_exit(bContext *C, wmOperator *op)
 
 bool PenToolOperation::initialize(bContext *C, wmOperator *op, const wmEvent *event)
 {
+  /* If in tools region, wait till we get to the main (3D-space)
+   * region before allowing drawing to take place. */
+  op->flag |= OP_IS_MODAL_CURSOR_REGION;
+
+  wmWindow *win = CTX_wm_window(C);
+  /* Set cursor to indicate modal. */
+  WM_cursor_modal_set(win, WM_CURSOR_CROSS);
+
   ViewContext vc = ED_view3d_viewcontext_init(C, CTX_data_depsgraph_pointer(C));
 
   this->vc = vc;
@@ -1313,14 +1321,6 @@ void PenToolOperation::invoke_curves(bContext *C, wmOperator *op, const wmEvent 
 /* Invoke handler: Initialize the operator. */
 static wmOperatorStatus curves_pen_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  /* If in tools region, wait till we get to the main (3D-space)
-   * region before allowing drawing to take place. */
-  op->flag |= OP_IS_MODAL_CURSOR_REGION;
-
-  wmWindow *win = CTX_wm_window(C);
-  /* Set cursor to indicate modal. */
-  WM_cursor_modal_set(win, WM_CURSOR_CROSS);
-
   /* Allocate new data. */
   CurvesPenToolOperation *ptd_pointer = MEM_new<CurvesPenToolOperation>(__func__);
   op->customdata = ptd_pointer;
