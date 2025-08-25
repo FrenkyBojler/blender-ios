@@ -1291,53 +1291,42 @@ static void select_marker_camera_switch(
     bContext *C, bool camera, bool extend, ListBase *markers, int cfra)
 {
   using namespace blender::ed;
+  if (camera) {
+    BLI_assert(CTX_data_mode_enum(C) == CTX_MODE_OBJECT);
+    Scene *scene = CTX_data_scene(C);
+    ViewLayer *view_layer = CTX_data_view_layer(C);
+    Base *base;
+    int sel = 0;
 
-  if (!camera) {
-    return;
-  }
-
-  BLI_assert(CTX_data_mode_enum(C) == CTX_MODE_OBJECT);
-
-  Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
-  BKE_view_layer_synced_ensure(scene, view_layer);
-
-  /* Find the marker at the clicked frame with a camera */
-  TimeMarker *target_marker = nullptr;
-  Object *camera_obj = nullptr;
-  Base *camera_base = nullptr;
-
-  LISTBASE_FOREACH (TimeMarker *, marker, markers) {
-    if (marker->frame == cfra && marker->camera) {
-      target_marker = marker;
-      camera_obj = marker->camera;
-      camera_base = BKE_view_layer_base_find(view_layer, camera_obj);
-      break;
+    if (!extend) {
+      BKE_view_layer_base_deselect_all(scene, view_layer);
     }
-  }
 
-  if (!target_marker || !camera_base) {
-    return;
-  }
-
-  if (!extend) {
-    /* Ctrl only: select camera if not already selected */
-    if ((camera_base->flag & BASE_SELECTED) == 0) {
-      object::base_select(camera_base, object::eObjectSelect_Mode(true));
+    LISTBASE_FOREACH (TimeMarker *, marker, markers) {
+      if (marker->frame == cfra && marker->camera) {
+        sel = (marker->flag & SELECT);
+        break;
+      }
     }
-  }
-  else {
-    // Ctrl + Shift: add camera if not selected
-    if (!(camera_base->flag & BASE_SELECTED)) {
-      object::base_select(camera_base, object::eObjectSelect_Mode(true));
-    }
-  }
 
-  DEG_id_tag_update(&scene->id, ID_RECALC_SELECT);
-  WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, scene);
+    BKE_view_layer_synced_ensure(scene, view_layer);
+    LISTBASE_FOREACH (TimeMarker *, marker, markers) {
+      if (marker->camera) {
+        if (marker->frame == cfra) {
+          base = BKE_view_layer_base_find(view_layer, marker->camera);
+          if (base) {
+            object::base_select(base, object::eObjectSelect_Mode(SEL_OP_ADD));
+            object::base_activate(C, base);
+            
+          }
+        }
+      }
+    }
+
+    DEG_id_tag_update(&scene->id, ID_RECALC_SELECT);
+    WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, scene);
+  }
 }
-
-
 
 static wmOperatorStatus ed_marker_select(bContext *C,
                                          const int mval[2],
@@ -1346,14 +1335,20 @@ static wmOperatorStatus ed_marker_select(bContext *C,
                                          bool camera,
                                          bool wait_to_deselect_others)
 {
+  /* NOTE: keep this functionality in sync with #ACTION_OT_clickselect.
+   * The logic here closely matches its internals.
+   * From a user perspective the functions should also behave in much the same way.
+   * The main difference with marker selection is support for selecting the camera.
+   *
+   * The variables (`sel_op` & `deselect_all`) have been included so marker
+   * selection can use identical checks to dope-sheet selection. */
+
   ListBase *markers = ED_context_get_markers(C);
   const View2D *v2d = UI_view2d_fromcontext(C);
   wmOperatorStatus ret_val = OPERATOR_FINISHED;
-
   TimeMarker *nearest_marker = region_position_is_over_marker(v2d, markers, mval[0]);
   const float frame_at_mouse_position = UI_view2d_region_to_view_x(v2d, mval[0]);
   const int cfra = ED_markers_find_nearest_marker_time(markers, frame_at_mouse_position);
-
   const bool found = (nearest_marker != nullptr);
   const bool is_selected = (nearest_marker && nearest_marker->flag & SELECT);
 
@@ -1362,47 +1357,60 @@ static wmOperatorStatus ed_marker_select(bContext *C,
   if ((sel_op == SEL_OP_SET && found) || (!found && deselect_all)) {
     sel_op = SEL_OP_ADD;
 
+    /* Rather than deselecting others, users may want to drag to box-select (drag from empty space)
+     * or tweak-translate an already selected item. If these cases may apply, delay deselection. */
     if (wait_to_deselect_others && (!found || is_selected)) {
       ret_val = OPERATOR_RUNNING_MODAL;
     }
     else {
+      /* Deselect all markers. */
       deselect_markers(markers);
+
+      select_marker_camera_switch(C, camera, extend, markers, cfra);
     }
   }
-
-  TimeMarker *marker_found = nullptr;
 
   if (found) {
-    // Cycle logic skipped here for clarity, optional if you use selection cycling.
+    TimeMarker *marker, *marker_cycle_selected = nullptr;
+    TimeMarker *marker_found = nullptr;
 
-    // Apply selection/deselection
+    /* support for selection cycling */
     LISTBASE_FOREACH (TimeMarker *, marker, markers) {
       if (marker->frame == cfra) {
-        marker_found = marker;
-
-        if (sel_op == SEL_OP_SUB) {
-          marker->flag &= ~SELECT;
+        if (marker->flag & SELECT) {
+          marker_cycle_selected = static_cast<TimeMarker *>(marker->next ? marker->next :
+                                                                           markers->first);
+          break;
         }
-        else {
-          marker->flag |= SELECT;
-        }
-
-        break;  // Only operate on one marker (nearest at clicked frame)
       }
     }
-  }
 
-  // 🔗 Select linked camera after marker selection has been updated
-  if (camera && marker_found && (marker_found->flag & SELECT)) {
-    select_marker_camera_switch(C, camera, extend, markers, cfra);
+    /* if extend is not set, then deselect markers */
+    LISTBASE_CIRCULAR_FORWARD_BEGIN (TimeMarker *, markers, marker, marker_cycle_selected) {
+      /* this way a not-extend select will always give 1 selected marker */
+      if (marker->frame == cfra) {
+        marker_found = marker;
+        break;
+      }
+    }
+    LISTBASE_CIRCULAR_FORWARD_END(TimeMarker *, markers, marker, marker_cycle_selected);
+
+    if (marker_found) {
+      if (sel_op == SEL_OP_SUB) {
+        marker_found->flag &= ~SELECT;
+      }
+      else {
+        marker_found->flag |= SELECT;
+      }
+    }
   }
 
   WM_event_add_notifier(C, NC_SCENE | ND_MARKERS, nullptr);
   WM_event_add_notifier(C, NC_ANIMATION | ND_MARKERS, nullptr);
 
+  /* allowing tweaks, but needs OPERATOR_FINISHED, otherwise renaming fails, see #25987. */
   return ret_val;
 }
-
 
 static wmOperatorStatus ed_marker_select_exec(bContext *C, wmOperator *op)
 {
