@@ -10,7 +10,6 @@
 #include <cstdlib>
 #include <cstring>
 
-#include "IMB_colormanagement.hh"
 #include "MEM_guardedalloc.h"
 
 #include "BLI_ghash.h"
@@ -43,6 +42,8 @@
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
+
+#include "IMB_colormanagement.hh"
 
 #include "curves_sculpt_intern.hh"
 #include "paint_hide.hh"

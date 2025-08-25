@@ -7,7 +7,6 @@
  */
 
 /* ALlow using deprecated color for sync legacy. */
-#include "IMB_colormanagement.hh"
 #define DNA_DEPRECATED_ALLOW
 
 #include <cstdlib>
@@ -76,6 +75,8 @@
 #include "RNA_enum_types.hh"
 
 #include "BLO_read_write.hh"
+
+#include "IMB_colormanagement.hh"
 
 #include "bmesh.hh"
 

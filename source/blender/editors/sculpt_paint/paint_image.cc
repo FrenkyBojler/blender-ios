@@ -12,10 +12,10 @@
 #include <cstdio>
 #include <cstring>
 
-#include "BLI_math_color.h"
 #include "MEM_guardedalloc.h"
 
 #include "BLI_listbase.h"
+#include "BLI_math_color.h"
 #include "BLI_math_vector.hh"
 #include "BLI_rand.hh"
 #include "BLI_string.h"

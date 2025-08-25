@@ -306,6 +306,8 @@
     .weight = 0.5f, \
     .color = {0.0f, 0.0f, 0.0f}, \
     .secondary_color = {1.0f, 1.0f, 1.0f}, \
+    .rgb = {0.0f, 0.0f, 0.0f}, \
+    .secondary_rgb = {1.0f, 1.0f, 1.0f}, \
     .flag = UNIFIED_PAINT_SIZE | UNIFIED_PAINT_COLOR, \
   }
 

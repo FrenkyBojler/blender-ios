@@ -8,11 +8,11 @@
 
 #include <algorithm>
 
-#include "BLI_math_color.h"
 #include "MEM_guardedalloc.h"
 
 #include "BLI_listbase.h"
 #include "BLI_math_axis_angle.hh"
+#include "BLI_math_color.h"
 #include "BLI_math_matrix.hh"
 #include "BLI_math_rotation.h"
 #include "BLI_rect.h"
