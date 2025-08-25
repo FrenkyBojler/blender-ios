@@ -1523,10 +1523,10 @@ bool BKE_sound_stream_info_get(Main *main,
 }
 
 #ifdef WITH_RUBBERBAND
-void *BKE_sound_add_time_stretch_modifier(void *sound_handle, float fps, float time_stretch)
+void *BKE_sound_add_time_stretch_modifier(void *sound_handle, float fps)
 {
   return AUD_Sound_animateableTimeStretchPitchScale(
-      sound_handle, fps, time_stretch, 1.0, AUD_STRETCHER_QUALITY_HIGH, false);
+      sound_handle, fps, 1.0, 1.0, AUD_STRETCHER_QUALITY_HIGH, false);
 }
 void BKE_sound_set_scene_sound_time_stretch_at_frame(void *handle,
                                                      int frame,
@@ -1547,7 +1547,6 @@ void BKE_sound_set_scene_sound_time_stretch_constant_range(void *handle,
       handle, AUD_AP_TIME_STRETCH, frame_start, frame_end, &time_stretch);
 }
 #endif /* WITH_RUBBERBAND */
-
 
 #else /* WITH_AUDASPACE */
 
@@ -1673,7 +1672,7 @@ bool BKE_sound_stream_info_get(Main * /*main*/,
   return false;
 }
 
-void *BKE_sound_add_time_stretch_modifier(void * /*sound_handle*/, float /*time_stretch*/)
+void *BKE_sound_add_time_stretch_modifier(void * /*sound_handle*/, float /*fps*/)
 {
   return nullptr;
 }

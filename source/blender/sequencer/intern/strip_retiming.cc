@@ -1048,11 +1048,10 @@ static RetimingRangeData strip_retiming_range_data_get(const Scene *scene, const
 
 void retiming_sound_animation_data_set(const Scene *scene, const Strip *strip)
 {
-  bool pitch_correction = strip->flag & SEQ_AUDIO_PITCH_CORRECTION;
+  bool correct_pitch = strip->flag & SEQ_AUDIO_PITCH_CORRECTION;
   void *sound_handle = strip->sound->playback_handle;
-  if (pitch_correction) {
-    sound_handle = BKE_sound_add_time_stretch_modifier(
-        sound_handle, scene->frames_per_second(), 1);
+  if (correct_pitch) {
+    sound_handle = BKE_sound_add_time_stretch_modifier(sound_handle, scene->frames_per_second());
     BKE_sound_set_scene_sound_pitch_constant_range(
         strip->scene_sound, 0, strip->start + strip->len, 1.0f);
   }
@@ -1073,11 +1072,10 @@ void retiming_sound_animation_data_set(const Scene *scene, const Strip *strip)
   for (int i = 0; i < retiming_data.ranges.size(); i++) {
     RetimingRange range = retiming_data.ranges[i];
     if (range.type == TRANSITION) {
-
       const int range_length = range.end - range.start;
       for (int i = 0; i <= range_length; i++) {
         const int frame = range.start + i;
-        if (pitch_correction) {
+        if (correct_pitch) {
           BKE_sound_set_scene_sound_time_stretch_at_frame(sound_handle,
                                                           (frame + sound_offset) - strip->start,
                                                           1.0 / range.speed_table[i],
@@ -1090,8 +1088,7 @@ void retiming_sound_animation_data_set(const Scene *scene, const Strip *strip)
       }
     }
     else {
-
-      if (pitch_correction) {
+      if (correct_pitch) {
         BKE_sound_set_scene_sound_time_stretch_constant_range(
             sound_handle,
             (range.start + sound_offset) - strip->start,
@@ -1099,14 +1096,13 @@ void retiming_sound_animation_data_set(const Scene *scene, const Strip *strip)
             1.0 / range.speed);
       }
       else {
-
         BKE_sound_set_scene_sound_pitch_constant_range(
             strip->scene_sound, range.start + sound_offset, range.end + sound_offset, range.speed);
       }
     }
   }
 
-  if (pitch_correction) {
+  if (correct_pitch) {
     BKE_sound_update_sequence_handle(strip->scene_sound, sound_handle);
   }
 }
