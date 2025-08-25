@@ -590,6 +590,11 @@ if((WITH_AUDASPACE AND NOT WITH_SYSTEM_AUDASPACE) OR WITH_MOD_FLUID)
   option(WITH_PYTHON_NUMPY "Include NumPy in Blender (used by Audaspace and Mantaflow)" ON)
 endif()
 
+if(WITH_AUDASPACE AND NOT WITH_SYSTEM_AUDASPACE)
+  option(WITH_RUBBERBAND "Include Rubber Band Library for audio time-stretching and pitch-scaling (used by Audaspace)" ON)
+endif()
+
+
 if(WIN32 OR APPLE)
   # Windows and macOS have this bundled with Python libraries.
 elseif(WITH_PYTHON_INSTALL OR WITH_PYTHON_NUMPY)
