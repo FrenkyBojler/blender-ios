@@ -143,7 +143,8 @@ void Shader::print_log(Span<StringRefNull> sources,
     {
       const char *src_line_end;
       found_line_id = false;
-      int src_line_index = 0;
+      /* Lines are 1 based. */
+      int src_line_index = 1;
       while ((src_line_end = strchr(src_line, '\n'))) {
         if (src_line_index >= log_item.cursor.row) {
           found_line_id = true;
@@ -323,7 +324,7 @@ size_t GPULogParser::line_start_get(StringRefNull source_combined, size_t target
   size_t current_line = 1;
   for (char c : source_combined) {
     if (current_line >= target_line) {
-      return cursor;
+      return cursor + 1;
     }
     if (c == '\n') {
       current_line++;
@@ -357,7 +358,7 @@ size_t GPULogParser::source_line_get(StringRefNull source_combined, size_t pos)
   size_t line_count = 1;
   if (nearest_line_directive != std::string::npos) {
     sub_str = sub_str.substr(nearest_line_directive + directive.size());
-    line_count = std::stoll(sub_str) + 1;
+    line_count = std::stoll(sub_str) - 1;
   }
   return line_count + std::count(sub_str.begin(), sub_str.end(), '\n');
 }
