@@ -1140,8 +1140,11 @@ bool PenToolOperation::initialize(bContext *C, wmOperator *op, const wmEvent *ev
   return false;
 }
 
-void PenToolOperation::invoke_curves(wmOperator *op, const wmEvent *event)
+void PenToolOperation::invoke_curves(bContext *C, wmOperator *op, const wmEvent *event)
 {
+  this->center_of_mass_co = this->calculate_center_of_mass(true);
+  this->closest_element = this->find_closest_element(this->mouse_co);
+
   std::atomic<bool> add_single = this->extrude_point;
   std::atomic<bool> changed = false;
   std::atomic<bool> point_added = false;
@@ -1265,6 +1268,11 @@ void PenToolOperation::invoke_curves(wmOperator *op, const wmEvent *event)
 
   this->point_added = point_added;
   this->point_removed = point_removed;
+
+  pen_status_indicators(C, op);
+  if (changed) {
+    this->update_view(C);
+  }
 }
 
 /* Invoke handler: Initialize the operator. */
@@ -1307,17 +1315,7 @@ static wmOperatorStatus curves_pen_invoke(bContext *C, wmOperator *op, const wmE
     }
   }
 
-  ptd.center_of_mass_co = ptd.calculate_center_of_mass(true);
-  ptd.closest_element = ptd.find_closest_element(ptd.mouse_co);
-  ptd.invoke_curves(op, event);
-
-  /* TODO. */
-  bool changed = true;
-
-  pen_status_indicators(C, op);
-  if (changed) {
-    ptd.update_view(C);
-  }
+  ptd.invoke_curves(C, op, event);
 
   return OPERATOR_RUNNING_MODAL;
 }

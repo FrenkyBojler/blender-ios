@@ -265,17 +265,7 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
     }
   }
 
-  ptd.center_of_mass_co = ptd.calculate_center_of_mass(true);
-  ptd.closest_element = ptd.find_closest_element(ptd.mouse_co);
-  ptd.invoke_curves(op, event);
-
-  /* TODO. */
-  bool changed = true;
-
-  pen_status_indicators(C, op);
-  if (changed) {
-    ptd.update_view(C);
-  }
+  ptd.invoke_curves(C, op, event);
 
   return OPERATOR_RUNNING_MODAL;
 }
