@@ -553,7 +553,8 @@ void select_alternate(bke::CurvesGeometry &curves,
 
     bool anything_selected = false;
     for (const int i : selection_writers.index_range()) {
-      anything_selected |= has_anything_selected(selection_writers[i].span.slice(points));
+      anything_selected = anything_selected ||
+                          has_anything_selected(selection_writers[i].span.slice(points));
     }
     if (!anything_selected) {
       return;
