@@ -778,6 +778,7 @@ if(WITH_CYCLES_HIP_BINARIES AND WITH_CYCLES_DEVICE_HIPRT)
     -D CCL_NAMESPACE_END=
     -D HIPCC
     -D __HIPRT__
+    -D HIPCC_OS_WINDOWS
     -std=c++17
     -mllvm
     -amdgpu-early-inline-all=false
