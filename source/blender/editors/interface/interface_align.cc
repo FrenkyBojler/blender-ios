@@ -361,8 +361,7 @@ void ui_block_align_calc(uiBlock *block, const ARegion *region)
 {
 
   const int sides_to_ui_but_align_flags[4] = SIDE_TO_UI_BUT_ALIGN;
-  /* Note that this is typically less than ~20, and almost always under ~100.
-   * Even so, we can't ensure this value won't exceed available stack memory. */
+
   blender::Vector<ButAlign, 256> butal_array(block->buttons.size());
 
   int n = 0;
