@@ -1700,7 +1700,9 @@ class VArrayImpl_For_VertexWeights final : public VMutableArrayImpl<float> {
     });
   }
 
-  void materialize(const IndexMask &mask, float *dst, const bool /*construct*/) const override
+  void materialize(const IndexMask &mask,
+                   float *dst,
+                   const bool /*dst_is_uninitialized*/) const override
   {
     if (dverts_ == nullptr) {
       mask.foreach_index([&](const int i) { dst[i] = 0.0f; });

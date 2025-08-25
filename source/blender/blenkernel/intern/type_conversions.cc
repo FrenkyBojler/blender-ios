@@ -751,9 +751,11 @@ class GVArray_For_ConvertedGVArray : public GVArrayImpl {
     from_type_.destruct(buffer);
   }
 
-  void materialize(const IndexMask &mask, void *dst, const bool construct) const override
+  void materialize(const IndexMask &mask,
+                   void *dst,
+                   const bool dst_is_uninitialized) const override
   {
-    if (!construct) {
+    if (!dst_is_uninitialized) {
       type_->destruct_n(dst, mask.min_array_size());
     }
     call_convert_to_uninitialized_fn(varray_,
@@ -806,9 +808,11 @@ class GVMutableArray_For_ConvertedGVMutableArray : public GVMutableArrayImpl {
     varray_.set_by_relocate(index, buffer);
   }
 
-  void materialize(const IndexMask &mask, void *dst, const bool construct) const override
+  void materialize(const IndexMask &mask,
+                   void *dst,
+                   const bool dst_is_uninitialized) const override
   {
-    if (!construct) {
+    if (!dst_is_uninitialized) {
       type_->destruct_n(dst, mask.min_array_size());
     }
     call_convert_to_uninitialized_fn(varray_,

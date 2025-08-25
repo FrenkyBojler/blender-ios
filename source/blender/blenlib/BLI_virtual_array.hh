@@ -109,13 +109,13 @@ template<typename T> class VArrayImpl {
    * Copy values from the virtual array into the provided span. The index of the value in the
    * virtual array is the same as the index in the span.
    */
-  virtual void materialize(const IndexMask &mask, T *dst, const bool construct) const
+  virtual void materialize(const IndexMask &mask, T *dst, const bool dst_is_uninitialized) const
   {
     if constexpr (std::is_trivially_copyable_v<T>) {
       mask.foreach_index([&](const int64_t i) { dst[i] = this->get(i); });
     }
     else {
-      if (construct) {
+      if (dst_is_uninitialized) {
         mask.foreach_index([&](const int64_t i) { new (dst + i) T(this->get(i)); });
       }
       else {
@@ -129,13 +129,15 @@ template<typename T> class VArrayImpl {
    * in virtual array is not the same as the index in the output span. Instead, the span is filled
    * without gaps.
    */
-  virtual void materialize_compressed(const IndexMask &mask, T *dst, const bool construct) const
+  virtual void materialize_compressed(const IndexMask &mask,
+                                      T *dst,
+                                      const bool dst_is_uninitialized) const
   {
     if constexpr (std::is_trivially_copyable_v<T>) {
       mask.foreach_index([&](const int64_t i, const int64_t pos) { dst[pos] = this->get(i); });
     }
     else {
-      if (construct) {
+      if (dst_is_uninitialized) {
         mask.foreach_index(
             [&](const int64_t i, const int64_t pos) { new (dst + pos) T(this->get(i)); });
       }
@@ -226,13 +228,13 @@ template<typename T> class VArrayImpl_For_Span : public VMutableArrayImpl<T> {
     return CommonVArrayInfo(CommonVArrayInfo::Type::Span, true, data_);
   }
 
-  void materialize(const IndexMask &mask, T *dst, const bool construct) const override
+  void materialize(const IndexMask &mask, T *dst, const bool dst_is_uninitialized) const override
   {
     if constexpr (std::is_trivially_copyable_v<T>) {
       mask.foreach_index_optimized<int64_t>([&](const int64_t i) { dst[i] = data_[i]; });
     }
     else {
-      if (construct) {
+      if (dst_is_uninitialized) {
         mask.foreach_index_optimized<int64_t>([&](const int64_t i) { new (dst + i) T(data_[i]); });
       }
       else {
@@ -241,14 +243,16 @@ template<typename T> class VArrayImpl_For_Span : public VMutableArrayImpl<T> {
     }
   }
 
-  void materialize_compressed(const IndexMask &mask, T *dst, const bool construct) const override
+  void materialize_compressed(const IndexMask &mask,
+                              T *dst,
+                              const bool dst_is_uninitialized) const override
   {
     if constexpr (std::is_trivially_copyable_v<T>) {
       mask.foreach_index_optimized<int64_t>(
           [&](const int64_t i, const int64_t pos) { dst[pos] = data_[i]; });
     }
     else {
-      if (construct) {
+      if (dst_is_uninitialized) {
         mask.foreach_index_optimized<int64_t>(
             [&](const int64_t i, const int64_t pos) { new (dst + pos) T(data_[i]); });
       }
@@ -329,13 +333,13 @@ template<typename T> class VArrayImpl_For_Single final : public VArrayImpl<T> {
     return CommonVArrayInfo(CommonVArrayInfo::Type::Single, true, &value_);
   }
 
-  void materialize(const IndexMask &mask, T *dst, const bool construct) const override
+  void materialize(const IndexMask &mask, T *dst, const bool dst_is_uninitialized) const override
   {
     if constexpr (std::is_trivially_copyable_v<T>) {
       mask.foreach_index([&](const int64_t i) { dst[i] = value_; });
     }
     else {
-      if (construct) {
+      if (dst_is_uninitialized) {
         mask.foreach_index([&](const int64_t i) { new (dst + i) T(value_); });
       }
       else {
@@ -344,13 +348,15 @@ template<typename T> class VArrayImpl_For_Single final : public VArrayImpl<T> {
     }
   }
 
-  void materialize_compressed(const IndexMask &mask, T *dst, const bool construct) const override
+  void materialize_compressed(const IndexMask &mask,
+                              T *dst,
+                              const bool dst_is_uninitialized) const override
   {
     if constexpr (std::is_trivially_copyable_v<T>) {
       initialized_fill_n(dst, mask.size(), value_);
     }
     else {
-      if (construct) {
+      if (dst_is_uninitialized) {
         uninitialized_fill_n(dst, mask.size(), value_);
       }
       else {
@@ -383,13 +389,13 @@ template<typename T, typename GetFunc> class VArrayImpl_For_Func final : public 
     return get_func_(index);
   }
 
-  void materialize(const IndexMask &mask, T *dst, const bool construct) const override
+  void materialize(const IndexMask &mask, T *dst, const bool dst_is_uninitialized) const override
   {
     if constexpr (std::is_trivially_copyable_v<T>) {
       mask.foreach_index([&](const int64_t i) { dst[i] = get_func_(i); });
     }
     else {
-      if (construct) {
+      if (dst_is_uninitialized) {
         mask.foreach_index([&](const int64_t i) { new (dst + i) T(get_func_(i)); });
       }
       else {
@@ -398,13 +404,15 @@ template<typename T, typename GetFunc> class VArrayImpl_For_Func final : public 
     }
   }
 
-  void materialize_compressed(const IndexMask &mask, T *dst, const bool construct) const override
+  void materialize_compressed(const IndexMask &mask,
+                              T *dst,
+                              const bool dst_is_uninitialized) const override
   {
     if constexpr (std::is_trivially_copyable_v<T>) {
       mask.foreach_index([&](const int64_t i, const int64_t pos) { dst[pos] = get_func_(i); });
     }
     else {
-      if (construct) {
+      if (dst_is_uninitialized) {
         mask.foreach_index(
             [&](const int64_t i, const int64_t pos) { new (dst + pos) T(get_func_(i)); });
       }
@@ -449,13 +457,15 @@ class VArrayImpl_For_DerivedSpan final : public VMutableArrayImpl<ElemT> {
     SetFunc(data_[index], std::move(value));
   }
 
-  void materialize(const IndexMask &mask, ElemT *dst, const bool construct) const override
+  void materialize(const IndexMask &mask,
+                   ElemT *dst,
+                   const bool dst_is_uninitialized) const override
   {
     if constexpr (std::is_trivially_copyable_v<ElemT>) {
       mask.foreach_index_optimized<int64_t>([&](const int64_t i) { dst[i] = GetFunc(data_[i]); });
     }
     else {
-      if (construct) {
+      if (dst_is_uninitialized) {
         mask.foreach_index_optimized<int64_t>(
             [&](const int64_t i) { new (dst + i) ElemT(GetFunc(data_[i])); });
       }
@@ -468,14 +478,14 @@ class VArrayImpl_For_DerivedSpan final : public VMutableArrayImpl<ElemT> {
 
   void materialize_compressed(const IndexMask &mask,
                               ElemT *dst,
-                              const bool construct) const override
+                              const bool dst_is_uninitialized) const override
   {
     if constexpr (std::is_trivially_copyable_v<ElemT>) {
       mask.foreach_index_optimized<int64_t>(
           [&](const int64_t i, const int64_t pos) { dst[pos] = GetFunc(data_[i]); });
     }
     else {
-      if (construct) {
+      if (dst_is_uninitialized) {
         mask.foreach_index_optimized<int64_t>(
             [&](const int64_t i, const int64_t pos) { new (dst + pos) ElemT(GetFunc(data_[i])); });
       }
