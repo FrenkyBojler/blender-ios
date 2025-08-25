@@ -904,13 +904,30 @@ bke::SocketValueVariant geometry_display_data_get(const SpaceSpreadsheet *ssprea
   }
 
   const SpreadsheetTableIDGeometry &table_id = sspreadsheet->geometry_id;
-  const nodes::geo_eval_log::ViewerNodeLog::Item *item = viewer_log->items.lookup_key_ptr_as(
-      table_id.viewer_item_identifier);
-  if (!item) {
+  const int item_index = viewer_log->items.index_of_try_as(table_id.viewer_item_identifier);
+  if (item_index == -1) {
     return {};
   }
 
-  bke::SocketValueVariant value = item->value;
+  bke::SocketValueVariant value = viewer_log->items[item_index].value;
+
+  /* Try to display the previous geometry instead of the value is a field (it will have been
+   * evaluated on that geometry). */
+  if (value.is_context_dependent_field()) {
+    for (int i = item_index - 1; i >= 0; i--) {
+      const bke::SocketValueVariant &prev_value = viewer_log->items[i].value;
+      if (!prev_value.is_single()) {
+        continue;
+      }
+      const GPointer ptr = prev_value.get_single_ptr();
+      if (!ptr.is_type<bke::GeometrySet>()) {
+        continue;
+      }
+      return prev_value;
+    }
+    return {};
+  }
+
   for (const SpreadsheetBundlePathElem &bundle_path_elem :
        Span(table_id.bundle_path, table_id.bundle_path_num))
   {
