@@ -134,27 +134,6 @@ class PenToolOperation {
                          const float2 &screen_co,
                          const float3 &depth_point_layer) const;
 
-  void move_segment(bke::CurvesGeometry &curves, const float4x4 &layer_to_world) const;
-  bool move_handles_in_curve(bke::CurvesGeometry &curves,
-                             const IndexMask &selection,
-                             const float4x4 &layer_to_world,
-                             const float4x4 &layer_to_object) const;
-
-  std::optional<bke::CurvesGeometry> extrude_curves(const bke::CurvesGeometry &src,
-                                                    const float4x4 &layer_to_object,
-                                                    const IndexMask editable_curves) const;
-
-  void insert_point_to_curve(bke::CurvesGeometry &src) const;
-
-  void add_single_point_and_curve(bke::CurvesGeometry &curves,
-                                  const float4x4 &layer_to_world) const;
-
-  bool close_curve_and_select(bke::CurvesGeometry &curves,
-                              const IndexRange points,
-                              bool clear_selection);
-
-  float2 calculate_center_of_mass(const bool ends_only) const;
-
   wmOperatorStatus initialize(bContext *C, wmOperator *op, const wmEvent *event);
 };
 
