@@ -1698,7 +1698,7 @@ void do_versions_after_linking_500(FileData *fd, Main *bmain)
    */
 }
 
-static void remove_in_and_out_node_panel(bNodeTreeInterfacePanel &panel)
+static void remove_in_and_out_node_panel_recursive(bNodeTreeInterfacePanel &panel)
 {
   using namespace blender;
   const Span old_sockets(panel.items_array, panel.items_num);
@@ -1706,7 +1706,7 @@ static void remove_in_and_out_node_panel(bNodeTreeInterfacePanel &panel)
   Vector<bNodeTreeInterfaceItem *> new_sockets;
   for (bNodeTreeInterfaceItem *item : old_sockets) {
     if (item->item_type == NODE_INTERFACE_PANEL) {
-      remove_in_and_out_node_panel(*reinterpret_cast<bNodeTreeInterfacePanel *>(item));
+      remove_in_and_out_node_panel_recursive(*reinterpret_cast<bNodeTreeInterfacePanel *>(item));
       continue;
     }
     bNodeTreeInterfaceSocket *socket = reinterpret_cast<bNodeTreeInterfaceSocket *>(item);
@@ -1752,7 +1752,7 @@ static void remove_in_and_out_node_panel(bNodeTreeInterfacePanel &panel)
  */
 static void remove_in_and_out_node_interface(bNodeTree &node_tree)
 {
-  remove_in_and_out_node_panel(node_tree.tree_interface.root_panel);
+  remove_in_and_out_node_panel_recursive(node_tree.tree_interface.root_panel);
 }
 
 void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
