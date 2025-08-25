@@ -48,19 +48,19 @@ TreeElementIDAction::TreeElementIDAction(TreeElement &legacy_te, bAction &action
     return;
   }
 
-  const TreeElementAnimData *parent_anim_te = dynamic_cast<const TreeElementAnimData *>(
-      legacy_parent->abstract_element.get());
+  const TreeElementAnimData *parent_anim_te = tree_element_cast<const TreeElementAnimData>(
+      legacy_parent);
   if (!parent_anim_te) {
     return;
   }
 
-  this->slot_handle_ = parent_anim_te->get_slot_handle();
+  this->slot_handle_.emplace(parent_anim_te->get_slot_handle());
 }
 
 void TreeElementIDAction::expand(SpaceOutliner & /*space_outliner*/) const
 {
   animrig::Action &action = action_.wrap();
-  if (this->slot_handle_.has_value()) {
+  if (!this->slot_handle_.has_value()) {
     /* Show all slots of the Action. */
     for (animrig::Slot *slot : action.slots()) {
       add_element(&legacy_te_.subtree,
