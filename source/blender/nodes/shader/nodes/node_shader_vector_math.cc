@@ -6,16 +6,18 @@
  * \ingroup shdnodes
  */
 
-#include "node_shader_util.hh"
 #include "node_util.hh"
 
 #include "NOD_inverse_eval_params.hh"
 #include "NOD_math_functions.hh"
-#include "NOD_multi_function.hh"
 #include "NOD_socket_search_link.hh"
 #include "NOD_value_elem_eval.hh"
 
 #include "RNA_enum_types.hh"
+
+#include "NOD_multi_function.hh"
+
+#include "node_shader_util.hh"
 
 #include "UI_interface_layout.hh"
 #include "UI_resources.hh"
@@ -25,12 +27,15 @@ namespace blender::nodes::node_shader_vector_math_cc {
 static void sh_node_vector_math_declare(NodeDeclarationBuilder &b)
 {
   b.is_function_node();
+  b.use_custom_socket_order();
+  b.allow_any_socket_order();
+  b.add_default_layout();
+  b.add_output<decl::Float>("Value");
   b.add_input<decl::Vector>("Vector").min(-10000.0f).max(10000.0f);
+  b.add_output<decl::Vector>("Vector").align_with_previous();
   b.add_input<decl::Vector>("Vector", "Vector_001").min(-10000.0f).max(10000.0f);
   b.add_input<decl::Vector>("Vector", "Vector_002").min(-10000.0f).max(10000.0f);
   b.add_input<decl::Float>("Scale").default_value(1.0f).min(-10000.0f).max(10000.0f);
-  b.add_output<decl::Vector>("Vector");
-  b.add_output<decl::Float>("Value");
 }
 
 static void node_shader_buts_vect_math(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
