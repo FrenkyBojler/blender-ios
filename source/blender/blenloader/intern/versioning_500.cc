@@ -2371,23 +2371,6 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
     }
     FOREACH_NODETREE_END;
   }
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 63)) {
-    FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
-      if (ntree->type != NTREE_COMPOSIT) {
-        continue;
-      }
-      version_node_input_socket_name(ntree, CMP_NODE_HUE_SAT_DEPRECATED, "Image", "Color");
-      version_node_output_socket_name(ntree, CMP_NODE_HUE_SAT_DEPRECATED, "Image", "Color");
-
-      LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
-        if (node->type_legacy == CMP_NODE_HUE_SAT_DEPRECATED) {
-          node->type_legacy = SH_NODE_HUE_SAT;
-          STRNCPY_UTF8(node->idname, "ShaderNodeHueSaturation");
-        }
-      }
-    }
-    FOREACH_NODETREE_END;
-  }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 62)) {
     LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
@@ -2412,6 +2395,24 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 64)) {
     FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
       remove_in_and_out_node_interface(*node_tree);
+    }
+    FOREACH_NODETREE_END;
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 65)) {
+    FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
+      if (ntree->type != NTREE_COMPOSIT) {
+        continue;
+      }
+      version_node_input_socket_name(ntree, CMP_NODE_HUE_SAT_DEPRECATED, "Image", "Color");
+      version_node_output_socket_name(ntree, CMP_NODE_HUE_SAT_DEPRECATED, "Image", "Color");
+
+      LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
+        if (node->type_legacy == CMP_NODE_HUE_SAT_DEPRECATED) {
+          node->type_legacy = SH_NODE_HUE_SAT;
+          STRNCPY_UTF8(node->idname, "ShaderNodeHueSaturation");
+        }
+      }
     }
     FOREACH_NODETREE_END;
   }
