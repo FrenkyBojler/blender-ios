@@ -2136,6 +2136,9 @@ static void object_transform_axis_target_cancel(bContext *C, wmOperator *op)
     WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, item.ob);
   }
 
+  /* Clear WorkspaceStatus to return to basic state */
+  ED_workspace_status_text(C, nullptr);
+
   object_transform_axis_target_free_data(op);
 }
 
@@ -2311,10 +2314,35 @@ static wmOperatorStatus object_transform_axis_target_modal(bContext *C,
     WorkspaceStatus status(C);
     status.item(IFACE_("Confirm"), ICON_EVENT_RETURN);
     status.item(IFACE_("Cancel"), ICON_EVENT_ESC);
-    status.item_bool(IFACE_("Target"), event->modifier, ICON_EVENT_CTRL, ICON_EVENT_T);
-    status.item_bool(IFACE_("Normal/Diffuse"), event->modifier & KM_CTRL, ICON_EVENT_CTRL);
-    status.item_bool(IFACE_("Reflection/Specular"), (event->modifier & KM_CTRL) && (event->modifier & KM_ALT), ICON_EVENT_CTRL, ICON_EVENT_ALT);
-    status.item_bool(IFACE_("Shadow"), event->modifier & KM_ALT, ICON_EVENT_ALT);
+    
+    /* Get normal modal state for status display */
+    const bool is_light_normal_mode = event->modifier & KM_CTRL;
+    
+    /* Show current mode and available mode switches */
+    switch (xfd->light_mode) {
+      case LIGHT_POSITION_NORMAL:
+        /* Differentiate between target modal (default) and normal modal (Ctrl pressed) */
+        if (is_light_normal_mode) {
+          /* Normal modal: Ctrl is pressed, we're in translate mode */
+          status.item(IFACE_("Normal/Diffuse Mode"), ICON_INFO);
+        } else {
+          /* Target modal: Default rotation mode, Ctrl switches to translate */
+          status.item(IFACE_("Normal/Diffuse Mode"), ICON_EVENT_CTRL);
+        }
+        status.item(IFACE_("Reflection/Specular"), ICON_EVENT_CTRL, ICON_EVENT_ALT);
+        status.item(IFACE_("Shadow"), ICON_EVENT_ALT);
+        break;
+      case LIGHT_POSITION_REFLECTION:
+        status.item(IFACE_("Reflection/Specular Mode"), ICON_INFO);
+        status.item(IFACE_("Normal/Diffuse"), ICON_EVENT_CTRL);
+        status.item(IFACE_("Shadow"), ICON_EVENT_ALT);
+        break;
+      case LIGHT_POSITION_SHADOW:
+        status.item(IFACE_("Shadow Mode"), ICON_INFO);
+        status.item(IFACE_("Normal/Diffuse"), ICON_EVENT_CTRL);
+        status.item(IFACE_("Reflection/Specular"), ICON_EVENT_CTRL, ICON_EVENT_ALT);
+        break;
+    }
   }
 
   const bool is_translate = event->modifier & KM_CTRL;
@@ -2589,6 +2617,9 @@ static wmOperatorStatus object_transform_axis_target_modal(bContext *C,
       PropertyRNA *prop = RNA_struct_find_property(&ptr, rotation_property);
       animrig::autokeyframe_property(C, scene, &ptr, prop, -1, scene->r.cfra, true);
     }
+
+    /* Clear WorkspaceStatus to return to basic state */
+    ED_workspace_status_text(C, nullptr);
 
     object_transform_axis_target_free_data(op);
     return OPERATOR_FINISHED;
