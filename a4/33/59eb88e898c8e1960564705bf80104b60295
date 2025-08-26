@@ -2,3 +2,4 @@ Referenced by issue #144364, Bones have incorrect rest pose until entering edit 
 Referenced by pull request #144447, Fix #144364: Incorrect RNA update function called for Bones
 Referenced by commit 809f7abfb6c2bfd1a029b3e31283ad03a64ddd1b, Fix #144364: Incorrect RNA update function called for Bones
 Referenced by pull request #144925, Refactor: Remove usage of std::deque
+Referenced by commit 0c36ed91dbe6d3efccc70c7846547ec3b9c55056, Refactor: Remove usage of std::deque
