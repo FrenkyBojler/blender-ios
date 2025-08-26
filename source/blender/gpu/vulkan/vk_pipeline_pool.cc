@@ -569,7 +569,8 @@ VkPipeline VKPipelinePool::get_or_create_graphics_pipeline(VKGraphicsInfo &graph
       graphics_info.fragment_out.depth_attachment_format;
   vk_pipeline_rendering_create_info_.stencilAttachmentFormat =
       graphics_info.fragment_out.stencil_attachment_format;
-  vk_pipeline_rendering_create_info_.colorAttachmentCount = graphics_info.fragment_out.color_attachment_size;
+  vk_pipeline_rendering_create_info_.colorAttachmentCount =
+      graphics_info.fragment_out.color_attachment_size;
   vk_pipeline_rendering_create_info_.pColorAttachmentFormats =
       graphics_info.fragment_out.color_attachment_formats.data();
 
