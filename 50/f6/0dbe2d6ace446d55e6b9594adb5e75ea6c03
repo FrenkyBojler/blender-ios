@@ -1,2 +1,3 @@
 Referenced by issue #141871, Blender LTS: Maintenance Task 4.5
 Referenced by issue #145108, split selection removes vertices
+Referenced by commit b465504ee2f571533aa29ac0f5587cf9431ea863, Fix #145108: Split selection removes edges
