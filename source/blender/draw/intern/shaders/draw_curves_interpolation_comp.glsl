@@ -11,8 +11,6 @@
 
 #include "draw_curves_info.hh"
 
-COMPUTE_SHADER_CREATE_INFO(draw_curves_interpolate_position)
-
 #include "gpu_shader_attribute_load_lib.glsl"
 #include "gpu_shader_math_base_lib.glsl"
 #include "gpu_shader_math_matrix_lib.glsl"
@@ -41,6 +39,7 @@ template<typename T> T input_load(int point_index)
 }
 template<> InterpPosition input_load<InterpPosition>(int point_index)
 {
+  const auto &transform = push_constant_get(draw_curves_interpolate_position, transform);
   const auto &positions = buffer_get(draw_curves_interpolate_position, positions_buf);
   InterpPosition interp;
   interp.data.xyz = gpu_attr_load_float3(positions, int2(3, 0), point_index);
@@ -220,6 +219,8 @@ template float mix4<float>(float, float, float, float, float4);
 
 bool curve_cyclic_get(int curve_index)
 {
+  const auto &use_cyclic = push_constant_get(draw_curves_data, use_cyclic);
+  const auto &curves_cyclic_buf = buffer_get(draw_curves_data, curves_cyclic_buf);
   if (use_cyclic) {
     return gpu_attr_load_bool(curves_cyclic_buf, curve_index);
   }
@@ -257,6 +258,7 @@ void evaluate_curve(const IndexRange points,
                     const IndexRange evaluated_points,
                     const int curve_index)
 {
+  const auto &curves_resolution_buf = buffer_get(draw_curves_data, curves_resolution_buf);
   const uint curve_resolution = curves_resolution_buf[curve_index];
   const bool is_curve_cyclic = curve_cyclic_get(curve_index);
 
@@ -368,6 +370,7 @@ void evaluate_curve(const IndexRange points,
                     const IndexRange evaluated_points,
                     const int curve_index)
 {
+  const auto &bezier_offsets_buf = buffer_get(draw_curves_data, bezier_offsets_buf);
   /* Range used for indexing bezier offsets. */
   const IndexRange offsets = per_curve_point_offsets_range(points, curve_index);
   const bool is_curve_cyclic = curve_cyclic_get(curve_index);
@@ -427,9 +430,10 @@ void evaluate_curve(const IndexRange points,
                     const IndexRange evaluated_points_padded,
                     const int curve_index)
 {
+  const auto &use_cyclic = push_constant_get(draw_curves_data, use_cyclic);
   /* Buffer aliasing to same bind point. We cannot dispatch with different type of curve. */
-  const auto &curves_order_buf = curves_resolution_buf;
-  const auto &basis_cache_offset_buf = bezier_offsets_buf;
+  const auto &curves_order_buf = buffer_get(draw_curves_data, curves_resolution_buf);
+  const auto &basis_cache_offset_buf = buffer_get(draw_curves_data, bezier_offsets_buf);
 
   const int order = int(gpu_attr_load_uchar(curves_order_buf, curve_index));
 
@@ -441,6 +445,7 @@ void evaluate_curve(const IndexRange points,
     return;
   }
 
+  const auto &use_point_weight = push_constant_get(draw_curves_data, use_point_weight);
   const bool is_curve_cyclic = curve_cyclic_get(curve_index);
 
   /* Recover original points range without closing cyclic point. */
@@ -451,8 +456,8 @@ void evaluate_curve(const IndexRange points,
   const int weights_range_start = basis_cache_start + evaluated_points.size();
 
   /* Buffer aliasing to same bind point. We cannot dispatch with different type of curve. */
-  const auto &basis_cache_buf = handles_positions_left_buf;
-  const auto &control_weights_buf = handles_positions_right_buf;
+  const auto &basis_cache_buf = buffer_get(draw_curves_data, handles_positions_left_buf);
+  const auto &control_weights_buf = buffer_get(draw_curves_data, handles_positions_right_buf);
 
   for (int i = 0; i < evaluated_points.size(); i++) {
     int evaluated_point_index = evaluated_points.start() + i;
@@ -493,6 +498,18 @@ template void evaluate_curve<float4>(IndexRange, IndexRange, int);
 
 template<typename InterpType> void evaluate_curve()
 {
+  const auto &use_cyclic = push_constant_get(draw_curves_data, use_cyclic);
+  const auto &curves_count = push_constant_get(draw_curves_data, curves_count);
+  const auto &curves_start = push_constant_get(draw_curves_data, curves_start);
+  const auto &evaluated_type = push_constant_get(draw_curves_data, evaluated_type);
+  const auto &curves_type_buf = buffer_get(draw_curves_data, curves_type_buf);
+  const auto &points_by_curve_buf = buffer_get(draw_curves_data, points_by_curve_buf);
+  const auto &evaluated_points_by_curve_buf = buffer_get(draw_curves_data,
+                                                         evaluated_points_by_curve_buf);
+
+  /* Only for gl_GlobalInvocationID. To be removed. */
+  COMPUTE_SHADER_CREATE_INFO(draw_curves_interpolate_position)
+
   if (gl_GlobalInvocationID.x >= uint(curves_count)) {
     return;
   }
