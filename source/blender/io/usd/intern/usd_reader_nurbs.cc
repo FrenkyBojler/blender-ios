@@ -235,6 +235,13 @@ static bool curves_topology_changed(const bke::CurvesGeometry &curves, const Spa
   return false;
 }
 
+static IndexRange get_usd_points_range_de_dup(IndexRange blender_points_range,
+                                              IndexRange usd_points_range)
+{
+  /* Take from the front of USD's range to exclude any duplicates at the end. */
+  return usd_points_range.take_front(blender_points_range.size());
+};
+
 bool USDNurbsReader::is_animated() const
 {
   if (curve_prim_.GetPointsAttr().ValueMightBeTimeVarying() ||
@@ -274,10 +281,9 @@ void USDNurbsReader::read_curve_sample(Curves *curves_id, const pxr::UsdTimeCode
   bke::CurvesGeometry &curves = curves_id->geometry.wrap();
   if (curves_topology_changed(curves, data.blender_offsets)) {
     curves.resize(data.blender_offsets.last(), usd_counts.size());
+    curves.offsets_for_write().copy_from(data.blender_offsets);
+    curves.fill_curve_types(CurveType::CURVE_TYPE_NURBS);
   }
-
-  curves.offsets_for_write().copy_from(data.blender_offsets);
-  curves.fill_curve_types(CurveType::CURVE_TYPE_NURBS);
 
   /* NOTE: USD contains duplicated points for periodic(cyclic) curves. The indices into each curve
    * will differ from what Blender expects so we need to maintain and use separate offsets for
@@ -289,46 +295,44 @@ void USDNurbsReader::read_curve_sample(Curves *curves_id, const pxr::UsdTimeCode
   const OffsetIndices usd_knots_by_curve = OffsetIndices<int>(data.usd_knot_offsets,
                                                               offset_indices::NoSortCheck{});
 
+  /* TODO: We cannot read custom primvars for cyclic curves at the moment. */
+  const bool can_read_primvars = std::all_of(
+      data.is_cyclic.begin(), data.is_cyclic.end(), [](bool item) { return item == false; });
+
   /* Set all curve data. */
   MutableSpan<float3> curves_positions = curves.positions_for_write();
-  MutableSpan<int8_t> curves_nurbs_orders = curves.nurbs_orders_for_write();
-  MutableSpan<int8_t> curves_knots_mode = curves.nurbs_knots_modes_for_write();
-  MutableSpan<bool> curves_cyclic = curves.cyclic_for_write();
-  bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
-
-  MutableSpan<float> curves_weights;
-  if (!usd_weights.is_empty()) {
-    curves_weights = curves.nurbs_weights_for_write();
-  }
-
-  bke::SpanAttributeWriter<float3> curves_velocity;
-  if (!usd_velocities.is_empty()) {
-    curves_velocity = attributes.lookup_or_add_for_write_only_span<float3>("velocity",
-                                                                           bke::AttrDomain::Point);
-  }
-
-  bool can_read_primvars = true;
   for (const int curve_i : blender_points_by_curve.index_range()) {
     const IndexRange blender_points_range = blender_points_by_curve[curve_i];
-    const IndexRange usd_points_range = usd_points_by_curve[curve_i];
-    const IndexRange usd_knots_range = usd_knots_by_curve[curve_i];
-
-    /* Take from the front of USD's range to exclude any duplicates at the end. */
-    const IndexRange usd_points_range_de_dup = usd_points_range.take_front(
-        blender_points_range.size());
+    const IndexRange usd_points_range_de_dup = get_usd_points_range_de_dup(
+        blender_points_range, usd_points_by_curve[curve_i]);
 
     curves_positions.slice(blender_points_range)
         .copy_from(usd_points.slice(usd_points_range_de_dup));
-    curves_cyclic[curve_i] = data.is_cyclic[curve_i];
+  }
+
+  MutableSpan<bool> curves_cyclic = curves.cyclic_for_write();
+  curves_cyclic.copy_from(data.is_cyclic);
+
+  MutableSpan<int8_t> curves_nurbs_orders = curves.nurbs_orders_for_write();
+  for (const int curve_i : blender_points_by_curve.index_range()) {
     curves_nurbs_orders[curve_i] = int8_t(usd_orders[curve_i]);
+  }
+
+  MutableSpan<int8_t> curves_knots_mode = curves.nurbs_knots_modes_for_write();
+  for (const int curve_i : blender_points_by_curve.index_range()) {
+    const IndexRange usd_knots_range = usd_knots_by_curve[curve_i];
     curves_knots_mode[curve_i] = determine_knots_mode(
         usd_knots.slice(usd_knots_range), usd_orders[curve_i], data.is_cyclic[curve_i]);
+  }
 
-    /* TODO: We cannot read custom privars for cyclic curves at the moment. */
-    can_read_primvars &= !data.is_cyclic[curve_i];
+  /* Load in the optional weights. */
+  if (!usd_weights.is_empty()) {
+    MutableSpan<float> curves_weights = curves.nurbs_weights_for_write();
+    for (const int curve_i : blender_points_by_curve.index_range()) {
+      const IndexRange blender_points_range = blender_points_by_curve[curve_i];
+      const IndexRange usd_points_range_de_dup = get_usd_points_range_de_dup(
+          blender_points_range, usd_points_by_curve[curve_i]);
 
-    /* Load in the optional weights. */
-    if (!usd_weights.is_empty()) {
       const Span<double> usd_weights_de_dup = usd_weights.slice(usd_points_range_de_dup);
       int64_t usd_point_i = 0;
       for (const int point_i : blender_points_range) {
@@ -336,19 +340,23 @@ void USDNurbsReader::read_curve_sample(Curves *curves_id, const pxr::UsdTimeCode
         usd_point_i++;
       }
     }
-
-    /* Load in the optional velocities. */
-    if (!usd_velocities.is_empty()) {
-      const Span<float3> usd_velocities_de_dup = usd_velocities.slice(usd_points_range_de_dup);
-      int64_t usd_point_i = 0;
-      for (const int point_i : blender_points_range) {
-        curves_velocity.span[point_i] = usd_velocities_de_dup[usd_point_i];
-        usd_point_i++;
-      }
-    }
   }
 
+  /* Load in the optional velocities. */
   if (!usd_velocities.is_empty()) {
+    bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
+    bke::SpanAttributeWriter<float3> curves_velocity =
+        attributes.lookup_or_add_for_write_only_span<float3>("velocity", bke::AttrDomain::Point);
+
+    for (const int curve_i : blender_points_by_curve.index_range()) {
+      const IndexRange blender_points_range = blender_points_by_curve[curve_i];
+      const IndexRange usd_points_range_de_dup = get_usd_points_range_de_dup(
+          blender_points_range, usd_points_by_curve[curve_i]);
+
+      curves_velocity.span.slice(blender_points_range)
+          .copy_from(usd_velocities.slice(usd_points_range_de_dup));
+    }
+
     curves_velocity.finish();
   }
 

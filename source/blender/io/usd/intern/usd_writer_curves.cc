@@ -282,7 +282,7 @@ static void populate_curve_props_for_nurbs(const bke::CurvesGeometry &curves,
 
   const Span<float3> positions = curves.positions();
   const Span<float> custom_knots = curves.nurbs_custom_knots();
-  const Span<float> nurbs_weights = curves.nurbs_weights();
+  const std::optional<Span<float>> nurbs_weights = curves.nurbs_weights();
 
   VArray<int8_t> geom_orders = curves.nurbs_orders();
   VArray<int8_t> knots_modes = curves.nurbs_knots_modes();
@@ -299,9 +299,9 @@ static void populate_curve_props_for_nurbs(const bke::CurvesGeometry &curves,
       widths.push_back(radii[i_point] * 2.0f);
     }
 
-    if (!nurbs_weights.is_empty()) {
+    if (nurbs_weights) {
       for (const int i_point : points) {
-        weights.push_back(nurbs_weights[i_point]);
+        weights.push_back((*nurbs_weights)[i_point]);
       }
     }
 
@@ -310,8 +310,10 @@ static void populate_curve_props_for_nurbs(const bke::CurvesGeometry &curves,
       for (const int i_point : points.take_front(geom_orders[i_curve] - 1)) {
         verts.push_back(
             pxr::GfVec3f(positions[i_point][0], positions[i_point][1], positions[i_point][2]));
-        weights.push_back(nurbs_weights[i_point]);
-        widths.push_back(radii[i_point] * 2);
+        widths.push_back(radii[i_point] * 2.0f);
+        if (nurbs_weights) {
+          weights.push_back((*nurbs_weights)[i_point]);
+        }
       }
     }
 
