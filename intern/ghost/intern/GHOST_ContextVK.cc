@@ -1401,12 +1401,9 @@ GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
   vulkan_device->users++;
   vulkan_device->ensure_device(required_device_extensions, optional_device_extensions);
 
-  if (use_window_surface) {
-    // recreateSwapchain(use_hdr_swapchain);
-    render_extent_ = {0, 0};
-    render_extent_min_ = {0, 0};
-    surface_format_ = {VK_FORMAT_R8G8B8A8_UNORM, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR};
-  }
+  render_extent_ = {0, 0};
+  render_extent_min_ = {0, 0};
+  surface_format_ = {VK_FORMAT_R8G8B8A8_UNORM, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR};
 
   active_context_ = this;
   return GHOST_kSuccess;
