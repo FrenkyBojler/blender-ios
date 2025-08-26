@@ -1816,8 +1816,8 @@ static void area_move_draw_cb(const wmWindow *win, void *userdata)
 {
   const wmOperator *op = static_cast<const wmOperator *>(userdata);
   const sAreaMoveData *md = static_cast<sAreaMoveData *>(op->customdata);
-  float factor = 1.0f;
   const double now = BLI_time_now_seconds();
+  float factor = 1.0f;
   if (now < md->end_time) {
     factor = pow((now - md->start_time) / (md->end_time - md->start_time), 2);
     md->screen->do_refresh = true;
@@ -1828,13 +1828,13 @@ static void area_move_draw_cb(const wmWindow *win, void *userdata)
 static void area_move_out_draw_cb(const wmWindow *win, void *userdata)
 {
   const sAreaMoveData *md = static_cast<sAreaMoveData *>(userdata);
-  double now = BLI_time_now_seconds();
+  const double now = BLI_time_now_seconds();
+  float factor = 1.0f;
   if (now > md->end_time) {
     WM_draw_cb_exit(md->win, md->draw_callback);
     MEM_freeN(md);
     return;
   }
-  float factor = 1.0f;
   if (now < md->end_time) {
     factor = 1.0f - pow((now - md->start_time) / (md->end_time - md->start_time), 2);
     md->screen->do_refresh = true;
