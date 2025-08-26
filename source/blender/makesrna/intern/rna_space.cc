@@ -2789,11 +2789,11 @@ static const EnumPropertyItem *rna_SpaceNodeEditor_node_tree_sub_type_itemf(
 
   static const EnumPropertyItem compositor_sub_type_items[] = {
       {SNODE_COMPOSITOR_SCENE, "SCENE", 0, "Scene", "Edit node group for the current scene"},
-      {SNODE_COMPOSITOR_VSE_MODIFIER,
-       "VSE_MODIFIER",
+      {SNODE_COMPOSITOR_SEQUENCER_STRIP_MODIFIER,
+       "SEQUENCER_STRIP_MODIFIER",
        0,
-       "VSE Modifier",
-       "Edit any compositor node group for use as VSE modifier"},
+       "Sequencer Strip Modifier",
+       "Edit any compositor node group for use as a sequencer strip modifier"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
@@ -2817,7 +2817,7 @@ static void rna_SpaceNodeEditor_node_tree_sub_type_update(Main * /*main*/,
     }
   }
   else {
-    if (space_node->node_tree_sub_type == SNODE_COMPOSITOR_VSE_MODIFIER) {
+    if (space_node->node_tree_sub_type == SNODE_COMPOSITOR_SEQUENCER_STRIP_MODIFIER) {
       space_node->flag &= ~SNODE_PIN;
     }
   }

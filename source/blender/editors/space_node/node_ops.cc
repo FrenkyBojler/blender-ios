@@ -91,7 +91,7 @@ void node_operatortypes()
 
   WM_operatortype_append(NODE_OT_new_node_tree);
   WM_operatortype_append(NODE_OT_new_compositing_node_group);
-  WM_operatortype_append(NODE_OT_new_compositor_vse_modifier_node_group);
+  WM_operatortype_append(NODE_OT_new_compositor_sequencer_strip_modifier_node_group);
 
   WM_operatortype_append(NODE_OT_parent_set);
   WM_operatortype_append(NODE_OT_join);

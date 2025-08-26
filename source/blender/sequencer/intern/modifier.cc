@@ -1205,7 +1205,11 @@ class CompositorContext : public compositor::Context {
 
   compositor::OutputTypes needed_outputs() const override
   {
-    return compositor::OutputTypes::Composite | compositor::OutputTypes::Viewer;
+    compositor::OutputTypes needed_outputs = compositor::OutputTypes::Composite;
+    if (!render_data_.for_render) {
+      needed_outputs |= compositor::OutputTypes::Viewer;
+    }
+    return needed_outputs;
   }
 
   bool treat_viewer_as_compositor_output() const override
@@ -1259,6 +1263,30 @@ static void compositor_modifier_init_data(StripModifierData *strip_modifier_data
   modifier_data->node_group = nullptr;
 }
 
+static ImBuf *compute_linear_float_buffer(ImBuf *image_buffer)
+{
+  if (image_buffer->float_buffer.data &&
+      IMB_colormanagement_space_is_scene_linear(image_buffer->float_buffer.colorspace))
+  {
+    return image_buffer;
+  }
+
+  ImBuf *linear_float_buffer = IMB_dupImBuf(image_buffer);
+  if (image_buffer->float_buffer.data == nullptr) {
+    IMB_float_from_byte(linear_float_buffer);
+  }
+  else {
+    IMB_colormanagement_colorspace_to_scene_linear(linear_float_buffer->float_buffer.data,
+                                                   linear_float_buffer->x,
+                                                   linear_float_buffer->y,
+                                                   4,
+                                                   image_buffer->float_buffer.colorspace,
+                                                   false);
+  }
+
+  return linear_float_buffer;
+}
+
 static void compositor_modifier_apply(const RenderData *render_data,
                                       const StripScreenQuad & /*quad*/,
                                       StripModifierData *strip_modifier_data,
@@ -1271,34 +1299,30 @@ static void compositor_modifier_apply(const RenderData *render_data,
     return;
   }
 
-  ImBuf *float_buffer = image_buffer;
-  const bool need_float_conversion = image_buffer->float_buffer.data == nullptr;
-  if (need_float_conversion) {
-    float_buffer = IMB_allocImBuf(
-        image_buffer->x, image_buffer->y, 32, IB_float_data | IB_uninitialized_pixels);
-    rcti buffer_region;
-    BLI_rcti_init(&buffer_region, 0, image_buffer->x, 0, image_buffer->y);
-    IMB_float_from_byte_ex(float_buffer, image_buffer, &buffer_region);
-  }
+  ImBuf *linear_float_buffer = compute_linear_float_buffer(image_buffer);
 
-  CompositorContext context(*render_data, modifier_data, float_buffer);
+  CompositorContext context(*render_data, modifier_data, linear_float_buffer);
   compositor::Evaluator evaluator(context);
   evaluator.evaluate();
 
-  if (need_float_conversion) {
-    IMB_buffer_byte_from_float(image_buffer->byte_buffer.data,
-                               float_buffer->float_buffer.data,
-                               float_buffer->channels,
-                               float_buffer->dither,
-                               IB_PROFILE_SRGB,
-                               IB_PROFILE_LINEAR_RGB,
-                               false,
-                               image_buffer->x,
-                               image_buffer->y,
-                               image_buffer->x,
-                               image_buffer->x);
-    IMB_freeImBuf(float_buffer);
+  if (image_buffer == linear_float_buffer) {
+    return;
   }
+
+  IMB_assign_float_buffer(
+      image_buffer, IMB_steal_float_buffer(linear_float_buffer), IB_TAKE_OWNERSHIP);
+  if (image_buffer->float_buffer.data == nullptr) {
+    IMB_byte_from_float(image_buffer);
+  }
+  else {
+    IMB_colormanagement_scene_linear_to_colorspace(linear_float_buffer->float_buffer.data,
+                                                   linear_float_buffer->x,
+                                                   linear_float_buffer->y,
+                                                   4,
+                                                   image_buffer->float_buffer.colorspace);
+  }
+
+  IMB_freeImBuf(linear_float_buffer);
 }
 
 /** \} */

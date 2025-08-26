@@ -3041,7 +3041,8 @@ class SEQUENCER_PT_modifiers(SequencerButtonsPanel, Panel):
                             col.prop(mod, "offset")
                             col.prop(mod, "gamma")
                     elif mod.type == 'COMPOSITOR':
-                        box.template_ID(mod, "node_group", new="node.new_compositor_vse_modifier_node_group")
+                        box.template_ID(
+                            mod, "node_group", new="node.new_compositor_sequencer_strip_modifier_node_group")
 
                     box.separator(type='LINE')
 

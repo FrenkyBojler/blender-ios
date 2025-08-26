@@ -150,8 +150,11 @@ class NODE_HT_header(Header):
                 row = layout.row()
                 row.enabled = not snode.pin
                 row.template_ID(scene, "compositing_node_group", new="node.new_compositing_node_group")
-            elif snode.node_tree_sub_type == 'VSE_MODIFIER':
-                layout.template_ID(snode, "selected_node_group", new="node.new_compositor_vse_modifier_node_group")
+            elif snode.node_tree_sub_type == 'SEQUENCER_STRIP_MODIFIER':
+                layout.template_ID(
+                    snode,
+                    "selected_node_group",
+                    new="node.new_compositor_sequencer_strip_modifier_node_group")
                 display_pin = False
 
         elif snode.tree_type == 'GeometryNodeTree':
@@ -201,7 +204,7 @@ class NODE_HT_header(Header):
             op.parent_tree_index = len(snode.path) - 2
 
         # Backdrop
-        if is_compositor:
+        if is_compositor and snode.node_tree_sub_type == 'SCENE':
             row = layout.row(align=True)
             row.prop(snode, "show_backdrop", toggle=True)
             row.active = snode.node_tree is not None
