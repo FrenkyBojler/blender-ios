@@ -1975,7 +1975,7 @@ void push_end_ex(Object &ob, const bool use_nested_undo)
 
   if (step_data->type == Type::Position) {
     step_data->position_step_storage = std::make_unique<PositionUndoStorage>(
-        *step_data, move(step_data->nodes));
+        *step_data, std::move(step_data->nodes));
     step_data->nodes.clear_and_shrink();
   }
   else {
