@@ -55,6 +55,7 @@ class LegacyMeshInterpolator {
   const CustomData &cd_src_;
   CustomData &cd_dst_;
 
+ public:
   LegacyMeshInterpolator(const Mesh &src, Mesh &dst, AttrDomain domain);
 
   void copy(int src_index, int dst_index, int count) const;

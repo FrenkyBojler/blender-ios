@@ -27,6 +27,7 @@
 
 #include "BKE_anim_path.h"
 #include "BKE_attribute.hh"
+#include "BKE_attribute_legacy_convert.hh"
 #include "BKE_curve.hh"
 #include "BKE_customdata.hh"
 #include "BKE_lib_id.hh"
@@ -294,12 +295,15 @@ static void mesh_merge_transform(Mesh *result,
   blender::MutableSpan<int> result_corner_verts = result->corner_verts_for_write();
   blender::MutableSpan<int> result_corner_edges = result->corner_edges_for_write();
 
-  // TODO_MESH_ATTR
-  CustomData_copy_data(&cap_mesh->vert_data, &result->vert_data, 0, cap_verts_index, cap_nverts);
-  CustomData_copy_data(&cap_mesh->edge_data, &result->edge_data, 0, cap_edges_index, cap_nedges);
-  CustomData_copy_data(
-      &cap_mesh->corner_data, &result->corner_data, 0, cap_loops_index, cap_nloops);
-  CustomData_copy_data(&cap_mesh->face_data, &result->face_data, 0, cap_faces_index, cap_nfaces);
+  bke::LegacyMeshInterpolator vert_interp(*cap_mesh, *result, bke::AttrDomain::Point);
+  bke::LegacyMeshInterpolator edge_interp(*cap_mesh, *result, bke::AttrDomain::Edge);
+  bke::LegacyMeshInterpolator face_interp(*cap_mesh, *result, bke::AttrDomain::Face);
+  bke::LegacyMeshInterpolator corner_interp(*cap_mesh, *result, bke::AttrDomain::Corner);
+
+  vert_interp.copy(0, cap_verts_index, cap_nverts);
+  edge_interp.copy(0, cap_edges_index, cap_nedges);
+  face_interp.copy(0, cap_faces_index, cap_nfaces);
+  corner_interp.copy(0, cap_loops_index, cap_nloops);
 
   for (i = 0; i < cap_nverts; i++) {
     mul_m4_v3(cap_offset, result_positions[cap_verts_index + i]);
@@ -573,10 +577,14 @@ static Mesh *arrayModifier_doArray(ArrayModifierData *amd,
   }
 
   /* copy customdata to original geometry */
-  CustomData_copy_data(&mesh->vert_data, &result->vert_data, 0, 0, chunk_nverts);
-  CustomData_copy_data(&mesh->edge_data, &result->edge_data, 0, 0, chunk_nedges);
-  CustomData_copy_data(&mesh->corner_data, &result->corner_data, 0, 0, chunk_nloops);
-  CustomData_copy_data(&mesh->face_data, &result->face_data, 0, 0, chunk_nfaces);
+  bke::LegacyMeshInterpolator vert_interp(*mesh, *result, bke::AttrDomain::Point);
+  bke::LegacyMeshInterpolator edge_interp(*mesh, *result, bke::AttrDomain::Edge);
+  bke::LegacyMeshInterpolator face_interp(*mesh, *result, bke::AttrDomain::Face);
+  bke::LegacyMeshInterpolator corner_interp(*mesh, *result, bke::AttrDomain::Corner);
+  vert_interp.copy(0, 0, chunk_nverts);
+  edge_interp.copy(0, 0, chunk_nedges);
+  face_interp.copy(0, 0, chunk_nfaces);
+  corner_interp.copy(0, 0, chunk_nloops);
 
   result_face_offsets.take_front(mesh->faces_num).copy_from(mesh->face_offsets().drop_back(1));
 
@@ -597,11 +605,10 @@ static Mesh *arrayModifier_doArray(ArrayModifierData *amd,
 
   for (c = 1; c < count; c++) {
     /* copy customdata to new geometry */
-    CustomData_copy_data(&mesh->vert_data, &result->vert_data, 0, c * chunk_nverts, chunk_nverts);
-    CustomData_copy_data(&mesh->edge_data, &result->edge_data, 0, c * chunk_nedges, chunk_nedges);
-    CustomData_copy_data(
-        &mesh->corner_data, &result->corner_data, 0, c * chunk_nloops, chunk_nloops);
-    CustomData_copy_data(&mesh->face_data, &result->face_data, 0, c * chunk_nfaces, chunk_nfaces);
+    vert_interp.copy(0, c * chunk_nverts, chunk_nverts);
+    edge_interp.copy(0, c * chunk_nedges, chunk_nedges);
+    face_interp.copy(0, c * chunk_nfaces, chunk_nfaces);
+    corner_interp.copy(0, c * chunk_nloops, chunk_nloops);
 
     /* recalculate cumulative offset here */
     mul_m4_m4m4(current_offset, current_offset, offset);
@@ -688,6 +695,7 @@ static Mesh *arrayModifier_doArray(ArrayModifierData *amd,
 
   /* handle UVs */
   if (chunk_nloops > 0 && is_zero_v2(amd->uv_offset) == false) {
+    // TODO_MESH_ATTR
     const int totuv = CustomData_number_of_layers(&result->corner_data, CD_PROP_FLOAT2);
     for (i = 0; i < totuv; i++) {
       blender::float2 *dmloopuv = static_cast<blender::float2 *>(CustomData_get_layer_n_for_write(

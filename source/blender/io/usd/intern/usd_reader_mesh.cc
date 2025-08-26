@@ -30,6 +30,7 @@
 #include "BLI_ordered_edge.hh"
 #include "BLI_set.hh"
 #include "BLI_span.hh"
+#include "BLI_string.h"
 #include "BLI_task.hh"
 #include "BLI_vector_set.hh"
 
@@ -831,13 +832,10 @@ void USDMeshReader::read_custom_data(const ImportSettings *settings,
   }
 
   if (!active_uv_set_name.IsEmpty()) {
-    // TODO_MESH_ATTR
-    int layer_index = CustomData_get_named_layer_index(
-        &mesh->corner_data, CD_PROP_FLOAT2, active_uv_set_name.GetText());
-    if (layer_index > -1) {
-      CustomData_set_layer_active_index(&mesh->corner_data, CD_PROP_FLOAT2, layer_index);
-      CustomData_set_layer_render_index(&mesh->corner_data, CD_PROP_FLOAT2, layer_index);
-    }
+    MEM_SAFE_FREE(mesh->active_uv_map_attribute);
+    MEM_SAFE_FREE(mesh->default_uv_map_attribute);
+    mesh->active_color_attribute = BLI_strdup(active_uv_set_name.GetText());
+    mesh->default_uv_map_attribute = BLI_strdup(active_uv_set_name.GetText());
   }
 }
 
