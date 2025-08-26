@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include "BLI_vector.hh"
+
 #include "DNA_attribute_types.h"
 
 #include "BKE_attribute.hh"
@@ -45,5 +47,21 @@ void pointcloud_convert_customdata_to_storage(PointCloud &pointcloud);
 
 /** See #mesh_convert_customdata_to_storage. */
 void grease_pencil_convert_customdata_to_storage(GreasePencil &grease_pencil);
+
+class LegacyMeshInterpolator {
+  Vector<GVArray> attrs_src_;
+  Vector<GMutableSpan> attrs_dst_;
+
+  const CustomData &cd_src_;
+  CustomData &cd_dst_;
+
+  LegacyMeshInterpolator(const Mesh &src, Mesh &dst, AttrDomain domain);
+
+  void copy(int src_index, int dst_index, int count) const;
+  void mix(Span<int> src_indices,
+           const float *weights,
+           const float *sub_weights,
+           int dst_index) const;
+};
 
 }  // namespace blender::bke

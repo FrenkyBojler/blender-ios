@@ -237,4 +237,115 @@ void grease_pencil_convert_customdata_to_storage(GreasePencil &grease_pencil)
   CustomData_reset(&grease_pencil.layers_data_legacy);
 }
 
+static const CustomData &get_custom_data(const Mesh &mesh, const AttrDomain domain)
+{
+  switch (domain) {
+    case AttrDomain::Point:
+      return mesh.vert_data;
+    case AttrDomain::Edge:
+      return mesh.edge_data;
+    case AttrDomain::Face:
+      return mesh.face_data;
+    case AttrDomain::Corner:
+      return mesh.corner_data;
+    default:
+      BLI_assert_unreachable();
+      return mesh.vert_data;
+  }
+}
+
+static CustomData &get_custom_data(Mesh &mesh, const AttrDomain domain)
+{
+  return const_cast<CustomData &>(get_custom_data(std::as_const(mesh), domain));
+}
+
+static int get_domain_size(const Mesh &mesh, const AttrDomain domain)
+{
+  switch (domain) {
+    case AttrDomain::Point:
+      return mesh.verts_num;
+    case AttrDomain::Edge:
+      return mesh.edges_num;
+    case AttrDomain::Face:
+      return mesh.faces_num;
+    case AttrDomain::Corner:
+      return mesh.corners_num;
+    default:
+      BLI_assert_unreachable();
+      return 0;
+  }
+}
+
+LegacyMeshInterpolator::LegacyMeshInterpolator(const Mesh &src, Mesh &dst, const AttrDomain domain)
+    : cd_src_(get_custom_data(src, domain)), cd_dst_(get_custom_data(dst, domain))
+{
+  const AttributeStorage &src_attributes = src.attribute_storage.wrap();
+  AttributeStorage &dst_attributes = dst.attribute_storage.wrap();
+  const int src_domain_size = get_domain_size(src, domain);
+  const int dst_domain_size = get_domain_size(dst, domain);
+  src_attributes.foreach([&](const Attribute &src_attr) {
+    if (src_attr.domain() != domain) {
+      return;
+    }
+    Attribute *dst_attr = dst_attributes.lookup(src_attr.name());
+    if (!dst_attr) {
+      return;
+    }
+    if (dst_attr->domain() != domain) {
+      return;
+    }
+    if (dst_attr->data_type() != src_attr.data_type()) {
+      return;
+    }
+    if (dst_attr->storage_type() != AttrStorageType::Array) {
+      return;
+    }
+    const CPPType &cpp_type = attribute_type_to_cpp_type(src_attr.data_type());
+    switch (src_attr.storage_type()) {
+      case AttrStorageType::Single: {
+        const auto &value = std::get<Attribute::SingleData>(src_attr.data());
+        attrs_src_.append(GVArray::from_single_ref(cpp_type, src_domain_size, value.value));
+        break;
+      }
+      case AttrStorageType::Array: {
+        const auto &value = std::get<Attribute::ArrayData>(src_attr.data());
+        attrs_src_.append(GVArray::from_span({cpp_type, value.data, src_domain_size}));
+        break;
+      }
+    }
+    auto &value = std::get<Attribute::ArrayData>(dst_attr->data_for_write());
+    attrs_dst_.append({cpp_type, value.data, dst_domain_size});
+  });
+}
+
+void LegacyMeshInterpolator::copy(const int src_index, const int dst_index, const int count) const
+{
+  CustomData_copy_data(&cd_src_, &cd_dst_, src_index, dst_index, count);
+  for (const int i : attrs_src_.index_range()) {
+    const GVArray &src = attrs_src_[i];
+    GMutableSpan dst = attrs_dst_[i];
+    src.materialize_compressed(IndexRange(src_index, count), dst[dst_index]);
+  }
+}
+
+void LegacyMeshInterpolator::mix(Span<int> src_indices,
+                                 const float *weights,
+                                 const float *sub_weights,
+                                 const int dst_index) const
+{
+  CustomData_interp(
+      &cd_src_, &cd_dst_, src_indices.data(), weights, sub_weights, src_indices.size(), dst_index);
+  for (const int attr_index : attrs_src_.index_range()) {
+    attribute_math::convert_to_static_type(attrs_src_[attr_index].type(), [&](auto dummy) {
+      using T = decltype(dummy);
+      const VArray src = attrs_src_[attr_index].typed<T>();
+      MutableSpan dst = attrs_dst_[attr_index].typed<T>();
+      attribute_math::DefaultMixer<T> mixer(dst.slice(dst_index, 1));
+      for (const int i : src_indices.index_range()) {
+        mixer.mix_in(0, src[i], weights ? weights[i] : 1.0f);
+      }
+    });
+  }
+}
+
 }  // namespace blender::bke
