@@ -500,6 +500,9 @@ class NODE_OT_swap_node(NodeSwapOperator, Operator):
             if zone_pair is not None:
                 input_node, output_node = zone_pair
 
+                if input_node.select and output_node.select:
+                    new_node.location = (input_node.location + output_node.location) / 2
+
                 self.transfer_input_values(input_node, new_node)
 
                 self.transfer_links(tree, input_node, new_node, is_input=True)
