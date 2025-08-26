@@ -442,9 +442,9 @@ int region_snap(const ARegion *region, const int size, const int axis)
 }
 
 /**
- * Ensure the region height matches the preferred row count (see #AssetShelf.preferred_row_count).
- * In any case, this will ensure the region height is snapped to a multiple of the row count (plus
- * region padding).
+ * Ensure the region height matches the preferred row count (see #AssetShelf.preferred_row_count)
+ * as best as possible so it still fits in the area. In any case, this will ensure the region
+ * height is snapped to a multiple of the row count (plus region padding).
  */
 static void region_resize_to_preferred(ScrArea *area, ARegion *region)
 {
@@ -455,34 +455,15 @@ static void region_resize_to_preferred(ScrArea *area, ARegion *region)
   BLI_assert(active_shelf->preferred_row_count > 0);
   const int tile_height = current_tile_draw_height(region);
 
-  int new_size_y = calculate_scaled_region_height_from_row_count(active_shelf->preferred_row_count,
-                                                                 tile_height) /
-                   UI_SCALE_FAC;
-
   /* Prevent the AssetShelf getting too high (and thus being hidden) in case many rows are used and
    * preview size is increased. */
-  int size_y_avail = BLI_rcti_size_y(&area->totrct);
-  LISTBASE_FOREACH (ARegion *, region_iter, &area->regionbase) {
-    if (region_iter == region) {
-      continue;
-    }
-    if (ELEM(region_iter->alignment, RGN_ALIGN_TOP, RGN_ALIGN_BOTTOM) ||
-        ELEM(region->regiontype,
-             RGN_TYPE_HEADER,
-             RGN_TYPE_TOOL_HEADER,
-             RGN_TYPE_FOOTER,
-             RGN_TYPE_ASSET_SHELF_HEADER))
-    {
-      size_y_avail -= region_iter->winy;
-    }
-  }
-  size_y_avail /= UI_SCALE_FAC;
-  if (new_size_y > size_y_avail) {
-    active_shelf->preferred_row_count -= 1;
-    new_size_y = calculate_scaled_region_height_from_row_count(active_shelf->preferred_row_count,
-                                                               tile_height) /
-                 UI_SCALE_FAC;
-  }
+  const int size_y_avail = ED_area_max_regionsize(area, region, AE_TOP_TO_BOTTOMRIGHT);
+  const short int max_row_count = calculate_row_count_from_tile_draw_height(
+      size_y_avail * UI_SCALE_FAC, tile_height);
+
+  int new_size_y = calculate_scaled_region_height_from_row_count(
+                       std::min(max_row_count, active_shelf->preferred_row_count), tile_height) /
+                   UI_SCALE_FAC;
 
   if (region->sizey != new_size_y) {
     region->sizey = new_size_y;
