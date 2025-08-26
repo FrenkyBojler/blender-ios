@@ -847,8 +847,15 @@ static void make_duplis_font(const DupliContext *ctx)
 
   /* In `par` the family name is stored, use this to find the other objects. */
 
-  BKE_vfont_to_curve_ex(
-      par, (Curve *)par->data, FO_DUPLI, nullptr, &text, &text_len, &text_free, &chartransdata);
+  BKE_vfont_to_curve_ex(par,
+                        (Curve *)par->data,
+                        FO_DUPLI,
+                        nullptr,
+                        &text,
+                        &text_len,
+                        &text_free,
+                        &chartransdata,
+                        nullptr);
 
   if (text == nullptr || chartransdata == nullptr) {
     return;
@@ -890,11 +897,11 @@ static void make_duplis_font(const DupliContext *ctx)
 
       copy_m4_m4(obmat, par->object_to_world().ptr());
 
-      if (UNLIKELY(ct->rot != 0.0f)) {
+      if (UNLIKELY(ct->rotate != 0.0f)) {
         float rmat[4][4];
 
         zero_v3(obmat[3]);
-        axis_angle_to_mat4_single(rmat, 'Z', -ct->rot);
+        axis_angle_to_mat4_single(rmat, 'Z', -ct->rotate);
         mul_m4_m4m4(obmat, obmat, rmat);
       }
 
