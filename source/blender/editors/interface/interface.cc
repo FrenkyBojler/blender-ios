@@ -4286,6 +4286,9 @@ static std::unique_ptr<uiBut> ui_but_new(const ButType type)
     case ButType::Scroll:
       but = std::make_unique<uiButScrollBar>();
       break;
+    case ButType::Grip:
+      but = std::make_unique<uiButGrip>();
+      break;
     default:
       but = std::make_unique<uiBut>();
       break;
@@ -6765,9 +6768,8 @@ void UI_but_node_link_set(uiBut *but, bNodeSocket *socket, const float draw_colo
 
 int TextboxStatus::visible_lines_get()
 {
-  int lines = std::max<int>(std::floor(this->visible_height / UI_UNIT_Y), this->minimum_lines);
-  this->visible_height = lines * UI_UNIT_Y;
-  return lines;
+  this->visible_height = std::max<int>(this->visible_height, this->minimum_lines);
+  return this->visible_height;
 }
 
 int uiButTextBox::visible_lines()

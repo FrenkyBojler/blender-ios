@@ -2759,7 +2759,7 @@ void uiLayout::prop_textbox(PointerRNA *ptr,
                 &textbox_status.visible_height,
                 0.0f,
                 0.0f,
-                "");
+                "")->grip_step=UI_UNIT_Y;
   uiDefBut(block, ButType::Sepr, 0, "", 0, 0, 0.1f * UI_UNIT_X, 0, nullptr, 0.0, 0.0, "");
 }
 

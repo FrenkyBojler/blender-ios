@@ -353,6 +353,12 @@ struct uiBut {
   virtual ~uiBut() = default;
 };
 
+/** Derived struct for #ButType::Grip */
+struct uiButGrip : public uiBut {
+  /** Mouse movement required to increase/decrease in one unit (rows or columns) Grip value. */
+  int step_distance = 1;
+};
+
 struct TextboxStatus {
   static constexpr int minimum_lines = 3;
   std::string idname;
