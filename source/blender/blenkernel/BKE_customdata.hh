@@ -95,8 +95,7 @@ inline eCustomDataMask CD_TYPE_AS_MASK(eCustomDataType type)
 
 void customData_mask_layers__print(const CustomData_MeshMasks *mask);
 
-using cd_interp = void (*)(
-    const void **sources, const float *weights, const float *sub_weights, int count, void *dest);
+using cd_interp = void (*)(const void **sources, const float *weights, int count, void *dest);
 using cd_copy = void (*)(const void *source, void *dest, int count);
 using cd_set_default_value = void (*)(void *data, int count);
 using cd_free = void (*)(void *data, int count);
@@ -443,11 +442,8 @@ void CustomData_bmesh_interp_n(CustomData *data,
                                int count,
                                void *dst_block_ofs,
                                int n);
-void CustomData_bmesh_interp(CustomData *data,
-                             const void **src_blocks,
-                             const float *weights,
-                             int count,
-                             void *dst_block);
+void CustomData_bmesh_interp(
+    CustomData *data, const void **src_blocks, const float *weights, int count, void *dst_block);
 
 /**
  * Swap data inside each item, for all layers.
