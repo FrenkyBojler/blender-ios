@@ -449,12 +449,13 @@ static void add_pose_transdata(
   /* Proper way to get parent transform + our own transform + constraints transform. */
   copy_m3_m4(omat, ob->object_to_world().ptr());
 
-  const bArmature *arm = static_cast<bArmature *>(ob->data);
   {
     BoneParentTransform bpt;
     float rpmat[3][3];
 
-    BKE_pose_channel_gizmo_parent_transform(arm, pchan, &bpt);
+    /* Not using `BKE_pose_channel_gizmo_parent_transform` because we need the transormation to be
+     * relative to the actual bone being modified, not it's visual representation.  */
+    BKE_bone_parent_transform_calc_from_pchan(pchan, &bpt);
     if (t->mode == TFM_TRANSLATION) {
       copy_m3_m4(pmat, bpt.loc_mat);
     }
@@ -498,6 +499,7 @@ static void add_pose_transdata(
   }
 
   /* For `axismtx` we use the bone's own transform. */
+  const bArmature *arm = static_cast<bArmature *>(ob->data);
   BKE_pose_channel_gizmo_orientation(arm, pchan, pmat);
   mul_m3_m3m3(td->axismtx, omat, pmat);
   normalize_m3(td->axismtx);
