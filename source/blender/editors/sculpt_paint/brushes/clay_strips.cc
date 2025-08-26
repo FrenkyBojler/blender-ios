@@ -374,15 +374,13 @@ namespace clay_strips {
  * `use_half_box_text` parameter is available to extend this check.
  */
 static bool node_in_box(const float4x4 &mat,
-                        const Bounds<float3> &bounds,
-                        const bool use_half_box_test = true)
+                        const Bounds<float3> &bounds)
 {
   const float3 brush_center = float3(0.0f, 0.0f, 0.5f);
   const float3 node_center = math::transform_point(mat, (bounds.max + bounds.min) * 0.5f);
   const float3 center_diff = brush_center - node_center;
 
-  const float3 brush_half_lengths = use_half_box_test ? float3(1.0f, 1.0f, 0.5f) :
-                                                        float3(1.0f, 1.0f, 1.0f);
+  const float3 brush_half_lengths = float3(1.0f, 1.0f, 0.5f);
   const float3 node_half_lengths = (bounds.max - bounds.min) * 0.5f;
 
   const float3 &node_x_axis = mat.x_axis();
@@ -508,7 +506,7 @@ CursorSampleResult calc_node_mask(const Depsgraph &depsgraph,
         if (node_fully_masked_or_hidden(node)) {
           return false;
         }
-        return node_in_box(mat, node.bounds(), brush.sculpt_plane == SCULPT_DISP_DIR_AREA);
+        return node_in_box(mat, node.bounds());
       });
 
   return {plane_mask, plane_center, plane_normal};
