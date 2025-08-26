@@ -24,9 +24,6 @@
 #    error Ensure createInfo includes draw_hair.
 #  endif
 
-SHADER_LIBRARY_CREATE_INFO(draw_curves_infos)
-SHADER_LIBRARY_CREATE_INFO(draw_curves)
-
 namespace curves {
 
 struct Segment {
@@ -41,6 +38,8 @@ struct Segment {
 /* Indirection buffer indexing. */
 Segment segment_get(uint vertex_id)
 {
+  const auto &drw_curves = buffer_get(draw_curves_infos, drw_curves);
+
   const bool is_cylinder = drw_curves.half_cylinder_face_count > 1u;
   Segment segment;
   segment.id = vertex_id / drw_curves.vertex_per_segment;
@@ -71,6 +70,9 @@ struct Indirection {
 
 Indirection indirection_get(Segment segment)
 {
+  const auto &curves_indirection_buf = sampler_get(draw_curves, curves_indirection_buf);
+  const auto &drw_curves = buffer_get(draw_curves_infos, drw_curves);
+
   Indirection ind;
   ind.is_cyclic_point = false;
   ind.is_end_of_curve = false;
@@ -118,6 +120,8 @@ Indirection indirection_get(Segment segment)
 
 int point_id_get(Segment segment, Indirection indirection)
 {
+  const auto &drw_curves = buffer_get(draw_curves_infos, drw_curves);
+
   const bool is_cylinder = drw_curves.half_cylinder_face_count > 1u;
   if (is_cylinder) {
     return int(segment.id) + indirection.curve_id + int(segment.v_idx & 1u);
@@ -127,6 +131,8 @@ int point_id_get(Segment segment, Indirection indirection)
 
 float azimuthal_offset_get(Segment segment)
 {
+  const auto &drw_curves = buffer_get(draw_curves_infos, drw_curves);
+
   float offset;
   const bool is_strand = drw_curves.half_cylinder_face_count == 0u;
   const bool is_cylinder = drw_curves.half_cylinder_face_count > 1u;
@@ -144,11 +150,15 @@ float azimuthal_offset_get(Segment segment)
 
 float4 point_position_and_radius_get(uint point_id)
 {
+  const auto &curves_pos_rad_buf = buffer_get(draw_curves, curves_pos_rad_buf);
+
   return texelFetch(curves_pos_rad_buf, int(point_id));
 }
 
 float3 point_position_get(uint point_id)
 {
+  const auto &curves_pos_rad_buf = buffer_get(draw_curves, curves_pos_rad_buf);
+
   return texelFetch(curves_pos_rad_buf, int(point_id)).rgb;
 }
 
@@ -260,6 +270,8 @@ float4 get_customdata_vec4(const int curve_id, const samplerBuffer cd_buf)
 
 float3 get_curve_root_pos(const int point_id, const int curve_segment)
 {
+  const auto &curves_pos_rad_buf = buffer_get(draw_curves, curves_pos_rad_buf);
+
   int curve_start = point_id - curve_segment;
   return texelFetch(curves_pos_rad_buf, curve_start).xyz;
 }
