@@ -66,16 +66,10 @@ static void ffmpeg_log_callback(void * /*ptr*/, int level, const char *format, v
       clg_level = CLG_LEVEL_FATAL;
       break;
     case AV_LOG_ERROR:
-      /* Note: most ffmpeg errors are not actionable; treat them as "info" log level
-       * unless we are explicitly logging at increased verbosity. */
-      clg_level = CLOG_CHECK(&LOG, CLG_LEVEL_INFO) ? CLG_LEVEL_ERROR : CLG_LEVEL_INFO;
-      break;
     case AV_LOG_WARNING:
-      /* Note: most ffmpeg warnings are not actionable; treat them as "info" log level
-       * unless we are explicitly logging at increased verbosity. */
-      clg_level = CLOG_CHECK(&LOG, CLG_LEVEL_INFO) ? CLG_LEVEL_WARN : CLG_LEVEL_INFO;
-      break;
     case AV_LOG_INFO:
+      /* Note: most ffmpeg internal errors/warnings are not actionable; treat them as "info"
+       * log level. */
       clg_level = CLG_LEVEL_INFO;
       break;
     case AV_LOG_VERBOSE:
