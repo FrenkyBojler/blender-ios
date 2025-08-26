@@ -2980,38 +2980,63 @@ bool RNA_property_boolean_get_default_index(PointerRNA *ptr, PropertyRNA *prop, 
   return value;
 }
 
-int RNA_property_int_get(PointerRNA *ptr, PropertyRNA *prop)
+static int property_int_get(PointerRNA *ptr, PropertyRNAOrID &prop_rna_or_id)
 {
-  IntPropertyRNA *iprop = (IntPropertyRNA *)prop;
-  IDProperty *idprop;
-
-  BLI_assert(RNA_property_type(prop) == PROP_INT);
-  BLI_assert(RNA_property_array_check(prop) == false);
-
-  if ((idprop = rna_idproperty_check(&prop, ptr))) {
-    return IDP_Int(idprop);
+  if (prop_rna_or_id.idprop) {
+    return IDP_Int(prop_rna_or_id.idprop);
   }
+  IntPropertyRNA *iprop = reinterpret_cast<IntPropertyRNA *>(prop_rna_or_id.rnaprop);
   if (iprop->get) {
     return iprop->get(ptr);
   }
   if (iprop->get_ex) {
-    return iprop->get_ex(ptr, prop);
+    return iprop->get_ex(ptr, &iprop->property);
   }
   return iprop->defaultvalue;
 }
 
-void RNA_property_int_set(PointerRNA *ptr, PropertyRNA *prop, int value)
+int RNA_property_int_get(PointerRNA *ptr, PropertyRNA *prop)
 {
-  IntPropertyRNA *iprop = (IntPropertyRNA *)prop;
-  IDProperty *idprop;
-
   BLI_assert(RNA_property_type(prop) == PROP_INT);
   BLI_assert(RNA_property_array_check(prop) == false);
-  /* useful to check on bad values but set function should clamp */
-  // BLI_assert(RNA_property_int_clamp(ptr, prop, &value) == 0);
 
-  if ((idprop = rna_idproperty_check(&prop, ptr))) {
-    RNA_property_int_clamp(ptr, prop, &value);
+  PropertyRNAOrID prop_rna_or_id;
+  rna_property_rna_or_id_get(prop, ptr, &prop_rna_or_id);
+  /* NOTE: `prop` is kept unchanged, to allow e.g. call to `RNA_property_boolean_get` without
+   * further complications.
+   * `bprop->property` should be used when access to an actual RNA property is required.
+   */
+  IntPropertyRNA *iprop = reinterpret_cast<IntPropertyRNA *>(prop_rna_or_id.rnaprop);
+
+  int value = property_int_get(ptr, prop_rna_or_id);
+  if (iprop->get_transform) {
+    value = iprop->get_transform(ptr, &iprop->property, value, prop_rna_or_id.is_set);
+  }
+
+  return value;
+}
+
+void RNA_property_int_set(PointerRNA *ptr, PropertyRNA *prop, int value)
+{
+  BLI_assert(RNA_property_type(prop) == PROP_INT);
+  BLI_assert(RNA_property_array_check(prop) == false);
+
+  PropertyRNAOrID prop_rna_or_id;
+  rna_property_rna_or_id_get(prop, ptr, &prop_rna_or_id);
+  /* NOTE: `prop` is kept unchanged, to allow e.g. call to `RNA_property_boolean_get` without
+   * further complications.
+   * `bprop->property` should be used when access to an actual RNA property is required.
+   */
+  IDProperty *idprop = prop_rna_or_id.idprop;
+  IntPropertyRNA *iprop = reinterpret_cast<IntPropertyRNA *>(prop_rna_or_id.rnaprop);
+
+  if (iprop->set_transform) {
+    /* Get raw, untransformed (aka 'storage') value. */
+    const int curr_value = property_int_get(ptr, prop_rna_or_id);
+    value = iprop->set_transform(ptr, &iprop->property, value, curr_value, prop_rna_or_id.is_set);
+  }
+
+  if (idprop) {
     IDP_Int(idprop) = value;
     rna_idproperty_touch(idprop);
   }
@@ -3019,10 +3044,9 @@ void RNA_property_int_set(PointerRNA *ptr, PropertyRNA *prop, int value)
     iprop->set(ptr, value);
   }
   else if (iprop->set_ex) {
-    iprop->set_ex(ptr, prop, value);
+    iprop->set_ex(ptr, &iprop->property, value);
   }
-  else if (prop->flag & PROP_EDITABLE) {
-    RNA_property_int_clamp(ptr, prop, &value);
+  else if (iprop->property.flag & PROP_EDITABLE) {
     if (IDProperty *group = RNA_struct_system_idprops(ptr, true)) {
       IDP_AddToGroup(
           group,

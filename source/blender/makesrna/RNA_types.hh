@@ -699,6 +699,12 @@ using BooleanArrayPropertySetFunc = void (*)(PointerRNA *ptr,
 
 using IntPropertyGetFunc = int (*)(PointerRNA *ptr, PropertyRNA *prop);
 using IntPropertySetFunc = void (*)(PointerRNA *ptr, PropertyRNA *prop, int value);
+using IntPropertyGetTransformFunc = int (*)(PointerRNA *ptr,
+                                            PropertyRNA *prop,
+                                            int value,
+                                            bool is_set);
+using IntPropertySetTransformFunc =
+    int (*)(PointerRNA *ptr, PropertyRNA *prop, int new_value, int curr_value, bool is_set);
 using IntArrayPropertyGetFunc = void (*)(PointerRNA *ptr, PropertyRNA *prop, int *values);
 using IntArrayPropertySetFunc = void (*)(PointerRNA *ptr, PropertyRNA *prop, const int *values);
 using IntPropertyRangeFunc =

@@ -3412,7 +3412,9 @@ void RNA_def_property_int_funcs(PropertyRNA *prop,
 void RNA_def_property_int_funcs_runtime(PropertyRNA *prop,
                                         IntPropertyGetFunc getfunc,
                                         IntPropertySetFunc setfunc,
-                                        IntPropertyRangeFunc rangefunc)
+                                        IntPropertyRangeFunc rangefunc,
+                                        IntPropertyGetTransformFunc get_transform_fn,
+                                        IntPropertySetTransformFunc set_transform_fn)
 {
   IntPropertyRNA *iprop = (IntPropertyRNA *)prop;
 
@@ -3433,6 +3435,13 @@ void RNA_def_property_int_funcs_runtime(PropertyRNA *prop,
     if (!setfunc) {
       RNA_def_property_clear_flag(prop, PROP_EDITABLE);
     }
+  }
+
+  if (get_transform_fn) {
+    iprop->get_transform = get_transform_fn;
+  }
+  if (set_transform_fn) {
+    iprop->set_transform = set_transform_fn;
   }
 }
 
