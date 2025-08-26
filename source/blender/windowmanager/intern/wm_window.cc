@@ -446,24 +446,24 @@ void wm_quit_with_optional_confirmation_prompt(bContext *C, wmWindow *win)
 /** \name Window Close
  * \{ */
 
-static rctf *stored_window_bounds(int space_type)
+static rctf *stored_window_bounds(eSpace_Type space_type)
 {
   if (space_type == SPACE_IMAGE) {
     return &U.stored_bounds.image;
   }
-  else if (space_type == SPACE_USERPREF) {
+  if (space_type == SPACE_USERPREF) {
     return &U.stored_bounds.userpref;
   }
-  else if (space_type == SPACE_GRAPH) {
+  if (space_type == SPACE_GRAPH) {
     return &U.stored_bounds.graph;
   }
-  else if (space_type == SPACE_INFO) {
+  if (space_type == SPACE_INFO) {
     return &U.stored_bounds.info;
   }
-  else if (space_type == SPACE_OUTLINER) {
+  if (space_type == SPACE_OUTLINER) {
     return &U.stored_bounds.outliner;
   }
-  else if (space_type == SPACE_FILE) {
+  if (space_type == SPACE_FILE) {
     return &U.stored_bounds.file;
   }
 
@@ -476,7 +476,7 @@ void wm_window_close(bContext *C, wmWindowManager *wm, wmWindow *win)
 
   if (screen->temp && BLI_listbase_is_single(&screen->areabase) && !WM_window_is_maximized(win)) {
     ScrArea *area = static_cast<ScrArea *>(screen->areabase.first);
-    rctf *stored_bounds = stored_window_bounds(area->spacetype);
+    rctf *stored_bounds = stored_window_bounds(eSpace_Type(area->spacetype));
 
     if (stored_bounds) {
       /* Get DPI and scale from parent window, if there is one. */
@@ -1328,7 +1328,7 @@ wmWindow *WM_window_open_temp(bContext *C, const char *title, int space_type, bo
   rcti rect;
   WM_window_dpi_set_userdef(CTX_wm_window(C));
   eWindowAlignment align;
-  rctf *stored_bounds = stored_window_bounds(space_type);
+  rctf *stored_bounds = stored_window_bounds(eSpace_Type(space_type));
   const bool bounds_valid = (stored_bounds && (BLI_rctf_size_x(stored_bounds) > 150.0f) &&
                              (BLI_rctf_size_y(stored_bounds) > 100.0f));
   const bool mm_placement = WM_capabilities_flag() & WM_CAPABILITY_MULTIMONITOR_PLACEMENT;
