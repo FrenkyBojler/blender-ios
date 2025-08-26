@@ -402,7 +402,7 @@ struct SculptUndoStep {
   SculptAttrRef active_color_end;
 };
 
-size_t get_step_memory_size(UndoStep *step)
+size_t step_memory_size_get(UndoStep *step)
 {
   if (step->type != BKE_UNDOSYS_TYPE_SCULPT) {
     return 0;

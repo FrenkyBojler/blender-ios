@@ -924,7 +924,7 @@ size_t ED_get_total_undo_memory()
 
   for (UndoStep *us = static_cast<UndoStep *>(ustack->steps.first); us != nullptr; us = us->next) {
     if (us->type == BKE_UNDOSYS_TYPE_SCULPT) {
-      total_memory += blender::ed::sculpt_paint::undo::get_step_memory_size(us);
+      total_memory += blender::ed::sculpt_paint::undo::step_memory_size_get(us);
     }
     else if (us->data_size > 0) {
       total_memory += us->data_size;

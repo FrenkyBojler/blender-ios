@@ -77,7 +77,7 @@ void geometry_end(Object &ob);
 void push_multires_mesh_begin(bContext *C, const char *str);
 void push_multires_mesh_end(bContext *C, const char *str);
 
-size_t get_step_memory_size(UndoStep *step);
+size_t step_memory_size_get(UndoStep *step);
 
 }  // namespace undo
 
