@@ -390,7 +390,7 @@ static bool dir_create_recursive(const char *dirname, const int len)
      * mkdir() failed. */
 #ifdef WIN32
     if (umkdir(dirname) == -1) {
-      if (GetLastError() == ERROR_ALREADY_EXISTS && S_ISDIR(BLI_exists(dirname))) {
+      if (GetLastError() == ERROR_ALREADY_EXISTS && BLI_is_dir(dirname)) {
         return true;
       }
 
@@ -399,7 +399,7 @@ static bool dir_create_recursive(const char *dirname, const int len)
     }
 #else
     if (mkdir(dirname, 0777) != 0) {
-      if (errno == EEXIST && S_ISDIR(BLI_exists(dirname))) {
+      if (errno == EEXIST && BLI_is_dir(dirname)) {
         return true;
       }
 
