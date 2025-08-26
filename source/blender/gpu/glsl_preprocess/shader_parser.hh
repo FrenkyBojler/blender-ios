@@ -1039,6 +1039,14 @@ struct Parser {
                matches[8] == Const,
                matches[10].scope());
     });
+    foreach_match("m?ww<..>(..)c?{..}", [&](const std::vector<Token> matches) {
+      callback(matches[0] == Static,
+               matches[2],
+               matches[3],
+               matches[8].scope(),
+               matches[12] == Const,
+               matches[14].scope());
+    });
   }
 
   std::string substr_range_inclusive(size_t start, size_t end)
