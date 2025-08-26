@@ -1637,25 +1637,40 @@ static bool get_uv_index_and_layer(const PointerRNA *ptr,
                                    int *r_uv_map_index,
                                    int *r_index_in_attribute)
 {
+  using namespace blender;
   const Mesh *mesh = rna_mesh(ptr);
   const blender::float2 *uv_coord = static_cast<const blender::float2 *>(ptr->data);
 
+  *r_uv_map_index = -1;
+
   /* We don't know from which attribute the RNA pointer is from, so we need to scan them all. */
-  // TODO_MESH_ATTR
-  const int uv_layers_num = CustomData_number_of_layers(&mesh->corner_data, CD_PROP_FLOAT2);
-  for (int layer_i = 0; layer_i < uv_layers_num; layer_i++) {
-    const blender::float2 *layer_data = static_cast<const blender::float2 *>(
-        CustomData_get_layer_n(&mesh->corner_data, CD_PROP_FLOAT2, layer_i));
-    const ptrdiff_t index = uv_coord - layer_data;
+  int uv_map_index = 0;
+  mesh->attribute_storage.wrap().foreach_with_stop([&](const bke::Attribute &attr) {
+    if (attr.domain() != bke::AttrDomain::Corner) {
+      return true;
+    }
+    if (attr.data_type() != bke::AttrType::Float2) {
+      return true;
+    }
+    const auto *array_data = std::get_if<bke::Attribute::ArrayData>(&attr.data());
+    if (!array_data) {
+      return true;
+    }
+    const ptrdiff_t index = uv_coord - static_cast<const float2 *>(array_data->data);
     if (index >= 0 && index < mesh->corners_num) {
-      *r_uv_map_index = layer_i;
+      *r_uv_map_index = uv_map_index;
       *r_index_in_attribute = index;
       return true;
     }
+    uv_map_index++;
+    return true;
+  });
+  if (*r_uv_map_index == -1) {
+    /* This can happen if the Customdata arrays were re-allocated between obtaining the
+     * Python object and accessing it. */
+    return false;
   }
-  /* This can happen if the Customdata arrays were re-allocated between obtaining the
-   * Python object and accessing it. */
-  return false;
+  return true;
 }
 
 static bool rna_MeshUVLoop_select_get(PointerRNA *ptr)
@@ -1745,11 +1760,8 @@ static void rna_MeshUVLoop_uv_set(PointerRNA *ptr, const float *value)
 
 static std::optional<std::string> rna_MeshLoopColorLayer_path(const PointerRNA *ptr)
 {
-  // TODO_MESH_ATTR
-  const CustomDataLayer *cdl = static_cast<const CustomDataLayer *>(ptr->data);
-  char name_esc[sizeof(cdl->name) * 2];
-  BLI_str_escape(name_esc, cdl->name, sizeof(name_esc));
-  return fmt::format("vertex_colors[\"{}\"]", name_esc);
+  const auto *attr = static_cast<const blender::bke::Attribute *>(ptr->data);
+  return fmt::format("vertex_colors[\"{}\"]", BLI_str_escape(attr->name().c_str()));
 }
 
 static std::optional<std::string> rna_MeshColor_path(const PointerRNA *ptr)
