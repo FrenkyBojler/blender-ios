@@ -159,7 +159,7 @@ static void area_draw_azone_fullscreen(short /*x1*/, short /*y1*/, short x2, sho
  */
 static void area_draw_azone(ScrArea *area, ARegion *region, AZone *az)
 {
-  if (!(U.uiflag & USER_VISIBLE_AREA_HANDLE)) {
+  if (!(U.uiflag & USER_AREA_CORNER_HANDLE)) {
     return;
   }
 
@@ -3408,7 +3408,7 @@ void ED_region_draw_overflow_indication(const ScrArea *area, ARegion *region, rc
   if (region->v2d.cur.xmin > region->v2d.tot.xmin) {
     /* Left Edge. */
     rect.xmin = offset_x;
-    if (is_header && (U.uiflag & USER_VISIBLE_AREA_HANDLE)) {
+    if (is_header && (U.uiflag & USER_AREA_CORNER_HANDLE)) {
       rect.xmin += 12.0f * UI_SCALE_FAC;
       transition = 20.0f * UI_SCALE_FAC;
     }
@@ -3418,7 +3418,7 @@ void ED_region_draw_overflow_indication(const ScrArea *area, ARegion *region, rc
     copy_v4_v4(grad_color, opaque);
     grad_color[3] *= std::min((region->v2d.cur.xmin - region->v2d.tot.xmin) / transition, 1.0f);
     UI_draw_roundbox_4fv_ex(&rect, transparent, grad_color, 0.0f, nullptr, 0.0f, 0.0f);
-    if (is_header && (U.uiflag & USER_VISIBLE_AREA_HANDLE)) {
+    if (is_header && (U.uiflag & USER_AREA_CORNER_HANDLE)) {
       rect.xmin = 0.0f;
       rect.xmax = 12.0f * UI_SCALE_FAC;
       UI_draw_roundbox_4fv_ex(&rect, grad_color, nullptr, 0.0f, nullptr, 0.0f, 0.0f);
