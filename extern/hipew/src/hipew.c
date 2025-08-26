@@ -241,28 +241,14 @@ static int hipewHipInit(void) {
   /* ROCm 6 changes paths from /opt/rocm/hip/lib to /opt/rocm/lib, so
    * search for libraries there. */
 
-  const char* hip_versions[] = { "", ".7", ".6", NULL };
-  const char* hip_path[] = {
-      "",
-      "/opt/rocm/lib/",
-      "/opt/rocm/hip/lib/",
-      NULL
-  };
-
-  const char* hip_paths[32]; // adjust size if more needed
-
-  void init_hip_paths() {
-    int idx = 0;
-    for (int v = 0; hip_versions[v]; v++) {
-      for (int p = 0; hip_path[p]; p++) {
-        static char buf[32][128]; // keep storage for strings
-        snprintf(buf[idx], sizeof(buf[idx]), "%slibamdhip64.so%s",
-          hip_path[p], hip_versions[v]);
-        hip_paths[idx++] = buf[idx - 1];
-      }
-    }
-    hip_paths[idx] = NULL;
-  }
+  const char* hip_paths[] = { "libamdhip64.so.7",
+                            "/opt/rocm/lib/libamdhip64.so.7",
+                            "/opt/rocm/hip/lib/libamdhip64.so.7",
+                            "libamdhip64.so.6",
+                            "/opt/rocm/lib/libamdhip64.so.6",
+                            "/opt/rocm/hip/lib/libamdhip64.so.6"
+                            "libamdhip64.so",
+                             NULL };
 #endif
   static int initialized = 0;
   static int result = 0;
