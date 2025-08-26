@@ -1799,7 +1799,7 @@ typedef struct ToolSettings {
    */
   short sculpt_paint_settings DNA_DEPRECATED;
   int sculpt_paint_unified_size DNA_DEPRECATED;
-  float sculpt_paint_unified_unprojected_size DNA_DEPRECATED;
+  float sculpt_paint_unified_unprojected_radius DNA_DEPRECATED;
   float sculpt_paint_unified_alpha DNA_DEPRECATED;
 
   /**
