@@ -1824,19 +1824,26 @@ static void rna_def_fmodifier_smooth(BlenderRNA *brna)
   RNA_def_struct_ui_text(srna, "Smooth F-Modifier", "Smooth curve using Gaussian smoothing");
   RNA_def_struct_sdna_from(srna, "FMod_Smooth", "data");
 
-  prop = RNA_def_property(srna, "sigma", PROP_FLOAT, PROP_NONE);
+  prop = RNA_def_property(srna, "sigma", PROP_FLOAT, PROP_TIME);
   RNA_def_property_float_sdna(prop, nullptr, "sigma");
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_range(prop, 0.001, 100.0);
-  RNA_def_property_ui_text(prop, "Sigma", "Shape of the Gaussian distribution");
+  RNA_def_property_ui_range(prop, 0.001, 2.0, 0.05, 3);
+  RNA_def_property_ui_text(
+      prop,
+      "Sigma",
+      "The shape of the Gaussian distribution in frames. Lower values will make it sharper, "
+      "but have less effect as the Filter Width is increased.");
   RNA_def_property_update(prop, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, "rna_FModifier_update");
 
-  prop = RNA_def_property(srna, "filter_width", PROP_INT, PROP_NONE);
+  prop = RNA_def_property(srna, "filter_width", PROP_INT, PROP_TIME);
   RNA_def_property_int_sdna(prop, nullptr, "filter_width");
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_range(prop, 1, 32);
-  RNA_def_property_ui_text(
-      prop, "Filter Width", "How far to each side the operator will average the key values");
+  RNA_def_property_ui_text(prop,
+                           "Filter Width",
+                           "The number of frames to average around each keyframe. Higher values "
+                           "allow more smoothing, but will decrease performance.");
   RNA_def_property_update(prop, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, "rna_FModifier_update");
 }
 

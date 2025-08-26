@@ -1007,22 +1007,16 @@ static void fcm_smooth_new_data(void *mdata)
   data->filter_width = 6;
 }
 
-/* This function smooths a certain frame on curve. It is separate because the modifier evaluate
- * function may call it multiple times if we are interpolating for a sub-frame. */
+/* Evaluate the F-Curve at a certain point, by locally smoothing the values around that point. */
 static void fcm_smooth_frame(const FCurve *fcu,
                              const FModifier *fcm,
                              float *cvalue,
-                             float evaltime)
+                             const int evaltime)
 {
   FMod_Smooth *data = (FMod_Smooth *)fcm->data;
 
   const float sigma = data->sigma;
   const int kernel_size = data->filter_width;
-
-  /* If sigma is negligible, don't change it. */
-  if (sigma < 0.1f) {
-    return;
-  }
 
   /* Hold variables for weight, so we can compensate for the influence of the modifier. */
   float total_weighted_value = 0.0f;
@@ -1035,22 +1029,21 @@ static void fcm_smooth_frame(const FCurve *fcu,
   const float two_sigma_sq = 2.0f * sigma * sigma;
 
   /* Sampling loop. */
-  for (int i = start_frame; i <= end_frame; ++i) {
-    const float sample_time = (float)i;
+  for (float sample_time = start_frame; sample_time <= end_frame; ++sample_time) {
     const float sample_distance = sample_time - evaltime;
 
     /* Normalize sigma to kernel window.
-     * This makes it consistent with the behavior in the destructive operator. */
+     * This makes it consistent with the behavior in GRAPH_OT_gaussian_smooth. */
     const float sample_dis_norm = sample_distance / kernel_size;
     const float weight = expf(-(sample_dis_norm * sample_dis_norm) / two_sigma_sq);
 
-    const float value_at_time = evaluate_fcurve_unmodified(fcu, sample_time);
+    const float sample_value = evaluate_fcurve_unmodified(fcu, sample_time);
 
-    total_weighted_value += value_at_time * weight;
+    total_weighted_value += sample_value * weight;
     total_weight += weight;
   }
 
-  if (total_weight > FLT_EPSILON) {
+  if (total_weight > 0.0f) {
     *cvalue = (total_weighted_value / total_weight);
   }
 }
@@ -1059,26 +1052,25 @@ static void fcm_smooth_evaluate(
     const FCurve *fcu, const FModifier *fcm, float *cvalue, float evaltime, void * /*storage*/)
 {
   /* Check if evaltime is an integer, with FLT_EPSILON tolerance. */
-  bool is_subframe = (fabs(roundf(evaltime) - evaltime) > FLT_EPSILON);
+  const bool is_subframe = (fabs(roundf(evaltime) - evaltime) > FLT_EPSILON);
 
-  /* If the evaltime is a sub-frame, we linearly interpolate. */
-  if (is_subframe) {
-    const float prev_time = floorf(evaltime);
-    const float next_time = ceilf(evaltime);
-
-    float prev_value = evaluate_fcurve_unmodified(fcu, prev_time);
-    float next_value = evaluate_fcurve_unmodified(fcu, next_time);
-
-    fcm_smooth_frame(fcu, fcm, &prev_value, prev_time);
-    fcm_smooth_frame(fcu, fcm, &next_value, next_time);
-
-    *cvalue = interpf(next_value, prev_value, evaltime - prev_time);
-  }
-
-  /* Otherwise, we directly calcuate the value. */
-  else {
+  /* If the evaltime is an integer frame, we directly calcuate the value. */
+  if (!is_subframe) {
     fcm_smooth_frame(fcu, fcm, cvalue, evaltime);
+    return;
   }
+
+  /* Otherwise, we linearly interpolate. */
+  const float prev_frame = floorf(evaltime);
+  const float next_frame = ceilf(evaltime);
+
+  float prev_value = evaluate_fcurve_unmodified(fcu, prev_frame);
+  float next_value = evaluate_fcurve_unmodified(fcu, next_frame);
+
+  fcm_smooth_frame(fcu, fcm, &prev_value, prev_frame);
+  fcm_smooth_frame(fcu, fcm, &next_value, next_frame);
+
+  *cvalue = interpf(next_value, prev_value, evaltime - prev_frame);
 }
 
 static FModifierTypeInfo FMI_SMOOTH = {
