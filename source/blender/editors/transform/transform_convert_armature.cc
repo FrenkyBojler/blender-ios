@@ -396,8 +396,9 @@ static void add_pose_transdata(
   float pmat[3][3], omat[3][3];
   float cmat[3][3], tmat[3][3];
 
-  const bArmature *arm = static_cast<bArmature *>(ob->data);
-  BKE_pose_channel_gizmo_location(arm, pchan, td->center);
+  /* This has to use the pchan->pose_mat and ignore the pchan->custom_tx in case it is set.
+   * Otherwise rotations around the 3D cursor don't work as expected. */
+  copy_v3_v3(td->center, pchan->pose_mat[3]);
 
   td->flag = TD_SELECTED;
   if (bone->flag & BONE_HINGE_CHILD_TRANSFORM) {
@@ -448,7 +449,7 @@ static void add_pose_transdata(
   /* Proper way to get parent transform + our own transform + constraints transform. */
   copy_m3_m4(omat, ob->object_to_world().ptr());
 
-  /* New code, using "generic" BKE_bone_parent_transform_calc_from_pchan(). */
+  const bArmature *arm = static_cast<bArmature *>(ob->data);
   {
     BoneParentTransform bpt;
     float rpmat[3][3];
