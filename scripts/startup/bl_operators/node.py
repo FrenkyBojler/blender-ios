@@ -203,10 +203,8 @@ class NodeSwapOperator(NodeOperator):
         if (context.area is None) or (context.area.type != "NODE_EDITOR"):
             return False
 
-        active_node = context.active_node
-
-        if (active_node is None) or (not active_node.select):
-            cls.poll_message_set("Active node must be selected")
+        if len(context.selected_nodes) <= 0:
+            cls.poll_message_set("No nodes selected.")
             return False
 
         return True
@@ -330,17 +328,15 @@ class NODE_OT_swap_empty_group(NodeSwapOperator, bpy.types.Operator):
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
-        old_node = context.active_node
-
         from nodeitems_builtins import node_tree_group_type
         tree = context.space_data.edit_tree
         group = self.create_empty_group(tree.bl_idname)
-        self.deselect_nodes(context)
-        new_node = self.create_node(context, node_tree_group_type[tree.bl_idname])
-        new_node.node_tree = group
-        new_node.location = old_node.location
 
-        tree.nodes.remove(old_node)
+        bpy.ops.node.swap_node('INVOKE_DEFAULT', type=node_tree_group_type[tree.bl_idname])
+
+        for node in context.selected_nodes:
+            node.node_tree = group
+
         return {"FINISHED"}
 
     @staticmethod
@@ -485,37 +481,39 @@ class NODE_OT_swap_node(NodeSwapOperator, Operator):
         return None
 
     def execute(self, context):
-        old_node = context.active_node
-        tree = old_node.id_data
+        tree = context.space_data.edit_tree
 
-        self.deselect_nodes(context)
+        for old_node in context.selected_nodes[:]:
+            if tree.nodes.get(old_node.name) is None:
+                continue
 
-        node_new = self.create_node(context, self.type)
-        if self.visible_output:
-            for socket in node_new.outputs:
-                if socket.name != self.visible_output:
-                    socket.hide = True
-        node_new.location = old_node.location
+            node_new = self.create_node(context, self.type)
+            if self.visible_output:
+                for socket in node_new.outputs:
+                    if socket.name != self.visible_output:
+                        socket.hide = True
+            node_new.location = old_node.location
+            node_new.select = True
 
-        zone_pair = self.get_zone_pair(tree, old_node)
+            zone_pair = self.get_zone_pair(tree, old_node)
 
-        if zone_pair is not None:
-            input_node, output_node = zone_pair
+            if zone_pair is not None:
+                input_node, output_node = zone_pair
 
-            self.transfer_input_values(input_node, node_new)
+                self.transfer_input_values(input_node, node_new)
 
-            self.transfer_links(tree, input_node, node_new, is_input=True)
-            self.transfer_links(tree, output_node, node_new, is_input=False)
+                self.transfer_links(tree, input_node, node_new, is_input=True)
+                self.transfer_links(tree, output_node, node_new, is_input=False)
 
-            for node in zone_pair:
-                tree.nodes.remove(node)
-        else:
-            self.transfer_input_values(old_node, node_new)
+                for node in zone_pair:
+                    tree.nodes.remove(node)
+            else:
+                self.transfer_input_values(old_node, node_new)
 
-            self.transfer_links(tree, old_node, node_new, is_input=True)
-            self.transfer_links(tree, old_node, node_new, is_input=False)
+                self.transfer_links(tree, old_node, node_new, is_input=True)
+                self.transfer_links(tree, old_node, node_new, is_input=False)
 
-            tree.nodes.remove(old_node)
+                tree.nodes.remove(old_node)
 
         return {'FINISHED'}
 
@@ -556,61 +554,62 @@ class NODE_OT_swap_zone(ZoneOperator, NodeSwapOperator, Operator):
         return None
 
     def execute(self, context):
-        old_node = context.active_node
-        space = context.space_data
-        tree = space.edit_tree
+        tree = context.space_data.edit_tree
 
-        self.deselect_nodes(context)
-        input_node = self.create_node(context, self.input_node_type)
-        output_node = self.create_node(context, self.output_node_type)
+        for old_node in context.selected_nodes[:]:
+            if tree.nodes.get(old_node.name) is None:
+                continue
+            
+            input_node = self.create_node(context, self.input_node_type)
+            output_node = self.create_node(context, self.output_node_type)
 
-        if input_node is None or output_node is None:
-            return {'CANCELLED'}
+            if input_node is None or output_node is None:
+                return {'CANCELLED'}
 
-        # Simulation input must be paired with the output.
-        input_node.pair_with_output(output_node)
+            # Simulation input must be paired with the output.
+            input_node.pair_with_output(output_node)
 
-        zone_pair = self.get_zone_pair(tree, old_node)
+            zone_pair = self.get_zone_pair(tree, old_node)
 
-        if zone_pair is not None:
-            old_input_node, old_output_node = zone_pair
+            if zone_pair is not None:
+                old_input_node, old_output_node = zone_pair
 
-            input_node.location = old_input_node.location
-            output_node.location = old_output_node.location
+                input_node.location = old_input_node.location
+                output_node.location = old_output_node.location
 
-            self.transfer_input_values(old_input_node, input_node)
-            self.transfer_input_values(old_output_node, output_node)
+                self.transfer_input_values(old_input_node, input_node)
+                self.transfer_input_values(old_output_node, output_node)
 
-            self.transfer_links(tree, old_input_node, input_node, is_input=True)
-            self.transfer_links(tree, old_input_node, input_node, is_input=False)
+                self.transfer_links(tree, old_input_node, input_node, is_input=True)
+                self.transfer_links(tree, old_input_node, input_node, is_input=False)
 
-            self.transfer_links(tree, old_output_node, output_node, is_input=True)
-            self.transfer_links(tree, old_output_node, output_node, is_input=False)
+                self.transfer_links(tree, old_output_node, output_node, is_input=True)
+                self.transfer_links(tree, old_output_node, output_node, is_input=False)
 
-            for node in zone_pair:
-                tree.nodes.remove(node)
-        else:
-            input_node.location = old_node.location
-            output_node.location = old_node.location
+                for node in zone_pair:
+                    tree.nodes.remove(node)
+            else:
+                input_node.location = old_node.location
+                output_node.location = old_node.location
 
-            input_node.location -= Vector(self.offset)
-            output_node.location += Vector(self.offset)
+                input_node.location -= Vector(self.offset)
+                output_node.location += Vector(self.offset)
 
-            self.transfer_input_values(old_node, input_node)
+                self.transfer_input_values(old_node, input_node)
 
-            self.transfer_links(tree, old_node, input_node, is_input=True)
-            self.transfer_links(tree, old_node, output_node, is_input=False)
+                self.transfer_links(tree, old_node, input_node, is_input=True)
+                self.transfer_links(tree, old_node, output_node, is_input=False)
 
-            tree.nodes.remove(old_node)
+                tree.nodes.remove(old_node)
 
-        if self.add_default_geometry_link:
-            # Connect geometry sockets by default if available.
-            # Get the sockets by their types, because the name is not guaranteed due to i18n.
-            from_socket = next(s for s in input_node.outputs if s.type == 'GEOMETRY')
-            to_socket = next(s for s in output_node.inputs if s.type == 'GEOMETRY')
+            if self.add_default_geometry_link:
+                # Connect geometry sockets by default if available.
+                # Get the sockets by their types, because the name is not guaranteed due to i18n.
+                from_socket = next(s for s in input_node.outputs if s.type == 'GEOMETRY')
+                to_socket = next(s for s in output_node.inputs if s.type == 'GEOMETRY')
 
-            if not (from_socket.is_linked or to_socket.is_linked):
-                tree.links.new(to_socket, from_socket)
+                if not (from_socket.is_linked or to_socket.is_linked):
+                    tree.links.new(to_socket, from_socket)
 
         return {'FINISHED'}
 
