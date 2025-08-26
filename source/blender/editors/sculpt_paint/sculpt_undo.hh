@@ -8,15 +8,16 @@
 
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 
-#include "BKE_undo_system.hh"
 #include "BLI_index_mask_fwd.hh"
 
 struct Depsgraph;
 struct Mesh;
 struct Object;
 struct Scene;
+struct UndoStep;
 struct wmOperator;
 namespace blender::bke::pbvh {
 class Node;
