@@ -494,7 +494,7 @@ static wmOperatorStatus weight_sample_invoke(bContext *C,
           /* Get deformation by modifiers. */
           bke::crazyspace::GeometryDeformation deformation =
               bke::crazyspace::get_evaluated_grease_pencil_drawing_deformation(
-                  ob_eval, *vc.obact, info.layer_index, info.frame_number);
+                  ob_eval, *vc.obact, info.drawing);
 
           IndexMaskMemory memory;
           const IndexMask points = retrieve_visible_points(*vc.obact, info.drawing, memory);
@@ -724,7 +724,7 @@ static wmOperatorStatus vertex_group_smooth_exec(bContext *C, wmOperator *op)
           object_defgroup->name);
       geometry::smooth_curve_attribute(curves.curves_range(),
                                        curves.points_by_curve(),
-                                       VArray<bool>::ForSingle(true, curves.points_num()),
+                                       VArray<bool>::from_single(true, curves.points_num()),
                                        curves.cyclic(),
                                        repeat,
                                        smooth_factor,

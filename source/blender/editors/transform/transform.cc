@@ -9,6 +9,7 @@
 #include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
+#include "BLI_rect.h"
 
 #include "BKE_context.hh"
 #include "BKE_editmesh.hh"
@@ -127,7 +128,8 @@ void setTransformViewAspect(TransInfo *t, float r_aspect[3])
   }
   else if (t->spacetype == SPACE_SEQ) {
     if (t->options & CTX_CURSOR) {
-      const float2 aspect = seq::image_preview_unit_to_px(t->scene, r_aspect);
+      Scene *scene = CTX_data_sequencer_scene(t->context);
+      const float2 aspect = seq::image_preview_unit_to_px(scene, r_aspect);
       copy_v2_v2(r_aspect, aspect);
     }
   }
@@ -228,6 +230,56 @@ void convertViewVec(TransInfo *t, float r_vec[3], double dx, double dy)
   else {
     printf("%s: called in an invalid context\n", __func__);
     zero_v3(r_vec);
+  }
+}
+
+void projectFloatViewCenterFallback(TransInfo *t, float adr[2])
+{
+  const ARegion *region = t->region;
+
+  if (UNLIKELY(region == nullptr)) {
+    /* While this function probably wont be calved without a region.
+     * Doing so shouldn't cause errors. */
+    adr[0] = 0.0f;
+    adr[1] = 0.0f;
+    return;
+  }
+
+  bool changed = false;
+  switch (t->spacetype) {
+    case SPACE_VIEW3D: {
+      if (region->regiontype == RGN_TYPE_WINDOW) {
+        /* NOTE(@ideasman42): When picking a fallback there isn't a "correct" location.
+         * By default the region center is the fallback, use this unless there is a reason not to.
+         *
+         * One exception is when transforming the camera from the camera viewpoint.
+         * In this case it's logical to use the camera frames center, see: #141663. */
+        if (t->options & CTX_CAMERA) {
+          const View3D *v3d = static_cast<View3D *>(t->view);
+          const RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
+          if (rv3d->persp == RV3D_CAMOB && v3d->camera) {
+            /* Exclude any camera "shift" because the un-shifted point is the pivot.
+             *
+             * This may not be the case when transforming a cameras parent however
+             * in these situations it's not practical to find a screen space location
+             * for a 3D point that couldn't be projected. */
+            const bool no_shift = true;
+            rctf viewborder = {0};
+            ED_view3d_calc_camera_border(
+                t->scene, t->depsgraph, region, v3d, rv3d, no_shift, &viewborder);
+            adr[0] = BLI_rctf_cent_x(&viewborder);
+            adr[1] = BLI_rctf_cent_y(&viewborder);
+            changed = true;
+          }
+        }
+      }
+      break;
+    }
+  }
+
+  if (changed == false) {
+    adr[0] = region->winx / 2.0f;
+    adr[1] = region->winy / 2.0f;
   }
 }
 
@@ -361,8 +413,7 @@ void projectFloatViewEx(TransInfo *t, const float vec[3], float adr[2], const eV
         /* Allow points behind the view #33643. */
         if (ED_view3d_project_float_global(t->region, vec, adr, flag) != V3D_PROJ_RET_OK) {
           /* XXX, 2.64 and prior did this, weak! */
-          adr[0] = t->region->winx / 2.0f;
-          adr[1] = t->region->winy / 2.0f;
+          projectFloatViewCenterFallback(t, adr);
         }
         return;
       }
@@ -588,9 +639,6 @@ static bool transform_modal_item_poll(const wmOperator *op, int value)
       if (t->spacetype != SPACE_VIEW3D) {
         return false;
       }
-      if ((t->tsnap.mode & ~(SCE_SNAP_TO_INCREMENT | SCE_SNAP_TO_GRID)) == 0) {
-        return false;
-      }
       if (value == TFM_MODAL_ADD_SNAP) {
         if (!(t->tsnap.status & SNAP_TARGET_FOUND)) {
           return false;
@@ -724,6 +772,11 @@ static bool transform_modal_item_poll(const wmOperator *op, int value)
         return false;
       }
       return t->vod != nullptr;
+    case TFM_MODAL_STRIP_CLAMP:
+      if (t->spacetype != SPACE_SEQ) {
+        return false;
+      }
+      break;
   }
   return true;
 }
@@ -780,6 +833,7 @@ wmKeyMap *transform_modal_keymap(wmKeyConfig *keyconf)
       {TFM_MODAL_PRECISION, "PRECISION", 0, "Precision Mode", ""},
       {TFM_MODAL_PASSTHROUGH_NAVIGATE, "PASSTHROUGH_NAVIGATE", 0, "Navigate", ""},
       {TFM_MODAL_NODE_FRAME, "NODE_FRAME", 0, "Attach/Detach Frame", ""},
+      {TFM_MODAL_STRIP_CLAMP, "STRIP_CLAMP_TOGGLE", 0, "Clamp Strips", ""},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
@@ -978,6 +1032,23 @@ static bool transform_event_modal_constraint(TransInfo *t, short modal_type)
   return true;
 }
 
+static void tool_settings_update_snap_toggle(TransInfo *t)
+{
+  bool is_snap_enabled = (t->modifiers & MOD_SNAP) != 0;
+
+  /* Type is #eSnapFlag, but type must match various snap attributes in #ToolSettings. */
+  short *snap_flag_ptr;
+
+  wmMsgParams_RNA msg_key_params = {{}};
+  msg_key_params.ptr = RNA_pointer_create_discrete(&t->scene->id, &RNA_ToolSettings, t->settings);
+  if ((snap_flag_ptr = transform_snap_flag_from_spacetype_ptr(t, &msg_key_params.prop)) &&
+      (is_snap_enabled != bool(*snap_flag_ptr & SCE_SNAP)))
+  {
+    SET_FLAG_FROM_TEST(*snap_flag_ptr, is_snap_enabled, SCE_SNAP);
+    WM_msg_publish_rna_params(t->mbus, &msg_key_params);
+  }
+}
+
 wmOperatorStatus transformEvent(TransInfo *t, wmOperator *op, const wmEvent *event)
 {
   bool is_navigating = t->vod ? ((RegionView3D *)t->region->regiondata)->rflag & RV3D_NAVIGATING :
@@ -1030,7 +1101,7 @@ wmOperatorStatus transformEvent(TransInfo *t, wmOperator *op, const wmEvent *eve
       case TFM_MODAL_TRACKBALL:
       case TFM_MODAL_ROTATE_NORMALS:
       case TFM_MODAL_VERT_EDGE_SLIDE:
-        /* Only switch when. */
+        /* Only switch when supported. */
         if (!transform_mode_is_changeable(t->mode)) {
           break;
         }
@@ -1124,6 +1195,7 @@ wmOperatorStatus transformEvent(TransInfo *t, wmOperator *op, const wmEvent *eve
       case TFM_MODAL_SNAP_TOGGLE:
         t->modifiers ^= MOD_SNAP;
         transform_snap_flag_from_modifiers_set(t);
+        tool_settings_update_snap_toggle(t);
         t->redraw |= TREDRAW_HARD;
         break;
       case TFM_MODAL_AXIS_X:
@@ -1307,6 +1379,10 @@ wmOperatorStatus transformEvent(TransInfo *t, wmOperator *op, const wmEvent *eve
           transform_mode_snap_source_init(t, nullptr);
           t->redraw |= TREDRAW_HARD;
         }
+        break;
+      case TFM_MODAL_STRIP_CLAMP:
+        t->modifiers ^= MOD_STRIP_CLAMP_HOLDS;
+        t->redraw |= TREDRAW_HARD;
         break;
       default:
         break;
@@ -1725,7 +1801,6 @@ void saveTransform(bContext *C, TransInfo *t, wmOperator *op)
 
   /* Save snapping settings. */
   if ((prop = RNA_struct_find_property(op->ptr, "snap"))) {
-    bool is_snap_enabled = (t->modifiers & MOD_SNAP) != 0;
 
     /* Update the snap toggle in `ToolSettings`. */
     if (
@@ -1738,19 +1813,10 @@ void saveTransform(bContext *C, TransInfo *t, wmOperator *op)
         /* Skip updating the snap toggle if snapping was enabled via operator properties. */
         !RNA_property_is_set(op->ptr, prop))
     {
-      /* Type is #eSnapFlag, but type must match various snap attributes in #ToolSettings. */
-      short *snap_flag_ptr;
-
-      wmMsgParams_RNA msg_key_params = {{}};
-      msg_key_params.ptr = RNA_pointer_create_discrete(&t->scene->id, &RNA_ToolSettings, ts);
-      if ((snap_flag_ptr = transform_snap_flag_from_spacetype_ptr(t, &msg_key_params.prop)) &&
-          (is_snap_enabled != bool(*snap_flag_ptr & SCE_SNAP)))
-      {
-        SET_FLAG_FROM_TEST(*snap_flag_ptr, is_snap_enabled, SCE_SNAP);
-        WM_msg_publish_rna_params(t->mbus, &msg_key_params);
-      }
+      tool_settings_update_snap_toggle(t);
     }
 
+    bool is_snap_enabled = (t->modifiers & MOD_SNAP) != 0;
     RNA_property_boolean_set(op->ptr, prop, is_snap_enabled);
 
     if ((prop = RNA_struct_find_property(op->ptr, "snap_elements"))) {
@@ -1901,7 +1967,7 @@ bool initTransform(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
 
   /* Needed to translate tweak events to mouse buttons. */
   t->launch_event = event ? WM_userdef_event_type_from_keymap_type(event->type) : -1;
-  t->is_launch_event_drag = event ? (event->val == KM_CLICK_DRAG) : false;
+  t->is_launch_event_drag = event ? (event->val == KM_PRESS_DRAG) : false;
 
   unit_m3(t->spacemtx);
 
@@ -1951,7 +2017,13 @@ bool initTransform(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
         continue;
       }
 
-      BLI_assert(tc->sorted_index_map);
+      if (!tc->sorted_index_map) {
+        BLI_assert_msg(tc->data[0].flag & TD_SELECTED,
+                       "Without sorted_index_map, all items are expected to be selected");
+        has_selected_any = true;
+        break;
+      }
+
       const int first_selected_index = tc->sorted_index_map[0];
       TransData *td = &tc->data[first_selected_index];
       if (td->flag & TD_SELECTED) {

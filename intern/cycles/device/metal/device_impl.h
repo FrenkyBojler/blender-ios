@@ -41,6 +41,7 @@ class MetalDevice : public Device {
 
   /* MetalRT members ----------------------------------*/
   bool use_metalrt = false;
+  bool use_metalrt_extended_limits = false;
   bool motion_blur = false;
   bool use_pcmi = false;
   id<MTLArgumentEncoder> mtlASArgEncoder =
@@ -85,7 +86,6 @@ class MetalDevice : public Device {
   id<MTLArgumentEncoder> mtlBufferArgEncoder = nil;
   id<MTLBuffer> buffer_bindings_1d = nil;
   id<MTLBuffer> texture_bindings_2d = nil;
-  id<MTLBuffer> texture_bindings_3d = nil;
   std::vector<id<MTLTexture>> texture_slot_map;
 
   MetalPipelineType kernel_specialization_level = PSO_GENERIC;
@@ -142,6 +142,8 @@ class MetalDevice : public Device {
   unique_ptr<DeviceQueue> gpu_queue_create() override;
 
   void build_bvh(BVH *bvh, Progress &progress, bool refit) override;
+
+  bool set_bvh_limits(size_t instance_count, size_t max_prim_count) override;
 
   void optimize_for_scene(Scene *scene) override;
 

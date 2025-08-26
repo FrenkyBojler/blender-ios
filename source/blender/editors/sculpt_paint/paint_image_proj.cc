@@ -23,6 +23,7 @@
 #include "BLI_listbase.h"
 #include "BLI_math_base_safe.h"
 #include "BLI_math_bits.h"
+#include "BLI_math_color.h"
 #include "BLI_math_color_blend.h"
 #include "BLI_math_geom.h"
 #include "BLI_math_vector.hh"
@@ -50,6 +51,8 @@
 #include "DNA_object_enums.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
+#include "DNA_screen_types.h"
+#include "DNA_space_types.h"
 
 #include "BKE_attribute.hh"
 #include "BKE_brush.hh"
@@ -62,24 +65,21 @@
 #include "BKE_idprop.hh"
 #include "BKE_image.hh"
 #include "BKE_layer.hh"
-#include "BKE_lib_id.hh"
 #include "BKE_library.hh"
 #include "BKE_main.hh"
 #include "BKE_main_invariants.hh"
 #include "BKE_material.hh"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_mapping.hh"
-#include "BKE_mesh_runtime.hh"
 #include "BKE_node.hh"
 #include "BKE_node_legacy_types.hh"
 #include "BKE_node_runtime.hh"
 #include "BKE_object.hh"
 #include "BKE_paint.hh"
+#include "BKE_paint_types.hh"
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
 #include "BKE_screen.hh"
-#include "DNA_screen_types.h"
-#include "DNA_space_types.h"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_query.hh"
@@ -222,6 +222,11 @@ struct ProjPaintImage {
   /** Store flag to enforce validation of undo rectangle. */
   bool **valid;
   bool touch;
+  /** Paint color in the colorspace of this image, cached for performance. */
+  float paint_color_byte[3];
+  bool is_data;
+  bool is_srgb;
+  const ColorSpace *byte_colorspace;
 };
 
 /**
@@ -269,8 +274,7 @@ struct ProjPaintState {
   /* PROJ_SRC_**** */
   int source;
 
-  /* the paint color. It can change depending of inverted mode or not */
-  float paint_color[3];
+  /* Scene linear paint color. It can change depending on inverted mode or not. */
   float paint_color_linear[3];
   float dither;
 
@@ -487,7 +491,10 @@ struct ProjPixel {
 
   short x_px, y_px;
 
-  /** if anyone wants to paint onto more than 65535 images they can bite me. */
+  /**
+   * Use a short to reduce memory use.
+   * This limits the total number of supported images to 65535 which seems reasonable.
+   */
   ushort image_index;
   uchar bb_cell_index;
 
@@ -1972,7 +1979,9 @@ static ProjPixel *project_paint_uvpixel_init(const ProjPaintState *ps,
             uchar rgba_ub[4];
             float rgba[4];
             project_face_pixel(other_tri_uv, ibuf_other, w, rgba_ub, nullptr);
-            srgb_to_linearrgb_uchar4(rgba, rgba_ub);
+            rgba_uchar_to_float(rgba, rgba_ub);
+            IMB_colormanagement_colorspace_to_scene_linear_v3(rgba,
+                                                              ibuf_other->byte_buffer.colorspace);
             straight_to_premul_v4_v4(((ProjPixelClone *)projPixel)->clonepx.f, rgba);
           }
         }
@@ -1981,8 +1990,8 @@ static ProjPixel *project_paint_uvpixel_init(const ProjPaintState *ps,
             float rgba[4];
             project_face_pixel(other_tri_uv, ibuf_other, w, nullptr, rgba);
             premul_to_straight_v4(rgba);
-            linearrgb_to_srgb_uchar3(((ProjPixelClone *)projPixel)->clonepx.ch, rgba);
-            ((ProjPixelClone *)projPixel)->clonepx.ch[3] = rgba[3] * 255;
+            IMB_colormanagement_scene_linear_to_colorspace_v3(rgba, ibuf->byte_buffer.colorspace);
+            rgba_float_to_uchar(((ProjPixelClone *)projPixel)->clonepx.ch, rgba);
           }
           else { /* char to char */
             project_face_pixel(
@@ -5072,16 +5081,23 @@ static void do_projectpaint_draw(ProjPaintState *ps,
                                  int u,
                                  int v)
 {
+  const ProjPaintImage *img = &ps->projImages[projPixel->image_index];
   float rgb[3];
   uchar rgba_ub[4];
 
   if (ps->is_texbrush) {
     mul_v3_v3v3(rgb, texrgb, ps->paint_color_linear);
-    /* TODO(sergey): Support texture paint color space. */
-    linearrgb_to_srgb_v3_v3(rgb, rgb);
+    if (img->is_srgb) {
+      /* Fast-ish path for sRGB. */
+      IMB_colormanagement_scene_linear_to_srgb_v3(rgb, rgb);
+    }
+    else if (img->byte_colorspace) {
+      /* Slow path with arbitrary colorspace. */
+      IMB_colormanagement_scene_linear_to_colorspace_v3(rgb, img->byte_colorspace);
+    }
   }
   else {
-    copy_v3_v3(rgb, ps->paint_color);
+    copy_v3_v3(rgb, img->paint_color_byte);
   }
 
   if (dither > 0.0f) {
@@ -5320,7 +5336,13 @@ static void do_projectpaint_thread(TaskPool *__restrict /*pool*/, void *ph_v)
                                     IMB_BlendMode(ps->blend));
             }
             else {
-              linearrgb_to_srgb_v3_v3(color_f, color_f);
+              const ProjPaintImage *img = &ps->projImages[projPixel->image_index];
+              if (img->is_srgb) {
+                IMB_colormanagement_scene_linear_to_srgb_v3(color_f, color_f);
+              }
+              else if (img->byte_colorspace) {
+                IMB_colormanagement_scene_linear_to_colorspace_v3(color_f, img->byte_colorspace);
+              }
 
               if (ps->dither > 0.0f) {
                 float_to_byte_dither_v3(
@@ -5348,10 +5370,11 @@ static void do_projectpaint_thread(TaskPool *__restrict /*pool*/, void *ph_v)
                                     IMB_BlendMode(ps->blend));
             }
             else {
+              const ProjPaintImage *img = &ps->projImages[projPixel->image_index];
               float mask = float(projPixel->mask) * (1.0f / 65535.0f);
               projPixel->newColor.ch[3] = mask * 255 * brush_alpha;
 
-              rgb_float_to_uchar(projPixel->newColor.ch, ps->paint_color);
+              rgb_float_to_uchar(projPixel->newColor.ch, img->paint_color_byte);
               IMB_blend_color_byte(projPixel->pixel.ch_pt,
                                    projPixel->origColor.ch_pt,
                                    projPixel->newColor.ch,
@@ -5729,7 +5752,7 @@ static bool project_paint_op(void *state, const float lastpos[2], const float po
       const int3 &tri = ps->corner_tris_eval[tri_index];
       const int vert_tri[3] = {PS_CORNER_TRI_AS_VERT_INDEX_3(ps, tri)};
       float world[3];
-      UnifiedPaintSettings *ups = &ps->paint->unified_paint_settings;
+      blender::bke::PaintRuntime *paint_runtime = ps->paint->runtime;
 
       interp_v3_v3v3v3(world,
                        ps->vert_positions_eval[vert_tri[0]],
@@ -5737,10 +5760,10 @@ static bool project_paint_op(void *state, const float lastpos[2], const float po
                        ps->vert_positions_eval[vert_tri[2]],
                        w);
 
-      ups->average_stroke_counter++;
+      paint_runtime->average_stroke_counter++;
       mul_m4_v3(ps->obmat, world);
-      add_v3_v3(ups->average_stroke_accum, world);
-      ups->last_stroke_valid = true;
+      add_v3_v3(paint_runtime->average_stroke_accum, world);
+      paint_runtime->last_stroke_valid = true;
     }
   }
 
@@ -5774,13 +5797,37 @@ static void paint_proj_stroke_ps(const bContext * /*C*/,
     paint_brush_color_get(paint,
                           brush,
                           ps_handle->initial_hsv_jitter,
-                          false,
                           ps->mode == BRUSH_STROKE_INVERT,
                           distance,
                           pressure,
-                          nullptr,
-                          ps->paint_color);
-    srgb_to_linearrgb_v3_v3(ps->paint_color_linear, ps->paint_color);
+                          ps->paint_color_linear);
+
+    /* Cache colorspace info per image for performance. */
+    for (int i = 0; i < ps->image_tot; i++) {
+      ProjPaintImage *img = &ps->projImages[i];
+      const ImBuf *ibuf = img->ibuf;
+
+      copy_v3_v3(img->paint_color_byte, ps->paint_color_linear);
+      img->byte_colorspace = nullptr;
+      img->is_data = false;
+      img->is_srgb = false;
+
+      if (ibuf->colormanage_flag & IMB_COLORMANAGE_IS_DATA) {
+        img->is_data = true;
+      }
+      else if (ibuf->byte_buffer.data && ibuf->byte_buffer.colorspace) {
+        img->byte_colorspace = ibuf->byte_buffer.colorspace;
+        img->is_srgb = IMB_colormanagement_space_is_srgb(img->byte_colorspace);
+        if (img->is_srgb) {
+          IMB_colormanagement_scene_linear_to_srgb_v3(img->paint_color_byte,
+                                                      img->paint_color_byte);
+        }
+        else {
+          IMB_colormanagement_scene_linear_to_colorspace_v3(img->paint_color_byte,
+                                                            img->byte_colorspace);
+        }
+      }
+    }
   }
   else if (ps->brush_type == IMAGE_PAINT_BRUSH_TYPE_MASK) {
     ps->stencil_value = brush->weight;
@@ -6787,7 +6834,7 @@ static bool proj_paint_add_slot(bContext *C, wmOperator *op)
       if (in_sock != nullptr && link == nullptr) {
         blender::bke::node_add_link(*ntree, *out_node, *out_sock, *in_node, *in_sock);
 
-        blender::bke::node_position_relative(*out_node, *in_node, *out_sock, *in_sock);
+        blender::bke::node_position_relative(*out_node, *in_node, out_sock, *in_sock);
       }
     }
 
@@ -6843,7 +6890,8 @@ static void get_default_texture_layer_name_for_object(Object *ob,
 {
   Material *ma = BKE_object_material_get(ob, ob->actcol);
   const char *base_name = ma ? &ma->id.name[2] : &ob->id.name[2];
-  BLI_snprintf(dst, dst_maxncpy, "%s %s", base_name, DATA_(layer_type_items[texture_type].name));
+  BLI_snprintf_utf8(
+      dst, dst_maxncpy, "%s %s", base_name, DATA_(layer_type_items[texture_type].name));
 }
 
 static wmOperatorStatus texture_paint_add_texture_paint_slot_invoke(bContext *C,

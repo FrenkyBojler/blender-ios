@@ -78,21 +78,31 @@ static void file_handler_import_operator_write_ptr(
 
       PointerRNA item_ptr{};
       RNA_property_collection_add(&props, files_prop, &item_ptr);
-      RNA_string_set(&item_ptr, "name", file);
+      BLI_assert_msg(BLI_path_is_rel(file), "Expected path to be relative (start with '//')");
+      RNA_string_set(&item_ptr, "name", file + 2);
     }
   }
   const bool has_any_filepath_prop = filepath_prop || directory_prop || files_prop;
-  /**
-   * The `directory` and `files` properties are both required for handling multiple files, if
-   * only one is defined means that the other is missing.
-   */
-  const bool has_missing_filepath_prop = bool(directory_prop) != bool(files_prop);
-
-  if (!has_any_filepath_prop || has_missing_filepath_prop) {
-    const char *message =
-        "Expected operator properties filepath or files and directory not found. Refer to "
-        "FileHandler documentation for details.";
-    CLOG_WARN(&LOG, "%s", message);
+  if (!has_any_filepath_prop) {
+    CLOG_WARN(&LOG,
+              "The '%s' file handler import operator ('%s') is missing the required operator "
+              "properties.",
+              file_handler->idname,
+              file_handler->import_operator);
+  }
+  if (directory_prop && !files_prop) {
+    CLOG_WARN(
+        &LOG,
+        "The '%s' file handler import operator ('%s') is missing the 'files' operator property.",
+        file_handler->idname,
+        file_handler->import_operator);
+  }
+  if (!directory_prop && files_prop) {
+    CLOG_WARN(&LOG,
+              "The '%s' file handler import operator ('%s') is missing the 'directory' operator "
+              "property.",
+              file_handler->idname,
+              file_handler->import_operator);
   }
 }
 
@@ -113,7 +123,8 @@ static wmOperatorStatus wm_drop_import_file_exec(bContext *C, wmOperator *op)
   WM_operator_properties_create_ptr(&file_props, ot);
   file_handler_import_operator_write_ptr(file_handlers[0], file_props, paths);
 
-  WM_operator_name_call_ptr(C, ot, WM_OP_INVOKE_DEFAULT, &file_props, nullptr);
+  WM_operator_name_call_ptr(
+      C, ot, blender::wm::OpCallContext::InvokeDefault, &file_props, nullptr);
   WM_operator_properties_free(&file_props);
   return OPERATOR_FINISHED;
 }
@@ -138,14 +149,14 @@ static wmOperatorStatus wm_drop_import_file_invoke(bContext *C,
    */
   uiPopupMenu *pup = UI_popup_menu_begin(C, "", ICON_NONE);
   uiLayout *layout = UI_popup_menu_layout(pup);
-  layout->operator_context_set(WM_OP_INVOKE_DEFAULT);
+  layout->operator_context_set(blender::wm::OpCallContext::InvokeDefault);
 
   for (auto *file_handler : file_handlers) {
     wmOperatorType *ot = WM_operatortype_find(file_handler->import_operator, false);
     PointerRNA file_props = layout->op(ot,
                                        CTX_TIP_(ot->translation_context, ot->name),
                                        ICON_NONE,
-                                       WM_OP_INVOKE_DEFAULT,
+                                       blender::wm::OpCallContext::InvokeDefault,
                                        UI_ITEM_NONE);
     file_handler_import_operator_write_ptr(file_handler, file_props, paths);
   }

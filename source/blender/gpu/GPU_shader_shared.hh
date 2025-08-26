@@ -123,6 +123,7 @@ enum eGPUSeqFlags : uint32_t {
   GPU_SEQ_FLAG_SELECTED_LH = (1u << 11u),
   GPU_SEQ_FLAG_SELECTED_RH = (1u << 12u),
   GPU_SEQ_FLAG_OVERLAP = (1u << 15u),
+  GPU_SEQ_FLAG_CLAMPED = (1u << 16u),
 
   GPU_SEQ_FLAG_ANY_HANDLE = GPU_SEQ_FLAG_SELECTED_LH | GPU_SEQ_FLAG_SELECTED_RH
 };
@@ -169,6 +170,14 @@ struct SeqContextDrawData {
   float _pad0;
 };
 BLI_STATIC_ASSERT_ALIGN(SeqContextDrawData, 16)
+
+/* VSE scope point rasterizer data. */
+struct SeqScopeRasterData {
+  uint col_r;
+  uint col_g;
+  uint col_b;
+  uint col_a;
+};
 
 struct GreasePencilStrokeData {
   packed_float3 position;
