@@ -146,7 +146,7 @@ template<typename T> struct MaxInRange {
   {
     float max = push_constant_get(compositor_maximum_float_in_range, upper_bound);
     float min = push_constant_get(compositor_maximum_float_in_range, lower_bound);
-    return clamp(value, min, max);
+    return ((value <= max) && (value >= min)) ? value : min;
   }
 
   static T reduce(T lhs, T rhs)
@@ -167,7 +167,7 @@ template<typename T> struct MinInRange {
   {
     float max = push_constant_get(compositor_minimum_float_in_range, upper_bound);
     float min = push_constant_get(compositor_minimum_float_in_range, lower_bound);
-    return clamp(value, min, max);
+    return ((value <= max) && (value >= min)) ? value : max;
   }
 
   static T reduce(T lhs, T rhs)
