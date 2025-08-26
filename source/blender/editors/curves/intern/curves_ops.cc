@@ -1733,13 +1733,24 @@ namespace set_handle_type {
 
 static wmOperatorStatus exec(bContext *C, wmOperator *op)
 {
-  const int dst = RNA_enum_get(op->ptr, "type");
+  const SetHandleType dst_type = SetHandleType(RNA_enum_get(op->ptr, "type"));
 
   auto new_handle_type = [&](const int8_t handle_type) {
-    if (dst == int(ed::curves::SetHandleType::Toggle)) {
-      return int8_t(handle_type == BEZIER_HANDLE_FREE ? BEZIER_HANDLE_ALIGN : BEZIER_HANDLE_FREE);
+    switch (dst_type) {
+      case SetHandleType::Free:
+        return int8_t(BEZIER_HANDLE_FREE);
+      case SetHandleType::Auto:
+        return int8_t(BEZIER_HANDLE_AUTO);
+      case SetHandleType::Vector:
+        return int8_t(BEZIER_HANDLE_VECTOR);
+      case SetHandleType::Align:
+        return int8_t(BEZIER_HANDLE_ALIGN);
+      case SetHandleType::Toggle:
+        return int8_t(handle_type == BEZIER_HANDLE_FREE ? BEZIER_HANDLE_ALIGN :
+                                                          BEZIER_HANDLE_FREE);
     }
-    return int8_t(dst);
+    BLI_assert_unreachable();
+    return int8_t(0);
   };
 
   for (Curves *curves_id : get_unique_editable_curves(*C)) {
