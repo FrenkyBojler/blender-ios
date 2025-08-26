@@ -83,12 +83,6 @@ class NodeSetting(PropertyGroup):
 
 
 class NodeOperator:
-    use_transform: BoolProperty(
-        name="Use Transform",
-        description="Start transform operator after inserting the node",
-        default=False,
-    )
-
     settings: CollectionProperty(
         name="Settings",
         description="Settings to be applied on the newly created node",
@@ -112,24 +106,6 @@ class NodeOperator:
             return tip_(bl_rna.description)
         else:
             return ""
-
-    @staticmethod
-    def store_mouse_cursor(context, event):
-        space = context.space_data
-        tree = space.edit_tree
-
-        # convert mouse position to the View2D for later node placement
-        if context.region.type == 'WINDOW':
-            area = context.area
-            horizontal_pad = int(area.width / 10)
-            vertical_pad = int(area.height / 10)
-
-            inspace_x = min(max(horizontal_pad, event.mouse_region_x), area.width - horizontal_pad)
-            inspace_y = min(max(vertical_pad, event.mouse_region_y), area.height - vertical_pad)
-            # convert mouse position to the View2D for later node placement
-            space.cursor_location_from_region(inspace_x, inspace_y)
-        else:
-            space.cursor_location = tree.view_center
 
     # Deselect all nodes in the tree.
     @staticmethod
@@ -177,6 +153,30 @@ class NodeOperator:
 
 # Base class for node "Add" operators.
 class NodeAddOperator(NodeOperator):
+    use_transform: BoolProperty(
+        name="Use Transform",
+        description="Start transform operator after inserting the node",
+        default=False,
+    )
+
+    @staticmethod
+    def store_mouse_cursor(context, event):
+        space = context.space_data
+        tree = space.edit_tree
+
+        # convert mouse position to the View2D for later node placement
+        if context.region.type == 'WINDOW':
+            area = context.area
+            horizontal_pad = int(area.width / 10)
+            vertical_pad = int(area.height / 10)
+
+            inspace_x = min(max(horizontal_pad, event.mouse_region_x), area.width - horizontal_pad)
+            inspace_y = min(max(vertical_pad, event.mouse_region_y), area.height - vertical_pad)
+            # convert mouse position to the View2D for later node placement
+            space.cursor_location_from_region(inspace_x, inspace_y)
+        else:
+            space.cursor_location = tree.view_center
+
     @classmethod
     def poll(cls, context):
         space = context.space_data
@@ -260,15 +260,6 @@ class NodeSwapOperator(NodeOperator):
 
                     except KeyError:
                         pass
-
-    def invoke(self, context, event):
-        self.store_mouse_cursor(context, event)
-        result = self.execute(context)
-
-        if self.use_transform and ('FINISHED' in result):
-            bpy.ops.node.translate_attach('INVOKE_DEFAULT')
-
-        return result
 
 
 # Simple basic operator for adding a node.
