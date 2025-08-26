@@ -77,8 +77,6 @@
 #include "ED_sculpt.hh"
 #include "ED_undo.hh"
 
-#include "MEM_guardedalloc.h"
-
 #include "bmesh.hh"
 #include "mesh_brush_common.hh"
 #include "paint_hide.hh"
