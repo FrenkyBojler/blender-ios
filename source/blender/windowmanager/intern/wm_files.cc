@@ -1045,7 +1045,7 @@ static void file_read_reports_finalize(BlendFileReadReport *bf_reports)
     BKE_report(
         bf_reports->reports,
         RPT_WARNING,
-        "Loaded a pre-2.5 blend file, animation data has not been loaded. Open & save the file "
+        "Loaded a pre-2.50 blend file, animation data has not been loaded. Open & save the file "
         "with Blender v4.5 to convert animation data.");
   }
 }
