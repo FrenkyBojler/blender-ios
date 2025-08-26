@@ -159,11 +159,7 @@ static void area_draw_azone_fullscreen(short /*x1*/, short /*y1*/, short x2, sho
  */
 static void area_draw_azone(ScrArea *area, ARegion *region, AZone *az)
 {
-  if (!(U.uiflag & USER_AREA_CORNER_HANDLE)) {
-    return;
-  }
-
-  if (region->regiontype != RGN_TYPE_HEADER) {
+  if (region->regiontype != RGN_TYPE_HEADER || !(U.uiflag & USER_AREA_CORNER_HANDLE)) {
     return;
   }
 
@@ -171,15 +167,8 @@ static void area_draw_azone(ScrArea *area, ARegion *region, AZone *az)
     if ((region->alignment == RGN_ALIGN_TOP && az->y2 > area->totrct.ymax - 1) ||
         (region->alignment == RGN_ALIGN_BOTTOM && az->y1 < area->totrct.ymin + 1))
     {
-      UI_icon_draw_ex(float(az->x1) + UI_SCALE_FAC,
-                      float(az->y1) + (6.0f * UI_SCALE_FAC),
-                      ICON_GRIP_V,
-                      1.0 / UI_SCALE_FAC,
-                      0.4f,
-                      0.0f,
-                      nullptr,
-                      false,
-                      UI_NO_ICON_OVERLAY_TEXT);
+      UI_icon_draw_alpha(
+          float(az->x1) + UI_SCALE_FAC, float(az->y1) + (6.0f * UI_SCALE_FAC), ICON_GRIP_V, 0.4f);
     }
   }
 }
