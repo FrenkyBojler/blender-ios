@@ -9,8 +9,8 @@ import pathlib
 
 class SculptMode(enum.IntEnum):
     MESH = 1
-    # MULTIRES = 2
-    # DYNTOPO = 3
+    MULTIRES = 2
+    DYNTOPO = 3
 
 
 class BrushType(enum.Enum):
@@ -69,10 +69,10 @@ def prepare_sculpt_scene(context: any, mode: SculptMode, subdivision_level=3):
 
     if mode == SculptMode.MESH:
         size = 1500
-    # elif mode == SculptMode.MULTIRES:
-    #     size = 150
-    # elif mode == SculptMode.DYNTOPO:
-    #     size = 500
+    elif mode == SculptMode.MULTIRES:
+        size = 150
+    elif mode == SculptMode.DYNTOPO:
+        size = 500
     else:
         raise NotImplementedError
 
@@ -96,10 +96,10 @@ def prepare_sculpt_scene(context: any, mode: SculptMode, subdivision_level=3):
     # Move the plane to the sculpt mode.
     bpy.ops.object.mode_set(mode='SCULPT')
 
-    # if mode == SculptMode.MULTIRES:
-    #     bpy.ops.object.subdivision_set(level=subdivision_level)
-    # elif mode == SculptMode.DYNTOPO:
-    #     bpy.ops.sculpt.dynamic_topology_toggle()
+    if mode == SculptMode.MULTIRES:
+        bpy.ops.object.subdivision_set(level=subdivision_level)
+    elif mode == SculptMode.DYNTOPO:
+        bpy.ops.sculpt.dynamic_topology_toggle()
 
 
 def prepare_brush(context: any, brush_type: BrushType):
@@ -376,8 +376,7 @@ def generate(env):
             filepaths[0],
             SculptMode.MESH,
             brush_type)for brush_type in BrushType]
-    # bvh_tests = [SculptRebuildBVHTest(filepaths[0], mode) for mode in SculptMode]
-    # spatial_bvh_tests = [SculptRebuildSpatialBVHTest(filepaths[0], SculptMode.MESH)]
-    # subdivision_tests = [SculptMultiresSubdivideTest(filepaths[0])]
-    return brush_tests + brush_tests_after_reordering
-    #+ bvh_tests + spatial_bvh_tests + subdivision_tests
+    bvh_tests = [SculptRebuildBVHTest(filepaths[0], mode) for mode in SculptMode]
+    spatial_bvh_tests = [SculptRebuildSpatialBVHTest(filepaths[0], SculptMode.MESH)]
+    subdivision_tests = [SculptMultiresSubdivideTest(filepaths[0])]
+    return brush_tests + brush_tests_after_reordering + bvh_tests + spatial_bvh_tests + subdivision_tests
