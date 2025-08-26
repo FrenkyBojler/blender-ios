@@ -614,12 +614,12 @@ void CurvesEvalCache::ensure_attribute(CurvesModule &module,
 
   /* Ensure final data for points. */
   if (attributes_point_domain[index]) {
-    ensure_common(curves);
+    this->ensure_common(curves);
     if (curves.has_curve_with_type(CURVE_TYPE_BEZIER)) {
-      ensure_bezier(curves);
+      this->ensure_bezier(curves);
     }
     if (curves.has_curve_with_type(CURVE_TYPE_NURBS)) {
-      ensure_nurbs(curves);
+      this->ensure_nurbs(curves);
     }
 
     this->evaluated_attributes_buf[index] = alloc_evaluated_point_attribute_vbo(
@@ -768,12 +768,12 @@ void CurvesEvalCache::ensure_positions(CurvesModule &module, const bke::CurvesGe
     return;
   }
 
-  ensure_common(curves);
+  this->ensure_common(curves);
   if (curves.has_curve_with_type(CURVE_TYPE_BEZIER)) {
-    ensure_bezier(curves);
+    this->ensure_bezier(curves);
   }
   if (curves.has_curve_with_type(CURVE_TYPE_NURBS)) {
-    ensure_nurbs(curves);
+    this->ensure_nurbs(curves);
   }
 
   /* TODO(fclem): Optimize shaders to avoid needing to upload this data if data is uniform.
@@ -816,7 +816,7 @@ gpu::VertBufPtr &CurvesEvalCache::indirection_buf_get(CurvesModule &module,
     return indirection_buf;
   }
 
-  ensure_common(curves);
+  this->ensure_common(curves);
 
   indirection_buf = module.evaluate_topology_indirection(curves.curves_num(),
                                                          curves.evaluated_points_num(),
