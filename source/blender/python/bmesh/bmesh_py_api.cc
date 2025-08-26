@@ -20,6 +20,7 @@
 #include "bmesh_py_geometry.hh"
 #include "bmesh_py_ops.hh"
 #include "bmesh_py_utils.hh"
+#include "bmesh_py_query.hh"
 
 #include "BKE_editmesh.hh"
 #include "BKE_mesh_types.hh"
@@ -211,6 +212,9 @@ PyObject *BPyInit_bmesh()
 
   /* bmesh.ops (not a real module, exposes module like access). */
   PyModule_AddObject(mod, "ops", (submodule = BPyInit_bmesh_ops()));
+  PyDict_SetItem(sys_modules, PyModule_GetNameObject(submodule), submodule);
+
+  PyModule_AddObject(mod, "query", (submodule = BPyInit_bmesh_query()));
   PyDict_SetItem(sys_modules, PyModule_GetNameObject(submodule), submodule);
 
   PyModule_AddObject(mod, "utils", (submodule = BPyInit_bmesh_utils()));

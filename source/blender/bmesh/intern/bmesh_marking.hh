@@ -26,6 +26,15 @@ enum eBMSelectionFlushFLags {
                                     BM_SELECT_LEN_FLUSH_RECALC_FACE),
 };
 
+/* Is full (de)selected */
+
+bool bm_is_full_vert_selected(const BMesh *bm);
+bool bm_is_full_vert_deselected(const BMesh *bm);
+bool bm_is_full_edge_selected(const BMesh *bm);
+bool bm_is_full_edge_deselected(const BMesh *bm);
+bool bm_is_full_face_selected(const BMesh *bm);
+bool bm_is_full_face_deselected(const BMesh *bm);
+
 /* Geometry hiding code. */
 
 #define BM_elem_hide_set(bm, ele, hide) _bm_elem_hide_set(bm, &(ele)->head, hide)

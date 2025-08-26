@@ -146,6 +146,50 @@ static bool recount_totsels_are_ok(BMesh *bm)
 #endif
 
 /** \} */
+/* -------------------------------------------------------------------- */
+/** \name Is full (de)selected.
+ * \{ */
+
+[[nodiscard]] bool bm_is_full_vert_selected(const BMesh *bm)
+{
+  if (!bm->totvertsel) {
+    return false;
+  }
+  return (bm->totvertsel == bm->totvert);
+}
+
+[[nodiscard]] bool bm_is_full_vert_deselected(const BMesh *bm)
+{
+  return (bm->totvertsel == 0);
+}
+
+[[nodiscard]] bool bm_is_full_edge_selected(const BMesh *bm)
+{
+  if (!bm->totedgesel) {
+    return false;
+  }
+  return (bm->totedgesel == bm->totedge);
+}
+
+[[nodiscard]] bool bm_is_full_edge_deselected(const BMesh *bm)
+{
+  return (bm->totedgesel == 0);
+}
+
+[[nodiscard]] bool bm_is_full_face_selected(const BMesh *bm)
+{
+  if (!bm->totfacesel) {
+    return false;
+  }
+  return (bm->totfacesel == bm->totface);
+}
+
+[[nodiscard]] bool bm_is_full_face_deselected(const BMesh *bm)
+{
+  return (bm->totfacesel == 0);
+}
+
+/** \} */
 
 /* -------------------------------------------------------------------- */
 /** \name BMesh helper functions for selection & hide flushing.
