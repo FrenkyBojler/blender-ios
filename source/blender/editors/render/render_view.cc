@@ -155,8 +155,8 @@ ScrArea *render_view_open(bContext *C, int mx, int my, ReportList *reports)
                                (BLI_rctf_size_y(stored_bounds) > 100.0f));
     const bool mm_placement = WM_capabilities_flag() & WM_CAPABILITY_MULTIMONITOR_PLACEMENT;
     if (bounds_valid && mm_placement) {
-      mx = (int)(stored_bounds->xmin * UI_SCALE_FAC);
-      my = (int)(stored_bounds->ymin * UI_SCALE_FAC);
+      mx = int(stored_bounds->xmin * UI_SCALE_FAC);
+      my = int(stored_bounds->ymin * UI_SCALE_FAC);
     }
 
     const rcti window_rect = {
