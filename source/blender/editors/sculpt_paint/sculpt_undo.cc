@@ -311,6 +311,8 @@ template<typename T> Array<T> decompress(const Span<std::byte> src)
 }  // namespace zstd
 
 struct PositionUndoStorage : NonMovable {
+  Vector<std::unique_ptr<Node>> nodes_to_compress;
+
   Array<Array<std::byte>> compressed_indices;
   Array<Array<std::byte>> compressed_positions;
 
@@ -321,20 +323,18 @@ struct PositionUndoStorage : NonMovable {
   std::atomic<bool> compression_started = false;
   StepData *owner_step_data = nullptr;
 
-  PositionUndoStorage() = default;
-  PositionUndoStorage(const StepData &step_data, Vector<std::unique_ptr<Node>> nodes)
-      : owner_step_data(const_cast<StepData *>(&step_data))
+  explicit PositionUndoStorage(StepData &step_data)
+      : nodes_to_compress(std::move(step_data.nodes)), owner_step_data(&step_data)
   {
-    unique_verts_nums.reinitialize(nodes.size());
-    for (const int i : nodes.index_range()) {
-      unique_verts_nums[i] = nodes[i]->unique_verts_num;
+    unique_verts_nums.reinitialize(nodes_to_compress.size());
+    for (const int i : nodes_to_compress.index_range()) {
+      unique_verts_nums[i] = nodes_to_compress[i]->unique_verts_num;
     }
 
     compression_task_pool = BLI_task_pool_create_background(this, TASK_PRIORITY_LOW);
     compression_started = true;
 
-    CompressData *task_data = MEM_new<CompressData>(__func__, std::move(nodes), this);
-    BLI_task_pool_push(compression_task_pool, compress_fn, task_data, true, compress_task_free);
+    BLI_task_pool_push(compression_task_pool, compress_fn, this, false, nullptr);
   }
 
   ~PositionUndoStorage()
@@ -352,51 +352,41 @@ struct PositionUndoStorage : NonMovable {
     }
   }
 
-  struct CompressData {
-    Vector<std::unique_ptr<Node>> nodes;
-    PositionUndoStorage *storage;
-    CompressData(Vector<std::unique_ptr<Node>> nodes, PositionUndoStorage *storage)
-        : nodes(std::move(nodes)), storage(storage)
-    {
-    }
-  };
-
   static void compress_fn(TaskPool * /*pool*/, void *task_data)
   {
 #ifdef DEBUG_TIME
     SCOPED_TIMER(__func__);
 #endif
-    auto *data = static_cast<CompressData *>(task_data);
-    Span<std::unique_ptr<Node>> nodes = data->nodes;
+    auto *data = static_cast<PositionUndoStorage *>(task_data);
+    MutableSpan<std::unique_ptr<Node>> nodes = data->nodes_to_compress;
+    const int nodes_num = nodes.size();
+
     Array<Array<std::byte>> compressed_indices(nodes.size(), NoInitialization());
     Array<Array<std::byte>> compressed_data(nodes.size(), NoInitialization());
-
     threading::isolate_task([&]() {
-      threading::parallel_for(nodes.index_range(), 1, [&](const IndexRange range) {
+      threading::parallel_for(IndexRange(nodes_num), 1, [&](const IndexRange range) {
         for (const int i : range) {
-          new (&compressed_indices[i])
-              Array<std::byte>(zstd::compress<int>(nodes[i]->vert_indices));
-          new (&compressed_data[i]) Array<std::byte>(zstd::compress<float3>(nodes[i]->position));
+          Array<std::byte> verts = zstd::compress<int>(nodes[i]->vert_indices);
+          Array<std::byte> positions = zstd::compress<float3>(nodes[i]->position);
+          new (&compressed_indices[i]) Array<std::byte>(std::move(verts));
+          new (&compressed_data[i]) Array<std::byte>(std::move(positions));
+          nodes[i].reset();
         }
       });
     });
+    data->nodes_to_compress.clear_and_shrink();
 
     size_t memory_size = 0;
-    for (const int i : nodes.index_range()) {
+    for (const int i : IndexRange(nodes_num)) {
       memory_size += compressed_indices[i].as_span().size_in_bytes();
       memory_size += compressed_data[i].as_span().size_in_bytes();
     }
 
-    data->storage->compressed_indices = std::move(compressed_indices);
-    data->storage->compressed_positions = std::move(compressed_data);
-    data->storage->owner_step_data->undo_size += memory_size;
+    data->compressed_indices = std::move(compressed_indices);
+    data->compressed_positions = std::move(compressed_data);
+    data->owner_step_data->undo_size += memory_size;
 
-    data->storage->compression_ready.store(true, std::memory_order_release);
-  }
-
-  static void compress_task_free(TaskPool * /*pool*/, void *task_data)
-  {
-    MEM_delete(static_cast<CompressData *>(task_data));
+    data->compression_ready.store(true, std::memory_order_release);
   }
 };
 
@@ -1974,8 +1964,7 @@ void push_end_ex(Object &ob, const bool use_nested_undo)
    * deform modifiers. */
 
   if (step_data->type == Type::Position) {
-    step_data->position_step_storage = std::make_unique<PositionUndoStorage>(
-        *step_data, std::move(step_data->nodes));
+    step_data->position_step_storage = std::make_unique<PositionUndoStorage>(*step_data);
     step_data->nodes.clear_and_shrink();
   }
   else {
