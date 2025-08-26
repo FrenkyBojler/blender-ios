@@ -228,9 +228,6 @@ class CurvesGeometry : public ::CurvesGeometry {
                                    const IndexMask &selection,
                                    IndexMaskMemory &memory) const;
 
-  /* Fast conservative heuristic to check if there might be a cyclic curve in this geometry. */
-  bool might_have_cyclic_curve() const;
-
   Array<int> point_to_curve_map() const;
 
   Span<float3> positions() const;
@@ -1035,11 +1032,6 @@ inline const std::array<int, CURVE_TYPES_NUM> &CurvesGeometry::curve_type_counts
   }
 #endif
   return this->runtime->type_counts;
-}
-
-inline bool CurvesGeometry::might_have_cyclic_curve() const
-{
-  return this->cyclic().get_if_single().value_or(true);
 }
 
 inline OffsetIndices<int> CurvesGeometry::points_by_curve() const

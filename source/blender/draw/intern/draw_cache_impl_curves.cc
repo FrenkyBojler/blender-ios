@@ -629,7 +629,7 @@ void CurvesEvalCache::ensure_attribute(CurvesModule &module,
                                     curves.has_curve_with_type(CURVE_TYPE_BEZIER),
                                     curves.has_curve_with_type(CURVE_TYPE_POLY),
                                     curves.has_curve_with_type(CURVE_TYPE_NURBS),
-                                    curves.might_have_cyclic_curve(),
+                                    curves.has_cyclic_curve(),
                                     curves.curves_num(),
                                     *this,
                                     CURVES_EVAL_FLOAT4,
@@ -749,7 +749,7 @@ void CurvesEvalCache::ensure_nurbs(const bke::CurvesGeometry &curves)
 
 int CurvesEvalCache::evaluated_point_count_with_cyclic(const bke::CurvesGeometry &curves)
 {
-  if (curves.might_have_cyclic_curve()) {
+  if (curves.has_cyclic_curve()) {
     return curves.evaluated_points_num() + curves.curves_num();
   }
   return curves.evaluated_points_num();
@@ -786,7 +786,7 @@ void CurvesEvalCache::ensure_positions(CurvesModule &module, const bke::CurvesGe
                             curves.has_curve_with_type(CURVE_TYPE_BEZIER),
                             curves.has_curve_with_type(CURVE_TYPE_POLY),
                             curves.has_curve_with_type(CURVE_TYPE_NURBS),
-                            curves.might_have_cyclic_curve(),
+                            curves.has_cyclic_curve(),
                             curves.curves_num(),
                             *this,
                             std::move(points_pos_buf),
@@ -798,8 +798,7 @@ void CurvesEvalCache::ensure_positions(CurvesModule &module, const bke::CurvesGe
       evaluated_point_count_with_cyclic(curves));
   this->curves_length_buf = gpu::VertBuf::device_only<float>(curves.curves_num());
 
-  module.evaluate_curve_length_intercept(
-      curves.might_have_cyclic_curve(), curves.curves_num(), *this);
+  module.evaluate_curve_length_intercept(curves.has_cyclic_curve(), curves.curves_num(), *this);
 }
 
 gpu::VertBufPtr &CurvesEvalCache::indirection_buf_get(CurvesModule &module,
@@ -820,7 +819,7 @@ gpu::VertBufPtr &CurvesEvalCache::indirection_buf_get(CurvesModule &module,
                                                          curves.evaluated_points_num(),
                                                          *this,
                                                          is_ribbon,
-                                                         curves.might_have_cyclic_curve());
+                                                         curves.has_cyclic_curve());
 
   return indirection_buf;
 }

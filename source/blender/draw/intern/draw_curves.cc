@@ -533,7 +533,7 @@ gpu::Batch *curves_sub_pass_setup_implementation(PassT &sub_ps,
   return curves_cache.batch_get(curves.evaluated_points_num(),
                                 curves.curves_num(),
                                 face_per_segment,
-                                curves.might_have_cyclic_curve());
+                                curves.has_cyclic_curve());
 }
 
 gpu::Batch *curves_sub_pass_setup(PassMain::Sub &ps,
