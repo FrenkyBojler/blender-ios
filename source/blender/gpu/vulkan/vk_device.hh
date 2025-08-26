@@ -237,7 +237,8 @@ class VKDevice : public NonCopyable {
   std::string glsl_comp_patch_;
   Vector<VKThreadData *> thread_data_;
 
-  Shader *vk_backbuffer_blit_sh_ = nullptr;
+  Shader *vk_backbuffer_blit_extended_linear_sh_ = nullptr;
+  Shader *vk_backbuffer_blit_hdr10_st2084_sh_ = nullptr;
 
  public:
   render_graph::VKResourceStateTracker resources;
@@ -481,12 +482,22 @@ class VKDevice : public NonCopyable {
 
   /** \} */
 
-  Shader *vk_backbuffer_blit_sh_get()
+  Shader *vk_backbuffer_blit_extended_linear_sh_get()
   {
-    if (vk_backbuffer_blit_sh_ == nullptr) {
-      vk_backbuffer_blit_sh_ = GPU_shader_create_from_info_name("vk_backbuffer_blit");
+    if (vk_backbuffer_blit_extended_linear_sh_ == nullptr) {
+      vk_backbuffer_blit_extended_linear_sh_ = GPU_shader_create_from_info_name(
+          "vk_backbuffer_blit_extended_linear");
     }
-    return vk_backbuffer_blit_sh_;
+    return vk_backbuffer_blit_extended_linear_sh_;
+  }
+
+  Shader *vk_backbuffer_blit_hdr10_st2084_sh_get()
+  {
+    if (vk_backbuffer_blit_hdr10_st2084_sh_ == nullptr) {
+      vk_backbuffer_blit_hdr10_st2084_sh_ = GPU_shader_create_from_info_name(
+          "vk_backbuffer_blit_hdr10_st2084");
+    }
+    return vk_backbuffer_blit_hdr10_st2084_sh_;
   }
 
  private:

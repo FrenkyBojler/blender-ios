@@ -103,6 +103,7 @@ void VKContext::sync_backbuffer(bool cycle_resource_pool)
       GCaps.hdr_viewport_support = (swap_chain_format_.format == VK_FORMAT_R16G16B16A16_SFLOAT) &&
                                    ELEM(swap_chain_format_.colorSpace,
                                         VK_COLOR_SPACE_EXTENDED_SRGB_LINEAR_EXT,
+                                        VK_COLOR_SPACE_HDR10_ST2084_EXT,
                                         VK_COLOR_SPACE_SRGB_NONLINEAR_KHR);
     }
   }
@@ -369,8 +370,10 @@ void VKContext::swap_buffers_post_callback()
 void VKContext::swap_buffers_pre_handler(const GHOST_VulkanSwapChainData &swap_chain_data)
 {
   const bool do_blit_to_swapchain = swap_chain_data.image != VK_NULL_HANDLE;
-  const bool use_shader = swap_chain_data.surface_format.colorSpace ==
-                          VK_COLOR_SPACE_EXTENDED_SRGB_LINEAR_EXT;
+  const bool use_shader_extended_linear = swap_chain_data.surface_format.colorSpace ==
+                                          VK_COLOR_SPACE_EXTENDED_SRGB_LINEAR_EXT;
+  const bool use_shader_hdr10_st2048 = swap_chain_data.surface_format.colorSpace ==
+                                       VK_COLOR_SPACE_HDR10_ST2084_EXT;
 
   /* When swapchain is invalid/minimized we only flush the render graph to free GPU resources. */
   if (!do_blit_to_swapchain) {
@@ -386,11 +389,17 @@ void VKContext::swap_buffers_pre_handler(const GHOST_VulkanSwapChainData &swap_c
   device.resources.add_image(swap_chain_data.image, 1, "SwapchainImage");
 
   GPU_debug_group_begin("BackBuffer.Blit");
-  if (use_shader) {
+  if (use_shader_extended_linear || use_shader_hdr10_st2048) {
     VKTexture swap_chain_texture("swap_chain_texture");
     swap_chain_texture.init_swapchain(swap_chain_data.image,
                                       to_gpu_format(swap_chain_data.surface_format.format));
-    Shader *shader = device.vk_backbuffer_blit_sh_get();
+    Shader *shader;
+    if (use_shader_extended_linear) {
+      shader = device.vk_backbuffer_blit_extended_linear_sh_get();
+    }
+    else {
+      shader = device.vk_backbuffer_blit_hdr10_st2084_sh_get();
+    }
     GPU_shader_bind(shader);
     GPU_shader_uniform_1f(shader, "sdr_scale", swap_chain_data.sdr_scale);
     VKStateManager &state_manager = state_manager_get();
