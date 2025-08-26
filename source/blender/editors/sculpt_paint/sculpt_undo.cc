@@ -532,50 +532,54 @@ static void restore_position_mesh(Object &object, PositionUndoStorage &undo_data
     }
   });
 
-  for (const int i : IndexRange(nodes_num)) {
-    const Span<int> node_indices = decompressed_indices[i];
-    MutableSpan<float3> node_positions = decompressed_positions[i];
-    const int unique_verts_num = undo_data.unique_verts_nums[i];
+  threading::parallel_for(IndexRange(nodes_num), 1, [&](const IndexRange range) {
+    for (const int i : range) {
+      const Span<int> node_indices = decompressed_indices[i];
+      MutableSpan<float3> node_positions = decompressed_positions[i];
+      const int unique_verts_num = undo_data.unique_verts_nums[i];
 
-    IndexMaskMemory memory;
-    const IndexMask node_verts = IndexMask::from_indices(node_indices.take_front(unique_verts_num),
-                                                         memory);
+      IndexMaskMemory memory;
+      const IndexMask node_verts = IndexMask::from_indices(
+          node_indices.take_front(unique_verts_num), memory);
 
-    if (!ss.deform_modifiers_active) {
-      /* When original positions aren't written separately in the undo step, there are no
-       * deform modifiers. Therefore the original and evaluated deform positions will be the
-       * same, and modifying the positions from the original mesh is enough. */
-      swap_indexed_data(node_positions.take_front(unique_verts_num), node_verts, positions);
-    }
-    else {
-      /* When original positions are stored in the undo step, undo/redo will cause a reevaluation
-       * of the object. The evaluation will recompute the evaluated positions, so dealing with
-       * them here is unnecessary. */
-      if (shape_key_data) {
-        MutableSpan<float3> active_data = shape_key_data->active_key_data;
-
-        if (!shape_key_data->dependent_keys.is_empty()) {
-          Array<float3, 1024> translations(node_verts.size());
-          translations_from_new_positions(
-              node_positions.take_front(unique_verts_num), node_verts, active_data, translations);
-          for (MutableSpan<float3> data : shape_key_data->dependent_keys) {
-            apply_translations(translations, node_verts, data);
-          }
-        }
-
-        if (shape_key_data->basis_key_active) {
-          /* The basis key positions and the mesh positions are always kept in sync. */
-          scatter_data_mesh(
-              node_positions.as_span().take_front(unique_verts_num), node_verts, positions);
-        }
-        swap_indexed_data(node_positions.take_front(unique_verts_num), node_verts, active_data);
-      }
-      else {
-        /* There is a deform modifier, but no shape keys. */
+      if (!ss.deform_modifiers_active) {
+        /* When original positions aren't written separately in the undo step, there are no
+         * deform modifiers. Therefore the original and evaluated deform positions will be the
+         * same, and modifying the positions from the original mesh is enough. */
         swap_indexed_data(node_positions.take_front(unique_verts_num), node_verts, positions);
       }
+      else {
+        /* When original positions are stored in the undo step, undo/redo will cause a reevaluation
+         * of the object. The evaluation will recompute the evaluated positions, so dealing with
+         * them here is unnecessary. */
+        if (shape_key_data) {
+          MutableSpan<float3> active_data = shape_key_data->active_key_data;
+
+          if (!shape_key_data->dependent_keys.is_empty()) {
+            Array<float3, 1024> translations(node_verts.size());
+            translations_from_new_positions(node_positions.take_front(unique_verts_num),
+                                            node_verts,
+                                            active_data,
+                                            translations);
+            for (MutableSpan<float3> data : shape_key_data->dependent_keys) {
+              apply_translations(translations, node_verts, data);
+            }
+          }
+
+          if (shape_key_data->basis_key_active) {
+            /* The basis key positions and the mesh positions are always kept in sync. */
+            scatter_data_mesh(
+                node_positions.as_span().take_front(unique_verts_num), node_verts, positions);
+          }
+          swap_indexed_data(node_positions.take_front(unique_verts_num), node_verts, active_data);
+        }
+        else {
+          /* There is a deform modifier, but no shape keys. */
+          swap_indexed_data(node_positions.take_front(unique_verts_num), node_verts, positions);
+        }
+      }
     }
-  }
+  });
 
   threading::parallel_for(IndexRange(nodes_num), 1, [&](const IndexRange range) {
     for (const int i : range) {
