@@ -395,7 +395,7 @@ wmWindow *WM_window_open(bContext *C,
                          void (*area_setup_fn)(bScreen *screen, ScrArea *area, void *user_data),
                          void *area_setup_user_data) ATTR_NONNULL(1, 3);
 
-wmWindow *WM_window_open_temp(struct bContext *C, const char *title, int space_type, bool dialog);
+wmWindow *WM_window_open_temp(bContext *C, const char *title, int space_type, bool dialog);
 
 void WM_window_dpi_set_userdef(const wmWindow *win);
 /**

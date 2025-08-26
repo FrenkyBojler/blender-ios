@@ -1323,7 +1323,7 @@ wmWindow *WM_window_open(bContext *C,
   return nullptr;
 }
 
-wmWindow *WM_window_open_temp(struct bContext *C, const char *title, int space_type, bool dialog)
+wmWindow *WM_window_open_temp(bContext *C, const char *title, int space_type, bool dialog)
 {
   rcti rect;
   WM_window_dpi_set_userdef(CTX_wm_window(C));
