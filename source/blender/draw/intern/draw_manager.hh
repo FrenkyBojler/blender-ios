@@ -352,7 +352,9 @@ inline ResourceHandleRange Manager::resource_handle(const ObjectRef &ref, float 
   else {
     matrix_buf.current().get_or_resize(resource_len_).sync(*ref.object);
     bounds_buf.current().get_or_resize(resource_len_).sync(*ref.object, inflate_bounds);
-    infos_buf.current().get_or_resize(resource_len_).sync(ref, is_active_object, is_active_edit_mode);
+    infos_buf.current()
+        .get_or_resize(resource_len_)
+        .sync(ref, is_active_object, is_active_edit_mode);
     return ResourceHandle(resource_len_++, (ref.object->transflag & OB_NEG_SCALE) != 0);
   }
 }
