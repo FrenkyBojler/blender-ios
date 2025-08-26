@@ -1454,7 +1454,7 @@ static gpu::VertBufPtr ensure_curve_attribute(ParticleDrawSource &src,
   }
   /* Attribute doesn't exist or is of an incompatible type.
    * Replace it with a black curve domain attribute. */
-  return gpu::VertBuf::new_from_varray(VArray<float>::from_single(1, src.curves_num()));
+  return gpu::VertBuf::from_varray(VArray<float>::from_single(1, src.curves_num()));
 }
 
 void CurvesEvalCache::ensure_attribute(CurvesModule & /*module*/,
@@ -1533,8 +1533,8 @@ void CurvesEvalCache::ensure_common(ParticleDrawSource &src)
     return;
   }
 
-  this->points_by_curve_buf = gpu::VertBuf::new_from_span(src.points_by_curve().data());
-  this->evaluated_points_by_curve_buf = gpu::VertBuf::new_from_span(
+  this->points_by_curve_buf = gpu::VertBuf::from_span(src.points_by_curve().data());
+  this->evaluated_points_by_curve_buf = gpu::VertBuf::from_span(
       src.evaluated_points_by_curve().data());
 
   /* Use the same type for all curves. */
@@ -1544,9 +1544,9 @@ void CurvesEvalCache::ensure_common(ParticleDrawSource &src)
   auto cyclic_offsets_varray = VArray<int32_t>::from_single(0, 2);
   /* TODO(fclem): Optimize shaders to avoid needing to upload this data if data is uniform.
    * This concerns all varray. */
-  this->curves_type_buf = gpu::VertBuf::new_from_varray(type_varray);
-  this->curves_resolution_buf = gpu::VertBuf::new_from_varray(resolution_varray);
-  this->curves_cyclic_buf = gpu::VertBuf::new_from_varray(cyclic_offsets_varray);
+  this->curves_type_buf = gpu::VertBuf::from_varray(type_varray);
+  this->curves_resolution_buf = gpu::VertBuf::from_varray(resolution_varray);
+  this->curves_cyclic_buf = gpu::VertBuf::from_varray(cyclic_offsets_varray);
 }
 
 /* Copied from cycles. */
@@ -1572,16 +1572,16 @@ void CurvesEvalCache::ensure_positions(CurvesModule &module, ParticleDrawSource 
 
   if (src.curves_num() == 0) {
     /* Garbage data. */
-    this->evaluated_pos_rad_buf = gpu::VertBuf::new_device_only<float4>(1);
-    this->evaluated_time_buf = gpu::VertBuf::new_device_only<float>(4);
-    this->curves_length_buf = gpu::VertBuf::new_device_only<float>(4);
+    this->evaluated_pos_rad_buf = gpu::VertBuf::device_only<float4>(1);
+    this->evaluated_time_buf = gpu::VertBuf::device_only<float>(4);
+    this->curves_length_buf = gpu::VertBuf::device_only<float>(4);
     return;
   }
 
   ensure_common(src);
 
-  gpu::VertBufPtr points_pos_buf = gpu::VertBuf::new_from_size<float3>(src.points_num());
-  gpu::VertBufPtr points_rad_buf = gpu::VertBuf::new_from_size<float>(src.points_num());
+  gpu::VertBufPtr points_pos_buf = gpu::VertBuf::from_size<float3>(src.points_num());
+  gpu::VertBufPtr points_rad_buf = gpu::VertBuf::from_size<float>(src.points_num());
 
   MutableSpan<float3> points_pos = points_pos_buf->data<float3>();
   MutableSpan<float> points_rad = points_rad_buf->data<float>();
@@ -1605,7 +1605,7 @@ void CurvesEvalCache::ensure_positions(CurvesModule &module, ParticleDrawSource 
     }
   });
 
-  this->evaluated_pos_rad_buf = gpu::VertBuf::new_device_only<float4>(src.evaluated_points_num());
+  this->evaluated_pos_rad_buf = gpu::VertBuf::device_only<float4>(src.evaluated_points_num());
 
   float4x4 transform = src.object->world_to_object();
 
@@ -1622,8 +1622,8 @@ void CurvesEvalCache::ensure_positions(CurvesModule &module, ParticleDrawSource 
                             transform);
 
   /* TODO(fclem): Make time and length optional. */
-  this->evaluated_time_buf = gpu::VertBuf::new_device_only<float>(src.evaluated_points_num());
-  this->curves_length_buf = gpu::VertBuf::new_device_only<float>(src.curves_num());
+  this->evaluated_time_buf = gpu::VertBuf::device_only<float>(src.evaluated_points_num());
+  this->curves_length_buf = gpu::VertBuf::device_only<float>(src.curves_num());
 
   module.evaluate_curve_length_intercept(false, src.curves_num(), *this);
 }
@@ -1642,7 +1642,7 @@ gpu::VertBufPtr &CurvesEvalCache::indirection_buf_get(CurvesModule &module,
 
   if (src.curves_num() == 0) {
     /* Garbage data. */
-    indirection_buf = gpu::VertBuf::new_device_only<int>(4);
+    indirection_buf = gpu::VertBuf::device_only<int>(4);
     return indirection_buf;
   }
 

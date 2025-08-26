@@ -114,7 +114,7 @@ gpu::VertBufPtr CurvesModule::evaluate_topology_indirection(const int curve_coun
   if (has_cyclic) {
     element_count += curve_count;
   }
-  gpu::VertBufPtr indirection_buf = gpu::VertBuf::new_device_only<int>(element_count);
+  gpu::VertBufPtr indirection_buf = gpu::VertBuf::device_only<int>(element_count);
 
   PassSimple::Sub &pass = refine.sub("Topology");
   pass.shader_set(DRW_shader_curves_topology_get());

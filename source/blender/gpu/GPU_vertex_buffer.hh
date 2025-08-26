@@ -118,7 +118,7 @@ class VertBuf {
   VertBuf();
   virtual ~VertBuf();
 
-  template<typename T> static VertBufPtr new_from_size(const int size)
+  template<typename T> static VertBufPtr from_size(const int size)
   {
     BLI_assert(size > 0);
     VertBufPtr buf = VertBufPtr(GPU_vertbuf_create_with_format(GenericVertexFormat<T>::format()));
@@ -127,7 +127,7 @@ class VertBuf {
     return buf;
   }
 
-  template<typename T> static VertBufPtr new_from_span(const Span<T> data)
+  template<typename T> static VertBufPtr from_span(const Span<T> data)
   {
     BLI_assert(!data.is_empty());
     VertBufPtr buf = VertBufPtr(GPU_vertbuf_create_with_format_ex(
@@ -138,7 +138,7 @@ class VertBuf {
     return buf;
   }
 
-  template<typename T> static VertBufPtr new_from_varray(const VArray<T> &array)
+  template<typename T> static VertBufPtr from_varray(const VArray<T> &array)
   {
     BLI_assert(!array.is_empty());
     VertBufPtr buf = VertBufPtr(GPU_vertbuf_create_with_format_ex(
@@ -150,7 +150,7 @@ class VertBuf {
     return buf;
   }
 
-  template<typename T> static VertBufPtr new_device_only(uint size)
+  template<typename T> static VertBufPtr device_only(uint size)
   {
     BLI_assert(size > 0);
     VertBufPtr buf = VertBufPtr(GPU_vertbuf_create_with_format_ex(
