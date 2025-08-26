@@ -894,10 +894,9 @@ static void ui_node_draw_input(uiLayout &layout,
 
       if (lnode) {
         /* Input linked to a node, we can expand/collapse if
-         - linked node has inputs
-         - linked node has dedicated button drawing
-         - linked node has dedicated socket drawing
-        */
+         * - linked node has inputs
+         * - linked node has dedicated button drawing
+         * - linked node has dedicated socket drawing */
         bool can_expand = lnode->inputs.first;
         if (lnode->type_legacy != NODE_GROUP) {
           if (lnode->typeinfo->draw_buttons) {
