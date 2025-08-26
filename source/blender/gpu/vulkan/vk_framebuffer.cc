@@ -586,7 +586,7 @@ void VKFrameBuffer::rendering_ensure_dynamic_rendering(VKContext &context,
                          VK_ATTACHMENT_STORE_OP_DONT_CARE};
       continue;
     }
-    max_filled_slot_index = color_attachment_index;
+    max_filled_slot_index = color_attachment_index - GPU_FB_COLOR_ATTACHMENT0;
 
     VKTexture &color_texture = *unwrap(unwrap(attachment.tex));
     BLI_assert_msg(color_texture.usage_get() & GPU_TEXTURE_USAGE_ATTACHMENT,
