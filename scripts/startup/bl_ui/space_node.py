@@ -301,7 +301,7 @@ class NODE_MT_swap(Menu):
     bl_label = "Swap"
     bl_translation_context = i18n_contexts.operator_default
     bl_options = {'SEARCH_ON_KEY_PRESS'}
-    
+
     def draw(self, context):
         layout = self.layout
 

@@ -32,38 +32,38 @@ def cast_value(source, target):
     source_type = source.type
     target_type = target.type
 
-    value=source.default_value
+    value = source.default_value
 
-    to_bool = lambda value: value > 0
-    single_value_to_color = lambda value : Vector((value, value, value, 1.0))
-    single_value_to_vector = lambda value : Vector([value,] * len(target.default_value))
-    color_to_float = lambda color : (0.2126 * color[0]) + (0.7152 * color[1]) + (0.0722 * color[2])
-    vector_to_float = lambda vector : sum(vector)/len(vector)
+    def to_bool(value): return value > 0
+    def single_value_to_color(value): return Vector((value, value, value, 1.0))
+    def single_value_to_vector(value): return Vector([value,] * len(target.default_value))
+    def color_to_float(color): return (0.2126 * color[0]) + (0.7152 * color[1]) + (0.0722 * color[2])
+    def vector_to_float(vector): return sum(vector) / len(vector)
 
     func_map = {
-        ('VALUE', 'INT') : int,
-        ('VALUE', 'BOOLEAN') : to_bool,
-        ('VALUE', 'RGBA') : single_value_to_color,
-        ('VALUE', 'VECTOR') : single_value_to_vector,
-        ('INT', 'BOOLEAN') : to_bool,
-        ('INT', 'RGBA') : single_value_to_color,
-        ('INT', 'VECTOR') : single_value_to_vector,
-        ('BOOLEAN', 'RGBA') : single_value_to_color,
-        ('BOOLEAN', 'VECTOR') : single_value_to_vector,
-        ('RGBA', 'VALUE') : color_to_float,
-        ('RGBA', 'INT') : lambda color : int(color_to_float(color)),
-        ('RGBA', 'BOOLEAN') : lambda color : to_bool(color_to_float(color)),
-        ('RGBA', 'VECTOR') : lambda color : color[:len(target.default_value)],
-        ('VECTOR', 'VALUE') : vector_to_float,
-        ('VECTOR', 'INT') : lambda vector : int(vector_to_float(vector)),
+        ('VALUE', 'INT'): int,
+        ('VALUE', 'BOOLEAN'): to_bool,
+        ('VALUE', 'RGBA'): single_value_to_color,
+        ('VALUE', 'VECTOR'): single_value_to_vector,
+        ('INT', 'BOOLEAN'): to_bool,
+        ('INT', 'RGBA'): single_value_to_color,
+        ('INT', 'VECTOR'): single_value_to_vector,
+        ('BOOLEAN', 'RGBA'): single_value_to_color,
+        ('BOOLEAN', 'VECTOR'): single_value_to_vector,
+        ('RGBA', 'VALUE'): color_to_float,
+        ('RGBA', 'INT'): lambda color: int(color_to_float(color)),
+        ('RGBA', 'BOOLEAN'): lambda color: to_bool(color_to_float(color)),
+        ('RGBA', 'VECTOR'): lambda color: color[:len(target.default_value)],
+        ('VECTOR', 'VALUE'): vector_to_float,
+        ('VECTOR', 'INT'): lambda vector: int(vector_to_float(vector)),
         # Even negative vectors get implicitly converted to True, hence to_bool is not used
-        ('VECTOR', 'BOOLEAN') : lambda vector : bool(vector_to_float(vector)), 
-        ('VECTOR', 'RGBA') : lambda vector : list(vector).extend([0.0] * (len(target.default_value) - len(vector))) 
+        ('VECTOR', 'BOOLEAN'): lambda vector: bool(vector_to_float(vector)),
+        ('VECTOR', 'RGBA'): lambda vector: list(vector).extend([0.0] * (len(target.default_value) - len(vector)))
     }
 
     if source_type == target_type:
         return value
-    
+
     cast_func = func_map.get((source_type, target_type))
     if cast_func is not None:
         return cast_func(value)
@@ -88,7 +88,7 @@ class NodeOperator:
         description="Start transform operator after inserting the node",
         default=False,
     )
-    
+
     settings: CollectionProperty(
         name="Settings",
         description="Settings to be applied on the newly created node",
@@ -112,7 +112,7 @@ class NodeOperator:
             return tip_(bl_rna.description)
         else:
             return ""
-        
+
     @staticmethod
     def store_mouse_cursor(context, event):
         space = context.space_data
@@ -195,7 +195,7 @@ class NodeAddOperator(NodeOperator):
             bpy.ops.node.translate_attach_remove_on_cancel('INVOKE_DEFAULT')
 
         return result
-    
+
 
 class NodeSwapOperator(NodeOperator):
     @classmethod
@@ -208,7 +208,7 @@ class NodeSwapOperator(NodeOperator):
         if (active_node is None) or (not active_node.select):
             cls.poll_message_set("Active node must be selected")
             return False
-        
+
         return True
 
     @staticmethod
@@ -348,7 +348,7 @@ class NODE_OT_swap_empty_group(NodeSwapOperator, bpy.types.Operator):
         new_node = self.create_node(context, node_tree_group_type[tree.bl_idname])
         new_node.node_tree = group
         new_node.location = old_node.location
-        
+
         tree.nodes.remove(old_node)
         return {"FINISHED"}
 
@@ -375,10 +375,10 @@ class ZoneOperator:
     )
 
     zone_tooltips = {
-        "GeometryNodeSimulationInput" : "Simulate the execution of nodes across a time span",
-        "GeometryNodeRepeatInput" : "Execute nodes with a dynamic number of repetitions",
-        "GeometryNodeForeachGeometryElementInput" : "Perform operations separately for each geometry element (e.g. vertices, edges, etc.)",
-        "NodeClosureInput" : "Wrap nodes inside a closure that can be executed at a different part of the nodetree",
+        "GeometryNodeSimulationInput": "Simulate the execution of nodes across a time span",
+        "GeometryNodeRepeatInput": "Execute nodes with a dynamic number of repetitions",
+        "GeometryNodeForeachGeometryElementInput": "Perform operations separately for each geometry element (e.g. vertices, edges, etc.)",
+        "NodeClosureInput": "Wrap nodes inside a closure that can be executed at a different part of the nodetree",
     }
 
     @classmethod
@@ -461,18 +461,18 @@ class NODE_OT_add_closure_zone(NodeAddZoneOperator, Operator):
     input_node_type = "NodeClosureInput"
     output_node_type = "NodeClosureOutput"
     add_default_geometry_link = False
-    
-    
+
+
 class NODE_OT_swap_node(NodeSwapOperator, Operator):
     bl_idname = "node.swap_node"
-    bl_label = "Swap Node" 
+    bl_label = "Swap Node"
     bl_options = {"REGISTER", "UNDO"}
-    
+
     type: StringProperty(
         name="Node Type",
         description="Node type",
     )
-    
+
     visible_output: StringProperty(
         name="Output Name",
         description="If provided, all outputs that are named differently will be hidden",
@@ -490,9 +490,9 @@ class NODE_OT_swap_node(NodeSwapOperator, Operator):
             if hasattr(input_node, "paired_output"):
                 if input_node.paired_output == node:
                     return input_node, node
-                
+
         return None
-    
+
     def execute(self, context):
         old_node = context.active_node
         tree = old_node.id_data
@@ -512,7 +512,7 @@ class NODE_OT_swap_node(NodeSwapOperator, Operator):
             input_node, output_node = zone_pair
 
             self.transfer_input_values(input_node, node_new)
-            
+
             self.transfer_links(tree, input_node, node_new, is_input=True)
             self.transfer_links(tree, output_node, node_new, is_input=False)
 
@@ -520,36 +520,36 @@ class NODE_OT_swap_node(NodeSwapOperator, Operator):
                 tree.nodes.remove(node)
         else:
             self.transfer_input_values(old_node, node_new)
-            
+
             self.transfer_links(tree, old_node, node_new, is_input=True)
             self.transfer_links(tree, old_node, node_new, is_input=False)
 
             tree.nodes.remove(old_node)
 
         return {'FINISHED'}
-    
-    
+
+
 class NODE_OT_swap_zone(ZoneOperator, NodeSwapOperator, Operator):
     bl_idname = "node.swap_zone"
-    bl_label = "Swap Zone" 
+    bl_label = "Swap Zone"
     bl_options = {"REGISTER", "UNDO"}
 
     input_node_type: StringProperty(
         name="Input Node",
         description="Specifies the input node used the created zone",
     )
-    
+
     output_node_type: StringProperty(
         name="Output Node",
         description="Specifies the output node used the created zone",
     )
 
-    add_default_geometry_link : BoolProperty(
+    add_default_geometry_link: BoolProperty(
         name="Add Geometry Link",
         description="When enabled, create a link between geometry sockets in this zone",
         default=False,
     )
-    
+
     @staticmethod
     def get_zone_pair(tree, node):
         # Get paired output node
@@ -561,9 +561,9 @@ class NODE_OT_swap_zone(ZoneOperator, NodeSwapOperator, Operator):
             if hasattr(input_node, "paired_output"):
                 if input_node.paired_output == node:
                     return input_node, node
-                
+
         return None
-    
+
     def execute(self, context):
         old_node = context.active_node
         space = context.space_data
@@ -575,7 +575,7 @@ class NODE_OT_swap_zone(ZoneOperator, NodeSwapOperator, Operator):
 
         if input_node is None or output_node is None:
             return {'CANCELLED'}
-        
+
         # Simulation input must be paired with the output.
         input_node.pair_with_output(output_node)
 
@@ -583,7 +583,7 @@ class NODE_OT_swap_zone(ZoneOperator, NodeSwapOperator, Operator):
 
         if zone_pair is not None:
             old_input_node, old_output_node = zone_pair
-            
+
             input_node.location = old_input_node.location
             output_node.location = old_output_node.location
 
@@ -611,7 +611,7 @@ class NODE_OT_swap_zone(ZoneOperator, NodeSwapOperator, Operator):
             self.transfer_links(tree, old_node, output_node, is_input=False)
 
             tree.nodes.remove(old_node)
-            
+
         if self.add_default_geometry_link:
             # Connect geometry sockets by default if available.
             # Get the sockets by their types, because the name is not guaranteed due to i18n.

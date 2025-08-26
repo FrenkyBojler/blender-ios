@@ -94,14 +94,14 @@ class NODE_MT_texture_node_texture_base(Menu):
 
 
 add_menus = {
-    # menu bl_idname : baseclass
-    "NODE_MT_category_texture_input" : NODE_MT_texture_node_input_base,
-    "NODE_MT_category_texture_output" : NODE_MT_texture_node_output_base,
-    "NODE_MT_category_texture_color" : NODE_MT_texture_node_color_base,
-    "NODE_MT_category_texture_converter" : NODE_MT_texture_node_converter_base,
-    "NODE_MT_category_texture_distort" : NODE_MT_texture_node_distort_base,
-    "NODE_MT_category_texture_pattern" : NODE_MT_texture_node_pattern_base,
-    "NODE_MT_category_texture_texture" : NODE_MT_texture_node_texture_base,
+    # menu bl_idname: baseclass
+    "NODE_MT_category_texture_input": NODE_MT_texture_node_input_base,
+    "NODE_MT_category_texture_output": NODE_MT_texture_node_output_base,
+    "NODE_MT_category_texture_color": NODE_MT_texture_node_color_base,
+    "NODE_MT_category_texture_converter": NODE_MT_texture_node_converter_base,
+    "NODE_MT_category_texture_distort": NODE_MT_texture_node_distort_base,
+    "NODE_MT_category_texture_pattern": NODE_MT_texture_node_pattern_base,
+    "NODE_MT_category_texture_texture": NODE_MT_texture_node_texture_base,
 }
 add_menus = node_add_menu.generate_menus(add_menus, template=node_add_menu.AddNodeMenu)
 
@@ -127,14 +127,14 @@ class NODE_MT_texture_node_add_all(Menu):
 
 
 swap_menus = {
-    # menu bl_idname : baseclass
-    "NODE_MT_texture_node_input_swap" : NODE_MT_texture_node_input_base,
-    "NODE_MT_texture_node_output_swap" : NODE_MT_texture_node_output_base,
-    "NODE_MT_texture_node_color_swap" : NODE_MT_texture_node_color_base,
-    "NODE_MT_texture_node_converter_swap" : NODE_MT_texture_node_converter_base,
-    "NODE_MT_texture_node_distort_swap" : NODE_MT_texture_node_distort_base,
-    "NODE_MT_texture_node_pattern_swap" : NODE_MT_texture_node_pattern_base,
-    "NODE_MT_texture_node_texture_swap" : NODE_MT_texture_node_texture_base,
+    # menu bl_idname: baseclass
+    "NODE_MT_texture_node_input_swap": NODE_MT_texture_node_input_base,
+    "NODE_MT_texture_node_output_swap": NODE_MT_texture_node_output_base,
+    "NODE_MT_texture_node_color_swap": NODE_MT_texture_node_color_base,
+    "NODE_MT_texture_node_converter_swap": NODE_MT_texture_node_converter_base,
+    "NODE_MT_texture_node_distort_swap": NODE_MT_texture_node_distort_base,
+    "NODE_MT_texture_node_pattern_swap": NODE_MT_texture_node_pattern_base,
+    "NODE_MT_texture_node_texture_swap": NODE_MT_texture_node_texture_base,
 }
 swap_menus = node_add_menu.generate_menus(swap_menus, template=node_add_menu.SwapNodeMenu)
 

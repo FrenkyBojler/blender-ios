@@ -35,15 +35,35 @@ def node_operator(layout, operator_id, node_type, *, label=None, poll=None, sear
 # NOTE: This is kept for compatibility's sake, as some scripts import node_add_menu.add_node_type
 def add_node_type(layout, node_type, *, label=None, poll=None, search_weight=0.0, translate=True):
     """Add a node type to a menu."""
-    return node_operator(layout, "node.add_node", node_type, label=label, poll=poll, search_weight=search_weight, translate=translate)
+    return node_operator(
+        layout,
+        "node.add_node",
+        node_type,
+        label=label,
+        poll=poll,
+        search_weight=search_weight,
+        translate=translate)
 
 
 def add_node_type_with_searchable_enum(context, layout, node_idname, property_name, search_weight=0.0):
-    return node_operator_with_searchable_enum(context, layout, "node.add_node", node_idname, property_name, search_weight)
+    return node_operator_with_searchable_enum(
+        context,
+        layout,
+        "node.add_node",
+        node_idname,
+        property_name,
+        search_weight)
 
 
 def add_node_type_with_outputs(context, layout, node_type, subnames, *, label=None, search_weight=0.0):
-    return node_operator_with_outputs(context, layout, "node.add_node", node_type, subnames, label=label, search_weight=search_weight)
+    return node_operator_with_outputs(
+        context,
+        layout,
+        "node.add_node",
+        node_type,
+        subnames,
+        label=label,
+        search_weight=search_weight)
 
 
 def add_color_mix_node(context, layout):
@@ -64,7 +84,8 @@ def node_operator_with_outputs(context, layout, operator_id, node_type, subnames
     if getattr(context, "is_menu_search", False):
         for subname in subnames:
             sublabel = "{} ▸ {}".format(iface_(label), iface_(subname))
-            item_props = node_operator(layout, operator_id, node_type, label=sublabel, search_weight=search_weight, translate=False)
+            item_props = node_operator(layout, operator_id, node_type, label=sublabel,
+                                       search_weight=search_weight, translate=False)
             item_props.visible_output = subname
             props.append(item_props)
     return props
@@ -203,15 +224,30 @@ class AddNodeMenu:
 
     @staticmethod
     def node_operator(layout, node_type, *, label=None, poll=None, search_weight=0.0, translate=True):
-        return node_add_menu.node_operator(layout, "node.add_node", node_type, label=label, poll=poll, search_weight=search_weight, translate=translate)
-    
+        return node_add_menu.node_operator(
+            layout,
+            "node.add_node",
+            node_type,
+            label=label,
+            poll=poll,
+            search_weight=search_weight,
+            translate=translate)
+
     @staticmethod
     def node_operator_with_searchable_enum(context, layout, node_idname, property_name, search_weight=0.0):
-        return node_add_menu.node_operator_with_searchable_enum(context, layout, "node.add_node", node_idname, property_name, search_weight)
+        return node_add_menu.node_operator_with_searchable_enum(
+            context, layout, "node.add_node", node_idname, property_name, search_weight)
 
     @staticmethod
     def node_operator_with_outputs(context, layout, node_type, subnames, *, label=None, search_weight=0.0):
-        return node_add_menu.node_operator_with_outputs(context, layout, "node.add_node", node_type, subnames, label=label, search_weight=search_weight)
+        return node_add_menu.node_operator_with_outputs(
+            context,
+            layout,
+            "node.add_node",
+            node_type,
+            subnames,
+            label=label,
+            search_weight=search_weight)
 
     @staticmethod
     def color_mix_node(context, layout):
@@ -223,8 +259,9 @@ class AddNodeMenu:
 
     @staticmethod
     def draw_group_menu(context, layout):
-        return draw_group_menu(context, layout, group_operator="node.add_node", empty_group_operator="node.add_empty_group")
-        
+        return draw_group_menu(context, layout, group_operator="node.add_node",
+                               empty_group_operator="node.add_empty_group")
+
     @staticmethod
     def simulation_zone(layout, label):
         return add_simulation_zone(layout, label)
@@ -232,15 +269,15 @@ class AddNodeMenu:
     @staticmethod
     def repeat_zone(layout, label):
         return add_repeat_zone(layout, label)
-    
+
     @staticmethod
     def for_each_element_zone(layout, label):
         return add_foreach_geometry_element_zone(layout, label)
-         
+
     @staticmethod
     def closure_zone(layout, label):
         return add_closure_zone(layout, label)
-    
+
     @classmethod
     def draw_menu(cls, layout, path):
         if cls.pathing_dict is None:
@@ -254,15 +291,30 @@ class SwapNodeMenu:
 
     @staticmethod
     def node_operator(layout, node_type, *, label=None, poll=None, search_weight=0.0, translate=True):
-        return node_add_menu.node_operator(layout, "node.swap_node", node_type, label=label, poll=poll, search_weight=search_weight, translate=translate)
-    
+        return node_add_menu.node_operator(
+            layout,
+            "node.swap_node",
+            node_type,
+            label=label,
+            poll=poll,
+            search_weight=search_weight,
+            translate=translate)
+
     @staticmethod
     def node_operator_with_searchable_enum(context, layout, node_idname, property_name, search_weight=0.0):
-        return node_add_menu.node_operator_with_searchable_enum(context, layout, "node.swap_node", node_idname, property_name, search_weight)
+        return node_add_menu.node_operator_with_searchable_enum(
+            context, layout, "node.swap_node", node_idname, property_name, search_weight)
 
     @staticmethod
     def node_operator_with_outputs(context, layout, node_type, subnames, *, label=None, search_weight=0.0):
-        return node_add_menu.node_operator_with_outputs(context, layout, "node.swap_node", node_type, subnames, label=label, search_weight=search_weight)
+        return node_add_menu.node_operator_with_outputs(
+            context,
+            layout,
+            "node.swap_node",
+            node_type,
+            subnames,
+            label=label,
+            search_weight=search_weight)
 
     @staticmethod
     def color_mix_node(context, layout):
@@ -274,8 +326,9 @@ class SwapNodeMenu:
 
     @staticmethod
     def draw_group_menu(context, layout):
-        return draw_group_menu(context, layout, group_operator="node.swap_node", empty_group_operator="node.swap_empty_group")
-    
+        return draw_group_menu(context, layout, group_operator="node.swap_node",
+                               empty_group_operator="node.swap_empty_group")
+
     @staticmethod
     def simulation_zone(layout, label):
         props = layout.operator("node.swap_zone", text=label)
@@ -295,24 +348,24 @@ class SwapNodeMenu:
         props.use_transform = True
 
         return props
-    
+
     @staticmethod
     def for_each_element_zone(layout, label):
         props = layout.operator("node.swap_zone", text=label)
         props.input_node_type = "GeometryNodeForeachGeometryElementInput"
         props.output_node_type = "GeometryNodeForeachGeometryElementOutput"
         props.add_default_geometry_link = False
-        props.use_transform = True   
+        props.use_transform = True
 
         return props
-             
+
     @staticmethod
     def closure_zone(layout, label):
         props = layout.operator("node.swap_zone", text=label)
         props.input_node_type = "NodeClosureInput"
         props.output_node_type = "NodeClosureOutput"
         props.add_default_geometry_link = False
-        props.use_transform = True   
+        props.use_transform = True
 
         return props
 
@@ -347,14 +400,14 @@ class NODE_MT_layout_base(Menu):
 
 
 def generate_menu(bl_idname: str, template: Menu, layout_base: Menu, pathing_dict: dict = None):
-    return type(bl_idname, (template, layout_base), {"bl_idname" : bl_idname, "pathing_dict" : pathing_dict})
+    return type(bl_idname, (template, layout_base), {"bl_idname": bl_idname, "pathing_dict": pathing_dict})
 
 
 def generate_menus(menus: dict, template: Menu):
     pathing_dict = {}
     menus = tuple(
         generate_menu(bl_idname, template, layout_base, pathing_dict)
-            for bl_idname, layout_base in menus.items()
+        for bl_idname, layout_base in menus.items()
     )
     generate_pathing_dict(pathing_dict, menus)
     return menus
