@@ -2420,7 +2420,6 @@ void blo_do_versions_pre250(FileData *fd, Library *lib, Main *bmain)
     idproperties_fix_group_lengths(bmain->lattices);
     idproperties_fix_group_lengths(bmain->lights);
     idproperties_fix_group_lengths(bmain->cameras);
-    idproperties_fix_group_lengths(bmain->ipo);
     idproperties_fix_group_lengths(bmain->shapekeys);
     idproperties_fix_group_lengths(bmain->worlds);
     idproperties_fix_group_lengths(bmain->screens);
