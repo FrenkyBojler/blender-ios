@@ -316,7 +316,6 @@ set(GLSL_SRC
   engines/eevee/shaders/eevee_ambient_occlusion_lib.glsl
   engines/eevee/shaders/eevee_ambient_occlusion_pass_comp.glsl
   engines/eevee/shaders/eevee_attributes_curves_lib.glsl
-  engines/eevee/shaders/eevee_attributes_gpencil_lib.glsl
   engines/eevee/shaders/eevee_attributes_mesh_lib.glsl
   engines/eevee/shaders/eevee_attributes_pointcloud_lib.glsl
   engines/eevee/shaders/eevee_attributes_volume_lib.glsl
@@ -373,7 +372,6 @@ set(GLSL_SRC
   engines/eevee/shaders/eevee_gbuffer_closure_test.glsl
   engines/eevee/shaders/eevee_gbuffer_normal_test.glsl
   engines/eevee/shaders/eevee_geom_curves_vert.glsl
-  engines/eevee/shaders/eevee_geom_gpencil_vert.glsl
   engines/eevee/shaders/eevee_geom_mesh_vert.glsl
   engines/eevee/shaders/eevee_geom_pointcloud_vert.glsl
   engines/eevee/shaders/eevee_geom_volume_vert.glsl
