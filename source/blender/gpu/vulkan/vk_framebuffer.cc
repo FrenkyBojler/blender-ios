@@ -565,6 +565,7 @@ void VKFrameBuffer::rendering_ensure_dynamic_rendering(VKContext &context,
   render_area_update(begin_rendering.node_data.vk_rendering_info.renderArea);
 
   color_attachment_formats_.clear();
+  uint32_t max_filled_slot_index = 0;
   for (int color_attachment_index :
        IndexRange(GPU_FB_COLOR_ATTACHMENT0, GPU_FB_MAX_COLOR_ATTACHMENT))
   {
@@ -585,6 +586,7 @@ void VKFrameBuffer::rendering_ensure_dynamic_rendering(VKContext &context,
                          VK_ATTACHMENT_STORE_OP_DONT_CARE};
       continue;
     }
+    max_filled_slot_index = color_attachment_index;
 
     VKTexture &color_texture = *unwrap(unwrap(attachment.tex));
     BLI_assert_msg(color_texture.usage_get() & GPU_TEXTURE_USAGE_ATTACHMENT,
@@ -636,11 +638,10 @@ void VKFrameBuffer::rendering_ensure_dynamic_rendering(VKContext &context,
         (!extensions.dynamic_rendering_unused_attachments && vk_image_view == VK_NULL_HANDLE) ?
             VK_FORMAT_UNDEFINED :
             vk_format);
-
-    begin_rendering.node_data.vk_rendering_info.pColorAttachments =
-        begin_rendering.node_data.color_attachments;
   }
-  color_attachment_size = color_attachment_formats_.size();
+  begin_rendering.node_data.vk_rendering_info.pColorAttachments =
+      begin_rendering.node_data.color_attachments;
+  color_attachment_size = max_filled_slot_index + 1;
 
   for (int depth_attachment_index : IndexRange(GPU_FB_DEPTH_ATTACHMENT, 2)) {
     const GPUAttachment &attachment = attachments_[depth_attachment_index];
