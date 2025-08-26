@@ -1242,9 +1242,13 @@ class CompositorContext : public compositor::Context {
 
   compositor::Result get_input(const Scene * /*scene*/,
                                int /*view_layer_id*/,
-                               const char * /*pass_name*/) override
+                               const char *pass_name) override
   {
     compositor::Result result = this->create_result(compositor::ResultType::Color);
+    if (StringRef(pass_name) != "Image") {
+      return result;
+    }
+
     result.wrap_external(image_buffer_->float_buffer.data,
                          int2(image_buffer_->x, image_buffer_->y));
     return result;

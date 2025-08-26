@@ -64,12 +64,12 @@ class NODE_MT_category_compositor_output(Menu):
     bl_label = "Output"
 
     def draw(self, context):
-        del context
         layout = self.layout
         node_add_menu.add_node_type(layout, "NodeGroupOutput")
         node_add_menu.add_node_type(layout, "CompositorNodeViewer")
-        layout.separator()
-        node_add_menu.add_node_type(layout, "CompositorNodeOutputFile")
+        if context.space_data.node_tree_sub_type == 'SCENE':
+            layout.separator()
+            node_add_menu.add_node_type(layout, "CompositorNodeOutputFile")
 
         node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
 
