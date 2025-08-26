@@ -33,6 +33,7 @@
 #include "BKE_node_legacy_types.hh"
 #include "BKE_node_runtime.hh"
 #include "BKE_node_tree_update.hh"
+#include "BKE_report.hh"
 #include "BKE_screen.hh"
 
 #include "ANIM_versioning.hh"
@@ -712,8 +713,13 @@ void do_versions_after_setup(Main *new_bmain,
    * the versions of all the linked libraries. */
 
   if (!blendfile_or_libraries_versions_atleast(new_bmain, 250, 0)) {
-    /* TODO: issue a warning that any animation in this file will be lost, and that loading &
-     * saving with Blender 4.5 is the way to migrate. */
+    /* This happens here, because at this point in the versioning code there's
+     * 'reports' available. */
+    BKE_report(
+        reports->reports,
+        RPT_WARNING,
+        "Loaded a pre-2.5 blend file, animation data has not been loaded. Open & save the file "
+        "with Blender v4.5 to convert animation data.");
   }
 
   if (!blendfile_or_libraries_versions_atleast(new_bmain, 250, 0)) {
@@ -741,12 +747,6 @@ void do_versions_after_setup(Main *new_bmain,
      * be cleared, so it is re-run in a later version when the bug is fixed and the versioning has
      * been made idempotent. */
     BKE_main_mesh_legacy_convert_auto_smooth(*new_bmain);
-  }
-
-  if (!blendfile_or_libraries_versions_atleast(new_bmain, 404, 2)) {
-    /* Version all the action assignments of just-versioned datablocks. This MUST happen before the
-     * GreasePencil conversion, as that assumes the Action Slots have already been assigned. */
-    blender::animrig::versioning::convert_legacy_action_assignments(*new_bmain, reports->reports);
   }
 
   if (!blendfile_or_libraries_versions_atleast(new_bmain, 403, 3)) {

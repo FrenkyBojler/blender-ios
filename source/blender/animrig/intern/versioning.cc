@@ -152,45 +152,11 @@ void convert_legacy_animato_action(bAction &dna_action)
   action.groups = {nullptr, nullptr};
 }
 
-void tag_action_user_for_slotted_actions_conversion(ID &animated_id)
-{
-  animated_id.runtime.readfile_data->tags.action_assignment_needs_slot = true;
-}
-
-void tag_action_users_for_slotted_actions_conversion(Main &bmain)
-{
-  /* This function is only called when the blend-file is old enough to NOT use
-   * slotted Actions, so we can safely tag anything that uses an Action. */
-
-  auto flag_adt = [](ID &animated_id,
-                     bAction *& /*action_ptr_ref*/,
-                     slot_handle_t & /*slot_handle_ref*/,
-                     char * /*last_slot_identifier*/) -> bool {
-    tag_action_user_for_slotted_actions_conversion(animated_id);
-
-    /* Once tagged, the foreach loop can stop, because more tagging of the same
-     * ID doesn't do anything. */
-    return false;
-  };
-
-  ID *id;
-  FOREACH_MAIN_ID_BEGIN (&bmain, id) {
-    foreach_action_slot_use_with_references(*id, flag_adt);
-
-    /* Process embedded IDs, as these are not listed in bmain, but still can
-     * have their own Action+Slot. Unfortunately there is no generic looper
-     * for embedded IDs. At this moment the only animatable embedded ID is a
-     * node tree. */
-    bNodeTree *node_tree = blender::bke::node_tree_from_id(id);
-    if (node_tree) {
-      foreach_action_slot_use_with_references(node_tree->id, flag_adt);
-    }
-  }
-  FOREACH_MAIN_ID_END;
-}
-
 void convert_legacy_action_assignments(Main &bmain, ReportList *reports)
 {
+  /* This function is only called when the blend-file is old enough to NOT use
+   * slotted Actions, so we can safely convert anything that uses an Action. */
+
   auto version_slot_assignment = [&](ID &animated_id,
                                      bAction *dna_action,
                                      PointerRNA &action_slot_owner_ptr,
@@ -256,25 +222,16 @@ void convert_legacy_action_assignments(Main &bmain, ReportList *reports)
     return true;
   };
 
-  /* Note that the code below does not remove the `action_assignment_needs_slot` tag. One ID can
-   * use multiple Actions (via NLA, Action constraints, etc.); if one of those Action is an ancient
-   * one from before 2.50 (just to name one example case) this ID may needs to be re-visited
-   * after those were versioned. Rather than trying to figure out if re-visiting is necessary, this
-   * function is safe to call multiple times, and all that's lost is a little bit of CPU time. */
-
   ID *id;
   FOREACH_MAIN_ID_BEGIN (&bmain, id) {
-    /* Process the ID itself. */
-    if (BLO_readfile_id_runtime_tags(*id).action_assignment_needs_slot) {
-      foreach_action_slot_use_with_rna(*id, version_slot_assignment);
-    }
+    foreach_action_slot_use_with_rna(*id, version_slot_assignment);
 
     /* Process embedded IDs, as these are not listed in bmain, but still can
      * have their own Action+Slot. Unfortunately there is no generic looper
      * for embedded IDs. At this moment the only animatable embedded ID is a
      * node tree. */
     bNodeTree *node_tree = blender::bke::node_tree_from_id(id);
-    if (node_tree && BLO_readfile_id_runtime_tags(node_tree->id).action_assignment_needs_slot) {
+    if (node_tree) {
       foreach_action_slot_use_with_rna(node_tree->id, version_slot_assignment);
     }
   }

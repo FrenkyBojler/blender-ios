@@ -409,7 +409,6 @@ void do_versions_after_linking_440(FileData *fd, Main *bmain)
 {
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 2)) {
     blender::animrig::versioning::convert_legacy_animato_actions(*bmain);
-    blender::animrig::versioning::tag_action_users_for_slotted_actions_conversion(*bmain);
     blender::animrig::versioning::convert_legacy_action_assignments(*bmain, fd->reports->reports);
   }
 

@@ -567,16 +567,6 @@ struct ID_Readfile_Data {
      * updated from the 'UID' values stored in `.blend` files to the new, actual pointers.
      */
     bool needs_linking : 1;
-
-    /* Specific ID-type reading/versioning related tags. */
-
-    /**
-     * Set when this ID used a legacy Action, in which case it also should pick
-     * an appropriate slot.
-     *
-     * \see ANIM_versioning.hh
-     */
-    bool action_assignment_needs_slot : 1;
   } tags;
 };
 
