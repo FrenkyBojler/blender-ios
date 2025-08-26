@@ -904,7 +904,6 @@ void ShaderManager::compute_thin_film_table(const Transform &xyz_to_rgb)
   thin_film_table.resize(6 * THIN_FILM_TABLE_SIZE);
 
   float3 normalization;
-  float3 prevPhase = zero_float3();
   for (int i = 0; i < THIN_FILM_TABLE_SIZE; i++) {
     const float *table_row = table_thin_film_cmf[i];
     /* Load precomputed resampled Fourier-transformed XYZ CMFs. */
@@ -922,21 +921,13 @@ void ShaderManager::compute_thin_film_table(const Transform &xyz_to_rgb)
       normalization = 1.0f / rgbReal;
     }
 
-    /* Convert the complex value into magnitude/phase representation. */
-    const float3 rgbMag = sqrt(sqr(rgbReal) + sqr(rgbImag));
-    float3 rgbPhase = atan2(rgbImag, rgbReal);
-
-    /* Unwrap phase to avoid jumps. */
-    rgbPhase -= M_2PI_F * round((rgbPhase - prevPhase) * M_1_2PI_F);
-    prevPhase = rgbPhase;
-
     /* Store in lookup table. */
-    thin_film_table[i + 0 * THIN_FILM_TABLE_SIZE] = rgbMag.x * normalization.x;
-    thin_film_table[i + 1 * THIN_FILM_TABLE_SIZE] = rgbMag.y * normalization.y;
-    thin_film_table[i + 2 * THIN_FILM_TABLE_SIZE] = rgbMag.z * normalization.z;
-    thin_film_table[i + 3 * THIN_FILM_TABLE_SIZE] = rgbPhase.x;
-    thin_film_table[i + 4 * THIN_FILM_TABLE_SIZE] = rgbPhase.y;
-    thin_film_table[i + 5 * THIN_FILM_TABLE_SIZE] = rgbPhase.z;
+    thin_film_table[i + 0 * THIN_FILM_TABLE_SIZE] = rgbReal.x * normalization.x;
+    thin_film_table[i + 1 * THIN_FILM_TABLE_SIZE] = rgbReal.y * normalization.y;
+    thin_film_table[i + 2 * THIN_FILM_TABLE_SIZE] = rgbReal.z * normalization.z;
+    thin_film_table[i + 3 * THIN_FILM_TABLE_SIZE] = rgbImag.x * normalization.x;
+    thin_film_table[i + 4 * THIN_FILM_TABLE_SIZE] = rgbImag.y * normalization.y;
+    thin_film_table[i + 5 * THIN_FILM_TABLE_SIZE] = rgbImag.z * normalization.z;
   }
 }
 
