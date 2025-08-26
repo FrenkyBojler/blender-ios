@@ -22,6 +22,7 @@ void pose_bone_descendent_iterator(bPose &pose,
   BKE_pose_channels_hash_ensure(&pose);
 
   int i = 0;
+  /* This is not using an std::deque because the implementation of that has issues on windows. */
   Vector<bPoseChannel *> descendants = {&pose_bone};
   while (i < descendants.size()) {
     bPoseChannel *descendant = descendants[i];
