@@ -1309,9 +1309,10 @@ static void compositor_modifier_apply(const RenderData *render_data,
     return;
   }
 
+  const bool is_byte_buffer = image_buffer->float_buffer.data == nullptr;
   IMB_assign_float_buffer(
       image_buffer, IMB_steal_float_buffer(linear_float_buffer), IB_TAKE_OWNERSHIP);
-  if (image_buffer->float_buffer.data == nullptr) {
+  if (is_byte_buffer) {
     IMB_byte_from_float(image_buffer);
   }
   else {
