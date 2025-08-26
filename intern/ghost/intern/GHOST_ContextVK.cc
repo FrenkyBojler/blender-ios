@@ -644,7 +644,9 @@ GHOST_TSuccess GHOST_ContextVK::swapBuffers()
   /* Wait for previous time that the frame was used to finish rendering. Presenting can
    * still happen in parallel, but acquiring needs can only happen when the frame acquire semaphore
    * has been signaled and waited for. */
-  vkWaitForFences(device, 1, &submission_frame_data.submission_fence, true, UINT64_MAX);
+  if (submission_frame_data.submission_fence) {
+    vkWaitForFences(device, 1, &submission_frame_data.submission_fence, true, UINT64_MAX);
+  }
   submission_frame_data.discard_pile.destroy(device);
   bool use_hdr_swapchain = true;
 #ifdef WITH_GHOST_WAYLAND
@@ -1400,7 +1402,10 @@ GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
   vulkan_device->ensure_device(required_device_extensions, optional_device_extensions);
 
   if (use_window_surface) {
-    recreateSwapchain(use_hdr_swapchain);
+    // recreateSwapchain(use_hdr_swapchain);
+    render_extent_ = {0, 0};
+    render_extent_min_ = {0, 0};
+    surface_format_ = {VK_FORMAT_R8G8B8A8_UNORM, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR};
   }
 
   active_context_ = this;
