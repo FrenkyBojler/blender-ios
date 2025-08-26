@@ -54,11 +54,8 @@ actionconfig_data = \
              ],
              },
             ),
-           ("nav_grab", {"type": 'FLOAT', "user_paths": ['/user/hand/left', '/user/hand/right'], "op": 'wm.xr_navigation_grab', "op_mode": 'MODAL', "bimanual": 'True', "haptic_name": '', "haptic_match_user_paths": 'False', "haptic_duration": '0.0', "haptic_frequency": '0.0', "haptic_amplitude": '0.0', "haptic_mode": 'PRESS'},
-            {"op_properties":
-            [("lock_rotation", True),
-             ],
-             },
+           ("swap_hands", {"type": 'FLOAT', "user_paths": ['/user/hand/left', '/user/hand/right'], "op": 'wm.xr_navigation_swap_hands', "op_mode": 'MODAL', "bimanual": 'False', "haptic_name": 'haptic', "haptic_match_user_paths": 'True', "haptic_duration": '0.30000001192092896', "haptic_frequency": '3000.0', "haptic_amplitude": '0.5', "haptic_mode": 'PRESS'},
+            {"op_properties": [],},
             {"bindings":
             [("huawei", {"profile": '/interaction_profiles/huawei/controller', "component_paths": ['/input/trackpad/click', '/input/trackpad/click'], "threshold": '0.30000001192092896', "axis_region": 'ANY'}),
              ("index", {"profile": '/interaction_profiles/valve/index_controller', "component_paths": ['/input/squeeze/force', '/input/squeeze/force'], "threshold": '0.5', "axis_region": 'ANY'}),
@@ -243,8 +240,11 @@ actionconfig_data = \
              ],
              },
             ),
-           ("swap_hands", {"type": 'FLOAT', "user_paths": ['/user/hand/left', '/user/hand/right'], "op": 'wm.xr_navigation_swap_hands', "op_mode": 'MODAL', "bimanual": 'False', "haptic_name": 'haptic', "haptic_match_user_paths": 'True', "haptic_duration": '0.30000001192092896', "haptic_frequency": '3000.0', "haptic_amplitude": '0.5', "haptic_mode": 'PRESS'},
-            {"op_properties": [],},
+           ("nav_grab", {"type": 'FLOAT', "user_paths": ['/user/hand/left', '/user/hand/right'], "op": 'wm.xr_navigation_grab', "op_mode": 'MODAL', "bimanual": 'True', "haptic_name": '', "haptic_match_user_paths": 'False', "haptic_duration": '0.0', "haptic_frequency": '0.0', "haptic_amplitude": '0.0', "haptic_mode": 'PRESS'},
+            {"op_properties":
+            [("lock_rotation", True),
+             ],
+             },
             {"bindings":
             [("index", {"profile": '/interaction_profiles/valve/index_controller', "component_paths": ['/input/b/click', '/input/b/click'], "threshold": '0.30000001192092896', "axis_region": 'ANY'}),
                 ("oculus", {"profile": '/interaction_profiles/oculus/touch_controller', "component_paths": ['/input/y/click', '/input/b/click'], "threshold": '0.30000001192092896', "axis_region": 'ANY'}),

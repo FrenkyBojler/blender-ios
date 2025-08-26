@@ -5039,11 +5039,6 @@ static void rna_def_userdef_xr_navigation(BlenderRNA *brna)
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", USER_XR_NAV_INVERT_ROTATION);
   RNA_def_property_ui_text(
       prop, "Invert Rotation", "Reverses the direction of rotation input");
-
-  prop = RNA_def_property(srna, "single_controller", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "flag", USER_XR_NAV_SINGLE_CONTROLLER);
-  RNA_def_property_ui_text(
-      prop, "Single Controller", "Makes all XR navigation accessible on a single controller");
 }
 
 static void rna_def_userdef_view(BlenderRNA *brna)

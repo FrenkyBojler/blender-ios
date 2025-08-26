@@ -1613,11 +1613,10 @@ void blo_do_versions_userdef(UserDef *userdef)
   }
 
   if (!USER_VERSION_ATLEAST(500, 45)) {
-    userdef->xr_navigation.vignette_intensity = 50.0f;
+    userdef->xr_navigation.vignette_intensity = 60.0f;
     userdef->xr_navigation.turn_amount = DEG2RAD(30);
     userdef->xr_navigation.turn_speed = DEG2RAD(60);
-    userdef->xr_navigation.flag = USER_XR_NAV_SNAP_TURN |
-                                  USER_XR_NAV_SINGLE_CONTROLLER;
+    userdef->xr_navigation.flag = USER_XR_NAV_SNAP_TURN;
   }
 
   /**

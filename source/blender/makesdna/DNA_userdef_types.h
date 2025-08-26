@@ -1105,7 +1105,6 @@ typedef enum eUserpref_FactorDisplay {
 typedef enum eUserpref_XrNavigationFlags {
   USER_XR_NAV_SNAP_TURN = (1 << 0),
   USER_XR_NAV_INVERT_ROTATION = (1 << 1),
-  USER_XR_NAV_SINGLE_CONTROLLER = (1 << 2),
 } eUserpref_XrNavigationFlags;
 
 typedef enum eUserpref_RenderDisplayType {

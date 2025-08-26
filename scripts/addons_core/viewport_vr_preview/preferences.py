@@ -51,7 +51,6 @@ class USERPREF_PT_vr_navigation(Panel):
 
         col.row().prop(nav, "snap_turn", text="Snap Turn")
         col.row().prop(nav, "invert_rotation", text="Invert Rotation")
-        col.row().prop(nav, "single_controller", text="Single Controller Mode")
 
 classes = (
     USERPREF_PT_vr_navigation,
