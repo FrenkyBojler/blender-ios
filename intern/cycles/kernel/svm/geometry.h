@@ -98,7 +98,7 @@ ccl_device_noinline void svm_node_geometry_bump_dy(KernelGlobals kg,
 
   switch (type) {
     case NODE_GEOM_P: {
-      float3 dPdy = differential_from_compact(sd->Ng, sd->dP).dy * bump_filter_width;
+      const float3 dPdy = differential_from_compact(sd->Ng, sd->dP).dy * bump_filter_width;
       /* Offset Position by the projection of dPdy onto the plane orthogonal to Normal. */
       data = sd->P + dPdy - (dot(dPdy, sd->N) * sd->N);
       break;
