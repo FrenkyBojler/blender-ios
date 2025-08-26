@@ -896,9 +896,8 @@ void ShaderManager::compute_thin_film_table(const Transform &xyz_to_rgb)
    * the XYZ-to-RGB matrix to get the RGB LUT.
    *
    * That's what this function does: We load the precomputed values, convert to RGB, normalize
-   * the result to make the DC term equal to 1, convert from real/imaginary to magnitude/phase
-   * since that form is smoother and therefore interpolates more nicely, and then store that
-   * into the final table that's used by the kernel.
+   * the result to make the DC term equal to 1, and then store that into the final table that's
+   * used by the kernel.
    */
   assert(sizeof(table_thin_film_cmf) == 6 * THIN_FILM_TABLE_SIZE * sizeof(float));
   thin_film_table.resize(6 * THIN_FILM_TABLE_SIZE);

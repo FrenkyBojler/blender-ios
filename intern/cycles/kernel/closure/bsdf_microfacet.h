@@ -38,7 +38,7 @@ struct FresnelDielectricTint {
 
 struct FresnelConductor {
   FresnelThinFilm thin_film;
-  ComplexIOR<Spectrum> ior;
+  complex<Spectrum> ior;
 };
 
 struct FresnelGeneralizedSchlick {
