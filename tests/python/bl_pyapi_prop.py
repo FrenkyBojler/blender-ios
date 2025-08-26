@@ -50,8 +50,10 @@ class TestPropNumerical(unittest.TestCase):
 
         def bool_set_(s, v):
             self.test_bool_storage = v
+
         def int_set_(s, v):
             self.test_int_storage = v
+
         def float_set_(s, v):
             self.test_float_storage = v
 
