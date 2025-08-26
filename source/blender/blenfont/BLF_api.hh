@@ -14,7 +14,6 @@
 #include "BLI_bounds_types.hh"
 #include "BLI_compiler_attrs.h"
 #include "BLI_function_ref.hh"
-#include "BLI_rect.h"
 #include "BLI_string_ref.hh"
 #include "BLI_sys_types.h"
 #include "BLI_vector.hh"
@@ -31,6 +30,7 @@
 struct ListBase;
 struct ResultBLF;
 struct rcti;
+struct rctf;
 
 namespace blender::ocio {
 class ColorSpace;
