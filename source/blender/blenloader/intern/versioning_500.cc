@@ -22,6 +22,8 @@
 #include "DNA_rigidbody_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_sequence_types.h"
+#include "DNA_windowmanager_types.h"
+#include "DNA_workspace_types.h"
 #include "DNA_world_types.h"
 
 #include "BLI_listbase.h"
@@ -58,6 +60,8 @@
 #include "SEQ_iterator.hh"
 #include "SEQ_modifier.hh"
 #include "SEQ_sequencer.hh"
+
+#include "WM_api.hh"
 
 #include "readfile.hh"
 
@@ -1250,15 +1254,13 @@ static void do_version_remove_lzo_and_lzma_compression(FileData *fd, Object *obj
 
   LISTBASE_FOREACH (PTCacheID *, pid, &pidlist) {
     bool found_incompatible_cache = false;
-    if (pid->cache->compression == PTCACHE_COMPRESS_LZO_DEPRECATED) {
-      pid->cache->compression = PTCACHE_COMPRESS_ZSTD_FAST;
+    if (ELEM(pid->cache->compression,
+             PTCACHE_COMPRESS_LZO_DEPRECATED,
+             PTCACHE_COMPRESS_LZMA_DEPRECATED))
+    {
+      pid->cache->compression = PTCACHE_COMPRESS_ZSTD_FILTERED;
       found_incompatible_cache = true;
     }
-    else if (pid->cache->compression == PTCACHE_COMPRESS_LZMA_DEPRECATED) {
-      pid->cache->compression = PTCACHE_COMPRESS_ZSTD_SLOW;
-      found_incompatible_cache = true;
-    }
-
     if (pid->type == PTCACHE_TYPE_DYNAMICPAINT) {
       /* Dynamicpaint was hardcoded to use LZO. */
       found_incompatible_cache = true;
@@ -1678,12 +1680,79 @@ void do_versions_after_linking_500(FileData *fd, Main *bmain)
     FOREACH_NODETREE_END;
   }
 
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 63)) {
+    LISTBASE_FOREACH (wmWindowManager *, wm, &bmain->wm) {
+      LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
+        Scene *scene = WM_window_get_active_scene(win);
+        WorkSpace *workspace = WM_window_get_active_workspace(win);
+        workspace->sequencer_scene = scene;
+      }
+    }
+  }
+
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a MAIN_VERSION_FILE_ATLEAST check.
    *
    * \note Keep this message at the bottom of the function.
    */
+}
+
+static void remove_in_and_out_node_panel_recursive(bNodeTreeInterfacePanel &panel)
+{
+  using namespace blender;
+  const Span old_sockets(panel.items_array, panel.items_num);
+
+  Vector<bNodeTreeInterfaceItem *> new_sockets;
+  for (bNodeTreeInterfaceItem *item : old_sockets) {
+    if (item->item_type == NODE_INTERFACE_PANEL) {
+      remove_in_and_out_node_panel_recursive(*reinterpret_cast<bNodeTreeInterfacePanel *>(item));
+      continue;
+    }
+    bNodeTreeInterfaceSocket *socket = reinterpret_cast<bNodeTreeInterfaceSocket *>(item);
+    constexpr int in_and_out = NODE_INTERFACE_SOCKET_INPUT | NODE_INTERFACE_SOCKET_OUTPUT;
+    if ((socket->flag & in_and_out) != in_and_out) {
+      continue;
+    }
+
+    bNodeTreeInterfaceSocket *new_output = MEM_callocN<bNodeTreeInterfaceSocket>(__func__);
+    new_output->item.item_type = NODE_INTERFACE_SOCKET;
+    new_output->name = BLI_strdup_null(socket->name);
+    new_output->description = BLI_strdup_null(socket->description);
+    new_output->socket_type = BLI_strdup_null(socket->socket_type);
+    new_output->flag = socket->flag & ~NODE_INTERFACE_SOCKET_INPUT;
+    new_output->attribute_domain = socket->attribute_domain;
+    new_output->default_input = socket->default_input;
+    new_output->default_attribute_name = BLI_strdup_null(socket->default_attribute_name);
+    new_output->identifier = BLI_strdup(socket->identifier);
+    if (socket->properties) {
+      new_output->properties = IDP_CopyProperty_ex(socket->properties,
+                                                   LIB_ID_CREATE_NO_USER_REFCOUNT);
+    }
+    new_output->structure_type = socket->structure_type;
+    new_sockets.append(reinterpret_cast<bNodeTreeInterfaceItem *>(new_output));
+
+    socket->flag &= ~NODE_INTERFACE_SOCKET_OUTPUT;
+  }
+
+  if (new_sockets.is_empty()) {
+    return;
+  }
+
+  new_sockets.extend(old_sockets);
+  VectorData new_socket_data = new_sockets.release();
+  MEM_freeN(panel.items_array);
+  panel.items_array = new_socket_data.data;
+  panel.items_num = new_socket_data.size;
+}
+
+/**
+ * Fix node interface sockest that could become both inputs and outputs before the current design
+ * was settled on.
+ */
+static void remove_in_and_out_node_interface(bNodeTree &node_tree)
+{
+  remove_in_and_out_node_panel_recursive(node_tree.tree_interface.root_panel);
 }
 
 void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
@@ -2256,21 +2325,6 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 54)) {
-    LISTBASE_FOREACH (Object *, object, &bmain->objects) {
-      LISTBASE_FOREACH (ModifierData *, modifier, &object->modifiers) {
-        if (modifier->type != eModifierType_GreasePencilLineart) {
-          continue;
-        }
-        GreasePencilLineartModifierData *lmd = reinterpret_cast<GreasePencilLineartModifierData *>(
-            modifier);
-        if (lmd->radius != 0.0f) {
-          continue;
-        }
-        lmd->radius = float(lmd->thickness_legacy) *
-                      bke::greasepencil::LEGACY_RADIUS_CONVERSION_FACTOR;
-      }
-    }
-
     FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
       if (node_tree->type != NTREE_COMPOSIT) {
         continue;
@@ -2285,6 +2339,67 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 58)) {
+    LISTBASE_FOREACH (Object *, object, &bmain->objects) {
+      LISTBASE_FOREACH (ModifierData *, modifier, &object->modifiers) {
+        if (modifier->type != eModifierType_GreasePencilLineart) {
+          continue;
+        }
+        GreasePencilLineartModifierData *lmd = reinterpret_cast<GreasePencilLineartModifierData *>(
+            modifier);
+        if (lmd->radius != 0.0f) {
+          continue;
+        }
+        lmd->radius = float(lmd->thickness_legacy) *
+                      bke::greasepencil::LEGACY_RADIUS_CONVERSION_FACTOR;
+      }
+    }
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 61)) {
+    FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
+      if (ntree->type != NTREE_COMPOSIT) {
+        continue;
+      }
+      version_node_input_socket_name(ntree, CMP_NODE_GAMMA_DEPRECATED, "Image", "Color");
+      version_node_output_socket_name(ntree, CMP_NODE_GAMMA_DEPRECATED, "Image", "Color");
+
+      LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
+        if (node->type_legacy == CMP_NODE_GAMMA_DEPRECATED) {
+          node->type_legacy = SH_NODE_GAMMA;
+          STRNCPY_UTF8(node->idname, "ShaderNodeGamma");
+        }
+      }
+    }
+    FOREACH_NODETREE_END;
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 62)) {
+    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+      if (scene->r.bake_flag & R_BAKE_MULTIRES) {
+        scene->r.bake.type = scene->r.bake_mode;
+        scene->r.bake.flag |= (scene->r.bake_flag & (R_BAKE_MULTIRES | R_BAKE_LORES_MESH));
+        scene->r.bake.margin_type = scene->r.bake_margin_type;
+        scene->r.bake.margin = scene->r.bake_margin;
+      }
+      else {
+        scene->r.bake.type = R_BAKE_NORMALS;
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 62)) {
+    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+      scene->r.bake.displacement_space = R_BAKE_SPACE_OBJECT;
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 64)) {
+    FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
+      remove_in_and_out_node_interface(*node_tree);
+    }
+    FOREACH_NODETREE_END;
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 65)) {
     LISTBASE_FOREACH (Brush *, brush, &bmain->brushes) {
       brush->size *= 2;
       brush->unprojected_size *= 2.0f;
