@@ -21,6 +21,7 @@ from bl_ui.utils import (
     PlayheadSnappingPanel,
 )
 from bl_ui.space_time import playback_controls
+from bl_ui.properties_data_mesh import draw_shape_key_properties
 
 from rna_prop_ui import PropertyPanel
 
@@ -1048,27 +1049,7 @@ class DOPESHEET_PT_ShapeKey(Panel):
         return object.active_shape_key_index > 0
 
     def draw(self, context):
-        layout = self.layout
-        layout.use_property_split = True
-        ob = context.object
-        key = ob.data.shape_keys
-        kb = ob.active_shape_key
-        use_in_edit_mode = ob.mode != 'EDIT' or ob.use_shape_key_edit_mode
-
-        col = layout.column()
-        if ob.active_shape_key_index != 0:
-            row = col.row()
-            row.active = use_in_edit_mode
-            row.prop(kb, "value")
-
-            col.prop(kb, "slider_min", text="Range Min")
-            col.prop(kb, "slider_max", text="Max")
-
-            col.prop_search(kb, "vertex_group", ob, "vertex_groups", text="Vertex Group")
-            col.prop_search(kb, "relative_key", key, "key_blocks", text="Relative To")
-
-        if ob.type == 'MESH':
-            col.prop(ob, "add_rest_position_attribute")
+        draw_shape_key_properties(context, self.layout)
 
 
 classes = (
