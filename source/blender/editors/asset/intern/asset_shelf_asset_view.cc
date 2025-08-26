@@ -129,6 +129,9 @@ void AssetView::build_items()
      * #bl_click_operator for repeated execution on every click. So far it seems like this isn't
      * needed for asset shelves. */
     item.always_reactivate_on_click();
+    if (shelf_.type->flag & ASSET_SHELF_TYPE_FLAG_ACTIVATE_FOR_CONTEXT_MENU) {
+      item.activate_for_context_menu_set();
+    }
 
     return true;
   });

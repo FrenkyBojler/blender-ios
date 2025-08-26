@@ -8311,7 +8311,8 @@ static int ui_do_button(bContext *C, uiBlock *block, uiBut *but, const wmEvent *
           but->type == ButType::ViewItem ? but :
                                            ui_view_item_find_mouse_over(data->region, event->xy));
       if (clicked_view_item_but) {
-        clicked_view_item_but->view_item->activate(*C);
+        clicked_view_item_but->view_item->activate_for_context_menu(*C);
+        ED_region_tag_redraw_no_rebuild(data->region);
       }
 
       /* RMB has two options now */

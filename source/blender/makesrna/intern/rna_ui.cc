@@ -2338,6 +2338,12 @@ static void rna_def_asset_shelf(BlenderRNA *brna)
        "Store Enabled Catalogs in Preferences",
        "Store the shelf's enabled catalogs in the preferences rather than the local asset shelf "
        "settings"},
+      {ASSET_SHELF_TYPE_FLAG_ACTIVATE_FOR_CONTEXT_MENU,
+       "ACTIVATE_FOR_CONTEXT_MENU",
+       0,
+       "",
+       "When spawning a context menu for an asset, activate the asset and call "
+       "`bl_activate_operator` if present, rather than just highlighting the asset"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 

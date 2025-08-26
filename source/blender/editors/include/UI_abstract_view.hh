@@ -217,6 +217,7 @@ class AbstractViewItem {
    */
   bool is_always_collapsible_ = false;
   bool reactivate_on_click_ = false;
+  bool activate_for_context_menu_ = false;
 
  public:
   virtual ~AbstractViewItem() = default;
@@ -306,6 +307,9 @@ class AbstractViewItem {
   void disable_activatable();
   /** Call #on_activate() on every click on the item, even when the item was active before. */
   void always_reactivate_on_click();
+  /** Call #on_activate() when spawning a context menu. Otherwise the item will only be highlighted
+   * as active to indicate where the context menu was spawned from. */
+  void activate_for_context_menu_set();
   /**
    * Activates this item, deactivates other items, and calls the #AbstractViewItem::on_activate()
    * function. Should only be called when the item was activated through the view (e.g. through a
@@ -318,6 +322,13 @@ class AbstractViewItem {
    * actual item state is unknown, possibly calling state-change update functions incorrectly.
    */
   void activate(bContext &C);
+  /**
+   * If #activate_for_context_menu_set() was called, properly (re)activates the item including a
+   * #AbstractViewItem::on_activate() call. Otherwise, the item will only be highlighted as active,
+   * to indicate which item the context menu belongs to.
+   * Should be used when spawning a context menu for this item.
+   */
+  void activate_for_context_menu(bContext &C);
   void deactivate();
   /**
    * Requires the view to have completed reconstruction, see #is_reconstructed(). Otherwise we

@@ -80,9 +80,20 @@ void AbstractViewItem::activate(bContext &C)
   }
 }
 
+void AbstractViewItem::activate_for_context_menu(bContext &C)
+{
+  if (activate_for_context_menu_) {
+    this->activate(C);
+  }
+  else {
+    this->set_state_active();
+  }
+}
+
 void AbstractViewItem::deactivate()
 {
   is_active_ = false;
+  is_selected_ = false;
 }
 
 std::optional<bool> AbstractViewItem::should_be_selected() const
@@ -326,6 +337,11 @@ void AbstractViewItem::disable_activatable()
 void AbstractViewItem::always_reactivate_on_click()
 {
   reactivate_on_click_ = true;
+}
+
+void AbstractViewItem::activate_for_context_menu_set()
+{
+  activate_for_context_menu_ = true;
 }
 
 void AbstractViewItem::disable_interaction()
