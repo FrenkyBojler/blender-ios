@@ -559,16 +559,16 @@ void draw_lines(const float4x4 &transform,
   immUnbindProgram();
 }
 
-template<typename T>
-static VArray<T> attribute_interpolate(const VArray<T> &input, const bke::CurvesGeometry &curves)
+static GVArray attribute_interpolate(const GSpan &input, const bke::CurvesGeometry &curves)
 {
   if (curves.is_single_type(CURVE_TYPE_POLY)) {
-    return input;
+    return GVArray::from_span(input);
   }
 
-  Array<T> out(curves.evaluated_points_num());
-  curves.interpolate_to_evaluated(VArraySpan(input), out.as_mutable_span());
-  return VArray<T>::from_container(std::move(out));
+  const CPPType &type = input.type();
+  GArray<> out(type, curves.evaluated_points_num());
+  curves.interpolate_to_evaluated(input, out.as_mutable_span());
+  return GVArray::from_garray(std::move(out));
 };
 
 void draw_grease_pencil_strokes(const RegionView3D &rv3d,
@@ -602,9 +602,10 @@ void draw_grease_pencil_strokes(const RegionView3D &rv3d,
 
   curves.ensure_can_interpolate_to_evaluated();
 
-  const VArray<float> radii = attribute_interpolate<float>(drawing.radii(), curves);
-  const VArray<ColorGeometry4f> eval_colors = attribute_interpolate<ColorGeometry4f>(colors,
-                                                                                     curves);
+  const VArray<float> radii =
+      attribute_interpolate(VArraySpan(drawing.radii()), curves).typed<float>();
+  const VArray<ColorGeometry4f> eval_colors =
+      attribute_interpolate(VArraySpan(colors), curves).typed<ColorGeometry4f>();
 
   const VArray<int8_t> stroke_start_caps = *attributes.lookup_or_default<int8_t>(
       "start_cap", bke::AttrDomain::Curve, GP_STROKE_CAP_ROUND);
