@@ -60,8 +60,8 @@ void VKImmediate::end()
   }
 
   VKContext &context = *VKContext::get();
-  BLI_assert(context.shader == unwrap(shader));
-  Shader &shader = *unwrap(this->shader);
+  BLI_assert(context.shader == shader);
+  Shader &shader = *this->shader;
   if (shader.is_polyline) {
     VKBuffer &buffer = active_buffer_.value();
     VKStateManager &state_manager = context.state_manager_get();
@@ -79,7 +79,7 @@ void VKImmediate::end()
     this->polyline_draw_workaround(0);
   }
   else {
-    GPU_matrix_bind(wrap(context.shader));
+    GPU_matrix_bind(context.shader);
     render_graph::VKResourceAccessInfo &resource_access_info = context.reset_and_get_access_info();
     vertex_attributes_.update_bindings(*this);
     context.active_framebuffer_get()->rendering_ensure(context);
@@ -145,7 +145,8 @@ VKBuffer &VKImmediate::ensure_space(VkDeviceSize bytes_needed, VkDeviceSize offs
                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
                 VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
                 VMA_ALLOCATION_CREATE_MAPPED_BIT |
-                    VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT);
+                    VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT,
+                0.8);
   debug::object_label(result.vk_handle(), "Immediate");
 
   return result;

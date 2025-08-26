@@ -922,9 +922,11 @@ const int gpu_ViewportIndex = 0;
 
 }  // namespace gl_FragmentShader
 
+/* Outside of namespace to be used in create infos. */
+constexpr uint3 gl_WorkGroupSize = uint3(16, 16, 16);
+
 namespace gl_ComputeShader {
 
-constexpr uint3 gl_WorkGroupSize = uint3(16, 16, 16);
 extern const uint3 gl_NumWorkGroups;
 extern const uint3 gl_WorkGroupID;
 extern const uint3 gl_LocalInvocationID;
@@ -1003,6 +1005,21 @@ void groupMemoryBarrier() {}
   class_name(t1 m1##_, t2 m2##_, t3 m3##_, t4 m4##_) \
       : m1(m1##_), m2(m2##_), m3(m3##_), m4(m4##_){};
 
+#define METAL_CONSTRUCTOR_5(class_name, t1, m1, t2, m2, t3, m3, t4, m4, t5, m5) \
+  class_name() = default; \
+  class_name(t1 m1##_, t2 m2##_, t3 m3##_, t4 m4##_, t5 m5##_) \
+      : m1(m1##_), m2(m2##_), m3(m3##_), m4(m4##_), m5(m5##_){};
+
+#define METAL_CONSTRUCTOR_6(class_name, t1, m1, t2, m2, t3, m3, t4, m4, t5, m5, t6, m6) \
+  class_name() = default; \
+  class_name(t1 m1##_, t2 m2##_, t3 m3##_, t4 m4##_, t5 m5##_, t6 m6##_) \
+      : m1(m1##_), m2(m2##_), m3(m3##_), m4(m4##_), m5(m5##_), m6(m6##_){};
+
+#define METAL_CONSTRUCTOR_7(class_name, t1, m1, t2, m2, t3, m3, t4, m4, t5, m5, t6, m6, t7, m7) \
+  class_name() = default; \
+  class_name(t1 m1##_, t2 m2##_, t3 m3##_, t4 m4##_, t5 m5##_, t6 m6##_, t7 m7##_) \
+      : m1(m1##_), m2(m2##_), m3(m3##_), m4(m4##_), m5(m5##_), m6(m6##_), m7(m7##_){};
+
 /** \} */
 
 /* Use to suppress `-Wimplicit-fallthrough` (in place of `break`). */
@@ -1079,13 +1096,14 @@ void groupMemoryBarrier() {}
 #endif
 
 /* Resource accessor. */
-#define specialization_constant_get(create_info, _res) _res
-#define push_constant_get(create_info, _res) _res
-#define interface_get(create_info, _res) _res
-#define attribute_get(create_info, _res) _res
-#define buffer_get(create_info, _res) _res
-#define sampler_get(create_info, _res) _res
-#define image_get(create_info, _res) _res
+#define specialization_constant_get(create_info, _res) create_info::_res
+#define shared_variable_get(create_info, _res) create_info::_res
+#define push_constant_get(create_info, _res) create_info::_res
+#define interface_get(create_info, _res) create_info::_res
+#define attribute_get(create_info, _res) create_info::_res
+#define buffer_get(create_info, _res) create_info::_res
+#define sampler_get(create_info, _res) create_info::_res
+#define image_get(create_info, _res) create_info::_res
 
 #include "GPU_shader_shared_utils.hh"
 

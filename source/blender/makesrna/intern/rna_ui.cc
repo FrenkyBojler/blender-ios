@@ -1245,7 +1245,7 @@ static StructRNA *rna_AssetShelf_register(Main *bmain,
                 RPT_ERROR,
                 "Registering asset shelf class: '%s' is too long, maximum length is %d",
                 identifier,
-                (int)sizeof(shelf_type->idname));
+                int(sizeof(shelf_type->idname)));
     return nullptr;
   }
 
@@ -2505,7 +2505,7 @@ static void rna_def_file_handler(BlenderRNA *brna)
       "File Extensions",
       "Formatted string of file extensions supported by the file handler, each extension should "
       "start with a \".\" and be separated by \";\"."
-      "\nFor Example: `\".blend;.ble\"`");
+      "\nFor Example: ``\".blend;.ble\"``");
 
   PropertyRNA *parm;
   FunctionRNA *func;

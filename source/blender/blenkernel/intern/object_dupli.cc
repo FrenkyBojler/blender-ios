@@ -827,10 +827,15 @@ static Object *find_family_object(
 
 static void make_duplis_font(const DupliContext *ctx)
 {
+  /* Font dupli-verts not supported inside collections. */
+  if (ctx->collection) {
+    return;
+  }
+
   Object *par = ctx->object;
   GHash *family_gh;
   Object *ob;
-  Curve *cu;
+  Curve *cu = (Curve *)par->data;
   CharTrans *ct, *chartransdata = nullptr;
   float vec[3], obmat[4][4], pmat[4][4], fsize, xof, yof;
   int text_len, a;
@@ -838,23 +843,17 @@ static void make_duplis_font(const DupliContext *ctx)
   const char32_t *text = nullptr;
   bool text_free = false;
 
-  /* Font dupli-verts not supported inside collections. */
-  if (ctx->collection) {
-    return;
-  }
-
   copy_m4_m4(pmat, par->object_to_world().ptr());
 
   /* In `par` the family name is stored, use this to find the other objects. */
 
   BKE_vfont_to_curve_ex(
-      par, (Curve *)par->data, FO_DUPLI, nullptr, &text, &text_len, &text_free, &chartransdata);
+      par, *cu, FO_DUPLI, nullptr, &text, &text_len, &text_free, &chartransdata, nullptr);
 
   if (text == nullptr || chartransdata == nullptr) {
     return;
   }
 
-  cu = (Curve *)par->data;
   fsize = cu->fsize;
   xof = cu->xof;
   yof = cu->yof;
@@ -890,11 +889,11 @@ static void make_duplis_font(const DupliContext *ctx)
 
       copy_m4_m4(obmat, par->object_to_world().ptr());
 
-      if (UNLIKELY(ct->rot != 0.0f)) {
+      if (UNLIKELY(ct->rotate != 0.0f)) {
         float rmat[4][4];
 
         zero_v3(obmat[3]);
-        axis_angle_to_mat4_single(rmat, 'Z', -ct->rot);
+        axis_angle_to_mat4_single(rmat, 'Z', -ct->rotate);
         mul_m4_m4m4(obmat, obmat, rmat);
       }
 
@@ -986,12 +985,12 @@ static void make_duplis_geometry_set_impl(const DupliContext *ctx,
 
   Span<float4x4> instance_offset_matrices = instances->transforms();
   Span<int> reference_handles = instances->reference_handles();
-  Span<int> almost_unique_ids = instances->almost_unique_ids();
+  Span<int> unique_ids = instances->unique_ids();
   Span<InstanceReference> references = instances->references();
 
   for (int64_t i : instance_offset_matrices.index_range()) {
     const InstanceReference &reference = references[reference_handles[i]];
-    const int id = almost_unique_ids[i];
+    const int id = unique_ids[i];
 
     const DupliContext *ctx_for_instance = instances_ctx;
     /* Set the #preview_instance_index when necessary. */

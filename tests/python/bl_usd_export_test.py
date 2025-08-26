@@ -119,7 +119,7 @@ class USDExportTest(AbstractUSDTest):
         bounds = bboxcache.ComputeWorldBound(scenePrim)
         bound_min = bounds.GetRange().GetMin()
         bound_max = bounds.GetRange().GetMax()
-        self.compareVec3d(bound_min, Gf.Vec3d(-5.752975881, -1, -2.798513651))
+        self.compareVec3d(bound_min, Gf.Vec3d(-5.76875186, -1, -2.798513651))
         self.compareVec3d(bound_max, Gf.Vec3d(1, 2.9515805244, 2.7985136508))
 
         # validate the locally authored extents
@@ -134,10 +134,10 @@ class USDExportTest(AbstractUSDTest):
         prim = stage.GetPrimAtPath("/root/scene/Volume/Volume")
         extent = UsdGeom.Boundable(prim).GetExtentAttr().Get()
         self.compareVec3d(
-            Gf.Vec3d(extent[0]), Gf.Vec3d(-0.7313742, -0.68043584, -0.5801515)
+            Gf.Vec3d(extent[0]), Gf.Vec3d(-0.74715018, -0.69621181, -0.59592748)
         )
         self.compareVec3d(
-            Gf.Vec3d(extent[1]), Gf.Vec3d(0.7515701, 0.5500924, 0.9027928)
+            Gf.Vec3d(extent[1]), Gf.Vec3d(0.76734608, 0.56586843, 0.91856879)
         )
 
     def test_material_transforms(self):
@@ -1093,7 +1093,7 @@ class USDExportTest(AbstractUSDTest):
         vol_mesh2vol = UsdVol.Volume(stage.GetPrimAtPath("/root/vol_mesh2vol/vol_mesh2vol"))
         density = UsdVol.OpenVDBAsset(stage.GetPrimAtPath("/root/vol_mesh2vol/vol_mesh2vol/density"))
         self.assertEqual(vol_mesh2vol.GetExtentAttr().GetTimeSamples(),
-                         [6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0])
+                         [5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0])
         self.assertEqual(density.GetFieldNameAttr().GetTimeSamples(), [])
         self.assertEqual(density.GetFilePathAttr().GetTimeSamples(),
                          [4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0])
@@ -1805,6 +1805,37 @@ class USDExportTest(AbstractUSDTest):
 
                     self.compareVec3d(Gf.Vec3d(extent[0]), expected_min)
                     self.compareVec3d(Gf.Vec3d(extent[1]), expected_max)
+
+    def test_export_usdz(self):
+        """Validate USDZ files are packaged correctly."""
+
+        bpy.ops.wm.open_mainfile(filepath=str(self.testdir / "usdz_export_test.blend"))
+        export_path = str(self.tempdir / "output_こんにちは.usdz")
+
+        # USDZ export will not create the output directory if it does not already exist
+        self.tempdir.mkdir()
+
+        # USDZ export will modify the working directory during the export process, but it should
+        # return to normal once complete
+        original_cwd = pathlib.Path.cwd()
+        self.export_and_validate(filepath=export_path)
+        final_cwd = pathlib.Path.cwd()
+
+        self.assertEqual(original_cwd, final_cwd)
+
+        # Validate stage content
+        stage = Usd.Stage.Open(export_path)
+        self.assertTrue(stage.GetPrimAtPath("/root/Cube/Cube").IsValid())
+        self.assertTrue(stage.GetPrimAtPath("/root/Cylinder/Cylinder").IsValid())
+        self.assertTrue(stage.GetPrimAtPath("/root/Icosphere/Icosphere").IsValid())
+        self.assertTrue(stage.GetPrimAtPath("/root/Sphere/Sphere").IsValid())
+        self.assertTrue(stage.GetPrimAtPath("/root/env_light").IsValid())
+
+        # Validate that the archive itself contains what we expect (it is just a ZIP file)
+        import zipfile
+        with zipfile.ZipFile(export_path, 'r') as zfile:
+            file_list = zfile.namelist()
+            self.assertIn('textures/color_0C0C0C.exr', file_list)
 
 
 class USDHookBase:

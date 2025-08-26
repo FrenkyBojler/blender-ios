@@ -2110,6 +2110,8 @@ class _defs_weight_paint:
     @ToolDef.from_fn
     def gradient():
         def draw_settings(context, layout, tool):
+            # TODO: Ideally, this should not depend on there being a current brush
+            # See #131061
             brush = context.tool_settings.weight_paint.brush
             if brush is not None:
                 from bl_ui.properties_paint_common import UnifiedPaintPanel
@@ -2118,6 +2120,7 @@ class _defs_weight_paint:
                     context,
                     brush,
                     "weight",
+                    unified_paint_settings_override=context.tool_settings.weight_paint.unified_paint_settings,
                     unified_name="use_unified_weight",
                     slider=True,
                     header=True,
@@ -2127,6 +2130,7 @@ class _defs_weight_paint:
                     context,
                     brush,
                     "strength",
+                    unified_paint_settings_override=context.tool_settings.weight_paint.unified_paint_settings,
                     unified_name="use_unified_strength",
                     header=True,
                 )
@@ -2420,6 +2424,41 @@ class _defs_grease_pencil_edit:
             icon="ops.paint.weight_gradient",
             widget=None,
             keymap=(),
+        )
+
+    @ToolDef.from_fn
+    def pen():
+        def draw_settings(context, layout, tool):
+            props = tool.operator_properties("grease_pencil.pen")
+            layout.prop(props, "radius")
+
+            layout.separator()
+            tool_settings = context.tool_settings
+
+            sub = layout.row(align=True)
+            sub.prop_with_popover(
+                tool_settings,
+                "gpencil_stroke_placement_view3d",
+                text="",
+                panel="VIEW3D_PT_grease_pencil_origin",
+            )
+
+            sub = layout.row(align=True)
+            sub.active = tool_settings.gpencil_stroke_placement_view3d != 'SURFACE'
+            sub.prop_with_popover(
+                tool_settings.gpencil_sculpt,
+                "lock_axis",
+                text="",
+                panel="VIEW3D_PT_grease_pencil_lock",
+            )
+        return dict(
+            idname="builtin.pen",
+            label="Pen",
+            cursor='CROSSHAIR',
+            icon="ops.curve.pen",
+            widget=None,
+            keymap=(),
+            draw_settings=draw_settings,
         )
 
 
@@ -3120,6 +3159,18 @@ class _defs_sequencer_generic:
         )
 
     @ToolDef.from_fn
+    def slip():
+        return dict(
+            idname="builtin.slip",
+            label="Slip",
+            description=(
+                "Shift underlying strip content without affecting handles"
+            ),
+            icon="ops.sequencer.slip",
+            keymap="Sequencer Tool: Slip",
+        )
+
+    @ToolDef.from_fn
     def sample():
         return dict(
             idname="builtin.sample",
@@ -3655,6 +3706,8 @@ class VIEW3D_PT_tools_active(ToolSelectPanelHelper, Panel):
             None,
             *_tools_transform,
             None,
+            _defs_grease_pencil_edit.pen,
+            None,
             _defs_edit_curve.curve_radius,
             _defs_transform.bend,
             (
@@ -3919,6 +3972,7 @@ class SEQUENCER_PT_tools_active(ToolSelectPanelHelper, Panel):
         'SEQUENCER': [
             _defs_sequencer_select.box_timeline,
             _defs_sequencer_generic.blade,
+            _defs_sequencer_generic.slip
         ],
         'SEQUENCER_PREVIEW': [
             _defs_sequencer_select.box_timeline,
