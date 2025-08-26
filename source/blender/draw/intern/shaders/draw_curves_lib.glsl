@@ -261,7 +261,7 @@ float4 get_customdata_vec4(const int curve_id, const samplerBuffer cd_buf)
 float3 get_curve_root_pos(const int point_id, const int curve_segment)
 {
   int curve_start = point_id - curve_segment;
-  return texelFetch(curves_pos_rad_buf, int(curve_start)).xyz;
+  return texelFetch(curves_pos_rad_buf, curve_start).xyz;
 }
 
 }  // namespace curves
