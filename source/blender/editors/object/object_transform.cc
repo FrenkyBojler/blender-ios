@@ -2306,7 +2306,7 @@ static wmOperatorStatus object_transform_axis_target_modal(bContext *C,
       /* Reset shadow target when exiting shadow mode */
       xfd->shadow_target_set = false;
     }
-    
+
 
     xfd->light_mode = modal_mode;
 
@@ -2314,35 +2314,14 @@ static wmOperatorStatus object_transform_axis_target_modal(bContext *C,
     WorkspaceStatus status(C);
     status.item(IFACE_("Confirm"), ICON_EVENT_RETURN);
     status.item(IFACE_("Cancel"), ICON_EVENT_ESC);
-    
-    /* Get normal modal state for status display */
-    const bool is_light_normal_mode = event->modifier & KM_CTRL;
-    
+
     /* Show current mode and available mode switches */
-    switch (xfd->light_mode) {
-      case LIGHT_POSITION_NORMAL:
-        /* Differentiate between target modal (default) and normal modal (Ctrl pressed) */
-        if (is_light_normal_mode) {
-          /* Normal modal: Ctrl is pressed, we're in translate mode */
-          status.item(IFACE_("Normal/Diffuse Mode"), ICON_INFO);
-        } else {
-          /* Target modal: Default rotation mode, Ctrl switches to translate */
-          status.item(IFACE_("Normal/Diffuse Mode"), ICON_EVENT_CTRL);
-        }
-        status.item(IFACE_("Reflection/Specular"), ICON_EVENT_CTRL, ICON_EVENT_ALT);
-        status.item(IFACE_("Shadow"), ICON_EVENT_ALT);
-        break;
-      case LIGHT_POSITION_REFLECTION:
-        status.item(IFACE_("Reflection/Specular Mode"), ICON_INFO);
-        status.item(IFACE_("Normal/Diffuse"), ICON_EVENT_CTRL);
-        status.item(IFACE_("Shadow"), ICON_EVENT_ALT);
-        break;
-      case LIGHT_POSITION_SHADOW:
-        status.item(IFACE_("Shadow Mode"), ICON_INFO);
-        status.item(IFACE_("Normal/Diffuse"), ICON_EVENT_CTRL);
-        status.item(IFACE_("Reflection/Specular"), ICON_EVENT_CTRL, ICON_EVENT_ALT);
-        break;
-    }
+    status.item_bool(IFACE_("Normal/Diffuse"), 
+                     xfd->light_mode == LIGHT_POSITION_NORMAL && (event->modifier & KM_CTRL), ICON_EVENT_CTRL);
+    status.item_bool(IFACE_("Reflection/Specular"), 
+                     xfd->light_mode == LIGHT_POSITION_REFLECTION, ICON_EVENT_CTRL, ICON_EVENT_ALT);
+    status.item_bool(IFACE_("Shadow"), 
+                     xfd->light_mode == LIGHT_POSITION_SHADOW, ICON_EVENT_ALT);
   }
 
   const bool is_translate = event->modifier & KM_CTRL;
