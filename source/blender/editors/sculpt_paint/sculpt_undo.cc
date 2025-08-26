@@ -283,9 +283,9 @@ struct StepData {
     applied_ = false;
   }
 };
-namespace zstd_compress {
+namespace zstd {
 
-template<typename T> Array<std::byte> compress_data(const Span<T> src)
+template<typename T> Array<std::byte> compress(const Span<T> src)
 {
   Array<std::byte> dst(ZSTD_compressBound(src.size_in_bytes()), NoInitialization());
   const size_t dst_size = ZSTD_compress(
@@ -293,7 +293,7 @@ template<typename T> Array<std::byte> compress_data(const Span<T> src)
   return dst.as_span().take_front(dst_size);
 }
 
-template<typename T> Array<T> decompress_data(const Span<std::byte> src)
+template<typename T> Array<T> decompress(const Span<std::byte> src)
 {
   const size_t dst_size_in_bytes = ZSTD_getFrameContentSize(src.data(), src.size());
   BLI_assert(!ZSTD_isError(dst_size_in_bytes));
@@ -308,7 +308,7 @@ template<typename T> Array<T> decompress_data(const Span<std::byte> src)
   return dst;
 }
 
-}  // namespace zstd_compress
+}  // namespace zstd
 
 struct PositionUndoStorage : NonMovable {
   Array<Array<std::byte>> compressed_indices;
@@ -375,9 +375,8 @@ struct PositionUndoStorage : NonMovable {
       threading::parallel_for(nodes.index_range(), 1, [&](const IndexRange range) {
         for (const int i : range) {
           new (&compressed_indices[i])
-              Array<std::byte>(zstd_compress::compress_data<int>(nodes[i]->vert_indices));
-          new (&compressed_data[i])
-              Array<std::byte>(zstd_compress::compress_data<float3>(nodes[i]->position));
+              Array<std::byte>(zstd::compress<int>(nodes[i]->vert_indices));
+          new (&compressed_data[i]) Array<std::byte>(zstd::compress<float3>(nodes[i]->position));
         }
       });
     });
@@ -525,10 +524,8 @@ static void restore_position_mesh(Object &object, PositionUndoStorage &undo_data
 
   threading::parallel_for(IndexRange(nodes_num), 1, [&](const IndexRange range) {
     for (const int i : range) {
-      decompressed_indices[i] = zstd_compress::decompress_data<int>(
-          undo_data.compressed_indices[i]);
-      decompressed_positions[i] = zstd_compress::decompress_data<float3>(
-          undo_data.compressed_positions[i]);
+      decompressed_indices[i] = zstd::decompress<int>(undo_data.compressed_indices[i]);
+      decompressed_positions[i] = zstd::decompress<float3>(undo_data.compressed_positions[i]);
     }
   });
 
@@ -583,9 +580,8 @@ static void restore_position_mesh(Object &object, PositionUndoStorage &undo_data
 
   threading::parallel_for(IndexRange(nodes_num), 1, [&](const IndexRange range) {
     for (const int i : range) {
-      undo_data.compressed_indices[i] = zstd_compress::compress_data<int>(decompressed_indices[i]);
-      undo_data.compressed_positions[i] = zstd_compress::compress_data<float3>(
-          decompressed_positions[i]);
+      undo_data.compressed_indices[i] = zstd::compress<int>(decompressed_indices[i]);
+      undo_data.compressed_positions[i] = zstd::compress<float3>(decompressed_positions[i]);
     }
   });
 }
@@ -1074,7 +1070,7 @@ static void restore_list(bContext *C, Depsgraph *depsgraph, StepData &step_data)
         restore_position_mesh(object, *step_data.position_step_storage);
         BitVector<> modified_verts(mesh.verts_num);
         for (const int i : step_data.position_step_storage->compressed_indices.index_range()) {
-          Array<int> decompressed_indices = zstd_compress::decompress_data<int>(
+          Array<int> decompressed_indices = zstd::decompress<int>(
               step_data.position_step_storage->compressed_indices[i]);
           const int unique_verts_num = step_data.position_step_storage->unique_verts_nums[i];
           for (const int vert_index : decompressed_indices.as_span().take_front(unique_verts_num))
