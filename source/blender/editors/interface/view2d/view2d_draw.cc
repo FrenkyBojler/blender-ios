@@ -303,7 +303,7 @@ static void view2d_draw_lines(const View2D *v2d,
     const int pixel_width = BLI_rcti_size_x(&v2d->mask);
     const float view_width = BLI_rctf_size_x(&v2d->cur);
 
-    if ((pixel_width / view_width) * (major_distance / divisor) > MIN_MAJOR_LINE_DISTANCE / 3) {
+    if ((pixel_width / view_width) * (major_distance / divisor) > MIN_MAJOR_LINE_DISTANCE / 5) {
       view2d_draw_lines_internal(v2d, &minor_lines, minor_color, direction);
     }
   }
