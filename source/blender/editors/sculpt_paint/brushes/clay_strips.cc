@@ -364,7 +364,6 @@ namespace clay_strips {
 
 /**
  * Checks whether the node's bounding box overlaps with the region affected by the brush.
- *
  * Clay Strips affects only vertices below the brush plane. The brush-local coordinate system is
  * oriented so that vertices below the plane have positive local z-coordinates. Therefore, we only
  * need to check if the node intersects the [-1,1] x [-1,1] x [0,1] volume in local space.
