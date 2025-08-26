@@ -55,6 +55,9 @@ Segment segment_get(uint vertex_id)
   return segment;
 }
 
+/* Result of interpreting the indirection buffer.
+ * The indirection buffer maps drawn segments back to their curves and curve segments.
+ * This is needed for attribute loading. */
 struct Indirection {
   /* Can be equal to INT_MAX with ribbon draw type. */
   int curve_id;
