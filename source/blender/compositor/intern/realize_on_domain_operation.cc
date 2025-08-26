@@ -66,7 +66,7 @@ void RealizeOnDomainOperation::execute()
 
 float2 RealizeOnDomainOperation::compute_corrective_translation()
 {
-  if (this->get_input().get_realization_options().interpolation == Interpolation::Nearest) {
+  if (this->get_input().get_sampling_options().sampler == math::Sampler::Nearest) {
     /* Bias translations in case of nearest interpolation to avoids the round-to-even behavior of
      * some GPUs at pixel boundaries. */
     return float2(std::numeric_limits<float>::epsilon() * 10e3f);
@@ -92,20 +92,17 @@ void RealizeOnDomainOperation::realize_on_domain_gpu(const float3x3 &inverse_tra
   float2 wh{hypotf(imat[0][0], imat[1][0]), hypotf(imat[0][1], imat[1][1])};
 
   Result &input = this->get_input();
-  const RealizationOptions& realization_options = input.get_realization_options();
-  const Interpolation interpolation = realization_options.interpolation;
-  ExtensionMode extension_x = realization_options.extension_x;
-  ExtensionMode extension_y = realization_options.extension_y;
+  const blender::math::SamplingOptions &options = input.get_sampling_options();
   char shader_name[100];
   strcpy(shader_name, "compositor_realize_on_domain");
 
   bool fast = false;
   bool bilinear = false;
-  switch (interpolation) {
-    case Interpolation::Nearest:
+  switch (options.sampler) {
+    case math::Sampler::Nearest:
       fast = true;
       break;
-    case Interpolation::Bicubic:
+    case math::Sampler::Bspline:
       // this cannot use fast texture()
       strcat(shader_name, "_bspline");
       break;
@@ -113,7 +110,8 @@ void RealizeOnDomainOperation::realize_on_domain_gpu(const float3x3 &inverse_tra
       if (wh[0] < 1.1f && wh[1] < 1.1f) {
         fast = true;
         bilinear = true;
-      } else {
+      }
+      else {
         strcat(shader_name, "_box");
       }
       break;
@@ -122,7 +120,7 @@ void RealizeOnDomainOperation::realize_on_domain_gpu(const float3x3 &inverse_tra
   if (fast) {
     strcat(shader_name, "_fast");
     // make matrix produce texture coordinates
-    imat = math::from_scale<float3x3>(1.0f/float2(input.domain().size)) * imat;
+    imat = math::from_scale<float3x3>(1.0f / float2(input.domain().size)) * imat;
   }
 
   switch (input.type()) {
@@ -159,9 +157,8 @@ void RealizeOnDomainOperation::realize_on_domain_gpu(const float3x3 &inverse_tra
 
   GPU_texture_filter_mode(input, bilinear);
   //GPU_texture_anisotropic_filter(input, false);
-  GPU_texture_extend_mode_x(input, map_extension_mode_to_extend_mode(extension_x));
-  GPU_texture_extend_mode_y(input, map_extension_mode_to_extend_mode(extension_y));
-
+  GPU_texture_extend_mode_x(input, map_extension_mode_to_extend_mode(options.wrap_x));
+  GPU_texture_extend_mode_y(input, map_extension_mode_to_extend_mode(options.wrap_y));
   input.bind_as_texture(shader, "input_tx");
 
   const Domain domain = this->compute_domain();
@@ -184,7 +181,7 @@ void RealizeOnDomainOperation::realize_on_domain_cpu(const float3x3 &inverse_tra
   const Domain domain = this->compute_domain();
   output.allocate_texture(domain);
 
-  const RealizationOptions realization_options = input.get_realization_options();
+  const blender::math::SamplingOptions options = input.get_sampling_options();
   parallel_for(domain.size, [&](const int2 texel) {
     /* Add 0.5 to evaluate the input sampler at the center of the pixel. */
     float2 coordinates = float2(texel) + float2(0.5f);
@@ -199,10 +196,7 @@ void RealizeOnDomainOperation::realize_on_domain_cpu(const float3x3 &inverse_tra
     const int2 input_size = input.domain().size;
     float2 normalized_coordinates = coordinates / float2(input_size);
 
-    float4 sample = input.sample(normalized_coordinates,
-                                 realization_options.interpolation,
-                                 realization_options.extension_x,
-                                 realization_options.extension_y);
+    float4 sample = input.sample(normalized_coordinates, options);
     output.store_pixel_generic_type(texel, sample);
   });
 }

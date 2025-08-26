@@ -2,8 +2,8 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "gpu_shader_compositor_texture_utilities.glsl"
 #include "gpu_shader_compositor_sampleRect.glsl"
+#include "gpu_shader_compositor_texture_utilities.glsl"
 
 void main()
 {
@@ -18,7 +18,7 @@ void main()
     return;
   }
 
-  float iw = 1.0f/uvw.z; // 1/w
+  float iw = 1.0f / uvw.z;  // 1/w
 
   // compute derivative of source location
   float3 m0 = imat[0].xyz;
@@ -30,7 +30,8 @@ void main()
 
   // antialias the horizon line
   float dw = length(float2(m0.z, m1.z));
-  if (dw > uvw.z) m = uvw.z / dw;
+  if (dw > uvw.z)
+    m = uvw.z / dw;
 
   float2 uv = uvw.xy * iw;
 
@@ -39,9 +40,10 @@ void main()
 
 #if defined(PREMULTIPLY_MASK)
   float2 pixels = float2(textureSize(input_tx, 0));
-  float2 mm = clamp(min(uv, pixels - uv) / wh + 0.5f, 0, 1); // coverage of wh by image
-  if (m < 1) mm = float2(0); // remove artifacts at horizon
-  mm = max(mm, mask_mult); // keep unclipped sides
+  float2 mm = clamp(min(uv, pixels - uv) / wh + 0.5f, 0, 1);  // coverage of wh by image
+  if (m < 1)
+    mm = float2(0);         // remove artifacts at horizon
+  mm = max(mm, mask_mult);  // keep unclipped sides
   m *= mm.x * mm.y;
   if (m <= 0) {
     imageStore(output_img, texel, float4(0.0f));

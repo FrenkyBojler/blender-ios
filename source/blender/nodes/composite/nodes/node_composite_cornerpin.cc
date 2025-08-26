@@ -154,38 +154,38 @@ class CornerPinOperation : public NodeOperation {
     // convert the matrix to translate pixel centers to pixel corners
     // todo: this calculation should be done by caller
     const Domain domain = compute_domain();
-    float3x3 to_bounds = math::translate(math::from_scale<float3x3>(1.0f/float2(domain.size)), float2(0.5f));
+    float3x3 to_bounds = math::translate(math::from_scale<float3x3>(1.0f / float2(domain.size)),
+                                         float2(0.5f));
     float3x3 from_bounds = math::from_scale<float3x3>(float2(domain.size));
     float3x3 imat = from_bounds * homography_matrix * to_bounds;
 
-    const Interpolation interpolation = this->get_interpolation();
-    ExtensionMode extension_x = this->get_extension_mode_x();
-    ExtensionMode extension_y = this->get_extension_mode_y();
+    math::SamplingOptions options = this->get_options();
 
     // can we use texture() call:
     char shader_name[100];
     strcpy(shader_name, "compositor_plane_deform");
-    bool fast = false; // true means texture() call is being used
+    bool fast = false;  // true means texture() call is being used
 
-    switch (interpolation) {
-      case Interpolation::Nearest:
+    switch (options.sampler) {
+      case math::Sampler::Nearest:
         fast = true;
         strcat(shader_name, "_fast");
         break;
-      case Interpolation::Bilinear:
+      case math::Sampler::Box:
         strcat(shader_name, "_box");
         break;
-      case Interpolation::Bicubic:
+      case math::Sampler::Bspline:
         strcat(shader_name, "_bspline");
         break;
-      case Interpolation::Anisotropic:
+      case math::Sampler::Anisotropic:
         strcat(shader_name, "_anisotropic");
         break;
     }
 
     bool masked = false;
-    if (!fast && (extension_x == ExtensionMode::Clip || extension_y == ExtensionMode::Clip
-                  || interpolation == Interpolation::Anisotropic)) { // Anisotropic has to be masked
+    if (!fast && (options.wrap_x == math::InterpWrapMode::Border ||
+                  options.wrap_y == math::InterpWrapMode::Border))
+    {
       masked = true;
       strcat(shader_name, "_masked");
     }
@@ -193,33 +193,34 @@ class CornerPinOperation : public NodeOperation {
     gpu::Shader *shader = this->context().get_shader(shader_name);
     GPU_shader_bind(shader);
 
-    if (fast) { // make matrix produce texture coordinates
-      imat = math::from_scale<float3x3>(1.0f/float2(domain.size)) * imat;
+    if (fast) {  // make matrix produce texture coordinates
+      imat = math::from_scale<float3x3>(1.0f / float2(domain.size)) * imat;
     }
     GPU_shader_uniform_mat3_as_mat4(shader, "imat", imat.ptr());
 
     if (masked) {
       float mx = 1;
-      if (extension_x == ExtensionMode::Clip) {
+      if (options.wrap_x == math::InterpWrapMode::Border) {
         mx = 0;
-        extension_x = ExtensionMode::Extend;
+        options.wrap_x = math::InterpWrapMode::Extend;
       }
       float my = 1;
-      if (extension_y == ExtensionMode::Clip) {
+      if (options.wrap_y == math::InterpWrapMode::Border) {
         my = 0;
-        extension_y = ExtensionMode::Extend;
+        options.wrap_y = math::InterpWrapMode::Extend;
       }
       GPU_shader_uniform_2f(shader, "mask_mult", mx, my);
     }
 
     Result &input_image = get_input("Image");
-    if (interpolation == Interpolation::Anisotropic) {
+    if (options.sampler == math::Sampler::Anisotropic) {
       GPU_texture_mipmap_mode(input_image, true, true);
       GPU_texture_anisotropic_filter(input_image, true);
-    } else {
-      GPU_texture_filter_mode(input_image, false); // all versions use nearest sampling
-      GPU_texture_extend_mode_x(input_image, map_extension_mode_to_extend_mode(extension_x));
-      GPU_texture_extend_mode_y(input_image, map_extension_mode_to_extend_mode(extension_y));
+    }
+    else {
+      GPU_texture_filter_mode(input_image, false);  // all versions use nearest sampling
+      GPU_texture_extend_mode_x(input_image, map_extension_mode_to_extend_mode(options.wrap_x));
+      GPU_texture_extend_mode_y(input_image, map_extension_mode_to_extend_mode(options.wrap_y));
     }
     input_image.bind_as_texture(shader, "input_tx");
 
@@ -242,9 +243,8 @@ class CornerPinOperation : public NodeOperation {
     const Domain domain = compute_domain();
     Result &output = get_result("Image");
     output.allocate_texture(domain);
-    const Interpolation interpolation = this->get_interpolation();
-    const ExtensionMode extension_x = this->get_extension_mode_x();
-    const ExtensionMode extension_y = this->get_extension_mode_y();
+
+    math::SamplingOptions options = this->get_options();
 
     const int2 size = domain.size;
     parallel_for(size, [&](const int2 texel) {
@@ -260,9 +260,8 @@ class CornerPinOperation : public NodeOperation {
       float2 projected_coordinates = transformed_coordinates.xy() / transformed_coordinates.z;
       float4 sampled_color;
 
-      if (interpolation != Interpolation::Anisotropic) {
-        sampled_color = input.sample(
-            projected_coordinates, interpolation, extension_x, extension_y);
+      if (options.sampler != math::Sampler::Anisotropic) {
+        sampled_color = input.sample(projected_coordinates, options);
       }
       else {
         /* The derivatives of the projected coordinates with respect to x and y are the first and
@@ -288,8 +287,9 @@ class CornerPinOperation : public NodeOperation {
 
   Result compute_plane_mask_cpu(const float3x3 &homography_matrix)
   {
-    const bool is_x_clipped = this->get_extension_mode_x() == ExtensionMode::Clip;
-    const bool is_y_clipped = this->get_extension_mode_y() == ExtensionMode::Clip;
+    const math::SamplingOptions options = this->get_options();
+    const bool is_x_clipped = options.wrap_x == math::InterpWrapMode::Border;
+    const bool is_y_clipped = options.wrap_y == math::InterpWrapMode::Border;
     const Domain domain = compute_domain();
     Result plane_mask = context().create_result(ResultType::Float);
     plane_mask.allocate_texture(domain);
@@ -345,77 +345,72 @@ class CornerPinOperation : public NodeOperation {
     return homography_matrix;
   }
 
-  Interpolation get_interpolation()
+  math::SamplingOptions get_options() const
   {
-    const Result &input = this->get_input("Interpolation");
-    const MenuValue default_menu_value = MenuValue(CMP_NODE_INTERPOLATION_BILINEAR);
-    const MenuValue menu_value = input.get_single_value_default(default_menu_value);
-    const CMPNodeInterpolation interpolation = static_cast<CMPNodeInterpolation>(menu_value.value);
-    switch (interpolation) {
-      case CMP_NODE_INTERPOLATION_NEAREST:
-        return Interpolation::Nearest;
-      case CMP_NODE_INTERPOLATION_BILINEAR:
-        return Interpolation::Bilinear;
-      case CMP_NODE_INTERPOLATION_BICUBIC:
-        return Interpolation::Bicubic;
+    math::SamplingOptions ret;
+
+    switch (static_cast<CMPNodeInterpolation>(
+        this->get_input("Interpolation")
+            .get_single_value_default(MenuValue(CMP_NODE_INTERPOLATION_BILINEAR))
+            .value))
+    {
       case CMP_NODE_INTERPOLATION_ANISOTROPIC:
-        return Interpolation::Anisotropic;
+        ret.sampler = math::Sampler::Anisotropic;
+        break;
+      case CMP_NODE_INTERPOLATION_NEAREST:
+        ret.sampler = math::Sampler::Nearest;
+        break;
+      default: // CMP_NODE_INTERPOLATION_BILINEAR
+        ret.sampler = math::Sampler::Box;
+        break;
+      case CMP_NODE_INTERPOLATION_BICUBIC:
+        ret.sampler = math::Sampler::Bspline;
+        break;
     }
 
-    return Interpolation::Nearest;
-  }
-
-  ExtensionMode get_extension_mode_x()
-  {
-    if (this->get_interpolation() == Interpolation::Anisotropic) {
-      return ExtensionMode::Clip;
-    }
-
-    const Result &input = this->get_input("Extension X");
-    const MenuValue default_menu_value = MenuValue(CMP_NODE_EXTENSION_MODE_CLIP);
-    const MenuValue menu_value = input.get_single_value_default(default_menu_value);
-    const CMPExtensionMode extension_x = static_cast<CMPExtensionMode>(menu_value.value);
-    switch (extension_x) {
-      case CMP_NODE_EXTENSION_MODE_CLIP:
-        return ExtensionMode::Clip;
+    switch (static_cast<CMPExtensionMode>(
+        this->get_input("Extension X")
+            .get_single_value_default(MenuValue(CMP_NODE_EXTENSION_MODE_CLIP))
+            .value))
+    {
+      default:  // case CMP_NODE_EXTENSION_MODE_CLIP:
+        ret.wrap_x = math::InterpWrapMode::Border;
+        break;
       case CMP_NODE_EXTENSION_MODE_REPEAT:
-        return ExtensionMode::Repeat;
+        ret.wrap_x = math::InterpWrapMode::Repeat;
+        break;
       case CMP_NODE_EXTENSION_MODE_EXTEND:
-        return ExtensionMode::Extend;
+        ret.wrap_x = math::InterpWrapMode::Extend;
+        break;
     }
 
-    return ExtensionMode::Clip;
-  }
-
-  ExtensionMode get_extension_mode_y()
-  {
-    if (this->get_interpolation() == Interpolation::Anisotropic) {
-      return ExtensionMode::Clip;
-    }
-
-    const Result &input = this->get_input("Extension Y");
-    const MenuValue default_menu_value = MenuValue(CMP_NODE_EXTENSION_MODE_CLIP);
-    const MenuValue menu_value = input.get_single_value_default(default_menu_value);
-    const CMPExtensionMode extension_y = static_cast<CMPExtensionMode>(menu_value.value);
-    switch (extension_y) {
-      case CMP_NODE_EXTENSION_MODE_CLIP:
-        return ExtensionMode::Clip;
+    switch (static_cast<CMPExtensionMode>(
+        this->get_input("Extension Y")
+            .get_single_value_default(MenuValue(CMP_NODE_EXTENSION_MODE_CLIP))
+            .value))
+    {
+      default:  // case CMP_NODE_EXTENSION_MODE_CLIP:
+        ret.wrap_y = math::InterpWrapMode::Border;
+        break;
       case CMP_NODE_EXTENSION_MODE_REPEAT:
-        return ExtensionMode::Repeat;
+        ret.wrap_y = math::InterpWrapMode::Repeat;
+        break;
       case CMP_NODE_EXTENSION_MODE_EXTEND:
-        return ExtensionMode::Extend;
+        ret.wrap_y = math::InterpWrapMode::Extend;
+        break;
     }
 
-    return ExtensionMode::Clip;
+    return ret;
   }
 
   bool should_compute_mask()
   {
     Result &output_mask = this->get_result("Plane");
-    const bool is_clipped_x = this->get_extension_mode_x() == ExtensionMode::Clip;
-    const bool is_clipped_y = this->get_extension_mode_y() == ExtensionMode::Clip;
+    math::SamplingOptions options = this->get_options();
+    const bool is_clipped_x = options.wrap_x == math::InterpWrapMode::Border;
+    const bool is_clipped_y = options.wrap_y == math::InterpWrapMode::Border;
     const bool output_needed = output_mask.should_compute();
-    const bool use_anisotropic = this->get_interpolation() == Interpolation::Anisotropic;
+    const bool use_anisotropic = options.sampler == math::Sampler::Anisotropic;
 
     return is_clipped_x || is_clipped_y || output_needed || use_anisotropic;
   }

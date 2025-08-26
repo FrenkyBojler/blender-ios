@@ -9,9 +9,6 @@
  *
  * 2D image sampling with filtering functions.
  *
- * All functions take (u, v) texture coordinate, non-normalized (i.e. ranging
- * from (0,0) to (width,height) over the image).
- *
  * Any filtering done on texel values just blends them without color space or
  * gamma conversions.
  *
@@ -28,17 +25,30 @@
 
 namespace blender::math {
 
-/**
- * Texture coordinate wrapping mode.
- */
+/** Sampling filter */
+enum class Sampler : uint8_t {
+  Nearest, /*! Return pixel nearest center */
+  Box, /*! Convolution of a box of size=width and a box of size 1, this equals bilinear for width
+          <= 1 */
+  Bspline, /*! Cubic function covering 2*width, non-negative, not interpolating. Equal to "bicubic"
+              for width <= 1 */
+  Anisotropic, /*! Place holder for alternative EWA filtering, if you call sample_rect() it uses
+                  Bilinear */
+};
+
+/** How to read pixels outside the buffer */
 enum class InterpWrapMode {
-  /** Image edges are extended outside the image, i.e. sample coordinates are clamped to the edge.
-   */
-  Extend,
-  /** Image repeats, i.e. sample coordinates are wrapped around. */
-  Repeat,
-  /** Samples outside the image return transparent black. */
-  Border
+  Extend, /*! Nearest pixel. Sometimes called "Nearest" or "Clamp" */
+  Repeat, /*! mod to size of image. Sometimes called "Tiled" */
+  Border  /*! Return zero. Sometimes called "Clip" or "Constant" */
+};
+
+/** Filter and wrap mode in both directions, in a single structure to simplify function parameters
+ */
+struct SamplingOptions {
+  Sampler sampler = Sampler::Box;
+  InterpWrapMode wrap_x = InterpWrapMode::Extend;
+  InterpWrapMode wrap_y = InterpWrapMode::Extend;
 };
 
 /* -------------------------------------------------------------------- */

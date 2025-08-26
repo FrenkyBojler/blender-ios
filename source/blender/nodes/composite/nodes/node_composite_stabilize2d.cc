@@ -106,64 +106,65 @@ class Stabilize2DOperation : public NodeOperation {
 
     output.share_data(input);
     output.transform(transformation);
-    output.get_realization_options().interpolation = this->get_interpolation();
-    output.get_realization_options().extension_x = this->get_extension_mode_x();
-    output.get_realization_options().extension_y = this->get_extension_mode_y();
+    output.get_sampling_options() = this->get_options();
   }
 
-  Interpolation get_interpolation()
+  math::SamplingOptions get_options() const
   {
-    const Result &input = this->get_input("Interpolation");
-    const MenuValue default_menu_value = MenuValue(CMP_NODE_INTERPOLATION_BILINEAR);
-    const MenuValue menu_value = input.get_single_value_default(default_menu_value);
-    const CMPNodeInterpolation interpolation = static_cast<CMPNodeInterpolation>(menu_value.value);
-    switch (interpolation) {
-      case CMP_NODE_INTERPOLATION_NEAREST:
-        return Interpolation::Nearest;
-      case CMP_NODE_INTERPOLATION_BILINEAR:
-        return Interpolation::Bilinear;
+    math::SamplingOptions ret;
+
+    switch (static_cast<CMPNodeInterpolation>(
+        this->get_input("Interpolation")
+            .get_single_value_default(MenuValue(CMP_NODE_INTERPOLATION_BILINEAR))
+            .value))
+    {
       case CMP_NODE_INTERPOLATION_ANISOTROPIC:
+        ret.sampler = math::Sampler::Anisotropic;
+        break;
+      case CMP_NODE_INTERPOLATION_NEAREST:
+        ret.sampler = math::Sampler::Nearest;
+        break;
+      default:
+        ret.sampler = math::Sampler::Box;
+        break;
       case CMP_NODE_INTERPOLATION_BICUBIC:
-        return Interpolation::Bicubic;
+        ret.sampler = math::Sampler::Bspline;
+        break;
     }
 
-    return Interpolation::Nearest;
-  }
-
-  ExtensionMode get_extension_mode_x()
-  {
-    const Result &input = this->get_input("Extension X");
-    const MenuValue default_menu_value = MenuValue(CMP_NODE_EXTENSION_MODE_CLIP);
-    const MenuValue menu_value = input.get_single_value_default(default_menu_value);
-    const CMPExtensionMode extension_x = static_cast<CMPExtensionMode>(menu_value.value);
-    switch (extension_x) {
-      case CMP_NODE_EXTENSION_MODE_CLIP:
-        return ExtensionMode::Clip;
+    switch (static_cast<CMPExtensionMode>(
+        this->get_input("Extension X")
+            .get_single_value_default(MenuValue(CMP_NODE_EXTENSION_MODE_CLIP))
+            .value))
+    {
+      default:  // case CMP_NODE_EXTENSION_MODE_CLIP:
+        ret.wrap_x = math::InterpWrapMode::Border;
+        break;
       case CMP_NODE_EXTENSION_MODE_REPEAT:
-        return ExtensionMode::Repeat;
+        ret.wrap_x = math::InterpWrapMode::Repeat;
+        break;
       case CMP_NODE_EXTENSION_MODE_EXTEND:
-        return ExtensionMode::Extend;
+        ret.wrap_x = math::InterpWrapMode::Extend;
+        break;
     }
 
-    return ExtensionMode::Clip;
-  }
-
-  ExtensionMode get_extension_mode_y()
-  {
-    const Result &input = this->get_input("Extension Y");
-    const MenuValue default_menu_value = MenuValue(CMP_NODE_EXTENSION_MODE_CLIP);
-    const MenuValue menu_value = input.get_single_value_default(default_menu_value);
-    const CMPExtensionMode extension_y = static_cast<CMPExtensionMode>(menu_value.value);
-    switch (extension_y) {
-      case CMP_NODE_EXTENSION_MODE_CLIP:
-        return ExtensionMode::Clip;
+    switch (static_cast<CMPExtensionMode>(
+        this->get_input("Extension Y")
+            .get_single_value_default(MenuValue(CMP_NODE_EXTENSION_MODE_CLIP))
+            .value))
+    {
+      default:  // case CMP_NODE_EXTENSION_MODE_CLIP:
+        ret.wrap_y = math::InterpWrapMode::Border;
+        break;
       case CMP_NODE_EXTENSION_MODE_REPEAT:
-        return ExtensionMode::Repeat;
+        ret.wrap_y = math::InterpWrapMode::Repeat;
+        break;
       case CMP_NODE_EXTENSION_MODE_EXTEND:
-        return ExtensionMode::Extend;
+        ret.wrap_y = math::InterpWrapMode::Extend;
+        break;
     }
 
-    return ExtensionMode::Clip;
+    return ret;
   }
 
   bool do_inverse_stabilization()

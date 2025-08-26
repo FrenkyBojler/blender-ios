@@ -14,43 +14,6 @@
 
 namespace blender::compositor {
 
-/* Possible interpolations to use when realizing an input result of some domain on another domain.
- * See the RealizationOptions struct for more information. */
-enum class Interpolation : uint8_t {
-  Nearest,
-  Bilinear,
-  Bicubic,
-  Anisotropic,
-};
-
-/* Possible extension modes when computing samples in the domain's exterior. */
-enum class ExtensionMode : uint8_t {
-  /* Areas outside of the image are filled with zero. */
-  Clip,
-  /* Areas outside of the image are filled with the closest boundary pixel in the image. */
-  Extend,
-  /* Areas outside of the image are filled with repetitions of the image. */
-  Repeat,
-};
-
-/* ------------------------------------------------------------------------------------------------
- * Realization Options
- *
- * The options that describe how an input result prefer to be realized on some other domain. This
- * is used by the Realize On Domain and Transform algorithms to identify the appropriate method of
- * realization. See the Domain class for more information. */
-struct RealizationOptions {
-  /* The interpolation method that should be used when performing realization. Since realizing a
-   * result involves projecting it on a different domain, which in turn, involves sampling the
-   * result at arbitrary locations, the interpolation identifies the method used for computing the
-   * value at those arbitrary locations. */
-  Interpolation interpolation = Interpolation::Bilinear;
-  /* The extend mode for the x-axis. Defaults to Zero padding. */
-  ExtensionMode extension_x = ExtensionMode::Clip;
-  /* The extend mode for the y-axis. Defaults to Zero padding. */
-  ExtensionMode extension_y = ExtensionMode::Clip;
-};
-
 /* ------------------------------------------------------------------------------------------------
  * Domain
  *
@@ -150,8 +113,8 @@ class Domain {
    * the virtual compositing space. */
   float3x3 transformation;
   /* The options that describe how this domain prefer to be realized on some other domain. See the
-   * RealizationOptions struct for more information. */
-  RealizationOptions realization_options;
+   * math::SamplingOptions struct for more information. */
+  math::SamplingOptions sampling_options;
 
   /* A size only constructor that sets the transformation to identity. */
   Domain(const int2 &size);
@@ -166,7 +129,7 @@ class Domain {
   static Domain identity();
 
   /* Compare the size and transformation of the domain. Transformations are compared within the
-   * given epsilon. The realization_options are not compared because they only describe the method
+   * given epsilon. The sampling_options are not compared because they only describe the method
    * of realization on another domain, which is not technically a property of the domain itself. */
   static bool is_equal(const Domain &a, const Domain &b, const float epsilon = 0.0f);
 };
@@ -175,7 +138,6 @@ class Domain {
 bool operator==(const Domain &a, const Domain &b);
 bool operator!=(const Domain &a, const Domain &b);
 
-math::InterpWrapMode map_extension_mode_to_wrap_mode(const ExtensionMode &mode);
-GPUSamplerExtendMode map_extension_mode_to_extend_mode(const ExtensionMode &mode);
+GPUSamplerExtendMode map_extension_mode_to_extend_mode(const math::InterpWrapMode &mode);
 
 }  // namespace blender::compositor

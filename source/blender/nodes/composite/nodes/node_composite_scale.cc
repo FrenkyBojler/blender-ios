@@ -123,9 +123,7 @@ class ScaleOperation : public NodeOperation {
     output.share_data(input);
     output.transform(transformation);
 
-    output.get_realization_options().interpolation = this->get_interpolation();
-    output.get_realization_options().extension_x = this->get_extension_mode_x();
-    output.get_realization_options().extension_y = this->get_extension_mode_y();
+    output.get_sampling_options() = this->get_options();
   }
 
   void execute_variable_size()
@@ -140,16 +138,28 @@ class ScaleOperation : public NodeOperation {
 
   void execute_variable_size_gpu()
   {
-    gpu::Shader *shader = this->context().get_shader(this->get_shader_name());
+    const math::SamplingOptions options = this->get_options();
+    const char *shader_name;
+    switch (options.sampler) {
+      case math::Sampler::Nearest:
+        shader_name = "compositor_scale_variable_nearest";
+        break;
+      case math::Sampler::Bspline:
+        shader_name = "compositor_scale_variable_bspline";
+        break;
+      default:
+        shader_name = "compositor_scale_variable_box";
+        break;
+    }
+
+    gpu::Shader *shader = this->context().get_shader(shader_name);
     GPU_shader_bind(shader);
 
     Result &input = get_input("Image");
-    const ExtensionMode extension_mode_x = this->get_extension_mode_x();
-    const ExtensionMode extension_mode_y = this->get_extension_mode_y();
 
     GPU_texture_filter_mode(input, false);
-    GPU_texture_extend_mode_x(input, map_extension_mode_to_extend_mode(extension_mode_x));
-    GPU_texture_extend_mode_y(input, map_extension_mode_to_extend_mode(extension_mode_y));
+    GPU_texture_extend_mode_x(input, map_extension_mode_to_extend_mode(options.wrap_x));
+    GPU_texture_extend_mode_y(input, map_extension_mode_to_extend_mode(options.wrap_y));
     input.bind_as_texture(shader, "input_tx");
 
     Result &x_scale = get_input("X");
@@ -179,9 +189,7 @@ class ScaleOperation : public NodeOperation {
     const Result &y_scale = this->get_input("Y");
 
     Result &output = this->get_result("Image");
-    const Interpolation interpolation = this->get_interpolation();
-    const ExtensionMode extension_mode_x = this->get_extension_mode_x();
-    const ExtensionMode extension_mode_y = this->get_extension_mode_y();
+    const math::SamplingOptions options = this->get_options();
     const Domain domain = compute_domain();
     const int2 size = domain.size;
     output.allocate_texture(domain);
@@ -195,77 +203,66 @@ class ScaleOperation : public NodeOperation {
       float2 scaled_coordinates = center +
                                   (coordinates - center) / math::max(scale, float2(0.0001f));
 
-      output.store_pixel(
-          texel,
-          input.sample(scaled_coordinates, interpolation, extension_mode_x, extension_mode_y));
+      output.store_pixel(texel, input.sample(scaled_coordinates, options));
     });
   }
 
-  const char *get_shader_name() const
+  math::SamplingOptions get_options() const
   {
-    switch (this->get_interpolation()) {
-    case Interpolation::Nearest:
-      return "compositor_scale_variable_nearest";
-    case Interpolation::Bicubic:
-      return "compositor_scale_variable_bspline";
-    default:
-      return "compositor_scale_variable_box";
-    }
-  }
+    math::SamplingOptions ret;
 
-  Interpolation get_interpolation() const
-  {
-    const Result &input = this->get_input("Interpolation");
-    const MenuValue default_menu_value = MenuValue(CMP_NODE_INTERPOLATION_BILINEAR);
-    const MenuValue menu_value = input.get_single_value_default(default_menu_value);
-    const CMPNodeInterpolation interpolation = static_cast<CMPNodeInterpolation>(menu_value.value);
-    switch (interpolation) {
-      case CMP_NODE_INTERPOLATION_NEAREST:
-        return Interpolation::Nearest;
-      case CMP_NODE_INTERPOLATION_BILINEAR:
-        return Interpolation::Bilinear;
+    switch (static_cast<CMPNodeInterpolation>(
+        this->get_input("Interpolation")
+            .get_single_value_default(MenuValue(CMP_NODE_INTERPOLATION_BILINEAR))
+            .value))
+    {
       case CMP_NODE_INTERPOLATION_ANISOTROPIC:
+        ret.sampler = math::Sampler::Anisotropic;
+        break;
+      case CMP_NODE_INTERPOLATION_NEAREST:
+        ret.sampler = math::Sampler::Nearest;
+        break;
+      default: // CMP_NODE_INTERPOLATION_BILINEAR
+        ret.sampler = math::Sampler::Box;
+        break;
       case CMP_NODE_INTERPOLATION_BICUBIC:
-        return Interpolation::Bicubic;
+        ret.sampler = math::Sampler::Bspline;
+        break;
     }
 
-    return Interpolation::Nearest;
-  }
-
-  ExtensionMode get_extension_mode_x() const
-  {
-    const Result &input = this->get_input("Extension X");
-    const MenuValue default_menu_value = MenuValue(CMP_NODE_EXTENSION_MODE_CLIP);
-    const MenuValue menu_value = input.get_single_value_default(default_menu_value);
-    const CMPExtensionMode extension_x = static_cast<CMPExtensionMode>(menu_value.value);
-    switch (extension_x) {
-      case CMP_NODE_EXTENSION_MODE_CLIP:
-        return ExtensionMode::Clip;
+    switch (static_cast<CMPExtensionMode>(
+        this->get_input("Extension X")
+            .get_single_value_default(MenuValue(CMP_NODE_EXTENSION_MODE_CLIP))
+            .value))
+    {
+      default:  // case CMP_NODE_EXTENSION_MODE_CLIP:
+        ret.wrap_x = math::InterpWrapMode::Border;
+        break;
       case CMP_NODE_EXTENSION_MODE_REPEAT:
-        return ExtensionMode::Repeat;
+        ret.wrap_x = math::InterpWrapMode::Repeat;
+        break;
       case CMP_NODE_EXTENSION_MODE_EXTEND:
-        return ExtensionMode::Extend;
+        ret.wrap_x = math::InterpWrapMode::Extend;
+        break;
     }
 
-    return ExtensionMode::Clip;
-  }
-
-  ExtensionMode get_extension_mode_y() const
-  {
-    const Result &input = this->get_input("Extension Y");
-    const MenuValue default_menu_value = MenuValue(CMP_NODE_EXTENSION_MODE_CLIP);
-    const MenuValue menu_value = input.get_single_value_default(default_menu_value);
-    const CMPExtensionMode extension_y = static_cast<CMPExtensionMode>(menu_value.value);
-    switch (extension_y) {
-      case CMP_NODE_EXTENSION_MODE_CLIP:
-        return ExtensionMode::Clip;
+    switch (static_cast<CMPExtensionMode>(
+        this->get_input("Extension Y")
+            .get_single_value_default(MenuValue(CMP_NODE_EXTENSION_MODE_CLIP))
+            .value))
+    {
+      default:  // case CMP_NODE_EXTENSION_MODE_CLIP:
+        ret.wrap_y = math::InterpWrapMode::Border;
+        break;
       case CMP_NODE_EXTENSION_MODE_REPEAT:
-        return ExtensionMode::Repeat;
+        ret.wrap_y = math::InterpWrapMode::Repeat;
+        break;
       case CMP_NODE_EXTENSION_MODE_EXTEND:
-        return ExtensionMode::Extend;
+        ret.wrap_y = math::InterpWrapMode::Extend;
+        break;
     }
 
-    return ExtensionMode::Clip;
+    return ret;
   }
 
   float2 get_scale()

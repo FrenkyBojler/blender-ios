@@ -302,10 +302,10 @@ class Result {
    * transformation by the current transformation of the domain of the result. */
   void transform(const float3x3 &transformation);
 
-  /* Get a reference to the realization options of this result. See the RealizationOptions struct
-   * for more information. */
-  RealizationOptions &get_realization_options();
-  const RealizationOptions &get_realization_options() const;
+  /* Get a reference to the realization options of this result. See the
+   * blender::math::SamplingOptions struct for more information. */
+  blender::math::SamplingOptions &get_sampling_options();
+  const blender::math::SamplingOptions &get_sampling_options() const;
 
   /* Set the value of reference_count_, see that member for more details. This should be called
    * after constructing the result to declare the number of operations that needs it. */
@@ -425,10 +425,8 @@ class Result {
    * works. */
   void store_pixel_generic_type(const int2 &texel, const float4 &pixel_value);
 
-  float4 sample(const float2 &coordinates,
-                const Interpolation &interpolation,
-                const ExtensionMode &extend_mode_x,
-                const ExtensionMode &extend_mode_y) const;
+  /* Same as sampleRect(uv, options, float2(1,1)) */
+  float4 sample(const float2 &uv, const blender::math::SamplingOptions &options) const;
 
   /* Identical to sample_nearest_zero but with bilinear interpolation. */
   float4 sample_bilinear_zero(const float2 &coordinates) const;
@@ -633,9 +631,7 @@ BLI_INLINE_METHOD void Result::store_pixel_generic_type(const int2 &texel,
 }
 
 BLI_INLINE_METHOD float4 Result::sample(const float2 &coordinates,
-                                        const Interpolation &interpolation,
-                                        const ExtensionMode &mode_x,
-                                        const ExtensionMode &mode_y) const
+                                        const blender::math::SamplingOptions &options) const
 {
   float4 pixel_value = float4(0.0f, 0.0f, 0.0f, 1.0f);
   if (is_single_value_) {
@@ -644,16 +640,16 @@ BLI_INLINE_METHOD float4 Result::sample(const float2 &coordinates,
   }
 
   const int2 size = domain_.size;
-  const float2 texel_coordinates = (interpolation == Interpolation::Nearest) ?
+  const float2 texel_coordinates = (options.sampler == math::Sampler::Nearest) ?
                                        coordinates * float2(size) :
                                        (coordinates * float2(size)) - 0.5f;
 
   const float *buffer = static_cast<const float *>(this->cpu_data().data());
-  const math::InterpWrapMode extension_mode_x = map_extension_mode_to_wrap_mode(mode_x);
-  const math::InterpWrapMode extension_mode_y = map_extension_mode_to_wrap_mode(mode_y);
+  const math::InterpWrapMode extension_mode_x = options.wrap_x;
+  const math::InterpWrapMode extension_mode_y = options.wrap_y;
 
-  switch (interpolation) {
-    case Interpolation::Nearest:
+  switch (options.sampler) {
+    case math::Sampler::Nearest:
       math::interpolate_nearest_wrapmode_fl(buffer,
                                             pixel_value,
                                             size.x,
@@ -664,7 +660,7 @@ BLI_INLINE_METHOD float4 Result::sample(const float2 &coordinates,
                                             extension_mode_x,
                                             extension_mode_y);
       break;
-    case Interpolation::Bilinear:
+    case math::Sampler::Box:
       math::interpolate_bilinear_wrapmode_fl(buffer,
                                              pixel_value,
                                              size.x,
@@ -676,10 +672,10 @@ BLI_INLINE_METHOD float4 Result::sample(const float2 &coordinates,
                                              extension_mode_y);
       break;
     /* The anisotropic sampling requires separate handling with EWA. */
-    case Interpolation::Anisotropic:
+    case math::Sampler::Anisotropic:
       BLI_assert_unreachable();
       break;
-    case Interpolation::Bicubic:
+    case math::Sampler::Bspline:
       math::interpolate_cubic_bspline_wrapmode_fl(buffer,
                                                   pixel_value,
                                                   size.x,

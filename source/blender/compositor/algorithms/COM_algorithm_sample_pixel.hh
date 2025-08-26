@@ -14,9 +14,7 @@ namespace blender::compositor {
 /* Samples a pixel from a result. */
 float4 sample_pixel(Context &context,
                     const Result &input,
-                    const Interpolation &interpolation,
-                    const ExtensionMode &extension_mode_x,
-                    const ExtensionMode &extension_mode_y,
+                    const blender::math::SamplingOptions &options,
                     const float2 coordinates);
 
 }  // namespace blender::compositor

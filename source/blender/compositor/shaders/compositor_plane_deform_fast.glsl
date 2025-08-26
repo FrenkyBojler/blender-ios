@@ -12,7 +12,8 @@ void main()
   float3 uvw = to_float3x3(imat) * float3(texel.x, texel.y, 1.0f);
   if (uvw.z <= 0.0f) {
     imageStore(output_img, texel, float4(0.0f));
-  } else {
+  }
+  else {
     imageStore(output_img, texel, texture(input_tx, uvw.xy / uvw.z));
   }
 }

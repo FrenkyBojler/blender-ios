@@ -7,8 +7,8 @@
 #if defined(PREMULTIPLY_MASK)
 float2 hypot2(float2 a, float2 b)
 {
-  //return float2(length(float2(a.x,b.x)), length(float2(a.y,b.y)));
-  return sqrt(float2(a.x*a.x+b.x*b.x, a.y*a.y+b.y*b.y));
+  // return float2(length(float2(a.x,b.x)), length(float2(a.y,b.y)));
+  return sqrt(float2(a.x * a.x + b.x * b.x, a.y * a.y + b.y * b.y));
 }
 #endif
 
@@ -26,7 +26,7 @@ void main()
     return;
   }
 
-  float iw = 1.0f/uvw.z; // 1/w
+  float iw = 1.0f / uvw.z;  // 1/w
 
   // compute derivative of source location
   float3 m0 = imat[0].xyz;
@@ -38,7 +38,8 @@ void main()
 
   // antialias the horizon line
   float dw = length(float2(m0.z, m1.z));
-  if (dw > uvw.z) m = uvw.z / dw;
+  if (dw > uvw.z)
+    m = uvw.z / dw;
 
   float2 uv = uvw.xy * iw;
 
@@ -46,8 +47,10 @@ void main()
   // convert derivatives to rectangle
   float2 wh = hypot2(dPdx, dPdy);
   float2 pixels = float2(textureSize(input_tx, 0));
-  float2 mm = clamp(min(uv + 0.5f, pixels - uv - 0.5f) / wh + 0.5f, 0, 1); // coverage of wh by image
-  if (m < 1) mm = float2(0); // remove artifacts at horizon
+  float2 mm = clamp(
+      min(uv + 0.5f, pixels - uv - 0.5f) / wh + 0.5f, 0, 1);  // coverage of wh by image
+  if (m < 1)
+    mm = float2(0);  // remove artifacts at horizon
   // mm = max(mm, mask_mult); // keep unclipped sides (nyi for anisotropic)
   m *= mm.x * mm.y;
   if (m <= 0) {
@@ -57,6 +60,7 @@ void main()
 #endif
 
   float2 ipixels = 1 / float2(textureSize(input_tx, 0));
-  imageStore(output_img, texel,
-             textureGrad(input_tx, (uv + 0.5f)*ipixels, dPdx*ipixels, dPdy*ipixels) * m);
+  imageStore(output_img,
+             texel,
+             textureGrad(input_tx, (uv + 0.5f) * ipixels, dPdx * ipixels, dPdy * ipixels) * m);
 }

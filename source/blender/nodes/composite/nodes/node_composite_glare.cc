@@ -348,7 +348,7 @@ class GlareOperation : public NodeOperation {
         }
 
         /* Down-sample the image 2 times to match the output size by averaging the 2x2 block of
-         * pixels into a single output pixel. This is done due to the bilinear interpolation at the
+         * pixels into a single output pixel. This is done due to the bilinear.sampler at the
          * center of the 2x2 block of pixels */
         case CMP_NODE_GLARE_QUALITY_MEDIUM: {
           float2 normalized_coordinates = (float2(texel) * 2.0f + float2(1.0f)) /
@@ -360,7 +360,7 @@ class GlareOperation : public NodeOperation {
           /* Down-sample the image 4 times to match the output size by averaging each 4x4 block of
            * pixels into a single output pixel. This is done by averaging 4 bilinear taps at the
            * center of each of the corner 2x2 pixel blocks, which are themselves the average of the
-           * 2x2 block due to the bilinear interpolation at the center. */
+           * 2x2 block due to the bilinear.sampler at the center. */
         case CMP_NODE_GLARE_QUALITY_LOW: {
 
           float2 lower_left_coordinates = (float2(texel) * 4.0f + float2(1.0f)) /
@@ -509,7 +509,7 @@ class GlareOperation : public NodeOperation {
     return math::max(0.0f, this->get_input("Maximum Highlights").get_single_value_default(0.0f));
   }
 
-  /* Writes the given input highlights by upsampling it using bilinear interpolation to match the
+  /* Writes the given input highlights by upsampling it using bilinear.sampler to match the
    * size of the original input, allocating the highlights output and writing the result to it. */
   void write_highlights_output(const Result &highlights)
   {
@@ -2432,7 +2432,7 @@ class GlareOperation : public NodeOperation {
   }
 
   /* Writes the given input glare by adjusting it as needed and upsampling it using bilinear
-   * interpolation to match the size of the original input, allocating the glare output and writing
+   *.sampler to match the size of the original input, allocating the glare output and writing
    * the result to it. */
   void write_glare_output(const Result &glare)
   {

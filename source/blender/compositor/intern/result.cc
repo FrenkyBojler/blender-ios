@@ -627,14 +627,14 @@ void Result::transform(const float3x3 &transformation)
   domain_.transform(transformation);
 }
 
-RealizationOptions &Result::get_realization_options()
+blender::math::SamplingOptions &Result::get_sampling_options()
 {
-  return domain_.realization_options;
+  return domain_.sampling_options;
 }
 
-const RealizationOptions &Result::get_realization_options() const
+const blender::math::SamplingOptions &Result::get_sampling_options() const
 {
-  return domain_.realization_options;
+  return domain_.sampling_options;
 }
 
 void Result::set_reference_count(int count)

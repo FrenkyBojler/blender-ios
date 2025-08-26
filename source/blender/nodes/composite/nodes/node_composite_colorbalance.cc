@@ -206,9 +206,9 @@ static float3x3 get_white_point_matrix(const float input_temperature,
 {
   const float3x3 scene_to_xyz = IMB_colormanagement_get_scene_linear_to_xyz();
   const float3x3 xyz_to_scene = IMB_colormanagement_get_xyz_to_scene_linear();
-  const float3 input = blender::math::whitepoint_from_temp_tint(input_temperature, input_tint);
-  const float3 output = blender::math::whitepoint_from_temp_tint(output_temperature, output_tint);
-  const float3x3 adaption = blender::math::chromatic_adaption_matrix(input, output);
+  const float3 input = math::whitepoint_from_temp_tint(input_temperature, input_tint);
+  const float3 output = math::whitepoint_from_temp_tint(output_temperature, output_tint);
+  const float3x3 adaption = math::chromatic_adaption_matrix(input, output);
   return xyz_to_scene * adaption * scene_to_xyz;
 }
 
@@ -331,9 +331,9 @@ static float4 color_balance_white_point_variable(const float factor,
                                                  const float3x3 &scene_to_xyz,
                                                  const float3x3 &xyz_to_scene)
 {
-  const float3 input = blender::math::whitepoint_from_temp_tint(input_temperature, input_tint);
-  const float3 output = blender::math::whitepoint_from_temp_tint(output_temperature, output_tint);
-  const float3x3 adaption = blender::math::chromatic_adaption_matrix(input, output);
+  const float3 input = math::whitepoint_from_temp_tint(input_temperature, input_tint);
+  const float3 output = math::whitepoint_from_temp_tint(output_temperature, output_tint);
+  const float3x3 adaption = math::chromatic_adaption_matrix(input, output);
   const float3x3 white_point_matrix = xyz_to_scene * adaption * scene_to_xyz;
 
   const float3 balanced = white_point_matrix * color.xyz();

@@ -2,15 +2,21 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "gpu_shader_compositor_texture_utilities.glsl"
 #include "gpu_shader_compositor_sampleRect.glsl"
+#include "gpu_shader_compositor_texture_utilities.glsl"
 
-float2 dx(sampler2D image, int2 texel) {
-  return (texture_load(image, texel + int2(1,0)).xy - texture_load(image, texel - int2(1,0)).xy) / 2;
+float2 dx(sampler2D image, int2 texel)
+{
+  return (texture_load(image, texel + int2(1, 0)).xy -
+          texture_load(image, texel - int2(1, 0)).xy) /
+         2;
 }
 
-float2 dy(sampler2D image, int2 texel) {
-  return (texture_load(image, texel + int2(0,1)).xy - texture_load(image, texel - int2(0,1)).xy) / 2;
+float2 dy(sampler2D image, int2 texel)
+{
+  return (texture_load(image, texel + int2(0, 1)).xy -
+          texture_load(image, texel - int2(0, 1)).xy) /
+         2;
 }
 
 void main()
@@ -22,8 +28,8 @@ void main()
   float2 uv = float2(texel) + 0.5f - texture_load(displacement_tx, texel).xy * scale;
 
   // derivative of scale is ignored, assumed to be close to zero
-  float2 wh = hypot2(float2(1,0) - dx(displacement_tx, texel) * scale,
-                     float2(0,1) - dy(displacement_tx, texel) * scale);
+  float2 wh = hypot2(float2(1, 0) - dx(displacement_tx, texel) * scale,
+                     float2(0, 1) - dy(displacement_tx, texel) * scale);
 
   imageStore(output_img, texel, sampleRect(uv, wh));
 }

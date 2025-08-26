@@ -17,14 +17,14 @@
 
 namespace blender::compositor {
 
-static char const *get_pixel_sampler_shader_name(const Interpolation &interpolation)
+static char const *get_pixel_sampler_shader_name(const math::Sampler &interpolation)
 {
   switch (interpolation) {
-    case Interpolation::Anisotropic:
-    case Interpolation::Bicubic:
+    case math::Sampler::Anisotropic:
+    case math::Sampler::Bspline:
       return "compositor_sample_pixel_bicubic";
-    case Interpolation::Bilinear:
-    case Interpolation::Nearest:
+    case math::Sampler::Box:
+    case math::Sampler::Nearest:
       return "compositor_sample_pixel";
   }
   BLI_assert_unreachable();
@@ -33,12 +33,10 @@ static char const *get_pixel_sampler_shader_name(const Interpolation &interpolat
 
 static float4 sample_pixel_gpu(Context &context,
                                const Result &input,
-                               const Interpolation &interpolation,
-                               const ExtensionMode &extension_mode_x,
-                               const ExtensionMode &extension_mode_y,
+                               const blender::math::SamplingOptions &options,
                                const float2 coordinates)
 {
-  gpu::Shader *shader = context.get_shader(get_pixel_sampler_shader_name(interpolation));
+  gpu::Shader *shader = context.get_shader(get_pixel_sampler_shader_name(options.sampler));
   GPU_shader_bind(shader);
 
   GPU_shader_uniform_2fv(shader, "coordinates_u", coordinates);
@@ -46,17 +44,17 @@ static float4 sample_pixel_gpu(Context &context,
   Result output = context.create_result(input.type());
   output.allocate_texture(int2(1));
 
-  if (interpolation == Interpolation::Anisotropic) {
+  if (options.sampler == math::Sampler::Anisotropic) {
     GPU_texture_anisotropic_filter(input, true);
     GPU_texture_mipmap_mode(input, true, true);
   }
   else {
-    const bool use_bilinear = ELEM(interpolation, Interpolation::Bilinear, Interpolation::Bicubic);
+    const bool use_bilinear = ELEM(options.sampler, math::Sampler::Box, math::Sampler::Bspline);
     GPU_texture_filter_mode(input, use_bilinear);
   }
 
-  GPU_texture_extend_mode_x(input, map_extension_mode_to_extend_mode(extension_mode_x));
-  GPU_texture_extend_mode_y(input, map_extension_mode_to_extend_mode(extension_mode_y));
+  GPU_texture_extend_mode_x(input, map_extension_mode_to_extend_mode(options.wrap_x));
+  GPU_texture_extend_mode_y(input, map_extension_mode_to_extend_mode(options.wrap_y));
 
   input.bind_as_texture(shader, "input_tx");
   output.bind_as_image(shader, "output_img");
@@ -80,20 +78,16 @@ static float4 sample_pixel_gpu(Context &context,
 }
 
 static float4 sample_pixel_cpu(const Result &input,
-                               const Interpolation &interpolation,
-                               const ExtensionMode &extension_mode_x,
-                               const ExtensionMode &extension_mode_y,
+                               const blender::math::SamplingOptions &options,
                                const float2 coordinates)
 {
-  return input.sample(coordinates, interpolation, extension_mode_x, extension_mode_y);
+  return input.sample(coordinates, options);
 }
 
 /* Samples a pixel from a result. */
 float4 sample_pixel(Context &context,
                     const Result &input,
-                    const Interpolation &interpolation,
-                    const ExtensionMode &extension_mode_x,
-                    const ExtensionMode &extension_mode_y,
+                    const blender::math::SamplingOptions &options,
                     const float2 coordinates)
 {
   if (input.is_single_value()) {
@@ -115,11 +109,10 @@ float4 sample_pixel(Context &context,
     return float4(0.0f);
   }
   if (context.use_gpu()) {
-    return sample_pixel_gpu(
-        context, input, interpolation, extension_mode_x, extension_mode_y, coordinates);
+    return sample_pixel_gpu(context, input, options, coordinates);
   }
   else {
-    return sample_pixel_cpu(input, interpolation, extension_mode_x, extension_mode_y, coordinates);
+    return sample_pixel_cpu(input, options, coordinates);
   }
 }
 

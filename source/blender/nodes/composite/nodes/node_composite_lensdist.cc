@@ -374,7 +374,7 @@ class LensDistortionOperation : public NodeOperation {
       const float4 green = input.load_pixel<float4>(texel);
       const float4 blue = input.sample_bilinear_zero(normalized_texel - float2(dispersion, 0.0f));
 
-      const float alpha = blender::math::dot(float3(red.w, green.w, blue.w), float3(1.0f)) / 3.0f;
+      const float alpha = math::dot(float3(red.w, green.w, blue.w), float3(1.0f)) / 3.0f;
 
       output.store_pixel(texel, float4(red.x, green.y, blue.z, alpha));
     });

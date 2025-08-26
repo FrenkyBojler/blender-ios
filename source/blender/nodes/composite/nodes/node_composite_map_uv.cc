@@ -101,12 +101,12 @@ class MapUVOperation : public NodeOperation {
 
   void execute_gpu()
   {
-    const Interpolation interpolation = this->get_interpolation();
-    gpu::Shader *shader = context().get_shader(this->get_shader_name(interpolation));
+    const math::SamplingOptions options = this->get_options();
+    gpu::Shader *shader = context().get_shader(this->get_shader_name(options.sampler));
     GPU_shader_bind(shader);
 
     const Result &input_image = get_input("Image");
-    if (interpolation == Interpolation::Anisotropic) {
+    if (options.sampler == math::Sampler::Anisotropic) {
       GPU_texture_anisotropic_filter(input_image, true);
       GPU_texture_mipmap_mode(input_image, true, true);
     }
@@ -114,10 +114,8 @@ class MapUVOperation : public NodeOperation {
       GPU_texture_filter_mode(input_image, false);
     }
 
-    GPU_texture_extend_mode_x(input_image,
-                              map_extension_mode_to_extend_mode(this->get_extension_mode_x()));
-    GPU_texture_extend_mode_y(input_image,
-                              map_extension_mode_to_extend_mode(this->get_extension_mode_y()));
+    GPU_texture_extend_mode_x(input_image, map_extension_mode_to_extend_mode(options.wrap_x));
+    GPU_texture_extend_mode_y(input_image, map_extension_mode_to_extend_mode(options.wrap_y));
 
     input_image.bind_as_texture(shader, "input_tx");
 
@@ -137,14 +135,14 @@ class MapUVOperation : public NodeOperation {
     GPU_shader_unbind();
   }
 
-  char const *get_shader_name(const Interpolation &interpolation)
+  char const *get_shader_name(const math::Sampler &interpolation)
   {
     switch (interpolation) {
-      case Interpolation::Anisotropic:
+      case math::Sampler::Anisotropic:
         return "compositor_map_uv_anisotropic";
-      case Interpolation::Bicubic:
+      case math::Sampler::Bspline:
         return "compositor_map_uv_bspline";
-      case Interpolation::Nearest:
+      case math::Sampler::Nearest:
         return "compositor_map_uv_nearest";
       default:
         return "compositor_map_uv_box";
@@ -153,32 +151,14 @@ class MapUVOperation : public NodeOperation {
     return "compositor_map_uv";
   }
 
-  void execute_cpu()
-  {
-    const Interpolation interpolation = this->get_interpolation();
-    if (interpolation == Interpolation::Anisotropic) {
-      this->execute_cpu_anisotropic();
-    }
-    else {
-      this->execute_cpu_interpolation(interpolation);
-    }
-  }
-
   void execute_single()
   {
-    const Interpolation interpolation = this->get_interpolation();
-    const ExtensionMode extension_mode_x = this->get_extension_mode_x();
-    const ExtensionMode extension_mode_y = this->get_extension_mode_y();
     const Result &input_uv = get_input("UV");
     const Result &input_image = get_input("Image");
 
     float2 uv_coordinates = input_uv.get_single_value<float3>().xy();
-    float4 sampled_color = sample_pixel(this->context(),
-                                        input_image,
-                                        interpolation,
-                                        extension_mode_x,
-                                        extension_mode_y,
-                                        uv_coordinates);
+    float4 sampled_color = sample_pixel(
+        this->context(), input_image, this->get_options(), uv_coordinates);
 
     /* The UV input is assumed to contain an alpha channel as its third channel, since the
      * UV coordinates might be defined in only a subset area of the UV texture as mentioned.
@@ -195,10 +175,19 @@ class MapUVOperation : public NodeOperation {
     output.set_single_value(result);
   }
 
-  void execute_cpu_interpolation(const Interpolation &interpolation)
+  void execute_cpu()
   {
-    const ExtensionMode extension_mode_x = this->get_extension_mode_x();
-    const ExtensionMode extension_mode_y = this->get_extension_mode_y();
+    const math::SamplingOptions options = this->get_options();
+    if (options.sampler == math::Sampler::Anisotropic) {
+      this->execute_cpu_anisotropic();
+    }
+    else {
+      this->execute_cpu_interpolation(options);
+    }
+  }
+
+  void execute_cpu_interpolation(const math::SamplingOptions &options)
+  {
     const Result &input_image = get_input("Image");
     const Result &input_uv = get_input("UV");
 
@@ -208,8 +197,7 @@ class MapUVOperation : public NodeOperation {
 
     parallel_for(domain.size, [&](const int2 texel) {
       float2 uv_coordinates = input_uv.load_pixel<float3>(texel).xy();
-      float4 sampled_color = input_image.sample(
-          uv_coordinates, interpolation, extension_mode_x, extension_mode_y);
+      float4 sampled_color = input_image.sample(uv_coordinates, options);
       /* The UV input is assumed to contain an alpha channel as its third channel, since the
        * UV coordinates might be defined in only a subset area of the UV texture as mentioned.
        * In that case, the alpha is typically opaque at the subset area and transparent
@@ -299,60 +287,62 @@ class MapUVOperation : public NodeOperation {
     });
   }
 
-  Interpolation get_interpolation()
+  math::SamplingOptions get_options() const
   {
-    const Result &input = this->get_input("Interpolation");
-    const MenuValue default_menu_value = MenuValue(CMP_NODE_INTERPOLATION_BILINEAR);
-    const MenuValue menu_value = input.get_single_value_default(default_menu_value);
-    const CMPNodeInterpolation interpolation = static_cast<CMPNodeInterpolation>(menu_value.value);
-    switch (interpolation) {
-      case CMP_NODE_INTERPOLATION_NEAREST:
-        return Interpolation::Nearest;
-      case CMP_NODE_INTERPOLATION_BILINEAR:
-        return Interpolation::Bilinear;
-      case CMP_NODE_INTERPOLATION_BICUBIC:
-        return Interpolation::Bicubic;
+    math::SamplingOptions ret;
+
+    switch (static_cast<CMPNodeInterpolation>(
+        this->get_input("Interpolation")
+            .get_single_value_default(MenuValue(CMP_NODE_INTERPOLATION_BILINEAR))
+            .value))
+    {
       case CMP_NODE_INTERPOLATION_ANISOTROPIC:
-        return Interpolation::Anisotropic;
+        ret.sampler = math::Sampler::Anisotropic;
+        break;
+      case CMP_NODE_INTERPOLATION_NEAREST:
+        ret.sampler = math::Sampler::Nearest;
+        break;
+      default:
+        ret.sampler = math::Sampler::Box;
+        break;
+      case CMP_NODE_INTERPOLATION_BICUBIC:
+        ret.sampler = math::Sampler::Bspline;
+        break;
     }
 
-    return Interpolation::Nearest;
-  }
-
-  ExtensionMode get_extension_mode_x()
-  {
-    const Result &input = this->get_input("Extension X");
-    const MenuValue default_menu_value = MenuValue(CMP_NODE_EXTENSION_MODE_CLIP);
-    const MenuValue menu_value = input.get_single_value_default(default_menu_value);
-    const CMPExtensionMode extension_x = static_cast<CMPExtensionMode>(menu_value.value);
-    switch (extension_x) {
-      case CMP_NODE_EXTENSION_MODE_CLIP:
-        return ExtensionMode::Clip;
+    switch (static_cast<CMPExtensionMode>(
+        this->get_input("Extension X")
+            .get_single_value_default(MenuValue(CMP_NODE_EXTENSION_MODE_CLIP))
+            .value))
+    {
+      default:  // case CMP_NODE_EXTENSION_MODE_CLIP:
+        ret.wrap_x = math::InterpWrapMode::Border;
+        break;
       case CMP_NODE_EXTENSION_MODE_REPEAT:
-        return ExtensionMode::Repeat;
+        ret.wrap_x = math::InterpWrapMode::Repeat;
+        break;
       case CMP_NODE_EXTENSION_MODE_EXTEND:
-        return ExtensionMode::Extend;
+        ret.wrap_x = math::InterpWrapMode::Extend;
+        break;
     }
 
-    return ExtensionMode::Clip;
-  }
-
-  ExtensionMode get_extension_mode_y()
-  {
-    const Result &input = this->get_input("Extension Y");
-    const MenuValue default_menu_value = MenuValue(CMP_NODE_EXTENSION_MODE_CLIP);
-    const MenuValue menu_value = input.get_single_value_default(default_menu_value);
-    const CMPExtensionMode extension_y = static_cast<CMPExtensionMode>(menu_value.value);
-    switch (extension_y) {
-      case CMP_NODE_EXTENSION_MODE_CLIP:
-        return ExtensionMode::Clip;
+    switch (static_cast<CMPExtensionMode>(
+        this->get_input("Extension Y")
+            .get_single_value_default(MenuValue(CMP_NODE_EXTENSION_MODE_CLIP))
+            .value))
+    {
+      default:  // case CMP_NODE_EXTENSION_MODE_CLIP:
+        ret.wrap_y = math::InterpWrapMode::Border;
+        break;
       case CMP_NODE_EXTENSION_MODE_REPEAT:
-        return ExtensionMode::Repeat;
+        ret.wrap_y = math::InterpWrapMode::Repeat;
+        break;
       case CMP_NODE_EXTENSION_MODE_EXTEND:
-        return ExtensionMode::Extend;
+        ret.wrap_y = math::InterpWrapMode::Extend;
+        break;
     }
 
-    return ExtensionMode::Clip;
+    return ret;
   }
 };
 

@@ -250,7 +250,7 @@ class ToneMapOperation : public NodeOperation {
     return math::max(0.0f, this->get_input("Gamma").get_single_value_default(1.0f));
   }
 
-  /* Tone mapping based on equation (1) and the trilinear interpolation between equations (6) and
+  /* Tone mapping based on equation (1) and the trilinear.sampler between equations (6) and
    * (7) from Reinhard, Erik, and Kate Devlin. "Dynamic range reduction inspired by photoreceptor
    * physiology." IEEE transactions on visualization and computer graphics 11.1 (2005): 13-24. */
   void execute_photoreceptor()
@@ -320,7 +320,7 @@ class ToneMapOperation : public NodeOperation {
       float4 input_color = input.load_pixel<float4>(texel);
       float input_luminance = math::dot(input_color.xyz(), luminance_coefficients);
 
-      /* Trilinear interpolation between equations (6) and (7) from Reinhard's 2005 paper. */
+      /* Trilinear.sampler between equations (6) and (7) from Reinhard's 2005 paper. */
       float4 local_adaptation_level = math::interpolate(
           float4(input_luminance), input_color, chromatic_adaptation);
       float4 adaptation_level = math::interpolate(
@@ -334,7 +334,7 @@ class ToneMapOperation : public NodeOperation {
     });
   }
 
-  /* Computes the global adaptation level from the trilinear interpolation equations constructed
+  /* Computes the global adaptation level from the trilinear.sampler equations constructed
    * from equations (6) and (7) in Reinhard's 2005 paper. */
   float4 compute_global_adaptation_level()
   {
