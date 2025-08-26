@@ -503,7 +503,7 @@ static bool restore_active_shape_key(bContext &C,
 template<typename T>
 static void swap_indexed_data(MutableSpan<T> full, const IndexMask &mask, MutableSpan<T> indexed)
 {
-  BLI_assert(full.size() == indexed.size());
+  BLI_assert(full.size() == mask.size());
 
   mask.foreach_index_optimized<int>(
       [&](const int i, const int pos) { std::swap(full[pos], indexed[i]); });
@@ -547,7 +547,7 @@ static void restore_position_mesh(Object &object, PositionUndoStorage &undo_data
       /* When original positions aren't written separately in the undo step, there are no
        * deform modifiers. Therefore the original and evaluated deform positions will be the
        * same, and modifying the positions from the original mesh is enough. */
-      swap_indexed_data(node_positions, node_verts, positions);
+      swap_indexed_data(node_positions.take_front(unique_verts_num), node_verts, positions);
     }
     else {
       /* When original positions are stored in the undo step, undo/redo will cause a reevaluation
@@ -570,11 +570,11 @@ static void restore_position_mesh(Object &object, PositionUndoStorage &undo_data
           scatter_data_mesh(
               node_positions.as_span().take_front(unique_verts_num), node_verts, positions);
         }
-        swap_indexed_data(node_positions, node_verts, active_data);
+        swap_indexed_data(node_positions.take_front(unique_verts_num), node_verts, active_data);
       }
       else {
         /* There is a deform modifier, but no shape keys. */
-        swap_indexed_data(node_positions, node_verts, positions);
+        swap_indexed_data(node_positions.take_front(unique_verts_num), node_verts, positions);
       }
     }
   }
