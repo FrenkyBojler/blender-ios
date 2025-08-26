@@ -1957,7 +1957,6 @@ void push_end_ex(Object &ob, const bool use_nested_undo)
 
   if (step_data->type == Type::Position) {
     step_data->position_step_storage = std::make_unique<PositionUndoStorage>(*step_data);
-    step_data->nodes.clear_and_shrink();
   }
   else {
     step_data->undo_size = threading::parallel_reduce(
