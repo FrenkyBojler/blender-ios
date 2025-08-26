@@ -878,9 +878,6 @@ void ShaderModule::material_create_info_amend(GPUMaterial *gpumat, GPUCodegenOut
                                                                        "WorldPoint";
       domain_type_vert = "WorldPoint";
       break;
-    case MAT_GEOM_GPENCIL:
-      domain_type_frag = domain_type_vert = "GPencilPoint";
-      break;
     case MAT_GEOM_VOLUME:
       domain_type_frag = domain_type_vert = "VolumePoint";
       break;
