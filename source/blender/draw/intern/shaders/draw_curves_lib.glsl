@@ -235,6 +235,8 @@ struct ShapePoint {
  */
 ShapePoint shape_point_get(const Point pt, const float3 V)
 {
+  const bool is_strand = buffer_get(draw_curves_infos, drw_curves).half_cylinder_face_count == 0u;
+
   ShapePoint shape;
   /* Shading tangent is inverted because of legacy reason. */
   /* TODO(fclem): Change user code. */
@@ -244,7 +246,7 @@ ShapePoint shape_point_get(const Point pt, const float3 V)
   /* Point in curve azimuthal space. */
   const float2 lP = float2(pt.azimuthal_offset, sin_from_cos(abs(pt.azimuthal_offset)));
   shape.N = shape.curve_B * lP.x + shape.curve_N * lP.y;
-  shape.P = pt.P + shape.N * pt.radius;
+  shape.P = pt.P + shape.N * (is_strand ? 0.0f : pt.radius);
   return shape;
 }
 
