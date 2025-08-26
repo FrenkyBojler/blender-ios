@@ -66,10 +66,14 @@ static void ffmpeg_log_callback(void * /*ptr*/, int level, const char *format, v
       clg_level = CLG_LEVEL_FATAL;
       break;
     case AV_LOG_ERROR:
-      clg_level = CLG_LEVEL_ERROR;
+      /* Note: most ffmpeg errors are not actionable; treat them as "info" log level
+       * unless we are explicitly logging at increased verbosity. */
+      clg_level = CLOG_CHECK(&LOG, CLG_LEVEL_INFO) ? CLG_LEVEL_ERROR : CLG_LEVEL_INFO;
       break;
     case AV_LOG_WARNING:
-      clg_level = CLG_LEVEL_WARN;
+      /* Note: most ffmpeg warnings are not actionable; treat them as "info" log level
+       * unless we are explicitly logging at increased verbosity. */
+      clg_level = CLOG_CHECK(&LOG, CLG_LEVEL_INFO) ? CLG_LEVEL_WARN : CLG_LEVEL_INFO;
       break;
     case AV_LOG_INFO:
       clg_level = CLG_LEVEL_INFO;
@@ -87,7 +91,7 @@ static void ffmpeg_log_callback(void * /*ptr*/, int level, const char *format, v
   static std::mutex mutex;
   std::scoped_lock lock(mutex);
 
-  if (ELEM(clg_level, CLG_LEVEL_FATAL, CLG_LEVEL_ERROR)) {
+  if (ELEM(level, AV_LOG_PANIC, AV_LOG_FATAL, AV_LOG_ERROR)) {
     const size_t n = ffmpeg_log_to_buffer(
         ffmpeg_last_error_buffer, sizeof(ffmpeg_last_error_buffer), format, arg);
     /* Strip trailing \n. */
