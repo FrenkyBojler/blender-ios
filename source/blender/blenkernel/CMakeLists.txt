@@ -160,7 +160,6 @@ set(SRC
   intern/image_save.cc
   intern/instances.cc
   intern/instances_attributes.cc
-  intern/ipo.cc
   intern/kelvinlet.cc
   intern/key.cc
   intern/keyconfig.cc

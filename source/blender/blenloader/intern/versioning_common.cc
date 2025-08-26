@@ -23,7 +23,6 @@
 #include "BKE_animsys.h"
 #include "BKE_grease_pencil_legacy_convert.hh"
 #include "BKE_idprop.hh"
-#include "BKE_ipo.h"
 #include "BKE_lib_id.hh"
 #include "BKE_lib_override.hh"
 #include "BKE_library.hh"
@@ -713,7 +712,8 @@ void do_versions_after_setup(Main *new_bmain,
    * the versions of all the linked libraries. */
 
   if (!blendfile_or_libraries_versions_atleast(new_bmain, 250, 0)) {
-    do_versions_ipos_to_layered_actions(new_bmain);
+    /* TODO: issue a warning that any animation in this file will be lost, and that loading &
+     * saving with Blender 4.5 is the way to migrate. */
   }
 
   if (!blendfile_or_libraries_versions_atleast(new_bmain, 250, 0)) {
