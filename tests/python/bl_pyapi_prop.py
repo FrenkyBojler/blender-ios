@@ -45,33 +45,68 @@ class TestPropNumerical(unittest.TestCase):
         id_type.test_float = FloatProperty(default=float(self.default_value))
 
         self.test_bool_storage = bool(self.custom_value)
+        self.test_int_storage = int(self.custom_value)
+        self.test_float_storage = float(self.custom_value)
 
-        def set_(s, v):
+        def bool_set_(s, v):
             self.test_bool_storage = v
+        def int_set_(s, v):
+            self.test_int_storage = v
+        def float_set_(s, v):
+            self.test_float_storage = v
+
         id_type.test_bool_getset = BoolProperty(
             default=bool(self.default_value),
             get=lambda s: self.test_bool_storage,
-            set=set_,
+            set=bool_set_,
         )
-
-        self.test_int_storage = int(self.custom_value)
-
-        def set_(s, v):
-            self.test_int_storage = v
         id_type.test_int_getset = IntProperty(
             default=int(self.default_value),
             get=lambda s: self.test_int_storage,
-            set=set_,
+            set=int_set_,
         )
-
-        self.test_float_storage = float(self.custom_value)
-
-        def set_(s, v):
-            self.test_float_storage = v
         id_type.test_float_getset = FloatProperty(
             default=float(self.default_value),
             get=lambda s: self.test_float_storage,
-            set=set_,
+            set=float_set_,
+        )
+
+        id_type.test_bool_transform = BoolProperty(
+            default=bool(self.default_value),
+            get_transform=lambda s, c_v, isset: c_v,
+            set_transform=lambda s, n_v, c_v, isset: n_v,
+        )
+        id_type.test_int_transform = IntProperty(
+            default=int(self.default_value),
+            get_transform=lambda s, c_v, isset: c_v,
+            set_transform=lambda s, n_v, c_v, isset: n_v,
+        )
+        id_type.test_float_transform = FloatProperty(
+            default=float(self.default_value),
+            get_transform=lambda s, c_v, isset: c_v,
+            set_transform=lambda s, n_v, c_v, isset: n_v,
+        )
+
+        id_type.test_bool_getset_transform = BoolProperty(
+            default=bool(self.default_value),
+            get=lambda s: self.test_bool_storage,
+            set=bool_set_,
+            get_transform=lambda s, c_v, isset: c_v,
+            set_transform=lambda s, n_v, c_v, isset: n_v,
+        )
+        id_type.test_int_getset_transform = IntProperty(
+            default=int(self.default_value),
+            get=lambda s: self.test_int_storage,
+            set=int_set_,
+            get_transform=lambda s, c_v, isset: c_v,
+            set_transform=lambda s, n_v, c_v, isset: n_v,
+        )
+        id_type.test_float_getset_transform = FloatProperty(
+            default=float(self.default_value),
+            get=lambda s: self.test_float_storage,
+            set=float_set_,
+            get_transform=lambda s, c_v, isset: c_v,
+            set_transform=lambda s, n_v, c_v, isset: n_v,
         )
 
     def tearDown(self):
@@ -82,6 +117,14 @@ class TestPropNumerical(unittest.TestCase):
         del id_type.test_float_getset
         del id_type.test_int_getset
         del id_type.test_bool_getset
+
+        del id_type.test_float_transform
+        del id_type.test_int_transform
+        del id_type.test_bool_transform
+
+        del id_type.test_float_getset_transform
+        del id_type.test_int_getset_transform
+        del id_type.test_bool_getset_transform
 
     def do_test_access(self, prop_name, py_type, expected_value):
         v = getattr(id_inst, prop_name)
@@ -109,6 +152,24 @@ class TestPropNumerical(unittest.TestCase):
 
     def test_access_float_getset(self):
         self.do_test_access("test_float_getset", float, float(self.custom_value))
+
+    def test_access_bool_transform(self):
+        self.do_test_access("test_bool_transform", bool, bool(self.default_value))
+
+    def test_access_int_transform(self):
+        self.do_test_access("test_int_transform", int, int(self.default_value))
+
+    def test_access_float_transform(self):
+        self.do_test_access("test_float_transform", float, float(self.default_value))
+
+    def test_access_bool_getset_transform(self):
+        self.do_test_access("test_bool_getset_transform", bool, bool(self.custom_value))
+
+    def test_access_int_getset_transform(self):
+        self.do_test_access("test_int_getset_transform", int, int(self.custom_value))
+
+    def test_access_float_getset_transform(self):
+        self.do_test_access("test_float_getset_transform", float, float(self.custom_value))
 
     # TODO: Add expected failure cases (e.g. handling of out-of range values).
 
