@@ -6438,14 +6438,6 @@ void scatter_data_mesh(const Span<T> src, const Span<int> indices, const Mutable
 }
 
 template<typename T>
-void scatter_data_mesh(const Span<T> src, const IndexMask &mask, const MutableSpan<T> dst)
-{
-  BLI_assert(mask.size() == src.size());
-
-  mask.foreach_index_optimized<int>([&](const int i, const int pos) { dst[i] = src[pos]; });
-}
-
-template<typename T>
 void scatter_data_grids(const SubdivCCG &subdiv_ccg,
                         const Span<T> node_data,
                         const Span<int> grids,
@@ -6499,7 +6491,6 @@ template void scatter_data_mesh<bool>(Span<bool>, Span<int>, MutableSpan<bool>);
 template void scatter_data_mesh<int>(Span<int>, Span<int>, MutableSpan<int>);
 template void scatter_data_mesh<float>(Span<float>, Span<int>, MutableSpan<float>);
 template void scatter_data_mesh<float3>(Span<float3>, Span<int>, MutableSpan<float3>);
-template void scatter_data_mesh<float3>(Span<float3>, const IndexMask &, MutableSpan<float3>);
 template void scatter_data_mesh<float4>(Span<float4>, Span<int>, MutableSpan<float4>);
 template void scatter_data_grids<float>(const SubdivCCG &,
                                         Span<float>,
@@ -7281,16 +7272,6 @@ void apply_translations(const Span<float3> translations,
 }
 
 void apply_translations(const Span<float3> translations,
-                        const IndexMask &mask,
-                        const MutableSpan<float3> positions)
-{
-  BLI_assert(mask.size() == translations.size());
-
-  mask.foreach_index_optimized<int>(
-      [&](const int i, const int pos) { positions[i] += translations[pos]; });
-}
-
-void apply_translations(const Span<float3> translations,
                         const Span<int> grids,
                         SubdivCCG &subdiv_ccg)
 {
@@ -7560,17 +7541,6 @@ void translations_from_new_positions(const Span<float3> new_positions,
   for (const int i : verts.index_range()) {
     translations[i] = new_positions[i] - old_positions[verts[i]];
   }
-}
-
-void translations_from_new_positions(const Span<float3> new_positions,
-                                     const IndexMask &mask,
-                                     const Span<float3> old_positions,
-                                     const MutableSpan<float3> translations)
-{
-  BLI_assert(new_positions.size() == mask.size());
-  mask.foreach_index_optimized<int>([&](const int i, const int pos) {
-    translations[pos] = new_positions[pos] - old_positions[i];
-  });
 }
 
 void translations_from_new_positions(const Span<float3> new_positions,
