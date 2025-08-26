@@ -1,1 +1,2 @@
 Referenced by pull request #144653, Fix #144383: Automatically merge doubled faces during limited dissolve.
+Referenced by commit 001a2b3f4df52f4dcd36a3550907cfb45aca8185, Fix #144383: Limited dissolve creates duplicate faces
