@@ -399,13 +399,8 @@ static void add_interp_verts_copy_edges_to_new_mesh(const Mesh &src_mesh,
 
       // TODO_MESH_ATTR
       float weights[2] = {1.0f - fac, fac};
-      CustomData_interp(&src_mesh.vert_data,
-                        &dst_mesh.vert_data,
-                        (int *)&e_src[0],
-                        weights,
-                        nullptr,
-                        2,
-                        vert_index);
+      CustomData_interp(
+          &src_mesh.vert_data, &dst_mesh.vert_data, (int *)&e_src[0], weights, 2, vert_index);
       vert_index++;
     }
   }
@@ -553,7 +548,7 @@ static void add_interpolated_faces_to_new_mesh(const Mesh &src_mesh,
         int indices[2] = {i_ml_src + last_index, i_ml_src + index};
         // TODO_MESH_ATTR
         CustomData_interp(
-            &src_mesh.corner_data, &dst_mesh.corner_data, indices, weights, nullptr, 2, i_ml_dst);
+            &src_mesh.corner_data, &dst_mesh.corner_data, indices, weights, 2, i_ml_dst);
         dst_corner_edges[i_ml_dst] = edge_map[face_edges_src[last_index]];
         dst_corner_verts[i_ml_dst] = dst_edges[dst_corner_edges[i_ml_dst]][0];
         i_ml_dst++;
@@ -574,7 +569,7 @@ static void add_interpolated_faces_to_new_mesh(const Mesh &src_mesh,
         int indices[2] = {i_ml_src + last_index, i_ml_src + index};
         // TODO_MESH_ATTR
         CustomData_interp(
-            &src_mesh.corner_data, &dst_mesh.corner_data, indices, weights, nullptr, 2, i_ml_dst);
+            &src_mesh.corner_data, &dst_mesh.corner_data, indices, weights, 2, i_ml_dst);
         dst_corner_edges[i_ml_dst] = edge_index;
         dst_corner_verts[i_ml_dst] = dst_edges[edge_map[face_edges_src[last_index]]][0];
 
