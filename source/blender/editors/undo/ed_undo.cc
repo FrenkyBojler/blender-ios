@@ -37,6 +37,7 @@
 #include "ED_outliner.hh"
 #include "ED_render.hh"
 #include "ED_screen.hh"
+#include "ED_sculpt.hh"
 #include "ED_undo.hh"
 
 #include "WM_api.hh"
@@ -46,8 +47,6 @@
 #include "RNA_access.hh"
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
-
-#include "../sculpt_paint/sculpt_undo.hh"
 
 using blender::Set;
 using blender::Vector;

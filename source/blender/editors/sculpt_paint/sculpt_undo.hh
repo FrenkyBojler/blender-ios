@@ -8,7 +8,6 @@
 
 #pragma once
 
-#include <cstddef>
 #include <cstdint>
 
 #include "BLI_index_mask_fwd.hh"
@@ -17,7 +16,6 @@ struct Depsgraph;
 struct Mesh;
 struct Object;
 struct Scene;
-struct UndoStep;
 struct wmOperator;
 namespace blender::bke::pbvh {
 class Node;
@@ -81,5 +79,4 @@ void restore_from_bmesh_enter_geometry(const StepData &step_data, Mesh &mesh);
 bool has_bmesh_log_entry();
 
 void restore_position_from_undo_step(const Depsgraph &depsgraph, Object &object);
-size_t get_step_memory_size(UndoStep *step);
 }  // namespace blender::ed::sculpt_paint::undo
