@@ -365,16 +365,11 @@ namespace clay_strips {
 /**
  * Checks whether the node's bounding box overlaps with the region affected by the brush.
  *
- * In normal operation, Clay Strips affects only vertices below the brush plane.
- * The brush-local coordinate system is oriented so that vertices below the plane have positive
- * local z-coordinates.
- *
- * Ideally, we only need to check if the node intersects the [-1,1] x [-1,1] x [0,1] volume in
- * local space. However, to account for atypical brush operations using a fixed sculpt plane, the
- * `use_half_box_text` parameter is available to extend this check.
+ * Clay Strips affects only vertices below the brush plane. The brush-local coordinate system is
+ * oriented so that vertices below the plane have positive local z-coordinates. Therefore, we only
+ * need to check if the node intersects the [-1,1] x [-1,1] x [0,1] volume in local space.
  */
-static bool node_in_box(const float4x4 &mat,
-                        const Bounds<float3> &bounds)
+static bool node_in_box(const float4x4 &mat, const Bounds<float3> &bounds)
 {
   const float3 brush_center = float3(0.0f, 0.0f, 0.5f);
   const float3 node_center = math::transform_point(mat, (bounds.max + bounds.min) * 0.5f);
