@@ -245,23 +245,12 @@ void screen_draw_move_highlight(const wmWindow *win,
   rcti window_rect;
   WM_window_screen_rect_calc(win, &window_rect);
   const float offset = U.border_width * UI_SCALE_FAC;
+  const float width = std::min(2.0f * offset, 5.0f * UI_SCALE_FAC);
   if (dir_axis == SCREEN_AXIS_H) {
-    rect.xmin += offset;
-    rect.xmax -= offset;
+    BLI_rctf_pad(&rect, -offset, width);
   }
   else {
-    rect.ymin += offset;
-    rect.ymax -= offset;
-  }
-
-  const float width = std::min(2.0f * U.border_width * UI_SCALE_FAC, 5.0f * UI_SCALE_FAC) *
-                      anim_factor;
-
-  if (dir_axis == SCREEN_AXIS_H) {
-    BLI_rctf_pad(&rect, 0.0f, width);
-  }
-  else {
-    BLI_rctf_pad(&rect, width, 0.0f);
+    BLI_rctf_pad(&rect, width, -offset);
   }
 
   float inner[4] = {1.0f, 1.0f, 1.0f, 0.4f * anim_factor};

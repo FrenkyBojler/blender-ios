@@ -1832,7 +1832,6 @@ static void area_move_out_draw_cb(const wmWindow *win, void *userdata)
   if (now > md->end_time) {
     WM_draw_cb_exit(md->win, md->draw_callback);
     MEM_freeN(md);
-    md = nullptr;
     return;
   }
   float factor = 1.0f;
