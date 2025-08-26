@@ -291,7 +291,7 @@ template<typename T> Array<std::byte> compress_data(const Span<T> src)
 {
   Array<std::byte> dst(ZSTD_compressBound(src.size_in_bytes()), NoInitialization());
   const size_t dst_size = ZSTD_compress(
-      dst.data(), dst.size(), src.data(), src.size_in_bytes(), 19);
+      dst.data(), dst.size(), src.data(), src.size_in_bytes(), 12);
   return dst.as_span().take_front(dst_size);
 }
 
