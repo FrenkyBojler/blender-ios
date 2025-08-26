@@ -50,6 +50,7 @@
 
 #include "SEQ_channels.hh"
 #include "SEQ_offscreen.hh"
+#include "SEQ_preview_cache.hh"
 #include "SEQ_retiming.hh"
 #include "SEQ_sequencer.hh"
 #include "SEQ_time.hh"
@@ -68,10 +69,11 @@ namespace blender::ed::vse {
 
 /**************************** common state *****************************/
 
-static void sequencer_scopes_tag_refresh(ScrArea *area)
+static void sequencer_scopes_tag_refresh(ScrArea *area, const Scene *scene)
 {
   SpaceSeq *sseq = (SpaceSeq *)area->spacedata.first;
-  sseq->runtime->scopes.reference_ibuf = nullptr;
+  sseq->runtime->scopes.cleanup();
+  seq::preview_cache_invalidate(const_cast<Scene *>(scene));
 }
 
 SpaceSeq_Runtime::~SpaceSeq_Runtime() = default;
@@ -302,14 +304,14 @@ static void sequencer_listener(const wmSpaceTypeListenerParams *params)
       switch (wmn->data) {
         case ND_FRAME:
         case ND_SEQUENCER:
-          sequencer_scopes_tag_refresh(area);
+          sequencer_scopes_tag_refresh(area, params->scene);
           break;
       }
       break;
     case NC_WINDOW:
     case NC_SPACE:
       if (wmn->data == ND_SPACE_SEQUENCER) {
-        sequencer_scopes_tag_refresh(area);
+        sequencer_scopes_tag_refresh(area, params->scene);
       }
       break;
     case NC_GPENCIL:
@@ -673,9 +675,7 @@ static void sequencer_main_cursor(wmWindow *win, ScrArea *area, ARegion *region)
   int wmcursor = WM_CURSOR_DEFAULT;
 
   const bToolRef *tref = area->runtime.tool;
-  if (tref == nullptr ||
-      !(STRPREFIX(tref->idname, "builtin.select") || STREQ(tref->idname, "builtin.blade")))
-  {
+  if (tref == nullptr) {
     WM_cursor_set(win, wmcursor);
     return;
   }
@@ -707,12 +707,19 @@ static void sequencer_main_cursor(wmWindow *win, ScrArea *area, ARegion *region)
   }
   const Editing *ed = seq::editing_get(scene);
 
-  if (STREQ(tref->idname, "builtin.blade")) {
+  if (STREQ(tref->idname, "builtin.blade") || STREQ(tref->idname, "builtin.slip")) {
     int mval[2] = {int(mouse_co_region[0]), int(mouse_co_region[1])};
     Strip *strip = strip_under_mouse_get(scene, v2d, mval);
-    ListBase *channels = seq::channels_displayed_get(ed);
     if (strip != nullptr) {
-      wmcursor = seq::transform_is_locked(channels, strip) ? WM_CURSOR_STOP : WM_CURSOR_BLADE;
+      ListBase *channels = seq::channels_displayed_get(ed);
+      const bool locked = seq::transform_is_locked(channels, strip);
+      if (STREQ(tref->idname, "builtin.blade")) {
+        wmcursor = locked ? WM_CURSOR_STOP : WM_CURSOR_BLADE;
+      }
+      else if (STREQ(tref->idname, "builtin.slip")) {
+        wmcursor = (locked || seq::transform_single_image_check(strip)) ? WM_CURSOR_STOP :
+                                                                          WM_CURSOR_SLIP;
+      }
     }
     WM_cursor_set(win, wmcursor);
     return;
