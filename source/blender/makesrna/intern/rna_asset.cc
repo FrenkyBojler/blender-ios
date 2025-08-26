@@ -85,8 +85,7 @@ static bool rna_AssetMetaData_editable_from_owner_id(const ID *owner_id,
   }
   return false;
 }
-
-int rna_AssetMetaData_editable(const PointerRNA *ptr, const char ** /* r_info */)
+int rna_AssetMetaData_externally_editable(const PointerRNA *ptr, const char ** /* r_info */)
 {
   AssetMetaData *asset_data = static_cast<AssetMetaData *>(ptr->data);
   if (ptr->owner_id && asset_data && (ptr->owner_id->asset_data == asset_data)) {
@@ -97,6 +96,15 @@ int rna_AssetMetaData_editable(const PointerRNA *ptr, const char ** /* r_info */
   /* Assets in external libraries may be editable in certain conditions, e.g. with
    * BLENDER_ASSET_FILE_SUFFIX. */
   return asset_data->runtime_flag & ASSET_METADATA_FLAG_EDITABLE ? PROP_EDITABLE : PropertyFlag(0);
+}
+
+int rna_AssetMetaData_editable(const PointerRNA *ptr, const char **r_info)
+{
+  AssetMetaData *asset_data = static_cast<AssetMetaData *>(ptr->data);
+
+  return rna_AssetMetaData_editable_from_owner_id(ptr->owner_id, asset_data, r_info) ?
+             PROP_EDITABLE :
+             PropertyFlag(0);
 }
 
 static std::optional<std::string> rna_AssetTag_path(const PointerRNA *ptr)
@@ -539,7 +547,7 @@ static void rna_def_asset_data(BlenderRNA *brna)
   RNA_def_struct_flag(srna, STRUCT_NO_DATABLOCK_IDPROPERTIES); /* Mandatory! */
 
   prop = RNA_def_property(srna, "author", PROP_STRING, PROP_NONE);
-  RNA_def_property_editable_func(prop, "rna_AssetMetaData_editable");
+  RNA_def_property_editable_func(prop, "rna_AssetMetaData_externally_editable");
   RNA_def_property_string_funcs(prop,
                                 "rna_AssetMetaData_author_get",
                                 "rna_AssetMetaData_author_length",
@@ -547,7 +555,7 @@ static void rna_def_asset_data(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Author", "Name of the creator of the asset");
 
   prop = RNA_def_property(srna, "description", PROP_STRING, PROP_NONE);
-  RNA_def_property_editable_func(prop, "rna_AssetMetaData_editable");
+  RNA_def_property_editable_func(prop, "rna_AssetMetaData_externally_editable");
   RNA_def_property_string_funcs(prop,
                                 "rna_AssetMetaData_description_get",
                                 "rna_AssetMetaData_description_length",
@@ -556,7 +564,7 @@ static void rna_def_asset_data(BlenderRNA *brna)
       prop, "Description", "A description of the asset to be displayed for the user");
 
   prop = RNA_def_property(srna, "copyright", PROP_STRING, PROP_NONE);
-  RNA_def_property_editable_func(prop, "rna_AssetMetaData_editable");
+  RNA_def_property_editable_func(prop, "rna_AssetMetaData_externally_editable");
   RNA_def_property_string_funcs(prop,
                                 "rna_AssetMetaData_copyright_get",
                                 "rna_AssetMetaData_copyright_length",
@@ -568,7 +576,7 @@ static void rna_def_asset_data(BlenderRNA *brna)
       "that this is copyright-free. Contact the author if any clarification is needed.");
 
   prop = RNA_def_property(srna, "license", PROP_STRING, PROP_NONE);
-  RNA_def_property_editable_func(prop, "rna_AssetMetaData_editable");
+  RNA_def_property_editable_func(prop, "rna_AssetMetaData_externally_editable");
   RNA_def_property_string_funcs(prop,
                                 "rna_AssetMetaData_license_get",
                                 "rna_AssetMetaData_license_length",

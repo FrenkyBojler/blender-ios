@@ -120,8 +120,10 @@ class AssetRepresentation : NonCopyable, NonMovable {
   AssetLibrary &owner_asset_library() const;
 
   /**
-   * Returns true if the asset can be edited and saved. This is true for local assets and asset
-   * system files. This queries the hard drive to find the filepath of the library file.
+   * Returns true if the asset may be edited in the UI, because the edits can likely be written
+   * back to the source asset. This is true for local assets and asset system files. This queries
+   * the hard drive to find the filepath of the library file. This only checks the filepath for the
+   * file extension, and doesn't actually read the file.
    */
   bool is_editable() const;
 };

@@ -1466,7 +1466,8 @@ static bool asset_editable_poll(bContext *C)
   }
 
   if (!asset_handle->is_editable()) {
-    CTX_wm_operator_poll_msg_set(C, "Asset cannot be modified from this file");
+    CTX_wm_operator_poll_msg_set(
+        C, "The file containing this asset does not permit external editing");
     return false;
   }
   return true;
