@@ -4960,6 +4960,10 @@ static void def_fn_input_string(BlenderRNA * /*brna*/, StructRNA *srna)
   prop = RNA_def_property(srna, "string", PROP_STRING, PROP_NONE);
   RNA_def_property_ui_text(prop, "String", "");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+
+  prop = RNA_def_property(srna, "textbox_lines", PROP_INT, PROP_NONE);
+  RNA_def_property_ui_text(prop, "Textbox lines", "Visible lines");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 }
 
 /* -- Shader Nodes ---------------------------------------------------------- */

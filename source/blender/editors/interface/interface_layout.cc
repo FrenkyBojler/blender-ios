@@ -184,7 +184,7 @@ blender::ui::ItemType uiItem::type() const
   return type_;
 };
 
-uiLayout::uiLayout(blender::ui::ItemType type) : uiItem(type){};
+uiLayout::uiLayout(blender::ui::ItemType type) : uiItem(type) {};
 
 using uiItemType = blender::ui::ItemType;
 using uiItemInternalFlag = blender::ui::ItemInternalFlag;
@@ -2656,17 +2656,29 @@ static uiLayoutItemBx *ui_layout_box(uiLayout *layout, ButType type);
 
 void uiLayout::prop_textbox(PointerRNA *ptr,
                             blender::StringRefNull propname,
+                            PointerRNA *visible_lines_ptr,
+                            blender::StringRefNull visible_lines_propname,
                             blender::StringRefNull idname)
 {
   uiBlock *block = this->block();
   PropertyRNA *prop = RNA_struct_find_property_check(*ptr, propname.c_str(), PROP_STRING);
+  PropertyRNA *visible_lines_prop = RNA_struct_find_property_check(
+      *visible_lines_ptr, visible_lines_propname.c_str(), PROP_INT);
+
   if (!prop) {
     ui_item_disabled(this, propname.c_str());
     RNA_warning(
         "string property not found: %s.%s", RNA_struct_identifier(ptr->type), propname.c_str());
     return;
   }
-  if (block->textbox_status.contains_as(idname)) {
+  else if (!visible_lines_prop) {
+    ui_item_disabled(this, visible_lines_propname.c_str());
+    RNA_warning("int property not found: %s.%s",
+                RNA_struct_identifier(visible_lines_ptr->type),
+                visible_lines_propname.c_str());
+    return;
+  }
+  else if (block->textbox_status.contains_as(idname)) {
     ui_item_disabled(this, propname.c_str());
     RNA_warning("textbox id already in use: %s", idname.c_str());
     return;
@@ -2689,6 +2701,9 @@ void uiLayout::prop_textbox(PointerRNA *ptr,
   TextboxStatus &textbox_status = *block->textbox_status.lookup_key_as(idname).get();
   float line_heigth = UI_UNIT_Y;
   row.row(true);
+  const int visible_lines = std::max(
+      RNA_int_get(visible_lines_ptr, visible_lines_propname.c_str()), 3);
+
   uiBut *but = uiDefButR_prop(block,
                               ButType::TextBox,
                               0,
@@ -2696,7 +2711,7 @@ void uiLayout::prop_textbox(PointerRNA *ptr,
                               0,
                               0,
                               25,
-                              line_heigth * (textbox_status.visible_lines_get()),
+                              line_heigth * visible_lines,
                               ptr,
                               prop,
                               0,
@@ -2705,7 +2720,7 @@ void uiLayout::prop_textbox(PointerRNA *ptr,
                               std::nullopt);
   uiButTextBox *textbox = static_cast<uiButTextBox *>(but);
   textbox->status = &textbox_status;
-
+  textbox->visible_lines_set(visible_lines);
   /* Clamp scroll, resizing the region could add/remove wrapped lines. */
   textbox->line_scroll_set(textbox->line_scroll());
 
@@ -2717,7 +2732,7 @@ void uiLayout::prop_textbox(PointerRNA *ptr,
            0,
            0,
            V2D_SCROLL_WIDTH + 0.15f * UI_UNIT_X,
-           line_heigth * (textbox_status.visible_lines_get()),
+           line_heigth * visible_lines,
            nullptr,
            0.0,
            0.0,
@@ -2741,25 +2756,29 @@ void uiLayout::prop_textbox(PointerRNA *ptr,
       std::max<int>(textbox_status.last_total_lines - textbox_status.visible_lines_get(), 0),
       "");
   uiButScrollBar *but_scroll = reinterpret_cast<uiButScrollBar *>(but);
-  but_scroll->visual_height = textbox_status.visible_lines_get();
+  but_scroll->visual_height = visible_lines;
   uiDefBut(block, ButType::Sepr, 0, "", 0, 0, 0.1f * UI_UNIT_X, 0, nullptr, 0.0, 0.0, "");
 
   blender::ui::block_layout_set_current(block, &sub);
   uiDefBut(block, ButType::Sepr, 0, "", 0, 0, 0, 0.05f * UI_UNIT_Y, nullptr, 0.0, 0.0, "");
 
   sub.row(true).alignment_set(blender::ui::LayoutAlign::Right);
-  uiDefIconButI(block,
-                ButType::Grip,
-                0,
-                ICON_GRIP_CORNER_BOTTOM_RIGHT,
-                0,
-                0,
-                0.5f * UI_UNIT_X,
-                0.5f * UI_UNIT_Y,
-                &textbox_status.visible_height,
-                0.0f,
-                0.0f,
-                "")->grip_step=UI_UNIT_Y;
+  RNA_int_set(visible_lines_ptr, visible_lines_propname.c_str(), visible_lines);
+  but = uiDefIconButR(block,
+                      ButType::Grip,
+                      0,
+                      ICON_GRIP_CORNER_BOTTOM_RIGHT,
+                      0,
+                      0,
+                      0.5f * UI_UNIT_X,
+                      0.5f * UI_UNIT_Y,
+                      visible_lines_ptr,
+                      visible_lines_propname,
+                      0,
+                      3.0f,
+                      100.0f,
+                      "");
+  static_cast<uiButGrip *>(but)->step_distance = line_heigth;
   uiDefBut(block, ButType::Sepr, 0, "", 0, 0, 0.1f * UI_UNIT_X, 0, nullptr, 0.0, 0.0, "");
 }
 

@@ -1787,6 +1787,8 @@ typedef struct NodeInputColor {
 
 typedef struct NodeInputString {
   char *string;
+  int textbox_lines;
+  char _pad[4];
 } NodeInputString;
 
 typedef struct NodeGeometryExtrudeMesh {

@@ -641,6 +641,8 @@ struct uiLayout : public uiItem, blender::NonCopyable, blender::NonMovable {
                    int icon);
   void prop_textbox(PointerRNA *ptr,
                     blender::StringRefNull propname,
+                    PointerRNA *visible_lines_ptr,
+                    blender::StringRefNull visible_lines_propname,
                     blender::StringRefNull idname);
 
   /**
