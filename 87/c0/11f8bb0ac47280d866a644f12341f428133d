@@ -4,3 +4,4 @@ Referenced by pull request #141872, Fix #141847: Input node properties missing i
 Referenced by commit 7f07124d30f1b8d1eb041d0e3672eb74ba07fcd5, Fix #141847: Input node properties missing in sidebar
 Referenced by issue #144760, Value Node not changeable in Properties Window
 Referenced by pull request #144993, Fix #144760: Some (Input) Nodes not changeable in Properties Editor
+Referenced by commit d7fa455e66657211f929d89e7da85c349975cd53, Fix #144760: Some (Input) Nodes not changeable in Properties Editor
