@@ -498,12 +498,12 @@ static bool restore_active_shape_key(bContext &C,
 }
 
 template<typename T>
-static void swap_indexed_data(MutableSpan<T> full, const IndexMask &mask, MutableSpan<T> indexed)
+static void swap_indexed_data(MutableSpan<T> full, const Span<int> indices, MutableSpan<T> indexed)
 {
-  BLI_assert(full.size() == mask.size());
-
-  mask.foreach_index_optimized<int>(
-      [&](const int i, const int pos) { std::swap(full[pos], indexed[i]); });
+  BLI_assert(full.size() == indices.size());
+  for (const int i : indices.index_range()) {
+    std::swap(full[i], indexed[indices[i]]);
+  }
 }
 
 static void restore_position_mesh(Object &object, PositionUndoStorage &undo_data)
@@ -519,69 +519,52 @@ static void restore_position_mesh(Object &object, PositionUndoStorage &undo_data
   undo_data.ensure_compression_complete();
 
   const int nodes_num = undo_data.unique_verts_nums.size();
-  Array<Array<int>> decompressed_indices(nodes_num);
-  Array<Array<float3>> decompressed_positions(nodes_num);
 
   threading::parallel_for(IndexRange(nodes_num), 1, [&](const IndexRange range) {
     for (const int i : range) {
-      decompressed_indices[i] = zstd::decompress<int>(undo_data.compressed_indices[i]);
-      decompressed_positions[i] = zstd::decompress<float3>(undo_data.compressed_positions[i]);
-    }
-  });
-
-  threading::parallel_for(IndexRange(nodes_num), 1, [&](const IndexRange range) {
-    for (const int i : range) {
-      const Span<int> node_indices = decompressed_indices[i];
-      MutableSpan<float3> node_positions = decompressed_positions[i];
-      const int unique_verts_num = undo_data.unique_verts_nums[i];
-
-      IndexMaskMemory memory;
-      const IndexMask node_verts = IndexMask::from_indices(
-          node_indices.take_front(unique_verts_num), memory);
+      Array<int> verts = zstd::decompress<int>(undo_data.compressed_indices[i]);
+      Array<float3> node_positions = zstd::decompress<float3>(undo_data.compressed_positions[i]);
+      const int unique_verts_num = verts.size();  // TODO!
 
       if (!ss.deform_modifiers_active) {
         /* When original positions aren't written separately in the undo step, there are no
          * deform modifiers. Therefore the original and evaluated deform positions will be the
          * same, and modifying the positions from the original mesh is enough. */
-        swap_indexed_data(node_positions.take_front(unique_verts_num), node_verts, positions);
+        swap_indexed_data(
+            node_positions.as_mutable_span().take_front(unique_verts_num), verts, positions);
       }
       else {
         /* When original positions are stored in the undo step, undo/redo will cause a reevaluation
          * of the object. The evaluation will recompute the evaluated positions, so dealing with
          * them here is unnecessary. */
+        MutableSpan<float3> undo_positions = node_positions;
+
         if (shape_key_data) {
           MutableSpan<float3> active_data = shape_key_data->active_key_data;
 
           if (!shape_key_data->dependent_keys.is_empty()) {
-            Array<float3, 1024> translations(node_verts.size());
-            translations_from_new_positions(node_positions.take_front(unique_verts_num),
-                                            node_verts,
-                                            active_data,
-                                            translations);
+            Array<float3, 1024> translations(verts.size());
+            translations_from_new_positions(
+                undo_positions.take_front(unique_verts_num), verts, active_data, translations);
             for (MutableSpan<float3> data : shape_key_data->dependent_keys) {
-              apply_translations(translations, node_verts, data);
+              apply_translations(translations, verts, data);
             }
           }
 
           if (shape_key_data->basis_key_active) {
             /* The basis key positions and the mesh positions are always kept in sync. */
-            scatter_data_mesh(
-                node_positions.as_span().take_front(unique_verts_num), node_verts, positions);
+            scatter_data_mesh(undo_positions.as_span(), verts, positions);
           }
-          swap_indexed_data(node_positions.take_front(unique_verts_num), node_verts, active_data);
+          swap_indexed_data(undo_positions.take_front(unique_verts_num), verts, active_data);
         }
         else {
           /* There is a deform modifier, but no shape keys. */
-          swap_indexed_data(node_positions.take_front(unique_verts_num), node_verts, positions);
+          swap_indexed_data(undo_positions.take_front(unique_verts_num), verts, positions);
         }
       }
-    }
-  });
 
-  threading::parallel_for(IndexRange(nodes_num), 1, [&](const IndexRange range) {
-    for (const int i : range) {
-      undo_data.compressed_indices[i] = zstd::compress<int>(decompressed_indices[i]);
-      undo_data.compressed_positions[i] = zstd::compress<float3>(decompressed_positions[i]);
+      undo_data.compressed_indices[i] = zstd::compress<int>(verts);
+      undo_data.compressed_positions[i] = zstd::compress<float3>(node_positions);
     }
   });
 }
