@@ -487,31 +487,31 @@ class NODE_OT_swap_node(NodeSwapOperator, Operator):
             if tree.nodes.get(old_node.name) is None:
                 continue
 
-            node_new = self.create_node(context, self.type)
+            new_node = self.create_node(context, self.type)
             if self.visible_output:
-                for socket in node_new.outputs:
+                for socket in new_node.outputs:
                     if socket.name != self.visible_output:
                         socket.hide = True
-            node_new.location = old_node.location
-            node_new.select = True
+            new_node.location = old_node.location
+            new_node.select = True
 
             zone_pair = self.get_zone_pair(tree, old_node)
 
             if zone_pair is not None:
                 input_node, output_node = zone_pair
 
-                self.transfer_input_values(input_node, node_new)
+                self.transfer_input_values(input_node, new_node)
 
-                self.transfer_links(tree, input_node, node_new, is_input=True)
-                self.transfer_links(tree, output_node, node_new, is_input=False)
+                self.transfer_links(tree, input_node, new_node, is_input=True)
+                self.transfer_links(tree, output_node, new_node, is_input=False)
 
                 for node in zone_pair:
                     tree.nodes.remove(node)
             else:
-                self.transfer_input_values(old_node, node_new)
+                self.transfer_input_values(old_node, new_node)
 
-                self.transfer_links(tree, old_node, node_new, is_input=True)
-                self.transfer_links(tree, old_node, node_new, is_input=False)
+                self.transfer_links(tree, old_node, new_node, is_input=True)
+                self.transfer_links(tree, old_node, new_node, is_input=False)
 
                 tree.nodes.remove(old_node)
 
