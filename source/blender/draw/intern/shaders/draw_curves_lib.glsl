@@ -47,7 +47,8 @@ Segment segment_get(uint vertex_id)
   segment.is_end_of_segment = is_cylinder && (segment.v_idx == drw_curves.vertex_per_segment - 1);
   if (is_cylinder && !segment.is_end_of_segment && (segment.id & 1u) == 0u) {
     /* The topology is not actually restarted and the winding order changes (because we skip an odd
-     * number of triangle). So we have to manually reverse the winding so that is stays consistent.
+     * number of triangles). So we have to manually reverse the winding so that is stays
+     * consistent.
      */
     segment.v_idx ^= 1u;
   }
