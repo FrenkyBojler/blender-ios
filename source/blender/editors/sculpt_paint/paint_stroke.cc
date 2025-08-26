@@ -53,8 +53,6 @@
 
 // #define DEBUG_TIME
 
-#define PAINT_DEBUG_PEN_PRESSURE_TEXT (G.debug_value == 887)
-
 #ifdef DEBUG_TIME
 #  include "BLI_time_utildefines.h"
 #endif
@@ -896,6 +894,11 @@ static int paint_space_stroke(bContext *C,
   return count;
 }
 
+static bool print_pressure_status_enabled()
+{
+  return (G.debug_value == 887);
+}
+
 /**** Public API ****/
 
 PaintStroke *paint_stroke_new(bContext *C,
@@ -1014,7 +1017,7 @@ void paint_stroke_free(bContext *C, wmOperator * /*op*/, PaintStroke *stroke)
 
 static void stroke_done(bContext *C, wmOperator *op, PaintStroke *stroke)
 {
-  if (PAINT_DEBUG_PEN_PRESSURE_TEXT) {
+  if (print_pressure_status_enabled()) {
     ED_workspace_status_text(C, nullptr);
   }
   bke::PaintRuntime *paint_runtime = stroke->paint->runtime;
@@ -1487,7 +1490,7 @@ wmOperatorStatus paint_stroke_modal(bContext *C,
   float pressure = ((br->flag & (BRUSH_LINE | BRUSH_ANCHORED | BRUSH_DRAG_DOT)) ? 1.0f :
                                                                                   tablet_pressure);
 
-  if (PAINT_DEBUG_PEN_PRESSURE_TEXT && WM_event_is_tablet(event)) {
+  if (print_pressure_status_enabled() && WM_event_is_tablet(event)) {
     std::string msg = fmt::format("Tablet Pressure: {:.4f}", pressure);
     ED_workspace_status_text(C, msg.c_str());
   }
