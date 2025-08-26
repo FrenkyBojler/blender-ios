@@ -780,8 +780,15 @@ struct InstancesKey {
   }
 };
 
+enum SyncFlags {
+  SYNC_NONE = 0,
+  SYNC_OBJECT = 1u << 0,
+  SYNC_INSTANCES = 1u << 1,
+  SYNC_ALL = SYNC_OBJECT | SYNC_INSTANCES,
+};
+
 void foreach_obref_in_scene(DRWContext &draw_ctx,
-                            FunctionRef<bool(Object &)> should_draw_object_cb,
+                            FunctionRef<SyncFlags(Object &)> should_draw_object_cb,
                             FunctionRef<void(ObjectRef &)> draw_object_cb)
 {
   DupliList duplilist;
@@ -812,19 +819,21 @@ void foreach_obref_in_scene(DRWContext &draw_ctx,
       continue;
     }
 
-    if (!should_draw_object_cb(*ob)) {
+    SyncFlags sync_flags = should_draw_object_cb(*ob);
+    if (!sync_flags) {
       continue;
     }
 
     int visibility = BKE_object_visibility(ob, eval_mode);
     bool ob_visible = visibility & (OB_VISIBLE_SELF | OB_VISIBLE_PARTICLES);
 
-    if (ob_visible) {
+    if (ob_visible && (sync_flags & SYNC_OBJECT)) {
       ObjectRef ob_ref(ob);
       draw_object_cb(ob_ref);
     }
 
     bool instances_visible = (visibility & OB_VISIBLE_INSTANCES) &&
+                             (sync_flags & SYNC_INSTANCES) &&
                              ((ob->transflag & OB_DUPLI) ||
                               ob->runtime->geometry_set_eval != nullptr);
 
@@ -860,7 +869,7 @@ void foreach_obref_in_scene(DRWContext &draw_ctx,
         /* Sync the dupli as a single object. */
         if (!evil::DEG_iterator_temp_object_from_dupli(
                 ob, &dupli, eval_mode, false, &tmp_object, &tmp_runtime) ||
-            !should_draw_object_cb(tmp_object))
+            !(should_draw_object_cb(tmp_object) & SYNC_OBJECT))
         {
           evil::DEG_iterator_temp_object_free_properties(&dupli, &tmp_object);
           continue;
@@ -895,7 +904,7 @@ void foreach_obref_in_scene(DRWContext &draw_ctx,
       DupliObject *first_dupli = instances.first();
       if (!evil::DEG_iterator_temp_object_from_dupli(
               ob, first_dupli, eval_mode, false, &tmp_object, &tmp_runtime) ||
-          !should_draw_object_cb(tmp_object))
+          !(should_draw_object_cb(tmp_object) & SYNC_OBJECT))
       {
         evil::DEG_iterator_temp_object_free_properties(first_dupli, &tmp_object);
         continue;
@@ -1430,8 +1439,8 @@ static void drw_draw_render_loop_3d(DRWContext &draw_ctx, RenderEngineType *engi
   const bool do_populate_loop = internal_engine || overlays_on || !draw_type_render ||
                                 gpencil_engine_needed;
 
-  auto should_draw_object = [&](Object &ob) -> bool {
-    return BKE_object_is_visible_in_viewport(v3d, &ob);
+  auto should_draw_object = [&](Object &ob) -> SyncFlags {
+    return BKE_object_is_visible_in_viewport(v3d, &ob) ? SYNC_ALL : SYNC_NONE;
   };
 
   draw_ctx.enable_engines(gpencil_engine_needed, engine_type);
@@ -1468,11 +1477,8 @@ static void drw_draw_render_loop_2d(DRWContext &draw_ctx)
 {
   using namespace blender::draw;
 
-  Depsgraph *depsgraph = draw_ctx.depsgraph;
   ARegion *region = draw_ctx.region;
 
-  /* TODO(jbakker): Only populate when editor needs to draw object.
-   * for the image editor this is when showing UVs. */
   bool do_populate_loop = false;
   if (draw_ctx.space_data->spacetype == SPACE_IMAGE) {
     const SpaceImage *space_image = reinterpret_cast<const SpaceImage *>(draw_ctx.space_data);
@@ -1493,8 +1499,14 @@ static void drw_draw_render_loop_2d(DRWContext &draw_ctx)
     }
 
     /* Only selected and/or active objects can ever be drawn to 2D editors. */
-    auto should_draw_object = [&](Object &ob) -> bool {
-      return (ob.base_flag & BASE_SELECTED) || &ob == draw_ctx.obact;
+    auto should_draw_object = [&](Object &ob) -> SyncFlags {
+      if (ob.base_flag & BASE_SELECTED) {
+        return SYNC_ALL;
+      }
+      else if (&ob == draw_ctx.obact) {
+        return SYNC_OBJECT;
+      }
+      return SYNC_NONE;
     };
 
     foreach_obref_in_scene(draw_ctx, should_draw_object, [&](ObjectRef &ob_ref) {
@@ -1766,11 +1778,11 @@ void DRW_render_object_iter(
   DRWContext &draw_ctx = drw_get();
   View3D *v3d = draw_ctx.v3d;
 
-  auto should_draw_object = [&](Object &ob) -> bool {
+  auto should_draw_object = [&](Object &ob) -> SyncFlags {
     if (v3d) {
-      return BKE_object_is_visible_in_viewport(v3d, &ob);
+      return BKE_object_is_visible_in_viewport(v3d, &ob) ? SYNC_ALL : SYNC_NONE;
     }
-    return true;
+    return SYNC_ALL;
   };
 
   draw_ctx.sync([&](DupliCacheManager &duplis, ExtractionGraph &extraction) {
@@ -1964,12 +1976,12 @@ void DRW_draw_select_loop(Depsgraph *depsgraph,
       auto should_draw_object = [&](Object &ob) {
         if (use_pose_exception && (ob.mode & OB_MODE_POSE)) {
           if ((ob.base_flag & BASE_ENABLED_AND_VISIBLE_IN_DEFAULT_VIEWPORT) == 0) {
-            return false;
+            return SYNC_NONE;
           }
         }
         else {
           if ((ob.base_flag & BASE_SELECTABLE) == 0) {
-            return false;
+            return SYNC_NONE;
           }
         }
 
@@ -1982,11 +1994,11 @@ void DRW_draw_select_loop(Depsgraph *depsgraph,
               filter_exclude = (object_filter_fn(&ob, object_filter_user_data) == false);
             }
             if (filter_exclude) {
-              return false;
+              return SYNC_NONE;
             }
           }
         }
-        return true;
+        return SYNC_ALL;
       };
 
       foreach_obref_in_scene(draw_ctx, should_draw_object, [&](ObjectRef &ob_ref) {
@@ -2047,15 +2059,15 @@ void DRW_draw_depth_loop(Depsgraph *depsgraph,
   draw_ctx.engines_init_and_sync([&](DupliCacheManager &duplis, ExtractionGraph &extraction) {
     auto should_draw_object = [&](Object &ob) {
       if (!BKE_object_is_visible_in_viewport(v3d, &ob)) {
-        return false;
+        return SYNC_NONE;
       }
       if (use_only_selected && !(ob.base_flag & BASE_SELECTED)) {
-        return false;
+        return SYNC_NONE;
       }
       if ((ob.base_flag & BASE_SELECTABLE) == 0) {
-        return false;
+        return SYNC_NONE;
       }
-      return true;
+      return SYNC_ALL;
     };
 
     if (use_only_active_object) {
@@ -2120,16 +2132,16 @@ void DRW_draw_select_id(Depsgraph *depsgraph, ARegion *region, View3D *v3d)
         if (ob.type != OB_MESH) {
           /* The iterator has evaluated meshes for all solid objects.
            * It also has non-mesh objects however, which are not supported here. */
-          return false;
+          return SYNC_NONE;
         }
         if (DRW_object_is_in_edit_mode(&ob)) {
           /* Only background (non-edit) objects are used for occlusion. */
-          return false;
+          return SYNC_NONE;
         }
         if (!BKE_object_is_visible_in_viewport(v3d, &ob)) {
-          return false;
+          return SYNC_NONE;
         }
-        return true;
+        return SYNC_ALL;
       };
 
       foreach_obref_in_scene(draw_ctx, should_draw_object, [&](ObjectRef &ob_ref) {
