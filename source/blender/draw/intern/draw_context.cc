@@ -812,10 +812,14 @@ void foreach_obref_in_scene(DRWContext &draw_ctx,
       continue;
     }
 
+    if (!should_draw_object_cb(*ob)) {
+      continue;
+    }
+
     int visibility = BKE_object_visibility(ob, eval_mode);
     bool ob_visible = visibility & (OB_VISIBLE_SELF | OB_VISIBLE_PARTICLES);
 
-    if (ob_visible && should_draw_object_cb(*ob)) {
+    if (ob_visible) {
       ObjectRef ob_ref(ob);
       draw_object_cb(ob_ref);
     }
@@ -1462,27 +1466,40 @@ static void drw_draw_render_loop_3d(DRWContext &draw_ctx, RenderEngineType *engi
 
 static void drw_draw_render_loop_2d(DRWContext &draw_ctx)
 {
+  using namespace blender::draw;
+
   Depsgraph *depsgraph = draw_ctx.depsgraph;
   ARegion *region = draw_ctx.region;
 
   /* TODO(jbakker): Only populate when editor needs to draw object.
    * for the image editor this is when showing UVs. */
-  const bool do_populate_loop = (draw_ctx.space_data->spacetype == SPACE_IMAGE);
+  bool do_populate_loop = false;
+  if (draw_ctx.space_data->spacetype == SPACE_IMAGE) {
+    const SpaceImage *space_image = reinterpret_cast<const SpaceImage *>(draw_ctx.space_data);
+    const bool show_overlays = space_image->overlay.flag & SI_OVERLAY_SHOW_OVERLAYS;
+    const bool space_mode_is_uv = space_image->mode == SI_MODE_UV;
+    const bool space_mode_is_paint = space_image->mode == SI_MODE_PAINT;
+    const bool show_paint_uv_guide = space_mode_is_paint &&
+                                     !(space_image->flag & SI_NO_DRAW_UV_GUIDE);
+    do_populate_loop = show_overlays && (space_mode_is_uv || show_paint_uv_guide);
+  }
 
   draw_ctx.enable_engines();
   draw_ctx.engines_data_validate();
   draw_ctx.engines_init_and_sync([&](DupliCacheManager &duplis, ExtractionGraph &extraction) {
     /* Only iterate over objects when overlay uses object data. */
-    if (do_populate_loop) {
-      DEGObjectIterSettings deg_iter_settings = {nullptr};
-      deg_iter_settings.depsgraph = depsgraph;
-      deg_iter_settings.flags = DEG_OBJECT_ITER_FOR_RENDER_ENGINE_FLAGS;
-      DEG_OBJECT_ITER_BEGIN (&deg_iter_settings, ob) {
-        blender::draw::ObjectRef ob_ref(ob);
-        drw_engines_cache_populate(ob_ref, duplis, extraction);
-      }
-      DEG_OBJECT_ITER_END;
+    if (!do_populate_loop) {
+      return;
     }
+
+    /* Only selected and/or active objects can ever be drawn to 2D editors. */
+    auto should_draw_object = [&](Object &ob) -> bool {
+      return (ob.base_flag & BASE_SELECTED) || &ob == draw_ctx.obact;
+    };
+
+    foreach_obref_in_scene(draw_ctx, should_draw_object, [&](ObjectRef &ob_ref) {
+      drw_engines_cache_populate(ob_ref, duplis, extraction);
+    });
   });
 
   /* No frame-buffer allowed before drawing. */
