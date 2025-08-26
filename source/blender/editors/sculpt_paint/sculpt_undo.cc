@@ -1071,7 +1071,6 @@ static void restore_list(bContext *C, Depsgraph *depsgraph, StepData &step_data)
         const Mesh &mesh = *static_cast<const Mesh *>(object.data);
         restore_position_mesh(object, *step_data.position_step_storage);
         BitVector<> modified_verts(mesh.verts_num);
-        step_data.position_step_storage->ensure_compression_complete();
         for (const int i : step_data.position_step_storage->compressed_indices.index_range()) {
           Array<int> decompressed_indices = zstd_compress::decompress_data<int>(
               step_data.position_step_storage->compressed_indices[i]);
