@@ -1494,7 +1494,7 @@ static void CURVES_OT_pen(wmOperatorType *ot)
   /* Identifiers. */
   ot->name = "Curves Pen";
   ot->idname = "CURVES_OT_pen";
-  ot->description = "Construct and edit splines";
+  ot->description = "Construct and edit Bézier curves";
 
   /* Callbacks. */
   ot->invoke = pen_tool::curves_pen_invoke;
