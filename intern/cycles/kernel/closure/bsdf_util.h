@@ -148,34 +148,32 @@ ccl_device void fresnel_conductor_polarized(const float cosi,
   const Spectrum t1 = eta2_sq - k2_sq - eta1_sq * (1.0f - sqr(cosi));
   const Spectrum t2 = sqrt(sqr(t1) + sqr(two_eta2_k2));
 
-  const Spectrum u_sq = max(0.5f * (t2 + t1), zero_float3());
-  const Spectrum v_sq = max(0.5f * (t2 - t1), zero_float3());
+  const Spectrum u_sq = max(0.5f * (t2 + t1), zero_spectrum());
+  const Spectrum v_sq = max(0.5f * (t2 - t1), zero_spectrum());
   const Spectrum u = sqrt(u_sq);
   const Spectrum v = sqrt(v_sq);
 
   if (r_R_s && r_R_p) {
-    *r_R_s = (sqr(eta1 * cosi - u) + v_sq) / (sqr(eta1 * cosi + u) + v_sq);
+    *r_R_s = safe_divide(sqr(eta1 * cosi - u) + v_sq, sqr(eta1 * cosi + u) + v_sq);
 
     const Spectrum t3 = (eta2_sq - k2_sq) * cosi;
     const Spectrum t4 = two_eta2_k2 * cosi;
-    const Spectrum R_p = (sqr(t3 - eta1 * u) + sqr(t4 - eta1 * v)) /
-                         (sqr(t3 + eta1 * u) + sqr(t4 + eta1 * v));
-    const auto mask = isequal_mask(eta2, zero_spectrum()) & isequal_mask(k2, zero_spectrum());
-    *r_R_p = select(mask, one_spectrum(), R_p);
+    *r_R_p = safe_divide(sqr(t3 - eta1 * u) + sqr(t4 - eta1 * v),
+                         sqr(t3 + eta1 * u) + sqr(t4 + eta1 * v));
   }
 
   if (r_phasor_s && r_phasor_p) {
-    r_phasor_s->im = -2.0f * eta1 * cosi * v;
-    r_phasor_s->re = -u_sq - v_sq + sqr(eta1 * cosi);
-    Spectrum mag = sqrt(sqr(r_phasor_s->re) + sqr(r_phasor_s->im));
-    r_phasor_s->re /= mag;
-    r_phasor_s->im /= mag;
+    const Spectrum re_s = -u_sq - v_sq + sqr(eta1 * cosi);
+    const Spectrum im_s = -2.0f * eta1 * cosi * v;
+    const Spectrum mag_s = sqrt(sqr(re_s) + sqr(im_s));
+    r_phasor_s->re = select(is_zero_mask(mag_s), one_spectrum(), re_s / mag_s);
+    r_phasor_s->im = select(is_zero_mask(mag_s), zero_spectrum(), im_s / mag_s);
 
-    r_phasor_p->im = 2.0f * eta1 * cosi * (two_eta2_k2 * u - (eta2_sq - k2_sq) * v);
-    r_phasor_p->re = sqr((eta2_sq + k2_sq) * cosi) - eta1_sq * (u_sq + v_sq);
-    mag = sqrt(sqr(r_phasor_p->re) + sqr(r_phasor_p->im));
-    r_phasor_p->re /= mag;
-    r_phasor_p->im /= mag;
+    const Spectrum re_p = sqr((eta2_sq + k2_sq) * cosi) - eta1_sq * (u_sq + v_sq);
+    const Spectrum im_p = 2.0f * eta1 * cosi * (two_eta2_k2 * u - (eta2_sq - k2_sq) * v);
+    const Spectrum mag_p = sqrt(sqr(re_p) + sqr(im_p));
+    r_phasor_p->re = select(is_zero_mask(mag_p), one_spectrum(), re_p / mag_p);
+    r_phasor_p->im = select(is_zero_mask(mag_p), zero_spectrum(), im_p / mag_p);
   }
 }
 
