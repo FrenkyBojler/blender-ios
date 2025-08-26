@@ -594,7 +594,9 @@ void RNA_def_property_int_array_funcs_runtime(PropertyRNA *prop,
 void RNA_def_property_float_funcs_runtime(PropertyRNA *prop,
                                           FloatPropertyGetFunc getfunc,
                                           FloatPropertySetFunc setfunc,
-                                          FloatPropertyRangeFunc rangefunc);
+                                          FloatPropertyRangeFunc rangefunc,
+                                          FloatPropertyGetTransformFunc get_transform_fn,
+                                          FloatPropertySetTransformFunc set_transform_fn);
 void RNA_def_property_float_array_funcs_runtime(
     PropertyRNA *prop,
     FloatArrayPropertyGetFunc getfunc,

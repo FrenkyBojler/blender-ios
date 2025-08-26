@@ -3519,7 +3519,9 @@ void RNA_def_property_float_funcs(PropertyRNA *prop,
 void RNA_def_property_float_funcs_runtime(PropertyRNA *prop,
                                           FloatPropertyGetFunc getfunc,
                                           FloatPropertySetFunc setfunc,
-                                          FloatPropertyRangeFunc rangefunc)
+                                          FloatPropertyRangeFunc rangefunc,
+                                          FloatPropertyGetTransformFunc get_transform_fn,
+                                          FloatPropertySetTransformFunc set_transform_fn)
 {
   FloatPropertyRNA *fprop = (FloatPropertyRNA *)prop;
 
@@ -3540,6 +3542,13 @@ void RNA_def_property_float_funcs_runtime(PropertyRNA *prop,
     if (!setfunc) {
       RNA_def_property_clear_flag(prop, PROP_EDITABLE);
     }
+  }
+
+  if (get_transform_fn) {
+    fprop->get_transform = get_transform_fn;
+  }
+  if (set_transform_fn) {
+    fprop->set_transform = set_transform_fn;
   }
 }
 

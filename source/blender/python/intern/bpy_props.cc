@@ -1309,7 +1309,6 @@ static float bpy_prop_float_get_fn(PointerRNA *ptr, PropertyRNA *prop)
   BPyPropStore *prop_store = static_cast<BPyPropStore *>(RNA_property_py_data_get(prop));
   PyObject *py_func;
   PyObject *ret;
-
   float value;
 
   BLI_assert(prop_store != nullptr);
@@ -1344,6 +1343,51 @@ static float bpy_prop_float_get_fn(PointerRNA *ptr, PropertyRNA *prop)
   bpy_prop_gil_rna_writable_end(bpy_state);
 
   return value;
+}
+
+static float bpy_prop_float_get_transform_fn(PointerRNA *ptr,
+                                             PropertyRNA *prop,
+                                             float curr_value,
+                                             bool is_set)
+{
+  const BPyPropGIL_RNAWritable_State bpy_state = bpy_prop_gil_rna_writable_begin();
+
+  BPyPropStore *prop_store = static_cast<BPyPropStore *>(RNA_property_py_data_get(prop));
+  PyObject *py_func;
+  PyObject *ret;
+
+  BLI_assert(prop_store != nullptr);
+
+  py_func = prop_store->py_data.get_transform_fn;
+
+  {
+    PyObject *args = PyTuple_New(3);
+    PyObject *self = pyrna_struct_as_instance(ptr);
+    PyTuple_SET_ITEMS(args, self, PyFloat_FromDouble(curr_value), PyBool_FromLong(is_set));
+
+    ret = PyObject_CallObject(py_func, args);
+
+    Py_DECREF(args);
+  }
+
+  float ret_value = curr_value;
+  if (ret == nullptr) {
+    PyC_Err_PrintWithFunc(py_func);
+  }
+  else {
+    ret_value = PyFloat_AsDouble(ret);
+
+    if (ret_value == -1.0f && PyErr_Occurred()) {
+      PyC_Err_PrintWithFunc(py_func);
+      ret_value = curr_value;
+    }
+
+    Py_DECREF(ret);
+  }
+
+  bpy_prop_gil_rna_writable_end(bpy_state);
+
+  return ret_value;
 }
 
 static void bpy_prop_float_set_fn(PointerRNA *ptr, PropertyRNA *prop, float value)
@@ -1381,6 +1425,53 @@ static void bpy_prop_float_set_fn(PointerRNA *ptr, PropertyRNA *prop, float valu
   }
 
   bpy_prop_gil_rna_writable_end(bpy_state);
+}
+
+static float bpy_prop_float_set_transform_fn(
+    PointerRNA *ptr, PropertyRNA *prop, float new_value, float curr_value, bool is_set)
+{
+  const BPyPropGIL_RNAWritable_State bpy_state = bpy_prop_gil_rna_writable_begin();
+
+  BPyPropStore *prop_store = static_cast<BPyPropStore *>(RNA_property_py_data_get(prop));
+  PyObject *py_func;
+  PyObject *ret;
+
+  BLI_assert(prop_store != nullptr);
+
+  py_func = prop_store->py_data.set_transform_fn;
+
+  {
+    PyObject *args = PyTuple_New(4);
+    PyObject *self = pyrna_struct_as_instance(ptr);
+    PyTuple_SET_ITEMS(args,
+                      self,
+                      PyFloat_FromDouble(new_value),
+                      PyFloat_FromDouble(curr_value),
+                      PyBool_FromLong(is_set));
+
+    ret = PyObject_CallObject(py_func, args);
+
+    Py_DECREF(args);
+  }
+
+  float ret_value = curr_value;
+  if (ret == nullptr) {
+    PyC_Err_PrintWithFunc(py_func);
+  }
+  else {
+    ret_value = PyFloat_AsDouble(ret);
+
+    if (ret_value == -1.0f && PyErr_Occurred()) {
+      PyC_Err_PrintWithFunc(py_func);
+      ret_value = curr_value;
+    }
+
+    Py_DECREF(ret);
+  }
+
+  bpy_prop_gil_rna_writable_end(bpy_state);
+
+  return ret_value;
 }
 
 static void bpy_prop_float_array_from_callback_or_error(PropertyRNA *prop,
@@ -2587,10 +2678,16 @@ static void bpy_prop_callback_assign_int_array(PropertyRNA *prop,
   RNA_def_property_int_array_funcs_runtime(prop, rna_get_fn, rna_set_fn, nullptr);
 }
 
-static void bpy_prop_callback_assign_float(PropertyRNA *prop, PyObject *get_fn, PyObject *set_fn)
+static bool bpy_prop_callback_assign_float(PropertyRNA *prop,
+                                           PyObject *get_fn,
+                                           PyObject *set_fn,
+                                           PyObject *get_transform_fn,
+                                           PyObject *set_transform_fn)
 {
   FloatPropertyGetFunc rna_get_fn = nullptr;
   FloatPropertySetFunc rna_set_fn = nullptr;
+  FloatPropertyGetTransformFunc rna_get_transform_fn = nullptr;
+  FloatPropertySetTransformFunc rna_set_transform_fn = nullptr;
 
   if (get_fn && get_fn != Py_None) {
     BPyPropStore *prop_store = bpy_prop_py_data_ensure(prop);
@@ -2600,13 +2697,37 @@ static void bpy_prop_callback_assign_float(PropertyRNA *prop, PyObject *get_fn, 
   }
 
   if (set_fn && set_fn != Py_None) {
+    if (!rna_get_fn) {
+      PyErr_SetString(PyExc_ValueError,
+                      "The `set` callback is defined without a matching `get` function, this is "
+                      "not supported. `set_transform` should probably be used instead?");
+      return false;
+    }
+
     BPyPropStore *prop_store = bpy_prop_py_data_ensure(prop);
 
     rna_set_fn = bpy_prop_float_set_fn;
     ASSIGN_PYOBJECT_INCREF(prop_store->py_data.set_fn, set_fn);
   }
 
-  RNA_def_property_float_funcs_runtime(prop, rna_get_fn, rna_set_fn, nullptr);
+  if (get_transform_fn && get_transform_fn != Py_None) {
+    BPyPropStore *prop_store = bpy_prop_py_data_ensure(prop);
+
+    rna_get_transform_fn = bpy_prop_float_get_transform_fn;
+    ASSIGN_PYOBJECT_INCREF(prop_store->py_data.get_transform_fn, get_transform_fn);
+  }
+
+  if (set_transform_fn && set_transform_fn != Py_None) {
+    BPyPropStore *prop_store = bpy_prop_py_data_ensure(prop);
+
+    rna_set_transform_fn = bpy_prop_float_set_transform_fn;
+    ASSIGN_PYOBJECT_INCREF(prop_store->py_data.set_transform_fn, set_transform_fn);
+  }
+
+  RNA_def_property_float_funcs_runtime(
+      prop, rna_get_fn, rna_set_fn, nullptr, rna_get_transform_fn, rna_set_transform_fn);
+
+  return true;
 }
 
 static void bpy_prop_callback_assign_float_array(PropertyRNA *prop,
@@ -3851,7 +3972,9 @@ PyDoc_STRVAR(
     "unit='NONE', "
     "update=None, "
     "get=None, "
-    "set=None)\n"
+    "set=None, "
+    "get_transform=None, "
+    "set_transform=None)\n"
     "\n"
     "   Returns a new float (single precision) property definition.\n"
     "\n" BPY_PROPDEF_NAME_DOC BPY_PROPDEF_DESC_DOC BPY_PROPDEF_CTXT_DOC BPY_PROPDEF_NUM_MINMAX_DOC(
@@ -3859,7 +3982,8 @@ PyDoc_STRVAR(
         BPY_PROPDEF_FLOAT_STEP_DOC BPY_PROPDEF_FLOAT_PREC_DOC BPY_PROPDEF_OPTIONS_DOC
             BPY_PROPDEF_OPTIONS_OVERRIDE_DOC BPY_PROPDEF_TAGS_DOC BPY_PROPDEF_SUBTYPE_NUMBER_DOC
                 BPY_PROPDEF_UNIT_DOC BPY_PROPDEF_UPDATE_DOC BPY_PROPDEF_GET_DOC("float")
-                    BPY_PROPDEF_SET_DOC("float"));
+                    BPY_PROPDEF_SET_DOC("float") BPY_PROPDEF_GET_TRANSFORM_DOC("float")
+                        BPY_PROPDEF_SET_TRANSFORM_DOC("float"));
 static PyObject *BPy_FloatProperty(PyObject *self, PyObject *args, PyObject *kw)
 {
   StructRNA *srna;
@@ -3904,13 +4028,16 @@ static PyObject *BPy_FloatProperty(PyObject *self, PyObject *args, PyObject *kw)
   PyObject *update_fn = nullptr;
   PyObject *get_fn = nullptr;
   PyObject *set_fn = nullptr;
+  PyObject *get_transform_fn = nullptr;
+  PyObject *set_transform_fn = nullptr;
 
   static const char *_keywords[] = {
-      "attr",     "name", "description", "translation_context",
-      "default",  "min",  "max",         "soft_min",
-      "soft_max", "step", "precision",   "options",
-      "override", "tags", "subtype",     "unit",
-      "update",   "get",  "set",         nullptr,
+      "attr",          "name",  "description", "translation_context",
+      "default",       "min",   "max",         "soft_min",
+      "soft_max",      "step",  "precision",   "options",
+      "override",      "tags",  "subtype",     "unit",
+      "update",        "get",   "set",         "get_transform",
+      "set_transform", nullptr,
   };
   static _PyArg_Parser _parser = {
       PY_ARG_PARSER_HEAD_COMPAT()
@@ -3934,6 +4061,8 @@ static PyObject *BPy_FloatProperty(PyObject *self, PyObject *args, PyObject *kw)
       "O"  /* `update` */
       "O"  /* `get` */
       "O"  /* `set` */
+      "O"  /* `get_transform` */
+      "O"  /* `set_transform` */
       ":FloatProperty",
       _keywords,
       nullptr,
@@ -3965,7 +4094,9 @@ static PyObject *BPy_FloatProperty(PyObject *self, PyObject *args, PyObject *kw)
                                         &unit_enum,
                                         &update_fn,
                                         &get_fn,
-                                        &set_fn))
+                                        &set_fn,
+                                        &get_transform_fn,
+                                        &set_transform_fn))
   {
     return nullptr;
   }
@@ -3977,6 +4108,12 @@ static PyObject *BPy_FloatProperty(PyObject *self, PyObject *args, PyObject *kw)
     return nullptr;
   }
   if (bpy_prop_callback_check(set_fn, "set", 2) == -1) {
+    return nullptr;
+  }
+  if (bpy_prop_callback_check(get_transform_fn, "get_transform", 3) == -1) {
+    return nullptr;
+  }
+  if (bpy_prop_callback_check(set_transform_fn, "set_transform", 4) == -1) {
     return nullptr;
   }
 
@@ -4004,7 +4141,7 @@ static PyObject *BPy_FloatProperty(PyObject *self, PyObject *args, PyObject *kw)
     bpy_prop_assign_flag_override(prop, override_enum.value);
   }
   bpy_prop_callback_assign_update(prop, update_fn);
-  bpy_prop_callback_assign_float(prop, get_fn, set_fn);
+  bpy_prop_callback_assign_float(prop, get_fn, set_fn, get_transform_fn, set_transform_fn);
   RNA_def_property_duplicate_pointers(srna, prop);
 
   Py_RETURN_NONE;

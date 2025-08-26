@@ -139,6 +139,8 @@ using PropBooleanGetTransformFunc = BooleanPropertyGetTransformFunc;
 using PropBooleanSetTransformFunc = BooleanPropertySetTransformFunc;
 using PropIntGetTransformFunc = IntPropertyGetTransformFunc;
 using PropIntSetTransformFunc = IntPropertySetTransformFunc;
+using PropFloatGetTransformFunc = FloatPropertyGetTransformFunc;
+using PropFloatSetTransformFunc = FloatPropertySetTransformFunc;
 using PropFloatArrayGetTransformFunc = FloatArrayPropertyGetTransformFunc;
 using PropFloatArraySetTransformFunc = FloatArrayPropertySetTransformFunc;
 using PropStringGetTransformFunc = StringPropertyGetTransformFunc;
@@ -534,6 +536,8 @@ struct FloatPropertyRNA {
   PropFloatArraySetFuncEx setarray_ex;
   PropFloatRangeFuncEx range_ex;
 
+  PropFloatGetTransformFunc get_transform;
+  PropFloatSetTransformFunc set_transform;
   PropFloatArrayGetTransformFunc getarray_transform;
   PropFloatArraySetTransformFunc setarray_transform;
 

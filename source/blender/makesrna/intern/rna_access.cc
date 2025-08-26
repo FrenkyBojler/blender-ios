@@ -2588,7 +2588,7 @@ void RNA_property_boolean_set(PointerRNA *ptr, PropertyRNA *prop, bool value)
 
   PropertyRNAOrID prop_rna_or_id;
   rna_property_rna_or_id_get(prop, ptr, &prop_rna_or_id);
-  /* NOTE: `prop` is kept unchanged, to allow e.g. call to `RNA_property_boolean_get` without
+  /* NOTE: `prop` is kept unchanged, to allow e.g. call to `RNA_property_boolean_set` without
    * further complications.
    * `bprop->property` should be used when access to an actual RNA property is required.
    */
@@ -3002,9 +3002,9 @@ int RNA_property_int_get(PointerRNA *ptr, PropertyRNA *prop)
 
   PropertyRNAOrID prop_rna_or_id;
   rna_property_rna_or_id_get(prop, ptr, &prop_rna_or_id);
-  /* NOTE: `prop` is kept unchanged, to allow e.g. call to `RNA_property_boolean_get` without
+  /* NOTE: `prop` is kept unchanged, to allow e.g. call to `RNA_property_int_get` without
    * further complications.
-   * `bprop->property` should be used when access to an actual RNA property is required.
+   * `iprop->property` should be used when access to an actual RNA property is required.
    */
   IntPropertyRNA *iprop = reinterpret_cast<IntPropertyRNA *>(prop_rna_or_id.rnaprop);
 
@@ -3023,9 +3023,9 @@ void RNA_property_int_set(PointerRNA *ptr, PropertyRNA *prop, int value)
 
   PropertyRNAOrID prop_rna_or_id;
   rna_property_rna_or_id_get(prop, ptr, &prop_rna_or_id);
-  /* NOTE: `prop` is kept unchanged, to allow e.g. call to `RNA_property_boolean_get` without
+  /* NOTE: `prop` is kept unchanged, to allow e.g. call to `RNA_property_int_set` without
    * further complications.
-   * `bprop->property` should be used when access to an actual RNA property is required.
+   * `iprop->property` should be used when access to an actual RNA property is required.
    */
   IDProperty *idprop = prop_rna_or_id.idprop;
   IntPropertyRNA *iprop = reinterpret_cast<IntPropertyRNA *>(prop_rna_or_id.rnaprop);
@@ -3373,57 +3373,84 @@ int RNA_property_int_get_default_index(PointerRNA *ptr, PropertyRNA *prop, int i
   return value;
 }
 
-float RNA_property_float_get(PointerRNA *ptr, PropertyRNA *prop)
+static float property_float_get(PointerRNA *ptr, PropertyRNAOrID &prop_rna_or_id)
 {
-  FloatPropertyRNA *fprop = (FloatPropertyRNA *)prop;
-  IDProperty *idprop;
-
-  BLI_assert(RNA_property_type(prop) == PROP_FLOAT);
-  BLI_assert(RNA_property_array_check(prop) == false);
-
-  if ((idprop = rna_idproperty_check(&prop, ptr))) {
+  if (prop_rna_or_id.idprop) {
+    IDProperty *idprop = prop_rna_or_id.idprop;
     if (idprop->type == IDP_FLOAT) {
       return IDP_Float(idprop);
     }
     return float(IDP_Double(idprop));
   }
+  FloatPropertyRNA *fprop = reinterpret_cast<FloatPropertyRNA *>(prop_rna_or_id.rnaprop);
   if (fprop->get) {
     return fprop->get(ptr);
   }
   if (fprop->get_ex) {
-    return fprop->get_ex(ptr, prop);
+    return fprop->get_ex(ptr, &fprop->property);
   }
   return fprop->defaultvalue;
 }
 
-void RNA_property_float_set(PointerRNA *ptr, PropertyRNA *prop, float value)
+float RNA_property_float_get(PointerRNA *ptr, PropertyRNA *prop)
 {
-  FloatPropertyRNA *fprop = (FloatPropertyRNA *)prop;
-  IDProperty *idprop;
-
   BLI_assert(RNA_property_type(prop) == PROP_FLOAT);
   BLI_assert(RNA_property_array_check(prop) == false);
-  /* useful to check on bad values but set function should clamp */
-  // BLI_assert(RNA_property_float_clamp(ptr, prop, &value) == 0);
 
-  if ((idprop = rna_idproperty_check(&prop, ptr))) {
-    RNA_property_float_clamp(ptr, prop, &value);
+  PropertyRNAOrID prop_rna_or_id;
+  rna_property_rna_or_id_get(prop, ptr, &prop_rna_or_id);
+  /* NOTE: `prop` is kept unchanged, to allow e.g. call to `RNA_property_float_get` without
+   * further complications.
+   * `fprop->property` should be used when access to an actual RNA property is required.
+   */
+  FloatPropertyRNA *fprop = reinterpret_cast<FloatPropertyRNA *>(prop_rna_or_id.rnaprop);
+
+  float value = property_float_get(ptr, prop_rna_or_id);
+  if (fprop->get_transform) {
+    value = fprop->get_transform(ptr, &fprop->property, value, prop_rna_or_id.is_set);
+  }
+
+  return value;
+}
+
+void RNA_property_float_set(PointerRNA *ptr, PropertyRNA *prop, float value)
+{
+  BLI_assert(RNA_property_type(prop) == PROP_FLOAT);
+  BLI_assert(RNA_property_array_check(prop) == false);
+
+  PropertyRNAOrID prop_rna_or_id;
+  rna_property_rna_or_id_get(prop, ptr, &prop_rna_or_id);
+  /* NOTE: `prop` is kept unchanged, to allow e.g. call to `RNA_property_float_get` without
+   * further complications.
+   * `fprop->property` should be used when access to an actual RNA property is required.
+   */
+  IDProperty *idprop = prop_rna_or_id.idprop;
+  FloatPropertyRNA *fprop = reinterpret_cast<FloatPropertyRNA *>(prop_rna_or_id.rnaprop);
+
+  if (fprop->set_transform) {
+    /* Get raw, untransformed (aka 'storage') value. */
+    const float curr_value = property_float_get(ptr, prop_rna_or_id);
+    value = fprop->set_transform(ptr, &fprop->property, value, curr_value, prop_rna_or_id.is_set);
+  }
+
+  if (idprop) {
     if (idprop->type == IDP_FLOAT) {
       IDP_Float(idprop) = value;
     }
     else {
-      IDP_Double(idprop) = value;
+      IDP_Double(idprop) = double(value);
     }
-
     rna_idproperty_touch(idprop);
   }
   else if (fprop->set) {
     fprop->set(ptr, value);
   }
   else if (fprop->set_ex) {
-    fprop->set_ex(ptr, prop, value);
+    fprop->set_ex(ptr, &fprop->property, value);
   }
-  else if (prop->flag & PROP_EDITABLE) {
+  else if (fprop->property.flag & PROP_EDITABLE) {
+    /* FIXME: This is only called here? What about already existing IDProps (see above)? And
+     * similar code for Int properties? */
     RNA_property_float_clamp(ptr, prop, &value);
     if (IDProperty *group = RNA_struct_system_idprops(ptr, true)) {
       IDP_AddToGroup(
@@ -3631,7 +3658,7 @@ void RNA_property_float_set_array(PointerRNA *ptr, PropertyRNA *prop, const floa
 
   PropertyRNAOrID prop_rna_or_id;
   rna_property_rna_or_id_get(prop, ptr, &prop_rna_or_id);
-  /* NOTE: `prop` is kept unchanged, to allow e.g. call to `RNA_property_boolean_get` without
+  /* NOTE: `prop` is kept unchanged, to allow e.g. call to `RNA_property_float_set` without
    * further complications.
    * `fprop->property` or `prop_rna_or_id.rnaprop` should be used when access to an actual RNA
    * property is required.

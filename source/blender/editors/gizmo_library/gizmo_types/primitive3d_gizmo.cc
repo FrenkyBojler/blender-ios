@@ -287,6 +287,8 @@ static void GIZMO_GT_primitive_3d(wmGizmoType *gzt)
   RNA_def_property_float_funcs_runtime(prop,
                                        gizmo_primitive_rna__arc_inner_factor_get_fn,
                                        gizmo_primitive_rna__arc_inner_factor_set_fn,
+                                       nullptr,
+                                       nullptr,
                                        nullptr);
 
   prop = RNA_def_boolean(gzt->srna, "draw_inner", true, "Draw Inner", "");

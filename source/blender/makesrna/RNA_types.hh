@@ -712,6 +712,12 @@ using IntPropertyRangeFunc =
 
 using FloatPropertyGetFunc = float (*)(PointerRNA *ptr, PropertyRNA *prop);
 using FloatPropertySetFunc = void (*)(PointerRNA *ptr, PropertyRNA *prop, float value);
+using FloatPropertyGetTransformFunc = float (*)(PointerRNA *ptr,
+                                                PropertyRNA *prop,
+                                                float value,
+                                                bool is_set);
+using FloatPropertySetTransformFunc =
+    float (*)(PointerRNA *ptr, PropertyRNA *prop, float new_value, float curr_value, bool is_set);
 using FloatArrayPropertyGetFunc = void (*)(PointerRNA *ptr, PropertyRNA *prop, float *values);
 using FloatArrayPropertySetFunc = void (*)(PointerRNA *ptr,
                                            PropertyRNA *prop,
