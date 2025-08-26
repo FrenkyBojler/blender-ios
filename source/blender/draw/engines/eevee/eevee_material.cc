@@ -202,10 +202,6 @@ MaterialPass MaterialModule::material_pass_get(Object *ob,
                                                eMaterialGeometry geometry_type,
                                                eMaterialProbe probe_capture)
 {
-  // todo(habib): for testing only, remove later
-  if (blender_mat == nullptr) {
-    printf("blender_mat nullptr\n");
-  }
   bNodeTree *ntree = (blender_mat->nodetree != nullptr) ? blender_mat->nodetree :
                                                           default_surface->nodetree;
 

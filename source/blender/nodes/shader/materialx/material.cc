@@ -59,7 +59,6 @@ MaterialX::DocumentPtr export_to_materialx(Depsgraph *depsgraph,
 
   NodeGraph graph(depsgraph, material, export_params, doc);
 
-  // todo(habib): how to test
   material->nodetree->ensure_topology_cache();
   bNode *output_node = ntreeShaderOutputNode(material->nodetree, SHD_OUTPUT_ALL);
   if (output_node && output_node->typeinfo->materialx_fn) {

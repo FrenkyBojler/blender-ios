@@ -77,7 +77,6 @@ class TestBlendLibLinkHelper(TestHelper):
 
         ma = bpy.data.materials.new("LibMaterial")
         ma.use_fake_user = True
-        # todo(habib): test
         out_node = ma.node_tree.nodes.new("ShaderNodeOutputMaterial")
         bsdf_node = ma.node_tree.nodes.new("ShaderNodeBsdfPrincipled")
         ma.node_tree.links.new(bsdf_node.outputs["BSDF"], out_node.inputs["Surface"])
