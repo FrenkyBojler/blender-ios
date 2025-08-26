@@ -703,12 +703,10 @@ void CurvesEvalCache::ensure_bezier(const bke::CurvesGeometry &curves)
   if (this->handles_positions_left_buf) {
     return;
   }
-  this->handles_positions_left_buf = gpu::VertBuf::from_span(
-      curves.handle_positions_left().has_value() ? curves.handle_positions_left().value() :
-                                                   curves.positions());
-  this->handles_positions_right_buf = gpu::VertBuf::from_span(
-      curves.handle_positions_right().has_value() ? curves.handle_positions_right().value() :
-                                                    curves.positions());
+  const Span<float3> left = curves.handle_positions_left().value_or(curves.positions());
+  const Span<float3> right = curves.handle_positions_right().value_or(curves.positions());
+  this->handles_positions_left_buf = gpu::VertBuf::from_span(left);
+  this->handles_positions_right_buf = gpu::VertBuf::from_span(right);
   this->bezier_offsets_buf = gpu::VertBuf::from_span(
       curves.runtime->evaluated_offsets_cache.data().all_bezier_offsets.as_span());
 }
