@@ -3342,7 +3342,7 @@ void ED_region_draw_overflow_indication(const ScrArea *area, ARegion *region, rc
   const bool is_header = ELEM(region->regiontype, RGN_TYPE_HEADER, RGN_TYPE_TOOL_HEADER);
   const bool narrow = region->v2d.scroll & (V2D_SCROLL_VERTICAL | V2D_SCROLL_HORIZONTAL);
   const float gradient_width = (narrow ? 4.0f : 16.0f) * UI_SCALE_FAC;
-  float transition = 30.0f * UI_SCALE_FAC;
+  const float transition = 20.0f * UI_SCALE_FAC;
 
   float opaque[4];
   if (narrow) {
@@ -3399,7 +3399,6 @@ void ED_region_draw_overflow_indication(const ScrArea *area, ARegion *region, rc
     rect.xmin = offset_x;
     if (is_header && (U.uiflag & USER_AREA_CORNER_HANDLE)) {
       rect.xmin += 12.0f * UI_SCALE_FAC;
-      transition = 20.0f * UI_SCALE_FAC;
     }
     rect.xmax = rect.xmin + gradient_width;
     rect.ymin = offset_y;
