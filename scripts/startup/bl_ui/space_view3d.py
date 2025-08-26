@@ -1440,7 +1440,7 @@ class VIEW3D_MT_uv_map(Menu):
 
         layout.separator()
 
-        layout.operator("mesh.mark_seam", icon="EDGE_SEAM").clear = False
+        layout.operator("mesh.mark_seam", icon='EDGE_SEAM').clear = False
         layout.operator("mesh.mark_seam", text="Clear Seam").clear = True
 
         layout.separator()
@@ -3049,11 +3049,11 @@ class VIEW3D_MT_object_context_menu(Menu):
             if light.type == 'SPOT':
                 layout.separator()
 
-                props = layout.operator("wm.context_modal_mouse", text="Adjust Spot Light Size")
+                props = layout.operator("wm.context_modal_mouse", text="Adjust Spot Light Beam Angle")
                 props.data_path_iter = "selected_editable_objects"
                 props.data_path_item = "data.spot_size"
                 props.input_scale = 0.01
-                props.header_text = rpt_("Spot Size: %.2f")
+                props.header_text = rpt_("Beam Angle: %.2f")
 
                 props = layout.operator("wm.context_modal_mouse", text="Adjust Spot Light Blend")
                 props.data_path_iter = "selected_editable_objects"
@@ -4566,7 +4566,7 @@ class VIEW3D_MT_edit_mesh_context_menu(Menu):
 
             col.separator()
 
-            col.operator("transform.vert_crease", icon="VERTEX_CREASE")
+            col.operator("transform.vert_crease", icon='VERTEX_CREASE')
 
             col.separator()
 
@@ -4623,12 +4623,12 @@ class VIEW3D_MT_edit_mesh_context_menu(Menu):
 
             col.separator()
 
-            col.operator("mesh.mark_seam", icon="EDGE_SEAM").clear = False
+            col.operator("mesh.mark_seam", icon='EDGE_SEAM').clear = False
             col.operator("mesh.mark_seam", text="Clear Seam").clear = True
 
             col.separator()
 
-            col.operator("mesh.mark_sharp", icon="EDGE_SHARP").clear = False
+            col.operator("mesh.mark_sharp", icon='EDGE_SHARP').clear = False
             col.operator("mesh.mark_sharp", text="Clear Sharp").clear = True
             col.operator("mesh.set_sharpness_by_angle")
 
@@ -4774,7 +4774,7 @@ class VIEW3D_MT_edit_mesh_vertices(Menu):
 
         layout.separator()
 
-        layout.operator("transform.vert_crease", icon="VERTEX_CREASE")
+        layout.operator("transform.vert_crease", icon='VERTEX_CREASE')
 
         layout.separator()
 
@@ -4828,17 +4828,17 @@ class VIEW3D_MT_edit_mesh_edges(Menu):
 
         layout.separator()
 
-        layout.operator("transform.edge_bevelweight", icon="EDGE_BEVEL")
-        layout.operator("transform.edge_crease", icon="EDGE_CREASE")
+        layout.operator("transform.edge_bevelweight", icon='EDGE_BEVEL')
+        layout.operator("transform.edge_crease", icon='EDGE_CREASE')
 
         layout.separator()
 
-        layout.operator("mesh.mark_seam", icon="EDGE_SEAM").clear = False
+        layout.operator("mesh.mark_seam", icon='EDGE_SEAM').clear = False
         layout.operator("mesh.mark_seam", text="Clear Seam").clear = True
 
         layout.separator()
 
-        layout.operator("mesh.mark_sharp", icon="EDGE_SHARP")
+        layout.operator("mesh.mark_sharp", icon='EDGE_SHARP')
         layout.operator("mesh.mark_sharp", text="Clear Sharp").clear = True
 
         layout.operator("mesh.mark_sharp", text="Mark Sharp from Vertices").use_verts = True
@@ -7138,7 +7138,7 @@ class VIEW3D_PT_overlay_viewer_node(Panel):
         subrow.prop(overlay, "viewer_attribute_opacity", text="Color Opacity")
 
         row = col.row(align=True)
-        row.active = view.show_viewer
+        row.active = view.show_viewer and overlay.show_text
         row.prop(overlay, "show_viewer_text", text="Attribute Text")
 
 
@@ -7208,16 +7208,17 @@ class VIEW3D_PT_overlay_edit_mesh(Panel):
         col.active = display_all
 
         row = col.row(align=True)
-        row.prop(overlay, "show_edge_bevel_weight", text="Bevel", icon="EDGE_BEVEL", toggle=True)
-        row.prop(overlay, "show_edge_crease", text="Crease", icon="EDGE_CREASE", toggle=True)
-        row.prop(overlay, "show_edge_seams", text="Seam", icon="EDGE_SEAM", toggle=True)
+        row.prop(overlay, "show_edge_bevel_weight", text="Bevel", icon='EDGE_BEVEL', toggle=True)
+        row.prop(overlay, "show_edge_crease", text="Crease", icon='EDGE_CREASE', toggle=True)
+        row.prop(overlay, "show_edge_seams", text="Seam", icon='EDGE_SEAM', toggle=True)
         row.prop(
             overlay,
             "show_edge_sharp",
             text="Sharp",
-            icon="EDGE_SHARP",
+            icon='EDGE_SHARP',
             text_ctxt=i18n_contexts.plural,
-            toggle=True)
+            toggle=True,
+        )
 
         col.separator()
         split = col.split()
@@ -8569,7 +8570,7 @@ class VIEW3D_PT_greasepencil_vertex_paint_context_menu(Panel):
         row.prop(brush, "use_pressure_size", text="", icon='STYLUS_PRESSURE')
 
         if brush.gpencil_vertex_brush_type in {'DRAW', 'BLUR', 'SMEAR'}:
-            ups = tool_settings.unified_paint_settings
+            ups = settings.unified_paint_settings
             strength_owner = ups if ups.use_unified_strength else brush
             row = layout.row(align=True)
             row.prop(strength_owner, "strength", text="")

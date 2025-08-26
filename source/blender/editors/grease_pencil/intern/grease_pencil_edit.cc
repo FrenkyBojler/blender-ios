@@ -439,6 +439,7 @@ static wmOperatorStatus grease_pencil_delete_exec(bContext *C, wmOperator * /*op
 {
   const Scene *scene = CTX_data_scene(C);
   Object *object = CTX_data_active_object(C);
+  View3D *v3d = CTX_wm_view3d(C);
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
 
   const bke::AttrDomain selection_domain = ED_grease_pencil_edit_selection_domain_get(
@@ -447,19 +448,24 @@ static wmOperatorStatus grease_pencil_delete_exec(bContext *C, wmOperator * /*op
   bool changed = false;
   const Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(*scene, grease_pencil);
   threading::parallel_for_each(drawings, [&](const MutableDrawingInfo &info) {
-    IndexMaskMemory memory;
-    const IndexMask elements = ed::greasepencil::retrieve_editable_and_selected_elements(
-        *object, info.drawing, info.layer_index, selection_domain, memory);
-    if (elements.is_empty()) {
-      return;
-    }
-
     bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
+
+    IndexMaskMemory memory;
     if (selection_domain == bke::AttrDomain::Curve) {
-      curves.remove_curves(elements, {});
+      const IndexMask strokes = ed::greasepencil::retrieve_editable_and_selected_strokes(
+          *object, info.drawing, info.layer_index, memory);
+      if (strokes.is_empty()) {
+        return;
+      }
+      curves.remove_curves(strokes, {});
     }
     else if (selection_domain == bke::AttrDomain::Point) {
-      curves = geometry::remove_points_and_split(curves, elements);
+      const IndexMask points = ed::greasepencil::retrieve_editable_and_all_selected_points(
+          *object, info.drawing, info.layer_index, v3d->overlay.handle_display, memory);
+      if (points.is_empty()) {
+        return;
+      }
+      curves = geometry::remove_points_and_split(curves, points);
     }
     info.drawing.tag_topology_changed();
     changed = true;
@@ -518,11 +524,8 @@ static Array<bool> get_points_to_dissolve(bke::CurvesGeometry &curves,
                                           const IndexMask &mask,
                                           const DissolveMode mode)
 {
-  const VArray<bool> selection = *curves.attributes().lookup_or_default<bool>(
-      ".selection", bke::AttrDomain::Point, true);
-
-  Array<bool> points_to_dissolve(curves.points_num(), false);
-  selection.materialize(mask, points_to_dissolve);
+  Array<bool> points_to_dissolve(curves.points_num());
+  mask.to_bools(points_to_dissolve);
 
   if (mode == DissolveMode::POINTS) {
     return points_to_dissolve;
@@ -580,6 +583,7 @@ static wmOperatorStatus grease_pencil_dissolve_exec(bContext *C, wmOperator *op)
 {
   const Scene *scene = CTX_data_scene(C);
   Object *object = CTX_data_active_object(C);
+  View3D *v3d = CTX_wm_view3d(C);
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
 
   const DissolveMode mode = DissolveMode(RNA_enum_get(op->ptr, "type"));
@@ -593,8 +597,8 @@ static wmOperatorStatus grease_pencil_dissolve_exec(bContext *C, wmOperator *op)
     }
 
     IndexMaskMemory memory;
-    const IndexMask points = ed::greasepencil::retrieve_editable_and_selected_points(
-        *object, info.drawing, info.layer_index, memory);
+    const IndexMask points = ed::greasepencil::retrieve_editable_and_all_selected_points(
+        *object, info.drawing, info.layer_index, v3d->overlay.handle_display, memory);
     if (points.is_empty()) {
       return;
     }
@@ -2498,7 +2502,7 @@ static wmOperatorStatus grease_pencil_copy_strokes_exec(bContext *C, wmOperator 
   using bke::greasepencil::Layer;
 
   const Scene *scene = CTX_data_scene(C);
-  const Object *object = CTX_data_active_object(C);
+  Object *object = CTX_data_active_object(C);
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
   const bke::AttrDomain selection_domain = ED_grease_pencil_edit_selection_domain_get(
       scene->toolsettings);
@@ -2583,8 +2587,8 @@ static wmOperatorStatus grease_pencil_copy_strokes_exec(bContext *C, wmOperator 
     if (!is_material_index_used(material_index)) {
       continue;
     }
-    const Material *material = grease_pencil.material_array[material_index];
-    clipboard.materials.append({material->id.session_uid, material_index});
+    const Material *material = BKE_object_material_get(object, material_index);
+    clipboard.materials.append({material ? material->id.session_uid : 0, material_index});
   }
 
   /* Report the numbers. */
@@ -3212,69 +3216,90 @@ static wmOperatorStatus grease_pencil_reproject_exec(bContext *C, wmOperator *op
     }
 
     threading::parallel_for_each(drawings, [&](const MutableDrawingInfo &info) {
-      IndexMaskMemory memory;
-      const IndexMask points_to_reproject = retrieve_editable_and_selected_points(
-          *object, info.drawing, info.layer_index, memory);
-      if (points_to_reproject.is_empty()) {
-        return;
-      }
-
       bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
-      MutableSpan<float3> positions = curves.positions_for_write();
-      const bke::greasepencil::Layer &layer = grease_pencil.layer(info.layer_index);
-      if (mode == ReprojectMode::Surface) {
-        const float4x4 layer_space_to_world_space = layer.to_world_space(*object);
-        const float4x4 world_space_to_layer_space = math::invert(layer_space_to_world_space);
-        points_to_reproject.foreach_index(GrainSize(4096), [&](const int point_i) {
-          float3 &position = positions[point_i];
-          const float3 world_pos = math::transform_point(layer_space_to_world_space, position);
-          float2 screen_co;
-          if (ED_view3d_project_float_global(region, world_pos, screen_co, V3D_PROJ_TEST_NOP) !=
-              eV3DProjStatus::V3D_PROJ_RET_OK)
-          {
-            return;
-          }
 
-          float3 ray_start, ray_direction;
-          if (!ED_view3d_win_to_ray_clipped(
-                  depsgraph, region, v3d, screen_co, ray_start, ray_direction, true))
-          {
-            return;
-          }
+      IndexMaskMemory memory;
+      const IndexMask editable_points = retrieve_editable_points(
+          *object, info.drawing, info.layer_index, memory);
 
-          float hit_depth = std::numeric_limits<float>::max();
-          float3 hit_position(0.0f);
-          float3 hit_normal(0.0f);
+      const IndexMask bezier_points = bke::curves::curve_type_point_selection(
+          curves, CURVE_TYPE_BEZIER, memory);
 
-          transform::SnapObjectParams params{};
-          params.snap_target_select = SCE_SNAP_TARGET_ALL;
-          if (transform::snap_object_project_ray(snap_context,
-                                                 depsgraph,
-                                                 v3d,
-                                                 &params,
-                                                 ray_start,
-                                                 ray_direction,
-                                                 &hit_depth,
-                                                 hit_position,
-                                                 hit_normal))
-          {
-            /* Apply offset over surface. */
-            position = math::transform_point(
-                world_space_to_layer_space,
-                hit_position + math::normalize(ray_start - hit_position) * offset);
-          }
-        });
+      for (const StringRef selection_name :
+           ed::curves::get_curves_selection_attribute_names(curves))
+      {
+        const IndexMask selected_points = ed::curves::retrieve_selected_points(
+            curves, selection_name, bezier_points, memory);
+        const IndexMask points_to_reproject = IndexMask::from_intersection(
+            editable_points, selected_points, memory);
+
+        if (points_to_reproject.is_empty()) {
+          return;
+        }
+
+        MutableSpan<float3> positions = curves.positions_for_write();
+        if (selection_name == ".selection_handle_left") {
+          positions = curves.handle_positions_left_for_write();
+        }
+        else if (selection_name == ".selection_handle_right") {
+          positions = curves.handle_positions_right_for_write();
+        }
+
+        const bke::greasepencil::Layer &layer = grease_pencil.layer(info.layer_index);
+        if (mode == ReprojectMode::Surface) {
+          const float4x4 layer_space_to_world_space = layer.to_world_space(*object);
+          const float4x4 world_space_to_layer_space = math::invert(layer_space_to_world_space);
+          points_to_reproject.foreach_index(GrainSize(4096), [&](const int point_i) {
+            float3 &position = positions[point_i];
+            const float3 world_pos = math::transform_point(layer_space_to_world_space, position);
+            float2 screen_co;
+            if (ED_view3d_project_float_global(region, world_pos, screen_co, V3D_PROJ_TEST_NOP) !=
+                eV3DProjStatus::V3D_PROJ_RET_OK)
+            {
+              return;
+            }
+
+            float3 ray_start, ray_direction;
+            if (!ED_view3d_win_to_ray_clipped(
+                    depsgraph, region, v3d, screen_co, ray_start, ray_direction, true))
+            {
+              return;
+            }
+
+            float hit_depth = std::numeric_limits<float>::max();
+            float3 hit_position(0.0f);
+            float3 hit_normal(0.0f);
+
+            transform::SnapObjectParams params{};
+            params.snap_target_select = SCE_SNAP_TARGET_ALL;
+            if (transform::snap_object_project_ray(snap_context,
+                                                   depsgraph,
+                                                   v3d,
+                                                   &params,
+                                                   ray_start,
+                                                   ray_direction,
+                                                   &hit_depth,
+                                                   hit_position,
+                                                   hit_normal))
+            {
+              /* Apply offset over surface. */
+              position = math::transform_point(
+                  world_space_to_layer_space,
+                  hit_position + math::normalize(ray_start - hit_position) * offset);
+            }
+          });
+        }
+        else {
+          const DrawingPlacement drawing_placement(
+              scene, *region, *v3d, *object, &layer, mode, offset, nullptr);
+          points_to_reproject.foreach_index(GrainSize(4096), [&](const int point_i) {
+            positions[point_i] = drawing_placement.reproject(positions[point_i]);
+          });
+        }
+
+        info.drawing.tag_positions_changed();
+        changed.store(true, std::memory_order_relaxed);
       }
-      else {
-        const DrawingPlacement drawing_placement(
-            scene, *region, *v3d, *object, &layer, mode, offset, nullptr);
-        points_to_reproject.foreach_index(GrainSize(4096), [&](const int point_i) {
-          positions[point_i] = drawing_placement.reproject(positions[point_i]);
-        });
-      }
-
-      info.drawing.tag_positions_changed();
-      changed.store(true, std::memory_order_relaxed);
     });
   }
 
@@ -3427,18 +3452,31 @@ static wmOperatorStatus grease_pencil_snap_to_grid_exec(bContext *C, wmOperator 
     }
 
     IndexMaskMemory memory;
-    const IndexMask selected_points = ed::curves::retrieve_selected_points(curves, memory);
+    const IndexMask bezier_points = bke::curves::curve_type_point_selection(
+        curves, CURVE_TYPE_BEZIER, memory);
 
-    const Layer &layer = grease_pencil.layer(drawing_info.layer_index);
-    const float4x4 layer_to_world = layer.to_world_space(object);
-    const float4x4 world_to_layer = math::invert(layer_to_world);
+    for (const StringRef selection_name : ed::curves::get_curves_selection_attribute_names(curves))
+    {
+      const IndexMask selected_points = ed::curves::retrieve_selected_points(
+          curves, selection_name, bezier_points, memory);
 
-    MutableSpan<float3> positions = curves.positions_for_write();
-    selected_points.foreach_index(GrainSize(4096), [&](const int point_i) {
-      const float3 pos_world = math::transform_point(layer_to_world, positions[point_i]);
-      const float3 pos_snapped = grid_size * math::floor(pos_world / grid_size + 0.5f);
-      positions[point_i] = math::transform_point(world_to_layer, pos_snapped);
-    });
+      const Layer &layer = grease_pencil.layer(drawing_info.layer_index);
+      const float4x4 layer_to_world = layer.to_world_space(object);
+      const float4x4 world_to_layer = math::invert(layer_to_world);
+
+      MutableSpan<float3> positions = curves.positions_for_write();
+      if (selection_name == ".selection_handle_left") {
+        positions = curves.handle_positions_left_for_write();
+      }
+      else if (selection_name == ".selection_handle_right") {
+        positions = curves.handle_positions_right_for_write();
+      }
+      selected_points.foreach_index(GrainSize(4096), [&](const int point_i) {
+        const float3 pos_world = math::transform_point(layer_to_world, positions[point_i]);
+        const float3 pos_snapped = grid_size * math::floor(pos_world / grid_size + 0.5f);
+        positions[point_i] = math::transform_point(world_to_layer, pos_snapped);
+      });
+    }
 
     drawing_info.drawing.tag_positions_changed();
     DEG_id_tag_update(&grease_pencil.id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY);
@@ -4222,10 +4260,7 @@ static wmOperatorStatus grease_pencil_remove_fill_guides_exec(bContext *C, wmOpe
   if (mode == RemoveFillGuidesMode::ActiveFrame) {
     for (const int layer_i : grease_pencil.layers().index_range()) {
       const Layer &layer = grease_pencil.layer(layer_i);
-      if (!layer.is_editable()) {
-        continue;
-      }
-      if (Drawing *drawing = grease_pencil.get_editable_drawing_at(layer, scene.r.cfra)) {
+      if (Drawing *drawing = grease_pencil.get_drawing_at(layer, scene.r.cfra)) {
         drawings.append({*drawing, layer_i, scene.r.cfra, 1.0f});
       }
     }
@@ -4233,11 +4268,8 @@ static wmOperatorStatus grease_pencil_remove_fill_guides_exec(bContext *C, wmOpe
   else if (mode == RemoveFillGuidesMode::AllFrames) {
     for (const int layer_i : grease_pencil.layers().index_range()) {
       const Layer &layer = grease_pencil.layer(layer_i);
-      if (!layer.is_editable()) {
-        continue;
-      }
       for (const auto [frame_number, frame] : layer.frames().items()) {
-        if (Drawing *drawing = grease_pencil.get_editable_drawing_at(layer, frame_number)) {
+        if (Drawing *drawing = grease_pencil.get_drawing_at(layer, frame_number)) {
           drawings.append({*drawing, layer_i, frame_number, 1.0f});
         }
       }
@@ -4746,13 +4778,17 @@ static bke::greasepencil::LayerGroup &copy_layer_group_recursive(
   return group_dst;
 }
 
-static Array<int> add_materials_to_map(const GreasePencil &grease_pencil,
-                                       VectorSet<Material *> &materials)
+static Array<int> add_materials_to_map(Object &object, VectorSet<Material *> &materials)
 {
-  Array<int> material_index_map(grease_pencil.material_array_num);
+  Array<int> material_index_map(*BKE_id_material_len_p(&object.id));
   for (const int i : material_index_map.index_range()) {
-    Material *material = grease_pencil.material_array[i];
-    material_index_map[i] = materials.index_of_or_add(material);
+    Material *material = BKE_object_material_get(&object, i);
+    if (material != nullptr) {
+      material_index_map[i] = materials.index_of_or_add(material);
+    }
+    else {
+      material_index_map[i] = 0;
+    }
   }
   return material_index_map;
 }
@@ -4856,7 +4892,7 @@ static void join_object_with_active(Main &bmain,
 
   const Map<StringRefNull, StringRefNull> vertex_group_map = add_vertex_groups(
       ob_dst, grease_pencil_dst, grease_pencil_src.vertex_group_names);
-  const Array<int> material_index_map = add_materials_to_map(grease_pencil_src, materials);
+  const Array<int> material_index_map = add_materials_to_map(ob_src, materials);
 
   /* Concatenate drawing arrays. Existing drawings in dst keep their position, new drawings are
    * mapped to the new index range. */
@@ -5046,7 +5082,7 @@ wmOperatorStatus ED_grease_pencil_join_objects_exec(bContext *C, wmOperator *op)
 
   blender::VectorSet<Material *> materials;
   blender::Array<int> material_index_map = blender::ed::greasepencil::add_materials_to_map(
-      *grease_pencil_dst, materials);
+      *ob_dst, materials);
   /* Reassign material indices in the original layers, in case materials are deduplicated. */
   for (GreasePencilDrawingBase *drawing_base : grease_pencil_dst->drawings()) {
     if (drawing_base->type != GP_DRAWING) {

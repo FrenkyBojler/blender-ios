@@ -202,6 +202,7 @@ set(GLSL_SRC
   shaders/compositor_glare_simple_star_vertical_pass.glsl
   shaders/compositor_glare_streaks_accumulate.glsl
   shaders/compositor_glare_streaks_filter.glsl
+  shaders/compositor_glare_sun_beams.glsl
   shaders/compositor_glare_write_glare_output.glsl
   shaders/compositor_glare_write_highlights_output.glsl
   shaders/compositor_horizontal_lens_distortion.glsl
@@ -256,7 +257,6 @@ set(GLSL_SRC
   shaders/compositor_summed_area_table_compute_complete_x_prologues.glsl
   shaders/compositor_summed_area_table_compute_complete_y_prologues.glsl
   shaders/compositor_summed_area_table_compute_incomplete_prologues.glsl
-  shaders/compositor_sun_beams.glsl
   shaders/compositor_symmetric_blur.glsl
   shaders/compositor_symmetric_blur_variable_size.glsl
   shaders/compositor_symmetric_separable_blur.glsl
@@ -285,7 +285,6 @@ set(GLSL_SRC
   shaders/library/gpu_shader_compositor_difference_matte.glsl
   shaders/library/gpu_shader_compositor_distance_matte.glsl
   shaders/library/gpu_shader_compositor_exposure.glsl
-  shaders/library/gpu_shader_compositor_gamma.glsl
   shaders/library/gpu_shader_compositor_hue_correct.glsl
   shaders/library/gpu_shader_compositor_hue_saturation_value.glsl
   shaders/library/gpu_shader_compositor_image_diagonals.glsl
