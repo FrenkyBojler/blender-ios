@@ -329,12 +329,15 @@ void LegacyMeshInterpolator::copy(const int src_index, const int dst_index, cons
 }
 
 void LegacyMeshInterpolator::mix(Span<int> src_indices,
-                                 const float *weights,
-                                 const float *sub_weights,
+                                 const std::optional<Span<float>> weights,
                                  const int dst_index) const
 {
-  CustomData_interp(
-      &cd_src_, &cd_dst_, src_indices.data(), weights, sub_weights, src_indices.size(), dst_index);
+  CustomData_interp(&cd_src_,
+                    &cd_dst_,
+                    src_indices.data(),
+                    weights ? weights->data() : nullptr,
+                    src_indices.size(),
+                    dst_index);
   for (const int attr_index : attrs_src_.index_range()) {
     attribute_math::convert_to_static_type(attrs_src_[attr_index].type(), [&](auto dummy) {
       using T = decltype(dummy);
@@ -342,8 +345,9 @@ void LegacyMeshInterpolator::mix(Span<int> src_indices,
       MutableSpan dst = attrs_dst_[attr_index].typed<T>();
       attribute_math::DefaultMixer<T> mixer(dst.slice(dst_index, 1));
       for (const int i : src_indices.index_range()) {
-        mixer.mix_in(0, src[i], weights ? weights[i] : 1.0f);
+        mixer.mix_in(0, src[i], weights ? (*weights)[i] : 1.0f);
       }
+      mixer.finalize();
     });
   }
 }

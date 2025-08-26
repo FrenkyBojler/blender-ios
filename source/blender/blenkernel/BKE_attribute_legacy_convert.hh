@@ -58,10 +58,7 @@ class LegacyMeshInterpolator {
   LegacyMeshInterpolator(const Mesh &src, Mesh &dst, AttrDomain domain);
 
   void copy(int src_index, int dst_index, int count) const;
-  void mix(Span<int> src_indices,
-           const float *weights,
-           const float *sub_weights,
-           int dst_index) const;
+  void mix(Span<int> src_indices, std::optional<Span<float>> weights, int dst_index) const;
 };
 
 }  // namespace blender::bke
