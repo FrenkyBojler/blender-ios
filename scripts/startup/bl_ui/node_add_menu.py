@@ -26,7 +26,6 @@ def node_operator(layout, operator_id, node_type, *, label=None, poll=None, sear
             translate=translate,
             search_weight=search_weight)
         props.type = node_type
-        props.use_transform = True
         return props
 
     return None
@@ -215,7 +214,6 @@ def add_closure_zone(layout, label):
 
 def new_empty_group(layout, operator_id):
     props = layout.operator(operator_id, text="New Group", text_ctxt=i18n_contexts.default)
-    props.use_transform = True
     return props
 
 
@@ -224,7 +222,7 @@ class AddNodeMenu:
 
     @staticmethod
     def node_operator(layout, node_type, *, label=None, poll=None, search_weight=0.0, translate=True):
-        return node_add_menu.node_operator(
+        props = node_add_menu.node_operator(
             layout,
             "node.add_node",
             node_type,
@@ -232,15 +230,19 @@ class AddNodeMenu:
             poll=poll,
             search_weight=search_weight,
             translate=translate)
+        props.use_transform = True
+        return props
 
     @staticmethod
     def node_operator_with_searchable_enum(context, layout, node_idname, property_name, search_weight=0.0):
-        return node_add_menu.node_operator_with_searchable_enum(
+        props = node_add_menu.node_operator_with_searchable_enum(
             context, layout, "node.add_node", node_idname, property_name, search_weight)
+        props.use_transform = True
+        return props
 
     @staticmethod
     def node_operator_with_outputs(context, layout, node_type, subnames, *, label=None, search_weight=0.0):
-        return node_add_menu.node_operator_with_outputs(
+        props = node_add_menu.node_operator_with_outputs(
             context,
             layout,
             "node.add_node",
@@ -248,19 +250,28 @@ class AddNodeMenu:
             subnames,
             label=label,
             search_weight=search_weight)
+        props.use_transform = True
+
+        return props
 
     @staticmethod
     def color_mix_node(context, layout):
-        return color_mix_node(context, layout, "node.add_node")
+        props = color_mix_node(context, layout, "node.add_node")
+        props.use_transform = True
+        return props
 
     @staticmethod
     def new_empty_group(layout):
-        return new_empty_group(layout, "node.add_empty_group")
+        props = new_empty_group(layout, "node.add_empty_group")
+        props.use_transform = True
+        return props
 
     @staticmethod
     def draw_group_menu(context, layout):
-        return draw_group_menu(context, layout, group_operator="node.add_node",
+        props = draw_group_menu(context, layout, group_operator="node.add_node",
                                empty_group_operator="node.add_empty_group")
+        props.use_transform = True
+        return props
 
     @staticmethod
     def simulation_zone(layout, label):
@@ -335,7 +346,6 @@ class SwapNodeMenu:
         props.input_node_type = "GeometryNodeSimulationInput"
         props.output_node_type = "GeometryNodeSimulationOutput"
         props.add_default_geometry_link = True
-        props.use_transform = True
 
         return props
 
@@ -345,7 +355,6 @@ class SwapNodeMenu:
         props.input_node_type = "GeometryNodeRepeatInput"
         props.output_node_type = "GeometryNodeRepeatOutput"
         props.add_default_geometry_link = True
-        props.use_transform = True
 
         return props
 
@@ -355,7 +364,6 @@ class SwapNodeMenu:
         props.input_node_type = "GeometryNodeForeachGeometryElementInput"
         props.output_node_type = "GeometryNodeForeachGeometryElementOutput"
         props.add_default_geometry_link = False
-        props.use_transform = True
 
         return props
 
@@ -365,7 +373,6 @@ class SwapNodeMenu:
         props.input_node_type = "NodeClosureInput"
         props.output_node_type = "NodeClosureOutput"
         props.add_default_geometry_link = False
-        props.use_transform = True
 
         return props
 
