@@ -454,11 +454,6 @@ static bool indices_contain_true(const Span<bool> data, const Span<int> indices)
   return std::any_of(indices.begin(), indices.end(), [&](const int i) { return data[i]; });
 }
 
-static bool indices_contain_true(const BitSpan data, const Span<int> indices)
-{
-  return std::any_of(indices.begin(), indices.end(), [&](const int i) { return data[i].test(); });
-}
-
 static bool restore_active_shape_key(bContext &C,
                                      Depsgraph &depsgraph,
                                      const StepData &step_data,
@@ -496,7 +491,9 @@ static void swap_indexed_data(MutableSpan<T> full, const Span<int> indices, Muta
   }
 }
 
-static void restore_position_mesh(Object &object, PositionUndoStorage &undo_data)
+static void restore_position_mesh(Object &object,
+                                  PositionUndoStorage &undo_data,
+                                  const MutableSpan<bool> modified_verts)
 {
 #ifdef DEBUG_TIME
   SCOPED_TIMER(__func__);
@@ -512,9 +509,10 @@ static void restore_position_mesh(Object &object, PositionUndoStorage &undo_data
 
   threading::parallel_for(IndexRange(nodes_num), 1, [&](const IndexRange range) {
     for (const int i : range) {
-      Array<int> verts = zstd::decompress<int>(undo_data.compressed_indices[i]);
+      Array<int> indices = zstd::decompress<int>(undo_data.compressed_indices[i]);
       Array<float3> node_positions = zstd::decompress<float3>(undo_data.compressed_positions[i]);
-      const int unique_verts_num = verts.size();  // TODO!
+      const int unique_verts_num = undo_data.unique_verts_nums[i];
+      const Span<int> verts = indices.as_span().take_front(unique_verts_num);
 
       if (!ss.deform_modifiers_active) {
         /* When original positions aren't written separately in the undo step, there are no
@@ -553,7 +551,9 @@ static void restore_position_mesh(Object &object, PositionUndoStorage &undo_data
         }
       }
 
-      undo_data.compressed_indices[i] = zstd::compress<int>(verts);
+      modified_verts.fill_indices(verts, true);
+
+      undo_data.compressed_indices[i] = zstd::compress<int>(indices);
       undo_data.compressed_positions[i] = zstd::compress<float3>(node_positions);
     }
   });
@@ -1040,17 +1040,9 @@ static void restore_list(bContext *C, Depsgraph *depsgraph, StepData &step_data)
           return;
         }
         const Mesh &mesh = *static_cast<const Mesh *>(object.data);
-        restore_position_mesh(object, *step_data.position_step_storage);
-        BitVector<> modified_verts(mesh.verts_num);
-        for (const int i : step_data.position_step_storage->compressed_indices.index_range()) {
-          Array<int> decompressed_indices = zstd::decompress<int>(
-              step_data.position_step_storage->compressed_indices[i]);
-          const int unique_verts_num = step_data.position_step_storage->unique_verts_nums[i];
-          for (const int vert_index : decompressed_indices.as_span().take_front(unique_verts_num))
-          {
-            modified_verts[vert_index].set(true);
-          }
-        }
+        Array<bool> modified_verts(mesh.verts_num, false);
+        restore_position_mesh(object, *step_data.position_step_storage, modified_verts);
+
         const IndexMask changed_nodes = IndexMask::from_predicate(
             node_mask, GrainSize(1), memory, [&](const int i) {
               return indices_contain_true(modified_verts, nodes[i].all_verts());
