@@ -692,10 +692,10 @@ using BooleanPropertyGetTransformFunc = bool (*)(PointerRNA *ptr,
 using BooleanPropertySetTransformFunc =
     bool (*)(PointerRNA *ptr, PropertyRNA *prop, bool new_value, bool curr_value, bool is_set);
 
-using BooleanArrayPropertyGetFunc = void (*)(PointerRNA *ptr, PropertyRNA *prop, bool *values);
+using BooleanArrayPropertyGetFunc = void (*)(PointerRNA *ptr, PropertyRNA *prop, bool *r_values);
 using BooleanArrayPropertySetFunc = void (*)(PointerRNA *ptr,
                                              PropertyRNA *prop,
-                                             const bool *values);
+                                             const bool *r_values);
 
 using IntPropertyGetFunc = int (*)(PointerRNA *ptr, PropertyRNA *prop);
 using IntPropertySetFunc = void (*)(PointerRNA *ptr, PropertyRNA *prop, int value);
@@ -707,6 +707,14 @@ using IntPropertySetTransformFunc =
     int (*)(PointerRNA *ptr, PropertyRNA *prop, int new_value, int curr_value, bool is_set);
 using IntArrayPropertyGetFunc = void (*)(PointerRNA *ptr, PropertyRNA *prop, int *values);
 using IntArrayPropertySetFunc = void (*)(PointerRNA *ptr, PropertyRNA *prop, const int *values);
+using IntArrayPropertyGetTransformFunc = void (*)(
+    PointerRNA *ptr, PropertyRNA *prop, const int *curr_values, bool is_set, int *r_values);
+using IntArrayPropertySetTransformFunc = void (*)(PointerRNA *ptr,
+                                                  PropertyRNA *prop,
+                                                  const int *new_values,
+                                                  const int *curr_values,
+                                                  bool is_set,
+                                                  int *r_values);
 using IntPropertyRangeFunc =
     void (*)(PointerRNA *ptr, PropertyRNA *prop, int *min, int *max, int *softmin, int *softmax);
 

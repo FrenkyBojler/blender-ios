@@ -139,6 +139,8 @@ using PropBooleanGetTransformFunc = BooleanPropertyGetTransformFunc;
 using PropBooleanSetTransformFunc = BooleanPropertySetTransformFunc;
 using PropIntGetTransformFunc = IntPropertyGetTransformFunc;
 using PropIntSetTransformFunc = IntPropertySetTransformFunc;
+using PropIntArrayGetTransformFunc = IntArrayPropertyGetTransformFunc;
+using PropIntArraySetTransformFunc = IntArrayPropertySetTransformFunc;
 using PropFloatGetTransformFunc = FloatPropertyGetTransformFunc;
 using PropFloatSetTransformFunc = FloatPropertySetTransformFunc;
 using PropFloatArrayGetTransformFunc = FloatArrayPropertyGetTransformFunc;
@@ -509,6 +511,8 @@ struct IntPropertyRNA {
 
   PropIntGetTransformFunc get_transform;
   PropIntSetTransformFunc set_transform;
+  PropIntArrayGetTransformFunc getarray_transform;
+  PropIntArraySetTransformFunc setarray_transform;
 
   PropertyScaleType ui_scale_type;
   int softmin, softmax;

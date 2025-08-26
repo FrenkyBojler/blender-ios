@@ -388,7 +388,7 @@ static void GIZMO_GT_snap_3d(wmGizmoType *gzt)
                             INT_MIN,
                             INT_MAX);
   RNA_def_property_int_array_funcs_runtime(
-      prop, gizmo_snap_rna_snap_elem_index_get_fn, nullptr, nullptr);
+      prop, gizmo_snap_rna_snap_elem_index_get_fn, nullptr, nullptr, nullptr, nullptr);
 
   prop = RNA_def_enum(gzt->srna,
                       "snap_source_type",

@@ -2090,8 +2090,9 @@ static void rna_def_property_funcs(FILE *f, StructRNA *srna, PropertyDefRNA *dp)
     case PROP_INT: {
       IntPropertyRNA *iprop = (IntPropertyRNA *)prop;
 
-      if (!(prop->flag & PROP_EDITABLE) && (iprop->set || iprop->set_ex || iprop->set_transform ||
-                                            iprop->setarray || iprop->setarray_ex))
+      if (!(prop->flag & PROP_EDITABLE) &&
+          (iprop->set || iprop->set_ex || iprop->set_transform || iprop->setarray ||
+           iprop->setarray_ex || iprop->setarray_transform))
       {
         CLOG_ERROR(&LOG,
                    "%s.%s, is read-only but has defines a \"set\" callback.",
@@ -2100,8 +2101,8 @@ static void rna_def_property_funcs(FILE *f, StructRNA *srna, PropertyDefRNA *dp)
         DefRNA.error = true;
       }
 
-      if (!prop->arraydimension &&
-          (iprop->getarray || iprop->getarray_ex || iprop->setarray || iprop->setarray_ex))
+      if (!prop->arraydimension && (iprop->getarray || iprop->getarray_ex || iprop->setarray ||
+                                    iprop->setarray_ex || iprop->setarray_transform))
       {
         CLOG_ERROR(&LOG,
                    "%s.%s, is not an array but defines an array callback.",
@@ -4476,7 +4477,7 @@ static void rna_generate_property(FILE *f, StructRNA *srna, const char *nest, Pr
     case PROP_INT: {
       IntPropertyRNA *iprop = (IntPropertyRNA *)prop;
       fprintf(f,
-              "\t%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,\n\t",
+              "\t%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,\n\t",
               rna_function_string(iprop->get),
               rna_function_string(iprop->set),
               rna_function_string(iprop->getarray),
@@ -4488,7 +4489,9 @@ static void rna_generate_property(FILE *f, StructRNA *srna, const char *nest, Pr
               rna_function_string(iprop->setarray_ex),
               rna_function_string(iprop->range_ex),
               rna_function_string(iprop->get_transform),
-              rna_function_string(iprop->set_transform));
+              rna_function_string(iprop->set_transform),
+              rna_function_string(iprop->getarray_transform),
+              rna_function_string(iprop->setarray_transform));
       fprintf(f, "%s", rna_ui_scale_type_string(iprop->ui_scale_type));
       fprintf(f, ", ");
       rna_int_print(f, iprop->softmin);
