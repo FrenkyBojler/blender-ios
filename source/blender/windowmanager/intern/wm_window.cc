@@ -482,10 +482,10 @@ void wm_window_close(bContext *C, wmWindowManager *wm, wmWindow *win)
       /* Get DPI and scale from parent window, if there is one. */
       WM_window_dpi_set_userdef(win->parent ? win->parent : win);
       const float f = GHOST_GetNativePixelSize(static_cast<GHOST_WindowHandle>(win->ghostwin));
-      stored_bounds->xmin = (float)win->posx * f / UI_SCALE_FAC;
-      stored_bounds->xmax = stored_bounds->xmin + (float)win->sizex * f / UI_SCALE_FAC;
-      stored_bounds->ymin = (float)win->posy * f / UI_SCALE_FAC;
-      stored_bounds->ymax = stored_bounds->ymin + (float)win->sizey * f / UI_SCALE_FAC;
+      stored_bounds->xmin = float(win->posx) * f / UI_SCALE_FAC;
+      stored_bounds->xmax = stored_bounds->xmin + float(win->sizex) * f / UI_SCALE_FAC;
+      stored_bounds->ymin = float(win->posy) * f / UI_SCALE_FAC;
+      stored_bounds->ymax = stored_bounds->ymin + float(win->sizey) * f / UI_SCALE_FAC;
       /* Tag user preferences as dirty. */
       U.runtime.is_dirty = true;
     }
