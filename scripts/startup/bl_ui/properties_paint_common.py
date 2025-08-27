@@ -16,8 +16,8 @@ class BrushAssetShelf:
         'DEFAULT_VISIBLE',
         'NO_ASSET_DRAG',
         'STORE_ENABLED_CATALOGS_IN_PREFERENCES',
-        # Call activate operator to import the brush when spawning the context menu. Operators
-        # there act on the active brush.
+        # Ensure `bl_activate_operator` is called when spawning the context menu. Operators there
+        # rely on the imported, active brush, not just the active asset representation.
         'ACTIVATE_FOR_CONTEXT_MENU',
     }
     bl_activate_operator = "BRUSH_OT_asset_activate"

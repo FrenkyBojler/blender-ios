@@ -216,7 +216,9 @@ class AbstractViewItem {
    * children currently.
    */
   bool is_always_collapsible_ = false;
+  /** See #always_reactivate_on_click(). */
   bool reactivate_on_click_ = false;
+  /** See #activate_for_context_menu_set(). */
   bool activate_for_context_menu_ = false;
 
  public:
@@ -226,8 +228,13 @@ class AbstractViewItem {
 
   /**
    * Like #activate() but does not call #on_activate(). Use it to reflect changes in the active
-   * state that happened externally.
+   * state that happened externally. Or to simply highlight the item as active without triggering
+   * activation with an `on_activate()` call. E.g. this is done when spawning a context menu if
+   * #activate_for_context_menu_set() wasn't called, to indicate which item the context menu
+   * belongs to.
+   *
    * Can be overridden to customize behavior but should always call the base class implementation.
+   *
    * \return true of the item was activated.
    */
   virtual bool set_state_active();

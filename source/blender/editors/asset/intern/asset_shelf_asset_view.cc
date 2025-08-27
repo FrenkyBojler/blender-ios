@@ -124,10 +124,10 @@ void AssetView::build_items()
     if (shelf_.type->flag & ASSET_SHELF_TYPE_FLAG_NO_ASSET_DRAG) {
       item.disable_asset_drag();
     }
-    /* Make sure every click calls the #bl_activate_operator. We might want to change this, so
-     * #bl_activate_operator gets called only when an item becomes active, and add a
-     * #bl_click_operator for repeated execution on every click. So far it seems like this isn't
-     * needed for asset shelves. */
+    /* Make sure every click calls the #bl_activate_operator. We might want to add a flag to
+     * enable/disable this. Or we only call #bl_activate_operator when an item becomes active, and
+     * add a #bl_click_operator for repeated execution on every click. So far it seems like every
+     * asset shelf use case works with activating on every click though. */
     item.always_reactivate_on_click();
     if (shelf_.type->flag & ASSET_SHELF_TYPE_FLAG_ACTIVATE_FOR_CONTEXT_MENU) {
       item.activate_for_context_menu_set();
