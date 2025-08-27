@@ -2808,23 +2808,13 @@ class USERPREF_PT_studiolight_light_editor(StudioLightPanel, Panel):
 
 # -----------------------------------------------------------------------------
 # Experimental Panels
-
-class ExperimentalPanel:
-    bl_space_type = 'PREFERENCES'
-    bl_region_type = 'WINDOW'
-    bl_context = "experimental"
-
+class ExtraOptionsPanel:
     url_prefix = "https://projects.blender.org/"
 
-    @classmethod
-    def poll(cls, _context):
-        return bpy.app.version_cycle == "alpha"
+    @staticmethod
+    def draw_items(layout, preferences, items):
+        experimental = preferences.experimental
 
-    def _draw_items(self, context, items):
-        prefs = context.preferences
-        experimental = prefs.experimental
-
-        layout = self.layout
         layout.use_property_split = False
         layout.use_property_decorate = False
 
@@ -2842,81 +2832,24 @@ class ExperimentalPanel:
                     text = reference
 
                 col = split.split()
-                col.operator("wm.url_open", text=text, icon='URL').url = self.url_prefix + url_ext
+                col.operator("wm.url_open", text=text, icon='URL').url = ExtraOptionsPanel.url_prefix + url_ext
 
 
-"""
-# Example panel, leave it here so we always have a template to follow even
-# after the features are gone from the experimental panel.
-
-class USERPREF_PT_experimental_virtual_reality(ExperimentalPanel, Panel):
-    bl_label = "Virtual Reality"
-
-    def draw(self, context):
-        self._draw_items(
-            context, (
-                ({"property": "use_virtual_reality_scene_inspection"}, ("blender/blender/issues/71347", "#71347")),
-                ({"property": "use_virtual_reality_immersive_drawing"}, ("blender/blender/issues/71348", "#71348")),
-            ),
-        )
-"""
-
-
-class USERPREF_PT_experimental_new_features(ExperimentalPanel, Panel):
-    bl_label = "New Features"
-
-    def draw(self, context):
-        self._draw_items(
-            context, (
-                ({"property": "use_extended_asset_browser"},
-                 ("blender/blender/projects/10", "Pipeline, Assets & IO Project Page")),
-                ({"property": "use_new_volume_nodes"}, ("blender/blender/issues/103248", "#103248")),
-                ({"property": "use_shader_node_previews"}, ("blender/blender/issues/110353", "#110353")),
-                ({"property": "use_geometry_nodes_lists"}, ("blender/blender/issues/140918", "#140918")),
-            ),
-        )
-
-
-class USERPREF_PT_experimental_prototypes(ExperimentalPanel, Panel):
-    bl_label = "Prototypes"
-
-    def draw(self, context):
-        self._draw_items(
-            context, (
-                ({"property": "use_new_curves_tools"}, ("blender/blender/issues/68981", "#68981")),
-                ({"property": "use_sculpt_texture_paint"}, ("blender/blender/issues/96225", "#96225")),
-                ({"property": "write_legacy_blend_file_format"}, ("/blender/blender/issues/129309", "#129309")),
-            ),
-        )
-
-
-# Keep this as tweaks can be useful to restore.
-"""
-class USERPREF_PT_experimental_tweaks(ExperimentalPanel, Panel):
-    bl_label = "Tweaks"
-
-    def draw(self, context):
-        self._draw_items(
-            context, (
-                ({"property": "use_select_nearest_on_first_click"}, ("blender/blender/issues/96752", "#96752")),
-            ),
-        )
-
-"""
-
-
-class USERPREF_PT_experimental_debugging(ExperimentalPanel, Panel):
-    bl_label = "Debugging"
+class USERPREF_PT_developer_tools(Panel):
+    bl_space_type = 'PREFERENCES'
+    bl_region_type = 'WINDOW'
+    bl_context = "developer_tools"
+    bl_label = "Debug"
 
     @classmethod
-    def poll(cls, _context):
-        # Unlike the other experimental panels, the debugging one is always visible
-        # even in beta or release.
-        return True
+    def poll(cls, context):
+        return context.preferences.view.show_developer_ui
 
     def draw(self, context):
-        self._draw_items(
-            context, (
+        ExtraOptionsPanel.draw_items(
+            self.layout,
+            context.preferences,
+            (
                 ({"property": "use_undo_legacy"}, ("blender/blender/issues/60695", "#60695")),
                 ({"property": "override_auto_resync"}, ("blender/blender/issues/83811", "#83811")),
                 ({"property": "use_all_linked_data_direct"}, None),
@@ -2930,6 +2863,85 @@ class USERPREF_PT_experimental_debugging(ExperimentalPanel, Panel):
             ),
         )
 
+
+class ExperimentalPanel:
+    bl_space_type = 'PREFERENCES'
+    bl_region_type = 'WINDOW'
+    bl_context = "experimental"
+
+    url_prefix = "https://projects.blender.org/"
+
+    @classmethod
+    def poll(cls, _context):
+        return bpy.app.version_cycle == "alpha"
+
+
+"""
+# Example panel, leave it here so we always have a template to follow even
+# after the features are gone from the experimental panel.
+
+class USERPREF_PT_experimental_virtual_reality(ExperimentalPanel, Panel):
+    bl_label = "Virtual Reality"
+
+    def draw(self, context):
+        ExtraOptionsPanel.draw_items(
+            self.layout,
+            context.preferences,
+            (
+                ({"property": "use_virtual_reality_scene_inspection"}, ("blender/blender/issues/71347", "#71347")),
+                ({"property": "use_virtual_reality_immersive_drawing"}, ("blender/blender/issues/71348", "#71348")),
+            ),
+        )
+"""
+
+
+class USERPREF_PT_experimental_new_features(ExperimentalPanel, Panel):
+    bl_label = "New Features"
+
+    def draw(self, context):
+        ExtraOptionsPanel.draw_items(
+            self.layout,
+            context.preferences,
+            (
+                ({"property": "use_extended_asset_browser"},
+                 ("blender/blender/projects/10", "Pipeline, Assets & IO Project Page")),
+                ({"property": "use_new_volume_nodes"}, ("blender/blender/issues/103248", "#103248")),
+                ({"property": "use_shader_node_previews"}, ("blender/blender/issues/110353", "#110353")),
+                ({"property": "use_geometry_nodes_lists"}, ("blender/blender/issues/140918", "#140918")),
+            ),
+        )
+
+
+class USERPREF_PT_experimental_prototypes(ExperimentalPanel, Panel):
+    bl_label = "Prototypes"
+
+    def draw(self, context):
+        ExtraOptionsPanel.draw_items(
+            self.layout,
+            context.preferences,
+            (
+                ({"property": "use_new_curves_tools"}, ("blender/blender/issues/68981", "#68981")),
+                ({"property": "use_sculpt_texture_paint"}, ("blender/blender/issues/96225", "#96225")),
+                ({"property": "write_legacy_blend_file_format"}, ("/blender/blender/issues/129309", "#129309")),
+            ),
+        )
+
+
+# Keep this as tweaks can be useful to restore.
+"""
+class USERPREF_PT_experimental_tweaks(ExperimentalPanel, Panel):
+    bl_label = "Tweaks"
+
+    def draw(self, context):
+        ExtraOptionsPanel.draw_items(
+            self.layout,
+            context.preferences,
+            (
+                ({"property": "use_select_nearest_on_first_click"}, ("blender/blender/issues/96752", "#96752")),
+            ),
+        )
+
+"""
 
 # -----------------------------------------------------------------------------
 # Class Registration
@@ -3045,7 +3057,8 @@ classes = (
     USERPREF_PT_experimental_new_features,
     USERPREF_PT_experimental_prototypes,
     # USERPREF_PT_experimental_tweaks,
-    USERPREF_PT_experimental_debugging,
+
+    USERPREF_PT_developer_tools,
 
     # UI lists
     USERPREF_UL_asset_libraries,
