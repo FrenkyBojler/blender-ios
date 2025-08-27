@@ -31,6 +31,9 @@ static const EnumPropertyItem operation_items[] = {
 
 static void cmp_node_ellipsemask_declare(NodeDeclarationBuilder &b)
 {
+  b.add_input<decl::Menu>("Operation")
+      .default_value(CMP_NODE_MASKTYPE_ADD)
+      .static_items(operation_items);
   b.add_input<decl::Float>("Mask")
       .subtype(PROP_FACTOR)
       .default_value(0.0f)
@@ -56,9 +59,6 @@ static void cmp_node_ellipsemask_declare(NodeDeclarationBuilder &b)
       .min(0.0f)
       .max(1.0f);
   b.add_input<decl::Float>("Rotation").subtype(PROP_ANGLE);
-  b.add_input<decl::Menu>("Operation")
-      .default_value(CMP_NODE_MASKTYPE_ADD)
-      .static_items(operation_items);
 
   b.add_output<decl::Float>("Mask").structure_type(StructureType::Dynamic);
 }
