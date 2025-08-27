@@ -1,2 +1,3 @@
 Referenced by issue #137983, List of bug fixes per release override
 Referenced by commit 937d9853a4f948e9858d60287d18914b91fc8da2, Fix crash in keyframe jump when called without a valid area
+Referenced by issue #145176, Jumping between Grease Pencil keyframes has inconsistent behavior
