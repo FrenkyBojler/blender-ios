@@ -373,7 +373,6 @@ set(GLSL_SRC
   engines/eevee/shaders/eevee_gbuffer_closure_test.glsl
   engines/eevee/shaders/eevee_gbuffer_normal_test.glsl
   engines/eevee/shaders/eevee_geom_curves_vert.glsl
-  engines/eevee/shaders/eevee_geom_gpencil_vert.glsl
   engines/eevee/shaders/eevee_geom_mesh_vert.glsl
   engines/eevee/shaders/eevee_geom_pointcloud_vert.glsl
   engines/eevee/shaders/eevee_geom_volume_vert.glsl
@@ -809,11 +808,6 @@ if(WITH_GTESTS)
       list(APPEND INC_SYS
         PUBLIC ${VULKAN_INCLUDE_DIRS}
       )
-      if(APPLE)
-        list(APPEND INC_SYS
-          ${MOLTENVK_INCLUDE_DIRS}
-        )
-      endif()
     endif()
   endif()
 endif()
