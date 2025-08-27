@@ -8,10 +8,6 @@
 
 #pragma once
 
-#ifndef GPU_SHADER
-#  include "GPU_vertex_format.hh"
-#endif
-
 #ifndef USE_GPU_SHADER_CREATE_INFO
 
 #  include "GPU_shader_shared_utils.hh"
@@ -140,10 +136,6 @@ struct GlyphQuad {
   int2 size;
   int offset;
   uint flags;
-
-#ifndef GPU_SHADER
-  GPU_VERTEX_FORMAT_FUNC(GlyphQuad, position, color, size, offset, flags)
-#endif
 };
 BLI_STATIC_ASSERT_ALIGN(GlyphQuad, 16)
 
