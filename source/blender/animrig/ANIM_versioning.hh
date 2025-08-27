@@ -55,10 +55,26 @@ void convert_legacy_animato_actions(Main &bmain);
 void convert_legacy_animato_action(bAction &dna_action);
 
 /**
+ * Go over all animated IDs, and tag them whenever they use a legacy Action.
+ *
+ * \see convert_legacy_action_assignments
+ */
+void tag_action_users_for_slotted_actions_conversion(Main &bmain);
+
+/**
+ * Tag this ID so it'll get its legacy Action assignment converted.
+ *
+ * \see convert_legacy_action_assignments
+ */
+void tag_action_user_for_slotted_actions_conversion(ID &animated_id);
+
+/**
  * Convert the Action assignments of all animated IDs.
  *
  * For all IDs that use an Action, this also picks an Action Slot to ensure the ID is still
  * animated.
+ *
+ * This only visits IDs tagged by #tag_action_users_for_slotted_actions_conversion.
  */
 void convert_legacy_action_assignments(Main &bmain, ReportList *reports);
 
