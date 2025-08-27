@@ -1,2 +1,3 @@
 Referenced by issue #145194, Crash on opening 'Shading' workspace on MacOS
 Referenced by pull request #145196, Fix #145194: EEVEE: World Shader crash
+Referenced by commit 15da5dbaf8a2ae6bd145eac041846fe0cdfa4db1, Fix #145194: EEVEE: World Shader crash
