@@ -240,6 +240,7 @@ class TestPropEnum(unittest.TestCase):
 
         def enum_set_(s, v):
             self.test_enum_storage = v
+
         def bitflag_set_(s, v):
             self.test_enum_bitflag_storage = v
 
