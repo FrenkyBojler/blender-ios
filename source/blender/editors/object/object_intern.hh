@@ -40,6 +40,7 @@ void OBJECT_OT_visual_transform_apply(wmOperatorType *ot);
 void OBJECT_OT_transform_apply(wmOperatorType *ot);
 void OBJECT_OT_parent_inverse_apply(wmOperatorType *ot);
 void OBJECT_OT_transform_axis_target(wmOperatorType *ot);
+void OBJECT_OT_light_elevation_azimuth(wmOperatorType *ot);
 void OBJECT_OT_origin_set(wmOperatorType *ot);
 
 /* `object_relations.cc` */

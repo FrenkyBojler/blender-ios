@@ -3062,6 +3062,10 @@ class VIEW3D_MT_object_context_menu(Menu):
                 props.header_text = rpt_("Spot Blend: %.2f")
 
             layout.separator()
+            
+            layout.operator("object.light_elevation_azimuth", text="Light Elevation Azimuth")
+
+            layout.separator()
 
         # Shared among some object types.
         if obj is not None:
