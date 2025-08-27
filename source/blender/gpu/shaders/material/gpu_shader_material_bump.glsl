@@ -32,7 +32,7 @@ void differentiate_texco_transformed_normal(float4x4 m, float3 n, float3 v, out 
     n = normalize(transform_direction(m, n));
   }
   else {
-    point_transform_world_to_object(n, n);;
+    n = normalize(transform_point(drw_modelmat(), n));
   }
 
   /* Offset sampled position by the projection of the differential
