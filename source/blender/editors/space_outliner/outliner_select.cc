@@ -734,6 +734,9 @@ static void tree_element_strip_activate(bContext *C,
                                         TreeElement *te,
                                         const eOLSetState set)
 {
+  if (!scene) {
+    return;
+  }
   const TreeElementStrip *te_strip = tree_element_cast<TreeElementStrip>(te);
   Strip *strip = &te_strip->get_strip();
   Editing *ed = seq::editing_get(scene);
@@ -758,6 +761,9 @@ static void tree_element_strip_activate(bContext *C,
 
 static void tree_element_strip_dup_activate(Scene *scene, TreeElement * /*te*/)
 {
+  if (!scene) {
+    return;
+  }
   Editing *ed = seq::editing_get(scene);
 
 #if 0
@@ -882,10 +888,10 @@ void tree_element_type_active_set(bContext *C,
       tree_element_bonecollection_activate(C, te, tselem);
       break;
     case TSE_STRIP:
-      tree_element_strip_activate(C, tvc.scene, te, set);
+      tree_element_strip_activate(C, tvc.sequencer_scene, te, set);
       break;
     case TSE_STRIP_DUP:
-      tree_element_strip_dup_activate(tvc.scene, te);
+      tree_element_strip_dup_activate(tvc.sequencer_scene, te);
       break;
     case TSE_GP_LAYER:
       tree_element_gplayer_activate(C, te, tselem);
@@ -1018,7 +1024,7 @@ static eOLDrawState tree_element_strip_state_get(const Scene *scene, const TreeE
 {
   const TreeElementStrip *te_strip = tree_element_cast<TreeElementStrip>(te);
   const Strip *strip = &te_strip->get_strip();
-  const Editing *ed = scene->ed;
+  const Editing *ed = seq::editing_get(scene);
 
   if (ed && ed->act_strip == strip && strip->flag & SELECT) {
     return OL_DRAWSEL_NORMAL;
@@ -1189,7 +1195,7 @@ eOLDrawState tree_element_type_active_state_get(const TreeViewContext &tvc,
     case TSE_R_LAYER:
       return tree_element_viewlayer_state_get(tvc.view_layer, te);
     case TSE_STRIP:
-      return tree_element_strip_state_get(tvc.scene, te);
+      return tree_element_strip_state_get(tvc.sequencer_scene, te);
     case TSE_STRIP_DUP:
       return tree_element_strip_dup_state_get(te);
     case TSE_GP_LAYER:

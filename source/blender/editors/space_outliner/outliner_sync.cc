@@ -498,12 +498,13 @@ static void outliner_sync_selection_to_outliner(const Scene *scene,
 static void get_sync_select_active_data(const bContext *C, SyncSelectActiveData *active_data)
 {
   Scene *scene = CTX_data_scene(C);
+  Scene *sequencer_scene = CTX_data_sequencer_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   BKE_view_layer_synced_ensure(scene, view_layer);
   active_data->object = BKE_view_layer_active_object_get(view_layer);
   active_data->edit_bone = CTX_data_active_bone(C);
   active_data->pose_channel = CTX_data_active_pose_bone(C);
-  active_data->strip = seq::select_active_get(scene);
+  active_data->strip = seq::select_active_get(sequencer_scene);
 }
 
 void outliner_sync_selection(const bContext *C,
