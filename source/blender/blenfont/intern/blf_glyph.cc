@@ -1472,7 +1472,7 @@ static void blf_texture_draw(const GlyphBLF *g,
   glyph_data.position = int4(
       x1 + g_batch.ofs[0], y1 + g_batch.ofs[1], x2 + g_batch.ofs[0], y2 + g_batch.ofs[1]);
   glyph_data.glyph_color = float4(UNPACK4(color)) / 255.0f;
-  glyph_data.size = int2(g->dims);
+  glyph_data.glyph_size = int2(g->dims);
   glyph_data.offset = g->offset;
   /* Glyph flags packs color channel count and shadow type. */
   glyph_data.flags = uint32_t(shadow) | (uint32_t(g->num_channels) << 4);

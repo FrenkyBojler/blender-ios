@@ -12,7 +12,7 @@ void main()
 
   color_flat = glyphs[glyph_index].glyph_color;
   glyph_offset = glyphs[glyph_index].offset;
-  glyph_dim = glyphs[glyph_index].size;
+  glyph_dim = glyphs[glyph_index].glyph_size;
   glyph_flags = glyphs[glyph_index].flags;
 
   /* Depending on shadow outline / blur level, we might need to expand the quad. */
