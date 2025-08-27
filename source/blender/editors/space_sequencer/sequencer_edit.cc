@@ -122,16 +122,6 @@ bool check_show_strip(const SpaceSeq &sseq)
   return ELEM(sseq.view, SEQ_VIEW_SEQUENCE, SEQ_VIEW_SEQUENCE_PREVIEW);
 }
 
-/* Checks if the active region of the active screen matches the specified type.
- * This is different from #CTX_wm_region, as that includes popovers. */
-static bool check_active_region(bContext *C, eRegion_Type type)
-{
-  const wmWindow *win = CTX_wm_window(C);
-  const bScreen *screen = WM_window_get_active_screen(win);
-  const ARegion *region = screen->active_region;
-  return region && region->regiontype == type;
-}
-
 static bool sequencer_fcurves_targets_color_strip(const FCurve *fcurve)
 {
   if (!BLI_str_startswith(fcurve->rna_path, "sequence_editor.strips_all[\"")) {
@@ -313,9 +303,14 @@ bool sequencer_active_strip_region_poll(bContext *C)
 
   if (seq::select_active_get(scene)) {
     /* In case the operator is run from the N-panel button. */
-    if (check_active_region(C, RGN_TYPE_UI)) {
+    const wmWindow *win = CTX_wm_window(C);
+    const bScreen *screen = WM_window_get_active_screen(win);
+    const ARegion *region = screen->active_region;
+
+    if (region && region->regiontype == RGN_TYPE_UI) {
       return true;
     }
+
     /* Otherwise check if it's in the active seqbasep. */
     return active_strip_from_context(C) != nullptr;
   }
