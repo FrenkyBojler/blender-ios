@@ -154,7 +154,7 @@ std::optional<uiViewState> AbstractTreeView::persistent_state() const
   uiViewState state{0};
 
   if (custom_height_) {
-    state.custom_height = *custom_height_;
+    state.custom_height = *custom_height_ * padded_item_height() * UI_INV_SCALE_FAC;
   }
   if (scroll_value_) {
     state.scroll_offset = *scroll_value_;
