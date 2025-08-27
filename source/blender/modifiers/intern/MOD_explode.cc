@@ -758,7 +758,6 @@ static Mesh *cutEdges(ExplodeModifierData *emd, Mesh *mesh)
     const int ed_v1 = edge.v_low;
     const int ed_v2 = edge.v_high;
 
-    // TODO_MESH_ATTR
     vert_interp.copy(ed_v2, esplit, 1);
 
     dupve = split_m_positions[esplit];
