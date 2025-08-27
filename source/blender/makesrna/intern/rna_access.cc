@@ -2674,9 +2674,9 @@ static void rna_property_boolean_get_default_array_values(PointerRNA *ptr,
       bprop->defaultarray, length, bprop->defaultvalue, out_length, r_values);
 }
 
-void property_boolean_get_array(PointerRNA *ptr,
-                                PropertyRNAOrID &prop_rna_or_id,
-                                blender::MutableSpan<bool> r_values)
+static void property_boolean_get_array(PointerRNA *ptr,
+                                       PropertyRNAOrID &prop_rna_or_id,
+                                       blender::MutableSpan<bool> r_values)
 {
   PropertyRNA *rna_prop = prop_rna_or_id.rnaprop;
   BoolPropertyRNA *bprop = reinterpret_cast<BoolPropertyRNA *>(rna_prop);
@@ -3150,9 +3150,9 @@ static void rna_property_int_get_default_array_values(PointerRNA *ptr,
       iprop->defaultarray, length, iprop->defaultvalue, out_length, r_values);
 }
 
-void property_int_get_array(PointerRNA *ptr,
-                            PropertyRNAOrID &prop_rna_or_id,
-                            blender::MutableSpan<int> r_values)
+static void property_int_get_array(PointerRNA *ptr,
+                                   PropertyRNAOrID &prop_rna_or_id,
+                                   blender::MutableSpan<int> r_values)
 {
   PropertyRNA *rna_prop = prop_rna_or_id.rnaprop;
   IntPropertyRNA *iprop = reinterpret_cast<IntPropertyRNA *>(rna_prop);
@@ -3625,9 +3625,9 @@ static void rna_property_float_get_default_array_values(PointerRNA *ptr,
       fprop->defaultarray, length, fprop->defaultvalue, out_length, r_values);
 }
 
-void property_float_get_array(PointerRNA *ptr,
-                              PropertyRNAOrID &prop_rna_or_id,
-                              blender::MutableSpan<float> r_values)
+static void property_float_get_array(PointerRNA *ptr,
+                                     PropertyRNAOrID &prop_rna_or_id,
+                                     blender::MutableSpan<float> r_values)
 {
   PropertyRNA *rna_prop = prop_rna_or_id.rnaprop;
   FloatPropertyRNA *fprop = reinterpret_cast<FloatPropertyRNA *>(rna_prop);
