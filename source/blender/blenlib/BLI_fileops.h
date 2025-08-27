@@ -17,6 +17,11 @@
 /* for size_t (needed on windows) */
 #include <stddef.h>
 
+/* For ERROR_ALREADY_EXISTS. */
+#ifdef WIN32
+#  include <WinError.h>
+#endif
+
 #include <limits.h> /* for PATH_MAX */
 
 #include "BLI_compiler_attrs.h"
