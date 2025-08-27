@@ -195,26 +195,6 @@ void separate_geometry(bke::GeometrySet &geometry_set,
       std::optional<Mesh *> dst_mesh = separate_mesh_selection(
           *mesh, selection, domain, mode, attribute_filter);
       if (dst_mesh) {
-        if (*dst_mesh) {
-          const char *active_layer = mesh->active_uv_map_attribute;
-          // TODO_MESH_ATTR
-          if (active_layer != nullptr) {
-            int id = CustomData_get_named_layer(
-                &((*dst_mesh)->corner_data), CD_PROP_FLOAT2, active_layer);
-            if (id >= 0) {
-              CustomData_set_layer_active(&((*dst_mesh)->corner_data), CD_PROP_FLOAT2, id);
-            }
-          }
-
-          const char *render_layer = mesh->default_uv_map_attribute;
-          if (render_layer != nullptr) {
-            int id = CustomData_get_named_layer(
-                &((*dst_mesh)->corner_data), CD_PROP_FLOAT2, render_layer);
-            if (id >= 0) {
-              CustomData_set_layer_render(&((*dst_mesh)->corner_data), CD_PROP_FLOAT2, id);
-            }
-          }
-        }
         geometry_set.replace_mesh(*dst_mesh);
       }
       some_valid_domain = true;
