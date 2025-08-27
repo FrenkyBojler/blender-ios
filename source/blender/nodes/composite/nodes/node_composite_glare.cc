@@ -80,6 +80,7 @@ static void cmp_node_glare_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Color>("Image")
       .default_value({1.0f, 1.0f, 1.0f, 1.0f})
       .structure_type(StructureType::Dynamic);
+  b.add_input<decl::Menu>("Type").default_value(CMP_NODE_GLARE_STREAKS).static_items(type_items);
   b.add_input<decl::Menu>("Quality")
       .default_value(CMP_NODE_GLARE_QUALITY_MEDIUM)
       .static_items(quality_items);
@@ -128,9 +129,6 @@ static void cmp_node_glare_declare(NodeDeclarationBuilder &b)
       .description("Tints the glare. Consider desaturating the glare to more accurate tinting");
 
   PanelDeclarationBuilder &glare_panel = b.add_panel("Glare");
-  glare_panel.add_input<decl::Menu>("Type")
-      .default_value(CMP_NODE_GLARE_STREAKS)
-      .static_items(type_items);
   glare_panel.add_input<decl::Float>("Size")
       .default_value(0.5f)
       .min(0.0f)
