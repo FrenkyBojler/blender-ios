@@ -46,6 +46,7 @@
 #include "BLI_fileops.h"
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
+#include "BLI_string_ref.hh"
 #include "BLI_sys_types.h" /* For `intptr_t` support. */
 #include "BLI_utildefines.h"
 
@@ -347,78 +348,77 @@ bool BLI_file_touch(const char *filepath)
  * If the directory already exists, this function is a no-op.
  *
  * \param dirname The directory to create.
- * \param len The number of bytes of 'dirname' to use as path to create. This
- * makes the recursive call possible without doing string duplication for each
- * parent directory.
+ *
+ * \return any of the following values:
+ *  - 0 if succesful
+ *  - positive: the 'errno'/`GetLastError()` value of the failing call to mkdir()
+ *  - negative: other errors, causing the mkdir() call to not even happen.
  */
-static bool dir_create_recursive(const char *dirname, const int len)
+static int dir_create_recursive(const blender::StringRef dirname)
 {
-  BLI_assert(strlen(dirname) == len);
+#ifndef NDEBUG
   /* Caller must ensure the path doesn't have trailing slashes. */
+  const int len = dirname.size();
   BLI_assert_msg(len && !BLI_path_slash_is_native_compat(dirname[len - 1]),
                  "Paths must not end with a slash!");
-  BLI_assert_msg(!((len >= 3) && BLI_path_slash_is_native_compat(dirname[len - 3]) &&
-                   STREQ(dirname + (len - 2), "..")),
-                 "Paths containing \"..\" components must be normalized first!");
+  BLI_assert_msg(
+      !((len >= 3) && BLI_path_slash_is_native_compat(dirname[len - 3]) && dirname.endswith("..")),
+      "Paths containing \"..\" components must be normalized first!");
+#endif
 
-  bool ret = true;
-  char *dirname_parent_end = (char *)BLI_path_parent_dir_end(dirname, len);
+#ifdef WIN32
+  /* Check special case `c:\foo`, don't try create `c:`, harmless but unnecessary. */
+  if (dirname.size() > 0 && BLI_path_is_win32_drive_only(dirname)) {
+    return DIR_CREATE_OK;
+  }
+#endif
+
+  /* Construct the parent directory path, if there is a parent. This assumes the root exists. */
+  const char *dirname_parent_end = BLI_path_parent_dir_end(dirname.data(), dirname.size());
   if (dirname_parent_end) {
-    const char dirname_parent_end_value = *dirname_parent_end;
-    *dirname_parent_end = '\0';
-#ifdef WIN32
-    /* Check special case `c:\foo`, don't try create `c:`, harmless but unnecessary. */
-    if (dirname[0] && !BLI_path_is_win32_drive_only(dirname))
-#endif
-    {
-      const int mode = BLI_exists(dirname);
-      if (mode != 0) {
-        if (!S_ISDIR(mode)) {
-          ret = false;
-        }
-      }
-      else if (!dir_create_recursive(dirname, dirname_parent_end - dirname)) {
-        ret = false;
-      }
-    }
-    *dirname_parent_end = dirname_parent_end_value;
-  }
-  if (ret) {
-    /* Ignore errors when the directory was created (probably by another process) in between the
-     * earlier call to BLI_exists() and this call to mkdir. Since this function only creates a
-     * directory if it doesn't exist yet, this is actually not seen as an error, even though
-     * mkdir() failed. */
-#ifdef WIN32
-    if (umkdir(dirname) == -1) {
-      if (GetLastError() == ERROR_ALREADY_EXISTS && BLI_is_dir(dirname)) {
-        return true;
-      }
+    const blender::StringRef dirname_parent(dirname.data(), dirname_parent_end - dirname.data());
 
-      /* Any other error should bubble up as an actual error. */
-      ret = false;
+    /* Recursively create the parent path. */
+    const int mkdir_parent_result = dir_create_recursive(dirname_parent);
+    if (mkdir_parent_result != 0) {
+      return mkdir_parent_result;
     }
+  }
+
+  /* Ignore errors when the directory is created (probably by another process) in between the
+   * earlier call to BLI_exists() and this call to mkdir. Since this function only creates a
+   * directory if it doesn't exist yet, this is actually not seen as an error, even though
+   * mkdir() failed. */
+  const std::string null_terminated_dirname(dirname);
+#ifdef WIN32
+  if (umkdir(null_terminated_dirname.c_str()) == -1) {
+    const int mkdir_last_error = GetLastError(); /* Store before doing other system calls. */
+    if (mkdir_last_error == ERROR_ALREADY_EXISTS && BLI_is_dir(null_terminated_dirname.c_str())) {
+      return DIR_CREATE_OK;
+    }
+    return mkdir_last_error;
+  }
 #else
-    if (mkdir(dirname, 0777) != 0) {
-      if (errno == EEXIST && BLI_is_dir(dirname)) {
-        return true;
-      }
-
-      /* Any other error should bubble up as an actual error. */
-      ret = false;
+  if (mkdir(null_terminated_dirname.c_str(), 0777) != 0) {
+    const int mkdir_errno = errno; /* Store before doing other system calls. */
+    if (mkdir_errno == EEXIST && BLI_is_dir(null_terminated_dirname.c_str())) {
+      return DIR_CREATE_OK;
     }
-#endif
+    return mkdir_errno;
   }
-  return ret;
+#endif
+
+  return DIR_CREATE_OK;
 }
 
-bool BLI_dir_create_recursive(const char *dirname)
+int BLI_dir_create_recursive_ex(const char *dirname)
 {
   const int mode = BLI_exists(dirname);
   if (mode != 0) {
     /* The file exists, either it's a directory (ok), or not,
      * in which case this function can't do anything useful
      * (the caller could remove it and re-run this function). */
-    return S_ISDIR(mode) ? true : false;
+    return S_ISDIR(mode) ? DIR_CREATE_OK : DIR_CREATE_ALREADY_EXISTS;
   }
 
   char dirname_static_buf[FILE_MAX];
@@ -437,7 +437,11 @@ bool BLI_dir_create_recursive(const char *dirname)
   }
   dirname_mut[len] = '\0';
 
-  const bool ret = (len > 0) && dir_create_recursive(dirname_mut, len);
+  if (len <= 0) {
+    return DIR_CREATE_PATH_EMPTY;
+  }
+
+  const int create_result = dir_create_recursive(dirname_mut);
 
   /* Ensure the string was properly restored. */
   BLI_assert(memcmp(dirname, dirname_mut, len) == 0);
@@ -446,16 +450,24 @@ bool BLI_dir_create_recursive(const char *dirname)
     MEM_freeN(dirname_mut);
   }
 
-  return ret;
+  return create_result;
+}
+
+bool BLI_dir_create_recursive(const char *dirname)
+{
+  return BLI_dir_create_recursive_ex(dirname) == DIR_CREATE_OK;
+}
+
+int BLI_file_ensure_parent_dir_exists_ex(const char *filepath)
+{
+  char di[FILE_MAX];
+  BLI_path_split_dir_part(filepath, di, sizeof(di));
+  return BLI_dir_create_recursive_ex(di);
 }
 
 bool BLI_file_ensure_parent_dir_exists(const char *filepath)
 {
-  char di[FILE_MAX];
-  BLI_path_split_dir_part(filepath, di, sizeof(di));
-
-  /* Make if the dir doesn't exist. */
-  return BLI_dir_create_recursive(di);
+  return BLI_file_ensure_parent_dir_exists_ex(filepath) == DIR_CREATE_OK;
 }
 
 int BLI_rename(const char *from, const char *to)

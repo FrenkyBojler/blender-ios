@@ -1516,8 +1516,8 @@ static bool ffmpeg_filepath_get(MovieWriter *context,
 
   BLI_path_abs(filepath, BKE_main_blendfile_path_from_global());
 
-  if (!BLI_file_ensure_parent_dir_exists(filepath)) {
-    CLOG_ERROR(&LOG, "Couldn't create directory for file %s: %s", filepath, std::strerror(errno));
+  if (const int error = BLI_file_ensure_parent_dir_exists_ex(filepath)) {
+    CLOG_ERROR(&LOG, "Couldn't create directory for file %s: %s", filepath, std::strerror(error));
     return false;
   }
 

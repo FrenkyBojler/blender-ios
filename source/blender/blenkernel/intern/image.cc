@@ -2555,8 +2555,8 @@ bool BKE_imbuf_alpha_test(ImBuf *ibuf)
 
 bool BKE_imbuf_write(ImBuf *ibuf, const char *filepath, const ImageFormatData *imf)
 {
-  if (!BLI_file_ensure_parent_dir_exists(filepath)) {
-    CLOG_ERROR(&LOG, "Couldn't create directory for file %s: %s", filepath, std::strerror(errno));
+  if (const int error = BLI_file_ensure_parent_dir_exists_ex(filepath)) {
+    CLOG_ERROR(&LOG, "Couldn't create directory for file %s: %s", filepath, std::strerror(error));
     return false;
   }
 

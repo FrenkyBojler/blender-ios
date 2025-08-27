@@ -9,6 +9,7 @@
 
 #pragma once
 
+#include <cerrno>
 #include <stdint.h>
 #include <stdio.h>
 #include <sys/stat.h>
@@ -210,6 +211,27 @@ bool BLI_is_file(const char *path) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL();
  * \return true on success (i.e. given path now exists on FS), false otherwise.
  */
 bool BLI_dir_create_recursive(const char *dirname) ATTR_NONNULL();
+
+/* Enum for return values of BLI_dir_create_recursive_ex() that are NOT coming from the underlying
+ * mkdir() call. */
+enum DirCreateErrors {
+  DIR_CREATE_OK = 0,
+  DIR_CREATE_PATH_EMPTY = -1,
+#ifdef WIN32
+  DIR_CREATE_ALREADY_EXISTS = ERROR_ALREADY_EXISTS,
+#else
+  DIR_CREATE_ALREADY_EXISTS = EEXIST,
+#endif
+  /* Other errno/GetLastError() values are just returned as-is, without being an
+   * explicit part of this enum. */
+};
+
+/**
+ * \return either a value from DirCreateErrors or the 'errno'/`GetLastError()` value of the failing
+ * call to mkdir().
+ */
+[[nodiscard]] int BLI_dir_create_recursive_ex(const char *dirname) ATTR_NONNULL();
+
 /**
  * Returns the number of free bytes on the volume containing the specified path.
  *
@@ -355,6 +377,12 @@ bool BLI_file_touch(const char *filepath) ATTR_NONNULL(1);
  * \return true on success (i.e. given path now exists on file-system), false otherwise.
  */
 bool BLI_file_ensure_parent_dir_exists(const char *filepath) ATTR_NONNULL(1);
+
+/**
+ * Same as above, returning an error code for the return status.
+ * \see BLI_dir_create_recursive_ex for the returned values.
+ */
+int BLI_file_ensure_parent_dir_exists_ex(const char *filepath) ATTR_NONNULL(1);
 
 /**
  * Return alias/shortcut file target.

@@ -2406,8 +2406,9 @@ static void touch_file(const char *filepath)
     return;
   }
 
-  if (!BLI_file_ensure_parent_dir_exists(filepath)) {
-    CLOG_ERROR(&LOG, "Couldn't create directory for file %s: %s", filepath, std::strerror(errno));
+  if (const int error = BLI_file_ensure_parent_dir_exists_ex(filepath)) {
+    /* TODO: how to do this on Windows? Does std::strerror() work there too? */
+    CLOG_ERROR(&LOG, "Couldn't create directory for file %s: %s", filepath, std::strerror(error));
     return;
   }
   if (!BLI_file_touch(filepath)) {
