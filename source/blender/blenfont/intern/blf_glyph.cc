@@ -1471,7 +1471,7 @@ static void blf_texture_draw(const GlyphBLF *g,
   /* One vertex per glyph, instancing expands it into a quad. */
   glyph_data.position = int4(
       x1 + g_batch.ofs[0], y1 + g_batch.ofs[1], x2 + g_batch.ofs[0], y2 + g_batch.ofs[1]);
-  glyph_data.color = float4(UNPACK4(color)) / 255.0f;
+  glyph_data.glyph_color = float4(UNPACK4(color)) / 255.0f;
   glyph_data.size = int2(g->dims);
   glyph_data.offset = g->offset;
   /* Glyph flags packs color channel count and shadow type. */

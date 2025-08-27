@@ -132,7 +132,7 @@ enum eGPUSeqFlags : uint32_t {
 /* Glyph for text rendering. */
 struct GlyphQuad {
   int4 position;
-  float4 color;
+  float4 glyph_color; /* Cannot be name `color` because of metal macros. */
   int2 size;
   int offset;
   uint flags;

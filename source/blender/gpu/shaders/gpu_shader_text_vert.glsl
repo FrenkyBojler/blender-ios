@@ -10,7 +10,7 @@ void main()
 {
   int glyph_index = gl_InstanceID;
 
-  color_flat = glyphs[glyph_index].color;
+  color_flat = glyphs[glyph_index].glyph_color;
   glyph_offset = glyphs[glyph_index].offset;
   glyph_dim = glyphs[glyph_index].size;
   glyph_flags = glyphs[glyph_index].flags;
