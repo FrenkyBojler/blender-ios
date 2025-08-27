@@ -1783,21 +1783,27 @@ static void region_rect_recursive(
 
 static void area_calc_totrct(const bScreen *screen, ScrArea *area, const rcti *window_rect)
 {
-  /* Padding around each area, except at window edges. */
-  const short px = short(std::max(float(U.border_width) * UI_SCALE_FAC, UI_SCALE_FAC));
-
-  /* Padding at window edges. Cannot be less than border width. */
-  const short px_edge = short(std::min(UI_SCALE_FAC * 2.0f, float(U.border_width) * UI_SCALE_FAC));
-
   area->totrct.xmin = area->v1->vec.x;
   area->totrct.xmax = area->v4->vec.x;
   area->totrct.ymin = area->v1->vec.y;
   area->totrct.ymax = area->v2->vec.y;
 
+  if (BLI_rcti_is_empty(&area->totrct)) {
+    area->winx = area->winy = 0;
+    return;
+  }
+
   /* Scale down totrct by the border size on all sides not at window edges. */
   if (!ED_area_is_global(area) && screen->state != SCREENFULL && !(screen->temp) &&
       !BLI_listbase_is_single(&screen->areabase))
   {
+    /* Padding around each area, except at window edges. */
+    const short px = short(std::max(float(U.border_width) * UI_SCALE_FAC, UI_SCALE_FAC));
+
+    /* Padding at window edges. Cannot be less than border width. */
+    const short px_edge = short(
+        std::min(UI_SCALE_FAC * 2.0f, float(U.border_width) * UI_SCALE_FAC));
+
     area->totrct.xmin += (area->totrct.xmin > window_rect->xmin) ? px : px_edge;
     area->totrct.xmax -= (area->totrct.xmax < (window_rect->xmax - 1)) ? px : px_edge;
     area->totrct.ymin += (area->totrct.ymin > window_rect->ymin) ? px : px_edge;
@@ -2056,12 +2062,19 @@ void ED_area_init(bContext *C, const wmWindow *win, ScrArea *area)
   const Scene *scene = WM_window_get_active_scene(win);
   ViewLayer *view_layer = WM_window_get_active_view_layer(win);
 
+  rcti window_rect;
+  WM_window_screen_rect_calc(win, &window_rect);
+
+  if (area->flag & AREA_FLAG_HIDDEN) {
+    area_calc_totrct(screen, area, &window_rect);
+    LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
+      region->runtime->visible = false;
+    }
+    return;
+  }
   if (ED_area_is_global(area) && (area->global->flag & GLOBAL_AREA_IS_HIDDEN)) {
     return;
   }
-
-  rcti window_rect;
-  WM_window_screen_rect_calc(win, &window_rect);
 
   ED_area_and_region_types_init(area);
 
@@ -3905,8 +3918,9 @@ ScrArea *ED_screen_areas_iter_first(const wmWindow *win, const bScreen *screen)
   ScrArea *global_area = static_cast<ScrArea *>(win->global_areas.areabase.first);
 
   if (!global_area) {
-    return static_cast<ScrArea *>(screen->areabase.first);
+    return ED_screen_areas_iter_next(screen, static_cast<ScrArea *>(screen->areabase.first));
   }
+
   if ((global_area->global->flag & GLOBAL_AREA_IS_HIDDEN) == 0) {
     return global_area;
   }
@@ -3915,17 +3929,29 @@ ScrArea *ED_screen_areas_iter_first(const wmWindow *win, const bScreen *screen)
 }
 ScrArea *ED_screen_areas_iter_next(const bScreen *screen, const ScrArea *area)
 {
-  if (area->global == nullptr) {
-    return area->next;
+  if (area->global) {
+    for (ScrArea *area_iter = area->next; area_iter; area_iter = area_iter->next) {
+      if ((area_iter->global->flag & GLOBAL_AREA_IS_HIDDEN) == 0) {
+        return area_iter;
+      }
+    }
   }
 
-  for (ScrArea *area_iter = area->next; area_iter; area_iter = area_iter->next) {
-    if ((area_iter->global->flag & GLOBAL_AREA_IS_HIDDEN) == 0) {
+  for (ScrArea *area_iter =
+           area->global ?
+               /* No visible next global area found, start iterating over visible layout areas. */
+               static_cast<ScrArea *>(screen->areabase.first) :
+               area->next;
+       area_iter;
+       area_iter = area_iter->next)
+  {
+    if ((area_iter->flag & AREA_FLAG_HIDDEN) == 0) {
       return area_iter;
     }
   }
+
   /* No visible next global area found, start iterating over layout areas. */
-  return static_cast<ScrArea *>(screen->areabase.first);
+  return nullptr;
 }
 
 int ED_region_global_size_y()

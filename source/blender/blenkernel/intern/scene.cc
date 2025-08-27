@@ -2504,6 +2504,9 @@ static bool check_rendered_viewport_visible(Main *bmain)
     }
 
     LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+      if (area->flag & AREA_FLAG_HIDDEN) {
+        continue;
+      }
       View3D *v3d = static_cast<View3D *>(area->spacedata.first);
       if (area->spacetype != SPACE_VIEW3D) {
         continue;

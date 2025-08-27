@@ -811,6 +811,9 @@ static bool actionzone_area_poll(bContext *C)
       const int *xy = &win->eventstate->xy[0];
 
       LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+        if (area->flag & AREA_FLAG_HIDDEN) {
+          continue;
+        }
         LISTBASE_FOREACH (AZone *, az, &area->actionzones) {
           if (BLI_rcti_isect_pt_v(&az->rect, xy)) {
             return true;
@@ -902,6 +905,10 @@ static void area_actionzone_get_rect(AZone *az, rcti *r_rect)
 
 static AZone *area_actionzone_refresh_xy(ScrArea *area, const int xy[2], const bool test_only)
 {
+  if (area->flag & AREA_FLAG_HIDDEN) {
+    return nullptr;
+  }
+
   AZone *az = nullptr;
 
   for (az = static_cast<AZone *>(area->actionzones.first); az; az = az->next) {
@@ -1067,6 +1074,9 @@ static AZone *area_actionzone_refresh_xy(ScrArea *area, const int xy[2], const b
 static AZone *screen_actionzone_find_xy(bScreen *screen, const int xy[2])
 {
   LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+    if (area->flag & AREA_FLAG_HIDDEN) {
+      continue;
+    }
     AZone *az = area_actionzone_refresh_xy(area, xy, true);
     if (az != nullptr) {
       return az;
@@ -1660,6 +1670,9 @@ static bool area_close_poll(bContext *C)
 
   /* Can this area join with ANY other area? */
   LISTBASE_FOREACH (ScrArea *, ar, &screen->areabase) {
+    if (area->flag & AREA_FLAG_HIDDEN) {
+      continue;
+    }
     if (area_getorientation(ar, area) != -1) {
       return true;
     }
@@ -1789,6 +1802,9 @@ static void area_move_set_limits(wmWindow *win,
   WM_window_rect_calc(win, &window_rect);
 
   LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+    if (area->flag & AREA_FLAG_HIDDEN) {
+      continue;
+    }
     if (dir_axis == SCREEN_AXIS_H) {
       const int y1 = area->winy - ED_area_headersize();
       /* if top or down edge selected, test height */
@@ -3274,6 +3290,9 @@ void ED_areas_do_frame_follow(bContext *C, bool center_view)
     const bScreen *screen = WM_window_get_active_screen(window);
 
     LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+      if (area->flag & AREA_FLAG_HIDDEN) {
+        continue;
+      }
       LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
         /* Only frame/center the current-frame indicator here if editor type supports it */
         if (!screen_animation_region_supports_time_follow(eSpace_Type(area->spacetype),
@@ -5836,6 +5855,9 @@ static wmOperatorStatus screen_animation_step_invoke(bContext *C,
     bScreen *win_screen = WM_window_get_active_screen(window);
 
     LISTBASE_FOREACH (ScrArea *, area, &win_screen->areabase) {
+      if (area->flag & AREA_FLAG_HIDDEN) {
+        continue;
+      }
       LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
         bool redraw = false;
         if (region == sad->region) {

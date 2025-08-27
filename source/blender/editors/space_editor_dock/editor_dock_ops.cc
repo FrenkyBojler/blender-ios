@@ -26,7 +26,7 @@
 namespace blender::ed::editor_dock {
 
 /* TODO somehow pass docked area? */
-ScrArea *lookup_docked_area(bContext *C)
+static ScrArea *lookup_docked_area(bContext *C)
 {
   const bScreen *screen = CTX_wm_screen(C);
   LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
@@ -37,12 +37,12 @@ ScrArea *lookup_docked_area(bContext *C)
   return nullptr;
 }
 
-bool add_editor_poll(bContext *C)
+static bool add_editor_poll(bContext *C)
 {
   return lookup_docked_area(C) != nullptr;
 }
 
-wmOperatorStatus add_editor_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus add_editor_exec(bContext *C, wmOperator *op)
 {
   const eSpace_Type type = eSpace_Type(RNA_enum_get(op->ptr, "type"));
   if (ELEM(type, SPACE_EMPTY, SPACE_TOPBAR, SPACE_STATUSBAR, SPACE_EDITOR_DOCK)) {
@@ -57,7 +57,7 @@ wmOperatorStatus add_editor_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-void SCREEN_OT_editor_dock_add_editor(wmOperatorType *ot)
+static void SCREEN_OT_editor_dock_add_editor(wmOperatorType *ot)
 {
   /* Identifiers. */
   ot->name = "Add Editor";

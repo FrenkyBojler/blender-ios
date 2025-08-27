@@ -214,6 +214,11 @@ int ED_area_header_switchbutton(const bContext *C, uiBlock *block, int yco);
 /* areas */
 ScrArea *ED_screen_area_add_empty(bScreen *screen, const rcti &rect);
 /**
+ * Make sure the given area's geometry is not shared with any other area, i.e. it is completely
+ * independent. Used by docked editors when hiding them without messing with other areas.
+ */
+void ED_screen_area_geometry_detatch(bScreen *screen, ScrArea *detach_area);
+/**
  * Ensure #ScrArea.type and #ARegion.type are set and valid.
  */
 void ED_area_and_region_types_init(ScrArea *area);

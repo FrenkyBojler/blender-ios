@@ -21,6 +21,7 @@
 
 #include "BLI_listbase.h"
 #include "BLI_math_vector.h"
+#include "BLI_rand.hh"
 #include "BLI_rect.h"
 #include "BLI_time.h"
 
@@ -133,6 +134,9 @@ void ED_screen_draw_edges(wmWindow *win)
 
   if (!active_area) {
     LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+      if (area->flag & AREA_FLAG_HIDDEN) {
+        continue;
+      }
       AZone *zone = ED_area_actionzone_find_xy(area, win->eventstate->xy);
       /* Get area from action zone, if not scroll-bar. */
       if (zone && zone->type != AZONE_REGION_SCROLL) {
@@ -154,6 +158,9 @@ void ED_screen_draw_edges(wmWindow *win)
   rcti scissor_rect;
   BLI_rcti_init_minmax(&scissor_rect);
   LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+    if (area->flag & AREA_FLAG_HIDDEN) {
+      continue;
+    }
     BLI_rcti_do_minmax_v(&scissor_rect, blender::int2{area->v1->vec.x, area->v1->vec.y});
     BLI_rcti_do_minmax_v(&scissor_rect, blender::int2{area->v3->vec.x, area->v3->vec.y});
   }
@@ -193,6 +200,9 @@ void ED_screen_draw_edges(wmWindow *win)
   GPU_batch_uniform_4fv(batch, "color", col);
 
   LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+    if (area->flag & AREA_FLAG_HIDDEN) {
+      continue;
+    }
     drawscredge_area(*area, edge_thickness);
   }
 
@@ -205,6 +215,9 @@ void ED_screen_draw_edges(wmWindow *win)
   UI_GetThemeColor4fv(TH_EDITOR_OUTLINE_ACTIVE, outline2);
   UI_draw_roundbox_corner_set(UI_CNR_ALL);
   LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+    if (area->flag & AREA_FLAG_HIDDEN) {
+      continue;
+    }
     BLI_rctf_rcti_copy(&bounds, &area->totrct);
     BLI_rctf_pad(&bounds, padding, padding);
     UI_draw_roundbox_4fv_ex(&bounds,
@@ -214,6 +227,27 @@ void ED_screen_draw_edges(wmWindow *win)
                             (area == active_area) ? outline2 : outline1,
                             U.pixelsize,
                             EDITORRADIUS);
+  }
+
+  GPU_blend(GPU_BLEND_ALPHA);
+
+  /* Useful for debugging screen geometry: Draw all edges in a random color. */
+  const bool debug_draw_edges = false;
+  if (debug_draw_edges) {
+    LISTBASE_FOREACH (ScrEdge *, edge, &screen->edgebase) {
+      GPUVertFormat *format = immVertexFormat();
+      uint pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
+      immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
+      blender::RandomNumberGenerator rng = blender::RandomNumberGenerator::from_random_seed();
+      immUniformColor4f(rng.get_float(), rng.get_float(), rng.get_float(), 1.0f);
+      if (edge->v1->vec.x == edge->v2->vec.x) {
+        immRectf(pos, edge->v1->vec.x - 1, edge->v1->vec.y, edge->v2->vec.x + 1, edge->v2->vec.y);
+      }
+      else {
+        immRectf(pos, edge->v1->vec.x, edge->v1->vec.y - 1, edge->v2->vec.x, edge->v2->vec.y + 1);
+      }
+      immUnbindProgram();
+    }
   }
 
   GPU_blend(GPU_BLEND_NONE);

@@ -947,6 +947,9 @@ ScrArea *BKE_screen_find_big_area(const bScreen *screen, const int spacetype, co
   int maxsize = 0;
 
   LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+    if (area->flag & AREA_FLAG_HIDDEN) {
+      continue;
+    }
     if (ELEM(spacetype, SPACE_TYPE_ANY, area->spacetype)) {
       if (min <= area->winx && min <= area->winy) {
         int size = area->winx * area->winy;
@@ -966,6 +969,9 @@ ScrArea *BKE_screen_area_map_find_area_xy(const ScrAreaMap *areamap,
                                           const int xy[2])
 {
   LISTBASE_FOREACH (ScrArea *, area, &areamap->areabase) {
+    if (area->flag & AREA_FLAG_HIDDEN) {
+      continue;
+    }
     /* Test area's outer screen verts, not inner `area->totrct`. */
     if (xy[0] >= area->v1->vec.x && xy[0] <= area->v4->vec.x && xy[1] >= area->v1->vec.y &&
         xy[1] <= area->v2->vec.y)

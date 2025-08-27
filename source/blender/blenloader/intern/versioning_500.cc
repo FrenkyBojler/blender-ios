@@ -55,6 +55,7 @@
 #include "BKE_node_runtime.hh"
 #include "BKE_pointcache.h"
 #include "BKE_report.hh"
+#include "BKE_screen.hh"
 
 #include "BLT_translation.hh"
 
@@ -2436,6 +2437,16 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
   }
 
   {
+    /* New #AREA_FLAG_HIDDEN flag, clear bit from possible uses in previous versions. */
+    LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
+      LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+        if (area->flag & AREA_FLAG_DOCKED) {
+          continue;
+        }
+        area->flag &= ~AREA_FLAG_HIDDEN;
+      }
+    }
+
     LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
       ScrArea *docked_area = [&]() -> ScrArea * {
         LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
@@ -2450,21 +2461,22 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
         /* Use same method as #screen_geom_vertices_scale_pass() to get the min-max of the screen
          * verts. Simply adding areas with (0, 0) as position would mess with its screen resizing
          * calculations. */
-        const int2 min = [&]() {
-          float min[2] = {20000.0f, 20000.0f};
-          float max[2] = {0.0f, 0.0f};
+        float min[2] = {20000.0f, 20000.0f};
+        float max[2] = {0.0f, 0.0f};
 
-          LISTBASE_FOREACH (ScrVert *, sv, &screen->vertbase) {
-            const float fv[2] = {float(sv->vec.x), float(sv->vec.y)};
-            minmax_v2v2_v2(min, max, fv);
-          }
-          return int2{round_fl_to_int(min[0]), round_fl_to_int(min[1])};
-        }();
+        LISTBASE_FOREACH (ScrVert *, sv, &screen->vertbase) {
+          const float fv[2] = {float(sv->vec.x), float(sv->vec.y)};
+          minmax_v2v2_v2(min, max, fv);
+        }
 
-        /* #Ed_screen_area_add_empty() substracts 1 from max-values, so keep them 1 here. */
-        const rcti area_rect = {min.x, min.x + 1, min.y, min.y + 1};
+        /* Add area with 0 width. */
+        const rcti area_rect = {round_fl_to_int(max[0]),
+                                round_fl_to_int(max[0]),
+                                round_fl_to_int(min[1]),
+                                round_fl_to_int(max[1])};
         docked_area = ED_screen_area_add_empty(screen, area_rect);
-        docked_area->flag |= AREA_FLAG_DOCKED;
+        BKE_screen_remove_double_scrverts(screen);
+        docked_area->flag |= AREA_FLAG_DOCKED | AREA_FLAG_HIDDEN;
 
         /* TODO null for scene - is this a good idea? */
         blender::ed::editor_dock::add_docked_space(docked_area, SPACE_OUTLINER, nullptr);

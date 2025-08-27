@@ -561,6 +561,7 @@ typedef struct ARegion {
 /** #ScrArea.flag */
 enum {
   HEADER_NO_PULLDOWN = (1 << 0),
+  AREA_FLAG_HIDDEN = (1 << 1),
 //  AREA_FLAG_UNUSED_1           = (1 << 1),
 //  AREA_FLAG_UNUSED_2           = (1 << 2),
 #ifdef DNA_DEPRECATED_ALLOW

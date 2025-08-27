@@ -2662,6 +2662,9 @@ void ED_view3d_screen_datamask(const Scene *scene,
 
   /* Check if we need UV or color data due to the view mode. */
   LISTBASE_FOREACH (const ScrArea *, area, &screen->areabase) {
+    if (area->flag & AREA_FLAG_HIDDEN) {
+      continue;
+    }
     if (area->spacetype == SPACE_VIEW3D) {
       ED_view3d_datamask(
           scene, view_layer, static_cast<View3D *>(area->spacedata.first), r_cddata_masks);

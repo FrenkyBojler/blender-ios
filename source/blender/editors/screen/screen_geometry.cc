@@ -142,13 +142,26 @@ static bool screen_geom_vertices_scale_pass(const wmWindow *win,
   const int screen_size_y = BLI_rcti_size_y(screen_rect);
   bool needs_another_pass = false;
 
+  LISTBASE_FOREACH (ScrVert *, sv, &screen->vertbase) {
+    sv->flag = 0;
+  }
+
+  /* Flag all vertices that need scaling. */
+  LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+    if ((area->flag & AREA_FLAG_HIDDEN) == 0) {
+      area->v1->flag = area->v2->flag = area->v3->flag = area->v4->flag = 1;
+    }
+  }
+
   /* calculate size */
   float min[2] = {20000.0f, 20000.0f};
   float max[2] = {0.0f, 0.0f};
 
   LISTBASE_FOREACH (ScrVert *, sv, &screen->vertbase) {
-    const float fv[2] = {float(sv->vec.x), float(sv->vec.y)};
-    minmax_v2v2_v2(min, max, fv);
+    if (sv->flag) {
+      const float fv[2] = {float(sv->vec.x), float(sv->vec.y)};
+      minmax_v2v2_v2(min, max, fv);
+    }
   }
 
   int screen_size_x_prev = (max[0] - min[0]) + 1;
@@ -160,11 +173,22 @@ static bool screen_geom_vertices_scale_pass(const wmWindow *win,
 
     /* make sure it fits! */
     LISTBASE_FOREACH (ScrVert *, sv, &screen->vertbase) {
+      if (sv->flag == 0) {
+        continue;
+      }
       sv->vec.x = screen_rect->xmin + round_fl_to_short((sv->vec.x - min[0]) * facx);
       CLAMP(sv->vec.x, screen_rect->xmin, screen_rect->xmax - 1);
 
       sv->vec.y = screen_rect->ymin + round_fl_to_short((sv->vec.y - min[1]) * facy);
       CLAMP(sv->vec.y, screen_rect->ymin, screen_rect->ymax - 1);
+    }
+
+    /* IMPORTANT: Do not use #ScrVert.flag (to mark vertices to act on) anymore from here on.
+     * Functions calls below like #screen_geom_select_connected_edge() clear and use it for
+     * different purposes. If we need that information still, it may be better to push vertices to
+     * a vector instead of flagging them. */
+    LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+      area->v1->flag = area->v2->flag = area->v3->flag = area->v4->flag = 0;
     }
 
     /* test for collapsed areas. This could happen in some blender version... */
@@ -173,6 +197,9 @@ static bool screen_geom_vertices_scale_pass(const wmWindow *win,
     if (facy > 1) {
       /* Keep timeline small in video edit workspace. */
       LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+        if (area->flag & AREA_FLAG_HIDDEN) {
+          continue;
+        }
         const int border_width = int(ceil(float(U.border_width) * UI_SCALE_FAC));
         int min = ED_area_headersize() + border_width;
         if (area->v1->vec.y > screen_rect->ymin) {
@@ -208,8 +235,7 @@ static bool screen_geom_vertices_scale_pass(const wmWindow *win,
      * vertical size since this is called on file load, not just
      * during resize operations. */
     LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
-      /* TODO, only skip if docked area is not displayed. */
-      if (area->flag & AREA_FLAG_DOCKED) {
+      if (area->flag & AREA_FLAG_HIDDEN) {
         continue;
       }
       const int border_width = int(ceil(float(U.border_width) * UI_SCALE_FAC));

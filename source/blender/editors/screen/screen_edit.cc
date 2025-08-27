@@ -219,9 +219,9 @@ bScreen *screen_add(Main *bmain, const char *name, const rcti *rect)
 ScrArea *ED_screen_area_add_empty(bScreen *screen, const rcti &rect)
 {
   ScrVert *sv1 = screen_geom_vertex_add(screen, rect.xmin, rect.ymin);
-  ScrVert *sv2 = screen_geom_vertex_add(screen, rect.xmin, rect.ymax - 1);
-  ScrVert *sv3 = screen_geom_vertex_add(screen, rect.xmax - 1, rect.ymax - 1);
-  ScrVert *sv4 = screen_geom_vertex_add(screen, rect.xmax - 1, rect.ymin);
+  ScrVert *sv2 = screen_geom_vertex_add(screen, rect.xmin, rect.ymax);
+  ScrVert *sv3 = screen_geom_vertex_add(screen, rect.xmax, rect.ymax);
+  ScrVert *sv4 = screen_geom_vertex_add(screen, rect.xmax, rect.ymin);
 
   screen_geom_edge_add(screen, sv1, sv2);
   screen_geom_edge_add(screen, sv2, sv3);
@@ -230,6 +230,45 @@ ScrArea *ED_screen_area_add_empty(bScreen *screen, const rcti &rect)
 
   /* dummy type, no spacedata */
   return screen_addarea(screen, sv1, sv2, sv3, sv4, SPACE_EMPTY);
+}
+
+void ED_screen_area_geometry_detatch(bScreen *screen, ScrArea *detach_area)
+{
+  LISTBASE_FOREACH (ScrVert *, sv, &screen->vertbase) {
+    sv->flag = 0;
+  }
+
+  /* Tag vertices used by other areas. */
+  LISTBASE_FOREACH (ScrArea *, iter_area, &screen->areabase) {
+    if (iter_area != detach_area) {
+      iter_area->v1->flag = iter_area->v2->flag = iter_area->v3->flag = iter_area->v4->flag = 1;
+    }
+  }
+
+  blender::Array<ScrVert **> area_verts = {
+      &detach_area->v1,
+      &detach_area->v2,
+      &detach_area->v3,
+      &detach_area->v4,
+  };
+  /* Duplicate verts of this area that are tagged as used by other areas. */
+  for (ScrVert **vert : area_verts) {
+    if ((*vert)->flag) {
+      *vert = screen_geom_vertex_add(screen, (*vert)->vec.x, (*vert)->vec.y);
+    }
+  }
+
+  /* Simply recreate edges and cleanup unused ones afterwards. Not the most efficient but easiest
+   * way to do this. */
+  screen_geom_edge_add(screen, detach_area->v1, detach_area->v2);
+  screen_geom_edge_add(screen, detach_area->v2, detach_area->v3);
+  screen_geom_edge_add(screen, detach_area->v3, detach_area->v4);
+  screen_geom_edge_add(screen, detach_area->v4, detach_area->v1);
+  BKE_screen_remove_unused_scredges(screen);
+
+  LISTBASE_FOREACH (ScrVert *, sv, &screen->vertbase) {
+    sv->flag = 0;
+  }
 }
 
 void screen_data_copy(bScreen *to, bScreen *from)
@@ -408,6 +447,9 @@ static bool screen_areas_can_align(
     const short xmin = std::min(sa1->v1->vec.x, sa2->v1->vec.x);
     const short xmax = std::max(sa1->v3->vec.x, sa2->v3->vec.x);
     LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+      if (area->flag & AREA_FLAG_HIDDEN) {
+        continue;
+      }
       if (ELEM(area, sa1, sa2)) {
         continue;
       }
@@ -423,6 +465,9 @@ static bool screen_areas_can_align(
     const short ymin = std::min(sa1->v1->vec.y, sa2->v1->vec.y);
     const short ymax = std::max(sa1->v3->vec.y, sa2->v3->vec.y);
     LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+      if (area->flag & AREA_FLAG_HIDDEN) {
+        continue;
+      }
       if (ELEM(area, sa1, sa2)) {
         continue;
       }
@@ -626,6 +671,9 @@ bool screen_area_close(bContext *C, ReportList *reports, bScreen *screen, ScrAre
   float best_alignment = 0.0f;
 
   LISTBASE_FOREACH (ScrArea *, neighbor, &screen->areabase) {
+    if (neighbor->flag & AREA_FLAG_HIDDEN) {
+      continue;
+    }
     const eScreenDir dir = area_getorientation(area, neighbor);
     /* Must at least partially share an edge and not be a global area. */
     if ((dir != SCREEN_DIR_NONE) && (neighbor->global == nullptr)) {
@@ -1098,6 +1146,9 @@ static void screen_cursor_set(wmWindow *win, const int xy[2])
   ScrArea *area = nullptr;
 
   LISTBASE_FOREACH (ScrArea *, area_iter, &screen->areabase) {
+    if (area_iter->flag & AREA_FLAG_HIDDEN) {
+      continue;
+    }
     az = ED_area_actionzone_find_xy(area_iter, xy);
     /* We used to exclude AZONE_REGION_SCROLL as those used
      * to overlap screen edges, but they no longer do so. */
