@@ -306,7 +306,8 @@ typedef struct Strip {
 typedef struct MetaStack {
   struct MetaStack *next, *prev;
   /**
-   * The meta-strip that contains `parent_strip`. May be null (that means it is the root sequence).
+   * The meta-strip that contains `parent_strip`. May be null (that means it is the top-most
+   * strips).
    */
   Strip *old_strip;
   Strip *parent_strip;
@@ -338,8 +339,8 @@ typedef struct EditingRuntime {
 
 typedef struct Editing {
   /**
-   * The current meta-strip being edited and/or viewed, may be null in which case the root
-   * sequence is used.
+   * The current meta-strip being edited and/or viewed, may be null, in which case the top-most
+   * strips are used.
    */
   Strip *current_meta_strip;
 
