@@ -305,7 +305,7 @@ static ClosestElement find_closest_element(const PenToolOperation &ptd, const fl
 
   for (const int curves_index : ptd.curves_range()) {
     const bke::CurvesGeometry &curves = ptd.get_curves(curves_index);
-    const float4x4 layer_to_object = ptd.layer_to_objects[curves_index];
+    const float4x4 layer_to_object = ptd.layer_to_object_per_curves[curves_index];
 
     IndexMaskMemory memory;
     const IndexMask bezier_points = ptd.visible_bezier_handle_points(curves_index, memory);
@@ -933,7 +933,7 @@ static float2 calculate_center_of_mass(const PenToolOperation &ptd, const bool e
 
   for (const int curves_index : ptd.curves_range()) {
     const bke::CurvesGeometry &curves = ptd.get_curves(curves_index);
-    const float4x4 &layer_to_object = ptd.layer_to_objects[curves_index];
+    const float4x4 &layer_to_object = ptd.layer_to_object_per_curves[curves_index];
     const Span<float3> positions = curves.positions();
     const OffsetIndices<int> points_by_curve = curves.points_by_curve();
     const Array<int> point_to_curve_map = curves.point_to_curve_map();
@@ -999,7 +999,7 @@ static void invoke_curves(PenToolOperation &ptd, bContext *C, wmOperator *op, co
         if (ptd.extrude_point) {
           IndexMaskMemory memory;
           const IndexMask editable_curves = ptd.editable_curves(curves_index, memory);
-          const float4x4 &layer_to_object = ptd.layer_to_objects[curves_index];
+          const float4x4 &layer_to_object = ptd.layer_to_object_per_curves[curves_index];
 
           if (std::optional<bke::CurvesGeometry> result = extrude_curves(
                   ptd, curves, layer_to_object, editable_curves))
@@ -1081,7 +1081,7 @@ static void invoke_curves(PenToolOperation &ptd, bContext *C, wmOperator *op, co
     if (ptd.can_create_new_curve(op)) {
       const int curves_index = *ptd.active_drawing_index;
 
-      const float4x4 &layer_to_world = ptd.layer_to_worlds[curves_index];
+      const float4x4 &layer_to_world = ptd.layer_to_world_per_curves[curves_index];
       bke::CurvesGeometry &curves = ptd.get_curves(curves_index);
 
       add_single_point_and_curve(ptd, curves, layer_to_world);
@@ -1239,7 +1239,7 @@ wmOperatorStatus PenToolOperation::modal(bContext *C, wmOperator *op, const wmEv
 
   if (this->move_seg && this->closest_element.element_mode == ElementMode::Edge) {
     const int curves_index = this->closest_element.drawing_index;
-    const float4x4 &layer_to_world = this->layer_to_worlds[curves_index];
+    const float4x4 &layer_to_world = this->layer_to_world_per_curves[curves_index];
     bke::CurvesGeometry &curves = this->get_curves(curves_index);
 
     move_segment(*this, curves, layer_to_world);
@@ -1250,8 +1250,8 @@ wmOperatorStatus PenToolOperation::modal(bContext *C, wmOperator *op, const wmEv
     threading::parallel_for(this->curves_range(), 1, [&](const IndexRange curves_range) {
       for (const int curves_index : curves_range) {
         bke::CurvesGeometry &curves = this->get_curves(curves_index);
-        const float4x4 &layer_to_object = this->layer_to_objects[curves_index];
-        const float4x4 &layer_to_world = this->layer_to_worlds[curves_index];
+        const float4x4 &layer_to_object = this->layer_to_object_per_curves[curves_index];
+        const float4x4 &layer_to_world = this->layer_to_world_per_curves[curves_index];
 
         IndexMaskMemory memory;
         const IndexMask selection = this->all_selected_points(curves_index, memory);
@@ -1279,7 +1279,7 @@ class CurvesPenToolOperation : public PenToolOperation {
 
   float3 project(const float2 &screen_co) const
   {
-    const float4x4 &layer_to_world = this->layer_to_worlds[*this->active_drawing_index];
+    const float4x4 &layer_to_world = this->layer_to_world_per_curves[*this->active_drawing_index];
     return this->screen_to_layer(layer_to_world, screen_co, float3(0.0f));
   }
 
@@ -1359,14 +1359,14 @@ class CurvesPenToolOperation : public PenToolOperation {
     Object *object = CTX_data_active_object(C);
     if (object && object_has_editable_curves(bmain, *object)) {
       unique_curves.add_new(static_cast<Curves *>(object->data));
-      this->layer_to_worlds.append(object->object_to_world());
+      this->layer_to_world_per_curves.append(object->object_to_world());
       this->active_drawing_index = 0;
     }
 
     CTX_DATA_BEGIN (C, Object *, object, selected_objects) {
       if (object_has_editable_curves(bmain, *object)) {
         if (unique_curves.add(static_cast<Curves *>(object->data))) {
-          this->layer_to_worlds.append(object->object_to_world());
+          this->layer_to_world_per_curves.append(object->object_to_world());
         }
       }
     }
@@ -1376,7 +1376,7 @@ class CurvesPenToolOperation : public PenToolOperation {
       this->all_curves.append(curves_id);
     }
 
-    this->layer_to_objects.append_n_times(float4x4::identity(), this->all_curves.size());
+    this->layer_to_object_per_curves.append_n_times(float4x4::identity(), this->all_curves.size());
 
     return std::nullopt;
   }

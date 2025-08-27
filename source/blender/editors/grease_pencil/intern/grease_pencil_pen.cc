@@ -185,8 +185,8 @@ class GreasePencilPenToolOperation : public curves::pen_tool::PenToolOperation {
     for (const int drawing_index : this->drawings.index_range()) {
       const MutableDrawingInfo &info = this->drawings[drawing_index];
       const bke::greasepencil::Layer &layer = this->grease_pencil->layer(info.layer_index);
-      this->layer_to_objects.append(layer.local_transform());
-      this->layer_to_worlds.append(layer.to_world_space(*this->vc.obact));
+      this->layer_to_object_per_curves.append(layer.local_transform());
+      this->layer_to_world_per_curves.append(layer.to_world_space(*this->vc.obact));
     }
 
     this->active_drawing_index = std::nullopt;
