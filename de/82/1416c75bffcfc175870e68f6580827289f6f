@@ -1,1 +1,2 @@
 Referenced by issue #137517, Cycles geometry/texture coordinate nodes output some wrong values when using adaptive subdivision
+Referenced by issue #143662, 4.5 Crash trying to save render image multiple times, with thumbnails view on
