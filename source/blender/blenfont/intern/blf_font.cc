@@ -187,9 +187,7 @@ static ft_pix blf_unscaled_F26Dot6_to_pixels(FontBLF *font, FT_Pos value)
  */
 static void blf_batch_draw_init()
 {
-  blender::gpu::VertBufPtr buf = blender::gpu::VertBuf::from_size_with_format<GlyphQuad>(
-      BLF_BATCH_DRAW_LEN_MAX, GPU_USAGE_STREAM);
-  g_batch.verts = buf.release();
+  g_batch.glyph_buf = GPU_storagebuf_create(sizeof(g_batch.glyph_data));
   g_batch.glyph_len = 0;
   /* We render a quad as a triangle strip and instance it for each glyph. */
   g_batch.batch = GPU_batch_create_procedural(GPU_PRIM_TRI_STRIP, 4);
@@ -198,7 +196,9 @@ static void blf_batch_draw_init()
 static void blf_batch_draw_exit()
 {
   GPU_BATCH_DISCARD_SAFE(g_batch.batch);
-  GPU_VERTBUF_DISCARD_SAFE(g_batch.verts);
+  if (g_batch.glyph_buf) {
+    GPU_storagebuf_free(g_batch.glyph_buf);
+  }
 }
 
 void blf_batch_draw_begin(FontBLF *font)
@@ -315,10 +315,9 @@ void blf_batch_draw()
   }
 
   blender::gpu::Texture *texture = blf_batch_cache_texture_load();
-  GPU_vertbuf_data_len_set(*g_batch.verts, uint(g_batch.glyph_len));
-  GPU_vertbuf_use(g_batch.verts); /* Send data. */
+  GPU_storagebuf_update(g_batch.glyph_buf, g_batch.glyph_data);
+  GPU_storagebuf_bind(g_batch.glyph_buf, 0);
 
-  GPU_vertbuf_bind_as_ssbo(g_batch.verts, 0);
   GPU_batch_program_set_builtin(g_batch.batch, GPU_SHADER_TEXT);
   GPU_batch_texture_bind(g_batch.batch, "glyph", texture);
   /* Setup texture width mask and shift, so that shader can avoid costly divisions. */

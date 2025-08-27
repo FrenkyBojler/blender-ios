@@ -1466,7 +1466,8 @@ static void blf_texture_draw(const GlyphBLF *g,
                              const int y2)
 {
   using namespace blender;
-  GlyphQuad &glyph_data = g_batch.verts->data<GlyphQuad>()[g_batch.glyph_len++];
+  BLI_assert(size_t(g_batch.glyph_len) < ARRAY_SIZE(g_batch.glyph_data));
+  GlyphQuad &glyph_data = g_batch.glyph_data[g_batch.glyph_len++];
   /* One vertex per glyph, instancing expands it into a quad. */
   glyph_data.position = int4(
       x1 + g_batch.ofs[0], y1 + g_batch.ofs[1], x2 + g_batch.ofs[0], y2 + g_batch.ofs[1]);
