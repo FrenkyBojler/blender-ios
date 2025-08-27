@@ -267,6 +267,7 @@ static void outliner_select_sync_to_strip(Scene *scene, const TreeElement *te)
 
 /** Sync select and active flags from outliner to active view layer, bones, and sequencer. */
 static void outliner_sync_selection_from_outliner(Scene *scene,
+                                                  Scene *sequencer_scene,
                                                   ViewLayer *view_layer,
                                                   ListBase *tree,
                                                   const SyncSelectTypes *sync_types,
@@ -294,12 +295,12 @@ static void outliner_sync_selection_from_outliner(Scene *scene,
     }
     else if (tselem->type == TSE_STRIP) {
       if (sync_types->seq_strip) {
-        outliner_select_sync_to_strip(scene, te);
+        outliner_select_sync_to_strip(sequencer_scene, te);
       }
     }
 
     outliner_sync_selection_from_outliner(
-        scene, view_layer, &te->subtree, sync_types, selected_items);
+        scene, sequencer_scene, view_layer, &te->subtree, sync_types, selected_items);
   }
 }
 
@@ -327,8 +328,12 @@ void ED_outliner_select_sync_from_outliner(bContext *C, SpaceOutliner *space_out
 
   /* To store elements that have been selected to prevent linked object sync errors */
   SelectedItems selected_items;
-  outliner_sync_selection_from_outliner(
-      scene, view_layer, &space_outliner->tree, &sync_types, &selected_items);
+  outliner_sync_selection_from_outliner(scene,
+                                        CTX_data_sequencer_scene(C),
+                                        view_layer,
+                                        &space_outliner->tree,
+                                        &sync_types,
+                                        &selected_items);
 
   /* Tag for updates and clear dirty flag to prevent a sync to the outliner on draw. */
   if (sync_types.object) {
