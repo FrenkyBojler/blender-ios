@@ -305,7 +305,9 @@ typedef struct Strip {
 
 typedef struct MetaStack {
   struct MetaStack *next, *prev;
-  /** May be null (that means the root sequence). */
+  /**
+   * The meta-strip that contains `parent_strip`. May be null (that means it is the root sequence).
+   */
   Strip *old_strip;
   Strip *parent_strip;
   /* The startdisp/enddisp when entering the metastrip. */
