@@ -13,6 +13,7 @@ set(INC
 )
 
 set(INC_SYS
+  ${PYTHON_INCLUDE_DIRS}
 )
 
 set(SRC
@@ -61,6 +62,7 @@ set(LIB
   PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
   PRIVATE bf::windowmanager
+  PRIVATE bf_python
 )
 
 if(WITH_PYTHON)

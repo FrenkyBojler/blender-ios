@@ -22,13 +22,18 @@
 
 #pragma once
 
-#include "BLI_sys_types.h"
-
 #include "BLI_compiler_attrs.h"
+#include "BLI_function_ref.hh"
+#include "BLI_string_ref.hh"
+#include "BLI_sys_types.h"
 
 struct ReportList;
 struct Text;
 struct bContext;
+
+/* Taken from `pytypedefs.h`, so that this file does not require including all of `Python.h`. */
+struct _object;
+typedef struct _object PyObject;
 
 /* `bpy_interface_run.cc` */
 
@@ -96,6 +101,22 @@ bool BPY_run_string_exec(bContext *C, const char *imports[], const char *expr);
  *  used for `bpy.context` and reporting errors to `CTX_wm_reports(C)`.
  */
 bool BPY_run_string_eval(bContext *C, const char *imports[], const char *expr);
+
+/**
+ * Run a script, with the given local variables.
+ *
+ * \param C: Optional context (may be null),
+ *  used for `bpy.context` and reporting errors to `CTX_wm_reports(C)`.
+ *
+ * \param script The Python script to run, can be multiple lines.
+ *
+ * \param set_locals_fn A function that gets the 'locals' dictionary, in order to add local
+ * variables to it. This is done via a callback function so that the caller of
+ * BPY_run_string_with_locals() doesn't have to bother with obtaining the GIL.
+ */
+bool BPY_run_string_with_locals(bContext *C,
+                                const blender::StringRefNull script,
+                                blender::FunctionRef<void(PyObject *py_locals)> set_locals_fn);
 
 /** \} */
 

@@ -6,7 +6,11 @@
  * \ingroup asset_system
  */
 
+#include <Python.h>
 #include <fmt/format.h>
+
+#include "../../python/generic/py_capi_utils.hh"
+#include "../../python/intern/bpy_capi_utils.hh"
 
 #include "BLI_fileops.h"
 #include "BLI_listbase.h"
@@ -317,7 +321,7 @@ void remote_library_request_asset_download(bContext &C,
     return;
   }
   const asset_system::AssetLibrary &library = asset.owner_asset_library();
-  const std::optional<StringRef> library_url = library.remote_url();
+  const std::optional<StringRefNull> library_url = library.remote_url();
   if (!library_url) {
     BKE_reportf(reports,
                 RPT_WARNING,
@@ -326,25 +330,49 @@ void remote_library_request_asset_download(bContext &C,
     return;
   }
 
-  const StringRef library_path = library.root_path();
-
   {
-    const char *expr_imports[] = {"_bpy_internal",
-                                  "_bpy_internal.assets.remote_library_listing.asset_downloader",
-                                  "pathlib",
-                                  nullptr};
-    const std::string expr = fmt::format(
-        "_bpy_internal.assets.remote_library_listing.asset_downloader.download_asset('{}', "
-        "pathlib.Path('{}'), '{}', pathlib.Path('{}'))",
-        *library_url,
-        library_path,
-        *dst_filepath,
-        *dst_filepath);
+    std::string script =
+        // "import _bpy_internal.assets.remote_library_listing.asset_downloader as asset_dl\n"
+        // "from pathlib import Path\n"
+        // "\n"
+        // "asset_dl.download_asset(\n"
+        // "    library_url, Path(library_path),\n"
+        // "    dst_filepath, Path(dst_filepath),\n"
+        // ")\n";
+        "print('\033[38;5;214mHello World from Python!\033[0m')";
 
-    BPY_run_string_exec(&C, expr_imports, expr.c_str());
+    const StringRefNull library_path = library.root_path();
+
+    /* Construct local variables for the above script. */
+    auto set_locals = [&](PyObject *py_locals) {
+      PyObject *py_library_url = PyUnicode_FromStringAndSize(library_url->c_str(),
+                                                             library_url->size());
+      BLI_assert(py_library_url);
+
+      PyObject *py_library_path = PyUnicode_FromStringAndSize(library_path.c_str(),
+                                                              library_path.size());
+      BLI_assert(py_library_path);
+
+      PyObject *py_dst_filepath = PyUnicode_FromStringAndSize(dst_filepath->data(),
+                                                              dst_filepath->size());
+      BLI_assert(py_dst_filepath);
+
+      PyDict_SetItemString(py_locals, "library_url", py_library_url);
+      PyDict_SetItemString(py_locals, "library_path", py_library_path);
+      PyDict_SetItemString(py_locals, "dst_filepath", py_dst_filepath);
+
+      Py_DECREF(py_library_url);
+      Py_DECREF(py_library_path);
+      Py_DECREF(py_dst_filepath);
+    };
+
+    /* TODO: report errors in the UI somehow. */
+    BPY_run_string_with_locals(&C, script, set_locals);
   }
 #else
-  UNUSED_VARS(C, asset, reports);
+  UNUSED_VARS(C, asset);
+  BKE_report(
+      reports, RPT_ERROR, "Downloading assets requires Python, and this Blender is built without");
 #endif
 }
 
