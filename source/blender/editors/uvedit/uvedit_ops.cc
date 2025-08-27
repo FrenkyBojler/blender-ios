@@ -1287,12 +1287,12 @@ static wmOperatorStatus uv_pin_exec(bContext *C, wmOperator *op)
       scene, view_layer, nullptr);
 
   for (Object *obedit : objects) {
-    BMEditMesh *em = BKE_editmesh_from_object(obedit);
+    Mesh &mesh = *static_cast<Mesh *>(obedit->data);
+    BMEditMesh *em = mesh.runtime->edit_mesh.get();
 
     bool changed = false;
 
-    // TODO_MESH_ATTR
-    const char *active_uv_name = CustomData_get_active_layer_name(&em->bm->ldata, CD_PROP_FLOAT2);
+    const char *active_uv_name = mesh.active_uv_map_attribute;
     if (em->bm->totvertsel == 0) {
       continue;
     }
@@ -1408,7 +1408,8 @@ static wmOperatorStatus uv_hide_exec(bContext *C, wmOperator *op)
       scene, view_layer, nullptr);
 
   for (Object *ob : objects) {
-    BMEditMesh *em = BKE_editmesh_from_object(ob);
+    Mesh &mesh = *static_cast<Mesh *>(ob->data);
+    BMEditMesh *em = mesh.runtime->edit_mesh.get();
     BMFace *efa;
     BMLoop *l;
     BMIter iter, liter;
@@ -1417,9 +1418,7 @@ static wmOperatorStatus uv_hide_exec(bContext *C, wmOperator *op)
       /* Pass. */
     }
     else {
-      // TODO_MESH_ATTR
-      const char *active_uv_name = CustomData_get_active_layer_name(&em->bm->ldata,
-                                                                    CD_PROP_FLOAT2);
+      const char *active_uv_name = mesh.active_uv_map_attribute;
       BM_uv_map_attr_vert_select_ensure(em->bm, active_uv_name);
       BM_uv_map_attr_edge_select_ensure(em->bm, active_uv_name);
     }
@@ -1582,7 +1581,8 @@ static wmOperatorStatus uv_reveal_exec(bContext *C, wmOperator *op)
       scene, view_layer, nullptr);
 
   for (Object *ob : objects) {
-    BMEditMesh *em = BKE_editmesh_from_object(ob);
+    Mesh &mesh = *static_cast<Mesh *>(ob->data);
+    BMEditMesh *em = mesh.runtime->edit_mesh.get();
     BMFace *efa;
     BMLoop *l;
     BMIter iter, liter;
@@ -1591,9 +1591,7 @@ static wmOperatorStatus uv_reveal_exec(bContext *C, wmOperator *op)
       /* Pass. */
     }
     else {
-      // TODO_MESH_ATTR
-      const char *active_uv_name = CustomData_get_active_layer_name(&em->bm->ldata,
-                                                                    CD_PROP_FLOAT2);
+      const char *active_uv_name = mesh.active_uv_map_attribute;
       BM_uv_map_attr_vert_select_ensure(em->bm, active_uv_name);
       BM_uv_map_attr_edge_select_ensure(em->bm, active_uv_name);
     }

@@ -1629,14 +1629,14 @@ static void uv_select_edgeloop_single_side_tag(const Scene *scene,
 static int uv_select_edgeloop(Scene *scene, Object *obedit, UvNearestHit *hit, const bool extend)
 {
   const ToolSettings *ts = scene->toolsettings;
-  BMesh *bm = BKE_editmesh_from_object(obedit)->bm;
+  Mesh &mesh = *static_cast<Mesh *>(obedit->data);
+  BMesh *bm = mesh.runtime->edit_mesh->bm;
   bool select;
 
   /* NOTE: this is a special case, even when sync select is enabled,
    * the flags are used then flushed to the vertices.
    * So these need to be ensured even though the layers aren't used afterwards. */
-  // TODO_MESH_ATTR
-  const char *active_uv_name = CustomData_get_active_layer_name(&bm->ldata, CD_PROP_FLOAT2);
+  const char *active_uv_name = mesh.active_uv_map_attribute;
   BM_uv_map_attr_vert_select_ensure(bm, active_uv_name);
   BM_uv_map_attr_edge_select_ensure(bm, active_uv_name);
   const BMUVOffsets offsets = BM_uv_map_offsets_get(bm);
@@ -3734,7 +3734,8 @@ static wmOperatorStatus uv_box_select_exec(bContext *C, wmOperator *op)
 
   /* don't indent to avoid diff noise! */
   for (Object *obedit : objects) {
-    BMesh *bm = BKE_editmesh_from_object(obedit)->bm;
+    Mesh &mesh = *static_cast<Mesh *>(obedit->data);
+    BMesh *bm = mesh.runtime->edit_mesh->bm;
 
     bool changed = false;
 
@@ -3746,8 +3747,7 @@ static wmOperatorStatus uv_box_select_exec(bContext *C, wmOperator *op)
     else {
       uvedit_select_prepare_custom_data(scene, bm);
       if (pinned) {
-        // TODO_MESH_ATTR
-        const char *active_uv_name = CustomData_get_active_layer_name(&bm->ldata, CD_PROP_FLOAT2);
+        const char *active_uv_name = mesh.active_uv_map_attribute;
         BM_uv_map_attr_pin_ensure(bm, active_uv_name);
       }
     }
@@ -4454,8 +4454,7 @@ static wmOperatorStatus uv_select_pinned_exec(bContext *C, wmOperator *op)
     Mesh &mesh = *static_cast<Mesh *>(obedit->data);
     BMesh *bm = BKE_editmesh_from_object(obedit)->bm;
 
-    // TODO_MESH_ATTR
-    const char *active_uv_name = CustomData_get_active_layer_name(&bm->ldata, CD_PROP_FLOAT2);
+    const char *active_uv_name = mesh.active_uv_map_attribute;
     if (!BM_uv_map_attr_pin_exists(bm, active_uv_name)) {
       continue;
     }
@@ -4730,8 +4729,10 @@ static wmOperatorStatus uv_select_overlap(bContext *C, const bool extend)
       const UVOverlapData *o_b = &overlap_data[overlap[i].indexB];
       Object *obedit_a = objects[o_a->ob_index];
       Object *obedit_b = objects[o_b->ob_index];
-      BMesh *bm_a = BKE_editmesh_from_object(obedit_a)->bm;
-      BMesh *bm_b = BKE_editmesh_from_object(obedit_b)->bm;
+      Mesh &mesh_a = *static_cast<Mesh *>(obedit_a->data);
+      Mesh &mesh_b = *static_cast<Mesh *>(obedit_b->data);
+      BMesh *bm_a = mesh_a.runtime->edit_mesh->bm;
+      BMesh *bm_b = mesh_b.runtime->edit_mesh->bm;
       BMFace *face_a = bm_a->ftable[o_a->face_index];
       BMFace *face_b = bm_b->ftable[o_b->face_index];
 
@@ -4739,9 +4740,8 @@ static wmOperatorStatus uv_select_overlap(bContext *C, const bool extend)
         /* Pass. */
       }
       else {
-        // TODO_MESH_ATTR
-        const char *uv_a_name = CustomData_get_active_layer_name(&bm_a->ldata, CD_PROP_FLOAT2);
-        const char *uv_b_name = CustomData_get_active_layer_name(&bm_b->ldata, CD_PROP_FLOAT2);
+        const char *uv_a_name = mesh_a.active_uv_map_attribute;
+        const char *uv_b_name = mesh_b.active_uv_map_attribute;
         BM_uv_map_attr_vert_select_ensure(bm_a, uv_a_name);
         BM_uv_map_attr_vert_select_ensure(bm_b, uv_b_name);
         BM_uv_map_attr_edge_select_ensure(bm_a, uv_a_name);
