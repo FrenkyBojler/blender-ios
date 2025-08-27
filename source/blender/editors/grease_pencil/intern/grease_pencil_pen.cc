@@ -315,9 +315,8 @@ struct PenToolOperation {
 
       if (this->move_handle) {
         const int curve_i = point_to_curve_map[point_i];
-        if (points_by_curve[curve_i].first() == point_i &&
-            points_by_curve[curve_i].last() != point_i)
-        {
+        const IndexRange curve_points = points_by_curve[curve_i];
+        if (curve_points.size() > 1 && curve_points.first() == point_i) {
           /* Moving the handles of the strokes first control point. */
           const float2 pos_left = this->layer_to_screen(layer_to_object, handles_left[point_i]);
           handles_left[point_i] = this->screen_to_layer(
