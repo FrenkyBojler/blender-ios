@@ -1654,9 +1654,9 @@ static void do_version_lens_distortion_menus_to_inputs(bNodeTree &ntree, bNode &
     return;
   }
 
-  const auto &storage = *static_cast<NodeKuwaharaData *>(node.storage);
+  const auto &storage = *static_cast<NodeLensDist *>(node.storage);
   bNodeSocket &socket = version_node_add_socket(ntree, node, SOCK_IN, "NodeSocketMenu", "Type");
-  socket.default_value_typed<bNodeSocketValueMenu>()->value = storage.variation;
+  socket.default_value_typed<bNodeSocketValueMenu>()->value = storage.distortion_type;
 }
 
 static void do_version_kuwahara_menus_to_inputs(bNodeTree &ntree, bNode &node)
