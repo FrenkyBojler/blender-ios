@@ -75,7 +75,7 @@ class ShapeKeyDragController : public ui::AbstractViewItemDragController {
         count += (kb->flag & KEYBLOCK_SEL);
       }
       return count;
-     };
+    };
 
     KeyBlock **selected_keys_ = MEM_calloc_arrayN<KeyBlock *>(count_selected(),
                                                               "Selected Key Blocks");
