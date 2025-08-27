@@ -19,6 +19,7 @@
 #include "BLI_mutex.hh"
 #include "BLI_vector.hh"
 
+#include "GPU_shader_shared.hh"
 #include "GPU_texture.hh"
 #include "GPU_vertex_buffer.hh"
 
@@ -112,9 +113,7 @@ struct BatchBLF {
   FontBLF *font;
   blender::gpu::Batch *batch;
   blender::gpu::VertBuf *verts;
-  GPUVertBufRaw pos_step, col_step, offset_step, glyph_size_step, glyph_flags_step;
-  unsigned int pos_loc, col_loc, offset_loc, glyph_size_loc, glyph_flags_loc;
-  unsigned int glyph_len;
+  int glyph_len;
   /** Copy of `font->pos`. */
   int ofs[2];
   /** Previous call `modelmatrix`. */
