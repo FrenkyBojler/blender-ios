@@ -1391,7 +1391,6 @@ static wmOperatorStatus armature_symmetrize_exec(bContext *C, wmOperator *op)
           copy_pchan(ebone_iter, ebone_iter->temp.ebone, obedit, obedit);
           /* Sync scale mode */
           ebone_iter->temp.ebone->inherit_scale_mode = ebone_iter->inherit_scale_mode;
-          printf("done continue\n");
           continue;
         }
 
