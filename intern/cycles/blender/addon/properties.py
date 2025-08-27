@@ -1005,7 +1005,7 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
 
     texture_limit: EnumProperty(
         name="Viewport Texture Limit",
-        default='OFF',
+        default='1024',
         description="Limit texture size used by viewport rendering",
         items=enum_texture_limit
     )
