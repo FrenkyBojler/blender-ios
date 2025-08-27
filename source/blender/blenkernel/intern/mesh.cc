@@ -1160,12 +1160,12 @@ MutableSpan<MDeformVert> Mesh::deform_verts_for_write()
           this->verts_num};
 }
 
-blender::VectorSet<blender::StringRef> Mesh::uv_map_names() const
+blender::VectorSet<blender::StringRefNull> Mesh::uv_map_names() const
 {
   using namespace blender;
   using namespace blender::bke;
   const AttributeAccessor attributes = this->attributes();
-  VectorSet<StringRef> result;
+  VectorSet<StringRefNull> result;
   attributes.foreach_attribute([&](const AttributeIter &iter) {
     if (iter.domain == AttrDomain::Corner && iter.data_type == AttrType::Float2) {
       result.add(iter.name);

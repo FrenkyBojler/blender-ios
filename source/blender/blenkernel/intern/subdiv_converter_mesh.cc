@@ -35,7 +35,7 @@ struct ConverterStorage {
   Span<int> corner_verts;
   Span<int> corner_edges;
 
-  VectorSet<StringRef> uv_map_names;
+  VectorSet<StringRefNull> uv_map_names;
 
   /* CustomData layer for vertex sharpnesses. */
   VArraySpan<float> cd_vertex_crease;

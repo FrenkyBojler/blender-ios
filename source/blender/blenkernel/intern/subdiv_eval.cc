@@ -6,6 +6,7 @@
  * \ingroup bke
  */
 
+#include "BKE_attribute.hh"
 #include "BKE_subdiv_eval.hh"
 
 #include "BLI_math_vector.h"
@@ -254,12 +255,12 @@ bool eval_refine_from_mesh(Subdiv *subdiv,
                        mesh->verts_no_face());
 
   /* Set face-varying data to UV maps. */
-  // TODO_MESH_ATTR
-  const int num_uv_layers = CustomData_number_of_layers(&mesh->corner_data, CD_PROP_FLOAT2);
-  for (int layer_index = 0; layer_index < num_uv_layers; layer_index++) {
-    const float(*uv_map)[2] = static_cast<const float(*)[2]>(
-        CustomData_get_layer_n(&mesh->corner_data, CD_PROP_FLOAT2, layer_index));
-    set_face_varying_data_from_uv(subdiv, mesh, uv_map, layer_index);
+  const AttributeAccessor attributes = mesh->attributes();
+  VectorSet<StringRefNull> uv_map_names = mesh->uv_map_names();
+  for (const int i : uv_map_names.index_range()) {
+    const VArraySpan uv_map = *attributes.lookup<float2>(uv_map_names[i], bke::AttrDomain::Corner);
+    set_face_varying_data_from_uv(
+        subdiv, mesh, reinterpret_cast<const float(*)[2]>(uv_map.data()), i);
   }
   /* Set vertex data to orco. */
   set_vertex_data_from_orco(subdiv, mesh);
