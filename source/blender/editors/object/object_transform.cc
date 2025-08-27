@@ -2639,7 +2639,10 @@ void OBJECT_OT_transform_axis_target(wmOperatorType *ot)
 {
   /* identifiers */
   ot->name = "Interactive Light Track to Cursor";
-  ot->description = "Interactively point cameras and lights to a location (Ctrl translates)";
+  ot->description = "Interactively point cameras and lights to a location. "
+                    "(Hold CTRL to point lights to object normals, "
+                    "Hold CTRL+ALT to point lights to specular reflection, "
+                    "Hold ALT to point lights to shadow targets)";
   ot->idname = "OBJECT_OT_transform_axis_target";
 
   /* API callbacks. */
