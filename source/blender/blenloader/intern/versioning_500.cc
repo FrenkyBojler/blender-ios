@@ -1769,6 +1769,9 @@ static void sequencer_remove_listbase_pointers(Scene &scene)
   if (!ed) {
     return;
   }
+  if (BLI_listbase_is_empty(&ed->metastack)) {
+    return;
+  }
   const MetaStack &last_meta_stack = *static_cast<MetaStack *>(ed->metastack.last);
   ed->current_meta_strip = last_meta_stack.parent_strip;
   blender::seq::meta_stack_set(&scene, last_meta_stack.parent_strip);
