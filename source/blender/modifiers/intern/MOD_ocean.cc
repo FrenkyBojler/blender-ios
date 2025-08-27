@@ -142,7 +142,7 @@ struct GenerateOceanGeometryData {
   blender::MutableSpan<blender::float3> vert_positions;
   blender::MutableSpan<int> face_offsets;
   blender::MutableSpan<int> corner_verts;
-  float (*uv_map)[2];
+  blender::MutableSpan<blender::float2> uv_map;
 
   int res_x, res_y;
   int rx, ry;
@@ -196,7 +196,7 @@ static void generate_ocean_geometry_uvs(void *__restrict userdata,
 
   for (x = 0; x < gogd->res_x; x++) {
     const int i = y * gogd->res_x + x;
-    float(*luv)[2] = &gogd->uv_map[i * 4];
+    blender::float2 *luv = &gogd->uv_map[i * 4];
 
     (*luv)[0] = x * gogd->ix;
     (*luv)[1] = y * gogd->iy;
@@ -218,6 +218,7 @@ static void generate_ocean_geometry_uvs(void *__restrict userdata,
 
 static Mesh *generate_ocean_geometry(OceanModifierData *omd, Mesh *mesh_orig, const int resolution)
 {
+  using namespace blender;
   Mesh *result;
 
   GenerateOceanGeometryData gogd;
@@ -263,17 +264,22 @@ static Mesh *generate_ocean_geometry(OceanModifierData *omd, Mesh *mesh_orig, co
   blender::bke::mesh_calc_edges(*result, false, false);
 
   /* add uvs */
-  // TODO_MESH_ATTR
-  if (CustomData_number_of_layers(&result->corner_data, CD_PROP_FLOAT2) < MAX_MTFACE) {
-    gogd.uv_map = static_cast<float(*)[2]>(CustomData_add_layer_named(
-        &result->corner_data, CD_PROP_FLOAT2, CD_SET_DEFAULT, faces_num * 4, "UVMap"));
+  if (result->uv_map_names().size() < MAX_MTFACE) {
+    bke::MutableAttributeAccessor attributes = result->attributes_for_write();
+    std::string name = BKE_attribute_calc_unique_name(AttributeOwner::from_id(&result->id),
+                                                      "UVMap");
+    bke::SpanAttributeWriter<float2> uv_map = attributes.lookup_or_add_for_write_span<float2>(
+        name, bke::AttrDomain::Corner);
 
-    if (gogd.uv_map) { /* unlikely to fail */
+    if (uv_map) { /* unlikely to fail */
+      gogd.uv_map = uv_map.span;
       gogd.ix = 1.0 / gogd.rx;
       gogd.iy = 1.0 / gogd.ry;
 
       BLI_task_parallel_range(0, gogd.res_y, &gogd, generate_ocean_geometry_uvs, &settings);
     }
+
+    uv_map.finish();
   }
 
   return result;

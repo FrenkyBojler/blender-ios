@@ -370,6 +370,7 @@ static bool attribute_name_exists(const AttributeOwner &owner, const StringRef n
 
 std::string BKE_attribute_calc_unique_name(const AttributeOwner &owner, const StringRef name)
 {
+  // TODO_MESH_ATTR
   if (owner.type() != AttributeOwnerType::Mesh) {
     blender::bke::AttributeStorage &storage = *owner.get_storage();
     return storage.unique_name_calc(name);
