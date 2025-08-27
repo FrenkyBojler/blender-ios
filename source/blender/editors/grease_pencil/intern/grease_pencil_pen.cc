@@ -313,9 +313,21 @@ struct PenToolOperation {
       }
 
       if (this->move_handle) {
-        const float2 pos_right = this->layer_to_screen(layer_to_object, handles_right[point_i]);
-        handles_right[point_i] = this->screen_to_layer(
-            layer_to_world, pos_right + offset, depth_point);
+        const int curve_index = point_to_curve_map[point_i];
+        if (point_to_curve_map.size() > point_i + 1 &&
+            point_to_curve_map[point_i - 1] != curve_index &&
+            point_to_curve_map[point_i + 1] == curve_index)
+        {
+          // Moving the handles of the strokes first control point
+          const float2 pos_left = this->layer_to_screen(layer_to_object, handles_left[point_i]);
+          handles_left[point_i] = this->screen_to_layer(
+              layer_to_world, pos_left + offset, depth_point);
+        }
+        else {
+          const float2 pos_right = this->layer_to_screen(layer_to_object, handles_right[point_i]);
+          handles_right[point_i] = this->screen_to_layer(
+              layer_to_world, pos_right + offset, depth_point);
+        }
         handle_types_left[point_i] = BEZIER_HANDLE_FREE;
         handle_types_right[point_i] = BEZIER_HANDLE_FREE;
         return;
