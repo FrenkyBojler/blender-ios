@@ -208,14 +208,14 @@ struct wmXrVignetteData {
   /** Vignette state. */
   float aperture;
   float aperture_velocity;
-  
-  /** Vignette parameters. */  
+
+  /** Vignette parameters. */
   float initial_aperture;
   float initial_aperture_velocity;
 
   float aperture_min;
   float aperture_max;
-  
+
   float aperture_velocity_max;
   float aperture_velocity_delta;
 };

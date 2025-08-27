@@ -624,66 +624,24 @@ static const float g_xr_default_raycast_miss_color[4] = {1.0f, 0.35f, 0.35f, 1.0
 struct XrRaycastData {
   /** Raycast info */
   bool from_viewer;
-  
+
   /** Raycast results */
   bool success;
   float destination_dist;
   int num_points;
   float points[XR_MAX_RAYCASTS + 1][4];
   float direction[3];
-  
+
   /** Raycast visualization parameters */
   float color[4];
   float width;
   int samples_per_segment;
-  
+
   void *draw_handle;
 };
 
-static void wm_xr_raycast_catmull_rom(float* out,
-                                      const float in0[3],
-                                      const float in1[3],
-                                      const float in2[3],
-                                      const float in3[3],
-                                      float t)
-{
-  float t2 = t * t;
-  float t3 = t2 * t;
-
-  for (int i = 0; i < 3; ++i)
-  {
-    out[i] = 0.5f * ( (2 * in1[i]) +
-                      (-in0[i] + in2[i]) * t +
-                      (2 * in0[i] - 5 * in1[i] + 4 * in2[i] - in3[i]) * t2 + 
-                      (-in0[i] + 3 * in1[i] - 3 * in2[i] + in3[i]) * t3 );
-  }
-}
-
-static void wm_xr_raycast_generate_spline(float spline[][3],
-                                          int spline_length, 
-                                          const float control_points[][3], 
-                                          int num_control_points)
-{
-  BLI_assert(spline_length > num_control_points);
-
-  for (int i = 0; i < spline_length; ++i)
-  {
-    float t = (float)i / (spline_length - 1);
-    float scaled_t = t * (num_control_points - 1);
-    float local_t = fractf(scaled_t);
-    int j = (int)scaled_t;
-
-    wm_xr_raycast_catmull_rom(spline[i], 
-                              control_points[max_ii(j - 1, 0)], 
-                              control_points[j],
-                              control_points[min_ii(j + 1, num_control_points - 1)],
-                              control_points[min_ii(j + 2, num_control_points - 1)],
-                              local_t);
-  }
-}
-
 static void wm_xr_raycast_destination_draw(const XrRaycastData *data)
-{  
+{
   GPU_depth_test(GPU_DEPTH_LESS_EQUAL);
   GPU_blend(GPU_BLEND_ALPHA);
 
@@ -758,7 +716,7 @@ static void wm_xr_raycast_draw(const bContext * /*C*/, ARegion * /*region*/, voi
     for (int i = 0; i < sampleCount * 2; ++i) {
       immVertex3fv(pos, right);
     }
-    
+
     immEnd();
   }
 
@@ -831,7 +789,7 @@ static void wm_xr_raycast_update(wmOperator *op,
     mul_qt_v3(actiondata->controller_rot, axis);
   }
 
-  copy_v3_v3(data->direction, axis);  
+  copy_v3_v3(data->direction, axis);
 }
 
 static void wm_xr_raycast(Scene *scene,
@@ -1066,7 +1024,7 @@ static wmOperatorStatus wm_xr_navigation_fly_modal(bContext *C,
   data->time_prev = time_now;
 
   swap_hands = xr->runtime->session_state.swap_hands;
-  mode = (eXrFlyMode)RNA_enum_get(op->ptr, swap_hands ? "alt_mode" : "mode");  
+  mode = (eXrFlyMode)RNA_enum_get(op->ptr, swap_hands ? "alt_mode" : "mode");
   turn = ELEM(mode, XR_FLY_TURNLEFT, XR_FLY_TURNRIGHT);
   snap_turn = U.xr_navigation.flag & USER_XR_NAV_SNAP_TURN;
   invert_rotation = U.xr_navigation.flag & USER_XR_NAV_INVERT_ROTATION;
@@ -1243,7 +1201,6 @@ static wmOperatorStatus wm_xr_navigation_fly_modal(bContext *C,
     return OPERATOR_FINISHED;
   }
 
-
   /* XR events currently only support press and release. */
   BLI_assert_unreachable();
   wm_xr_fly_uninit(op);
@@ -1309,7 +1266,7 @@ static void WM_OT_xr_navigation_fly(wmOperatorType *ot)
                   "lock_direction",
                   false,
                   "Lock Direction",
-                  "Limit movement to viewer's initial direction");  
+                  "Limit movement to viewer's initial direction");
   RNA_def_boolean(ot->srna,
                   "speed_frame_based",
                   false,
@@ -1353,15 +1310,18 @@ static void WM_OT_xr_navigation_fly(wmOperatorType *ot)
                        "Second cubic spline control point between min/max speeds",
                        0.0f,
                        1.0f);
-  
-  RNA_def_enum(ot->srna, 
+
+  RNA_def_enum(ot->srna,
                "alt_mode",
                fly_modes,
                XR_FLY_VIEWER_FORWARD,
                "Mode (Alt)",
                "Fly mode when hands are swapped");
   RNA_def_boolean(ot->srna,
-                  "alt_lock_location_z", false, "Lock Elevation (Alt)", "When hands are swapped, prevent changes to viewer elevation");
+                  "alt_lock_location_z",
+                  false,
+                  "Lock Elevation (Alt)",
+                  "When hands are swapped, prevent changes to viewer elevation");
   RNA_def_boolean(ot->srna,
                   "alt_lock_direction",
                   false,
@@ -1413,17 +1373,17 @@ static bool wm_xr_navigation_teleport(bContext *C,
   for (int i = 1; i < *num_points; ++i) {
     segment_ray_dist = segment_length;
     wm_xr_raycast(scene,
-              depsgraph,
-              points[i - 1],
-              segment_direction,
-              &segment_ray_dist,
-              selectable_only,
-              points[i],
-              normal,
-              &index,
-              &ob,
-              obmat);
-    
+                  depsgraph,
+                  points[i - 1],
+                  segment_direction,
+                  &segment_ray_dist,
+                  selectable_only,
+                  points[i],
+                  normal,
+                  &index,
+                  &ob,
+                  obmat);
+
     *ray_dist += segment_ray_dist;
 
     if (ob) {
@@ -1456,9 +1416,8 @@ static bool wm_xr_navigation_teleport(bContext *C,
 
       float alpha = startpoint[z] / (startpoint[z] - endpoint[z]);
       interp_v3_v3v3(endpoint, startpoint, endpoint, alpha);
-      
-      *ray_dist = segment_ray_dist * (i - 1) +
-                  len_v3v3(startpoint, endpoint);
+
+      *ray_dist = segment_ray_dist * (i - 1) + len_v3v3(startpoint, endpoint);
 
       copy_v3_fl3(normal, 0, 0, startpoint[z] < 0 ? -1 : 1);
 
@@ -1559,19 +1518,19 @@ static wmOperatorStatus wm_xr_navigation_teleport_modal(bContext *C,
   float nav_destination[3];
   data->num_points = XR_MAX_RAYCASTS + 1;
   data->success = wm_xr_navigation_teleport(C,
-                            xr,
-                            nav_destination,
-                            data->points,
-                            data->direction,
-                            &data->num_points,
-                            &ray_dist,
-                            &data->destination_dist,
-                            selectable_only,
-                            teleport_axes,
-                            teleport_t,
-                            teleport_ofs,
-                            gravity);
-  
+                                            xr,
+                                            nav_destination,
+                                            data->points,
+                                            data->direction,
+                                            &data->num_points,
+                                            &ray_dist,
+                                            &data->destination_dist,
+                                            selectable_only,
+                                            teleport_axes,
+                                            teleport_t,
+                                            teleport_ofs,
+                                            gravity);
+
   if (data->success) {
     RNA_float_get_array(op->ptr, "hit_color", data->color);
   }
@@ -1662,15 +1621,7 @@ static void WM_OT_xr_navigation_teleport(wmOperatorType *ot)
                 "Downward curvature applied to raycast",
                 0.0,
                 FLT_MAX);
-  RNA_def_float(ot->srna,
-                "width",
-                0.02f,
-                0.0f,
-                FLT_MAX,
-                "Width",
-                "Raycast width",
-                0.0f,
-                FLT_MAX);
+  RNA_def_float(ot->srna, "width", 0.02f, 0.0f, FLT_MAX, "Width", "Raycast width", 0.0f, FLT_MAX);
   RNA_def_int(ot->srna,
               "samples_per_segment",
               6,
@@ -1812,8 +1763,8 @@ static void WM_OT_xr_navigation_reset(wmOperatorType *ot)
  * \{ */
 
 static wmOperatorStatus wm_xr_navigation_swap_hands_invoke(bContext *C,
-                                                     wmOperator *op,
-                                                     const wmEvent *event)
+                                                           wmOperator *op,
+                                                           const wmEvent *event)
 {
   if (!wm_xr_operator_test_event(op, event)) {
     return OPERATOR_PASS_THROUGH;
@@ -1835,8 +1786,8 @@ static wmOperatorStatus wm_xr_navigation_swap_hands_exec(bContext * /*C*/, wmOpe
 }
 
 static wmOperatorStatus wm_xr_navigation_swap_hands_modal(bContext *C,
-                                                        wmOperator *op,
-                                                        const wmEvent *event)
+                                                          wmOperator *op,
+                                                          const wmEvent *event)
 {
   if (!wm_xr_operator_test_event(op, event)) {
     return OPERATOR_PASS_THROUGH;

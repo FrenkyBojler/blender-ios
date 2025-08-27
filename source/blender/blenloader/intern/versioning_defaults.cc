@@ -380,7 +380,7 @@ static void blo_update_defaults_paint(Paint *paint)
   }
 }
 
-static void blo_update_defaults_windowmanager(wmWindowManager* wm)
+static void blo_update_defaults_windowmanager(wmWindowManager *wm)
 {
   wm->xr.session_settings.fly_speed = 3.0f;
 }

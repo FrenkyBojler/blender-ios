@@ -5016,19 +5016,17 @@ static void rna_def_userdef_xr_navigation(BlenderRNA *brna)
   RNA_def_property_range(prop, 0, 100.0);
   RNA_def_property_ui_range(prop, 0, 100.0, 10 * 100, 0);
   RNA_def_property_ui_text(
-    prop, "Vignette Intensity", "Intensity of vignette that appears when moving");
+      prop, "Vignette Intensity", "Intensity of vignette that appears when moving");
 
   prop = RNA_def_property(srna, "turn_speed", PROP_FLOAT, PROP_ANGLE);
   RNA_def_property_range(prop, 0, FLT_MAX);
   RNA_def_property_ui_range(prop, 0, FLT_MAX, 15 * 100, 0);
-  RNA_def_property_ui_text(
-    prop, "Turn Speed", "Turn speed in degrees per second");
+  RNA_def_property_ui_text(prop, "Turn Speed", "Turn speed in degrees per second");
 
   prop = RNA_def_property(srna, "turn_amount", PROP_FLOAT, PROP_ANGLE);
   RNA_def_property_range(prop, 0, DEG2RAD(360));
   RNA_def_property_ui_range(prop, 0, DEG2RAD(360), 15 * 100, 0);
-  RNA_def_property_ui_text(
-    prop, "Turn Amount", "Amount in degrees per turn when using snap turn");
+  RNA_def_property_ui_text(prop, "Turn Amount", "Amount in degrees per turn when using snap turn");
 
   prop = RNA_def_property(srna, "snap_turn", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", USER_XR_NAV_SNAP_TURN);
@@ -5037,8 +5035,7 @@ static void rna_def_userdef_xr_navigation(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "invert_rotation", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", USER_XR_NAV_INVERT_ROTATION);
-  RNA_def_property_ui_text(
-      prop, "Invert Rotation", "Reverses the direction of rotation input");
+  RNA_def_property_ui_text(prop, "Invert Rotation", "Reverses the direction of rotation input");
 }
 
 static void rna_def_userdef_view(BlenderRNA *brna)

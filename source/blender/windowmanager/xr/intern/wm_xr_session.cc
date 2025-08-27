@@ -90,8 +90,7 @@ static void wm_xr_session_controller_data_free(wmXrSessionState *state)
 
 static void wm_xr_session_vignette_data_free(wmXrSessionState *state)
 {
-  if (state->vignette_data)
-  {
+  if (state->vignette_data) {
     MEM_freeN(state->vignette_data);
     state->vignette_data = nullptr;
   }
@@ -398,7 +397,7 @@ void wm_xr_session_state_update(const XrSessionSettings *settings,
   state->is_view_data_set = true;
   /* Assume this was already done through wm_xr_session_draw_data_update(). */
   state->force_reset_to_base_pose = false;
-  
+
   WM_xr_session_state_vignette_update(state);
 }
 
@@ -605,7 +604,7 @@ void WM_xr_session_state_vignette_reset(wmXrSessionState *state)
 
   data->aperture_min = 0.08f;
   data->aperture_max = 0.3f;
-  
+
   data->aperture_velocity_max = 0.002f;
   data->aperture_velocity_delta = 0.01f;
 }
@@ -614,7 +613,7 @@ void WM_xr_session_state_vignette_activate(wmXrSessionState *state)
 {
   wmXrVignetteData *data = state->vignette_data;
 
-  data->aperture_velocity = data->initial_aperture_velocity;    
+  data->aperture_velocity = data->initial_aperture_velocity;
   data->aperture = min_ff(data->aperture, data->initial_aperture);
 }
 
@@ -624,8 +623,9 @@ void WM_xr_session_state_vignette_update(wmXrSessionState *state)
 
   float vignette_intensity = U.xr_navigation.vignette_intensity;
   float aperture_min = interpf(data->aperture_min, data->aperture_max, vignette_intensity * 0.01f);
-  data->aperture_velocity = min_ff(data->aperture_velocity_max, data->aperture_velocity + data->aperture_velocity_delta);
-  
+  data->aperture_velocity = min_ff(data->aperture_velocity_max,
+                                   data->aperture_velocity + data->aperture_velocity_delta);
+
   if (data->aperture == aperture_min) {
     data->aperture_velocity = data->aperture_velocity_max;
   }
@@ -1258,7 +1258,7 @@ void wm_xr_session_actions_update(wmWindowManager *wm)
     memcpy(&state->nav_pose_prev, &state->nav_pose, sizeof(state->nav_pose_prev));
     state->nav_scale_prev = state->nav_scale;
     state->is_navigation_dirty = false;
-    
+
     WM_xr_session_state_vignette_activate(state);
 
     /* Update viewer pose with any navigation changes since the last actions sync so that data

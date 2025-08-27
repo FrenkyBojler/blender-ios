@@ -329,10 +329,10 @@ static void wm_xr_controller_model_draw(const XrSessionSettings *settings,
 
 static void wm_xr_vignette_draw(const XrSessionSettings *settings, wmXrSessionState *state)
 {
-  float viewport[4], color[4] = { 0, 0, 0, 1 }, aperture = state->vignette_data->aperture, falloff = 0.15f;
+  float viewport[4], color[4] = {0, 0, 0, 1}, aperture = state->vignette_data->aperture,
+                     falloff = 0.15f;
 
-  if (aperture > M_SQRT1_2)
-  {
+  if (aperture > M_SQRT1_2) {
     return;
   }
 
@@ -344,7 +344,7 @@ static void wm_xr_vignette_draw(const XrSessionSettings *settings, wmXrSessionSt
 
   /* TODO: Determine a more robust method to determine depth & scale */
   float camera_mat[4][4], offset[3], depth = 1.0f, scale = 3.0f;
-  invert_m4_m4(camera_mat, state->viewer_viewmat);  
+  invert_m4_m4(camera_mat, state->viewer_viewmat);
   copy_v3_fl3(offset, 0.5f * scale, -0.5f * scale, -depth);
 
   blender::gpu::Batch *quad = GPU_batch_preset_quad();
@@ -363,7 +363,7 @@ static void wm_xr_vignette_draw(const XrSessionSettings *settings, wmXrSessionSt
 
   /* Rotate quad backward */
   GPU_matrix_rotate_3f(180, 0, 1, 0);
-  
+
   /* Scale to fit screen */
   GPU_matrix_scale_1f(scale);
 

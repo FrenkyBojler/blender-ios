@@ -7,7 +7,7 @@
 FRAGMENT_SHADER_CREATE_INFO(gpu_shader_vignette)
 
 void main()
-{  
+{
   float2 uv = gl_FragCoord.xy / viewportSize;
   float dist = length(uv - float2(0.5));
 
