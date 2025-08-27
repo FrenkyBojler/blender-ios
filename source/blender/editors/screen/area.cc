@@ -139,19 +139,11 @@ void ED_area_do_refresh(bContext *C, ScrArea *area)
 }
 
 /**
- * \brief Corner widget use for quitting full-screen.
+ * \brief Corner widget for full-screen options.
  */
-static void area_draw_azone_fullscreen(short /*x1*/, short /*y1*/, short x2, short y2, float alpha)
+static void area_draw_azone_fullscreen(AZone *az)
 {
-  UI_icon_draw_ex(x2 - U.widget_unit,
-                  y2 - U.widget_unit,
-                  ICON_FULLSCREEN_EXIT,
-                  UI_INV_SCALE_FAC,
-                  min_ff(alpha, 0.75f),
-                  0.0f,
-                  nullptr,
-                  false,
-                  UI_NO_ICON_OVERLAY_TEXT);
+  UI_icon_draw_alpha(az->x2 - U.widget_unit, az->y2 - U.widget_unit, ICON_COLLAPSEMENU, az->alpha);
 }
 
 /**
@@ -290,9 +282,7 @@ static void region_draw_azones(ScrArea *area, ARegion *region)
         }
       }
       else if (az->type == AZONE_FULLSCREEN) {
-        if (az->alpha > 0.0f) {
-          area_draw_azone_fullscreen(az->x1, az->y1, az->x2, az->y2, az->alpha);
-        }
+        area_draw_azone_fullscreen(az);
       }
     }
     if (!IS_EQF(az->alpha, 0.0f) && ELEM(az->type, AZONE_FULLSCREEN, AZONE_REGION_SCROLL)) {

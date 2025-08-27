@@ -1136,6 +1136,46 @@ static void actionzone_apply(bContext *C, wmOperator *op, int type)
   WM_event_add(win, &event);
 }
 
+static void focus_mode_menu(bScreen *screen, ScrArea *area, uiLayout *layout)
+{
+  PointerRNA ptr = RNA_pointer_create_discrete((ID *)screen, &RNA_Space, area->spacedata.first);
+
+  if (!ELEM(area->spacetype, SPACE_TOPBAR)) {
+    layout->prop(&ptr, "show_region_header", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  }
+
+  ARegion *header = BKE_area_find_region_type(area, RGN_TYPE_HEADER);
+  const bool header_visible = header && (header->flag & RGN_FLAG_HIDDEN) == 0;
+  if (header_visible && BKE_area_find_region_type(area, RGN_TYPE_TOOL_HEADER)) {
+    layout->prop(&ptr, "show_region_tool_header", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  }
+
+  if (BKE_area_find_region_type(area, RGN_TYPE_UI)) {
+    layout->prop(&ptr, "show_region_ui", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  }
+  if (BKE_area_find_region_type(area, RGN_TYPE_TOOLS)) {
+    layout->prop(&ptr, "show_region_toolbar", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  }
+  if (BKE_area_find_region_type(area, RGN_TYPE_CHANNELS)) {
+    layout->prop(&ptr, "show_region_channels", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  }
+  if (BKE_area_find_region_type(area, RGN_TYPE_ASSET_SHELF)) {
+    layout->prop(&ptr, "show_region_asset_shelf", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  }
+  if (BKE_area_find_region_type(area, RGN_TYPE_FOOTER)) {
+    layout->prop(&ptr, "show_region_footer", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  }
+
+  layout->separator();
+
+  layout->op("WM_OT_window_fullscreen_toggle", std::nullopt, ICON_NONE);
+
+  layout->separator();
+
+  ptr = layout->op("SCREEN_OT_screen_full_area", IFACE_("Exit Focus Mode"), ICON_FULLSCREEN_EXIT);
+  RNA_boolean_set(&ptr, "use_hide_panels", true);
+}
+
 static wmOperatorStatus actionzone_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   bScreen *screen = CTX_wm_screen(C);
@@ -1157,10 +1197,19 @@ static wmOperatorStatus actionzone_invoke(bContext *C, wmOperator *op, const wmE
   sad->modifier = RNA_int_get(op->ptr, "modifier");
 
   /* region azone directly reacts on mouse clicks */
-  if (ELEM(sad->az->type, AZONE_REGION, AZONE_FULLSCREEN)) {
+  if (sad->az->type == AZONE_REGION) {
     actionzone_apply(C, op, sad->az->type);
     actionzone_exit(op);
     return OPERATOR_FINISHED;
+  }
+
+  if (sad->az->type == AZONE_FULLSCREEN) {
+    uiPopupMenu *pup = UI_popup_menu_begin(C, "Focus Mode Options", ICON_NONE);
+    uiLayout *layout = UI_popup_menu_layout(pup);
+    focus_mode_menu(screen, sad->sa1, layout);
+    UI_popup_menu_end(C, pup);
+    WM_event_add_modal_handler(C, op);
+    return OPERATOR_RUNNING_MODAL;
   }
 
   if (sad->az->type == AZONE_AREA && sad->modifier == 0) {
