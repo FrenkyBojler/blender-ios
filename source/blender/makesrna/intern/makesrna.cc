@@ -2187,7 +2187,8 @@ static void rna_def_property_funcs(FILE *f, StructRNA *srna, PropertyDefRNA *dp)
       EnumPropertyRNA *eprop = (EnumPropertyRNA *)prop;
 
       if (dp->enumbitflags && eprop->item_fn &&
-          !(eprop->item != rna_enum_dummy_NULL_items || eprop->set || eprop->set_ex))
+          !(eprop->item != rna_enum_dummy_NULL_items || eprop->set || eprop->set_ex ||
+            eprop->set_transform))
       {
         CLOG_ERROR(&LOG,
                    "%s.%s, bitflag enum should not define an `item` callback function, unless "
@@ -2197,7 +2198,7 @@ static void rna_def_property_funcs(FILE *f, StructRNA *srna, PropertyDefRNA *dp)
         DefRNA.error = true;
       }
 
-      if (!(prop->flag & PROP_EDITABLE) && (eprop->set || eprop->set_ex)) {
+      if (!(prop->flag & PROP_EDITABLE) && (eprop->set || eprop->set_ex || eprop->set_transform)) {
         CLOG_ERROR(&LOG,
                    "%s.%s, is read-only but has defines a \"set\" callback.",
                    srna->identifier,
@@ -4593,12 +4594,14 @@ static void rna_generate_property(FILE *f, StructRNA *srna, const char *nest, Pr
     case PROP_ENUM: {
       EnumPropertyRNA *eprop = (EnumPropertyRNA *)prop;
       fprintf(f,
-              "\t%s, %s, %s, %s, %s, %s, ",
+              "\t%s, %s, %s, %s, %s, %s, %s, %s, ",
               rna_function_string(eprop->get),
               rna_function_string(eprop->set),
               rna_function_string(eprop->item_fn),
               rna_function_string(eprop->get_ex),
               rna_function_string(eprop->set_ex),
+              rna_function_string(eprop->get_transform),
+              rna_function_string(eprop->set_transform),
               rna_function_string(eprop->get_default));
       if (eprop->item) {
         const char *item_global_id = rna_enum_id_from_pointer(eprop->item);

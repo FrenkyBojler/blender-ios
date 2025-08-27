@@ -399,6 +399,8 @@ static void GIZMO_GT_snap_3d(wmGizmoType *gzt)
   RNA_def_property_enum_funcs_runtime(prop,
                                       gizmo_snap_rna_snap_srouce_type_get_fn,
                                       gizmo_snap_rna_snap_srouce_type_set_fn,
+                                      nullptr,
+                                      nullptr,
                                       nullptr);
 }
 

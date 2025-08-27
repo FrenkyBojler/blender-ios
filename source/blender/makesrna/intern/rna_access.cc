@@ -4298,33 +4298,59 @@ std::optional<std::string> RNA_property_string_path_filter(const bContext *C,
   return sprop->path_filter(C, ptr, rna_prop);
 }
 
-int RNA_property_enum_get(PointerRNA *ptr, PropertyRNA *prop)
+static int property_enum_get(PointerRNA *ptr, PropertyRNAOrID &prop_rna_or_id)
 {
-  EnumPropertyRNA *eprop = (EnumPropertyRNA *)prop;
-  IDProperty *idprop;
-
-  BLI_assert(RNA_property_type(prop) == PROP_ENUM);
-
-  if ((idprop = rna_idproperty_check(&prop, ptr))) {
-    return IDP_Int(idprop);
+  if (prop_rna_or_id.idprop) {
+    return IDP_Int(prop_rna_or_id.idprop);
   }
+  EnumPropertyRNA *eprop = reinterpret_cast<EnumPropertyRNA *>(prop_rna_or_id.rnaprop);
   if (eprop->get) {
     return eprop->get(ptr);
   }
   if (eprop->get_ex) {
-    return eprop->get_ex(ptr, prop);
+    return eprop->get_ex(ptr, &eprop->property);
   }
   return eprop->defaultvalue;
 }
 
-void RNA_property_enum_set(PointerRNA *ptr, PropertyRNA *prop, int value)
+int RNA_property_enum_get(PointerRNA *ptr, PropertyRNA *prop)
 {
-  EnumPropertyRNA *eprop = (EnumPropertyRNA *)prop;
-  IDProperty *idprop;
-
   BLI_assert(RNA_property_type(prop) == PROP_ENUM);
 
-  if ((idprop = rna_idproperty_check(&prop, ptr))) {
+  PropertyRNAOrID prop_rna_or_id;
+  rna_property_rna_or_id_get(prop, ptr, &prop_rna_or_id);
+  BLI_assert(!prop_rna_or_id.is_array);
+  /* Make initial `prop` pointer invalid, to ensure that it is not used anywhere below. */
+  prop = nullptr;
+  EnumPropertyRNA *eprop = reinterpret_cast<EnumPropertyRNA *>(prop_rna_or_id.rnaprop);
+
+  int value = property_enum_get(ptr, prop_rna_or_id);
+  if (eprop->get_transform) {
+    value = eprop->get_transform(ptr, &eprop->property, value, prop_rna_or_id.is_set);
+  }
+
+  return value;
+}
+
+void RNA_property_enum_set(PointerRNA *ptr, PropertyRNA *prop, int value)
+{
+  BLI_assert(RNA_property_type(prop) == PROP_ENUM);
+
+  PropertyRNAOrID prop_rna_or_id;
+  rna_property_rna_or_id_get(prop, ptr, &prop_rna_or_id);
+  BLI_assert(!prop_rna_or_id.is_array);
+  /* Make initial `prop` pointer invalid, to ensure that it is not used anywhere below. */
+  prop = nullptr;
+  IDProperty *idprop = prop_rna_or_id.idprop;
+  EnumPropertyRNA *eprop = reinterpret_cast<EnumPropertyRNA *>(prop_rna_or_id.rnaprop);
+
+  if (eprop->set_transform) {
+    /* Get raw, untransformed (aka 'storage') value. */
+    const int curr_value = property_enum_get(ptr, prop_rna_or_id);
+    value = eprop->set_transform(ptr, &eprop->property, value, curr_value, prop_rna_or_id.is_set);
+  }
+
+  if (idprop) {
     IDP_Int(idprop) = value;
     rna_idproperty_touch(idprop);
   }
@@ -4332,17 +4358,14 @@ void RNA_property_enum_set(PointerRNA *ptr, PropertyRNA *prop, int value)
     eprop->set(ptr, value);
   }
   else if (eprop->set_ex) {
-    eprop->set_ex(ptr, prop, value);
+    eprop->set_ex(ptr, &eprop->property, value);
   }
-  else if (prop->flag & PROP_EDITABLE) {
-    IDPropertyTemplate val = {0};
-    IDProperty *group;
-
-    val.i = value;
-
-    group = RNA_struct_system_idprops(ptr, true);
-    if (group) {
-      IDP_AddToGroup(group, IDP_New(IDP_INT, &val, prop->identifier, IDP_FLAG_STATIC_TYPE));
+  else if (eprop->property.flag & PROP_EDITABLE) {
+    if (IDProperty *group = RNA_struct_system_idprops(ptr, true)) {
+      IDP_AddToGroup(
+          group,
+          blender::bke::idprop::create(prop_rna_or_id.identifier, value, IDP_FLAG_STATIC_TYPE)
+              .release());
     }
   }
 }

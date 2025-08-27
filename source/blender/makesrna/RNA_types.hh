@@ -818,6 +818,12 @@ using StringPropertyPathFilterFunc = std::optional<std::string> (*)(const bConte
 
 using EnumPropertyGetFunc = int (*)(PointerRNA *ptr, PropertyRNA *prop);
 using EnumPropertySetFunc = void (*)(PointerRNA *ptr, PropertyRNA *prop, int value);
+using EnumPropertyGetTransformFunc = int (*)(PointerRNA *ptr,
+                                             PropertyRNA *prop,
+                                             int value,
+                                             bool is_set);
+using EnumPropertySetTransformFunc =
+    int (*)(PointerRNA *ptr, PropertyRNA *prop, int new_value, int curr_value, bool is_set);
 /* same as PropEnumItemFunc */
 using EnumPropertyItemFunc = const EnumPropertyItem *(*)(bContext *C,
                                                          PointerRNA *ptr,

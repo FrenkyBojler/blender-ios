@@ -612,7 +612,9 @@ void RNA_def_property_float_array_funcs_runtime(
 void RNA_def_property_enum_funcs_runtime(PropertyRNA *prop,
                                          EnumPropertyGetFunc getfunc,
                                          EnumPropertySetFunc setfunc,
-                                         EnumPropertyItemFunc itemfunc);
+                                         EnumPropertyItemFunc itemfunc,
+                                         EnumPropertyGetTransformFunc get_transform_fn,
+                                         EnumPropertySetTransformFunc set_transform_fn);
 void RNA_def_property_string_funcs_runtime(PropertyRNA *prop,
                                            StringPropertyGetFunc getfunc,
                                            StringPropertyLengthFunc lengthfunc,

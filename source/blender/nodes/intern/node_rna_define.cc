@@ -33,7 +33,8 @@ PropertyRNA *RNA_def_node_enum(StructRNA *srna,
                                const bool allow_animation)
 {
   PropertyRNA *prop = RNA_def_property(srna, identifier, PROP_ENUM, PROP_NONE);
-  RNA_def_property_enum_funcs_runtime(prop, accessors.getter, accessors.setter, item_func);
+  RNA_def_property_enum_funcs_runtime(
+      prop, accessors.getter, accessors.setter, item_func, nullptr, nullptr);
   RNA_def_property_enum_items(prop, static_items);
   if (default_value.has_value()) {
     RNA_def_property_enum_default(prop, *default_value);

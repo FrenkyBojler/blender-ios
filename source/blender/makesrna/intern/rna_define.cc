@@ -3645,7 +3645,9 @@ void RNA_def_property_enum_funcs(PropertyRNA *prop,
 void RNA_def_property_enum_funcs_runtime(PropertyRNA *prop,
                                          EnumPropertyGetFunc getfunc,
                                          EnumPropertySetFunc setfunc,
-                                         EnumPropertyItemFunc itemfunc)
+                                         EnumPropertyItemFunc itemfunc,
+                                         EnumPropertyGetTransformFunc get_transform_fn,
+                                         EnumPropertySetTransformFunc set_transform_fn)
 {
   EnumPropertyRNA *eprop = (EnumPropertyRNA *)prop;
 
@@ -3666,6 +3668,13 @@ void RNA_def_property_enum_funcs_runtime(PropertyRNA *prop,
     if (!setfunc) {
       RNA_def_property_clear_flag(prop, PROP_EDITABLE);
     }
+  }
+
+  if (get_transform_fn) {
+    eprop->get_transform = get_transform_fn;
+  }
+  if (set_transform_fn) {
+    eprop->set_transform = set_transform_fn;
   }
 }
 

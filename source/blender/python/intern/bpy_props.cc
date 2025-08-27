@@ -2234,7 +2234,6 @@ static int bpy_prop_enum_get_fn(PointerRNA *ptr, PropertyRNA *prop)
   BPyPropStore *prop_store = static_cast<BPyPropStore *>(RNA_property_py_data_get(prop));
   PyObject *py_func;
   PyObject *ret;
-
   int value;
 
   BLI_assert(prop_store != nullptr);
@@ -2269,6 +2268,51 @@ static int bpy_prop_enum_get_fn(PointerRNA *ptr, PropertyRNA *prop)
   bpy_prop_gil_rna_writable_end(bpy_state);
 
   return value;
+}
+
+static int bpy_prop_enum_get_transform_fn(PointerRNA *ptr,
+                                          PropertyRNA *prop,
+                                          int curr_value,
+                                          bool is_set)
+{
+  const BPyPropGIL_RNAWritable_State bpy_state = bpy_prop_gil_rna_writable_begin();
+
+  BPyPropStore *prop_store = static_cast<BPyPropStore *>(RNA_property_py_data_get(prop));
+  PyObject *py_func;
+  PyObject *ret;
+
+  BLI_assert(prop_store != nullptr);
+
+  py_func = prop_store->py_data.get_transform_fn;
+
+  {
+    PyObject *args = PyTuple_New(3);
+    PyObject *self = pyrna_struct_as_instance(ptr);
+    PyTuple_SET_ITEMS(args, self, PyLong_FromLong(curr_value), PyBool_FromLong(is_set));
+
+    ret = PyObject_CallObject(py_func, args);
+
+    Py_DECREF(args);
+  }
+
+  int ret_value = curr_value;
+  if (ret == nullptr) {
+    PyC_Err_PrintWithFunc(py_func);
+  }
+  else {
+    ret_value = PyC_Long_AsI32(ret);
+
+    if (ret_value == -1 && PyErr_Occurred()) {
+      PyC_Err_PrintWithFunc(py_func);
+      ret_value = curr_value;
+    }
+
+    Py_DECREF(ret);
+  }
+
+  bpy_prop_gil_rna_writable_end(bpy_state);
+
+  return ret_value;
 }
 
 static void bpy_prop_enum_set_fn(PointerRNA *ptr, PropertyRNA *prop, int value)
@@ -2306,6 +2350,53 @@ static void bpy_prop_enum_set_fn(PointerRNA *ptr, PropertyRNA *prop, int value)
   }
 
   bpy_prop_gil_rna_writable_end(bpy_state);
+}
+
+static int bpy_prop_enum_set_transform_fn(
+    PointerRNA *ptr, PropertyRNA *prop, int new_value, int curr_value, bool is_set)
+{
+  const BPyPropGIL_RNAWritable_State bpy_state = bpy_prop_gil_rna_writable_begin();
+
+  BPyPropStore *prop_store = static_cast<BPyPropStore *>(RNA_property_py_data_get(prop));
+  PyObject *py_func;
+  PyObject *ret;
+
+  BLI_assert(prop_store != nullptr);
+
+  py_func = prop_store->py_data.set_transform_fn;
+
+  {
+    PyObject *args = PyTuple_New(4);
+    PyObject *self = pyrna_struct_as_instance(ptr);
+    PyTuple_SET_ITEMS(args,
+                      self,
+                      PyLong_FromLong(new_value),
+                      PyLong_FromLong(curr_value),
+                      PyBool_FromLong(is_set));
+
+    ret = PyObject_CallObject(py_func, args);
+
+    Py_DECREF(args);
+  }
+
+  int ret_value = curr_value;
+  if (ret == nullptr) {
+    PyC_Err_PrintWithFunc(py_func);
+  }
+  else {
+    ret_value = PyC_Long_AsI32(ret);
+
+    if (ret_value == -1 && PyErr_Occurred()) {
+      PyC_Err_PrintWithFunc(py_func);
+      ret_value = curr_value;
+    }
+
+    Py_DECREF(ret);
+  }
+
+  bpy_prop_gil_rna_writable_end(bpy_state);
+
+  return ret_value;
 }
 
 /* utility function we need for parsing int's in an if statement */
@@ -3033,14 +3124,18 @@ static bool bpy_prop_callback_assign_string(PropertyRNA *prop,
   return true;
 }
 
-static void bpy_prop_callback_assign_enum(PropertyRNA *prop,
+static bool bpy_prop_callback_assign_enum(PropertyRNA *prop,
                                           PyObject *get_fn,
                                           PyObject *set_fn,
-                                          PyObject *itemf_fn)
+                                          PyObject *itemf_fn,
+                                          PyObject *get_transform_fn,
+                                          PyObject *set_transform_fn)
 {
   EnumPropertyGetFunc rna_get_fn = nullptr;
-  EnumPropertyItemFunc rna_itemf_fn = nullptr;
   EnumPropertySetFunc rna_set_fn = nullptr;
+  EnumPropertyGetTransformFunc rna_get_transform_fn = nullptr;
+  EnumPropertySetTransformFunc rna_set_transform_fn = nullptr;
+  EnumPropertyItemFunc rna_itemf_fn = nullptr;
 
   if (get_fn && get_fn != Py_None) {
     BPyPropStore *prop_store = bpy_prop_py_data_ensure(prop);
@@ -3050,6 +3145,13 @@ static void bpy_prop_callback_assign_enum(PropertyRNA *prop,
   }
 
   if (set_fn && set_fn != Py_None) {
+    if (!rna_get_fn) {
+      PyErr_SetString(PyExc_ValueError,
+                      "The `set` callback is defined without a matching `get` function, this is "
+                      "not supported. `set_transform` should probably be used instead?");
+      return false;
+    }
+
     BPyPropStore *prop_store = bpy_prop_py_data_ensure(prop);
 
     rna_set_fn = bpy_prop_enum_set_fn;
@@ -3062,7 +3164,24 @@ static void bpy_prop_callback_assign_enum(PropertyRNA *prop,
     ASSIGN_PYOBJECT_INCREF(prop_store->py_data.enum_data.itemf_fn, itemf_fn);
   }
 
-  RNA_def_property_enum_funcs_runtime(prop, rna_get_fn, rna_set_fn, rna_itemf_fn);
+  if (get_transform_fn && get_transform_fn != Py_None) {
+    BPyPropStore *prop_store = bpy_prop_py_data_ensure(prop);
+
+    rna_get_transform_fn = bpy_prop_enum_get_transform_fn;
+    ASSIGN_PYOBJECT_INCREF(prop_store->py_data.get_transform_fn, get_transform_fn);
+  }
+
+  if (set_transform_fn && set_transform_fn != Py_None) {
+    BPyPropStore *prop_store = bpy_prop_py_data_ensure(prop);
+
+    rna_set_transform_fn = bpy_prop_enum_set_transform_fn;
+    ASSIGN_PYOBJECT_INCREF(prop_store->py_data.set_transform_fn, set_transform_fn);
+  }
+
+  RNA_def_property_enum_funcs_runtime(
+      prop, rna_get_fn, rna_set_fn, rna_itemf_fn, rna_get_transform_fn, rna_set_transform_fn);
+
+  return true;
 }
 
 /** \} */
@@ -4825,7 +4944,9 @@ PyDoc_STRVAR(
     "tags=set(), "
     "update=None, "
     "get=None, "
-    "set=None)\n"
+    "set=None, "
+    "get_transform=None, "
+    "set_transform=None)\n"
     "\n"
     "   Returns a new enumerator property definition.\n"
     "\n"
@@ -4882,7 +5003,8 @@ PyDoc_STRVAR(
     "      (i.e. if a callback function is given as *items* parameter).\n"
     "   :type default: str | int | set[str]\n" BPY_PROPDEF_OPTIONS_ENUM_DOC
         BPY_PROPDEF_OPTIONS_OVERRIDE_DOC BPY_PROPDEF_TAGS_DOC BPY_PROPDEF_UPDATE_DOC
-            BPY_PROPDEF_GET_DOC("int") BPY_PROPDEF_SET_DOC("int"));
+            BPY_PROPDEF_GET_DOC("int") BPY_PROPDEF_SET_DOC("int")
+                BPY_PROPDEF_GET_TRANSFORM_DOC("int") BPY_PROPDEF_SET_TRANSFORM_DOC("int"));
 static PyObject *BPy_EnumProperty(PyObject *self, PyObject *args, PyObject *kw)
 {
   StructRNA *srna;
@@ -4920,6 +5042,8 @@ static PyObject *BPy_EnumProperty(PyObject *self, PyObject *args, PyObject *kw)
   PyObject *update_fn = nullptr;
   PyObject *get_fn = nullptr;
   PyObject *set_fn = nullptr;
+  PyObject *get_transform_fn = nullptr;
+  PyObject *set_transform_fn = nullptr;
 
   static const char *_keywords[] = {
       "attr",
@@ -4934,6 +5058,8 @@ static PyObject *BPy_EnumProperty(PyObject *self, PyObject *args, PyObject *kw)
       "update",
       "get",
       "set",
+      "get_transform",
+      "set_transform",
       nullptr,
   };
   static _PyArg_Parser _parser = {
@@ -4951,6 +5077,8 @@ static PyObject *BPy_EnumProperty(PyObject *self, PyObject *args, PyObject *kw)
       "O"  /* `update` */
       "O"  /* `get` */
       "O"  /* `set` */
+      "O"  /* `get_transform` */
+      "O"  /* `set_transform` */
       ":EnumProperty",
       _keywords,
       nullptr,
@@ -4973,7 +5101,9 @@ static PyObject *BPy_EnumProperty(PyObject *self, PyObject *args, PyObject *kw)
                                         &tags_enum,
                                         &update_fn,
                                         &get_fn,
-                                        &set_fn))
+                                        &set_fn,
+                                        &get_transform_fn,
+                                        &set_transform_fn))
   {
     return nullptr;
   }
@@ -4985,6 +5115,12 @@ static PyObject *BPy_EnumProperty(PyObject *self, PyObject *args, PyObject *kw)
     return nullptr;
   }
   if (bpy_prop_callback_check(set_fn, "set", 2) == -1) {
+    return nullptr;
+  }
+  if (bpy_prop_callback_check(get_transform_fn, "get_transform", 3) == -1) {
+    return nullptr;
+  }
+  if (bpy_prop_callback_check(set_transform_fn, "set_transform", 4) == -1) {
     return nullptr;
   }
 
@@ -5062,7 +5198,8 @@ static PyObject *BPy_EnumProperty(PyObject *self, PyObject *args, PyObject *kw)
     bpy_prop_assign_flag_override(prop, override_enum.value);
   }
   bpy_prop_callback_assign_update(prop, update_fn);
-  bpy_prop_callback_assign_enum(prop, get_fn, set_fn, (is_itemf ? items : nullptr));
+  bpy_prop_callback_assign_enum(
+      prop, get_fn, set_fn, (is_itemf ? items : nullptr), get_transform_fn, set_transform_fn);
   RNA_def_property_duplicate_pointers(srna, prop);
 
   if (is_itemf == false) {

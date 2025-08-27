@@ -149,6 +149,8 @@ using PropFloatArrayGetTransformFunc = FloatArrayPropertyGetTransformFunc;
 using PropFloatArraySetTransformFunc = FloatArrayPropertySetTransformFunc;
 using PropStringGetTransformFunc = StringPropertyGetTransformFunc;
 using PropStringSetTransformFunc = StringPropertySetTransformFunc;
+using PropEnumGetTransformFunc = EnumPropertyGetTransformFunc;
+using PropEnumSetTransformFunc = EnumPropertySetTransformFunc;
 
 /* Handling override operations, and also comparison. */
 
@@ -608,6 +610,9 @@ struct EnumPropertyRNA {
 
   PropEnumGetFuncEx get_ex;
   PropEnumSetFuncEx set_ex;
+
+  PropEnumGetTransformFunc get_transform;
+  PropEnumSetTransformFunc set_transform;
 
   PropEnumGetFuncEx get_default;
 

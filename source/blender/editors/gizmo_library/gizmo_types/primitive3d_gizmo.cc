@@ -280,6 +280,8 @@ static void GIZMO_GT_primitive_3d(wmGizmoType *gzt)
   RNA_def_property_enum_funcs_runtime(prop,
                                       gizmo_primitive_rna__draw_style_get_fn,
                                       gizmo_primitive_rna__draw_style_set_fn,
+                                      nullptr,
+                                      nullptr,
                                       nullptr);
 
   prop = RNA_def_float_factor(
