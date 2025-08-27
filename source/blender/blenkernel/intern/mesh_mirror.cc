@@ -345,30 +345,30 @@ Mesh *BKE_mesh_mirror_apply_mirror_on_axis_for_modifier(MirrorModifierData *mmd,
 
     for (const StringRef name : result->uv_map_names()) {
       bke::SpanAttributeWriter uv_map_attr = attributes.lookup_for_write_span<float2>(name);
-      float(*dmloopuv)[2] = reinterpret_cast<float(*)[2]>(uv_map_attr.span.data());
+      float(*uv_map)[2] = reinterpret_cast<float(*)[2]>(uv_map_attr.span.data());
       int j = src_loops_num;
-      dmloopuv += j; /* second set of loops only */
-      for (; j-- > 0; dmloopuv++) {
+      uv_map += j; /* second set of loops only */
+      for (; j-- > 0; uv_map++) {
         if (do_mirr_u) {
-          float u = (*dmloopuv)[0];
+          float u = (*uv_map)[0];
           if (do_mirr_udim) {
-            (*dmloopuv)[0] = ceilf(u) - fmodf(u, 1.0f) + mmd->uv_offset[0];
+            (*uv_map)[0] = ceilf(u) - fmodf(u, 1.0f) + mmd->uv_offset[0];
           }
           else {
-            (*dmloopuv)[0] = 1.0f - u + mmd->uv_offset[0];
+            (*uv_map)[0] = 1.0f - u + mmd->uv_offset[0];
           }
         }
         if (do_mirr_v) {
-          float v = (*dmloopuv)[1];
+          float v = (*uv_map)[1];
           if (do_mirr_udim) {
-            (*dmloopuv)[1] = ceilf(v) - fmodf(v, 1.0f) + mmd->uv_offset[1];
+            (*uv_map)[1] = ceilf(v) - fmodf(v, 1.0f) + mmd->uv_offset[1];
           }
           else {
-            (*dmloopuv)[1] = 1.0f - v + mmd->uv_offset[1];
+            (*uv_map)[1] = 1.0f - v + mmd->uv_offset[1];
           }
         }
-        (*dmloopuv)[0] += mmd->uv_offset_copy[0];
-        (*dmloopuv)[1] += mmd->uv_offset_copy[1];
+        (*uv_map)[0] += mmd->uv_offset_copy[0];
+        (*uv_map)[1] += mmd->uv_offset_copy[1];
       }
       uv_map_attr.finish();
     }
