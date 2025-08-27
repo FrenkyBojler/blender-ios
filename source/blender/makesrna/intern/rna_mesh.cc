@@ -1646,11 +1646,8 @@ static bool get_uv_index_and_layer(const PointerRNA *ptr,
   /* We don't know from which attribute the RNA pointer is from, so we need to scan them all. */
   int uv_map_index = 0;
   mesh->attribute_storage.wrap().foreach_with_stop([&](const bke::Attribute &attr) {
-    if (attr.domain() != bke::AttrDomain::Corner) {
-      return true;
-    }
-    if (attr.data_type() != bke::AttrType::Float2) {
-      return true;
+    if (!bke::mesh::is_uv_map(bke::AttributeMetaData{attr.domain(), attr.data_type()})) {
+      return false;
     }
     const auto *array_data = std::get_if<bke::Attribute::ArrayData>(&attr.data());
     if (!array_data) {
