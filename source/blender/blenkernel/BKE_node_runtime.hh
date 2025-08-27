@@ -506,11 +506,7 @@ inline const bNode *bNodeTree::node_by_id(const int32_t identifier) const
 namespace blender::details {
 static inline constexpr StringRefNull topology_cache_not_aware_message =
     "It seems that the last node tree editing operation did not cover the topology cache update\n"
-    "ensure call. Some of the topology information is dual to the actually stored data, so it "
-    "can\n"
-    "only be known from the cache. You should call \"tree.ensure_topology_cache();\" at a clear\n"
-    "entry point in the scope where you need to access topology information. Try not to call it\n"
-    "without necessity, and avoid doing things repeatedly.\n";
+    "ensure call. You should call \"tree.ensure_topology_cache();";
 }
 
 inline blender::Span<bNode *> bNodeTree::nodes_by_type(const blender::StringRefNull type_idname)
