@@ -99,10 +99,25 @@ class GreasePencilPenToolOperation : public curves::pen_tool::PenToolOperation {
     return this->drawings.index_range();
   }
 
-  void single_point_attributes(bke::CurvesGeometry & /*curves*/, const int curves_index) const
+  void single_point_attributes(bke::CurvesGeometry &curves, const int curves_index) const
   {
     const MutableDrawingInfo &info = this->drawings[curves_index];
     info.drawing.opacities_for_write().last() = 1.0f;
+    bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
+
+    bke::SpanAttributeWriter<float> aspect_ratios = attributes.lookup_or_add_for_write_span<float>(
+        "aspect_ratio",
+        bke::AttrDomain::Curve,
+        bke::AttributeInitVArray(VArray<float>::from_single(0.0f, curves.curves_num())));
+    aspect_ratios.span.last() = 1.0f;
+    aspect_ratios.finish();
+
+    bke::SpanAttributeWriter<float> u_scales = attributes.lookup_or_add_for_write_span<float>(
+        "u_scale",
+        bke::AttrDomain::Curve,
+        bke::AttributeInitVArray(VArray<float>::from_single(0.0f, curves.curves_num())));
+    u_scales.span.last() = 1.0f;
+    u_scales.finish();
   }
 
   bool can_create_new_curve(wmOperator *op) const

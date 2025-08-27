@@ -818,22 +818,6 @@ static void add_single_point_and_curve(const PenToolOperation &ptd,
     curve_attributes_to_skip.add("material_index");
   }
 
-  bke::SpanAttributeWriter<float> aspect_ratios = attributes.lookup_or_add_for_write_span<float>(
-      "aspect_ratio",
-      bke::AttrDomain::Curve,
-      bke::AttributeInitVArray(VArray<float>::from_single(0.0f, curves.curves_num())));
-  aspect_ratios.span.last() = 1.0f;
-  aspect_ratios.finish();
-  curve_attributes_to_skip.add("aspect_ratio");
-
-  bke::SpanAttributeWriter<float> u_scales = attributes.lookup_or_add_for_write_span<float>(
-      "u_scale",
-      bke::AttrDomain::Curve,
-      bke::AttributeInitVArray(VArray<float>::from_single(0.0f, curves.curves_num())));
-  u_scales.span.last() = 1.0f;
-  u_scales.finish();
-  curve_attributes_to_skip.add("u_scale");
-
   MutableSpan<float3> handles_left = curves.handle_positions_left_for_write();
   MutableSpan<float3> handles_right = curves.handle_positions_right_for_write();
   handles_left.last() = ptd.screen_to_layer(
@@ -858,7 +842,6 @@ static void add_single_point_and_curve(const PenToolOperation &ptd,
       attributes,
       bke::AttrDomain::Point,
       bke::attribute_filter_from_skip_ref({"position",
-                                           "opacity",
                                            "radius",
                                            "handle_left",
                                            "handle_right",
