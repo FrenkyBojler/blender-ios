@@ -869,7 +869,7 @@ void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
                                UI_UNIT_Y * 0.5f,
                                tree_view.custom_height_.get(),
                                0,
-                               100,
+                               0,
                                "");
     static_cast<uiButGrip *>(but)->step_distance = padded_item_height();
   }
