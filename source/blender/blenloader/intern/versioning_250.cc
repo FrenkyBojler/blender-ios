@@ -1645,8 +1645,8 @@ void blo_do_versions_250(FileData *fd, Library * /*lib*/, Main *bmain)
         sce->toolsettings->sculpt_paint_unified_alpha = 0.5f;
       }
 
-      if (sce->toolsettings->sculpt_paint_unified_unprojected_size == 0) {
-        sce->toolsettings->sculpt_paint_unified_unprojected_size = 0.125f;
+      if (sce->toolsettings->sculpt_paint_unified_unprojected_radius == 0) {
+        sce->toolsettings->sculpt_paint_unified_unprojected_radius = 0.125f;
       }
 
       if (sce->toolsettings->sculpt_paint_unified_size == 0) {
