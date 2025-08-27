@@ -486,24 +486,7 @@ static void object_foreach_id(ID *id, LibraryForeachIDData *data)
   }
 
   if (flag & IDWALK_DO_DEPRECATED_POINTERS) {
-    BKE_LIB_FOREACHID_PROCESS_ID_NOCHECK(data, object->ipo, IDWALK_CB_USER);
-    BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, object->action, IDWALK_CB_USER);
-
     BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, object->poselib, IDWALK_CB_USER);
-
-    LISTBASE_FOREACH (bConstraintChannel *, chan, &object->constraintChannels) {
-      BKE_LIB_FOREACHID_PROCESS_ID_NOCHECK(data, chan->ipo, IDWALK_CB_USER);
-    }
-
-    LISTBASE_FOREACH (bActionStrip *, strip, &object->nlastrips) {
-      BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, strip->object, IDWALK_CB_NOP);
-      BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, strip->act, IDWALK_CB_USER);
-      BKE_LIB_FOREACHID_PROCESS_ID_NOCHECK(data, strip->ipo, IDWALK_CB_USER);
-      LISTBASE_FOREACH (bActionModifier *, amod, &strip->modifiers) {
-        BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, amod->ob, IDWALK_CB_NOP);
-      }
-    }
-
     BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, object->gpd, IDWALK_CB_USER);
 
     BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, object->proxy, IDWALK_CB_NOP);
@@ -514,12 +497,6 @@ static void object_foreach_id(ID *id, LibraryForeachIDData *data)
     PartEff *paf = BKE_object_do_version_give_parteff_245(object);
     if (paf && paf->group) {
       BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, paf->group, IDWALK_CB_USER);
-    }
-
-    FluidsimModifierData *fluidmd = reinterpret_cast<FluidsimModifierData *>(
-        BKE_modifiers_findby_type(object, eModifierType_Fluidsim));
-    if (fluidmd && fluidmd->fss) {
-      BKE_LIB_FOREACHID_PROCESS_ID_NOCHECK(data, fluidmd->fss->ipo, IDWALK_CB_USER);
     }
   }
 }
@@ -684,16 +661,6 @@ static void object_blend_write(BlendWriter *writer, ID *id, const void *id_addre
   }
 }
 
-/* XXX deprecated - old animation system */
-static void direct_link_nlastrips(BlendDataReader *reader, ListBase *strips)
-{
-  BLO_read_struct_list(reader, bActionStrip, strips);
-
-  LISTBASE_FOREACH (bActionStrip *, strip, strips) {
-    BLO_read_struct_list(reader, bActionModifier, &strip->modifiers);
-  }
-}
-
 static void object_blend_read_data(BlendDataReader *reader, ID *id)
 {
   Object *ob = (Object *)id;
@@ -730,11 +697,6 @@ static void object_blend_read_data(BlendDataReader *reader, ID *id)
   /* Only for versioning, vertex group names are now stored on object data. */
   BLO_read_struct_list(reader, bDeformGroup, &ob->defbase);
   BLO_read_struct_list(reader, bFaceMap, &ob->fmaps);
-
-  /* XXX deprecated - old animation system <<< */
-  direct_link_nlastrips(reader, &ob->nlastrips);
-  BLO_read_struct_list(reader, bConstraintChannel, &ob->constraintChannels);
-  /* >>> XXX deprecated - old animation system */
 
   BLO_read_pointer_array(reader, ob->totcol, (void **)&ob->mat);
   BLO_read_char_array(reader, ob->totcol, &ob->matbits);
@@ -850,34 +812,6 @@ static void object_blend_read_data(BlendDataReader *reader, ID *id)
   BKE_particle_system_blend_read_data(reader, &ob->particlesystem);
 
   BKE_constraint_blend_read_data(reader, &ob->id, &ob->constraints);
-
-  BLO_read_struct_list(reader, ObHook, &ob->hooks);
-  while (ob->hooks.first) {
-    ObHook *hook = (ObHook *)ob->hooks.first;
-    HookModifierData *hmd = (HookModifierData *)BKE_modifier_new(eModifierType_Hook);
-
-    BLO_read_int32_array(reader, hook->totindex, &hook->indexar);
-
-    /* Do conversion here because if we have loaded
-     * a hook we need to make sure it gets converted
-     * and freed, regardless of version.
-     */
-    copy_v3_v3(hmd->cent, hook->cent);
-    hmd->falloff = hook->falloff;
-    hmd->force = hook->force;
-    hmd->indexar = hook->indexar;
-    hmd->object = hook->parent;
-    memcpy(hmd->parentinv, hook->parentinv, sizeof(hmd->parentinv));
-    hmd->indexar_num = hook->totindex;
-
-    BLI_addhead(&ob->modifiers, hmd);
-    BLI_remlink(&ob->hooks, hook);
-
-    BKE_modifier_unique_name(&ob->modifiers, (ModifierData *)hmd);
-    BKE_modifiers_persistent_uid_init(*ob, hmd->modifier);
-
-    MEM_freeN(hook);
-  }
 
   BLO_read_struct(reader, ImageUser, &ob->iuser);
   if (ob->type == OB_EMPTY && ob->empty_drawtype == OB_EMPTY_IMAGE && !ob->iuser) {

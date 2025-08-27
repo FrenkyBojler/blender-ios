@@ -49,9 +49,8 @@ bool action_is_layered(const bAction &dna_action)
   const bool has_layered_data = action.layer_array_num > 0 || action.slot_array_num > 0;
   const bool has_animato_data = !(BLI_listbase_is_empty(&action.curves) &&
                                   BLI_listbase_is_empty(&action.groups));
-  const bool has_pre_animato_data = !BLI_listbase_is_empty(&action.chanbase);
 
-  return has_layered_data || (!has_animato_data && !has_pre_animato_data);
+  return has_layered_data || !has_animato_data;
 }
 
 void convert_legacy_animato_actions(Main &bmain)
@@ -68,27 +67,12 @@ void convert_legacy_animato_actions(Main &bmain)
       continue;
     }
 
-    /* This function should skip pre-2.50 Actions, as those are versioned in a special step (see
-     * `do_versions_after_setup()` in `versioning_common.cc`). */
-    if (!BLI_listbase_is_empty(&action.chanbase)) {
-      continue;
-    }
-
     convert_legacy_animato_action(action);
   }
 }
 
 void convert_legacy_animato_action(bAction &dna_action)
 {
-  BLI_assert_msg(BLI_listbase_is_empty(&dna_action.chanbase),
-                 "this function cannot handle pre-2.50 Actions");
-  if (!BLI_listbase_is_empty(&dna_action.chanbase)) {
-    /* This is a pre-2.5 Action, which cannot be converted here. It's converted in another function
-     * to a post-2.5 Action (aka Animato Action), and after that, this function will be called
-     * again. */
-    return;
-  }
-
   Action &action = dna_action.wrap();
   BLI_assert(action.is_action_legacy());
 
