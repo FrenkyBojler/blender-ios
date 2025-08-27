@@ -104,10 +104,6 @@ class MTLBatch : public Batch {
   {
     return static_cast<MTLVertBuf *>(verts[index]);
   }
-  MTLVertBuf *inst_(const int index) const
-  {
-    return static_cast<MTLVertBuf *>(inst[index]);
-  }
   MTLShader *active_shader_get() const
   {
     return active_shader_;
