@@ -77,9 +77,10 @@ class DilateErodeOperation : public NodeOperation {
 
   void execute() override
   {
+    const Result &input = this->get_input("Mask");
+    Result &output = this->get_result("Mask");
+
     if (this->is_identity()) {
-      const Result &input = this->get_input("Mask");
-      Result &output = this->get_result("Mask");
       output.share_data(input);
       return;
     }
@@ -97,10 +98,9 @@ class DilateErodeOperation : public NodeOperation {
       case CMP_NODE_DILATE_ERODE_DISTANCE_FEATHER:
         execute_distance_feather();
         return;
-      default:
-        BLI_assert_unreachable();
-        return;
     }
+
+    output.share_data(input);
   }
 
   /* ----------------------------

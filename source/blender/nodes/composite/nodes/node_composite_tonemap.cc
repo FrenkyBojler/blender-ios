@@ -8,7 +8,6 @@
 
 #include <cmath>
 
-#include "BLI_assert.h"
 #include "BLI_math_base.hh"
 #include "BLI_math_vector.hh"
 #include "BLI_math_vector_types.hh"
@@ -134,10 +133,9 @@ class ToneMapOperation : public NodeOperation {
       case CMP_NODE_TONE_MAP_PHOTORECEPTOR:
         execute_photoreceptor();
         return;
-      default:
-        BLI_assert_unreachable();
-        return;
     }
+
+    output_image.share_data(input_image);
   }
 
   /* Tone mapping based on equation (3) from Reinhard, Erik, et al. "Photographic tone reproduction

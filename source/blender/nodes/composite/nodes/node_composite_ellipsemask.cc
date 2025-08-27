@@ -166,7 +166,6 @@ class EllipseMaskOperation : public NodeOperation {
   const char *get_shader_name()
   {
     switch (this->get_operation()) {
-      default:
       case CMP_NODE_MASKTYPE_ADD:
         return "compositor_ellipse_mask_add";
       case CMP_NODE_MASKTYPE_SUBTRACT:
@@ -176,6 +175,8 @@ class EllipseMaskOperation : public NodeOperation {
       case CMP_NODE_MASKTYPE_NOT:
         return "compositor_ellipse_mask_not";
     }
+
+    return "compositor_ellipse_mask_add";
   }
 
   void execute_cpu()
@@ -206,7 +207,7 @@ class EllipseMaskOperation : public NodeOperation {
                                               cos_angle,
                                               sin_angle);
         });
-        break;
+        return;
       case CMP_NODE_MASKTYPE_SUBTRACT:
         parallel_for(domain_size, [&](const int2 texel) {
           ellipse_mask<CMP_NODE_MASKTYPE_SUBTRACT>(base_mask,
@@ -219,7 +220,7 @@ class EllipseMaskOperation : public NodeOperation {
                                                    cos_angle,
                                                    sin_angle);
         });
-        break;
+        return;
       case CMP_NODE_MASKTYPE_MULTIPLY:
         parallel_for(domain_size, [&](const int2 texel) {
           ellipse_mask<CMP_NODE_MASKTYPE_MULTIPLY>(base_mask,
@@ -232,7 +233,7 @@ class EllipseMaskOperation : public NodeOperation {
                                                    cos_angle,
                                                    sin_angle);
         });
-        break;
+        return;
       case CMP_NODE_MASKTYPE_NOT:
         parallel_for(domain_size, [&](const int2 texel) {
           ellipse_mask<CMP_NODE_MASKTYPE_NOT>(base_mask,
@@ -245,8 +246,20 @@ class EllipseMaskOperation : public NodeOperation {
                                               cos_angle,
                                               sin_angle);
         });
-        break;
+        return;
     }
+
+    parallel_for(domain_size, [&](const int2 texel) {
+      ellipse_mask<CMP_NODE_MASKTYPE_ADD>(base_mask,
+                                          value_mask,
+                                          output_mask,
+                                          texel,
+                                          domain_size,
+                                          location,
+                                          radius,
+                                          cos_angle,
+                                          sin_angle);
+    });
   }
 
   Domain compute_domain() override

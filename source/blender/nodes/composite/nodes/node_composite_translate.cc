@@ -6,7 +6,6 @@
  * \ingroup cmpnodes
  */
 
-#include "BLI_assert.h"
 #include "BLI_math_matrix.hh"
 
 #include "DNA_node_types.h"
@@ -93,7 +92,6 @@ class TranslateOperation : public NodeOperation {
         return Interpolation::Bicubic;
     }
 
-    BLI_assert_unreachable();
     return Interpolation::Nearest;
   }
 
@@ -112,7 +110,6 @@ class TranslateOperation : public NodeOperation {
         return ExtensionMode::Extend;
     }
 
-    BLI_assert_unreachable();
     return ExtensionMode::Clip;
   }
 
@@ -131,7 +128,6 @@ class TranslateOperation : public NodeOperation {
         return ExtensionMode::Extend;
     }
 
-    BLI_assert_unreachable();
     return ExtensionMode::Clip;
   }
 };

@@ -8,7 +8,6 @@
 
 #include <cmath>
 
-#include "BLI_assert.h"
 #include "BLI_math_vector.hh"
 #include "BLI_math_vector_types.hh"
 
@@ -112,9 +111,6 @@ class LevelsOperation : public NodeOperation {
         mean_result.set_single_value(math::dot(input, float3(luminance_coefficients)));
         break;
       }
-      default:
-        BLI_assert_unreachable();
-        break;
     }
   }
 
@@ -141,10 +137,9 @@ class LevelsOperation : public NodeOperation {
         IMB_colormanagement_get_luminance_coefficients(luminance_coefficients);
         return sum_luminance(context(), input, float3(luminance_coefficients));
       }
-      default:
-        BLI_assert_unreachable();
-        return 0.0f;
     }
+
+    return 0.0f;
   }
 
   float compute_standard_deviation(float mean)
@@ -173,10 +168,9 @@ class LevelsOperation : public NodeOperation {
         return sum_luminance_squared_difference(
             context(), input, float3(luminance_coefficients), subtrahend);
       }
-      default:
-        BLI_assert_unreachable();
-        return 0.0f;
     }
+
+    return 0.0f;
   }
 
   CMPNodeLevelsChannel get_channel()

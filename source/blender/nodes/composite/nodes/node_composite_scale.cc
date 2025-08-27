@@ -6,7 +6,6 @@
  * \ingroup cmpnodes
  */
 
-#include "BLI_assert.h"
 #include "BLI_listbase.h"
 #include "BLI_math_angle_types.hh"
 #include "BLI_math_base.hh"
@@ -232,7 +231,6 @@ class ScaleOperation : public NodeOperation {
         return Interpolation::Bicubic;
     }
 
-    BLI_assert_unreachable();
     return Interpolation::Nearest;
   }
 
@@ -251,7 +249,6 @@ class ScaleOperation : public NodeOperation {
         return ExtensionMode::Extend;
     }
 
-    BLI_assert_unreachable();
     return ExtensionMode::Clip;
   }
 
@@ -270,7 +267,6 @@ class ScaleOperation : public NodeOperation {
         return ExtensionMode::Extend;
     }
 
-    BLI_assert_unreachable();
     return ExtensionMode::Clip;
   }
 
@@ -285,10 +281,9 @@ class ScaleOperation : public NodeOperation {
         return get_scale_render_percent();
       case CMP_NODE_SCALE_RENDER_SIZE:
         return get_scale_render_size();
-      default:
-        BLI_assert_unreachable();
-        return float2(1.0f);
     }
+
+    return float2(1.0f);
   }
 
   /* Scale by the input factors. */
@@ -326,10 +321,9 @@ class ScaleOperation : public NodeOperation {
         return get_scale_render_size_fit();
       case CMP_NODE_SCALE_RENDER_SIZE_CROP:
         return get_scale_render_size_crop();
-      default:
-        BLI_assert_unreachable();
-        return float2(1.0f);
     }
+
+    return float2(1.0f);
   }
 
   /* Scale such that the new size matches the render size. Since the input is freely scaled, it is

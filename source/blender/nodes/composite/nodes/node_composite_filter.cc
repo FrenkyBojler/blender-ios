@@ -262,11 +262,10 @@ class FilterOperation : public NodeOperation {
             {0.0f, -1.0f, 0.0f}, {-1.0f, 5.0f, -1.0f}, {0.0f, -1.0f, 0.0f}};
         return float3x3(kernel);
       }
-      default: {
-        const float kernel[3][3] = {{0.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f, 0.0f}};
-        return float3x3(kernel);
-      }
     }
+
+    const float kernel[3][3] = {{0.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f, 0.0f}};
+    return float3x3(kernel);
   }
 
   CMPNodeFilterMethod get_type()

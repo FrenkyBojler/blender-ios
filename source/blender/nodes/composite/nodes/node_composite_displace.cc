@@ -295,7 +295,7 @@ class DisplaceOperation : public NodeOperation {
       case Interpolation::Nearest:
         return "compositor_displace";
     }
-    BLI_assert_unreachable();
+
     return "compositor_displace";
   }
 
@@ -316,7 +316,6 @@ class DisplaceOperation : public NodeOperation {
         return Interpolation::Anisotropic;
     }
 
-    BLI_assert_unreachable();
     return Interpolation::Nearest;
   }
 
@@ -335,7 +334,6 @@ class DisplaceOperation : public NodeOperation {
         return ExtensionMode::Extend;
     }
 
-    BLI_assert_unreachable();
     return ExtensionMode::Clip;
   }
 
@@ -354,7 +352,6 @@ class DisplaceOperation : public NodeOperation {
         return ExtensionMode::Extend;
     }
 
-    BLI_assert_unreachable();
     return ExtensionMode::Clip;
   }
 

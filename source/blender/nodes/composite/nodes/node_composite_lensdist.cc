@@ -298,9 +298,10 @@ class LensDistortionOperation : public NodeOperation {
 
   void execute() override
   {
+    const Result &input = this->get_input("Image");
+    Result &output = this->get_result("Image");
+
     if (this->is_identity()) {
-      const Result &input = this->get_input("Image");
-      Result &output = this->get_result("Image");
       output.share_data(input);
       return;
     }
@@ -308,11 +309,13 @@ class LensDistortionOperation : public NodeOperation {
     switch (this->get_type()) {
       case CMP_NODE_LENS_DISTORTION_RADIAL:
         this->execute_radial_distortion();
-        break;
+        return;
       case CMP_NODE_LENS_DISTORTION_HORIZONTAL:
         this->execute_horizontal_distortion();
-        break;
+        return;
     }
+
+    output.share_data(input);
   }
 
   void execute_horizontal_distortion()

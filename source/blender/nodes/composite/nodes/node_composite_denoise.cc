@@ -337,9 +337,10 @@ class DenoiseOperation : public NodeOperation {
         case SCE_COMPOSITOR_DENOISE_BALANCED:
           return oidn::Quality::Balanced;
         case SCE_COMPOSITOR_DENOISE_HIGH:
-        default:
           return oidn::Quality::High;
       }
+
+      return oidn::Quality::High;
     }
 
     switch (node_quality) {
@@ -350,9 +351,11 @@ class DenoiseOperation : public NodeOperation {
       case CMP_NODE_DENOISE_QUALITY_BALANCED:
         return oidn::Quality::Balanced;
       case CMP_NODE_DENOISE_QUALITY_HIGH:
-      default:
+      case CMP_NODE_DENOISE_QUALITY_SCENE:
         return oidn::Quality::High;
     }
+
+    return oidn::Quality::High;
   }
 #  endif /* OIDN_VERSION_MAJOR >= 2 */
 

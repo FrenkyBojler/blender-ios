@@ -8,7 +8,6 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_assert.h"
 #include "BLI_math_vector.hh"
 #include "BLI_math_vector_types.hh"
 
@@ -151,7 +150,7 @@ class MapUVOperation : public NodeOperation {
       case Interpolation::Nearest:
         return "compositor_map_uv";
     }
-    BLI_assert_unreachable();
+
     return "compositor_map_uv";
   }
 
@@ -318,7 +317,6 @@ class MapUVOperation : public NodeOperation {
         return Interpolation::Anisotropic;
     }
 
-    BLI_assert_unreachable();
     return Interpolation::Nearest;
   }
 
@@ -337,7 +335,6 @@ class MapUVOperation : public NodeOperation {
         return ExtensionMode::Extend;
     }
 
-    BLI_assert_unreachable();
     return ExtensionMode::Clip;
   }
 
@@ -356,7 +353,6 @@ class MapUVOperation : public NodeOperation {
         return ExtensionMode::Extend;
     }
 
-    BLI_assert_unreachable();
     return ExtensionMode::Clip;
   }
 };

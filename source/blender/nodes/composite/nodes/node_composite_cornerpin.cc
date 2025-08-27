@@ -6,7 +6,6 @@
  * \ingroup cmpnodes
  */
 
-#include "BLI_assert.h"
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix_types.hh"
 #include "BLI_math_vector_types.hh"
@@ -348,7 +347,6 @@ class CornerPinOperation : public NodeOperation {
         return Interpolation::Anisotropic;
     }
 
-    BLI_assert_unreachable();
     return Interpolation::Nearest;
   }
 
@@ -371,7 +369,6 @@ class CornerPinOperation : public NodeOperation {
         return ExtensionMode::Extend;
     }
 
-    BLI_assert_unreachable();
     return ExtensionMode::Clip;
   }
 
@@ -394,7 +391,6 @@ class CornerPinOperation : public NodeOperation {
         return ExtensionMode::Extend;
     }
 
-    BLI_assert_unreachable();
     return ExtensionMode::Clip;
   }
 
@@ -422,7 +418,7 @@ class CornerPinOperation : public NodeOperation {
       case Interpolation::Anisotropic:
         break;
     }
-    BLI_assert_unreachable();
+
     return "compositor_plane_deform_anisotropic_masked";
   }
 

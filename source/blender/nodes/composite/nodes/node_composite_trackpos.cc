@@ -252,9 +252,12 @@ class TrackPositionOperation : public NodeOperation {
         return compute_first_marker_position(track);
       case CMP_NODE_TRACK_POSITION_RELATIVE_FRAME:
         return compute_marker_position_at_frame(track, get_relative_frame());
-      default:
+      case CMP_NODE_TRACK_POSITION_ABSOLUTE:
+      case CMP_NODE_TRACK_POSITION_ABSOLUTE_FRAME:
         return float2(0.0f);
     }
+
+    return float2(0.0f);
   }
 
   /* Compute the position of the first non-disabled marker in the track. */

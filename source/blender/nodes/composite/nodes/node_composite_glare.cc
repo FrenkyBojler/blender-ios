@@ -582,8 +582,7 @@ class GlareOperation : public NodeOperation {
         return this->execute_sun_beams(highlights_result);
     }
 
-    BLI_assert_unreachable();
-    return this->context().create_result(ResultType::Color);
+    return this->execute_simple_star(highlights_result);
   }
 
   /* Glare should be computed either because the glare output is needed directly or the image
@@ -1365,7 +1364,7 @@ class GlareOperation : public NodeOperation {
     GPU_shader_uniform_4fv_array(shader,
                                  "color_modulators",
                                  color_modulators.size(),
-                                 (const float(*)[4])color_modulators.data());
+                                 (const float (*)[4])color_modulators.data());
 
     /* Zero initialize output image where ghosts will be accumulated. */
     const float4 zero_color = float4(0.0f);
@@ -2526,7 +2525,6 @@ class GlareOperation : public NodeOperation {
         return 1.0f;
     }
 
-    BLI_assert_unreachable();
     return 1.0f;
   }
 
