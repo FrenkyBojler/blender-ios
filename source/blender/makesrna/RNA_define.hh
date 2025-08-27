@@ -578,9 +578,12 @@ void RNA_def_property_boolean_funcs_runtime(PropertyRNA *prop,
                                             BooleanPropertySetFunc setfunc,
                                             BooleanPropertyGetTransformFunc get_transform_fn,
                                             BooleanPropertySetTransformFunc set_transform_fn);
-void RNA_def_property_boolean_array_funcs_runtime(PropertyRNA *prop,
-                                                  BooleanArrayPropertyGetFunc getfunc,
-                                                  BooleanArrayPropertySetFunc setfunc);
+void RNA_def_property_boolean_array_funcs_runtime(
+    PropertyRNA *prop,
+    BooleanArrayPropertyGetFunc getfunc,
+    BooleanArrayPropertySetFunc setfunc,
+    BooleanArrayPropertyGetTransformFunc get_transform_fn,
+    BooleanArrayPropertySetTransformFunc set_transform_fn);
 void RNA_def_property_int_funcs_runtime(PropertyRNA *prop,
                                         IntPropertyGetFunc getfunc,
                                         IntPropertySetFunc setfunc,

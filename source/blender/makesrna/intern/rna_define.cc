@@ -3342,9 +3342,12 @@ void RNA_def_property_boolean_funcs_runtime(PropertyRNA *prop,
   }
 }
 
-void RNA_def_property_boolean_array_funcs_runtime(PropertyRNA *prop,
-                                                  BooleanArrayPropertyGetFunc getfunc,
-                                                  BooleanArrayPropertySetFunc setfunc)
+void RNA_def_property_boolean_array_funcs_runtime(
+    PropertyRNA *prop,
+    BooleanArrayPropertyGetFunc getfunc,
+    BooleanArrayPropertySetFunc setfunc,
+    BooleanArrayPropertyGetTransformFunc get_transform_fn,
+    BooleanArrayPropertySetTransformFunc set_transform_fn)
 {
   BoolPropertyRNA *bprop = (BoolPropertyRNA *)prop;
 
@@ -3362,6 +3365,13 @@ void RNA_def_property_boolean_array_funcs_runtime(PropertyRNA *prop,
     if (!setfunc) {
       RNA_def_property_clear_flag(prop, PROP_EDITABLE);
     }
+  }
+
+  if (get_transform_fn) {
+    bprop->getarray_transform = get_transform_fn;
+  }
+  if (set_transform_fn) {
+    bprop->setarray_transform = set_transform_fn;
   }
 }
 

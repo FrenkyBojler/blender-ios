@@ -2049,8 +2049,9 @@ static void rna_def_property_funcs(FILE *f, StructRNA *srna, PropertyDefRNA *dp)
     case PROP_BOOLEAN: {
       BoolPropertyRNA *bprop = (BoolPropertyRNA *)prop;
 
-      if (!(prop->flag & PROP_EDITABLE) && (bprop->set || bprop->set_ex || bprop->set_transform ||
-                                            bprop->setarray || bprop->setarray_ex))
+      if (!(prop->flag & PROP_EDITABLE) &&
+          (bprop->set || bprop->set_ex || bprop->set_transform || bprop->setarray ||
+           bprop->setarray_ex || bprop->setarray_transform))
       {
         CLOG_ERROR(&LOG,
                    "%s.%s, is read-only but has defines a \"set\" callback.",
@@ -2060,7 +2061,8 @@ static void rna_def_property_funcs(FILE *f, StructRNA *srna, PropertyDefRNA *dp)
       }
 
       if (!prop->arraydimension &&
-          (bprop->getarray || bprop->getarray_ex || bprop->setarray || bprop->setarray_ex))
+          (bprop->getarray || bprop->getarray_ex || bprop->getarray_transform || bprop->setarray ||
+           bprop->setarray_ex || bprop->setarray_transform))
       {
         CLOG_ERROR(&LOG,
                    "%s.%s, is not an array but defines an array callback.",
@@ -2101,8 +2103,9 @@ static void rna_def_property_funcs(FILE *f, StructRNA *srna, PropertyDefRNA *dp)
         DefRNA.error = true;
       }
 
-      if (!prop->arraydimension && (iprop->getarray || iprop->getarray_ex || iprop->setarray ||
-                                    iprop->setarray_ex || iprop->setarray_transform))
+      if (!prop->arraydimension &&
+          (iprop->getarray || iprop->getarray_ex || iprop->getarray_transform || iprop->setarray ||
+           iprop->setarray_ex || iprop->setarray_transform))
       {
         CLOG_ERROR(&LOG,
                    "%s.%s, is not an array but defines an array callback.",
@@ -4452,7 +4455,7 @@ static void rna_generate_property(FILE *f, StructRNA *srna, const char *nest, Pr
     case PROP_BOOLEAN: {
       BoolPropertyRNA *bprop = (BoolPropertyRNA *)prop;
       fprintf(f,
-              "\t%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %d, ",
+              "\t%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %d, ",
               rna_function_string(bprop->get),
               rna_function_string(bprop->set),
               rna_function_string(bprop->getarray),
@@ -4463,6 +4466,8 @@ static void rna_generate_property(FILE *f, StructRNA *srna, const char *nest, Pr
               rna_function_string(bprop->setarray_ex),
               rna_function_string(bprop->get_transform),
               rna_function_string(bprop->set_transform),
+              rna_function_string(bprop->getarray_transform),
+              rna_function_string(bprop->setarray_transform),
               rna_function_string(bprop->get_default),
               rna_function_string(bprop->get_default_array),
               bprop->defaultvalue);

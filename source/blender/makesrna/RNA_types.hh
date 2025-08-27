@@ -696,6 +696,14 @@ using BooleanArrayPropertyGetFunc = void (*)(PointerRNA *ptr, PropertyRNA *prop,
 using BooleanArrayPropertySetFunc = void (*)(PointerRNA *ptr,
                                              PropertyRNA *prop,
                                              const bool *r_values);
+using BooleanArrayPropertyGetTransformFunc = void (*)(
+    PointerRNA *ptr, PropertyRNA *prop, const bool *curr_values, bool is_set, bool *r_values);
+using BooleanArrayPropertySetTransformFunc = void (*)(PointerRNA *ptr,
+                                                      PropertyRNA *prop,
+                                                      const bool *new_values,
+                                                      const bool *curr_values,
+                                                      bool is_set,
+                                                      bool *r_values);
 
 using IntPropertyGetFunc = int (*)(PointerRNA *ptr, PropertyRNA *prop);
 using IntPropertySetFunc = void (*)(PointerRNA *ptr, PropertyRNA *prop, int value);

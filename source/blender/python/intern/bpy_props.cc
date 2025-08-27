@@ -908,19 +908,46 @@ static bool bpy_prop_boolean_set_transform_fn(
   return ret_value;
 }
 
+static void bpy_prop_boolean_array_from_callback_or_error(PyObject *bool_array_obj,
+                                                          const BPyPropArrayLength &array_len_info,
+                                                          PyObject *py_func,
+                                                          bool *r_values)
+{
+  bool is_values_set = false;
+
+  if (bool_array_obj != nullptr) {
+    if (bpy_prop_array_from_py_with_dims(r_values,
+                                         sizeof(*r_values),
+                                         bool_array_obj,
+                                         &array_len_info,
+                                         &PyBool_Type,
+                                         "BoolVectorProperty get callback") == -1)
+    {
+      PyC_Err_PrintWithFunc(py_func);
+    }
+    else {
+      is_values_set = true;
+    }
+  }
+
+  if (is_values_set == false) {
+    /* This is the flattened length for multi-dimensional arrays. */
+    for (int i = 0; i < array_len_info.len_total; i++) {
+      r_values[i] = false;
+    }
+  }
+
+  Py_XDECREF(bool_array_obj);
+}
+
 static void bpy_prop_boolean_array_get_fn(PointerRNA *ptr, PropertyRNA *prop, bool *values)
 {
   const BPyPropGIL_RNAWritable_State bpy_state = bpy_prop_gil_rna_writable_begin();
 
+  const BPyPropArrayLength array_len_info{ptr, prop};
   BPyPropStore *prop_store = static_cast<BPyPropStore *>(RNA_property_py_data_get(prop));
   PyObject *py_func;
   PyObject *ret;
-
-  bool is_values_set = false;
-  int i, len = RNA_property_array_length(ptr, prop);
-  BPyPropArrayLength array_len_info{};
-  array_len_info.len_total = len;
-  array_len_info.dims_len = RNA_property_array_dimension(ptr, prop, array_len_info.dims);
 
   BLI_assert(prop_store != nullptr);
 
@@ -936,28 +963,40 @@ static void bpy_prop_boolean_array_get_fn(PointerRNA *ptr, PropertyRNA *prop, bo
     Py_DECREF(args);
   }
 
-  if (ret != nullptr) {
-    if (bpy_prop_array_from_py_with_dims(values,
-                                         sizeof(*values),
-                                         ret,
-                                         &array_len_info,
-                                         &PyBool_Type,
-                                         "BoolVectorProperty get callback") == -1)
-    {
-      PyC_Err_PrintWithFunc(py_func);
-    }
-    else {
-      is_values_set = true;
-    }
-    Py_DECREF(ret);
+  bpy_prop_boolean_array_from_callback_or_error(ret, array_len_info, py_func, values);
+
+  bpy_prop_gil_rna_writable_end(bpy_state);
+}
+
+static void bpy_prop_boolean_array_get_transform_fn(
+    PointerRNA *ptr, PropertyRNA *prop, const bool *curr_values, bool is_set, bool *r_values)
+{
+  const BPyPropGIL_RNAWritable_State bpy_state = bpy_prop_gil_rna_writable_begin();
+
+  const BPyPropArrayLength array_len_info{ptr, prop};
+  BPyPropStore *prop_store = static_cast<BPyPropStore *>(RNA_property_py_data_get(prop));
+  PyObject *py_func;
+  PyObject *ret;
+
+  BLI_assert(prop_store != nullptr);
+
+  py_func = prop_store->py_data.get_transform_fn;
+
+  {
+    PyObject *args = PyTuple_New(3);
+    PyObject *self = pyrna_struct_as_instance(ptr);
+    PyTuple_SET_ITEMS(
+        args,
+        self,
+        bpy_py_object_from_prop_array_with_dims(curr_values, array_len_info, PyBool_Type),
+        PyBool_FromLong(is_set));
+
+    ret = PyObject_CallObject(py_func, args);
+
+    Py_DECREF(args);
   }
 
-  if (is_values_set == false) {
-    /* This is the flattened length for multi-dimensional arrays. */
-    for (i = 0; i < len; i++) {
-      values[i] = false;
-    }
-  }
+  bpy_prop_boolean_array_from_callback_or_error(ret, array_len_info, py_func, r_values);
 
   bpy_prop_gil_rna_writable_end(bpy_state);
 }
@@ -970,10 +1009,7 @@ static void bpy_prop_boolean_array_set_fn(PointerRNA *ptr, PropertyRNA *prop, co
   PyObject *py_func;
   PyObject *ret;
 
-  const int len = RNA_property_array_length(ptr, prop);
-  BPyPropArrayLength array_len_info{};
-  array_len_info.len_total = len;
-  array_len_info.dims_len = RNA_property_array_dimension(ptr, prop, array_len_info.dims);
+  const BPyPropArrayLength array_len_info{ptr, prop};
 
   BLI_assert(prop_store != nullptr);
 
@@ -982,16 +1018,8 @@ static void bpy_prop_boolean_array_set_fn(PointerRNA *ptr, PropertyRNA *prop, co
   {
     PyObject *args = PyTuple_New(2);
     PyObject *self = pyrna_struct_as_instance(ptr);
-
-    PyObject *py_values;
-    if (array_len_info.dims_len == 0) {
-      py_values = PyC_Tuple_PackArray_Bool(values, len);
-    }
-    else {
-      py_values = PyC_Tuple_PackArray_Multi_Bool(
-          values, array_len_info.dims, array_len_info.dims_len);
-    }
-    PyTuple_SET_ITEMS(args, self, py_values);
+    PyTuple_SET_ITEMS(
+        args, self, bpy_py_object_from_prop_array_with_dims(values, array_len_info, PyBool_Type));
 
     ret = PyObject_CallObject(py_func, args);
 
@@ -1009,6 +1037,45 @@ static void bpy_prop_boolean_array_set_fn(PointerRNA *ptr, PropertyRNA *prop, co
 
     Py_DECREF(ret);
   }
+
+  bpy_prop_gil_rna_writable_end(bpy_state);
+}
+
+static void bpy_prop_boolean_array_set_transform_fn(PointerRNA *ptr,
+                                                    PropertyRNA *prop,
+                                                    const bool *new_values,
+                                                    const bool *curr_values,
+                                                    bool is_set,
+                                                    bool *r_final_values)
+{
+  const BPyPropGIL_RNAWritable_State bpy_state = bpy_prop_gil_rna_writable_begin();
+
+  BPyPropStore *prop_store = static_cast<BPyPropStore *>(RNA_property_py_data_get(prop));
+  PyObject *py_func;
+  PyObject *ret;
+
+  const BPyPropArrayLength array_len_info{ptr, prop};
+
+  BLI_assert(prop_store != nullptr);
+
+  py_func = prop_store->py_data.set_transform_fn;
+
+  {
+    PyObject *args = PyTuple_New(4);
+    PyObject *self = pyrna_struct_as_instance(ptr);
+    PyTuple_SET_ITEMS(
+        args,
+        self,
+        bpy_py_object_from_prop_array_with_dims(new_values, array_len_info, PyBool_Type),
+        bpy_py_object_from_prop_array_with_dims(curr_values, array_len_info, PyBool_Type),
+        PyBool_FromLong(is_set));
+
+    ret = PyObject_CallObject(py_func, args);
+
+    Py_DECREF(args);
+  }
+
+  bpy_prop_boolean_array_from_callback_or_error(ret, array_len_info, py_func, r_final_values);
 
   bpy_prop_gil_rna_writable_end(bpy_state);
 }
@@ -1203,7 +1270,7 @@ static void bpy_prop_int_array_from_callback_or_error(PyObject *int_array_obj,
                                          sizeof(*r_values),
                                          int_array_obj,
                                          &array_len_info,
-                                         &PyFloat_Type,
+                                         &PyLong_Type,
                                          "IntVectorProperty get callback") == -1)
     {
       PyC_Err_PrintWithFunc(py_func);
@@ -2645,12 +2712,16 @@ static bool bpy_prop_callback_assign_boolean(PropertyRNA *prop,
   return true;
 }
 
-static void bpy_prop_callback_assign_boolean_array(PropertyRNA *prop,
+static bool bpy_prop_callback_assign_boolean_array(PropertyRNA *prop,
                                                    PyObject *get_fn,
-                                                   PyObject *set_fn)
+                                                   PyObject *set_fn,
+                                                   PyObject *get_transform_fn,
+                                                   PyObject *set_transform_fn)
 {
   BooleanArrayPropertyGetFunc rna_get_fn = nullptr;
   BooleanArrayPropertySetFunc rna_set_fn = nullptr;
+  BooleanArrayPropertyGetTransformFunc rna_get_transform_fn = nullptr;
+  BooleanArrayPropertySetTransformFunc rna_set_transform_fn = nullptr;
 
   if (get_fn && get_fn != Py_None) {
     BPyPropStore *prop_store = bpy_prop_py_data_ensure(prop);
@@ -2660,13 +2731,37 @@ static void bpy_prop_callback_assign_boolean_array(PropertyRNA *prop,
   }
 
   if (set_fn && set_fn != Py_None) {
+    if (!rna_get_fn) {
+      PyErr_SetString(PyExc_ValueError,
+                      "The `set` callback is defined without a matching `get` function, this is "
+                      "not supported. `set_transform` should probably be used instead?");
+      return false;
+    }
+
     BPyPropStore *prop_store = bpy_prop_py_data_ensure(prop);
 
     rna_set_fn = bpy_prop_boolean_array_set_fn;
     ASSIGN_PYOBJECT_INCREF(prop_store->py_data.set_fn, set_fn);
   }
 
-  RNA_def_property_boolean_array_funcs_runtime(prop, rna_get_fn, rna_set_fn);
+  if (get_transform_fn && get_transform_fn != Py_None) {
+    BPyPropStore *prop_store = bpy_prop_py_data_ensure(prop);
+
+    rna_get_transform_fn = bpy_prop_boolean_array_get_transform_fn;
+    ASSIGN_PYOBJECT_INCREF(prop_store->py_data.get_transform_fn, get_transform_fn);
+  }
+
+  if (set_transform_fn && set_transform_fn != Py_None) {
+    BPyPropStore *prop_store = bpy_prop_py_data_ensure(prop);
+
+    rna_set_transform_fn = bpy_prop_boolean_array_set_transform_fn;
+    ASSIGN_PYOBJECT_INCREF(prop_store->py_data.set_transform_fn, set_transform_fn);
+  }
+
+  RNA_def_property_boolean_array_funcs_runtime(
+      prop, rna_get_fn, rna_set_fn, rna_get_transform_fn, rna_set_transform_fn);
+
+  return true;
 }
 
 static bool bpy_prop_callback_assign_int(PropertyRNA *prop,
@@ -3488,7 +3583,9 @@ PyDoc_STRVAR(
     "size=3, "
     "update=None, "
     "get=None, "
-    "set=None)\n"
+    "set=None, "
+    "get_transform=None, "
+    "set_transform=None)\n"
     "\n"
     "   Returns a new vector boolean property definition.\n"
     "\n" BPY_PROPDEF_NAME_DOC BPY_PROPDEF_DESC_DOC BPY_PROPDEF_CTXT_DOC
@@ -3496,7 +3593,9 @@ PyDoc_STRVAR(
     "   :type default: Sequence[bool]\n" BPY_PROPDEF_OPTIONS_DOC BPY_PROPDEF_OPTIONS_OVERRIDE_DOC
         BPY_PROPDEF_TAGS_DOC BPY_PROPDEF_SUBTYPE_NUMBER_ARRAY_DOC BPY_PROPDEF_VECSIZE_DOC
             BPY_PROPDEF_UPDATE_DOC BPY_PROPDEF_GET_DOC("Sequence[bool]")
-                BPY_PROPDEF_SET_DOC("tuple[bool, ...]"));
+                BPY_PROPDEF_SET_DOC("tuple[bool, ...]")
+                    BPY_PROPDEF_GET_TRANSFORM_DOC("Sequence[bool]")
+                        BPY_PROPDEF_SET_TRANSFORM_DOC("Sequence[bool]"));
 static PyObject *BPy_BoolVectorProperty(PyObject *self, PyObject *args, PyObject *kw)
 {
   StructRNA *srna;
@@ -3538,6 +3637,8 @@ static PyObject *BPy_BoolVectorProperty(PyObject *self, PyObject *args, PyObject
   PyObject *update_fn = nullptr;
   PyObject *get_fn = nullptr;
   PyObject *set_fn = nullptr;
+  PyObject *get_transform_fn = nullptr;
+  PyObject *set_transform_fn = nullptr;
 
   static const char *_keywords[] = {
       "attr",
@@ -3553,6 +3654,8 @@ static PyObject *BPy_BoolVectorProperty(PyObject *self, PyObject *args, PyObject
       "update",
       "get",
       "set",
+      "get_transform",
+      "set_transform",
       nullptr,
   };
   static _PyArg_Parser _parser = {
@@ -3571,6 +3674,8 @@ static PyObject *BPy_BoolVectorProperty(PyObject *self, PyObject *args, PyObject
       "O"  /* `update` */
       "O"  /* `get` */
       "O"  /* `set` */
+      "O"  /* `get_transform` */
+      "O"  /* `set_transform` */
       ":BoolVectorProperty",
       _keywords,
       nullptr,
@@ -3596,7 +3701,9 @@ static PyObject *BPy_BoolVectorProperty(PyObject *self, PyObject *args, PyObject
                                         &array_len_info,
                                         &update_fn,
                                         &get_fn,
-                                        &set_fn))
+                                        &set_fn,
+                                        &get_transform_fn,
+                                        &set_transform_fn))
   {
     return nullptr;
   }
@@ -3621,6 +3728,12 @@ static PyObject *BPy_BoolVectorProperty(PyObject *self, PyObject *args, PyObject
     return nullptr;
   }
   if (bpy_prop_callback_check(set_fn, "set", 2) == -1) {
+    return nullptr;
+  }
+  if (bpy_prop_callback_check(get_transform_fn, "get_transform", 3) == -1) {
+    return nullptr;
+  }
+  if (bpy_prop_callback_check(set_transform_fn, "set_transform", 4) == -1) {
     return nullptr;
   }
 
@@ -3657,7 +3770,7 @@ static PyObject *BPy_BoolVectorProperty(PyObject *self, PyObject *args, PyObject
     bpy_prop_assign_flag_override(prop, override_enum.value);
   }
   bpy_prop_callback_assign_update(prop, update_fn);
-  bpy_prop_callback_assign_boolean_array(prop, get_fn, set_fn);
+  bpy_prop_callback_assign_boolean_array(prop, get_fn, set_fn, get_transform_fn, set_transform_fn);
   RNA_def_property_duplicate_pointers(srna, prop);
 
   Py_RETURN_NONE;
