@@ -8,7 +8,6 @@
 #include "sculpt_expand.hh"
 
 #include <cmath>
-#include <cstdlib>
 
 #include "MEM_guardedalloc.h"
 
@@ -1552,7 +1551,7 @@ static void write_mask_data(Object &object, const Span<float> mask)
       attributes.remove(".sculpt_mask");
       attributes.add<float>(".sculpt_mask",
                             bke::AttrDomain::Point,
-                            bke::AttributeInitVArray(VArray<float>::ForSpan(mask)));
+                            bke::AttributeInitVArray(VArray<float>::from_span(mask)));
       bke::pbvh::update_mask_mesh(mesh, node_mask, pbvh);
       break;
     }
@@ -2580,7 +2579,6 @@ static void cache_initial_config_set(bContext *C, wmOperator *op, Cache &expand_
   BKE_curvemapping_init(expand_cache.brush->curve);
   copy_v4_fl(expand_cache.fill_color, 1.0f);
   copy_v3_v3(expand_cache.fill_color, BKE_brush_color_get(paint, expand_cache.brush));
-  IMB_colormanagement_srgb_to_scene_linear_v3(expand_cache.fill_color, expand_cache.fill_color);
 
   expand_cache.scene = CTX_data_scene(C);
   expand_cache.texture_distortion_strength = 0.0f;

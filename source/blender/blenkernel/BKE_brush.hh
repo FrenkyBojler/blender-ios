@@ -94,7 +94,7 @@ void BKE_brush_jitter_pos(const Paint &paint,
                           const Brush &brush,
                           const float pos[2],
                           float jitterpos[2]);
-void BKE_brush_randomize_texture_coords(UnifiedPaintSettings *ups, bool mask);
+void BKE_brush_randomize_texture_coords(Paint *paint, bool mask);
 
 /* Brush curve. */
 
@@ -184,6 +184,9 @@ std::optional<BrushColorJitterSettings> BKE_brush_color_jitter_get_settings(cons
                                                                             const Brush *brush);
 const float *BKE_brush_secondary_color_get(const Paint *paint, const Brush *brush);
 void BKE_brush_color_set(Paint *paint, Brush *brush, const float color[3]);
+
+void BKE_brush_color_sync_legacy(Brush *brush);
+void BKE_brush_color_sync_legacy(UnifiedPaintSettings *ups);
 
 int BKE_brush_size_get(const Paint *paint, const Brush *brush);
 void BKE_brush_size_set(Paint *paint, Brush *brush, int size);

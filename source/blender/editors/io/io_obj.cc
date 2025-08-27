@@ -17,6 +17,7 @@
 
 #  include "BLI_path_utils.hh"
 #  include "BLI_string.h"
+#  include "BLI_string_utf8.h"
 
 #  include "BLT_translation.hh"
 
@@ -101,6 +102,7 @@ static wmOperatorStatus wm_obj_export_exec(bContext *C, wmOperator *op)
   export_params.up_axis = eIOAxis(RNA_enum_get(op->ptr, "up_axis"));
   export_params.global_scale = RNA_float_get(op->ptr, "global_scale");
   export_params.apply_modifiers = RNA_boolean_get(op->ptr, "apply_modifiers");
+  export_params.apply_transform = RNA_boolean_get(op->ptr, "apply_transform");
   export_params.export_eval_mode = eEvaluationMode(RNA_enum_get(op->ptr, "export_eval_mode"));
 
   export_params.export_selected_objects = RNA_boolean_get(op->ptr, "export_selected_objects");
@@ -167,6 +169,7 @@ static void ui_obj_export_settings(const bContext *C, uiLayout *layout, PointerR
     col->prop(
         ptr, "export_triangulated_mesh", UI_ITEM_NONE, IFACE_("Triangulated Mesh"), ICON_NONE);
     col->prop(ptr, "apply_modifiers", UI_ITEM_NONE, IFACE_("Apply Modifiers"), ICON_NONE);
+    col->prop(ptr, "apply_transform", UI_ITEM_NONE, IFACE_("Apply Transform"), ICON_NONE);
     col->prop(ptr, "export_eval_mode", UI_ITEM_NONE, IFACE_("Properties"), ICON_NONE);
   }
 
@@ -321,6 +324,11 @@ void WM_OT_obj_export(wmOperatorType *ot)
   /* File Writer options. */
   RNA_def_boolean(
       ot->srna, "apply_modifiers", true, "Apply Modifiers", "Apply modifiers to exported meshes");
+  RNA_def_boolean(ot->srna,
+                  "apply_transform",
+                  true,
+                  "Apply Transform",
+                  "Apply object transforms to exported vertices");
   RNA_def_enum(ot->srna,
                "export_eval_mode",
                io_obj_export_evaluation_mode,
@@ -353,12 +361,13 @@ void WM_OT_obj_export(wmOperatorType *ot)
                   "Export Materials with PBR Extensions",
                   "Export MTL library using PBR extensions (roughness, metallic, sheen, "
                   "coat, anisotropy, transmission)");
-  RNA_def_enum(ot->srna,
-               "path_mode",
-               io_obj_path_mode,
-               PATH_REFERENCE_AUTO,
-               "Path Mode",
-               "Method used to reference paths");
+  prop = RNA_def_enum(ot->srna,
+                      "path_mode",
+                      io_obj_path_mode,
+                      PATH_REFERENCE_AUTO,
+                      "Path Mode",
+                      "Method used to reference paths");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_EDITOR_FILEBROWSER);
   RNA_def_boolean(ot->srna,
                   "export_triangulated_mesh",
                   false,
@@ -591,11 +600,11 @@ namespace blender::ed::io {
 void obj_file_handler_add()
 {
   auto fh = std::make_unique<blender::bke::FileHandlerType>();
-  STRNCPY(fh->idname, "IO_FH_obj");
-  STRNCPY(fh->import_operator, "WM_OT_obj_import");
-  STRNCPY(fh->export_operator, "WM_OT_obj_export");
-  STRNCPY(fh->label, "Wavefront OBJ");
-  STRNCPY(fh->file_extensions_str, ".obj");
+  STRNCPY_UTF8(fh->idname, "IO_FH_obj");
+  STRNCPY_UTF8(fh->import_operator, "WM_OT_obj_import");
+  STRNCPY_UTF8(fh->export_operator, "WM_OT_obj_export");
+  STRNCPY_UTF8(fh->label, "Wavefront OBJ");
+  STRNCPY_UTF8(fh->file_extensions_str, ".obj");
   fh->poll_drop = poll_file_object_drop;
   bke::file_handler_add(std::move(fh));
 }

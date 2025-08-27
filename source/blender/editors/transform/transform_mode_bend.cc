@@ -14,7 +14,7 @@
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_task.hh"
 
 #include "BKE_unit.hh"
@@ -64,6 +64,7 @@ struct BendCustomData {
 static void transdata_elem_bend(const TransInfo *t,
                                 const TransDataContainer *tc,
                                 TransData *td,
+                                TransDataExtension *td_ext,
                                 float angle,
                                 const BendCustomData *bend_data,
                                 const float warp_sta_local[3],
@@ -120,7 +121,7 @@ static void transdata_elem_bend(const TransInfo *t,
 
   /* Rotation. */
   if ((t->flag & T_POINTS) == 0) {
-    ElementRotation(t, tc, td, mat, V3D_AROUND_LOCAL_ORIGINS);
+    ElementRotation(t, tc, td, td_ext, mat, V3D_AROUND_LOCAL_ORIGINS);
   }
 
   /* Location. */
@@ -188,19 +189,19 @@ static void Bend(TransInfo *t)
 
     outputNumInput(&(t->num), c, t->scene->unit);
 
-    SNPRINTF(str,
-             IFACE_("Bend Angle: %s, Radius: %s, Alt: Clamp %s"),
-             &c[0],
-             &c[NUM_STR_REP_LEN],
-             WM_bool_as_string(is_clamp));
+    SNPRINTF_UTF8(str,
+                  IFACE_("Bend Angle: %s, Radius: %s, Alt: Clamp %s"),
+                  &c[0],
+                  &c[NUM_STR_REP_LEN],
+                  WM_bool_as_string(is_clamp));
   }
   else {
     /* Default header print. */
-    SNPRINTF(str,
-             IFACE_("Bend Angle: %.3f, Radius: %.4f, Alt: Clamp %s"),
-             RAD2DEGF(values.angle),
-             values.scale * bend_data->warp_init_dist,
-             WM_bool_as_string(is_clamp));
+    SNPRINTF_UTF8(str,
+                  IFACE_("Bend Angle: %.3f, Radius: %.4f, Alt: Clamp %s"),
+                  RAD2DEGF(values.angle),
+                  values.scale * bend_data->warp_init_dist,
+                  WM_bool_as_string(is_clamp));
   }
 
   values.angle *= -1.0f;
@@ -248,12 +249,14 @@ static void Bend(TransInfo *t)
     threading::parallel_for(IndexRange(tc->data_len), 1024, [&](const IndexRange range) {
       for (const int i : range) {
         TransData *td = &tc->data[i];
+        TransDataExtension *td_ext = tc->data_ext ? &tc->data_ext[i] : nullptr;
         if (td->flag & TD_SKIP) {
           continue;
         }
         transdata_elem_bend(t,
                             tc,
                             td,
+                            td_ext,
                             values.angle,
                             bend_data,
                             warp_sta_local,

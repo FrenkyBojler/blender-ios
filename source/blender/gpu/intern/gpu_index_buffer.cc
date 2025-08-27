@@ -66,7 +66,7 @@ void GPU_indexbuf_init_ex(GPUIndexBufBuilder *builder,
   builder->restart_index_value = RESTART_INDEX;
 #endif
   builder->uses_restart_indices = false;
-  builder->data = MEM_calloc_arrayN<uint>(builder->max_index_len, "IndexBuf data");
+  builder->data = MEM_malloc_arrayN<uint>(builder->max_index_len, "IndexBuf data");
 }
 
 void GPU_indexbuf_init(GPUIndexBufBuilder *builder,
@@ -255,7 +255,7 @@ IndexBuf *GPU_indexbuf_build_curves_on_device(GPUPrimType prim_type,
   }
   bool tris = (prim_type == GPU_PRIM_TRIS);
   bool lines = (prim_type == GPU_PRIM_LINES);
-  GPUShader *shader = GPU_shader_get_builtin_shader(
+  blender::gpu::Shader *shader = GPU_shader_get_builtin_shader(
       tris ? GPU_SHADER_INDEXBUF_TRIS :
              (lines ? GPU_SHADER_INDEXBUF_LINES : GPU_SHADER_INDEXBUF_POINTS));
   GPU_shader_bind(shader);

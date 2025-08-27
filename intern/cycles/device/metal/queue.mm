@@ -146,7 +146,7 @@ void MetalDeviceQueue::update_capture(DeviceKernel kernel)
 
   /* Handle single-capture start trigger. */
   if (kernel == capture_kernel_) {
-    /* Start capturing when the we hit the Nth dispatch of the specified kernel. */
+    /* Start capturing when we hit the Nth dispatch of the specified kernel. */
     if (capture_dispatch_counter_ == 0) {
       begin_capture();
     }
@@ -285,7 +285,7 @@ int MetalDeviceQueue::num_concurrent_states(const size_t state_size) const
     size_t total_state_size = result * state_size;
     if (max_recommended_working_set - allocated_so_far - total_state_size * 2 >= min_headroom) {
       result *= 2;
-      metal_printf("Doubling state count to exploit available RAM (new size = %d)\n", result);
+      metal_printf("Doubling state count to exploit available RAM (new size = %d)", result);
     }
   }
   return result;
@@ -336,8 +336,10 @@ bool MetalDeviceQueue::enqueue(DeviceKernel kernel,
       return false;
     }
 
-    VLOG_DEVICE_STATS << "Metal queue launch " << device_kernel_as_string(kernel) << ", work_size "
-                      << work_size;
+    debug_enqueue_begin(kernel, work_size);
+
+    LOG_TRACE << "Metal queue launch " << device_kernel_as_string(kernel) << ", work_size "
+              << work_size;
 
     id<MTLComputeCommandEncoder> mtlComputeCommandEncoder = get_compute_encoder(kernel);
 
@@ -463,20 +465,17 @@ bool MetalDeviceQueue::enqueue(DeviceKernel kernel,
     [metal_device_->mtlAncillaryArgEncoder setBuffer:metal_device_->texture_bindings_2d
                                               offset:0
                                              atIndex:0];
-    [metal_device_->mtlAncillaryArgEncoder setBuffer:metal_device_->texture_bindings_3d
-                                              offset:0
-                                             atIndex:1];
     [metal_device_->mtlAncillaryArgEncoder setBuffer:metal_device_->buffer_bindings_1d
                                               offset:0
-                                             atIndex:2];
+                                             atIndex:1];
 
     if (@available(macos 12.0, *)) {
       if (metal_device_->use_metalrt && device_kernel_has_intersection(kernel)) {
         if (id<MTLAccelerationStructure> accel_struct = metal_device_->accel_struct) {
-          [metal_device_->mtlAncillaryArgEncoder setAccelerationStructure:accel_struct atIndex:3];
+          [metal_device_->mtlAncillaryArgEncoder setAccelerationStructure:accel_struct atIndex:2];
           [metal_device_->mtlAncillaryArgEncoder setBuffer:metal_device_->blas_buffer
                                                     offset:0
-                                                   atIndex:(METALRT_TABLE_NUM + 4)];
+                                                   atIndex:(METALRT_TABLE_NUM + 3)];
         }
 
         for (int table = 0; table < METALRT_TABLE_NUM; table++) {
@@ -486,13 +485,13 @@ bool MetalDeviceQueue::enqueue(DeviceKernel kernel,
                                                               atIndex:1];
             [metal_device_->mtlAncillaryArgEncoder
                 setIntersectionFunctionTable:active_pipeline.intersection_func_table[table]
-                                     atIndex:4 + table];
+                                     atIndex:3 + table];
             [mtlComputeCommandEncoder useResource:active_pipeline.intersection_func_table[table]
                                             usage:MTLResourceUsageRead];
           }
           else {
             [metal_device_->mtlAncillaryArgEncoder setIntersectionFunctionTable:nil
-                                                                        atIndex:4 + table];
+                                                                        atIndex:3 + table];
           }
         }
       }
@@ -619,6 +618,8 @@ bool MetalDeviceQueue::enqueue(DeviceKernel kernel,
       }
     }
 
+    debug_enqueue_end();
+
     return !(metal_device_->have_error());
   }
 }
@@ -679,6 +680,8 @@ bool MetalDeviceQueue::synchronize()
       mtlCommandBuffer_ = nil;
       flush_timing_stats();
     }
+
+    debug_synchronize();
 
     return !(metal_device_->have_error());
   }
@@ -769,7 +772,6 @@ void MetalDeviceQueue::prepare_resources(DeviceKernel /*kernel*/)
 
   /* ancillaries */
   [mtlComputeEncoder_ useResource:metal_device_->texture_bindings_2d usage:MTLResourceUsageRead];
-  [mtlComputeEncoder_ useResource:metal_device_->texture_bindings_3d usage:MTLResourceUsageRead];
   [mtlComputeEncoder_ useResource:metal_device_->buffer_bindings_1d usage:MTLResourceUsageRead];
 }
 
