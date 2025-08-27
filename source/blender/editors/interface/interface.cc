@@ -4259,6 +4259,9 @@ static std::unique_ptr<uiBut> ui_but_new(const ButType type)
     case ButType::Scroll:
       but = std::make_unique<uiButScrollBar>();
       break;
+    case ButType::Grip:
+      but = std::make_unique<uiButGrip>();
+      break;
     default:
       but = std::make_unique<uiBut>();
       break;

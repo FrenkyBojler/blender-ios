@@ -352,6 +352,15 @@ struct uiBut {
   virtual ~uiBut() = default;
 };
 
+/** Derived struct for #ButType::Grip */
+struct uiButGrip : public uiBut {
+  /**
+   * Mouse movement (in block space) required to increase/decrease in one unit (rows or columns)
+   * Grip value.
+   */
+  int step_distance = 1;
+};
+
 /** Derived struct for #ButType::Num */
 struct uiButNumber : public uiBut {
   float step_size = 0.0f;

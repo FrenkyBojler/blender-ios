@@ -142,7 +142,7 @@ void AbstractTreeView::set_default_rows(int default_rows)
   BLI_assert_msg(default_rows >= MIN_ROWS,
                  "Default value is smaller than the minimum rows. Limit is required to prevent "
                  "resizing below specific height.");
-  custom_height_ = std::make_unique<int>(default_rows * padded_item_height());
+  custom_height_ = std::make_unique<int>(default_rows);
 }
 
 std::optional<uiViewState> AbstractTreeView::persistent_state() const
@@ -154,7 +154,7 @@ std::optional<uiViewState> AbstractTreeView::persistent_state() const
   uiViewState state{0};
 
   if (custom_height_) {
-    state.custom_height = *custom_height_ * UI_INV_SCALE_FAC;
+    state.custom_height = *custom_height_;
   }
   if (scroll_value_) {
     state.scroll_offset = *scroll_value_;
@@ -369,7 +369,7 @@ std::optional<int> AbstractTreeView::tot_visible_row_count() const
   if (!custom_height_) {
     return {};
   }
-  const int calculate_rows = round_fl_to_int(float(*custom_height_) / padded_item_height());
+  const int calculate_rows = *custom_height_;
   /* Clamp value to prevent resizing below minimum number of rows. */
   return math::max(MIN_ROWS, calculate_rows);
 }
@@ -835,7 +835,7 @@ void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
 
   if (tree_view.custom_height_) {
 
-    *tree_view.custom_height_ = visible_row_count.value_or(1) * padded_item_height();
+    *tree_view.custom_height_ = visible_row_count.value_or(1);
     if (!tree_view.scroll_value_) {
       tree_view.scroll_value_ = std::make_unique<int>(0);
     }
@@ -849,7 +849,7 @@ void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
                              0,
                              0,
                              V2D_SCROLL_WIDTH,
-                             *tree_view.custom_height_,
+                             *tree_view.custom_height_ * padded_item_height(),
                              tree_view.scroll_value_.get(),
                              0,
                              tot_items - *visible_row_count,
@@ -859,18 +859,19 @@ void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
     }
 
     block_layout_set_current(block, col);
-    uiDefIconButI(block,
-                  ButType::Grip,
-                  0,
-                  ICON_GRIP,
-                  0,
-                  0,
-                  UI_UNIT_X * 10,
-                  UI_UNIT_Y * 0.5f,
-                  tree_view.custom_height_.get(),
-                  0,
-                  0,
-                  "");
+    uiBut *but = uiDefIconButI(block,
+                               ButType::Grip,
+                               0,
+                               ICON_GRIP,
+                               0,
+                               0,
+                               UI_UNIT_X * 10,
+                               UI_UNIT_Y * 0.5f,
+                               tree_view.custom_height_.get(),
+                               0,
+                               100,
+                               "");
+    static_cast<uiButGrip *>(but)->step_distance = padded_item_height();
   }
 
   block_layout_set_current(block, &parent_layout);

@@ -6324,7 +6324,9 @@ static int ui_do_but_GRIP(
       int dragstartx = data->dragstartx;
       int dragstarty = data->dragstarty;
       ui_window_to_block(data->region, block, &dragstartx, &dragstarty);
-      data->value = data->origvalue + (horizontal ? mx - dragstartx : dragstarty - my);
+      BLI_assert(static_cast<const uiButGrip *>(but)->step_distance > 0);
+      data->value = data->origvalue + (horizontal ? mx - dragstartx : dragstarty - my) /
+                                          static_cast<const uiButGrip *>(but)->step_distance;
       ui_numedit_apply(C, block, but, data);
     }
 
