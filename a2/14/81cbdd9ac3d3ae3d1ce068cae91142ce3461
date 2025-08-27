@@ -3,4 +3,4 @@ Referenced by issue #137750, UI: Low Timeline Editor area height on default star
 Referenced by issue #138832, Side panel shows a background line in the rigtht edge
 Referenced by issue #141550, Editor outline blurry at normal DPI
 Referenced by issue #143617, Drawing of Panels in UI leaving a tiny space since 4.5
-Referenced by issue #144921, moving collection in tree - crash
+Referenced by issue #144921, Crash when dragging outliner object into status bar
