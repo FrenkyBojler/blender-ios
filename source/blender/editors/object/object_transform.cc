@@ -81,7 +81,6 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "RNA_access.hh"
 #include "RNA_prototypes.hh"
 
 #include "object_intern.hh"
@@ -2196,29 +2195,55 @@ static wmOperatorStatus object_transform_axis_target_invoke(bContext *C,
   zero_v3(xfd->shadow_target_location);
   xfd->shadow_target_set = false;
   
-  /* Calculate initial offset distance from current light position */
+  /* Calculate initial offset distance from light to geometry intersection */
   float calculated_distance = 0.0f;
   bool distance_calculated = false;
   
-  if (xfd->is_light_positioning && xfd->depths && 
-      (uint(event->mval[0]) < xfd->depths->w) && (uint(event->mval[1]) < xfd->depths->h)) {
+  if (xfd->is_light_positioning && object_is_target_compat(xfd->vc.obact)) {
+    /* Cast ray from light along its local Z-axis to find geometry intersection */
+    Object *light = xfd->vc.obact;
     
-    float depth_fl = 1.0f;
-    ED_view3d_depth_read_cached(xfd->depths, event->mval, 0, &depth_fl);
+    /* Get light's normal direction (local Z-axis in world space) */
+    float light_normal[3];
+    copy_v3_v3(light_normal, light->object_to_world().ptr()[2]);
+    negate_v3(light_normal); /* Light points in negative Z direction by default */
     
-    if (depth_fl != 1.0f) {
-      double depth = double(depth_fl);
-      if ((depth > xfd->depths->depth_range[0]) && (depth < xfd->depths->depth_range[1])) {
-        float mouse_world_pos[3];
-        if (ED_view3d_depth_unproject_v3(xfd->vc.region, event->mval, depth, mouse_world_pos)) {
-          float distance_vec[3];
-          sub_v3_v3v3(distance_vec, xfd->vc.obact->object_to_world().location(), mouse_world_pos);
-          calculated_distance = len_v3(distance_vec);
-          if (calculated_distance >= 0.1f) {
-            xfd->light_offset_distance = calculated_distance;
-            distance_calculated = true;
-          }
-        }
+    /* Use snap system to cast ray from light position */
+    using namespace blender::ed::transform;
+    
+    SnapObjectParams snap_params = {};
+    snap_params.snap_target_select = SCE_SNAP_TARGET_ALL;
+    snap_params.edit_mode_type = SNAP_GEOM_FINAL;
+    snap_params.occlusion_test = SNAP_OCCLUSION_NEVER;
+    snap_params.use_backface_culling = false;
+    snap_params.keep_on_same_target = false;
+    snap_params.face_nearest_steps = 1;
+    snap_params.grid_size = 0.0f;
+    
+    SnapObjectContext *sctx = snap_object_context_create(xfd->vc.scene, 0);
+    
+    float hit_co[3], hit_no[3];
+    float ray_depth = 1000.0f; /* Cast ray far into the scene */
+    
+    bool hit = snap_object_project_ray(
+        sctx,
+        xfd->vc.depsgraph,
+        xfd->vc.v3d,
+        &snap_params,
+        light->object_to_world().location(), /* ray start from light position */
+        light_normal,                        /* ray direction along light normal */
+        &ray_depth,
+        hit_co,
+        hit_no);
+    
+    snap_object_context_destroy(sctx);
+    
+    if (hit) {
+      /* Calculate distance from light to geometry intersection */
+      calculated_distance = len_v3v3(light->object_to_world().location(), hit_co);
+      if (calculated_distance >= 0.1f) {
+        xfd->light_offset_distance = calculated_distance;
+        distance_calculated = true;
       }
     }
   }
@@ -2409,7 +2434,6 @@ static wmOperatorStatus object_transform_axis_target_modal(bContext *C,
                     if (xfd->shadow_target_set) {
                       float direction_to_target[3];
                       sub_v3_v3v3(direction_to_target, xfd->shadow_target_location, location_world);
-                      normalize_v3(direction_to_target);
                       
                       copy_v3_v3(final_location, xfd->shadow_target_location);
                       madd_v3_v3fl(final_location, direction_to_target, xfd->light_offset_distance);
