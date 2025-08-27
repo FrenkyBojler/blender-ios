@@ -10,7 +10,7 @@
 
 set(RELEASE_GCC_VERSION 11.2)
 set(RELEASE_CUDA_VERSION 12.8)
-set(RELEASE_HIP_VERSION 6.3)
+set(RELEASE_HIP_VERSION 6.4)
 
 # Libraries
 #
@@ -1423,10 +1423,10 @@ set(PYBIND11_HOMEPAGE https://github.com/pybind/pybind11)
 set(PYBIND11_LICENSE SPDX:BSD-2-Clause)
 set(PYBIND11_COPYRIGHT "Copyright (c) 2016 Wenzel Jakob <wenzel.jakob@epfl.ch>, All rights reserved.")
 
-set(HIPRT_VERSION c4298933fe046e3f915977b5a69537a59aac8f47)
-set(HIPRT_LIBRARY_VERSION 02005)
+set(HIPRT_VERSION 8c9df523957465bc1407253dad7af616811193cf)
+set(HIPRT_LIBRARY_VERSION 03000)
 set(HIPRT_URI https://github.com/GPUOpen-LibrariesAndSDKs/HIPRT/archive/${HIPRT_VERSION}.tar.gz)
-set(HIPRT_HASH 65b8a975d23db04d908c758f3fb7bae3)
+set(HIPRT_HASH 77ed8aaa22fa2534533f232e1872e2b3)
 set(HIPRT_HASH_TYPE MD5)
 set(HIPRT_FILE hiprt-${HIPRT_VERSION}.tar.gz)
 set(HIPRT_HOMEPAGE https://github.com/GPUOpen-LibrariesAndSDKs/HIPRT)

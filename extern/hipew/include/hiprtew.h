@@ -19,13 +19,13 @@
 
 #include <hiprt/hiprt_types.h>
 
-#define HIPRT_MAJOR_VERSION 2
-#define HIPRT_MINOR_VERSION 5
+#define HIPRT_MAJOR_VERSION 3
+#define HIPRT_MINOR_VERSION 0
 #define HIPRT_PATCH_VERSION 0x0201c59
 
-#define HIPRT_API_VERSION 2005
-#define HIPRT_VERSION_STR "02005"
-#define HIP_VERSION_STR "6.3"
+#define HIPRT_API_VERSION 3000
+#define HIPRT_VERSION_STR "03000"
+#define HIP_VERSION_STR "6.4"
 
 #ifdef _WIN32
 #define HIPRTAPI __stdcall

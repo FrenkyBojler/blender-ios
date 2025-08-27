@@ -7,7 +7,7 @@ if(NOT HIP_FOUND)
   return()
 endif()
 
-if(NOT HIP_VERSION MATCHES "${RELEASE_HIP_VERSION}.*")
+if(HIP_VERSION LESS "${RELEASE_HIP_VERSION}.*")
   message(STATUS "Wrong HIP compiler version (expected ${RELEASE_HIP_VERSION}), skipping HIPRT build")
   return()
 endif()
@@ -39,21 +39,6 @@ ExternalProject_Add(external_hiprt
   URL_HASH ${HIPRT_HASH_TYPE}=${HIPRT_HASH}
   CMAKE_GENERATOR ${PLATFORM_ALT_GENERATOR}
   PREFIX ${BUILD_DIR}/hiprt
-
-  # hiprt_target_dependency.diff:
-  #   https://github.com/GPUOpen-LibrariesAndSDKs/HIPRT/pull/31
-  # hiprt_install.diff:
-  #   https://github.com/GPUOpen-LibrariesAndSDKs/HIPRT/pull/30
-  PATCH_COMMAND
-    ${PATCH_CMD} -p 1 -d
-      ${BUILD_DIR}/hiprt/src/external_hiprt <
-      ${PATCH_DIR}/hiprt_target_dependency.diff &&
-    ${PATCH_CMD} -p 1 -d
-      ${BUILD_DIR}/hiprt/src/external_hiprt <
-      ${PATCH_DIR}/hiprt_install.diff &&
-    ${PATCH_CMD} -p 1 -d
-      ${BUILD_DIR}/hiprt/src/external_hiprt <
-      ${PATCH_DIR}/hiprt_baked_bvh_array.diff
 
   CMAKE_ARGS
     -DCMAKE_INSTALL_PREFIX=${LIBDIR}/hiprt
