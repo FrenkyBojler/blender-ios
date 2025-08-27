@@ -71,6 +71,10 @@ static void wm_xr_session_create_cb()
     settings->base_scale = 1.0f;
   }
   state->prev_base_scale = settings->base_scale;
+
+  /* Initialize vignette. */
+  state->vignette_data = MEM_callocN<wmXrVignetteData>(__func__);
+  WM_xr_session_state_vignette_reset(state);
 }
 
 static void wm_xr_session_controller_data_free(wmXrSessionState *state)
@@ -84,9 +88,19 @@ static void wm_xr_session_controller_data_free(wmXrSessionState *state)
   }
 }
 
+static void wm_xr_session_vignette_data_free(wmXrSessionState *state)
+{
+  if (state->vignette_data)
+  {
+    MEM_freeN(state->vignette_data);
+    state->vignette_data = nullptr;
+  }
+}
+
 void wm_xr_session_data_free(wmXrSessionState *state)
 {
   wm_xr_session_controller_data_free(state);
+  wm_xr_session_vignette_data_free(state);
 }
 
 static void wm_xr_session_exit_cb(void *customdata)
@@ -385,16 +399,7 @@ void wm_xr_session_state_update(const XrSessionSettings *settings,
   /* Assume this was already done through wm_xr_session_draw_data_update(). */
   state->force_reset_to_base_pose = false;
   
-  float vignette_intensity = U.xr_navigation.vignette_intensity;
-  float min_aperture = interpf(0.08f, 0.3f, vignette_intensity * 0.01f);
-  state->vignette_aperture_velocity = min_ff(0.002f, state->vignette_aperture_velocity + 0.01f);
-  
-  if (state->vignette_aperture == min_aperture) {
-    state->vignette_aperture_velocity = 0.002f;
-  }
-
-  state->vignette_aperture = clamp_f(state->vignette_aperture + state->vignette_aperture_velocity,
-                             min_aperture, 1);
+  WM_xr_session_state_vignette_update(state);
 }
 
 wmXrSessionState *WM_xr_session_state_handle_get(const wmXrData *xr)
@@ -583,8 +588,49 @@ void WM_xr_session_state_navigation_reset(wmXrSessionState *state)
   unit_qt(state->nav_pose.orientation_quat);
   state->nav_scale = 1.0f;
   state->is_navigation_dirty = true;
-  state->vignette_aperture = 1.0f;
   state->swap_hands = false;
+}
+
+void WM_xr_session_state_vignette_reset(wmXrSessionState *state)
+{
+  wmXrVignetteData *data = state->vignette_data;
+
+  /* Reset vignette state */
+  data->aperture = 1.0f;
+  data->aperture_velocity = 0.0f;
+
+  /* Set default vignette parameters */
+  data->initial_aperture = 0.25f;
+  data->initial_aperture_velocity = -0.03f;
+
+  data->aperture_min = 0.08f;
+  data->aperture_max = 0.3f;
+  
+  data->aperture_velocity_max = 0.002f;
+  data->aperture_velocity_delta = 0.01f;
+}
+
+void WM_xr_session_state_vignette_activate(wmXrSessionState *state)
+{
+  wmXrVignetteData *data = state->vignette_data;
+
+  data->aperture_velocity = data->initial_aperture_velocity;    
+  data->aperture = min_ff(data->aperture, data->initial_aperture);
+}
+
+void WM_xr_session_state_vignette_update(wmXrSessionState *state)
+{
+  wmXrVignetteData *data = state->vignette_data;
+
+  float vignette_intensity = U.xr_navigation.vignette_intensity;
+  float aperture_min = interpf(data->aperture_min, data->aperture_max, vignette_intensity * 0.01f);
+  data->aperture_velocity = min_ff(data->aperture_velocity_max, data->aperture_velocity + data->aperture_velocity_delta);
+  
+  if (data->aperture == aperture_min) {
+    data->aperture_velocity = data->aperture_velocity_max;
+  }
+
+  data->aperture = clamp_f(data->aperture + data->aperture_velocity, aperture_min, 1.0f);
 }
 
 /* -------------------------------------------------------------------- */
@@ -1212,8 +1258,8 @@ void wm_xr_session_actions_update(wmWindowManager *wm)
     memcpy(&state->nav_pose_prev, &state->nav_pose, sizeof(state->nav_pose_prev));
     state->nav_scale_prev = state->nav_scale;
     state->is_navigation_dirty = false;
-    state->vignette_aperture_velocity = -0.03f;    
-    state->vignette_aperture = min_ff(state->vignette_aperture, 0.25f);
+    
+    WM_xr_session_state_vignette_activate(state);
 
     /* Update viewer pose with any navigation changes since the last actions sync so that data
      * is correct for queries. */

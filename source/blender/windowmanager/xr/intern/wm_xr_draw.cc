@@ -329,7 +329,7 @@ static void wm_xr_controller_model_draw(const XrSessionSettings *settings,
 
 static void wm_xr_vignette_draw(const XrSessionSettings *settings, wmXrSessionState *state)
 {
-  float viewport[4], color[4] = { 0, 0, 0, 1 }, aperture = state->vignette_aperture, falloff = 0.15f;
+  float viewport[4], color[4] = { 0, 0, 0, 1 }, aperture = state->vignette_data->aperture, falloff = 0.15f;
 
   if (aperture > M_SQRT1_2)
   {

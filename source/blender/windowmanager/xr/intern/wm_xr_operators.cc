@@ -1079,7 +1079,7 @@ static wmOperatorStatus wm_xr_navigation_fly_modal(bContext *C,
 
     if (snap_turn) {
       speed_max = U.xr_navigation.turn_amount;
-      speed = speed;
+      speed = speed_max;
     }
     else {
       speed_max = U.xr_navigation.turn_speed;
@@ -1829,7 +1829,7 @@ static wmOperatorStatus wm_xr_navigation_swap_hands_invoke(bContext *C,
   return OPERATOR_RUNNING_MODAL;
 }
 
-static wmOperatorStatus wm_xr_navigation_swap_hands_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus wm_xr_navigation_swap_hands_exec(bContext * /*C*/, wmOperator * /*op*/)
 {
   return OPERATOR_CANCELLED;
 }
