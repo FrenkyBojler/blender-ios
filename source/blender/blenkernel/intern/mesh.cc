@@ -1167,7 +1167,7 @@ blender::VectorSet<blender::StringRefNull> Mesh::uv_map_names() const
   const AttributeAccessor attributes = this->attributes();
   VectorSet<StringRefNull> result;
   attributes.foreach_attribute([&](const AttributeIter &iter) {
-    if (iter.domain == AttrDomain::Corner && iter.data_type == AttrType::Float2) {
+    if (mesh::is_uv_map(AttributeMetaData{iter.domain, iter.data_type})) {
       result.add(iter.name);
     }
   });
@@ -1217,6 +1217,20 @@ Mesh *BKE_mesh_new_nomain(const int verts_num,
 }
 
 namespace blender::bke {
+
+namespace mesh {
+
+bool is_uv_map(const AttributeMetaData &meta_data)
+{
+  return meta_data.domain == AttrDomain::Corner && meta_data.data_type == AttrType::Float2;
+}
+
+bool is_uv_map(const std::optional<AttributeMetaData> &meta_data)
+{
+  return meta_data && is_uv_map(*meta_data);
+}
+
+}  // namespace mesh
 
 Mesh *mesh_new_no_attributes(const int verts_num,
                              const int edges_num,

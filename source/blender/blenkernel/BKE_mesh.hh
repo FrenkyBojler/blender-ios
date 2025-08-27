@@ -21,6 +21,7 @@ namespace blender::bke {
 enum class AttrDomain : int8_t;
 enum class AttrType : int16_t;
 struct AttributeAccessorFunctions;
+struct AttributeMetaData;
 
 namespace mesh {
 /* -------------------------------------------------------------------- */
@@ -357,6 +358,9 @@ inline int edge_other_vert(const int2 edge, const int vert)
 }
 
 /** \} */
+
+bool is_uv_map(AttributeMetaData &meta_data);
+bool is_uv_map(const std::optional<AttributeMetaData> &meta_data);
 
 }  // namespace mesh
 

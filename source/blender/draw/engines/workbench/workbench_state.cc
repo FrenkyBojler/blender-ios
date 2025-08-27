@@ -9,6 +9,7 @@
 #include "BKE_camera.h"
 #include "BKE_customdata.hh"
 #include "BKE_editmesh.hh"
+#include "BKE_mesh.hh"
 #include "BKE_mesh_types.hh"
 #include "BKE_paint.hh"
 #include "BKE_paint_bvh.hh"
@@ -267,23 +268,17 @@ static bool mesh_has_color_attribute(const Mesh &mesh)
   return meta_data && is_color_attribute(*meta_data);
 }
 
-static bool is_uv_map_attribute(const bke::AttributeMetaData &meta_data)
-{
-  return ELEM(meta_data.domain, bke::AttrDomain::Corner) &&
-         ELEM(meta_data.data_type, bke::AttrType::Float2);
-}
-
 static bool mesh_has_uv_map_attribute(const Mesh &mesh)
 {
   if (mesh.runtime->wrapper_type == ME_WRAPPER_TYPE_BMESH) {
     const BMesh &bm = *mesh.runtime->edit_mesh->bm;
     const BMDataLayerLookup attr = BM_data_layer_lookup(bm, mesh.active_uv_map_attribute);
-    return attr && is_uv_map_attribute(bke::AttributeMetaData{attr.domain, attr.type});
+    return attr && bke::mesh::is_uv_map(bke::AttributeMetaData{attr.domain, attr.type});
   }
   const bke::AttributeAccessor attributes = mesh.attributes();
   const std::optional<bke::AttributeMetaData> meta_data = attributes.lookup_meta_data(
       mesh.active_uv_map_attribute);
-  return meta_data && is_uv_map_attribute(*meta_data);
+  return bke::mesh::is_uv_map(*meta_data);
 }
 
 ObjectState::ObjectState(const DRWContext *draw_ctx,

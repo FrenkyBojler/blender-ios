@@ -13,6 +13,7 @@
 #include "BKE_customdata.hh"
 #include "BKE_editmesh.hh"
 #include "BKE_mask.h"
+#include "BKE_mesh.hh"
 #include "BKE_mesh_types.hh"
 #include "BKE_paint.hh"
 #include "BKE_subdiv_modifier.hh"
@@ -785,9 +786,7 @@ class MeshUVs : Overlay {
     const bke::AttributeAccessor attributes = mesh.attributes();
     const std::optional<bke::AttributeMetaData> meta_data = attributes.lookup_meta_data(
         active_uv_map);
-    const bool has_active_object_uvmap = meta_data &&
-                                         meta_data->domain == bke::AttrDomain::Corner &&
-                                         meta_data->data_type == bke::AttrType::Float2;
+    const bool has_active_object_uvmap = bke::mesh::is_uv_map(meta_data);
 
     ResourceHandleRange res_handle = manager.unique_handle(ob_ref);
 
@@ -820,9 +819,7 @@ class MeshUVs : Overlay {
     const bke::AttributeAccessor attributes = mesh.attributes();
     const std::optional<bke::AttributeMetaData> meta_data = attributes.lookup_meta_data(
         active_uv_map);
-    const bool has_active_object_uvmap = meta_data &&
-                                         meta_data->domain == bke::AttrDomain::Corner &&
-                                         meta_data->data_type == bke::AttrType::Float2;
+    const bool has_active_object_uvmap = bke::mesh::is_uv_map(meta_data);
 
     const bool has_active_edit_uvmap = is_edit_object && CustomData_has_layer_named(
                                                              &mesh.runtime->edit_mesh->bm->ldata,

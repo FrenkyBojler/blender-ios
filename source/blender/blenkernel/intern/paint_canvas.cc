@@ -12,6 +12,7 @@
 #include "BKE_attribute.hh"
 #include "BKE_image.hh"
 #include "BKE_material.hh"
+#include "BKE_mesh.hh"
 #include "BKE_paint.hh"
 
 #include "IMB_imbuf_types.hh"
@@ -74,17 +75,7 @@ bool BKE_paint_canvas_image_get(PaintModeSettings *settings,
 static bool has_uv_map_attribute(const Mesh &mesh, const blender::StringRef name)
 {
   using namespace blender;
-  const bke::AttributeAccessor attributes = mesh.attributes();
-  const std::optional<bke::AttributeMetaData> meta_data = attributes.lookup_meta_data(name);
-  if (!meta_data) {
-    return false;
-  }
-  if (meta_data->data_type != bke::AttrType::Float2 ||
-      meta_data->domain != bke::AttrDomain::Corner)
-  {
-    return false;
-  }
-  return true;
+  return bke::mesh::is_uv_map(mesh.attributes().lookup_meta_data(name));
 }
 
 std::optional<blender::StringRef> BKE_paint_canvas_uvmap_name_get(

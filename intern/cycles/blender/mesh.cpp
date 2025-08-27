@@ -222,12 +222,10 @@ static set<ustring> get_blender_uv_names(const ::Mesh &b_mesh)
 {
   set<ustring> uv_names;
   b_mesh.attributes().foreach_attribute([&](const blender::bke::AttributeIter &iter) {
-    if (iter.domain == blender::bke::AttrDomain::Corner &&
-        iter.data_type == blender::bke::AttrType::Float2)
+    if (blender::bke::mesh::is_uv_map(
+            blender::bke::AttributeMetaData{iter.domain, iter.data_type}))
     {
-      if (!blender::bke::attribute_name_is_anonymous(iter.name)) {
-        uv_names.emplace(std::string_view(iter.name));
-      }
+      uv_names.emplace(std::string_view(iter.name));
     }
   });
   return uv_names;

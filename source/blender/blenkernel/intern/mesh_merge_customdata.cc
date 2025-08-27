@@ -106,13 +106,9 @@ void BKE_mesh_merge_customdata_for_apply_modifier(Mesh *mesh)
   MutableAttributeAccessor attributes = mesh->attributes_for_write();
   Vector<SpanAttributeWriter<float2>> uv_map_attrs;
   attributes.foreach_attribute([&](const bke::AttributeIter &iter) {
-    if (iter.data_type != AttrType::Float2) {
-      return;
+    if (mesh::is_uv_map(AttributeMetaData{iter.domain, iter.data_type})) {
+      uv_map_attrs.append(attributes.lookup_for_write_span<float2>(iter.name));
     }
-    if (iter.domain != AttrDomain::Corner) {
-      return;
-    }
-    uv_map_attrs.append(attributes.lookup_for_write_span<float2>(iter.name));
   });
 
   if (uv_map_attrs.is_empty()) {

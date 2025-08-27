@@ -614,7 +614,7 @@ bool BKE_attribute_remove(AttributeOwner &owner, const StringRef name, ReportLis
           &mesh->id, color_name_from_index(owner, color_clamp_index(owner, default_color_index)));
     }
 
-    if (metadata->data_type == AttrType::Float2 && metadata->domain == AttrDomain::Corner) {
+    if (bke::mesh::is_uv_map(metadata)) {
       char buffer[MAX_CUSTOMDATA_LAYER_NAME];
       attributes->remove(BKE_uv_map_vert_select_name_get(name_copy, buffer));
       attributes->remove(BKE_uv_map_edge_select_name_get(name_copy, buffer));
