@@ -281,6 +281,7 @@ struct PenToolOperation {
 
     MutableSpan<float3> positions = curves.positions_for_write();
     const bke::AttributeAccessor attributes = curves.attributes();
+    const OffsetIndices<int> points_by_curve = curves.points_by_curve();
     const Array<int> point_to_curve_map = curves.point_to_curve_map();
 
     MutableSpan<int8_t> handle_types_left = curves.handle_types_left_for_write();
@@ -313,12 +314,11 @@ struct PenToolOperation {
       }
 
       if (this->move_handle) {
-        const int curve_index = point_to_curve_map[point_i];
-        if (point_to_curve_map.size() > point_i + 1 &&
-            point_to_curve_map[point_i - 1] != curve_index &&
-            point_to_curve_map[point_i + 1] == curve_index)
+        const int curve_i = point_to_curve_map[point_i];
+        if (points_by_curve[curve_i].first() == point_i &&
+            points_by_curve[curve_i].last() != point_i)
         {
-          // Moving the handles of the strokes first control point
+          /* Moving the handles of the strokes first control point. */
           const float2 pos_left = this->layer_to_screen(layer_to_object, handles_left[point_i]);
           handles_left[point_i] = this->screen_to_layer(
               layer_to_world, pos_left + offset, depth_point);
