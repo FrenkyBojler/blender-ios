@@ -564,16 +564,17 @@ void select_alternate(bke::CurvesGeometry &curves,
     const IndexRange points = points_by_curve[curve];
 
     bool anything_selected = false;
-    for (const int i : selection_writers.index_range()) {
-      anything_selected = anything_selected ||
-                          has_anything_selected(selection_writers[i].span.slice(points));
+
+    for (bke::GSpanAttributeWriter &writer : selection_writers) {
+      const bool writer_has_anything_selected = has_anything_selected(writer.span.slice(points));
+      anything_selected = anything_selected || writer_has_anything_selected;
     }
     if (!anything_selected) {
       return;
     }
 
-    for (const int i : selection_writers.index_range()) {
-      MutableSpan<bool> selection_typed = selection_writers[i].span.typed<bool>();
+    for (bke::GSpanAttributeWriter &writer : selection_writers) {
+      MutableSpan<bool> selection_typed = writer.span.typed<bool>();
 
       const int half_of_size = points.size() / 2;
       const IndexRange selected = points.shift(deselect_ends ? 1 : 0);
