@@ -760,7 +760,8 @@ if(WITH_CYCLES_HIP_BINARIES AND WITH_CYCLES_DEVICE_HIPRT)
     set(hiprt_compile_command ${CMAKE_COMMAND})
     set(hiprt_compile_flags
       -E env "HIP_PATH=${HIP_ROOT_DIR}"
-      ${HIP_HIPCC_EXECUTABLE})
+      ${HIP_HIPCC_EXECUTABLE}
+      -D HIPCC_OS_WINDOWS)
   else()
     set(hiprt_compile_command ${HIP_HIPCC_EXECUTABLE})
     set(hiprt_compile_flags)
@@ -795,7 +796,6 @@ if(WITH_CYCLES_HIP_BINARIES AND WITH_CYCLES_DEVICE_HIPRT)
     -D CCL_NAMESPACE_END=
     -D HIPCC
     -D __HIPRT__
-    -D HIPCC_OS_WINDOWS
     -std=c++17
     -mllvm
     -amdgpu-early-inline-all=false
