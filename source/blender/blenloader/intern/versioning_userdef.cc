@@ -379,18 +379,18 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
   }
 
   if (!USER_VERSION_ATLEAST(500, 100)) {
-    FROM_DEFAULT_V4_UCHAR(common.anim.keytype_keyframe);
-    FROM_DEFAULT_V4_UCHAR(common.anim.keytype_extreme);
-    FROM_DEFAULT_V4_UCHAR(common.anim.keytype_breakdown);
-    FROM_DEFAULT_V4_UCHAR(common.anim.keytype_jitter);
-    FROM_DEFAULT_V4_UCHAR(common.anim.keytype_movehold);
-    FROM_DEFAULT_V4_UCHAR(common.anim.keytype_generated);
-    FROM_DEFAULT_V4_UCHAR(common.anim.keytype_keyframe_select);
-    FROM_DEFAULT_V4_UCHAR(common.anim.keytype_extreme_select);
-    FROM_DEFAULT_V4_UCHAR(common.anim.keytype_breakdown_select);
-    FROM_DEFAULT_V4_UCHAR(common.anim.keytype_jitter_select);
-    FROM_DEFAULT_V4_UCHAR(common.anim.keytype_movehold_select);
-    FROM_DEFAULT_V4_UCHAR(common.anim.keytype_generated_select);
+    FROM_DEFAULT_V4_UCHAR(common.anim.keyframe);
+    FROM_DEFAULT_V4_UCHAR(common.anim.keyframe_extreme);
+    FROM_DEFAULT_V4_UCHAR(common.anim.keyframe_breakdown);
+    FROM_DEFAULT_V4_UCHAR(common.anim.keyframe_jitter);
+    FROM_DEFAULT_V4_UCHAR(common.anim.keyframe_moving_hold);
+    FROM_DEFAULT_V4_UCHAR(common.anim.keyframe_generated);
+    FROM_DEFAULT_V4_UCHAR(common.anim.keyframe_selected);
+    FROM_DEFAULT_V4_UCHAR(common.anim.keyframe_extreme_selected);
+    FROM_DEFAULT_V4_UCHAR(common.anim.keyframe_breakdown_selected);
+    FROM_DEFAULT_V4_UCHAR(common.anim.keyframe_jitter_selected);
+    FROM_DEFAULT_V4_UCHAR(common.anim.keyframe_moving_hold_selected);
+    FROM_DEFAULT_V4_UCHAR(common.anim.keyframe_generated_selected);
     FROM_DEFAULT_V4_UCHAR(common.anim.long_key);
     FROM_DEFAULT_V4_UCHAR(common.anim.long_key_selected);
   }

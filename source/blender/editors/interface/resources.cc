@@ -496,40 +496,40 @@ const uchar *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
           cp = ts->strip_select;
           break;
         case TH_KEYTYPE_KEYFRAME:
-          cp = btheme->common.anim.keytype_keyframe;
+          cp = btheme->common.anim.keyframe;
           break;
         case TH_KEYTYPE_KEYFRAME_SELECT:
-          cp = btheme->common.anim.keytype_keyframe_select;
+          cp = btheme->common.anim.keyframe_selected;
           break;
         case TH_KEYTYPE_EXTREME:
-          cp = btheme->common.anim.keytype_extreme;
+          cp = btheme->common.anim.keyframe_extreme;
           break;
         case TH_KEYTYPE_EXTREME_SELECT:
-          cp = btheme->common.anim.keytype_extreme_select;
+          cp = btheme->common.anim.keyframe_extreme_selected;
           break;
         case TH_KEYTYPE_BREAKDOWN:
-          cp = btheme->common.anim.keytype_breakdown;
+          cp = btheme->common.anim.keyframe_breakdown;
           break;
         case TH_KEYTYPE_BREAKDOWN_SELECT:
-          cp = btheme->common.anim.keytype_breakdown_select;
+          cp = btheme->common.anim.keyframe_breakdown_selected;
           break;
         case TH_KEYTYPE_JITTER:
-          cp = btheme->common.anim.keytype_jitter;
+          cp = btheme->common.anim.keyframe_jitter;
           break;
         case TH_KEYTYPE_JITTER_SELECT:
-          cp = btheme->common.anim.keytype_jitter_select;
+          cp = btheme->common.anim.keyframe_jitter_selected;
           break;
         case TH_KEYTYPE_MOVEHOLD:
-          cp = btheme->common.anim.keytype_movehold;
+          cp = btheme->common.anim.keyframe_moving_hold;
           break;
         case TH_KEYTYPE_MOVEHOLD_SELECT:
-          cp = btheme->common.anim.keytype_movehold_select;
+          cp = btheme->common.anim.keyframe_moving_hold_selected;
           break;
         case TH_KEYTYPE_GENERATED:
-          cp = btheme->common.anim.keytype_generated;
+          cp = btheme->common.anim.keyframe_generated;
           break;
         case TH_KEYTYPE_GENERATED_SELECT:
-          cp = btheme->common.anim.keytype_generated_select;
+          cp = btheme->common.anim.keyframe_generated_selected;
           break;
         case TH_KEYBORDER:
           cp = ts->keyborder;
