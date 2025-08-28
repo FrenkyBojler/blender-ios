@@ -98,8 +98,13 @@ static bool try_handle_error_for_address(const void *address)
 
   /* Check if we already handled this error. */
   if (file->io_error) {
-    /* If this is our second time encountering this file in this thread, something has gone
-     * very wrong, so just crash. */
+    /* If `file->io_error` is true, a different thread could have replaced the mapping in parallel,
+     * and execution can continue as is. If the exception is raised again, something else is wrong,
+     * and the exception should be forwarded instead. To detect this and avoid infinitely trying to
+     * continue execution, the most recently handled mapping's ID is stored per thread and compared
+     * to `file->id` when `file->io_error` is true. If `file->id` and `last_handled_file_id` match,
+     * meaning we already tried to continue execution before, the exception is forwarded instead.
+     */
     if (file->id == last_handled_file_id) {
       print_error("BLI_mmap: Error: Mapped file has already been remapped with zeros.");
       return false;
