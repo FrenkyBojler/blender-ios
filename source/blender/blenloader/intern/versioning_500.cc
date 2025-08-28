@@ -1923,6 +1923,41 @@ static void do_version_glare_menus_to_inputs(bNodeTree &ntree, bNode &node)
   quality_socket.default_value_typed<bNodeSocketValueMenu>()->value = storage.quality;
 }
 
+static void initialize_missing_closure_and_bundle_node_storage(bNodeTree &ntree)
+{
+  /* When opening and saving 5.0 files with bundle/closure nodes in 4.5, the storage is lost, since
+   * Blender 4.5 does not officially support these features yet (they were experimental features
+   * though). This versioning code just adds back the storage so that it does not crash further
+   * down the line. */
+  LISTBASE_FOREACH (bNode *, node, &ntree.nodes) {
+    if (node->storage) {
+      continue;
+    }
+    switch (node->type_legacy) {
+      case NODE_CLOSURE_INPUT: {
+        node->storage = MEM_callocN<NodeClosureInput>(__func__);
+        break;
+      }
+      case NODE_CLOSURE_OUTPUT: {
+        node->storage = MEM_callocN<NodeClosureOutput>(__func__);
+        break;
+      }
+      case NODE_EVALUATE_CLOSURE: {
+        node->storage = MEM_callocN<NodeEvaluateClosure>(__func__);
+        break;
+      }
+      case NODE_COMBINE_BUNDLE: {
+        node->storage = MEM_callocN<NodeCombineBundle>(__func__);
+        break;
+      }
+      case NODE_SEPARATE_BUNDLE: {
+        node->storage = MEM_callocN<NodeSeparateBundle>(__func__);
+        break;
+      }
+    }
+  }
+}
+
 void do_versions_after_linking_500(FileData *fd, Main *bmain)
 {
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 9)) {
@@ -2831,6 +2866,13 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
           do_version_glare_menus_to_inputs(*node_tree, *node);
         }
       }
+    }
+    FOREACH_NODETREE_END;
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 67)) {
+    FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
+      initialize_missing_closure_and_bundle_node_storage(*ntree);
     }
     FOREACH_NODETREE_END;
   }
