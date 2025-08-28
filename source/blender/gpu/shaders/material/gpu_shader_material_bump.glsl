@@ -27,8 +27,8 @@ void differentiate_texco_normal(float3 n, float3 v, out float3 df)
 void differentiate_texco_transformed_normal(float4x4 m, float3 n, float3 v, out float3 df)
 {
   float3 differentials = dF_impl(v);
-  bool valid_mat = (m[3][3] != 0.0f);
-  if (valid_mat) {
+  bool use_custom_matrix = (m[3][3] != 0.0f);
+  if (use_custom_matrix) {
     n = normalize(transform_direction(m, n));
   }
   else {
