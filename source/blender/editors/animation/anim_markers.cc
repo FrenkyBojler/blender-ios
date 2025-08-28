@@ -1318,8 +1318,7 @@ static void select_marker_camera_switch(
   using namespace blender::ed;
   if (camera) {
     BLI_assert(CTX_data_mode_enum(C) == CTX_MODE_OBJECT);
-    const bool is_sequencer = CTX_wm_space_seq(C) != nullptr;
-    Scene *scene = is_sequencer ? CTX_data_sequencer_scene(C) : CTX_data_scene(C);
+    Scene *scene = CTX_data_scene(C);
     ViewLayer *view_layer = CTX_data_view_layer(C);
     Base *base;
     int sel = 0;
@@ -1329,22 +1328,22 @@ static void select_marker_camera_switch(
     }
 
     LISTBASE_FOREACH (TimeMarker *, marker, markers) {
-      if (marker->frame == cfra) {
+      if (marker->frame == cfra && marker->camera) {
         sel = (marker->flag & SELECT);
         break;
       }
     }
 
     BKE_view_layer_synced_ensure(scene, view_layer);
+
     LISTBASE_FOREACH (TimeMarker *, marker, markers) {
-      if (marker->camera) {
-        if (marker->frame == cfra) {
-          base = BKE_view_layer_base_find(view_layer, marker->camera);
-          if (base) {
-            object::base_select(base, object::eObjectSelect_Mode(sel));
-            if (sel) {
-              object::base_activate(C, base);
-            }
+      if (marker->camera && marker->frame == cfra) {
+        Base *base = BKE_view_layer_base_find(view_layer, marker->camera);
+        if (base) {
+          object::base_select(base, object::eObjectSelect_Mode(sel));
+
+          if (!extend) {
+            object::base_activate(C, base);
           }
         }
       }
@@ -1370,9 +1369,7 @@ static wmOperatorStatus ed_marker_select(bContext *C,
    * The variables (`sel_op` & `deselect_all`) have been included so marker
    * selection can use identical checks to dope-sheet selection. */
 
-  const bool is_sequencer = CTX_wm_space_seq(C) != nullptr;
-  ListBase *markers = is_sequencer ? ED_sequencer_context_get_markers(C) :
-                                     ED_context_get_markers(C);
+  ListBase *markers = ED_context_get_markers(C);
   const View2D *v2d = UI_view2d_fromcontext(C);
   wmOperatorStatus ret_val = OPERATOR_FINISHED;
   TimeMarker *nearest_marker = region_position_is_over_marker(v2d, markers, mval[0]);
@@ -1395,7 +1392,6 @@ static wmOperatorStatus ed_marker_select(bContext *C,
       /* Deselect all markers. */
       deselect_markers(markers);
 
-      select_marker_camera_switch(C, camera, extend, markers, cfra);
     }
   }
 
@@ -1433,6 +1429,11 @@ static wmOperatorStatus ed_marker_select(bContext *C,
       }
     }
   }
+  /* if extend is set (but holding Shift), then add the camera to the selection too*/
+  if (found && camera) {
+    const int marker_frame = nearest_marker->frame;
+    select_marker_camera_switch(C, true, extend, markers, marker_frame);
+  }
 
   WM_event_add_notifier(C, NC_SCENE | ND_MARKERS, nullptr);
   WM_event_add_notifier(C, NC_ANIMATION | ND_MARKERS, nullptr);
@@ -1440,6 +1441,7 @@ static wmOperatorStatus ed_marker_select(bContext *C,
   /* allowing tweaks, but needs OPERATOR_FINISHED, otherwise renaming fails, see #25987. */
   return ret_val;
 }
+
 
 static wmOperatorStatus ed_marker_select_exec(bContext *C, wmOperator *op)
 {
