@@ -1172,9 +1172,6 @@ wmOperatorStatus PenToolOperation::invoke(bContext *C, wmOperator *op, const wmE
   this->move_entire = false;
   this->snap_angle = false;
 
-  /* Add a modal handler for this operator. */
-  WM_event_add_modal_handler(C, op);
-
   if (!(ELEM(event->type, LEFTMOUSE) && ELEM(event->val, KM_PRESS, KM_DBL_CLICK))) {
     return OPERATOR_RUNNING_MODAL;
   }
@@ -1182,6 +1179,9 @@ wmOperatorStatus PenToolOperation::invoke(bContext *C, wmOperator *op, const wmE
   if (std::optional<wmOperatorStatus> result = this->initialize(C, op, event)) {
     return *result;
   }
+
+  /* Add a modal handler for this operator. */
+  WM_event_add_modal_handler(C, op);
 
   invoke_curves(*this, C, op, event);
 
