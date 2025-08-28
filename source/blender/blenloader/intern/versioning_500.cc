@@ -177,6 +177,11 @@ static void initialize_closure_input_structure_types(bNodeTree &ntree)
   LISTBASE_FOREACH (bNode *, node, &ntree.nodes) {
     if (node->type_legacy == NODE_EVALUATE_CLOSURE) {
       auto *storage = static_cast<NodeEvaluateClosure *>(node->storage);
+      if (!storage) {
+        /* Can happen with certain files saved in 4.5 which did not officially support closures
+         * yet. */
+        continue;
+      }
       for (const int i : blender::IndexRange(storage->input_items.items_num)) {
         NodeEvaluateClosureInputItem &item = storage->input_items.items[i];
         if (item.structure_type == NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO) {
