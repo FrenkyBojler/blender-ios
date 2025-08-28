@@ -1428,14 +1428,16 @@ static void screen_global_editor_dock_area_refresh(wmWindow *win, bScreen *scree
 {
   const blender::int2 win_size = WM_window_native_pixel_size(win);
   /* Reuse header height for width. */
-  const short size = 1.4f * screen_global_header_size();
+  const short size_min = 1;
+  const short size_max = 1.4f * screen_global_header_size();
+  const short size = (screen->flag & SCREEN_COLLAPSE_EDITOR_DOCK) ? size_min : size_max;
   rcti rect;
 
   BLI_rcti_init(&rect, 0, win_size[0] - 1, 0, win_size[1] - 1);
   rect.xmin = rect.xmax - size;
 
   screen_global_area_refresh(
-      win, screen, SPACE_EDITOR_DOCK, GLOBAL_AREA_ALIGN_RIGHT, &rect, size, size, size);
+      win, screen, SPACE_EDITOR_DOCK, GLOBAL_AREA_ALIGN_RIGHT, &rect, size, size_min, size_max);
 }
 
 void ED_screen_global_areas_sync(wmWindow *win)
@@ -1444,12 +1446,17 @@ void ED_screen_global_areas_sync(wmWindow *win)
    * global areas should just become part of the screen instead. */
   bScreen *screen = BKE_workspace_active_screen_get(win->workspace_hook);
 
-  screen->flag &= ~SCREEN_COLLAPSE_STATUSBAR;
+  screen->flag &= ~(SCREEN_COLLAPSE_STATUSBAR | SCREEN_COLLAPSE_EDITOR_DOCK);
 
   LISTBASE_FOREACH (ScrArea *, area, &win->global_areas.areabase) {
     if (area->global->cur_fixed_height == area->global->size_min) {
-      if (area->spacetype == SPACE_STATUSBAR) {
-        screen->flag |= SCREEN_COLLAPSE_STATUSBAR;
+      switch (area->spacetype) {
+        case SPACE_STATUSBAR:
+          screen->flag |= SCREEN_COLLAPSE_STATUSBAR;
+          break;
+        case SPACE_EDITOR_DOCK:
+          screen->flag |= SCREEN_COLLAPSE_EDITOR_DOCK;
+          break;
       }
     }
   }

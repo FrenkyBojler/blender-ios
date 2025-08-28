@@ -592,8 +592,9 @@ enum {
 
 /** #bScreen.flag */
 enum {
-  SCREEN_DEPRECATED = 1,
-  SCREEN_COLLAPSE_STATUSBAR = 2,
+  SCREEN_DEPRECATED = (1 << 0),
+  SCREEN_COLLAPSE_STATUSBAR = (1 << 1),
+  SCREEN_COLLAPSE_EDITOR_DOCK = (1 << 2),
 };
 
 /** #bScreen.state */

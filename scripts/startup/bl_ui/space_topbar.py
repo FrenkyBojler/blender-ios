@@ -62,7 +62,8 @@ class TOPBAR_HT_upper_bar(Header):
 
         row = layout.row()
         row.scale_x = 1.2
-        row.menu("TOPBAR_MT_blender", text="", icon='EDITOR_DOCK')
+        row.emboss = 'NONE_OR_STATUS'
+        row.prop(screen, "show_editor_dock", text="", icon='EDITOR_DOCK')
 
 
 class TOPBAR_PT_tool_settings_extra(Panel):
@@ -549,6 +550,7 @@ class TOPBAR_MT_window(Menu):
 
         layout.separator()
 
+        layout.prop(context.screen, "show_editor_dock")
         layout.prop(context.screen, "show_statusbar")
 
         layout.separator()

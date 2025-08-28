@@ -725,6 +725,16 @@ static void rna_def_screen(BlenderRNA *brna)
   parm = RNA_def_string(func, "statusbar_info", nullptr, 0, "Status Bar Info", "");
   RNA_def_function_return(func, parm);
 
+  /* Editor Dock. */
+
+  prop = RNA_def_property(srna, "show_editor_dock", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_negative_sdna(prop, nullptr, "flag", SCREEN_COLLAPSE_EDITOR_DOCK);
+  RNA_def_property_ui_text(
+      prop,
+      "Show Editor Dock",
+      "Display a vertical bar to quickly toggle editors in and out on the edges of the window");
+  RNA_def_property_update(prop, 0, "rna_Screen_bar_update");
+
   /* Define Anim Playback Areas */
   prop = RNA_def_property(srna, "use_play_top_left_3d_editor", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "redraws_flag", TIME_REGION);
