@@ -1815,7 +1815,6 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
     update_brush_sizes(*bmain);
   }
 
-
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 2)) {
     LISTBASE_FOREACH (PointCloud *, pointcloud, &bmain->pointclouds) {
       blender::bke::pointcloud_convert_customdata_to_storage(*pointcloud);

@@ -2647,14 +2647,7 @@ def km_curve(params):
 # Radial control setup helpers, this operator has a lot of properties.
 
 
-def radial_control_properties(
-        paint,
-        prop,
-        secondary_prop,
-        secondary_rotation=False,
-        color=False,
-        zoom=False,
-        size_is_diameter=False):
+def radial_control_properties(paint, prop, secondary_prop, secondary_rotation=False, color=False, zoom=False):
     brush_path = "tool_settings." + paint + ".brush"
     unified_path = "tool_settings." + paint + ".unified_paint_settings"
     rotation = "mask_texture_slot.angle" if secondary_rotation else "texture_slot.angle"
@@ -2671,7 +2664,6 @@ def radial_control_properties(
             ("zoom_path", "space_data.zoom" if zoom else ""),
             ("image_id", brush_path + ""),
             ("secondary_tex", secondary_rotation),
-            ("size_measurement_type", 'DIAMETER' if size_is_diameter else 'RADIUS'),
         ],
     }
 
@@ -2685,29 +2677,17 @@ def _template_paint_radial_control(
         color=False,
         zoom=False,
         weight=False,
-        size_is_diameter=False,
 ):
     items = []
 
-    items.extend([("wm.radial_control",
-                   {"type": 'S',
-                    "value": 'PRESS'},
-                   radial_control_properties(paint,
-                                             "size",
-                                             "use_unified_size",
-                                             secondary_rotation=secondary_rotation,
-                                             color=color,
-                                             zoom=zoom,
-                                             size_is_diameter=size_is_diameter)),
-                  ("wm.radial_control",
-                   {"type": 'U',
-                    "value": 'PRESS'},
-                   radial_control_properties(paint,
-                                             "strength",
-                                             "use_unified_strength",
-                                             secondary_rotation=secondary_rotation,
-                                             color=color)),
-                  ])
+    items.extend([
+        ("wm.radial_control", {"type": 'S', "value": 'PRESS'},
+         radial_control_properties(
+             paint, "size", "use_unified_size", secondary_rotation=secondary_rotation, color=color, zoom=zoom)),
+        ("wm.radial_control", {"type": 'U', "value": 'PRESS'},
+         radial_control_properties(
+             paint, "strength", "use_unified_strength", secondary_rotation=secondary_rotation, color=color)),
+    ])
 
     if rotation:
         items.extend([
@@ -2761,8 +2741,7 @@ def km_image_paint(params):
          {"properties": [("scalar", 0.9)]}),
         ("brush.scale_size", {"type": 'RIGHT_BRACKET', "value": 'PRESS', "repeat": True},
          {"properties": [("scalar", 1.0 / 0.9)]}),
-        *_template_paint_radial_control("image_paint", color=True, zoom=True, rotation=True,
-                                        secondary_rotation=True, size_is_diameter=True),
+        *_template_paint_radial_control("image_paint", color=True, zoom=True, rotation=True, secondary_rotation=True),
         # Stencil Controls
         ("brush.stencil_control", {"type": 'RIGHTMOUSE', "value": 'PRESS'},
          {"properties": [("mode", 'TRANSLATION')]}),
@@ -2820,7 +2799,7 @@ def km_vertex_paint(params):
          {"properties": [("scalar", 0.9)]}),
         ("brush.scale_size", {"type": 'RIGHT_BRACKET', "value": 'PRESS', "repeat": True},
          {"properties": [("scalar", 1.0 / 0.9)]}),
-        *_template_paint_radial_control("vertex_paint", color=True, rotation=True, size_is_diameter=True),
+        *_template_paint_radial_control("vertex_paint", color=True, rotation=True),
         # Stencil Controls
         ("brush.stencil_control", {"type": 'RIGHTMOUSE', "value": 'PRESS'},
          {"properties": [("mode", 'TRANSLATION')]}),
@@ -2880,7 +2859,7 @@ def km_weight_paint(params):
          {"properties": [("scalar", 0.9)]}),
         ("brush.scale_size", {"type": 'RIGHT_BRACKET', "value": 'PRESS', "repeat": True},
          {"properties": [("scalar", 1.0 / 0.9)]}),
-        *_template_paint_radial_control("weight_paint", weight=True, size_is_diameter=True),
+        *_template_paint_radial_control("weight_paint", weight=True),
         # Mask Modes
         ("wm.context_toggle", {"type": 'ONE', "value": 'PRESS'},
          {"properties": [("data_path", "weight_paint_object.data.use_paint_mask")]}),
@@ -2997,7 +2976,7 @@ def km_sculpt(params):
          {"properties": [("scalar", 0.9)]}),
         ("brush.scale_size", {"type": 'RIGHT_BRACKET', "value": 'PRESS', "repeat": True},
          {"properties": [("scalar", 1.0 / 0.9)]}),
-        *_template_paint_radial_control("sculpt", rotation=True, size_is_diameter=True),
+        *_template_paint_radial_control("sculpt", rotation=True),
         # Stencil
         ("brush.stencil_control", {"type": 'RIGHTMOUSE', "value": 'PRESS'},
          {"properties": [("mode", 'TRANSLATION')]}),
@@ -3259,7 +3238,7 @@ def km_particle(params):
         ("particle.brush_edit", {"type": 'LEFTMOUSE', "value": 'PRESS'}, None),
         ("particle.brush_edit", {"type": 'LEFTMOUSE', "value": 'PRESS', "shift": True}, None),
         ("wm.radial_control", {"type": 'S', "value": 'PRESS'},
-         {"properties": [("data_path_primary", "tool_settings.particle_edit.brush.size"), ("size_measurement_type", 'RADIUS')]}),
+         {"properties": [("data_path_primary", "tool_settings.particle_edit.brush.size")]}),
         ("wm.radial_control", {"type": 'U', "value": 'PRESS'},
          {"properties": [("data_path_primary", "tool_settings.particle_edit.brush.strength")]}),
         ("wm.context_toggle", {"type": 'B', "value": 'PRESS'},
@@ -3423,7 +3402,7 @@ def km_sculpt_curves(params):
         ("curves.set_selection_domain", {"type": 'ONE', "value": 'PRESS'}, {"properties": [("domain", 'POINT')]}),
         ("curves.set_selection_domain", {"type": 'TWO', "value": 'PRESS'}, {"properties": [("domain", 'CURVE')]}),
         # Brush Properties
-        *_template_paint_radial_control("curves_sculpt", size_is_diameter=True),
+        *_template_paint_radial_control("curves_sculpt"),
         ("brush.scale_size", {"type": 'LEFT_BRACKET', "value": 'PRESS', "repeat": True},
          {"properties": [("scalar", 0.9)]}),
         ("brush.scale_size", {"type": 'RIGHT_BRACKET', "value": 'PRESS', "repeat": True},

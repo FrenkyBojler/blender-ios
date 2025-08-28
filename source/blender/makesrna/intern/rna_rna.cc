@@ -64,6 +64,7 @@ const EnumPropertyItem rna_enum_property_type_items[] = {
 
 #define RNA_ENUM_PROPERTY_SUBTYPE_NUMBER_ITEMS \
   {PROP_PIXEL, "PIXEL", 0, "Pixel", "A distance on screen"}, \
+  {PROP_PIXEL_DIAMETER, "PIXEL_DIAMETER", 0, "Pixel", "A distance on screen, specifically representing a diameter value"}, \
   {PROP_UNSIGNED, "UNSIGNED", 0, "Unsigned", ""}, \
   {PROP_PERCENTAGE, "PERCENTAGE", 0, "Percentage", "A percentage between 0 and 100"}, \
   {PROP_FACTOR, "FACTOR", 0, "Factor", "A factor between 0.0 and 1.0"}, \

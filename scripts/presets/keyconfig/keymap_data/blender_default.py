@@ -1265,21 +1265,21 @@ def km_outliner(params):
         ("outliner.item_rename", {"type": 'LEFTMOUSE', "value": 'DOUBLE_CLICK'}, None),
         ("outliner.item_rename", {"type": 'F2', "value": 'PRESS'},
          {"properties": [("use_active", True)]}),
-        ("outliner.item_activate", {"type": 'LEFTMOUSE', "value": 'CLICK'},
+        ("outliner.item_activate", {"type": params.select_mouse, "value": 'CLICK'},
          {"properties": [("deselect_all", not params.legacy)]}),
-        ("outliner.item_activate", {"type": 'LEFTMOUSE', "value": 'CLICK', "ctrl": True},
+        ("outliner.item_activate", {"type": params.select_mouse, "value": 'CLICK', "ctrl": True},
          {"properties": [("extend", True), ("deselect_all", not params.legacy)]}),
-        ("outliner.item_activate", {"type": 'LEFTMOUSE', "value": 'CLICK', "shift": True},
+        ("outliner.item_activate", {"type": params.select_mouse, "value": 'CLICK', "shift": True},
          {"properties": [("extend_range", True), ("deselect_all", not params.legacy)]}),
-        ("outliner.item_activate", {"type": 'LEFTMOUSE', "value": 'CLICK', "ctrl": True, "shift": True},
+        ("outliner.item_activate", {"type": params.select_mouse, "value": 'CLICK', "ctrl": True, "shift": True},
          {"properties": [("extend", True), ("extend_range", True), ("deselect_all", not params.legacy)]}),
-        ("outliner.item_activate", {"type": 'LEFTMOUSE', "value": 'DOUBLE_CLICK'},
+        ("outliner.item_activate", {"type": params.select_mouse, "value": 'DOUBLE_CLICK'},
          {"properties": [("recurse", True), ("deselect_all", True)]}),
-        ("outliner.item_activate", {"type": 'LEFTMOUSE', "value": 'DOUBLE_CLICK', "ctrl": True},
+        ("outliner.item_activate", {"type": params.select_mouse, "value": 'DOUBLE_CLICK', "ctrl": True},
          {"properties": [("recurse", True), ("extend", True), ("deselect_all", True)]}),
-        ("outliner.item_activate", {"type": 'LEFTMOUSE', "value": 'DOUBLE_CLICK', "shift": True},
+        ("outliner.item_activate", {"type": params.select_mouse, "value": 'DOUBLE_CLICK', "shift": True},
          {"properties": [("recurse", True), ("extend_range", True), ("deselect_all", True)]}),
-        ("outliner.item_activate", {"type": 'LEFTMOUSE', "value": 'DOUBLE_CLICK', "ctrl": True, "shift": True},
+        ("outliner.item_activate", {"type": params.select_mouse, "value": 'DOUBLE_CLICK', "ctrl": True, "shift": True},
             {"properties": [("recurse", True), ("extend", True), ("extend_range", True), ("deselect_all", True)]}),
         ("outliner.select_box", {"type": 'B', "value": 'PRESS'}, None),
         ("outliner.select_box", {"type": 'LEFTMOUSE', "value": 'CLICK_DRAG'}, {"properties": [("tweak", True)]}),
@@ -1310,8 +1310,8 @@ def km_outliner(params):
         ("outliner.item_openclose", {"type": 'LEFTMOUSE', "value": 'CLICK_DRAG'},
          {"properties": [("all", False)]}),
         # Fall through to generic context menu if the item(s) selected have no type specific actions.
-        ("outliner.operation", {"type": 'RIGHTMOUSE', "value": 'PRESS'}, None),
-        op_menu("OUTLINER_MT_context_menu", {"type": 'RIGHTMOUSE', "value": 'PRESS'}),
+        ("outliner.operation", params.context_menu_event, None),
+        op_menu("OUTLINER_MT_context_menu", params.context_menu_event),
         op_menu_pie("OUTLINER_MT_view_pie", {"type": 'ACCENT_GRAVE', "value": 'PRESS'}),
         ("outliner.item_drag_drop", {"type": 'LEFTMOUSE', "value": 'CLICK_DRAG'}, None),
         ("outliner.item_drag_drop", {"type": 'LEFTMOUSE', "value": 'CLICK_DRAG', "shift": True}, None),
@@ -3940,7 +3940,7 @@ def km_grease_pencil_paint_mode(params):
         ("grease_pencil.erase_box", {"type": "B", "value": 'PRESS'}, {"properties": [("wait_for_input", True)]}),
         # Brush size
         ("wm.radial_control", {"type": 'F', "value": 'PRESS'},
-         {"properties": [("data_path_primary", "tool_settings.gpencil_paint.brush.size"), ("size_measurement_type", 'DIAMETER')]}),
+         {"properties": [("data_path_primary", "tool_settings.gpencil_paint.brush.size")]}),
         # Brush strength
         ("wm.radial_control", {"type": 'F', "value": 'PRESS', "shift": True},
          {"properties": [("data_path_primary", "tool_settings.gpencil_paint.brush.strength")]}),
@@ -4037,9 +4037,9 @@ def km_grease_pencil_edit_mode(params):
 
         # Join selection
         ("grease_pencil.join_selection", {"type": 'J', "value": 'PRESS', "ctrl": True},
-         {"properties": [("type", 'JOINSTROKES')]}),
+         {"properties": [("type", 'JOIN')]}),
         ("grease_pencil.join_selection", {"type": 'J', "value": 'PRESS', "shift": True, "ctrl": True},
-         {"properties": [("type", 'SPLITCOPY')]}),
+         {"properties": [("type", 'JOINCOPY')]}),
 
         ("grease_pencil.duplicate_move", {"type": 'D', "value": 'PRESS', "shift": True}, None),
 
@@ -4172,7 +4172,7 @@ def km_grease_pencil_sculpt_mode(params):
         op_menu_pie("VIEW3D_MT_grease_pencil_sculpt_automasking_pie", {
                     "type": 'A', "value": 'PRESS', "shift": True, "alt": True}),
 
-        *_template_paint_radial_control("gpencil_sculpt_paint", size_is_diameter=True),
+        *_template_paint_radial_control("gpencil_sculpt_paint"),
         *_template_asset_shelf_popup("VIEW3D_AST_brush_gpencil_sculpt", params.spacebar_action),
         *_template_items_context_panel("VIEW3D_PT_greasepencil_sculpt_context_menu", params.context_menu_event),
     ])
@@ -4202,7 +4202,7 @@ def km_grease_pencil_weight_paint(params):
         ("brush.scale_size", {"type": 'RIGHT_BRACKET', "value": 'PRESS', "repeat": True},
          {"properties": [("scalar", 1.0 / 0.9)]}),
         # Radial controls
-        *_template_paint_radial_control("gpencil_weight_paint", size_is_diameter=True),
+        *_template_paint_radial_control("gpencil_weight_paint"),
         ("wm.radial_control", {"type": 'F', "value": 'PRESS', "ctrl": True},
          radial_control_properties("gpencil_weight_paint", "weight", "use_unified_weight")),
         # Toggle Add/Subtract for weight draw tool
@@ -4316,7 +4316,7 @@ def km_grease_pencil_vertex_paint(params):
          {"properties": [("type", "ALL_FRAMES")]}),
 
         # Radial controls
-        *_template_paint_radial_control("gpencil_vertex_paint", size_is_diameter=True),
+        *_template_paint_radial_control("gpencil_vertex_paint"),
         # Context menu
         *_template_items_context_panel("VIEW3D_PT_greasepencil_vertex_paint_context_menu", params.context_menu_event),
 
@@ -4644,14 +4644,7 @@ def km_paint_curve(params):
 # Radial control setup helpers, this operator has a lot of properties.
 
 
-def radial_control_properties(
-        paint,
-        prop,
-        secondary_prop,
-        secondary_rotation=False,
-        color=False,
-        zoom=False,
-        size_is_diameter=False):
+def radial_control_properties(paint, prop, secondary_prop, secondary_rotation=False, color=False, zoom=False):
     brush_path = "tool_settings." + paint + ".brush"
     unified_path = "tool_settings." + paint + ".unified_paint_settings"
     rotation = "mask_texture_slot.angle" if secondary_rotation else "texture_slot.angle"
@@ -4668,42 +4661,23 @@ def radial_control_properties(
             ("zoom_path", "space_data.zoom" if zoom else ''),
             ("image_id", brush_path + ''),
             ("secondary_tex", secondary_rotation),
-            ("size_measurement_type", 'DIAMETER' if size_is_diameter else 'RADIUS'),
         ],
     }
 
 # Radial controls for the paint and sculpt modes.
 
 
-def _template_paint_radial_control(
-        paint,
-        rotation=False,
-        secondary_rotation=False,
-        color=False,
-        zoom=False,
-        size_is_diameter=False):
+def _template_paint_radial_control(paint, rotation=False, secondary_rotation=False, color=False, zoom=False):
     items = []
 
-    items.extend([("wm.radial_control",
-                   {"type": 'F',
-                    "value": 'PRESS'},
-                   radial_control_properties(paint,
-                                             "size",
-                                             "use_unified_size",
-                                             secondary_rotation=secondary_rotation,
-                                             color=color,
-                                             zoom=zoom,
-                                             size_is_diameter=size_is_diameter)),
-                  ("wm.radial_control",
-                   {"type": 'F',
-                    "value": 'PRESS',
-                    "shift": True},
-                   radial_control_properties(paint,
-                                             "strength",
-                                             "use_unified_strength",
-                                             secondary_rotation=secondary_rotation,
-                                             color=color)),
-                  ])
+    items.extend([
+        ("wm.radial_control", {"type": 'F', "value": 'PRESS'},
+         radial_control_properties(
+             paint, "size", "use_unified_size", secondary_rotation=secondary_rotation, color=color, zoom=zoom)),
+        ("wm.radial_control", {"type": 'F', "value": 'PRESS', "shift": True},
+         radial_control_properties(
+             paint, "strength", "use_unified_strength", secondary_rotation=secondary_rotation, color=color)),
+    ])
 
     if rotation:
         items.extend([
@@ -4919,7 +4893,7 @@ def km_image_paint(params):
          {"properties": [("scalar", 0.9)]}),
         ("brush.scale_size", {"type": 'RIGHT_BRACKET', "value": 'PRESS', "repeat": True},
          {"properties": [("scalar", 1.0 / 0.9)]}),
-        *_template_paint_radial_control("image_paint", color=True, zoom=True, rotation=True, secondary_rotation=True, size_is_diameter=True),
+        *_template_paint_radial_control("image_paint", color=True, zoom=True, rotation=True, secondary_rotation=True),
         ("brush.stencil_control", {"type": 'RIGHTMOUSE', "value": 'PRESS'},
          {"properties": [("mode", 'TRANSLATION')]}),
         ("brush.stencil_control", {"type": 'RIGHTMOUSE', "value": 'PRESS', "shift": True},
@@ -4970,7 +4944,7 @@ def km_vertex_paint(params):
          {"properties": [("scalar", 0.9)]}),
         ("brush.scale_size", {"type": 'RIGHT_BRACKET', "value": 'PRESS', "repeat": True},
          {"properties": [("scalar", 1.0 / 0.9)]}),
-        *_template_paint_radial_control("vertex_paint", color=True, rotation=True, size_is_diameter=True),
+        *_template_paint_radial_control("vertex_paint", color=True, rotation=True),
         ("brush.stencil_control", {"type": 'RIGHTMOUSE', "value": 'PRESS'},
          {"properties": [("mode", 'TRANSLATION')]}),
         ("brush.stencil_control", {"type": 'RIGHTMOUSE', "value": 'PRESS', "shift": True},
@@ -5033,7 +5007,7 @@ def km_weight_paint(params):
          {"properties": [("scalar", 0.9)]}),
         ("brush.scale_size", {"type": 'RIGHT_BRACKET', "value": 'PRESS', "repeat": True},
          {"properties": [("scalar", 1.0 / 0.9)]}),
-        *_template_paint_radial_control("weight_paint", size_is_diameter=True),
+        *_template_paint_radial_control("weight_paint"),
         ("wm.radial_control", {"type": 'F', "value": 'PRESS', "ctrl": True},
          radial_control_properties("weight_paint", "weight", "use_unified_weight")),
         ("wm.context_menu_enum", {"type": 'E', "value": 'PRESS', "alt": True},
@@ -5222,7 +5196,7 @@ def km_sculpt(params):
          {"properties": [("scalar", 0.9)]}),
         ("brush.scale_size", {"type": 'RIGHT_BRACKET', "value": 'PRESS', "repeat": True},
          {"properties": [("scalar", 1.0 / 0.9)]}),
-        *_template_paint_radial_control("sculpt", rotation=True, size_is_diameter=True),
+        *_template_paint_radial_control("sculpt", rotation=True),
         # Stencil
         ("brush.stencil_control", {"type": 'RIGHTMOUSE', "value": 'PRESS'},
          {"properties": [("mode", 'TRANSLATION')]}),
@@ -5345,7 +5319,7 @@ def km_sculpt_curves(params):
          {"properties": [("mode", 'SMOOTH')]}),
         ("curves.set_selection_domain", {"type": 'ONE', "value": 'PRESS'}, {"properties": [("domain", 'POINT')]}),
         ("curves.set_selection_domain", {"type": 'TWO', "value": 'PRESS'}, {"properties": [("domain", 'CURVE')]}),
-        *_template_paint_radial_control("curves_sculpt", size_is_diameter=True),
+        *_template_paint_radial_control("curves_sculpt"),
         ("brush.scale_size", {"type": 'LEFT_BRACKET', "value": 'PRESS', "repeat": True},
          {"properties": [("scalar", 0.9)]}),
         ("brush.scale_size", {"type": 'RIGHT_BRACKET', "value": 'PRESS', "repeat": True},
@@ -5694,7 +5668,7 @@ def km_edit_particle(params):
         ("particle.brush_edit", {"type": 'LEFTMOUSE', "value": 'PRESS'}, None),
         ("particle.brush_edit", {"type": 'LEFTMOUSE', "value": 'PRESS', "shift": True}, None),
         ("wm.radial_control", {"type": 'F', "value": 'PRESS'},
-         {"properties": [("data_path_primary", "tool_settings.particle_edit.brush.size"), ("size_measurement_type", 'RADIUS')]}),
+         {"properties": [("data_path_primary", "tool_settings.particle_edit.brush.size")]}),
         ("wm.radial_control", {"type": 'F', "value": 'PRESS', "shift": True},
          {"properties": [("data_path_primary", "tool_settings.particle_edit.brush.strength")]}),
         ("particle.weight_set", {"type": 'K', "value": 'PRESS', "shift": True}, None),
@@ -6943,7 +6917,7 @@ def km_image_editor_tool_uv_grab(params):
              {"properties": [("use_invert", True)]}),
             ("sculpt.uv_sculpt_relax", {"type": params.tool_mouse, "value": 'PRESS', "shift": True}, None),
             ("wm.radial_control", {"type": 'F', "value": 'PRESS'},
-             {"properties": [("data_path_primary", "tool_settings.uv_sculpt.size"), ("size_measurement_type", 'RADIUS')]}),
+             {"properties": [("data_path_primary", "tool_settings.uv_sculpt.size"), ], }),
             ("wm.radial_control", {"type": 'F', "value": 'PRESS', "shift": True},
              {"properties": [("data_path_primary", "tool_settings.uv_sculpt.strength"), ], }),
         ]},
@@ -6960,7 +6934,7 @@ def km_image_editor_tool_uv_relax(params):
              {"properties": [("use_invert", True)]}),
             ("sculpt.uv_sculpt_relax", {"type": params.tool_mouse, "value": 'PRESS', "shift": True}, None),
             ("wm.radial_control", {"type": 'F', "value": 'PRESS'},
-             {"properties": [("data_path_primary", "tool_settings.uv_sculpt.size"), ("size_measurement_type", 'RADIUS')], }),
+             {"properties": [("data_path_primary", "tool_settings.uv_sculpt.size"), ], }),
             ("wm.radial_control", {"type": 'F', "value": 'PRESS', "shift": True},
              {"properties": [("data_path_primary", "tool_settings.uv_sculpt.strength"), ], }),
         ]},
@@ -6977,7 +6951,7 @@ def km_image_editor_tool_uv_pinch(params):
              {"properties": [("use_invert", True)]}),
             ("sculpt.uv_sculpt_relax", {"type": params.tool_mouse, "value": 'PRESS', "shift": True}, None),
             ("wm.radial_control", {"type": 'F', "value": 'PRESS'},
-             {"properties": [("data_path_primary", "tool_settings.uv_sculpt.size"), ("size_measurement_type", 'RADIUS')], }),
+             {"properties": [("data_path_primary", "tool_settings.uv_sculpt.size"), ], }),
             ("wm.radial_control", {"type": 'F', "value": 'PRESS', "shift": True},
              {"properties": [("data_path_primary", "tool_settings.uv_sculpt.strength"), ], }),
         ]},
