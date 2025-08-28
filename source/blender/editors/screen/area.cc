@@ -3922,7 +3922,14 @@ ScrArea *ED_screen_areas_iter_first(const wmWindow *win, const bScreen *screen)
   ScrArea *global_area = static_cast<ScrArea *>(win->global_areas.areabase.first);
 
   if (!global_area) {
-    return ED_screen_areas_iter_next(screen, static_cast<ScrArea *>(screen->areabase.first));
+    ScrArea *first_screen_area = static_cast<ScrArea *>(screen->areabase.first);
+    if (!first_screen_area) {
+      return nullptr;
+    }
+    if ((first_screen_area->flag & AREA_FLAG_HIDDEN) == 0) {
+      return first_screen_area;
+    }
+    return ED_screen_areas_iter_next(screen, first_screen_area);
   }
 
   if ((global_area->global->flag & GLOBAL_AREA_IS_HIDDEN) == 0) {
