@@ -137,7 +137,6 @@ class AttributeTexts : Overlay {
       const BMEditMesh *em = mesh->runtime->edit_mesh.get();
       if (em && em->bm) {
         bm = em->bm;
-        bmesh_created_locally = false;
       }
       else {
         const BMAllocTemplate allocsize = BMALLOC_TEMPLATE_FROM_ME(mesh);
@@ -155,11 +154,8 @@ class AttributeTexts : Overlay {
       const CPPType &type = attribute.varray.type();
       float offset_by_type = 1.0f;
 
-      if (type.is<int2>() || type.is<float2>()) {
-        offset_by_type = 1.5f;
-      }
-      else if (type.is<float3>() || type.is<ColorGeometry4b>() || type.is<ColorGeometry4f>() ||
-               type.is<math::Quaternion>())
+      if (type.is<int2>() || type.is<float2>() || type.is<float3>() ||
+          type.is<ColorGeometry4b>() || type.is<ColorGeometry4f>() || type.is<math::Quaternion>())
       {
         offset_by_type = 1.5f;
       }
@@ -175,39 +171,33 @@ class AttributeTexts : Overlay {
       BM_ITER_MESH (efa, &iter, bm, BM_FACES_OF_MESH) {
         BMIter liter;
         BMLoop *loop;
-        // if (corner_index >= corner_positions.size()) {
-        //   break;
-        // }
         BM_ITER_ELEM (loop, &liter, efa, BM_LOOPS_OF_FACE) {
-          // if (corner_index >= corner_positions.size()) {
-          //   break;
-          // }
-
           const float3 pos_o = loop->v->co;
           const float3 pos_a = loop->prev->v->co;
           const float3 pos_b = loop->next->v->co;
           const float3 vec_oa = pos_a - pos_o;
           const float3 vec_ob = pos_b - pos_o;
-          const float len_oa = math::length(vec_oa);
-          const float len_ob = math::length(vec_ob);
           const float3 dir_oa = math::normalize(vec_oa);
           const float3 dir_ob = math::normalize(vec_ob);
 
+          const float len_oa = math::length(vec_oa);
+          const float len_ob = math::length(vec_ob);
+          const float max_offset = math::min(len_oa, len_ob) / 2;
+
+          const float3 corner_normal = math::cross(dir_ob, dir_oa);
+          const float concavity_check = math::dot(corner_normal, float3(efa->no));
+          const float direction_correct = concavity_check > 0.0f ? 1.0f : -1.0f;
+          const float3 bisector_dir = (dir_oa + dir_ob) / 2 * direction_correct;
+
+          const float sharp_factor = std::clamp(math::dot(dir_oa, dir_ob), 0.0f, 1.0f);
+          const float sharp_multiplier = math::pow(sharp_factor, 4.0f) * 2 + 1;
+
           const float3 pos_o_world = math::transform_point(object_to_world, pos_o);
           const float pixel_size = ED_view3d_pixel_size(state.rv3d, pos_o_world);
-
-          const float3 bisector_dir = (dir_oa + dir_ob) / 2;
-          if (math::is_zero(bisector_dir)) {
-            // todo 如果是平角应该向面中心方向偏移
-          }
-          // ?基于长度还是基于视图缩放
-          const float edge_len = (len_oa + len_ob) / 2;
-          const float dot = std::clamp(math::dot(dir_oa, dir_ob), 0.0f, 1.0f);
-          const float angle_factor = math::pow(dot, 4.0f) * 2 + 1;
-          const float min_edge = math::min(len_oa, len_ob) / 2;
+          const float view_scaled_offset = pixel_size * 80.0f;
 
           const float offset_distance = std::clamp(
-              pixel_size * 80 * angle_factor * offset_by_type, 0.0f, min_edge);
+              view_scaled_offset * sharp_multiplier * offset_by_type, 0.0f, max_offset);
 
           corner_positions[corner_index] = pos_o + bisector_dir * offset_distance;
           corner_index++;
