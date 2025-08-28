@@ -101,14 +101,6 @@ float gpencil_stroke_segment_mask(
   float t0 = dot(pos0, line0) / dot(line0, line0);
   float t2 = dot(pos2, line2) / dot(line2, line2);
 
-  /* The add the other two segments. Each will have rounded corners. */
-  if (!is_start) {
-    dist = min(dist, length_squared(pos0 - saturate(t0) * line0));
-  }
-  if (!is_end) {
-    dist = min(dist, length_squared(pos2 - saturate(t2) * line2));
-  }
-
   /* Check if the pixel is within the corner region between segments 1 and 0. */
   if (t1 <= 0.0f && t0 >= 1.0f && !is_start && miter_limit.x != MITER_LIMIT_TYPE_ROUND) {
     if (miter_limit.x == MITER_LIMIT_TYPE_BEVEL) {
