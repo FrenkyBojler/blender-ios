@@ -437,6 +437,7 @@ inline eGPUTextureFormatFlag to_format_flag(TextureFormat format)
 
     /* Special formats texture & render-buffer */
     case TextureFormat::UNORM_10_10_10_2:
+    case TextureFormat::UNORM_R10_G10_B10_2:
       return GPU_FORMAT_NORMALIZED_INTEGER;
     case TextureFormat::UINT_10_10_10_2:
       return GPU_FORMAT_INTEGER;
@@ -539,6 +540,7 @@ inline size_t to_bytesize(TextureFormat tex_format, eGPUDataFormat data_format)
    * channels, but associated data format contains several compacted components. */
   if ((tex_format == TextureFormat::UFLOAT_11_11_10 && data_format == GPU_DATA_10_11_11_REV) ||
       ((tex_format == TextureFormat::UNORM_10_10_10_2 ||
+        tex_format == TextureFormat::UNORM_R10_G10_B10_2 ||
         tex_format == TextureFormat::UINT_10_10_10_2) &&
        data_format == GPU_DATA_2_10_10_10_REV))
   {
@@ -598,6 +600,7 @@ constexpr bool validate_data_format(TextureFormat tex_format, eGPUDataFormat dat
 
     /* Special formats texture & render-buffer */
     case TextureFormat::UNORM_10_10_10_2:
+    case TextureFormat::UNORM_R10_G10_B10_2:
     case TextureFormat::UINT_10_10_10_2:
       return ELEM(data_format, GPU_DATA_FLOAT, GPU_DATA_2_10_10_10_REV);
     case TextureFormat::UFLOAT_11_11_10:
@@ -710,6 +713,7 @@ inline eGPUDataFormat to_texture_data_format(TextureFormat tex_format)
 
     /* Special formats texture & render-buffer */
     case TextureFormat::UNORM_10_10_10_2:
+    case TextureFormat::UNORM_R10_G10_B10_2:
     case TextureFormat::UINT_10_10_10_2:
       return GPU_DATA_2_10_10_10_REV;
     case TextureFormat::UFLOAT_11_11_10:
@@ -810,6 +814,7 @@ inline eGPUFrameBufferBits to_framebuffer_bits(TextureFormat tex_format)
 
     /* Special formats texture & render-buffer */
     case TextureFormat::UNORM_10_10_10_2:
+    case TextureFormat::UNORM_R10_G10_B10_2:
     case TextureFormat::UINT_10_10_10_2:
     case TextureFormat::UFLOAT_11_11_10:
     case TextureFormat::SRGBA_8_8_8_8:

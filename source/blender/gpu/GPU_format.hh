@@ -93,6 +93,7 @@ namespace blender::gpu {
 /*                                           type       size comps blender_enum            vk_enum                   mtl_pixel_enum         mtl_vertex_enum        gl_pixel_enum                        shader_enum  */
 #define SNORM_10_10_10_2_(impl)         impl(/*TODO*/,  4,   4,    SNORM_10_10_10_2,       A2B10G10R10_SNORM_PACK32, /* n/a */,             Int1010102Normalized,  /* n/a */,                           /* n/a */       )
 #define UNORM_10_10_10_2_(impl)         impl(/*TODO*/,  4,   4,    UNORM_10_10_10_2,       A2B10G10R10_UNORM_PACK32, RGB10A2Unorm,          UInt1010102Normalized, RGB10_A2,                            rgb10_a2_unorm  )
+#define UNORM_R10_G10_B10_2_(impl)      impl(/*TODO*/,  4,   4,    UNORM_R10_G10_B10_2,    A2R10G10B10_UNORM_PACK32, RGB10A2Unorm,          UInt1010102Normalized, RGB10_A2,                            rgb10_a2_unorm  )
 #define UINT_10_10_10_2_(impl)          impl(/*TODO*/,  4,   4,    UINT_10_10_10_2,        A2B10G10R10_UINT_PACK32,  RGB10A2Uint,           /* n/a */,             RGB10_A2UI,                          rgb10_a2_uint   )
 /*                                           type       size comps blender_enum            vk_enum                   mtl_pixel_enum         mtl_vertex_enum        gl_pixel_enum                        shader_enum  */
 #define UFLOAT_11_11_10_(impl)          impl(/*TODO*/,  4,   3,    UFLOAT_11_11_10,        B10G11R11_UFLOAT_PACK32,  RG11B10Float,          FloatRG11B10,          R11F_G11F_B10F,                      r11_g11_b10_ufloat)
@@ -193,6 +194,7 @@ enum class DataFormat : uint8_t {
 \
   SNORM_10_10_10_2_(impl) \
   UNORM_10_10_10_2_(impl) \
+  UNORM_R10_G10_B10_2_(impl) \
   UINT_10_10_10_2_(impl) \
 \
   UFLOAT_11_11_10_(impl) \

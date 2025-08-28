@@ -918,12 +918,15 @@ static bool selectSurfaceFormat(const VkPhysicalDevice physical_device,
   vector<VkSurfaceFormatKHR> formats(format_count);
   vkGetPhysicalDeviceSurfaceFormatsKHR(physical_device, surface, &format_count, formats.data());
 
-  array<pair<VkColorSpaceKHR, VkFormat>, 6> selection_order = {
+  array<pair<VkColorSpaceKHR, VkFormat>, 7> selection_order = {
+      /* Supported by NVIDIA. */
       make_pair(VK_COLOR_SPACE_EXTENDED_SRGB_LINEAR_EXT, VK_FORMAT_R16G16B16A16_SFLOAT),
       /* Supported by Intel Gen11+. */
       make_pair(VK_COLOR_SPACE_HDR10_ST2084_EXT, VK_FORMAT_R16G16B16A16_SFLOAT),
       /* Supporte by Intel Gen9-10. */
       make_pair(VK_COLOR_SPACE_HDR10_ST2084_EXT, VK_FORMAT_A2R10G10B10_UNORM_PACK32),
+      /* Supported by NVIDIA. */
+      make_pair(VK_COLOR_SPACE_HDR10_ST2084_EXT, VK_FORMAT_A2B10G10R10_UNORM_PACK32),
       make_pair(VK_COLOR_SPACE_SRGB_NONLINEAR_KHR, VK_FORMAT_R16G16B16A16_SFLOAT),
       make_pair(VK_COLOR_SPACE_SRGB_NONLINEAR_KHR, VK_FORMAT_R8G8B8A8_UNORM),
       make_pair(VK_COLOR_SPACE_SRGB_NONLINEAR_KHR, VK_FORMAT_B8G8R8A8_UNORM),
@@ -931,7 +934,8 @@ static bool selectSurfaceFormat(const VkPhysicalDevice physical_device,
 
   for (pair<VkColorSpaceKHR, VkFormat> &pair : selection_order) {
     if ((pair.second == VK_FORMAT_R16G16B16A16_SFLOAT ||
-         pair.second == VK_FORMAT_A2R10G10B10_UNORM_PACK32) &&
+         pair.second == VK_FORMAT_A2R10G10B10_UNORM_PACK32 ||
+         pair.second == VK_FORMAT_A2B10G10R10_UNORM_PACK32) &&
         !use_hdr_swapchain)
     {
       continue;

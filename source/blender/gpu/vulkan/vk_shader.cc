@@ -152,6 +152,7 @@ static const char *to_string(const TextureFormat &type)
     case TextureFormat::UFLOAT_11_11_10:
       return "r11f_g11f_b10f";
     case TextureFormat::UNORM_10_10_10_2:
+    case TextureFormat::UNORM_R10_G10_B10_2:
       return "rgb10_a2";
     default:
       return "unknown";

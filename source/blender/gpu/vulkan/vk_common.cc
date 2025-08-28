@@ -49,6 +49,7 @@ VkImageAspectFlags to_vk_image_aspect_flag_bits(const TextureFormat format)
 
     /* Special formats texture & render-buffer */
     case TextureFormat::UNORM_10_10_10_2:
+    case TextureFormat::UNORM_R10_G10_B10_2:
     case TextureFormat::UINT_10_10_10_2:
     case TextureFormat::UFLOAT_11_11_10:
     case TextureFormat::SRGBA_8_8_8_8:
@@ -126,6 +127,12 @@ TextureFormat to_gpu_format(const VkFormat format)
 
     case VK_FORMAT_R16G16B16A16_SFLOAT:
       return TextureFormat::SFLOAT_16_16_16_16;
+
+    case VK_FORMAT_A2B10G10R10_UNORM_PACK32:
+      return TextureFormat::UNORM_10_10_10_2;
+
+    case VK_FORMAT_A2R10G10B10_UNORM_PACK32:
+      return TextureFormat::UNORM_R10_G10_B10_2;
 
     default:
       BLI_assert_unreachable();

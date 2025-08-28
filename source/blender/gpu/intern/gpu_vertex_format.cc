@@ -246,6 +246,7 @@ bool is_fetch_normalized(VertAttrType attr_type)
     case VertAttrType::UNORM_16_16_16_16:
     case VertAttrType::SNORM_10_10_10_2:
     case VertAttrType::UNORM_10_10_10_2:
+    case VertAttrType::UNORM_R10_G10_B10_2:
       return true;
     default:
       return false;
@@ -318,6 +319,7 @@ GPUVertCompType GPUVertAttr::Type::comp_type() const
       return GPU_COMP_F32;
     case VertAttrType::SNORM_10_10_10_2:
     case VertAttrType::UNORM_10_10_10_2:
+    case VertAttrType::UNORM_R10_G10_B10_2:
       return GPU_COMP_I10;
     default: /* TODO(fclem): This avoids warning caused by deprecated formats. */
     case VertAttrType::Invalid:

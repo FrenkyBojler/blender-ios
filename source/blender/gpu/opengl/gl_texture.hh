@@ -302,6 +302,7 @@ inline GLenum to_gl_data_format(TextureFormat format)
     /* Special formats texture & render-buffer. */
     case TextureFormat::UINT_10_10_10_2:
     case TextureFormat::UNORM_10_10_10_2:
+    case TextureFormat::UNORM_R10_G10_B10_2:
     case TextureFormat::SRGBA_8_8_8_8:
       return GL_RGBA;
     case TextureFormat::UFLOAT_11_11_10:

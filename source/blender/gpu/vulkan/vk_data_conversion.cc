@@ -173,6 +173,7 @@ static ConversionType type_of_conversion_float(const TextureFormat host_format,
     case TextureFormat::UINT_32:
     case TextureFormat::SINT_32:
     case TextureFormat::UNORM_10_10_10_2:
+    case TextureFormat::UNORM_R10_G10_B10_2:
     case TextureFormat::UINT_10_10_10_2:
     case TextureFormat::UINT_8_8_8:
     case TextureFormat::SINT_8_8_8:
@@ -234,6 +235,7 @@ static ConversionType type_of_conversion_int(TextureFormat device_format)
     case TextureFormat::UINT_32:
     case TextureFormat::SFLOAT_32:
     case TextureFormat::UNORM_10_10_10_2:
+    case TextureFormat::UNORM_R10_G10_B10_2:
     case TextureFormat::UINT_10_10_10_2:
     case TextureFormat::UFLOAT_11_11_10:
     case TextureFormat::SFLOAT_32_DEPTH_UINT_8:
@@ -320,6 +322,7 @@ static ConversionType type_of_conversion_uint(TextureFormat device_format)
     case TextureFormat::SINT_32:
     case TextureFormat::SFLOAT_32:
     case TextureFormat::UNORM_10_10_10_2:
+    case TextureFormat::UNORM_R10_G10_B10_2:
     case TextureFormat::UINT_10_10_10_2:
     case TextureFormat::UFLOAT_11_11_10:
     case TextureFormat::SRGBA_8_8_8_8:
@@ -394,6 +397,7 @@ static ConversionType type_of_conversion_half(TextureFormat device_format)
     case TextureFormat::SINT_32:
     case TextureFormat::SFLOAT_32:
     case TextureFormat::UNORM_10_10_10_2:
+    case TextureFormat::UNORM_R10_G10_B10_2:
     case TextureFormat::UINT_10_10_10_2:
     case TextureFormat::UFLOAT_11_11_10:
     case TextureFormat::SFLOAT_32_DEPTH_UINT_8:
@@ -474,6 +478,7 @@ static ConversionType type_of_conversion_ubyte(TextureFormat device_format)
     case TextureFormat::SINT_32:
     case TextureFormat::SFLOAT_32:
     case TextureFormat::UNORM_10_10_10_2:
+    case TextureFormat::UNORM_R10_G10_B10_2:
     case TextureFormat::UINT_10_10_10_2:
     case TextureFormat::UFLOAT_11_11_10:
     case TextureFormat::SFLOAT_32_DEPTH_UINT_8:
@@ -573,6 +578,7 @@ static ConversionType type_of_conversion_uint248(const TextureFormat device_form
     case TextureFormat::UINT_32:
     case TextureFormat::SINT_32:
     case TextureFormat::UNORM_10_10_10_2:
+    case TextureFormat::UNORM_R10_G10_B10_2:
     case TextureFormat::UINT_10_10_10_2:
     case TextureFormat::UINT_8_8_8:
     case TextureFormat::SINT_8_8_8:

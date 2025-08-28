@@ -63,6 +63,7 @@ enum class VertAttrType : uint8_t {
 \
   SNORM_10_10_10_2_(impl) \
   UNORM_10_10_10_2_(impl) \
+  UNORM_R10_G10_B10_2_(impl) \
 \
   /* UFLOAT_11_11_10_(impl) Available on Metal (and maybe VK) but not on GL. */ \
   /* UFLOAT_9_9_9_EXP_5_(impl) Available on Metal (and maybe VK) but not on GL. */

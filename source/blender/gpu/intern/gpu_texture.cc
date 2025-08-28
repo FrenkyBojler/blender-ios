@@ -820,6 +820,7 @@ const char *GPU_texture_format_name(TextureFormat texture_format)
       return "R16";
     /* Special formats texture & render-buffer */
     case TextureFormat::UNORM_10_10_10_2:
+    case TextureFormat::UNORM_R10_G10_B10_2:
       return "RGB10_A2";
     case TextureFormat::UINT_10_10_10_2:
       return "RGB10_A2UI";

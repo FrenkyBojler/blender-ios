@@ -1627,6 +1627,7 @@ void gpu::MTLTexture::read_internal(int mip,
   {
     BLI_assert(format_ == TextureFormat::UFLOAT_11_11_10 ||
                format_ == TextureFormat::UNORM_10_10_10_2 ||
+               format_ == TextureFormat::UNORM_R10_G10_B10_2 ||
                format_ == TextureFormat::UINT_10_10_10_2);
 
     /* override parameters - we'll be able to use simple copy, as bpp will match at 4 bytes. */

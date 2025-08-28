@@ -99,6 +99,7 @@ enum class TextureFormat : uint8_t {
   SFLOAT_32_32_32_32_(impl) \
 \
   UNORM_10_10_10_2_(impl) \
+  UNORM_R10_G10_B10_2_(impl) \
   UINT_10_10_10_2_(impl) \
 \
   UFLOAT_11_11_10_(impl) \
@@ -179,6 +180,7 @@ enum class TextureTargetFormat : uint8_t {
   SFLOAT_32_32_32_32_(impl) \
 \
   UNORM_10_10_10_2_(impl) \
+  UNORM_R10_G10_B10_2_(impl) \
   UINT_10_10_10_2_(impl) \
 \
   UFLOAT_11_11_10_(impl) \
@@ -250,6 +252,7 @@ enum class TextureWriteFormat : uint8_t {
   SFLOAT_32_32_32_32_(impl) \
 \
   UNORM_10_10_10_2_(impl) \
+  UNORM_R10_G10_B10_2_(impl) \
   UINT_10_10_10_2_(impl) \
 \
   UFLOAT_11_11_10_(impl)
