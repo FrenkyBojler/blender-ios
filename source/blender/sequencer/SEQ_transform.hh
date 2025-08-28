@@ -176,14 +176,15 @@ class GapRemover {
   Vector<rcti> gap_ranges;
 
  private:
-  /* Checks if the strip was moved from previous position to new position. */
-  // technically, this should check channel too in case of IN_RANGE mode.
-  bool has_gap_at(int timeline_frame);
+  /* Strips and handles to be moved. */
+  VectorSet<Strip *> right_side_strips;
+  VectorSet<Strip *> right_side_handles;
+
   bool can_merge_ranges(const rcti &unified_range, const rcti &range);
   Vector<rcti> unify_gaps(const Vector<rcti> ranges);
   bool strip_intersects_range(const Strip *strip, const rcti gap_range);
   Vector<rcti> expand_or_remove_gaps(Vector<rcti> gap_ranges, eWhichStripsCanBeMoved which);
-  Vector<Strip *> query_right_side_strips(const rcti gap_range);
+  void query_right_side_strips(const rcti gap_range);
 
  public:
   void remove_gaps();
