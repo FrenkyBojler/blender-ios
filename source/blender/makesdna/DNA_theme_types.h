@@ -308,7 +308,6 @@ typedef struct ThemeSpace {
   unsigned char face[4], face_select[4], face_mode_select[4], face_retopology[4];
   unsigned char face_back[4], face_front[4];
   /** Selected color. */
-  unsigned char face_dot[4];
   unsigned char extra_edge_len[4], extra_edge_angle[4], extra_face_angle[4], extra_face_area[4];
   unsigned char normal[4];
   unsigned char vertex_normal[4];
@@ -319,6 +318,7 @@ typedef struct ThemeSpace {
   unsigned char time_keyframe[4], time_gp_keyframe[4];
   unsigned char freestyle_edge_mark[4], freestyle_face_mark[4];
   unsigned char time_scrub_background[4];
+  char _pad10[4];
 
   unsigned char nurb_uline[4], nurb_vline[4];
   unsigned char act_spline[4], nurb_sel_uline[4], nurb_sel_vline[4];
