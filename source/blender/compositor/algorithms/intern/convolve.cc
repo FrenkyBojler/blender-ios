@@ -189,7 +189,11 @@ void convolve(Context &context,
    * Fourier transform is linear. */
   const float4 sum = float4(
       std::accumulate(sum_by_thread.begin(), sum_by_thread.end(), double4(0.0)));
-  const float4 normalization_factor = normalize_kernel ? sum : float4(1.0f);
+  const float4 sanitized_sum = float4(sum[0] == 0.0f ? 1.0f : sum[0],
+                                      sum[1] == 0.0f ? 1.0f : sum[1],
+                                      sum[2] == 0.0f ? 1.0f : sum[2],
+                                      sum[3] == 0.0f ? 1.0f : sum[3]);
+  const float4 normalization_factor = normalize_kernel ? sanitized_sum : float4(1.0f);
 
   /* Transform all necessary data from the real domain to the frequency domain. */
   threading::parallel_for(
