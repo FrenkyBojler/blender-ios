@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.0.0 Alpha (b'a7042ca30c82')\n"
+"Project-Id-Version: Blender 5.0.0 Alpha (b'68abaa12d581')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-07-29 08:51+0000\n"
+"POT-Creation-Date: 2025-08-25 08:31+0000\n"
 "PO-Revision-Date: 2025-07-23 15:20+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Kyrgyz <https://translate.blender.org/projects/blender-ui/ui/ky/>\n"
@@ -222,6 +222,10 @@ msgstr "Жаркыроосу"
 
 msgid "Target"
 msgstr "Максат"
+
+
+msgid "Bake normals"
+msgstr "Нормалдарды бышыруу"
 
 
 msgid "Clear"
@@ -957,26 +961,6 @@ msgid "Max"
 msgstr "Макс."
 
 
-msgid "Iris"
-msgstr "Iris"
-
-
-msgid "Targa"
-msgstr "Targa"
-
-
-msgid "Targa Raw"
-msgstr "Targa Raw"
-
-
-msgid "Cineon"
-msgstr "Cineon"
-
-
-msgid "Radiance HDR"
-msgstr "Radiance HDR"
-
-
 msgid "Movie file"
 msgstr "Видеофайл"
 
@@ -1306,16 +1290,16 @@ msgid "Mask"
 msgstr "Маска"
 
 
+msgid "Mirror"
+msgstr "Чагылтуу"
+
+
 msgid "Apply"
 msgstr "Колдонуу"
 
 
 msgid "Text"
 msgstr "Текст"
-
-
-msgid "Mirror"
-msgstr "Чагылтуу"
 
 
 msgctxt "MovieClip"
@@ -2740,10 +2724,6 @@ msgid "Sky"
 msgstr "Асман"
 
 
-msgid "Bake normals"
-msgstr "Нормалдарды бышыруу"
-
-
 msgid "Engine"
 msgstr "Кыймылдаткыч"
 
@@ -3633,10 +3613,6 @@ msgstr "<ID жок>"
 
 msgid "Select Layer"
 msgstr "Катты тандоо"
-
-
-msgid "Can't Load Image"
-msgstr "Сүрөттү жүктөө оңунан чыккан жок"
 
 
 msgid "(Key) "
