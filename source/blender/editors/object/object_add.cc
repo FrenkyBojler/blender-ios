@@ -3300,7 +3300,6 @@ static Object *convert_mesh_to_grease_pencil(Base &base,
   }
 
   Mesh *newob_mesh = static_cast<Mesh *>(newob->data);
-  BKE_id_material_clear(info.bmain, &newob_mesh->id);
   BKE_object_free_derived_caches(newob);
   BKE_object_free_modifiers(newob, 0);
 
