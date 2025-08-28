@@ -394,7 +394,11 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
     btheme->common.curves.handle_vertex_size = U_theme_default.common.curves.handle_vertex_size;
   }
 
-  if (!USER_VERSION_ATLEAST(500, 67)) {
+  if (!USER_VERSION_ATLEAST(500, 68)) {
+    FROM_DEFAULT_V4_UCHAR(space_clip.track_selected);
+  }
+
+  if (!USER_VERSION_ATLEAST(500, 69)) {
     FROM_DEFAULT_V4_UCHAR(space_sequencer.active);
   }
 
