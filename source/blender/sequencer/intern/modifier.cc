@@ -1547,6 +1547,8 @@ StripModifierData *modifier_new(Strip *strip, const char *name, int type)
     smti->init_data(smd);
   }
 
+  modifier_set_active(strip, smd);
+
   return smd;
 }
 
