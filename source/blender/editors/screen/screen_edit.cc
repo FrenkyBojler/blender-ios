@@ -671,7 +671,8 @@ bool screen_area_close(bContext *C, ReportList *reports, bScreen *screen, ScrAre
   float best_alignment = 0.0f;
 
   LISTBASE_FOREACH (ScrArea *, neighbor, &screen->areabase) {
-    if (neighbor->flag & AREA_FLAG_HIDDEN) {
+    /* Don't allow closing hidden or docked areas. */
+    if (neighbor->flag & (AREA_FLAG_HIDDEN | AREA_FLAG_DOCKED)) {
       continue;
     }
     const eScreenDir dir = area_getorientation(area, neighbor);

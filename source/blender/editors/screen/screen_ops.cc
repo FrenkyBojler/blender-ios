@@ -746,6 +746,20 @@ static bool screen_active_editable(bContext *C)
   return false;
 }
 
+static bool area_editable(const ScrArea *area, const char **r_disabled_hint = nullptr)
+{
+  if (ED_area_is_global(area)) {
+    return false;
+  }
+  if (area->flag & AREA_FLAG_DOCKED) {
+    if (r_disabled_hint) {
+      *r_disabled_hint = TIP_("Editors spawned from the editor dock cannot be edited");
+    }
+    return false;
+  }
+  return true;
+}
+
 /**
  * Begin a modal operation,
  * the caller is responsible for calling #screen_modal_action_end when it's ended.
@@ -1251,7 +1265,7 @@ static wmOperatorStatus actionzone_modal(bContext *C, wmOperator *op, const wmEv
                                                                      WM_CURSOR_V_SPLIT);
             is_gesture = (delta_max > split_threshold);
           }
-          else if (!area || area->global) {
+          else if (!area || !area_editable(area)) {
             /* No area or Top bar or Status bar. */
             WM_cursor_set(win, WM_CURSOR_STOP);
             is_gesture = false;
@@ -1373,8 +1387,8 @@ static ScrEdge *screen_area_edge_from_cursor(const bContext *C,
     sa2 = BKE_screen_find_area_xy(
         screen, SPACE_TYPE_ANY, blender::int2{cursor[0] - borderwidth, cursor[1]});
   }
-  bool isGlobal = ((sa1 && ED_area_is_global(sa1)) || (sa2 && ED_area_is_global(sa2)));
-  if (!isGlobal) {
+  const bool is_editable = (!sa1 || area_editable(sa1)) && (!sa2 || area_editable(sa2));
+  if (is_editable) {
     *r_sa1 = sa1;
     *r_sa2 = sa2;
   }
@@ -1662,7 +1676,9 @@ static bool area_close_poll(bContext *C)
 
   ScrArea *area = CTX_wm_area(C);
 
-  if (ED_area_is_global(area)) {
+  const char *editable_disabled_hint;
+  if (!area_editable(area, &editable_disabled_hint)) {
+    CTX_wm_operator_poll_msg_set(C, editable_disabled_hint);
     return false;
   }
 
@@ -1670,7 +1686,7 @@ static bool area_close_poll(bContext *C)
 
   /* Can this area join with ANY other area? */
   LISTBASE_FOREACH (ScrArea *, ar, &screen->areabase) {
-    if (area->flag & AREA_FLAG_HIDDEN) {
+    if (ar->flag & AREA_FLAG_HIDDEN) {
       continue;
     }
     if (area_getorientation(ar, area) != -1) {
@@ -2312,7 +2328,7 @@ struct sAreaSplitData {
 
 static bool area_split_allowed(const ScrArea *area, const eScreenAxis dir_axis)
 {
-  if (!area || area->global) {
+  if (!area || !area_editable(area)) {
     /* Must be a non-global area. */
     return false;
   }
@@ -4072,7 +4088,7 @@ static wmOperatorStatus area_join_invoke(bContext *C, wmOperator *op, const wmEv
   /* Launched from menu item or keyboard shortcut. */
   if (!area_join_init(C, op, nullptr, nullptr)) {
     ScrArea *sa1 = CTX_wm_area(C);
-    if (!sa1 || ED_area_is_global(sa1) || !area_join_init(C, op, sa1, nullptr)) {
+    if (!sa1 || !area_editable(sa1) || !area_join_init(C, op, sa1, nullptr)) {
       return OPERATOR_CANCELLED;
     }
   }
@@ -4461,6 +4477,13 @@ static void area_join_update_data(bContext *C, sAreaJoinData *jd, const wmEvent 
     area = ED_area_find_under_cursor(C, SPACE_TYPE_ANY, event->xy);
   }
 #endif
+
+  if (!area || !area_editable(area)) {
+    jd->dir = SCREEN_DIR_NONE;
+    jd->split_fac = 0.0f;
+    jd->dock_target = AreaDockTarget::None;
+    return;
+  }
 
   jd->win2 = WM_window_find_by_area(CTX_wm_manager(C), jd->sa2);
   jd->dir = SCREEN_DIR_NONE;
@@ -5337,7 +5360,7 @@ static void SCREEN_OT_header_toggle_menus(wmOperatorType *ot)
 
 static void screen_area_menu_items(ScrArea *area, uiLayout *layout)
 {
-  if (ED_area_is_global(area)) {
+  if (!area_editable(area)) {
     return;
   }
 

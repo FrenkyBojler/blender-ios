@@ -572,6 +572,7 @@ enum {
   AREA_FLAG_ACTIVE_TOOL_UPDATE = (1 << 4),
   // AREA_FLAG_UNUSED_5 = (1 << 5),
 
+  /** Area is managed by the editor dock. */
   AREA_FLAG_DOCKED = (1 << 6),
 
   /**
