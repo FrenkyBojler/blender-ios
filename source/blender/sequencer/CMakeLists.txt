@@ -5,6 +5,7 @@
 set(INC
   PUBLIC .
   intern
+  ../editors/include
   ../animrig
   ../makesrna
 

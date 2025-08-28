@@ -562,7 +562,14 @@ typedef struct StripModifierData {
   struct Mask *mask_id;
 
   int persistent_uid;
-  char _pad[4];
+  /**
+   * Bits that can be used for open-states of layout panels in the modifier. This can replace
+   * `ui_expand_flag` once all modifiers use layout panels. Currently, trying to reuse the same
+   * flags is problematic, because the bits in `ui_expand_flag` are mapped to panels automatically
+   * and easily conflict with the explicit mapping of bits to panels here.
+   */
+  uint16_t layout_panel_open_flag;
+  char _pad[2];
 
   StripModifierDataRuntime runtime;
 } StripModifierData;
@@ -890,6 +897,7 @@ typedef enum eStripModifierType {
 typedef enum eStripModifierFlag {
   STRIP_MODIFIER_FLAG_MUTE = (1 << 0),
   STRIP_MODIFIER_FLAG_EXPANDED = (1 << 1),
+  STRIP_MODIFIER_FLAG_ACTIVE = (1 << 2),
 } eStripModifierFlag;
 
 typedef enum eModMaskInput {

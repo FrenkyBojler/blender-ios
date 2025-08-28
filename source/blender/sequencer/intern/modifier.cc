@@ -27,18 +27,29 @@
 #include "DNA_sequence_types.h"
 
 #include "BKE_colortools.hh"
+#include "BKE_screen.hh"
 
 #include "IMB_colormanagement.hh"
 #include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
 
+#include "RNA_access.hh"
+#include "RNA_prototypes.hh"
+
 #include "SEQ_modifier.hh"
 #include "SEQ_render.hh"
+#include "SEQ_select.hh"
+#include "SEQ_sequencer.hh"
 #include "SEQ_sound.hh"
 #include "SEQ_time.hh"
 #include "SEQ_utils.hh"
 
+#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
+
 #include "BLO_read_write.hh"
+
+#include "WM_api.hh"
 
 #include "modifier.hh"
 #include "render.hh"
@@ -46,6 +57,8 @@
 namespace blender::seq {
 
 /* -------------------------------------------------------------------- */
+
+using PanelDrawFn = void (*)(const bContext *, Panel *);
 
 static bool modifier_has_persistent_uid(const Strip &strip, int uid)
 {
@@ -90,6 +103,161 @@ bool modifier_persistent_uids_are_valid(const Strip &strip)
   }
   return true;
 }
+
+static void modifier_panel_header(const bContext *C, Panel *panel)
+{
+  uiLayout *row, *sub, *name_row;
+  uiLayout *layout = panel->layout;
+
+  /* Don't use #modifier_panel_get_property_pointers, we don't want to lock the header. */
+  PointerRNA *ptr = UI_panel_custom_data_get(panel);
+  StripModifierData *smd = reinterpret_cast<StripModifierData *>(ptr->data);
+
+  UI_panel_context_pointer_set(panel, "modifier", ptr);
+
+  const StripModifierTypeInfo *mti = seq::modifier_type_info_get(smd->type);
+
+  /* Modifier Icon. */
+  sub = &layout->row(true);
+  sub->emboss_set(blender::ui::EmbossType::None);
+  PointerRNA active_op_ptr = sub->op(
+      "SEQUENCER_OT_strip_modifier_set_active", "", RNA_struct_ui_icon(ptr->type));
+  RNA_string_set(&active_op_ptr, "modifier", smd->name);
+
+  row = &layout->row(true);
+
+  /* Modifier Name.
+   * Count how many buttons are added to the header to check if there is enough space. */
+  int buttons_number = 0;
+  name_row = &row->row(true);
+  
+  sub = &row->row(true);
+  sub->emboss_set(blender::ui::EmbossType::None);
+  sub->prop(ptr, "mute", UI_ITEM_NONE, "", ICON_NONE);
+  buttons_number++;
+
+  /* Delete button. */
+  sub = &row->row(false);
+  sub->emboss_set(blender::ui::EmbossType::None);
+  PointerRNA remove_op_ptr = sub->op("SEQUENCER_OT_strip_modifier_remove", "", ICON_X);
+  RNA_string_set(&remove_op_ptr, "name", smd->name);
+  buttons_number++;
+
+  bool display_name = (panel->sizex / UI_UNIT_X - buttons_number > 5) || (panel->sizex == 0);
+  if (display_name) {
+    name_row->prop(ptr, "name", UI_ITEM_NONE, "", ICON_NONE);
+  }
+  else {
+    row->alignment_set(blender::ui::LayoutAlign::Right);
+  }
+
+  /* Extra padding for delete button. */
+  layout->separator();
+}
+
+static void draw_mask_input_type_settings(const bContext *C, uiLayout *layout, PointerRNA *ptr)
+{
+  Scene *sequencer_scene = CTX_data_sequencer_scene(C);
+  Editing *ed = seq::editing_get(sequencer_scene);
+  uiLayout *row, *col, *sub, *subsub;
+
+  const int input_mask_type = RNA_enum_get(ptr, "input_mask_type");
+
+  layout->use_property_split_set(true);
+
+  col = &layout->column(true);
+  row = &col->row(true);
+  row->prop(ptr, "input_mask_type", UI_ITEM_R_EXPAND, "Type", ICON_NONE);
+
+  if (input_mask_type == STRIP_MASK_INPUT_STRIP) {
+    MetaStack *ms = meta_stack_active_get(ed);
+    PointerRNA sequences_object;
+    if (ms) {
+      sequences_object = RNA_pointer_create_discrete(&sequencer_scene->id, &RNA_MetaStrip, ms);
+    }
+    else {
+      sequences_object = RNA_pointer_create_discrete(
+          &sequencer_scene->id, &RNA_SequenceEditor, ed);
+    }
+    col->prop_search(ptr, "input_mask_strip", &sequences_object, "strips", "Mask", ICON_NONE);
+  }
+  else {
+    col->prop(ptr, "input_mask_id", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    row = &col->row(true);
+    row->prop(ptr, "mask_time", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+  }
+}
+
+static bool modifier_ui_poll(const bContext *C, PanelType * /*pt*/)
+{
+  Scene *sequencer_scene = CTX_data_sequencer_scene(C);
+  if (!sequencer_scene) {
+    return false;
+  }
+  Strip *active_strip = seq::select_active_get(sequencer_scene);
+  return active_strip != nullptr;
+}
+
+/**
+ * Move a modifier to the index it's moved to after a drag and drop.
+ */
+static void modifier_reorder(bContext *C, Panel *panel, const int new_index)
+{
+  PointerRNA *smd_ptr = UI_panel_custom_data_get(panel);
+  StripModifierData *smd = reinterpret_cast<StripModifierData *>(smd_ptr->data);
+
+  PointerRNA props_ptr;
+  wmOperatorType *ot = WM_operatortype_find("SEQUENCER_OT_strip_modifier_move_to_index", false);
+  WM_operator_properties_create_ptr(&props_ptr, ot);
+  RNA_string_set(&props_ptr, "modifier", smd->name);
+  RNA_int_set(&props_ptr, "index", new_index);
+  WM_operator_name_call_ptr(C, ot, blender::wm::OpCallContext::InvokeDefault, &props_ptr, nullptr);
+  WM_operator_properties_free(&props_ptr);
+}
+
+static short get_strip_modifier_expand_flag(const bContext * /*C*/, Panel *panel)
+{
+  PointerRNA *smd_ptr = UI_panel_custom_data_get(panel);
+  StripModifierData *smd = reinterpret_cast<StripModifierData *>(smd_ptr->data);
+  return (smd->flag & STRIP_MODIFIER_FLAG_EXPANDED) ? 1 : 0;
+}
+
+static void set_strip_modifier_expand_flag(const bContext * /*C*/, Panel *panel, short expand_flag)
+{
+  PointerRNA *smd_ptr = UI_panel_custom_data_get(panel);
+  StripModifierData *smd = reinterpret_cast<StripModifierData *>(smd_ptr->data);
+  SET_FLAG_FROM_TEST(smd->flag, expand_flag, STRIP_MODIFIER_FLAG_EXPANDED);
+}
+
+static PanelType *modifier_panel_register(ARegionType *region_type,
+                                          const eStripModifierType type,
+                                          PanelDrawFn draw)
+{
+  PanelType *panel_type = MEM_callocN<PanelType>(__func__);
+
+  modifier_type_panel_id(type, panel_type->idname);
+  STRNCPY_UTF8(panel_type->label, "");
+  STRNCPY_UTF8(panel_type->category, "Modifiers");
+  STRNCPY_UTF8(panel_type->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
+  STRNCPY_UTF8(panel_type->active_property, "is_active");
+
+  panel_type->draw_header = modifier_panel_header;
+  panel_type->draw = draw;
+  panel_type->poll = modifier_ui_poll;
+
+  /* Give the panel the special flag that says it was built here and corresponds to a
+   * modifier rather than a #PanelType. */
+  panel_type->flag = PANEL_TYPE_HEADER_EXPAND | PANEL_TYPE_INSTANCED;
+  panel_type->reorder = modifier_reorder;
+  panel_type->get_list_data_expand_flag = get_strip_modifier_expand_flag;
+  panel_type->set_list_data_expand_flag = set_strip_modifier_expand_flag;
+
+  BLI_addtail(&region_type->paneltypes, panel_type);
+
+  return panel_type;
+}
+
+/* -------------------------------------------------------------------- */
 
 static float4 load_pixel_premul(const uchar *ptr)
 {
@@ -490,6 +658,41 @@ static void colorBalance_apply(const StripScreenQuad & /*quad*/,
   apply_modifier_op(op, ibuf, mask);
 }
 
+static void colorBalance_panel_draw(const bContext *C, Panel *panel)
+{
+  uiLayout *layout = panel->layout;
+  PointerRNA *ptr = UI_panel_custom_data_get(panel);
+
+  const int correction_method = RNA_enum_get(ptr, "correction_method");
+  PointerRNA color_balance = RNA_pointer_get(ptr, "color_balance");
+
+  layout->use_property_split_set(true);
+
+  layout->prop(ptr, "color_multiply", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+
+  layout->prop(ptr, "correction_method", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  if (correction_method == SEQ_COLOR_BALANCE_METHOD_LIFTGAMMAGAIN) {
+    
+  }
+  else if (correction_method == SEQ_COLOR_BALANCE_METHOD_SLOPEOFFSETPOWER) {
+
+  }
+  else {
+    BLI_assert_unreachable();
+  }
+
+  if (uiLayout *mask_input_layout = layout->panel_prop(
+          C, ptr, "open_mask_input_panel", IFACE_("Mask Input")))
+  {
+    draw_mask_input_type_settings(C, mask_input_layout, ptr);
+  }
+}
+
+static void colorBalance_register(ARegionType *region_type)
+{
+  modifier_panel_register(region_type, seqModifierType_ColorBalance, colorBalance_panel_draw);
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -545,6 +748,13 @@ static void whiteBalance_apply(const StripScreenQuad & /*quad*/,
   op.multiplier[1] = (data->white_value[1] != 0.0f) ? 1.0f / data->white_value[1] : FLT_MAX;
   op.multiplier[2] = (data->white_value[2] != 0.0f) ? 1.0f / data->white_value[2] : FLT_MAX;
   apply_modifier_op(op, ibuf, mask);
+}
+
+static void whiteBalance_panel_draw(const bContext *C, Panel *panel) {}
+
+static void whiteBalance_register(ARegionType *region_type)
+{
+  modifier_panel_register(region_type, seqModifierType_WhiteBalance, whiteBalance_panel_draw);
 }
 
 /** \} */
@@ -615,6 +825,13 @@ static void curves_apply(const StripScreenQuad & /*quad*/,
   apply_modifier_op(op, ibuf, mask);
 
   BKE_curvemapping_premultiply(&cmd->curve_mapping, true);
+}
+
+static void curves_panel_draw(const bContext *C, Panel *panel) {}
+
+static void curves_register(ARegionType *region_type)
+{
+  modifier_panel_register(region_type, seqModifierType_Curves, curves_panel_draw);
 }
 
 /** \} */
@@ -713,6 +930,13 @@ static void hue_correct_apply(const StripScreenQuad & /*quad*/,
   apply_modifier_op(op, ibuf, mask);
 }
 
+static void hue_correct_panel_draw(const bContext *C, Panel *panel) {}
+
+static void hue_correct_register(ARegionType *region_type)
+{
+  modifier_panel_register(region_type, seqModifierType_HueCorrect, hue_correct_panel_draw);
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -770,6 +994,28 @@ static void brightcontrast_apply(const StripScreenQuad & /*quad*/,
   }
 
   apply_modifier_op(op, ibuf, mask);
+}
+
+static void brightcontrast_panel_draw(const bContext *C, Panel *panel)
+{
+  uiLayout *layout = panel->layout;
+  PointerRNA *ptr = UI_panel_custom_data_get(panel);
+
+  layout->use_property_split_set(true);
+
+  layout->prop(ptr, "bright", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout->prop(ptr, "contrast", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+
+  if (uiLayout *mask_input_layout = layout->panel_prop(
+          C, ptr, "open_mask_input_panel", IFACE_("Mask Input")))
+  {
+    draw_mask_input_type_settings(C, mask_input_layout, ptr);
+  }
+}
+
+static void brightcontrast_register(ARegionType *region_type)
+{
+  modifier_panel_register(region_type, seqModifierType_BrightContrast, brightcontrast_panel_draw);
 }
 
 /** \} */
@@ -834,6 +1080,13 @@ static void maskmodifier_apply(const StripScreenQuad & /*quad*/,
 
   /* Image has gained transparency. */
   ibuf->planes = R_IMF_PLANES_RGBA;
+}
+
+static void maskmodifier_panel_draw(const bContext *C, Panel *panel) {}
+
+static void maskmodifier_register(ARegionType *region_type)
+{
+  modifier_panel_register(region_type, seqModifierType_Mask, maskmodifier_panel_draw);
 }
 
 /** \} */
@@ -1155,6 +1408,13 @@ static void tonemapmodifier_apply(const StripScreenQuad &quad,
       });
 }
 
+static void tonemapmodifier_panel_draw(const bContext *C, Panel *panel) {}
+
+static void tonemapmodifier_register(ARegionType *region_type)
+{
+  modifier_panel_register(region_type, seqModifierType_Tonemap, tonemapmodifier_panel_draw);
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -1164,6 +1424,7 @@ static void tonemapmodifier_apply(const StripScreenQuad &quad,
 static StripModifierTypeInfo modifiersTypes[NUM_STRIP_MODIFIER_TYPES] = {
     {}, /* First entry is unused. */
     {
+        /*idname*/ "ColorBalance",
         /*name*/ CTX_N_(BLT_I18NCONTEXT_ID_SEQUENCE, "Color Balance"),
         /*struct_name*/ "ColorBalanceModifierData",
         /*struct_size*/ sizeof(ColorBalanceModifierData),
@@ -1171,8 +1432,10 @@ static StripModifierTypeInfo modifiersTypes[NUM_STRIP_MODIFIER_TYPES] = {
         /*free_data*/ nullptr,
         /*copy_data*/ nullptr,
         /*apply*/ colorBalance_apply,
+        /*panel_register*/ colorBalance_register,
     },
     {
+        /*idname*/ "Curves",
         /*name*/ CTX_N_(BLT_I18NCONTEXT_ID_SEQUENCE, "Curves"),
         /*struct_name*/ "CurvesModifierData",
         /*struct_size*/ sizeof(CurvesModifierData),
@@ -1180,8 +1443,10 @@ static StripModifierTypeInfo modifiersTypes[NUM_STRIP_MODIFIER_TYPES] = {
         /*free_data*/ curves_free_data,
         /*copy_data*/ curves_copy_data,
         /*apply*/ curves_apply,
+        /*panel_register*/ curves_register,
     },
     {
+        /*idname*/ "HueCorrect",
         /*name*/ CTX_N_(BLT_I18NCONTEXT_ID_SEQUENCE, "Hue Correct"),
         /*struct_name*/ "HueCorrectModifierData",
         /*struct_size*/ sizeof(HueCorrectModifierData),
@@ -1189,8 +1454,10 @@ static StripModifierTypeInfo modifiersTypes[NUM_STRIP_MODIFIER_TYPES] = {
         /*free_data*/ hue_correct_free_data,
         /*copy_data*/ hue_correct_copy_data,
         /*apply*/ hue_correct_apply,
+        /*panel_register*/ hue_correct_register,
     },
     {
+        /*idname*/ "BrightContrast",
         /*name*/ CTX_N_(BLT_I18NCONTEXT_ID_SEQUENCE, "Brightness/Contrast"),
         /*struct_name*/ "BrightContrastModifierData",
         /*struct_size*/ sizeof(BrightContrastModifierData),
@@ -1198,8 +1465,10 @@ static StripModifierTypeInfo modifiersTypes[NUM_STRIP_MODIFIER_TYPES] = {
         /*free_data*/ nullptr,
         /*copy_data*/ nullptr,
         /*apply*/ brightcontrast_apply,
+        /*panel_register*/ brightcontrast_register,
     },
     {
+        /*idname*/ "Mask",
         /*name*/ CTX_N_(BLT_I18NCONTEXT_ID_SEQUENCE, "Mask"),
         /*struct_name*/ "SequencerMaskModifierData",
         /*struct_size*/ sizeof(SequencerMaskModifierData),
@@ -1207,8 +1476,10 @@ static StripModifierTypeInfo modifiersTypes[NUM_STRIP_MODIFIER_TYPES] = {
         /*free_data*/ nullptr,
         /*copy_data*/ nullptr,
         /*apply*/ maskmodifier_apply,
+        /*panel_register*/ maskmodifier_register,
     },
     {
+        /*idname*/ "WhiteBalance",
         /*name*/ CTX_N_(BLT_I18NCONTEXT_ID_SEQUENCE, "White Balance"),
         /*struct_name*/ "WhiteBalanceModifierData",
         /*struct_size*/ sizeof(WhiteBalanceModifierData),
@@ -1216,8 +1487,10 @@ static StripModifierTypeInfo modifiersTypes[NUM_STRIP_MODIFIER_TYPES] = {
         /*free_data*/ nullptr,
         /*copy_data*/ nullptr,
         /*apply*/ whiteBalance_apply,
+        /*panel_register*/ whiteBalance_register,
     },
     {
+        /*idname*/ "Tonemap",
         /*name*/ CTX_N_(BLT_I18NCONTEXT_ID_SEQUENCE, "Tonemap"),
         /*struct_name*/ "SequencerTonemapModifierData",
         /*struct_size*/ sizeof(SequencerTonemapModifierData),
@@ -1225,8 +1498,10 @@ static StripModifierTypeInfo modifiersTypes[NUM_STRIP_MODIFIER_TYPES] = {
         /*free_data*/ nullptr,
         /*copy_data*/ nullptr,
         /*apply*/ tonemapmodifier_apply,
+        /*panel_register*/ tonemapmodifier_register,
     },
     {
+        /*idname*/ "SoundEqualizer",
         /*name*/ CTX_N_(BLT_I18NCONTEXT_ID_SEQUENCE, "Equalizer"),
         /*struct_name*/ "SoundEqualizerModifierData",
         /*struct_size*/ sizeof(SoundEqualizerModifierData),
@@ -1234,6 +1509,7 @@ static StripModifierTypeInfo modifiersTypes[NUM_STRIP_MODIFIER_TYPES] = {
         /*free_data*/ sound_equalizermodifier_free,
         /*copy_data*/ sound_equalizermodifier_copy_data,
         /*apply*/ nullptr,
+        /*panel_register*/ nullptr,
     },
 };
 
@@ -1418,6 +1694,53 @@ void modifier_list_copy(Strip *strip_new, Strip *strip)
 int sequence_supports_modifiers(Strip *strip)
 {
   return (strip->type != STRIP_TYPE_SOUND_RAM);
+}
+
+bool modifier_move_to_index(Strip *strip, StripModifierData *smd, const int new_index)
+{
+  const int current_index = BLI_findindex(&strip->modifiers, smd);
+  return BLI_listbase_move_index(&strip->modifiers, current_index, new_index);
+}
+
+StripModifierData *modifier_get_active(const Strip *strip)
+{
+  /* In debug mode, check for only one active modifier. */
+#ifndef NDEBUG
+  int active_count = 0;
+  LISTBASE_FOREACH (StripModifierData *, smd, &strip->modifiers) {
+    if (smd->flag & STRIP_MODIFIER_FLAG_ACTIVE) {
+      active_count++;
+    }
+  }
+  BLI_assert(ELEM(active_count, 0, 1));
+#endif
+
+  LISTBASE_FOREACH (StripModifierData *, smd, &strip->modifiers) {
+    if (smd->flag & STRIP_MODIFIER_FLAG_ACTIVE) {
+      return smd;
+    }
+  }
+
+  return nullptr;
+}
+
+void modifier_set_active(Strip *strip, StripModifierData *smd)
+{
+  LISTBASE_FOREACH (StripModifierData *, smd_iter, &strip->modifiers) {
+    smd_iter->flag &= ~STRIP_MODIFIER_FLAG_ACTIVE;
+  }
+
+  if (smd != nullptr) {
+    BLI_assert(BLI_findindex(&strip->modifiers, smd) != -1);
+    smd->flag |= STRIP_MODIFIER_FLAG_ACTIVE;
+  }
+}
+
+void modifier_type_panel_id(eStripModifierType type, char *r_idname)
+{
+  const StripModifierTypeInfo *mti = modifier_type_info_get(type);
+  BLI_string_join(
+      r_idname, sizeof(PanelType::idname), STRIP_MODIFIER_TYPE_PANEL_PREFIX, mti->idname);
 }
 
 /** \} */

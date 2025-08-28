@@ -595,6 +595,7 @@ const bTheme U_theme_default = {
     .gp_vertex_select = RGBA(0xff8500ff),
     .row_alternate = RGBA(0xffffff05),
     .metadatatext = RGBA(0xffffffff),
+    .active = RGBA(0x4772b3ff),
   },
   .space_image = {
     .back = RGBA(0x30303000),
