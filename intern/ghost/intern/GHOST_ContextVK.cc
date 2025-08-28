@@ -838,13 +838,14 @@ GHOST_TSuccess GHOST_ContextVK::swapBufferAcquire()
    * to be complete, it is also safe in the callback to clean up resources associated with the next
    * frame.
    */
+  GHOST_Frame &prev_frame_data = frame_data_[render_frame_];
   render_frame_ = (render_frame_ + 1) % frame_data_.size();
   GHOST_Frame &submission_frame_data = frame_data_[render_frame_];
   /* Wait for previous time that the frame was used to finish rendering. Presenting can
    * still happen in parallel, but acquiring needs can only happen when the frame acquire semaphore
    * has been signaled and waited for. */
-  if (submission_frame_data.submission_fence) {
-    vkWaitForFences(vk_device, 1, &submission_frame_data.submission_fence, true, UINT64_MAX);
+  if (prev_frame_data.submission_fence) {
+    vkWaitForFences(vk_device, 1, &prev_frame_data.submission_fence, true, UINT64_MAX);
   }
   for (VkSwapchainKHR swapchain : submission_frame_data.discard_pile.swapchains) {
     this->destroySwapchainPresentFences(swapchain);
