@@ -111,9 +111,7 @@ float gpencil_stroke_segment_mask(
 
   /* Check if the pixel is within the corner region between segments 1 and 0. */
   if (t1 <= 0.0f && t0 >= 1.0f && !is_start && miter_limit.x != MITER_LIMIT_TYPE_ROUND) {
-    float cos_angle = -dot(normalize(line1), normalize(line0));
-
-    if (miter_limit.x == MITER_LIMIT_TYPE_BEVEL || cos_angle > miter_limit.x) {
+    if (miter_limit.x == MITER_LIMIT_TYPE_BEVEL) {
       /* Bevel by cutting with a line from the two bevel points. */
       float2 bevel1 = p1 + sign0 * normalize(tan1) * radius;
       float2 bevel2 = p1 + sign0 * normalize(tan0) * radius;
@@ -133,9 +131,7 @@ float gpencil_stroke_segment_mask(
 
   /* Check if the pixel is within the corner region between segments 1 and 2. */
   if (t1 >= 1.0f && t2 <= 0.0f && !is_end && miter_limit.y != MITER_LIMIT_TYPE_ROUND) {
-    float cos_angle = -dot(normalize(line1), normalize(line2));
-
-    if (miter_limit.y == MITER_LIMIT_TYPE_BEVEL || cos_angle > miter_limit.y) {
+    if (miter_limit.y == MITER_LIMIT_TYPE_BEVEL) {
       /* Bevel by cutting with a line from the two bevel points. */
       float2 bevel1 = p2 + sign2 * normalize(tan1) * radius;
       float2 bevel2 = p2 + sign2 * normalize(tan2) * radius;
@@ -388,11 +384,11 @@ float4 gpencil_vertex(float4 viewport_res,
 
     bool use_curr = is_dot || (x == -1.0f);
 
-    float3 wpos_adj = transform_point(drw_modelmat(), (use_curr) ? pos.xyz : pos3.xyz);
     float3 wpos0 = transform_point(drw_modelmat(), pos.xyz);
     float3 wpos1 = transform_point(drw_modelmat(), pos1.xyz);
     float3 wpos2 = transform_point(drw_modelmat(), pos2.xyz);
     float3 wpos3 = transform_point(drw_modelmat(), pos3.xyz);
+    float3 wpos_adj = (use_curr) ? wpos0 : wpos3;
 
     float3 T;
     if (is_dot) {
@@ -410,7 +406,6 @@ float4 gpencil_vertex(float4 viewport_res,
     float3 B = cross(T, drw_view().viewinv[2].xyz);
     out_N = normalize(cross(B, T));
 
-    float4 ndc_adj = drw_point_world_to_homogenous(wpos_adj);
     float4 ndc0 = drw_point_world_to_homogenous(wpos0);
     float4 ndc1 = drw_point_world_to_homogenous(wpos1);
     float4 ndc2 = drw_point_world_to_homogenous(wpos2);
@@ -420,15 +415,17 @@ float4 gpencil_vertex(float4 viewport_res,
     out_P = (use_curr) ? wpos1 : wpos2;
     out_strength = abs((use_curr) ? strength1 : strength2);
 
-    float2 ss_adj = gpencil_project_to_screenspace(ndc_adj, viewport_res);
     float2 ss0 = gpencil_project_to_screenspace(ndc0, viewport_res);
     float2 ss1 = gpencil_project_to_screenspace(ndc1, viewport_res);
     float2 ss2 = gpencil_project_to_screenspace(ndc2, viewport_res);
     float2 ss3 = gpencil_project_to_screenspace(ndc3, viewport_res);
+
     /* Screen-space Lines tangents. */
     float line_len;
     float2 line = safe_normalize_and_get_length(ss2 - ss1, line_len);
-    float2 line_adj = safe_normalize((use_curr) ? (ss1 - ss_adj) : (ss_adj - ss2));
+    float2 line1 = safe_normalize(ss1 - ss0);
+    float2 line2 = safe_normalize(ss3 - ss2);
+    float2 line_adj = (use_curr) ? line1 : line2;
 
     float thickness = abs((use_curr) ? thickness1 : thickness2);
     thickness = gpencil_stroke_thickness_modulate(thickness, out_ndc, viewport_res);
@@ -515,8 +512,19 @@ float4 gpencil_vertex(float4 viewport_res,
 
       float miter_limit1 = gpencil_decode_miter_limit(point_data1.packed_data);
       float miter_limit2 = gpencil_decode_miter_limit(point_data2.packed_data);
+
+      float cos_angle1 = -dot(line, line1);
+      float cos_angle2 = -dot(line, line2);
+
       out_thickness.z = miter_limit1;
       out_thickness.w = miter_limit2;
+
+      if (cos_angle1 > miter_limit1 && miter_limit1 != MITER_LIMIT_TYPE_ROUND) {
+        out_thickness.z = MITER_LIMIT_TYPE_BEVEL;
+      }
+      if (cos_angle2 > miter_limit2 && miter_limit2 != MITER_LIMIT_TYPE_ROUND) {
+        out_thickness.w = MITER_LIMIT_TYPE_BEVEL;
+      }
 
       float miter_limit = use_curr ? miter_limit1 : miter_limit2;
 
@@ -532,9 +540,9 @@ float4 gpencil_vertex(float4 viewport_res,
       /* Mitter tangent vector. */
       float2 miter_tan = safe_normalize(line_adj + line);
       float miter_dot = dot(miter_tan, line_adj);
-      float cos_angle = -dot(line, line_adj);
+      float cos_angle_adj = (use_curr) ? cos_angle1 : cos_angle2;
       /* Break corners after a certain angle to avoid really thick corners. */
-      bool miter_break = cos_angle > miter_limit;
+      bool miter_break = cos_angle_adj > miter_limit;
       miter_tan = (miter_break || is_stroke_start || is_stroke_end) ? line :
                                                                       (miter_tan / miter_dot);
       /* Rotate 90 degrees counter-clockwise. */
