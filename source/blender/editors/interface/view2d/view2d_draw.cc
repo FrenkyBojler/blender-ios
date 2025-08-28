@@ -244,8 +244,14 @@ static void view2d_draw_lines(const View2D *v2d,
     uchar minor_color[3];
     UI_GetThemeColorShade3ubv(TH_GRID, 16, minor_color);
     ParallelLinesSet minor_lines;
-    const int major_distance_int = round_fl_to_int(major_distance);
-    const int divisor = get_divisor(major_distance_int);
+    int distance_int;
+    if (major_distance > 1) {
+      distance_int = round_fl_to_int(major_distance);
+    }
+    else {
+      distance_int = round_fl_to_int(major_distance * 100);
+    }
+    const int divisor = get_divisor(distance_int);
     minor_lines.distance = major_distance / divisor;
     minor_lines.offset = 0;
     const int pixel_width = BLI_rcti_size_x(&v2d->mask);
