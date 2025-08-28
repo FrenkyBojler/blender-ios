@@ -1179,7 +1179,7 @@ ccl_gpu_kernel(GPU_KERNEL_BLOCK_NUM_THREADS, GPU_KERNEL_MAX_REGISTERS)
 ccl_gpu_kernel_postfix
 
 ccl_gpu_kernel(GPU_KERNEL_BLOCK_NUM_THREADS, GPU_KERNEL_MAX_REGISTERS)
-    ccl_gpu_kernel_signature(filter_flip_y,
+    ccl_gpu_kernel_signature(filter_color_flip_y,
                              ccl_global float *render_buffer,
                              const int full_x,
                              const int full_y,

@@ -236,7 +236,7 @@ DenoiserGPU::DenoiseContext::DenoiseContext(Device *device, const DenoiseTask &t
 bool DenoiserGPU::denoise_filter_color_postprocess(const DenoiseContext &context,
                                                    const DenoisePass &pass)
 {
-  if (!denoise_filter_flip_y(context, pass)) {
+  if (!denoise_filter_color_flip_y(context, pass)) {
     return false;
   }
 
@@ -271,7 +271,7 @@ bool DenoiserGPU::denoise_filter_color_preprocess(const DenoiseContext &context,
     return true;
   }
 
-  if (!denoise_filter_flip_y(context, pass)) {
+  if (!denoise_filter_color_flip_y(context, pass)) {
     return false;
   }
 
@@ -292,22 +292,8 @@ bool DenoiserGPU::denoise_filter_color_preprocess(const DenoiseContext &context,
   return denoiser_queue_->enqueue(DEVICE_KERNEL_FILTER_COLOR_PREPROCESS, work_size, args);
 }
 
-bool DenoiserGPU::denoise_filter_guiding_set_fake_albedo(const DenoiseContext &context)
-{
-  const BufferParams &buffer_params = context.buffer_params;
-
-  const int work_size = buffer_params.width * buffer_params.height;
-
-  const DeviceKernelArguments args(&context.guiding_params.device_pointer,
-                                   &context.guiding_params.pass_stride,
-                                   &context.guiding_params.pass_albedo,
-                                   &buffer_params.width,
-                                   &buffer_params.height);
-
-  return denoiser_queue_->enqueue(DEVICE_KERNEL_FILTER_GUIDING_SET_FAKE_ALBEDO, work_size, args);
-}
-
-bool DenoiserGPU::denoise_filter_flip_y(const DenoiseContext &context, const DenoisePass &pass)
+bool DenoiserGPU::denoise_filter_color_flip_y(const DenoiseContext &context,
+                                              const DenoisePass &pass)
 {
   if (context.denoise_params.type != DENOISER_OPTIX) {
     /* Flipping the image is used to improve result quality with the OptiX denoiser.
@@ -329,7 +315,22 @@ bool DenoiserGPU::denoise_filter_flip_y(const DenoiseContext &context, const Den
                                    &buffer_params.pass_stride,
                                    &pass.denoised_offset);
 
-  return denoiser_queue_->enqueue(DEVICE_KERNEL_FILTER_FLIP_Y, work_size, args);
+  return denoiser_queue_->enqueue(DEVICE_KERNEL_FILTER_COLOR_FLIP_Y, work_size, args);
+}
+
+bool DenoiserGPU::denoise_filter_guiding_set_fake_albedo(const DenoiseContext &context)
+{
+  const BufferParams &buffer_params = context.buffer_params;
+
+  const int work_size = buffer_params.width * buffer_params.height;
+
+  const DeviceKernelArguments args(&context.guiding_params.device_pointer,
+                                   &context.guiding_params.pass_stride,
+                                   &context.guiding_params.pass_albedo,
+                                   &buffer_params.width,
+                                   &buffer_params.height);
+
+  return denoiser_queue_->enqueue(DEVICE_KERNEL_FILTER_GUIDING_SET_FAKE_ALBEDO, work_size, args);
 }
 
 void DenoiserGPU::denoise_color_read(const DenoiseContext &context, const DenoisePass &pass)
