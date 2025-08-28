@@ -110,11 +110,11 @@ static void initCurveShrinkFatten(TransInfo *t, wmOperator * /*op*/)
      * #curve_populate_trans_data_structs() since we only want to apply values to _control points_
      * [this is again checked for in #applyCurveShrinkFatten()]. Only calculate the scale_factor if
      * we are working on a control point. */
-    bool do_it = false;
+    bool use_scaling_factor = false;
     if (t->data_len_all == 1) {
       /* Either a single control point of a non-bezier curve or single handle of a bezier curve
        * selected. */
-      do_it = TRANS_DATA_CONTAINER_FIRST_OK(t)->data[0].val != nullptr;
+      use_scaling_factor = TRANS_DATA_CONTAINER_FIRST_OK(t)->data[0].val != nullptr;
     }
     if (t->data_len_all == 3) {
       /* Either a single control point of a bezier curve (or its handles as well) selected, also
@@ -127,14 +127,17 @@ static void initCurveShrinkFatten(TransInfo *t, wmOperator * /*op*/)
       TransData td_2 = tc->data[2];
 
       if (t->data_type == &TransConvertType_Curve) {
-        do_it = td_0.val == nullptr && td_1.val != nullptr && td_2.val == nullptr;
+        use_scaling_factor = td_0.val == nullptr && td_1.val != nullptr && td_2.val == nullptr;
       }
-      else if (t->data_type == &curves::TransConvertType_Curves) {
-        do_it = td_0.val != nullptr && td_1.val == nullptr && td_2.val == nullptr;
+      else if (ELEM(t->data_type,
+                    &curves::TransConvertType_Curves,
+                    &greasepencil::TransConvertType_GreasePencil))
+      {
+        use_scaling_factor = td_0.val != nullptr && td_1.val == nullptr && td_2.val == nullptr;
       }
     }
 
-    if (do_it) {
+    if (use_scaling_factor) {
       RegionView3D *rv3d = static_cast<RegionView3D *>(t->region->regiondata);
       scale_factor = rv3d->pixsize * t->mouse.factor * t->zfac;
     }
