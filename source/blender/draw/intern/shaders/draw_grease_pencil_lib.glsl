@@ -76,10 +76,12 @@ float gpencil_stroke_segment_mask(
   /* Calculate the factor along the main segment. */
   float t1 = dot(pos1, line1) / dot(line1, line1);
 
-  /* The distance factor to the main segment. This is clamped and will lead to round corners. */
-  float dist = length(pos1 - saturate(t1) * line1) / radius;
+  /* The distance factor squared to the main segment. This is clamped and will lead to round
+   * corners. */
+  float dist = length_squared(pos1 - saturate(t1) * line1);
 
   if (both_round || both_ends) {
+    dist = sqrt(dist) / radius;
     return gpencil_stroke_hardess_mask(dist, hardfac);
   }
 
@@ -101,10 +103,10 @@ float gpencil_stroke_segment_mask(
 
   /* The add the other two segments. Each will have rounded corners. */
   if (!is_start) {
-    dist = min(dist, length(pos0 - saturate(t0) * line0) / radius);
+    dist = min(dist, length_squared(pos0 - saturate(t0) * line0));
   }
   if (!is_end) {
-    dist = min(dist, length(pos2 - saturate(t2) * line2) / radius);
+    dist = min(dist, length_squared(pos2 - saturate(t2) * line2));
   }
 
   /* Check if the pixel is within the corner region between segments 1 and 0. */
@@ -120,10 +122,12 @@ float gpencil_stroke_segment_mask(
       float2 bevel_tan = orthogonal(bevel2 - bevel1);
 
       dist = 1.0f - dot(bevel_pos, bevel_tan) / dot(p1 - bevel1, bevel_tan);
+      dist *= radius;
+      dist *= dist;
     }
     else {
       /* Continue each line to get a shape corner. */
-      dist = max(length(pos1 - t1 * line1) / radius, length(pos0 - t0 * line0) / radius);
+      dist = max(length_squared(pos1 - t1 * line1), length_squared(pos0 - t0 * line0));
     }
   }
 
@@ -140,13 +144,16 @@ float gpencil_stroke_segment_mask(
       float2 bevel_tan = orthogonal(bevel2 - bevel1);
 
       dist = 1.0f - dot(bevel_pos, bevel_tan) / dot(p2 - bevel1, bevel_tan);
+      dist *= radius;
+      dist *= dist;
     }
     else {
       /* Continue each line to get a shape corner. */
-      dist = max(length(pos1 - t1 * line1) / radius, length(pos2 - t2 * line2) / radius);
+      dist = max(length_squared(pos1 - t1 * line1), length_squared(pos2 - t2 * line2));
     }
   }
 
+  dist = sqrt(dist) / radius;
   return gpencil_stroke_hardess_mask(dist, hardfac);
 }
 
@@ -155,7 +162,6 @@ float gpencil_stroke_mask(float2 p1,
                           float2 p0,
                           float2 p3,
                           float2 uv,
-                          float2 aspect,
                           uint mat_flag,
                           float thickness,
                           float hardfac,
@@ -164,7 +170,6 @@ float gpencil_stroke_mask(float2 p1,
   if (flag_test(mat_flag, GP_STROKE_ALIGNMENT)) {
     /* Dot or Squares. */
     uv = uv * 2.0 - 1.0;
-    uv *= aspect;
     if (flag_test(mat_flag, GP_STROKE_DOTS)) {
       return gpencil_stroke_hardess_mask(length(uv), hardfac);
     }

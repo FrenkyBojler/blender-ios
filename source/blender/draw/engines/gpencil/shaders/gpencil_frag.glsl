@@ -85,7 +85,6 @@ void main()
                                     gp_interp_flat.sspos_adj.xy,
                                     gp_interp_flat.sspos_adj.zw,
                                     gp_interp.uv,
-                                    gp_interp_flat.aspect,
                                     gp_interp_flat.mat_flag,
                                     gp_interp_noperspective.thickness.x,
                                     gp_interp_noperspective.hardness,
