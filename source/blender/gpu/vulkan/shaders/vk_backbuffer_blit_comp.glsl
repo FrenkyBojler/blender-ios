@@ -4,7 +4,7 @@
 
 #include "vk_backbuffer_blit_info.hh"
 
-COMPUTE_SHADER_CREATE_INFO(vk_backbuffer_blit_shared)
+COMPUTE_SHADER_CREATE_INFO(vk_backbuffer_blit)
 
 #define M1 0.1593017578125
 #define M2 78.84375
