@@ -468,9 +468,9 @@ static void toggle_paint_cursor(Scene &scene, bool enable)
   ToolSettings *settings = scene.toolsettings;
   Paint &p = settings->imapaint.paint;
 
-  if (p.paint_cursor && !enable) {
-    WM_paint_cursor_end(static_cast<wmPaintCursor *>(p.paint_cursor));
-    p.paint_cursor = nullptr;
+  if (p.runtime->paint_cursor && !enable) {
+    WM_paint_cursor_end(static_cast<wmPaintCursor *>(p.runtime->paint_cursor));
+    p.runtime->paint_cursor = nullptr;
     paint_cursor_delete_textures();
   }
   else if (enable) {

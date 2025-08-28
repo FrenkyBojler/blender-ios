@@ -1669,7 +1669,7 @@ static void grease_pencil_brush_cursor_draw(PaintCursorContext &pcontext)
 
     if ((brush->flag & BRUSH_SMOOTH_STROKE) != 0) {
       const float scale = 1.0f / 255.0f;
-      color = scale * float3(paint->paint_cursor_col);
+      color = scale * float3(paint->runtime->paint_cursor_color);
     }
   }
   else if (pcontext.mode == PaintMode::VertexGPencil) {
@@ -2259,8 +2259,8 @@ static void paint_draw_cursor(bContext *C,
 
 void ED_paint_cursor_start(Paint *paint, bool (*poll)(bContext *C))
 {
-  if (paint && !paint->paint_cursor) {
-    paint->paint_cursor = WM_paint_cursor_activate(
+  if (paint && paint->runtime && !paint->runtime->paint_cursor) {
+    paint->runtime->paint_cursor = WM_paint_cursor_activate(
         SPACE_TYPE_ANY, RGN_TYPE_ANY, poll, blender::ed::sculpt_paint::paint_draw_cursor, nullptr);
   }
 

@@ -1841,8 +1841,8 @@ void BKE_paint_init(
     BKE_paint_brushes_ensure(bmain, paint);
   }
 
-  copy_v3_v3_uchar(paint->paint_cursor_col, col);
-  paint->paint_cursor_col[3] = 128;
+  copy_v3_v3_uchar(paint->runtime->paint_cursor_color, col);
+  paint->runtime->paint_cursor_color[3] = 128;
   if (!paint->cavity_curve) {
     BKE_paint_cavity_curve_preset(paint, CURVE_PRESET_LINE);
   }
@@ -2082,8 +2082,6 @@ void BKE_paint_blend_read_data(BlendDataReader *reader, const Scene *scene, Pain
     BKE_curvemapping_blend_read(reader, ups->curve_rand_value);
     BKE_curvemapping_init(ups->curve_rand_value);
   }
-
-  paint->paint_cursor = nullptr;
 
   paint->runtime = MEM_new<blender::bke::PaintRuntime>(__func__);
 
