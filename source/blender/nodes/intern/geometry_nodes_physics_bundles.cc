@@ -112,68 +112,6 @@ std::optional<DampingBundle> DampingBundle::parse(const Bundle &bundle,
   return behavior;
 }
 
-const FlatBundleTypePtr &RigidBodyInstancesBundle::get_bundle_type()
-{
-  static const FlatBundleTypePtr bundle_type = []() {
-    FlatBundleTypeBuilder b(RigidBodyInstancesBundle::name);
-    b.add<decl::Geometry>("instances").supported_type(bke::GeometryComponent::Type::Instance);
-    b.add<decl::Int>("collision_shape_type").supports_field();
-    b.add<decl::Int>("motion_type").supports_field();
-    b.add<decl::Float>("friction").default_value(0.5f).supports_field();
-    b.add<decl::Float>("bounciness").default_value(0.0f).min(0.0f).supports_field();
-    b.add<decl::Float>("density").default_value(1000.0f).min(0.0f).supports_field();
-    const FlatBundleTypePtr bundle_type = b.build();
-    BundleTypeRegistry::register_type(bundle_type);
-    return bundle_type;
-  }();
-  return bundle_type;
-}
-
-std::optional<RigidBodyInstancesBundle> RigidBodyInstancesBundle::parse(
-    const Bundle &bundle, BundleParseErrors &r_errors)
-{
-  RigidBodyInstancesBundle behavior;
-  bundle_parse_member(bundle, "instances", behavior.instances_geometry, r_errors);
-  bundle_parse_member(bundle, "collision_shape_type", behavior.collision_shape_type, r_errors);
-  bundle_parse_member(bundle, "motion_type", behavior.motion_type, r_errors);
-  bundle_parse_member(bundle, "friction", behavior.friction, r_errors);
-  bundle_parse_member(bundle, "bounciness", behavior.bounciness, r_errors);
-  bundle_parse_member(bundle, "density", behavior.density, r_errors);
-  if (r_errors.has_error()) {
-    return std::nullopt;
-  }
-  behavior.instances_geometry.keep_only({bke::GeometryComponent::Type::Instance});
-  return behavior;
-}
-
-const FlatBundleTypePtr &SoftBodyMeshBundle::get_bundle_type()
-{
-  static const FlatBundleTypePtr bundle_type = []() {
-    FlatBundleTypeBuilder b(SoftBodyMeshBundle::name);
-    b.add<decl::Geometry>("mesh").supported_type(bke::GeometryComponent::Type::Mesh);
-    b.add<decl::Float>("stretch_stiffness").default_value(1e6f).min(0.0f).supports_field();
-    b.add<decl::Float>("bend_stiffness").default_value(1e6f).min(0.0f).supports_field();
-    const FlatBundleTypePtr bundle_type = b.build();
-    BundleTypeRegistry::register_type(bundle_type);
-    return bundle_type;
-  }();
-  return bundle_type;
-}
-
-std::optional<SoftBodyMeshBundle> SoftBodyMeshBundle::parse(const Bundle &bundle,
-                                                            BundleParseErrors &r_errors)
-{
-  SoftBodyMeshBundle behavior;
-  bundle_parse_member(bundle, "mesh", behavior.mesh_geometry, r_errors);
-  bundle_parse_member(bundle, "stretch_stiffness", behavior.stretch_stiffness, r_errors);
-  bundle_parse_member(bundle, "bend_stiffness", behavior.bend_stiffness, r_errors);
-  if (r_errors.has_error()) {
-    return std::nullopt;
-  }
-  behavior.mesh_geometry.keep_only({bke::GeometryComponent::Type::Mesh});
-  return behavior;
-}
-
 const FlatBundleTypePtr &XPBDGeometryBundle::get_bundle_type()
 {
   static const FlatBundleTypePtr bundle_type = []() {

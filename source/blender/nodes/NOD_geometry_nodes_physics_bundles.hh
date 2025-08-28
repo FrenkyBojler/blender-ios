@@ -56,52 +56,6 @@ class DampingBundle : public NestedBundleCommon {
   static std::optional<DampingBundle> parse(const Bundle &bundle, BundleParseErrors &r_errors);
 };
 
-enum class RigidBodyCollisionShapeType {
-  Box,
-  Sphere,
-  ConvexHull,
-};
-
-enum class RigidBodyMotionType {
-  Dynamic,
-  Static,
-  Animated,
-};
-
-class RigidBodyInstancesBundle : public NestedBundleCommon {
- public:
-  static constexpr StringRefNull name = "Blender.RigidBodyInstances";
-
-  bke::GeometrySet instances_geometry;
-  /** Uses #RigidBodyCollisionShapeType. */
-  fn::Field<int> collision_shape_type;
-  /** Uses #RigidBodyMotionType. */
-  fn::Field<int> motion_type;
-  fn::Field<float> friction;
-  fn::Field<float> bounciness;
-  fn::Field<float> density;
-
-  static const FlatBundleTypePtr &get_bundle_type();
-  static std::optional<RigidBodyInstancesBundle> parse(const Bundle &bundle,
-                                                       BundleParseErrors &r_errors);
-
-  static std::optional<RigidBodyCollisionShapeType> parse_collision_shape_type(const int type);
-  static std::optional<RigidBodyMotionType> parse_motion_type(const int type);
-};
-
-class SoftBodyMeshBundle : public NestedBundleCommon {
- public:
-  static constexpr StringRefNull name = "Blender.SoftBodyMesh";
-
-  bke::GeometrySet mesh_geometry;
-  fn::Field<float> stretch_stiffness;
-  fn::Field<float> bend_stiffness;
-
-  static const FlatBundleTypePtr &get_bundle_type();
-  static std::optional<SoftBodyMeshBundle> parse(const Bundle &bundle,
-                                                 BundleParseErrors &r_errors);
-};
-
 class XPBDGeometryBundle : public NestedBundleCommon {
  public:
   static constexpr StringRefNull name = "Blender.XPBDGeometry";
@@ -274,33 +228,5 @@ class DistanceBasedEdgeBendingConstraintBundle : public NestedBundleCommon {
   static std::optional<DistanceBasedEdgeBendingConstraintBundle> parse(
       const Bundle &bundle, BundleParseErrors &r_errors);
 };
-
-inline std::optional<RigidBodyCollisionShapeType> RigidBodyInstancesBundle::
-    parse_collision_shape_type(const int type)
-{
-  switch (type) {
-    case 0:
-      return RigidBodyCollisionShapeType::Box;
-    case 1:
-      return RigidBodyCollisionShapeType::Sphere;
-    case 2:
-      return RigidBodyCollisionShapeType::ConvexHull;
-  }
-  return std::nullopt;
-}
-
-inline std::optional<RigidBodyMotionType> RigidBodyInstancesBundle::parse_motion_type(
-    const int type)
-{
-  switch (type) {
-    case 0:
-      return RigidBodyMotionType::Dynamic;
-    case 1:
-      return RigidBodyMotionType::Static;
-    case 2:
-      return RigidBodyMotionType::Animated;
-  }
-  return std::nullopt;
-}
 
 }  // namespace blender::nodes::physics_bundles
