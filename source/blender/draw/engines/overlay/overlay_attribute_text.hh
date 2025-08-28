@@ -17,6 +17,7 @@
 #include "BKE_attribute.hh"
 #include "BKE_curves.hh"
 #include "BKE_duplilist.hh"
+#include "BKE_editmesh.hh"
 #include "BKE_geometry_set.hh"
 #include "BKE_instances.hh"
 
@@ -27,6 +28,8 @@
 #include "draw_manager_text.hh"
 
 #include "overlay_base.hh"
+
+#include "intern/bmesh_iterators.hh"
 
 namespace blender::draw::overlay {
 
@@ -72,7 +75,7 @@ class AttributeTexts : Overlay {
     switch (object.type) {
       case OB_MESH: {
         const Mesh &mesh = DRW_object_get_data_for_drawing<Mesh>(object);
-        add_attributes_to_text_cache(dt, mesh.attributes(), object_to_world);
+        add_mesh_attributes_to_text_cache(state, dt, &mesh, mesh.attributes(), object_to_world);
         break;
       }
       case OB_POINTCLOUD: {
@@ -113,6 +116,115 @@ class AttributeTexts : Overlay {
     add_values_to_text_cache(dt, attribute.varray, positions, object_to_world);
   }
 
+  void add_mesh_attributes_to_text_cache(const State &state,
+                                         DRWTextStore *dt,
+                                         const Mesh *mesh,
+                                         bke::AttributeAccessor attribute_accessor,
+                                         const float4x4 &object_to_world)
+  {
+    if (!attribute_accessor.contains(".viewer")) {
+      return;
+    }
+
+    const bke::GAttributeReader attribute = attribute_accessor.lookup(".viewer");
+    const bke::AttrDomain domain = attribute.domain;
+    const VArraySpan<float3> positions = *attribute_accessor.lookup<float3>("position", domain);
+
+    if (domain == bke::AttrDomain::Corner && mesh != nullptr) {
+      BMesh *bm = nullptr;
+      bool bmesh_created_locally = false;
+
+      const BMEditMesh *em = mesh->runtime->edit_mesh.get();
+      if (em && em->bm) {
+        bm = em->bm;
+        bmesh_created_locally = false;
+      }
+      else {
+        const BMAllocTemplate allocsize = BMALLOC_TEMPLATE_FROM_ME(mesh);
+        BMeshCreateParams create_params = {};
+        bm = BM_mesh_create(&allocsize, &create_params);
+        if (!bm) {
+          add_values_to_text_cache(dt, attribute.varray, positions, object_to_world);
+          return;
+        }
+        BMeshFromMeshParams fill_params = {};
+        BM_mesh_bm_from_me(bm, mesh, &fill_params);
+        bmesh_created_locally = true;
+      }
+
+      const CPPType &type = attribute.varray.type();
+      float offset_by_type = 1.0f;
+
+      if (type.is<int2>() || type.is<float2>()) {
+        offset_by_type = 1.5f;
+      }
+      else if (type.is<float3>() || type.is<ColorGeometry4b>() || type.is<ColorGeometry4f>() ||
+               type.is<math::Quaternion>())
+      {
+        offset_by_type = 1.5f;
+      }
+      else if (type.is<float4x4>()) {
+        offset_by_type = 3.0f;
+      }
+
+      Vector<float3> corner_positions(positions.size());
+      int corner_index = 0;
+
+      BMIter iter;
+      BMFace *efa;
+      BM_ITER_MESH (efa, &iter, bm, BM_FACES_OF_MESH) {
+        BMIter liter;
+        BMLoop *loop;
+        // if (corner_index >= corner_positions.size()) {
+        //   break;
+        // }
+        BM_ITER_ELEM (loop, &liter, efa, BM_LOOPS_OF_FACE) {
+          // if (corner_index >= corner_positions.size()) {
+          //   break;
+          // }
+
+          const float3 pos_o = loop->v->co;
+          const float3 pos_a = loop->prev->v->co;
+          const float3 pos_b = loop->next->v->co;
+          const float3 vec_oa = pos_a - pos_o;
+          const float3 vec_ob = pos_b - pos_o;
+          const float len_oa = math::length(vec_oa);
+          const float len_ob = math::length(vec_ob);
+          const float3 dir_oa = math::normalize(vec_oa);
+          const float3 dir_ob = math::normalize(vec_ob);
+
+          const float3 pos_o_world = math::transform_point(object_to_world, pos_o);
+          const float pixel_size = ED_view3d_pixel_size(state.rv3d, pos_o_world);
+
+          const float3 bisector_dir = (dir_oa + dir_ob) / 2;
+          if (math::is_zero(bisector_dir)) {
+            // todo 如果是平角应该向面中心方向偏移
+          }
+          // ?基于长度还是基于视图缩放
+          const float edge_len = (len_oa + len_ob) / 2;
+          const float dot = std::clamp(math::dot(dir_oa, dir_ob), 0.0f, 1.0f);
+          const float angle_factor = math::pow(dot, 4.0f) * 2 + 1;
+          const float min_edge = math::min(len_oa, len_ob) / 2;
+
+          const float offset_distance = std::clamp(
+              pixel_size * 80 * angle_factor * offset_by_type, 0.0f, min_edge);
+
+          corner_positions[corner_index] = pos_o + bisector_dir * offset_distance;
+          corner_index++;
+        }
+      }
+
+      if (bmesh_created_locally) {
+        BM_mesh_free(bm);
+      }
+      add_values_to_text_cache(dt, attribute.varray, corner_positions.as_span(), object_to_world);
+    }
+
+    else {
+      add_values_to_text_cache(dt, attribute.varray, positions, object_to_world);
+    }
+  }
+
   void add_instance_attributes_to_text_cache(DRWTextStore *dt,
                                              bke::AttributeAccessor attribute_accessor,
                                              const float4x4 &object_to_world,
@@ -148,6 +260,7 @@ class AttributeTexts : Overlay {
                                  const Span<StringRef> lines,
                                  const uchar4 &color)
   {
+    const float line_offset = (lines.size() - 1) / 2.0f;
     for (const int i : lines.index_range()) {
       const StringRef line = lines[i];
       DRW_text_cache_add(dt,
@@ -155,7 +268,7 @@ class AttributeTexts : Overlay {
                          line.data(),
                          line.size(),
                          0,
-                         -i * 12.0f * UI_SCALE_FAC,
+                         (line_offset - i) * 12.0f * UI_SCALE_FAC,
                          DRW_TEXT_CACHE_GLOBALSPACE,
                          color,
                          true,
@@ -194,9 +307,11 @@ class AttributeTexts : Overlay {
           add_text_to_cache(dt, position, StringRef(numstr, numstr_len), col);
         }
         else if constexpr (std::is_same_v<T, int2>) {
-          char numstr[64];
-          const size_t numstr_len = SNPRINTF_UTF8_RLEN(numstr, "(%d, %d)", value.x, value.y);
-          add_text_to_cache(dt, position, StringRef(numstr, numstr_len), col);
+          char x_str[64], y_str[64];
+          const size_t x_len = SNPRINTF_UTF8_RLEN(x_str, "X: %d", value.x);
+          const size_t y_len = SNPRINTF_UTF8_RLEN(y_str, "Y: %d", value.y);
+          add_lines_to_cache(
+              dt, position, {StringRef(x_str, x_len), StringRef(y_str, y_len)}, col);
         }
         else if constexpr (std::is_same_v<T, float>) {
           char numstr[64];
@@ -204,34 +319,65 @@ class AttributeTexts : Overlay {
           add_text_to_cache(dt, position, StringRef(numstr, numstr_len), col);
         }
         else if constexpr (std::is_same_v<T, float2>) {
-          char numstr[64];
-          const size_t numstr_len = SNPRINTF_UTF8_RLEN(numstr, "(%g, %g)", value.x, value.y);
-          add_text_to_cache(dt, position, StringRef(numstr, numstr_len), col);
+          char x_str[64], y_str[64];
+          const size_t x_len = SNPRINTF_UTF8_RLEN(x_str, "X: %g", value.x);
+          const size_t y_len = SNPRINTF_UTF8_RLEN(y_str, "Y: %g", value.y);
+          add_lines_to_cache(
+              dt, position, {StringRef(x_str, x_len), StringRef(y_str, y_len)}, col);
         }
         else if constexpr (std::is_same_v<T, float3>) {
-          char numstr[64];
-          const size_t numstr_len = SNPRINTF_UTF8_RLEN(
-              numstr, "(%g, %g, %g)", value.x, value.y, value.z);
-          add_text_to_cache(dt, position, StringRef(numstr, numstr_len), col);
+          char x_str[64], y_str[64], z_str[64];
+          const size_t x_len = SNPRINTF_UTF8_RLEN(x_str, "X: %g", value.x);
+          const size_t y_len = SNPRINTF_UTF8_RLEN(y_str, "Y: %g", value.y);
+          const size_t z_len = SNPRINTF_UTF8_RLEN(z_str, "Z: %g", value.z);
+          add_lines_to_cache(
+              dt,
+              position,
+              {StringRef(x_str, x_len), StringRef(y_str, y_len), StringRef(z_str, z_len)},
+              col);
         }
         else if constexpr (std::is_same_v<T, ColorGeometry4b>) {
           const ColorGeometry4f color = value.decode();
-          char numstr[64];
-          const size_t numstr_len = SNPRINTF_UTF8_RLEN(
-              numstr, "(%.3f, %.3f, %.3f, %.3f)", color.r, color.g, color.b, color.a);
-          add_text_to_cache(dt, position, StringRef(numstr, numstr_len), col);
+          char r_str[64], g_str[64], b_str[64], a_str[64];
+          const size_t r_len = SNPRINTF_UTF8_RLEN(r_str, "R: %.3f", color.r);
+          const size_t g_len = SNPRINTF_UTF8_RLEN(g_str, "G: %.3f", color.g);
+          const size_t b_len = SNPRINTF_UTF8_RLEN(b_str, "B: %.3f", color.b);
+          const size_t a_len = SNPRINTF_UTF8_RLEN(a_str, "A: %.3f", color.a);
+          add_lines_to_cache(dt,
+                             position,
+                             {StringRef(r_str, r_len),
+                              StringRef(g_str, g_len),
+                              StringRef(b_str, b_len),
+                              StringRef(a_str, a_len)},
+                             col);
         }
         else if constexpr (std::is_same_v<T, ColorGeometry4f>) {
-          char numstr[64];
-          const size_t numstr_len = SNPRINTF_UTF8_RLEN(
-              numstr, "(%.3f, %.3f, %.3f, %.3f)", value.r, value.g, value.b, value.a);
-          add_text_to_cache(dt, position, StringRef(numstr, numstr_len), col);
+          char r_str[64], g_str[64], b_str[64], a_str[64];
+          const size_t r_len = SNPRINTF_UTF8_RLEN(r_str, "R: %.3f", value.r);
+          const size_t g_len = SNPRINTF_UTF8_RLEN(g_str, "G: %.3f", value.g);
+          const size_t b_len = SNPRINTF_UTF8_RLEN(b_str, "B: %.3f", value.b);
+          const size_t a_len = SNPRINTF_UTF8_RLEN(a_str, "A: %.3f", value.a);
+          add_lines_to_cache(dt,
+                             position,
+                             {StringRef(r_str, r_len),
+                              StringRef(g_str, g_len),
+                              StringRef(b_str, b_len),
+                              StringRef(a_str, a_len)},
+                             col);
         }
         else if constexpr (std::is_same_v<T, math::Quaternion>) {
-          char numstr[64];
-          const size_t numstr_len = SNPRINTF_UTF8_RLEN(
-              numstr, "(%.3f, %.3f, %.3f, %.3f)", value.w, value.x, value.y, value.z);
-          add_text_to_cache(dt, position, StringRef(numstr, numstr_len), col);
+          char w_str[64], x_str[64], y_str[64], z_str[64];
+          const size_t w_len = SNPRINTF_UTF8_RLEN(w_str, "W: %.3f", value.w);
+          const size_t x_len = SNPRINTF_UTF8_RLEN(x_str, "X: %.3f", value.x);
+          const size_t y_len = SNPRINTF_UTF8_RLEN(y_str, "Y: %.3f", value.y);
+          const size_t z_len = SNPRINTF_UTF8_RLEN(z_str, "Z: %.3f", value.z);
+          add_lines_to_cache(dt,
+                             position,
+                             {StringRef(w_str, w_len),
+                              StringRef(x_str, x_len),
+                              StringRef(y_str, y_len),
+                              StringRef(z_str, z_len)},
+                             col);
         }
         else if constexpr (std::is_same_v<T, float4x4>) {
           float3 location;
