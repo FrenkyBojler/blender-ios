@@ -36,28 +36,6 @@ float gpencil_stroke_hardess_mask(float dist, float hardfac)
   }
 }
 
-float gpencil_stroke_round_cap_mask(
-    float2 p1, float2 p2, float2 aspect, float thickness, float hardfac)
-{
-  /* We create our own uv space to avoid issues with triangulation and linear
-   * interpolation artifacts. */
-  float2 line = p2.xy - p1.xy;
-  float2 pos = gl_FragCoord.xy - p1.xy;
-  float line_len = length(line);
-  float half_line_len = line_len * 0.5f;
-  /* Normalize */
-  line = (line_len > 0.0f) ? (line / line_len) : float2(1.0f, 0.0f);
-  /* Create a uv space that englobe the whole segment into a capsule. */
-  float2 uv_end;
-  uv_end.x = max(abs(dot(line, pos) - half_line_len) - half_line_len, 0.0f);
-  uv_end.y = dot(float2(-line.y, line.x), pos);
-  /* Divide by stroke radius. */
-  uv_end /= thickness;
-  uv_end *= aspect;
-
-  return gpencil_stroke_hardess_mask(length(uv_end) * 2.0f, hardfac);
-}
-
 /**
  *
  * Calculate the mask for the pixel in the main segment (1) by using the distance factor to
@@ -80,29 +58,30 @@ float gpencil_stroke_round_cap_mask(
  * Each point can have a different corner type, stored as p1: miter_limit.x, p2: miter_limit.y
  *
  */
-float gpencil_stroke_segment_mask(float2 p1,
-                                  float2 p2,
-                                  float2 p0,
-                                  float2 p3,
-                                  float2 aspect,
-                                  float thickness,
-                                  float hardfac,
-                                  float2 miter_limit)
+float gpencil_stroke_segment_mask(
+    float2 p1, float2 p2, float2 p0, float2 p3, float thickness, float hardfac, float2 miter_limit)
 {
-  if (miter_limit.x == MITER_LIMIT_TYPE_ROUND && miter_limit.y == MITER_LIMIT_TYPE_ROUND) {
-    return gpencil_stroke_round_cap_mask(p1, p2, aspect, thickness, hardfac);
-  }
+  bool both_round = miter_limit.x == MITER_LIMIT_TYPE_ROUND &&
+                    miter_limit.y == MITER_LIMIT_TYPE_ROUND;
 
   bool is_start = p0 == p1;
   bool is_end = p2 == p3;
-  if (is_start && is_end) {
-    return gpencil_stroke_round_cap_mask(p1, p2, aspect, thickness, hardfac);
-  }
+  bool both_ends = is_start && is_end;
 
   float radius = thickness * 0.5f;
   float2 pos1 = gl_FragCoord.xy - p1;
   float2 line1 = p2 - p1;
   float2 tan1 = orthogonal(line1);
+
+  /* Calculate the factor along the main segment. */
+  float t1 = dot(pos1, line1) / dot(line1, line1);
+
+  /* The distance factor to the main segment. This is clamped and will lead to round corners. */
+  float dist = length(pos1 - saturate(t1) * line1) / radius;
+
+  if (both_round || both_ends) {
+    return gpencil_stroke_hardess_mask(dist, hardfac);
+  }
 
   float2 pos0 = gl_FragCoord.xy - p0;
   float2 line0 = p1 - p0;
@@ -116,13 +95,9 @@ float gpencil_stroke_segment_mask(float2 p1,
   float sign0 = -sign(dot(line1, tan0));
   float sign2 = sign(dot(line1, tan2));
 
-  /* Calculate the factor along each segment. */
+  /* Calculate the factor along the other segments. */
   float t0 = dot(pos0, line0) / dot(line0, line0);
-  float t1 = dot(pos1, line1) / dot(line1, line1);
   float t2 = dot(pos2, line2) / dot(line2, line2);
-
-  /* The distance factor to the main segment. This is clamped and will lead to round corners. */
-  float dist = length(pos1 - saturate(t1) * line1) / radius;
 
   /* The add the other two segments. Each will have rounded corners. */
   if (!is_start) {
@@ -174,6 +149,36 @@ float gpencil_stroke_segment_mask(float2 p1,
 
   return gpencil_stroke_hardess_mask(dist, hardfac);
 }
+
+float gpencil_stroke_mask(float2 p1,
+                          float2 p2,
+                          float2 p0,
+                          float2 p3,
+                          float2 uv,
+                          float2 aspect,
+                          uint mat_flag,
+                          float thickness,
+                          float hardfac,
+                          float2 miter_limit)
+{
+  if (flag_test(mat_flag, GP_STROKE_ALIGNMENT)) {
+    /* Dot or Squares. */
+    uv = uv * 2.0 - 1.0;
+    uv *= aspect;
+    if (flag_test(mat_flag, GP_STROKE_DOTS)) {
+      return gpencil_stroke_hardess_mask(length(uv), hardfac);
+    }
+    else {
+      uv = abs(uv);
+      return gpencil_stroke_hardess_mask(max(uv.x, uv.y), hardfac);
+    }
+  }
+  else {
+    /* Line mask */
+    return gpencil_stroke_segment_mask(p1, p2, p0, p3, thickness, hardfac, miter_limit);
+  }
+}
+
 #endif
 
 struct PointData {
