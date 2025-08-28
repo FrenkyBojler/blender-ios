@@ -5289,9 +5289,7 @@ static void ui_item_align(uiLayout *litem, short nr)
     uiItem *item = *riter;
     if (item->type() == uiItemType::Button) {
       uiButtonItem *bitem = static_cast<uiButtonItem *>(item);
-#ifndef USE_UIBUT_SPATIAL_ALIGN
       if (ui_but_can_align(bitem->but))
-#endif
       {
         if (!bitem->but->alignnr) {
           bitem->but->alignnr = nr;
