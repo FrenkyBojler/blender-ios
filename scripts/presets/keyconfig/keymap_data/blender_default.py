@@ -2016,6 +2016,8 @@ def km_image_generic(params):
         ("image.new", {"type": 'N', "value": 'PRESS', "alt": True}, None),
         ("image.open", {"type": 'O', "value": 'PRESS', "alt": True}, None),
         ("image.reload", {"type": 'R', "value": 'PRESS', "alt": True}, None),
+        ("image.clipboard_copy", {"type": 'C', "value": 'PRESS', "ctrl": True, "shift": True}, None),
+        ("image.clipboard_paste", {"type": 'V', "value": 'PRESS', "ctrl": True, "shift": True}, None),
         ("image.read_viewlayers", {"type": 'R', "value": 'PRESS', "ctrl": True}, None),
         ("image.save", {"type": 'S', "value": 'PRESS', "alt": True}, None),
         ("image.cycle_render_slot", {"type": 'J', "value": 'PRESS', "repeat": True}, None),
@@ -2027,8 +2029,6 @@ def km_image_generic(params):
     if not params.legacy:
         items.extend([
             ("image.save_as", {"type": 'S', "value": 'PRESS', "shift": True, "alt": True}, None),
-            ("image.clipboard_copy", {"type": 'C', "value": 'PRESS', "ctrl": True, "shift": True}, None),
-            ("image.clipboard_paste", {"type": 'V', "value": 'PRESS', "ctrl": True, "shift": True}, None),
         ])
     else:
         items.extend([
