@@ -6307,6 +6307,35 @@ def km_bevel_modal_map(_params):
 
     return keymap
 
+def km_light_target_modals(_params):
+    items = []
+    keymap = (
+        "Light Target Modals",
+        {"space_type": 'EMPTY', "region_type": 'WINDOW', "modal": True},
+        {"items": items},
+    )
+
+    items.extend([
+        ("CANCEL", {"type": 'RIGHTMOUSE', "value": 'ANY', "any": True}, None),
+        ("CANCEL", {"type": 'ESC', "value": 'PRESS', "any": True}, None),
+        ("CONFIRM", {"type": 'LEFTMOUSE', "value": 'ANY', "any": True}, None),
+        ("CONFIRM", {"type": 'RET', "value": 'PRESS', "any": True}, None),
+        ("CONFIRM", {"type": 'NUMPAD_ENTER', "value": 'PRESS', "any": True}, None),
+        ("DIFFUSE_ENABLE", {"type": 'LEFT_CTRL', "value": 'PRESS'}, None),
+        ("DIFFUSE_DISABLE", {"type": 'LEFT_CTRL', "value": 'RELEASE'}, None),
+        ("DIFFUSE_ENABLE", {"type": 'RIGHT_CTRL', "value": 'PRESS'}, None),
+        ("DIFFUSE_DISABLE", {"type": 'RIGHT_CTRL', "value": 'RELEASE'}, None),
+        ("SPECULAR_ENABLE", {"type": 'LEFT_SHIFT', "value": 'PRESS'}, None),
+        ("SPECULAR_DISABLE", {"type": 'LEFT_SHIFT', "value": 'RELEASE'}, None),
+        ("SPECULAR_ENABLE", {"type": 'RIGHT_SHIFT', "value": 'PRESS'}, None),
+        ("SPECULAR_DISABLE", {"type": 'RIGHT_SHIFT', "value": 'RELEASE'}, None),
+        ("SHADOW_ENABLE", {"type": 'LEFT_ALT', "value": 'PRESS'}, None),
+        ("SHADOW_DISABLE", {"type": 'LEFT_ALT', "value": 'RELEASE'}, None),
+        ("SHADOW_ENABLE", {"type": 'RIGHT_ALT', "value": 'PRESS'}, None),
+        ("SHADOW_DISABLE", {"type": 'RIGHT_ALT', "value": 'RELEASE'}, None),
+    ])
+
+    return keymap
 
 def km_view3d_fly_modal(_params):
     items = []
@@ -8682,6 +8711,7 @@ def generate_keymaps(params=None):
         km_knife_tool_modal_map(params),
         km_custom_normals_modal_map(params),
         km_bevel_modal_map(params),
+        km_light_target_modals(params),
         km_view3d_fly_modal(params),
         km_view3d_walk_modal(params),
         km_view3d_rotate_modal(params),

@@ -340,6 +340,9 @@ void keymap_object(wmKeyConfig *keyconf)
   /* NOTE: this keymap gets disabled in non-object-mode. */
   keymap = WM_keymap_ensure(keyconf, "Object Mode", SPACE_EMPTY, RGN_TYPE_WINDOW);
   keymap->poll = object_mode_poll;
+
+  /* Modal keymaps */
+  target_modal_keymap(keyconf);
 }
 
 }  // namespace blender::ed::object

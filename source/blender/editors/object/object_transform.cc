@@ -1927,11 +1927,53 @@ void OBJECT_OT_origin_set(wmOperatorType *ot)
  */
 #define USE_FAKE_DEPTH_INIT
 
+/* -------------------------------------------------------------------- */
+/** \name Normals Modal Keymap
+* \{ */
+
+enum {
+  TGT_MODAL_CONFIRM = 1,
+  TGT_MODAL_CANCEL,
+  TGT_MODAL_DIFFUSE_ENABLE,
+  TGT_MODAL_DIFFUSE_DISABLE,
+  TGT_MODAL_SPECULAR_ENABLE,
+  TGT_MODAL_SPECULAR_DISABLE,
+  TGT_MODAL_SHADOW_ENABLE,
+  TGT_MODAL_SHADOW_DISABLE,
+
+};
+
+void target_modal_keymap(wmKeyConfig *keyconf)
+{
+  static const EnumPropertyItem modal_items[] = {
+  {TGT_MODAL_CONFIRM, "CONFIRM", 0, "Confirm", ""},
+  {TGT_MODAL_CANCEL, "CANCEL", 0, "Cancel", ""},
+  {TGT_MODAL_DIFFUSE_ENABLE, "DIFFUSE_ENABLE", 0, "Diffuse Mode", "Position light depending on the object's normals"},
+  {TGT_MODAL_DIFFUSE_DISABLE, "DIFFUSE_DISABLE", 0, "Diffuse Mode (Off)", ""},
+  {TGT_MODAL_SPECULAR_ENABLE, "SPECULAR_ENABLE", 0, "Specular Mode", "Position light depending on the specular reflection"},
+  {TGT_MODAL_SPECULAR_DISABLE, "SPECULAR_DISABLE", 0, "Specular Mode (Off)", ""},
+  {TGT_MODAL_SHADOW_ENABLE, "SHADOW_ENABLE", 0, "Shadow Mode", "Position light depending on the shadow target"},
+  {TGT_MODAL_SHADOW_DISABLE, "SHADOW_DISABLE", 0, "Shadow Mode (Off)", ""},
+  {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  wmKeyMap *keymap = WM_modalkeymap_find(keyconf, "Light Target Modals");
+
+  /* This function is called for each space-type, only needs to add map once. */
+  if (keymap && keymap->modal_items) {
+    return;
+  }
+
+  keymap = WM_modalkeymap_ensure(keyconf, "Light Target Modals", modal_items);
+  /* Assign map to operators. */
+  WM_modalkeymap_assign(keymap, "OBJECT_OT_transform_axis_target");
+}
+/** \} */
 enum LightPositioningMode {
-  LIGHT_POSITION_TARGET = 0,     /* Default: Target mode (rotation to cursor) */
-  LIGHT_POSITION_NORMAL = 1,     /* Position light along surface normal */
-  LIGHT_POSITION_REFLECTION = 2, /* Position light for specular reflection */
-  LIGHT_POSITION_SHADOW = 3,     /* Position light for shadow casting */
+  LIGHT_TARGET_MODE = 0,     /* Default: Target mode (rotation to cursor) */
+  LIGHT_DIFFUSE_MODE = 1,     /* Position light along surface normal */
+  LIGHT_SPECULAR_MODE = 2, /* Position light for specular reflection */
+  LIGHT_SHADOW_MODE = 3,     /* Position light for shadow casting */
 };
 
 struct XFormAxisItem {
@@ -1955,6 +1997,9 @@ struct XFormAxisData {
     float normal[3];
     bool is_depth_valid;
     bool is_normal_valid;
+    bool ctrl_held;
+    bool alt_held;
+    bool ctrl_alt_held;
   } prev;
 
   Vector<XFormAxisItem> object_data;
@@ -2185,11 +2230,14 @@ static wmOperatorStatus object_transform_axis_target_invoke(bContext *C,
   xfd->prev.depth = 1.0f;
   xfd->prev.is_depth_valid = false;
   xfd->prev.is_normal_valid = false;
+  xfd->prev.ctrl_held = false;
+  xfd->prev.alt_held = false;
+  xfd->prev.ctrl_alt_held = false;
 
   xfd->init_event = WM_userdef_event_type_from_keymap_type(event->type);
   
   /* Initialize light positioning */
-  xfd->light_mode = LIGHT_POSITION_TARGET;
+  xfd->light_mode = LIGHT_TARGET_MODE;
   xfd->is_light_positioning = object_is_target_compat(xfd->vc.obact);
   zero_v3(xfd->shadow_target_location);
   xfd->shadow_target_set = false;
@@ -2285,74 +2333,115 @@ static wmOperatorStatus object_transform_axis_target_modal(bContext *C,
   XFormAxisData *xfd = static_cast<XFormAxisData *>(op->customdata);
   ARegion *region = xfd->vc.region;
 
-  view3d_operator_needs_gpu(C)
+  view3d_operator_needs_gpu(C);
 
-  /* Handle light positioning mode changes based on currently held modifiers 
-   * Default: Target mode (rotation to cursor)
-   * CTRL: Normal mode (translate along surface normal)
-   * CTRL+ALT: Reflection mode (optimal reflection positioning)
-   * ALT: Shadow mode (place target, then position light for shadows)
-   */
-  if (xfd->is_light_positioning) {
-    LightPositioningMode current_mode = LIGHT_POSITION_TARGET; /* Default to target mode */
-    
-    if ((event->modifier & KM_CTRL) && (event->modifier & KM_ALT)) {
-      current_mode = LIGHT_POSITION_REFLECTION;
-    }
-    else if (event->modifier & KM_ALT) {
-      current_mode = LIGHT_POSITION_SHADOW;
-    }
-    else if (event->modifier & KM_CTRL) {
-      current_mode = LIGHT_POSITION_NORMAL;
-    }
-    else {
-      /* No modifiers held - use default target mode (rotation to cursor) */
-      current_mode = LIGHT_POSITION_TARGET;
-    }
-    
-    /* Handle shadow mode activation - set target when entering shadow mode */
-    if (current_mode == LIGHT_POSITION_SHADOW && xfd->light_mode != LIGHT_POSITION_SHADOW) {
-      if (!xfd->shadow_target_set) {
-        /* Place shadow target at current mouse position */
-        const ViewDepths *depths = xfd->depths;
-        if (depths && (uint(event->mval[0]) < depths->w) && (uint(event->mval[1]) < depths->h)) {
-          float depth_fl = 1.0f;
-          ED_view3d_depth_read_cached(depths, event->mval, 0, &depth_fl);
-          if (xfd->prev.is_depth_valid && depth_fl == 1.0f) {
-            depth_fl = xfd->prev.depth;
+  /* Handle modal keymap events for light positioning mode changes */
+  if (event->type == EVT_MODAL_MAP) {
+    switch (event->val) {
+      case TGT_MODAL_CONFIRM: {
+        Scene *scene = CTX_data_scene(C);
+        /* Perform auto-keying for rotational changes for all objects. */
+        for (XFormAxisItem &item : xfd->object_data) {
+          PointerRNA ptr = RNA_pointer_create_discrete(&item.ob->id, &RNA_Object, &item.ob->id);
+          const char *rotation_property = "rotation_euler";
+          switch (item.ob->rotmode) {
+            case ROT_MODE_QUAT:
+              rotation_property = "rotation_quaternion";
+              break;
+            case ROT_MODE_AXISANGLE:
+              rotation_property = "rotation_axis_angle";
+              break;
+            default:
+              break;
           }
-          double depth = double(depth_fl);
-          if ((depth > depths->depth_range[0]) && (depth < depths->depth_range[1])) {
-            float target_location[3];
-            if (ED_view3d_depth_unproject_v3(xfd->vc.region, event->mval, depth, target_location)) {
-              copy_v3_v3(xfd->shadow_target_location, target_location);
-              xfd->shadow_target_set = true;
+          PropertyRNA *prop = RNA_struct_find_property(&ptr, rotation_property);
+          animrig::autokeyframe_property(C, scene, &ptr, prop, -1, scene->r.cfra, true);
+        }
+        /* Clear WorkspaceStatus to return to basic state */
+        ED_workspace_status_text(C, nullptr);
+        object_transform_axis_target_free_data(op);
+        return OPERATOR_FINISHED;
+      }
+      case TGT_MODAL_CANCEL: {
+        object_transform_axis_target_cancel(C, op);
+        return OPERATOR_CANCELLED;
+      }
+      case TGT_MODAL_DIFFUSE_ENABLE: {
+        if (xfd->is_light_positioning) {
+          xfd->light_mode = LIGHT_DIFFUSE_MODE;
+        }
+        break;
+      }
+      case TGT_MODAL_DIFFUSE_DISABLE: {
+        if (xfd->is_light_positioning) {
+          xfd->light_mode = LIGHT_TARGET_MODE;
+        }
+        break;
+      }
+      case TGT_MODAL_SPECULAR_ENABLE: {
+        if (xfd->is_light_positioning) {
+          xfd->light_mode = LIGHT_SPECULAR_MODE;
+        }
+        break;
+      }
+      case TGT_MODAL_SPECULAR_DISABLE: {
+        if (xfd->is_light_positioning) {
+          xfd->light_mode = LIGHT_TARGET_MODE;
+        }
+        break;
+      }
+      case TGT_MODAL_SHADOW_ENABLE: {
+        if (xfd->is_light_positioning) {
+          /* Handle shadow mode activation - set target when entering shadow mode */
+          if (!xfd->shadow_target_set) {
+            /* Place shadow target at current mouse position */
+            const ViewDepths *depths = xfd->depths;
+            if (depths && (uint(event->mval[0]) < depths->w) && (uint(event->mval[1]) < depths->h)) {
+              float depth_fl = 1.0f;
+              ED_view3d_depth_read_cached(depths, event->mval, 0, &depth_fl);
+              if (xfd->prev.is_depth_valid && depth_fl == 1.0f) {
+                depth_fl = xfd->prev.depth;
+              }
+              double depth = double(depth_fl);
+              if ((depth > depths->depth_range[0]) && (depth < depths->depth_range[1])) {
+                float target_location[3];
+                if (ED_view3d_depth_unproject_v3(xfd->vc.region, event->mval, depth, target_location)) {
+                  copy_v3_v3(xfd->shadow_target_location, target_location);
+                  xfd->shadow_target_set = true;
+                }
+              }
             }
           }
+          xfd->light_mode = LIGHT_SHADOW_MODE;
         }
+        break;
       }
+      case TGT_MODAL_SHADOW_DISABLE: {
+        if (xfd->is_light_positioning) {
+          xfd->light_mode = LIGHT_TARGET_MODE;
+          /* Reset shadow target when exiting shadow mode */
+          xfd->shadow_target_set = false;
+        }
+        break;
+      }
+      default:
+        break;
     }
-    else if (current_mode != LIGHT_POSITION_SHADOW) {
-      /* Reset shadow target when exiting shadow mode */
-      xfd->shadow_target_set = false;
-    }
-
-    xfd->light_mode = current_mode;
   }
 
   /* Display status bar for light positioning */
   if (xfd->is_light_positioning) {
     WorkspaceStatus status(C);
-    status.item(IFACE_("Confirm"), ICON_EVENT_RETURN);
-    status.item(IFACE_("Cancel"), ICON_EVENT_ESC);
+    status.opmodal(IFACE_("Confirm"), op->type, TGT_MODAL_CONFIRM);
+    status.opmodal(IFACE_("Cancel"), op->type, TGT_MODAL_CANCEL);
 
     /* Show current mode and available mode switches */
-    status.item_bool(IFACE_("Diffuse"),
-                     xfd->light_mode == LIGHT_POSITION_NORMAL, ICON_EVENT_CTRL);
-    status.item_bool(IFACE_("Specular"),
-                     xfd->light_mode == LIGHT_POSITION_REFLECTION, ICON_EVENT_CTRL, ICON_EVENT_ALT);
-    status.item_bool(IFACE_("Shadow"), 
-                     xfd->light_mode == LIGHT_POSITION_SHADOW, ICON_EVENT_ALT);
+    status.opmodal(IFACE_("Diffuse"), op->type, TGT_MODAL_DIFFUSE_ENABLE, 
+                   xfd->light_mode == LIGHT_DIFFUSE_MODE);
+    status.opmodal(IFACE_("Specular"), op->type, TGT_MODAL_SPECULAR_ENABLE,
+                   xfd->light_mode == LIGHT_SPECULAR_MODE);
+    status.opmodal(IFACE_("Shadow"), op->type, TGT_MODAL_SHADOW_ENABLE, 
+                   xfd->light_mode == LIGHT_SHADOW_MODE);
   }
 
   if (event->type == MOUSEMOVE) {
@@ -2384,7 +2473,7 @@ static wmOperatorStatus object_transform_axis_target_modal(bContext *C,
         xfd->prev.depth = depth_fl;
         xfd->prev.is_depth_valid = true;
         if (ED_view3d_depth_unproject_v3(region, event->mval, depth, location_world)) {
-          if (xfd->is_light_positioning && xfd->light_mode != LIGHT_POSITION_TARGET) {
+          if (xfd->is_light_positioning && xfd->light_mode != LIGHT_TARGET_MODE) {
 
             float normal[3];
             bool normal_found = false;
@@ -2398,7 +2487,7 @@ static wmOperatorStatus object_transform_axis_target_modal(bContext *C,
 
             /* Handle special light positioning modes (reflection and shadow) */
             if (xfd->is_light_positioning && normal_found && 
-                (xfd->light_mode == LIGHT_POSITION_REFLECTION || xfd->light_mode == LIGHT_POSITION_SHADOW)) {
+                (xfd->light_mode == LIGHT_SPECULAR_MODE || xfd->light_mode == LIGHT_SHADOW_MODE)) {
               for (XFormAxisItem &item : xfd->object_data) {
                 if (!object_is_target_compat(item.ob)) {
                   continue; /* Skip non-light objects */
@@ -2411,7 +2500,7 @@ static wmOperatorStatus object_transform_axis_target_modal(bContext *C,
                 float final_normal[3];
                 
                 switch (xfd->light_mode) {
-                  case LIGHT_POSITION_TARGET:
+                  case LIGHT_TARGET_MODE:
                     /* Target mode: use original rotation behavior (no light positioning) */
                     /* This should not reach here as target mode uses original logic */
                     copy_v3_v3(final_normal, normal);
@@ -2419,14 +2508,14 @@ static wmOperatorStatus object_transform_axis_target_modal(bContext *C,
                     madd_v3_v3fl(final_location, final_normal, xfd->light_offset_distance);
                     break;
                     
-                  case LIGHT_POSITION_NORMAL:
+                  case LIGHT_DIFFUSE_MODE:
                     /* Normal mode: position light along surface normal */
                     copy_v3_v3(final_normal, normal);
                     copy_v3_v3(final_location, location_world);
                     madd_v3_v3fl(final_location, final_normal, xfd->light_offset_distance);
                     break;
                     
-                  case LIGHT_POSITION_REFLECTION:
+                  case LIGHT_SPECULAR_MODE:
                     /* Reflection positioning: calculate reflection direction */
                     {
                       float view_dir[3];
@@ -2444,7 +2533,7 @@ static wmOperatorStatus object_transform_axis_target_modal(bContext *C,
                     }
                     break;
                     
-                  case LIGHT_POSITION_SHADOW:
+                  case LIGHT_SHADOW_MODE:
                     /* Shadow positioning: position light to cast shadows from target */
                     if (xfd->shadow_target_set) {
                       float direction_to_target[3];
@@ -2478,7 +2567,7 @@ static wmOperatorStatus object_transform_axis_target_modal(bContext *C,
                 /* Orient light toward the target */
                 float target_location[3];
                 switch (xfd->light_mode) {
-                  case LIGHT_POSITION_SHADOW:
+                  case LIGHT_SHADOW_MODE:
                     if (xfd->shadow_target_set) {
                       copy_v3_v3(target_location, xfd->shadow_target_location);
                     }
@@ -2633,7 +2722,7 @@ void OBJECT_OT_transform_axis_target(wmOperatorType *ot)
 {
   /* identifiers */
   ot->name = "Interactive Light Track to Cursor";
-  ot->description = "Interactively point cameras and lights to a location. "
+  ot->description = "Interactively point cameras and lights to a location. \n"
         "Modifier keys can be used to point lights to object normals, specular reflections, or shadow targets";
   ot->idname = "OBJECT_OT_transform_axis_target";
 

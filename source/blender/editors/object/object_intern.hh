@@ -16,6 +16,7 @@ struct bContext;
 struct ModifierData;
 struct Object;
 struct StructRNA;
+struct wmKeyConfig;
 struct wmOperator;
 struct wmOperatorType;
 
@@ -39,6 +40,9 @@ void OBJECT_OT_origin_clear(wmOperatorType *ot);
 void OBJECT_OT_visual_transform_apply(wmOperatorType *ot);
 void OBJECT_OT_transform_apply(wmOperatorType *ot);
 void OBJECT_OT_parent_inverse_apply(wmOperatorType *ot);
+/* light target modals */
+void target_modal_keymap(wmKeyConfig *keyconf);
+/* END Light target modals */
 void OBJECT_OT_transform_axis_target(wmOperatorType *ot);
 void OBJECT_OT_origin_set(wmOperatorType *ot);
 
