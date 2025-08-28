@@ -131,29 +131,8 @@ class AttributeTexts : Overlay {
     const VArraySpan<float3> positions = *attribute_accessor.lookup<float3>("position", domain);
 
     if (domain == bke::AttrDomain::Corner && mesh != nullptr) {
-      BMesh *bm = nullptr;
-      bool bmesh_created_locally = false;
-
-      const BMEditMesh *em = mesh->runtime->edit_mesh.get();
-      if (em && em->bm) {
-        bm = em->bm;
-      }
-      else {
-        const BMAllocTemplate allocsize = BMALLOC_TEMPLATE_FROM_ME(mesh);
-        BMeshCreateParams create_params = {};
-        bm = BM_mesh_create(&allocsize, &create_params);
-        if (!bm) {
-          add_values_to_text_cache(dt, attribute.varray, positions, object_to_world);
-          return;
-        }
-        BMeshFromMeshParams fill_params = {};
-        BM_mesh_bm_from_me(bm, mesh, &fill_params);
-        bmesh_created_locally = true;
-      }
-
       const CPPType &type = attribute.varray.type();
       float offset_by_type = 1.0f;
-
       if (type.is<int2>() || type.is<float2>() || type.is<float3>() ||
           type.is<ColorGeometry4b>() || type.is<ColorGeometry4f>() || type.is<math::Quaternion>())
       {
@@ -166,50 +145,58 @@ class AttributeTexts : Overlay {
       Vector<float3> corner_positions(positions.size());
       int corner_index = 0;
 
-      BMIter iter;
-      BMFace *efa;
-      BM_ITER_MESH (efa, &iter, bm, BM_FACES_OF_MESH) {
-        BMIter liter;
-        BMLoop *loop;
-        BM_ITER_ELEM (loop, &liter, efa, BM_LOOPS_OF_FACE) {
-          const float3 pos_o = loop->v->co;
-          const float3 pos_a = loop->prev->v->co;
-          const float3 pos_b = loop->next->v->co;
-          const float3 vec_oa = pos_a - pos_o;
-          const float3 vec_ob = pos_b - pos_o;
-          const float3 dir_oa = math::normalize(vec_oa);
-          const float3 dir_ob = math::normalize(vec_ob);
+      const BMEditMesh *em = mesh->runtime->edit_mesh.get();
+      if (em && em->bm) {
+        BMesh *bm = em->bm;
+        BMIter iter;
+        BMFace *efa;
+        BM_ITER_MESH (efa, &iter, bm, BM_FACES_OF_MESH) {
+          BMIter liter;
+          BMLoop *loop;
+          BM_ITER_ELEM (loop, &liter, efa, BM_LOOPS_OF_FACE) {
+            const float3 pos_o = loop->v->co;
+            const float3 pos_a = loop->prev->v->co;
+            const float3 pos_b = loop->next->v->co;
 
-          const float len_oa = math::length(vec_oa);
-          const float len_ob = math::length(vec_ob);
-          const float max_offset = math::min(len_oa, len_ob) / 2;
-
-          const float3 corner_normal = math::cross(dir_ob, dir_oa);
-          const float concavity_check = math::dot(corner_normal, float3(efa->no));
-          const float direction_correct = concavity_check > 0.0f ? 1.0f : -1.0f;
-          const float3 bisector_dir = (dir_oa + dir_ob) / 2 * direction_correct;
-
-          const float sharp_factor = std::clamp(math::dot(dir_oa, dir_ob), 0.0f, 1.0f);
-          const float sharp_multiplier = math::pow(sharp_factor, 4.0f) * 2 + 1;
-
-          const float3 pos_o_world = math::transform_point(object_to_world, pos_o);
-          const float pixel_size = ED_view3d_pixel_size(state.rv3d, pos_o_world);
-          const float view_scaled_offset = pixel_size * 80.0f;
-
-          const float offset_distance = std::clamp(
-              view_scaled_offset * sharp_multiplier * offset_by_type, 0.0f, max_offset);
-
-          corner_positions[corner_index] = pos_o + bisector_dir * offset_distance;
-          corner_index++;
+            corner_positions[corner_index] = calculate_corner_text_position(
+                pos_o, pos_a, pos_b, efa->no, state, object_to_world, offset_by_type);
+            corner_index++;
+          }
         }
       }
+      else {
+        const Span<int> corner_verts = mesh->corner_verts();
+        const Span<float3> vert_positions = mesh->vert_positions();
+        const Span<float3> face_normals = mesh->face_normals();
 
-      if (bmesh_created_locally) {
-        BM_mesh_free(bm);
+        const OffsetIndices<int> faces = mesh->faces();
+        for (const int face_index : faces.index_range()) {
+          const float3 face_normal = face_normals[face_index];
+
+          const IndexRange face_corners = faces[face_index];
+          const int corner_size = face_corners.size();
+          for (const int index : IndexRange(corner_size)) {
+
+            const int corner_curr = face_corners.start() + index;
+            const int corner_prev = face_corners.start() + (index - 1 + corner_size) % corner_size;
+            const int corner_next = face_corners.start() + (index + 1) % corner_size;
+
+            const int vert_o = corner_verts[corner_curr];
+            const int vert_a = corner_verts[corner_prev];
+            const int vert_b = corner_verts[corner_next];
+
+            const float3 pos_o = vert_positions[vert_o];
+            const float3 pos_a = vert_positions[vert_a];
+            const float3 pos_b = vert_positions[vert_b];
+
+            corner_positions[corner_index] = calculate_corner_text_position(
+                pos_o, pos_a, pos_b, face_normal, state, object_to_world, offset_by_type);
+            corner_index++;
+          }
+        }
       }
       add_values_to_text_cache(dt, attribute.varray, corner_positions.as_span(), object_to_world);
     }
-
     else {
       add_values_to_text_cache(dt, attribute.varray, positions, object_to_world);
     }
@@ -400,6 +387,41 @@ class AttributeTexts : Overlay {
         }
       }
     });
+  }
+
+  static float3 calculate_corner_text_position(const float3 pos_o,
+                                               const float3 pos_a,
+                                               const float3 pos_b,
+                                               const float3 face_normal,
+                                               const State &state,
+                                               const float4x4 &object_to_world,
+                                               const float offset_by_type = 1.0f)
+  {
+    const float3 vec_oa = pos_a - pos_o;
+    const float3 vec_ob = pos_b - pos_o;
+    const float3 dir_oa = math::normalize(vec_oa);
+    const float3 dir_ob = math::normalize(vec_ob);
+
+    const float len_oa = math::length(vec_oa);
+    const float len_ob = math::length(vec_ob);
+    const float max_offset = math::min(len_oa, len_ob) / 2;
+
+    const float3 corner_normal = math::cross(dir_ob, dir_oa);
+    const float concavity_check = math::dot(corner_normal, face_normal);
+    const float direction_correct = concavity_check > 0.0f ? 1.0f : -1.0f;
+    const float3 bisector_dir = (dir_oa + dir_ob) / 2 * direction_correct;
+
+    const float sharp_factor = std::clamp(math::dot(dir_oa, dir_ob), 0.0f, 1.0f);
+    const float sharp_multiplier = math::pow(sharp_factor, 4.0f) * 2 + 1;
+
+    const float3 pos_o_world = math::transform_point(object_to_world, pos_o);
+    const float pixel_size = ED_view3d_pixel_size(state.rv3d, pos_o_world);
+    const float view_scaled_offset = pixel_size * 80.0f;
+
+    const float offset_distance = std::clamp(
+        view_scaled_offset * sharp_multiplier * offset_by_type, 0.0f, max_offset);
+
+    return pos_o + bisector_dir * offset_distance;
   }
 };
 
