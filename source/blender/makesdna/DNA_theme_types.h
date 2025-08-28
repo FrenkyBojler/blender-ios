@@ -326,8 +326,6 @@ typedef struct ThemeSpace {
   unsigned char time_gp_keyframe[4];
   unsigned char freestyle_edge_mark[4], freestyle_face_mark[4];
   unsigned char time_scrub_background[4];
-  char _pad10[4];
-  char _pad11[4];
 
   unsigned char nurb_uline[4], nurb_vline[4];
   unsigned char act_spline[4], nurb_sel_uline[4], nurb_sel_vline[4];
@@ -455,6 +453,9 @@ typedef struct ThemeSpace {
 
   unsigned char metadatabg[4];
   unsigned char metadatatext[4];
+
+  /** For Movie Clip Editor. */
+  unsigned char track_selected[4];
 
 } ThemeSpace;
 
