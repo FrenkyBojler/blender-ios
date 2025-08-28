@@ -27,7 +27,6 @@ class MTLShaderInterface;
 
 struct VertexBufferID {
   uint32_t id : 16;
-  uint32_t is_instance : 15;
   uint32_t used : 1;
 };
 
