@@ -37,28 +37,8 @@
 
 #define MIN_MAJOR_LINE_DISTANCE (U.v2d_min_gridsize * UI_SCALE_FAC)
 
-static float select_major_distance(const float *possible_distances,
-                                   uint amount,
-                                   float pixel_width,
-                                   float view_width)
-{
-  BLI_assert(amount >= 1);
-
-  if (IS_EQF(view_width, 0.0f)) {
-    return possible_distances[0];
-  }
-
-  const float pixels_per_view_unit = pixel_width / view_width;
-
-  for (uint i = 0; i < amount; i++) {
-    const float distance = possible_distances[i];
-    if (pixels_per_view_unit * distance >= MIN_MAJOR_LINE_DISTANCE) {
-      return distance;
-    }
-  }
-  return possible_distances[amount - 1];
-}
-
+/* This esentially does a special prime factor decomposition where it can only use 2, 3 and 5 as
+ * prime factors and divisions that result in 2 are preferred. */
 static int get_divisor(const int distance)
 {
   const int divisors[3] = {2, 3, 5};
@@ -76,7 +56,7 @@ static int get_divisor(const int distance)
     division_results[i] = result;
   }
 
-  /* If no division lands on a power of two, take the first to divide cleanly. */
+  /* If no division results in a 2, take the first to divide cleanly. */
   for (int i = 0; i < 3; i++) {
     const int divisor = divisors[i];
     if (division_results[i] * divisor == distance) {
@@ -84,22 +64,23 @@ static int get_divisor(const int distance)
     }
   }
 
-  /* In case none of the above if is true, the divisor will be 2. This can cause major lines to be
-   * drawn on subframes, but this will only happen on custom fps that cannot be broken down by
-   * 2, 3 or 5. */
+  /* In case none of the above if is true, the divisor will be the full distance meaning the next
+   * step down from that number is 1.  */
   return distance;
 }
 
 /**
- * Calculates the distance in frames between major lines.
+ * Calculates the distance in frames between major lines. The lowest value it can return is 1.
+ * The \param base defines how the step is calculated. The returned step is either a full fraction
+ * or a multiple of that number.
  */
-static int calculate_major_frame_distance(const int fps, float pixel_width, float view_width)
+static int calculate_grid_step(const int base, const float pixel_width, const float view_width)
 {
   if (IS_EQF(view_width, 0.0f)) {
-    return 1.0;
+    return 1;
   }
   const float pixels_per_view_unit = pixel_width / view_width;
-  int distance = fps;
+  int distance = base;
   if (pixels_per_view_unit * distance > MIN_MAJOR_LINE_DISTANCE) {
     /* Shrink the distance. */
     while (distance > 1) {
@@ -122,53 +103,20 @@ static int calculate_major_frame_distance(const int fps, float pixel_width, floa
   return distance;
 }
 
-static const float continuous_value_scales[] = {0.01, 0.02, 0.04,  0.1,   0.2,   0.4,   1,   2,
-                                                4,    10,   20,    50,    100,   200,   500, 1000,
-                                                2000, 5000, 10000, 20000, 50000, 100000};
-
-static float view2d_major_step_x__continuous(const View2D *v2d)
+/* Mostly the same as `calculate_grid_step, except in can divide into the 0-1 range. */
+static float calculate_grid_step_continuous(const int base,
+                                            const float pixel_width,
+                                            const float view_width)
 {
-  return select_major_distance(continuous_value_scales,
-                               ARRAY_SIZE(continuous_value_scales),
-                               BLI_rcti_size_x(&v2d->mask),
-                               BLI_rctf_size_x(&v2d->cur));
-}
-
-static float view2d_major_step_y__continuous(const View2D *v2d)
-{
-  return select_major_distance(continuous_value_scales,
-                               ARRAY_SIZE(continuous_value_scales),
-                               BLI_rcti_size_y(&v2d->mask),
-                               BLI_rctf_size_y(&v2d->cur));
-}
-
-static float view2d_major_step_x__time(const View2D *v2d, const Scene *scene)
-{
-  /* If we don't have a scene available, pick an arbitrary framerate to show *something*. */
-  const double fps = scene ? scene->frames_per_second() : 25;
-
-  blender::Vector<float, 32> possible_distances;
-
-  for (int step = 1; step < fps; step *= 2) {
-    possible_distances.append(step);
+  float distance = calculate_grid_step(base, pixel_width, view_width);
+  if (distance > 1) {
+    return distance;
   }
 
-  for (int i = 0; i <= 5; i++) {
-    uint fac = pow(60, i);
-    possible_distances.append(fac * fps);
-    possible_distances.append(fac * 2 * fps);
-    possible_distances.append(fac * 5 * fps);
-    possible_distances.append(fac * 10 * fps);
-    possible_distances.append(fac * 30 * fps);
-    possible_distances.append(fac * 60 * fps);
-  }
-
-  float distance = select_major_distance(possible_distances.data(),
-                                         possible_distances.size(),
-                                         BLI_rcti_size_x(&v2d->mask),
-                                         BLI_rctf_size_x(&v2d->cur));
-
-  return distance;
+  constexpr int subframe_range = 100;
+  /* Using `calculate_grid_step` to break down subframe_range simulating a larger view. */
+  distance = calculate_grid_step(subframe_range, pixel_width, view_width * subframe_range);
+  return distance / subframe_range;
 }
 
 /* Draw parallel lines
@@ -510,51 +458,52 @@ static void view_to_string__value(
 /* Grid Resolution API
  **************************************************/
 
-float UI_view2d_grid_resolution_x__frames_or_seconds(const View2D *v2d,
-                                                     const Scene *scene,
-                                                     bool display_seconds)
+float UI_view2d_grid_resolution_x__frames_or_seconds(const View2D *v2d, const Scene *scene)
 {
-  if (display_seconds) {
-    return view2d_major_step_x__time(v2d, scene);
-  }
-  return view2d_major_step_x__continuous(v2d);
+  const int fps = round_db_to_int(scene->frames_per_second());
+  return calculate_grid_step_continuous(
+      fps, BLI_rcti_size_x(&v2d->mask), BLI_rctf_size_x(&v2d->cur));
 }
 
-float UI_view2d_grid_resolution_y__values(const View2D *v2d)
+float UI_view2d_grid_resolution_y__values(const View2D *v2d, const int base)
 {
-  return view2d_major_step_y__continuous(v2d);
+  return calculate_grid_step_continuous(
+      base, BLI_rcti_size_y(&v2d->mask), BLI_rctf_size_y(&v2d->cur));
 }
 
 /* Line Drawing API
  **************************************************/
 
 void UI_view2d_draw_lines_x__discrete_values(const View2D *v2d,
-                                             const int fps,
+                                             const int base,
                                              bool display_minor_lines)
 {
-  const float major_line_distance = calculate_major_frame_distance(
-      fps, BLI_rcti_size_x(&v2d->mask), BLI_rctf_size_x(&v2d->cur));
+  const float major_line_distance = calculate_grid_step(
+      base, BLI_rcti_size_x(&v2d->mask), BLI_rctf_size_x(&v2d->cur));
   view2d_draw_lines(
       v2d, major_line_distance, display_minor_lines && (major_line_distance > 1), 'v');
 }
 
-void UI_view2d_draw_lines_x__values(const View2D *v2d)
+void UI_view2d_draw_lines_x__values(const View2D *v2d, const int base)
 {
-  const float major_line_distance = view2d_major_step_x__continuous(v2d);
+  const float major_line_distance = calculate_grid_step_continuous(
+      base, BLI_rcti_size_x(&v2d->mask), BLI_rctf_size_x(&v2d->cur));
   view2d_draw_lines(v2d, major_line_distance, true, 'v');
 }
 
-void UI_view2d_draw_lines_y__values(const View2D *v2d)
+void UI_view2d_draw_lines_y__values(const View2D *v2d, const int base)
 {
-  const float major_line_distance = view2d_major_step_y__continuous(v2d);
+  const float major_line_distance = calculate_grid_step_continuous(
+      base, BLI_rcti_size_y(&v2d->mask), BLI_rctf_size_y(&v2d->cur));
   view2d_draw_lines(v2d, major_line_distance, true, 'h');
 }
 
 void UI_view2d_draw_lines_x__discrete_time(const View2D *v2d,
-                                           const Scene *scene,
+                                           const int base,
                                            bool display_minor_lines)
 {
-  const float major_line_distance = view2d_major_step_x__time(v2d, scene);
+  const float major_line_distance = calculate_grid_step(
+      base, BLI_rcti_size_x(&v2d->mask), BLI_rctf_size_x(&v2d->cur));
   view2d_draw_lines(
       v2d, major_line_distance, display_minor_lines && (major_line_distance > 1), 'v');
 }
@@ -564,12 +513,12 @@ void UI_view2d_draw_lines_x__discrete_frames_or_seconds(const View2D *v2d,
                                                         bool display_seconds,
                                                         bool display_minor_lines)
 {
+  /* Rounding fractional framerates for drawing. */
+  const int fps = round_db_to_int(scene->frames_per_second());
   if (display_seconds) {
-    UI_view2d_draw_lines_x__discrete_time(v2d, scene, display_minor_lines);
+    UI_view2d_draw_lines_x__discrete_time(v2d, fps, display_minor_lines);
   }
   else {
-    /* Rounding fractional framerates for drawing. */
-    const int fps = round_db_to_int(scene->frames_per_second());
     UI_view2d_draw_lines_x__discrete_values(v2d, fps, display_minor_lines);
   }
 }
@@ -578,11 +527,12 @@ void UI_view2d_draw_lines_x__frames_or_seconds(const View2D *v2d,
                                                const Scene *scene,
                                                bool display_seconds)
 {
+  const int fps = round_db_to_int(scene->frames_per_second());
   if (display_seconds) {
-    UI_view2d_draw_lines_x__discrete_time(v2d, scene, true);
+    UI_view2d_draw_lines_x__discrete_time(v2d, fps, true);
   }
   else {
-    UI_view2d_draw_lines_x__values(v2d);
+    UI_view2d_draw_lines_x__values(v2d, fps);
   }
 }
 
@@ -592,7 +542,7 @@ void UI_view2d_draw_lines_x__frames_or_seconds(const View2D *v2d,
 static void UI_view2d_draw_scale_x__discrete_values(
     const ARegion *region, const View2D *v2d, const rcti *rect, int colorid, const int fps)
 {
-  const float number_step = calculate_major_frame_distance(
+  const float number_step = calculate_grid_step(
       fps, BLI_rcti_size_x(&v2d->mask), BLI_rctf_size_x(&v2d->cur));
   draw_horizontal_scale_indicators(
       region, v2d, number_step, rect, view_to_string__frame_number, nullptr, colorid);
@@ -601,27 +551,28 @@ static void UI_view2d_draw_scale_x__discrete_values(
 static void UI_view2d_draw_scale_x__discrete_time(
     const ARegion *region, const View2D *v2d, const rcti *rect, const Scene *scene, int colorid)
 {
-  const float step = view2d_major_step_x__time(v2d, scene);
+  const int fps = round_db_to_int(scene->frames_per_second());
+  const float step = calculate_grid_step(
+      fps, BLI_rcti_size_x(&v2d->mask), BLI_rctf_size_x(&v2d->cur));
   draw_horizontal_scale_indicators(
       region, v2d, step, rect, view_to_string__time, (void *)scene, colorid);
 }
 
-static void UI_view2d_draw_scale_x__values(const ARegion *region,
-                                           const View2D *v2d,
-                                           const rcti *rect,
-                                           int colorid)
+static void UI_view2d_draw_scale_x__values(
+    const ARegion *region, const View2D *v2d, const rcti *rect, const Scene *scene, int colorid)
 {
-  const float step = view2d_major_step_x__continuous(v2d);
+  const int fps = round_db_to_int(scene->frames_per_second());
+  const float step = calculate_grid_step_continuous(
+      fps, BLI_rcti_size_x(&v2d->mask), BLI_rctf_size_x(&v2d->cur));
   draw_horizontal_scale_indicators(
       region, v2d, step, rect, view_to_string__value, nullptr, colorid);
 }
 
-void UI_view2d_draw_scale_y__values(const ARegion *region,
-                                    const View2D *v2d,
-                                    const rcti *rect,
-                                    int colorid)
+void UI_view2d_draw_scale_y__values(
+    const ARegion *region, const View2D *v2d, const rcti *rect, int colorid, const int base)
 {
-  const float step = view2d_major_step_y__continuous(v2d);
+  const float step = calculate_grid_step_continuous(
+      base, BLI_rcti_size_y(&v2d->mask), BLI_rctf_size_y(&v2d->cur));
   draw_vertical_scale_indicators(
       region, v2d, step, 0.0f, rect, view_to_string__value, nullptr, colorid);
 }
@@ -662,6 +613,6 @@ void UI_view2d_draw_scale_x__frames_or_seconds(const ARegion *region,
     UI_view2d_draw_scale_x__discrete_time(region, v2d, rect, scene, colorid);
   }
   else {
-    UI_view2d_draw_scale_x__values(region, v2d, rect, colorid);
+    UI_view2d_draw_scale_x__values(region, v2d, rect, scene, colorid);
   }
 }
