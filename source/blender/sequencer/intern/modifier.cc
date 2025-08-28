@@ -130,8 +130,7 @@ static void modifier_panel_header(const bContext * /*C*/, Panel *panel)
   name_row = &row->row(true);
 
   sub = &row->row(true);
-  sub->emboss_set(blender::ui::EmbossType::None);
-  sub->prop(ptr, "mute", UI_ITEM_NONE, "", ICON_NONE);
+  sub->prop(ptr, "enable", UI_ITEM_NONE, "", ICON_NONE);
   buttons_number++;
 
   /* Delete button. */
