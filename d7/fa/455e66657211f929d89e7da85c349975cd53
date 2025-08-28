@@ -1,3 +1,4 @@
 Referenced by issue #141871, Blender LTS: Maintenance Task 4.5
 Referenced by issue #145300, in 5.0, Value in Value node has an offset to the right
 Referenced by pull request #145303, Fix #145300: Value node displayed value has an offset to the right
+Referenced by commit 81c259d49b369a8cc7c25b1926cad7cf085b97ea, Fix #145300: Value node displayed value has an offset to the right
