@@ -12,7 +12,14 @@ from bpy.app.translations import (
 
 
 class BrushAssetShelf:
-    bl_options = {'DEFAULT_VISIBLE', 'NO_ASSET_DRAG', 'STORE_ENABLED_CATALOGS_IN_PREFERENCES'}
+    bl_options = {
+        'DEFAULT_VISIBLE',
+        'NO_ASSET_DRAG',
+        'STORE_ENABLED_CATALOGS_IN_PREFERENCES',
+        # Ensure `bl_activate_operator` is called when spawning the context menu. Operators there
+        # rely on the imported, active brush, not just the active asset representation.
+        'ACTIVATE_FOR_CONTEXT_MENU',
+    }
     bl_activate_operator = "BRUSH_OT_asset_activate"
     bl_default_preview_size = 48
     brush_type_prop = None
@@ -907,20 +914,6 @@ def brush_settings(layout, context, brush, popover=False):
             layout.prop(brush, "use_cloth_collision")
             layout.separator()
 
-        elif sculpt_brush_type == 'SCRAPE':
-            row = layout.row(align=True)
-            row.prop(brush, "area_radius_factor")
-            row.prop(brush, "use_pressure_area_radius", text="")
-            row = layout.row()
-            row.prop(brush, "invert_to_scrape_fill", text="Invert to Fill")
-
-        elif sculpt_brush_type == 'FILL':
-            row = layout.row(align=True)
-            row.prop(brush, "area_radius_factor")
-            row.prop(brush, "use_pressure_area_radius", text="")
-            row = layout.row()
-            row.prop(brush, "invert_to_scrape_fill", text="Invert to Scrape")
-
         elif sculpt_brush_type == 'PLANE':
             row = layout.row(align=True)
             row.prop(brush, "area_radius_factor")
@@ -1639,7 +1632,7 @@ def brush_basic_gpencil_paint_settings(layout, context, brush, *, compact=False)
     tool_settings = context.tool_settings
     settings = tool_settings.gpencil_paint
     gp_settings = brush.gpencil_settings
-    ups = tool_settings.unified_paint_settings
+    ups = settings.unified_paint_settings
     brush_prop_owner = ups if ups.use_unified_size else brush
     tool = context.workspace.tools.from_space_view3d_mode(context.mode, create=False)
     if gp_settings is None:

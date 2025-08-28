@@ -182,6 +182,8 @@
            #name, \
            Frequency::freq)
 
+#  define GROUP_SHARED(type, name) .shared_variable(Type::type##_t, #name)
+
 #  define BUILTINS(builtin) .builtins(builtin)
 
 #  define VERTEX_SOURCE(filename) .vertex_source(filename)
@@ -278,6 +280,8 @@
 
 #  define IMAGE(slot, format, qualifiers, type, name) _##qualifiers type name;
 #  define IMAGE_FREQ(slot, format, qualifiers, type, name, freq) _##qualifiers type name;
+
+#  define GROUP_SHARED(type, name) type name;
 
 #  define BUILTINS(builtin)
 
@@ -673,7 +677,7 @@ using GeneratedSourceList = Vector<shader::GeneratedSource, 0>;
 /**
  * \brief Describe inputs & outputs, stage interfaces, resources and sources of a shader.
  *        If all data is correctly provided, this is all that is needed to create and compile
- *        a #GPUShader.
+ *        a #blender::gpu::Shader.
  *
  * IMPORTANT: All strings are references only. Make sure all the strings used by a
  *            #ShaderCreateInfo are not freed until it is consumed or deleted.
@@ -683,6 +687,8 @@ struct ShaderCreateInfo {
   StringRefNull name_;
   /** True if the shader is static and can be pre-compiled at compile time. */
   bool do_static_compilation_ = false;
+  /** True if the shader is not part of gpu_shader_create_info_list. */
+  bool is_generated_ = true;
   /** If true, all additionally linked create info will be merged into this one. */
   bool finalized_ = false;
   /** If true, all resources will have an automatic location assigned. */
@@ -813,6 +819,13 @@ struct ShaderCreateInfo {
 
   Vector<CompilationConstant, 0> compilation_constants_;
   Vector<SpecializationConstant> specialization_constants_;
+
+  struct SharedVariable {
+    Type type;
+    StringRefNull name;
+  };
+
+  Vector<SharedVariable, 0> shared_variables_;
 
   struct Sampler {
     ImageType type;
@@ -1151,6 +1164,18 @@ struct ShaderCreateInfo {
   /** \} */
 
   /* -------------------------------------------------------------------- */
+  /** \name Compute shader Shared variables
+   * \{ */
+
+  Self &shared_variable(Type type, StringRefNull name)
+  {
+    shared_variables_.append({type, name});
+    return *(Self *)this;
+  }
+
+  /** \} */
+
+  /* -------------------------------------------------------------------- */
   /** \name Resources bindings points
    * \{ */
 
@@ -1263,7 +1288,8 @@ struct ShaderCreateInfo {
   /* -------------------------------------------------------------------- */
   /** \name Push constants
    *
-   * Data managed by GPUShader. Can be set through uniform functions. Must be less than 128bytes.
+   * Data managed by blender::gpu::Shader. Can be set through uniform functions. Must be less than
+   * 128bytes.
    * \{ */
 
   Self &push_constant(Type type, StringRefNull name, int array_size = 0)
