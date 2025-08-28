@@ -1,2 +1,3 @@
 Referenced by issue #136633, Mesh edit-mode geometry does not visually update on selection
 Referenced by issue #144014, Driver with shape key target fails with "Invalid target channel" error in Blender 4.5 (works in 4.4)
+Referenced by issue #143060, Face Project Snapping on Subdivided Curve
