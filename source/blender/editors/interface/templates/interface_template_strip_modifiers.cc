@@ -8,8 +8,8 @@
  * Template for building the panel layout for the active object's modifiers.
  */
 
-#include "DNA_sequence_types.h"
 #include "DNA_scene_types.h"
+#include "DNA_sequence_types.h"
 
 #include "BKE_context.hh"
 #include "BKE_screen.hh"
