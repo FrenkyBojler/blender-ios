@@ -3101,7 +3101,7 @@ def km_sequencer(params):
         op_menu("SEQUENCER_MT_add", {"type": 'A', "value": 'PRESS', "shift": True}),
         op_menu("SEQUENCER_MT_change", {"type": 'C', "value": 'PRESS'}),
         op_menu_pie("SEQUENCER_MT_view_pie", {"type": 'ACCENT_GRAVE', "value": 'PRESS'}),
-        ("sequencer.slip", {"type": 'S', "value": 'PRESS'}, None),
+        ("sequencer.slip", {"type": 'S', "value": 'PRESS'}, {"properties": [("use_cursor_position", False)]}),
         ("wm.context_set_int", {"type": 'O', "value": 'PRESS'},
          {"properties": [("data_path", "scene.sequence_editor.overlay_frame"), ("value", 0)]}),
         ("transform.seq_slide", {"type": 'G', "value": 'PRESS'},
@@ -4037,9 +4037,9 @@ def km_grease_pencil_edit_mode(params):
 
         # Join selection
         ("grease_pencil.join_selection", {"type": 'J', "value": 'PRESS', "ctrl": True},
-         {"properties": [("type", 'JOIN')]}),
+         {"properties": [("type", 'JOINSTROKES')]}),
         ("grease_pencil.join_selection", {"type": 'J', "value": 'PRESS', "shift": True, "ctrl": True},
-         {"properties": [("type", 'JOINCOPY')]}),
+         {"properties": [("type", 'SPLITCOPY')]}),
 
         ("grease_pencil.duplicate_move", {"type": 'D', "value": 'PRESS', "shift": True}, None),
 
@@ -6999,7 +6999,7 @@ def km_image_editor_tool_mask_cursor(params):
         "Image Editor Tool: Mask, Cursor",
         {"space_type": 'IMAGE_EDITOR', "region_type": 'WINDOW'},
         {"items": [
-            ("mask.cursor_set", {"type": params.tool_mouse, "value": 'PRESS'}, None),
+            ("uv.cursor_set", {"type": params.tool_mouse, "value": 'PRESS'}, None),
             # Don't use `tool_maybe_tweak_event` since it conflicts with `PRESS` that places the cursor.
             ("transform.translate", params.tool_tweak_event,
              {"properties": [("release_confirm", True), ("cursor_transform", True)]}),
@@ -7013,7 +7013,7 @@ def km_image_editor_tool_mask_select(params, *, fallback):
         {"space_type": 'IMAGE_EDITOR', "region_type": 'WINDOW'},
         {"items": [
             *([] if (fallback and (params.select_mouse == 'RIGHTMOUSE')) else _template_items_tool_select(
-                params, "mask.select", "mask.cursor_set", fallback=fallback)),
+                params, "mask.select", "uv.cursor_set", fallback=fallback)),
             *([] if params.use_fallback_tool_select_handled else
               _template_mask_select(
                   type=params.select_mouse,
@@ -8514,6 +8514,26 @@ def km_sequencer_tool_blade(_params):
     )
 
 
+def km_sequencer_tool_slip(_params):
+    return (
+        "Sequencer Tool: Slip",
+        {"space_type": 'SEQUENCE_EDITOR', "region_type": 'WINDOW'},
+        {"items": [
+            ("sequencer.slip", {"type": 'LEFTMOUSE', "value": 'PRESS'},
+             {"properties": [
+                 ("slip_keyframes", True),
+                 ("use_cursor_position", True),
+             ]}),
+            ("sequencer.slip", {"type": 'LEFTMOUSE', "value": 'PRESS', "alt": True},
+             {"properties": [
+                 ("slip_keyframes", True),
+                 ("use_cursor_position", True),
+                 ("ignore_connections", True),
+             ]}),
+        ]},
+    )
+
+
 # ------------------------------------------------------------------------------
 # Tool System (Sequencer, Preview)
 
@@ -8850,6 +8870,7 @@ def generate_keymaps(params=None):
         km_3d_view_tool_paint_grease_pencil_trim(params),
         km_3d_view_tool_edit_grease_pencil_texture_gradient(params),
         km_sequencer_tool_blade(params),
+        km_sequencer_tool_slip(params),
         km_sequencer_preview_tool_generic_cursor(params),
         km_sequencer_preview_tool_sample(params),
         km_sequencer_preview_tool_move(params),
