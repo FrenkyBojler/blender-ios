@@ -244,6 +244,12 @@ uiBlock *template_common_search_menu(const bContext *C,
 void uiTemplateHeader(uiLayout *layout, bContext *C)
 {
   uiBlock *block = layout->absolute_block();
+  /* TODO are we sure we want to hide this entirely? Showing it is redundant. On the other hand not
+   * having it might throw users off. */
+  /* No area toggling allowed for docked areas. */
+  if (CTX_wm_area(C)->flag & AREA_FLAG_DOCKED) {
+    return;
+  }
   ED_area_header_switchbutton(C, block, 0);
 }
 
