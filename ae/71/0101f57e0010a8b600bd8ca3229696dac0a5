@@ -1,3 +1,4 @@
 Referenced by issue #135860, 4.4: Candidates for corrective releases
 Referenced by issue #139071, Cycles HIP: Volumes render with tile artifacts on RDNA2
 Referenced by pull request #139836, Cycles: Revert non-essential kernel changes to fix HIP bugs
+Referenced by pull request #145311, Cycles: Switch to HIP SDK 6.4.2 on Windows
