@@ -416,6 +416,10 @@ Build with external audaspace library installed on the system \
 )
 mark_as_advanced(WITH_AUDASPACE)
 mark_as_advanced(WITH_SYSTEM_AUDASPACE)
+option(WITH_RUBBERBAND "\
+Build the rubberband support enabled (used by audaspace)"
+  OFF
+)
 
 set_and_warn_dependency(WITH_AUDASPACE WITH_SYSTEM_AUDASPACE OFF)
 

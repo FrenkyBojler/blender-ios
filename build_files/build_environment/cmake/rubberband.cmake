@@ -28,3 +28,27 @@ add_dependencies(
   # Needed for `MESON`.
   external_python_site_packages
 )
+
+if(WIN32)
+  if(BUILD_MODE STREQUAL Release)
+    ExternalProject_Add_Step(external_rubberband after_install
+      COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${LIBDIR}/rubberband/include
+        ${HARVEST_TARGET}/rubberband/include
+      COMMAND ${CMAKE_COMMAND} -E copy
+        ${LIBDIR}/rubberband/lib/rubberband-static.lib
+        ${HARVEST_TARGET}/rubberband/lib/rubberband-static.lib
+      DEPENDEES install
+    )
+  else()
+    ExternalProject_Add_Step(external_rubberband after_install
+      COMMAND ${CMAKE_COMMAND} -E copy
+        ${LIBDIR}/rubberband/lib/rubberband-static.lib
+        ${HARVEST_TARGET}/rubberband/lib/rubberband-static_d.lib
+      DEPENDEES install
+    )  
+  endif()
+else()
+  harvest(external_rubberband rubberband/include rubberband/include "*.h")
+  harvest(external_rubberband rubberband/lib rubberband/lib "*.a")
+endif()
