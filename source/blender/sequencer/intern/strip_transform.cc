@@ -749,4 +749,217 @@ Bounds<float2> image_transform_bounding_box_from_collection(Scene *scene,
   return box;
 }
 
+/* Checks if the strip was moved from previous position to new position. */
+// technically, this should check channel too in case of IN_RANGE mode.
+bool GapRemover::has_gap_at(int timeline_frame)
+{
+  for (const Strip *strip : moved_strips) {
+    const int left_handle_frame = time_left_handle_frame_get(scene, strip);
+    const int right_handle_frame = time_right_handle_frame_get(scene, strip);
+    if (left_handle_frame < timeline_frame && right_handle_frame > timeline_frame) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+bool GapRemover::can_merge_ranges(const rcti &unified_range, const rcti &range)
+{
+  const bool channel_is_adjacent = math::abs(range.ymin - unified_range.ymax) == 1 ||
+                                   math::abs(range.ymin - unified_range.ymin) == 1;
+  const bool has_same_time_range = unified_range.xmin == range.xmin &&
+                                   unified_range.xmax == range.xmax;
+  return channel_is_adjacent && has_same_time_range;
+}
+
+/* Only unify in Y axis, because this way we can expand some gaps to infinity. */
+Vector<rcti> GapRemover::unify_gaps(const Vector<rcti> ranges)
+{
+  Vector<rcti> unified_ranges;
+
+  for (const rcti &range : ranges) {
+    bool was_merged = false;
+    for (rcti &unified_range : unified_ranges) {
+      if (this->can_merge_ranges(unified_range, range)) {
+        unified_range.xmin = math::min(unified_range.xmin, range.xmin);
+        unified_range.ymin = math::min(unified_range.ymin, range.ymin);
+        unified_range.xmax = math::max(unified_range.xmax, range.xmax);
+        unified_range.ymax = math::max(unified_range.ymax, range.ymin);
+        was_merged = true;
+      }
+    }
+
+    if (!was_merged) {
+      unified_ranges.append({range.xmin, range.xmax, range.ymin, range.ymin});
+    }
+  }
+  return unified_ranges;
+}
+
+bool GapRemover::strip_intersects_range(const Strip *strip, const rcti gap_range)
+{
+  rcti strip_range = {time_left_handle_frame_get(scene, strip) + 1,
+                      time_right_handle_frame_get(scene, strip) - 1,
+                      strip->channel,
+                      strip->channel};
+
+  return BLI_rcti_isect(&strip_range, &gap_range, nullptr) ||
+         BLI_rcti_inside_rcti(&strip_range, &gap_range);
+}
+
+/* Final pass on gap ranges. Checks agains all the strips to either remove gaps, expand Y range
+ * to infinity or top/bottom of timeline. */
+Vector<rcti> GapRemover::expand_or_remove_gaps(Vector<rcti> gap_ranges,
+                                               eWhichStripsCanBeMoved which)
+{
+  Vector<rcti> gaps_final;
+
+  for (rcti &range : gap_ranges) {
+    rcti above = {range.xmin, range.xmax, range.ymax + 1, std::numeric_limits<int>::max()};
+    rcti below = {range.xmin, range.xmax, 0, range.ymin - 1};
+    rcti left = {0, range.xmin, range.ymin, range.ymax};
+    const bool can_intersect_above = which == ABOVE || which == ABOVE_AND_BELOW;
+    const bool can_intersect_below = which == BELOW || which == ABOVE_AND_BELOW;
+
+    bool gap_is_valid = false;
+
+    /* Start by assuming, that gap is infinite in Y direction; */
+    range.ymax = std::numeric_limits<int>::max();
+    range.ymin = 0;
+
+    LISTBASE_FOREACH (Strip *, strip, active_seqbase_get(editing_get(scene))) {
+      if (!can_intersect_above && this->strip_intersects_range(strip, above)) {
+        range.ymax = math::min(range.ymax, strip->channel - 1);
+      }
+      if (!can_intersect_below && this->strip_intersects_range(strip, below)) {
+        range.ymin = math::max(range.ymin, strip->channel + 1);
+      }
+      if (this->strip_intersects_range(strip, range)) {
+        int strip_left = time_left_handle_frame_get(scene, strip);
+        int strip_right = time_right_handle_frame_get(scene, strip);
+
+        /* Move right gap edge close to strip */
+        if (strip_left <= range.xmin && strip_right < range.xmax) {
+          range.xmin = strip_right;
+        }
+        if (strip_left > range.xmin && strip_right >= range.xmax) {
+          range.xmax = strip_left;
+        }
+        /* If any strip covers the gap, it should be removed. */
+        if (strip_left == range.xmin && strip_right == range.xmax) {
+          gap_is_valid = false;
+          break;
+        }
+      }
+      /* If there are no strips on left side of gap, it is not a gap. */
+      if (this->strip_intersects_range(strip, left)) {
+        gap_is_valid = true;
+      }
+    }
+
+    if (BLI_rcti_is_valid(&range) && gap_is_valid) {
+      gaps_final.append(range);
+    }
+  }
+
+  return gaps_final;
+}
+
+// xxx also need function to return strips where only handle is moved
+// xxx perhaps it's better to have function to check if the gap is through whole timeline and
+// modify the gap itself.
+Vector<Strip *> GapRemover::query_right_side_strips(const rcti gap_range)
+{
+  rcti right_side_range = gap_range;
+  right_side_range.xmax = std::numeric_limits<int>::max();
+  Vector<Strip *> right_side_strips;
+  LISTBASE_FOREACH (Strip *, strip, active_seqbase_get(editing_get(scene))) {
+    rcti strip_range = {time_left_handle_frame_get(scene, strip) + 1,
+                        time_right_handle_frame_get(scene, strip) - 1,
+                        strip->channel,
+                        strip->channel};
+    if (BLI_rcti_inside_rcti(&right_side_range, &strip_range)) {
+      right_side_strips.append(strip);
+    }
+  }
+
+  return right_side_strips;
+}
+/*
+int GapRemover::calculate_gap_removal_offset(rcti gap_range)
+{
+  bool must_calculate_offset = false;
+  for (const Strip *strip : moved_strips) {
+    if (this->strip_intersects_range(strip, gap_range)) {
+      must_calculate_offset = true;
+      break;
+    }
+  }
+
+  if (!must_calculate_offset) {
+    return BLI_rcti_size_x(&gap_range);
+  }
+
+  // Some strip(s) got moved into a gap. Calculate the gap to nearest strip.
+  int frame = gap_range.xmax;
+  for (; frame > gap_range.xmin; frame--) {
+    for (const Strip *strip : moved_strips) {
+      if (time_strip_intersects_frame(scene, strip, frame)) {
+        break;
+      }
+    }
+  }
+
+  return gap_range.xmax - frame;
+}
+*/
+
+void GapRemover::remove_gaps()
+{
+  const eWhichStripsCanBeMoved which = ABOVE; /* XXX user selectable. */
+
+  /* Cleanup ranges in case some strip plugged the gap. This is fast, so it is done separately.
+   */
+  // XXX may cause use after free if strip is removed. I guess it's better to just not do this.
+  // gap_ranges.remove_if([&](rcti range) { return !this->has_gap_at(range.xmax); });
+
+  /* Final pass on gap ranges. This calculates true gap ranges. */
+  Vector<rcti> final_gap_ranges = gap_ranges;
+  if (which != IN_RANGE) {
+    final_gap_ranges = this->unify_gaps(final_gap_ranges);
+    final_gap_ranges = this->expand_or_remove_gaps(final_gap_ranges, which);
+  }
+
+  Map<Strip *, int> offset_per_strip;
+  for (const rcti &range : final_gap_ranges) {
+    // xxx technically not needed, since gap is adjusted in expand_or_remove_gaps
+    // const int offset = this->calculate_gap_removal_offset(range);
+    const int offset = BLI_rcti_size_x(&range);
+    Vector<Strip *> right_side_strips = this->query_right_side_strips(range);
+
+    for (Strip *strip : right_side_strips) {
+      offset_per_strip.add_or_modify(
+          strip,
+          [&](int *new_offset) { *new_offset = offset; },
+          [&](int *cur_offset) { *cur_offset += offset; });
+    }
+  }
+  /* AFAIK, moving strips with accumulated offset helps to avoid bugs, but this may be
+   * incorrect in this case. will see... */
+  for (auto item : offset_per_strip.items()) {
+    transform_translate_strip(scene, item.key, -item.value);
+  }
+}
+
+GapRemover::GapRemover(Scene *scene, VectorSet<Strip *> moved_strips)
+    : scene(scene), moved_strips(moved_strips)
+{
+  for (Strip *strip : moved_strips) {
+    gap_ranges.append({time_left_handle_frame_get(scene, strip),
+                       time_right_handle_frame_get(scene, strip),
+                       strip->channel});
+  }
+}
+
 }  // namespace blender::seq

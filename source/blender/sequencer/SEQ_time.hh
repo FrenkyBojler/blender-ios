@@ -67,16 +67,6 @@ int time_find_next_prev_edit(Scene *scene,
  * \return true if strip intersects with timeline frame.
  */
 bool time_strip_intersects_frame(const Scene *scene, const Strip *strip, int timeline_frame);
-/**
- * Test if strip intersects with range in timeline coords.
- * \note This checks if strip would be rendered at this frame. For rendering it is assumed, that
- * timeline frame has width of 1 frame and therefore ends at timeline_frame + 1
- *
- * \param strip: Strip to be checked
- * \param range: range in timeline coordinates
- * \return true if strip intersects with timeline frame.
- */
-bool time_strip_intersects_range(const Scene *scene, const Strip *strip, const rcti range);
 /* Convert timeline frame so strip frame index. */
 float give_frame_index(const Scene *scene, const Strip *strip, float timeline_frame);
 /**

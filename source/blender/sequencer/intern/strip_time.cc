@@ -432,16 +432,6 @@ bool time_strip_intersects_frame(const Scene *scene, const Strip *strip, const i
          (time_right_handle_frame_get(scene, strip) > timeline_frame);
 }
 
-/* xxx this is kinda correct for what I want, but this is not good API function I think */
-bool time_strip_intersects_range(const Scene *scene, const Strip *strip, const rcti range)
-{
-  const int left_handle_frame = time_left_handle_frame_get(scene, strip);
-  const int right_handle_frame = time_right_handle_frame_get(scene, strip);
-  return ((left_handle_frame >= range.xmin) || (right_handle_frame > range.xmin) ||
-          (left_handle_frame < range.xmax) || (right_handle_frame <= range.xmax)) &&
-         strip->channel >= range.ymin && strip->channel <= range.ymax;
-}
-
 bool time_has_left_still_frames(const Scene *scene, const Strip *strip)
 {
   return time_left_handle_frame_get(scene, strip) < time_start_frame_get(strip);

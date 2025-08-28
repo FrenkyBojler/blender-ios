@@ -11,7 +11,10 @@
 #include "BLI_array.hh"
 #include "BLI_bounds_types.hh"
 #include "BLI_math_matrix_types.hh"
+#include "BLI_rect.h"
 #include "BLI_span.hh"
+#include "BLI_vector.hh"
+#include "BLI_vector_set.hh"
 
 struct ListBase;
 struct Scene;
@@ -159,4 +162,31 @@ blender::Bounds<blender::float2> image_transform_bounding_box_from_collection(
  */
 blender::float3x3 image_transform_matrix_get(const Scene *scene, const Strip *strip);
 
+class GapRemover {
+ public:
+  enum eWhichStripsCanBeMoved {
+    ABOVE,
+    BELOW,
+    ABOVE_AND_BELOW,
+    IN_RANGE,
+  };
+
+  Scene *scene;
+  VectorSet<Strip *> moved_strips;
+  Vector<rcti> gap_ranges;
+
+ private:
+  /* Checks if the strip was moved from previous position to new position. */
+  // technically, this should check channel too in case of IN_RANGE mode.
+  bool has_gap_at(int timeline_frame);
+  bool can_merge_ranges(const rcti &unified_range, const rcti &range);
+  Vector<rcti> unify_gaps(const Vector<rcti> ranges);
+  bool strip_intersects_range(const Strip *strip, const rcti gap_range);
+  Vector<rcti> expand_or_remove_gaps(Vector<rcti> gap_ranges, eWhichStripsCanBeMoved which);
+  Vector<Strip *> query_right_side_strips(const rcti gap_range);
+
+ public:
+  void remove_gaps();
+  GapRemover(Scene *scene, VectorSet<Strip *> moved_strips);
+};
 }  // namespace blender::seq

@@ -1873,8 +1873,11 @@ static wmOperatorStatus sequencer_delete_exec(bContext *C, wmOperator *op)
   }
 
   seq::prefetch_stop(scene);
+  VectorSet<Strip *> selected_strips = selected_strips_from_context(C);
 
-  for (Strip *strip : selected_strips_from_context(C)) {
+  seq::GapRemover gap_remover(scene, selected_strips);
+
+  for (Strip *strip : selected_strips) {
     seq::edit_flag_for_removal(scene, seqbasep, strip);
     if (delete_data) {
       sequencer_delete_strip_data(C, strip);
@@ -1882,6 +1885,7 @@ static wmOperatorStatus sequencer_delete_exec(bContext *C, wmOperator *op)
   }
   seq::edit_remove_flagged_strips(scene, seqbasep);
 
+  gap_remover.remove_gaps();
   DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
   if (scene->adt && scene->adt->action) {
     DEG_id_tag_update(&scene->adt->action->id, ID_RECALC_ANIMATION_NO_FLUSH);

@@ -12,6 +12,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_hash.hh"
 #include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
@@ -77,8 +78,8 @@ struct TransSeq {
   VectorSet<Strip *> selected_strips;
   /* Strips that aren't selected, but their position entirely depends on transformed strips. */
   VectorSet<Strip *> time_dependent_strips;
-  /*  */
-  VectorSet<rcti> gap_ranges;
+
+  std::unique_ptr<seq::GapRemover> gap_remover;
 };
 
 }  // namespace
@@ -310,197 +311,6 @@ static ListBase *seqbase_active_get(const TransInfo *t)
   return seq::active_seqbase_get(ed);
 }
 
-static void find_potential_gaps(const TransInfo &t, TransSeq &ts)
-{
-  Scene *scene = CTX_data_sequencer_scene(t.context);
-
-  for (Strip *strip : ts.selected_strips) {
-    ts.gap_ranges.add({seq::time_left_handle_frame_get(scene, strip),
-                       seq::time_right_handle_frame_get(scene, strip),
-                       strip->channel});
-  }
-}
-
-static bool has_gap_at(const Scene &scene,
-                       const VectorSet<Strip *> selected_strips,
-                       int timeline_frame,
-                       int channel)
-{
-  bool has_gap = true;
-  for (const Strip *strip : selected_strips) {
-    has_gap &= (seq::time_strip_intersects_frame(&scene, strip, timeline_frame) &&
-                strip->channel == channel);
-  }
-  return has_gap;
-}
-
-bool can_merge_ranges(const rcti &unified_range, const rcti &range)
-{
-  const bool channel_is_adjacent = math::abs(range.ymin - unified_range.ymax) == 1 ||
-                                   math::abs(range.ymin - unified_range.ymin) == 1;
-  const bool has_same_time_range = unified_range.xmin == range.xmin &&
-                                   unified_range.xmax == range.xmax;
-  return channel_is_adjacent && has_same_time_range;
-}
-
-static VectorSet<rcti> unify_gaps(const VectorSet<rcti> ranges)
-{
-  VectorSet<rcti> unified_ranges;
-
-  for (const rcti &range : ranges) {
-    bool was_merged = false;
-    for (rcti unified_range : unified_ranges) {
-      if (can_merge_ranges(unified_range, range)) {
-        unified_range.xmin = math::min(unified_range.xmin, range.xmin);
-        unified_range.ymin = math::min(unified_range.ymin, range.ymin);
-        unified_range.xmax = math::max(unified_range.xmax, range.xmax);
-        unified_range.ymax = math::max(unified_range.ymax, range.ymin);
-        was_merged = true;
-      }
-    }
-
-    if (!was_merged) {
-      unified_ranges.add({range.xmin, range.xmax, range.ymin, range.ymin});
-    }
-  }
-  return unified_ranges;
-}
-
-enum eWhichStripsCanBeMoved {
-  ABOVE,
-  BELOW,
-  ABOVE_AND_BELOW,
-  IN_RANGE,
-};
-
-/* 2 ranges are constructed above and below gap range. */
-/* We iterate all strips and if any intersects the range, we bail. */
-static bool can_remove_gap(const TransInfo &t,
-                           const Scene &scene,
-                           rcti gap_range,
-                           eWhichStripsCanBeMoved which)
-{
-  rcti above = {
-      gap_range.xmin, gap_range.xmax, gap_range.ymax + 1, std::numeric_limits<int>::max()};
-  rcti below = {gap_range.xmin, gap_range.xmax, 0, gap_range.ymin - 1};
-
-  const bool can_intersect_above = which == ABOVE || which == ABOVE_AND_BELOW;
-  const bool can_intersect_below = which == BELOW || which == ABOVE_AND_BELOW;
-
-  LISTBASE_FOREACH (Strip *, strip, seqbase_active_get(&t)) {
-    if (!can_intersect_above && seq::time_strip_intersects_range(&scene, strip, above)) {
-      return false;
-    }
-    if (!can_intersect_below && seq::time_strip_intersects_range(&scene, strip, below)) {
-      return false;
-    }
-  }
-  return true;
-}
-
-static int calculate_gap_removal_offset(const Scene &scene,
-                                        const VectorSet<Strip *> selected_strips,
-                                        rcti gap_range)
-{
-  /* Here we can be sure that there is a gap, but we need to know how long it is. Easiest way to
-   * check is to assume that there is no strip in that gap. */
-
-  /* Check if any strip is in the gap. Only selected (and time dependent XXX TODO) strips can move,
-   * so there is no need to iterate all strips. */
-
-  bool must_calculate_offset = false;
-  for (const Strip *strip : selected_strips) {
-    must_calculate_offset |= seq::time_strip_intersects_range(&scene, strip, gap_range);
-  }
-
-  if (!must_calculate_offset) {
-    return BLI_rcti_size_x(&gap_range);
-  }
-
-  /* Some strip(s) got moved into a gap. Calculate the gap to nearest strip. */
-
-  int frame = gap_range.xmax;
-  for (; frame > gap_range.xmin; frame--) {
-    for (const Strip *strip : selected_strips) {
-      if (seq::time_strip_intersects_frame(&scene, strip, frame)) {
-        break;
-      }
-    }
-  }
-
-  return gap_range.xmax - frame;
-}
-
-// xxx also need to return strips where only handle is moved
-VectorSet<Strip *> query_right_side_strips(const Scene &scene,
-                                           ListBase *seqbase,
-                                           const rcti gap_range,
-                                           eWhichStripsCanBeMoved which)
-{
-  /* Case for which == IN_RANGE. */
-  int ymin = gap_range.ymin;
-  int ymax = gap_range.ymax;
-
-  if (which == BELOW || which == ABOVE_AND_BELOW) {
-    ymin = 0;
-  }
-  if (which == ABOVE || which == ABOVE_AND_BELOW) {
-    ymax = std::numeric_limits<int>::max();
-  }
-
-  const rcti right_side_range = {
-      gap_range.xmax,
-      std::numeric_limits<int>::max(),
-      ymin,
-      ymax,
-  };
-
-  VectorSet<Strip *> right_side_strips;
-  LISTBASE_FOREACH (Strip *, strip, seqbase) {
-    // xxx Bad function for this task - strip may be inside of range or partially inside here
-    if (seq::time_strip_intersects_range(&scene, strip, gap_range)) {
-      right_side_strips.add(strip);
-    }
-  }
-
-  return right_side_strips;
-}
-
-static void handle_gaps(const TransInfo &t, TransSeq &ts)
-{
-  Scene &scene = *CTX_data_sequencer_scene(t.context);
-  const eWhichStripsCanBeMoved which = ABOVE; /* XXX user selectable. */
-
-  /* Cleanup ranges in case some strip plugged the gap. */
-  ts.gap_ranges.remove_if(
-      [&](rcti range) { return !has_gap_at(scene, ts.selected_strips, range.xmax, range.ymin); });
-
-  /* Unify gap ranges if needed. */
-  VectorSet<rcti> gap_ranges = ts.gap_ranges;
-  if (which != IN_RANGE) {
-    gap_ranges = unify_gaps(ts.gap_ranges);
-  }
-
-  Map<Strip *, int> offset_per_strip;
-  for (const rcti &range : gap_ranges) {
-    const int offset = calculate_gap_removal_offset(scene, ts.selected_strips, range);
-    VectorSet<Strip *> right_side_strips = query_right_side_strips(
-        scene, seqbase_active_get(&t), range, IN_RANGE);
-
-    for (Strip *strip : right_side_strips) {
-      offset_per_strip.add_or_modify(
-          strip,
-          [&](int *new_offset) { *new_offset = offset; },
-          [&](int *cur_offset) { *cur_offset += offset; });
-    }
-  }
-  /* AFAIK, moving strips with accumulated offset helps to avoid bugs, but this may be incorrect in
-   * this case. will see... */
-  for (auto item : offset_per_strip.items()) {
-    seq::transform_translate_strip(&scene, item.key, item.value);
-  }
-}
-
 bool seq_transform_check_overlap(Span<Strip *> transformed_strips)
 {
   for (Strip *strip : transformed_strips) {
@@ -554,7 +364,10 @@ static void freeSeqData(TransInfo *t, TransDataContainer *tc, TransCustomData *c
     seq::transform_handle_overlap(
         scene, seqbasep, transformed_strips, ts->time_dependent_strips, use_sync_markers);
   }
-  handle_gaps(*t, *ts);
+
+  if (t->values_final[0] < 0) {
+    ts->gap_remover->remove_gaps();
+  }
 
   DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
   free_transform_custom_data(custom_data);
@@ -818,7 +631,8 @@ static void createTransSeqData(bContext * /*C*/, TransInfo *t)
 
   ts->selected_strips = vse::selected_strips_from_context(t->context);
   query_time_dependent_strips_strips(t, ts->time_dependent_strips);
-  find_potential_gaps(*t, *ts);
+
+  ts->gap_remover = std::make_unique<seq::GapRemover>(scene, ts->selected_strips);
 }
 
 /** \} */
