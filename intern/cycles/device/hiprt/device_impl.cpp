@@ -222,17 +222,13 @@ string HIPRTDevice::compile_kernel(const uint kernel_features, const char *name,
 
   const char *const kernel_ext = "genco";
   string options;
-  options.append(
-      "-Wno-parentheses-equality -Wno-unused-value -ffast-math -O3 -std=c++17 -D __HIPRT__");
+  options.append("-Wno-parentheses-equality -Wno-unused-value -ffast-math -O3 -std=c++17");
   options.append(" --offload-arch=").append(arch.c_str());
   if (hipNeedPreciseMath(arch)) {
     options.append(
         " -fhip-fp32-correctly-rounded-divide-sqrt -fno-gpu-approx-transcendentals "
         "-fgpu-flush-denormals-to-zero -ffp-contract=off");
   }
-#  ifdef WITH_NANOVDB
-  options.append(" -D WITH_NANOVDB");
-#  endif
 
   LOG_INFO_IMPORTANT << "Compiling " << source_path << " and caching to " << fatbin;
 
@@ -248,9 +244,8 @@ string HIPRTDevice::compile_kernel(const uint kernel_features, const char *name,
                                          fatbin.c_str(),
                                          common_cflags.c_str());
 
-  printf("Compiling %sHIP kernel ...\n%s\n",
-         (use_adaptive_compilation()) ? "adaptive " : "",
-         compile_command.c_str());
+  LOG_INFO_IMPORTANT << "Compiling " << ((use_adaptive_compilation()) ? "adaptive " : "")
+                     << "HIP-RT kernel ... " << compile_command;
 
 #  ifdef _WIN32
   compile_command = "call " + compile_command;
