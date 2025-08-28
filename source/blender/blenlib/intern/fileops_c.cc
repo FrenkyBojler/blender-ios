@@ -366,9 +366,12 @@ static int dir_create_recursive(const blender::StringRef dirname)
       "Paths containing \"..\" components must be normalized first!");
 #endif
 
+  const std::string null_terminated_dirname(dirname);
 #ifdef WIN32
   /* Check special case `c:\foo`, don't try create `c:`, harmless but unnecessary. */
-  if (dirname.size() > 0 && BLI_path_is_win32_drive_only(dirname)) {
+  if (null_terminated_dirname.size() > 0 &&
+      BLI_path_is_win32_drive_only(null_terminated_dirname.c_str()))
+  {
     return DIR_CREATE_OK;
   }
 #endif
@@ -389,7 +392,6 @@ static int dir_create_recursive(const blender::StringRef dirname)
    * earlier call to BLI_exists() and this call to mkdir. Since this function only creates a
    * directory if it doesn't exist yet, this is actually not seen as an error, even though
    * mkdir() failed. */
-  const std::string null_terminated_dirname(dirname);
 #ifdef WIN32
   if (umkdir(null_terminated_dirname.c_str()) == -1) {
     const int mkdir_last_error = GetLastError(); /* Store before doing other system calls. */
