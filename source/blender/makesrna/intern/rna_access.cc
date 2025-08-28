@@ -1202,7 +1202,7 @@ bool RNA_struct_bl_idname_ok_or_report(ReportList *reports,
     {
       BKE_reportf(reports,
                   eReportType(report_level),
-                  "'%s' doesn't have upper case alpha-numeric prefix",
+                  "'%s' does not have upper case alpha-numeric prefix",
                   identifier);
       return failure;
     }
@@ -1217,7 +1217,7 @@ bool RNA_struct_bl_idname_ok_or_report(ReportList *reports,
     {
       BKE_reportf(reports,
                   eReportType(report_level),
-                  "'%s' doesn't have an alpha-numeric suffix",
+                  "'%s' does not have an alpha-numeric suffix",
                   identifier);
       return failure;
     }
@@ -2255,7 +2255,7 @@ static bool rna_property_editable_do(const PointerRNA *ptr,
    * because regular properties may not be editable and still be displayed. */
   if (flag & PROP_REGISTER) {
     if (r_info != nullptr && (*r_info)[0] == '\0') {
-      *r_info = N_("This property is for internal use only and can't be edited");
+      *r_info = N_("This property is for internal use only and cannot be edited");
     }
     return false;
   }
@@ -2272,7 +2272,7 @@ static bool rna_property_editable_do(const PointerRNA *ptr,
       return true;
     }
     if (r_info != nullptr && (*r_info)[0] == '\0') {
-      *r_info = N_("Can't edit this property from a linked data-block");
+      *r_info = N_("Cannot edit this property from a linked data-block");
     }
     return false;
   }
@@ -2280,13 +2280,13 @@ static bool rna_property_editable_do(const PointerRNA *ptr,
     const bool is_liboverride_system = BKE_lib_override_library_is_system_defined(G_MAIN, id);
     if (!RNA_property_overridable_get(ptr, prop_orig)) {
       if (r_info != nullptr && (*r_info)[0] == '\0') {
-        *r_info = N_("Can't edit this property from an override data-block");
+        *r_info = N_("Cannot edit this property from an override data-block");
       }
       return false;
     }
     if (is_liboverride_system && !is_linked_prop_exception) {
       if (r_info != nullptr && (*r_info)[0] == '\0') {
-        *r_info = N_("Can't edit this property from a system override data-block");
+        *r_info = N_("Cannot edit this property from a system override data-block");
       }
       return false;
     }
@@ -4228,8 +4228,8 @@ void RNA_property_pointer_set(PointerRNA *ptr,
 
     const PointerRNA old_id_ptr = pprop->get(ptr);
     BLI_assert_msg(!is_id_refcounting || !old_id_ptr.data || RNA_struct_is_ID(old_id_ptr.type),
-                   "If the property is tagged with ID refcounting, its current value should be "
-                   "null or an ID");
+                   "If the property is tagged with ID reference-counting, "
+                   "its current value should be null or an ID");
     const ID *old_id = (old_id_ptr.type && RNA_struct_is_ID(old_id_ptr.type)) ?
                            old_id_ptr.data_as<ID>() :
                            nullptr;
@@ -4252,13 +4252,13 @@ void RNA_property_pointer_set(PointerRNA *ptr,
      * handling) from custom setters.
      *
      * Should there be some very uncommon setter behavior, e.g. unassigning an ID from the property
-     * automatically assigning it to several other refcounting usages, this will have to be
+     * automatically assigning it to several other reference-counting usages, this will have to be
      * tweaked, e.g. by adding a special 'skip checks' flag to such RNA properties. */
     PointerRNA current_id_ptr = pprop->get(ptr);
-    BLI_assert_msg(!is_id_refcounting || !current_id_ptr.data ||
-                       RNA_struct_is_ID(current_id_ptr.type),
-                   "If the property is tagged with ID refcounting, its current value should be "
-                   "null or an ID");
+    BLI_assert_msg(
+        !is_id_refcounting || !current_id_ptr.data || RNA_struct_is_ID(current_id_ptr.type),
+        "If the property is tagged with ID reference-counting, its current value should be "
+        "null or an ID");
     ID *current_id = (current_id_ptr.type && RNA_struct_is_ID(current_id_ptr.type)) ?
                          static_cast<ID *>(current_id_ptr.data) :
                          nullptr;
@@ -4271,14 +4271,16 @@ void RNA_property_pointer_set(PointerRNA *ptr,
                        "should not modify the original ID usercount");
       }
       else if (is_id_refcounting) {
-        BLI_assert_msg(old_id_new_refcount < old_id_old_refcount,
-                       "Unassigning an ID from a refcounting RNA pointer property should decrease "
-                       "its usercount");
+        BLI_assert_msg(
+            old_id_new_refcount < old_id_old_refcount,
+            "Unassigning an ID from a reference-counting RNA pointer property should decrease "
+            "its user-count");
       }
       else {
-        BLI_assert_msg(old_id_new_refcount == old_id_old_refcount,
-                       "Unassigning an ID from a non-refcounting RNA pointer property should not "
-                       "modify its usercount");
+        BLI_assert_msg(
+            old_id_new_refcount == old_id_old_refcount,
+            "Unassigning an ID from a non-reference-counting RNA pointer property should not "
+            "modify its user-count");
       }
     }
     if (new_id && new_id != old_id) {
@@ -4286,17 +4288,19 @@ void RNA_property_pointer_set(PointerRNA *ptr,
       if (current_id == old_id) {
         BLI_assert_msg(new_id_new_refcount == new_id_old_refcount,
                        "Failed assigning a new ID to a RNA pointer property, should not modify "
-                       "the new ID usercount");
+                       "the new ID user-count");
       }
       else if (is_id_refcounting) {
-        BLI_assert_msg(new_id_new_refcount > new_id_old_refcount,
-                       "Assigning an ID to a refcounting RNA pointer property should increase "
-                       "its usercount");
+        BLI_assert_msg(
+            new_id_new_refcount > new_id_old_refcount,
+            "Assigning an ID to a reference-counting RNA pointer property should increase "
+            "its user-count");
       }
       else {
-        BLI_assert_msg(new_id_new_refcount == new_id_old_refcount,
-                       "Assigning an ID to a non-refcounting RNA pointer property should not "
-                       "modify its usercount");
+        BLI_assert_msg(
+            new_id_new_refcount == new_id_old_refcount,
+            "Assigning an ID to a non-reference-counting RNA pointer property should not "
+            "modify its user-count");
       }
     }
 #endif

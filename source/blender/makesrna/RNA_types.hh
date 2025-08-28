@@ -125,6 +125,18 @@ struct PointerRNA {
   {
     return static_cast<T *>(this->data);
   }
+
+  /**
+   * Get the immediate parent pointer, if any.
+   */
+  PointerRNA parent() const
+  {
+    if (ancestors.is_empty()) {
+      return PointerRNA();
+    }
+
+    return PointerRNA(owner_id, ancestors.last().type, ancestors.last().data);
+  }
 };
 
 extern const PointerRNA PointerRNA_NULL;
@@ -214,7 +226,7 @@ enum PropertyScaleType {
 #define RNA_STACK_ARRAY 32
 
 /**
- * \note Also update enums in `bpy_props.cc` and `rna_rna.cc` when adding items here.
+ * \note Also update enums in `rna_rna.cc` when adding items here.
  * Watch it: these values are written to files as part of node socket button sub-types!
  */
 enum PropertySubType {
@@ -628,7 +640,7 @@ struct RawArray {
 };
 
 /**
- * This struct is are typically defined in arrays which define an *enum* for RNA,
+ * This struct is typically defined in arrays which define an *enum* for RNA,
  * which is used by the RNA API both for user-interface and the Python API.
  */
 struct EnumPropertyItem {

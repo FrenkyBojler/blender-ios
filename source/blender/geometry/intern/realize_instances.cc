@@ -445,31 +445,6 @@ static bool skip_transform(const float4x4 &transform)
   return math::is_equal(transform, float4x4::identity(), 1e-6f);
 }
 
-static void copy_transformed_positions(const Span<float3> src,
-                                       const float4x4 &transform,
-                                       MutableSpan<float3> dst)
-{
-  if (skip_transform(transform)) {
-    dst.copy_from(src);
-  }
-  else {
-    threading::parallel_for(src.index_range(), 1024, [&](const IndexRange range) {
-      for (const int i : range) {
-        dst[i] = math::transform_point(transform, src[i]);
-      }
-    });
-  }
-}
-
-static void transform_positions(const float4x4 &transform, MutableSpan<float3> positions)
-{
-  threading::parallel_for(positions.index_range(), 1024, [&](const IndexRange range) {
-    for (const int i : range) {
-      positions[i] = math::transform_point(transform, positions[i]);
-    }
-  });
-}
-
 static void threaded_copy(const GSpan src, GMutableSpan dst)
 {
   BLI_assert(src.size() == dst.size());
@@ -1236,7 +1211,7 @@ static void execute_realize_pointcloud_task(
   const PointCloud &pointcloud = *pointcloud_info.pointcloud;
   const IndexRange point_slice{task.start_index, pointcloud.totpoint};
 
-  copy_transformed_positions(
+  math::transform_points(
       pointcloud_info.positions, task.transform, all_dst_positions.slice(point_slice));
 
   /* Create point ids. */
@@ -1294,7 +1269,7 @@ static void execute_realize_pointcloud_tasks(const RealizeInstancesOptions &opti
     const RealizePointCloudTask &task = tasks.first();
     PointCloud *new_points = BKE_pointcloud_copy_for_eval(task.pointcloud_info->pointcloud);
     if (!skip_transform(task.transform)) {
-      transform_positions(task.transform, new_points->positions_for_write());
+      math::transform_points(task.transform, new_points->positions_for_write());
       new_points->tag_positions_changed();
     }
     add_instance_attributes_to_single_geometry(
@@ -1564,11 +1539,8 @@ static void execute_realize_mesh_task(const RealizeInstancesOptions &options,
   MutableSpan<int> dst_corner_verts = all_dst_corner_verts.slice(dst_loop_range);
   MutableSpan<int> dst_corner_edges = all_dst_corner_edges.slice(dst_loop_range);
 
-  threading::parallel_for(src_positions.index_range(), 1024, [&](const IndexRange vert_range) {
-    for (const int i : vert_range) {
-      dst_positions[i] = math::transform_point(task.transform, src_positions[i]);
-    }
-  });
+  math::transform_points(src_positions, task.transform, dst_positions);
+
   threading::parallel_for(src_edges.index_range(), 1024, [&](const IndexRange edge_range) {
     for (const int i : edge_range) {
       dst_edges[i] = src_edges[i] + task.start_indices.vertex;
@@ -1663,6 +1635,26 @@ static void execute_realize_mesh_task(const RealizeInstancesOptions &options,
                                     domain_to_range,
                                     dst_attribute_writers);
 }
+static void copy_vertex_group_name(ListBase *dst_deform_group,
+                                   const OrderedAttributes &ordered_attributes,
+                                   const bDeformGroup &src_deform_group)
+{
+  const StringRef src_name = src_deform_group.name;
+  const int attribute_index = ordered_attributes.ids.index_of_try(src_name);
+  if (attribute_index == -1) {
+    /* The attribute is not propagated to the result (possibly because the mesh isn't included
+     * in the realized output because of the #VariedDepthOptions input). */
+    return;
+  }
+  const bke::AttributeDomainAndType kind = ordered_attributes.kinds[attribute_index];
+  if (kind.domain != bke::AttrDomain::Point || kind.data_type != bke::AttrType::Float) {
+    /* Skip if the source attribute can't possibly contain vertex weights. */
+    return;
+  }
+  bDeformGroup *dst = MEM_callocN<bDeformGroup>(__func__);
+  src_name.copy_utf8_truncated(dst->name);
+  BLI_addtail(dst_deform_group, dst);
+}
 
 static void copy_vertex_group_names(Mesh &dst_mesh,
                                     const OrderedAttributes &ordered_attributes,
@@ -1674,24 +1666,10 @@ static void copy_vertex_group_names(Mesh &dst_mesh,
   }
   for (const Mesh *mesh : src_meshes) {
     LISTBASE_FOREACH (const bDeformGroup *, src, &mesh->vertex_group_names) {
-      const StringRef src_name = src->name;
-      const int attribute_index = ordered_attributes.ids.index_of_try(src_name);
-      if (attribute_index == -1) {
-        /* The attribute is not propagated to the result (possibly because the mesh isn't included
-         * in the realized output because of the #VariedDepthOptions input). */
+      if (existing_names.contains(src->name)) {
         continue;
       }
-      const bke::AttributeDomainAndType kind = ordered_attributes.kinds[attribute_index];
-      if (kind.domain != bke::AttrDomain::Point || kind.data_type != bke::AttrType::Float) {
-        /* Prefer using the highest priority domain and type from all input meshes. */
-        continue;
-      }
-      if (existing_names.contains(src_name)) {
-        continue;
-      }
-      bDeformGroup *dst = MEM_callocN<bDeformGroup>(__func__);
-      src_name.copy_utf8_truncated(dst->name);
-      BLI_addtail(&dst_mesh.vertex_group_names, dst);
+      copy_vertex_group_name(&dst_mesh.vertex_group_names, ordered_attributes, *src);
     }
   }
 }
@@ -1983,7 +1961,7 @@ static void execute_realize_curve_task(const RealizeInstancesOptions &options,
   const IndexRange dst_custom_knot_range{task.start_indices.custom_knot,
                                          curves.nurbs_custom_knots_by_curve().total_size()};
 
-  copy_transformed_positions(
+  math::transform_points(
       curves.positions(), task.transform, dst_curves.positions_for_write().slice(dst_point_range));
 
   /* Copy and transform handle positions if necessary. */
@@ -1992,14 +1970,14 @@ static void execute_realize_curve_task(const RealizeInstancesOptions &options,
       all_handle_left.slice(dst_point_range).fill(float3(0));
     }
     else {
-      copy_transformed_positions(
+      math::transform_points(
           curves_info.handle_left, task.transform, all_handle_left.slice(dst_point_range));
     }
     if (curves_info.handle_right.is_empty()) {
       all_handle_right.slice(dst_point_range).fill(float3(0));
     }
     else {
-      copy_transformed_positions(
+      math::transform_points(
           curves_info.handle_right, task.transform, all_handle_right.slice(dst_point_range));
     }
   }
@@ -2060,6 +2038,25 @@ static void execute_realize_curve_task(const RealizeInstancesOptions &options,
       dst_attribute_writers);
 }
 
+static void copy_vertex_group_names(CurvesGeometry &dst_curve,
+                                    const OrderedAttributes &ordered_attributes,
+                                    const Span<const Curves *> src_curves)
+{
+  Set<StringRef> existing_names;
+  LISTBASE_FOREACH (const bDeformGroup *, defgroup, &dst_curve.vertex_group_names) {
+    existing_names.add(defgroup->name);
+  }
+  for (const Curves *src_curve : src_curves) {
+    LISTBASE_FOREACH (const bDeformGroup *, src, &src_curve->geometry.vertex_group_names) {
+      if (existing_names.contains(src->name)) {
+        continue;
+      }
+      copy_vertex_group_name(&dst_curve.vertex_group_names, ordered_attributes, *src);
+      existing_names.add(src->name);
+    }
+  }
+}
+
 static void execute_realize_curve_tasks(const RealizeInstancesOptions &options,
                                         const AllCurvesInfo &all_curves_info,
                                         const Span<RealizeCurveTask> tasks,
@@ -2104,6 +2101,8 @@ static void execute_realize_curve_tasks(const RealizeInstancesOptions &options,
   const RealizeCurveTask &first_task = tasks.first();
   const Curves &first_curves_id = *first_task.curve_info->curves;
   bke::curves_copy_parameters(first_curves_id, *dst_curves_id);
+
+  copy_vertex_group_names(dst_curves, ordered_attributes, all_curves_info.order);
 
   /* Prepare id attribute. */
   SpanAttributeWriter<int> point_ids;
@@ -2426,11 +2425,17 @@ static void execute_realize_edit_data_tasks(const Span<RealizeEditDataTask> task
 
 static void remove_id_attribute_from_instances(bke::GeometrySet &geometry_set)
 {
-  geometry_set.modify_geometry_sets([&](bke::GeometrySet &sub_geometry) {
-    if (Instances *instances = sub_geometry.get_instances_for_write()) {
-      instances->attributes_for_write().remove("id");
+  Instances *instances = geometry_set.get_instances_for_write();
+  if (!instances) {
+    return;
+  }
+  instances->attributes_for_write().remove("id");
+  instances->ensure_geometry_instances();
+  for (bke::InstanceReference &reference : instances->references_for_write()) {
+    if (reference.type() == bke::InstanceReference::Type::GeometrySet) {
+      remove_id_attribute_from_instances(reference.geometry_set());
     }
-  });
+  }
 }
 
 /** Propagate instances from the old geometry set to the new geometry set if they are not

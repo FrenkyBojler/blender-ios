@@ -2059,15 +2059,16 @@ void MESH_OT_duplicate(wmOperatorType *ot)
   ot->poll = ED_operator_editmesh;
 
   /* to give to transform */
-  RNA_def_int(ot->srna,
-              "mode",
-              blender::ed::transform::TFM_TRANSLATION,
-              0,
-              INT_MAX,
-              "Mode",
-              "",
-              0,
-              INT_MAX);
+  PropertyRNA *prop = RNA_def_int(ot->srna,
+                                  "mode",
+                                  blender::ed::transform::TFM_TRANSLATION,
+                                  0,
+                                  INT_MAX,
+                                  "Mode",
+                                  "",
+                                  0,
+                                  INT_MAX);
+  RNA_def_property_flag(prop, PROP_HIDDEN);
 }
 
 static BMLoopNorEditDataArray *flip_custom_normals_init_data(BMesh *bm)
@@ -4784,7 +4785,7 @@ struct FillGridSplitJoin {
  *
  * This is done only when there are faces selected. Once split this way, fill_grid will
  * interpolate using only the data from the selected faces, not the data from the surrounding
- * faces. This matters for  UV edges and face corner colors - the data from the faces being
+ * faces. This matters for UV edges and face corner colors - the data from the faces being
  * replaced is the right data to use for the interpolation. This relies on the fact that the
  * "exterior" edge of an island is topologically the same as the "interior" edge around a hole.
  *
@@ -8092,8 +8093,8 @@ static wmOperatorStatus edbm_mark_freestyle_face_exec(bContext *C, wmOperator *o
       continue;
     }
 
-    BM_data_layer_ensure_named(em->bm, &em->bm->edata, CD_PROP_BOOL, "freestyle_edge");
-    const int offset = CustomData_get_offset_named(&em->bm->edata, CD_PROP_BOOL, "freestyle_edge");
+    BM_data_layer_ensure_named(em->bm, &em->bm->pdata, CD_PROP_BOOL, "freestyle_face");
+    const int offset = CustomData_get_offset_named(&em->bm->pdata, CD_PROP_BOOL, "freestyle_face");
     if (offset == -1) {
       continue;
     }
