@@ -3866,9 +3866,9 @@ static void rna_def_modifier(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "show_expanded", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_flag(prop, PROP_NO_DEG_UPDATE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "flag", STRIP_MODIFIER_FLAG_EXPANDED);
+  RNA_def_property_boolean_sdna(
+      prop, nullptr, "layout_panel_open_flag", UI_PANEL_DATA_EXPAND_ROOT);
   RNA_def_property_ui_text(prop, "Expanded", "Mute expanded settings for the modifier");
-  RNA_def_property_ui_icon(prop, ICON_RIGHTARROW, 1);
   RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, nullptr);
 
   prop = RNA_def_property(srna, "input_mask_type", PROP_ENUM, PROP_NONE);
