@@ -2027,6 +2027,8 @@ def km_image_generic(params):
     if not params.legacy:
         items.extend([
             ("image.save_as", {"type": 'S', "value": 'PRESS', "shift": True, "alt": True}, None),
+            ("image.clipboard_copy", {"type": 'C', "value": 'PRESS', "ctrl": True, "shift": True}, None),
+            ("image.clipboard_paste", {"type": 'V', "value": 'PRESS', "ctrl": True, "shift": True}, None),
         ])
     else:
         items.extend([
