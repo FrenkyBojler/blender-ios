@@ -24,6 +24,9 @@ set(INC
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
 
+set(INC_SYS
+)
+
 set(SRC
   nodes/node_geo_accumulate_field.cc
   nodes/node_geo_attribute_capture.cc
@@ -33,8 +36,6 @@ set(SRC
   nodes/node_geo_blur_attribute.cc
   nodes/node_geo_boolean.cc
   nodes/node_geo_bounding_box.cc
-  nodes/node_geo_box2d_physics_solver.cc
-  nodes/node_geo_bullet_physics_solver.cc
   nodes/node_geo_camera_info.cc
   nodes/node_geo_closure.cc
   nodes/node_geo_collection_info.cc
@@ -146,7 +147,6 @@ set(SRC
   nodes/node_geo_interpolate_curves.cc
   nodes/node_geo_is_viewport.cc
   nodes/node_geo_join_geometry.cc
-  nodes/node_geo_jolt_physics_solver.cc
   nodes/node_geo_list.cc
   nodes/node_geo_list_get_item.cc
   nodes/node_geo_list_length.cc
@@ -249,7 +249,6 @@ set(SRC
   nodes/node_geo_volume_to_mesh.cc
   nodes/node_geo_warning.cc
   nodes/node_geo_xpbd_physics_solver.cc
-  nodes/node_geo_xpbd_solver.cc
 
   include/NOD_geo_bake.hh
   include/NOD_geo_bundle.hh
@@ -286,7 +285,6 @@ set(LIB
   bf_io_common
   bf_io_csv
   PRIVATE bf::intern::atomic
-  PRIVATE bf::extern::box2d
   PRIVATE bf::extern::fmtlib
   PRIVATE bf::extern::xxhash
   PRIVATE bf::render
@@ -328,13 +326,6 @@ if(WITH_BULLET)
   add_definitions(-DWITH_BULLET)
   add_definitions(-DBT_USE_DOUBLE_PRECISION)
 endif()
-
-list(APPEND INC_SYS
-  ${JOLT_INCLUDE_DIRS}
-)
-list(APPEND LIB
-  ${JOLT_LIBRARIES}
-)
 
 if(WITH_TBB)
   if(WIN32)

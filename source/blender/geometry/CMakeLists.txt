@@ -22,7 +22,6 @@ set(SRC
   intern/foreach_geometry.cc
   intern/interpolate_curves.cc
   intern/join_geometries.cc
-  intern/jolt.cc
   intern/merge_curves.cc
   intern/merge_layers.cc
   intern/mesh_boolean.cc
@@ -49,7 +48,6 @@ set(SRC
   intern/reverse_uv_sampler.cc
   intern/separate_geometry.cc
   intern/set_curve_type.cc
-  intern/shape_hash.cc
   intern/simplify_curves.cc
   intern/smooth_curves.cc
   intern/subdivide_curves.cc
@@ -58,7 +56,6 @@ set(SRC
   intern/uv_pack.cc
   intern/uv_parametrizer.cc
   intern/volume_grid_resample.cc
-  intern/xpbd_old.cc
   intern/xpbd_constraint_solver.cc
 
   GEO_add_curves_on_mesh.hh
@@ -71,7 +68,6 @@ set(SRC
   GEO_foreach_geometry.hh
   GEO_interpolate_curves.hh
   GEO_join_geometries.hh
-  GEO_jolt.hh
   GEO_merge_curves.hh
   GEO_merge_layers.hh
   GEO_mesh_boolean.hh
@@ -97,7 +93,6 @@ set(SRC
   GEO_reverse_uv_sampler.hh
   GEO_separate_geometry.hh
   GEO_set_curve_type.hh
-  GEO_shape_hash.hh
   GEO_simplify_curves.hh
   GEO_smooth_curves.hh
   GEO_subdivide_curves.hh
@@ -109,7 +104,6 @@ set(SRC
   GEO_xpbd.hh
   GEO_xpbd_constraint_sets_common.hh
   GEO_xpbd_constraint_utils.hh
-  GEO_xpbd_old.hh
 
   intern/mesh_boolean_manifold.hh
 )
@@ -121,12 +115,10 @@ set(LIB
   PRIVATE bf::bmesh
   PRIVATE bf::dna
   PRIVATE bf::functions
-  PRIVATE bf::nodes
   PRIVATE bf::intern::atomic
   PRIVATE bf::intern::guardedalloc
   PRIVATE bf::extern::fmtlib
   PRIVATE bf::extern::curve_fit_nd
-  PRIVATE bf::extern::xxhash
   PRIVATE bf::dependencies::optional::manifold
 )
 
@@ -152,13 +144,6 @@ endif()
 if(WITH_MANIFOLD)
   add_definitions(-DWITH_MANIFOLD)
 endif()
-
-list(APPEND INC_SYS
-  ${JOLT_INCLUDE_DIRS}
-)
-list(APPEND LIB
-  ${JOLT_LIBRARIES}
-)
 
 blender_add_lib(bf_geometry "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 add_library(bf::geometry ALIAS bf_geometry)

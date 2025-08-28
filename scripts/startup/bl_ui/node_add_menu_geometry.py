@@ -607,11 +607,7 @@ class NODE_MT_category_simulation(Menu):
         layout = self.layout
         node_add_menu.add_simulation_zone(layout, label="Simulation")
         layout.separator()
-        node_add_menu.add_node_type(layout, "GeometryNodeBox2DPhysicsSolver")
-        node_add_menu.add_node_type(layout, "GeometryNodeBulletPhysicsSolver")
-        node_add_menu.add_node_type(layout, "GeometryNodeJoltPhysicsSolver")
         node_add_menu.add_node_type(layout, "GeometryNodeXPBDPhysicsSolver")
-        node_add_menu.add_node_type(layout, "GeometryNodeXPBDSolver")
         node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
 
 
