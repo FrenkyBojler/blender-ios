@@ -19,7 +19,6 @@
 
 #include "MEM_guardedalloc.h"
 
-
 /**
  * This struct stores a (simplified) 2D representation of all buttons of a same align group,
  * with their immediate neighbors (if found),
@@ -76,24 +75,24 @@ enum {
 };
 
 /* Mapping between 'our' sides and 'public' UI_BUT_ALIGN flags, order must match enum above. */
-#  define SIDE_TO_UI_BUT_ALIGN \
-    { \
-      UI_BUT_ALIGN_LEFT, UI_BUT_ALIGN_TOP, UI_BUT_ALIGN_RIGHT, UI_BUT_ALIGN_DOWN \
-    }
+#define SIDE_TO_UI_BUT_ALIGN \
+  { \
+    UI_BUT_ALIGN_LEFT, UI_BUT_ALIGN_TOP, UI_BUT_ALIGN_RIGHT, UI_BUT_ALIGN_DOWN \
+  }
 
 /* Given one side, compute the three other ones */
-#  define SIDE1(_s) (((_s) + 1) % TOTSIDES)
-#  define OPPOSITE(_s) (((_s) + 2) % TOTSIDES)
-#  define SIDE2(_s) (((_s) + 3) % TOTSIDES)
+#define SIDE1(_s) (((_s) + 1) % TOTSIDES)
+#define OPPOSITE(_s) (((_s) + 2) % TOTSIDES)
+#define SIDE2(_s) (((_s) + 3) % TOTSIDES)
 
 /* 0: LEFT/RIGHT sides; 1 = TOP/DOWN sides. */
-#  define IS_COLUMN(_s) ((_s) % 2)
+#define IS_COLUMN(_s) ((_s) % 2)
 
 /* Stitch flag from side value. */
-#  define STITCH(_s) (1 << (_s))
+#define STITCH(_s) (1 << (_s))
 
 /* Max distance between to buttons for them to be 'mergeable'. */
-#  define MAX_DELTA 0.45f * max_ii(UI_UNIT_Y, UI_UNIT_X)
+#define MAX_DELTA 0.45f * max_ii(UI_UNIT_Y, UI_UNIT_X)
 
 bool ui_but_can_align(const uiBut *but)
 {
@@ -480,14 +479,13 @@ void ui_block_align_calc(uiBlock *block, const ARegion *region)
   }
 }
 
-#  undef SIDE_TO_UI_BUT_ALIGN
-#  undef SIDE1
-#  undef OPPOSITE
-#  undef SIDE2
-#  undef IS_COLUMN
-#  undef STITCH
-#  undef MAX_DELTA
-
+#undef SIDE_TO_UI_BUT_ALIGN
+#undef SIDE1
+#undef OPPOSITE
+#undef SIDE2
+#undef IS_COLUMN
+#undef STITCH
+#undef MAX_DELTA
 
 int ui_but_align_opposite_to_area_align_get(const ARegion *region)
 {
