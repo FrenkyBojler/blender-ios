@@ -2432,6 +2432,17 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
     }
   }
 
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 66)) {
+    /* Placeholder until further changes are done to handle conversion of UV sculpt
+     * brushes completely. */
+    /*
+    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes)
+    {
+      scene->toolsettings->uvsculpt.size *= 2;
+    }
+    */
+  }
+
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a MAIN_VERSION_FILE_ATLEAST check.
