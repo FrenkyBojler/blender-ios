@@ -1341,14 +1341,11 @@ GHOST_TSuccess GHOST_ContextVK::recreateSwapchain(bool use_hdr_swapchain)
     return GHOST_kFailure;
   }
 
-  /* Use double buffering when using FIFO. Increasing the number of images could stall when doing
-   * actions that require low latency (paint cursor, UI resizing). MAILBOX prefers triple
-   * buffering. */
-  uint32_t image_count_requested = present_mode == VK_PRESENT_MODE_MAILBOX_KHR ? 3 : 2;
+  /* We let the WSI implementation define the amount of buffers, we can assume only one frame is
+   * free at any one time, but we need 2 free frames to reduce jitter */
+  uint32_t image_count_requested = capabilities.minImageCount + 1;
   /* NOTE: maxImageCount == 0 means no limit. */
-  if (capabilities.minImageCount != 0 && image_count_requested < capabilities.minImageCount) {
-    image_count_requested = capabilities.minImageCount;
-  }
+
   if (capabilities.maxImageCount != 0 && image_count_requested > capabilities.maxImageCount) {
     image_count_requested = capabilities.maxImageCount;
   }
