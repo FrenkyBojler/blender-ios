@@ -342,6 +342,7 @@ typedef struct Object {
 
   /** Object constraints. */
   ListBase constraints;
+  ListBase hooks DNA_DEPRECATED;     /* XXX deprecated... old animation system */
   /** Particle systems. */
   ListBase particlesystem;
 

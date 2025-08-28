@@ -813,6 +813,34 @@ static void object_blend_read_data(BlendDataReader *reader, ID *id)
 
   BKE_constraint_blend_read_data(reader, &ob->id, &ob->constraints);
 
+  BLO_read_struct_list(reader, ObHook, &ob->hooks);
+  while (ob->hooks.first) {
+    ObHook *hook = (ObHook *)ob->hooks.first;
+    HookModifierData *hmd = (HookModifierData *)BKE_modifier_new(eModifierType_Hook);
+
+    BLO_read_int32_array(reader, hook->totindex, &hook->indexar);
+
+    /* Do conversion here because if we have loaded
+     * a hook we need to make sure it gets converted
+     * and freed, regardless of version.
+     */
+    copy_v3_v3(hmd->cent, hook->cent);
+    hmd->falloff = hook->falloff;
+    hmd->force = hook->force;
+    hmd->indexar = hook->indexar;
+    hmd->object = hook->parent;
+    memcpy(hmd->parentinv, hook->parentinv, sizeof(hmd->parentinv));
+    hmd->indexar_num = hook->totindex;
+
+    BLI_addhead(&ob->modifiers, hmd);
+    BLI_remlink(&ob->hooks, hook);
+
+    BKE_modifier_unique_name(&ob->modifiers, (ModifierData *)hmd);
+    BKE_modifiers_persistent_uid_init(*ob, hmd->modifier);
+
+    MEM_freeN(hook);
+  }
+
   BLO_read_struct(reader, ImageUser, &ob->iuser);
   if (ob->type == OB_EMPTY && ob->empty_drawtype == OB_EMPTY_IMAGE && !ob->iuser) {
     BKE_object_empty_draw_type_set(ob, ob->empty_drawtype);
