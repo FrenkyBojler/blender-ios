@@ -2982,6 +2982,7 @@ class SEQUENCER_PT_view_safe_areas_center_cut(SequencerButtonsPanel_Output, Pane
 
 class SEQUENCER_PT_modifiers(SequencerButtonsPanel, Panel):
     bl_label = "Modifiers"
+    bl_options = {'HIDE_HEADER'}
     bl_category = "Modifiers"
 
     def draw(self, context):
