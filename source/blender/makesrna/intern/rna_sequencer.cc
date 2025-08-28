@@ -3927,7 +3927,7 @@ static void rna_def_colorbalance_modifier(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Multiply Colors", "Multiply the intensity of each pixel");
   RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_StripModifier_update");
 
-  rna_def_modifier_panel_open_prop(srna, "open_mask_input_panel", 0);
+  rna_def_modifier_panel_open_prop(srna, "open_mask_input_panel", 1);
 }
 
 static void rna_def_whitebalance_modifier(BlenderRNA *brna)
@@ -3946,7 +3946,7 @@ static void rna_def_whitebalance_modifier(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "White Value", "This color defines white in the strip");
   RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_StripModifier_update");
 
-  rna_def_modifier_panel_open_prop(srna, "open_mask_input_panel", 0);
+  rna_def_modifier_panel_open_prop(srna, "open_mask_input_panel", 1);
 }
 
 static void rna_def_curves_modifier(BlenderRNA *brna)
@@ -3964,7 +3964,7 @@ static void rna_def_curves_modifier(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Curve Mapping", "");
   RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_StripModifier_update");
 
-  rna_def_modifier_panel_open_prop(srna, "open_mask_input_panel", 0);
+  rna_def_modifier_panel_open_prop(srna, "open_mask_input_panel", 1);
 }
 
 static void rna_def_hue_modifier(BlenderRNA *brna)
@@ -3982,7 +3982,7 @@ static void rna_def_hue_modifier(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Curve Mapping", "");
   RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_StripModifier_update");
 
-  rna_def_modifier_panel_open_prop(srna, "open_mask_input_panel", 0);
+  rna_def_modifier_panel_open_prop(srna, "open_mask_input_panel", 1);
 }
 
 static void rna_def_brightcontrast_modifier(BlenderRNA *brna)
@@ -4007,7 +4007,7 @@ static void rna_def_brightcontrast_modifier(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Contrast", "Adjust the difference in luminosity between pixels");
   RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_StripModifier_update");
 
-  rna_def_modifier_panel_open_prop(srna, "open_mask_input_panel", 0);
+  rna_def_modifier_panel_open_prop(srna, "open_mask_input_panel", 1);
 }
 
 static void rna_def_tonemap_modifier(BlenderRNA *brna)
@@ -4071,7 +4071,7 @@ static void rna_def_tonemap_modifier(BlenderRNA *brna)
       prop, "Color Correction", "If 0, same for all channels; if 1, each independent");
   RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_StripModifier_update");
 
-  rna_def_modifier_panel_open_prop(srna, "open_mask_input_panel", 0);
+  rna_def_modifier_panel_open_prop(srna, "open_mask_input_panel", 1);
 }
 
 static void rna_def_modifiers(BlenderRNA *brna)
