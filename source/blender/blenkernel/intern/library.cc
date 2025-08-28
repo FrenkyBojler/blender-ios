@@ -486,6 +486,7 @@ static void pack_linked_id(Main &bmain,
       BLI_assert(ID_IS_PACKED(packed_id));
       BLI_assert(packed_id->lib->archive_parent_library == linked_id->lib);
       BLI_assert(packed_id->deep_hash == deep_hashes.hashes.lookup(linked_id));
+      UNUSED_VARS_NDEBUG(deep_hashes);
 
       id_remapper.add(linked_id, packed_id);
       linked_id->newid = packed_id;
@@ -517,6 +518,7 @@ static void pack_linked_id(Main &bmain,
           BLI_assert(packed_id);
           BLI_assert(ID_IS_PACKED(packed_id));
           BLI_assert(packed_id->lib == archive_lib);
+          UNUSED_VARS_NDEBUG(archive_lib);
 
           packed_id->deep_hash = deep_hashes.hashes.lookup(linked_id);
           id_remapper.add(linked_id, packed_id);
