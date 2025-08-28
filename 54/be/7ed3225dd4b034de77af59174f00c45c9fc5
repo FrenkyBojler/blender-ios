@@ -1,2 +1,3 @@
 Referenced by issue #131981, Unable to select armature that's behind a mesh in Object Mode
 Referenced by issue #131285, Selecting Empty Space With Select Box Tool Selects Objects.
+Referenced by issue #145203, Switching armatures in pose mode fails when behind mesh
