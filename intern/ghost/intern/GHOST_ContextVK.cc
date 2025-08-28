@@ -930,7 +930,10 @@ static bool selectSurfaceFormat(const VkPhysicalDevice physical_device,
   };
 
   for (pair<VkColorSpaceKHR, VkFormat> &pair : selection_order) {
-    if (pair.second == VK_FORMAT_R16G16B16A16_SFLOAT && !use_hdr_swapchain) {
+    if ((pair.second == VK_FORMAT_R16G16B16A16_SFLOAT ||
+         pair.second == VK_FORMAT_A2R10G10B10_UNORM_PACK32) &&
+        !use_hdr_swapchain)
+    {
       continue;
     }
     for (const VkSurfaceFormatKHR &format : formats) {
