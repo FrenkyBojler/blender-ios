@@ -104,7 +104,7 @@ bool modifier_persistent_uids_are_valid(const Strip &strip)
   return true;
 }
 
-static void modifier_panel_header(const bContext *C, Panel *panel)
+static void modifier_panel_header(const bContext * /*C*/, Panel *panel)
 {
   uiLayout *row, *sub, *name_row;
   uiLayout *layout = panel->layout;
@@ -114,8 +114,6 @@ static void modifier_panel_header(const bContext *C, Panel *panel)
   StripModifierData *smd = reinterpret_cast<StripModifierData *>(ptr->data);
 
   UI_panel_context_pointer_set(panel, "modifier", ptr);
-
-  const StripModifierTypeInfo *mti = seq::modifier_type_info_get(smd->type);
 
   /* Modifier Icon. */
   sub = &layout->row(true);
@@ -130,7 +128,7 @@ static void modifier_panel_header(const bContext *C, Panel *panel)
    * Count how many buttons are added to the header to check if there is enough space. */
   int buttons_number = 0;
   name_row = &row->row(true);
-  
+
   sub = &row->row(true);
   sub->emboss_set(blender::ui::EmbossType::None);
   sub->prop(ptr, "mute", UI_ITEM_NONE, "", ICON_NONE);
@@ -159,7 +157,7 @@ static void draw_mask_input_type_settings(const bContext *C, uiLayout *layout, P
 {
   Scene *sequencer_scene = CTX_data_sequencer_scene(C);
   Editing *ed = seq::editing_get(sequencer_scene);
-  uiLayout *row, *col, *sub, *subsub;
+  uiLayout *row, *col;
 
   const int input_mask_type = RNA_enum_get(ptr, "input_mask_type");
 
@@ -663,19 +661,84 @@ static void colorBalance_panel_draw(const bContext *C, Panel *panel)
   uiLayout *layout = panel->layout;
   PointerRNA *ptr = UI_panel_custom_data_get(panel);
 
-  const int correction_method = RNA_enum_get(ptr, "correction_method");
   PointerRNA color_balance = RNA_pointer_get(ptr, "color_balance");
+  const int correction_method = RNA_enum_get(&color_balance, "correction_method");
 
   layout->use_property_split_set(true);
 
   layout->prop(ptr, "color_multiply", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout->prop(&color_balance, "correction_method", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  layout->prop(ptr, "correction_method", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  uiLayout &flow = layout->grid_flow(true, 0, true, false, false);
+  flow.use_property_split_set(false);
   if (correction_method == SEQ_COLOR_BALANCE_METHOD_LIFTGAMMAGAIN) {
-    
+    /* Split into separate scopes to be able to reuse "split" and "col" variable names. */
+    {
+      uiLayout &split = flow.column(false).split(0.35f, false);
+      uiLayout &col = split.column(true);
+      col.label("Lift", ICON_NONE);
+      col.separator();
+      col.separator();
+      col.prop(&color_balance, "lift", UI_ITEM_NONE, "", ICON_NONE);
+      col.prop(&color_balance, "invert_lift", UI_ITEM_NONE, "Invert", ICON_ARROW_LEFTRIGHT);
+      uiTemplateColorPicker(&split, &color_balance, "lift", true, false, false, true);
+      col.separator();
+    }
+    {
+      uiLayout &split = flow.column(false).split(0.35f, false);
+      uiLayout &col = split.column(true);
+      col.label("Gamma", ICON_NONE);
+      col.separator();
+      col.separator();
+      col.prop(&color_balance, "gamma", UI_ITEM_NONE, "", ICON_NONE);
+      col.prop(&color_balance, "invert_gamma", UI_ITEM_NONE, "Invert", ICON_ARROW_LEFTRIGHT);
+      uiTemplateColorPicker(&split, &color_balance, "gamma", true, false, true, true);
+      col.separator();
+    }
+    {
+      uiLayout &split = flow.column(false).split(0.35f, false);
+      uiLayout &col = split.column(true);
+      col.label("Gain", ICON_NONE);
+      col.separator();
+      col.separator();
+      col.prop(&color_balance, "gain", UI_ITEM_NONE, "", ICON_NONE);
+      col.prop(&color_balance, "invert_gain", UI_ITEM_NONE, "Invert", ICON_ARROW_LEFTRIGHT);
+      uiTemplateColorPicker(&split, &color_balance, "gain", true, false, true, true);
+    }
   }
   else if (correction_method == SEQ_COLOR_BALANCE_METHOD_SLOPEOFFSETPOWER) {
-
+    {
+      uiLayout &split = flow.column(false).split(0.35f, false);
+      uiLayout &col = split.column(true);
+      col.label("Offset", ICON_NONE);
+      col.separator();
+      col.separator();
+      col.prop(&color_balance, "offset", UI_ITEM_NONE, "", ICON_NONE);
+      col.prop(&color_balance, "invert_offset", UI_ITEM_NONE, "Invert", ICON_ARROW_LEFTRIGHT);
+      uiTemplateColorPicker(&split, &color_balance, "offset", true, false, false, true);
+      col.separator();
+    }
+    {
+      uiLayout &split = flow.column(false).split(0.35f, false);
+      uiLayout &col = split.column(true);
+      col.label("Power", ICON_NONE);
+      col.separator();
+      col.separator();
+      col.prop(&color_balance, "power", UI_ITEM_NONE, "", ICON_NONE);
+      col.prop(&color_balance, "invert_power", UI_ITEM_NONE, "Invert", ICON_ARROW_LEFTRIGHT);
+      uiTemplateColorPicker(&split, &color_balance, "power", true, false, false, true);
+      col.separator();
+    }
+    {
+      uiLayout &split = flow.column(false).split(0.35f, false);
+      uiLayout &col = split.column(true);
+      col.label("Slope", ICON_NONE);
+      col.separator();
+      col.separator();
+      col.prop(&color_balance, "slope", UI_ITEM_NONE, "", ICON_NONE);
+      col.prop(&color_balance, "invert_slope", UI_ITEM_NONE, "Invert", ICON_ARROW_LEFTRIGHT);
+      uiTemplateColorPicker(&split, &color_balance, "slope", true, false, false, true);
+    }
   }
   else {
     BLI_assert_unreachable();
@@ -750,7 +813,21 @@ static void whiteBalance_apply(const StripScreenQuad & /*quad*/,
   apply_modifier_op(op, ibuf, mask);
 }
 
-static void whiteBalance_panel_draw(const bContext *C, Panel *panel) {}
+static void whiteBalance_panel_draw(const bContext *C, Panel *panel)
+{
+  uiLayout *layout = panel->layout;
+  PointerRNA *ptr = UI_panel_custom_data_get(panel);
+
+  layout->use_property_split_set(true);
+
+  layout->prop(ptr, "white_value", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+
+  if (uiLayout *mask_input_layout = layout->panel_prop(
+          C, ptr, "open_mask_input_panel", IFACE_("Mask Input")))
+  {
+    draw_mask_input_type_settings(C, mask_input_layout, ptr);
+  }
+}
 
 static void whiteBalance_register(ARegionType *region_type)
 {
@@ -827,7 +904,19 @@ static void curves_apply(const StripScreenQuad & /*quad*/,
   BKE_curvemapping_premultiply(&cmd->curve_mapping, true);
 }
 
-static void curves_panel_draw(const bContext *C, Panel *panel) {}
+static void curves_panel_draw(const bContext *C, Panel *panel)
+{
+  uiLayout *layout = panel->layout;
+  PointerRNA *ptr = UI_panel_custom_data_get(panel);
+
+  uiTemplateCurveMapping(layout, ptr, "curve_mapping", 'c', false, false, false, true);
+
+  if (uiLayout *mask_input_layout = layout->panel_prop(
+          C, ptr, "open_mask_input_panel", IFACE_("Mask Input")))
+  {
+    draw_mask_input_type_settings(C, mask_input_layout, ptr);
+  }
+}
 
 static void curves_register(ARegionType *region_type)
 {
@@ -930,7 +1019,19 @@ static void hue_correct_apply(const StripScreenQuad & /*quad*/,
   apply_modifier_op(op, ibuf, mask);
 }
 
-static void hue_correct_panel_draw(const bContext *C, Panel *panel) {}
+static void hue_correct_panel_draw(const bContext *C, Panel *panel)
+{
+  uiLayout *layout = panel->layout;
+  PointerRNA *ptr = UI_panel_custom_data_get(panel);
+
+  uiTemplateCurveMapping(layout, ptr, "curve_mapping", 'h', false, false, false, false);
+
+  if (uiLayout *mask_input_layout = layout->panel_prop(
+          C, ptr, "open_mask_input_panel", IFACE_("Mask Input")))
+  {
+    draw_mask_input_type_settings(C, mask_input_layout, ptr);
+  }
+}
 
 static void hue_correct_register(ARegionType *region_type)
 {
@@ -1082,7 +1183,13 @@ static void maskmodifier_apply(const StripScreenQuad & /*quad*/,
   ibuf->planes = R_IMF_PLANES_RGBA;
 }
 
-static void maskmodifier_panel_draw(const bContext *C, Panel *panel) {}
+static void maskmodifier_panel_draw(const bContext *C, Panel *panel)
+{
+  uiLayout *layout = panel->layout;
+  PointerRNA *ptr = UI_panel_custom_data_get(panel);
+
+  draw_mask_input_type_settings(C, layout, ptr);
+}
 
 static void maskmodifier_register(ARegionType *region_type)
 {
@@ -1408,7 +1515,38 @@ static void tonemapmodifier_apply(const StripScreenQuad &quad,
       });
 }
 
-static void tonemapmodifier_panel_draw(const bContext *C, Panel *panel) {}
+static void tonemapmodifier_panel_draw(const bContext *C, Panel *panel)
+{
+  uiLayout *layout = panel->layout;
+  PointerRNA *ptr = UI_panel_custom_data_get(panel);
+
+  const int tonemap_type = RNA_enum_get(ptr, "tonemap_type");
+
+  layout->use_property_split_set(true);
+
+  uiLayout &col = layout->column(false);
+  col.prop(ptr, "tonemap_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  if (tonemap_type == SEQ_TONEMAP_RD_PHOTORECEPTOR) {
+    col.prop(ptr, "intensity", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    col.prop(ptr, "contrast", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    col.prop(ptr, "adaptation", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    col.prop(ptr, "correction", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  }
+  else if (tonemap_type == SEQ_TONEMAP_RH_SIMPLE) {
+    col.prop(ptr, "key", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    col.prop(ptr, "offset", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    col.prop(ptr, "gamma", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  }
+  else {
+    BLI_assert_unreachable();
+  }
+
+  if (uiLayout *mask_input_layout = layout->panel_prop(
+          C, ptr, "open_mask_input_panel", IFACE_("Mask Input")))
+  {
+    draw_mask_input_type_settings(C, mask_input_layout, ptr);
+  }
+}
 
 static void tonemapmodifier_register(ARegionType *region_type)
 {
