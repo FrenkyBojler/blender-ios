@@ -338,8 +338,6 @@ static void screen_opengl_render_doit(OGLRender *oglrender, RenderResult *rr)
 
     BKE_scene_graph_evaluated_ensure(depsgraph, oglrender->bmain);
 
-    GPU_viewport_force_hdr(oglrender->viewport);
-
     if (v3d != nullptr) {
       ARegion *region = oglrender->region;
       ibuf_view = ED_view3d_draw_offscreen_imbuf(depsgraph,
@@ -710,6 +708,9 @@ static bool screen_opengl_render_init(bContext *C, wmOperator *op)
   const bool is_sequencer = RNA_boolean_get(op->ptr, "sequencer");
 
   Scene *scene = !is_sequencer ? CTX_data_scene(C) : CTX_data_sequencer_scene(C);
+  if (!scene) {
+    return false;
+  }
   ScrArea *prev_area = CTX_wm_area(C);
   ARegion *prev_region = CTX_wm_region(C);
   GPUOffScreen *ofs;
