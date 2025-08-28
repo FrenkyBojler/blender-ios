@@ -2,3 +2,4 @@ Referenced by commit 9bed68de134, Fix T98860: VectorProperty type renamed to COO
 Referenced by issue #107629, Regression: Docstrings in the Python Console no longer list enum items
 Referenced by issue #98860, *VectorProperty types argument value COORDINATES was renamed to COORDS, breaking existing scripts
 Referenced by pull request #145280, Cleanup: Remove outdated reference to bpy_props.cc enum
+Referenced by commit 3d82f6d2810319b881317c66ba8361263d49721c, Cleanup: Remove outdated reference to bpy_props.cc enum
