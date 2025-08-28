@@ -782,7 +782,7 @@ static void foreach_obref_in_scene(DRWContext &draw_ctx,
   const bool engines_support_handle_ranges = (v3d && v3d->shading.type <= OB_SOLID) ||
                                              BKE_scene_uses_blender_workbench(draw_ctx.scene);
 
-  const bool is_2d_view = draw_ctx.space_data->spacetype == SPACE_IMAGE;
+  const bool is_2d_view = draw_ctx.space_data && draw_ctx.space_data->spacetype == SPACE_IMAGE;
 
   DEGObjectIterSettings deg_iter_settings = {nullptr};
   deg_iter_settings.depsgraph = depsgraph;
