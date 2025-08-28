@@ -1,2 +1,3 @@
 Referenced by commit 50d3516fe508052d24f542a2634069ff25ef8be6, Fix #139177: Realize Instances Node results in empty curves
 Referenced by pull request #139137, Fix #139133: Crash entering edit mode for curve/text objects
+Referenced by commit 3a39f9575e3b389eb8328b2a18255ceb8a39cc6a, Fix: error displaying 3D text for v1.70 blend files
