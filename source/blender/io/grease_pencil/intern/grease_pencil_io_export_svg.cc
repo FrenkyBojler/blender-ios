@@ -19,6 +19,8 @@
 #include "GEO_resample_curves.hh"
 #include "GEO_set_curve_type.hh"
 
+#include "WM_api.hh"
+
 #include "grease_pencil_io_intern.hh"
 
 #include <fmt/core.h>
@@ -177,6 +179,11 @@ bool SVGExporter::export_scene(Scene &scene, StringRefNull filepath)
             frames, GrainSize(1024), memory, [&](const int frame_number) {
               return this->is_selected_frame(grease_pencil, frame_number);
             });
+      }
+
+      if (frames.is_empty()) {
+        WM_global_report(RPT_ERROR, "No frame selected for exporting grease pencil to SVG");
+        return false;
       }
 
       this->prepare_render_params(scene, frames.first());
