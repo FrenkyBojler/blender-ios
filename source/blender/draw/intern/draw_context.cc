@@ -782,6 +782,8 @@ static void foreach_obref_in_scene(DRWContext &draw_ctx,
   const bool engines_support_handle_ranges = (v3d && v3d->shading.type <= OB_SOLID) ||
                                              BKE_scene_uses_blender_workbench(draw_ctx.scene);
 
+  const bool is_2d_view = draw_ctx.space_data->spacetype == SPACE_IMAGE;
+
   DEGObjectIterSettings deg_iter_settings = {nullptr};
   deg_iter_settings.depsgraph = depsgraph;
   deg_iter_settings.flags = DEG_ITER_OBJECT_FLAG_LINKED_DIRECTLY |
@@ -843,9 +845,10 @@ static void foreach_obref_in_scene(DRWContext &draw_ctx,
         continue;
       }
 #endif
-
-      if (!engines_support_handle_ranges || !supports_handle_ranges(dupli.ob)) {
+      if (!is_2d_view && (!engines_support_handle_ranges || !supports_handle_ranges(dupli.ob))) {
         /* Sync the dupli as a single object. */
+        /* NOTE: We don't draw instances as single objects for 2d views since we don't want to draw
+         * them more than once. */
         if (!evil::DEG_iterator_temp_object_from_dupli(
                 ob, &dupli, eval_mode, false, &tmp_object, &tmp_runtime) ||
             !(should_draw_object_cb(tmp_object) & SYNC_OBJECT))
@@ -876,7 +879,10 @@ static void foreach_obref_in_scene(DRWContext &draw_ctx,
                        dupli.preview_base_geometry,
                        dupli.preview_instance_index);
 
-      dupli_map.lookup_or_add_default(key).append(&dupli);
+      if (!is_2d_view || !dupli_map.contains(key)) {
+        /* For 2d views (UVs), draw each instance only once. */
+        dupli_map.lookup_or_add_default(key).append(&dupli);
+      }
     }
 
     for (const auto &[key, instances] : dupli_map.items()) {
