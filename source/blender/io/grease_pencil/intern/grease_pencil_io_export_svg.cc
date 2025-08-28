@@ -9,6 +9,7 @@
 
 #include "BKE_curves.hh"
 #include "BKE_grease_pencil.hh"
+#include "BKE_report.hh"
 #include "BKE_scene.hh"
 
 #include "DNA_object_types.h"
@@ -18,8 +19,6 @@
 
 #include "GEO_resample_curves.hh"
 #include "GEO_set_curve_type.hh"
-
-#include "WM_api.hh"
 
 #include "grease_pencil_io_intern.hh"
 
@@ -174,6 +173,10 @@ bool SVGExporter::export_scene(Scene &scene, StringRefNull filepath)
       IndexMaskMemory memory;
       if (selection_only) {
         const Object &ob_eval = *DEG_get_evaluated(context_.depsgraph, params_.object);
+        if (ob_eval.type != OB_GREASE_PENCIL) {
+          BKE_report(params_.reports, RPT_ERROR, "Active object is not a Grease Pencil object");
+          return false;
+        }
         const GreasePencil &grease_pencil = *static_cast<GreasePencil *>(ob_eval.data);
         frames = IndexMask::from_predicate(
             frames, GrainSize(1024), memory, [&](const int frame_number) {
@@ -182,7 +185,8 @@ bool SVGExporter::export_scene(Scene &scene, StringRefNull filepath)
       }
 
       if (frames.is_empty()) {
-        WM_global_report(RPT_ERROR, "No frame selected for exporting grease pencil to SVG");
+        BKE_report(
+            params_.reports, RPT_ERROR, "No frame selected for exporting Grease Pencil to SVG");
         return false;
       }
 

@@ -71,6 +71,7 @@ struct ExportParams {
   bool use_uniform_width = false;
   /* Distance for resampling outline curves before export, disabled if zero. */
   float outline_resample_length = 0.0f;
+  ReportList *reports;
 };
 
 bool import_svg(const IOContext &context, const ImportParams &params, StringRefNull filepath);

@@ -334,7 +334,8 @@ static wmOperatorStatus grease_pencil_export_svg_exec(bContext *C, wmOperator *o
                                export_fill_materials,
                                use_clip_camera,
                                use_uniform_width,
-                               stroke_sample};
+                               stroke_sample,
+                               op->reports};
 
   WM_cursor_wait(true);
   const bool done = blender::io::grease_pencil::export_svg(io_context, params, *scene, filepath);
