@@ -90,9 +90,12 @@ bool deg_object_hide_original(eEvaluationMode eval_mode, const Object *ob, const
 
 void deg_iterator_duplis_init(DEGObjectIterData *data, Object *object)
 {
+  if (data->dupli_list.is_empty()) {
+    return;
+  }
   data->dupli_parent = object;
-  data->dupli_object_next = data->dupli_list.is_empty() ? nullptr : &data->dupli_list.first();
-  data->dupli_object_next_index = data->dupli_object_next ? 0 : -1;
+  data->dupli_object_next = &data->dupli_list.first();
+  data->dupli_object_next_index = 0;
 }
 
 /* Returns false when iterator is exhausted. */
