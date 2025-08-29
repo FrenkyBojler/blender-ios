@@ -12,7 +12,6 @@
 
 namespace blender::gpu {
 
-
 void VKDiscardPool::deinit(VKDevice &device)
 {
   destroy_discarded_resources(device, true);
