@@ -77,9 +77,6 @@ namespace blender::ed::vse {
 
 struct SequencerAddData {
   bool is_drop_event = false;
-  /* Store original value of the property and restore it when strip is added. This way
-   * `move_strips` can be saved and drag and drop does not override user choice. */
-  bool move_strips_backup;
   ImageFormatData im_format;
 };
 
@@ -353,9 +350,6 @@ static void sequencer_generic_invoke_xy__internal(
   if (event && (flag & SEQPROP_NOPATHS)) {
     SequencerAddData *sad = reinterpret_cast<SequencerAddData *>(op->customdata);
     sad->is_drop_event = true;
-    sad->move_strips_backup = RNA_boolean_get(op->ptr, "move_strips");
-    RNA_boolean_set(op->ptr, "move_strips", false);
-
     sequencer_file_drop_channel_frame_set(C, op, event);
   }
 
@@ -389,18 +383,6 @@ static void move_strips(bContext *C)
   RNA_boolean_set(&ptr, "release_confirm", false);
   WM_operator_name_call_ptr(C, ot, wm::OpCallContext::InvokeDefault, &ptr, nullptr);
   WM_operator_properties_free(&ptr);
-}
-
-static void restore_move_strips_state(wmOperator *op)
-{
-  if (op->customdata == nullptr) {
-    return;
-  }
-
-  SequencerAddData *sad = reinterpret_cast<SequencerAddData *>(op->customdata);
-  if (sad->is_drop_event) {
-    RNA_boolean_set(op->ptr, "move_strips", sad->move_strips_backup);
-  }
 }
 
 static bool load_data_init_from_operator(seq::LoadData *load_data, bContext *C, wmOperator *op)
@@ -652,7 +634,8 @@ static wmOperatorStatus sequencer_add_scene_strip_exec(bContext *C, wmOperator *
   DEG_relations_tag_update(bmain);
   sequencer_select_do_updates(C, scene);
 
-  if (RNA_boolean_get(op->ptr, "move_strips")) {
+  SequencerAddData *sad = reinterpret_cast<SequencerAddData *>(op->customdata);
+  if (RNA_boolean_get(op->ptr, "move_strips") && sad && !sad->is_drop_event) {
     move_strips(C);
   }
 
@@ -755,7 +738,8 @@ static wmOperatorStatus sequencer_add_scene_strip_new_exec(bContext *C, wmOperat
   DEG_relations_tag_update(bmain);
   sequencer_select_do_updates(C, scene);
 
-  if (RNA_boolean_get(op->ptr, "move_strips")) {
+  SequencerAddData *sad = reinterpret_cast<SequencerAddData *>(op->customdata);
+  if (RNA_boolean_get(op->ptr, "move_strips") && sad && !sad->is_drop_event) {
     move_strips(C);
   }
 
@@ -854,7 +838,8 @@ static wmOperatorStatus sequencer_add_scene_asset_invoke(bContext *C,
   DEG_relations_tag_update(bmain);
   sequencer_select_do_updates(C, scene);
 
-  if (RNA_boolean_get(op->ptr, "move_strips")) {
+  SequencerAddData *sad = reinterpret_cast<SequencerAddData *>(op->customdata);
+  if (RNA_boolean_get(op->ptr, "move_strips") && sad && !sad->is_drop_event) {
     move_strips(C);
   }
 
@@ -935,7 +920,8 @@ static wmOperatorStatus sequencer_add_movieclip_strip_exec(bContext *C, wmOperat
   DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
   sequencer_select_do_updates(C, scene);
 
-  if (RNA_boolean_get(op->ptr, "move_strips")) {
+  SequencerAddData *sad = reinterpret_cast<SequencerAddData *>(op->customdata);
+  if (RNA_boolean_get(op->ptr, "move_strips") && sad && !sad->is_drop_event) {
     move_strips(C);
   }
 
@@ -1017,7 +1003,8 @@ static wmOperatorStatus sequencer_add_mask_strip_exec(bContext *C, wmOperator *o
   DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
   sequencer_select_do_updates(C, scene);
 
-  if (RNA_boolean_get(op->ptr, "move_strips")) {
+  SequencerAddData *sad = reinterpret_cast<SequencerAddData *>(op->customdata);
+  if (RNA_boolean_get(op->ptr, "move_strips") && sad && !sad->is_drop_event) {
     move_strips(C);
   }
 
@@ -1341,11 +1328,11 @@ static wmOperatorStatus sequencer_add_movie_strip_exec(bContext *C, wmOperator *
   DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
   sequencer_select_do_updates(C, scene);
 
-  if (RNA_boolean_get(op->ptr, "move_strips")) {
+  SequencerAddData *sad = reinterpret_cast<SequencerAddData *>(op->customdata);
+  if (RNA_boolean_get(op->ptr, "move_strips") && sad && !sad->is_drop_event) {
     move_strips(C);
   }
 
-  restore_move_strips_state(op);
   sequencer_add_free(C, op);
 
   return OPERATOR_FINISHED;
@@ -1404,6 +1391,7 @@ static bool sequencer_add_draw_check_fn(PointerRNA * /*ptr*/,
                    "channel",
                    "length",
                    "move_strips",
+                   "replace_sel",
                    "use_sequence_detection",
                    "use_placeholders");
 }
@@ -1414,7 +1402,9 @@ static void sequencer_add_draw(bContext * /*C*/, wmOperator *op)
   SequencerAddData *sad = reinterpret_cast<SequencerAddData *>(op->customdata);
   ImageFormatData *imf = &sad->im_format;
 
-  layout->prop(op->ptr, "move_strips", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  if (sad && !sad->is_drop_event) {
+    layout->prop(op->ptr, "move_strips", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  }
   if (!RNA_boolean_get(op->ptr, "move_strips")) {
     uiLayout &col = layout->column(true);
     col.prop(op->ptr, "frame_start", UI_ITEM_NONE, std::nullopt, ICON_NONE);
@@ -1438,6 +1428,10 @@ static void sequencer_add_draw(bContext * /*C*/, wmOperator *op)
                    nullptr,
                    UI_BUT_LABEL_ALIGN_NONE,
                    false);
+
+  if (!RNA_boolean_get(op->ptr, "move_strips")) {
+    layout->prop(op->ptr, "replace_sel", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  }
 
   layout->separator();
 
@@ -1571,11 +1565,11 @@ static wmOperatorStatus sequencer_add_sound_strip_exec(bContext *C, wmOperator *
   DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
   sequencer_select_do_updates(C, scene);
 
-  if (RNA_boolean_get(op->ptr, "move_strips")) {
+  SequencerAddData *sad = reinterpret_cast<SequencerAddData *>(op->customdata);
+  if (RNA_boolean_get(op->ptr, "move_strips") && sad && !sad->is_drop_event) {
     move_strips(C);
   }
 
-  restore_move_strips_state(op);
   sequencer_add_free(C, op);
 
   return OPERATOR_FINISHED;
@@ -1821,11 +1815,11 @@ static wmOperatorStatus sequencer_add_image_strip_exec(bContext *C, wmOperator *
   DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
   sequencer_select_do_updates(C, scene);
 
-  if (RNA_boolean_get(op->ptr, "move_strips")) {
+  SequencerAddData *sad = reinterpret_cast<SequencerAddData *>(op->customdata);
+  if (RNA_boolean_get(op->ptr, "move_strips") && sad && !sad->is_drop_event) {
     move_strips(C);
   }
 
-  restore_move_strips_state(op);
   sequencer_add_free(C, op);
 
   return OPERATOR_FINISHED;
@@ -1972,7 +1966,8 @@ static wmOperatorStatus sequencer_add_effect_strip_exec(bContext *C, wmOperator 
   DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
   sequencer_select_do_updates(C, scene);
 
-  if (RNA_boolean_get(op->ptr, "move_strips")) {
+  SequencerAddData *sad = reinterpret_cast<SequencerAddData *>(op->customdata);
+  if (RNA_boolean_get(op->ptr, "move_strips") && sad && !sad->is_drop_event) {
     move_strips(C);
   }
 
