@@ -3229,6 +3229,9 @@ static int prop_subscript_ass_array_slice(PointerRNA *ptr,
     }
   }
 
+  /* Assigning as subset of the whole array. */
+  const bool is_subset = start != 0 || stop != length || arrayoffset != 0 || arraydim != 0;
+
   PyObject **value_items = PySequence_Fast_ITEMS(value);
   switch (RNA_property_type(prop)) {
     case PROP_FLOAT: {
@@ -3237,7 +3240,7 @@ static int prop_subscript_ass_array_slice(PointerRNA *ptr,
           (length_flat > PYRNA_STACK_ARRAY) ?
               (values_alloc = PyMem_MALLOC(sizeof(*values) * length_flat)) :
               values_stack);
-      if (start != 0 || stop != length) {
+      if (is_subset) {
         /* Partial assignment? - need to get the array. */
         RNA_property_float_get_array(ptr, prop, values);
       }
@@ -3266,7 +3269,7 @@ static int prop_subscript_ass_array_slice(PointerRNA *ptr,
           (length_flat > PYRNA_STACK_ARRAY) ?
               (values_alloc = PyMem_MALLOC(sizeof(*values) * length_flat)) :
               values_stack);
-      if (start != 0 || stop != length) {
+      if (is_subset) {
         /* Partial assignment? - need to get the array. */
         RNA_property_int_get_array(ptr, prop, values);
       }
@@ -3296,7 +3299,7 @@ static int prop_subscript_ass_array_slice(PointerRNA *ptr,
               (values_alloc = PyMem_MALLOC(sizeof(bool) * length_flat)) :
               values_stack);
 
-      if (start != 0 || stop != length) {
+      if (is_subset) {
         /* Partial assignment? - need to get the array. */
         RNA_property_boolean_get_array(ptr, prop, values);
       }
