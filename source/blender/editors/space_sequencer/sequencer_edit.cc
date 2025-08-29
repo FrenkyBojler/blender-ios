@@ -1728,6 +1728,138 @@ void SEQUENCER_OT_split(wmOperatorType *ot)
 /** \} */
 
 /* -------------------------------------------------------------------- */
+/** \name Box Cut Strips Operator
+ * \{ */
+
+static wmOperatorStatus sequencer_box_cut_exec(bContext *C, wmOperator *op)
+{
+  printf("sequencer_box_cut_exec\n");
+  Main *bmain = CTX_data_main(C);
+  Scene *scene = CTX_data_sequencer_scene(C);
+  Editing *ed = seq::editing_get(scene);
+  bool changed = false;
+  bool strip_selected = false;
+
+  // get mouse rctf +
+  View2D *v2d = UI_view2d_fromcontext(C);
+  rctf rectf;
+  WM_operator_properties_border_to_rctf(op, &rectf);
+  UI_view2d_region_to_view_rctf(v2d, &rectf, &rectf);
+  // get mouse rctf -
+
+  const bool use_cursor_position = RNA_boolean_get(op->ptr, "use_cursor_position");
+
+  const int split_frame = RNA_struct_property_is_set(op->ptr, "frame") ?
+                              RNA_int_get(op->ptr, "frame") :
+                              scene->r.cfra;
+  const int split_channel = RNA_int_get(op->ptr, "channel");
+
+  const seq::eSplitMethod method = seq::eSplitMethod(RNA_enum_get(op->ptr, "type"));
+  const int split_side = sequence_split_side_for_exec_get(op);
+  const bool ignore_selection = RNA_boolean_get(op->ptr, "ignore_selection");
+
+  seq::prefetch_stop(scene);
+
+  // LISTBASE_FOREACH_BACKWARD (Strip *, strip, ed->current_strips()) {
+  //   if (use_cursor_position && strip->channel != split_channel) {
+  //     continue;
+  //   }
+
+  //   if (ignore_selection || strip->flag & SELECT) {
+  //     const char *error_msg = nullptr;
+  //     if (seq::edit_strip_split(
+  //             bmain, scene, ed->current_strips(), strip, split_frame, method, &error_msg) !=
+  //         nullptr)
+  //     {
+  //       changed = true;
+  //     }
+  //     if (error_msg != nullptr) {
+  //       BKE_report(op->reports, RPT_ERROR, error_msg);
+  //     }
+  //   }
+  // }
+
+  // if (changed) { /* Got new strips? */
+  //   if (ignore_selection) {
+  //     if (use_cursor_position) {
+  //       LISTBASE_FOREACH (Strip *, strip, seq::active_seqbase_get(ed)) {
+  //         if (seq::time_right_handle_frame_get(scene, strip) == split_frame &&
+  //             strip->channel == split_channel)
+  //         {
+  //           strip_selected = strip->flag & STRIP_ALLSEL;
+  //         }
+  //       }
+  //       if (!strip_selected) {
+  //         LISTBASE_FOREACH (Strip *, strip, seq::active_seqbase_get(ed)) {
+  //           if (seq::time_left_handle_frame_get(scene, strip) == split_frame &&
+  //               strip->channel == split_channel)
+  //           {
+  //             strip->flag &= ~STRIP_ALLSEL;
+  //           }
+  //         }
+  //       }
+  //     }
+  //   }
+  //   else {
+  //     if (split_side != seq::SIDE_BOTH) {
+  //       LISTBASE_FOREACH (Strip *, strip, seq::active_seqbase_get(ed)) {
+  //         if (split_side == seq::SIDE_LEFT) {
+  //           if (seq::time_left_handle_frame_get(scene, strip) >= split_frame) {
+  //             strip->flag &= ~STRIP_ALLSEL;
+  //           }
+  //         }
+  //         else {
+  //           if (seq::time_right_handle_frame_get(scene, strip) <= split_frame) {
+  //             strip->flag &= ~STRIP_ALLSEL;
+  //           }
+  //         }
+  //       }
+  //     }
+  //   }
+  // }
+
+  // if (changed) {
+  //   WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
+  //   return OPERATOR_FINISHED;
+  // }
+
+  LISTBASE_FOREACH (Strip *, strip, ed->current_strips()) {
+    rctf rq;
+    strip_rectf(scene, strip, &rq);
+    if (BLI_rctf_isect(&rq, &rectf, nullptr)) {
+      printf("strip->name %s\n", strip->name);
+    }
+  }
+  /* Passthrough to selection if used as tool. */
+  printf("OPERATOR_FINISHED\n");
+  return OPERATOR_FINISHED;
+  // return OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH;
+}
+void SEQUENCER_OT_box_cut(wmOperatorType *ot)
+{
+  /* Identifiers. */
+  ot->name = "Box Cut Strips";
+  ot->idname = "SEQUENCER_OT_box_cut";
+  ot->description = "Split the selected strips in two";
+
+  /* API callbacks. */
+  ot->invoke = WM_gesture_box_invoke;
+  ot->exec = sequencer_box_cut_exec;
+  ot->modal = WM_gesture_box_modal;
+  ot->poll = sequencer_edit_poll;
+  ot->ui = sequencer_split_ui;
+
+  /* Flags. */
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+  // PropertyRNA *prop;
+  WM_operator_properties_gesture_box(ot);
+  WM_operator_properties_select_operation_simple(ot);
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
 /** \name Duplicate Strips Operator
  * \{ */
 

@@ -8503,7 +8503,14 @@ def km_sequencer_tool_blade(_params):
         "Sequencer Tool: Blade",
         {"space_type": 'SEQUENCE_EDITOR', "region_type": 'WINDOW'},
         {"items": [
-            ("sequencer.split", {"type": 'LEFTMOUSE', "value": 'PRESS'},
+            ("sequencer.split", {"type": 'LEFTMOUSE', "value": 'CLICK'},
+             {"properties": [
+                 ("type", 'SOFT'),
+                 ("side", 'NO_CHANGE'),
+                 ("use_cursor_position", True),
+                 ("ignore_selection", True),
+             ]}),
+            ("sequencer.box_cut", {"type": 'LEFTMOUSE', "value": 'CLICK_DRAG'},
              {"properties": [
                  ("type", 'SOFT'),
                  ("side", 'NO_CHANGE'),
