@@ -407,13 +407,13 @@ typedef struct IDHash {
     return *reinterpret_cast<const uint64_t *>(this->data);
   }
 
-  static IDHash get_null()
+  static constexpr IDHash get_null()
   {
     return {};
   }
   bool is_null() const
   {
-    return *this == this->get_null();
+    return *this == IDHash::get_null();
   }
 
   friend bool operator==(const IDHash &a, const IDHash &b)
