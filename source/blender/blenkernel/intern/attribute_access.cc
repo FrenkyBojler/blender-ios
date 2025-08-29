@@ -1062,7 +1062,12 @@ void scatter_attributes(const AttributeAccessor src_attributes,
     if (!dst) {
       return;
     }
-    array_utils::gather(src.varray, selection, dst.span);
+
+    dst.span.type().conver_to_static_type([&](auto dummy) {
+      using T = decltype(dummy);
+      array_utils::scatter<T>(src.varray.typed<T>(), selection, dst.span.typed<T>());
+    });
+
     dst.finish();
   });
 }

@@ -124,10 +124,48 @@ inline void scatter(const Span<T> src,
       [&](const int64_t index, const int64_t pos) { dst[index] = src[pos]; });
 }
 
-void scatter(GSpan src,
-             const IndexMask &indices,
-             GMutableSpan<T> dst,
-             const int64_t grain_size = 4096);
+template<typename T>
+inline void scatter(const VArray<T> src,
+                    const IndexMask &indices,
+                    MutableSpan<T> dst,
+                    const int64_t grain_size = 4096)
+{
+  BLI_assert(indices.size() == src.size());
+  BLI_assert(indices.min_array_size() <= dst.size());
+
+  if (indices.to_range().value_or(IndexRange(0)) == dst.index_range()) {
+    copy(src, dst, grain_size);
+    return;
+  }
+
+  if (src.is_single()) {
+    index_mask::masked_fill(dst, src.get_internal_single(), indices);
+    return;
+  }
+
+  if (src.is_span()) {
+    scatter<T>(src.get_internal_span(), indices, dst, grain_size);
+    return;
+  }
+
+  indices.foreach_segment(
+      GrainSize(grain_size), [&](const IndexMaskSegment segment, const int64_t segment_pos) {
+        const IndexRange src_range(segment_pos, segment.size());
+        if (unique_sorted_indices::non_empty_is_range(segment.base_span())) {
+          src.materialize_compressed_to_uninitialized(src_range,
+                                                      dst.slice(segment[0], segment.size()));
+          return;
+        }
+
+        std::array<T, max_segment_size> buffer;
+        src.materialize_to_uninitialized(src_range,
+                                         MutableSpan<T>(buffer).take_front(segment.size()));
+
+        for (const int64_t i : segment.index_range()) {
+          dst[segment[i]] = buffer[i];
+        }
+      });
+}
 
 /**
  * Fill the destination span by gathering indexed values from the `src` array.

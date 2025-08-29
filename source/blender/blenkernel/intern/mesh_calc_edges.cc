@@ -268,8 +268,8 @@ void mesh_calc_edges(Mesh &mesh,
   const Span<int> corner_verts = mesh.corner_verts();
 
   IndexMaskMemory memory;
-  IndexMask mask_new_edges;
-  IndexMask dst_to_src_mask;
+  IndexRange mask_new_edges;
+  IndexMask src_to_dst_mask;
   MutableSpan<int> corner_edges(MEM_malloc_arrayN<int>(mesh.corners_num, AT), mesh.corners_num);
   MutableSpan<int2> edge_verts(MEM_malloc_arrayN<int2>(edge_offsets.total_size(), AT),
                                edge_offsets.total_size());
@@ -282,7 +282,7 @@ void mesh_calc_edges(Mesh &mesh,
     mask_new_edges = IndexRange(edge_offsets.total_size()).drop_front(original_unique_edge_num);
 
     if (original_edges_are_distinct) {
-      dst_to_src_mask = IndexRange(original_unique_edge_num);
+      src_to_dst_mask = IndexRange(original_unique_edge_num);
     }
     else {
       constexpr int no_original_edge = std::numeric_limits<int>::max();
@@ -306,18 +306,18 @@ void mesh_calc_edges(Mesh &mesh,
                                return !edge_indices.as_span().contains(no_original_edge);
                              }));
 
-      dst_to_src_mask = IndexMask::from_predicate(
+      src_to_dst_mask = IndexMask::from_predicate(
           IndexRange(mesh.edges_num), GrainSize(2048), memory, [&](const int srd_edge_i) {
             const OrderedEdge edge = original_edges[srd_edge_i];
             const int map_i = calc_edges::edge_to_hash_map_i(edge, parallel_mask);
             const int edge_index = edge_maps[map_i].index_of(edge);
             return map_edge_to_first_original[map_i][edge_index] == srd_edge_i;
           });
-      BLI_assert(dst_to_src_mask.size() == original_unique_edge_num);
+      BLI_assert(src_to_dst_mask.size() == original_unique_edge_num);
     }
 
     array_utils::gather(
-        original_edges, dst_to_src_mask, edge_verts.take_front(original_unique_edge_num));
+        original_edges, src_to_dst_mask, edge_verts.take_front(original_unique_edge_num));
 
     Array<Vector<int>> map_edge_to_dst(edge_maps.size());
     for (const int i : edge_maps.index_range()) {
@@ -337,7 +337,7 @@ void mesh_calc_edges(Mesh &mesh,
       }
     }
     else {
-      dst_to_src_mask.foreach_index([&](const int src_index, const int dst_index) {
+      src_to_dst_mask.foreach_index([&](const int src_index, const int dst_index) {
         const OrderedEdge edge = original_edges[src_index];
         const int map_i = calc_edges::edge_to_hash_map_i(edge, parallel_mask);
         const int edge_index = edge_maps[map_i].index_of(edge);
@@ -383,17 +383,17 @@ void mesh_calc_edges(Mesh &mesh,
   }
   else {
     if (mesh.edges_num != 0) {
-      dst_to_src_mask = IndexMask::from_predicate(
+      src_to_dst_mask = IndexMask::from_predicate(
           IndexRange(mesh.edges_num), GrainSize(1024), memory, [&](const int edge_i) {
             const OrderedEdge edge = original_edges[edge_i];
             const int edge_map = calc_edges::edge_to_hash_map_i(edge, parallel_mask);
             return edge_maps[edge_map].contains(edge);
           });
-      const int total_face_old_edges = dst_to_src_mask.size();
+      const int total_face_old_edges = src_to_dst_mask.size();
 
       mask_new_edges = IndexRange(edge_offsets.total_size()).drop_front(total_face_old_edges);
       array_utils::gather(
-          original_edges, dst_to_src_mask, edge_verts.take_front(total_face_old_edges));
+          original_edges, src_to_dst_mask, edge_verts.take_front(total_face_old_edges));
 
       Array<Array<bool>> map_edge_is_new(edge_maps.size());
       for (const int i : edge_maps.index_range()) {
@@ -401,7 +401,7 @@ void mesh_calc_edges(Mesh &mesh,
         map_edge_is_new[i].as_mutable_span().fill(true);
       }
 
-      dst_to_src_mask.foreach_index([&](const int original_edge_i) {
+      src_to_dst_mask.foreach_index([&](const int original_edge_i) {
         const OrderedEdge edge = original_edges[original_edge_i];
         const int edge_map = calc_edges::edge_to_hash_map_i(edge, parallel_mask);
         const int edge_index = edge_maps[edge_map].index_of(edge);
@@ -417,7 +417,7 @@ void mesh_calc_edges(Mesh &mesh,
       }
       offset_indices::accumulate_counts_to_offsets(new_map_edge_sizes.as_mutable_span());
 
-      dst_to_src_mask.foreach_index([&](const int original_edge_i, const int dst_edge_i) {
+      src_to_dst_mask.foreach_index([&](const int original_edge_i, const int dst_edge_i) {
         const OrderedEdge edge = original_edges[original_edge_i];
         const int edge_map = calc_edges::edge_to_hash_map_i(edge, parallel_mask);
         const int edge_index = edge_maps[edge_map].index_of(edge);
@@ -450,45 +450,37 @@ void mesh_calc_edges(Mesh &mesh,
   BLI_assert(!corner_edges.contains(-1));
   BLI_assert(!edge_verts.contains(int2(-1)));
 
-  const Mesh src_mesh = mesh;
-  gather_attributes(src_mesh.attributes(),
-                    AttrDomain::Edge,
-                    AttrDomain::Edge,
-                    attribute_filter,
-                    dst_to_src_mask,
-                    mesh.attributes_for_write());
+  const AttributeAccessor src_attributes = src_mesh.attributes();
+  MutableAttributeAccessor dst_attributes = mesh.attributes_for_write();
 
-  MutableAttributeAccessor attributes = mesh.attributes_for_write();
-  attributes.add<int>(
+  BLI_assert(src_to_dst_mask.size() + mask_new_edges.size() ==
+             dst_attributes.domain_size(AttrDomain::Edge));
+
+  /* Static storage to extend life-time of strings for reference filter. */
+  static const Set<std::string> skip = {".edge_verts", ".select_edge"};
+  const auto edge_attribute_filer = bke::attribute_filter_with_skip_ref(attribute_filter, skip);
+  gather_attributes(src_attributes,
+                    AttrDomain::Edge,
+                    AttrDomain::Edge,
+                    edge_attribute_filer,
+                    src_to_dst_mask,
+                    dst_attributes);
+
+  fill_attribute_range_default(
+      dst_attributes, AttrDomain::Edge, edge_attribute_filer, mask_new_edges);
+
+  dst_attributes.add<int>(
       ".corner_edge", AttrDomain::Corner, AttributeInitMoveArray(corner_edges.data()));
+  dst_attributes.add<int2>(
+      ".edge_verts", AttrDomain::Edge, AttributeInitMoveArray(edge_verts.data()));
 
   if (select_new_edges) {
-    SpanAttributeWriter<bool> select_edge = attributes.lookup_or_add_for_write_span<bool>(
+    SpanAttributeWriter<bool> select_edge = dst_attributes.lookup_or_add_for_write_span<bool>(
         ".select_edge", AttrDomain::Edge);
-    select_edge.span.fill(false);
-    index_mask::masked_fill<bool>(select_edge.span, true, mask_new_edges);
+    select_edge.span.drop_back(mask_new_edges.size()).fill(false);
+    select_edge.span.take_back(mask_new_edges.size()).fill(true);
     select_edge.finish();
   }
-
-  // /* Static storage to extend life-time of strings for reference filter. */
-  // static const Set<std::string> skip = {".edge_verts", ".select_edge"};
-  // const auto filer = bke::attribute_filter_with_skip_ref(attribute_filter, skip);
-  // old_edge_attributes.foreach_attribute([&](const bke::AttributeIter &src_attribute) {
-  //   BLI_assert(src_attribute.domain == bke::AttrDomain::Edge);
-  //   if (filer.allow_skip(src_attribute.name)) {
-  //     return;
-  //   }
-  //   GSpanAttributeWriter dst_attribute = dst_attributes.lookup_or_add_for_write_span(
-  //       src_attribute.name, src_attribute.domain, src_attribute.data_type);
-  //
-  //   attribute_math::convert_to_static_type(dst_attribute.span.type(), [&](auto dummy) {
-  //     using T = decltype(dummy);
-  //     const VArraySpan<T> src = src_attribute.get<T>().varray;
-  //     MutableSpan<T> dst = dst_attribute.span.typed<T>();
-  //     array_utils::scatter(Span<T>(src), src_to_dst_edges.as_span(), dst);
-  //   });
-  //   dst_attribute.finish();
-  // });
 
   if (!keep_existing_edges) {
     /* All edges are rebuilt from the faces, so there are no loose edges. */
