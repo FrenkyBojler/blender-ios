@@ -74,6 +74,7 @@ const EnumPropertyItem rna_enum_property_type_items[] = {
   {PROP_TIME_ABSOLUTE, "TIME_ABSOLUTE", 0, "Time (Absolute)", \
    "Time specified in seconds, independent of the scene"}, \
   {PROP_DISTANCE, "DISTANCE", 0, "Distance", "A distance between two points"}, \
+  {PROP_DISTANCE_DIAMETER, "DISTANCE_DIAMETER", 0, "Distance", "A distance between two points, specifically representing a diameter value"}, \
   {PROP_DISTANCE_CAMERA, "DISTANCE_CAMERA", 0, "Camera Distance", ""}, \
   {PROP_POWER, "POWER", 0, "Power", ""}, \
   {PROP_TEMPERATURE, "TEMPERATURE", 0, "Temperature", ""}, \
