@@ -62,7 +62,6 @@
 #include "BKE_paint_types.hh"
 #include "BKE_report.hh"
 #include "BKE_subdiv_ccg.hh"
-#include "BKE_subsurf.hh"
 #include "BLI_math_rotation_legacy.hh"
 #include "BLI_math_vector.hh"
 
@@ -5788,8 +5787,8 @@ void SCULPT_OT_brush_stroke(wmOperatorType *ot)
       "override_location",
       false,
       "Override Location",
-      "Override the given `location` array by recalculating object space positions from the "
-      "provided `mouse_event` positions");
+      "Override the given \"location\" array by recalculating object space positions from the "
+      "provided \"mouse_event\" positions");
   RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 
   RNA_def_boolean(ot->srna,
@@ -7551,24 +7550,6 @@ void translations_from_new_positions(const Span<float3> new_positions,
   BLI_assert(new_positions.size() == old_positions.size());
   for (const int i : new_positions.index_range()) {
     translations[i] = new_positions[i] - old_positions[i];
-  }
-}
-
-void transform_positions(const Span<float3> src,
-                         const float4x4 &transform,
-                         const MutableSpan<float3> dst)
-{
-  BLI_assert(src.size() == dst.size());
-
-  for (const int i : src.index_range()) {
-    dst[i] = math::transform_point(transform, src[i]);
-  }
-}
-
-void transform_positions(const float4x4 &transform, const MutableSpan<float3> positions)
-{
-  for (const int i : positions.index_range()) {
-    positions[i] = math::transform_point(transform, positions[i]);
   }
 }
 
