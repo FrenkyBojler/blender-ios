@@ -152,8 +152,7 @@ bool BKE_paint_ensure(ToolSettings *ts, Paint **r_paint);
 /**
  * \param ensure_brushes: Call #BKE_paint_brushes_ensure().
  */
-void BKE_paint_init(
-    Main *bmain, Scene *sce, PaintMode mode, const uchar col[3], bool ensure_brushes = true);
+void BKE_paint_init(Main *bmain, Scene *sce, PaintMode mode, bool ensure_brushes = true);
 void BKE_paint_free(Paint *paint);
 /**
  * Called when copying scene settings, so even if 'src' and 'tar' are the same still do a

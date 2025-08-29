@@ -497,7 +497,7 @@ void ED_space_image_paint_update(Main *bmain, wmWindowManager *wm, Scene *scene)
   }
 
   if (enabled) {
-    BKE_paint_init(bmain, scene, PaintMode::Texture2D, PAINT_CURSOR_TEXTURE_PAINT);
+    BKE_paint_init(bmain, scene, PaintMode::Texture2D);
 
     ED_paint_cursor_start(&imapaint->paint, ED_image_tools_paint_poll);
   }
@@ -734,7 +734,7 @@ void ED_object_texture_paint_mode_enter_ex(Main &bmain,
 
   ob.mode |= OB_MODE_TEXTURE_PAINT;
 
-  BKE_paint_init(&bmain, &scene, PaintMode::Texture3D, PAINT_CURSOR_TEXTURE_PAINT);
+  BKE_paint_init(&bmain, &scene, PaintMode::Texture3D);
 
   BKE_paint_brushes_validate(&bmain, &imapaint.paint);
 

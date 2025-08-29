@@ -186,7 +186,6 @@ static void paint_draw_line_cursor(bContext *C,
                                    const blender::float2 & /*tilt*/,
                                    void *customdata)
 {
-  const Paint *paint = BKE_paint_get_active_from_context(C);
   PaintStroke *stroke = static_cast<PaintStroke *>(customdata);
 
   GPU_line_smooth(true);

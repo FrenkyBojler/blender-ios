@@ -1822,8 +1822,7 @@ void BKE_paint_brushes_ensure(Main *bmain, Paint *paint)
   }
 }
 
-void BKE_paint_init(
-    Main *bmain, Scene *sce, PaintMode mode, const uchar col[3], const bool ensure_brushes)
+void BKE_paint_init(Main *bmain, Scene *sce, PaintMode mode, const bool ensure_brushes)
 {
 
   BKE_paint_ensure_from_paintmode(sce, mode);
