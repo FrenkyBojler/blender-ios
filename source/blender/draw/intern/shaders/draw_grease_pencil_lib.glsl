@@ -72,9 +72,10 @@ float gpencil_stroke_segment_mask(
   float2 pos1 = gl_FragCoord.xy - p1;
   float2 line1 = p2 - p1;
   float2 tan1 = orthogonal(line1);
+  float len_sq1 = length_squared(line1);
 
   /* Calculate the factor along the main segment. */
-  float t1 = dot(pos1, line1) / dot(line1, line1);
+  float t1 = dot(pos1, line1) / len_sq1;
 
   /* The distance factor squared to the main segment. This is clamped and will lead to round
    * corners. */
@@ -88,34 +89,28 @@ float gpencil_stroke_segment_mask(
   float2 pos0 = gl_FragCoord.xy - p0;
   float2 line0 = p1 - p0;
   float2 tan0 = orthogonal(line0);
+  float len_sq0 = length_squared(line0);
 
   float2 pos2 = gl_FragCoord.xy - p2;
   float2 line2 = p3 - p2;
   float2 tan2 = orthogonal(line2);
-
-  /* Calculate what side each adjacent segment is on. */
-  float sign0 = -sign(dot(line1, tan0));
-  float sign2 = sign(dot(line1, tan2));
+  float len_sq2 = length_squared(line2);
 
   /* Calculate the factor along the other segments. */
-  float t0 = dot(pos0, line0) / dot(line0, line0);
-  float t2 = dot(pos2, line2) / dot(line2, line2);
+  float t0 = dot(pos0, line0) / len_sq0;
+  float t2 = dot(pos2, line2) / len_sq2;
 
-  float2 tan_norm0 = normalize(tan0);
-  float2 tan_norm1 = normalize(tan1);
-  float2 tan_norm2 = normalize(tan2);
+  float2 tan_norm0 = tan0 / sqrt(len_sq0);
+  float2 tan_norm1 = tan1 / sqrt(len_sq1);
+  float2 tan_norm2 = tan2 / sqrt(len_sq2);
 
   /* Check if the pixel is within the corner region between segments 1 and 0. */
   if (t1 <= 0.0f && t0 >= 1.0f && !is_start && miter_limit.x != MITER_LIMIT_TYPE_ROUND) {
     if (miter_limit.x == MITER_LIMIT_TYPE_BEVEL) {
-      /* Bevel by cutting with a line from the two bevel points. */
-      float2 bevel = sign0 * tan_norm1 * radius;
-
-      float2 bevel_pos = pos1 - bevel;
+      /* Bevel by cutting with a the half angle line. */
       float2 bevel_tan = orthogonal(tan_norm0 - tan_norm1);
 
-      dist = 1.0f + dot(bevel_pos, bevel_tan) / dot(bevel, bevel_tan);
-      dist *= radius;
+      dist = dot(pos1, bevel_tan) / dot(tan_norm1, bevel_tan);
       dist *= dist;
     }
     else {
@@ -127,14 +122,10 @@ float gpencil_stroke_segment_mask(
   /* Check if the pixel is within the corner region between segments 1 and 2. */
   if (t1 >= 1.0f && t2 <= 0.0f && !is_end && miter_limit.y != MITER_LIMIT_TYPE_ROUND) {
     if (miter_limit.y == MITER_LIMIT_TYPE_BEVEL) {
-      /* Bevel by cutting with a line from the two bevel points. */
-      float2 bevel = sign2 * tan_norm1 * radius;
-
-      float2 bevel_pos = pos2 - bevel;
+      /* Bevel by cutting with a the half angle line. */
       float2 bevel_tan = orthogonal(tan_norm2 - tan_norm1);
 
-      dist = 1.0f + dot(bevel_pos, bevel_tan) / dot(bevel, bevel_tan);
-      dist *= radius;
+      dist = dot(pos2, bevel_tan) / dot(tan_norm1, bevel_tan);
       dist *= dist;
     }
     else {
