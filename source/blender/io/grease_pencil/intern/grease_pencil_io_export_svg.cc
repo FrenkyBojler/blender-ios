@@ -9,7 +9,6 @@
 
 #include "BKE_curves.hh"
 #include "BKE_grease_pencil.hh"
-#include "BKE_report.hh"
 #include "BKE_scene.hh"
 
 #include "DNA_object_types.h"
@@ -107,7 +106,7 @@ class SVGExporter : public GreasePencilExporter {
 
   pugi::xml_document main_doc_;
 
-  bool export_scene(Scene &scene, StringRefNull filepath);
+  ExportStatus export_scene(Scene &scene, StringRefNull filepath);
   void export_grease_pencil_objects(pugi::xml_node node, int frame_number);
   void export_grease_pencil_layer(pugi::xml_node node,
                                   const Object &object,
@@ -147,7 +146,7 @@ std::string SVGExporter::get_node_uuid_string()
   return id;
 }
 
-bool SVGExporter::export_scene(Scene &scene, StringRefNull filepath)
+ExportStatus SVGExporter::export_scene(Scene &scene, StringRefNull filepath)
 {
   this->_node_uuid = 0;
 
@@ -161,7 +160,8 @@ bool SVGExporter::export_scene(Scene &scene, StringRefNull filepath)
 
       this->export_grease_pencil_objects(main_node, frame_number);
 
-      return this->write_to_file(filepath);
+      const bool write_success = this->write_to_file(filepath);
+      return write_success ? ExportStatus::Ok : ExportStatus::FileWriteError;
     }
     case ExportParams::FrameMode::Selected:
     case ExportParams::FrameMode::Scene: {
@@ -174,8 +174,7 @@ bool SVGExporter::export_scene(Scene &scene, StringRefNull filepath)
       if (selection_only) {
         const Object &ob_eval = *DEG_get_evaluated(context_.depsgraph, params_.object);
         if (ob_eval.type != OB_GREASE_PENCIL) {
-          BKE_report(params_.reports, RPT_ERROR, "Active object is not a Grease Pencil object");
-          return false;
+          return ExportStatus::InvalidActiveObjectType;
         }
         const GreasePencil &grease_pencil = *static_cast<GreasePencil *>(ob_eval.data);
         frames = IndexMask::from_predicate(
@@ -185,9 +184,7 @@ bool SVGExporter::export_scene(Scene &scene, StringRefNull filepath)
       }
 
       if (frames.is_empty()) {
-        BKE_report(
-            params_.reports, RPT_ERROR, "No frame selected for exporting Grease Pencil to SVG");
-        return false;
+        return ExportStatus::NoFramesSelected;
       }
 
       this->prepare_render_params(scene, frames.first());
@@ -220,11 +217,12 @@ bool SVGExporter::export_scene(Scene &scene, StringRefNull filepath)
 
       this->write_animation_node(main_node, frames, duration);
 
-      return this->write_to_file(filepath);
+      const bool write_success = this->write_to_file(filepath);
+      return write_success ? ExportStatus::Ok : ExportStatus::FileWriteError;
     }
     default:
       BLI_assert_unreachable();
-      return false;
+      return ExportStatus::UnknownError;
   }
 }
 
@@ -583,10 +581,10 @@ bool SVGExporter::write_to_file(StringRefNull filepath)
   return result;
 }
 
-bool export_svg(const IOContext &context,
-                const ExportParams &params,
-                Scene &scene,
-                StringRefNull filepath)
+ExportStatus export_svg(const IOContext &context,
+                        const ExportParams &params,
+                        Scene &scene,
+                        StringRefNull filepath)
 {
   SVGExporter exporter(context, params);
   return exporter.export_scene(scene, filepath);

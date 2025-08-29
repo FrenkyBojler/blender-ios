@@ -45,6 +45,14 @@ struct ImportParams {
   bool recenter_bounds = false;
 };
 
+enum class ExportStatus : int8_t {
+  Ok = 0,
+  NoFramesSelected,
+  InvalidActiveObjectType,
+  FileWriteError,
+  UnknownError,
+};
+
 struct ExportParams {
   /* Object to be exported. */
   enum class SelectMode {
@@ -71,14 +79,13 @@ struct ExportParams {
   bool use_uniform_width = false;
   /* Distance for resampling outline curves before export, disabled if zero. */
   float outline_resample_length = 0.0f;
-  ReportList *reports;
 };
 
 bool import_svg(const IOContext &context, const ImportParams &params, StringRefNull filepath);
-bool export_svg(const IOContext &context,
-                const ExportParams &params,
-                Scene &scene,
-                StringRefNull filepath);
+ExportStatus export_svg(const IOContext &context,
+                        const ExportParams &params,
+                        Scene &scene,
+                        StringRefNull filepath);
 bool export_pdf(const IOContext &context,
                 const ExportParams &params,
                 Scene &scene,
