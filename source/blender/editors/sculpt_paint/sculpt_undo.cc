@@ -302,11 +302,7 @@ template<typename T> Array<T> decompress(const Span<std::byte> src)
 {
   const unsigned long long dst_size_in_bytes = ZSTD_getFrameContentSize(src.data(), src.size());
 
-  if (dst_size_in_bytes == ZSTD_CONTENTSIZE_ERROR) {
-    return Array<T>(0, NoInitialization());
-  }
-
-  if (dst_size_in_bytes == ZSTD_CONTENTSIZE_UNKNOWN) {
+  if (ELEM(dst_size_in_bytes, ZSTD_CONTENTSIZE_ERROR, ZSTD_CONTENTSIZE_UNKNOWN)) {
     return Array<T>(0, NoInitialization());
   }
 
