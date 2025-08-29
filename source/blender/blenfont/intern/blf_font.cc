@@ -1223,7 +1223,7 @@ int blf_str_offset_to_cursor(FontBLF *font,
   if (str_offset > 0) {
     int offset = int(str_offset);
     BLI_str_cursor_step_prev_utf8(str, int(str_len), &offset);
-    blf_str_offset_to_glyph_bounds(font, str, offset, &prev);
+    blf_str_offset_to_glyph_bounds(font, str, size_t(offset), &prev);
   }
 
   /* Left edge of the next character, if available. */

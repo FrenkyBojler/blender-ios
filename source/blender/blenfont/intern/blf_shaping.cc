@@ -414,7 +414,7 @@ blender::Vector<blender::Bounds<int>> blf_shaping_selection_boxes(
   blender::Vector<blender::Bounds<int>> boxes;
 
   StrSelectionGlyphBounds_Data data = {
-      sel_start, sel_length, BLI_char_isRTL_utf8(str + sel_start), {0}, {0}};
+      sel_start, sel_length, BLI_char_isRTL_utf8(str + sel_start), 0, {{}}};
   blf_font_boundbox_foreach_glyph(font, str, str_len, blf_str_selection_foreach_glyph, &data);
 
   /* Avoid overlap when multiple boxes meet. */
