@@ -226,8 +226,7 @@ static GreasePencilBatchCache *grease_pencil_batch_cache_get(GreasePencil &greas
 BLI_INLINE int32_t pack_rotation_aspect_hardness_miter(const float rot,
                                                        const float asp,
                                                        const float softness,
-                                                       const float miter_angle,
-                                                       const int corner_type)
+                                                       const float miter_angle)
 {
   int32_t packed = 0;
   /* Aspect uses 9 bits */
@@ -249,17 +248,17 @@ BLI_INLINE int32_t pack_rotation_aspect_hardness_miter(const float rot,
   packed |= int32_t(unit_float_to_uchar_clamp(1.0f - softness)) << 18;
 
   /* Miter Angle uses the last 6 bits */
-  if (corner_type == GP_STROKE_CORNER_TYPE_BEVEL) {
+  if (miter_angle == GP_STROKE_MITER_ANGLE_ROUND) {
+    packed |= GP_CORNER_TYPE_ROUND_BITS << 26;
+  }
+  else if (miter_angle >= GP_STROKE_MITER_ANGLE_BEVEL) {
     packed |= GP_CORNER_TYPE_BEVEL_BITS << 26;
   }
-  else if (corner_type == GP_STROKE_CORNER_TYPE_MITER) {
+  else {
     const float miter_norm = (miter_angle / M_PI);
     packed |= int32_t(clamp_i(
                   int(miter_norm * GP_CORNER_TYPE_MITER_NUMBER), 1, GP_CORNER_TYPE_MITER_NUMBER))
               << 26;
-  }
-  else if (corner_type == GP_STROKE_CORNER_TYPE_ROUND) {
-    packed |= GP_CORNER_TYPE_ROUND_BITS << 26;
   }
 
   return packed;
@@ -1220,9 +1219,7 @@ static void grease_pencil_geom_batch_ensure(Object &object,
     const VArray<float> fill_opacities = *attributes.lookup_or_default<float>(
         "fill_opacity", bke::AttrDomain::Curve, 1.0f);
     const VArray<float> miter_angles = *attributes.lookup_or_default<float>(
-        "miter_angle", bke::AttrDomain::Curve, DEG2RADF(45.0f));
-    const VArray<int> corner_types = *attributes.lookup_or_default<int>(
-        "corner_type", bke::AttrDomain::Curve, GP_STROKE_CORNER_TYPE_ROUND);
+        "miter_angle", bke::AttrDomain::Curve, GP_STROKE_MITER_ANGLE_ROUND);
 
     const Span<int3> triangles = info.drawing.triangles();
     const Span<float4x2> texture_matrices = info.drawing.texture_matrices();
@@ -1266,8 +1263,7 @@ static void grease_pencil_geom_batch_ensure(Object &object,
           rotations[point_i],
           stroke_point_aspect_ratios[curve_i],
           stroke_softness[curve_i],
-          miter_angles[curve_i],
-          corner_types[curve_i]);
+          miter_angles[curve_i]);
       s_vert.u_stroke = u_stroke;
       copy_v2_v2(s_vert.uv_fill, texture_matrix * float4(pos, 1.0f));
 

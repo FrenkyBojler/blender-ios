@@ -4693,10 +4693,16 @@ static void GREASE_PENCIL_OT_convert_curve_type(wmOperatorType *ot)
 /** \name Set Corner Type Operator
  * \{ */
 
+enum class CornerType : uint8_t {
+  Round = 0,
+  Bevel = 1,
+  Miter = 2,
+};
+
 static const EnumPropertyItem prop_corner_types[] = {
-    {int(GP_STROKE_CORNER_TYPE_ROUND), "ROUND", 0, "Round", ""},
-    {int(GP_STROKE_CORNER_TYPE_BEVEL), "BEVEL", 0, "Bevel", ""},
-    {int(GP_STROKE_CORNER_TYPE_MITER), "MITER", 0, "Miter", ""},
+    {int(CornerType::Round), "ROUND", 0, "Round", ""},
+    {int(CornerType::Bevel), "BEVEL", 0, "Bevel", ""},
+    {int(CornerType::Miter), "MITER", 0, "Miter", ""},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -4708,8 +4714,15 @@ static wmOperatorStatus grease_pencil_set_corner_type_exec(bContext *C, wmOperat
   Object *object = CTX_data_active_object(C);
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
 
-  const int corner_type = RNA_enum_get(op->ptr, "corner_type");
-  const float miter_angle = RNA_float_get(op->ptr, "miter_angle");
+  const CornerType corner_type = CornerType(RNA_enum_get(op->ptr, "corner_type"));
+  float miter_angle = RNA_float_get(op->ptr, "miter_angle");
+
+  if (corner_type == CornerType::Round) {
+    miter_angle = GP_STROKE_MITER_ANGLE_ROUND;
+  }
+  else if (corner_type == CornerType::Bevel) {
+    miter_angle = GP_STROKE_MITER_ANGLE_BEVEL;
+  }
 
   bool changed = false;
   const Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(*scene, grease_pencil);
@@ -4724,34 +4737,28 @@ static wmOperatorStatus grease_pencil_set_corner_type_exec(bContext *C, wmOperat
     bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
     bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
 
-    bke::SpanAttributeWriter<int> corner_types = attributes.lookup_or_add_for_write_span<int>(
-        "corner_type",
+    /* Only create the attribute if we are not storing the default. */
+    if (miter_angle == GP_STROKE_MITER_ANGLE_ROUND && !attributes.contains("miter_angle")) {
+      return;
+    }
+
+    /* Remove the attribute if we are storing all default. */
+    if (miter_angle == GP_STROKE_MITER_ANGLE_ROUND && selection == curves.curves_range()) {
+      attributes.remove("miter_angle");
+      changed = true;
+      return;
+    }
+
+    bke::SpanAttributeWriter<float> miter_angles = attributes.lookup_or_add_for_write_span<float>(
+        "miter_angle",
         bke::AttrDomain::Curve,
         bke::AttributeInitVArray(
-            VArray<int>::from_single(GP_STROKE_CAP_ROUND, curves.curves_num())));
+            VArray<float>::from_single(GP_STROKE_MITER_ANGLE_ROUND, curves.curves_num())));
 
-    index_mask::masked_fill(corner_types.span, corner_type, selection);
+    index_mask::masked_fill(miter_angles.span, miter_angle, selection);
 
-    corner_types.finish();
+    miter_angles.finish();
     changed = true;
-
-    if (corner_type == GP_STROKE_CORNER_TYPE_MITER) {
-      /* Only create the attribute if we are not storing the default. */
-      if (miter_angle == DEG2RADF(45.0f) && !attributes.contains("miter_angle")) {
-        return;
-      }
-
-      bke::SpanAttributeWriter<float> miter_angles =
-          attributes.lookup_or_add_for_write_span<float>(
-              "miter_angle",
-              bke::AttrDomain::Curve,
-              bke::AttributeInitVArray(
-                  VArray<float>::from_single(DEG2RADF(45.0f), curves.curves_num())));
-
-      index_mask::masked_fill(miter_angles.span, miter_angle, selection);
-
-      miter_angles.finish();
-    }
   });
 
   if (changed) {
@@ -4774,9 +4781,9 @@ static void grease_pencil_set_corner_type_ui(bContext *C, wmOperator *op)
 
   layout->prop(&ptr, "corner_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  const int corner_type = RNA_enum_get(op->ptr, "corner_type");
+  const CornerType corner_type = CornerType(RNA_enum_get(op->ptr, "corner_type"));
 
-  if (corner_type != GP_STROKE_CORNER_TYPE_MITER) {
+  if (corner_type != CornerType::Miter) {
     return;
   }
 
@@ -4799,7 +4806,7 @@ static void GREASE_PENCIL_OT_set_corner_type(wmOperatorType *ot)
 
   /* Properties */
   ot->prop = RNA_def_enum(
-      ot->srna, "corner_type", prop_corner_types, GP_STROKE_CORNER_TYPE_BEVEL, "Corner Type", "");
+      ot->srna, "corner_type", prop_corner_types, int(CornerType::Miter), "Corner Type", "");
   ot->prop = RNA_def_float_distance(ot->srna,
                                     "miter_angle",
                                     DEG2RADF(45.0f),
