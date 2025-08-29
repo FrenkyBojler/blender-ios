@@ -5,6 +5,8 @@
 #include "DNA_space_enums.h"
 
 struct bContext;
+struct bScreen;
+struct rcti;
 struct Scene;
 struct ScrArea;
 struct SpaceLink;
@@ -12,6 +14,7 @@ struct wmWindow;
 
 namespace blender::ed::editor_dock {
 
+ScrArea *add_docked_area(bScreen *screen, const rcti &area_rect);
 SpaceLink *add_docked_space(ScrArea *area,
                             const eSpace_Type type,
                             std::optional<int> subtype,

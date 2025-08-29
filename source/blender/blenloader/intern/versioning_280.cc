@@ -5601,7 +5601,7 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
 
     LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
       LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
-        area->flag &= ~AREA_FLAG_DOCKED;
+        area->flag &= ~AREA_FLAG_UNUSED_6;
       }
     }
 

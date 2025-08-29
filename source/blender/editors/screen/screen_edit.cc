@@ -672,9 +672,13 @@ bool screen_area_close(bContext *C, ReportList *reports, bScreen *screen, ScrAre
 
   LISTBASE_FOREACH (ScrArea *, neighbor, &screen->areabase) {
     /* Don't allow closing hidden or docked areas. */
-    if (neighbor->flag & (AREA_FLAG_HIDDEN | AREA_FLAG_DOCKED)) {
+    if (neighbor->flag & AREA_FLAG_HIDDEN) {
       continue;
     }
+    if (neighbor->docked) {
+      continue;
+    }
+
     const eScreenDir dir = area_getorientation(area, neighbor);
     /* Must at least partially share an edge and not be a global area. */
     if ((dir != SCREEN_DIR_NONE) && (neighbor->global == nullptr)) {

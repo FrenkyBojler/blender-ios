@@ -23,6 +23,14 @@
 
 namespace blender::ed::editor_dock {
 
+ScrArea *add_docked_area(bScreen *screen, const rcti &area_rect)
+{
+  ScrArea *docked_area = ED_screen_area_add_empty(screen, area_rect);
+  BKE_screen_remove_double_scrverts(screen);
+  docked_area->docked = MEM_callocN<ScrDockedAreaData>(__func__);
+  return docked_area;
+}
+
 /* TODO this isn't editor dock specific. Move somewhere else? */
 SpaceLink *add_docked_space(ScrArea *area,
                             const eSpace_Type type,
@@ -58,7 +66,7 @@ SpaceLink *add_docked_space(ScrArea *area,
 
 void activate_docked_space(bContext *C, ScrArea *docked_area, SpaceLink *space)
 {
-  BLI_assert(docked_area->flag & AREA_FLAG_DOCKED);
+  BLI_assert(docked_area->docked);
 
   SpaceType *st = BKE_spacetype_from_id(space->spacetype);
   if (!st) {
@@ -124,7 +132,7 @@ void toggle_docked_space(bContext *C, ScrArea *docked_area, SpaceLink *space)
 
 void hide_docked_area(const wmWindow *win, ScrArea *docked_area)
 {
-  BLI_assert(docked_area->flag & AREA_FLAG_DOCKED);
+  BLI_assert(docked_area->docked);
   if ((docked_area->flag & AREA_FLAG_HIDDEN) != 0) {
     /* Already hidden. */
     return;
@@ -150,7 +158,7 @@ void hide_docked_area(const wmWindow *win, ScrArea *docked_area)
 
 void unhide_docked_area(const wmWindow *win, ScrArea *docked_area)
 {
-  BLI_assert(docked_area->flag & AREA_FLAG_DOCKED);
+  BLI_assert(docked_area->docked);
   if ((docked_area->flag & AREA_FLAG_HIDDEN) == 0) {
     /* Already unhidden. */
     return;

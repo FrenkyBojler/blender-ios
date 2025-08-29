@@ -31,7 +31,7 @@ static ScrArea *lookup_docked_area(bContext *C)
 {
   const bScreen *screen = CTX_wm_screen(C);
   LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
-    if (area->flag & AREA_FLAG_DOCKED) {
+    if (area->docked) {
       return area;
     }
   }

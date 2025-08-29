@@ -427,6 +427,14 @@ typedef enum GlobalAreaAlign {
   GLOBAL_AREA_ALIGN_LEFT = 3,
 } GlobalAreaAlign;
 
+typedef struct ScrDockedAreaData {
+  int position; /* #DockedAreaPosition */
+} ScrDockedAreaData;
+
+typedef enum DockedAreaPosition {
+  DOCKED_AREA_RIGHT,
+} DockedAreaPosition;
+
 typedef struct ScrArea_Runtime {
   struct bToolRef *tool;
   char is_tool_set;
@@ -478,6 +486,8 @@ typedef struct ScrArea {
 
   /** Non-NULL if this area is global. */
   ScrGlobalAreaData *global;
+  /** Non-NULL if this area is docked via the editor dock. */
+  ScrDockedAreaData *docked;
 
   /**
    * #SpaceLink.
@@ -572,8 +582,7 @@ enum {
   AREA_FLAG_ACTIVE_TOOL_UPDATE = (1 << 4),
   // AREA_FLAG_UNUSED_5 = (1 << 5),
 
-  /** Area is managed by the editor dock. */
-  AREA_FLAG_DOCKED = (1 << 6),
+  AREA_FLAG_UNUSED_6 = (1 << 6), /* cleared */
 
   /**
    * For temporary full-screens (file browser, image editor render)

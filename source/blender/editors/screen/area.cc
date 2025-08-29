@@ -968,7 +968,7 @@ static void area_azone_init(const wmWindow *win, const bScreen *screen, ScrArea 
     return;
   }
 
-  if (area->flag & AREA_FLAG_DOCKED) {
+  if (area->docked) {
     return;
   }
 

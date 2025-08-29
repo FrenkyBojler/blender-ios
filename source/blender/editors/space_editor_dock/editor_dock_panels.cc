@@ -39,7 +39,7 @@ static void editor_dock_draw(const bContext *C, Panel *panel)
   layout.emboss_set(ui::EmbossType::NoneOrStatus);
 
   LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
-    if ((area->flag & AREA_FLAG_DOCKED) == 0) {
+    if (!area->docked) {
       continue;
     }
 

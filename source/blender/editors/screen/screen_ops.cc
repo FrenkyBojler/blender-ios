@@ -751,7 +751,7 @@ static bool area_editable(const ScrArea *area, const char **r_disabled_hint = nu
   if (ED_area_is_global(area)) {
     return false;
   }
-  if (area->flag & AREA_FLAG_DOCKED) {
+  if (area->docked) {
     if (r_disabled_hint) {
       *r_disabled_hint = TIP_("Editors spawned from the editor dock cannot be edited");
     }

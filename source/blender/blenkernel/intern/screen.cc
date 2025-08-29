@@ -643,6 +643,7 @@ void BKE_screen_area_free(ScrArea *area)
   }
 
   MEM_SAFE_FREE(area->global);
+  MEM_SAFE_FREE(area->docked);
   BLI_freelistN(&area->regionbase);
 
   BKE_spacedata_freelist(&area->spacedata);
@@ -1215,6 +1216,7 @@ void BKE_screen_area_map_blend_write(BlendWriter *writer, ScrAreaMap *area_map)
     BLO_write_struct(writer, ScrArea, area);
 
     BLO_write_struct(writer, ScrGlobalAreaData, area->global);
+    BLO_write_struct(writer, ScrDockedAreaData, area->docked);
 
     write_area(writer, area);
 
@@ -1372,6 +1374,7 @@ static void direct_link_area(BlendDataReader *reader, ScrArea *area)
   area->flag &= ~AREA_FLAG_ACTIVE_TOOL_UPDATE;
 
   BLO_read_struct(reader, ScrGlobalAreaData, &area->global);
+  BLO_read_struct(reader, ScrDockedAreaData, &area->docked);
 
   /* if we do not have the spacetype registered we cannot
    * free it, so don't allocate any new memory for such spacetypes. */

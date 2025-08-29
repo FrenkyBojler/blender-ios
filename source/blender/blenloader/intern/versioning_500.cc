@@ -2903,7 +2903,7 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
     /* New #AREA_FLAG_HIDDEN flag, clear bit from possible uses in previous versions. */
     LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
       LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
-        if (area->flag & AREA_FLAG_DOCKED) {
+        if (area->docked) {
           continue;
         }
         area->flag &= ~AREA_FLAG_HIDDEN;
@@ -2913,7 +2913,7 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
     LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
       ScrArea *docked_area = [&]() -> ScrArea * {
         LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
-          if (area->flag & AREA_FLAG_DOCKED) {
+          if (area->docked) {
             return area;
           }
         }
@@ -2937,9 +2937,9 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
                                 round_fl_to_int(max[0]),
                                 round_fl_to_int(min[1]),
                                 round_fl_to_int(max[1])};
-        docked_area = ED_screen_area_add_empty(screen, area_rect);
-        BKE_screen_remove_double_scrverts(screen);
-        docked_area->flag |= AREA_FLAG_DOCKED | AREA_FLAG_HIDDEN;
+        ScrArea *docked_area = blender::ed::editor_dock::add_docked_area(screen, area_rect);
+
+        docked_area->flag |= AREA_FLAG_HIDDEN;
 
         /* TODO null for scene - is this a good idea? */
         blender::ed::editor_dock::add_docked_space(
