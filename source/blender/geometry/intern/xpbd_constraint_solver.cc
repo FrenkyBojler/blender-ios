@@ -65,8 +65,7 @@ void solve_gauss_seidel_one_at_a_time(const Span<GeometryRef> geometry_refs,
                                       const Span<ConstraintSet *> constraint_sets)
 {
   ConstraintSetParams params{geometry_refs};
-  SolveStrategy strategy{SolveStrategyType::GaussSeidelOneAtATime,
-                         GaussSeidelUpdater{geometry_refs}};
+  SolveStrategy strategy{SolveStrategyType::GaussSeidelOneAtATime, geometry_refs};
   for (ConstraintSet *constraint_set : constraint_sets) {
     constraint_set->solve_step(strategy, params);
   }
@@ -147,21 +146,111 @@ Vector<ConstraintSet *> ConstraintSetCollector::combine(
   return result;
 }
 
+NonDeterministicJacobianUpdater::NonDeterministicJacobianUpdater(
+    const Span<GeometryRef> geometry_refs)
+    : geometry_refs_(geometry_refs), items_(geometry_refs.size())
+{
+  for (const int geo_i : geometry_refs.index_range()) {
+    const GeometryRef &geometry_ref = geometry_refs[geo_i];
+    GeometryItem &geo_item = items_[geo_i];
+    const IndexRange range = IndexRange(geometry_ref.positions.size());
+    geo_item.range = range;
+    geo_item.offsets.reinitialize(range.size());
+  }
+}
+
+NonDeterministicJacobianUpdater::NonDeterministicJacobianUpdater(Span<GeometryRef> geometry_refs,
+                                                                 const int geo_i,
+                                                                 const IndexRange range)
+    : geometry_refs_(geometry_refs), items_(geometry_refs.size())
+{
+  GeometryItem &geo_item = items_[geo_i];
+  geo_item.range = range;
+  geo_item.offsets.reinitialize(range.size());
+}
+
+void NonDeterministicJacobianUpdater::apply()
+{
+  for (const int geo_i : geometry_refs_.index_range()) {
+    const GeometryRef &geometry_ref = geometry_refs_[geo_i];
+    GeometryItem &geo_item = items_[geo_i];
+    if (geo_item.range.is_empty()) {
+      continue;
+    }
+    threading::parallel_for(geo_item.range.index_range(), 512, [&](const IndexRange range) {
+      for (const int i : range) {
+        const int point_i = i + geo_item.range.start();
+        const OffsetItem &item = geo_item.offsets[i];
+        if (item.linear_counter > 0) {
+          const float relaxation_factor = 1.3f;
+          const float3 final_offset = item.linear_offset / item.linear_counter * relaxation_factor;
+          geometry_ref.positions[point_i] += final_offset;
+        }
+      }
+      if (!geometry_ref.rotations.is_empty()) {
+        for (const int i : range) {
+          const int point_i = i + geo_item.range.start();
+          const OffsetItem &item = geo_item.offsets[i];
+          if (item.rotation_counter == 0) {
+            continue;
+          }
+          const float4 final_offset = item.rotation_offset / item.rotation_counter;
+          math::Quaternion &rotation = geometry_ref.rotations[point_i];
+          rotation = apply_rotation_offset(rotation, final_offset);
+        }
+      }
+    });
+  }
+}
+
+SolveStrategy::SolveStrategy(const SolveStrategyType type, Span<GeometryRef> geometry_refs)
+    : type(type)
+{
+  switch (type) {
+    case SolveStrategyType::GaussSeidelParallel:
+    case SolveStrategyType::GaussSeidelOneAtATime: {
+      updater_.emplace(GaussSeidelUpdater(geometry_refs));
+      break;
+    }
+    case SolveStrategyType::JacobianNonDeterministic: {
+      updater_.emplace(std::in_place_type_t<NonDeterministicJacobianUpdater>(), geometry_refs);
+      break;
+    }
+  }
+}
+
+SolveStrategy::SolveStrategy(const SolveStrategyType type,
+                             const Span<GeometryRef> geometry_refs,
+                             const int geo_i,
+                             const IndexRange range)
+    : type(type)
+{
+  switch (type) {
+    case SolveStrategyType::GaussSeidelParallel:
+    case SolveStrategyType::GaussSeidelOneAtATime: {
+      updater_.emplace(GaussSeidelUpdater(geometry_refs));
+      break;
+    }
+    case SolveStrategyType::JacobianNonDeterministic: {
+      updater_.emplace(
+          std::in_place_type_t<NonDeterministicJacobianUpdater>(), geometry_refs, geo_i, range);
+      break;
+    }
+  }
+}
+
+void SolveStrategy::apply()
+{
+  if (auto *jacobian_updater = std::get_if<NonDeterministicJacobianUpdater>(&*updater_)) {
+    jacobian_updater->apply();
+  }
+}
+
 void solve_jacobian_non_deterministic(const Span<GeometryRef> geometry_refs,
                                       const Span<ConstraintSet *> constraint_sets)
 {
-  using Item = NonDeterministicJacobianUpdater::Item;
-
-  Array<Array<Item>> items_arrays(geometry_refs.size());
-  Array<MutableSpan<Item>> items_spans(geometry_refs.size());
-  for (const int point_set_i : geometry_refs.index_range()) {
-    items_arrays[point_set_i].reinitialize(geometry_refs[point_set_i].size());
-    items_spans[point_set_i] = items_arrays[point_set_i];
-  }
-
   ConstraintSetParams params{geometry_refs};
-  SolveStrategy strategy{SolveStrategyType::JacobianNonDeterministic,
-                         NonDeterministicJacobianUpdater{items_spans}};
+  SolveStrategy strategy{SolveStrategyType::JacobianNonDeterministic, geometry_refs};
   threading::parallel_for(
       constraint_sets.index_range(), 1, [&](const IndexRange constraint_sets_range) {
         for (const int constraint_set_i : constraint_sets_range) {
@@ -169,35 +258,7 @@ void solve_jacobian_non_deterministic(const Span<GeometryRef> geometry_refs,
           constraint_set->solve_step(strategy, params);
         }
       });
-
-  threading::parallel_for(geometry_refs.index_range(), 1, [&](const IndexRange point_set_range) {
-    for (const int point_set_i : point_set_range) {
-      const Span<Item> items = items_arrays[point_set_i];
-      const GeometryRef &point_set = geometry_refs[point_set_i];
-      threading::parallel_for(IndexRange(point_set.size()), 512, [&](const IndexRange range) {
-        for (const int point_i : range) {
-          const Item &item = items[point_i];
-          if (item.linear_counter == 0) {
-            continue;
-          }
-          const float relaxation_factor = 1.3f;
-          const float3 final_offset = item.linear_offset / item.linear_counter * relaxation_factor;
-          point_set.positions[point_i] += final_offset;
-        }
-        if (!point_set.rotations.is_empty()) {
-          for (const int point_i : range) {
-            const Item &item = items[point_i];
-            if (item.rotation_counter == 0) {
-              continue;
-            }
-            const float4 final_offset = item.rotation_offset / item.rotation_counter;
-            math::Quaternion &rotation = point_set.rotations[point_i];
-            rotation = apply_rotation_offset(rotation, final_offset);
-          }
-        }
-      });
-    }
-  });
+  strategy.apply();
 }
 
 void solve_gauss_seidel_parallel(const Span<GeometryRef> geometry_refs,
@@ -228,8 +289,7 @@ void solve_gauss_seidel_parallel(const Span<GeometryRef> geometry_refs,
     single_target_constraint_sets.append(constraint_sets);
   }
 
-  SolveStrategy strategy{SolveStrategyType::GaussSeidelParallel,
-                         GaussSeidelUpdater{geometry_refs}};
+  SolveStrategy strategy{SolveStrategyType::GaussSeidelParallel, geometry_refs};
 
   threading::parallel_for(
       single_target_constraint_sets.index_range(), 1, [&](const IndexRange range) {

@@ -4,8 +4,10 @@
 
 #pragma once
 
+#include <optional>
 #include <variant>
 
+#include "BLI_array.hh"
 #include "BLI_math_quaternion.hh"
 #include "BLI_math_quaternion_types.hh"
 #include "BLI_math_vector_types.hh"
@@ -76,7 +78,7 @@ class GaussSeidelUpdater {
  */
 class NonDeterministicJacobianUpdater {
  public:
-  struct Item {
+  struct OffsetItem {
     Mutex linear_mutex;
     int linear_counter = 0;
     float3 linear_offset = float3(0.0f);
@@ -85,13 +87,24 @@ class NonDeterministicJacobianUpdater {
     float4 rotation_offset = float4(0.0f);
   };
 
+  struct GeometryItem {
+    Array<OffsetItem> offsets;
+    IndexRange range;
+  };
+
  private:
-  Span<MutableSpan<Item>> offsets_;
+  Span<GeometryRef> geometry_refs_;
+  Array<GeometryItem> items_;
 
  public:
-  NonDeterministicJacobianUpdater(Span<MutableSpan<Item>> offsets);
+  NonDeterministicJacobianUpdater(Span<GeometryRef> geometry_refs);
+  NonDeterministicJacobianUpdater(Span<GeometryRef> geometry_refs,
+                                  const int geo_i,
+                                  const IndexRange range);
   void update_position(const int geo_i, const int point_i, const float3 &offset);
   void update_rotation(const int geo_i, const int point_i, const math::Quaternion &offset);
+
+  void apply();
 };
 
 using UpdaterVariant = std::variant<GaussSeidelUpdater, NonDeterministicJacobianUpdater>;
@@ -103,9 +116,21 @@ enum class SolveStrategyType {
 };
 
 class SolveStrategy {
+ private:
+  std::optional<UpdaterVariant> updater_;
+
  public:
   SolveStrategyType type;
-  UpdaterVariant updater;
+
+  SolveStrategy(SolveStrategyType type, Span<GeometryRef> geometry_refs);
+  SolveStrategy(SolveStrategyType type,
+                Span<GeometryRef> geometry_refs,
+                const int geo_i,
+                const IndexRange range);
+
+  UpdaterVariant &updater();
+
+  void apply();
 };
 
 /**
@@ -164,17 +189,12 @@ inline math::Quaternion apply_rotation_offset(math::Quaternion rotation, float4 
   return math::normalize(math::Quaternion(float4(rotation) + offset));
 }
 
-inline NonDeterministicJacobianUpdater::NonDeterministicJacobianUpdater(
-    Span<MutableSpan<Item>> offsets)
-    : offsets_(offsets)
-{
-}
-
 inline void NonDeterministicJacobianUpdater::update_position(const int geo_i,
                                                              const int point_i,
                                                              const float3 &offset)
 {
-  Item &item = offsets_[geo_i][point_i];
+  GeometryItem &geo_item = items_[geo_i];
+  OffsetItem &item = geo_item.offsets[point_i - geo_item.range.start()];
   std::lock_guard lock(item.linear_mutex);
   item.linear_counter++;
   item.linear_offset += offset;
@@ -184,7 +204,8 @@ inline void NonDeterministicJacobianUpdater::update_rotation(const int geo_i,
                                                              const int point_i,
                                                              const math::Quaternion &offset)
 {
-  Item &item = offsets_[geo_i][point_i];
+  GeometryItem &geo_item = items_[geo_i];
+  OffsetItem &item = geo_item.offsets[point_i - geo_item.range.start()];
   std::lock_guard lock(item.rotation_mutex);
   item.rotation_counter++;
   item.rotation_offset += float4(offset);
@@ -208,6 +229,11 @@ inline void GaussSeidelUpdater::update_rotation(const int geo_i,
 {
   math::Quaternion &rotation = geometry_refs_[geo_i].rotations[point_i];
   rotation = apply_rotation_offset(rotation, float4(offset));
+}
+
+inline UpdaterVariant &SolveStrategy::updater()
+{
+  return *updater_;
 }
 
 inline Span<int> ConstraintSet::get_affected_geo_indices() const

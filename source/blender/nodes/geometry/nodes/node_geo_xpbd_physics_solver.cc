@@ -2929,6 +2929,19 @@ PROFILE_FUNCTION static void simulate_key_group_global(
   }
 }
 
+static xpbd::SolveStrategyType get_solve_strategy_type(const SolverType solver_type)
+{
+  switch (solver_type) {
+    case SolverType::SerialGaussSeidel:
+      return xpbd::SolveStrategyType::GaussSeidelOneAtATime;
+    case SolverType::ParallelGaussSeidel:
+      return xpbd::SolveStrategyType::GaussSeidelParallel;
+    case SolverType::NonDeterministicJacobian:
+      return xpbd::SolveStrategyType::JacobianNonDeterministic;
+  }
+  return xpbd::SolveStrategyType::GaussSeidelParallel;
+}
+
 PROFILE_FUNCTION static void simulate_curve_local(
     const int key_i,
     ThreadLocalStorage &tls,
@@ -2944,7 +2957,7 @@ PROFILE_FUNCTION static void simulate_curve_local(
     const Map<SimPointsKey, MutableSpan<float3>> &soft_pinned_positions_map,
     const Map<SimPointsKey, MutableSpan<math::Quaternion>> &soft_pinned_rotations_map,
     const Span<GeometrySet> applied_geometries,
-    const SolverType /*solver_type*/,
+    const SolverType solver_type,
     const Span<xpbd::GeometryRef> geometry_refs,
     const xpbd::ConstraintSetCollector &filtered_static_constraint_sets,
     const int substeps,
@@ -2976,9 +2989,6 @@ PROFILE_FUNCTION static void simulate_curve_local(
         const int points_num = points_range.size();
         Array<float3, 1024> prev_positions(points_num);
         Array<math::Quaternion, 1024> prev_rotations(sim_points.has_rotation ? points_num : 0);
-        /* TODO: Support other solve strategies for curve-local evaluation. */
-        xpbd::SolveStrategy solve_strategy{xpbd::SolveStrategyType::GaussSeidelParallel,
-                                           xpbd::GaussSeidelUpdater{geometry_refs}};
         xpbd::ConstraintSetParams params{geometry_refs};
         for ([[maybe_unused]] const int substep_i : IndexRange(substeps)) {
           const float substep_factor = substeps <= 1 ? 1.0f : float(substep_i) / (substeps - 1);
@@ -3005,6 +3015,9 @@ PROFILE_FUNCTION static void simulate_curve_local(
           xpbd::ConstraintSetCollector dynamic_constraint_sets;
           generate_collision_constraint_sets(
               scope, contacts, keys, sub_delta_time, dynamic_constraint_sets);
+
+          xpbd::SolveStrategy solve_strategy{
+              get_solve_strategy_type(solver_type), geometry_refs, key_i, points_range};
           for (xpbd::CurveLocalConstraintSet *constraint_set :
                filtered_static_constraint_sets.curve_local)
           {
@@ -3013,6 +3026,7 @@ PROFILE_FUNCTION static void simulate_curve_local(
           for (xpbd::ConstraintSet *constraint_set : dynamic_constraint_sets.general) {
             constraint_set->solve_step(solve_strategy, params);
           }
+          solve_strategy.apply();
 
           if (sub_delta_time > 0.0f) {
             /* Apply friction by updating current positions before the new velocity is computed.*/

@@ -190,14 +190,14 @@ inline void TemplatedConstraintSet<Child>::solve_step(SolveStrategy &strategy,
   const Child &self = static_cast<const Child &>(*this);
   switch (strategy.type) {
     case SolveStrategyType::GaussSeidelOneAtATime: {
-      auto &updater = std::get<GaussSeidelUpdater>(strategy.updater);
+      auto &updater = std::get<GaussSeidelUpdater>(strategy.updater());
       for (const int constraint_i : IndexRange(constraints_num_)) {
         self.evaluate_single(updater, params, constraint_i);
       }
       break;
     }
     case SolveStrategyType::GaussSeidelParallel: {
-      auto &updater = std::get<GaussSeidelUpdater>(strategy.updater);
+      auto &updater = std::get<GaussSeidelUpdater>(strategy.updater());
       const Span<IndexMask> constraint_masks = this->get_independent_masks();
       for (const int color_i : constraint_masks.index_range()) {
         const IndexMask &constraint_mask = constraint_masks[color_i];
@@ -208,7 +208,7 @@ inline void TemplatedConstraintSet<Child>::solve_step(SolveStrategy &strategy,
       break;
     }
     case SolveStrategyType::JacobianNonDeterministic: {
-      auto &updater = std::get<NonDeterministicJacobianUpdater>(strategy.updater);
+      auto &updater = std::get<NonDeterministicJacobianUpdater>(strategy.updater());
       threading::parallel_for(
           IndexRange(constraints_num_), grain_size_, [&](const IndexRange range) {
             for (const int constraint_i : range) {
@@ -246,14 +246,14 @@ void TemplatedCurveLocalConstraintSet<Child>::solve_step(SolveStrategy &strategy
   switch (strategy.type) {
     case SolveStrategyType::GaussSeidelOneAtATime:
     case SolveStrategyType::GaussSeidelParallel: {
-      auto &updater = std::get<GaussSeidelUpdater>(strategy.updater);
+      auto &updater = std::get<GaussSeidelUpdater>(strategy.updater());
       for (const int curve_i : curves_range) {
         self.evaluate_curve(updater, params, curve_i);
       }
       break;
     }
     case SolveStrategyType::JacobianNonDeterministic: {
-      auto &updater = std::get<NonDeterministicJacobianUpdater>(strategy.updater);
+      auto &updater = std::get<NonDeterministicJacobianUpdater>(strategy.updater());
       for (const int curve_i : curves_range) {
         self.evaluate_curve(updater, params, curve_i);
       }
