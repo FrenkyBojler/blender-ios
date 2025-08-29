@@ -985,6 +985,7 @@ typedef enum eQualityOption {
 typedef enum eHairType {
   SCE_HAIR_SHAPE_STRAND = 0,
   SCE_HAIR_SHAPE_STRIP = 1,
+  SCE_HAIR_SHAPE_CYLINDER = 2,
 } eHairType;
 
 /** #RenderData::motion_blur_position */
@@ -1411,9 +1412,7 @@ typedef struct GpWeightPaint {
 typedef struct VPaint {
   Paint paint;
   char flag;
-  char _pad[3];
-  /** For mirrored painting. */
-  int radial_symm[3] DNA_DEPRECATED;
+  char _pad[7];
 } VPaint;
 
 /** #VPaint::flag */
