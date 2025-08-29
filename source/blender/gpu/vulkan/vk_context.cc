@@ -64,7 +64,6 @@ void VKContext::sync_backbuffer(bool cycle_resource_pool)
     VKThreadData &thread_data = thread_data_.value().get();
     if (cycle_resource_pool) {
       thread_data.ensure_resource_pools(swap_chain_data.max_render_frame);
-      // XXX when using multiple windows the resource pools can be overlapping.
       thread_data.resource_pool_next();
     }
 
