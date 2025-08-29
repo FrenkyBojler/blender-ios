@@ -946,6 +946,13 @@ void gather_attributes(AttributeAccessor src_attributes,
                        Span<int> indices,
                        MutableAttributeAccessor dst_attributes);
 
+void scatter_attributes(AttributeAccessor src_attributes,
+                        AttrDomain src_domain,
+                        AttrDomain dst_domain,
+                        const AttributeFilter &attribute_filter,
+                        const IndexMask &selection,
+                        MutableAttributeAccessor dst_attributes);
+
 /**
  * Copy attribute values from groups defined by \a src_offsets to groups defined by \a
  * dst_offsets. The group indices are gathered to the result by \a selection. The size of each

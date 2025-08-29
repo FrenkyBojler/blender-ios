@@ -124,6 +124,11 @@ inline void scatter(const Span<T> src,
       [&](const int64_t index, const int64_t pos) { dst[index] = src[pos]; });
 }
 
+void scatter(GSpan src,
+             const IndexMask &indices,
+             GMutableSpan<T> dst,
+             const int64_t grain_size = 4096);
+
 /**
  * Fill the destination span by gathering indexed values from the `src` array.
  */

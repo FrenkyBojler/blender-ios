@@ -1032,6 +1032,41 @@ void gather_attributes(const AttributeAccessor src_attributes,
   }
 }
 
+void scatter_attributes(const AttributeAccessor src_attributes,
+                        const AttrDomain src_domain,
+                        const AttrDomain dst_domain,
+                        const AttributeFilter &attribute_filter,
+                        const IndexMask &selection,
+                        MutableAttributeAccessor dst_attributes)
+{
+  const int src_size = src_attributes.domain_size(src_domain);
+  src_attributes.foreach_attribute([&](const AttributeIter &iter) {
+    if (iter.domain != src_domain) {
+      return;
+    }
+    if (iter.data_type == AttrType::String) {
+      return;
+    }
+    if (attribute_filter.allow_skip(iter.name)) {
+      return;
+    }
+    const GAttributeReader src = iter.get(src_domain);
+    if (selection.size() == src_size && src.sharing_info && src.varray.is_span()) {
+      const AttributeInitShared init(src.varray.get_internal_span().data(), *src.sharing_info);
+      if (dst_attributes.add(iter.name, dst_domain, iter.data_type, init)) {
+        return;
+      }
+    }
+    GSpanAttributeWriter dst = dst_attributes.lookup_or_add_for_write_only_span(
+        iter.name, dst_domain, iter.data_type);
+    if (!dst) {
+      return;
+    }
+    array_utils::gather(src.varray, selection, dst.span);
+    dst.finish();
+  });
+}
+
 void gather_attributes_group_to_group(const AttributeAccessor src_attributes,
                                       const AttrDomain src_domain,
                                       const AttrDomain dst_domain,
