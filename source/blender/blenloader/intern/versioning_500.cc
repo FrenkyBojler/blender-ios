@@ -1809,9 +1809,7 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
       bke::mesh_custom_normals_to_generic(*mesh);
       rename_mesh_uv_seam_attribute(*mesh);
     }
-  }
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 1)) {
     update_brush_sizes(*bmain);
   }
 
