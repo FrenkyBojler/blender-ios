@@ -123,6 +123,7 @@ static void sequencer_generic_props__internal(wmOperatorType *ot, int flag)
         true,
         "Move Strips",
         "Automatically begin translating strips with the mouse after adding them to the timeline");
+    RNA_def_property_flag(prop, PROP_HIDDEN);
   }
 
   if (flag & SEQPROP_STARTFRAME) {
@@ -339,6 +340,15 @@ static void sequencer_file_drop_channel_frame_set(bContext *C,
   UI_view2d_region_to_view(&region->v2d, event->mval[0], event->mval[1], &frame_start, &channel);
   RNA_int_set(op->ptr, "channel", int(channel));
   RNA_int_set(op->ptr, "frame_start", int(frame_start));
+}
+
+static bool op_invoked_by_drop_event(wmOperator *op)
+{
+  SequencerAddData *sad = reinterpret_cast<SequencerAddData *>(op->customdata);
+  if (sad == nullptr) {
+    return false;
+  }
+  return sad->is_drop_event;
 }
 
 static void sequencer_generic_invoke_xy__internal(
@@ -634,8 +644,9 @@ static wmOperatorStatus sequencer_add_scene_strip_exec(bContext *C, wmOperator *
   DEG_relations_tag_update(bmain);
   sequencer_select_do_updates(C, scene);
 
-  SequencerAddData *sad = reinterpret_cast<SequencerAddData *>(op->customdata);
-  if (RNA_boolean_get(op->ptr, "move_strips") && sad && !sad->is_drop_event) {
+  if (RNA_boolean_get(op->ptr, "move_strips") && !op_invoked_by_drop_event(op) &&
+      (op->flag & OP_IS_REPEAT) == 0)
+  {
     move_strips(C);
   }
 
@@ -738,8 +749,7 @@ static wmOperatorStatus sequencer_add_scene_strip_new_exec(bContext *C, wmOperat
   DEG_relations_tag_update(bmain);
   sequencer_select_do_updates(C, scene);
 
-  SequencerAddData *sad = reinterpret_cast<SequencerAddData *>(op->customdata);
-  if (RNA_boolean_get(op->ptr, "move_strips") && sad && !sad->is_drop_event) {
+  if (RNA_boolean_get(op->ptr, "move_strips") && !op_invoked_by_drop_event(op) && (op->flag & OP_IS_REPEAT) == 0) {
     move_strips(C);
   }
 
@@ -838,8 +848,7 @@ static wmOperatorStatus sequencer_add_scene_asset_invoke(bContext *C,
   DEG_relations_tag_update(bmain);
   sequencer_select_do_updates(C, scene);
 
-  SequencerAddData *sad = reinterpret_cast<SequencerAddData *>(op->customdata);
-  if (RNA_boolean_get(op->ptr, "move_strips") && sad && !sad->is_drop_event) {
+  if (RNA_boolean_get(op->ptr, "move_strips") && !op_invoked_by_drop_event(op) && (op->flag & OP_IS_REPEAT) == 0) {
     move_strips(C);
   }
 
@@ -920,8 +929,7 @@ static wmOperatorStatus sequencer_add_movieclip_strip_exec(bContext *C, wmOperat
   DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
   sequencer_select_do_updates(C, scene);
 
-  SequencerAddData *sad = reinterpret_cast<SequencerAddData *>(op->customdata);
-  if (RNA_boolean_get(op->ptr, "move_strips") && sad && !sad->is_drop_event) {
+  if (RNA_boolean_get(op->ptr, "move_strips") && !op_invoked_by_drop_event(op) && (op->flag & OP_IS_REPEAT) == 0) {
     move_strips(C);
   }
 
@@ -1003,8 +1011,7 @@ static wmOperatorStatus sequencer_add_mask_strip_exec(bContext *C, wmOperator *o
   DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
   sequencer_select_do_updates(C, scene);
 
-  SequencerAddData *sad = reinterpret_cast<SequencerAddData *>(op->customdata);
-  if (RNA_boolean_get(op->ptr, "move_strips") && sad && !sad->is_drop_event) {
+  if (RNA_boolean_get(op->ptr, "move_strips") && !op_invoked_by_drop_event(op) && (op->flag & OP_IS_REPEAT) == 0) {
     move_strips(C);
   }
 
@@ -1328,8 +1335,7 @@ static wmOperatorStatus sequencer_add_movie_strip_exec(bContext *C, wmOperator *
   DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
   sequencer_select_do_updates(C, scene);
 
-  SequencerAddData *sad = reinterpret_cast<SequencerAddData *>(op->customdata);
-  if (RNA_boolean_get(op->ptr, "move_strips") && sad && !sad->is_drop_event) {
+  if (RNA_boolean_get(op->ptr, "move_strips") && !op_invoked_by_drop_event(op) && (op->flag & OP_IS_REPEAT) == 0) {
     move_strips(C);
   }
 
@@ -1565,8 +1571,7 @@ static wmOperatorStatus sequencer_add_sound_strip_exec(bContext *C, wmOperator *
   DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
   sequencer_select_do_updates(C, scene);
 
-  SequencerAddData *sad = reinterpret_cast<SequencerAddData *>(op->customdata);
-  if (RNA_boolean_get(op->ptr, "move_strips") && sad && !sad->is_drop_event) {
+  if (RNA_boolean_get(op->ptr, "move_strips") && !op_invoked_by_drop_event(op) && (op->flag & OP_IS_REPEAT) == 0) {
     move_strips(C);
   }
 
@@ -1815,8 +1820,7 @@ static wmOperatorStatus sequencer_add_image_strip_exec(bContext *C, wmOperator *
   DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
   sequencer_select_do_updates(C, scene);
 
-  SequencerAddData *sad = reinterpret_cast<SequencerAddData *>(op->customdata);
-  if (RNA_boolean_get(op->ptr, "move_strips") && sad && !sad->is_drop_event) {
+  if (RNA_boolean_get(op->ptr, "move_strips") && !op_invoked_by_drop_event(op) && (op->flag & OP_IS_REPEAT) == 0) {
     move_strips(C);
   }
 
@@ -1966,8 +1970,7 @@ static wmOperatorStatus sequencer_add_effect_strip_exec(bContext *C, wmOperator 
   DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
   sequencer_select_do_updates(C, scene);
 
-  SequencerAddData *sad = reinterpret_cast<SequencerAddData *>(op->customdata);
-  if (RNA_boolean_get(op->ptr, "move_strips") && sad && !sad->is_drop_event) {
+  if (RNA_boolean_get(op->ptr, "move_strips") && !op_invoked_by_drop_event(op) && (op->flag & OP_IS_REPEAT) == 0) {
     move_strips(C);
   }
 
