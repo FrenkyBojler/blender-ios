@@ -488,8 +488,15 @@ struct BPyPropArrayLength {
 
   bool operator==(const BPyPropArrayLength &other) const
   {
-    return (this->len_total == other.len_total) && (this->dims == other.dims) &&
-           (this->dims_len == other.dims_len);
+    if ((this->len_total != other.len_total) || (this->dims_len != other.dims_len)) {
+      return false;
+    }
+    for (int i = 0; i < this->dims_len; i++) {
+      if (this->dims[i] != other.dims[i]) {
+        return false;
+      }
+    }
+    return true;
   }
 };
 
