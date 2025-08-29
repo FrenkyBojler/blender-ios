@@ -64,7 +64,7 @@ static std::optional<XXH128_hash_t> get_file_hash(const StringRefNull path)
 }
 
 static std::optional<XXH128_hash_t> get_id_shallow_hash(const ID &id,
-                                                        Set<std::string> &r_missing_files)
+                                                        VectorSet<std::string> &r_missing_files)
 {
   BLI_assert(ID_IS_LINKED(&id));
   const StringRefNull id_name = id.name;
@@ -88,7 +88,7 @@ static void compute_deep_hash_recursive(const Main &bmain,
                                         const ID &id,
                                         Set<const ID *> &current_stack,
                                         Map<const ID *, IDHash> &r_hashes,
-                                        Set<std::string> &r_missing_files)
+                                        VectorSet<std::string> &r_missing_files)
 {
   if (r_hashes.contains(&id)) {
     return;
@@ -178,14 +178,12 @@ IDHashResult compute_linked_id_deep_hashes(const Main &bmain, Span<const ID *> i
 
   Map<const ID *, IDHash> hashes;
   Set<const ID *> current_stack;
-  Set<std::string> missing_files;
+  VectorSet<std::string> missing_files;
   for (const ID *id : ids) {
     compute_deep_hash_recursive(bmain, *id, current_stack, hashes, missing_files);
   }
   if (!missing_files.is_empty()) {
-    Vector<std::string> missing_files_vec;
-    missing_files_vec.extend(missing_files.begin(), missing_files.end());
-    return MissingBlendFiles{missing_files_vec};
+    return MissingBlendFiles{missing_files.extract_vector()};
   }
   return ValidDeepHashes{hashes};
 }
