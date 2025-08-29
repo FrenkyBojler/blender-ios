@@ -86,6 +86,7 @@ void activate_docked_space(bContext *C, ScrArea *docked_area, SpaceLink *space)
   WM_event_add_mousemove(CTX_wm_window(C));
 }
 
+#if 0
 static void visibility_changed(bContext *C, bScreen *screen, ScrArea *docked_area)
 {
   /* TODO how much of this is actually needed? */
@@ -94,14 +95,14 @@ static void visibility_changed(bContext *C, bScreen *screen, ScrArea *docked_are
   ED_area_tag_refresh(docked_area);
   ED_area_tag_redraw(docked_area);
   WM_event_add_mousemove(CTX_wm_window(C));
-
-  screen->do_refresh = true;
 }
+#endif
 
 void toggle_docked_space(bContext *C, ScrArea *docked_area, SpaceLink *space)
 {
   BLI_assert(BLI_findindex(&docked_area->spacedata, space) >= 0);
 
+  const wmWindow *win = CTX_wm_window(C);
   SpaceLink *sl_old = static_cast<SpaceLink *>(docked_area->spacedata.first);
   const bool is_visible = (docked_area->flag & AREA_FLAG_HIDDEN) == 0;
   const bool change_space = sl_old != space;
@@ -114,14 +115,14 @@ void toggle_docked_space(bContext *C, ScrArea *docked_area, SpaceLink *space)
     /* Pass. Just switching editors. */
   }
   else if (is_visible) {
-    hide_docked_area(C, docked_area);
+    hide_docked_area(win, docked_area);
   }
   else {
-    unhide_docked_area(C, docked_area);
+    unhide_docked_area(win, docked_area);
   }
 }
 
-void hide_docked_area(bContext *C, ScrArea *docked_area)
+void hide_docked_area(const wmWindow *win, ScrArea *docked_area)
 {
   BLI_assert(docked_area->flag & AREA_FLAG_DOCKED);
   if ((docked_area->flag & AREA_FLAG_HIDDEN) != 0) {
@@ -129,10 +130,10 @@ void hide_docked_area(bContext *C, ScrArea *docked_area)
     return;
   }
 
-  bScreen *screen = CTX_wm_screen(C);
+  bScreen *screen = WM_window_get_active_screen(win);
 
   rcti screen_rect;
-  WM_window_screen_rect_calc(CTX_wm_window(C), &screen_rect);
+  WM_window_screen_rect_calc(win, &screen_rect);
 
   docked_area->flag |= AREA_FLAG_HIDDEN;
 
@@ -144,10 +145,10 @@ void hide_docked_area(bContext *C, ScrArea *docked_area)
   docked_area->v3->vec.x = docked_area->v4->vec.x = screen_rect.xmax - 1;
   docked_area->v2->vec.y = docked_area->v3->vec.y = screen_rect.ymax - 1;
 
-  visibility_changed(C, screen, docked_area);
+  screen->do_refresh = true;
 }
 
-void unhide_docked_area(bContext *C, ScrArea *docked_area)
+void unhide_docked_area(const wmWindow *win, ScrArea *docked_area)
 {
   BLI_assert(docked_area->flag & AREA_FLAG_DOCKED);
   if ((docked_area->flag & AREA_FLAG_HIDDEN) == 0) {
@@ -155,11 +156,11 @@ void unhide_docked_area(bContext *C, ScrArea *docked_area)
     return;
   }
 
-  bScreen *screen = CTX_wm_screen(C);
+  bScreen *screen = WM_window_get_active_screen(win);
   const int width = UI_UNIT_X * 16;
 
   rcti screen_rect;
-  WM_window_screen_rect_calc(CTX_wm_window(C), &screen_rect);
+  WM_window_screen_rect_calc(win, &screen_rect);
 
   docked_area->flag &= ~AREA_FLAG_HIDDEN;
 
@@ -175,7 +176,7 @@ void unhide_docked_area(bContext *C, ScrArea *docked_area)
   /* Re-attach area geometry. */
   BKE_screen_remove_double_scrverts(screen);
 
-  visibility_changed(C, screen, docked_area);
+  screen->do_refresh = true;
 }
 
 }  // namespace blender::ed::editor_dock

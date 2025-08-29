@@ -8,6 +8,7 @@ struct bContext;
 struct Scene;
 struct ScrArea;
 struct SpaceLink;
+struct wmWindow;
 
 namespace blender::ed::editor_dock {
 
@@ -24,7 +25,7 @@ void activate_docked_space(bContext *C, ScrArea *docked_area, SpaceLink *space);
  * Hiding/unhiding a space means hiding/unhiding the area it contains (\a docked_area here).
  */
 void toggle_docked_space(bContext *C, ScrArea *docked_area, SpaceLink *space);
-void hide_docked_area(bContext *C, ScrArea *docked_area);
-void unhide_docked_area(bContext *C, ScrArea *docked_area);
+void hide_docked_area(const wmWindow *win, ScrArea *docked_area);
+void unhide_docked_area(const wmWindow *win, ScrArea *docked_area);
 
 }  // namespace blender::ed::editor_dock
