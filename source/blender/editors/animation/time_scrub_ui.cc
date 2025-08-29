@@ -90,10 +90,10 @@ static void draw_current_frame(const Scene *scene,
   get_current_time_str(scene, display_seconds, current_frame, frame_str, sizeof(frame_str));
 
   const float box_min_width = 24 * UI_SCALE_FAC;
-  const float text_padding = 4 * UI_SCALE_FAC;
+  const float text_padding = 3 * UI_SCALE_FAC;
   const float text_width = UI_fontstyle_string_width(fstyle, frame_str);
   const float box_width = std::max(text_width + (2.0f * text_padding), box_min_width);
-  const float box_margin = 4 * UI_SCALE_FAC;
+  const float box_margin = 5 * UI_SCALE_FAC;
   const float shadow_width = U.pixelsize;
 
   float fg_color[4];
@@ -131,8 +131,8 @@ static void draw_current_frame(const Scene *scene,
      * line up with the odd widths of the keyframe icons. #98089. */
 
     const float tri_top = scrub_region_rect->ymin + box_margin;
-    const float tri_half_width = 7 * UI_SCALE_FAC;
-    const float tri_height = 10 * UI_SCALE_FAC;
+    const float tri_half_width = 6 * UI_SCALE_FAC;
+    const float tri_height = 6 * UI_SCALE_FAC;
 
     /* Shadow. */
     GPU_polygon_smooth(true);
