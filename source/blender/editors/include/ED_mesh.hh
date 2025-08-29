@@ -69,8 +69,8 @@ class EditMeshSymmetryHelper {
   EditMeshSymmetryHelper(Object *ob, uchar htype);
 
   void build_mirror_maps_for_axis(int axis);
-  void add_mirror_relationship(void *elem1, void *elem2, char elem_type);
- 
+  void add_mirror_relationship(BMElem *elem1, BMElem *elem2);
+
   BMEditMesh *em_;
   Mesh *mesh_;
   uchar htype_;

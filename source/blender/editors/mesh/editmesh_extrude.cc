@@ -361,8 +361,8 @@ static bool edbm_extrude_mesh(Object *obedit, BMEditMesh *em, wmOperator *op)
   enum { NONE = 0, ELEM_FLAG, VERT_ONLY, EDGE_ONLY } nr;
   bool changed = false;
 
-  std::optional<EditMeshSymmetryHelper> symmetry_helper =
-      EditMeshSymmetryHelper::create_if_needed(obedit,htype);
+  std::optional<EditMeshSymmetryHelper> symmetry_helper = EditMeshSymmetryHelper::create_if_needed(
+      obedit, htype);
 
   char hflag = BM_ELEM_SELECT;
 
@@ -591,7 +591,7 @@ static wmOperatorStatus edbm_extrude_verts_exec(bContext *C, wmOperator *op)
     }
 
     std::optional<EditMeshSymmetryHelper> symmetry_helper =
-        EditMeshSymmetryHelper::create_if_needed(obedit,BM_VERT);
+        EditMeshSymmetryHelper::create_if_needed(obedit, BM_VERT);
 
     char hflag = BM_ELEM_SELECT;
 
@@ -664,7 +664,7 @@ static wmOperatorStatus edbm_extrude_edges_exec(bContext *C, wmOperator *op)
     }
 
     std::optional<EditMeshSymmetryHelper> symmetry_helper =
-        EditMeshSymmetryHelper::create_if_needed(obedit,BM_EDGE);
+        EditMeshSymmetryHelper::create_if_needed(obedit, BM_EDGE);
 
     char hflag = BM_ELEM_SELECT;
 
@@ -737,7 +737,7 @@ static wmOperatorStatus edbm_extrude_faces_exec(bContext *C, wmOperator *op)
     }
 
     std::optional<EditMeshSymmetryHelper> symmetry_helper =
-        EditMeshSymmetryHelper::create_if_needed(obedit,BM_FACE);
+        EditMeshSymmetryHelper::create_if_needed(obedit, BM_FACE);
 
     char hflag = BM_ELEM_SELECT;
 
@@ -854,8 +854,7 @@ static wmOperatorStatus edbm_dupli_extrude_cursor_invoke(bContext *C,
     ED_view3d_viewcontext_init_object(&vc, obedit);
 
     if (verts_len != 0) {
-      if (vc.em->bm->totvertsel == 0 && vc.em->bm->totedgesel == 0 &&
-          vc.em->bm->totfacesel == 0) {
+      if (vc.em->bm->totvertsel == 0 && vc.em->bm->totedgesel == 0 && vc.em->bm->totfacesel == 0) {
         continue;
       }
     }
@@ -875,7 +874,7 @@ static wmOperatorStatus edbm_dupli_extrude_cursor_invoke(bContext *C,
       char hflag = BM_ELEM_SELECT;
 
       std::optional<EditMeshSymmetryHelper> symmetry_helper =
-          EditMeshSymmetryHelper::create_if_needed(obedit,extrude_htype);
+          EditMeshSymmetryHelper::create_if_needed(obedit, extrude_htype);
 
       if (symmetry_helper) {
         hflag = BM_ELEM_TAG;
@@ -997,22 +996,15 @@ static wmOperatorStatus edbm_dupli_extrude_cursor_invoke(bContext *C,
       }
 
       if (rot_src) {
-        EDBM_op_callf(
-            vc.em, op, "rotate verts=%hv cent=%v matrix=%m3", hflag, local_center, mat);
+        EDBM_op_callf(vc.em, op, "rotate verts=%hv cent=%v matrix=%m3", hflag, local_center, mat);
         /* Also project the source, for retopology workflow. */
         if (use_proj) {
           EDBM_project_snap_verts(C, depsgraph, vc.region, vc.obedit, vc.em);
         }
       }
 
-      edbm_extrude_ex(vc.obedit,
-                      vc.em,
-                      extrude_htype,
-                      hflag,
-                      false,
-                      false,
-                      symmetry_helper.has_value(),
-                      true);
+      edbm_extrude_ex(
+          vc.obedit, vc.em, extrude_htype, hflag, false, false, symmetry_helper.has_value(), true);
 
       if (hflag != BM_ELEM_SELECT) {
         EDBM_flag_disable_all(vc.em, hflag);

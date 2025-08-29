@@ -391,7 +391,7 @@ void EditMeshSymmetryHelper::build_mirror_maps_for_axis(int axis)
   BMesh *bmesh = em_->bm;
   BMIter iter;
 
- EDBM_verts_mirror_cache_begin(em_, axis, true, true, true, use_topology_mirror_);
+  EDBM_verts_mirror_cache_begin(em_, axis, true, true, true, use_topology_mirror_);
 
   if (htype_ & BM_VERT) {
     BMVert *v_curr;
@@ -400,12 +400,11 @@ void EditMeshSymmetryHelper::build_mirror_maps_for_axis(int axis)
       if (v_mirr && v_mirr != v_curr) {
         BMVert *v_mirr_check = EDBM_verts_mirror_get(em_, v_mirr);
         if (v_mirr_check == v_curr) {
-          add_mirror_relationship(v_curr, v_mirr, BM_VERT);
+          add_mirror_relationship((BMElem *)v_curr, (BMElem *)v_mirr);
         }
       }
     }
   }
-
   if (htype_ & BM_EDGE) {
     BMEdge *e_curr;
     BM_ITER_MESH (e_curr, &iter, bmesh, BM_EDGES_OF_MESH) {
@@ -413,12 +412,11 @@ void EditMeshSymmetryHelper::build_mirror_maps_for_axis(int axis)
       if (e_mirr && e_mirr != e_curr) {
         BMEdge *e_mirr_check = EDBM_verts_mirror_get_edge(em_, e_mirr);
         if (e_mirr_check == e_curr) {
-          add_mirror_relationship(e_curr, e_mirr, BM_EDGE);
+          add_mirror_relationship((BMElem *)e_curr, (BMElem *)e_mirr);
         }
       }
     }
   }
-
   if (htype_ & BM_FACE) {
     BMFace *f_curr;
     BM_ITER_MESH (f_curr, &iter, bmesh, BM_FACES_OF_MESH) {
@@ -426,25 +424,26 @@ void EditMeshSymmetryHelper::build_mirror_maps_for_axis(int axis)
       if (f_mirr && f_mirr != f_curr) {
         BMFace *f_mirr_check = EDBM_verts_mirror_get_face(em_, f_mirr);
         if (f_mirr_check == f_curr) {
-          add_mirror_relationship(f_curr, f_mirr, BM_FACE);
+          add_mirror_relationship((BMElem *)f_curr, (BMElem *)f_mirr);
         }
       }
     }
   }
-
   EDBM_verts_mirror_cache_end(em_);
 }
 
-void EditMeshSymmetryHelper::add_mirror_relationship(void *elem1, void *elem2, char elem_type)
+void EditMeshSymmetryHelper::add_mirror_relationship(BMElem *elem1, BMElem *elem2)
 {
-  switch (elem_type) {
+  BLI_assert(elem1->head.htype == elem2->head.htype);
+
+  switch (elem1->head.htype) {
     case BM_VERT: {
-      BMVert *v1 = static_cast<BMVert *>(elem1);
-      BMVert *v2 = static_cast<BMVert *>(elem2);
-      
+      BMVert *v1 = (BMVert *)elem1;
+      BMVert *v2 = (BMVert *)elem2;
+
       blender::Vector<BMVert *> &mirrors1 = vert_to_mirror_map_.lookup_or_add(v1, {});
       blender::Vector<BMVert *> &mirrors2 = vert_to_mirror_map_.lookup_or_add(v2, {});
-      
+
       if (!mirrors1.contains(v2)) {
         mirrors1.append(v2);
       }
@@ -453,14 +452,14 @@ void EditMeshSymmetryHelper::add_mirror_relationship(void *elem1, void *elem2, c
       }
       break;
     }
-    
+
     case BM_EDGE: {
-      BMEdge *e1 = static_cast<BMEdge *>(elem1);
-      BMEdge *e2 = static_cast<BMEdge *>(elem2);
-      
+      BMEdge *e1 = (BMEdge *)elem1;
+      BMEdge *e2 = (BMEdge *)elem2;
+
       blender::Vector<BMEdge *> &mirrors1 = edge_to_mirror_map_.lookup_or_add(e1, {});
       blender::Vector<BMEdge *> &mirrors2 = edge_to_mirror_map_.lookup_or_add(e2, {});
-      
+
       if (!mirrors1.contains(e2)) {
         mirrors1.append(e2);
       }
@@ -469,14 +468,13 @@ void EditMeshSymmetryHelper::add_mirror_relationship(void *elem1, void *elem2, c
       }
       break;
     }
-    
+
     case BM_FACE: {
-      BMFace *f1 = static_cast<BMFace *>(elem1);
-      BMFace *f2 = static_cast<BMFace *>(elem2);
-      
+      BMFace *f1 = (BMFace *)elem1;
+      BMFace *f2 = (BMFace *)elem2;
+
       blender::Vector<BMFace *> &mirrors1 = face_to_mirror_map_.lookup_or_add(f1, {});
       blender::Vector<BMFace *> &mirrors2 = face_to_mirror_map_.lookup_or_add(f2, {});
-      
       if (!mirrors1.contains(f2)) {
         mirrors1.append(f2);
       }
@@ -485,9 +483,9 @@ void EditMeshSymmetryHelper::add_mirror_relationship(void *elem1, void *elem2, c
       }
       break;
     }
-    
+
     default:
-      BLI_assert_unreachable(); 
+      BLI_assert_unreachable();
       break;
   }
 }
