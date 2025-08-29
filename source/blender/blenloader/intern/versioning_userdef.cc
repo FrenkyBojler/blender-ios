@@ -382,7 +382,7 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
     FROM_DEFAULT_V4_UCHAR(space_clip.track_selected);
   }
 
-  if (!USER_VERSION_ATLEAST(500, 100)) {
+  if (!USER_VERSION_ATLEAST(500, 69)) {
     FROM_DEFAULT_V4_UCHAR(common.anim.keyframe);
     FROM_DEFAULT_V4_UCHAR(common.anim.keyframe_extreme);
     FROM_DEFAULT_V4_UCHAR(common.anim.keyframe_breakdown);
