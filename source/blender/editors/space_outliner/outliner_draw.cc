@@ -4033,7 +4033,8 @@ void draw_outliner(const bContext *C, bool do_rebuild)
    * See `USE_OUTLINER_DRAW_CLAMPS_SCROLL_HACK` & #128346 for a full description. */
 
   if (do_rebuild) {
-    outliner_build_tree(mainvar, workspace, tvc.scene, tvc.view_layer, space_outliner, region); /* Always. */
+    outliner_build_tree(
+        mainvar, workspace, tvc.scene, tvc.view_layer, space_outliner, region); /* Always. */
 
     /* If global sync select is dirty, flag other outliners. */
     if (ED_outliner_select_sync_is_dirty(C)) {
