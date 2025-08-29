@@ -70,7 +70,7 @@ class EditMeshSymmetryHelper {
 
   /**
    * This function builds mirror lookup tables for the given axis.
-   * For each elemnt type (vertex, edge, face) included in htype,
+   * For each element type (vertex, edge, face) included in htype,
    * this checks whether a valid mirrored counterpart exists across
    * the given axis. If it exists, a bidirectional mapping is stored in the
    * corresponding {vert,edge,face}_to_mirror_map_.
@@ -80,7 +80,7 @@ class EditMeshSymmetryHelper {
 
   /**
    * This function stores a bidirectional mirror relationship between two mesh elements
-   * and is a helper fuction for build_mirror_maps_for_axis.
+   * and is a helper function for build_mirror_maps_for_axis.
    * The main reason for this helper is that an element can have multiple mirrored counterparts
    * when more than one symmetry axis is enabled (e.g. symmetry on X and Y creates mirrors across
    * the XY plane). This allows mirror relationships to be added incrementally as each axis is
