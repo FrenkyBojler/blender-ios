@@ -248,7 +248,7 @@ BLI_INLINE int32_t pack_rotation_aspect_hardness_miter(const float rot,
   packed |= int32_t(unit_float_to_uchar_clamp(1.0f - softness)) << 18;
 
   /* Miter Angle uses the last 6 bits */
-  if (miter_angle == GP_STROKE_MITER_ANGLE_ROUND) {
+  if (miter_angle <= GP_STROKE_MITER_ANGLE_ROUND) {
     packed |= GP_CORNER_TYPE_ROUND_BITS << 26;
   }
   else if (miter_angle >= GP_STROKE_MITER_ANGLE_BEVEL) {
