@@ -2,6 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include <fcntl.h>
 #include <fmt/format.h>
 #include <mutex>
 #include <xxhash.h>
@@ -12,6 +13,7 @@
 #include "BKE_main.hh"
 
 #include "BLI_fileops.hh"
+#include "BLI_mmap.h"
 #include "BLI_mutex.hh"
 #include "BLI_set.hh"
 
@@ -31,6 +33,49 @@ static std::optional<Vector<char>> read_file(const StringRefNull path)
   }
 
   return buffer;
+}
+
+static std::optional<XXH128_hash_t> compute_file_hash_with_file_read(const StringRefNull path)
+{
+  const std::optional<Vector<char>> buffer = read_file(path);
+  if (!buffer) {
+    return std::nullopt;
+  }
+  return XXH3_128bits(buffer->data(), buffer->size());
+}
+
+static std::optional<XXH128_hash_t> compute_file_hash_with_memory_map(const StringRefNull path)
+{
+  const int file = BLI_open(path.c_str(), O_BINARY | O_RDONLY, 0);
+  if (file == -1) {
+    return std::nullopt;
+  }
+  BLI_mmap_file *mmap_file = BLI_mmap_open(file);
+  if (!mmap_file) {
+    return std::nullopt;
+  }
+  BLI_SCOPED_DEFER([&]() { BLI_mmap_free(mmap_file); });
+  const size_t size = BLI_mmap_get_length(mmap_file);
+  const void *data = BLI_mmap_get_pointer(mmap_file);
+  const XXH128_hash_t hash = XXH3_128bits(data, size);
+  if (BLI_mmap_any_io_error(mmap_file)) {
+    return std::nullopt;
+  }
+  return hash;
+}
+
+static std::optional<XXH128_hash_t> compute_file_hash(const StringRefNull path)
+{
+  /* First try the memory map the file, because it avoids an extra copy. */
+  if (const std::optional<XXH128_hash_t> hash = compute_file_hash_with_memory_map(path)) {
+    /* Make sure both code paths are tested even if memory mapping should almost always work. */
+    BLI_assert(hash->low64 == compute_file_hash_with_file_read(path)->low64);
+    return hash;
+  }
+  if (const std::optional<XXH128_hash_t> hash = compute_file_hash_with_file_read(path)) {
+    return hash;
+  }
+  return std::nullopt;
 }
 
 struct CachedFileHash {
@@ -54,13 +99,11 @@ static std::optional<XXH128_hash_t> get_file_hash(const StringRefNull path)
       return cached_hash->hash;
     }
   }
-  const std::optional<Vector<char>> buffer = read_file(path);
-  if (!buffer) {
-    return std::nullopt;
+  if (const std::optional<XXH128_hash_t> hash = compute_file_hash(path)) {
+    cache.add(path, CachedFileHash{stat.st_mtime, *hash});
+    return hash;
   }
-  const XXH128_hash_t hash = XXH3_128bits(buffer->data(), buffer->size());
-  cache.add(path, CachedFileHash{stat.st_mtime, hash});
-  return hash;
+  return std::nullopt;
 }
 
 static std::optional<XXH128_hash_t> get_id_shallow_hash(const ID &id,
