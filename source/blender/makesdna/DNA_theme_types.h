@@ -119,7 +119,8 @@ typedef struct ThemeCommonAnim {
   unsigned char keyframe[4], keyframe_extreme[4], keyframe_breakdown[4], keyframe_jitter[4],
       keyframe_moving_hold[4], keyframe_generated[4];
   unsigned char keyframe_selected[4], keyframe_extreme_selected[4], keyframe_breakdown_selected[4],
-      keyframe_jitter_selected[4], keyframe_moving_hold_selected[4], keyframe_generated_selected[4];
+      keyframe_jitter_selected[4], keyframe_moving_hold_selected[4],
+      keyframe_generated_selected[4];
   unsigned char long_key[4], long_key_selected[4];
 } ThemeCommonAnim;
 
