@@ -753,11 +753,15 @@ Bounds<float2> image_transform_bounding_box_from_collection(Scene *scene,
 // xxx global todo: make sure this works in negative frame range
 bool GapRemover::can_merge_ranges(const rcti &unified_range, const rcti &range)
 {
-  const bool channel_is_adjacent = math::abs(range.ymin - unified_range.ymax) == 1 ||
-                                   math::abs(range.ymin - unified_range.ymin) == 1;
-  const bool has_same_time_range = unified_range.xmin == range.xmin &&
-                                   unified_range.xmax == range.xmax;
-  return channel_is_adjacent && has_same_time_range;
+  // I don't think this is necessary. If there are 2 strip lines in ch 1 and 6, this would fail
+  // without analyzing timeline.
+  /*const bool channel_is_adjacent = math::abs(range.ymin - unified_range.ymax) == 1 ||
+                                   math::abs(range.ymin - unified_range.ymin) == 1;*/
+  const bool has_same_time_range = (range.xmin >= unified_range.xmin &&
+                                    range.xmax <= unified_range.xmax) ||
+                                   (unified_range.xmin >= range.xmin &&
+                                    unified_range.xmax <= range.xmax);
+  return has_same_time_range;
 }
 
 /* Only unify in Y axis, because this way we can expand some gaps to infinity. */
@@ -769,6 +773,9 @@ Vector<rcti> GapRemover::unify_gaps(const Vector<rcti> ranges)
     bool was_merged = false;
     for (rcti &unified_range : unified_ranges) {
       if (this->can_merge_ranges(unified_range, range)) {
+        // It would perhaps help to shrink unified range here instead of making it as large as
+        // possible, but it doesn't matter too much as it will be corrected in
+        // expand_or_remove_gaps
         unified_range.xmin = math::min(unified_range.xmin, range.xmin);
         unified_range.ymin = math::min(unified_range.ymin, range.ymin);
         unified_range.xmax = math::max(unified_range.xmax, range.xmax);
@@ -778,7 +785,7 @@ Vector<rcti> GapRemover::unify_gaps(const Vector<rcti> ranges)
     }
 
     if (!was_merged) {
-      unified_ranges.append({range.xmin, range.xmax, range.ymin, range.ymin});
+      unified_ranges.append({range.xmin, range.xmax, range.ymin, range.ymax});
     }
   }
   return unified_ranges;
@@ -928,6 +935,9 @@ void GapRemover::remove_gaps()
   if (which != IN_RANGE) {
     final_gap_ranges = this->unify_gaps(final_gap_ranges);
     final_gap_ranges = this->expand_or_remove_gaps(final_gap_ranges, which);
+    /* Unify again, because expansion may have caused overlaps */
+    // XXX it's probably best to handle this during expansion. It's not that hard.
+    final_gap_ranges = this->unify_gaps(final_gap_ranges);
   }
 
   Map<Strip *, int> offset_per_strip;
@@ -949,20 +959,25 @@ void GapRemover::remove_gaps()
     }
   }
 
-  // experimental - offset playback cursor
-  // What I should do is map cursor to particular strip and offset it by the same amount. Maybe
-  // later.
-  int max_offset = 0;
-
   /* AFAIK, moving strips with accumulated offset helps to avoid bugs, but this may be
    * incorrect in this case. will see... */
   for (auto item : offset_per_strip.items()) {
-    max_offset = math::max(max_offset, item.value);
     transform_translate_strip(scene, item.key, -item.value);
   }
 
-  int cfra = BKE_scene_frame_get(scene);
-  BKE_scene_frame_set(scene, cfra - max_offset);
+  /* Offset playhead, but only if it is at or behind range end. */
+  const int cfra = BKE_scene_frame_get(scene);
+  for (const rcti &range : final_gap_ranges) {
+    if (cfra >= range.xmax) {
+      BKE_scene_frame_set(scene, cfra - BLI_rcti_size_x(&range));
+      break;
+    }
+    // Experimental
+    if (cfra > range.xmin && cfra < range.xmax) {
+      BKE_scene_frame_set(scene, range.xmin);
+      break;
+    }
+  }
 }
 
 GapRemover::GapRemover(Scene *scene, VectorSet<Strip *> moved_strips)
