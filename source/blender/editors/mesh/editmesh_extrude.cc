@@ -32,7 +32,6 @@
 #include "ED_view3d.hh"
 
 #include "mesh_intern.hh" /* own include */
-#include "ED_mesh.hh"
 
 using blender::Vector;
 
