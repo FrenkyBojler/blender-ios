@@ -75,6 +75,7 @@ static wmOperatorStatus add_editor_exec(bContext *C, wmOperator *op)
 
   SpaceLink *new_space = add_docked_space(docked_area, space_type, subtype, CTX_data_scene(C));
   activate_docked_space(C, docked_area, new_space);
+  unhide_docked_area(C, docked_area);
 
   return OPERATOR_FINISHED;
 }
