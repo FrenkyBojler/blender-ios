@@ -3003,6 +3003,7 @@ class SEQUENCER_PT_modifiers(SequencerButtonsPanel, Panel):
 
         layout.template_strip_modifiers()
 
+
 class SEQUENCER_PT_annotation(AnnotationDataPanel, SequencerButtonsPanel_Output, Panel):
     bl_space_type = 'SEQUENCE_EDITOR'
     bl_region_type = 'UI'
