@@ -70,7 +70,7 @@ class EditMeshSymmetryHelper {
 
   /**
    * This function builds mirror lookup tables for the given axis.
-   * For each elemnt type (vertex, edge, face) included in `htype_`,
+   * For each elemnt type (vertex, edge, face) included in htype,
    * this checks whether a valid mirrored counterpart exists across
    * the given axis. If it exists, a bidirectional mapping is stored in the
    * corresponding {vert,edge,face}_to_mirror_map_.
