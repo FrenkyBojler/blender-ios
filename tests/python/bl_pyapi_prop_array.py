@@ -477,9 +477,15 @@ class TestPropArrayMultiDimensional(unittest.TestCase):
                 del id_type.temp
 
     def _test_matrix(self, dim_x, dim_y):
+        import mathutils
         data = matrix_with_repeating_digits(dim_x, dim_y)
         data_native = seq_items_xform(data, lambda v: float(v))
         id_type.temp = FloatVectorProperty(size=(dim_x, dim_y), subtype='MATRIX', default=data_native)
+        data_as_tuple = seq_items_as_tuple(id_inst.temp)
+        self.assertEqual(data_as_tuple, data_native)
+        # Fails (transposed matrix):
+        # ~ id_inst.temp = data_native
+        id_inst.temp = mathutils.Matrix(data_native)
         data_as_tuple = seq_items_as_tuple(id_inst.temp)
         self.assertEqual(data_as_tuple, data_native)
         del id_type.temp
@@ -489,6 +495,7 @@ class TestPropArrayMultiDimensional(unittest.TestCase):
         # Internally matrices have rows/columns swapped,
         # This test ensures this is being done properly.
         # """
+        import mathutils
         data = matrix_with_repeating_digits(dim_x, dim_y)
         data_native = seq_items_xform(data, lambda v: float(v))
         local_data = {"array": data}
@@ -501,15 +508,25 @@ class TestPropArrayMultiDimensional(unittest.TestCase):
 
         id_type.temp = FloatVectorProperty(size=(dim_x, dim_y), subtype='MATRIX', get=get_fn, set=set_fn)
         id_inst.temp = data_native
+        # Fails (transposed matrix):
+        # ~ id_inst.temp = mathutils.Matrix(data_native)
         data_as_tuple = seq_items_as_tuple(id_inst.temp)
         self.assertEqual(data_as_tuple, data_native)
         del id_type.temp
+
+    # Fails systematically, could not find a single handling of data in _test_matrix that succeeds.
+    # ~ def test_matrix_2x2(self):
+        # ~ self._test_matrix(2, 2)
 
     def test_matrix_3x3(self):
         self._test_matrix(3, 3)
 
     def test_matrix_4x4(self):
         self._test_matrix(4, 4)
+
+    # Fails systematically, could not find a single handling of data in _test_matrix_with_callbacks that succeeds.
+    # ~ def test_matrix_with_callbacks_2x2(self):
+        # ~ self._test_matrix_with_callbacks(2, 2)
 
     def test_matrix_with_callbacks_3x3(self):
         self._test_matrix_with_callbacks(3, 3)
