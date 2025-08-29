@@ -38,6 +38,7 @@ struct bPoseChannel;
 struct View2D;
 struct wmKeyConfig;
 struct wmOperatorType;
+struct WorkSpace;
 
 namespace blender::bke::outliner::treehash {
 class TreeHash;
@@ -235,14 +236,13 @@ enum eOLSetState {
  * Also so we can have one place to assign these variables.
  */
 struct TreeViewContext {
+  /* Workspace. */
+  WorkSpace *workspace;
+
   /* Scene level. */
   Scene *scene;
   ViewLayer *view_layer;
   LayerCollection *layer_collection;
-
-  /* Sequencer. */
-  /** Note: This can be null! */
-  Scene *sequencer_scene;
 
   /* Object level. */
   /** Avoid `BKE_view_layer_active_object_get` everywhere. */

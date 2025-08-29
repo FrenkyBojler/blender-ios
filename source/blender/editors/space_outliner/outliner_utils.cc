@@ -41,14 +41,13 @@ namespace blender::ed::outliner {
 void outliner_viewcontext_init(const bContext *C, TreeViewContext *tvc)
 {
   memset(tvc, 0, sizeof(*tvc));
+  /* Workspace. */
+  tvc->workspace = CTX_wm_workspace(C);
 
   /* Scene level. */
   tvc->scene = CTX_data_scene(C);
   tvc->view_layer = CTX_data_view_layer(C);
   tvc->layer_collection = CTX_data_layer_collection(C);
-
-  /* Sequencer. */
-  tvc->sequencer_scene = CTX_wm_workspace(C)->sequencer_scene;
 
   /* Objects. */
   BKE_view_layer_synced_ensure(tvc->scene, tvc->view_layer);
