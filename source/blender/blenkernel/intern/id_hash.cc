@@ -12,6 +12,7 @@
 #include "BKE_main.hh"
 
 #include "BLI_fileops.hh"
+#include "BLI_mutex.hh"
 #include "BLI_set.hh"
 
 namespace blender::bke::id_hash {
@@ -40,14 +41,14 @@ struct CachedFileHash {
 static std::optional<XXH128_hash_t> get_file_hash(const StringRefNull path)
 {
   static Map<std::string, CachedFileHash> cache;
-  static std::mutex mutex;
+  static Mutex mutex;
 
   BLI_stat_t stat;
   if (BLI_stat(path.c_str(), &stat) == -1) {
     return std::nullopt;
   }
 
-  std::lock_guard<std::mutex> lock(mutex);
+  std::lock_guard lock(mutex);
   if (const CachedFileHash *cached_hash = cache.lookup_ptr_as(path)) {
     if (cached_hash->last_modified == stat.st_mtime) {
       return cached_hash->hash;
