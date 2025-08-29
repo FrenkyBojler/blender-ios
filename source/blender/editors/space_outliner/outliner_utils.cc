@@ -48,7 +48,7 @@ void outliner_viewcontext_init(const bContext *C, TreeViewContext *tvc)
   tvc->layer_collection = CTX_data_layer_collection(C);
 
   /* Sequencer. */
-  tvc->sequencer_scene = CTX_wm_workspace(C)->sequencer_scene; 
+  tvc->sequencer_scene = CTX_wm_workspace(C)->sequencer_scene;
 
   /* Objects. */
   BKE_view_layer_synced_ensure(tvc->scene, tvc->view_layer);
