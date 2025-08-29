@@ -509,6 +509,7 @@ std::string VKDevice::driver_version() const
 
 VKThreadData::VKThreadData(VKDevice &device, pthread_t thread_id) : thread_id(thread_id)
 {
+  resource_pools.resize(resource_pools_in_use);
   descriptor_pools.init(device);
   resource_pools.resize(2);
 }
