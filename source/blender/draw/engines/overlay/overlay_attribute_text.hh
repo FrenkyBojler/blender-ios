@@ -23,6 +23,7 @@
 
 #include "DRW_render.hh"
 
+#include "UI_interface_c.hh"
 #include "UI_resources.hh"
 
 #include "draw_manager_text.hh"
@@ -154,12 +155,17 @@ class AttributeTexts : Overlay {
           BMIter liter;
           BMLoop *loop;
           BM_ITER_ELEM (loop, &liter, efa, BM_LOOPS_OF_FACE) {
-            const float3 pos_o = loop->v->co;
-            const float3 pos_a = loop->prev->v->co;
-            const float3 pos_b = loop->next->v->co;
+            const float3 corner_pos = loop->v->co;
+            const float3 prev_corner_pos = loop->prev->v->co;
+            const float3 next_corner_pos = loop->next->v->co;
 
-            corner_positions[corner_index] = calculate_corner_text_position(
-                pos_o, pos_a, pos_b, efa->no, state, object_to_world, offset_by_type);
+            corner_positions[corner_index] = calculate_corner_text_position(corner_pos,
+                                                                            prev_corner_pos,
+                                                                            next_corner_pos,
+                                                                            efa->no,
+                                                                            state,
+                                                                            object_to_world,
+                                                                            offset_by_type);
             corner_index++;
           }
         }
@@ -177,20 +183,25 @@ class AttributeTexts : Overlay {
           const int corner_size = face_corners.size();
           for (const int index : IndexRange(corner_size)) {
 
-            const int corner_curr = face_corners.start() + index;
-            const int corner_prev = face_corners.start() + (index - 1 + corner_size) % corner_size;
-            const int corner_next = face_corners.start() + (index + 1) % corner_size;
+            const int curr_corner = face_corners[index];
+            const int prev_corner = face_corners[(index - 1 + corner_size) % corner_size];
+            const int next_corner = face_corners[(index + 1) % corner_size];
 
-            const int vert_o = corner_verts[corner_curr];
-            const int vert_a = corner_verts[corner_prev];
-            const int vert_b = corner_verts[corner_next];
+            const int vert_o = corner_verts[curr_corner];
+            const int vert_a = corner_verts[prev_corner];
+            const int vert_b = corner_verts[next_corner];
 
-            const float3 pos_o = vert_positions[vert_o];
-            const float3 pos_a = vert_positions[vert_a];
-            const float3 pos_b = vert_positions[vert_b];
+            const float3 corner_pos = vert_positions[vert_o];
+            const float3 prev_corner_pos = vert_positions[vert_a];
+            const float3 next_corner_pos = vert_positions[vert_b];
 
-            corner_positions[corner_index] = calculate_corner_text_position(
-                pos_o, pos_a, pos_b, face_normal, state, object_to_world, offset_by_type);
+            corner_positions[corner_index] = calculate_corner_text_position(corner_pos,
+                                                                            prev_corner_pos,
+                                                                            next_corner_pos,
+                                                                            face_normal,
+                                                                            state,
+                                                                            object_to_world,
+                                                                            offset_by_type);
             corner_index++;
           }
         }
@@ -237,7 +248,9 @@ class AttributeTexts : Overlay {
                                  const Span<StringRef> lines,
                                  const uchar4 &color)
   {
-    const float line_offset = (lines.size() - 1) / 2.0f;
+    const float text_size = UI_style_get()->widget.points;
+    const float line_height = text_size * 1.1f * UI_SCALE_FAC;
+    const float center_offset = (lines.size() - 1) / 2.0f;
     for (const int i : lines.index_range()) {
       const StringRef line = lines[i];
       DRW_text_cache_add(dt,
@@ -245,7 +258,7 @@ class AttributeTexts : Overlay {
                          line.data(),
                          line.size(),
                          0,
-                         (line_offset - i) * 12.0f * UI_SCALE_FAC,
+                         (center_offset - i) * line_height,
                          DRW_TEXT_CACHE_GLOBALSPACE,
                          color,
                          true,
@@ -389,39 +402,39 @@ class AttributeTexts : Overlay {
     });
   }
 
-  static float3 calculate_corner_text_position(const float3 pos_o,
-                                               const float3 pos_a,
-                                               const float3 pos_b,
+  static float3 calculate_corner_text_position(const float3 corner_pos,
+                                               const float3 prev_corner_pos,
+                                               const float3 next_corner_pos,
                                                const float3 face_normal,
                                                const State &state,
                                                const float4x4 &object_to_world,
                                                const float offset_by_type = 1.0f)
   {
-    const float3 vec_oa = pos_a - pos_o;
-    const float3 vec_ob = pos_b - pos_o;
-    const float3 dir_oa = math::normalize(vec_oa);
-    const float3 dir_ob = math::normalize(vec_ob);
+    const float3 prev_edge_vec = prev_corner_pos - corner_pos;
+    const float3 next_edge_vec = next_corner_pos - corner_pos;
+    const float3 prev_edge_dir = math::normalize(prev_edge_vec);
+    const float3 next_edge_dir = math::normalize(next_edge_vec);
 
-    const float len_oa = math::length(vec_oa);
-    const float len_ob = math::length(vec_ob);
-    const float max_offset = math::min(len_oa, len_ob) / 2;
+    const float pre_edge_len = math::length(prev_edge_vec);
+    const float next_edge_len = math::length(next_edge_vec);
+    const float max_offset = math::min(pre_edge_len, next_edge_len) / 2;
 
-    const float3 corner_normal = math::cross(dir_ob, dir_oa);
+    const float3 corner_normal = math::cross(next_edge_dir, prev_edge_dir);
     const float concavity_check = math::dot(corner_normal, face_normal);
     const float direction_correct = concavity_check > 0.0f ? 1.0f : -1.0f;
-    const float3 bisector_dir = (dir_oa + dir_ob) / 2 * direction_correct;
+    const float3 bisector_dir = (prev_edge_dir + next_edge_dir) / 2 * direction_correct;
 
-    const float sharp_factor = std::clamp(math::dot(dir_oa, dir_ob), 0.0f, 1.0f);
+    const float sharp_factor = std::clamp(math::dot(prev_edge_dir, next_edge_dir), 0.0f, 1.0f);
     const float sharp_multiplier = math::pow(sharp_factor, 4.0f) * 2 + 1;
 
-    const float3 pos_o_world = math::transform_point(object_to_world, pos_o);
+    const float3 pos_o_world = math::transform_point(object_to_world, corner_pos);
     const float pixel_size = ED_view3d_pixel_size(state.rv3d, pos_o_world);
     const float view_scaled_offset = pixel_size * 80.0f;
 
     const float offset_distance = std::clamp(
         view_scaled_offset * sharp_multiplier * offset_by_type, 0.0f, max_offset);
 
-    return pos_o + bisector_dir * offset_distance;
+    return corner_pos + bisector_dir * offset_distance;
   }
 };
 
