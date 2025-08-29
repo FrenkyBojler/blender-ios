@@ -248,7 +248,7 @@ static void colorBalance_init_data(StripModifierData *smd)
   }
 }
 
-static void colorBalance_apply(const StripScreenQuad &quad,
+static void colorBalance_apply(const StripScreenQuad & /*quad*/,
                                StripModifierData *smd,
                                ImBuf *ibuf,
                                ImBuf *mask)
