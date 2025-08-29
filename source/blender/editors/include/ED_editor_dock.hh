@@ -1,5 +1,7 @@
 #pragma once
 
+#include <optional>
+
 #include "DNA_space_enums.h"
 
 struct bContext;
@@ -9,7 +11,10 @@ struct SpaceLink;
 
 namespace blender::ed::editor_dock {
 
-SpaceLink *add_docked_space(ScrArea *area, const eSpace_Type type, const Scene *scene);
+SpaceLink *add_docked_space(ScrArea *area,
+                            const eSpace_Type type,
+                            std::optional<int> subtype,
+                            const Scene *scene);
 void activate_docked_space(bContext *C, ScrArea *docked_area, SpaceLink *space);
 /**
  * Make sure \a space is visible and active, or if already visible and active, hide it.

@@ -24,7 +24,10 @@
 namespace blender::ed::editor_dock {
 
 /* TODO this isn't editor dock specific. Move somewhere else? */
-SpaceLink *add_docked_space(ScrArea *area, const eSpace_Type type, const Scene *scene)
+SpaceLink *add_docked_space(ScrArea *area,
+                            const eSpace_Type type,
+                            std::optional<int> subtype,
+                            const Scene *scene)
 {
   SpaceType *st = BKE_spacetype_from_id(type);
   if (!st) {
@@ -45,6 +48,10 @@ SpaceLink *add_docked_space(ScrArea *area, const eSpace_Type type, const Scene *
   }
   area->regionbase = sl->regionbase;
   BLI_listbase_clear(&sl->regionbase);
+
+  if (st->space_subtype_item_extend && subtype) {
+    st->space_subtype_set(area, *subtype);
+  }
 
   return sl;
 }

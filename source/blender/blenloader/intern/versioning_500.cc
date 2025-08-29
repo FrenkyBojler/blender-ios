@@ -2942,8 +2942,10 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
         docked_area->flag |= AREA_FLAG_DOCKED | AREA_FLAG_HIDDEN;
 
         /* TODO null for scene - is this a good idea? */
-        blender::ed::editor_dock::add_docked_space(docked_area, SPACE_OUTLINER, nullptr);
-        blender::ed::editor_dock::add_docked_space(docked_area, SPACE_PROPERTIES, nullptr);
+        blender::ed::editor_dock::add_docked_space(
+            docked_area, SPACE_OUTLINER, std::nullopt, nullptr);
+        blender::ed::editor_dock::add_docked_space(
+            docked_area, SPACE_PROPERTIES, std::nullopt, nullptr);
       }
     }
   }

@@ -17,6 +17,7 @@
 #include "RNA_access.hh"
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
+#include "RNA_prototypes.hh"
 
 #include "WM_api.hh"
 
@@ -37,6 +38,27 @@ static ScrArea *lookup_docked_area(bContext *C)
   return nullptr;
 }
 
+static const EnumPropertyItem *rna_space_ui_type_itemf(bContext *C,
+                                                       PointerRNA * /*ptr*/,
+                                                       PropertyRNA * /*prop*/,
+                                                       bool *r_free)
+{
+  /* Initialize some dummy area for #rna_Area_ui_type_itemf() to work with. */
+  ScrArea dummy_area = blender::dna::shallow_zero_initialize();
+  /* #rna_Area_ui_type_itemf() includes #SPACE_EMTPY otherwise. */
+  dummy_area.spacetype = SPACE_INFO;
+
+  const EnumPropertyItem *item;
+  int item_len;
+  /* #rna_Area_ui_type_itemf() currently is fine without passing the ID pointer (which should
+   * probably be a screen, if anything). */
+  PointerRNA area_ptr = RNA_pointer_create_discrete(nullptr, &RNA_Area, &dummy_area);
+  PropertyRNA *prop_ui_type = RNA_struct_find_property(&area_ptr, "ui_type");
+  RNA_property_enum_items(C, &area_ptr, prop_ui_type, &item, &item_len, r_free);
+
+  return item;
+}
+
 static bool add_editor_poll(bContext *C)
 {
   return lookup_docked_area(C) != nullptr;
@@ -44,14 +66,14 @@ static bool add_editor_poll(bContext *C)
 
 static wmOperatorStatus add_editor_exec(bContext *C, wmOperator *op)
 {
-  const eSpace_Type type = eSpace_Type(RNA_enum_get(op->ptr, "type"));
-  if (ELEM(type, SPACE_EMPTY, SPACE_TOPBAR, SPACE_STATUSBAR, SPACE_EDITOR_DOCK)) {
-    return OPERATOR_CANCELLED;
-  }
+  const int ui_type = RNA_enum_get(op->ptr, "type");
+  /* See #rna_Area_ui_type_set(). */
+  const eSpace_Type space_type = eSpace_Type(ui_type >> 16);
+  const int subtype = ui_type & 0xffff;
 
   ScrArea *docked_area = lookup_docked_area(C);
 
-  SpaceLink *new_space = add_docked_space(docked_area, type, CTX_data_scene(C));
+  SpaceLink *new_space = add_docked_space(docked_area, space_type, subtype, CTX_data_scene(C));
   activate_docked_space(C, docked_area, new_space);
 
   return OPERATOR_FINISHED;
@@ -70,7 +92,9 @@ static void SCREEN_OT_editor_dock_add_editor(wmOperatorType *ot)
   ot->poll = add_editor_poll;
 
   /* TODO itemf to filter out invalid types? */
-  RNA_def_enum(ot->srna, "type", rna_enum_space_type_items, SPACE_EMPTY, "Type", "");
+  PropertyRNA *prop = RNA_def_enum(
+      ot->srna, "type", rna_enum_space_type_items, SPACE_EMPTY, "Type", "The editor to add");
+  RNA_def_property_enum_funcs_runtime(prop, nullptr, nullptr, rna_space_ui_type_itemf);
 }
 
 void register_operatortypes()
