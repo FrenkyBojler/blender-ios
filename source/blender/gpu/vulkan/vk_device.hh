@@ -116,7 +116,19 @@ class VKThreadData : public NonCopyable, NonMovable {
    * NOTE: Initialized to `UINT32_MAX` to detect first change.
    */
   uint32_t resource_pool_index = UINT32_MAX;
+
+  /**
+   * All resource pools.
+   *
+   * The resource pools are already allocated for a worse case scenario (Wayland can require 5
+   * resource pools)
+   */
   Vector<VKResourcePool, 5> resource_pools;
+
+  /**
+   * This number of resource pools that are currently in use.
+   */
+  int resource_pools_in_use = 2;
 
   VKDescriptorPools descriptor_pools;
   /**
@@ -144,9 +156,13 @@ class VKThreadData : public NonCopyable, NonMovable {
 
   void ensure_resource_pools(int pool_size)
   {
+    if (pool_size <= resource_pools_in_use) {
+      return;
+    }
     while (resource_pools.size() < pool_size) {
       resource_pools.append({});
     }
+    resource_pools_in_use = pool_size;
   }
 
   /** Activate the next resource pool. */
@@ -156,7 +172,7 @@ class VKThreadData : public NonCopyable, NonMovable {
       resource_pool_index = 1;
     }
     else {
-      resource_pool_index = (resource_pool_index + 1) % uint32_t(resource_pools.size());
+      resource_pool_index = (resource_pool_index + 1) % uint32_t(resource_pools_in_use);
     }
   }
 };
@@ -173,7 +189,7 @@ class VKDevice : public NonCopyable {
 
   bool is_initialized_ = false;
 
-  /**
+  /*
    * Task pool for render graph submission.
    *
    * Multiple threads in Blender can build a render graph. Building the command buffer for a render
