@@ -479,6 +479,7 @@ struct ExternelMeshColliderData {
   const Mesh *mesh;
   float4x4 transform;
   float friction;
+  float compliance;
 };
 
 struct SimPointsPropertiesData {
@@ -1828,7 +1829,8 @@ PROFILE_FUNCTION static void prepare_evaluation__colliders(WorldPreprocessData &
                                           ExternalColliderKey{constraint_bundle->self_path},
                                           mesh,
                                           float4x4::identity(),
-                                          constraint_bundle->friction});
+                                          constraint_bundle->friction,
+                                          constraint_bundle->compliance});
       }
       if (const bke::Instances *instances = constraint_bundle->geometry.get_instances()) {
         const Span<float4x4> transforms = instances->transforms();
@@ -1850,7 +1852,8 @@ PROFILE_FUNCTION static void prepare_evaluation__colliders(WorldPreprocessData &
                  ExternalColliderKey{constraint_bundle->self_path, {instance_id}},
                  mesh,
                  transforms[instance_i],
-                 constraint_bundle->friction});
+                 constraint_bundle->friction,
+                 constraint_bundle->compliance});
           }
         }
       }
@@ -2236,6 +2239,7 @@ struct StaticPlaneContacts {
   Vector<float> static_frictions;
   Vector<float> dynamic_frictions;
   Vector<float> depths;
+  Vector<float> compliance_terms;
 };
 
 struct DynamicSphereContacts {
@@ -2280,6 +2284,7 @@ PROFILE_FUNCTION static void gather_ground_plane_contacts(
     r_contacts.static_frictions.append(friction);
     r_contacts.dynamic_frictions.append(friction);
     r_contacts.depths.append(-distance);
+    r_contacts.compliance_terms.append(0.0f);
   }
 }
 
@@ -2290,10 +2295,12 @@ PROFILE_FUNCTION static void gather_mesh_contacts(const XPBDState &state,
                                                   const Span<float> sim_points_frictions,
                                                   const Span<float> sim_points_inverse_masses,
                                                   const float substep_factor,
+                                                  const float delta_time,
                                                   StaticPlaneContacts &r_contacts)
 {
   const ExternalColliderState *collider_state = state.external_colliders.lookup_ptr(
       collider.collider_key);
+  const float compliance_term_factor = compute_compliance_factor(delta_time);
 
   float4x4 mesh_transform = collider.transform;
   if (collider_state) {
@@ -2339,6 +2346,8 @@ PROFILE_FUNCTION static void gather_mesh_contacts(const XPBDState &state,
     r_contacts.static_frictions.append(friction);
     r_contacts.dynamic_frictions.append(friction);
     r_contacts.depths.append(penetration);
+    r_contacts.compliance_terms.append(
+        std::max(0.0f, compliance_term_factor * collider.compliance));
   }
 }
 
@@ -2392,7 +2401,8 @@ PROFILE_FUNCTION static Contacts gather_contacts_curve_local(
     const WorldPreprocessData &world_info,
     const Span<SimPointsKey> keys,
     const SimPointsWorldProperties &props,
-    const float substep_factor)
+    const float substep_factor,
+    const float delta_time)
 {
   Contacts contacts;
   const SimPointsKey &key = keys[key_i];
@@ -2418,6 +2428,7 @@ PROFILE_FUNCTION static Contacts gather_contacts_curve_local(
                          props.frictions,
                          props.inverse_masses,
                          substep_factor,
+                         delta_time,
                          plane_contacts);
   }
   if (!plane_contacts.indices.is_empty()) {
@@ -2434,7 +2445,8 @@ PROFILE_FUNCTION static Contacts gather_contacts_global(
     const Span<GeometrySet> applied_geometries,
     const Span<SimPointsKey> keys,
     const Map<SimPointsKey, SimPointsWorldProperties> &sim_points_props,
-    const float substep_factor)
+    const float substep_factor,
+    const float delta_time)
 {
   Contacts contacts;
   for (const int key_i : key_group) {
@@ -2473,6 +2485,7 @@ PROFILE_FUNCTION static Contacts gather_contacts_global(
                              props.frictions,
                              props.inverse_masses,
                              substep_factor,
+                             delta_time,
                              plane_contacts);
       }
       if (!plane_contacts.indices.is_empty()) {
@@ -2527,7 +2540,8 @@ PROFILE_FUNCTION static void generate_collision_constraint_sets(
         &scope.construct<xpbd::CollisionPlaneConstraintSet>(key_i,
                                                             plane_contacts.indices,
                                                             plane_contacts.plane_positions,
-                                                            plane_contacts.plane_normals));
+                                                            plane_contacts.plane_normals,
+                                                            plane_contacts.compliance_terms));
   }
   for (auto item : contacts.dynamic_sphere_contacts.items()) {
     const int key_i = keys.index_of(item.key);
@@ -3072,7 +3086,8 @@ PROFILE_FUNCTION static void simulate_key_group_global(
                                                      applied_geometries,
                                                      keys,
                                                      sim_points_props,
-                                                     substep_factor);
+                                                     substep_factor,
+                                                     sub_delta_time);
     xpbd::ConstraintSetCollector dynamic_constraint_sets;
     generate_collision_constraint_sets(
         scope, contacts, keys, sub_delta_time, dynamic_constraint_sets);
@@ -3184,7 +3199,8 @@ PROFILE_FUNCTION static void simulate_curve_local(
                                                                 world_info,
                                                                 keys,
                                                                 props,
-                                                                substep_factor);
+                                                                substep_factor,
+                                                                sub_delta_time);
           xpbd::ConstraintSetCollector dynamic_constraint_sets;
           generate_collision_constraint_sets(
               scope, contacts, keys, sub_delta_time, dynamic_constraint_sets);

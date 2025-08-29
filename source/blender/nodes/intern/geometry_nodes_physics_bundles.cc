@@ -93,6 +93,7 @@ const FlatBundleTypePtr &ColliderBundle::get_bundle_type()
     b.add<decl::String>("filter");
     b.add<decl::Geometry>("geometry");
     b.add<decl::Float>("friction").min(0.0f);
+    b.add<decl::Float>("compliance").min(0.0f);
     const FlatBundleTypePtr bundle_type = b.build();
     BundleTypeRegistry::register_type(bundle_type);
     return bundle_type;
@@ -107,6 +108,7 @@ std::optional<ColliderBundle> ColliderBundle::parse(const Bundle &bundle,
   bundle_parse_member(bundle, "filter", behavior.filter, r_errors);
   bundle_parse_member(bundle, "geometry", behavior.geometry, r_errors);
   bundle_parse_member(bundle, "friction", behavior.friction, r_errors);
+  bundle_parse_member(bundle, "compliance", behavior.compliance, r_errors);
   if (r_errors.has_error()) {
     return std::nullopt;
   }

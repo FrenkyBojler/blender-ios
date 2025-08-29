@@ -53,6 +53,7 @@ class ColliderBundle : public NestedBundleCommon {
   std::string filter;
   bke::GeometrySet geometry;
   float friction;
+  float compliance;
 
   static const FlatBundleTypePtr &get_bundle_type();
   static std::optional<ColliderBundle> parse(const Bundle &bundle, BundleParseErrors &r_errors);

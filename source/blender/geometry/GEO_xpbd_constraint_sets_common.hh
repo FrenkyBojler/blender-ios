@@ -274,17 +274,20 @@ class CollisionPlaneConstraintSet : public TemplatedConstraintSet<CollisionPlane
   Span<int> points_;
   Span<float3> plane_positions_;
   Span<float3> plane_normals_;
+  Span<float> compliance_terms_;
 
  public:
   CollisionPlaneConstraintSet(const int geo_i,
                               const Span<int> points,
                               const Span<float3> plane_positions,
-                              const Span<float3> plane_normals)
+                              const Span<float3> plane_normals,
+                              const Span<float> compliance_terms)
       : TemplatedConstraintSet<CollisionPlaneConstraintSet>(points.size(), {geo_i}),
         geo_i_(geo_i),
         points_(points),
         plane_positions_(plane_positions),
-        plane_normals_(plane_normals)
+        plane_normals_(plane_normals),
+        compliance_terms_(compliance_terms)
   {
   }
 
@@ -304,7 +307,15 @@ class CollisionPlaneConstraintSet : public TemplatedConstraintSet<CollisionPlane
     if (distance >= 0.0f) {
       return;
     }
-    const float3 offset = plane_normal * -distance;
+    const float inv_m = params.inverse_mass(geo_i_, point_i);
+    if (inv_m <= 0.0f) {
+      /* Points with infinite mass are pinned and don't collide dynamically. */
+      return;
+    }
+
+    const float compliance_term = compliance_terms_[constraint_i];
+    const float lambda = -distance / (inv_m + compliance_term);
+    const float3 offset = lambda * inv_m * plane_normal;
     updater.update_position(geo_i_, point_i, offset);
   }
 
