@@ -19,6 +19,8 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "RNA_access.hh"
+
 #include "UI_interface.hh"
 #include "UI_interface_c.hh"
 #include "UI_interface_layout.hh"
@@ -38,10 +40,17 @@ static void editor_dock_draw(const bContext *C, Panel *panel)
   layout.ui_units_x_set(1.5f);
   layout.emboss_set(ui::EmbossType::NoneOrStatus);
 
+  bool is_first_area = true;
+
   LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
     if (!area->docked) {
       continue;
     }
+
+    if (!is_first_area) {
+      layout.separator_spacer();
+    }
+    is_first_area = false;
 
     const bool is_visible = (area->flag & AREA_FLAG_HIDDEN) == 0;
 
@@ -75,7 +84,9 @@ static void editor_dock_draw(const bContext *C, Panel *panel)
       ui::block_layout_set_current(layout.block(), &layout);
     }
 
-    layout.op_menu_enum(C, "SCREEN_OT_editor_dock_add_editor", "type", "", ICON_ADD);
+    PointerRNA op_ptr = layout.op_menu_enum(
+        C, "SCREEN_OT_editor_dock_add_editor", "type", "", ICON_ADD);
+    RNA_int_set(&op_ptr, "position", area->docked->position);
   }
 }
 

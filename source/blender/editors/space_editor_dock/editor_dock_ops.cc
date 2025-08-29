@@ -26,13 +26,15 @@
 
 namespace blender::ed::editor_dock {
 
-/* TODO somehow pass docked area? */
-static ScrArea *lookup_docked_area(bContext *C)
+static ScrArea *lookup_docked_area(const bContext *C,
+                                   const std::optional<DockedAreaPosition> position)
 {
   const bScreen *screen = CTX_wm_screen(C);
   LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
     if (area->docked) {
-      return area;
+      if (!position || *position == area->docked->position) {
+        return area;
+      }
     }
   }
   return nullptr;
@@ -61,7 +63,7 @@ static const EnumPropertyItem *rna_space_ui_type_itemf(bContext *C,
 
 static bool add_editor_poll(bContext *C)
 {
-  return lookup_docked_area(C) != nullptr;
+  return lookup_docked_area(C, std::nullopt) != nullptr;
 }
 
 static wmOperatorStatus add_editor_exec(bContext *C, wmOperator *op)
@@ -71,7 +73,8 @@ static wmOperatorStatus add_editor_exec(bContext *C, wmOperator *op)
   const eSpace_Type space_type = eSpace_Type(ui_type >> 16);
   const int subtype = ui_type & 0xffff;
 
-  ScrArea *docked_area = lookup_docked_area(C);
+  DockedAreaPosition area_position = DockedAreaPosition(RNA_int_get(op->ptr, "position"));
+  ScrArea *docked_area = lookup_docked_area(C, area_position);
 
   SpaceLink *new_space = add_docked_space(docked_area, space_type, subtype, CTX_data_scene(C));
   activate_docked_space(C, docked_area, new_space);
@@ -96,6 +99,9 @@ static void SCREEN_OT_editor_dock_add_editor(wmOperatorType *ot)
   PropertyRNA *prop = RNA_def_enum(
       ot->srna, "type", rna_enum_space_type_items, SPACE_EMPTY, "Type", "The editor to add");
   RNA_def_property_enum_funcs_runtime(prop, nullptr, nullptr, rna_space_ui_type_itemf);
+
+  /* TODO use enum */
+  RNA_def_int(ot->srna, "position", DOCKED_AREA_RIGHT, 0, INT_MAX, "Position", "", 0, INT_MAX);
 }
 
 void register_operatortypes()

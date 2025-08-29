@@ -433,6 +433,7 @@ typedef struct ScrDockedAreaData {
 
 typedef enum DockedAreaPosition {
   DOCKED_AREA_RIGHT,
+  DOCKED_AREA_BOTTOM,
 } DockedAreaPosition;
 
 typedef struct ScrArea_Runtime {

@@ -23,11 +23,12 @@
 
 namespace blender::ed::editor_dock {
 
-ScrArea *add_docked_area(bScreen *screen, const rcti &area_rect)
+ScrArea *add_docked_area(bScreen *screen, const rcti &area_rect, const DockedAreaPosition position)
 {
   ScrArea *docked_area = ED_screen_area_add_empty(screen, area_rect);
   BKE_screen_remove_double_scrverts(screen);
   docked_area->docked = MEM_callocN<ScrDockedAreaData>(__func__);
+  docked_area->docked->position = position;
   return docked_area;
 }
 
@@ -165,7 +166,6 @@ void unhide_docked_area(const wmWindow *win, ScrArea *docked_area)
   }
 
   bScreen *screen = WM_window_get_active_screen(win);
-  const int width = UI_UNIT_X * 16;
 
   rcti screen_rect;
   WM_window_screen_rect_calc(win, &screen_rect);
@@ -177,10 +177,26 @@ void unhide_docked_area(const wmWindow *win, ScrArea *docked_area)
 
   /* Move screen geometry outside the screen rect bounds, to force scaling areas to fit the
    * docked one. */
-  docked_area->v1->vec.x = docked_area->v2->vec.x = screen_rect.xmax - 1;
-  docked_area->v3->vec.x = docked_area->v4->vec.x = screen_rect.xmax - 1 + width;
-  docked_area->v1->vec.y = docked_area->v4->vec.y = screen_rect.ymin;
-  docked_area->v2->vec.y = docked_area->v3->vec.y = screen_rect.ymax - 1;
+  switch (docked_area->docked->position) {
+    case DOCKED_AREA_RIGHT: {
+      const int width = UI_UNIT_X * 16;
+
+      docked_area->v1->vec.x = docked_area->v2->vec.x = screen_rect.xmax - 1;
+      docked_area->v3->vec.x = docked_area->v4->vec.x = screen_rect.xmax - 1 + width;
+      docked_area->v1->vec.y = docked_area->v4->vec.y = screen_rect.ymin;
+      docked_area->v2->vec.y = docked_area->v3->vec.y = screen_rect.ymax - 1;
+      break;
+    }
+    case DOCKED_AREA_BOTTOM: {
+      const int height = UI_UNIT_Y * 8;
+
+      docked_area->v1->vec.x = docked_area->v2->vec.x = screen_rect.xmin;
+      docked_area->v3->vec.x = docked_area->v4->vec.x = screen_rect.xmax - 1;
+      docked_area->v1->vec.y = docked_area->v4->vec.y = screen_rect.ymin - height;
+      docked_area->v2->vec.y = docked_area->v3->vec.y = screen_rect.ymin;
+      break;
+    }
+  }
   /* Re-attach area geometry. */
   BKE_screen_remove_double_scrverts(screen);
 

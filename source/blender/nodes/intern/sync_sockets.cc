@@ -627,8 +627,8 @@ void node_can_sync_cache_clear(Main &bmain)
     LISTBASE_FOREACH (wmWindow *, window, &wm->windows) {
       bScreen *screen = BKE_workspace_active_screen_get(window->workspace_hook);
       LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
-        SpaceLink *sl = static_cast<SpaceLink *>(area->spacedata.first);
-        if (sl->spacetype == SPACE_NODE) {
+        if (area->spacetype == SPACE_NODE) {
+          SpaceLink *sl = static_cast<SpaceLink *>(area->spacedata.first);
           SpaceNode *snode = reinterpret_cast<SpaceNode *>(sl);
           /* This may be called before runtime data is initialized currently. */
           if (snode->runtime) {

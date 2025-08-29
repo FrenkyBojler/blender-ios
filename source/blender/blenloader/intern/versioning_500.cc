@@ -2937,15 +2937,29 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
                                 round_fl_to_int(max[0]),
                                 round_fl_to_int(min[1]),
                                 round_fl_to_int(max[1])};
-        ScrArea *docked_area = blender::ed::editor_dock::add_docked_area(screen, area_rect);
 
-        docked_area->flag |= AREA_FLAG_HIDDEN;
+        {
+          ScrArea *docked_area_right = blender::ed::editor_dock::add_docked_area(
+              screen, area_rect, DOCKED_AREA_RIGHT);
 
-        /* TODO null for scene - is this a good idea? */
-        blender::ed::editor_dock::add_docked_space(
-            docked_area, SPACE_OUTLINER, std::nullopt, nullptr);
-        blender::ed::editor_dock::add_docked_space(
-            docked_area, SPACE_PROPERTIES, std::nullopt, nullptr);
+          docked_area_right->flag |= AREA_FLAG_HIDDEN;
+
+          /* TODO null for scene - is this a good idea? */
+          blender::ed::editor_dock::add_docked_space(
+              docked_area_right, SPACE_OUTLINER, std::nullopt, nullptr);
+          blender::ed::editor_dock::add_docked_space(
+              docked_area_right, SPACE_PROPERTIES, std::nullopt, nullptr);
+        }
+
+        {
+          ScrArea *docked_area_bottom = blender::ed::editor_dock::add_docked_area(
+              screen, area_rect, DOCKED_AREA_BOTTOM);
+          docked_area_bottom->flag |= AREA_FLAG_HIDDEN;
+
+          /* TODO null for scene - is this a good idea? */
+          // blender::ed::editor_dock::add_docked_space(
+          //     docked_area_bottom, SPACE_TIME, std::nullopt, nullptr);
+        }
       }
     }
   }
