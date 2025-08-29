@@ -22,13 +22,13 @@
 #include "bpy_app_opensubdiv.hh"
 #include "bpy_app_openvdb.hh"
 #include "bpy_app_sdl.hh"
-#include "bpy_capi_utils.hh"
 
 #include "bpy_app_usd.hh"
 
 #include "bpy_app_translations.hh"
 
 #include "bpy_app_handlers.hh"
+#include "bpy_capi_utils.hh"
 #include "bpy_driver.hh"
 
 #include "BPY_extern_python.hh" /* For #BPY_python_app_help_text_fn. */

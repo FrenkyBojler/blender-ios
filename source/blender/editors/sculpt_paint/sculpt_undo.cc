@@ -290,18 +290,31 @@ template<typename T> Array<std::byte> compress(const Span<T> src)
   Array<std::byte> dst(ZSTD_compressBound(src.size_in_bytes()), NoInitialization());
   const size_t dst_size = ZSTD_compress(
       dst.data(), dst.size(), src.data(), src.size_in_bytes(), 12);
+
+  if (ZSTD_isError(dst_size)) {
+    return Array<std::byte>(0, NoInitialization());
+  }
+
   return dst.as_span().take_front(dst_size);
 }
 
 template<typename T> Array<T> decompress(const Span<std::byte> src)
 {
-  const size_t dst_size_in_bytes = ZSTD_getFrameContentSize(src.data(), src.size());
-  BLI_assert(!ZSTD_isError(dst_size_in_bytes));
+  const unsigned long long dst_size_in_bytes = ZSTD_getFrameContentSize(src.data(), src.size());
+
+  if (dst_size_in_bytes == ZSTD_CONTENTSIZE_ERROR) {
+    return Array<T>(0, NoInitialization());
+  }
+
+  if (dst_size_in_bytes == ZSTD_CONTENTSIZE_UNKNOWN) {
+    return Array<T>(0, NoInitialization());
+  }
+
   const int64_t dst_size = dst_size_in_bytes / sizeof(T);
   Array<T> dst(dst_size, NoInitialization());
   const size_t result = ZSTD_decompress(
       dst.data(), dst.as_span().size_in_bytes(), src.data(), src.size());
-  BLI_assert(!ZSTD_isError(result));
+
   if (ZSTD_isError(result)) {
     return Array<T>(0, NoInitialization());
   }
