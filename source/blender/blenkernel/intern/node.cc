@@ -658,6 +658,7 @@ static void write_legacy_sockets(BlendWriter *writer, bNodeTree *ntree)
 
 static void legacy_socket_interface_free(bNodeSocket *sock)
 {
+  socket_id_user_decrement(sock);
   if (sock->prop) {
     IDP_FreeProperty_ex(sock->prop, false);
   }
