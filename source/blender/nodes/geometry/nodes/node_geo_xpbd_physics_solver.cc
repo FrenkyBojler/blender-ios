@@ -247,6 +247,22 @@ struct CurveSegmentRelativeRestRotationsState {
   }
 };
 
+struct ExternalColliderKey {
+  std::string path;
+  Vector<int> ids;
+
+  uint64_t hash() const
+  {
+    return get_default_hash(this->path, this->ids);
+  }
+
+  BLI_STRUCT_EQUALITY_OPERATORS_2(ExternalColliderKey, path, ids)
+};
+
+struct ExternalColliderState {
+  float4x4 transform;
+};
+
 class XPBDState {
  public:
   /**
@@ -258,6 +274,7 @@ class XPBDState {
   Map<SimPointsKey, SimPoints> sim_points;
   Map<SimPointsKey, DistanceConstraintLengths> distance_constraint_lengths;
   Map<SimPointsKey, float> initial_volumes;
+  Map<ExternalColliderKey, ExternalColliderState> external_colliders;
 
   mutable Mutex curve_segment_rest_lengths_mutex;
   mutable Map<SimPointsKey, std::unique_ptr<CurveSegmentRestLengthsState>>
@@ -458,9 +475,9 @@ struct SphericalSelfCollisionData {
 
 struct ExternelMeshColliderData {
   int key_i;
+  ExternalColliderKey collider_key;
   const Mesh *mesh;
-  float4x4 mesh_to_self;
-  float4x4 self_to_mesh;
+  float4x4 transform;
   float friction;
 };
 
@@ -1808,8 +1825,8 @@ PROFILE_FUNCTION static void prepare_evaluation__colliders(WorldPreprocessData &
     for (const ColliderBundle *constraint_bundle : constraint_bundles) {
       if (const Mesh *mesh = constraint_bundle->geometry.get_mesh()) {
         world_info.mesh_colliders.append({key_i,
+                                          ExternalColliderKey{constraint_bundle->self_path},
                                           mesh,
-                                          float4x4::identity(),
                                           float4x4::identity(),
                                           constraint_bundle->friction});
       }
@@ -1817,20 +1834,23 @@ PROFILE_FUNCTION static void prepare_evaluation__colliders(WorldPreprocessData &
         const Span<float4x4> transforms = instances->transforms();
         const Span<bke::InstanceReference> references = instances->references();
         const Span<int> handles = instances->reference_handles();
+        const Span<int> instance_ids = instances->unique_ids();
         for (const int instance_i : transforms.index_range()) {
           const int handle = handles[instance_i];
           if (!references.index_range().contains(handle)) {
             continue;
           }
+          const int instance_id = instance_ids[instance_i];
           const bke::InstanceReference &reference = references[handle];
           GeometrySet reference_geo;
           reference.to_geometry_set(reference_geo);
           if (const Mesh *mesh = reference_geo.get_mesh()) {
-            world_info.mesh_colliders.append({key_i,
-                                              mesh,
-                                              transforms[instance_i],
-                                              math::invert(transforms[instance_i]),
-                                              constraint_bundle->friction});
+            world_info.mesh_colliders.append(
+                {key_i,
+                 ExternalColliderKey{constraint_bundle->self_path, {instance_id}},
+                 mesh,
+                 transforms[instance_i],
+                 constraint_bundle->friction});
           }
         }
       }
@@ -2263,13 +2283,25 @@ PROFILE_FUNCTION static void gather_ground_plane_contacts(
   }
 }
 
-PROFILE_FUNCTION static void gather_mesh_contacts(const SimPoints &sim_points,
+PROFILE_FUNCTION static void gather_mesh_contacts(const XPBDState &state,
+                                                  const SimPoints &sim_points,
                                                   const IndexRange points_range,
                                                   const ExternelMeshColliderData &collider,
                                                   const Span<float> sim_points_frictions,
                                                   const Span<float> sim_points_inverse_masses,
+                                                  const float substep_factor,
                                                   StaticPlaneContacts &r_contacts)
 {
+  const ExternalColliderState *collider_state = state.external_colliders.lookup_ptr(
+      collider.collider_key);
+
+  float4x4 mesh_transform = collider.transform;
+  if (collider_state) {
+    mesh_transform = math::interpolate(
+        collider_state->transform, collider.transform, substep_factor);
+  }
+  const float4x4 mesh_transform_inv = math::invert(mesh_transform);
+
   bke::BVHTreeFromMesh bvh = collider.mesh->bvh_corner_tris();
   for (const int point_i : points_range) {
     const float inverse_mass = sim_points_inverse_masses[point_i];
@@ -2279,7 +2311,7 @@ PROFILE_FUNCTION static void gather_mesh_contacts(const SimPoints &sim_points,
     }
 
     const float3 &position_self = sim_points.positions[point_i];
-    const float3 &position_mesh = math::transform_point(collider.self_to_mesh, position_self);
+    const float3 &position_mesh = math::transform_point(mesh_transform_inv, position_self);
 
     BVHTreeNearest nearest{};
     nearest.dist_sq = FLT_MAX;
@@ -2297,9 +2329,8 @@ PROFILE_FUNCTION static void gather_mesh_contacts(const SimPoints &sim_points,
     const float point_friction = sim_points_frictions[point_i];
     const float friction = math::sqrt(point_friction * collider.friction);
 
-    const float3 collision_point = math::transform_point(collider.mesh_to_self,
-                                                         float3(nearest.co));
-    const float3 collision_normal = math::transpose(float3x3(collider.self_to_mesh)) *
+    const float3 collision_point = math::transform_point(mesh_transform, float3(nearest.co));
+    const float3 collision_normal = math::transpose(float3x3(mesh_transform_inv)) *
                                     float3(nearest.no);
 
     r_contacts.indices.append(point_i);
@@ -2360,7 +2391,8 @@ PROFILE_FUNCTION static Contacts gather_contacts_curve_local(
     const XPBDState &state,
     const WorldPreprocessData &world_info,
     const Span<SimPointsKey> keys,
-    const SimPointsWorldProperties &props)
+    const SimPointsWorldProperties &props,
+    const float substep_factor)
 {
   Contacts contacts;
   const SimPointsKey &key = keys[key_i];
@@ -2379,8 +2411,14 @@ PROFILE_FUNCTION static Contacts gather_contacts_curve_local(
     if (collider.key_i != key_i) {
       continue;
     }
-    gather_mesh_contacts(
-        sim_points, points_range, collider, props.frictions, props.inverse_masses, plane_contacts);
+    gather_mesh_contacts(state,
+                         sim_points,
+                         points_range,
+                         collider,
+                         props.frictions,
+                         props.inverse_masses,
+                         substep_factor,
+                         plane_contacts);
   }
   if (!plane_contacts.indices.is_empty()) {
     contacts.static_plane_contacts.add_new(key, std::move(plane_contacts));
@@ -2395,7 +2433,8 @@ PROFILE_FUNCTION static Contacts gather_contacts_global(
     const WorldBundles &world_bundles,
     const Span<GeometrySet> applied_geometries,
     const Span<SimPointsKey> keys,
-    const Map<SimPointsKey, SimPointsWorldProperties> &sim_points_props)
+    const Map<SimPointsKey, SimPointsWorldProperties> &sim_points_props,
+    const float substep_factor)
 {
   Contacts contacts;
   for (const int key_i : key_group) {
@@ -2427,11 +2466,13 @@ PROFILE_FUNCTION static Contacts gather_contacts_global(
         if (collider.key_i != key_i) {
           continue;
         }
-        gather_mesh_contacts(sim_points,
+        gather_mesh_contacts(state,
+                             sim_points,
                              IndexRange(sim_points.points_num),
                              collider,
                              props.frictions,
                              props.inverse_masses,
+                             substep_factor,
                              plane_contacts);
       }
       if (!plane_contacts.indices.is_empty()) {
@@ -3024,8 +3065,14 @@ PROFILE_FUNCTION static void simulate_key_group_global(
     }
 
     /* Find current collisions and generate constraints to resolve them. */
-    const Contacts contacts = gather_contacts_global(
-        key_group, state, world_info, world_bundles, applied_geometries, keys, sim_points_props);
+    const Contacts contacts = gather_contacts_global(key_group,
+                                                     state,
+                                                     world_info,
+                                                     world_bundles,
+                                                     applied_geometries,
+                                                     keys,
+                                                     sim_points_props,
+                                                     substep_factor);
     xpbd::ConstraintSetCollector dynamic_constraint_sets;
     generate_collision_constraint_sets(
         scope, contacts, keys, sub_delta_time, dynamic_constraint_sets);
@@ -3130,8 +3177,14 @@ PROFILE_FUNCTION static void simulate_curve_local(
               soft_pinned_rotations,
               sub_delta_time);
 
-          const Contacts contacts = gather_contacts_curve_local(
-              key_i, curves_range, points_by_curve, state, world_info, keys, props);
+          const Contacts contacts = gather_contacts_curve_local(key_i,
+                                                                curves_range,
+                                                                points_by_curve,
+                                                                state,
+                                                                world_info,
+                                                                keys,
+                                                                props,
+                                                                substep_factor);
           xpbd::ConstraintSetCollector dynamic_constraint_sets;
           generate_collision_constraint_sets(
               scope, contacts, keys, sub_delta_time, dynamic_constraint_sets);
@@ -3458,6 +3511,11 @@ PROFILE_FUNCTION static void update_and_step_xpbd_state(XPBDState &state,
                              sub_delta_time);
         }
       });
+
+  state.external_colliders.clear();
+  for (const ExternelMeshColliderData &collider : world_info.mesh_colliders) {
+    state.external_colliders.add(collider.collider_key, ExternalColliderState{collider.transform});
+  }
 }
 
 static void initialize_state(XPBDState & /*state*/)
