@@ -1668,8 +1668,7 @@ static void grease_pencil_brush_cursor_draw(PaintCursorContext &pcontext)
     }
 
     if ((brush->flag & BRUSH_SMOOTH_STROKE) != 0) {
-      const float scale = 1.0f / 255.0f;
-      color = scale * float3(paint->runtime->paint_cursor_color);
+      color = float3(1.0f, 0.4f, 0.4f);
     }
   }
   else if (pcontext.mode == PaintMode::VertexGPencil) {

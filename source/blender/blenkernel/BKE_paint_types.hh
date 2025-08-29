@@ -110,7 +110,6 @@ struct PaintRuntime : NonCopyable, NonMovable {
 
   /** WM Paint cursor. */
   void *paint_cursor;
-  blender::uchar4 paint_cursor_color;
 
   PaintRuntime();
   ~PaintRuntime();

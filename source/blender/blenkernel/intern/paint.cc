@@ -241,14 +241,6 @@ IDTypeInfo IDType_ID_PC = {
     /*lib_override_apply_post*/ nullptr,
 };
 
-const uchar PAINT_CURSOR_SCULPT[3] = {255, 100, 100};
-const uchar PAINT_CURSOR_VERTEX_PAINT[3] = {255, 255, 255};
-const uchar PAINT_CURSOR_WEIGHT_PAINT[3] = {200, 200, 255};
-const uchar PAINT_CURSOR_TEXTURE_PAINT[3] = {255, 255, 255};
-const uchar PAINT_CURSOR_SCULPT_CURVES[3] = {255, 100, 100};
-const uchar PAINT_CURSOR_PAINT_GREASE_PENCIL[3] = {255, 100, 100};
-const uchar PAINT_CURSOR_SCULPT_GREASE_PENCIL[3] = {255, 100, 100};
-
 static ePaintOverlayControlFlags overlay_flags = (ePaintOverlayControlFlags)0;
 
 void BKE_paint_invalidate_overlay_tex(Scene *scene, ViewLayer *view_layer, const Tex *tex)
@@ -1841,8 +1833,6 @@ void BKE_paint_init(
     BKE_paint_brushes_ensure(bmain, paint);
   }
 
-  copy_v3_v3_uchar(paint->runtime->paint_cursor_color, col);
-  paint->runtime->paint_cursor_color[3] = 128;
   if (!paint->cavity_curve) {
     BKE_paint_cavity_curve_preset(paint, CURVE_PRESET_LINE);
   }

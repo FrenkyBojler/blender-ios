@@ -163,7 +163,8 @@ static void paint_draw_smooth_cursor(bContext *C,
     const uint pos = GPU_vertformat_attr_add(
         immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
     immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
-    immUniformColor4ubv(paint->runtime->paint_cursor_color);
+    const uchar4 color = uchar4(255, 100, 100, 128);
+    immUniformColor4ubv(color);
 
     immBegin(GPU_PRIM_LINES, 2);
     immVertex2fv(pos, blender::float2(xy));
@@ -200,9 +201,8 @@ static void paint_draw_line_cursor(bContext *C,
   immUniform2f("viewport_size", viewport_size[2], viewport_size[3]);
 
   immUniform1i("colors_len", 2); /* "advanced" mode */
-  const float alpha = float(paint->runtime->paint_cursor_color[3]) / 255.0f;
-  immUniform4f("color", 0.0f, 0.0f, 0.0f, alpha);
-  immUniform4f("color2", 1.0f, 1.0f, 1.0f, alpha);
+  immUniform4f("color", 0.0f, 0.0f, 0.0f, 0.5);
+  immUniform4f("color2", 1.0f, 1.0f, 1.0f, 0.5);
   immUniform1f("dash_width", 6.0f);
   immUniform1f("udash_factor", 0.5f);
 
