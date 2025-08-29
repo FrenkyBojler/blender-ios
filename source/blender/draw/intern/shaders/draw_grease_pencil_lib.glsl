@@ -96,16 +96,20 @@ float gpencil_stroke_segment_mask(
   float2 tan2 = orthogonal(line2);
   float len_sq2 = length_squared(line2);
 
-  /* Calculate the factor along the other segments. */
-  float t0 = dot(pos0, line0) / len_sq0;
-  float t2 = dot(pos2, line2) / len_sq2;
+  /* Calculate the non-normalized factor along the other segments. */
+  float t0 = dot(pos1, line0);
+  float t2 = dot(pos2, line2);
 
+  /* Normalize all segment directions. */
   float2 tan_norm0 = tan0 / sqrt(len_sq0);
   float2 tan_norm1 = tan1 / sqrt(len_sq1);
   float2 tan_norm2 = tan2 / sqrt(len_sq2);
 
+  /* Get the squared distance to the main segment. */
+  float dist_sq_1 = length_squared(pos1 - t1 * line1);
+
   /* Check if the pixel is within the corner region between segments 1 and 0. */
-  if (t1 <= 0.0f && t0 >= 1.0f && !is_start && miter_limit.x != MITER_LIMIT_TYPE_ROUND) {
+  if (t1 <= 0.0f && t0 >= 0.0f && !is_start && miter_limit.x != MITER_LIMIT_TYPE_ROUND) {
     if (miter_limit.x == MITER_LIMIT_TYPE_BEVEL) {
       /* Bevel by cutting with a the half angle line. */
       float2 bevel_tan = orthogonal(tan_norm0 - tan_norm1);
@@ -114,8 +118,8 @@ float gpencil_stroke_segment_mask(
       dist *= dist;
     }
     else {
-      /* Continue each line to get a shape corner. */
-      dist = max(length_squared(pos1 - t1 * line1), length_squared(pos0 - t0 * line0));
+      /* Continue the main line to get a shape corner. */
+      dist = dist_sq_1;
     }
   }
 
@@ -129,8 +133,8 @@ float gpencil_stroke_segment_mask(
       dist *= dist;
     }
     else {
-      /* Continue each line to get a shape corner. */
-      dist = max(length_squared(pos1 - t1 * line1), length_squared(pos2 - t2 * line2));
+      /* Continue the main line to get a shape corner. */
+      dist = dist_sq_1;
     }
   }
 
