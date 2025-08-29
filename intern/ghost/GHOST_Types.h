@@ -882,12 +882,12 @@ typedef struct {
   /* Factor to scale SDR content to HDR. */
   float sdr_scale;
   /**
+   * Max number of render frames used by GHOST.
+   *
    * Used for syncing resource management between GHOST and GPU backend. In GHOST every context has
    * its own render frame index. In GPU module this is a device property. By only communicating the
-   * max number of render frame we make a separation between the data of them. But keep the needed
-   * resources (and sync frames as low as possible to reduce stalling).
-   *
-   * Value is typically between 2 and 5 depending on the WSI and vulkan driver.
+   * max number of render frame we make a separation between the actual used index and keep the
+   * needed resources (and sync frames) as low as possible.
    */
   int max_render_frame;
 } GHOST_VulkanSwapChainData;
