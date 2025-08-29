@@ -173,12 +173,6 @@ class bNodeTreeRuntime : NonCopyable, NonMovable {
   std::unique_ptr<nodes::FieldInferencingInterface> field_inferencing_interface;
   /** Field status for every socket, accessed with #bNodeSocket::index_in_tree(). */
   Array<FieldSocketState> field_states;
-  /**
-   * Inferred structure type for every socket, accessed with #bNodeSocket::index_in_tree().
-   * This is not necessarily the structure type that is displayed in the node editor. E.g. it may
-   * be Single for an unconnected field input.
-   */
-  Array<nodes::StructureType> inferred_structure_types;
   /** Information about usage of anonymous attributes within the group. */
   std::unique_ptr<node_tree_reference_lifetimes::ReferenceLifetimesInfo> reference_lifetimes_info;
   std::unique_ptr<nodes::gizmos::TreeGizmoPropagation> gizmo_propagation;
@@ -293,6 +287,8 @@ class bNodeSocketRuntime : NonCopyable, NonMovable {
    * #bNode::runtime::draw_bounds).
    */
   float2 location;
+
+  nodes::StructureType inferred_structure_type = nodes::StructureType::Dynamic;
 
   /** Only valid when #topology_cache_is_dirty is false. */
   Vector<bNodeLink *> directly_linked_links;
@@ -1027,7 +1023,7 @@ inline bool bNodeSocket::is_icon_visible() const
 
 inline bool bNodeSocket::may_be_field() const
 {
-  return ELEM(this->owner_tree().runtime->inferred_structure_types[this->index_in_tree()],
+  return ELEM(this->runtime->inferred_structure_type,
               blender::nodes::StructureType::Field,
               blender::nodes::StructureType::Dynamic);
 }

@@ -21,7 +21,8 @@ bool BundleSignature::matches_exactly(const BundleSignature &other) const
   }
   for (const Item &item : items) {
     if (std::none_of(other.items.begin(), other.items.end(), [&](const Item &other_item) {
-          return item.key == other_item.key;
+          return item.key == other_item.key && item.type->type == other_item.type->type &&
+                 item.structure_type == other_item.structure_type;
         }))
     {
       return false;

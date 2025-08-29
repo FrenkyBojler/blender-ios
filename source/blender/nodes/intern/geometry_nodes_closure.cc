@@ -38,10 +38,8 @@ static bool items_equal(const ClosureSignature::Item &a, const ClosureSignature:
   if (a.type != b.type) {
     return false;
   }
-  if (a.structure_type.has_value() && b.structure_type.has_value()) {
-    if (*a.structure_type != *b.structure_type) {
-      return false;
-    }
+  if (a.structure_type != b.structure_type) {
+    return false;
   }
   return true;
 }
@@ -89,18 +87,26 @@ bool ClosureSignature::all_matching_exactly(const Span<ClosureSignature> signatu
 ClosureSignature ClosureSignature::from_closure_output_node(const bNode &node)
 {
   BLI_assert(node.is_type("NodeClosureOutput"));
+  const bNodeTree &tree = node.owner_tree();
+  const bNode *input_node =
+      bke::zone_type_by_node_type(node.type_legacy)->get_corresponding_input(tree, node);
   const auto &storage = *static_cast<const NodeClosureOutput *>(node.storage);
   nodes::ClosureSignature signature;
   for (const int i : IndexRange(storage.input_items.items_num)) {
     const NodeClosureInputItem &item = storage.input_items.items[i];
+    const StructureType structure_type =
+        input_node ? input_node->output_socket(i).runtime->inferred_structure_type :
+                     StructureType::Dynamic;
     if (const bke::bNodeSocketType *stype = bke::node_socket_type_find_static(item.socket_type)) {
-      signature.inputs.add({item.name, stype});
+      signature.inputs.add({item.name, stype, structure_type});
     }
   }
   for (const int i : IndexRange(storage.output_items.items_num)) {
     const NodeClosureOutputItem &item = storage.output_items.items[i];
+    const bNodeSocket &socket = node.input_socket(i);
+    const StructureType structure_type = socket.runtime->inferred_structure_type;
     if (const bke::bNodeSocketType *stype = bke::node_socket_type_find_static(item.socket_type)) {
-      signature.outputs.add({item.name, stype});
+      signature.outputs.add({item.name, stype, structure_type});
     }
   }
   return signature;

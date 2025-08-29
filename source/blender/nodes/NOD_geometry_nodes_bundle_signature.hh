@@ -11,21 +11,14 @@
 namespace blender::nodes {
 
 struct BundleSignature {
-
   struct Item {
     std::string key;
     const bke::bNodeSocketType *type = nullptr;
-
-    uint64_t hash() const
-    {
-      return get_default_hash(this->key);
-    }
-
-    BLI_STRUCT_EQUALITY_OPERATORS_1(Item, key)
+    StructureType structure_type = StructureType::Dynamic;
   };
 
   struct ItemKeyGetter {
-    std::string operator()(const Item &item)
+    StringRefNull operator()(const Item &item)
     {
       return item.key;
     }

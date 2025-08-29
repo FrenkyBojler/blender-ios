@@ -824,7 +824,10 @@ static StructureTypeInferenceResult calc_structure_type_interface(const bNodeTre
 bool update_structure_type_interface(bNodeTree &tree)
 {
   StructureTypeInferenceResult result = calc_structure_type_interface(tree);
-  tree.runtime->inferred_structure_types = std::move(result.socket_structure_types);
+  for (const int i : tree.all_sockets().index_range()) {
+    const bNodeSocket &socket = *tree.all_sockets()[i];
+    socket.runtime->inferred_structure_type = result.socket_structure_types[i];
+  }
   if (tree.runtime->structure_type_interface &&
       *tree.runtime->structure_type_interface == result.group_interface)
   {

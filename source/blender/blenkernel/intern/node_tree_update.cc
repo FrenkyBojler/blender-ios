@@ -964,14 +964,12 @@ class NodeTreeMainUpdater {
           ELEM(node->type_legacy, NODE_CLOSURE_INPUT, NODE_CLOSURE_OUTPUT))
       {
         for (bNodeSocket *socket : node->input_sockets()) {
-          socket->display_shape = get_input_socket_shape(
-              *socket->runtime->declaration,
-              ntree.runtime->inferred_structure_types[socket->index_in_tree()]);
+          socket->display_shape = get_input_socket_shape(*socket->runtime->declaration,
+                                                         socket->runtime->inferred_structure_type);
         }
         for (bNodeSocket *socket : node->output_sockets()) {
           socket->display_shape = get_output_socket_shape(
-              *socket->runtime->declaration,
-              ntree.runtime->inferred_structure_types[socket->index_in_tree()]);
+              *socket->runtime->declaration, socket->runtime->inferred_structure_type);
         }
         continue;
       }

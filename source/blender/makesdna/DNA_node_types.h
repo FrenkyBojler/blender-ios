@@ -2438,7 +2438,9 @@ typedef struct NodeCombineBundleItem {
   char *name;
   int identifier;
   int16_t socket_type;
-  char _pad[2];
+  /** #StructureType. */
+  int8_t structure_type;
+  char _pad[1];
 } NodeCombineBundleItem;
 
 typedef struct NodeCombineBundle {
@@ -2453,7 +2455,9 @@ typedef struct NodeSeparateBundleItem {
   char *name;
   int identifier;
   int16_t socket_type;
-  char _pad[2];
+  /** #StructureType. */
+  int8_t structure_type;
+  char _pad[1];
 } NodeSeparateBundleItem;
 
 typedef struct NodeSeparateBundle {

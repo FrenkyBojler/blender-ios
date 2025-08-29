@@ -16,11 +16,11 @@ class ClosureSignature {
   struct Item {
     std::string key;
     const bke::bNodeSocketType *type = nullptr;
-    std::optional<StructureType> structure_type = std::nullopt;
+    StructureType structure_type = StructureType::Dynamic;
   };
 
   struct ItemKeyGetter {
-    std::string operator()(const Item &item)
+    StringRefNull operator()(const Item &item)
     {
       return item.key;
     }

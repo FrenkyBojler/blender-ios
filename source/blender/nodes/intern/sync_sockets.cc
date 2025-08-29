@@ -303,6 +303,7 @@ void sync_sockets_evaluate_closure(SpaceNode &snode,
         *nodes::socket_items::add_item_with_socket_type_and_name<
             nodes::EvaluateClosureInputItemsAccessor>(
             *snode.edittree, evaluate_closure_node, item.type->type, item.key.c_str());
+    new_item.structure_type = int(item.structure_type);
     if (const std::optional<int> old_identifier = old_input_identifiers.lookup_try(item.key)) {
       new_item.identifier = *old_identifier;
     }
@@ -312,6 +313,7 @@ void sync_sockets_evaluate_closure(SpaceNode &snode,
         *nodes::socket_items::add_item_with_socket_type_and_name<
             nodes::EvaluateClosureOutputItemsAccessor>(
             *snode.edittree, evaluate_closure_node, item.type->type, item.key.c_str());
+    new_item.structure_type = int(item.structure_type);
     if (const std::optional<int> old_identifier = old_output_identifiers.lookup_try(item.key)) {
       new_item.identifier = *old_identifier;
     }
@@ -361,8 +363,11 @@ void sync_sockets_closure(SpaceNode &snode,
     NodeClosureInputItem &new_item =
         *nodes::socket_items::add_item_with_socket_type_and_name<nodes::ClosureInputItemsAccessor>(
             *snode.edittree, closure_output_node, item.type->type, item.key.c_str());
-    if (item.structure_type) {
-      new_item.structure_type = int(*item.structure_type);
+    if (item.structure_type != StructureType::Dynamic) {
+      new_item.structure_type = int(item.structure_type);
+    }
+    else {
+      new_item.structure_type = NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO;
     }
     if (const std::optional<int> old_identifier = old_input_identifiers.lookup_try(item.key)) {
       new_item.identifier = *old_identifier;
