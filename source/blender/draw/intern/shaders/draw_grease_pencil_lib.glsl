@@ -101,17 +101,20 @@ float gpencil_stroke_segment_mask(
   float t0 = dot(pos0, line0) / dot(line0, line0);
   float t2 = dot(pos2, line2) / dot(line2, line2);
 
+  float2 tan_norm0 = normalize(tan0);
+  float2 tan_norm1 = normalize(tan1);
+  float2 tan_norm2 = normalize(tan2);
+
   /* Check if the pixel is within the corner region between segments 1 and 0. */
   if (t1 <= 0.0f && t0 >= 1.0f && !is_start && miter_limit.x != MITER_LIMIT_TYPE_ROUND) {
     if (miter_limit.x == MITER_LIMIT_TYPE_BEVEL) {
       /* Bevel by cutting with a line from the two bevel points. */
-      float2 bevel1 = p1 + sign0 * normalize(tan1) * radius;
-      float2 bevel2 = p1 + sign0 * normalize(tan0) * radius;
+      float2 bevel = sign0 * tan_norm1 * radius;
 
-      float2 bevel_pos = gl_FragCoord.xy - bevel1;
-      float2 bevel_tan = orthogonal(bevel2 - bevel1);
+      float2 bevel_pos = pos1 - bevel;
+      float2 bevel_tan = orthogonal(tan_norm0 - tan_norm1);
 
-      dist = 1.0f - dot(bevel_pos, bevel_tan) / dot(p1 - bevel1, bevel_tan);
+      dist = 1.0f + dot(bevel_pos, bevel_tan) / dot(bevel, bevel_tan);
       dist *= radius;
       dist *= dist;
     }
@@ -125,13 +128,12 @@ float gpencil_stroke_segment_mask(
   if (t1 >= 1.0f && t2 <= 0.0f && !is_end && miter_limit.y != MITER_LIMIT_TYPE_ROUND) {
     if (miter_limit.y == MITER_LIMIT_TYPE_BEVEL) {
       /* Bevel by cutting with a line from the two bevel points. */
-      float2 bevel1 = p2 + sign2 * normalize(tan1) * radius;
-      float2 bevel2 = p2 + sign2 * normalize(tan2) * radius;
+      float2 bevel = sign2 * tan_norm1 * radius;
 
-      float2 bevel_pos = gl_FragCoord.xy - bevel1;
-      float2 bevel_tan = orthogonal(bevel2 - bevel1);
+      float2 bevel_pos = pos2 - bevel;
+      float2 bevel_tan = orthogonal(tan_norm2 - tan_norm1);
 
-      dist = 1.0f - dot(bevel_pos, bevel_tan) / dot(p2 - bevel1, bevel_tan);
+      dist = 1.0f + dot(bevel_pos, bevel_tan) / dot(bevel, bevel_tan);
       dist *= radius;
       dist *= dist;
     }
