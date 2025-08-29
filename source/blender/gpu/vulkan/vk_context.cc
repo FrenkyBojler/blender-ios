@@ -446,7 +446,7 @@ void VKContext::swap_buffers_pre_handler(const GHOST_VulkanSwapChainData &swap_c
                      swap_chain_data.submission_fence);
 
   device.resources.remove_image(swap_chain_data.image);
-#if 0
+#if 1
   device.debug_print();
 #endif
 }
