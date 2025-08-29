@@ -391,6 +391,10 @@ void EditMeshSymmetryHelper::build_mirror_maps_for_axis(int axis)
   BMesh *bmesh = em_->bm;
   BMIter iter;
 
+  /*This function initializes mirror cache for the given axis.
+   * Despite the name, the vertex cache is also used by
+   * EDBM_verts_mirror_get_edge() and EDBM_verts_mirror_get_face(),
+   * so it must always be built even if only edges/faces are needed. */
   EDBM_verts_mirror_cache_begin(em_, axis, true, true, true, use_topology_mirror_);
 
   if (htype_ & BM_VERT) {
