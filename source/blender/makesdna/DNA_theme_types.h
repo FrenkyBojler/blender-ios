@@ -282,7 +282,6 @@ typedef struct ThemeSpace {
 
   /* region tabs */
   unsigned char tab_back[4];
-  char _pad2[4];
 
   /* button/tool regions */
   /** Region background. */
@@ -326,7 +325,6 @@ typedef struct ThemeSpace {
   unsigned char time_gp_keyframe[4];
   unsigned char freestyle_edge_mark[4], freestyle_face_mark[4];
   unsigned char time_scrub_background[4];
-  char _pad10[4];
 
   unsigned char nurb_uline[4], nurb_vline[4];
   unsigned char act_spline[4], nurb_sel_uline[4], nurb_sel_vline[4];
@@ -374,7 +372,7 @@ typedef struct ThemeSpace {
   float keyframe_scale_fac;
 
   unsigned char editmesh_active[4];
-  char _pad6[1];
+  char _pad2[1];
 
   unsigned char clipping_border_3d[4];
 
