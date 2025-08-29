@@ -459,6 +459,8 @@ struct SphericalSelfCollisionData {
 struct ExternelMeshColliderData {
   int key_i;
   const Mesh *mesh;
+  float4x4 mesh_to_self;
+  float4x4 self_to_mesh;
   float friction;
 };
 
@@ -1805,7 +1807,32 @@ PROFILE_FUNCTION static void prepare_evaluation__colliders(WorldPreprocessData &
         world_bundles.colliders, key.path);
     for (const ColliderBundle *constraint_bundle : constraint_bundles) {
       if (const Mesh *mesh = constraint_bundle->geometry.get_mesh()) {
-        world_info.mesh_colliders.append({key_i, mesh, constraint_bundle->friction});
+        world_info.mesh_colliders.append({key_i,
+                                          mesh,
+                                          float4x4::identity(),
+                                          float4x4::identity(),
+                                          constraint_bundle->friction});
+      }
+      if (const bke::Instances *instances = constraint_bundle->geometry.get_instances()) {
+        const Span<float4x4> transforms = instances->transforms();
+        const Span<bke::InstanceReference> references = instances->references();
+        const Span<int> handles = instances->reference_handles();
+        for (const int instance_i : transforms.index_range()) {
+          const int handle = handles[instance_i];
+          if (!references.index_range().contains(handle)) {
+            continue;
+          }
+          const bke::InstanceReference &reference = references[handle];
+          GeometrySet reference_geo;
+          reference.to_geometry_set(reference_geo);
+          if (const Mesh *mesh = reference_geo.get_mesh()) {
+            world_info.mesh_colliders.append({key_i,
+                                              mesh,
+                                              transforms[instance_i],
+                                              math::invert(transforms[instance_i]),
+                                              constraint_bundle->friction});
+          }
+        }
       }
     }
   }
@@ -2251,14 +2278,16 @@ PROFILE_FUNCTION static void gather_mesh_contacts(const SimPoints &sim_points,
       continue;
     }
 
-    const float3 &position = sim_points.positions[point_i];
+    const float3 &position_self = sim_points.positions[point_i];
+    const float3 &position_mesh = math::transform_point(collider.self_to_mesh, position_self);
+
     BVHTreeNearest nearest{};
     nearest.dist_sq = FLT_MAX;
-    BLI_bvhtree_find_nearest(bvh.tree, position, &nearest, bvh.nearest_callback, &bvh);
+    BLI_bvhtree_find_nearest(bvh.tree, position_mesh, &nearest, bvh.nearest_callback, &bvh);
     if (nearest.index == -1) {
       continue;
     }
-    const float3 dir = float3(nearest.co) - position;
+    const float3 dir = float3(nearest.co) - position_mesh;
     const bool is_inside = math::dot(dir, float3(nearest.no)) > 0.0f;
     if (!is_inside) {
       continue;
@@ -2268,9 +2297,14 @@ PROFILE_FUNCTION static void gather_mesh_contacts(const SimPoints &sim_points,
     const float point_friction = sim_points_frictions[point_i];
     const float friction = math::sqrt(point_friction * collider.friction);
 
+    const float3 collision_point = math::transform_point(collider.mesh_to_self,
+                                                         float3(nearest.co));
+    const float3 collision_normal = math::transpose(float3x3(collider.self_to_mesh)) *
+                                    float3(nearest.no);
+
     r_contacts.indices.append(point_i);
-    r_contacts.plane_positions.append(float3(nearest.co));
-    r_contacts.plane_normals.append(math::normalize(float3(nearest.no)));
+    r_contacts.plane_positions.append(collision_point);
+    r_contacts.plane_normals.append(collision_normal);
     r_contacts.static_frictions.append(friction);
     r_contacts.dynamic_frictions.append(friction);
     r_contacts.depths.append(penetration);
