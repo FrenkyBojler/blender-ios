@@ -643,47 +643,52 @@ PROFILE_FUNCTION static WorldBundles parse_world(const Bundle &world_bundle)
   return world_bundles;
 }
 
-PROFILE_FUNCTION static void integrate_linear_velocities(SimPoints &sim_points,
+PROFILE_FUNCTION static void integrate_linear_velocities(const float delta_time,
                                                          const IndexRange range,
+                                                         const Span<float3> old_positions,
                                                          const Span<float3> accelerations,
                                                          const SimPointsWorldProperties &props,
-                                                         const float delta_time)
+                                                         MutableSpan<float3> new_positions,
+                                                         MutableSpan<float3> velocities)
 {
   const float linear_damping_factor = std::max(1.0f - props.linear_damping * delta_time, 0.0f);
-  for (const int i : range) {
-    const float3 &acceleration = accelerations[i];
-    sim_points.velocities[i] += acceleration * delta_time;
-    sim_points.velocities[i] *= linear_damping_factor;
-    sim_points.positions[i] += sim_points.velocities[i] * delta_time;
+  for (const int i : range.index_range()) {
+    const int point_i = range[i];
+    const float3 &acceleration = accelerations[point_i];
+    velocities[i] += acceleration * delta_time;
+    velocities[i] *= linear_damping_factor;
+    new_positions[i] = old_positions[i] + velocities[i] * delta_time;
   }
 }
 
 PROFILE_FUNCTION static void integrate_angular_velocities(
-    SimPoints &sim_points,
+    const float delta_time,
     const IndexRange range,
     const std::optional<Span<float3>> torques,
     const SimPointsWorldProperties &props,
-    const float delta_time)
+    const Span<math::Quaternion> old_rotations,
+    MutableSpan<math::Quaternion> new_rotations,
+    MutableSpan<float3> angular_velocities)
 {
-  BLI_assert(sim_points.has_rotation);
   /* Approximation of exponential decay. */
   const float angular_damping_factor = std::max(1.0f - props.angular_damping * delta_time, 0.0f);
 
-  for (const int i : range) {
-    const float3 &external_torque = torques.has_value() ? (*torques)[i] : float3(0.0f);
+  for (const int i : range.index_range()) {
+    const int point_i = range[i];
+    const float3 &external_torque = torques.has_value() ? (*torques)[point_i] : float3(0.0f);
     const float3 &inertia = props.inertias[i];
-    const float3 &inverse_inertia = props.inverse_inertias[i];
+    const float3 &inverse_inertia = props.inverse_inertias[point_i];
     if (math::is_zero(inverse_inertia)) {
       continue;
     }
-    float3 &angular_velocity = sim_points.angular_velocities[i];
+    float3 &angular_velocity = angular_velocities[i];
     const float3 precession = math::cross(angular_velocity, angular_velocity * inertia);
     angular_velocity += delta_time * (external_torque - precession) * inverse_inertia;
     angular_velocity *= angular_damping_factor;
-    math::Quaternion &rotation = sim_points.rotations[i];
-    const math::Quaternion direction = rotation * math::Quaternion(0, angular_velocity);
-    rotation = math::normalize(
-        math::Quaternion(float4(rotation) + delta_time * 0.5f * float4(direction)));
+    const math::Quaternion &old_rotation = old_rotations[i];
+    const math::Quaternion direction = old_rotation * math::Quaternion(0, angular_velocity);
+    new_rotations[i] = math::normalize(
+        math::Quaternion(float4(old_rotation) + delta_time * 0.5f * float4(direction)));
   }
 }
 
@@ -2449,12 +2454,11 @@ PROFILE_FUNCTION static void solve_constraints(const SolverType solver_type,
 }
 
 PROFILE_FUNCTION static void apply_static_plane_contact_friction(
-    SimPoints &sim_points,
     const StaticPlaneContacts &plane_contacts,
     const Span<float3> prev_positions,
-    const int prev_positions_offset)
+    const int prev_positions_offset,
+    const MutableSpan<float3> new_positions)
 {
-  MutableSpan<float3> new_positions = sim_points.positions;
   for (const int contact_i : plane_contacts.indices.index_range()) {
     const int point_i = plane_contacts.indices[contact_i];
     const float3 &plane_normal = plane_contacts.plane_normals[contact_i];
@@ -2473,58 +2477,53 @@ PROFILE_FUNCTION static void apply_static_plane_contact_friction(
   }
 }
 
-PROFILE_FUNCTION static void apply_friction(XPBDState &state,
-                                            const Span<int> key_group,
+PROFILE_FUNCTION static void apply_friction(const Span<int> key_group,
                                             const Contacts &contacts,
                                             const VectorSet<SimPointsKey> &keys,
-                                            const Span<Array<float3>> all_prev_positions)
+                                            const Span<Array<float3>> all_prev_positions,
+                                            const Span<xpbd::GeometryRef> geometry_refs)
 {
   for (const auto item : contacts.static_plane_contacts.items()) {
     const int key_i = keys.index_of(item.key);
     const int key_in_group_i = key_group.first_index(key_i);
-    SimPoints &sim_points = state.sim_points.lookup(item.key);
     const Span<float3> prev_positions = all_prev_positions[key_in_group_i];
-    apply_static_plane_contact_friction(sim_points, item.value, prev_positions, 0);
+    apply_static_plane_contact_friction(
+        item.value, prev_positions, 0, geometry_refs[key_i].positions);
   }
 }
 
-PROFILE_FUNCTION static void update_linear_velocities(SimPoints &sim_points,
-                                                      const Span<float3> prev_positions,
+PROFILE_FUNCTION static void update_linear_velocities(const float delta_time,
                                                       const IndexRange range,
-                                                      const float delta_time)
+                                                      const Span<float3> prev_positions,
+                                                      const Span<float3> new_positions,
+                                                      MutableSpan<float3> r_velocities)
 {
   const float inv_delta_time = math::safe_rcp(delta_time);
-  Span<float3> new_positions = sim_points.positions;
-  MutableSpan<float3> velocities = sim_points.velocities;
   for (const int i : range.index_range()) {
-    const int point_i = range[i];
     const float3 &prev_position = prev_positions[i];
-    const float3 &new_position = new_positions[point_i];
+    const float3 &new_position = new_positions[i];
     const float3 diff = new_position - prev_position;
     const float3 velocity = diff * inv_delta_time;
-    velocities[point_i] = velocity;
+    r_velocities[i] = velocity;
   }
 }
 
-PROFILE_FUNCTION static void update_angular_velocities(SimPoints &sim_points,
-                                                       const Span<math::Quaternion> prev_rotations,
+PROFILE_FUNCTION static void update_angular_velocities(const float delta_time,
                                                        const IndexRange range,
-                                                       const float delta_time)
+                                                       const Span<math::Quaternion> prev_rotations,
+                                                       const Span<math::Quaternion> new_rotations,
+                                                       MutableSpan<float3> r_angular_velocities)
 {
   const float inv_delta_time = math::safe_rcp(delta_time);
-  const Span<math::Quaternion> new_rotations = sim_points.rotations;
-  MutableSpan<float3> angular_velocities = sim_points.angular_velocities;
   for (const int i : range.index_range()) {
-    const int point_i = range[i];
-    float3 diff =
-        (math::invert_normalized(prev_rotations[i]) * new_rotations[point_i]).imaginary_part();
+    float3 diff = (math::invert_normalized(prev_rotations[i]) * new_rotations[i]).imaginary_part();
     for (const int j : IndexRange(3)) {
       if (math::abs(diff[j]) < 1e-5f) {
         diff[j] = 0.0f;
       }
     }
     const float3 new_angular_velocity = 2.0f * diff * inv_delta_time;
-    angular_velocities[point_i] = new_angular_velocity;
+    r_angular_velocities[i] = new_angular_velocity;
   }
 }
 
@@ -2706,16 +2705,16 @@ static IndexRange find_indices_in_range(const Span<T> indices, const IndexRange 
   return IndexRange::from_begin_end_inclusive(start, last);
 }
 
-PROFILE_FUNCTION static void update_pinned_positions(SimPoints &sim_points,
-                                                     const IndexRange range,
+PROFILE_FUNCTION static void update_pinned_positions(const IndexRange range,
                                                      const PinnedPositions &pinned_positions,
                                                      const float factor,
+                                                     MutableSpan<float3> r_positions,
                                                      MutableSpan<float3> r_soft_pinned_positions)
 {
   for (const int i : find_indices_in_range<int>(pinned_positions.hard_indices, range)) {
     const int point_i = pinned_positions.hard_indices[i];
     const float3 current_position = pinned_positions.hard_animations[i].interpolate(factor);
-    sim_points.positions[point_i] = current_position;
+    r_positions[point_i - range.start()] = current_position;
   }
   for (const int i : find_indices_in_range<int>(pinned_positions.soft_indices, range)) {
     const float3 current_position = pinned_positions.soft_animations[i].interpolate(factor);
@@ -2724,17 +2723,17 @@ PROFILE_FUNCTION static void update_pinned_positions(SimPoints &sim_points,
 }
 
 PROFILE_FUNCTION static void updated_pinned_rotations(
-    SimPoints &sim_points,
     const IndexRange range,
     const PinnedRotations &pinned_rotations,
     const float factor,
+    MutableSpan<math::Quaternion> r_rotations,
     MutableSpan<math::Quaternion> r_soft_pinned_rotations)
 {
   for (const int i : find_indices_in_range<int>(pinned_rotations.hard_indices, range)) {
     const int point_i = pinned_rotations.hard_indices[i];
     const math::Quaternion current_rotation = pinned_rotations.hard_animations[i].interpolate(
         factor);
-    sim_points.rotations[point_i] = current_rotation;
+    r_rotations[point_i - range.start()] = current_rotation;
   }
   for (const int i : find_indices_in_range<int>(pinned_rotations.soft_indices, range)) {
     const math::Quaternion current_rotation = pinned_rotations.soft_animations[i].interpolate(
@@ -2743,22 +2742,13 @@ PROFILE_FUNCTION static void updated_pinned_rotations(
   }
 }
 
-PROFILE_FUNCTION static void remember_previous_state(
-    const SimPoints &sim_points,
-    const IndexRange range,
-    const MutableSpan<float3> dst_positions,
-    const MutableSpan<math::Quaternion> dst_rotations)
-{
-  dst_positions.copy_from(sim_points.positions.as_span().slice(range));
-  if (sim_points.has_rotation) {
-    dst_rotations.copy_from(sim_points.rotations.as_span().slice(range));
-  }
-}
-
-static void pre_solve_per_point_steps(SimPoints &sim_points,
-                                      const IndexRange range,
-                                      MutableSpan<float3> prev_positions,
-                                      MutableSpan<math::Quaternion> prev_rotations,
+static void pre_solve_per_point_steps(const IndexRange range,
+                                      const MutableSpan<float3> prev_positions,
+                                      const MutableSpan<math::Quaternion> prev_rotations,
+                                      const MutableSpan<float3> positions,
+                                      const MutableSpan<float3> velocities,
+                                      const MutableSpan<math::Quaternion> rotations,
+                                      const MutableSpan<float3> angular_velocities,
                                       const SimPointsWorldProperties &props,
                                       const Span<float3> accelerations,
                                       const std::optional<Span<float3>> torques,
@@ -2769,33 +2759,40 @@ static void pre_solve_per_point_steps(SimPoints &sim_points,
                                       MutableSpan<math::Quaternion> soft_pinned_rotations,
                                       const float delta_time)
 {
-  remember_previous_state(sim_points, range, prev_positions, prev_rotations);
+  prev_positions.copy_from(positions);
+  prev_rotations.copy_from(rotations);
   if (delta_time > 0.0f) {
-    integrate_linear_velocities(sim_points, range, accelerations, props, delta_time);
-    if (sim_points.has_rotation) {
-      integrate_angular_velocities(sim_points, range, torques, props, delta_time);
+    integrate_linear_velocities(
+        delta_time, range, prev_positions, accelerations, props, positions, velocities);
+    if (!rotations.is_empty()) {
+      integrate_angular_velocities(
+          delta_time, range, torques, props, prev_rotations, rotations, angular_velocities);
     }
   }
   if (pinned_positions) {
     update_pinned_positions(
-        sim_points, range, *pinned_positions, substep_factor, soft_pinned_positions);
+        range, *pinned_positions, substep_factor, positions, soft_pinned_positions);
   }
   if (pinned_rotations) {
     updated_pinned_rotations(
-        sim_points, range, *pinned_rotations, substep_factor, soft_pinned_rotations);
+        range, *pinned_rotations, substep_factor, rotations, soft_pinned_rotations);
   }
 }
 
-static void post_solve_per_point_steps(SimPoints &sim_points,
+static void post_solve_per_point_steps(const float delta_time,
                                        const IndexRange range,
                                        const Span<float3> prev_positions,
                                        const Span<math::Quaternion> prev_rotations,
-                                       const float delta_time)
+                                       const Span<float3> new_positions,
+                                       const Span<math::Quaternion> new_rotations,
+                                       MutableSpan<float3> r_velocities,
+                                       MutableSpan<float3> r_angular_velocities)
 {
   if (delta_time > 0.0f) {
-    update_linear_velocities(sim_points, prev_positions, range, delta_time);
-    if (sim_points.has_rotation) {
-      update_angular_velocities(sim_points, prev_rotations, range, delta_time);
+    update_linear_velocities(delta_time, range, prev_positions, new_positions, r_velocities);
+    if (!new_rotations.is_empty()) {
+      update_angular_velocities(
+          delta_time, range, prev_rotations, new_rotations, r_angular_velocities);
     }
   }
 }
@@ -2862,18 +2859,24 @@ PROFILE_FUNCTION static void simulate_key_group_global(
                * time-step after the constraints are solved. */
               if (do_post_solve) {
                 post_solve_per_point_steps(
-                    sim_points,
+                    sub_delta_time,
                     range,
                     all_prev_positions[key_in_group_i].as_span().slice(range),
                     all_prev_rotations[key_in_group_i].as_span().slice_safe(range),
-                    sub_delta_time);
+                    sim_points.positions.as_span().slice(range),
+                    sim_points.rotations.as_mutable_span().slice_safe(range),
+                    sim_points.velocities.as_mutable_span().slice(range),
+                    sim_points.angular_velocities.as_mutable_span().slice_safe(range));
               }
               if (do_pre_solve) {
                 pre_solve_per_point_steps(
-                    sim_points,
                     range,
                     all_prev_positions[key_in_group_i].as_mutable_span().slice(range),
                     all_prev_rotations[key_in_group_i].as_mutable_span().slice_safe(range),
+                    sim_points.positions.as_mutable_span().slice(range),
+                    sim_points.velocities.as_mutable_span().slice(range),
+                    sim_points.rotations.as_mutable_span().slice_safe(range),
+                    sim_points.angular_velocities.as_mutable_span().slice_safe(range),
                     props,
                     accelerations,
                     torques,
@@ -2917,7 +2920,7 @@ PROFILE_FUNCTION static void simulate_key_group_global(
 
     if (sub_delta_time > 0.0f) {
       /* Apply friction by updating current positions before the new velocity is computed. */
-      apply_friction(state, key_group, contacts, keys, all_prev_positions);
+      apply_friction(key_group, contacts, keys, all_prev_positions, geometry_refs);
     }
 
     /* Does remaining per-point updates at the end of this time step (like updating velocities) and
@@ -2972,26 +2975,30 @@ PROFILE_FUNCTION static void simulate_curve_local(
         const IndexRange points_range = points_by_curve[curves_range];
         const int points_num = points_range.size();
         Array<float3, 1024> prev_positions(points_num);
-        Array<math::Quaternion, 1024> prev_rotations(points_num);
+        Array<math::Quaternion, 1024> prev_rotations(sim_points.has_rotation ? points_num : 0);
         /* TODO: Support other solve strategies for curve-local evaluation. */
         xpbd::SolveStrategy solve_strategy{xpbd::SolveStrategyType::GaussSeidelParallel,
                                            xpbd::GaussSeidelUpdater{geometry_refs}};
         xpbd::ConstraintSetParams params{geometry_refs};
         for ([[maybe_unused]] const int substep_i : IndexRange(substeps)) {
           const float substep_factor = substeps <= 1 ? 1.0f : float(substep_i) / (substeps - 1);
-          pre_solve_per_point_steps(sim_points,
-                                    points_range,
-                                    prev_positions,
-                                    prev_rotations,
-                                    props,
-                                    accelerations,
-                                    torques,
-                                    pinned_positions,
-                                    pinned_rotations,
-                                    substep_factor,
-                                    soft_pinned_positions,
-                                    soft_pinned_rotations,
-                                    sub_delta_time);
+          pre_solve_per_point_steps(
+              points_range,
+              prev_positions,
+              prev_rotations,
+              sim_points.positions.as_mutable_span().slice(points_range),
+              sim_points.velocities.as_mutable_span().slice(points_range),
+              sim_points.rotations.as_mutable_span().slice_safe(points_range),
+              sim_points.angular_velocities.as_mutable_span().slice_safe(points_range),
+              props,
+              accelerations,
+              torques,
+              pinned_positions,
+              pinned_rotations,
+              substep_factor,
+              soft_pinned_positions,
+              soft_pinned_rotations,
+              sub_delta_time);
 
           const Contacts contacts = gather_contacts_curve_local(
               key_i, curves_range, points_by_curve, state, world_info, keys, props);
@@ -3013,12 +3020,19 @@ PROFILE_FUNCTION static void simulate_curve_local(
                     contacts.static_plane_contacts.lookup_ptr(key))
             {
               apply_static_plane_contact_friction(
-                  sim_points, *plane_contacts, prev_positions, points_range.start());
+                  *plane_contacts, prev_positions, points_range.start(), sim_points.positions);
             }
           }
 
           post_solve_per_point_steps(
-              sim_points, points_range, prev_positions, prev_rotations, sub_delta_time);
+              sub_delta_time,
+              points_range,
+              prev_positions,
+              prev_rotations,
+              sim_points.positions.as_span().slice(points_range),
+              sim_points.rotations.as_span().slice_safe(points_range),
+              sim_points.velocities.as_mutable_span().slice(points_range),
+              sim_points.angular_velocities.as_mutable_span().slice_safe(points_range));
         }
       },
       threading::accumulated_task_sizes(
