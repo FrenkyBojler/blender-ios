@@ -1757,77 +1757,40 @@ static wmOperatorStatus sequencer_box_cut_exec(bContext *C, wmOperator *op)
   const int split_side = sequence_split_side_for_exec_get(op);
   const bool ignore_selection = RNA_boolean_get(op->ptr, "ignore_selection");
 
-  seq::prefetch_stop(scene);
+  // seq::prefetch_stop(scene);
 
-  // LISTBASE_FOREACH_BACKWARD (Strip *, strip, ed->current_strips()) {
-  //   if (use_cursor_position && strip->channel != split_channel) {
-  //     continue;
-  //   }
-
-  //   if (ignore_selection || strip->flag & SELECT) {
-  //     const char *error_msg = nullptr;
-  //     if (seq::edit_strip_split(
-  //             bmain, scene, ed->current_strips(), strip, split_frame, method, &error_msg) !=
-  //         nullptr)
-  //     {
-  //       changed = true;
-  //     }
-  //     if (error_msg != nullptr) {
-  //       BKE_report(op->reports, RPT_ERROR, error_msg);
-  //     }
-  //   }
-  // }
-
-  // if (changed) { /* Got new strips? */
-  //   if (ignore_selection) {
-  //     if (use_cursor_position) {
-  //       LISTBASE_FOREACH (Strip *, strip, seq::active_seqbase_get(ed)) {
-  //         if (seq::time_right_handle_frame_get(scene, strip) == split_frame &&
-  //             strip->channel == split_channel)
-  //         {
-  //           strip_selected = strip->flag & STRIP_ALLSEL;
-  //         }
-  //       }
-  //       if (!strip_selected) {
-  //         LISTBASE_FOREACH (Strip *, strip, seq::active_seqbase_get(ed)) {
-  //           if (seq::time_left_handle_frame_get(scene, strip) == split_frame &&
-  //               strip->channel == split_channel)
-  //           {
-  //             strip->flag &= ~STRIP_ALLSEL;
-  //           }
-  //         }
-  //       }
-  //     }
-  //   }
-  //   else {
-  //     if (split_side != seq::SIDE_BOTH) {
-  //       LISTBASE_FOREACH (Strip *, strip, seq::active_seqbase_get(ed)) {
-  //         if (split_side == seq::SIDE_LEFT) {
-  //           if (seq::time_left_handle_frame_get(scene, strip) >= split_frame) {
-  //             strip->flag &= ~STRIP_ALLSEL;
-  //           }
-  //         }
-  //         else {
-  //           if (seq::time_right_handle_frame_get(scene, strip) <= split_frame) {
-  //             strip->flag &= ~STRIP_ALLSEL;
-  //           }
-  //         }
-  //       }
-  //     }
-  //   }
-  // }
-
-  // if (changed) {
-  //   WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
-  //   return OPERATOR_FINISHED;
-  // }
-
-  LISTBASE_FOREACH (Strip *, strip, ed->current_strips()) {
+  int2 rect_frames = {round_fl_to_int(rectf.xmin), round_fl_to_int(rectf.xmax)};
+  LISTBASE_FOREACH_MUTABLE (Strip *, strip, ed->current_strips()) {
     rctf rq;
     strip_rectf(scene, strip, &rq);
     if (BLI_rctf_isect(&rq, &rectf, nullptr)) {
-      printf("strip->name %s\n", strip->name);
+      const char *error_msg = nullptr;
+      if (seq::edit_strip_split(
+              bmain, scene, ed->current_strips(), strip, rect_frames[0], method, &error_msg) !=
+          nullptr)
+      {
+        printf("edit_strip_split\n");
+      }
+      if (seq::edit_strip_split(
+              bmain, scene, ed->current_strips(), strip, rect_frames[1], method, &error_msg) !=
+          nullptr)
+      {
+        printf("edit_strip_split\n");
+      }
     }
+  }
+  LISTBASE_FOREACH (Strip *, strip, ed->current_strips()) {
+    rctf rq;
+    strip_rectf(scene, strip, &rq);
+    const float left_handle = seq::time_left_handle_frame_get(scene, strip);
+    const float right_handle = seq::time_right_handle_frame_get(scene, strip);
+    /* check if left and right handle are in the rect */
+    if (left_handle >= rect_frames[0] && left_handle <= rect_frames[1] &&
+        right_handle >= rect_frames[0] && right_handle <= rect_frames[1])
+    {
+      seq::edit_flag_for_removal(scene, ed->current_strips(), strip);
+    }
+    seq::edit_remove_flagged_strips(scene, ed->current_strips());
   }
   /* Passthrough to selection if used as tool. */
   return OPERATOR_FINISHED;
@@ -1853,6 +1816,12 @@ void SEQUENCER_OT_box_cut(wmOperatorType *ot)
   // PropertyRNA *prop;
   WM_operator_properties_gesture_box(ot);
   WM_operator_properties_select_operation_simple(ot);
+  RNA_def_enum(ot->srna,
+               "type",
+               prop_split_types,
+               seq::SPLIT_SOFT,
+               "Type",
+               "The type of split operation to perform on strips");
 }
 
 /** \} */
