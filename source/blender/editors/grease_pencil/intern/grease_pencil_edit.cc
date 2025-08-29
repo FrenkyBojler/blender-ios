@@ -4715,7 +4715,7 @@ static wmOperatorStatus grease_pencil_set_corner_type_exec(bContext *C, wmOperat
   const Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(*scene, grease_pencil);
   threading::parallel_for_each(drawings, [&](const MutableDrawingInfo &info) {
     IndexMaskMemory memory;
-    const IndexMask selection = ed::greasepencil::retrieve_editable_and_selected_points(
+    const IndexMask selection = ed::greasepencil::retrieve_editable_and_selected_strokes(
         *object, info.drawing, info.layer_index, memory);
     if (selection.is_empty()) {
       return;
@@ -4726,9 +4726,9 @@ static wmOperatorStatus grease_pencil_set_corner_type_exec(bContext *C, wmOperat
 
     bke::SpanAttributeWriter<int> corner_types = attributes.lookup_or_add_for_write_span<int>(
         "corner_type",
-        bke::AttrDomain::Point,
+        bke::AttrDomain::Curve,
         bke::AttributeInitVArray(
-            VArray<int>::from_single(GP_STROKE_CAP_ROUND, curves.points_num())));
+            VArray<int>::from_single(GP_STROKE_CAP_ROUND, curves.curves_num())));
 
     index_mask::masked_fill(corner_types.span, corner_type, selection);
 
@@ -4741,9 +4741,6 @@ static wmOperatorStatus grease_pencil_set_corner_type_exec(bContext *C, wmOperat
         return;
       }
 
-      const IndexMask strokes = ed::greasepencil::retrieve_editable_and_selected_strokes(
-          *object, info.drawing, info.layer_index, memory);
-
       bke::SpanAttributeWriter<float> miter_angles =
           attributes.lookup_or_add_for_write_span<float>(
               "miter_angle",
@@ -4751,7 +4748,7 @@ static wmOperatorStatus grease_pencil_set_corner_type_exec(bContext *C, wmOperat
               bke::AttributeInitVArray(
                   VArray<float>::from_single(DEG2RADF(45.0f), curves.curves_num())));
 
-      index_mask::masked_fill(miter_angles.span, miter_angle, strokes);
+      index_mask::masked_fill(miter_angles.span, miter_angle, selection);
 
       miter_angles.finish();
     }

@@ -1073,59 +1073,6 @@ static VArray<T> attribute_interpolate(const VArray<T> &input, const bke::Curves
   return VArray<T>::from_container(std::move(out));
 };
 
-static VArray<int> interpolate_corners(const bke::CurvesGeometry &curves)
-{
-  const VArray<int> corner_types = *curves.attributes().lookup_or_default<int>(
-      "corner_type", bke::AttrDomain::Point, GP_STROKE_CORNER_TYPE_ROUND);
-
-  if (curves.is_single_type(CURVE_TYPE_POLY)) {
-    return corner_types;
-  }
-
-  if (corner_types.is_single() &&
-      corner_types.get_internal_single() == GP_STROKE_CORNER_TYPE_ROUND)
-  {
-    return VArray<int>::from_single(GP_STROKE_CORNER_TYPE_ROUND, curves.evaluated_points_num());
-  }
-
-  /* Default all the evaluated points to be round.
-   * This is done so that the added points look as smooth as possible. */
-  Array<int> eval_corners(curves.evaluated_points_num(), GP_STROKE_CORNER_TYPE_ROUND);
-
-  const VArray<int8_t> types = curves.curve_types();
-  const OffsetIndices<int> points_by_curve = curves.points_by_curve();
-  const OffsetIndices<int> evaluated_points_by_curve = curves.evaluated_points_by_curve();
-
-  threading::parallel_for(curves.curves_range(), 128, [&](IndexRange range) {
-    for (const int curve_i : range) {
-      const IndexRange eval_points = evaluated_points_by_curve[curve_i];
-      const IndexRange points = points_by_curve[curve_i];
-      MutableSpan<int> eval_corners_range = eval_corners.as_mutable_span().slice(eval_points);
-
-      switch (types[curve_i]) {
-        case CURVE_TYPE_POLY:
-          for (const int i : points.index_range()) {
-            eval_corners_range[i] = corner_types[points[i]];
-          }
-          break;
-        case CURVE_TYPE_BEZIER: {
-          const Span<int> offsets = curves.bezier_evaluated_offsets_for_curve(curve_i);
-          for (const int i : points.index_range()) {
-            eval_corners_range[offsets[i]] = corner_types[points[i]];
-          }
-          break;
-        }
-        case CURVE_TYPE_NURBS:
-        case CURVE_TYPE_CATMULL_ROM: {
-          /* NUBRS and Catmull-Rom are continuous and don't have corners. */
-          break;
-        }
-      }
-    }
-  });
-  return VArray<int>::from_container(std::move(eval_corners));
-}
-
 static void grease_pencil_geom_batch_ensure(Object &object,
                                             const GreasePencil &grease_pencil,
                                             const Scene &scene)
@@ -1251,7 +1198,6 @@ static void grease_pencil_geom_batch_ensure(Object &object,
         *attributes.lookup_or_default<ColorGeometry4f>(
             "vertex_color", bke::AttrDomain::Point, ColorGeometry4f(0.0f, 0.0f, 0.0f, 0.0f)),
         curves);
-    const VArray<int> corner_types = interpolate_corners(curves);
 
     /* Assumes that if the ".selection" attribute does not exist, all points are selected. */
     const VArray<float> selection_float = *attributes.lookup_or_default<float>(
@@ -1275,6 +1221,8 @@ static void grease_pencil_geom_batch_ensure(Object &object,
         "fill_opacity", bke::AttrDomain::Curve, 1.0f);
     const VArray<float> miter_angles = *attributes.lookup_or_default<float>(
         "miter_angle", bke::AttrDomain::Curve, DEG2RADF(45.0f));
+    const VArray<int> corner_types = *attributes.lookup_or_default<int>(
+        "corner_type", bke::AttrDomain::Curve, GP_STROKE_CORNER_TYPE_ROUND);
 
     const Span<int3> triangles = info.drawing.triangles();
     const Span<float4x2> texture_matrices = info.drawing.texture_matrices();
@@ -1319,7 +1267,7 @@ static void grease_pencil_geom_batch_ensure(Object &object,
           stroke_point_aspect_ratios[curve_i],
           stroke_softness[curve_i],
           miter_angles[curve_i],
-          corner_types[point_i]);
+          corner_types[curve_i]);
       s_vert.u_stroke = u_stroke;
       copy_v2_v2(s_vert.uv_fill, texture_matrix * float4(pos, 1.0f));
 
