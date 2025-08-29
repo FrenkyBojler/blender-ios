@@ -931,7 +931,7 @@ class IMAGE_HT_header(Header):
 
         if show_uvedit:
             mesh = context.edit_object.data
-            layout.prop_search(mesh.uv_layers, "active", mesh, "uv_layers", text="")
+            layout.prop_search(mesh.uv_layers, "active_selected", mesh, "uv_layers", text="")
 
         if ima:
             if ima.is_stereo_3d:

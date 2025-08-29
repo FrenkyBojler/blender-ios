@@ -51,6 +51,8 @@ static const EnumPropertyItem rna_enum_mesh_remesh_mode_items[] = {
 
 #  include "BKE_attribute.hh"
 #  include "BKE_customdata.hh"
+#  include "BKE_global.hh"
+#  include "BKE_layer.hh"
 #  include "BKE_lib_id.hh"
 #  include "BKE_main.hh"
 #  include "BKE_mesh.hh"
@@ -816,6 +818,39 @@ static void rna_CustomDataLayer_active_set(
   }
 
   BKE_mesh_tessface_clear(mesh);
+}
+
+static void rna_Mesh_uv_layer_selected_active_set(PointerRNA *ptr,
+                                                  const PointerRNA value,
+                                                  ReportList * /*reports*/)
+{
+  Mesh *mesh = rna_mesh(ptr);
+  CustomDataLayer *layer = (CustomDataLayer *)value.data;
+  CustomData *data = rna_mesh_ldata(ptr);
+  int layer_index = CustomData_get_named_layer_index(data, CD_PROP_FLOAT2, layer->name);
+
+  printf("rna_Mesh_uv_layer_active_selected_set: layer_index = %d\n", layer_index);
+  CustomData_set_layer_active(data, CD_PROP_FLOAT2, layer_index);
+
+  Object *ob;
+  if (G_MAIN) {
+    LISTBASE_FOREACH (Scene *, scene, &G_MAIN->scenes) {
+      ViewLayer *view_layer = BKE_view_layer_default_view(scene);
+      FOREACH_SELECTED_OBJECT_BEGIN (view_layer, nullptr, ob) {
+        if (ob->type == OB_MESH && ob->mode == OB_MODE_EDIT && ob->data != mesh) {
+          Mesh *other_mesh = (Mesh *)ob->data;
+          CustomData *other_data = rna_mesh_ldata_helper(other_mesh);
+          int other_layer_index = CustomData_get_named_layer_index(
+              other_data, CD_PROP_FLOAT2, layer->name);
+          if (other_layer_index >= 0) {
+            printf("Object Name: %s layer_index = %d\n", ob->id.name, other_layer_index);
+            CustomData_set_layer_active(other_data, CD_PROP_FLOAT2, other_layer_index);
+          }
+        }
+      }
+      FOREACH_SELECTED_OBJECT_END;
+    }
+  }
 }
 
 static void rna_CustomDataLayer_clone_set(PointerRNA *ptr, CustomData *data, int value, int type)
@@ -2730,13 +2765,29 @@ static void rna_def_uv_layers(BlenderRNA *brna, PropertyRNA *cprop)
 
   prop = RNA_def_property(srna, "active", PROP_POINTER, PROP_NONE);
   RNA_def_property_struct_type(prop, "MeshUVLoopLayer");
-  RNA_def_property_pointer_funcs(
-      prop, "rna_Mesh_uv_layer_active_get", "rna_Mesh_uv_layer_active_set", nullptr, nullptr);
+  RNA_def_property_pointer_funcs(prop,
+                                 "rna_Mesh_uv_layer_active_get",
+                                 "rna_Mesh_uv_layer_active_set",
+                                 nullptr,
+                                 nullptr);
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_flag(prop, PROP_EDITABLE | PROP_NEVER_UNLINK);
   RNA_def_property_ui_text(prop, "Active UV Map Layer", "Active UV Map layer");
   RNA_def_property_update(prop, 0, "rna_Mesh_update_data_legacy_deg_tag_all");
 
+  prop = RNA_def_property(srna, "active_selected", PROP_POINTER, PROP_NONE);
+  RNA_def_property_struct_type(prop, "MeshUVLoopLayer");
+  RNA_def_property_pointer_funcs(prop,
+                                 "rna_Mesh_uv_layer_active_get",
+                                 "rna_Mesh_uv_layer_selected_active_set",
+                                 nullptr,
+                                 nullptr);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_flag(prop, PROP_EDITABLE | PROP_NEVER_UNLINK);
+  RNA_def_property_ui_text(prop, "Active UV Map Layer Selected", "Active UV Map layer");
+  RNA_def_property_update(prop, 0, "rna_Mesh_update_data_legacy_deg_tag_all");   
+  
+  
   prop = RNA_def_property(srna, "active_index", PROP_INT, PROP_UNSIGNED);
   RNA_def_property_int_funcs(prop,
                              "rna_Mesh_uv_layer_active_index_get",
