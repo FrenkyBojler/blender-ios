@@ -119,9 +119,6 @@ class VKThreadData : public NonCopyable, NonMovable {
 
   /**
    * All resource pools.
-   *
-   * The resource pools are already allocated for a worse case scenario (Wayland can require 5
-   * resource pools)
    */
   Vector<VKResourcePool, 5> resource_pools;
 
@@ -140,8 +137,6 @@ class VKThreadData : public NonCopyable, NonMovable {
    * when the rendering_depth set to 0.
    */
   int32_t rendering_depth = 0;
-
-  VKDescriptorPools descriptor_pools;
 
   VKThreadData(VKDevice &device, pthread_t thread_id);
 
@@ -191,7 +186,7 @@ class VKDevice : public NonCopyable {
 
   bool is_initialized_ = false;
 
-  /*
+  /**
    * Task pool for render graph submission.
    *
    * Multiple threads in Blender can build a render graph. Building the command buffer for a render
