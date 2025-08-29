@@ -103,7 +103,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
   auto &panel = b.add_panel("Solver");
   panel.add_input<decl::Menu>("Solver Type").static_items(solver_type_items);
-  panel.add_input<decl::Int>("Substeps").default_value(1).min(1);
+  panel.add_input<decl::Int>("Substeps").default_value(10).min(1);
 }
 
 struct SimPoints {
