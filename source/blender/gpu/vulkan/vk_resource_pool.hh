@@ -144,6 +144,7 @@ class VKDiscardPool {
 };
 
 class VKResourcePool {
+
  public:
   VKDescriptorSetTracker descriptor_set;
 };
