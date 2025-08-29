@@ -4099,9 +4099,7 @@ int RNA_property_string_length(PointerRNA *ptr, PropertyRNA *prop)
     std::string string_final = property_string_get(ptr, prop_rna_or_id);
     return int(string_final.size());
   }
-  else {
-    return int(property_string_length_storage(ptr, prop_rna_or_id));
-  }
+  return int(property_string_length_storage(ptr, prop_rna_or_id));
 }
 
 void RNA_property_string_set(PointerRNA *ptr, PropertyRNA *prop, const char *value)

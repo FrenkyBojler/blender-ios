@@ -182,8 +182,17 @@ static constexpr auto PROP_PATH_SUPPORTS_TEMPLATES_DESCR =
 static constexpr auto PROP_ENUM_FLAG_DESCR = "";
 
 const EnumPropertyItem rna_enum_property_flag_items[] = {
-    /* Intentionally flipped, accounted for in the `bpy.props` module.
-     * This is done to avoid every `options={...}` having to include `EDITABLE`. */
+    /* NOTE: This is used only in the `bpy.props` module to define runtime RNA properties.
+     * The value of this 'READ_ONLY' enum item is logically inverted compared to the
+     * `PROP_EDITABLE` used everywhere else in RNA-related code.
+     *
+     * This inversion logic is handled by the bpy property definition code (see
+     * #bpy_prop_assign_flag), and does not affect any other code area.
+     *
+     * This special handling is done to allow python property definitions to create by default
+     * editable properties, without having to specify the `options={'EDITABLE', ...}` parameter all
+     * the time.
+     */
     {PROP_EDITABLE, "READ_ONLY", 0, "Read Only", PROP_READ_ONLY_DESCR},
 
     {PROP_HIDDEN, "HIDDEN", 0, "Hidden", PROP_HIDDEN_DESCR},
@@ -217,8 +226,17 @@ const EnumPropertyItem rna_enum_property_flag_items[] = {
 
 /** Only for enum type properties. */
 const EnumPropertyItem rna_enum_property_flag_enum_items[] = {
-    /* Intentionally flipped, accounted for in the `bpy.props` module.
-     * This is done to avoid every `options={...}` having to include `EDITABLE`. */
+    /* NOTE: This is used only in the `bpy.props` module to define runtime RNA properties.
+     * The value of this 'READ_ONLY' enum item is logically inverted compared to the
+     * `PROP_EDITABLE` used everywhere else in RNA-related code.
+     *
+     * This inversion logic is handled by the bpy property definition code (see
+     * #bpy_prop_assign_flag), and does not affect any other code area.
+     *
+     * This special handling is done to allow python property definitions to create by default
+     * editable properties, without having to specify the `options={'EDITABLE', ...}` parameter all
+     * the time.
+     */
     {PROP_EDITABLE, "READ_ONLY", 0, "Read Only", PROP_READ_ONLY_DESCR},
 
     {PROP_HIDDEN, "HIDDEN", 0, "Hidden", PROP_HIDDEN_DESCR},
