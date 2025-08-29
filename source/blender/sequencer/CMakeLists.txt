@@ -113,6 +113,7 @@ set(LIB
   PRIVATE bf::blentranslation
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
+  PRIVATE bf::extern::fmtlib
   PRIVATE bf::gpu
   PRIVATE bf::imbuf
   PRIVATE bf::imbuf::movie
