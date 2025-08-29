@@ -234,10 +234,6 @@ static void cmp_node_glare_declare(NodeDeclarationBuilder &b)
       .structure_type(StructureType::Dynamic)
       .usage_by_menu("Kernel Data Type", int(KernelDataType::Color))
       .compositor_realization_mode(CompositorInputRealizationMode::Transforms);
-  glare_panel.add_input<decl::Bool>("Normalize Kernel")
-      .default_value(true)
-      .usage_by_menu("Type", CMP_NODE_GLARE_CUSTOM_KERNEL)
-      .description("Normalizes the kernel such that it integrates to one");
 }
 
 static void node_composit_init_glare(bNodeTree * /*ntree*/, bNode *node)
@@ -2407,16 +2403,19 @@ class GlareOperation : public NodeOperation {
     const Result &kernel = this->get_kernel_input();
     Result custom_kernel_result = context().create_result(ResultType::Color);
     custom_kernel_result.allocate_texture(highlights.domain());
-    parallel_for(custom_kernel_result.domain().size, [&](const int2 texel) {
-      custom_kernel_result.store_pixel(texel, highlights.load_pixel<float4>(texel));
-    });
 
     if (highlights.is_single_value() || kernel.is_single_value()) {
+      if (this->context().use_gpu()) {
+        GPU_texture_copy(custom_kernel_result, highlights);
+      }
+      else {
+        parallel_for(custom_kernel_result.domain().size, [&](const int2 texel) {
+          custom_kernel_result.store_pixel(texel, highlights.load_pixel<float4>(texel));
+        });
+      }
       return custom_kernel_result;
     }
-
-    convolve(
-        this->context(), highlights, kernel, custom_kernel_result, this->get_normalize_kernel());
+    convolve(this->context(), highlights, kernel, custom_kernel_result, true);
     return custom_kernel_result;
   }
 
@@ -2439,11 +2438,6 @@ class GlareOperation : public NodeOperation {
     const MenuValue default_menu_value = MenuValue(KernelDataType::Float);
     const MenuValue menu_value = input.get_single_value_default(default_menu_value);
     return static_cast<KernelDataType>(menu_value.value);
-  }
-
-  bool get_normalize_kernel()
-  {
-    return this->get_input("Normalize Kernel").get_single_value_default(true);
   }
 
   /* ----------
