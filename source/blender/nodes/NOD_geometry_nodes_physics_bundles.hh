@@ -46,6 +46,18 @@ class TorqueBundle : public NestedBundleCommon {
   static std::optional<TorqueBundle> parse(const Bundle &bundle, BundleParseErrors &r_errors);
 };
 
+class ColliderBundle : public NestedBundleCommon {
+ public:
+  static constexpr StringRefNull name = "Blender.Collider";
+
+  std::string filter;
+  bke::GeometrySet geometry;
+  float friction;
+
+  static const FlatBundleTypePtr &get_bundle_type();
+  static std::optional<ColliderBundle> parse(const Bundle &bundle, BundleParseErrors &r_errors);
+};
+
 class DampingBundle : public NestedBundleCommon {
  public:
   static constexpr StringRefNull name = "Blender.Damping";

@@ -86,6 +86,33 @@ std::optional<TorqueBundle> TorqueBundle::parse(const Bundle &bundle, BundlePars
   return behavior;
 }
 
+const FlatBundleTypePtr &ColliderBundle::get_bundle_type()
+{
+  static const FlatBundleTypePtr bundle_type = []() {
+    FlatBundleTypeBuilder b(ColliderBundle::name);
+    b.add<decl::String>("filter");
+    b.add<decl::Geometry>("geometry");
+    b.add<decl::Float>("friction").min(0.0f);
+    const FlatBundleTypePtr bundle_type = b.build();
+    BundleTypeRegistry::register_type(bundle_type);
+    return bundle_type;
+  }();
+  return bundle_type;
+}
+
+std::optional<ColliderBundle> ColliderBundle::parse(const Bundle &bundle,
+                                                    BundleParseErrors &r_errors)
+{
+  ColliderBundle behavior;
+  bundle_parse_member(bundle, "filter", behavior.filter, r_errors);
+  bundle_parse_member(bundle, "geometry", behavior.geometry, r_errors);
+  bundle_parse_member(bundle, "friction", behavior.friction, r_errors);
+  if (r_errors.has_error()) {
+    return std::nullopt;
+  }
+  return behavior;
+}
+
 const FlatBundleTypePtr &DampingBundle::get_bundle_type()
 {
   static const FlatBundleTypePtr bundle_type = []() {

@@ -2,6 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BKE_bvhutils.hh"
 #include "BKE_curves.hh"
 #include "BKE_instances.hh"
 
@@ -72,6 +73,7 @@ static NestedBundleTypePtr make_world_type()
   types.append(AlignPositionsConstraintBundle::get_bundle_type());
   types.append(AttachUVSurfaceConstraintBundle::get_bundle_type());
   types.append(DistanceBasedEdgeBendingConstraintBundle::get_bundle_type());
+  types.append(ColliderBundle::get_bundle_type());
 
   NestedBundleTypePtr world_type = std::make_shared<const NestedBundleType>(
       "Blender.XpbdSolverWorld", std::move(types));
@@ -353,6 +355,7 @@ struct WorldBundles {
   BundleVectorSet<AlignPositionsConstraintBundle> align_position_constraints;
   BundleVectorSet<AttachUVSurfaceConstraintBundle> attach_uv_surface_constraints;
   BundleVectorSet<DistanceBasedEdgeBendingConstraintBundle> distance_based_bending_constraints;
+  BundleVectorSet<ColliderBundle> colliders;
 };
 
 struct CurveRodStretchAndShearConstraintData {
@@ -453,6 +456,12 @@ struct SphericalSelfCollisionData {
   int key_i;
 };
 
+struct ExternelMeshColliderData {
+  int key_i;
+  const Mesh *mesh;
+  float friction;
+};
+
 struct SimPointsPropertiesData {
   fn::FieldEvaluator *evaluator;
   MutableSpan<float> inverse_masses;
@@ -494,6 +503,7 @@ struct WorldPreprocessData {
 
   Vector<InfinitePlaneColliderData> infinite_plane_colliders;
   Vector<SphericalSelfCollisionData> spherical_self_collisions;
+  Vector<ExternelMeshColliderData> mesh_colliders;
 };
 
 static const Field<bool> &get_constant_true_field()
@@ -639,6 +649,7 @@ PROFILE_FUNCTION static WorldBundles parse_world(const Bundle &world_bundle)
     parse_bundle(params, errors, world_bundles.align_position_constraints);
     parse_bundle(params, errors, world_bundles.attach_uv_surface_constraints);
     parse_bundle(params, errors, world_bundles.distance_based_bending_constraints);
+    parse_bundle(params, errors, world_bundles.colliders);
   });
   return world_bundles;
 }
@@ -1784,6 +1795,22 @@ PROFILE_FUNCTION static void prepare_evaluation__spherical_self_collisions(
   }
 }
 
+PROFILE_FUNCTION static void prepare_evaluation__colliders(WorldPreprocessData &world_info,
+                                                           const WorldBundles &world_bundles,
+                                                           const VectorSet<SimPointsKey> &keys)
+{
+  for (const int key_i : keys.index_range()) {
+    const SimPointsKey &key = keys[key_i];
+    const Vector constraint_bundles = filter_bundles_for_path<ColliderBundle>(
+        world_bundles.colliders, key.path);
+    for (const ColliderBundle *constraint_bundle : constraint_bundles) {
+      if (const Mesh *mesh = constraint_bundle->geometry.get_mesh()) {
+        world_info.mesh_colliders.append({key_i, mesh, constraint_bundle->friction});
+      }
+    }
+  }
+}
+
 PROFILE_FUNCTION static Vector<xpbd::RodStretchAndShearCurveLocalConstraintSet *>
 build_constraint_sets__curves_rod_stretch_and_shear(ThreadLocalStorage &tls,
                                                     const WorldPreprocessData &world_info,
@@ -2209,6 +2236,47 @@ PROFILE_FUNCTION static void gather_ground_plane_contacts(
   }
 }
 
+PROFILE_FUNCTION static void gather_mesh_contacts(const SimPoints &sim_points,
+                                                  const IndexRange points_range,
+                                                  const ExternelMeshColliderData &collider,
+                                                  const Span<float> sim_points_frictions,
+                                                  const Span<float> sim_points_inverse_masses,
+                                                  StaticPlaneContacts &r_contacts)
+{
+  bke::BVHTreeFromMesh bvh = collider.mesh->bvh_corner_tris();
+  for (const int point_i : points_range) {
+    const float inverse_mass = sim_points_inverse_masses[point_i];
+    if (inverse_mass <= 0.0f) {
+      /* Points with infinite mass are pinned and don't collide dynamically. */
+      continue;
+    }
+
+    const float3 &position = sim_points.positions[point_i];
+    BVHTreeNearest nearest{};
+    nearest.dist_sq = FLT_MAX;
+    BLI_bvhtree_find_nearest(bvh.tree, position, &nearest, bvh.nearest_callback, &bvh);
+    if (nearest.index == -1) {
+      continue;
+    }
+    const float3 dir = float3(nearest.co) - position;
+    const bool is_inside = math::dot(dir, float3(nearest.no)) > 0.0f;
+    if (!is_inside) {
+      continue;
+    }
+
+    const float penetration = math::length(dir);
+    const float point_friction = sim_points_frictions[point_i];
+    const float friction = math::sqrt(point_friction * collider.friction);
+
+    r_contacts.indices.append(point_i);
+    r_contacts.plane_positions.append(float3(nearest.co));
+    r_contacts.plane_normals.append(math::normalize(float3(nearest.no)));
+    r_contacts.static_frictions.append(friction);
+    r_contacts.dynamic_frictions.append(friction);
+    r_contacts.depths.append(penetration);
+  }
+}
+
 PROFILE_FUNCTION static void gather_sphere_contacts(const SimPoints &sim_points,
                                                     const Span<float> radii,
                                                     DynamicSphereContacts &r_contacts)
@@ -2273,6 +2341,13 @@ PROFILE_FUNCTION static Contacts gather_contacts_curve_local(
     gather_ground_plane_contacts(
         sim_points, points_range, collider, props.frictions, props.inverse_masses, plane_contacts);
   }
+  for (const ExternelMeshColliderData &collider : world_info.mesh_colliders) {
+    if (collider.key_i != key_i) {
+      continue;
+    }
+    gather_mesh_contacts(
+        sim_points, points_range, collider, props.frictions, props.inverse_masses, plane_contacts);
+  }
   if (!plane_contacts.indices.is_empty()) {
     contacts.static_plane_contacts.add_new(key, std::move(plane_contacts));
   }
@@ -2313,6 +2388,17 @@ PROFILE_FUNCTION static Contacts gather_contacts_global(
                                      props.frictions,
                                      props.inverse_masses,
                                      plane_contacts);
+      }
+      for (const ExternelMeshColliderData &collider : world_info.mesh_colliders) {
+        if (collider.key_i != key_i) {
+          continue;
+        }
+        gather_mesh_contacts(sim_points,
+                             IndexRange(sim_points.points_num),
+                             collider,
+                             props.frictions,
+                             props.inverse_masses,
+                             plane_contacts);
       }
       if (!plane_contacts.indices.is_empty()) {
         contacts.static_plane_contacts.add_new(key, std::move(plane_contacts));
@@ -3205,6 +3291,7 @@ PROFILE_FUNCTION static void update_and_step_xpbd_state(XPBDState &state,
   prepare_evaluation__pressure_constraints(world_info, world_bundles, applied_geometries, keys);
   prepare_evaluation__infinite_plane_colliders(world_info, world_bundles, keys);
   prepare_evaluation__spherical_self_collisions(world_info, world_bundles, keys);
+  prepare_evaluation__colliders(world_info, world_bundles, keys);
 
   Vector<fn::FieldEvaluator *> field_evaluators;
   for (fn::FieldEvaluator *evaluator : world_info.field_evaluators.values()) {
