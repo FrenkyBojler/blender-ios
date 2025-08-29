@@ -1733,7 +1733,6 @@ void SEQUENCER_OT_split(wmOperatorType *ot)
 
 static wmOperatorStatus sequencer_box_cut_exec(bContext *C, wmOperator *op)
 {
-  printf("sequencer_box_cut_exec\n");
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_sequencer_scene(C);
   Editing *ed = seq::editing_get(scene);
@@ -1831,7 +1830,6 @@ static wmOperatorStatus sequencer_box_cut_exec(bContext *C, wmOperator *op)
     }
   }
   /* Passthrough to selection if used as tool. */
-  printf("OPERATOR_FINISHED\n");
   return OPERATOR_FINISHED;
   // return OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH;
 }
