@@ -524,6 +524,9 @@ static bool node_update_basis_socket(const bContext &C,
   if (node.is_muted()) {
     layout.active_set(false);
   }
+  if (!ID_IS_EDITABLE(&ntree.id)) {
+    layout.enabled_set(false);
+  }
 
   uiLayout *row = &layout.row(true);
   PointerRNA nodeptr = RNA_pointer_create_discrete(&ntree.id, &RNA_Node, &node);
