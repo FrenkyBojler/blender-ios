@@ -140,11 +140,14 @@ bool BKE_palette_is_empty(const Palette *palette);
 void BKE_palette_color_remove(Palette *palette, PaletteColor *color);
 void BKE_palette_clear(Palette *palette);
 
+void BKE_palette_color_set(PaletteColor *color, const float rgb[3]);
+void BKE_palette_color_sync_legacy(PaletteColor *color);
+
 void BKE_palette_sort_hsv(tPaletteColorHSV *color_array, int totcol);
 void BKE_palette_sort_svh(tPaletteColorHSV *color_array, int totcol);
 void BKE_palette_sort_vhs(tPaletteColorHSV *color_array, int totcol);
 void BKE_palette_sort_luminance(tPaletteColorHSV *color_array, int totcol);
-bool BKE_palette_from_hash(Main *bmain, GHash *color_table, const char *name, bool linear);
+bool BKE_palette_from_hash(Main *bmain, GHash *color_table, const char *name);
 
 /* Paint curves. */
 
@@ -192,7 +195,7 @@ Brush *BKE_paint_brush_from_essentials(Main *bmain, PaintMode paint_mode, const 
  * Check if brush \a brush may be set/activated for \a paint. Passing null for \a brush will return
  * true.
  */
-bool BKE_paint_brush_poll(const Paint *paint, const Brush *brush);
+bool BKE_paint_can_use_brush(const Paint *paint, const Brush *brush);
 
 /**
  * Activates \a brush for painting, and updates #Paint.brush_asset_reference so the brush can be
