@@ -2132,12 +2132,12 @@ static void sequencer_remove_listbase_pointers(Scene &scene)
   if (!ed) {
     return;
   }
-  if (BLI_listbase_is_empty(&ed->metastack)) {
+  const MetaStack *last_meta_stack = blender::seq::meta_stack_active_get(ed);
+  if (!last_meta_stack) {
     return;
   }
-  const MetaStack &last_meta_stack = *static_cast<MetaStack *>(ed->metastack.last);
-  ed->current_meta_strip = last_meta_stack.parent_strip;
-  blender::seq::meta_stack_set(&scene, last_meta_stack.parent_strip);
+  ed->current_meta_strip = last_meta_stack->parent_strip;
+  blender::seq::meta_stack_set(&scene, last_meta_stack->parent_strip);
 }
 
 void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
