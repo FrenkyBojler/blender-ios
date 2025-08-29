@@ -881,14 +881,15 @@ enum {
 
 /** #StripModifierData.type */
 typedef enum eStripModifierType {
-  seqModifierType_ColorBalance = 1,
-  seqModifierType_Curves = 2,
-  seqModifierType_HueCorrect = 3,
-  seqModifierType_BrightContrast = 4,
-  seqModifierType_Mask = 5,
-  seqModifierType_WhiteBalance = 6,
-  seqModifierType_Tonemap = 7,
-  seqModifierType_SoundEqualizer = 8,
+  eSeqModifierType_None = 0,
+  eSeqModifierType_ColorBalance = 1,
+  eSeqModifierType_Curves = 2,
+  eSeqModifierType_HueCorrect = 3,
+  eSeqModifierType_BrightContrast = 4,
+  eSeqModifierType_Mask = 5,
+  eSeqModifierType_WhiteBalance = 6,
+  eSeqModifierType_Tonemap = 7,
+  eSeqModifierType_SoundEqualizer = 8,
   /* Keep last. */
   NUM_STRIP_MODIFIER_TYPES,
 } eStripModifierType;

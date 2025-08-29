@@ -42,16 +42,16 @@ struct EffectInfo {
 /* These wrap strangely, disable formatting for fixed indentation and wrapping. */
 /* clang-format off */
 #define RNA_ENUM_SEQUENCER_VIDEO_MODIFIER_TYPE_ITEMS \
-  {seqModifierType_BrightContrast, "BRIGHT_CONTRAST", ICON_NONE, "Brightness/Contrast", ""}, \
-  {seqModifierType_ColorBalance, "COLOR_BALANCE", ICON_NONE, "Color Balance", ""}, \
-  {seqModifierType_Curves, "CURVES", ICON_NONE, "Curves", ""}, \
-  {seqModifierType_HueCorrect, "HUE_CORRECT", ICON_NONE, "Hue Correct", ""}, \
-  {seqModifierType_Mask, "MASK", ICON_NONE, "Mask", ""}, \
-  {seqModifierType_Tonemap, "TONEMAP", ICON_NONE, "Tone Map", ""}, \
-  {seqModifierType_WhiteBalance, "WHITE_BALANCE", ICON_NONE, "White Balance", ""}
+  {eSeqModifierType_BrightContrast, "BRIGHT_CONTRAST", ICON_NONE, "Brightness/Contrast", ""}, \
+  {eSeqModifierType_ColorBalance, "COLOR_BALANCE", ICON_NONE, "Color Balance", ""}, \
+  {eSeqModifierType_Curves, "CURVES", ICON_NONE, "Curves", ""}, \
+  {eSeqModifierType_HueCorrect, "HUE_CORRECT", ICON_NONE, "Hue Correct", ""}, \
+  {eSeqModifierType_Mask, "MASK", ICON_NONE, "Mask", ""}, \
+  {eSeqModifierType_Tonemap, "TONEMAP", ICON_NONE, "Tone Map", ""}, \
+  {eSeqModifierType_WhiteBalance, "WHITE_BALANCE", ICON_NONE, "White Balance", ""}
 
 #define RNA_ENUM_SEQUENCER_AUDIO_MODIFIER_TYPE_ITEMS \
-  {seqModifierType_SoundEqualizer, "SOUND_EQUALIZER", ICON_NONE, "Sound Equalizer", ""}
+  {eSeqModifierType_SoundEqualizer, "SOUND_EQUALIZER", ICON_NONE, "Sound Equalizer", ""}
 /* clang-format on */
 
 const EnumPropertyItem rna_enum_strip_modifier_type_items[] = {
@@ -1235,7 +1235,7 @@ static bool colbalance_seq_cmp_fn(Strip *strip, void *arg_pt)
   for (StripModifierData *smd = static_cast<StripModifierData *>(strip->modifiers.first); smd;
        smd = smd->next)
   {
-    if (smd->type == seqModifierType_ColorBalance) {
+    if (smd->type == eSeqModifierType_ColorBalance) {
       ColorBalanceModifierData *cbmd = (ColorBalanceModifierData *)smd;
 
       if (&cbmd->color_balance == data->data) {
@@ -1428,19 +1428,19 @@ static StructRNA *rna_StripModifier_refine(PointerRNA *ptr)
   StripModifierData *smd = (StripModifierData *)ptr->data;
 
   switch (smd->type) {
-    case seqModifierType_ColorBalance:
+    case eSeqModifierType_ColorBalance:
       return &RNA_ColorBalanceModifier;
-    case seqModifierType_Curves:
+    case eSeqModifierType_Curves:
       return &RNA_CurvesModifier;
-    case seqModifierType_HueCorrect:
+    case eSeqModifierType_HueCorrect:
       return &RNA_HueCorrectModifier;
-    case seqModifierType_BrightContrast:
+    case eSeqModifierType_BrightContrast:
       return &RNA_BrightContrastModifier;
-    case seqModifierType_WhiteBalance:
+    case eSeqModifierType_WhiteBalance:
       return &RNA_WhiteBalanceModifier;
-    case seqModifierType_Tonemap:
+    case eSeqModifierType_Tonemap:
       return &RNA_SequencerTonemapModifierData;
-    case seqModifierType_SoundEqualizer:
+    case eSeqModifierType_SoundEqualizer:
       return &RNA_SoundEqualizerModifier;
     default:
       return &RNA_StripModifier;
@@ -2190,7 +2190,7 @@ static void rna_def_strip_modifiers(BlenderRNA *brna, PropertyRNA *cprop)
   parm = RNA_def_enum(func,
                       "type",
                       rna_enum_strip_modifier_type_items,
-                      seqModifierType_ColorBalance,
+                      eSeqModifierType_ColorBalance,
                       "",
                       "Modifier type to add");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);

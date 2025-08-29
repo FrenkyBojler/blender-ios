@@ -59,6 +59,8 @@ struct StripModifierTypeInfo {
   void (*panel_register)(ARegionType *region_type);
 };
 
+void modifiers_init();
+
 const StripModifierTypeInfo *modifier_type_info_get(int type);
 StripModifierData *modifier_new(Strip *strip, const char *name, int type);
 bool modifier_remove(Strip *strip, StripModifierData *smd);
