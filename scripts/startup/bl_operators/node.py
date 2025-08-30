@@ -219,7 +219,7 @@ class NodeSwapOperator(NodeOperator):
                 if new_value is not None:
                     new_socket.default_value = new_value
 
-            except (AttributeError, KeyError):
+            except (AttributeError, KeyError, TypeError):
                 pass
 
     @staticmethod
