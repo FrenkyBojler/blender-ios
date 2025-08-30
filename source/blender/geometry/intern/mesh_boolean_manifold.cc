@@ -1865,7 +1865,7 @@ static Mesh *meshgl_to_mesh(MeshGL &mgl,
       }
       if (do_copy) {
         if (dbg_level > 0) {
-          std::cout << "array_utils::gather, name = " << iter.name << "\n";
+          std::cout << "bke::attribute_math::gather, name = " << iter.name << "\n";
         }
         bke::GSpanAttributeWriter dst = output_attrs.lookup_or_add_for_write_span(
             iter.name, iter.domain, iter.data_type);
@@ -1874,7 +1874,7 @@ static Mesh *meshgl_to_mesh(MeshGL &mgl,
               out_to_in_map, material_remaps, meshes, mesh_offsets, dst.span.typed<int>());
         }
         else {
-          bke::attribute_math::gather(GVArray(*iter.get()), out_to_in_map, dst.span);
+          bke::attribute_math::gather(iter.get().varray, out_to_in_map, dst.span);
         }
         dst.finish();
       }
