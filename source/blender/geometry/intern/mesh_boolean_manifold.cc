@@ -1437,22 +1437,6 @@ static MeshAssembly assemble_mesh_from_meshgl(MeshGL &mgl, const MeshOffsets &me
   return ma;
 }
 
-static void copy_attribute_using_map(const GSpan src,
-                                     const Span<int> out_to_in_map,
-                                     GMutableSpan dst)
-{
-  const CPPType &type = dst.type();
-  const int grain_size = 20000;
-  threading::parallel_for(out_to_in_map.index_range(), grain_size, [&](const IndexRange range) {
-    for (const int out_elem : range) {
-      const int in_elem = out_to_in_map[out_elem];
-      if (in_elem != -1) {
-        type.copy_assign(src[in_elem], dst[out_elem]);
-      }
-    }
-  });
-}
-
 static void interpolate_corner_attributes(bke::MutableAttributeAccessor &output_attrs,
                                           bke::AttributeAccessor &input_attrs,
                                           Mesh *output_mesh,
@@ -1881,7 +1865,7 @@ static Mesh *meshgl_to_mesh(MeshGL &mgl,
       }
       if (do_copy) {
         if (dbg_level > 0) {
-          std::cout << "copy_attribute_using_map, name = " << iter.name << "\n";
+          std::cout << "array_utils::gather, name = " << iter.name << "\n";
         }
         bke::GSpanAttributeWriter dst = output_attrs.lookup_or_add_for_write_span(
             iter.name, iter.domain, iter.data_type);
@@ -1890,7 +1874,7 @@ static Mesh *meshgl_to_mesh(MeshGL &mgl,
               out_to_in_map, material_remaps, meshes, mesh_offsets, dst.span.typed<int>());
         }
         else {
-          copy_attribute_using_map(GVArraySpan(*iter.get()), out_to_in_map, dst.span);
+          bke::attribute_math::gather(GVArray(*iter.get()), out_to_in_map, dst.span);
         }
         dst.finish();
       }
