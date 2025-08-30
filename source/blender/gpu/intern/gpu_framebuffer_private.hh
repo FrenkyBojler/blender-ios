@@ -150,9 +150,6 @@ class FrameBuffer {
   void attachment_set(GPUAttachmentType type, const GPUAttachment &new_attachment);
   void attachment_remove(GPUAttachmentType type);
 
-  void recursive_downsample(int max_lvl,
-                            void (*callback)(void *user_data, int level),
-                            void *user_data);
   uint get_bits_per_pixel();
 
   /* Sets the size after creation. */
@@ -233,12 +230,17 @@ class FrameBuffer {
     scissor_set(scissor_rect);
   }
 
-  blender::gpu::Texture *depth_tex() const
+  inline const GPUAttachment &depth_attachment() const
   {
     if (attachments_[GPU_FB_DEPTH_ATTACHMENT].tex) {
-      return attachments_[GPU_FB_DEPTH_ATTACHMENT].tex;
+      return attachments_[GPU_FB_DEPTH_ATTACHMENT];
     }
-    return attachments_[GPU_FB_DEPTH_STENCIL_ATTACHMENT].tex;
+    return attachments_[GPU_FB_DEPTH_STENCIL_ATTACHMENT];
+  }
+
+  blender::gpu::Texture *depth_tex() const
+  {
+    return depth_attachment().tex;
   };
 
   blender::gpu::Texture *color_tex(int slot) const
@@ -268,17 +270,17 @@ class FrameBuffer {
 };
 
 /* Syntactic sugar. */
-static inline GPUFrameBuffer *wrap(FrameBuffer *vert)
+static inline GPUFrameBuffer *wrap(FrameBuffer *framebuffer)
 {
-  return reinterpret_cast<GPUFrameBuffer *>(vert);
+  return reinterpret_cast<GPUFrameBuffer *>(framebuffer);
 }
-static inline FrameBuffer *unwrap(GPUFrameBuffer *vert)
+static inline FrameBuffer *unwrap(GPUFrameBuffer *framebuffer)
 {
-  return reinterpret_cast<FrameBuffer *>(vert);
+  return reinterpret_cast<FrameBuffer *>(framebuffer);
 }
-static inline const FrameBuffer *unwrap(const GPUFrameBuffer *vert)
+static inline const FrameBuffer *unwrap(const GPUFrameBuffer *framebuffer)
 {
-  return reinterpret_cast<const FrameBuffer *>(vert);
+  return reinterpret_cast<const FrameBuffer *>(framebuffer);
 }
 
 #undef DEBUG_NAME_LEN
