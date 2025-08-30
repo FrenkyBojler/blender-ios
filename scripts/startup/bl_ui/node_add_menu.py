@@ -18,7 +18,7 @@ def set_use_transform(operators, value):
                 props.use_transform = value
 
     # Handle case where only a single item is given
-    except TypeError: 
+    except TypeError:
         if hasattr(operators, "use_transform"):
             operators.use_transform = value
 
@@ -118,7 +118,7 @@ def draw_group_menu(context, layout, group_operator, empty_group_operator):
         layout.separator()
         node_operator(layout, group_operator, "NodeGroupInput")
         node_operator(layout, group_operator, "NodeGroupOutput")
-    
+
     operators = []
     operators.append(new_empty_group(layout, empty_group_operator))
 
@@ -192,7 +192,7 @@ def node_operator_with_searchable_enum_socket(
         socket_identifier,
         enum_names,
         search_weight=0.0):
-    
+
     operators = []
     operators.append(node_operator(layout, operator_id, node_idname, search_weight=search_weight))
     if getattr(context, "is_menu_search", False):
@@ -216,7 +216,7 @@ def node_operator_with_searchable_enum_socket(
 
 def color_mix_node(context, layout, operator_id):
     label = iface_("Mix Color")
-    
+
     operators = []
     props = node_operator(layout, operator_id, "ShaderNodeMix", label=label, translate=False)
     ops = props.settings.add()
@@ -238,6 +238,7 @@ def color_mix_node(context, layout, operator_id):
             operators.append(props)
 
     return operators
+
 
 def add_simulation_zone(layout, label):
     """Add simulation zone to a menu."""
@@ -287,7 +288,7 @@ class AddNodeMenu:
             poll=poll,
             search_weight=search_weight,
             translate=translate)
-        
+
         set_use_transform(props, True)
         return props
 
@@ -295,17 +296,23 @@ class AddNodeMenu:
     def node_operator_with_searchable_enum(context, layout, node_idname, property_name, search_weight=0.0):
         operators = node_add_menu.node_operator_with_searchable_enum(
             context, layout, "node.add_node", node_idname, property_name, search_weight)
-        
+
         for props in operators:
             set_use_transform(props, True)
 
         return operators
-    
+
     @staticmethod
-    def node_operator_with_searchable_enum_socket(context, layout, node_idname, socket_identifier, enum_names, search_weight=0.0):
+    def node_operator_with_searchable_enum_socket(
+            context,
+            layout,
+            node_idname,
+            socket_identifier,
+            enum_names,
+            search_weight=0.0):
         operators = node_add_menu.node_operator_with_searchable_enum_socket(
             context, layout, "node.add_node", node_idname, socket_identifier, enum_names, search_weight)
-        
+
         for props in operators:
             set_use_transform(props, True)
 
@@ -321,7 +328,7 @@ class AddNodeMenu:
             subnames,
             label=label,
             search_weight=search_weight)
-        
+
         for props in operators:
             set_use_transform(props, True)
 
@@ -330,7 +337,7 @@ class AddNodeMenu:
     @staticmethod
     def color_mix_node(context, layout):
         operators = color_mix_node(context, layout, "node.add_node")
-        
+
         for props in operators:
             set_use_transform(props, True)
 
@@ -345,8 +352,8 @@ class AddNodeMenu:
     @staticmethod
     def draw_group_menu(context, layout):
         operators = draw_group_menu(context, layout, group_operator="node.add_node",
-                               empty_group_operator="node.add_empty_group")
-        
+                                    empty_group_operator="node.add_empty_group")
+
         for props in operators:
             set_use_transform(props, True)
 
@@ -396,7 +403,13 @@ class SwapNodeMenu:
             context, layout, "node.swap_node", node_idname, property_name, search_weight)
 
     @staticmethod
-    def node_operator_with_searchable_enum_socket(context, layout, node_idname, socket_identifier, enum_names, search_weight=0.0):
+    def node_operator_with_searchable_enum_socket(
+            context,
+            layout,
+            node_idname,
+            socket_identifier,
+            enum_names,
+            search_weight=0.0):
         return node_add_menu.node_operator_with_searchable_enum_socket(
             context, layout, "node.swap_node", node_idname, socket_identifier, enum_names, search_weight)
 

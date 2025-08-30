@@ -562,7 +562,7 @@ class NODE_OT_swap_zone(ZoneOperator, NodeSwapOperator, Operator):
         for old_node in context.selected_nodes[:]:
             if tree.nodes.get(old_node.name) is None:
                 continue
-            
+
             input_node = self.create_node(context, self.input_node_type)
             output_node = self.create_node(context, self.output_node_type)
 
