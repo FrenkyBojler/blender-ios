@@ -20,7 +20,6 @@
 
 namespace blender::ed::transform {
 
-
 /* -------------------------------------------------------------------- */
 /** \name Edge (for crease) Transform Creation
  * \{ */

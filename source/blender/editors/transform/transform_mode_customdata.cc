@@ -40,14 +40,15 @@ static void transdata_elem_value(const TransInfo * /*t*/,
                                  const float value)
 {
   if (td->val == nullptr) {
-    return; 
+    return;
   }
 
   *td->val = td->ival + value * td->factor;
   CLAMP(*td->val, 0.0f, 1.0f);
 }
 
-static void apply_value_impl(TransInfo *t, const char *value_name) {
+static void apply_value_impl(TransInfo *t, const char *value_name)
+{
   float value;
   char str[UI_MAX_DRAW_STR];
 
@@ -81,7 +82,7 @@ static void apply_value_impl(TransInfo *t, const char *value_name) {
 
   FOREACH_TRANS_DATA_CONTAINER (t, tc) {
     std::optional<EditMeshSymmetryHelper> symmetry_helper =
-        EditMeshSymmetryHelper::create_if_needed(tc->obedit);
+        EditMeshSymmetryHelper::create_if_needed(tc->obedit, BM_VERT | BM_EDGE);
 
     /* TODO: This can be de-duplicated with the other TFM_* custom data look ups. */
     BMEditMesh *em = BKE_editmesh_from_object(tc->obedit);
@@ -94,8 +95,7 @@ static void apply_value_impl(TransInfo *t, const char *value_name) {
       cd_offset = CustomData_get_offset_named(&em->bm->edata, CD_PROP_FLOAT, "crease_edge");
     }
     else if (t->mode == TFM_BWEIGHT) {
-      cd_offset = CustomData_get_offset_named(
-          &em->bm->edata, CD_PROP_FLOAT, "bevel_weight_edge");
+      cd_offset = CustomData_get_offset_named(&em->bm->edata, CD_PROP_FLOAT, "bevel_weight_edge");
     }
 
     threading::parallel_for(IndexRange(tc->data_len), 1024, [&](const IndexRange range) {
@@ -111,13 +111,29 @@ static void apply_value_impl(TransInfo *t, const char *value_name) {
           if (t->mode == TFM_VERT_CREASE) {
             BMVert *vert = static_cast<BMVert *>(td->extra);
             if (vert) {
-              symmetry_helper->set_float_on_mirror_verts(vert, cd_offset, *td->val);
+              symmetry_helper->apply_on_mirror_verts(
+                  vert, [cd_offset, val = *td->val](BMVert *v_mirr) {
+                    if (!BM_elem_flag_test(v_mirr, BM_ELEM_HIDDEN)) {
+                      float *mirror_val_ptr = static_cast<float *>(
+                          BM_ELEM_CD_GET_VOID_P(v_mirr, cd_offset));
+                      *mirror_val_ptr = val;
+                      CLAMP(*mirror_val_ptr, 0.0f, 1.0f);
+                    }
+                  });
             }
           }
           else {
             BMEdge *edge = static_cast<BMEdge *>(td->extra);
             if (edge) {
-              symmetry_helper->set_float_on_mirror_edges(edge, cd_offset, *td->val);
+              symmetry_helper->apply_on_mirror_edges(
+                  edge, [cd_offset, val = *td->val](BMEdge *e_mirr) {
+                    if (!BM_elem_flag_test(e_mirr, BM_ELEM_HIDDEN)) {
+                      float *mirror_val_ptr = static_cast<float *>(
+                          BM_ELEM_CD_GET_VOID_P(e_mirr, cd_offset));
+                      *mirror_val_ptr = val;
+                      CLAMP(*mirror_val_ptr, 0.0f, 1.0f);
+                    }
+                  });
             }
           }
         }
@@ -207,4 +223,3 @@ TransModeInfo TransMode_bevelweight = {
 };
 
 }  // namespace blender::ed::transform
-

@@ -51,7 +51,7 @@ static void mesh_cdata_transdata_create(TransDataBasic *td,
   }
 
   copy_v3_v3(td->center, mesh_cdata_transdata_center(island_data, island_index, eve));
-  
+
   td->extra = eve;
 }
 
@@ -232,4 +232,3 @@ TransConvertTypeInfo TransConvertType_MeshVertCData = {
 };
 
 }  // namespace blender::ed::transform
-
