@@ -14,9 +14,6 @@
 #include "BLI_math_vector_types.hh"
 #include "BLI_span.hh"
 #include "BLI_virtual_array.hh"
-#include "BLI_map.hh"
-#include "BLI_vector.hh"
-#include "BLI_function_ref.hh" 
 
 #include "DNA_windowmanager_enums.h"
 
@@ -71,6 +68,26 @@ class EditMeshSymmetryHelper {
  private:
   EditMeshSymmetryHelper(Object *ob, uchar htype);
 
+  /**
+   * This function builds mirror lookup tables for the given axis.
+   * For each element type (vertex, edge, face) included in htype,
+   * this checks whether a valid mirrored counterpart exists across
+   * the given axis. If it exists, a bidirectional mapping is stored in the
+   * corresponding {vert,edge,face}_to_mirror_map_.
+   *
+   */
+  void build_mirror_maps_for_axis(int axis);
+
+  /**
+   * This function stores a bidirectional mirror relationship between two mesh elements
+   * and is a helper function for build_mirror_maps_for_axis.
+   * The main reason for this helper is that an element can have multiple mirrored counterparts
+   * when more than one symmetry axis is enabled (e.g. symmetry on X and Y creates mirrors across
+   * the XY plane). This allows mirror relationships to be added incrementally as each axis is
+   * processed.
+   */
+  void add_mirror_relationship(BMElem *elem1, BMElem *elem2);
+
   BMEditMesh *em_;
   Mesh *mesh_;
   uchar htype_;
@@ -79,34 +96,6 @@ class EditMeshSymmetryHelper {
   blender::Map<BMVert *, blender::Vector<BMVert *>> vert_to_mirror_map_;
   blender::Map<BMEdge *, blender::Vector<BMEdge *>> edge_to_mirror_map_;
   blender::Map<BMFace *, blender::Vector<BMFace *>> face_to_mirror_map_;
-};
-
-class EditMeshSymmetryHelper {
-public:
-  static std::optional<EditMeshSymmetryHelper> create_if_needed(Object *ob);
-
-  bool is_any_mirror_edge_selected(BMEdge *edge, char hflag) const;
-  bool is_any_mirror_vert_selected(BMVert *vert, char hflag) const;
-  bool is_any_mirror_face_selected(BMFace *face, char hflag) const;
-
-  void set_flag_on_mirror_verts(BMVert *vert, char hflag, bool value) const;
-  void set_flag_on_mirror_edges(BMEdge *edge, char hflag, bool value) const;
-  void set_flag_on_mirror_faces(BMFace *face, char hflag, bool value) const;
-
-  void apply_on_mirror_verts(BMVert *vert, blender::FunctionRef<void(BMVert *)> op) const;
-  void apply_on_mirror_edges(BMEdge *edge, blender::FunctionRef<void(BMEdge *)> op) const;
-  void apply_on_mirror_faces(BMFace *face, blender::FunctionRef<void(BMFace *)> op) const;
-
-private:
-  EditMeshSymmetryHelper(Object *ob);
-
-  BMEditMesh *em;
-  Mesh *mesh;
-  bool use_topology_mirror;
-
-  blender::Map<BMVert *, blender::Vector<BMVert *>> vert_to_mirrors_map;
-  blender::Map<BMEdge *, blender::Vector<BMEdge *>> edge_to_mirrors_map;
-  blender::Map<BMFace *, blender::Vector<BMFace *>> face_to_mirrors_map;
 };
 
 /**
