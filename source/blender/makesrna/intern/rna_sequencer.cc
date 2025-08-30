@@ -665,15 +665,15 @@ static void rna_Strip_use_proxy_set(PointerRNA *ptr, bool value)
 
 static PointerRNA rna_Strip_active_modifier_get(PointerRNA *ptr)
 {
-  const Strip *strip = (Strip *)(ptr->data);
+  const Strip *strip = ptr->data_as<Strip>();
   StripModifierData *smd = blender::seq::modifier_get_active(strip);
   return RNA_pointer_create_with_parent(*ptr, &RNA_StripModifier, smd);
 }
 
 static void rna_Strip_active_modifier_set(PointerRNA *ptr, PointerRNA value, ReportList *reports)
 {
-  Strip *strip = (Strip *)ptr->data;
-  StripModifierData *smd = static_cast<StripModifierData *>(value.data);
+  Strip *strip = ptr->data_as<Strip>();
+  StripModifierData *smd = value.data_as<StripModifierData>();
 
   WM_main_add_notifier(NC_SCENE | ND_SEQUENCER, ptr->owner_id);
 
@@ -1500,7 +1500,7 @@ static void rna_StripModifier_name_set(PointerRNA *ptr, const char *value)
 
 static void rna_StripModifier_is_active_set(PointerRNA *ptr, bool value)
 {
-  StripModifierData *smd = static_cast<StripModifierData *>(ptr->data);
+  StripModifierData *smd = ptr->data_as<StripModifierData>();
 
   if (value) {
     /* Disable the active flag of all other modifiers. */

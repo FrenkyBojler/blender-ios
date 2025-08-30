@@ -561,10 +561,7 @@ typedef struct StripModifierData {
 
   int persistent_uid;
   /**
-   * Bits that can be used for open-states of layout panels in the modifier. This can replace
-   * `ui_expand_flag` once all modifiers use layout panels. Currently, trying to reuse the same
-   * flags is problematic, because the bits in `ui_expand_flag` are mapped to panels automatically
-   * and easily conflict with the explicit mapping of bits to panels here.
+   * Bits that can be used for open-states of layout panels in the modifier.
    */
   uint16_t layout_panel_open_flag;
   char _pad[2];
