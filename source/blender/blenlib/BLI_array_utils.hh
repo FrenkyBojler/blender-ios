@@ -157,7 +157,7 @@ inline void scatter(const VArray<T> src,
           return;
         }
 
-        std::array<T, max_segment_size> buffer;
+        std::array<T, index_mask::max_segment_size> buffer;
         src.materialize_to_uninitialized(src_range,
                                          MutableSpan<T>(buffer).take_front(segment.size()));
 
