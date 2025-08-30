@@ -1403,7 +1403,7 @@ class GlareOperation : public NodeOperation {
     GPU_shader_uniform_4fv_array(shader,
                                  "color_modulators",
                                  color_modulators.size(),
-                                 (const float(*)[4])color_modulators.data());
+                                 (const float (*)[4])color_modulators.data());
 
     /* Zero initialize output image where ghosts will be accumulated. */
     const float4 zero_color = float4(0.0f);
@@ -2402,9 +2402,9 @@ class GlareOperation : public NodeOperation {
   {
     const Result &kernel = this->get_kernel_input();
     Result custom_kernel_result = context().create_result(ResultType::Color);
-    custom_kernel_result.allocate_texture(highlights.domain());
 
-    if (highlights.is_single_value() || kernel.is_single_value()) {
+    if (kernel.is_single_value()) {
+      custom_kernel_result.allocate_texture(highlights.domain());
       if (this->context().use_gpu()) {
         GPU_texture_copy(custom_kernel_result, highlights);
       }
