@@ -246,6 +246,14 @@ static void rna_def_light(BlenderRNA *brna)
                            "output regardless of size and shape");
   RNA_def_property_update(prop, 0, "rna_Light_draw_update");
 
+  prop = RNA_def_property(srna, "use_scene_conversion", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_negative_sdna(prop, nullptr, "mode", LA_USE_UNIT_CONVERSION);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_ui_text(
+      prop, "Scene Conversion", "Convert light's power to scene unit system");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_LIGHT);
+  RNA_def_property_update(prop, 0, "rna_Light_draw_update");
+
   /* nodes */
   prop = RNA_def_property(srna, "node_tree", PROP_POINTER, PROP_NONE);
   RNA_def_property_pointer_sdna(prop, nullptr, "nodetree");
@@ -259,6 +267,14 @@ static void rna_def_light(BlenderRNA *brna)
   RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
   RNA_def_property_ui_text(prop, "Use Nodes", "Use shader nodes to render the light");
   RNA_def_property_update(prop, 0, "rna_Light_use_nodes_update");
+
+  prop = RNA_def_property(srna, "use_advanced", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_negative_sdna(prop, nullptr, "mode", LA_USE_ADVANCED);
+  RNA_def_property_ui_text(
+      prop, "Use Advanced", "Use light's advanced properties");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_LIGHT);
+  RNA_def_property_update(prop, 0, "rna_Light_draw_update");
+
 
   /* common */
   rna_def_animdata_common(srna);

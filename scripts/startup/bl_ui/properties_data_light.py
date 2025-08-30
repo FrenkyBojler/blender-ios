@@ -260,6 +260,29 @@ class DATA_PT_spot(DataButtonsPanel, Panel):
 
         col.prop(light, "show_cone")
 
+class DATA_PT_light_advanced(DataButtonsPanel, Panel):
+    bl_label = "Advanced"
+    COMPAT_ENGINES = {
+        'BLENDER_RENDER',
+        'BLENDER_EEVEE',
+        'BLENDER_WORKBENCH',
+    }
+    @classmethod
+    def poll(cls, context):
+        return (context.engine in cls.COMPAT_ENGINES)
+    def draw_header(self, context):
+        light = context.light
+        self.layout.prop(light, "use_advanced", text="")
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+
+        light = context.light
+
+        col = layout.column(align=True)
+        col.active = light.use_advanced
+        col.prop(light, "use_scene_conversion", text="Scene Conversion")
 
 class DATA_PT_light_animation(DataButtonsPanel, PropertiesAnimationMixin, PropertyPanel, Panel):
     COMPAT_ENGINES = {
@@ -305,6 +328,7 @@ classes = (
     DATA_PT_EEVEE_light_shadow,
     DATA_PT_EEVEE_light_influence,
     DATA_PT_EEVEE_light_distance,
+    DATA_PT_light_advanced,
     DATA_PT_light_animation,
     DATA_PT_custom_props_light,
 )

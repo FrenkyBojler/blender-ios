@@ -60,7 +60,8 @@ void Light::sync(ShadowModule &shadows,
                  char visibility_flag,
                  const ::Light *la,
                  const LightLinking *light_linking /* = nullptr */,
-                 float threshold)
+                 float threshold,
+                 const Scene *scene)
 {
   using namespace blender::math;
 
@@ -72,6 +73,9 @@ void Light::sync(ShadowModule &shadows,
   this->color = BKE_light_power(*la) * BKE_light_color(*la);
   if (la->mode & LA_UNNORMALIZED) {
     this->color *= BKE_light_area(*la, object_to_world);
+  }
+  if (la->mode & LA_USE_UNIT_CONVERSION) {
+    this->color = BKE_light_unit_scale_convertion(scene, this->color);
   }
 
   float3 scale;
@@ -392,7 +396,7 @@ void LightModule::begin_sync()
 
     Light &light = light_map_.lookup_or_add_default(world_sunlight_key);
     light.used = true;
-    light.sync(inst_.shadows, float4x4::identity(), 0, &la, nullptr, light_threshold_);
+    light.sync(inst_.shadows, float4x4::identity(), 0, &la, nullptr, light_threshold_, inst_.scene);
 
     sun_lights_len_ += 1;
   }
@@ -420,7 +424,8 @@ void LightModule::sync_light(const Object *ob, ObjectHandle &handle)
                ob->visibility_flag,
                &la,
                ob->light_linking,
-               light_threshold_);
+               light_threshold_,
+               inst_.scene);
   }
   sun_lights_len_ += int(is_sun_light(light.type));
   local_lights_len_ += int(!is_sun_light(light.type));
