@@ -1,11 +1,11 @@
-/* SPDX-FileCopyrightText: 2024 Blender Authors
+/* SPDX-FileCopyrightText: 2025 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup edinterface
  *
- * Template for building the panel layout for the active object's modifiers.
+ * Template for building the panel layout for the active strip's modifiers.
  */
 
 #include "DNA_scene_types.h"
@@ -76,8 +76,8 @@ void uiTemplateStripModifiers(uiLayout * /*layout*/, bContext *C)
       /* Move to the next instanced panel corresponding to the next modifier. */
       while ((panel->type == nullptr) || !(panel->type->flag & PANEL_TYPE_INSTANCED)) {
         panel = panel->next;
-        BLI_assert(panel !=
-                   nullptr); /* There shouldn't be fewer panels than modifiers with UIs. */
+        /* There shouldn't be fewer panels than modifiers with UIs. */
+        BLI_assert(panel != nullptr);
       }
 
       PointerRNA *md_ptr = MEM_new<PointerRNA>(__func__);
