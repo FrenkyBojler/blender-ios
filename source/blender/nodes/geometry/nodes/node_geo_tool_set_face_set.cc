@@ -4,6 +4,8 @@
 
 #include "DNA_mesh_types.h"
 
+#include "GEO_foreach_geometry.hh"
+
 #include "node_geometry_util.hh"
 
 namespace blender::nodes::node_geo_tool_set_face_set_cc {
@@ -13,7 +15,8 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.use_custom_socket_order();
   b.allow_any_socket_order();
   b.add_input<decl::Geometry>("Mesh");
-  b.add_output<decl::Geometry>("Mesh").align_with_previous();
+  b.add_output<decl::Geometry>("Mesh").align_with_previous().description(
+      "Mesh to override the face set attribute on");
   b.add_input<decl::Bool>("Selection").default_value(true).hide_value().field_on_all();
   b.add_input<decl::Int>("Face Set").hide_value().field_on_all();
 }
@@ -36,7 +39,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   const bool is_zero = is_constant_zero(face_set);
 
   GeometrySet geometry = params.extract_input<GeometrySet>("Mesh");
-  geometry.modify_geometry_sets([&](GeometrySet &geometry) {
+  geometry::foreach_real_geometry(geometry, [&](GeometrySet &geometry) {
     if (Mesh *mesh = geometry.get_mesh_for_write()) {
       if (is_zero) {
         mesh->attributes_for_write().remove(".sculpt_face_set");

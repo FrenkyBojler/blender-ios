@@ -9,7 +9,7 @@
 
 #include "BLI_listbase.h"
 #include "BLI_multi_value_map.hh"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 
 #include "DNA_modifier_types.h"
 #include "DNA_screen_types.h"
@@ -101,7 +101,7 @@ static void catalog_assets_draw(const bContext *C, Menu *menu)
   wmOperatorType *ot = WM_operatortype_find("OBJECT_OT_modifier_add_node_group", true);
   for (const asset_system::AssetRepresentation *asset : assets) {
     PointerRNA props_ptr = layout->op(
-        ot, IFACE_(asset->get_name()), ICON_NONE, WM_OP_INVOKE_DEFAULT, UI_ITEM_NONE);
+        ot, IFACE_(asset->get_name()), ICON_NONE, wm::OpCallContext::InvokeDefault, UI_ITEM_NONE);
     asset::operator_asset_reference_props_set(*asset, props_ptr);
   }
 
@@ -135,7 +135,7 @@ static void unassigned_assets_draw(const bContext *C, Menu *menu)
   wmOperatorType *ot = WM_operatortype_find("OBJECT_OT_modifier_add_node_group", true);
   for (const asset_system::AssetRepresentation *asset : tree.unassigned_assets) {
     PointerRNA props_ptr = layout->op(
-        ot, IFACE_(asset->get_name()), ICON_NONE, WM_OP_INVOKE_DEFAULT, UI_ITEM_NONE);
+        ot, IFACE_(asset->get_name()), ICON_NONE, wm::OpCallContext::InvokeDefault, UI_ITEM_NONE);
     asset::operator_asset_reference_props_set(*asset, props_ptr);
   }
 
@@ -162,7 +162,7 @@ static void unassigned_assets_draw(const bContext *C, Menu *menu)
     }
 
     PointerRNA props_ptr = layout->op(
-        ot, group->id.name + 2, ICON_NONE, WM_OP_INVOKE_DEFAULT, UI_ITEM_NONE);
+        ot, group->id.name + 2, ICON_NONE, wm::OpCallContext::InvokeDefault, UI_ITEM_NONE);
     WM_operator_properties_id_lookup_set_from_id(&props_ptr, &group->id);
   }
 }
@@ -287,7 +287,7 @@ static wmOperatorStatus modifier_add_asset_exec(bContext *C, wmOperator *op)
     /* Don't show the data-block selector since it's not usually necessary for assets. */
     nmd->flag |= NODES_MODIFIER_HIDE_DATABLOCK_SELECTOR;
 
-    STRNCPY(nmd->modifier.name, DATA_(node_group->id.name + 2));
+    STRNCPY_UTF8(nmd->modifier.name, DATA_(node_group->id.name + 2));
     BKE_modifier_unique_name(&object->modifiers, &nmd->modifier);
 
     WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, object);
@@ -346,7 +346,7 @@ static void OBJECT_OT_modifier_add_node_group(wmOperatorType *ot)
 static MenuType modifier_add_unassigned_assets_menu_type()
 {
   MenuType type{};
-  STRNCPY(type.idname, "OBJECT_MT_add_modifier_unassigned_assets");
+  STRNCPY_UTF8(type.idname, "OBJECT_MT_add_modifier_unassigned_assets");
   type.draw = unassigned_assets_draw;
   type.listener = asset::list::asset_reading_region_listen_fn;
   type.description = N_(
@@ -358,7 +358,7 @@ static MenuType modifier_add_unassigned_assets_menu_type()
 static MenuType modifier_add_catalog_assets_menu_type()
 {
   MenuType type{};
-  STRNCPY(type.idname, "OBJECT_MT_add_modifier_catalog_assets");
+  STRNCPY_UTF8(type.idname, "OBJECT_MT_add_modifier_catalog_assets");
   type.draw = catalog_assets_draw;
   type.listener = asset::list::asset_reading_region_listen_fn;
   type.flag = MenuTypeFlag::ContextDependent;
@@ -368,7 +368,7 @@ static MenuType modifier_add_catalog_assets_menu_type()
 static MenuType modifier_add_root_catalogs_menu_type()
 {
   MenuType type{};
-  STRNCPY(type.idname, "OBJECT_MT_modifier_add_root_catalogs");
+  STRNCPY_UTF8(type.idname, "OBJECT_MT_modifier_add_root_catalogs");
   type.draw = root_catalogs_draw;
   type.listener = asset::list::asset_reading_region_listen_fn;
   type.flag = MenuTypeFlag::ContextDependent;

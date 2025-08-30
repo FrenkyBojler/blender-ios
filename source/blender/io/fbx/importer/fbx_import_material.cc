@@ -16,6 +16,7 @@
 #include "BLI_math_vector.hh"
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 
 #include "DNA_material_types.h"
 
@@ -305,8 +306,8 @@ static void add_image_texture(Main *bmain,
   if (!STR_ELEM(
           socket_name, "Base Color", "Specular Tint", "Sheen Tint", "Coat Tint", "Emission Color"))
   {
-    STRNCPY(image->colorspace_settings.name,
-            IMB_colormanagement_role_colorspace_name_get(COLOR_ROLE_DATA));
+    STRNCPY_UTF8(image->colorspace_settings.name,
+                 IMB_colormanagement_role_colorspace_name_get(COLOR_ROLE_DATA));
   }
 
   /* Add texture node and any UV transformations if needed. */
@@ -323,7 +324,7 @@ static void add_image_texture(Main *bmain,
 
   /* UV transform. */
   if (ftex->has_uv_transform) {
-    /*@TODO: which UV set to use. */
+    /* TODO: which UV set to use. */
     bNode *uvmap = add_node(ntree, SH_NODE_UVMAP, node_locx_texcoord, node_locy);
     bNode *mapping = add_node(ntree, SH_NODE_MAPPING, node_locx_mapping, node_locy);
     mapping->custom1 = TEXMAP_TYPE_TEXTURE;

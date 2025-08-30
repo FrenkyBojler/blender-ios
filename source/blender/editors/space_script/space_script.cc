@@ -11,7 +11,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_listbase.h"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 
 #include "BKE_context.hh"
 #include "BKE_lib_query.hh"
@@ -93,7 +93,7 @@ static void script_main_region_init(wmWindowManager *wm, ARegion *region)
   UI_view2d_region_reinit(&region->v2d, V2D_COMMONVIEW_STANDARD, region->winx, region->winy);
 
   /* own keymap */
-  keymap = WM_keymap_ensure(wm->defaultconf, "Script", SPACE_SCRIPT, RGN_TYPE_WINDOW);
+  keymap = WM_keymap_ensure(wm->runtime->defaultconf, "Script", SPACE_SCRIPT, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler_v2d_mask(&region->runtime->handlers, keymap);
 }
 
@@ -175,7 +175,7 @@ void ED_spacetype_script()
   ARegionType *art;
 
   st->spaceid = SPACE_SCRIPT;
-  STRNCPY(st->name, "Script");
+  STRNCPY_UTF8(st->name, "Script");
 
   st->create = script_create;
   st->free = script_free;

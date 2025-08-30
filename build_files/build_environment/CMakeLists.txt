@@ -14,7 +14,7 @@
 #
 ##################################################################################################
 
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.10)
 project("BlenderDependencies")
 if(POLICY CMP0135)
   cmake_policy(SET CMP0135 NEW) # CMake 3.24+ Set the date/time for extracted files to time of extraction
@@ -75,7 +75,6 @@ include(cmake/cython.cmake)
 include(cmake/numpy.cmake)
 include(cmake/zstandard.cmake)
 include(cmake/python_site_packages.cmake)
-include(cmake/python_site_packages_binary.cmake)
 include(cmake/package_python.cmake)
 include(cmake/openimageio.cmake)
 include(cmake/usd.cmake)
