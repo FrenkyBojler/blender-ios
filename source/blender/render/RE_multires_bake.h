@@ -28,7 +28,8 @@ struct MultiresBakeRender {
 
   int bake_margin = 0;
   eBakeMarginType bake_margin_type = R_BAKE_ADJACENT_FACES;
-  short mode = RE_BAKE_NORMALS;
+  eBakeType type = R_BAKE_NORMALS;
+  eBakeSpace displacement_space = R_BAKE_SPACE_OBJECT;
 
   /* Use low-resolution mesh when baking displacement maps.
    * When true displacement is calculated between the final position in the SubdivCCG and the
@@ -40,9 +41,6 @@ struct MultiresBakeRender {
 
   /* Material aligned image array (for per-face bake image), */
   blender::Vector<Image *> ob_image;
-
-  /* Bias between object and start ray point when doing AO baking. */
-  float bias = 0;
 
   blender::Set<Image *> images;
 

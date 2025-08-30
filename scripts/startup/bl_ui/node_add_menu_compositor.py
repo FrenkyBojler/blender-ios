@@ -142,14 +142,19 @@ class NODE_MT_compositor_node_filter_base(Menu):
         self.draw_menu(layout, path="Filter/Blur")
         layout.separator()
         self.node_operator(layout, "CompositorNodeAntiAliasing")
+        self.node_operator(layout, "CompositorNodeConvolve")
         self.node_operator(layout, "CompositorNodeDenoise")
         self.node_operator(layout, "CompositorNodeDespeckle")
         layout.separator()
         self.node_operator(layout, "CompositorNodeDilateErode")
         self.node_operator(layout, "CompositorNodeInpaint")
         layout.separator()
-        self.node_operator_with_searchable_enum(context, layout, "CompositorNodeFilter", "filter_type")
-        self.node_operator_with_searchable_enum(context, layout, "CompositorNodeGlare", "glare_type")
+        self.node_operator_with_searchable_enum_socket(
+            context, layout, "CompositorNodeFilter", "Type", [
+                "Soften", "Box Sharpen", "Diamond Sharpen", "Laplace", "Sobel", "Prewitt", "Kirsch", "Shadow"])
+        self.node_operator_with_searchable_enum_socket(
+            context, layout, "CompositorNodeGlare", "Type", [
+                "Bloom", "Ghosts", "Streaks", "Fog Glow", "Simple Star", "Sun Beams"])
         self.node_operator(layout, "CompositorNodeKuwahara")
         self.node_operator(layout, "CompositorNodePixelate")
         self.node_operator(layout, "CompositorNodePosterize")

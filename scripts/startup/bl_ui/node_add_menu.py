@@ -162,6 +162,31 @@ def node_operator_with_searchable_enum(context, layout, operator_id, node_idname
             prop.value = repr(item.identifier)
 
 
+def node_operator_with_searchable_enum_socket(
+        context,
+        layout,
+        operator_id,
+        node_idname,
+        socket_identifier,
+        enum_names,
+        search_weight=0.0):
+    node_operator(layout, operator_id, node_idname, search_weight=search_weight)
+    if getattr(context, "is_menu_search", False):
+        node_type = getattr(bpy.types, node_idname)
+        for enum_name in enum_names:
+            label = "{} ▸ {}".format(iface_(node_type.bl_rna.name), iface_(enum_name))
+            props = node_operator(
+                layout,
+                operator_id,
+                node_idname,
+                label=label,
+                translate=False,
+                search_weight=search_weight)
+            prop = props.settings.add()
+            prop.name = f'inputs["{socket_identifier}"].default_value'
+            prop.value = repr(enum_name)
+
+
 def color_mix_node(context, layout, operator_id):
     label = iface_("Mix Color")
     props = node_operator(layout, operator_id, "ShaderNodeMix", label=label, translate=False)
@@ -237,6 +262,13 @@ class AddNodeMenu:
     def node_operator_with_searchable_enum(context, layout, node_idname, property_name, search_weight=0.0):
         props = node_add_menu.node_operator_with_searchable_enum(
             context, layout, "node.add_node", node_idname, property_name, search_weight)
+        props.use_transform = True
+        return props
+    
+    @staticmethod
+    def node_operator_with_searchable_enum_socket(context, layout, node_idname, socket_identifier, enum_names, search_weight=0.0):
+        props = node_add_menu.node_operator_with_searchable_enum_socket(
+            context, layout, "node.add_node", node_idname, socket_identifier, enum_names, search_weight)
         props.use_transform = True
         return props
 
@@ -315,6 +347,11 @@ class SwapNodeMenu:
     def node_operator_with_searchable_enum(context, layout, node_idname, property_name, search_weight=0.0):
         return node_add_menu.node_operator_with_searchable_enum(
             context, layout, "node.swap_node", node_idname, property_name, search_weight)
+
+    @staticmethod
+    def node_operator_with_searchable_enum_socket(context, layout, node_idname, socket_identifier, enum_names, search_weight=0.0):
+        return node_add_menu.node_operator_with_searchable_enum_socket(
+            context, layout, "node.swap_node", node_idname, socket_identifier, enum_names, search_weight)
 
     @staticmethod
     def node_operator_with_outputs(context, layout, node_type, subnames, *, label=None, search_weight=0.0):
