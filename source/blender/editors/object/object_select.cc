@@ -100,7 +100,7 @@ void base_active_refresh(Main *bmain, Scene *scene, ViewLayer *view_layer)
 {
   WM_main_add_notifier(NC_SCENE | ND_OB_ACTIVE, scene);
   DEG_id_tag_update(&scene->id, ID_RECALC_SELECT);
-  wmMsgBus *mbus = ((wmWindowManager *)bmain->wm.first)->message_bus;
+  wmMsgBus *mbus = ((wmWindowManager *)bmain->wm.first)->runtime->message_bus;
   if (mbus != nullptr) {
     WM_msg_publish_rna_prop(mbus, &scene->id, view_layer, LayerObjects, active);
   }
@@ -326,7 +326,7 @@ bool jump_to_bone(bContext *C, Object *ob, const char *bone_name, const bool rev
     if (pchan != nullptr) {
       if (reveal_hidden) {
         /* Unhide the bone. */
-        pchan->bone->flag &= ~BONE_HIDDEN_P;
+        pchan->drawflag &= ~PCHAN_DRAW_HIDDEN;
         ANIM_armature_bonecoll_show_from_pchan(arm, pchan);
       }
 
@@ -1158,7 +1158,7 @@ static wmOperatorStatus object_select_same_collection_exec(bContext *C, wmOperat
 {
   Main *bmain = CTX_data_main(C);
   Collection *collection;
-  char collection_name[MAX_ID_NAME];
+  char collection_name[MAX_ID_NAME - 2];
 
   /* passthrough if no objects are visible */
   if (CTX_DATA_COUNT(C, visible_bases) == 0) {
@@ -1209,7 +1209,7 @@ void OBJECT_OT_select_same_collection(wmOperatorType *ot)
   RNA_def_string(ot->srna,
                  "collection",
                  nullptr,
-                 MAX_ID_NAME,
+                 MAX_ID_NAME - 2,
                  "Collection",
                  "Name of the collection to select");
 }
