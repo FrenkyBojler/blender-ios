@@ -96,6 +96,7 @@ template<typename T> struct Max {
   }
 };
 template struct Max<float>;
+template struct Max<float2>;
 template struct Max<float4>;
 
 template<typename T> struct Sum {
