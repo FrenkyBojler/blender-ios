@@ -2392,7 +2392,7 @@ static void vgroup_assign_verts(Object *ob, Scene &scene, const float weight)
       int cd_dvert_offset;
 
       std::optional<EditMeshSymmetryHelper> symmetry_helper =
-          EditMeshSymmetryHelper::create_if_needed(ob);
+          EditMeshSymmetryHelper::create_if_needed(ob, BM_VERT);
 
       if (!CustomData_has_layer(&em->bm->vdata, CD_MDEFORMVERT)) {
         BM_data_layer_add(em->bm, &em->bm->vdata, CD_MDEFORMVERT);
@@ -2409,8 +2409,18 @@ static void vgroup_assign_verts(Object *ob, Scene &scene, const float weight)
           if (dw) {
             dw->weight = weight;
           }
+
           if (symmetry_helper) {
-            symmetry_helper->assign_weight_on_mirror_verts(eve, def_nr, weight);
+            symmetry_helper->apply_on_mirror_verts(eve, [&](BMVert *v_mirr) {
+              if (!BM_elem_flag_test(v_mirr, BM_ELEM_HIDDEN)) {
+                MDeformVert *dv_mirr = static_cast<MDeformVert *>(
+                    BM_ELEM_CD_GET_VOID_P(v_mirr, cd_dvert_offset));
+                MDeformWeight *dw_mirr = BKE_defvert_ensure_index(dv_mirr, def_nr);
+                if (dw_mirr) {
+                  dw_mirr->weight = weight;
+                }
+              }
+            });
           }
         }
       }
@@ -2899,7 +2909,7 @@ static wmOperatorStatus vertex_group_remove_from_exec(bContext *C, wmOperator *o
     }
 
     std::optional<EditMeshSymmetryHelper> symmetry_helper =
-        EditMeshSymmetryHelper::create_if_needed(ob);
+        EditMeshSymmetryHelper::create_if_needed(ob, BM_VERT);
 
     if (ob->type == OB_MESH && BKE_object_is_in_editmode(ob) && symmetry_helper) {
       Mesh *mesh = static_cast<Mesh *>(ob->data);
@@ -2920,7 +2930,17 @@ static wmOperatorStatus vertex_group_remove_from_exec(bContext *C, wmOperator *o
         MDeformWeight *dw = BKE_defvert_find_index(dv, def_nr);
         if (dw) {
           BKE_defvert_remove_group(dv, dw);
-          symmetry_helper->remove_weight_on_mirror_verts(eve, def_nr);
+
+          symmetry_helper->apply_on_mirror_verts(eve, [cd_dvert_offset, def_nr](BMVert *v_mirr) {
+            if (!BM_elem_flag_test(v_mirr, BM_ELEM_HIDDEN)) {
+              MDeformVert *dv_mirr = static_cast<MDeformVert *>(
+                  BM_ELEM_CD_GET_VOID_P(v_mirr, cd_dvert_offset));
+              MDeformWeight *dw_mirr = BKE_defvert_find_index(dv_mirr, def_nr);
+              if (dw_mirr) {
+                BKE_defvert_remove_group(dv_mirr, dw_mirr);
+              }
+            }
+          });
         }
       }
     }
