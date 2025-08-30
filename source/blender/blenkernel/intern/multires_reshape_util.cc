@@ -718,7 +718,7 @@ static void foreach_grid_coordinate(const MultiresReshapeContext *reshape_contex
 
   TaskParallelSettings parallel_range_settings;
   BLI_parallel_range_settings_defaults(&parallel_range_settings);
-  parallel_range_settings.min_iter_per_thread = 1;
+  parallel_range_settings.min_iter_per_thread = 64;
 
   const Mesh *base_mesh = reshape_context->base_mesh;
   const int num_faces = base_mesh->faces_num;
