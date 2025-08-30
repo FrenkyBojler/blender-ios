@@ -383,8 +383,14 @@ static void sequencer_generic_invoke_xy__internal(
   }
 }
 
-static void move_strips(bContext *C)
+static void move_strips(bContext *C, wmOperator *op)
 {
+  if (!RNA_boolean_get(op->ptr, "move_strips") || op_invoked_by_drop_event(op) ||
+      (op->flag & OP_IS_REPEAT) != 0)
+  {
+    return;
+  }
+
   wmOperatorType *ot = WM_operatortype_find("TRANSFORM_OT_seq_slide", true);
   PointerRNA ptr;
   WM_operator_properties_create_ptr(&ptr, ot);
@@ -643,12 +649,7 @@ static wmOperatorStatus sequencer_add_scene_strip_exec(bContext *C, wmOperator *
   DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
   DEG_relations_tag_update(bmain);
   sequencer_select_do_updates(C, scene);
-
-  if (RNA_boolean_get(op->ptr, "move_strips") && !op_invoked_by_drop_event(op) &&
-      (op->flag & OP_IS_REPEAT) == 0)
-  {
-    move_strips(C);
-  }
+  move_strips(C, op);
 
   return OPERATOR_FINISHED;
 }
@@ -748,10 +749,7 @@ static wmOperatorStatus sequencer_add_scene_strip_new_exec(bContext *C, wmOperat
   DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
   DEG_relations_tag_update(bmain);
   sequencer_select_do_updates(C, scene);
-
-  if (RNA_boolean_get(op->ptr, "move_strips") && !op_invoked_by_drop_event(op) && (op->flag & OP_IS_REPEAT) == 0) {
-    move_strips(C);
-  }
+  move_strips(C, op);
 
   return OPERATOR_FINISHED;
 }
@@ -847,10 +845,7 @@ static wmOperatorStatus sequencer_add_scene_asset_invoke(bContext *C,
   DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
   DEG_relations_tag_update(bmain);
   sequencer_select_do_updates(C, scene);
-
-  if (RNA_boolean_get(op->ptr, "move_strips") && !op_invoked_by_drop_event(op) && (op->flag & OP_IS_REPEAT) == 0) {
-    move_strips(C);
-  }
+  move_strips(C, op);
 
   return OPERATOR_FINISHED;
 }
@@ -928,10 +923,7 @@ static wmOperatorStatus sequencer_add_movieclip_strip_exec(bContext *C, wmOperat
 
   DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
   sequencer_select_do_updates(C, scene);
-
-  if (RNA_boolean_get(op->ptr, "move_strips") && !op_invoked_by_drop_event(op) && (op->flag & OP_IS_REPEAT) == 0) {
-    move_strips(C);
-  }
+  move_strips(C, op);
 
   return OPERATOR_FINISHED;
 }
@@ -1010,10 +1002,7 @@ static wmOperatorStatus sequencer_add_mask_strip_exec(bContext *C, wmOperator *o
 
   DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
   sequencer_select_do_updates(C, scene);
-
-  if (RNA_boolean_get(op->ptr, "move_strips") && !op_invoked_by_drop_event(op) && (op->flag & OP_IS_REPEAT) == 0) {
-    move_strips(C);
-  }
+  move_strips(C, op);
 
   return OPERATOR_FINISHED;
 }
@@ -1334,10 +1323,7 @@ static wmOperatorStatus sequencer_add_movie_strip_exec(bContext *C, wmOperator *
   DEG_relations_tag_update(bmain);
   DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
   sequencer_select_do_updates(C, scene);
-
-  if (RNA_boolean_get(op->ptr, "move_strips") && !op_invoked_by_drop_event(op) && (op->flag & OP_IS_REPEAT) == 0) {
-    move_strips(C);
-  }
+  move_strips(C, op);
 
   sequencer_add_free(C, op);
 
@@ -1408,10 +1394,12 @@ static void sequencer_add_draw(bContext * /*C*/, wmOperator *op)
   SequencerAddData *sad = reinterpret_cast<SequencerAddData *>(op->customdata);
   ImageFormatData *imf = &sad->im_format;
 
-  if (sad && !sad->is_drop_event) {
+  bool is_redo_panel = sad == nullptr;
+
+  if (!is_redo_panel) {
     layout->prop(op->ptr, "move_strips", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
-  if (!RNA_boolean_get(op->ptr, "move_strips")) {
+  if (!RNA_boolean_get(op->ptr, "move_strips") || is_redo_panel) {
     uiLayout &col = layout->column(true);
     col.prop(op->ptr, "frame_start", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     if (RNA_struct_find_property(op->ptr, "length")) {
@@ -1419,6 +1407,7 @@ static void sequencer_add_draw(bContext * /*C*/, wmOperator *op)
     }
     layout->prop(op->ptr, "channel", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     layout->separator();
+    layout->prop(op->ptr, "replace_sel", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 
   layout->prop(op->ptr, "use_sequence_detection", UI_ITEM_NONE, std::nullopt, ICON_NONE);
@@ -1434,10 +1423,6 @@ static void sequencer_add_draw(bContext * /*C*/, wmOperator *op)
                    nullptr,
                    UI_BUT_LABEL_ALIGN_NONE,
                    false);
-
-  if (!RNA_boolean_get(op->ptr, "move_strips")) {
-    layout->prop(op->ptr, "replace_sel", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  }
 
   layout->separator();
 
@@ -1570,10 +1555,7 @@ static wmOperatorStatus sequencer_add_sound_strip_exec(bContext *C, wmOperator *
   DEG_relations_tag_update(bmain);
   DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
   sequencer_select_do_updates(C, scene);
-
-  if (RNA_boolean_get(op->ptr, "move_strips") && !op_invoked_by_drop_event(op) && (op->flag & OP_IS_REPEAT) == 0) {
-    move_strips(C);
-  }
+  move_strips(C, op);
 
   sequencer_add_free(C, op);
 
@@ -1819,10 +1801,7 @@ static wmOperatorStatus sequencer_add_image_strip_exec(bContext *C, wmOperator *
 
   DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
   sequencer_select_do_updates(C, scene);
-
-  if (RNA_boolean_get(op->ptr, "move_strips") && !op_invoked_by_drop_event(op) && (op->flag & OP_IS_REPEAT) == 0) {
-    move_strips(C);
-  }
+  move_strips(C, op);
 
   sequencer_add_free(C, op);
 
@@ -1970,8 +1949,14 @@ static wmOperatorStatus sequencer_add_effect_strip_exec(bContext *C, wmOperator 
   DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
   sequencer_select_do_updates(C, scene);
 
-  if (RNA_boolean_get(op->ptr, "move_strips") && !op_invoked_by_drop_event(op) && (op->flag & OP_IS_REPEAT) == 0) {
-    move_strips(C);
+  /* It's reasonable to add effects with inputs directly above the input. */
+  if (ELEM(load_data.effect.type,
+           STRIP_TYPE_COLOR,
+           STRIP_TYPE_TEXT,
+           STRIP_TYPE_ADJUSTMENT,
+           STRIP_TYPE_MULTICAM))
+  {
+    move_strips(C, op);
   }
 
   return OPERATOR_FINISHED;
@@ -1998,11 +1983,6 @@ static wmOperatorStatus sequencer_add_effect_strip_invoke(bContext *C,
   }
 
   sequencer_generic_invoke_xy__internal(C, op, prop_flag, type, event);
-
-  /* It's reasonable to add effects with inputs directly above the input. */
-  if (!ELEM(type, STRIP_TYPE_COLOR, STRIP_TYPE_TEXT, STRIP_TYPE_ADJUSTMENT, STRIP_TYPE_MULTICAM)) {
-    RNA_boolean_set(op->ptr, "move_strips", false);
-  }
 
   return sequencer_add_effect_strip_exec(C, op);
 }
