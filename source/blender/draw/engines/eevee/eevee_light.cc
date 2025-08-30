@@ -69,10 +69,12 @@ void Light::sync(ShadowModule &shadows,
     shadow_discard_safe(shadows);
   }
 
-  this->color = BKE_light_power(*la) * BKE_light_color(*la);
-  if (la->mode & LA_UNNORMALIZED) {
-    this->color *= BKE_light_area(*la, object_to_world);
-  }
+  if (!(la->mode & LA_USE_ADVANCED) && !(la->mode & LA_USE_COMPENSED_POWER)) {
+      this->color = BKE_light_radiometric_to_photometric_power(*la, BKE_light_power(*la)) * BKE_light_color(*la);
+    }
+    else {
+      this->color = BKE_light_power(*la) * BKE_light_color(*la);
+    }
 
   float3 scale;
   object_to_world.view<3, 3>() = normalize_and_get_size(object_to_world.view<3, 3>(), scale);
