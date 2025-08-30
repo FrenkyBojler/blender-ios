@@ -1664,6 +1664,11 @@ void blo_do_versions_userdef(UserDef *userdef)
     userdef->preferences_display_type = USER_TEMP_SPACE_DISPLAY_WINDOW;
   }
 
+  if (!USER_VERSION_ATLEAST(500, 100)) {
+    userdef->flag |= USER_MENU_CLOSE_LEAVE;
+    userdef->flag |= USER_MENU_OPEN_NEIGHBORS;
+  }
+
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a USER_VERSION_ATLEAST check.
