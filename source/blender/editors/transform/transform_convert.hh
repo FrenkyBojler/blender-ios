@@ -9,6 +9,8 @@
 
 #pragma once
 
+#include "BKE_attribute_storage.hh"
+
 #include "BLI_index_mask.hh"
 
 #include "transform.hh"
@@ -102,6 +104,18 @@ struct CurvesTransformData {
    */
   Vector<IndexMask> aligned_with_left;
   Vector<IndexMask> aligned_with_right;
+
+  struct HandleTypes {
+    std::optional<bke::Attribute::DataVariant> left;
+    std::optional<bke::Attribute::DataVariant> right;
+  };
+
+  /**
+   *  Handle types to be restored if user cancels transformation.
+   *  In GP case each drawing has its own entry in the array.
+   *  In Curves array size is always 1.
+   */
+  Array<HandleTypes> handle_types;
 
   /**
    * The offsets of every grease pencil layer into `positions` array.
@@ -208,6 +222,13 @@ void curve_populate_trans_data_structs(const TransInfo &t,
                                        void *extra = nullptr);
 
 CurvesTransformData *create_curves_transform_custom_data(TransCustomData &custom_data);
+
+void store_handle_types_in_curves_transform_custom_data(const bke::CurvesGeometry &curves,
+                                                        TransCustomData &custom_data,
+                                                        int drawing = 0);
+void restore_handle_types_from_curves_transform_custom_data(const TransCustomData &custom_data,
+                                                            bke::CurvesGeometry &curves,
+                                                            int drawing = 0);
 
 void copy_positions_from_curves_transform_custom_data(const TransCustomData &custom_data,
                                                       int layer,

@@ -280,6 +280,51 @@ static MutableSpan<float3> append_positions_to_custom_data(const IndexMask selec
                                                           selection.size());
 }
 
+void store_handle_types_in_curves_transform_custom_data(const bke::CurvesGeometry &curves,
+                                                        TransCustomData &custom_data,
+                                                        const int drawing)
+{
+  CurvesTransformData &transform_data = *static_cast<CurvesTransformData *>(custom_data.data);
+
+  auto store_handle_types = [](const StringRef attribute_name,
+                               const AttributeStorage &attribute_storage,
+                               std::optional<bke::Attribute::DataVariant> &handle_types) {
+    const bke::Attribute *attr = attribute_storage.wrap().lookup(attribute_name);
+    if (attr) {
+      handle_types = attr->data();
+    }
+  };
+
+  store_handle_types(
+      "handle_type_left", curves.attribute_storage, transform_data.handle_types[drawing].left);
+  store_handle_types(
+      "handle_type_right", curves.attribute_storage, transform_data.handle_types[drawing].right);
+}
+
+void restore_handle_types_from_curves_transform_custom_data(const TransCustomData &custom_data,
+                                                            bke::CurvesGeometry &curves,
+                                                            const int drawing)
+{
+  const CurvesTransformData &transform_data = *static_cast<CurvesTransformData *>(
+      custom_data.data);
+
+  if (const std::optional<bke::Attribute::DataVariant> &types =
+          transform_data.handle_types[drawing].left)
+  {
+    curves.attribute_storage.wrap()
+        .lookup("handle_type_left")
+        ->assign_data(bke::Attribute::DataVariant(types.value()));
+  }
+
+  if (const std::optional<bke::Attribute::DataVariant> &types =
+          transform_data.handle_types[drawing].right)
+  {
+    curves.attribute_storage.wrap()
+        .lookup("handle_type_right")
+        ->assign_data(bke::Attribute::DataVariant(types.value()));
+  }
+}
+
 static void createTransCurvesVerts(bContext *C, TransInfo *t)
 {
   MutableSpan<TransDataContainer> trans_data_contrainers(t->data_container, t->data_container_len);
@@ -298,6 +343,10 @@ static void createTransCurvesVerts(bContext *C, TransInfo *t)
     bke::CurvesGeometry &curves = curves_id->geometry.wrap();
     CurvesTransformData *curves_transform_data = create_curves_transform_custom_data(
         tc.custom.type);
+
+    curves_transform_data->handle_types.reinitialize(1);
+    store_handle_types_in_curves_transform_custom_data(curves, tc.custom.type);
+
     Span<StringRef> selection_attribute_names = ed::curves::get_curves_selection_attribute_names(
         curves);
     std::array<IndexMask, 3> selection_per_attribute;
@@ -452,11 +501,16 @@ static void recalcData_curves(TransInfo *t)
       curves.tag_normals_changed();
     }
     else {
-      const Vector<MutableSpan<float3>> positions_per_selection_attr =
-          ed::curves::get_curves_positions_for_write(curves);
-      for (const int i : positions_per_selection_attr.index_range()) {
-        copy_positions_from_curves_transform_custom_data(
-            tc.custom.type, i, positions_per_selection_attr[i]);
+      if (t->state == TRANS_CANCEL) {
+        restore_handle_types_from_curves_transform_custom_data(tc.custom.type, curves);
+      }
+      else {
+        const Vector<MutableSpan<float3>> positions_per_selection_attr =
+            ed::curves::get_curves_positions_for_write(curves);
+        for (const int i : positions_per_selection_attr.index_range()) {
+          copy_positions_from_curves_transform_custom_data(
+              tc.custom.type, i, positions_per_selection_attr[i]);
+        }
       }
       curves.tag_positions_changed();
       curves.calculate_bezier_auto_handles();

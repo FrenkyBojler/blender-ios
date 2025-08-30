@@ -80,9 +80,12 @@ static void createTransGreasePencilVerts(bContext *C, TransInfo *t)
     tc.data_len = 0;
 
     const Vector<ed::greasepencil::MutableDrawingInfo> drawings = all_drawings[i];
+    curves_transform_data->handle_types.reinitialize(drawings.size());
     curves_transform_data->grease_pencil_falloffs.reinitialize(drawings.size());
-    for (ed::greasepencil::MutableDrawingInfo info : drawings) {
+    for (const int64_t drawing : drawings.index_range()) {
+      ed::greasepencil::MutableDrawingInfo info = drawings[drawing];
       bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
+      curves::store_handle_types_in_curves_transform_custom_data(curves, tc.custom.type, drawing);
       Span<StringRef> selection_attribute_names = ed::curves::get_curves_selection_attribute_names(
           curves);
       std::array<IndexMask, 3> selection_per_attribute;
@@ -259,13 +262,19 @@ static void recalcData_grease_pencil(TransInfo *t)
         curves.tag_normals_changed();
       }
       else {
-        const Vector<MutableSpan<float3>> positions_per_selection_attr =
-            ed::curves::get_curves_positions_for_write(curves);
-        for (MutableSpan<float3> positions : positions_per_selection_attr) {
-          curves::copy_positions_from_curves_transform_custom_data(
-              tc.custom.type, layer_i++, positions);
+        if (t->state == TRANS_CANCEL) {
+          curves::restore_handle_types_from_curves_transform_custom_data(
+              tc.custom.type, curves, i);
         }
-        curves.tag_positions_changed();
+        else {
+          const Vector<MutableSpan<float3>> positions_per_selection_attr =
+              ed::curves::get_curves_positions_for_write(curves);
+          for (MutableSpan<float3> positions : positions_per_selection_attr) {
+            curves::copy_positions_from_curves_transform_custom_data(
+                tc.custom.type, layer_i++, positions);
+          }
+          curves.tag_positions_changed();
+        }
         curves.calculate_bezier_auto_handles();
         info.drawing.tag_positions_changed();
         curves::calculate_aligned_handles(tc.custom.type, curves, i);
