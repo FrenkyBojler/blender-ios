@@ -11288,7 +11288,7 @@ static int ui_handle_menu_event(bContext *C,
           }
 
           /* strict check, and include the parent rect */
-          if (!menu->dotowards && !saferct && (!(U.flag & USER_MENU_KEEP_OPEN) || level > 0)) {
+          if (!menu->dotowards && !saferct && ((U.flag & USER_MENU_CLOSE_LEAVE) || level > 0)) {
             if (block->flag & UI_BLOCK_OUT_1) {
               menu->menuretval = UI_RETURN_OK;
             }
@@ -11988,7 +11988,7 @@ static bool ui_can_activate_other_menu(uiBut *but, uiBut *but_other, const wmEve
     return false;
   }
 
-  if (U.flag & USER_MENU_KEEP_OPEN) {
+  if (!(U.flag & USER_MENU_OPEN_NEIGHBORS)) {
     return false;
   }
 
