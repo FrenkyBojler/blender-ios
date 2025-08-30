@@ -2432,7 +2432,7 @@ static bool do_lasso_select_preview(bContext *C,
         strip->flag |= SELECT;
       }
       else {
-        BLI_assert(mode == SEL_OP_SUB);
+        BLI_assert(sel_op == SEL_OP_SUB);
         strip->flag &= ~SELECT;
       }
     }
