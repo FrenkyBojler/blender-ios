@@ -11,6 +11,18 @@ from bpy.app.translations import (
 )
 
 
+def set_use_transform(operators, value):
+    try:
+        for props in operators:
+            if hasattr(props, "use_transform"):
+                props.use_transform = value
+
+    # Handle case where only a single item is given
+    except TypeError: 
+        if hasattr(operators, "use_transform"):
+            operators.use_transform = value
+
+
 def node_operator(layout, operator_id, node_type, *, label=None, poll=None, search_weight=0.0, translate=True):
     """Generic function template for the node editor menus."""
     bl_rna = bpy.types.Node.bl_rna_get_subclass(node_type)
@@ -230,13 +242,13 @@ def color_mix_node(context, layout, operator_id):
 def add_simulation_zone(layout, label):
     """Add simulation zone to a menu."""
     props = layout.operator("node.add_simulation_zone", text=label, text_ctxt=i18n_contexts.default)
-    props.use_transform = True
+    set_use_transform(props, True)
     return props
 
 
 def add_repeat_zone(layout, label):
     props = layout.operator("node.add_repeat_zone", text=label, text_ctxt=i18n_contexts.default)
-    props.use_transform = True
+    set_use_transform(props, True)
     return props
 
 
@@ -246,14 +258,14 @@ def add_foreach_geometry_element_zone(layout, label):
         text=label,
         text_ctxt=i18n_contexts.default,
     )
-    props.use_transform = True
+    set_use_transform(props, True)
     return props
 
 
 def add_closure_zone(layout, label):
     props = layout.operator(
         "node.add_closure_zone", text=label, text_ctxt=i18n_contexts.default)
-    props.use_transform = True
+    set_use_transform(props, True)
     return props
 
 
@@ -275,7 +287,8 @@ class AddNodeMenu:
             poll=poll,
             search_weight=search_weight,
             translate=translate)
-        props.use_transform = True
+        
+        set_use_transform(props, True)
         return props
 
     @staticmethod
@@ -284,7 +297,7 @@ class AddNodeMenu:
             context, layout, "node.add_node", node_idname, property_name, search_weight)
         
         for props in operators:
-            props.use_transform = True
+            set_use_transform(props, True)
 
         return operators
     
@@ -294,7 +307,7 @@ class AddNodeMenu:
             context, layout, "node.add_node", node_idname, socket_identifier, enum_names, search_weight)
         
         for props in operators:
-            props.use_transform = True
+            set_use_transform(props, True)
 
         return operators
 
@@ -310,7 +323,7 @@ class AddNodeMenu:
             search_weight=search_weight)
         
         for props in operators:
-            props.use_transform = True
+            set_use_transform(props, True)
 
         return operators
 
@@ -319,14 +332,14 @@ class AddNodeMenu:
         operators = color_mix_node(context, layout, "node.add_node")
         
         for props in operators:
-            props.use_transform = True
+            set_use_transform(props, True)
 
         return operators
 
     @staticmethod
     def new_empty_group(layout):
         props = new_empty_group(layout, "node.add_empty_group")
-        props.use_transform = True
+        set_use_transform(props, True)
         return props
 
     @staticmethod
@@ -335,7 +348,7 @@ class AddNodeMenu:
                                empty_group_operator="node.add_empty_group")
         
         for props in operators:
-            props.use_transform = True
+            set_use_transform(props, True)
 
         return props
 
