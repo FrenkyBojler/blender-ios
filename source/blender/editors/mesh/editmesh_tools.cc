@@ -1125,6 +1125,41 @@ static wmOperatorStatus edbm_mark_sharp_exec(bContext *C, wmOperator *op)
         EditMeshSymmetryHelper::create_if_needed(obedit,
                                                  use_verts ? (BM_VERT | BM_EDGE) : BM_EDGE);
 
+    char hflag_process = BM_ELEM_SELECT;
+
+    if (symmetry_helper) {
+      hflag_process = BM_ELEM_TAG;
+      EDBM_flag_disable_all(em, hflag_process);
+
+      BMIter iter, iter_inner;
+      if (use_verts) {
+        BMVert *v;
+        BM_ITER_MESH (v, &iter, bm, BM_VERTS_OF_MESH) {
+          if (BM_elem_flag_test(v, BM_ELEM_SELECT)) {
+            BMEdge *e;
+            BM_ITER_ELEM (e, &iter_inner, v, BM_EDGES_OF_VERT) {
+              BM_elem_flag_enable(e, hflag_process);
+            }
+            symmetry_helper->apply_on_mirror_verts(v, [&](BMVert *v_mirr) {
+              BMEdge *e_mirr;
+              BM_ITER_ELEM (e_mirr, &iter_inner, v_mirr, BM_EDGES_OF_VERT) {
+                BM_elem_flag_enable(e_mirr, hflag_process);
+              }
+            });
+          }
+        }
+      }
+      else {
+        BMEdge *e;
+        BM_ITER_MESH (e, &iter, bm, BM_EDGES_OF_MESH) {
+          if (BM_elem_flag_test(e, BM_ELEM_SELECT)) {
+            BM_elem_flag_enable(e, hflag_process);
+            symmetry_helper->set_hflag_on_mirror_edges(e, hflag_process, true);
+          }
+        }
+      }
+    }
+
     BMIter iter;
     BMEdge *eed;
     BM_ITER_MESH (eed, &iter, bm, BM_EDGES_OF_MESH) {
@@ -1132,26 +1167,13 @@ static wmOperatorStatus edbm_mark_sharp_exec(bContext *C, wmOperator *op)
         continue;
       }
 
-      bool process_edge = false;
-      if (use_verts) {
-        for (BMVert *v : blender::Span(&eed->v1, 2)) {
-          if (BM_elem_flag_test(v, BM_ELEM_SELECT) ||
-              (symmetry_helper &&
-               symmetry_helper->is_any_mirror_vert_selected(v, BM_ELEM_SELECT))) {
-            process_edge = true;
-            break;
-          }
-        }
-      }
-      else {
-        process_edge = BM_elem_flag_test(eed, BM_ELEM_SELECT) ||
-                       (symmetry_helper &&
-                        symmetry_helper->is_any_mirror_edge_selected(eed, BM_ELEM_SELECT));
-      }
-
-      if (process_edge) {
+      if (BM_elem_flag_test(eed, hflag_process)) {
         BM_elem_flag_set(eed, BM_ELEM_SMOOTH, clear);
       }
+    }
+
+    if (hflag_process != BM_ELEM_SELECT) {
+      EDBM_flag_disable_all(em, hflag_process);
     }
 
     EDBMUpdate_Params params{};
