@@ -110,7 +110,7 @@ class MaskedMaximumOperation : public NodeOperation {
 
   void execute_gpu(const Result &input_mask, Result &output_mask)
   {
-    GPUShader *shader = context().get_shader("compositor_masked_maximum");
+    gpu::Shader *shader = context().get_shader("compositor_masked_maximum");
     GPU_shader_bind(shader);
 
     const Domain domain = compute_domain();
