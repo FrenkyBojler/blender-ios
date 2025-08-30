@@ -1777,7 +1777,6 @@ static wmOperatorStatus sequencer_box_cut_exec(bContext *C, wmOperator *op)
   }
   LISTBASE_FOREACH_MUTABLE (Strip *, strip, ed->current_strips()) {
     rctf rq;
-    printf("strip->name %s\n", strip->name);
     strip_rectf(scene, strip, &rq);
     const char *error_msg = nullptr;
     if (BLI_rctf_isect(&rq, &rectf, nullptr)) {
