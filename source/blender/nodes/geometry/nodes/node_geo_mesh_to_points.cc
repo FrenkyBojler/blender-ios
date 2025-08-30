@@ -16,6 +16,8 @@
 #include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
+#include "GEO_foreach_geometry.hh"
+
 #include "FN_multi_function_builder.hh"
 
 #include "node_geometry_util.hh"
@@ -26,7 +28,9 @@ NODE_STORAGE_FUNCS(NodeGeometryMeshToPoints)
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Geometry>("Mesh").supported_type(GeometryComponent::Type::Mesh);
+  b.add_input<decl::Geometry>("Mesh")
+      .supported_type(GeometryComponent::Type::Mesh)
+      .description("Mesh whose elements are converted to points");
   b.add_input<decl::Bool>("Selection").default_value(true).field_on_all().hide_value();
   b.add_input<decl::Vector>("Position").implicit_field_on_all(NODE_DEFAULT_INPUT_POSITION_FIELD);
   b.add_input<decl::Float>("Radius")
@@ -58,12 +62,12 @@ static void geometry_set_mesh_to_points(GeometrySet &geometry_set,
 {
   const Mesh *mesh = geometry_set.get_mesh();
   if (mesh == nullptr) {
-    geometry_set.remove_geometry_during_modify();
+    geometry_set.keep_only({GeometryComponent::Type::Edit});
     return;
   }
   const int domain_size = mesh->attributes().domain_size(domain);
   if (domain_size == 0) {
-    geometry_set.remove_geometry_during_modify();
+    geometry_set.keep_only({GeometryComponent::Type::Edit});
     return;
   }
   const AttributeAccessor src_attributes = mesh->attributes();
@@ -136,7 +140,7 @@ static void geometry_set_mesh_to_points(GeometrySet &geometry_set,
   }
 
   geometry_set.replace_pointcloud(pointcloud);
-  geometry_set.keep_only_during_modify({GeometryComponent::Type::PointCloud});
+  geometry_set.keep_only({GeometryComponent::Type::PointCloud, GeometryComponent::Type::Edit});
 }
 
 static void node_geo_exec(GeoNodeExecParams params)
@@ -152,14 +156,14 @@ static void node_geo_exec(GeoNodeExecParams params)
       __func__,
       [](float value) { return std::max(0.0f, value); },
       mf::build::exec_presets::AllSpanOrSingle());
-  const Field<float> positive_radius(FieldOperation::Create(max_zero_fn, {std::move(radius)}), 0);
+  const Field<float> positive_radius(FieldOperation::from(max_zero_fn, {std::move(radius)}), 0);
 
   const NodeGeometryMeshToPoints &storage = node_storage(params.node());
   const GeometryNodeMeshToPointsMode mode = (GeometryNodeMeshToPointsMode)storage.mode;
 
   const NodeAttributeFilter &attribute_filter = params.get_attribute_filter("Points");
 
-  geometry_set.modify_geometry_sets([&](GeometrySet &geometry_set) {
+  geometry::foreach_real_geometry(geometry_set, [&](GeometrySet &geometry_set) {
     switch (mode) {
       case GEO_NODE_MESH_TO_POINTS_VERTICES:
         geometry_set_mesh_to_points(geometry_set,
