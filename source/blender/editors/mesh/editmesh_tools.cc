@@ -2750,7 +2750,6 @@ static wmOperatorStatus edbm_do_smooth_vertex_exec(bContext *C, wmOperator *op)
   return tot_selected ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
 }
 
-
 void MESH_OT_vertices_smooth(wmOperatorType *ot)
 {
   /* identifiers */

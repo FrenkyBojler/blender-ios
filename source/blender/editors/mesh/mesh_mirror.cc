@@ -20,7 +20,6 @@
 
 #include "ED_mesh.hh"
 
-
 #define KD_THRESH 0.00002f
 
 static struct {
