@@ -2578,7 +2578,7 @@ static wmOperatorStatus edbm_normals_make_consistent_exec(bContext *C, wmOperato
     }
 
     std::optional<EditMeshSymmetryHelper> symmetry_helper =
-        EditMeshSymmetryHelper::create_if_needed(obedit);
+        EditMeshSymmetryHelper::create_if_needed(obedit, BM_FACE);
 
     char hflag = BM_ELEM_SELECT;
 
@@ -2589,10 +2589,9 @@ static wmOperatorStatus edbm_normals_make_consistent_exec(bContext *C, wmOperato
       BMIter iter;
       BMFace *f;
       BM_ITER_MESH (f, &iter, bm, BM_FACES_OF_MESH) {
-        if (BM_elem_flag_test(f, BM_ELEM_SELECT) ||
-            (symmetry_helper->is_any_mirror_face_selected(f, BM_ELEM_SELECT)))
-        {
+        if (BM_elem_flag_test(f, BM_ELEM_SELECT)) {
           BM_elem_flag_enable(f, hflag);
+          symmetry_helper->set_hflag_on_mirror_faces(f, hflag, true);
         }
       }
     }
@@ -2611,17 +2610,17 @@ static wmOperatorStatus edbm_normals_make_consistent_exec(bContext *C, wmOperato
       continue;
     }
 
-      if (inside) {
-        EDBM_op_callf(em, op, "reverse_faces faces=%hf flip_multires=%b", hflag, true);
-        flip_custom_normals(em->bm, lnors_ed_arr);
-      }
+    if (inside) {
+      EDBM_op_callf(em, op, "reverse_faces faces=%hf flip_multires=%b", hflag, true);
+      flip_custom_normals(em->bm, lnors_ed_arr);
+    }
 
-      if (lnors_ed_arr != nullptr) {
-        BM_loop_normal_editdata_array_free(lnors_ed_arr);
-      }
+    if (lnors_ed_arr != nullptr) {
+      BM_loop_normal_editdata_array_free(lnors_ed_arr);
+    }
 
-      if (hflag != BM_ELEM_SELECT) {
-        EDBM_flag_disable_all(em, hflag);
+    if (hflag != BM_ELEM_SELECT) {
+      EDBM_flag_disable_all(em, hflag);
     }
 
     EDBMUpdate_Params params{};
@@ -4345,7 +4344,7 @@ static bool mesh_separate_loose(
   blender::Array<BMEdge *> edge_groups(bm_old->totedge);
   blender::Array<BMFace *> face_groups(bm_old->totface);
 
-  int (*groups)[3] = nullptr;
+  int(*groups)[3] = nullptr;
   int groups_len = BM_mesh_calc_edge_groups_as_arrays(
       bm_old, vert_groups.data(), edge_groups.data(), face_groups.data(), &groups);
   if (groups_len <= 1) {
@@ -9524,7 +9523,7 @@ static wmOperatorStatus edbm_set_normals_from_faces_exec(bContext *C, wmOperator
 
     BKE_editmesh_lnorspace_update(em);
 
-    float (*vert_normals)[3] = static_cast<float (*)[3]>(
+    float(*vert_normals)[3] = static_cast<float(*)[3]>(
         MEM_mallocN(sizeof(*vert_normals) * bm->totvert, __func__));
     {
       int v_index;
@@ -9632,7 +9631,7 @@ static wmOperatorStatus edbm_smooth_normals_exec(bContext *C, wmOperator *op)
     BKE_editmesh_lnorspace_update(em);
     BMLoopNorEditDataArray *lnors_ed_arr = BM_loop_normal_editdata_array_init(bm, false);
 
-    float (*smooth_normal)[3] = static_cast<float (*)[3]>(
+    float(*smooth_normal)[3] = static_cast<float(*)[3]>(
         MEM_callocN(sizeof(*smooth_normal) * lnors_ed_arr->totloop, __func__));
 
     /* NOTE(@mont29): This is weird choice of operation, taking all loops of faces of current
