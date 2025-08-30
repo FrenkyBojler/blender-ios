@@ -186,29 +186,33 @@ GHOST_TButton convertButton(int button)
 
 GHOST_TKey convertIOSKeyToGHOST(NSString *key)
 {
-  /* Handle special keys using string comparison (iOS 7.0+) */
-  if (@available(iOS 7.0, *)) {
-    if ([key isEqualToString:UIKeyInputEscape]) {
-      return GHOST_kKeyEsc;
-    }
-    if ([key isEqualToString:UIKeyInputUpArrow]) {
-      return GHOST_kKeyUpArrow;
-    }
-    if ([key isEqualToString:UIKeyInputDownArrow]) {
-      return GHOST_kKeyDownArrow;
-    }
-    if ([key isEqualToString:UIKeyInputLeftArrow]) {
-      return GHOST_kKeyLeftArrow;
-    }
-    if ([key isEqualToString:UIKeyInputRightArrow]) {
-      return GHOST_kKeyRightArrow;
-    }
-    if ([key isEqualToString:UIKeyInputDelete]) {
-      return GHOST_kKeyBackSpace;
-    }
+  if ([key isEqualToString:UIKeyInputEscape]) {
+    return GHOST_kKeyEsc;
+  }
+  if ([key isEqualToString:UIKeyInputDelete]) {
+    return GHOST_kKeyBackSpace;
   }
 
-  /* Handle additional special keys by string name */
+  if ([key isEqualToString:UIKeyInputPageUp]) {
+    return GHOST_kKeyUpPage;
+  }
+  if ([key isEqualToString:UIKeyInputPageDown]) {
+    return GHOST_kKeyDownPage;
+  }
+
+  if ([key isEqualToString:UIKeyInputUpArrow]) {
+    return GHOST_kKeyUpArrow;
+  }
+  if ([key isEqualToString:UIKeyInputDownArrow]) {
+    return GHOST_kKeyDownArrow;
+  }
+  if ([key isEqualToString:UIKeyInputLeftArrow]) {
+    return GHOST_kKeyLeftArrow;
+  }
+  if ([key isEqualToString:UIKeyInputRightArrow]) {
+    return GHOST_kKeyRightArrow;
+  }
+
   if ([key isEqualToString:UIKeyInputF1]) {
     return GHOST_kKeyF1;
   }
@@ -246,18 +250,11 @@ GHOST_TKey convertIOSKeyToGHOST(NSString *key)
     return GHOST_kKeyF12;
   }
 
-  /* Additional navigation and editing keys */
   if ([key isEqualToString:@"Home"]) {
     return GHOST_kKeyHome;
   }
   if ([key isEqualToString:@"End"]) {
     return GHOST_kKeyEnd;
-  }
-  if ([key isEqualToString:@"Page Up"]) {
-    return GHOST_kKeyUpPage;
-  }
-  if ([key isEqualToString:@"Page Down"]) {
-    return GHOST_kKeyDownPage;
   }
   if ([key isEqualToString:@"Insert"]) {
     return GHOST_kKeyInsert;
@@ -266,7 +263,6 @@ GHOST_TKey convertIOSKeyToGHOST(NSString *key)
     return GHOST_kKeyDelete;
   }
 
-  /* Keypad/Numeric keys */
   if ([key isEqualToString:@"Keypad 0"]) {
     return GHOST_kKeyNumpad0;
   }
@@ -316,7 +312,7 @@ GHOST_TKey convertIOSKeyToGHOST(NSString *key)
     return GHOST_kKeyNumpadEnter;
   }
 
-  /* For regular character keys, get the first character */
+  /* For regular character keys, get the first character. */
   unichar character = [key characterAtIndex:0];
 
   /* Handle common control characters */
@@ -329,7 +325,7 @@ GHOST_TKey convertIOSKeyToGHOST(NSString *key)
     case ' ':
       return GHOST_kKeySpace;
     case 0x1B:
-      return GHOST_kKeyEsc; /* ESC character */
+      return GHOST_kKeyEsc;
     default:
       break;
   }
@@ -372,7 +368,7 @@ GHOST_TKey convertIOSKeyToGHOST(NSString *key)
 
     /* Shifted special characters */
     case '_':
-      return GHOST_kKeyMinus; /* Shifted minus */
+      return GHOST_kKeyMinus;
     case '+':
       return GHOST_kKeyEqual; /* Shifted equal */
     case '{':
@@ -394,7 +390,6 @@ GHOST_TKey convertIOSKeyToGHOST(NSString *key)
     case '?':
       return GHOST_kKeySlash; /* Shifted / */
 
-    /* Shifted number row */
     case '!':
       return GHOST_kKey1;
     case '@':
@@ -416,15 +411,13 @@ GHOST_TKey convertIOSKeyToGHOST(NSString *key)
     case ')':
       return GHOST_kKey0;
 
-    /* Additional control characters */
     case 0x08:
-      return GHOST_kKeyBackSpace; /* Backspace */
+      return GHOST_kKeyBackSpace;
     case 0x7F:
-      return GHOST_kKeyDelete; /* Delete */
-
-    default:
-      return GHOST_kKeyUnknown;
+      return GHOST_kKeyDelete;
   }
+
+  return GHOST_kKeyUnknown;
 }
 
 GHOST_TKey convertIOSModToGHOST(int keyCode)
