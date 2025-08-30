@@ -5315,16 +5315,14 @@ static wmOperatorStatus edbm_quads_convert_to_tris_exec(bContext *C, wmOperator 
       hflag = BM_ELEM_TAG;
       EDBM_flag_disable_all(em, hflag);
 
-      blender::Vector<BMFace *> originally_selected;
       BMIter f_iter;
       BMFace *f;
       BM_ITER_MESH (f, &f_iter, bm, BM_FACES_OF_MESH) {
         if (BM_elem_flag_test(f, BM_ELEM_SELECT)) {
-          originally_selected.append(f);
+          BM_elem_flag_enable(f, hflag);
+          symmetry_helper->set_hflag_on_mirror_faces(f, hflag, true);
         }
       }
-      
-      symmetry_helper->tag_symmetrical_group(originally_selected, hflag);
     }
 
     BMOperator bmop;
@@ -5343,8 +5341,7 @@ static wmOperatorStatus edbm_quads_convert_to_tris_exec(bContext *C, wmOperator 
     BMO_op_exec(bm, &bmop);
 
     /* select the output */
-    BMO_slot_buffer_hflag_enable(
-        bm, bmop.slots_out, "faces.out", BM_FACE, BM_ELEM_SELECT, true);
+    BMO_slot_buffer_hflag_enable(bm, bmop.slots_out, "faces.out", BM_FACE, BM_ELEM_SELECT, true);
 
     /* remove the doubles */
     BMO_ITER (f, &oiter, bmop.slots_out, "face_map_double.out", BM_FACE) {
