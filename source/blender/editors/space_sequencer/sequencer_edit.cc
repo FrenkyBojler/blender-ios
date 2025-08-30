@@ -76,6 +76,7 @@
 
 /* Own include. */
 #include "sequencer_intern.hh"
+#include <algorithm>
 #include <cstddef>
 
 namespace blender::ed::vse {
@@ -1736,8 +1737,8 @@ static wmOperatorStatus sequencer_box_cut_exec(bContext *C, wmOperator *op)
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_sequencer_scene(C);
   Editing *ed = seq::editing_get(scene);
-  bool changed = false;
-  bool strip_selected = false;
+  // bool changed = false;
+  // bool strip_selected = false;
 
   // get mouse rctf +
   View2D *v2d = UI_view2d_fromcontext(C);
@@ -1747,6 +1748,7 @@ static wmOperatorStatus sequencer_box_cut_exec(bContext *C, wmOperator *op)
   // get mouse rctf -
 
   // const bool use_cursor_position = RNA_boolean_get(op->ptr, "use_cursor_position");
+  const bool remove_gaps = RNA_boolean_get(op->ptr, "remove_gaps");
 
   // const int split_frame = RNA_struct_property_is_set(op->ptr, "frame") ?
   //                             RNA_int_get(op->ptr, "frame") :
@@ -1762,11 +1764,17 @@ static wmOperatorStatus sequencer_box_cut_exec(bContext *C, wmOperator *op)
   int2 rect_frames = {round_fl_to_int(rectf.xmin), round_fl_to_int(rectf.xmax)};
   /* slpit the split logic into two so the newly created strips can get split by the second
    * foreach. */
+  int max_left_offset = INT_MAX;
   LISTBASE_FOREACH_MUTABLE (Strip *, strip, ed->current_strips()) {
     rctf rq;
     strip_rectf(scene, strip, &rq);
     const char *error_msg = nullptr;
     if (BLI_rctf_isect(&rq, &rectf, nullptr)) {
+      if (max_left_offset == INT_MAX ||
+          seq::time_left_handle_frame_get(scene, strip) < max_left_offset)
+      {
+        max_left_offset = std::min(max_left_offset, seq::time_left_handle_frame_get(scene, strip));
+      }
       if (seq::edit_strip_split(
               bmain, scene, ed->current_strips(), strip, rect_frames[0], method, &error_msg) !=
           nullptr)
@@ -1805,20 +1813,47 @@ static wmOperatorStatus sequencer_box_cut_exec(bContext *C, wmOperator *op)
     }
   }
   /* Close gaps. */
-  LISTBASE_FOREACH (Strip *, strip, ed->current_strips()) {
-    const float left_handle = seq::time_left_handle_frame_get(scene, strip);
-    if (left_handle == rect_frames[1]) {
-      seq::transform_translate_strip(scene, strip, rect_frames[0] - rect_frames[1]);
-    }
-    /* offset every strip on the same channel and right of the cut. */
-    else if (left_handle > rect_frames[1] && strip->channel <= round_fl_to_int(rectf.ymax) &&
-             strip->channel >= round_fl_to_int(rectf.ymin))
-    {
-      seq::transform_translate_strip(scene, strip, rect_frames[0] - rect_frames[1]);
+  if (remove_gaps) {
+    LISTBASE_FOREACH (Strip *, strip, ed->current_strips()) {
+      const float left_handle = seq::time_left_handle_frame_get(scene, strip);
+      int offset = rect_frames[0] - rect_frames[1];
+      /* cap offset */
+      offset = std::max(offset, (max_left_offset - rect_frames[1]));
+
+      if (left_handle == rect_frames[1]) {
+        seq::transform_translate_strip(scene, strip, offset);
+      }
+      /* offset every strip on the same channel and right of the cut. */
+      else if (left_handle > rect_frames[1] && strip->channel <= round_fl_to_int(rectf.ymax) &&
+               strip->channel >= round_fl_to_int(rectf.ymin))
+      {
+        seq::transform_translate_strip(scene, strip, offset);
+      }
     }
   }
   return OPERATOR_FINISHED;
 }
+
+static void sequencer_box_cut_ui(bContext * /*C*/, wmOperator *op)
+{
+  uiLayout *layout = op->layout;
+  layout->use_property_split_set(true);
+  layout->use_property_decorate_set(false);
+
+  uiLayout *row = &layout->row(false);
+  // row->prop(op->ptr, "type", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+  // layout->prop(op->ptr, "frame", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  // layout->prop(op->ptr, "side", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout->prop(op->ptr, "remove_gaps", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+
+  layout->separator();
+
+  // layout->prop(op->ptr, "use_cursor_position", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  // if (RNA_boolean_get(op->ptr, "use_cursor_position")) {
+    // layout->prop(op->ptr, "channel", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  // }
+}
+
 void SEQUENCER_OT_box_cut(wmOperatorType *ot)
 {
   /* Identifiers. */
@@ -1831,12 +1866,11 @@ void SEQUENCER_OT_box_cut(wmOperatorType *ot)
   ot->exec = sequencer_box_cut_exec;
   ot->modal = WM_gesture_box_modal;
   ot->poll = sequencer_edit_poll;
-  ot->ui = sequencer_split_ui;
+  ot->ui = sequencer_box_cut_ui;
 
   /* Flags. */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
-  // PropertyRNA *prop;
   WM_operator_properties_gesture_box(ot);
   WM_operator_properties_select_operation_simple(ot);
   RNA_def_enum(ot->srna,
@@ -1845,6 +1879,8 @@ void SEQUENCER_OT_box_cut(wmOperatorType *ot)
                seq::SPLIT_SOFT,
                "Type",
                "The type of split operation to perform on strips");
+  RNA_def_boolean(
+      ot->srna, "remove_gaps", true, "Remove Gaps", "Close gaps between cutted strips");
 }
 
 /** \} */

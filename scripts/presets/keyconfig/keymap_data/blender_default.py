@@ -8512,10 +8512,7 @@ def km_sequencer_tool_blade(_params):
              ]}),
             ("sequencer.box_cut", {"type": 'LEFTMOUSE', "value": 'CLICK_DRAG'},
              {"properties": [
-                 ("type", 'SOFT'),
-                 ("side", 'NO_CHANGE'),
-                 ("use_cursor_position", True),
-                 ("ignore_selection", True),
+                 ("remove_gaps"),
              ]}),
         ]},
     )
