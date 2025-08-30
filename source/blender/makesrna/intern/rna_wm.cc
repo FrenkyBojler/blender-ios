@@ -194,6 +194,8 @@ static const EnumPropertyItem event_ndof_type_items[] = {
 };
 
 static const EnumPropertyItem event_touch_type_items[] = {
+    {TOUCH_EDGE_SWIPE_IN_LEFT, "TOUCH_EDGE_SWIPE_IN_LEFT", 0, "Edge Swap In Left"},
+    {TOUCH_EDGE_SWIPE_IN_RIGHT, "TOUCH_EDGE_SWIPE_IN_RIGHT", 0, "Edge Swap In Right"},
     {TOUCH_TWO_FINGER_TAP, "TOUCH_TWO_FINGER_TAP", 0, "2 Fingers Tap", ""},
     {TOUCH_THREE_FINGER_TAP, "TOUCH_THREE_FINGER_TAP", 0, "3 Fingers Tap", ""},
     {TOUCH_FOUR_FINGER_TAP, "TOUCH_FOUR_FINGER_TAP", 0, "4 Fingers Tap", ""},
@@ -460,6 +462,8 @@ const EnumPropertyItem rna_enum_event_type_items[] = {
     {NDOF_BUTTON_11, "NDOF_BUTTON_11", 0, "NDOF Button 11", "NdofB11"},
     {NDOF_BUTTON_12, "NDOF_BUTTON_12", 0, "NDOF Button 12", "NdofB12"},
     /* Touch events. */
+    {TOUCH_EDGE_SWIPE_IN_LEFT, "TOUCH_EDGE_SWIPE_IN_LEFT", 0, "Swap |→   |"},
+    {TOUCH_EDGE_SWIPE_IN_RIGHT, "TOUCH_EDGE_SWIPE_IN_RIGHT", 0, "Swap |   ←|"},
     {TOUCH_TWO_FINGER_TAP, "TOUCH_TWO_FINGER_TAP", 0, "2 Fingers Tap"},
     {TOUCH_THREE_FINGER_TAP, "TOUCH_THREE_FINGER_TAP", 0, "3 Fingers Tap"},
     {TOUCH_FOUR_FINGER_TAP, "TOUCH_FOUR_FINGER_TAP", 0, "4 Fingers Tap"},
@@ -667,7 +671,8 @@ static wmOperator *rna_OperatorProperties_find_operator(PointerRNA *ptr)
   wmWindowManager *wm = (wmWindowManager *)ptr->owner_id;
 
   IDProperty *properties = (IDProperty *)ptr->data;
-  for (wmOperator *op = static_cast<wmOperator *>(wm->operators.last); op; op = op->prev) {
+  for (wmOperator *op = static_cast<wmOperator *>(wm->runtime->operators.last); op; op = op->prev)
+  {
     if (op->properties == properties) {
       return op;
     }
@@ -1207,7 +1212,7 @@ static const EnumPropertyItem *rna_KeyMapItem_propvalue_itemf(bContext *C,
   wmKeyConfig *kc;
   wmKeyMap *km;
 
-  for (kc = static_cast<wmKeyConfig *>(wm->keyconfigs.first); kc; kc = kc->next) {
+  for (kc = static_cast<wmKeyConfig *>(wm->runtime->keyconfigs.first); kc; kc = kc->next) {
     for (km = static_cast<wmKeyMap *>(kc->keymaps.first); km; km = km->next) {
       /* only check if it's a modal keymap */
       if (km->modal_items) {
@@ -1286,10 +1291,10 @@ static PointerRNA rna_WindowManager_active_keyconfig_get(PointerRNA *ptr)
   wmKeyConfig *kc;
 
   kc = static_cast<wmKeyConfig *>(
-      BLI_findstring(&wm->keyconfigs, U.keyconfigstr, offsetof(wmKeyConfig, idname)));
+      BLI_findstring(&wm->runtime->keyconfigs, U.keyconfigstr, offsetof(wmKeyConfig, idname)));
 
   if (!kc) {
-    kc = wm->defaultconf;
+    kc = wm->runtime->defaultconf;
   }
 
   return RNA_pointer_create_with_parent(*ptr, &RNA_KeyConfig, kc);
@@ -1305,6 +1310,24 @@ static void rna_WindowManager_active_keyconfig_set(PointerRNA *ptr,
   if (kc) {
     WM_keyconfig_set_active(wm, kc->idname);
   }
+}
+
+static PointerRNA rna_WindowManager_default_keyconfig_get(PointerRNA *ptr)
+{
+  wmWindowManager *wm = static_cast<wmWindowManager *>(ptr->data);
+  return RNA_pointer_create_with_parent(*ptr, &RNA_KeyConfig, wm->runtime->defaultconf);
+}
+
+static PointerRNA rna_WindowManager_addon_keyconfig_get(PointerRNA *ptr)
+{
+  wmWindowManager *wm = static_cast<wmWindowManager *>(ptr->data);
+  return RNA_pointer_create_with_parent(*ptr, &RNA_KeyConfig, wm->runtime->addonconf);
+}
+
+static PointerRNA rna_WindowManager_user_keyconfig_get(PointerRNA *ptr)
+{
+  wmWindowManager *wm = static_cast<wmWindowManager *>(ptr->data);
+  return RNA_pointer_create_with_parent(*ptr, &RNA_KeyConfig, wm->runtime->userconf);
 }
 
 static void rna_WindowManager_extensions_statusbar_update(Main * /*bmain*/,
@@ -1495,6 +1518,18 @@ static bool rna_KeyMapItem_userdefined_get(PointerRNA *ptr)
 {
   wmKeyMapItem *kmi = static_cast<wmKeyMapItem *>(ptr->data);
   return kmi->id < 0;
+}
+
+static void rna_WindowManager_operators_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
+{
+  wmWindowManager *wm = static_cast<wmWindowManager *>(ptr->data);
+  rna_iterator_listbase_begin(iter, ptr, &wm->runtime->operators, nullptr);
+}
+
+static void rna_WindowManager_keyconfigs_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
+{
+  wmWindowManager *wm = static_cast<wmWindowManager *>(ptr->data);
+  rna_iterator_listbase_begin(iter, ptr, &wm->runtime->keyconfigs, nullptr);
 }
 
 static PointerRNA rna_WindowManager_xr_session_state_get(PointerRNA *ptr)
@@ -2808,13 +2843,15 @@ static void rna_def_wm_keyconfigs(BlenderRNA *brna, PropertyRNA *cprop)
   RNA_def_property_ui_text(prop, "Active KeyConfig", "Active key configuration (preset)");
 
   prop = RNA_def_property(srna, "default", PROP_POINTER, PROP_NEVER_NULL);
-  RNA_def_property_pointer_sdna(prop, nullptr, "defaultconf");
+  RNA_def_property_pointer_funcs(
+      prop, "rna_WindowManager_default_keyconfig_get", nullptr, nullptr, nullptr);
   RNA_def_property_struct_type(prop, "KeyConfig");
   RNA_def_property_ui_text(prop, "Default Key Configuration", "Default builtin key configuration");
 
   prop = RNA_def_property(srna, "addon", PROP_POINTER, PROP_NEVER_NULL);
-  RNA_def_property_pointer_sdna(prop, nullptr, "addonconf");
   RNA_def_property_struct_type(prop, "KeyConfig");
+  RNA_def_property_pointer_funcs(
+      prop, "rna_WindowManager_addon_keyconfig_get", nullptr, nullptr, nullptr);
   RNA_def_property_ui_text(
       prop,
       "Add-on Key Configuration",
@@ -2822,8 +2859,9 @@ static void rna_def_wm_keyconfigs(BlenderRNA *brna, PropertyRNA *cprop)
       "configuration when handling events");
 
   prop = RNA_def_property(srna, "user", PROP_POINTER, PROP_NEVER_NULL);
-  RNA_def_property_pointer_sdna(prop, nullptr, "userconf");
   RNA_def_property_struct_type(prop, "KeyConfig");
+  RNA_def_property_pointer_funcs(
+      prop, "rna_WindowManager_user_keyconfig_get", nullptr, nullptr, nullptr);
   RNA_def_property_ui_text(
       prop,
       "User Key Configuration",
@@ -2848,6 +2886,15 @@ static void rna_def_windowmanager(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "operators", PROP_COLLECTION, PROP_NONE);
   RNA_def_property_struct_type(prop, "Operator");
+  RNA_def_property_collection_funcs(prop,
+                                    "rna_WindowManager_operators_begin",
+                                    "rna_iterator_listbase_next",
+                                    "rna_iterator_listbase_end",
+                                    "rna_iterator_listbase_get",
+                                    nullptr,
+                                    nullptr,
+                                    nullptr,
+                                    nullptr);
   RNA_def_property_ui_text(prop, "Operators", "Operator registry");
 
   prop = RNA_def_property(srna, "windows", PROP_COLLECTION, PROP_NONE);
@@ -2856,6 +2903,15 @@ static void rna_def_windowmanager(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "keyconfigs", PROP_COLLECTION, PROP_NONE);
   RNA_def_property_struct_type(prop, "KeyConfig");
+  RNA_def_property_collection_funcs(prop,
+                                    "rna_WindowManager_keyconfigs_begin",
+                                    "rna_iterator_listbase_next",
+                                    "rna_iterator_listbase_end",
+                                    "rna_iterator_listbase_get",
+                                    nullptr,
+                                    nullptr,
+                                    nullptr,
+                                    nullptr);
   RNA_def_property_ui_text(prop, "Key Configurations", "Registered key configurations");
   rna_def_wm_keyconfigs(brna, prop);
 

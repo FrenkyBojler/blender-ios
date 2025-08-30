@@ -46,53 +46,52 @@ class GHOST_WindowIOS : public GHOST_Window {
    * \param type: The type of drawing context installed in this window.
    * \param stereoVisual: Stereo visual for quad buffered stereo.
    */
-  GHOST_WindowIOS(GHOST_SystemIOS *m_system,
+  GHOST_WindowIOS(GHOST_SystemIOS *system_ios,
                   const char *title,
                   int32_t left,
                   int32_t bottom,
                   uint32_t width,
                   uint32_t height,
                   GHOST_TWindowState state,
-                  GHOST_TDrawingContextType type = GHOST_kDrawingContextTypeNone,
-                  const bool stereoVisual = false,
-                  bool is_debug = false,
-                  bool dialog = false,
-                  GHOST_WindowIOS *parentWindow = 0);
+                  GHOST_TDrawingContextType type,
+                  const GHOST_ContextParams &context_params,
+                  bool /*is_dialog*/,
+                  GHOST_WindowIOS *parent_window);
 
   /**
    * Destructor.
    * Closes the window and disposes resources allocated.
    */
-  ~GHOST_WindowIOS();
+  ~GHOST_WindowIOS() override;
 
   /**
    * Returns indication as to whether the window is valid.
    * \return The validity of the window.
    */
-  bool getValid() const;
+  bool getValid() const override;
 
   /**
    * Returns the associated NSWindow object
    * \return The associated NSWindow object
    */
-  void *getOSWindow() const;
+  void *getOSWindow() const override;
 
   /**
    * Swaps the current framebuffer to the screen
    * \return Success or failure
    */
-  GHOST_TSuccess swapBuffers();
+  GHOST_TSuccess swapBuffers() override;
 
   /**
    * Sets the title displayed in the title bar.
    * \param title: The title to display in the title bar.
    */
-  void setTitle(const char *title);
+  void setTitle(const char *title) override;
   /**
    * Returns the title displayed in the title bar.
    * \param title: The title displayed in the title bar.
    */
-  std::string getTitle() const;
+  std::string getTitle() const override;
 
   /**
    * Makes sure we get another draw request.
@@ -105,46 +104,46 @@ class GHOST_WindowIOS : public GHOST_Window {
    * relative to the upper-left corner of the screen.
    * \param bounds: The bounding rectangle of the window.
    */
-  void getWindowBounds(GHOST_Rect &bounds) const;
+  void getWindowBounds(GHOST_Rect &bounds) const override;
 
   /**
    * Returns the client rectangle dimensions.
    * The left and top members of the rectangle are always zero.
    * \param bounds: The bounding rectangle of the client area of the window.
    */
-  void getClientBounds(GHOST_Rect &bounds) const;
+  void getClientBounds(GHOST_Rect &bounds) const override;
 
   /**
    * Resizes client rectangle width.
    * \param width: The new width of the client area of the window.
    */
-  GHOST_TSuccess setClientWidth(uint32_t width);
+  GHOST_TSuccess setClientWidth(uint32_t width) override;
 
   /**
    * Resizes client rectangle height.
    * \param height: The new height of the client area of the window.
    */
-  GHOST_TSuccess setClientHeight(uint32_t height);
+  GHOST_TSuccess setClientHeight(uint32_t height) override;
 
   /**
    * Resizes client rectangle.
    * \param width: The new width of the client area of the window.
    * \param height: The new height of the client area of the window.
    */
-  GHOST_TSuccess setClientSize(uint32_t width, uint32_t height);
+  GHOST_TSuccess setClientSize(uint32_t width, uint32_t height) override;
 
   /**
    * Returns the state of the window (normal, minimized, maximized).
    * \return The state of the window.
    */
-  GHOST_TWindowState getState() const;
+  GHOST_TWindowState getState() const override;
 
   /**
    * Sets the window "modified" status, indicating unsaved changes
    * \param isUnsavedChanges: Unsaved changes or not.
    * \return Indication of success.
    */
-  GHOST_TSuccess setModifiedState(bool isUnsavedChanges);
+  GHOST_TSuccess setModifiedState(bool isUnsavedChanges) override;
 
   /**
    * Converts a point in screen coordinates to client rectangle coordinates
@@ -153,7 +152,7 @@ class GHOST_WindowIOS : public GHOST_Window {
    * \param outX: The x-coordinate in the client rectangle.
    * \param outY: The y-coordinate in the client rectangle.
    */
-  void screenToClient(int32_t inX, int32_t inY, int32_t &outX, int32_t &outY) const;
+  void screenToClient(int32_t inX, int32_t inY, int32_t &outX, int32_t &outY) const override;
 
   /**
    * Converts a point in screen coordinates to client rectangle coordinates
@@ -162,7 +161,7 @@ class GHOST_WindowIOS : public GHOST_Window {
    * \param outX: The x-coordinate on the screen.
    * \param outY: The y-coordinate on the screen.
    */
-  void clientToScreen(int32_t inX, int32_t inY, int32_t &outX, int32_t &outY) const;
+  void clientToScreen(int32_t inX, int32_t inY, int32_t &outX, int32_t &outY) const override;
 
   /**
    * Converts a point in screen coordinates to client rectangle coordinates
@@ -189,18 +188,18 @@ class GHOST_WindowIOS : public GHOST_Window {
    * \param state: The state of the window.
    * \return Indication of success.
    */
-  GHOST_TSuccess setState(GHOST_TWindowState state);
+  GHOST_TSuccess setState(GHOST_TWindowState state) override;
 
   /**
    * Sets the order of the window (bottom, top).
    * \param order: The order of the window.
    * \return Indication of success.
    */
-  GHOST_TSuccess setOrder(GHOST_TWindowOrder order);
+  GHOST_TSuccess setOrder(GHOST_TWindowOrder order) override;
 
   void loadCursor(bool visible, GHOST_TStandardCursor cursor) const;
 
-  bool isDialog() const;
+  bool isDialog() const override;
 
   /**
    * Sets the progress bar value displayed in the window/application icon
@@ -228,17 +227,17 @@ class GHOST_WindowIOS : public GHOST_Window {
   /** public function to get the window containing the OpenGL view */
   UIView *getUIView() const
   {
-    return m_uiview;
+    return uiview_;
   };
 
   /* Internal value to ensure proper redraws during animations */
   void setImmediateDraw(bool value)
   {
-    m_immediateDraw = value;
+    immediate_draw_ = value;
   }
   bool getImmediateDraw(void) const
   {
-    return m_immediateDraw;
+    return immediate_draw_;
   }
 
   /**
@@ -247,7 +246,7 @@ class GHOST_WindowIOS : public GHOST_Window {
    */
   GHOST_SystemIOS *getSystem() const
   {
-    return m_systemIOS;
+    return system_ios_;
   }
 
   /* Active window controls. We can only present on active windows.  */
@@ -307,27 +306,27 @@ class GHOST_WindowIOS : public GHOST_Window {
   uint16_t getDPIHint();
 
   /** The mother SystemCocoa class to send events */
-  GHOST_SystemIOS *m_systemIOS;
+  GHOST_SystemIOS *system_ios_;
 
   /** The view, either Metal or OpenGL */
-  UIViewController *m_uiview_controller;
-  UIView *m_uiview;
-  MTKView *m_metalView;
+  UIViewController *uiview_controller_;
+  UIView *uiview_;
+  MTKView *metal_view_;
 
-  bool m_immediateDraw;
-  bool m_debug_context;  // for debug messages during context setup
-  bool m_is_dialog;
-  bool m_is_active_window;
-  bool m_request_to_make_active;
+  bool immediate_draw_;
+  bool debug_context_;  // for debug messages during context setup
+  bool is_dialog_;
+  bool is_active_window_;
+  bool request_to_make_active_;
 
   GHOST_WindowIOS *parent_window_;
 
-  char *m_window_title;
+  char *window_title_;
 
  public:
   inline UIView *getView()
   {
-    return m_uiview;
+    return uiview_;
   }
   CGPoint scalePointToWindow(CGPoint &point);
 
@@ -372,7 +371,7 @@ class GHOST_EventIME : public GHOST_Event {
   GHOST_EventIME(uint64_t msec, GHOST_TEventType type, GHOST_IWindow *window, void *customdata)
       : GHOST_Event(msec, type, window)
   {
-    this->m_data = customdata;
+    this->data_ = customdata;
   }
 };
 

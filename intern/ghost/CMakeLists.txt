@@ -52,6 +52,7 @@ set(SRC
   intern/GHOST_EventKey.hh
   intern/GHOST_EventManager.hh
   intern/GHOST_EventString.hh
+  intern/GHOST_EventTouch.hh
   intern/GHOST_EventTrackpad.hh
   intern/GHOST_EventWheel.hh
   intern/GHOST_ModifierKeys.hh
@@ -98,16 +99,6 @@ if(WITH_OPENGL_BACKEND)
 endif()
 
 if(WITH_VULKAN_BACKEND)
-  if(WITH_VULKAN_MOLTENVK)
-    list(APPEND INC_SYS
-      PUBLIC ${MOLTENVK_INCLUDE_DIRS}
-    )
-
-    list(APPEND LIB
-      ${MOLTENVK_LIBRARIES}
-    )
-  endif()
-
   list(APPEND SRC
     intern/GHOST_ContextVK.cc
 
@@ -192,8 +183,8 @@ elseif(APPLE AND NOT WITH_GHOST_X11)
     if(APPLE_TARGET_IOS)
       # GHOST modules for iPadOS.
       list(APPEND SRC
-        intern/GHOST_SystemIOS.h
-        intern/GHOST_WindowIOS.h
+        intern/GHOST_SystemIOS.hh
+        intern/GHOST_WindowIOS.hh
 
         intern/GHOST_SystemIOS.mm
         intern/GHOST_WindowIOS.mm

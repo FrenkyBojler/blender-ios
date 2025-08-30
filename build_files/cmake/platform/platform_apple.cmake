@@ -221,7 +221,7 @@ else()
 	  "Try building MacOS version first: 'make update' or 'make deps'\n"
     )
   endif()
-  
+
   message(STATUS "HOST PYTHON EXECUTABLE: ${PYTHON_EXECUTABLE}")
 endif()
 
@@ -276,11 +276,6 @@ add_bundled_libraries(opensubdiv/lib)
 
 if(WITH_APPLE_CROSSPLATFORM)
   set(OPENSUBDIV_INCLUDE_DIRS ${OPENSUBDIV_INCLUDE_DIR})
-endif()
-if(WITH_VULKAN_BACKEND)
-  find_package(MoltenVK REQUIRED)
-  find_package(ShaderC REQUIRED)
-  find_package(Vulkan REQUIRED)
 endif()
 
 if(WITH_CODEC_SNDFILE)
@@ -374,7 +369,7 @@ string(APPEND PLATFORM_CFLAGS " -pipe -funsigned-char -fno-strict-aliasing -ffp-
 if(WITH_APPLE_CROSSPLATFORM)
   # Link different frameworks for iOS
   set(PLATFORM_LINKFLAGS
-    "-fexceptions -framework CoreServices -framework Foundation -framework IOKit -framework UIKit -framework AudioToolbox -framework CoreAudio -framework Metal -framework MetalKit -framework QuartzCore -framework ImageIO -framework GameController" 
+    "-fexceptions -framework CoreServices -framework Foundation -framework IOKit -framework UIKit -framework AudioToolbox -framework CoreAudio -framework Metal -framework MetalKit -framework QuartzCore -framework ImageIO -framework GameController -framework CoreGraphics"
   )
   list(APPEND PLATFORM_LINKLIBS "${LIBDIR}/libb2/lib/libb2.a")
 else()
