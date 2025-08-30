@@ -1623,8 +1623,7 @@ GHOST_WindowIOS::GHOST_WindowIOS(GHOST_SystemIOS *system_ios,
   rootWindow.windowLevel = UIWindowLevelAlert;
 
   GHOST_ASSERT(rootWindow, "UIWindow not valid");
-  uiview_controller_ = [[[GHOST_IOSViewController alloc] initWithMetalKitView:metal_view_]
-      retain];
+  uiview_controller_ = [[[GHOST_IOSViewController alloc] initWithMetalKitView:metal_view_] retain];
   [uiview_controller_ viewDidLoad];
   GHOST_ASSERT(uiview_controller_, "UIViewController not valid");
 

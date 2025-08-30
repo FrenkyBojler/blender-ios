@@ -3616,8 +3616,7 @@ static void ui_textedit_begin(bContext *C, uiBut *but, uiHandleButtonData *data)
   keyboard_properties.tip_text = but->tip.data();
   keyboard_properties.text_string = text_edit.edit_string;
 
-  GHOST_popupOnScreenKeyboard(static_cast<GHOST_WindowHandle>(win->ghostwin),
-                              keyboard_properties);
+  GHOST_popupOnScreenKeyboard(static_cast<GHOST_WindowHandle>(win->ghostwin), keyboard_properties);
 #endif
 
   WM_cursor_modal_set(win, WM_CURSOR_TEXT_EDIT);

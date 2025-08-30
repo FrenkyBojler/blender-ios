@@ -72,7 +72,7 @@ void GHOST_ShowMessageBox(GHOST_SystemHandle systemhandle,
 
 #if (WITH_APPLE_CROSSPLATFORM)
 GHOST_TSuccess GHOST_popupOnScreenKeyboard(GHOST_WindowHandle windowhandle,
-                                 const GHOST_KeyboardProperties &keyboard_properties)
+                                           const GHOST_KeyboardProperties &keyboard_properties)
 {
   GHOST_ISystem *system = GHOST_ISystem::getSystem();
   GHOST_IWindow *window = (GHOST_IWindow *)windowhandle;
@@ -96,12 +96,14 @@ const char *GHOST_getKeyboardInput(GHOST_WindowHandle windowhandle)
   return system->getKeyboardInput(window);
 }
 
-extern GHOST_TSuccess GHOST_startSecurityScopedFileAccess(const char *filepath) {
+extern GHOST_TSuccess GHOST_startSecurityScopedFileAccess(const char *filepath)
+{
   GHOST_ISystem *system = GHOST_ISystem::getSystem();
   return system->startSecurityScopedFileAccess(filepath);
 }
 
-extern GHOST_TSuccess GHOST_stopSecurityScopedFileAccess(const char *filepath) {
+extern GHOST_TSuccess GHOST_stopSecurityScopedFileAccess(const char *filepath)
+{
   GHOST_ISystem *system = GHOST_ISystem::getSystem();
   return system->stopSecurityScopedFileAccess(filepath);
 }
