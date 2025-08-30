@@ -1507,11 +1507,6 @@ typedef struct UserInputEvent {
   return text_field_string;
 }
 
-- (const bool)getExternalKeyboard
-{
-  return external_keyboard != nil;
-}
-
 @end
 
 @interface GHOST_IOSViewController : UIViewController
@@ -2064,12 +2059,6 @@ const char *GHOST_WindowIOS::getLastKeyboardString()
 {
   GHOSTUIWindow *ghost_rootWindow = (GHOSTUIWindow *)rootWindow;
   return [ghost_rootWindow getLastKeyboardString];
-}
-
-bool GHOST_WindowIOS::getExternalKeyboard()
-{
-  GHOSTUIWindow *ghost_rootWindow = (GHOSTUIWindow *)rootWindow;
-  return [ghost_rootWindow getExternalKeyboard];
 }
 
 UITextField *GHOST_WindowIOS::getUITextField()

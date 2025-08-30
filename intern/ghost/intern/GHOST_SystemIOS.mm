@@ -825,17 +825,6 @@ const char *GHOST_SystemIOS::getKeyboardInput(GHOST_IWindow *window)
   return windowIOS->getLastKeyboardString();
 }
 
-bool GHOST_SystemIOS::getExternalKeyboard(GHOST_IWindow *window)
-{
-  if (!validWindow((GHOST_IWindow *)window)) {
-    return false;
-  }
-
-  GHOST_WindowIOS *windowIOS = (GHOST_WindowIOS *)window;
-
-  return windowIOS->getExternalKeyboard();
-}
-
 GHOST_TSuccess GHOST_SystemIOS::startSecurityScopedFileAccess(const char *filepath)
 {
   NSURL *url = [NSURL fileURLWithPath:[NSString stringWithUTF8String:filepath]];

@@ -254,8 +254,6 @@ class GHOST_SystemIOS : public GHOST_System {
   GHOST_TSuccess startSecurityScopedFileAccess(const char *filepath);
   GHOST_TSuccess stopSecurityScopedFileAccess(const char *filepath);
 
-  bool getExternalKeyboard(GHOST_IWindow *window);
-
   /**
    * Handles a window event. Called by GHOST_WindowIOS window delegate
    * \param eventType: The type of window event.

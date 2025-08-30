@@ -96,14 +96,6 @@ const char *GHOST_getKeyboardInput(GHOST_WindowHandle windowhandle)
   return system->getKeyboardInput(window);
 }
 
-bool GHOST_getExternalKeyboard(GHOST_WindowHandle windowhandle)
-{
-  GHOST_ISystem *system = GHOST_ISystem::getSystem();
-  GHOST_IWindow *window = (GHOST_IWindow *)windowhandle;
-
-  return system->getExternalKeyboard(window);
-}
-
 extern GHOST_TSuccess GHOST_startSecurityScopedFileAccess(const char *filepath) {
   GHOST_ISystem *system = GHOST_ISystem::getSystem();
   return system->startSecurityScopedFileAccess(filepath);

@@ -105,12 +105,6 @@ class GHOST_SystemHeadless : public GHOST_System {
     return nullptr;
   }
 
-  bool getExternalKeyboard(GHOST_IWindow * /*window*/) override
-  {
-    return false;
-  }
-
-
   GHOST_TSuccess startSecurityScopedFileAccess(const char * /*filepath*/) override {
     return GHOST_kSuccess;
   }

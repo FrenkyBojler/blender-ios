@@ -351,7 +351,6 @@ class GHOST_WindowIOS : public GHOST_Window {
   const GHOST_TabletData getTabletData();
   UITextField *getUITextField();
   const char *getLastKeyboardString();
-  bool getExternalKeyboard();
   /* This is the size of the window pre-scaled */
   CGSize getLogicalWindowSize();
   /* This is the size of the window post-scaled */
