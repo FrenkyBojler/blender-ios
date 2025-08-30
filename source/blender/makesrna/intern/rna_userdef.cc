@@ -5045,7 +5045,7 @@ static void rna_def_userdef_view(BlenderRNA *brna)
   prop = RNA_def_property(srna, "menu_close_leave", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", USER_MENU_CLOSE_LEAVE);
   RNA_def_property_ui_text(
-      prop, "Close Menu on Leave", "Close menus when the mouse moved out of the region.");
+      prop, "Close Menu on Leave", "Close menus when the mouse is moved out of the region.");
 
   prop = RNA_def_property(srna, "open_toplevel_delay", PROP_INT, PROP_NONE);
   RNA_def_property_int_sdna(prop, nullptr, "menuthreshold1");
