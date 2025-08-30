@@ -106,49 +106,42 @@ static wmOperatorStatus edbm_subdivide_exec(bContext *C, wmOperator *op)
 
   for (Object *obedit : objects) {
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
+    BMesh *bm = em->bm;
 
-    if (!(em->bm->totedgesel || em->bm->totfacesel)) {
+    if (!(bm->totedgesel || bm->totfacesel)) {
       continue;
     }
 
-    if (std::optional<EditMeshSymmetryHelper> symmetry_helper =
-            EditMeshSymmetryHelper::create_if_needed(obedit, BM_EDGE | BM_FACE))
-    {
-      BMesh *bm = em->bm;
+    std::optional<EditMeshSymmetryHelper> symmetry_helper =
+        EditMeshSymmetryHelper::create_if_needed(obedit, BM_EDGE | BM_FACE);
+
+    char hflag_geom = BM_ELEM_SELECT;
+
+    if (symmetry_helper) {
+      hflag_geom = BM_ELEM_TAG;
+      EDBM_flag_disable_all(em, hflag_geom);
+
       BMIter iter;
+
       BMEdge *e;
+      BM_ITER_MESH (e, &iter, bm, BM_EDGES_OF_MESH) {
+        if (BM_elem_flag_test(e, BM_ELEM_SELECT)) {
+          BM_elem_flag_enable(e, hflag_geom);
+          symmetry_helper->set_hflag_on_mirror_edges(e, hflag_geom, true);
+        }
+      }
+
       BMFace *f;
-
-      Vector<BMEdge *> selected_edges;
-      if (bm->totedgesel > 0) {
-        selected_edges.reserve(bm->totedgesel);
-        BM_ITER_MESH (e, &iter, bm, BM_EDGES_OF_MESH) {
-          if (BM_elem_flag_test(e, BM_ELEM_SELECT)) {
-            selected_edges.append(e);
-          }
+      BM_ITER_MESH (f, &iter, bm, BM_FACES_OF_MESH) {
+        if (BM_elem_flag_test(f, BM_ELEM_SELECT)) {
+          BM_elem_flag_enable(f, hflag_geom);
+          symmetry_helper->set_hflag_on_mirror_faces(f, hflag_geom, true);
         }
-      }
-
-      Vector<BMFace *> selected_faces;
-      if (bm->totfacesel > 0) {
-        selected_faces.reserve(bm->totfacesel);
-        BM_ITER_MESH (f, &iter, bm, BM_FACES_OF_MESH) {
-          if (BM_elem_flag_test(f, BM_ELEM_SELECT)) {
-            selected_faces.append(f);
-          }
-        }
-      }
-
-      for (BMEdge *edge : selected_edges) {
-        symmetry_helper->set_flag_on_mirror_edges(edge, BM_ELEM_SELECT, true);
-      }
-      for (BMFace *face : selected_faces) {
-        symmetry_helper->set_flag_on_mirror_faces(face, BM_ELEM_SELECT, true);
       }
     }
 
-    BM_mesh_esubdivide(em->bm,
-                       BM_ELEM_SELECT,
+    BM_mesh_esubdivide(bm,
+                       hflag_geom,
                        smooth,
                        SUBD_FALLOFF_LIN,
                        false,
@@ -161,6 +154,10 @@ static wmOperatorStatus edbm_subdivide_exec(bContext *C, wmOperator *op)
                        true,
                        false,
                        seed);
+
+    if (hflag_geom != BM_ELEM_SELECT) {
+      EDBM_flag_disable_all(em, hflag_geom);
+    }
 
     EDBMUpdate_Params params{};
     params.calc_looptris = true;
@@ -399,65 +396,56 @@ static wmOperatorStatus edbm_unsubdivide_exec(bContext *C, wmOperator *op)
       scene, view_layer, CTX_wm_view3d(C));
   for (Object *obedit : objects) {
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
+    BMesh *bm = em->bm;
 
-    if ((em->bm->totvertsel == 0) && (em->bm->totedgesel == 0) && (em->bm->totfacesel == 0)) {
+    if ((bm->totvertsel == 0) && (bm->totedgesel == 0) && (bm->totfacesel == 0)) {
       continue;
     }
 
-    if (std::optional<EditMeshSymmetryHelper> symmetry_helper = EditMeshSymmetryHelper::
-            create_if_needed(obedit, BM_VERT | BM_EDGE | BM_FACE))
-    {
-      BMesh *bm = em->bm;
+    std::optional<EditMeshSymmetryHelper> symmetry_helper =
+        EditMeshSymmetryHelper::create_if_needed(obedit, BM_VERT | BM_EDGE | BM_FACE);
+
+    char hflag_geom = BM_ELEM_SELECT;
+
+    if (symmetry_helper) {
+      hflag_geom = BM_ELEM_TAG;
+      EDBM_flag_disable_all(em, hflag_geom);
+
       BMIter iter;
+
       BMVert *v;
+      BM_ITER_MESH (v, &iter, bm, BM_VERTS_OF_MESH) {
+        if (BM_elem_flag_test(v, BM_ELEM_SELECT)) {
+          BM_elem_flag_enable(v, hflag_geom);
+          symmetry_helper->set_hflag_on_mirror_verts(v, hflag_geom, true);
+        }
+      }
+
       BMEdge *e;
+      BM_ITER_MESH (e, &iter, bm, BM_EDGES_OF_MESH) {
+        if (BM_elem_flag_test(e, BM_ELEM_SELECT)) {
+          BM_elem_flag_enable(e, hflag_geom);
+          symmetry_helper->set_hflag_on_mirror_edges(e, hflag_geom, true);
+        }
+      }
+
       BMFace *f;
-
-      Vector<BMVert *> selected_verts;
-      if (bm->totvertsel > 0) {
-        selected_verts.reserve(bm->totvertsel);
-        BM_ITER_MESH (v, &iter, bm, BM_VERTS_OF_MESH) {
-          if (BM_elem_flag_test(v, BM_ELEM_SELECT)) {
-            selected_verts.append(v);
-          }
+      BM_ITER_MESH (f, &iter, bm, BM_FACES_OF_MESH) {
+        if (BM_elem_flag_test(f, BM_ELEM_SELECT)) {
+          BM_elem_flag_enable(f, hflag_geom);
+          symmetry_helper->set_hflag_on_mirror_faces(f, hflag_geom, true);
         }
-      }
-
-      Vector<BMEdge *> selected_edges;
-      if (bm->totedgesel > 0) {
-        selected_edges.reserve(bm->totedgesel);
-        BM_ITER_MESH (e, &iter, bm, BM_EDGES_OF_MESH) {
-          if (BM_elem_flag_test(e, BM_ELEM_SELECT)) {
-            selected_edges.append(e);
-          }
-        }
-      }
-
-      Vector<BMFace *> selected_faces;
-      if (bm->totfacesel > 0) {
-        selected_faces.reserve(bm->totfacesel);
-        BM_ITER_MESH (f, &iter, bm, BM_FACES_OF_MESH) {
-          if (BM_elem_flag_test(f, BM_ELEM_SELECT)) {
-            selected_faces.append(f);
-          }
-        }
-      }
-
-      for (BMVert *vert : selected_verts) {
-        symmetry_helper->set_flag_on_mirror_verts(vert, BM_ELEM_SELECT, true);
-      }
-      for (BMEdge *edge : selected_edges) {
-        symmetry_helper->set_flag_on_mirror_edges(edge, BM_ELEM_SELECT, true);
-      }
-      for (BMFace *face : selected_faces) {
-        symmetry_helper->set_flag_on_mirror_faces(face, BM_ELEM_SELECT, true);
       }
     }
 
     BMOperator bmop;
-    EDBM_op_init(em, &bmop, op, "unsubdivide verts=%hv iterations=%i", BM_ELEM_SELECT, iterations);
+    EDBM_op_init(em, &bmop, op, "unsubdivide verts=%hv iterations=%i", hflag_geom, iterations);
 
     BMO_op_exec(em->bm, &bmop);
+
+    if (hflag_geom != BM_ELEM_SELECT) {
+      EDBM_flag_disable_all(em, hflag_geom);
+    }
 
     if (!EDBM_op_finish(em, &bmop, op, true)) {
       continue;
