@@ -20,6 +20,10 @@
 
 #include "ED_mesh.hh"
 
+/* -------------------------------------------------------------------- */
+/** \name Mesh Spatial Mirror API
+ * \{ */
+
 #define KD_THRESH 0.00002f
 
 static struct {
