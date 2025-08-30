@@ -363,7 +363,6 @@ static bool edbm_bevel_calc(wmOperator *op)
       }
     }
 
-
     const int material = std::clamp(material_init, -1, obedit->totcol - 1);
 
     EDBM_op_init(em,

@@ -11,12 +11,12 @@
 #include "BKE_attribute.hh"
 
 #include "BLI_compiler_attrs.h"
+#include "BLI_function_ref.hh"
+#include "BLI_map.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_span.hh"
-#include "BLI_virtual_array.hh"
-#include "BLI_map.hh"
 #include "BLI_vector.hh"
-#include "BLI_function_ref.hh" 
+#include "BLI_virtual_array.hh"
 
 #include "DNA_windowmanager_enums.h"
 
