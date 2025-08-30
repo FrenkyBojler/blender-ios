@@ -1746,31 +1746,41 @@ static wmOperatorStatus sequencer_box_cut_exec(bContext *C, wmOperator *op)
   UI_view2d_region_to_view_rctf(v2d, &rectf, &rectf);
   // get mouse rctf -
 
-  const bool use_cursor_position = RNA_boolean_get(op->ptr, "use_cursor_position");
+  // const bool use_cursor_position = RNA_boolean_get(op->ptr, "use_cursor_position");
 
-  const int split_frame = RNA_struct_property_is_set(op->ptr, "frame") ?
-                              RNA_int_get(op->ptr, "frame") :
-                              scene->r.cfra;
-  const int split_channel = RNA_int_get(op->ptr, "channel");
+  // const int split_frame = RNA_struct_property_is_set(op->ptr, "frame") ?
+  //                             RNA_int_get(op->ptr, "frame") :
+  //                             scene->r.cfra;
+  // const int split_channel = RNA_int_get(op->ptr, "channel");
 
   const seq::eSplitMethod method = seq::eSplitMethod(RNA_enum_get(op->ptr, "type"));
-  const int split_side = sequence_split_side_for_exec_get(op);
-  const bool ignore_selection = RNA_boolean_get(op->ptr, "ignore_selection");
+  // const int split_side = sequence_split_side_for_exec_get(op);
+  // const bool ignore_selection = RNA_boolean_get(op->ptr, "ignore_selection");
 
   // seq::prefetch_stop(scene);
 
   int2 rect_frames = {round_fl_to_int(rectf.xmin), round_fl_to_int(rectf.xmax)};
+  /* slpit the split logic into two so the newly created strips can get split by the second
+   * foreach. */
   LISTBASE_FOREACH_MUTABLE (Strip *, strip, ed->current_strips()) {
     rctf rq;
     strip_rectf(scene, strip, &rq);
+    const char *error_msg = nullptr;
     if (BLI_rctf_isect(&rq, &rectf, nullptr)) {
-      const char *error_msg = nullptr;
       if (seq::edit_strip_split(
               bmain, scene, ed->current_strips(), strip, rect_frames[0], method, &error_msg) !=
           nullptr)
       {
         printf("edit_strip_split\n");
       }
+    }
+  }
+  LISTBASE_FOREACH_MUTABLE (Strip *, strip, ed->current_strips()) {
+    rctf rq;
+    printf("strip->name %s\n", strip->name);
+    strip_rectf(scene, strip, &rq);
+    const char *error_msg = nullptr;
+    if (BLI_rctf_isect(&rq, &rectf, nullptr)) {
       if (seq::edit_strip_split(
               bmain, scene, ed->current_strips(), strip, rect_frames[1], method, &error_msg) !=
           nullptr)
@@ -1782,15 +1792,17 @@ static wmOperatorStatus sequencer_box_cut_exec(bContext *C, wmOperator *op)
   LISTBASE_FOREACH (Strip *, strip, ed->current_strips()) {
     rctf rq;
     strip_rectf(scene, strip, &rq);
-    const float left_handle = seq::time_left_handle_frame_get(scene, strip);
-    const float right_handle = seq::time_right_handle_frame_get(scene, strip);
-    /* check if left and right handle are in the rect */
-    if (left_handle >= rect_frames[0] && left_handle <= rect_frames[1] &&
-        right_handle >= rect_frames[0] && right_handle <= rect_frames[1])
-    {
-      seq::edit_flag_for_removal(scene, ed->current_strips(), strip);
+    if (BLI_rctf_isect(&rq, &rectf, nullptr)) {
+      const float left_handle = seq::time_left_handle_frame_get(scene, strip);
+      const float right_handle = seq::time_right_handle_frame_get(scene, strip);
+      /* check if left and right handle are in the rect */
+      if (left_handle >= rect_frames[0] && left_handle <= rect_frames[1] &&
+          right_handle >= rect_frames[0] && right_handle <= rect_frames[1])
+      {
+        seq::edit_flag_for_removal(scene, ed->current_strips(), strip);
+      }
+      seq::edit_remove_flagged_strips(scene, ed->current_strips());
     }
-    seq::edit_remove_flagged_strips(scene, ed->current_strips());
   }
   /* Passthrough to selection if used as tool. */
   return OPERATOR_FINISHED;
