@@ -1456,7 +1456,7 @@ void BlenderSync::resolve_view_layer_attributes(Shader *shader,
   bool updated = false;
 
   for (ShaderNode *node : graph->nodes) {
-    if (node->is_a(AttributeNode::node_type)) {
+    if (node->is_a(AttributeNode::get_node_type())) {
       AttributeNode *attr_node = static_cast<AttributeNode *>(node);
 
       std::string real_name;
@@ -1578,10 +1578,8 @@ void BlenderSync::sync_materials(BL::Depsgraph &b_depsgraph, bool update_all)
       shader->set_emission_sampling_method(get_emission_sampling(cmat));
       shader->set_use_transparent_shadow(b_mat.use_transparent_shadow());
       shader->set_use_bump_map_correction(get_boolean(cmat, "use_bump_map_correction"));
-      shader->set_heterogeneous_volume(!get_boolean(cmat, "homogeneous_volume"));
       shader->set_volume_sampling_method(get_volume_sampling(cmat));
       shader->set_volume_interpolation_method(get_volume_interpolation(cmat));
-      shader->set_volume_step_rate(get_float(cmat, "volume_step_rate"));
       shader->set_displacement_method(get_displacement_method(b_mat));
 
       shader->set_graph(std::move(graph));
@@ -1639,19 +1637,15 @@ void BlenderSync::sync_world(BL::Depsgraph &b_depsgraph, BL::SpaceView3D &b_v3d,
     unique_ptr<ShaderGraph> graph = make_unique<ShaderGraph>();
 
     /* create nodes */
-    if (new_viewport_parameters.use_scene_world && b_world && b_world.use_nodes() &&
-        b_world.node_tree())
-    {
+    if (new_viewport_parameters.use_scene_world && b_world && b_world.node_tree()) {
       BL::ShaderNodeTree b_ntree(b_world.node_tree());
 
       add_nodes(scene, b_engine, b_data, b_scene, graph.get(), b_ntree);
 
       /* volume */
       PointerRNA cworld = RNA_pointer_get(&b_world.ptr, "cycles");
-      shader->set_heterogeneous_volume(!get_boolean(cworld, "homogeneous_volume"));
       shader->set_volume_sampling_method(get_volume_sampling(cworld));
       shader->set_volume_interpolation_method(get_volume_interpolation(cworld));
-      shader->set_volume_step_rate(get_float(cworld, "volume_step_size"));
     }
     else if (new_viewport_parameters.use_scene_world && b_world) {
       BackgroundNode *background = graph->create_node<BackgroundNode>();
@@ -1716,11 +1710,11 @@ void BlenderSync::sync_world(BL::Depsgraph &b_depsgraph, BL::SpaceView3D &b_v3d,
       PointerRNA cvisibility = RNA_pointer_get(&b_world.ptr, "cycles_visibility");
       uint visibility = 0;
 
-      visibility |= get_boolean(cvisibility, "camera") ? PATH_RAY_CAMERA : 0;
-      visibility |= get_boolean(cvisibility, "diffuse") ? PATH_RAY_DIFFUSE : 0;
-      visibility |= get_boolean(cvisibility, "glossy") ? PATH_RAY_GLOSSY : 0;
-      visibility |= get_boolean(cvisibility, "transmission") ? PATH_RAY_TRANSMIT : 0;
-      visibility |= get_boolean(cvisibility, "scatter") ? PATH_RAY_VOLUME_SCATTER : 0;
+      visibility |= get_boolean(cvisibility, "camera") ? PATH_RAY_CAMERA : PathRayFlag(0);
+      visibility |= get_boolean(cvisibility, "diffuse") ? PATH_RAY_DIFFUSE : PathRayFlag(0);
+      visibility |= get_boolean(cvisibility, "glossy") ? PATH_RAY_GLOSSY : PathRayFlag(0);
+      visibility |= get_boolean(cvisibility, "transmission") ? PATH_RAY_TRANSMIT : PathRayFlag(0);
+      visibility |= get_boolean(cvisibility, "scatter") ? PATH_RAY_VOLUME_SCATTER : PathRayFlag(0);
 
       background->set_visibility(visibility);
     }

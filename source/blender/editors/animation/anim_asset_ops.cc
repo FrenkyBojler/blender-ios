@@ -122,10 +122,21 @@ static blender::animrig::Action &extract_pose(Main &bmain,
     BLI_assert(pose_object->pose);
     Slot &slot = action.slot_add_for_id(pose_object->id);
     const bArmature *armature = static_cast<bArmature *>(pose_object->data);
+
+    Set<RNAPath> existing_paths;
+    if (pose_object->adt && pose_object->adt->action &&
+        pose_object->adt->slot_handle != Slot::unassigned)
+    {
+      Action &pose_object_action = pose_object->adt->action->wrap();
+      const slot_handle_t pose_object_slot = pose_object->adt->slot_handle;
+      foreach_fcurve_in_action_slot(pose_object_action, pose_object_slot, [&](FCurve &fcurve) {
+        RNAPath existing_path = {fcurve.rna_path, std::nullopt, fcurve.array_index};
+        existing_paths.add(existing_path);
+      });
+    }
+
     LISTBASE_FOREACH (bPoseChannel *, pose_bone, &pose_object->pose->chanbase) {
-      if (!(pose_bone->bone->flag & BONE_SELECTED) ||
-          !blender::animrig::bone_is_visible(armature, pose_bone->bone))
-      {
+      if (!blender::animrig::bone_is_selected(armature, pose_bone)) {
         continue;
       }
       PointerRNA bone_pointer = RNA_pointer_create_discrete(
@@ -147,6 +158,12 @@ static blender::animrig::Action &extract_pose(Main &bmain,
           continue;
         }
         for (const int i : values.index_range()) {
+          if (RNA_property_is_idprop(resolved_property) &&
+              !existing_paths.contains({rna_path_id_to_prop.value(), std::nullopt, i}))
+          {
+            /* Skipping custom properties without animation. */
+            continue;
+          }
           strip_data.keyframe_insert(
               &bmain, slot, {rna_path_id_to_prop.value(), i}, {1, values[i]}, key_settings);
         }
@@ -156,10 +173,12 @@ static blender::animrig::Action &extract_pose(Main &bmain,
   return action;
 }
 
-/* Check that the newly created asset is visible SOMEWHERE in Blender. If not already visible,
+/**
+ * Check that the newly created asset is visible SOMEWHERE in Blender. If not already visible,
  * open the asset shelf on the current 3D view. The reason for not always doing that is that it
  * might be annoying in case you have 2 3D viewports open, but you want the asset shelf on only one
- * of them, or you work out of the asset browser.*/
+ * of them, or you work out of the asset browser.
+ */
 static void ensure_asset_ui_visible(bContext &C)
 {
   ScrArea *current_area = CTX_wm_area(&C);
@@ -495,9 +514,7 @@ static Vector<PathValue> generate_path_values(Object &pose_object)
   Vector<PathValue> path_values;
   const bArmature *armature = static_cast<bArmature *>(pose_object.data);
   LISTBASE_FOREACH (bPoseChannel *, pose_bone, &pose_object.pose->chanbase) {
-    if (!(pose_bone->bone->flag & BONE_SELECTED) ||
-        !blender::animrig::bone_is_visible(armature, pose_bone->bone))
-    {
+    if (!blender::animrig::bone_is_selected(armature, pose_bone)) {
       continue;
     }
     PointerRNA bone_pointer = RNA_pointer_create_discrete(

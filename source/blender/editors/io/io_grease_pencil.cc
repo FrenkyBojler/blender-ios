@@ -10,6 +10,7 @@
 
 #  include "BLI_path_utils.hh"
 #  include "BLI_string.h"
+#  include "BLI_string_utf8.h"
 
 #  include "DNA_space_types.h"
 #  include "DNA_view3d_types.h"
@@ -294,6 +295,7 @@ static wmOperatorStatus grease_pencil_export_svg_invoke(bContext *C,
 static wmOperatorStatus grease_pencil_export_svg_exec(bContext *C, wmOperator *op)
 {
   using blender::io::grease_pencil::ExportParams;
+  using blender::io::grease_pencil::ExportStatus;
   using blender::io::grease_pencil::IOContext;
 
   Scene *scene = CTX_data_scene(C);
@@ -336,11 +338,25 @@ static wmOperatorStatus grease_pencil_export_svg_exec(bContext *C, wmOperator *o
                                stroke_sample};
 
   WM_cursor_wait(true);
-  const bool done = blender::io::grease_pencil::export_svg(io_context, params, *scene, filepath);
+  ExportStatus status = blender::io::grease_pencil::export_svg(
+      io_context, params, *scene, filepath);
   WM_cursor_wait(false);
 
-  if (!done) {
-    BKE_report(op->reports, RPT_WARNING, "Unable to export SVG");
+  switch (status) {
+    case ExportStatus::Ok:
+      break;
+    case ExportStatus::InvalidActiveObjectType:
+      BKE_report(op->reports, RPT_WARNING, "Active object is not a Grease Pencil object");
+      break;
+    case ExportStatus::NoFramesSelected:
+      BKE_report(op->reports, RPT_WARNING, "No frames selected in the Grease Pencil object");
+      break;
+    case ExportStatus::FileWriteError:
+      BKE_reportf(op->reports, RPT_WARNING, "Error during file write for \"%s\"", filepath);
+      break;
+    case ExportStatus::UnknownError:
+      BLI_assert_unreachable();
+      break;
   }
 
   return OPERATOR_FINISHED;
@@ -581,10 +597,10 @@ namespace blender::ed::io {
 void grease_pencil_file_handler_add()
 {
   auto fh = std::make_unique<blender::bke::FileHandlerType>();
-  STRNCPY(fh->idname, "IO_FH_grease_pencil_svg");
-  STRNCPY(fh->import_operator, "WM_OT_grease_pencil_import_svg");
-  STRNCPY(fh->label, "SVG as Grease Pencil");
-  STRNCPY(fh->file_extensions_str, ".svg");
+  STRNCPY_UTF8(fh->idname, "IO_FH_grease_pencil_svg");
+  STRNCPY_UTF8(fh->import_operator, "WM_OT_grease_pencil_import_svg");
+  STRNCPY_UTF8(fh->label, "SVG as Grease Pencil");
+  STRNCPY_UTF8(fh->file_extensions_str, ".svg");
   fh->poll_drop = poll_file_object_drop;
   bke::file_handler_add(std::move(fh));
 }

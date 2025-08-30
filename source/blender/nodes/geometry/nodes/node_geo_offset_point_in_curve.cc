@@ -12,7 +12,8 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Int>("Point Index")
       .implicit_field(NODE_DEFAULT_INPUT_INDEX_FIELD)
-      .description("The index of the control point to evaluate. Defaults to the current index");
+      .description("The index of the control point to evaluate. Defaults to the current index")
+      .structure_type(StructureType::Field);
   b.add_input<decl::Int>("Offset").supports_field().description(
       "The number of control points along the curve to traverse");
   b.add_output<decl::Bool>("Is Valid Offset")
@@ -77,7 +78,7 @@ class ControlPointNeighborFieldInput final : public bke::GeometryFieldInput {
       output[i_selection] = std::clamp(shifted_point, 0, curves.points_num() - 1);
     });
 
-    return VArray<int>::ForContainer(std::move(output));
+    return VArray<int>::from_container(std::move(output));
   }
 
   void for_each_field_input_recursive(FunctionRef<void(const FieldInput &)> fn) const override
@@ -137,7 +138,7 @@ class OffsetValidFieldInput final : public bke::GeometryFieldInput {
       }
       output[i_selection] = curve_points.contains(i_point + offsets[i_selection]);
     });
-    return VArray<bool>::ForContainer(std::move(output));
+    return VArray<bool>::from_container(std::move(output));
   }
 
   void for_each_field_input_recursive(FunctionRef<void(const FieldInput &)> fn) const override

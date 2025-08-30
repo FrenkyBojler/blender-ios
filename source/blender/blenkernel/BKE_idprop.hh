@@ -56,7 +56,7 @@ union IDPropertyTemplate {
  */
 IDProperty *IDP_NewIDPArray(blender::StringRef name) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL();
 /**
- * \param flag the ID creation/copying flags (`LIB_ID_CREATE_...`), same as passed to
+ * \param flag: the ID creation/copying flags (`LIB_ID_CREATE_...`), same as passed to
  * #BKE_id_copy_ex.
  */
 IDProperty *IDP_CopyIDPArray(const IDProperty *array, int flag) ATTR_WARN_UNUSED_RESULT
@@ -117,7 +117,7 @@ bool IDP_EnumItemsValidate(const IDPropertyUIDataEnumItem *items,
 using IDPWalkFunc = void (*)(void *user_data, IDProperty *idp);
 
 /**
- * \param flag the ID creation/copying flags (`LIB_ID_CREATE_...`), same as passed to
+ * \param flag: the ID creation/copying flags (`LIB_ID_CREATE_...`), same as passed to
  * #BKE_id_copy_ex.
  */
 void IDP_AssignID(IDProperty *prop, ID *id, int flag);
@@ -141,7 +141,7 @@ void IDP_ReplaceInGroup(IDProperty *group, IDProperty *prop) ATTR_NONNULL();
  * Checks if a property with the same name as prop exists, and if so replaces it.
  * Use this to preserve order!
  *
- * \param flag the ID creation/copying flags (`LIB_ID_CREATE_...`), same as passed to
+ * \param flag: the ID creation/copying flags (`LIB_ID_CREATE_...`), same as passed to
  * #BKE_id_copy_ex.
  */
 void IDP_ReplaceInGroup_ex(IDProperty *group, IDProperty *prop, IDProperty *prop_exist, int flag);
@@ -154,7 +154,7 @@ void IDP_MergeGroup(IDProperty *dest, const IDProperty *src, bool do_overwrite) 
  * If a property is missing in \a dest, add it.
  * Do it recursively.
  *
- * \param flag the ID creation/copying flags (`LIB_ID_CREATE_...`), same as passed to
+ * \param flag: the ID creation/copying flags (`LIB_ID_CREATE_...`), same as passed to
  * #BKE_id_copy_ex.
  */
 void IDP_MergeGroup_ex(IDProperty *dest, const IDProperty *src, bool do_overwrite, int flag)
@@ -192,6 +192,13 @@ IDProperty *IDP_GetPropertyFromGroup(const IDProperty *prop,
                                      blender::StringRef name) ATTR_WARN_UNUSED_RESULT
     ATTR_NONNULL();
 /**
+ * This is a slightly more efficient version of the function above in the when there are lots of
+ * properties. It can be faster because it avoids computing the length of everything that the
+ * string is compared to. Also see #140706.
+ */
+IDProperty *IDP_GetPropertyFromGroup(const IDProperty *prop,
+                                     const char *name) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL();
+/**
  * Same as #IDP_GetPropertyFromGroup but ensure the `type` matches.
  */
 IDProperty *IDP_GetPropertyTypeFromGroup(const IDProperty *prop,
@@ -220,7 +227,7 @@ IDProperty *IDP_ID_system_properties_ensure(ID *id) ATTR_WARN_UNUSED_RESULT ATTR
 
 IDProperty *IDP_CopyProperty(const IDProperty *prop) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL();
 /**
- * \param flag the ID creation/copying flags (`LIB_ID_CREATE_...`), same as passed to
+ * \param flag: the ID creation/copying flags (`LIB_ID_CREATE_...`), same as passed to
  * #BKE_id_copy_ex.
  */
 IDProperty *IDP_CopyProperty_ex(const IDProperty *prop, int flag) ATTR_WARN_UNUSED_RESULT

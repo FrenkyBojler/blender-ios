@@ -68,7 +68,7 @@ static void wm_block_splash_add_label(uiBlock *block, const char *label, int x, 
   UI_block_emboss_set(block, blender::ui::EmbossType::None);
 
   uiBut *but = uiDefBut(
-      block, UI_BTYPE_LABEL, 0, label, 0, y, x, UI_UNIT_Y, nullptr, 0, 0, std::nullopt);
+      block, ButType::Label, 0, label, 0, y, x, UI_UNIT_Y, nullptr, 0, 0, std::nullopt);
   UI_but_drawflag_disable(but, UI_BUT_TEXT_LEFT);
   UI_but_drawflag_enable(but, UI_BUT_TEXT_RIGHT);
 
@@ -381,7 +381,7 @@ static uiBlock *wm_block_splash_create(bContext *C, ARegion *region, void * /*ar
     PointerRNA op_ptr = row2->op("WM_OT_url_open",
                                  CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Learn More"),
                                  ICON_URL,
-                                 WM_OP_INVOKE_DEFAULT,
+                                 blender::wm::OpCallContext::InvokeDefault,
                                  UI_ITEM_NONE);
 #  if defined(__APPLE__)
     RNA_string_set(

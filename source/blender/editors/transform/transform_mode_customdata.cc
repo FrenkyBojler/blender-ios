@@ -9,7 +9,7 @@
 #include <cstdlib>
 
 #include "BLI_math_vector.h"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_task.hh"
 
 #include "BKE_editmesh.hh"
@@ -61,9 +61,22 @@ static void apply_value_impl(TransInfo *t, const char *value_name) {
   if (hasNumInput(&t->num)) {
     char c[NUM_STR_REP_LEN];
     outputNumInput(&(t->num), c, t->scene->unit);
-    SNPRINTF(str, "%s: %s%s %s", value_name, (value >= 0.0f) ? "+" : "", c, t->proptext);
-  } else {
-    SNPRINTF(str, "%s: %+.3f %s", value_name, value, t->proptext);
+
+    if (value >= 0.0f) {
+      SNPRINTF_UTF8(str, "%s: +%s %s", value_name, c, t->proptext);
+    }
+    else {
+      SNPRINTF_UTF8(str, "%s: %s %s", value_name, c, t->proptext);
+    }
+  }
+  else {
+    /* Default header print. */
+    if (value >= 0.0f) {
+      SNPRINTF_UTF8(str, "%s: +%.3f %s", value_name, value, t->proptext);
+    }
+    else {
+      SNPRINTF_UTF8(str, "%s: %.3f %s", value_name, value, t->proptext);
+    }
   }
 
   FOREACH_TRANS_DATA_CONTAINER (t, tc) {
