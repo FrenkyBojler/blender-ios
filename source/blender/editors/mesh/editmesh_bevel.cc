@@ -340,15 +340,21 @@ static bool edbm_bevel_calc(wmOperator *op)
     }
 
     std::optional<EditMeshSymmetryHelper> symmetry_helper =
-        EditMeshSymmetryHelper::create_if_needed(obedit);
+        EditMeshSymmetryHelper::create_if_needed(obedit, (BM_VERT | BM_EDGE));
+
+    char hflag_geom = BM_ELEM_SELECT;
 
     if (symmetry_helper) {
+      hflag_geom = BM_ELEM_TAG;
+      EDBM_flag_disable_all(em, hflag_geom);
+
       if (affect == BEVEL_AFFECT_VERTICES) {
         BMIter v_iter;
         BMVert *v;
         BM_ITER_MESH (v, &v_iter, bm, BM_VERTS_OF_MESH) {
           if (BM_elem_flag_test(v, BM_ELEM_SELECT)) {
-            symmetry_helper->set_flag_on_mirror_verts(v, BM_ELEM_SELECT, true);
+            BM_elem_flag_enable(v, hflag_geom);
+            symmetry_helper->set_hflag_on_mirror_verts(v, hflag_geom, true);
           }
         }
       }
@@ -357,7 +363,8 @@ static bool edbm_bevel_calc(wmOperator *op)
         BMEdge *e;
         BM_ITER_MESH (e, &e_iter, bm, BM_EDGES_OF_MESH) {
           if (BM_elem_flag_test(e, BM_ELEM_SELECT)) {
-            symmetry_helper->set_flag_on_mirror_edges(e, BM_ELEM_SELECT, true);
+            BM_elem_flag_enable(e, hflag_geom);
+            symmetry_helper->set_hflag_on_mirror_edges(e, hflag_geom, true);
           }
         }
       }
@@ -373,7 +380,7 @@ static bool edbm_bevel_calc(wmOperator *op)
                  "mark_seam=%b mark_sharp=%b harden_normals=%b face_strength_mode=%i "
                  "miter_outer=%i miter_inner=%i spread=%f custom_profile=%p "
                  "vmesh_method=%i",
-                 BM_ELEM_SELECT,
+                 hflag_geom,
                  offset,
                  segments,
                  affect,
@@ -394,6 +401,10 @@ static bool edbm_bevel_calc(wmOperator *op)
                  vmesh_method);
 
     BMO_op_exec(em->bm, &bmop);
+
+    if (hflag_geom != BM_ELEM_SELECT) {
+      EDBM_flag_disable_all(em, hflag_geom);
+    }
 
     if (offset != 0.0f) {
       /* Not essential, but we may have some loose geometry that
