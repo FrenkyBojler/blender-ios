@@ -71,21 +71,21 @@ void GHOST_ShowMessageBox(GHOST_SystemHandle systemhandle,
 }
 
 #if (WITH_APPLE_CROSSPLATFORM)
-void GHOST_popupOnScreenKeyboard(GHOST_WindowHandle windowhandle,
+GHOST_TSuccess GHOST_popupOnScreenKeyboard(GHOST_WindowHandle windowhandle,
                                  const GHOST_KeyboardProperties &keyboard_properties)
 {
   GHOST_ISystem *system = GHOST_ISystem::getSystem();
   GHOST_IWindow *window = (GHOST_IWindow *)windowhandle;
 
-  system->popupOnScreenKeyboard(window, keyboard_properties);
+  return system->popupOnScreenKeyboard(window, keyboard_properties);
 }
 
-void GHOST_hideOnScreenKeyboard(GHOST_WindowHandle windowhandle)
+GHOST_TSuccess GHOST_hideOnScreenKeyboard(GHOST_WindowHandle windowhandle)
 {
   GHOST_ISystem *system = GHOST_ISystem::getSystem();
   GHOST_IWindow *window = (GHOST_IWindow *)windowhandle;
 
-  system->hideOnScreenKeyboard(window);
+  return system->hideOnScreenKeyboard(window);
 }
 
 const char *GHOST_getKeyboardInput(GHOST_WindowHandle windowhandle)

@@ -67,10 +67,10 @@ extern void GHOST_ShowMessageBox(GHOST_SystemHandle systemhandle,
 
 #if (WITH_APPLE_CROSSPLATFORM)
 
-extern void GHOST_popupOnScreenKeyboard(GHOST_WindowHandle window_handle,
+extern GHOST_TSuccess GHOST_popupOnScreenKeyboard(GHOST_WindowHandle window_handle,
                                         const GHOST_KeyboardProperties &keyboard_properties);
 
-extern void GHOST_hideOnScreenKeyboard(GHOST_WindowHandle window_handle);
+extern GHOST_TSuccess GHOST_hideOnScreenKeyboard(GHOST_WindowHandle window_handle);
 
 extern const char *GHOST_getKeyboardInput(GHOST_WindowHandle window_handle);
 

@@ -3616,12 +3616,8 @@ static void ui_textedit_begin(bContext *C, uiBut *but, uiHandleButtonData *data)
   keyboard_properties.tip_text = but->tip.data();
   keyboard_properties.text_string = text_edit.edit_string;
 
-  const bool external_keyboard = GHOST_getExternalKeyboard(
-      static_cast<GHOST_WindowHandle>(win->ghostwin));
-  if (!external_keyboard) {
-    GHOST_popupOnScreenKeyboard(static_cast<GHOST_WindowHandle>(win->ghostwin),
-                                keyboard_properties);
-  }
+  GHOST_popupOnScreenKeyboard(static_cast<GHOST_WindowHandle>(win->ghostwin),
+                              keyboard_properties);
 #endif
 
   WM_cursor_modal_set(win, WM_CURSOR_TEXT_EDIT);
@@ -3644,22 +3640,20 @@ static void ui_textedit_end(bContext *C, uiBut *but, uiHandleButtonData *data)
   ED_workspace_status_text(C, nullptr);
 
 #if (WITH_APPLE_CROSSPLATFORM)
-  /* Hide keyboard and retrieve keyboard text */
-  GHOST_hideOnScreenKeyboard(static_cast<GHOST_WindowHandle>(win->ghostwin));
-  const char *keyboard_string = GHOST_getKeyboardInput(
-      static_cast<GHOST_WindowHandle>(win->ghostwin));
+  /* If using Onscreen Keyboard: Hide keyboard and retrieve keyboard text. */
+  if (GHOST_hideOnScreenKeyboard(static_cast<GHOST_WindowHandle>(win->ghostwin))) {
+    const char *keyboard_string = GHOST_getKeyboardInput(
+        static_cast<GHOST_WindowHandle>(win->ghostwin));
 
-  const bool external_keyboard = GHOST_getExternalKeyboard(
-      static_cast<GHOST_WindowHandle>(win->ghostwin));
-
-  /*
-   * IOS_FIXME:
-   * This doesn't seem ideal but dynamically generating keyboard events to modify the
-   * text is tricky on iOS since you also need to take into account cuts, pastes and
-   * any other editing you can do with an iOS keyboard
-   */
-  if (but && keyboard_string && !external_keyboard) {
-    ui_textedit_string_set(but, but->active->text_edit, keyboard_string);
+    /*
+     * IOS_FIXME:
+     * This doesn't seem ideal but dynamically generating keyboard events to modify the
+     * text is tricky on iOS since you also need to take into account cuts, pastes and
+     * any other editing you can do with an iOS keyboard
+     */
+    if (but && keyboard_string) {
+      ui_textedit_string_set(but, but->active->text_edit, keyboard_string);
+    }
   }
 #endif
 
