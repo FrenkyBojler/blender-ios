@@ -231,4 +231,3 @@ TransConvertTypeInfo TransConvertType_MeshVertCData = {
 };
 
 }  // namespace blender::ed::transform
-
