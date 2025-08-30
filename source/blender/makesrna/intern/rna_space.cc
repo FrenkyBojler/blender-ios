@@ -910,13 +910,22 @@ static void rna_Space_show_region_ui_set(PointerRNA *ptr, bool value)
   ARegion *region = BKE_area_find_region_type(area, RGN_TYPE_UI);
   if (region) {
     if (value) {
-      region->flag &= ~RGN_FLAG_HIDDEN;
+      if (region->flag & RGN_FLAG_HIDDEN) {
+        region->flag |= RGN_FLAG_HIDDEN_BY_USER;
+        region->flag &= ~RGN_FLAG_HIDDEN;
+      }
       if (region->sizex > 0 && region->sizex <= UI_PANEL_CATEGORY_MIN_WIDTH) {
         region->sizex = UI_SIDEBAR_PANEL_WIDTH;
+        region->flag &= ~RGN_FLAG_HIDDEN_BY_USER;
       }
     }
     else {
-      region->flag |= RGN_FLAG_HIDDEN;
+      if (region->flag & RGN_FLAG_HIDDEN_BY_USER) {
+        region->flag |= RGN_FLAG_HIDDEN;
+      }
+      else {
+        region->sizex = UI_PANEL_CATEGORY_MIN_WIDTH;
+      }
     }
   }
   ED_region_tag_redraw(region);
