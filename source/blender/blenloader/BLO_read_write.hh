@@ -31,7 +31,6 @@
 #pragma once
 
 #include "DNA_sdna_type_ids.hh"
-#include "DNA_windowmanager_types.h" /* for eReportType */
 
 #include "BLI_function_ref.hh"
 #include "BLI_implicit_sharing.hh"
@@ -44,7 +43,10 @@ struct BlendDataReader;
 struct BlendFileReadReport;
 struct BlendLibReader;
 struct BlendWriter;
+struct ID;
+struct ListBase;
 struct Main;
+enum eReportType : uint16_t;
 
 /* -------------------------------------------------------------------- */
 /** \name Blend Write API
@@ -171,7 +173,7 @@ struct BLO_Write_IDBuffer {
   blender::DynamicStackBuffer<static_size> buffer_;
 
  public:
-  BLO_Write_IDBuffer(ID &id, bool is_undo);
+  BLO_Write_IDBuffer(ID &id, bool is_undo, bool is_placeholder);
   BLO_Write_IDBuffer(ID &id, BlendWriter *writer);
 
   ID *get()

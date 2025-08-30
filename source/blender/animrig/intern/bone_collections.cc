@@ -592,7 +592,7 @@ void ANIM_armature_bonecoll_name_set(bArmature *armature, BoneCollection *bcoll,
   if (name[0] == '\0') {
     /* Refuse to have nameless collections. The name of the active collection is stored in DNA, and
      * an empty string means 'no active collection'. */
-    STRNCPY(bcoll->name, DATA_(bonecoll_default_name));
+    STRNCPY_UTF8(bcoll->name, DATA_(bonecoll_default_name));
   }
   else {
     STRNCPY_UTF8(bcoll->name, name);
@@ -1275,7 +1275,7 @@ void bonecolls_copy_expanded_flag(Span<BoneCollection *> bcolls_dest,
     }
 
     /* Try to find by name as a last resort. This function only works with
-     * non-const pointers, hence the const_cast.  */
+     * non-const pointers, hence the const_cast. */
     const BoneCollection *bcoll = bonecolls_get_by_name(bcolls_source, name);
     return bcoll;
   };
