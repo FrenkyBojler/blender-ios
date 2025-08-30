@@ -2,3 +2,4 @@ Referenced by pull request #145249, Fix: Draw: Attribute Viewer doesn't work
 Referenced by commit 928e654b9a3c4095b413aeec6f406621ee97dd34, Fix: Draw: Attribute Viewer doesn't work
 Referenced by issue #145396, Viewport: Viewport selection considers objects outside of local view for occlusion
 Referenced by commit 18b7b64dd4d5927e9bfcb8033a93f545961a161e, Fix #145396: Selection doesn't consider viewport visibility
+Referenced by issue #145420, Volume not appearing in viewport solid shading geometry nodes (geometry nodes, viewport shading)
