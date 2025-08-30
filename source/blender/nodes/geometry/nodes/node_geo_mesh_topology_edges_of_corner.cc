@@ -12,7 +12,8 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Int>("Corner Index")
       .implicit_field(NODE_DEFAULT_INPUT_INDEX_FIELD)
-      .description("The corner to retrieve data from. Defaults to the corner from the context");
+      .description("The corner to retrieve data from. Defaults to the corner from the context")
+      .structure_type(StructureType::Field);
   b.add_output<decl::Int>("Next Edge Index")
       .field_source_reference_all()
       .description(
@@ -37,7 +38,7 @@ class CornerNextEdgeFieldInput final : public bke::MeshFieldInput {
     if (domain != AttrDomain::Corner) {
       return {};
     }
-    return VArray<int>::ForSpan(mesh.corner_edges());
+    return VArray<int>::from_span(mesh.corner_edges());
   }
 
   uint64_t hash() const final
@@ -73,7 +74,7 @@ class CornerPreviousEdgeFieldInput final : public bke::MeshFieldInput {
     const OffsetIndices faces = mesh.faces();
     const Span<int> corner_edges = mesh.corner_edges();
     const Span<int> corner_to_face = mesh.corner_to_face_map();
-    return VArray<int>::ForFunc(
+    return VArray<int>::from_func(
         corner_edges.size(), [faces, corner_edges, corner_to_face](const int corner) {
           return corner_edges[bke::mesh::face_corner_prev(faces[corner_to_face[corner]], corner)];
         });

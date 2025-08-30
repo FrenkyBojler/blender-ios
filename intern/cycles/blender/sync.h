@@ -52,11 +52,11 @@ class BlenderSync {
   void set_bake_target(BL::Object &b_object);
 
   /* sync */
-  void sync_recalc(BL::Depsgraph &b_depsgraph, BL::SpaceView3D &b_v3d);
+  void sync_recalc(BL::Depsgraph &b_depsgraph, BL::SpaceView3D &b_v3d, BL::RegionView3D &b_rv3d);
   void sync_data(BL::RenderSettings &b_render,
                  BL::Depsgraph &b_depsgraph,
                  BL::SpaceView3D &b_v3d,
-                 BL::Object &b_override,
+                 BL::RegionView3D &b_rv3d,
                  const int width,
                  const int height,
                  void **python_thread_state,
@@ -67,7 +67,6 @@ class BlenderSync {
                        bool background,
                        const DeviceInfo &denoise_device_info);
   void sync_camera(BL::RenderSettings &b_render,
-                   BL::Object &b_override,
                    const int width,
                    const int height,
                    const char *viewname);
@@ -117,7 +116,7 @@ class BlenderSync {
   void sync_motion(BL::RenderSettings &b_render,
                    BL::Depsgraph &b_depsgraph,
                    BL::SpaceView3D &b_v3d,
-                   BL::Object &b_override,
+                   BL::RegionView3D &b_rv3d,
                    const int width,
                    const int height,
                    void **python_thread_state);
@@ -214,6 +213,9 @@ class BlenderSync {
   bool object_is_light(BL::Object &b_ob);
   bool object_is_camera(BL::Object &b_ob);
 
+  BL::Object get_camera_object(BL::SpaceView3D b_v3d, BL::RegionView3D b_rv3d);
+  BL::Object get_dicing_camera_object(BL::SpaceView3D b_v3d, BL::RegionView3D b_rv3d);
+
   /* variables */
   BL::RenderEngine b_engine;
   BL::BlendData b_data;
@@ -235,7 +237,6 @@ class BlenderSync {
   set<float> motion_times;
   void *world_map;
   bool world_recalc;
-  bool world_use_portal = false;
   BlenderViewportParameters viewport_parameters;
 
   Scene *scene;
@@ -243,6 +244,8 @@ class BlenderSync {
   bool use_experimental_procedural = false;
   bool use_adaptive_subdivision = false;
   bool use_developer_ui;
+
+  CurveShapeType curve_shape = CURVE_RIBBON;
 
   float dicing_rate;
   int max_subdivisions;
