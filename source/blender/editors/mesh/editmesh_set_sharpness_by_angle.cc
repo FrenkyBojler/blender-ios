@@ -25,8 +25,8 @@
 
 #include "ED_screen.hh"
 
-#include "mesh_intern.hh"
 #include "ED_mesh.hh"
+#include "mesh_intern.hh"
 
 namespace blender::ed::mesh {
 
@@ -43,16 +43,30 @@ static wmOperatorStatus set_sharpness_by_angle_exec(bContext *C, wmOperator *op)
 
     std::optional<EditMeshSymmetryHelper> symmetry_helper =
         EditMeshSymmetryHelper::create_if_needed(object, BM_EDGE);
+    char hflag_process = BM_ELEM_SELECT;
+
+    if (symmetry_helper) {
+      hflag_process = BM_ELEM_TAG;
+      EDBM_flag_disable_all(em, hflag_process);
+
+      BMIter iter;
+      BMEdge *e;
+      BM_ITER_MESH (e, &iter, em->bm, BM_EDGES_OF_MESH) {
+        if (BM_elem_flag_test(e, BM_ELEM_SELECT)) {
+          BM_elem_flag_enable(e, hflag_process);
+          symmetry_helper->set_hflag_on_mirror_edges(e, hflag_process, true);
+        }
+      }
+    }
 
     bool changed = false;
     BMIter iter;
     BMEdge *e;
-    BM_ITER_MESH(e, &iter, em->bm, BM_EDGES_OF_MESH) {
+    BM_ITER_MESH (e, &iter, em->bm, BM_EDGES_OF_MESH) {
       if (BM_elem_flag_test(e, BM_ELEM_HIDDEN)) {
         continue;
       }
-      if (!BM_elem_flag_test(e, BM_ELEM_SELECT) &&
-          !(symmetry_helper && symmetry_helper->is_any_mirror_edge_selected(e, BM_ELEM_SELECT))) {
+      if (!BM_elem_flag_test(e, hflag_process)) {
         continue;
       }
       const bool prev_sharp = !BM_elem_flag_test(e, BM_ELEM_SMOOTH);
@@ -69,6 +83,10 @@ static wmOperatorStatus set_sharpness_by_angle_exec(bContext *C, wmOperator *op)
       changed = changed || sharp != prev_sharp;
     }
 
+    if (hflag_process != BM_ELEM_SELECT) {
+      EDBM_flag_disable_all(em, hflag_process);
+    }
+
     if (changed) {
       BKE_editmesh_lnorspace_update(em);
       DEG_id_tag_update(&mesh.id, ID_RECALC_GEOMETRY);
@@ -78,7 +96,6 @@ static wmOperatorStatus set_sharpness_by_angle_exec(bContext *C, wmOperator *op)
 
   return OPERATOR_FINISHED;
 }
-
 void MESH_OT_set_sharpness_by_angle(wmOperatorType *ot)
 {
   ot->name = "Set Sharpness by Angle";

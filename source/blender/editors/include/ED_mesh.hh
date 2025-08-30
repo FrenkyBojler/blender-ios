@@ -68,6 +68,26 @@ class EditMeshSymmetryHelper {
  private:
   EditMeshSymmetryHelper(Object *ob, uchar htype);
 
+  /**
+   * This function builds mirror lookup tables for the given axis.
+   * For each element type (vertex, edge, face) included in htype,
+   * this checks whether a valid mirrored counterpart exists across
+   * the given axis. If it exists, a bidirectional mapping is stored in the
+   * corresponding {vert,edge,face}_to_mirror_map_.
+   *
+   */
+  void build_mirror_maps_for_axis(int axis);
+
+  /**
+   * This function stores a bidirectional mirror relationship between two mesh elements
+   * and is a helper function for build_mirror_maps_for_axis.
+   * The main reason for this helper is that an element can have multiple mirrored counterparts
+   * when more than one symmetry axis is enabled (e.g. symmetry on X and Y creates mirrors across
+   * the XY plane). This allows mirror relationships to be added incrementally as each axis is
+   * processed.
+   */
+  void add_mirror_relationship(BMElem *elem1, BMElem *elem2);
+
   BMEditMesh *em_;
   Mesh *mesh_;
   uchar htype_;
@@ -649,4 +669,3 @@ void EDBM_mesh_elem_index_ensure_multi(blender::Span<Object *> objects, char hty
 #define ED_MESH_PICK_DEFAULT_FACE_DIST 1
 
 #define USE_LOOPSLIDE_HACK
-

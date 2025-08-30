@@ -255,7 +255,7 @@ static bool edbm_inset_calc(wmOperator *op)
       EDBM_redo_state_restore(&opdata->ob_store[ob_index].mesh_backup, em, false);
     }
 
-     std::optional<EditMeshSymmetryHelper> symmetry_helper =
+    std::optional<EditMeshSymmetryHelper> symmetry_helper =
         EditMeshSymmetryHelper::create_if_needed(obedit, BM_FACE);
 
     char hflag = BM_ELEM_SELECT;
@@ -269,7 +269,7 @@ static bool edbm_inset_calc(wmOperator *op)
       BM_ITER_MESH (f, &f_iter, bm, BM_FACES_OF_MESH) {
         if (BM_elem_flag_test(f, BM_ELEM_SELECT)) {
           BM_elem_flag_enable(f, hflag);
-          symmetry_helper->set_flag_on_mirror_faces(f, hflag, true);
+          symmetry_helper->set_hflag_on_mirror_faces(f, hflag, true);
         }
       }
     }
@@ -319,14 +319,12 @@ static bool edbm_inset_calc(wmOperator *op)
     if (use_select_inset) {
       /* deselect original faces/verts */
       EDBM_flag_disable_all(em, BM_ELEM_SELECT);
-      BMO_slot_buffer_hflag_enable(
-          bm, bmop.slots_out, "faces.out", BM_FACE, BM_ELEM_SELECT, true);
+      BMO_slot_buffer_hflag_enable(bm, bmop.slots_out, "faces.out", BM_FACE, BM_ELEM_SELECT, true);
     }
     else {
       EDBM_flag_disable_all(em, BM_ELEM_SELECT);
       BMO_slot_buffer_hflag_enable(bm, bmop.slots_in, "faces", BM_FACE, BM_ELEM_SELECT, true);
     }
-
 
     if (!EDBM_op_finish(em, &bmop, op, true)) {
       continue;
