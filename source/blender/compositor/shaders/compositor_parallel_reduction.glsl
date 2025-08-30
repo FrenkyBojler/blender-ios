@@ -332,12 +332,31 @@ template<typename T, typename Operation, typename ChannelMix> void reduction()
   }
 }
 
+template void reduction<float, Min<float>, ChannelLuma>();
+template void reduction<float, Min<float>, ChannelR>();
+
+template void reduction<float, Max<float>, ChannelLuma>();
+template void reduction<float, Max<float>, ChannelMax>();
+template void reduction<float, Max<float>, ChannelR>();
+template void reduction<float2, Max<float2>, ChannelRG>();
+
 template void reduction<float, Sum<float>, ChannelR>();
 template void reduction<float, Sum<float>, ChannelG>();
 template void reduction<float, Sum<float>, ChannelB>();
 template void reduction<float, Sum<float>, ChannelLuma>();
 template void reduction<float, Sum<float>, ChannelLogLuma>();
 template void reduction<float4, Sum<float4>, ChannelRGBA>();
+
+template void reduction<float, SumSquareDifference<float>, ChannelR>();
+template void reduction<float, SumSquareDifference<float>, ChannelG>();
+template void reduction<float, SumSquareDifference<float>, ChannelB>();
+template void reduction<float, SumSquareDifference<float>, ChannelLuma>();
+
+template void reduction<float, MaxInRange<float>, ChannelR>();
+
+template void reduction<float, MinInRange<float>, ChannelR>();
+
+template void reduction<float4, MaxVelocity<float4>, ChannelRGBA>();
 
 void reduce_sum_red()
 {
@@ -364,11 +383,6 @@ void reduce_sum_color()
   reduction<float4, Sum<float4>, ChannelRGBA>();
 }
 
-template void reduction<float, SumSquareDifference<float>, ChannelR>();
-template void reduction<float, SumSquareDifference<float>, ChannelG>();
-template void reduction<float, SumSquareDifference<float>, ChannelB>();
-template void reduction<float, SumSquareDifference<float>, ChannelLuma>();
-
 void reduce_sum_red_squared_difference()
 {
   reduction<float, SumSquareDifference<float>, ChannelR>();
@@ -385,11 +399,6 @@ void reduce_sum_luminance_squared_difference()
 {
   reduction<float, SumSquareDifference<float>, ChannelLuma>();
 }
-
-template void reduction<float, Max<float>, ChannelLuma>();
-template void reduction<float, Max<float>, ChannelMax>();
-template void reduction<float, Max<float>, ChannelR>();
-template void reduction<float2, Max<float2>, ChannelRG>();
 
 void reduce_maximum_luminance()
 {
@@ -408,15 +417,10 @@ void reduce_maximum_float2()
   reduction<float2, Max<float2>, ChannelRG>();
 }
 
-template void reduction<float, MaxInRange<float>, ChannelR>();
-
 void reduce_maximum_float_in_range()
 {
   reduction<float, MaxInRange<float>, ChannelR>();
 }
-
-template void reduction<float, Min<float>, ChannelLuma>();
-template void reduction<float, Min<float>, ChannelR>();
 
 void reduce_minimum_luminance()
 {
@@ -427,14 +431,10 @@ void reduce_minimum_float()
   reduction<float, Min<float>, ChannelR>();
 }
 
-template void reduction<float, MinInRange<float>, ChannelR>();
-
 void reduce_minimum_float_in_range()
 {
   reduction<float, MinInRange<float>, ChannelR>();
 }
-
-template void reduction<float4, MaxVelocity<float4>, ChannelRGBA>();
 
 void reduce_max_velocity()
 {
