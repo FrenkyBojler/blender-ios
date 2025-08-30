@@ -69,7 +69,11 @@ void Light::sync(ShadowModule &shadows,
     shadow_discard_safe(shadows);
   }
 
-  this->color = BKE_light_power(*la) * BKE_light_color(*la);
+  if (!(la->mode & LA_USE_ADVANCED) && !(la->mode & LA_USE_NORMALIZE_COLOR))
+    this->color = BKE_light_power(*la) * BKE_light_color_normalize(BKE_light_color(*la));
+  else {
+    this->color = BKE_light_power(*la) * BKE_light_color(*la);
+  }
   if (la->mode & LA_UNNORMALIZED) {
     this->color *= BKE_light_area(*la, object_to_world);
   }

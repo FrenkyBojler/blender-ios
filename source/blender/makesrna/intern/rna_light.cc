@@ -21,6 +21,35 @@
 
 #include "IMB_colormanagement.hh"
 
+// const EnumPropertyItem rna_enum_light_energy_units_items[] = {
+//     {LA_WATT, "WATT", 0, "W", "Radiant power in watts(W)"},
+//     {LA_IRRADIANCE, "IRRADIANCE", 0, "W/m²", "Radiant flux per unit area (irradiance) in watts per square meter(W/m²)"},
+//     {LA_LUMEN, "LUMEN", 0, "lm", "Luminous flux in lumens(lm)"},
+//     {LA_ILLUMINANCE, "LUX", 0, "lx", "Illuminance in lux (lumens/m²)"},
+//     {LA_CANDELA, "CANDELA", 0, "cd", "Luminous intensity in candelas(cd)"},
+//     {0, nullptr, 0, nullptr, nullptr},
+// };
+//
+// static const EnumPropertyItem *rna_Light_energy_unit_itemf(bContext *C, PointerRNA *ptr, PropertyRNA * /*prop*/, bool *r_free)
+// {
+//   Light *la = (Light *)ptr->data;
+//   EnumPropertyItem *item = nullptr;
+//   int totitem = 0;
+//
+//   if (la->type == LA_SUN) {
+//     RNA_enum_items_add_value(&item, &totitem, rna_enum_light_energy_units_items, 1); // WATT_PER_SQUARE_METER
+//     RNA_enum_items_add_value(&item, &totitem, rna_enum_light_energy_units_items, 3); // LUX
+//   }
+//   else {
+//     RNA_enum_items_add_value(&item, &totitem, rna_enum_light_energy_units_items, 0); // WATT
+//     RNA_enum_items_add_value(&item, &totitem, rna_enum_light_energy_units_items, 2); // LUMEN
+//     RNA_enum_items_add_value(&item, &totitem, rna_enum_light_energy_units_items, 4); // CANDELA
+//   }
+//   RNA_enum_item_end(&item, &totitem);
+//   *r_free = true;
+//   return item;
+// };
+
 #ifdef RNA_RUNTIME
 
 #  include "MEM_guardedalloc.h"
@@ -107,6 +136,12 @@ static float rna_Light_area(Light *light, const float matrix_world[16])
   return BKE_light_area(*light, mat);
 }
 
+// static bool rna_Light_normalize_editable(PointerRNA *ptr)
+// {
+//   const Light *light = (const Light *)ptr->data;
+//   return light->type != LA_SUN; /* Sun is always normalized -> lock checkbox */
+// }
+
 #else
 
 /* NOTE(@dingto): Don't define icons here,
@@ -118,6 +153,13 @@ const EnumPropertyItem rna_enum_light_type_items[] = {
     {LA_SPOT, "SPOT", 0, "Spot", "Directional cone light source"},
     {LA_AREA, "AREA", 0, "Area", "Directional area light source"},
     {0, nullptr, 0, nullptr, nullptr},
+};
+
+const EnumPropertyItem rna_enum_light_unit_system_items[] = {
+  {LA_NONE, "NONE", 0, "None", "Use no unit system"},
+  {LA_RADIOMETRIC, "RADIOMETRIC", 0, "Radiometric", "Use radiometric unit system"},
+  {LA_PHOTOMETRIC, "PHOTOMETRIC", 0, "Photometric", "Use photometric unit system"},
+  {0, nullptr, 0, nullptr, nullptr},
 };
 
 static void rna_def_light_api(StructRNA *srna)
@@ -149,6 +191,12 @@ static void rna_def_light(BlenderRNA *brna)
   prop = RNA_def_property(srna, "type", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_items(prop, rna_enum_light_type_items);
   RNA_def_property_ui_text(prop, "Type", "Type of light");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_LIGHT);
+  RNA_def_property_update(prop, 0, "rna_Light_draw_update");
+
+  prop = RNA_def_property(srna, "unit_system", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, rna_enum_light_unit_system_items);
+  RNA_def_property_ui_text(prop, "Unit System", "Define light unit system");
   RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_LIGHT);
   RNA_def_property_update(prop, 0, "rna_Light_draw_update");
 
@@ -246,6 +294,13 @@ static void rna_def_light(BlenderRNA *brna)
                            "output regardless of size and shape");
   RNA_def_property_update(prop, 0, "rna_Light_draw_update");
 
+  prop = RNA_def_property(srna, "normalize_color", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_negative_sdna(prop, nullptr, "mode", LA_USE_NORMALIZE_COLOR);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_ui_text(prop, "Normalize Color", "Normalize light's  rgb color to luminance");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_LIGHT);
+  RNA_def_property_update(prop, 0, "rna_Light_draw_update");
+
   /* nodes */
   prop = RNA_def_property(srna, "node_tree", PROP_POINTER, PROP_NONE);
   RNA_def_property_pointer_sdna(prop, nullptr, "nodetree");
@@ -260,28 +315,122 @@ static void rna_def_light(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Use Nodes", "Use shader nodes to render the light");
   RNA_def_property_update(prop, 0, "rna_Light_use_nodes_update");
 
+  prop = RNA_def_property(srna, "use_advanced", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_negative_sdna(prop, nullptr, "mode", LA_USE_ADVANCED);
+  RNA_def_property_ui_text(
+      prop, "Use Advanced", "Use light's advanced properties");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_LIGHT);
+  RNA_def_property_update(prop, 0, "rna_Light_draw_update");
+
   /* common */
   rna_def_animdata_common(srna);
   rna_def_light_api(srna);
 }
 
-static void rna_def_light_energy(StructRNA *srna, const short light_type)
+void rna_def_light_energy(StructRNA *srna, const short light_type)
 {
   PropertyRNA *prop;
 
+  prop = RNA_def_property(srna, "energy", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_ui_range(prop, 0.0f, 1000000.0f, 10, 3);
+  RNA_def_property_ui_text(
+      prop,
+      "Power",
+      "The energy this light would emit over its entire area "
+      "if it wasn't limited by the spot angle, in units of radiant power (W)");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_LIGHT);
+  RNA_def_property_update(prop, 0, "rna_Light_draw_update");
+
   switch (light_type) {
-    case LA_SUN: {
-      /* Distant light strength has no unit defined,
-       * it's proportional to 'watt/m^2' and is not sensitive to scene unit scale. */
-      prop = RNA_def_property(srna, "energy", PROP_FLOAT, PROP_NONE);
-      RNA_def_property_ui_range(prop, 0.0f, 10.0f, 1, 3);
-      RNA_def_property_ui_text(
-          prop, "Strength", "Sunlight strength in watts per meter squared (W/m²)");
+    case LA_SUN:
+      /* ------------------ Radiometric ------------------ */
+      prop = RNA_def_property(srna, "radiometric_irradiance", PROP_FLOAT, PROP_RADIOMETRIC_IRRADIANCE); /* W/m² */
+      RNA_def_property_float_sdna(prop, nullptr, "energy");
+      RNA_def_property_ui_range(prop, 0.0f, 10.0f, 1.0f, 3);
+      RNA_def_property_ui_text(prop, "Irradiance", "Sunlight strength in the receiving surface in units of irradiance (W/m²)");
+      RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_LIGHT);
+      RNA_def_property_update(prop, 0, "rna_Light_draw_update");
+
+      /* ------------------ Photometric ------------------ */
+      prop = RNA_def_property(srna, "photometric_illuminance", PROP_FLOAT, PROP_PHOTOMETRIC_ILLUMINANCE); /* lx */
+      RNA_def_property_float_sdna(prop, nullptr, "energy");
+      RNA_def_property_ui_range(prop, 0.0f, 10.0f, 1.0f, 3);
+      RNA_def_property_ui_text(prop, "Illuminance", "Sunlight strength in the receiving surface in units of illuminance (lx) (lm/m²)");
       RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_LIGHT);
       RNA_def_property_update(prop, 0, "rna_Light_draw_update");
       break;
-    }
-    case LA_SPOT: {
+    case LA_AREA:
+    case LA_LOCAL:
+      /* ------------------ Radiometric ------------------ */
+      prop = RNA_def_property(srna, "radiometric_power", PROP_FLOAT, PROP_RADIOMETRIC_POWER); /* W */
+      RNA_def_property_float_sdna(prop, nullptr, "energy");
+      RNA_def_property_ui_range(prop, 0.0f, 1000000.0f, 1.0f, 3);
+      RNA_def_property_ui_text(prop, "Radiometric Power", "Light energy emitted over the entire area of the light "
+                                     "in all directions, in units of radiant flux (W)");
+      RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_LIGHT);
+      RNA_def_property_update(prop, 0, "rna_Light_draw_update");
+
+      prop = RNA_def_property(srna, "radiometric_radiosity", PROP_FLOAT, PROP_RADIOMETRIC_RADIOSITY); /* W/m² */
+      RNA_def_property_float_sdna(prop, nullptr, "energy");
+      RNA_def_property_ui_range(prop, 0.0f, 1000000.0f, 1.0f, 3);
+      RNA_def_property_ui_text(prop, "Radiosity", "Light energy emitted over the entire area of the light in all "
+                                          "directions, increase with radius, in units of radiosity or radiant exitance (W/m²)");
+      RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_LIGHT);
+      RNA_def_property_update(prop, 0, "rna_Light_draw_update");
+
+      /* ------------------ Photometric ------------------ */
+      prop = RNA_def_property(srna, "photometric_power", PROP_FLOAT, PROP_PHOTOMETRIC_POWER); /* lm */
+      RNA_def_property_float_sdna(prop, nullptr, "energy");
+      RNA_def_property_ui_range(prop, 0.0f, 1000000.0f, 1.0f, 3);
+      RNA_def_property_ui_text(prop, "Luminous Flux", "Light energy emitted over the entire area of the light in all "
+                                      "directions, in units of luminous flux (lm)");
+      RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_LIGHT);
+      RNA_def_property_update(prop, 0, "rna_Light_draw_update");
+
+      prop = RNA_def_property(srna, "photometric_luminous_exitance", PROP_FLOAT, PROP_PHOTOMETRIC_LUMINOUS_EXITANCE); /* lm/m² */
+      RNA_def_property_float_sdna(prop, nullptr, "energy");
+      RNA_def_property_ui_range(prop, 0.0f, 1000000.0f, 1.0f, 3);
+      RNA_def_property_ui_text(prop, "Luminous Exitance", "Light energy emitted over the entire area of the light in all "
+                                      "directions, increase with radius, in units of luminous exitance (lm/m²)");
+      RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_LIGHT);
+      RNA_def_property_update(prop, 0, "rna_Light_draw_update");
+      break;
+    case LA_SPOT:
+      /* ------------------ Radiometric ------------------ */
+      prop = RNA_def_property(srna, "radiometric_intensity", PROP_FLOAT, PROP_RADIOMETRIC_INTENSITY); /* W/sr */
+      RNA_def_property_float_sdna(prop, nullptr, "energy");
+      RNA_def_property_ui_range(prop, 0.0f, 1000000.0f, 1.0f, 3);
+      RNA_def_property_ui_text(prop, "Radiometric Intensity", "Light energy emitted over the entire area of the light "
+                                      "if it wasn't limited by the spot angle, in units of radiant intensity (W/sr)");
+      RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_LIGHT);
+      RNA_def_property_update(prop, 0, "rna_Light_draw_update");
+
+      prop = RNA_def_property(srna, "radiometric_radiance", PROP_FLOAT, PROP_RADIOMETRIC_RADIANCE); /* W/(sr·m²) */
+      RNA_def_property_float_sdna(prop, nullptr, "energy");
+      RNA_def_property_ui_range(prop, 0.0f, 1000000.0f, 1.0f, 3);
+      RNA_def_property_ui_text(prop, "Radiance", "Light energy emitted over the entire area of the light "
+                                   "if it wasn't limited by the spot angle, increase with the radius, in units of radiance (W/(sr·m²))");
+      RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_LIGHT);
+      RNA_def_property_update(prop, 0, "rna_Light_draw_update");
+
+      /* ------------------ Photometric ------------------ */
+      prop = RNA_def_property(srna, "photometric_intensity", PROP_FLOAT, PROP_PHOTOMETRIC_INTENSITY); /* cd */
+      RNA_def_property_float_sdna(prop, nullptr, "energy");
+      RNA_def_property_ui_range(prop, 0.0f, 1000000.0f, 1.0f, 3);
+      RNA_def_property_ui_text(prop, "Luminous Intensity", "Light energy emitted over the entire area of the light "
+                                      "if it wasn't limited by the spot angle, in units of luminous intensity (cd)");
+      RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_LIGHT);
+      RNA_def_property_update(prop, 0, "rna_Light_draw_update");
+
+      prop = RNA_def_property(srna, "photometric_luminance", PROP_FLOAT, PROP_PHOTOMETRIC_LUMINANCE); /* cd/m² */
+      RNA_def_property_float_sdna(prop, nullptr, "energy");
+      RNA_def_property_ui_range(prop, 0.0f, 1000000.0f, 1.0f, 3);
+      RNA_def_property_ui_text(prop, "Luminance", "Light energy emitted over the entire area of the light "
+                                      "if it wasn't limited by the spot angle, increase with radius, in units of luminance (Nits)");
+      RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_LIGHT);
+      RNA_def_property_update(prop, 0, "rna_Light_draw_update");
+      break;
+    default:
       /* Lights with a location have radiometric power in Watts,
        * which is sensitive to scene unit scale. */
       prop = RNA_def_property(srna, "energy", PROP_FLOAT, PROP_NONE);
@@ -294,20 +443,6 @@ static void rna_def_light_energy(StructRNA *srna, const short light_type)
       RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_LIGHT);
       RNA_def_property_update(prop, 0, "rna_Light_draw_update");
       break;
-    }
-    default: {
-      /* Lights with a location have radiometric power in Watts,
-       * which is sensitive to scene unit scale. */
-      prop = RNA_def_property(srna, "energy", PROP_FLOAT, PROP_NONE);
-      RNA_def_property_ui_range(prop, 0.0f, 1000000.0f, 10, 3);
-      RNA_def_property_ui_text(prop,
-                               "Power",
-                               "Light energy emitted over the entire area of the light in all "
-                               "directions, in units of radiant power (W)");
-      RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_LIGHT);
-      RNA_def_property_update(prop, 0, "rna_Light_draw_update");
-      break;
-    }
   }
 }
 

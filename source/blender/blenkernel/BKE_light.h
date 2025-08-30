@@ -23,4 +23,5 @@ void BKE_light_eval(Depsgraph *depsgraph, Light *la);
 
 float BKE_light_power(const Light &light);
 blender::float3 BKE_light_color(const Light &light);
+blender::float3 BKE_light_color_normalize(const blender::float3 &color);
 float BKE_light_area(const Light &light, const blender::float4x4 &object_to_world);
