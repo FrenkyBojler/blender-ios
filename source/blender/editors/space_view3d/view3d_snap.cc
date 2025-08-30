@@ -57,8 +57,8 @@
 #include "ANIM_keyframing.hh"
 #include "ANIM_keyingsets.hh"
 
-#include "view3d_intern.hh"
 #include "ED_mesh.hh"
+#include "view3d_intern.hh"
 
 using blender::Vector;
 
@@ -98,61 +98,54 @@ static wmOperatorStatus snap_sel_to_grid_exec(bContext *C, wmOperator *op)
           continue;
         }
 
-       std::optional<EditMeshSymmetryHelper> symmetry_helper =
-        EditMeshSymmetryHelper::create_if_needed(obedit);
+        std::optional<EditMeshSymmetryHelper> symmetry_helper =
+            EditMeshSymmetryHelper::create_if_needed(obedit, BM_VERT | BM_EDGE | BM_FACE);
 
-    if (symmetry_helper) {
-      BMesh *bm = em->bm;
-      
-      if (bm->totvertsel > 0) {
-        BMIter v_iter;
-        BMVert *v;
-        
-        blender::Vector<BMVert *> originally_selected_verts;
-        BM_ITER_MESH (v, &v_iter, bm, BM_VERTS_OF_MESH) {
-          if (BM_elem_flag_test(v, BM_ELEM_SELECT)) {
-            originally_selected_verts.append(v);
+        if (symmetry_helper) {
+          BMesh *bm = em->bm;
+          BMIter iter;
+
+          if (bm->totvertsel > 0) {
+            blender::Vector<BMVert *> selected_verts;
+            selected_verts.reserve(bm->totvertsel);
+            BMVert *v;
+            BM_ITER_MESH (v, &iter, bm, BM_VERTS_OF_MESH) {
+              if (BM_elem_flag_test(v, BM_ELEM_SELECT)) {
+                selected_verts.append(v);
+              }
+            }
+            for (BMVert *v : selected_verts) {
+              symmetry_helper->set_hflag_on_mirror_verts(v, BM_ELEM_SELECT, true);
+            }
+          }
+          if (bm->totedgesel > 0) {
+            blender::Vector<BMEdge *> selected_edges;
+            selected_edges.reserve(bm->totedgesel);
+            BMEdge *e;
+            BM_ITER_MESH (e, &iter, bm, BM_EDGES_OF_MESH) {
+              if (BM_elem_flag_test(e, BM_ELEM_SELECT)) {
+                selected_edges.append(e);
+              }
+            }
+            for (BMEdge *e : selected_edges) {
+              symmetry_helper->set_hflag_on_mirror_edges(e, BM_ELEM_SELECT, true);
+            }
+          }
+          if (bm->totfacesel > 0) {
+            blender::Vector<BMFace *> selected_faces;
+            selected_faces.reserve(bm->totfacesel);
+            BMFace *f;
+            BM_ITER_MESH (f, &iter, bm, BM_FACES_OF_MESH) {
+              if (BM_elem_flag_test(f, BM_ELEM_SELECT)) {
+                selected_faces.append(f);
+              }
+            }
+            for (BMFace *f : selected_faces) {
+              symmetry_helper->set_hflag_on_mirror_faces(f, BM_ELEM_SELECT, true);
+            }
           }
         }
-        
-        for (BMVert *v_orig : originally_selected_verts) {
-          symmetry_helper->set_flag_on_mirror_verts(v_orig, BM_ELEM_SELECT, true);
-        }
       }
-      
-      if (bm->totedgesel > 0) {
-        BMIter e_iter;
-        BMEdge *e;
-        
-        blender::Vector<BMEdge *> originally_selected_edges;
-        BM_ITER_MESH (e, &e_iter, bm, BM_EDGES_OF_MESH) {
-          if (BM_elem_flag_test(e, BM_ELEM_SELECT)) {
-            originally_selected_edges.append(e);
-          }
-        }
-        
-        for (BMEdge *e_orig : originally_selected_edges) {
-          symmetry_helper->set_flag_on_mirror_edges(e_orig, BM_ELEM_SELECT, true);
-        }
-      }
-      
-      if (bm->totfacesel > 0) {
-        BMIter f_iter;
-        BMFace *f;
-        
-        blender::Vector<BMFace *> originally_selected_faces;
-        BM_ITER_MESH (f, &f_iter, bm, BM_FACES_OF_MESH) {
-          if (BM_elem_flag_test(f, BM_ELEM_SELECT)) {
-            originally_selected_faces.append(f);
-          }
-        }
-        
-        for (BMFace *f_orig : originally_selected_faces) {
-          symmetry_helper->set_flag_on_mirror_faces(f_orig, BM_ELEM_SELECT, true);
-        }
-      }
-    }
-  }
 
       if (blender::ed::object::shape_key_report_if_locked(obedit, op->reports)) {
         continue;
@@ -824,73 +817,66 @@ static wmOperatorStatus snap_selected_to_active_exec(bContext *C, wmOperator *op
     ViewLayer *view_layer = CTX_data_view_layer(C);
     Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
         scene, view_layer, CTX_wm_view3d(C));
-    
+
     for (Object *obedit : objects) {
       if (obedit->type == OB_MESH) {
         BMEditMesh *em = BKE_editmesh_from_object(obedit);
+        BMesh *bm = em->bm;
 
-        if (em->bm->totvertsel == 0 && em->bm->totedgesel == 0 && em->bm->totfacesel == 0) {
+        if (bm->totvertsel == 0 && bm->totedgesel == 0 && bm->totfacesel == 0) {
           continue;
         }
 
         std::optional<EditMeshSymmetryHelper> symmetry_helper =
-            EditMeshSymmetryHelper::create_if_needed(obedit);
+            EditMeshSymmetryHelper::create_if_needed(obedit, BM_VERT | BM_EDGE | BM_FACE);
 
         if (symmetry_helper) {
-          BMesh *bm = em->bm;
-          
+          BMIter iter;
+
           if (bm->totvertsel > 0) {
-            BMIter v_iter;
+            blender::Vector<BMVert *> selected_verts;
+            selected_verts.reserve(bm->totvertsel);
             BMVert *v;
-            
-            blender::Vector<BMVert *> originally_selected_verts;
-            BM_ITER_MESH (v, &v_iter, bm, BM_VERTS_OF_MESH) {
+            BM_ITER_MESH (v, &iter, bm, BM_VERTS_OF_MESH) {
               if (BM_elem_flag_test(v, BM_ELEM_SELECT)) {
-                originally_selected_verts.append(v);
+                selected_verts.append(v);
               }
             }
-            
-            for (BMVert *v_orig : originally_selected_verts) {
-              symmetry_helper->set_flag_on_mirror_verts(v_orig, BM_ELEM_SELECT, true);
+            for (BMVert *v : selected_verts) {
+              symmetry_helper->set_hflag_on_mirror_verts(v, BM_ELEM_SELECT, true);
             }
           }
-          
           if (bm->totedgesel > 0) {
-            BMIter e_iter;
+            blender::Vector<BMEdge *> selected_edges;
+            selected_edges.reserve(bm->totedgesel);
             BMEdge *e;
-            
-            blender::Vector<BMEdge *> originally_selected_edges;
-            BM_ITER_MESH (e, &e_iter, bm, BM_EDGES_OF_MESH) {
+            BM_ITER_MESH (e, &iter, bm, BM_EDGES_OF_MESH) {
               if (BM_elem_flag_test(e, BM_ELEM_SELECT)) {
-                originally_selected_edges.append(e);
+                selected_edges.append(e);
               }
             }
-            
-            for (BMEdge *e_orig : originally_selected_edges) {
-              symmetry_helper->set_flag_on_mirror_edges(e_orig, BM_ELEM_SELECT, true);
+            for (BMEdge *e : selected_edges) {
+              symmetry_helper->set_hflag_on_mirror_edges(e, BM_ELEM_SELECT, true);
             }
           }
-          
           if (bm->totfacesel > 0) {
-            BMIter f_iter;
+            blender::Vector<BMFace *> selected_faces;
+            selected_faces.reserve(bm->totfacesel);
             BMFace *f;
-            
-            blender::Vector<BMFace *> originally_selected_faces;
-            BM_ITER_MESH (f, &f_iter, bm, BM_FACES_OF_MESH) {
+            BM_ITER_MESH (f, &iter, bm, BM_FACES_OF_MESH) {
               if (BM_elem_flag_test(f, BM_ELEM_SELECT)) {
-                originally_selected_faces.append(f);
+                selected_faces.append(f);
               }
             }
-            
-            for (BMFace *f_orig : originally_selected_faces) {
-              symmetry_helper->set_flag_on_mirror_faces(f_orig, BM_ELEM_SELECT, true);
+            for (BMFace *f : selected_faces) {
+              symmetry_helper->set_hflag_on_mirror_faces(f, BM_ELEM_SELECT, true);
             }
           }
         }
       }
     }
   }
-  
+
   if (!snap_selected_to_location_rotation(C, op, target_loc_global, nullptr, false, -1, true)) {
     return OPERATOR_CANCELLED;
   }
@@ -1383,4 +1369,3 @@ bool ED_view3d_minmax_verts(const Scene *scene, Object *obedit, float r_min[3], 
 }
 
 /** \} */
-

@@ -20,159 +20,6 @@
 
 #include "ED_mesh.hh"
 
-std::optional<EditMeshSymmetryHelper> EditMeshSymmetryHelper::create_if_needed(Object *ob) {
-  if (!ob || !ob->data) {
-    return std::nullopt;
-  }
-  Mesh *mesh = static_cast<Mesh *>(ob->data);
-  BMEditMesh *em = BKE_editmesh_from_object(ob);
-
-  if (!em || !em->bm || mesh->symmetry == 0) {
-    return std::nullopt;
-  }
-  return EditMeshSymmetryHelper(ob);
-}
-
-EditMeshSymmetryHelper::EditMeshSymmetryHelper(Object *ob)
-    : em(BKE_editmesh_from_object(ob)), mesh(static_cast<Mesh *>(ob->data)) {
-  BMesh *bmesh = em->bm;
-  use_topology_mirror = (mesh->editflag & ME_EDIT_MIRROR_TOPO) != 0;
-
-  blender::Set<BMVert *> processed_verts;
-  blender::Set<BMEdge *> processed_edges;
-  blender::Set<BMFace *> processed_faces;
-
-  for (int axis = 0; axis < 3; ++axis) {
-    if (mesh->symmetry & (ME_SYMMETRY_X << axis)) {
-      EDBM_verts_mirror_cache_begin(em, axis, true, true, true, use_topology_mirror);
-
-      BMIter v_iter;
-      BMVert *current_vert;
-      BM_ITER_MESH (current_vert, &v_iter, bmesh, BM_VERTS_OF_MESH) {
-        if (processed_verts.contains(current_vert)) {
-          continue;
-        }
-        BMVert *mirror_v = EDBM_verts_mirror_get(em, current_vert);
-        if (mirror_v && mirror_v != current_vert) {
-          BMVert *mirror_v_check = EDBM_verts_mirror_get(em, mirror_v);
-          if (mirror_v_check == current_vert) {
-            vert_to_mirrors_map.lookup_or_add(current_vert, {}).append(mirror_v);
-            vert_to_mirrors_map.lookup_or_add(mirror_v, {}).append(current_vert);
-            processed_verts.add(current_vert);
-            processed_verts.add(mirror_v);
-          }
-        }
-      }
-
-      BMIter e_iter;
-      BMEdge *current_edge;
-      BM_ITER_MESH (current_edge, &e_iter, bmesh, BM_EDGES_OF_MESH) {
-        if (processed_edges.contains(current_edge)) {
-          continue;
-        }
-        BMEdge *mirror_e = EDBM_verts_mirror_get_edge(em, current_edge);
-        if (mirror_e && mirror_e != current_edge) {
-          BMEdge *mirror_e_check = EDBM_verts_mirror_get_edge(em, mirror_e);
-          if (mirror_e_check == current_edge) {
-            edge_to_mirrors_map.lookup_or_add(current_edge, {}).append(mirror_e);
-            edge_to_mirrors_map.lookup_or_add(mirror_e, {}).append(current_edge);
-            processed_edges.add(current_edge);
-            processed_edges.add(mirror_e);
-          }
-        }
-      }
-
-      BMIter f_iter;
-      BMFace *current_face;
-      BM_ITER_MESH (current_face, &f_iter, bmesh, BM_FACES_OF_MESH) {
-        if (processed_faces.contains(current_face)) {
-          continue;
-        }
-        BMFace *mirror_f = EDBM_verts_mirror_get_face(em, current_face);
-        if (mirror_f && mirror_f != current_face) {
-          BMFace *mirror_f_check = EDBM_verts_mirror_get_face(em, mirror_f);
-          if (mirror_f_check == current_face) {
-            face_to_mirrors_map.lookup_or_add(current_face, {}).append(mirror_f);
-            face_to_mirrors_map.lookup_or_add(mirror_f, {}).append(current_face);
-            processed_faces.add(current_face);
-            processed_faces.add(mirror_f);
-          }
-        }
-      }
-
-      EDBM_verts_mirror_cache_end(em);
-    }
-  }
-
-
-}
-
-void EditMeshSymmetryHelper::apply_on_mirror_verts(BMVert *vert,
-                                                   blender::FunctionRef<void(BMVert *)> op) const {
-  if (!vert_to_mirrors_map.contains(vert)) {
-    return;
-  }
-  for (BMVert *mirror_vert : vert_to_mirrors_map.lookup(vert)) {
-    op(mirror_vert);
-  }
-}
-
-void EditMeshSymmetryHelper::apply_on_mirror_edges(BMEdge *edge,
-                                                   blender::FunctionRef<void(BMEdge *)> op) const {
-  if (!edge_to_mirrors_map.contains(edge)) {
-    return;
-  }
-  for (BMEdge *mirror_edge : edge_to_mirrors_map.lookup(edge)) {
-    op(mirror_edge);
-  }
-}
-
-void EditMeshSymmetryHelper::apply_on_mirror_faces(BMFace *face,
-                                                   blender::FunctionRef<void(BMFace *)> op) const {
-  if (!face_to_mirrors_map.contains(face)) {
-    return;
-  }
-  for (BMFace *mirror_face : face_to_mirrors_map.lookup(face)) {
-    op(mirror_face);
-  }
-}
-
-void EditMeshSymmetryHelper::set_flag_on_mirror_verts(BMVert *vert, char hflag, bool value) const {
-  apply_on_mirror_verts(vert, [hflag, value](BMVert *v_mir) {
-    if (!BM_elem_flag_test(v_mir, BM_ELEM_HIDDEN)) {
-      if (value) {
-        BM_elem_flag_enable(v_mir, hflag);
-      } else {
-        BM_elem_flag_disable(v_mir, hflag);
-      }
-    }
-  });
-}
-
-void EditMeshSymmetryHelper::set_flag_on_mirror_edges(BMEdge *edge, char hflag, bool value) const {
-  apply_on_mirror_edges(edge, [hflag, value](BMEdge *e_mir) {
-    if (!BM_elem_flag_test(e_mir, BM_ELEM_HIDDEN)) {
-      if (value) {
-        BM_elem_flag_enable(e_mir, hflag);
-      } else {
-        BM_elem_flag_disable(e_mir, hflag);
-      }
-    }
-  });
-}
-
-void EditMeshSymmetryHelper::set_flag_on_mirror_faces(BMFace *face, char hflag, bool value) const {
-  apply_on_mirror_faces(face, [hflag, value](BMFace *f_mir) {
-    if (!BM_elem_flag_test(f_mir, BM_ELEM_HIDDEN)) {
-      if (value) {
-        BM_elem_flag_enable(f_mir, hflag);
-      } else {
-        BM_elem_flag_disable(f_mir, hflag);
-      }
-    }
-  });
-}
-
 /* -------------------------------------------------------------------- */
 /** \name Mesh Spatial Mirror API
  * \{ */
@@ -530,85 +377,123 @@ std::optional<EditMeshSymmetryHelper> EditMeshSymmetryHelper::create_if_needed(O
 EditMeshSymmetryHelper::EditMeshSymmetryHelper(Object *ob, uchar htype)
     : em_(BKE_editmesh_from_object(ob)), mesh_(static_cast<Mesh *>(ob->data)), htype_(htype)
 {
-  BMesh *bmesh = em_->bm;
   use_topology_mirror_ = (mesh_->editflag & ME_EDIT_MIRROR_TOPO) != 0;
-
-  blender::Set<BMVert *> processed_verts;
-  blender::Set<BMEdge *> processed_edges;
-  blender::Set<BMFace *> processed_faces;
-
-  BMIter iter;
 
   for (int axis = 0; axis < 3; axis++) {
     if (mesh_->symmetry & (ME_SYMMETRY_X << axis)) {
-      EDBM_verts_mirror_cache_begin(em_,
-                                    axis,
-                                    (htype_ & BM_VERT) != 0,
-                                    (htype_ & BM_EDGE) != 0,
-                                    (htype_ & BM_FACE) != 0,
-                                    use_topology_mirror_);
-
-      if (htype_ & BM_VERT) {
-        BMVert *v_curr;
-        BM_ITER_MESH (v_curr, &iter, bmesh, BM_VERTS_OF_MESH) {
-          if (processed_verts.contains(v_curr)) {
-            continue;
-          }
-          BMVert *v_mirr = EDBM_verts_mirror_get(em_, v_curr);
-          if (v_mirr && v_mirr != v_curr) {
-            BMVert *v_mirr_check = EDBM_verts_mirror_get(em_, v_mirr);
-            if (v_mirr_check == v_curr) {
-              vert_to_mirror_map_.lookup_or_add(v_curr, {}).append(v_mirr);
-              vert_to_mirror_map_.lookup_or_add(v_mirr, {}).append(v_curr);
-              processed_verts.add(v_curr);
-              processed_verts.add(v_mirr);
-            }
-          }
-        }
-      }
-
-      if (htype_ & BM_EDGE) {
-        BMEdge *e_curr;
-        BM_ITER_MESH (e_curr, &iter, bmesh, BM_EDGES_OF_MESH) {
-          if (processed_edges.contains(e_curr)) {
-            continue;
-          }
-          BMEdge *e_mirr = EDBM_verts_mirror_get_edge(em_, e_curr);
-          if (e_mirr && e_mirr != e_curr) {
-            BMEdge *e_mirr_check = EDBM_verts_mirror_get_edge(em_, e_mirr);
-            if (e_mirr_check == e_curr) {
-              edge_to_mirror_map_.lookup_or_add(e_curr, {}).append(e_mirr);
-              edge_to_mirror_map_.lookup_or_add(e_mirr, {}).append(e_curr);
-              processed_edges.add(e_curr);
-              processed_edges.add(e_mirr);
-            }
-          }
-        }
-      }
-
-      if (htype_ & BM_FACE) {
-        BMFace *f_curr;
-        BM_ITER_MESH (f_curr, &iter, bmesh, BM_FACES_OF_MESH) {
-          if (processed_faces.contains(f_curr)) {
-            continue;
-          }
-          BMFace *f_mirr = EDBM_verts_mirror_get_face(em_, f_curr);
-          if (f_mirr && f_mirr != f_curr) {
-            BMFace *f_mirr_check = EDBM_verts_mirror_get_face(em_, f_mirr);
-            if (f_mirr_check == f_curr) {
-              face_to_mirror_map_.lookup_or_add(f_curr, {}).append(f_mirr);
-              face_to_mirror_map_.lookup_or_add(f_mirr, {}).append(f_curr);
-              processed_faces.add(f_curr);
-              processed_faces.add(f_mirr);
-            }
-          }
-        }
-      }
-
-      EDBM_verts_mirror_cache_end(em_);
+      build_mirror_maps_for_axis(axis);
     }
   }
 }
+
+void EditMeshSymmetryHelper::build_mirror_maps_for_axis(int axis)
+{
+  BMesh *bmesh = em_->bm;
+  BMIter iter;
+
+  /*This function initializes mirror cache for the given axis.
+   * Despite the name, the vertex cache is also used by
+   * EDBM_verts_mirror_get_edge() and EDBM_verts_mirror_get_face(),
+   * so it must always be built even if only edges/faces are needed. */
+  EDBM_verts_mirror_cache_begin(em_, axis, true, true, true, use_topology_mirror_);
+
+  if (htype_ & BM_VERT) {
+    BMVert *v_curr;
+    BM_ITER_MESH (v_curr, &iter, bmesh, BM_VERTS_OF_MESH) {
+      BMVert *v_mirr = EDBM_verts_mirror_get(em_, v_curr);
+      if (v_mirr && v_mirr != v_curr) {
+        BMVert *v_mirr_check = EDBM_verts_mirror_get(em_, v_mirr);
+        if (v_mirr_check == v_curr) {
+          add_mirror_relationship((BMElem *)v_curr, (BMElem *)v_mirr);
+        }
+      }
+    }
+  }
+  if (htype_ & BM_EDGE) {
+    BMEdge *e_curr;
+    BM_ITER_MESH (e_curr, &iter, bmesh, BM_EDGES_OF_MESH) {
+      BMEdge *e_mirr = EDBM_verts_mirror_get_edge(em_, e_curr);
+      if (e_mirr && e_mirr != e_curr) {
+        BMEdge *e_mirr_check = EDBM_verts_mirror_get_edge(em_, e_mirr);
+        if (e_mirr_check == e_curr) {
+          add_mirror_relationship((BMElem *)e_curr, (BMElem *)e_mirr);
+        }
+      }
+    }
+  }
+  if (htype_ & BM_FACE) {
+    BMFace *f_curr;
+    BM_ITER_MESH (f_curr, &iter, bmesh, BM_FACES_OF_MESH) {
+      BMFace *f_mirr = EDBM_verts_mirror_get_face(em_, f_curr);
+      if (f_mirr && f_mirr != f_curr) {
+        BMFace *f_mirr_check = EDBM_verts_mirror_get_face(em_, f_mirr);
+        if (f_mirr_check == f_curr) {
+          add_mirror_relationship((BMElem *)f_curr, (BMElem *)f_mirr);
+        }
+      }
+    }
+  }
+  EDBM_verts_mirror_cache_end(em_);
+}
+
+void EditMeshSymmetryHelper::add_mirror_relationship(BMElem *elem1, BMElem *elem2)
+{
+  BLI_assert(elem1->head.htype == elem2->head.htype);
+
+  switch (elem1->head.htype) {
+    case BM_VERT: {
+      BMVert *v1 = (BMVert *)elem1;
+      BMVert *v2 = (BMVert *)elem2;
+
+      blender::Vector<BMVert *> &mirrors1 = vert_to_mirror_map_.lookup_or_add(v1, {});
+      blender::Vector<BMVert *> &mirrors2 = vert_to_mirror_map_.lookup_or_add(v2, {});
+
+      if (!mirrors1.contains(v2)) {
+        mirrors1.append(v2);
+      }
+      if (!mirrors2.contains(v1)) {
+        mirrors2.append(v1);
+      }
+      break;
+    }
+
+    case BM_EDGE: {
+      BMEdge *e1 = (BMEdge *)elem1;
+      BMEdge *e2 = (BMEdge *)elem2;
+
+      blender::Vector<BMEdge *> &mirrors1 = edge_to_mirror_map_.lookup_or_add(e1, {});
+      blender::Vector<BMEdge *> &mirrors2 = edge_to_mirror_map_.lookup_or_add(e2, {});
+
+      if (!mirrors1.contains(e2)) {
+        mirrors1.append(e2);
+      }
+      if (!mirrors2.contains(e1)) {
+        mirrors2.append(e1);
+      }
+      break;
+    }
+
+    case BM_FACE: {
+      BMFace *f1 = (BMFace *)elem1;
+      BMFace *f2 = (BMFace *)elem2;
+
+      blender::Vector<BMFace *> &mirrors1 = face_to_mirror_map_.lookup_or_add(f1, {});
+      blender::Vector<BMFace *> &mirrors2 = face_to_mirror_map_.lookup_or_add(f2, {});
+      if (!mirrors1.contains(f2)) {
+        mirrors1.append(f2);
+      }
+      if (!mirrors2.contains(f1)) {
+        mirrors2.append(f1);
+      }
+      break;
+    }
+
+    default:
+      BLI_assert_unreachable();
+      break;
+  }
+}
+
 void EditMeshSymmetryHelper::apply_on_mirror_verts(BMVert *v,
                                                    blender::FunctionRef<void(BMVert *)> op) const
 {
