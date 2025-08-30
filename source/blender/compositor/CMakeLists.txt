@@ -69,6 +69,7 @@ set(SRC
   intern/utilities.cc
 
   algorithms/intern/compute_preview.cc
+  algorithms/intern/convolve.cc
   algorithms/intern/deriche_gaussian_blur.cc
   algorithms/intern/extract_alpha.cc
   algorithms/intern/jump_flooding.cc
@@ -86,6 +87,7 @@ set(SRC
   algorithms/intern/van_vliet_gaussian_blur.cc
 
   algorithms/COM_algorithm_compute_preview.hh
+  algorithms/COM_algorithm_convolve.hh
   algorithms/COM_algorithm_deriche_gaussian_blur.hh
   algorithms/COM_algorithm_extract_alpha.hh
   algorithms/COM_algorithm_jump_flooding.hh
@@ -202,6 +204,7 @@ set(GLSL_SRC
   shaders/compositor_glare_simple_star_vertical_pass.glsl
   shaders/compositor_glare_streaks_accumulate.glsl
   shaders/compositor_glare_streaks_filter.glsl
+  shaders/compositor_glare_sun_beams.glsl
   shaders/compositor_glare_write_glare_output.glsl
   shaders/compositor_glare_write_highlights_output.glsl
   shaders/compositor_horizontal_lens_distortion.glsl
@@ -257,7 +260,6 @@ set(GLSL_SRC
   shaders/compositor_summed_area_table_compute_complete_x_prologues.glsl
   shaders/compositor_summed_area_table_compute_complete_y_prologues.glsl
   shaders/compositor_summed_area_table_compute_incomplete_prologues.glsl
-  shaders/compositor_sun_beams.glsl
   shaders/compositor_symmetric_blur.glsl
   shaders/compositor_symmetric_blur_variable_size.glsl
   shaders/compositor_symmetric_separable_blur.glsl
@@ -286,7 +288,6 @@ set(GLSL_SRC
   shaders/library/gpu_shader_compositor_difference_matte.glsl
   shaders/library/gpu_shader_compositor_distance_matte.glsl
   shaders/library/gpu_shader_compositor_exposure.glsl
-  shaders/library/gpu_shader_compositor_gamma.glsl
   shaders/library/gpu_shader_compositor_hue_correct.glsl
   shaders/library/gpu_shader_compositor_hue_saturation_value.glsl
   shaders/library/gpu_shader_compositor_image_diagonals.glsl
