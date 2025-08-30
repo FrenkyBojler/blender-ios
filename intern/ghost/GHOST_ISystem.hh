@@ -472,7 +472,7 @@ class GHOST_ISystem {
 
   virtual const char *getKeyboardInput(GHOST_IWindow *window) = 0;
 
-  virtual const bool getExternalKeyboard(GHOST_IWindow *window) = 0;
+  virtual bool getExternalKeyboard(GHOST_IWindow *window) = 0;
 
   virtual GHOST_TSuccess startSecurityScopedFileAccess(const char *filepath) = 0;
   virtual GHOST_TSuccess stopSecurityScopedFileAccess(const char *filepath) = 0;

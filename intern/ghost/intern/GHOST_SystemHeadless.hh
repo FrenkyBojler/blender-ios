@@ -105,7 +105,7 @@ class GHOST_SystemHeadless : public GHOST_System {
     return nullptr;
   }
 
-  const bool getExternalKeyboard(GHOST_IWindow * /*window*/) override
+  bool getExternalKeyboard(GHOST_IWindow * /*window*/) override
   {
     return false;
   }

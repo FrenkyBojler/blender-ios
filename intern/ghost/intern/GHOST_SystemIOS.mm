@@ -825,7 +825,7 @@ const char *GHOST_SystemIOS::getKeyboardInput(GHOST_IWindow *window)
   return windowIOS->getLastKeyboardString();
 }
 
-const bool GHOST_SystemIOS::getExternalKeyboard(GHOST_IWindow *window)
+bool GHOST_SystemIOS::getExternalKeyboard(GHOST_IWindow *window)
 {
   if (!validWindow((GHOST_IWindow *)window)) {
     return false;

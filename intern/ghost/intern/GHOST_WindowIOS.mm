@@ -2064,7 +2064,7 @@ const char *GHOST_WindowIOS::getLastKeyboardString()
   return [ghost_rootWindow getLastKeyboardString];
 }
 
-const bool GHOST_WindowIOS::getExternalKeyboard()
+bool GHOST_WindowIOS::getExternalKeyboard()
 {
   GHOSTUIWindow *ghost_rootWindow = (GHOSTUIWindow *)rootWindow;
   return [ghost_rootWindow getExternalKeyboard];
