@@ -287,21 +287,36 @@ void multiresModifier_subdivide_to_level_v2(Object *object,
   /* TODO: Have this write to `multires_runtime` in tangent space of the base mesh. */
   /* TODO: Potentially write the object space positions too. */
   multires_flush_sculpt_updates(object);
+  printf("%s: \n" ,__func__);
+  printf("Flush updates to tangent displacements\n");
 
   if (!multires_reshape_context_create_from_modifier(&reshape_context, object, mmd, top_level)) {
     return;
   }
 
   multires_reshape_ensure_grids(coarse_mesh, reshape_context.top.level);
+  printf("Allocate grids\n");
 
-  /* The refine CCG should be the "current" / flushed displacements */
+  /* The refine CCG should be the "current" / flushed displacements. These are *object space*
+   * locations of the grid elements.*/
   /* TODO: Implement a "multires_reshape_assign_base_coords_from_runtime" */
+  /* TODO: Can this be shortcut? We have a very expensive set of calls here that effectively go:
+   *
+   * Sculpt Mode (SubdivCCG) (object space)
+   * CD_MDISP (tangent space)
+   * Limit evaluation and displacement addition (object space)
+   * Subdivide to create new level
+   * Object space *back to* tangent space in MDisps for modifier evaluation (tangent space)
+   * Back in sculpt mode: MDisp back to SubdivCCG (objet space)
+   */
   multires_reshape_assign_final_coords_from_mdisps(&reshape_context);
+  printf("Stored tangent displacements as object coordinates\n");
 
   /* Smooth the reshape CCG and use that to get the new tangent displacments */
   /* TODO: Have this read from the runtime data */
-  multires_reshape_smooth_object_grids(&reshape_context, mode);
+  multires_reshape_smooth_object_grids_v2(&reshape_context, mode);
   multires_reshape_object_grids_to_tangent_displacement(&reshape_context);
+  printf("Assign from MDisps\n");
 
   /* At this point, the "canonical" MDisp data should be updated so that later when the subdiv CCG
    * is created it can use that to create the new object space positions */

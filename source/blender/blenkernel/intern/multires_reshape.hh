@@ -338,6 +338,9 @@ void multires_reshape_smooth_object_grids_with_details(
 void multires_reshape_smooth_object_grids(const MultiresReshapeContext *reshape_context,
                                           enum MultiresSubdivideModeType mode);
 
+void multires_reshape_smooth_object_grids_v2(const MultiresReshapeContext *reshape_context,
+                                             enum MultiresSubdivideModeType mode);
+
 /* --------------------------------------------------------------------
  * Displacement, space conversion.
  */

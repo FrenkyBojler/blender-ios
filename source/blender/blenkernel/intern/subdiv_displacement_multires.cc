@@ -386,13 +386,13 @@ static void initialize(Displacement *displacement)
   data.is_initialized = true;
 }
 
-static void UNUSED_FUNCTION(eval_displacement)(Displacement *displacement,
-                                               const int ptex_face_index,
-                                               const float u,
-                                               const float v,
-                                               const float3 &dPdu,
-                                               const float3 &dPdv,
-                                               float3 &r_D)
+static void eval_displacement(Displacement *displacement,
+                              const int ptex_face_index,
+                              const float u,
+                              const float v,
+                              const float3 &dPdu,
+                              const float3 &dPdv,
+                              float3 &r_D)
 {
   MultiresDisplacementData &data = *static_cast<MultiresDisplacementData *>(
       displacement->user_data);
@@ -533,7 +533,7 @@ static void displacement_init_data(Displacement &displacement,
 static void displacement_init_functions(Displacement *displacement)
 {
   displacement->initialize = initialize;
-  displacement->eval_displacement = eval_displacement_v2;
+  displacement->eval_displacement = eval_displacement;
   displacement->free = free_displacement;
 }
 
