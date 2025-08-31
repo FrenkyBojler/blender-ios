@@ -313,11 +313,9 @@ struct PenToolOperation {
         return;
       }
 
+      const bool is_left = !right_selected[point_i];
       if (this->move_handle) {
-        const int curve_i = point_to_curve_map[point_i];
-        const IndexRange curve_points = points_by_curve[curve_i];
-        if (curve_points.size() > 1 && curve_points.first() == point_i) {
-          /* Moving the handles of the strokes first control point. */
+        if (is_left) {
           const float2 pos_left = this->layer_to_screen(layer_to_object, handles_left[point_i]);
           handles_left[point_i] = this->screen_to_layer(
               layer_to_world, pos_left + offset, depth_point);
@@ -332,7 +330,6 @@ struct PenToolOperation {
         return;
       }
 
-      const bool is_left = !right_selected[point_i];
       const float2 center_point = this->layer_to_screen(layer_to_object, depth_point);
       offset = this->mouse_co - this->center_of_mass_co;
 
