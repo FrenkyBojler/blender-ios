@@ -73,22 +73,6 @@ static bool ndof_has_rotate(const wmNDOFMotionData &ndof, const RegionView3D *rv
 }
 
 /**
- * Return true when `rv3d` should use the navigation preference.
- *
- * Views which enforce 2D behavior, typically where rotation is disabled should return false.
- * (camera views and axis-aligned quad views for example).
- */
-static bool view3d_ndof_use_navigation_mode(const RegionView3D *rv3d)
-{
-  /* Note that there is no need to check orthographic-axis-aligned views
-   * as these are rotation locked too. */
-  if (rv3d->viewlock & RV3D_LOCK_ROTATION) {
-    return false;
-  }
-  return true;
-}
-
-/**
  * \param depth_pt: A point to calculate the depth (in perspective mode)
  */
 static float view3d_ndof_pan_speed_calc_ex(RegionView3D *rv3d, const float depth_pt[3])
@@ -154,13 +138,15 @@ static void view3d_ndof_pan_zoom(const wmNDOFMotionData &ndof,
     return;
   }
 
-  blender::float3 pan_vec_no_navigation = -WM_event_ndof_translation_get(ndof);
-  blender::float3 pan_vec = view3d_ndof_use_navigation_mode(rv3d) ?
-                                WM_event_ndof_translation_get_for_navigation(ndof) :
-                                pan_vec_no_navigation;
-
+  blender::float3 pan_vec = WM_event_ndof_translation_get_for_navigation(ndof);
   if (has_zoom) {
     /* zoom with Z */
+
+    /* "zoom in" or "translate"? depends on zoom mode in user settings? */
+    if (pan_vec[2]) {
+      float zoom_distance = rv3d->dist * ndof.time_delta * pan_vec[2];
+      rv3d->dist += zoom_distance;
+    }
 
     /* Zoom!
      * velocity should be proportional to the linear velocity attained by rotational motion
@@ -168,12 +154,6 @@ static void view3d_ndof_pan_zoom(const wmNDOFMotionData &ndof,
      */
 
     pan_vec[2] = 0.0f;
-
-    /* "zoom in" or "translate"? depends on zoom mode in user settings? */
-    if (pan_vec_no_navigation[2]) {
-      float zoom_distance = rv3d->dist * ndof.time_delta * pan_vec_no_navigation[2];
-      rv3d->dist += zoom_distance;
-    }
   }
   else {
     /* dolly with Z */
@@ -185,9 +165,22 @@ static void view3d_ndof_pan_zoom(const wmNDOFMotionData &ndof,
   }
 
   if (has_translate) {
-    const float speed = view3d_ndof_pan_speed_calc(rv3d);
 
-    pan_vec *= speed * ndof.time_delta;
+    if (U.ndof_navigation_mode == NDOF_NAVIGATION_MODE_FLY) {
+      /* For "Fly Mode" translations we use arbitrary defined, constant
+       * speed values for each axis. Normally, these values are defined
+       * by the 3Dconnexion navigation library. To recreate original navigation
+       * experience, the translation speed values were picked experimentally here.
+       * This is intended to apply only for the "Fly Mode" (3D viewport). */
+      const float fly_speed[3] = {6.5f, 3.3f, 8.0f};
+      pan_vec[0] *= fly_speed[0] * ndof.time_delta;
+      pan_vec[1] *= fly_speed[1] * ndof.time_delta;
+      pan_vec[2] *= fly_speed[2] * ndof.time_delta;
+    }
+    else {
+      const float speed = view3d_ndof_pan_speed_calc(rv3d);
+      pan_vec *= speed * ndof.time_delta;
+    }
 
     /* transform motion from view to world coordinates */
     float view_inv[4];

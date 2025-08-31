@@ -21,7 +21,7 @@
 #  include "DNA_modifier_types.h"
 #  include "DNA_object_types.h"
 #  include "DNA_scene_types.h"
-#  include "DNA_space_types.h"
+#  include "DNA_space_enums.h"
 
 #  include "BKE_context.hh"
 #  include "BKE_file_handler.hh"
@@ -29,7 +29,7 @@
 #  include "BKE_report.hh"
 
 #  include "BLI_path_utils.hh"
-#  include "BLI_string.h"
+#  include "BLI_string_utf8.h"
 #  include "BLI_utildefines.h"
 #  include "BLI_vector.hh"
 
@@ -56,7 +56,11 @@
 #  include "ABC_alembic.h"
 #  include "UI_interface_layout.hh"
 
-const EnumPropertyItem rna_enum_abc_export_evaluation_mode_items[] = {
+#  include "CLG_log.h"
+
+static CLG_LogRef LOG = {"io.alembic"};
+
+static const EnumPropertyItem rna_enum_abc_export_evaluation_mode_items[] = {
     {DAG_EVAL_RENDER,
      "RENDER",
      0,
@@ -508,10 +512,10 @@ static int get_sequence_len(const char *filepath, int *ofs)
 
   DIR *dir = opendir(dirpath);
   if (dir == nullptr) {
-    fprintf(stderr,
-            "Error opening directory '%s': %s\n",
-            dirpath,
-            errno ? strerror(errno) : "unknown error");
+    CLOG_ERROR(&LOG,
+               "Error opening directory '%s': %s",
+               dirpath,
+               errno ? strerror(errno) : "unknown error");
     return -1;
   }
 
@@ -727,11 +731,11 @@ namespace blender::ed::io {
 void alembic_file_handler_add()
 {
   auto fh = std::make_unique<blender::bke::FileHandlerType>();
-  STRNCPY(fh->idname, "IO_FH_alembic");
-  STRNCPY(fh->import_operator, "WM_OT_alembic_import");
-  STRNCPY(fh->export_operator, "WM_OT_alembic_export");
-  STRNCPY(fh->label, "Alembic");
-  STRNCPY(fh->file_extensions_str, ".abc");
+  STRNCPY_UTF8(fh->idname, "IO_FH_alembic");
+  STRNCPY_UTF8(fh->import_operator, "WM_OT_alembic_import");
+  STRNCPY_UTF8(fh->export_operator, "WM_OT_alembic_export");
+  STRNCPY_UTF8(fh->label, "Alembic");
+  STRNCPY_UTF8(fh->file_extensions_str, ".abc");
   fh->poll_drop = poll_file_object_drop;
   bke::file_handler_add(std::move(fh));
 }

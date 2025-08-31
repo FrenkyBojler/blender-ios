@@ -5,7 +5,7 @@
 #include "BLI_fileops.h"
 #include "BLI_listbase.h"
 #include "BLI_path_utils.hh"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 
 #include "DNA_brush_types.h"
 #include "DNA_scene_types.h"
@@ -20,6 +20,7 @@
 #include "BKE_global.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_paint.hh"
+#include "BKE_paint_types.hh"
 #include "BKE_preferences.h"
 #include "BKE_preview_image.hh"
 #include "BKE_report.hh"
@@ -76,8 +77,8 @@ static wmOperatorStatus brush_asset_activate_exec(bContext *C, wmOperator *op)
   if (use_toggle) {
     BLI_assert(paint->brush_asset_reference);
     if (brush_asset_reference == *paint->brush_asset_reference) {
-      if (paint->runtime.previous_active_brush_reference != nullptr) {
-        brush_asset_reference = *paint->runtime.previous_active_brush_reference;
+      if (paint->runtime->previous_active_brush_reference != nullptr) {
+        brush_asset_reference = *paint->runtime->previous_active_brush_reference;
       }
     }
     else {
@@ -164,7 +165,7 @@ static wmOperatorStatus brush_asset_save_as_exec(bContext *C, wmOperator *op)
     RNA_property_string_get(op->ptr, name_prop, name);
   }
   if (name[0] == '\0') {
-    STRNCPY(name, brush->id.name + 2);
+    STRNCPY_UTF8(name, brush->id.name + 2);
   }
 
   const eAssetLibraryType enum_value = (eAssetLibraryType)RNA_enum_get(op->ptr,
