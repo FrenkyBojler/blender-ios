@@ -39,10 +39,6 @@ struct VKExtensions {
    * VkPhysicalDeviceFragmentShaderBarycentricFeaturesKHR::fragmentShaderBarycentric.
    */
   bool fragment_shader_barycentric = false;
-  /**
-   * Does the device support VK_KHR_dynamic_rendering enabled.
-   */
-  bool dynamic_rendering = false;
 
   /**
    * Does the device support VK_KHR_dynamic_rendering_local_read enabled.
@@ -55,9 +51,35 @@ struct VKExtensions {
   bool dynamic_rendering_unused_attachments = false;
 
   /**
+   * Does the device support VK_EXT_external_memory_win32/VK_EXT_external_memory_fd
+   */
+  bool external_memory = false;
+
+  /** VK_KHR_maintenance4 */
+  bool maintenance4 = false;
+
+  /**
+   * Does the device support VK_EXT_descriptor_buffer.
+   */
+  bool descriptor_buffer = false;
+
+  /**
    * Does the device support logic ops.
    */
   bool logic_ops = false;
+
+  /**
+   * Does the device support VK_EXT_memory_priority
+   */
+  bool memory_priority = false;
+
+  /**
+   * Does the device support VK_EXT_pageable_device_local_memory
+   */
+  bool pageable_device_local_memory = false;
+
+  /** Log enabled features and extensions. */
+  void log() const;
 };
 
 /* TODO: Split into VKWorkarounds and VKExtensions to remove the negating when an extension isn't
@@ -84,13 +106,18 @@ struct VKWorkarounds {
  * Shared resources between contexts that run in the same thread.
  */
 class VKThreadData : public NonCopyable, NonMovable {
-  static constexpr uint32_t resource_pools_count = 3;
+  /**
+   * The number of resource pools is aligned to the number of frames
+   * in flight used by GHOST. Therefore, this constant *must* always
+   * match GHOST_ContextVK's GHOST_FRAMES_IN_FLIGHT.
+   */
+  static constexpr uint32_t resource_pools_count = 5;
 
  public:
   /** Thread ID this instance belongs to. */
   pthread_t thread_id;
   /**
-   * Index of the active resource pool. Is in sync with the active swap chain image or cycled when
+   * Index of the active resource pool. Is in sync with the active swap-chain image or cycled when
    * rendering.
    *
    * NOTE: Initialized to `UINT32_MAX` to detect first change.
@@ -98,6 +125,7 @@ class VKThreadData : public NonCopyable, NonMovable {
   uint32_t resource_pool_index = UINT32_MAX;
   std::array<VKResourcePool, resource_pools_count> resource_pools;
 
+  VKDescriptorPools descriptor_pools;
   /**
    * The current rendering depth.
    *
@@ -109,7 +137,6 @@ class VKThreadData : public NonCopyable, NonMovable {
   int32_t rendering_depth = 0;
 
   VKThreadData(VKDevice &device, pthread_t thread_id);
-  void deinit(VKDevice &device);
 
   /**
    * Get the active resource pool.
@@ -144,18 +171,8 @@ class VKDevice : public NonCopyable {
   VkQueue vk_queue_ = VK_NULL_HANDLE;
   std::mutex *queue_mutex_ = nullptr;
 
-  /**
-   * Lifetime of the device.
-   *
-   * Used for de-initialization of the command builder thread.
-   */
-  enum Lifetime {
-    UNINITIALIZED,
-    RUNNING,
-    DEINITIALIZING,
-    DESTROYED,
-  };
-  Lifetime lifetime = Lifetime::UNINITIALIZED;
+  bool is_initialized_ = false;
+
   /**
    * Task pool for render graph submission.
    *
@@ -171,7 +188,12 @@ class VKDevice : public NonCopyable {
   ThreadQueue *submitted_render_graphs_ = nullptr;
   ThreadQueue *unused_render_graphs_ = nullptr;
   VkSemaphore vk_timeline_semaphore_ = VK_NULL_HANDLE;
-  std::atomic<uint_least64_t> timeline_value_ = 0;
+  /**
+   * Last used timeline value.
+   *
+   * Must be externally synced by orphaned_data.mutex_get()
+   */
+  TimelineValue timeline_value_ = 0;
 
   VKSamplers samplers_;
   VKDescriptorSetLayouts descriptor_set_layouts_;
@@ -195,6 +217,8 @@ class VKDevice : public NonCopyable {
   VkPhysicalDeviceDriverProperties vk_physical_device_driver_properties_ = {};
   VkPhysicalDeviceIDProperties vk_physical_device_id_properties_ = {};
   VkPhysicalDeviceMemoryProperties vk_physical_device_memory_properties_ = {};
+  VkPhysicalDeviceDescriptorBufferPropertiesEXT vk_physical_device_descriptor_buffer_properties_ =
+      {};
   /** Features support. */
   VkPhysicalDeviceFeatures vk_physical_device_features_ = {};
   VkPhysicalDeviceVulkan11Features vk_physical_device_vulkan_11_features_ = {};
@@ -208,12 +232,19 @@ class VKDevice : public NonCopyable {
   VKWorkarounds workarounds_;
   VKExtensions extensions_;
 
-  std::string glsl_patch_;
+  std::string glsl_vert_patch_;
+  std::string glsl_geom_patch_;
+  std::string glsl_frag_patch_;
+  std::string glsl_comp_patch_;
   Vector<VKThreadData *> thread_data_;
+
+  Shader *vk_backbuffer_blit_sh_ = nullptr;
 
  public:
   render_graph::VKResourceStateTracker resources;
   VKDiscardPool orphaned_data;
+  /** Discard pool for resources that could still be used during rendering. */
+  VKDiscardPool orphaned_data_render;
   VKPipelinePool pipelines;
   /** Buffer to bind to unbound resource locations. */
   VKBuffer dummy_buffer;
@@ -240,6 +271,14 @@ class VKDevice : public NonCopyable {
     /* Extension: VK_KHR_external_memory_win32 */
     PFN_vkGetMemoryWin32HandleKHR vkGetMemoryWin32Handle = nullptr;
 #endif
+
+    /* Extension: VK_EXT_descriptor_buffer */
+    PFN_vkGetDescriptorSetLayoutSizeEXT vkGetDescriptorSetLayoutSize = nullptr;
+    PFN_vkGetDescriptorSetLayoutBindingOffsetEXT vkGetDescriptorSetLayoutBindingOffset = nullptr;
+    PFN_vkGetDescriptorEXT vkGetDescriptor = nullptr;
+    PFN_vkCmdBindDescriptorBuffersEXT vkCmdBindDescriptorBuffers = nullptr;
+    PFN_vkCmdSetDescriptorBufferOffsetsEXT vkCmdSetDescriptorBufferOffsets = nullptr;
+
   } functions;
 
   struct {
@@ -270,6 +309,12 @@ class VKDevice : public NonCopyable {
     return vk_physical_device_id_properties_;
   }
 
+  inline const VkPhysicalDeviceDescriptorBufferPropertiesEXT &
+  physical_device_descriptor_buffer_properties_get() const
+  {
+    return vk_physical_device_descriptor_buffer_properties_;
+  }
+
   const VkPhysicalDeviceFeatures &physical_device_features_get() const
   {
     return vk_physical_device_features_;
@@ -293,15 +338,6 @@ class VKDevice : public NonCopyable {
   VkDevice vk_handle() const
   {
     return vk_device_;
-  }
-
-  VkQueue queue_get() const
-  {
-    return vk_queue_;
-  }
-  std::mutex &queue_mutex_get()
-  {
-    return *queue_mutex_;
   }
 
   uint32_t queue_family_get() const
@@ -334,10 +370,13 @@ class VKDevice : public NonCopyable {
     return samplers_;
   }
 
-  bool is_initialized() const;
   void init(void *ghost_context);
   void reinit();
   void deinit();
+  bool is_initialized() const
+  {
+    return is_initialized_;
+  }
 
   eGPUDeviceType device_type() const;
   eGPUDriverType driver_type() const;
@@ -356,12 +395,15 @@ class VKDevice : public NonCopyable {
   {
     return workarounds_;
   }
-  const VKExtensions &extensions_get() const
+  inline const VKExtensions &extensions_get() const
   {
     return extensions_;
   }
 
-  const char *glsl_patch_get() const;
+  const char *glsl_vertex_patch_get() const;
+  const char *glsl_geometry_patch_get() const;
+  const char *glsl_fragment_patch_get() const;
+  const char *glsl_compute_patch_get() const;
   void init_glsl_patch();
 
   /* -------------------------------------------------------------------- */
@@ -379,6 +421,7 @@ class VKDevice : public NonCopyable {
                                     VkSemaphore signal_semaphore,
                                     VkFence signal_fence);
   void wait_for_timeline(TimelineValue timeline);
+  void wait_queue_idle();
 
   /**
    * Retrieve the last finished submission timeline.
@@ -387,7 +430,16 @@ class VKDevice : public NonCopyable {
   {
     BLI_assert(vk_timeline_semaphore_ != VK_NULL_HANDLE);
     TimelineValue current_timeline;
-    vkGetSemaphoreCounterValue(vk_device_, vk_timeline_semaphore_, &current_timeline);
+    VkResult result = vkGetSemaphoreCounterValue(
+        vk_device_, vk_timeline_semaphore_, &current_timeline);
+    UNUSED_VARS(result);
+    BLI_assert_msg(
+        result == VK_SUCCESS && current_timeline != UINT64_MAX,
+        "Potential driver crash has happened. Several drivers will report UINT64_MAX when "
+        "requesting a counter value of an timeline semaphore right after/during a driver reset. "
+        "If this happen we should investigate what makes the driver crash. In the past this has "
+        "been detected on QUALCOMM and NVIDIA drivers. The result code of the call is "
+        "VK_SUCCESS.");
     return current_timeline;
   }
 
@@ -429,6 +481,14 @@ class VKDevice : public NonCopyable {
   void debug_print();
 
   /** \} */
+
+  Shader *vk_backbuffer_blit_sh_get()
+  {
+    if (vk_backbuffer_blit_sh_ == nullptr) {
+      vk_backbuffer_blit_sh_ = GPU_shader_create_from_info_name("vk_backbuffer_blit");
+    }
+    return vk_backbuffer_blit_sh_;
+  }
 
  private:
   void init_physical_device_properties();

@@ -505,8 +505,8 @@ static void rna_def_volume_render(BlenderRNA *brna)
   RNA_def_struct_path_func(srna, "rna_VolumeRender_path");
 
   static const EnumPropertyItem precision_items[] = {
-      {VOLUME_PRECISION_FULL, "FULL", 0, "Full", "Full float (Use 32 bit for all data)"},
-      {VOLUME_PRECISION_HALF, "HALF", 0, "Half", "Half float (Use 16 bit for all data)"},
+      {VOLUME_PRECISION_FULL, "FULL", 0, "Full", "Use 32-bit floating-point numbers for all data"},
+      {VOLUME_PRECISION_HALF, "HALF", 0, "Half", "Use 16-bit floating-point numbers for all data"},
       {VOLUME_PRECISION_VARIABLE, "VARIABLE", 0, "Variable", "Use variable bit quantization"},
       {0, nullptr, 0, nullptr, nullptr},
   };
@@ -537,17 +537,6 @@ static void rna_def_volume_render(BlenderRNA *brna)
   RNA_def_property_enum_items(prop, space_items);
   RNA_def_property_ui_text(
       prop, "Space", "Specify volume density and step size in object or world space");
-  RNA_def_property_update(prop, 0, "rna_Volume_update_display");
-
-  prop = RNA_def_property(srna, "step_size", PROP_FLOAT, PROP_DISTANCE);
-  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
-  RNA_def_property_range(prop, 0.0, FLT_MAX);
-  RNA_def_property_ui_range(prop, 0.0, 100.0, 1, 3);
-  RNA_def_property_ui_text(prop,
-                           "Step Size",
-                           "Distance between volume samples. Lower values render more detail at "
-                           "the cost of performance. If set to zero, the step size is "
-                           "automatically determined based on voxel size.");
   RNA_def_property_update(prop, 0, "rna_Volume_update_display");
 
   prop = RNA_def_property(srna, "clipping", PROP_FLOAT, PROP_NONE);

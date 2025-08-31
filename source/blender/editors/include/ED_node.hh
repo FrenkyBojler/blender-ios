@@ -7,12 +7,16 @@
 #include <optional>
 
 #include "BLI_compute_context.hh"
+#include "BLI_math_vector_types.hh"
 #include "BLI_string_ref.hh"
 #include "BLI_vector_set.hh"
 
 #include "BKE_compute_context_cache_fwd.hh"
 
+#include "NOD_geometry_nodes_bundle_signature.hh"
 #include "NOD_geometry_nodes_closure_location.hh"
+#include "NOD_geometry_nodes_closure_signature.hh"
+#include "NOD_nested_node_id.hh"
 
 #include "ED_node_c.hh"
 
@@ -54,6 +58,12 @@ void node_insert_on_link_flags_set(SpaceNode &snode,
                                    bool is_new_node);
 
 /**
+ * Tag the editor to highlight the frame that currently transformed nodes will be attached to.
+ */
+void node_insert_on_frame_flag_set(bContext &C, SpaceNode &snode, const int2 &cursor);
+void node_insert_on_frame_flag_clear(SpaceNode &snode);
+
+/**
  * Assumes link with #NODE_LINK_INSERT_TARGET set.
  */
 void node_insert_on_link_flags(Main &bmain, SpaceNode &snode, bool is_new_node);
@@ -75,7 +85,10 @@ void std_node_socket_colors_get(int socket_type, float *r_color);
 /**
  * Find the nested node id of a currently visible node in the root tree.
  */
-std::optional<int32_t> find_nested_node_id_in_root(const SpaceNode &snode, const bNode &node);
+std::optional<nodes::FoundNestedNodeID> find_nested_node_id_in_root(const SpaceNode &snode,
+                                                                    const bNode &node);
+std::optional<nodes::FoundNestedNodeID> find_nested_node_id_in_root(
+    const bNodeTree &root_tree, const ComputeContext *compute_context, const int node_id);
 
 struct ObjectAndModifier {
   const Object *object;
@@ -105,16 +118,8 @@ bool node_editor_is_for_geometry_nodes_modifier(const SpaceNode &snode,
     bke::ComputeContextCache &compute_context_cache,
     const bNodeSocket &socket);
 
-/**
- * Attempts to find a compute context that the closure is evaluated in. If none is found, null is
- * returned. If multiple are found, it currently picks the first one it finds which is somewhat
- * arbitrary.
- */
-[[nodiscard]] const ComputeContext *compute_context_for_closure_evaluation(
-    const ComputeContext *closure_socket_context,
-    const bNodeSocket &closure_socket,
-    bke::ComputeContextCache &compute_context_cache,
-    const std::optional<nodes::ClosureSourceLocation> &source_location);
+[[nodiscard]] const ComputeContext *compute_context_for_edittree_node(
+    const SpaceNode &snode, bke::ComputeContextCache &compute_context_cache, const bNode &node);
 
 /**
  * Creates a compute context for the given zone. It takes e.g. the current inspection index into
@@ -124,9 +129,16 @@ bool node_editor_is_for_geometry_nodes_modifier(const SpaceNode &snode,
     const bke::bNodeTreeZone &zone,
     bke::ComputeContextCache &compute_context_cache,
     const ComputeContext *parent_compute_context);
+[[nodiscard]] const ComputeContext *compute_context_for_zones(
+    const Span<const bke::bNodeTreeZone *> zones,
+    bke::ComputeContextCache &compute_context_cache,
+    const ComputeContext *parent_compute_context);
 
 void ui_template_node_asset_menu_items(uiLayout &layout,
                                        const bContext &C,
                                        StringRef catalog_path);
+
+/** See #SpaceNode_Runtime::node_can_sync_states. */
+Map<int, bool> &node_can_sync_cache_get(SpaceNode &snode);
 
 }  // namespace blender::ed::space_node

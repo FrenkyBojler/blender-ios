@@ -360,7 +360,7 @@ static void rna_ActionSlot_identifier_set(PointerRNA *ptr, const char *identifie
   if (identifier_with_correct_prefix != identifier_ref) {
     WM_global_reportf(
         RPT_WARNING,
-        "Attempted to set slot identifier to \"%s\", but the type prefix doesn't match the "
+        "Attempted to set slot identifier to \"%s\", but the type prefix does not match the "
         "slot's 'target_id_type' \"%s\". Setting to \"%s\" instead.\n",
         identifier,
         slot.idtype_string().c_str(),
@@ -585,7 +585,7 @@ static bool rna_ActionStrip_key_insert(ID *dna_action_id,
   return ok;
 }
 
-static std::optional<std::string> rna_Channelbag_path(const PointerRNA *ptr)
+std::optional<std::string> rna_Channelbag_path(const PointerRNA *ptr)
 {
   animrig::Action &action = rna_action(ptr);
   animrig::Channelbag &cbag_to_find = rna_data_channelbag(ptr);
@@ -734,7 +734,7 @@ static void rna_Channelbag_group_remove(ActionChannelbag *dna_channelbag,
   if (!self.channel_group_remove(*agrp)) {
     BKE_report(reports,
                RPT_ERROR,
-               "Could not remove the F-Curve Group from the collection because it doesn't exist "
+               "Could not remove the F-Curve Group from the collection because it does not exist "
                "in the collection");
     return;
   }
@@ -1986,6 +1986,13 @@ static void rna_def_dopesheet(BlenderRNA *brna)
   RNA_def_property_ui_icon(prop, ICON_OUTLINER_OB_VOLUME, 0);
   RNA_def_property_update(prop, NC_ANIMATION | ND_ANIMCHAN | NA_EDITED, nullptr);
 
+  prop = RNA_def_property(srna, "show_lightprobes", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_negative_sdna(prop, nullptr, "filterflag2", ADS_FILTER_NOLIGHTPROBE);
+  RNA_def_property_ui_text(
+      prop, "Display Light Probe", "Include visualization of lightprobe related animation data");
+  RNA_def_property_ui_icon(prop, ICON_OUTLINER_OB_LIGHTPROBE, 0);
+  RNA_def_property_update(prop, NC_ANIMATION | ND_ANIMCHAN | NA_EDITED, nullptr);
+
   prop = RNA_def_property(srna, "show_gpencil", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_negative_sdna(prop, nullptr, "filterflag", ADS_FILTER_NOGPENCIL);
   RNA_def_property_ui_text(
@@ -2163,7 +2170,8 @@ static void rna_def_action_slot(BlenderRNA *brna)
                                 "rna_ActionSlot_name_display_length",
                                 "rna_ActionSlot_name_display_set");
   RNA_def_property_string_maxlength(prop, sizeof(ActionSlot::identifier) - 2);
-  RNA_def_property_update(prop, NC_ANIMATION | ND_ANIMCHAN, "rna_ActionSlot_identifier_update");
+  RNA_def_property_update(
+      prop, NC_ANIMATION | ND_ANIMCHAN | NA_RENAME, "rna_ActionSlot_identifier_update");
   RNA_def_property_ui_text(
       prop,
       "Slot Display Name",
@@ -2521,7 +2529,7 @@ static void rna_def_channelbag_fcurves(BlenderRNA *brna, PropertyRNA *cprop)
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
   RNA_def_int(func, "index", 0, 0, INT_MAX, "Index", "Array index", 0, INT_MAX);
   parm = RNA_def_pointer(
-      func, "fcurve", "FCurve", "", "The found F-Curve, or None if it doesn't exist");
+      func, "fcurve", "FCurve", "", "The found F-Curve, or None if it does not exist");
   RNA_def_function_return(func, parm);
 
   /* Channelbag.fcurves.remove(...) */
@@ -2787,7 +2795,7 @@ static void rna_def_action_fcurves(BlenderRNA *brna, PropertyRNA *cprop)
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
   RNA_def_int(func, "index", 0, 0, INT_MAX, "Index", "Array index", 0, INT_MAX);
   parm = RNA_def_pointer(
-      func, "fcurve", "FCurve", "", "The found F-Curve, or None if it doesn't exist");
+      func, "fcurve", "FCurve", "", "The found F-Curve, or None if it does not exist");
   RNA_def_function_return(func, parm);
 
   /* Action.fcurves.remove(...) */
@@ -2924,17 +2932,18 @@ static void rna_def_action(BlenderRNA *brna)
       prop,
       "Is Legacy Action",
       "Return whether this is a legacy Action. Legacy Actions have no layers or slots. An "
-      "empty Action considered as both a 'legacy' and a 'layered' Action. Since Blender 4.4 "
+      "empty Action is considered as both a 'legacy' and a 'layered' Action. Since Blender 4.4 "
       "actions are automatically updated to layered actions, and thus this will only return True "
       "when the action is empty");
   RNA_def_property_boolean_funcs(prop, "rna_Action_is_action_legacy_get", nullptr);
 
   prop = RNA_def_property(srna, "is_action_layered", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-  RNA_def_property_ui_text(prop,
-                           "Is Layered Action",
-                           "Return whether this is a layered Action. An empty Action considered "
-                           "as both a 'layered' and a 'layered' Action.");
+  RNA_def_property_ui_text(
+      prop,
+      "Is Layered Action",
+      "Return whether this is a layered Action. An empty Action is considered "
+      "as both a 'legacy' and a 'layered' Action.");
   RNA_def_property_boolean_funcs(prop, "rna_Action_is_action_layered_get", nullptr);
 
   /* Collection properties. */
@@ -2995,7 +3004,7 @@ static void rna_def_action(BlenderRNA *brna)
       prop,
       "Cyclic Animation",
       "The action is intended to be used as a cycle looping over its manually set "
-      "playback frame range (enabling this doesn't automatically make it loop)");
+      "playback frame range (enabling this does not automatically make it loop)");
   RNA_def_property_update(prop, NC_ANIMATION | ND_ANIMCHAN | NA_EDITED, nullptr);
 
   prop = RNA_def_property(srna, "frame_start", PROP_FLOAT, PROP_TIME);

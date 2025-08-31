@@ -38,7 +38,7 @@ struct GPULayerAttr;
 
 namespace blender::draw {
 
-struct ObjectRef;
+class ObjectRef;
 
 }  // namespace blender::draw
 
@@ -148,9 +148,16 @@ enum eObjectInfoFlag : uint32_t {
   OBJECT_ACTIVE = (1u << 3u),
   OBJECT_NEGATIVE_SCALE = (1u << 4u),
   OBJECT_HOLDOUT = (1u << 5u),
+  /* Implies all objects that match the current active object's mode and able to be edited
+   * simultaneously. Currently only applicable for edit mode. */
+  OBJECT_ACTIVE_EDIT_MODE = (1u << 6u),
   /* Avoid skipped info to change culling. */
   OBJECT_NO_INFO = ~OBJECT_HOLDOUT
 };
+
+#if !defined(GPU_SHADER) && defined(__cplusplus)
+ENUM_OPERATORS(eObjectInfoFlag, OBJECT_ACTIVE_EDIT_MODE);
+#endif
 
 struct ObjectInfos {
   /** Uploaded as center + size. Converted to mul+bias to local coord. */
@@ -165,10 +172,14 @@ struct ObjectInfos {
   uint light_and_shadow_set_membership;
   float random;
   eObjectInfoFlag flag;
+  float shadow_terminator_normal_offset;
+  float shadow_terminator_geometry_offset;
+  float _pad1;
+  float _pad2;
 
 #if !defined(GPU_SHADER) && defined(__cplusplus)
   void sync();
-  void sync(const blender::draw::ObjectRef ref, bool is_active_object);
+  void sync(const blender::draw::ObjectRef ref, bool is_active_object, bool is_active_edit_mode);
 #endif
 };
 BLI_STATIC_ASSERT_ALIGN(ObjectInfos, 16)
@@ -238,10 +249,18 @@ struct VolumeInfos {
 BLI_STATIC_ASSERT_ALIGN(VolumeInfos, 16)
 
 struct CurvesInfos {
+  /* TODO(fclem): Make it a single uint. */
   /** Per attribute scope, follows loading order.
    * \note uint as bool in GLSL is 4 bytes.
    * \note GLSL pad arrays of scalar to 16 bytes (std140). */
   uint4 is_point_attribute[DRW_ATTRIBUTE_PER_CURVES_MAX];
+
+  /* Number of vertex in a segment (including restart vertex for cylinder). */
+  uint vertex_per_segment;
+  /* Edge count for the visible half cylinder. Equal to face count + 1. */
+  uint half_cylinder_face_count;
+  uint _pad0;
+  uint _pad1;
 };
 BLI_STATIC_ASSERT_ALIGN(CurvesInfos, 16)
 
@@ -372,7 +391,7 @@ inline uint debug_color_pack(float4 v_color)
 }
 
 /* Take the header (DrawCommand) into account. */
-#define DRW_DEBUG_DRAW_VERT_MAX (64 * 8192) - 1
+#define DRW_DEBUG_DRAW_VERT_MAX (2 * 1024) - 1
 
 /* The debug draw buffer is laid-out as the following struct.
  * But we use plain array in shader code instead because of driver issues. */

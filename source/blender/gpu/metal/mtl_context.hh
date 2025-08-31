@@ -18,7 +18,7 @@
 #endif
 
 #include "intern/GHOST_Context.hh"
-#include "intern/GHOST_ContextCGL.hh"
+#include "intern/GHOST_ContextMTL.hh"
 #include "intern/GHOST_Window.hh"
 
 #include "mtl_backend.hh"
@@ -33,6 +33,7 @@
 #include <Cocoa/Cocoa.h>
 #include <Metal/Metal.h>
 #include <QuartzCore/QuartzCore.h>
+#include <chrono>
 #include <mutex>
 
 @class CAMetalLayer;
@@ -290,8 +291,8 @@ struct MTLContextTextureUtils {
    * use a compute shader to write to depth, so we must instead render to a depth target.
    * These processes use vertex/fragment shaders to render texture data from an intermediate
    * source, in order to prime the depth buffer. */
-  blender::Map<DepthTextureUpdateRoutineSpecialisation, GPUShader *> depth_2d_update_shaders;
-  GPUShader *fullscreen_blit_shader = nullptr;
+  blender::Map<DepthTextureUpdateRoutineSpecialisation, gpu::Shader *> depth_2d_update_shaders;
+  gpu::Shader *fullscreen_blit_shader = nullptr;
 
   /* Texture Read/Update routines */
   blender::Map<TextureReadRoutineSpecialisation, id<MTLComputePipelineState>>
@@ -727,7 +728,7 @@ class MTLContext : public Context {
 
  private:
   /* Parent Context. */
-  GHOST_ContextCGL *ghost_context_;
+  GHOST_ContextMTL *ghost_context_;
 
   /* Render Passes and Frame-buffers. */
   id<MTLTexture> default_fbo_mtltexture_ = nil;
@@ -776,7 +777,22 @@ class MTLContext : public Context {
   GPUVertFormat dummy_vertformat_[GPU_SAMPLER_TYPE_MAX];
   VertBuf *dummy_verts_[GPU_SAMPLER_TYPE_MAX] = {nullptr};
 
-  ShaderCompiler *compiler;
+  /* Debug scope timings. Adapted form GLContext::TimeQuery.
+   * Only supports CPU timings for now. */
+  struct ScopeTimings {
+    using Clock = std::chrono::steady_clock;
+    using TimePoint = Clock::time_point;
+    using Nanoseconds = std::chrono::nanoseconds;
+
+    static TimePoint epoch;
+
+    std::string name;
+    bool finished;
+    TimePoint cpu_start, cpu_end;
+  };
+  Vector<ScopeTimings> scope_timings;
+
+  void process_frame_timings();
 
  public:
   /* GPUContext interface. */
@@ -792,11 +808,6 @@ class MTLContext : public Context {
 
   void flush() override;
   void finish() override;
-
-  ShaderCompiler *get_compiler() override
-  {
-    return compiler;
-  }
 
   void memory_statistics_get(int *r_total_mem, int *r_free_mem) override;
 
@@ -839,11 +850,16 @@ class MTLContext : public Context {
   /* Context Global-State Texture Binding. */
   void texture_bind(gpu::MTLTexture *mtl_texture, uint texture_unit, bool is_image);
   void sampler_bind(MTLSamplerState, uint sampler_unit);
-  void texture_unbind(gpu::MTLTexture *mtl_texture, bool is_image);
+  void texture_unbind(gpu::MTLTexture *mtl_texture, bool is_image, StateManager *state_manager);
   void texture_unbind_all(bool is_image);
   void sampler_state_cache_init();
   id<MTLSamplerState> get_sampler_from_state(MTLSamplerState state);
   id<MTLSamplerState> get_default_sampler_state();
+
+  /* Active shader specialization constants state. */
+  shader::SpecializationConstants constants_state;
+
+  void specialization_constants_set(const shader::SpecializationConstants *constants_state);
 
   /* Metal Context pipeline state. */
   void pipeline_state_init();

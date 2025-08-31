@@ -47,7 +47,7 @@ void BKE_uvproject_from_camera(float target[2], float source[3], ProjCameraInfo 
   if (uci->do_pano) {
     float angle = atan2f(pv4[0], -pv4[2]) / (float(M_PI) * 2.0f); /* angle around the camera */
     if (uci->do_persp == false) {
-      target[0] = angle; /* no correct method here, just map to  0-1 */
+      target[0] = angle; /* No correct method here, just map to 0-1. */
       target[1] = pv4[1] / uci->camsize;
     }
     else {
@@ -131,7 +131,7 @@ ProjCameraInfo *BKE_uvproject_camera_info(const Object *ob,
   const Camera *camera = static_cast<Camera *>(ob->data);
 
   uci.do_pano = (camera->type == CAM_PANO);
-  uci.do_persp = (camera->type == CAM_PERSP);
+  uci.do_persp = ELEM(camera->type, CAM_PERSP, CAM_CUSTOM);
 
   uci.camangle = focallength_to_fov(camera->lens, camera->sensor_x) / 2.0f;
   uci.camsize = uci.do_persp ? tanf(uci.camangle) : camera->ortho_scale;

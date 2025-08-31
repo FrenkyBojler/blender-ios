@@ -6,7 +6,6 @@
 #  pragma once
 #  include "gpu_glsl_cpp_stubs.hh"
 
-#  include "draw_common_shader_shared.hh"
 #  include "draw_object_infos_info.hh"
 #  include "draw_view_info.hh"
 #endif
@@ -22,9 +21,9 @@
 GPU_SHADER_CREATE_INFO(overlay_paint_face)
 DO_STATIC_COMPILATION()
 VERTEX_IN(0, float3, pos)
-VERTEX_IN(1, float4, nor) /* Select flag on the 4th component. */
+VERTEX_IN(1, int, paint_overlay_flag)
 PUSH_CONSTANT(float4, ucolor)
-FRAGMENT_OUT(0, float4, fragColor)
+FRAGMENT_OUT(0, float4, frag_color)
 VERTEX_SOURCE("overlay_paint_face_vert.glsl")
 FRAGMENT_SOURCE("overlay_uniform_color_frag.glsl")
 ADDITIONAL_INFO(draw_view)
@@ -43,15 +42,15 @@ OVERLAY_INFO_CLIP_VARIATION(overlay_paint_face)
  * \{ */
 
 GPU_SHADER_INTERFACE_INFO(overlay_overlay_paint_point_iface)
-SMOOTH(float4, finalColor)
+SMOOTH(float4, final_color)
 GPU_SHADER_INTERFACE_END()
 
 GPU_SHADER_CREATE_INFO(overlay_paint_point)
 DO_STATIC_COMPILATION()
 VERTEX_IN(0, float3, pos)
-VERTEX_IN(1, float4, nor) /* Select flag on the 4th component. */
+VERTEX_IN(1, int, paint_overlay_flag)
 VERTEX_OUT(overlay_overlay_paint_point_iface)
-FRAGMENT_OUT(0, float4, fragColor)
+FRAGMENT_OUT(0, float4, frag_color)
 VERTEX_SOURCE("overlay_paint_point_vert.glsl")
 FRAGMENT_SOURCE("overlay_point_varying_color_frag.glsl")
 ADDITIONAL_INFO(draw_view)
@@ -78,12 +77,12 @@ DO_STATIC_COMPILATION()
 VERTEX_IN(0, float3, pos)
 VERTEX_IN(1, float2, mu) /* Masking uv map. */
 VERTEX_OUT(overlay_paint_texture_iface)
-SAMPLER(0, FLOAT_2D, maskImage)
-PUSH_CONSTANT(float3, maskColor)
+SAMPLER(0, sampler2D, mask_image)
+PUSH_CONSTANT(float3, mask_color)
 PUSH_CONSTANT(float, opacity) /* `1.0f` by default. */
-PUSH_CONSTANT(bool, maskInvertStencil)
-PUSH_CONSTANT(bool, maskImagePremultiplied)
-FRAGMENT_OUT(0, float4, fragColor)
+PUSH_CONSTANT(bool, mask_invert_stencil)
+PUSH_CONSTANT(bool, mask_image_premultiplied)
+FRAGMENT_OUT(0, float4, frag_color)
 VERTEX_SOURCE("overlay_paint_texture_vert.glsl")
 FRAGMENT_SOURCE("overlay_paint_texture_frag.glsl")
 ADDITIONAL_INFO(draw_view)
@@ -113,11 +112,11 @@ VERTEX_IN(0, float, weight)
 VERTEX_IN(1, float3, pos)
 VERTEX_IN(2, float3, nor)
 VERTEX_OUT(overlay_paint_weight_iface)
-SAMPLER(0, FLOAT_1D, colorramp)
-PUSH_CONSTANT(float, opacity)     /* `1.0f` by default. */
-PUSH_CONSTANT(bool, drawContours) /* `false` by default. */
-FRAGMENT_OUT(0, float4, fragColor)
-FRAGMENT_OUT(1, float4, lineOutput)
+SAMPLER(0, sampler1D, colorramp)
+PUSH_CONSTANT(float, opacity)      /* `1.0f` by default. */
+PUSH_CONSTANT(bool, draw_contours) /* `false` by default. */
+FRAGMENT_OUT(0, float4, frag_color)
+FRAGMENT_OUT(1, float4, line_output)
 VERTEX_SOURCE("overlay_paint_weight_vert.glsl")
 FRAGMENT_SOURCE("overlay_paint_weight_frag.glsl")
 ADDITIONAL_INFO(draw_view)
@@ -146,16 +145,16 @@ OVERLAY_INFO_CLIP_VARIATION(overlay_paint_weight_fake_shading)
  * \{ */
 
 GPU_SHADER_INTERFACE_INFO(overlay_paint_wire_iface)
-FLAT(float4, finalColor)
+FLAT(float4, final_color)
 GPU_SHADER_INTERFACE_END()
 
 GPU_SHADER_CREATE_INFO(overlay_paint_wire)
 DO_STATIC_COMPILATION()
 VERTEX_IN(0, float3, pos)
-VERTEX_IN(1, float4, nor) /* flag stored in w */
+VERTEX_IN(1, int, paint_overlay_flag)
 VERTEX_OUT(overlay_paint_wire_iface)
-PUSH_CONSTANT(bool, useSelect)
-FRAGMENT_OUT(0, float4, fragColor)
+PUSH_CONSTANT(bool, use_select)
+FRAGMENT_OUT(0, float4, frag_color)
 VERTEX_SOURCE("overlay_paint_wire_vert.glsl")
 FRAGMENT_SOURCE("overlay_varying_color.glsl")
 ADDITIONAL_INFO(draw_view)

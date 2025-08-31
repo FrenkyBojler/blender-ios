@@ -50,6 +50,10 @@
 #  include "gpu_shader_fullscreen_blit_info.hh"
 #endif
 
+#ifdef WITH_VULKAN_BACKEND
+#  include "vk_backbuffer_blit_info.hh"
+#endif
+
 /* Compositor. */
 #include "compositor_alpha_crop_info.hh"
 #include "compositor_bilateral_blur_info.hh"
@@ -73,12 +77,14 @@
 #include "compositor_gamma_correct_info.hh"
 #include "compositor_glare_info.hh"
 #include "compositor_id_mask_info.hh"
+#include "compositor_image_coordinates_info.hh"
 #include "compositor_image_crop_info.hh"
 #include "compositor_inpaint_info.hh"
 #include "compositor_jump_flooding_info.hh"
 #include "compositor_keying_info.hh"
 #include "compositor_keying_screen_info.hh"
 #include "compositor_kuwahara_info.hh"
+#include "compositor_lens_distortion_info.hh"
 #include "compositor_map_uv_info.hh"
 #include "compositor_morphological_blur_info.hh"
 #include "compositor_morphological_distance_feather_info.hh"
@@ -88,25 +94,22 @@
 #include "compositor_motion_blur_info.hh"
 #include "compositor_movie_distortion_info.hh"
 #include "compositor_normalize_info.hh"
+#include "compositor_pad_info.hh"
 #include "compositor_parallel_reduction_info.hh"
-#include "compositor_pixel_coordinates_info.hh"
 #include "compositor_pixelate_info.hh"
 #include "compositor_plane_deform_info.hh"
 #include "compositor_premultiply_alpha_info.hh"
-#include "compositor_projector_lens_distortion_info.hh"
 #include "compositor_read_input_info.hh"
 #include "compositor_realize_on_domain_info.hh"
+#include "compositor_sample_pixel_info.hh"
 #include "compositor_scale_variable_info.hh"
-#include "compositor_screen_lens_distortion_info.hh"
 #include "compositor_smaa_info.hh"
 #include "compositor_split_info.hh"
 #include "compositor_summed_area_table_info.hh"
-#include "compositor_sun_beams_info.hh"
 #include "compositor_symmetric_blur_info.hh"
 #include "compositor_symmetric_blur_variable_size_info.hh"
 #include "compositor_symmetric_separable_blur_info.hh"
 #include "compositor_symmetric_separable_blur_variable_size_info.hh"
-#include "compositor_texture_coordinates_info.hh"
 #include "compositor_tone_map_photoreceptor_info.hh"
 #include "compositor_tone_map_simple_info.hh"
 #include "compositor_translate_wrapped_info.hh"
@@ -115,8 +118,8 @@
 #include "compositor_z_combine_info.hh"
 
 /* DRW module. */
+#include "draw_curves_info.hh"
 #include "draw_debug_info.hh"
-#include "draw_hair_refine_info.hh"
 #include "draw_object_infos_info.hh"
 #include "draw_view_info.hh"
 #include "gpu_shader_fullscreen_info.hh"

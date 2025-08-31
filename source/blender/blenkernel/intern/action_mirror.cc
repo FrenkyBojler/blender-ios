@@ -21,6 +21,7 @@
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_string_utils.hh"
 #include "BLI_utildefines.h"
 
@@ -173,7 +174,8 @@ static void action_flip_pchan(Object *ob_arm, const bPoseChannel *pchan, FCurveP
   char path_xform[256];
   char pchan_name_esc[sizeof(bActionChannel::name) * 2];
   BLI_str_escape(pchan_name_esc, pchan->name, sizeof(pchan_name_esc));
-  const int path_xform_prefix_len = SNPRINTF(path_xform, "pose.bones[\"%s\"]", pchan_name_esc);
+  const int path_xform_prefix_len = SNPRINTF_UTF8(
+      path_xform, "pose.bones[\"%s\"]", pchan_name_esc);
   char *path_xform_suffix = path_xform + path_xform_prefix_len;
   const int path_xform_suffix_maxncpy = sizeof(path_xform) - path_xform_prefix_len;
 
@@ -372,7 +374,7 @@ static void action_flip_pchan(Object *ob_arm, const bPoseChannel *pchan, FCurveP
     BKE_fcurve_handles_recalc_ex(fcurve_array[i], eBezTriple_Flag(0));
   }
 
-  MEM_freeN((void *)keyed_frames);
+  MEM_freeN(keyed_frames);
 
   for (int chan = 0; chan < FCURVE_CHANNEL_LEN; chan++) {
     FCurve_KeyCache *fkc = (FCurve_KeyCache *)(&fkc_pchan) + chan;
@@ -446,7 +448,7 @@ static void action_flip_pchan_rna_paths(bAction *act)
     char name_flip[MAXBONENAME];
     BLI_string_flip_side_name(name_flip, agrp->name, false, sizeof(name_flip));
     if (!STREQ(name_flip, agrp->name)) {
-      STRNCPY(agrp->name, name_flip);
+      STRNCPY_UTF8(agrp->name, name_flip);
     }
   }
 }

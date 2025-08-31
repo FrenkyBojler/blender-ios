@@ -525,6 +525,13 @@ void MTLStateManager::set_blend(const eGPUBlend value)
       dst_alpha = MTLBlendFactorSource1Alpha;
       break;
     }
+    case GPU_BLEND_OVERLAY_MASK_FROM_ALPHA: {
+      src_rgb = MTLBlendFactorZero;
+      dst_rgb = MTLBlendFactorOneMinusSourceAlpha;
+      src_alpha = MTLBlendFactorZero;
+      dst_alpha = MTLBlendFactorOneMinusSourceAlpha;
+      break;
+    }
   }
 
   /* Check Current Context. */
@@ -659,7 +666,7 @@ void MTLStateManager::texture_unbind(Texture *tex_)
   gpu::MTLTexture *mtl_tex = static_cast<gpu::MTLTexture *>(tex_);
   BLI_assert(mtl_tex);
   MTLContext *ctx = MTLContext::get();
-  ctx->texture_unbind(mtl_tex, false);
+  ctx->texture_unbind(mtl_tex, false, this);
 }
 
 void MTLStateManager::texture_unbind_all()
@@ -684,6 +691,7 @@ void MTLStateManager::image_bind(Texture *tex_, int unit)
   MTLContext *ctx = MTLContext::get();
   if (unit >= 0) {
     ctx->texture_bind(mtl_tex, unit, true);
+    image_formats[unit] = TextureWriteFormat(tex_->format_get());
   }
 }
 
@@ -693,7 +701,7 @@ void MTLStateManager::image_unbind(Texture *tex_)
   gpu::MTLTexture *mtl_tex = static_cast<gpu::MTLTexture *>(tex_);
   BLI_assert(mtl_tex);
   MTLContext *ctx = MTLContext::get();
-  ctx->texture_unbind(mtl_tex, true);
+  ctx->texture_unbind(mtl_tex, true, this);
 }
 
 void MTLStateManager::image_unbind_all()
@@ -701,6 +709,7 @@ void MTLStateManager::image_unbind_all()
   MTLContext *ctx = MTLContext::get();
   BLI_assert(ctx);
   ctx->texture_unbind_all(true);
+  image_formats.fill(TextureWriteFormat::Invalid);
 }
 
 /** \} */

@@ -272,12 +272,9 @@ Object *BlenderSync::sync_object(BL::ViewLayer &b_view_layer,
 
   object->set_is_shadow_catcher(b_ob.is_shadow_catcher() || b_parent.is_shadow_catcher());
 
-  const float shadow_terminator_shading_offset = get_float(cobject, "shadow_terminator_offset");
-  object->set_shadow_terminator_shading_offset(shadow_terminator_shading_offset);
+  object->set_shadow_terminator_shading_offset(b_ob.shadow_terminator_shading_offset());
 
-  const float shadow_terminator_geometry_offset = get_float(cobject,
-                                                            "shadow_terminator_geometry_offset");
-  object->set_shadow_terminator_geometry_offset(shadow_terminator_geometry_offset);
+  object->set_shadow_terminator_geometry_offset(b_ob.shadow_terminator_geometry_offset());
 
   float ao_distance = get_float(cobject, "ao_distance");
   if (ao_distance == 0.0f && b_parent.ptr.data != b_ob.ptr.data) {
@@ -311,9 +308,9 @@ Object *BlenderSync::sync_object(BL::ViewLayer &b_view_layer,
   /* object sync
    * transform comparison should not be needed, but duplis don't work perfect
    * in the depsgraph and may not signal changes, so this is a workaround */
-  if (object->is_modified() || object_updated ||
-      (object->get_geometry() && object->get_geometry()->is_modified()))
-  {
+  const bool do_sync = object->is_modified() || object_updated ||
+                       (object->get_geometry() && object->get_geometry()->is_modified());
+  if (do_sync) {
     object->name = b_ob.name().c_str();
     object->set_pass_id(b_ob.pass_index());
     const BL::Array<float, 4> object_color = b_ob.color();
@@ -345,11 +342,13 @@ Object *BlenderSync::sync_object(BL::ViewLayer &b_view_layer,
     object->set_receiver_light_set(BlenderLightLink::get_receiver_light_set(b_parent, b_ob));
     object->set_shadow_set_membership(BlenderLightLink::get_shadow_set_membership(b_parent, b_ob));
     object->set_blocker_shadow_set(BlenderLightLink::get_blocker_shadow_set(b_parent, b_ob));
-
-    object->tag_update(scene);
   }
 
   sync_object_motion_init(b_parent, b_ob, object);
+
+  if (do_sync || object->motion_is_modified()) {
+    object->tag_update(scene);
+  }
 
   if (is_instance) {
     /* Sync possible particle data. */
@@ -539,8 +538,6 @@ void BlenderSync::sync_objects(BL::Depsgraph &b_depsgraph,
     geometry_motion_synced.clear();
   }
 
-  world_use_portal = false;
-
   if (!motion) {
     /* Object to geometry instance mapping is built for the reference time, as other
      * times just look up the corresponding geometry. */
@@ -645,7 +642,7 @@ void BlenderSync::sync_objects(BL::Depsgraph &b_depsgraph,
 void BlenderSync::sync_motion(BL::RenderSettings &b_render,
                               BL::Depsgraph &b_depsgraph,
                               BL::SpaceView3D &b_v3d,
-                              BL::Object &b_override,
+                              BL::RegionView3D &b_rv3d,
                               const int width,
                               const int height,
                               void **python_thread_state)
@@ -655,10 +652,7 @@ void BlenderSync::sync_motion(BL::RenderSettings &b_render,
   }
 
   /* get camera object here to deal with camera switch */
-  BL::Object b_cam = b_scene.camera();
-  if (b_override) {
-    b_cam = b_override;
-  }
+  BL::Object b_cam = get_camera_object(b_v3d, b_rv3d);
 
   const int frame_center = b_scene.frame_current();
   const float subframe_center = b_scene.frame_subframe();
@@ -712,7 +706,7 @@ void BlenderSync::sync_motion(BL::RenderSettings &b_render,
       continue;
     }
 
-    VLOG_WORK << "Synchronizing motion for the relative time " << relative_time << ".";
+    LOG_DEBUG << "Synchronizing motion for the relative time " << relative_time << ".";
 
     /* fixed shutter time to get previous and next frame for motion pass */
     const float shuttertime = scene->motion_shutter_time();

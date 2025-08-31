@@ -301,7 +301,7 @@ inline void execute_materialized(TypeSequence<ParamTags...> /*param_tags*/,
             }
             /* As a fallback, do a virtual function call to retrieve all elements in the current
              * chunk. The elements are stored in a temporary buffer reused for every chunk. */
-            varray_impl.materialize_compressed_to_uninitialized(*current_segment_mask, tmp_buffer);
+            varray_impl.materialize_compressed(*current_segment_mask, tmp_buffer, true);
             /* Remember that this parameter has been materialized, so that the values are
              * destructed properly when the chunk is done. */
             arg_info.mode = MaterializeArgMode::Materialized;
@@ -648,6 +648,26 @@ inline auto SI6_SO(const char *name,
       name, element_fn, exec_preset, TypeSequence<In1, In2, In3, In4, In5, In6>());
 }
 
+/** Build multi-function with 8 single-input and 1 single-output parameter. */
+template<typename In1,
+         typename In2,
+         typename In3,
+         typename In4,
+         typename In5,
+         typename In6,
+         typename In7,
+         typename In8,
+         typename Out1,
+         typename ElementFn,
+         typename ExecPreset = exec_presets::Materialized>
+inline auto SI8_SO(const char *name,
+                   const ElementFn element_fn,
+                   const ExecPreset exec_preset = exec_presets::Materialized())
+{
+  return detail::build_multi_function_with_n_inputs_one_output<Out1>(
+      name, element_fn, exec_preset, TypeSequence<In1, In2, In3, In4, In5, In6, In7, In8>());
+}
+
 /** Build multi-function with 1 single-mutable parameter. */
 template<typename Mut1, typename ElementFn, typename ExecPreset = exec_presets::AllSpanOrSingle>
 inline auto SM(const char *name,
@@ -687,6 +707,57 @@ inline auto SI2_SO2(const char *name,
 {
   return detail::build_multi_function_with_n_inputs_two_outputs<Out1, Out2>(
       name, element_fn, exec_preset, TypeSequence<In1, In2>());
+}
+
+/** Build multi-function with 3 single-input and 2 single-output parameter. */
+template<typename In1,
+         typename In2,
+         typename In3,
+         typename Out1,
+         typename Out2,
+         typename ElementFn,
+         typename ExecPreset = exec_presets::Materialized>
+inline auto SI3_SO2(const char *name,
+                    const ElementFn element_fn,
+                    const ExecPreset exec_preset = exec_presets::Materialized())
+{
+  return detail::build_multi_function_with_n_inputs_two_outputs<Out1, Out2>(
+      name, element_fn, exec_preset, TypeSequence<In1, In2, In3>());
+}
+
+/** Build multi-function with 4 single-input and 2 single-output parameter. */
+template<typename In1,
+         typename In2,
+         typename In3,
+         typename In4,
+         typename Out1,
+         typename Out2,
+         typename ElementFn,
+         typename ExecPreset = exec_presets::Materialized>
+inline auto SI4_SO2(const char *name,
+                    const ElementFn element_fn,
+                    const ExecPreset exec_preset = exec_presets::Materialized())
+{
+  return detail::build_multi_function_with_n_inputs_two_outputs<Out1, Out2>(
+      name, element_fn, exec_preset, TypeSequence<In1, In2, In3, In4>());
+}
+
+/** Build multi-function with 5 single-input and 2 single-output parameter. */
+template<typename In1,
+         typename In2,
+         typename In3,
+         typename In4,
+         typename In5,
+         typename Out1,
+         typename Out2,
+         typename ElementFn,
+         typename ExecPreset = exec_presets::Materialized>
+inline auto SI5_SO2(const char *name,
+                    const ElementFn element_fn,
+                    const ExecPreset exec_preset = exec_presets::Materialized())
+{
+  return detail::build_multi_function_with_n_inputs_two_outputs<Out1, Out2>(
+      name, element_fn, exec_preset, TypeSequence<In1, In2, In3, In4, In5>());
 }
 
 /** Build multi-function with 1 single-input and 3 single output parameter. */

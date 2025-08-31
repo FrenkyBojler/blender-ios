@@ -31,12 +31,12 @@
 #include "BLI_math_bits.h"
 #include "BLI_math_color_blend.h"
 #include "BLI_math_matrix.h"
+#include "BLI_mutex.hh"
 #include "BLI_path_utils.hh"
 #include "BLI_rect.h"
 #include "BLI_string.h"
 #include "BLI_string_cursor_utf8.h"
 #include "BLI_string_utf8.h"
-#include "BLI_threads.h"
 #include "BLI_vector.hh"
 
 #include "BLF_api.hh"
@@ -64,7 +64,7 @@ static FTC_Manager ftc_manager = nullptr;
 static FTC_CMapCache ftc_charmap_cache = nullptr;
 
 /* Lock for FreeType library, used around face creation and deletion. */
-static ThreadMutex ft_lib_mutex;
+static blender::Mutex ft_lib_mutex;
 
 /* May be set to #UI_widgetbase_draw_cache_flush. */
 static void (*blf_draw_cache_flush)() = nullptr;
@@ -102,7 +102,7 @@ static FT_Error blf_cache_face_requester(FTC_FaceID faceID,
   FontBLF *font = (FontBLF *)faceID;
   int err = FT_Err_Cannot_Open_Resource;
 
-  BLI_mutex_lock(&ft_lib_mutex);
+  std::scoped_lock lock(ft_lib_mutex);
   if (font->filepath) {
     err = FT_New_Face(lib, font->filepath, 0, face);
   }
@@ -110,7 +110,6 @@ static FT_Error blf_cache_face_requester(FTC_FaceID faceID,
     err = FT_New_Memory_Face(
         lib, static_cast<const FT_Byte *>(font->mem), (FT_Long)font->mem_size, 0, face);
   }
-  BLI_mutex_unlock(&ft_lib_mutex);
 
   if (err == FT_Err_Ok) {
     font->face = *face;
@@ -188,38 +187,18 @@ static ft_pix blf_unscaled_F26Dot6_to_pixels(FontBLF *font, FT_Pos value)
  */
 static void blf_batch_draw_init()
 {
-  GPUVertFormat format = {0};
-  g_batch.pos_loc = GPU_vertformat_attr_add(&format, "pos", GPU_COMP_F32, 4, GPU_FETCH_FLOAT);
-  g_batch.col_loc = GPU_vertformat_attr_add(
-      &format, "col", GPU_COMP_U8, 4, GPU_FETCH_INT_TO_FLOAT_UNIT);
-  g_batch.offset_loc = GPU_vertformat_attr_add(&format, "offset", GPU_COMP_I32, 1, GPU_FETCH_INT);
-  g_batch.glyph_size_loc = GPU_vertformat_attr_add(
-      &format, "glyph_size", GPU_COMP_I32, 2, GPU_FETCH_INT);
-  g_batch.glyph_flags_loc = GPU_vertformat_attr_add(
-      &format, "flags", GPU_COMP_U32, 1, GPU_FETCH_INT);
-
-  g_batch.verts = GPU_vertbuf_create_with_format_ex(format, GPU_USAGE_STREAM);
-  GPU_vertbuf_data_alloc(*g_batch.verts, BLF_BATCH_DRAW_LEN_MAX);
-
-  GPU_vertbuf_attr_get_raw_data(g_batch.verts, g_batch.pos_loc, &g_batch.pos_step);
-  GPU_vertbuf_attr_get_raw_data(g_batch.verts, g_batch.col_loc, &g_batch.col_step);
-  GPU_vertbuf_attr_get_raw_data(g_batch.verts, g_batch.offset_loc, &g_batch.offset_step);
-  GPU_vertbuf_attr_get_raw_data(g_batch.verts, g_batch.glyph_size_loc, &g_batch.glyph_size_step);
-  GPU_vertbuf_attr_get_raw_data(g_batch.verts, g_batch.glyph_flags_loc, &g_batch.glyph_flags_step);
+  g_batch.glyph_buf = GPU_storagebuf_create(sizeof(g_batch.glyph_data));
   g_batch.glyph_len = 0;
-
-  /* A dummy VBO containing 4 points, attributes are not used. */
-  blender::gpu::VertBuf *vbo = GPU_vertbuf_create_with_format(format);
-  GPU_vertbuf_data_alloc(*vbo, 4);
-
   /* We render a quad as a triangle strip and instance it for each glyph. */
-  g_batch.batch = GPU_batch_create_ex(GPU_PRIM_TRI_STRIP, vbo, nullptr, GPU_BATCH_OWNS_VBO);
-  GPU_batch_instbuf_set(g_batch.batch, g_batch.verts, true);
+  g_batch.batch = GPU_batch_create_procedural(GPU_PRIM_TRI_STRIP, 4);
 }
 
 static void blf_batch_draw_exit()
 {
   GPU_BATCH_DISCARD_SAFE(g_batch.batch);
+  if (g_batch.glyph_buf) {
+    GPU_storagebuf_free(g_batch.glyph_buf);
+  }
 }
 
 void blf_batch_draw_begin(FontBLF *font)
@@ -282,7 +261,7 @@ void blf_batch_draw_begin(FontBLF *font)
   }
 }
 
-static GPUTexture *blf_batch_cache_texture_load()
+static blender::gpu::Texture *blf_batch_cache_texture_load()
 {
   GlyphCacheBLF *gc = g_batch.glyph_cache;
   BLI_assert(gc);
@@ -335,9 +314,9 @@ void blf_batch_draw()
     blf_draw_cache_flush();
   }
 
-  GPUTexture *texture = blf_batch_cache_texture_load();
-  GPU_vertbuf_data_len_set(*g_batch.verts, g_batch.glyph_len);
-  GPU_vertbuf_use(g_batch.verts); /* Send data. */
+  blender::gpu::Texture *texture = blf_batch_cache_texture_load();
+  GPU_storagebuf_update(g_batch.glyph_buf, g_batch.glyph_data);
+  GPU_storagebuf_bind(g_batch.glyph_buf, 0);
 
   GPU_batch_program_set_builtin(g_batch.batch, GPU_SHADER_TEXT);
   GPU_batch_texture_bind(g_batch.batch, "glyph", texture);
@@ -347,18 +326,11 @@ void blf_batch_draw()
   int width_shift = 31 - bitscan_reverse_i(tex_width);
   GPU_batch_uniform_1i(g_batch.batch, "glyph_tex_width_mask", tex_width - 1);
   GPU_batch_uniform_1i(g_batch.batch, "glyph_tex_width_shift", width_shift);
-  GPU_batch_draw(g_batch.batch);
+  GPU_batch_draw_advanced(g_batch.batch, 0, 4, 0, g_batch.glyph_len);
 
   GPU_blend(GPU_BLEND_NONE);
 
   GPU_texture_unbind(texture);
-
-  /* Restart to 1st vertex data pointers. */
-  GPU_vertbuf_attr_get_raw_data(g_batch.verts, g_batch.pos_loc, &g_batch.pos_step);
-  GPU_vertbuf_attr_get_raw_data(g_batch.verts, g_batch.col_loc, &g_batch.col_step);
-  GPU_vertbuf_attr_get_raw_data(g_batch.verts, g_batch.offset_loc, &g_batch.offset_step);
-  GPU_vertbuf_attr_get_raw_data(g_batch.verts, g_batch.glyph_size_loc, &g_batch.glyph_size_step);
-  GPU_vertbuf_attr_get_raw_data(g_batch.verts, g_batch.glyph_flags_loc, &g_batch.glyph_flags_step);
   g_batch.glyph_len = 0;
 }
 
@@ -439,6 +411,25 @@ BLI_INLINE GlyphBLF *blf_glyph_from_utf8_and_step(FontBLF *font,
 #endif
   }
   return g;
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name UTF8 Utilities (Internal)
+ * \{ */
+
+/**
+ * Only assert on invalid UTF8 handling if the strings are valid UTF8.
+ */
+[[maybe_unused]] static int blf_str_is_utf8_valid_lazy_init(const char *str,
+                                                            const size_t str_len,
+                                                            int &is_utf8_valid)
+{
+  if (is_utf8_valid == -1) {
+    is_utf8_valid = BLI_str_utf8_invalid_byte(str, str_len) == -1;
+  }
+  return is_utf8_valid;
 }
 
 /** \} */
@@ -853,6 +844,9 @@ size_t blf_font_width_to_rstrlen(
   const char *s, *s_prev;
 
   GlyphCacheBLF *gc = blf_glyph_cache_acquire(font);
+#ifndef NDEBUG
+  int is_utf8_valid = -1;
+#endif
 
   i = BLI_strnlen(str, str_len);
   s = BLI_str_find_prev_char_utf8(&str[i], str);
@@ -870,7 +864,9 @@ size_t blf_font_width_to_rstrlen(
 
     i_tmp = i_prev;
     g_prev = blf_glyph_from_utf8_and_step(font, gc, nullptr, str, str_len, &i_tmp, nullptr);
-    BLI_assert(i_tmp == i);
+    BLI_assert(i_tmp == i ||
+               /* TODO: proper handling of non UTF8 strings. */
+               (blf_str_is_utf8_valid_lazy_init(str, str_len, is_utf8_valid) == 0));
 
     if (blf_font_width_to_strlen_glyph_process(font, gc, g_prev, g, &pen_x, width)) {
       break;
@@ -1296,12 +1292,12 @@ static void blf_font_wrap_apply(FontBLF *font,
     const uint codepoint_prev = g_prev ? g_prev->c : 0;
 
     /**
-     * Implementation Detail (utf8).
+     * Implementation Detail (UTF8).
      *
      * Take care with single byte offsets here,
-     * since this is utf8 we can't be sure a single byte is a single character.
+     * since this is UTF8 we can't be sure a single byte is a single character.
      *
-     * This is _only_ done when we know for sure the character is ascii (newline or a space).
+     * This is _only_ done when we know for sure the character is ASCII (newline or a space).
      */
     pen_x_next = pen_x + advance_x;
 
@@ -1336,10 +1332,19 @@ static void blf_font_wrap_apply(FontBLF *font,
       wrap.last[1] = i_curr;
       clip_bytes = 1;
     }
-    else if (UNLIKELY((int(mode) & int(BLFWrapMode::Path)) && ELEM(codepoint, SEP, ' ', '_'))) {
-      wrap.last[0] = i;
-      wrap.last[1] = i;
-      clip_bytes = 0;
+    else if (UNLIKELY(int(mode) & int(BLFWrapMode::Path))) {
+      if (ELEM(codepoint, SEP, ' ', '?', '&', '=')) {
+        /* Break and leave at the end of line. */
+        wrap.last[0] = i;
+        wrap.last[1] = i;
+        clip_bytes = 0;
+      }
+      else if (ELEM(codepoint, '-', '_', '.', '%')) {
+        /* Break and move to the next line. */
+        wrap.last[0] = i_curr;
+        wrap.last[1] = i_curr;
+        clip_bytes = 0;
+      }
     }
     else if (UNLIKELY((int(mode) & int(BLFWrapMode::Typographical)) &&
                       !BLI_str_utf32_char_is_breaking_space(codepoint) &&
@@ -1351,11 +1356,19 @@ static void blf_font_wrap_apply(FontBLF *font,
       clip_bytes = BLI_str_utf8_from_unicode_len(codepoint_prev);
     }
     else if (UNLIKELY((int(mode) & int(BLFWrapMode::Typographical)) &&
-                      BLI_str_utf32_char_is_optional_break(codepoint, codepoint_prev)))
+                      BLI_str_utf32_char_is_optional_break_after(codepoint, codepoint_prev)))
     {
       /* Optional break after various characters, keeping it. */
       wrap.last[0] = i;
       wrap.last[1] = i;
+      clip_bytes = 0;
+    }
+    else if (UNLIKELY((int(mode) & int(BLFWrapMode::Typographical)) &&
+                      BLI_str_utf32_char_is_optional_break_before(codepoint, codepoint_prev)))
+    {
+      /* Optional break before various characters. */
+      wrap.last[0] = i_curr;
+      wrap.last[1] = i_curr;
       clip_bytes = 0;
     }
 
@@ -1546,6 +1559,19 @@ int blf_font_ascender(FontBLF *font)
   return ft_pix_to_int((ft_pix)font->ft_size->metrics.ascender);
 }
 
+bool blf_font_bounds_max(FontBLF *font, rctf *r_bounds)
+{
+  if (!blf_ensure_face(font)) {
+    return false;
+  }
+
+  r_bounds->xmin = float(font->face->bbox.xMin) / float(font->face->units_per_EM) * font->size;
+  r_bounds->xmax = float(font->face->bbox.xMax) / float(font->face->units_per_EM) * font->size;
+  r_bounds->ymin = float(font->face->bbox.yMin) / float(font->face->units_per_EM) * font->size;
+  r_bounds->ymax = float(font->face->bbox.yMax) / float(font->face->units_per_EM) * font->size;
+  return true;
+}
+
 char *blf_display_name(FontBLF *font)
 {
   if (!blf_ensure_face(font) || !font->face->family_name) {
@@ -1563,7 +1589,6 @@ char *blf_display_name(FontBLF *font)
 int blf_font_init()
 {
   memset(&g_batch, 0, sizeof(g_batch));
-  BLI_mutex_init(&ft_lib_mutex);
   int err = FT_Init_FreeType(&ft_lib);
   if (err == FT_Err_Ok) {
     /* Create a FreeType cache manager. */
@@ -1584,7 +1609,6 @@ int blf_font_init()
 
 void blf_font_exit()
 {
-  BLI_mutex_end(&ft_lib_mutex);
   if (ftc_manager) {
     FTC_Manager_Done(ftc_manager);
   }
@@ -1625,7 +1649,7 @@ static void blf_font_fill(FontBLF *font)
   font->clip_rec.xmax = 0;
   font->clip_rec.ymin = 0;
   font->clip_rec.ymax = 0;
-  font->flags = 0;
+  font->flags = BLF_NONE;
   font->size = 0;
   font->char_weight = 400;
   font->char_slant = 0.0f;
@@ -1867,7 +1891,7 @@ bool blf_ensure_face(FontBLF *font)
     err = FTC_Manager_LookupFace(ftc_manager, font, &font->face);
   }
   else {
-    BLI_mutex_lock(&ft_lib_mutex);
+    std::scoped_lock lock(ft_lib_mutex);
     if (font->filepath) {
       err = FT_New_Face(font->ft_lib, font->filepath, 0, &font->face);
     }
@@ -1881,7 +1905,6 @@ bool blf_ensure_face(FontBLF *font)
     if (!err) {
       font->face->generic.data = font;
     }
-    BLI_mutex_unlock(&ft_lib_mutex);
   }
 
   if (err) {
@@ -1946,7 +1969,6 @@ struct FaceDetails {
 
 /* Details about the fallback fonts we ship, so that we can load only when needed. */
 static const FaceDetails static_face_details[] = {
-    {"lastresort.woff2", UINT32_MAX, UINT32_MAX, UINT32_MAX, UINT32_MAX},
     {"Noto Sans CJK Regular.woff2",
      0,
      TT_UCR_CJK_SYMBOLS | TT_UCR_HIRAGANA | TT_UCR_KATAKANA | TT_UCR_BOPOMOFO | TT_UCR_CJK_MISC |
@@ -2090,14 +2112,13 @@ void blf_font_free(FontBLF *font)
   }
 
   if (font->face) {
-    BLI_mutex_lock(&ft_lib_mutex);
+    std::scoped_lock lock(ft_lib_mutex);
     if (font->flags & BLF_CACHED) {
       FTC_Manager_RemoveFaceID(ftc_manager, font);
     }
     else {
       FT_Done_Face(font->face);
     }
-    BLI_mutex_unlock(&ft_lib_mutex);
     font->face = nullptr;
   }
   if (font->filepath) {

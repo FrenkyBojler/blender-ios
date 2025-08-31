@@ -98,13 +98,10 @@ RESHAPE(float3x3, mat3x3, mat3x4)
 #define imageLoadFast imageLoad
 
 /* Texture format tokens -- Type explicitness required by other Graphics APIs. */
-#define depth2D sampler2D
-#define depth2DArray sampler2DArray
-#define depth2DMS sampler2DMS
-#define depth2DMSArray sampler2DMSArray
-#define depthCube samplerCube
-#define depthCubeArray samplerCubeArray
-#define depth2DArrayShadow sampler2DArrayShadow
+#define sampler2DDepth sampler2D
+#define sampler2DArrayDepth sampler2DArray
+#define samplerCubeDepth sampler2D
+#define samplerCubeArrayDepth sampler2DArray
 
 #define usampler2DArrayAtomic usampler2DArray
 #define usampler2DAtomic usampler2D
@@ -149,6 +146,9 @@ RESHAPE(float3x3, mat3x3, mat3x4)
 #define METAL_CONSTRUCTOR_2(class_name, t1, m1, t2, m2)
 #define METAL_CONSTRUCTOR_3(class_name, t1, m1, t2, m2, t3, m3)
 #define METAL_CONSTRUCTOR_4(class_name, t1, m1, t2, m2, t3, m3, t4, m4)
+#define METAL_CONSTRUCTOR_5(class_name, t1, m1, t2, m2, t3, m3, t4, m4, t5, m5)
+#define METAL_CONSTRUCTOR_6(class_name, t1, m1, t2, m2, t3, m3, t4, m4, t5, m5, t6, m6)
+#define METAL_CONSTRUCTOR_7(class_name, t1, m1, t2, m2, t3, m3, t4, m4, t5, m5, t6, m6, t7, m7)
 
 #define _in_sta
 #define _in_end
@@ -163,3 +163,35 @@ RESHAPE(float3x3, mat3x3, mat3x4)
 #define _enum_type(name) uint
 #define _enum_decl(name) constexpr uint
 #define _enum_end _enum_dummy;
+
+/* Resource accessor. */
+#define specialization_constant_get(create_info, _res) _res
+#define push_constant_get(create_info, _res) _res
+#define interface_get(create_info, _res) _res
+#define attribute_get(create_info, _res) _res
+#define buffer_get(create_info, _res) _res
+#define sampler_get(create_info, _res) _res
+#define image_get(create_info, _res) _res
+
+/* Incompatible keywords. */
+#define static
+#define inline
+#define constant
+#define device
+#define thread
+#define threadgroup
+
+/* Stage agnostic builtin function.
+ * GLSL doesn't allow mixing shader stages inside the same source file.
+ * Make sure builtin functions are stubbed when used in an invalid stage. */
+#ifdef GPU_FRAGMENT_SHADER
+#  define gpu_discard_fragment() discard
+#  define gpu_dfdx(x) dFdx(x)
+#  define gpu_dfdy(x) dFdy(x)
+#  define gpu_fwidth(x) fwidth(x)
+#else
+#  define gpu_discard_fragment()
+#  define gpu_dfdx(x) x
+#  define gpu_dfdy(x) x
+#  define gpu_fwidth(x) x
+#endif

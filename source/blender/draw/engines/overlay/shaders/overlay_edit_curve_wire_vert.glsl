@@ -17,13 +17,16 @@ void main()
   float flip = (gl_InstanceID != 0) ? -1.0f : 1.0f;
 
   if (gl_VertexID % 2 == 0) {
-    final_pos += normalSize * rad * (flip * nor - tangent);
+    final_pos += normal_size * rad * (flip * nor - tangent);
   }
 
   float3 world_pos = drw_point_object_to_world(final_pos);
   gl_Position = drw_point_world_to_homogenous(world_pos);
 
-  finalColor = colorWireEdit;
+  edge_start = edge_pos = ((gl_Position.xy / gl_Position.w) * 0.5f + 0.5f) *
+                          uniform_buf.size_viewport;
+
+  final_color = theme.colors.wire_edit;
 
   view_clipping_distances(world_pos);
 }

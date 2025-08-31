@@ -8,13 +8,13 @@
 
 #pragma once
 
-#include "BLI_map.hh"
-#include "BLI_set.hh"
 #include "DNA_ID.h"
 
 #include "BLI_array.hh"
+#include "BLI_map.hh"
 #include "BLI_math_matrix_types.hh"
 #include "BLI_math_vector_types.hh"
+#include "BLI_set.hh"
 #include "BLI_sys_types.h" /* for bool and uint */
 
 struct ARegion;
@@ -51,7 +51,7 @@ struct SELECTID_Context {
 
   short select_mode;
 
-  /* To check for updates. */
+  /** To check for updates. */
   blender::float4x4 persmat;
   uint64_t depsgraph_last_update = 0;
 

@@ -20,6 +20,7 @@ COMPUTE_SHADER_CREATE_INFO(eevee_depth_of_field_gather)
 #include "draw_view_lib.glsl"
 #include "eevee_colorspace_lib.glsl"
 #include "eevee_depth_of_field_lib.glsl"
+#include "eevee_reverse_z_lib.glsl"
 #include "eevee_sampling_lib.glsl"
 #include "gpu_shader_debug_gradients_lib.glsl"
 #include "gpu_shader_math_matrix_lib.glsl"
@@ -74,27 +75,9 @@ struct DofGatherData {
   float transparency;
 
   float layer_opacity;
-
-#if defined(GPU_METAL) || defined(GLSL_CPP_STUBS)
-  /* Explicit constructors -- To support GLSL syntax. */
-  inline DofGatherData() = default;
-  inline DofGatherData(float4 in_color,
-                       float in_weight,
-                       float in_dist,
-                       float in_coc,
-                       float in_coc_sqr,
-                       float in_transparency,
-                       float in_layer_opacity)
-      : color(in_color),
-        weight(in_weight),
-        dist(in_dist),
-        coc(in_coc),
-        coc_sqr(in_coc_sqr),
-        transparency(in_transparency),
-        layer_opacity(in_layer_opacity)
-  {
-  }
-#endif
+  /* clang-format off */
+  METAL_CONSTRUCTOR_7(DofGatherData, float4, color, float, weight, float, dist, float, coc, float, coc_sqr, float, transparency, float, layer_opacity)
+  /* clang-format on */
 };
 
 #define GATHER_DATA_INIT DofGatherData(float4(0.0f), 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f)
@@ -608,7 +591,7 @@ void dof_gather_accumulator(sampler2D color_tx,
  * The full pixel neighborhood is gathered.
  * \{ */
 
-void dof_slight_focus_gather(depth2D depth_tx,
+void dof_slight_focus_gather(sampler2DDepth depth_tx,
                              sampler2D color_tx,
                              sampler2D bkh_lut_tx, /* Renamed because of ugly macro job. */
                              float radius,
@@ -644,7 +627,7 @@ void dof_slight_focus_gather(depth2D depth_tx,
       float2 sample_offset = ((i == 0) ? offset : -offset);
       /* OPTI: could precompute the factor. */
       float2 sample_uv = (frag_coord + sample_offset) / float2(textureSize(depth_tx, 0));
-      float depth = textureLod(depth_tx, sample_uv, 0.0f).r;
+      float depth = reverse_z::read(textureLod(depth_tx, sample_uv, 0.0f).r);
       pair_data[i].coc = dof_coc_from_depth(dof_buf, sample_uv, depth);
       pair_data[i].color = colorspace_safe_color(textureLod(color_tx, sample_uv, 0.0f));
       pair_data[i].dist = ring_dist;
@@ -684,7 +667,7 @@ void dof_slight_focus_gather(depth2D depth_tx,
   DofGatherData center_data;
   center_data.color = colorspace_safe_color(textureLod(color_tx, sample_uv, 0.0f));
   center_data.coc = dof_coc_from_depth(
-      dof_buf, sample_uv, textureLod(depth_tx, sample_uv, 0.0f).r);
+      dof_buf, sample_uv, reverse_z::read(textureLod(depth_tx, sample_uv, 0.0f).r));
   center_data.coc = clamp(center_data.coc, -dof_buf.coc_abs_max, dof_buf.coc_abs_max);
   center_data.dist = 0.0f;
 

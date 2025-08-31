@@ -4,11 +4,7 @@
 
 # Use '--write-blend=/tmp/test.blend' to view output
 
-# Some tests are interesting but take too long to run
-# and don't give deterministic results
-set(USE_EXPERIMENTAL_TESTS FALSE)
-
-set(TEST_SRC_DIR ${CMAKE_SOURCE_DIR}/tests/data)
+set(TEST_SRC_DIR ${CMAKE_SOURCE_DIR}/tests/files)
 set(TEST_PYTHON_DIR ${CMAKE_SOURCE_DIR}/tests/python)
 set(TEST_OUT_DIR ${CMAKE_BINARY_DIR}/tests)
 
@@ -61,10 +57,9 @@ function(add_blender_test testname)
   )
 endfunction()
 
-function(add_blender_test_io testname)
-  # Remove `--debug-exit-on-error` since errors
-  # are printed on e.g. meshes with invalid data. But
-  # we do want to test those in import tests.
+function(add_blender_test_allow_error testname)
+  # Remove `--debug-exit-on-error` since errors are printed on e.g. meshes with
+  # invalid data or failed image loading, but sometimes we want to test those.
   set(EXE_PARAMS ${TEST_BLENDER_EXE_PARAMS})
   list(REMOVE_ITEM EXE_PARAMS --debug-exit-on-error)
   add_blender_test_impl(
@@ -77,8 +72,8 @@ function(add_blender_test_io testname)
 endfunction()
 
 if(WITH_UI_TESTS)
+  set(_blender_headless_env_vars "BLENDER_BIN=${TEST_BLENDER_EXE}")
   if(WITH_UI_TESTS_HEADLESS)
-    set(_blender_headless_env_vars "BLENDER_BIN=${TEST_BLENDER_EXE}")
 
     # Currently only WAYLAND is supported, support for others may be added later.
     # In this case none of the WESTON environment variables will be used.
@@ -108,43 +103,29 @@ if(WITH_UI_TESTS)
         )
       endif()
     endif()
-
-    function(add_blender_test_ui testname)
-      # Remove `--background` so headless execution uses a GUI
-      # (within a headless graphical environment).
-      set(EXE_PARAMS ${TEST_BLENDER_EXE_PARAMS})
-      list(REMOVE_ITEM EXE_PARAMS --background)
-      add_blender_test_impl(
-        "${testname}"
-        "${_blender_headless_env_vars}"
-        "${TEST_PYTHON_EXE}"
-        "${CMAKE_SOURCE_DIR}/tests/utils/blender_headless.py"
-        # NOTE: attempting to maximize the window causes problems with a headless `weston`,
-        # while this could be investigated, use windowed mode instead.
-        # Use a window size that balances software GPU rendering with enough room to use the UI.
-        --factory-startup
-        -p 0 0 800 600
-        "${EXE_PARAMS}"
-        "${ARGN}"
-      )
-    endfunction()
   else()
-    function(add_blender_test_ui testname)
-      # Remove `--background`
-      set(EXE_PARAMS ${TEST_BLENDER_EXE_PARAMS})
-      list(REMOVE_ITEM EXE_PARAMS --background)
-
-      add_blender_test_impl(
-        "${testname}"
-        ""
-        "${TEST_BLENDER_EXE}"
-        --factory-startup
-        -p 0 0 800 600
-        ${EXE_PARAMS}
-        ${ARGN}
-      )
-    endfunction()
+    list(APPEND _blender_headless_env_vars
+      "PASS_THROUGH=1"
+    )
   endif()
+  function(add_blender_test_ui testname)
+    # Remove `--background`a
+    set(EXE_PARAMS ${TEST_BLENDER_EXE_PARAMS})
+    list(REMOVE_ITEM EXE_PARAMS --background)
+    add_blender_test_impl(
+      "${testname}"
+      "${_blender_headless_env_vars}"
+      "${TEST_PYTHON_EXE}"
+      "${CMAKE_SOURCE_DIR}/tests/utils/blender_headless.py"
+      # NOTE: attempting to maximize the window causes problems with a headless `weston`,
+      # while this could be investigated, use windowed mode instead.
+      # Use a window size that balances software GPU rendering with enough room to use the UI.
+      --factory-startup
+      -p 0 0 800 600
+      "${EXE_PARAMS}"
+      "${ARGN}"
+    )
+  endfunction()
 endif()
 
 # Run Python script outside Blender.
@@ -227,8 +208,13 @@ add_blender_test(
   --python ${CMAKE_CURRENT_LIST_DIR}/bl_bundled_modules.py -- --inside-blender
 )
 
+add_blender_test(
+  script_http_downloader
+  --python ${CMAKE_CURRENT_LIST_DIR}/bl_http_downloader.py
+)
+
 # test running operators doesn't segfault under various conditions
-if(USE_EXPERIMENTAL_TESTS)
+if(WITH_TESTS_EXPERIMENTAL)
   add_blender_test(
     script_run_operators
     --python ${CMAKE_CURRENT_LIST_DIR}/bl_run_operators.py
@@ -238,6 +224,11 @@ endif()
 # ------------------------------------------------------------------------------
 # PY API TESTS
 # ------------------------------------------------------------------------------
+
+add_blender_test(
+  script_pyapi_bpy_app_tempdir
+  --python ${CMAKE_CURRENT_LIST_DIR}/bl_pyapi_bpy_app_tempdir.py
+)
 
 add_blender_test(
   script_pyapi_bpy_path
@@ -270,6 +261,11 @@ add_blender_test(
 )
 
 add_blender_test(
+  script_pyapi_prop
+  --python ${CMAKE_CURRENT_LIST_DIR}/bl_pyapi_prop.py
+)
+
+add_blender_test(
   script_pyapi_prop_array
   --python ${CMAKE_CURRENT_LIST_DIR}/bl_pyapi_prop_array.py
 )
@@ -277,6 +273,11 @@ add_blender_test(
 add_blender_test(
   script_pyapi_text
   --python ${CMAKE_CURRENT_LIST_DIR}/bl_pyapi_text.py
+)
+
+add_blender_test(
+  script_pyapi_bmesh
+  --python ${CMAKE_CURRENT_LIST_DIR}/bl_pyapi_bmesh.py
 )
 
 add_blender_test(
@@ -327,6 +328,7 @@ if(TEST_SRC_DIR_EXISTS)
       --debug
       --python ${CMAKE_CURRENT_LIST_DIR}/bl_blendfile_versioning.py --
       --src-test-dir ${TEST_SRC_DIR}/
+      --output-dir ${TEST_OUT_DIR}/blendfile_io/
       --slice-range ${BLENDFILE_VERSIONING_SPLIT_RANGE}
       --slice-index ${idx}
     )
@@ -351,6 +353,12 @@ if(TEST_SRC_DIR_EXISTS)
     --python ${CMAKE_CURRENT_LIST_DIR}/bl_blendfile_library_overrides.py --
     --output-dir ${TEST_OUT_DIR}/blendfile_io/
     --test-dir "${TEST_SRC_DIR}/libraries_and_linking"
+  )
+
+  add_blender_test(
+    blendfile_header
+    --python ${CMAKE_CURRENT_LIST_DIR}/bl_blendfile_header.py --
+    --testdir "${TEST_SRC_DIR}/io_tests/blend_parsing"
   )
 endif()
 
@@ -410,6 +418,18 @@ if(TEST_SRC_DIR_EXISTS)
     --python ${TEST_PYTHON_DIR}/bl_object.py
   )
 endif()
+
+add_blender_test(
+  geometry_attributes
+  --python ${CMAKE_CURRENT_LIST_DIR}/bl_geometry_attributes.py
+)
+
+add_blender_test(
+  geonode_file_reporting
+  --python ${CMAKE_CURRENT_LIST_DIR}/bl_geonode_file_reporting.py
+  --
+  --testdir "${TEST_SRC_DIR}/io_tests"
+)
 
 # ------------------------------------------------------------------------------
 # MODIFIERS TESTS
@@ -493,6 +513,13 @@ if(TEST_SRC_DIR_EXISTS)
     --python ${CMAKE_CURRENT_LIST_DIR}/bl_constraints.py
     --
     --testdir "${TEST_SRC_DIR}/constraints"
+  )
+
+  add_blender_test(
+    multires
+    --python ${TEST_PYTHON_DIR}/bl_multires.py
+    --
+    --testdir "${TEST_SRC_DIR}/sculpting"
   )
 endif()
 
@@ -587,8 +614,15 @@ add_blender_test(
 
 if(TEST_SRC_DIR_EXISTS)
   add_blender_test(
-    bl_node_field_type_inference
-    --python ${CMAKE_CURRENT_LIST_DIR}/bl_node_field_type_inference.py
+    bl_node_structure_type_inference
+    --python ${CMAKE_CURRENT_LIST_DIR}/bl_node_structure_type_inference.py
+    --
+    --testdir "${TEST_SRC_DIR}/node_group"
+  )
+
+  add_blender_test(
+    bl_node_socket_usage_inference
+    --python ${CMAKE_CURRENT_LIST_DIR}/bl_node_socket_usage_inference.py
     --
     --testdir "${TEST_SRC_DIR}/node_group"
   )
@@ -666,7 +700,8 @@ if((WITH_CYCLES OR WITH_GPU_RENDER_TESTS) AND TEST_SRC_DIR_EXISTS)
     list(APPEND render_tests motion_blur reports volume)
   endif()
 
-  if(WITH_OPENVDB)
+  if(WITH_OPENVDB AND WITH_MOD_FLUID)
+    # Some tests in the OpenVDB folder make use of fluid simulations to generate smoke
     list(APPEND render_tests openvdb)
   endif()
 
@@ -688,62 +723,65 @@ if((WITH_CYCLES OR WITH_GPU_RENDER_TESTS) AND TEST_SRC_DIR_EXISTS)
   # Cycles
   if(WITH_CYCLES)
     set(_cycles_blocklist "")
-    set(_cycles_known_test_devices CPU CUDA OPTIX HIP HIP-RT METAL METAL-RT ONEAPI ONEAPI-RT)
-    if((NOT WITH_CYCLES_OSL) OR (WITH_CYCLES_TEST_OSL AND WITH_CYCLES_OSL))
-      # Disable OSL tests if built without OSL or
-      # Disable OSL tests during the "normal" test phase to avoid double
-      # testing during the OSL test phase.
-      set(_cycles_blocklist OSL)
-    endif()
+    set(_cycles_all_test_devices CPU CUDA OPTIX HIP HIP-RT METAL METAL-RT ONEAPI ONEAPI-RT)
+    set(_cycles_osl_test_devices CPU OPTIX)
     foreach(_cycles_device ${CYCLES_TEST_DEVICES})
-      if(NOT ${_cycles_device} IN_LIST _cycles_known_test_devices)
+      if(NOT ${_cycles_device} IN_LIST _cycles_all_test_devices)
         message(FATAL_ERROR "Unknown Cycles test device ${_cycles_device}."
-            "Supported devices are: ${_cycles_known_test_devices}")
+            "Supported devices are: ${_cycles_all_test_devices}")
       endif()
       string(TOLOWER "${_cycles_device}" _cycles_device_lower)
       set(_cycles_render_tests bake;${render_tests};osl)
 
+      set(_cycles_osl_test_type none)
+      if(WITH_CYCLES_OSL)
+        # If the render device is CPU, or a GPU WITH_CYCLES_TEST_OSL enabled,
+        # then enable the limited OSL tests (Tests OSL camera with OSL shading turned off).
+        # This specific configuration is chosen to avoid long test times on the GPU due to
+        # OSL JIT compilation, unless the developer explicitly enables OSL tests.
+        if(("${_cycles_device_lower}" STREQUAL "cpu") OR (WITH_CYCLES_TEST_OSL AND ${_cycles_device} IN_LIST _cycles_osl_test_devices))
+          set(_cycles_osl_test_type limited)
+        endif()
+      endif()
+
       foreach(render_test ${_cycles_render_tests})
         set(_cycles_test_name "cycles_${render_test}_${_cycles_device_lower}")
         if(NOT(WITH_CYCLES_TEST_OSL AND WITH_CYCLES_OSL AND ("${render_test}" STREQUAL "osl")))
-          # Only run OSL basic tests during this phase if WITH_CYCLES_TEST_OSL isn't enabled
+          # Only run OSL specific tests during this phase if WITH_CYCLES_TEST_OSL isn't enabled
           add_render_test(
             ${_cycles_test_name}
             ${CMAKE_CURRENT_LIST_DIR}/cycles_render_tests.py
             --testdir "${TEST_SRC_DIR}/render/${render_test}"
             --outdir "${TEST_OUT_DIR}/cycles"
             --device ${_cycles_device}
-            --blocklist ${_cycles_blocklist}
+            --osl "${_cycles_osl_test_type}"
           )
           if(NOT ("${_cycles_device_lower}" STREQUAL "cpu"))
             set_tests_properties(${_cycles_test_name} PROPERTIES RUN_SERIAL TRUE)
           endif()
         endif()
 
-        if(WITH_CYCLES_TEST_OSL AND WITH_CYCLES_OSL)
-          # OSL is only supported with CPU and OptiX
-          # TODO: Enable OptiX support once it's more stable
-          if(("${_cycles_device_lower}" STREQUAL "cpu") OR
-              ("${_cycles_device_lower}" STREQUAL "optix"))
-            add_render_test(
-              ${_cycles_test_name}_osl
-              ${CMAKE_CURRENT_LIST_DIR}/cycles_render_tests.py
-              --testdir "${TEST_SRC_DIR}/render/${render_test}"
-              --outdir "${TEST_OUT_DIR}/cycles_osl"
-              --device ${_cycles_device}
-              --osl
-            )
-            if(NOT ("${_cycles_device_lower}" STREQUAL "cpu"))
-              set_tests_properties(${_cycles_test_name}_osl PROPERTIES RUN_SERIAL TRUE)
-            endif()
+        # OSL variations of every test if WITH_CYCLES_TEST_OSL is set.
+        if(WITH_CYCLES_TEST_OSL AND NOT "${_cycles_osl_test_type}" STREQUAL "none")
+          add_render_test(
+            ${_cycles_test_name}_osl
+            ${CMAKE_CURRENT_LIST_DIR}/cycles_render_tests.py
+            --testdir "${TEST_SRC_DIR}/render/${render_test}"
+            --outdir "${TEST_OUT_DIR}/cycles_osl"
+            --device ${_cycles_device}
+            --osl "all"
+          )
+          if(NOT ("${_cycles_device_lower}" STREQUAL "cpu"))
+            set_tests_properties(${_cycles_test_name}_osl PROPERTIES RUN_SERIAL TRUE)
           endif()
         endif()
 
         unset(_cycles_test_name)
       endforeach()
+      unset(_cycles_osl_test_type)
     endforeach()
-    unset(_cycles_blocklist)
-    unset(_cycles_known_test_devices)
+    unset(_cycles_osl_test_devices)
+    unset(_cycles_all_test_devices)
   endif()
 
   if(WITH_GPU_RENDER_TESTS)
@@ -752,14 +790,14 @@ if((WITH_CYCLES OR WITH_GPU_RENDER_TESTS) AND TEST_SRC_DIR_EXISTS)
 
     set(_gpu_render_tests_arguments)
 
-    # Eevee Next
+    # EEVEE
     if(WITH_OPENGL_BACKEND)
       foreach(render_test ${gpu_render_tests})
         add_render_test(
-          eevee_next_opengl_${render_test}
-          ${CMAKE_CURRENT_LIST_DIR}/eevee_next_render_tests.py
+          eevee_opengl_${render_test}
+          ${CMAKE_CURRENT_LIST_DIR}/eevee_render_tests.py
           --testdir "${TEST_SRC_DIR}/render/${render_test}"
-          --outdir "${TEST_OUT_DIR}/eevee_next_opengl"
+          --outdir "${TEST_OUT_DIR}/eevee_opengl"
           --gpu-backend opengl
           ${_gpu_render_tests_arguments}
         )
@@ -769,10 +807,10 @@ if((WITH_CYCLES OR WITH_GPU_RENDER_TESTS) AND TEST_SRC_DIR_EXISTS)
     if(WITH_METAL_BACKEND)
       foreach(render_test ${gpu_render_tests})
         add_render_test(
-          eevee_next_metal_${render_test}
-          ${CMAKE_CURRENT_LIST_DIR}/eevee_next_render_tests.py
+          eevee_metal_${render_test}
+          ${CMAKE_CURRENT_LIST_DIR}/eevee_render_tests.py
           --testdir "${TEST_SRC_DIR}/render/${render_test}"
-          --outdir "${TEST_OUT_DIR}/eevee_next_metal"
+          --outdir "${TEST_OUT_DIR}/eevee_metal"
           --gpu-backend metal
           ${_gpu_render_tests_arguments}
         )
@@ -782,10 +820,10 @@ if((WITH_CYCLES OR WITH_GPU_RENDER_TESTS) AND TEST_SRC_DIR_EXISTS)
     if(WITH_VULKAN_BACKEND AND WITH_GPU_RENDER_TESTS_VULKAN)
       foreach(render_test ${gpu_render_tests})
         add_render_test(
-          eevee_next_vulkan_${render_test}
-          ${CMAKE_CURRENT_LIST_DIR}/eevee_next_render_tests.py
+          eevee_vulkan_${render_test}
+          ${CMAKE_CURRENT_LIST_DIR}/eevee_render_tests.py
           --testdir "${TEST_SRC_DIR}/render/${render_test}"
-          --outdir "${TEST_OUT_DIR}/eevee_next_vulkan"
+          --outdir "${TEST_OUT_DIR}/eevee_vulkan"
           --gpu-backend vulkan
           ${_gpu_render_tests_arguments}
         )
@@ -902,11 +940,11 @@ endif()
 
 if(TEST_SRC_DIR_EXISTS)
   set(compositor_tests
-    color
-    converter
-    filter
     input
     output
+    color
+    filter
+    utilities
     vector
 
     pixel_nodes
@@ -914,7 +952,7 @@ if(TEST_SRC_DIR_EXISTS)
   )
 
   if(WITH_LIBMV)
-    list(APPEND compositor_tests distort matte anisotropic_filtering)
+    list(APPEND compositor_tests keying mask tracking transform anisotropic_filtering)
   endif()
 
   foreach(comp_test ${compositor_tests})
@@ -937,11 +975,11 @@ endif()
 
 if(WITH_GPU_COMPOSITOR_TESTS AND TEST_SRC_DIR_EXISTS)
   set(compositor_tests
-    color
-    converter
-    filter
     input
     output
+    color
+    filter
+    utilities
     vector
 
     pixel_nodes
@@ -949,7 +987,7 @@ if(WITH_GPU_COMPOSITOR_TESTS AND TEST_SRC_DIR_EXISTS)
   )
 
   if(WITH_LIBMV)
-    list(APPEND compositor_tests distort matte)
+    list(APPEND compositor_tests keying mask tracking transform)
   endif()
 
   if(WITH_OPENGL_BACKEND)
@@ -1011,6 +1049,11 @@ if(WITH_GPU_COMPOSITOR_TESTS AND TEST_SRC_DIR_EXISTS)
   endif()
 endif()
 
+add_blender_test(
+  compositing_node_group
+  --python ${CMAKE_CURRENT_LIST_DIR}/compositing_node_group.py
+)
+
 # ------------------------------------------------------------------------------
 # GEOMETRY NODE TESTS
 # ------------------------------------------------------------------------------
@@ -1025,7 +1068,9 @@ if(TEST_SRC_DIR_EXISTS)
     foreach_geometry_element_zone
     geometry
     grease_pencil
+    import
     instance
+    list
     repeat_zone
     mesh_primitives
     mesh
@@ -1081,7 +1126,7 @@ if(WITH_GPU_RENDER_TESTS AND TEST_SRC_DIR_EXISTS)
   set(render_tests
   )
 
-  if(USE_EXPERIMENTAL_TESTS)
+  if(WITH_TESTS_EXPERIMENTAL)
     # The viewport tests are flakey and difficult to keep up to date for use
     # in a CI environment due to constantly changing UI, but may still be helpful
     # for local development.
@@ -1140,11 +1185,12 @@ if(WITH_USD AND TEST_SRC_DIR_EXISTS)
     --python ${CMAKE_CURRENT_LIST_DIR}/bl_usd_import_test.py
     --
     --testdir "${TEST_SRC_DIR}/usd"
+    --outdir "${TEST_OUT_DIR}/io_usd"
   )
 endif()
 
 if(TEST_SRC_DIR_EXISTS)
-  add_blender_test_io(
+  add_blender_test_allow_error(
     io_fbx_import
     --python ${CMAKE_CURRENT_LIST_DIR}/io_fbx_import_test.py
     --
@@ -1154,7 +1200,7 @@ if(TEST_SRC_DIR_EXISTS)
 endif()
 
 if(WITH_IO_WAVEFRONT_OBJ AND TEST_SRC_DIR_EXISTS)
-  add_blender_test_io(
+  add_blender_test_allow_error(
     io_obj_import
     --python ${CMAKE_CURRENT_LIST_DIR}/io_obj_import_test.py
     --
@@ -1164,7 +1210,7 @@ if(WITH_IO_WAVEFRONT_OBJ AND TEST_SRC_DIR_EXISTS)
 endif()
 
 if(WITH_IO_PLY AND TEST_SRC_DIR_EXISTS)
-  add_blender_test_io(
+  add_blender_test_allow_error(
     io_ply_import
     --python ${CMAKE_CURRENT_LIST_DIR}/io_ply_import_test.py
     --
@@ -1174,7 +1220,7 @@ if(WITH_IO_PLY AND TEST_SRC_DIR_EXISTS)
 endif()
 
 if(WITH_IO_STL AND TEST_SRC_DIR_EXISTS)
-  add_blender_test_io(
+  add_blender_test_allow_error(
     io_stl_import
     --python ${CMAKE_CURRENT_LIST_DIR}/io_stl_import_test.py
     --
@@ -1217,7 +1263,7 @@ if(TEST_SRC_DIR_EXISTS AND TEST_OPENIMAGEIO_TOOL_EXISTS)
     -optional_formats "${OPTIONAL_FORMATS}"
   )
 
-  add_blender_test(
+  add_blender_test_allow_error(
     imbuf_load
     --python ${CMAKE_CURRENT_LIST_DIR}/bl_imbuf_load.py
     --
@@ -1242,6 +1288,10 @@ if(TEST_SRC_DIR_EXISTS)
     ffmpeg
   )
 
+  set(video_output_tests
+    video_output
+  )
+
   foreach(render_test ${render_tests})
     add_render_test(
       sequencer_render_${render_test}
@@ -1250,6 +1300,28 @@ if(TEST_SRC_DIR_EXISTS)
       --outdir "${TEST_OUT_DIR}/sequence_editing"
     )
   endforeach()
+
+  foreach(video_output_test ${video_output_tests})
+    add_render_test(
+      sequencer_render_${video_output_test}
+      ${CMAKE_CURRENT_LIST_DIR}/sequencer_video_output_tests.py
+      --testdir "${TEST_SRC_DIR}/sequence_editing/${video_output_test}"
+      --outdir "${TEST_OUT_DIR}/sequence_editing"
+    )
+  endforeach()
+
+  add_blender_test(
+    sequencer_input_colorspace
+    --python ${CMAKE_CURRENT_LIST_DIR}/sequencer_input_colorspace.py
+    --
+    --testdir "${TEST_SRC_DIR}/sequence_editing"
+  )
+
+  add_blender_test(
+    sequencer_load_meta_stack
+    ${TEST_SRC_DIR}/sequence_editing/vse_load_meta_stack.blend
+    --python ${TEST_PYTHON_DIR}/sequencer_load_meta_stack.py
+  )
 endif()
 
 # ------------------------------------------------------------------------------
@@ -1260,6 +1332,20 @@ if(TEST_SRC_DIR_EXISTS)
   add_blender_test(
     bl_sculpt_operators
     --python ${CMAKE_CURRENT_LIST_DIR}/bl_sculpt.py
+    --
+    --testdir "${TEST_SRC_DIR}/sculpting"
+  )
+
+  add_blender_test(
+    bl_sculpt_brush_curve_presets
+    --python ${CMAKE_CURRENT_LIST_DIR}/sculpt_paint/brush_strength_curves_test.py
+    --
+    --testdir "${TEST_SRC_DIR}/sculpting"
+  )
+
+  add_blender_test(
+    bl_sculpt_mask_filter
+    --python ${CMAKE_CURRENT_LIST_DIR}/sculpt_paint/mask_filter_test.py
     --
     --testdir "${TEST_SRC_DIR}/sculpting"
   )
@@ -1289,7 +1375,9 @@ if(WITH_UI_TESTS)
   # This could be generated with:
   # `"${TEST_PYTHON_EXE}" "${CMAKE_CURRENT_LIST_DIR}/ui_simulate/run.py" --list-tests`
   # list explicitly so changes bisecting/updated are sure to re-run CMake.
-  set(_undo_tests
+  set(_ui_tests
+    test_sculpt.asset_shelf_brush_selection
+    test_undo.compositor_make_group
     test_undo.text_editor_edit_mode_mix
     test_undo.text_editor_simple
     test_undo.view3d_edit_mode_multi_window
@@ -1300,12 +1388,19 @@ if(WITH_UI_TESTS)
     test_undo.view3d_multi_mode_select
     test_undo.view3d_sculpt_dyntopo_and_edit
     test_undo.view3d_sculpt_dyntopo_simple
+    test_undo.view3d_sculpt_dyntopo_stroke_toggle
     test_undo.view3d_sculpt_with_memfile_step
+    test_undo.view3d_sculpt_trim
     test_undo.view3d_simple
     test_undo.view3d_texture_paint_complex
     test_undo.view3d_texture_paint_simple
+    test_workspace.sanity_check_general
+    test_workspace.sanity_check_2d_animation
+    test_workspace.sanity_check_sculpting
+    test_workspace.sanity_check_vfx
+    test_workspace.sanity_check_video_editing
   )
-  foreach(ui_test ${_undo_tests})
+  foreach(ui_test ${_ui_tests})
     add_blender_test_ui(
       "ui_${ui_test}"
       --enable-event-simulate
@@ -1314,30 +1409,9 @@ if(WITH_UI_TESTS)
       --tests "${ui_test}"
     )
   endforeach()
-  unset(_undo_tests)
+  unset(_ui_tests)
 endif()
 
-
-# ------------------------------------------------------------------------------
-# COLLADA Tests
-# ------------------------------------------------------------------------------
-
-if(TEST_SRC_DIR_EXISTS)
-  function(collada_test module test_name blend_file)
-    add_blender_test(
-      bf_io_collada_${module}_${test_name}
-      ${TEST_SRC_DIR}/collada/${module}/${blend_file}
-      --python ${CMAKE_CURRENT_LIST_DIR}/${module}/test_${module}_${test_name}.py --
-      --testdir ${TEST_SRC_DIR}/collada/${module}
-    )
-  endfunction()
-
-  # Tests are disabled because they only work on Windows
-  # Tests will be redone completely to work reliable
-  #
-  # collada_test(mesh simple mesh_simple.blend)
-  # collada_test(animation simple suzannes_parent_inverse.blend)
-endif()
 
 # ------------------------------------------------------------------------------
 # VIEW LAYER Tests

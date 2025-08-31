@@ -40,6 +40,8 @@ union GPUState {
     uint32_t logic_op_xor : 1;
     uint32_t invert_facing : 1;
     uint32_t shadow_bias : 1;
+    /** Clip range of 0..1 on OpenGL. */
+    uint32_t clip_control : 1;
     /** Number of clip distances enabled. */
     /* TODO(fclem): This should be a shader property. */
     uint32_t clip_distances : 3;
@@ -138,7 +140,9 @@ class StateManager {
  public:
   GPUState state;
   GPUStateMutable mutable_state;
-  bool use_bgl = false;
+
+  /* Formats of all image units. */
+  std::array<TextureWriteFormat, GPU_MAX_IMAGE> image_formats;
 
   StateManager();
   virtual ~StateManager() = default;

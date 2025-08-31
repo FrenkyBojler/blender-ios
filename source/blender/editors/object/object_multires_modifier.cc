@@ -18,7 +18,7 @@
 #include "BKE_report.hh"
 
 #include "BLI_path_utils.hh"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 
 #include "DEG_depsgraph.hh"
 
@@ -307,7 +307,8 @@ static wmOperatorStatus multires_external_save_invoke(bContext *C,
 
   op->customdata = mesh;
 
-  SNPRINTF(filepath, "//%s.btx", mesh->id.name + 2);
+  /* While a filename need not be UTF8, at this point the constructed name should be UTF8. */
+  SNPRINTF_UTF8(filepath, "//%s.btx", mesh->id.name + 2);
   RNA_string_set(op->ptr, "filepath", filepath);
 
   WM_event_add_fileselect(C, op);
@@ -390,9 +391,13 @@ static wmOperatorStatus multires_base_apply_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
+  const ApplyBaseMode mode = RNA_boolean_get(op->ptr, "apply_heuristic") ?
+                                 ApplyBaseMode::ForSubdivision :
+                                 ApplyBaseMode::Base;
+
   ed::sculpt_paint::undo::push_multires_mesh_begin(C, op->type->name);
 
-  multiresModifier_base_apply(depsgraph, object, mmd);
+  multiresModifier_base_apply(depsgraph, object, mmd, mode);
 
   ed::sculpt_paint::undo::push_multires_mesh_end(C, op->type->name);
 
@@ -425,6 +430,14 @@ void OBJECT_OT_multires_base_apply(wmOperatorType *ot)
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_INTERNAL;
   edit_modifier_properties(ot);
+  PropertyRNA *prop = RNA_def_boolean(
+      ot->srna,
+      "apply_heuristic",
+      true,
+      "Apply Subdivision Heuristic",
+      "Whether or not the final base mesh positions will be slightly altered to account for a new "
+      "subdivision modifier being added");
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE | PROP_HIDDEN);
 }
 
 /** \} */

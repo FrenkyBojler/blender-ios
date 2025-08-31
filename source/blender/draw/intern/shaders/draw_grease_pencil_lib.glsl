@@ -51,6 +51,27 @@ float gpencil_stroke_round_cap_mask(
 }
 #endif
 
+struct PointData {
+  bool cyclical;
+  int mat, stroke_id, point_id, packed_data;
+};
+
+PointData decode_ma(int4 ma)
+{
+  PointData data;
+
+  data.mat = ma.x;
+  data.stroke_id = ma.y;
+  /* Take the absolute because the sign is for cyclical. */
+  data.point_id = abs(ma.z);
+  /* Aspect, UV Rotation and Hardness. */
+  data.packed_data = ma.w;
+  /* Cyclical is stored in the sign of the point index. */
+  data.cyclical = ma.z < 0;
+
+  return data;
+}
+
 float2 gpencil_decode_aspect(int packed_data)
 {
   float asp = float(uint(packed_data) & 0x1FFu) * (1.0f / 255.0f);
@@ -69,36 +90,18 @@ float gpencil_decode_hardness(int packed_data)
   return float((uint(packed_data) & 0x3FC0000u) >> 18u) * (1.0f / 255.0f);
 }
 
-float2 gpencil_project_to_screenspace(float4 v, float4 viewport_size)
+float2 gpencil_project_to_screenspace(float4 v, float4 viewport_res)
 {
-  return ((v.xy / v.w) * 0.5f + 0.5f) * viewport_size.xy;
+  return ((v.xy / v.w) * 0.5f + 0.5f) * viewport_res.xy;
 }
 
-float gpencil_stroke_thickness_modulate(float thickness, float4 ndc_pos, float4 viewport_size)
+float gpencil_stroke_thickness_modulate(float thickness, float4 ndc_pos, float4 viewport_res)
 {
   /* Modify stroke thickness by object scale. */
   thickness = length(to_float3x3(drw_modelmat()) * float3(thickness * M_SQRT1_3));
 
-  /* For compatibility, thickness has to be clamped after being multiplied by this factor.
-   * This clamping was introduced to reduce aliasing issue by instead fading the lines alpha at
-   * smaller radii. This can be removed in major release if compatibility is not a concern. */
-  const float legacy_radius_conversion_factor = 2000.0f;
-  thickness *= legacy_radius_conversion_factor;
-  thickness = max(1.0f, thickness);
-  thickness /= legacy_radius_conversion_factor;
-
   /* World space point size. */
-  thickness *= drw_view().winmat[1][1] * viewport_size.y;
-
-  return thickness;
-}
-
-float gpencil_clamp_small_stroke_thickness(float thickness, float4 ndc_pos)
-{
-  /* To avoid aliasing artifacts, we clamp the line thickness and
-   * reduce its opacity in the fragment shader. */
-  float min_thickness = ndc_pos.w * 1.3f;
-  thickness = max(min_thickness, thickness);
+  thickness *= drw_view().winmat[1][1] * viewport_res.y;
 
   return thickness;
 }
@@ -140,7 +143,7 @@ bool gpencil_is_stroke_vertex()
  * WARNING: Max attribute count is actually 14 because OSX OpenGL implementation
  * considers gl_VertexID and gl_InstanceID as vertex attribute. (see #74536)
  */
-float4 gpencil_vertex(float4 viewport_size,
+float4 gpencil_vertex(float4 viewport_res,
                       gpMaterialFlag material_flags,
                       float2 alignment_rot,
                       /* World Position. */
@@ -184,11 +187,6 @@ float4 gpencil_vertex(float4 viewport_size,
 #  define thickness2 pos2.w
 #  define strength1 uv1.w
 #  define strength2 uv2.w
-/* Packed! need to be decoded. */
-#  define hardness1 ma1.w
-#  define hardness2 ma2.w
-#  define uvrot1 ma1.w
-#  define aspect1 ma1.w
 
   float4 out_ndc;
 
@@ -196,8 +194,32 @@ float4 gpencil_vertex(float4 viewport_size,
     bool is_dot = flag_test(material_flags, GP_STROKE_ALIGNMENT);
     bool is_squares = !flag_test(material_flags, GP_STROKE_DOTS);
 
+    bool is_first = (ma.x == -1);
+    bool is_last = (ma3.x == -1);
+    bool is_single = is_first && (ma2.x == -1);
+
+    PointData point_data1 = decode_ma(ma1);
+    PointData point_data2 = decode_ma(ma2);
+
+    /* Join the first and last point if the curve is cyclical. */
+    if (point_data1.cyclical && !is_single) {
+      if (is_first) {
+        /* The first point will have the index of the last point. */
+        PointData point_data = decode_ma(ma);
+        int last_stroke_id = point_data.stroke_id;
+        ma = floatBitsToInt(texelFetch(gp_pos_tx, (last_stroke_id - 2) * 3 + 1));
+        pos = texelFetch(gp_pos_tx, (last_stroke_id - 2) * 3 + 0);
+      }
+
+      if (is_last) {
+        int first_stroke_id = point_data1.stroke_id;
+        ma3 = floatBitsToInt(texelFetch(gp_pos_tx, (first_stroke_id + 2) * 3 + 1));
+        pos3 = texelFetch(gp_pos_tx, (first_stroke_id + 2) * 3 + 0);
+      }
+    }
+
     /* Special Case. Stroke with single vert are rendered as dots. Do not discard them. */
-    if (!is_dot && ma.x == -1 && ma2.x == -1) {
+    if (!is_dot && is_single) {
       is_dot = true;
       is_squares = false;
     }
@@ -243,26 +265,29 @@ float4 gpencil_vertex(float4 viewport_size,
     out_P = (use_curr) ? wpos1 : wpos2;
     out_strength = abs((use_curr) ? strength1 : strength2);
 
-    float2 ss_adj = gpencil_project_to_screenspace(ndc_adj, viewport_size);
-    float2 ss1 = gpencil_project_to_screenspace(ndc1, viewport_size);
-    float2 ss2 = gpencil_project_to_screenspace(ndc2, viewport_size);
+    float2 ss_adj = gpencil_project_to_screenspace(ndc_adj, viewport_res);
+    float2 ss1 = gpencil_project_to_screenspace(ndc1, viewport_res);
+    float2 ss2 = gpencil_project_to_screenspace(ndc2, viewport_res);
     /* Screen-space Lines tangents. */
     float line_len;
     float2 line = safe_normalize_and_get_length(ss2 - ss1, line_len);
     float2 line_adj = safe_normalize((use_curr) ? (ss1 - ss_adj) : (ss_adj - ss2));
 
     float thickness = abs((use_curr) ? thickness1 : thickness2);
-    thickness = gpencil_stroke_thickness_modulate(thickness, out_ndc, viewport_size);
-    float clamped_thickness = gpencil_clamp_small_stroke_thickness(thickness, out_ndc);
+    thickness = gpencil_stroke_thickness_modulate(thickness, out_ndc, viewport_res);
+    /* The radius attribute can have negative values. Make sure that it's not negative by clamping
+     * to 0. */
+    float clamped_thickness = max(0.0f, thickness);
 
     out_uv = float2(x, y) * 0.5f + 0.5f;
-    out_hardness = gpencil_decode_hardness(use_curr ? hardness1 : hardness2);
+    out_hardness = gpencil_decode_hardness(use_curr ? point_data1.packed_data :
+                                                      point_data2.packed_data);
 
     if (is_dot) {
       uint alignment_mode = material_flags & GP_STROKE_ALIGNMENT;
 
       /* For one point strokes use object alignment. */
-      if (alignment_mode == GP_STROKE_ALIGNMENT_STROKE && ma.x == -1 && ma2.x == -1) {
+      if (alignment_mode == GP_STROKE_ALIGNMENT_STROKE && is_single) {
         alignment_mode = GP_STROKE_ALIGNMENT_OBJECT;
       }
 
@@ -276,12 +301,12 @@ float4 gpencil_vertex(float4 viewport_size,
       }
       else { /* GP_STROKE_ALIGNMENT_OBJECT */
         float4 ndc_x = drw_point_world_to_homogenous(wpos1 + drw_modelmat()[0].xyz);
-        float2 ss_x = gpencil_project_to_screenspace(ndc_x, viewport_size);
+        float2 ss_x = gpencil_project_to_screenspace(ndc_x, viewport_res);
         x_axis = safe_normalize(ss_x - ss1);
       }
 
       /* Rotation: Encoded as Cos + Sin sign. */
-      float uv_rot = gpencil_decode_uvrot(uvrot1);
+      float uv_rot = gpencil_decode_uvrot(point_data1.packed_data);
       float rot_sin = sqrt(max(0.0f, 1.0f - uv_rot * uv_rot)) * sign(uv_rot);
       float rot_cos = abs(uv_rot);
       /* TODO(@fclem): Optimize these 2 matrix multiply into one by only having one rotation angle
@@ -292,7 +317,7 @@ float4 gpencil_vertex(float4 viewport_size,
       /* Rotate 90 degrees counter-clockwise. */
       float2 y_axis = float2(-x_axis.y, x_axis.x);
 
-      out_aspect = gpencil_decode_aspect(aspect1);
+      out_aspect = gpencil_decode_aspect(point_data1.packed_data);
 
       x *= out_aspect.x;
       y *= out_aspect.y;
@@ -300,7 +325,7 @@ float4 gpencil_vertex(float4 viewport_size,
       /* Invert for vertex shader. */
       out_aspect = 1.0f / out_aspect;
 
-      out_ndc.xy += (x * x_axis + y * y_axis) * viewport_size.zw * clamped_thickness;
+      out_ndc.xy += (x * x_axis + y * y_axis) * viewport_res.zw * clamped_thickness;
 
       out_sspos.xy = ss1;
       out_sspos.zw = ss1 + x_axis * 0.5f;
@@ -337,7 +362,7 @@ float4 gpencil_vertex(float4 viewport_size,
         screen_ofs += line * x;
       }
 
-      out_ndc.xy += screen_ofs * viewport_size.zw * clamped_thickness;
+      out_ndc.xy += screen_ofs * viewport_res.zw * clamped_thickness;
 
       out_uv.x = (use_curr) ? uv1.z : uv2.z;
     }
@@ -372,15 +397,11 @@ float4 gpencil_vertex(float4 viewport_size,
 #  undef thickness2
 #  undef strength1
 #  undef strength2
-#  undef hardness1
-#  undef hardness2
-#  undef uvrot1
-#  undef aspect1
 
   return out_ndc;
 }
 
-float4 gpencil_vertex(float4 viewport_size,
+float4 gpencil_vertex(float4 viewport_res,
                       out float3 out_P,
                       out float3 out_N,
                       out float4 out_color,
@@ -391,7 +412,7 @@ float4 gpencil_vertex(float4 viewport_size,
                       out float2 out_thickness,
                       out float out_hardness)
 {
-  return gpencil_vertex(viewport_size,
+  return gpencil_vertex(viewport_res,
                         gpMaterialFlag(0u),
                         float2(1.0f, 0.0f),
                         out_P,

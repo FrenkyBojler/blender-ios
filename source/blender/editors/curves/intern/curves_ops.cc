@@ -55,7 +55,7 @@
 #include "RNA_enum_types.hh"
 #include "RNA_prototypes.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "GEO_join_geometries.hh"
@@ -311,9 +311,8 @@ static void try_convert_single_object(Object &curves_ob,
   settings.totpart = 0;
   psys_changed_type(&surface_ob, particle_system);
 
-  MutableSpan<ParticleData> particles{
-      static_cast<ParticleData *>(MEM_calloc_arrayN(hair_num, sizeof(ParticleData), __func__)),
-      hair_num};
+  MutableSpan<ParticleData> particles{MEM_calloc_arrayN<ParticleData>(hair_num, __func__),
+                                      hair_num};
 
   /* The old hair system still uses #MFace, so make sure those are available on the mesh. */
   BKE_mesh_tessface_calc(&surface_me);
@@ -357,8 +356,7 @@ static void try_convert_single_object(Object &curves_ob,
 
     ParticleData &particle = particles[new_hair_i];
     const int num_keys = points.size();
-    MutableSpan<HairKey> hair_keys{
-        static_cast<HairKey *>(MEM_calloc_arrayN(num_keys, sizeof(HairKey), __func__)), num_keys};
+    MutableSpan<HairKey> hair_keys{MEM_calloc_arrayN<HairKey>(num_keys, __func__), num_keys};
 
     particle.hair = hair_keys.data();
     particle.totkey = hair_keys.size();
@@ -530,7 +528,7 @@ static wmOperatorStatus curves_convert_from_particle_system_exec(bContext *C, wm
   if (psys_orig == nullptr) {
     return OPERATOR_CANCELLED;
   }
-  Object *ob_from_eval = DEG_get_evaluated_object(&depsgraph, ob_from_orig);
+  Object *ob_from_eval = DEG_get_evaluated(&depsgraph, ob_from_orig);
   ParticleSystem *psys_eval = nullptr;
   LISTBASE_FOREACH (ModifierData *, md, &ob_from_eval->modifiers) {
     if (md->type != eModifierType_ParticleSystem) {
@@ -800,12 +798,8 @@ static wmOperatorStatus curves_set_selection_domain_exec(bContext *C, wmOperator
      * and reset the active item afterwards.
      *
      * This would be unnecessary if the active attribute were stored as a string on the ID. */
-    std::string active_attribute;
     AttributeOwner owner = AttributeOwner::from_id(&curves_id->id);
-    const CustomDataLayer *layer = BKE_attributes_active_get(owner);
-    if (layer) {
-      active_attribute = layer->name;
-    }
+    const std::string active_attribute = BKE_attributes_active_name_get(owner).value_or("");
     for (const StringRef selection_name : get_curves_selection_attribute_names(curves)) {
       if (const GVArray src = *attributes.lookup(selection_name, domain)) {
         const CPPType &type = src.type();
@@ -815,7 +809,7 @@ static wmOperatorStatus curves_set_selection_domain_exec(bContext *C, wmOperator
         attributes.remove(selection_name);
         if (!attributes.add(selection_name,
                             domain,
-                            bke::cpp_type_to_custom_data_type(type),
+                            bke::cpp_type_to_attribute_type(type),
                             bke::AttributeInitMoveArray(dst)))
         {
           MEM_freeN(dst);
@@ -919,7 +913,7 @@ static wmOperatorStatus select_random_exec(bContext *C, wmOperator *op)
 
     const bool was_anything_selected = has_anything_selected(curves);
     bke::GSpanAttributeWriter selection = ensure_selection_attribute(
-        curves, selection_domain, CD_PROP_BOOL);
+        curves, selection_domain, bke::AttrType::Bool);
     if (!was_anything_selected) {
       curves::fill_selection_true(selection.span);
     }
@@ -939,8 +933,8 @@ static void select_random_ui(bContext * /*C*/, wmOperator *op)
 {
   uiLayout *layout = op->layout;
 
-  uiItemR(layout, op->ptr, "seed", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  uiItemR(layout, op->ptr, "probability", UI_ITEM_R_SLIDER, IFACE_("Probability"), ICON_NONE);
+  layout->prop(op->ptr, "seed", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout->prop(op->ptr, "probability", UI_ITEM_R_SLIDER, IFACE_("Probability"), ICON_NONE);
 }
 
 static void CURVES_OT_select_random(wmOperatorType *ot)
@@ -990,7 +984,7 @@ static wmOperatorStatus select_ends_exec(bContext *C, wmOperator *op)
 
     const bool was_anything_selected = has_anything_selected(curves);
     bke::GSpanAttributeWriter selection = ensure_selection_attribute(
-        curves, bke::AttrDomain::Point, CD_PROP_BOOL);
+        curves, bke::AttrDomain::Point, bke::AttrType::Bool);
     if (!was_anything_selected) {
       fill_selection_true(selection.span);
     }
@@ -1016,12 +1010,12 @@ static void select_ends_ui(bContext * /*C*/, wmOperator *op)
 {
   uiLayout *layout = op->layout;
 
-  uiLayoutSetPropSep(layout, true);
+  layout->use_property_split_set(true);
 
-  uiLayout *col = uiLayoutColumn(layout, true);
-  uiLayoutSetPropDecorate(col, false);
-  uiItemR(col, op->ptr, "amount_start", UI_ITEM_NONE, IFACE_("Amount Start"), ICON_NONE);
-  uiItemR(col, op->ptr, "amount_end", UI_ITEM_NONE, IFACE_("End"), ICON_NONE);
+  uiLayout *col = &layout->column(true);
+  col->use_property_decorate_set(false);
+  col->prop(op->ptr, "amount_start", UI_ITEM_NONE, IFACE_("Amount Start"), ICON_NONE);
+  col->prop(op->ptr, "amount_end", UI_ITEM_NONE, IFACE_("End"), ICON_NONE);
 }
 
 static void CURVES_OT_select_ends(wmOperatorType *ot)
@@ -1141,11 +1135,13 @@ namespace split {
 
 static wmOperatorStatus split_exec(bContext *C, wmOperator * /*op*/)
 {
+  View3D *v3d = CTX_wm_view3d(C);
   VectorSet<Curves *> unique_curves = get_unique_editable_curves(*C);
   for (Curves *curves_id : unique_curves) {
     CurvesGeometry &curves = curves_id->geometry.wrap();
     IndexMaskMemory memory;
-    const IndexMask points_to_split = retrieve_all_selected_points(curves, memory);
+    const IndexMask points_to_split = retrieve_all_selected_points(
+        curves, v3d->overlay.handle_display, memory);
     if (points_to_split.is_empty()) {
       continue;
     }
@@ -1543,7 +1539,7 @@ static wmOperatorStatus exec(bContext *C, wmOperator *op)
     });
 
     curves = geometry::subdivide_curves(
-        curves, curves.curves_range(), VArray<int>::ForSpan(segment_cuts), {});
+        curves, curves.curves_range(), VArray<int>::from_span(segment_cuts), {});
 
     DEG_id_tag_update(&curves_id->id, ID_RECALC_GEOMETRY);
     WM_event_add_notifier(C, NC_GEOM | ND_DATA, curves_id);
@@ -1720,9 +1716,9 @@ static wmOperatorStatus exec(bContext *C, wmOperator *op)
 
 static void CURVES_OT_add_bezier(wmOperatorType *ot)
 {
-  ot->name = "Add Bezier";
+  ot->name = "Add Bézier";
   ot->idname = __func__;
-  ot->description = "Add new bezier curve";
+  ot->description = "Add new Bézier curve";
 
   ot->exec = add_bezier::exec;
   ot->poll = editable_curves_in_edit_mode_poll;
@@ -1737,7 +1733,25 @@ namespace set_handle_type {
 
 static wmOperatorStatus exec(bContext *C, wmOperator *op)
 {
-  const HandleType dst_handle_type = HandleType(RNA_enum_get(op->ptr, "type"));
+  const SetHandleType dst_type = SetHandleType(RNA_enum_get(op->ptr, "type"));
+
+  auto new_handle_type = [&](const int8_t handle_type) {
+    switch (dst_type) {
+      case SetHandleType::Free:
+        return int8_t(BEZIER_HANDLE_FREE);
+      case SetHandleType::Auto:
+        return int8_t(BEZIER_HANDLE_AUTO);
+      case SetHandleType::Vector:
+        return int8_t(BEZIER_HANDLE_VECTOR);
+      case SetHandleType::Align:
+        return int8_t(BEZIER_HANDLE_ALIGN);
+      case SetHandleType::Toggle:
+        return int8_t(handle_type == BEZIER_HANDLE_FREE ? BEZIER_HANDLE_ALIGN :
+                                                          BEZIER_HANDLE_FREE);
+    }
+    BLI_assert_unreachable();
+    return int8_t(0);
+  };
 
   for (Curves *curves_id : get_unique_editable_curves(*C)) {
     bke::CurvesGeometry &curves = curves_id->geometry.wrap();
@@ -1756,10 +1770,10 @@ static wmOperatorStatus exec(bContext *C, wmOperator *op)
     threading::parallel_for(curves.points_range(), 4096, [&](const IndexRange range) {
       for (const int point_i : range) {
         if (selection_left[point_i] || selection[point_i]) {
-          handle_types_left[point_i] = int8_t(dst_handle_type);
+          handle_types_left[point_i] = new_handle_type(handle_types_left[point_i]);
         }
         if (selection_right[point_i] || selection[point_i]) {
-          handle_types_right[point_i] = int8_t(dst_handle_type);
+          handle_types_right[point_i] = new_handle_type(handle_types_right[point_i]);
         }
       }
     });
@@ -1775,6 +1789,35 @@ static wmOperatorStatus exec(bContext *C, wmOperator *op)
 
 }  // namespace set_handle_type
 
+const EnumPropertyItem rna_enum_set_handle_type_items[] = {
+    {int(SetHandleType::Auto),
+     "AUTO",
+     0,
+     "Auto",
+     "The location is automatically calculated to be smooth"},
+    {int(SetHandleType::Vector),
+     "VECTOR",
+     0,
+     "Vector",
+     "The location is calculated to point to the next/previous control point"},
+    {int(SetHandleType::Align),
+     "ALIGN",
+     0,
+     "Align",
+     "The location is constrained to point in the opposite direction as the other handle"},
+    {int(SetHandleType::Free),
+     "FREE_ALIGN",
+     0,
+     "Free",
+     "The handle can be moved anywhere, and does not influence the point's other handle"},
+    {int(SetHandleType::Toggle),
+     "TOGGLE_FREE_ALIGN",
+     0,
+     "Toggle Free/Align",
+     "Replace Free handles with Align, and all Align with Free handles"},
+    {0, nullptr, 0, nullptr, nullptr},
+};
+
 static void CURVES_OT_handle_type_set(wmOperatorType *ot)
 {
   ot->name = "Set Handle Type";
@@ -1787,8 +1830,12 @@ static void CURVES_OT_handle_type_set(wmOperatorType *ot)
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
-  ot->prop = RNA_def_enum(
-      ot->srna, "type", rna_enum_curves_handle_type_items, CURVE_TYPE_POLY, "Type", nullptr);
+  ot->prop = RNA_def_enum(ot->srna,
+                          "type",
+                          rna_enum_set_handle_type_items,
+                          int(ed::curves::SetHandleType::Auto),
+                          "Type",
+                          nullptr);
 }
 
 void operatortypes_curves()

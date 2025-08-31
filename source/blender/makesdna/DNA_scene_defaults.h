@@ -29,6 +29,7 @@
   { \
     .im_format = _DNA_DEFAULT_ImageFormatData, \
     .filepath = "//", \
+    .type = R_BAKE_NORMALS, \
     .flag = R_BAKE_CLEAR, \
     .pass_filter = R_BAKE_PASS_FILTER_ALL, \
     .width = 512, \
@@ -37,6 +38,7 @@
     .margin_type = R_BAKE_ADJACENT_FACES, \
     .normal_space = R_BAKE_SPACE_TANGENT, \
     .normal_swizzle = {R_BAKE_POSX, R_BAKE_POSY, R_BAKE_POSZ}, \
+    .displacement_space = R_BAKE_SPACE_OBJECT, \
   }
 
 #define _DNA_DEFAULT_FFMpegCodecData \
@@ -89,13 +91,6 @@
  \
     .gauss = 1.5, \
     .dither_intensity = 1.0f, \
- \
-    .bake_mode = 0, \
-    .bake_margin = 16, \
-    .bake_margin_type = R_BAKE_ADJACENT_FACES, \
-    .bake_flag = R_BAKE_CLEAR, \
-    .bake_samples = 256, \
-    .bake_biasdist = 0.001f, \
  \
     /* BakeData */ \
     .bake = _DNA_DEFAULT_BakeData, \
@@ -199,11 +194,8 @@
     .volumetric_light_clamp = 0.0f, \
     .volumetric_shadow_samples = 16, \
  \
-    .gtao_distance = 0.2f, \
-    .gtao_thickness = 0.5f, \
-    .gtao_focus = 0.05f, \
-    .gtao_resolution = 2, \
- \
+    .fast_gi_bias = 0.05f, \
+    .fast_gi_resolution = 2, \
     .fast_gi_step_count = 8, \
     .fast_gi_ray_count = 2, \
     .fast_gi_quality = 0.25f, \
@@ -235,7 +227,7 @@
  \
     .overscan = 3.0f, \
  \
-    .flag = SCE_EEVEE_TAA_REPROJECTION, \
+    .flag = SCE_EEVEE_TAA_REPROJECTION | SCE_EEVEE_SHADOW_ENABLED, \
   }
 
 #define _DNA_DEFAULT_SceneGreasePencil \
@@ -243,6 +235,7 @@
     .smaa_threshold = 1.0f, \
     .smaa_threshold_render = 0.25f, \
     .aa_samples = 8, \
+    .motion_blur_steps = 8, \
   }
 
 #define _DNA_DEFAULT_SceneHydra \
@@ -288,7 +281,10 @@
 
 #define _DNA_DEFAULTS_ImagePaintSettings \
   { \
-    .paint.flags = PAINT_SHOW_BRUSH, \
+    .paint = { \
+      .flags = PAINT_SHOW_BRUSH, \
+      .unified_paint_settings = _DNA_DEFAULTS_UnifiedPaintSettings, \
+    }, \
     .normal_angle = 80, \
     .seam_bleed = 2, \
     .clone_alpha = 0.5f, \
@@ -304,11 +300,13 @@
 
 #define _DNA_DEFAULTS_UnifiedPaintSettings \
   { \
-    .size = 50, \
+    .size = 100, \
     .input_samples = 1, \
-    .unprojected_radius = 0.29, \
+    .unprojected_size = 0.58, \
     .alpha = 0.5f, \
     .weight = 0.5f, \
+    .color = {0.0f, 0.0f, 0.0f}, \
+    .secondary_color = {1.0f, 1.0f, 1.0f}, \
     .rgb = {0.0f, 0.0f, 0.0f}, \
     .secondary_rgb = {1.0f, 1.0f, 1.0f}, \
     .flag = UNIFIED_PAINT_SIZE | UNIFIED_PAINT_COLOR, \
@@ -379,14 +377,23 @@
     .snap_node_mode = SCE_SNAP_TO_GRID, \
     .snap_uv_mode = SCE_SNAP_TO_INCREMENT, \
     .snap_anim_mode = SCE_SNAP_TO_FRAME, \
+    .snap_playhead_mode = SCE_SNAP_TO_KEYS | SCE_SNAP_TO_STRIPS, \
+    .snap_step_frames = 2, \
+    .snap_step_seconds = 1, \
+    .playhead_snap_distance = 20, \
     .snap_flag = SCE_SNAP_TO_INCLUDE_EDITED | SCE_SNAP_TO_INCLUDE_NONEDITED, \
     .snap_flag_anim = SCE_SNAP, \
+    .snap_flag_playhead = 0, \
     .snap_transform_mode_flag = SCE_SNAP_TRANSFORM_MODE_TRANSLATE, \
     .snap_face_nearest_steps = 1, \
     .snap_angle_increment_3d = DEG2RADF(5.0f), \
     .snap_angle_increment_2d = DEG2RADF(5.0f), \
     .snap_angle_increment_3d_precision = DEG2RADF(1.0f), \
     .snap_angle_increment_2d_precision = DEG2RADF(1.0f), \
+ \
+    .snap_flag_seq = SCE_SNAP, \
+    /* Weight Paint */ \
+    .weightuser = OB_DRAW_GROUPUSER_ACTIVE, \
  \
     .curve_paint_settings = _DNA_DEFAULTS_CurvePaintSettings, \
  \
@@ -430,6 +437,7 @@
     .automasking_boundary_edges_propagation_steps = 1, \
     .flags = SCULPT_DYNTOPO_SUBDIVIDE | SCULPT_DYNTOPO_COLLAPSE,\
     .paint = {\
+      .unified_paint_settings = _DNA_DEFAULTS_UnifiedPaintSettings, \
       .symmetry_flags = PAINT_SYMMETRY_FEATHER,\
       .tile_offset = {1.0f, 1.0f, 1.0f},\
     }\

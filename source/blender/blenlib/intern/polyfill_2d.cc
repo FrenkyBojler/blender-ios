@@ -262,7 +262,7 @@ static uint32_t kdtree2d_balance_recursive(KDTreeNode2D *nodes,
     i = neg - 1;
     j = pos;
 
-    while (1) {
+    while (true) {
       while (coords[nodes[++i].index][axis] < co) { /* pass */
       }
       while (coords[nodes[--j].index][axis] > co && j > neg) { /* pass */
@@ -920,7 +920,7 @@ void BLI_polyfill_calc(const float (*coords)[2],
                        const int coords_sign,
                        uint32_t (*r_tris)[3])
 {
-  /* Fallback to heap memory for large allocations.
+  /* Fall back to heap memory for large allocations.
    * Avoid running out of stack memory on systems with 512kb stack (macOS).
    * This happens at around 13,000 points, use a much lower value to be safe. */
   if (UNLIKELY(coords_num > 8192)) {

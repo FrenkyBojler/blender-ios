@@ -36,7 +36,7 @@
 #include "BKE_subdiv_mesh.hh"
 #include "BKE_subdiv_modifier.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "RE_engine.h"
@@ -50,8 +50,6 @@
 #include "MOD_modifiertypes.hh"
 #include "MOD_ui_common.hh"
 
-#include "intern/CCGSubSurf.h"
-
 static void init_data(ModifierData *md)
 {
   SubsurfModifierData *smd = (SubsurfModifierData *)md;
@@ -59,18 +57,6 @@ static void init_data(ModifierData *md)
   BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(smd, modifier));
 
   MEMCPY_STRUCT_AFTER(smd, DNA_struct_default_get(SubsurfModifierData), modifier);
-}
-
-static void copy_data(const ModifierData *md, ModifierData *target, const int flag)
-{
-#if 0
-  const SubsurfModifierData *smd = (const SubsurfModifierData *)md;
-#endif
-  SubsurfModifierData *tsmd = (SubsurfModifierData *)target;
-
-  BKE_modifier_copydata_generic(md, target, flag);
-
-  tsmd->emCache = tsmd->mCache = nullptr;
 }
 
 static void free_runtime_data(void *runtime_data_v)
@@ -92,14 +78,6 @@ static void free_data(ModifierData *md)
 {
   SubsurfModifierData *smd = (SubsurfModifierData *)md;
 
-  if (smd->mCache) {
-    ccgSubSurf_free(static_cast<CCGSubSurf *>(smd->mCache));
-    smd->mCache = nullptr;
-  }
-  if (smd->emCache) {
-    ccgSubSurf_free(static_cast<CCGSubSurf *>(smd->emCache));
-    smd->emCache = nullptr;
-  }
   free_runtime_data(smd->modifier.runtime);
 }
 
@@ -391,15 +369,15 @@ static void panel_draw(const bContext *C, Panel *panel)
   UNUSED_VARS(C);
 #endif
 
-  uiItemR(layout, ptr, "subdivision_type", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+  layout->prop(ptr, "subdivision_type", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
 
-  uiLayoutSetPropSep(layout, true);
+  layout->use_property_split_set(true);
 
-  uiLayout *col = uiLayoutColumn(layout, true);
-  uiItemR(col, ptr, "levels", UI_ITEM_NONE, IFACE_("Levels Viewport"), ICON_NONE);
-  uiItemR(col, ptr, "render_levels", UI_ITEM_NONE, IFACE_("Render"), ICON_NONE);
+  uiLayout *col = &layout->column(true);
+  col->prop(ptr, "levels", UI_ITEM_NONE, IFACE_("Levels Viewport"), ICON_NONE);
+  col->prop(ptr, "render_levels", UI_ITEM_NONE, IFACE_("Render"), ICON_NONE);
 
-  uiItemR(layout, ptr, "show_only_control_edges", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout->prop(ptr, "show_only_control_edges", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
   SubsurfModifierData *smd = static_cast<SubsurfModifierData *>(ptr->data);
@@ -407,18 +385,17 @@ static void panel_draw(const bContext *C, Panel *panel)
   if (ob->type == OB_MESH && BKE_subsurf_modifier_force_disable_gpu_evaluation_for_mesh(
                                  smd, static_cast<const Mesh *>(ob->data)))
   {
-    uiItemL(layout,
-            RPT_("Sharp edges or custom normals detected, disabling GPU subdivision"),
-            ICON_INFO);
+    layout->label(RPT_("Sharp edges or custom normals detected, disabling GPU subdivision"),
+                  ICON_INFO);
   }
-  else if (Object *ob_eval = DEG_get_evaluated_object(depsgraph, ob)) {
+  else if (Object *ob_eval = DEG_get_evaluated(depsgraph, ob)) {
     if (ModifierData *md_eval = BKE_modifiers_findby_name(ob_eval, smd->modifier.name)) {
       if (md_eval->type == eModifierType_Subsurf) {
         SubsurfRuntimeData *runtime_data = (SubsurfRuntimeData *)md_eval->runtime;
 
         if (runtime_data && runtime_data->used_gpu) {
           if (runtime_data->used_cpu) {
-            uiItemL(layout, RPT_("Using both CPU and GPU subdivision"), ICON_INFO);
+            layout->label(RPT_("Using both CPU and GPU subdivision"), ICON_INFO);
           }
         }
       }
@@ -426,21 +403,17 @@ static void panel_draw(const bContext *C, Panel *panel)
   }
 
   if (show_adaptive_options) {
-    PanelLayout adaptive_panel = uiLayoutPanelPropWithBoolHeader(C,
-                                                                 layout,
-                                                                 ptr,
-                                                                 "open_adaptive_subdivision_panel",
-                                                                 &ob_cycles_ptr,
-                                                                 "use_adaptive_subdivision",
-                                                                 IFACE_("Adaptive Subdivision"));
+    PanelLayout adaptive_panel = layout->panel_prop_with_bool_header(
+        C,
+        ptr,
+        "open_adaptive_subdivision_panel",
+        &ob_cycles_ptr,
+        "use_adaptive_subdivision",
+        IFACE_("Adaptive Subdivision"));
     if (adaptive_panel.body) {
-      uiLayoutSetActive(adaptive_panel.body, ob_use_adaptive_subdivision);
-      uiItemR(adaptive_panel.body,
-              &ob_cycles_ptr,
-              "dicing_rate",
-              UI_ITEM_NONE,
-              std::nullopt,
-              ICON_NONE);
+      adaptive_panel.body->active_set(ob_use_adaptive_subdivision);
+      adaptive_panel.body->prop(
+          &ob_cycles_ptr, "dicing_rate", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
       float render = std::max(RNA_float_get(&cycles_ptr, "dicing_rate") *
                                   RNA_float_get(&ob_cycles_ptr, "dicing_rate"),
@@ -449,45 +422,37 @@ static void panel_draw(const bContext *C, Panel *panel)
                                    RNA_float_get(&ob_cycles_ptr, "dicing_rate"),
                                0.1f);
 
-      uiLayout *split = uiLayoutSplit(adaptive_panel.body, 0.4f, false);
-      uiItemL(uiLayoutColumn(split, true), "", ICON_NONE);
-      uiLayout *col = uiLayoutColumn(split, true);
-      uiItemL(col, fmt::format(RPT_("Viewport {:.2f} px"), preview), ICON_NONE);
-      uiItemL(col, fmt::format(RPT_("Render {:.2f} px"), render), ICON_NONE);
+      uiLayout *split = &adaptive_panel.body->split(0.4f, false);
+      split->column(true).label("", ICON_NONE);
+      uiLayout *col = &split->column(true);
+      col->label(fmt::format(fmt::runtime(RPT_("Viewport {:.2f} px")), preview), ICON_NONE);
+      col->label(fmt::format(fmt::runtime(RPT_("Render {:.2f} px")), render), ICON_NONE);
     }
   }
 
-  if (uiLayout *advanced_layout = uiLayoutPanelProp(
-          C, layout, ptr, "open_advanced_panel", IFACE_("Advanced")))
+  if (uiLayout *advanced_layout = layout->panel_prop(
+          C, ptr, "open_advanced_panel", IFACE_("Advanced")))
   {
-    uiLayoutSetPropSep(advanced_layout, true);
+    advanced_layout->use_property_split_set(true);
 
-    uiItemR(advanced_layout, ptr, "use_limit_surface", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    advanced_layout->prop(ptr, "use_limit_surface", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-    uiLayout *col = uiLayoutColumn(advanced_layout, true);
-    uiLayoutSetActive(col,
-                      ob_use_adaptive_subdivision || RNA_boolean_get(ptr, "use_limit_surface"));
-    uiItemR(col, ptr, "quality", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    uiLayout *col = &advanced_layout->column(true);
+    col->active_set(ob_use_adaptive_subdivision || RNA_boolean_get(ptr, "use_limit_surface"));
+    col->prop(ptr, "quality", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-    uiItemR(advanced_layout, ptr, "uv_smooth", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-    uiItemR(advanced_layout, ptr, "boundary_smooth", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-    uiItemR(advanced_layout, ptr, "use_creases", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-    uiItemR(advanced_layout, ptr, "use_custom_normals", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    advanced_layout->prop(ptr, "uv_smooth", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    advanced_layout->prop(ptr, "boundary_smooth", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    advanced_layout->prop(ptr, "use_creases", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    advanced_layout->prop(ptr, "use_custom_normals", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 
-  modifier_panel_end(layout, ptr);
+  modifier_error_message_draw(layout, ptr);
 }
 
 static void panel_register(ARegionType *region_type)
 {
   modifier_panel_register(region_type, eModifierType_Subsurf, panel_draw);
-}
-
-static void blend_read(BlendDataReader * /*reader*/, ModifierData *md)
-{
-  SubsurfModifierData *smd = (SubsurfModifierData *)md;
-
-  smd->emCache = smd->mCache = nullptr;
 }
 
 ModifierTypeInfo modifierType_Subsurf = {
@@ -502,7 +467,7 @@ ModifierTypeInfo modifierType_Subsurf = {
         eModifierTypeFlag_AcceptsCVs,
     /*icon*/ ICON_MOD_SUBSURF,
 
-    /*copy_data*/ copy_data,
+    /*copy_data*/ BKE_modifier_copydata_generic,
 
     /*deform_verts*/ nullptr,
     /*deform_matrices*/ deform_matrices,
@@ -523,6 +488,6 @@ ModifierTypeInfo modifierType_Subsurf = {
     /*free_runtime_data*/ free_runtime_data,
     /*panel_register*/ panel_register,
     /*blend_write*/ nullptr,
-    /*blend_read*/ blend_read,
+    /*blend_read*/ nullptr,
     /*foreach_cache*/ nullptr,
 };

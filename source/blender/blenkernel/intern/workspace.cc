@@ -71,6 +71,7 @@ static void workspace_foreach_id(ID *id, LibraryForeachIDData *data)
   WorkSpace *workspace = (WorkSpace *)id;
 
   BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, workspace->pin_scene, IDWALK_CB_NOP);
+  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, workspace->sequencer_scene, IDWALK_CB_NOP);
 
   LISTBASE_FOREACH (WorkSpaceLayout *, layout, &workspace->layouts) {
     BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, layout->screen, IDWALK_CB_USER);
@@ -175,7 +176,7 @@ static void workspace_blend_read_after_liblink(BlendLibReader *reader, ID *id)
 }
 
 IDTypeInfo IDType_ID_WS = {
-    /*id_code*/ ID_WS,
+    /*id_code*/ WorkSpace::id_type,
     /*id_filter*/ FILTER_ID_WS,
     /*dependencies_id_types*/ FILTER_ID_SCE,
     /*main_listbase_index*/ INDEX_ID_WS,
@@ -316,7 +317,7 @@ static bool UNUSED_FUNCTION(workspaces_is_screen_used)
 
 WorkSpace *BKE_workspace_add(Main *bmain, const char *name)
 {
-  WorkSpace *new_workspace = static_cast<WorkSpace *>(BKE_id_new(bmain, ID_WS, name));
+  WorkSpace *new_workspace = BKE_id_new<WorkSpace>(bmain, name);
   id_us_ensure_real(&new_workspace->id);
   return new_workspace;
 }
@@ -514,7 +515,7 @@ void BKE_workspace_tool_id_replace_table(WorkSpace *workspace,
                                          int replace_table_num)
 {
   const size_t idname_prefix_len = idname_prefix_skip ? strlen(idname_prefix_skip) : 0;
-  const size_t idname_suffix_len = sizeof(bToolRef::idname) - idname_prefix_len;
+  const size_t idname_suffix_maxncpy = sizeof(bToolRef::idname) - idname_prefix_len;
 
   LISTBASE_FOREACH (bToolRef *, tref, &workspace->tools) {
     if (!(tref->space_type == space_type && tref->mode == mode)) {
@@ -528,7 +529,7 @@ void BKE_workspace_tool_id_replace_table(WorkSpace *workspace,
       idname_suffix += idname_prefix_len;
     }
     BLI_string_replace_table_exact(
-        idname_suffix, idname_suffix_len, replace_table, replace_table_num);
+        idname_suffix, idname_suffix_maxncpy, replace_table, replace_table_num);
   }
 }
 

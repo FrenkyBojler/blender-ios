@@ -20,7 +20,7 @@
 #include "BLI_math_base.hh"
 #include "BLI_math_vector.hh"
 #include "BLI_rect.h"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_task.h"
 #include "BLI_utildefines.h"
 
@@ -310,7 +310,7 @@ void BKE_curvemap_reset(CurveMap *cuma, const rctf *clipr, int preset, int slope
       break;
   }
 
-  cuma->curve = MEM_calloc_arrayN<CurveMapPoint>(size_t(cuma->totpoint), "curve points");
+  cuma->curve = MEM_calloc_arrayN<CurveMapPoint>(cuma->totpoint, "curve points");
 
   for (int i = 0; i < cuma->totpoint; i++) {
     cuma->curve[i].flag = cuma->default_handle_type;
@@ -660,7 +660,7 @@ static void curvemap_make_table(const CurveMapping *cumap, CurveMap *cuma)
   const int bezt_totpoint = max_ii(cuma->totpoint, 2);
 
   /* Rely on Blender interpolation for bezier curves, support extra functionality here as well. */
-  BezTriple *bezt = MEM_calloc_arrayN<BezTriple>(size_t(bezt_totpoint), "beztarr");
+  BezTriple *bezt = MEM_calloc_arrayN<BezTriple>(bezt_totpoint, "beztarr");
 
   /* Valid curve has at least 2 points. */
   if (cuma->totpoint >= 2) {
@@ -1872,13 +1872,13 @@ void BKE_color_managed_display_settings_init(ColorManagedDisplaySettings *settin
 {
   const char *display_name = IMB_colormanagement_display_get_default_name();
 
-  STRNCPY(settings->display_device, display_name);
+  STRNCPY_UTF8(settings->display_device, display_name);
 }
 
 void BKE_color_managed_display_settings_copy(ColorManagedDisplaySettings *new_settings,
                                              const ColorManagedDisplaySettings *settings)
 {
-  STRNCPY(new_settings->display_device, settings->display_device);
+  STRNCPY_UTF8(new_settings->display_device, settings->display_device);
 }
 
 void BKE_color_managed_view_settings_init_render(
@@ -1886,8 +1886,9 @@ void BKE_color_managed_view_settings_init_render(
     const ColorManagedDisplaySettings *display_settings,
     const char *view_transform)
 {
-  ColorManagedDisplay *display = IMB_colormanagement_display_get_named(
+  const ColorManagedDisplay *display = IMB_colormanagement_display_get_named(
       display_settings->display_device);
+  BLI_assert(display);
 
   if (!view_transform) {
     view_transform = IMB_colormanagement_display_get_default_view_transform_name(display);
@@ -1895,8 +1896,8 @@ void BKE_color_managed_view_settings_init_render(
 
   /* TODO(sergey): Find a way to make look query more reliable with non
    * default configuration. */
-  STRNCPY(view_settings->view_transform, view_transform);
-  STRNCPY(view_settings->look, "None");
+  STRNCPY_UTF8(view_settings->view_transform, view_transform);
+  STRNCPY_UTF8(view_settings->look, "None");
 
   view_settings->flag = 0;
   view_settings->gamma = 1.0f;
@@ -1906,23 +1907,16 @@ void BKE_color_managed_view_settings_init_render(
   IMB_colormanagement_validate_settings(display_settings, view_settings);
 }
 
-void BKE_color_managed_view_settings_init_default(
+void BKE_color_managed_view_settings_init_untonemapped(
     ColorManagedViewSettings *view_settings, const ColorManagedDisplaySettings *display_settings)
 {
-  IMB_colormanagement_init_default_view_settings(view_settings, display_settings);
+  IMB_colormanagement_init_untonemapped_view_settings(view_settings, display_settings);
 }
 
 void BKE_color_managed_view_settings_copy(ColorManagedViewSettings *new_settings,
                                           const ColorManagedViewSettings *settings)
 {
-  STRNCPY(new_settings->look, settings->look);
-  STRNCPY(new_settings->view_transform, settings->view_transform);
-
-  new_settings->flag = settings->flag;
-  new_settings->exposure = settings->exposure;
-  new_settings->gamma = settings->gamma;
-  new_settings->temperature = settings->temperature;
-  new_settings->tint = settings->tint;
+  BKE_color_managed_view_settings_copy_keep_curve_mapping(new_settings, settings);
 
   if (settings->curve_mapping) {
     new_settings->curve_mapping = BKE_curvemapping_copy(settings->curve_mapping);
@@ -1930,6 +1924,19 @@ void BKE_color_managed_view_settings_copy(ColorManagedViewSettings *new_settings
   else {
     new_settings->curve_mapping = nullptr;
   }
+}
+
+void BKE_color_managed_view_settings_copy_keep_curve_mapping(
+    ColorManagedViewSettings *new_settings, const ColorManagedViewSettings *settings)
+{
+  STRNCPY_UTF8(new_settings->look, settings->look);
+  STRNCPY_UTF8(new_settings->view_transform, settings->view_transform);
+
+  new_settings->flag = settings->flag;
+  new_settings->exposure = settings->exposure;
+  new_settings->gamma = settings->gamma;
+  new_settings->temperature = settings->temperature;
+  new_settings->tint = settings->tint;
 }
 
 void BKE_color_managed_view_settings_free(ColorManagedViewSettings *settings)
@@ -1961,14 +1968,14 @@ void BKE_color_managed_view_settings_blend_read_data(BlendDataReader *reader,
 void BKE_color_managed_colorspace_settings_init(
     ColorManagedColorspaceSettings *colorspace_settings)
 {
-  STRNCPY(colorspace_settings->name, "");
+  STRNCPY_UTF8(colorspace_settings->name, "");
 }
 
 void BKE_color_managed_colorspace_settings_copy(
     ColorManagedColorspaceSettings *colorspace_settings,
     const ColorManagedColorspaceSettings *settings)
 {
-  STRNCPY(colorspace_settings->name, settings->name);
+  STRNCPY_UTF8(colorspace_settings->name, settings->name);
 }
 
 bool BKE_color_managed_colorspace_settings_equals(const ColorManagedColorspaceSettings *settings1,

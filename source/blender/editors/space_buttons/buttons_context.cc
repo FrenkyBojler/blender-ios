@@ -13,7 +13,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_listbase.h"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 #include "BLT_translation.hh"
@@ -46,6 +46,7 @@
 #include "ED_screen.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "WM_api.hh"
@@ -264,11 +265,9 @@ static bool buttons_context_path_data(ButsContextPath *path, int type)
   if (RNA_struct_is_a(ptr->type, &RNA_Curves) && ELEM(type, -1, OB_CURVES)) {
     return true;
   }
-#ifdef WITH_POINTCLOUD
   if (RNA_struct_is_a(ptr->type, &RNA_PointCloud) && ELEM(type, -1, OB_POINTCLOUD)) {
     return true;
   }
-#endif
   if (RNA_struct_is_a(ptr->type, &RNA_Volume) && ELEM(type, -1, OB_VOLUME)) {
     return true;
   }
@@ -850,9 +849,7 @@ const char *buttons_context_dir[] = {
     "gpencil",
     "grease_pencil",
     "curves",
-#ifdef WITH_POINTCLOUD
     "pointcloud",
-#endif
     "volume",
     nullptr,
 };
@@ -947,12 +944,10 @@ int /*eContextResult*/ buttons_context(const bContext *C,
     set_pointer_type(path, result, &RNA_Curves);
     return CTX_RESULT_OK;
   }
-#ifdef WITH_POINTCLOUD
   if (CTX_data_equals(member, "pointcloud")) {
     set_pointer_type(path, result, &RNA_PointCloud);
     return CTX_RESULT_OK;
   }
-#endif
   if (CTX_data_equals(member, "volume")) {
     set_pointer_type(path, result, &RNA_Volume);
     return CTX_RESULT_OK;
@@ -1171,7 +1166,7 @@ int /*eContextResult*/ buttons_context(const bContext *C,
     return CTX_RESULT_OK;
   }
   if (CTX_data_equals(member, "gpencil")) {
-    set_pointer_type(path, result, &RNA_GreasePencil);
+    set_pointer_type(path, result, &RNA_Annotation);
     return CTX_RESULT_OK;
   }
   if (CTX_data_equals(member, "grease_pencil")) {
@@ -1198,8 +1193,8 @@ static void buttons_panel_context_draw(const bContext *C, Panel *panel)
     return;
   }
 
-  uiLayout *row = uiLayoutRow(panel->layout, true);
-  uiLayoutSetAlignment(row, UI_LAYOUT_ALIGN_LEFT);
+  uiLayout *row = &panel->layout->row(true);
+  row->alignment_set(blender::ui::LayoutAlign::Left);
 
   bool first = true;
   for (int i = 0; i < path->len; i++) {
@@ -1233,7 +1228,7 @@ static void buttons_panel_context_draw(const bContext *C, Panel *panel)
 
     /* Add > triangle. */
     if (!first) {
-      uiItemL(row, "", ICON_RIGHTARROW);
+      row->label("", ICON_RIGHTARROW);
     }
 
     /* Add icon and name. */
@@ -1249,29 +1244,26 @@ static void buttons_panel_context_draw(const bContext *C, Panel *panel)
       }
     }
     else {
-      uiItemL(row, "", icon);
+      row->label("", icon);
     }
 
     first = false;
   }
 
-  uiLayout *pin_row = uiLayoutRow(row, false);
-  uiLayoutSetAlignment(pin_row, UI_LAYOUT_ALIGN_RIGHT);
-  uiItemSpacer(pin_row);
-  uiLayoutSetEmboss(pin_row, blender::ui::EmbossType::None);
-  uiItemO(pin_row,
-          "",
-          (sbuts->flag & SB_PIN_CONTEXT) ? ICON_PINNED : ICON_UNPINNED,
-          "BUTTONS_OT_toggle_pin");
+  uiLayout *pin_row = &row->row(false);
+  pin_row->alignment_set(blender::ui::LayoutAlign::Right);
+  pin_row->separator_spacer();
+  pin_row->emboss_set(blender::ui::EmbossType::None);
+  pin_row->op(
+      "BUTTONS_OT_toggle_pin", "", (sbuts->flag & SB_PIN_CONTEXT) ? ICON_PINNED : ICON_UNPINNED);
 }
 
 void buttons_context_register(ARegionType *art)
 {
-  PanelType *pt = static_cast<PanelType *>(
-      MEM_callocN(sizeof(PanelType), "spacetype buttons panel context"));
-  STRNCPY(pt->idname, "PROPERTIES_PT_context");
-  STRNCPY(pt->label, N_("Context")); /* XXX C panels unavailable through RNA bpy.types! */
-  STRNCPY(pt->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
+  PanelType *pt = MEM_callocN<PanelType>("spacetype buttons panel context");
+  STRNCPY_UTF8(pt->idname, "PROPERTIES_PT_context");
+  STRNCPY_UTF8(pt->label, N_("Context")); /* XXX C panels unavailable through RNA bpy.types! */
+  STRNCPY_UTF8(pt->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
   pt->poll = buttons_panel_context_poll;
   pt->draw = buttons_panel_context_draw;
   pt->flag = PANEL_TYPE_NO_HEADER | PANEL_TYPE_NO_SEARCH;

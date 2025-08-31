@@ -6,7 +6,11 @@
  * \ingroup gpu
  */
 
+#include "DNA_userdef_types.h"
+
 #include "GPU_debug.hh"
+
+#include "gpu_capabilities_private.hh"
 
 #include "vk_backend.hh"
 #include "vk_context.hh"
@@ -28,6 +32,7 @@ VKContext::VKContext(void *ghost_window, void *ghost_context)
   ghost_context_ = ghost_context;
 
   state_manager = new VKStateManager();
+  imm = new VKImmediate();
 
   back_left = new VKFrameBuffer("back_left");
   front_left = new VKFrameBuffer("front_left");
@@ -43,9 +48,12 @@ VKContext::~VKContext()
     surface_texture_ = nullptr;
   }
   free_resources();
-  VKBackend::get().device.context_unregister(*this);
-
+  delete imm;
   imm = nullptr;
+  VKDevice &device = VKBackend::get().device;
+  device.context_unregister(*this);
+
+  this->process_frame_timings();
 }
 
 void VKContext::sync_backbuffer(bool cycle_resource_pool)
@@ -56,8 +64,6 @@ void VKContext::sync_backbuffer(bool cycle_resource_pool)
     VKThreadData &thread_data = thread_data_.value().get();
     if (cycle_resource_pool) {
       thread_data.resource_pool_next();
-      VKResourcePool &resource_pool = thread_data.resource_pool_get();
-      imm = &resource_pool.immediate;
     }
 
     const bool reset_framebuffer = swap_chain_format_.format !=
@@ -74,13 +80,16 @@ void VKContext::sync_backbuffer(bool cycle_resource_pool)
         GPU_texture_free(surface_texture_);
         surface_texture_ = nullptr;
       }
+      vk_extent_ = swap_chain_data.extent;
+      vk_extent_.width = max_uu(vk_extent_.width, 1u);
+      vk_extent_.height = max_uu(vk_extent_.height, 1u);
       surface_texture_ = GPU_texture_create_2d(
           "back-left",
-          swap_chain_data.extent.width,
-          swap_chain_data.extent.height,
+          vk_extent_.width,
+          vk_extent_.height,
           1,
           to_gpu_format(swap_chain_data.surface_format.format),
-          GPU_TEXTURE_USAGE_ATTACHMENT,
+          GPU_TEXTURE_USAGE_ATTACHMENT | GPU_TEXTURE_USAGE_SHADER_READ,
           nullptr);
 
       back_left->attachment_set(GPU_FB_COLOR_ATTACHMENT0,
@@ -91,7 +100,10 @@ void VKContext::sync_backbuffer(bool cycle_resource_pool)
       back_left->bind(false);
 
       swap_chain_format_ = swap_chain_data.surface_format;
-      vk_extent_ = swap_chain_data.extent;
+      GCaps.hdr_viewport_support = (swap_chain_format_.format == VK_FORMAT_R16G16B16A16_SFLOAT) &&
+                                   ELEM(swap_chain_format_.colorSpace,
+                                        VK_COLOR_SPACE_EXTENDED_SRGB_LINEAR_EXT,
+                                        VK_COLOR_SPACE_SRGB_NONLINEAR_KHR);
     }
   }
 }
@@ -108,12 +120,15 @@ void VKContext::activate()
   if (!render_graph_.has_value()) {
     render_graph_ = std::reference_wrapper<render_graph::VKRenderGraph>(
         *device.render_graph_new());
+    /* Recreate the debug group stack for the new graph.
+     * Note: there is no associated `debug_group_end` as the graph groups
+     * are implicitly closed on submission. */
     for (const StringRef &group : debug_stack) {
-      debug_group_begin(std::string(group).c_str(), 0);
+      std::string str_group = group;
+      render_graph_.value().get().debug_group_begin(str_group.c_str(),
+                                                    debug::get_debug_group_color(str_group));
     }
   }
-
-  imm = &thread_data.resource_pool_get().immediate;
 
   is_active_ = true;
 
@@ -126,7 +141,6 @@ void VKContext::deactivate()
 {
   flush_render_graph(RenderGraphFlushFlags(0));
   immDeactivate();
-  imm = nullptr;
   thread_data_.reset();
 
   is_active_ = false;
@@ -136,8 +150,7 @@ void VKContext::begin_frame() {}
 
 void VKContext::end_frame()
 {
-  VKDevice &device = VKBackend::get().device;
-  device.orphaned_data.destroy_discarded_resources(device);
+  this->process_frame_timings();
 }
 
 void VKContext::flush()
@@ -157,9 +170,8 @@ TimelineValue VKContext::flush_render_graph(RenderGraphFlushFlags flags,
       framebuffer.rendering_end(*this);
     }
   }
-  descriptor_set_get().upload_descriptor_sets();
-  descriptor_pools_get().discard(*this);
   VKDevice &device = VKBackend::get().device;
+  descriptor_set_get().upload_descriptor_sets();
   TimelineValue timeline = device.render_graph_submit(
       &render_graph_.value().get(),
       discard_pool,
@@ -173,19 +185,19 @@ TimelineValue VKContext::flush_render_graph(RenderGraphFlushFlags flags,
   if (bool(flags & RenderGraphFlushFlags::RENEW_RENDER_GRAPH)) {
     render_graph_ = std::reference_wrapper<render_graph::VKRenderGraph>(
         *device.render_graph_new());
+    /* Recreate the debug group stack for the new graph.
+     * Note: there is no associated `debug_group_end` as the graph groups
+     * are implicitly closed on submission. */
     for (const StringRef &group : debug_stack) {
-      debug_group_begin(std::string(group).c_str(), 0);
+      std::string str_group = group;
+      render_graph_.value().get().debug_group_begin(str_group.c_str(),
+                                                    debug::get_debug_group_color(str_group));
     }
   }
   return timeline;
 }
 
 void VKContext::finish() {}
-
-ShaderCompiler *VKContext::get_compiler()
-{
-  return &VKBackend::get().shader_compiler;
-}
 
 void VKContext::memory_statistics_get(int *r_total_mem_kb, int *r_free_mem_kb)
 {
@@ -199,7 +211,7 @@ void VKContext::memory_statistics_get(int *r_total_mem_kb, int *r_free_mem_kb)
 
 VKDescriptorPools &VKContext::descriptor_pools_get()
 {
-  return thread_data_.value().get().resource_pool_get().descriptor_pools;
+  return thread_data_.value().get().descriptor_pools;
 }
 
 VKDescriptorSetTracker &VKContext::descriptor_set_get()
@@ -281,16 +293,24 @@ void VKContext::update_pipeline_data(GPUPrimType primitive,
 {
   VKShader &vk_shader = unwrap(*shader);
   VKFrameBuffer &framebuffer = *active_framebuffer_get();
-  update_pipeline_data(
-      vk_shader,
-      vk_shader.ensure_and_get_graphics_pipeline(primitive, vao, state_manager_get(), framebuffer),
-      r_pipeline_data);
+
+  /* Override size of point shader when GPU_point size < 0 */
+  const float point_size = state_manager_get().mutable_state.point_size;
+  if (primitive == GPU_PRIM_POINTS && point_size < 0.0) {
+    GPU_shader_uniform_1f(shader, "size", -point_size);
+  }
+
+  update_pipeline_data(vk_shader,
+                       vk_shader.ensure_and_get_graphics_pipeline(
+                           primitive, vao, state_manager_get(), framebuffer, constants_state_),
+                       r_pipeline_data);
 }
 
 void VKContext::update_pipeline_data(render_graph::VKPipelineData &r_pipeline_data)
 {
   VKShader &vk_shader = unwrap(*shader);
-  update_pipeline_data(vk_shader, vk_shader.ensure_and_get_compute_pipeline(), r_pipeline_data);
+  update_pipeline_data(
+      vk_shader, vk_shader.ensure_and_get_compute_pipeline(constants_state_), r_pipeline_data);
 }
 
 void VKContext::update_pipeline_data(VKShader &vk_shader,
@@ -312,10 +332,11 @@ void VKContext::update_pipeline_data(VKShader &vk_shader,
 
   /* Update descriptor set. */
   r_pipeline_data.vk_descriptor_set = VK_NULL_HANDLE;
+  r_pipeline_data.descriptor_buffer_device_address = 0;
+  r_pipeline_data.descriptor_buffer_offset = 0;
   if (vk_shader.has_descriptor_set()) {
     VKDescriptorSetTracker &descriptor_set = descriptor_set_get();
-    descriptor_set.update_descriptor_set(*this, access_info_);
-    r_pipeline_data.vk_descriptor_set = descriptor_set.vk_descriptor_set;
+    descriptor_set.update_descriptor_set(*this, access_info_, r_pipeline_data);
   }
 }
 
@@ -347,51 +368,77 @@ void VKContext::swap_buffers_post_callback()
 
 void VKContext::swap_buffers_pre_handler(const GHOST_VulkanSwapChainData &swap_chain_data)
 {
-  GPU_debug_group_begin("BackBuffer.Blit");
+  const bool do_blit_to_swapchain = swap_chain_data.image != VK_NULL_HANDLE;
+  const bool use_shader = swap_chain_data.surface_format.colorSpace ==
+                          VK_COLOR_SPACE_EXTENDED_SRGB_LINEAR_EXT;
 
-  VKFrameBuffer &framebuffer = *unwrap(active_fb);
-  VKTexture *color_attachment = unwrap(unwrap(framebuffer.color_tex(0)));
+  /* When swapchain is invalid/minimized we only flush the render graph to free GPU resources. */
+  if (!do_blit_to_swapchain) {
+    flush_render_graph(RenderGraphFlushFlags::SUBMIT | RenderGraphFlushFlags::RENEW_RENDER_GRAPH);
+    return;
+  }
 
-  render_graph::VKBlitImageNode::CreateInfo blit_image = {};
-  blit_image.src_image = color_attachment->vk_image_handle();
-  blit_image.dst_image = swap_chain_data.image;
-  blit_image.filter = VK_FILTER_NEAREST;
-
-  VkImageBlit &region = blit_image.region;
-  region.srcOffsets[0] = {0, color_attachment->height_get(), 0};
-  region.srcOffsets[1] = {color_attachment->width_get(), 0, 1};
-  region.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-  region.srcSubresource.mipLevel = 0;
-  region.srcSubresource.baseArrayLayer = 0;
-  region.srcSubresource.layerCount = 1;
-
-  region.dstOffsets[0] = {0, 0, 0};
-  region.dstOffsets[1] = {
-      int32_t(swap_chain_data.extent.width), int32_t(swap_chain_data.extent.height), 1};
-  region.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-  region.dstSubresource.mipLevel = 0;
-  region.dstSubresource.baseArrayLayer = 0;
-  region.dstSubresource.layerCount = 1;
-
-  /* Swap chain commands are CPU synchronized at this moment, allowing to temporary add the swap
-   * chain image as device resources. When we move towards GPU swap chain synchronization we need
-   * to keep track of the swap chain image between frames. */
   VKDevice &device = VKBackend::get().device;
+  render_graph::VKRenderGraph &render_graph = this->render_graph();
+  VKFrameBuffer &framebuffer = *unwrap(active_fb);
+  framebuffer.rendering_end(*this);
+  VKTexture *color_attachment = unwrap(unwrap(framebuffer.color_tex(0)));
   device.resources.add_image(swap_chain_data.image, 1, "SwapchainImage");
 
-  framebuffer.rendering_end(*this);
-  flush_render_graph(RenderGraphFlushFlags::RENEW_RENDER_GRAPH);
+  GPU_debug_group_begin("BackBuffer.Blit");
+  if (use_shader) {
+    VKTexture swap_chain_texture("swap_chain_texture");
+    swap_chain_texture.init_swapchain(swap_chain_data.image,
+                                      to_gpu_format(swap_chain_data.surface_format.format));
+    Shader *shader = device.vk_backbuffer_blit_sh_get();
+    GPU_shader_bind(shader);
+    GPU_shader_uniform_1f(shader, "sdr_scale", swap_chain_data.sdr_scale);
+    /* See display_as_extended_srgb in libocio_display_processor.cc for details on this choice. */
+#if defined(_WIN32) || defined(__APPLE__)
+    GPU_shader_uniform_1b(shader, "use_gamma22", false);
+#else
+    GPU_shader_uniform_1b(shader, "use_gamma22", true);
+#endif
+    VKStateManager &state_manager = state_manager_get();
+    state_manager.image_bind(color_attachment, 0);
+    state_manager.image_bind(&swap_chain_texture, 1);
+    int2 dispatch_size = math::divide_ceil(
+        int2(swap_chain_data.extent.width, swap_chain_data.extent.height), int2(16));
+    VKBackend::get().compute_dispatch(UNPACK2(dispatch_size), 1);
+  }
+  else {
+    render_graph::VKBlitImageNode::CreateInfo blit_image = {};
+    blit_image.src_image = color_attachment->vk_image_handle();
+    blit_image.dst_image = swap_chain_data.image;
+    blit_image.filter = VK_FILTER_LINEAR;
 
-  render_graph::VKRenderGraph &render_graph = this->render_graph();
-  render_graph.add_node(blit_image);
-  GPU_debug_group_end();
+    VkImageBlit &region = blit_image.region;
+    region.srcOffsets[0] = {0, 0, 0};
+    region.srcOffsets[1] = {color_attachment->width_get(), color_attachment->height_get(), 1};
+    region.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    region.srcSubresource.mipLevel = 0;
+    region.srcSubresource.baseArrayLayer = 0;
+    region.srcSubresource.layerCount = 1;
+
+    region.dstOffsets[0] = {0, int32_t(swap_chain_data.extent.height), 0};
+    region.dstOffsets[1] = {int32_t(swap_chain_data.extent.width), 0, 1};
+    region.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    region.dstSubresource.mipLevel = 0;
+    region.dstSubresource.baseArrayLayer = 0;
+    region.dstSubresource.layerCount = 1;
+
+    render_graph.add_node(blit_image);
+  }
+
   render_graph::VKSynchronizationNode::CreateInfo synchronization = {};
   synchronization.vk_image = swap_chain_data.image;
   synchronization.vk_image_layout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
   synchronization.vk_image_aspect = VK_IMAGE_ASPECT_COLOR_BIT;
   render_graph.add_node(synchronization);
+  GPU_debug_group_end();
+
   flush_render_graph(RenderGraphFlushFlags::SUBMIT | RenderGraphFlushFlags::RENEW_RENDER_GRAPH,
-                     VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_TRANSFER_BIT,
+                     VK_PIPELINE_STAGE_TRANSFER_BIT,
                      swap_chain_data.acquire_semaphore,
                      swap_chain_data.present_semaphore,
                      swap_chain_data.submission_fence);
@@ -405,6 +452,13 @@ void VKContext::swap_buffers_pre_handler(const GHOST_VulkanSwapChainData &swap_c
 void VKContext::swap_buffers_post_handler()
 {
   sync_backbuffer(true);
+}
+
+void VKContext::specialization_constants_set(
+    const shader::SpecializationConstants *constants_state)
+{
+  constants_state_ = (constants_state != nullptr) ? *constants_state :
+                                                    shader::SpecializationConstants{};
 }
 
 /** \} */
@@ -435,9 +489,9 @@ void VKContext::openxr_acquire_framebuffer_image_handler(GHOST_VulkanOpenXRData 
   openxr_data.extent.height = color_attachment->height_get();
 
   /* Determine the data format for data transfer. */
-  const eGPUTextureFormat device_format = color_attachment->device_format_get();
+  const TextureFormat device_format = color_attachment->device_format_get();
   eGPUDataFormat data_format = GPU_DATA_HALF_FLOAT;
-  if (ELEM(device_format, GPU_RGBA8)) {
+  if (ELEM(device_format, TextureFormat::UNORM_8_8_8_8)) {
     data_format = GPU_DATA_UBYTE;
   }
 
@@ -450,12 +504,16 @@ void VKContext::openxr_acquire_framebuffer_image_handler(GHOST_VulkanOpenXRData 
       flush_render_graph(RenderGraphFlushFlags::SUBMIT |
                          RenderGraphFlushFlags::WAIT_FOR_COMPLETION |
                          RenderGraphFlushFlags::RENEW_RENDER_GRAPH);
-      VKMemoryExport exported_memory = color_attachment->export_memory(
-          VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT);
-      openxr_data.gpu.image_handle = exported_memory.handle;
-      openxr_data.gpu.image_format = to_vk_format(color_attachment->device_format_get());
-      openxr_data.gpu.memory_size = exported_memory.memory_size;
-      openxr_data.gpu.memory_offset = exported_memory.memory_offset;
+      if (openxr_data.gpu.vk_image_blender != color_attachment->vk_image_handle()) {
+        VKMemoryExport exported_memory = color_attachment->export_memory(
+            VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT);
+        openxr_data.gpu.image_handle = exported_memory.handle;
+        openxr_data.gpu.new_handle = true;
+        openxr_data.gpu.image_format = to_vk_format(color_attachment->device_format_get());
+        openxr_data.gpu.memory_size = exported_memory.memory_size;
+        openxr_data.gpu.memory_offset = exported_memory.memory_offset;
+        openxr_data.gpu.vk_image_blender = color_attachment->vk_image_handle();
+      }
       break;
     }
 
@@ -463,12 +521,16 @@ void VKContext::openxr_acquire_framebuffer_image_handler(GHOST_VulkanOpenXRData 
       flush_render_graph(RenderGraphFlushFlags::SUBMIT |
                          RenderGraphFlushFlags::WAIT_FOR_COMPLETION |
                          RenderGraphFlushFlags::RENEW_RENDER_GRAPH);
-      VKMemoryExport exported_memory = color_attachment->export_memory(
-          VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT);
-      openxr_data.gpu.image_handle = exported_memory.handle;
-      openxr_data.gpu.image_format = to_vk_format(color_attachment->device_format_get());
-      openxr_data.gpu.memory_size = exported_memory.memory_size;
-      openxr_data.gpu.memory_offset = exported_memory.memory_offset;
+      if (openxr_data.gpu.vk_image_blender != color_attachment->vk_image_handle()) {
+        VKMemoryExport exported_memory = color_attachment->export_memory(
+            VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT);
+        openxr_data.gpu.image_handle = exported_memory.handle;
+        openxr_data.gpu.new_handle = true;
+        openxr_data.gpu.image_format = to_vk_format(color_attachment->device_format_get());
+        openxr_data.gpu.memory_size = exported_memory.memory_size;
+        openxr_data.gpu.memory_offset = exported_memory.memory_offset;
+        openxr_data.gpu.vk_image_blender = color_attachment->vk_image_handle();
+      }
       break;
     }
   }
@@ -491,9 +553,11 @@ void VKContext::openxr_release_framebuffer_image_handler(GHOST_VulkanOpenXRData 
 
     case GHOST_kVulkanXRModeWin32:
 #ifdef _WIN32
-      /* Exported handle isn't consumed during import and should be freed after use. */
-      CloseHandle(HANDLE(openxr_data.gpu.image_handle));
-      openxr_data.gpu.image_handle = 0;
+      if (openxr_data.gpu.new_handle) {
+        /* Exported handle isn't consumed during import and should be freed after use. */
+        CloseHandle(HANDLE(openxr_data.gpu.image_handle));
+        openxr_data.gpu.image_handle = 0;
+      }
 #endif
       break;
   }

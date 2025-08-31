@@ -15,6 +15,8 @@
 #include "kernel/integrator/shade_shadow.h"
 #include "kernel/integrator/shade_volume.h"
 
+#include "kernel/device/gpu/work_stealing.h"
+
 extern "C" __global__ void __raygen__kernel_optix_integrator_shade_background()
 {
   const int global_index = optixGetLaunchIndex().x;
@@ -91,4 +93,12 @@ extern "C" __global__ void __raygen__kernel_optix_shader_eval_curve_shadow_trans
   float *const output = kernel_params.render_buffer;
   const int global_index = kernel_params.offset + optixGetLaunchIndex().x;
   kernel_curve_shadow_transparency_evaluate(nullptr, input, output, global_index);
+}
+
+extern "C" __global__ void __raygen__kernel_optix_shader_eval_volume_density()
+{
+  KernelShaderEvalInput *const input = (KernelShaderEvalInput *)kernel_params.path_index_array;
+  float *const output = kernel_params.render_buffer;
+  const int global_index = kernel_params.offset + optixGetLaunchIndex().x;
+  kernel_volume_density_evaluate(nullptr, input, output, global_index);
 }

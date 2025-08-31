@@ -33,79 +33,6 @@ float2 calc_barycentric_co(int vertid)
   return bary;
 }
 
-#ifdef HAIR_SHADER
-
-/* Hairs uv and col attributes are passed by bufferTextures. */
-#  define DEFINE_ATTR(type, attr) uniform samplerBuffer attr
-#  define GET_ATTR(type, attr) hair_get_customdata_##type(attr)
-
-#  define barycentric_get() hair_get_barycentric()
-#  define barycentric_resolve(bary) hair_resolve_barycentric(bary)
-
-float3 orco_get(float3 local_pos,
-                float4x4 modelmatinv,
-                float4 orco_madd[2],
-                const samplerBuffer orco_samp)
-{
-  /* TODO: fix ORCO with modifiers. */
-  float3 orco = (modelmatinv * float4(local_pos, 1.0f)).xyz;
-  return orco_madd[0].xyz + orco * orco_madd[1].xyz;
-}
-
-float hair_len_get(int id, const samplerBuffer len)
-{
-  return texelFetch(len, id).x;
-}
-
-float4 tangent_get(const samplerBuffer attr, float3x3 normalmat)
-{
-  /* Unsupported */
-  return float4(0.0f);
-}
-
-#else /* MESH_SHADER */
-
-#  define DEFINE_ATTR(type, attr) in type attr
-#  define GET_ATTR(type, attr) attr
-
-/* Calculated in geom shader later with calc_barycentric_co. */
-#  define barycentric_get() float2(0)
-#  define barycentric_resolve(bary) bary
-
-float3 orco_get(float3 local_pos, float4x4 modelmatinv, float4 orco_madd[2], float4 orco)
-{
-  /* If the object does not have any deformation, the orco layer calculation is done on the fly
-   * using the orco_madd factors.
-   * We know when there is no orco layer when orco.w is 1.0 because it uses the generic vertex
-   * attribute (which is [0,0,0,1]). */
-  if (orco.w == 0.0f) {
-    return orco.xyz * 0.5f + 0.5f;
-  }
-  else {
-    return orco_madd[0].xyz + local_pos * orco_madd[1].xyz;
-  }
-}
-
-float hair_len_get(int id, const float len)
-{
-  return len;
-}
-
-float4 tangent_get(float4 attr, float3x3 normalmat)
-{
-  float4 tangent;
-  tangent.xyz = normalmat * attr.xyz;
-  tangent.w = attr.w;
-  float len_sqr = dot(tangent.xyz, tangent.xyz);
-  /* Normalize only if vector is not null. */
-  if (len_sqr > 0.0f) {
-    tangent.xyz *= inversesqrt(len_sqr);
-  }
-  return tangent;
-}
-
-#endif
-
 /* Assumes GPU_VEC4 is color data, special case that needs luminance coefficients from OCIO. */
 #define float_from_vec4(v, luminance_coefficients) dot(v.rgb, luminance_coefficients)
 #define float_from_vec3(v) ((v.r + v.g + v.b) * (1.0f / 3.0f))
@@ -136,30 +63,31 @@ float4 tangent_get(float4 attr, float3x3 normalmat)
 #endif
 
 /* Can't use enum here because not a header file. But would be great to do. */
-#ifdef GPU_METAL
-using ClosureType = uchar;
-#else
-#  define ClosureType uint
-#endif
-#define CLOSURE_NONE_ID 0u
-/* Diffuse */
-#define CLOSURE_BSDF_DIFFUSE_ID 1u
-#define CLOSURE_BSDF_OREN_NAYAR_ID 2u   /* TODO */
-#define CLOSURE_BSDF_SHEEN_ID 4u        /* TODO */
-#define CLOSURE_BSDF_DIFFUSE_TOON_ID 5u /* TODO */
-#define CLOSURE_BSDF_TRANSLUCENT_ID 6u
-/* Glossy */
-#define CLOSURE_BSDF_MICROFACET_GGX_REFLECTION_ID 7u
-#define CLOSURE_BSDF_ASHIKHMIN_SHIRLEY_ID 8u /* TODO */
-#define CLOSURE_BSDF_ASHIKHMIN_VELVET_ID 9u  /* TODO */
-#define CLOSURE_BSDF_GLOSSY_TOON_ID 10u      /* TODO */
-#define CLOSURE_BSDF_HAIR_REFLECTION_ID 11u  /* TODO */
-/* Transmission */
-#define CLOSURE_BSDF_MICROFACET_GGX_REFRACTION_ID 12u
-/* Glass */
-#define CLOSURE_BSDF_HAIR_HUANG_ID 13u /* TODO */
-/* BSSRDF */
-#define CLOSURE_BSSRDF_BURLEY_ID 14u
+enum ClosureType : uchar {
+  CLOSURE_NONE_ID = 0u,
+  /* Diffuse */
+  CLOSURE_BSDF_DIFFUSE_ID = 1u,
+  // CLOSURE_BSDF_OREN_NAYAR_ID = 2u,   /* TODO */
+  // CLOSURE_BSDF_SHEEN_ID = 4u,        /* TODO */
+  // CLOSURE_BSDF_DIFFUSE_TOON_ID = 5u, /* TODO */
+  CLOSURE_BSDF_TRANSLUCENT_ID = 6u,
+
+  /* Glossy */
+  CLOSURE_BSDF_MICROFACET_GGX_REFLECTION_ID = 7u,
+  // CLOSURE_BSDF_ASHIKHMIN_SHIRLEY_ID = 8u, /* TODO */
+  // CLOSURE_BSDF_ASHIKHMIN_VELVET_ID = 9u,  /* TODO */
+  // CLOSURE_BSDF_GLOSSY_TOON_ID = 10u,      /* TODO */
+  // CLOSURE_BSDF_HAIR_REFLECTION_ID = 11u,  /* TODO */
+
+  /* Transmission */
+  CLOSURE_BSDF_MICROFACET_GGX_REFRACTION_ID = 12u,
+
+  /* Glass */
+  // CLOSURE_BSDF_HAIR_HUANG_ID = 13u, /* TODO */
+
+  /* BSSRDF */
+  CLOSURE_BSSRDF_BURLEY_ID = 14u,
+};
 
 struct ClosureUndetermined {
   packed_float3 color;
@@ -303,12 +231,8 @@ struct GlobalData {
   /** Barycentric coordinates. */
   packed_float2 barycentric_coords;
   packed_float3 barycentric_dists;
-  /** Hair time along hair length. 0 at base 1 at tip. */
-  float hair_time;
-  /** Hair time along width of the hair. */
-  float hair_time_width;
   /** Hair thickness in world space. */
-  float hair_thickness;
+  float hair_diameter;
   /** Index of the strand for per strand effects. */
   int hair_strand_id;
   /** Ray properties (approximation). */
@@ -339,8 +263,8 @@ void dF_branch(float fn, out float2 result)
 {
   /* NOTE: this function is currently unused, once it is used we need to check if
    * `g_derivative_filter_width` needs to be applied. */
-  result.x = dFdx(fn);
-  result.y = dFdy(fn);
+  result.x = gpu_dfdx(fn) * derivative_scale_get();
+  result.y = gpu_dfdy(fn) * derivative_scale_get();
 }
 
 #else
@@ -353,10 +277,10 @@ int g_derivative_flag = 0;
 float3 dF_impl(float3 v)
 {
   if (g_derivative_flag > 0) {
-    return dFdx(v) * g_derivative_filter_width;
+    return gpu_dfdx(v) * g_derivative_filter_width;
   }
   else if (g_derivative_flag < 0) {
-    return dFdy(v) * g_derivative_filter_width;
+    return gpu_dfdy(v) * g_derivative_filter_width;
   }
   return float3(0.0f);
 }

@@ -13,7 +13,7 @@
 
 #include "RNA_access.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 namespace blender::nodes::node_shader_uvmap_cc {
@@ -25,7 +25,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_shader_buts_uvmap(uiLayout *layout, bContext *C, PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "from_instancer", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+  layout->prop(ptr, "from_instancer", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
 
   if (!RNA_boolean_get(ptr, "from_instancer")) {
     PointerRNA obptr = CTX_data_pointer_get(C, "active_object");
@@ -35,14 +35,14 @@ static void node_shader_buts_uvmap(uiLayout *layout, bContext *C, PointerRNA *pt
       Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
 
       if (depsgraph) {
-        Object *object_eval = DEG_get_evaluated_object(depsgraph, object);
+        Object *object_eval = DEG_get_evaluated(depsgraph, object);
         PointerRNA dataptr = RNA_id_pointer_create(static_cast<ID *>(object_eval->data));
-        uiItemPointerR(layout, ptr, "uv_map", &dataptr, "uv_layers", "", ICON_GROUP_UVS);
+        layout->prop_search(ptr, "uv_map", &dataptr, "uv_layers", "", ICON_GROUP_UVS);
         return;
       }
     }
 
-    uiItemR(layout, ptr, "uv_map", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_GROUP_UVS);
+    layout->prop(ptr, "uv_map", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_GROUP_UVS);
   }
 }
 

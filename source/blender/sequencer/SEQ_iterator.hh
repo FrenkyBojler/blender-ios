@@ -8,6 +8,7 @@
  * \ingroup sequencer
  */
 
+#include "BLI_function_ref.hh"
 #include "BLI_vector_set.hh"
 
 struct ListBase;
@@ -23,7 +24,7 @@ using ForEachFunc = bool (*)(Strip *strip, void *user_data);
 
 /**
  * Utility function to recursively iterate through all sequence strips in a `seqbase` list.
- * Uses callback to do operations on each sequence element.
+ * Uses callback to do operations on each element.
  * The callback can stop the iteration if needed.
  *
  * \param seqbase: #ListBase of sequences to be iterated over.
@@ -31,6 +32,9 @@ using ForEachFunc = bool (*)(Strip *strip, void *user_data);
  * \param user_data: pointer to user data that can be used in the callback function.
  */
 void for_each_callback(ListBase *seqbase, ForEachFunc callback, void *user_data);
+
+/** Same as above, but using a more modern FunctionRef as callback. */
+void for_each_callback(ListBase *seqbase, blender::FunctionRef<bool(Strip *)> callback);
 
 /**
  * Expand set by running `strip_query_func()` for each strip, which will be used as reference.
@@ -91,6 +95,17 @@ blender::VectorSet<Strip *> query_all_strips(ListBase *seqbase);
  * \return set of strips
  */
 blender::VectorSet<Strip *> query_all_strips_recursive(const ListBase *seqbase);
+
+/**
+ * Query strips at \a timeline_frame in seqbase and nested meta strips.
+ *
+ * \param seqbase: ListBase in which strips are queried
+ * \param timeline_frame: viewed frame
+ * \return set of strips
+ */
+blender::VectorSet<Strip *> query_strips_recursive_at_frame(const Scene *scene,
+                                                            const ListBase *seqbase,
+                                                            int timeline_frame);
 
 /**
  * Query all effect strips that are directly or indirectly connected to strip_reference.

@@ -193,8 +193,15 @@ Mesh *BKE_mesh_new_from_object_to_bmain(Main *bmain,
 /**
  * Move data from a mesh outside of the main data-base into a mesh in the data-base.
  * Takes ownership of the source mesh.
+ *
+ * \param process_shape_keys: Whether to move #CD_SHAPEKEY layers to the destination mesh. If there
+ * are no such layers and the number of vertices changed, the shape key data will be lost. If this
+ * parameter is false, the caller is expected to handle shape keys itself.
  */
-void BKE_mesh_nomain_to_mesh(Mesh *mesh_src, Mesh *mesh_dst, Object *ob);
+void BKE_mesh_nomain_to_mesh(Mesh *mesh_src,
+                             Mesh *mesh_dst,
+                             Object *ob,
+                             bool process_shape_keys = true);
 void BKE_mesh_nomain_to_meshkey(Mesh *mesh_src, Mesh *mesh_dst, KeyBlock *kb);
 
 /* Vertex level transformations & checks (no evaluated mesh). */
@@ -256,10 +263,11 @@ struct MLoopNorSpace {
    * aligned).
    */
   float ref_beta;
-  /** All loops using this lnor space (i.e. smooth fan of loops),
+  /**
+   * All loops using this lnor space (i.e. smooth fan of loops),
    * as (depending on owning MLoopNorSpaceArrary.data_type):
-   *     - Indices (uint_in_ptr), or
-   *     - BMLoop pointers. */
+   * - Indices (uint_in_ptr), or
+   * - BMLoop pointers. */
   struct LinkNode *loops;
   char flags;
 };

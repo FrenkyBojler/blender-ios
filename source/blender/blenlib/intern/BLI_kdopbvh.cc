@@ -49,10 +49,8 @@
 
 #define MAX_TREETYPE 32
 
-/* Setting zero so we can catch bugs in BLI_task/KDOPBVH.
- * TODO(sergey): Deduplicate the limits with #blender::bke::pbvh::Tree from BKE.
- */
 #ifndef NDEBUG
+/* Setting zero so we can catch bugs in BLI_task/KDOPBVH. */
 #  define KDOPBVH_THREAD_LEAF_THRESHOLD 0
 #else
 #  define KDOPBVH_THREAD_LEAF_THRESHOLD 1024
@@ -485,14 +483,13 @@ static void bvhtree_info(BVHTree *tree)
          tree->branch_num + tree->leaf_num,
          tree->branch_num,
          tree->leaf_num);
-  printf(
-      "Memory per node = %ubytes\n",
-      (uint)(sizeof(BVHNode) + sizeof(BVHNode *) * tree->tree_type + sizeof(float) * tree->axis));
-  printf("BV memory = %ubytes\n", (uint)MEM_allocN_len(tree->nodebv));
+  printf("Memory per node = %ubytes\n",
+         uint(sizeof(BVHNode) + sizeof(BVHNode *) * tree->tree_type + sizeof(float) * tree->axis));
+  printf("BV memory = %ubytes\n", uint(MEM_allocN_len(tree->nodebv)));
 
   printf("Total memory = %ubytes\n",
-         (uint)(sizeof(BVHTree) + MEM_allocN_len(tree->nodes) + MEM_allocN_len(tree->nodearray) +
-                MEM_allocN_len(tree->nodechild) + MEM_allocN_len(tree->nodebv)));
+         uint(sizeof(BVHTree) + MEM_allocN_len(tree->nodes) + MEM_allocN_len(tree->nodearray) +
+              MEM_allocN_len(tree->nodechild) + MEM_allocN_len(tree->nodebv)));
 
   bvhtree_print_tree(tree, tree->nodes[tree->leaf_num], 0);
 }

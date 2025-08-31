@@ -214,13 +214,12 @@ typedef struct ColorManagedDisplaySettings {
 } ColorManagedDisplaySettings;
 
 typedef struct ColorManagedColorspaceSettings {
-  /** MAX_COLORSPACE_NAME. */
-  char name[64];
+  char name[/*MAX_COLORSPACE_NAME*/ 64];
 } ColorManagedColorspaceSettings;
 
 /** #ColorManagedViewSettings.flag */
 enum {
   COLORMANAGE_VIEW_USE_CURVES = (1 << 0),
-  COLORMANAGE_VIEW_USE_HDR = (1 << 1),
+  COLORMANAGE_VIEW_USE_DEPRECATED = (1 << 1),
   COLORMANAGE_VIEW_USE_WHITE_BALANCE = (1 << 2),
 };

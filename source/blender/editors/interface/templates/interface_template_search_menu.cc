@@ -25,6 +25,7 @@
 #include "BLI_set.hh"
 #include "BLI_stack.hh"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 #include "BLT_translation.hh"
@@ -41,7 +42,7 @@
 #include "WM_api.hh"
 #include "WM_types.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_string_search.hh"
 #include "interface_intern.hh"
 
@@ -93,7 +94,7 @@ struct MenuSearch_Item {
   struct OperatorData {
     wmOperatorType *type;
     PointerRNA *opptr;
-    wmOperatorCallContext opcontext;
+    blender::wm::OpCallContext opcontext;
     const bContextStore *context;
     ~OperatorData()
     {
@@ -376,14 +377,14 @@ static void menu_items_from_all_operators(bContext *C, MenuSearch_Data *data)
       item.data = MenuSearch_Item::OperatorData();
       auto &op_data = std::get<MenuSearch_Item::OperatorData>(item.data);
       op_data.type = ot;
-      op_data.opcontext = WM_OP_INVOKE_DEFAULT;
+      op_data.opcontext = blender::wm::OpCallContext::InvokeDefault;
       op_data.context = nullptr;
 
       char idname_as_py[OP_MAX_TYPENAME];
       char uiname[256];
       WM_operator_py_idname(idname_as_py, ot->idname);
 
-      SNPRINTF(uiname, "%s " UI_MENU_ARROW_SEP "%s", idname_as_py, ot_ui_name);
+      SNPRINTF_UTF8(uiname, "%s " UI_MENU_ARROW_SEP " %s", idname_as_py, ot_ui_name);
 
       item.drawwstr_full = scope.allocator().copy_string(uiname);
       item.drawstr = ot_ui_name;
@@ -414,6 +415,15 @@ static MenuSearch_Data *menu_items_from_ui_create(bContext *C,
 {
   blender::Map<MenuType *, const char *> menu_display_name_map;
   const uiStyle *style = UI_style_get_dpi();
+
+  const bContextStore *old_context_store = CTX_store_get(C);
+  BLI_SCOPED_DEFER([&]() { CTX_store_set(C, old_context_store); });
+  bContextStore context_store;
+  if (old_context_store) {
+    context_store = *old_context_store;
+  }
+  context_store.entries.append({"is_menu_search", true});
+  CTX_store_set(C, &context_store);
 
   /* Convert into non-ui structure. */
   MenuSearch_Data *data = MEM_new<MenuSearch_Data>(__func__);
@@ -656,16 +666,23 @@ static MenuSearch_Data *menu_items_from_ui_create(bContext *C,
       }
 
       uiBlock *block = UI_block_begin(C, region, __func__, blender::ui::EmbossType::Emboss);
-      uiLayout *layout = UI_block_layout(
-          block, UI_LAYOUT_VERTICAL, UI_LAYOUT_MENU, 0, 0, 200, 0, UI_MENU_PADDING, style);
+      uiLayout &layout = blender::ui::block_layout(block,
+                                                   blender::ui::LayoutDirection::Vertical,
+                                                   blender::ui::LayoutType::Menu,
+                                                   0,
+                                                   0,
+                                                   200,
+                                                   0,
+                                                   UI_MENU_PADDING,
+                                                   style);
 
       UI_block_flag_enable(block, UI_BLOCK_SHOW_SHORTCUT_ALWAYS);
 
       if (current_menu.context.has_value()) {
-        uiLayoutContextCopy(layout, &*current_menu.context);
+        layout.context_copy(&*current_menu.context);
       }
-      uiLayoutSetOperatorContext(layout, WM_OP_INVOKE_REGION_WIN);
-      UI_menutype_draw(C, mt, layout);
+      layout.operator_context_set(blender::wm::OpCallContext::InvokeRegionWin);
+      UI_menutype_draw(C, mt, &layout);
 
       UI_block_end(C, block);
 
@@ -674,11 +691,11 @@ static MenuSearch_Data *menu_items_from_ui_create(bContext *C,
         MenuType *mt_from_but = nullptr;
         /* Support menu titles with dynamic from initial labels
          * (used by edit-mesh context menu). */
-        if (but->type == UI_BTYPE_LABEL) {
+        if (but->type == ButType::Label) {
 
           /* Check if the label is the title. */
           const std::unique_ptr<uiBut> *but_test = block->buttons.begin() + i - 1;
-          while (but_test >= block->buttons.begin() && (*but_test)->type == UI_BTYPE_SEPR) {
+          while (but_test >= block->buttons.begin() && (*but_test)->type == ButType::Sepr) {
             but_test--;
           }
 
@@ -710,7 +727,7 @@ static MenuSearch_Data *menu_items_from_ui_create(bContext *C,
             bool drawstr_is_empty = false;
             if (drawstr_sep != nullptr) {
               BLI_assert(str_buf.size() == 0);
-              /* Detect empty string, fallback to menu name. */
+              /* Detect empty string, fall back to menu name. */
               const char *drawstr = but->drawstr.c_str();
               int drawstr_len = drawstr_sep - but->drawstr.c_str();
               if (UNLIKELY(drawstr_len == 0)) {
@@ -756,12 +773,19 @@ static MenuSearch_Data *menu_items_from_ui_create(bContext *C,
           /* +1 to avoid overlap with the current 'block'. */
           uiBlock *sub_block = UI_block_begin(
               C, region, __func__ + 1, blender::ui::EmbossType::Emboss);
-          uiLayout *sub_layout = UI_block_layout(
-              sub_block, UI_LAYOUT_VERTICAL, UI_LAYOUT_MENU, 0, 0, 200, 0, UI_MENU_PADDING, style);
+          uiLayout &sub_layout = blender::ui::block_layout(sub_block,
+                                                           blender::ui::LayoutDirection::Vertical,
+                                                           blender::ui::LayoutType::Menu,
+                                                           0,
+                                                           0,
+                                                           200,
+                                                           0,
+                                                           UI_MENU_PADDING,
+                                                           style);
 
           UI_block_flag_enable(sub_block, UI_BLOCK_SHOW_SHORTCUT_ALWAYS);
 
-          uiLayoutSetOperatorContext(sub_layout, WM_OP_INVOKE_REGION_WIN);
+          sub_layout.operator_context_set(blender::wm::OpCallContext::InvokeRegionWin);
 
           /* If this is a panel, check it's poll function succeeds before drawing.
            * otherwise draw(..) may be called in an unsupported context and crash, see: #130744.
@@ -777,7 +801,7 @@ static MenuSearch_Data *menu_items_from_ui_create(bContext *C,
           }
 
           if (poll_success) {
-            but->menu_create_func(C, sub_layout, but->poin);
+            but->menu_create_func(C, &sub_layout, but->poin);
           }
 
           UI_block_end(C, sub_block);
@@ -878,7 +902,7 @@ static MenuSearch_Data *menu_items_from_ui_create(bContext *C,
     CTX_wm_region_set(C, region_init);
 
     if (space_type_ui_items_free) {
-      MEM_freeN((void *)space_type_ui_items);
+      MEM_freeN(space_type_ui_items);
     }
   }
 
@@ -1127,8 +1151,8 @@ void uiTemplateMenuSearch(uiLayout *layout)
   uiBut *but;
   static char search[256] = "";
 
-  block = uiLayoutGetBlock(layout);
-  UI_block_layout_set_current(block, layout);
+  block = layout->block();
+  blender::ui::block_layout_set_current(block, layout);
 
   but = uiDefSearchBut(
       block, search, 0, ICON_VIEWZOOM, sizeof(search), 0, 0, UI_UNIT_X * 6, UI_UNIT_Y, "");

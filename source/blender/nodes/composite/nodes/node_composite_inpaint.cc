@@ -11,7 +11,6 @@
 #include "BLI_math_vector.hh"
 #include "BLI_math_vector_types.hh"
 
-#include "UI_interface.hh"
 #include "UI_resources.hh"
 
 #include "COM_algorithm_jump_flooding.hh"
@@ -29,14 +28,11 @@ static void cmp_node_inpaint_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Color>("Image")
       .default_value({1.0f, 1.0f, 1.0f, 1.0f})
-      .compositor_domain_priority(0);
-  b.add_input<decl::Int>("Size")
-      .default_value(0)
-      .min(0)
-      .description("The size of the inpaint in pixels")
-      .compositor_expects_single_value();
+      .structure_type(StructureType::Dynamic);
+  b.add_input<decl::Int>("Size").default_value(0).min(0).description(
+      "The size of the inpaint in pixels");
 
-  b.add_output<decl::Color>("Image");
+  b.add_output<decl::Color>("Image").structure_type(StructureType::Dynamic);
 }
 
 using namespace blender::compositor;
@@ -62,9 +58,8 @@ class InpaintOperation : public NodeOperation {
     inpainting_boundary.release();
 
     Result filled_region = context().create_result(ResultType::Color);
-    Result distance_to_boundary = context().create_result(ResultType::Float,
-                                                          ResultPrecision::Half);
-    Result smoothing_radius = context().create_result(ResultType::Float, ResultPrecision::Half);
+    Result distance_to_boundary = context().create_result(ResultType::Float);
+    Result smoothing_radius = context().create_result(ResultType::Float);
     fill_inpainting_region(
         flooded_boundary, filled_region, distance_to_boundary, smoothing_radius);
     flooded_boundary.release();
@@ -94,8 +89,8 @@ class InpaintOperation : public NodeOperation {
 
   Result compute_inpainting_boundary_gpu()
   {
-    GPUShader *shader = context().get_shader("compositor_inpaint_compute_boundary",
-                                             ResultPrecision::Half);
+    gpu::Shader *shader = context().get_shader("compositor_inpaint_compute_boundary",
+                                               ResultPrecision::Half);
     GPU_shader_bind(shader);
 
     const Result &input = get_input("Image");
@@ -183,7 +178,7 @@ class InpaintOperation : public NodeOperation {
                                   Result &distance_to_boundary,
                                   Result &smoothing_radius)
   {
-    GPUShader *shader = context().get_shader("compositor_inpaint_fill_region");
+    gpu::Shader *shader = context().get_shader("compositor_inpaint_fill_region");
     GPU_shader_bind(shader);
 
     GPU_shader_uniform_1i(shader, "max_distance", get_max_distance());
@@ -282,7 +277,7 @@ class InpaintOperation : public NodeOperation {
   void compute_inpainting_region_gpu(const Result &inpainted_region,
                                      const Result &distance_to_boundary)
   {
-    GPUShader *shader = context().get_shader("compositor_inpaint_compute_region");
+    gpu::Shader *shader = context().get_shader("compositor_inpaint_compute_region");
     GPU_shader_bind(shader);
 
     GPU_shader_uniform_1i(shader, "max_distance", get_max_distance());
@@ -357,7 +352,7 @@ static NodeOperation *get_compositor_operation(Context &context, DNode node)
 
 }  // namespace blender::nodes::node_composite_inpaint_cc
 
-void register_node_type_cmp_inpaint()
+static void register_node_type_cmp_inpaint()
 {
   namespace file_ns = blender::nodes::node_composite_inpaint_cc;
 
@@ -373,3 +368,4 @@ void register_node_type_cmp_inpaint()
 
   blender::bke::node_register_type(ntype);
 }
+NOD_REGISTER_NODE(register_node_type_cmp_inpaint)

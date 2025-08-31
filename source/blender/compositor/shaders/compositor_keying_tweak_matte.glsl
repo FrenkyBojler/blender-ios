@@ -15,10 +15,11 @@ void main()
    * or tweak the levels of the matte. */
   bool is_edge = false;
 #if defined(COMPUTE_EDGES)
-  if (true) {
+  bool compute_edges = true;
 #else
-  if (black_level != 0.0f || white_level != 1.0f) {
+  bool compute_edges = black_level != 0.0f || white_level != 1.0f;
 #endif
+  if (compute_edges) {
     /* Count the number of neighbors whose matte is sufficiently similar to the current matte,
      * as controlled by the edge_tolerance factor. */
     int count = 0;
@@ -46,16 +47,12 @@ void main()
 
   /* Exclude unwanted areas using the provided garbage matte, 1 means unwanted, so invert the
    * garbage matte and take the minimum. */
-  if (apply_garbage_matte) {
-    float garbage_matte = texture_load(garbage_matte_tx, texel).x;
-    tweaked_matte = min(tweaked_matte, 1.0f - garbage_matte);
-  }
+  float garbage_matte = texture_load(garbage_matte_tx, texel).x;
+  tweaked_matte = min(tweaked_matte, 1.0f - garbage_matte);
 
   /* Include wanted areas that were incorrectly keyed using the provided core matte. */
-  if (apply_core_matte) {
-    float core_matte = texture_load(core_matte_tx, texel).x;
-    tweaked_matte = max(tweaked_matte, core_matte);
-  }
+  float core_matte = texture_load(core_matte_tx, texel).x;
+  tweaked_matte = max(tweaked_matte, core_matte);
 
   imageStore(output_matte_img, texel, float4(tweaked_matte));
 #if defined(COMPUTE_EDGES)

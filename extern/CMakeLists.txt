@@ -7,7 +7,7 @@ add_subdirectory(curve_fit_nd)
 add_subdirectory(fmtlib)
 if(WITH_IO_FBX)
   add_subdirectory(ufbx)
-endif()  
+endif()
 
 # Otherwise we get warnings here that we cant fix in external projects
 remove_strict_flags()
@@ -86,7 +86,7 @@ if(WITH_LIBMV)
   add_subdirectory(ceres)
 endif()
 
-if(WITH_LIBMV OR WITH_GTESTS OR (WITH_CYCLES AND WITH_CYCLES_LOGGING))
+if(WITH_LIBMV OR WITH_GTESTS)
   if(NOT WITH_SYSTEM_GFLAGS)
     add_subdirectory(gflags)
   endif()

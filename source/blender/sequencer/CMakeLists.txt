@@ -27,6 +27,7 @@ set(SRC
   SEQ_modifier.hh
   SEQ_offscreen.hh
   SEQ_prefetch.hh
+  SEQ_preview_cache.hh
   SEQ_proxy.hh
   SEQ_relations.hh
   SEQ_render.hh
@@ -40,9 +41,15 @@ set(SRC
   SEQ_utils.hh
 
   intern/animation.cc
+  intern/cache/final_image_cache.cc
+  intern/cache/final_image_cache.hh
+  intern/cache/intra_frame_cache.cc
+  intern/cache/intra_frame_cache.hh
+  intern/cache/preview_cache.cc
+  intern/cache/source_image_cache.cc
+  intern/cache/source_image_cache.hh
+  intern/cache/thumbnail_cache.cc
   intern/channels.cc
-  intern/disk_cache.cc
-  intern/disk_cache.hh
   intern/effects/effects.cc
   intern/effects/effects.hh
   intern/effects/vse_effect_add_sub_mul.cc
@@ -57,11 +64,10 @@ set(SRC
   intern/effects/vse_effect_text.cc
   intern/effects/vse_effect_transform.cc
   intern/effects/vse_effect_wipe.cc
-  intern/image_cache.cc
-  intern/image_cache.hh
   intern/iterator.cc
   intern/media_presence.cc
   intern/modifier.cc
+  intern/modifier.hh
   intern/multiview.cc
   intern/multiview.hh
   intern/prefetch.cc
@@ -84,7 +90,6 @@ set(SRC
   intern/strip_time.cc
   intern/strip_time.hh
   intern/strip_transform.cc
-  intern/thumbnail_cache.cc
   intern/utils.cc
   intern/utils.hh
 )
@@ -97,6 +102,7 @@ set(LIB
   PRIVATE bf::blentranslation
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
+  PRIVATE bf::gpu
   PRIVATE bf::imbuf
   PRIVATE bf::imbuf::movie
   PRIVATE bf::intern::atomic

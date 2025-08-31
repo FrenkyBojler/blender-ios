@@ -42,7 +42,7 @@ void main()
   local_direction[local_index] = sun.direction;
 
   /* Parallel sum. */
-  constexpr uint group_size = gl_WorkGroupSize.x * gl_WorkGroupSize.y;
+  constexpr uint group_size = gl_WorkGroupSize.x;
   uint stride = group_size / 2;
   for (int i = 0; i < 10; i++) {
     barrier();
@@ -71,7 +71,7 @@ void main()
 
     /* Auto sun angle. */
     float sun_angle_cos = 2.0f * len - 1.0f;
-    /* Compute tangent from cosine.  */
+    /* Compute tangent from cosine. */
     float sun_angle_tan = sqrt(-1.0f + 1.0f / square(sun_angle_cos));
     /* Clamp value to avoid float imprecision artifacts. */
     float sun_radius = clamp(sun_angle_tan, 0.001f, 20.0f);

@@ -610,7 +610,6 @@ static int bm_mesh_loops_calc_normals_for_loop(BMesh *bm,
     }
 
     while (true) {
-      /* Much simpler than in sibling code with basic Mesh data! */
       lfan_pivot_next = BM_vert_step_fan_loop(lfan_pivot, &e_next);
       if (lfan_pivot_next) {
         BLI_assert(lfan_pivot_next->v == v_pivot);
@@ -965,7 +964,7 @@ static void bm_mesh_loops_calc_normals_for_vert_with_clnors(
                                                                  r_lnos,
                                                                  r_lnors_spacearr);
 
-    /* Check if an early exit is possible without  an exhaustive inspection of every loop
+    /* Check if an early exit is possible without an exhaustive inspection of every loop
      * where 1 loop's fan extends out to all remaining loops.
      * This is a common case for smooth vertices. */
     BLI_assert(loops_of_vert_handled <= loops_of_vert_count);
@@ -1878,14 +1877,73 @@ void BM_lnorspace_rebuild(BMesh *bm, bool preserve_clnor)
 #endif
 }
 
+/**
+ * Make sure the corner fan (tangent space) style custom normals exist on the BMesh. If free vector
+ * custom normals exist, they'll be converted. This is often necessary for BMesh editing tools that
+ * don't (yet) support free normals.
+ */
+static void bm_lnorspace_ensure_from_free_normals(BMesh *bm)
+{
+  /* Zero values tell the normals calculation code to use the automatic normals (rather than any
+   * custom normal vector). */
+  Array<float3> lnors(bm->totloop, float3(0));
+  const int vert_free_offset = CustomData_get_offset_named(
+      &bm->vdata, CD_PROP_FLOAT3, "custom_normal");
+  const int edge_free_offset = CustomData_get_offset_named(
+      &bm->edata, CD_PROP_FLOAT3, "custom_normal");
+  const int face_free_offset = CustomData_get_offset_named(
+      &bm->pdata, CD_PROP_FLOAT3, "custom_normal");
+  const int loop_free_offset = CustomData_get_offset_named(
+      &bm->ldata, CD_PROP_FLOAT3, "custom_normal");
+  if (vert_free_offset != -1) {
+    int loop_index = 0;
+    BMFace *f;
+    BMLoop *l;
+    BMIter fiter, liter;
+    BM_ITER_MESH (f, &fiter, bm, BM_FACES_OF_MESH) {
+      BM_ITER_ELEM (l, &liter, f, BM_LOOPS_OF_FACE) {
+        lnors[loop_index++] = float3(BM_ELEM_CD_GET_FLOAT_P(l->v, vert_free_offset));
+      }
+    }
+    BM_data_layer_free_named(bm, &bm->vdata, "custom_normal");
+  }
+  else if (edge_free_offset != -1) {
+    BM_data_layer_free_named(bm, &bm->edata, "custom_normal");
+  }
+  else if (face_free_offset != -1) {
+    int loop_index = 0;
+    BMFace *f;
+    BMLoop *l;
+    BMIter fiter, liter;
+    BM_ITER_MESH (f, &fiter, bm, BM_FACES_OF_MESH) {
+      BM_ITER_ELEM (l, &liter, f, BM_LOOPS_OF_FACE) {
+        lnors[loop_index++] = float3(BM_ELEM_CD_GET_FLOAT_P(f, face_free_offset));
+      }
+    }
+    BM_data_layer_free_named(bm, &bm->pdata, "custom_normal");
+  }
+  else if (loop_free_offset != -1) {
+    int loop_index = 0;
+    BMFace *f;
+    BMLoop *l;
+    BMIter fiter, liter;
+    BM_ITER_MESH (f, &fiter, bm, BM_FACES_OF_MESH) {
+      BM_ITER_ELEM (l, &liter, f, BM_LOOPS_OF_FACE) {
+        lnors[loop_index++] = float3(BM_ELEM_CD_GET_FLOAT_P(l, loop_free_offset));
+      }
+    }
+    BM_data_layer_free_named(bm, &bm->ldata, "custom_normal");
+  }
+  BM_lnorspacearr_store(bm, lnors);
+}
+
 void BM_lnorspace_update(BMesh *bm)
 {
   if (bm->lnor_spacearr == nullptr) {
     bm->lnor_spacearr = MEM_callocN<MLoopNorSpaceArray>(__func__);
   }
   if (bm->lnor_spacearr->lspacearr == nullptr) {
-    Array<float3> lnors(bm->totloop, float3(0));
-    BM_lnorspacearr_store(bm, lnors);
+    bm_lnorspace_ensure_from_free_normals(bm);
   }
   else if (bm->spacearr_dirty & (BM_SPACEARR_DIRTY | BM_SPACEARR_DIRTY_ALL)) {
     BM_lnorspace_rebuild(bm, false);
@@ -2153,8 +2211,8 @@ BMLoopNorEditDataArray *BM_loop_normal_editdata_array_init(BMesh *bm,
   totloopsel = bm_loop_normal_mark_indiv(bm, loops, do_all_loops_of_vert);
 
   if (totloopsel) {
-    BMLoopNorEditData *lnor_ed = lnors_ed_arr->lnor_editdata = static_cast<BMLoopNorEditData *>(
-        MEM_mallocN(sizeof(*lnor_ed) * totloopsel, __func__));
+    BMLoopNorEditData *lnor_ed = lnors_ed_arr->lnor_editdata =
+        MEM_malloc_arrayN<BMLoopNorEditData>(totloopsel, __func__);
 
     BM_ITER_MESH (v, &viter, bm, BM_VERTS_OF_MESH) {
       BM_ITER_ELEM (l, &liter, v, BM_LOOPS_OF_VERT) {

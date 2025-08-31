@@ -25,7 +25,7 @@ endfunction()
 # ------------------------------------------------------------------------
 # Find system provided libraries.
 
-# Find system ZLIB, not the pre-compiled one supplied with OpenCollada.
+# Find system ZLIB
 set(ZLIB_ROOT /usr)
 find_package(ZLIB REQUIRED)
 find_package(BZip2 REQUIRED)
@@ -107,12 +107,6 @@ if(WITH_OPENSUBDIV)
   find_package(OpenSubdiv)
 endif()
 add_bundled_libraries(opensubdiv/lib)
-
-if(WITH_VULKAN_BACKEND)
-  find_package(MoltenVK REQUIRED)
-  find_package(ShaderC REQUIRED)
-  find_package(Vulkan REQUIRED)
-endif()
 
 if(WITH_CODEC_SNDFILE)
   find_package(SndFile)
@@ -212,12 +206,6 @@ endif()
 
 if(WITH_JACK)
   string(APPEND PLATFORM_LINKFLAGS " -F/Library/Frameworks -weak_framework jackmp")
-endif()
-
-if(WITH_OPENCOLLADA)
-  find_package(OpenCOLLADA)
-  find_library(XML2_LIBRARIES NAMES xml2 HINTS ${LIBDIR}/opencollada/lib)
-  print_found_status("XML2" "${XML2_LIBRARIES}")
 endif()
 
 if(WITH_SDL)
@@ -340,7 +328,7 @@ endif()
 add_bundled_libraries(osl/lib)
 
 if(WITH_CYCLES AND WITH_CYCLES_EMBREE)
-  find_package(Embree 3.8.0 REQUIRED)
+  find_package(Embree 4.0.0 REQUIRED)
 endif()
 add_bundled_libraries(embree/lib)
 
@@ -350,7 +338,7 @@ if(WITH_OPENIMAGEDENOISE)
 endif()
 
 if(WITH_TBB)
-  find_package(TBB REQUIRED)
+  find_package(TBB 2021.13.0 REQUIRED)
   if(TBB_FOUND)
     get_target_property(TBB_LIBRARIES TBB::tbb LOCATION)
     get_target_property(TBB_INCLUDE_DIRS TBB::tbb INTERFACE_INCLUDE_DIRECTORIES)
@@ -373,6 +361,10 @@ endif()
 
 if(WITH_HARU)
   find_package(Haru REQUIRED)
+endif()
+
+if(WITH_MANIFOLD)
+  find_package(manifold REQUIRED)
 endif()
 
 if(WITH_CYCLES AND WITH_CYCLES_PATH_GUIDING)
@@ -427,8 +419,10 @@ string(APPEND PLATFORM_LINKFLAGS
 )
 
 if(${XCODE_VERSION} VERSION_GREATER_EQUAL 15.0)
-  if("${CMAKE_OSX_ARCHITECTURES}" STREQUAL "x86_64")
+  if("${CMAKE_OSX_ARCHITECTURES}" STREQUAL "x86_64" AND WITH_LEGACY_MACOS_X64_LINKER)
     # Silence "no platform load command found in <static library>, assuming: macOS".
+    #
+    # NOTE: Using ld_classic costs minutes of extra linking time.
     string(APPEND PLATFORM_LINKFLAGS " -Wl,-ld_classic")
   else()
     # Silence "ld: warning: ignoring duplicate libraries".

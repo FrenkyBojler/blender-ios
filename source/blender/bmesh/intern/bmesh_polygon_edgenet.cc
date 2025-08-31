@@ -474,8 +474,7 @@ bool BM_face_split_edgenet(BMesh *bm,
    * large for single faces with complex edge-nets, see: #65980. */
 
   /* over-alloc (probably 2-4 is only used in most cases), for the biggest-fan */
-  edge_order = static_cast<VertOrder *>(
-      MEM_mallocN(sizeof(*edge_order) * edge_order_len, __func__));
+  edge_order = MEM_malloc_arrayN<VertOrder>(edge_order_len, __func__);
 
   /* use later */
   face_verts = static_cast<BMVert **>(
@@ -614,7 +613,7 @@ bool BM_face_split_edgenet(BMesh *bm,
                 mul_v2_m3v3(co, axis_mat, v->co);
                 interp_weights_poly_v2(w, cos_2d, f->len, co);
                 CustomData_bmesh_interp(
-                    &bm->ldata, (const void **)blocks, w, nullptr, f->len, l_iter->head.data);
+                    &bm->ldata, (const void **)blocks, w, f->len, l_iter->head.data);
                 l_first = l_iter;
               }
               else {

@@ -149,8 +149,7 @@ static FileSelectParams *fileselect_ensure_updated_file_params(SpaceFile *sfile)
 
   /* create new parameters if necessary */
   if (!sfile->params) {
-    sfile->params = static_cast<FileSelectParams *>(
-        MEM_callocN(sizeof(FileSelectParams), "fileselparams"));
+    sfile->params = MEM_callocN<FileSelectParams>("fileselparams");
     /* set path to most recently opened .blend */
     BLI_path_split_dir_file(blendfile_path,
                             sfile->params->dir,
@@ -264,9 +263,6 @@ static FileSelectParams *fileselect_ensure_updated_file_params(SpaceFile *sfile)
     if ((prop = RNA_struct_find_property(op->ptr, "filter_btx"))) {
       params->filter |= RNA_property_boolean_get(op->ptr, prop) ? int(FILE_TYPE_BTX) : 0;
     }
-    if ((prop = RNA_struct_find_property(op->ptr, "filter_collada"))) {
-      params->filter |= RNA_property_boolean_get(op->ptr, prop) ? int(FILE_TYPE_COLLADA) : 0;
-    }
     if ((prop = RNA_struct_find_property(op->ptr, "filter_alembic"))) {
       params->filter |= RNA_property_boolean_get(op->ptr, prop) ? int(FILE_TYPE_ALEMBIC) : 0;
     }
@@ -283,7 +279,7 @@ static FileSelectParams *fileselect_ensure_updated_file_params(SpaceFile *sfile)
       /* Protection against Python scripts not setting proper size limit. */
       char *glob = RNA_property_string_get_alloc(op->ptr, prop, nullptr, 0, nullptr);
       BLI_SCOPED_DEFER([&]() { MEM_freeN(glob); });
-      STRNCPY(params->filter_glob, glob);
+      STRNCPY_UTF8(params->filter_glob, glob);
       /* Fix stupid things that truncating might have generated,
        * like last group being a 'match everything' wildcard-only one... */
       BLI_path_extension_glob_validate(params->filter_glob);
@@ -449,6 +445,7 @@ static void fileselect_refresh_asset_params(FileAssetSelectParams *asset_params)
     case ASSET_LIBRARY_CUSTOM:
       BLI_assert(user_library);
       STRNCPY(base_params->dir, user_library->dirpath);
+      BLI_path_slash_native(base_params->dir);
       base_params->type = FILE_ASSET_LIBRARY;
       break;
   }
@@ -633,7 +630,7 @@ void ED_fileselect_deselect_all(SpaceFile *sfile)
 void ED_fileselect_window_params_get(const wmWindow *win, int r_win_size[2], bool *r_is_maximized)
 {
   /* Get DPI/pixel-size independent size to be stored in preferences. */
-  WM_window_set_dpi(win); /* Ensure the DPI is taken from the right window. */
+  WM_window_dpi_set_userdef(win); /* Ensure the DPI is taken from the right window. */
 
   const blender::int2 win_size = WM_window_native_pixel_size(win);
   r_win_size[0] = win_size[0] / UI_SCALE_FAC;
@@ -1043,7 +1040,7 @@ void ED_fileselect_init_layout(SpaceFile *sfile, ARegion *region)
   int numfiles;
 
   if (sfile->layout == nullptr) {
-    sfile->layout = static_cast<FileLayout *>(MEM_callocN(sizeof(FileLayout), "file_layout"));
+    sfile->layout = MEM_callocN<FileLayout>("file_layout");
     sfile->layout->dirty = true;
   }
   else if (sfile->layout->dirty == false) {
@@ -1051,9 +1048,10 @@ void ED_fileselect_init_layout(SpaceFile *sfile, ARegion *region)
   }
 
   numfiles = filelist_files_ensure(sfile->files);
-  const int textheight = int(file_font_pointsize());
   layout = sfile->layout;
-  layout->textheight = textheight;
+  /* Slightly increased than font height for padding. */
+  layout->text_line_height = file_font_pointsize();
+  layout->text_lines_count = 1;
 
   if (params->display == FILE_IMGDISPLAY) {
     /* More compact spacing for asset browser. */
@@ -1067,7 +1065,9 @@ void ED_fileselect_init_layout(SpaceFile *sfile, ARegion *region)
     layout->prv_border_x = pad_fac * UI_UNIT_X;
     layout->prv_border_y = pad_fac * UI_UNIT_Y;
     layout->tile_w = layout->prv_w + 2 * layout->prv_border_x;
-    layout->tile_h = layout->prv_h + 2 * layout->prv_border_y + textheight;
+    layout->text_lines_count = 2;
+    layout->tile_h = layout->prv_h + 2 * layout->prv_border_y +
+                     layout->text_lines_count * layout->text_line_height;
     layout->width = int(BLI_rctf_size_x(&v2d->cur) - 2 * layout->tile_border_x);
     layout->flow_columns = layout->width / (layout->tile_w + 2 * layout->tile_border_x);
     layout->attribute_column_header_h = 0;
@@ -1091,7 +1091,7 @@ void ED_fileselect_init_layout(SpaceFile *sfile, ARegion *region)
     layout->tile_border_x = 0.4f * UI_UNIT_X;
     layout->tile_border_y = 0.05f * UI_UNIT_Y;
     layout->list_padding_top = 2 * layout->tile_border_y;
-    layout->tile_h = round_fl_to_int(textheight * 1.4f);
+    layout->tile_h = round_fl_to_int(layout->text_line_height * 1.4f);
     layout->width = int(BLI_rctf_size_x(&v2d->cur) - 2 * layout->tile_border_x);
     layout->tile_w = layout->width;
     layout->flow_columns = 1;
@@ -1116,7 +1116,7 @@ void ED_fileselect_init_layout(SpaceFile *sfile, ARegion *region)
     layout->tile_border_x = 0.4f * UI_UNIT_X;
     layout->tile_border_y = 0.05f * UI_UNIT_Y;
     layout->list_padding_top = 2 * layout->tile_border_y;
-    layout->tile_h = std::max(round_fl_to_int(textheight * 1.4f), layout->prv_h);
+    layout->tile_h = std::max(round_fl_to_int(layout->text_line_height * 1.4f), layout->prv_h);
     layout->attribute_column_header_h = 0;
     layout->offset_top = layout->attribute_column_header_h;
     layout->height = int(BLI_rctf_size_y(&v2d->cur) - 2 * layout->tile_border_y);
@@ -1328,8 +1328,9 @@ void ED_fileselect_exit(wmWindowManager *wm, SpaceFile *sfile)
     return;
   }
   if (sfile->op) {
-    wmWindow *temp_win = (wm->winactive && WM_window_is_temp_screen(wm->winactive)) ?
-                             wm->winactive :
+    wmWindow *temp_win = (wm->runtime->winactive &&
+                          WM_window_is_temp_screen(wm->runtime->winactive)) ?
+                             wm->runtime->winactive :
                              nullptr;
     if (temp_win) {
       int win_size[2];
@@ -1501,4 +1502,18 @@ void ED_fileselect_ensure_default_filepath(bContext *C, wmOperator *op, const ch
     BLI_path_extension_replace(filepath, sizeof(filepath), extension);
     RNA_string_set(op->ptr, "filepath", filepath);
   }
+}
+
+blender::Vector<std::string> ED_fileselect_selected_files_full_paths(const SpaceFile *sfile)
+{
+  blender::Vector<std::string> paths;
+  char path[FILE_MAX_LIBEXTRA];
+  for (const int i : blender::IndexRange(filelist_files_ensure(sfile->files))) {
+    if (filelist_entry_is_selected(sfile->files, i)) {
+      const FileDirEntry *entry = filelist_file(sfile->files, i);
+      filelist_file_get_full_path(sfile->files, entry, path);
+      paths.append(path);
+    }
+  }
+  return paths;
 }

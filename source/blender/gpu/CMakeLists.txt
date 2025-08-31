@@ -29,6 +29,7 @@ set(INC
   ../draw/intern
   ../draw/intern/shaders
   metal/kernels
+  vulkan/shaders
   shaders/infos
 
 
@@ -77,6 +78,7 @@ set(SRC
   intern/gpu_material.cc
   intern/gpu_matrix.cc
   intern/gpu_node_graph.cc
+  intern/gpu_pass.cc
   intern/gpu_platform.cc
   intern/gpu_query.cc
   intern/gpu_select.cc
@@ -99,7 +101,7 @@ set(SRC
   intern/gpu_vertex_format_normals.cc
   intern/gpu_viewport.cc
   intern/gpu_worker.cc
-  
+
   GPU_attribute_convert.hh
   GPU_batch.hh
   GPU_batch_presets.hh
@@ -111,6 +113,7 @@ set(SRC
   GPU_compute.hh
   GPU_context.hh
   GPU_debug.hh
+  GPU_format.hh
   GPU_framebuffer.hh
   GPU_immediate.hh
   GPU_immediate_util.hh
@@ -118,6 +121,7 @@ set(SRC
   GPU_init_exit.hh
   GPU_material.hh
   GPU_matrix.hh
+  GPU_pass.hh
   GPU_platform.hh
   GPU_platform_backend_enum.h
   GPU_primitive.hh
@@ -177,7 +181,6 @@ set(OPENGL_SRC
   opengl/gl_compute.cc
   opengl/gl_context.cc
   opengl/gl_debug.cc
-  opengl/gl_debug_layer.cc
   opengl/gl_framebuffer.cc
   opengl/gl_immediate.cc
   opengl/gl_index_buffer.cc
@@ -397,6 +400,7 @@ set(LIB
   PRIVATE bf::intern::guardedalloc
   PRIVATE bf::extern::fmtlib
   PRIVATE bf::nodes
+  PRIVATE bf::dependencies::optional::opencolorio
 )
 
 # Select Backend source based on availability
@@ -419,16 +423,6 @@ endif()
 
 
 if(WITH_VULKAN_BACKEND)
-  if(APPLE)
-    list(APPEND INC_SYS
-      ${MOLTENVK_INCLUDE_DIRS}
-    )
-
-    list(APPEND LIB
-      ${MOLTENVK_LIBRARIES}
-    )
-  endif()
-
   list(APPEND INC
     ../../../extern/vulkan_memory_allocator
   )
@@ -453,9 +447,12 @@ if(WITH_VULKAN_BACKEND)
   add_definitions(-DWITH_VULKAN_BACKEND)
 endif()
 
+set(GLSL_SRC_RAW
+  shaders/opengl/glsl_shader_defines.glsl
+)
+
 set(GLSL_SRC
   GPU_shader_shared.hh
-  shaders/opengl/glsl_shader_defines.glsl
 
   shaders/gpu_shader_depth_only_frag.glsl
   shaders/gpu_shader_uniform_color_frag.glsl
@@ -502,6 +499,7 @@ set(GLSL_SRC
   shaders/gpu_shader_point_varying_color_frag.glsl
   shaders/gpu_shader_3D_point_varying_size_varying_color_vert.glsl
   shaders/gpu_shader_3D_point_uniform_size_aa_vert.glsl
+  shaders/gpu_shader_3D_point_flat_color_vert.glsl
   shaders/gpu_shader_2D_point_varying_size_varying_color_vert.glsl
   shaders/gpu_shader_2D_point_uniform_size_aa_vert.glsl
   shaders/gpu_shader_2D_point_uniform_size_outline_aa_vert.glsl
@@ -511,10 +509,13 @@ set(GLSL_SRC
   shaders/gpu_shader_keyframe_shape_vert.glsl
   shaders/gpu_shader_keyframe_shape_frag.glsl
 
+  shaders/gpu_shader_sequencer_scope_comp.glsl
+  shaders/gpu_shader_sequencer_scope_frag.glsl
   shaders/gpu_shader_sequencer_strips_vert.glsl
   shaders/gpu_shader_sequencer_strips_frag.glsl
   shaders/gpu_shader_sequencer_thumbs_vert.glsl
   shaders/gpu_shader_sequencer_thumbs_frag.glsl
+  shaders/gpu_shader_sequencer_zebra_frag.glsl
 
   shaders/gpu_shader_codegen_lib.glsl
 
@@ -530,11 +531,13 @@ set(GLSL_SRC
   shaders/common/gpu_shader_debug_gradients_lib.glsl
   shaders/common/gpu_shader_fullscreen_vert.glsl
   shaders/common/gpu_shader_index_load_lib.glsl
+  shaders/common/gpu_shader_index_range_lib.glsl
   shaders/common/gpu_shader_math_base_lib.glsl
   shaders/common/gpu_shader_math_fast_lib.glsl
   shaders/common/gpu_shader_math_matrix_lib.glsl
   shaders/common/gpu_shader_math_rotation_lib.glsl
   shaders/common/gpu_shader_math_vector_lib.glsl
+  shaders/common/gpu_shader_offset_indices_lib.glsl
   shaders/common/gpu_shader_print_lib.glsl
   shaders/common/gpu_shader_sequencer_lib.glsl
   shaders/common/gpu_shader_shared_exponent_lib.glsl
@@ -554,8 +557,6 @@ set(GLSL_SRC
   shaders/material/gpu_shader_material_camera.glsl
   shaders/material/gpu_shader_material_clamp.glsl
   shaders/material/gpu_shader_material_combine_color.glsl
-  shaders/material/gpu_shader_material_combine_hsv.glsl
-  shaders/material/gpu_shader_material_combine_rgb.glsl
   shaders/material/gpu_shader_material_combine_xyz.glsl
   shaders/material/gpu_shader_material_diffuse.glsl
   shaders/material/gpu_shader_material_displacement.glsl
@@ -595,8 +596,6 @@ set(GLSL_SRC
   shaders/material/gpu_shader_material_refraction.glsl
   shaders/material/gpu_shader_material_rgb_to_bw.glsl
   shaders/material/gpu_shader_material_separate_color.glsl
-  shaders/material/gpu_shader_material_separate_hsv.glsl
-  shaders/material/gpu_shader_material_separate_rgb.glsl
   shaders/material/gpu_shader_material_separate_xyz.glsl
   shaders/material/gpu_shader_material_set.glsl
   shaders/material/gpu_shader_material_shader_to_rgba.glsl
@@ -629,6 +628,7 @@ set(GLSL_SRC
   shaders/material/gpu_shader_material_volume_absorption.glsl
   shaders/material/gpu_shader_material_volume_principled.glsl
   shaders/material/gpu_shader_material_volume_scatter.glsl
+  shaders/material/gpu_shader_material_volume_coefficients.glsl
   shaders/material/gpu_shader_material_voronoi.glsl
   shaders/material/gpu_shader_material_wireframe.glsl
   shaders/material/gpu_shader_material_world_normals.glsl
@@ -683,6 +683,10 @@ set(MSL_SRC
   shaders/metal/mtl_shader_common.msl
 )
 
+set(VULKAN_BACKEND_GLSL_SRC
+  vulkan/shaders/vk_backbuffer_blit_comp.glsl
+)
+
 if(WITH_GTESTS)
   if(WITH_GPU_BACKEND_TESTS)
     list(APPEND GLSL_SRC ${GLSL_SRC_TEST})
@@ -698,9 +702,17 @@ if(WITH_METAL_BACKEND)
   endforeach()
 endif()
 
+if(WITH_VULKAN_BACKEND)
+  list(APPEND GLSL_SRC ${VULKAN_BACKEND_GLSL_SRC})
+endif()
+
 set(GLSL_C)
 foreach(GLSL_FILE ${GLSL_SRC})
   glsl_to_c(${GLSL_FILE} GLSL_C)
+endforeach()
+
+foreach(GLSL_FILE ${GLSL_SRC_RAW})
+  data_to_c_simple(${GLSL_FILE} GLSL_C)
 endforeach()
 
 set(SHADER_C)
@@ -710,29 +722,31 @@ if(WITH_METAL_BACKEND)
 endif()
 
 blender_add_lib(bf_gpu_shaders "${SHADER_C}" "" "" "")
+blender_set_target_unity_build(bf_gpu_shaders 10)
 
 list(APPEND LIB
   bf_gpu_shaders
 )
 
 set(GLSL_SOURCE_CONTENT "")
+set(GLSL_METADATA_CONTENT "")
 foreach(GLSL_FILE ${GLSL_SRC})
   get_filename_component(GLSL_FILE_NAME ${GLSL_FILE} NAME)
   string(REPLACE "." "_" GLSL_FILE_NAME_UNDERSCORES ${GLSL_FILE_NAME})
-  string(APPEND GLSL_SOURCE_CONTENT "SHADER_SOURCE\(datatoc_${GLSL_FILE_NAME_UNDERSCORES}, \"${GLSL_FILE_NAME}\", \"${GLSL_FILE}\"\)\n")
+  string(APPEND GLSL_SOURCE_CONTENT "SHADER_SOURCE\(${GLSL_FILE_NAME_UNDERSCORES}, \"${GLSL_FILE_NAME}\", \"${GLSL_FILE}\"\)\n")
+  string(APPEND GLSL_METADATA_CONTENT "#include \"${GLSL_FILE}.hh\"\n")
 endforeach()
 
 set(glsl_source_list_file "${CMAKE_CURRENT_BINARY_DIR}/glsl_gpu_source_list.h")
 file(GENERATE OUTPUT ${glsl_source_list_file} CONTENT "${GLSL_SOURCE_CONTENT}")
 list(APPEND SRC ${glsl_source_list_file})
+set(glsl_metadata_list_file "${CMAKE_CURRENT_BINARY_DIR}/glsl_gpu_metadata_list.hh")
+file(GENERATE OUTPUT ${glsl_metadata_list_file} CONTENT "${GLSL_METADATA_CONTENT}")
+list(APPEND SRC ${glsl_metadata_list_file})
 list(APPEND INC ${CMAKE_CURRENT_BINARY_DIR})
 
 if(WITH_MOD_FLUID)
   add_definitions(-DWITH_FLUID)
-endif()
-
-if(WITH_OPENCOLORIO)
-  add_definitions(-DWITH_OCIO)
 endif()
 
 if(WITH_OPENSUBDIV)
@@ -753,14 +767,11 @@ target_link_libraries(bf_gpu PUBLIC
   bf_compositor_shaders
   bf_draw_shaders
   bf_gpu_shaders
+  bf_imbuf_opencolorio_shaders
 )
 
-if(WITH_OPENGL_BACKEND AND UNIX)
+if(WITH_OPENGL_BACKEND AND CMAKE_SYSTEM_NAME STREQUAL "Linux")
   target_link_libraries(bf_gpu PUBLIC rt)
-endif()
-
-if(WITH_OPENCOLORIO)
-  target_link_libraries(bf_gpu PUBLIC bf_ocio_shaders)
 endif()
 
 if(WITH_OPENSUBDIV)
@@ -795,6 +806,7 @@ if(WITH_GTESTS)
       tests/index_buffer_test.cc
       tests/push_constants_test.cc
       tests/shader_create_info_test.cc
+      tests/shader_preprocess_test.cc
       tests/shader_test.cc
       tests/specialization_constants_test.cc
       tests/state_blend_test.cc

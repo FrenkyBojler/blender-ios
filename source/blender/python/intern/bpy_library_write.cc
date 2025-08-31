@@ -30,14 +30,15 @@
 #include "bpy_rna.hh"
 
 #include "../generic/py_capi_utils.hh"
-#include "../generic/python_compat.hh"
+#include "../generic/python_compat.hh" /* IWYU pragma: keep. */
 
 using namespace blender::bke::blendfile;
 
 PyDoc_STRVAR(
     /* Wrap. */
     bpy_lib_write_doc,
-    ".. method:: write(filepath, datablocks, path_remap=False, fake_user=False, compress=False)\n"
+    ".. method:: write(filepath, datablocks, *, "
+    "path_remap=False, fake_user=False, compress=False)\n"
     "\n"
     "   Write data-blocks into a blend file.\n"
     "\n"

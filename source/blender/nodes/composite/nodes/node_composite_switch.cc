@@ -6,7 +6,6 @@
  * \ingroup cmpnodes
  */
 
-#include "UI_interface.hh"
 #include "UI_resources.hh"
 
 #include "COM_node_operation.hh"
@@ -19,9 +18,15 @@ namespace blender::nodes::node_composite_switch_cc {
 
 static void cmp_node_switch_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Bool>("Switch").default_value(false).compositor_expects_single_value();
-  b.add_input<decl::Color>("Off").default_value({0.8f, 0.8f, 0.8f, 1.0f});
-  b.add_input<decl::Color>("On").default_value({0.8f, 0.8f, 0.8f, 1.0f});
+  b.add_input<decl::Bool>("Switch").default_value(false);
+  b.add_input<decl::Color>("Off")
+      .default_value({0.8f, 0.8f, 0.8f, 1.0f})
+      .compositor_realization_mode(CompositorInputRealizationMode::None)
+      .structure_type(StructureType::Dynamic);
+  b.add_input<decl::Color>("On")
+      .default_value({0.8f, 0.8f, 0.8f, 1.0f})
+      .compositor_realization_mode(CompositorInputRealizationMode::None)
+      .structure_type(StructureType::Dynamic);
 
   b.add_output<decl::Color>("Image");
 }
@@ -52,7 +57,7 @@ static NodeOperation *get_compositor_operation(Context &context, DNode node)
 
 }  // namespace blender::nodes::node_composite_switch_cc
 
-void register_node_type_cmp_switch()
+static void register_node_type_cmp_switch()
 {
   namespace file_ns = blender::nodes::node_composite_switch_cc;
 
@@ -69,3 +74,4 @@ void register_node_type_cmp_switch()
 
   blender::bke::node_register_type(ntype);
 }
+NOD_REGISTER_NODE(register_node_type_cmp_switch)

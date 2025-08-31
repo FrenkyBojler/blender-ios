@@ -452,6 +452,20 @@ static void ntree_shader_groups_expand_inputs(bNodeTree *localtree)
   }
 }
 
+static void ntree_shader_unlink_script_nodes(bNodeTree *ntree)
+{
+  /* To avoid more trouble in the node tree processing (especially inside
+   * `ntree_shader_weight_tree_invert()`) we disconnect the script node since they are not
+   * supported in EEVEE (see #101702). */
+  LISTBASE_FOREACH_MUTABLE (bNodeLink *, link, &ntree->links) {
+    if ((link->tonode->type_legacy == SH_NODE_SCRIPT) ||
+        (link->fromnode->type_legacy == SH_NODE_SCRIPT))
+    {
+      blender::bke::node_remove_link(ntree, *link);
+    }
+  }
+}
+
 static void ntree_shader_groups_remove_muted_links(bNodeTree *ntree)
 {
   LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
@@ -633,11 +647,15 @@ static void ntree_shader_copy_branch(bNodeTree *ntree,
       int id = node->runtime->tmp_flag;
       /* Avoid creating unique names in the new tree, since it is very slow.
        * The names on the new nodes will be invalid. */
-      nodes_copy[id] = blender::bke::node_copy(
-          ntree, *node, LIB_ID_CREATE_NO_USER_REFCOUNT | LIB_ID_CREATE_NO_MAIN, false);
-      /* But identifiers must be created for the `bNodeTree::all_nodes()` vector,
-       * so they won't match the original. */
-      blender::bke::node_unique_id(*ntree, *nodes_copy[id]);
+      blender::Map<const bNodeSocket *, bNodeSocket *> socket_map;
+      nodes_copy[id] = blender::bke::node_copy_with_mapping(ntree,
+                                                            *node,
+                                                            LIB_ID_CREATE_NO_USER_REFCOUNT |
+                                                                LIB_ID_CREATE_NO_MAIN,
+                                                            std::nullopt,
+                                                            std::nullopt,
+                                                            socket_map,
+                                                            true);
 
       bNode *copy = nodes_copy[id];
       copy->runtime->tmp_flag = -2; /* Copy */
@@ -969,6 +987,7 @@ static void ntree_shader_weight_tree_invert(bNodeTree *ntree, bNode *output_node
             case SH_NODE_VOLUME_ABSORPTION:
             case SH_NODE_VOLUME_PRINCIPLED:
             case SH_NODE_VOLUME_SCATTER:
+            case SH_NODE_VOLUME_COEFFICIENTS:
               fromsock = ntree_shader_node_find_input(fromnode, "Weight");
               /* Make "weight" sockets available so that links to it are available as well and are
                * not ignored in other places. */
@@ -1035,6 +1054,7 @@ static bool closure_node_filter(const bNode *node)
     case SH_NODE_VOLUME_ABSORPTION:
     case SH_NODE_VOLUME_PRINCIPLED:
     case SH_NODE_VOLUME_SCATTER:
+    case SH_NODE_VOLUME_COEFFICIENTS:
       return true;
     default:
       return false;
@@ -1228,6 +1248,7 @@ void ntreeGPUMaterialNodes(bNodeTree *localtree, GPUMaterial *mat)
 {
   bNodeTreeExec *exec;
 
+  ntree_shader_unlink_script_nodes(localtree);
   ntree_shader_groups_remove_muted_links(localtree);
   ntree_shader_groups_expand_inputs(localtree);
   ntree_shader_groups_flatten(localtree);

@@ -19,6 +19,7 @@
 #include "BLI_span.hh"
 #include "BLI_string.h"
 #include "BLI_string_ref.hh"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_context.hh"
@@ -27,6 +28,8 @@
 #include "BKE_modifier.hh"
 #include "BKE_screen.hh"
 #include "BKE_shader_fx.h"
+
+#include "BLT_translation.hh"
 
 #include "ED_buttons.hh"
 #include "ED_screen.hh"
@@ -42,6 +45,7 @@
 
 #include "UI_interface.hh"
 #include "UI_interface_c.hh"
+#include "UI_interface_layout.hh"
 #include "UI_view2d.hh"
 
 #include "BLO_read_write.hh"
@@ -57,7 +61,7 @@ static SpaceLink *buttons_create(const ScrArea * /*area*/, const Scene * /*scene
   ARegion *region;
   SpaceProperties *sbuts;
 
-  sbuts = static_cast<SpaceProperties *>(MEM_callocN(sizeof(SpaceProperties), "initbuts"));
+  sbuts = MEM_callocN<SpaceProperties>("initbuts");
   sbuts->spacetype = SPACE_PROPERTIES;
   sbuts->mainb = sbuts->mainbuser = BCONTEXT_OBJECT;
   sbuts->visible_tabs = uint(-1); /* 0xFFFFFFFF - All tabs visible by default. */
@@ -123,8 +127,7 @@ static void buttons_init(wmWindowManager * /*wm*/, ScrArea *area)
   SpaceProperties *sbuts = (SpaceProperties *)area->spacedata.first;
 
   if (sbuts->runtime == nullptr) {
-    sbuts->runtime = static_cast<SpaceProperties_Runtime *>(
-        MEM_mallocN(sizeof(SpaceProperties_Runtime), __func__));
+    sbuts->runtime = MEM_mallocN<SpaceProperties_Runtime>(__func__);
     sbuts->runtime->search_string[0] = '\0';
     sbuts->runtime->tab_search_results = BLI_BITMAP_NEW(BCONTEXT_TOT * 2, __func__);
   }
@@ -154,7 +157,10 @@ static void buttons_main_region_init(wmWindowManager *wm, ARegion *region)
 
   ED_region_panels_init(wm, region);
 
-  keymap = WM_keymap_ensure(wm->defaultconf, "Property Editor", SPACE_PROPERTIES, RGN_TYPE_WINDOW);
+  region->flag |= RGN_FLAG_INDICATE_OVERFLOW;
+
+  keymap = WM_keymap_ensure(
+      wm->runtime->defaultconf, "Property Editor", SPACE_PROPERTIES, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler(&region->runtime->handlers, keymap);
 }
 
@@ -192,8 +198,15 @@ void ED_buttons_visible_tabs_menu(bContext *C, uiLayout *layout, void * /*arg*/)
   };
 
   for (blender::StringRefNull item : filter_items) {
-    uiItemR(layout, &ptr, item, UI_ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
+    layout->prop(&ptr, item, UI_ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
   }
+}
+
+void ED_buttons_navbar_menu(bContext *C, uiLayout *layout, void * /*arg*/)
+{
+  ED_screens_region_flip_menu_create(C, layout, nullptr);
+  layout->operator_context_set(blender::wm::OpCallContext::InvokeDefault);
+  layout->op("SCREEN_OT_region_toggle", IFACE_("Hide"), ICON_NONE);
 }
 
 blender::Vector<eSpaceButtons_Context> ED_buttons_tabs_list(const SpaceProperties *sbuts,
@@ -302,8 +315,12 @@ static void buttons_main_region_layout_properties(const bContext *C,
 
   const char *contexts[2] = {buttons_main_region_context_string(sbuts->mainb), nullptr};
 
-  ED_region_panels_layout_ex(
-      C, region, &region->runtime->type->paneltypes, WM_OP_INVOKE_REGION_WIN, contexts, nullptr);
+  ED_region_panels_layout_ex(C,
+                             region,
+                             &region->runtime->type->paneltypes,
+                             blender::wm::OpCallContext::InvokeRegionWin,
+                             contexts,
+                             nullptr);
 }
 
 /** \} */
@@ -325,7 +342,7 @@ int ED_buttons_search_string_length(SpaceProperties *sbuts)
 void ED_buttons_search_string_set(SpaceProperties *sbuts, const char *value)
 {
   if (sbuts->runtime) {
-    STRNCPY(sbuts->runtime->search_string, value);
+    STRNCPY_UTF8(sbuts->runtime->search_string, value);
   }
 }
 
@@ -658,7 +675,7 @@ static void buttons_header_region_message_subscribe(const wmRegionMessageSubscri
 
 static void buttons_navigation_bar_region_init(wmWindowManager *wm, ARegion *region)
 {
-  region->flag |= RGN_FLAG_NO_USER_RESIZE;
+  region->flag |= RGN_FLAG_NO_USER_RESIZE | RGN_FLAG_INDICATE_OVERFLOW;
 
   ED_region_panels_init(wm, region);
   region->v2d.keepzoom |= V2D_LOCKZOOM_X | V2D_LOCKZOOM_Y;
@@ -882,6 +899,11 @@ static void buttons_area_listener(const wmSpaceTypeListenerParams *params)
             ED_area_tag_redraw(area);
           }
           break;
+        case ND_ANIMCHAN:
+          if (wmn->action == NA_SELECTED) {
+            ED_area_tag_redraw(area);
+          }
+          break;
       }
       break;
     case NC_GPENCIL:
@@ -1062,7 +1084,7 @@ void ED_spacetype_buttons()
   ARegionType *art;
 
   st->spaceid = SPACE_PROPERTIES;
-  STRNCPY(st->name, "Buttons");
+  STRNCPY_UTF8(st->name, "Buttons");
 
   st->create = buttons_create;
   st->free = buttons_free;
@@ -1079,14 +1101,14 @@ void ED_spacetype_buttons()
   st->blend_write = buttons_space_blend_write;
 
   /* regions: main window */
-  art = static_cast<ARegionType *>(MEM_callocN(sizeof(ARegionType), "spacetype buttons region"));
+  art = MEM_callocN<ARegionType>("spacetype buttons region");
   art->regionid = RGN_TYPE_WINDOW;
   art->init = buttons_main_region_init;
   art->layout = buttons_main_region_layout;
   art->draw = ED_region_panels_draw;
   art->listener = buttons_main_region_listener;
   art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_FRAMES;
-  art->lock = true;
+  art->lock = REGION_DRAW_LOCK_ALL;
   buttons_context_register(art);
   BLI_addhead(&st->regiontypes, art);
 
@@ -1109,7 +1131,7 @@ void ED_spacetype_buttons()
   }
 
   /* regions: header */
-  art = static_cast<ARegionType *>(MEM_callocN(sizeof(ARegionType), "spacetype buttons region"));
+  art = MEM_callocN<ARegionType>("spacetype buttons region");
   art->regionid = RGN_TYPE_HEADER;
   art->prefsizey = HEADERY;
   art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_VIEW2D | ED_KEYMAP_FRAMES | ED_KEYMAP_HEADER;
@@ -1120,8 +1142,7 @@ void ED_spacetype_buttons()
   BLI_addhead(&st->regiontypes, art);
 
   /* regions: navigation bar */
-  art = static_cast<ARegionType *>(
-      MEM_callocN(sizeof(ARegionType), "spacetype nav buttons region"));
+  art = MEM_callocN<ARegionType>("spacetype nav buttons region");
   art->regionid = RGN_TYPE_NAV_BAR;
   art->prefsizex = AREAMINX;
   art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_FRAMES | ED_KEYMAP_NAVBAR;

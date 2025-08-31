@@ -11,6 +11,8 @@
 #  include "gpu_glsl_cpp_stubs.hh"
 
 #  include "GPU_shader_shared.hh"
+
+#  include "gpu_srgb_to_framebuffer_space_info.hh"
 #endif
 
 #include "gpu_interface_info.hh"
@@ -22,8 +24,9 @@ VERTEX_IN(1, float2, texCoord)
 VERTEX_OUT(smooth_tex_coord_interp_iface)
 FRAGMENT_OUT(0, float4, fragColor)
 PUSH_CONSTANT(float4x4, ModelViewProjectionMatrix)
-SAMPLER(0, FLOAT_2D, image)
+SAMPLER(0, sampler2D, image)
 VERTEX_SOURCE("gpu_shader_3D_image_vert.glsl")
+ADDITIONAL_INFO(gpu_srgb_to_framebuffer_space)
 GPU_SHADER_CREATE_END()
 
 GPU_SHADER_CREATE_INFO(gpu_shader_3D_image)
