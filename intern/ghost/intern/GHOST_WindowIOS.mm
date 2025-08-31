@@ -955,36 +955,23 @@ typedef struct UserInputEvent {
 
   toolbar_text_field = [[UITextField alloc]
       initWithFrame:CGRectInset(text_field_container.bounds, 10, 0)];
-
-  toolbar_text_field.autoresizingMask = UIViewAutoresizingFlexibleWidth;
-  toolbar_text_field.borderStyle = UITextBorderStyleNone;
-  toolbar_text_field.font = [UIFont systemFontOfSize:14];
-  toolbar_text_field.textColor = UIColor.labelColor;
   toolbar_text_field.clearButtonMode = UITextFieldViewModeWhileEditing;
   toolbar_text_field.autocorrectionType = UITextAutocorrectionTypeNo;
-  toolbar_text_field.userInteractionEnabled = YES;
-  toolbar_text_field.enabled = YES;
-  toolbar_text_field.returnKeyType = UIReturnKeyDefault;
   toolbar_text_field.autocapitalizationType = UITextAutocapitalizationTypeNone;
-  toolbar_text_field.spellCheckingType = UITextSpellCheckingTypeNo;
+  toolbar_text_field.inputAccessoryView = toolbar;
 
   [toolbar_text_field addTarget:self
                          action:@selector(handleKeyboardEditChange:)
                forControlEvents:UIControlEventEditingChanged];
-
   [toolbar_text_field addTarget:self
                          action:@selector(handleKeyboardReturn:)
                forControlEvents:UIControlEventEditingDidEndOnExit];
-
   [toolbar_text_field addTarget:self
                          action:@selector(handleKeyboardEditBegin:)
                forControlEvents:UIControlEventEditingDidBegin];
-
   [toolbar_text_field addTarget:self
                          action:@selector(handleKeyboardEditEnd:)
                forControlEvents:UIControlEventEditingDidEnd];
-
-  toolbar_text_field.inputAccessoryView = toolbar;
 
   [text_field_container addSubview:toolbar_text_field];
 
@@ -995,7 +982,6 @@ typedef struct UserInputEvent {
       initWithBarButtonSystemItem:UIBarButtonSystemItemDone
                            target:self
                            action:@selector(handleDoneButton)];
-
   toolbar_cancel_editing_item = [[UIBarButtonItem alloc]
       initWithBarButtonSystemItem:UIBarButtonSystemItemCancel
                            target:self
