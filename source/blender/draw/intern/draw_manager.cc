@@ -27,7 +27,7 @@ std::atomic<uint32_t> Manager::global_sync_counter_ = 1;
 
 Manager::~Manager()
 {
-  for (GPUTexture *texture : acquired_textures) {
+  for (gpu::Texture *texture : acquired_textures) {
     /* Decrease refcount and free if 0. */
     GPU_texture_free(texture);
   }
@@ -49,7 +49,7 @@ void Manager::begin_sync(Object *object_active)
 
   /* TODO: This means the reference is kept until further redraw or manager tear-down. Instead,
    * they should be released after each draw loop. But for now, mimics old DRW behavior. */
-  for (GPUTexture *texture : acquired_textures) {
+  for (gpu::Texture *texture : acquired_textures) {
     /* Decrease refcount and free if 0. */
     GPU_texture_free(texture);
   }
@@ -131,7 +131,7 @@ void Manager::end_sync()
 
   /* Dispatch compute to finalize the resources on GPU. Save a bit of CPU time. */
   uint thread_groups = divide_ceil_u(resource_len_, DRW_FINALIZE_GROUP_SIZE);
-  GPUShader *shader = DRW_shader_draw_resource_finalize_get();
+  gpu::Shader *shader = DRW_shader_draw_resource_finalize_get();
   GPU_shader_bind(shader);
   GPU_shader_uniform_1i(shader, "resource_len", resource_len_);
   GPU_storagebuf_bind(matrix_buf.current(), GPU_shader_get_ssbo_binding(shader, "matrix_buf"));
@@ -147,7 +147,7 @@ void Manager::end_sync()
 
 void Manager::debug_bind()
 {
-  GPUStorageBuf *gpu_buf = DebugDraw::get().gpu_draw_buf_get();
+  gpu::StorageBuf *gpu_buf = DebugDraw::get().gpu_draw_buf_get();
   if (gpu_buf == nullptr) {
     return;
   }

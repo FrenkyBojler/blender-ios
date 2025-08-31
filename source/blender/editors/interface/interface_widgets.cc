@@ -13,9 +13,12 @@
 #include <list>
 
 #include "DNA_brush_types.h"
+#include "DNA_node_types.h"
 #include "DNA_screen_types.h"
+#include "DNA_space_types.h"
 #include "DNA_userdef_types.h"
 
+#include "BLI_color.hh"
 #include "BLI_listbase.h"
 #include "BLI_math_color.h"
 #include "BLI_math_vector.h"
@@ -45,6 +48,8 @@
 #include "GPU_state.hh"
 
 #include "UI_abstract_view.hh"
+
+#include "IMB_colormanagement.hh"
 
 #ifdef WITH_INPUT_IME
 #  include "WM_types.hh"
@@ -1034,10 +1039,8 @@ static void widgetbase_set_uniform_colors_ubv(uiWidgetBase *wtb,
                                               const uchar *col2,
                                               const uchar *outline,
                                               const uchar *emboss,
-                                              const uchar *tria,
-                                              const bool alpha_check)
+                                              const uchar *tria)
 {
-  widgetbase_set_uniform_alpha_check(wtb, alpha_check);
   rgba_float_args_set_ch(wtb->uniform_params.color_inner1, col1[0], col1[1], col1[2], col1[3]);
   rgba_float_args_set_ch(wtb->uniform_params.color_inner2, col2[0], col2[1], col2[2], col2[3]);
   rgba_float_args_set_ch(
@@ -1140,19 +1143,13 @@ static void draw_widgetbase_batch(uiWidgetBase *wtb)
   }
 }
 
-static void widgetbase_draw_ex(uiWidgetBase *wtb,
-                               const uiWidgetColors *wcol,
-                               bool show_alpha_checkers)
+static void widgetbase_draw(uiWidgetBase *wtb, const uiWidgetColors *wcol)
 {
   uchar inner_col1[4] = {0};
   uchar inner_col2[4] = {0};
   uchar emboss_col[4] = {0};
   uchar outline_col[4] = {0};
   uchar tria_col[4] = {0};
-  /* For color widget. */
-  if (wcol->shaded != 0) {
-    show_alpha_checkers = false;
-  }
 
   /* backdrop non AA */
   if (wtb->draw_inner) {
@@ -1189,11 +1186,9 @@ static void widgetbase_draw_ex(uiWidgetBase *wtb,
   }
 
   /* Draw everything in one draw-call. */
-  if (inner_col1[3] || inner_col2[3] || outline_col[3] || emboss_col[3] || tria_col[3] ||
-      show_alpha_checkers)
-  {
+  if (inner_col1[3] || inner_col2[3] || outline_col[3] || emboss_col[3] || tria_col[3]) {
     widgetbase_set_uniform_colors_ubv(
-        wtb, inner_col1, inner_col2, outline_col, emboss_col, tria_col, show_alpha_checkers);
+        wtb, inner_col1, inner_col2, outline_col, emboss_col, tria_col);
 
     GPU_blend(GPU_BLEND_ALPHA);
     draw_widgetbase_batch(wtb);
@@ -1201,9 +1196,38 @@ static void widgetbase_draw_ex(uiWidgetBase *wtb,
   }
 }
 
-static void widgetbase_draw(uiWidgetBase *wtb, const uiWidgetColors *wcol)
+/* widgetbase_draw variation for drawing colors, with full float color for wide gamut. */
+static void widgetbase_draw_color(uiWidgetBase *wtb,
+                                  const uiWidgetColors *wcol,
+                                  float color[4],
+                                  bool show_alpha_checkers)
 {
-  widgetbase_draw_ex(wtb, wcol, false);
+  const uchar unused_col[4] = {0};
+  uchar emboss_col[4] = {0};
+  uchar outline_col[4] = {0};
+
+  if (wtb->draw_outline) {
+    outline_col[0] = wcol->outline[0];
+    outline_col[1] = wcol->outline[1];
+    outline_col[2] = wcol->outline[2];
+    outline_col[3] = wcol->outline[3];
+
+    /* Emboss shadow if enabled, and inner and outline colors are not fully transparent. */
+    if ((wtb->draw_emboss) && (wcol->inner[3] != 0.0f || wcol->outline[3] != 0.0f)) {
+      UI_GetThemeColor4ubv(TH_WIDGET_EMBOSS, emboss_col);
+    }
+  }
+
+  /* Draw everything in one draw-call. */
+  widgetbase_set_uniform_alpha_check(wtb, show_alpha_checkers);
+  widgetbase_set_uniform_colors_ubv(
+      wtb, unused_col, unused_col, outline_col, emboss_col, unused_col);
+  copy_v4_v4(wtb->uniform_params.color_inner1, color);
+  copy_v4_v4(wtb->uniform_params.color_inner2, color);
+
+  GPU_blend(GPU_BLEND_ALPHA);
+  draw_widgetbase_batch(wtb);
+  GPU_blend(GPU_BLEND_NONE);
 }
 
 /** \} */
@@ -1323,7 +1347,7 @@ static void widget_draw_icon(
   const float height = ICON_DEFAULT_HEIGHT / aspect;
 
   /* calculate blend color */
-  if (ELEM(but->type, UI_BTYPE_TOGGLE, UI_BTYPE_ROW, UI_BTYPE_TOGGLE_N, UI_BTYPE_LISTROW)) {
+  if (ELEM(but->type, ButType::Toggle, ButType::Row, ButType::ToggleN, ButType::ListRow)) {
     if (but->flag & UI_SELECT) {
       /* pass */
     }
@@ -1334,12 +1358,12 @@ static void widget_draw_icon(
       alpha = 0.75f;
     }
   }
-  else if (but->type == UI_BTYPE_LABEL) {
+  else if (but->type == ButType::Label) {
     /* extra feature allows more alpha blending */
     const uiButLabel *but_label = reinterpret_cast<const uiButLabel *>(but);
     alpha *= but_label->alpha_factor;
   }
-  else if (ELEM(but->type, UI_BTYPE_BUT, UI_BTYPE_DECORATOR)) {
+  else if (ELEM(but->type, ButType::But, ButType::Decorator)) {
     uiWidgetStateInfo state = {0};
     state.but_flag = but->flag;
     state.but_drawflag = but->drawflag;
@@ -1359,12 +1383,12 @@ static void widget_draw_icon(
 
     if (but->drawflag & UI_BUT_ICON_LEFT) {
       /* special case - icon_only pie buttons */
-      if (ui_block_is_pie_menu(but->block) && !ELEM(but->type, UI_BTYPE_MENU, UI_BTYPE_POPOVER) &&
+      if (ui_block_is_pie_menu(but->block) && !ELEM(but->type, ButType::Menu, ButType::Popover) &&
           but->str.empty())
       {
         xs = rect->xmin + 2.0f * ofs;
       }
-      else if (but->emboss == blender::ui::EmbossType::None || but->type == UI_BTYPE_LABEL) {
+      else if (but->emboss == blender::ui::EmbossType::None || but->type == ButType::Label) {
         xs = rect->xmin + 2.0f * ofs;
       }
       else {
@@ -1615,7 +1639,9 @@ float UI_text_clip_middle_ex(const uiFontStyle *fstyle,
    * probably reduce this to one pixel if we consolidate text output with length measuring. But
    * our text string lengths include the last character's right-side bearing anyway, so a string
    * can be longer by that amount and still fit visibly in the required space. */
-  BLI_assert((strwidth <= (okwidth + 2)) || (okwidth <= 0.0f));
+  BLI_assert((strwidth <= (okwidth + 2)) || (okwidth <= 0.0f) ||
+             /* TODO: proper handling of non UTF8 strings. */
+             (BLI_str_utf8_invalid_byte(str, max_len) != -1));
   UNUSED_VARS_NDEBUG(okwidth);
 
   return strwidth;
@@ -1627,7 +1653,7 @@ float UI_text_clip_middle_ex(const uiFontStyle *fstyle,
 static void ui_text_clip_middle(const uiFontStyle *fstyle, uiBut *but, const rcti *rect)
 {
   /* No margin for labels! */
-  const int border = ELEM(but->type, UI_BTYPE_LABEL, UI_BTYPE_MENU, UI_BTYPE_POPOVER) ?
+  const int border = ELEM(but->type, ButType::Label, ButType::Menu, ButType::Popover) ?
                          0 :
                          int(UI_TEXT_CLIP_MARGIN + 0.5f);
   const float okwidth = float(max_ii(BLI_rcti_size_x(rect) - border, 0));
@@ -1653,7 +1679,7 @@ static void ui_text_clip_middle_protect_right(const uiFontStyle *fstyle,
                                               const char rsep)
 {
   /* No margin for labels! */
-  const int border = ELEM(but->type, UI_BTYPE_LABEL, UI_BTYPE_MENU, UI_BTYPE_POPOVER) ?
+  const int border = ELEM(but->type, ButType::Label, ButType::Menu, ButType::Popover) ?
                          0 :
                          int(UI_TEXT_CLIP_MARGIN + 0.5f);
   const float okwidth = float(max_ii(BLI_rcti_size_x(rect) - border, 0));
@@ -1671,7 +1697,7 @@ blender::Vector<blender::StringRef> UI_text_clip_multiline_middle(
     const uiFontStyle *fstyle,
     const char *str,
     char *clipped_str_buf,
-    const size_t max_len_clipped_str_buf,
+    const size_t clipped_str_buf_maxncpy,
     const float max_line_width,
     const int max_lines)
 {
@@ -1692,21 +1718,21 @@ blender::Vector<blender::StringRef> UI_text_clip_multiline_middle(
   clipped_lines.reserve(max_lines);
 
   if (max_lines == 1) {
-    BLI_strncpy(clipped_str_buf, str, max_len_clipped_str_buf);
+    BLI_strncpy(clipped_str_buf, str, clipped_str_buf_maxncpy);
 
     UI_text_clip_middle_ex(
-        fstyle, clipped_str_buf, max_line_width, UI_ICON_SIZE, max_len_clipped_str_buf, '\0');
+        fstyle, clipped_str_buf, max_line_width, UI_ICON_SIZE, clipped_str_buf_maxncpy, '\0');
     clipped_lines.append(clipped_str_buf);
     return clipped_lines;
   }
   if (max_lines == 2) {
     clipped_lines.append(lines[0]);
-    BLI_strncpy(clipped_str_buf, str + lines[0].size(), max_len_clipped_str_buf);
+    BLI_strncpy(clipped_str_buf, str + lines[0].size(), clipped_str_buf_maxncpy);
     UI_text_clip_middle_ex(fstyle,
                            clipped_str_buf,
                            max_line_width,
                            UI_ICON_SIZE,
-                           max_len_clipped_str_buf,
+                           clipped_str_buf_maxncpy,
                            '\0',
                            false);
     clipped_lines.append(clipped_str_buf);
@@ -1724,12 +1750,12 @@ blender::Vector<blender::StringRef> UI_text_clip_multiline_middle(
 
   /* Clip the middle of the middle line. */
   {
-    BLI_strncpy(clipped_str_buf, lines[middle_index].data(), max_len_clipped_str_buf);
+    BLI_strncpy(clipped_str_buf, lines[middle_index].data(), clipped_str_buf_maxncpy);
     UI_text_clip_middle_ex(fstyle,
                            clipped_str_buf,
                            max_line_width,
                            UI_ICON_SIZE,
-                           max_len_clipped_str_buf,
+                           clipped_str_buf_maxncpy,
                            '\0',
                            false);
     clipped_lines.append(clipped_str_buf);
@@ -2043,11 +2069,11 @@ static void widget_draw_text(const uiFontStyle *fstyle,
   /* If not editing and indeterminate, show dash. */
   if (but->drawflag & UI_BUT_INDETERMINATE && !but->editstr &&
       ELEM(but->type,
-           UI_BTYPE_MENU,
-           UI_BTYPE_NUM,
-           UI_BTYPE_NUM_SLIDER,
-           UI_BTYPE_TEXT,
-           UI_BTYPE_SEARCH_MENU))
+           ButType::Menu,
+           ButType::Num,
+           ButType::NumSlider,
+           ButType::Text,
+           ButType::SearchMenu))
   {
     drawstr = indeterminate_str;
     drawstr_left_len = strlen(drawstr);
@@ -2178,7 +2204,7 @@ static void widget_draw_text(const uiFontStyle *fstyle,
 
 #ifdef USE_NUMBUTS_LR_ALIGN
   if (!drawstr_right && (but->drawflag & UI_BUT_TEXT_LEFT) &&
-      ELEM(but->type, UI_BTYPE_NUM, UI_BTYPE_NUM_SLIDER) &&
+      ELEM(but->type, ButType::Num, ButType::NumSlider) &&
       /* if we're editing or multi-drag (fake editing), then use left alignment */
       (but->editstr == nullptr) && (drawstr == but->drawstr))
   {
@@ -2256,7 +2282,7 @@ static void widget_draw_text(const uiFontStyle *fstyle,
   }
 
   /* Show placeholder text if the input is empty and not being edited. */
-  if (!drawstr[0] && !but->editstr && ELEM(but->type, UI_BTYPE_TEXT, UI_BTYPE_SEARCH_MENU)) {
+  if (!drawstr[0] && !but->editstr && ELEM(but->type, ButType::Text, ButType::SearchMenu)) {
     const char *placeholder = ui_but_placeholder_get(but);
     if (placeholder && placeholder[0]) {
       uiFontStyleDraw_Params params{};
@@ -2363,7 +2389,7 @@ static void widget_draw_text_icon(const uiFontStyle *fstyle,
   ui_but_text_password_hide(password_str, but, false);
 
   /* check for button text label */
-  if (ELEM(but->type, UI_BTYPE_MENU, UI_BTYPE_POPOVER) && (but->flag & UI_BUT_NODE_LINK)) {
+  if (ELEM(but->type, ButType::Menu, ButType::Popover) && (but->flag & UI_BUT_NODE_LINK)) {
     rcti temp = *rect;
     const int size = BLI_rcti_size_y(rect) + 1; /* Not the icon size! */
 
@@ -2523,7 +2549,7 @@ static void widget_draw_text_icon(const uiFontStyle *fstyle,
     but->ofs = 0;
     but->strwidth = 0;
   }
-  else if (ELEM(but->type, UI_BTYPE_NUM, UI_BTYPE_NUM_SLIDER)) {
+  else if (ELEM(but->type, ButType::Num, ButType::NumSlider)) {
     ui_text_clip_right_label(fstyle, but, rect);
   }
   else if (but->flag & UI_BUT_HAS_SEP_CHAR) {
@@ -2723,9 +2749,9 @@ static bool draw_emboss(const uiBut *but)
     return false;
   }
   uiBut *but_next = but->block->next_but(but);
-  if (but->type == UI_BTYPE_TAB &&
+  if (but->type == ButType::Tab &&
       (BLI_rctf_size_y(&but->block->rect) > BLI_rctf_size_x(&but->block->rect)) &&
-      !(but_next == nullptr || but_next->type == UI_BTYPE_SEPR))
+      !(but_next == nullptr || but_next->type == ButType::Sepr))
   {
     /* Vertical tabs, emboss at end and before separators. */
     return false;
@@ -3046,7 +3072,7 @@ static void ui_draw_but_HSVCIRCLE(uiBut *but, const uiWidgetColors *wcol, const 
   const float radius = float(min_ii(BLI_rcti_size_x(rect), BLI_rcti_size_y(rect))) / 2.0f;
 
   ColorPicker *cpicker = static_cast<ColorPicker *>(but->custom_data);
-  float rgb[3], hsv[3], rgb_center[3];
+  float rgb[3], hsv[3], rgb_center[3], rgb_perceptual[3];
   const bool is_color_gamma = ui_but_is_color_gamma(but);
 
   /* Initialize for compatibility. */
@@ -3054,8 +3080,13 @@ static void ui_draw_but_HSVCIRCLE(uiBut *but, const uiWidgetColors *wcol, const 
 
   /* Compute current hue. */
   ui_but_v3_get(but, rgb);
-  ui_scene_linear_to_perceptual_space(but, rgb);
-  ui_color_picker_rgb_to_hsv_compat(rgb, hsv);
+  copy_v3_v3(rgb_perceptual, rgb);
+  ui_scene_linear_to_perceptual_space(but, rgb_perceptual);
+  ui_color_picker_rgb_to_hsv_compat(rgb_perceptual, hsv);
+
+  if (!is_color_gamma) {
+    ui_block_cm_to_display_space_v3(but->block, rgb);
+  }
 
   CLAMP(hsv[2], 0.0f, 1.0f); /* for display only */
 
@@ -3133,9 +3164,7 @@ static void ui_draw_but_HSVCIRCLE(uiBut *but, const uiWidgetColors *wcol, const 
 
   /* cursor */
   copy_v3_v3(hsv, cpicker->hsv_perceptual);
-  ui_but_v3_get(but, rgb);
-  ui_scene_linear_to_perceptual_space(but, rgb);
-  ui_color_picker_rgb_to_hsv_compat(rgb, hsv);
+  ui_color_picker_rgb_to_hsv_compat(rgb_perceptual, hsv);
 
   float xpos, ypos;
   ui_hsvcircle_pos_from_vals(cpicker, rect, hsv, &xpos, &ypos);
@@ -3149,10 +3178,22 @@ static void ui_draw_but_HSVCIRCLE(uiBut *but, const uiWidgetColors *wcol, const 
 /** \name Draw Custom Buttons
  * \{ */
 
+static void ui_draw_gradient_hsv_to_rgb(
+    const ColorManagedDisplay *display, float h, float s, float v, float rgb[3])
+{
+  hsv_to_rgb(h, s, v, rgb, rgb + 1, rgb + 2);
+
+  if (display) {
+    IMB_colormanagement_color_picking_to_scene_linear_v3(rgb, rgb);
+    IMB_colormanagement_scene_linear_to_display_v3(rgb, display);
+  }
+}
+
 void ui_draw_gradient(const rcti *rect,
                       const float hsv[3],
                       const eButGradientType type,
-                      const float alpha)
+                      const float alpha,
+                      const ColorManagedDisplay *display)
 {
   /* allows for 4 steps (red->yellow) */
   const int steps = 48;
@@ -3167,44 +3208,44 @@ void ui_draw_gradient(const rcti *rect,
 
   switch (type) {
     case UI_GRAD_SV:
-      hsv_to_rgb(h, 0.0, 0.0, &col1[0][0], &col1[0][1], &col1[0][2]);
-      hsv_to_rgb(h, 0.0, 0.333, &col1[1][0], &col1[1][1], &col1[1][2]);
-      hsv_to_rgb(h, 0.0, 0.666, &col1[2][0], &col1[2][1], &col1[2][2]);
-      hsv_to_rgb(h, 0.0, 1.0, &col1[3][0], &col1[3][1], &col1[3][2]);
+      ui_draw_gradient_hsv_to_rgb(display, h, 0.0, 0.0, col1[0]);
+      ui_draw_gradient_hsv_to_rgb(display, h, 0.0, 0.333, col1[1]);
+      ui_draw_gradient_hsv_to_rgb(display, h, 0.0, 0.666, col1[2]);
+      ui_draw_gradient_hsv_to_rgb(display, h, 0.0, 1.0, col1[3]);
       break;
     case UI_GRAD_HV:
-      hsv_to_rgb(0.0, s, 0.0, &col1[0][0], &col1[0][1], &col1[0][2]);
-      hsv_to_rgb(0.0, s, 0.333, &col1[1][0], &col1[1][1], &col1[1][2]);
-      hsv_to_rgb(0.0, s, 0.666, &col1[2][0], &col1[2][1], &col1[2][2]);
-      hsv_to_rgb(0.0, s, 1.0, &col1[3][0], &col1[3][1], &col1[3][2]);
+      ui_draw_gradient_hsv_to_rgb(display, 0.0, s, 0.0, col1[0]);
+      ui_draw_gradient_hsv_to_rgb(display, 0.0, s, 0.333, col1[1]);
+      ui_draw_gradient_hsv_to_rgb(display, 0.0, s, 0.666, col1[2]);
+      ui_draw_gradient_hsv_to_rgb(display, 0.0, s, 1.0, col1[3]);
       break;
     case UI_GRAD_HS:
-      hsv_to_rgb(0.0, 0.0, v, &col1[0][0], &col1[0][1], &col1[0][2]);
-      hsv_to_rgb(0.0, 0.333, v, &col1[1][0], &col1[1][1], &col1[1][2]);
-      hsv_to_rgb(0.0, 0.666, v, &col1[2][0], &col1[2][1], &col1[2][2]);
-      hsv_to_rgb(0.0, 1.0, v, &col1[3][0], &col1[3][1], &col1[3][2]);
+      ui_draw_gradient_hsv_to_rgb(display, 0.0, 0.0, v, col1[0]);
+      ui_draw_gradient_hsv_to_rgb(display, 0.0, 0.333, v, col1[1]);
+      ui_draw_gradient_hsv_to_rgb(display, 0.0, 0.666, v, col1[2]);
+      ui_draw_gradient_hsv_to_rgb(display, 0.0, 1.0, v, col1[3]);
       break;
     case UI_GRAD_H:
-      hsv_to_rgb(0.0, 1.0, 1.0, &col1[0][0], &col1[0][1], &col1[0][2]);
+      ui_draw_gradient_hsv_to_rgb(display, 0.0, 1.0, 1.0, col1[0]);
       copy_v3_v3(col1[1], col1[0]);
       copy_v3_v3(col1[2], col1[0]);
       copy_v3_v3(col1[3], col1[0]);
       break;
     case UI_GRAD_S:
-      hsv_to_rgb(1.0, 0.0, 1.0, &col1[1][0], &col1[1][1], &col1[1][2]);
+      ui_draw_gradient_hsv_to_rgb(display, 1.0, 0.0, 1.0, col1[1]);
       copy_v3_v3(col1[0], col1[1]);
       copy_v3_v3(col1[2], col1[1]);
       copy_v3_v3(col1[3], col1[1]);
       break;
     case UI_GRAD_V:
-      hsv_to_rgb(1.0, 1.0, 0.0, &col1[2][0], &col1[2][1], &col1[2][2]);
+      ui_draw_gradient_hsv_to_rgb(display, 1.0, 1.0, 0.0, col1[2]);
       copy_v3_v3(col1[0], col1[2]);
       copy_v3_v3(col1[1], col1[2]);
       copy_v3_v3(col1[3], col1[2]);
       break;
     default:
       BLI_assert_msg(0, "invalid 'type' argument");
-      hsv_to_rgb(1.0, 1.0, 1.0, &col1[2][0], &col1[2][1], &col1[2][2]);
+      ui_draw_gradient_hsv_to_rgb(display, 1.0, 1.0, 1.0, col1[2]);
       copy_v3_v3(col1[0], col1[2]);
       copy_v3_v3(col1[1], col1[2]);
       copy_v3_v3(col1[3], col1[2]);
@@ -3234,39 +3275,39 @@ void ui_draw_gradient(const rcti *rect,
     /* new color */
     switch (type) {
       case UI_GRAD_SV:
-        hsv_to_rgb(h, dx, 0.0, &col1[0][0], &col1[0][1], &col1[0][2]);
-        hsv_to_rgb(h, dx, 0.333, &col1[1][0], &col1[1][1], &col1[1][2]);
-        hsv_to_rgb(h, dx, 0.666, &col1[2][0], &col1[2][1], &col1[2][2]);
-        hsv_to_rgb(h, dx, 1.0, &col1[3][0], &col1[3][1], &col1[3][2]);
+        ui_draw_gradient_hsv_to_rgb(display, h, dx, 0.0, col1[0]);
+        ui_draw_gradient_hsv_to_rgb(display, h, dx, 0.333, col1[1]);
+        ui_draw_gradient_hsv_to_rgb(display, h, dx, 0.666, col1[2]);
+        ui_draw_gradient_hsv_to_rgb(display, h, dx, 1.0, col1[3]);
         break;
       case UI_GRAD_HV:
-        hsv_to_rgb(dx_next, s, 0.0, &col1[0][0], &col1[0][1], &col1[0][2]);
-        hsv_to_rgb(dx_next, s, 0.333, &col1[1][0], &col1[1][1], &col1[1][2]);
-        hsv_to_rgb(dx_next, s, 0.666, &col1[2][0], &col1[2][1], &col1[2][2]);
-        hsv_to_rgb(dx_next, s, 1.0, &col1[3][0], &col1[3][1], &col1[3][2]);
+        ui_draw_gradient_hsv_to_rgb(display, dx_next, s, 0.0, col1[0]);
+        ui_draw_gradient_hsv_to_rgb(display, dx_next, s, 0.333, col1[1]);
+        ui_draw_gradient_hsv_to_rgb(display, dx_next, s, 0.666, col1[2]);
+        ui_draw_gradient_hsv_to_rgb(display, dx_next, s, 1.0, col1[3]);
         break;
       case UI_GRAD_HS:
-        hsv_to_rgb(dx_next, 0.0, v, &col1[0][0], &col1[0][1], &col1[0][2]);
-        hsv_to_rgb(dx_next, 0.333, v, &col1[1][0], &col1[1][1], &col1[1][2]);
-        hsv_to_rgb(dx_next, 0.666, v, &col1[2][0], &col1[2][1], &col1[2][2]);
-        hsv_to_rgb(dx_next, 1.0, v, &col1[3][0], &col1[3][1], &col1[3][2]);
+        ui_draw_gradient_hsv_to_rgb(display, dx_next, 0.0, v, col1[0]);
+        ui_draw_gradient_hsv_to_rgb(display, dx_next, 0.333, v, col1[1]);
+        ui_draw_gradient_hsv_to_rgb(display, dx_next, 0.666, v, col1[2]);
+        ui_draw_gradient_hsv_to_rgb(display, dx_next, 1.0, v, col1[3]);
         break;
       case UI_GRAD_H:
         /* annoying but without this the color shifts - could be solved some other way
          * - campbell */
-        hsv_to_rgb(dx_next, 1.0, 1.0, &col1[0][0], &col1[0][1], &col1[0][2]);
+        ui_draw_gradient_hsv_to_rgb(display, dx_next, 1.0, 1.0, col1[0]);
         copy_v3_v3(col1[1], col1[0]);
         copy_v3_v3(col1[2], col1[0]);
         copy_v3_v3(col1[3], col1[0]);
         break;
       case UI_GRAD_S:
-        hsv_to_rgb(h, dx, 1.0, &col1[1][0], &col1[1][1], &col1[1][2]);
+        ui_draw_gradient_hsv_to_rgb(display, h, dx, 1.0, col1[1]);
         copy_v3_v3(col1[0], col1[1]);
         copy_v3_v3(col1[2], col1[1]);
         copy_v3_v3(col1[3], col1[1]);
         break;
       case UI_GRAD_V:
-        hsv_to_rgb(h, 1.0, dx, &col1[2][0], &col1[2][1], &col1[2][2]);
+        ui_draw_gradient_hsv_to_rgb(display, h, 1.0, dx, col1[2]);
         copy_v3_v3(col1[0], col1[2]);
         copy_v3_v3(col1[1], col1[2]);
         copy_v3_v3(col1[3], col1[2]);
@@ -3358,8 +3399,9 @@ void ui_hsvcube_pos_from_vals(
 static void ui_draw_but_HSVCUBE(uiBut *but, const rcti *rect)
 {
   const uiButHSVCube *hsv_but = (uiButHSVCube *)but;
-  float rgb[3];
+  float rgb[3], rgb_perceptual[3];
   float x = 0.0f, y = 0.0f;
+  const ColorManagedDisplay *display = ui_block_cm_display_get(but->block);
   ColorPicker *cpicker = static_cast<ColorPicker *>(but->custom_data);
   float *hsv = cpicker->hsv_perceptual;
   float hsv_n[3];
@@ -3371,10 +3413,15 @@ static void ui_draw_but_HSVCUBE(uiBut *but, const rcti *rect)
   copy_v3_v3(hsv_n, hsv);
 
   ui_but_v3_get(but, rgb);
-  ui_scene_linear_to_perceptual_space(but, rgb);
-  rgb_to_hsv_compat_v(rgb, hsv_n);
+  copy_v3_v3(rgb_perceptual, rgb);
+  ui_scene_linear_to_perceptual_space(but, rgb_perceptual);
+  rgb_to_hsv_compat_v(rgb_perceptual, hsv_n);
 
-  ui_draw_gradient(rect, hsv_n, hsv_but->gradient_type, 1.0f);
+  if (!ui_but_is_color_gamma(but)) {
+    ui_block_cm_to_display_space_v3(but->block, rgb);
+  }
+
+  ui_draw_gradient(rect, hsv_n, hsv_but->gradient_type, 1.0f, display);
 
   ui_hsvcube_pos_from_vals(hsv_but, rect, hsv_n, &x, &y);
 
@@ -3937,42 +3984,39 @@ static void widget_progress_indicator(uiBut *but,
 }
 
 static void widget_nodesocket(uiBut *but,
-                              uiWidgetColors *wcol,
+                              uiWidgetColors * /*wcol*/,
                               rcti *rect,
                               const uiWidgetStateInfo * /*state*/,
                               int /*roundboxalign*/,
-                              const float /*zoom*/)
+                              const float zoom)
 {
-  const int radi = 0.25f * BLI_rcti_size_y(rect);
+  blender::ColorTheme4f socket_color;
+  rgba_uchar_to_float(socket_color, but->col);
 
-  uiWidgetBase wtb;
-  widget_init(&wtb);
-
-  uchar old_inner[3], old_outline[3];
-  copy_v3_v3_uchar(old_inner, wcol->inner);
-  copy_v3_v3_uchar(old_outline, wcol->outline);
-
-  wcol->inner[0] = but->col[0];
-  wcol->inner[1] = but->col[1];
-  wcol->inner[2] = but->col[2];
-  wcol->outline[0] = 0;
-  wcol->outline[1] = 0;
-  wcol->outline[2] = 0;
-  wcol->outline[3] = 150;
+  blender::ColorTheme4f outline_color;
+  UI_GetThemeColorType4fv(TH_WIRE, SPACE_NODE, outline_color);
+  outline_color.a = 1.0f;
 
   const int cent_x = BLI_rcti_cent_x(rect);
   const int cent_y = BLI_rcti_cent_y(rect);
-  rect->xmin = cent_x - radi;
-  rect->xmax = cent_x + radi;
-  rect->ymin = cent_y - radi;
-  rect->ymax = cent_y + radi;
+  const int socket_radius = 0.25f * BLI_rcti_size_y(rect);
 
-  wtb.draw_outline = true;
-  round_box_edges(&wtb, UI_CNR_ALL, rect, float(radi));
-  widgetbase_draw(&wtb, wcol);
+  rctf socket_rect;
+  socket_rect.xmin = cent_x - socket_radius;
+  socket_rect.xmax = cent_x + socket_radius;
+  socket_rect.ymin = cent_y - socket_radius;
+  socket_rect.ymax = cent_y + socket_radius;
 
-  copy_v3_v3_uchar(wcol->inner, old_inner);
-  copy_v3_v3_uchar(wcol->outline, old_outline);
+  GPU_blend(GPU_BLEND_ALPHA);
+  UI_widgetbase_draw_cache_flush();
+  GPU_blend(GPU_BLEND_NONE);
+
+  blender::ed::space_node::node_draw_nodesocket(&socket_rect,
+                                                socket_color,
+                                                outline_color,
+                                                U.pixelsize,
+                                                SOCK_DISPLAY_SHAPE_CIRCLE,
+                                                1.0f / zoom);
 }
 
 static void widget_numslider(uiBut *but,
@@ -4099,7 +4143,7 @@ static void widget_swatch(uiBut *but,
                           int roundboxalign,
                           const float zoom)
 {
-  BLI_assert(but->type == UI_BTYPE_COLOR);
+  BLI_assert(but->type == ButType::Color);
   uiButColor *color_but = (uiButColor *)but;
   float col[4];
 
@@ -4145,18 +4189,15 @@ static void widget_swatch(uiBut *but,
     ui_block_cm_to_display_space_v3(but->block, col);
   }
 
-  rgba_float_to_uchar(wcol->inner, col);
-  const bool show_alpha_checkers = (wcol->inner[3] < 255);
-
-  wcol->shaded = 0;
+  const bool show_alpha_checkers = col[3] < 1.0f;
 
   /* Now we reduce alpha of the inner color (i.e. the color shown)
    * so that this setting can look grayed out, while retaining
    * the checkerboard (for transparent values). This is needed
    * here as the effects of ui_widget_color_disabled() are overwritten. */
-  wcol->inner[3] *= widget_alpha_factor(state);
+  col[3] *= widget_alpha_factor(state);
 
-  widgetbase_draw_ex(&wtb, wcol, show_alpha_checkers);
+  widgetbase_draw_color(&wtb, wcol, col, show_alpha_checkers);
   if (color_but->is_pallete_color &&
       ((Palette *)but->rnapoin.owner_id)->active_color == color_but->palette_color_index)
   {
@@ -4217,12 +4258,12 @@ static void widget_icon_has_anim(uiBut *but,
     round_box_edges(&wtb, UI_CNR_ALL, rect, rad);
     widgetbase_draw(&wtb, wcol);
   }
-  else if (but->type == UI_BTYPE_NUM) {
+  else if (but->type == ButType::Num) {
     /* Draw number buttons still with left/right
      * triangles when field is not embossed */
     widget_numbut_embossn(but, wcol, rect, state, roundboxalign, zoom);
   }
-  else if (but->type == UI_BTYPE_MENU) {
+  else if (but->type == ButType::Menu) {
     /* Draw menu buttons still with down arrow. */
     widget_menubut_embossn(but, wcol, rect, state, roundboxalign);
   }
@@ -4373,7 +4414,7 @@ static void widget_list_itembut(uiBut *but,
   rcti draw_rect = *rect;
   bool is_selected = state->but_flag & UI_SELECT;
 
-  if (but->type == UI_BTYPE_VIEW_ITEM) {
+  if (but->type == ButType::ViewItem) {
     uiButViewItem *item_but = static_cast<uiButViewItem *>(but);
     blender::ui::AbstractViewItem &view_item = *item_but->view_item;
 
@@ -4903,7 +4944,7 @@ static int widget_roundbox_set(uiBut *but, rcti *rect)
   int roundbox = UI_CNR_ALL;
 
   /* alignment */
-  if ((but->drawflag & UI_BUT_ALIGN) && but->type != UI_BTYPE_PULLDOWN) {
+  if ((but->drawflag & UI_BUT_ALIGN) && but->type != ButType::Pulldown) {
 
     /* ui_popup_block_position has this correction too, keep in sync */
     if (but->drawflag & (UI_BUT_ALIGN_TOP | UI_BUT_ALIGN_STITCH_TOP)) {
@@ -4945,7 +4986,7 @@ static int widget_roundbox_set(uiBut *but, rcti *rect)
   }
 
   /* align with open menu */
-  if (but->active && (but->type != UI_BTYPE_POPOVER) && !ui_but_menu_draw_as_popover(but)) {
+  if (but->active && (but->type != ButType::Popover) && !ui_but_menu_draw_as_popover(but)) {
     const int direction = ui_but_menu_direction(but);
 
     /* Pull-down menus that open above or below a button can have more than one direction. */
@@ -4982,12 +5023,12 @@ void ui_draw_but(const bContext *C, ARegion *region, uiStyle *style, uiBut *but,
   /* handle menus separately */
   if (but->emboss == blender::ui::EmbossType::Pulldown) {
     switch (but->type) {
-      case UI_BTYPE_LABEL:
+      case ButType::Label:
         widget_draw_text_icon(&style->widget, &tui->wcol_menu_back, but, rect);
         break;
-      case UI_BTYPE_SEPR:
+      case ButType::Sepr:
         break;
-      case UI_BTYPE_SEPR_LINE:
+      case ButType::SeprLine:
         /* Add horizontal padding between the line and menu sides. */
         BLI_rcti_pad(rect, int(-7.0f * UI_SCALE_FAC), 0);
         ui_draw_separator(&tui->wcol_menu_item, but, rect);
@@ -5005,15 +5046,18 @@ void ui_draw_but(const bContext *C, ARegion *region, uiStyle *style, uiBut *but,
     /* Use the same widget types for both no emboss types. Later on,
      * #blender::ui::EmbossType::NoneOrStatus will blend state colors if they apply. */
     switch (but->type) {
-      case UI_BTYPE_LABEL:
-      case UI_BTYPE_TEXT:
+      case ButType::Label:
+      case ButType::Text:
         wt = widget_type(UI_WTYPE_ICON_LABEL);
         if (!(but->flag & UI_HAS_ICON)) {
           but->drawflag |= UI_BUT_NO_TEXT_PADDING;
         }
         break;
-      case UI_BTYPE_PREVIEW_TILE:
+      case ButType::PreviewTile:
         wt = widget_type(UI_WTYPE_PREVIEW_TILE);
+        break;
+      case ButType::NodeSocket:
+        wt = widget_type(UI_WTYPE_NODESOCKET);
         break;
       default:
         wt = widget_type(UI_WTYPE_ICON);
@@ -5027,7 +5071,7 @@ void ui_draw_but(const bContext *C, ARegion *region, uiStyle *style, uiBut *but,
     BLI_assert(but->emboss == blender::ui::EmbossType::Emboss);
 
     switch (but->type) {
-      case UI_BTYPE_LABEL:
+      case ButType::Label:
         wt = widget_type(UI_WTYPE_LABEL);
         if (but->drawflag & UI_BUT_BOX_ITEM) {
           wt->wcol_theme = &tui->wcol_box;
@@ -5042,15 +5086,15 @@ void ui_draw_but(const bContext *C, ARegion *region, uiStyle *style, uiBut *but,
         }
         break;
 
-      case UI_BTYPE_SEPR:
-      case UI_BTYPE_SEPR_SPACER:
+      case ButType::Sepr:
+      case ButType::SeprSpacer:
         break;
-      case UI_BTYPE_SEPR_LINE:
+      case ButType::SeprLine:
         ui_draw_separator(&tui->wcol_menu_item, but, rect);
         break;
 
-      case UI_BTYPE_BUT:
-      case UI_BTYPE_DECORATOR:
+      case ButType::But:
+      case ButType::Decorator:
 #ifdef USE_UI_TOOLBAR_HACK
         if ((but->icon != ICON_NONE) && UI_but_is_tool(but)) {
           wt = widget_type(UI_WTYPE_TOOLBAR_ITEM);
@@ -5063,42 +5107,42 @@ void ui_draw_but(const bContext *C, ARegion *region, uiStyle *style, uiBut *but,
 #endif
         break;
 
-      case UI_BTYPE_NUM:
+      case ButType::Num:
         wt = widget_type(UI_WTYPE_NUMBER);
         break;
 
-      case UI_BTYPE_NUM_SLIDER:
+      case ButType::NumSlider:
         wt = widget_type(UI_WTYPE_SLIDER);
         break;
 
-      case UI_BTYPE_ROW:
+      case ButType::Row:
         wt = widget_type(UI_WTYPE_RADIO);
         break;
 
-      case UI_BTYPE_LISTROW:
+      case ButType::ListRow:
         wt = widget_type(UI_WTYPE_LISTITEM);
         break;
 
-      case UI_BTYPE_TEXT:
+      case ButType::Text:
         wt = widget_type(UI_WTYPE_NAME);
         break;
 
-      case UI_BTYPE_SEARCH_MENU:
+      case ButType::SearchMenu:
         wt = widget_type(UI_WTYPE_NAME);
         break;
 
-      case UI_BTYPE_TAB:
+      case ButType::Tab:
         wt = widget_type(UI_WTYPE_TAB);
         break;
 
-      case UI_BTYPE_BUT_TOGGLE:
-      case UI_BTYPE_TOGGLE:
-      case UI_BTYPE_TOGGLE_N:
+      case ButType::ButToggle:
+      case ButType::Toggle:
+      case ButType::ToggleN:
         wt = widget_type(UI_WTYPE_TOGGLE);
         break;
 
-      case UI_BTYPE_CHECKBOX:
-      case UI_BTYPE_CHECKBOX_N:
+      case ButType::Checkbox:
+      case ButType::CheckboxN:
         if (!(but->flag & UI_HAS_ICON)) {
           wt = widget_type(UI_WTYPE_CHECKBOX);
 
@@ -5120,9 +5164,9 @@ void ui_draw_but(const bContext *C, ARegion *region, uiStyle *style, uiBut *but,
         }
         break;
 
-      case UI_BTYPE_MENU:
-      case UI_BTYPE_BLOCK:
-      case UI_BTYPE_POPOVER:
+      case ButType::Menu:
+      case ButType::Block:
+      case ButType::Popover:
         if (but->flag & UI_BUT_NODE_LINK) {
           /* new node-link button, not active yet XXX */
           wt = widget_type(UI_WTYPE_MENU_NODE_LINK);
@@ -5146,32 +5190,32 @@ void ui_draw_but(const bContext *C, ARegion *region, uiStyle *style, uiBut *but,
         }
         break;
 
-      case UI_BTYPE_PULLDOWN:
+      case ButType::Pulldown:
         wt = widget_type(UI_WTYPE_PULLDOWN);
         break;
 
-      case UI_BTYPE_BUT_MENU:
+      case ButType::ButMenu:
         wt = widget_type(UI_WTYPE_MENU_ITEM);
         break;
 
-      case UI_BTYPE_COLOR:
+      case ButType::Color:
         wt = widget_type(UI_WTYPE_SWATCH);
         break;
 
-      case UI_BTYPE_ROUNDBOX:
-      case UI_BTYPE_LISTBOX:
+      case ButType::Roundbox:
+      case ButType::ListBox:
         wt = widget_type(UI_WTYPE_BOX);
         break;
 
-      case UI_BTYPE_PREVIEW_TILE:
+      case ButType::PreviewTile:
         wt = widget_type(UI_WTYPE_PREVIEW_TILE);
         break;
 
-      case UI_BTYPE_EXTRA:
+      case ButType::Extra:
         widget_draw_extra_mask(C, but, widget_type(UI_WTYPE_BOX), rect);
         break;
 
-      case UI_BTYPE_HSVCUBE: {
+      case ButType::HsvCube: {
         const uiButHSVCube *hsv_but = (uiButHSVCube *)but;
 
         if (ELEM(hsv_but->gradient_type, UI_GRAD_V_ALT, UI_GRAD_L_ALT)) {
@@ -5184,11 +5228,11 @@ void ui_draw_but(const bContext *C, ARegion *region, uiStyle *style, uiBut *but,
         break;
       }
 
-      case UI_BTYPE_HSVCIRCLE:
+      case ButType::HsvCircle:
         ui_draw_but_HSVCIRCLE(but, &tui->wcol_regular, rect);
         break;
 
-      case UI_BTYPE_COLORBAND: {
+      case ButType::ColorBand: {
         /* Horizontal padding to make room for handles at edges. */
         const int padding = BLI_rcti_size_y(rect) / 6;
         rect->xmin += padding;
@@ -5197,55 +5241,55 @@ void ui_draw_but(const bContext *C, ARegion *region, uiStyle *style, uiBut *but,
         break;
       }
 
-      case UI_BTYPE_UNITVEC:
+      case ButType::Unitvec:
         wt = widget_type(UI_WTYPE_UNITVEC);
         break;
 
-      case UI_BTYPE_IMAGE:
+      case ButType::Image:
         ui_draw_but_IMAGE(region, but, &tui->wcol_regular, rect);
         break;
 
-      case UI_BTYPE_HISTOGRAM:
+      case ButType::Histogram:
         ui_draw_but_HISTOGRAM(region, but, &tui->wcol_regular, rect);
         break;
 
-      case UI_BTYPE_WAVEFORM:
+      case ButType::Waveform:
         ui_draw_but_WAVEFORM(region, but, &tui->wcol_regular, rect);
         break;
 
-      case UI_BTYPE_VECTORSCOPE:
+      case ButType::Vectorscope:
         ui_draw_but_VECTORSCOPE(region, but, &tui->wcol_regular, rect);
         break;
 
-      case UI_BTYPE_CURVE:
+      case ButType::Curve:
         ui_draw_but_CURVE(region, but, &tui->wcol_regular, rect);
         break;
 
-      case UI_BTYPE_CURVEPROFILE:
+      case ButType::CurveProfile:
         ui_draw_but_CURVEPROFILE(region, but, &tui->wcol_regular, rect);
         break;
 
-      case UI_BTYPE_PROGRESS:
+      case ButType::Progress:
         wt = widget_type(UI_WTYPE_PROGRESS);
         break;
 
-      case UI_BTYPE_VIEW_ITEM:
+      case ButType::ViewItem:
         wt = widget_type(UI_WTYPE_VIEW_ITEM);
         break;
 
-      case UI_BTYPE_SCROLL:
+      case ButType::Scroll:
         wt = widget_type(UI_WTYPE_SCROLL);
         break;
 
-      case UI_BTYPE_GRIP:
+      case ButType::Grip:
         wt = widget_type(UI_WTYPE_ICON);
         break;
 
-      case UI_BTYPE_TRACK_PREVIEW:
+      case ButType::TrackPreview:
         ui_draw_but_TRACKPREVIEW(region, but, &tui->wcol_regular, rect);
         break;
 
-      case UI_BTYPE_NODE_SOCKET:
+      case ButType::NodeSocket:
         wt = widget_type(UI_WTYPE_NODESOCKET);
         break;
 
@@ -5319,7 +5363,7 @@ void ui_draw_but(const bContext *C, ARegion *region, uiStyle *style, uiBut *but,
       GPU_blend(GPU_BLEND_ALPHA);
     }
 
-    if (but->type == UI_BTYPE_LABEL && !(but->flag & UI_HAS_ICON) && but->col[3] != 0) {
+    if (but->type == ButType::Label && !(but->flag & UI_HAS_ICON) && but->col[3] != 0) {
       /* Optionally use button color for text color if label without icon.
        * For example, ensuring that the Splash version text is always white. */
       copy_v4_v4_uchar(wt->wcol.text, but->col);
@@ -5354,6 +5398,40 @@ static void ui_draw_clip_tri(uiBlock *block, const rcti *rect, uiWidgetType *wt)
   }
 }
 
+static void ui_draw_dialog_alert(uiBlock *block, const rcti *rect)
+{
+  if (block->alert_level != uiBlockAlertLevel::Error) {
+    return;
+  }
+
+  float color[4];
+  switch (block->alert_level) {
+    case uiBlockAlertLevel::Error:
+      UI_GetThemeColor4fv(TH_ERROR, color);
+      break;
+    case uiBlockAlertLevel::Warning:
+      UI_GetThemeColor4fv(TH_WARNING, color);
+      break;
+    case uiBlockAlertLevel::Success:
+      UI_GetThemeColor4fv(TH_SUCCESS, color);
+      break;
+    default:
+      UI_GetThemeColor4fv(TH_INFO, color);
+  }
+
+  bTheme *btheme = UI_GetTheme();
+  const float bg_radius = btheme->tui.wcol_menu_back.roundness * U.widget_unit;
+  const float line_width = 3.0f * UI_SCALE_FAC;
+  const float radius = (bg_radius > (line_width * 2.0f)) ? 0.0f : bg_radius;
+  const float padding = (bg_radius > (line_width * 2.0f)) ? bg_radius : 0.0f;
+  rctf line_rect;
+  BLI_rctf_rcti_copy(&line_rect, rect);
+  line_rect.ymin = line_rect.ymax - line_width;
+  BLI_rctf_pad(&line_rect, -padding, 0.0f);
+  UI_draw_roundbox_corner_set(UI_CNR_TOP_LEFT | UI_CNR_TOP_RIGHT);
+  UI_draw_roundbox_4fv(&line_rect, true, radius, color);
+}
+
 void ui_draw_menu_back(uiStyle * /*style*/, uiBlock *block, const rcti *rect)
 {
   uiWidgetType *wt = widget_type(UI_WTYPE_MENU_BACK);
@@ -5361,7 +5439,15 @@ void ui_draw_menu_back(uiStyle * /*style*/, uiBlock *block, const rcti *rect)
   wt->state(wt, &STATE_INFO_NULL, blender::ui::EmbossType::Undefined);
   if (block) {
     const float zoom = 1.0f / block->aspect;
-    wt->draw_block(&wt->wcol, rect, block->flag, block->direction, zoom);
+    wt->draw_block(&wt->wcol,
+                   rect,
+                   block->flag,
+                   block->alert_level == uiBlockAlertLevel::None ? block->direction :
+                                                                   char(UI_DIR_DOWN),
+                   zoom);
+    if (block->alert_level != uiBlockAlertLevel::None) {
+      ui_draw_dialog_alert(block, rect);
+    }
   }
   else {
     wt->draw_block(&wt->wcol, rect, 0, 0, 1.0f);
@@ -5750,7 +5836,7 @@ void ui_draw_menu_item(const uiFontStyle *fstyle,
     const size_t max_len = sizeof(drawstr);
     const float minwidth = UI_ICON_SIZE;
 
-    STRNCPY(drawstr, name);
+    STRNCPY_UTF8(drawstr, name);
     if (drawstr[0]) {
       UI_text_clip_middle_ex(fstyle, drawstr, okwidth, minwidth, max_len, '\0');
     }
@@ -5796,7 +5882,7 @@ void ui_draw_menu_item(const uiFontStyle *fstyle,
         const size_t max_len = sizeof(hint_drawstr);
         const float minwidth = UI_ICON_SIZE;
 
-        STRNCPY(hint_drawstr, cpoin + 1);
+        STRNCPY_UTF8(hint_drawstr, cpoin + 1);
         if (hint_drawstr[0] && (max_hint_width < INT_MAX)) {
           UI_text_clip_middle_ex(fstyle, hint_drawstr, max_hint_width, minwidth, max_len, '\0');
         }

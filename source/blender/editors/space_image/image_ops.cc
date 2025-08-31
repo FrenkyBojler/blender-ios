@@ -378,7 +378,7 @@ static void image_view_pan_init(bContext *C, wmOperator *op, const wmEvent *even
   op->customdata = vpd = MEM_callocN<ViewPanData>("ImageViewPanData");
 
   /* Grab will be set when running from gizmo. */
-  vpd->own_cursor = (win->grabcursor == 0);
+  vpd->own_cursor = WM_cursor_modal_is_set_ok(win);
   if (vpd->own_cursor) {
     WM_cursor_modal_set(win, WM_CURSOR_NSEW_SCROLL);
   }
@@ -538,7 +538,7 @@ static void image_view_zoom_init(bContext *C, wmOperator *op, const wmEvent *eve
   op->customdata = vpd = MEM_callocN<ViewZoomData>("ImageViewZoomData");
 
   /* Grab will be set when running from gizmo. */
-  vpd->own_cursor = (win->grabcursor == 0);
+  vpd->own_cursor = WM_cursor_modal_is_set_ok(win);
   if (vpd->own_cursor) {
     WM_cursor_modal_set(win, WM_CURSOR_NSEW_SCROLL);
   }
@@ -1383,6 +1383,7 @@ static wmOperatorStatus image_open_exec(bContext *C, wmOperator *op)
     }
 
     BLI_freelistN(&range->udim_tiles);
+    BLI_freelistN(&range->frames);
   }
   BLI_freelistN(&ranges);
 
@@ -1672,7 +1673,7 @@ static wmOperatorStatus image_file_browse_invoke(bContext *C, wmOperator *op, co
 
     WM_operator_properties_create_ptr(&props_ptr, ot);
     RNA_string_set(&props_ptr, "filepath", filepath);
-    WM_operator_name_call_ptr(C, ot, WM_OP_EXEC_DEFAULT, &props_ptr, nullptr);
+    WM_operator_name_call_ptr(C, ot, blender::wm::OpCallContext::ExecDefault, &props_ptr, nullptr);
     WM_operator_properties_free(&props_ptr);
 
     return OPERATOR_CANCELLED;
@@ -2038,7 +2039,7 @@ static bool image_save_as_draw_check_prop(PointerRNA *ptr, PropertyRNA *prop, vo
            (STREQ(prop_id, "save_as_render") && isd->image->source == IMA_SRC_VIEWER));
 }
 
-static void image_save_as_draw(bContext * /*C*/, wmOperator *op)
+static void image_save_as_draw(bContext *C, wmOperator *op)
 {
   uiLayout *layout = op->layout;
   ImageSaveData *isd = static_cast<ImageSaveData *>(op->customdata);
@@ -2062,7 +2063,7 @@ static void image_save_as_draw(bContext * /*C*/, wmOperator *op)
   /* Image format settings. */
   PointerRNA imf_ptr = RNA_pointer_create_discrete(
       nullptr, &RNA_ImageFormatSettings, &isd->opts.im_format);
-  uiTemplateImageSettings(layout, &imf_ptr, save_as_render);
+  uiTemplateImageSettings(layout, C, &imf_ptr, save_as_render);
 
   if (!save_as_render) {
     PointerRNA linear_settings_ptr = RNA_pointer_get(&imf_ptr, "linear_colorspace_settings");
@@ -2088,7 +2089,7 @@ static bool image_save_as_poll(bContext *C)
     Image *ima = image_from_context(C);
 
     if (ima->source == IMA_SRC_VIEWER) {
-      CTX_wm_operator_poll_msg_set(C, "can't save image while rendering");
+      CTX_wm_operator_poll_msg_set(C, "cannot save image while rendering");
       return false;
     }
   }
@@ -2232,7 +2233,8 @@ static wmOperatorStatus image_save_invoke(bContext *C, wmOperator *op, const wmE
   if (!BKE_image_has_packedfile(ima) &&
       (!BKE_image_has_filepath(ima) || !image_file_format_writable(ima, iuser)))
   {
-    WM_operator_name_call(C, "IMAGE_OT_save_as", WM_OP_INVOKE_DEFAULT, nullptr, event);
+    WM_operator_name_call(
+        C, "IMAGE_OT_save_as", blender::wm::OpCallContext::InvokeDefault, nullptr, event);
     return OPERATOR_CANCELLED;
   }
   return image_save_exec(C, op);
@@ -2410,7 +2412,7 @@ int ED_image_save_all_modified_info(const Main *bmain, ReportList *reports)
         else {
           BKE_reportf(reports,
                       RPT_WARNING,
-                      "Packed library image can't be saved: \"%s\" from \"%s\"",
+                      "Packed library image cannot be saved: \"%s\" from \"%s\"",
                       ima->id.name + 2,
                       ima->id.lib->filepath);
         }
@@ -2418,7 +2420,7 @@ int ED_image_save_all_modified_info(const Main *bmain, ReportList *reports)
       else if (!is_format_writable) {
         BKE_reportf(reports,
                     RPT_WARNING,
-                    "Image can't be saved, use a different file format: \"%s\"",
+                    "Image cannot be saved, use a different file format: \"%s\"",
                     ima->id.name + 2);
       }
       else {
@@ -2427,7 +2429,7 @@ int ED_image_save_all_modified_info(const Main *bmain, ReportList *reports)
           if (unique_paths.contains_as(ima->filepath)) {
             BKE_reportf(reports,
                         RPT_WARNING,
-                        "Multiple images can't be saved to an identical path: \"%s\"",
+                        "Multiple images cannot be saved to an identical path: \"%s\"",
                         ima->filepath);
           }
           else {
@@ -2437,7 +2439,7 @@ int ED_image_save_all_modified_info(const Main *bmain, ReportList *reports)
         else {
           BKE_reportf(reports,
                       RPT_WARNING,
-                      "Image can't be saved, no valid file path: \"%s\"",
+                      "Image cannot be saved, no valid file path: \"%s\"",
                       ima->filepath);
         }
       }
@@ -4320,14 +4322,14 @@ static wmOperatorStatus tile_add_exec(bContext *C, wmOperator *op)
   }
 
   bool fill_tile = RNA_boolean_get(op->ptr, "fill");
-  char *label = RNA_string_get_alloc(op->ptr, "label", nullptr, 0, nullptr);
+  std::string label = RNA_string_get(op->ptr, "label");
 
   /* BKE_image_add_tile assumes a pre-sorted list of tiles. */
   BKE_image_sort_tiles(ima);
 
   ImageTile *last_tile_created = nullptr;
   for (int tile_number = start_tile; tile_number <= end_tile; tile_number++) {
-    ImageTile *tile = BKE_image_add_tile(ima, tile_number, label);
+    ImageTile *tile = BKE_image_add_tile(ima, tile_number, label.c_str());
 
     if (tile != nullptr) {
       if (fill_tile) {
@@ -4337,7 +4339,6 @@ static wmOperatorStatus tile_add_exec(bContext *C, wmOperator *op)
       last_tile_created = tile;
     }
   }
-  MEM_freeN(label);
 
   if (!last_tile_created) {
     BKE_report(op->reports, RPT_WARNING, "No UDIM tiles were created");

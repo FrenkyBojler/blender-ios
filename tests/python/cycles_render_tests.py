@@ -108,7 +108,6 @@ BLOCKLIST_GPU = [
     'image_log.blend',
     'glass_mix_40964.blend',
     'filter_glossy_refraction_45609.blend',
-    'smoke_color.blend',
     'bevel_mblur.blend',
     # Inconsistency between Embree and Hair primitive on GPU.
     'denoise_hair.blend',
@@ -271,6 +270,16 @@ def main():
     # noticably different noise causing OSL Principled BSDF tests to fail.
     if ((args.osl == 'all') and (test_dir_name == 'principled_bsdf')):
         report.set_fail_threshold(0.06)
+
+    # Volume scattering probability guiding renders differently on different platforms
+    if (test_dir_name in {'shadow_catcher', 'light'}):
+        report.set_fail_threshold(0.038)
+    if (test_dir_name in {'light', 'camera'}):
+        report.set_fail_threshold(0.02)
+        report.set_fail_percent(4)
+    if (test_dir_name in {'volume', 'openvdb'}):
+        report.set_fail_threshold(0.048)
+        report.set_fail_percent(3)
 
     ok = report.run(args.testdir, args.blender, get_arguments, batch=args.batch)
 

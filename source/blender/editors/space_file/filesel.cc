@@ -279,7 +279,7 @@ static FileSelectParams *fileselect_ensure_updated_file_params(SpaceFile *sfile)
       /* Protection against Python scripts not setting proper size limit. */
       char *glob = RNA_property_string_get_alloc(op->ptr, prop, nullptr, 0, nullptr);
       BLI_SCOPED_DEFER([&]() { MEM_freeN(glob); });
-      STRNCPY(params->filter_glob, glob);
+      STRNCPY_UTF8(params->filter_glob, glob);
       /* Fix stupid things that truncating might have generated,
        * like last group being a 'match everything' wildcard-only one... */
       BLI_path_extension_glob_validate(params->filter_glob);
@@ -630,7 +630,7 @@ void ED_fileselect_deselect_all(SpaceFile *sfile)
 void ED_fileselect_window_params_get(const wmWindow *win, int r_win_size[2], bool *r_is_maximized)
 {
   /* Get DPI/pixel-size independent size to be stored in preferences. */
-  WM_window_set_dpi(win); /* Ensure the DPI is taken from the right window. */
+  WM_window_dpi_set_userdef(win); /* Ensure the DPI is taken from the right window. */
 
   const blender::int2 win_size = WM_window_native_pixel_size(win);
   r_win_size[0] = win_size[0] / UI_SCALE_FAC;
@@ -1328,8 +1328,9 @@ void ED_fileselect_exit(wmWindowManager *wm, SpaceFile *sfile)
     return;
   }
   if (sfile->op) {
-    wmWindow *temp_win = (wm->winactive && WM_window_is_temp_screen(wm->winactive)) ?
-                             wm->winactive :
+    wmWindow *temp_win = (wm->runtime->winactive &&
+                          WM_window_is_temp_screen(wm->runtime->winactive)) ?
+                             wm->runtime->winactive :
                              nullptr;
     if (temp_win) {
       int win_size[2];

@@ -36,7 +36,7 @@ CurvesData::CurvesData(HydraSceneDelegate *scene_delegate,
 
 void CurvesData::init()
 {
-  ID_LOGN(1, "");
+  ID_LOGN("");
 
   write_curves();
   write_transform();
@@ -45,14 +45,14 @@ void CurvesData::init()
 
 void CurvesData::insert()
 {
-  ID_LOGN(1, "");
+  ID_LOGN("");
   scene_delegate_->GetRenderIndex().InsertRprim(
       pxr::HdPrimTypeTokens->basisCurves, scene_delegate_, prim_id);
 }
 
 void CurvesData::remove()
 {
-  ID_LOG(1, "");
+  ID_LOG("");
   scene_delegate_->GetRenderIndex().RemoveRprim(prim_id);
 }
 
@@ -78,7 +78,7 @@ void CurvesData::update()
   }
 
   scene_delegate_->GetRenderIndex().GetChangeTracker().MarkRprimDirty(prim_id, bits);
-  ID_LOGN(1, "");
+  ID_LOGN("");
 }
 
 pxr::VtValue CurvesData::get_data(pxr::TfToken const &key) const
@@ -174,14 +174,14 @@ void CurvesData::write_curves()
     widths_[i] = radii[i] * 2.0f;
   }
 
-  const Span<float2> surface_uv_coords = curves.surface_uv_coords();
-  if (surface_uv_coords.is_empty()) {
+  const std::optional<Span<float2>> surface_uv_coords = curves.surface_uv_coords();
+  if (!surface_uv_coords) {
     uvs_.clear();
     return;
   }
 
   uvs_.resize(curves.curves_num());
-  MutableSpan(uvs_.data(), uvs_.size()).copy_from(surface_uv_coords.cast<pxr::GfVec2f>());
+  MutableSpan(uvs_.data(), uvs_.size()).copy_from(surface_uv_coords->cast<pxr::GfVec2f>());
 }
 
 HairData::HairData(HydraSceneDelegate *scene_delegate,
@@ -211,7 +211,7 @@ void HairData::update()
   scene_delegate_->GetRenderIndex().GetChangeTracker().MarkRprimDirty(
       prim_id, pxr::HdChangeTracker::AllDirty);
 
-  ID_LOGN(1, "");
+  ID_LOGN("");
 }
 
 void HairData::write_transform()

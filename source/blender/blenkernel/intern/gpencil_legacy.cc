@@ -40,7 +40,6 @@
 #include "BKE_collection.hh"
 #include "BKE_colortools.hh"
 #include "BKE_deform.hh"
-#include "BKE_gpencil_geom_legacy.h"
 #include "BKE_gpencil_legacy.h"
 #include "BKE_icons.h"
 #include "BKE_idtype.hh"
@@ -58,7 +57,9 @@
 
 #include "BLO_read_write.hh"
 
-static CLG_LogRef LOG = {"bke.gpencil"};
+#include "IMB_colormanagement.hh"
+
+static CLG_LogRef LOG = {"geom.gpencil"};
 
 static void greasepencil_copy_data(Main * /*bmain*/,
                                    std::optional<Library *> /*owner_library*/,
@@ -268,8 +269,8 @@ IDTypeInfo IDType_ID_GD_LEGACY = {
     /*dependencies_id_types*/ FILTER_ID_MA,
     /*main_listbase_index*/ INDEX_ID_GD_LEGACY,
     /*struct_size*/ sizeof(bGPdata),
-    /*name*/ "GPencil",
-    /*name_plural*/ N_("grease_pencils"),
+    /*name*/ "Annotation",
+    /*name_plural*/ N_("annotations"),
     /*translation_context*/ BLT_I18NCONTEXT_ID_GPENCIL,
     /*flags*/ IDTYPE_FLAGS_APPEND_IS_REUSABLE,
     /*asset_type_info*/ nullptr,
@@ -1198,7 +1199,8 @@ void BKE_gpencil_palette_ensure(Main *bmain, Scene *scene)
     /* Create Colors. */
     for (int i = 0; i < ARRAY_SIZE(hexcol); i++) {
       PaletteColor *palcol = BKE_palette_color_add(palette);
-      hex_to_rgb(hexcol[i], palcol->rgb, palcol->rgb + 1, palcol->rgb + 2);
+      hex_to_rgb(hexcol[i], palcol->color, palcol->color + 1, palcol->color + 2);
+      IMB_colormanagement_srgb_to_scene_linear_v3(palcol->color, palcol->color);
     }
   }
 

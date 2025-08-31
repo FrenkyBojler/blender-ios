@@ -432,7 +432,7 @@ static void rna_uiItemsEnumO(uiLayout *layout,
                              const bool icon_only)
 {
   eUI_Item_Flag flag = icon_only ? UI_ITEM_R_ICON_ONLY : UI_ITEM_NONE;
-  uiItemsFullEnumO(layout, opname, propname, nullptr, layout->operator_context(), flag);
+  layout->op_enum(opname, propname, nullptr, layout->operator_context(), flag);
 }
 
 static PointerRNA rna_uiItemMenuEnumO(uiLayout *layout,
@@ -455,9 +455,7 @@ static PointerRNA rna_uiItemMenuEnumO(uiLayout *layout,
   std::optional<StringRefNull> text = rna_translate_ui_text(
       name, text_ctxt, ot->srna, nullptr, translate);
 
-  PointerRNA opptr;
-  uiItemMenuEnumFullO_ptr(layout, C, ot, propname, text, icon, &opptr);
-  return opptr;
+  return layout->op_menu_enum(C, ot, propname, text, icon);
 }
 
 static void rna_uiItemL(uiLayout *layout,
@@ -1265,7 +1263,7 @@ void RNA_api_ui_layout(StructRNA *srna)
   func = RNA_def_function(srna, "panel_prop", "rna_uiLayoutPanelProp");
   RNA_def_function_ui_description(
       func,
-      "Similar to `.panel(...)` but instead of storing whether it is open or closed in the "
+      "Similar to ``.panel(...)`` but instead of storing whether it is open or closed in the "
       "region, it is stored in the provided boolean property. This should be used when multiple "
       "instances of the same panel can exist. For example one for every item in a collection "
       "property or list. This can only be used when the panel has the full width of the panel "
@@ -1970,6 +1968,7 @@ void RNA_api_ui_layout(StructRNA *srna)
   RNA_def_boolean(func, "multiview", false, "", "Expose Multi-View options");
 
   func = RNA_def_function(srna, "template_image_settings", "uiTemplateImageSettings");
+  RNA_def_function_flag(func, FUNC_USE_CONTEXT);
   RNA_def_function_ui_description(func, "User interface for setting image format options");
   parm = RNA_def_pointer(func, "image_settings", "ImageFormatSettings", "", "");
   RNA_def_parameter_flags(parm, PROP_NEVER_NULL, PARM_REQUIRED | PARM_RNAPTR);
