@@ -32,8 +32,6 @@ class GHOST_WindowIOS;
 @end
 #endif
 
-GHOST_TKey convertIOSKeyToGHOST(long key_value);
-
 class GHOST_SystemIOS : public GHOST_System {
  public:
   /**
@@ -297,6 +295,7 @@ class GHOST_SystemIOS : public GHOST_System {
    * \return Indication whether the event was handled.
    */
   GHOST_TSuccess handleMouseEvent(void *eventPtr);
+#endif
 
   /**
    * Handles a key event.
@@ -305,7 +304,6 @@ class GHOST_SystemIOS : public GHOST_System {
    */
   GHOST_TSuccess handleKeyEvent(void *eventPtr);
 
-#endif
 
   /* Public global state vars that track the currently valid window from the iOS POV. */
   GHOST_WindowIOS *current_active_window_ = nullptr;

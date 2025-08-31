@@ -621,59 +621,6 @@ typedef struct UserInputEvent {
   tablet_data = GHOST_TABLET_DATA_NONE;
 }
 
-- (void)handleKeyPress:(UIPress *)press
-{
-  const GHOST_TKey key_code = convertIOSKeyToGHOST(press.key.keyCode);
-
-  /* Similar character parsing logic as Cocoa. */
-  char utf8_buf[128] = {"\0"};
-  NSString *key_characters = press.key.characters;
-  if (key_characters.length > 0) {
-    strcpy(utf8_buf, key_characters.UTF8String);
-  }
-
-  /* Arrow keys should not have UTF-8. */
-  if ((key_code >= GHOST_kKeyLeftArrow) && (key_code <= GHOST_kKeyDownArrow)) {
-    utf8_buf[0] = '\0';
-  }
-
-  /* F-keys should not have UTF-8. */
-  if ((key_code >= GHOST_kKeyF1) && (key_code <= GHOST_kKeyF20)) {
-    utf8_buf[0] = '\0';
-  }
-
-  /* TODO: handle GHOST system modifier mask method to meet WM expectations */
-  /* No text with command key pressed. */
-  //  if (modifier_mask_ & NSEventModifierFlagCommand) {
-  //    utf8_buf[0] = '\0';
-  //  }
-
-  if (key_code == GHOST_kKeyUnknown) {
-    return;
-  }
-
-  if (press.phase == UIPressPhaseBegan || press.phase == UIPressPhaseStationary) {
-    GHOST_EventKey *key_event = new GHOST_EventKey(
-        GHOST_GetMilliSeconds((GHOST_SystemHandle)system),
-        GHOST_kEventKeyDown,
-        window,
-        key_code,
-        press.phase == UIPressPhaseStationary, /* NOTE: iOS doesn't produce repeated key event. */
-        utf8_buf);
-    system->pushEvent(key_event);
-  }
-  if (press.phase == UIPressPhaseEnded || press.phase == UIPressPhaseCancelled) {
-    GHOST_EventKey *key_event = new GHOST_EventKey(
-        GHOST_GetMilliSeconds((GHOST_SystemHandle)system),
-        GHOST_kEventKeyUp,
-        window,
-        key_code,
-        false,
-        nullptr);
-    system->pushEvent(key_event);
-  }
-}
-
 - (void)handleTap:(GHOSTUITapGestureRecognizer *)sender
 {
   CGPoint touch_point = [sender getScaledTouchPoint:window];
@@ -1231,7 +1178,7 @@ typedef struct UserInputEvent {
 - (void)pressesBegan:(NSSet<UIPress *> *)presses withEvent:(UIPressesEvent *)event
 {
   for (UIPress *press in presses) {
-    [self handleKeyPress:press];
+    system->handleKeyEvent(press);
   }
 
   [super pressesBegan:presses withEvent:event];
@@ -1240,7 +1187,7 @@ typedef struct UserInputEvent {
 - (void)pressesChanged:(NSSet<UIPress *> *)presses withEvent:(UIPressesEvent *)event
 {
   for (UIPress *press in presses) {
-    [self handleKeyPress:press];
+    system->handleKeyEvent(press);
   }
 
   [super pressesChanged:presses withEvent:event];
@@ -1249,7 +1196,7 @@ typedef struct UserInputEvent {
 - (void)pressesEnded:(NSSet<UIPress *> *)presses withEvent:(UIPressesEvent *)event
 {
   for (UIPress *press in presses) {
-    [self handleKeyPress:press];
+    system->handleKeyEvent(press);
   }
 
   [super pressesEnded:presses withEvent:event];
@@ -1258,7 +1205,7 @@ typedef struct UserInputEvent {
 - (void)pressesCancelled:(NSSet<UIPress *> *)presses withEvent:(UIPressesEvent *)event
 {
   for (UIPress *press in presses) {
-    [self handleKeyPress:press];
+    system->handleKeyEvent(press);
   }
 
   [super pressesCancelled:presses withEvent:event];

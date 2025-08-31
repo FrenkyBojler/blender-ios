@@ -7,10 +7,12 @@
 #include "GHOST_ContextIOS.hh"
 #include "GHOST_WindowIOS.hh"
 
+#include "GHOST_C-api.h"
 #include "GHOST_Debug.hh"
 #include "GHOST_EventButton.hh"
 #include "GHOST_EventCursor.hh"
 #include "GHOST_EventDragnDrop.hh"
+#include "GHOST_EventKey.hh"
 #include "GHOST_EventString.hh"
 #include "GHOST_WindowManager.hh"
 
@@ -162,7 +164,7 @@ void GHOST_iosfinalize(bContext *CTX)
 
 #pragma mark KeyMap, mouse converters
 
-GHOST_TKey convertIOSKeyToGHOST(long key_value)
+static GHOST_TKey convertIOSKeyToGHOST(long key_value)
 {
   UIKeyboardHIDUsage key = static_cast<UIKeyboardHIDUsage>(key_value);
   switch (key) {
@@ -721,9 +723,13 @@ GHOST_TSuccess GHOST_SystemIOS::setMouseCursorPosition(int32_t /*x*/, int32_t /*
   return GHOST_kSuccess;
 }
 
-GHOST_TSuccess GHOST_SystemIOS::getModifierKeys(GHOST_ModifierKeys & /*keys*/) const
+GHOST_TSuccess GHOST_SystemIOS::getModifierKeys(GHOST_ModifierKeys &keys) const
 {
-  /* iOS Passthrough. */
+  keys.set(GHOST_kModifierKeyLeftOS, (modifier_mask_ & UIKeyModifierCommand) != 0);
+  keys.set(GHOST_kModifierKeyLeftAlt, (modifier_mask_ & UIKeyModifierAlternate) != 0);
+  keys.set(GHOST_kModifierKeyLeftShift, (modifier_mask_ & UIKeyModifierShift) != 0);
+  keys.set(GHOST_kModifierKeyLeftControl, (modifier_mask_ & UIKeyModifierControl) != 0);
+
   return GHOST_kSuccess;
 }
 
@@ -1066,17 +1072,75 @@ GHOST_TSuccess GHOST_SystemIOS::handleMouseEvent(void * /*eventPtr*/)
   GHOST_ASSERT(FALSE,"GHOST_SystemIOS::handleMouseEvent unsupported on iOS");
   return GHOST_kSuccess;
 }
-
-#  include <Metal/Metal.h>
-bool frame_capture = false;
-extern id<MTLDevice> extern_device;
-GHOST_TSuccess GHOST_SystemIOS::handleKeyEvent(void * /*eventPtr*/)
-{
-  /* TODO: Handle events (here or elsewhere). */
-  GHOST_ASSERT(FALSE,"GHOST_SystemIOS::handleKeyEvent unsupported on iOS");
-  return GHOST_kSuccess;
-}
 #endif
+
+GHOST_TSuccess GHOST_SystemIOS::handleKeyEvent(void *eventPtr)
+{
+  UIPress *press = static_cast<UIPress *>(eventPtr);
+
+  /* Update modifier mask. */
+  modifier_mask_ = press.key.modifierFlags;
+
+  /* Parse key and UTF-8 character, similar logic as Cocoa. */
+  const GHOST_TKey key_code = convertIOSKeyToGHOST(press.key.keyCode);
+
+  char utf8_buf[128] = {"\0"};
+  NSString *key_characters = press.key.characters;
+  if (key_characters.length > 0) {
+    strcpy(utf8_buf, key_characters.UTF8String);
+  }
+
+  /* Arrow keys should not have UTF-8. */
+  if ((key_code >= GHOST_kKeyLeftArrow) && (key_code <= GHOST_kKeyDownArrow)) {
+    utf8_buf[0] = '\0';
+  }
+
+  /* F-keys should not have UTF-8. */
+  if ((key_code >= GHOST_kKeyF1) && (key_code <= GHOST_kKeyF20)) {
+    utf8_buf[0] = '\0';
+  }
+
+  /* No text with command key pressed. */
+  if (key_code == GHOST_kKeyLeftOS || key_code == GHOST_kKeyRightOS) {
+    utf8_buf[0] = '\0';
+  }
+
+  if (key_code == GHOST_kKeyUnknown) {
+    return GHOST_kFailure;
+  }
+
+  GHOST_Window *window = (GHOST_Window *)window_manager_->getActiveWindow();
+  GHOST_SystemIOS *system = static_cast<GHOST_SystemIOS *>(GHOST_ISystem::getSystem());
+
+  switch (press.phase) {
+    case UIPressPhaseBegan:
+    case UIPressPhaseStationary:
+      /* Key Down. */
+      system->pushEvent(
+          new GHOST_EventKey(GHOST_GetMilliSeconds((GHOST_SystemHandle)system),
+                             GHOST_kEventKeyDown,
+                             window,
+                             key_code,
+                             /* NOTE: iOS doesn't currently produce repeated key event. */
+                             press.phase == UIPressPhaseStationary,
+                             utf8_buf));
+      return GHOST_kSuccess;
+    case UIPressPhaseEnded:
+    case UIPressPhaseCancelled:
+      /* Key Up. */
+      system->pushEvent(new GHOST_EventKey(GHOST_GetMilliSeconds((GHOST_SystemHandle)system),
+                                           GHOST_kEventKeyUp,
+                                           window,
+                                           key_code,
+                                           false,
+                                           nullptr));
+      return GHOST_kSuccess;
+    case UIPressPhaseChanged:
+      /* Analog button phase, currently unhandled. */
+    default:
+      return GHOST_kFailure;
+  }
+}
 
 #pragma mark Clipboard get/set
 
