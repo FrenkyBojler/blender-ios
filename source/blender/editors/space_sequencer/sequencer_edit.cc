@@ -1808,6 +1808,15 @@ static wmOperatorStatus sequencer_box_cut_exec(bContext *C, wmOperator *op)
           right_handle >= rect_frames[0] && right_handle <= rect_frames[1])
       {
         seq::edit_flag_for_removal(scene, ed->current_strips(), strip);
+        const bool ignore_connections = RNA_boolean_get(op->ptr, "ignore_connections");
+        if (!ignore_connections) {
+          printf("!ignore_connections\n");
+          /* Propagate selection to connected strips. */
+          blender::VectorSet<Strip *> connected_strips = seq::connected_strips_get(strip);
+          for (Strip *c_strip : connected_strips) {
+            seq::edit_flag_for_removal(scene, ed->current_strips(), c_strip);
+          }
+        }
       }
       seq::edit_remove_flagged_strips(scene, ed->current_strips());
     }
@@ -1850,7 +1859,7 @@ static void sequencer_box_cut_ui(bContext * /*C*/, wmOperator *op)
 
   // layout->prop(op->ptr, "use_cursor_position", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   // if (RNA_boolean_get(op->ptr, "use_cursor_position")) {
-    // layout->prop(op->ptr, "channel", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  // layout->prop(op->ptr, "channel", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   // }
 }
 
@@ -1871,6 +1880,7 @@ void SEQUENCER_OT_box_cut(wmOperatorType *ot)
   /* Flags. */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
+  PropertyRNA *prop;
   WM_operator_properties_gesture_box(ot);
   WM_operator_properties_select_operation_simple(ot);
   RNA_def_enum(ot->srna,
@@ -1881,6 +1891,13 @@ void SEQUENCER_OT_box_cut(wmOperatorType *ot)
                "The type of split operation to perform on strips");
   RNA_def_boolean(
       ot->srna, "remove_gaps", true, "Remove Gaps", "Close gaps between cutted strips");
+  /* Maybe this prop not needed and do this by default. */
+  prop = RNA_def_boolean(ot->srna,
+                         "ignore_connections",
+                         false,
+                         "Ignore Connections",
+                         "Select strips individually whether or not they are connected");
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
 /** \} */
