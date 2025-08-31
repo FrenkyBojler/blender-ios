@@ -281,7 +281,6 @@ struct PenToolOperation {
 
     MutableSpan<float3> positions = curves.positions_for_write();
     const bke::AttributeAccessor attributes = curves.attributes();
-    const OffsetIndices<int> points_by_curve = curves.points_by_curve();
     const Array<int> point_to_curve_map = curves.point_to_curve_map();
 
     MutableSpan<int8_t> handle_types_left = curves.handle_types_left_for_write();
