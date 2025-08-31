@@ -952,7 +952,7 @@ typedef struct UserInputEvent {
 
   toolbar_text_field = [[UITextField alloc]
       initWithFrame:CGRectInset(text_field_container.bounds, 10, 0)];
-  toolbar_text_field.clearButtonMode = UITextFieldViewModeWhileEditing;
+  toolbar_text_field.clearButtonMode = UITextFieldViewModeAlways;
   toolbar_text_field.autocapitalizationType = UITextAutocapitalizationTypeNone;
   toolbar_text_field.autocorrectionType = UITextAutocorrectionTypeNo;
   toolbar_text_field.spellCheckingType = UITextSpellCheckingTypeNo;
