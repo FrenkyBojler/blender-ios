@@ -926,13 +926,13 @@ typedef struct UserInputEvent {
 
 - (void)initToolbar
 {
-  /* This gets the current view size */
+  /* Get the current view size. */
   UIView *ui_view = window->getView();
   CGSize frame_size = [ui_view sizeThatFits:CGSizeMake(0.0f, 0.0f)];
   /* Create a toolbar the width of the screen. */
   toolbar = [[UIToolbar alloc] initWithFrame:CGRectMake(0, 0, frame_size.width, 44)];
   toolbar.barStyle = UIBarStyleDefault;
-  toolbar.translucent = true;
+  toolbar.translucent = YES;
   /* IOS_FIXME - Despite following Apple guidelines this toolbar still
    * appears to apparently violate the view constraints. It displays fine
    * but generates a lot of warning output to the console. */
@@ -940,12 +940,23 @@ typedef struct UserInputEvent {
   toolbar.translatesAutoresizingMaskIntoConstraints = NO;
   [toolbar sizeToFit];
 
+  /* Tool-tip. */
   toolbar_tip_item = [[UIBarButtonItem alloc] initWithTitle:@""
                                                       style:UIBarButtonItemStylePlain
                                                      target:nil
                                                      action:nil];
+  toolbar_tip_item.enabled = NO;
 
-  toolbar_text_field = [[UITextField alloc] initWithFrame:CGRectMake(0, 0, 250, 30)];
+  /* Text field, width assured by parent container view. */
+  CGFloat container_width = MIN(frame_size.width * 0.5, 300);
+  UIView *text_field_container = [[UIView alloc] initWithFrame:CGRectMake(0, 0, container_width, 30)];
+  text_field_container.autoresizingMask = UIViewAutoresizingFlexibleLeftMargin |
+                                          UIViewAutoresizingFlexibleRightMargin;
+
+  toolbar_text_field = [[UITextField alloc]
+      initWithFrame:CGRectInset(text_field_container.bounds, 10, 0)];
+
+  toolbar_text_field.autoresizingMask = UIViewAutoresizingFlexibleWidth;
   toolbar_text_field.borderStyle = UITextBorderStyleNone;
   toolbar_text_field.font = [UIFont systemFontOfSize:14];
   toolbar_text_field.textColor = UIColor.labelColor;
@@ -956,9 +967,6 @@ typedef struct UserInputEvent {
   toolbar_text_field.returnKeyType = UIReturnKeyDefault;
   toolbar_text_field.autocapitalizationType = UITextAutocapitalizationTypeNone;
   toolbar_text_field.spellCheckingType = UITextSpellCheckingTypeNo;
-
-  CGRect frame = CGRectMake(0, 0, 200, 32);
-  toolbar_text_field.frame = frame;
 
   [toolbar_text_field addTarget:self
                          action:@selector(handleKeyboardEditChange:)
@@ -976,23 +984,34 @@ typedef struct UserInputEvent {
                          action:@selector(handleKeyboardEditEnd:)
                forControlEvents:UIControlEventEditingDidEnd];
 
-  toolbar_live_text_item = [[UIBarButtonItem alloc] initWithCustomView:toolbar_text_field];
-
   toolbar_text_field.inputAccessoryView = toolbar;
 
+  [text_field_container addSubview:toolbar_text_field];
+
+  toolbar_live_text_item = [[UIBarButtonItem alloc] initWithCustomView:text_field_container];
+
+  /* Done / Cancel Buttons. */
   toolbar_done_editing_item = [[UIBarButtonItem alloc]
       initWithBarButtonSystemItem:UIBarButtonSystemItemDone
-                           target:nil
+                           target:self
                            action:@selector(handleDoneButton)];
 
   toolbar_cancel_editing_item = [[UIBarButtonItem alloc]
       initWithBarButtonSystemItem:UIBarButtonSystemItemCancel
-                           target:nil
+                           target:self
                            action:@selector(handleCancelButton)];
+
+  /* Flexible space. */
+  UIBarButtonItem *flex_space = [[UIBarButtonItem alloc]
+      initWithBarButtonSystemItem:UIBarButtonSystemItemFlexibleSpace
+                           target:nil
+                           action:nil];
 
   toolbar.items = @[
     toolbar_tip_item,
+    flex_space,
     toolbar_live_text_item,
+    flex_space,
     toolbar_done_editing_item,
     toolbar_cancel_editing_item
   ];
@@ -1154,7 +1173,8 @@ typedef struct UserInputEvent {
                                 @"";
   /* Take a copy of the string so we can restore it if neccessary */
   original_text = keyboard_properties.text_string ?
-                      [NSString stringWithUTF8String:keyboard_properties.text_string] : @"";
+                      [NSString stringWithUTF8String:keyboard_properties.text_string] :
+                      @"";
 
   /* Set keyboard type and text alignment.
    * NOTE - the keyboard type is only honoured if using an Apple
