@@ -115,6 +115,8 @@ struct CurvesDataPanelState {
   int order;
   int resolution;
   char cyclic;
+
+  float aspect_ratio;
 };
 
 /* temporary struct for storing transform properties */
@@ -516,19 +518,27 @@ struct CurvesSelectionStatus {
   int resolution_sum = 0;
   int resolution_max = 0;
 
+  float aspect_ratio = 0.0f;
+  bool aspect_ratio_equal = true;
+
   static CurvesSelectionStatus sum(const CurvesSelectionStatus &a, const CurvesSelectionStatus &b)
   {
-    return {a.curve_count + b.curve_count,
-            a.nurbs_count + b.nurbs_count,
-            a.bezier_count + b.bezier_count,
-            a.poly_count + b.poly_count,
-            a.cyclic_count + b.cyclic_count,
-            a.nurbs_knot_mode_sum + b.nurbs_knot_mode_sum,
-            std::max(a.nurbs_knot_mode_max, b.nurbs_knot_mode_max),
-            a.order_sum + b.order_sum,
-            std::max(a.order_max, b.order_max),
-            a.resolution_sum + b.resolution_sum,
-            std::max(a.resolution_max, b.resolution_max)};
+    return {
+        a.curve_count + b.curve_count,
+        a.nurbs_count + b.nurbs_count,
+        a.bezier_count + b.bezier_count,
+        a.poly_count + b.poly_count,
+        a.cyclic_count + b.cyclic_count,
+        a.nurbs_knot_mode_sum + b.nurbs_knot_mode_sum,
+        std::max(a.nurbs_knot_mode_max, b.nurbs_knot_mode_max),
+        a.order_sum + b.order_sum,
+        std::max(a.order_max, b.order_max),
+        a.resolution_sum + b.resolution_sum,
+        std::max(a.resolution_max, b.resolution_max),
+        a.aspect_ratio + b.aspect_ratio,
+        a.aspect_ratio_equal && b.aspect_ratio_equal &&
+            (a.aspect_ratio * b.curve_count == b.aspect_ratio * a.curve_count),
+    };
   }
 };
 
@@ -546,6 +556,10 @@ static CurvesSelectionStatus init_curves_selection_status(
   const VArray<int8_t> nurbs_knot_modes = curves.nurbs_knots_modes();
   const VArray<int8_t> orders = curves.nurbs_orders();
   const VArray<int> resolution = curves.resolution();
+
+  const bke::AttributeAccessor attributes = curves.attributes();
+  const VArray<float> aspect_ratios = *attributes.lookup_or_default<float>(
+      "aspect_ratio", bke::AttrDomain::Curve, 1.0f);
 
   IndexMaskMemory memory;
   const IndexMask selection = retrieve_selected_curves(curves, memory);
@@ -581,6 +595,11 @@ static CurvesSelectionStatus init_curves_selection_status(
           const int res = resolution[curve];
           value.resolution_sum += res;
           value.resolution_max = std::max(value.resolution_max, res);
+
+          const float aspect = aspect_ratios[curve];
+          value.aspect_ratio += aspect;
+          value.aspect_ratio_equal = value.aspect_ratio_equal &&
+                                     (aspect * value.curve_count == value.aspect_ratio);
         });
         return value;
       },
@@ -2368,6 +2387,25 @@ static void handle_curves_resolution(bContext *C, void *, void *)
                          });
 }
 
+static void handle_curves_aspect_ratio(bContext *C, void *, void *)
+{
+  using namespace blender;
+
+  apply_to_active_object(
+      C,
+      [](const CurvesDataPanelState &modified_state,
+         const IndexMask &selection,
+         bke::CurvesGeometry &curves) {
+        bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
+        bke::SpanAttributeWriter<float> aspect_ratio =
+            attributes.lookup_or_add_for_write_span<float>(
+                "aspect_ratio",
+                bke::AttrDomain::Curve,
+                bke::AttributeInitVArray(VArray<float>::from_single(1.0f, curves.curves_num())));
+        index_mask::masked_fill(aspect_ratio.span, modified_state.aspect_ratio, selection);
+      });
+}
+
 constexpr std::array<EnumPropertyItem, 5> enum_curve_knot_mode_items{{
     {NURBS_KNOT_MODE_NORMAL, "NORMAL", ICON_NONE, "Normal", ""},
     {NURBS_KNOT_MODE_ENDPOINT, "ENDPOINT", ICON_NONE, "Endpoint", ""},
@@ -2452,6 +2490,7 @@ static void view3d_panel_curve_data(const bContext *C, Panel *panel)
       math::safe_divide(status.nurbs_knot_mode_sum, status.nurbs_count));
   current.order = math::safe_divide(status.order_sum, status.nurbs_count);
   current.resolution = math::safe_divide(status.resolution_sum, status.curve_count);
+  current.aspect_ratio = math::safe_divide(status.aspect_ratio, float(status.curve_count));
 
   modified = current;
 
@@ -2525,6 +2564,17 @@ static void view3d_panel_curve_data(const bContext *C, Panel *panel)
           UI_but_func_set(but, handle_curves_resolution, nullptr, nullptr);
           return but;
         });
+  }
+
+  if (ob->type == OB_GREASE_PENCIL) {
+    add_labeled_field("Aspect Ratio", status.aspect_ratio_equal, [&]() {
+      uiBut *but = uiDefButF(
+          block, ButType::Num, 0, "", 0, 0, butw, buth, &modified.aspect_ratio, 0.0f, 8.0f, "");
+      UI_but_number_step_size_set(but, 1);
+      UI_but_number_precision_set(but, 3);
+      UI_but_func_set(but, handle_curves_aspect_ratio, nullptr, nullptr);
+      return but;
+    });
   }
 }
 
