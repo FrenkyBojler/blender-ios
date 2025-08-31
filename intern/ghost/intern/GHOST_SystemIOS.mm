@@ -184,8 +184,9 @@ GHOST_TButton convertButton(int button)
   }
 }
 
-GHOST_TKey convertIOSKeyToGHOST(UIKeyboardHIDUsage key)
+GHOST_TKey convertIOSKeyToGHOST(long key_value)
 {
+  UIKeyboardHIDUsage key = static_cast<UIKeyboardHIDUsage>(key_value);
   switch (key) {
     /* Alphabetic keys. */
     case UIKeyboardHIDUsageKeyboardA:

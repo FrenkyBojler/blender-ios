@@ -16,11 +16,6 @@
 // #define __CARBONSOUND__
 
 #include "GHOST_System.hh"
-/* Bypass including Foundation.h avoiding compiling error */
-#ifdef __OBJC__
-#import <UIKit/UIKey.h>
-GHOST_TKey convertIOSKeyToGHOST(UIKeyboardHIDUsage key);
-#endif
 
 class GHOST_EventCursor;
 class GHOST_EventKey;
@@ -38,6 +33,8 @@ class GHOST_WindowIOS;
 #endif
 
 GHOST_TButton convertButton(int button);
+GHOST_TKey convertIOSKeyToGHOST(long key_value);
+
 class GHOST_SystemIOS : public GHOST_System {
  public:
   /**
