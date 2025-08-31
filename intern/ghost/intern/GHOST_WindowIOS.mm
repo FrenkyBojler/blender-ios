@@ -283,20 +283,18 @@ typedef struct UserInputEvent {
 - (void)handlePan2f:(GHOSTUIPanGestureRecognizer *)sender;
 - (void)handleZoom:(GHOSTUIPinchGestureRecognizer *)sender;
 
-/* On screen keyboard handling */
-- (const GHOST_TabletData)getTabletData;
-- (GHOST_TSuccess)popupOnscreenKeyboard:(const GHOST_KeyboardProperties &)keyboard_properties;
-- (GHOST_TSuccess)hideOnscreenKeyboard;
-- (const char *)getLastKeyboardString;
-
-/* Direct event handling bypass methods */
-- (void)handleKeyPress:(UIPress *)press;
-
-/* UIKit keyboard press handling (fallback when not bypassing) */
+/* Keyboard press event callbacks. */
 - (void)pressesBegan:(NSSet<UIPress *> *)presses withEvent:(UIPressesEvent *)event;
 - (void)pressesChanged:(NSSet<UIPress *> *)presses withEvent:(UIPressesEvent *)event;
 - (void)pressesEnded:(NSSet<UIPress *> *)presses withEvent:(UIPressesEvent *)event;
 - (void)pressesCancelled:(NSSet<UIPress *> *)presses withEvent:(UIPressesEvent *)event;
+
+/* On screen keyboard handling */
+- (GHOST_TSuccess)popupOnscreenKeyboard:(const GHOST_KeyboardProperties &)keyboard_properties;
+- (GHOST_TSuccess)hideOnscreenKeyboard;
+- (const char *)getLastKeyboardString;
+
+- (const GHOST_TabletData)getTabletData;
 
 @end
 
