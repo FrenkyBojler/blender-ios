@@ -953,8 +953,9 @@ typedef struct UserInputEvent {
   toolbar_text_field = [[UITextField alloc]
       initWithFrame:CGRectInset(text_field_container.bounds, 10, 0)];
   toolbar_text_field.clearButtonMode = UITextFieldViewModeWhileEditing;
-  toolbar_text_field.autocorrectionType = UITextAutocorrectionTypeNo;
   toolbar_text_field.autocapitalizationType = UITextAutocapitalizationTypeNone;
+  toolbar_text_field.autocorrectionType = UITextAutocorrectionTypeNo;
+  toolbar_text_field.spellCheckingType = UITextSpellCheckingTypeNo;
   toolbar_text_field.inputAccessoryView = toolbar;
 
   [toolbar_text_field addTarget:self
@@ -1168,13 +1169,6 @@ typedef struct UserInputEvent {
   if (!last_tap_with_pencil) {
     // text_field.keyboardType = UIKeyboardTypeDefault;
   }
-
-  /* Set light/dark mode or adopt system default. */
-  toolbar_text_field.keyboardAppearance = UIKeyboardAppearanceDefault;
-
-  /* This seems sensible given Blender's typical behaviour. */
-  toolbar_text_field.autocorrectionType = UITextAutocorrectionTypeNo;
-  toolbar_text_field.spellCheckingType = UITextSpellCheckingTypeNo;
 
   /* Initial highlighting and text-cursor position. */
   switch (keyboard_properties.inital_text_state) {
