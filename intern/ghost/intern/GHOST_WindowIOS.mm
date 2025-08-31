@@ -260,7 +260,7 @@ typedef struct UserInputEvent {
   bool onscreen_keyboard_active;
   const char *text_field_string;
   GHOST_KeyboardProperties current_keyboard_properties;
-  GCKeyboard *external_keyboard;
+  bool external_keyboard_connected;
 
   /* Toolbar */
   bool toolbar_enabled;
@@ -270,9 +270,6 @@ typedef struct UserInputEvent {
   UIBarButtonItem *toolbar_done_editing_item;
   UIBarButtonItem *toolbar_cancel_editing_item;
   UITextField *toolbar_text_field;
-
-  /* Direct event handling state tracking */
-  std::unordered_map<uint64_t, GHOST_TButton> touch_button_map;
 }
 
 - (void)setSystemAndWindowIOS:(GHOST_SystemIOS *)sysCocoa windowIOS:(GHOST_WindowIOS *)winCocoa;
@@ -1255,21 +1252,12 @@ typedef struct UserInputEvent {
 
 - (void)externalKeyboardChange:(NSNotification *)notification
 {
-  external_keyboard = GCKeyboard.coalescedKeyboard;
-  IOS_INPUT_LOG(@"External Keyboard %s", external_keyboard != nil ? "Connected" : "Disconnected");
+  external_keyboard_connected = [GCKeyboard coalescedKeyboard] != nil;
+  IOS_INPUT_LOG(@"External Keyboard %s",
+                external_keyboard_connected ? "Connected" : "Disconnected");
 
-  if (external_keyboard) {
-    if (toolbar) {
-      toolbar.hidden = YES;
-      toolbar.userInteractionEnabled = NO;
-    }
-  }
-  else {
-    if (toolbar) {
-      toolbar.hidden = NO;
-      toolbar.userInteractionEnabled = YES;
-    }
-  }
+  toolbar.hidden = external_keyboard_connected;
+  toolbar.userInteractionEnabled = !external_keyboard_connected;
 }
 
 /* IOS_FIXME - Not currently used, could be removed. */
@@ -1330,7 +1318,7 @@ typedef struct UserInputEvent {
     IOS_INPUT_LOG(@"Keyboard popup request received %@", text_field.text);
 
     /* If external keyboard is connected, do not show toolbar. */
-    if (external_keyboard) {
+    if (external_keyboard_connected) {
       return GHOST_kFailure;
     }
 
@@ -1357,7 +1345,7 @@ typedef struct UserInputEvent {
   @synchronized(self) {
     IOS_INPUT_LOG(@"Keyboard hide request received %@", text_field.text);
 
-    if (!onscreen_keyboard_active || external_keyboard) {
+    if (!onscreen_keyboard_active || external_keyboard_connected) {
       return GHOST_kFailure;
     }
 
