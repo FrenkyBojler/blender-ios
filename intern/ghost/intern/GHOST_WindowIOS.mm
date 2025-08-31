@@ -994,7 +994,6 @@ typedef struct UserInputEvent {
   toolbar_tip_item.enabled = NO;
   toolbar_live_text_item.enabled = YES;
   toolbar_live_text_item.tintColor = UIColor.labelColor;
-  ;
 
   /* Set the live text to a fixed width. */
   /* IOS_FIXME - should this be set dynamically? Need to move out of init if so. */
@@ -1164,8 +1163,7 @@ typedef struct UserInputEvent {
                                 @"";
   /* Take a copy of the string so we can restore it if neccessary */
   original_text = keyboard_properties.text_string ?
-                      [NSString stringWithUTF8String:keyboard_properties.text_string] :
-                      [@"" copy];
+                      [NSString stringWithUTF8String:keyboard_properties.text_string] : @"";
 
   /* Set keyboard type and text alignment.
    * NOTE - the keyboard type is only honoured if using an Apple
