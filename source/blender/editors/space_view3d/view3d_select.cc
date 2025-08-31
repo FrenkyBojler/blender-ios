@@ -5445,6 +5445,83 @@ static bool obedit_circle_select(bContext *C,
   switch (vc->obedit->type) {
     case OB_MESH:
       changed = mesh_circle_select(vc, wm_userdata, sel_op, mval, rad);
+
+      if (changed) {
+        char symmetry_htype = 0;
+        if (vc->em->selectmode & SCE_SELECT_FACE) {
+          symmetry_htype |= BM_FACE;
+        }
+        if (vc->em->selectmode & SCE_SELECT_EDGE) {
+          symmetry_htype |= BM_EDGE;
+        }
+        if (vc->em->selectmode & SCE_SELECT_VERTEX) {
+          symmetry_htype |= BM_VERT;
+        }
+
+        if (std::optional<EditMeshSymmetryHelper> symmetry_helper =
+                EditMeshSymmetryHelper::create_if_needed(vc->obedit, symmetry_htype))
+        {
+          BMesh *bm = vc->em->bm;
+          const char hflag = BM_ELEM_SELECT;
+          BMIter iter;
+          bool mirror_changed = false;
+
+          if (vc->em->selectmode & SCE_SELECT_FACE) {
+            blender::Vector<BMFace *> source_faces;
+            source_faces.reserve(bm->totfacesel);
+            BMFace *f;
+            BM_ITER_MESH (f, &iter, bm, BM_FACES_OF_MESH) {
+              if (BM_elem_flag_test(f, hflag)) {
+                source_faces.append(f);
+              }
+            }
+            const int totfacesel_prev = bm->totfacesel;
+            for (BMFace *f_orig : source_faces) {
+              symmetry_helper->set_hflag_on_mirror_faces(f_orig, hflag, true);
+            }
+            if (bm->totfacesel != totfacesel_prev) {
+              mirror_changed = true;
+            }
+          }
+          if (vc->em->selectmode & SCE_SELECT_EDGE) {
+            blender::Vector<BMEdge *> source_edges;
+            source_edges.reserve(bm->totedgesel);
+            BMEdge *e;
+            BM_ITER_MESH (e, &iter, bm, BM_EDGES_OF_MESH) {
+              if (BM_elem_flag_test(e, hflag)) {
+                source_edges.append(e);
+              }
+            }
+            const int totedgesel_prev = bm->totedgesel;
+            for (BMEdge *e_orig : source_edges) {
+              symmetry_helper->set_hflag_on_mirror_edges(e_orig, hflag, true);
+            }
+            if (bm->totedgesel != totedgesel_prev) {
+              mirror_changed = true;
+            }
+          }
+          if (vc->em->selectmode & SCE_SELECT_VERTEX) {
+            blender::Vector<BMVert *> source_verts;
+            source_verts.reserve(bm->totvertsel);
+            BMVert *v;
+            BM_ITER_MESH (v, &iter, bm, BM_VERTS_OF_MESH) {
+              if (BM_elem_flag_test(v, hflag)) {
+                source_verts.append(v);
+              }
+            }
+            const int totvertsel_prev = bm->totvertsel;
+            for (BMVert *v_orig : source_verts) {
+              symmetry_helper->set_hflag_on_mirror_verts(v_orig, hflag, true);
+            }
+            if (bm->totvertsel != totvertsel_prev) {
+              mirror_changed = true;
+            }
+          }
+          if (mirror_changed) {
+            EDBM_selectmode_flush(vc->em);
+          }
+        }
+      }
       break;
     case OB_CURVES_LEGACY:
     case OB_SURF:
