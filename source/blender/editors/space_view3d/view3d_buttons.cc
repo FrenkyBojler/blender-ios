@@ -119,6 +119,7 @@ struct CurvesDataPanelState {
   float aspect_ratio;
   float softness;
   float u_scale;
+  float fill_opacity;
 };
 
 /* temporary struct for storing transform properties */
@@ -526,6 +527,8 @@ struct CurvesSelectionStatus {
   bool softness_equal = true;
   float u_scale = 0.0f;
   bool u_scale_equal = true;
+  float fill_opacity = 0.0f;
+  bool fill_opacity_equal = true;
 
   static CurvesSelectionStatus sum(const CurvesSelectionStatus &a, const CurvesSelectionStatus &b)
   {
@@ -550,6 +553,9 @@ struct CurvesSelectionStatus {
         a.u_scale + b.u_scale,
         a.u_scale_equal && b.u_scale_equal &&
             (a.u_scale * b.curve_count == b.u_scale * a.curve_count),
+        a.fill_opacity + b.fill_opacity,
+        a.fill_opacity_equal && b.fill_opacity_equal &&
+            (a.fill_opacity * b.curve_count == b.fill_opacity * a.curve_count),
     };
   }
 };
@@ -576,6 +582,8 @@ static CurvesSelectionStatus init_curves_selection_status(
       "softness", bke::AttrDomain::Curve, 0.0f);
   const VArray<float> u_scales = *attributes.lookup_or_default<float>(
       "u_scale", bke::AttrDomain::Curve, 1.0f);
+  const VArray<float> fill_opacities = *attributes.lookup_or_default<float>(
+      "fill_opacity", bke::AttrDomain::Curve, 1.0f);
 
   IndexMaskMemory memory;
   const IndexMask selection = retrieve_selected_curves(curves, memory);
@@ -626,6 +634,10 @@ static CurvesSelectionStatus init_curves_selection_status(
           value.u_scale += u_scale;
           value.u_scale_equal = value.u_scale_equal &&
                                 (u_scale * value.curve_count == value.u_scale);
+          const float fill_opacity = fill_opacities[curve];
+          value.fill_opacity += fill_opacity;
+          value.fill_opacity_equal = value.fill_opacity_equal &&
+                                     (fill_opacity * value.curve_count == value.fill_opacity);
         });
         return value;
       },
@@ -2466,6 +2478,25 @@ static void handle_curves_u_scale(bContext *C, void *, void *)
       });
 }
 
+static void handle_curves_fill_opacity(bContext *C, void *, void *)
+{
+  using namespace blender;
+
+  apply_to_active_object(
+      C,
+      [](const CurvesDataPanelState &modified_state,
+         const IndexMask &selection,
+         bke::CurvesGeometry &curves) {
+        bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
+        bke::SpanAttributeWriter<float> fill_opacity =
+            attributes.lookup_or_add_for_write_span<float>(
+                "fill_opacity",
+                bke::AttrDomain::Curve,
+                bke::AttributeInitVArray(VArray<float>::from_single(1.0f, curves.curves_num())));
+        index_mask::masked_fill(fill_opacity.span, modified_state.fill_opacity, selection);
+      });
+}
+
 constexpr std::array<EnumPropertyItem, 5> enum_curve_knot_mode_items{{
     {NURBS_KNOT_MODE_NORMAL, "NORMAL", ICON_NONE, "Normal", ""},
     {NURBS_KNOT_MODE_ENDPOINT, "ENDPOINT", ICON_NONE, "Endpoint", ""},
@@ -2553,6 +2584,7 @@ static void view3d_panel_curve_data(const bContext *C, Panel *panel)
   current.aspect_ratio = math::safe_divide(status.aspect_ratio, float(status.curve_count));
   current.softness = math::safe_divide(status.softness, float(status.curve_count));
   current.u_scale = math::safe_divide(status.u_scale, float(status.curve_count));
+  current.fill_opacity = math::safe_divide(status.fill_opacity, float(status.curve_count));
 
   modified = current;
 
@@ -2653,6 +2685,15 @@ static void view3d_panel_curve_data(const bContext *C, Panel *panel)
       UI_but_number_step_size_set(but, 1);
       UI_but_number_precision_set(but, 3);
       UI_but_func_set(but, handle_curves_u_scale, nullptr, nullptr);
+      return but;
+    });
+
+    add_labeled_field("Fill Opacity", status.fill_opacity_equal, [&]() {
+      uiBut *but = uiDefButF(
+          block, ButType::Num, 0, "", 0, 0, butw, buth, &modified.fill_opacity, 0.0f, 1.0f, "");
+      UI_but_number_step_size_set(but, 1);
+      UI_but_number_precision_set(but, 3);
+      UI_but_func_set(but, handle_curves_fill_opacity, nullptr, nullptr);
       return but;
     });
   }
