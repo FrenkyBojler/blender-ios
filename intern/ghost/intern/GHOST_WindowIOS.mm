@@ -635,9 +635,13 @@ typedef struct UserInputEvent {
 - (void)handleKeyPress:(UIPress *)press
 {
   const GHOST_TKey key_code = convertIOSKeyToGHOST(press.key.keyCode);
+
   /* Similar character parsing logic as Cocoa. */
-  char utf8_buf[128];
-  strcpy(utf8_buf, press.key.characters.UTF8String);
+  char utf8_buf[128] = {"\0"};
+  NSString *key_characters = press.key.characters;
+  if (key_characters.length > 0) {
+    strcpy(utf8_buf, key_characters.UTF8String);
+  }
 
   /* Arrow keys should not have UTF-8. */
   if ((key_code >= GHOST_kKeyLeftArrow) && (key_code <= GHOST_kKeyDownArrow)) {
