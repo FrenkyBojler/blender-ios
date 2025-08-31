@@ -263,7 +263,6 @@ typedef struct UserInputEvent {
   bool external_keyboard_connected;
 
   /* Toolbar */
-  bool toolbar_enabled;
   UIToolbar *toolbar;
   UIBarButtonItem *toolbar_tip_item;
   UITextField *toolbar_text_field;
@@ -313,7 +312,6 @@ typedef struct UserInputEvent {
   text_field_string = nullptr;
   current_pencil_touch = nil;
   tablet_data = GHOST_TABLET_DATA_NONE;
-  toolbar_enabled = true;
   toolbar = nil;
   last_tap_with_pencil = false;
 
@@ -1205,13 +1203,10 @@ typedef struct UserInputEvent {
     }
   }
 
-  /* Setup the tool bar if it's enabled. */
-  if (toolbar_enabled) {
-    toolbar_tip_item.title = keyboard_properties.tip_text ?
-                                 [NSString stringWithCString:keyboard_properties.tip_text
-                                                    encoding:NSUTF8StringEncoding] :
-                                 @"";
-  }
+  toolbar_tip_item.title = keyboard_properties.tip_text ?
+                               [NSString stringWithCString:keyboard_properties.tip_text
+                                                  encoding:NSUTF8StringEncoding] :
+                               @"";
 }
 
 - (void)externalKeyboardChange:(NSNotification *)notification
