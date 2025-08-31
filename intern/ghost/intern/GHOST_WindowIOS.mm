@@ -946,7 +946,7 @@ typedef struct UserInputEvent {
                                                      action:nil];
 
   toolbar_text_field = [[UITextField alloc] initWithFrame:CGRectMake(0, 0, 250, 30)];
-  toolbar_text_field.borderStyle = UITextBorderStyleRoundedRect;
+  toolbar_text_field.borderStyle = UITextBorderStyleNone;
   toolbar_text_field.font = [UIFont systemFontOfSize:14];
   toolbar_text_field.textColor = UIColor.labelColor;
   toolbar_text_field.clearButtonMode = UITextFieldViewModeWhileEditing;
