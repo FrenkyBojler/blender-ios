@@ -125,6 +125,7 @@ class VKThreadData : public NonCopyable, NonMovable {
   uint32_t resource_pool_index = UINT32_MAX;
   std::array<VKResourcePool, resource_pools_count> resource_pools;
 
+  VKDescriptorPools descriptor_pools;
   /**
    * The current rendering depth.
    *
@@ -236,6 +237,8 @@ class VKDevice : public NonCopyable {
   std::string glsl_frag_patch_;
   std::string glsl_comp_patch_;
   Vector<VKThreadData *> thread_data_;
+
+  Shader *vk_backbuffer_blit_sh_ = nullptr;
 
  public:
   render_graph::VKResourceStateTracker resources;
@@ -478,6 +481,14 @@ class VKDevice : public NonCopyable {
   void debug_print();
 
   /** \} */
+
+  Shader *vk_backbuffer_blit_sh_get()
+  {
+    if (vk_backbuffer_blit_sh_ == nullptr) {
+      vk_backbuffer_blit_sh_ = GPU_shader_create_from_info_name("vk_backbuffer_blit");
+    }
+    return vk_backbuffer_blit_sh_;
+  }
 
  private:
   void init_physical_device_properties();
