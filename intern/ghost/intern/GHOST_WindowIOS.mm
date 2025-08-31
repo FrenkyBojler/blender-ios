@@ -734,61 +734,50 @@ typedef struct UserInputEvent {
 
 - (void)handleKeyPress:(UIPress *)press
 {
-  GHOST_TKey ghostModifierKey = GHOST_kKeyUnknown;
-  GHOST_TKey ghostKey = GHOST_kKeyUnknown;
+  const GHOST_TKey key_code = convertIOSKeyToGHOST(press.key.keyCode);
+  /* Similar character parsing logic as Cocoa. */
+  char utf8_buf[128];
+  strcpy(utf8_buf, press.key.characters.UTF8String);
 
-  GHOST_TEventType eventType;
-  switch (press.phase) {
-    case UIPressPhaseStationary:
-    case UIPressPhaseBegan:
-      eventType = GHOST_kEventKeyDown;
-      break;
-    case UIPressPhaseEnded:
-    case UIPressPhaseCancelled:
-      eventType = GHOST_kEventKeyUp;
-      break;
-    default:
-      return;
+  /* Arrow keys should not have UTF-8. */
+  if ((key_code >= GHOST_kKeyLeftArrow) && (key_code <= GHOST_kKeyDownArrow)) {
+    utf8_buf[0] = '\0';
   }
 
-  NSString *keyString = press.key.charactersIgnoringModifiers;
-
-  /* Check if this is a modifier key. */
-  ghostModifierKey = convertIOSModToGHOST(press.key.keyCode);
-
-  /* Check if this is a regular key. */
-  if (keyString && keyString.length > 0) {
-    ghostKey = convertIOSKeyToGHOST(keyString);
+  /* F-keys should not have UTF-8. */
+  if ((key_code >= GHOST_kKeyF1) && (key_code <= GHOST_kKeyF20)) {
+    utf8_buf[0] = '\0';
   }
 
-  /* Send modifier event only if it's a modifier key. */
-  if (ghostModifierKey != GHOST_kKeyUnknown) {
-    GHOST_EventKey *modEvent = new GHOST_EventKey(
+  /* TODO: handle GHOST system modifier mask method to meet WM expectations */
+  /* No text with command key pressed. */
+  //  if (modifier_mask_ & NSEventModifierFlagCommand) {
+  //    utf8_buf[0] = '\0';
+  //  }
+
+  if (key_code == GHOST_kKeyUnknown) {
+    return;
+  }
+
+  if (press.phase == UIPressPhaseBegan || press.phase == UIPressPhaseStationary) {
+    GHOST_EventKey *key_event = new GHOST_EventKey(
         GHOST_GetMilliSeconds((GHOST_SystemHandle)system),
-        eventType,
+        GHOST_kEventKeyDown,
         window,
-        ghostModifierKey,
-        false);
-    system->pushEvent(modEvent);
+        key_code,
+        press.phase == UIPressPhaseStationary, /* NOTE: iOS doesn't produce repeated key event. */
+        utf8_buf);
+    system->pushEvent(key_event);
   }
-
-  /* Send regular key event only if it's a regular key. */
-  if (ghostKey != GHOST_kKeyUnknown) {
-    /* Create GHOST event with UTF8 string for character input */
-    NSString *utf8String = nil;
-    if (eventType == GHOST_kEventKeyDown && press.key.characters.length > 0) {
-      utf8String = press.key.characters;
-    }
-    const char *utf8CString = utf8String ? [utf8String UTF8String] : nullptr;
-
-    GHOST_EventKey *keyEvent = new GHOST_EventKey(
+  if (press.phase == UIPressPhaseEnded || press.phase == UIPressPhaseCancelled) {
+    GHOST_EventKey *key_event = new GHOST_EventKey(
         GHOST_GetMilliSeconds((GHOST_SystemHandle)system),
-        eventType,
+        GHOST_kEventKeyUp,
         window,
-        ghostKey,
+        key_code,
         false,
-        utf8CString);
-    system->pushEvent(keyEvent);
+        nullptr);
+    system->pushEvent(key_event);
   }
 }
 

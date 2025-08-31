@@ -18,11 +18,8 @@
 #include "GHOST_System.hh"
 /* Bypass including Foundation.h avoiding compiling error */
 #ifdef __OBJC__
-@class NSString;
-GHOST_TKey convertIOSKeyToGHOST(NSString *key);
-#else
-typedef struct objc_object NSString;
-GHOST_TKey convertIOSKeyToGHOST(NSString *key);
+#import <UIKit/UIKey.h>
+GHOST_TKey convertIOSKeyToGHOST(UIKeyboardHIDUsage key);
 #endif
 
 class GHOST_EventCursor;
@@ -41,7 +38,6 @@ class GHOST_WindowIOS;
 #endif
 
 GHOST_TButton convertButton(int button);
-GHOST_TKey convertIOSModToGHOST(int keyCode);
 class GHOST_SystemIOS : public GHOST_System {
  public:
   /**
