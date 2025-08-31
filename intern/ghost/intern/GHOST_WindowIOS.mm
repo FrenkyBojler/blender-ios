@@ -266,9 +266,6 @@ typedef struct UserInputEvent {
   bool toolbar_enabled;
   UIToolbar *toolbar;
   UIBarButtonItem *toolbar_tip_item;
-  UIBarButtonItem *toolbar_live_text_item;
-  UIBarButtonItem *toolbar_done_editing_item;
-  UIBarButtonItem *toolbar_cancel_editing_item;
   UITextField *toolbar_text_field;
 }
 
@@ -949,7 +946,8 @@ typedef struct UserInputEvent {
 
   /* Text field, width assured by parent container view. */
   CGFloat container_width = MIN(frame_size.width * 0.5, 300);
-  UIView *text_field_container = [[UIView alloc] initWithFrame:CGRectMake(0, 0, container_width, 30)];
+  UIView *text_field_container = [[UIView alloc]
+      initWithFrame:CGRectMake(0, 0, container_width, 30)];
   text_field_container.autoresizingMask = UIViewAutoresizingFlexibleLeftMargin |
                                           UIViewAutoresizingFlexibleRightMargin;
 
@@ -975,14 +973,15 @@ typedef struct UserInputEvent {
 
   [text_field_container addSubview:toolbar_text_field];
 
-  toolbar_live_text_item = [[UIBarButtonItem alloc] initWithCustomView:text_field_container];
+  UIBarButtonItem *toolbar_live_text_item = [[UIBarButtonItem alloc]
+      initWithCustomView:text_field_container];
 
   /* Done / Cancel Buttons. */
-  toolbar_done_editing_item = [[UIBarButtonItem alloc]
+  UIBarButtonItem *toolbar_done_editing_item = [[UIBarButtonItem alloc]
       initWithBarButtonSystemItem:UIBarButtonSystemItemDone
                            target:self
                            action:@selector(handleDoneButton)];
-  toolbar_cancel_editing_item = [[UIBarButtonItem alloc]
+  UIBarButtonItem *toolbar_cancel_editing_item = [[UIBarButtonItem alloc]
       initWithBarButtonSystemItem:UIBarButtonSystemItemCancel
                            target:self
                            action:@selector(handleCancelButton)];
