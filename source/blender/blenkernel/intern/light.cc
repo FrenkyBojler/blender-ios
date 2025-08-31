@@ -240,6 +240,35 @@ float BKE_light_radiometric_to_photometric_power(const Light &light, const float
   }
 }
 
+float BKE_light_photometric_to_radiometric_power(const Light &light, const float power)
+{
+  switch (light.type) {
+    case LA_SPOT: {
+      const float half_angle = light.spotsize * 0.5f;
+      const float solid_angle = 1.0f - cosf(half_angle);
+      const float max_efficacy = BKE_LIGHT_LUMINOUS_EFFICACY_MAX;
+      const float compensation = max_efficacy * solid_angle / 2.0f;
+      return power * compensation;
+    }
+    case LA_AREA: {
+      const float area_angle = DEG2RADF(155.0f);
+      const float half_angle = area_angle * 0.5f;
+      const float solid_angle = 1.0f - cosf(half_angle);
+      const float max_efficacy = BKE_LIGHT_LUMINOUS_EFFICACY_MAX;
+      const float compensation = max_efficacy * 2.0f * solid_angle;
+      return power * compensation;
+    }
+    case LA_LOCAL:
+    case LA_SUN: {
+      const float max_efficacy = BKE_LIGHT_LUMINOUS_EFFICACY_MAX;
+      const float compensation = max_efficacy;
+      return power * compensation;
+    }
+    default:
+      return power;
+  }
+}
+
 blender::float3 BKE_light_color(const Light &light)
 {
   blender::float3 color(&light.r);
