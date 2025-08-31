@@ -302,6 +302,7 @@ typedef struct UserInputEvent {
 
 /* UIKit keyboard press handling (fallback when not bypassing) */
 - (void)pressesBegan:(NSSet<UIPress *> *)presses withEvent:(UIPressesEvent *)event;
+- (void)pressesChanged:(NSSet<UIPress *> *)presses withEvent:(UIPressesEvent *)event;
 - (void)pressesEnded:(NSSet<UIPress *> *)presses withEvent:(UIPressesEvent *)event;
 - (void)pressesCancelled:(NSSet<UIPress *> *)presses withEvent:(UIPressesEvent *)event;
 
@@ -1287,6 +1288,15 @@ typedef struct UserInputEvent {
   [super pressesBegan:presses withEvent:event];
 }
 
+- (void)pressesChanged:(NSSet<UIPress *> *)presses withEvent:(UIPressesEvent *)event
+{
+  for (UIPress *press in presses) {
+    [self handleKeyPress:press];
+  }
+
+  [super pressesChanged:presses withEvent:event];
+}
+
 - (void)pressesEnded:(NSSet<UIPress *> *)presses withEvent:(UIPressesEvent *)event
 {
   for (UIPress *press in presses) {
@@ -1298,6 +1308,10 @@ typedef struct UserInputEvent {
 
 - (void)pressesCancelled:(NSSet<UIPress *> *)presses withEvent:(UIPressesEvent *)event
 {
+  for (UIPress *press in presses) {
+    [self handleKeyPress:press];
+  }
+
   [super pressesCancelled:presses withEvent:event];
 }
 
