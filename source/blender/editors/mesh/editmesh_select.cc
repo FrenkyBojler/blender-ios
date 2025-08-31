@@ -4747,7 +4747,7 @@ static void walker_deselect_nth(BMEditMesh *em,
     return;
   }
 
-  /* Special handling for vertex loops*/
+  /* Special handling for vertex loops */
   if (h_act->htype == BM_VERT) {
     BMVert *v_start = (BMVert *)h_act;
     if (bm_verts_form_loop(v_start)) {
@@ -4767,7 +4767,7 @@ static void walker_deselect_nth(BMEditMesh *em,
     }
   }
 
-  /* Special handling for face loops  */
+  /* Special handling for face loops */
   else if (h_act->htype == BM_FACE) {
     BMFace *f_start = (BMFace *)h_act;
     if (bm_faces_form_loop(f_start)) {
