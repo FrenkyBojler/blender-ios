@@ -636,81 +636,11 @@ typedef struct UserInputEvent {
 
 - (void)sendEvent:(UIEvent *)event
 {
-  if (event.type == UIEventTypeTouches) {
-    [self handleDirectTouchEvent:event];
-  }
-
   if (event.type == UIEventTypePresses) {
     [self handleDirectKeyboardEvent:event];
   }
 
-  /* Always forward the event to UIKit so gestures don't break. */
   [super sendEvent:event];
-}
-
-- (void)handleDirectTouchEvent:(UIEvent *)event
-{
-  for (UITouch *touch in event.allTouches) {
-    CGPoint location = [touch locationInView:window->getView()];
-    CGPoint scaledLocation = window->scalePointToWindow(location);
-
-    switch (touch.phase) {
-      case UITouchPhaseBegan: {
-        /* Always send cursor move first for mouse. */
-        system->pushEvent(new GHOST_EventCursor(GHOST_GetMilliSeconds((GHOST_SystemHandle)system),
-                                                GHOST_kEventCursorMove,
-                                                window,
-                                                scaledLocation.x,
-                                                scaledLocation.y,
-                                                GHOST_TABLET_DATA_NONE));
-
-        if (touch.type == UITouchTypeIndirectPointer) {
-          GHOST_TButton buttonMask = convertButton(event.buttonMask);
-          touch_button_map[(uint64_t)touch] = buttonMask;
-          system->pushEvent(
-              new GHOST_EventButton(GHOST_GetMilliSeconds((GHOST_SystemHandle)system),
-                                    GHOST_kEventButtonDown,
-                                    window,
-                                    buttonMask,
-                                    GHOST_TABLET_DATA_NONE));
-        }
-        break;
-      }
-
-      case UITouchPhaseMoved:
-        /* Send cursor move for all touch types. */
-        system->pushEvent(new GHOST_EventCursor(GHOST_GetMilliSeconds((GHOST_SystemHandle)system),
-                                                GHOST_kEventCursorMove,
-                                                window,
-                                                scaledLocation.x,
-                                                scaledLocation.y,
-                                                GHOST_TABLET_DATA_NONE));
-        break;
-
-      case UITouchPhaseEnded:
-      case UITouchPhaseCancelled: {
-        if (touch.type == UITouchTypeIndirectPointer) {
-          uint64_t touchKey = (uint64_t)touch;
-          GHOST_TButton buttonMask = GHOST_kButtonMaskLeft;
-          auto it = touch_button_map.find(touchKey);
-          if (it != touch_button_map.end()) {
-            buttonMask = it->second;
-            touch_button_map.erase(it);
-          }
-          system->pushEvent(
-              new GHOST_EventButton(GHOST_GetMilliSeconds((GHOST_SystemHandle)system),
-                                    GHOST_kEventButtonUp,
-                                    window,
-                                    buttonMask,
-                                    GHOST_TABLET_DATA_NONE));
-        }
-        break;
-      }
-
-      default:
-        break;
-    }
-  }
 }
 
 /* Direct keyboard handling methods */
