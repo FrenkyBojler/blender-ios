@@ -298,9 +298,6 @@ typedef struct UserInputEvent {
 - (const char *)getLastKeyboardString;
 
 /* Direct event handling bypass methods */
-- (void)sendEvent:(UIEvent *)event;
-- (void)handleDirectTouchEvent:(UIEvent *)event;
-- (void)handleDirectKeyboardEvent:(UIEvent *)event;
 - (void)handleKeyPress:(UIPress *)press;
 
 /* UIKit keyboard press handling (fallback when not bypassing) */
@@ -632,34 +629,6 @@ typedef struct UserInputEvent {
   [super touchesCancelled:touches withEvent:event];
   current_pencil_touch = nil;
   tablet_data = GHOST_TABLET_DATA_NONE;
-}
-
-- (void)sendEvent:(UIEvent *)event
-{
-  if (event.type == UIEventTypePresses) {
-    [self handleDirectKeyboardEvent:event];
-  }
-
-  [super sendEvent:event];
-}
-
-/* Direct keyboard handling methods */
-- (void)handleDirectKeyboardEvent:(UIEvent *)event
-{
-  UIPressesEvent *pressEvent = (UIPressesEvent *)event;
-
-  for (UIPress *press in pressEvent.allPresses) {
-    if (external_keyboard) {
-      if (onscreen_keyboard_active && text_field.isFirstResponder) {
-        [toolbar_text_field resignFirstResponder];
-        [text_field resignFirstResponder];
-        onscreen_keyboard_active = false;
-        IOS_INPUT_LOG(@"Resigned keyboard due to external keyboard input");
-      }
-      /* Directly insert input into Blender, bypass text field. */
-      [self handleKeyPress:press];
-    }
-  }
 }
 
 - (void)handleKeyPress:(UIPress *)press
@@ -1309,7 +1278,6 @@ typedef struct UserInputEvent {
   }
 }
 
-/* UIKit keyboard press handling (fallback when not bypassing) */
 - (void)pressesBegan:(NSSet<UIPress *> *)presses withEvent:(UIPressesEvent *)event
 {
   for (UIPress *press in presses) {
