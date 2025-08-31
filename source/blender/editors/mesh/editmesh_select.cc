@@ -4452,6 +4452,92 @@ static bool bm_edge_is_select_isolated(BMEdge *e)
   return true;
 }
 
+/**
+ * Check if the selected vertices forms a loop or circle
+ */
+static bool bm_verts_form_simple_loop(BMEditMesh *em, BMVert *v_start)
+{
+  BMVert *v_current = v_start;
+  BMVert *v_prev = nullptr;
+
+  do {
+    BMVert *v_next = nullptr;
+    int selected_edges = 0;
+
+    BMIter eiter;
+    BMEdge *e;
+    BM_ITER_ELEM (e, &eiter, v_current, BM_EDGES_OF_VERT) {
+      if (BM_elem_flag_test(e, BM_ELEM_SELECT)) {
+        selected_edges++;
+        BMVert *v_other = BM_edge_other_vert(e, v_current);
+        if (BM_elem_flag_test(v_other, BM_ELEM_SELECT) && v_other != v_prev) {
+          v_next = v_other;
+        }
+      }
+    }
+
+    // Each vertex in a loop should have 2 selected edges otherwise, it is not a loop
+    if (selected_edges != 2)
+      return false;
+    if (!v_next)
+      return false;
+
+    v_prev = v_current;
+    v_current = v_next;
+
+  } while (v_current != v_start);
+
+  return true;
+}
+
+static void walker_deselect_nth_loop(BMEditMesh *em,
+                                     const CheckerIntervalParams *op_params,
+                                     BMVert *v_start)
+{
+  BMesh *bm = em->bm;
+  BMVert *v_current = v_start;
+  BMVert *v_prev = nullptr;
+  int index = 0;
+
+  // Mark all vertices as unvisited
+  BMIter iter;
+  BMVert *v;
+  BM_ITER_MESH (v, &iter, bm, BM_VERTS_OF_MESH) {
+    BM_elem_flag_disable(v, BM_ELEM_TAG);
+  }
+
+  do {
+    // Mark as visited
+    BM_elem_flag_enable(v_current, BM_ELEM_TAG);
+
+    // Apply checker pattern based on position in loop
+    if (!WM_operator_properties_checker_interval_test(op_params, index)) {
+      BM_elem_select_set(bm, (BMElem *)v_current, false);
+    }
+
+    // Find next vertex in the loop
+    BMVert *v_next = nullptr;
+    BMIter eiter;
+    BMEdge *e;
+    BM_ITER_ELEM (e, &eiter, v_current, BM_EDGES_OF_VERT) {
+      if (BM_elem_flag_test(e, BM_ELEM_SELECT)) {
+        BMVert *v_other = BM_edge_other_vert(e, v_current);
+        if (BM_elem_flag_test(v_other, BM_ELEM_SELECT) && v_other != v_prev &&
+            !BM_elem_flag_test(v_other, BM_ELEM_TAG))
+        {
+          v_next = v_other;
+          break;
+        }
+      }
+    }
+
+    v_prev = v_current;
+    v_current = v_next;
+    index++;
+
+  } while (v_current && v_current != v_start);
+}
+
 /* Walk all reachable elements of the same type as h_act in breadth-first
  * order, starting from h_act. Deselects elements if the depth when they
  * are reached is not a multiple of "nth". */
@@ -4469,6 +4555,16 @@ static void walker_deselect_nth(BMEditMesh *em,
   /* No active element from which to start - nothing to do. */
   if (h_act == nullptr) {
     return;
+  }
+
+  /* Special handling for vertex loops or circles */
+  if (h_act->htype == BM_VERT) {
+    BMVert *v_start = (BMVert *)h_act;
+    if (bm_verts_form_simple_loop(em, v_start)) {
+      walker_deselect_nth_loop(em, op_params, v_start);
+      EDBM_selectmode_flush_ex(em, SCE_SELECT_VERTEX);
+      return;
+    }
   }
 
   /* Determine which type of iterator, walker, and select flush to use
