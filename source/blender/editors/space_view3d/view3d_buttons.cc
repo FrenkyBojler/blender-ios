@@ -118,6 +118,7 @@ struct CurvesDataPanelState {
 
   float aspect_ratio;
   float softness;
+  float u_scale;
 };
 
 /* temporary struct for storing transform properties */
@@ -523,6 +524,8 @@ struct CurvesSelectionStatus {
   bool aspect_ratio_equal = true;
   float softness = 0.0f;
   bool softness_equal = true;
+  float u_scale = 0.0f;
+  bool u_scale_equal = true;
 
   static CurvesSelectionStatus sum(const CurvesSelectionStatus &a, const CurvesSelectionStatus &b)
   {
@@ -544,6 +547,9 @@ struct CurvesSelectionStatus {
         a.softness + b.softness,
         a.softness_equal && b.softness_equal &&
             (a.softness * b.curve_count == b.softness * a.curve_count),
+        a.u_scale + b.u_scale,
+        a.u_scale_equal && b.u_scale_equal &&
+            (a.u_scale * b.curve_count == b.u_scale * a.curve_count),
     };
   }
 };
@@ -568,6 +574,8 @@ static CurvesSelectionStatus init_curves_selection_status(
       "aspect_ratio", bke::AttrDomain::Curve, 1.0f);
   const VArray<float> softnesses = *attributes.lookup_or_default<float>(
       "softness", bke::AttrDomain::Curve, 0.0f);
+  const VArray<float> u_scales = *attributes.lookup_or_default<float>(
+      "u_scale", bke::AttrDomain::Curve, 1.0f);
 
   IndexMaskMemory memory;
   const IndexMask selection = retrieve_selected_curves(curves, memory);
@@ -613,6 +621,11 @@ static CurvesSelectionStatus init_curves_selection_status(
           value.softness += soft;
           value.softness_equal = value.softness_equal &&
                                  (soft * value.curve_count == value.softness);
+
+          const float u_scale = u_scales[curve];
+          value.u_scale += u_scale;
+          value.u_scale_equal = value.u_scale_equal &&
+                                (u_scale * value.curve_count == value.u_scale);
         });
         return value;
       },
@@ -2435,6 +2448,24 @@ static void handle_curves_softness(bContext *C, void *, void *)
       });
 }
 
+static void handle_curves_u_scale(bContext *C, void *, void *)
+{
+  using namespace blender;
+
+  apply_to_active_object(
+      C,
+      [](const CurvesDataPanelState &modified_state,
+         const IndexMask &selection,
+         bke::CurvesGeometry &curves) {
+        bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
+        bke::SpanAttributeWriter<float> u_scale = attributes.lookup_or_add_for_write_span<float>(
+            "u_scale",
+            bke::AttrDomain::Curve,
+            bke::AttributeInitVArray(VArray<float>::from_single(1.0f, curves.curves_num())));
+        index_mask::masked_fill(u_scale.span, modified_state.u_scale, selection);
+      });
+}
+
 constexpr std::array<EnumPropertyItem, 5> enum_curve_knot_mode_items{{
     {NURBS_KNOT_MODE_NORMAL, "NORMAL", ICON_NONE, "Normal", ""},
     {NURBS_KNOT_MODE_ENDPOINT, "ENDPOINT", ICON_NONE, "Endpoint", ""},
@@ -2521,6 +2552,7 @@ static void view3d_panel_curve_data(const bContext *C, Panel *panel)
   current.resolution = math::safe_divide(status.resolution_sum, status.curve_count);
   current.aspect_ratio = math::safe_divide(status.aspect_ratio, float(status.curve_count));
   current.softness = math::safe_divide(status.softness, float(status.curve_count));
+  current.u_scale = math::safe_divide(status.u_scale, float(status.curve_count));
 
   modified = current;
 
@@ -2612,6 +2644,15 @@ static void view3d_panel_curve_data(const bContext *C, Panel *panel)
       UI_but_number_step_size_set(but, 1);
       UI_but_number_precision_set(but, 3);
       UI_but_func_set(but, handle_curves_softness, nullptr, nullptr);
+      return but;
+    });
+
+    add_labeled_field("U Scale", status.u_scale_equal, [&]() {
+      uiBut *but = uiDefButF(
+          block, ButType::Num, 0, "", 0, 0, butw, buth, &modified.u_scale, 0.0f, 1000.0f, "");
+      UI_but_number_step_size_set(but, 1);
+      UI_but_number_precision_set(but, 3);
+      UI_but_func_set(but, handle_curves_u_scale, nullptr, nullptr);
       return but;
     });
   }
