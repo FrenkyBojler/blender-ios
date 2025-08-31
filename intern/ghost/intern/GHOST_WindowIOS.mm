@@ -255,7 +255,7 @@ typedef struct UserInputEvent {
   bool last_tap_with_pencil;
 
   /* Keyboard handling. */
-  UITextField *text_field;
+  UITextField *hidden_text_field;
   NSString *original_text;
   bool onscreen_keyboard_active;
   const char *text_field_string;
@@ -285,7 +285,6 @@ typedef struct UserInputEvent {
 - (void)handleZoom:(GHOSTUIPinchGestureRecognizer *)sender;
 
 /* On screen keyboard handling */
-- (UITextField *)getUITextField;
 - (const GHOST_TabletData)getTabletData;
 - (GHOST_TSuccess)popupOnscreenKeyboard:(const GHOST_KeyboardProperties &)keyboard_properties;
 - (GHOST_TSuccess)hideOnscreenKeyboard;
@@ -308,7 +307,7 @@ typedef struct UserInputEvent {
   system = sys;
   window = win;
   touch_stack = 0;
-  text_field = nil;
+  hidden_text_field = nil;
   original_text = nil;
   onscreen_keyboard_active = false;
   text_field_string = nullptr;
@@ -1098,28 +1097,6 @@ typedef struct UserInputEvent {
   [self generateKeyboardReturnEvent];
 }
 
-/*
- * Add a text field so we can handle input from a popup keyboard and
- * attach it to our root window.
- */
-- (void)initUITextField
-{
-  /* Initialise it if we have not already done so. */
-  if (!text_field) {
-    text_field = [[UITextField alloc] init];
-
-    text_field.hidden = YES;
-    text_field.userInteractionEnabled = NO;
-
-    if (toolbar_enabled) {
-      [self initToolbar];
-      text_field.inputAccessoryView = toolbar;
-    }
-
-    [window->rootWindow addSubview:text_field];
-  }
-}
-
 - (void)convertWindowCoordToDisplayCoordWithWindow:(int)windowX
                                            windowY:(int)windowY
                                           displayX:(double *)displayX
@@ -1137,17 +1114,16 @@ typedef struct UserInputEvent {
   }
 }
 
-- (UITextField *)getUITextField
-{
-  return text_field;
-}
-
 - (void)setupKeyboard:(const GHOST_KeyboardProperties &)keyboard_properties
 {
-  /* Initialise it if we have not already done so */
-  if (!text_field) {
-    [self initUITextField];
-  }
+  /* Initialize toolbar. */
+  [self initToolbar];
+
+  /* Hidden text field, used as a workaround as an element to focus and show the keyboard. */
+  hidden_text_field = [[UITextField alloc] init];
+  hidden_text_field.hidden = YES;
+  hidden_text_field.inputAccessoryView = toolbar;
+  [window->rootWindow addSubview:hidden_text_field];
 
   /* Save this set of keyboard properties */
   current_keyboard_properties = keyboard_properties;
@@ -1318,15 +1294,15 @@ typedef struct UserInputEvent {
 
     [self setupKeyboard:keyboard_properties];
 
-    /* Embrace the jankiness. Enable the hidden textfield then redirect to toolbar textfield. */
     if (!onscreen_keyboard_active) {
-      text_field.userInteractionEnabled = YES;
-      if ([text_field becomeFirstResponder]) {
-        [toolbar_text_field becomeFirstResponder];
-      }
-      else {
+      /* First popup keyboard by focusing the hidden text field. */
+      if (![hidden_text_field becomeFirstResponder]) {
         GHOST_ASSERT(FALSE, "GHOST_SystemIOS::popupOnScreenKeyboard Failed to display keyboard");
+        return GHOST_kFailure;
       }
+
+      /* Once the keyboard is up, focus the actual toolbar text field. */
+      [toolbar_text_field becomeFirstResponder];
       onscreen_keyboard_active = true;
     }
   }
@@ -1352,7 +1328,7 @@ typedef struct UserInputEvent {
 
     /* Shut down the keyboard. */
     [toolbar_text_field resignFirstResponder];
-    [text_field resignFirstResponder];
+    [hidden_text_field resignFirstResponder];
     /*
      IOS_FIXME - Note: This may cause the console to display the warning message:
      "-[UIApplication _touchesEvent] will no longer work as expected. Please stop using it."
@@ -1361,14 +1337,6 @@ typedef struct UserInputEvent {
      */
 
     IOS_INPUT_LOG(@"Resigned keyboard responder");
-
-    /* Not sure if this is needed anymore. */
-    /*
-     This is required to disable any subsequent interactions with the text field that could
-     potentially bypass Blender's input handling (since the UITextField is now live
-     on the view)
-     */
-    //      text_field.userInteractionEnabled = NO;
 
     /* Save the input to a c-string */
     text_field_string = [[toolbar_text_field text] UTF8String];
@@ -1945,12 +1913,6 @@ const char *GHOST_WindowIOS::getLastKeyboardString()
 {
   GHOSTUIWindow *ghost_rootWindow = (GHOSTUIWindow *)rootWindow;
   return [ghost_rootWindow getLastKeyboardString];
-}
-
-UITextField *GHOST_WindowIOS::getUITextField()
-{
-  GHOSTUIWindow *ghost_rootWindow = (GHOSTUIWindow *)rootWindow;
-  return [ghost_rootWindow getUITextField];
 }
 
 const GHOST_TabletData GHOST_WindowIOS::getTabletData()

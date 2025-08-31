@@ -349,7 +349,6 @@ class GHOST_WindowIOS : public GHOST_Window {
   GHOST_TSuccess popupOnscreenKeyboard(const GHOST_KeyboardProperties &keyboard_properties);
   GHOST_TSuccess hideOnscreenKeyboard();
   const GHOST_TabletData getTabletData();
-  UITextField *getUITextField();
   const char *getLastKeyboardString();
   /* This is the size of the window pre-scaled */
   CGSize getLogicalWindowSize();
