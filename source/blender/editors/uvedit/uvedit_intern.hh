@@ -9,8 +9,8 @@
 #pragma once
 
 #include "BKE_customdata.hh"
-#include "GEO_uv_parametrizer.hh"
 #include "DNA_meshdata_types.h"
+#include "GEO_uv_parametrizer.hh"
 
 struct BMVert;
 struct BMEdge;
@@ -44,13 +44,11 @@ struct UnwrapOptions {
   bool correct_aspect;
   /** Treat unselected uvs as if they were pinned. */
   bool pin_unselected;
-
   int method;
   bool use_slim;
   bool use_abf;
   bool use_subsurf;
   bool use_weights;
-
   blender::geometry::ParamSlimOptions slim;
   char weight_group[MAX_VGROUP_NAME];
 };

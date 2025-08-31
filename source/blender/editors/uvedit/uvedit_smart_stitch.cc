@@ -58,8 +58,6 @@
 
 using blender::Vector;
 
-/* Forward declaration */
-
 /* ********************** smart stitch operator *********************** */
 
 namespace {

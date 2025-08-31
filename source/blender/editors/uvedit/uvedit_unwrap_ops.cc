@@ -80,7 +80,6 @@ using blender::Vector;
 using blender::geometry::ParamHandle;
 using blender::geometry::ParamKey;
 
-
 /* -------------------------------------------------------------------- */
 /** \name Utility Functions
  * \{ */
@@ -184,8 +183,6 @@ bool blender::geometry::UVPackIsland_Params::isCancelled() const
 /* -------------------------------------------------------------------- */
 /** \name Parametrizer Conversion
  * \{ */
-
-
 
 void blender::geometry::UVPackIsland_Params::setFromUnwrapOptions(const UnwrapOptions &options)
 {
@@ -2666,10 +2663,10 @@ static void uv_map_clip_correct(const Scene *scene,
 
 /* Assumes UV Map exists, doesn't run update functions. */
 void uvedit_unwrap(const Scene *scene,
-                          Object *obedit,
-                          const UnwrapOptions *options,
-                          int *r_count_changed,
-                          int *r_count_failed)
+                   Object *obedit,
+                   const UnwrapOptions *options,
+                   int *r_count_changed,
+                   int *r_count_failed)
 {
   BMEditMesh *em = BKE_editmesh_from_object(obedit);
   if (!CustomData_has_layer(&em->bm->ldata, CD_PROP_FLOAT2)) {
