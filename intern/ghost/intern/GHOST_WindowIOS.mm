@@ -990,15 +990,6 @@ typedef struct UserInputEvent {
                            target:nil
                            action:@selector(handleCancelButton)];
 
-  /* Prevents editing of tip and live text fields. */
-  toolbar_tip_item.enabled = NO;
-  toolbar_live_text_item.enabled = YES;
-  toolbar_live_text_item.tintColor = UIColor.labelColor;
-
-  /* Set the live text to a fixed width. */
-  /* IOS_FIXME - should this be set dynamically? Need to move out of init if so. */
-  toolbar_live_text_item.width = 150.0f;
-
   toolbar.items = @[
     toolbar_tip_item,
     toolbar_live_text_item,
