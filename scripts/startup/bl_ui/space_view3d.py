@@ -5824,6 +5824,7 @@ class VIEW3D_MT_edit_greasepencil_stroke(Menu):
         layout.operator("grease_pencil.cyclical_set", text="Close").type = 'CLOSE'
         layout.operator("grease_pencil.cyclical_set", text="Toggle Cyclic").type = 'TOGGLE'
         layout.operator_menu_enum("grease_pencil.caps_set", text="Set Caps", property="type")
+        layout.operator_menu_enum("grease_pencil.set_corner_type", property="corner_type")
         layout.operator("grease_pencil.stroke_switch_direction")
         layout.operator("grease_pencil.set_start_point", text="Set Start Point")
 
@@ -5837,7 +5838,6 @@ class VIEW3D_MT_edit_greasepencil_stroke(Menu):
 
         layout.operator_menu_enum("grease_pencil.convert_curve_type", text="Convert Type", property="type")
         layout.operator("grease_pencil.set_curve_resolution", text="Set Resolution")
-        layout.operator_menu_enum("grease_pencil.set_corner_type", property="corner_type")
 
         layout.separator()
 
