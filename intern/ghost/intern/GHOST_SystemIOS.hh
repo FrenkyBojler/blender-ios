@@ -32,7 +32,6 @@ class GHOST_WindowIOS;
 @end
 #endif
 
-GHOST_TButton convertButton(int button);
 GHOST_TKey convertIOSKeyToGHOST(long key_value);
 
 class GHOST_SystemIOS : public GHOST_System {

@@ -162,28 +162,6 @@ void GHOST_iosfinalize(bContext *CTX)
 
 #pragma mark KeyMap, mouse converters
 
-GHOST_TButton convertButton(int button)
-{
-  switch (button) {
-    case 0:
-      return GHOST_kButtonMaskLeft;
-    case 2:
-      return GHOST_kButtonMaskRight;
-    case 4:
-      return GHOST_kButtonMaskMiddle;
-    case 8:
-      return GHOST_kButtonMaskButton4;
-    case 16:
-      return GHOST_kButtonMaskButton5;
-    case 32:
-      return GHOST_kButtonMaskButton6;
-    case 64:
-      return GHOST_kButtonMaskButton7;
-    default:
-      return GHOST_kButtonMaskLeft;
-  }
-}
-
 GHOST_TKey convertIOSKeyToGHOST(long key_value)
 {
   UIKeyboardHIDUsage key = static_cast<UIKeyboardHIDUsage>(key_value);
