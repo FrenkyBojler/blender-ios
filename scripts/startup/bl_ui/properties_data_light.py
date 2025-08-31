@@ -153,55 +153,7 @@ class DATA_PT_EEVEE_light(DataButtonsPanel, Panel):
         else:
             prop = prop_map.get((light.unit_system, light.normalize), {}).get(light.type, "energy")
 
-        col.prop(light, prop)
-
-        '''
-        Two solution to display the properties. Don't know witch one is the best
-        Is Brecht or someone from the UI team have an opinion ?
-        At this point, there is no convertion during units switch
-        '''
-
-        '''        
-        if light.unit_system == 'NONE':
-            col.prop(light, "energy")
-        elif light.unit_system == 'RADIOMETRIC':
-            if light.normalize:
-                if light.type == 'SUN':
-                    col.prop(light, "radiometric_irradiance")
-                elif light.type == 'POINT' or light.type == 'AREA':
-                    col.prop(light, "radiometric_power")
-                elif light.type == 'SPOT':
-                    col.prop(light, "radiometric_intensity")
-                else: #security return to avoid empty prop
-                    col.prop(light, "energy")
-            else:
-                # if light.type == SUN Is not possible because SUN is always normalized
-                if light.type == 'POINT' or light.type == 'AREA':
-                    col.prop(light, "radiometric_radiosity")
-                elif light.type == 'SPOT':
-                    col.prop(light, "radiometric_radiance")
-                else: #security return to avoid empty prop
-                    col.prop(light, "energy")
-        elif light.unit_system == 'PHOTOMETRIC':
-            if light.normalize:
-                if light.type == 'SUN':
-                    col.prop(light, "photometric_illuminance")
-                elif light.type == 'POINT' or light.type == 'AREA':
-                    col.prop(light, "photometric_power")
-                elif light.type == 'SPOT':
-                    col.prop(light, "photometric_intensity")
-                else: #security return to avoid empty prop
-                    col.prop(light, "energy")
-            else:
-                # if light.type == SUN Is not possible because SUN is always normalized
-                if light.type == 'POINT' or light.type == 'AREA':
-                    col.prop(light, "photometric_luminous_exitance")
-                elif light.type == 'SPOT':
-                    col.prop(light, "photometric_luminance")
-                else: #security return to avoid empty prop
-                    col.prop(light, "energy")
-        '''
-
+        col.prop(light, prop) # light energy/power properties
         col.prop(light, "exposure")
         if light.type != "SUN":
             col.prop(light, "normalize")
@@ -351,6 +303,32 @@ class DATA_PT_spot(DataButtonsPanel, Panel):
 
         col.prop(light, "show_cone")
 
+class DATA_PT_light_advanced(DataButtonsPanel, Panel):
+    bl_label = "Advanced"
+    COMPAT_ENGINES = {
+        'BLENDER_RENDER',
+        'BLENDER_EEVEE',
+        'BLENDER_WORKBENCH',
+    }
+    @classmethod
+    def poll(cls, context):
+        return (context.engine in cls.COMPAT_ENGINES)
+    def draw_header(self, context):
+        light = context.light
+        # Disable the checkbox when unit_system is NONE
+        is_enabled = (light.unit_system != 'NONE')
+        self.layout.enabled = is_enabled
+        self.layout.prop(light, "use_advanced", text="")
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+
+        light = context.light
+
+        col = layout.column(align=True)
+        col.active = light.use_advanced
 
 class DATA_PT_light_animation(DataButtonsPanel, PropertiesAnimationMixin, PropertyPanel, Panel):
     COMPAT_ENGINES = {
@@ -396,6 +374,7 @@ classes = (
     DATA_PT_EEVEE_light_shadow,
     DATA_PT_EEVEE_light_influence,
     DATA_PT_EEVEE_light_distance,
+    DATA_PT_light_advanced,
     DATA_PT_light_animation,
     DATA_PT_custom_props_light,
 )

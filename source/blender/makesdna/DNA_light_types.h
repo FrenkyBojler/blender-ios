@@ -166,6 +166,10 @@ enum {
   LA_SHADOW_JITTER = 1 << 23,
   LA_USE_TEMPERATURE = 1 << 24,
   LA_UNNORMALIZED = 1 << 25,
+  LA_USE_ADVANCED = 1 << 26,
+  LA_USE_NORMALIZE_COLOR = 1 << 27,
+  LA_USE_COMPENSED_POWER = 1 << 28,
+  LA_USE_UNIT_CONVERSION = 1 <<29,
 };
 
 /** #Light::falloff_type */
