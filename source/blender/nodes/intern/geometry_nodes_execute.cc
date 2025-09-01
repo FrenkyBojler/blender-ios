@@ -1106,7 +1106,7 @@ Vector<InferenceValue> get_geometry_nodes_input_inference_values(
     }
     const GPointer single_value = value.get_single_ptr();
     BLI_assert(single_value.type() == stype->base_cpp_type);
-    inference_values[input_i] = InferenceValue(single_value.get());
+    inference_values[input_i] = InferenceValue::from_primitive(single_value.get());
   }
   return inference_values;
 }

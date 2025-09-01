@@ -680,7 +680,7 @@ void infer_group_interface_inputs_usage(const bNodeTree &group,
     }
     void *value = scope.allocate_owned(*base_type);
     stype.get_base_cpp_value(socket.default_value, value);
-    input_values[i] = InferenceValue(value);
+    input_values[i] = InferenceValue::from_primitive(value);
   }
 
   infer_group_interface_inputs_usage(group, input_values, r_input_usages);

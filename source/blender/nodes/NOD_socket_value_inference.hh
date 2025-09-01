@@ -30,8 +30,14 @@ class InferenceValue {
    */
   const void *value_ = nullptr;
 
+  InferenceValue(const void *value) : value_(value) {}
+
  public:
-  explicit InferenceValue(const void *value) : value_(value) {}
+  static InferenceValue from_primitive(const void *value)
+  {
+    BLI_assert(value != nullptr);
+    return InferenceValue(value);
+  }
 
   static InferenceValue Unknown()
   {

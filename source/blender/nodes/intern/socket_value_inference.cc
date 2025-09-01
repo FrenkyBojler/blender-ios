@@ -283,10 +283,10 @@ class SocketValueInferencerImpl {
               const std::optional<float> a = inputs[0].get_if_primitive<float>();
               const std::optional<float> b = inputs[1].get_if_primitive<float>();
               if (a == 0.0f || b == 0.0f) {
-                return InferenceValue(&scope_.construct<float>(0.0f));
+                return this->make_primitive_inference_value(0.0f);
               }
               if (a.has_value() && b.has_value()) {
-                return InferenceValue(&scope_.construct<float>(*a * *b));
+                return this->make_primitive_inference_value(*a * *b);
               }
               return std::nullopt;
             });
@@ -310,10 +310,10 @@ class SocketValueInferencerImpl {
               const std::optional<float3> a = inputs[0].get_if_primitive<float3>();
               const std::optional<float3> b = inputs[1].get_if_primitive<float3>();
               if (a == float3(0.0f) || b == float3(0.0f)) {
-                return InferenceValue(&scope_.construct<float3>(0.0f));
+                return this->make_primitive_inference_value(float3(0.0f));
               }
               if (a.has_value() && b.has_value()) {
-                return InferenceValue(&scope_.construct<float3>(*a * *b));
+                return this->make_primitive_inference_value(float3(*a * *b));
               }
               return std::nullopt;
             });
@@ -325,10 +325,10 @@ class SocketValueInferencerImpl {
               const std::optional<float3> a = inputs[0].get_if_primitive<float3>();
               const std::optional<float> scale = inputs[3].get_if_primitive<float>();
               if (a == float3(0.0f) || scale == 0.0f) {
-                return InferenceValue(&scope_.construct<float3>(0.0f));
+                return this->make_primitive_inference_value(float3(0.0f));
               }
               if (a.has_value() && scale.has_value()) {
-                return InferenceValue(&scope_.construct<float3>(*a * *scale));
+                return this->make_primitive_inference_value(float3(*a * *scale));
               }
               return std::nullopt;
             });
@@ -352,10 +352,10 @@ class SocketValueInferencerImpl {
               const std::optional<int> a = inputs[0].get_if_primitive<int>();
               const std::optional<int> b = inputs[1].get_if_primitive<int>();
               if (a == 0 || b == 0) {
-                return InferenceValue(&scope_.construct<int>(0));
+                return this->make_primitive_inference_value(0);
               }
               if (a.has_value() && b.has_value()) {
-                return InferenceValue(&scope_.construct<int>(*a * *b));
+                return this->make_primitive_inference_value(*a * *b);
               }
               return std::nullopt;
             });
@@ -381,7 +381,7 @@ class SocketValueInferencerImpl {
                 const std::optional<bool> b = inputs[1].get_if_primitive<bool>();
                 const std::optional<bool> result = fn(a, b);
                 if (result.has_value()) {
-                  return InferenceValue(&scope_.construct<bool>(*result));
+                  return this->make_primitive_inference_value(*result);
                 }
                 return std::nullopt;
               });
@@ -629,7 +629,7 @@ class SocketValueInferencerImpl {
       const CPPType &base_type = *output_socket->typeinfo->base_cpp_type;
       void *value = scope_.allocate_owned(base_type);
       params.add_uninitialized_single_output(GMutableSpan(base_type, value, 1));
-      all_socket_values_.add_new(output_socket, InferenceValue(value));
+      all_socket_values_.add_new(output_socket, InferenceValue::from_primitive(value));
     }
     mf::ContextBuilder context;
     /* Actually evaluate the multi-function. The outputs will be written into the memory allocated
@@ -710,7 +710,7 @@ class SocketValueInferencerImpl {
 
     void *value_buffer = scope_.allocate_owned(*socket->typeinfo->base_cpp_type);
     socket->typeinfo->get_base_cpp_value(socket->default_value, value_buffer);
-    all_socket_values_.add_new(socket, InferenceValue(value_buffer));
+    all_socket_values_.add_new(socket, InferenceValue::from_primitive(value_buffer));
   }
 
   void value_task__input__linked(const SocketInContext &from_socket,
@@ -747,7 +747,7 @@ class SocketValueInferencerImpl {
     }
     void *dst = scope_.allocate_owned(*to_type);
     conversions.convert_to_uninitialized(*from_type, *to_type, src.get_primitive_ptr(), dst);
-    return InferenceValue(dst);
+    return InferenceValue::from_primitive(dst);
   }
 
   bool treat_socket_as_unknown(const SocketInContext &socket) const
@@ -818,6 +818,12 @@ class SocketValueInferencerImpl {
   void push_value_task(const SocketInContext &socket)
   {
     value_tasks_.push(socket);
+  }
+
+  template<typename T> InferenceValue make_primitive_inference_value(const T &value)
+  {
+    static_assert(is_same_any_v<std::decay_t<T>, bool, float, int, float3>);
+    return InferenceValue::from_primitive(&scope_.construct<T>(value));
   }
 
   static const bNodeSocket *get_first_available_bsocket(const Span<const bNodeSocket *> sockets)
