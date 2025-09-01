@@ -3144,10 +3144,14 @@ class _defs_sequencer_generic:
     @ToolDef.from_fn
     def blade():
         def draw_settings(_context, layout, tool):
-            # props = tool.operator_properties("sequencer.split")
+            props = tool.operator_properties("sequencer.split")
+            row = layout.row()
+            row.prop(props, "type", expand=True)
+
+            layout.separator()
+
             props = tool.operator_properties("sequencer.box_cut")
             row = layout.row()
-            # row.prop(props, "type", expand=True)
             row.prop(props, "remove_gaps", expand=True)
         return dict(
             idname="builtin.blade",
