@@ -1863,9 +1863,6 @@ static wmOperatorStatus node_deactivate_viewer_exec(bContext *C, wmOperator * /*
     if (node->type_legacy != GEO_NODE_VIEWER) {
       continue;
     }
-    if (!(node->flag & SELECT)) {
-      continue;
-    }
     if (node == active_viewer) {
       node->flag &= ~NODE_DO_OUTPUT;
       BKE_ntree_update_tag_node_property(snode.edittree, node);
