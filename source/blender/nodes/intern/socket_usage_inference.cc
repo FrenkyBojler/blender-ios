@@ -29,30 +29,110 @@
 
 namespace blender::nodes::socket_usage_inference {
 
-/** Utility class to simplify passing global state into all the functions during inferencing. */
-struct SocketUsageInferencer {
+static bool switch__is_socket_selected(const SocketInContext &socket,
+                                       const InferenceValue &condition)
+{
+  const bool is_true = condition.get_known<bool>();
+  const int selected_index = is_true ? 2 : 1;
+  return socket->index() == selected_index;
+}
+
+static bool index_switch__is_socket_selected(const SocketInContext &socket,
+                                             const InferenceValue &condition)
+{
+  const int index = condition.get_known<int>();
+  return socket->index() == index + 1;
+}
+
+static bool menu_switch__is_socket_selected(const SocketInContext &socket,
+                                            const InferenceValue &condition)
+{
+  const NodeMenuSwitch &storage = *static_cast<const NodeMenuSwitch *>(
+      socket->owner_node().storage);
+  const int menu_value = condition.get_known<int>();
+  const NodeEnumItem &item = storage.enum_definition.items_array[socket->index() - 1];
+  return menu_value == item.identifier;
+}
+
+static bool mix_node__is_socket_selected(const SocketInContext &socket,
+                                         const InferenceValue &condition)
+{
+  const NodeShaderMix &storage = *static_cast<const NodeShaderMix *>(socket.owner_node()->storage);
+  if (storage.data_type == SOCK_RGBA && storage.blend_type != MA_RAMP_BLEND) {
+    return true;
+  }
+
+  const bool clamp_factor = storage.clamp_factor != 0;
+  bool only_a = false;
+  bool only_b = false;
+  if (storage.data_type == SOCK_VECTOR && storage.factor_mode == NODE_MIX_MODE_NON_UNIFORM) {
+    const float3 mix_factor = condition.get_known<float3>();
+    if (clamp_factor) {
+      only_a = mix_factor.x <= 0.0f && mix_factor.y <= 0.0f && mix_factor.z <= 0.0f;
+      only_b = mix_factor.x >= 1.0f && mix_factor.y >= 1.0f && mix_factor.z >= 1.0f;
+    }
+    else {
+      only_a = float3{0.0f, 0.0f, 0.0f} == mix_factor;
+      only_b = float3{1.0f, 1.0f, 1.0f} == mix_factor;
+    }
+  }
+  else {
+    const float mix_factor = condition.get_known<float>();
+    if (clamp_factor) {
+      only_a = mix_factor <= 0.0f;
+      only_b = mix_factor >= 1.0f;
+    }
+    else {
+      only_a = mix_factor == 0.0f;
+      only_b = mix_factor == 1.0f;
+    }
+  }
+  if (only_a) {
+    if (STREQ(socket->name, "B")) {
+      return false;
+    }
+  }
+  if (only_b) {
+    if (STREQ(socket->name, "A")) {
+      return false;
+    }
+  }
+  return true;
+}
+
+static bool shader_mix_node__is_socket_selected(const SocketInContext &socket,
+                                                const InferenceValue &condition)
+{
+  const float mix_factor = condition.get_known<float>();
+  if (mix_factor == 0.0f) {
+    if (STREQ(socket->identifier, "Shader_001")) {
+      return false;
+    }
+  }
+  else if (mix_factor == 1.0f) {
+    if (STREQ(socket->identifier, "Shader")) {
+      return false;
+    }
+  }
+  return true;
+}
+
+static const bNodeSocket *get_first_available_bsocket(const Span<const bNodeSocket *> sockets)
+{
+  for (const bNodeSocket *socket : sockets) {
+    if (socket->is_available()) {
+      return socket;
+    }
+  }
+  return nullptr;
+}
+
+class SocketValueInferencer {
  private:
-  friend InputSocketUsageParams;
+  ResourceScope &scope_;
+  bke::ComputeContextCache &compute_context_cache_;
 
-  /** Owns e.g. intermediate evaluated values. */
-  ResourceScope scope_;
-  bke::ComputeContextCache compute_context_cache_;
-
-  /** Root node tree. */
-  const bNodeTree &root_tree_;
-
-  /**
-   * Stack of tasks that allows depth-first (partial) evaluation of the tree.
-   */
-  Stack<SocketInContext> usage_tasks_;
   Stack<SocketInContext> value_tasks_;
-
-  /**
-   * If the usage of a socket is known, it is added to this map. Sockets not in this map are not
-   * known yet.
-   */
-  Map<SocketInContext, bool> all_socket_usages_;
-
   /**
    * Once a socket value has been determined, it is added to this map. Note that a socket value may
    * be determined to be unknown because it depends on values that are not known statically.
@@ -65,19 +145,21 @@ struct SocketUsageInferencer {
    */
   Set<const bNodeSocket *> animated_sockets_;
   Set<const bNodeTree *> trees_with_handled_animation_data_;
-
-  /** Some inline storage to reduce the number of allocations. */
-  AlignedBuffer<1024, 8> scope_buffer_;
-
   std::optional<Span<bool>> top_level_ignored_inputs_;
 
+  const bNodeTree &root_tree_;
+
  public:
-  SocketUsageInferencer(const bNodeTree &tree,
+  SocketValueInferencer(const bNodeTree &tree,
+                        ResourceScope &scope,
+                        bke::ComputeContextCache &compute_context_cache,
                         const std::optional<Span<GPointer>> tree_input_values,
-                        const std::optional<Span<bool>> top_level_ignored_inputs = std::nullopt)
-      : root_tree_(tree), top_level_ignored_inputs_(top_level_ignored_inputs)
+                        const std::optional<Span<bool>> top_level_ignored_inputs)
+      : scope_(scope),
+        compute_context_cache_(compute_context_cache),
+        top_level_ignored_inputs_(top_level_ignored_inputs),
+        root_tree_(tree)
   {
-    scope_.allocator().provide_buffer(scope_buffer_);
     root_tree_.ensure_topology_cache();
     root_tree_.ensure_interface_cache();
     this->ensure_animation_data_processed(root_tree_);
@@ -101,60 +183,6 @@ struct SocketUsageInferencer {
         all_socket_values_.add_new(socket_in_context, InferenceValue(input_value));
       }
     }
-  }
-
-  void mark_top_level_node_outputs_as_used()
-  {
-    for (const bNode *node : root_tree_.all_nodes()) {
-      if (node->is_group_input()) {
-        /* Can skip these sockets, because they don't affect usage anyway, and there may be a lot
-         * of them. See #144756. */
-        continue;
-      }
-      for (const bNodeSocket *socket : node->output_sockets()) {
-        all_socket_usages_.add_new({nullptr, socket}, true);
-      }
-    }
-  }
-
-  bool is_group_input_used(const int input_i)
-  {
-    for (const bNode *node : root_tree_.group_input_nodes()) {
-      const SocketInContext socket{nullptr, &node->output_socket(input_i)};
-      if (this->is_socket_used(socket)) {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  bool is_socket_used(const SocketInContext &socket)
-  {
-    const std::optional<bool> is_used = all_socket_usages_.lookup_try(socket);
-    if (is_used.has_value()) {
-      return *is_used;
-    }
-    if (socket->is_output() && !socket->is_directly_linked()) {
-      /* In this case we can return early because the socket can't be used if it's not linked. */
-      return false;
-    }
-    if (socket->owner_tree().has_available_link_cycle()) {
-      return false;
-    }
-
-    BLI_assert(usage_tasks_.is_empty());
-    usage_tasks_.push(socket);
-
-    while (!usage_tasks_.is_empty()) {
-      const SocketInContext &socket = usage_tasks_.peek();
-      this->usage_task(socket);
-      if (&socket == &usage_tasks_.peek()) {
-        /* The task is finished if it hasn't added any new task it depends on. */
-        usage_tasks_.pop();
-      }
-    }
-
-    return all_socket_usages_.lookup(socket);
   }
 
   InferenceValue get_socket_value(const SocketInContext &socket)
@@ -183,386 +211,6 @@ struct SocketUsageInferencer {
   }
 
  private:
-  void usage_task(const SocketInContext &socket)
-  {
-    if (all_socket_usages_.contains(socket)) {
-      return;
-    }
-    const bNode &node = socket->owner_node();
-    if (!socket->is_available()) {
-      all_socket_usages_.add_new(socket, false);
-      return;
-    }
-    if (node.is_undefined() && !node.is_custom_group()) {
-      all_socket_usages_.add_new(socket, false);
-      return;
-    }
-    if (socket->is_input()) {
-      this->usage_task__input(socket);
-    }
-    else {
-      this->usage_task__output(socket);
-    }
-  }
-
-  void usage_task__input(const SocketInContext &socket)
-  {
-    const NodeInContext node = socket.owner_node();
-
-    if (node->is_muted()) {
-      this->usage_task__input__muted_node(socket);
-      return;
-    }
-
-    switch (node->type_legacy) {
-      case NODE_GROUP:
-      case NODE_CUSTOM_GROUP: {
-        this->usage_task__input__group_node(socket);
-        break;
-      }
-      case NODE_GROUP_OUTPUT: {
-        this->usage_task__input__group_output_node(socket);
-        break;
-      }
-      case GEO_NODE_SWITCH: {
-        this->usage_task__input__generic_switch(socket, switch__is_socket_selected);
-        break;
-      }
-      case GEO_NODE_INDEX_SWITCH: {
-        this->usage_task__input__generic_switch(socket, index_switch__is_socket_selected);
-        break;
-      }
-      case GEO_NODE_MENU_SWITCH: {
-        this->usage_task__input__generic_switch(socket, menu_switch__is_socket_selected);
-        break;
-      }
-      case SH_NODE_MIX: {
-        this->usage_task__input__generic_switch(socket, mix_node__is_socket_selected);
-        break;
-      }
-      case SH_NODE_MIX_SHADER: {
-        this->usage_task__input__generic_switch(socket, shader_mix_node__is_socket_selected);
-        break;
-      }
-      case GEO_NODE_SIMULATION_INPUT: {
-        this->usage_task__input__simulation_input_node(socket);
-        break;
-      }
-      case GEO_NODE_REPEAT_INPUT: {
-        this->usage_task__input__repeat_input_node(socket);
-        break;
-      }
-      case GEO_NODE_FOREACH_GEOMETRY_ELEMENT_INPUT: {
-        this->usage_task__input__foreach_element_input_node(socket);
-        break;
-      }
-      case GEO_NODE_FOREACH_GEOMETRY_ELEMENT_OUTPUT: {
-        this->usage_task__input__foreach_element_output_node(socket);
-        break;
-      }
-      case GEO_NODE_CAPTURE_ATTRIBUTE: {
-        this->usage_task__input__capture_attribute_node(socket);
-        break;
-      }
-      case SH_NODE_OUTPUT_AOV:
-      case SH_NODE_OUTPUT_LIGHT:
-      case SH_NODE_OUTPUT_WORLD:
-      case SH_NODE_OUTPUT_LINESTYLE:
-      case SH_NODE_OUTPUT_MATERIAL:
-      case CMP_NODE_OUTPUT_FILE:
-      case TEX_NODE_OUTPUT: {
-        this->usage_task__input__output_node(socket);
-        break;
-      }
-      default: {
-        this->usage_task__input__fallback(socket);
-        break;
-      }
-    }
-  }
-
-  void usage_task__input__output_node(const SocketInContext &socket)
-  {
-    all_socket_usages_.add_new(socket, true);
-  }
-
-  /**
-   * Assumes that the first input is a condition that selects one of the remaining inputs which is
-   * then output. If necessary, this can trigger a value task for the condition socket.
-   */
-  void usage_task__input__generic_switch(
-      const SocketInContext &socket,
-      const FunctionRef<bool(const SocketInContext &socket, const InferenceValue &condition)>
-          is_selected_socket)
-  {
-    const NodeInContext node = socket.owner_node();
-    BLI_assert(node->input_sockets().size() >= 1);
-    BLI_assert(node->output_sockets().size() >= 1);
-
-    if (socket->type == SOCK_CUSTOM && STREQ(socket->idname, "NodeSocketVirtual")) {
-      all_socket_usages_.add_new(socket, false);
-      return;
-    }
-    const SocketInContext output_socket{socket.context,
-                                        this->get_first_available_bsocket(node->output_sockets())};
-    const std::optional<bool> output_is_used = all_socket_usages_.lookup_try(output_socket);
-    if (!output_is_used.has_value()) {
-      this->push_usage_task(output_socket);
-      return;
-    }
-    if (!*output_is_used) {
-      all_socket_usages_.add_new(socket, false);
-      return;
-    }
-    const SocketInContext condition_socket{
-        socket.context, this->get_first_available_bsocket(node->input_sockets())};
-    if (socket == condition_socket) {
-      all_socket_usages_.add_new(socket, true);
-      return;
-    }
-    const InferenceValue condition_value = this->get_socket_value(condition_socket);
-    if (condition_value.is_unknown()) {
-      /* The exact condition value is unknown, so any input may be used. */
-      all_socket_usages_.add_new(socket, true);
-      return;
-    }
-    const bool is_used = is_selected_socket(socket, condition_value);
-    all_socket_usages_.add_new(socket, is_used);
-  }
-
-  const bNodeSocket *get_first_available_bsocket(const Span<const bNodeSocket *> sockets) const
-  {
-    for (const bNodeSocket *socket : sockets) {
-      if (socket->is_available()) {
-        return socket;
-      }
-    }
-    return nullptr;
-  }
-
-  void usage_task__input__group_node(const SocketInContext &socket)
-  {
-    const NodeInContext node = socket.owner_node();
-    const bNodeTree *group = reinterpret_cast<const bNodeTree *>(node->id);
-    if (!group || ID_MISSING(&group->id)) {
-      all_socket_usages_.add_new(socket, false);
-      return;
-    }
-    group->ensure_topology_cache();
-    if (group->has_available_link_cycle()) {
-      all_socket_usages_.add_new(socket, false);
-      return;
-    }
-    this->ensure_animation_data_processed(*group);
-
-    /* The group node input is used if any of the matching group inputs within the group is
-     * used. */
-    const ComputeContext &group_context = compute_context_cache_.for_group_node(
-        socket.context, node->identifier, &node->owner_tree());
-    Vector<const bNodeSocket *> dependent_sockets;
-    for (const bNode *group_input_node : group->group_input_nodes()) {
-      const bNodeSocket &group_input_socket = group_input_node->output_socket(socket->index());
-      if (group_input_socket.is_directly_linked()) {
-        /* Skip unlinked group inputs to avoid further unnecessary processing of them further down
-         * the line. */
-        dependent_sockets.append(&group_input_socket);
-      }
-    }
-    this->usage_task__with_dependent_sockets(socket, dependent_sockets, {}, &group_context);
-  }
-
-  void usage_task__input__group_output_node(const SocketInContext &socket)
-  {
-    const int output_i = socket->index();
-    if (socket.context == nullptr) {
-      /* This is a final output which is always used. */
-      all_socket_usages_.add_new(socket, true);
-      return;
-    }
-    /* The group output node is used if the matching output of the parent group node is used. */
-    const bke::GroupNodeComputeContext &group_context =
-        *static_cast<const bke::GroupNodeComputeContext *>(socket.context);
-    const bNodeSocket &group_node_output = group_context.node()->output_socket(output_i);
-    this->usage_task__with_dependent_sockets(
-        socket, {&group_node_output}, {}, group_context.parent());
-  }
-
-  void usage_task__output(const SocketInContext &socket)
-  {
-    /* An output socket is used if any of the sockets it is connected to is used. */
-    Vector<const bNodeSocket *> dependent_sockets;
-    for (const bNodeLink *link : socket->directly_linked_links()) {
-      if (link->is_used()) {
-        dependent_sockets.append(link->tosock);
-      }
-    }
-    this->usage_task__with_dependent_sockets(socket, dependent_sockets, {}, socket.context);
-  }
-
-  void usage_task__input__simulation_input_node(const SocketInContext &socket)
-  {
-    const NodeInContext node = socket.owner_node();
-    const bNodeTree &tree = socket->owner_tree();
-
-    const NodeGeometrySimulationInput &storage = *static_cast<const NodeGeometrySimulationInput *>(
-        node->storage);
-    const bNode *sim_output_node = tree.node_by_id(storage.output_node_id);
-    if (!sim_output_node) {
-      all_socket_usages_.add_new(socket, false);
-      return;
-    }
-    /* Simulation inputs are also used when any of the simulation outputs are used. */
-    Vector<const bNodeSocket *, 16> dependent_sockets;
-    dependent_sockets.extend(node->output_sockets());
-    dependent_sockets.extend(sim_output_node->output_sockets());
-    this->usage_task__with_dependent_sockets(socket, dependent_sockets, {}, socket.context);
-  }
-
-  void usage_task__input__repeat_input_node(const SocketInContext &socket)
-  {
-    const NodeInContext node = socket.owner_node();
-    const bNodeTree &tree = socket->owner_tree();
-
-    const NodeGeometryRepeatInput &storage = *static_cast<const NodeGeometryRepeatInput *>(
-        node->storage);
-    const bNode *repeat_output_node = tree.node_by_id(storage.output_node_id);
-    if (!repeat_output_node) {
-      all_socket_usages_.add_new(socket, false);
-      return;
-    }
-    /* Assume that all repeat inputs are used when any of the outputs are used. This check could
-     * become more precise in the future if necessary. */
-    Vector<const bNodeSocket *, 16> dependent_sockets;
-    dependent_sockets.extend(node->output_sockets());
-    dependent_sockets.extend(repeat_output_node->output_sockets());
-    this->usage_task__with_dependent_sockets(socket, dependent_sockets, {}, socket.context);
-  }
-
-  void usage_task__input__foreach_element_output_node(const SocketInContext &socket)
-  {
-    const NodeInContext node = socket.owner_node();
-    this->usage_task__with_dependent_sockets(
-        socket, {node->output_by_identifier(socket->identifier)}, {}, socket.context);
-  }
-
-  void usage_task__input__capture_attribute_node(const SocketInContext &socket)
-  {
-    const NodeInContext node = socket.owner_node();
-    this->usage_task__with_dependent_sockets(
-        socket, {&node->output_socket(socket->index())}, {}, socket.context);
-  }
-
-  void usage_task__input__fallback(const SocketInContext &socket)
-  {
-    const SocketDeclaration *socket_decl = socket->runtime->declaration;
-    if (!socket_decl) {
-      all_socket_usages_.add_new(socket, true);
-      return;
-    }
-    if (!socket_decl->usage_inference_fn) {
-      this->usage_task__with_dependent_sockets(
-          socket, socket->owner_node().output_sockets(), {}, socket.context);
-      return;
-    }
-    InputSocketUsageParams params{
-        *this, socket.context, socket->owner_tree(), socket->owner_node(), *socket};
-    const std::optional<bool> is_used = (*socket_decl->usage_inference_fn)(params);
-    if (!is_used.has_value()) {
-      /* Some value was requested, come back later when that value is available. */
-      return;
-    }
-    all_socket_usages_.add_new(socket, *is_used);
-  }
-
-  void usage_task__input__foreach_element_input_node(const SocketInContext &socket)
-  {
-    const NodeInContext node = socket.owner_node();
-    const bNodeTree &tree = socket->owner_tree();
-
-    const NodeGeometryForeachGeometryElementInput &storage =
-        *static_cast<const NodeGeometryForeachGeometryElementInput *>(node->storage);
-    const bNode *foreach_output_node = tree.node_by_id(storage.output_node_id);
-    if (!foreach_output_node) {
-      all_socket_usages_.add_new(socket, false);
-      return;
-    }
-    Vector<const bNodeSocket *, 16> dependent_sockets;
-    if (StringRef(socket->identifier).startswith("Input_")) {
-      dependent_sockets.append(node->output_by_identifier(socket->identifier));
-    }
-    else {
-      /* The geometry and selection inputs are used whenever any of the zone outputs is used. */
-      dependent_sockets.extend(node->output_sockets());
-      dependent_sockets.extend(foreach_output_node->output_sockets());
-    }
-    this->usage_task__with_dependent_sockets(socket, dependent_sockets, {}, socket.context);
-  }
-
-  void usage_task__input__muted_node(const SocketInContext &socket)
-  {
-    const NodeInContext node = socket.owner_node();
-    Vector<const bNodeSocket *> dependent_sockets;
-    for (const bNodeLink &internal_link : node->internal_links()) {
-      if (internal_link.fromsock != socket.socket) {
-        continue;
-      }
-      dependent_sockets.append(internal_link.tosock);
-    }
-    this->usage_task__with_dependent_sockets(socket, dependent_sockets, {}, socket.context);
-  }
-
-  /**
-   * Utility that handles simple cases where a socket is used if any of its dependent sockets is
-   * used.
-   */
-  void usage_task__with_dependent_sockets(const SocketInContext &socket,
-                                          const Span<const bNodeSocket *> dependent_outputs,
-                                          const Span<const bNodeSocket *> condition_inputs,
-                                          const ComputeContext *dependent_socket_context)
-  {
-    /* Check if any of the dependent outputs are used. */
-    SocketInContext next_unknown_output;
-    bool any_output_used = false;
-    for (const bNodeSocket *dependent_socket_ptr : dependent_outputs) {
-      const SocketInContext dependent_socket{dependent_socket_context, dependent_socket_ptr};
-      const std::optional<bool> is_used = all_socket_usages_.lookup_try(dependent_socket);
-      if (!is_used.has_value() && !next_unknown_output) {
-        next_unknown_output = dependent_socket;
-        continue;
-      }
-      if (is_used.value_or(false)) {
-        any_output_used = true;
-        break;
-      }
-    }
-    if (next_unknown_output) {
-      /* Create a task that checks if the next dependent socket is used. Intentionally only create
-       * a task for the very next one and not for all, because that could potentially trigger a lot
-       * of unnecessary evaluations. */
-      this->push_usage_task(next_unknown_output);
-      return;
-    }
-    if (!any_output_used) {
-      all_socket_usages_.add_new(socket, false);
-      return;
-    }
-    bool all_condition_inputs_true = true;
-    for (const bNodeSocket *condition_input_ptr : condition_inputs) {
-      const SocketInContext condition_input{dependent_socket_context, condition_input_ptr};
-      const InferenceValue condition_value = this->get_socket_value(condition_input);
-      if (condition_value.is_unknown()) {
-        /* The condition is not known, so it may be true. */
-        continue;
-      }
-      BLI_assert(condition_input_ptr->type == SOCK_BOOLEAN);
-      if (!condition_value.get_known<bool>()) {
-        all_condition_inputs_true = false;
-        break;
-      }
-    }
-    all_socket_usages_.add_new(socket, all_condition_inputs_true);
-  }
-
   void value_task(const SocketInContext &socket)
   {
     if (all_socket_values_.contains(socket)) {
@@ -931,8 +579,8 @@ struct SocketUsageInferencer {
     BLI_assert(node->input_sockets().size() >= 1);
     BLI_assert(node->output_sockets().size() >= 1);
 
-    const SocketInContext condition_socket{
-        socket.context, this->get_first_available_bsocket(node->input_sockets())};
+    const SocketInContext condition_socket{socket.context,
+                                           get_first_available_bsocket(node->input_sockets())};
     const std::optional<InferenceValue> condition_value = all_socket_values_.lookup_try(
         condition_socket);
     if (!condition_value.has_value()) {
@@ -1196,103 +844,567 @@ struct SocketUsageInferencer {
     return dst;
   }
 
-  static bool switch__is_socket_selected(const SocketInContext &socket,
-                                         const InferenceValue &condition)
+  bool treat_socket_as_unknown(const SocketInContext &socket) const
   {
-    const bool is_true = condition.get_known<bool>();
-    const int selected_index = is_true ? 2 : 1;
-    return socket->index() == selected_index;
+    if (!top_level_ignored_inputs_.has_value()) {
+      return false;
+    }
+    if (socket.context) {
+      return false;
+    }
+    if (socket->is_output()) {
+      return false;
+    }
+    return (*top_level_ignored_inputs_)[socket->index_in_all_inputs()];
   }
 
-  static bool index_switch__is_socket_selected(const SocketInContext &socket,
-                                               const InferenceValue &condition)
+  void ensure_animation_data_processed(const bNodeTree &tree)
   {
-    const int index = condition.get_known<int>();
-    return socket->index() == index + 1;
-  }
-
-  static bool menu_switch__is_socket_selected(const SocketInContext &socket,
-                                              const InferenceValue &condition)
-  {
-    const NodeMenuSwitch &storage = *static_cast<const NodeMenuSwitch *>(
-        socket->owner_node().storage);
-    const int menu_value = condition.get_known<int>();
-    const NodeEnumItem &item = storage.enum_definition.items_array[socket->index() - 1];
-    return menu_value == item.identifier;
-  }
-
-  static bool mix_node__is_socket_selected(const SocketInContext &socket,
-                                           const InferenceValue &condition)
-  {
-    const NodeShaderMix &storage = *static_cast<const NodeShaderMix *>(
-        socket.owner_node()->storage);
-    if (storage.data_type == SOCK_RGBA && storage.blend_type != MA_RAMP_BLEND) {
-      return true;
+    if (!trees_with_handled_animation_data_.add(&tree)) {
+      return;
+    }
+    if (!tree.adt) {
+      return;
     }
 
-    const bool clamp_factor = storage.clamp_factor != 0;
-    bool only_a = false;
-    bool only_b = false;
-    if (storage.data_type == SOCK_VECTOR && storage.factor_mode == NODE_MIX_MODE_NON_UNIFORM) {
-      const float3 mix_factor = condition.get_known<float3>();
-      if (clamp_factor) {
-        only_a = mix_factor.x <= 0.0f && mix_factor.y <= 0.0f && mix_factor.z <= 0.0f;
-        only_b = mix_factor.x >= 1.0f && mix_factor.y >= 1.0f && mix_factor.z >= 1.0f;
+    static std::regex pattern(R"#(nodes\["(.*)"\].inputs\[(\d+)\].default_value)#");
+    MultiValueMap<StringRef, int> animated_inputs_by_node_name;
+    auto handle_rna_path = [&](const char *rna_path) {
+      std::cmatch match;
+      if (!std::regex_match(rna_path, match, pattern)) {
+        return;
       }
-      else {
-        only_a = float3{0.0f, 0.0f, 0.0f} == mix_factor;
-        only_b = float3{1.0f, 1.0f, 1.0f} == mix_factor;
-      }
-    }
-    else {
-      const float mix_factor = condition.get_known<float>();
-      if (clamp_factor) {
-        only_a = mix_factor <= 0.0f;
-        only_b = mix_factor >= 1.0f;
-      }
-      else {
-        only_a = mix_factor == 0.0f;
-        only_b = mix_factor == 1.0f;
-      }
-    }
-    if (only_a) {
-      if (STREQ(socket->name, "B")) {
-        return false;
-      }
-    }
-    if (only_b) {
-      if (STREQ(socket->name, "A")) {
-        return false;
-      }
-    }
-    return true;
-  }
+      const StringRef node_name{match[1].first, match[1].second - match[1].first};
+      const int socket_index = std::stoi(match[2]);
+      animated_inputs_by_node_name.add(node_name, socket_index);
+    };
 
-  static bool shader_mix_node__is_socket_selected(const SocketInContext &socket,
-                                                  const InferenceValue &condition)
-  {
-    const float mix_factor = condition.get_known<float>();
-    if (mix_factor == 0.0f) {
-      if (STREQ(socket->identifier, "Shader_001")) {
-        return false;
-      }
+    /* Gather all inputs controlled by fcurves. */
+    if (tree.adt->action) {
+      animrig::foreach_fcurve_in_action_slot(
+          tree.adt->action->wrap(), tree.adt->slot_handle, [&](const FCurve &fcurve) {
+            handle_rna_path(fcurve.rna_path);
+          });
     }
-    else if (mix_factor == 1.0f) {
-      if (STREQ(socket->identifier, "Shader")) {
-        return false;
-      }
+    /* Gather all inputs controlled by drivers. */
+    LISTBASE_FOREACH (const FCurve *, driver, &tree.adt->drivers) {
+      handle_rna_path(driver->rna_path);
     }
-    return true;
-  }
 
-  void push_usage_task(const SocketInContext &socket)
-  {
-    usage_tasks_.push(socket);
+    /* Actually find the #bNodeSocket for each controlled input. */
+    if (!animated_inputs_by_node_name.is_empty()) {
+      for (const bNode *node : tree.all_nodes()) {
+        const Span<int> animated_inputs = animated_inputs_by_node_name.lookup(node->name);
+        const Span<const bNodeSocket *> input_sockets = node->input_sockets();
+        for (const int socket_index : animated_inputs) {
+          if (socket_index < 0 || socket_index >= input_sockets.size()) {
+            /* This can happen when the animation data is not immediately updated after a socket is
+             * removed. */
+            continue;
+          }
+          const bNodeSocket &socket = *input_sockets[socket_index];
+          animated_sockets_.add(&socket);
+        }
+      }
+    }
   }
 
   void push_value_task(const SocketInContext &socket)
   {
     value_tasks_.push(socket);
+  }
+};
+
+/** Utility class to simplify passing global state into all the functions during inferencing. */
+struct SocketUsageInferencer {
+ private:
+  friend InputSocketUsageParams;
+
+  /** Owns e.g. intermediate evaluated values. */
+  ResourceScope scope_;
+  bke::ComputeContextCache compute_context_cache_;
+  SocketValueInferencer value_inferencer_;
+
+  /** Root node tree. */
+  const bNodeTree &root_tree_;
+
+  /**
+   * Stack of tasks that allows depth-first (partial) evaluation of the tree.
+   */
+  Stack<SocketInContext> usage_tasks_;
+  Stack<SocketInContext> value_tasks_;
+
+  /**
+   * If the usage of a socket is known, it is added to this map. Sockets not in this map are not
+   * known yet.
+   */
+  Map<SocketInContext, bool> all_socket_usages_;
+
+  /**
+   * Once a socket value has been determined, it is added to this map. Note that a socket value may
+   * be determined to be unknown because it depends on values that are not known statically.
+   */
+  Map<SocketInContext, InferenceValue> all_socket_values_;
+
+  /**
+   * All sockets that have animation data and thus their value is not fixed statically. This can
+   * contain sockets from multiple different trees.
+   */
+  Set<const bNodeSocket *> animated_sockets_;
+  Set<const bNodeTree *> trees_with_handled_animation_data_;
+
+  /** Some inline storage to reduce the number of allocations. */
+  AlignedBuffer<1024, 8> scope_buffer_;
+
+  std::optional<Span<bool>> top_level_ignored_inputs_;
+
+ public:
+  SocketUsageInferencer(const bNodeTree &tree,
+                        const std::optional<Span<GPointer>> tree_input_values,
+                        const std::optional<Span<bool>> top_level_ignored_inputs = std::nullopt)
+      : value_inferencer_(
+            tree, scope_, compute_context_cache_, tree_input_values, top_level_ignored_inputs),
+        root_tree_(tree),
+        top_level_ignored_inputs_(top_level_ignored_inputs)
+  {
+    scope_.allocator().provide_buffer(scope_buffer_);
+    root_tree_.ensure_topology_cache();
+    root_tree_.ensure_interface_cache();
+  }
+
+  void mark_top_level_node_outputs_as_used()
+  {
+    for (const bNode *node : root_tree_.all_nodes()) {
+      if (node->is_group_input()) {
+        /* Can skip these sockets, because they don't affect usage anyway, and there may be a lot
+         * of them. See #144756. */
+        continue;
+      }
+      for (const bNodeSocket *socket : node->output_sockets()) {
+        all_socket_usages_.add_new({nullptr, socket}, true);
+      }
+    }
+  }
+
+  bool is_group_input_used(const int input_i)
+  {
+    for (const bNode *node : root_tree_.group_input_nodes()) {
+      const SocketInContext socket{nullptr, &node->output_socket(input_i)};
+      if (this->is_socket_used(socket)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  bool is_socket_used(const SocketInContext &socket)
+  {
+    const std::optional<bool> is_used = all_socket_usages_.lookup_try(socket);
+    if (is_used.has_value()) {
+      return *is_used;
+    }
+    if (socket->is_output() && !socket->is_directly_linked()) {
+      /* In this case we can return early because the socket can't be used if it's not linked. */
+      return false;
+    }
+    if (socket->owner_tree().has_available_link_cycle()) {
+      return false;
+    }
+
+    BLI_assert(usage_tasks_.is_empty());
+    usage_tasks_.push(socket);
+
+    while (!usage_tasks_.is_empty()) {
+      const SocketInContext &socket = usage_tasks_.peek();
+      this->usage_task(socket);
+      if (&socket == &usage_tasks_.peek()) {
+        /* The task is finished if it hasn't added any new task it depends on. */
+        usage_tasks_.pop();
+      }
+    }
+
+    return all_socket_usages_.lookup(socket);
+  }
+
+  InferenceValue get_socket_value(const SocketInContext &socket)
+  {
+    return value_inferencer_.get_socket_value(socket);
+  }
+
+ private:
+  void usage_task(const SocketInContext &socket)
+  {
+    if (all_socket_usages_.contains(socket)) {
+      return;
+    }
+    const bNode &node = socket->owner_node();
+    if (!socket->is_available()) {
+      all_socket_usages_.add_new(socket, false);
+      return;
+    }
+    if (node.is_undefined() && !node.is_custom_group()) {
+      all_socket_usages_.add_new(socket, false);
+      return;
+    }
+    if (socket->is_input()) {
+      this->usage_task__input(socket);
+    }
+    else {
+      this->usage_task__output(socket);
+    }
+  }
+
+  void usage_task__input(const SocketInContext &socket)
+  {
+    const NodeInContext node = socket.owner_node();
+
+    if (node->is_muted()) {
+      this->usage_task__input__muted_node(socket);
+      return;
+    }
+
+    switch (node->type_legacy) {
+      case NODE_GROUP:
+      case NODE_CUSTOM_GROUP: {
+        this->usage_task__input__group_node(socket);
+        break;
+      }
+      case NODE_GROUP_OUTPUT: {
+        this->usage_task__input__group_output_node(socket);
+        break;
+      }
+      case GEO_NODE_SWITCH: {
+        this->usage_task__input__generic_switch(socket, switch__is_socket_selected);
+        break;
+      }
+      case GEO_NODE_INDEX_SWITCH: {
+        this->usage_task__input__generic_switch(socket, index_switch__is_socket_selected);
+        break;
+      }
+      case GEO_NODE_MENU_SWITCH: {
+        this->usage_task__input__generic_switch(socket, menu_switch__is_socket_selected);
+        break;
+      }
+      case SH_NODE_MIX: {
+        this->usage_task__input__generic_switch(socket, mix_node__is_socket_selected);
+        break;
+      }
+      case SH_NODE_MIX_SHADER: {
+        this->usage_task__input__generic_switch(socket, shader_mix_node__is_socket_selected);
+        break;
+      }
+      case GEO_NODE_SIMULATION_INPUT: {
+        this->usage_task__input__simulation_input_node(socket);
+        break;
+      }
+      case GEO_NODE_REPEAT_INPUT: {
+        this->usage_task__input__repeat_input_node(socket);
+        break;
+      }
+      case GEO_NODE_FOREACH_GEOMETRY_ELEMENT_INPUT: {
+        this->usage_task__input__foreach_element_input_node(socket);
+        break;
+      }
+      case GEO_NODE_FOREACH_GEOMETRY_ELEMENT_OUTPUT: {
+        this->usage_task__input__foreach_element_output_node(socket);
+        break;
+      }
+      case GEO_NODE_CAPTURE_ATTRIBUTE: {
+        this->usage_task__input__capture_attribute_node(socket);
+        break;
+      }
+      case SH_NODE_OUTPUT_AOV:
+      case SH_NODE_OUTPUT_LIGHT:
+      case SH_NODE_OUTPUT_WORLD:
+      case SH_NODE_OUTPUT_LINESTYLE:
+      case SH_NODE_OUTPUT_MATERIAL:
+      case CMP_NODE_OUTPUT_FILE:
+      case TEX_NODE_OUTPUT: {
+        this->usage_task__input__output_node(socket);
+        break;
+      }
+      default: {
+        this->usage_task__input__fallback(socket);
+        break;
+      }
+    }
+  }
+
+  void usage_task__input__output_node(const SocketInContext &socket)
+  {
+    all_socket_usages_.add_new(socket, true);
+  }
+
+  /**
+   * Assumes that the first input is a condition that selects one of the remaining inputs which is
+   * then output. If necessary, this can trigger a value task for the condition socket.
+   */
+  void usage_task__input__generic_switch(
+      const SocketInContext &socket,
+      const FunctionRef<bool(const SocketInContext &socket, const InferenceValue &condition)>
+          is_selected_socket)
+  {
+    const NodeInContext node = socket.owner_node();
+    BLI_assert(node->input_sockets().size() >= 1);
+    BLI_assert(node->output_sockets().size() >= 1);
+
+    if (socket->type == SOCK_CUSTOM && STREQ(socket->idname, "NodeSocketVirtual")) {
+      all_socket_usages_.add_new(socket, false);
+      return;
+    }
+    const SocketInContext output_socket{socket.context,
+                                        get_first_available_bsocket(node->output_sockets())};
+    const std::optional<bool> output_is_used = all_socket_usages_.lookup_try(output_socket);
+    if (!output_is_used.has_value()) {
+      this->push_usage_task(output_socket);
+      return;
+    }
+    if (!*output_is_used) {
+      all_socket_usages_.add_new(socket, false);
+      return;
+    }
+    const SocketInContext condition_socket{socket.context,
+                                           get_first_available_bsocket(node->input_sockets())};
+    if (socket == condition_socket) {
+      all_socket_usages_.add_new(socket, true);
+      return;
+    }
+    const InferenceValue condition_value = this->get_socket_value(condition_socket);
+    if (condition_value.is_unknown()) {
+      /* The exact condition value is unknown, so any input may be used. */
+      all_socket_usages_.add_new(socket, true);
+      return;
+    }
+    const bool is_used = is_selected_socket(socket, condition_value);
+    all_socket_usages_.add_new(socket, is_used);
+  }
+
+  void usage_task__input__group_node(const SocketInContext &socket)
+  {
+    const NodeInContext node = socket.owner_node();
+    const bNodeTree *group = reinterpret_cast<const bNodeTree *>(node->id);
+    if (!group || ID_MISSING(&group->id)) {
+      all_socket_usages_.add_new(socket, false);
+      return;
+    }
+    group->ensure_topology_cache();
+    if (group->has_available_link_cycle()) {
+      all_socket_usages_.add_new(socket, false);
+      return;
+    }
+    this->ensure_animation_data_processed(*group);
+
+    /* The group node input is used if any of the matching group inputs within the group is
+     * used. */
+    const ComputeContext &group_context = compute_context_cache_.for_group_node(
+        socket.context, node->identifier, &node->owner_tree());
+    Vector<const bNodeSocket *> dependent_sockets;
+    for (const bNode *group_input_node : group->group_input_nodes()) {
+      const bNodeSocket &group_input_socket = group_input_node->output_socket(socket->index());
+      if (group_input_socket.is_directly_linked()) {
+        /* Skip unlinked group inputs to avoid further unnecessary processing of them further down
+         * the line. */
+        dependent_sockets.append(&group_input_socket);
+      }
+    }
+    this->usage_task__with_dependent_sockets(socket, dependent_sockets, {}, &group_context);
+  }
+
+  void usage_task__input__group_output_node(const SocketInContext &socket)
+  {
+    const int output_i = socket->index();
+    if (socket.context == nullptr) {
+      /* This is a final output which is always used. */
+      all_socket_usages_.add_new(socket, true);
+      return;
+    }
+    /* The group output node is used if the matching output of the parent group node is used. */
+    const bke::GroupNodeComputeContext &group_context =
+        *static_cast<const bke::GroupNodeComputeContext *>(socket.context);
+    const bNodeSocket &group_node_output = group_context.node()->output_socket(output_i);
+    this->usage_task__with_dependent_sockets(
+        socket, {&group_node_output}, {}, group_context.parent());
+  }
+
+  void usage_task__output(const SocketInContext &socket)
+  {
+    /* An output socket is used if any of the sockets it is connected to is used. */
+    Vector<const bNodeSocket *> dependent_sockets;
+    for (const bNodeLink *link : socket->directly_linked_links()) {
+      if (link->is_used()) {
+        dependent_sockets.append(link->tosock);
+      }
+    }
+    this->usage_task__with_dependent_sockets(socket, dependent_sockets, {}, socket.context);
+  }
+
+  void usage_task__input__simulation_input_node(const SocketInContext &socket)
+  {
+    const NodeInContext node = socket.owner_node();
+    const bNodeTree &tree = socket->owner_tree();
+
+    const NodeGeometrySimulationInput &storage = *static_cast<const NodeGeometrySimulationInput *>(
+        node->storage);
+    const bNode *sim_output_node = tree.node_by_id(storage.output_node_id);
+    if (!sim_output_node) {
+      all_socket_usages_.add_new(socket, false);
+      return;
+    }
+    /* Simulation inputs are also used when any of the simulation outputs are used. */
+    Vector<const bNodeSocket *, 16> dependent_sockets;
+    dependent_sockets.extend(node->output_sockets());
+    dependent_sockets.extend(sim_output_node->output_sockets());
+    this->usage_task__with_dependent_sockets(socket, dependent_sockets, {}, socket.context);
+  }
+
+  void usage_task__input__repeat_input_node(const SocketInContext &socket)
+  {
+    const NodeInContext node = socket.owner_node();
+    const bNodeTree &tree = socket->owner_tree();
+
+    const NodeGeometryRepeatInput &storage = *static_cast<const NodeGeometryRepeatInput *>(
+        node->storage);
+    const bNode *repeat_output_node = tree.node_by_id(storage.output_node_id);
+    if (!repeat_output_node) {
+      all_socket_usages_.add_new(socket, false);
+      return;
+    }
+    /* Assume that all repeat inputs are used when any of the outputs are used. This check could
+     * become more precise in the future if necessary. */
+    Vector<const bNodeSocket *, 16> dependent_sockets;
+    dependent_sockets.extend(node->output_sockets());
+    dependent_sockets.extend(repeat_output_node->output_sockets());
+    this->usage_task__with_dependent_sockets(socket, dependent_sockets, {}, socket.context);
+  }
+
+  void usage_task__input__foreach_element_output_node(const SocketInContext &socket)
+  {
+    const NodeInContext node = socket.owner_node();
+    this->usage_task__with_dependent_sockets(
+        socket, {node->output_by_identifier(socket->identifier)}, {}, socket.context);
+  }
+
+  void usage_task__input__capture_attribute_node(const SocketInContext &socket)
+  {
+    const NodeInContext node = socket.owner_node();
+    this->usage_task__with_dependent_sockets(
+        socket, {&node->output_socket(socket->index())}, {}, socket.context);
+  }
+
+  void usage_task__input__fallback(const SocketInContext &socket)
+  {
+    const SocketDeclaration *socket_decl = socket->runtime->declaration;
+    if (!socket_decl) {
+      all_socket_usages_.add_new(socket, true);
+      return;
+    }
+    if (!socket_decl->usage_inference_fn) {
+      this->usage_task__with_dependent_sockets(
+          socket, socket->owner_node().output_sockets(), {}, socket.context);
+      return;
+    }
+    InputSocketUsageParams params{
+        *this, socket.context, socket->owner_tree(), socket->owner_node(), *socket};
+    const std::optional<bool> is_used = (*socket_decl->usage_inference_fn)(params);
+    if (!is_used.has_value()) {
+      /* Some value was requested, come back later when that value is available. */
+      return;
+    }
+    all_socket_usages_.add_new(socket, *is_used);
+  }
+
+  void usage_task__input__foreach_element_input_node(const SocketInContext &socket)
+  {
+    const NodeInContext node = socket.owner_node();
+    const bNodeTree &tree = socket->owner_tree();
+
+    const NodeGeometryForeachGeometryElementInput &storage =
+        *static_cast<const NodeGeometryForeachGeometryElementInput *>(node->storage);
+    const bNode *foreach_output_node = tree.node_by_id(storage.output_node_id);
+    if (!foreach_output_node) {
+      all_socket_usages_.add_new(socket, false);
+      return;
+    }
+    Vector<const bNodeSocket *, 16> dependent_sockets;
+    if (StringRef(socket->identifier).startswith("Input_")) {
+      dependent_sockets.append(node->output_by_identifier(socket->identifier));
+    }
+    else {
+      /* The geometry and selection inputs are used whenever any of the zone outputs is used. */
+      dependent_sockets.extend(node->output_sockets());
+      dependent_sockets.extend(foreach_output_node->output_sockets());
+    }
+    this->usage_task__with_dependent_sockets(socket, dependent_sockets, {}, socket.context);
+  }
+
+  void usage_task__input__muted_node(const SocketInContext &socket)
+  {
+    const NodeInContext node = socket.owner_node();
+    Vector<const bNodeSocket *> dependent_sockets;
+    for (const bNodeLink &internal_link : node->internal_links()) {
+      if (internal_link.fromsock != socket.socket) {
+        continue;
+      }
+      dependent_sockets.append(internal_link.tosock);
+    }
+    this->usage_task__with_dependent_sockets(socket, dependent_sockets, {}, socket.context);
+  }
+
+  /**
+   * Utility that handles simple cases where a socket is used if any of its dependent sockets is
+   * used.
+   */
+  void usage_task__with_dependent_sockets(const SocketInContext &socket,
+                                          const Span<const bNodeSocket *> dependent_outputs,
+                                          const Span<const bNodeSocket *> condition_inputs,
+                                          const ComputeContext *dependent_socket_context)
+  {
+    /* Check if any of the dependent outputs are used. */
+    SocketInContext next_unknown_output;
+    bool any_output_used = false;
+    for (const bNodeSocket *dependent_socket_ptr : dependent_outputs) {
+      const SocketInContext dependent_socket{dependent_socket_context, dependent_socket_ptr};
+      const std::optional<bool> is_used = all_socket_usages_.lookup_try(dependent_socket);
+      if (!is_used.has_value() && !next_unknown_output) {
+        next_unknown_output = dependent_socket;
+        continue;
+      }
+      if (is_used.value_or(false)) {
+        any_output_used = true;
+        break;
+      }
+    }
+    if (next_unknown_output) {
+      /* Create a task that checks if the next dependent socket is used. Intentionally only create
+       * a task for the very next one and not for all, because that could potentially trigger a lot
+       * of unnecessary evaluations. */
+      this->push_usage_task(next_unknown_output);
+      return;
+    }
+    if (!any_output_used) {
+      all_socket_usages_.add_new(socket, false);
+      return;
+    }
+    bool all_condition_inputs_true = true;
+    for (const bNodeSocket *condition_input_ptr : condition_inputs) {
+      const SocketInContext condition_input{dependent_socket_context, condition_input_ptr};
+      const InferenceValue condition_value = this->get_socket_value(condition_input);
+      if (condition_value.is_unknown()) {
+        /* The condition is not known, so it may be true. */
+        continue;
+      }
+      BLI_assert(condition_input_ptr->type == SOCK_BOOLEAN);
+      if (!condition_value.get_known<bool>()) {
+        all_condition_inputs_true = false;
+        break;
+      }
+    }
+    all_socket_usages_.add_new(socket, all_condition_inputs_true);
+  }
+
+  void push_usage_task(const SocketInContext &socket)
+  {
+    usage_tasks_.push(socket);
   }
 
   void ensure_animation_data_processed(const bNodeTree &tree)
