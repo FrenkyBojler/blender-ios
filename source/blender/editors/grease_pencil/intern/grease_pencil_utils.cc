@@ -25,6 +25,7 @@
 #include "BLI_math_geom.h"
 #include "BLI_math_numbers.hh"
 #include "BLI_math_vector.hh"
+#include "BLI_string_utf8.h"
 #include "BLI_vector_set.hh"
 
 #include "DNA_brush_types.h"
@@ -1522,6 +1523,13 @@ Array<PointTransferData> compute_topology_change(
   dst.resize(dst_points_num, dst_curves_num);
   array_utils::copy(dst_curves_offset.as_span(), dst.offsets_for_write());
   const OffsetIndices<int> dst_points_by_curve = dst.points_by_curve();
+
+  /* Vertex group names*/
+  LISTBASE_FOREACH (bDeformGroup *, src_dg, &src.vertex_group_names) {
+    bDeformGroup *dst_dg = MEM_callocN<bDeformGroup>(__func__);
+    STRNCPY_UTF8(dst_dg->name, src_dg->name);
+    BLI_addtail(&dst.vertex_group_names, dst_dg);
+  }
 
   /* Attributes. */
   const bke::AttributeAccessor src_attributes = src.attributes();
