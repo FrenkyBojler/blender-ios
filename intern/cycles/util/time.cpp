@@ -4,6 +4,7 @@
 
 #include "util/time.h"
 
+#include <chrono>
 #include <cstdlib>
 
 #if !defined(_WIN32)
@@ -115,13 +116,13 @@ uint64_t time_fast_frequency()
   return frequency;
 }
 #else
-/* Fall back to CLOCK_MONOTONIC. */
+/* Fall back to std::chrono::steady_clock. */
 
 uint64_t time_fast_tick(uint32_t * /*last_cpu*/)
 {
-  struct timespec now;
-  clock_gettime(CLOCK_MONOTONIC, &now);
-  return uint64_t(now.tv_sec) * 1000000000 + uint64_t(now.tv_nsec);
+  auto now = std::chrono::steady_clock::now();
+  auto nanoseconds = std::chrono::time_point_cast<std::chrono::nanoseconds>(now);
+  return nanoseconds.time_since_epoch().count();
 }
 uint64_t time_fast_frequency()
 {
