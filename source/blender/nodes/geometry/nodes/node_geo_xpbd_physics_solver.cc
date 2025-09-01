@@ -102,7 +102,9 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Float>("Delta Time").min(0).default_value(1 / 25.0f);
 
   auto &panel = b.add_panel("Solver");
-  panel.add_input<decl::Menu>("Solver Type").static_items(solver_type_items);
+  panel.add_input<decl::Menu>("Solver Type")
+      .static_items(solver_type_items)
+      .default_value(SolverType::ParallelGaussSeidel);
   panel.add_input<decl::Int>("Substeps").default_value(10).min(1);
 }
 

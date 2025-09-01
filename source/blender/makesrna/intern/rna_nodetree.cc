@@ -9795,6 +9795,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("NodeInternal", "NodeCombineBundle", def_combine_bundle);
   define("NodeInternal", "NodeEvaluateClosure", def_evaluate_closure);
   define("NodeInternal", "NodeSeparateBundle", def_separate_bundle);
+  define("GeometryNode", "NodeJoinBundles");
 
   define("ShaderNode", "ShaderNodeAddShader");
   define("ShaderNode", "ShaderNodeAmbientOcclusion", def_sh_ambient_occlusion);
