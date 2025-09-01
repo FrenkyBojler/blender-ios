@@ -1524,7 +1524,7 @@ Array<PointTransferData> compute_topology_change(
   array_utils::copy(dst_curves_offset.as_span(), dst.offsets_for_write());
   const OffsetIndices<int> dst_points_by_curve = dst.points_by_curve();
 
-  /* Vertex group names*/
+  /* Vertex group names. */
   LISTBASE_FOREACH (bDeformGroup *, src_dg, &src.vertex_group_names) {
     bDeformGroup *dst_dg = MEM_callocN<bDeformGroup>(__func__);
     STRNCPY_UTF8(dst_dg->name, src_dg->name);
