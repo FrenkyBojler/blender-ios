@@ -487,6 +487,16 @@ static void object_foreach_id(ID *id, LibraryForeachIDData *data)
 
   if (flag & IDWALK_DO_DEPRECATED_POINTERS) {
     BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, object->poselib, IDWALK_CB_USER);
+    /* Note: This is technically _not_ needed currently, because readcode (see
+     * #object_blend_read_data) directly converts and removes these deprecated ObHook data.
+     * However, for sake of consistency, better have this ID pointer handled here nonetheless. */
+    LISTBASE_FOREACH (ObHook *, hook, &object->hooks) {
+      /* No `ObHook` data should ever exist currently at a point where 'foreach_id' code is
+       * executed. */
+      BLI_assert_unreachable();
+      BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, hook->parent, IDWALK_CB_NOP);
+    }
+
     BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, object->gpd, IDWALK_CB_USER);
 
     BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, object->proxy, IDWALK_CB_NOP);
