@@ -1737,31 +1737,16 @@ static wmOperatorStatus sequencer_box_cut_exec(bContext *C, wmOperator *op)
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_sequencer_scene(C);
   Editing *ed = seq::editing_get(scene);
-  // bool changed = false;
-  // bool strip_selected = false;
 
-  // get mouse rctf +
   View2D *v2d = UI_view2d_fromcontext(C);
   rctf rectf;
   WM_operator_properties_border_to_rctf(op, &rectf);
   UI_view2d_region_to_view_rctf(v2d, &rectf, &rectf);
-  // get mouse rctf -
 
-  // const bool use_cursor_position = RNA_boolean_get(op->ptr, "use_cursor_position");
   const bool remove_gaps = RNA_boolean_get(op->ptr, "remove_gaps");
-
-  // const int split_frame = RNA_struct_property_is_set(op->ptr, "frame") ?
-  //                             RNA_int_get(op->ptr, "frame") :
-  //                             scene->r.cfra;
-  // const int split_channel = RNA_int_get(op->ptr, "channel");
-
   const seq::eSplitMethod method = seq::eSplitMethod(RNA_enum_get(op->ptr, "type"));
-  // const int split_side = sequence_split_side_for_exec_get(op);
-  // const bool ignore_selection = RNA_boolean_get(op->ptr, "ignore_selection");
-
-  // seq::prefetch_stop(scene);
-
   int2 rect_frames = {round_fl_to_int(rectf.xmin), round_fl_to_int(rectf.xmax)};
+
   /* slpit the split logic into two so the newly created strips can get split by the second
    * foreach. */
   int max_left_offset = INT_MAX;
@@ -1849,18 +1834,7 @@ static void sequencer_box_cut_ui(bContext * /*C*/, wmOperator *op)
   layout->use_property_split_set(true);
   layout->use_property_decorate_set(false);
 
-  uiLayout *row = &layout->row(false);
-  // row->prop(op->ptr, "type", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
-  // layout->prop(op->ptr, "frame", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  // layout->prop(op->ptr, "side", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   layout->prop(op->ptr, "remove_gaps", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-
-  layout->separator();
-
-  // layout->prop(op->ptr, "use_cursor_position", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  // if (RNA_boolean_get(op->ptr, "use_cursor_position")) {
-  // layout->prop(op->ptr, "channel", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  // }
 }
 
 void SEQUENCER_OT_box_cut(wmOperatorType *ot)
