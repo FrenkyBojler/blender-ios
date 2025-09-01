@@ -35,8 +35,6 @@ enum eGPUBuiltinShader {
   GPU_SHADER_ICON,
   /** Draw a texture with a uniform color multiplied. */
   GPU_SHADER_2D_IMAGE_RECT_COLOR,
-  /** Draw a uniform color triangle that covers fullscreen. */
-  GPU_SHADER_FULLSCREEN_UNIFORM_COLOR,
   /** Draw a texture with a desaturation factor. */
   GPU_SHADER_2D_IMAGE_DESATURATE_COLOR,
   /** Draw a group of texture rectangle with an associated color multiplied. */

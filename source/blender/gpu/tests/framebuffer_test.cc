@@ -18,8 +18,6 @@
 
 #include "gpu_shader_create_info.hh"
 
-#include "GPU_debug.hh"
-
 namespace blender::gpu::tests {
 
 static void test_framebuffer_clear_color_single_attachment()
