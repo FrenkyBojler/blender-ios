@@ -54,7 +54,7 @@ class SocketValueInferencerImpl {
   SocketValueInferencerImpl(const bNodeTree &tree,
                             ResourceScope &scope,
                             bke::ComputeContextCache &compute_context_cache,
-                            const std::optional<Span<GPointer>> tree_input_values,
+                            const std::optional<Span<InferenceValue>> tree_input_values,
                             const std::optional<Span<bool>> top_level_ignored_inputs)
       : scope_(scope),
         compute_context_cache_(compute_context_cache),
@@ -75,13 +75,13 @@ class SocketValueInferencerImpl {
           continue;
         }
         const SocketInContext socket_in_context{nullptr, &socket};
-        const void *input_value = nullptr;
+        InferenceValue input_value = InferenceValue::Unknown();
         if (!this->treat_socket_as_unknown(socket_in_context)) {
           if (tree_input_values.has_value()) {
-            input_value = (*tree_input_values)[i].get();
+            input_value = (*tree_input_values)[i];
           }
         }
-        all_socket_values_.add_new(socket_in_context, InferenceValue(input_value));
+        all_socket_values_.add_new(socket_in_context, input_value);
       }
     }
   }
@@ -658,9 +658,9 @@ class SocketValueInferencerImpl {
       this->push_value_task(input_socket);
       return;
     }
-    const void *converted_value = this->convert_type_if_necessary(
-        input_value->data(), *input_socket.socket, *socket.socket);
-    all_socket_values_.add_new(socket, InferenceValue(converted_value));
+    const InferenceValue converted_value = this->convert_type_if_necessary(
+        *input_value, *input_socket.socket, *socket.socket);
+    all_socket_values_.add_new(socket, converted_value);
   }
 
   void value_task__input(const SocketInContext &socket)
@@ -721,17 +721,17 @@ class SocketValueInferencerImpl {
       this->push_value_task(from_socket);
       return;
     }
-    const void *converted_value = this->convert_type_if_necessary(
-        from_value->data(), *from_socket.socket, *to_socket.socket);
-    all_socket_values_.add_new(to_socket, InferenceValue(converted_value));
+    const InferenceValue converted_value = this->convert_type_if_necessary(
+        *from_value, *from_socket.socket, *to_socket.socket);
+    all_socket_values_.add_new(to_socket, converted_value);
   }
 
-  const void *convert_type_if_necessary(const void *src,
-                                        const bNodeSocket &from_socket,
-                                        const bNodeSocket &to_socket)
+  InferenceValue convert_type_if_necessary(const InferenceValue &src,
+                                           const bNodeSocket &from_socket,
+                                           const bNodeSocket &to_socket)
   {
-    if (!src) {
-      return nullptr;
+    if (src.is_unknown()) {
+      return InferenceValue::Unknown();
     }
     const CPPType *from_type = from_socket.typeinfo->base_cpp_type;
     const CPPType *to_type = to_socket.typeinfo->base_cpp_type;
@@ -739,15 +739,15 @@ class SocketValueInferencerImpl {
       return src;
     }
     if (!to_type) {
-      return nullptr;
+      return InferenceValue::Unknown();
     }
     const bke::DataTypeConversions &conversions = bke::get_implicit_type_conversions();
     if (!conversions.is_convertible(*from_type, *to_type)) {
-      return nullptr;
+      return InferenceValue::Unknown();
     }
     void *dst = scope_.allocate_owned(*to_type);
-    conversions.convert_to_uninitialized(*from_type, *to_type, src, dst);
-    return dst;
+    conversions.convert_to_uninitialized(*from_type, *to_type, src.data(), dst);
+    return InferenceValue(dst);
   }
 
   bool treat_socket_as_unknown(const SocketInContext &socket) const
@@ -835,7 +835,7 @@ SocketValueInferencer::SocketValueInferencer(
     const bNodeTree &tree,
     ResourceScope &scope,
     bke::ComputeContextCache &compute_context_cache,
-    const std::optional<Span<GPointer>> tree_input_values,
+    const std::optional<Span<InferenceValue>> tree_input_values,
     const std::optional<Span<bool>> top_level_ignored_inputs)
     : impl_(scope.construct<SocketValueInferencerImpl>(
           tree, scope, compute_context_cache, tree_input_values, top_level_ignored_inputs))

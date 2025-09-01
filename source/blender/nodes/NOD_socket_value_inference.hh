@@ -73,7 +73,7 @@ class SocketValueInferencer {
   SocketValueInferencer(const bNodeTree &tree,
                         ResourceScope &scope,
                         bke::ComputeContextCache &compute_context_cache,
-                        const std::optional<Span<GPointer>> tree_input_values,
+                        const std::optional<Span<InferenceValue>> tree_input_values,
                         const std::optional<Span<bool>> top_level_ignored_inputs);
 
   InferenceValue get_socket_value(const SocketInContext &socket);
