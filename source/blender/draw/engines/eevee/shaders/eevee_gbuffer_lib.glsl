@@ -842,6 +842,11 @@ void gbuffer_closure_metal_clear_coat_load(inout GBufferReader gbuf,
  *
  * \{ */
 
+bool gbuffer_closure_is_empty(ClosureUndetermined cl)
+{
+  return cl.weight <= CLOSURE_WEIGHT_CUTOFF || cl.type == CLOSURE_NONE_ID;
+}
+
 GBufferWriter gbuffer_pack(GBufferData data_in, float3 Ng)
 {
   GBufferWriter gbuf;
@@ -849,6 +854,53 @@ GBufferWriter gbuffer_pack(GBufferData data_in, float3 Ng)
   gbuf.bins_len = 0;
   gbuf.data_len = 0;
   gbuf.normal_len = 0;
+
+  bool3 empty_closures = bool3(true);
+  empty_closures[0] = gbuffer_closure_is_empty(data_in.closure[0]);
+#if GBUFFER_LAYER_MAX > 1
+  empty_closures[1] = gbuffer_closure_is_empty(data_in.closure[1]);
+#endif
+#if GBUFFER_LAYER_MAX > 2
+  empty_closures[2] = gbuffer_closure_is_empty(data_in.closure[2]);
+#endif
+
+  /* Swap closures to avoid gap in data. */
+  if (empty_closures[0]) {
+    if (empty_closures[1]) {
+      if (empty_closures[2]) {
+        /* Output dummy closure in the case of unlit materials for correct render passes data. */
+        data_in.closure[0].type = CLOSURE_BSDF_DIFFUSE_ID;
+        data_in.closure[0].color = float3(0);
+        data_in.closure[0].weight = 1.0f;
+        data_in.closure[0].N = data_in.surface_N;
+        /* Reset bin count as no bin was written. */
+        gbuf.bins_len = 0;
+      }
+      else {
+#if GBUFFER_LAYER_MAX > 2
+        data_in.closure[0] = data_in.closure[2];
+        data_in.closure[1].type = CLOSURE_NONE_ID;
+        data_in.closure[2].type = CLOSURE_NONE_ID;
+#endif
+      }
+    }
+    else {
+#if GBUFFER_LAYER_MAX > 1
+      data_in.closure[0] = data_in.closure[1];
+      data_in.closure[1].type = CLOSURE_NONE_ID;
+#endif
+#if GBUFFER_LAYER_MAX > 2
+      data_in.closure[1] = data_in.closure[2];
+      data_in.closure[2].type = CLOSURE_NONE_ID;
+#endif
+    }
+  }
+  else if (empty_closures[1]) {
+#if GBUFFER_LAYER_MAX > 2
+    data_in.closure[1] = data_in.closure[2];
+    data_in.closure[2].type = CLOSURE_NONE_ID;
+#endif
+  }
 
   bool has_additional_data = false;
   for (int i = 0; i < GBUFFER_LAYER_MAX; i++) {
