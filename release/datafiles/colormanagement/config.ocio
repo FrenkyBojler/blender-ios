@@ -192,10 +192,32 @@ display_colorspaces:
       children:
         - !<BuiltinTransform> {style: DISPLAY - CIE-XYZ-D65_to_REC.2100-HLG-1000nit}
 
+  - !<ColorSpace>
+    name: Filmic sRGB
+    family: Legacy
+    description: |
+      sRGB display space with Filmic view transform
+    from_display_reference: !<GroupTransform>
+      children:
+        - !<ColorSpaceTransform> {src: cie_xyz_d65_interchange, dst: Filmic Log}
+        - !<FileTransform> {src: filmic_to_0-70_1-03.spi1d, interpolation: linear}
+
+  - !<ColorSpace>
+    name: AgX Base sRGB
+    family: Legacy
+    description: |
+      AgX Base Image Encoding for sRGB Display
+    from_display_reference: !<GroupTransform>
+      children:
+        - !<ColorSpaceTransform> {src: cie_xyz_d65_interchange, dst: Linear FilmLight E-Gamut}
+        - !<AllocationTransform> {allocation: lg2, vars: [-12.47393, 12.5260688117]}
+        - !<FileTransform> {src: AgX_Base_sRGB.cube, interpolation: tetrahedral}
+        - !<ColorSpaceTransform> {src: Rec.1886, dst: sRGB}
+
 view_transforms:
   - !<ViewTransform>
     name: No-Op
-    description: An No-Operation View Transform
+    description: A No-Operation View Transform
     from_scene_reference: !<GroupTransform>
       children:
         - !<ColorSpaceTransform> {src: reference, dst: cie_xyz_d65_interchange}
