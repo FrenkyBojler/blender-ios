@@ -3604,7 +3604,9 @@ static void widget_numbut_draw(const uiBut *but,
   }
 
   /* decoration */
-  if (!state->is_text_input) {
+  if (((state->but_flag & UI_HOVER) || (U.uiflag & USER_ALWAYS_SHOW_NUMBER_ARROWS)) &&
+      !state->is_text_input)
+  {
     uiWidgetColors wcol_zone;
     uiWidgetBase wtb_zone;
     rcti rect_zone;
@@ -3676,6 +3678,11 @@ static void widget_numbut_draw(const uiBut *but,
 
     /* outline */
     wtb.draw_inner = false;
+    wtb.draw_emboss = draw_emboss(but);
+    widgetbase_draw(&wtb, wcol);
+  }
+  else {
+    /* inner and outline */
     wtb.draw_emboss = draw_emboss(but);
     widgetbase_draw(&wtb, wcol);
   }
