@@ -573,6 +573,16 @@ void RNA_def_property_enum_default_func(PropertyRNA *prop, const char *get_defau
 void RNA_def_property_srna(PropertyRNA *prop, const char *type);
 void RNA_def_py_data(PropertyRNA *prop, void *py_data);
 
+/* API to define callbacks for runtime-defined properties (mainly for Operators, and from the
+ * Python `bpy.props` API).
+ *
+ * These expect 'extended' versions of the callbacks, with both the StructRNA owner and the
+ * PropertyRNA as first arguments.
+ *
+ * The 'Transform' ones allow to add a transform step (applied after getting, or before setting the
+ * value), which only modifies the value, but does not handle actual storage. Currently only used
+ * by `bpy`, more details in the documentation of #BPyPropStore.
+ */
 void RNA_def_property_boolean_funcs_runtime(PropertyRNA *prop,
                                             BooleanPropertyGetFunc getfunc,
                                             BooleanPropertySetFunc setfunc,

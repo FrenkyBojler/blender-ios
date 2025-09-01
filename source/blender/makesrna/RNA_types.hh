@@ -684,7 +684,13 @@ struct EnumPropertyItem {
 /** Separator for RNA enum that begins a new column in menus (shown in the UI). */
 #define RNA_ENUM_ITEM_SEPR_COLUMN RNA_ENUM_ITEM_HEADING("", NULL)
 
-/* extended versions with PropertyRNA argument */
+/* Extended versions with PropertyRNA argument. Used in particular by the bpy code to wrap all the
+ * py-defined callbacks when defining a property using `bpy.props` module.
+ *
+ * The 'Transform' ones allow to add a transform step (applied after getting, or before setting the
+ * value), which only modifies the value, but does not handle actual storage. Currently only used
+ * by `bpy`, more details in the documentation of #BPyPropStore.
+ */
 using BooleanPropertyGetFunc = bool (*)(PointerRNA *ptr, PropertyRNA *prop);
 using BooleanPropertySetFunc = void (*)(PointerRNA *ptr, PropertyRNA *prop, bool value);
 using BooleanPropertyGetTransformFunc = bool (*)(PointerRNA *ptr,
