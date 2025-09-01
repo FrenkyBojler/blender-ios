@@ -112,6 +112,21 @@ void BKE_collection_add_from_collection(Main *bmain,
 void BKE_collection_free_data(Collection *collection);
 
 /**
+ * Add a new collection exporter to the collection.
+ */
+CollectionExport *BKE_collection_exporter_add(Collection *collection, char *idname, char *label);
+
+/**
+ * Remove a collection exporter from the collection.
+ */
+void BKE_collection_exporter_remove(Collection *collection, CollectionExport *data);
+
+/**
+ * Move a collection exporter from one position to another.
+ */
+bool BKE_collection_exporter_move(Collection *collection, const int from, const int to);
+
+/**
  * Assigns a unique name to the collection exporter.
  */
 void BKE_collection_exporter_name_set(const ListBase *exporters,
@@ -159,6 +174,13 @@ Collection *BKE_collection_duplicate(Main *bmain,
 
 #define BKE_SCENE_COLLECTION_NAME "Scene Collection"
 Collection *BKE_collection_master_add(Scene *scene);
+
+/**
+ * Check if the collection contains any geometry that can be rendered. Otherwise there's nothing to
+ * display in the preview, so don't generate one.
+ * Objects and sub-collections hidden in the render will be skipped.
+ */
+bool BKE_collection_contains_geometry_recursive(const Collection *collection);
 
 /* Collection Objects */
 
@@ -295,15 +317,21 @@ Base *BKE_collection_or_layer_objects(const Scene *scene,
 /* Editing. */
 
 /**
- * Return Scene Collection for a given index.
- *
- * The index is calculated from top to bottom counting the children before the siblings.
+ * Return Scene Collection for a given session_uid.
  */
-Collection *BKE_collection_from_index(Scene *scene, int index);
+Collection *BKE_collection_from_session_uid(Scene *scene, uint64_t session_uid);
+/**
+ * Return Collection for a given session_uid and its owner Scene.
+ */
+Collection *BKE_collection_from_session_uid(Main *bmain,
+                                            uint64_t session_uid,
+                                            Scene **r_scene = nullptr);
+
 /**
  * The automatic/fallback name of a new collection.
  */
-void BKE_collection_new_name_get(Collection *collection_parent, char *rname);
+void BKE_collection_new_name_get(Collection *collection_parent,
+                                 char r_name[/*MAX_ID_NAME - 2*/ 256]);
 /**
  * The name to show in the interface.
  */

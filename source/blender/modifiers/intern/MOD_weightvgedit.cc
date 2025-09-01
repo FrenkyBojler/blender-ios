@@ -186,7 +186,7 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
     return mesh;
   }
 
-  const bool has_mdef = CustomData_has_layer(&mesh->vert_data, CD_MDEFORMVERT);
+  const bool has_mdef = !mesh->deform_verts().is_empty();
   /* If no vertices were ever added to an object's vgroup, dvert might be nullptr. */
   if (!has_mdef) {
     /* If this modifier is not allowed to add vertices, just return. */
@@ -308,7 +308,7 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
   sub->active_set(RNA_boolean_get(ptr, "use_add"));
   sub->use_property_split_set(false);
   sub->prop(ptr, "add_threshold", UI_ITEM_R_SLIDER, IFACE_("Threshold"), ICON_NONE);
-  uiItemDecoratorR(row, ptr, "add_threshold", 0);
+  row->decorator(ptr, "add_threshold", 0);
 
   col = &layout->column(false, IFACE_("Group Remove"));
   row = &col->row(true);
@@ -319,7 +319,7 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
   sub->active_set(RNA_boolean_get(ptr, "use_remove"));
   sub->use_property_split_set(false);
   sub->prop(ptr, "remove_threshold", UI_ITEM_R_SLIDER, IFACE_("Threshold"), ICON_NONE);
-  uiItemDecoratorR(row, ptr, "remove_threshold", 0);
+  row->decorator(ptr, "remove_threshold", 0);
 
   layout->prop(ptr, "normalize", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 

@@ -29,9 +29,9 @@ static void node_declare(NodeDeclarationBuilder &b)
   const eNodeSocketDatatype data_type = eNodeSocketDatatype(node->custom1);
 
   b.add_input(data_type, "Grid").hide_value().structure_type(StructureType::Grid);
-  b.add_input<decl::Int>("X").supports_field();
-  b.add_input<decl::Int>("Y").supports_field();
-  b.add_input<decl::Int>("Z").supports_field();
+  b.add_input<decl::Int>("X").supports_field().structure_type(StructureType::Dynamic);
+  b.add_input<decl::Int>("Y").supports_field().structure_type(StructureType::Dynamic);
+  b.add_input<decl::Int>("Z").supports_field().structure_type(StructureType::Dynamic);
 
   b.add_output(data_type, "Value").dependent_field({1, 2, 3});
 }
@@ -199,10 +199,10 @@ static void node_geo_exec(GeoNodeExecParams params)
   }
 
   auto fn = std::make_shared<SampleGridIndexFunction>(std::move(grid));
-  auto op = FieldOperation::Create(std::move(fn),
-                                   {params.extract_input<Field<int>>("X"),
-                                    params.extract_input<Field<int>>("Y"),
-                                    params.extract_input<Field<int>>("Z")});
+  auto op = FieldOperation::from(std::move(fn),
+                                 {params.extract_input<Field<int>>("X"),
+                                  params.extract_input<Field<int>>("Y"),
+                                  params.extract_input<Field<int>>("Z")});
 
   const bke::DataTypeConversions &conversions = bke::get_implicit_type_conversions();
   const CPPType &output_type = *bke::socket_type_to_geo_nodes_base_cpp_type(data_type);

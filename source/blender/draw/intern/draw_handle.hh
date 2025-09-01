@@ -45,22 +45,23 @@ struct DupliCacheManager;
 
 namespace blender::draw {
 
-struct ResourceHandle {
-  /* Index for getting a specific resource in the resource arrays (e.g. object matrices).
-   * Last bit contains handedness. */
+/**
+ * Index for getting a specific resource from the Draw Manager resource arrays.
+ * (e.g. object matrices)
+ * Last bit contains handedness.
+ *
+ * NOTE: From the draw_pass and draw_command perspective, the 0 index is still valid and points to
+ * default initialized Manager resources. Valid ResourceHandles start at index 1.
+ */
+struct ResourceIndex {
   uint32_t raw;
 
-  ResourceHandle() = default;
-  ResourceHandle(uint raw_) : raw(raw_){};
-  ResourceHandle(uint index, bool inverted_handedness)
+  ResourceIndex() = default;
+  ResourceIndex(uint raw_) : raw(raw_){};
+  ResourceIndex(uint index, bool inverted_handedness)
   {
     raw = index;
     SET_FLAG_FROM_TEST(raw, inverted_handedness, 0x80000000u);
-  }
-
-  bool is_valid() const
-  {
-    return raw != 0;
   }
 
   bool has_inverted_handedness() const
@@ -75,56 +76,130 @@ struct ResourceHandle {
 };
 
 /**
- * Refers to a range of contiguous handles in the resource arrays.
+ * Refers to a range of contiguous indices in the Draw Manager resource arrays.
  * Typically used to render instances of an object, but can represent a single instance too.
- * The associated objects will all share handedness and state and can be rendered together.
+ * The associated objects must share handedness and state so they can be rendered together.
  */
-class ResourceHandleRange {
- private:
+struct ResourceIndexRange {
   /* First handle in the range. */
-  ResourceHandle first_ = {0};
-  /* Number of handle in the range. */
-  uint32_t count_ = 0;
+  ResourceIndex first = 0;
+  /* Number of handles in the range. */
+  uint32_t count = 1;
 
- public:
-  ResourceHandleRange() = default;
-  ResourceHandleRange(ResourceHandle handle) : first_(handle), count_(1) {}
-  ResourceHandleRange(ResourceHandle handle, uint len) : first_(handle), count_(len) {}
-
-  bool is_valid() const
-  {
-    return first_.is_valid();
-  }
+  ResourceIndexRange() = default;
+  ResourceIndexRange(ResourceIndex index) : first(index), count(1) {}
+  ResourceIndexRange(ResourceIndex index, uint len) : first(index), count(len) {}
 
   bool has_inverted_handedness() const
   {
-    return first_.has_inverted_handedness();
+    return first.has_inverted_handedness();
   }
 
   IndexRange index_range() const
   {
-    return {first_.raw, count_};
+    BLI_assert(count > 0);
+    BLI_assert(first.raw != 0 || count == 1);
+    return {first.raw, count};
+  }
+};
+
+/**
+ * Safety wrapper around ResourceIndex, meant to be used by engine code.
+ * Valid handles can only be created by the Draw Manager.
+ *
+ * NOTE: This class is deprecated.
+ * Some Draw Manager functions can't work with ranged synchronization and returns ResourceHandles
+ * for clarity, but engine code should always use ResourceHandleRange.
+ */
+class ResourceHandle {
+  friend class Manager;
+  friend class ResourceHandleRange;
+
+  ResourceIndex index_ = {};
+
+  ResourceHandle(uint raw) : index_(raw) {}
+  ResourceHandle(uint index, bool inverted_handedness) : index_(index, inverted_handedness) {}
+
+ public:
+  ResourceHandle() = default;
+
+  bool is_valid() const
+  {
+    return index_.raw != 0;
   }
 
-  /* These functions are to keep existing code to work.
-   * Should be used only for objects and code paths that don't support ranged synchronization. */
-
-  operator ResourceHandle() const
+  bool has_inverted_handedness() const
   {
-    BLI_assert(count_ <= 1);
-    return first_;
-  }
-
-  uint32_t raw() const
-  {
-    BLI_assert(count_ <= 1);
-    return first_.raw;
+    return index_.has_inverted_handedness();
   }
 
   uint resource_index() const
   {
-    BLI_assert(count_ <= 1);
-    return first_.resource_index();
+    return index_.resource_index();
+  }
+
+  operator ResourceIndex() const
+  {
+    BLI_assert(is_valid());
+    return index_;
+  }
+};
+
+/**
+ * Safety wrapper around ResourceIndexRange, meant to be used by engine code.
+ * Valid handles can only be created by the Draw Manager.
+ */
+class ResourceHandleRange {
+  friend class Manager;
+
+  ResourceIndexRange index_ = {};
+
+  ResourceHandleRange(ResourceHandle handle, uint len) : index_(handle.index_, len) {}
+
+ public:
+  ResourceHandleRange() = default;
+  ResourceHandleRange(ResourceHandle handle) : index_(handle.index_) {}
+
+  bool is_valid() const
+  {
+    return index_.first.raw != 0;
+  }
+
+  bool has_inverted_handedness() const
+  {
+    return index_.has_inverted_handedness();
+  }
+
+  IndexRange index_range() const
+  {
+    return index_.index_range();
+  }
+
+  operator ResourceIndexRange() const
+  {
+    BLI_assert(is_valid());
+    return index_;
+  }
+
+  /* These functions are to keep existing engine code to work.
+   * Should be used only for objects and code paths that don't support ranged synchronization. */
+
+  operator ResourceHandle() const
+  {
+    BLI_assert(index_.count == 1);
+    return ResourceHandle(index_.first.raw);
+  }
+
+  uint32_t raw() const
+  {
+    BLI_assert(index_.count == 1);
+    return index_.first.raw;
+  }
+
+  uint resource_index() const
+  {
+    BLI_assert(index_.count == 1);
+    return index_.first.resource_index();
   }
 };
 
@@ -140,6 +215,9 @@ class ObjectRef {
   /** Object that created the dupli-list the current object is part of. */
   Object *const dupli_parent_ = nullptr;
 
+  /** List of (render-compatible) duplis when rendering a ranges. */
+  const VectorList<DupliObject *> *duplis_ = nullptr;
+
   /** Unique handle per object ref. */
   ResourceHandleRange handle_ = {};
   ResourceHandleRange sculpt_handle_ = {};
@@ -147,23 +225,34 @@ class ObjectRef {
  public:
   Object *const object;
 
-  ObjectRef(DEGObjectIterData &iter_data, Object *ob);
-  explicit ObjectRef(Object *ob);
+  explicit ObjectRef(Object *ob,
+                     Object *dupli_parent = nullptr,
+                     DupliObject *dupli_object = nullptr);
+  explicit ObjectRef(Object &ob, Object *dupli_parent, const VectorList<DupliObject *> &duplis);
 
   /* Is the object coming from a Dupli system. */
   bool is_dupli() const
   {
-    return dupli_object_ != nullptr;
+    return dupli_parent_ != nullptr;
   }
 
   bool is_active(const Object *active_object) const
   {
-    return (dupli_object_ ? dupli_parent_ : object) == active_object;
+    return (dupli_parent_ ? dupli_parent_ : object) == active_object;
   }
 
   float random() const
   {
-    if (dupli_object_ == nullptr) {
+    if (duplis_) {
+      /* NOTE: The random property is only used by EEVEE, which currently doesn't support
+      instancing optimizations. However, ObjectInfos always call this function so the code is still
+      reachable even if its result won't be used. */
+      // BLI_assert_unreachable();
+      /* TODO: This should fill a span instead. */
+      return 0.0;
+    }
+
+    if (dupli_parent_ == nullptr) {
       /* TODO(fclem): this is rather costly to do at draw time. Maybe we can
        * put it in ob->runtime and make depsgraph ensure it is up to date. */
       return BLI_hash_int_2d(BLI_hash_string(object->id.name + 2), 0) * (1.0f / (float)0xFFFFFFFF);
@@ -173,6 +262,14 @@ class ObjectRef {
 
   bool find_rgba_attribute(const GPUUniformAttr &attr, float r_value[4]) const
   {
+    if (duplis_) {
+      /* NOTE: This function is only called for EEVEE, which currently doesn't support instancing
+       * optimizations, so this code should be unreachable. */
+      BLI_assert_unreachable();
+      /* TODO: r_value should be a Span. */
+      return false;
+    }
+
     /* If requesting instance data, check the parent particle system and object. */
     if (attr.use_dupli) {
       return BKE_object_dupli_find_rgba_attribute(
@@ -183,7 +280,6 @@ class ObjectRef {
 
   LightLinking *light_linking() const
   {
-    /* TODO: Could this be handled directly by deg_iterator_duplis_step?  */
     return dupli_parent_ ? dupli_parent_->light_linking : object->light_linking;
   }
 
@@ -210,6 +306,14 @@ class ObjectRef {
    * systems need to be offset appropriately. */
   float4x4 particles_matrix() const
   {
+    if (duplis_) {
+      /* NOTE: Objects with particles don't support instancing optimizations yet, so this code
+       * should be unreachable. */
+      BLI_assert_unreachable();
+      /* TODO: This should fill a span instead. */
+      return float4x4::identity();
+    }
+
     /* TODO: Pass particle systems as a separate ObRef? */
     float4x4 dupli_mat = float4x4::identity();
     if (dupli_parent_ && dupli_object_) {

@@ -9,10 +9,11 @@
 #pragma once
 
 #include "BKE_paint.hh"
-#include "DNA_brush_types.h"
 
+#include "DNA_brush_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
+
 #include "ED_view3d.hh"
 #include "UI_view2d.hh"
 
@@ -101,19 +102,17 @@ class Cursor : Overlay {
       /* Render line first to avoid Z fighting. */
       pass.push_constant("ModelViewProjectionMatrix", mvp * float4x4(rotation));
       pass.push_constant("gpu_vert_stride_count_offset", vert_stride_count_line);
-      pass.draw_expand(res.shapes.cursor_lines.get(), GPU_PRIM_TRIS, 2, 1, ResourceHandleRange(0));
+      pass.draw_expand(res.shapes.cursor_lines.get(), GPU_PRIM_TRIS, 2, 1);
       pass.push_constant("ModelViewProjectionMatrix", mvp);
       pass.push_constant("gpu_vert_stride_count_offset", vert_stride_count_circle);
-      pass.draw_expand(
-          res.shapes.cursor_circle.get(), GPU_PRIM_TRIS, 2, 1, ResourceHandleRange(0));
+      pass.draw_expand(res.shapes.cursor_circle.get(), GPU_PRIM_TRIS, 2, 1);
     }
     else {
       pass.push_constant("ModelViewProjectionMatrix", mvp);
       pass.push_constant("gpu_vert_stride_count_offset", vert_stride_count_circle);
-      pass.draw_expand(
-          res.shapes.cursor_circle.get(), GPU_PRIM_TRIS, 2, 1, ResourceHandleRange(0));
+      pass.draw_expand(res.shapes.cursor_circle.get(), GPU_PRIM_TRIS, 2, 1);
       pass.push_constant("gpu_vert_stride_count_offset", vert_stride_count_line);
-      pass.draw_expand(res.shapes.cursor_lines.get(), GPU_PRIM_TRIS, 2, 1, ResourceHandleRange(0));
+      pass.draw_expand(res.shapes.cursor_lines.get(), GPU_PRIM_TRIS, 2, 1);
     }
   }
 
