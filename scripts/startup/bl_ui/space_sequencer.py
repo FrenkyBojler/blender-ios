@@ -2473,14 +2473,14 @@ class SEQUENCER_PT_adjust_sound(SequencerButtonsPanel, Panel):
             layout.use_property_split = False
             col = layout.column()
 
+            split = col.split(factor=0.4)
+            split.label(text="")
+            split.prop(strip, "pitch_correction")
+
             if overlay_settings.waveform_display_type == 'DEFAULT_WAVEFORMS':
                 split = col.split(factor=0.4)
                 split.label(text="")
                 split.prop(strip, "show_waveform")
-
-            split = col.split(factor=0.4)
-            split.label(text="")
-            split.prop(strip, "pitch_correction")
 
 
 class SEQUENCER_PT_adjust_comp(SequencerButtonsPanel, Panel):
