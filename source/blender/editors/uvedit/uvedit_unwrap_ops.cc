@@ -1529,12 +1529,12 @@ static void uvedit_pack_islands_multi(const Scene *scene,
   }
   else if (box_region) {
     float box_min_co[2], box_max_co[2];
-   
+
     box_min_co[0] = v2d_box_region->xmin;
     box_min_co[1] = v2d_box_region->ymin;
     box_max_co[0] = v2d_box_region->xmax;
     box_max_co[1] = v2d_box_region->ymax;
-    
+
     if ((box_max_co[0] - box_min_co[0]) * (box_max_co[1] - box_min_co[1]) > 1e-40f) {
       copy_v2_v2(params->udim_base_offset, box_min_co);
       params->target_extent = box_max_co[1] - box_min_co[1];
@@ -1940,7 +1940,7 @@ static void uv_pack_islands_ui(bContext *C, wmOperator *op)
     if (region->v2d.box_region.xmax <= 0.0f) {
       region->v2d.box_region.xmax = 1.0f;
     }
-    if (region->v2d.box_region.ymax <=0.0f) {
+    if (region->v2d.box_region.ymax <= 0.0f) {
       region->v2d.box_region.ymax = 1.0f;
     }
     region->v2d.flag |= V2D_BOX_REGION;
