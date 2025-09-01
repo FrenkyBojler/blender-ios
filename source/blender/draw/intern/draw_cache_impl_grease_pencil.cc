@@ -452,9 +452,6 @@ static void grease_pencil_weight_batch_ensure(Object &object,
 
     drawing_line_start_offset += curves.evaluated_points_num();
 
-    const int drawing_visible_points_num = offset_indices::sum_group_sizes(
-        points_by_curve, visible_strokes_for_points);
-
     /* Add one id for the restart after every curve. */
     total_line_ids_num += visible_strokes_for_lines.size();
     /* Add one id for every non-cyclic segment. */
@@ -463,19 +460,11 @@ static void grease_pencil_weight_batch_ensure(Object &object,
     /* Add one id for the last segment of every cyclic curve. */
     total_line_ids_num += array_utils::count_booleans(curves.cyclic(), visible_strokes_for_lines);
 
-    /* Do not show weights for locked layers. */
-    if (layer.is_locked()) {
-      continue;
-    }
-
-    const IndexMask visible_points = ed::greasepencil::retrieve_visible_points(
-        object, info.drawing, memory);
-
     /* Get vertex weights of the active vertex group in this drawing. */
     const VArray<float> weights = *curves.attributes().lookup_or_default<float>(
         active_defgroup_name, bke::AttrDomain::Point, no_active_weight);
     MutableSpan<float> weights_slice = points_weight.slice(points);
-    array_utils::copy(weights, visible_points, weights_slice);
+    array_utils::copy(weights, weights_slice);
 
     MutableSpan<float> line_weights_slice = edit_line_weight.slice(points_eval);
 
@@ -488,6 +477,13 @@ static void grease_pencil_weight_batch_ensure(Object &object,
       curves.interpolate_to_evaluated(weights_slice.as_span(), line_weights_slice);
     }
 
+    /* Do not show weights for locked layers. */
+    if (layer.is_locked()) {
+      continue;
+    }
+
+    const int drawing_visible_points_num = offset_indices::sum_group_sizes(
+        points_by_curve, visible_strokes_for_points);
     visible_points_num += drawing_visible_points_num;
   }
 
