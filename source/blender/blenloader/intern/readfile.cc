@@ -3896,14 +3896,22 @@ BlendFileData *blo_read_file_internal(FileData *fd, const char *filepath)
         }
         /* Put read real ID into the main of the library it belongs to.
          *
-         * Due to packed linked IDs (which are in their archive library 'name space' and 'blendfile
-         * space', but are real ID data and not placeholders in the blendfile, like for regular
-         * linked data), this is similar logic as with placeholders.
+         * Local IDs should all be written before any Library in the blendfile, so this code will
+         * always select `fd->bmain` for these.
+         *
+         * Packed linked IDs are real ID data in the currently read blendfile (unlike placeholders
+         * for regular linked data). But they are in their archive library 'name space' and
+         * 'blendfile space', so this follows the same logic as for placeholders to select the
+         * Main.
          *
          * The library is the most recently loaded #ID_LI block, according to the file format
          * definition. So we can use the entry at the end of `fd->bmain->split_mains`, typically
          * the one last added in #direct_link_library. */
         bmain_to_read_into = (*fd->bmain->split_mains)[fd->bmain->split_mains->size() - 1];
+        BLI_assert_msg((bmain_to_read_into == fd->bmain ||
+                        (blo_bhead_id_flag(fd, bhead) & ID_FLAG_LINKED_AND_PACKED) != 0),
+                       "Local IDs should always be put in the first Main split data-base, not in "
+                       "a 'linked data' one");
       }
     }
     if (bmain_to_read_into) {
@@ -3978,28 +3986,35 @@ BlendFileData *blo_read_file_internal(FileData *fd, const char *filepath)
   /* Do versioning before read_libraries, but skip in undo case. */
   if (!is_undo) {
     if ((fd->skip_flags & BLO_READ_SKIP_DATA) == 0) {
-      for (Main *main : *fd->bmain->split_mains) {
-        /* Temporarily remove placeholders from Main, because they can't be versioned yet. */
-        /* Packed IDs are stored in the current .blend file, so they do need versioning here
-         * already and are not removed. */
-        blender::Vector<ID *> placeholders;
-        MainListsArray lbarray = BKE_main_lists_get(*main);
+      for (Main *bmain : *fd->bmain->split_mains) {
+        /* Packed IDs are stored in the current .blend file, but belong to dedicated 'archive
+         * library' Mains, not the first, 'local' Main. So they do need versioning here, as for
+         * local IDs, which is why all the split Mains in the list need to be checked.
+         *
+         * Placeholders (of 'real' linked data) can't be versioned yet. Since they also belong to
+         * dedicated 'library' Mains, and are not mixed with the 'packed' ones, these Mains can be
+         * entirely skipped. */
+        const bool contains_link_placeholder = (bmain->curlib != nullptr &&
+                                                (bmain->curlib->flag & LIBRARY_FLAG_IS_ARCHIVE) ==
+                                                    0);
+#ifndef NDEBUG
+        MainListsArray lbarray = BKE_main_lists_get(*bmain);
         for (ListBase *lb_array : lbarray) {
           LISTBASE_FOREACH_MUTABLE (ID *, id, lb_array) {
-            if (id->runtime.readfile_data->tags.is_link_placeholder) {
-              placeholders.append(id);
-              BLI_remlink(lb_array, id);
-            }
+            BLI_assert_msg(
+                (id->runtime.readfile_data->tags.is_link_placeholder == contains_link_placeholder),
+                contains_link_placeholder ?
+                    "Real Library split Main contains non-placeholder IDs" :
+                    (bmain->curlib == nullptr ?
+                         "Local data split Main contains placeholder IDs" :
+                         "Archive Library split Main contains placeholder IDs"));
           }
         }
-
-        do_versions(fd, main->curlib, main);
-
-        /* Add placeholders back. */
-        for (ID *id : placeholders) {
-          const int a = BKE_idtype_idcode_to_index(GS(id->name));
-          BLI_addtail(lbarray[a], id);
+#endif
+        if (contains_link_placeholder) {
+          continue;
         }
+        do_versions(fd, bmain->curlib, bmain);
       }
     }
 
