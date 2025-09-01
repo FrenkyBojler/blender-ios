@@ -14,8 +14,11 @@
 #include "NOD_geometry_nodes_execute.hh"
 #include "NOD_geometry_nodes_lazy_function.hh"
 #include "NOD_geometry_nodes_srna.hh"
+#include "NOD_menu_value.hh"
 #include "NOD_node_declaration.hh"
 #include "NOD_socket.hh"
+
+#include "GEO_foreach_geometry.hh"
 
 #include "BKE_geometry_fields.hh"
 #include "BKE_geometry_nodes_reference_set.hh"
@@ -61,40 +64,40 @@ bool input_has_attribute_toggle(const bNodeTree &node_tree, const int socket_ind
 }
 
 template<typename T>
-[[nodiscard]] static bool load_attribute_field_input(PointerRNA &input_props_ptr, void *r_value)
+[[nodiscard]] static std::optional<bke::SocketValueVariant> load_attribute_field_input(
+    PointerRNA &input_props_ptr)
 {
   const std::string attribute_name = RNA_string_get(&input_props_ptr, "attribute_name");
   if (!bke::allow_procedural_attribute_access(attribute_name)) {
-    return false;
+    return std::nullopt;
   }
-  bke::SocketValueVariant::ConstructIn(r_value, bke::AttributeFieldInput::from<T>(attribute_name));
-  return true;
+  return bke::SocketValueVariant::From(bke::AttributeFieldInput::from<T>(attribute_name));
 }
 
-template<typename T> static void load_data_block_input(PointerRNA &input_props_ptr, void *r_value)
+template<typename T>
+static bke::SocketValueVariant load_data_block_input(PointerRNA &input_props_ptr)
 {
-  T *object = id_cast<T *>(RNA_pointer_get(&input_props_ptr, "value").owner_id);
-  *(T **)r_value = object;
+  T *data_block = id_cast<T *>(RNA_pointer_get(&input_props_ptr, "value").owner_id);
+  return bke::SocketValueVariant::From(data_block);
 }
 
-static void init_socket_cpp_value(PointerRNA *input_props_ptr,
-                                  const bNodeTreeInterfaceSocket &io_socket,
-                                  void *r_value)
+static bke::SocketValueVariant init_socket_cpp_value(PointerRNA *input_props_ptr,
+                                                     const bNodeTreeInterfaceSocket &io_socket)
 {
   const bke::bNodeSocketType *stype = io_socket.socket_typeinfo();
   const eNodeSocketDatatype socket_type = stype->type;
   switch (socket_type) {
-
     case SOCK_FLOAT: {
       const auto type = GeometryNodesInputType(RNA_enum_get(input_props_ptr, "type"));
       if (type == GeometryNodesInputType::Value) {
         const float value = RNA_float_get(input_props_ptr, "value");
-        new (r_value) bke::SocketValueVariant(value);
-        return;
+        return bke::SocketValueVariant(value);
       }
       if (type == GeometryNodesInputType::Attribute) {
-        if (load_attribute_field_input<float>(*input_props_ptr, r_value)) {
-          return;
+        if (std::optional<bke::SocketValueVariant> value = load_attribute_field_input<float>(
+                *input_props_ptr))
+        {
+          return std::move(*value);
         }
       }
       break;
@@ -104,12 +107,13 @@ static void init_socket_cpp_value(PointerRNA *input_props_ptr,
       if (type == GeometryNodesInputType::Value) {
         float3 value;
         RNA_float_get_array(input_props_ptr, "value", value);
-        new (r_value) bke::SocketValueVariant(value);
-        return;
+        return bke::SocketValueVariant(value);
       }
       if (type == GeometryNodesInputType::Attribute) {
-        if (load_attribute_field_input<float3>(*input_props_ptr, r_value)) {
-          return;
+        if (std::optional<bke::SocketValueVariant> value = load_attribute_field_input<float3>(
+                *input_props_ptr))
+        {
+          return std::move(*value);
         }
       }
       break;
@@ -119,12 +123,13 @@ static void init_socket_cpp_value(PointerRNA *input_props_ptr,
       if (type == GeometryNodesInputType::Value) {
         ColorGeometry4f value;
         RNA_float_get_array(input_props_ptr, "value", value);
-        new (r_value) bke::SocketValueVariant(value);
-        return;
+        return bke::SocketValueVariant(value);
       }
       if (type == GeometryNodesInputType::Attribute) {
-        if (load_attribute_field_input<ColorGeometry4f>(*input_props_ptr, r_value)) {
-          return;
+        if (std::optional<bke::SocketValueVariant> value =
+                load_attribute_field_input<ColorGeometry4f>(*input_props_ptr))
+        {
+          return std::move(*value);
         }
       }
       break;
@@ -133,20 +138,19 @@ static void init_socket_cpp_value(PointerRNA *input_props_ptr,
       const auto type = GeometryNodesInputType(RNA_enum_get(input_props_ptr, "type"));
       if (type == GeometryNodesInputType::Value) {
         const bool value = RNA_boolean_get(input_props_ptr, "value");
-        new (r_value) bke::SocketValueVariant(value);
-        return;
+        return bke::SocketValueVariant(value);
       }
       if (type == GeometryNodesInputType::Attribute) {
-        if (load_attribute_field_input<bool>(*input_props_ptr, r_value)) {
-          return;
+        if (std::optional<bke::SocketValueVariant> value = load_attribute_field_input<bool>(
+                *input_props_ptr))
+        {
+          return std::move(*value);
         }
       }
       if (type == GeometryNodesInputType::Layer) {
         const std::string layer_name = RNA_string_get(input_props_ptr, "layer_name");
-        bke::SocketValueVariant::ConstructIn(
-            r_value,
+        return bke::SocketValueVariant::From(
             fn::GField(std::make_shared<bke::NamedLayerSelectionFieldInput>(layer_name), 0));
-        return;
       }
       break;
     }
@@ -154,12 +158,13 @@ static void init_socket_cpp_value(PointerRNA *input_props_ptr,
       const auto type = GeometryNodesInputType(RNA_enum_get(input_props_ptr, "type"));
       if (type == GeometryNodesInputType::Value) {
         const int value = RNA_int_get(input_props_ptr, "value");
-        new (r_value) bke::SocketValueVariant(value);
-        return;
+        return bke::SocketValueVariant(value);
       }
       if (type == GeometryNodesInputType::Attribute) {
-        if (load_attribute_field_input<int>(*input_props_ptr, r_value)) {
-          return;
+        if (std::optional<bke::SocketValueVariant> value = load_attribute_field_input<int>(
+                *input_props_ptr))
+        {
+          return std::move(*value);
         }
       }
       break;
@@ -170,12 +175,13 @@ static void init_socket_cpp_value(PointerRNA *input_props_ptr,
         float3 value_euler;
         RNA_float_get_array(input_props_ptr, "value", value_euler);
         math::Quaternion value_rotation = math::to_quaternion(math::EulerXYZ(value_euler));
-        new (r_value) bke::SocketValueVariant(value_rotation);
-        return;
+        return bke::SocketValueVariant(value_rotation);
       }
       if (type == GeometryNodesInputType::Attribute) {
-        if (load_attribute_field_input<int>(*input_props_ptr, r_value)) {
-          return;
+        if (std::optional<bke::SocketValueVariant> value = load_attribute_field_input<int>(
+                *input_props_ptr))
+        {
+          return std::move(*value);
         }
       }
       break;
@@ -184,8 +190,7 @@ static void init_socket_cpp_value(PointerRNA *input_props_ptr,
       const auto type = GeometryNodesInputType(RNA_enum_get(input_props_ptr, "type"));
       if (type == GeometryNodesInputType::Value) {
         const int value = RNA_enum_get(input_props_ptr, "value");
-        new (r_value) bke::SocketValueVariant(value);
-        return;
+        return bke::SocketValueVariant(value);
       }
       break;
     }
@@ -193,48 +198,42 @@ static void init_socket_cpp_value(PointerRNA *input_props_ptr,
       const auto type = GeometryNodesInputType(RNA_enum_get(input_props_ptr, "type"));
       if (type == GeometryNodesInputType::Value) {
         const std::string value = RNA_string_get(input_props_ptr, "value");
-        new (r_value) bke::SocketValueVariant(value);
-        return;
+        return bke::SocketValueVariant(value);
       }
       break;
     }
     case SOCK_OBJECT: {
       const auto type = GeometryNodesInputType(RNA_enum_get(input_props_ptr, "type"));
       if (type == GeometryNodesInputType::Value) {
-        load_data_block_input<Object>(*input_props_ptr, r_value);
-        return;
+        return load_data_block_input<Object>(*input_props_ptr);
       }
       break;
     }
     case SOCK_IMAGE: {
       const auto type = GeometryNodesInputType(RNA_enum_get(input_props_ptr, "type"));
       if (type == GeometryNodesInputType::Value) {
-        load_data_block_input<Image>(*input_props_ptr, r_value);
-        return;
+        return load_data_block_input<Image>(*input_props_ptr);
       }
       break;
     }
     case SOCK_COLLECTION: {
       const auto type = GeometryNodesInputType(RNA_enum_get(input_props_ptr, "type"));
       if (type == GeometryNodesInputType::Value) {
-        load_data_block_input<Collection>(*input_props_ptr, r_value);
-        return;
+        return load_data_block_input<Collection>(*input_props_ptr);
       }
       break;
     }
     case SOCK_TEXTURE: {
       const auto type = GeometryNodesInputType(RNA_enum_get(input_props_ptr, "type"));
       if (type == GeometryNodesInputType::Value) {
-        load_data_block_input<Tex>(*input_props_ptr, r_value);
-        return;
+        return load_data_block_input<Tex>(*input_props_ptr);
       }
       break;
     }
     case SOCK_MATERIAL: {
       const auto type = GeometryNodesInputType(RNA_enum_get(input_props_ptr, "type"));
       if (type == GeometryNodesInputType::Value) {
-        load_data_block_input<Material>(*input_props_ptr, r_value);
-        return;
+        return load_data_block_input<Material>(*input_props_ptr);
       }
       break;
     }
@@ -245,18 +244,9 @@ static void init_socket_cpp_value(PointerRNA *input_props_ptr,
     case SOCK_SHADER:
     case SOCK_CUSTOM:
       break;
-      break;
   }
 
-  /* Get from value by default? */
-  BLI_assert(stype->geometry_nodes_cpp_type);
-  if (stype->geometry_nodes_default_cpp_value) {
-    stype->geometry_nodes_cpp_type->copy_construct(stype->geometry_nodes_default_cpp_value,
-                                                   r_value);
-  }
-  else {
-    stype->geometry_nodes_cpp_type->value_initialize(r_value);
-  }
+  return *stype->geometry_nodes_default_value;
 }
 
 struct OutputAttributeInfo {
@@ -316,18 +306,11 @@ static MultiValueMap<bke::AttrDomain, OutputAttributeInfo> find_output_attribute
 static Vector<OutputAttributeToStore> compute_attributes_to_store(
     const bke::GeometrySet &geometry,
     const MultiValueMap<bke::AttrDomain, OutputAttributeInfo> &outputs_by_domain,
-    const bool do_instances)
+    const Span<const bke::GeometryComponent::Type> component_types)
 {
   Vector<OutputAttributeToStore> attributes_to_store;
-  for (const auto component_type : {bke::GeometryComponent::Type::Mesh,
-                                    bke::GeometryComponent::Type::PointCloud,
-                                    bke::GeometryComponent::Type::Curve,
-                                    bke::GeometryComponent::Type::Instance})
-  {
+  for (const auto component_type : component_types) {
     if (!geometry.has(component_type)) {
-      continue;
-    }
-    if (!do_instances && component_type == bke::GeometryComponent::Type::Instance) {
       continue;
     }
     const bke::GeometryComponent &component = *geometry.get_component(component_type);
@@ -416,24 +399,32 @@ static void store_output_attributes(bke::GeometrySet &geometry,
   if (outputs_by_domain.size() == 0) {
     return;
   }
+
+  {
+    /* Handle top level instances separately first. */
+    Vector<OutputAttributeToStore> attributes_to_store = compute_attributes_to_store(
+        geometry, outputs_by_domain, {bke::GeometryComponent::Type::Instance});
+    store_computed_output_attributes(geometry, attributes_to_store);
+  }
+
   const bool only_instance_attributes = outputs_by_domain.size() == 1 &&
                                         *outputs_by_domain.keys().begin() ==
                                             bke::AttrDomain::Instance;
   if (only_instance_attributes) {
-    /* No need to call #modify_geometry_sets when only adding attributes to top-level instances.
+    /* No need to call #foreach_real_geometry when only adding attributes to top-level instances.
      * This avoids some unnecessary data copies currently if some sub-geometries are not yet owned
      * by the geometry set, i.e. they use #GeometryOwnershipType::Editable/ReadOnly. */
-    Vector<OutputAttributeToStore> attributes_to_store = compute_attributes_to_store(
-        geometry, outputs_by_domain, true);
-    store_computed_output_attributes(geometry, attributes_to_store);
     return;
   }
 
-  geometry.modify_geometry_sets([&](bke::GeometrySet &instance_geometry) {
+  geometry::foreach_real_geometry(geometry, [&](bke::GeometrySet &instance_geometry) {
     /* Instance attributes should only be created for the top-level geometry. */
-    const bool do_instances = &geometry == &instance_geometry;
     Vector<OutputAttributeToStore> attributes_to_store = compute_attributes_to_store(
-        instance_geometry, outputs_by_domain, do_instances);
+        instance_geometry,
+        outputs_by_domain,
+        {bke::GeometryComponent::Type::Mesh,
+         bke::GeometryComponent::Type::PointCloud,
+         bke::GeometryComponent::Type::Curve});
     store_computed_output_attributes(instance_geometry, attributes_to_store);
   });
 }
@@ -469,8 +460,8 @@ bke::GeometrySet execute_geometry_nodes_on_geometry(const bNodeTree &btree,
 
   user_data.compute_context = &base_compute_context;
 
-  LinearAllocator<> allocator;
-  Vector<GMutablePointer> inputs_to_destruct;
+  ResourceScope scope;
+  LinearAllocator<> &allocator = scope.allocator();
 
   btree.ensure_interface_cache();
 
@@ -482,18 +473,16 @@ bke::GeometrySet execute_geometry_nodes_on_geometry(const bNodeTree &btree,
     const bke::bNodeSocketType *typeinfo = interface_socket.socket_typeinfo();
     const eNodeSocketDatatype socket_type = typeinfo ? typeinfo->type : SOCK_CUSTOM;
     if (socket_type == SOCK_GEOMETRY && i == 0) {
-      param_inputs[function.inputs.main[0]] = &input_geometry;
+      bke::SocketValueVariant &value = scope.construct<bke::SocketValueVariant>();
+      value.set(input_geometry);
+      param_inputs[function.inputs.main[0]] = &value;
       continue;
     }
 
     PointerRNA input_props_ptr = RNA_pointer_get(&inputs_ptr, interface_socket.identifier);
-
-    const CPPType *type = typeinfo->geometry_nodes_cpp_type;
-    BLI_assert(type != nullptr);
-    void *value = allocator.allocate(*type);
-    init_socket_cpp_value(&input_props_ptr, interface_socket, value);
-    param_inputs[function.inputs.main[i]] = {type, value};
-    inputs_to_destruct.append({type, value});
+    bke::SocketValueVariant value = init_socket_cpp_value(&input_props_ptr, interface_socket);
+    param_inputs[function.inputs.main[i]] = &scope.construct<bke::SocketValueVariant>(
+        std::move(value));
   }
 
   /* Prepare used-outputs inputs. */
@@ -532,11 +521,8 @@ bke::GeometrySet execute_geometry_nodes_on_geometry(const bNodeTree &btree,
   }
   lazy_function.destruct_storage(lf_context.storage);
 
-  for (GMutablePointer &ptr : inputs_to_destruct) {
-    ptr.destruct();
-  }
-
-  bke::GeometrySet output_geometry = std::move(*param_outputs[0].get<bke::GeometrySet>());
+  bke::GeometrySet output_geometry =
+      param_outputs[0].get<bke::SocketValueVariant>()->extract<bke::GeometrySet>();
   store_output_attributes(output_geometry, btree, properties_ptr, param_outputs);
 
   for (const int i : IndexRange(num_outputs)) {
@@ -566,7 +552,7 @@ void get_geometry_nodes_input_base_values(const bNodeTree &btree,
     if (!stype) {
       continue;
     }
-    if (!stype->base_cpp_type || !stype->geometry_nodes_cpp_type) {
+    if (!stype->base_cpp_type || !stype->geometry_nodes_default_value) {
       continue;
     }
     PointerRNA socket_props_ptr = RNA_pointer_get(&inputs_ptr, io_input.identifier);
@@ -575,23 +561,14 @@ void get_geometry_nodes_input_base_values(const bNodeTree &btree,
       continue;
     }
 
-    void *value_buffer = scope.allocate_owned(*stype->geometry_nodes_cpp_type);
-    init_socket_cpp_value(&socket_props_ptr, io_input, value_buffer);
-    if (stype->geometry_nodes_cpp_type == stype->base_cpp_type) {
-      r_values[input_i] = {stype->base_cpp_type, value_buffer};
+    bke::SocketValueVariant &value = scope.add_value(
+        init_socket_cpp_value(&socket_props_ptr, io_input));
+    if (!value.is_single()) {
       continue;
     }
-    if (stype->geometry_nodes_cpp_type == &CPPType::get<bke::SocketValueVariant>()) {
-      const bke::SocketValueVariant &socket_value = *static_cast<const bke::SocketValueVariant *>(
-          value_buffer);
-      if (!socket_value.is_single()) {
-        continue;
-      }
-      const GPointer single_value = socket_value.get_single_ptr();
-      BLI_assert(single_value.type() == stype->base_cpp_type);
-      r_values[input_i] = single_value;
-      continue;
-    }
+    const GPointer single_value = value.get_single_ptr();
+    BLI_assert(single_value.type() == stype->base_cpp_type);
+    r_values[input_i] = single_value;
   }
 }
 
