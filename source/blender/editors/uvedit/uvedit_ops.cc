@@ -1983,23 +1983,22 @@ static void UV_OT_mark_seam(wmOperatorType *ot)
 
 static bool uv_mirror_uv(BMesh *bm, int direction, int precision, int *r_double_warn)
 {
-  *r_double_warn = 0;
-
   if (!CustomData_has_layer(&bm->ldata, CD_PROP_FLOAT2)) {
     return false;
   }
 
+  *r_double_warn = 0;
   const float precision_scale = powf(10.0f, precision);
-  blender::Map<blender::float3, BMVert *> mirror_gt, mirror_lt;
-  blender::Map<BMVert *, BMVert *> vmap;
+  Map<float3, BMVert *> mirror_gt, mirror_lt;
+  Map<BMVert *, BMVert *> vmap;
 
   BMVert *v;
   BMIter iter;
   BM_ITER_MESH (v, &iter, bm, BM_VERTS_OF_MESH) {
     const float *co = v->co;
-    blender::float3 pos(std::round(co[0] * precision_scale),
-                        std::round(co[1] * precision_scale),
-                        std::round(co[2] * precision_scale));
+    float3 pos(std::round(co[0] * precision_scale),
+               std::round(co[1] * precision_scale),
+               std::round(co[2] * precision_scale));
 
     if (co[0] >= 0.0f) {
       if (mirror_gt.contains(pos)) {
@@ -2016,7 +2015,7 @@ static bool uv_mirror_uv(BMesh *bm, int direction, int precision, int *r_double_
   }
 
   for (const auto &[pos, vert] : mirror_gt.items()) {
-    blender::float3 mirror_pos = pos;
+    float3 mirror_pos = pos;
     mirror_pos[0] = -mirror_pos[0];
     BMVert **mirror_vert_ptr = mirror_lt.lookup_ptr(mirror_pos);
     if (mirror_vert_ptr) {
@@ -2024,7 +2023,7 @@ static bool uv_mirror_uv(BMesh *bm, int direction, int precision, int *r_double_
     }
   }
   for (const auto &[pos, vert] : mirror_lt.items()) {
-    blender::float3 mirror_pos = pos;
+    float3 mirror_pos = pos;
     mirror_pos[0] = -mirror_pos[0];
     BMVert **mirror_vert_ptr = mirror_gt.lookup_ptr(mirror_pos);
     if (mirror_vert_ptr) {
@@ -2032,11 +2031,11 @@ static bool uv_mirror_uv(BMesh *bm, int direction, int precision, int *r_double_
     }
   }
 
+  Map<Vector<BMVert *>, BMFace *> mirror_pm;
+  Map<BMFace *, BMFace *> face_map;
+
   BMFace *f;
   BMIter iter_face;
-
-  blender::Map<Vector<BMVert *>, BMFace *> mirror_pm;
-  blender::Map<BMFace *, BMFace *> face_map;
   BM_ITER_MESH (f, &iter_face, bm, BM_FACES_OF_MESH) {
     Vector<BMVert *> face_verts;
     BMLoop *l;
@@ -2098,13 +2097,12 @@ static bool uv_mirror_uv(BMesh *bm, int direction, int precision, int *r_double_
       if (!source_loop_ptr) {
         continue;
       }
-
-      float *uv_src = BM_ELEM_CD_GET_FLOAT_P(*source_loop_ptr, cd_loop_uv_offset);
-      float *uv_dst = BM_ELEM_CD_GET_FLOAT_P(l, cd_loop_uv_offset);
-
       if ((direction == 0 && face_center[0] < 0.0f) || (direction == 1 && face_center[0] > 0.0f)) {
         continue;
       }
+
+      float *uv_src = BM_ELEM_CD_GET_FLOAT_P(*source_loop_ptr, cd_loop_uv_offset);
+      float *uv_dst = BM_ELEM_CD_GET_FLOAT_P(l, cd_loop_uv_offset);
 
       uv_dst[0] = -(uv_src[0] - 0.5f) + 0.5f;
       uv_dst[1] = uv_src[1];
