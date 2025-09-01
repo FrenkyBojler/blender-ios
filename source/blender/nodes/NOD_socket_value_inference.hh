@@ -43,29 +43,29 @@ class InferenceValue {
     return value_ == nullptr;
   }
 
-  bool is_single_value() const
+  bool is_primitive_value() const
   {
     return !this->is_unknown();
   }
 
-  const void *get_single_value() const
+  const void *get_primitive_ptr() const
   {
-    BLI_assert(this->is_single_value());
+    BLI_assert(this->is_primitive_value());
     return value_;
   }
 
-  template<typename T> T get_single() const
+  template<typename T> T get_primitive() const
   {
-    BLI_assert(this->is_single_value());
+    BLI_assert(this->is_primitive_value());
     return *static_cast<const T *>(this->value_);
   }
 
-  template<typename T> std::optional<T> get_if_single() const
+  template<typename T> std::optional<T> get_if_primitive() const
   {
-    if (!this->is_single_value()) {
+    if (!this->is_primitive_value()) {
       return std::nullopt;
     }
-    return this->get_single<T>();
+    return this->get_primitive<T>();
   }
 };
 

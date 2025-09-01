@@ -280,8 +280,8 @@ class SocketValueInferencerImpl {
       case NODE_MATH_MULTIPLY: {
         this->value_task__output__generic_eval(
             socket, [&](const Span<InferenceValue> inputs) -> std::optional<InferenceValue> {
-              const std::optional<float> a = inputs[0].get_if_single<float>();
-              const std::optional<float> b = inputs[1].get_if_single<float>();
+              const std::optional<float> a = inputs[0].get_if_primitive<float>();
+              const std::optional<float> b = inputs[1].get_if_primitive<float>();
               if (a == 0.0f || b == 0.0f) {
                 return InferenceValue(&scope_.construct<float>(0.0f));
               }
@@ -307,8 +307,8 @@ class SocketValueInferencerImpl {
       case NODE_VECTOR_MATH_MULTIPLY: {
         this->value_task__output__generic_eval(
             socket, [&](const Span<InferenceValue> inputs) -> std::optional<InferenceValue> {
-              const std::optional<float3> a = inputs[0].get_if_single<float3>();
-              const std::optional<float3> b = inputs[1].get_if_single<float3>();
+              const std::optional<float3> a = inputs[0].get_if_primitive<float3>();
+              const std::optional<float3> b = inputs[1].get_if_primitive<float3>();
               if (a == float3(0.0f) || b == float3(0.0f)) {
                 return InferenceValue(&scope_.construct<float3>(0.0f));
               }
@@ -322,8 +322,8 @@ class SocketValueInferencerImpl {
       case NODE_VECTOR_MATH_SCALE: {
         this->value_task__output__generic_eval(
             socket, [&](const Span<InferenceValue> inputs) -> std::optional<InferenceValue> {
-              const std::optional<float3> a = inputs[0].get_if_single<float3>();
-              const std::optional<float> scale = inputs[3].get_if_single<float>();
+              const std::optional<float3> a = inputs[0].get_if_primitive<float3>();
+              const std::optional<float> scale = inputs[3].get_if_primitive<float>();
               if (a == float3(0.0f) || scale == 0.0f) {
                 return InferenceValue(&scope_.construct<float3>(0.0f));
               }
@@ -349,8 +349,8 @@ class SocketValueInferencerImpl {
       case NODE_INTEGER_MATH_MULTIPLY: {
         this->value_task__output__generic_eval(
             socket, [&](const Span<InferenceValue> inputs) -> std::optional<InferenceValue> {
-              const std::optional<int> a = inputs[0].get_if_single<int>();
-              const std::optional<int> b = inputs[1].get_if_single<int>();
+              const std::optional<int> a = inputs[0].get_if_primitive<int>();
+              const std::optional<int> b = inputs[1].get_if_primitive<int>();
               if (a == 0 || b == 0) {
                 return InferenceValue(&scope_.construct<int>(0));
               }
@@ -377,8 +377,8 @@ class SocketValueInferencerImpl {
         [&](FunctionRef<std::optional<bool>(std::optional<bool>, std::optional<bool>)> fn) {
           this->value_task__output__generic_eval(
               socket, [&](const Span<InferenceValue> inputs) -> std::optional<InferenceValue> {
-                const std::optional<bool> a = inputs[0].get_if_single<bool>();
-                const std::optional<bool> b = inputs[1].get_if_single<bool>();
+                const std::optional<bool> a = inputs[0].get_if_primitive<bool>();
+                const std::optional<bool> b = inputs[1].get_if_primitive<bool>();
                 const std::optional<bool> result = fn(a, b);
                 if (result.has_value()) {
                   return InferenceValue(&scope_.construct<bool>(*result));
@@ -595,11 +595,11 @@ class SocketValueInferencerImpl {
         this->push_value_task(input_socket);
         return;
       }
-      if (!input_value->is_single_value()) {
+      if (!input_value->is_primitive_value()) {
         all_socket_values_.add_new(socket, InferenceValue::Unknown());
         return;
       }
-      input_values[input_i] = input_value->get_single_value();
+      input_values[input_i] = input_value->get_primitive_ptr();
     }
 
     /* Get the multi-function for the node. */
@@ -730,7 +730,7 @@ class SocketValueInferencerImpl {
                                            const bNodeSocket &from_socket,
                                            const bNodeSocket &to_socket)
   {
-    if (!src.is_single_value()) {
+    if (!src.is_primitive_value()) {
       return InferenceValue::Unknown();
     }
     const CPPType *from_type = from_socket.typeinfo->base_cpp_type;
@@ -746,7 +746,7 @@ class SocketValueInferencerImpl {
       return InferenceValue::Unknown();
     }
     void *dst = scope_.allocate_owned(*to_type);
-    conversions.convert_to_uninitialized(*from_type, *to_type, src.get_single_value(), dst);
+    conversions.convert_to_uninitialized(*from_type, *to_type, src.get_primitive_ptr(), dst);
     return InferenceValue(dst);
   }
 
@@ -851,10 +851,10 @@ namespace switch_node_inference_utils {
 
 bool is_socket_selected__switch(const SocketInContext &socket, const InferenceValue &condition)
 {
-  if (!condition.is_single_value()) {
+  if (!condition.is_primitive_value()) {
     return true;
   }
-  const bool is_true = condition.get_single<bool>();
+  const bool is_true = condition.get_primitive<bool>();
   const int selected_index = is_true ? 2 : 1;
   return socket->index() == selected_index;
 }
@@ -862,29 +862,29 @@ bool is_socket_selected__switch(const SocketInContext &socket, const InferenceVa
 bool is_socket_selected__index_switch(const SocketInContext &socket,
                                       const InferenceValue &condition)
 {
-  if (!condition.is_single_value()) {
+  if (!condition.is_primitive_value()) {
     return true;
   }
-  const int index = condition.get_single<int>();
+  const int index = condition.get_primitive<int>();
   return socket->index() == index + 1;
 }
 
 bool is_socket_selected__menu_switch(const SocketInContext &socket,
                                      const InferenceValue &condition)
 {
-  if (!condition.is_single_value()) {
+  if (!condition.is_primitive_value()) {
     return true;
   }
   const NodeMenuSwitch &storage = *static_cast<const NodeMenuSwitch *>(
       socket->owner_node().storage);
-  const int menu_value = condition.get_single<int>();
+  const int menu_value = condition.get_primitive<int>();
   const NodeEnumItem &item = storage.enum_definition.items_array[socket->index() - 1];
   return menu_value == item.identifier;
 }
 
 bool is_socket_selected__mix_node(const SocketInContext &socket, const InferenceValue &condition)
 {
-  if (!condition.is_single_value()) {
+  if (!condition.is_primitive_value()) {
     return true;
   }
   const NodeShaderMix &storage = *static_cast<const NodeShaderMix *>(socket.owner_node()->storage);
@@ -896,7 +896,7 @@ bool is_socket_selected__mix_node(const SocketInContext &socket, const Inference
   bool only_a = false;
   bool only_b = false;
   if (storage.data_type == SOCK_VECTOR && storage.factor_mode == NODE_MIX_MODE_NON_UNIFORM) {
-    const float3 mix_factor = condition.get_single<float3>();
+    const float3 mix_factor = condition.get_primitive<float3>();
     if (clamp_factor) {
       only_a = mix_factor.x <= 0.0f && mix_factor.y <= 0.0f && mix_factor.z <= 0.0f;
       only_b = mix_factor.x >= 1.0f && mix_factor.y >= 1.0f && mix_factor.z >= 1.0f;
@@ -907,7 +907,7 @@ bool is_socket_selected__mix_node(const SocketInContext &socket, const Inference
     }
   }
   else {
-    const float mix_factor = condition.get_single<float>();
+    const float mix_factor = condition.get_primitive<float>();
     if (clamp_factor) {
       only_a = mix_factor <= 0.0f;
       only_b = mix_factor >= 1.0f;
@@ -933,10 +933,10 @@ bool is_socket_selected__mix_node(const SocketInContext &socket, const Inference
 bool is_socket_selected__shader_mix_node(const SocketInContext &socket,
                                          const InferenceValue &condition)
 {
-  if (!condition.is_single_value()) {
+  if (!condition.is_primitive_value()) {
     return true;
   }
-  const float mix_factor = condition.get_single<float>();
+  const float mix_factor = condition.get_primitive<float>();
   if (mix_factor == 0.0f) {
     if (STREQ(socket->identifier, "Shader_001")) {
       return false;
