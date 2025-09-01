@@ -642,8 +642,7 @@ struct uiLayout : public uiItem, blender::NonCopyable, blender::NonMovable {
   void prop_textbox(PointerRNA *ptr,
                     blender::StringRefNull propname,
                     PointerRNA *visible_lines_ptr,
-                    blender::StringRefNull visible_lines_propname,
-                    blender::StringRefNull idname);
+                    blender::StringRefNull visible_lines_propname);
 
   /**
    * Adds a RNA property item, and sets a custom popover to expose its value.

@@ -88,10 +88,9 @@ static void rna_uiItemTextBox(uiLayout *layout,
                               PointerRNA *ptr,
                               const char *propname,
                               PointerRNA *visible_lines_ptr,
-                              const char *visible_lines_propname,
-                              const char *textboxid)
+                              const char *visible_lines_propname)
 {
-  layout->prop_textbox(ptr, propname, visible_lines_ptr, visible_lines_propname, textboxid);
+  layout->prop_textbox(ptr, propname, visible_lines_ptr, visible_lines_propname);
 };
 
 static void rna_uiItemR(uiLayout *layout,
@@ -1398,14 +1397,18 @@ void RNA_api_ui_layout(StructRNA *srna)
   /* items */
   func = RNA_def_function(srna, "prop_textbox", "rna_uiItemTextBox");
   api_ui_item_rna_common(func);
-  parm = RNA_def_pointer(
-      func, "visible_lines_dataptr", "AnyType", "", "Data from which to take the textbox visible lines property");
+  parm = RNA_def_pointer(func,
+                         "visible_lines_dataptr",
+                         "AnyType",
+                         "",
+                         "Data from which to take the textbox visible lines property");
   RNA_def_parameter_flags(parm, PROP_NEVER_NULL, PARM_REQUIRED | PARM_RNAPTR);
-  parm = RNA_def_string(
-      func, "visible_lines_propname", nullptr, 0, "", "Identifier of property in visible_lines_dataptr");
-  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
-  parm = RNA_def_string(
-      func, "textboxid", nullptr, 0, "", "Identifier of textbox to store persistent status.");
+  parm = RNA_def_string(func,
+                        "visible_lines_propname",
+                        nullptr,
+                        0,
+                        "",
+                        "Identifier of property in visible_lines_dataptr");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
 
   func = RNA_def_function(srna, "prop", "rna_uiItemR");

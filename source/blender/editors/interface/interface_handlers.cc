@@ -77,6 +77,8 @@
 #include "WM_types.hh"
 #include "wm_event_system.hh"
 
+#include "UI_view2d.hh"
+
 #ifdef WITH_INPUT_IME
 #  include "wm_window.hh"
 #endif
@@ -3108,7 +3110,7 @@ static bool ui_textedit_delete_selection(uiBut *but, uiTextEdit &text_edit)
 }
 
 blender::Vector<blender::StringRef> ui_but_textbox_wrap_lines(const ARegion *region,
-                                                              const uiButTextBox *textbox)
+                                                              uiButTextBox *textbox)
 {
   rcti rect;
   ui_but_to_pixelrect(&rect, region, textbox->block, textbox);
@@ -3122,8 +3124,8 @@ blender::Vector<blender::StringRef> ui_but_textbox_wrap_lines(const ARegion *reg
 static void ui_but_textbox_add_scroll(const ARegion *region, uiButTextBox *textbox, int step)
 {
 
-  textbox->status->last_total_lines = ui_but_textbox_wrap_lines(region, textbox).size();
-  textbox->line_scroll_set(textbox->line_scroll() + step);
+  textbox->last_total_lines = ui_but_textbox_wrap_lines(region, textbox).size();
+  textbox->line_scroll_set(textbox->line_scroll + step);
 }
 
 static void ui_but_textbox_scroll_to_cursor(const ARegion *region, uiButTextBox *textbox)
@@ -3139,8 +3141,7 @@ static void ui_but_textbox_scroll_to_cursor(const ARegion *region, uiButTextBox 
     }
     line_cursor++;
   }
-  int visible_bouds[] = {textbox->line_scroll(),
-                         textbox->line_scroll() + textbox->visible_lines()};
+  int visible_bouds[] = {textbox->line_scroll, textbox->line_scroll + textbox->visible_height};
   if (visible_bouds[0] <= line_cursor && line_cursor < visible_bouds[1]) {
     return;
   }
@@ -3171,12 +3172,12 @@ static void ui_but_textbox_textedit_set_cursor_pos(uiBut *but,
   ui_block_to_window_fl(region, but->block, &end.x, &end.y);
 
   blender::Vector<blender::StringRef> lines = ui_but_textbox_wrap_lines(region, textbox);
-  int line_under_mouse = textbox->line_scroll() +
-                         (end.y - xy.y) / (end.y - start.y) * (textbox->visible_lines());
+  int line_under_mouse = textbox->line_scroll +
+                         (end.y - xy.y) / (end.y - start.y) * (textbox->visible_height);
   line_under_mouse = std::clamp<int>(
       line_under_mouse,
-      std::max<int>(0, textbox->line_scroll() - 1),
-      std::min<int>(textbox->line_scroll() + textbox->visible_lines(), lines.size() - 1));
+      std::max<int>(0, textbox->line_scroll - 1),
+      std::min<int>(textbox->line_scroll + textbox->visible_height, lines.size() - 1));
 
   blender::StringRef line = lines[line_under_mouse];
 
@@ -5124,6 +5125,36 @@ static int ui_do_but_text_value_cycle(bContext *C,
 static int ui_do_but_TEX(
     bContext *C, uiBlock *block, uiBut *but, uiHandleButtonData *data, const wmEvent *event)
 {
+  uiButTextBox *textbox = but->type == ButType::TextBox ? static_cast<uiButTextBox *>(but) :
+                                                          nullptr;
+  if (data->state == BUTTON_STATE_HIGHLIGHT && textbox && event->val == KM_PRESS &&
+      event->type == LEFTMOUSE)
+  {
+    int mx = event->xy[0];
+    int my = event->xy[1];
+    ui_window_to_block(data->region, but->block, &mx, &my);
+    if (but->rect.xmax - V2D_SCROLL_WIDTH < mx && my > but->rect.ymin + UI_UNIT_Y * (0.75f)) {
+      button_activate_state(C, but, BUTTON_STATE_NUM_EDITING);
+      return WM_UI_HANDLER_BREAK;
+    }
+  }
+  if (data->state == BUTTON_STATE_NUM_EDITING) {
+    if (event->val == KM_RELEASE && event->type == LEFTMOUSE) {
+      button_activate_state(C, but, BUTTON_STATE_EXIT);
+      return WM_UI_HANDLER_BREAK;
+    }
+    int mx = event->xy[0];
+    int my = event->xy[1];
+    ui_window_to_block(data->region, but->block, &mx, &my);
+    float ymin = but->rect.ymin + UI_UNIT_Y * (0.75f);
+    float range = but->rect.ymax - ymin;
+
+    textbox->line_scroll_set((range - (my - ymin)) / range *
+                             (textbox->last_total_lines - textbox->visible_height));
+    ED_region_tag_redraw(data->region);
+    return WM_UI_HANDLER_BREAK;
+  }
+
   if (data->state == BUTTON_STATE_HIGHLIGHT) {
     if (ELEM(event->type, LEFTMOUSE, EVT_BUT_OPEN, EVT_PADENTER, EVT_RETKEY) &&
         event->val == KM_PRESS)

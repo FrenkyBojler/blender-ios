@@ -359,29 +359,16 @@ struct uiButGrip : public uiBut {
   int step_distance = 1;
 };
 
-struct TextboxStatus {
-  static constexpr int minimum_lines = 3;
-  std::string idname;
+/** Derived struct for #ButType::TextBox */
+struct uiButTextBox : public uiBut {
   int line_scroll = 0;
   /** Total number of wrapped lines in the last textbox redraw/event handling. */
   int last_total_lines = 0;
   int visible_height = 0;
-
-  int visible_lines_get();
-};
-
-/** Derived struct for #ButType::TextBox */
-struct uiButTextBox : public uiBut {
-  TextboxStatus *status;
-  int visible_lines();
-  int line_scroll();
-
-  void visible_lines_set(int visible_lines);
   void line_scroll_set(int line_scroll);
-  void total_lines_set(int line_scroll);
 };
 
-blender::Vector<blender::StringRef> ui_but_textbox_wrap_lines(const uiButTextBox *but, int width);
+blender::Vector<blender::StringRef> ui_but_textbox_wrap_lines( uiButTextBox *but, int width);
 
 /** Derived struct for #ButType::Num */
 struct uiButNumber : public uiBut {
@@ -617,13 +604,6 @@ struct uiBlockDynamicListener {
   void (*listener_func)(const wmRegionListenerParams *params);
 };
 
-struct TextboxStatusIdentifierGetter {
-  blender::StringRef operator()(const std::shared_ptr<TextboxStatus> &status) const
-  {
-    return status->idname;
-  }
-};
-
 enum class uiBlockAlertLevel : int8_t { None, Info, Success, Warning, Error };
 
 struct uiBlock {
@@ -647,8 +627,6 @@ struct uiBlock {
    * Others are imaginable, e.g. table-views, grid-views, etc. These are stored here to support
    * state that is persistent over redraws (e.g. collapsed tree-view items). */
   ListBase views;
-  blender::CustomIDVectorSet<std::shared_ptr<TextboxStatus>, TextboxStatusIdentifierGetter>
-      textbox_status;
 
   ListBase dynamic_listeners; /* #uiBlockDynamicListener */
 
@@ -952,7 +930,7 @@ struct uiKeyNavLock {
   blender::int2 event_xy = blender::int2(0);
 };
 
-using uiBlockHandleCreateFunc = uiBlock *(*)(bContext *C, uiPopupBlockHandle *handle, void *arg1);
+using uiBlockHandleCreateFunc = uiBlock *(*)(bContext * C, uiPopupBlockHandle *handle, void *arg1);
 
 struct uiPopupBlockCreate {
   uiBlockCreateFunc create_func = nullptr;

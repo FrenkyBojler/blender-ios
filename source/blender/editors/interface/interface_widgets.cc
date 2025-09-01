@@ -1079,8 +1079,10 @@ void UI_widgetbase_draw_cache_flush()
   if (g_widget_base_batch.count == 1) {
     /* draw single */
     GPU_batch_program_set_builtin(batch, GPU_SHADER_2D_WIDGET_BASE);
-    GPU_batch_uniform_4fv_array(
-        batch, "parameters", MAX_WIDGET_PARAMETERS, (const float(*)[4])g_widget_base_batch.params);
+    GPU_batch_uniform_4fv_array(batch,
+                                "parameters",
+                                MAX_WIDGET_PARAMETERS,
+                                (const float (*)[4])g_widget_base_batch.params);
     GPU_batch_uniform_3fv(batch, "checkerColorAndSize", checker_params);
     GPU_batch_draw(batch);
   }
@@ -1089,7 +1091,7 @@ void UI_widgetbase_draw_cache_flush()
     GPU_batch_uniform_4fv_array(batch,
                                 "parameters",
                                 MAX_WIDGET_PARAMETERS * MAX_WIDGET_BASE_BATCH,
-                                (float(*)[4])g_widget_base_batch.params);
+                                (float (*)[4])g_widget_base_batch.params);
     GPU_batch_uniform_3fv(batch, "checkerColorAndSize", checker_params);
     GPU_batch_draw_instance_range(batch, 0, g_widget_base_batch.count);
   }
@@ -1137,7 +1139,7 @@ static void draw_widgetbase_batch(uiWidgetBase *wtb)
     blender::gpu::Batch *batch = ui_batch_roundbox_widget_get();
     GPU_batch_program_set_builtin(batch, GPU_SHADER_2D_WIDGET_BASE);
     GPU_batch_uniform_4fv_array(
-        batch, "parameters", MAX_WIDGET_PARAMETERS, (float(*)[4]) & wtb->uniform_params);
+        batch, "parameters", MAX_WIDGET_PARAMETERS, (float (*)[4]) & wtb->uniform_params);
     GPU_batch_uniform_3fv(batch, "checkerColorAndSize", checker_params);
     GPU_batch_draw(batch);
   }
@@ -1997,11 +1999,10 @@ static void widget_draw_text_ime_underline(const uiFontStyle *fstyle,
 }
 #endif /* WITH_INPUT_IME */
 
-blender::Vector<blender::StringRef> ui_but_textbox_wrap_lines(const uiButTextBox *textbox,
-                                                              int width)
+blender::Vector<blender::StringRef> ui_but_textbox_wrap_lines(uiButTextBox *textbox, int width)
 {
   if (textbox->drawstr.empty() && (!textbox->editstr || textbox->editstr[0] == 0)) {
-    textbox->status->last_total_lines = 1;
+    textbox->last_total_lines = 1;
     return {textbox->editstr ? blender::StringRef(textbox->editstr) :
                                blender::StringRef(textbox->drawstr)};
   }
@@ -2022,26 +2023,30 @@ blender::Vector<blender::StringRef> ui_but_textbox_wrap_lines(const uiButTextBox
   if (lines.last().endswith(blender::StringRefNull("\0"))) {
     lines.last() = lines.last().drop_suffix(1);
   }
-  textbox->status->last_total_lines = lines.size();
+  textbox->last_total_lines = lines.size();
   return lines;
 }
-
 static void widget_draw_textbox(const uiFontStyle *fstyle,
                                 const uiWidgetColors *wcol,
                                 uiBut *but,
                                 rcti *rect)
 {
+  const rcti orig_rect = *rect;
+  const int text_padding = round_fl_to_int((UI_TEXT_MARGIN_X * U.widget_unit) /
+                                           but->block->aspect);
+  rect->xmax -= text_padding;
   BLI_assert(but->type == ButType::TextBox);
 
   uiButTextBox *textbox_but = static_cast<uiButTextBox *>(but);
-  const int visible_lines = textbox_but->visible_lines();
+  const int visible_lines = textbox_but->visible_height;
   const char *drawstr = but->drawstr.c_str();
   const blender::Vector<blender::StringRef> lines = ui_but_textbox_wrap_lines(
       textbox_but, BLI_rcti_size_x(rect));
 
   const int line_height = BLI_rcti_size_y(rect) / (visible_lines);
-
-  const int scroll = textbox_but->line_scroll();
+  textbox_but->line_scroll_set(textbox_but->line_scroll);
+  
+  const int scroll =textbox_but->line_scroll;
   const char *raw_begin = lines[0].begin();
 
   int line_cursor = 0;
@@ -2063,9 +2068,7 @@ static void widget_draw_textbox(const uiFontStyle *fstyle,
       line_select_end = i;
     }
   }
-  if (lines.size() <= visible_lines) {
-    textbox_but->block->buttons[textbox_but->block->but_index(but) + 3]->flag |= UI_HIDDEN;
-  }
+
 #ifdef WITH_INPUT_IME
   const wmIMEData *ime_data;
 #endif
@@ -2254,6 +2257,25 @@ static void widget_draw_textbox(const uiFontStyle *fstyle,
                          nullptr);
     BLI_rcti_translate(rect, 0, -line_height);
   }
+  if (lines.size() <= visible_lines) {
+    return;
+  }
+  bTheme *btheme = UI_GetTheme();
+
+  rcti scroll_rect = orig_rect;
+  BLI_rcti_pad(&scroll_rect, -2.0f / but->block->aspect, -2.0f / but->block->aspect);
+  scroll_rect.xmin = scroll_rect.xmax - text_padding;
+  scroll_rect.ymin += UI_UNIT_Y * 0.65f / but->block->aspect;
+
+  rcti slider_rect = scroll_rect;
+
+  const float factor = float(scroll_rect.ymax - scroll_rect.ymin) / float(lines.size());
+
+  slider_rect.ymax -= std::ceil(factor * textbox_but->line_scroll);
+  slider_rect.ymin = slider_rect.ymax - std::ceil(factor * visible_lines);
+
+  uiWidgetColors wscroll = btheme->tui.wcol_scroll;
+  UI_draw_widget_scroll(&wscroll, &scroll_rect, &slider_rect, 0);
 }
 
 static void widget_draw_text(const uiFontStyle *fstyle,

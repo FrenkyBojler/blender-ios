@@ -1106,6 +1106,12 @@ static bool ui_but_update_from_old_block(uiBlock *block,
 
   BLI_assert(!matched_old_buttons.contains(oldbut));
 
+  if (oldbut->type == ButType::TextBox) {
+    uiButTextBox *textbox = static_cast<uiButTextBox *>(but);
+    uiButTextBox *old_textbox = static_cast<uiButTextBox *>(oldbut);
+    textbox->line_scroll = old_textbox->line_scroll;
+    textbox->last_total_lines = old_textbox->last_total_lines;
+  }
   if (oldbut->active || oldbut->semi_modal_state) {
     /* Move button over from oldblock to new block. */
     oldbut_uptr->swap(*but_uptr);
@@ -6760,34 +6766,12 @@ void UI_but_node_link_set(uiBut *but, bNodeSocket *socket, const float draw_colo
   rgba_float_to_uchar(but->col, draw_color);
 }
 
-int TextboxStatus::visible_lines_get()
-{
-  this->visible_height = std::max<int>(this->visible_height, this->minimum_lines);
-  return this->visible_height;
-}
-
-int uiButTextBox::visible_lines()
-{
-  return this->status->visible_lines_get();
-}
-
-int uiButTextBox::line_scroll()
-{
-  return std::clamp<int>(this->status->line_scroll,
-                         0,
-                         std::max<int>(this->status->last_total_lines - this->visible_lines(), 0));
-}
-
-void uiButTextBox::visible_lines_set(int visible_lines)
-{
-  this->status->visible_height = std::max(this->status->minimum_lines, visible_lines);
-}
-
 void uiButTextBox::line_scroll_set(int line_scroll)
 {
-  this->status->line_scroll = line_scroll;
+  this->line_scroll = line_scroll;
   /* Clamp line scroll. */
-  this->status->line_scroll = this->line_scroll();
+  const int max_scroll = std::max(this->last_total_lines - this->visible_height, 0);
+  this->line_scroll = std::clamp(this->line_scroll, 0, max_scroll);
 }
 
 void UI_but_number_step_size_set(uiBut *but, float step_size)

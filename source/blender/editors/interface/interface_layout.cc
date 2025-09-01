@@ -2657,8 +2657,7 @@ static uiLayoutItemBx *ui_layout_box(uiLayout *layout, ButType type);
 void uiLayout::prop_textbox(PointerRNA *ptr,
                             blender::StringRefNull propname,
                             PointerRNA *visible_lines_ptr,
-                            blender::StringRefNull visible_lines_propname,
-                            blender::StringRefNull idname)
+                            blender::StringRefNull visible_lines_propname)
 {
   uiBlock *block = this->block();
   PropertyRNA *prop = RNA_struct_find_property_check(*ptr, propname.c_str(), PROP_STRING);
@@ -2678,27 +2677,11 @@ void uiLayout::prop_textbox(PointerRNA *ptr,
                 visible_lines_propname.c_str());
     return;
   }
-  else if (block->textbox_status.contains_as(idname)) {
-    ui_item_disabled(this, propname.c_str());
-    RNA_warning("textbox id already in use: %s", idname.c_str());
-    return;
-  }
 
   uiLayout &overlap = this->overlap();
   uiLayout &row = overlap.row(true);
   row.row(true).alignment_set(blender::ui::LayoutAlign::Expand);
 
-  if (block->oldblock && block->oldblock->textbox_status.contains_as(idname)) {
-    block->textbox_status.add(block->oldblock->textbox_status.lookup_key_as(idname));
-  }
-
-  if (!block->textbox_status.contains_as(idname)) {
-    std::unique_ptr<TextboxStatus> textbox_status = std::make_unique<TextboxStatus>();
-    textbox_status->idname = idname;
-    block->textbox_status.add(std::move(textbox_status));
-  }
-
-  TextboxStatus &textbox_status = *block->textbox_status.lookup_key_as(idname).get();
   float line_heigth = UI_UNIT_Y;
   row.row(true);
   const int visible_lines = std::max(
@@ -2719,50 +2702,26 @@ void uiLayout::prop_textbox(PointerRNA *ptr,
                               0,
                               std::nullopt);
   uiButTextBox *textbox = static_cast<uiButTextBox *>(but);
-  textbox->status = &textbox_status;
-  textbox->visible_lines_set(visible_lines);
+  textbox->visible_height = visible_lines;
   /* Clamp scroll, resizing the region could add/remove wrapped lines. */
-  textbox->line_scroll_set(textbox->line_scroll());
 
-  blender::ui::block_layout_set_current(block, &row);
+  auto &grip_row = overlap.row(true);
+  grip_row.alignment_set(blender::ui::LayoutAlign::Right);
+
+  grip_row.column(true);
   uiDefBut(block,
-           ButType::Roundbox,
+           ButType::Sepr,
            0,
            "",
            0,
            0,
-           V2D_SCROLL_WIDTH + 0.15f * UI_UNIT_X,
-           line_heigth * visible_lines,
+           0,
+           line_heigth * (float(textbox->visible_height) - 0.65f),
            nullptr,
            0.0,
            0.0,
            "");
 
-  uiLayout &sub = overlap.column(true);
-  uiDefBut(block, ButType::Sepr, 0, "", 0, 0, 0, 0.1f * UI_UNIT_Y, nullptr, 0.0, 0.0, "");
-
-  sub.row(true).alignment_set(blender::ui::LayoutAlign::Right);
-  but = uiDefButI(
-      block,
-      ButType::Scroll,
-      0,
-      "",
-      0,
-      0,
-      V2D_SCROLL_WIDTH,
-      line_heigth * (float(textbox_status.visible_lines_get()) - 0.75f),
-      &textbox_status.line_scroll,
-      0,
-      std::max<int>(textbox_status.last_total_lines - textbox_status.visible_lines_get(), 0),
-      "");
-  uiButScrollBar *but_scroll = reinterpret_cast<uiButScrollBar *>(but);
-  but_scroll->visual_height = visible_lines;
-  uiDefBut(block, ButType::Sepr, 0, "", 0, 0, 0.1f * UI_UNIT_X, 0, nullptr, 0.0, 0.0, "");
-
-  blender::ui::block_layout_set_current(block, &sub);
-  uiDefBut(block, ButType::Sepr, 0, "", 0, 0, 0, 0.05f * UI_UNIT_Y, nullptr, 0.0, 0.0, "");
-
-  sub.row(true).alignment_set(blender::ui::LayoutAlign::Right);
   RNA_int_set(visible_lines_ptr, visible_lines_propname.c_str(), visible_lines);
   but = uiDefIconButR(block,
                       ButType::Grip,
