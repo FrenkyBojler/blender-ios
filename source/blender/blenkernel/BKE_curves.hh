@@ -889,10 +889,10 @@ int calculate_evaluated_num(int points_num,
  * the value of following knot. For repeated knots, with multiplicity > 1, only the rightmost
  * is considered a breakpoint as the spans between repeated knot values are zero length!
  */
-void find_spans(const int points_num,
-                const int8_t order,
-                const bool cyclic,
-                const Span<float> knots,
+void find_spans(int points_num,
+                int8_t order,
+                bool cyclic,
+                Span<float> knots,
                 Vector<int> &r_span_indices);
 
 /**
