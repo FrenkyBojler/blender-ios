@@ -85,7 +85,7 @@ bool modifier_move_to_index(Strip *strip, StripModifierData *smd, int new_index)
 StripModifierData *modifier_get_active(const Strip *strip);
 void modifier_set_active(Strip *strip, StripModifierData *smd);
 
-#define STRIP_MODIFIER_TYPE_PANEL_PREFIX "STRIPMOD_PT_"
+static constexpr char STRIP_MODIFIER_TYPE_PANEL_PREFIX[] = "STRIPMOD_PT_";
 void modifier_type_panel_id(eStripModifierType type, char *r_idname);
 
 }  // namespace blender::seq
