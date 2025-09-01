@@ -12,6 +12,7 @@
 #include "BKE_colortools.hh"
 #include "BKE_context.hh"
 #include "BKE_curves_utils.hh"
+#include "BKE_deform.hh"
 #include "BKE_grease_pencil.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_material.hh"
@@ -25,7 +26,6 @@
 #include "BLI_math_geom.h"
 #include "BLI_math_numbers.hh"
 #include "BLI_math_vector.hh"
-#include "BLI_string_utf8.h"
 #include "BLI_vector_set.hh"
 
 #include "DNA_brush_types.h"
@@ -1525,11 +1525,7 @@ Array<PointTransferData> compute_topology_change(
   const OffsetIndices<int> dst_points_by_curve = dst.points_by_curve();
 
   /* Vertex group names. */
-  LISTBASE_FOREACH (bDeformGroup *, src_dg, &src.vertex_group_names) {
-    bDeformGroup *dst_dg = MEM_callocN<bDeformGroup>(__func__);
-    BLI_strncpy_utf8(dst_dg->name, src_dg->name, sizeof(dst_dg->name));
-    BLI_addtail(&dst.vertex_group_names, dst_dg);
-  }
+  BKE_defgroup_copy_list(&dst.vertex_group_names, &src.vertex_group_names);
 
   /* Attributes. */
   const bke::AttributeAccessor src_attributes = src.attributes();
