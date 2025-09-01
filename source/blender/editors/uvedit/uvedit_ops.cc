@@ -2179,7 +2179,7 @@ void UV_OT_faces_mirror_uv(wmOperatorType *ot)
       {0, nullptr, 0, nullptr, nullptr},
   };
 
-  ot->name = "Copy Mirrored UV Coords (NEW)";
+  ot->name = "Copy Mirrored UV Coords";
   ot->description = "Copy mirror UV coordinates on the X axis based on a mirrored mesh";
   ot->idname = "UV_OT_faces_mirror_uv";
 
