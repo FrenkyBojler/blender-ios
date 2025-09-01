@@ -352,6 +352,8 @@ class IMAGE_MT_uvs_mirror(Menu):
     def draw(self, _context):
         layout = self.layout
 
+        layout.operator("uv.faces_mirror_uv")
+        layout.separator()
         layout.operator("mesh.faces_mirror_uv")
 
         layout.separator()

@@ -118,6 +118,7 @@ void UV_OT_rip(wmOperatorType *ot);
 void UV_OT_stitch(wmOperatorType *ot);
 void UV_OT_smart_project(wmOperatorType *ot);
 
+void UV_OT_faces_mirror_uv(wmOperatorType *ot);
 /* uvedit_copy_paste.cc */
 void UV_OT_copy(wmOperatorType *ot);
 void UV_OT_paste(wmOperatorType *ot);
