@@ -38,6 +38,7 @@
     .margin_type = R_BAKE_ADJACENT_FACES, \
     .normal_space = R_BAKE_SPACE_TANGENT, \
     .normal_swizzle = {R_BAKE_POSX, R_BAKE_POSY, R_BAKE_POSZ}, \
+    .displacement_space = R_BAKE_SPACE_OBJECT, \
   }
 
 #define _DNA_DEFAULT_FFMpegCodecData \
@@ -299,11 +300,13 @@
 
 #define _DNA_DEFAULTS_UnifiedPaintSettings \
   { \
-    .size = 50, \
+    .size = 100, \
     .input_samples = 1, \
-    .unprojected_radius = 0.29, \
+    .unprojected_size = 0.58, \
     .alpha = 0.5f, \
     .weight = 0.5f, \
+    .color = {0.0f, 0.0f, 0.0f}, \
+    .secondary_color = {1.0f, 1.0f, 1.0f}, \
     .rgb = {0.0f, 0.0f, 0.0f}, \
     .secondary_rgb = {1.0f, 1.0f, 1.0f}, \
     .flag = UNIFIED_PAINT_SIZE | UNIFIED_PAINT_COLOR, \
@@ -388,6 +391,7 @@
     .snap_angle_increment_3d_precision = DEG2RADF(1.0f), \
     .snap_angle_increment_2d_precision = DEG2RADF(1.0f), \
  \
+    .snap_flag_seq = SCE_SNAP, \
     /* Weight Paint */ \
     .weightuser = OB_DRAW_GROUPUSER_ACTIVE, \
  \
