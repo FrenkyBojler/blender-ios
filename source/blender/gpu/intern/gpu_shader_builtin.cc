@@ -53,8 +53,6 @@ static const char *builtin_shader_create_info_name(eGPUBuiltinShader shader)
       return "gpu_shader_2D_image_shuffle_color";
     case GPU_SHADER_2D_IMAGE_RECT_COLOR:
       return "gpu_shader_2D_image_rect_color";
-    case GPU_SHADER_FULLSCREEN_UNIFORM_COLOR:
-      return "gpu_shader_fullscreen_uniform_color";
     case GPU_SHADER_ICON_MULTI:
       return "gpu_shader_icon_multi";
     case GPU_SHADER_3D_UNIFORM_COLOR:
@@ -274,8 +272,6 @@ void GPU_shader_builtin_warm_up()
   gpu_shader_warm_builtin_shader_async(GPU_SHADER_2D_WIDGET_SHADOW, GPU_SHADER_CFG_DEFAULT);
   gpu_shader_warm_builtin_shader_async(GPU_SHADER_2D_DIAG_STRIPES, GPU_SHADER_CFG_DEFAULT);
   gpu_shader_warm_builtin_shader_async(GPU_SHADER_2D_IMAGE_RECT_COLOR, GPU_SHADER_CFG_DEFAULT);
-  gpu_shader_warm_builtin_shader_async(GPU_SHADER_FULLSCREEN_UNIFORM_COLOR,
-                                       GPU_SHADER_CFG_DEFAULT);
   gpu_shader_warm_builtin_shader_async(GPU_SHADER_2D_AREA_BORDERS, GPU_SHADER_CFG_DEFAULT);
 }
 

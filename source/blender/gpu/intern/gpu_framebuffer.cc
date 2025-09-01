@@ -425,45 +425,7 @@ void GPU_framebuffer_clear(GPUFrameBuffer *gpu_fb,
 
 void GPU_framebuffer_clear_color(GPUFrameBuffer *fb, const float clear_col[4])
 {
-  (void*)fb; /* Quiet unused warning */
-
   GPU_framebuffer_clear(fb, GPU_COLOR_BIT, clear_col, 0.0f, 0x00);
-  
-  GPUShader *shader = GPU_shader_get_builtin_shader(GPU_SHADER_FULLSCREEN_UNIFORM_COLOR);
-
-  /* A dummy VBO containing 3 points, attributes are not used. */
-  GPUVertFormat format = {0};
-  GPU_vertformat_attr_add(&format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32_32_32);
-
-  blender::gpu::VertBuf *vbo = GPU_vertbuf_create_with_format(format);
-  GPU_vertbuf_data_alloc(*vbo, 3);
-  blender::gpu::Batch *batch = GPU_batch_create_ex(
-      GPU_PRIM_TRIS, vbo, nullptr, GPU_BATCH_OWNS_VBO);
-
-  int color_loc = GPU_shader_get_builtin_uniform(shader, GPU_UNIFORM_COLOR);
-
-  GPU_batch_set_shader(batch, shader);
-
-  GPU_shader_uniform_float_ex(
-      shader,
-      color_loc,
-      4,
-      1,
-      blender::float4{clear_col[0], clear_col[1], clear_col[2], clear_col[3]});
-
-  auto originalState = Context::get()->state_manager->state;
-
-  GPU_state_set(GPU_WRITE_COLOR,
-                GPU_BLEND_NONE,
-                GPU_CULL_BACK,
-                GPU_DEPTH_NONE,
-                GPU_STENCIL_NONE,
-                GPU_STENCIL_OP_NONE,
-                GPU_VERTEX_LAST);
-  GPU_batch_draw(batch);
-
-  Context::get()->state_manager->state = originalState;
-  GPU_VERTBUF_DISCARD_SAFE(vbo);
 }
 
 void GPU_framebuffer_clear_depth(GPUFrameBuffer *fb, float clear_depth)

@@ -76,7 +76,6 @@ set(SRC_GLSL_FRAG
   gpu_shader_simple_lighting_frag.glsl
   gpu_shader_text_frag.glsl
   gpu_shader_uniform_color_frag.glsl
-  gpu_shader_framebuffer_uniform_color_frag.glsl
 )
 
 set(SRC_GLSL_COMP

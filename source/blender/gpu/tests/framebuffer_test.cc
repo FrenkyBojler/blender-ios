@@ -18,6 +18,8 @@
 
 #include "gpu_shader_create_info.hh"
 
+#include "GPU_debug.hh"
+
 namespace blender::gpu::tests {
 
 static void test_framebuffer_clear_color_single_attachment()
@@ -154,32 +156,68 @@ GPU_TEST(framebuffer_clear_depth);
 
 static void test_framebuffer_scissor_test()
 {
+  using namespace gpu::shader;
+
   const int2 size(3, 2);
   eGPUTextureUsage usage = GPU_TEXTURE_USAGE_ATTACHMENT | GPU_TEXTURE_USAGE_HOST_READ;
   blender::gpu::Texture *texture = GPU_texture_create_2d(
       __func__, UNPACK2(size), 1, TextureFormat::SFLOAT_32_32_32_32, usage, nullptr);
+
+  ShaderCreateInfo create_info("");
+  create_info.vertex_source("gpu_framebuffer_uniform_color_test.glsl");
+  create_info.fragment_source("gpu_framebuffer_uniform_color_test.glsl");
+  create_info.push_constant(Type::float4_t, "color");
+  create_info.fragment_out(0, Type::float4_t, "fragColor0");
+
+  gpu::Shader *shader = GPU_shader_create_from_info(
+      reinterpret_cast<GPUShaderCreateInfo *>(&create_info));
+
+  int color_loc = GPU_shader_get_uniform(shader, "color");
+
+  Batch *batch = GPU_batch_create_procedural(GPU_PRIM_TRIS, 3);
+  GPU_batch_set_shader(batch, shader);
 
   GPUFrameBuffer *framebuffer = GPU_framebuffer_create(__func__);
   GPU_framebuffer_ensure_config(&framebuffer,
                                 {GPU_ATTACHMENT_NONE, GPU_ATTACHMENT_TEXTURE(texture)});
   GPU_framebuffer_bind(framebuffer);
 
+  GPU_state_set(GPU_WRITE_COLOR,
+                GPU_BLEND_NONE,
+                GPU_CULL_BACK,
+                GPU_DEPTH_NONE,
+                GPU_STENCIL_NONE,
+                GPU_STENCIL_OP_NONE,
+                GPU_VERTEX_LAST);
+
   const float4 color1(0.0f);
   const float4 color2(0.5f);
   const float4 color3(1.0f);
   const float4 color4(0.8f);
-  GPU_framebuffer_clear_color(framebuffer, color1);
+  GPU_shader_uniform_float_ex(
+      shader, color_loc, 4, 1, blender::float4{color1[0], color1[1], color1[2], color1[3]});
+  GPU_batch_draw(batch);
 
   GPU_scissor_test(true);
   GPU_scissor(0, 0, 1, 2);
-  GPU_framebuffer_clear_color(framebuffer, color2);
+  GPU_shader_uniform_float_ex(
+      shader, color_loc, 4, 1, blender::float4{color2[0], color2[1], color2[2], color2[3]});
+  GPU_batch_draw(batch);
 
   GPU_scissor(0, 0, 2, 1);
-  GPU_framebuffer_clear_color(framebuffer, color3);
+  GPU_shader_uniform_float_ex(
+      shader, color_loc, 4, 1, blender::float4{color3[0], color3[1], color3[2], color3[3]});
+  GPU_batch_draw(batch);
 
   GPU_scissor(1, 1, 2, 1);
-  GPU_framebuffer_clear_color(framebuffer, color4);
+  GPU_shader_uniform_float_ex(
+      shader, color_loc, 4, 1, blender::float4{color4[0], color4[1], color4[2], color4[3]});
+  GPU_batch_draw(batch);
+
   GPU_scissor_test(false);
+
+  GPU_batch_discard(batch);
+
   GPU_finish();
 
   float4 *read_data = static_cast<float4 *>(GPU_texture_read(texture, GPU_DATA_FLOAT, 0));
@@ -191,8 +229,11 @@ static void test_framebuffer_scissor_test()
   EXPECT_EQ(color4, read_data[5]);
   MEM_freeN(read_data);
 
+  GPU_shader_unbind();
+
   GPU_framebuffer_free(framebuffer);
   GPU_texture_free(texture);
+  GPU_shader_free(shader);
 }
 GPU_TEST(framebuffer_scissor_test);
 

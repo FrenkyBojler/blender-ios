@@ -456,7 +456,6 @@ set(GLSL_SRC
 
   shaders/gpu_shader_depth_only_frag.glsl
   shaders/gpu_shader_uniform_color_frag.glsl
-  shaders/gpu_shader_framebuffer_uniform_color_frag.glsl
   shaders/gpu_shader_checker_frag.glsl
   shaders/gpu_shader_diag_stripes_frag.glsl
   shaders/gpu_shader_simple_lighting_frag.glsl
@@ -662,6 +661,7 @@ set(GLSL_SRC_TEST
   tests/shaders/gpu_specialization_test.glsl
   tests/shaders/gpu_framebuffer_layer_viewport_test.glsl
   tests/shaders/gpu_framebuffer_subpass_input_test.glsl
+  tests/shaders/gpu_framebuffer_uniform_color_test.glsl
   tests/shaders/gpu_push_constants_test.glsl
 )
 
