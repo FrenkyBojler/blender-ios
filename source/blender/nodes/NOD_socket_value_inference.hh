@@ -167,14 +167,4 @@ inline bool shader_mix_node__is_socket_selected(const SocketInContext &socket,
   return true;
 }
 
-inline const bNodeSocket *get_first_available_bsocket(const Span<const bNodeSocket *> sockets)
-{
-  for (const bNodeSocket *socket : sockets) {
-    if (socket->is_available()) {
-      return socket;
-    }
-  }
-  return nullptr;
-}
-
 }  // namespace blender::nodes

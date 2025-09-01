@@ -503,6 +503,16 @@ struct SocketUsageInferencer {
   {
     usage_tasks_.push(socket);
   }
+
+  static const bNodeSocket *get_first_available_bsocket(const Span<const bNodeSocket *> sockets)
+  {
+    for (const bNodeSocket *socket : sockets) {
+      if (socket->is_available()) {
+        return socket;
+      }
+    }
+    return nullptr;
+  }
 };
 
 static bool input_may_affect_visibility(const bNodeTreeInterfaceSocket &socket)
