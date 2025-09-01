@@ -595,11 +595,11 @@ class SocketValueInferencerImpl {
         this->push_value_task(input_socket);
         return;
       }
-      if (input_value->is_unknown()) {
+      if (!input_value->is_single_value()) {
         all_socket_values_.add_new(socket, InferenceValue::Unknown());
         return;
       }
-      input_values[input_i] = input_value->data();
+      input_values[input_i] = input_value->get_single_value();
     }
 
     /* Get the multi-function for the node. */
@@ -730,7 +730,7 @@ class SocketValueInferencerImpl {
                                            const bNodeSocket &from_socket,
                                            const bNodeSocket &to_socket)
   {
-    if (src.is_unknown()) {
+    if (!src.is_single_value()) {
       return InferenceValue::Unknown();
     }
     const CPPType *from_type = from_socket.typeinfo->base_cpp_type;
@@ -746,7 +746,7 @@ class SocketValueInferencerImpl {
       return InferenceValue::Unknown();
     }
     void *dst = scope_.allocate_owned(*to_type);
-    conversions.convert_to_uninitialized(*from_type, *to_type, src.data(), dst);
+    conversions.convert_to_uninitialized(*from_type, *to_type, src.get_single_value(), dst);
     return InferenceValue(dst);
   }
 

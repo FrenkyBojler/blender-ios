@@ -43,8 +43,14 @@ class InferenceValue {
     return value_ == nullptr;
   }
 
-  const void *data() const
+  bool is_single_value() const
   {
+    return !this->is_unknown();
+  }
+
+  const void *get_single_value() const
+  {
+    BLI_assert(this->is_single_value());
     return value_;
   }
 
