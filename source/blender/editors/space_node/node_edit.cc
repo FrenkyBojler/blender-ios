@@ -1866,6 +1866,8 @@ static wmOperatorStatus node_deactivate_viewer_exec(bContext *C, wmOperator * /*
     if (node == active_viewer) {
       node->flag &= ~NODE_DO_OUTPUT;
       BKE_ntree_update_tag_node_property(snode.edittree, node);
+      /* At most, only one viewer is active so break early. */
+      break;
     }
   }
 
