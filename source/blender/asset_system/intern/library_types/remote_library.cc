@@ -332,14 +332,13 @@ void remote_library_request_asset_download(bContext &C,
 
   {
     std::string script =
-        // "import _bpy_internal.assets.remote_library_listing.asset_downloader as asset_dl\n"
-        // "from pathlib import Path\n"
-        // "\n"
-        // "asset_dl.download_asset(\n"
-        // "    library_url, Path(library_path),\n"
-        // "    dst_filepath, Path(dst_filepath),\n"
-        // ")\n";
-        "print('\033[38;5;214mHello World from Python!\033[0m')";
+        "import _bpy_internal.assets.remote_library_listing.asset_downloader as asset_dl\n"
+        "from pathlib import Path\n"
+        "\n"
+        "asset_dl.download_asset(\n"
+        "    library_url, Path(library_path),\n"
+        "    dst_filepath, Path(dst_filepath),\n"
+        ")\n";
 
     const StringRefNull library_path = library.root_path();
 
