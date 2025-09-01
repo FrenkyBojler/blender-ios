@@ -345,6 +345,7 @@ const bTheme U_theme_default = {
     .tab_back = RGBA(0x18181800),
     .button = RGBA(0x30303000),
     .grid = RGBA(0x54545480),
+    .axis_fade = RGBA(0x40404080),
     .wire = RGBA(0x000000ff),
     .wire_edit = RGBA(0x000000ff),
     .select = RGBA(0xed5700ff),

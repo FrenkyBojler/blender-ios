@@ -302,7 +302,7 @@ typedef struct ThemeSpace {
 
   unsigned char hilite[4];
   unsigned char grid[4];
-
+  unsigned char axis_fade[4];
   unsigned char view_overlay[4];
 
   unsigned char wire[4], wire_edit[4], select[4];
@@ -335,7 +335,6 @@ typedef struct ThemeSpace {
   unsigned char ds_ipoline[4];
   /** Keyframe border. */
   unsigned char keyborder[4], keyborder_select[4];
-  char _pad4[3];
 
   unsigned char console_output[4], console_input[4], console_info[4], console_error[4];
   unsigned char console_cursor[4], console_select[4];
@@ -343,7 +342,7 @@ typedef struct ThemeSpace {
   unsigned char vertex_size, edge_width, outline_width, obcenter_dia, facedot_size;
   unsigned char noodle_curving;
   unsigned char grid_levels;
-  char _pad5[2];
+  char _pad5[1];
   float dash_alpha;
 
   /* Syntax for text-window and nodes. */
