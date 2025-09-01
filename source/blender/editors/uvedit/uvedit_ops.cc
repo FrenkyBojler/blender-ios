@@ -62,6 +62,7 @@
 #include "UI_view2d.hh"
 
 #include "uvedit_intern.hh"
+
 using namespace blender;
 
 /* -------------------------------------------------------------------- */
@@ -1981,7 +1982,7 @@ static void UV_OT_mark_seam(wmOperatorType *ot)
   RNA_def_boolean(ot->srna, "clear", false, "Clear Seams", "Clear instead of marking seams");
 }
 
-static bool uv_mirror_uv(BMesh *bm, int direction, int precision, int *r_double_warn)
+static bool uv_copy_mirrored_faces(BMesh *bm, int direction, int precision, int *r_double_warn)
 {
   if (!CustomData_has_layer(&bm->ldata, CD_PROP_FLOAT2)) {
     return false;
@@ -2112,7 +2113,7 @@ static bool uv_mirror_uv(BMesh *bm, int direction, int precision, int *r_double_
   return true;
 }
 
-static wmOperatorStatus uv_mirror_uv_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus uv_copy_mirrored_faces_exec(bContext *C, wmOperator *op)
 {
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
@@ -2130,7 +2131,7 @@ static wmOperatorStatus uv_mirror_uv_exec(bContext *C, wmOperator *op)
 
     int double_warn = 0;
 
-    bool has_uv = uv_mirror_uv(em->bm, direction, precision, &double_warn);
+    bool has_uv = uv_copy_mirrored_faces(em->bm, direction, precision, &double_warn);
 
     if (!has_uv) {
       total_no_active_uv++;
@@ -2169,7 +2170,7 @@ static wmOperatorStatus uv_mirror_uv_exec(bContext *C, wmOperator *op)
 
   return OPERATOR_FINISHED;
 }
-void UV_OT_faces_mirror_uv(wmOperatorType *ot)
+void UV_OT_copy_mirrored_faces(wmOperatorType *ot)
 {
   static const EnumPropertyItem direction_items[] = {
       {0, "POSITIVE", 0, "Positive", ""},
@@ -2179,9 +2180,9 @@ void UV_OT_faces_mirror_uv(wmOperatorType *ot)
 
   ot->name = "Copy Mirrored UV Coords";
   ot->description = "Copy mirror UV coordinates on the X axis based on a mirrored mesh";
-  ot->idname = "UV_OT_faces_mirror_uv";
+  ot->idname = "UV_OT_copy_mirrored_faces";
 
-  ot->exec = uv_mirror_uv_exec;
+  ot->exec = uv_copy_mirrored_faces_exec;
   ot->poll = ED_operator_editmesh;
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -2257,7 +2258,7 @@ void ED_operatortypes_uvedit()
   WM_operatortype_append(UV_OT_paste);
 
   WM_operatortype_append(UV_OT_cursor_set);
-  WM_operatortype_append(UV_OT_faces_mirror_uv);
+  WM_operatortype_append(UV_OT_copy_mirrored_faces);
 }
 
 void ED_operatormacros_uvedit()
