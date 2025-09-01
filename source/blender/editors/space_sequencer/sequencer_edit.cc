@@ -1763,9 +1763,13 @@ static wmOperatorStatus sequencer_box_cut_exec(bContext *C, wmOperator *op)
           max_left_offset = std::min(max_left_offset,
                                      seq::time_left_handle_frame_get(scene, strip));
         }
-        if (seq::edit_strip_split(
-                bmain, scene, ed->current_strips(), strip, rect_frames[axis], method, &error_msg) !=
-            nullptr)
+        if (seq::edit_strip_split(bmain,
+                                  scene,
+                                  ed->current_strips(),
+                                  strip,
+                                  rect_frames[axis],
+                                  method,
+                                  &error_msg) != nullptr)
         {
           if (error_msg != nullptr) {
             BKE_report(op->reports, RPT_ERROR, error_msg);
@@ -1820,13 +1824,13 @@ static wmOperatorStatus sequencer_box_cut_exec(bContext *C, wmOperator *op)
 
           /* Move connected strip when not already moved. This is for the case then the cut only
            * happend on the channel of the strip the strips are connected to.*/
-          // blender::VectorSet<Strip *> connected_strips = seq::connected_strips_get(strip);
-          // for (Strip *c_strip : connected_strips) {
-          //   if (!translated_strips.contains(strip)) {
-          //     seq::transform_translate_strip(scene, c_strip, offset);
-          //     translated_strips.add(strip);
-          //   }
-          // }
+          blender::VectorSet<Strip *> connected_strips = seq::connected_strips_get(strip);
+          for (Strip *c_strip : connected_strips) {
+            if (!translated_strips.contains(strip)) {
+              seq::transform_translate_strip(scene, c_strip, offset);
+              translated_strips.add(strip);
+            }
+          }
         }
         translated_strips.add(strip);
       }
