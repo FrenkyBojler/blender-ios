@@ -6,11 +6,24 @@
 
 COMPUTE_SHADER_CREATE_INFO(vk_backbuffer_blit)
 
-#define M1 0.1593017578125
-#define M2 78.84375
-#define C1 0.8359375
-#define C2 18.8515625
-#define C3 18.6875
+float srgb_to_linearrgb(float c)
+{
+  if (c < 0.04045f) {
+    return (c < 0.0f) ? 0.0f : c * (1.0f / 12.92f);
+  }
+
+  return pow((c + 0.055f) * (1.0f / 1.055f), 2.4f);
+}
+
+vec3 srgb_to_linearrgb(vec3 c)
+{
+#ifdef USE_GAMMA22
+  return pow(c, vec3(2.2f));
+#else
+  return mix(
+      pow((c + vec3(0.055)) / 1.055, vec3(2.4)), c / 12.92, lessThanEqual(c, vec3(0.04045)));
+#endif
+}
 
 void main()
 {
@@ -24,14 +37,19 @@ void main()
   /*
    * Convert from extended sRGB non-linear to linear.
    *
-   * Preserves negative wide gamut values with sign/abs.
-   * Gamma 2.2 is used instead of the sRGB piecewise transfer function, because
-   * most SDR sRGB displays decode with gamma 2.2, and that's what we are trying
-   * to match.
+   * Preserves negative wide gamut values with sign/abs. May use either gamma 2.2
+   * decode to match most SDR sRGB displays, or the piecewise sRGB function to
+   * match Windows SDR applications in HDR node.
    */
-  color.rgb = sign(color.rgb) * pow(abs(color.rgb), vec3(2.2f)) * sdr_scale;
+  color.rgb = sign(color.rgb) * srgb_to_linearrgb(abs(color.rgb)) * sdr_scale;
 
 #elif defined(COLOR_SPACE_HDR10_ST2084)
+
+#  define M1 0.1593017578125
+#  define M2 78.84375
+#  define C1 0.8359375
+#  define C2 18.8515625
+#  define C3 18.6875
 
   /*
    * Convert from Rec.709 sRGB to HDR10 (BT2020) using SMPTE ST2084 PQ.
@@ -43,9 +61,7 @@ void main()
   /* Convert from Rec.709 sRGB to Rec.709 linear: sRGB EOTF from
    * https://registry.khronos.org/DataFormat/specs/1.3/dataformat.1.3.pdf#page=146 */
   vec3 color_rec709_srgb = abs(color.rgb);
-  vec3 color_rec709_linear = mix(pow((color_rec709_srgb + vec3(0.055)) / 1.055, vec3(2.4)),
-                                 color_rec709_srgb / 12.92,
-                                 lessThanEqual(color_rec709_srgb, vec3(0.04045)));
+  vec3 color_rec709_linear = srgb_to_linearrgb(color_rec709_srgb);
   color_rec709_linear = sign(color.rgb) * color_rec709_linear;
 
   /* Convert from Rec.709 linear to Rec.2020 linear. See section 14.12 from

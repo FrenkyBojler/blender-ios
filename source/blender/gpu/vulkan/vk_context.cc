@@ -85,8 +85,8 @@ void VKContext::sync_backbuffer(bool cycle_resource_pool)
       vk_extent_.height = max_uu(vk_extent_.height, 1u);
       surface_texture_ = GPU_texture_create_2d(
           "back-left",
-          swap_chain_data.extent.width,
-          swap_chain_data.extent.height,
+          vk_extent_.width,
+          vk_extent_.height,
           1,
           to_gpu_format(swap_chain_data.surface_format.format),
           GPU_TEXTURE_USAGE_ATTACHMENT | GPU_TEXTURE_USAGE_SHADER_READ,
@@ -216,7 +216,7 @@ void VKContext::memory_statistics_get(int *r_total_mem_kb, int *r_free_mem_kb)
 
 VKDescriptorPools &VKContext::descriptor_pools_get()
 {
-  return thread_data_.value().get().resource_pool_get().descriptor_pools;
+  return thread_data_.value().get().descriptor_pools;
 }
 
 VKDescriptorSetTracker &VKContext::descriptor_set_get()
