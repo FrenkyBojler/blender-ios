@@ -599,6 +599,17 @@ static void grease_pencil_weight_batch_ensure(Object &object,
       Array<float> weights_array(curves.points_num());
       array_utils::copy(weights, weights_array.as_mutable_span());
       curves.interpolate_to_evaluated(weights_array.as_span(), line_weights_slice);
+
+      /* Interpolated attributes from Catmull Rom can go outside of the original range.
+       * So clamp the weight to ensure the range. */
+      if (curves.has_curve_with_type(CURVE_TYPE_CATMULL_ROM)) {
+        for (const int point : line_weights_slice.index_range()) {
+          if (line_weights_slice[point] == no_active_weight) {
+            continue;
+          }
+          line_weights_slice[point] = math::clamp(line_weights_slice[point], 0.0f, 1.0f);
+        }
+      }
     }
 
     /* Do not show points for locked layers. */
