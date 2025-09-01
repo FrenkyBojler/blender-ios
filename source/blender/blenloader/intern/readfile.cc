@@ -788,6 +788,7 @@ const char *blo_bhead_id_name(FileData *fd, const BHead *bhead)
 
 short blo_bhead_id_flag(const FileData *fd, const BHead *bhead)
 {
+  BLI_assert(blo_bhead_is_id(bhead));
   if (fd->id_flag_offset < 0) {
     return 0;
   }
@@ -4452,7 +4453,7 @@ static Main *blo_find_main_for_library_and_idname(FileData *fd,
                                                   const char *id_name,
                                                   const bool is_packed_id)
 {
-  Library *reference_lib = nullptr;
+  Library *parent_lib = nullptr;
   char filepath_abs[FILE_MAX];
 
   STRNCPY(filepath_abs, lib_filepath);
@@ -4464,10 +4465,12 @@ static Main *blo_find_main_for_library_and_idname(FileData *fd,
                                               main_it->filepath;
 
     if (BLI_path_cmp(filepath_abs, libname) == 0) {
-      if (G.debug & G_DEBUG) {
-        CLOG_DEBUG(&LOG, "Found library %s", libname);
-      }
-      /* The first library matching a given filepath should never be an archive one. */
+      CLOG_DEBUG(&LOG,
+                 "Found library '%s' for file path '%s'",
+                 main_it->curlib ? main_it->curlib->id.name : "<None>",
+                 lib_filepath);
+      /* Due to how parent and archive libraries are created and written in the blend-file,
+       * the first library matching a given filepath should never be an archive one. */
       BLI_assert(!main_it->curlib || (main_it->curlib->flag & LIBRARY_FLAG_IS_ARCHIVE) == 0);
       if (!is_packed_id) {
         return main_it;
@@ -4475,18 +4478,18 @@ static Main *blo_find_main_for_library_and_idname(FileData *fd,
       /* For packed IDs, the Main of the main owner library is not a valid one. Another loop is
        * needed into all the Mains matching the archive libraries of this main library. */
       BLI_assert(main_it->curlib);
-      reference_lib = main_it->curlib;
+      parent_lib = main_it->curlib;
       break;
     }
   }
 
   if (is_packed_id) {
-    if (reference_lib) {
+    if (parent_lib) {
       /* Try to find an 'available' existing archive Main library, i.e. one that does not yet
        * contain an ID of the same type and name. */
       for (Main *main_it : *fd->bmain->split_mains) {
         if (!main_it->curlib || (main_it->curlib->flag & LIBRARY_FLAG_IS_ARCHIVE) == 0 ||
-            main_it->curlib->archive_parent_library != reference_lib)
+            main_it->curlib->archive_parent_library != parent_lib)
         {
           continue;
         }
@@ -4502,26 +4505,40 @@ static Main *blo_find_main_for_library_and_idname(FileData *fd,
         main_it->curlib->runtime->filedata = fd;
         main_it->curlib->runtime->is_filedata_owner = false;
         BLI_assert(main_it->versionfile != 0);
+        CLOG_DEBUG(&LOG,
+                   "Found archive library '%s' for the packed ID '%s'",
+                   main_it->curlib->id.name,
+                   id_name);
         return main_it;
       }
     }
     else {
-      /* Packed library requires an existing reference library owner, create an empty, 'virtual'
-       * one if needed. */
+      /* An archive library requires an existing parent library, create an empty, 'virtual' one if
+       * needed. */
       Main *reference_bmain = blo_add_main_for_library(
           fd, nullptr, lib_filepath, filepath_abs, false);
-      reference_lib = reference_bmain->curlib;
+      parent_lib = reference_bmain->curlib;
+      CLOG_DEBUG(&LOG,
+                 "Added new parent library '%s' for file path '%s'",
+                 parent_lib->id.name,
+                 lib_filepath);
     }
   }
-  BLI_assert(reference_lib || !is_packed_id);
+  BLI_assert(parent_lib || !is_packed_id);
 
-  Main *bmain = blo_add_main_for_library(
-      fd, reference_lib, lib_filepath, filepath_abs, is_packed_id);
+  Main *bmain = blo_add_main_for_library(fd, parent_lib, lib_filepath, filepath_abs, is_packed_id);
 
   read_file_version(fd, bmain);
 
-  if (G.debug & G_DEBUG) {
-    CLOG_DEBUG(&LOG, "Added new lib %s", lib_filepath);
+  if (is_packed_id) {
+    CLOG_DEBUG(&LOG,
+               "Added new archive library '%s' for the packed ID '%s'",
+               bmain->curlib->id.name,
+               id_name);
+  }
+  else {
+    CLOG_DEBUG(
+        &LOG, "Added new library '%s' for file path '%s'", bmain->curlib->id.name, lib_filepath);
   }
   return bmain;
 }
