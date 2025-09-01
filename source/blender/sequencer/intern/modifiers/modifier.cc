@@ -6,15 +6,9 @@
  * \ingroup bke
  */
 
-#include <algorithm>
-#include <cstddef>
-#include <cstring>
-
 #include "BLI_array.hh"
 #include "BLI_hash.hh"
 #include "BLI_listbase.h"
-#include "BLI_math_geom.h"
-#include "BLI_math_vector.hh"
 #include "BLI_rand.hh"
 #include "BLI_set.hh"
 #include "BLI_string_utf8.h"
@@ -30,8 +24,6 @@
 #include "BKE_screen.hh"
 
 #include "IMB_colormanagement.hh"
-#include "IMB_imbuf.hh"
-#include "IMB_imbuf_types.hh"
 
 #include "RNA_access.hh"
 #include "RNA_prototypes.hh"
@@ -41,7 +33,6 @@
 #include "SEQ_render.hh"
 #include "SEQ_select.hh"
 #include "SEQ_sequencer.hh"
-#include "SEQ_sound.hh"
 #include "SEQ_time.hh"
 #include "SEQ_utils.hh"
 

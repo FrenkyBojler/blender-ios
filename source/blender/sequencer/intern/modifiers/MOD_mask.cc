@@ -22,10 +22,6 @@
 
 namespace blender::seq {
 
-/* -------------------------------------------------------------------- */
-/** \name Mask Modifier
- * \{ */
-
 static float load_mask_min(const uchar *&mask)
 {
   float m = float(min_iii(mask[0], mask[1], mask[2])) * (1.0f / 255.0f);
@@ -96,8 +92,6 @@ static void maskmodifier_register(ARegionType *region_type)
 {
   modifier_panel_register(region_type, eSeqModifierType_Mask, maskmodifier_panel_draw);
 }
-
-/** \} */
 
 StripModifierTypeInfo seqModifierType_Mask = {
     /*idname*/ "Mask",

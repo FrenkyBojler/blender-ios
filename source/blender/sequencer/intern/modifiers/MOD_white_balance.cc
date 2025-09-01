@@ -21,10 +21,6 @@
 
 namespace blender::seq {
 
-/* -------------------------------------------------------------------- */
-/** \name White Balance Modifier
- * \{ */
-
 static void whiteBalance_init_data(StripModifierData *smd)
 {
   WhiteBalanceModifierData *cbmd = (WhiteBalanceModifierData *)smd;
@@ -96,8 +92,6 @@ static void whiteBalance_register(ARegionType *region_type)
 {
   modifier_panel_register(region_type, eSeqModifierType_WhiteBalance, whiteBalance_panel_draw);
 }
-
-/** \} */
 
 StripModifierTypeInfo seqModifierType_WhiteBalance = {
     /*idname*/ "WhiteBalance",

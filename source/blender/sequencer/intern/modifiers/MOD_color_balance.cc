@@ -24,10 +24,6 @@
 
 namespace blender::seq {
 
-/* -------------------------------------------------------------------- */
-/** \name Color Balance Modifier
- * \{ */
-
 /* Lift-Gamma-Gain math. NOTE: lift is actually (2-lift). */
 static float color_balance_lgg(
     float in, const float lift, const float gain, const float gamma, const float mul)
@@ -359,8 +355,6 @@ static void colorBalance_register(ARegionType *region_type)
 {
   modifier_panel_register(region_type, eSeqModifierType_ColorBalance, colorBalance_panel_draw);
 }
-
-/** \} */
 
 StripModifierTypeInfo seqModifierType_ColorBalance = {
     /*idname*/ "ColorBalance",

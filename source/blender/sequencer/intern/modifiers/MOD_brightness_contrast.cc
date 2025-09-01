@@ -25,10 +25,6 @@
 
 namespace blender::seq {
 
-/* -------------------------------------------------------------------- */
-/** \name Brightness/Contrast Modifier
- * \{ */
-
 struct BrightContrastApplyOp {
   float mul;
   float add;
@@ -103,8 +99,6 @@ static void brightcontrast_register(ARegionType *region_type)
 {
   modifier_panel_register(region_type, eSeqModifierType_BrightContrast, brightcontrast_panel_draw);
 }
-
-/** \} */
 
 StripModifierTypeInfo seqModifierType_BrightContrast = {
     /*idname*/ "BrightContrast",

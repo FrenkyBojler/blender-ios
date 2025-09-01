@@ -27,10 +27,6 @@
 
 namespace blender::seq {
 
-/* -------------------------------------------------------------------- */
-/** \name Tonemap Modifier
- * \{ */
-
 struct AvgLogLum {
   const SequencerTonemapModifierData *tmmd;
   float al;
@@ -381,8 +377,6 @@ static void tonemapmodifier_register(ARegionType *region_type)
 {
   modifier_panel_register(region_type, eSeqModifierType_Tonemap, tonemapmodifier_panel_draw);
 }
-
-/** \} */
 
 StripModifierTypeInfo seqModifierType_Tonemap = {
     /*idname*/ "Tonemap",

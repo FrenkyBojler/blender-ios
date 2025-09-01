@@ -23,10 +23,6 @@
 
 namespace blender::seq {
 
-/* -------------------------------------------------------------------- */
-/** \name Curves Modifier
- * \{ */
-
 static void curves_init_data(StripModifierData *smd)
 {
   CurvesModifierData *cmd = (CurvesModifierData *)smd;
@@ -109,8 +105,6 @@ static void curves_register(ARegionType *region_type)
 {
   modifier_panel_register(region_type, eSeqModifierType_Curves, curves_panel_draw);
 }
-
-/** \} */
 
 StripModifierTypeInfo seqModifierType_Curves = {
     /*idname*/ "Curves",

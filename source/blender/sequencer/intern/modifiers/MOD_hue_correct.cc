@@ -24,10 +24,6 @@
 
 namespace blender::seq {
 
-/* -------------------------------------------------------------------- */
-/** \name Hue Correct Modifier
- * \{ */
-
 static void hue_correct_init_data(StripModifierData *smd)
 {
   HueCorrectModifierData *hcmd = (HueCorrectModifierData *)smd;
@@ -136,8 +132,6 @@ static void hue_correct_register(ARegionType *region_type)
 {
   modifier_panel_register(region_type, eSeqModifierType_HueCorrect, hue_correct_panel_draw);
 }
-
-/** \} */
 
 StripModifierTypeInfo seqModifierType_HueCorrect = {
     /*idname*/ "HueCorrect",
