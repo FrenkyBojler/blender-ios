@@ -40,7 +40,7 @@ void main()
 
   for (int i = 0; i < CLOSURE_BIN_COUNT; i++) {
     ClosureUndetermined cl = g_closure_get_resolved(i, 1.0f);
-    if (cl.weight <= 1e-5f) {
+    if (cl.weight <= CLOSURE_WEIGHT_CUTOFF) {
       continue;
     }
     if (cl.type != CLOSURE_BSDF_TRANSLUCENT_ID &&

@@ -854,7 +854,7 @@ GBufferWriter gbuffer_pack(GBufferData data_in, float3 Ng)
   for (int i = 0; i < GBUFFER_LAYER_MAX; i++) {
     ClosureUndetermined cl = data_in.closure[i];
 
-    if (cl.weight <= 1e-5f) {
+    if (cl.weight <= CLOSURE_WEIGHT_CUTOFF) {
       gbuf.bins_len++;
       continue;
     }
