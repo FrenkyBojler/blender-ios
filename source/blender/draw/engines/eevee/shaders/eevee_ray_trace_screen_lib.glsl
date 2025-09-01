@@ -150,11 +150,12 @@ METAL_ATTR ScreenTraceHitData raytrace_screen(RayTraceData rt_data,
   time = mix(prev_time, time, saturate(prev_delta / (prev_delta - delta)));
 
   ScreenTraceHitData result;
-  result.valid = hit;
   result.ss_hit_P = ssray.origin.xyz + ssray.direction.xyz * time;
   result.v_hit_P = drw_point_screen_to_view(result.ss_hit_P);
   /* Convert to world space ray time. */
   result.time = length(result.v_hit_P - ray.origin) / length(ray.direction);
+  /* Update the validity as v_hit_P can point to a background sample. */
+  result.valid = hit && (textureLod(hiz_tx, result.ss_hit_P.xy * hiz_data.uv_scale, 0.0f).r != 1.0f);
 
 #ifdef METAL_AMD_RAYTRACE_WORKAROUND
   /* Check failed ray flag to discard bad hits. */
