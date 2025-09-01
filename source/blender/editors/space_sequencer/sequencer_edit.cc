@@ -1748,43 +1748,30 @@ static wmOperatorStatus sequencer_box_cut_exec(bContext *C, wmOperator *op)
   int2 rect_frames = {round_fl_to_int(rectf.xmin), round_fl_to_int(rectf.xmax)};
 
   bool changed = false;
-  /* slpit the split logic into two so the newly created strips can get split by the second
-   * foreach. */
+  /* Make two split logic runs so the newly created strips can get split by the second foreach
+   * run.*/
   int max_left_offset = INT_MAX;
-  LISTBASE_FOREACH_MUTABLE (Strip *, strip, ed->current_strips()) {
-    rctf rq;
-    strip_rectf(scene, strip, &rq);
-    const char *error_msg = nullptr;
-    if (BLI_rctf_isect(&rq, &rectf, nullptr)) {
-      if (max_left_offset == INT_MAX ||
-          seq::time_left_handle_frame_get(scene, strip) < max_left_offset)
-      {
-        max_left_offset = std::min(max_left_offset, seq::time_left_handle_frame_get(scene, strip));
-      }
-      if (seq::edit_strip_split(
-              bmain, scene, ed->current_strips(), strip, rect_frames[0], method, &error_msg) !=
-          nullptr)
-      {
-        if (error_msg != nullptr) {
-          BKE_report(op->reports, RPT_ERROR, error_msg);
+  for (int axis : {0, 1}) {
+    LISTBASE_FOREACH_MUTABLE (Strip *, strip, ed->current_strips()) {
+      rctf rq;
+      strip_rectf(scene, strip, &rq);
+      const char *error_msg = nullptr;
+      if (BLI_rctf_isect(&rq, &rectf, nullptr)) {
+        if (max_left_offset == INT_MAX ||
+            seq::time_left_handle_frame_get(scene, strip) < max_left_offset)
+        {
+          max_left_offset = std::min(max_left_offset,
+                                     seq::time_left_handle_frame_get(scene, strip));
         }
-        changed = true;
-      }
-    }
-  }
-  LISTBASE_FOREACH_MUTABLE (Strip *, strip, ed->current_strips()) {
-    rctf rq;
-    strip_rectf(scene, strip, &rq);
-    const char *error_msg = nullptr;
-    if (BLI_rctf_isect(&rq, &rectf, nullptr)) {
-      if (seq::edit_strip_split(
-              bmain, scene, ed->current_strips(), strip, rect_frames[1], method, &error_msg) !=
-          nullptr)
-      {
-        if (error_msg != nullptr) {
-          BKE_report(op->reports, RPT_ERROR, error_msg);
+        if (seq::edit_strip_split(
+                bmain, scene, ed->current_strips(), strip, rect_frames[axis], method, &error_msg) !=
+            nullptr)
+        {
+          if (error_msg != nullptr) {
+            BKE_report(op->reports, RPT_ERROR, error_msg);
+          }
+          changed = true;
         }
-        changed = true;
       }
     }
   }
@@ -1833,13 +1820,13 @@ static wmOperatorStatus sequencer_box_cut_exec(bContext *C, wmOperator *op)
 
           /* Move connected strip when not already moved. This is for the case then the cut only
            * happend on the channel of the strip the strips are connected to.*/
-          blender::VectorSet<Strip *> connected_strips = seq::connected_strips_get(strip);
-          for (Strip *c_strip : connected_strips) {
-            if (!translated_strips.contains(strip)) {
-              seq::transform_translate_strip(scene, c_strip, offset);
-              translated_strips.add(strip);
-            }
-          }
+          // blender::VectorSet<Strip *> connected_strips = seq::connected_strips_get(strip);
+          // for (Strip *c_strip : connected_strips) {
+          //   if (!translated_strips.contains(strip)) {
+          //     seq::transform_translate_strip(scene, c_strip, offset);
+          //     translated_strips.add(strip);
+          //   }
+          // }
         }
         translated_strips.add(strip);
       }
