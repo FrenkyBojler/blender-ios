@@ -54,18 +54,18 @@ class InferenceValue {
     return value_;
   }
 
-  template<typename T> T get_known() const
+  template<typename T> T get_single() const
   {
-    BLI_assert(!this->is_unknown());
+    BLI_assert(this->is_single_value());
     return *static_cast<const T *>(this->value_);
   }
 
-  template<typename T> std::optional<T> get() const
+  template<typename T> std::optional<T> get_if_single() const
   {
-    if (this->is_unknown()) {
+    if (!this->is_single_value()) {
       return std::nullopt;
     }
-    return this->get_known<T>();
+    return this->get_single<T>();
   }
 };
 

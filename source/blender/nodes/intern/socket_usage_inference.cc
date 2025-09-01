@@ -491,12 +491,12 @@ struct SocketUsageInferencer {
     for (const bNodeSocket *condition_input_ptr : condition_inputs) {
       const SocketInContext condition_input{dependent_socket_context, condition_input_ptr};
       const InferenceValue condition_value = this->get_socket_value(condition_input);
-      if (condition_value.is_unknown()) {
+      if (!condition_value.is_single_value()) {
         /* The condition is not known, so it may be true. */
         continue;
       }
       BLI_assert(condition_input_ptr->type == SOCK_BOOLEAN);
-      if (!condition_value.get_known<bool>()) {
+      if (!condition_value.get_single<bool>()) {
         all_condition_inputs_true = false;
         break;
       }
@@ -743,11 +743,11 @@ bool InputSocketUsageParams::menu_input_may_be(const StringRef identifier,
 {
   BLI_assert(this->node.input_by_identifier(identifier)->type == SOCK_MENU);
   const InferenceValue value = this->get_input(identifier);
-  if (value.is_unknown()) {
+  if (!value.is_single_value()) {
     /* The value is unknown, so it may be the requested enum value. */
     return true;
   }
-  return value.get_known<MenuValue>().value == enum_value;
+  return value.get_single<MenuValue>().value == enum_value;
 }
 
 }  // namespace blender::nodes::socket_usage_inference
