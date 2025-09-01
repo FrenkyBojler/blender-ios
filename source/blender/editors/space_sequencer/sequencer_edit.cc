@@ -1765,7 +1765,9 @@ static wmOperatorStatus sequencer_box_cut_exec(bContext *C, wmOperator *op)
               bmain, scene, ed->current_strips(), strip, rect_frames[0], method, &error_msg) !=
           nullptr)
       {
-        printf("edit_strip_split\n");
+        if (error_msg != nullptr) {
+          BKE_report(op->reports, RPT_ERROR, error_msg);
+        }
         changed = true;
       }
     }
@@ -1779,7 +1781,9 @@ static wmOperatorStatus sequencer_box_cut_exec(bContext *C, wmOperator *op)
               bmain, scene, ed->current_strips(), strip, rect_frames[1], method, &error_msg) !=
           nullptr)
       {
-        printf("edit_strip_split\n");
+        if (error_msg != nullptr) {
+          BKE_report(op->reports, RPT_ERROR, error_msg);
+        }
         changed = true;
       }
     }
