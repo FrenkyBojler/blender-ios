@@ -2389,14 +2389,24 @@ void OBJECT_OT_transform_axis_target(wmOperatorType *ot)
 /** \} */
 
 /* -------------------------------------------------------------------- */
-/** \name Light Elevation Azimuth Modal Operator
+/** \name Light Orbit Around Target Modal Operator
  * \{ */
 
 enum eLightAxisLock {
   LIGHT_AXIS_LOCK_NONE = 0,
-  LIGHT_AXIS_LOCK_AZIMUTH = 1,   /* X key - horizontal only */
-  LIGHT_AXIS_LOCK_ELEVATION = 2, /* Y key - vertical only */
-  LIGHT_AXIS_LOCK_DISTANCE = 3,  /* Z key - distance only */
+  LIGHT_AXIS_LOCK_AZIMUTH = 1,   /* H key - horizontal lock */
+  LIGHT_AXIS_LOCK_ELEVATION = 2, /* V key - vertical lock */
+  LIGHT_AXIS_LOCK_DISTANCE = 3,  /* Z key - distance lock */
+};
+
+enum eLightOrbitAroundTargetModal {
+  LIGHT_ORBIT_AROUND_TARGET_MODAL_CONFIRM = 1,
+  LIGHT_ORBIT_AROUND_TARGET_MODAL_CANCEL,
+  LIGHT_ORBIT_AROUND_TARGET_MODAL_AZIMUTH_LOCK,  /* H key - horizontal lock */
+  LIGHT_ORBIT_AROUND_TARGET_MODAL_ELEVATION_LOCK, /* V key - vertical lock */
+  LIGHT_ORBIT_AROUND_TARGET_MODAL_DISTANCE_LOCK,  /* Z key - distance lock */
+  LIGHT_ORBIT_AROUND_TARGET_MODAL_INVERT,         /* I key - 180° rotation around local Y */
+  LIGHT_ORBIT_AROUND_TARGET_MODAL_SYMMETRY,      /* S key - symmetry around intersection point */
 };
 
 struct LightOrbitAroundTargetData {
@@ -2440,34 +2450,6 @@ static void light_orbit_around_target_set_cursor(bContext *C, const LightOrbitAr
       WM_cursor_set(win, WM_CURSOR_NSEW_SCROLL); /* All directions for free movement */
       break;
   }
-}
-
-/* Modal operator key constants */
-enum eLightOrbitAroundTargetModal {
-  LIGHT_ORBIT_AROUND_TARGET_MODAL_CONFIRM = 1,
-  LIGHT_ORBIT_AROUND_TARGET_MODAL_CANCEL,
-  LIGHT_ORBIT_AROUND_TARGET_MODAL_AZIMUTH_LOCK,  /* H key - horizontal lock */
-  LIGHT_ORBIT_AROUND_TARGET_MODAL_ELEVATION_LOCK, /* V key - vertical lock */
-  LIGHT_ORBIT_AROUND_TARGET_MODAL_DISTANCE_LOCK,  /* Z key */
-  LIGHT_ORBIT_AROUND_TARGET_MODAL_INVERT,         /* I key - 180° rotation around local Y */
-  LIGHT_ORBIT_AROUND_TARGET_MODAL_SYMMETRY,      /* S key - symmetry around intersection point */
-};
-
-void light_orbit_around_target_modal_keymap(wmKeyConfig *keyconf)
-{
-  static const EnumPropertyItem modal_items[] = {
-    {LIGHT_ORBIT_AROUND_TARGET_MODAL_CONFIRM, "CONFIRM", 0, "Confirm", ""},
-    {LIGHT_ORBIT_AROUND_TARGET_MODAL_CANCEL, "CANCEL", 0, "Cancel", ""},
-    {LIGHT_ORBIT_AROUND_TARGET_MODAL_AZIMUTH_LOCK, "AZIMUTH_LOCK", 0, "Horizontal Lock", ""},
-    {LIGHT_ORBIT_AROUND_TARGET_MODAL_ELEVATION_LOCK, "ELEVATION_LOCK", 0, "Vertical Lock", ""},
-    {LIGHT_ORBIT_AROUND_TARGET_MODAL_DISTANCE_LOCK, "DISTANCE_LOCK", 0, "Distance Lock", ""},
-    {LIGHT_ORBIT_AROUND_TARGET_MODAL_INVERT, "INVERT", 0, "Invert Direction", ""},
-    {LIGHT_ORBIT_AROUND_TARGET_MODAL_SYMMETRY, "SYMMETRY", 0, "Symmetry", ""},
-    {0, nullptr, 0, nullptr, nullptr},
-  };
-
-  wmKeyMap *keymap = WM_modalkeymap_ensure(keyconf, "Light Orbit Around Target Modal Map", modal_items);
-  WM_modalkeymap_assign(keymap, "OBJECT_OT_light_orbit_around");
 }
 
 static void light_orbit_around_target_update_status(bContext *C, wmOperator *op, const LightOrbitAroundTargetData *lead)
@@ -2632,6 +2614,24 @@ static void light_orbit_around_target_init_data(bContext *C, wmOperator *op, con
     /* Initialize direction inversion state */
     light.direction_inverted = false;
   }
+}
+
+/* Modal keymap for customizable keybindings */
+void light_orbit_around_target_modal_keymap(wmKeyConfig *keyconf)
+{
+  static const EnumPropertyItem modal_items[] = {
+    {LIGHT_ORBIT_AROUND_TARGET_MODAL_CONFIRM, "CONFIRM", 0, "Confirm", ""},
+    {LIGHT_ORBIT_AROUND_TARGET_MODAL_CANCEL, "CANCEL", 0, "Cancel", ""},
+    {LIGHT_ORBIT_AROUND_TARGET_MODAL_AZIMUTH_LOCK, "AZIMUTH_LOCK", 0, "Horizontal Lock", ""},
+    {LIGHT_ORBIT_AROUND_TARGET_MODAL_ELEVATION_LOCK, "ELEVATION_LOCK", 0, "Vertical Lock", ""},
+    {LIGHT_ORBIT_AROUND_TARGET_MODAL_DISTANCE_LOCK, "DISTANCE_LOCK", 0, "Distance Lock", ""},
+    {LIGHT_ORBIT_AROUND_TARGET_MODAL_INVERT, "INVERT", 0, "Invert Direction", ""},
+    {LIGHT_ORBIT_AROUND_TARGET_MODAL_SYMMETRY, "SYMMETRY", 0, "Symmetry", ""},
+    {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  wmKeyMap *keymap = WM_modalkeymap_ensure(keyconf, "Light Orbit Around Target Modal Map", modal_items);
+  WM_modalkeymap_assign(keymap, "OBJECT_OT_light_orbit_around");
 }
 
 static void light_orbit_around_target_cancel(bContext *C, wmOperator *op)
