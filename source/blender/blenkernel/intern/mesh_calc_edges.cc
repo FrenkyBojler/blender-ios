@@ -405,7 +405,7 @@ void mesh_calc_edges(Mesh &mesh,
       const IndexRange new_map_edges = IndexRange::from_begin_size(
           all_map_edges.start() - original_map_edges.start(),
           all_map_edges.size() - original_map_edges.size());
-      new_edge_verts.slice(new_map_edges).copy_from(edge_maps[map_i].as_span().cast<int2>());
+      new_edge_verts.slice(new_map_edges).copy_from(edge_maps[map_i].as_span().cast<int2>().take_back(new_map_edges.size()));
     }
   }
   else {
@@ -463,9 +463,10 @@ void mesh_calc_edges(Mesh &mesh,
 
   Mesh *edge_buffer_mesh = mesh_new_no_attributes(0, 0, 0, 0);
   CustomData_free(&edge_buffer_mesh->edge_data);
+  CustomData_reset(&edge_buffer_mesh->edge_data);
+  edge_buffer_mesh->edges_num = mesh.edges_num;
   CustomData_init_from(
       &mesh.edge_data, &edge_buffer_mesh->edge_data, CD_MASK_MESH.emask, mesh.edges_num);
-  edge_buffer_mesh->edges_num = mesh.edges_num;
 
   CustomData_free(&mesh.edge_data);
   CustomData_reset(&mesh.edge_data);
@@ -474,10 +475,12 @@ void mesh_calc_edges(Mesh &mesh,
   const AttributeAccessor src_attributes = edge_buffer_mesh->attributes();
 
   BLI_assert(src_to_dst_mask.size() + mask_new_edges.size() == new_edges_num);
+  BLI_assert(mask_new_edges.one_after_last() == new_edges_num);
 
   /* Static storage to extend life-time of strings for reference filter. */
-  static const Set<std::string> skip = {".edge_verts", ".select_edge"};
+  constexpr std::array<StringRef, 2> skip = {".edge_verts", ".select_edge"};
   const auto edge_attribute_filer = bke::attribute_filter_with_skip_ref(attribute_filter, skip);
+
   scatter_attributes(src_attributes,
                      AttrDomain::Edge,
                      AttrDomain::Edge,
@@ -485,10 +488,10 @@ void mesh_calc_edges(Mesh &mesh,
                      src_to_dst_mask,
                      dst_attributes);
 
-  BKE_id_free(nullptr, edge_buffer_mesh);
-
   fill_attribute_range_default(
       dst_attributes, AttrDomain::Edge, edge_attribute_filer, mask_new_edges);
+
+  BKE_id_free(nullptr, edge_buffer_mesh);
 
   dst_attributes.add<int2>(
       ".edge_verts", AttrDomain::Edge, AttributeInitMoveArray(edge_verts.data()));
