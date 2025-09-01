@@ -2396,9 +2396,10 @@ enum eLightAxisLock {
   LIGHT_AXIS_LOCK_NONE = 0,
   LIGHT_AXIS_LOCK_AZIMUTH = 1,   /* X key - horizontal only */
   LIGHT_AXIS_LOCK_ELEVATION = 2, /* Y key - vertical only */
+  LIGHT_AXIS_LOCK_DISTANCE = 3,  /* Z key - distance only */
 };
 
-struct LightElevationAzimuthData {
+struct LightOrbitAroundTargetData {
   ViewContext vc;
   float init_mval[2];
   float current_mval[2]; /* Current mouse position when switching modes */
@@ -2415,11 +2416,12 @@ struct LightElevationAzimuthData {
     float current_azimuth;   /* Current azimuth in spherical coordinates */
     float current_elevation; /* Current elevation in spherical coordinates */
     float current_distance;  /* Current distance from center */
+    bool direction_inverted; /* Whether light direction is inverted */
   };
   blender::Vector<LightData> lights;
 };
 
-static void light_elevation_azimuth_set_cursor(bContext *C, const LightElevationAzimuthData *lead)
+static void light_orbit_around_target_set_cursor(bContext *C, const LightOrbitAroundTargetData *lead)
 {
   wmWindow *win = CTX_wm_window(C);
   
@@ -2430,6 +2432,9 @@ static void light_elevation_azimuth_set_cursor(bContext *C, const LightElevation
     case LIGHT_AXIS_LOCK_ELEVATION:
       WM_cursor_set(win, WM_CURSOR_NS_ARROW); /* North-South arrow for elevation */
       break;
+    case LIGHT_AXIS_LOCK_DISTANCE:
+      WM_cursor_set(win, WM_CURSOR_NS_ARROW); /* North-South arrow for distance */
+      break;
     case LIGHT_AXIS_LOCK_NONE:
     default:
       WM_cursor_set(win, WM_CURSOR_NSEW_SCROLL); /* All directions for free movement */
@@ -2438,27 +2443,61 @@ static void light_elevation_azimuth_set_cursor(bContext *C, const LightElevation
 }
 
 /* Modal operator key constants */
-enum eLightElevationAzimuthModal {
-  LIGHT_ELEVATION_AZIMUTH_MODAL_CONFIRM = 1,
-  LIGHT_ELEVATION_AZIMUTH_MODAL_CANCEL,
-  LIGHT_ELEVATION_AZIMUTH_MODAL_AZIMUTH_LOCK,  /* X key */
-  LIGHT_ELEVATION_AZIMUTH_MODAL_ELEVATION_LOCK, /* Y key */
+enum eLightOrbitAroundTargetModal {
+  LIGHT_ORBIT_AROUND_TARGET_MODAL_CONFIRM = 1,
+  LIGHT_ORBIT_AROUND_TARGET_MODAL_CANCEL,
+  LIGHT_ORBIT_AROUND_TARGET_MODAL_AZIMUTH_LOCK,  /* H key - horizontal lock */
+  LIGHT_ORBIT_AROUND_TARGET_MODAL_ELEVATION_LOCK, /* V key - vertical lock */
+  LIGHT_ORBIT_AROUND_TARGET_MODAL_DISTANCE_LOCK,  /* Z key */
+  LIGHT_ORBIT_AROUND_TARGET_MODAL_INVERT,         /* I key - 180° rotation around local Y */
+  LIGHT_ORBIT_AROUND_TARGET_MODAL_SYMMETRY,      /* S key - symmetry around intersection point */
 };
 
-static void light_elevation_azimuth_update_status(bContext *C, wmOperator *op, const LightElevationAzimuthData *lead)
+void light_orbit_around_target_modal_keymap(wmKeyConfig *keyconf)
 {
-  WorkspaceStatus status(C);
+  static const EnumPropertyItem modal_items[] = {
+    {LIGHT_ORBIT_AROUND_TARGET_MODAL_CONFIRM, "CONFIRM", 0, "Confirm", ""},
+    {LIGHT_ORBIT_AROUND_TARGET_MODAL_CANCEL, "CANCEL", 0, "Cancel", ""},
+    {LIGHT_ORBIT_AROUND_TARGET_MODAL_AZIMUTH_LOCK, "AZIMUTH_LOCK", 0, "Horizontal Lock", ""},
+    {LIGHT_ORBIT_AROUND_TARGET_MODAL_ELEVATION_LOCK, "ELEVATION_LOCK", 0, "Vertical Lock", ""},
+    {LIGHT_ORBIT_AROUND_TARGET_MODAL_DISTANCE_LOCK, "DISTANCE_LOCK", 0, "Distance Lock", ""},
+    {LIGHT_ORBIT_AROUND_TARGET_MODAL_INVERT, "INVERT", 0, "Invert Direction", ""},
+    {LIGHT_ORBIT_AROUND_TARGET_MODAL_SYMMETRY, "SYMMETRY", 0, "Symmetry", ""},
+    {0, nullptr, 0, nullptr, nullptr},
+  };
 
-  status.item(IFACE_("Cancel"), ICON_MOUSE_RMB);
-  status.item(IFACE_("Confirm"), ICON_MOUSE_LMB);
-
-  status.item_bool(IFACE_("Azimuth Lock"), lead->axis_lock == LIGHT_AXIS_LOCK_AZIMUTH, ICON_EVENT_X);
-  status.item_bool(IFACE_("Elevation Lock"), lead->axis_lock == LIGHT_AXIS_LOCK_ELEVATION, ICON_EVENT_Y);
+  wmKeyMap *keymap = WM_modalkeymap_ensure(keyconf, "Light Orbit Around Target Modal Map", modal_items);
+  WM_modalkeymap_assign(keymap, "OBJECT_OT_light_orbit_around");
 }
 
-static void light_elevation_azimuth_init_data(bContext *C, wmOperator *op, const wmEvent *event)
+static void light_orbit_around_target_update_status(bContext *C, wmOperator *op, const LightOrbitAroundTargetData *lead)
 {
-  LightElevationAzimuthData *lead = MEM_new<LightElevationAzimuthData>(__func__);
+  WorkspaceStatus status(C);
+  status.opmodal(IFACE_("Cancel"), op->type, LIGHT_ORBIT_AROUND_TARGET_MODAL_CANCEL);
+  status.opmodal(IFACE_("Confirm"), op->type, LIGHT_ORBIT_AROUND_TARGET_MODAL_CONFIRM);
+
+  status.opmodal(IFACE_("Horizontal Lock"), op->type, LIGHT_ORBIT_AROUND_TARGET_MODAL_AZIMUTH_LOCK,
+                 lead->axis_lock == LIGHT_AXIS_LOCK_AZIMUTH);
+  status.opmodal(IFACE_("Vertical Lock"), op->type, LIGHT_ORBIT_AROUND_TARGET_MODAL_ELEVATION_LOCK,
+                 lead->axis_lock == LIGHT_AXIS_LOCK_ELEVATION);
+  status.opmodal(IFACE_("Distance Lock"), op->type, LIGHT_ORBIT_AROUND_TARGET_MODAL_DISTANCE_LOCK,
+                 lead->axis_lock == LIGHT_AXIS_LOCK_DISTANCE);
+
+  /* Show direction inversion state for symmetry */
+  bool any_inverted = false;
+  for (const LightOrbitAroundTargetData::LightData &light : lead->lights) {
+    if (light.direction_inverted) {
+      any_inverted = true;
+      break;
+    }
+  }
+  status.opmodal(IFACE_("Symmetry"), op->type, LIGHT_ORBIT_AROUND_TARGET_MODAL_SYMMETRY, any_inverted);
+  status.opmodal(IFACE_("Invert Direction"), op->type, LIGHT_ORBIT_AROUND_TARGET_MODAL_INVERT);
+}
+
+static void light_orbit_around_target_init_data(bContext *C, wmOperator *op, const wmEvent *event)
+{
+  LightOrbitAroundTargetData *lead = MEM_new<LightOrbitAroundTargetData>(__func__);
   op->customdata = lead;
 
   /* Init context. */
@@ -2473,10 +2512,10 @@ static void light_elevation_azimuth_init_data(bContext *C, wmOperator *op, const
   lead->axis_lock = LIGHT_AXIS_LOCK_NONE;
   
   /* Set initial cursor */
-  light_elevation_azimuth_set_cursor(C, lead);
+  light_orbit_around_target_set_cursor(C, lead);
   
   /* Set initial status text */
-  light_elevation_azimuth_update_status(C, op, lead);
+  light_orbit_around_target_update_status(C, op, lead);
   
   /* Get selected light objects */
   const Scene *scene = CTX_data_scene(C);
@@ -2485,7 +2524,7 @@ static void light_elevation_azimuth_init_data(bContext *C, wmOperator *op, const
   
   CTX_DATA_BEGIN (C, Object *, ob, selected_editable_objects) {
     if (ob->type == OB_LAMP) {
-      LightElevationAzimuthData::LightData light_data;
+      LightOrbitAroundTargetData::LightData light_data;
       light_data.ob = ob;
       copy_v3_v3(light_data.orig_loc, ob->loc);
       if (ob->rotmode == ROT_MODE_QUAT) {
@@ -2556,7 +2595,7 @@ static void light_elevation_azimuth_init_data(bContext *C, wmOperator *op, const
       /* Calculate average distance from lights to hit point */
       if (!lead->lights.is_empty()) {
         float total_distance = 0.0f;
-        for (const LightElevationAzimuthData::LightData &light : lead->lights) {
+        for (const LightOrbitAroundTargetData::LightData &light : lead->lights) {
           total_distance += len_v3v3(light.ob->loc, hit_co);
         }
         lead->distance = total_distance / lead->lights.size();
@@ -2573,7 +2612,7 @@ static void light_elevation_azimuth_init_data(bContext *C, wmOperator *op, const
   }
   
   /* Initialize current spherical coordinates for each light */
-  for (LightElevationAzimuthData::LightData &light : lead->lights) {
+  for (LightOrbitAroundTargetData::LightData &light : lead->lights) {
     /* Calculate direction from center to light position */
     float dir[3];
     sub_v3_v3v3(dir, light.orig_loc, lead->center);
@@ -2589,15 +2628,18 @@ static void light_elevation_azimuth_init_data(bContext *C, wmOperator *op, const
       light.current_azimuth = atan2f(dir[0], dir[1]);
       light.current_elevation = asinf(dir[2]);
     }
+    
+    /* Initialize direction inversion state */
+    light.direction_inverted = false;
   }
 }
 
-static void light_elevation_azimuth_cancel(bContext *C, wmOperator *op)
+static void light_orbit_around_target_cancel(bContext *C, wmOperator *op)
 {
-  LightElevationAzimuthData *lead = static_cast<LightElevationAzimuthData *>(op->customdata);
+  LightOrbitAroundTargetData *lead = static_cast<LightOrbitAroundTargetData *>(op->customdata);
   
   /* Restore original positions/rotations */
-  for (const LightElevationAzimuthData::LightData &light : lead->lights) {
+  for (const LightOrbitAroundTargetData::LightData &light : lead->lights) {
     copy_v3_v3(light.ob->loc, light.orig_loc);
     if (light.ob->rotmode == ROT_MODE_QUAT) {
       eul_to_quat(light.ob->quat, light.orig_rot);
@@ -2615,14 +2657,14 @@ static void light_elevation_azimuth_cancel(bContext *C, wmOperator *op)
   ED_workspace_status_text(C, nullptr);
 }
 
-static wmOperatorStatus light_elevation_azimuth_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus light_orbit_around_target_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   if (CTX_data_edit_object(C)) {
     return OPERATOR_CANCELLED;
   }
   
-  light_elevation_azimuth_init_data(C, op, event);
-  LightElevationAzimuthData *lead = static_cast<LightElevationAzimuthData *>(op->customdata);
+  light_orbit_around_target_init_data(C, op, event);
+  LightOrbitAroundTargetData *lead = static_cast<LightOrbitAroundTargetData *>(op->customdata);
   
   if (lead->lights.is_empty()) {
 
@@ -2634,9 +2676,9 @@ static wmOperatorStatus light_elevation_azimuth_invoke(bContext *C, wmOperator *
   return OPERATOR_RUNNING_MODAL;
 }
 
-static wmOperatorStatus light_elevation_azimuth_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus light_orbit_around_target_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  LightElevationAzimuthData *lead = static_cast<LightElevationAzimuthData *>(op->customdata);
+  LightOrbitAroundTargetData *lead = static_cast<LightOrbitAroundTargetData *>(op->customdata);
   
   if (event->type == MOUSEMOVE) {
     if (lead->has_center) {
@@ -2654,21 +2696,58 @@ static wmOperatorStatus light_elevation_azimuth_modal(bContext *C, wmOperator *o
       else if (lead->axis_lock == LIGHT_AXIS_LOCK_ELEVATION) {
         azimuth_delta = 0.0f; /* Lock azimuth, only allow elevation */
       }
+      else if (lead->axis_lock == LIGHT_AXIS_LOCK_DISTANCE) {
+        azimuth_delta = 0.0f;   /* Lock azimuth, only allow distance */
+        elevation_delta = 0.0f; /* Lock elevation, only allow distance */
+      }
       
-      for (LightElevationAzimuthData::LightData &light : lead->lights) {
-        /* Update current spherical coordinates incrementally */
-        light.current_azimuth += azimuth_delta;
-        light.current_elevation += elevation_delta;
-        light.current_elevation = clamp_f(light.current_elevation, -M_PI_2 + 0.001f, M_PI_2 - 0.001f);
-        
-        /* Convert current spherical coordinates back to cartesian */
-        float new_dir[3];
-        new_dir[0] = cosf(light.current_elevation) * sinf(light.current_azimuth);
-        new_dir[1] = cosf(light.current_elevation) * cosf(light.current_azimuth);
-        new_dir[2] = sinf(light.current_elevation);
-        
-        /* Set new position using current distance */
-        madd_v3_v3v3fl(light.ob->loc, lead->center, new_dir, light.current_distance);
+      for (LightOrbitAroundTargetData::LightData &light : lead->lights) {
+        if (lead->axis_lock == LIGHT_AXIS_LOCK_DISTANCE) {
+          /* Distance mode: only change distance, keep direction */
+          float distance_delta = delta_y * 0.1f; /* Vertical mouse movement controls distance */
+          light.current_distance += distance_delta;
+          /* Allow negative distances for traversing intersection point */
+          
+          /* Convert current spherical coordinates back to cartesian */
+          float new_dir[3];
+          new_dir[0] = cosf(light.current_elevation) * sinf(light.current_azimuth);
+          new_dir[1] = cosf(light.current_elevation) * cosf(light.current_azimuth);
+          new_dir[2] = sinf(light.current_elevation);
+          
+          /* Handle automatic direction inversion for negative distances */
+          float actual_distance = light.current_distance;
+          bool should_invert = (actual_distance < 0.0f);
+          if (should_invert) {
+            actual_distance = -actual_distance; /* Use positive distance for positioning */
+            negate_v3(new_dir); /* Invert direction vector */
+          }
+          
+          /* Set new position using updated distance and direction */
+          madd_v3_v3v3fl(light.ob->loc, lead->center, new_dir, actual_distance);
+        }
+        else {
+          /* Normal mode: update azimuth and elevation */
+          light.current_azimuth += azimuth_delta;
+          light.current_elevation += elevation_delta;
+          light.current_elevation = clamp_f(light.current_elevation, -M_PI_2 + 0.001f, M_PI_2 - 0.001f);
+          
+          /* Convert current spherical coordinates back to cartesian */
+          float new_dir[3];
+          new_dir[0] = cosf(light.current_elevation) * sinf(light.current_azimuth);
+          new_dir[1] = cosf(light.current_elevation) * cosf(light.current_azimuth);
+          new_dir[2] = sinf(light.current_elevation);
+          
+          /* Handle negative distances with automatic direction inversion */
+          float actual_distance = light.current_distance;
+          bool should_invert = (actual_distance < 0.0f);
+          if (should_invert) {
+            actual_distance = -actual_distance; /* Use positive distance for positioning */
+            negate_v3(new_dir); /* Invert direction vector */
+          }
+          
+          /* Set new position using current distance and direction */
+          madd_v3_v3v3fl(light.ob->loc, lead->center, new_dir, actual_distance);
+        }
         
         /* Update rotation to point at center */
         float target_dir[3];
@@ -2711,93 +2790,201 @@ static wmOperatorStatus light_elevation_azimuth_modal(bContext *C, wmOperator *o
     }
   }
   
-  bool is_finished = false;
-  
-  if (ISMOUSE_BUTTON(lead->init_event)) {
-    if ((event->type == lead->init_event) && (event->val == KM_RELEASE)) {
-      is_finished = true;
-    }
-  }
-  else {
-    if (ELEM(event->type, LEFTMOUSE, EVT_RETKEY, EVT_PADENTER)) {
-      is_finished = true;
-    }
-  }
-  
-  if (is_finished) {
-    Scene *scene = CTX_data_scene(C);
-    for (const LightElevationAzimuthData::LightData &light : lead->lights) {
-      PointerRNA ptr = RNA_pointer_create_discrete(&light.ob->id, &RNA_Object, &light.ob->id);
-      
-      /* Location */
-      PropertyRNA *prop_loc = RNA_struct_find_property(&ptr, "location");
-      animrig::autokeyframe_property(C, scene, &ptr, prop_loc, -1, scene->r.cfra, true);
-      
-      /* Rotation */
-      const char *rotation_property = "rotation_euler";
-      if (light.ob->rotmode == ROT_MODE_QUAT) {
-        rotation_property = "rotation_quaternion";
-      }
-      PropertyRNA *prop_rot = RNA_struct_find_property(&ptr, rotation_property);
-      animrig::autokeyframe_property(C, scene, &ptr, prop_rot, -1, scene->r.cfra, true);
-    }
-    
-    /* Restore default cursor */
-    WM_cursor_set(CTX_wm_window(C), WM_CURSOR_DEFAULT);
+  /* Handle modal keymap events */
+  if (event->type == EVT_MODAL_MAP) {
+    switch (event->val) {
+      case LIGHT_ORBIT_AROUND_TARGET_MODAL_CONFIRM: {
+        /* Confirm and finish */
+        Scene *scene = CTX_data_scene(C);
+        for (const LightOrbitAroundTargetData::LightData &light : lead->lights) {
+          PointerRNA ptr = RNA_pointer_create_discrete(&light.ob->id, &RNA_Object, &light.ob->id);
+          
+          /* Location */
+          PropertyRNA *prop_loc = RNA_struct_find_property(&ptr, "location");
+          animrig::autokeyframe_property(C, scene, &ptr, prop_loc, -1, scene->r.cfra, true);
+          
+          /* Rotation */
+          const char *rotation_property = "rotation_euler";
+          if (light.ob->rotmode == ROT_MODE_QUAT) {
+            rotation_property = "rotation_quaternion";
+          }
+          PropertyRNA *prop_rot = RNA_struct_find_property(&ptr, rotation_property);
+          animrig::autokeyframe_property(C, scene, &ptr, prop_rot, -1, scene->r.cfra, true);
+        }
+        
+        /* Restore default cursor */
+        WM_cursor_set(CTX_wm_window(C), WM_CURSOR_DEFAULT);
 
-    ED_workspace_status_text(C, nullptr);
-    return OPERATOR_FINISHED;
-  }
-  
-  if (ELEM(event->type, EVT_ESCKEY, RIGHTMOUSE)) {
-    light_elevation_azimuth_cancel(C, op);
-    ED_workspace_status_text(C, nullptr);
-    return OPERATOR_CANCELLED;
-  }
-  
-  /* Handle axis locking keys */
-  if (event->type == EVT_XKEY && event->val == KM_PRESS) {
-    /* Toggle azimuth lock (horizontal movement only) */
-    if (lead->axis_lock == LIGHT_AXIS_LOCK_AZIMUTH) {
-      lead->axis_lock = LIGHT_AXIS_LOCK_NONE; /* Turn off lock */
+        ED_workspace_status_text(C, nullptr);
+        return OPERATOR_FINISHED;
+      }
+        
+      case LIGHT_ORBIT_AROUND_TARGET_MODAL_CANCEL:
+        light_orbit_around_target_cancel(C, op);
+        ED_workspace_status_text(C, nullptr);
+        return OPERATOR_CANCELLED;
+      
+      case LIGHT_ORBIT_AROUND_TARGET_MODAL_AZIMUTH_LOCK: {
+        /* Toggle azimuth lock (horizontal movement only) */
+        if (lead->axis_lock == LIGHT_AXIS_LOCK_AZIMUTH) {
+          lead->axis_lock = LIGHT_AXIS_LOCK_NONE; /* Turn off lock */
+        }
+        else {
+          lead->axis_lock = LIGHT_AXIS_LOCK_AZIMUTH; /* Lock to azimuth only */
+        }
+        /* Update reference point to current mouse position */
+        lead->current_mval[0] = float(event->mval[0]);
+        lead->current_mval[1] = float(event->mval[1]);
+        /* Set appropriate cursor */
+        light_orbit_around_target_set_cursor(C, lead);
+        /* Update status text */
+        light_orbit_around_target_update_status(C, op, lead);
+        ED_region_tag_redraw(lead->vc.region);
+        return OPERATOR_RUNNING_MODAL;
+      }
+      
+      case LIGHT_ORBIT_AROUND_TARGET_MODAL_ELEVATION_LOCK: {
+        /* Toggle elevation lock (vertical movement only) */
+        if (lead->axis_lock == LIGHT_AXIS_LOCK_ELEVATION) {
+          lead->axis_lock = LIGHT_AXIS_LOCK_NONE; /* Turn off lock */
+        }
+        else {
+          lead->axis_lock = LIGHT_AXIS_LOCK_ELEVATION; /* Lock to elevation only */
+        }
+        /* Update reference point to current mouse position */
+        lead->current_mval[0] = float(event->mval[0]);
+        lead->current_mval[1] = float(event->mval[1]);
+        /* Set appropriate cursor */
+        light_orbit_around_target_set_cursor(C, lead);
+        /* Update status text */
+        light_orbit_around_target_update_status(C, op, lead);
+        ED_region_tag_redraw(lead->vc.region);
+        return OPERATOR_RUNNING_MODAL;
+      }
+      
+      case LIGHT_ORBIT_AROUND_TARGET_MODAL_DISTANCE_LOCK: {
+        /* Toggle distance lock (distance movement only) */
+        if (lead->axis_lock == LIGHT_AXIS_LOCK_DISTANCE) {
+          lead->axis_lock = LIGHT_AXIS_LOCK_NONE; /* Turn off lock */
+        }
+        else {
+          lead->axis_lock = LIGHT_AXIS_LOCK_DISTANCE; /* Lock to distance only */
+        }
+        /* Update reference point to current mouse position */
+        lead->current_mval[0] = float(event->mval[0]);
+        lead->current_mval[1] = float(event->mval[1]);
+        /* Set appropriate cursor */
+        light_orbit_around_target_set_cursor(C, lead);
+        /* Update status text */
+        light_orbit_around_target_update_status(C, op, lead);
+        ED_region_tag_redraw(lead->vc.region);
+        return OPERATOR_RUNNING_MODAL;
+      }
+      
+      case LIGHT_ORBIT_AROUND_TARGET_MODAL_INVERT: {
+        /* Invert light direction by rotating 180° around local Y axis */
+        for (LightOrbitAroundTargetData::LightData &light : lead->lights) {
+          /* Get current rotation matrix */
+          float current_rot_mat[3][3];
+          if (light.ob->rotmode == ROT_MODE_QUAT) {
+            quat_to_mat3(current_rot_mat, light.ob->quat);
+          } else {
+            eul_to_mat3(current_rot_mat, light.ob->rot);
+          }
+          
+          /* Create 180° rotation around Y axis */
+          float y_rot_180[3][3];
+          unit_m3(y_rot_180);
+          y_rot_180[0][0] = -1.0f; /* Flip X */
+          y_rot_180[2][2] = -1.0f; /* Flip Z */
+          /* Y stays the same */
+          
+          /* Apply the rotation */
+          float new_rot_mat[3][3];
+          mul_m3_m3m3(new_rot_mat, current_rot_mat, y_rot_180);
+          
+          /* Convert back to light's rotation mode */
+          if (light.ob->rotmode == ROT_MODE_QUAT) {
+            mat3_to_quat(light.ob->quat, new_rot_mat);
+          } else {
+            mat3_to_eul(light.ob->rot, new_rot_mat);
+          }
+          
+          DEG_id_tag_update(&light.ob->id, ID_RECALC_TRANSFORM);
+          WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, light.ob);
+        }
+        
+        ED_region_tag_redraw(lead->vc.region);
+        return OPERATOR_RUNNING_MODAL;
+      }
+      
+      case LIGHT_ORBIT_AROUND_TARGET_MODAL_SYMMETRY: {
+        /* Symmetry around intersection point */
+        for (LightOrbitAroundTargetData::LightData &light : lead->lights) {
+          light.direction_inverted = !light.direction_inverted;
+          
+          /* Apply symmetry by flipping the spherical coordinates */
+          light.current_azimuth += M_PI; /* Rotate 180 degrees in azimuth */
+          light.current_elevation = -light.current_elevation; /* Flip elevation */
+          
+          /* Normalize azimuth to [-PI, PI] range */
+          if (light.current_azimuth > M_PI) {
+            light.current_azimuth -= 2.0f * M_PI;
+          }
+          else if (light.current_azimuth < -M_PI) {
+            light.current_azimuth += 2.0f * M_PI;
+          }
+          
+          /* Recalculate position and orientation */
+          float new_dir[3];
+          new_dir[0] = cosf(light.current_elevation) * sinf(light.current_azimuth);
+          new_dir[1] = cosf(light.current_elevation) * cosf(light.current_azimuth);
+          new_dir[2] = sinf(light.current_elevation);
+          
+          /* Set new position using current distance */
+          float actual_distance = fabsf(light.current_distance);
+          madd_v3_v3v3fl(light.ob->loc, lead->center, new_dir, actual_distance);
+          
+          /* Update light orientation to point toward center */
+          float target_dir[3];
+          negate_v3_v3(target_dir, new_dir);
+          
+          float euler[3];
+          float up[3] = {0.0f, 0.0f, 1.0f};
+          float right[3];
+          cross_v3_v3v3(right, target_dir, up);
+          normalize_v3(right);
+          cross_v3_v3v3(up, right, target_dir);
+          
+          float rot_mat[3][3];
+          copy_v3_v3(rot_mat[0], right);
+          copy_v3_v3(rot_mat[1], up);
+          negate_v3_v3(rot_mat[2], target_dir);
+          
+          mat3_to_eul(euler, rot_mat);
+          
+          if (light.ob->rotmode == ROT_MODE_QUAT) {
+            eul_to_quat(light.ob->quat, euler);
+          } else {
+            copy_v3_v3(light.ob->rot, euler);
+          }
+          
+          DEG_id_tag_update(&light.ob->id, ID_RECALC_TRANSFORM);
+          WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, light.ob);
+        }
+        
+        /* Update status text */
+        light_orbit_around_target_update_status(C, op, lead);
+        ED_region_tag_redraw(lead->vc.region);
+        return OPERATOR_RUNNING_MODAL;
+      }
     }
-    else {
-      lead->axis_lock = LIGHT_AXIS_LOCK_AZIMUTH; /* Lock to azimuth only */
-    }
-    /* Update reference point to current mouse position */
-    lead->current_mval[0] = float(event->mval[0]);
-    lead->current_mval[1] = float(event->mval[1]);
-    /* Set appropriate cursor */
-    light_elevation_azimuth_set_cursor(C, lead);
-    /* Update status text */
-    light_elevation_azimuth_update_status(C, op, lead);
-    ED_region_tag_redraw(lead->vc.region);
-    return OPERATOR_RUNNING_MODAL;
-  }
-  
-  if (event->type == EVT_YKEY && event->val == KM_PRESS) {
-    /* Toggle elevation lock (vertical movement only) */
-    if (lead->axis_lock == LIGHT_AXIS_LOCK_ELEVATION) {
-      lead->axis_lock = LIGHT_AXIS_LOCK_NONE; /* Turn off lock */
-    }
-    else {
-      lead->axis_lock = LIGHT_AXIS_LOCK_ELEVATION; /* Lock to elevation only */
-    }
-    /* Update reference point to current mouse position */
-    lead->current_mval[0] = float(event->mval[0]);
-    lead->current_mval[1] = float(event->mval[1]);
-    /* Set appropriate cursor */
-    light_elevation_azimuth_set_cursor(C, lead);
-    /* Update status text */
-    light_elevation_azimuth_update_status(C, op, lead);
-    ED_region_tag_redraw(lead->vc.region);
-    return OPERATOR_RUNNING_MODAL;
   }
   
   return OPERATOR_RUNNING_MODAL;
 }
 
-static bool light_elevation_azimuth_poll(bContext *C)
+static bool light_orbit_around_target_poll(bContext *C)
 {
   if (!ED_operator_region_view3d_active(C)) {
     return false;
@@ -2814,34 +3001,18 @@ static bool light_elevation_azimuth_poll(bContext *C)
   return false;
 }
 
-wmKeyMap *light_elevation_azimuth_modal_keymap(wmKeyConfig *keyconf)
-{
-  static const EnumPropertyItem modal_items[] = {
-      {LIGHT_ELEVATION_AZIMUTH_MODAL_CONFIRM, "CONFIRM", 0, "Confirm", ""},
-      {LIGHT_ELEVATION_AZIMUTH_MODAL_CANCEL, "CANCEL", 0, "Cancel", ""},
-      {LIGHT_ELEVATION_AZIMUTH_MODAL_AZIMUTH_LOCK, "AZIMUTH_LOCK", 0, "Azimuth Lock", ""},
-      {LIGHT_ELEVATION_AZIMUTH_MODAL_ELEVATION_LOCK, "ELEVATION_LOCK", 0, "Elevation Lock", ""},
-      {0, nullptr, 0, nullptr, nullptr},
-  };
-
-  wmKeyMap *keymap = WM_modalkeymap_ensure(keyconf, "Light Elevation Azimuth Modal Map", modal_items);
-  WM_modalkeymap_assign(keymap, "OBJECT_OT_light_elevation_azimuth");
-
-  return keymap;
-}
-
-void OBJECT_OT_light_elevation_azimuth(wmOperatorType *ot)
+void OBJECT_OT_light_orbit_around_target(wmOperatorType *ot)
 {
   /* identifiers */
-  ot->name = "Light Elevation Azimuth";
-  ot->description = "Interactively position lights using elevation and azimuth around the point where the light hits geometry";
-  ot->idname = "OBJECT_OT_light_elevation_azimuth";
+  ot->name = "Light Orbit Around Target";
+  ot->description = "Interactively position lights using elevation(vertical) and azimuth(horizontal) around the point where the light hits geometry";
+  ot->idname = "OBJECT_OT_light_orbit_around";
   
   /* API callbacks. */
-  ot->invoke = light_elevation_azimuth_invoke;
-  ot->cancel = light_elevation_azimuth_cancel;
-  ot->modal = light_elevation_azimuth_modal;
-  ot->poll = light_elevation_azimuth_poll;
+  ot->invoke = light_orbit_around_target_invoke;
+  ot->cancel = light_orbit_around_target_cancel;
+  ot->modal = light_orbit_around_target_modal;
+  ot->poll = light_orbit_around_target_poll;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_BLOCKING;

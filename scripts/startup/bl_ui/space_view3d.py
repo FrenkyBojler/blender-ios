@@ -3063,7 +3063,7 @@ class VIEW3D_MT_object_context_menu(Menu):
 
             layout.separator()
             
-            layout.operator("object.light_elevation_azimuth", text="Light Elevation Azimuth")
+            layout.operator("object.light_orbit_around", text="Light Orbit Around Target")
 
             layout.separator()
 

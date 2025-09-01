@@ -6332,6 +6332,7 @@ def km_view3d_fly_modal(_params):
         ("CANCEL", {"type": 'ESC', "value": 'PRESS', "any": True}, None),
         ("CONFIRM", {"type": 'LEFTMOUSE', "value": 'ANY', "any": True}, None),
         ("CONFIRM", {"type": 'RET', "value": 'PRESS', "any": True}, None),
+        ("CONFIRM", {"type": 'NUMPAD_ENTER', "value": 'PRESS', "any": True}, None),
         ("CONFIRM", {"type": 'SPACE', "value": 'PRESS', "any": True}, None),
         ("CONFIRM", {"type": 'NUMPAD_ENTER', "value": 'PRESS', "any": True}, None),
         ("ACCELERATE", {"type": 'NUMPAD_PLUS', "value": 'PRESS', "any": True, "repeat": True}, None),
@@ -6367,6 +6368,30 @@ def km_view3d_fly_modal(_params):
         ("FREELOOK_DISABLE", {"type": 'LEFT_CTRL', "value": 'RELEASE', "any": True}, None),
         ("FREELOOK_ENABLE", {"type": 'RIGHT_CTRL', "value": 'PRESS', "any": True}, None),
         ("FREELOOK_DISABLE", {"type": 'RIGHT_CTRL', "value": 'RELEASE', "any": True}, None),
+    ])
+
+    return keymap
+
+
+def km_light_orbit_around_target_modal(_params):
+    items = []
+    keymap = (
+        "Light Orbit Around Target Modal Map",
+        {"space_type": 'EMPTY', "region_type": 'WINDOW', "modal": True},
+        {"items": items},
+    )
+
+    items.extend([
+        ("CANCEL", {"type": 'RIGHTMOUSE', "value": 'ANY', "any": True}, None),
+        ("CANCEL", {"type": 'ESC', "value": 'PRESS', "any": True}, None),
+        ("CONFIRM", {"type": 'LEFTMOUSE', "value": 'ANY', "any": True}, None),
+        ("CONFIRM", {"type": 'RET', "value": 'PRESS', "any": True}, None),
+        ("CONFIRM", {"type": 'NUMPAD_ENTER', "value": 'PRESS', "any": True}, None),
+        ("AZIMUTH_LOCK", {"type": 'H', "value": 'PRESS'}, None),
+        ("ELEVATION_LOCK", {"type": 'V', "value": 'PRESS'}, None),
+        ("DISTANCE_LOCK", {"type": 'Z', "value": 'PRESS'}, None),
+        ("INVERT", {"type": 'I', "value": 'PRESS'}, None),
+        ("SYMMETRY", {"type": 'S', "value": 'PRESS'}, None),
     ])
 
     return keymap
@@ -8714,6 +8739,7 @@ def generate_keymaps(params=None):
         km_custom_normals_modal_map(params),
         km_bevel_modal_map(params),
         km_view3d_fly_modal(params),
+        km_light_orbit_around_target_modal(params),
         km_view3d_walk_modal(params),
         km_view3d_rotate_modal(params),
         km_view3d_move_modal(params),

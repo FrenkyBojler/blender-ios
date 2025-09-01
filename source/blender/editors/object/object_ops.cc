@@ -36,7 +36,7 @@ void operatortypes_object()
   WM_operatortype_append(OBJECT_OT_transform_apply);
   WM_operatortype_append(OBJECT_OT_parent_inverse_apply);
   WM_operatortype_append(OBJECT_OT_transform_axis_target);
-  WM_operatortype_append(OBJECT_OT_light_elevation_azimuth);
+  WM_operatortype_append(OBJECT_OT_light_orbit_around_target);
   WM_operatortype_append(OBJECT_OT_origin_set);
 
   WM_operatortype_append(OBJECT_OT_mode_set);
@@ -341,6 +341,9 @@ void keymap_object(wmKeyConfig *keyconf)
   /* NOTE: this keymap gets disabled in non-object-mode. */
   keymap = WM_keymap_ensure(keyconf, "Object Mode", SPACE_EMPTY, RGN_TYPE_WINDOW);
   keymap->poll = object_mode_poll;
+  
+  /* Modal keymaps */
+  light_orbit_around_target_modal_keymap(keyconf);
 }
 
 }  // namespace blender::ed::object
