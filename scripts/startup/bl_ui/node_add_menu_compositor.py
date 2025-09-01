@@ -9,7 +9,7 @@ from bpy.app.translations import (
 )
 
 
-class NODE_MT_compositor_node_input_base(Menu):
+class NODE_MT_compositor_node_input_base(node_add_menu.NodeMenu):
     bl_label = "Input"
 
     def draw(self, context):
@@ -32,7 +32,7 @@ class NODE_MT_compositor_node_input_base(Menu):
             node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
 
 
-class NODE_MT_compositor_node_input_constant_base(Menu):
+class NODE_MT_compositor_node_input_constant_base(node_add_menu.NodeMenu):
     bl_label = "Constant"
     menu_path = "Input/Constant"
 
@@ -46,7 +46,7 @@ class NODE_MT_compositor_node_input_constant_base(Menu):
             node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
 
 
-class NODE_MT_compositor_node_input_scene_base(Menu):
+class NODE_MT_compositor_node_input_scene_base(node_add_menu.NodeMenu):
     bl_label = "Scene"
     menu_path = "Input/Scene"
 
@@ -60,7 +60,7 @@ class NODE_MT_compositor_node_input_scene_base(Menu):
             node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
 
 
-class NODE_MT_compositor_node_output_base(Menu):
+class NODE_MT_compositor_node_output_base(node_add_menu.NodeMenu):
     bl_label = "Output"
 
     def draw(self, context):
@@ -75,7 +75,7 @@ class NODE_MT_compositor_node_output_base(Menu):
             node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
 
 
-class NODE_MT_compositor_node_color_base(Menu):
+class NODE_MT_compositor_node_color_base(node_add_menu.NodeMenu):
     bl_label = "Color"
 
     def draw(self, _context):
@@ -97,7 +97,7 @@ class NODE_MT_compositor_node_color_base(Menu):
             node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
 
 
-class NODE_MT_compositor_node_color_adjust_base(Menu):
+class NODE_MT_compositor_node_color_adjust_base(node_add_menu.NodeMenu):
     bl_label = "Adjust"
     menu_path = "Color/Adjust"
 
@@ -117,7 +117,7 @@ class NODE_MT_compositor_node_color_adjust_base(Menu):
             node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
 
 
-class NODE_MT_compositor_node_color_mix_base(Menu):
+class NODE_MT_compositor_node_color_mix_base(node_add_menu.NodeMenu):
     bl_label = "Mix"
     menu_path = "Color/Mix"
 
@@ -134,7 +134,7 @@ class NODE_MT_compositor_node_color_mix_base(Menu):
             node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
 
 
-class NODE_MT_compositor_node_filter_base(Menu):
+class NODE_MT_compositor_node_filter_base(node_add_menu.NodeMenu):
     bl_label = "Filter"
 
     def draw(self, context):
@@ -163,7 +163,7 @@ class NODE_MT_compositor_node_filter_base(Menu):
             node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
 
 
-class NODE_MT_compositor_node_filter_blur_base(Menu):
+class NODE_MT_compositor_node_filter_blur_base(node_add_menu.NodeMenu):
     bl_label = "Blur"
     menu_path = "Filter/Blur"
 
@@ -180,7 +180,7 @@ class NODE_MT_compositor_node_filter_blur_base(Menu):
             node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
 
 
-class NODE_MT_compositor_node_keying_base(Menu):
+class NODE_MT_compositor_node_keying_base(node_add_menu.NodeMenu):
     bl_label = "Keying"
 
     def draw(self, _context):
@@ -199,7 +199,7 @@ class NODE_MT_compositor_node_keying_base(Menu):
             node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
 
 
-class NODE_MT_compositor_node_mask_base(Menu):
+class NODE_MT_compositor_node_mask_base(node_add_menu.NodeMenu):
     bl_label = "Mask"
 
     def draw(self, _context):
@@ -217,7 +217,7 @@ class NODE_MT_compositor_node_mask_base(Menu):
             node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
 
 
-class NODE_MT_compositor_node_tracking_base(Menu):
+class NODE_MT_compositor_node_tracking_base(node_add_menu.NodeMenu):
     bl_label = "Tracking"
     bl_translation_context = i18n_contexts.id_movieclip
 
@@ -231,7 +231,7 @@ class NODE_MT_compositor_node_tracking_base(Menu):
             node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
 
 
-class NODE_MT_compositor_node_transform_base(Menu):
+class NODE_MT_compositor_node_transform_base(node_add_menu.NodeMenu):
     bl_label = "Transform"
 
     def draw(self, _context):
@@ -255,7 +255,7 @@ class NODE_MT_compositor_node_transform_base(Menu):
             node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
 
 
-class NODE_MT_compositor_node_texture_base(Menu):
+class NODE_MT_compositor_node_texture_base(node_add_menu.NodeMenu):
     bl_label = "Texture"
 
     def draw(self, _context):
@@ -275,7 +275,7 @@ class NODE_MT_compositor_node_texture_base(Menu):
             node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
 
 
-class NODE_MT_compositor_node_utilities_base(Menu):
+class NODE_MT_compositor_node_utilities_base(node_add_menu.NodeMenu):
     bl_label = "Utilities"
 
     def draw(self, context):
@@ -302,7 +302,7 @@ class NODE_MT_compositor_node_utilities_base(Menu):
             node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
 
 
-class NODE_MT_compositor_node_vector_base(Menu):
+class NODE_MT_compositor_node_vector_base(node_add_menu.NodeMenu):
     bl_label = "Vector"
 
     def draw(self, context):
@@ -344,7 +344,7 @@ add_menus = {
 add_menus = node_add_menu.generate_menus(add_menus, template=node_add_menu.AddNodeMenu)
 
 
-class NODE_MT_compositor_node_add_all(Menu):
+class NODE_MT_compositor_node_add_all(node_add_menu.NodeMenu):
     bl_label = ""
 
     def draw(self, context):
@@ -393,7 +393,7 @@ swap_menus = {
 swap_menus = node_add_menu.generate_menus(swap_menus, template=node_add_menu.SwapNodeMenu)
 
 
-class NODE_MT_compositor_node_swap_all(Menu):
+class NODE_MT_compositor_node_swap_all(node_add_menu.NodeMenu):
     bl_label = ""
 
     def draw(self, context):

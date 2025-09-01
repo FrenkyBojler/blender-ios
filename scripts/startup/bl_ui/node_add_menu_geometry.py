@@ -10,7 +10,7 @@ from bpy.app.translations import (
 )
 
 
-class NODE_MT_gn_attribute_base(Menu):
+class NODE_MT_gn_attribute_base(node_add_menu.NodeMenu):
     bl_label = "Attribute"
 
     def draw(self, _context):
@@ -26,7 +26,7 @@ class NODE_MT_gn_attribute_base(Menu):
             node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
 
 
-class NODE_MT_gn_utilities_color_base(Menu):
+class NODE_MT_gn_utilities_color_base(node_add_menu.NodeMenu):
     bl_label = "Color"
     menu_path = "Utilities/Color"
 
@@ -44,7 +44,7 @@ class NODE_MT_gn_utilities_color_base(Menu):
             node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
 
 
-class NODE_MT_gn_curve_base(Menu):
+class NODE_MT_gn_curve_base(node_add_menu.NodeMenu):
     bl_label = "Curve"
 
     def draw(self, _context):
@@ -60,7 +60,7 @@ class NODE_MT_gn_curve_base(Menu):
             node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
 
 
-class NODE_MT_gn_curve_read_base(Menu):
+class NODE_MT_gn_curve_read_base(node_add_menu.NodeMenu):
     bl_label = "Read"
     menu_path = "Curve/Read"
 
@@ -80,7 +80,7 @@ class NODE_MT_gn_curve_read_base(Menu):
             node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
 
 
-class NODE_MT_gn_curve_sample_base(Menu):
+class NODE_MT_gn_curve_sample_base(node_add_menu.NodeMenu):
     bl_label = "Sample"
     menu_path = "Curve/Sample"
 
@@ -91,7 +91,7 @@ class NODE_MT_gn_curve_sample_base(Menu):
             node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
 
 
-class NODE_MT_gn_curve_write_base(Menu):
+class NODE_MT_gn_curve_write_base(node_add_menu.NodeMenu):
     bl_label = "Write"
     menu_path = "Curve/Write"
 
@@ -109,7 +109,7 @@ class NODE_MT_gn_curve_write_base(Menu):
             node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
 
 
-class NODE_MT_gn_curve_operations_base(Menu):
+class NODE_MT_gn_curve_operations_base(node_add_menu.NodeMenu):
     bl_label = "Operations"
     menu_path = "Curve/Operations"
 
@@ -130,7 +130,7 @@ class NODE_MT_gn_curve_operations_base(Menu):
             node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
 
 
-class NODE_MT_gn_curve_primitives_base(Menu):
+class NODE_MT_gn_curve_primitives_base(node_add_menu.NodeMenu):
     bl_label = "Primitives"
     menu_path = "Curve/Primitives"
 
@@ -149,7 +149,7 @@ class NODE_MT_gn_curve_primitives_base(Menu):
             node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
 
 
-class NODE_MT_gn_curve_topology_base(Menu):
+class NODE_MT_gn_curve_topology_base(node_add_menu.NodeMenu):
     bl_label = "Topology"
     menu_path = "Curve/Topology"
 
@@ -163,7 +163,7 @@ class NODE_MT_gn_curve_topology_base(Menu):
             node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
 
 
-class NODE_MT_gn_grease_pencil_read_base(Menu):
+class NODE_MT_gn_grease_pencil_read_base(node_add_menu.NodeMenu):
     bl_label = "Read"
     menu_path = "Grease Pencil/Read"
 
@@ -174,7 +174,7 @@ class NODE_MT_gn_grease_pencil_read_base(Menu):
             node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
 
 
-class NODE_MT_gn_grease_pencil_write_base(Menu):
+class NODE_MT_gn_grease_pencil_write_base(node_add_menu.NodeMenu):
     bl_label = "Write"
     menu_path = "Grease Pencil/Write"
 
@@ -188,7 +188,7 @@ class NODE_MT_gn_grease_pencil_write_base(Menu):
             node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
 
 
-class NODE_MT_gn_grease_pencil_operations_base(Menu):
+class NODE_MT_gn_grease_pencil_operations_base(node_add_menu.NodeMenu):
     bl_label = "Operations"
     menu_path = "Grease Pencil/Operations"
 
@@ -201,7 +201,7 @@ class NODE_MT_gn_grease_pencil_operations_base(Menu):
             node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
 
 
-class NODE_MT_gn_grease_pencil_base(Menu):
+class NODE_MT_gn_grease_pencil_base(node_add_menu.NodeMenu):
     bl_label = "Grease Pencil"
 
     def draw(self, _context):
@@ -214,7 +214,7 @@ class NODE_MT_gn_grease_pencil_base(Menu):
             node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
 
 
-class NODE_MT_gn_geometry_base(Menu):
+class NODE_MT_gn_geometry_base(node_add_menu.NodeMenu):
     bl_label = "Geometry"
 
     def draw(self, _context):
@@ -231,7 +231,7 @@ class NODE_MT_gn_geometry_base(Menu):
             node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
 
 
-class NODE_MT_gn_geometry_read_base(Menu):
+class NODE_MT_gn_geometry_read_base(node_add_menu.NodeMenu):
     bl_label = "Read"
     menu_path = "Geometry/Read"
 
@@ -251,7 +251,7 @@ class NODE_MT_gn_geometry_read_base(Menu):
             node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
 
 
-class NODE_MT_gn_geometry_write_base(Menu):
+class NODE_MT_gn_geometry_write_base(node_add_menu.NodeMenu):
     bl_label = "Write"
     menu_path = "Geometry/Write"
 
@@ -267,7 +267,7 @@ class NODE_MT_gn_geometry_write_base(Menu):
             node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
 
 
-class NODE_MT_gn_geometry_operations_base(Menu):
+class NODE_MT_gn_geometry_operations_base(node_add_menu.NodeMenu):
     bl_label = "Operations"
     menu_path = "Geometry/Operations"
 
@@ -290,7 +290,7 @@ class NODE_MT_gn_geometry_operations_base(Menu):
             node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
 
 
-class NODE_MT_gn_geometry_sample_base(Menu):
+class NODE_MT_gn_geometry_sample_base(node_add_menu.NodeMenu):
     bl_label = "Sample"
     menu_path = "Geometry/Sample"
 
@@ -306,7 +306,7 @@ class NODE_MT_gn_geometry_sample_base(Menu):
             node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
 
 
-class NODE_MT_gn_input_base(Menu):
+class NODE_MT_gn_input_base(node_add_menu.NodeMenu):
     bl_label = "Input"
 
     def draw(self, context):
@@ -321,7 +321,7 @@ class NODE_MT_gn_input_base(Menu):
             node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
 
 
-class NODE_MT_gn_input_constant_base(Menu):
+class NODE_MT_gn_input_constant_base(node_add_menu.NodeMenu):
     bl_label = "Constant"
     bl_translation_context = i18n_contexts.id_nodetree
     menu_path = "Input/Constant"
@@ -344,7 +344,7 @@ class NODE_MT_gn_input_constant_base(Menu):
             node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
 
 
-class NODE_MT_gn_input_group_base(Menu):
+class NODE_MT_gn_input_group_base(node_add_menu.NodeMenu):
     bl_label = "Group"
     menu_path = "Input/Group"
 
@@ -356,7 +356,7 @@ class NODE_MT_gn_input_group_base(Menu):
             node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
 
 
-class NODE_MT_gn_input_scene_base(Menu):
+class NODE_MT_gn_input_scene_base(node_add_menu.NodeMenu):
     bl_label = "Scene"
     menu_path = "Input/Scene"
 
@@ -402,7 +402,7 @@ class NODE_MT_gn_input_scene_base(Menu):
             node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
 
 
-class NODE_MT_gn_input_gizmo_base(Menu):
+class NODE_MT_gn_input_gizmo_base(node_add_menu.NodeMenu):
     bl_label = "Gizmo"
     menu_path = "Input/Gizmo"
 
@@ -416,7 +416,7 @@ class NODE_MT_gn_input_gizmo_base(Menu):
             node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
 
 
-class NODE_MT_gn_instance_base(Menu):
+class NODE_MT_gn_instance_base(node_add_menu.NodeMenu):
     bl_label = "Instances"
 
     def draw(self, _context):
@@ -438,7 +438,7 @@ class NODE_MT_gn_instance_base(Menu):
             node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
 
 
-class NODE_MT_gn_material_base(Menu):
+class NODE_MT_gn_material_base(node_add_menu.NodeMenu):
     bl_label = "Material"
 
     def draw(self, _context):
@@ -454,7 +454,7 @@ class NODE_MT_gn_material_base(Menu):
             node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
 
 
-class NODE_MT_gn_mesh_base(Menu):
+class NODE_MT_gn_mesh_base(node_add_menu.NodeMenu):
     bl_label = "Mesh"
 
     def draw(self, _context):
@@ -471,7 +471,7 @@ class NODE_MT_gn_mesh_base(Menu):
             node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
 
 
-class NODE_MT_gn_mesh_read_base(Menu):
+class NODE_MT_gn_mesh_read_base(node_add_menu.NodeMenu):
     bl_label = "Read"
     menu_path = "Mesh/Read"
 
@@ -497,7 +497,7 @@ class NODE_MT_gn_mesh_read_base(Menu):
             node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
 
 
-class NODE_MT_gn_mesh_sample_base(Menu):
+class NODE_MT_gn_mesh_sample_base(node_add_menu.NodeMenu):
     bl_label = "Sample"
     menu_path = "Mesh/Sample"
 
@@ -510,7 +510,7 @@ class NODE_MT_gn_mesh_sample_base(Menu):
             node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
 
 
-class NODE_MT_gn_mesh_write_base(Menu):
+class NODE_MT_gn_mesh_write_base(node_add_menu.NodeMenu):
     bl_label = "Write"
     menu_path = "Mesh/Write"
 
@@ -525,7 +525,7 @@ class NODE_MT_gn_mesh_write_base(Menu):
             node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
 
 
-class NODE_MT_gn_mesh_operations_base(Menu):
+class NODE_MT_gn_mesh_operations_base(node_add_menu.NodeMenu):
     bl_label = "Operations"
     menu_path = "Mesh/Operations"
 
@@ -554,7 +554,7 @@ class NODE_MT_gn_mesh_operations_base(Menu):
             node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
 
 
-class NODE_MT_gn_mesh_primitives_base(Menu):
+class NODE_MT_gn_mesh_primitives_base(node_add_menu.NodeMenu):
     bl_label = "Primitives"
     menu_path = "Mesh/Primitives"
 
@@ -573,7 +573,7 @@ class NODE_MT_gn_mesh_primitives_base(Menu):
             node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
 
 
-class NODE_MT_gn_input_import_base(Menu):
+class NODE_MT_gn_input_import_base(node_add_menu.NodeMenu):
     bl_label = "Import"
     menu_path = "Input/Import"
 
@@ -590,7 +590,7 @@ class NODE_MT_gn_input_import_base(Menu):
             node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
 
 
-class NODE_MT_gn_mesh_topology_base(Menu):
+class NODE_MT_gn_mesh_topology_base(node_add_menu.NodeMenu):
     bl_label = "Topology"
     menu_path = "Mesh/Topology"
 
@@ -609,7 +609,7 @@ class NODE_MT_gn_mesh_topology_base(Menu):
             node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
 
 
-class NODE_MT_gn_output_base(Menu):
+class NODE_MT_gn_output_base(node_add_menu.NodeMenu):
     bl_label = "Output"
 
     def draw(self, context):
@@ -621,7 +621,7 @@ class NODE_MT_gn_output_base(Menu):
             node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
 
 
-class NODE_MT_gn_point_base(Menu):
+class NODE_MT_gn_point_base(node_add_menu.NodeMenu):
     bl_label = "Point"
 
     def draw(self, context):
@@ -643,7 +643,7 @@ class NODE_MT_gn_point_base(Menu):
             node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
 
 
-class NODE_MT_gn_simulation_base(Menu):
+class NODE_MT_gn_simulation_base(node_add_menu.NodeMenu):
     bl_label = "Simulation"
 
     def draw(self, _context):
@@ -653,7 +653,7 @@ class NODE_MT_gn_simulation_base(Menu):
             node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
 
 
-class NODE_MT_gn_utilities_text_base(Menu):
+class NODE_MT_gn_utilities_text_base(node_add_menu.NodeMenu):
     bl_label = "Text"
     menu_path = "Utilities/Text"
 
@@ -676,7 +676,7 @@ class NODE_MT_gn_utilities_text_base(Menu):
             node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
 
 
-class NODE_MT_gn_texture_base(Menu):
+class NODE_MT_gn_texture_base(node_add_menu.NodeMenu):
     bl_label = "Texture"
 
     def draw(self, _context):
@@ -695,7 +695,7 @@ class NODE_MT_gn_texture_base(Menu):
             node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
 
 
-class NODE_MT_gn_utilities_base(Menu):
+class NODE_MT_gn_utilities_base(node_add_menu.NodeMenu):
     bl_label = "Utilities"
 
     def draw(self, context):
@@ -724,7 +724,7 @@ class NODE_MT_gn_utilities_base(Menu):
             node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
 
 
-class NODE_MT_gn_utilities_deprecated_base(Menu):
+class NODE_MT_gn_utilities_deprecated_base(node_add_menu.NodeMenu):
     bl_label = "Deprecated"
     menu_path = "Utilities/Deprecated"
 
@@ -737,7 +737,7 @@ class NODE_MT_gn_utilities_deprecated_base(Menu):
             node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
 
 
-class NODE_MT_gn_utilities_field_base(Menu):
+class NODE_MT_gn_utilities_field_base(node_add_menu.NodeMenu):
     bl_label = "Field"
     menu_path = "Utilities/Field"
 
@@ -754,7 +754,7 @@ class NODE_MT_gn_utilities_field_base(Menu):
             node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
 
 
-class NODE_MT_gn_utilities_rotation_base(Menu):
+class NODE_MT_gn_utilities_rotation_base(node_add_menu.NodeMenu):
     bl_label = "Rotation"
     menu_path = "Utilities/Rotation"
 
@@ -776,7 +776,7 @@ class NODE_MT_gn_utilities_rotation_base(Menu):
             node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
 
 
-class NODE_MT_gn_utilities_matrix_base(Menu):
+class NODE_MT_gn_utilities_matrix_base(node_add_menu.NodeMenu):
     bl_label = "Matrix"
     menu_path = "Utilities/Matrix"
 
@@ -798,7 +798,7 @@ class NODE_MT_gn_utilities_matrix_base(Menu):
             node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
 
 
-class NODE_MT_category_utilities_bundle_base(Menu):
+class NODE_MT_category_utilities_bundle_base(node_add_menu.NodeMenu):
     bl_label = "Bundle"
     menu_path = "Utilities/Bundle"
 
@@ -811,7 +811,7 @@ class NODE_MT_category_utilities_bundle_base(Menu):
             node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
 
 
-class NODE_MT_category_utilities_closure_base(Menu):
+class NODE_MT_category_utilities_closure_base(node_add_menu.NodeMenu):
     bl_label = "Closure"
     menu_path = "Utilities/Closure"
 
@@ -824,7 +824,7 @@ class NODE_MT_category_utilities_closure_base(Menu):
             node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
 
 
-class NODE_MT_gn_utilities_list_base(Menu):
+class NODE_MT_gn_utilities_list_base(node_add_menu.NodeMenu):
     bl_label = "List"
     menu_path = "Utilities/List"
 
@@ -838,7 +838,7 @@ class NODE_MT_gn_utilities_list_base(Menu):
             node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
 
 
-class NODE_MT_gn_utilities_math_base(Menu):
+class NODE_MT_gn_utilities_math_base(node_add_menu.NodeMenu):
     bl_label = "Math"
     menu_path = "Utilities/Math"
 
@@ -862,7 +862,7 @@ class NODE_MT_gn_utilities_math_base(Menu):
             node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
 
 
-class NODE_MT_gn_mesh_uv_base(Menu):
+class NODE_MT_gn_mesh_uv_base(node_add_menu.NodeMenu):
     bl_label = "UV"
     menu_path = "Mesh/UV"
 
@@ -875,7 +875,7 @@ class NODE_MT_gn_mesh_uv_base(Menu):
             node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
 
 
-class NODE_MT_gn_utilities_vector_base(Menu):
+class NODE_MT_gn_utilities_vector_base(node_add_menu.NodeMenu):
     bl_label = "Vector"
     menu_path = "Utilities/Vector"
 
@@ -896,7 +896,7 @@ class NODE_MT_gn_utilities_vector_base(Menu):
             node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
 
 
-class NODE_MT_gn_volume_base(Menu):
+class NODE_MT_gn_volume_base(node_add_menu.NodeMenu):
     bl_label = "Volume"
     bl_translation_context = i18n_contexts.id_id
 
@@ -913,7 +913,7 @@ class NODE_MT_gn_volume_base(Menu):
             node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
 
 
-class NODE_MT_gn_volume_read_base(Menu):
+class NODE_MT_gn_volume_read_base(node_add_menu.NodeMenu):
     bl_label = "Read"
     menu_path = "Volume/Read"
 
@@ -926,7 +926,7 @@ class NODE_MT_gn_volume_read_base(Menu):
             node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
 
 
-class NODE_MT_gn_volume_write_base(Menu):
+class NODE_MT_gn_volume_write_base(node_add_menu.NodeMenu):
     bl_label = "Write"
     menu_path = "Volume/Write"
 
@@ -938,7 +938,7 @@ class NODE_MT_gn_volume_write_base(Menu):
             node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
 
 
-class NODE_MT_gn_volume_sample_base(Menu):
+class NODE_MT_gn_volume_sample_base(node_add_menu.NodeMenu):
     bl_label = "Sample"
     menu_path = "Volume/Sample"
 
@@ -951,7 +951,7 @@ class NODE_MT_gn_volume_sample_base(Menu):
             node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
 
 
-class NODE_MT_gn_volume_operations_base(Menu):
+class NODE_MT_gn_volume_operations_base(node_add_menu.NodeMenu):
     bl_label = "Operations"
     menu_path = "Volume/Operations"
 
@@ -966,7 +966,7 @@ class NODE_MT_gn_volume_operations_base(Menu):
             node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
 
 
-class NODE_MT_gn_volume_primitives_base(Menu):
+class NODE_MT_gn_volume_primitives_base(node_add_menu.NodeMenu):
     bl_label = "Primitives"
     menu_path = "Volume/Primitives"
 
@@ -1039,7 +1039,7 @@ add_menus = {
 add_menus = node_add_menu.generate_menus(add_menus, template=node_add_menu.AddNodeMenu)
 
 
-class NODE_MT_geometry_node_add_all(Menu):
+class NODE_MT_geometry_node_add_all(node_add_menu.NodeMenu):
     bl_label = ""
 
     def draw(self, context):
@@ -1129,7 +1129,7 @@ swap_menus = {
 swap_menus = node_add_menu.generate_menus(swap_menus, template=node_add_menu.SwapNodeMenu)
 
 
-class NODE_MT_geometry_node_swap_all(Menu):
+class NODE_MT_geometry_node_swap_all(node_add_menu.NodeMenu):
     bl_label = ""
 
     def draw(self, context):

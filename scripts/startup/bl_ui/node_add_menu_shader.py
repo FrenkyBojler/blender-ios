@@ -48,7 +48,7 @@ def object_eevee_shader_nodes_poll(context):
             eevee_shader_nodes_poll(context))
 
 
-class NODE_MT_shader_node_input_base(Menu):
+class NODE_MT_shader_node_input_base(node_add_menu.NodeMenu):
     bl_label = "Input"
 
     def draw(self, context):
@@ -137,7 +137,7 @@ class NODE_MT_shader_node_input_base(Menu):
             node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
 
 
-class NODE_MT_shader_node_output_base(Menu):
+class NODE_MT_shader_node_output_base(node_add_menu.NodeMenu):
     bl_label = "Output"
 
     def draw(self, context):
@@ -172,7 +172,7 @@ class NODE_MT_shader_node_output_base(Menu):
             node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
 
 
-class NODE_MT_shader_node_shader_base(Menu):
+class NODE_MT_shader_node_shader_base(node_add_menu.NodeMenu):
     bl_label = "Shader"
 
     def draw(self, context):
@@ -296,7 +296,7 @@ class NODE_MT_shader_node_shader_base(Menu):
             node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
 
 
-class NODE_MT_shader_node_color_base(Menu):
+class NODE_MT_shader_node_color_base(node_add_menu.NodeMenu):
     bl_label = "Color"
 
     def draw(self, context):
@@ -314,7 +314,7 @@ class NODE_MT_shader_node_color_base(Menu):
             node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
 
 
-class NODE_MT_shader_node_converter_base(Menu):
+class NODE_MT_shader_node_converter_base(node_add_menu.NodeMenu):
     bl_label = "Converter"
 
     def draw(self, context):
@@ -340,7 +340,7 @@ class NODE_MT_shader_node_converter_base(Menu):
             node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
 
 
-class NODE_MT_shader_node_texture_base(Menu):
+class NODE_MT_shader_node_texture_base(node_add_menu.NodeMenu):
     bl_label = "Texture"
 
     def draw(self, _context):
@@ -364,7 +364,7 @@ class NODE_MT_shader_node_texture_base(Menu):
             node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
 
 
-class NODE_MT_shader_node_vector_base(Menu):
+class NODE_MT_shader_node_vector_base(node_add_menu.NodeMenu):
     bl_label = "Vector"
 
     def draw(self, _context):
@@ -384,7 +384,7 @@ class NODE_MT_shader_node_vector_base(Menu):
             node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
 
 
-class NODE_MT_shader_node_script_base(Menu):
+class NODE_MT_shader_node_script_base(node_add_menu.NodeMenu):
     bl_label = "Script"
 
     def draw(self, _context):
@@ -410,7 +410,7 @@ add_menus = {
 add_menus = node_add_menu.generate_menus(add_menus, template=node_add_menu.AddNodeMenu)
 
 
-class NODE_MT_shader_node_add_all(Menu):
+class NODE_MT_shader_node_add_all(node_add_menu.NodeMenu):
     bl_label = "Add"
     bl_translation_context = i18n_contexts.operator_default
 
@@ -447,7 +447,7 @@ swap_menus = {
 swap_menus = node_add_menu.generate_menus(swap_menus, template=node_add_menu.SwapNodeMenu)
 
 
-class NODE_MT_shader_node_swap_all(Menu):
+class NODE_MT_shader_node_swap_all(node_add_menu.NodeMenu):
     bl_label = ""
     bl_translation_context = i18n_contexts.operator_default
 

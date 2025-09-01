@@ -275,6 +275,67 @@ def new_empty_group(layout, operator_id):
     return props
 
 
+class NodeMenu(Menu):
+    """A dummy baseclass defining the required methods to be implemented by AddNodeMenu and SwapNodeMenu"""
+    draw_assets: bool
+
+    @staticmethod
+    def node_operator(layout, node_type, *, label=None, poll=None, search_weight=0.0, translate=True):
+        """The main operator defined for this menu.
+        \n(e.g. 'Add Node' for AddNodeMenu, or 'Swap Node' for SwapNodeMenu)"""
+
+    @staticmethod
+    def node_operator_with_searchable_enum(context, layout, node_idname, property_name, search_weight=0.0):
+        """Similar to `node_operator`, but with extra entries based on a enum property while in search"""
+
+    @staticmethod
+    def node_operator_with_searchable_enum_socket(
+            context,
+            layout,
+            node_idname,
+            socket_identifier,
+            enum_names,
+            search_weight=0.0):
+        """Similar to `node_operator`, but with extra entries based on a enum socket while in search"""
+
+    @staticmethod
+    def node_operator_with_outputs(context, layout, node_type, subnames, *, label=None, search_weight=0.0):
+        """Similar to `node_operator`, but with extra entries based on a enum socket while in search"""
+
+    @staticmethod
+    def color_mix_node(context, layout):
+        """The 'Mix Color' node, with its different blend modes available while in search"""
+
+    @staticmethod
+    def new_empty_group(layout):
+        """Group Node with a newly created empty group as its assigned nodetree"""
+
+    @staticmethod
+    def draw_group_menu(context, layout):
+        """List all node groups available for the current node editor"""
+
+    @staticmethod
+    def simulation_zone(layout, label):
+        ...
+
+    @staticmethod
+    def repeat_zone(layout, label):
+        ...
+
+    @staticmethod
+    def for_each_element_zone(layout, label):
+        ...
+
+    @staticmethod
+    def closure_zone(layout, label):
+        ...
+
+    @classmethod
+    def draw_menu(cls, layout, path):
+        """Takes the given menu path and draws the corresponding menu.
+        \n Menu paths are either explicitly defined, or based on bl_label if not."""
+
+
 class AddNodeMenu:
     draw_assets = True
 
@@ -481,7 +542,7 @@ class SwapNodeMenu:
         layout.menu(cls.pathing_dict[path])
 
 
-class NODE_MT_group_base(Menu):
+class NODE_MT_group_base(NodeMenu):
     bl_label = "Group"
 
     def draw(self, context):
@@ -491,7 +552,7 @@ class NODE_MT_group_base(Menu):
             node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
 
 
-class NODE_MT_layout_base(Menu):
+class NODE_MT_layout_base(NodeMenu):
     bl_label = "Layout"
 
     def draw(self, _context):
