@@ -1747,6 +1747,7 @@ static wmOperatorStatus sequencer_box_cut_exec(bContext *C, wmOperator *op)
   const seq::eSplitMethod method = seq::eSplitMethod(RNA_enum_get(op->ptr, "type"));
   int2 rect_frames = {round_fl_to_int(rectf.xmin), round_fl_to_int(rectf.xmax)};
 
+  bool changed = false;
   /* slpit the split logic into two so the newly created strips can get split by the second
    * foreach. */
   int max_left_offset = INT_MAX;
@@ -1765,6 +1766,7 @@ static wmOperatorStatus sequencer_box_cut_exec(bContext *C, wmOperator *op)
           nullptr)
       {
         printf("edit_strip_split\n");
+        changed = true;
       }
     }
   }
@@ -1778,8 +1780,12 @@ static wmOperatorStatus sequencer_box_cut_exec(bContext *C, wmOperator *op)
           nullptr)
       {
         printf("edit_strip_split\n");
+        changed = true;
       }
     }
+  }
+  if (!changed) {
+    return OPERATOR_CANCELLED;
   }
   /* Remove strips that are in the cut area. */
   LISTBASE_FOREACH (Strip *, strip, ed->current_strips()) {
