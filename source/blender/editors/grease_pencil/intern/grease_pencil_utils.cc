@@ -1527,7 +1527,7 @@ Array<PointTransferData> compute_topology_change(
   /* Vertex group names. */
   LISTBASE_FOREACH (bDeformGroup *, src_dg, &src.vertex_group_names) {
     bDeformGroup *dst_dg = MEM_callocN<bDeformGroup>(__func__);
-    STRNCPY_UTF8(dst_dg->name, src_dg->name);
+    BLI_strncpy_utf8(dst_dg->name, src_dg->name, sizeof(dst_dg->name));
     BLI_addtail(&dst.vertex_group_names, dst_dg);
   }
 
