@@ -432,7 +432,10 @@ static void grease_pencil_weight_batch_ensure(Object &object,
     const OffsetIndices<int> points_by_curve = curves.points_by_curve();
     const VArray<bool> cyclic = curves.cyclic();
     IndexMaskMemory memory;
-    const IndexMask visible_strokes = ed::greasepencil::retrieve_visible_strokes(
+
+    const IndexMask visible_strokes_for_points = ed::greasepencil::retrieve_editable_strokes(
+        object, info.drawing, info.layer_index, memory);
+    const IndexMask visible_strokes_for_lines = grease_pencil_get_visible_non_nurbs_curves(
         object, info.drawing, memory);
 
     const IndexRange points(drawing_start_offset, curves.points_num());
@@ -445,23 +448,20 @@ static void grease_pencil_weight_batch_ensure(Object &object,
                            layer_space_to_object_space,
                            edit_line_points.slice(points_eval));
 
-    const IndexMask visible_strokes_for_lines = grease_pencil_get_visible_non_nurbs_curves(
-        object, info.drawing, memory);
-
     drawing_start_offset += curves.points_num();
 
     drawing_line_start_offset += curves.evaluated_points_num();
 
-    const int drawing_visible_points_num = offset_indices::sum_group_sizes(points_by_curve,
-                                                                           visible_strokes);
+    const int drawing_visible_points_num = offset_indices::sum_group_sizes(
+        points_by_curve, visible_strokes_for_points);
 
     /* Add one id for the restart after every curve. */
-    total_line_ids_num += visible_strokes.size();
+    total_line_ids_num += visible_strokes_for_lines.size();
     /* Add one id for every non-cyclic segment. */
     total_line_ids_num += offset_indices::sum_group_sizes(points_by_curve_eval,
                                                           visible_strokes_for_lines);
     /* Add one id for the last segment of every cyclic curve. */
-    total_line_ids_num += array_utils::count_booleans(curves.cyclic(), visible_strokes);
+    total_line_ids_num += array_utils::count_booleans(curves.cyclic(), visible_strokes_for_lines);
 
     /* Do not show weights for locked layers. */
     if (layer.is_locked()) {
@@ -510,8 +510,8 @@ static void grease_pencil_weight_batch_ensure(Object &object,
 
     const IndexMask visible_strokes_for_lines = grease_pencil_get_visible_non_nurbs_curves(
         object, info.drawing, memory);
-    const IndexMask visible_strokes = ed::greasepencil::retrieve_visible_strokes(
-        object, info.drawing, memory);
+    const IndexMask visible_strokes_for_points = ed::greasepencil::retrieve_editable_strokes(
+        object, info.drawing, info.layer_index, memory);
 
     index_buf_add_line_points(info.drawing,
                               visible_strokes_for_lines,
@@ -523,8 +523,11 @@ static void grease_pencil_weight_batch_ensure(Object &object,
       continue;
     }
 
-    index_buf_add_points(
-        info.drawing, visible_strokes, points_data, &points_ibo_index, &drawing_start_offset);
+    index_buf_add_points(info.drawing,
+                         visible_strokes_for_points,
+                         points_data,
+                         &points_ibo_index,
+                         &drawing_start_offset);
   }
 
   cache->edit_line_indices = GPU_indexbuf_build_ex(&lines_builder, 0, INT_MAX, true);
