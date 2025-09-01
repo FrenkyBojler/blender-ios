@@ -568,8 +568,21 @@ def generate_menu(bl_idname: str, template: Menu, layout_base: Menu, pathing_dic
     return type(bl_idname, (template, layout_base), {"bl_idname": bl_idname, "pathing_dict": pathing_dict})
 
 
-def generate_menus(menus: dict, template: Menu):
-    pathing_dict = {}
+add_base_pathing_dict = {
+    "Group": "NODE_MT_group_add",
+    "Layout": "NODE_MT_category_layout",
+}
+
+
+swap_base_pathing_dict = {
+    "Group": "NODE_MT_group_swap",
+    "Layout": "NODE_MT_layout_swap",
+}
+
+
+def generate_menus(menus: dict, template: Menu, base_dict: dict):
+    import copy
+    pathing_dict = copy.copy(base_dict)
     menus = tuple(
         generate_menu(bl_idname, template, layout_base, pathing_dict)
         for bl_idname, layout_base in menus.items()

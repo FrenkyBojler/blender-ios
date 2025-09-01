@@ -322,6 +322,39 @@ class NODE_MT_compositor_node_vector_base(node_add_menu.NodeMenu):
             node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
 
 
+class NODE_MT_compositor_node_all_base(node_add_menu.NodeMenu):
+    bl_label = ""
+    menu_path = "Root"
+    bl_translation_context = i18n_contexts.operator_default
+
+    # NOTE: Menus are looked up via their label, this is so that both the Add
+    # & Swap menus can share the same layout while each using their
+    # corresponding menus
+    def draw(self, context):
+        layout = self.layout
+        self.draw_menu(layout, "Input")
+        self.draw_menu(layout, "Output")
+        layout.separator()
+        self.draw_menu(layout, "Color")
+        self.draw_menu(layout, "Filter")
+        layout.separator()
+        self.draw_menu(layout, "Keying")
+        self.draw_menu(layout, "Mask")
+        layout.separator()
+        self.draw_menu(layout, "Tracking")
+        layout.separator()
+        self.draw_menu(layout, "Texture")
+        self.draw_menu(layout, "Transform")
+        self.draw_menu(layout, "Utilities")
+        self.draw_menu(layout, "Vector")
+        layout.separator()
+        self.draw_menu(layout, "Group")
+        self.draw_menu(layout, "Layout")
+
+        if self.draw_assets:
+            node_add_menu.draw_root_assets(layout)
+
+
 add_menus = {
     # menu bl_idname: baseclass
     "NODE_MT_category_compositor_input": NODE_MT_compositor_node_input_base,
@@ -340,35 +373,13 @@ add_menus = {
     "NODE_MT_category_compositor_transform": NODE_MT_compositor_node_transform_base,
     "NODE_MT_category_compositor_utilities": NODE_MT_compositor_node_utilities_base,
     "NODE_MT_category_compositor_vector": NODE_MT_compositor_node_vector_base,
+    "NODE_MT_compositor_node_add_all": NODE_MT_compositor_node_all_base,
 }
-add_menus = node_add_menu.generate_menus(add_menus, template=node_add_menu.AddNodeMenu)
-
-
-class NODE_MT_compositor_node_add_all(node_add_menu.NodeMenu):
-    bl_label = ""
-
-    def draw(self, context):
-        layout = self.layout
-        layout.menu("NODE_MT_category_compositor_input")
-        layout.menu("NODE_MT_category_compositor_output")
-        layout.separator()
-        layout.menu("NODE_MT_category_compositor_color")
-        layout.menu("NODE_MT_category_compositor_filter")
-        layout.separator()
-        layout.menu("NODE_MT_category_compositor_keying")
-        layout.menu("NODE_MT_category_compositor_mask")
-        layout.separator()
-        layout.menu("NODE_MT_category_compositor_tracking")
-        layout.separator()
-        layout.menu("NODE_MT_category_compositor_texture")
-        layout.menu("NODE_MT_category_compositor_transform")
-        layout.menu("NODE_MT_category_compositor_utilities")
-        layout.menu("NODE_MT_category_compositor_vector")
-        layout.separator()
-        layout.menu("NODE_MT_group_add")
-        layout.menu("NODE_MT_category_layout")
-
-        node_add_menu.draw_root_assets(layout)
+add_menus = node_add_menu.generate_menus(
+    add_menus,
+    template=node_add_menu.AddNodeMenu,
+    base_dict=node_add_menu.add_base_pathing_dict
+)
 
 
 swap_menus = {
@@ -389,41 +400,17 @@ swap_menus = {
     "NODE_MT_compositor_node_transform_swap": NODE_MT_compositor_node_transform_base,
     "NODE_MT_compositor_node_utilities_swap": NODE_MT_compositor_node_utilities_base,
     "NODE_MT_compositor_node_vector_swap": NODE_MT_compositor_node_vector_base,
+    "NODE_MT_compositor_node_swap_all": NODE_MT_compositor_node_all_base,
 }
-swap_menus = node_add_menu.generate_menus(swap_menus, template=node_add_menu.SwapNodeMenu)
-
-
-class NODE_MT_compositor_node_swap_all(node_add_menu.NodeMenu):
-    bl_label = ""
-
-    def draw(self, context):
-        layout = self.layout
-        layout.menu("NODE_MT_compositor_node_input_swap")
-        layout.menu("NODE_MT_compositor_node_output_swap")
-        layout.separator()
-        layout.menu("NODE_MT_compositor_node_color_swap")
-        layout.menu("NODE_MT_compositor_node_filter_swap")
-        layout.separator()
-        layout.menu("NODE_MT_compositor_node_keying_swap")
-        layout.menu("NODE_MT_compositor_node_mask_swap")
-        layout.separator()
-        layout.menu("NODE_MT_compositor_node_tracking_swap")
-        layout.separator()
-        layout.menu("NODE_MT_compositor_node_transform_swap")
-        layout.menu("NODE_MT_compositor_node_utilities_swap")
-        layout.menu("NODE_MT_compositor_node_utilities_swap")
-        layout.menu("NODE_MT_compositor_node_vector_swap")
-        layout.separator()
-        layout.menu("NODE_MT_group_swap")
-        layout.menu("NODE_MT_layout_swap")
-
-        # node_add_menu.draw_root_assets(layout)
+swap_menus = node_add_menu.generate_menus(
+    swap_menus,
+    template=node_add_menu.SwapNodeMenu,
+    base_dict=node_add_menu.swap_base_pathing_dict
+)
 
 
 classes = (
-    NODE_MT_compositor_node_add_all,
     *add_menus,
-    NODE_MT_compositor_node_swap_all,
     *swap_menus,
 )
 

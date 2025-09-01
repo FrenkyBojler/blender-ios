@@ -93,6 +93,32 @@ class NODE_MT_texture_node_texture_base(Menu):
         self.node_operator(layout, "TextureNodeTexWood")
 
 
+class NODE_MT_texture_node_all_base(node_add_menu.NodeMenu):
+    bl_label = ""
+    menu_path = "Root"
+    bl_translation_context = i18n_contexts.operator_default
+
+    # NOTE: Menus are looked up via their label, this is so that both the Add
+    # & Swap menus can share the same layout while each using their
+    # corresponding menus
+    def draw(self, context):
+        layout = self.layout
+        self.draw_menu(layout, "Input")
+        self.draw_menu(layout, "Output")
+        layout.separator()
+        self.draw_menu(layout, "Color")
+        self.draw_menu(layout, "Converter")
+        self.draw_menu(layout, "Distort")
+        self.draw_menu(layout, "Pattern")
+        self.draw_menu(layout, "Texture")
+        layout.separator()
+        self.draw_menu(layout, "Group")
+        self.draw_menu(layout, "Layout")
+
+        if self.draw_assets:
+            node_add_menu.draw_root_assets(layout)
+
+
 add_menus = {
     # menu bl_idname: baseclass
     "NODE_MT_category_texture_input": NODE_MT_texture_node_input_base,
@@ -102,28 +128,13 @@ add_menus = {
     "NODE_MT_category_texture_distort": NODE_MT_texture_node_distort_base,
     "NODE_MT_category_texture_pattern": NODE_MT_texture_node_pattern_base,
     "NODE_MT_category_texture_texture": NODE_MT_texture_node_texture_base,
+    "NODE_MT_texture_node_add_all": NODE_MT_texture_node_all_base,
 }
-add_menus = node_add_menu.generate_menus(add_menus, template=node_add_menu.AddNodeMenu)
-
-
-class NODE_MT_texture_node_add_all(Menu):
-    bl_idname = "NODE_MT_texture_node_add_all"
-    bl_label = "Add"
-    bl_translation_context = i18n_contexts.operator_default
-
-    def draw(self, _context):
-        layout = self.layout
-        layout.menu("NODE_MT_category_texture_input")
-        layout.menu("NODE_MT_category_texture_output")
-        layout.separator()
-        layout.menu("NODE_MT_category_texture_color")
-        layout.menu("NODE_MT_category_texture_converter")
-        layout.menu("NODE_MT_category_texture_distort")
-        layout.menu("NODE_MT_category_texture_pattern")
-        layout.menu("NODE_MT_category_texture_texture")
-        layout.separator()
-        layout.menu("NODE_MT_group_add")
-        layout.menu("NODE_MT_category_layout")
+add_menus = node_add_menu.generate_menus(
+    add_menus,
+    template=node_add_menu.AddNodeMenu,
+    base_dict=node_add_menu.add_base_pathing_dict
+)
 
 
 swap_menus = {
@@ -135,33 +146,17 @@ swap_menus = {
     "NODE_MT_texture_node_distort_swap": NODE_MT_texture_node_distort_base,
     "NODE_MT_texture_node_pattern_swap": NODE_MT_texture_node_pattern_base,
     "NODE_MT_texture_node_texture_swap": NODE_MT_texture_node_texture_base,
+    "NODE_MT_texture_node_swap_all": NODE_MT_texture_node_all_base,
 }
-swap_menus = node_add_menu.generate_menus(swap_menus, template=node_add_menu.SwapNodeMenu)
-
-
-class NODE_MT_texture_node_swap_all(Menu):
-    bl_label = "Add"
-    bl_translation_context = i18n_contexts.operator_default
-
-    def draw(self, _context):
-        layout = self.layout
-        layout.menu("NODE_MT_texture_node_input_swap")
-        layout.menu("NODE_MT_texture_node_output_swap")
-        layout.separator()
-        layout.menu("NODE_MT_texture_node_color_swap")
-        layout.menu("NODE_MT_texture_node_converter_swap")
-        layout.menu("NODE_MT_texture_node_distort_swap")
-        layout.menu("NODE_MT_texture_node_pattern_swap")
-        layout.menu("NODE_MT_texture_node_texture_swap")
-        layout.separator()
-        layout.menu("NODE_MT_group_swap")
-        layout.menu("NODE_MT_layout_swap")
+swap_menus = node_add_menu.generate_menus(
+    swap_menus,
+    template=node_add_menu.SwapNodeMenu,
+    base_dict=node_add_menu.swap_base_pathing_dict
+)
 
 
 classes = (
-    NODE_MT_texture_node_add_all,
     *add_menus,
-    NODE_MT_texture_node_swap_all,
     *swap_menus,
 )
 

@@ -978,6 +978,41 @@ class NODE_MT_gn_volume_primitives_base(node_add_menu.NodeMenu):
             node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
 
 
+class NODE_MT_gn_all_base(node_add_menu.NodeMenu):
+    bl_label = ""
+    menu_path = "Root"
+
+    # NOTE: Menus are looked up via their label, this is so that both the Add
+    # & Swap menus can share the same layout while each using their
+    # corresponding menus
+    def draw(self, context):
+        layout = self.layout
+        self.draw_menu(layout, "Attribute")
+        self.draw_menu(layout, "Input")
+        self.draw_menu(layout, "Output")
+        layout.separator()
+        self.draw_menu(layout, "Geometry")
+        layout.separator()
+        self.draw_menu(layout, "Curve")
+        self.draw_menu(layout, "Grease Pencil")
+        self.draw_menu(layout, "Instances")
+        self.draw_menu(layout, "Mesh")
+        self.draw_menu(layout, "Point")
+        self.draw_menu(layout, "Volume")
+        layout.separator()
+        self.draw_menu(layout, "Simulation")
+        layout.separator()
+        self.draw_menu(layout, "Material")
+        self.draw_menu(layout, "Texture")
+        self.draw_menu(layout, "Utilities")
+        layout.separator()
+        self.draw_menu(layout, "Group")
+        self.draw_menu(layout, "Layout")
+
+        if self.draw_assets:
+            node_add_menu.draw_root_assets(layout)
+
+
 add_menus = {
     # menu bl_idname: baseclass
     "NODE_MT_geometry_node_GEO_ATTRIBUTE": NODE_MT_gn_attribute_base,
@@ -1035,37 +1070,13 @@ add_menus = {
     "NODE_MT_category_utilities_list": NODE_MT_gn_utilities_list_base,
     "NODE_MT_category_utilities_matrix": NODE_MT_gn_utilities_matrix_base,
     "NODE_MT_category_GEO_UTILITIES_DEPRECATED": NODE_MT_gn_utilities_deprecated_base,
+    "NODE_MT_geometry_node_add_all": NODE_MT_gn_all_base,
 }
-add_menus = node_add_menu.generate_menus(add_menus, template=node_add_menu.AddNodeMenu)
-
-
-class NODE_MT_geometry_node_add_all(node_add_menu.NodeMenu):
-    bl_label = ""
-
-    def draw(self, context):
-        layout = self.layout
-        layout.menu("NODE_MT_geometry_node_GEO_ATTRIBUTE")
-        layout.menu("NODE_MT_geometry_node_GEO_INPUT")
-        layout.menu("NODE_MT_category_GEO_OUTPUT")
-        layout.separator()
-        layout.menu("NODE_MT_geometry_node_GEO_GEOMETRY")
-        layout.separator()
-        layout.menu("NODE_MT_geometry_node_GEO_CURVE")
-        layout.menu("NODE_MT_geometry_node_grease_pencil")
-        layout.menu("NODE_MT_geometry_node_GEO_INSTANCE")
-        layout.menu("NODE_MT_geometry_node_GEO_MESH")
-        layout.menu("NODE_MT_category_GEO_POINT")
-        layout.menu("NODE_MT_category_GEO_VOLUME")
-        layout.separator()
-        layout.menu("NODE_MT_category_simulation")
-        layout.separator()
-        layout.menu("NODE_MT_geometry_node_GEO_MATERIAL")
-        layout.menu("NODE_MT_category_GEO_TEXTURE")
-        layout.menu("NODE_MT_category_GEO_UTILITIES")
-        layout.separator()
-        layout.menu("NODE_MT_group_add")
-        layout.menu("NODE_MT_category_layout")
-        node_add_menu.draw_root_assets(layout)
+add_menus = node_add_menu.generate_menus(
+    add_menus,
+    template=node_add_menu.AddNodeMenu,
+    base_dict=node_add_menu.add_base_pathing_dict
+)
 
 
 swap_menus = {
@@ -1125,45 +1136,20 @@ swap_menus = {
     "NODE_MT_gn_utilities_list_swap": NODE_MT_gn_utilities_list_base,
     "NODE_MT_gn_utilities_matrix_swap": NODE_MT_gn_utilities_matrix_base,
     "NODE_MT_gn_utilities_deprecated_swap": NODE_MT_gn_utilities_deprecated_base,
+    "NODE_MT_geometry_node_swap_all": NODE_MT_gn_all_base,
 }
-swap_menus = node_add_menu.generate_menus(swap_menus, template=node_add_menu.SwapNodeMenu)
-
-
-class NODE_MT_geometry_node_swap_all(node_add_menu.NodeMenu):
-    bl_label = ""
-
-    def draw(self, context):
-        layout = self.layout
-        layout.menu("NODE_MT_gn_attribute_swap")
-        layout.menu("NODE_MT_gn_input_swap")
-        layout.menu("NODE_MT_gn_output_swap")
-        layout.separator()
-        layout.menu("NODE_MT_gn_curve_swap")
-        layout.separator()
-        layout.menu("NODE_MT_gn_grease_pencil_swap")
-        layout.menu("NODE_MT_gn_geometry_swap")
-        layout.menu("NODE_MT_gn_instance_swap")
-        layout.menu("NODE_MT_gn_mesh_swap")
-        layout.menu("NODE_MT_gn_point_swap")
-        layout.menu("NODE_MT_gn_simulation_swap")
-        layout.separator()
-        layout.menu("NODE_MT_gn_volume_swap")
-        layout.separator()
-        layout.menu("NODE_MT_gn_material_swap")
-        layout.menu("NODE_MT_gn_texture_swap")
-        layout.menu("NODE_MT_gn_utilities_swap")
-        layout.separator()
-        layout.menu("NODE_MT_group_swap")
-        layout.menu("NODE_MT_layout_swap")
-        # node_add_menu.draw_root_assets(layout)
+swap_menus = node_add_menu.generate_menus(
+    swap_menus,
+    template=node_add_menu.SwapNodeMenu,
+    base_dict=node_add_menu.swap_base_pathing_dict
+)
 
 
 classes = (
-    NODE_MT_geometry_node_add_all,
     *add_menus,
-    NODE_MT_geometry_node_swap_all,
     *swap_menus,
 )
+
 
 if __name__ == "__main__":  # only for live edit.
     from bpy.utils import register_class
