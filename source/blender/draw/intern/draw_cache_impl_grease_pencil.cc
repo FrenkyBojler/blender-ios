@@ -10,6 +10,7 @@
 
 #include "BKE_attribute.hh"
 #include "BKE_curves.hh"
+#include "BKE_curves_utils.hh"
 #include "BKE_grease_pencil.h"
 #include "BKE_grease_pencil.hh"
 
@@ -349,35 +350,6 @@ static void index_buf_add_points(const bke::greasepencil::Drawing &drawing,
   *r_drawing_start_offset += curves.points_num();
 }
 
-static IndexMask grease_pencil_get_visible_nurbs_points(Object &object,
-                                                        const bke::greasepencil::Drawing &drawing,
-                                                        int layer_index,
-                                                        IndexMaskMemory &memory)
-{
-  const bke::CurvesGeometry &curves = drawing.strokes();
-
-  if (!curves.has_curve_with_type(CURVE_TYPE_NURBS)) {
-    return IndexMask(0);
-  }
-
-  const Array<int> point_to_curve_map = curves.point_to_curve_map();
-  const VArray<int8_t> types = curves.curve_types();
-
-  const IndexMask editable_and_selected_curves =
-      ed::greasepencil::retrieve_editable_and_selected_strokes(
-          object, drawing, layer_index, memory);
-
-  const IndexMask nurbs_points = IndexMask::from_predicate(
-      curves.points_range(), GrainSize(4096), memory, [&](const int64_t point_i) {
-        const int curve_i = point_to_curve_map[point_i];
-        const bool is_selected = editable_and_selected_curves.contains(curve_i);
-        const bool is_nurbs = types[curve_i] == CURVE_TYPE_NURBS;
-        return is_selected && is_nurbs;
-      });
-
-  return nurbs_points;
-}
-
 static IndexMask grease_pencil_get_visible_nurbs_curves(Object &object,
                                                         const bke::greasepencil::Drawing &drawing,
                                                         int layer_index,
@@ -420,8 +392,8 @@ static void grease_pencil_cache_add_nurbs(Object &object,
   const bke::CurvesGeometry &curves = drawing.strokes();
   const Span<float3> positions = curves.positions();
 
-  const IndexMask nurbs_points = grease_pencil_get_visible_nurbs_points(
-      object, drawing, layer_index, memory);
+  const IndexMask nurbs_points = bke::curves::curve_to_point_selection(
+      curves.points_by_curve(), nurbs_curves, memory);
   const IndexRange eval_slice = IndexRange(*r_drawing_line_start_offset, nurbs_points.size());
 
   MutableSpan<float3> positions_eval_slice = edit_line_points.slice(eval_slice);
@@ -534,8 +506,10 @@ static void grease_pencil_weight_batch_ensure(Object &object,
     total_line_points_num += curves.evaluated_points_num();
 
     IndexMaskMemory memory;
-    const IndexMask nurbs_points = grease_pencil_get_visible_nurbs_points(
+    const IndexMask nurbs_curves = grease_pencil_get_visible_nurbs_curves(
         object, info.drawing, info.layer_index, memory);
+    const IndexMask nurbs_points = bke::curves::curve_to_point_selection(
+        curves.points_by_curve(), nurbs_curves, memory);
 
     /* Add one point for each NURBS point. */
     total_line_points_num += nurbs_points.size();
@@ -836,9 +810,13 @@ static void grease_pencil_edit_batch_ensure(Object &object,
   }
 
   for (const ed::greasepencil::DrawingInfo &info : drawings) {
+    const bke::CurvesGeometry &curves = info.drawing.strokes();
+
     IndexMaskMemory memory;
-    const IndexMask nurbs_points = grease_pencil_get_visible_nurbs_points(
+    const IndexMask nurbs_curves = grease_pencil_get_visible_nurbs_curves(
         object, info.drawing, info.layer_index, memory);
+    const IndexMask nurbs_points = bke::curves::curve_to_point_selection(
+        curves.points_by_curve(), nurbs_curves, memory);
 
     /* Add one point for each NURBS point. */
     total_line_points_num += nurbs_points.size();
