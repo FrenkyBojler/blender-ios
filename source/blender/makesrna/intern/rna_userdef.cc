@@ -5042,11 +5042,6 @@ static void rna_def_userdef_view(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop, "Open Neighboring Menus", "Open neighboring menus when hovering them.");
 
-  prop = RNA_def_property(srna, "menu_close_leave", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "flag", USER_MENU_CLOSE_LEAVE);
-  RNA_def_property_ui_text(
-      prop, "Close Menu on Leave", "Close menus when the mouse is moved out of the region.");
-
   prop = RNA_def_property(srna, "open_toplevel_delay", PROP_INT, PROP_NONE);
   RNA_def_property_int_sdna(prop, nullptr, "menuthreshold1");
   RNA_def_property_range(prop, 1, 40);
