@@ -926,7 +926,7 @@ void draw_geometry_nodes_modifier_ui(const bContext &C, PointerRNA *modifier_ptr
     uiTemplateID(&layout, &C, modifier_ptr, "node_group", newop, nullptr, nullptr);
   }
 
-  if (nmd.node_group != nullptr && nmd.settings.properties != nullptr) {
+  if (nmd.node_group != nullptr) {
     nmd.node_group->ensure_interface_cache();
     ctx.input_usages.reinitialize(nmd.node_group->interface_inputs().size());
     nodes::socket_usage_inference::infer_group_interface_inputs_usage(
