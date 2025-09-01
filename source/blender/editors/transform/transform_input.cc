@@ -18,6 +18,7 @@
 
 #include "BLI_math_vector.h"
 #include "BLI_utildefines.h"
+#include "BLI_math_rotation.h"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -490,6 +491,29 @@ void initMouseInputMode(TransInfo *t, MouseInput *mi, MouseInputMode mode)
 void setInputPostFct(MouseInput *mi, void (*post)(TransInfo *t, float values[3]))
 {
   mi->post = post;
+}
+
+void applyNDOFInput(const wmOperatorType *opType,
+                    const wmEvent *event,
+                    float output[3],
+                    const float speed)
+{
+  const wmNDOFMotionData *ndofMotionData = static_cast<wmNDOFMotionData *>(event->customdata);
+  const float3 translation = WM_event_ndof_translation_get(*ndofMotionData);
+  const float3 rotation = WM_event_ndof_rotation_get(*ndofMotionData);
+ 
+  if (!strcmp(opType->idname, "TRANSFORM_OT_translate")) {
+    output[0] = translation[0] * speed * ndofMotionData->time_delta;
+    output[1] = translation[1] * speed * ndofMotionData->time_delta;
+    output[2] = translation[2] * speed * ndofMotionData->time_delta;
+  }
+  else if (!strcmp(opType->idname, "TRANSFORM_OT_trackball")) {
+    output[0] = -rotation[0] * ndofMotionData->time_delta;
+    output[1] = -rotation[1] * ndofMotionData->time_delta;
+  }
+  else if (!strcmp(opType->idname, "TRANSFORM_OT_rotate")) {
+    output[0] = -rotation[2] * ndofMotionData->time_delta;
+  }
 }
 
 void applyMouseInput(TransInfo *t, MouseInput *mi, const float2 &mval, float output[3])

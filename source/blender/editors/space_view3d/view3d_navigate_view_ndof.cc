@@ -13,6 +13,10 @@
 #include "BLI_rect.h"
 
 #include "BKE_layer.hh"
+#ifdef WITH_INPUT_NDOF
+#include "BKE_context.hh"
+#include "RNA_access.hh"
+#endif
 
 #include "DEG_depsgraph_query.hh"
 
@@ -849,6 +853,13 @@ static wmOperatorStatus ndof_orbit_zoom_invoke(bContext *C, wmOperator *op, cons
     return OPERATOR_CANCELLED;
   }
 
+  blender::Vector<PointerRNA> selection;
+  CTX_data_selected_objects(C, &selection);
+
+  if ((U.ndof_flag & NDOF_MODE_MOVE_OBJECTS) && selection.size()) {
+    return OPERATOR_PASS_THROUGH;
+  }
+
   return view3d_navigate_invoke_impl(C, op, event, &ViewOpsType_ndof_orbit_zoom);
 }
 
@@ -998,6 +1009,83 @@ void VIEW3D_OT_ndof_all(wmOperatorType *ot)
 
   /* API callbacks. */
   ot->invoke = ndof_all_invoke;
+  ot->poll = ED_operator_view3d_active;
+
+  /* flags */
+  ot->flag = 0;
+}
+
+static wmOperatorStatus ndof_transform_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+{
+  if (event->type != NDOF_MOTION) {
+    return OPERATOR_CANCELLED;
+  }
+
+  if (!(U.ndof_flag & NDOF_MODE_MOVE_OBJECTS)) {
+    return OPERATOR_PASS_THROUGH;
+  }
+
+  wmOperatorType *ot = WM_operatortype_find("TRANSFORM_OT_transform", true);
+  PointerRNA op_ptr;
+  WM_operator_properties_create_ptr(&op_ptr, ot);
+  RNA_boolean_set(&op_ptr, "release_confirm", true);
+
+  PropertyRNA *orient_type = RNA_struct_find_property(&op_ptr, "orient_type");
+
+  RNA_property_enum_set(&op_ptr, orient_type, V3D_ORIENT_VIEW);
+
+  const wmNDOFMotionData *motion_data = static_cast<wmNDOFMotionData *>(event->customdata);
+
+  if (!is_zero_v3(motion_data->tvec)) {
+    WM_operator_name_call(C, "TRANSFORM_OT_translate", blender::wm::OpCallContext::InvokeDefault, &op_ptr, event);
+  }
+
+  if (!is_zero_v3(motion_data->rvec)) {
+    WM_operator_name_call(
+        C, "TRANSFORM_OT_trackball", blender::wm::OpCallContext::InvokeDefault, &op_ptr, event);
+    WM_operator_name_call(
+        C, "TRANSFORM_OT_rotate", blender::wm::OpCallContext::InvokeDefault, &op_ptr, event);
+  }
+
+  WM_operator_properties_free(&op_ptr);
+
+  return OPERATOR_FINISHED;
+}
+
+static wmOperatorStatus ndof_transform_toggle_invoke(bContext* C, wmOperator* op, const wmEvent* event) {
+  if (U.ndof_flag & NDOF_MODE_MOVE_OBJECTS) {
+    U.ndof_flag &= ~NDOF_MODE_MOVE_OBJECTS;
+  }
+  else {
+    U.ndof_flag |= NDOF_MODE_MOVE_OBJECTS;
+  }
+  return OPERATOR_FINISHED;
+}
+
+void VIEW3D_OT_ndof_transform_toggle(wmOperatorType *ot)
+{
+  /* identifiers */
+  ot->name = "Toggle NDOF Move Object";
+  ot->description = "Toggle switch for Move Object option";
+  ot->idname = "VIEW3D_OT_ndof_transform_toggle";
+
+  /* API callbacks. */
+  ot->invoke = ndof_transform_toggle_invoke;
+  ot->poll = ED_operator_view3d_active;
+
+  /* flags */
+  ot->flag = 0;
+}
+
+void VIEW3D_OT_ndof_transform(wmOperatorType *ot)
+{
+  /* identifiers */
+  ot->name = "NDOF Move Object";
+  ot->description = "Transform selected objects with NDOF";
+  ot->idname = "VIEW3D_OT_ndof_transform";
+
+  /* API callbacks. */
+  ot->invoke = ndof_transform_invoke;
   ot->poll = ED_operator_view3d_active;
 
   /* flags */

@@ -1675,6 +1675,8 @@ def km_view3d(params):
         ("view3d.ndof_orbit", {"type": 'NDOF_MOTION', "value": 'ANY', "ctrl": True}, None),
         ("view3d.ndof_pan", {"type": 'NDOF_MOTION', "value": 'ANY', "shift": True}, None),
         ("view3d.ndof_all", {"type": 'NDOF_MOTION', "value": 'ANY', "shift": True, "ctrl": True}, None),
+        ("view3d.ndof_transform", {"type": 'NDOF_MOTION', "value": 'ANY'}, None),
+        ("view3d.ndof_transform_toggle", {"type": 'O', "value": 'PRESS', "alt": True, "key_modifier":'M'}, None),
         ("view3d.view_selected", {"type": 'NDOF_BUTTON_FIT', "value": 'PRESS'}, None),
         ("view3d.view_roll", {"type": 'NDOF_BUTTON_ROLL_CW', "value": 'PRESS'},
          {"properties": [("angle", PI_2)]}),

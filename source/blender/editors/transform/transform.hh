@@ -1056,6 +1056,10 @@ enum MouseInputMode {
 void initMouseInput(
     TransInfo *t, MouseInput *mi, const float2 &center, const float2 &mval, bool precision);
 void initMouseInputMode(TransInfo *t, MouseInput *mi, MouseInputMode mode);
+void applyNDOFInput(const wmOperatorType *opType,
+                    const wmEvent *event,
+                    float output[3],
+                    const float speed);
 void applyMouseInput(TransInfo *t, MouseInput *mi, const float2 &mval, float output[3]);
 void transform_input_update(TransInfo *t, const float fac);
 void transform_input_virtual_mval_reset(TransInfo *t);

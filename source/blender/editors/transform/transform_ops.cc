@@ -555,6 +555,37 @@ static wmOperatorStatus transform_exec(bContext *C, wmOperator *op)
 
 static wmOperatorStatus transform_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
+  if (event->type == NDOF_MOTION) {
+
+    if (!transformops_data(C, op, nullptr)) {
+      G.moving = 0;
+      return OPERATOR_CANCELLED;
+    }
+
+    const RegionView3D *rv3d = CTX_wm_region_view3d(C);
+    TransInfo *t = static_cast<TransInfo *>(op->customdata);
+    float speed = rv3d->pixsize * NDOF_PIXELS_PER_SECOND;
+    if (rv3d->is_persp) {
+      float center[3];
+      calculateCenterActive(t, true, center);
+      speed *= ED_view3d_calc_zfac(rv3d, center);
+    }
+
+    applyNDOFInput(op->type, event, t->values, speed);
+
+    t->options |= CTX_AUTOCONFIRM;
+    t->flag |= T_INPUT_IS_VALUES_FINAL;
+    transformApply(C, t);
+
+    transformEnd(C, t);
+
+    transformops_exit(C, op);
+
+    WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, nullptr);
+
+    return OPERATOR_FINISHED;
+  }
+
   if (!transformops_data(C, op, event)) {
     G.moving = 0;
     return OPERATOR_CANCELLED;

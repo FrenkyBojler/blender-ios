@@ -6641,6 +6641,11 @@ static void rna_def_userdef_input(BlenderRNA *brna)
                            "Selected Item forces the orbit center "
                            "to only take the currently selected objects into account.");
 
+  prop = RNA_def_property(srna, "ndof_move_objects", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "ndof_flag", NDOF_MODE_MOVE_OBJECTS);
+  RNA_def_property_ui_text(prop, "Move Object", "Enables the movement of selected objects inside the scene.");
+
+
   /* 3D view: yaw */
   prop = RNA_def_property(srna, "ndof_rotx_invert_axis", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "ndof_flag", NDOF_ROTX_INVERT_AXIS);
