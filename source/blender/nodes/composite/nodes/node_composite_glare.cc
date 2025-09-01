@@ -224,15 +224,15 @@ static void cmp_node_glare_declare(NodeDeclarationBuilder &b)
       .default_value(KernelDataType::Float)
       .static_items(kernel_data_type_items)
       .usage_by_menu("Type", CMP_NODE_GLARE_CUSTOM_KERNEL);
-  glare_panel.add_input<decl::Float>("Kernel", "Float Kernel")
+  glare_panel.add_input<decl::Float>("Float Kernel", "Float Kernel")
       .hide_value()
       .structure_type(StructureType::Dynamic)
-      .usage_by_menu("Kernel Data Type", int(KernelDataType::Float))
+      .usage_by_menu("Type", CMP_NODE_GLARE_CUSTOM_KERNEL)
       .compositor_realization_mode(CompositorInputRealizationMode::Transforms);
-  glare_panel.add_input<decl::Color>("Kernel", "Color Kernel")
+  glare_panel.add_input<decl::Color>("Color Kernel", "Color Kernel")
       .hide_value()
       .structure_type(StructureType::Dynamic)
-      .usage_by_menu("Kernel Data Type", int(KernelDataType::Color))
+      .usage_by_menu("Type", CMP_NODE_GLARE_CUSTOM_KERNEL)
       .compositor_realization_mode(CompositorInputRealizationMode::Transforms);
 }
 
