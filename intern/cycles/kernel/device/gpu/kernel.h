@@ -1027,8 +1027,7 @@ ccl_gpu_kernel(GPU_KERNEL_BLOCK_NUM_THREADS, GPU_KERNEL_MAX_REGISTERS)
                              const int full_y,
                              const int width,
                              const int height,
-                             const int num_samples,
-                             const int flip_y)
+                             const int num_samples)
 {
   const int work_index = ccl_gpu_global_id_x();
   const int y = work_index / width;
@@ -1038,7 +1037,7 @@ ccl_gpu_kernel(GPU_KERNEL_BLOCK_NUM_THREADS, GPU_KERNEL_MAX_REGISTERS)
     return;
   }
 
-  const uint64_t guiding_pixel_index = x + (flip_y ? height - 1 - y : y) * width;
+  const uint64_t guiding_pixel_index = x + y * width;
   ccl_global float *guiding_pixel = guiding_buffer + guiding_pixel_index * guiding_pass_stride;
 
   const uint64_t render_pixel_index = render_offset + (x + full_x) + (y + full_y) * render_stride;

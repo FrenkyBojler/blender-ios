@@ -136,7 +136,6 @@ bool DenoiserGPU::denoise_filter_guiding_preprocess(const DenoiseContext &contex
 {
   const BufferParams &buffer_params = context.buffer_params;
 
-  const int flip_y = context.denoise_params.type == DENOISER_OPTIX;
   const int work_size = buffer_params.width * buffer_params.height;
 
   const DeviceKernelArguments args(&context.guiding_params.device_pointer,
@@ -156,10 +155,10 @@ bool DenoiserGPU::denoise_filter_guiding_preprocess(const DenoiseContext &contex
                                    &buffer_params.full_y,
                                    &buffer_params.width,
                                    &buffer_params.height,
-                                   &context.num_samples,
-                                   &flip_y);
+                                   &context.num_samples);
 
-  return denoiser_queue_->enqueue(DEVICE_KERNEL_FILTER_GUIDING_PREPROCESS, work_size, args);
+  return denoiser_queue_->enqueue(DEVICE_KERNEL_FILTER_GUIDING_PREPROCESS, work_size, args) &&
+         denoise_filter_guiding_flip_y(context);
 }
 
 DenoiserGPU::DenoiseContext::DenoiseContext(Device *device, const DenoiseTask &task)
@@ -295,7 +294,7 @@ bool DenoiserGPU::denoise_filter_color_preprocess(const DenoiseContext &context,
 bool DenoiserGPU::denoise_filter_color_flip_y(const DenoiseContext &context,
                                               const DenoisePass &pass)
 {
-  if (context.denoise_params.type != DENOISER_OPTIX) {
+  if (context.denoise_params.type != DENOISER_OPTIX || context.denoise_params.temporally_stable) {
     /* Flipping the image is used to improve result quality with the OptiX denoiser.
      * It is not necessary for other denoisers, so just skip this preprocess step. */
     return true;
@@ -316,6 +315,44 @@ bool DenoiserGPU::denoise_filter_color_flip_y(const DenoiseContext &context,
                                    &pass.denoised_offset);
 
   return denoiser_queue_->enqueue(DEVICE_KERNEL_FILTER_COLOR_FLIP_Y, work_size, args);
+}
+
+bool DenoiserGPU::denoise_filter_guiding_flip_y(const DenoiseContext &context)
+{
+  if (context.denoise_params.type != DENOISER_OPTIX || context.denoise_params.temporally_stable) {
+    /* Flipping the image is used to improve result quality with the OptiX denoiser.
+     * It is not necessary for other denoisers, so just skip this preprocess step. */
+    return true;
+  }
+
+  const BufferParams &buffer_params = context.buffer_params;
+
+  const int guiding_offset = 0;
+
+  const int work_size = buffer_params.width * buffer_params.height / 2;
+
+  const int guiding_passes[] = {context.guiding_params.pass_albedo,
+                                context.guiding_params.pass_normal};
+  for (const int guiding_pass : guiding_passes) {
+    if (guiding_pass == PASS_UNUSED) {
+      continue;
+    }
+
+    const DeviceKernelArguments args(&context.guiding_params.device_pointer,
+                                     &guiding_offset,
+                                     &guiding_offset,
+                                     &buffer_params.width,
+                                     &buffer_params.height,
+                                     &guiding_offset,
+                                     &context.guiding_params.stride,
+                                     &context.guiding_params.pass_stride,
+                                     &guiding_pass);
+
+    if (!denoiser_queue_->enqueue(DEVICE_KERNEL_FILTER_COLOR_FLIP_Y, work_size, args)) {
+      return false;
+    }
+  }
+  return true;
 }
 
 bool DenoiserGPU::denoise_filter_guiding_set_fake_albedo(const DenoiseContext &context)

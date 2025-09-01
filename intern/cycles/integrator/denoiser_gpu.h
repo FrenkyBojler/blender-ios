@@ -68,6 +68,7 @@ class DenoiserGPU : public Denoiser {
   bool denoise_filter_color_preprocess(const DenoiseContext &context, const DenoisePass &pass);
   bool denoise_filter_color_postprocess(const DenoiseContext &context, const DenoisePass &pass);
   bool denoise_filter_color_flip_y(const DenoiseContext &context, const DenoisePass &pass);
+  bool denoise_filter_guiding_flip_y(const DenoiseContext &context);
   bool denoise_filter_guiding_set_fake_albedo(const DenoiseContext &context);
 
   /* Read guiding passes from the render buffers, preprocess them in a way which is expected by
