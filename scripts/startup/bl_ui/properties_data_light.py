@@ -329,6 +329,9 @@ class DATA_PT_light_advanced(DataButtonsPanel, Panel):
 
         col = layout.column(align=True)
         col.active = light.use_advanced
+        col.prop(light, "normalize_color", text="Normalize Color")
+        col.prop(light, "use_compensate_power", text="Compensate Power")
+        col.prop(light, "use_scene_conversion", text="Scene Conversion")
 
 class DATA_PT_light_animation(DataButtonsPanel, PropertiesAnimationMixin, PropertyPanel, Panel):
     COMPAT_ENGINES = {

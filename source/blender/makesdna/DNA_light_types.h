@@ -32,7 +32,6 @@ typedef struct Light {
 
   /* Type and flags. */
   short type, flag, unit_system, _pad3;
-  // short type, flag, energy_unit, _pad3;
   int mode;
 
   /* Color, temperature and energy. */
@@ -191,12 +190,3 @@ enum {
   LA_AREA_DISK = 4,
   LA_AREA_ELLIPSE = 5,
 };
-
-// /** #Light::energy_units */
-// enum {
-//   LA_WATT = 0,
-//   LA_IRRADIANCE = 1,
-//   LA_LUMEN = 2,
-//   LA_ILLUMINANCE = 3,
-//   LA_CANDELA = 4,
-// };

@@ -16,6 +16,7 @@
 struct Depsgraph;
 struct Light;
 struct Main;
+struct Scene;
 
 Light *BKE_light_add(Main *bmain, const char *name) ATTR_WARN_UNUSED_RESULT;
 
@@ -28,4 +29,6 @@ float BKE_light_power(const Light &light);
 float BKE_light_radiometric_to_photometric_power(const Light &light, float power);
 float BKE_light_photometric_to_radiometric_power(const Light &light, float power);
 blender::float3 BKE_light_color(const Light &light);
+blender::float3 BKE_light_color_normalize(const blender::float3 &color);
 float BKE_light_area(const Light &light, const blender::float4x4 &object_to_world);
+blender::float3 BKE_light_unit_scale_convertion(const Scene *scene, const blender::float3 &power);

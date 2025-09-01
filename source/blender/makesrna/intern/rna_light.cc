@@ -21,35 +21,6 @@
 
 #include "IMB_colormanagement.hh"
 
-// const EnumPropertyItem rna_enum_light_energy_units_items[] = {
-//     {LA_WATT, "WATT", 0, "W", "Radiant power in watts(W)"},
-//     {LA_IRRADIANCE, "IRRADIANCE", 0, "W/m²", "Radiant flux per unit area (irradiance) in watts per square meter(W/m²)"},
-//     {LA_LUMEN, "LUMEN", 0, "lm", "Luminous flux in lumens(lm)"},
-//     {LA_ILLUMINANCE, "LUX", 0, "lx", "Illuminance in lux (lumens/m²)"},
-//     {LA_CANDELA, "CANDELA", 0, "cd", "Luminous intensity in candelas(cd)"},
-//     {0, nullptr, 0, nullptr, nullptr},
-// };
-//
-// static const EnumPropertyItem *rna_Light_energy_unit_itemf(bContext *C, PointerRNA *ptr, PropertyRNA * /*prop*/, bool *r_free)
-// {
-//   Light *la = (Light *)ptr->data;
-//   EnumPropertyItem *item = nullptr;
-//   int totitem = 0;
-//
-//   if (la->type == LA_SUN) {
-//     RNA_enum_items_add_value(&item, &totitem, rna_enum_light_energy_units_items, 1); // WATT_PER_SQUARE_METER
-//     RNA_enum_items_add_value(&item, &totitem, rna_enum_light_energy_units_items, 3); // LUX
-//   }
-//   else {
-//     RNA_enum_items_add_value(&item, &totitem, rna_enum_light_energy_units_items, 0); // WATT
-//     RNA_enum_items_add_value(&item, &totitem, rna_enum_light_energy_units_items, 2); // LUMEN
-//     RNA_enum_items_add_value(&item, &totitem, rna_enum_light_energy_units_items, 4); // CANDELA
-//   }
-//   RNA_enum_item_end(&item, &totitem);
-//   *r_free = true;
-//   return item;
-// };
-
 #ifdef RNA_RUNTIME
 
 #  include "MEM_guardedalloc.h"
@@ -164,12 +135,6 @@ static float rna_Light_area(Light *light, const float matrix_world[16])
   blender::float4x4 mat(matrix_world);
   return BKE_light_area(*light, mat);
 }
-
-// static bool rna_Light_normalize_editable(PointerRNA *ptr)
-// {
-//   const Light *light = (const Light *)ptr->data;
-//   return light->type != LA_SUN; /* Sun is always normalized -> lock checkbox */
-// }
 
 #else
 
@@ -322,7 +287,30 @@ static void rna_def_light(BlenderRNA *brna)
                            "Normalize",
                            "Normalize intensity by light area, for consistent total light "
                            "output regardless of size and shape");
-  // RNA_def_property_editable_func(prop, "rna_Light_normalize_editable");
+  RNA_def_property_update(prop, 0, "rna_Light_draw_update");
+
+  prop = RNA_def_property(srna, "normalize_color", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_negative_sdna(prop, nullptr, "mode", LA_USE_NORMALIZE_COLOR);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_ui_text(
+      prop, "Normalize Color", "Normalize light's  rgb color to luminance");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_LIGHT);
+  RNA_def_property_update(prop, 0, "rna_Light_draw_update");
+
+  prop = RNA_def_property(srna, "use_compensate_power", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_negative_sdna(prop, nullptr, "mode", LA_USE_COMPENSED_POWER);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_ui_text(
+      prop, "Compensate Power", "Compensate light's power (usefull in photometric mode)");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_LIGHT);
+  RNA_def_property_update(prop, 0, "rna_Light_draw_update");
+
+  prop = RNA_def_property(srna, "use_scene_conversion", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_negative_sdna(prop, nullptr, "mode", LA_USE_UNIT_CONVERSION);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_ui_text(
+      prop, "Scene Conversion", "Convert light's power to scene unit system");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_LIGHT);
   RNA_def_property_update(prop, 0, "rna_Light_draw_update");
 
   /* nodes */

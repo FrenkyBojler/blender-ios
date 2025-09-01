@@ -282,6 +282,14 @@ blender::float3 BKE_light_color(const Light &light)
   return color;
 }
 
+blender::float3 BKE_light_color_normalize(const blender::float3 &color)
+{
+  /* Normalize RGB color to luminance */
+  float rgb[3] = {color.x, color.y, color.z};
+  const float luminance = IMB_colormanagement_get_luminance(rgb);
+  return (luminance > 0.0f) ? color / luminance : color;
+}
+
 float BKE_light_area(const Light &light, const blender::float4x4 &object_to_world)
 {
   /* Make illumination power constant. */
@@ -320,4 +328,15 @@ float BKE_light_area(const Light &light, const blender::float4x4 &object_to_worl
 
   BLI_assert_unreachable();
   return 1.0f;
+}
+
+blender::float3 BKE_light_unit_scale_convertion(const Scene *scene, const blender::float3 &power)
+{
+  if (scene && scene->unit.system != USER_UNIT_NONE) {
+    const float scale_length = scene->unit.scale_length;
+    const float conversion_factor = 1.0f / (scale_length * scale_length);
+    return power * conversion_factor;
+  }
+
+  return power;
 }
