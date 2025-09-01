@@ -172,23 +172,28 @@ struct SocketUsageInferencer {
         break;
       }
       case GEO_NODE_SWITCH: {
-        this->usage_task__input__generic_switch(socket, switch__is_socket_selected);
+        this->usage_task__input__generic_switch(
+            socket, switch_node_inference_utils::is_socket_selected__switch);
         break;
       }
       case GEO_NODE_INDEX_SWITCH: {
-        this->usage_task__input__generic_switch(socket, index_switch__is_socket_selected);
+        this->usage_task__input__generic_switch(
+            socket, switch_node_inference_utils::is_socket_selected__index_switch);
         break;
       }
       case GEO_NODE_MENU_SWITCH: {
-        this->usage_task__input__generic_switch(socket, menu_switch__is_socket_selected);
+        this->usage_task__input__generic_switch(
+            socket, switch_node_inference_utils::is_socket_selected__menu_switch);
         break;
       }
       case SH_NODE_MIX: {
-        this->usage_task__input__generic_switch(socket, mix_node__is_socket_selected);
+        this->usage_task__input__generic_switch(
+            socket, switch_node_inference_utils::is_socket_selected__mix_node);
         break;
       }
       case SH_NODE_MIX_SHADER: {
-        this->usage_task__input__generic_switch(socket, shader_mix_node__is_socket_selected);
+        this->usage_task__input__generic_switch(
+            socket, switch_node_inference_utils::is_socket_selected__shader_mix_node);
         break;
       }
       case GEO_NODE_SIMULATION_INPUT: {

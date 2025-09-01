@@ -159,23 +159,28 @@ class SocketValueInferencerImpl {
         return;
       }
       case GEO_NODE_SWITCH: {
-        this->value_task__output__generic_switch(socket, switch__is_socket_selected);
+        this->value_task__output__generic_switch(
+            socket, switch_node_inference_utils::is_socket_selected__switch);
         return;
       }
       case GEO_NODE_INDEX_SWITCH: {
-        this->value_task__output__generic_switch(socket, index_switch__is_socket_selected);
+        this->value_task__output__generic_switch(
+            socket, switch_node_inference_utils::is_socket_selected__index_switch);
         return;
       }
       case GEO_NODE_MENU_SWITCH: {
-        this->value_task__output__generic_switch(socket, menu_switch__is_socket_selected);
+        this->value_task__output__generic_switch(
+            socket, switch_node_inference_utils::is_socket_selected__menu_switch);
         return;
       }
       case SH_NODE_MIX: {
-        this->value_task__output__generic_switch(socket, mix_node__is_socket_selected);
+        this->value_task__output__generic_switch(
+            socket, switch_node_inference_utils::is_socket_selected__mix_node);
         return;
       }
       case SH_NODE_MIX_SHADER: {
-        this->value_task__output__generic_switch(socket, shader_mix_node__is_socket_selected);
+        this->value_task__output__generic_switch(
+            socket, switch_node_inference_utils::is_socket_selected__shader_mix_node);
         return;
       }
       case SH_NODE_MATH: {
@@ -841,5 +846,95 @@ InferenceValue SocketValueInferencer::get_socket_value(const SocketInContext &so
 {
   return impl_.get_socket_value(socket);
 }
+
+namespace switch_node_inference_utils {
+
+bool is_socket_selected__switch(const SocketInContext &socket, const InferenceValue &condition)
+{
+  const bool is_true = condition.get_known<bool>();
+  const int selected_index = is_true ? 2 : 1;
+  return socket->index() == selected_index;
+}
+
+bool is_socket_selected__index_switch(const SocketInContext &socket,
+                                      const InferenceValue &condition)
+{
+  const int index = condition.get_known<int>();
+  return socket->index() == index + 1;
+}
+
+bool is_socket_selected__menu_switch(const SocketInContext &socket,
+                                     const InferenceValue &condition)
+{
+  const NodeMenuSwitch &storage = *static_cast<const NodeMenuSwitch *>(
+      socket->owner_node().storage);
+  const int menu_value = condition.get_known<int>();
+  const NodeEnumItem &item = storage.enum_definition.items_array[socket->index() - 1];
+  return menu_value == item.identifier;
+}
+
+bool is_socket_selected__mix_node(const SocketInContext &socket, const InferenceValue &condition)
+{
+  const NodeShaderMix &storage = *static_cast<const NodeShaderMix *>(socket.owner_node()->storage);
+  if (storage.data_type == SOCK_RGBA && storage.blend_type != MA_RAMP_BLEND) {
+    return true;
+  }
+
+  const bool clamp_factor = storage.clamp_factor != 0;
+  bool only_a = false;
+  bool only_b = false;
+  if (storage.data_type == SOCK_VECTOR && storage.factor_mode == NODE_MIX_MODE_NON_UNIFORM) {
+    const float3 mix_factor = condition.get_known<float3>();
+    if (clamp_factor) {
+      only_a = mix_factor.x <= 0.0f && mix_factor.y <= 0.0f && mix_factor.z <= 0.0f;
+      only_b = mix_factor.x >= 1.0f && mix_factor.y >= 1.0f && mix_factor.z >= 1.0f;
+    }
+    else {
+      only_a = float3{0.0f, 0.0f, 0.0f} == mix_factor;
+      only_b = float3{1.0f, 1.0f, 1.0f} == mix_factor;
+    }
+  }
+  else {
+    const float mix_factor = condition.get_known<float>();
+    if (clamp_factor) {
+      only_a = mix_factor <= 0.0f;
+      only_b = mix_factor >= 1.0f;
+    }
+    else {
+      only_a = mix_factor == 0.0f;
+      only_b = mix_factor == 1.0f;
+    }
+  }
+  if (only_a) {
+    if (STREQ(socket->name, "B")) {
+      return false;
+    }
+  }
+  if (only_b) {
+    if (STREQ(socket->name, "A")) {
+      return false;
+    }
+  }
+  return true;
+}
+
+bool is_socket_selected__shader_mix_node(const SocketInContext &socket,
+                                         const InferenceValue &condition)
+{
+  const float mix_factor = condition.get_known<float>();
+  if (mix_factor == 0.0f) {
+    if (STREQ(socket->identifier, "Shader_001")) {
+      return false;
+    }
+  }
+  else if (mix_factor == 1.0f) {
+    if (STREQ(socket->identifier, "Shader")) {
+      return false;
+    }
+  }
+  return true;
+}
+
+}  // namespace switch_node_inference_utils
 
 }  // namespace blender::nodes
