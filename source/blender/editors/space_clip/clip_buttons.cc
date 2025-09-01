@@ -140,6 +140,8 @@ void uiTemplateMovieClip(uiLayout *layout,
     row->op("clip.reload", "", ICON_FILE_REFRESH);
 
     uiLayout *col = &layout->column(false);
+    col->prop(&clipptr, "frame_start", UI_ITEM_NONE, IFACE_("Start Frame"), ICON_NONE);
+    col->prop(&clipptr, "frame_offset", UI_ITEM_NONE, IFACE_("Frame Offset"), ICON_NONE);
     uiTemplateColorspaceSettings(col, &clipptr, "colorspace_settings");
   }
 }
