@@ -586,7 +586,10 @@ void do_versions_after_linking_420(FileData *fd, Main *bmain)
 
 static void image_settings_avi_to_ffmpeg(Scene *scene)
 {
-  if (ELEM(scene->r.im_format.imtype, R_IMF_IMTYPE_AVIRAW, R_IMF_IMTYPE_AVIJPEG)) {
+  /* R_IMF_IMTYPE_AVIRAW and R_IMF_IMTYPE_AVIJPEG. */
+  constexpr char deprecated_avi_raw_imtype = 15;
+  constexpr char deprecated_avi_jpeg_imtype = 16;
+  if (ELEM(scene->r.im_format.imtype, deprecated_avi_raw_imtype, deprecated_avi_jpeg_imtype)) {
     scene->r.im_format.imtype = R_IMF_IMTYPE_FFMPEG;
   }
 }
@@ -1169,8 +1172,8 @@ void blo_do_versions_420(FileData *fd, Library * /*lib*/, Main *bmain)
         /* Use the `Scene` radius unit by default (confusingly named `BRUSH_LOCK_SIZE`).
          * Convert the radius to be the same visual size as in GPv2. */
         brush->flag |= BRUSH_LOCK_SIZE;
-        brush->unprojected_radius = brush->size *
-                                    blender::bke::greasepencil::LEGACY_RADIUS_CONVERSION_FACTOR;
+        brush->unprojected_size = brush->size *
+                                  blender::bke::greasepencil::LEGACY_RADIUS_CONVERSION_FACTOR;
       }
     }
   }

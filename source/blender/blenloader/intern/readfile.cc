@@ -3018,7 +3018,7 @@ static bool read_libblock_undo_restore(
   if (id_old != nullptr && read_libblock_is_identical(fd, bhead)) {
     /* Local datablock was unchanged, restore from the old main. */
     CLOG_DEBUG(&LOG_UNDO,
-               "UNDO: read %s (uid %u) -> keep identical datablock",
+               "UNDO: read %s (uid %u) -> keep identical data-block",
                id->name,
                id->session_uid);
 
@@ -5222,14 +5222,6 @@ ID *BLO_read_get_new_id_address_from_session_uid(BlendLibReader *reader, const u
 int BLO_read_fileversion_get(BlendDataReader *reader)
 {
   return reader->fd->fileversion;
-}
-
-int BLO_read_struct_member_offset(const BlendDataReader *reader,
-                                  const char *stype,
-                                  const char *vartype,
-                                  const char *name)
-{
-  return DNA_struct_member_offset_by_name_with_alias(reader->fd->filesdna, stype, vartype, name);
 }
 
 void BLO_read_struct_list_with_size(BlendDataReader *reader,
