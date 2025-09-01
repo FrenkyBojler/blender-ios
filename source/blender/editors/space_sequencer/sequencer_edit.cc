@@ -1804,35 +1804,21 @@ static wmOperatorStatus sequencer_box_cut_exec(bContext *C, wmOperator *op)
     }
   }
   /* Close gaps. */
-  blender::VectorSet<Strip *> translated_strips;
   if (remove_gaps) {
     LISTBASE_FOREACH (Strip *, strip, ed->current_strips()) {
-      if (!translated_strips.contains(strip)) {
-        const float left_handle = seq::time_left_handle_frame_get(scene, strip);
-        int offset = rect_frames[0] - rect_frames[1];
-        /* cap offset */
-        offset = std::max(offset, (max_left_offset - rect_frames[1]));
+      const float left_handle = seq::time_left_handle_frame_get(scene, strip);
+      int offset = rect_frames[0] - rect_frames[1];
+      /* cap offset */
+      offset = std::max(offset, (max_left_offset - rect_frames[1]));
 
-        if (left_handle == rect_frames[1]) {
-          seq::transform_translate_strip(scene, strip, offset);
-        }
-        /* Offset every strip on the same channel and right of the cut. */
-        else if (left_handle > rect_frames[1] && strip->channel <= round_fl_to_int(rectf.ymax) &&
-                 strip->channel >= round_fl_to_int(rectf.ymin))
-        {
-          seq::transform_translate_strip(scene, strip, offset);
-
-          /* Move connected strip when not already moved. This is for the case then the cut only
-           * happend on the channel of the strip the strips are connected to.*/
-          blender::VectorSet<Strip *> connected_strips = seq::connected_strips_get(strip);
-          for (Strip *c_strip : connected_strips) {
-            if (!translated_strips.contains(strip)) {
-              seq::transform_translate_strip(scene, c_strip, offset);
-              translated_strips.add(strip);
-            }
-          }
-        }
-        translated_strips.add(strip);
+      if (left_handle == rect_frames[1]) {
+        seq::transform_translate_strip(scene, strip, offset);
+      }
+      /* Offset every strip on the same channel and right of the cut. */
+      else if (left_handle > rect_frames[1] && strip->channel <= round_fl_to_int(rectf.ymax) &&
+               strip->channel >= round_fl_to_int(rectf.ymin))
+      {
+        seq::transform_translate_strip(scene, strip, offset);
       }
     }
   }
