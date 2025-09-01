@@ -953,6 +953,10 @@ bool OneapiDevice::should_use_graphics_interop(const GraphicsInteropDevice &inte
   }
 
   const sycl::device &device = reinterpret_cast<sycl::queue *>(device_queue_)->get_device();
+  if (!device.has(sycl::aspect::ext_oneapi_external_memory_import)) {
+    return false;
+  }
+
   /* This extension is in the namespace "sycl::ext::intel", but also available on non-Intel GPUs.
    */
   sycl::detail::uuid_type uuid = device.get_info<sycl::ext::intel::info::device::uuid>();
