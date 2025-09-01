@@ -56,44 +56,30 @@ static void init(const bContext *C, PointerRNA *ptr)
 
 static void node_composit_buts_movieclip(uiLayout *layout, bContext *C, PointerRNA *ptr)
 {
-  bNode *node = (bNode *)ptr->data;
-  PointerRNA clipptr;
-  uiLayout *col;
-
   uiTemplateID(layout, C, ptr, "clip", nullptr, "CLIP_OT_open", nullptr);
+
+  bNode *node = (bNode *)ptr->data;
   if (!node->id) {
     return;
   }
 
-  col = &layout->column(true);
-
-  clipptr = RNA_pointer_get(ptr, "clip");
+  PointerRNA clipptr = RNA_pointer_get(ptr, "clip");
+  uiLayout *col = &layout->column(true);
   col->prop(&clipptr, "frame_start", UI_ITEM_NONE, IFACE_("Start Frame"), ICON_NONE);
   col->prop(&clipptr, "frame_offset", UI_ITEM_NONE, IFACE_("Frame Offset"), ICON_NONE);
 
-  col = &layout->column(false);
-  col->use_property_split_set(true);
-  col->use_property_decorate_set(false);
-
-  uiTemplateColorspaceSettings(col, &clipptr, "colorspace_settings");
+  col->separator();
+  uiLayout *split = &col->split(0.33f, true);
+  PointerRNA colorspace_settings_ptr = RNA_pointer_get(&clipptr, "colorspace_settings");
+  split->label(IFACE_("Color Space"), ICON_NONE);
+  split->prop(&colorspace_settings_ptr, "name", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void node_composit_buts_movieclip_ex(uiLayout *layout, bContext *C, PointerRNA *ptr)
 {
-  bNode *node = (bNode *)ptr->data;
-  PointerRNA clipptr;
-  uiLayout *col;
-
   layout->use_property_split_set(true);
   layout->use_property_decorate_set(false);
-  col = &layout->column(false);
-
-  uiTemplateID(col, C, ptr, "clip", nullptr, "CLIP_OT_open", nullptr);
-  if (!node->id) {
-    return;
-  }
-
-  uiTemplateMovieClip(col, C, ptr, "clip", true);
+  uiTemplateMovieClip(layout, C, ptr, "clip", false);
 }
 
 using namespace blender::compositor;
