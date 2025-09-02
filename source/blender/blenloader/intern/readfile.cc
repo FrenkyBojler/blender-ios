@@ -3309,7 +3309,7 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
      * IDProperties), this seems to be the only safe and sound way to handle the migration. */
     version_system_idprops_generate(main);
   }
-  if (!MAIN_VERSION_FILE_ATLEAST(main, 500, 69)) {
+  if (!MAIN_VERSION_FILE_ATLEAST(main, 500, 70)) {
     /* Same as above, but decision to keep user-defined (aka custom properties) in nodes was taken
      * later during 5.0 development process. */
     version_system_idprops_nodes_generate(main);
