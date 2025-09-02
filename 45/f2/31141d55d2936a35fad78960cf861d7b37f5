@@ -6,3 +6,4 @@ Referenced by issue #134155, Crash when searching in properties editor
 Referenced by issue #134144, Fix: Menu search crash after recent PointerRNA change
 Referenced by issue #122431, RNA: Make `PointerRNA` aware of its own 'data path'
 Referenced by issue #137407, Data Path Missing for the Bezier Handles in the Graph Editor!
+Referenced by issue #71593, Changes to a PropertyGroup in the preferences of an addon do not trigger the flag indicating changes to save
