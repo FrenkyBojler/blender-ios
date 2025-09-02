@@ -111,16 +111,16 @@ typedef struct ThemeRegionsAssetShelf {
   unsigned char header_back[4];
 } ThemeRegionsAssetShelf;
 
-typedef struct ThemeRegionsSourceList {
+typedef struct ThemeRegionsChannels {
   unsigned char back[4];
   unsigned char text[4];
   unsigned char text_selected[4];
   char _pad0[4];
-} ThemeRegionsSourceList;
+} ThemeRegionsChannels;
 
 typedef struct ThemeRegions {
   ThemeRegionsAssetShelf asset_shelf;
-  ThemeRegionsSourceList source_list;
+  ThemeRegionsChannels channels;
 } ThemeRegions;
 
 typedef struct ThemeCommonAnim {

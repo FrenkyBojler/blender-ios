@@ -281,7 +281,7 @@ const bTheme U_theme_default = {
       .back = RGBA(0x303030ff),
       .header_back = RGBA(0x1d1d1dff),
     },
-    .source_list = {
+    .channels = {
       .back = RGBA(0x1d1d1dff),
       .text = RGBA(0xb8b8b8ff),
       .text_selected = RGBA(0xffaf23ff),

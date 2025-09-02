@@ -2160,12 +2160,12 @@ static void rna_def_userdef_theme_regions_asset_shelf(BlenderRNA *brna)
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 }
 
-static void rna_def_userdef_theme_regions_source_list(BlenderRNA *brna)
+static void rna_def_userdef_theme_regions_channels(BlenderRNA *brna)
 {
   StructRNA *srna;
   PropertyRNA *prop;
 
-  srna = RNA_def_struct(brna, "ThemeRegionsSourceList", nullptr);
+  srna = RNA_def_struct(brna, "ThemeRegionsChannels", nullptr);
   RNA_def_struct_ui_text(srna, "Source List Region Settings", "");
 
   prop = RNA_def_property(srna, "back", PROP_FLOAT, PROP_COLOR_GAMMA);
@@ -2189,7 +2189,7 @@ static void rna_def_userdef_theme_regions(BlenderRNA *brna)
   StructRNA *srna;
   PropertyRNA *prop;
 
-  rna_def_userdef_theme_regions_source_list(brna);
+  rna_def_userdef_theme_regions_channels(brna);
   rna_def_userdef_theme_regions_asset_shelf(brna);
 
   srna = RNA_def_struct(brna, "ThemeRegions", nullptr);
@@ -2202,9 +2202,9 @@ static void rna_def_userdef_theme_regions(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Asset Shelf", "");
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 
-  prop = RNA_def_property(srna, "source_list", PROP_POINTER, PROP_NONE);
+  prop = RNA_def_property(srna, "channels", PROP_POINTER, PROP_NONE);
   RNA_def_property_flag(prop, PROP_NEVER_NULL);
-  RNA_def_property_ui_text(prop, "Source List", "");
+  RNA_def_property_ui_text(prop, "Channels", "");
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 }
 
