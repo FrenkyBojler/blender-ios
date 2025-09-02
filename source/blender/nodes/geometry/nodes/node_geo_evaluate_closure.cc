@@ -124,8 +124,11 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *ptr)
         C, panel, tree, node);
     socket_items::ui::draw_active_item_props<EvaluateClosureInputItemsAccessor>(
         tree, node, [&](PointerRNA *item_ptr) {
+          const auto &item = *item_ptr->data_as<NodeEvaluateClosureInputItem>();
           panel->prop(item_ptr, "socket_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-          panel->prop(item_ptr, "structure_type", UI_ITEM_NONE, "Shape", ICON_NONE);
+          if (!socket_type_always_single(eNodeSocketDatatype(item.socket_type))) {
+            panel->prop(item_ptr, "structure_type", UI_ITEM_NONE, "Shape", ICON_NONE);
+          }
         });
   }
   if (uiLayout *panel = layout->panel(C, "output_items", false, IFACE_("Output Items"))) {
@@ -133,8 +136,11 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *ptr)
         C, panel, tree, node);
     socket_items::ui::draw_active_item_props<EvaluateClosureOutputItemsAccessor>(
         tree, node, [&](PointerRNA *item_ptr) {
+          const auto &item = *item_ptr->data_as<NodeEvaluateClosureOutputItem>();
           panel->prop(item_ptr, "socket_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-          panel->prop(item_ptr, "structure_type", UI_ITEM_NONE, "Shape", ICON_NONE);
+          if (!socket_type_always_single(eNodeSocketDatatype(item.socket_type))) {
+            panel->prop(item_ptr, "structure_type", UI_ITEM_NONE, "Shape", ICON_NONE);
+          }
         });
   }
 }

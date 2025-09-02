@@ -658,6 +658,7 @@ static const EnumPropertyItem node_cryptomatte_layer_name_items[] = {
 #  include "NOD_geo_simulation.hh"
 #  include "NOD_geometry.hh"
 #  include "NOD_geometry_nodes_lazy_function.hh"
+#  include "NOD_rna_define.hh"
 #  include "NOD_shader.h"
 #  include "NOD_socket.hh"
 #  include "NOD_socket_items.hh"
@@ -3881,6 +3882,20 @@ typename Accessor::ItemT *rna_Node_ItemArray_new_with_socket_and_name(
   WM_main_add_notifier(NC_NODE | NA_EDITED, ntree);
 
   return new_item;
+}
+
+template<typename Accessor>
+static const EnumPropertyItem *rna_Node_ItemArray_structure_type_itemf(bContext * /*C*/,
+                                                                       PointerRNA *ptr,
+                                                                       PropertyRNA * /*prop*/,
+                                                                       bool *r_free)
+{
+  using ItemT = typename Accessor::ItemT;
+
+  const bNodeTree *ntree = reinterpret_cast<const bNodeTree *>(ptr->owner_id);
+  const ItemT &item = *static_cast<const ItemT *>(ptr->data);
+  const eNodeSocketDatatype socket_type = Accessor::get_socket_type(item);
+  return rna_NodeSocket_structure_type_item_filter(ntree, socket_type, r_free);
 }
 
 static IndexSwitchItem *rna_NodeIndexSwitchItems_new(ID *id, bNode *node, Main *bmain)
@@ -7688,6 +7703,11 @@ static void rna_def_closure_input_item(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "structure_type", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_items(prop, rna_enum_node_socket_structure_type_items);
+  RNA_def_property_enum_funcs(
+      prop,
+      nullptr,
+      nullptr,
+      "rna_Node_ItemArray_structure_type_itemf<ClosureInputItemsAccessor>");
   RNA_def_property_ui_text(
       prop,
       "Structure Type",
@@ -7720,6 +7740,11 @@ static void rna_def_closure_output_item(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "structure_type", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_items(prop, rna_enum_node_socket_structure_type_items);
+  RNA_def_property_enum_funcs(
+      prop,
+      nullptr,
+      nullptr,
+      "rna_Node_ItemArray_structure_type_itemf<ClosureOutputItemsAccessor>");
   RNA_def_property_ui_text(
       prop,
       "Structure Type",
@@ -7859,6 +7884,11 @@ static void rna_def_evaluate_closure_input_item(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "structure_type", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_items(prop, rna_enum_node_socket_structure_type_items);
+  RNA_def_property_enum_funcs(
+      prop,
+      nullptr,
+      nullptr,
+      "rna_Node_ItemArray_structure_type_itemf<EvaluateClosureInputItemsAccessor>");
   RNA_def_property_ui_text(
       prop,
       "Structure Type",
@@ -7894,6 +7924,11 @@ static void rna_def_evaluate_closure_output_item(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "structure_type", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_items(prop, rna_enum_node_socket_structure_type_items);
+  RNA_def_property_enum_funcs(
+      prop,
+      nullptr,
+      nullptr,
+      "rna_Node_ItemArray_structure_type_itemf<EvaluateClosureOutputItemsAccessor>");
   RNA_def_property_ui_text(
       prop,
       "Structure Type",
@@ -8042,6 +8077,11 @@ static void rna_def_combine_bundle_item(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "structure_type", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_items(prop, rna_enum_node_socket_structure_type_items);
+  RNA_def_property_enum_funcs(
+      prop,
+      nullptr,
+      nullptr,
+      "rna_Node_ItemArray_structure_type_itemf<CombineBundleItemsAccessor>");
   RNA_def_property_ui_text(
       prop,
       "Structure Type",
@@ -8096,6 +8136,11 @@ static void rna_def_separate_bundle_item(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "structure_type", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_items(prop, rna_enum_node_socket_structure_type_items);
+  RNA_def_property_enum_funcs(
+      prop,
+      nullptr,
+      nullptr,
+      "rna_Node_ItemArray_structure_type_itemf<SeparateBundleItemsAccessor>");
   RNA_def_property_ui_text(
       prop,
       "Structure Type",

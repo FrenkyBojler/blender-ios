@@ -14,6 +14,8 @@
 
 #include "rna_internal.hh"
 
+#include "NOD_rna_define.hh"
+
 #include "WM_types.hh"
 
 const EnumPropertyItem rna_enum_node_tree_interface_item_type_items[] = {
@@ -477,7 +479,7 @@ static void rna_NodeTreeInterfaceSocket_force_non_field_set(PointerRNA *ptr, con
                                    NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO;
 }
 
-static const EnumPropertyItem *rna_structure_type_item_filter(
+const EnumPropertyItem *rna_NodeSocket_structure_type_item_filter(
     const bNodeTree *ntree, const eNodeSocketDatatype socket_type, bool *r_free)
 {
   if (!ntree) {
@@ -543,7 +545,7 @@ static const EnumPropertyItem *rna_NodeTreeInterfaceSocket_structure_type_itemf(
   const bNodeTreeInterfaceSocket *socket = static_cast<const bNodeTreeInterfaceSocket *>(
       ptr->data);
   const eNodeSocketDatatype socket_type = socket->socket_typeinfo()->type;
-  return rna_structure_type_item_filter(ntree, socket_type, r_free);
+  return rna_NodeSocket_structure_type_item_filter(ntree, socket_type, r_free);
 }
 
 static const EnumPropertyItem *rna_NodeTreeInterfaceSocket_default_input_itemf(
