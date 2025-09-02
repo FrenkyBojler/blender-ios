@@ -973,6 +973,73 @@ static void write_legacy_properties(bNodeTree &ntree)
           bNodeSocket *quality_socket = node_find_socket(*node, SOCK_IN, "Quality");
           storage.quality = quality_socket->default_value_typed<bNodeSocketValueMenu>()->value;
         }
+        else if (node->type_legacy == CMP_NODE_SETALPHA) {
+          auto &storage = *static_cast<NodeSetAlpha *>(node->storage);
+          bNodeSocket *socket = node_find_socket(*node, SOCK_IN, "Mode");
+          storage.mode = socket->default_value_typed<bNodeSocketValueMenu>()->value;
+        }
+        else if (node->type_legacy == CMP_NODE_CHANNEL_MATTE) {
+          auto &storage = *static_cast<NodeChroma *>(node->storage);
+          bNodeSocket *color_space_socket = node_find_socket(*node, SOCK_IN, "Color Space");
+          node->custom1 = color_space_socket->default_value_typed<bNodeSocketValueMenu>()->value +
+                          1;
+
+          switch (CMPNodeChannelMatteColorSpace(node->custom1)) {
+            case CMP_NODE_CHANNEL_MATTE_CS_RGB: {
+              bNodeSocket *channel_socket = node_find_socket(*node, SOCK_IN, "RGB Key Channel");
+              node->custom2 = channel_socket->default_value_typed<bNodeSocketValueMenu>()->value +
+                              1;
+              break;
+            }
+            case CMP_NODE_CHANNEL_MATTE_CS_HSV: {
+              bNodeSocket *channel_socket = node_find_socket(*node, SOCK_IN, "HSV Key Channel");
+              node->custom2 = channel_socket->default_value_typed<bNodeSocketValueMenu>()->value +
+                              1;
+            }
+            case CMP_NODE_CHANNEL_MATTE_CS_YUV: {
+              bNodeSocket *channel_socket = node_find_socket(*node, SOCK_IN, "YUV Key Channel");
+              node->custom2 = channel_socket->default_value_typed<bNodeSocketValueMenu>()->value +
+                              1;
+            }
+            case CMP_NODE_CHANNEL_MATTE_CS_YCC: {
+              bNodeSocket *channel_socket = node_find_socket(*node, SOCK_IN, "YCC Key Channel");
+              node->custom2 = channel_socket->default_value_typed<bNodeSocketValueMenu>()->value +
+                              1;
+            }
+          }
+
+          bNodeSocket *limit_method_socket = node_find_socket(*node, SOCK_IN, "Limit Method");
+          storage.algorithm =
+              limit_method_socket->default_value_typed<bNodeSocketValueMenu>()->value;
+
+          switch (CMPNodeChannelMatteColorSpace(node->custom1)) {
+            case CMP_NODE_CHANNEL_MATTE_CS_RGB: {
+              bNodeSocket *channel_socket = node_find_socket(*node, SOCK_IN, "RGB Limit Channel");
+              node->custom2 = channel_socket->default_value_typed<bNodeSocketValueMenu>()->value +
+                              1;
+              break;
+            }
+            case CMP_NODE_CHANNEL_MATTE_CS_HSV: {
+              bNodeSocket *channel_socket = node_find_socket(*node, SOCK_IN, "HSV Limit Channel");
+              node->custom2 = channel_socket->default_value_typed<bNodeSocketValueMenu>()->value +
+                              1;
+            }
+            case CMP_NODE_CHANNEL_MATTE_CS_YUV: {
+              bNodeSocket *channel_socket = node_find_socket(*node, SOCK_IN, "YUV Limit Channel");
+              node->custom2 = channel_socket->default_value_typed<bNodeSocketValueMenu>()->value +
+                              1;
+            }
+            case CMP_NODE_CHANNEL_MATTE_CS_YCC: {
+              bNodeSocket *channel_socket = node_find_socket(*node, SOCK_IN, "YCC Limit Channel");
+              node->custom2 = channel_socket->default_value_typed<bNodeSocketValueMenu>()->value +
+                              1;
+            }
+          }
+        }
+        else if (node->type_legacy == CMP_NODE_COLORBALANCE) {
+          bNodeSocket *socket = node_find_socket(*node, SOCK_IN, "Type");
+          node->custom1 = socket->default_value_typed<bNodeSocketValueMenu>()->value;
+        }
       }
     }
     default:

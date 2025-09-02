@@ -1439,7 +1439,7 @@ typedef struct NodeMask {
 } NodeMask;
 
 typedef struct NodeSetAlpha {
-  char mode;
+  char mode DNA_DEPRECATED;
 } NodeSetAlpha;
 
 typedef struct NodeTexBase {
@@ -3112,10 +3112,10 @@ typedef enum CMPNodeCryptomatteSource {
 
 /* Channel Matte node, stored in custom1. */
 typedef enum CMPNodeChannelMatteColorSpace {
-  CMP_NODE_CHANNEL_MATTE_CS_RGB = 1,
-  CMP_NODE_CHANNEL_MATTE_CS_HSV = 2,
-  CMP_NODE_CHANNEL_MATTE_CS_YUV = 3,
-  CMP_NODE_CHANNEL_MATTE_CS_YCC = 4,
+  CMP_NODE_CHANNEL_MATTE_CS_RGB = 0,
+  CMP_NODE_CHANNEL_MATTE_CS_HSV = 1,
+  CMP_NODE_CHANNEL_MATTE_CS_YUV = 2,
+  CMP_NODE_CHANNEL_MATTE_CS_YCC = 3,
 } CMPNodeChannelMatteColorSpace;
 
 /* NodeLensDist.distortion_type. */
