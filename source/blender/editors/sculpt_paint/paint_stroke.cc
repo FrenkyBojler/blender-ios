@@ -181,7 +181,7 @@ static void paint_draw_smooth_cursor(bContext *C,
   }
 }
 
-static void paint_draw_line_cursor(bContext *C,
+static void paint_draw_line_cursor(bContext * /*C*/,
                                    const blender::int2 &xy,
                                    const blender::float2 & /*tilt*/,
                                    void *customdata)
