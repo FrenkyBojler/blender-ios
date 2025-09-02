@@ -2166,25 +2166,21 @@ static void rna_def_userdef_theme_regions_source_list(BlenderRNA *brna)
   PropertyRNA *prop;
 
   srna = RNA_def_struct(brna, "ThemeRegionsSourceList", nullptr);
-  RNA_def_struct_sdna(srna, "ThemeRegionsSourceList");
   RNA_def_struct_ui_text(srna, "Source List Region Settings", "");
 
-  prop = RNA_def_property(srna, "background", PROP_FLOAT, PROP_COLOR_GAMMA);
-  RNA_def_property_float_sdna(prop, nullptr, "source_list_back");
+  prop = RNA_def_property(srna, "back", PROP_FLOAT, PROP_COLOR_GAMMA);
   RNA_def_property_array(prop, 3);
-  RNA_def_property_ui_text(prop, "Source List", "");
+  RNA_def_property_ui_text(prop, "Background", "");
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 
   prop = RNA_def_property(srna, "text", PROP_FLOAT, PROP_COLOR_GAMMA);
-  RNA_def_property_float_sdna(prop, nullptr, "source_list_text");
   RNA_def_property_array(prop, 3);
-  RNA_def_property_ui_text(prop, "Source List Text", "");
+  RNA_def_property_ui_text(prop, "Text", "");
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 
   prop = RNA_def_property(srna, "text_selected", PROP_FLOAT, PROP_COLOR_GAMMA);
-  RNA_def_property_float_sdna(prop, nullptr, "source_list_text_sel");
   RNA_def_property_array(prop, 3);
-  RNA_def_property_ui_text(prop, "Source List Text Highlight", "");
+  RNA_def_property_ui_text(prop, "Selected Text", "");
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 }
 
@@ -2197,8 +2193,9 @@ static void rna_def_userdef_theme_regions(BlenderRNA *brna)
   rna_def_userdef_theme_regions_asset_shelf(brna);
 
   srna = RNA_def_struct(brna, "ThemeRegions", nullptr);
-  RNA_def_struct_ui_text(
-      srna, "Shared Region Properties", "Theme properties for common editor regions");
+  RNA_def_struct_ui_text(srna,
+                         "Shared Region Properties",
+                         "Theme settings for regions that are common among editors");
 
   prop = RNA_def_property(srna, "asset_shelf", PROP_POINTER, PROP_NONE);
   RNA_def_property_flag(prop, PROP_NEVER_NULL);

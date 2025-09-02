@@ -282,9 +282,9 @@ const bTheme U_theme_default = {
       .header_back = RGBA(0x1d1d1dff),
     },
     .source_list = {
-      .source_list_back = RGBA(0x1d1d1dff),
-      .source_list_text = RGBA(0xb8b8b8ff),
-      .source_list_text_sel = RGBA(0xffaf23ff),
+      .back = RGBA(0x1d1d1dff),
+      .text = RGBA(0xb8b8b8ff),
+      .text_selected = RGBA(0xffaf23ff),
     },
   },
   .common = {

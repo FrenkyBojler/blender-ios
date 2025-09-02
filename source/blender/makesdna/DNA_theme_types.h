@@ -112,9 +112,9 @@ typedef struct ThemeRegionsAssetShelf {
 } ThemeRegionsAssetShelf;
 
 typedef struct ThemeRegionsSourceList {
-  unsigned char source_list_back[4];
-  unsigned char source_list_text[4];
-  unsigned char source_list_text_sel[4];
+  unsigned char back[4];
+  unsigned char text[4];
+  unsigned char text_selected[4];
   char _pad0[4];
 } ThemeRegionsSourceList;
 
