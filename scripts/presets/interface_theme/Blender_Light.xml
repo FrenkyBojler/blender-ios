@@ -384,22 +384,24 @@
       </ThemeUserInterface>
     </user_interface>
     <regions>
-      <asset_shelf>
-        <ThemeRegionsAssetShelf
-          back="#999999ff"
-          header_back="#adadadff"
-          >
-        </ThemeRegionsAssetShelf>
-      </asset_shelf>
-      <channels>
-        <ThemeRegionsChannels
-          list="#adadad"
-          list_title="#000000"
-          list_text="#050505"
-          list_text_hi="#ffffff"
-          >
-        </ThemeRegionsChannels>
-      </channels>
+      <ThemeRegions>
+        <asset_shelf>
+          <ThemeRegionsAssetShelf
+            back="#999999ff"
+            header_back="#adadadff"
+            >
+          </ThemeRegionsAssetShelf>
+        </asset_shelf>
+        <channels>
+          <ThemeRegionsChannels
+            list="#adadad"
+            list_title="#000000"
+            list_text="#050505"
+            list_text_hi="#ffffff"
+            >
+          </ThemeRegionsChannels>
+        </channels>
+      </ThemeRegions>
     </regions>
     <common>
       <ThemeCommon>
