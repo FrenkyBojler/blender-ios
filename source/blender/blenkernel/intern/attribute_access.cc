@@ -1152,8 +1152,8 @@ void fill_attribute_range_default(MutableAttributeAccessor attributes,
                                   const AttributeFilter &attribute_filter,
                                   const IndexRange range)
 {
-  /* While it is valide to call this function for any valide range which can be placed in target
-   * domain, this is computetionally costly to peform this loop. This check is COW elision and not
+  /* While it is valid to call this function for any valide range which can be placed in target
+   * domain, ir is computationally costly to peform this loop. This check is COW elision and not
    * just loop skip. */
   if (range.is_empty()) {
     return;
