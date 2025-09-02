@@ -590,6 +590,6 @@ void UI_view2d_draw_scale_x__frames_or_seconds(const ARegion *region,
   }
   else {
     draw_horizontal_scale_indicators(
-        region, v2d, step, rect, view_to_string__frame_number, nullptr, colorid);
+        region, v2d, step, rect, view_to_string__value, nullptr, colorid);
   }
 }
