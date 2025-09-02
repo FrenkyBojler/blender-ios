@@ -259,6 +259,12 @@ class AccumulateFieldInput final : public bke::GeometryFieldInput {
     return attributes.adapt_domain(std::move(g_output), source_domain_, context.domain());
   }
 
+  void for_each_field_input_recursive(FunctionRef<void(const FieldInput &)> fn) const final
+  {
+    input_.node().for_each_field_input_recursive(fn);
+    group_index_.node().for_each_field_input_recursive(fn);
+  }
+
   uint64_t hash() const override
   {
     return get_default_hash(input_, group_index_, source_domain_, accumulation_mode_);
@@ -348,6 +354,12 @@ class TotalFieldInput final : public bke::GeometryFieldInput {
     return attributes.adapt_domain(std::move(g_outputs), source_domain_, context.domain());
   }
 
+  void for_each_field_input_recursive(FunctionRef<void(const FieldInput &)> fn) const final
+  {
+    input_.node().for_each_field_input_recursive(fn);
+    group_index_.node().for_each_field_input_recursive(fn);
+  }
+
   uint64_t hash() const override
   {
     return get_default_hash(input_, group_index_, source_domain_);
@@ -398,10 +410,14 @@ static void node_geo_exec(GeoNodeExecParams params)
 static void node_rna(StructRNA *srna)
 {
   static EnumPropertyItem items[] = {
-      {CD_PROP_FLOAT, "FLOAT", 0, "Float", "Add floating point values"},
-      {CD_PROP_INT32, "INT", 0, "Integer", "Add integer values"},
-      {CD_PROP_FLOAT3, "FLOAT_VECTOR", 0, "Vector", "Add 3D vector values"},
-      {CD_PROP_FLOAT4X4, "TRANSFORM", 0, "Transform", "Multiply transformation matrices"},
+      {CD_PROP_FLOAT, "FLOAT", ICON_NODE_SOCKET_FLOAT, "Float", "Add floating point values"},
+      {CD_PROP_INT32, "INT", ICON_NODE_SOCKET_INT, "Integer", "Add integer values"},
+      {CD_PROP_FLOAT3, "FLOAT_VECTOR", ICON_NODE_SOCKET_VECTOR, "Vector", "Add 3D vector values"},
+      {CD_PROP_FLOAT4X4,
+       "TRANSFORM",
+       ICON_NODE_SOCKET_MATRIX,
+       "Transform",
+       "Multiply transformation matrices"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 

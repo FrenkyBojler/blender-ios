@@ -634,6 +634,14 @@ static bool transform_poll_property(const bContext *C, wmOperator *op, const Pro
     return RNA_boolean_get(op->ptr, "snap");
   }
 
+  if (STREQ(prop_id, "use_even_offset")) {
+    /* Even offset isn't meaningful for individual faces. */
+    if (op->opm && STREQ(op->opm->idname, "MESH_OT_extrude_faces_move")) {
+      return false;
+    }
+    return true;
+  }
+
   /* #P_CORRECT_UV. */
   if (STREQ(prop_id, "correct_uv")) {
     ScrArea *area = CTX_wm_area(C);
@@ -722,13 +730,13 @@ void properties_register(wmOperatorType *ot, int flags)
     RNA_def_property_flag(prop, PROP_HIDDEN);
 
     if ((flags & P_GEO_SNAP) == P_GEO_SNAP) {
-      prop = RNA_def_enum(ot->srna,
-                          "snap_elements",
-                          rna_enum_snap_element_items,
-                          SCE_SNAP_TO_INCREMENT,
-                          "Snap to Elements",
-                          "");
-      RNA_def_property_flag(prop, PROP_HIDDEN | PROP_ENUM_FLAG);
+      prop = RNA_def_enum_flag(ot->srna,
+                               "snap_elements",
+                               rna_enum_snap_element_items,
+                               SCE_SNAP_TO_INCREMENT,
+                               "Snap to Elements",
+                               "");
+      RNA_def_property_flag(prop, PROP_HIDDEN);
 
       RNA_def_boolean(ot->srna, "use_snap_project", false, "Project Individual Elements", "");
 

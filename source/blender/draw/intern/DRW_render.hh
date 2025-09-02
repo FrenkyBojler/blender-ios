@@ -22,7 +22,10 @@
 
 namespace blender::gpu {
 class Batch;
-}
+class Shader;
+class Texture;
+class UniformBuf;
+}  // namespace blender::gpu
 struct ARegion;
 struct bContext;
 struct Depsgraph;
@@ -30,9 +33,6 @@ struct DefaultFramebufferList;
 struct DefaultTextureList;
 struct DupliObject;
 struct GPUMaterial;
-struct GPUShader;
-struct GPUTexture;
-struct GPUUniformBuf;
 struct Mesh;
 struct Object;
 struct ParticleSystem;
@@ -193,16 +193,20 @@ template<typename T> T &DRW_object_get_data_for_drawing(const Object &object)
   return *static_cast<T *>(object.data);
 }
 
-template<> inline Mesh &DRW_object_get_data_for_drawing(const Object &object)
+inline Mesh &DRW_mesh_get_for_drawing(Mesh &mesh)
 {
   /* For drawing we want either the base mesh if GPU subdivision is enabled, or the
    * tessellated mesh if GPU subdivision is disabled. */
-  BLI_assert(object.type == OB_MESH);
-  Mesh &mesh = *static_cast<Mesh *>(object.data);
   if (BKE_subsurf_modifier_has_gpu_subdiv(&mesh)) {
     return mesh;
   }
   return *BKE_mesh_wrapper_ensure_subdivision(&mesh);
+}
+
+template<> inline Mesh &DRW_object_get_data_for_drawing(const Object &object)
+{
+  BLI_assert(object.type == OB_MESH);
+  return DRW_mesh_get_for_drawing(*static_cast<Mesh *>(object.data));
 }
 
 /**
@@ -265,6 +269,7 @@ struct DRWContext {
 
     /** Render for depth picking (auto-depth). Runs on main thread. */
     DEPTH,
+    DEPTH_ACTIVE_OBJECT,
 
     /** Render for F12 final render. Can run in any thread. */
     RENDER,
@@ -396,7 +401,7 @@ struct DRWContext {
   }
   bool is_depth() const
   {
-    return ELEM(mode, DEPTH);
+    return ELEM(mode, DEPTH, DEPTH_ACTIVE_OBJECT);
   }
   bool is_image_render() const
   {

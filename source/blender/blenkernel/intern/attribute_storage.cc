@@ -15,6 +15,7 @@
 
 #include "DNA_attribute_types.h"
 #include "DNA_meshdata_types.h"
+#include "DNA_userdef_types.h"
 
 #include "BKE_attribute.hh"
 #include "BKE_attribute_legacy_convert.hh"
@@ -193,6 +194,7 @@ AttributeStorage::AttributeStorage()
 {
   this->dna_attributes = nullptr;
   this->dna_attributes_num = 0;
+  memset(this->_pad, 0, sizeof(this->_pad));
   this->runtime = MEM_new<AttributeStorageRuntime>(__func__);
 }
 
@@ -299,7 +301,7 @@ bool AttributeStorage::remove(const StringRef name)
   return this->runtime->attributes.remove_as(name);
 }
 
-std::string AttributeStorage::unique_name_calc(const StringRef name)
+std::string AttributeStorage::unique_name_calc(const StringRef name) const
 {
   return BLI_uniquename_cb(
       [&](const StringRef check_name) { return this->lookup(check_name) != nullptr; }, '.', name);
@@ -599,6 +601,7 @@ void attribute_storage_blend_write_prepare(AttributeStorage &data,
 
     write_data.attributes.append(attribute_dna);
   });
+  data.runtime = nullptr;
 }
 
 static void write_shared_array(BlendWriter &writer,

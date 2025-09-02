@@ -210,6 +210,7 @@ bNode *version_eevee_output_node_get(bNodeTree *ntree, int16_t node_type);
  * Allow 5.0+ to 'convert' older blendfiles' system properties storage.
  */
 void version_system_idprops_generate(Main *bmain);
+void version_system_idprops_nodes_generate(Main *bmain);
 
 bool all_scenes_use(Main *bmain, const blender::Span<const char *> engines);
 
@@ -255,3 +256,8 @@ static void adjust_fcurve_key_frame_values(FCurve *fcurve,
   /* Recalculate the automatic handles of the FCurve after adjustments. */
   BKE_fcurve_handles_recalc(fcurve);
 }
+
+/* Gets the compositing node tree of the given scene. The deprecated nodetree member is returned
+ * for older versions before reusable node trees were introduced in bd61e69be5, while the new
+ * compositing_node_group is returned otherwise. */
+bNodeTree *version_get_scene_compositor_node_tree(Main *bmain, Scene *scene);
