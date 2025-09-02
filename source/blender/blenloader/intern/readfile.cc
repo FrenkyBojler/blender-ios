@@ -3311,7 +3311,7 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
   }
   if (!MAIN_VERSION_FILE_ATLEAST(main, 500, 69)) {
     /* Same as above, but decision to keep user-defined (aka custom properties) in nodes was taken
-     * later duroing 5.0 development process. */
+     * later during 5.0 development process. */
     version_system_idprops_nodes_generate(main);
   }
 

@@ -121,7 +121,7 @@ void version_system_idprops_generate(Main *bmain)
     }
   }
 }
-/* Separate callback for nodes, because their had the split implemented later. */
+/* Separate callback for nodes, because they had the split implemented later. */
 void version_system_idprops_nodes_generate(Main *bmain)
 {
   FOREACH_NODETREE_BEGIN (bmain, node_tree, id_owner) {
