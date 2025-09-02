@@ -389,7 +389,6 @@ ScrArea *ED_screen_state_toggle(bContext *C, wmWindow *win, ScrArea *area, short
  */
 ScrArea *ED_screen_temp_space_open(bContext *C,
                                    const char *title,
-                                   const rcti *rect_unscaled,
                                    eSpace_Type space_type,
                                    int display_type,
                                    bool dialog) ATTR_NONNULL(1, 3);
