@@ -1907,10 +1907,10 @@ void BKE_color_managed_view_settings_init_render(
   IMB_colormanagement_validate_settings(display_settings, view_settings);
 }
 
-void BKE_color_managed_view_settings_init_default(
+void BKE_color_managed_view_settings_init_untonemapped(
     ColorManagedViewSettings *view_settings, const ColorManagedDisplaySettings *display_settings)
 {
-  IMB_colormanagement_init_default_view_settings(view_settings, display_settings);
+  IMB_colormanagement_init_untonemapped_view_settings(view_settings, display_settings);
 }
 
 void BKE_color_managed_view_settings_copy(ColorManagedViewSettings *new_settings,
@@ -1948,7 +1948,7 @@ void BKE_color_managed_view_settings_free(ColorManagedViewSettings *settings)
 }
 
 void BKE_color_managed_view_settings_blend_write(BlendWriter *writer,
-                                                 ColorManagedViewSettings *settings)
+                                                 const ColorManagedViewSettings *settings)
 {
   if (settings->curve_mapping) {
     BKE_curvemapping_blend_write(writer, settings->curve_mapping);

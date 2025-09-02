@@ -113,7 +113,7 @@ static wmOperatorStatus outliner_highlight_update_invoke(bContext *C,
 
   /* Drag and drop does its own highlighting. */
   wmWindowManager *wm = CTX_wm_manager(C);
-  if (wm->drags.first) {
+  if (wm->runtime->drags.first) {
     return OPERATOR_PASS_THROUGH;
   }
 
@@ -762,7 +762,7 @@ void OUTLINER_OT_id_remap(wmOperatorType *ot)
 
   prop = RNA_def_enum(
       ot->srna, "old_id", rna_enum_dummy_NULL_items, 0, "Old ID", "Old ID to replace");
-  RNA_def_property_enum_funcs_runtime(prop, nullptr, nullptr, outliner_id_itemf);
+  RNA_def_property_enum_funcs_runtime(prop, nullptr, nullptr, outliner_id_itemf, nullptr, nullptr);
   RNA_def_property_flag(prop, PROP_ENUM_NO_TRANSLATE | PROP_HIDDEN);
 
   ot->prop = RNA_def_enum(ot->srna,
@@ -771,7 +771,8 @@ void OUTLINER_OT_id_remap(wmOperatorType *ot)
                           0,
                           "New ID",
                           "New ID to remap all selected IDs' users to");
-  RNA_def_property_enum_funcs_runtime(ot->prop, nullptr, nullptr, outliner_id_itemf);
+  RNA_def_property_enum_funcs_runtime(
+      ot->prop, nullptr, nullptr, outliner_id_itemf, nullptr, nullptr);
   RNA_def_property_flag(ot->prop, PROP_ENUM_NO_TRANSLATE);
 }
 
@@ -2416,7 +2417,7 @@ static void outliner_orphans_purge_ui(bContext * /*C*/, wmOperator *op)
   uiLayout *layout = op->layout;
   PointerRNA *ptr = op->ptr;
   if (!op->customdata) {
-    /* This should only happen on 'adjust last operation' case, since `invoke` will not have  been
+    /* This should only happen on 'adjust last operation' case, since `invoke` will not have been
      * called then before showing the UI (the 'redo panel' UI uses WM-stored operator properties
      * and a newly-created operator).
      *

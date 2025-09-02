@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.0.0 Alpha (b'a7042ca30c82')\n"
+"Project-Id-Version: Blender 5.0.0 Alpha (b'61dd8a1435fb')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-07-29 08:51+0000\n"
+"POT-Creation-Date: 2025-09-01 09:40+0000\n"
 "PO-Revision-Date: 2025-07-23 15:34+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Hindi <https://translate.blender.org/projects/blender-ui/ui/hi/>\n"
@@ -395,6 +395,10 @@ msgid "Array"
 msgstr "सरणी"
 
 
+msgid "Object"
+msgstr "वस्तु"
+
+
 msgid "Image Format"
 msgstr "छवि प्रारूप"
 
@@ -423,10 +427,6 @@ msgid "-Z"
 msgstr "-Z"
 
 
-msgid "Object"
-msgstr "वस्तु"
-
-
 msgid "None"
 msgstr "कोई नहीं"
 
@@ -445,6 +445,14 @@ msgstr "आंतरिक"
 
 msgid "Target"
 msgstr "लक्ष्य"
+
+
+msgid "Displacement"
+msgstr "विस्थापन"
+
+
+msgid "Bake displacement"
+msgstr "विस्थापन भर्जन"
 
 
 msgid "Clear"
@@ -1158,10 +1166,6 @@ msgid "Radius Scale"
 msgstr "त्रिज्या प्रंमाण"
 
 
-msgid "Displacement"
-msgstr "विस्थापन"
-
-
 msgid "Velocity"
 msgstr "वेग"
 
@@ -1865,10 +1869,6 @@ msgstr "धुंधलापन"
 
 msgid "Alpha Mode"
 msgstr "पारदर्शिता रूप"
-
-
-msgid "Iris"
-msgstr "आईरिस"
 
 
 msgid "Duration"
@@ -2584,6 +2584,14 @@ msgid "Mask"
 msgstr "आवरण"
 
 
+msgid "Snap"
+msgstr "स्नैप"
+
+
+msgid "Mirror"
+msgstr "दर्पण"
+
+
 msgid "Light"
 msgstr "प्रकाश"
 
@@ -2638,14 +2646,6 @@ msgstr "पाठ"
 
 msgid "Bone Roll"
 msgstr "हड्डी पंजी"
-
-
-msgid "Snap"
-msgstr "स्नैप"
-
-
-msgid "Mirror"
-msgstr "दर्पण"
 
 
 msgid "Basic"
@@ -3041,40 +3041,12 @@ msgid "Height of the node"
 msgstr "ग्रन्थि की ऊंचाई"
 
 
-msgid "Not"
-msgstr "नहीं"
-
-
 msgid "To"
 msgstr "करने के लिए"
 
 
-msgid "High"
-msgstr "उच्च"
-
-
-msgid "Soften"
-msgstr "मॄदु"
-
-
-msgid "Shadow"
-msgstr "छाया"
-
-
-msgid "Low"
-msgstr "कम"
-
-
 msgid "Keying Screen"
 msgstr "चित्रपट कुंजीयन"
-
-
-msgid "Combined RGB"
-msgstr "संयुक्त ला.ह.नी."
-
-
-msgid "Red Channel"
-msgstr "लाल सरणि"
 
 
 msgid "Rotate"
@@ -3089,16 +3061,16 @@ msgid "Viewer"
 msgstr "प्रदर्शक"
 
 
+msgid "Not"
+msgstr "नहीं"
+
+
 msgid "Equal"
 msgstr "बराबर"
 
 
 msgid "Bake"
 msgstr "भर्जन"
-
-
-msgid "Z Up"
-msgstr "Z ऊर्ध्व"
 
 
 msgid "Unknown"
@@ -3167,6 +3139,10 @@ msgstr "पर"
 
 msgid "Bricks"
 msgstr "ईंटें"
+
+
+msgid "Shadow"
+msgstr "छाया"
 
 
 msgctxt "Operator"
@@ -3516,6 +3492,10 @@ msgid "Duplicate"
 msgstr "अनुकृति"
 
 
+msgid "Toggle Free/Align"
+msgstr "बंद/बुझ मुक्त/संरेखण"
+
+
 msgctxt "Operator"
 msgid "Duplicate Curve"
 msgstr "अनुकृति वक्र"
@@ -3539,10 +3519,6 @@ msgstr "सिकोड़ें/मोटा करें"
 
 msgid "Edge Slide"
 msgstr "किनारी सरकाएँ"
-
-
-msgid "Toggle Free/Align"
-msgstr "बंद/बुझ मुक्त/संरेखण"
 
 
 msgctxt "Operator"
@@ -3587,6 +3563,10 @@ msgstr "X ऊर्ध्व"
 
 msgid "Y Up"
 msgstr "Y ऊर्ध्व"
+
+
+msgid "Z Up"
+msgstr "Z ऊर्ध्व"
 
 
 msgid "-X Up"
@@ -3975,6 +3955,14 @@ msgstr "हड्डी सापेक्ष"
 
 msgid "Remove the selected particle system"
 msgstr "चयनित कण प्रणाली हटाएँ"
+
+
+msgid "Low"
+msgstr "कम"
+
+
+msgid "High"
+msgstr "उच्च"
 
 
 msgid "Child"
@@ -4474,12 +4462,12 @@ msgid "Lock Y"
 msgstr "तालाबंदी y"
 
 
-msgid "Transform Orientations"
-msgstr "दिक् विन्यास संरचनांतरण"
-
-
 msgid "Motion Tracking"
 msgstr "गति मार्गन"
+
+
+msgid "Transform Orientations"
+msgstr "दिक् विन्यास संरचनांतरण"
 
 
 msgid "Predefined tracking camera intrinsics"
@@ -4677,14 +4665,6 @@ msgid "Sky"
 msgstr "आकाश"
 
 
-msgid "Bias"
-msgstr "पूर्वाग्रह"
-
-
-msgid "Bake displacement"
-msgstr "विस्थापन भर्जन"
-
-
 msgid "FPS"
 msgstr "एफपीएस"
 
@@ -4743,6 +4723,10 @@ msgstr "शेष घनत्व"
 
 msgid "Factor Rest Length"
 msgstr "कारक शेष लंबाई"
+
+
+msgid "Bias"
+msgstr "पूर्वाग्रह"
 
 
 msgid "Active Strip"
@@ -4961,16 +4945,16 @@ msgid "Color of marker"
 msgstr "चिन्हक के रंग"
 
 
-msgid "Vertex Group Unreferenced"
-msgstr "वर्टेक्स Unreferenced समूह"
-
-
 msgid "Converter Node"
 msgstr "परिवर्तक ग्रन्थि"
 
 
 msgid "Wires"
 msgstr "तार"
+
+
+msgid "Vertex Group Unreferenced"
+msgstr "वर्टेक्स Unreferenced समूह"
 
 
 msgid "Inner"
@@ -5133,10 +5117,6 @@ msgstr "कोई पाठ या संचिका निर्दिष्�
 
 msgid "External shader script must have .osl or .oso extension, or be a module name"
 msgstr "बाह्य shader स्क्रिप्ट .osl या .oso एक्सटेंशन होना चाहिए, या एक मॉड्यूल का नाम हो"
-
-
-msgid "Can't read OSO bytecode to store in node at %r"
-msgstr "OSO bytecode %r पर नोड में संग्रहीत करने के लिए नहीं पढ़ सकता"
 
 
 msgid "Failed to write .oso file next to external .osl file at "
@@ -5483,6 +5463,11 @@ msgstr "चलचित्र"
 
 
 msgctxt "Operator"
+msgid "Delete Keyframes..."
+msgstr "अनुबोधक चिन्हों मिटाएँ..."
+
+
+msgctxt "Operator"
 msgid "Left"
 msgstr "बाईं ओर"
 
@@ -5630,11 +5615,6 @@ msgstr "वक्ता"
 
 
 msgctxt "Operator"
-msgid "Delete Keyframes..."
-msgstr "अनुबोधक चिन्हों मिटाएँ..."
-
-
-msgctxt "Operator"
 msgid "Change Shape"
 msgstr "आकृति बदलें"
 
@@ -5681,10 +5661,6 @@ msgstr "गणना"
 msgctxt "Plural"
 msgid "Sharp"
 msgstr "पैना"
-
-
-msgid "Seams"
-msgstr "तेजी"
 
 
 msgctxt "Operator"
@@ -5967,6 +5943,10 @@ msgid "%d items"
 msgstr "%d वस्तु"
 
 
+msgid "Value:"
+msgstr "मान:"
+
+
 msgid "Hex"
 msgstr "हेक्स"
 
@@ -6144,6 +6124,10 @@ msgstr "गोला"
 
 msgid "Outer"
 msgstr "बाहरी"
+
+
+msgid "Seams"
+msgstr "तेजी"
 
 
 msgid "No additional selected meshes with equal vertex count to join"
@@ -6362,10 +6346,6 @@ msgid "File name"
 msgstr "संचिका का नाम"
 
 
-msgid "Value:"
-msgstr "मान:"
-
-
 msgid "Unsupported audio format"
 msgstr "असमर्थित श्रव्य स्वरूप"
 
@@ -6550,6 +6530,10 @@ msgstr "कुंजी"
 
 msgid "Fac"
 msgstr "एफ़एसी"
+
+
+msgid "Soften"
+msgstr "मॄदु"
 
 
 msgid "Old"

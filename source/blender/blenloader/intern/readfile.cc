@@ -826,6 +826,7 @@ static BHead *blo_bhead_read_full(FileData *fd, BHead *thisblock)
 
 const char *blo_bhead_id_name(FileData *fd, const BHead *bhead)
 {
+  BLI_assert(blo_bhead_is_id(bhead));
   const char *id_name = reinterpret_cast<const char *>(
       POINTER_OFFSET(bhead, sizeof(*bhead) + fd->id_name_offset));
   if (std::memchr(id_name, '\0', MAX_ID_NAME)) {
@@ -3018,7 +3019,7 @@ static bool read_libblock_undo_restore(
   if (id_old != nullptr && read_libblock_is_identical(fd, bhead)) {
     /* Local datablock was unchanged, restore from the old main. */
     CLOG_DEBUG(&LOG_UNDO,
-               "UNDO: read %s (uid %u) -> keep identical datablock",
+               "UNDO: read %s (uid %u) -> keep identical data-block",
                id->name,
                id->session_uid);
 
@@ -3307,6 +3308,11 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
      * system-defined-only storage. While not optimal (as it also duplicates actual user-defined
      * IDProperties), this seems to be the only safe and sound way to handle the migration. */
     version_system_idprops_generate(main);
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(main, 500, 70)) {
+    /* Same as above, but decision to keep user-defined (aka custom properties) in nodes was taken
+     * later during 5.0 development process. */
+    version_system_idprops_nodes_generate(main);
   }
 
   if (G.debug & G_DEBUG) {
@@ -5222,14 +5228,6 @@ ID *BLO_read_get_new_id_address_from_session_uid(BlendLibReader *reader, const u
 int BLO_read_fileversion_get(BlendDataReader *reader)
 {
   return reader->fd->fileversion;
-}
-
-int BLO_read_struct_member_offset(const BlendDataReader *reader,
-                                  const char *stype,
-                                  const char *vartype,
-                                  const char *name)
-{
-  return DNA_struct_member_offset_by_name_with_alias(reader->fd->filesdna, stype, vartype, name);
 }
 
 void BLO_read_struct_list_with_size(BlendDataReader *reader,

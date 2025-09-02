@@ -518,6 +518,11 @@ static bool bake_object_check(const Scene *scene,
       Image *image;
       ED_object_get_active_image(ob, mat_nr, &image, nullptr, &node, &ntree);
 
+      /* Don't bake to unselected images. */
+      if (node && !(node->flag & NODE_SELECT)) {
+        image = nullptr;
+      }
+
       if (image) {
 
         if (node) {
@@ -561,7 +566,8 @@ static bool bake_object_check(const Scene *scene,
         if (mat != nullptr) {
           BKE_reportf(reports,
                       RPT_INFO,
-                      "No active image found in material \"%s\" (%d) for object \"%s\"",
+                      "No active and selected image texture node found in material \"%s\" (%d) "
+                      "for object \"%s\"",
                       mat->id.name + 2,
                       i,
                       ob->id.name + 2);
@@ -668,7 +674,7 @@ static bool bake_objects_check(Main *bmain,
       if (ELEM(ob_iter->type, OB_MESH, OB_FONT, OB_CURVES_LEGACY, OB_SURF, OB_MBALL) == false) {
         BKE_reportf(reports,
                     RPT_ERROR,
-                    "Object \"%s\" is not a mesh or can't be converted to a mesh (Curve, Text, "
+                    "Object \"%s\" is not a mesh or cannot be converted to a mesh (Curve, Text, "
                     "Surface or Metaball)",
                     ob_iter->id.name + 2);
         return false;
@@ -756,7 +762,13 @@ static bool bake_targets_init_image_textures(const BakeAPIRender *bkr,
 
   for (int i = 0; i < materials_num; i++) {
     Image *image;
-    ED_object_get_active_image(ob, i + 1, &image, nullptr, nullptr, nullptr);
+    const bNode *node = nullptr;
+    ED_object_get_active_image(ob, i + 1, &image, nullptr, &node, nullptr);
+
+    /* Don't bake to unselected images. */
+    if (node && !(node->flag & NODE_SELECT)) {
+      image = nullptr;
+    }
 
     targets->material_to_image[i] = image;
 
@@ -2236,13 +2248,12 @@ void OBJECT_OT_bake(wmOperatorType *ot)
       SCE_PASS_COMBINED,
       "Type",
       "Type of pass to bake, some of them may not be supported by the current render engine");
-  prop = RNA_def_enum(ot->srna,
-                      "pass_filter",
-                      rna_enum_bake_pass_filter_type_items,
-                      R_BAKE_PASS_FILTER_NONE,
-                      "Pass Filter",
-                      "Filter to combined, diffuse, glossy, transmission and subsurface passes");
-  RNA_def_property_flag(prop, PROP_ENUM_FLAG);
+  RNA_def_enum_flag(ot->srna,
+                    "pass_filter",
+                    rna_enum_bake_pass_filter_type_items,
+                    R_BAKE_PASS_FILTER_NONE,
+                    "Pass Filter",
+                    "Filter to combined, diffuse, glossy, transmission and subsurface passes");
   RNA_def_string_file_path(ot->srna,
                            "filepath",
                            nullptr,

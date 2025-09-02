@@ -38,6 +38,7 @@
 #include "BKE_fcurve.hh"
 #include "BKE_global.hh"
 #include "BKE_icons.h"
+#include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_library.hh"
 #include "BKE_main.hh"
@@ -183,9 +184,27 @@ bool ED_operator_scene(bContext *C)
   return false;
 }
 
+bool ED_operator_sequencer_scene(bContext *C)
+{
+  Scene *scene = CTX_data_sequencer_scene(C);
+  if (scene == nullptr || !BKE_id_is_editable(CTX_data_main(C), &scene->id)) {
+    return false;
+  }
+  return true;
+}
+
 bool ED_operator_scene_editable(bContext *C)
 {
   Scene *scene = CTX_data_scene(C);
+  if (scene == nullptr || !BKE_id_is_editable(CTX_data_main(C), &scene->id)) {
+    return false;
+  }
+  return true;
+}
+
+bool ED_operator_sequencer_scene_editable(bContext *C)
+{
+  Scene *scene = CTX_data_sequencer_scene(C);
   if (scene == nullptr || !BKE_id_is_editable(CTX_data_main(C), &scene->id)) {
     return false;
   }
@@ -380,12 +399,12 @@ bool ED_operator_graphedit_active(bContext *C)
 
 bool ED_operator_sequencer_active(bContext *C)
 {
-  return ed_spacetype_test(C, SPACE_SEQ);
+  return ed_spacetype_test(C, SPACE_SEQ) && CTX_data_sequencer_scene(C) != nullptr;
 }
 
 bool ED_operator_sequencer_active_editable(bContext *C)
 {
-  return ed_spacetype_test(C, SPACE_SEQ) && ED_operator_scene_editable(C);
+  return ed_spacetype_test(C, SPACE_SEQ) && ED_operator_sequencer_scene_editable(C);
 }
 
 bool ED_operator_image_active(bContext *C)
@@ -1707,6 +1726,9 @@ struct sAreaMoveData {
   eScreenAxis dir_axis;
   AreaMoveSnapType snap_type;
   bScreen *screen;
+  double start_time;
+  double end_time;
+  wmWindow *win;
   void *draw_callback; /* Call #screen_draw_move_highlight */
 };
 
@@ -1794,7 +1816,30 @@ static void area_move_draw_cb(const wmWindow *win, void *userdata)
 {
   const wmOperator *op = static_cast<const wmOperator *>(userdata);
   const sAreaMoveData *md = static_cast<sAreaMoveData *>(op->customdata);
-  screen_draw_move_highlight(win, md->screen, md->dir_axis);
+  const double now = BLI_time_now_seconds();
+  float factor = 1.0f;
+  if (now < md->end_time) {
+    factor = pow((now - md->start_time) / (md->end_time - md->start_time), 2);
+    md->screen->do_refresh = true;
+  }
+  screen_draw_move_highlight(win, md->screen, md->dir_axis, factor);
+}
+
+static void area_move_out_draw_cb(const wmWindow *win, void *userdata)
+{
+  const sAreaMoveData *md = static_cast<sAreaMoveData *>(userdata);
+  const double now = BLI_time_now_seconds();
+  float factor = 1.0f;
+  if (now > md->end_time) {
+    WM_draw_cb_exit(md->win, md->draw_callback);
+    MEM_freeN(md);
+    return;
+  }
+  if (now < md->end_time) {
+    factor = 1.0f - pow((now - md->start_time) / (md->end_time - md->start_time), 2);
+    md->screen->do_refresh = true;
+  }
+  screen_draw_move_highlight(win, md->screen, md->dir_axis, factor);
 }
 
 /* validate selection inside screen, set variables OK */
@@ -1849,6 +1894,8 @@ static bool area_move_init(bContext *C, wmOperator *op)
   md->snap_type = use_bigger_smaller_snap ? SNAP_BIGGER_SMALLER_ONLY : SNAP_AREAGRID;
 
   md->screen = screen;
+  md->start_time = BLI_time_now_seconds();
+  md->end_time = md->start_time + AREA_MOVE_LINE_FADEIN;
   md->draw_callback = WM_draw_cb_activate(CTX_wm_window(C), area_move_draw_cb, op);
 
   return true;
@@ -2054,8 +2101,12 @@ static void area_move_exit(bContext *C, wmOperator *op)
     WM_draw_cb_exit(CTX_wm_window(C), md->draw_callback);
   }
 
-  MEM_freeN(md);
   op->customdata = nullptr;
+
+  md->start_time = BLI_time_now_seconds();
+  md->end_time = md->start_time + AREA_MOVE_LINE_FADEOUT;
+  md->win = CTX_wm_window(C);
+  md->draw_callback = WM_draw_cb_activate(md->win, area_move_out_draw_cb, md);
 
   /* this makes sure aligned edges will result in aligned grabbing */
   BKE_screen_remove_double_scrverts(CTX_wm_screen(C));
@@ -2802,69 +2853,6 @@ struct RegionMoveData {
   AZEdge edge;
 };
 
-static int area_max_regionsize(ScrArea *area, ARegion *scale_region, AZEdge edge)
-{
-  int dist;
-
-  /* regions in regions. */
-  if (scale_region->alignment & RGN_SPLIT_PREV) {
-    const int align = RGN_ALIGN_ENUM_FROM_MASK(scale_region->alignment);
-
-    if (ELEM(align, RGN_ALIGN_TOP, RGN_ALIGN_BOTTOM)) {
-      ARegion *region = scale_region->prev;
-      dist = region->winy + scale_region->winy - U.pixelsize;
-    }
-    else /* if (ELEM(align, RGN_ALIGN_LEFT, RGN_ALIGN_RIGHT)) */ {
-      ARegion *region = scale_region->prev;
-      dist = region->winx + scale_region->winx - U.pixelsize;
-    }
-  }
-  else {
-    if (ELEM(edge, AE_RIGHT_TO_TOPLEFT, AE_LEFT_TO_TOPRIGHT)) {
-      dist = BLI_rcti_size_x(&area->totrct);
-    }
-    else { /* AE_BOTTOM_TO_TOPLEFT, AE_TOP_TO_BOTTOMRIGHT */
-      dist = BLI_rcti_size_y(&area->totrct);
-    }
-
-    /* Subtract the width of regions on opposite side
-     * prevents dragging regions into other opposite regions. */
-    LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
-      if (region == scale_region) {
-        continue;
-      }
-
-      if (scale_region->alignment == RGN_ALIGN_LEFT && region->alignment == RGN_ALIGN_RIGHT) {
-        dist -= region->winx;
-      }
-      else if (scale_region->alignment == RGN_ALIGN_RIGHT && region->alignment == RGN_ALIGN_LEFT) {
-        dist -= region->winx;
-      }
-      else if (scale_region->alignment == RGN_ALIGN_TOP &&
-               (region->alignment == RGN_ALIGN_BOTTOM || ELEM(region->regiontype,
-                                                              RGN_TYPE_HEADER,
-                                                              RGN_TYPE_TOOL_HEADER,
-                                                              RGN_TYPE_FOOTER,
-                                                              RGN_TYPE_ASSET_SHELF_HEADER)))
-      {
-        dist -= region->winy;
-      }
-      else if (scale_region->alignment == RGN_ALIGN_BOTTOM &&
-               (region->alignment == RGN_ALIGN_TOP || ELEM(region->regiontype,
-                                                           RGN_TYPE_HEADER,
-                                                           RGN_TYPE_TOOL_HEADER,
-                                                           RGN_TYPE_FOOTER,
-                                                           RGN_TYPE_ASSET_SHELF_HEADER)))
-      {
-        dist -= region->winy;
-      }
-    }
-  }
-
-  dist /= UI_SCALE_FAC;
-  return dist;
-}
-
 static bool is_split_edge(const int alignment, const AZEdge edge)
 {
   return ((alignment == RGN_ALIGN_BOTTOM) && (edge == AE_TOP_TO_BOTTOMRIGHT)) ||
@@ -2926,7 +2914,7 @@ static wmOperatorStatus region_scale_invoke(bContext *C, wmOperator *op, const w
     rmd->area = sad->sa1;
     rmd->edge = az->edge;
     copy_v2_v2_int(rmd->orig_xy, event->xy);
-    rmd->maxsize = area_max_regionsize(rmd->area, rmd->region, rmd->edge);
+    rmd->maxsize = ED_area_max_regionsize(rmd->area, rmd->region, rmd->edge);
 
     /* if not set we do now, otherwise it uses type */
     if (rmd->region->sizex == 0) {
@@ -3259,7 +3247,11 @@ void ED_areas_do_frame_follow(bContext *C, bool center_view)
 /* function to be called outside UI context, or for redo */
 static wmOperatorStatus frame_offset_exec(bContext *C, wmOperator *op)
 {
-  Scene *scene = CTX_data_scene(C);
+  const bool is_sequencer = CTX_wm_space_seq(C) != nullptr;
+  Scene *scene = is_sequencer ? CTX_data_sequencer_scene(C) : CTX_data_scene(C);
+  if (!scene) {
+    return OPERATOR_CANCELLED;
+  }
 
   int delta = RNA_int_get(op->ptr, "delta");
 
@@ -3273,6 +3265,8 @@ static wmOperatorStatus frame_offset_exec(bContext *C, wmOperator *op)
   scene->r.subframe = 0.0f;
 
   ED_areas_do_frame_follow(C, false);
+
+  blender::ed::vse::sync_active_scene_and_time_with_scene_strip(*C);
 
   DEG_id_tag_update(&scene->id, ID_RECALC_FRAME_CHANGE);
 
@@ -3306,7 +3300,11 @@ static void SCREEN_OT_frame_offset(wmOperatorType *ot)
 /* function to be called outside UI context, or for redo */
 static wmOperatorStatus frame_jump_exec(bContext *C, wmOperator *op)
 {
-  Scene *scene = CTX_data_scene(C);
+  const bool is_sequencer = CTX_wm_space_seq(C) != nullptr;
+  Scene *scene = is_sequencer ? CTX_data_sequencer_scene(C) : CTX_data_scene(C);
+  if (!scene) {
+    return OPERATOR_CANCELLED;
+  }
   wmTimer *animtimer = CTX_wm_screen(C)->animtimer;
 
   /* Don't change scene->r.cfra directly if animtimer is running as this can cause
@@ -3334,6 +3332,8 @@ static wmOperatorStatus frame_jump_exec(bContext *C, wmOperator *op)
     }
 
     ED_areas_do_frame_follow(C, true);
+
+    blender::ed::vse::sync_active_scene_and_time_with_scene_strip(*C);
 
     DEG_id_tag_update(&scene->id, ID_RECALC_FRAME_CHANGE);
 
@@ -3547,7 +3547,11 @@ static void SCREEN_OT_keyframe_jump(wmOperatorType *ot)
 /* function to be called outside UI context, or for redo */
 static wmOperatorStatus marker_jump_exec(bContext *C, wmOperator *op)
 {
-  Scene *scene = CTX_data_scene(C);
+  const bool is_sequencer = CTX_wm_space_seq(C) != nullptr;
+  Scene *scene = is_sequencer ? CTX_data_sequencer_scene(C) : CTX_data_scene(C);
+  if (!scene) {
+    return OPERATOR_CANCELLED;
+  }
   int closest = scene->r.cfra;
   const bool next = RNA_boolean_get(op->ptr, "next");
   bool found = false;
@@ -3578,6 +3582,8 @@ static wmOperatorStatus marker_jump_exec(bContext *C, wmOperator *op)
   scene->r.cfra = closest;
 
   ED_areas_do_frame_follow(C, true);
+
+  blender::ed::vse::sync_active_scene_and_time_with_scene_strip(*C);
 
   DEG_id_tag_update(&scene->id, ID_RECALC_FRAME_CHANGE);
 
@@ -3690,7 +3696,7 @@ static bool screen_maximize_area_poll(bContext *C)
          /* Don't change temporary screens. */
          !WM_window_is_temp_screen(win) &&
          /* Don't maximize when dragging. */
-         BLI_listbase_is_empty(&wm->drags);
+         BLI_listbase_is_empty(&wm->runtime->drags);
 }
 
 static void SCREEN_OT_screen_full_area(wmOperatorType *ot)
@@ -4779,13 +4785,13 @@ static bool repeat_history_poll(bContext *C)
     return false;
   }
   wmWindowManager *wm = CTX_wm_manager(C);
-  return !BLI_listbase_is_empty(&wm->operators);
+  return !BLI_listbase_is_empty(&wm->runtime->operators);
 }
 
 static wmOperatorStatus repeat_last_exec(bContext *C, wmOperator * /*op*/)
 {
   wmWindowManager *wm = CTX_wm_manager(C);
-  wmOperator *lastop = static_cast<wmOperator *>(wm->operators.last);
+  wmOperator *lastop = static_cast<wmOperator *>(wm->runtime->operators.last);
 
   /* Seek last registered operator */
   while (lastop) {
@@ -4828,7 +4834,7 @@ static wmOperatorStatus repeat_history_invoke(bContext *C,
 {
   wmWindowManager *wm = CTX_wm_manager(C);
 
-  int items = BLI_listbase_count(&wm->operators);
+  int items = BLI_listbase_count(&wm->runtime->operators);
   if (items == 0) {
     return OPERATOR_CANCELLED;
   }
@@ -4839,7 +4845,7 @@ static wmOperatorStatus repeat_history_invoke(bContext *C,
 
   wmOperator *lastop;
   int i;
-  for (i = items - 1, lastop = static_cast<wmOperator *>(wm->operators.last); lastop;
+  for (i = items - 1, lastop = static_cast<wmOperator *>(wm->runtime->operators.last); lastop;
        lastop = lastop->prev, i--)
   {
     if ((lastop->type->flag & OPTYPE_REGISTER) && WM_operator_repeat_check(C, lastop)) {
@@ -4858,11 +4864,12 @@ static wmOperatorStatus repeat_history_exec(bContext *C, wmOperator *op)
 {
   wmWindowManager *wm = CTX_wm_manager(C);
 
-  op = static_cast<wmOperator *>(BLI_findlink(&wm->operators, RNA_int_get(op->ptr, "index")));
+  op = static_cast<wmOperator *>(
+      BLI_findlink(&wm->runtime->operators, RNA_int_get(op->ptr, "index")));
   if (op) {
     /* let's put it as last operator in list */
-    BLI_remlink(&wm->operators, op);
-    BLI_addtail(&wm->operators, op);
+    BLI_remlink(&wm->runtime->operators, op);
+    BLI_addtail(&wm->runtime->operators, op);
 
     WM_operator_repeat(C, op);
   }
@@ -5612,19 +5619,17 @@ static wmOperatorStatus screen_animation_step_invoke(bContext *C,
     return OPERATOR_PASS_THROUGH;
   }
 
-  wmWindow *win = CTX_wm_window(C);
-
 #ifdef PROFILE_AUDIO_SYNC
   static int old_frame = 0;
   int newfra_int;
 #endif
 
   Main *bmain = CTX_data_main(C);
-  Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = WM_window_get_active_view_layer(win);
+  ScreenAnimData *sad = static_cast<ScreenAnimData *>(wt->customdata);
+  Scene *scene = sad->scene;
+  ViewLayer *view_layer = sad->view_layer;
   Depsgraph *depsgraph = BKE_scene_get_depsgraph(scene, view_layer);
   Scene *scene_eval = (depsgraph != nullptr) ? DEG_get_evaluated_scene(depsgraph) : nullptr;
-  ScreenAnimData *sad = static_cast<ScreenAnimData *>(wt->customdata);
   wmWindowManager *wm = CTX_wm_manager(C);
   int sync;
   double time;
@@ -5650,7 +5655,7 @@ static wmOperatorStatus screen_animation_step_invoke(bContext *C,
   else if ((scene->audio.flag & AUDIO_SYNC) && (sad->flag & ANIMPLAY_FLAG_REVERSE) == false &&
            isfinite(time = BKE_sound_sync_scene(scene_eval)))
   {
-    scene->r.cfra = round(time * FPS);
+    scene->r.cfra = round(time * scene->frames_per_second());
 
 #ifdef PROFILE_AUDIO_SYNC
     newfra_int = scene->r.cfra;
@@ -5669,7 +5674,7 @@ static wmOperatorStatus screen_animation_step_invoke(bContext *C,
       /* Try to keep the playback in realtime by dropping frames. */
 
       /* How much time (in frames) has passed since the last frame was drawn? */
-      double delta_frames = wt->time_delta * FPS;
+      double delta_frames = wt->time_delta * scene->frames_per_second();
 
       /* Add the remaining fraction from the last time step. */
       delta_frames += sad->lagging_frame_count;
@@ -5757,6 +5762,8 @@ static wmOperatorStatus screen_animation_step_invoke(bContext *C,
 #endif
   }
 
+  blender::ed::vse::sync_active_scene_and_time_with_scene_strip(*C);
+
   /* Since we follow draw-flags, we can't send notifier but tag regions ourselves. */
   if (depsgraph != nullptr) {
     ED_update_for_newframe(bmain, depsgraph);
@@ -5803,7 +5810,7 @@ static wmOperatorStatus screen_animation_step_invoke(bContext *C,
    */
   /* TODO: this may make evaluation a bit slower if the value doesn't change...
    * any way to avoid this? */
-  wt->time_step = (1.0 / FPS);
+  wt->time_step = (1.0 / scene->frames_per_second());
 
   return OPERATOR_FINISHED;
 }
@@ -5893,16 +5900,40 @@ bScreen *ED_screen_animation_no_scrub(const wmWindowManager *wm)
 wmOperatorStatus ED_screen_animation_play(bContext *C, int sync, int mode)
 {
   bScreen *screen = CTX_wm_screen(C);
-  Scene *scene = CTX_data_scene(C);
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  const bool is_sequencer = CTX_wm_space_seq(C) != nullptr;
+  Scene *scene = is_sequencer ? CTX_data_sequencer_scene(C) : CTX_data_scene(C);
+  if (!scene) {
+    return OPERATOR_CANCELLED;
+  }
+  Main *bmain = CTX_data_main(C);
+  ViewLayer *view_layer = is_sequencer ? BKE_view_layer_default_render(scene) :
+                                         CTX_data_view_layer(C);
+  Depsgraph *depsgraph = is_sequencer ? BKE_scene_ensure_depsgraph(bmain, scene, view_layer) :
+                                        CTX_data_ensure_evaluated_depsgraph(C);
   Scene *scene_eval = DEG_get_evaluated_scene(depsgraph);
-  Main *bmain = DEG_get_bmain(depsgraph);
 
   if (ED_screen_animation_playing(CTX_wm_manager(C))) {
     /* stop playback now */
-    ED_screen_animation_timer(C, 0, 0, 0);
+    ED_screen_animation_timer(C, scene, view_layer, 0, 0, 0);
     ED_scene_fps_average_clear(scene);
     BKE_sound_stop_scene(scene_eval);
+
+    if (is_sequencer) {
+      /* Stop sound for active scene in window. */
+      BKE_sound_stop_scene(DEG_get_evaluated_scene(CTX_data_ensure_evaluated_depsgraph(C)));
+    }
+    else {
+      /* Stop sound for sequencer scene. */
+      WorkSpace *workspace = CTX_wm_workspace(C);
+      if (workspace->sequencer_scene) {
+        Depsgraph *depsgraph = BKE_scene_ensure_depsgraph(
+            bmain,
+            workspace->sequencer_scene,
+            BKE_view_layer_default_render(workspace->sequencer_scene));
+        Scene *seq_scene_eval = DEG_get_evaluated_scene(depsgraph);
+        BKE_sound_stop_scene(seq_scene_eval);
+      }
+    }
 
     BKE_callback_exec_id_depsgraph(
         bmain, &scene->id, depsgraph, BKE_CB_EVT_ANIMATION_PLAYBACK_POST);
@@ -5922,7 +5953,7 @@ wmOperatorStatus ED_screen_animation_play(bContext *C, int sync, int mode)
       BKE_sound_play_scene(scene_eval);
     }
 
-    ED_screen_animation_timer(C, screen->redraws_flag, sync, mode);
+    ED_screen_animation_timer(C, scene, view_layer, screen->redraws_flag, sync, mode);
     ED_scene_fps_average_clear(scene);
 
     if (screen->animtimer) {
@@ -6134,7 +6165,7 @@ static wmOperatorStatus userpref_show_exec(bContext *C, wmOperator *op)
   wmWindow *win_cur = CTX_wm_window(C);
   /* Use eventstate, not event from _invoke, so this can be called through exec(). */
   const wmEvent *event = win_cur->eventstate;
-  int sizex = (500 + UI_NAVIGATION_REGION_WIDTH) * UI_SCALE_FAC;
+  int sizex = (680 + UI_NAVIGATION_REGION_WIDTH) * UI_SCALE_FAC;
   int sizey = 520 * UI_SCALE_FAC;
 
   PropertyRNA *prop = RNA_struct_find_property(op->ptr, "section");
@@ -6156,24 +6187,15 @@ static wmOperatorStatus userpref_show_exec(bContext *C, wmOperator *op)
   };
 
   /* changes context! */
-  if (WM_window_open(C,
-                     nullptr,
-                     &window_rect,
-                     SPACE_USERPREF,
-                     false,
-                     false,
-                     true,
-                     WIN_ALIGN_LOCATION_CENTER,
-                     nullptr,
-                     nullptr) != nullptr)
+  if (ScrArea *area = ED_screen_temp_space_open(
+          C, nullptr, &window_rect, SPACE_USERPREF, U.preferences_display_type, false))
   {
     /* The header only contains the editor switcher and looks empty.
      * So hiding in the temp window makes sense. */
-    ScrArea *area = CTX_wm_area(C);
-    ARegion *region = BKE_area_find_region_type(area, RGN_TYPE_HEADER);
+    ARegion *region_header = BKE_area_find_region_type(area, RGN_TYPE_HEADER);
 
-    region->flag |= RGN_FLAG_HIDDEN;
-    ED_region_visibility_change_update(C, area, region);
+    region_header->flag |= RGN_FLAG_HIDDEN;
+    ED_region_visibility_change_update(C, area, region_header);
 
     return OPERATOR_FINISHED;
   }
