@@ -1,2 +1,3 @@
 Referenced by issue #120806, Vector scope would crash blender if Color Management > Gamma is set too low
 Referenced by issue #120469, View animation not working with image sequence
+Referenced by commit c0aa455389d0cbadfcc7f3288daa8b0cab843adb, Correct define check for command line file-type registration
