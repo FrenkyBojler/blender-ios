@@ -408,6 +408,28 @@ class NodeAddZoneOperator(ZoneOperator, NodeAddOperator):
         return {'FINISHED'}
 
 
+class NODE_OT_add_zone(NodeAddZoneOperator, Operator):
+    bl_idname = "node.add_zone"
+    bl_label = "Add Zone"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    input_node_type: StringProperty(
+        name="Input Node",
+        description="Specifies the input node used the created zone",
+    )
+
+    output_node_type: StringProperty(
+        name="Output Node",
+        description="Specifies the output node used the created zone",
+    )
+
+    add_default_geometry_link: BoolProperty(
+        name="Add Geometry Link",
+        description="When enabled, create a link between geometry sockets in this zone",
+        default=False,
+    )
+
+
 class NODE_OT_add_simulation_zone(NodeAddZoneOperator, Operator):
     """Add simulation zone input and output nodes to the active tree"""
     bl_idname = "node.add_simulation_zone"
@@ -1075,6 +1097,7 @@ classes = (
 
     NODE_OT_add_empty_group,
     NODE_OT_add_node,
+    NODE_OT_add_zone,
     NODE_OT_add_simulation_zone,
     NODE_OT_add_repeat_zone,
     NODE_OT_add_foreach_geometry_element_zone,
