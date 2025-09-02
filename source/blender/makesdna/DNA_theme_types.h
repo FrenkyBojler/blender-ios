@@ -106,7 +106,17 @@ typedef struct uiStyle {
   char _pad0[2];
 } uiStyle;
 
+typedef struct ThemeRegionsSourceList {
+  /** Region background. */
+  unsigned char list[4];
+  /** Panel title. */
+  unsigned char list_title[4];
+  unsigned char list_text[4];
+  unsigned char list_text_hi[4];
+} ThemeRegionsSourceList;
+
 typedef struct ThemeRegions {
+  ThemeRegionsSourceList source_list;
 } ThemeRegions;
 
 typedef struct ThemeCommonAnim {
@@ -291,14 +301,6 @@ typedef struct ThemeSpace {
   /** Region background. */
   unsigned char button[4];
   unsigned char _pad3[4];
-
-  /* List-view regions. */
-  /** Region background. */
-  unsigned char list[4];
-  /** Panel title. */
-  unsigned char list_title[4];
-  unsigned char list_text[4];
-  unsigned char list_text_hi[4];
 
   unsigned char shade1[4];
   unsigned char shade2[4];

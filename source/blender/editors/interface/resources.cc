@@ -175,7 +175,7 @@ const uchar *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
             cp = ts->back;
           }
           else if (g_theme_state.regionid == RGN_TYPE_CHANNELS) {
-            cp = ts->list;
+            cp = btheme->regions.source_list.list;
           }
           else if (ELEM(g_theme_state.regionid, RGN_TYPE_HEADER, RGN_TYPE_FOOTER)) {
             cp = ts->header;
@@ -214,7 +214,7 @@ const uchar *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
             cp = btheme->tui.panel_text;
           }
           else if (g_theme_state.regionid == RGN_TYPE_CHANNELS) {
-            cp = ts->list_text;
+            cp = btheme->regions.source_list.list_text;
           }
           else if (ELEM(g_theme_state.regionid,
                         RGN_TYPE_HEADER,
@@ -229,7 +229,7 @@ const uchar *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
           break;
         case TH_TEXT_HI:
           if (g_theme_state.regionid == RGN_TYPE_CHANNELS) {
-            cp = ts->list_text_hi;
+            cp = btheme->regions.source_list.list_text_hi;
           }
           else if (ELEM(g_theme_state.regionid,
                         RGN_TYPE_HEADER,
@@ -249,7 +249,7 @@ const uchar *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
             cp = btheme->tui.panel_title;
           }
           else if (g_theme_state.regionid == RGN_TYPE_CHANNELS) {
-            cp = ts->list_title;
+            cp = btheme->regions.source_list.list_title;
           }
           else if (ELEM(g_theme_state.regionid,
                         RGN_TYPE_HEADER,

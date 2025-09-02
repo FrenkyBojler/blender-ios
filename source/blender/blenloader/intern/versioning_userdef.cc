@@ -93,13 +93,6 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
     btheme->space_node.grid_levels = U_theme_default.space_node.grid_levels;
   }
 
-  if (!USER_VERSION_ATLEAST(302, 9)) {
-    FROM_DEFAULT_V4_UCHAR(space_sequencer.list);
-    FROM_DEFAULT_V4_UCHAR(space_sequencer.list_title);
-    FROM_DEFAULT_V4_UCHAR(space_sequencer.list_text);
-    FROM_DEFAULT_V4_UCHAR(space_sequencer.list_text_hi);
-  }
-
   if (!USER_VERSION_ATLEAST(306, 3)) {
     FROM_DEFAULT_V4_UCHAR(space_view3d.face_retopology);
   }
@@ -397,6 +390,13 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
     FROM_DEFAULT_V4_UCHAR(common.anim.keyframe_generated_selected);
     FROM_DEFAULT_V4_UCHAR(common.anim.long_key);
     FROM_DEFAULT_V4_UCHAR(common.anim.long_key_selected);
+  }
+
+  if (!USER_VERSION_ATLEAST(500, 100)) {
+    FROM_DEFAULT_V4_UCHAR(regions.source_list.list);
+    FROM_DEFAULT_V4_UCHAR(regions.source_list.list_title);
+    FROM_DEFAULT_V4_UCHAR(regions.source_list.list_text);
+    FROM_DEFAULT_V4_UCHAR(regions.source_list.list_text_hi);
   }
 
   /**
