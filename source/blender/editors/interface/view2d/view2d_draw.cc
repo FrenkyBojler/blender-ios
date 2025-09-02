@@ -594,7 +594,7 @@ void UI_view2d_draw_scale_x__discrete_frames_or_seconds(const ARegion *region,
     draw_scale_x_discrete_time(region, v2d, rect, scene, colorid);
   }
   else {
-draw_scale_x__discrete_values(
+    draw_scale_x__discrete_values(
         region, v2d, rect, colorid, round_db_to_int(scene->frames_per_second()));
   }
 }
