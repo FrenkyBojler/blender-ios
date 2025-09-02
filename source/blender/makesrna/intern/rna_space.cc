@@ -911,7 +911,6 @@ static void rna_Space_show_region_ui_set(PointerRNA *ptr, bool value)
   if (region) {
     if (value) {
       if (region->flag & RGN_FLAG_HIDDEN) {
-        region->flag |= RGN_FLAG_HIDDEN_BY_USER;
         region->flag &= ~RGN_FLAG_HIDDEN;
       }
       if (region->sizex > 0 && region->sizex <= UI_PANEL_CATEGORY_MIN_WIDTH) {

@@ -3062,6 +3062,7 @@ static wmOperatorStatus region_scale_modal(bContext *C, wmOperator *op, const wm
           rmd->region->sizex = rmd->origval;
           if (!(rmd->region->flag & RGN_FLAG_HIDDEN)) {
             region_scale_toggle_hidden(C, rmd);
+            rmd->region->flag |= RGN_FLAG_HIDDEN_BY_USER;
           }
         }
         else if (rmd->region->flag & RGN_FLAG_HIDDEN) {
@@ -3147,6 +3148,8 @@ static wmOperatorStatus region_scale_modal(bContext *C, wmOperator *op, const wm
         if (len_manhattan_v2v2_int(event->xy, rmd->orig_xy) <= WM_event_drag_threshold(event)) {
           if (rmd->region->flag & RGN_FLAG_HIDDEN) {
             region_scale_toggle_hidden(C, rmd);
+            // rmd->region->flag &= ~RGN_FLAG_HIDDEN_BY_USER;
+            rmd->region->flag |= RGN_FLAG_HIDDEN_BY_USER;
           }
           else if (rmd->region->flag & RGN_FLAG_TOO_SMALL) {
             region_scale_validate_size(rmd);
