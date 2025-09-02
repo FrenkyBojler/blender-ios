@@ -214,6 +214,7 @@ void sync_sockets_separate_bundle(SpaceNode &snode,
     NodeSeparateBundleItem &new_item = *nodes::socket_items::add_item_with_socket_type_and_name<
         nodes ::SeparateBundleItemsAccessor>(
         *snode.edittree, separate_bundle_node, item.type->type, item.key.c_str());
+    new_item.structure_type = int(item.structure_type);
     if (const std::optional<int> old_identifier = old_identifiers.lookup_try(item.key)) {
       new_item.identifier = *old_identifier;
     }
@@ -254,6 +255,7 @@ void sync_sockets_combine_bundle(SpaceNode &snode,
     NodeCombineBundleItem &new_item = *nodes::socket_items::add_item_with_socket_type_and_name<
         nodes ::CombineBundleItemsAccessor>(
         *snode.edittree, combine_bundle_node, item.type->type, item.key.c_str());
+    new_item.structure_type = int(item.structure_type);
     if (const std::optional<int> old_identifier = old_identifiers.lookup_try(item.key)) {
       new_item.identifier = *old_identifier;
     }
@@ -363,12 +365,7 @@ void sync_sockets_closure(SpaceNode &snode,
     NodeClosureInputItem &new_item =
         *nodes::socket_items::add_item_with_socket_type_and_name<nodes::ClosureInputItemsAccessor>(
             *snode.edittree, closure_output_node, item.type->type, item.key.c_str());
-    if (item.structure_type != StructureType::Dynamic) {
-      new_item.structure_type = int(item.structure_type);
-    }
-    else {
-      new_item.structure_type = NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO;
-    }
+    new_item.structure_type = int(item.structure_type);
     if (const std::optional<int> old_identifier = old_input_identifiers.lookup_try(item.key)) {
       new_item.identifier = *old_identifier;
     }
@@ -377,6 +374,7 @@ void sync_sockets_closure(SpaceNode &snode,
     NodeClosureOutputItem &new_item = *nodes::socket_items::add_item_with_socket_type_and_name<
         nodes::ClosureOutputItemsAccessor>(
         *snode.edittree, closure_output_node, item.type->type, item.key.c_str());
+    new_item.structure_type = int(item.structure_type);
     if (const std::optional<int> old_identifier = old_output_identifiers.lookup_try(item.key)) {
       new_item.identifier = *old_identifier;
     }

@@ -220,8 +220,13 @@ BundleSignature BundleSignature::from_combine_bundle_node(const bNode &node)
   BundleSignature signature;
   for (const int i : IndexRange(storage.items_num)) {
     const NodeCombineBundleItem &item = storage.items[i];
+    const bNodeSocket &socket = node.input_socket(i);
     if (const bke::bNodeSocketType *stype = bke::node_socket_type_find_static(item.socket_type)) {
-      signature.items.add({item.name, stype});
+      const StructureType structure_type = item.structure_type ==
+                                                   NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO ?
+                                               socket.runtime->inferred_structure_type :
+                                               StructureType(item.structure_type);
+      signature.items.add({item.name, stype, structure_type});
     }
   }
   return signature;
@@ -234,8 +239,13 @@ BundleSignature BundleSignature::from_separate_bundle_node(const bNode &node)
   BundleSignature signature;
   for (const int i : IndexRange(storage.items_num)) {
     const NodeSeparateBundleItem &item = storage.items[i];
+    const bNodeSocket &socket = node.output_socket(i);
     if (const bke::bNodeSocketType *stype = bke::node_socket_type_find_static(item.socket_type)) {
-      signature.items.add({item.name, stype});
+      const StructureType structure_type = item.structure_type ==
+                                                   NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO ?
+                                               socket.runtime->inferred_structure_type :
+                                               StructureType(item.structure_type);
+      signature.items.add({item.name, stype, structure_type});
     }
   }
   return signature;

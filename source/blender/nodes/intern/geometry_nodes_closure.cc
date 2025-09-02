@@ -92,20 +92,28 @@ ClosureSignature ClosureSignature::from_closure_output_node(const bNode &node)
       bke::zone_type_by_node_type(node.type_legacy)->get_corresponding_input(tree, node);
   const auto &storage = *static_cast<const NodeClosureOutput *>(node.storage);
   nodes::ClosureSignature signature;
-  for (const int i : IndexRange(storage.input_items.items_num)) {
-    const NodeClosureInputItem &item = storage.input_items.items[i];
-    const StructureType structure_type =
-        input_node ? input_node->output_socket(i).runtime->inferred_structure_type :
-                     StructureType::Dynamic;
-    if (const bke::bNodeSocketType *stype = bke::node_socket_type_find_static(item.socket_type)) {
-      signature.inputs.add({item.name, stype, structure_type});
+  if (!input_node) {
+    for (const int i : IndexRange(storage.input_items.items_num)) {
+      const NodeClosureInputItem &item = storage.input_items.items[i];
+      const bNodeSocket &socket = input_node->output_socket(i);
+      if (const bke::bNodeSocketType *stype = bke::node_socket_type_find_static(item.socket_type))
+      {
+        const StructureType structure_type = item.structure_type ==
+                                                     NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO ?
+                                                 socket.runtime->inferred_structure_type :
+                                                 StructureType(item.structure_type);
+        signature.inputs.add({item.name, stype, structure_type});
+      }
     }
   }
   for (const int i : IndexRange(storage.output_items.items_num)) {
     const NodeClosureOutputItem &item = storage.output_items.items[i];
     const bNodeSocket &socket = node.input_socket(i);
-    const StructureType structure_type = socket.runtime->inferred_structure_type;
     if (const bke::bNodeSocketType *stype = bke::node_socket_type_find_static(item.socket_type)) {
+      const StructureType structure_type = item.structure_type ==
+                                                   NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO ?
+                                               socket.runtime->inferred_structure_type :
+                                               StructureType(item.structure_type);
       signature.outputs.add({item.name, stype, structure_type});
     }
   }
