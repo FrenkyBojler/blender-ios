@@ -106,11 +106,6 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
     FROM_DEFAULT_V4_UCHAR(space_node.node_zone_repeat);
   }
 
-  if (!USER_VERSION_ATLEAST(400, 14)) {
-    FROM_DEFAULT_V4_UCHAR(asset_shelf.back);
-    FROM_DEFAULT_V4_UCHAR(asset_shelf.header_back);
-  }
-
   if (!USER_VERSION_ATLEAST(400, 24)) {
     FROM_DEFAULT_V4_UCHAR(tui.wcol_list_item.inner_sel);
     FROM_DEFAULT_V4_UCHAR(space_sequencer.transition);
@@ -141,11 +136,6 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
   if (!USER_VERSION_ATLEAST(402, 16)) {
     BLI_uniquename(
         &userdef->themes, btheme, "Theme", '.', offsetof(bTheme, name), sizeof(btheme->name));
-  }
-
-  if (!USER_VERSION_ATLEAST(402, 21)) {
-    FROM_DEFAULT_V4_UCHAR(asset_shelf.back);
-    FROM_DEFAULT_V4_UCHAR(asset_shelf.header_back);
   }
 
   if (!USER_VERSION_ATLEAST(402, 47)) {
@@ -290,11 +280,6 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
     FROM_DEFAULT_V4_UCHAR(space_node.nodeclass_vector);
   }
 
-  if (!USER_VERSION_ATLEAST(500, 16)) {
-    FROM_DEFAULT_V4_UCHAR(asset_shelf.header_back);
-    FROM_DEFAULT_V4_UCHAR(asset_shelf.back);
-  }
-
   if (!USER_VERSION_ATLEAST(500, 18)) {
     FROM_DEFAULT_V4_UCHAR(space_preferences.button);
   }
@@ -396,6 +381,8 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
     FROM_DEFAULT_V4_UCHAR(regions.source_list.source_list_back);
     FROM_DEFAULT_V4_UCHAR(regions.source_list.source_list_text);
     FROM_DEFAULT_V4_UCHAR(regions.source_list.source_list_text_sel);
+    FROM_DEFAULT_V4_UCHAR(regions.asset_shelf.back);
+    FROM_DEFAULT_V4_UCHAR(regions.asset_shelf.header_back);
   }
 
   /**
