@@ -10,6 +10,8 @@
 #include <cfloat>
 #include <cmath>
 
+#include "fmt/format.h"
+
 #include "MEM_guardedalloc.h"
 
 #include "BLI_math_matrix.h"
@@ -29,6 +31,7 @@
 #include "BKE_colortools.hh"
 #include "BKE_context.hh"
 #include "BKE_curve.hh"
+#include "BKE_global.hh"
 #include "BKE_image.hh"
 #include "BKE_paint.hh"
 #include "BKE_paint_types.hh"
@@ -356,8 +359,8 @@ bool paint_brush_update(bContext *C,
   paint_runtime.stroke_active = true;
   paint_runtime.size_pressure_value = stroke->cached_size_pressure;
 
-  paint_runtime.pixel_radius = BKE_brush_size_get(paint, &brush);
-  paint_runtime.initial_pixel_radius = BKE_brush_size_get(paint, &brush);
+  paint_runtime.pixel_radius = BKE_brush_radius_get(paint, &brush);
+  paint_runtime.initial_pixel_radius = BKE_brush_radius_get(paint, &brush);
 
   if (BKE_brush_use_size_pressure(&brush) && paint_supports_dynamic_size(brush, mode)) {
     paint_runtime.pixel_radius *= stroke->cached_size_pressure;
@@ -704,7 +707,7 @@ static float paint_space_stroke_spacing(const bContext *C,
   else {
     /* brushes can have a minimum size of 1.0 but with pressure it can be smaller than a pixel
      * causing very high step sizes, hanging blender #32381. */
-    size_clamp = max_ff(1.0f, BKE_brush_size_get(stroke->paint, stroke->brush) * size_pressure);
+    size_clamp = max_ff(1.0f, BKE_brush_radius_get(stroke->paint, stroke->brush) * size_pressure);
   }
 
   float spacing = stroke->brush->spacing;
@@ -894,6 +897,11 @@ static int paint_space_stroke(bContext *C,
   return count;
 }
 
+static bool print_pressure_status_enabled()
+{
+  return (G.debug_value == 887);
+}
+
 /**** Public API ****/
 
 PaintStroke *paint_stroke_new(bContext *C,
@@ -978,7 +986,7 @@ PaintStroke *paint_stroke_new(bContext *C,
 
   BKE_paint_set_overlay_override(eOverlayFlags(br->overlay_flags));
 
-  paint_runtime->start_pixel_radius = BKE_brush_size_get(stroke->paint, br);
+  paint_runtime->start_pixel_radius = BKE_brush_radius_get(stroke->paint, br);
 
   return stroke;
 }
@@ -1012,6 +1020,9 @@ void paint_stroke_free(bContext *C, wmOperator * /*op*/, PaintStroke *stroke)
 
 static void stroke_done(bContext *C, wmOperator *op, PaintStroke *stroke)
 {
+  if (print_pressure_status_enabled()) {
+    ED_workspace_status_text(C, nullptr);
+  }
   bke::PaintRuntime *paint_runtime = stroke->paint->runtime;
 
   /* reset rotation here to avoid doing so in cursor display */
@@ -1481,6 +1492,11 @@ wmOperatorStatus paint_stroke_modal(bContext *C,
   const float tablet_pressure = WM_event_tablet_data(event, &stroke->pen_flip, nullptr);
   float pressure = ((br->flag & (BRUSH_LINE | BRUSH_ANCHORED | BRUSH_DRAG_DOT)) ? 1.0f :
                                                                                   tablet_pressure);
+
+  if (print_pressure_status_enabled() && WM_event_is_tablet(event)) {
+    std::string msg = fmt::format("Tablet Pressure: {:.4f}", pressure);
+    ED_workspace_status_text(C, msg.c_str());
+  }
 
   /* When processing a timer event the pressure from the event is 0, so use the last valid
    * pressure. */
