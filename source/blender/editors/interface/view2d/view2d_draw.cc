@@ -545,7 +545,7 @@ void UI_view2d_draw_lines_x__frames_or_seconds(const View2D *v2d,
 /* Scale indicator text drawing API
  **************************************************/
 
-static void UI_view2d_draw_scale_x__discrete_values(
+static void draw_scale_x__discrete_values(
     const ARegion *region, const View2D *v2d, const rcti *rect, int colorid, const int base)
 {
   const float step = calculate_grid_step(
@@ -554,7 +554,7 @@ static void UI_view2d_draw_scale_x__discrete_values(
       region, v2d, step, rect, view_to_string__frame_number, nullptr, colorid);
 }
 
-static void UI_view2d_draw_scale_x__discrete_time(
+static void draw_scale_x_discrete_time(
     const ARegion *region, const View2D *v2d, const rcti *rect, const Scene *scene, int colorid)
 {
   const int base = round_db_to_int(scene->frames_per_second());
@@ -564,7 +564,7 @@ static void UI_view2d_draw_scale_x__discrete_time(
       region, v2d, step, rect, view_to_string__time, (void *)scene, colorid);
 }
 
-static void UI_view2d_draw_scale_x__values(
+static void draw_scale_x__values(
     const ARegion *region, const View2D *v2d, const rcti *rect, const Scene *scene, int colorid)
 {
   const int base = round_db_to_int(scene->frames_per_second());
@@ -583,15 +583,6 @@ void UI_view2d_draw_scale_y__values(
       region, v2d, step, 0.0f, rect, view_to_string__value, nullptr, colorid);
 }
 
-void UI_view2d_draw_scale_y__block(const ARegion *region,
-                                   const View2D *v2d,
-                                   const rcti *rect,
-                                   int colorid)
-{
-  draw_vertical_scale_indicators(
-      region, v2d, 1.0f, 0.5f, rect, view_to_string__value, nullptr, colorid);
-}
-
 void UI_view2d_draw_scale_x__discrete_frames_or_seconds(const ARegion *region,
                                                         const View2D *v2d,
                                                         const rcti *rect,
@@ -600,10 +591,10 @@ void UI_view2d_draw_scale_x__discrete_frames_or_seconds(const ARegion *region,
                                                         int colorid)
 {
   if (display_seconds) {
-    UI_view2d_draw_scale_x__discrete_time(region, v2d, rect, scene, colorid);
+    draw_scale_x_discrete_time(region, v2d, rect, scene, colorid);
   }
   else {
-    UI_view2d_draw_scale_x__discrete_values(
+draw_scale_x__discrete_values(
         region, v2d, rect, colorid, round_db_to_int(scene->frames_per_second()));
   }
 }
@@ -616,9 +607,9 @@ void UI_view2d_draw_scale_x__frames_or_seconds(const ARegion *region,
                                                int colorid)
 {
   if (display_seconds) {
-    UI_view2d_draw_scale_x__discrete_time(region, v2d, rect, scene, colorid);
+    draw_scale_x_discrete_time(region, v2d, rect, scene, colorid);
   }
   else {
-    UI_view2d_draw_scale_x__values(region, v2d, rect, scene, colorid);
+    draw_scale_x__values(region, v2d, rect, scene, colorid);
   }
 }
