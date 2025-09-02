@@ -398,7 +398,13 @@ static void add_pose_transdata(
 
   /* This has to use the pchan->pose_mat and ignore the pchan->custom_tx in case it is set.
    * Otherwise rotations around the 3D cursor don't work as expected. */
-  copy_v3_v3(td->center, pchan->pose_mat[3]);
+  if (pchan->flag & POSE_TEMP_SWITCH) {
+    const bArmature *arm = static_cast<bArmature *>(ob->data);
+    BKE_pose_channel_gizmo_location(arm, pchan, td->center);
+  }
+  else {
+    copy_v3_v3(td->center, pchan->pose_mat[3]);
+  }
 
   td->flag = TD_SELECTED;
   if (bone->flag & BONE_HINGE_CHILD_TRANSFORM) {
