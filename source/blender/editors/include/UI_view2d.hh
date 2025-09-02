@@ -255,7 +255,8 @@ void UI_view2d_draw_scale_x__discrete_frames_or_seconds(const ARegion *region,
                                                         const rcti *rect,
                                                         const Scene *scene,
                                                         bool display_seconds,
-                                                        int colorid);
+                                                        int colorid,
+                                                        int base);
 /**
  * Draw a text scale in either frames or seconds.
  * This draws indicators on subframes, e.g. "1.5".
@@ -265,7 +266,8 @@ void UI_view2d_draw_scale_x__frames_or_seconds(const ARegion *region,
                                                const rcti *rect,
                                                const Scene *scene,
                                                bool display_seconds,
-                                               int colorid);
+                                               int colorid,
+                                               int base);
 
 /** \} */
 

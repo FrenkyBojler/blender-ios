@@ -233,11 +233,13 @@ static void graph_main_region_draw(const bContext *C, ARegion *region)
 
   UI_view2d_view_ortho(v2d);
 
+  /* In driver mode, we don't want to draw the grid by following the scene's frame rate. */
+  constexpr int DRIVER_STEP = 10;
   /* grid */
   bool display_seconds = (sipo->mode == SIPO_MODE_ANIMATION) && (sipo->flag & SIPO_DRAWTIME);
   if (region->winy > min_height) {
     if (sipo->mode == SIPO_MODE_DRIVERS) {
-      UI_view2d_draw_lines_x__values(v2d, 10);
+      UI_view2d_draw_lines_x__values(v2d, DRIVER_STEP);
     }
     else {
       UI_view2d_draw_lines_x__frames_or_seconds(v2d, scene, display_seconds);
@@ -341,7 +343,11 @@ static void graph_main_region_draw(const bContext *C, ARegion *region)
   UI_view2d_view_restore(C);
 
   /* time-scrubbing */
-  ED_time_scrub_draw(region, scene, display_seconds, false);
+  int base = round_db_to_int(scene->frames_per_second());
+  if (sipo->mode == SIPO_MODE_DRIVERS) {
+    base = DRIVER_STEP;
+  }
+  ED_time_scrub_draw(region, scene, display_seconds, false, base);
 }
 
 static void graph_main_region_draw_overlay(const bContext *C, ARegion *region)

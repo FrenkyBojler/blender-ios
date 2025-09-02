@@ -559,9 +559,9 @@ void UI_view2d_draw_scale_x__discrete_frames_or_seconds(const ARegion *region,
                                                         const rcti *rect,
                                                         const Scene *scene,
                                                         bool display_seconds,
-                                                        int colorid)
+                                                        int colorid,
+                                                        const int base)
 {
-  const int base = round_db_to_int(scene->frames_per_second());
   const float step = calculate_grid_step(
       base, BLI_rcti_size_x(&v2d->mask), BLI_rctf_size_x(&v2d->cur));
   if (display_seconds) {
@@ -579,9 +579,9 @@ void UI_view2d_draw_scale_x__frames_or_seconds(const ARegion *region,
                                                const rcti *rect,
                                                const Scene *scene,
                                                bool display_seconds,
-                                               int colorid)
+                                               int colorid,
+                                               const int base)
 {
-  const int base = round_db_to_int(scene->frames_per_second());
   const float step = calculate_grid_step_subframes(
       base, BLI_rcti_size_x(&v2d->mask), BLI_rctf_size_x(&v2d->cur));
   if (display_seconds) {
