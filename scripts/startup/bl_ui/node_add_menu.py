@@ -11,18 +11,6 @@ from bpy.app.translations import (
 )
 
 
-def set_use_transform(operators, value):
-    try:
-        for props in operators:
-            if hasattr(props, "use_transform"):
-                props.use_transform = value
-
-    # Handle case where only a single item is given
-    except TypeError:
-        if hasattr(operators, "use_transform"):
-            operators.use_transform = value
-
-
 # NOTE: This is kept for compatibility's sake, as some scripts import node_add_menu.add_node_type
 def add_node_type(layout, node_type, *, label=None, poll=None, search_weight=0.0, translate=True):
     """Add a node type to a menu."""
@@ -72,13 +60,13 @@ def draw_root_assets(layout):
 def add_simulation_zone(layout, label):
     """Add simulation zone to a menu."""
     props = layout.operator("node.add_simulation_zone", text=label, text_ctxt=i18n_contexts.default)
-    set_use_transform(props, True)
+    props.use_transform = True
     return props
 
 
 def add_repeat_zone(layout, label):
     props = layout.operator("node.add_repeat_zone", text=label, text_ctxt=i18n_contexts.default)
-    set_use_transform(props, True)
+    props.use_transform = True
     return props
 
 
@@ -88,14 +76,14 @@ def add_foreach_geometry_element_zone(layout, label):
         text=label,
         text_ctxt=i18n_contexts.default,
     )
-    set_use_transform(props, True)
+    props.use_transform = True
     return props
 
 
 def add_closure_zone(layout, label):
     props = layout.operator(
         "node.add_closure_zone", text=label, text_ctxt=i18n_contexts.default)
-    set_use_transform(props, True)
+    props.use_transform = True
     return props
 
 
