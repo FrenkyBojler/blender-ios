@@ -54,8 +54,6 @@ struct SocketUsageInferencer {
    */
   Map<SocketInContext, bool> all_socket_usages_;
 
-  int total_pushs_ = 0;
-
  public:
   SocketUsageInferencer(const bNodeTree &tree,
                         const std::optional<Span<InferenceValue>> tree_input_values,
@@ -70,11 +68,6 @@ struct SocketUsageInferencer {
   {
     root_tree_.ensure_topology_cache();
     root_tree_.ensure_interface_cache();
-  }
-
-  ~SocketUsageInferencer()
-  {
-    printf("Total stapes to finish: %d;\n", total_pushs_);
   }
 
   void mark_top_level_node_outputs_as_used()
@@ -522,7 +515,6 @@ struct SocketUsageInferencer {
 
   void push_usage_task(const SocketInContext &socket)
   {
-    total_pushs_++;
     usage_tasks_.push(socket);
   }
 
