@@ -54,6 +54,8 @@ struct SocketUsageInferencer {
    */
   Map<SocketInContext, bool> all_socket_usages_;
 
+  int total_pushs_ = 0;
+
  public:
   SocketUsageInferencer(const bNodeTree &tree,
                         const std::optional<Span<InferenceValue>> tree_input_values,
@@ -68,6 +70,11 @@ struct SocketUsageInferencer {
   {
     root_tree_.ensure_topology_cache();
     root_tree_.ensure_interface_cache();
+  }
+
+  ~SocketUsageInferencer()
+  {
+    printf("Total stapes to finish: %d;\n", total_pushs_);
   }
 
   void mark_top_level_node_outputs_as_used()
@@ -111,6 +118,7 @@ struct SocketUsageInferencer {
 
     BLI_assert(usage_tasks_.is_empty());
     usage_tasks_.push(socket);
+    total_pushs_++;
 
     while (!usage_tasks_.is_empty()) {
       const SocketInContext &socket = usage_tasks_.peek();
@@ -462,13 +470,20 @@ struct SocketUsageInferencer {
                                           const ComputeContext *dependent_socket_context)
   {
     /* Check if any of the dependent outputs are used. */
+    int max_socket_distance_to_group_out = std::numeric_limits<int>::min();
     SocketInContext next_unknown_output;
     bool any_output_used = false;
+
     for (const bNodeSocket *dependent_socket_ptr : dependent_outputs) {
       const SocketInContext dependent_socket{dependent_socket_context, dependent_socket_ptr};
       const std::optional<bool> is_used = all_socket_usages_.lookup_try(dependent_socket);
-      if (!is_used.has_value() && !next_unknown_output) {
+      const int socket_distance_to_group_out =
+          dependent_socket_ptr->owner_node().runtime->toposort_right_to_left_index;
+      if (!is_used.has_value() &&
+          (socket_distance_to_group_out < max_socket_distance_to_group_out))
+      {
         next_unknown_output = dependent_socket;
+        max_socket_distance_to_group_out = socket_distance_to_group_out;
         continue;
       }
       if (is_used.value_or(false)) {
@@ -476,6 +491,7 @@ struct SocketUsageInferencer {
         break;
       }
     }
+
     if (next_unknown_output) {
       /* Create a task that checks if the next dependent socket is used. Intentionally only create
        * a task for the very next one and not for all, because that could potentially trigger a lot
@@ -506,6 +522,7 @@ struct SocketUsageInferencer {
 
   void push_usage_task(const SocketInContext &socket)
   {
+    total_pushs_++;
     usage_tasks_.push(socket);
   }
 
