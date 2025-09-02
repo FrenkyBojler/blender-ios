@@ -1815,8 +1815,8 @@ static wmOperatorStatus sequencer_box_cut_exec(bContext *C, wmOperator *op)
         seq::transform_translate_strip(scene, strip, offset);
       }
       /* Offset every strip on the same channel and right of the cut. */
-      else if (left_handle > rect_frames[1] && strip->channel <= round_fl_to_int(rectf.ymax) &&
-               strip->channel >= round_fl_to_int(rectf.ymin))
+      else if (left_handle > rect_frames[1] && strip->channel <= int(rectf.ymax) &&
+               strip->channel >= int(rectf.ymin))
       {
         seq::transform_translate_strip(scene, strip, offset);
       }
