@@ -472,7 +472,7 @@ struct SocketUsageInferencer {
       const int socket_distance_to_group_out =
           dependent_socket_ptr->owner_node().runtime->toposort_right_to_left_index;
       if (!is_used.has_value() &&
-          (socket_distance_to_group_out < max_socket_distance_to_group_out))
+          (socket_distance_to_group_out > max_socket_distance_to_group_out))
       {
         next_unknown_output = dependent_socket;
         max_socket_distance_to_group_out = socket_distance_to_group_out;
