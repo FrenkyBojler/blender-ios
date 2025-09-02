@@ -10,6 +10,9 @@
 
 #include "gpu_shader_create_info.hh"
 
+#include "BLI_math_base.h"
+#include "BLI_math_vector_types.hh"
+
 namespace blender::gpu {
 
 /**
@@ -116,5 +119,80 @@ template<typename LayoutT> static void align_end_of_struct(uint32_t *r_offset)
 {
   align<LayoutT>(shader::Type::float4_t, 0, r_offset);
 }
+
+/**
+ * Image transfers can require downloads to happen in smaller chunks.
+ *
+ * This helper class helps in splitting the transfers in smaller chunks.
+ */
+struct TransferRegion {
+  int3 offset;
+  int3 extent;
+  IndexRange layers;
+
+  int64_t sample_count() const
+  {
+    return int64_t(extent.x) * int64_t(extent.y) * int64_t(extent.z) * layers.size();
+  }
+
+  /** Split the current region. first on layers, then z extent then y extent. */
+  TransferRegion split()
+  {
+    int3 offset_a;
+    int3 offset_b;
+    int3 extent_a;
+    int3 extent_b;
+    IndexRange layers_a;
+    IndexRange layers_b;
+
+    if (layers.size() > 1) {
+      int split_after = layers.first() + divide_floor_i(layers.last() - layers.first(), 2);
+      offset_a = offset;
+      offset_b = offset;
+      extent_a = extent;
+      extent_b = extent;
+      layers_a = IndexRange::from_begin_end(layers.first(), split_after);
+      layers_b = IndexRange::from_begin_end_inclusive(split_after, layers.last());
+    }
+    else if (extent.z > 1) {
+      int split_after = divide_floor_i(extent.z, 2);
+      offset_a = offset;
+      offset_b = {offset.x, offset.y, offset.z + split_after};
+      extent_a = {extent.x, extent.y, split_after};
+      extent_b = {extent.x, extent.y, extent.z - split_after};
+      layers_a = layers;
+      layers_b = layers;
+    }
+    else if (extent.y > 1) {
+      int split_after = divide_floor_i(extent.y, 2);
+      offset_a = offset;
+      offset_b = {offset.x, offset.y + split_after, offset.z};
+      extent_a = {extent.x, split_after, extent.z};
+      extent_b = {extent.x, extent.y - split_after, extent.z};
+      layers_a = layers;
+      layers_b = layers;
+    }
+    else {
+      BLI_assert_unreachable();
+    }
+
+    offset = offset_a;
+    extent = extent_a;
+    layers = layers_a;
+    return {offset_b, extent_b, layers_b};
+  }
+
+  bool is_sequential(const TransferRegion &other) const
+  {
+    BLI_assert_unreachable();
+    return true;
+  }
+
+  size_t result_offset(int3 offset, int layer) const
+  {
+    BLI_assert_unreachable();
+    return 0;
+  }
+};
 
 }  // namespace blender::gpu

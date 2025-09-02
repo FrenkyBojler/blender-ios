@@ -146,4 +146,17 @@ TEST(std430, compositor_cryptomatte_matte_compute)
   EXPECT_EQ(offset, 144);
 }
 
+TEST(VulkanTransferRegion, split)
+{
+  /* Split on Y */
+  TransferRegion region{int3(0, 0, 0), int3(1001, 1001, 0), IndexRange(0, 1)};
+  TransferRegion other = region.split();
+  EXPECT_EQ(region.offset, int3(0, 0, 0));
+  EXPECT_EQ(region.extent, int3(1001, 500, 0));
+  EXPECT_EQ(region.layers, IndexRange(0, 1));
+  EXPECT_EQ(other.offset, int3(0, 500, 0));
+  EXPECT_EQ(other.offset, int3(1001, 501, 0));
+  EXPECT_EQ(other.layers, IndexRange(0, 1));
+}
+
 }  // namespace blender::gpu
