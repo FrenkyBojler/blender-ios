@@ -5455,7 +5455,7 @@ static wmOperatorStatus uv_select_similar_exec(bContext *C, wmOperator *op)
 
 static EnumPropertyItem uv_select_similar_type_items[] = {
     {UV_SSIM_PIN, "PIN", 0, "Pinned", ""},
-    {UV_SSIM_LENGTH_UV, "LENGTH", 0, "Length", "Length of edge in UV space"},
+    {UV_SSIM_LENGTH_UV, "LENGTH", 0, "Length", "Edge length in UV space"},
     {UV_SSIM_LENGTH_3D, "LENGTH_3D", 0, "Length 3D", "Length of edge in 3D space"},
     {UV_SSIM_AREA_UV, "AREA", 0, "Area", "Face area in UV space"},
     {UV_SSIM_AREA_3D, "AREA_3D", 0, "Area 3D", "Area of face in 3D space"},
