@@ -105,6 +105,7 @@ class NodeMenu(Menu):
     use_transform: bool
 
     main_operator_id: str
+    zone_operator_id: str
     new_empty_group_operator_id: str
 
     pathing_dict: dict[str, str]
@@ -318,21 +319,53 @@ class NodeMenu(Menu):
 
         layout.menu(cls.pathing_dict[path])
 
-    @staticmethod
-    def simulation_zone(layout, label):
-        ...
+    @classmethod
+    def simulation_zone(cls, layout, label):
+        props = layout.operator(cls.zone_operator_id, text=label)
+        props.input_node_type = "GeometryNodeSimulationInput"
+        props.output_node_type = "GeometryNodeSimulationOutput"
+        props.add_default_geometry_link = True
 
-    @staticmethod
-    def repeat_zone(layout, label):
-        ...
+        if hasattr(props, "use_transform"):
+            props.use_transform = cls.use_transform
 
-    @staticmethod
-    def for_each_element_zone(layout, label):
-        ...
+        return props
 
-    @staticmethod
-    def closure_zone(layout, label):
-        ...
+    @classmethod
+    def repeat_zone(cls, layout, label):
+        props = layout.operator(cls.zone_operator_id, text=label)
+        props.input_node_type = "GeometryNodeRepeatInput"
+        props.output_node_type = "GeometryNodeRepeatOutput"
+        props.add_default_geometry_link = True
+
+        if hasattr(props, "use_transform"):
+            props.use_transform = cls.use_transform
+
+        return props
+
+    @classmethod
+    def for_each_element_zone(cls, layout, label):
+        props = layout.operator(cls.zone_operator_id, text=label)
+        props.input_node_type = "GeometryNodeForeachGeometryElementInput"
+        props.output_node_type = "GeometryNodeForeachGeometryElementOutput"
+        props.add_default_geometry_link = False
+
+        if hasattr(props, "use_transform"):
+            props.use_transform = cls.use_transform
+
+        return props
+
+    @classmethod
+    def closure_zone(cls, layout, label):
+        props = layout.operator(cls.zone_operator_id, text=label)
+        props.input_node_type = "NodeClosureInput"
+        props.output_node_type = "NodeClosureOutput"
+        props.add_default_geometry_link = False
+
+        if hasattr(props, "use_transform"):
+            props.use_transform = cls.use_transform
+
+        return props
 
 
 class AddNodeMenu(NodeMenu):
@@ -340,23 +373,8 @@ class AddNodeMenu(NodeMenu):
     use_transform = True
 
     main_operator_id = "node.add_node"
+    zone_operator_id = "node.add_zone"
     new_empty_group_operator_id = "node.add_empty_group"
-
-    @staticmethod
-    def simulation_zone(layout, label):
-        return add_simulation_zone(layout, label)
-
-    @staticmethod
-    def repeat_zone(layout, label):
-        return add_repeat_zone(layout, label)
-
-    @staticmethod
-    def for_each_element_zone(layout, label):
-        return add_foreach_geometry_element_zone(layout, label)
-
-    @staticmethod
-    def closure_zone(layout, label):
-        return add_closure_zone(layout, label)
 
 
 class SwapNodeMenu(NodeMenu):
@@ -364,43 +382,8 @@ class SwapNodeMenu(NodeMenu):
     use_transform = True
 
     main_operator_id = "node.swap_node"
+    zone_operator_id = "node.swap_zone"
     new_empty_group_operator_id = "node.swap_empty_group"
-
-    @staticmethod
-    def simulation_zone(layout, label):
-        props = layout.operator("node.swap_zone", text=label)
-        props.input_node_type = "GeometryNodeSimulationInput"
-        props.output_node_type = "GeometryNodeSimulationOutput"
-        props.add_default_geometry_link = True
-
-        return props
-
-    @staticmethod
-    def repeat_zone(layout, label):
-        props = layout.operator("node.swap_zone", text=label)
-        props.input_node_type = "GeometryNodeRepeatInput"
-        props.output_node_type = "GeometryNodeRepeatOutput"
-        props.add_default_geometry_link = True
-
-        return props
-
-    @staticmethod
-    def for_each_element_zone(layout, label):
-        props = layout.operator("node.swap_zone", text=label)
-        props.input_node_type = "GeometryNodeForeachGeometryElementInput"
-        props.output_node_type = "GeometryNodeForeachGeometryElementOutput"
-        props.add_default_geometry_link = False
-
-        return props
-
-    @staticmethod
-    def closure_zone(layout, label):
-        props = layout.operator("node.swap_zone", text=label)
-        props.input_node_type = "NodeClosureInput"
-        props.output_node_type = "NodeClosureOutput"
-        props.add_default_geometry_link = False
-
-        return props
 
 
 class NODE_MT_group_base(NodeMenu):
