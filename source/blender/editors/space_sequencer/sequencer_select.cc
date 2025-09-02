@@ -11,6 +11,7 @@
 #include <cstring>
 
 #include "BLI_lasso_2d.hh"
+#include "BLI_rect.h"
 #include "MEM_guardedalloc.h"
 
 #include "BLI_ghash.h"
@@ -2344,6 +2345,8 @@ static bool do_lasso_select_is_origin_inside(const ARegion *region,
 
 static bool rcti_in_lasso(const rcti rect, const Span<int2> mcoords)
 {
+  rcti lasso_rect;
+  BLI_lasso_boundbox(&lasso_rect, mcoords);
   /* Check if edge of strip is in the lasso. */
   if (BLI_lasso_is_edge_inside(
           mcoords, rect.xmin, rect.ymin, rect.xmax, rect.ymin, V2D_IS_CLIPPED) ||
@@ -2358,20 +2361,8 @@ static bool rcti_in_lasso(const rcti rect, const Span<int2> mcoords)
   }
 
   /* Check if lasso is in the strip rect. Used when the lasso is only inside one strip. */
-  float2 rect_quad[4] = {{static_cast<float>(rect.xmax), static_cast<float>(rect.ymax)},
-                         {static_cast<float>(rect.xmax), static_cast<float>(rect.ymin)},
-                         {static_cast<float>(rect.xmin), static_cast<float>(rect.ymin)},
-                         {static_cast<float>(rect.xmin), static_cast<float>(rect.ymax)}};
-  for (const int64_t i : mcoords.index_range()) {
-    if (isect_point_quad_v2(
-            float2{static_cast<float>(mcoords[i][0]), static_cast<float>(mcoords[i][1])},
-            rect_quad[0],
-            rect_quad[1],
-            rect_quad[2],
-            rect_quad[3]) != 0)
-    {
-      return true;
-    }
+  if (BLI_rcti_inside_rcti(&rect, &lasso_rect)) {
+    return true;
   }
   return false;
 }
@@ -2383,8 +2374,6 @@ static bool do_lasso_select_timeline(bContext *C,
 {
   Scene *scene = CTX_data_scene(C);
   Editing *ed = seq::editing_get(scene);
-  rcti rect;
-  BLI_lasso_boundbox(&rect, mcoords);
 
   bool changed = false;
   const bool select = (sel_op != SEL_OP_SUB);
