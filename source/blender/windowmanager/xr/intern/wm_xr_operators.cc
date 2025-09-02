@@ -1527,6 +1527,7 @@ static wmOperatorStatus wm_xr_navigation_teleport_modal(bContext *C,
   wmWindowManager *wm = CTX_wm_manager(C);
   wmXrData *xr = &wm->xr;
 
+  xr->runtime->session_state.is_raycast_shown = true;
   wm_xr_raycast_update(op, xr, actiondata);
 
   XrRaycastData *data = static_cast<XrRaycastData *>(op->customdata);
@@ -1574,6 +1575,7 @@ static wmOperatorStatus wm_xr_navigation_teleport_modal(bContext *C,
         WM_xr_session_state_nav_location_set(xr, nav_destination);
       }
 
+      xr->runtime->session_state.is_raycast_shown = false;
       wm_xr_raycast_uninit(op);
 
       return OPERATOR_FINISHED;

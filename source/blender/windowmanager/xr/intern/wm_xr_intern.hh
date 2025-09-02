@@ -54,6 +54,7 @@ struct wmXrSessionState {
   bool force_reset_to_base_pose;
   bool is_view_data_set;
   bool swap_hands;
+  bool is_raycast_shown;
 
   /** Current navigation transforms. */
   GHOST_XrPose nav_pose;

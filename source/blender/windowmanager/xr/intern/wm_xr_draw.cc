@@ -381,7 +381,7 @@ static void wm_xr_controller_aim_draw(const XrSessionSettings *settings, wmXrSes
       break;
     case XR_CONTROLLER_DRAW_DARK_RAY:
     case XR_CONTROLLER_DRAW_LIGHT_RAY:
-      draw_ray = true;
+      draw_ray = !state->is_raycast_shown;
       break;
   }
 
