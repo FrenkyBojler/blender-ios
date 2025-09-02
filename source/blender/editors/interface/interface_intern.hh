@@ -14,7 +14,6 @@
 #include "BLI_math_vector_types.hh"
 #include "BLI_string_ref.hh"
 #include "BLI_vector.hh"
-#include "BLI_vector_set.hh"
 
 #include "BKE_fcurve.hh"
 
@@ -364,11 +363,11 @@ struct uiButTextBox : public uiBut {
   int line_scroll = 0;
   /** Total number of wrapped lines in the last textbox redraw/event handling. */
   int last_total_lines = 0;
-  int visible_height = 0;
+  int visible_lines = 0;
   void line_scroll_set(int line_scroll);
 };
 
-blender::Vector<blender::StringRef> ui_but_textbox_wrap_lines( uiButTextBox *but, int width);
+blender::Vector<blender::StringRef> ui_but_textbox_wrap_lines(uiButTextBox *but, int width);
 
 /** Derived struct for #ButType::Num */
 struct uiButNumber : public uiBut {
@@ -930,7 +929,7 @@ struct uiKeyNavLock {
   blender::int2 event_xy = blender::int2(0);
 };
 
-using uiBlockHandleCreateFunc = uiBlock *(*)(bContext * C, uiPopupBlockHandle *handle, void *arg1);
+using uiBlockHandleCreateFunc = uiBlock *(*)(bContext *C, uiPopupBlockHandle *handle, void *arg1);
 
 struct uiPopupBlockCreate {
   uiBlockCreateFunc create_func = nullptr;

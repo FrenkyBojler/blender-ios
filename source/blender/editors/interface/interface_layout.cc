@@ -184,7 +184,7 @@ blender::ui::ItemType uiItem::type() const
   return type_;
 };
 
-uiLayout::uiLayout(blender::ui::ItemType type) : uiItem(type) {};
+uiLayout::uiLayout(blender::ui::ItemType type) : uiItem(type){};
 
 using uiItemType = blender::ui::ItemType;
 using uiItemInternalFlag = blender::ui::ItemInternalFlag;
@@ -2702,7 +2702,7 @@ void uiLayout::prop_textbox(PointerRNA *ptr,
                               0,
                               std::nullopt);
   uiButTextBox *textbox = static_cast<uiButTextBox *>(but);
-  textbox->visible_height = visible_lines;
+  textbox->visible_lines = visible_lines;
   /* Clamp scroll, resizing the region could add/remove wrapped lines. */
 
   auto &grip_row = overlap.row(true);
@@ -2716,7 +2716,7 @@ void uiLayout::prop_textbox(PointerRNA *ptr,
            0,
            0,
            0,
-           line_heigth * (float(textbox->visible_height) - 0.65f),
+           line_heigth * (float(textbox->visible_lines) - 0.65f),
            nullptr,
            0.0,
            0.0,

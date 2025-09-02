@@ -6770,7 +6770,7 @@ void uiButTextBox::line_scroll_set(int line_scroll)
 {
   this->line_scroll = line_scroll;
   /* Clamp line scroll. */
-  const int max_scroll = std::max(this->last_total_lines - this->visible_height, 0);
+  const int max_scroll = std::max(this->last_total_lines - this->visible_lines, 0);
   this->line_scroll = std::clamp(this->line_scroll, 0, max_scroll);
 }
 

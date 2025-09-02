@@ -3118,7 +3118,7 @@ blender::Vector<blender::StringRef> ui_but_textbox_wrap_lines(const ARegion *reg
   uiFontStyle fstyle = UI_style_get()->widget;
   ui_fontscale(&fstyle.points, textbox->block->aspect);
   UI_fontstyle_set(&fstyle);
-  return ui_but_textbox_wrap_lines(textbox, BLI_rcti_size_x(&rect) - text_padding);
+  return ui_but_textbox_wrap_lines(textbox, BLI_rcti_size_x(&rect) - text_padding * 2);
 }
 
 static void ui_but_textbox_add_scroll(const ARegion *region, uiButTextBox *textbox, int step)
@@ -3141,7 +3141,7 @@ static void ui_but_textbox_scroll_to_cursor(const ARegion *region, uiButTextBox 
     }
     line_cursor++;
   }
-  int visible_bouds[] = {textbox->line_scroll, textbox->line_scroll + textbox->visible_height};
+  int visible_bouds[] = {textbox->line_scroll, textbox->line_scroll + textbox->visible_lines};
   if (visible_bouds[0] <= line_cursor && line_cursor < visible_bouds[1]) {
     return;
   }
@@ -3173,11 +3173,11 @@ static void ui_but_textbox_textedit_set_cursor_pos(uiBut *but,
 
   blender::Vector<blender::StringRef> lines = ui_but_textbox_wrap_lines(region, textbox);
   int line_under_mouse = textbox->line_scroll +
-                         (end.y - xy.y) / (end.y - start.y) * (textbox->visible_height);
+                         (end.y - xy.y) / (end.y - start.y) * (textbox->visible_lines);
   line_under_mouse = std::clamp<int>(
       line_under_mouse,
       std::max<int>(0, textbox->line_scroll - 1),
-      std::min<int>(textbox->line_scroll + textbox->visible_height, lines.size() - 1));
+      std::min<int>(textbox->line_scroll + textbox->visible_lines, lines.size() - 1));
 
   blender::StringRef line = lines[line_under_mouse];
 
@@ -5127,18 +5127,19 @@ static int ui_do_but_TEX(
 {
   uiButTextBox *textbox = but->type == ButType::TextBox ? static_cast<uiButTextBox *>(but) :
                                                           nullptr;
-  if (data->state == BUTTON_STATE_HIGHLIGHT && textbox && event->val == KM_PRESS &&
+  if (textbox && data->state == BUTTON_STATE_HIGHLIGHT && textbox && event->val == KM_PRESS &&
       event->type == LEFTMOUSE)
   {
     int mx = event->xy[0];
     int my = event->xy[1];
     ui_window_to_block(data->region, but->block, &mx, &my);
+    /* Activate textbox scrollbar. */
     if (but->rect.xmax - V2D_SCROLL_WIDTH < mx && my > but->rect.ymin + UI_UNIT_Y * (0.75f)) {
       button_activate_state(C, but, BUTTON_STATE_NUM_EDITING);
       return WM_UI_HANDLER_BREAK;
     }
   }
-  if (data->state == BUTTON_STATE_NUM_EDITING) {
+  if (textbox && data->state == BUTTON_STATE_NUM_EDITING) {
     if (event->val == KM_RELEASE && event->type == LEFTMOUSE) {
       button_activate_state(C, but, BUTTON_STATE_EXIT);
       return WM_UI_HANDLER_BREAK;
@@ -5150,7 +5151,7 @@ static int ui_do_but_TEX(
     float range = but->rect.ymax - ymin;
 
     textbox->line_scroll_set((range - (my - ymin)) / range *
-                             (textbox->last_total_lines - textbox->visible_height));
+                             (textbox->last_total_lines - textbox->visible_lines));
     ED_region_tag_redraw(data->region);
     return WM_UI_HANDLER_BREAK;
   }
@@ -9179,12 +9180,6 @@ static void button_activate_init(bContext *C,
   }
   else if (but->type == ButType::Num) {
     ui_numedit_set_active(but);
-  }
-  else if (ELEM(but->type, ButType::TextBox, ButType::Text)) {
-    if (but->active && !but->active->changed_cursor) {
-      WM_cursor_modal_set(but->active->window, WM_CURSOR_TEXT_EDIT);
-      but->active->changed_cursor = true;
-    }
   }
 
   if (UI_but_has_quick_tooltip(but)) {
