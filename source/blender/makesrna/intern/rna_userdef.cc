@@ -2146,6 +2146,16 @@ static void rna_def_userdef_theme_ui(BlenderRNA *brna)
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update_icons");
 }
 
+static void rna_def_userdef_theme_regions(BlenderRNA *brna)
+{
+  StructRNA *srna;
+  PropertyRNA *prop;
+
+  srna = RNA_def_struct(brna, "ThemeRegions", nullptr);
+  RNA_def_struct_ui_text(
+      srna, "Shared Region Properties", "Theme properties for editor regions");
+}
+
 static void rna_def_userdef_theme_common_anim(BlenderRNA *brna)
 {
   StructRNA *srna;
@@ -4644,6 +4654,7 @@ static void rna_def_userdef_dothemes(BlenderRNA *brna)
   rna_def_userdef_theme_ui_style(brna);
   rna_def_userdef_theme_ui(brna);
   rna_def_userdef_theme_common(brna);
+  rna_def_userdef_theme_regions(brna);
 
   rna_def_userdef_theme_space_generic(brna);
   rna_def_userdef_theme_space_gradient(brna);

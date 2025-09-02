@@ -106,6 +106,9 @@ typedef struct uiStyle {
   char _pad0[2];
 } uiStyle;
 
+typedef struct ThemeRegions {
+} ThemeRegions;
+
 typedef struct ThemeCommonAnim {
   unsigned char playhead[4];
   unsigned char preview_range[4];
@@ -512,6 +515,7 @@ typedef struct bTheme {
 
   ThemeUI tui;
 
+  ThemeRegions regions;
   ThemeCommon common;
 
   /**
