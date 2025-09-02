@@ -20,6 +20,7 @@
 #include "BKE_editmesh.hh"
 #include "BKE_geometry_set.hh"
 #include "BKE_instances.hh"
+#include "BKE_mesh.hh"
 
 #include "DRW_render.hh"
 
@@ -143,7 +144,7 @@ class AttributeTexts : Overlay {
         offset_by_type = 3.0f;
       }
 
-      Vector<float3> corner_positions(positions.size());
+      Array<float3> corner_positions(positions.size());
       int corner_index = 0;
 
       const BMEditMesh *em = mesh->runtime->edit_mesh.get();
@@ -159,52 +160,41 @@ class AttributeTexts : Overlay {
             const float3 prev_corner_pos = loop->prev->v->co;
             const float3 next_corner_pos = loop->next->v->co;
 
-            corner_positions[corner_index] = calculate_corner_text_position(corner_pos,
-                                                                            prev_corner_pos,
-                                                                            next_corner_pos,
-                                                                            efa->no,
-                                                                            state,
-                                                                            object_to_world,
-                                                                            offset_by_type);
+            corner_positions[corner_index] = calc_corner_text_position(corner_pos,
+                                                                       prev_corner_pos,
+                                                                       next_corner_pos,
+                                                                       efa->no,
+                                                                       state,
+                                                                       object_to_world,
+                                                                       offset_by_type);
             corner_index++;
           }
         }
       }
       else {
+        const Span<float3> positions = mesh->vert_positions();
+        const OffsetIndices<int> faces = mesh->faces();
         const Span<int> corner_verts = mesh->corner_verts();
-        const Span<float3> vert_positions = mesh->vert_positions();
         const Span<float3> face_normals = mesh->face_normals();
 
-        const OffsetIndices<int> faces = mesh->faces();
-        for (const int face_index : faces.index_range()) {
-          const float3 face_normal = face_normals[face_index];
-
-          const IndexRange face_corners = faces[face_index];
-          const int corner_size = face_corners.size();
-          for (const int index : IndexRange(corner_size)) {
-
-            const int curr_corner = face_corners[index];
-            const int prev_corner = face_corners[(index - 1 + corner_size) % corner_size];
-            const int next_corner = face_corners[(index + 1) % corner_size];
-
-            const int vert_o = corner_verts[curr_corner];
-            const int vert_a = corner_verts[prev_corner];
-            const int vert_b = corner_verts[next_corner];
-
-            const float3 corner_pos = vert_positions[vert_o];
-            const float3 prev_corner_pos = vert_positions[vert_a];
-            const float3 next_corner_pos = vert_positions[vert_b];
-
-            corner_positions[corner_index] = calculate_corner_text_position(corner_pos,
-                                                                            prev_corner_pos,
-                                                                            next_corner_pos,
-                                                                            face_normal,
-                                                                            state,
-                                                                            object_to_world,
-                                                                            offset_by_type);
-            corner_index++;
+        threading::parallel_for(faces.index_range(), 512, [&](const IndexRange range) {
+          for (const int face_index : range) {
+            const float3 &face_normal = face_normals[face_index];
+            const IndexRange face = faces[face_index];
+            for (const int corner : face) {
+              const int corner_prev = bke::mesh::face_corner_prev(face, corner);
+              const int corner_next = bke::mesh::face_corner_next(face, corner);
+              corner_positions[corner] = calc_corner_text_position(
+                  positions[corner_verts[corner]],
+                  positions[corner_verts[corner_prev]],
+                  positions[corner_verts[corner_next]],
+                  face_normal,
+                  state,
+                  object_to_world,
+                  offset_by_type);
+            }
           }
-        }
+        });
       }
       add_values_to_text_cache(dt, attribute.varray, corner_positions.as_span(), object_to_world);
     }
@@ -402,13 +392,13 @@ class AttributeTexts : Overlay {
     });
   }
 
-  static float3 calculate_corner_text_position(const float3 corner_pos,
-                                               const float3 prev_corner_pos,
-                                               const float3 next_corner_pos,
-                                               const float3 face_normal,
-                                               const State &state,
-                                               const float4x4 &object_to_world,
-                                               const float offset_by_type = 1.0f)
+  static float3 calc_corner_text_position(const float3 &corner_pos,
+                                          const float3 &prev_corner_pos,
+                                          const float3 &next_corner_pos,
+                                          const float3 &face_normal,
+                                          const State &state,
+                                          const float4x4 &object_to_world,
+                                          const float offset_by_type = 1.0f)
   {
     const float3 prev_edge_vec = prev_corner_pos - corner_pos;
     const float3 next_edge_vec = next_corner_pos - corner_pos;
