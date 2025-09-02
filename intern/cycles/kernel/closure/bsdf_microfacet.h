@@ -268,6 +268,11 @@ ccl_device_forceinline void microfacet_fresnel(KernelGlobals kg,
     ccl_private FresnelGeneralizedSchlick *fresnel = (ccl_private FresnelGeneralizedSchlick *)
                                                          bsdf->fresnel;
     const float ior = dispersion_ior(sd, bsdf->ior, fresnel->dispersion);
+    /* Correct F0 to account for the change in IOR in case dispersion is used. */
+    Spectrum f0 = fresnel->f0;
+    if (ior != bsdf->ior) {
+      f0 *= F0_from_ior(ior) / F0_from_ior(bsdf->ior);
+    }
     Spectrum F;
     if (fresnel->thin_film.thickness > THINFILM_THICKNESS_CUTOFF) {
       /* Iridescence doesn't combine well with the general case. We only expose it through the
@@ -291,7 +296,7 @@ ccl_device_forceinline void microfacet_fresnel(KernelGlobals kg,
       if (F0_real > 1e-5f && !isequal(F, one_spectrum())) {
         FOREACH_SPECTRUM_CHANNEL (i) {
           const float s = saturatef(inverse_lerp(1.0f, F0_real, GET_SPECTRUM_CHANNEL(F, i)));
-          const float factor = GET_SPECTRUM_CHANNEL(fresnel->f0, i) / F0_real;
+          const float factor = GET_SPECTRUM_CHANNEL(f0, i) / F0_real;
           GET_SPECTRUM_CHANNEL(F, i) *= mix(1.0f, factor, s);
         }
       }
@@ -302,7 +307,7 @@ ccl_device_forceinline void microfacet_fresnel(KernelGlobals kg,
       const float F_real = fresnel_dielectric(cos_theta_i, ior, r_cos_theta_t);
       const float F0_real = F0_from_ior(ior);
       const float s = saturatef(inverse_lerp(F0_real, 1.0f, F_real));
-      F = mix(fresnel->f0, fresnel->f90, s);
+      F = mix(f0, fresnel->f90, s);
     }
     else {
       /* Regular case: Generalized Schlick term. */
@@ -322,7 +327,7 @@ ccl_device_forceinline void microfacet_fresnel(KernelGlobals kg,
       /* When going from a higher to a lower IOR, we must use the transmitted angle. */
       const float fresnel_angle = ((ior < 1.0f) ? cos_theta_t : cos_theta_i);
       const float s = powf(1.0f - fresnel_angle, fresnel->exponent);
-      F = mix(fresnel->f0, fresnel->f90, s);
+      F = mix(f0, fresnel->f90, s);
     }
     *r_reflectance = F * fresnel->reflection_tint;
     *r_transmittance = (one_spectrum() - F) * fresnel->transmission_tint;
@@ -562,6 +567,20 @@ ccl_device_forceinline int bsdf_microfacet_eval_flag(const ccl_private Microface
   return (bsdf->alpha_x * bsdf->alpha_y > BSDF_ROUGHNESS_SQ_THRESH) ? SD_BSDF_HAS_EVAL : 0;
 }
 
+/* Returns the IOR of the microfacet BSDF accounting for dispersion.
+ * Only needed for the "proper" eval/sample calculations, for things like albedo estimation
+ * the base IOR is good enough. */
+ccl_device_forceinline float bsdf_microfacet_get_ior(const ccl_private ShaderData *sd,
+                                                     const ccl_private MicrofacetBsdf *bsdf)
+{
+  if (bsdf->fresnel_type == MicrofacetFresnel::GENERALIZED_SCHLICK) {
+    ccl_private FresnelGeneralizedSchlick *fresnel = (ccl_private FresnelGeneralizedSchlick *)
+                                                         bsdf->fresnel;
+    return dispersion_ior(sd, bsdf->ior, fresnel->dispersion);
+  }
+  return bsdf->ior;
+}
+
 template<MicrofacetType m_type>
 ccl_device Spectrum bsdf_microfacet_eval(KernelGlobals kg,
                                          const ccl_private ShaderData *sd,
@@ -601,7 +620,8 @@ ccl_device Spectrum bsdf_microfacet_eval(KernelGlobals kg,
   /* TODO: deal with the case when `bsdf->ior` is close to one. */
   /* TODO: check if the refraction configuration is valid. See `btdf_ggx()` in
    * `eevee_bxdf_lib.glsl`. */
-  float3 H = is_transmission ? -(bsdf->ior * wo + wi) : (wi + wo);
+  const float ior = bsdf_microfacet_get_ior(sd, bsdf);
+  float3 H = is_transmission ? -(ior * wo + wi) : (wi + wo);
   const float inv_len_H = safe_divide(1.0f, len(H));
   H *= inv_len_H;
 
@@ -644,7 +664,7 @@ ccl_device Spectrum bsdf_microfacet_eval(KernelGlobals kg,
   }
 
   const float common = D / cos_NI *
-                       (is_transmission ? sqr(bsdf->ior * inv_len_H) * fabsf(cos_HI * dot(H, wo)) :
+                       (is_transmission ? sqr(ior * inv_len_H) * fabsf(cos_HI * dot(H, wo)) :
                                           0.25f);
 
   const float pdf_reflect = average(reflectance) / average(reflectance + transmittance);
@@ -676,8 +696,8 @@ ccl_device int bsdf_microfacet_sample(KernelGlobals kg,
     return LABEL_NONE;
   }
 
-  const float m_eta = bsdf->ior;
-  const float m_inv_eta = safe_divide(1.0f, bsdf->ior);
+  const float m_eta = bsdf_microfacet_get_ior(sd, bsdf);
+  const float m_inv_eta = safe_divide(1.0f, m_eta);
   const float alpha_x = bsdf->alpha_x;
   const float alpha_y = bsdf->alpha_y;
   bool m_singular = !bsdf_microfacet_eval_flag(bsdf);
