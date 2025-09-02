@@ -92,7 +92,7 @@ enum eGPUBuiltinShader {
   GPU_SHADER_SEQUENCER_ZEBRA,
 
   /** Draw vignette in screen space. */
-  GPU_SHADER_VIGNETTE,
+  GPU_SHADER_XR_VIGNETTE,
   /** Draw xr raycast as a ruled spline surface. */
   GPU_SHADER_XR_RAYCAST,
 

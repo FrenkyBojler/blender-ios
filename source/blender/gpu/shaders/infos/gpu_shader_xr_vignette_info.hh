@@ -15,7 +15,7 @@
 
 #include "gpu_shader_create_info.hh"
 
-GPU_SHADER_CREATE_INFO(gpu_shader_vignette)
+GPU_SHADER_CREATE_INFO(gpu_shader_xr_vignette)
 VERTEX_IN(0, float2, pos)
 FRAGMENT_OUT(0, float4, fragColor)
 PUSH_CONSTANT(float4x4, ModelViewProjectionMatrix)
@@ -24,6 +24,6 @@ PUSH_CONSTANT(float2, viewportSize)
 PUSH_CONSTANT(float, aperture)
 PUSH_CONSTANT(float, falloff)
 VERTEX_SOURCE("gpu_shader_2D_vert.glsl")
-FRAGMENT_SOURCE("gpu_shader_vignette_frag.glsl")
+FRAGMENT_SOURCE("gpu_shader_xr_vignette_frag.glsl")
 DO_STATIC_COMPILATION()
 GPU_SHADER_CREATE_END()

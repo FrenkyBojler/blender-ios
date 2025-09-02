@@ -348,7 +348,7 @@ static void wm_xr_vignette_draw(const XrSessionSettings *settings, wmXrSessionSt
   copy_v3_fl3(offset, 0.5f * scale, -0.5f * scale, -depth);
 
   blender::gpu::Batch *quad = GPU_batch_preset_quad();
-  GPU_batch_program_set_builtin(quad, GPU_SHADER_VIGNETTE);
+  GPU_batch_program_set_builtin(quad, GPU_SHADER_XR_VIGNETTE);
   GPU_batch_uniform_4fv(quad, "color", color);
   GPU_batch_uniform_1f(quad, "aperture", aperture);
   GPU_batch_uniform_1f(quad, "falloff", falloff);
