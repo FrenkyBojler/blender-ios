@@ -17,7 +17,6 @@
 #include "BKE_attribute.hh"
 #include "BKE_curves.hh"
 #include "BKE_duplilist.hh"
-#include "BKE_editmesh.hh"
 #include "BKE_geometry_set.hh"
 #include "BKE_instances.hh"
 #include "BKE_mesh.hh"
@@ -30,8 +29,6 @@
 #include "draw_manager_text.hh"
 
 #include "overlay_base.hh"
-
-#include "intern/bmesh_iterators.hh"
 
 namespace blender::draw::overlay {
 
@@ -147,55 +144,29 @@ class AttributeTexts : Overlay {
       Array<float3> corner_positions(positions.size());
       int corner_index = 0;
 
-      const BMEditMesh *em = mesh->runtime->edit_mesh.get();
-      if (em && em->bm) {
-        BMesh *bm = em->bm;
-        BMIter iter;
-        BMFace *efa;
-        BM_ITER_MESH (efa, &iter, bm, BM_FACES_OF_MESH) {
-          BMIter liter;
-          BMLoop *loop;
-          BM_ITER_ELEM (loop, &liter, efa, BM_LOOPS_OF_FACE) {
-            const float3 corner_pos = loop->v->co;
-            const float3 prev_corner_pos = loop->prev->v->co;
-            const float3 next_corner_pos = loop->next->v->co;
+      const Span<float3> positions = mesh->vert_positions();
+      const OffsetIndices<int> faces = mesh->faces();
+      const Span<int> corner_verts = mesh->corner_verts();
+      const Span<float3> face_normals = mesh->face_normals();
 
-            corner_positions[corner_index] = calc_corner_text_position(corner_pos,
-                                                                       prev_corner_pos,
-                                                                       next_corner_pos,
-                                                                       efa->no,
-                                                                       state,
-                                                                       object_to_world,
-                                                                       offset_by_type);
-            corner_index++;
+      threading::parallel_for(faces.index_range(), 512, [&](const IndexRange range) {
+        for (const int face_index : range) {
+          const float3 &face_normal = face_normals[face_index];
+          const IndexRange face = faces[face_index];
+          for (const int corner : face) {
+            const int corner_prev = bke::mesh::face_corner_prev(face, corner);
+            const int corner_next = bke::mesh::face_corner_next(face, corner);
+            corner_positions[corner] = calc_corner_text_position(
+                positions[corner_verts[corner]],
+                positions[corner_verts[corner_prev]],
+                positions[corner_verts[corner_next]],
+                face_normal,
+                state,
+                object_to_world,
+                offset_by_type);
           }
         }
-      }
-      else {
-        const Span<float3> positions = mesh->vert_positions();
-        const OffsetIndices<int> faces = mesh->faces();
-        const Span<int> corner_verts = mesh->corner_verts();
-        const Span<float3> face_normals = mesh->face_normals();
-
-        threading::parallel_for(faces.index_range(), 512, [&](const IndexRange range) {
-          for (const int face_index : range) {
-            const float3 &face_normal = face_normals[face_index];
-            const IndexRange face = faces[face_index];
-            for (const int corner : face) {
-              const int corner_prev = bke::mesh::face_corner_prev(face, corner);
-              const int corner_next = bke::mesh::face_corner_next(face, corner);
-              corner_positions[corner] = calc_corner_text_position(
-                  positions[corner_verts[corner]],
-                  positions[corner_verts[corner_prev]],
-                  positions[corner_verts[corner_next]],
-                  face_normal,
-                  state,
-                  object_to_world,
-                  offset_by_type);
-            }
-          }
-        });
-      }
+      });
       add_values_to_text_cache(dt, attribute.varray, corner_positions.as_span(), object_to_world);
     }
     else {
