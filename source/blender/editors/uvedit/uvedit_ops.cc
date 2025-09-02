@@ -2018,55 +2018,55 @@ static bool uv_copy_mirrored_faces(BMesh *bm, int direction, int precision, int 
   for (const auto &[pos, vert] : mirror_gt.items()) {
     float3 mirror_pos = pos;
     mirror_pos[0] = -mirror_pos[0];
-    BMVert **mirror_vert_ptr = mirror_lt.lookup_ptr(mirror_pos);
+    BMVert *mirror_vert_ptr = mirror_lt.lookup_default(mirror_pos, nullptr);
     if (mirror_vert_ptr) {
-      vmap.add(vert, *mirror_vert_ptr);
+      vmap.add(vert, mirror_vert_ptr);
     }
   }
   for (const auto &[pos, vert] : mirror_lt.items()) {
     float3 mirror_pos = pos;
     mirror_pos[0] = -mirror_pos[0];
-    BMVert **mirror_vert_ptr = mirror_gt.lookup_ptr(mirror_pos);
+    BMVert *mirror_vert_ptr = mirror_gt.lookup_default(mirror_pos, nullptr);
     if (mirror_vert_ptr) {
-      vmap.add(vert, *mirror_vert_ptr);
+      vmap.add(vert, mirror_vert_ptr);
     }
   }
 
-  Map<Vector<BMVert *>, BMFace *> mirror_pm;
+  Map<Vector<BMVert *>, BMFace *> sorted_verts_to_face;
+  // Maps faces to their corresponding mirrored face.
   Map<BMFace *, BMFace *> face_map;
 
   BMFace *f;
   BMIter iter_face;
   BM_ITER_MESH (f, &iter_face, bm, BM_FACES_OF_MESH) {
-    Vector<BMVert *> face_verts;
+    Vector<BMVert *> sorted_verts(f->len);
+    int loop_index;
     BMLoop *l;
     BMIter iter_loop;
-    BM_ITER_ELEM (l, &iter_loop, f, BM_LOOPS_OF_FACE) {
-      face_verts.append(l->v);
+    BM_ITER_ELEM_INDEX (l, &iter_loop, f, BM_LOOPS_OF_FACE, loop_index) {
+      sorted_verts.insert(loop_index, l->v);
     }
-
-    Vector<BMVert *> sorted_verts = face_verts;
     std::sort(sorted_verts.begin(), sorted_verts.end());
-    mirror_pm.add(sorted_verts, f);
+    sorted_verts_to_face.add(sorted_verts, f);
   }
 
-  for (const auto &[sorted_verts, face] : mirror_pm.items()) {
+  for (const auto &[sorted_verts, face] : sorted_verts_to_face.items()) {
     Vector<BMVert *> mirror_verts;
     bool valid = true;
     for (BMVert *vert : sorted_verts) {
-      BMVert **mirror_vert_ptr = vmap.lookup_ptr(vert);
+      BMVert *mirror_vert_ptr = vmap.lookup_default(vert, nullptr);
       if (!mirror_vert_ptr) {
         valid = false;
         break;
       }
-      mirror_verts.append(*mirror_vert_ptr);
+      mirror_verts.append(mirror_vert_ptr);
     }
 
     if (valid) {
       std::sort(mirror_verts.begin(), mirror_verts.end());
-      BMFace **mirror_face_ptr = mirror_pm.lookup_ptr(mirror_verts);
+      BMFace *mirror_face_ptr = sorted_verts_to_face.lookup_default(mirror_verts, nullptr);
       if (mirror_face_ptr) {
-        BMFace *mirror_face = *mirror_face_ptr;
+        BMFace *mirror_face = mirror_face_ptr;
         if (mirror_face != face) {
           face_map.add(face, mirror_face);
         }
@@ -2076,34 +2076,30 @@ static bool uv_copy_mirrored_faces(BMesh *bm, int direction, int precision, int 
 
   const int cd_loop_uv_offset = CustomData_get_offset(&bm->ldata, CD_PROP_FLOAT2);
 
-  for (const auto &[face_i, face_j] : face_map.items()) {
+  for (const auto &[f_dst, f_src] : face_map.items()) {
 
-    Map<BMVert *, BMLoop *> vert_to_loop;
     BMIter iter_loop;
-    BMLoop *l;
-    BM_ITER_ELEM (l, &iter_loop, face_j, BM_LOOPS_OF_FACE) {
-      vert_to_loop.add(l->v, l);
-    }
+    BMLoop *l_dst;
 
     float face_center[3];
-    BM_face_calc_center_median(face_i, face_center);
+    BM_face_calc_center_median(f_dst, face_center);
 
-    BM_ITER_ELEM (l, &iter_loop, face_i, BM_LOOPS_OF_FACE) {
-      BMVert **target_vert_ptr = vmap.lookup_ptr(l->v);
+    BM_ITER_ELEM (l_dst, &iter_loop, f_dst, BM_LOOPS_OF_FACE) {
+      BMVert *target_vert_ptr = vmap.lookup_default(l_dst->v, nullptr);
       if (!target_vert_ptr) {
         continue;
       }
 
-      BMLoop **source_loop_ptr = vert_to_loop.lookup_ptr(*target_vert_ptr);
-      if (!source_loop_ptr) {
+      BMLoop *l_src = BM_face_vert_share_loop(f_src, target_vert_ptr);
+      if (!l_src) {
         continue;
       }
       if ((direction == 0 && face_center[0] < 0.0f) || (direction == 1 && face_center[0] > 0.0f)) {
         continue;
       }
 
-      float *uv_src = BM_ELEM_CD_GET_FLOAT_P(*source_loop_ptr, cd_loop_uv_offset);
-      float *uv_dst = BM_ELEM_CD_GET_FLOAT_P(l, cd_loop_uv_offset);
+      float *uv_src = BM_ELEM_CD_GET_FLOAT_P(l_src, cd_loop_uv_offset);
+      float *uv_dst = BM_ELEM_CD_GET_FLOAT_P(l_dst, cd_loop_uv_offset);
 
       uv_dst[0] = -(uv_src[0] - 0.5f) + 0.5f;
       uv_dst[1] = uv_src[1];
@@ -2131,9 +2127,9 @@ static wmOperatorStatus uv_copy_mirrored_faces_exec(bContext *C, wmOperator *op)
 
     int double_warn = 0;
 
-    bool has_uv = uv_copy_mirrored_faces(em->bm, direction, precision, &double_warn);
+    bool changed = uv_copy_mirrored_faces(em->bm, direction, precision, &double_warn);
 
-    if (!has_uv) {
+    if (!changed) {
       total_no_active_uv++;
     }
     else if (double_warn) {
@@ -2141,7 +2137,7 @@ static wmOperatorStatus uv_copy_mirrored_faces_exec(bContext *C, wmOperator *op)
       meshes_with_duplicates++;
     }
 
-    if (has_uv) {
+    if (changed) {
       DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
       WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
     }
