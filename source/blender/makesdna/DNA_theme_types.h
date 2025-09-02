@@ -107,9 +107,9 @@ typedef struct uiStyle {
 } uiStyle;
 
 typedef struct ThemeRegionsSourceList {
-  unsigned char list[4];
-  unsigned char list_text[4];
-  unsigned char list_text_hi[4];
+  unsigned char source_list_back[4];
+  unsigned char source_list_text[4];
+  unsigned char source_list_text_sel[4];
   char _pad0[4];
 } ThemeRegionsSourceList;
 

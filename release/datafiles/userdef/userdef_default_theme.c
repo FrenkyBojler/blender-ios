@@ -278,9 +278,9 @@ const bTheme U_theme_default = {
   },
   .regions = {
     .source_list = {
-      .list = RGBA(0x1d1d1dff),
-      .list_text = RGBA(0xb8b8b8ff),
-      .list_text_hi = RGBA(0xffaf23ff),
+      .source_list_back = RGBA(0x1d1d1dff),
+      .source_list_text = RGBA(0xb8b8b8ff),
+      .source_list_text_sel = RGBA(0xffaf23ff),
     },
   },
   .common = {

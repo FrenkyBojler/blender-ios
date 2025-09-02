@@ -2150,17 +2150,20 @@ static void rna_def_userdef_theme_regions_source_list(BlenderRNA *brna)
   RNA_def_struct_sdna(srna, "ThemeRegionsSourceList");
   RNA_def_struct_ui_text(srna, "Source List Region Settings", "");
 
-  prop = RNA_def_property(srna, "list", PROP_FLOAT, PROP_COLOR_GAMMA);
+  prop = RNA_def_property(srna, "background", PROP_FLOAT, PROP_COLOR_GAMMA);
+  RNA_def_property_float_sdna(prop, nullptr, "source_list_back");
   RNA_def_property_array(prop, 3);
   RNA_def_property_ui_text(prop, "Source List", "");
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 
-  prop = RNA_def_property(srna, "list_text", PROP_FLOAT, PROP_COLOR_GAMMA);
+  prop = RNA_def_property(srna, "text", PROP_FLOAT, PROP_COLOR_GAMMA);
+  RNA_def_property_float_sdna(prop, nullptr, "source_list_text");
   RNA_def_property_array(prop, 3);
   RNA_def_property_ui_text(prop, "Source List Text", "");
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 
-  prop = RNA_def_property(srna, "list_text_hi", PROP_FLOAT, PROP_COLOR_GAMMA);
+  prop = RNA_def_property(srna, "text_selected", PROP_FLOAT, PROP_COLOR_GAMMA);
+  RNA_def_property_float_sdna(prop, nullptr, "source_list_text_sel");
   RNA_def_property_array(prop, 3);
   RNA_def_property_ui_text(prop, "Source List Text Highlight", "");
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
