@@ -545,6 +545,8 @@ static wmOperatorStatus wm_xr_navigation_grab_modal(bContext *C,
   wmWindowManager *wm = CTX_wm_manager(C);
   wmXrData *xr = &wm->xr;
 
+  WM_xr_session_state_vignette_activate(xr);
+
   const bool do_bimanual = wm_xr_navigation_grab_can_do_bimanual(actiondata, data);
 
   data->loc_lock = RNA_boolean_get(op->ptr, "lock_location");
@@ -849,6 +851,9 @@ enum eXrFlyMode {
 struct XrFlyData {
   float viewer_rot[4];
   double time_prev;
+
+  /* Only used for snap turn, where the action should be executed only once. */
+  bool is_finished;
 };
 
 static void wm_xr_fly_init(wmOperator *op, const wmXrData *xr)
@@ -1003,6 +1008,11 @@ static wmOperatorStatus wm_xr_navigation_fly_modal(bContext *C,
     return OPERATOR_PASS_THROUGH;
   }
 
+  if (event->val == KM_RELEASE) {
+    wm_xr_fly_uninit(op);
+    return OPERATOR_FINISHED;
+  }
+
   const wmXrActionData *actiondata = static_cast<const wmXrActionData *>(event->customdata);
   XrFlyData *data = static_cast<XrFlyData *>(op->customdata);
   wmWindowManager *wm = CTX_wm_manager(C);
@@ -1010,7 +1020,7 @@ static wmOperatorStatus wm_xr_navigation_fly_modal(bContext *C,
   eXrFlyMode mode;
   bool turn, snap_turn, invert_rotation, swap_hands, locz_lock, dir_lock, speed_frame_based;
   bool speed_interp_cubic = false;
-  float speed, speed_max, speed_p0[2], speed_p1[2];
+  float speed, speed_max, speed_p0[2], speed_p1[2], button_state;
   GHOST_XrPose nav_pose;
   float nav_mat[4][4], delta[4][4], out[4][4];
 
@@ -1070,14 +1080,15 @@ static wmOperatorStatus wm_xr_navigation_fly_modal(bContext *C,
   /* Interpolate between min/max speeds based on button state. */
   switch (actiondata->type) {
     case XR_BOOLEAN_INPUT:
+      button_state = 1.0f;
       speed = speed_max;
       break;
     case XR_FLOAT_INPUT:
     case XR_VECTOR2F_INPUT: {
-      float state = (actiondata->type == XR_FLOAT_INPUT) ? fabsf(actiondata->state[0]) :
-                                                           len_v2(actiondata->state);
+      button_state = (actiondata->type == XR_FLOAT_INPUT) ? fabsf(actiondata->state[0]) :
+                                                            len_v2(actiondata->state);
       float speed_t = (actiondata->float_threshold < 1.0f) ?
-                          (state - actiondata->float_threshold) /
+                          (button_state - actiondata->float_threshold) /
                               (1.0f - actiondata->float_threshold) :
                           1.0f;
       if (speed_interp_cubic) {
@@ -1109,12 +1120,18 @@ static wmOperatorStatus wm_xr_navigation_fly_modal(bContext *C,
   wm_xr_pose_to_mat(&nav_pose, nav_mat);
 
   if (turn) {
-    if (dir_lock || (snap_turn && event->val != KM_RELEASE)) {
+    if (dir_lock || (snap_turn && data->is_finished) ||
+        (snap_turn && button_state < RNA_float_get(op->ptr, "snap_turn_threshold")))
+    {
       unit_m4(delta);
     }
     else {
       if (!snap_turn) {
+        WM_xr_session_state_vignette_activate(xr);
         speed *= delta_time;
+      }
+      else {
+        data->is_finished = true;
       }
 
       if (invert_rotation) {
@@ -1134,6 +1151,8 @@ static wmOperatorStatus wm_xr_navigation_fly_modal(bContext *C,
   }
   else {
     float nav_scale, ref_quat[4];
+
+    WM_xr_session_state_vignette_activate(xr);
 
     /* Adjust speed for base and navigation scale. */
     WM_xr_session_state_nav_scale_get(xr, &nav_scale);
@@ -1189,10 +1208,6 @@ static wmOperatorStatus wm_xr_navigation_fly_modal(bContext *C,
 
   if (event->val == KM_PRESS) {
     return OPERATOR_RUNNING_MODAL;
-  }
-  else if (event->val == KM_RELEASE) {
-    wm_xr_fly_uninit(op);
-    return OPERATOR_FINISHED;
   }
 
   /* XR events currently only support press and release. */
@@ -1252,8 +1267,15 @@ static void WM_OT_xr_navigation_fly(wmOperatorType *ot)
   prop = RNA_def_enum(ot->srna, "mode", fly_modes, XR_FLY_VIEWER_FORWARD, "Mode", "Fly mode");
   RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_NAVIGATION);
 
-  RNA_def_boolean(
-      ot->srna, "snap_turn", true, "Snap Turn", "Instantly rotates viewer by a fixed angle");
+  RNA_def_float(ot->srna,
+                "snap_turn_threshold",
+                0.95f,
+                0.0f,
+                1.0f,
+                "Snap Turn Threshold",
+                "Input state threshold when using snap turn",
+                0.0f,
+                1.0f);
   RNA_def_boolean(
       ot->srna, "lock_location_z", false, "Lock Elevation", "Prevent changes to viewer elevation");
   RNA_def_boolean(ot->srna,

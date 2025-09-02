@@ -2176,7 +2176,7 @@ bool WM_xr_session_state_nav_scale_get(const wmXrData *xr, float *r_scale);
 void WM_xr_session_state_nav_scale_set(wmXrData *xr, float scale);
 void WM_xr_session_state_navigation_reset(wmXrSessionState *state);
 void WM_xr_session_state_vignette_reset(wmXrSessionState *state);
-void WM_xr_session_state_vignette_activate(wmXrSessionState *state);
+void WM_xr_session_state_vignette_activate(wmXrData *xr);
 void WM_xr_session_state_vignette_update(wmXrSessionState *state);
 
 ARegionType *WM_xr_surface_controller_region_type_get();

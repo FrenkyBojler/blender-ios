@@ -609,12 +609,13 @@ void WM_xr_session_state_vignette_reset(wmXrSessionState *state)
   data->aperture_velocity_delta = 0.01f;
 }
 
-void WM_xr_session_state_vignette_activate(wmXrSessionState *state)
+void WM_xr_session_state_vignette_activate(wmXrData *xr)
 {
-  wmXrVignetteData *data = state->vignette_data;
-
-  data->aperture_velocity = data->initial_aperture_velocity;
-  data->aperture = min_ff(data->aperture, data->initial_aperture);
+  if (WM_xr_session_exists(xr)) {
+    wmXrVignetteData *data = xr->runtime->session_state.vignette_data;
+    data->aperture_velocity = data->initial_aperture_velocity;
+    data->aperture = min_ff(data->aperture, data->initial_aperture);
+  }
 }
 
 void WM_xr_session_state_vignette_update(wmXrSessionState *state)
@@ -1258,8 +1259,6 @@ void wm_xr_session_actions_update(wmWindowManager *wm)
     memcpy(&state->nav_pose_prev, &state->nav_pose, sizeof(state->nav_pose_prev));
     state->nav_scale_prev = state->nav_scale;
     state->is_navigation_dirty = false;
-
-    WM_xr_session_state_vignette_activate(state);
 
     /* Update viewer pose with any navigation changes since the last actions sync so that data
      * is correct for queries. */
