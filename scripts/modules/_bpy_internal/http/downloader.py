@@ -1338,9 +1338,9 @@ def _cleanup_main_file_attribute() -> Generator[None]:
     # as much as possible.
     old_file: str = getattr(main_module, '__file__', '') or ''
 
-    # Blender uses `<blender string>`, but this may change. Usually concrete
-    # file paths aren't delimited by greater/less than symbols, so this seems a
-    # safe heuristic.
+    # Blender uses various `<...>` values for `__main__.__file__`. Usually
+    # concrete file paths aren't delimited by greater/less than symbols, so
+    # this seems a safe heuristic.
     is_blender_string = old_file.startswith('<') and old_file.endswith('>')
     if not is_blender_string:
         yield

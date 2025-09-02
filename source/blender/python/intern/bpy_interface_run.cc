@@ -311,7 +311,7 @@ bool BPY_run_string_with_locals(bContext *C,
   bpy_context_set(C, &gilstate);
 
   PyObject *main_mod_backup = PyC_MainModule_Backup();
-  PyObject *py_globals = PyC_DefaultNameSpace("<blender script>");
+  PyObject *py_globals = PyC_DefaultNameSpace("<BPY_run_string_with_locals>");
 
   /* Construct the 'locals' dictionary. */
   PyObject *py_locals = PyDict_New();
