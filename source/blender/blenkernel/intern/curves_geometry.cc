@@ -552,7 +552,8 @@ OffsetIndices<int> CurvesGeometry::nurbs_custom_knots_by_curve() const
     return {};
   }
   runtime.custom_knot_offsets_cache.ensure([&](Vector<int> &r_data) {
-    r_data.resize(this->curve_num + 1, 0);
+    r_data.resize(this->curve_num + 1);
+    r_data.fill(0);
 
     const OffsetIndices points_by_curve = this->points_by_curve();
     const VArray<int8_t> curve_types = this->curve_types();
@@ -568,7 +569,7 @@ OffsetIndices<int> CurvesGeometry::nurbs_custom_knots_by_curve() const
         }
       }
     });
-    offset_indices::accumulate_counts_to_offsets(r_data);
+    offset_indices::accumulate_counts_to_offsets(r_data.as_mutable_span());
   });
   return OffsetIndices<int>(runtime.custom_knot_offsets_cache.data());
 }
