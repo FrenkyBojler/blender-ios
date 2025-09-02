@@ -4030,7 +4030,7 @@ static bNodeTree *node_tree_add_tree_do(Main *bmain,
    */
   int flag = 0;
   if (is_embedded || bmain == nullptr) {
-    flag |= LIB_ID_CREATE_NO_MAIN;
+    flag |= LIB_ID_CREATE_NO_MAIN | LIB_ID_CREATE_NO_USER_REFCOUNT;
   }
   BLI_assert_msg(!owner_library || !owner_id,
                  "Embedded NTrees should never have a defined owner library here");
