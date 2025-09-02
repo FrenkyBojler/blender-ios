@@ -4619,7 +4619,7 @@ static wmOperatorStatus uv_select_overlap(bContext *C, const bool extend)
   int data_index = 0;
 
   int face_len_alloc = 3;
-  float (*uv_verts)[2] = static_cast<float (*)[2]>(
+  float(*uv_verts)[2] = static_cast<float(*)[2]>(
       MEM_mallocN(sizeof(*uv_verts) * face_len_alloc, "UvOverlapCoords"));
   uint(*indices)[3] = static_cast<uint(*)[3]>(
       MEM_mallocN(sizeof(*indices) * (face_len_alloc - 2), "UvOverlapTris"));
@@ -4650,7 +4650,7 @@ static wmOperatorStatus uv_select_overlap(bContext *C, const bool extend)
       if (face_len_alloc < face_len) {
         MEM_freeN(uv_verts);
         MEM_freeN(indices);
-        uv_verts = static_cast<float (*)[2]>(
+        uv_verts = static_cast<float(*)[2]>(
             MEM_mallocN(sizeof(*uv_verts) * face_len, "UvOverlapCoords"));
         indices = static_cast<uint(*)[3]>(
             MEM_mallocN(sizeof(*indices) * tri_len, "UvOverlapTris"));
@@ -5457,7 +5457,7 @@ static EnumPropertyItem uv_select_similar_type_items[] = {
     {UV_SSIM_PIN, "PIN", 0, "Pinned", ""},
     {UV_SSIM_LENGTH_UV, "LENGTH", 0, "Length", "Length of edge in UV space"},
     {UV_SSIM_LENGTH_3D, "LENGTH_3D", 0, "Length 3D", "Length of edge in 3D space"},
-    {UV_SSIM_AREA_UV, "AREA", 0, "Area", "Area of face in UV space"},
+    {UV_SSIM_AREA_UV, "AREA", 0, "Area", "Face area in UV space"},
     {UV_SSIM_AREA_3D, "AREA_3D", 0, "Area 3D", "Area of face in 3D space"},
     {UV_SSIM_MATERIAL, "MATERIAL", 0, "Material", ""},
     {UV_SSIM_OBJECT, "OBJECT", 0, "Object", ""},
@@ -5466,7 +5466,7 @@ static EnumPropertyItem uv_select_similar_type_items[] = {
      "WINDING",
      0,
      "Winding",
-     "Are faces clockwise or anti-clockwise (facing up or facing down)"},
+     "Face direction defined by (clockwise or anti-clockwise winding (facing up or facing down)"},
     {UV_SSIM_FACE, "FACE", 0, "Amount of Faces in Island", ""},
     {0}};
 
