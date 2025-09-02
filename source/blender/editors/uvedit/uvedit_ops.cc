@@ -1984,10 +1984,6 @@ static void UV_OT_mark_seam(wmOperatorType *ot)
 
 static bool uv_copy_mirrored_faces(BMesh *bm, int direction, int precision, int *r_double_warn)
 {
-  if (!CustomData_has_layer(&bm->ldata, CD_PROP_FLOAT2)) {
-    return false;
-  }
-
   *r_double_warn = 0;
   const float precision_scale = powf(10.0f, precision);
   Map<float3, BMVert *> mirror_gt, mirror_lt;
@@ -2032,8 +2028,10 @@ static bool uv_copy_mirrored_faces(BMesh *bm, int direction, int precision, int 
     }
   }
 
+  /* Blender’s Array type doesn’t support hashing, using a Vector with a predefined length instead.
+   */
   Map<Vector<BMVert *>, BMFace *> sorted_verts_to_face;
-  // Maps faces to their corresponding mirrored face.
+  /* Maps faces to their corresponding mirrored face. */
   Map<BMFace *, BMFace *> face_map;
 
   BMFace *f;
@@ -2050,7 +2048,7 @@ static bool uv_copy_mirrored_faces(BMesh *bm, int direction, int precision, int 
     sorted_verts_to_face.add(sorted_verts, f);
   }
 
-  for (const auto &[sorted_verts, face] : sorted_verts_to_face.items()) {
+  for (const auto &[sorted_verts, f_dst] : sorted_verts_to_face.items()) {
     Vector<BMVert *> mirror_verts;
     bool valid = true;
     for (BMVert *vert : sorted_verts) {
@@ -2064,11 +2062,10 @@ static bool uv_copy_mirrored_faces(BMesh *bm, int direction, int precision, int 
 
     if (valid) {
       std::sort(mirror_verts.begin(), mirror_verts.end());
-      BMFace *mirror_face_ptr = sorted_verts_to_face.lookup_default(mirror_verts, nullptr);
-      if (mirror_face_ptr) {
-        BMFace *mirror_face = mirror_face_ptr;
-        if (mirror_face != face) {
-          face_map.add(face, mirror_face);
+      BMFace *f_src = sorted_verts_to_face.lookup_default(mirror_verts, nullptr);
+      if (f_src) {
+        if (f_src != f_dst) {
+          face_map.add(f_dst, f_src);
         }
       }
     }
@@ -2082,8 +2079,8 @@ static bool uv_copy_mirrored_faces(BMesh *bm, int direction, int precision, int 
     BMIter iter_loop;
     BMLoop *l_dst;
 
-    float face_center[3];
-    BM_face_calc_center_median(f_dst, face_center);
+    float f_dst_center[3];
+    BM_face_calc_center_median(f_dst, f_dst_center);
 
     BM_ITER_ELEM (l_dst, &iter_loop, f_dst, BM_LOOPS_OF_FACE) {
       BMVert *target_vert_ptr = vmap.lookup_default(l_dst->v, nullptr);
@@ -2095,11 +2092,12 @@ static bool uv_copy_mirrored_faces(BMesh *bm, int direction, int precision, int 
       if (!l_src) {
         continue;
       }
-      if ((direction == 0 && face_center[0] < 0.0f) || (direction == 1 && face_center[0] > 0.0f)) {
+      if ((direction == 0 && f_dst_center[0] < 0.0f) || (direction == 1 && f_dst_center[0] > 0.0f))
+      {
         continue;
       }
 
-      float *uv_src = BM_ELEM_CD_GET_FLOAT_P(l_src, cd_loop_uv_offset);
+      const float *uv_src = BM_ELEM_CD_GET_FLOAT_P(l_src, cd_loop_uv_offset);
       float *uv_dst = BM_ELEM_CD_GET_FLOAT_P(l_dst, cd_loop_uv_offset);
 
       uv_dst[0] = -(uv_src[0] - 0.5f) + 0.5f;
@@ -2120,7 +2118,6 @@ static wmOperatorStatus uv_copy_mirrored_faces_exec(bContext *C, wmOperator *op)
   const int direction = RNA_enum_get(op->ptr, "direction");
   const int precision = RNA_int_get(op->ptr, "precision");
 
-  int total_no_active_uv = 0;
   int total_duplicates = 0;
   int meshes_with_duplicates = 0;
 
@@ -2131,10 +2128,7 @@ static wmOperatorStatus uv_copy_mirrored_faces_exec(bContext *C, wmOperator *op)
 
     bool changed = uv_copy_mirrored_faces(em->bm, direction, precision, &double_warn);
 
-    if (!CustomData_has_layer(&em->bm->ldata, CD_PROP_FLOAT2)) {
-      total_no_active_uv++;
-    }
-    else if (double_warn) {
+    if (double_warn) {
       total_duplicates += double_warn;
       meshes_with_duplicates++;
     }
@@ -2145,20 +2139,7 @@ static wmOperatorStatus uv_copy_mirrored_faces_exec(bContext *C, wmOperator *op)
     }
   }
 
-  if (total_duplicates && total_no_active_uv) {
-    BKE_reportf(op->reports,
-                RPT_WARNING,
-                "%d mesh(es) with no active UV layer, %d duplicates found in %d mesh(es), mirror "
-                "may be incomplete",
-                total_no_active_uv,
-                total_duplicates,
-                meshes_with_duplicates);
-  }
-  else if (total_no_active_uv) {
-    BKE_reportf(
-        op->reports, RPT_WARNING, "%d mesh(es) with no active UV layer", total_no_active_uv);
-  }
-  else if (total_duplicates) {
+  if (total_duplicates) {
     BKE_reportf(op->reports,
                 RPT_WARNING,
                 "%d duplicates found in %d mesh(es), mirror may be incomplete",
