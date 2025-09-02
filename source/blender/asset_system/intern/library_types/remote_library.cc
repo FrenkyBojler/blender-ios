@@ -342,15 +342,12 @@ void remote_library_request_asset_download(bContext &C,
     auto set_locals = [&](PyObject *py_locals) {
       PyObject *py_library_url = PyUnicode_FromStringAndSize(library_url->c_str(),
                                                              library_url->size());
-      BLI_assert(py_library_url);
 
       PyObject *py_library_path = PyUnicode_FromStringAndSize(library_path.c_str(),
                                                               library_path.size());
-      BLI_assert(py_library_path);
 
       PyObject *py_dst_filepath = PyUnicode_FromStringAndSize(dst_filepath->data(),
                                                               dst_filepath->size());
-      BLI_assert(py_dst_filepath);
 
       PyDict_SetItemString(py_locals, "library_url", py_library_url);
       PyDict_SetItemString(py_locals, "library_path", py_library_path);
