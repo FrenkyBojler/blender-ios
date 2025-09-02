@@ -765,10 +765,7 @@ class KeyframesCo:
 
 
 class AutoKeying:
-    """Auto-keying support.
-
-    Based on Rigify code by Alexander Gavrilov.
-    """
+    """Auto-keying support."""
 
     # Use AutoKeying.keytype() or Authkeying.options() context to change those.
     _keytype = 'KEYFRAME'
@@ -798,7 +795,7 @@ class AutoKeying:
             use_rot: bool = True,
             use_scale: bool = True,
             force_autokey: bool = False) -> Iterator[None]:
-        """Context manager to set various options."""
+        """Context manager to set various keyframing options."""
         default_keytype = cls._keytype
         default_use_loc = cls._use_loc
         default_use_rot = cls._use_rot
@@ -889,6 +886,7 @@ class AutoKeying:
         group: str,
         locks: Iterable[bool],
     ) -> None:
+        """Keyframe channels, avoiding keying locked channels."""
         if all(locks):
             return
 
