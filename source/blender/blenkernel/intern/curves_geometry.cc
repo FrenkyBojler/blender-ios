@@ -555,7 +555,7 @@ OffsetIndices<int> CurvesGeometry::nurbs_custom_knots_by_curve() const
     r_data.resize(this->curve_num + 1);
     r_data.fill(0);
 
-    const OffsetIndices points_by_curve = this->points_by_curve();
+    const OffsetIndices<int> points_by_curve = this->points_by_curve();
     const VArray<int8_t> curve_types = this->curve_types();
     const VArray<int8_t> knot_modes = this->nurbs_knots_modes();
     const VArray<int8_t> orders = this->nurbs_orders();
