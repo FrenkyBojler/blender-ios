@@ -477,19 +477,14 @@ static void rna_NodeTreeInterfaceSocket_force_non_field_set(PointerRNA *ptr, con
                                    NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO;
 }
 
-static const EnumPropertyItem *rna_NodeTreeInterfaceSocket_structure_type_itemf(
-    bContext * /*C*/, PointerRNA *ptr, PropertyRNA * /*prop*/, bool *r_free)
+static const EnumPropertyItem *rna_structure_type_item_filter(
+    const bNodeTree *ntree, const eNodeSocketDatatype socket_type, bool *r_free)
 {
-  const bNodeTree *ntree = reinterpret_cast<const bNodeTree *>(ptr->owner_id);
-  const bNodeTreeInterfaceSocket *socket = static_cast<const bNodeTreeInterfaceSocket *>(
-      ptr->data);
   if (!ntree) {
     return rna_enum_dummy_NULL_items;
   }
-
   const bool is_geometry_nodes = ntree->type == NTREE_GEOMETRY;
 
-  const eNodeSocketDatatype socket_type = socket->socket_typeinfo()->type;
   const bool supports_fields = is_geometry_nodes &&
                                blender::nodes::socket_type_supports_fields(socket_type);
   const bool supports_grids = is_geometry_nodes &&
@@ -539,6 +534,16 @@ static const EnumPropertyItem *rna_NodeTreeInterfaceSocket_structure_type_itemf(
   }
   RNA_enum_item_end(&items, &items_count);
   return items;
+}
+
+static const EnumPropertyItem *rna_NodeTreeInterfaceSocket_structure_type_itemf(
+    bContext * /*C*/, PointerRNA *ptr, PropertyRNA * /*prop*/, bool *r_free)
+{
+  const bNodeTree *ntree = reinterpret_cast<const bNodeTree *>(ptr->owner_id);
+  const bNodeTreeInterfaceSocket *socket = static_cast<const bNodeTreeInterfaceSocket *>(
+      ptr->data);
+  const eNodeSocketDatatype socket_type = socket->socket_typeinfo()->type;
+  return rna_structure_type_item_filter(ntree, socket_type, r_free);
 }
 
 static const EnumPropertyItem *rna_NodeTreeInterfaceSocket_default_input_itemf(
