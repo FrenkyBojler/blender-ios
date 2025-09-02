@@ -49,7 +49,7 @@ class GHOST_XrGraphicsBindingMetal : public GHOST_IXrGraphicsBinding {
 
  protected:
   /** Secondary Metal context used by OpenXR. */
-  GHOST_ContextMTL *m_ghost_metal_ctx = nullptr;
+  GHOST_ContextMTL *ghost_metal_ctx_ = nullptr;
 
-  std::list<std::vector<XrSwapchainImageMetalKHR>> m_image_cache;
+  std::list<std::vector<XrSwapchainImageMetalKHR>> image_cache_;
 };

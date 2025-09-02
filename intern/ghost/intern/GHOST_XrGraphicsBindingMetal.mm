@@ -84,7 +84,7 @@ static std::optional<int64_t> choose_swapchain_format_from_candidates(
 GHOST_XrGraphicsBindingMetal::GHOST_XrGraphicsBindingMetal(GHOST_Context &ghost_ctx)
 {
   /* TODO: Pass the context to submitToSwapchainImage instead of storing a reference here. */
-  m_ghost_metal_ctx = dynamic_cast<GHOST_ContextMTL *>(&ghost_ctx);
+  ghost_metal_ctx_ = dynamic_cast<GHOST_ContextMTL *>(&ghost_ctx);
 }
 
 bool GHOST_XrGraphicsBindingMetal::checkVersionRequirements(GHOST_Context &ghost_ctx,
@@ -190,7 +190,7 @@ std::vector<XrSwapchainImageBaseHeader *> GHOST_XrGraphicsBindingMetal::createSw
   }
 
   /* Keep alive. */
-  m_image_cache.push_back(std::move(metal_images));
+  image_cache_.push_back(std::move(metal_images));
 
   return base_images;
 }
