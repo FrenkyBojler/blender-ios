@@ -2076,6 +2076,7 @@ static bool uv_copy_mirrored_faces(BMesh *bm, int direction, int precision, int 
 
   const int cd_loop_uv_offset = CustomData_get_offset(&bm->ldata, CD_PROP_FLOAT2);
 
+  bool changed = false;
   for (const auto &[f_dst, f_src] : face_map.items()) {
 
     BMIter iter_loop;
@@ -2103,10 +2104,11 @@ static bool uv_copy_mirrored_faces(BMesh *bm, int direction, int precision, int 
 
       uv_dst[0] = -(uv_src[0] - 0.5f) + 0.5f;
       uv_dst[1] = uv_src[1];
+      changed = true;
     }
   }
 
-  return true;
+  return changed;
 }
 
 static wmOperatorStatus uv_copy_mirrored_faces_exec(bContext *C, wmOperator *op)
@@ -2129,7 +2131,7 @@ static wmOperatorStatus uv_copy_mirrored_faces_exec(bContext *C, wmOperator *op)
 
     bool changed = uv_copy_mirrored_faces(em->bm, direction, precision, &double_warn);
 
-    if (!changed) {
+    if (!CustomData_has_layer(&em->bm->ldata, CD_PROP_FLOAT2)) {
       total_no_active_uv++;
     }
     else if (double_warn) {
