@@ -10,8 +10,6 @@ from bpy_extras.anim_utils import AutoKeying
 from .anim import get_relative_ob
 
 
-#### GLOBAL TRANSFORMS PANEL __________________________________________________
-
 class GlobalTransformPanelMixin:
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
@@ -161,13 +159,11 @@ class VIEW3D_PT_copy_global_transform_relative(GlobalTransformPanelMixin, Panel)
         # paste_props.use_relative = True
 
 
-#### REGISTRATION __________________________________________________
-
 classes = (
     VIEW3D_PT_copy_global_transform,
     VIEW3D_PT_copy_global_transform_mirror,
-    VIEW3D_PT_copy_global_transform_relative,
     VIEW3D_PT_copy_global_transform_fix_to_camera,
+    VIEW3D_PT_copy_global_transform_relative,
 )
 
 if __name__ == "__main__":  # only for live edit.

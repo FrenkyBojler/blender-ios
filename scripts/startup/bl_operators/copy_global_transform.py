@@ -33,8 +33,6 @@ class UnableToMirrorError(Exception):
     """Raised when mirroring is enabled but no mirror object/bone is set."""
 
 
-#### CLASSES __________________________________________________
-
 # Mapping from frame number to the dominant (in terms of genetics) key type.
 # GENERATED is the only recessive key type, others are dominant.
 KeyInfo: TypeAlias = dict[float, str]
@@ -171,8 +169,6 @@ class TransformableBone(Transformable):
                 yield fcurve
 
 
-#### FUNCTIONS __________________________________________________
-
 def get_matrix(context: Context) -> Matrix:
     bone = context.active_pose_bone
     if bone:
@@ -291,8 +287,6 @@ def _refresh_3d_panels():
                 continue
             area.tag_redraw()
 
-
-#### OPERATORS __________________________________________________
 
 class OBJECT_OT_copy_global_transform(Operator):
     bl_idname = "object.copy_global_transform"
@@ -758,9 +752,7 @@ class OBJECT_OT_delete_fix_to_camera_keys(Operator, FixToCameraCommon):
             t.remove_keys_of_type(self.keytype, frame_start=frame_start, frame_end=frame_end)
 
 
-#### PROPERTIES __________________________________________________
-
-class SCENE_PG_global_transform(PropertyGroup):
+class SCENE_PG_copy_global_transform(PropertyGroup):
     # The mirror object & bone name are stored on the scene, and not on the
     # operator. This makes it possible to set up the operator for use in a
     # certain scene, while keeping hotkey assignments working as usual.
@@ -785,7 +777,7 @@ class SCENE_PG_global_transform(PropertyGroup):
     )
 
 
-class SCENE_PG_fix_camera(PropertyGroup):
+class SCENE_PG_fix_to_camera(PropertyGroup):
     use_location: bpy.props.BoolProperty(
         name="Use Location for Camera Fix",
         description="Create Location keys when fixing to the scene camera",
@@ -806,8 +798,6 @@ class SCENE_PG_fix_camera(PropertyGroup):
     )
 
 
-#### REGISTRATION __________________________________________________
-
 # Messagebus subscription to monitor changes & refresh panels.
 _msgbus_owner = object()
 
@@ -817,8 +807,8 @@ classes = (
     OBJECT_OT_paste_transform,
     OBJECT_OT_fix_to_camera,
     OBJECT_OT_delete_fix_to_camera_keys,
-    SCENE_PG_global_transform,
-    SCENE_PG_fix_camera,
+    SCENE_PG_copy_global_transform,
+    SCENE_PG_fix_to_camera,
 )
 
 
@@ -845,8 +835,8 @@ def _on_blendfile_load_post(none: Any, other_none: Any) -> None:
 def register():
     bpy.app.handlers.load_post.append(_on_blendfile_load_post)
 
-    bpy.types.Scene.global_transform = bpy.props.PointerProperty(type=SCENE_PG_global_transform)
-    bpy.types.Scene.fix_camera = bpy.props.PointerProperty(type=SCENE_PG_fix_camera)
+    bpy.types.Scene.global_transform = bpy.props.PointerProperty(type=SCENE_PG_copy_global_transform)
+    bpy.types.Scene.fix_camera = bpy.props.PointerProperty(type=SCENE_PG_fix_to_camera)
 
 
 def unregister():
