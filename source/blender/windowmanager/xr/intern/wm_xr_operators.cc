@@ -627,15 +627,15 @@ struct XrRaycastData {
 
   /** Raycast results */
   bool success;
-  float destination_dist;
   int num_points;
   float points[XR_MAX_RAYCASTS + 1][4];
   float direction[3];
 
   /** Raycast visualization parameters */
   float color[4];
-  float width;
+  float raycast_width;
   int samples_per_segment;
+  float destination_size;
 
   void *draw_handle;
 };
@@ -643,20 +643,14 @@ struct XrRaycastData {
 static void wm_xr_raycast_destination_draw(const XrRaycastData *data)
 {
   GPU_depth_test(GPU_DEPTH_LESS_EQUAL);
-  GPU_blend(GPU_BLEND_ALPHA);
 
-  float color[4];
-  copy_v4_v4(color, data->color);
-  color[3] *= 0.5f;
-
-  const float scale = 0.05f * data->destination_dist;
   blender::gpu::Batch *sphere = GPU_batch_preset_sphere(2);
   GPU_batch_program_set_builtin(sphere, GPU_SHADER_3D_UNIFORM_COLOR);
-  GPU_batch_uniform_4fv(sphere, "color", color);
+  GPU_batch_uniform_4fv(sphere, "color", data->color);
 
   GPU_matrix_push();
   GPU_matrix_translate_3fv(data->points[data->num_points - 1]);
-  GPU_matrix_scale_1f(scale);
+  GPU_matrix_scale_1f(data->destination_size);
   GPU_batch_draw(sphere);
   GPU_matrix_pop();
 }
@@ -701,7 +695,7 @@ static void wm_xr_raycast_draw(const bContext * /*C*/, ARegion * /*region*/, voi
     immUniformArray4fv("controlPoints", &data->points[0][0], XR_MAX_RAYCASTS + 1);
     immUniform4fv("color", data->color);
     immUniform3fv("rightVector", right);
-    immUniform1f("width", data->width);
+    immUniform1f("width", data->raycast_width);
     immUniform1i("controlPointCount", data->num_points);
     immUniform1i("samplesPerSegment", data->samples_per_segment);
 
@@ -774,7 +768,7 @@ static void wm_xr_raycast_update(wmOperator *op,
   WM_xr_session_state_nav_scale_get(xr, &nav_scale);
 
   data->from_viewer = RNA_boolean_get(op->ptr, "from_viewer");
-  data->width = RNA_float_get(op->ptr, "width") * nav_scale;
+  data->raycast_width = RNA_float_get(op->ptr, "raycast_scale") * nav_scale;
   data->samples_per_segment = RNA_int_get(op->ptr, "samples_per_segment");
   RNA_float_get_array(op->ptr, "axis", axis);
 
@@ -1351,6 +1345,11 @@ static bool wm_xr_navigation_teleport(bContext *C,
                                       float teleport_ofs,
                                       float gravity)
 {
+  float nav_location[3], nav_rotation[4], viewer_location[3];
+  WM_xr_session_state_nav_location_get(xr, nav_location);
+  WM_xr_session_state_nav_rotation_get(xr, nav_rotation);
+  WM_xr_session_state_viewer_pose_location_get(xr, viewer_location);
+
   Scene *scene = CTX_data_scene(C);
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   float normal[3], segment_direction[3];
@@ -1388,6 +1387,12 @@ static bool wm_xr_navigation_teleport(bContext *C,
 
     if (ob) {
       *num_points = i + 1;
+
+      /** Ensure normal faces the correct direction */
+      if (dot_v3v3(segment_direction, normal) > 0) {
+        mul_v3_fl(normal, -1.0f);
+      }
+
       break;
     }
 
@@ -1429,13 +1434,8 @@ static bool wm_xr_navigation_teleport(bContext *C,
 
   /* Calculate teleportation destination in navigation space */
   if (result) {
-    float nav_location[3], nav_rotation[4], viewer_location[3];
     float nav_axes[3][3], projected[3], v0[3], v1[3];
     copy_v3_fl(nav_destination, 0.0f);
-
-    WM_xr_session_state_nav_location_get(xr, nav_location);
-    WM_xr_session_state_nav_rotation_get(xr, nav_rotation);
-    WM_xr_session_state_viewer_pose_location_get(xr, viewer_location);
 
     wm_xr_basenav_rotation_calc(xr, nav_rotation, nav_rotation);
     quat_to_mat3(nav_axes, nav_rotation);
@@ -1455,6 +1455,11 @@ static bool wm_xr_navigation_teleport(bContext *C,
       }
       /* Add to final location. */
       add_v3_v3(nav_destination, projected);
+    }
+
+    /* If we're teleporting based on ground plane, prevent vertical movement */
+    if (ob == nullptr) {
+      nav_destination[2] = nav_location[2];
     }
 
     *destination_dist = len_v3v3(viewer_location, points[*num_points - 1]);
@@ -1504,7 +1509,8 @@ static wmOperatorStatus wm_xr_navigation_teleport_modal(bContext *C,
 
   XrRaycastData *data = static_cast<XrRaycastData *>(op->customdata);
   bool selectable_only, teleport_axes[3];
-  float teleport_t, teleport_ofs, ray_dist, gravity, nav_scale;
+  float teleport_t, teleport_ofs, ray_dist, gravity, nav_scale, destination_dist,
+      nav_destination[3];
 
   WM_xr_session_state_nav_scale_get(xr, &nav_scale);
 
@@ -1515,7 +1521,6 @@ static wmOperatorStatus wm_xr_navigation_teleport_modal(bContext *C,
   ray_dist = RNA_float_get(op->ptr, "distance") * nav_scale;
   gravity = RNA_float_get(op->ptr, "gravity");
 
-  float nav_destination[3];
   data->num_points = XR_MAX_RAYCASTS + 1;
   data->success = wm_xr_navigation_teleport(C,
                                             xr,
@@ -1524,7 +1529,7 @@ static wmOperatorStatus wm_xr_navigation_teleport_modal(bContext *C,
                                             data->direction,
                                             &data->num_points,
                                             &ray_dist,
-                                            &data->destination_dist,
+                                            &destination_dist,
                                             selectable_only,
                                             teleport_axes,
                                             teleport_t,
@@ -1533,6 +1538,7 @@ static wmOperatorStatus wm_xr_navigation_teleport_modal(bContext *C,
 
   if (data->success) {
     RNA_float_get_array(op->ptr, "hit_color", data->color);
+    data->destination_size = RNA_float_get(op->ptr, "destination_scale") * sqrt(destination_dist);
   }
   else {
     RNA_float_get_array(op->ptr, "miss_color", data->color);
@@ -1621,7 +1627,24 @@ static void WM_OT_xr_navigation_teleport(wmOperatorType *ot)
                 "Downward curvature applied to raycast",
                 0.0,
                 FLT_MAX);
-  RNA_def_float(ot->srna, "width", 0.02f, 0.0f, FLT_MAX, "Width", "Raycast width", 0.0f, FLT_MAX);
+  RNA_def_float(ot->srna,
+                "raycast_scale",
+                0.02f,
+                0.0f,
+                FLT_MAX,
+                "Raycast Scale",
+                "Width of the raycast visualization",
+                0.0f,
+                FLT_MAX);
+  RNA_def_float(ot->srna,
+                "destination_scale",
+                0.05f,
+                0.0f,
+                FLT_MAX,
+                "Destination Scale",
+                "Width of the destination visualization",
+                0.0f,
+                FLT_MAX);
   RNA_def_int(ot->srna,
               "samples_per_segment",
               6,
