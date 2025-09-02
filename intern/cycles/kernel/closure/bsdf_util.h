@@ -396,7 +396,7 @@ ccl_device_inline float dispersion_ior(const ccl_private ShaderData *sd,
                                        const float dispersion_scale)
 {
 #ifdef __DISPERSION__
-  if ((dispersion_scale < CLOSURE_WEIGHT_CUTOFF) || (sd->wavelength == 0.0f)) {
+  if ((fabsf(dispersion_scale) < CLOSURE_WEIGHT_CUTOFF) || (sd->wavelength == 0.0f)) {
     return ior;
   }
 

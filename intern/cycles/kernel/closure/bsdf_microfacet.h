@@ -868,7 +868,7 @@ ccl_device int bsdf_microfacet_setup_fresnel_generalized_schlick(
     const bool preserve_energy)
 {
   fresnel->f0 = saturate(fresnel->f0);
-  fresnel->dispersion = fmaxf(fresnel->dispersion, 0.0f);
+  fresnel->dispersion = fresnel->dispersion;
   bsdf->fresnel_type = MicrofacetFresnel::GENERALIZED_SCHLICK;
   bsdf->fresnel = fresnel;
   bsdf->sample_weight *= average(bsdf_microfacet_estimate_albedo(kg, sd, bsdf, true, true));
@@ -899,7 +899,8 @@ ccl_device int bsdf_microfacet_setup_fresnel_generalized_schlick(
     microfacet_ggx_preserve_energy(kg, bsdf, sd, Fss);
   }
 
-  if (!is_zero(fresnel->transmission_tint) && (fresnel->dispersion > CLOSURE_WEIGHT_CUTOFF)) {
+  if (!is_zero(fresnel->transmission_tint) && (fabsf(fresnel->dispersion) > CLOSURE_WEIGHT_CUTOFF))
+  {
     return SD_BSDF_HAS_DISPERSION;
   }
   else {

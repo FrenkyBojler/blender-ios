@@ -2343,7 +2343,7 @@ GlassBsdfNode::GlassBsdfNode() : BsdfNode(get_node_type())
 
 bool GlassBsdfNode::has_dispersion()
 {
-  return (input("Dispersion")->link != nullptr || dispersion > CLOSURE_WEIGHT_CUTOFF);
+  return (input("Dispersion")->link != nullptr || fabsf(dispersion) > CLOSURE_WEIGHT_CUTOFF);
 }
 
 void GlassBsdfNode::compile(SVMCompiler &compiler)
@@ -2694,7 +2694,7 @@ bool PrincipledBsdfNode::has_nonzero_weight(const char *name)
   if (weight_in->link != nullptr) {
     return true;
   }
-  return (get_float(weight_in->socket_type) >= CLOSURE_WEIGHT_CUTOFF);
+  return (fabsf(get_float(weight_in->socket_type)) >= CLOSURE_WEIGHT_CUTOFF);
 }
 
 bool PrincipledBsdfNode::has_dispersion()
