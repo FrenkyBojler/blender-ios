@@ -4452,7 +4452,7 @@ static bool bm_edge_is_select_isolated(BMEdge *e)
   return true;
 }
 
-static BMEdge *bm_next_selected_edge_in_loop_v(const BMEdge *e_curr, BMVert *v)
+static BMEdge *bm_step_over_vert_to_next_selected_edge_in_chain(const BMEdge *e_curr, BMVert *v)
 {
   BMIter eiter;
   BMEdge *e_other, *found = nullptr;
@@ -4469,7 +4469,7 @@ static BMEdge *bm_next_selected_edge_in_loop_v(const BMEdge *e_curr, BMVert *v)
   return found;
 }
 
-static BMVert *bm_next_selected_vert_in_loop(BMVert *v_curr, BMVert *v_prev)
+static BMVert *bm_step_to_next_selected_vert_in_chain(BMVert *v_curr, BMVert *v_prev)
 {
   BMIter eiter;
   BMEdge *e;
@@ -4501,7 +4501,7 @@ static BMVert *bm_next_selected_vert_in_loop(BMVert *v_curr, BMVert *v_prev)
   return (candidate_count == 1) ? candidate : nullptr;
 }
 
-static BMFace *bm_next_selected_face_in_loop(BMFace *f_curr, BMFace *f_prev)
+static BMFace *bm_step_over_shared_edge_to_next_selected_face_in_chain(BMFace *f_curr, BMFace *f_prev)
 {
   BMIter liter;
   BMLoop *l;
@@ -4558,7 +4558,7 @@ static bool bm_verts_form_loop(BMVert *v_start)
       return false;
     }
 
-    BMVert *v_next = bm_next_selected_vert_in_loop(v_curr, v_prev);
+    BMVert *v_next = bm_step_to_next_selected_vert_in_chain(v_curr, v_prev);
     if (v_next == nullptr) {
       return false;
     }
@@ -4580,7 +4580,7 @@ static bool bm_edges_form_loop(BMEdge *e_start)
   int steps = 0;
 
   do {
-    BMEdge *e_next = bm_next_selected_edge_in_loop_v(e_curr, v_through);
+    BMEdge *e_next = bm_step_over_vert_to_next_selected_edge_in_chain(e_curr, v_through);
     if (e_next == nullptr) {
       return false;
     }
@@ -4618,7 +4618,7 @@ static bool bm_faces_form_loop(BMFace *f_start)
       return false;
     }
 
-    BMFace *f_next = bm_next_selected_face_in_loop(f_curr, f_prev);
+    BMFace *f_next = bm_step_over_shared_edge_to_next_selected_face_in_chain(f_curr, f_prev);
     if (f_next == nullptr) {
       return false;
     }
@@ -4656,7 +4656,7 @@ static void walker_deselect_nth_vertex_loop(BMEditMesh *em,
     }
 
     /* Find next vertex in the loop */
-    BMVert *v_next = bm_next_selected_vert_in_loop(v_curr, v_prev);
+    BMVert *v_next = bm_step_to_next_selected_vert_in_chain(v_curr, v_prev);
     if (v_next == nullptr || v_next == v_start) {
       break;
     }
@@ -4693,7 +4693,7 @@ static void walker_deselect_nth_edge_loop(BMEditMesh *em,
     }
 
     /* Find next edge in the loop */
-    BMEdge *e_next = bm_next_selected_edge_in_loop_v(e_curr, v_through);
+    BMEdge *e_next = bm_step_over_vert_to_next_selected_edge_in_chain(e_curr, v_through);
     if (e_next == nullptr || e_next == e_start) {
       break;
     }
