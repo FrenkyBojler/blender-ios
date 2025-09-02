@@ -292,6 +292,77 @@ class NODE_OT_add_node(NodeAddOperator, Operator):
             return {'CANCELLED'}
 
 
+class NODE_OT_swap_node(NodeSwapOperator, Operator):
+    bl_idname = "node.swap_node"
+    bl_label = "Swap Node"
+    bl_options = {"REGISTER", "UNDO"}
+
+    type: StringProperty(
+        name="Node Type",
+        description="Node type",
+    )
+
+    visible_output: StringProperty(
+        name="Output Name",
+        description="If provided, all outputs that are named differently will be hidden",
+        options={'SKIP_SAVE'},
+    )
+
+    @staticmethod
+    def get_zone_pair(tree, node):
+        # Get paired output node
+        if hasattr(node, "paired_output"):
+            return node, node.paired_output
+
+        # Get paired input node
+        for input_node in tree.nodes:
+            if hasattr(input_node, "paired_output"):
+                if input_node.paired_output == node:
+                    return input_node, node
+
+        return None
+
+    def execute(self, context):
+        tree = context.space_data.edit_tree
+
+        for old_node in context.selected_nodes[:]:
+            if tree.nodes.get(old_node.name) is None:
+                continue
+
+            new_node = self.create_node(context, self.type)
+            if self.visible_output:
+                for socket in new_node.outputs:
+                    if socket.name != self.visible_output:
+                        socket.hide = True
+            new_node.location = old_node.location
+            new_node.select = True
+
+            zone_pair = self.get_zone_pair(tree, old_node)
+
+            if zone_pair is not None:
+                input_node, output_node = zone_pair
+
+                if input_node.select and output_node.select:
+                    new_node.location = (input_node.location + output_node.location) / 2
+
+                self.transfer_input_values(input_node, new_node)
+
+                self.transfer_links(tree, input_node, new_node, is_input=True)
+                self.transfer_links(tree, output_node, new_node, is_input=False)
+
+                for node in zone_pair:
+                    tree.nodes.remove(node)
+            else:
+                self.transfer_input_values(old_node, new_node)
+
+                self.transfer_links(tree, old_node, new_node, is_input=True)
+                self.transfer_links(tree, old_node, new_node, is_input=False)
+
+                tree.nodes.remove(old_node)
+
+        return {'FINISHED'}
+
+
 class NODE_OT_add_empty_group(NodeAddOperator, bpy.types.Operator):
     bl_idname = "node.add_empty_group"
     bl_label = "Add Empty Group"
@@ -430,119 +501,6 @@ class NODE_OT_add_zone(NodeAddZoneOperator, Operator):
     )
 
 
-class NODE_OT_add_simulation_zone(NodeAddZoneOperator, Operator):
-    """Add simulation zone input and output nodes to the active tree"""
-    bl_idname = "node.add_simulation_zone"
-    bl_label = "Add Simulation Zone"
-    bl_options = {'REGISTER', 'UNDO'}
-
-    input_node_type = "GeometryNodeSimulationInput"
-    output_node_type = "GeometryNodeSimulationOutput"
-
-
-class NODE_OT_add_repeat_zone(NodeAddZoneOperator, Operator):
-    """Add a repeat zone that allows executing nodes a dynamic number of times"""
-    bl_idname = "node.add_repeat_zone"
-    bl_label = "Add Repeat Zone"
-    bl_options = {'REGISTER', 'UNDO'}
-
-    input_node_type = "GeometryNodeRepeatInput"
-    output_node_type = "GeometryNodeRepeatOutput"
-
-
-class NODE_OT_add_foreach_geometry_element_zone(NodeAddZoneOperator, Operator):
-    """Add a For Each Geometry Element zone that allows executing nodes e.g. for each vertex separately"""
-    bl_idname = "node.add_foreach_geometry_element_zone"
-    bl_label = "Add For Each Geometry Element Zone"
-    bl_options = {'REGISTER', 'UNDO'}
-
-    input_node_type = "GeometryNodeForeachGeometryElementInput"
-    output_node_type = "GeometryNodeForeachGeometryElementOutput"
-    add_default_geometry_link = False
-
-
-class NODE_OT_add_closure_zone(NodeAddZoneOperator, Operator):
-    """Add a Closure zone"""
-    bl_idname = "node.add_closure_zone"
-    bl_label = "Add Closure Zone"
-    bl_options = {'REGISTER', 'UNDO'}
-
-    input_node_type = "NodeClosureInput"
-    output_node_type = "NodeClosureOutput"
-    add_default_geometry_link = False
-
-
-class NODE_OT_swap_node(NodeSwapOperator, Operator):
-    bl_idname = "node.swap_node"
-    bl_label = "Swap Node"
-    bl_options = {"REGISTER", "UNDO"}
-
-    type: StringProperty(
-        name="Node Type",
-        description="Node type",
-    )
-
-    visible_output: StringProperty(
-        name="Output Name",
-        description="If provided, all outputs that are named differently will be hidden",
-        options={'SKIP_SAVE'},
-    )
-
-    @staticmethod
-    def get_zone_pair(tree, node):
-        # Get paired output node
-        if hasattr(node, "paired_output"):
-            return node, node.paired_output
-
-        # Get paired input node
-        for input_node in tree.nodes:
-            if hasattr(input_node, "paired_output"):
-                if input_node.paired_output == node:
-                    return input_node, node
-
-        return None
-
-    def execute(self, context):
-        tree = context.space_data.edit_tree
-
-        for old_node in context.selected_nodes[:]:
-            if tree.nodes.get(old_node.name) is None:
-                continue
-
-            new_node = self.create_node(context, self.type)
-            if self.visible_output:
-                for socket in new_node.outputs:
-                    if socket.name != self.visible_output:
-                        socket.hide = True
-            new_node.location = old_node.location
-            new_node.select = True
-
-            zone_pair = self.get_zone_pair(tree, old_node)
-
-            if zone_pair is not None:
-                input_node, output_node = zone_pair
-
-                if input_node.select and output_node.select:
-                    new_node.location = (input_node.location + output_node.location) / 2
-
-                self.transfer_input_values(input_node, new_node)
-
-                self.transfer_links(tree, input_node, new_node, is_input=True)
-                self.transfer_links(tree, output_node, new_node, is_input=False)
-
-                for node in zone_pair:
-                    tree.nodes.remove(node)
-            else:
-                self.transfer_input_values(old_node, new_node)
-
-                self.transfer_links(tree, old_node, new_node, is_input=True)
-                self.transfer_links(tree, old_node, new_node, is_input=False)
-
-                tree.nodes.remove(old_node)
-
-        return {'FINISHED'}
-
-
 class NODE_OT_swap_zone(ZoneOperator, NodeSwapOperator, Operator):
     bl_idname = "node.swap_zone"
     bl_label = "Swap Zone"
@@ -637,6 +595,48 @@ class NODE_OT_swap_zone(ZoneOperator, NodeSwapOperator, Operator):
                     tree.links.new(to_socket, from_socket)
 
         return {'FINISHED'}
+
+
+class NODE_OT_add_simulation_zone(NodeAddZoneOperator, Operator):
+    """Add simulation zone input and output nodes to the active tree"""
+    bl_idname = "node.add_simulation_zone"
+    bl_label = "Add Simulation Zone"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    input_node_type = "GeometryNodeSimulationInput"
+    output_node_type = "GeometryNodeSimulationOutput"
+
+
+class NODE_OT_add_repeat_zone(NodeAddZoneOperator, Operator):
+    """Add a repeat zone that allows executing nodes a dynamic number of times"""
+    bl_idname = "node.add_repeat_zone"
+    bl_label = "Add Repeat Zone"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    input_node_type = "GeometryNodeRepeatInput"
+    output_node_type = "GeometryNodeRepeatOutput"
+
+
+class NODE_OT_add_foreach_geometry_element_zone(NodeAddZoneOperator, Operator):
+    """Add a For Each Geometry Element zone that allows executing nodes e.g. for each vertex separately"""
+    bl_idname = "node.add_foreach_geometry_element_zone"
+    bl_label = "Add For Each Geometry Element Zone"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    input_node_type = "GeometryNodeForeachGeometryElementInput"
+    output_node_type = "GeometryNodeForeachGeometryElementOutput"
+    add_default_geometry_link = False
+
+
+class NODE_OT_add_closure_zone(NodeAddZoneOperator, Operator):
+    """Add a Closure zone"""
+    bl_idname = "node.add_closure_zone"
+    bl_label = "Add Closure Zone"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    input_node_type = "NodeClosureInput"
+    output_node_type = "NodeClosureOutput"
+    add_default_geometry_link = False
 
 
 class NODE_OT_collapse_hide_unused_toggle(Operator):
@@ -1095,16 +1095,16 @@ classes = (
 
     NODE_FH_image_node,
 
-    NODE_OT_add_empty_group,
     NODE_OT_add_node,
+    NODE_OT_swap_node,
+    NODE_OT_add_empty_group,
+    NODE_OT_swap_empty_group,
     NODE_OT_add_zone,
+    NODE_OT_swap_zone,
     NODE_OT_add_simulation_zone,
     NODE_OT_add_repeat_zone,
     NODE_OT_add_foreach_geometry_element_zone,
     NODE_OT_add_closure_zone,
-    NODE_OT_swap_node,
-    NODE_OT_swap_empty_group,
-    NODE_OT_swap_zone,
     NODE_OT_collapse_hide_unused_toggle,
     NODE_OT_interface_item_new,
     NODE_OT_interface_item_duplicate,

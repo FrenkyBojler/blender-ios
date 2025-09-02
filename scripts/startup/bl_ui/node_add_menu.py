@@ -49,14 +49,6 @@ def draw_node_group_add_menu(context, layout):
     return AddNodeMenu.draw_group_menu(context, layout)
 
 
-def draw_assets_for_catalog(layout, catalog_path):
-    layout.template_node_asset_menu_items(catalog_path=catalog_path)
-
-
-def draw_root_assets(layout):
-    layout.menu_contents("NODE_MT_node_add_root_catalogs")
-
-
 def add_simulation_zone(layout, label):
     """Add simulation zone to a menu."""
     props = layout.operator("node.add_simulation_zone", text=label, text_ctxt=i18n_contexts.default)
@@ -85,6 +77,14 @@ def add_closure_zone(layout, label):
         "node.add_closure_zone", text=label, text_ctxt=i18n_contexts.default)
     props.use_transform = True
     return props
+
+
+def draw_assets_for_catalog(layout, catalog_path):
+    layout.template_node_asset_menu_items(catalog_path=catalog_path)
+
+
+def draw_root_assets(layout):
+    layout.menu_contents("NODE_MT_node_add_root_catalogs")
 
 
 class NodeMenu(Menu):
@@ -396,10 +396,6 @@ class NODE_MT_layout_base(NodeMenu):
             node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
 
 
-def generate_menu(bl_idname: str, template: Menu, layout_base: Menu, pathing_dict: dict = None):
-    return type(bl_idname, (template, layout_base), {"bl_idname": bl_idname, "pathing_dict": pathing_dict})
-
-
 add_base_pathing_dict = {
     "Group": "NODE_MT_group_add",
     "Layout": "NODE_MT_category_layout",
@@ -410,6 +406,10 @@ swap_base_pathing_dict = {
     "Group": "NODE_MT_group_swap",
     "Layout": "NODE_MT_layout_swap",
 }
+
+
+def generate_menu(bl_idname: str, template: Menu, layout_base: Menu, pathing_dict: dict = None):
+    return type(bl_idname, (template, layout_base), {"bl_idname": bl_idname, "pathing_dict": pathing_dict})
 
 
 def generate_menus(menus: dict, template: Menu, base_dict: dict):
