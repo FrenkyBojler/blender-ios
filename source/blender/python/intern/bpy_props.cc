@@ -284,8 +284,7 @@ PyDoc_STRVAR(
     "\n"
     ".. note::\n"
     "\n"
-    "   This is not part of the stable API and may change between releases.");
-
+    "   This is not part of the stable API and may change between releases.\n");
 PyTypeObject bpy_prop_deferred_Type = {
     /*ob_base*/ PyVarObject_HEAD_INIT(nullptr, 0)
     /*tp_name*/ "_PropertyDeferred",
@@ -546,8 +545,8 @@ static bool bpy_prop_array_is_matrix_compatible_ex(int subtype,
                                                    const BPyPropArrayLength *array_len_info)
 {
   return ((subtype == PROP_MATRIX) && (array_len_info->dims_len == 2) &&
-          ((array_len_info->dims[0] >= 2) && (array_len_info->dims[0] >= 4)) &&
-          ((array_len_info->dims[1] >= 2) && (array_len_info->dims[1] >= 4)));
+          ((array_len_info->dims[0] >= 2) && (array_len_info->dims[0] <= 4)) &&
+          ((array_len_info->dims[1] >= 2) && (array_len_info->dims[1] <= 4)));
 }
 
 static bool bpy_prop_array_is_matrix_compatible(PropertyRNA *prop,
@@ -4102,7 +4101,7 @@ PyDoc_STRVAR(
     /* Wrap. */
     BPy_PointerProperty_doc,
     ".. function:: PointerProperty("
-    "type=None, "
+    "type, "
     "*, "
     "name=\"\", "
     "description=\"\", "
@@ -4119,7 +4118,7 @@ PyDoc_STRVAR(
             BPY_PROPDEF_TAGS_DOC BPY_PROPDEF_POLL_DOC BPY_PROPDEF_UPDATE_DOC
     "\n"
     ".. note:: Pointer properties do not support storing references to embedded IDs "
-    "(e.g. `bpy.types.Scene.collection`, `bpy.types.Material.node_tree`).\n"
+    "(e.g. :class:`bpy.types.Scene.collection`, :class:`bpy.types.Material.node_tree`).\n"
     "   These should exclusively be referenced and accessed through their owner ID "
     "(e.g. the scene or material).\n");
 PyObject *BPy_PointerProperty(PyObject *self, PyObject *args, PyObject *kw)
@@ -4260,7 +4259,7 @@ PyDoc_STRVAR(
     /* Wrap. */
     BPy_CollectionProperty_doc,
     ".. function:: CollectionProperty("
-    "type=None, "
+    "type, "
     "*, "
     "name=\"\", "
     "description=\"\", "
@@ -4560,7 +4559,6 @@ PyDoc_STRVAR(
     "directly.\n"
     "\n"
     ".. note:: All parameters to these functions must be passed as keywords.\n");
-
 static PyModuleDef props_module = {
     /*m_base*/ PyModuleDef_HEAD_INIT,
     /*m_name*/ "bpy.props",
