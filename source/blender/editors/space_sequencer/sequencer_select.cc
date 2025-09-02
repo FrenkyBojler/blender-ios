@@ -2395,12 +2395,20 @@ static wmOperatorStatus vse_circle_select_exec(bContext *C, wmOperator *op)
 {
   const int radius = RNA_int_get(op->ptr, "radius");
   const int mval[2] = {RNA_int_get(op->ptr, "x"), RNA_int_get(op->ptr, "y")};
+  wmGesture *gesture = static_cast<wmGesture *>(op->customdata);
   const eSelectOp sel_op = eSelectOp(RNA_enum_get(op->ptr, "mode"));
 
   Scene *scene = CTX_data_scene(C);
   View2D *v2d = UI_view2d_fromcontext(C);
   Editing *ed = seq::editing_get(scene);
   ARegion *region = CTX_wm_region(C);
+
+  const bool use_pre_deselect = SEL_OP_USE_PRE_DESELECT(sel_op);
+
+  if (use_pre_deselect && WM_gesture_is_modal_first(gesture)) {
+    deselect_all_strips(scene);
+    sequencer_select_do_updates(C, scene);
+  }
 
   if (ed == nullptr) {
     return OPERATOR_CANCELLED;
