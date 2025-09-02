@@ -1286,6 +1286,7 @@ static wmOperatorStatus armature_symmetrize_exec(bContext *C, wmOperator *op)
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   const int direction = RNA_enum_get(op->ptr, "direction");
+  const int use_bone_colors = RNA_boolean_get(op->ptr, "use_bone_colors");
   const int axis = 0;
 
   /* cancel if nothing selected */
@@ -1427,11 +1428,13 @@ static wmOperatorStatus armature_symmetrize_exec(bContext *C, wmOperator *op)
 
         /* Copy Viewport Display. */
         ebone->drawtype = ebone_iter->drawtype;
-        ebone->color.palette_index = ebone_iter->color.palette_index;
-        copy_v4_v4_uchar(ebone->color.custom.active, ebone_iter->color.custom.active);
-        copy_v4_v4_uchar(ebone->color.custom.select, ebone_iter->color.custom.select);
-        copy_v4_v4_uchar(ebone->color.custom.solid, ebone_iter->color.custom.solid);
-        ebone->color.custom.flag = ebone_iter->color.custom.flag;
+        if (use_bone_colors) {
+          ebone->color.palette_index = ebone_iter->color.palette_index;
+          copy_v4_v4_uchar(ebone->color.custom.active, ebone_iter->color.custom.active);
+          copy_v4_v4_uchar(ebone->color.custom.select, ebone_iter->color.custom.select);
+          copy_v4_v4_uchar(ebone->color.custom.solid, ebone_iter->color.custom.solid);
+          ebone->color.custom.flag = ebone_iter->color.custom.flag;
+        }
 
         if (ebone_iter->parent == nullptr) {
           /* If this bone has no parent,
@@ -1555,6 +1558,8 @@ void ARMATURE_OT_symmetrize(wmOperatorType *ot)
                           -1,
                           "Direction",
                           "Which sides to copy from and to (when both are selected)");
+  ot->prop = RNA_def_boolean(
+      ot->srna, "use_bone_colors", false, "Bone Colors", "Copy Bone Colors");
 }
 
 /* ------------------------------------------ */
