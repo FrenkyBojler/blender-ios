@@ -357,10 +357,10 @@ enum eUVWeldAlign {
   UV_ALIGN_Y,
   UV_WELD,
 };
-enum eUVAlignPostition {
-  UV_MEAN,
-  UV_MIN,
-  UV_MAX,
+enum class UVAlignPostition {
+  MEAN = 0,
+  MIN = (1 << 0),
+  MAX = (1 << 1),
 };
 
 static bool uvedit_uv_align_weld(Scene *scene,
@@ -571,7 +571,7 @@ static void uv_weld(bContext *C)
   }
 }
 
-static void uv_align(bContext *C, eUVWeldAlign tool, eUVAlignPostition loc)
+static void uv_align(bContext *C, eUVWeldAlign tool, UVAlignPostition loc)
 {
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
@@ -589,9 +589,11 @@ static void uv_align(bContext *C, eUVWeldAlign tool, eUVAlignPostition loc)
     tool = (max[0] - min[0] >= max[1] - min[1]) ? UV_ALIGN_Y : UV_ALIGN_X;
   }
 
-  if (!align_auto && ELEM(tool, UV_ALIGN_X, UV_ALIGN_Y) && ELEM(loc, UV_MIN, UV_MAX)) {
+  if (!align_auto && ELEM(tool, UV_ALIGN_X, UV_ALIGN_Y) &&
+      ELEM(loc, UVAlignPostition::MIN, UVAlignPostition::MAX))
+  {
     ED_uvedit_minmax_multi(scene, objects, min, max);
-    if (loc == UV_MIN) {
+    if (loc == UVAlignPostition::MIN) {
       pos[0] = min[0];
       pos[1] = min[1];
     }
@@ -631,29 +633,23 @@ static wmOperatorStatus uv_align_exec(bContext *C, wmOperator *op)
 {
   uv_align(C,
            eUVWeldAlign(RNA_enum_get(op->ptr, "axis")),
-           eUVAlignPostition(RNA_enum_get(op->ptr, "position")));
+           UVAlignPostition(RNA_enum_get(op->ptr, "position")));
 
   return OPERATOR_FINISHED;
 }
 
-static void uv_align_draw(bContext * /*C*/, wmOperator *op)
+static bool uv_align_poll_property(const bContext * /*C*/, wmOperator *op, const PropertyRNA *prop)
 {
-  uiLayout *layout = op->layout;
+  const char *prop_id = RNA_property_identifier(prop);
 
-  uiLayoutSetPropSep(layout, true);
-  uiLayoutSetPropDecorate(layout, false);
-
-  /* Main draw call */
-  PointerRNA ptr = RNA_pointer_create_discrete(nullptr, op->type->srna, op->properties);
-
-  uiLayout *col = &layout->column(true);
-  col->prop(&ptr, "axis", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-
-  if (ELEM(RNA_enum_get(op->ptr, "axis"), UV_ALIGN_X, UV_ALIGN_Y)) {
-    col->separator();
-
-    col->prop(&ptr, "position", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  if (STREQ(prop_id, "position")) {
+    if (ELEM(RNA_enum_get(op->ptr, "axis"), UV_ALIGN_X, UV_ALIGN_Y)) {
+      return true;
+    }
+    return false;
   }
+
+  return true;
 }
 static void UV_OT_align(wmOperatorType *ot)
 {
@@ -684,14 +680,19 @@ static void UV_OT_align(wmOperatorType *ot)
   };
 
   static const EnumPropertyItem location_items[] = {
-      {UV_MEAN, "MEAN", 0, "Mean ", "Align UV vertices along the mean postiton"},
-      {UV_MIN, "MIN", 0, "Miniumum", "Align UV vertices along the minimum postiton"},
-      {UV_MAX, "MAX", 0, "Maximum", "Align UV vertices along the maximum postiton"},
+      {(int)UVAlignPostition::MEAN, "MEAN", 0, "Mean ", "Align UV vertices along the mean postiton"},
+      {(int)UVAlignPostition::MIN,
+       "MIN",
+       0,
+       "Miniumum",
+       "Align UV vertices along the minimum postiton"},
+      {(int)UVAlignPostition::MAX, "MAX", 0, "Maximum", "Align UV vertices along the maximum postiton"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
   /* identifiers */
   ot->name = "Align";
+
   ot->description = "Aligns selected UV vertices on a line";
   ot->idname = "UV_OT_align";
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -700,13 +701,17 @@ static void UV_OT_align(wmOperatorType *ot)
   ot->exec = uv_align_exec;
   ot->poll = ED_operator_uvedit;
 
-  ot->ui = uv_align_draw;
+  ot->poll_property = uv_align_poll_property;
 
   /* properties */
   RNA_def_enum(
       ot->srna, "axis", axis_items, UV_ALIGN_AUTO, "Axis", "Axis to align UV locations on");
-  RNA_def_enum(
-      ot->srna, "position", location_items, UV_MEAN, "Position", "Position align UV locations on");
+  RNA_def_enum(ot->srna,
+               "position",
+               location_items,
+               (int)UVAlignPostition::MEAN,
+               "Position",
+               "Position align UV locations on");
 }
 
 /** \} */
