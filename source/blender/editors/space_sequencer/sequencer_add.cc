@@ -508,7 +508,7 @@ static bool load_data_init_from_operator(seq::LoadData *load_data, bContext *C, 
 
   /* Override strip position by current mouse position. */
   if ((prop = RNA_struct_find_property(op->ptr, "move_strips")) &&
-      RNA_property_boolean_get(op->ptr, prop))
+      RNA_property_boolean_get(op->ptr, prop) && (op->flag & OP_IS_REPEAT) != 0)
   {
     const wmWindow *win = CTX_wm_window(C);
     int2 mouse_region(win->eventstate->xy[0] - region->winrct.xmin,
