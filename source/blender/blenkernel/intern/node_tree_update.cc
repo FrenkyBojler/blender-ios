@@ -1439,14 +1439,6 @@ class NodeTreeMainUpdater {
             NodeLinkError{TIP_("Use node groups to reuse the same menu multiple times")});
         continue;
       }
-      if (ntree.type == NTREE_GEOMETRY) {
-        if (this->is_invalid_field_link(*link)) {
-          link->flag &= ~NODE_LINK_VALID;
-          ntree.runtime->link_errors.add(
-              NodeLinkKey{*link}, NodeLinkError{TIP_("The node input does not support fields")});
-          continue;
-        }
-      }
       const bNode &from_node = *link->fromnode;
       const bNode &to_node = *link->tonode;
       if (from_node.runtime->toposort_left_to_right_index >
@@ -1487,25 +1479,63 @@ class NodeTreeMainUpdater {
           continue;
         }
       }
+      if (const char *error = this->get_structure_type_link_error(*link)) {
+        link->flag &= ~NODE_LINK_VALID;
+        ntree.runtime->link_errors.add(NodeLinkKey{*link}, NodeLinkError{error});
+        continue;
+      }
     }
   }
 
-  bool is_invalid_field_link(const bNodeLink &link)
+  const char *get_structure_type_link_error(const bNodeLink &link)
   {
-    if (!link.fromsock->may_be_field()) {
-      return false;
+    const int from_shape = link.fromsock->display_shape;
+    const int to_shape = link.tosock->display_shape;
+    switch (to_shape) {
+      case SOCK_DISPLAY_SHAPE_CIRCLE: {
+        return nullptr;
+      }
+      case SOCK_DISPLAY_SHAPE_LINE: {
+        if (from_shape == SOCK_DISPLAY_SHAPE_LINE) {
+          return nullptr;
+        }
+        if (link.fromsock->runtime->inferred_structure_type == StructureType::Single) {
+          return nullptr;
+        }
+        return TIP_("Input expects a single value");
+      }
+      case SOCK_DISPLAY_SHAPE_DIAMOND: {
+        if (ELEM(from_shape, SOCK_DISPLAY_SHAPE_LINE, SOCK_DISPLAY_SHAPE_DIAMOND)) {
+          return nullptr;
+        }
+        if (ELEM(link.fromsock->runtime->inferred_structure_type,
+                 StructureType::Single,
+                 StructureType::Field))
+        {
+          return nullptr;
+        }
+        return TIP_("Input expects a field or single value");
+      }
+      case SOCK_DISPLAY_SHAPE_VOLUME_GRID: {
+        if (from_shape == SOCK_DISPLAY_SHAPE_VOLUME_GRID) {
+          return nullptr;
+        }
+        if (link.fromsock->runtime->inferred_structure_type == StructureType::Grid) {
+          return nullptr;
+        }
+        return TIP_("Input expects a volume grid");
+      }
+      case SOCK_DISPLAY_SHAPE_LIST: {
+        if (from_shape == SOCK_DISPLAY_SHAPE_LIST) {
+          return nullptr;
+        }
+        if (link.fromsock->runtime->inferred_structure_type == StructureType::List) {
+          return nullptr;
+        }
+        return TIP_("Input expects a list");
+      }
     }
-    const nodes::SocketDeclaration *to_socket_decl = link.tosock->runtime->declaration;
-    if (!to_socket_decl) {
-      return false;
-    }
-    if (ELEM(to_socket_decl->structure_type, StructureType::Dynamic, StructureType::Field)) {
-      return false;
-    }
-    if (link.tonode->is_group_output() || link.tonode->is_type("NodeClosureOutput")) {
-      return false;
-    }
-    return true;
+    return nullptr;
   }
 
   bool check_if_output_changed(const bNodeTree &tree)
