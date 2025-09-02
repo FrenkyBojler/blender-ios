@@ -1434,6 +1434,11 @@ typedef struct NodeConvertColorSpace {
   char to_color_space[64];
 } NodeConvertColorSpace;
 
+typedef struct NodeConvertToDisplay {
+  ColorManagedDisplaySettings display_settings;
+  ColorManagedViewSettings view_settings;
+} NodeConvertToDisplay;
+
 typedef struct NodeDilateErode {
   char falloff;
 } NodeDilateErode;
