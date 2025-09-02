@@ -2,7 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "gpu_shader_compositor_sampleRect.glsl"
+#include "gpu_shader_compositor_sample_rect.glsl"
 #include "gpu_shader_compositor_texture_utilities.glsl"
 
 float2 dx(sampler2D image, int2 texel)
@@ -36,6 +36,6 @@ void main()
     float2 scale = float2(imageSize(output_img));
     float2 uv = uva.xy * scale;
     float2 wh = hypot2(dx(uv_tx, texel), dy(uv_tx, texel)) * scale;
-    imageStore(output_img, texel, sampleRect(uv, wh) * uva.z);
+    imageStore(output_img, texel, sample_rect(uv, wh) * uva.z);
   }
 }

@@ -2,7 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "gpu_shader_compositor_sampleRect.glsl"
+#include "gpu_shader_compositor_sample_rect.glsl"
 #include "gpu_shader_compositor_texture_utilities.glsl"
 
 void main()
@@ -51,5 +51,5 @@ void main()
   }
 #endif
 
-  imageStore(output_img, texel, sampleRect(uv, wh) * m);
+  imageStore(output_img, texel, sample_rect(uv, wh) * m);
 }

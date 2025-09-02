@@ -2,7 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "gpu_shader_compositor_sampleRect.glsl"
+#include "gpu_shader_compositor_sample_rect.glsl"
 
 void main()
 {
@@ -14,5 +14,5 @@ void main()
   // derivative was calculated by caller and is in wh. Equivalent code:
   // float2 wh = hypot2(imat[0].xy, imat[1].xy);
 
-  imageStore(domain_img, texel, sampleRect(uv, wh));
+  imageStore(domain_img, texel, sample_rect(uv, wh));
 }

@@ -4,7 +4,7 @@
 
 // This does not appear to be used currently
 
-#include "gpu_shader_compositor_sampleRect.glsl"
+#include "gpu_shader_compositor_sample_rect.glsl"
 
 void main()
 {
@@ -13,5 +13,5 @@ void main()
   float2 uv = float2(texel) + 0.5f - translation;
   float2 wh = float2(1.0f);
 
-  imageStore(output_img, texel, sampleRect(uv, wh));
+  imageStore(output_img, texel, sample_rect(uv, wh));
 }

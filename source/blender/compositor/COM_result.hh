@@ -425,7 +425,7 @@ class Result {
    * works. */
   void store_pixel_generic_type(const int2 &texel, const float4 &pixel_value);
 
-  /* Same as sampleRect(uv, options, float2(1,1)) */
+  /* Same as sample_rect(uv, options, float2(1,1)) */
   float4 sample(const float2 &uv, const blender::math::SamplingOptions &options) const;
 
   /* Identical to sample_nearest_zero but with bilinear interpolation. */

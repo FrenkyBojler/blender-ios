@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #if defined(SAMPLER_NEAREST)
-float4 sampleRect(float2 uv, float2 wh)
+float4 sample_rect(float2 uv, float2 wh)
 {
   return texture(input_tx, uv / float2(textureSize(input_tx, 0)));
   // return texelFetch(input_tx, int2(uv), 0);
@@ -50,7 +50,7 @@ float samplerWeight(float x, float w)
 
 // Sample orthogonal rectangle of size wh centered on uv.
 // Integers are at pixel corners
-float4 sampleRect(float2 uv, float2 wh)
+float4 sample_rect(float2 uv, float2 wh)
 {
   float2 w1 = max(wh, 1.0f);
   float2 r = float2(SAMPLER_RADIUS(w1.x), SAMPLER_RADIUS(w1.y));

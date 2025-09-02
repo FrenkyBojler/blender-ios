@@ -278,7 +278,7 @@ set(GLSL_SRC
   shaders/compositor_z_combine_simple_depth.glsl
   shaders/compositor_z_combine_simple_image.glsl
 
-  shaders/library/gpu_shader_compositor_sampleRect.glsl
+  shaders/library/gpu_shader_compositor_sample_rect.glsl
   shaders/library/gpu_shader_compositor_alpha_over.glsl
   shaders/library/gpu_shader_compositor_bright_contrast.glsl
   shaders/library/gpu_shader_compositor_channel_matte.glsl
