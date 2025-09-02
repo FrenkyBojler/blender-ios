@@ -1,0 +1,1 @@
+Referenced by issue #145562, Crash Fixed - Is it valid to pass `nullptr` to `RNA_property_string_set` ?
