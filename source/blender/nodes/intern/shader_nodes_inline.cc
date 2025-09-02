@@ -954,6 +954,14 @@ class ShaderNodesInliner {
 
   void set_socket_value(bNode &dst_node, bNodeSocket &dst_socket, const SocketValue &value)
   {
+    if (dst_socket.flag & SOCK_HIDE_VALUE) {
+      if (const auto *input_socket_value = std::get_if<InputSocketValue>(&value.value)) {
+        if (input_socket_value->socket->flag & SOCK_HIDE_VALUE) {
+          /* Don't add a value or link of the source and destination sockets don't have a value. */
+          return;
+        }
+      }
+    }
     if (const std::optional<PrimitiveSocketValue> primitive_value = value.to_primitive(
             *dst_socket.typeinfo))
     {
