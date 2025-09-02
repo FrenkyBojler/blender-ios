@@ -23,133 +23,42 @@ def set_use_transform(operators, value):
             operators.use_transform = value
 
 
-def node_operator(layout, operator_id, node_type, *, label=None, poll=None, search_weight=0.0, translate=True):
-    """Generic function template for the node editor menus."""
-    bl_rna = bpy.types.Node.bl_rna_get_subclass(node_type)
-    if not label:
-        label = bl_rna.name if bl_rna else iface_("Unknown")
-
-    if poll is True or poll is None:
-        translation_context = bl_rna.translation_context if bl_rna else i18n_contexts.default
-        props = layout.operator(
-            operator_id,
-            text=label,
-            text_ctxt=translation_context,
-            translate=translate,
-            search_weight=search_weight)
-        props.type = node_type
-        return props
-
-    return None
-
-
 # NOTE: This is kept for compatibility's sake, as some scripts import node_add_menu.add_node_type
 def add_node_type(layout, node_type, *, label=None, poll=None, search_weight=0.0, translate=True):
     """Add a node type to a menu."""
-    return node_operator(
-        layout,
-        "node.add_node",
-        node_type,
-        label=label,
-        poll=poll,
-        search_weight=search_weight,
-        translate=translate)
+    return AddNodeMenu.node_operator(layout, node_type, label, poll, search_weight, translate)
 
 
 def add_node_type_with_searchable_enum(context, layout, node_idname, property_name, search_weight=0.0):
-    return node_operator_with_searchable_enum(
+    return AddNodeMenu.node_operator_with_searchable_enum(context, layout, node_idname, property_name, search_weight)
+
+
+def add_node_type_with_searchable_enum_socket(
         context,
         layout,
-        "node.add_node",
         node_idname,
-        property_name,
-        search_weight)
+        socket_identifier,
+        enum_names,
+        search_weight=0.0):
+    return AddNodeMenu.node_operator_with_searchable_enum_socket(
+        context, layout, node_idname, socket_identifier, enum_names, search_weight)
 
 
 def add_node_type_with_outputs(context, layout, node_type, subnames, *, label=None, search_weight=0.0):
-    return node_operator_with_outputs(
-        context,
-        layout,
-        "node.add_node",
-        node_type,
-        subnames,
-        label=label,
-        search_weight=search_weight)
+    return AddNodeMenu.node_operator_with_outputs(context, layout, node_type, subnames, label, search_weight)
 
 
 def add_color_mix_node(context, layout):
-    return color_mix_node(context, layout, "node.add_node")
+    return AddNodeMenu.color_mix_node(context, layout)
 
 
 def add_empty_group(layout):
-    return new_empty_group(layout, "node.add_empty_group")
-
-
-def node_operator_with_outputs(context, layout, operator_id, node_type, subnames, *, label=None, search_weight=0.0):
-    bl_rna = bpy.types.Node.bl_rna_get_subclass(node_type)
-    if not label:
-        label = bl_rna.name if bl_rna else "Unknown"
-
-    operators = []
-    operators.append(node_operator(layout, operator_id, node_type, label=label, search_weight=search_weight))
-
-    if getattr(context, "is_menu_search", False):
-        for subname in subnames:
-            sublabel = "{} ▸ {}".format(iface_(label), iface_(subname))
-            item_props = node_operator(layout, operator_id, node_type, label=sublabel,
-                                       search_weight=search_weight, translate=False)
-            item_props.visible_output = subname
-            operators.append(item_props)
-
-    return operators
+    return AddNodeMenu.new_empty_group(layout)
 
 
 def draw_node_group_add_menu(context, layout):
-    return draw_group_menu(context, layout, group_operator="node.add_node", empty_group_operator="node.add_empty_group")
-
-
-def draw_group_menu(context, layout, group_operator, empty_group_operator):
     """Add items to the layout used for interacting with node groups."""
-    space_node = context.space_data
-    node_tree = space_node.edit_tree
-    all_node_groups = context.blend_data.node_groups
-
-    if node_tree in all_node_groups.values():
-        layout.separator()
-        node_operator(layout, group_operator, "NodeGroupInput")
-        node_operator(layout, group_operator, "NodeGroupOutput")
-
-    operators = []
-    operators.append(new_empty_group(layout, empty_group_operator))
-
-    if node_tree:
-        from nodeitems_builtins import node_tree_group_type
-
-        prefs = bpy.context.preferences
-        show_hidden = prefs.filepaths.show_hidden_files_datablocks
-
-        groups = [
-            group for group in context.blend_data.node_groups
-            if (group.bl_idname == node_tree.bl_idname and
-                not group.contains_tree(node_tree) and
-                (show_hidden or not group.name.startswith('.')))
-        ]
-        if groups:
-            layout.separator()
-            for group in groups:
-                props = node_operator(layout, group_operator, node_tree_group_type[group.bl_idname], label=group.name)
-                ops = props.settings.add()
-                ops.name = "node_tree"
-                ops.value = "bpy.data.node_groups[{!r}]".format(group.name)
-                ops = props.settings.add()
-                ops.name = "width"
-                ops.value = repr(group.default_group_node_width)
-                ops = props.settings.add()
-                ops.name = "name"
-                ops.value = repr(group.name)
-                operators.append(props)
-
-    return operators
+    return AddNodeMenu.draw_group_menu(context, layout)
 
 
 def draw_assets_for_catalog(layout, catalog_path):
@@ -158,86 +67,6 @@ def draw_assets_for_catalog(layout, catalog_path):
 
 def draw_root_assets(layout):
     layout.menu_contents("NODE_MT_node_add_root_catalogs")
-
-
-def node_operator_with_searchable_enum(context, layout, operator_id, node_idname, property_name, search_weight=0.0):
-    operators = []
-    operators.append(node_operator(layout, operator_id, node_idname, search_weight=search_weight))
-
-    if getattr(context, "is_menu_search", False):
-        node_type = getattr(bpy.types, node_idname)
-        translation_context = node_type.bl_rna.properties[property_name].translation_context
-        for item in node_type.bl_rna.properties[property_name].enum_items_static:
-            label = "{} ▸ {}".format(iface_(node_type.bl_rna.name), iface_(item.name, translation_context))
-            props = node_operator(
-                layout,
-                operator_id,
-                node_idname,
-                label=label,
-                translate=False,
-                search_weight=search_weight)
-            prop = props.settings.add()
-            prop.name = property_name
-            prop.value = repr(item.identifier)
-            operators.append(props)
-
-    return operators
-
-
-def node_operator_with_searchable_enum_socket(
-        context,
-        layout,
-        operator_id,
-        node_idname,
-        socket_identifier,
-        enum_names,
-        search_weight=0.0):
-
-    operators = []
-    operators.append(node_operator(layout, operator_id, node_idname, search_weight=search_weight))
-    if getattr(context, "is_menu_search", False):
-        node_type = getattr(bpy.types, node_idname)
-        for enum_name in enum_names:
-            label = "{} ▸ {}".format(iface_(node_type.bl_rna.name), iface_(enum_name))
-            props = node_operator(
-                layout,
-                operator_id,
-                node_idname,
-                label=label,
-                translate=False,
-                search_weight=search_weight)
-            prop = props.settings.add()
-            prop.name = f'inputs["{socket_identifier}"].default_value'
-            prop.value = repr(enum_name)
-            operators.append(props)
-
-    return operators
-
-
-def color_mix_node(context, layout, operator_id):
-    label = iface_("Mix Color")
-
-    operators = []
-    props = node_operator(layout, operator_id, "ShaderNodeMix", label=label, translate=False)
-    ops = props.settings.add()
-    ops.name = "data_type"
-    ops.value = "'RGBA'"
-    operators.append(props)
-
-    if getattr(context, "is_menu_search", False):
-        translation_context = bpy.types.ShaderNodeMix.bl_rna.properties["blend_type"].translation_context
-        for item in bpy.types.ShaderNodeMix.bl_rna.properties["blend_type"].enum_items_static:
-            sublabel = "{} ▸ {}".format(label, iface_(item.name, translation_context))
-            props = node_operator(layout, operator_id, "ShaderNodeMix", label=sublabel, translate=False)
-            prop = props.settings.add()
-            prop.name = "data_type"
-            prop.value = "'RGBA'"
-            prop = props.settings.add()
-            prop.name = "blend_type"
-            prop.value = repr(item.identifier)
-            operators.append(props)
-
-    return operators
 
 
 def add_simulation_zone(layout, label):
@@ -270,26 +99,73 @@ def add_closure_zone(layout, label):
     return props
 
 
-def new_empty_group(layout, operator_id):
-    props = layout.operator(operator_id, text="New Group", text_ctxt=i18n_contexts.default)
-    return props
-
-
 class NodeMenu(Menu):
-    """A dummy baseclass defining the required methods to be implemented by AddNodeMenu and SwapNodeMenu"""
+    """A baseclass defining the shared methods for AddNodeMenu and SwapNodeMenu"""
     draw_assets: bool
+    use_transform: bool
 
-    @staticmethod
-    def node_operator(layout, node_type, *, label=None, poll=None, search_weight=0.0, translate=True):
-        """The main operator defined for this menu.
+    main_operator_id: str
+    new_empty_group_operator_id: str
+
+    pathing_dict: dict[str, str]
+
+    @classmethod
+    def node_operator(cls, layout, node_type, *, label=None, poll=None, search_weight=0.0, translate=True):
+        """The main operator defined for the node menu.
         \n(e.g. 'Add Node' for AddNodeMenu, or 'Swap Node' for SwapNodeMenu)"""
 
-    @staticmethod
-    def node_operator_with_searchable_enum(context, layout, node_idname, property_name, search_weight=0.0):
-        """Similar to `node_operator`, but with extra entries based on a enum property while in search"""
+        bl_rna = bpy.types.Node.bl_rna_get_subclass(node_type)
+        if not label:
+            label = bl_rna.name if bl_rna else iface_("Unknown")
 
-    @staticmethod
+        if poll is True or poll is None:
+            translation_context = bl_rna.translation_context if bl_rna else i18n_contexts.default
+            props = layout.operator(
+                cls.main_operator_id,
+                text=label,
+                text_ctxt=translation_context,
+                translate=translate,
+                search_weight=search_weight)
+            props.type = node_type
+
+            if hasattr(props, "use_transform"):
+                props.use_transform = cls.use_transform
+
+            return props
+
+        return None
+
+    @classmethod
+    def node_operator_with_searchable_enum(cls, context, layout, node_idname, property_name, search_weight=0.0):
+        """Similar to `node_operator`, but with extra entries based on a enum property while in search"""
+        operators = []
+        operators.append(cls.node_operator(layout, node_idname, search_weight=search_weight))
+
+        if getattr(context, "is_menu_search", False):
+            node_type = getattr(bpy.types, node_idname)
+            translation_context = node_type.bl_rna.properties[property_name].translation_context
+            for item in node_type.bl_rna.properties[property_name].enum_items_static:
+                label = "{} ▸ {}".format(iface_(node_type.bl_rna.name), iface_(item.name, translation_context))
+                props = cls.node_operator(
+                    layout,
+                    node_idname,
+                    label=label,
+                    translate=False,
+                    search_weight=search_weight)
+                prop = props.settings.add()
+                prop.name = property_name
+                prop.value = repr(item.identifier)
+                operators.append(props)
+
+        for props in operators:
+            if hasattr(props, "use_transform"):
+                props.use_transform = cls.use_transform
+
+        return operators
+
+    @classmethod
     def node_operator_with_searchable_enum_socket(
+            cls,
             context,
             layout,
             node_idname,
@@ -297,22 +173,150 @@ class NodeMenu(Menu):
             enum_names,
             search_weight=0.0):
         """Similar to `node_operator`, but with extra entries based on a enum socket while in search"""
+        operators = []
+        operators.append(cls.node_operator(layout, node_idname, search_weight=search_weight))
+        if getattr(context, "is_menu_search", False):
+            node_type = getattr(bpy.types, node_idname)
+            for enum_name in enum_names:
+                label = "{} ▸ {}".format(iface_(node_type.bl_rna.name), iface_(enum_name))
+                props = cls.node_operator(
+                    layout,
+                    node_idname,
+                    label=label,
+                    translate=False,
+                    search_weight=search_weight)
+                prop = props.settings.add()
+                prop.name = f'inputs["{socket_identifier}"].default_value'
+                prop.value = repr(enum_name)
+                operators.append(props)
 
-    @staticmethod
-    def node_operator_with_outputs(context, layout, node_type, subnames, *, label=None, search_weight=0.0):
+        for props in operators:
+            if hasattr(props, "use_transform"):
+                props.use_transform = cls.use_transform
+
+        return operators
+
+    @classmethod
+    def node_operator_with_outputs(cls, context, layout, node_type, subnames, *, label=None, search_weight=0.0):
         """Similar to `node_operator`, but with extra entries based on a enum socket while in search"""
+        bl_rna = bpy.types.Node.bl_rna_get_subclass(node_type)
+        if not label:
+            label = bl_rna.name if bl_rna else "Unknown"
 
-    @staticmethod
-    def color_mix_node(context, layout):
+        operators = []
+        operators.append(cls.node_operator(layout, node_type, label=label, search_weight=search_weight))
+
+        if getattr(context, "is_menu_search", False):
+            for subname in subnames:
+                sublabel = "{} ▸ {}".format(iface_(label), iface_(subname))
+                item_props = cls.node_operator(layout, node_type, label=sublabel,
+                                               search_weight=search_weight, translate=False)
+                item_props.visible_output = subname
+                operators.append(item_props)
+
+        for props in operators:
+            if hasattr(props, "use_transform"):
+                props.use_transform = cls.use_transform
+
+        return operators
+
+    @classmethod
+    def color_mix_node(cls, context, layout):
         """The 'Mix Color' node, with its different blend modes available while in search"""
+        label = iface_("Mix Color")
 
-    @staticmethod
-    def new_empty_group(layout):
+        operators = []
+        props = cls.node_operator(layout, "ShaderNodeMix", label=label, translate=False)
+        ops = props.settings.add()
+        ops.name = "data_type"
+        ops.value = "'RGBA'"
+        operators.append(props)
+
+        if getattr(context, "is_menu_search", False):
+            translation_context = bpy.types.ShaderNodeMix.bl_rna.properties["blend_type"].translation_context
+            for item in bpy.types.ShaderNodeMix.bl_rna.properties["blend_type"].enum_items_static:
+                sublabel = "{} ▸ {}".format(label, iface_(item.name, translation_context))
+                props = cls.node_operator(layout, "ShaderNodeMix", label=sublabel, translate=False)
+                prop = props.settings.add()
+                prop.name = "data_type"
+                prop.value = "'RGBA'"
+                prop = props.settings.add()
+                prop.name = "blend_type"
+                prop.value = repr(item.identifier)
+                operators.append(props)
+
+        for props in operators:
+            if hasattr(props, "use_transform"):
+                props.use_transform = cls.use_transform
+
+        return operators
+
+    @classmethod
+    def new_empty_group(cls, layout):
         """Group Node with a newly created empty group as its assigned nodetree"""
+        props = layout.operator(cls.new_empty_group_operator_id, text="New Group", text_ctxt=i18n_contexts.default)
 
-    @staticmethod
-    def draw_group_menu(context, layout):
-        """List all node groups available for the current node editor"""
+        if hasattr(props, "use_transform"):
+            props.use_transform = cls.use_transform
+
+        return props
+
+    @classmethod
+    def draw_group_menu(cls, context, layout):
+        """Show operators used for interacting with node groups"""
+        space_node = context.space_data
+        node_tree = space_node.edit_tree
+        all_node_groups = context.blend_data.node_groups
+
+        if node_tree in all_node_groups.values():
+            layout.separator()
+            cls.node_operator(layout, "NodeGroupInput")
+            cls.node_operator(layout, "NodeGroupOutput")
+
+        operators = []
+        operators.append(cls.new_empty_group(layout))
+
+        if node_tree:
+            from nodeitems_builtins import node_tree_group_type
+
+            prefs = bpy.context.preferences
+            show_hidden = prefs.filepaths.show_hidden_files_datablocks
+
+            groups = [
+                group for group in context.blend_data.node_groups
+                if (group.bl_idname == node_tree.bl_idname and
+                    not group.contains_tree(node_tree) and
+                    (show_hidden or not group.name.startswith('.')))
+            ]
+            if groups:
+                layout.separator()
+                for group in groups:
+                    props = cls.node_operator(layout, node_tree_group_type[group.bl_idname], label=group.name)
+                    ops = props.settings.add()
+                    ops.name = "node_tree"
+                    ops.value = "bpy.data.node_groups[{!r}]".format(group.name)
+                    ops = props.settings.add()
+                    ops.name = "width"
+                    ops.value = repr(group.default_group_node_width)
+                    ops = props.settings.add()
+                    ops.name = "name"
+                    ops.value = repr(group.name)
+                    operators.append(props)
+
+        for props in operators:
+            if hasattr(props, "use_transform"):
+                props.use_transform = cls.use_transform
+
+        return operators
+
+    @classmethod
+    def draw_menu(cls, layout, path):
+        """Takes the given menu path and draws the corresponding menu.
+        \n Menu paths are either explicitly defined, or based on bl_label if not."""
+        if cls.pathing_dict is None:
+            raise ValueError("`pathing_dict` was not set for {}".format(cls))
+
+        layout.menu(cls.pathing_dict[path])
 
     @staticmethod
     def simulation_zone(layout, label):
@@ -330,95 +334,13 @@ class NodeMenu(Menu):
     def closure_zone(layout, label):
         ...
 
-    @classmethod
-    def draw_menu(cls, layout, path):
-        """Takes the given menu path and draws the corresponding menu.
-        \n Menu paths are either explicitly defined, or based on bl_label if not."""
 
-
-class AddNodeMenu:
+class AddNodeMenu(NodeMenu):
     draw_assets = True
+    use_transform = True
 
-    @staticmethod
-    def node_operator(layout, node_type, *, label=None, poll=None, search_weight=0.0, translate=True):
-        props = node_add_menu.node_operator(
-            layout,
-            "node.add_node",
-            node_type,
-            label=label,
-            poll=poll,
-            search_weight=search_weight,
-            translate=translate)
-
-        set_use_transform(props, True)
-        return props
-
-    @staticmethod
-    def node_operator_with_searchable_enum(context, layout, node_idname, property_name, search_weight=0.0):
-        operators = node_add_menu.node_operator_with_searchable_enum(
-            context, layout, "node.add_node", node_idname, property_name, search_weight)
-
-        for props in operators:
-            set_use_transform(props, True)
-
-        return operators
-
-    @staticmethod
-    def node_operator_with_searchable_enum_socket(
-            context,
-            layout,
-            node_idname,
-            socket_identifier,
-            enum_names,
-            search_weight=0.0):
-        operators = node_add_menu.node_operator_with_searchable_enum_socket(
-            context, layout, "node.add_node", node_idname, socket_identifier, enum_names, search_weight)
-
-        for props in operators:
-            set_use_transform(props, True)
-
-        return operators
-
-    @staticmethod
-    def node_operator_with_outputs(context, layout, node_type, subnames, *, label=None, search_weight=0.0):
-        operators = node_add_menu.node_operator_with_outputs(
-            context,
-            layout,
-            "node.add_node",
-            node_type,
-            subnames,
-            label=label,
-            search_weight=search_weight)
-
-        for props in operators:
-            set_use_transform(props, True)
-
-        return operators
-
-    @staticmethod
-    def color_mix_node(context, layout):
-        operators = color_mix_node(context, layout, "node.add_node")
-
-        for props in operators:
-            set_use_transform(props, True)
-
-        return operators
-
-    @staticmethod
-    def new_empty_group(layout):
-        props = new_empty_group(layout, "node.add_empty_group")
-        set_use_transform(props, True)
-        return props
-
-    @staticmethod
-    def draw_group_menu(context, layout):
-        operators = draw_group_menu(context, layout, group_operator="node.add_node",
-                                    empty_group_operator="node.add_empty_group")
-
-        for props in operators:
-            set_use_transform(props, True)
-
-        return props
+    main_operator_id = "node.add_node"
+    new_empty_group_operator_id = "node.add_empty_group"
 
     @staticmethod
     def simulation_zone(layout, label):
@@ -436,67 +358,13 @@ class AddNodeMenu:
     def closure_zone(layout, label):
         return add_closure_zone(layout, label)
 
-    @classmethod
-    def draw_menu(cls, layout, path):
-        if cls.pathing_dict is None:
-            raise ValueError("`pathing_dict` was not set for {}".format(cls))
 
-        layout.menu(cls.pathing_dict[path])
-
-
-class SwapNodeMenu:
+class SwapNodeMenu(NodeMenu):
     draw_assets = False
+    use_transform = True
 
-    @staticmethod
-    def node_operator(layout, node_type, *, label=None, poll=None, search_weight=0.0, translate=True):
-        return node_add_menu.node_operator(
-            layout,
-            "node.swap_node",
-            node_type,
-            label=label,
-            poll=poll,
-            search_weight=search_weight,
-            translate=translate)
-
-    @staticmethod
-    def node_operator_with_searchable_enum(context, layout, node_idname, property_name, search_weight=0.0):
-        return node_add_menu.node_operator_with_searchable_enum(
-            context, layout, "node.swap_node", node_idname, property_name, search_weight)
-
-    @staticmethod
-    def node_operator_with_searchable_enum_socket(
-            context,
-            layout,
-            node_idname,
-            socket_identifier,
-            enum_names,
-            search_weight=0.0):
-        return node_add_menu.node_operator_with_searchable_enum_socket(
-            context, layout, "node.swap_node", node_idname, socket_identifier, enum_names, search_weight)
-
-    @staticmethod
-    def node_operator_with_outputs(context, layout, node_type, subnames, *, label=None, search_weight=0.0):
-        return node_add_menu.node_operator_with_outputs(
-            context,
-            layout,
-            "node.swap_node",
-            node_type,
-            subnames,
-            label=label,
-            search_weight=search_weight)
-
-    @staticmethod
-    def color_mix_node(context, layout):
-        return color_mix_node(context, layout, "node.swap_node")
-
-    @staticmethod
-    def new_empty_group(layout):
-        return new_empty_group(layout, "node.swap_empty_group")
-
-    @staticmethod
-    def draw_group_menu(context, layout):
-        return draw_group_menu(context, layout, group_operator="node.swap_node",
-                               empty_group_operator="node.swap_empty_group")
+    main_operator_id = "node.swap_node"
+    new_empty_group_operator_id = "node.swap_empty_group"
 
     @staticmethod
     def simulation_zone(layout, label):
@@ -533,13 +401,6 @@ class SwapNodeMenu:
         props.add_default_geometry_link = False
 
         return props
-
-    @classmethod
-    def draw_menu(cls, layout, path):
-        if cls.pathing_dict is None:
-            raise ValueError("`pathing_dict` was not set for {}".format(cls))
-
-        layout.menu(cls.pathing_dict[path])
 
 
 class NODE_MT_group_base(NodeMenu):
