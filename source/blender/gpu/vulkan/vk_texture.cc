@@ -189,53 +189,144 @@ void VKTexture::mip_range_set(int min, int max)
   mip_max_ = max;
 }
 
+struct TransferRegion {
+  int3 offset;
+  int3 extent;
+  IndexRange layers;
+
+  int64_t sample_count() const
+  {
+    return int64_t(extent.x) * int64_t(extent.y) * int64_t(extent.z) * layers.size();
+  }
+
+  /** Split the current region. first on layers, then z extent then y extent. */
+  TransferRegion split()
+  {
+    int3 offset_a;
+    int3 offset_b;
+    int3 extent_a;
+    int3 extent_b;
+    IndexRange layers_a;
+    IndexRange layers_b;
+
+    if (layers.size() > 1) {
+      int split_after = layers.first() + divide_floor_i(layers.last() - layers.first(), 2);
+      offset_a = offset;
+      offset_b = offset;
+      extent_a = extent;
+      extent_b = extent;
+      layers_a = IndexRange::from_begin_end(layers.first(), split_after);
+      layers_b = IndexRange::from_begin_end_inclusive(split_after, layers.last());
+    }
+    else if (extent.z > 1) {
+      int split_after = divide_floor_i(extent.z, 2);
+      offset_a = offset;
+      offset_b = {offset.x, offset.y, offset.z + split_after};
+      extent_a = {extent.x, extent.y, split_after};
+      extent_b = {extent.x, extent.y, extent.z - split_after};
+      layers_a = layers;
+      layers_b = layers;
+    }
+    else if (extent.y > 1) {
+      int split_after = divide_floor_i(extent.y, 2);
+      offset_a = offset;
+      offset_b = {offset.x, offset.y + split_after, offset.z};
+      extent_a = {extent.x, split_after, extent.z};
+      extent_b = {extent.x, extent.y - split_after, extent.z};
+      layers_a = layers;
+      layers_b = layers;
+    }
+    else {
+      BLI_assert_unreachable();
+    }
+
+    offset = offset_a;
+    extent = extent_a;
+    layers = layers_a;
+    return {offset_b, extent_b, layers_b};
+  }
+};
+
 void VKTexture::read_sub(
     int mip, eGPUDataFormat format, const int region[6], const IndexRange layers, void *r_data)
 {
+  Vector<TransferRegion> regions;
+  const int3 offset = int3(region[0], region[1], region[2]);
   const int3 extent = int3(region[3] - region[0], region[4] - region[1], region[5] - region[2]);
-  size_t sample_len = extent.x * extent.y * extent.z * layers.size();
+  regions.append({offset, extent, layers});
 
-  /* Vulkan images cannot be directly mapped to host memory and requires a staging buffer. */
-  VKBuffer staging_buffer;
-  size_t device_memory_size = sample_len * to_bytesize(device_format_);
-  staging_buffer.create(device_memory_size,
-                        VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-                        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
-                        VK_MEMORY_PROPERTY_HOST_CACHED_BIT,
-                        /* Although we are only reading, we need to set the host access random bit
-                         * to improve the performance on AMD GPUs. */
-                        VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT |
-                            VMA_ALLOCATION_CREATE_MAPPED_BIT,
-                        0.2f);
+  const VkDeviceSize sample_bytesize = to_bytesize(device_format_);
+  constexpr VkDeviceSize max_region_bytesize = 2ul * 1024ul * 1024ul * 1024ul;
 
-  render_graph::VKCopyImageToBufferNode::CreateInfo copy_image_to_buffer = {};
-  render_graph::VKCopyImageToBufferNode::Data &node_data = copy_image_to_buffer.node_data;
-  node_data.src_image = vk_image_handle();
-  node_data.dst_buffer = staging_buffer.vk_handle();
-  node_data.region.imageOffset.x = region[0];
-  node_data.region.imageOffset.y = region[1];
-  node_data.region.imageOffset.z = region[2];
-  node_data.region.imageExtent.width = extent.x;
-  node_data.region.imageExtent.height = extent.y;
-  node_data.region.imageExtent.depth = extent.z;
-  VkImageAspectFlags vk_image_aspects = to_vk_image_aspect_flag_bits(device_format_);
-  copy_image_to_buffer.vk_image_aspects = vk_image_aspects;
-  node_data.region.imageSubresource.aspectMask = to_vk_image_aspect_single_bit(vk_image_aspects,
-                                                                               false);
-  node_data.region.imageSubresource.mipLevel = mip;
-  node_data.region.imageSubresource.baseArrayLayer = layers.start();
-  node_data.region.imageSubresource.layerCount = layers.size();
+  /** Split the region to all fit in 2 GB buffers. */
+  bool finished_split = false;
+  while (!finished_split) {
+    finished_split = true;
+    for (TransferRegion &region : regions) {
+      VkDeviceSize device_size = region.sample_count() * sample_bytesize;
+      if (device_size > max_region_bytesize) {
+        finished_split = false;
+        TransferRegion new_region = region.split();
+        BLI_assert(device_size == region.sample_count() * sample_bytesize +
+                                      new_region.sample_count() * sample_bytesize);
+        regions.append(new_region);
+        break;
+      }
+    }
+  }
+
+  Array<VKBuffer> staging_buffers(regions.size());
 
   VKContext &context = *VKContext::get();
   context.rendering_end();
-  context.render_graph().add_node(copy_image_to_buffer);
+  for (int index : regions.index_range()) {
+    const TransferRegion &region = regions[index];
+    VKBuffer &staging_buffer = staging_buffers[index];
+    size_t sample_len = region.sample_count();
+    size_t device_memory_size = sample_len * to_bytesize(device_format_);
+    staging_buffer.create(device_memory_size,
+                          VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                          VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
+                          VK_MEMORY_PROPERTY_HOST_CACHED_BIT,
+                          /* Although we are only reading, we need to set the host access random
+                           * bit to improve the performance on AMD GPUs. */
+                          VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT |
+                              VMA_ALLOCATION_CREATE_MAPPED_BIT,
+                          0.2f);
 
+    render_graph::VKCopyImageToBufferNode::CreateInfo copy_image_to_buffer = {};
+    render_graph::VKCopyImageToBufferNode::Data &node_data = copy_image_to_buffer.node_data;
+    node_data.src_image = vk_image_handle();
+    node_data.dst_buffer = staging_buffer.vk_handle();
+    node_data.region.imageOffset.x = region.offset.x;
+    node_data.region.imageOffset.y = region.offset.y;
+    node_data.region.imageOffset.z = region.offset.z;
+    node_data.region.imageExtent.width = region.extent.x;
+    node_data.region.imageExtent.height = region.extent.y;
+    node_data.region.imageExtent.depth = region.extent.z;
+    VkImageAspectFlags vk_image_aspects = to_vk_image_aspect_flag_bits(device_format_);
+    copy_image_to_buffer.vk_image_aspects = vk_image_aspects;
+    node_data.region.imageSubresource.aspectMask = to_vk_image_aspect_single_bit(vk_image_aspects,
+                                                                                 false);
+    node_data.region.imageSubresource.mipLevel = mip;
+    node_data.region.imageSubresource.baseArrayLayer = region.layers.start();
+    node_data.region.imageSubresource.layerCount = region.layers.size();
+
+    context.render_graph().add_node(copy_image_to_buffer);
+  }
   context.flush_render_graph(RenderGraphFlushFlags::SUBMIT |
                              RenderGraphFlushFlags::RENEW_RENDER_GRAPH |
                              RenderGraphFlushFlags::WAIT_FOR_COMPLETION);
 
-  convert_device_to_host(
-      r_data, staging_buffer.mapped_memory_get(), sample_len, format, format_, device_format_);
+  for (int index : regions.index_range()) {
+    const TransferRegion &region = regions[index];
+    const VKBuffer &staging_buffer = staging_buffers[index];
+    size_t sample_len = region.sample_count();
+
+    // TODO: calculate the offset in r_data.
+    convert_device_to_host(
+        r_data, staging_buffer.mapped_memory_get(), sample_len, format, format_, device_format_);
+  }
 }
 
 void *VKTexture::read(int mip, eGPUDataFormat format)
