@@ -421,7 +421,9 @@ static std::string get_bundle_sync_tooltip(const nodes::BundleSignature &old_sig
     if (const nodes::BundleSignature::Item *old_item = old_signature.items.lookup_key_ptr_as(
             new_item.key))
     {
-      if (new_item.type->type != old_item->type->type) {
+      if (new_item.type->type != old_item->type->type ||
+          new_item.structure_type != old_item->structure_type)
+      {
         changed_items.append(new_item.key);
       }
     }
@@ -466,7 +468,9 @@ static std::string get_closure_sync_tooltip(const nodes::ClosureSignature &old_s
     if (const nodes::ClosureSignature::Item *old_item = old_signature.inputs.lookup_key_ptr_as(
             new_item.key))
     {
-      if (new_item.type->type != old_item->type->type) {
+      if (new_item.type->type != old_item->type->type ||
+          new_item.structure_type != old_item->structure_type)
+      {
         changed_inputs.append(new_item.key);
       }
     }
@@ -483,7 +487,9 @@ static std::string get_closure_sync_tooltip(const nodes::ClosureSignature &old_s
     if (const nodes::ClosureSignature::Item *old_item = old_signature.outputs.lookup_key_ptr_as(
             new_item.key))
     {
-      if (new_item.type->type != old_item->type->type) {
+      if (new_item.type->type != old_item->type->type ||
+          new_item.structure_type != old_item->structure_type)
+      {
         changed_outputs.append(new_item.key);
       }
     }

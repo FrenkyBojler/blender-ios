@@ -92,7 +92,7 @@ ClosureSignature ClosureSignature::from_closure_output_node(const bNode &node)
       bke::zone_type_by_node_type(node.type_legacy)->get_corresponding_input(tree, node);
   const auto &storage = *static_cast<const NodeClosureOutput *>(node.storage);
   nodes::ClosureSignature signature;
-  if (!input_node) {
+  if (input_node) {
     for (const int i : IndexRange(storage.input_items.items_num)) {
       const NodeClosureInputItem &item = storage.input_items.items[i];
       const bNodeSocket &socket = input_node->output_socket(i);
