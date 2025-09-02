@@ -1986,6 +1986,7 @@ static bool uv_copy_mirrored_faces(BMesh *bm, int direction, int precision, int 
 {
   *r_double_warn = 0;
   const float precision_scale = powf(10.0f, precision);
+  /* TODO: replace mirror look-ups with #EditMeshSymmetryHelper. */
   Map<float3, BMVert *> mirror_gt, mirror_lt;
   Map<BMVert *, BMVert *> vmap;
 
@@ -2011,24 +2012,25 @@ static bool uv_copy_mirrored_faces(BMesh *bm, int direction, int precision, int 
     }
   }
 
-  for (const auto &[pos, vert] : mirror_gt.items()) {
+  for (const auto &[pos, v] : mirror_gt.items()) {
     float3 mirror_pos = pos;
     mirror_pos[0] = -mirror_pos[0];
-    BMVert *mirror_vert_ptr = mirror_lt.lookup_default(mirror_pos, nullptr);
-    if (mirror_vert_ptr) {
-      vmap.add(vert, mirror_vert_ptr);
+    BMVert *v_mirror = mirror_lt.lookup_default(mirror_pos, nullptr);
+    if (v_mirror) {
+      vmap.add(v, v_mirror);
     }
   }
-  for (const auto &[pos, vert] : mirror_lt.items()) {
+  for (const auto &[pos, v] : mirror_lt.items()) {
     float3 mirror_pos = pos;
     mirror_pos[0] = -mirror_pos[0];
-    BMVert *mirror_vert_ptr = mirror_gt.lookup_default(mirror_pos, nullptr);
-    if (mirror_vert_ptr) {
-      vmap.add(vert, mirror_vert_ptr);
+    BMVert *v_mirror = mirror_gt.lookup_default(mirror_pos, nullptr);
+    if (v_mirror) {
+      vmap.add(v, v_mirror);
     }
   }
 
-  /* Blender’s Array type doesn’t support hashing, using a Vector with a predefined length instead.
+  /* Blender's Array type doesn't support hashing, using a Vector with a predefined length
+   * instead.
    */
   Map<Vector<BMVert *>, BMFace *> sorted_verts_to_face;
   /* Maps faces to their corresponding mirrored face. */
@@ -2037,36 +2039,36 @@ static bool uv_copy_mirrored_faces(BMesh *bm, int direction, int precision, int 
   BMFace *f;
   BMIter iter_face;
   BM_ITER_MESH (f, &iter_face, bm, BM_FACES_OF_MESH) {
-    Vector<BMVert *> sorted_verts(f->len);
-    int loop_index;
+    Vector<BMVert *> sorted_verts;
+    sorted_verts.reserve(f->len);
+    bool valid = true;
     BMLoop *l;
     BMIter iter_loop;
-    BM_ITER_ELEM_INDEX (l, &iter_loop, f, BM_LOOPS_OF_FACE, loop_index) {
-      sorted_verts.insert(loop_index, l->v);
+    BM_ITER_ELEM (l, &iter_loop, f, BM_LOOPS_OF_FACE) {
+      if (!vmap.contains(l->v)) {
+        valid = false;
+        break;
+      }
+      sorted_verts.append_unchecked(l->v);
     }
-    std::sort(sorted_verts.begin(), sorted_verts.end());
-    sorted_verts_to_face.add(sorted_verts, f);
+    if (valid) {
+      std::sort(sorted_verts.begin(), sorted_verts.end());
+      sorted_verts_to_face.add(sorted_verts, f);
+    }
   }
 
   for (const auto &[sorted_verts, f_dst] : sorted_verts_to_face.items()) {
     Vector<BMVert *> mirror_verts;
-    bool valid = true;
-    for (BMVert *vert : sorted_verts) {
-      BMVert *mirror_vert_ptr = vmap.lookup_default(vert, nullptr);
-      if (!mirror_vert_ptr) {
-        valid = false;
-        break;
-      }
-      mirror_verts.append(mirror_vert_ptr);
+    mirror_verts.reserve(sorted_verts.size());
+    for (BMVert *v : sorted_verts) {
+      BMVert *v_mirror = vmap.lookup_default(v, nullptr);
+      mirror_verts.append_unchecked(v_mirror);
     }
-
-    if (valid) {
-      std::sort(mirror_verts.begin(), mirror_verts.end());
-      BMFace *f_src = sorted_verts_to_face.lookup_default(mirror_verts, nullptr);
-      if (f_src) {
-        if (f_src != f_dst) {
-          face_map.add(f_dst, f_src);
-        }
+    std::sort(mirror_verts.begin(), mirror_verts.end());
+    BMFace *f_src = sorted_verts_to_face.lookup_default(mirror_verts, nullptr);
+    if (f_src) {
+      if (f_src != f_dst) {
+        face_map.add(f_dst, f_src);
       }
     }
   }
@@ -2083,12 +2085,12 @@ static bool uv_copy_mirrored_faces(BMesh *bm, int direction, int precision, int 
     BM_face_calc_center_median(f_dst, f_dst_center);
 
     BM_ITER_ELEM (l_dst, &iter_loop, f_dst, BM_LOOPS_OF_FACE) {
-      BMVert *target_vert_ptr = vmap.lookup_default(l_dst->v, nullptr);
-      if (!target_vert_ptr) {
+      BMVert *v_src = vmap.lookup_default(l_dst->v, nullptr);
+      if (!v_src) {
         continue;
       }
 
-      BMLoop *l_src = BM_face_vert_share_loop(f_src, target_vert_ptr);
+      BMLoop *l_src = BM_face_vert_share_loop(f_src, v_src);
       if (!l_src) {
         continue;
       }
