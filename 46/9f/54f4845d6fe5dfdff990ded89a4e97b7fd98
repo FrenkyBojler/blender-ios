@@ -1,2 +1,2 @@
-Referenced by issue #145562, Blender crashes when adding geometry node via search
+Referenced by issue #145562, Crash Fixed - Is it valid to pass `nullptr` to `RNA_property_string_set` ?
 Referenced by commit 5cdc5067507b2110c17913bb35a269624369f516, Hotfix #145562: Crash when passing `null` value to `RNA_property_string_set`
