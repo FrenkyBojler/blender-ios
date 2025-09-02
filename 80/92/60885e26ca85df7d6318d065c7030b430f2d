@@ -1,4 +1,4 @@
 Referenced by pull request #134460, Cycles: Use null scattering for volume shading
 Referenced by issue #141871, Blender LTS: Maintenance Task 4.5
 Referenced by issue #144910, Cycles OptiX: When adjusting material properties that enables shader ray tracing, the material will momentarily render incorrectly
-Referenced by issue #145544, Cycles crashes when rendering with a custom camera in 4.5
+Referenced by issue #145544, Illegal address when rendering with a custom camera in 4.5
