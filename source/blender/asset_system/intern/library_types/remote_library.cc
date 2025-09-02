@@ -6,12 +6,6 @@
  * \ingroup asset_system
  */
 
-#include <Python.h>
-#include <fmt/format.h>
-
-#include "../../python/generic/py_capi_utils.hh"
-#include "../../python/intern/bpy_capi_utils.hh"
-
 #include "BLI_fileops.h"
 #include "BLI_listbase.h"
 
@@ -22,6 +16,8 @@
 
 #ifdef WITH_PYTHON
 #  include "BPY_extern_run.hh"
+
+#  include <Python.h>
 #endif
 
 #include "DNA_userdef_types.h"
