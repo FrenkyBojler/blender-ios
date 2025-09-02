@@ -98,7 +98,7 @@ bool GHOST_XrGraphicsBindingD3D::checkVersionRequirements(
 
   xrGetD3D11GraphicsRequirementsKHR_fn(instance, system_id, &gpu_requirements);
 
-  if (m_ghost_d3d_ctx->m_device->GetFeatureLevel() < gpu_requirements.minFeatureLevel) {
+  if (ghost_d3d_ctx_->device_->GetFeatureLevel() < gpu_requirements.minFeatureLevel) {
     std::ostringstream strstream;
     strstream << "Minimum DirectX 11 Feature Level " << gpu_requirements.minFeatureLevel
               << std::endl;
