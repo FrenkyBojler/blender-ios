@@ -394,10 +394,9 @@
         </asset_shelf>
         <channels>
           <ThemeRegionsChannels
-            list="#adadad"
-            list_title="#000000"
-            list_text="#050505"
-            list_text_hi="#ffffff"
+            back="#adadad"
+            text="#050505"
+            text_selected="#ffffff"
             >
           </ThemeRegionsChannels>
         </channels>
