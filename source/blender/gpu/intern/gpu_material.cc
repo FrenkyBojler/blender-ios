@@ -10,6 +10,7 @@
 
 #include <cstring>
 
+#include "BKE_lib_id.hh"
 #include "MEM_guardedalloc.h"
 
 #include "DNA_material_types.h"
@@ -213,9 +214,7 @@ GPUMaterial *GPU_material_from_nodetree(Material *ma,
   gpu_node_graph_free_nodes(&mat->graph);
   /* Only free after GPU_pass_shader_get where blender::gpu::UniformBuf read data from the local
    * tree. */
-  blender::bke::node_tree_free_local_tree(localtree);
-  BLI_assert(!localtree->id.py_instance); /* Or call #BKE_libblock_free_data_py. */
-  MEM_freeN(localtree);
+  BKE_id_free(nullptr, &localtree->id);
 
   /* Note that even if building the shader fails in some way, we want to keep
    * it to avoid trying to compile again and again, and simply do not use

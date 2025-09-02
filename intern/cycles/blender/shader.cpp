@@ -1470,7 +1470,7 @@ static void add_nodes(Scene *scene,
   add_nodes_inlined(
       scene, b_engine, b_data, b_scene, graph, b_localtree, proxy_input_map, proxy_output_map);
 
-  blender::bke::node_tree_free_local_tree(localtree);
+  BKE_id_free(nullptr, &localtree->id);
 }
 
 static void add_nodes(Scene *scene,

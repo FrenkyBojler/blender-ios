@@ -592,8 +592,6 @@ bNodeTree **node_tree_ptr_from_id(ID *id);
  */
 bNodeTree *node_tree_from_id(ID *id);
 
-void node_tree_free_local_tree(bNodeTree *ntree);
-
 /**
  * Check recursively if a node tree contains another.
  */

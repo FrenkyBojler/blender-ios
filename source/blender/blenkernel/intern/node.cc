@@ -4431,17 +4431,6 @@ void node_tree_free_embedded_tree(bNodeTree *ntree)
   BKE_libblock_free_data_py(&ntree->id);
 }
 
-void node_tree_free_local_tree(bNodeTree *ntree)
-{
-  if (ntree->id.tag & ID_TAG_LOCALIZED) {
-    node_tree_free_tree(*ntree);
-  }
-  else {
-    node_tree_free_tree(*ntree);
-    BKE_libblock_free_data(&ntree->id, true);
-  }
-}
-
 void node_tree_set_output(bNodeTree &ntree)
 {
   const bool is_compositor = ntree.type == NTREE_COMPOSIT;
