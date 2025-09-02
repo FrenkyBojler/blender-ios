@@ -367,7 +367,7 @@ class AddNodeMenu(NodeMenu):
 
 class SwapNodeMenu(NodeMenu):
     draw_assets = False
-    use_transform = True
+    # NOTE: Swap operators don't have a `use_transform` property, so defining it here has no effect
 
     main_operator_id = "node.swap_node"
     zone_operator_id = "node.swap_zone"
