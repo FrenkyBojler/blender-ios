@@ -4537,7 +4537,7 @@ static BMFace *bm_step_over_shared_edge_to_next_selected_face_in_chain(BMFace *f
 }
 
 /**
- * Check if the selected vertices form a loop chain.
+ * Check if the selected vertices form a loop cyclic chain.
  */
 static bool bm_verts_form_loop(BMVert *v_start)
 {
@@ -4571,7 +4571,7 @@ static bool bm_verts_form_loop(BMVert *v_start)
 }
 
 /**
- * Check if the selected edges form a loop chain.
+ * Check if the selected edges form a loop cyclic chain.
  */
 static bool bm_edges_form_loop(BMEdge *e_start)
 {
@@ -4593,7 +4593,7 @@ static bool bm_edges_form_loop(BMEdge *e_start)
 }
 
 /**
- * Check if the selected faces form a loop chain
+ * Check if the selected faces form a loop cyclic chain
  */
 static bool bm_faces_form_loop(BMFace *f_start)
 {
