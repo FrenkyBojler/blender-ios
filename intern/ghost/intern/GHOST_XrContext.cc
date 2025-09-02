@@ -257,10 +257,10 @@ void GHOST_XrContext::dispatchErrorMessage(const GHOST_XrException *exception) c
 
   if (isDebugMode()) {
     fprintf(stderr,
-            "Error: \t%s\n\tOpenXR error value: %i - %s\n",
+            "Error: \t%s\n\tOpenXR error %s (error value: %i)\n",
             error.user_message,
-            exception->result_,
-            error_string_buf);
+            error_string_buf,
+            exception->result_);
   }
 
   /* Potentially destroys GHOST_XrContext */
