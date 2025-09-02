@@ -313,30 +313,32 @@ static void region_draw_status_text(ScrArea * /*area*/, ARegion *region)
   /* Clear the region from the buffer. */
   GPU_clear_color(0.0f, 0.0f, 0.0f, 0.0f);
 
-  /* Fill with header color. */
-  if (header_color[3] > 0.0f) {
+  /* Fill with header color when the region is not overlapped. */
+  if (!region->overlap) {
     const rctf rect = {0.0f, float(region->winx), 0.0f, float(region->winy)};
-    UI_draw_roundbox_4fv(&rect, true, 0.0f, header_color);
+    UI_draw_roundbox_3fv_alpha(&rect, true, 0.0f, header_color, 1.0f);
   }
 
   const int fontid = BLF_set_default();
-  const float x = 12.0f * UI_SCALE_FAC;
+  float x = 12.0f * UI_SCALE_FAC;
   const float y = 0.4f * UI_UNIT_Y;
+  const float width = BLF_width(fontid, region->runtime->headerstr, BLF_DRAW_STR_DUMMY_MAX);
   GPU_blend(GPU_BLEND_ALPHA);
 
-  if (header_color[3] < 0.3f) {
-    /* Draw a background behind the text for extra contrast. */
-    const float width = BLF_width(fontid, region->runtime->headerstr, BLF_DRAW_STR_DUMMY_MAX);
+  /* Draw a background behind the text for extra contrast. */
+  if (region->overlap) {
+    /* Center the text horizontally. */
+    x = (region->winx - width) / 2.0f;
     const float pad = 5.0f * UI_SCALE_FAC;
     const float x1 = x - pad;
     const float x2 = x + width + pad;
     const float y1 = 3.0f * UI_SCALE_FAC;
     const float y2 = region->winy - (4.0f * UI_SCALE_FAC);
-    float color[4] = {0.0f, 0.0f, 0.0f, 0.3f};
-    UI_GetThemeColor3fv(TH_BACK, color);
+    /* Ensure header_color is not too transparent. */
+    header_color[3] = std::max(header_color[3], 0.6f);
     UI_draw_roundbox_corner_set(UI_CNR_ALL);
     const rctf rect = {x1, x2, y1, y2};
-    UI_draw_roundbox_4fv(&rect, true, 4.0f * UI_SCALE_FAC, color);
+    UI_draw_roundbox_4fv(&rect, true, 4.0f * UI_SCALE_FAC, header_color);
   }
 
   UI_FontThemeColor(fontid, TH_TEXT);
@@ -563,7 +565,7 @@ void ED_region_do_draw(bContext *C, ARegion *region)
     wmWindowManager *wm = CTX_wm_manager(C);
     bScreen *screen = WM_window_get_active_screen(win);
     Scene *scene = CTX_data_scene(C);
-    wmMsgBus *mbus = wm->message_bus;
+    wmMsgBus *mbus = wm->runtime->message_bus;
     WM_msgbus_clear_by_owner(mbus, region);
 
     /* Cheat, always subscribe to this space type properties.
@@ -744,6 +746,69 @@ void ED_area_tag_region_size_update(ScrArea *area, ARegion *changed_region)
 }
 
 /* *************************************************************** */
+
+int ED_area_max_regionsize(const ScrArea *area, const ARegion *scale_region, const AZEdge edge)
+{
+  int dist;
+
+  /* regions in regions. */
+  if (scale_region->alignment & RGN_SPLIT_PREV) {
+    const int align = RGN_ALIGN_ENUM_FROM_MASK(scale_region->alignment);
+
+    if (ELEM(align, RGN_ALIGN_TOP, RGN_ALIGN_BOTTOM)) {
+      ARegion *region = scale_region->prev;
+      dist = region->winy + scale_region->winy - U.pixelsize;
+    }
+    else /* if (ELEM(align, RGN_ALIGN_LEFT, RGN_ALIGN_RIGHT)) */ {
+      ARegion *region = scale_region->prev;
+      dist = region->winx + scale_region->winx - U.pixelsize;
+    }
+  }
+  else {
+    if (ELEM(edge, AE_RIGHT_TO_TOPLEFT, AE_LEFT_TO_TOPRIGHT)) {
+      dist = BLI_rcti_size_x(&area->totrct);
+    }
+    else { /* AE_BOTTOM_TO_TOPLEFT, AE_TOP_TO_BOTTOMRIGHT */
+      dist = BLI_rcti_size_y(&area->totrct);
+    }
+
+    /* Subtract the width of regions on opposite side
+     * prevents dragging regions into other opposite regions. */
+    LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
+      if (region == scale_region) {
+        continue;
+      }
+
+      if (scale_region->alignment == RGN_ALIGN_LEFT && region->alignment == RGN_ALIGN_RIGHT) {
+        dist -= region->winx;
+      }
+      else if (scale_region->alignment == RGN_ALIGN_RIGHT && region->alignment == RGN_ALIGN_LEFT) {
+        dist -= region->winx;
+      }
+      else if (scale_region->alignment == RGN_ALIGN_TOP &&
+               (region->alignment == RGN_ALIGN_BOTTOM || ELEM(region->regiontype,
+                                                              RGN_TYPE_HEADER,
+                                                              RGN_TYPE_TOOL_HEADER,
+                                                              RGN_TYPE_FOOTER,
+                                                              RGN_TYPE_ASSET_SHELF_HEADER)))
+      {
+        dist -= region->winy;
+      }
+      else if (scale_region->alignment == RGN_ALIGN_BOTTOM &&
+               (region->alignment == RGN_ALIGN_TOP || ELEM(region->regiontype,
+                                                           RGN_TYPE_HEADER,
+                                                           RGN_TYPE_TOOL_HEADER,
+                                                           RGN_TYPE_FOOTER,
+                                                           RGN_TYPE_ASSET_SHELF_HEADER)))
+      {
+        dist -= region->winy;
+      }
+    }
+  }
+
+  dist /= UI_SCALE_FAC;
+  return dist;
+}
 
 const char *ED_area_region_search_filter_get(const ScrArea *area, const ARegion *region)
 {
@@ -1855,7 +1920,7 @@ static void ed_default_handlers(
   /* XXX: it would be good to have bound-box checks for some of these. */
   if (flag & ED_KEYMAP_UI) {
     wmKeyMap *keymap = WM_keymap_ensure(
-        wm->defaultconf, "User Interface", SPACE_EMPTY, RGN_TYPE_WINDOW);
+        wm->runtime->defaultconf, "User Interface", SPACE_EMPTY, RGN_TYPE_WINDOW);
     WM_event_add_keymap_handler(handlers, keymap);
 
     ListBase *dropboxes = WM_dropboxmap_find("User Interface", SPACE_EMPTY, RGN_TYPE_WINDOW);
@@ -1880,22 +1945,24 @@ static void ed_default_handlers(
   }
   if (flag & ED_KEYMAP_VIEW2D) {
     /* 2d-viewport handling+manipulation */
-    wmKeyMap *keymap = WM_keymap_ensure(wm->defaultconf, "View2D", SPACE_EMPTY, RGN_TYPE_WINDOW);
+    wmKeyMap *keymap = WM_keymap_ensure(
+        wm->runtime->defaultconf, "View2D", SPACE_EMPTY, RGN_TYPE_WINDOW);
     WM_event_add_keymap_handler(handlers, keymap);
   }
   if (flag & ED_KEYMAP_ANIMATION) {
     wmKeyMap *keymap;
 
     /* time-markers */
-    keymap = WM_keymap_ensure(wm->defaultconf, "Markers", SPACE_EMPTY, RGN_TYPE_WINDOW);
+    keymap = WM_keymap_ensure(wm->runtime->defaultconf, "Markers", SPACE_EMPTY, RGN_TYPE_WINDOW);
     WM_event_add_keymap_handler_poll(handlers, keymap, WM_event_handler_region_marker_poll);
 
     /* time-scrub */
-    keymap = WM_keymap_ensure(wm->defaultconf, "Time Scrub", SPACE_EMPTY, RGN_TYPE_WINDOW);
+    keymap = WM_keymap_ensure(
+        wm->runtime->defaultconf, "Time Scrub", SPACE_EMPTY, RGN_TYPE_WINDOW);
     WM_event_add_keymap_handler_poll(handlers, keymap, ED_time_scrub_event_in_region_poll);
 
     /* frame changing and timeline operators (for time spaces) */
-    keymap = WM_keymap_ensure(wm->defaultconf, "Animation", SPACE_EMPTY, RGN_TYPE_WINDOW);
+    keymap = WM_keymap_ensure(wm->runtime->defaultconf, "Animation", SPACE_EMPTY, RGN_TYPE_WINDOW);
     WM_event_add_keymap_handler(handlers, keymap);
   }
   if (flag & ED_KEYMAP_TOOL) {
@@ -1910,31 +1977,32 @@ static void ed_default_handlers(
   }
   if (flag & ED_KEYMAP_FRAMES) {
     /* frame changing/jumping (for all spaces) */
-    wmKeyMap *keymap = WM_keymap_ensure(wm->defaultconf, "Frames", SPACE_EMPTY, RGN_TYPE_WINDOW);
+    wmKeyMap *keymap = WM_keymap_ensure(
+        wm->runtime->defaultconf, "Frames", SPACE_EMPTY, RGN_TYPE_WINDOW);
     WM_event_add_keymap_handler(handlers, keymap);
   }
   if (flag & ED_KEYMAP_HEADER) {
     /* standard keymap for headers regions */
     wmKeyMap *keymap = WM_keymap_ensure(
-        wm->defaultconf, "Region Context Menu", SPACE_EMPTY, RGN_TYPE_WINDOW);
+        wm->runtime->defaultconf, "Region Context Menu", SPACE_EMPTY, RGN_TYPE_WINDOW);
     WM_event_add_keymap_handler(handlers, keymap);
   }
   if (flag & ED_KEYMAP_FOOTER) {
     /* standard keymap for footer regions */
     wmKeyMap *keymap = WM_keymap_ensure(
-        wm->defaultconf, "Region Context Menu", SPACE_EMPTY, RGN_TYPE_WINDOW);
+        wm->runtime->defaultconf, "Region Context Menu", SPACE_EMPTY, RGN_TYPE_WINDOW);
     WM_event_add_keymap_handler(handlers, keymap);
   }
   if (flag & ED_KEYMAP_NAVBAR) {
     /* standard keymap for Navigation bar regions */
     wmKeyMap *keymap = WM_keymap_ensure(
-        wm->defaultconf, "Region Context Menu", SPACE_EMPTY, RGN_TYPE_WINDOW);
+        wm->runtime->defaultconf, "Region Context Menu", SPACE_EMPTY, RGN_TYPE_WINDOW);
     WM_event_add_keymap_handler(&region->runtime->handlers, keymap);
   }
   if (flag & ED_KEYMAP_ASSET_SHELF) {
     /* standard keymap for asset shelf regions */
     wmKeyMap *keymap = WM_keymap_ensure(
-        wm->defaultconf, "Asset Shelf", SPACE_EMPTY, RGN_TYPE_WINDOW);
+        wm->runtime->defaultconf, "Asset Shelf", SPACE_EMPTY, RGN_TYPE_WINDOW);
     WM_event_add_keymap_handler(&region->runtime->handlers, keymap);
   }
 
@@ -1943,7 +2011,7 @@ static void ed_default_handlers(
     /* grease pencil */
     {
       wmKeyMap *keymap = WM_keymap_ensure(
-          wm->defaultconf, "Grease Pencil", SPACE_EMPTY, RGN_TYPE_WINDOW);
+          wm->runtime->defaultconf, "Grease Pencil", SPACE_EMPTY, RGN_TYPE_WINDOW);
       WM_event_add_keymap_handler(handlers, keymap);
     }
   }
@@ -2174,8 +2242,8 @@ static void area_offscreen_exit(wmWindowManager *wm, wmWindow *win, ScrArea *are
       region->runtime->regiontimer = nullptr;
     }
 
-    if (wm->message_bus) {
-      WM_msgbus_clear_by_owner(wm->message_bus, region);
+    if (wm->runtime->message_bus) {
+      WM_msgbus_clear_by_owner(wm->runtime->message_bus, region);
     }
   }
 
@@ -3423,6 +3491,8 @@ void ED_region_panels_layout(const bContext *C, ARegion *region)
 void ED_region_panels_draw(const bContext *C, ARegion *region)
 {
   View2D *v2d = &region->v2d;
+  const float aspect = BLI_rctf_size_y(&region->v2d.cur) /
+                       (BLI_rcti_size_y(&region->v2d.mask) + 1);
 
   if (region->alignment != RGN_ALIGN_FLOAT) {
     ED_region_clear(C,
@@ -3440,8 +3510,13 @@ void ED_region_panels_draw(const bContext *C, ARegion *region)
   /* View2D matrix might have changed due to dynamic sized regions. */
   UI_blocklist_update_window_matrix(C, &region->runtime->uiblocks);
 
-  /* draw panels */
-  UI_panels_draw(C, region);
+  /* draw panels if they are large enough. */
+  const bool has_catgories = (region->panels_category_active.first != nullptr);
+  const short min_draw_size = has_catgories ? short(UI_PANEL_CATEGORY_MIN_WIDTH) + 20 :
+                                              std::min(region->runtime->type->prefsizex, 20);
+  if (region->winx >= (min_draw_size * UI_SCALE_FAC / aspect)) {
+    UI_panels_draw(C, region);
+  }
 
   /* restore view matrix */
   UI_view2d_view_restore(C);
@@ -3473,8 +3548,6 @@ void ED_region_panels_draw(const bContext *C, ARegion *region)
   ED_region_draw_overflow_indication(CTX_wm_area(C), region, use_mask ? &mask : nullptr);
 
   /* Hide scrollbars below a threshold. */
-  const float aspect = BLI_rctf_size_y(&region->v2d.cur) /
-                       (BLI_rcti_size_y(&region->v2d.mask) + 1);
   int min_width = UI_panel_category_is_visible(region) ? 60.0f * UI_SCALE_FAC / aspect :
                                                          40.0f * UI_SCALE_FAC / aspect;
   if (BLI_rcti_size_x(&region->winrct) <= min_width) {
@@ -3517,7 +3590,7 @@ void ED_region_panels_init(wmWindowManager *wm, ARegion *region)
   }
 
   wmKeyMap *keymap = WM_keymap_ensure(
-      wm->defaultconf, "View2D Buttons List", SPACE_EMPTY, RGN_TYPE_WINDOW);
+      wm->runtime->defaultconf, "View2D Buttons List", SPACE_EMPTY, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler(&region->runtime->handlers, keymap);
 }
 

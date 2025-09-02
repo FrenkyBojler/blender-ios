@@ -99,6 +99,7 @@ set(SRC
   intern/shader_nodes_inline.cc
   intern/socket_search_link.cc
   intern/socket_usage_inference.cc
+  intern/socket_value_inference.cc
   intern/sync_sockets.cc
   intern/trace_values.cc
   intern/value_elem.cc
@@ -125,11 +126,13 @@ set(SRC
   NOD_geometry_nodes_list.hh
   NOD_geometry_nodes_list_fwd.hh
   NOD_geometry_nodes_log.hh
+  NOD_geometry_nodes_values.hh
   NOD_geometry_nodes_warning.hh
   NOD_inverse_eval_params.hh
   NOD_inverse_eval_path.hh
   NOD_inverse_eval_run.hh
   NOD_math_functions.hh
+  NOD_menu_value.hh
   NOD_multi_function.hh
   NOD_nested_node_id.hh
   NOD_node_declaration.hh
@@ -150,6 +153,7 @@ set(SRC
   NOD_socket_search_link.hh
   NOD_socket_usage_inference.hh
   NOD_socket_usage_inference_fwd.hh
+  NOD_socket_value_inference.hh
   NOD_sync_sockets.hh
   NOD_texture.h
   NOD_trace_values.hh
@@ -228,16 +232,6 @@ if(WITH_GMP)
   list(APPEND LIB
     ${GMP_LIBRARIES}
   )
-endif()
-
-if(WITH_OPENVDB)
-  list(APPEND INC
-    ../../../intern/openvdb
-  )
-  list(APPEND INC_SYS
-    ${OPENVDB_INCLUDE_DIRS}
-  )
-  add_definitions(-DWITH_OPENVDB ${OPENVDB_DEFINITIONS})
 endif()
 
 blender_add_lib(bf_nodes "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

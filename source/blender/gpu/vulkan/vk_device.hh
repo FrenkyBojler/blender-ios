@@ -55,6 +55,9 @@ struct VKExtensions {
    */
   bool external_memory = false;
 
+  /** VK_KHR_maintenance4 */
+  bool maintenance4 = false;
+
   /**
    * Does the device support VK_EXT_descriptor_buffer.
    */
@@ -103,24 +106,11 @@ struct VKWorkarounds {
  * Shared resources between contexts that run in the same thread.
  */
 class VKThreadData : public NonCopyable, NonMovable {
-  /**
-   * The number of resource pools is aligned to the number of frames
-   * in flight used by GHOST. Therefore, this constant *must* always
-   * match GHOST_ContextVK's GHOST_FRAMES_IN_FLIGHT.
-   */
-  static constexpr uint32_t resource_pools_count = 5;
-
  public:
   /** Thread ID this instance belongs to. */
   pthread_t thread_id;
-  /**
-   * Index of the active resource pool. Is in sync with the active swap-chain image or cycled when
-   * rendering.
-   *
-   * NOTE: Initialized to `UINT32_MAX` to detect first change.
-   */
-  uint32_t resource_pool_index = UINT32_MAX;
-  std::array<VKResourcePool, resource_pools_count> resource_pools;
+  VKDescriptorPools descriptor_pools;
+  VKDescriptorSetTracker descriptor_set;
 
   /**
    * The current rendering depth.
@@ -133,28 +123,6 @@ class VKThreadData : public NonCopyable, NonMovable {
   int32_t rendering_depth = 0;
 
   VKThreadData(VKDevice &device, pthread_t thread_id);
-
-  /**
-   * Get the active resource pool.
-   */
-  VKResourcePool &resource_pool_get()
-  {
-    if (resource_pool_index >= resource_pools.size()) {
-      return resource_pools[0];
-    }
-    return resource_pools[resource_pool_index];
-  }
-
-  /** Activate the next resource pool. */
-  void resource_pool_next()
-  {
-    if (resource_pool_index == UINT32_MAX) {
-      resource_pool_index = 1;
-    }
-    else {
-      resource_pool_index = (resource_pool_index + 1) % resource_pools_count;
-    }
-  }
 };
 
 class VKDevice : public NonCopyable {
@@ -233,6 +201,8 @@ class VKDevice : public NonCopyable {
   std::string glsl_frag_patch_;
   std::string glsl_comp_patch_;
   Vector<VKThreadData *> thread_data_;
+
+  Shader *vk_backbuffer_blit_sh_ = nullptr;
 
  public:
   render_graph::VKResourceStateTracker resources;
@@ -424,7 +394,16 @@ class VKDevice : public NonCopyable {
   {
     BLI_assert(vk_timeline_semaphore_ != VK_NULL_HANDLE);
     TimelineValue current_timeline;
-    vkGetSemaphoreCounterValue(vk_device_, vk_timeline_semaphore_, &current_timeline);
+    VkResult result = vkGetSemaphoreCounterValue(
+        vk_device_, vk_timeline_semaphore_, &current_timeline);
+    UNUSED_VARS(result);
+    BLI_assert_msg(
+        result == VK_SUCCESS && current_timeline != UINT64_MAX,
+        "Potential driver crash has happened. Several drivers will report UINT64_MAX when "
+        "requesting a counter value of an timeline semaphore right after/during a driver reset. "
+        "If this happen we should investigate what makes the driver crash. In the past this has "
+        "been detected on QUALCOMM and NVIDIA drivers. The result code of the call is "
+        "VK_SUCCESS.");
     return current_timeline;
   }
 
@@ -466,6 +445,14 @@ class VKDevice : public NonCopyable {
   void debug_print();
 
   /** \} */
+
+  Shader *vk_backbuffer_blit_sh_get()
+  {
+    if (vk_backbuffer_blit_sh_ == nullptr) {
+      vk_backbuffer_blit_sh_ = GPU_shader_create_from_info_name("vk_backbuffer_blit");
+    }
+    return vk_backbuffer_blit_sh_;
+  }
 
  private:
   void init_physical_device_properties();

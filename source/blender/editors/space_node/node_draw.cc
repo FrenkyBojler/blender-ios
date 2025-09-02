@@ -444,6 +444,9 @@ static bool node_update_basis_buttons(const bContext &C,
   if (node.is_muted()) {
     layout.active_set(false);
   }
+  if (!ID_IS_EDITABLE(&ntree.id)) {
+    layout.enabled_set(false);
+  }
 
   layout.context_ptr_set("node", &nodeptr);
 
@@ -525,6 +528,9 @@ static bool node_update_basis_socket(const bContext &C,
 
   if (node.is_muted()) {
     layout.active_set(false);
+  }
+  if (!ID_IS_EDITABLE(&ntree.id)) {
+    layout.enabled_set(false);
   }
 
   uiLayout *row = &layout.row(true);
@@ -1158,6 +1164,9 @@ static void node_update_basis_from_declaration(
             if (node.is_muted()) {
               layout.active_set(false);
             }
+            if (!ID_IS_EDITABLE(&ntree.id)) {
+              layout.enabled_set(false);
+            }
             PointerRNA node_ptr = RNA_pointer_create_discrete(&ntree.id, &RNA_Node, &node);
             layout.context_ptr_set("node", &node_ptr);
             decl.draw(&layout, const_cast<bContext *>(&C), &node_ptr);
@@ -1402,10 +1411,6 @@ static int node_get_colorid(TreeDrawContext &tree_draw_ctx, const bNode &node)
       return TH_NODE_SHADER;
     case NODE_CLASS_SCRIPT:
       return TH_NODE_SCRIPT;
-    case NODE_CLASS_PATTERN:
-      return TH_NODE_PATTERN;
-    case NODE_CLASS_LAYOUT:
-      return TH_NODE_LAYOUT;
     case NODE_CLASS_GEOMETRY:
       return TH_NODE_GEOMETRY;
     case NODE_CLASS_ATTRIBUTE:
@@ -2722,8 +2727,10 @@ static void node_header_custom_tooltip(const bNode &node, uiBut &but)
         const std::string description = node.typeinfo->ui_description_fn ?
                                             node.typeinfo->ui_description_fn(node) :
                                             node.typeinfo->ui_description;
-        UI_tooltip_text_field_add(
-            data, std::move(description), "", UI_TIP_STYLE_NORMAL, UI_TIP_LC_NORMAL);
+        if (!description.empty()) {
+          UI_tooltip_text_field_add(
+              data, std::move(description), "", UI_TIP_STYLE_NORMAL, UI_TIP_LC_NORMAL);
+        }
         if (U.flag & USER_TOOLTIPS_PYTHON) {
           UI_tooltip_text_field_add(data,
                                     fmt::format("Python: {}", node.idname),
