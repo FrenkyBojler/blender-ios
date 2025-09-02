@@ -303,7 +303,7 @@ class IndexRange {
    * Returns a new IndexRange with n elements added to the end of the range.
    * This invokes undefined behavior when n is negative.
    */
-  constexpr IndexRange push_back(int64_t n) const
+  constexpr IndexRange push_back(const int64_t n) const
   {
     BLI_assert(n >= 0);
     return IndexRange(start_, size_ + n);
