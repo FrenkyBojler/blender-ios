@@ -9,6 +9,7 @@
 
 #include "BKE_compute_context_cache.hh"
 #include "BKE_compute_contexts.hh"
+#include "BKE_lib_id.hh"
 #include "BKE_node.hh"
 #include "BKE_node_runtime.hh"
 
@@ -207,7 +208,10 @@ ComputeContextHash ShaderComputeContext::compute_hash() const
 
 void ShaderComputeContext::print_current_in_line(std::ostream &stream) const
 {
-  stream << "Shader";
+  stream << "Shader ";
+  if (tree_) {
+    stream << BKE_id_name(tree_->id);
+  }
 }
 
 const ModifierComputeContext &ComputeContextCache::for_modifier(const ComputeContext *parent,
