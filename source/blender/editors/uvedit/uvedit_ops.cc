@@ -358,9 +358,9 @@ enum eUVWeldAlign {
   UV_WELD,
 };
 enum class UVAlignPostition {
-  MEAN = 0,
-  MIN = (1 << 0),
-  MAX = (1 << 1),
+  MEAN,
+  MIN,
+  MAX,
 };
 
 static bool uvedit_uv_align_weld(Scene *scene,
@@ -680,13 +680,21 @@ static void UV_OT_align(wmOperatorType *ot)
   };
 
   static const EnumPropertyItem location_items[] = {
-      {(int)UVAlignPostition::MEAN, "MEAN", 0, "Mean ", "Align UV vertices along the mean postiton"},
+      {(int)UVAlignPostition::MEAN,
+       "MEAN",
+       0,
+       "Mean ",
+       "Align UV vertices along the mean postiton"},
       {(int)UVAlignPostition::MIN,
        "MIN",
        0,
        "Miniumum",
        "Align UV vertices along the minimum postiton"},
-      {(int)UVAlignPostition::MAX, "MAX", 0, "Maximum", "Align UV vertices along the maximum postiton"},
+      {(int)UVAlignPostition::MAX,
+       "MAX",
+       0,
+       "Maximum",
+       "Align UV vertices along the maximum postiton"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
