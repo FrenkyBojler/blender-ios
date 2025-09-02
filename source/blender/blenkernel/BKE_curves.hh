@@ -1217,6 +1217,10 @@ void knot_refine_attribute(const int8_t order,
                            const Span<float> dst_knots,
                            MutableSpan<T> dst_attrib)
 {
+  BLI_assert(knot_inserts.size() > 0);
+  /* Undefined behavior when lower span interval does not match knot inserts. */
+  BLI_assert(src_knots[span_a] <= knot_inserts.first() &&
+             src_knots[span_a + 1] >= knot_inserts.first());
   const int8_t degree = order - 1;
   const int r = knot_inserts.size();
   span_b++;

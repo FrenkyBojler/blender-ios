@@ -395,6 +395,10 @@ void knot_refine(const int8_t order,
                  const Span<float> src_knots,
                  MutableSpan<float> dst_knots)
 {
+  BLI_assert(knot_inserts.size() > 0);
+  /* Undefined behavior when lower span interval does not match knot inserts. */
+  BLI_assert(src_knots[span_a] <= knot_inserts.first() &&
+             src_knots[span_a + 1] >= knot_inserts.first());
   const int8_t degree = order - 1;
   const int r = knot_inserts.size();
   span_b++;
@@ -429,6 +433,10 @@ void knot_refine_rational(const int8_t order,
                           MutableSpan<float3> dst_points,
                           MutableSpan<float> dst_weights)
 {
+  BLI_assert(knot_inserts.size() > 0);
+  /* Undefined behavior when lower span interval does not match knot inserts. */
+  BLI_assert(src_knots[span_a] <= knot_inserts.first() &&
+             src_knots[span_a + 1] >= knot_inserts.first());
   BLI_assert(src_points.size() == src_weights.size());
   BLI_assert(dst_points.size() == dst_weights.size());
   const int8_t degree = order - 1;
