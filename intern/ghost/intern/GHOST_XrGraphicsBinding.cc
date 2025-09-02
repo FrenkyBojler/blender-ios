@@ -91,7 +91,7 @@ class GHOST_XrGraphicsBindingOpenGL : public GHOST_IXrGraphicsBinding {
     }
 #    endif
 #  endif
-    XrGraphicsRequirementsOpenGLKHR gpu_requirements;
+    XrGraphicsRequirementsOpenGLKHR gpu_requirements = {};
     gpu_requirements.type = XR_TYPE_GRAPHICS_REQUIREMENTS_OPENGL_KHR;
     gpu_requirements.next = nullptr;
 
