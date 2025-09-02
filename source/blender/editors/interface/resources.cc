@@ -243,13 +243,10 @@ const uchar *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
           }
           break;
         case TH_TITLE:
-          if (ELEM(g_theme_state.regionid, RGN_TYPE_UI, RGN_TYPE_TOOLS) ||
+          if (ELEM(g_theme_state.regionid, RGN_TYPE_UI, RGN_TYPE_TOOLS, RGN_TYPE_CHANNELS) ||
               ELEM(g_theme_state.spacetype, SPACE_PROPERTIES, SPACE_USERPREF))
           {
             cp = btheme->tui.panel_title;
-          }
-          else if (g_theme_state.regionid == RGN_TYPE_CHANNELS) {
-            cp = btheme->regions.source_list.list_title;
           }
           else if (ELEM(g_theme_state.regionid,
                         RGN_TYPE_HEADER,

@@ -107,12 +107,10 @@ typedef struct uiStyle {
 } uiStyle;
 
 typedef struct ThemeRegionsSourceList {
-  /** Region background. */
   unsigned char list[4];
-  /** Panel title. */
-  unsigned char list_title[4];
   unsigned char list_text[4];
   unsigned char list_text_hi[4];
+  char _pad0[4];
 } ThemeRegionsSourceList;
 
 typedef struct ThemeRegions {

@@ -394,7 +394,6 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
 
   if (!USER_VERSION_ATLEAST(500, 100)) {
     FROM_DEFAULT_V4_UCHAR(regions.source_list.list);
-    FROM_DEFAULT_V4_UCHAR(regions.source_list.list_title);
     FROM_DEFAULT_V4_UCHAR(regions.source_list.list_text);
     FROM_DEFAULT_V4_UCHAR(regions.source_list.list_text_hi);
   }

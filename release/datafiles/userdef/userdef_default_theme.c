@@ -279,7 +279,6 @@ const bTheme U_theme_default = {
   .regions = {
     .source_list = {
       .list = RGBA(0x1d1d1dff),
-      .list_title = RGBA(0xffffffff),
       .list_text = RGBA(0xb8b8b8ff),
       .list_text_hi = RGBA(0xffaf23ff),
     },
