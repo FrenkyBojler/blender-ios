@@ -10,4 +10,4 @@ Referenced by issue #142399, When Subdiv is enabled, the size in dimension remai
 Referenced by issue #142738, WORKBENCH with MATCAPS Rendering Issues in Blender 4.5 and 5.0 Alpha
 Referenced by issue #144254, VSE proxies for image sequences do not work (since 4.5)
 Referenced by issue #144760, Value Node not changeable in Properties Window
-Referenced by issue #145544, Cycles crashes when rendering with a custom camera in 4.5
+Referenced by issue #145544, Illegal address when rendering with a custom camera in 4.5
