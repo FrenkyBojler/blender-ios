@@ -158,11 +158,8 @@ ccl_device
                              &sheen_tint_offset,
                              &anisotropic_rotation_offset,
                              &tangent_offset);
-      svm_unpack_node_uchar4(data_node3.x,
-                             &thin_film_ior_offset,
-                             &dispersion_offset,
-                             &unused,
-                             &unused);
+      svm_unpack_node_uchar4(
+          data_node3.x, &thin_film_ior_offset, &dispersion_offset, &unused, &unused);
 
       const float3 default_base_color = make_float3(__uint_as_float(data_node3.y),
                                                     __uint_as_float(data_node3.z),

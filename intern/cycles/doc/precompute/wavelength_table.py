@@ -485,14 +485,14 @@ CIEXYZ = np.array([
 XYZtoRGB = np.array([[3.2406, -1.5372, -0.4986], [-0.9689, 1.8758, 0.0415], [0.0557, -0.2040, 1.0570]])
 
 # Build pdf table (just sum X+Y+Z)
-weightPdf = CIEXYZ[:,1:4].sum(axis=1)
-#weightPdf = (CIEXYZ[:,1:4] @ XYZtoRGB.T).sum(axis=1)
+weightPdf = CIEXYZ[:, 1:4].sum(axis=1)
+# weightPdf = (CIEXYZ[:,1:4] @ XYZtoRGB.T).sum(axis=1)
 # Compute CDF
 weightCdf = np.cumsum(weightPdf)
 # Normalize
 weightCdf /= weightCdf[-1]
 # Invert CDF using linear interpolation
-inverseCdf = interpolate.make_interp_spline(weightCdf, CIEXYZ[:,0] / 1000, k=1)
+inverseCdf = interpolate.make_interp_spline(weightCdf, CIEXYZ[:, 0] / 1000, k=1)
 # Build 512-entry CDF inversion table
 table = inverseCdf(np.linspace(0.0, 1.0, 512))
 
@@ -511,7 +511,7 @@ wavelengths = inverseCdf(rand) * 1000
 # Evaluate inverse CDF derivative to find inverse PDF
 invPdf = inverseCdf.derivative()(rand)
 # Interpolate CIE XYZ curves
-XYZ = interpolate.make_interp_spline(CIEXYZ[:,0], CIEXYZ[:,1:4])
+XYZ = interpolate.make_interp_spline(CIEXYZ[:, 0], CIEXYZ[:, 1:4])
 # Compute Monte Carlo estimator for normalization factor
 normalization = 1.0 / (XYZ(wavelengths) * invPdf[:, None]).mean()
 print(f"ccl_inline_constant float table_wavelength_cdf_normalization = {normalization:.7e}f;")
