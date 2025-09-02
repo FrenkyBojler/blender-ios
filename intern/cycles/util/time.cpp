@@ -78,15 +78,23 @@ void time_sleep(double t)
 
 uint64_t time_fast_tick(uint32_t * /*last_cpu*/)
 {
+#  if defined(ARCH_COMPILER_MSVC)
+  return _ReadStatusReg(ARM64_CNTVCT_EL0);
+#  else
   uint64_t counter;
   asm("mrs %x0, cntvct_el0" : "=r"(counter));
   return counter;
+#  endif
 }
 uint64_t time_fast_frequency()
 {
+#  if defined(ARCH_COMPILER_MSVC)
+  return _ReadStatusReg(ARM64_CNTFRQ_EL0);
+#  else
   uint64_t freq;
   asm("mrs %x0, cntfrq_el0" : "=r"(freq));
   return freq;
+#  endif
 }
 #elif defined(__x86_64__) || defined(_M_X64)
 /* Use RDTSCP on x86-64. */
