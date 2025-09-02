@@ -138,6 +138,7 @@ void uiTemplateMovieClip(uiLayout *layout,
 
     row->prop(&clipptr, "filepath", UI_ITEM_NONE, "", ICON_NONE);
     row->op("clip.reload", "", ICON_FILE_REFRESH);
+
     uiLayout *col = &layout->column(true);
     col->separator();
     col->prop(&clipptr, "frame_start", UI_ITEM_NONE, IFACE_("Start Frame"), ICON_NONE);
