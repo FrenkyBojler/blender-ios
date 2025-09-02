@@ -1024,6 +1024,7 @@ ShapeCache::ShapeCache()
 
     Vector<Vertex> verts;
     append_line_loop(verts, ring, 0.0f, VCLASS_SCREENALIGNED | VCLASS_LIGHT_AREA_SHAPE);
+    light_append_direction_line(verts);
     light_point_lines = BatchPtr(
         GPU_batch_create_ex(GPU_PRIM_LINES, vbo_from_vector(verts), nullptr, GPU_BATCH_OWNS_VBO));
   }

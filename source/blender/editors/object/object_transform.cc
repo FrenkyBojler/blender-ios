@@ -2085,7 +2085,7 @@ static bool object_is_target_compat(const Object *ob)
 {
   if (ob->type == OB_LAMP) {
     const Light *la = static_cast<Light *>(ob->data);
-    if (ELEM(la->type, LA_SUN, LA_SPOT, LA_AREA)) {
+    if (ELEM(la->type, LA_LOCAL, LA_SUN, LA_SPOT, LA_AREA)) {
       return true;
     }
   }

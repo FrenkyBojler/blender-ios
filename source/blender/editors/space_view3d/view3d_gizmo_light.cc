@@ -541,7 +541,7 @@ static bool WIDGETGROUP_light_target_poll(const bContext *C, wmGizmoGroupType * 
       if (ob->type == OB_LAMP) {
         /* No need to check the light is editable, only the object is transformed. */
         const Light *la = static_cast<Light *>(ob->data);
-        if (ELEM(la->type, LA_SUN, LA_SPOT, LA_AREA)) {
+        if (ELEM(la->type, LA_LOCAL, LA_SUN, LA_SPOT, LA_AREA)) {
           return true;
         }
       }
