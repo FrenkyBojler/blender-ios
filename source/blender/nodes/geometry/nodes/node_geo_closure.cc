@@ -49,7 +49,7 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *current_no
       socket_items::ui::draw_active_item_props<ClosureInputItemsAccessor>(
           ntree, output_node, [&](PointerRNA *item_ptr) {
             panel->prop(item_ptr, "socket_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-            panel->prop(item_ptr, "structure_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+            panel->prop(item_ptr, "structure_type", UI_ITEM_NONE, "Shape", ICON_NONE);
           });
     }
   }
@@ -60,6 +60,7 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *current_no
       socket_items::ui::draw_active_item_props<ClosureOutputItemsAccessor>(
           ntree, output_node, [&](PointerRNA *item_ptr) {
             panel->prop(item_ptr, "socket_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+            panel->prop(item_ptr, "structure_type", UI_ITEM_NONE, "Shape", ICON_NONE);
           });
     }
   }
@@ -82,7 +83,13 @@ static void node_declare(NodeDeclarationBuilder &b)
         const NodeClosureInputItem &item = output_storage.input_items.items[i];
         const eNodeSocketDatatype socket_type = eNodeSocketDatatype(item.socket_type);
         const std::string identifier = ClosureInputItemsAccessor::socket_identifier_for_item(item);
-        b.add_output(socket_type, item.name, identifier);
+        auto &decl = b.add_output(socket_type, item.name, identifier);
+        if (item.structure_type != NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO) {
+          decl.structure_type(StructureType(item.structure_type));
+        }
+        else {
+          decl.structure_type(StructureType::Dynamic);
+        }
       }
     }
   }
@@ -148,7 +155,13 @@ static void node_declare(NodeDeclarationBuilder &b)
       const NodeClosureOutputItem &item = storage.output_items.items[i];
       const eNodeSocketDatatype socket_type = eNodeSocketDatatype(item.socket_type);
       const std::string identifier = ClosureOutputItemsAccessor::socket_identifier_for_item(item);
-      b.add_input(socket_type, item.name, identifier).supports_field();
+      auto &decl = b.add_input(socket_type, item.name, identifier).supports_field();
+      if (item.structure_type != NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO) {
+        decl.structure_type(StructureType(item.structure_type));
+      }
+      else {
+        decl.structure_type(StructureType::Dynamic);
+      }
     }
   }
   b.add_input<decl::Extend>("", "__extend__");

@@ -959,31 +959,133 @@ class NodeTreeMainUpdater {
       if (node->is_undefined()) {
         continue;
       }
-      /* For input/output nodes we use the inferred structure types. */
-      if (node->is_group_input() || node->is_group_output() ||
-          ELEM(node->type_legacy, NODE_CLOSURE_INPUT, NODE_CLOSURE_OUTPUT))
-      {
-        for (bNodeSocket *socket : node->input_sockets()) {
-          socket->display_shape = get_input_socket_shape(*socket->runtime->declaration,
-                                                         socket->runtime->inferred_structure_type);
+      const bke::bNodeZoneType *closure_zone_type = bke::zone_type_by_node_type(
+          NODE_CLOSURE_OUTPUT);
+      switch (node->type_legacy) {
+        case NODE_GROUP_OUTPUT:
+        case NODE_GROUP_INPUT: {
+          for (bNodeSocket *socket : node->input_sockets()) {
+            socket->display_shape = get_input_socket_shape(
+                *socket->runtime->declaration, socket->runtime->inferred_structure_type);
+          }
+          for (bNodeSocket *socket : node->output_sockets()) {
+            socket->display_shape = get_output_socket_shape(
+                *socket->runtime->declaration, socket->runtime->inferred_structure_type);
+          }
+          break;
         }
-        for (bNodeSocket *socket : node->output_sockets()) {
-          socket->display_shape = get_output_socket_shape(
-              *socket->runtime->declaration, socket->runtime->inferred_structure_type);
+        case NODE_COMBINE_BUNDLE: {
+          const auto &storage = *static_cast<const NodeCombineBundle *>(node->storage);
+          for (const int i : IndexRange(storage.items_num)) {
+            const NodeCombineBundleItem &item = storage.items[i];
+            bNodeSocket &socket = node->input_socket(i);
+            if (item.structure_type == NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO) {
+              socket.display_shape = get_input_socket_shape(
+                  *socket.runtime->declaration, socket.runtime->inferred_structure_type);
+            }
+            else {
+              socket.display_shape = get_input_socket_shape(
+                  *socket.runtime->declaration, socket.runtime->declaration->structure_type);
+            }
+          }
+          break;
         }
-        continue;
-      }
-      /* For other nodes we just use the static structure types defined in the declaration. */
-      for (bNodeSocket *socket : node->input_sockets()) {
-        if (const SocketDeclaration *declaration = socket->runtime->declaration) {
-          socket->display_shape = get_input_socket_shape(*declaration,
-                                                         declaration->structure_type);
+        case NODE_SEPARATE_BUNDLE: {
+          const auto &storage = *static_cast<const NodeSeparateBundle *>(node->storage);
+          for (const int i : IndexRange(storage.items_num)) {
+            const NodeSeparateBundleItem &item = storage.items[i];
+            bNodeSocket &socket = node->output_socket(i);
+            if (item.structure_type == NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO) {
+              socket.display_shape = get_output_socket_shape(
+                  *socket.runtime->declaration, socket.runtime->inferred_structure_type);
+            }
+            else {
+              socket.display_shape = get_output_socket_shape(
+                  *socket.runtime->declaration, socket.runtime->declaration->structure_type);
+            }
+          }
+          break;
         }
-      }
-      for (bNodeSocket *socket : node->output_sockets()) {
-        if (const SocketDeclaration *declaration = socket->runtime->declaration) {
-          socket->display_shape = get_output_socket_shape(*declaration,
-                                                          declaration->structure_type);
+        case NODE_CLOSURE_INPUT: {
+          if (const bNode *closure_output_node = closure_zone_type->get_corresponding_output(
+                  ntree, *node))
+          {
+            const auto &storage = *static_cast<const NodeClosureOutput *>(
+                closure_output_node->storage);
+            for (const int i : IndexRange(storage.input_items.items_num)) {
+              const NodeClosureInputItem &item = storage.input_items.items[i];
+              bNodeSocket &socket = node->output_socket(i);
+              if (item.structure_type == NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO) {
+                socket.display_shape = get_output_socket_shape(
+                    *socket.runtime->declaration, socket.runtime->inferred_structure_type);
+              }
+              else {
+                socket.display_shape = get_output_socket_shape(
+                    *socket.runtime->declaration, socket.runtime->declaration->structure_type);
+              }
+            }
+          }
+          break;
+        }
+        case NODE_CLOSURE_OUTPUT: {
+          const auto &storage = *static_cast<const NodeClosureOutput *>(node->storage);
+          for (const int i : IndexRange(storage.output_items.items_num)) {
+            const NodeClosureOutputItem &item = storage.output_items.items[i];
+            bNodeSocket &socket = node->input_socket(i);
+            if (item.structure_type == NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO) {
+              socket.display_shape = get_input_socket_shape(
+                  *socket.runtime->declaration, socket.runtime->inferred_structure_type);
+            }
+            else {
+              socket.display_shape = get_input_socket_shape(
+                  *socket.runtime->declaration, socket.runtime->declaration->structure_type);
+            }
+          }
+          break;
+        }
+        case NODE_EVALUATE_CLOSURE: {
+          const auto &storage = *static_cast<const NodeEvaluateClosure *>(node->storage);
+          for (const int i : IndexRange(storage.input_items.items_num)) {
+            const NodeEvaluateClosureInputItem &item = storage.input_items.items[i];
+            bNodeSocket &socket = node->input_socket(i + 1);
+            if (item.structure_type == NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO) {
+              socket.display_shape = get_input_socket_shape(
+                  *socket.runtime->declaration, socket.runtime->inferred_structure_type);
+            }
+            else {
+              socket.display_shape = get_input_socket_shape(
+                  *socket.runtime->declaration, socket.runtime->declaration->structure_type);
+            }
+          }
+          for (const int i : IndexRange(storage.output_items.items_num)) {
+            const NodeEvaluateClosureOutputItem &item = storage.output_items.items[i];
+            bNodeSocket &socket = node->output_socket(i);
+            if (item.structure_type == NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO) {
+              socket.display_shape = get_output_socket_shape(
+                  *socket.runtime->declaration, socket.runtime->inferred_structure_type);
+            }
+            else {
+              socket.display_shape = get_output_socket_shape(
+                  *socket.runtime->declaration, socket.runtime->declaration->structure_type);
+            }
+          }
+          break;
+        }
+        default: {
+          /* For other nodes we just use the static structure types defined in the declaration. */
+          for (bNodeSocket *socket : node->input_sockets()) {
+            if (const SocketDeclaration *declaration = socket->runtime->declaration) {
+              socket->display_shape = get_input_socket_shape(*declaration,
+                                                             declaration->structure_type);
+            }
+          }
+          for (bNodeSocket *socket : node->output_sockets()) {
+            if (const SocketDeclaration *declaration = socket->runtime->declaration) {
+              socket->display_shape = get_output_socket_shape(*declaration,
+                                                              declaration->structure_type);
+            }
+          }
+          break;
         }
       }
     }

@@ -2941,33 +2941,33 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
     }
   }
 
-  FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
-    LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
-      switch (node->type_legacy) {
-        case NODE_COMBINE_BUNDLE: {
-          const auto *storage = static_cast<NodeCombineBundle *>(node->storage);
-          for (const int i : IndexRange(storage->items_num)) {
-            NodeCombineBundleItem &item = storage->items[i];
-            if (item.structure_type == 0) {
-              item.structure_type = int8_t(blender::nodes::StructureType::Dynamic);
-            }
-          }
-          break;
-        }
-        case NODE_SEPARATE_BUNDLE: {
-          const auto *storage = static_cast<NodeSeparateBundle *>(node->storage);
-          for (const int i : IndexRange(storage->items_num)) {
-            NodeSeparateBundleItem &item = storage->items[i];
-            if (item.structure_type == 0) {
-              item.structure_type = int8_t(blender::nodes::StructureType::Dynamic);
-            }
-          }
-          break;
-        }
-      }
-    }
-  }
-  FOREACH_NODETREE_END;
+  // FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
+  //   LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
+  //     switch (node->type_legacy) {
+  //       case NODE_COMBINE_BUNDLE: {
+  //         const auto *storage = static_cast<NodeCombineBundle *>(node->storage);
+  //         for (const int i : IndexRange(storage->items_num)) {
+  //           NodeCombineBundleItem &item = storage->items[i];
+  //           if (item.structure_type == 0) {
+  //             item.structure_type = int8_t(blender::nodes::StructureType::Dynamic);
+  //           }
+  //         }
+  //         break;
+  //       }
+  //       case NODE_SEPARATE_BUNDLE: {
+  //         const auto *storage = static_cast<NodeSeparateBundle *>(node->storage);
+  //         for (const int i : IndexRange(storage->items_num)) {
+  //           NodeSeparateBundleItem &item = storage->items[i];
+  //           if (item.structure_type == 0) {
+  //             item.structure_type = int8_t(blender::nodes::StructureType::Dynamic);
+  //           }
+  //         }
+  //         break;
+  //       }
+  //     }
+  //   }
+  // }
+  // FOREACH_NODETREE_END;
 
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
