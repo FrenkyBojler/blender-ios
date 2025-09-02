@@ -1489,6 +1489,13 @@ class NodeTreeMainUpdater {
 
   const char *get_structure_type_link_error(const bNodeLink &link)
   {
+    const nodes::StructureType from_inferred_type =
+        link.fromsock->runtime->inferred_structure_type;
+    if (from_inferred_type == StructureType::Dynamic) {
+      /* Showing errors in this case results in many false positives in cases where Blender is not
+       * sure what the actual type is. */
+      return nullptr;
+    }
     const int from_shape = link.fromsock->display_shape;
     const int to_shape = link.tosock->display_shape;
     switch (to_shape) {
@@ -1499,7 +1506,7 @@ class NodeTreeMainUpdater {
         if (from_shape == SOCK_DISPLAY_SHAPE_LINE) {
           return nullptr;
         }
-        if (link.fromsock->runtime->inferred_structure_type == StructureType::Single) {
+        if (from_inferred_type == StructureType::Single) {
           return nullptr;
         }
         return TIP_("Input expects a single value");
@@ -1508,10 +1515,7 @@ class NodeTreeMainUpdater {
         if (ELEM(from_shape, SOCK_DISPLAY_SHAPE_LINE, SOCK_DISPLAY_SHAPE_DIAMOND)) {
           return nullptr;
         }
-        if (ELEM(link.fromsock->runtime->inferred_structure_type,
-                 StructureType::Single,
-                 StructureType::Field))
-        {
+        if (ELEM(from_inferred_type, StructureType::Single, StructureType::Field)) {
           return nullptr;
         }
         return TIP_("Input expects a field or single value");
@@ -1520,7 +1524,7 @@ class NodeTreeMainUpdater {
         if (from_shape == SOCK_DISPLAY_SHAPE_VOLUME_GRID) {
           return nullptr;
         }
-        if (link.fromsock->runtime->inferred_structure_type == StructureType::Grid) {
+        if (from_inferred_type == StructureType::Grid) {
           return nullptr;
         }
         return TIP_("Input expects a volume grid");
@@ -1529,7 +1533,7 @@ class NodeTreeMainUpdater {
         if (from_shape == SOCK_DISPLAY_SHAPE_LIST) {
           return nullptr;
         }
-        if (link.fromsock->runtime->inferred_structure_type == StructureType::List) {
+        if (from_inferred_type == StructureType::List) {
           return nullptr;
         }
         return TIP_("Input expects a list");
