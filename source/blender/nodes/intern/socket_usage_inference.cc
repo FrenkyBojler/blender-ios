@@ -111,7 +111,6 @@ struct SocketUsageInferencer {
 
     BLI_assert(usage_tasks_.is_empty());
     usage_tasks_.push(socket);
-    total_pushs_++;
 
     while (!usage_tasks_.is_empty()) {
       const SocketInContext &socket = usage_tasks_.peek();
@@ -484,7 +483,6 @@ struct SocketUsageInferencer {
         break;
       }
     }
-
     if (next_unknown_output) {
       /* Create a task that checks if the next dependent socket is used. Intentionally only create
        * a task for the very next one and not for all, because that could potentially trigger a lot
