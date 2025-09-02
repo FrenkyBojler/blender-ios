@@ -7,4 +7,4 @@ Referenced by issue #142738, WORKBENCH with MATCAPS Rendering Issues in Blender 
 Referenced by issue #144254, VSE proxies for image sequences do not work (since 4.5)
 Referenced by issue #144760, Value Node not changeable in Properties Window
 Referenced by issue #145385, Blender 4.5 unusual slow playback speed compare to B4.4 In large scale geometry nodes
-Referenced by issue #145544, Cycles crashes when rendering with a custom camera in 4.5
+Referenced by issue #145544, Illegal address when rendering with a custom camera in 4.5
