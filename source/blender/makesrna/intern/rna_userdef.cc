@@ -3892,21 +3892,18 @@ static void rna_def_userdef_theme_space_action(BlenderRNA *brna)
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 
   prop = RNA_def_property(srna, "interpolation_bezier", PROP_FLOAT, PROP_COLOR_GAMMA);
-  RNA_def_property_float_sdna(prop, nullptr, "interpolation_bezier");
   RNA_def_property_array(prop, 4);
   RNA_def_property_ui_text(
       prop, "Bézier Interpolation", "Color of lines showing Bézier interpolation mode");
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 
   prop = RNA_def_property(srna, "interpolation_constant", PROP_FLOAT, PROP_COLOR_GAMMA);
-  RNA_def_property_float_sdna(prop, nullptr, "interpolation_constant");
   RNA_def_property_array(prop, 4);
   RNA_def_property_ui_text(
       prop, "Constant Interpolation", "Color of lines showing constant interpolation mode");
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 
   prop = RNA_def_property(srna, "interpolation_linear", PROP_FLOAT, PROP_COLOR_GAMMA);
-  RNA_def_property_float_sdna(prop, nullptr, "interpolation_linear");
   RNA_def_property_array(prop, 4);
   RNA_def_property_ui_text(
       prop, "Linear Interpolation", "Color of lines showing linear interpolation mode");

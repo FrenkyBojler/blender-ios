@@ -878,7 +878,9 @@ static void compute_keyblock_data(ActKeyBlockInfo *info,
     else if (prev->ipo == BEZT_IPO_CONST) {
       info->flag |= ACTKEYBLOCK_FLAG_IPO_CONSTANT;
     }
-    else if (prev->ipo != BEZT_IPO_BEZ) {
+    /* For automatic bezier interpolations, such as easings (cubic, circular, etc), and dynamic
+     * (back, bounce, elastic). */
+    else {
       info->flag |= ACTKEYBLOCK_FLAG_IPO_BEZIER;
     }
   }

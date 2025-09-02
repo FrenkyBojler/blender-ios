@@ -309,19 +309,19 @@ static void draw_keylist_block_interpolation_line(const DrawKeylistUIData *ctx,
   const float *color;
 
   if (ab->block.conflict & ACTKEYBLOCK_FLAG_NON_BEZIER) {
-      /* Mixed color is used by summary lines that combine multiple keyframe information */
-      color = ctx->ipo_color_mix;
+    /* Mixed color is used by summary lines that combine multiple keyframe information */
+    color = ctx->ipo_color_mix;
   }
   else {
-      if (ab->block.flag & ACTKEYBLOCK_FLAG_IPO_BEZIER) {
-          color = ctx->ipo_color_bezier;
-      }
-      else if (ab->block.flag & ACTKEYBLOCK_FLAG_IPO_LINEAR) {
-          color = ctx->ipo_color_linear;
-      }
-      else if (ab->block.flag & ACTKEYBLOCK_FLAG_IPO_CONSTANT) {
-          color = ctx->ipo_color_constant;
-      }
+    if (ab->block.flag & ACTKEYBLOCK_FLAG_IPO_BEZIER) {
+      color = ctx->ipo_color_bezier;
+    }
+    else if (ab->block.flag & ACTKEYBLOCK_FLAG_IPO_LINEAR) {
+      color = ctx->ipo_color_linear;
+    }
+    else if (ab->block.flag & ACTKEYBLOCK_FLAG_IPO_CONSTANT) {
+      color = ctx->ipo_color_constant;
+    }
   }
 
   UI_draw_roundbox_4fv(&box, true, 3.0f, color);
