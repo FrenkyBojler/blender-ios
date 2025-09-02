@@ -8,6 +8,7 @@ from bpy.types import (
     Menu,
     Panel,
 )
+import rna_prop_ui
 from bpy.app.translations import (
     pgettext_iface as iface_,
     contexts as i18n_contexts,
@@ -99,8 +100,6 @@ class NODE_HT_header(Header):
 
                 if snode_id:
                     row = layout.row()
-                    row.prop(snode_id, "use_nodes")
-
                     if world and world.use_eevee_finite_volume:
                         row.operator("world.convert_volume_to_mesh", emboss=False, icon='WORLD', text="Convert Volume")
 
@@ -153,11 +152,11 @@ class NODE_HT_header(Header):
             row.template_ID(scene, "compositing_node_group", new="node.new_compositing_node_group")
 
         elif snode.tree_type == 'GeometryNodeTree':
-            layout.prop(snode, "geometry_nodes_type", text="")
+            layout.prop(snode, "node_tree_sub_type", text="")
             NODE_MT_editor_menus.draw_collapsible(context, layout)
             layout.separator_spacer()
 
-            if snode.geometry_nodes_type == 'MODIFIER':
+            if snode.node_tree_sub_type == 'MODIFIER':
                 ob = context.object
 
                 row = layout.row()
@@ -174,7 +173,7 @@ class NODE_HT_header(Header):
                     else:
                         row.template_ID(snode, "node_tree", new="node.new_geometry_nodes_modifier")
             else:
-                layout.template_ID(snode, "geometry_nodes_tool_tree", new="node.new_geometry_node_group_tool")
+                layout.template_ID(snode, "selected_node_group", new="node.new_geometry_node_group_tool")
                 if snode.node_tree:
                     layout.popover(panel="NODE_PT_geometry_node_tool_object_types", text="Types")
                     layout.popover(panel="NODE_PT_geometry_node_tool_mode", text="Modes")
@@ -195,7 +194,8 @@ class NODE_HT_header(Header):
         layout.separator_spacer()
 
         if len(snode.path) > 1:
-            layout.operator("node.tree_path_parent", text="", icon='FILE_PARENT')
+            op = layout.operator("node.tree_path_parent", text="", icon='FILE_PARENT')
+            op.parent_tree_index = len(snode.path) - 2
 
         # Backdrop
         if is_compositor:
@@ -791,6 +791,15 @@ class NODE_PT_active_node_properties(Panel):
         layout.template_node_inputs(node)
 
 
+class NODE_PT_active_node_custom_properties(rna_prop_ui.PropertyPanel, Panel):
+    bl_space_type = 'NODE_EDITOR'
+    bl_region_type = 'UI'
+    bl_category = "Node"
+
+    _context_path = "active_node"
+    _property_type = bpy.types.Node
+
+
 class NODE_PT_texture_mapping(Panel):
     bl_space_type = 'NODE_EDITOR'
     bl_region_type = 'UI'
@@ -1183,6 +1192,20 @@ def node_panel(cls):
     return node_cls
 
 
+class NODE_AST_compositor(bpy.types.AssetShelf):
+    bl_space_type = 'NODE_EDITOR'
+    bl_region_type = 'UI'
+
+    @classmethod
+    def poll(cls, context):
+        return context.space_data.tree_type == 'CompositorNodeTree'
+
+    @classmethod
+    def asset_poll(cls, asset):
+        compositing_type = bpy.types.NodeTree.bl_rna.properties["type"].enum_items["COMPOSITING"]
+        return asset.id_type == 'NODETREE' and asset.metadata.get("type") == compositing_type.value
+
+
 classes = (
     NODE_HT_header,
     NODE_MT_editor_menus,
@@ -1214,7 +1237,9 @@ classes = (
     NODE_PT_annotation,
     NODE_PT_overlay,
     NODE_PT_active_node_properties,
+    NODE_PT_active_node_custom_properties,
     NODE_PT_gizmo_display,
+    NODE_AST_compositor,
 
     node_panel(EEVEE_MATERIAL_PT_settings),
     node_panel(EEVEE_MATERIAL_PT_settings_surface),

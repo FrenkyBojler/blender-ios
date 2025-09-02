@@ -18,11 +18,33 @@ class ColorSpace;
 }
 }  // namespace blender
 struct AssetWeakReference;
+enum class PaintMode : int8_t {
+  Sculpt = 0,
+  /** Vertex color. */
+  Vertex = 1,
+  Weight = 2,
+  /** 3D view (projection painting). */
+  Texture3D = 3,
+  /** Image space (2D painting). */
+  Texture2D = 4,
+  GPencil = 6,
+  /* Grease Pencil Vertex Paint */
+  VertexGPencil = 7,
+  SculptGPencil = 8,
+  WeightGPencil = 9,
+  /** Curves. */
+  SculptCurves = 10,
+
+  /** Keep last. */
+  /* TODO: Shift the ordering so that invalid is first so that zero-initialization makes sense. */
+  Invalid = 11,
+};
 
 namespace blender::bke {
 struct PaintRuntime : NonCopyable, NonMovable {
   bool initialized = false;
   uint16_t ob_mode = 0;
+  PaintMode paint_mode = PaintMode::Invalid;
   AssetWeakReference *previous_active_brush_reference = nullptr;
 
   blender::float2 last_rake = float2(0.0f, 0.0f);
@@ -32,9 +54,11 @@ struct PaintRuntime : NonCopyable, NonMovable {
   blender::float3 average_stroke_accum = float3(0.0f, 0.0f, 0.0f);
   int average_stroke_counter = 0;
 
-  /* How much brush should be rotated in the view plane, 0 means x points right, y points up.
+  /**
+   * How much brush should be rotated in the view plane, 0 means x points right, y points up.
    * The convention is that the brush's _negative_ Y axis points in the tangent direction (of the
-   * mouse curve, Bezier curve, etc.) */
+   * mouse curve, Bezier curve, etc.)
+   */
   float brush_rotation = 0.0f;
   float brush_rotation_sec = 0.0f;
 

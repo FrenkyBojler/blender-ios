@@ -12,7 +12,9 @@ It's called "global" to avoid confusion with the Blender World data-block.
 
 bl_info = {
     "name": "Copy Global Transform",
-    "author": "Sybren A. Stüvel",
+    # This is now displayed as the maintainer, so show the foundation.
+    # "author": "Sybren A. Stüvel", # Original Authors
+    "author": "Blender Foundation",
     "version": (4, 4),
     "blender": (4, 4, 0),
     "location": "N-panel in the 3D Viewport",
@@ -486,6 +488,7 @@ class OBJECT_OT_paste_transform(Operator):
         items=_method_items,
         name="Paste Method",
         description="Update the current transform, selected keyframes, or even create new keys",
+        options={'SKIP_SAVE'},
     )
     bake_step: bpy.props.IntProperty(  # type: ignore
         name="Frame Step",
@@ -493,12 +496,14 @@ class OBJECT_OT_paste_transform(Operator):
         min=1,
         soft_min=1,
         soft_max=5,
+        options={'SKIP_SAVE'},
     )
 
     use_mirror: bpy.props.BoolProperty(  # type: ignore
         name="Mirror Transform",
         description="When pasting, mirror the transform relative to a specific object or bone",
         default=False,
+        options={'SKIP_SAVE'},
     )
 
     mirror_axis_loc: bpy.props.EnumProperty(  # type: ignore
@@ -506,18 +511,21 @@ class OBJECT_OT_paste_transform(Operator):
         name="Location Axis",
         description="Coordinate axis used to mirror the location part of the transform",
         default='x',
+        options={'SKIP_SAVE'},
     )
     mirror_axis_rot: bpy.props.EnumProperty(  # type: ignore
         items=_axis_enum_items,
         name="Rotation Axis",
         description="Coordinate axis used to mirror the rotation part of the transform",
         default='z',
+        options={'SKIP_SAVE'},
     )
 
     use_relative: bpy.props.BoolProperty(  # type: ignore
         name="Use Relative Paste",
         description="When pasting, assume the pasted matrix is relative to another object (set in the user interface)",
         default=False,
+        options={'SKIP_SAVE'},
     )
 
     @classmethod
