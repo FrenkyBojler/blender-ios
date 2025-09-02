@@ -730,6 +730,16 @@ static bool ui_but_dragedit_update_mval(uiHandleButtonData *data,
   return true;
 }
 
+static bool rna_struct_is_any(const StructRNA *type, blender::Span<const StructRNA *> srna_array)
+{
+  for (const StructRNA *srna : srna_array) {
+    if (RNA_struct_is_a(type, srna)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 static bool ui_rna_is_userdef(PointerRNA *ptr, PropertyRNA *prop)
 {
   /* Not very elegant, but ensures preference changes force re-save. */
@@ -745,11 +755,31 @@ static bool ui_rna_is_userdef(PointerRNA *ptr, PropertyRNA *prop)
   if (base == nullptr) {
     base = ptr->type;
   }
-  return ELEM(base,
-              &RNA_AddonPreferences,
-              &RNA_KeyConfigPreferences,
-              &RNA_KeyMapItem,
-              &RNA_UserAssetLibrary);
+
+  bool is_userdef = false;
+  if (ELEM(base,
+           &RNA_AddonPreferences,
+           &RNA_KeyConfigPreferences,
+           &RNA_KeyMapItem,
+           &RNA_UserAssetLibrary))
+  {
+    is_userdef = true;
+  }
+  else {
+    const StructRNA *types[] = {
+        &RNA_AddonPreferences,
+        &RNA_KeyConfigPreferences,
+    };
+    blender::Span<const StructRNA *> types_span = blender::Span(types, ARRAY_SIZE(types));
+    for (const AncestorPointerRNA &ancestor : ptr->ancestors) {
+      if (rna_struct_is_any(ancestor.type, types_span)) {
+        is_userdef = true;
+        break;
+      }
+    }
+  }
+
+  return is_userdef;
 }
 
 bool UI_but_is_userdef(const uiBut *but)
