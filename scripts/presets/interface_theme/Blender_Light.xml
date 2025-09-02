@@ -383,6 +383,24 @@
         </wcol_tab>
       </ThemeUserInterface>
     </user_interface>
+    <regions>
+      <asset_shelf>
+        <ThemeRegionsAssetShelf
+          back="#999999ff"
+          header_back="#adadadff"
+          >
+        </ThemeRegionsAssetShelf>
+      </asset_shelf>
+      <channels>
+        <ThemeRegionsChannels
+          list="#adadad"
+          list_title="#000000"
+          list_text="#050505"
+          list_text_hi="#ffffff"
+          >
+        </ThemeRegionsChannels>
+      </channels>
+    </regions>
     <common>
       <ThemeCommon>
         <anim>
@@ -550,15 +568,6 @@
             >
           </ThemeSpaceGeneric>
         </space>
-        <space_list>
-          <ThemeSpaceListGeneric
-            list="#adadad"
-            list_title="#000000"
-            list_text="#050505"
-            list_text_hi="#ffffff"
-            >
-          </ThemeSpaceListGeneric>
-        </space_list>
         <space_region>
           <ThemeSpaceRegionGeneric
             button="#b3b3b300"
@@ -626,15 +635,6 @@
             >
           </ThemeSpaceGeneric>
         </space>
-        <space_list>
-          <ThemeSpaceListGeneric
-            list="#adadad"
-            list_title="#000000"
-            list_text="#000000"
-            list_text_hi="#ffffff"
-            >
-          </ThemeSpaceListGeneric>
-        </space_list>
         <space_region>
           <ThemeSpaceRegionGeneric
             button="#b3b3b300"
@@ -669,15 +669,6 @@
             >
           </ThemeSpaceGeneric>
         </space>
-        <space_list>
-          <ThemeSpaceListGeneric
-            list="#adadad"
-            list_title="#000000"
-            list_text="#000000"
-            list_text_hi="#ffffff"
-            >
-          </ThemeSpaceListGeneric>
-        </space_list>
         <space_region>
           <ThemeSpaceRegionGeneric
             button="#b3b3b300"
@@ -772,15 +763,6 @@
             >
           </ThemeSpaceGeneric>
         </space>
-        <space_list>
-          <ThemeSpaceListGeneric
-            list="#b3b3b3"
-            list_title="#747474"
-            list_text="#333333"
-            list_text_hi="#747474"
-            >
-          </ThemeSpaceListGeneric>
-        </space_list>
         <space_region>
           <ThemeSpaceRegionGeneric
             button="#b3b3b300"
@@ -1034,15 +1016,6 @@
             >
           </ThemeSpaceGeneric>
         </space>
-        <space_list>
-          <ThemeSpaceListGeneric
-            list="#666666"
-            list_title="#000000"
-            list_text="#000000"
-            list_text_hi="#ffffff"
-            >
-          </ThemeSpaceListGeneric>
-        </space_list>
         <space_region>
           <ThemeSpaceRegionGeneric
             button="#b3b3b300"
@@ -1109,13 +1082,6 @@
         </space_region>
       </ThemeSpreadsheet>
     </spreadsheet>
-    <asset_shelf>
-      <ThemeAssetShelf
-        header_back="#adadadff"
-        back="#999999ff"
-        >
-      </ThemeAssetShelf>
-    </asset_shelf>
     <bone_color_sets>
       <ThemeBoneColorSet
         normal="#9a0000"
