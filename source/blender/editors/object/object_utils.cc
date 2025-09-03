@@ -171,7 +171,6 @@ bool calc_active_transform(Object *ob,
   if (ob->mode & OB_MODE_EDIT) {
     if (calc_active_transform_for_editmode(ob, select_only, center, rotation)) {
       mul_m4_v3(ob->object_to_world().ptr(), *center);
-      // TODO
       return true;
     }
     return false;
@@ -179,7 +178,6 @@ bool calc_active_transform(Object *ob,
   if (ob->mode & OB_MODE_POSE) {
     if (calc_active_transform_for_posemode(ob, select_only, center, rotation)) {
       mul_m4_v3(ob->object_to_world().ptr(), *center);
-      // TODO
       mul_m3_m4m3(rotation->ptr(), ob->object_to_world().ptr(), rotation->ptr());
       orthogonalize_m3_stable(rotation->ptr(), 1, true);
       return true;
