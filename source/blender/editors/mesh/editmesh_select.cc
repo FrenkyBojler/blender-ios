@@ -4543,30 +4543,16 @@ static BMFace *bm_step_over_shared_edge_to_next_selected_face_in_chain(BMFace *f
 /**
  * Check if the selected vertices form a loop cyclic chain.
  */
-static bool bm_verts_form_loop(BMVert *v_start)
+static bool bm_verts_form_cyclic_chain(BMVert *v_start)
 {
   BMVert *v_prev = nullptr;
   BMVert *v_curr = v_start;
 
   do {
-    int selected_neighbor_count = 0;
-    BMIter eiter;
-    BMEdge *e;
-    BM_ITER_ELEM (e, &eiter, v_curr, BM_EDGES_OF_VERT) {
-      BMVert *v_other = BM_edge_other_vert(e, v_curr);
-      if (BM_elem_flag_test(v_other, BM_ELEM_SELECT)) {
-        selected_neighbor_count++;
-      }
-    }
-    if (selected_neighbor_count != 2) {
-      return false;
-    }
-
     BMVert *v_next = bm_step_to_next_selected_vert_in_chain(v_curr, v_prev);
     if (v_next == nullptr) {
       return false;
     }
-
     v_prev = v_curr;
     v_curr = v_next;
   } while (v_curr != v_start);
@@ -4577,7 +4563,7 @@ static bool bm_verts_form_loop(BMVert *v_start)
 /**
  * Check if the selected edges form a loop cyclic chain.
  */
-static bool bm_edges_form_loop(BMEdge *e_start)
+static bool bm_edges_form_cyclic_chain(BMEdge *e_start)
 {
   BMEdge *e_curr = e_start;
   BMVert *v_through = e_start->v1;
@@ -4597,9 +4583,9 @@ static bool bm_edges_form_loop(BMEdge *e_start)
 }
 
 /**
- * Check if the selected faces form a loop cyclic chain
+ * Check if the selected faces form a loop cyclic chain.
  */
-static bool bm_faces_form_loop(BMFace *f_start)
+static bool bm_faces_form_cyclic_chain(BMFace *f_start)
 {
   BMFace *f_prev = nullptr;
   BMFace *f_curr = f_start;
@@ -4634,16 +4620,16 @@ static bool bm_faces_form_loop(BMFace *f_start)
   return true;
 }
 
-static void walker_deselect_nth_vertex_loop(BMEditMesh *em,
-                                            const CheckerIntervalParams *op_params,
-                                            BMVert *v_start)
+static void walker_deselect_nth_vertex_chain(BMEditMesh *em,
+                                             const CheckerIntervalParams *op_params,
+                                             BMVert *v_start)
 {
   BMesh *bm = em->bm;
   BMVert *v_prev = nullptr;
   BMVert *v_curr = v_start;
   int index = 0;
 
-  /* Mark all vertices as unvisited */
+  /* Mark all vertices as unvisited. */
   BMIter iter;
   BMVert *v;
   BM_mesh_elem_hflag_disable_all(bm, BM_VERT, BM_ELEM_TAG, false);
@@ -4652,12 +4638,12 @@ static void walker_deselect_nth_vertex_loop(BMEditMesh *em,
     /* Mark as visited */
     BM_elem_flag_enable(v_curr, BM_ELEM_TAG);
 
-    /* Apply checker pattern based on position in loop */
+    /* Apply checker pattern based on position in loop. */
     if (!WM_operator_properties_checker_interval_test(op_params, index)) {
       BM_elem_select_set(bm, (BMElem *)v_curr, false);
     }
 
-    /* Find next vertex in the loop */
+    /* Find next vertex in the loop. */
     BMVert *v_next = bm_step_to_next_selected_vert_in_chain(v_curr, v_prev);
     if (v_next == nullptr || v_next == v_start) {
       break;
@@ -4669,16 +4655,16 @@ static void walker_deselect_nth_vertex_loop(BMEditMesh *em,
   }
 }
 
-static void walker_deselect_nth_edge_loop(BMEditMesh *em,
-                                          const CheckerIntervalParams *op_params,
-                                          BMEdge *e_start)
+static void walker_deselect_nth_edge_chain(BMEditMesh *em,
+                                           const CheckerIntervalParams *op_params,
+                                           BMEdge *e_start)
 {
   BMesh *bm = em->bm;
   BMEdge *e_curr = e_start;
   BMVert *v_through = e_start->v1;
   int index = 0;
 
-  /* Mark all edges as unvisited */
+  /* Mark all edges as unvisited. */
   BMIter iter;
   BMEdge *e;
   BM_mesh_elem_hflag_disable_all(bm, BM_EDGE, BM_ELEM_TAG, false);
@@ -4687,12 +4673,12 @@ static void walker_deselect_nth_edge_loop(BMEditMesh *em,
     /* Mark as visited */
     BM_elem_flag_enable(e_curr, BM_ELEM_TAG);
 
-    /* Apply checker pattern based on position in loop */
+    /* Apply checker pattern based on position in loop. */
     if (!WM_operator_properties_checker_interval_test(op_params, index)) {
       BM_elem_select_set(bm, (BMElem *)e_curr, false);
     }
 
-    /* Find next edge in the loop */
+    /* Find next edge in the loop. */
     BMEdge *e_next = bm_step_over_vert_to_next_selected_edge_in_chain(e_curr, v_through);
     if (e_next == nullptr || e_next == e_start) {
       break;
@@ -4704,55 +4690,33 @@ static void walker_deselect_nth_edge_loop(BMEditMesh *em,
   }
 }
 
-static void walker_deselect_nth_face_loop(BMEditMesh *em,
-                                          const CheckerIntervalParams *op_params,
-                                          BMFace *f_start)
+static void walker_deselect_nth_face_chain(BMEditMesh *em,
+                                           const CheckerIntervalParams *op_params,
+                                           BMFace *f_start)
 {
   BMesh *bm = em->bm;
+  BMFace *f_prev = nullptr;
   BMFace *f_curr = f_start;
   int index = 0;
 
-  /* Mark all faces as unvisited */
-  BMIter iter;
-  BMFace *f;
+  /* Mark all faces as unvisited. */
   BM_mesh_elem_hflag_disable_all(bm, BM_FACE, BM_ELEM_TAG, false);
 
   while (f_curr && !BM_elem_flag_test(f_curr, BM_ELEM_TAG)) {
-    /* Mark as visited */
     BM_elem_flag_enable(f_curr, BM_ELEM_TAG);
 
-    /* Apply checker pattern based on position in loop */
+    BMFace *f_next = bm_step_over_shared_edge_to_next_selected_face_in_chain(f_curr, f_prev);
+
+    /* Apply checker pattern to current face. */
     if (!WM_operator_properties_checker_interval_test(op_params, index)) {
       BM_elem_select_set(bm, (BMElem *)f_curr, false);
     }
 
-    /* Find next face in the loop */
-    BMIter liter;
-    BMLoop *l;
-    BMFace *f_next = nullptr;
-    int candidate_count = 0;
-
-    BM_ITER_ELEM (l, &liter, f_curr, BM_LOOPS_OF_FACE) {
-      BMIter fiter;
-      BMFace *f_other;
-      BM_ITER_ELEM (f_other, &fiter, l->e, BM_FACES_OF_EDGE) {
-        if (f_other == f_curr) {
-          continue;
-        }
-        if (!BM_elem_flag_test(f_other, BM_ELEM_SELECT)) {
-          continue;
-        }
-        candidate_count++;
-        if (f_next == nullptr) {
-          f_next = f_other;
-        }
-      }
-    }
-
-    if (candidate_count == 0 || f_next == nullptr || f_next == f_start) {
+    if (f_next == nullptr || f_next == f_start) {
       break;
     }
 
+    f_prev = f_curr;
     f_curr = f_next;
     index++;
   }
@@ -4780,8 +4744,8 @@ static void walker_deselect_nth(BMEditMesh *em,
   /* Special handling for vertex loops */
   if (h_act->htype == BM_VERT) {
     BMVert *v_start = (BMVert *)h_act;
-    if (bm_verts_form_loop(v_start)) {
-      walker_deselect_nth_vertex_loop(em, op_params, v_start);
+    if (bm_verts_form_cyclic_chain(v_start)) {
+      walker_deselect_nth_vertex_chain(em, op_params, v_start);
       EDBM_selectmode_flush_ex(em, SCE_SELECT_VERTEX);
       return;
     }
@@ -4789,8 +4753,8 @@ static void walker_deselect_nth(BMEditMesh *em,
   /* Special handling for edge loops */
   else if (h_act->htype == BM_EDGE) {
     BMEdge *e_start = (BMEdge *)h_act;
-    if (bm_edges_form_loop(e_start)) {
-      walker_deselect_nth_edge_loop(em, op_params, e_start);
+    if (bm_edges_form_cyclic_chain(e_start)) {
+      walker_deselect_nth_edge_chain(em, op_params, e_start);
       EDBM_selectmode_flush_ex(em, SCE_SELECT_EDGE);
       return;
     }
@@ -4799,8 +4763,8 @@ static void walker_deselect_nth(BMEditMesh *em,
   /* Special handling for face loops */
   else if (h_act->htype == BM_FACE) {
     BMFace *f_start = (BMFace *)h_act;
-    if (bm_faces_form_loop(f_start)) {
-      walker_deselect_nth_face_loop(em, op_params, f_start);
+    if (bm_faces_form_cyclic_chain(f_start)) {
+      walker_deselect_nth_face_chain(em, op_params, f_start);
       EDBM_selectmode_flush_ex(em, SCE_SELECT_FACE);
       return;
     }
