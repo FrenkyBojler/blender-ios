@@ -1724,7 +1724,7 @@ static void node_draw_node_group_indicator(const SpaceNode &snode,
     };
 
     /* Draw a shadow behind all copies. */
-    const float shadow_width = 0.6f * U.widget_unit;
+    const float shadow_width = 0.4f * U.widget_unit;
     const float shadow_alpha = 0.2f;
     UI_draw_roundbox_corner_set(UI_CNR_BOTTOM_LEFT | UI_CNR_BOTTOM_RIGHT);
     ui_draw_dropshadow(
