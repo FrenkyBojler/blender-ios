@@ -357,10 +357,10 @@ enum eUVWeldAlign {
   UV_ALIGN_Y,
   UV_WELD,
 };
-enum class UVAlignPostition {
-  MEAN,
-  MIN,
-  MAX,
+enum class UVAlignPositionMode {
+  Mean,
+  Min,
+  Max,
 };
 
 static bool uvedit_uv_align_weld(Scene *scene,
@@ -571,7 +571,7 @@ static void uv_weld(bContext *C)
   }
 }
 
-static void uv_align(bContext *C, eUVWeldAlign tool, UVAlignPostition loc)
+static void uv_align(bContext *C, eUVWeldAlign tool, UVAlignPositionMode position_mode)
 {
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
@@ -590,10 +590,10 @@ static void uv_align(bContext *C, eUVWeldAlign tool, UVAlignPostition loc)
   }
 
   if (!align_auto && ELEM(tool, UV_ALIGN_X, UV_ALIGN_Y) &&
-      ELEM(loc, UVAlignPostition::MIN, UVAlignPostition::MAX))
+      ELEM(position_mode, UVAlignPositionMode::Min, UVAlignPositionMode::Max))
   {
     ED_uvedit_minmax_multi(scene, objects, min, max);
-    if (loc == UVAlignPostition::MIN) {
+    if (position_mode == UVAlignPositionMode::Min) {
       pos[0] = min[0];
       pos[1] = min[1];
     }
@@ -633,7 +633,7 @@ static wmOperatorStatus uv_align_exec(bContext *C, wmOperator *op)
 {
   uv_align(C,
            eUVWeldAlign(RNA_enum_get(op->ptr, "axis")),
-           UVAlignPostition(RNA_enum_get(op->ptr, "position")));
+           UVAlignPositionMode(RNA_enum_get(op->ptr, "position_mode")));
 
   return OPERATOR_FINISHED;
 }
@@ -642,13 +642,12 @@ static bool uv_align_poll_property(const bContext * /*C*/, wmOperator *op, const
 {
   const char *prop_id = RNA_property_identifier(prop);
 
-  if (STREQ(prop_id, "position")) {
-    if (ELEM(RNA_enum_get(op->ptr, "axis"), UV_ALIGN_X, UV_ALIGN_Y)) {
-      return true;
+  if (STREQ(prop_id, "position_mode")) {
+    int axis = RNA_enum_get(op->ptr, "axis");
+    if (!ELEM(axis, UV_ALIGN_X, UV_ALIGN_Y)) {
+      return false;
     }
-    return false;
   }
-
   return true;
 }
 static void UV_OT_align(wmOperatorType *ot)
@@ -680,17 +679,17 @@ static void UV_OT_align(wmOperatorType *ot)
   };
 
   static const EnumPropertyItem location_items[] = {
-      {(int)UVAlignPostition::MEAN,
+      {int(UVAlignPositionMode::Mean),
        "MEAN",
        0,
        "Mean ",
        "Align UV vertices along the mean postiton"},
-      {(int)UVAlignPostition::MIN,
+      {int(UVAlignPositionMode::Min),
        "MIN",
        0,
        "Miniumum",
        "Align UV vertices along the minimum postiton"},
-      {(int)UVAlignPostition::MAX,
+      {int(UVAlignPositionMode::Max),
        "MAX",
        0,
        "Maximum",
@@ -715,9 +714,9 @@ static void UV_OT_align(wmOperatorType *ot)
   RNA_def_enum(
       ot->srna, "axis", axis_items, UV_ALIGN_AUTO, "Axis", "Axis to align UV locations on");
   RNA_def_enum(ot->srna,
-               "position",
+               "position_mode",
                location_items,
-               (int)UVAlignPostition::MEAN,
+               (int)UVAlignPositionMode::Mean,
                "Position",
                "Position align UV locations on");
 }
