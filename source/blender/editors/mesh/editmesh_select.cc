@@ -4475,19 +4475,20 @@ static BMVert *bm_step_to_next_selected_vert_in_chain(BMVert *v_curr, BMVert *v_
   BMEdge *e;
   BMVert *candidate = nullptr;
   int count = 0;
-  const int expected = v_prev ? 1 : 2;
 
   BM_ITER_ELEM (e, &eiter, v_curr, BM_EDGES_OF_VERT) {
     BMVert *v_other = BM_edge_other_vert(e, v_curr);
     if (v_other == v_prev || !BM_elem_flag_test(v_other, BM_ELEM_SELECT)) {
       continue;
     }
-    candidate = v_other;
-    if (++count > expected) {
+    if (v_prev && ++count > 1) {
       return nullptr;
     }
+    if (!candidate) {
+      candidate = v_other;
+    }
   }
-  return (count == expected) ? candidate : nullptr;
+  return v_prev ? ((count == 1) ? candidate : nullptr) : candidate;
 }
 
 static BMFace *bm_step_over_shared_edge_to_next_selected_face_in_chain(BMFace *f_curr,
@@ -4526,10 +4527,24 @@ static BMFace *bm_step_over_shared_edge_to_next_selected_face_in_chain(BMFace *f
  */
 static bool bm_verts_form_cyclic_chain(BMVert *v_start)
 {
-  BMVert *v_prev = nullptr;
-  BMVert *v_curr = v_start;
+  BMVert *v_prev = nullptr, *v_curr = v_start;
 
   do {
+    int selected_neighbor_count = 0;
+    BMIter eiter;
+    BMEdge *e;
+    BM_ITER_ELEM (e, &eiter, v_curr, BM_EDGES_OF_VERT) {
+      BMVert *v_other = BM_edge_other_vert(e, v_curr);
+      if (BM_elem_flag_test(v_other, BM_ELEM_SELECT)) {
+        if (++selected_neighbor_count > 2) {
+          return false;
+        }
+      }
+    }
+    if (selected_neighbor_count != 2) {
+      return false;
+    }
+
     BMVert *v_next = bm_step_to_next_selected_vert_in_chain(v_curr, v_prev);
     if (v_next == nullptr) {
       return false;
