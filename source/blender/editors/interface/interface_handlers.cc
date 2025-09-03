@@ -10189,15 +10189,6 @@ static int ui_handle_view_item_event(bContext *C,
                 ui_view_item_find_mouse_over(region, event->xy));
 
         if (view_but) {
-          if (UI_view_item_supports_drag(*view_but->view_item)) {
-            if (event->val != KM_CLICK) {
-              break;
-            }
-          }
-          else if (event->val != KM_PRESS) {
-            break;
-          }
-
           /* Will free active button if there already is one. */
           /* Close the popup when clicking on the view item directly, not any overlapped button. */
           const bool close_popup = view_but == active_but;
