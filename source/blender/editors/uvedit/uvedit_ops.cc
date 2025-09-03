@@ -569,7 +569,7 @@ static bool uvedit_uv_island_arrange(const Scene *scene,
                                      const UVAlignIslandMode align,
                                      const UVAlignIslandOrder order,
                                      const float offset,
-                                     float2 *position)
+                                     float2 &position)
 {
   const BMUVOffsets offsets = BM_uv_map_offsets_get(bm);
   UvElementMap *element_map = BM_uv_element_map_create(bm, scene, true, false, true, true);
@@ -614,34 +614,34 @@ static bool uvedit_uv_island_arrange(const Scene *scene,
       float *luv = BM_ELEM_CD_GET_FLOAT_P(element[j].l, offsets.uv);
       if (axis == UVAlignIslandAxis::Y) {
         if (align == UVAlignIslandMode::Min) {
-          luv[0] += position->x - aabbs[i]->bounds.min[0];
+          luv[0] += position.x - aabbs[i]->bounds.min[0];
         }
         else if (align == UVAlignIslandMode::Center) {
-          luv[0] += position->x - aabbs[i]->bounds.center()[0];
+          luv[0] += position.x - aabbs[i]->bounds.center()[0];
         }
         else if (align == UVAlignIslandMode::Max) {
-          luv[0] += position->x - aabbs[i]->bounds.max[0];
+          luv[0] += position.x - aabbs[i]->bounds.max[0];
         }
-        luv[1] += position->y - aabbs[i]->bounds.min[1];
+        luv[1] += position.y - aabbs[i]->bounds.min[1];
       }
       else {
         if (align == UVAlignIslandMode::Min) {
-          luv[1] += position->y - aabbs[i]->bounds.min[1];
+          luv[1] += position.y - aabbs[i]->bounds.min[1];
         }
         else if (align == UVAlignIslandMode::Center) {
-          luv[1] += position->y - aabbs[i]->bounds.center()[1];
+          luv[1] += position.y - aabbs[i]->bounds.center()[1];
         }
         else if (align == UVAlignIslandMode::Max) {
-          luv[1] += position->y - aabbs[i]->bounds.max[1];
+          luv[1] += position.y - aabbs[i]->bounds.max[1];
         }
-        luv[0] += position->x - aabbs[i]->bounds.min[0];
+        luv[0] += position.x - aabbs[i]->bounds.min[0];
       }
     }
     if (axis == UVAlignIslandAxis::Y) {
-      position->y += aabbs[i]->bounds.size()[1] + offset;
+      position.y += aabbs[i]->bounds.size()[1] + offset;
     }
     else {
-      position->x += aabbs[i]->bounds.size()[0] + offset;
+      position.x += aabbs[i]->bounds.size()[0] + offset;
     }
     changed = true;
   }
@@ -658,14 +658,13 @@ static wmOperatorStatus uv_arrange_island_exec(bContext *C, wmOperator *op)
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
       scene, view_layer, nullptr);
 
-  float2 position = {0.0f, 0.0f};
-
   UVAlignStartPosition start = UVAlignStartPosition(RNA_enum_get(op->ptr, "start"));
   UVAlignIslandAxis axis = UVAlignIslandAxis(RNA_enum_get(op->ptr, "axis"));
   UVAlignIslandMode align = UVAlignIslandMode(RNA_enum_get(op->ptr, "align"));
   UVAlignIslandOrder order = UVAlignIslandOrder(RNA_enum_get(op->ptr, "order"));
   float offset = RNA_float_get(op->ptr, "offset");
 
+  float2 position = {0.0f, 0.0f};
   Bounds<float2> bounds;
   if (start == UVAlignStartPosition::BoundingBox) {
     INIT_MINMAX2(bounds.min, bounds.max);
