@@ -45,6 +45,7 @@
 #include "BLI_utildefines.h"
 
 #ifdef WIN32
+#  include "BKE_appdir.hh"
 #  include "BLI_winstuff.h"
 #endif
 
@@ -1059,9 +1060,14 @@ static const char *fileentry_uiname(const char *root, FileListInternEntry *entry
   char *name = nullptr;
 
   if (typeflag & FILE_TYPE_FTFONT && !(typeflag & FILE_TYPE_BLENDERLIB)) {
-    char abspath[FILE_MAX_LIBEXTRA];
-    BLI_path_join(abspath, sizeof(abspath), root, relpath);
-    name = BLF_display_name_from_file(abspath);
+    if (entry->redirection_path) {
+      name = BLF_display_name_from_file(entry->redirection_path);
+    }
+    else {
+      char abspath[FILE_MAX_LIBEXTRA];
+      BLI_path_join(abspath, sizeof(abspath), root, relpath);
+      name = BLF_display_name_from_file(abspath);
+    }
     if (name) {
       /* Allocated string, so no need to #BLI_strdup. */
       return name;
@@ -2142,6 +2148,49 @@ static char *current_relpath_append(const FileListReadJob *job_params, const cha
   return BLI_strdup(relpath);
 }
 
+#ifdef WIN32
+static int filelist_add_userfonts(const char *root, ListBase *entries)
+{
+  int font_num = 0;
+  HKEY key = 0;
+  DWORD retCode = RegOpenKeyEx(HKEY_CURRENT_USER,
+                               "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Fonts",
+                               0,
+                               KEY_ALL_ACCESS,
+                               &key);
+
+  if (retCode == ERROR_SUCCESS) {
+    for (int i = 0;; i++) {
+      TCHAR KeyName[255];
+      DWORD KeyNameLen = 255;
+      TCHAR KeyValue[FILE_MAX];
+      DWORD KeyValueLen = FILE_MAX;
+      if (RegEnumValue(
+              key, i, (LPSTR)&KeyName, &KeyNameLen, NULL, NULL, (LPBYTE)&KeyValue, &KeyValueLen) !=
+          ERROR_SUCCESS)
+      {
+        break;
+      }
+      FileListInternEntry *entry = MEM_new<FileListInternEntry>(__func__);
+      const char *lslash_str = BLI_path_slash_rfind(KeyValue);
+      const size_t lslash = lslash_str ? (size_t)(lslash_str - KeyValue) + 1 : 0;
+      BLI_stat(KeyValue, &entry->st);
+      entry->relpath = BLI_strdup(KeyValue + lslash);
+      entry->name = BLI_strdup(BLF_display_name_from_file(KeyValue));
+      entry->free_name = true;
+      entry->attributes = FILE_ATTR_READONLY & FILE_ATTR_ALIAS;
+      entry->typeflag = FILE_TYPE_FTFONT;
+      entry->redirection_path = BLI_strdup(KeyValue);
+      BLI_addtail(entries, entry);
+      font_num++;
+    }
+    RegCloseKey(key);
+  }
+
+  return font_num;
+}
+#endif
+
 static int filelist_readjob_list_dir(FileListReadJob *job_params,
                                      const char *root,
                                      ListBase *entries,
@@ -2154,6 +2203,15 @@ static int filelist_readjob_list_dir(FileListReadJob *job_params,
   int entries_num = 0;
   /* Full path of the item. */
   char full_path[FILE_MAX];
+
+ #ifdef WIN32
+  char fonts_path[FILE_MAXDIR] = {0};
+  BKE_appdir_font_folder_default(fonts_path, sizeof(fonts_path));
+  BLI_path_slash_ensure(fonts_path, sizeof(fonts_path));
+  if (STREQ(root, fonts_path)) {
+    entries_num += filelist_add_userfonts(root, entries);
+  }
+#endif
 
   const int files_num = BLI_filelist_dir_contents(root, &files);
   if (files) {
