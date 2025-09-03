@@ -142,8 +142,6 @@ class AttributeTexts : Overlay {
       }
 
       Array<float3> corner_positions(positions.size());
-      int corner_index = 0;
-
       const Span<float3> positions = mesh->vert_positions();
       const OffsetIndices<int> faces = mesh->faces();
       const Span<int> corner_verts = mesh->corner_verts();
