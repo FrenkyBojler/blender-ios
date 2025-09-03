@@ -4455,7 +4455,7 @@ static bool bm_edge_is_select_isolated(BMEdge *e)
 static BMEdge *bm_step_over_vert_to_next_selected_edge_in_chain(const BMEdge *e_curr, BMVert *v)
 {
   BMIter eiter;
-  BMEdge *e_other, *candidate = nullptr;
+  BMEdge *e_other, *e_next = nullptr;
   int count = 0;
   const int count_expected = 1;
 
@@ -4466,16 +4466,16 @@ static BMEdge *bm_step_over_vert_to_next_selected_edge_in_chain(const BMEdge *e_
     if (++count > count_expected) {
       return nullptr;
     }
-    candidate = e_other;
+    e_next = e_other;
   }
-  return (count == count_expected) ? candidate : nullptr;
+  return (count == count_expected) ? e_next : nullptr;
 }
 
 static BMVert *bm_step_to_next_selected_vert_in_chain(BMVert *v_curr, BMVert *v_prev)
 {
   BMIter eiter;
   BMEdge *e;
-  BMVert *candidate = nullptr;
+  BMVert *v_next = nullptr;
   int count = 0;
   const int count_expected = v_prev ? 1 : 2;
 
@@ -4487,9 +4487,9 @@ static BMVert *bm_step_to_next_selected_vert_in_chain(BMVert *v_curr, BMVert *v_
     if (++count > count_expected) {
       return nullptr;
     }
-    candidate = v_other;
+    v_next = v_other;
   }
-  return (count == count_expected) ? candidate : nullptr;
+  return (count == count_expected) ? v_next : nullptr;
 }
 
 static BMFace *bm_step_over_shared_edge_to_next_selected_face_in_chain(BMFace *f_curr,
@@ -4497,7 +4497,7 @@ static BMFace *bm_step_over_shared_edge_to_next_selected_face_in_chain(BMFace *f
 {
   BMIter liter;
   BMLoop *l;
-  BMFace *candidate = nullptr;
+  BMFace *f_next = nullptr;
   int count = 0;
   const int count_expected = f_prev ? 1 : 2;
 
@@ -4511,10 +4511,10 @@ static BMFace *bm_step_over_shared_edge_to_next_selected_face_in_chain(BMFace *f
       if (++count > count_expected) {
         return nullptr;
       }
-      candidate = f_other;
+      f_next = f_other;
     }
   }
-  return (count == count_expected) ? candidate : nullptr;
+  return (count == count_expected) ? f_next : nullptr;
 }
 
 /**
@@ -4558,7 +4558,6 @@ static bool bm_edges_form_cyclic_chain(BMEdge *e_start)
 {
   BMEdge *e_curr = e_start;
   BMVert *v_through = e_start->v1;
-  int steps = 0;
 
   do {
     BMEdge *e_next = bm_step_over_vert_to_next_selected_edge_in_chain(e_curr, v_through);
@@ -4621,8 +4620,6 @@ static void walker_deselect_nth_vertex_chain(BMEditMesh *em,
   int index = 0;
 
   /* Mark all vertices as unvisited. */
-  BMIter iter;
-  BMVert *v;
   BM_mesh_elem_hflag_disable_all(bm, BM_VERT, BM_ELEM_TAG, false);
 
   while (v_curr && !BM_elem_flag_test(v_curr, BM_ELEM_TAG)) {
@@ -4656,7 +4653,6 @@ static void walker_deselect_nth_edge_chain(BMEditMesh *em,
   int index = 0;
 
   /* Mark all edges as unvisited. */
-  BMIter iter;
   BMEdge *e;
   BM_mesh_elem_hflag_disable_all(bm, BM_EDGE, BM_ELEM_TAG, false);
 
