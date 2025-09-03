@@ -26,6 +26,12 @@ struct DeepHashErrors {
    * A list of missing files paths in the case that the deep hashes could not be computed.
    */
   VectorSet<std::string> missing_files;
+
+  /**
+   * Files that were modified since the linked ID was loaded. So the currently linked ID would not
+   * be matching the deep hash computed based on the source file.
+   */
+  VectorSet<std::string> updated_files;
 };
 
 using IDHashResult = std::variant<ValidDeepHashes, DeepHashErrors>;

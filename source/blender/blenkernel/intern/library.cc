@@ -579,6 +579,11 @@ static void pack_linked_ids(Main &bmain, const blender::Set<ID *> &ids_to_pack)
                  "Trying to pack IDs that depend on missing linked libraries: %s",
                  errors->missing_files[0].c_str());
     }
+    if (!errors->updated_files.is_empty()) {
+      CLOG_ERROR(&LOG,
+                 "Trying to pack linked ID that has been modified on disk: %s",
+                 errors->updated_files[0].c_str());
+    }
     return;
   }
   const auto &deep_hashes = std::get<id_hash::ValidDeepHashes>(hash_result);

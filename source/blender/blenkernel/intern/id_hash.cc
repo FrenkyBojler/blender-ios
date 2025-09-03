@@ -83,13 +83,16 @@ struct CachedFileHash {
   XXH128_hash_t hash;
 };
 
-static std::optional<XXH128_hash_t> get_file_hash(const StringRefNull path)
+static std::optional<XXH128_hash_t> get_source_file_hash(const ID &id, DeepHashErrors &r_errors)
 {
   static Map<std::string, CachedFileHash> cache;
   static Mutex mutex;
 
+  const StringRefNull path = id.lib->runtime->filepath_abs;
+
   BLI_stat_t stat;
   if (BLI_stat(path.c_str(), &stat) == -1) {
+    r_errors.missing_files.add_as(path);
     return std::nullopt;
   }
 
@@ -99,10 +102,17 @@ static std::optional<XXH128_hash_t> get_file_hash(const StringRefNull path)
       return cached_hash->hash;
     }
   }
+
+  if (stat.st_mtime != id.runtime.src_blend_modifification_time) {
+    r_errors.updated_files.add_as(path);
+    return std::nullopt;
+  }
+
   if (const std::optional<XXH128_hash_t> hash = compute_file_hash(path)) {
-    cache.add(path, CachedFileHash{stat.st_mtime, *hash});
+    cache.add_overwrite(path, CachedFileHash{stat.st_mtime, *hash});
     return hash;
   }
+  r_errors.missing_files.add_as(path);
   return std::nullopt;
 }
 
@@ -110,10 +120,8 @@ static std::optional<XXH128_hash_t> get_id_shallow_hash(const ID &id, DeepHashEr
 {
   BLI_assert(ID_IS_LINKED(&id));
   const StringRefNull id_name = id.name;
-  const StringRefNull path = id.lib->runtime->filepath_abs;
-  const std::optional<XXH128_hash_t> file_hash = get_file_hash(path);
+  const std::optional<XXH128_hash_t> file_hash = get_source_file_hash(id, r_errors);
   if (!file_hash) {
-    r_errors.missing_files.add_as(path);
     return std::nullopt;
   }
 
@@ -223,7 +231,7 @@ IDHashResult compute_linked_id_deep_hashes(const Main &bmain, Span<const ID *> i
   for (const ID *id : ids) {
     compute_deep_hash_recursive(bmain, *id, current_stack, hashes, errors);
   }
-  if (!errors.missing_files.is_empty()) {
+  if (!errors.missing_files.is_empty() || !errors.updated_files.is_empty()) {
     return errors;
   }
   return ValidDeepHashes{hashes};

@@ -1933,10 +1933,6 @@ static ID *read_id_struct(FileData *fd, BHead *bh, const char *blockname, const 
     CLOG_DEBUG(&LOG, "Truncated too long ID name to '%s'", id->name);
   }
 
-  if (fd->file_stat) {
-    id->runtime.src_blend_modifification_time = fd->file_stat->st_mtime;
-  }
-
   return id;
 }
 
@@ -3206,6 +3202,9 @@ static BHead *read_libblock(FileData *fd,
       BLI_assert(id->deep_hash != IDHash::get_null());
       fd->id_by_deep_hash->add_new(id->deep_hash, id);
       BLI_assert(main->curlib);
+    }
+    if (fd->file_stat) {
+      id->runtime.src_blend_modifification_time = fd->file_stat->st_mtime;
     }
   }
 
