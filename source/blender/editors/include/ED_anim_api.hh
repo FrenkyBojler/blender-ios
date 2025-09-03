@@ -17,6 +17,7 @@
 #include "DNA_space_types.h"
 
 #include <optional>
+#include <utility>
 
 struct AnimData;
 struct Depsgraph;
@@ -133,6 +134,13 @@ struct bAnimContext {
   Depsgraph *depsgraph;
   /** active object */
   Object *obact;
+  /**
+   * Active Action, only set when the dope sheet shows an Action (in its Action
+   * and Shape Key modes).
+   */
+  bAction *active_action;
+  /** The ID that was used to obtain the above active_action. */
+  ID *active_action_owner;
   /** active set of markers */
   ListBase *markers;
 
@@ -597,6 +605,11 @@ void ANIM_animdata_freelist(ListBase *anim_data);
  * Check if the given animation container can contain grease pencil layer keyframes.
  */
 bool ANIM_animdata_can_have_greasepencil(const eAnimCont_Types type);
+
+bAction *ANIM_active_action_from_area(Scene *scene,
+                                      ViewLayer *view_layer,
+                                      const ScrArea *area,
+                                      ID **r_action_owner = nullptr);
 
 /* ************************************************ */
 /* ANIMATION CHANNELS LIST */

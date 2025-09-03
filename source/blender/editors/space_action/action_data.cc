@@ -135,24 +135,31 @@ static bAction *action_create_new(bContext *C, bAction *oldact)
   return action;
 }
 
-/* Change the active action used by the action editor */
+/**
+ * Assign the given Action to the ID whose Action is shown in the editor.
+ *
+ * This assigns to the active object (default) or shape key (dope sheet in shape key mode).
+ *
+ * It is the responsibility of the caller to ensure this assignment is valid.
+ */
 static void actedit_change_action(bContext *C, bAction *act)
 {
-  bScreen *screen = CTX_wm_screen(C);
-  SpaceAction *saction = (SpaceAction *)CTX_wm_space_data(C);
+  bAnimContext ac;
+  const bool ac_ok = ANIM_animdata_get_context(C, &ac);
+  BLI_assert_msg(ac_ok,
+                 "actedit_change_action() should only be called from animation-related contexts");
+  if (!ac_ok) {
+    printf("Could not get anim data to assign action, please report a bug.\n");
+    return;
+  }
 
-  PropertyRNA *prop;
-
-  /* create RNA pointers and get the property */
-  PointerRNA ptr = RNA_pointer_create_discrete(&screen->id, &RNA_SpaceDopeSheetEditor, saction);
-  prop = RNA_struct_find_property(&ptr, "action");
-
-  /* NOTE: act may be nullptr here, so better to just use a cast here */
-  PointerRNA idptr = RNA_id_pointer_create((ID *)act);
-
-  /* set the new pointer, and force a refresh */
-  RNA_property_pointer_set(&ptr, prop, idptr, nullptr);
-  RNA_property_update(C, &ptr, prop);
+  BLI_assert(ac.active_action_owner);
+  const bool assign_ok = blender::animrig::assign_action(act, *ac.active_action_owner);
+  BLI_assert(assign_ok);
+  if (!assign_ok) {
+    printf("Could not set active action, please report a bug.\n");
+    return;
+  }
 }
 
 /** \} */
@@ -253,20 +260,7 @@ static wmOperatorStatus action_new_exec(bContext *C, wmOperator * /*op*/)
     if (adt && oldact) {
       BLI_assert(adt_id_owner != nullptr);
       /* stash the action */
-      if (BKE_nla_action_stash({*adt_id_owner, *adt}, ID_IS_OVERRIDE_LIBRARY(adt_id_owner))) {
-        /* The stash operation will remove the user already
-         * (and unlink the action from the AnimData action slot).
-         * Hence, we must unset the ref to the action in the
-         * action editor too (if this is where we're being called from)
-         * first before setting the new action once it is created,
-         * or else the user gets decremented twice!
-         */
-        if (ptr.type == &RNA_SpaceDopeSheetEditor) {
-          SpaceAction *saction = static_cast<SpaceAction *>(ptr.data);
-          saction->action = nullptr;
-        }
-      }
-      else {
+      if (!BKE_nla_action_stash({*adt_id_owner, *adt}, ID_IS_OVERRIDE_LIBRARY(adt_id_owner))) {
 #if 0
         printf("WARNING: Failed to stash %s. It may already exist in the NLA stack though\n",
                oldact->id.name);
@@ -325,10 +319,8 @@ static bool action_pushdown_poll(bContext *C)
     return false;
   }
 
-  SpaceAction *saction = (SpaceAction *)CTX_wm_space_data(C);
   AnimData *adt = ED_actedit_animdata_from_context(C, nullptr);
-
-  if (!adt || !saction->action) {
+  if (!adt || !adt->action) {
     return false;
   }
 
@@ -340,7 +332,6 @@ static bool action_pushdown_poll(bContext *C)
 
 static wmOperatorStatus action_pushdown_exec(bContext *C, wmOperator * /*op*/)
 {
-  SpaceAction *saction = (SpaceAction *)CTX_wm_space_data(C);
   ID *adt_id_owner = nullptr;
   AnimData *adt = ED_actedit_animdata_from_context(C, &adt_id_owner);
 
@@ -357,11 +348,6 @@ static wmOperatorStatus action_pushdown_exec(bContext *C, wmOperator * /*op*/)
     /* The action needs updating too, as FCurve modifiers are to be reevaluated. They won't extend
      * beyond the NLA strip after pushing down to the NLA. */
     DEG_id_tag_update_ex(bmain, &action.id, ID_RECALC_ANIMATION);
-
-    /* Stop displaying this action in this editor
-     * NOTE: The editor itself doesn't set a user...
-     */
-    saction->action = nullptr;
   }
 
   /* Send notifiers that stuff has changed */
@@ -392,22 +378,13 @@ void ACTION_OT_push_down(wmOperatorType *ot)
 
 static wmOperatorStatus action_stash_exec(bContext *C, wmOperator *op)
 {
-  SpaceAction *saction = (SpaceAction *)CTX_wm_space_data(C);
   ID *adt_id_owner = nullptr;
   AnimData *adt = ED_actedit_animdata_from_context(C, &adt_id_owner);
 
   /* Perform stashing operation */
   if (adt) {
     /* stash the action */
-    if (BKE_nla_action_stash({*adt_id_owner, *adt}, ID_IS_OVERRIDE_LIBRARY(adt_id_owner))) {
-      /* The stash operation will remove the user already,
-       * so the flushing step later shouldn't double up
-       * the user-count fixes. Hence, we must unset this ref
-       * first before setting the new action.
-       */
-      saction->action = nullptr;
-    }
-    else {
+    if (!BKE_nla_action_stash({*adt_id_owner, *adt}, ID_IS_OVERRIDE_LIBRARY(adt_id_owner))) {
       /* action has already been added - simply warn about this, and clear */
       BKE_report(op->reports, RPT_ERROR, "Action+Slot has already been stashed");
     }
@@ -488,12 +465,11 @@ static bool action_stash_create_poll(bContext *C)
 
 static wmOperatorStatus action_stash_create_exec(bContext *C, wmOperator *op)
 {
-  SpaceAction *saction = (SpaceAction *)CTX_wm_space_data(C);
   ID *adt_id_owner = nullptr;
   AnimData *adt = ED_actedit_animdata_from_context(C, &adt_id_owner);
 
   /* Check for no action... */
-  if (saction->action == nullptr) {
+  if (adt->action == nullptr) {
     /* just create a new action */
     bAction *action = action_create_new(C, nullptr);
     actedit_change_action(C, action);
@@ -506,13 +482,6 @@ static wmOperatorStatus action_stash_create_exec(bContext *C, wmOperator *op)
       /* Create new action not based on the old one
        * (since the "new" operator already does that). */
       new_action = action_create_new(C, nullptr);
-
-      /* The stash operation will remove the user already,
-       * so the flushing step later shouldn't double up
-       * the user-count fixes. Hence, we must unset this ref
-       * first before setting the new action.
-       */
-      saction->action = nullptr;
       actedit_change_action(C, new_action);
     }
     else {
@@ -561,7 +530,6 @@ void ED_animedit_unlink_action(
     bContext *C, ID *id, AnimData *adt, bAction *act, ReportList *reports, bool force_delete)
 {
   BLI_assert(id);
-  ScrArea *area = CTX_wm_area(C);
 
   /* If the old action only has a single user (that it's about to lose),
    * warn user about it
@@ -628,11 +596,6 @@ void ED_animedit_unlink_action(
 
     RNA_property_pointer_set(&ptr, prop, PointerRNA_NULL, nullptr);
     RNA_property_update(C, &ptr, prop);
-
-    /* Also update the Action editor legacy Action pointer. */
-    if (area->spacetype == SPACE_ACTION) {
-      actedit_change_action(C, nullptr);
-    }
   }
 }
 
@@ -640,32 +603,15 @@ void ED_animedit_unlink_action(
 
 static bool action_unlink_poll(bContext *C)
 {
-  {
-    ID *animated_id = nullptr;
-    AnimData *adt = ED_actedit_animdata_from_context(C, &animated_id);
-    if (animated_id) {
-      if (!BKE_id_is_editable(CTX_data_main(C), animated_id)) {
-        return false;
-      }
-      if (!adt) {
-        return false;
-      }
-      return adt->action != nullptr;
-    }
+  ID *animated_id = nullptr;
+  AnimData *adt = ED_actedit_animdata_from_context(C, &animated_id);
+  if (!animated_id) {
+    return false;
   }
-
-  if (ED_operator_action_active(C)) {
-    SpaceAction *saction = (SpaceAction *)CTX_wm_space_data(C);
-    AnimData *adt = ED_actedit_animdata_from_context(C, nullptr);
-
-    /* Only when there's an active action, in the right modes... */
-    if (saction->action && adt) {
-      return true;
-    }
+  if (!BKE_id_is_editable(CTX_data_main(C), animated_id)) {
+    return false;
   }
-
-  /* something failed... */
-  return false;
+  return adt && adt->action;
 }
 
 static wmOperatorStatus action_unlink_exec(bContext *C, wmOperator *op)

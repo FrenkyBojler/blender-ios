@@ -309,8 +309,6 @@ static void area_add_window_regions(ScrArea *area, SpaceLink *sl, ListBase *lb)
         break;
       }
       case SPACE_ACTION: {
-        SpaceAction *saction = (SpaceAction *)sl;
-
         /* We totally reinitialize the view for the Action Editor,
          * as some old instances had some weird cruft set. */
         region->v2d.tot.xmin = -20.0f;
@@ -333,14 +331,6 @@ static void area_add_window_regions(ScrArea *area, SpaceLink *sl, ListBase *lb)
         region->v2d.keepzoom = V2D_LOCKZOOM_Y;
         region->v2d.align = V2D_ALIGN_NO_POS_Y;
         region->v2d.flag = V2D_VIEWSYNC_AREA_VERTICAL;
-
-        /* for old files with ShapeKey editors open + an action set, clear the action as
-         * it doesn't make sense in the new system (i.e. violates concept that ShapeKey edit
-         * only shows ShapeKey-rooted actions only)
-         */
-        if (saction->mode == SACTCONT_SHAPEKEY) {
-          saction->action = nullptr;
-        }
         break;
       }
       case SPACE_SEQ: {
