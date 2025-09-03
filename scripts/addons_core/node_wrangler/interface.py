@@ -209,10 +209,13 @@ class NWConnectionListInputs(Menu, NWBaseMenu):
             # of the vector math node being added to the list when
             # the mode is not 'SCALE'.
             if input.enabled:
+                # The spaces are necessary to not make the displayed label be lopsided
+                text = "→  " + input.name 
+                
                 op = layout.operator(
-                    operators.NWMakeLink.bl_idname, text=input.name,
+                    operators.NWMakeLink.bl_idname, text=text,
                     text_ctxt=i18n_contexts.default,
-                    icon="FORWARD",
+                    icon=socket_to_icon(input),
                 )
                 op.from_socket = context.scene.NWSourceSocket
                 op.to_socket = index
