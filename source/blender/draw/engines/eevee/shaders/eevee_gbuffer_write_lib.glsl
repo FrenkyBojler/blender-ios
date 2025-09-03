@@ -26,9 +26,9 @@
 
 namespace gbuffer {
 
-gbuffer::Closure pack_closure(ClosureUndetermined cl)
+gbuffer::ClosurePacking pack_closure(ClosureUndetermined cl)
 {
-  gbuffer::Closure cl_packed;
+  gbuffer::ClosurePacking cl_packed;
   cl_packed.mode = closure_type_to_mode(cl.type, color_is_grayscale(cl.color));
 
   if (cl.weight <= CLOSURE_WEIGHT_CUTOFF) {
@@ -69,7 +69,7 @@ gbuffer::Closure pack_closure(ClosureUndetermined cl)
 /* Transient data used during packing. */
 struct Packer {
   /* Packed GBuffer data in layer indexing. */
-  Closure closures[GBUFFER_LAYER_MAX];
+  ClosurePacking closures[GBUFFER_LAYER_MAX];
   /* Additional info to be stored inside the normal stack. */
   float additional_info;
   /* Header containing which closures are encoded and which normals are used. */
@@ -78,39 +78,25 @@ struct Packer {
   /* Swap closures to avoid gap in data. Closures are then in layer order. */
   void closures_to_layer_order(const bool3 empty_bins)
   {
-    if (empty_bins[0]) {
-      if (empty_bins[1]) {
-        if (empty_bins[2]) {
-          /* Special case where we still want to have 1 closure. This is handled later. */
-        }
-        else {
+    if (empty_bins.y) {
 #if GBUFFER_LAYER_MAX > 2
-          closures[0] = closures[2];
-          closures[1].mode = GBUF_NONE;
-          closures[2].mode = GBUF_NONE;
+      closures[1] = closures[2];
+      closures[2].mode = GBUF_NONE;
 #endif
-        }
-      }
-      else {
-#if GBUFFER_LAYER_MAX > 1
-        closures[0] = closures[1];
-        closures[1].mode = GBUF_NONE;
-#endif
-#if GBUFFER_LAYER_MAX > 2
-        closures[1] = closures[2];
-        closures[2].mode = GBUF_NONE;
-#endif
-      }
     }
-    else if (empty_bins[1]) {
-#if GBUFFER_LAYER_MAX > 2
+    if (empty_bins.x) {
+#if GBUFFER_LAYER_MAX > 1
+      closures[0] = closures[1];
+      closures[1].mode = GBUF_NONE;
+#endif
+#if GBUFFER_LAYER_MAX > 1
       closures[1] = closures[2];
       closures[2].mode = GBUF_NONE;
 #endif
     }
   }
 
-  /* Needs to happen in bin order. */
+  /* Needs to happen in layer order. */
   void reuse_tangent_spaces(const bool3 empty_bins)
   {
 #if GBUFFER_LAYER_MAX > 1
@@ -122,11 +108,13 @@ struct Packer {
       }
 #  endif
     }
+    else {
 #  if GBUFFER_LAYER_MAX > 2
-    else if (empty_bins[2] || all(equal(closures[1].N, closures[2].N))) {
-      this->header.tangent_space_id_set(2, 1);
-    }
+      if (empty_bins[2] || all(equal(closures[1].N, closures[2].N))) {
+        this->header.tangent_space_id_set(2, 1);
+      }
 #  endif
+    }
 #endif
   }
 
@@ -232,8 +220,6 @@ Packed pack(
 
   bool3 empty_bins = packer.header.empty_bins();
 
-  packer.reuse_tangent_spaces(empty_bins);
-
   /* ---- Switch from Bin to Layer order. ---- */
   packer.closures_to_layer_order(empty_bins);
 
@@ -241,9 +227,11 @@ Packed pack(
   bool has_any_closure = packer.closures[0].mode != GBUF_NONE;
   if (!has_any_closure) {
     /* Output dummy closure in the case of unlit materials for correct render passes data. */
-    packer.closures[0] = gbuffer::Closure::fallback(surface_N);
+    packer.closures[0] = gbuffer::ClosurePacking::fallback(surface_N);
     packer.header.closure_set(0, packer.closures[0].mode);
   }
+
+  packer.reuse_tangent_spaces(empty_bins);
 
   /* Needs to happen in layer order and after normal fallback. */
   packer.header.geometry_normal_set(Ng, packer.closures[0].N);

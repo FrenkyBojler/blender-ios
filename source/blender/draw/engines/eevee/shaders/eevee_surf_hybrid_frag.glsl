@@ -42,6 +42,28 @@ float4 closure_to_rgba(Closure cl_unused)
   return float4(radiance, saturate(1.0f - average(transmittance)));
 }
 
+void write_closure_data(int2 texel, int layer, float4 data)
+{
+  /* NOTE: The image view start at layer GBUF_CLOSURE_FB_LAYER_COUNT so all destination layer is
+   * `layer - GBUF_CLOSURE_FB_LAYER_COUNT`. */
+  imageStoreFast(out_gbuf_closure_img, int3(texel, layer - GBUF_CLOSURE_FB_LAYER_COUNT), data);
+}
+
+void write_normal_data(int2 texel, int layer, float2 data)
+{
+  /* NOTE: The image view start at layer GBUF_NORMAL_FB_LAYER_COUNT so all destination layer is
+   * `layer - GBUF_NORMAL_FB_LAYER_COUNT`. */
+  imageStoreFast(out_gbuf_normal_img, int3(texel, layer - GBUF_NORMAL_FB_LAYER_COUNT), data.xyyy);
+}
+
+void write_header_data(int2 texel, int layer, uint data)
+{
+  /* NOTE: The image view start at layer GBUF_HEADER_FB_LAYER_COUNT so all destination layer is
+   * `layer - GBUF_HEADER_FB_LAYER_COUNT`. */
+  imageStoreFast(
+      out_gbuf_header_img, int3(texel, layer - GBUF_HEADER_FB_LAYER_COUNT), uint4(data));
+}
+
 void main()
 {
   /* Clear AOVs first. In case the material renders to them. */
@@ -113,7 +135,7 @@ void main()
 #endif
   const bool use_object_id = use_sss || use_light_linking || use_terminator_offset;
 
-  gbuffer::Packed gbuf = gbuffer::pack(gbuf_data, g_data.Ng, g_data.N, thickness, use_object_id);
+  gbuffer::Packed gbuf = gbuffer::pack(gbuf_data, g_data.Ng, g_data.N, g_thickness, use_object_id);
 
   /* Output header and first closure using frame-buffer attachment. */
   out_gbuf_header = gbuf.header;

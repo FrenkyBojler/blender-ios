@@ -61,6 +61,32 @@ namespace gbuffer {
  *
  * \{ */
 
+enum GBufferMode : uchar {
+  /** None mode for pixels not rendered. */
+  GBUF_NONE = 0u,
+
+  /* Reflection. */
+  GBUF_DIFFUSE = 1u,
+  GBUF_REFLECTION = 2u,
+  GBUF_REFLECTION_COLORLESS = 3u,
+
+  /**
+   * Special bit that marks all closures with refraction.
+   * Allows to detect the presence of transmission more easily.
+   * Note that this left only 2^3 values (minus 0) for encoding the BSDF.
+   * Could be removed if that's too cumbersome to add more BSDF.
+   */
+  GBUF_TRANSMISSION_BIT = 1u << 3u,
+
+  /* Transmission. */
+  GBUF_REFRACTION = 0u | GBUF_TRANSMISSION_BIT,
+  GBUF_REFRACTION_COLORLESS = 1u | GBUF_TRANSMISSION_BIT,
+  GBUF_TRANSLUCENT = 2u | GBUF_TRANSMISSION_BIT,
+  GBUF_SUBSURFACE = 3u | GBUF_TRANSMISSION_BIT,
+
+  /** IMPORTANT: Needs to be less than 16 for correct packing in g-buffer header. */
+};
+
 GBufferMode closure_type_to_mode(ClosureType type, bool is_grayscale)
 {
   switch (type) {
@@ -277,18 +303,28 @@ struct Header {
    *
    * | Tangent Space ID  |                       Closure Types                       |
    * |                   |                   |                   |                   |
-   * |- Bin 2 -|- Bin 1 -|------ Bin 2 ------|------ Bin 1 ------|------ Bin 0 ------|
+   * | Layer 2 | Layer 1 |------ Bin 2 ------|------ Bin 1 ------|------ Bin 0 ------|
    * |....|....|....|....|....|....|....|....|....|....|....|....|....|....|....|....|
    *   15   14   13   12   11   10    9    8    7    6    5    4    3    2    1    0
    */
   uint header_;
 
  public:
-  static Header zero()
+  static Header from_data(uint data)
   {
     Header header;
-    header.header_ = 0u;
+    header.header_ = data;
     return header;
+  }
+
+  static Header zero()
+  {
+    return Header::from_data(0u);
+  }
+
+  bool is_empty() const
+  {
+    return this->header_ == 0;
   }
 
   void closure_set(uint bin, GBufferMode mode)
@@ -311,27 +347,27 @@ struct Header {
   }
 
   /**
-   * Set the dedicated normal bit for the specified bin.
-   * Expects `bin_id` to be in [0..2].
+   * Set the dedicated normal bit for the specified layer.
+   * Expects `layer_id` to be in [0..2].
    * Expects `normal_id` to be in [0..3] (packed in 2bits).
    */
-  void tangent_space_id_set(uint bin, uint normal_id)
+  void tangent_space_id_set(uint layer_id, uint normal_id)
   {
     /* Layer 0 will always have normal id 0. It doesn't have to be encoded. Skip it. */
-    if (bin != 0u) {
+    if (layer_id != 0u) {
       /* Note: Keep this in the if statement as it compiles faster somehow. */
-      /* -2 is to skip the bin 0 and start encoding for bin 1. This keeps the FMA. */
-      this->header_ |= normal_id << ((GBUFFER_NORMAL_BITS_SHIFT - 2u) + bin * 2u);
+      /* -2 is to skip the layer_id 0 and start encoding for layer_id 1. This keeps the FMA. */
+      this->header_ |= normal_id << ((GBUFFER_NORMAL_BITS_SHIFT - 2u) + layer_id * 2u);
     }
   }
-  uint tangent_space_id(uint bin) const
+  uchar tangent_space_id(uint layer_id) const
   {
     /* Layer 0 will always have normal id 0. */
-    if (bin == 0u) {
+    if (layer_id == 0u) {
       return 0u;
     }
-    /* -2 is to skip the bin 0 and start encoding for bin 1. This keeps the FMA. */
-    return (3u & (this->header_ >> ((GBUFFER_NORMAL_BITS_SHIFT - 2u) + bin * 2u)));
+    /* -2 is to skip the layer_id 0 and start encoding for layer_id 1. This keeps the FMA. */
+    return uchar(3u & (this->header_ >> ((GBUFFER_NORMAL_BITS_SHIFT - 2u) + layer_id * 2u)));
   }
 
   /* Pack geometric normal into the header if needed. */
@@ -348,10 +384,43 @@ struct Header {
   uint3 bin_types() const
   {
     /* NOTE: Need to be adjusted for different global GBUFFER_LAYER_MAX. */
-    constexpr uint bits_per_bin = uint(GBUFFER_HEADER_BITS_PER_BIN);
+    constexpr uchar bits_per_bin = uchar(GBUFFER_HEADER_BITS_PER_BIN);
     uint3 types = (uint3(this->header_) >> (uint3(0u, 1u, 2u) * bits_per_bin)) &
                   ((1u << bits_per_bin) - 1);
     return types;
+  }
+
+  GBufferMode bin_type(uchar bin) const
+  {
+    constexpr uchar bits_per_bin = uchar(GBUFFER_HEADER_BITS_PER_BIN);
+    return GBufferMode((this->header_ >> (bin * bits_per_bin)) & ((1u << bits_per_bin) - 1));
+  }
+
+  /* Return a vector of GBufferMode.
+   * Same as bin_types() but skip empty bins. */
+  uint3 bin_types_per_layer() const
+  {
+    uint3 modes = this->bin_types();
+    if (modes.y == GBUF_NONE) {
+      modes = modes.xzy;
+    }
+    if (modes.x == GBUF_NONE) {
+      modes = modes.yzx;
+    }
+    return modes;
+  }
+
+  uint3 bin_index_per_layer() const
+  {
+    uint3 modes = this->bin_types();
+    uint3 bins = uint3(0, 1, 2);
+    if (modes.y == GBUF_NONE) {
+      bins = bins.xzy;
+    }
+    if (modes.x == GBUF_NONE) {
+      bins = bins.yzx;
+    }
+    return bins;
   }
 
   /* Return which closures are empty (equal to GBUF_NONE). */
@@ -360,21 +429,21 @@ struct Header {
     return equal(bin_types(), uint3(0u));
   }
 
-  uint closure_len() const
+  uchar closure_len() const
   {
     return reduce_add(int3(not(empty_bins())));
   }
 
-  uint normal_len() const
+  uchar normal_len() const
   {
     if (this->header_ == 0u) {
       return 0;
     }
     /* Count implicit first layer. */
-    uint count = 1u;
-    count += uint(((this->header_ >> 12u) & 3u) != 0);
-    count += uint(((this->header_ >> 14u) & 3u) != 0);
-    return int(count);
+    uchar count = 1u;
+    count += uchar(((this->header_ >> 12u) & 3u) != 0);
+    count += uchar(((this->header_ >> 14u) & 3u) != 0);
+    return count;
   }
 
   uint data() const
@@ -397,6 +466,21 @@ struct Header {
     /* For now, this is true. Only the transmission closures use the thickness data. */
     return has_transmission();
   }
+
+  /* For a given bin index, return the associated layer index.
+   * Result is undefined if bin has no valid closure. */
+  uchar bin_to_layer(uchar bin_id) const
+  {
+    uint3 types = this->bin_types();
+    switch (bin_id) {
+      case 2u:
+        return uchar(types[0] != GBUF_NONE) + uchar(types[1] != GBUF_NONE);
+      case 1u:
+        return uchar(types[0] != GBUF_NONE);
+    }
+    /* Default, bin_id == 0 case. */
+    return 0u;
+  }
 };
 
 /* Added data inside the Tangent Space layers. */
@@ -417,7 +501,7 @@ struct AdditionalInfo {
 };
 
 /* Almost 1:1 match with ClosureUndetermined but has packed data. */
-struct Closure {
+struct ClosurePacking {
   /* Packed data layer 0. Always used. */
   float4 data0;
   /* Packed data layer 1. Might not be used. */
@@ -427,9 +511,9 @@ struct Closure {
   /* Gbuffer packing mode. */
   GBufferMode mode;
 
-  static Closure fallback(float3 surface_N)
+  static ClosurePacking fallback(float3 surface_N)
   {
-    Closure cl;
+    ClosurePacking cl;
     cl.mode = GBUF_DIFFUSE;
     cl.data0 = float4(0);
     cl.data1 = float4(0);
@@ -450,7 +534,45 @@ struct Packed {
   float2 normal[GBUFFER_LAYER_MAX];
   float2 additional_info;
   uint header;
+  uint object_id;
   UsedLayerFlag used_layers;
+};
+
+/* Result of reading the GBuffer. Data are to be indexed by layers.
+ * Note that the normal of the first closure is always guaranteed to be valid even if the closure
+ * has invalid type.*/
+struct Layers {
+  ClosureUndetermined layer[GBUFFER_LAYER_MAX];
+  Header header;
+
+  /* TODO(fclem): Ideally, all loops that index this should be unrolled. */
+  ClosureUndetermined layer_get(uchar i) const
+  {
+    switch (i) {
+      case 0:
+        return layer[0];
+      case 1:
+        return layer[1];
+      case 2:
+        return layer[2];
+    }
+    assert(0);
+    return layer[0];
+  }
+
+  float3 surface_N() const
+  {
+    return layer[0].N;
+  }
+
+  bool has_any_closure() const
+  {
+    return layer[0].type != CLOSURE_NONE_ID;
+  }
+  bool has_no_closure() const
+  {
+    return layer[0].type == CLOSURE_NONE_ID;
+  }
 };
 
 /** \} */
@@ -465,7 +587,7 @@ namespace gbuffer::closure {
  * \{ */
 
 struct Subsurface {
-  static void pack_additional(gbuffer::Closure &cl_packed, ClosureUndetermined cl)
+  static void pack_additional(gbuffer::ClosurePacking &cl_packed, ClosureUndetermined cl)
   {
     cl_packed.data1 = sss_radii_pack(cl.data.xyz);
   }
@@ -477,7 +599,7 @@ struct Subsurface {
 };
 
 struct Reflection {
-  static void pack_additional(gbuffer::Closure &cl_packed, ClosureUndetermined cl)
+  static void pack_additional(gbuffer::ClosurePacking &cl_packed, ClosureUndetermined cl)
   {
     cl_packed.data1 = float4(cl.data.x, 0.0f, 0.0f, 0.0f);
   }
@@ -489,7 +611,7 @@ struct Reflection {
 };
 
 struct Refraction {
-  static void pack_additional(gbuffer::Closure &cl_packed, ClosureUndetermined cl)
+  static void pack_additional(gbuffer::ClosurePacking &cl_packed, ClosureUndetermined cl)
   {
     cl_packed.data1 = float4(cl.data.x, ior_pack(cl.data.y), 0.0f, 0.0f);
   }
@@ -503,28 +625,30 @@ struct Refraction {
 
 /* Special case where we can save 1 data layers per closure. */
 struct ReflectionColorless {
-  static void pack_additional(gbuffer::Closure &cl_packed, ClosureUndetermined cl)
+  static void pack_additional(gbuffer::ClosurePacking &cl_packed, ClosureUndetermined cl)
   {
     cl_packed.data0 = float4(cl.data.x, 0.0f, cl_packed.data0.zw);
   }
 
-  static void unpack_additional(ClosureUndetermined &cl, float4 data1)
+  static void unpack_additional(ClosureUndetermined &cl, float4 data0)
   {
-    cl.data.x = data1.x; /* Roughness. */
+    cl.color = cl.color.zzz;
+    cl.data.x = data0.x; /* Roughness. */
   }
 };
 
 /* Special case where we can save 1 data layers per closure. */
 struct RefractionColorless {
-  static void pack_additional(gbuffer::Closure &cl_packed, ClosureUndetermined cl)
+  static void pack_additional(gbuffer::ClosurePacking &cl_packed, ClosureUndetermined cl)
   {
     cl_packed.data0 = float4(cl.data.x, ior_pack(cl.data.y), cl_packed.data0.zw);
   }
 
-  static void unpack_additional(ClosureUndetermined &cl, float4 data1)
+  static void unpack_additional(ClosureUndetermined &cl, float4 data0)
   {
-    cl.data.x = data1.x; /* Roughness. */
-    cl.data.y = ior_unpack(data1.y);
+    cl.color = cl.color.zzz;
+    cl.data.x = data0.x; /* Roughness. */
+    cl.data.y = ior_unpack(data0.y);
   }
 };
 

@@ -15,9 +15,10 @@ FRAGMENT_SHADER_CREATE_INFO(eevee_deferred_tile_classify)
 
 void main()
 {
-  int closure_count = gbuffer_closure_count(in_gbuffer_header);
+  gbuffer::Header header = gbuffer::Header::from_data(in_gbuffer_header);
+  int closure_count = header.closure_len();
   int has_transmission = 0;
-  if (gbuffer_has_transmission(in_gbuffer_header)) {
+  if (header.has_transmission()) {
     has_transmission = 1 << 2;
   }
 
