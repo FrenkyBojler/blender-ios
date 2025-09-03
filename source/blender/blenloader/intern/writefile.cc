@@ -152,8 +152,13 @@
 #define MEM_BUFFER_SIZE MEM_SIZE_OPTIMAL(1 << 17) /* 128kb */
 #define MEM_CHUNK_SIZE MEM_SIZE_OPTIMAL(1 << 15)  /* ~32kb */
 
+/* Also used for 'raw', uncompressed blendfiles on disk. */
 #define ZSTD_BUFFER_SIZE (1 << 21) /* 2mb */
 #define ZSTD_CHUNK_SIZE (1 << 20)  /* 1mb */
+/* Biggest chunk of data to write at once, when writing buffers that are bigger than
+ * `ZSTD_CHUNK_SIZE`. Avoids splititng too much multi-MB buffers into 1MB ones, and should help
+ * reducing the amount of write calls in such cases. */
+#define ZSTD_BIG_CHUNK_SIZE (1 << 27) /* 128mb */
 
 #define ZSTD_COMPRESSION_LEVEL 3
 
@@ -576,8 +581,12 @@ static void mywrite(WriteData *wd, const void *adr, size_t len)
         wd->buffer.used_len = 0;
       }
 
+      /* For memfile undo, always write 'small' chunks, to help with deduplication.
+       * For regular on-disk writing, try to use bigger chunks for big buffers, to work around
+       * weird slowness issues with some network setups, see e.g. #143735 and #69206. */
+      size_t big_buff_chunk_size = wd->use_memfile ? wd->buffer.chunk_size : ZSTD_BIG_CHUNK_SIZE;
       do {
-        const size_t writelen = std::min(len, wd->buffer.chunk_size);
+        const size_t writelen = std::min(len, big_buff_chunk_size);
         writedata_do_write(wd, adr, writelen);
         adr = (const char *)adr + writelen;
         len -= writelen;
