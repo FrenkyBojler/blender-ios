@@ -679,21 +679,9 @@ static void UV_OT_align(wmOperatorType *ot)
   };
 
   static const EnumPropertyItem position_mode_items[] = {
-      {int(UVAlignPositionMode::Mean),
-       "MEAN",
-       0,
-       "Mean",
-       "Align UV vertices along the mean postiton"},
-      {int(UVAlignPositionMode::Min),
-       "MIN",
-       0,
-       "Miniumum",
-       "Align UV vertices along the minimum postiton"},
-      {int(UVAlignPositionMode::Max),
-       "MAX",
-       0,
-       "Maximum",
-       "Align UV vertices along the maximum postiton"},
+      {int(UVAlignPositionMode::Mean), "MEAN", 0, "Mean", "Align UVs along the mean position"},
+      {int(UVAlignPositionMode::Min), "MIN", 0, "Minimum", "Align UVs along the minimum position"},
+      {int(UVAlignPositionMode::Max), "MAX", 0, "Maximum", "Align UVs along the maximum position"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
