@@ -678,11 +678,11 @@ static void UV_OT_align(wmOperatorType *ot)
       {0, nullptr, 0, nullptr, nullptr},
   };
 
-  static const EnumPropertyItem location_items[] = {
+  static const EnumPropertyItem position_mode_items[] = {
       {int(UVAlignPositionMode::Mean),
        "MEAN",
        0,
-       "Mean ",
+       "Mean",
        "Align UV vertices along the mean postiton"},
       {int(UVAlignPositionMode::Min),
        "MIN",
@@ -715,10 +715,10 @@ static void UV_OT_align(wmOperatorType *ot)
       ot->srna, "axis", axis_items, UV_ALIGN_AUTO, "Axis", "Axis to align UV locations on");
   RNA_def_enum(ot->srna,
                "position_mode",
-               location_items,
+               position_mode_items,
                int(UVAlignPositionMode::Mean),
                "Position Mode",
-               "Position mode to align UV locations on");
+               "Method of calculating the alignment position");
 }
 
 /** \} */
