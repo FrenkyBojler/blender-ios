@@ -665,10 +665,14 @@ typedef struct BakeData {
   char normal_swizzle[3];
   char normal_space;
 
+  char displacement_space;
+
   char target;
   char save_mode;
   char margin_type;
   char view_from;
+
+  char _pad[7];
 
   struct Object *cage_object;
 } BakeData;
@@ -744,13 +748,13 @@ typedef enum eBakePassFilter {
   R_BAKE_PASS_FILTER_COLOR = (1 << 8),
 } eBakePassFilter;
 
-/** #BakeData::normal_space */
-enum {
+/** #BakeData::normal_space and #BakeData::displacement_space */
+typedef enum eBakeSpace {
   R_BAKE_SPACE_CAMERA = 0,
   R_BAKE_SPACE_WORLD = 1,
   R_BAKE_SPACE_OBJECT = 2,
   R_BAKE_SPACE_TANGENT = 3,
-};
+} eBakeSpace;
 
 #define R_BAKE_PASS_FILTER_ALL (~0)
 
@@ -981,6 +985,7 @@ typedef enum eQualityOption {
 typedef enum eHairType {
   SCE_HAIR_SHAPE_STRAND = 0,
   SCE_HAIR_SHAPE_STRIP = 1,
+  SCE_HAIR_SHAPE_CYLINDER = 2,
 } eHairType;
 
 /** #RenderData::motion_blur_position */
@@ -1071,11 +1076,13 @@ typedef struct TimeMarker {
  * values are used
  */
 typedef struct UnifiedPaintSettings {
-  /** Unified radius of brush in pixels. */
+  DNA_DEFINE_CXX_METHODS(UnifiedPaintSettings)
+
+  /** Unified diameter of brush in pixels. */
   int size;
 
-  /** Unified radius of brush in Blender units. */
-  float unprojected_radius;
+  /** Unified diameter of brush in Blender units. */
+  float unprojected_size;
 
   /** Unified strength of brush. */
   float alpha;
@@ -1084,9 +1091,13 @@ typedef struct UnifiedPaintSettings {
   float weight;
 
   /** Unified brush color. */
-  float rgb[3];
+  float color[3];
   /** Unified brush secondary color. */
-  float secondary_rgb[3];
+  float secondary_color[3];
+
+  /* Deprecated sRGB color for forward compatibility. */
+  float rgb[3] DNA_DEPRECATED;
+  float secondary_rgb[3] DNA_DEPRECATED;
 
   /** Unified color jitter settings */
   int color_jitter_flag;
@@ -1148,6 +1159,8 @@ typedef struct ToolSystemBrushBindings {
 
 /** Paint Tool Base. */
 typedef struct Paint {
+  DNA_DEFINE_CXX_METHODS(Paint)
+
   /**
    * The active brush. Possibly null. Possibly stored in a separate #Main data-base and not user-
    * counted.
@@ -1171,10 +1184,6 @@ typedef struct Paint {
   /** Cavity curve. */
   struct CurveMapping *cavity_curve;
 
-  /** WM Paint cursor. */
-  void *paint_cursor;
-  unsigned char paint_cursor_col[4];
-
   /** Enum #ePaintFlags. */
   int flags;
 
@@ -1188,7 +1197,6 @@ typedef struct Paint {
   int symmetry_flags;
 
   float tile_offset[3];
-  char _pad2[4];
   struct UnifiedPaintSettings unified_paint_settings;
 
   PaintRuntimeHandle *runtime;
@@ -1298,6 +1306,8 @@ typedef struct ParticleEditSettings {
 
 /** Sculpt. */
 typedef struct Sculpt {
+  DNA_DEFINE_CXX_METHODS(Sculpt)
+
   Paint paint;
 
   /** For rotating around a pivot point. */
@@ -1397,9 +1407,7 @@ typedef struct GpWeightPaint {
 typedef struct VPaint {
   Paint paint;
   char flag;
-  char _pad[3];
-  /** For mirrored painting. */
-  int radial_symm[3] DNA_DEPRECATED;
+  char _pad[7];
 } VPaint;
 
 /** #VPaint::flag */
@@ -1642,6 +1650,8 @@ enum {
 };
 
 typedef struct ToolSettings {
+  DNA_DEFINE_CXX_METHODS(ToolSettings)
+
   /** Vertex paint. */
   VPaint *vpaint;
   /** Weight paint. */
@@ -1752,9 +1762,6 @@ typedef struct ToolSettings {
   /** Keyframe type (see DNA_curve_types.h). */
   char keyframe_type;
 
-  /** Multi-resolution meshes. */
-  char multires_subdiv_type;
-
   /** Edge tagging, store operator settings (no UI access). */
   char edge_mode;
 
@@ -1766,6 +1773,9 @@ typedef struct ToolSettings {
   char transform_flag;
   /** Snap elements (per space-type), #eSnapMode. */
   char snap_node_mode;
+
+  char _pad;
+
   short snap_mode;
   short snap_uv_mode;
   short snap_anim_mode;
