@@ -81,7 +81,7 @@ void main()
     return;
   }
 
-  GBufferReader gbuf = gbuffer_read(
+  gbuffer::Reader gbuf = gbuffer_read(
       gbuf_header_tx, gbuf_closure_tx, gbuf_normal_tx, texel_fullres);
 
   if (gbuf.header == 0u) {

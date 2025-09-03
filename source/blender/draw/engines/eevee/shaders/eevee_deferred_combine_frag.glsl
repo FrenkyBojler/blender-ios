@@ -54,7 +54,7 @@ void main()
 {
   int2 texel = int2(gl_FragCoord.xy);
 
-  GBufferReader gbuf = gbuffer_read(gbuf_header_tx, gbuf_closure_tx, gbuf_normal_tx, texel);
+  gbuffer::Reader gbuf = gbuffer_read(gbuf_header_tx, gbuf_closure_tx, gbuf_normal_tx, texel);
 
   float3 diffuse_color = float3(0.0f);
   float3 diffuse_direct = float3(0.0f);

@@ -98,7 +98,7 @@ void main()
   float depth = reverse_z::read(texelFetch(depth_tx, texel, 0).r);
   float3 vP = drw_point_screen_to_view(float3(center_uv, depth));
 
-  GBufferReader gbuf = gbuffer_read(gbuf_header_tx, gbuf_closure_tx, gbuf_normal_tx, texel);
+  gbuffer::Reader gbuf = gbuffer_read(gbuf_header_tx, gbuf_closure_tx, gbuf_normal_tx, texel);
   if (gbuffer_closure_get(gbuf, 0).type != CLOSURE_BSSRDF_BURLEY_ID) {
     return;
   }

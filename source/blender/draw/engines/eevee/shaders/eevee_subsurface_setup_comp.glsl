@@ -29,7 +29,7 @@ void main()
 
   barrier();
 
-  GBufferReader gbuf = gbuffer_read(gbuf_header_tx, gbuf_closure_tx, gbuf_normal_tx, texel);
+  gbuffer::Reader gbuf = gbuffer_read(gbuf_header_tx, gbuf_closure_tx, gbuf_normal_tx, texel);
 
   if (gbuffer_closure_get(gbuf, 0).type == CLOSURE_BSSRDF_BURLEY_ID) {
     float3 radiance = rgb9e5_decode(imageLoadFast(direct_light_img, texel).r);

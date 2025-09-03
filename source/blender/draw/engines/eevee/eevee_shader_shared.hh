@@ -1940,8 +1940,6 @@ enum GBufferMode : uint32_t {
   GBUF_DIFFUSE = 1u,
   GBUF_REFLECTION = 2u,
   GBUF_REFLECTION_COLORLESS = 3u,
-  /** Used for surfaces that have no lit closure and just encode a normal layer. */
-  GBUF_UNLIT = 4u,
 
   /**
    * Special bit that marks all closures with refraction.

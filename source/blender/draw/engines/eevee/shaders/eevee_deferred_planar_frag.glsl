@@ -21,7 +21,7 @@ void main()
 
   float depth = texelFetch(hiz_tx, texel, 0).r;
 
-  GBufferReader gbuf = gbuffer_read(gbuf_header_tx, gbuf_closure_tx, gbuf_normal_tx, texel);
+  gbuffer::Reader gbuf = gbuffer_read(gbuf_header_tx, gbuf_closure_tx, gbuf_normal_tx, texel);
 
   float3 albedo_front = float3(0.0f);
   float3 albedo_back = float3(0.0f);

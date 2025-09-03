@@ -21,7 +21,7 @@ void main()
 
   float depth = texelFetch(hiz_tx, texel, 0).r;
 
-  GBufferReader gbuf = gbuffer_read(gbuf_header_tx, gbuf_closure_tx, gbuf_normal_tx, texel);
+  gbuffer::Reader gbuf = gbuffer_read(gbuf_header_tx, gbuf_closure_tx, gbuf_normal_tx, texel);
 
   if (gbuf.closure_count == 0) {
     out_radiance = float4(0.0f);

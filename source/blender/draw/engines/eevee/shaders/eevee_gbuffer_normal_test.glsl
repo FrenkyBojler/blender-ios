@@ -29,7 +29,7 @@ void main()
 
   TEST(eevee_gbuffer, NormalPack)
   {
-    GBufferWriter gbuf;
+    gbuffer::Writer gbuf;
     gbuf.header = 0u;
     gbuf.bins_len = 0;
     gbuf.data_len = 0;
@@ -63,7 +63,7 @@ void main()
 
   TEST(eevee_gbuffer, NormalPackOpti)
   {
-    GBufferWriter gbuf;
+    gbuffer::Writer gbuf;
     gbuf.header = 0u;
     gbuf.bins_len = 0;
     gbuf.data_len = 0;
@@ -92,10 +92,7 @@ void main()
   }
 
   GBufferData data_in;
-  GBufferReader data_out;
-  samplerGBufferHeader header_tx = 0;
-  samplerGBufferClosure closure_tx = 0;
-  samplerGBufferNormal normal_tx = 0;
+  gbuffer::Reader data_out;
 
   ClosureUndetermined cl1 = closure_new(CLOSURE_BSDF_DIFFUSE_ID);
   cl1.weight = 1.0f;
@@ -128,7 +125,7 @@ void main()
     EXPECT_EQ(g_data_packed.data_len, 2);
     EXPECT_EQ(g_data_packed.normal_len, 1);
 
-    data_out = gbuffer_read(header_tx, closure_tx, normal_tx, int2(0));
+    data_out = gbuffer_read(g_data_packed, g_data_packed, g_data_packed, int2(0));
 
     EXPECT_EQ(data_out.closure_count, 2);
     EXPECT_EQ(data_out.normal_len, 1);

@@ -43,7 +43,7 @@ void main()
   bool valid_texel = in_texture_range(texel, gbuf_header_tx);
 
   if (valid_texel) {
-    GBufferReader gbuf = gbuffer_read(gbuf_header_tx, gbuf_closure_tx, gbuf_normal_tx, texel);
+    gbuffer::Reader gbuf = gbuffer_read(gbuf_header_tx, gbuf_closure_tx, gbuf_normal_tx, texel);
 
     for (uchar i = 0; i < GBUFFER_LAYER_MAX; i++) {
       ClosureUndetermined cl = gbuffer_closure_get_by_bin(gbuf, i);

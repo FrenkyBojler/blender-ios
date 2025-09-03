@@ -34,7 +34,7 @@ void main()
   texel_fullres = min(texel_fullres, extent - 1);
 
   /* Load Gbuffer. */
-  GBufferReader gbuf = gbuffer_read(
+  gbuffer::Reader gbuf = gbuffer_read(
       gbuf_header_tx, gbuf_closure_tx, gbuf_normal_tx, texel_fullres);
 
   /* Export normal. */

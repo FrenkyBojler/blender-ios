@@ -26,7 +26,7 @@ GBufferData gbuffer_new()
 void main()
 {
   GBufferData data_in;
-  GBufferReader data_out;
+  gbuffer::Reader data_out;
   samplerGBufferHeader header_tx = 0;
   samplerGBufferClosure closure_tx = 0;
   samplerGBufferNormal normal_tx = 0;
