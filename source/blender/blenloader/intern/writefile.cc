@@ -849,12 +849,15 @@ static void writestruct_nr(
   writestruct_at_address_nr(wd, filecode, struct_nr, nr, adr, adr);
 }
 
-static void write_raw_data_in_debug_file(WriteData *wd, const size_t len, const void *adr)
+static void write_raw_data_in_debug_file(WriteData *wd,
+                                         const size_t len,
+                                         const void *address_id,
+                                         const void *data)
 {
   fmt::memory_buffer buf;
   fmt::appender dst{buf};
 
-  fmt::format_to(dst, "<Raw Data> at {} ({} bytes)\n", adr, len);
+  fmt::format_to(dst, "<Raw Data> at {} ({} bytes)\n", address_id, len);
 
   constexpr int bytes_per_row = 8;
   const int len_digits = std::to_string(std::max<size_t>(0, len - 1)).size();
@@ -863,7 +866,7 @@ static void write_raw_data_in_debug_file(WriteData *wd, const size_t len, const 
     if (i % bytes_per_row == 0) {
       fmt::format_to(dst, "  {:{}}: ", i, len_digits);
     }
-    fmt::format_to(dst, "{:02x} ", reinterpret_cast<const uint8_t *>(adr)[i]);
+    fmt::format_to(dst, "{:02x} ", reinterpret_cast<const uint8_t *>(data)[i]);
     if (i % bytes_per_row == bytes_per_row - 1) {
       fmt::format_to(dst, "\n");
     }
@@ -897,16 +900,18 @@ static void writedata(
     return;
   }
 
+  const void *address_id = get_address_id(*wd, adr);
+
   BHead bh;
   bh.code = filecode;
-  bh.old = get_address_id(*wd, adr);
+  bh.old = address_id;
   bh.nr = 1;
   BLI_STATIC_ASSERT(SDNA_RAW_DATA_STRUCT_INDEX == 0, "'raw data' SDNA struct index should be 0")
   bh.SDNAnr = SDNA_RAW_DATA_STRUCT_INDEX;
   bh.len = int64_t(len);
 
   if (wd->debug_dst) {
-    write_raw_data_in_debug_file(wd, len, adr);
+    write_raw_data_in_debug_file(wd, len, address_id, adr);
   }
 
   write_bhead(wd, bh);
