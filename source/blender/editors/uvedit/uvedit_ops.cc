@@ -652,7 +652,7 @@ static float2 uvedit_uv_island_arrange(Scene *scene,
   return position;
 }
 
-static wmOperatorStatus uv_align_island_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus uv_arrange_island_exec(bContext *C, wmOperator *op)
 {
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
@@ -742,7 +742,7 @@ static wmOperatorStatus uv_align_island_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static void UV_OT_align_island(wmOperatorType *ot)
+static void UV_OT_arrange_island(wmOperatorType *ot)
 {
 
   static const EnumPropertyItem initial_position[] = {
@@ -807,11 +807,11 @@ static void UV_OT_align_island(wmOperatorType *ot)
   /* identifiers */
   ot->name = "Arrange/Align Island";
   ot->description = "Arrange selected islands vertices on a line";
-  ot->idname = "UV_OT_align_island";
+  ot->idname = "UV_OT_arrange_island";
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
   /* API callbacks. */
-  ot->exec = uv_align_island_exec;
+  ot->exec = uv_arrange_island_exec;
   ot->poll = ED_operator_uvedit;
 
   /* properties */
@@ -2319,7 +2319,7 @@ void ED_operatortypes_uvedit()
   WM_operatortype_append(UV_OT_snap_selected);
 
   WM_operatortype_append(UV_OT_align);
-  WM_operatortype_append(UV_OT_align_island);
+  WM_operatortype_append(UV_OT_arrange_island);
 
   WM_operatortype_append(UV_OT_rip);
   WM_operatortype_append(UV_OT_stitch);

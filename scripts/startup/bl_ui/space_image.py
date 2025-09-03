@@ -470,7 +470,7 @@ class IMAGE_MT_uvs(Menu):
         layout.operator("uv.pack_islands")
         layout.operator_context = 'EXEC_REGION_WIN'
         layout.operator("uv.average_islands_scale")
-        layout.operator("uv.align_island")
+        layout.operator("uv.arrange_island")
 
         layout.separator()
 
