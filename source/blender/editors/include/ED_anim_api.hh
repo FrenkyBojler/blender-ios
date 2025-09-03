@@ -17,7 +17,6 @@
 #include "DNA_space_types.h"
 
 #include <optional>
-#include <utility>
 
 struct AnimData;
 struct Depsgraph;
