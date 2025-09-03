@@ -784,7 +784,7 @@ static void UV_OT_arrange_island(wmOperatorType *ot)
        0,
        "Center",
        "Align the islands to the center of the largest island"},
-      {int(UVAlignIslandMode::None), "NONE", 0, "NONE", "Preserve island alignemnt"},
+      {int(UVAlignIslandMode::None), "NONE", 0, "None", "Preserve island alignemnt"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
