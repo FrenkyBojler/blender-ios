@@ -69,6 +69,7 @@
 #include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
+#include "DNA_modifier_types.h"
 #include "bmesh.hh"
 
 #include <cmath>
@@ -492,6 +493,12 @@ void object_sculpt_mode_exit(Main &bmain, Depsgraph &depsgraph, Scene &scene, Ob
   mesh->runtime->corner_tris_cache.unfreeze();
 
   multires_flush_sculpt_updates(&ob);
+  MultiresModifierData *mmd = BKE_sculpt_multires_active(&scene, &ob);
+  if (mmd) {
+    if (mmd->flags & eMultiresModifierFlag_UseAutomaticConformBase) {
+      multiresModifier_base_apply(&depsgraph, &ob, mmd, ApplyBaseMode::Base);
+    }
+  }
 
   /* Not needed for now. */
 #if 0

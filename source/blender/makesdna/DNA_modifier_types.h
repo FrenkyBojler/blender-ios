@@ -1221,6 +1221,7 @@ typedef enum {
   eMultiresModifierFlag_UseCrease = (1 << 2),
   eMultiresModifierFlag_UseCustomNormals = (1 << 3),
   eMultiresModifierFlag_UseSculptBaseMesh = (1 << 4),
+  eMultiresModifierFlag_UseAutomaticConformBase = (1 << 5),
 } MultiresModifierFlag;
 
 /** DEPRECATED: only used for versioning. */
