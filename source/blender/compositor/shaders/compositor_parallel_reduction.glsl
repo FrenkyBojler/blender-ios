@@ -218,7 +218,7 @@ template<> float channel_mix<float, ChannelR>(float4 value) { return value.r; }
 template<> float channel_mix<float, ChannelG>(float4 value) { return value.g; }
 template<> float channel_mix<float, ChannelB>(float4 value) { return value.b; }
 template<> float channel_mix<float, ChannelMax>(float4 value) { return reduce_max(value.rgb); }
-template<> float2 channel_mix<float2, ChannelRG>(float4 value) { return value.rb; }
+template<> float2 channel_mix<float2, ChannelRG>(float4 value) { return value.rg; }
 /* clang-format on */
 template<> float channel_mix<float, ChannelLuma>(float4 value)
 {
