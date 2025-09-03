@@ -4315,7 +4315,7 @@ static bool mesh_separate_loose(
   blender::Array<BMEdge *> edge_groups(bm_old->totedge);
   blender::Array<BMFace *> face_groups(bm_old->totface);
 
-  int(*groups)[3] = nullptr;
+  int (*groups)[3] = nullptr;
   int groups_len = BM_mesh_calc_edge_groups_as_arrays(
       bm_old, vert_groups.data(), edge_groups.data(), face_groups.data(), &groups);
   if (groups_len <= 1) {
@@ -7760,17 +7760,19 @@ static wmOperatorStatus mesh_symmetrize_exec(bContext *C, wmOperator *op)
 
     BMO_slot_buffer_hflag_enable(
         em->bm, bmop.slots_out, "geom.out", BM_ALL_NOLOOP, BM_ELEM_SELECT, true);
-
-    if (scene->toolsettings->automerge & AUTO_MERGE) {
-      EDBM_automerge_connected(obedit, false, BM_ELEM_SELECT, scene->toolsettings->doublimit);
-    }
-
     if (!EDBM_op_finish(em, &bmop, op, true)) {
       continue;
     }
+
+    bool calc_variables = false;
+    if (scene->toolsettings->automerge & AUTO_MERGE) {
+      calc_variables = EDBM_automerge_connected(
+          obedit, false, BM_ELEM_SELECT, scene->toolsettings->doublimit);
+    }
+
     EDBMUpdate_Params params{};
     params.calc_looptris = true;
-    params.calc_normals = false;
+    params.calc_normals = calc_variables;
     params.is_destructive = true;
     EDBM_update(static_cast<Mesh *>(obedit->data), &params);
     EDBM_selectmode_flush(em);
@@ -9498,7 +9500,7 @@ static wmOperatorStatus edbm_set_normals_from_faces_exec(bContext *C, wmOperator
 
     BKE_editmesh_lnorspace_update(em);
 
-    float(*vert_normals)[3] = static_cast<float(*)[3]>(
+    float (*vert_normals)[3] = static_cast<float (*)[3]>(
         MEM_mallocN(sizeof(*vert_normals) * bm->totvert, __func__));
     {
       int v_index;
@@ -9606,7 +9608,7 @@ static wmOperatorStatus edbm_smooth_normals_exec(bContext *C, wmOperator *op)
     BKE_editmesh_lnorspace_update(em);
     BMLoopNorEditDataArray *lnors_ed_arr = BM_loop_normal_editdata_array_init(bm, false);
 
-    float(*smooth_normal)[3] = static_cast<float(*)[3]>(
+    float (*smooth_normal)[3] = static_cast<float (*)[3]>(
         MEM_callocN(sizeof(*smooth_normal) * lnors_ed_arr->totloop, __func__));
 
     /* NOTE(@mont29): This is weird choice of operation, taking all loops of faces of current
