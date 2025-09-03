@@ -369,7 +369,7 @@ class AttributeTexts : Overlay {
                                           const float3 &face_normal,
                                           const State &state,
                                           const float4x4 &object_to_world,
-                                          const float offset_by_type = 1.0f)
+                                          const float offset_scale = 1.0f)
   {
     const float3 prev_edge_vec = prev_corner_pos - corner_pos;
     const float3 next_edge_vec = next_corner_pos - corner_pos;
@@ -390,10 +390,11 @@ class AttributeTexts : Overlay {
 
     const float3 pos_o_world = math::transform_point(object_to_world, corner_pos);
     const float pixel_size = ED_view3d_pixel_size(state.rv3d, pos_o_world);
-    const float view_scaled_offset = pixel_size * 80.0f;
+    const float pixel_offset = UI_style_get()->widget.points * 7.0f * UI_SCALE_FAC;
+    const float screen_space_offset = pixel_size * pixel_offset;
 
     const float offset_distance = std::clamp(
-        view_scaled_offset * sharp_multiplier * offset_by_type, 0.0f, max_offset);
+        screen_space_offset * sharp_multiplier * offset_scale, 0.0f, max_offset);
 
     return corner_pos + bisector_dir * offset_distance;
   }
