@@ -555,7 +555,7 @@ enum class UVAlignIslandMode {
 enum UVAlignIslandOrder {
   LargeToSmall,
   SmallToLarge,
-  None,
+  Fixed,
 };
 
 struct UVAABBIsland {
@@ -599,7 +599,7 @@ static float2 uvedit_uv_island_arrange(Scene *scene,
       aabbs.begin(),
       aabbs.end(),
       [&](const std::unique_ptr<UVAABBIsland> &a, const std::unique_ptr<UVAABBIsland> &b) {
-        if (order == UVAlignIslandOrder::None) {
+        if (order == UVAlignIslandOrder::Fixed) {
           if (axis == UVAlignIslandAxis::X) {
             return a->bounds.min[0] < b->bounds.min[0];
           }
@@ -801,7 +801,7 @@ static void UV_OT_arrange_island(wmOperatorType *ot)
        0,
        "Smallest to Largest",
        "Sort Islands from Smallest to Largest"},
-      {int(UVAlignIslandOrder::None), "NONE", 0, "Do not arrange", "Do not Sort Islands"},
+      {int(UVAlignIslandOrder::Fixed), "Fixed", 0, "Fixed", "Preserve island order"},
       {0, nullptr, 0, nullptr, nullptr},
   };
   /* identifiers */
@@ -837,8 +837,8 @@ static void UV_OT_arrange_island(wmOperatorType *ot)
                "order",
                sort_items,
                int(UVAlignIslandOrder::LargeToSmall),
-               "Size order",
-               "Location to align islands on");
+               "Order",
+               "Order of islands");
 
   RNA_def_float(
       ot->srna, "offset", 0.05, 0, FLT_MAX, "Offset", "Distance between islands", 0, FLT_MAX);
