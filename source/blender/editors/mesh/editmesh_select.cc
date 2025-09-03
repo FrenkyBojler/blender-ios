@@ -4749,7 +4749,7 @@ static void walker_deselect_nth_face_loop(BMEditMesh *em,
       }
     }
 
-    if (candidate_count++ == 0 || f_next == nullptr || f_next == f_start) {
+    if (candidate_count == 0 || f_next == nullptr || f_next == f_start) {
       break;
     }
 
