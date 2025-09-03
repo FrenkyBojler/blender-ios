@@ -1212,6 +1212,7 @@ ccl_gpu_kernel(GPU_KERNEL_BLOCK_NUM_THREADS, GPU_KERNEL_MAX_REGISTERS)
   buffer_flipped[1] = temp.y;
   buffer_flipped[2] = temp.z;
 }
+ccl_gpu_kernel_postfix
 
 /* --------------------------------------------------------------------
  * Shadow catcher.
