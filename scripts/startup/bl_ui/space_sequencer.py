@@ -9,7 +9,6 @@ from bpy.types import (
     Panel,
 )
 from bpy.app.translations import (
-    pgettext_iface as iface_,
     contexts as i18n_contexts,
     pgettext_iface as iface_,
     pgettext_rpt as rpt_,
@@ -20,9 +19,6 @@ from bl_ui.properties_grease_pencil_common import (
 )
 from bl_ui.space_toolsystem_common import (
     ToolActivePanelHelper,
-)
-from bl_ui.utils import (
-    PlayheadSnappingPanel,
 )
 
 from rna_prop_ui import PropertyPanel
@@ -197,11 +193,7 @@ class SEQUENCER_HT_header(Header):
             row.prop(tool_settings, "use_snap_sequencer", text="")
             sub = row.row(align=True)
             sub.popover(panel="SEQUENCER_PT_snapping")
-            if st.view_type in {'SEQUENCER', 'SEQUENCER_PREVIEW'}:
-                row = layout.row(align=True)
-                row.prop(tool_settings, "use_snap_playhead", text="")
-                sub = row.row(align=True)
-                sub.popover(panel="SEQUENCER_PT_playhead_snapping", text="")
+
         layout.separator_spacer()
 
         if st.view_type in {'PREVIEW', 'SEQUENCER_PREVIEW'}:
@@ -930,30 +922,33 @@ class SEQUENCER_MT_strip_transform(Menu):
         else:
             layout.operator_context = 'INVOKE_REGION_WIN'
 
+        col = layout.column()
         if has_preview:
-            layout.operator("transform.translate", text="Move")
-            layout.operator("transform.rotate", text="Rotate")
-            layout.operator("transform.resize", text="Scale")
+            col.operator("transform.translate", text="Move")
+            col.operator("transform.rotate", text="Rotate")
+            col.operator("transform.resize", text="Scale")
         else:
-            layout.operator("transform.seq_slide", text="Move").view2d_edge_pan = True
-            layout.operator("transform.transform", text="Move/Extend from Current Frame").mode = 'TIME_EXTEND'
-            layout.operator("sequencer.slip", text="Slip Strip Contents")
+            col.operator("transform.seq_slide", text="Move").view2d_edge_pan = True
+            col.operator("transform.transform", text="Move/Extend from Current Frame").mode = 'TIME_EXTEND'
+            col.operator("sequencer.slip", text="Slip Strip Contents")
 
         # TODO (for preview)
         if has_sequencer:
-            layout.separator()
-            layout.operator("sequencer.snap")
-            layout.operator("sequencer.offset_clear")
+            col.separator()
+            col.operator("sequencer.snap")
+            col.operator("sequencer.offset_clear")
 
-            layout.separator()
+            col.separator()
 
         if has_sequencer:
-            layout.operator_menu_enum("sequencer.swap", "side")
+            col.operator_menu_enum("sequencer.swap", "side")
 
-            layout.separator()
-            layout.operator("sequencer.gap_remove").all = False
-            layout.operator("sequencer.gap_remove", text="Remove Gaps (All)").all = True
-            layout.operator("sequencer.gap_insert")
+            col.separator()
+            col.operator("sequencer.gap_remove").all = False
+            col.operator("sequencer.gap_remove", text="Remove Gaps (All)").all = True
+            col.operator("sequencer.gap_insert")
+
+        col.enabled = bool(context.sequencer_scene)
 
 
 class SEQUENCER_MT_strip_text(Menu):
@@ -991,30 +986,34 @@ class SEQUENCER_MT_strip_show_hide(Menu):
 class SEQUENCER_MT_strip_animation(Menu):
     bl_label = "Animation"
 
-    def draw(self, _context):
+    def draw(self, context):
         layout = self.layout
+        layout.operator_context = 'INVOKE_REGION_PREVIEW'
 
-        layout.operator("anim.keyframe_insert", text="Insert Keyframe")
-        layout.operator("anim.keyframe_insert_menu", text="Insert Keyframe with Keying Set").always_prompt = True
-        layout.operator("anim.keying_set_active_set", text="Change Keying Set...")
-        layout.operator("anim.keyframe_delete_vse", text="Delete Keyframes...")
-        layout.operator("anim.keyframe_clear_vse", text="Clear Keyframes...")
+        col = layout.column()
+        col.operator("anim.keyframe_insert", text="Insert Keyframe")
+        col.operator("anim.keyframe_insert_menu", text="Insert Keyframe with Keying Set").always_prompt = True
+        col.operator("anim.keying_set_active_set", text="Change Keying Set...")
+        col.operator("anim.keyframe_delete_vse", text="Delete Keyframes...")
+        col.operator("anim.keyframe_clear_vse", text="Clear Keyframes...")
+        col.enabled = bool(context.sequencer_scene)
 
 
 class SEQUENCER_MT_strip_mirror(Menu):
     bl_label = "Mirror"
 
-    def draw(self, _context):
+    def draw(self, context):
         layout = self.layout
         layout.operator_context = 'INVOKE_REGION_PREVIEW'
 
-        layout.operator("transform.mirror", text="Interactive Mirror")
+        col = layout.column()
+        col.operator("transform.mirror", text="Interactive Mirror")
 
-        layout.separator()
+        col.separator()
 
         for (space_name, space_id) in (("Global", 'GLOBAL'), ("Local", 'LOCAL')):
             for axis_index, axis_name in enumerate("XY"):
-                props = layout.operator(
+                props = col.operator(
                     "transform.mirror",
                     text="{:s} {:s}".format(axis_name, iface_(space_name)),
                     translate=False,
@@ -1023,7 +1022,8 @@ class SEQUENCER_MT_strip_mirror(Menu):
                 props.orient_type = space_id
 
             if space_id == 'GLOBAL':
-                layout.separator()
+                col.separator()
+        col.enabled = bool(context.sequencer_scene)
 
 
 class SEQUENCER_MT_strip_input(Menu):
@@ -1282,16 +1282,18 @@ class SEQUENCER_MT_image(Menu):
 class SEQUENCER_MT_image_transform(Menu):
     bl_label = "Transform"
 
-    def draw(self, _context):
+    def draw(self, context):
         layout = self.layout
 
         layout.operator_context = 'INVOKE_REGION_PREVIEW'
 
-        layout.operator("transform.translate")
-        layout.operator("transform.rotate")
-        layout.operator("transform.resize", text="Scale")
-        layout.separator()
-        layout.operator("transform.translate", text="Move Origin").translate_origin = True
+        col = layout.column()
+        col.operator("transform.translate")
+        col.operator("transform.rotate")
+        col.operator("transform.resize", text="Scale")
+        col.separator()
+        col.operator("transform.translate", text="Move Origin").translate_origin = True
+        col.enabled = bool(context.sequencer_scene)
 
 
 class SEQUENCER_MT_image_clear(Menu):
@@ -3147,10 +3149,6 @@ class SEQUENCER_PT_custom_props(SequencerButtonsPanel, PropertyPanel, Panel):
     bl_category = "Strip"
 
 
-class SEQUENCER_PT_playhead_snapping(PlayheadSnappingPanel, Panel):
-    bl_space_type = 'SEQUENCE_EDITOR'
-
-
 class SEQUENCER_PT_snapping(Panel):
     bl_space_type = 'SEQUENCE_EDITOR'
     bl_region_type = 'HEADER'
@@ -3316,7 +3314,6 @@ classes = (
     SEQUENCER_PT_snapping,
     SEQUENCER_PT_preview_snapping,
     SEQUENCER_PT_sequencer_snapping,
-    SEQUENCER_PT_playhead_snapping,
 )
 
 if __name__ == "__main__":  # only for live edit.
