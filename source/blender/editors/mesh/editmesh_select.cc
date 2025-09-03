@@ -4653,7 +4653,6 @@ static void walker_deselect_nth_edge_chain(BMEditMesh *em,
   int index = 0;
 
   /* Mark all edges as unvisited. */
-  BMEdge *e;
   BM_mesh_elem_hflag_disable_all(bm, BM_EDGE, BM_ELEM_TAG, false);
 
   while (e_curr && !BM_elem_flag_test(e_curr, BM_ELEM_TAG)) {
