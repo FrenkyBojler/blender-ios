@@ -1,1 +1,2 @@
 Referenced by issue #141811, Remesh Segmentation fault
+Referenced by issue #145654, Crash everytime on start, but file opens with no issue on 4.4
