@@ -100,17 +100,17 @@ struct Packer {
   void reuse_tangent_spaces(const bool3 empty_bins)
   {
 #if GBUFFER_LAYER_MAX > 1
-    if (empty_bins[1] || all(equal(closures[0].N, closures[1].N))) {
+    if (empty_bins[1] || (all(equal(closures[0].N, closures[1].N)))) {
       this->header.tangent_space_id_set(1, 0);
 #  if GBUFFER_LAYER_MAX > 2
-      if (empty_bins[2] || all(equal(closures[0].N, closures[2].N))) {
+      if (empty_bins[2] || (all(equal(closures[0].N, closures[2].N)))) {
         this->header.tangent_space_id_set(2, 0);
       }
 #  endif
     }
     else {
 #  if GBUFFER_LAYER_MAX > 2
-      if (empty_bins[2] || all(equal(closures[1].N, closures[2].N))) {
+      if (empty_bins[2] || (all(equal(closures[1].N, closures[2].N)))) {
         this->header.tangent_space_id_set(2, 1);
       }
 #  endif
