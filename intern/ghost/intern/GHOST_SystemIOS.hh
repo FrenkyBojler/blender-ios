@@ -223,6 +223,29 @@ class GHOST_SystemIOS : public GHOST_System {
   void putClipboard(const char *buffer, bool selection) const override;
 
   /**
+   * Returns whether there is an image on the clipboard.
+   * \return True if an image is on the clipboard.
+   */
+  GHOST_TSuccess hasClipboardImage() const override;
+
+  /**
+   * Returns clipboard image data.
+   * \param r_width: the returned image width in pixels.
+   * \param r_height: the returned image height in pixels.
+   * \return pointer to image data if found. Caller must free.
+   */
+  uint *getClipboardImage(int *r_width, int *r_height) const override;
+
+  /**
+   * Put image data to the clipboard.
+   * \param rgba: uint array of pixels (each pixel is 4 bytes).
+   * \param width: image width in pixels.
+   * \param height: image height in pixels.
+   * \return True if the image was successfully put on the clipboard.
+   */
+  GHOST_TSuccess putClipboardImage(uint *rgba, int width, int height) const override;
+
+  /**
    * Pops up a keybaord on screen. Called by GHOST_WindowIOS window subclass
    * \param mouseX: x mouse coordinate (in cocoa base window coordinates).
    * \param mouseY: y mouse coordinate.

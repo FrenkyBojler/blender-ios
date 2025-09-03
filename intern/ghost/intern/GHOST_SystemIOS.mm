@@ -997,6 +997,109 @@ void GHOST_SystemIOS::putClipboard(const char *buffer, bool selection) const
   }
 }
 
+GHOST_TSuccess GHOST_SystemIOS::hasClipboardImage() const
+{
+  UIPasteboard *pasteboard = [UIPasteboard generalPasteboard];
+
+  @autoreleasepool {
+    if (!pasteboard.image) {
+      return GHOST_kFailure;
+    }
+  }
+
+  return GHOST_kSuccess;
+}
+
+uint *GHOST_SystemIOS::getClipboardImage(int *r_width, int *r_height) const
+{
+  if (!hasClipboardImage()) {
+    return nullptr;
+  }
+
+  @autoreleasepool {
+    UIPasteboard *pasteboard = [UIPasteboard generalPasteboard];
+    UIImage *image = pasteboard.image;
+
+    const CGSize imageSize = CGSizeMake(CGImageGetWidth(image.CGImage),
+                                        CGImageGetHeight(image.CGImage));
+    const size_t bytesPerRow = imageSize.width * 4;
+    const size_t bitsPreComponent = 8;
+
+    uint *rgba = (uint *)calloc(imageSize.height * bytesPerRow, sizeof(uint));
+    CGContextRef context = CGBitmapContextCreate(rgba,
+                                                 imageSize.width,
+                                                 imageSize.height,
+                                                 bitsPreComponent,
+                                                 bytesPerRow,
+                                                 CGImageGetColorSpace(image.CGImage),
+                                                 kCGImageAlphaPremultipliedLast |
+                                                     kCGBitmapByteOrder32Big);
+
+    if (!context) {
+      free(rgba);
+      return nullptr;
+    }
+
+    CGRect rect = CGRectMake(0, 0, imageSize.width, imageSize.height);
+
+    CGContextTranslateCTM(context, 0, imageSize.height);
+    CGContextScaleCTM(context, 1.0, -1.0);
+    CGContextDrawImage(context, rect, image.CGImage);
+    CGContextRelease(context);
+
+    *r_width = imageSize.width;
+    *r_height = imageSize.height;
+
+    return rgba;
+  }
+
+  return nullptr;
+}
+
+GHOST_TSuccess GHOST_SystemIOS::putClipboardImage(uint *rgba, int width, int height) const
+{
+  @autoreleasepool {
+    const size_t bytesPerRow = width * 4;
+
+    NSData *imageData = [NSData dataWithBytes:rgba length:height * bytesPerRow];
+
+    CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
+    CGDataProviderRef provider = CGDataProviderCreateWithCFData((__bridge CFDataRef)imageData);
+
+    if (!provider) {
+      CGColorSpaceRelease(colorSpace);
+      return GHOST_kFailure;
+    }
+
+    CGImageRef cgImage = CGImageCreate(width,
+                                       height,
+                                       8,
+                                       32,
+                                       bytesPerRow,
+                                       colorSpace,
+                                       kCGImageAlphaPremultipliedLast | kCGBitmapByteOrder32Big,
+                                       provider,
+                                       nullptr,
+                                       false,
+                                       kCGRenderingIntentDefault);
+
+    if (!cgImage) {
+      CGDataProviderRelease(provider);
+      CGColorSpaceRelease(colorSpace);
+      return GHOST_kFailure;
+    }
+
+    UIPasteboard *pasteboard = [UIPasteboard generalPasteboard];
+    pasteboard.image = [UIImage imageWithCGImage:cgImage];
+
+    CGImageRelease(cgImage);
+    CGDataProviderRelease(provider);
+    CGColorSpaceRelease(colorSpace);
+  }
+
+  return GHOST_kSuccess;
+}
+
 GHOST_IWindow *GHOST_SystemIOS::getWindowUnderCursor(int32_t /*x*/, int32_t /*y*/)
 {
   GHOST_ASSERT(FALSE, "GHOST_SystemIOS::getWindowUnderCursor unsupported on iOS");
