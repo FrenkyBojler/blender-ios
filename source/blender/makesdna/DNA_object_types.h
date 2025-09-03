@@ -231,7 +231,6 @@ typedef struct Object {
   bAnimVizSettings avs;
   /** Motion path cache for this object. */
   bMotionPath *mpath;
-  void *_pad0;
 
   ListBase constraintChannels DNA_DEPRECATED; /* XXX deprecated... old animation system */
   ListBase effect DNA_DEPRECATED;             /* XXX deprecated... keep for readfile */

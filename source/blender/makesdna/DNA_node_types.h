@@ -769,6 +769,8 @@ typedef struct bNodeTree {
   /** The ID owning this node tree, in case it is an embedded one. */
   ID *owner_id;
 
+  void *_pad;
+
   /** Runtime type information. */
   bNodeTreeTypeHandle *typeinfo;
   /** Runtime type identifier. */

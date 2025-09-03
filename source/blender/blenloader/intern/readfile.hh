@@ -16,6 +16,7 @@
 #  include "BLI_winstuff.h"
 #endif
 
+#include "BLI_fileops.h"
 #include "BLI_filereader.h"
 #include "BLI_map.hh"
 
@@ -82,6 +83,7 @@ struct FileData {
   BlenderHeader blender_header = {};
 
   FileReader *file = nullptr;
+  std::optional<BLI_stat_t> file_stat;
 
   /**
    * Whether we are undoing (< 0) or redoing (> 0), used to choose which 'unchanged' flag to use

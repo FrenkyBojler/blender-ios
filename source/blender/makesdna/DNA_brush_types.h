@@ -182,6 +182,8 @@ typedef struct Brush {
   struct ColorBand *gradient;
   struct PaintCurve *paint_curve;
 
+  void *_pad;
+
   float normal_weight;
   /** Rake actual data (not texture), used for sculpt. */
   float rake_factor;
@@ -479,6 +481,9 @@ typedef struct PaintCurve {
   ID id;
   /** Points of curve. */
   PaintCurvePoint *points;
+
+  char *_pad;
+
   int tot_points;
   /** Index where next point will be added. */
   int add_index;

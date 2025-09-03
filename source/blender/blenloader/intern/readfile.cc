@@ -1285,6 +1285,11 @@ static FileData *blo_filedata_from_file_descriptor(const char *filepath,
   FileData *fd = filedata_new(reports);
   fd->file = file;
 
+  BLI_stat_t stat;
+  if (BLI_stat(filepath, &stat) != -1) {
+    fd->file_stat = stat;
+  }
+
   return fd;
 }
 
@@ -1926,6 +1931,10 @@ static ID *read_id_struct(FileData *fd, BHead *bh, const char *blockname, const 
   if (BLI_str_utf8_truncate_at_size(id->name + 2, MAX_ID_NAME - 2)) {
     fd->flags |= FD_FLAGS_HAS_INVALID_ID_NAMES;
     CLOG_DEBUG(&LOG, "Truncated too long ID name to '%s'", id->name);
+  }
+
+  if (fd->file_stat) {
+    id->runtime.src_blend_modifification_time = fd->file_stat->st_mtime;
   }
 
   return id;

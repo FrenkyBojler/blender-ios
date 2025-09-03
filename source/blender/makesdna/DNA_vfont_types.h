@@ -32,6 +32,8 @@ typedef struct VFont {
   /* runtime only, holds memory for freetype to read from
    * TODO: replace this with #blf_font_new() style loading. */
   struct PackedFile *temp_pf;
+
+  void *_pad;
 } VFont;
 
 #define FO_BUILTIN_NAME "<builtin>"

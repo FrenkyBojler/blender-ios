@@ -139,6 +139,8 @@ typedef struct Image {
   ID id;
   struct AnimData *adt;
 
+  void *_pad3;
+
   /** File path. */
   char filepath[/*FILE_MAX*/ 1024];
 

@@ -746,4 +746,5 @@ static_assert(
 typedef struct IdAdtTemplate {
   ID id;
   AnimData *adt;
+  char *_pad;
 } IdAdtTemplate;

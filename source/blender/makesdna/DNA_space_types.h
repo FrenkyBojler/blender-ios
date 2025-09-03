@@ -763,6 +763,7 @@ typedef struct Script {
   void *py_button;
   void *py_browsercallback;
   void *py_globaldict;
+  void *_pad;
 
   int flags, lastspace;
   /**

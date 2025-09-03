@@ -383,6 +383,11 @@ typedef struct ID_Runtime_Remap {
 } ID_Runtime_Remap;
 
 typedef struct ID_Runtime {
+  /**
+   * The last modifification time of the source .blend file where this ID was loaded from.
+   */
+  int64_t src_blend_modifification_time;
+
   ID_Runtime_Remap remap;
   /**
    * The depsgraph that owns this data block. This is only set on data-blocks which are
@@ -585,6 +590,8 @@ typedef struct Library {
    * Typically allocated when creating a new Library or reading it from a blendfile.
    */
   LibraryRuntimeHandle *runtime;
+
+  void *_pad2;
 } Library;
 
 /**

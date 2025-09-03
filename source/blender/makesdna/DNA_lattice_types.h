@@ -59,6 +59,8 @@ typedef struct Lattice {
   struct Ipo *ipo DNA_DEPRECATED;
   struct Key *key;
 
+  void *_pad;
+
   struct MDeformVert *dvert;
   /** Multiply the influence. */
   char vgroup[/*MAX_VGROUP_NAME*/ 64];

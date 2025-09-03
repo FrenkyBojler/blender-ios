@@ -622,6 +622,8 @@ typedef struct bGPdata {
   /** Animation data - for animating draw settings. */
   struct AnimData *adt;
 
+  void *_pad;
+
   /* Grease-Pencil data */
   /** bGPDlayer. */
   ListBase layers;
