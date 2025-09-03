@@ -253,8 +253,8 @@ static bool actedit_get_context(bAnimContext *ac, SpaceAction *saction)
 
       /* sync scene's "selected keys only" flag with our "only selected" flag
        *
-       * XXX: This is a workaround for #55525. We shouldn't really be syncing the flags like
-       * this, but it's a simpler fix for now than also figuring out how the next/prev keyframe
+       * XXX: This is a workaround for #55525. We shouldn't really be syncing the flags like this,
+       * but it's a simpler fix for now than also figuring out how the next/prev keyframe
        * tools should work in the 3D View if we allowed full access to the timeline's
        * dopesheet filters (i.e. we'd have to figure out where to host those settings,
        * to be on a scene level like this flag currently is, along with several other unknowns).
@@ -1075,8 +1075,7 @@ static bool skip_fcurve_selected_data(bAnimContext *ac,
          * - When inside a meta-strip - strips outside the meta-strip excluded.
          *
          * Instead, only the strips directly visible to the user are considered for selection.
-         * The nullptr check here means everything else is considered unselected and is not
-         * shown.
+         * The nullptr check here means everything else is considered unselected and is not shown.
          *
          * There is a subtle difference between nodes, pose-bones ... etc
          * since data-paths that point to missing strips are not shown.
@@ -1781,13 +1780,13 @@ static size_t animfilter_action(bAnimContext *ac,
 }
 
 /* Include NLA-Data for NLA-Editor:
- * - When ANIMFILTER_LIST_CHANNELS is used, that means we should be filtering the list for
- * display Although the evaluation order is from the first track to the last and then apply the
+ * - When ANIMFILTER_LIST_CHANNELS is used, that means we should be filtering the list for display
+ *   Although the evaluation order is from the first track to the last and then apply the
  *   Action on top, we present this in the UI as the Active Action followed by the last track
  *   to the first so that we get the evaluation order presented as per a stack.
  * - For normal filtering (i.e. for editing),
- *   we only need the NLA-tracks but they can be in 'normal' evaluation order, i.e. first to
- * last. Otherwise, some tools may get screwed up.
+ *   we only need the NLA-tracks but they can be in 'normal' evaluation order, i.e. first to last.
+ *   Otherwise, some tools may get screwed up.
  */
 static size_t animfilter_nla(bAnimContext *ac,
                              ListBase *anim_data,
@@ -1840,8 +1839,7 @@ static size_t animfilter_nla(bAnimContext *ac,
 
     /* only work with this channel and its subchannels if it is editable */
     if (!(filter_mode & ANIMFILTER_FOREDIT) || EDITABLE_NLT(nlt)) {
-      /* only include this track if selected in a way consistent with the filtering requirements
-       */
+      /* only include this track if selected in a way consistent with the filtering requirements */
       if (ANIMCHANNEL_SELOK(SEL_NLT(nlt))) {
         /* only include if this track is active */
         if (!(filter_mode & ANIMFILTER_ACTIVE) || (nlt->flag & NLATRACK_ACTIVE)) {
@@ -1948,9 +1946,9 @@ static size_t animfilter_block_data(bAnimContext *ac,
     IdAdtTemplate *iat = reinterpret_cast<IdAdtTemplate *>(id);
 
     /* NOTE: this macro is used instead of inlining the logic here,
-     * since this sort of filtering is still needed in a few places in the rest of the code still
-     * - notably for the few cases where special mode-based different types of data expanders are
-     * required.
+     * since this sort of filtering is still needed in a few places in the rest of the code still -
+     * notably for the few cases where special mode-based
+     * different types of data expanders are required.
      */
     ANIMDATA_FILTER_CASES(
         iat,
@@ -2012,8 +2010,8 @@ static size_t animdata_filter_shapekey(bAnimContext *ac,
     bDopeSheet *ads = ac->ads;
 
     if (key->type == KEY_RELATIVE) {
-      /* TODO: This currently doesn't take into account the animatable "Range Min/Max" keys on
-       * the key-blocks. */
+      /* TODO: This currently doesn't take into account the animatable "Range Min/Max" keys on the
+       * key-blocks. */
 
       /* loop through the channels adding ShapeKeys as appropriate */
       LISTBASE_FOREACH (KeyBlock *, kb, &key->block) {
@@ -2163,8 +2161,8 @@ static size_t animdata_filter_grease_pencil_layer_node_recursive(
 
     if ((tmp_items == 0) && !name_search) {
       /* If no sub-channels, return early.
-       * Except if the search by name is on, because we might want to display the layer group
-       * alone in that case. */
+       * Except if the search by name is on, because we might want to display the layer group alone
+       * in that case. */
       return items;
     }
 
@@ -3560,8 +3558,7 @@ static size_t animdata_filter_dopesheet_movieclips(bAnimContext *ac,
   return items;
 }
 
-/* Helper for animdata_filter_dopesheet() - For checking if an object should be included or not
- */
+/* Helper for animdata_filter_dopesheet() - For checking if an object should be included or not */
 static bool animdata_filter_base_is_ok(bAnimContext *ac,
                                        Base *base,
                                        const eObjectMode object_mode,
@@ -4036,10 +4033,10 @@ size_t ANIM_animdata_filter(bAnimContext *ac,
     /* DopeSheet Based Modes */
     case ANIMCONT_DOPESHEET: /* 'DopeSheet Editor' */
     {
-      /* Due to code in `actedit_get_context()`, the equation below holds. The `data` pointer is
-       * no longer used here, in favor of always passing `ac` down the call chain. The called
-       * code can access it via `ac->ads`. Because the anim filtering code is quite complex, I
-       * (Sybren) want to keep this assertion in place. */
+      /* Due to code in `actedit_get_context()`, the equation below holds. The `data` pointer is no
+       * longer used here, in favor of always passing `ac` down the call chain. The called code
+       * can access it via `ac->ads`. Because the anim filtering code is quite complex, I (Sybren)
+       * want to keep this assertion in place. */
       BLI_assert_msg(ac->ads == data, "ANIMCONT_DOPESHEET");
 
       /* the DopeSheet editor is the primary place where the DopeSheet summaries are useful */
@@ -4052,10 +4049,10 @@ size_t ANIM_animdata_filter(bAnimContext *ac,
     case ANIMCONT_DRIVERS: /* Graph Editor -> Drivers Editing */
     case ANIMCONT_NLA:     /* NLA Editor */
     {
-      /* Due to code in `actedit_get_context()`, the equation below holds. The `data` pointer is
-       * no longer used here, in favor of always passing `ac` down the call chain. The called
-       * code can access it via `ac->ads`. Because the anim filtering code is quite complex, I
-       * (Sybren) want to keep this assertion in place. */
+      /* Due to code in `actedit_get_context()`, the equation below holds. The `data` pointer is no
+       * longer used here, in favor of always passing `ac` down the call chain. The called code
+       * can access it via `ac->ads`. Because the anim filtering code is quite complex, I (Sybren)
+       * want to keep this assertion in place. */
       BLI_assert_msg(ac->ads == data, "ANIMCONT_FCURVES/DRIVERS/NLA");
 
       /* all of these editors use the basic DopeSheet data for filtering options,
@@ -4067,10 +4064,10 @@ size_t ANIM_animdata_filter(bAnimContext *ac,
     /* Timeline Mode - Basically the same as dopesheet,
      * except we only have the summary for now */
     case ANIMCONT_TIMELINE: {
-      /* Due to code in `actedit_get_context()`, the equation below holds. The `data` pointer is
-       * no longer used here, in favor of always passing `ac` down the call chain. The called
-       * code can access it via `ac->ads`. Because the anim filtering code is quite complex, I
-       * (Sybren) want to keep this assertion in place. */
+      /* Due to code in `actedit_get_context()`, the equation below holds. The `data` pointer is no
+       * longer used here, in favor of always passing `ac` down the call chain. The called code
+       * can access it via `ac->ads`. Because the anim filtering code is quite complex, I (Sybren)
+       * want to keep this assertion in place. */
       BLI_assert_msg(ac->ads == data, "ANIMCONT_TIMELINE");
 
       /* the DopeSheet editor is the primary place where the DopeSheet summaries are useful */
