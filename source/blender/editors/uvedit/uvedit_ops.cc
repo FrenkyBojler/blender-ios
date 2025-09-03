@@ -716,9 +716,9 @@ static void UV_OT_align(wmOperatorType *ot)
   RNA_def_enum(ot->srna,
                "position_mode",
                location_items,
-               (int)UVAlignPositionMode::Mean,
-               "Position",
-               "Position align UV locations on");
+               int(UVAlignPositionMode::Mean),
+               "Position Mode",
+               "Position mode to align UV locations on");
 }
 
 /** \} */
