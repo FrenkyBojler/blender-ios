@@ -602,11 +602,10 @@ static bool uvedit_uv_island_arrange(const Scene *scene,
           }
           return a->bounds.max[1] > b->bounds.max[1];
         }
-
-        float size_a = (a->bounds.size()[0] * a->bounds.size()[1]);
-        float size_b = (b->bounds.size()[0] * b->bounds.size()[1]);
-        return (order == UVAlignIslandOrder::LargeToSmall) ? (size_a >= size_b) :
-                                                             (size_a < size_b);
+        float area_a = (a->bounds.size()[0] * a->bounds.size()[1]);
+        float area_b = (b->bounds.size()[0] * b->bounds.size()[1]);
+        return (order == UVAlignIslandOrder::LargeToSmall) ? (area_a >= area_b) :
+                                                             (area_a < area_b);
       });
 
   for (int i = 0; i < aabbs.size(); i++) {
@@ -615,34 +614,34 @@ static bool uvedit_uv_island_arrange(const Scene *scene,
       float *luv = BM_ELEM_CD_GET_FLOAT_P(element[j].l, offsets.uv);
       if (axis == UVAlignIslandAxis::Y) {
         if (align == UVAlignIslandMode::Min) {
-          luv[0] += *position[0] - aabbs[i]->bounds.min[0];
+          luv[0] += position->x - aabbs[i]->bounds.min[0];
         }
         else if (align == UVAlignIslandMode::Center) {
-          luv[0] += *position[0] - aabbs[i]->bounds.center()[0];
+          luv[0] += position->x - aabbs[i]->bounds.center()[0];
         }
         else if (align == UVAlignIslandMode::Max) {
-          luv[0] += *position[0] - aabbs[i]->bounds.max[0];
+          luv[0] += position->x - aabbs[i]->bounds.max[0];
         }
-        luv[1] += *position[1] - aabbs[i]->bounds.min[1];
+        luv[1] += position->y - aabbs[i]->bounds.min[1];
       }
       else {
         if (align == UVAlignIslandMode::Min) {
-          luv[1] += *position[1] - aabbs[i]->bounds.min[1];
+          luv[1] += position->y - aabbs[i]->bounds.min[1];
         }
         else if (align == UVAlignIslandMode::Center) {
-          luv[1] += *position[1] - aabbs[i]->bounds.center()[1];
+          luv[1] += position->y - aabbs[i]->bounds.center()[1];
         }
         else if (align == UVAlignIslandMode::Max) {
-          luv[1] -= aabbs[i]->bounds.max[1] - *position[1];
+          luv[1] += position->y - aabbs[i]->bounds.max[1];
         }
-        luv[0] += *position[0] - aabbs[i]->bounds.min[0];
+        luv[0] += position->x - aabbs[i]->bounds.min[0];
       }
     }
     if (axis == UVAlignIslandAxis::Y) {
-      *position[1] += aabbs[i]->bounds.max[1] - aabbs[i]->bounds.min[1] + offset;
+      position->y += aabbs[i]->bounds.size()[1] + offset;
     }
     else {
-      *position[0] += aabbs[i]->bounds.max[0] - aabbs[i]->bounds.min[0] + offset;
+      position->x += aabbs[i]->bounds.size()[0] + offset;
     }
     changed = true;
   }
@@ -659,7 +658,7 @@ static wmOperatorStatus uv_arrange_island_exec(bContext *C, wmOperator *op)
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
       scene, view_layer, nullptr);
 
-  float2 position = {0, 0};
+  float2 position = {0.0f, 0.0f};
 
   UVAlignStartPosition start = UVAlignStartPosition(RNA_enum_get(op->ptr, "start"));
   UVAlignIslandAxis axis = UVAlignIslandAxis(RNA_enum_get(op->ptr, "axis"));
@@ -667,33 +666,32 @@ static wmOperatorStatus uv_arrange_island_exec(bContext *C, wmOperator *op)
   UVAlignIslandOrder order = UVAlignIslandOrder(RNA_enum_get(op->ptr, "order"));
   float offset = RNA_float_get(op->ptr, "offset");
 
-  float bound_min[2], bound_max[2];
+  Bounds<float2> bounds;
   if (start == UVAlignStartPosition::BoundingBox) {
-    INIT_MINMAX2(bound_min, bound_max);
+    INIT_MINMAX2(bounds.min, bounds.max);
     for (Object *obedit : objects) {
       BMesh *bm = BKE_editmesh_from_object(obedit)->bm;
-      ED_uvedit_foreach_uv(
-          scene, bm, true, true, [&](float luv[2]) { minmax_v2v2_v2(bound_min, bound_max, luv); });
+      ED_uvedit_foreach_uv(scene, bm, true, true, [&](float luv[2]) {
+        minmax_v2v2_v2(bounds.min, bounds.max, luv);
+      });
     }
   }
   else if (start == UVAlignStartPosition::ActiveUDIM) {
     if (sima->image) {
-      bound_min[0] = bound_min[1] = sima->image->active_tile_index;
-      bound_max[0] = bound_max[1] = sima->image->active_tile_index + 1.0f;
+      bounds.min[0] = bounds.min[1] = sima->image->active_tile_index;
+      bounds.max[0] = bounds.max[1] = sima->image->active_tile_index + 1.0f;
     }
     else {
-      bound_min[0] = bound_min[1] = 0.0f;
-      bound_max[0] = bound_max[1] = 1.0f;
+      bounds.max[0] = bounds.max[1] = 1.0f;
     }
   }
   else if (start == UVAlignStartPosition::UVTileGrid) {
-    bound_min[0] = bound_min[1] = 0.0f;
-    bound_max[0] = sima->tile_grid_shape[0];
-    bound_max[1] = sima->tile_grid_shape[1];
+    bounds.max[0] = sima->tile_grid_shape[0];
+    bounds.max[1] = sima->tile_grid_shape[1];
   }
   else {
-    position[0] = sima->cursor[0];
-    position[1] = sima->cursor[1];
+    position.x = sima->cursor[0];
+    position.y = sima->cursor[1];
   }
   if (ELEM(start,
            UVAlignStartPosition::BoundingBox,
@@ -702,27 +700,27 @@ static wmOperatorStatus uv_arrange_island_exec(bContext *C, wmOperator *op)
   {
     if (axis == UVAlignIslandAxis::Y) {
       if (align == UVAlignIslandMode::Min) {
-        position[0] = bound_min[0];
+        position.x = bounds.min[0];
       }
       else if (align == UVAlignIslandMode::Center) {
-        position[0] = bound_min[0] + ((bound_max[0] - bound_min[0]) / 2.0);
+        position.x = bounds.center()[0];
       }
       else {
-        position[0] = (bound_max[0]);
+        position.x = bounds.max[0];
       }
-      position[1] = bound_min[1];
+      position.y = bounds.min[1];
     }
     else {
       if (align == UVAlignIslandMode::Min) {
-        position[1] = bound_min[1];
+        position.y = bounds.min[1];
       }
       else if (align == UVAlignIslandMode::Center) {
-        position[1] = bound_min[1] + ((bound_max[1] - bound_min[1]) / 2.0);
+        position.y = bounds.center()[1];
       }
       else {
-        position[1] = bound_max[1];
+        position.y = bounds.max[1];
       }
-      position[0] = bound_min[0];
+      position.x = bounds.min[0];
     }
   }
   for (Object *obedit : objects) {
