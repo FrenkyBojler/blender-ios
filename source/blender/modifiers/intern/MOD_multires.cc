@@ -376,7 +376,7 @@ static void shape_panel_draw(const bContext * /*C*/, Panel *panel)
 
   PointerRNA ob_ptr;
   PointerRNA *mod_ptr = modifier_panel_get_property_pointers(panel, &ob_ptr);
-  bool automatically_conform_base = RNA_boolean_get(mod_ptr, "is_external");
+  bool automatically_conform_base = RNA_boolean_get(mod_ptr, "use_automatic_conform_base");
 
   layout->enabled_set(RNA_enum_get(&ob_ptr, "mode") != OB_MODE_EDIT);
 
@@ -385,14 +385,14 @@ static void shape_panel_draw(const bContext * /*C*/, Panel *panel)
   row->op("OBJECT_OT_multires_reshape", IFACE_("Reshape"), ICON_NONE);
 
   row = &layout->row(false);
-  row->active_set(automatically_conform_base);
+  row->active_set(!automatically_conform_base);
   op_ptr = row->op("OBJECT_OT_multires_base_apply", IFACE_("Apply Base"), ICON_NONE);
   RNA_boolean_set(&op_ptr, "apply_heuristic", true);
   op_ptr = row->op("OBJECT_OT_multires_base_apply", IFACE_("Conform Base"), ICON_NONE);
   RNA_boolean_set(&op_ptr, "apply_heuristic", false);
 
-  row = &layout->row(false);
-  row->prop(mod_ptr, "automatic_conform_base", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout->use_property_split_set(true);
+  layout->prop(mod_ptr, "use_automatic_conform_base", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 static void generate_panel_draw(const bContext * /*C*/, Panel *panel)

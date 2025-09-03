@@ -2730,10 +2730,13 @@ static void rna_def_modifier_multires(BlenderRNA *brna)
   RNA_def_property_update(prop, 0, "rna_Modifier_update");
 
   prop = RNA_def_property(srna, "use_automatic_conform_base", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "flags", eMultiresModifierFlag_UseAutomaticConformBase);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_boolean_sdna(
+      prop, nullptr, "flags", eMultiresModifierFlag_UseAutomaticConformBase);
   RNA_def_property_ui_text(prop,
                            "Automatic Conform Base",
-                           "Conforms base mesh to multires modifier when exiting modes or returning to level 0 subdivisions");
+                           "Conforms base mesh to multires modifier when exiting modes or "
+                           "returning to level 0 subdivisions");
   RNA_def_property_update(prop, 0, "rna_Modifier_update");
 
   RNA_define_lib_overridable(false);
