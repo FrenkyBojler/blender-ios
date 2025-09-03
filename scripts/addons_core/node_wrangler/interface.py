@@ -13,6 +13,18 @@ from .utils.constants import blend_types, geo_combine_operations, operations
 from .utils.nodes import get_nodes_links, NWBaseMenu
 
 
+def socket_to_icon(socket):
+    socket_type = socket.type
+
+    if socket_type == "CUSTOM":
+        return "RADIOBUT_OFF"
+
+    if socket_type == "VALUE":
+        socket_type = "FLOAT"
+
+    return "NODE_SOCKET_" + socket_type
+
+
 def drawlayout(context, layout, mode='non-panel'):
     tree_type = context.space_data.tree_type
 
@@ -177,7 +189,7 @@ class NWConnectionListOutputs(Menu, NWBaseMenu):
                     operators.NWCallInputsMenu.bl_idname,
                     text=output.name,
                     text_ctxt=i18n_contexts.default,
-                    icon="RADIOBUT_OFF",
+                    icon=socket_to_icon(output),
                 ).from_socket = index
 
 
@@ -200,7 +212,7 @@ class NWConnectionListInputs(Menu, NWBaseMenu):
                 op = layout.operator(
                     operators.NWMakeLink.bl_idname, text=input.name,
                     text_ctxt=i18n_contexts.default,
-                    icon="FORWARD",
+                    icon=socket_to_icon(input),
                 )
                 op.from_socket = context.scene.NWSourceSocket
                 op.to_socket = index
