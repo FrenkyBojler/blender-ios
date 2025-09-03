@@ -135,33 +135,6 @@ static bAction *action_create_new(bContext *C, bAction *oldact)
   return action;
 }
 
-/**
- * Assign the given Action to the ID whose Action is shown in the editor.
- *
- * This assigns to the active object (default) or shape key (dope sheet in shape key mode).
- *
- * It is the responsibility of the caller to ensure this assignment is valid.
- */
-static void actedit_change_action(bContext *C, bAction *act)
-{
-  bAnimContext ac;
-  const bool ac_ok = ANIM_animdata_get_context(C, &ac);
-  BLI_assert_msg(ac_ok,
-                 "actedit_change_action() should only be called from animation-related contexts");
-  if (!ac_ok) {
-    printf("Could not get anim data to assign action, please report a bug.\n");
-    return;
-  }
-
-  BLI_assert(ac.active_action_owner);
-  const bool assign_ok = blender::animrig::assign_action(act, *ac.active_action_owner);
-  BLI_assert(assign_ok);
-  if (!assign_ok) {
-    printf("Could not set active action, please report a bug.\n");
-    return;
-  }
-}
-
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -272,9 +245,7 @@ static wmOperatorStatus action_new_exec(bContext *C, wmOperator * /*op*/)
     action = action_create_new(C, oldact);
 
     if (prop) {
-      /* set this new action
-       * NOTE: we can't use actedit_change_action, as this function is also called from the NLA
-       */
+      /* set this new action */
       PointerRNA idptr = RNA_id_pointer_create(&action->id);
       RNA_property_pointer_set(&ptr, prop, idptr, nullptr);
       RNA_property_update(C, &ptr, prop);
@@ -389,8 +360,9 @@ static wmOperatorStatus action_stash_exec(bContext *C, wmOperator *op)
       BKE_report(op->reports, RPT_ERROR, "Action+Slot has already been stashed");
     }
 
-    /* clear action refs from editor, and then also the backing data (not necessary) */
-    actedit_change_action(C, nullptr);
+    if (!blender::animrig::unassign_action({*adt_id_owner, *adt})) {
+      BKE_report(op->reports, RPT_ERROR, "Could not unassign the active Action");
+    }
   }
 
   /* Send notifiers that stuff has changed */
@@ -472,7 +444,10 @@ static wmOperatorStatus action_stash_create_exec(bContext *C, wmOperator *op)
   if (adt->action == nullptr) {
     /* just create a new action */
     bAction *action = action_create_new(C, nullptr);
-    actedit_change_action(C, action);
+    if (!blender::animrig::assign_action(action, {*adt_id_owner, *adt})) {
+      BKE_reportf(
+          op->reports, RPT_ERROR, "Could not assign a new Action to %s", adt_id_owner->name + 2);
+    }
   }
   else if (adt) {
     /* Perform stashing operation */
@@ -482,12 +457,18 @@ static wmOperatorStatus action_stash_create_exec(bContext *C, wmOperator *op)
       /* Create new action not based on the old one
        * (since the "new" operator already does that). */
       new_action = action_create_new(C, nullptr);
-      actedit_change_action(C, new_action);
+      if (!blender::animrig::assign_action(new_action, {*adt_id_owner, *adt})) {
+        BKE_reportf(
+            op->reports, RPT_ERROR, "Could not assign a new Action to %s", adt_id_owner->name + 2);
+      }
     }
     else {
       /* action has already been added - simply warn about this, and clear */
       BKE_report(op->reports, RPT_ERROR, "Action+Slot has already been stashed");
-      actedit_change_action(C, nullptr);
+      if (!blender::animrig::unassign_action({*adt_id_owner, *adt})) {
+        BKE_reportf(
+            op->reports, RPT_ERROR, "Could not un-assign Action from %s", adt_id_owner->name + 2);
+      }
     }
   }
 
@@ -838,10 +819,6 @@ static wmOperatorStatus action_layer_next_exec(bContext *C, wmOperator *op)
       /* TODO: Needs rest-pose flushing (when we get reference track) */
     }
   }
-
-  /* Update the action that this editor now uses
-   * NOTE: The calls above have already handled the user-count/anim-data side of things. */
-  actedit_change_action(C, adt->action);
   return OPERATOR_FINISHED;
 }
 
@@ -942,10 +919,6 @@ static wmOperatorStatus action_layer_prev_exec(bContext *C, wmOperator *op)
       break;
     }
   }
-
-  /* Update the action that this editor now uses
-   * NOTE: The calls above have already handled the user-count/animdata side of things. */
-  actedit_change_action(C, adt->action);
   return OPERATOR_FINISHED;
 }
 
