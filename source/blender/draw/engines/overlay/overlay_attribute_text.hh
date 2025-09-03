@@ -23,6 +23,8 @@
 
 #include "DRW_render.hh"
 
+#include "ED_view3d.hh"
+
 #include "UI_interface_c.hh"
 #include "UI_resources.hh"
 
@@ -74,7 +76,7 @@ class AttributeTexts : Overlay {
     switch (object.type) {
       case OB_MESH: {
         const Mesh &mesh = DRW_object_get_data_for_drawing<Mesh>(object);
-        add_mesh_attributes_to_text_cache(state, dt, &mesh, mesh.attributes(), object_to_world);
+        add_mesh_attributes_to_text_cache(state, dt, mesh, object_to_world);
         break;
       }
       case OB_POINTCLOUD: {
@@ -117,19 +119,19 @@ class AttributeTexts : Overlay {
 
   void add_mesh_attributes_to_text_cache(const State &state,
                                          DRWTextStore *dt,
-                                         const Mesh *mesh,
-                                         bke::AttributeAccessor attribute_accessor,
+                                         const Mesh &mesh,
                                          const float4x4 &object_to_world)
   {
-    if (!attribute_accessor.contains(".viewer")) {
+    const bke::AttributeAccessor attributes = mesh.attributes();
+    if (!attributes.contains(".viewer")) {
       return;
     }
 
-    const bke::GAttributeReader attribute = attribute_accessor.lookup(".viewer");
+    const bke::GAttributeReader attribute = attributes.lookup(".viewer");
     const bke::AttrDomain domain = attribute.domain;
-    const VArraySpan<float3> positions = *attribute_accessor.lookup<float3>("position", domain);
+    const VArraySpan<float3> positions = *attributes.lookup<float3>("position", domain);
 
-    if (domain == bke::AttrDomain::Corner && mesh != nullptr) {
+    if (domain == bke::AttrDomain::Corner) {
       const CPPType &type = attribute.varray.type();
       float offset_by_type = 1.0f;
       if (type.is<int2>() || type.is<float2>() || type.is<float3>() ||
@@ -142,10 +144,10 @@ class AttributeTexts : Overlay {
       }
 
       Array<float3> corner_positions(positions.size());
-      const Span<float3> positions = mesh->vert_positions();
-      const OffsetIndices<int> faces = mesh->faces();
-      const Span<int> corner_verts = mesh->corner_verts();
-      const Span<float3> face_normals = mesh->face_normals();
+      const Span<float3> positions = mesh.vert_positions();
+      const OffsetIndices<int> faces = mesh.faces();
+      const Span<int> corner_verts = mesh.corner_verts();
+      const Span<float3> face_normals = mesh.face_normals();
 
       threading::parallel_for(faces.index_range(), 512, [&](const IndexRange range) {
         for (const int face_index : range) {
