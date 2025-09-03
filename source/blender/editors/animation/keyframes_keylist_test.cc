@@ -240,7 +240,6 @@ class KeylistSummaryTest : public testing::Test {
      * Fill in the common bits for the mock bAnimContext, for an Action editor.
      *
      * Tests should fill in:
-     * - saction.action_slot_handle
      * - ac.obact
      * - ac.active_action_owner (= &ac.obact.id)
      */
