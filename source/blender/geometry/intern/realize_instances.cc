@@ -980,17 +980,7 @@ static bke::GeometrySet::GatheredAttributes gather_attributes_to_propagate(
           dst_domain = AttrDomain::Point;
         }
       }
-      const int index = attributes_to_propagate.names.index_of_or_add(iter.name);
-      if (index >= attributes_to_propagate.kinds.size()) {
-        attributes_to_propagate.kinds.append(AttributeDomainAndType{dst_domain, iter.data_type});
-      }
-      else {
-        attributes_to_propagate.kinds[index].domain = bke::attribute_domain_highest_priority(
-            {attributes_to_propagate.kinds[index].domain, dst_domain});
-        attributes_to_propagate.kinds[index].data_type =
-            bke::attribute_data_type_highest_complexity(
-                {attributes_to_propagate.kinds[index].data_type, iter.data_type});
-      }
+      attributes_to_propagate.add(iter.name, AttributeDomainAndType{dst_domain, iter.data_type});
     });
   }
 

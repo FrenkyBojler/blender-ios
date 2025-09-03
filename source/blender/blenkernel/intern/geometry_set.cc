@@ -701,6 +701,20 @@ bool attribute_is_builtin_on_component_type(const GeometryComponent::Type type,
   return false;
 }
 
+void GeometrySet::GatheredAttributes::add(const StringRef name, const AttributeDomainAndType &kind)
+{
+  const int index = this->names.index_of_or_add(name);
+  if (index >= this->kinds.size()) {
+    this->kinds.append(AttributeDomainAndType{kind.domain, kind.data_type});
+  }
+  else {
+    this->kinds[index].domain = bke::attribute_domain_highest_priority(
+        {this->kinds[index].domain, kind.domain});
+    this->kinds[index].data_type = bke::attribute_data_type_highest_complexity(
+        {this->kinds[index].data_type, kind.data_type});
+  }
+}
+
 void GeometrySet::gather_attributes_for_propagation(
     const Span<GeometryComponent::Type> component_types,
     const GeometryComponent::Type dst_component_type,
@@ -735,16 +749,7 @@ void GeometrySet::gather_attributes_for_propagation(
           domain = AttrDomain::Point;
         }
 
-        const int index = r_attributes.names.index_of_or_add(attribute_id);
-        if (index >= r_attributes.kinds.size()) {
-          r_attributes.kinds.append(AttributeDomainAndType{domain, meta_data.data_type});
-        }
-        else {
-          r_attributes.kinds[index].domain = bke::attribute_domain_highest_priority(
-              {r_attributes.kinds[index].domain, domain});
-          r_attributes.kinds[index].data_type = bke::attribute_data_type_highest_complexity(
-              {r_attributes.kinds[index].data_type, meta_data.data_type});
-        }
+        r_attributes.add(attribute_id, AttributeDomainAndType{domain, meta_data.data_type});
       });
 }
 

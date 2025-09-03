@@ -259,6 +259,7 @@ struct GeometrySet {
   struct GatheredAttributes {
     VectorSet<StringRef, 16> names;
     Vector<AttributeDomainAndType, 16> kinds;
+    void add(const StringRef name, const AttributeDomainAndType &kind);
   };
 
   void gather_attributes_for_propagation(Span<GeometryComponent::Type> component_types,

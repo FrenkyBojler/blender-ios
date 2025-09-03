@@ -28,16 +28,7 @@ static GeometrySet::GatheredAttributes get_final_attribute_info(
       if (iter.data_type == bke::AttrType::String) {
         return;
       }
-      const int index = info.names.index_of_or_add(iter.name);
-      if (index >= info.kinds.size()) {
-        info.kinds.append(AttributeDomainAndType{iter.domain, iter.data_type});
-      }
-      else {
-        info.kinds[index].domain = bke::attribute_domain_highest_priority(
-            {info.kinds[index].domain, iter.domain});
-        info.kinds[index].data_type = bke::attribute_data_type_highest_complexity(
-            {info.kinds[index].data_type, iter.data_type});
-      }
+      info.add(iter.name, AttributeDomainAndType{iter.domain, iter.data_type});
     });
   }
 
