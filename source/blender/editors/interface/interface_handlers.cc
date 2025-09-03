@@ -3114,7 +3114,8 @@ blender::Vector<blender::StringRef> ui_but_textbox_wrap_lines(const ARegion *reg
 {
   rcti rect;
   ui_but_to_pixelrect(&rect, region, textbox->block, textbox);
-  const int text_padding = std::floor((UI_TEXT_MARGIN_X * U.widget_unit) / textbox->block->aspect);
+  const int text_padding = round_fl_to_int((UI_TEXT_MARGIN_X * U.widget_unit) /
+                                           textbox->block->aspect);
   uiFontStyle fstyle = UI_style_get()->widget;
   ui_fontscale(&fstyle.points, textbox->block->aspect);
   UI_fontstyle_set(&fstyle);
@@ -5150,8 +5151,8 @@ static int ui_do_but_TEX(
     float ymin = but->rect.ymin + UI_UNIT_Y * (0.75f);
     float range = but->rect.ymax - ymin;
 
-    textbox->line_scroll_set((range - (my - ymin)) / range *
-                             (textbox->last_total_lines - textbox->visible_lines));
+    textbox->line_scroll_set(round_fl_to_int(
+        (range - (my - ymin)) / range * (textbox->last_total_lines - textbox->visible_lines)));
     ED_region_tag_redraw(data->region);
     return WM_UI_HANDLER_BREAK;
   }

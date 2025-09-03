@@ -2039,6 +2039,7 @@ static void widget_draw_textbox(const uiFontStyle *fstyle,
   uiButTextBox *textbox_but = static_cast<uiButTextBox *>(but);
   const int visible_lines = textbox_but->visible_lines;
   const char *drawstr = but->drawstr.c_str();
+  UI_fontstyle_set(fstyle);
   const blender::Vector<blender::StringRef> lines = ui_but_textbox_wrap_lines(
       textbox_but, BLI_rcti_size_x(rect));
 
@@ -2071,8 +2072,6 @@ static void widget_draw_textbox(const uiFontStyle *fstyle,
 #ifdef WITH_INPUT_IME
   const wmIMEData *ime_data;
 #endif
-
-  UI_fontstyle_set(fstyle);
 
   eFontStyle_Align align;
   if (but->editstr || (but->drawflag & UI_BUT_TEXT_LEFT)) {

@@ -2729,8 +2729,8 @@ void uiLayout::prop_textbox(PointerRNA *ptr,
                       ICON_GRIP_CORNER_BOTTOM_RIGHT,
                       0,
                       0,
-                      0.5f * UI_UNIT_X,
-                      0.5f * UI_UNIT_Y,
+                      0.65f * UI_UNIT_X,
+                      0.65f * UI_UNIT_Y,
                       visible_lines_ptr,
                       visible_lines_propname,
                       0,
@@ -2738,7 +2738,6 @@ void uiLayout::prop_textbox(PointerRNA *ptr,
                       100.0f,
                       "");
   static_cast<uiButGrip *>(but)->step_distance = line_heigth;
-  uiDefBut(block, ButType::Sepr, 0, "", 0, 0, 0.1f * UI_UNIT_X, 0, nullptr, 0.0, 0.0, "");
 }
 
 void uiLayout::prop_search(PointerRNA *ptr,
