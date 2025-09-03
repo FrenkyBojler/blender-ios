@@ -199,7 +199,7 @@ print("test_string_transform:", scene.test_string_transform)
 
 # The above outputs something like:
 # Stored data: an/invalid/path (is set: False , is valid path: False )
-# test_string_transform: 
+# test_string_transform:
 # New data: try\to\find\me (is_valid_path: False ) ; Stored data: an/invalid/path (is set: False )
 # Stored data: an/invalid/path (is set: True , is valid path: False )
-# test_string_transform: 
+# test_string_transform:
