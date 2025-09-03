@@ -21,14 +21,14 @@ struct ValidDeepHashes {
   Map<const ID *, IDHash> hashes;
 };
 
-/**
- * A list of missing files paths in the case that the deep hashes could not be computed.
- */
-struct MissingBlendFiles {
-  Vector<std::string> paths;
+struct DeepHashErrors {
+  /**
+   * A list of missing files paths in the case that the deep hashes could not be computed.
+   */
+  VectorSet<std::string> missing_files;
 };
 
-using IDHashResult = std::variant<ValidDeepHashes, MissingBlendFiles>;
+using IDHashResult = std::variant<ValidDeepHashes, DeepHashErrors>;
 
 /**
  * Compute a hash of the given IDs, including all their dependencies.

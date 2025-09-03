@@ -573,10 +573,12 @@ static void pack_linked_ids(Main &bmain, const blender::Set<ID *> &ids_to_pack)
 
   const id_hash::IDHashResult hash_result = id_hash::compute_linked_id_deep_hashes(
       bmain, final_ids_to_pack.as_span());
-  if (const auto *missing_blend_files = std::get_if<id_hash::MissingBlendFiles>(&hash_result)) {
-    CLOG_ERROR(&LOG,
-               "Trying to pack IDs that depend on missing linked libraries: %s",
-               missing_blend_files->paths[0].c_str());
+  if (const auto *errors = std::get_if<id_hash::DeepHashErrors>(&hash_result)) {
+    if (!errors->missing_files.is_empty()) {
+      CLOG_ERROR(&LOG,
+                 "Trying to pack IDs that depend on missing linked libraries: %s",
+                 errors->missing_files[0].c_str());
+    }
     return;
   }
   const auto &deep_hashes = std::get<id_hash::ValidDeepHashes>(hash_result);
