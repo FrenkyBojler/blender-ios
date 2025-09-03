@@ -242,28 +242,28 @@ float4 to_float4(float2 value) { return value.xyyy; }
 float4 to_float4(float4 value) { return value; }
 /* clang-format on */
 
-void load_shared_data(int index, float &r_data)
+void load_shared_data(uint index, float &r_data)
 {
   r_data = shared_variable_get(compositor_parallel_reduction_float_shared, reduction_data)[index];
 }
-void load_shared_data(int index, float2 &r_data)
+void load_shared_data(uint index, float2 &r_data)
 {
   r_data = shared_variable_get(compositor_parallel_reduction_float2_shared, reduction_data)[index];
 }
-void load_shared_data(int index, float4 &r_data)
+void load_shared_data(uint index, float4 &r_data)
 {
   r_data = shared_variable_get(compositor_parallel_reduction_float4_shared, reduction_data)[index];
 }
 
-void store_shared_data(int index, float data)
+void store_shared_data(uint index, float data)
 {
   shared_variable_get(compositor_parallel_reduction_float_shared, reduction_data)[index] = data;
 }
-void store_shared_data(int index, float2 data)
+void store_shared_data(uint index, float2 data)
 {
   shared_variable_get(compositor_parallel_reduction_float2_shared, reduction_data)[index] = data;
 }
-void store_shared_data(int index, float4 data)
+void store_shared_data(uint index, float4 data)
 {
   shared_variable_get(compositor_parallel_reduction_float4_shared, reduction_data)[index] = data;
 }
