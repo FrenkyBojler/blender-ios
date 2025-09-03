@@ -4463,12 +4463,10 @@ static BMEdge *bm_step_over_vert_to_next_selected_edge_in_chain(const BMEdge *e_
     if (e_other == e_curr || !BM_elem_flag_test(e_other, BM_ELEM_SELECT)) {
       continue;
     }
-    if (!candidate) {
-      candidate = e_other;
-    }
     if (++count > count_expected) {
       return nullptr;
     }
+    candidate = e_other;
   }
   return (count == count_expected) ? candidate : nullptr;
 }
@@ -4486,12 +4484,10 @@ static BMVert *bm_step_to_next_selected_vert_in_chain(BMVert *v_curr, BMVert *v_
     if (v_other == v_prev || !BM_elem_flag_test(v_other, BM_ELEM_SELECT)) {
       continue;
     }
-    if (!candidate) {
-      candidate = v_other;
-    }
     if (++count > count_expected) {
       return nullptr;
     }
+    candidate = v_other;
   }
   return (count == count_expected) ? candidate : nullptr;
 }
@@ -4512,12 +4508,10 @@ static BMFace *bm_step_over_shared_edge_to_next_selected_face_in_chain(BMFace *f
       if (ELEM(f_other, f_curr, f_prev) || !BM_elem_flag_test(f_other, BM_ELEM_SELECT)) {
         continue;
       }
-      if (!candidate) {
-        candidate = f_other;
-      }
       if (++count > count_expected) {
         return nullptr;
       }
+      candidate = f_other;
     }
   }
   return (count == count_expected) ? candidate : nullptr;
