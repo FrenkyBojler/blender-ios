@@ -109,7 +109,7 @@ struct PaintRuntime : NonCopyable, NonMovable {
   const blender::ocio::ColorSpace *colorspace = nullptr;
 
   /** WM Paint cursor. */
-  void *paint_cursor;
+  void *paint_cursor = nullptr;
 
   PaintRuntime();
   ~PaintRuntime();
