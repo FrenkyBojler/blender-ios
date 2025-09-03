@@ -175,11 +175,14 @@ class NWMergeMixMenu(Menu, NWBaseMenu):
 
 class NWConnectionListOutputs(Menu, NWBaseMenu):
     bl_idname = "NODE_MT_nw_connection_list_out"
-    bl_label = "From Socket"
+    bl_label = ""
 
     def draw(self, context):
         layout = self.layout
         nodes, links = get_nodes_links(context)
+
+        layout.label(text="From Socket", icon='RADIOBUT_OFF')
+        layout.separator()
 
         n1 = nodes[context.scene.NWLazySource]
         for index, output in enumerate(n1.outputs):
@@ -195,11 +198,14 @@ class NWConnectionListOutputs(Menu, NWBaseMenu):
 
 class NWConnectionListInputs(Menu, NWBaseMenu):
     bl_idname = "NODE_MT_nw_connection_list_in"
-    bl_label = "To Socket"
+    bl_label = ""
 
     def draw(self, context):
         layout = self.layout
         nodes, links = get_nodes_links(context)
+
+        layout.label(text="To Socket", icon='FORWARD')
+        layout.separator()
 
         n2 = nodes[context.scene.NWLazyTarget]
 
@@ -209,11 +215,8 @@ class NWConnectionListInputs(Menu, NWBaseMenu):
             # of the vector math node being added to the list when
             # the mode is not 'SCALE'.
             if input.enabled:
-                # The spaces are necessary to not make the displayed label be lopsided
-                text = "→  " + input.name 
-                
                 op = layout.operator(
-                    operators.NWMakeLink.bl_idname, text=text,
+                    operators.NWMakeLink.bl_idname, text=input.name,
                     text_ctxt=i18n_contexts.default,
                     icon=socket_to_icon(input),
                 )
