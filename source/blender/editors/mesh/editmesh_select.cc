@@ -4457,16 +4457,20 @@ static BMEdge *bm_step_over_vert_to_next_selected_edge_in_chain(const BMEdge *e_
   BMIter eiter;
   BMEdge *e_other, *candidate = nullptr;
   int count = 0;
+  const int count_expected = 1;
 
   BM_ITER_ELEM (e_other, &eiter, v, BM_EDGES_OF_VERT) {
-    if (e_other != e_curr && BM_elem_flag_test(e_other, BM_ELEM_SELECT)) {
+    if (e_other == e_curr || !BM_elem_flag_test(e_other, BM_ELEM_SELECT)) {
+      continue;
+    }
+    if (!candidate) {
       candidate = e_other;
-      if (++count > 1) {
-        return nullptr;
-      }
+    }
+    if (++count > count_expected) {
+      return nullptr;
     }
   }
-  return (count == 1) ? candidate : nullptr;
+  return (count == count_expected) ? candidate : nullptr;
 }
 
 static BMVert *bm_step_to_next_selected_vert_in_chain(BMVert *v_curr, BMVert *v_prev)
@@ -4475,20 +4479,21 @@ static BMVert *bm_step_to_next_selected_vert_in_chain(BMVert *v_curr, BMVert *v_
   BMEdge *e;
   BMVert *candidate = nullptr;
   int count = 0;
+  const int count_expected = v_prev ? 1 : 2;
 
   BM_ITER_ELEM (e, &eiter, v_curr, BM_EDGES_OF_VERT) {
     BMVert *v_other = BM_edge_other_vert(e, v_curr);
     if (v_other == v_prev || !BM_elem_flag_test(v_other, BM_ELEM_SELECT)) {
       continue;
     }
-    if (v_prev && ++count > 1) {
-      return nullptr;
-    }
     if (!candidate) {
       candidate = v_other;
     }
+    if (++count > count_expected) {
+      return nullptr;
+    }
   }
-  return v_prev ? ((count == 1) ? candidate : nullptr) : candidate;
+  return (count == count_expected) ? candidate : nullptr;
 }
 
 static BMFace *bm_step_over_shared_edge_to_next_selected_face_in_chain(BMFace *f_curr,
@@ -4498,28 +4503,24 @@ static BMFace *bm_step_over_shared_edge_to_next_selected_face_in_chain(BMFace *f
   BMLoop *l;
   BMFace *candidate = nullptr;
   int count = 0;
+  const int count_expected = f_prev ? 1 : 2;
 
   BM_ITER_ELEM (l, &liter, f_curr, BM_LOOPS_OF_FACE) {
     BMIter fiter;
     BMFace *f_other;
     BM_ITER_ELEM (f_other, &fiter, l->e, BM_FACES_OF_EDGE) {
-      if (ELEM(f_other, f_curr, f_prev)) {
+      if (ELEM(f_other, f_curr, f_prev) || !BM_elem_flag_test(f_other, BM_ELEM_SELECT)) {
         continue;
-      }
-      if (!BM_elem_flag_test(f_other, BM_ELEM_SELECT)) {
-        continue;
-      }
-
-      if (f_prev && ++count > 1) {
-        return nullptr;
       }
       if (!candidate) {
         candidate = f_other;
       }
+      if (++count > count_expected) {
+        return nullptr;
+      }
     }
   }
-
-  return f_prev ? (count == 1 ? candidate : nullptr) : candidate;
+  return (count == count_expected) ? candidate : nullptr;
 }
 
 /**
