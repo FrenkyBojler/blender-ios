@@ -4549,16 +4549,16 @@ static bool bm_verts_form_loop(BMVert *v_start)
   BMVert *v_curr = v_start;
 
   do {
-    int neighbor_sel = 0;
+    int selected_neighbor_count = 0;
     BMIter eiter;
     BMEdge *e;
     BM_ITER_ELEM (e, &eiter, v_curr, BM_EDGES_OF_VERT) {
       BMVert *v_other = BM_edge_other_vert(e, v_curr);
       if (BM_elem_flag_test(v_other, BM_ELEM_SELECT)) {
-        neighbor_sel++;
+        selected_neighbor_count++;
       }
     }
-    if (neighbor_sel != 2) {
+    if (selected_neighbor_count != 2) {
       return false;
     }
 
@@ -4605,7 +4605,7 @@ static bool bm_faces_form_loop(BMFace *f_start)
   BMFace *f_curr = f_start;
 
   do {
-    int neighbor_sel = 0;
+    int selected_neighbor_count = 0;
     BMIter liter;
     BMLoop *l;
 
@@ -4614,11 +4614,11 @@ static bool bm_faces_form_loop(BMFace *f_start)
       BMFace *f_other;
       BM_ITER_ELEM (f_other, &fiter, l->e, BM_FACES_OF_EDGE) {
         if (f_other != f_curr && BM_elem_flag_test(f_other, BM_ELEM_SELECT)) {
-          neighbor_sel++;
+          selected_neighbor_count++;
         }
       }
     }
-    if (neighbor_sel != 2) {
+    if (selected_neighbor_count != 2) {
       return false;
     }
 
@@ -4730,7 +4730,7 @@ static void walker_deselect_nth_face_loop(BMEditMesh *em,
     BMIter liter;
     BMLoop *l;
     BMFace *f_next = nullptr;
-    int neighbor_sel = 0;
+    int candidate_count = 0;
 
     BM_ITER_ELEM (l, &liter, f_curr, BM_LOOPS_OF_FACE) {
       BMIter fiter;
@@ -4742,14 +4742,14 @@ static void walker_deselect_nth_face_loop(BMEditMesh *em,
         if (!BM_elem_flag_test(f_other, BM_ELEM_SELECT)) {
           continue;
         }
-        neighbor_sel++;
+        candidate_count++;
         if (f_next == nullptr) {
           f_next = f_other;
         }
       }
     }
 
-    if (neighbor_sel == 0 || f_next == nullptr || f_next == f_start) {
+    if (candidate_count++ == 0 || f_next == nullptr || f_next == f_start) {
       break;
     }
 
