@@ -212,7 +212,7 @@ class NWConnectionListInputs(Menu, NWBaseMenu):
                 op = layout.operator(
                     operators.NWMakeLink.bl_idname, text=input.name,
                     text_ctxt=i18n_contexts.default,
-                    icon=socket_to_icon(input),
+                    icon="FORWARD",
                 )
                 op.from_socket = context.scene.NWSourceSocket
                 op.to_socket = index
