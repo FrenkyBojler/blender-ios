@@ -680,21 +680,16 @@ static wmOperatorStatus uv_align_island_exec(bContext *C, wmOperator *op)
   }
   else if (start == UVAlignStartPosition::ActiveUDIM) {
     if (sima->image) {
-      bound_min[0] = sima->image->active_tile_index;
-      bound_min[0] = sima->image->active_tile_index;
-      bound_max[0] = sima->image->active_tile_index + 1.0f;
-      bound_max[1] = sima->image->active_tile_index + 1.0f;
+      bound_min[0] = bound_min[1] = sima->image->active_tile_index;
+      bound_max[0] = bound_max[1] = sima->image->active_tile_index + 1.0f;
     }
     else {
-      bound_min[0] = 0.0f;
-      bound_min[1] = 0.0f;
-      bound_max[0] = 1.0f;
-      bound_max[1] = 1.0f;
+      bound_min[0] = bound_min[1] = 0.0f;
+      bound_max[0] = bound_max[1] = 1.0f;
     }
   }
   else if (start == UVAlignStartPosition::UVTileGrid) {
-    bound_min[0] = 0.0f;
-    bound_min[1] = 0.0f;
+    bound_min[0] = bound_min[1] = 0.0f;
     bound_max[0] = sima->tile_grid_shape[0];
     bound_max[1] = sima->tile_grid_shape[1];
   }
@@ -702,7 +697,11 @@ static wmOperatorStatus uv_align_island_exec(bContext *C, wmOperator *op)
     position[0] = sima->cursor[0];
     position[1] = sima->cursor[1];
   }
-  if (ELEM(start, UVAlignStartPosition::BoundingBox, UVAlignStartPosition::ActiveUDIM)) {
+  if (ELEM(start,
+           UVAlignStartPosition::BoundingBox,
+           UVAlignStartPosition::ActiveUDIM,
+           UVAlignStartPosition::UVTileGrid))
+  {
     if (axis == UVAlignIslandAxis::Y) {
       if (align == UVAlignIslandMode::Min) {
         position[0] = bound_min[0];
