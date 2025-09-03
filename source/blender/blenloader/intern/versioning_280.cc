@@ -3783,8 +3783,9 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
           LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
             if (sl->spacetype == SPACE_ACTION) {
               SpaceAction *saction = (SpaceAction *)sl;
-              /* "Dope-sheet" should be default here, */
-              if (saction->mode_prev == 0) {
+              /* "Dope-sheet" should be default here,
+               * unless it looks like the Action Editor was active instead. */
+              if ((saction->mode_prev == 0) && (saction->action == nullptr)) {
                 saction->mode_prev = SACTCONT_DOPESHEET;
               }
             }

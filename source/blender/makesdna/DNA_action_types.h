@@ -1003,6 +1003,9 @@ typedef struct SpaceAction {
   /** Copied to region. */
   View2D v2d DNA_DEPRECATED;
 
+  /** The currently active action (deprecated). */
+  bAction *action DNA_DEPRECATED;
+
   /** The currently active context (when not showing action). */
   bDopeSheet ads;
 
