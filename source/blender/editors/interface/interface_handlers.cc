@@ -5144,6 +5144,11 @@ static int ui_do_but_VIEW_ITEM(bContext *C,
   if (data->state == BUTTON_STATE_HIGHLIGHT) {
     if ((event->type == LEFTMOUSE) && (event->modifier == 0)) {
       switch (event->val) {
+        case KM_PRESS:
+          if (ui_block_is_popup_any(but->block)) {
+            force_activate_view_item_but(C, data->region, view_item_but, false);
+          }
+          break;
         case KM_CLICK:
           /* Extra icons have priority, don't mess with them. */
           if (ui_but_extra_operator_icon_mouse_over_get(but, data->region, event)) {
