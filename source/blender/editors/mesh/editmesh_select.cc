@@ -4646,9 +4646,7 @@ static void walker_deselect_nth_vertex_loop(BMEditMesh *em,
   /* Mark all vertices as unvisited */
   BMIter iter;
   BMVert *v;
-  BM_ITER_MESH (v, &iter, bm, BM_VERTS_OF_MESH) {
-    BM_elem_flag_disable(v, BM_ELEM_TAG);
-  }
+  BM_mesh_elem_hflag_disable_all(bm, BM_VERT, BM_ELEM_TAG, false);
 
   while (v_curr && !BM_elem_flag_test(v_curr, BM_ELEM_TAG)) {
     /* Mark as visited */
@@ -4683,9 +4681,7 @@ static void walker_deselect_nth_edge_loop(BMEditMesh *em,
   /* Mark all edges as unvisited */
   BMIter iter;
   BMEdge *e;
-  BM_ITER_MESH (e, &iter, bm, BM_EDGES_OF_MESH) {
-    BM_elem_flag_disable(e, BM_ELEM_TAG);
-  }
+  BM_mesh_elem_hflag_disable_all(bm, BM_EDGE, BM_ELEM_TAG, false);
 
   while (e_curr && !BM_elem_flag_test(e_curr, BM_ELEM_TAG)) {
     /* Mark as visited */
@@ -4719,9 +4715,7 @@ static void walker_deselect_nth_face_loop(BMEditMesh *em,
   /* Mark all faces as unvisited */
   BMIter iter;
   BMFace *f;
-  BM_ITER_MESH (f, &iter, bm, BM_FACES_OF_MESH) {
-    BM_elem_flag_disable(f, BM_ELEM_TAG);
-  }
+  BM_mesh_elem_hflag_disable_all(bm, BM_FACE, BM_ELEM_TAG, false);
 
   while (f_curr && !BM_elem_flag_test(f_curr, BM_ELEM_TAG)) {
     /* Mark as visited */
