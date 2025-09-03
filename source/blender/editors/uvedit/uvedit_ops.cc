@@ -563,22 +563,19 @@ struct UVAABBIsland {
   int index;
 };
 
-static float2 uvedit_uv_island_arrange(Scene *scene,
-                                       BMesh *bm,
-                                       UVAlignIslandAxis axis,
-                                       UVAlignIslandMode align,
-                                       UVAlignIslandOrder order,
-                                       float offset,
-                                       float2 position)
+static bool uvedit_uv_island_arrange(const Scene *scene,
+                                     BMesh *bm,
+                                     const UVAlignIslandAxis axis,
+                                     const UVAlignIslandMode align,
+                                     const UVAlignIslandOrder order,
+                                     const float offset,
+                                     float2 *position)
 {
   const BMUVOffsets offsets = BM_uv_map_offsets_get(bm);
-  if (offsets.uv == -1) {
-    return position;
-  }
   UvElementMap *element_map = BM_uv_element_map_create(bm, scene, true, false, true, true);
-
+  bool changed = false;
   if (element_map == nullptr) {
-    return position;
+    return changed;
   }
 
   Vector<UvElement *> island_vector;
@@ -618,38 +615,39 @@ static float2 uvedit_uv_island_arrange(Scene *scene,
       float *luv = BM_ELEM_CD_GET_FLOAT_P(element[j].l, offsets.uv);
       if (axis == UVAlignIslandAxis::Y) {
         if (align == UVAlignIslandMode::Min) {
-          luv[0] += position[0] - aabbs[i]->bounds.min[0];
+          luv[0] += *position[0] - aabbs[i]->bounds.min[0];
         }
         else if (align == UVAlignIslandMode::Center) {
-          luv[0] += position[0] - aabbs[i]->bounds.center()[0];
+          luv[0] += *position[0] - aabbs[i]->bounds.center()[0];
         }
         else if (align == UVAlignIslandMode::Max) {
-          luv[0] += position[0] - aabbs[i]->bounds.max[0];
+          luv[0] += *position[0] - aabbs[i]->bounds.max[0];
         }
-        luv[1] += position[1] - aabbs[i]->bounds.min[1];
+        luv[1] += *position[1] - aabbs[i]->bounds.min[1];
       }
       else {
         if (align == UVAlignIslandMode::Min) {
-          luv[1] += position[1] - aabbs[i]->bounds.min[1];
+          luv[1] += *position[1] - aabbs[i]->bounds.min[1];
         }
         else if (align == UVAlignIslandMode::Center) {
-          luv[1] += position[1] - aabbs[i]->bounds.center()[1];
+          luv[1] += *position[1] - aabbs[i]->bounds.center()[1];
         }
         else if (align == UVAlignIslandMode::Max) {
-          luv[1] -= aabbs[i]->bounds.max[1] - position[1];
+          luv[1] -= aabbs[i]->bounds.max[1] - *position[1];
         }
-        luv[0] += position[0] - aabbs[i]->bounds.min[0];
+        luv[0] += *position[0] - aabbs[i]->bounds.min[0];
       }
     }
     if (axis == UVAlignIslandAxis::Y) {
-      position[1] += aabbs[i]->bounds.max[1] - aabbs[i]->bounds.min[1] + offset;
+      *position[1] += aabbs[i]->bounds.max[1] - aabbs[i]->bounds.min[1] + offset;
     }
     else {
-      position[0] += aabbs[i]->bounds.max[0] - aabbs[i]->bounds.min[0] + offset;
+      *position[0] += aabbs[i]->bounds.max[0] - aabbs[i]->bounds.min[0] + offset;
     }
+    changed = true;
   }
   BM_uv_element_map_free(element_map);
-  return position;
+  return changed;
 }
 
 static wmOperatorStatus uv_arrange_island_exec(bContext *C, wmOperator *op)
@@ -733,11 +731,11 @@ static wmOperatorStatus uv_arrange_island_exec(bContext *C, wmOperator *op)
     if (em->bm->totvertsel == 0) {
       continue;
     }
-    position = uvedit_uv_island_arrange(scene, em->bm, axis, align, order, offset, position);
-
-    uvedit_live_unwrap_update(sima, scene, obedit);
-    DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
-    WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
+    if (uvedit_uv_island_arrange(scene, em->bm, axis, align, order, offset, &position)) {
+      uvedit_live_unwrap_update(sima, scene, obedit);
+      DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
+      WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
+    }
   }
   return OPERATOR_FINISHED;
 }
