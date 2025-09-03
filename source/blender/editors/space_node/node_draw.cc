@@ -442,6 +442,9 @@ static bool node_update_basis_buttons(const bContext &C,
   if (node.is_muted()) {
     layout.active_set(false);
   }
+  if (!ID_IS_EDITABLE(&ntree.id)) {
+    layout.enabled_set(false);
+  }
 
   layout.context_ptr_set("node", &nodeptr);
 
@@ -523,6 +526,9 @@ static bool node_update_basis_socket(const bContext &C,
 
   if (node.is_muted()) {
     layout.active_set(false);
+  }
+  if (!ID_IS_EDITABLE(&ntree.id)) {
+    layout.enabled_set(false);
   }
 
   uiLayout *row = &layout.row(true);
@@ -1156,6 +1162,9 @@ static void node_update_basis_from_declaration(
             if (node.is_muted()) {
               layout.active_set(false);
             }
+            if (!ID_IS_EDITABLE(&ntree.id)) {
+              layout.enabled_set(false);
+            }
             PointerRNA node_ptr = RNA_pointer_create_discrete(&ntree.id, &RNA_Node, &node);
             layout.context_ptr_set("node", &node_ptr);
             decl.draw(&layout, const_cast<bContext *>(&C), &node_ptr);
@@ -1676,8 +1685,8 @@ static void node_draw_shadow(const SpaceNode &snode,
   const rctf &rct = node.runtime->draw_bounds;
   UI_draw_roundbox_corner_set(UI_CNR_ALL);
 
-  const float shadow_width = 0.6f * U.widget_unit;
-  const float shadow_alpha = 0.5f * alpha;
+  const float shadow_width = 0.4f * U.widget_unit;
+  const float shadow_alpha = 0.2f * alpha;
 
   ui_draw_dropshadow(&rct, radius, shadow_width, snode.runtime->aspect, shadow_alpha);
 
@@ -1691,54 +1700,56 @@ static void node_draw_shadow(const SpaceNode &snode,
   UI_draw_roundbox_4fv(&rect, false, radius + 0.5f, color);
 }
 
+/* Node groups draw two "copies" of the node body underneath, just narrower and dimmer. */
 static void node_draw_node_group_indicator(const SpaceNode &snode,
                                            const bNode &node,
                                            const rctf &rect,
                                            const float radius,
                                            const float color[4])
 {
-  /* Node groups draw copies of the body underneath but slightly smaller. */
-  if (node.type_legacy == NODE_GROUP) {
-    const float offset = 4.0f;
-    const rctf rect_group_first = {
+  if (node.type_legacy != NODE_GROUP) {
+    return;
+  }
+
+  /* How far it extends down and narrows. */
+  const float offset = 2.4f;
+
+  /* Start with the last copy. */
+  {
+    const rctf rect_group_copy = {
+        rect.xmin + offset * 4,
+        rect.xmax - offset * 4,
+        rect.ymin - offset * 2,
+        rect.ymin - offset + 1,
+    };
+
+    /* Draw a shadow behind all copies. */
+    const float shadow_width = 0.6f * U.widget_unit;
+    const float shadow_alpha = 0.2f;
+    UI_draw_roundbox_corner_set(UI_CNR_BOTTOM_LEFT | UI_CNR_BOTTOM_RIGHT);
+    ui_draw_dropshadow(
+        &rect_group_copy, radius, shadow_width, snode.runtime->aspect, shadow_alpha);
+
+    /* Use the node (or header) color but slightly darker. */
+    float color_copy[4];
+    copy_v4_v4(color_copy, color);
+    mul_v3_fl(color_copy, 0.6f);
+    UI_draw_roundbox_4fv(&rect_group_copy, true, radius * 0.66f, color_copy);
+  }
+
+  /* Draw the first copy in the front. */
+  {
+    const rctf rect_group_copy = {
         rect.xmin + offset * 2,
         rect.xmax - offset * 2,
         rect.ymin - offset,
         rect.ymin,
     };
 
-    const rctf rect_group_second = {
-        rect.xmin + offset * 4,
-        rect.xmax - offset * 4,
-        rect.ymin - offset * 2,
-        rect.ymin - offset,
-    };
-
-    const rctf rect_group_original = {
-        rect.xmin + offset,
-        rect.xmax - offset,
-        rect.ymin,
-        rect.ymin,
-    };
-
-    /* Use the backdrop color but slightly transparent. */
-    float color_group[4];
-
-    const float shadow_width = 0.6f * U.widget_unit;
-    const float shadow_alpha = 0.33f;
-
-    UI_draw_roundbox_corner_set(UI_CNR_BOTTOM_LEFT | UI_CNR_BOTTOM_RIGHT);
-
-    ui_draw_dropshadow(
-        &rect_group_second, radius, shadow_width, snode.runtime->aspect, shadow_alpha);
-    UI_draw_roundbox_4fv(&rect_group_second, true, radius * 0.66f, color);
-
-    ui_draw_dropshadow(
-        &rect_group_first, radius, shadow_width, snode.runtime->aspect, shadow_alpha);
-    UI_draw_roundbox_4fv(&rect_group_first, true, radius * 0.66f, color);
-
-    ui_draw_dropshadow(
-        &rect_group_original, radius, shadow_width, snode.runtime->aspect, shadow_alpha);
+    float color_copy[4];
+    copy_v4_v4(color_copy, color);
+    mul_v3_fl(color_copy, 0.7f);
+    UI_draw_roundbox_4fv(&rect_group_copy, true, radius * 0.66f, color_copy);
   }
 }
 
@@ -3102,7 +3113,9 @@ static void node_draw_basis(const bContext &C,
         rct.ymax - (NODE_DY + outline_width) + padding,
     };
 
-    node_draw_node_group_indicator(snode, node, rect, corner_radius, color);
+    if (draw_node_details(snode)) {
+      node_draw_node_group_indicator(snode, node, rect, corner_radius, color);
+    }
 
     UI_draw_roundbox_corner_set(UI_CNR_BOTTOM_LEFT | UI_CNR_BOTTOM_RIGHT);
     UI_draw_roundbox_4fv(&rect, true, corner_radius, color);
@@ -3158,7 +3171,7 @@ static void node_draw_basis(const bContext &C,
       color_outline[3] = 1.0f;
     }
     else {
-      UI_GetThemeColorBlendShade4fv(TH_BACK, TH_NODE, 0.4f, -20, color_outline);
+      UI_GetThemeColorShade4fv(TH_NODE, -10, color_outline);
     }
 
     UI_draw_roundbox_corner_set(UI_CNR_ALL);
@@ -3247,6 +3260,11 @@ static void node_draw_collapsed(const bContext &C,
         rct.ymax + padding,
     };
 
+    if (draw_node_details(snode)) {
+      node_draw_node_group_indicator(snode, node, rect, BASIS_RAD + padding, color);
+    }
+
+    UI_draw_roundbox_corner_set(UI_CNR_ALL);
     UI_draw_roundbox_4fv(&rect, true, BASIS_RAD + padding, color);
   }
 
@@ -3319,7 +3337,9 @@ static void node_draw_collapsed(const bContext &C,
       UI_GetThemeColor4fv(TH_REDALERT, color_outline);
     }
     else {
-      UI_GetThemeColorBlendShade4fv(TH_BACK, TH_NODE, 0.4f, -20, color_outline);
+      /* Use a slightly darker version of the header color. */
+      UI_GetThemeColor4fv(color_id, color_outline);
+      mul_v3_fl(color_outline, 0.8f);
     }
 
     UI_draw_roundbox_corner_set(UI_CNR_ALL);
