@@ -1,2 +1,3 @@
 Referenced by issue #141871, Blender LTS: Maintenance Task 4.5
 Referenced by issue #145600, UV Editor: Opening Text Object in UV editor Crashes Blender
+Referenced by pull request #145601, Fix #145600: UV Editor crash with Text objects
