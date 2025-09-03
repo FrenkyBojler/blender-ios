@@ -19,6 +19,8 @@
 
 #include "WM_types.hh"
 
+#include "UI_resources.hh"
+
 using blender::bke::AttrDomain;
 
 const EnumPropertyItem rna_enum_attribute_type_items[] = {
