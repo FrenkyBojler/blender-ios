@@ -271,6 +271,7 @@ class UnifiedPaintPanel:
             unified_paint_settings_override=None,
             unified_name=None,
             pressure_name=None,
+            curve_visibility_name=None,
             icon='NONE',
             text=None,
             slider=False,
@@ -298,6 +299,9 @@ class UnifiedPaintPanel:
         if unified_name and not header:
             # NOTE: We don't draw UnifiedPaintSettings in the header to reduce clutter. D5928#136281
             row.prop(ups, unified_name, text="", icon='BRUSHES_ALL')
+
+        if curve_visibility_name and not header:
+            row.prop(ups, curve_visibility_name, text="", icon=)
 
         return row
 
