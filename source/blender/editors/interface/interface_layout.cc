@@ -4693,7 +4693,7 @@ void LayoutInternal::init_from_parent(uiLayout *litem, uiLayout *layout, int ali
 
 uiLayout &uiLayout::row(bool align)
 {
-  uiLayout *litem = MEM_new<uiLayout>(__func__, uiItemType::LayoutRow,nullptr);
+  uiLayout *litem = MEM_new<uiLayout>(__func__, uiItemType::LayoutRow, nullptr);
   LayoutInternal::init_from_parent(litem, this, align);
 
   litem->space_ = (align) ? 0 : root_->style->buttonspacex;
@@ -4814,7 +4814,7 @@ uiLayout &uiLayout::row(bool align, const StringRef heading)
 
 uiLayout &uiLayout::column(bool align)
 {
-  uiLayout *litem = MEM_new<uiLayout>(__func__, uiItemType::LayoutColumn,nullptr);
+  uiLayout *litem = MEM_new<uiLayout>(__func__, uiItemType::LayoutColumn, nullptr);
   LayoutInternal::init_from_parent(litem, this, align);
 
   litem->space_ = (align) ? 0 : root_->style->buttonspacey;
@@ -4891,7 +4891,7 @@ uiLayout &uiLayout::menu_pie()
     }
   }
 
-  uiLayout *litem = MEM_new<uiLayout>(__func__, uiItemType::LayoutRadial,nullptr);
+  uiLayout *litem = MEM_new<uiLayout>(__func__, uiItemType::LayoutRadial, nullptr);
   LayoutInternal::init_from_parent(litem, this, false);
 
   blender::ui::block_layout_set_current(this->block(), litem);
@@ -4939,7 +4939,7 @@ uiLayout &uiLayout::list_box(uiList *ui_list, PointerRNA *actptr, PropertyRNA *a
 
 uiLayout &uiLayout::absolute(bool align)
 {
-  uiLayout *litem = MEM_new<uiLayout>(__func__, uiItemType::LayoutAbsolute,nullptr);
+  uiLayout *litem = MEM_new<uiLayout>(__func__, uiItemType::LayoutAbsolute, nullptr);
   LayoutInternal::init_from_parent(litem, this, align);
 
   blender::ui::block_layout_set_current(this->block(), litem);
@@ -4957,7 +4957,7 @@ uiBlock *uiLayout::absolute_block()
 
 uiLayout &uiLayout::overlap()
 {
-  uiLayout *litem = MEM_new<uiLayout>(__func__, uiItemType::LayoutOverlap,nullptr);
+  uiLayout *litem = MEM_new<uiLayout>(__func__, uiItemType::LayoutOverlap, nullptr);
   LayoutInternal::init_from_parent(litem, this, false);
 
   blender::ui::block_layout_set_current(this->block(), litem);
@@ -6189,6 +6189,7 @@ blender::Span<uiItem *> uiLayout::items() const
 {
   return items_;
 };
-void uiLayout::heading_reset(){
- headiung={};   
+void uiLayout::heading_reset()
+{
+  heading_ = {};
 }
