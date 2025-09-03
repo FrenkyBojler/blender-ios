@@ -73,7 +73,7 @@ ListBase *ED_scene_markers_get(const bContext *C, Scene *scene)
   if (!ANIM_animdata_get_context(C, &ac)) {
     return &scene->markers;
   }
-  return ED_animcontext_get_markers(ac);
+  return ac.markers;
 }
 
 ListBase *ED_scene_markers_get_from_area(Scene *scene, ViewLayer *view_layer, const ScrArea *area)
@@ -108,14 +108,6 @@ ListBase *ED_context_get_markers(const bContext *C)
 ListBase *ED_sequencer_context_get_markers(const bContext *C)
 {
   return ED_scene_markers_get(C, CTX_data_sequencer_scene(C));
-}
-
-ListBase *ED_animcontext_get_markers(const bAnimContext &ac)
-{
-  if (!ac.active_action) {
-    return &ac.scene->markers;
-  }
-  return &ac.active_action->markers;
 }
 
 /* --------------------------------- */

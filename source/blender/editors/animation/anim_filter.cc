@@ -189,11 +189,21 @@ static bool actedit_get_context(bAnimContext *ac, SpaceAction *saction)
     case SACTCONT_ACTION: /* 'Action Editor' */
       ac->datatype = ANIMCONT_ACTION;
       ac->data = ac->active_action;
+
+      if (saction->flag & SACTION_POSEMARKERS_SHOW) {
+        ac->markers = &ac->active_action->markers;
+      }
+
       return true;
 
     case SACTCONT_SHAPEKEY: /* 'ShapeKey Editor' */
       ac->datatype = ANIMCONT_SHAPEKEY;
       ac->data = actedit_get_shapekeys(ac);
+
+      if (saction->flag & SACTION_POSEMARKERS_SHOW) {
+        ac->markers = &ac->active_action->markers;
+      }
+
       return true;
 
     case SACTCONT_GPENCIL: /* Grease Pencil */ /* XXX review how this mode is handled... */
@@ -406,8 +416,8 @@ bool ANIM_animdata_get_context(const bContext *C, bAnimContext *ac)
   ac->scene = scene;
   ac->view_layer = CTX_data_view_layer(C);
   if (scene) {
-    ac->markers = ED_context_get_markers(C);
-    BKE_view_layer_synced_ensure(ac->scene, ac->view_layer);
+    /* This may be overwritten by actedit_get_context() when pose markers should be shown. */
+    ac->markers = &scene->markers;
   }
   ac->depsgraph = CTX_data_depsgraph_pointer(C);
   ac->obact = BKE_view_layer_active_object_get(ac->view_layer);
