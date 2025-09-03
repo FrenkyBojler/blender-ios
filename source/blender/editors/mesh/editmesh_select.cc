@@ -4455,26 +4455,31 @@ static bool bm_edge_is_select_isolated(BMEdge *e)
 static BMEdge *bm_step_over_vert_to_next_selected_edge_in_chain(const BMEdge *e_curr, BMVert *v)
 {
   BMIter eiter;
-  BMEdge *e_other, *found = nullptr;
+  BMEdge *e_other, *first = nullptr;
   int count = 0;
+  const int candidate_count_expected = 1;
 
   BM_ITER_ELEM (e_other, &eiter, v, BM_EDGES_OF_VERT) {
     if (e_other != e_curr && BM_elem_flag_test(e_other, BM_ELEM_SELECT)) {
-      if (++count > 1) {
+      if (first == nullptr) {
+        first = e_other;
+      }
+      if (++count > candidate_count_expected) {
         return nullptr;
       }
-      found = e_other;
     }
   }
-  return found;
+  return (count == candidate_count_expected) ? first : nullptr;
 }
 
 static BMVert *bm_step_to_next_selected_vert_in_chain(BMVert *v_curr, BMVert *v_prev)
 {
   BMIter eiter;
   BMEdge *e;
-  BMVert *candidate = nullptr;
-  int candidate_count = 0;
+  BMVert *first = nullptr;
+  int count = 0;
+
+  const int candidate_count_expected = v_prev ? 1 : 2;
 
   BM_ITER_ELEM (e, &eiter, v_curr, BM_EDGES_OF_VERT) {
     BMVert *v_other = BM_edge_other_vert(e, v_curr);
@@ -4485,28 +4490,29 @@ static BMVert *bm_step_to_next_selected_vert_in_chain(BMVert *v_curr, BMVert *v_
       continue;
     }
 
-    if (candidate == nullptr) {
-      candidate = v_other;
+    if (first == nullptr) {
+      first = v_other;
     }
-    candidate_count++;
-
-    if (v_prev != nullptr && candidate_count > 1) {
+    if (++count > candidate_count_expected) {
       return nullptr;
     }
   }
 
-  if (v_prev == nullptr) {
-    return candidate;
+  if (count != candidate_count_expected) {
+    return nullptr;
   }
-  return (candidate_count == 1) ? candidate : nullptr;
+  return first;
 }
 
-static BMFace *bm_step_over_shared_edge_to_next_selected_face_in_chain(BMFace *f_curr, BMFace *f_prev)
+static BMFace *bm_step_over_shared_edge_to_next_selected_face_in_chain(BMFace *f_curr,
+                                                                       BMFace *f_prev)
 {
   BMIter liter;
   BMLoop *l;
-  BMFace *candidate = nullptr;
-  int candidate_count = 0;
+  BMFace *first = nullptr;
+  int count = 0;
+
+  const int candidate_count_expected = f_prev ? 1 : 2;
 
   BM_ITER_ELEM (l, &liter, f_curr, BM_LOOPS_OF_FACE) {
     BMIter fiter;
@@ -4519,21 +4525,19 @@ static BMFace *bm_step_over_shared_edge_to_next_selected_face_in_chain(BMFace *f
         continue;
       }
 
-      if (candidate == nullptr) {
-        candidate = f_other;
+      if (first == nullptr) {
+        first = f_other;
       }
-      candidate_count++;
-
-      if (f_prev != nullptr && candidate_count > 1) {
+      if (++count > candidate_count_expected) {
         return nullptr;
       }
     }
   }
 
-  if (f_prev == nullptr) {
-    return candidate;
+  if (count != candidate_count_expected) {
+    return nullptr;
   }
-  return (candidate_count == 1) ? candidate : nullptr;
+  return first;
 }
 
 /**
