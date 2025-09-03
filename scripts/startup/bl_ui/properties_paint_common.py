@@ -283,6 +283,7 @@ class UnifiedPaintPanel:
             :param unified_paint_settings_override allows a caller to pass in a specific object for usage. Needed for
             some 'brush-like' tools."""
         row = layout.row(align=True)
+        paint = UnifiedPaintPanel.paint_settings(context)
         if unified_paint_settings_override:
             ups = unified_paint_settings_override
         else:
@@ -301,7 +302,7 @@ class UnifiedPaintPanel:
             row.prop(ups, unified_name, text="", icon='BRUSHES_ALL')
 
         if curve_visibility_name and not header:
-            row.prop(ups, curve_visibility_name, text="", icon=)
+            row.prop(paint, curve_visibility_name, text="", icon='RNDCURVE')
 
         return row
 
@@ -565,9 +566,12 @@ class StrokePanel(BrushPanel):
             else:
                 row.prop(brush, "jitter_absolute")
             row.prop(brush, "use_pressure_jitter", toggle=True, text="")
+            row.prop(settings, "show_jitter_curve", icon="RNDCURVE", text="")
             col.row().prop(brush, "jitter_unit", expand=True)
             # Pen pressure mapping curve for Jitter.
-            if brush.use_pressure_jitter and self.is_popover is False:
+            if settings.show_jitter_curve and self.is_popover is False:
+                col = layout.column()
+                col.active = brush.use_pressure_jitter
                 col.template_curve_mapping(brush, "curve_jitter", brush=True, use_negative_slope=True)
 
         col.separator()
@@ -1066,6 +1070,7 @@ def brush_settings(layout, context, brush, popover=False):
 def brush_shared_settings(layout, context, brush, popover=False):
     """ Draw simple brush settings that are shared between different paint modes. """
 
+    paint = UnifiedPaintPanel.paint_settings(context)
     mode = UnifiedPaintPanel.get_brush_mode(context)
 
     ### Determine which settings to draw. ###
@@ -1160,18 +1165,23 @@ def brush_shared_settings(layout, context, brush, popover=False):
                 size_prop,
                 unified_name="use_unified_size",
                 pressure_name="use_pressure_size",
+                curve_visibility_name="show_size_curve",
                 text="Size",
                 slider=True,
             )
         if mode in {'PAINT_TEXTURE', 'PAINT_2D', 'SCULPT', 'PAINT_VERTEX', 'PAINT_WEIGHT', 'SCULPT_CURVES'}:
-            if brush.use_pressure_size:
-                layout.template_curve_mapping(brush, "curve_size", brush=True, use_negative_slope=True)
+            if paint.show_size_curve:
+                col = layout.column()
+                # TODO: This doesn't quite work, only the first element is greyed out.
+                # col.active = brush.use_pressure_size
+                col.template_curve_mapping(brush, "curve_size", brush=True, use_negative_slope=True)
         if size_mode:
             layout.row().prop(size_owner, "use_locked_size", expand=True)
             layout.separator()
 
     if strength:
         pressure_name = "use_pressure_strength" if strength_pressure else None
+        curve_visibility_name = "show_strenght_curve" if strength_pressure else None
         UnifiedPaintPanel.prop_unified(
             layout,
             context,
@@ -1179,11 +1189,15 @@ def brush_shared_settings(layout, context, brush, popover=False):
             "strength",
             unified_name="use_unified_strength",
             pressure_name=pressure_name,
+            curve_visibility_name="show_strength_curve",
             slider=True,
         )
         if mode in {'PAINT_TEXTURE', 'PAINT_2D', 'SCULPT', 'PAINT_VERTEX', 'PAINT_WEIGHT', 'SCULPT_CURVES'}:
-            if brush.use_pressure_strength:
-                layout.template_curve_mapping(brush, "curve_strength", brush=True, use_negative_slope=True)
+            if paint.show_strength_curve:
+                col = layout.column()
+                # TODO: This doesn't quite work, only the first element is greyed out.
+                # col.active = brush.use_pressure_strength
+                col.template_curve_mapping(brush, "curve_strength", brush=True, use_negative_slope=True)
         layout.separator()
 
     if direction:
