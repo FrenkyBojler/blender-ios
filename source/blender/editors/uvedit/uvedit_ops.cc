@@ -728,7 +728,7 @@ static wmOperatorStatus uv_arrange_island_exec(bContext *C, wmOperator *op)
     if (em->bm->totvertsel == 0) {
       continue;
     }
-    if (uvedit_uv_island_arrange(scene, em->bm, axis, align, order, offset, &position)) {
+    if (uvedit_uv_island_arrange(scene, em->bm, axis, align, order, offset, position)) {
       uvedit_live_unwrap_update(sima, scene, obedit);
       DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
       WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
