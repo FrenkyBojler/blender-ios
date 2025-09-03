@@ -1386,9 +1386,7 @@ static bool sequencer_add_draw_check_fn(PointerRNA *ptr, PropertyRNA *prop, void
                    "channel",
                    "length",
                    "move_strips",
-                   "replace_sel",
-                   "use_sequence_detection",
-                   "use_placeholders");
+                   "replace_sel");
 }
 
 static void sequencer_add_draw(bContext * /*C*/, wmOperator *op)
