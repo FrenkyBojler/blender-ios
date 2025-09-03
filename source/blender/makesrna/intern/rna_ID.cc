@@ -300,7 +300,12 @@ static int rna_ID_name_editable(const PointerRNA *ptr, const char **r_info)
    *       and could be useful in some cases. */
   if (!ID_IS_EDITABLE(id)) {
     if (r_info) {
-      *r_info = N_("Linked data-blocks cannot be renamed");
+      if (ID_IS_PACKED(id)) {
+        *r_info = N_("Packed data-blocks cannot be renamed");
+      }
+      else {
+        *r_info = N_("Linked data-blocks cannot be renamed");
+      }
     }
     return 0;
   }
