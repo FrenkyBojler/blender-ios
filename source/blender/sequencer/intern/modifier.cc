@@ -1318,6 +1318,7 @@ static void compositor_modifier_apply(const RenderData *render_data,
       image_buffer, IMB_steal_float_buffer(linear_float_buffer), IB_TAKE_OWNERSHIP);
   if (is_byte_buffer) {
     IMB_byte_from_float(image_buffer);
+    IMB_free_float_pixels(image_buffer);
   }
   else {
     IMB_colormanagement_scene_linear_to_colorspace(linear_float_buffer->float_buffer.data,
