@@ -6184,12 +6184,11 @@ blender::StringRef uiLayout::heading() const
 {
   return heading_;
 };
-
-blender::Span<uiItem *> uiLayout::items() const
-{
-  return items_;
-};
 void uiLayout::heading_reset()
 {
   heading_ = {};
 }
+blender::Span<uiItem *> uiLayout::items() const
+{
+  return items_;
+};

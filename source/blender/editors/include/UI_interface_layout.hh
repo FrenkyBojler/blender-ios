@@ -118,6 +118,14 @@ struct uiLayout : public uiItem, blender::NonCopyable, blender::NonMovable {
   /** Is copied to uiButs created in this layout. */
   float search_weight_ = 0.0f;
 
+ protected:
+  uiLayoutRoot *root_ = nullptr;
+  bContextStore *context_ = nullptr;
+  uiLayout *parent_ = nullptr;
+  std::string heading_;
+
+  blender::Vector<uiItem *> items_;
+
  public:
   uiLayout(blender::ui::ItemType type, uiLayoutRoot *root);
 
@@ -678,14 +686,6 @@ struct uiLayout : public uiItem, blender::NonCopyable, blender::NonMovable {
   [[nodiscard]] blender::StringRef heading() const;
   void heading_reset();
   [[nodiscard]] blender::Span<uiItem *> items() const;
-
- protected:
-  uiLayoutRoot *root_ = nullptr;
-  bContextStore *context_ = nullptr;
-  uiLayout *parent_ = nullptr;
-  std::string heading_;
-
-  blender::Vector<uiItem *> items_;
 };
 
 inline bool uiLayout::active() const
