@@ -2211,19 +2211,19 @@ static void rna_def_ID(BlenderRNA *brna)
        "NEVER",
        0,
        "Never Rename",
-       "Never rename an existng ID whose name would conflict, the currently renamed ID will get "
+       "Never rename an existing ID whose name would conflict, the currently renamed ID will get "
        "a numeric suffix appended to its new name"},
       {int(IDNewNameMode::RenameExistingAlways),
        "ALWAYS",
        0,
        "Always Rename",
-       "Always rename an existng ID whose name would conflict, ensuring that the currently "
+       "Always rename an existing ID whose name would conflict, ensuring that the currently "
        "renamed ID will get requested name"},
       {int(IDNewNameMode::RenameExistingSameRoot),
        "SAME_ROOT",
        0,
        "Rename If Same Root",
-       "Only rename an existng ID whose name would conflict if its name root (everything besides "
+       "Only rename an existing ID whose name would conflict if its name root (everything besides "
        "the numerical suffix) is the same as the existing name of the currently renamed ID"},
       {0, nullptr, 0, nullptr, nullptr},
   };
