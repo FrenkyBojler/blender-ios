@@ -482,6 +482,10 @@ void ED_node_set_tree_type(SpaceNode *snode, blender::bke::bNodeTreeType *typein
   else {
     snode->tree_idname[0] = '\0';
   }
+
+  /* Reset members that store tree type-dependant values. */
+  snode->node_tree_sub_type = 0;
+  snode->selected_node_group = nullptr;
 }
 
 bool ED_node_is_compositor(const SpaceNode *snode)
@@ -1859,12 +1863,11 @@ static wmOperatorStatus node_deactivate_viewer_exec(bContext *C, wmOperator * /*
     if (node->type_legacy != GEO_NODE_VIEWER) {
       continue;
     }
-    if (!(node->flag & SELECT)) {
-      continue;
-    }
     if (node == active_viewer) {
       node->flag &= ~NODE_DO_OUTPUT;
       BKE_ntree_update_tag_node_property(snode.edittree, node);
+      /* At most, only one viewer is active so break early. */
+      break;
     }
   }
 

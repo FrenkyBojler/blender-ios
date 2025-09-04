@@ -46,10 +46,8 @@ struct GPUCapabilities {
 
   bool mem_stats_support = false;
   bool geometry_shader_support = false;
-  bool shader_draw_parameters_support = false;
   bool hdr_viewport_support = false;
   bool stencil_export_support = false;
-  bool clip_control_support = false;
 
   int max_parallel_compilations = -1;
 
@@ -59,8 +57,6 @@ struct GPUCapabilities {
   bool broken_amd_driver = false;
   bool use_hq_normals_workaround = false;
   bool stencil_clasify_buffer_workaround = false;
-  bool node_link_instancing_workaround = false;
-  bool line_directive_workaround = false;
 
   bool use_subprocess_shader_compilations = false;
 
