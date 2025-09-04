@@ -616,7 +616,12 @@ static void blend_read(BlendDataReader *reader, ModifierData *md)
   MeshDeformModifierData *mmd = (MeshDeformModifierData *)md;
   const int size = mmd->dyngridsize;
 
-  BLO_read_struct_array(reader, MDefInfluence, mmd->influences_num, &mmd->bindinfluences);
+  if (mmd->bindinfluences) {
+    mmd->bindinfluences_sharing_info = BLO_read_shared(reader, &mmd->bindinfluences, [&]() {
+      BLO_read_struct_array(reader, MDefInfluence, mmd->influences_num, &mmd->bindinfluences);
+      return blender::implicit_sharing::info_for_mem_free(mmd->bindinfluences);
+    });
+  }
 
   /* NOTE: `bindoffset` is abusing `verts_num + 1` as its size, this becomes an incorrect value in
    * case `verts_num == 0`, since `bindoffset` is then nullptr, not a size 1 allocated array. */
@@ -627,22 +632,30 @@ static void blend_read(BlendDataReader *reader, ModifierData *md)
     });
   }
 
-  mmd->bindcagecos_sharing_info = BLO_read_shared(reader, &mmd->bindcagecos, [&]() {
-    BLO_read_float3_array(reader, mmd->cage_verts_num, &mmd->bindcagecos);
-    return blender::implicit_sharing::info_for_mem_free(mmd->bindcagecos);
-  });
-  mmd->dyngrid_sharing_info = BLO_read_shared(reader, &mmd->dyngrid, [&]() {
-    BLO_read_struct_array(reader, MDefCell, size * size * size, &mmd->dyngrid);
-    return blender::implicit_sharing::info_for_mem_free(mmd->dyngrid);
-  });
-  mmd->dyninfluences_sharing_info = BLO_read_shared(reader, &mmd->dyninfluences, [&]() {
-    BLO_read_struct_array(reader, MDefInfluence, mmd->influences_num, &mmd->dyninfluences);
-    return blender::implicit_sharing::info_for_mem_free(mmd->dyninfluences);
-  });
-  mmd->dynverts_sharing_info = BLO_read_shared(reader, &mmd->dynverts, [&]() {
-    BLO_read_int32_array(reader, mmd->verts_num, &mmd->dynverts);
-    return blender::implicit_sharing::info_for_mem_free(mmd->dynverts);
-  });
+  if (mmd->bindcagecos) {
+    mmd->bindcagecos_sharing_info = BLO_read_shared(reader, &mmd->bindcagecos, [&]() {
+      BLO_read_float3_array(reader, mmd->cage_verts_num, &mmd->bindcagecos);
+      return blender::implicit_sharing::info_for_mem_free(mmd->bindcagecos);
+    });
+  }
+  if (mmd->dyngrid) {
+    mmd->dyngrid_sharing_info = BLO_read_shared(reader, &mmd->dyngrid, [&]() {
+      BLO_read_struct_array(reader, MDefCell, size * size * size, &mmd->dyngrid);
+      return blender::implicit_sharing::info_for_mem_free(mmd->dyngrid);
+    });
+  }
+  if (mmd->dyninfluences) {
+    mmd->dyninfluences_sharing_info = BLO_read_shared(reader, &mmd->dyninfluences, [&]() {
+      BLO_read_struct_array(reader, MDefInfluence, mmd->influences_num, &mmd->dyninfluences);
+      return blender::implicit_sharing::info_for_mem_free(mmd->dyninfluences);
+    });
+  }
+  if (mmd->dynverts) {
+    mmd->dynverts_sharing_info = BLO_read_shared(reader, &mmd->dynverts, [&]() {
+      BLO_read_int32_array(reader, mmd->verts_num, &mmd->dynverts);
+      return blender::implicit_sharing::info_for_mem_free(mmd->dynverts);
+    });
+  }
 
   /* Deprecated storage. */
   BLO_read_float_array(reader, mmd->verts_num, &mmd->bindweights);

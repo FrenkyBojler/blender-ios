@@ -849,10 +849,12 @@ static void blend_read(BlendDataReader *reader, ModifierData *md)
 {
   LaplacianDeformModifierData *lmd = (LaplacianDeformModifierData *)md;
 
-  lmd->vertexco_sharing_info = BLO_read_shared(reader, &lmd->vertexco, [&]() {
-    BLO_read_float3_array(reader, lmd->verts_num, &lmd->vertexco);
-    return blender::implicit_sharing::info_for_mem_free(lmd->vertexco);
-  });
+  if (lmd->vertexco) {
+    lmd->vertexco_sharing_info = BLO_read_shared(reader, &lmd->vertexco, [&]() {
+      BLO_read_float3_array(reader, lmd->verts_num, &lmd->vertexco);
+      return blender::implicit_sharing::info_for_mem_free(lmd->vertexco);
+    });
+  }
   lmd->cache_system = nullptr;
 }
 
