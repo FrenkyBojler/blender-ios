@@ -577,9 +577,9 @@ static void correctivesmooth_modifier_do(ModifierData *md,
     if (DEG_is_active(depsgraph)) {
       BLI_assert(csmd->bind_coords == nullptr);
       csmd->bind_coords = MEM_malloc_arrayN<float[3]>(size_t(vertexCos.size()), __func__);
+      csmd->bind_coords_sharing_info = implicit_sharing::info_for_mem_free(csmd->bind_coords);
       memcpy(csmd->bind_coords, vertexCos.data(), size_t(vertexCos.size_in_bytes()));
       csmd->bind_coords_num = uint(vertexCos.size());
-      csmd->bind_coords_sharing_info = implicit_sharing::info_for_mem_free(csmd->bind_coords);
       BLI_assert(csmd->bind_coords != nullptr);
 
       /* Copy bound data to the original modifier. */

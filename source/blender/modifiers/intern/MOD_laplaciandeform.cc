@@ -576,8 +576,8 @@ static void initSystem(
     memcpy(sys->co, vertexCos, sizeof(float[3]) * verts_num);
     MEM_freeN(index_anchors);
     lmd->vertexco = MEM_malloc_arrayN<float>(3 * size_t(verts_num), __func__);
-    memcpy(lmd->vertexco, vertexCos, sizeof(float[3]) * verts_num);
     lmd->vertexco_sharing_info = blender::implicit_sharing::info_for_mem_free(lmd->vertexco);
+    memcpy(lmd->vertexco, vertexCos, sizeof(float[3]) * verts_num);
     lmd->verts_num = verts_num;
 
     createFaceRingMap(
