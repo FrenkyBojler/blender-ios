@@ -878,7 +878,7 @@ static wmOperatorStatus lattice_add_exec(bContext *C, wmOperator *op)
       }
     }
     else {
-      /* Aligns lattice to a bounding box fit for multiple selected */
+      /* Aligns lattice to a bounding box fit for multiple selected objects */
       float3 sel_min = bounds_opt->min;
       float3 sel_max = bounds_opt->max;
 
