@@ -422,39 +422,13 @@ static wmOperatorStatus modifier_move_to_index_exec(bContext *C, wmOperator *op)
 
   return OPERATOR_FINISHED;
 }
-static bool edit_modifier_invoke_properties_with_hover(bContext *C,
-                                                       wmOperator *op,
-                                                       const wmEvent *event,
-                                                       wmOperatorStatus *r_retval)
-{
-  PointerRNA *panel_ptr = UI_region_panel_custom_data_under_cursor(C, event);
-  if (panel_ptr == nullptr || RNA_pointer_is_null(panel_ptr)) {
-    *r_retval = OPERATOR_CANCELLED;
-    return false;
-  }
-
-  if (!RNA_struct_is_a(panel_ptr->type, &RNA_StripModifier)) {
-    /* Work around multiple operators using the same shortcut. The operators for the other
-     * stacks in the property editor use the same key, and will not run after these return
-     * OPERATOR_CANCELLED. */
-    *r_retval = (OPERATOR_PASS_THROUGH | OPERATOR_CANCELLED);
-    return false;
-  }
-
-  const StripModifierData *md = static_cast<const StripModifierData *>(panel_ptr->data);
-  RNA_string_set(op->ptr, "modifier", md->name);
-  return true;
-}
 
 static wmOperatorStatus modifier_move_to_index_invoke(bContext *C,
                                                       wmOperator *op,
-                                                      const wmEvent *event)
+                                                      const wmEvent * /*event*/)
 {
-  wmOperatorStatus retval;
-  if (edit_modifier_invoke_properties_with_hover(C, op, event, &retval)) {
-    return modifier_move_to_index_exec(C, op);
-  }
-  return retval;
+  BLI_assert(RNA_struct_property_is_set(op->ptr, "modifier"));
+  return modifier_move_to_index_exec(C, op);
 }
 
 void SEQUENCER_OT_strip_modifier_move_to_index(wmOperatorType *ot)
@@ -506,13 +480,10 @@ static wmOperatorStatus modifier_set_active_exec(bContext *C, wmOperator *op)
 
 static wmOperatorStatus modifier_set_active_invoke(bContext *C,
                                                    wmOperator *op,
-                                                   const wmEvent *event)
+                                                   const wmEvent * /*event*/)
 {
-  wmOperatorStatus retval;
-  if (edit_modifier_invoke_properties_with_hover(C, op, event, &retval)) {
-    return modifier_set_active_exec(C, op);
-  }
-  return retval;
+  BLI_assert(RNA_struct_property_is_set(op->ptr, "modifier"));
+  return modifier_set_active_exec(C, op);
 }
 
 void SEQUENCER_OT_strip_modifier_set_active(wmOperatorType *ot)
