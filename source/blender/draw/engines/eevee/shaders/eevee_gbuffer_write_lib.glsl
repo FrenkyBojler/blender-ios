@@ -210,8 +210,6 @@ struct Packer {
 #endif
     }
 
-    data.used_layers = UsedLayerFlag(used_layers);
-
     if (this->header.has_additional_data()) {
       data.additional_info = float2(this->additional_info);
       set_flag_from_test(used_layers, true, ADDITIONAL_DATA);
@@ -221,6 +219,7 @@ struct Packer {
       set_flag_from_test(used_layers, true, OBJECT_ID);
     }
 
+    data.used_layers = UsedLayerFlag(used_layers);
     data.header = this->header.raw();
 
     return data;
