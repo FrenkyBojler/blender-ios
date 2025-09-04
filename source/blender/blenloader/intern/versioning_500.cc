@@ -54,6 +54,7 @@
 #include "BKE_node.hh"
 #include "BKE_node_legacy_types.hh"
 #include "BKE_node_runtime.hh"
+#include "BKE_paint.hh"
 #include "BKE_pointcache.h"
 #include "BKE_report.hh"
 
@@ -2990,6 +2991,35 @@ void blo_do_versions_500(FileData *fd, Library * /*lib*/, Main *bmain)
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 69)) {
     LISTBASE_FOREACH (bNodeTree *, ntree, &bmain->nodetrees) {
       repair_node_link_node_pointers(*fd, *ntree);
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 71)) {
+    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+      scene->toolsettings->uvsculpt.size *= 2;
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 72)) {
+    LISTBASE_FOREACH (Brush *, brush, &bmain->brushes) {
+      if (brush->curve_size == nullptr) {
+        brush->curve_size = BKE_paint_default_curve();
+      }
+      if (brush->curve_strength == nullptr) {
+        brush->curve_strength = BKE_paint_default_curve();
+      }
+      if (brush->curve_jitter == nullptr) {
+        brush->curve_jitter = BKE_paint_default_curve();
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 73)) {
+    /* Old files created on WIN32 use `\r`. */
+    LISTBASE_FOREACH (Curve *, cu, &bmain->curves) {
+      if (cu->str) {
+        BLI_string_replace_char(cu->str, '\r', '\n');
+      }
     }
   }
 
