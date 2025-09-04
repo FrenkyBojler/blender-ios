@@ -28,6 +28,7 @@
 
 #include "BLI_array_utils.hh"
 #include "BLI_bitmap.h"
+#include "BLI_implicit_sharing.hh"
 #include "BLI_listbase.h"
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
@@ -2941,7 +2942,7 @@ static wmOperatorStatus correctivesmooth_bind_exec(bContext *C, wmOperator *op)
 
   const bool is_bind = (csmd->bind_coords != nullptr);
 
-  MEM_SAFE_FREE(csmd->bind_coords);
+  implicit_sharing::free_shared_data(&csmd, &csmd->bind_coords_sharing_info);
   MEM_SAFE_FREE(csmd->delta_cache.deltas);
 
   if (is_bind) {
@@ -3367,10 +3368,13 @@ static wmOperatorStatus laplaciandeform_bind_exec(bContext *C, wmOperator *op)
    * happening for binding or not. So we copy all the required data here. */
   lmd->verts_num = lmd_eval->verts_num;
   if (lmd_eval->vertexco == nullptr) {
-    MEM_SAFE_FREE(lmd->vertexco);
+    implicit_sharing::free_shared_data(&lmd->vertexco, &lmd->vertexco_sharing_info);
   }
   else {
-    lmd->vertexco = static_cast<float *>(MEM_dupallocN(lmd_eval->vertexco));
+    implicit_sharing::copy_shared_pointer(lmd_eval->vertexco,
+                                          lmd_eval->vertexco_sharing_info,
+                                          &lmd->vertexco,
+                                          &lmd->vertexco_sharing_info);
   }
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);

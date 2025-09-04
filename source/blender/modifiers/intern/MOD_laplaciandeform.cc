@@ -577,6 +577,7 @@ static void initSystem(
     MEM_freeN(index_anchors);
     lmd->vertexco = MEM_malloc_arrayN<float>(3 * size_t(verts_num), __func__);
     memcpy(lmd->vertexco, vertexCos, sizeof(float[3]) * verts_num);
+    lmd->vertexco_sharing_info = blender::implicit_sharing::info_for_mem_free(lmd->vertexco);
     lmd->verts_num = verts_num;
 
     createFaceRingMap(
@@ -702,7 +703,7 @@ static void LaplacianDeformModifier_do(
     else if (lmd->verts_num > 0 && lmd->verts_num == verts_num) {
       filevertexCos = MEM_malloc_arrayN<float[3]>(size_t(verts_num), "TempDeformCoordinates");
       memcpy(filevertexCos, lmd->vertexco, sizeof(float[3]) * verts_num);
-      MEM_SAFE_FREE(lmd->vertexco);
+      blender::implicit_sharing::free_shared_data(&lmd->vertexco, &lmd->vertexco_sharing_info);
       lmd->verts_num = 0;
       initSystem(lmd, ob, mesh, filevertexCos, verts_num);
       sys = static_cast<LaplacianSystem *>(lmd->cache_system);
@@ -736,7 +737,8 @@ static void copy_data(const ModifierData *md, ModifierData *target, const int fl
 
   BKE_modifier_copydata_generic(md, target, flag);
 
-  tlmd->vertexco = static_cast<float *>(MEM_dupallocN(lmd->vertexco));
+  blender::implicit_sharing::copy_shared_pointer(
+      lmd->vertexco, lmd->vertexco_sharing_info, &tlmd->vertexco, &tlmd->vertexco_sharing_info);
   tlmd->cache_system = nullptr;
 }
 
@@ -777,7 +779,7 @@ static void free_data(ModifierData *md)
   if (sys) {
     deleteLaplacianSystem(sys);
   }
-  MEM_SAFE_FREE(lmd->vertexco);
+  blender::implicit_sharing::free_shared_data(&lmd->vertexco, &lmd->vertexco_sharing_info);
   lmd->verts_num = 0;
 }
 
@@ -826,6 +828,7 @@ static void blend_write(BlendWriter *writer, const ID *id_owner, const ModifierD
        * binding data, can save a significant amount of memory. */
       lmd.verts_num = 0;
       lmd.vertexco = nullptr;
+      lmd.vertexco_sharing_info = nullptr;
     }
   }
 
@@ -834,13 +837,22 @@ static void blend_write(BlendWriter *writer, const ID *id_owner, const ModifierD
   if (lmd.vertexco != nullptr) {
     BLO_write_float3_array(writer, lmd.verts_num, lmd.vertexco);
   }
+  if (lmd.vertexco != nullptr) {
+    BLO_write_shared(
+        writer, lmd.vertexco, sizeof(float[3]) * lmd.verts_num, lmd.vertexco_sharing_info, [&]() {
+          BLO_write_float3_array(writer, lmd.verts_num, lmd.vertexco);
+        });
+  }
 }
 
 static void blend_read(BlendDataReader *reader, ModifierData *md)
 {
   LaplacianDeformModifierData *lmd = (LaplacianDeformModifierData *)md;
 
-  BLO_read_float3_array(reader, lmd->verts_num, &lmd->vertexco);
+  lmd->vertexco_sharing_info = BLO_read_shared(reader, &lmd->vertexco, [&]() {
+    BLO_read_float3_array(reader, lmd->verts_num, &lmd->vertexco);
+    return blender::implicit_sharing::info_for_mem_free(lmd->vertexco);
+  });
   lmd->cache_system = nullptr;
 }
 

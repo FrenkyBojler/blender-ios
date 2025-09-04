@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include "BLI_implicit_sharing.h"
 #include "BLI_utildefines.h"
 
 #include "DNA_defs.h"
@@ -1969,6 +1970,7 @@ typedef struct CorrectiveSmoothModifierData {
   /* positions set during 'bind' operator
    * use for MOD_CORRECTIVESMOOTH_RESTSOURCE_BIND */
   float (*bind_coords)[3];
+  const ImplicitSharingInfoHandle *bind_coords_sharing_info;
 
   /* NOTE: -1 is used to bind. */
   unsigned int bind_coords_num;
@@ -2123,6 +2125,7 @@ typedef struct LaplacianDeformModifierData {
   char anchor_grp_name[/*MAX_VGROUP_NAME*/ 64];
   int verts_num, repeat;
   float *vertexco;
+  const ImplicitSharingInfoHandle *vertexco_sharing_info;
   /** Runtime only. */
   void *cache_system;
   /** #LaplacianDeformModifierFlag. */
