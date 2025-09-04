@@ -282,11 +282,13 @@ inline std::string get_socket_identifier(const typename Accessor::ItemT &item,
  * \return False if the link should be removed.
  */
 template<typename Accessor>
-[[nodiscard]] inline bool try_add_item_via_extend_socket(bNodeTree &ntree,
-                                                         bNode &extend_node,
-                                                         bNodeSocket &extend_socket,
-                                                         bNode &storage_node,
-                                                         bNodeLink &link)
+[[nodiscard]] inline bool try_add_item_via_extend_socket(
+    bNodeTree &ntree,
+    bNode &extend_node,
+    bNodeSocket &extend_socket,
+    bNode &storage_node,
+    bNodeLink &link,
+    typename Accessor::ItemT **r_new_item = nullptr)
 {
   using ItemT = typename Accessor::ItemT;
   bNodeSocket *src_socket = nullptr;
@@ -300,7 +302,7 @@ template<typename Accessor>
     return false;
   }
 
-  const ItemT *item = nullptr;
+  ItemT *item = nullptr;
   if constexpr (Accessor::has_name && Accessor::has_type) {
     const eNodeSocketDatatype socket_type = eNodeSocketDatatype(src_socket->type);
     if (!Accessor::supports_socket_type(socket_type, ntree.type)) {
@@ -325,6 +327,9 @@ template<typename Accessor>
   }
   if (item == nullptr) {
     return false;
+  }
+  if (r_new_item) {
+    *r_new_item = item;
   }
 
   update_node_declaration_and_sockets(ntree, extend_node);
@@ -353,7 +358,8 @@ template<typename Accessor>
     bNode &extend_node,
     bNode &storage_node,
     bNodeLink &link,
-    const std::optional<StringRef> socket_identifier = std::nullopt)
+    const std::optional<StringRef> socket_identifier = std::nullopt,
+    typename Accessor::ItemT **r_new_item = nullptr)
 {
   bNodeSocket *possible_extend_socket = nullptr;
   if (link.fromnode == &extend_node) {
@@ -374,7 +380,7 @@ template<typename Accessor>
     }
   }
   return try_add_item_via_extend_socket<Accessor>(
-      ntree, extend_node, *possible_extend_socket, storage_node, link);
+      ntree, extend_node, *possible_extend_socket, storage_node, link, r_new_item);
 }
 
 }  // namespace blender::nodes::socket_items

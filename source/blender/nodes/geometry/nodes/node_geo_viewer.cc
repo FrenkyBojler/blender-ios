@@ -291,6 +291,7 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *ptr)
           panel->use_property_split_set(true);
           panel->use_property_decorate_set(false);
           panel->prop(item_ptr, "socket_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+          panel->prop(item_ptr, "auto_remove", UI_ITEM_NONE, std::nullopt, ICON_NONE);
         });
   }
 }
@@ -444,8 +445,13 @@ static void node_copy_storage(bNodeTree * /*dst_tree*/, bNode *dst_node, const b
 
 static bool node_insert_link(bke::NodeInsertLinkParams &params)
 {
-  return socket_items::try_add_item_via_any_extend_socket<GeoViewerItemsAccessor>(
-      params.ntree, params.node, params.node, params.link);
+  NodeGeometryViewerItem *new_item = nullptr;
+  const bool keep_link = socket_items::try_add_item_via_any_extend_socket<GeoViewerItemsAccessor>(
+      params.ntree, params.node, params.node, params.link, std::nullopt, &new_item);
+  if (new_item) {
+    new_item->flag |= NODE_GEO_VIEWER_ITEM_FLAG_AUTO_REMOVE;
+  }
+  return keep_link;
 }
 
 static void node_blend_write(const bNodeTree & /*tree*/, const bNode &node, BlendWriter &writer)

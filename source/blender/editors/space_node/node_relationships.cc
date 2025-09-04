@@ -546,13 +546,16 @@ static bNodeSocket *node_link_viewer_get_socket(bNodeTree &ntree,
   }
   /* For the geometry nodes viewer, find the socket with the correct type. */
 
+  auto &storage = *static_cast<NodeGeometryViewer *>(viewer_node.storage);
   if (src_socket.type == SOCK_GEOMETRY) {
     ensure_geometry_nodes_viewer_starts_with_geometry_socket(ntree, viewer_node);
     nodes::update_node_declaration_and_sockets(ntree, viewer_node);
+    storage.items[0].flag |= NODE_GEO_VIEWER_ITEM_FLAG_AUTO_REMOVE;
     return static_cast<bNodeSocket *>(viewer_node.inputs.first);
   }
   const int index = ensure_geometry_nodes_viewer_has_non_geometry_socket(
       ntree, viewer_node, src_socket.typeinfo->type);
+  storage.items[index].flag |= NODE_GEO_VIEWER_ITEM_FLAG_AUTO_REMOVE;
   nodes::update_node_declaration_and_sockets(ntree, viewer_node);
   return static_cast<bNodeSocket *>(BLI_findlink(&viewer_node.inputs, index));
 }

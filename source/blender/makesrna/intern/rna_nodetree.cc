@@ -7545,11 +7545,21 @@ static void def_geo_repeat_output(BlenderRNA *brna, StructRNA *srna)
 
 static void rna_def_geo_viewer_item(BlenderRNA *brna)
 {
+  PropertyRNA *prop;
+
   StructRNA *srna = RNA_def_struct(brna, "NodeGeometryViewerItem", nullptr);
   RNA_def_struct_ui_text(srna, "Viewer Item", "");
   RNA_def_struct_sdna(srna, "NodeGeometryViewerItem");
 
   rna_def_node_item_array_socket_item_common(srna, "GeoViewerItemsAccessor", true);
+
+  prop = RNA_def_property(srna, "auto_remove", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", NODE_GEO_VIEWER_ITEM_FLAG_AUTO_REMOVE);
+  RNA_def_property_flag(prop, PROP_NO_DEG_UPDATE);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_ui_text(
+      prop, "Auto Remove", "Remove the item automatically when it is unlinked");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 }
 
 static void rna_def_geo_viewer_items(BlenderRNA *brna)
