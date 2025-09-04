@@ -159,6 +159,24 @@ struct SimPointsWorldProperties {
   float angular_damping;
 };
 
+struct PositionConstraintGoals {
+  struct GoalItem {
+    float3 goal;
+    bool used = true;
+  };
+
+  Map<int, GoalItem> goals;
+};
+
+struct RotationConstraintGoals {
+  struct GoalItem {
+    math::Quaternion goal;
+    bool used = true;
+  };
+
+  Map<int, GoalItem> goals;
+};
+
 struct DistanceConstraintLengths {
   struct LengthItem {
     float length;
@@ -274,6 +292,8 @@ class XPBDState {
   int update_counter = 0;
 
   Map<SimPointsKey, SimPoints> sim_points;
+  Map<SimPointsKey, PositionConstraintGoals> old_position_constraint_goals;
+  Map<SimPointsKey, RotationConstraintGoals> old_rotation_constraint_goals;
   Map<SimPointsKey, DistanceConstraintLengths> distance_constraint_lengths;
   Map<SimPointsKey, float> initial_volumes;
   Map<ExternalColliderKey, ExternalColliderState> external_colliders;
@@ -2589,6 +2609,20 @@ PROFILE_FUNCTION static void update_sim_points_from_world(
 
 PROFILE_FUNCTION static void reset_state_usages(XPBDState &state)
 {
+  for (PositionConstraintGoals &position_constraint_goals :
+       state.old_position_constraint_goals.values())
+  {
+    for (PositionConstraintGoals::GoalItem &goal_item : position_constraint_goals.goals.values()) {
+      goal_item.used = false;
+    }
+  }
+  for (RotationConstraintGoals &rotation_constraint_goals :
+       state.old_rotation_constraint_goals.values())
+  {
+    for (RotationConstraintGoals::GoalItem &goal_item : rotation_constraint_goals.goals.values()) {
+      goal_item.used = false;
+    }
+  }
   for (DistanceConstraintLengths &distance_constraint_lengths :
        state.distance_constraint_lengths.values())
   {
@@ -2602,6 +2636,16 @@ PROFILE_FUNCTION static void reset_state_usages(XPBDState &state)
 
 PROFILE_FUNCTION static void remove_unused_states(XPBDState &state)
 {
+  for (PositionConstraintGoals &position_constraint_goals :
+       state.old_position_constraint_goals.values())
+  {
+    position_constraint_goals.goals.remove_if([](const auto &item) { return !item.value.used; });
+  }
+  for (RotationConstraintGoals &rotation_constraint_goals :
+       state.old_rotation_constraint_goals.values())
+  {
+    rotation_constraint_goals.goals.remove_if([](const auto &item) { return !item.value.used; });
+  }
   for (DistanceConstraintLengths &distance_constraint_lengths :
        state.distance_constraint_lengths.values())
   {
@@ -2727,15 +2771,12 @@ PROFILE_FUNCTION static Vector<xpbd::GeometryRef> prepare_geometry_refs_for_solv
 }
 
 PROFILE_FUNCTION static Map<SimPointsKey, PinnedPositions> compute_pinned_positions(
-    const XPBDState &state,
-    const WorldPreprocessData &world_info,
-    const VectorSet<SimPointsKey> &keys)
+    XPBDState &state, const WorldPreprocessData &world_info, const VectorSet<SimPointsKey> &keys)
 {
   Map<SimPointsKey, PinnedPositions> result;
   for (const PinnedPositionConstraintData &constraint : world_info.pinned_position_constraints) {
     const int key_i = constraint.key_i;
     const SimPointsKey &key = keys[key_i];
-    const SimPoints &sim_points = state.sim_points.lookup(key);
 
     PinnedPositions &pinned_positions = result.lookup_or_add_default(key);
     const IndexMask &mask = constraint.evaluator->get_evaluated_selection_as_mask();
@@ -2744,6 +2785,20 @@ PROFILE_FUNCTION static Map<SimPointsKey, PinnedPositions> compute_pinned_positi
         constraint.position_index);
     const VArray<float> compliance_terms = constraint.evaluator->get_evaluated<float>(
         constraint.compliance_terms_index);
+    PositionConstraintGoals &old_position_constraint_goals =
+        state.old_position_constraint_goals.lookup_or_add_default(key);
+    auto get_and_update_position_pair = [&](const int point_i) -> StartStopPair<float3> {
+      const float3 new_position = positions[point_i];
+      PositionConstraintGoals::GoalItem &old_goal_item =
+          old_position_constraint_goals.goals.lookup_or_add_cb(point_i, [&]() {
+            int x = 2;
+            return PositionConstraintGoals::GoalItem{new_position};
+          });
+      const float3 old_position = old_goal_item.goal;
+      old_goal_item.used = true;
+      old_goal_item.goal = new_position;
+      return {old_position, new_position};
+    };
 
     if (const std::optional<float> compliance_term = compliance_terms.get_if_single()) {
       if (compliance_term == 0.0f) {
@@ -2751,11 +2806,8 @@ PROFILE_FUNCTION static Map<SimPointsKey, PinnedPositions> compute_pinned_positi
         pinned_positions.hard_indices.resize(old_size + mask_size);
         pinned_positions.hard_animations.resize(old_size + mask_size);
         mask.foreach_index(GrainSize(512), [&](const int point_i, const int pos) {
-          const float3 &new_position = positions[point_i];
-          const float3 &old_position = state.is_initialization() ? new_position :
-                                                                   sim_points.positions[point_i];
           pinned_positions.hard_indices[old_size + pos] = point_i;
-          pinned_positions.hard_animations[old_size + pos] = {old_position, new_position};
+          pinned_positions.hard_animations[old_size + pos] = get_and_update_position_pair(point_i);
         });
       }
       else {
@@ -2764,22 +2816,16 @@ PROFILE_FUNCTION static Map<SimPointsKey, PinnedPositions> compute_pinned_positi
         pinned_positions.soft_animations.resize(old_size + mask_size);
         pinned_positions.soft_compliance_terms.resize(old_size + mask_size);
         mask.foreach_index(GrainSize(512), [&](const int point_i, const int pos) {
-          const float3 &new_position = positions[point_i];
-          const float3 &old_position = state.is_initialization() ? new_position :
-                                                                   sim_points.positions[point_i];
           pinned_positions.soft_indices[old_size + pos] = point_i;
           pinned_positions.soft_compliance_terms[old_size + pos] = compliance_terms[point_i];
-          pinned_positions.soft_animations[old_size + pos] = {old_position, new_position};
+          pinned_positions.soft_animations[old_size + pos] = get_and_update_position_pair(point_i);
         });
       }
     }
     else {
       mask.foreach_index([&](const int point_i) {
-        const float3 &new_position = positions[point_i];
-        const float3 &old_position = state.is_initialization() ? new_position :
-                                                                 sim_points.positions[point_i];
         const float compliance_term = compliance_terms[point_i];
-        StartStopPair<float3> animation{old_position, new_position};
+        StartStopPair<float3> animation = get_and_update_position_pair(point_i);
         if (compliance_term == 0.0f) {
           pinned_positions.hard_indices.append(point_i);
           pinned_positions.hard_animations.append(animation);
@@ -2796,15 +2842,12 @@ PROFILE_FUNCTION static Map<SimPointsKey, PinnedPositions> compute_pinned_positi
 }
 
 PROFILE_FUNCTION static Map<SimPointsKey, PinnedRotations> compute_pinned_rotations(
-    const XPBDState &state,
-    const WorldPreprocessData &world_info,
-    const VectorSet<SimPointsKey> &keys)
+    XPBDState &state, const WorldPreprocessData &world_info, const VectorSet<SimPointsKey> &keys)
 {
   Map<SimPointsKey, PinnedRotations> result;
   for (const PinnedRotationConstraintData &constraint : world_info.pinned_rotation_constraints) {
     const int key_i = constraint.key_i;
     const SimPointsKey &key = keys[key_i];
-    const SimPoints &sim_points = state.sim_points.lookup(key);
 
     PinnedRotations &pinned_rotations = result.lookup_or_add_default(key);
     const IndexMask &mask = constraint.evaluator->get_evaluated_selection_as_mask();
@@ -2813,6 +2856,18 @@ PROFILE_FUNCTION static Map<SimPointsKey, PinnedRotations> compute_pinned_rotati
         constraint.evaluator->get_evaluated<math::Quaternion>(constraint.rotation_index);
     const VArray<float> &compliance_terms = constraint.evaluator->get_evaluated<float>(
         constraint.compliance_terms_index);
+    RotationConstraintGoals &old_rotation_constraint_goals =
+        state.old_rotation_constraint_goals.lookup_or_add_default(key);
+    auto get_and_update_rotation_pair = [&](const int point_i) -> StartStopPair<math::Quaternion> {
+      const math::Quaternion new_rotation = rotations[point_i];
+      RotationConstraintGoals::GoalItem &old_goal_item =
+          old_rotation_constraint_goals.goals.lookup_or_add_cb(
+              point_i, [&]() { return RotationConstraintGoals::GoalItem{new_rotation}; });
+      const math::Quaternion old_rotation = old_goal_item.goal;
+      old_goal_item.used = true;
+      old_goal_item.goal = new_rotation;
+      return {old_rotation, new_rotation};
+    };
 
     if (const std::optional<float> compliance_term = compliance_terms.get_if_single()) {
       if (compliance_term == 0.0f) {
@@ -2820,12 +2875,8 @@ PROFILE_FUNCTION static Map<SimPointsKey, PinnedRotations> compute_pinned_rotati
         pinned_rotations.hard_indices.resize(old_size + mask_size);
         pinned_rotations.hard_animations.resize(old_size + mask_size);
         mask.foreach_index(GrainSize(512), [&](const int point_i, const int pos) {
-          const math::Quaternion &new_rotation = rotations[point_i];
-          const math::Quaternion &old_rotation = state.is_initialization() ?
-                                                     new_rotation :
-                                                     sim_points.rotations[point_i];
           pinned_rotations.hard_indices[old_size + pos] = point_i;
-          pinned_rotations.hard_animations[old_size + pos] = {old_rotation, new_rotation};
+          pinned_rotations.hard_animations[old_size + pos] = get_and_update_rotation_pair(point_i);
         });
       }
       else {
@@ -2834,24 +2885,16 @@ PROFILE_FUNCTION static Map<SimPointsKey, PinnedRotations> compute_pinned_rotati
         pinned_rotations.soft_animations.resize(old_size + mask_size);
         pinned_rotations.soft_compliance_terms.resize(old_size + mask_size);
         mask.foreach_index(GrainSize(512), [&](const int point_i, const int pos) {
-          const math::Quaternion &new_rotation = rotations[point_i];
-          const math::Quaternion &old_rotation = state.is_initialization() ?
-                                                     new_rotation :
-                                                     sim_points.rotations[point_i];
           pinned_rotations.soft_indices[old_size + pos] = point_i;
           pinned_rotations.soft_compliance_terms[old_size + pos] = compliance_terms[point_i];
-          pinned_rotations.soft_animations[old_size + pos] = {old_rotation, new_rotation};
+          pinned_rotations.soft_animations[old_size + pos] = get_and_update_rotation_pair(point_i);
         });
       }
     }
     else {
       mask.foreach_index([&](const int point_i) {
-        const math::Quaternion &new_rotation = rotations[point_i];
-        const math::Quaternion &old_rotation = state.is_initialization() ?
-                                                   new_rotation :
-                                                   sim_points.rotations[point_i];
         const float compliance_term = compliance_terms[point_i];
-        StartStopPair<math::Quaternion> animation{old_rotation, new_rotation};
+        StartStopPair<math::Quaternion> animation = get_and_update_rotation_pair(point_i);
         if (compliance_term == 0.0f) {
           pinned_rotations.hard_indices.append(point_i);
           pinned_rotations.hard_animations.append(animation);
