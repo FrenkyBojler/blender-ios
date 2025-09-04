@@ -324,6 +324,9 @@ struct PositionUndoStorage : NonMovable {
   bool multires_undo;
 
   Array<Array<std::byte>> compressed_indices;
+
+  /* As undo and redo happen, the data in these arrays is swapped (an undo step becomes a redo
+   * step, and vice versa). */
   Array<Array<std::byte>> compressed_positions;
 
   Array<int> unique_verts_nums;
