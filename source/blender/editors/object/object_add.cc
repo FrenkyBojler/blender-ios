@@ -811,6 +811,10 @@ static wmOperatorStatus lattice_add_exec(bContext *C, wmOperator *op)
   Vector<Object *> targets;
   std::optional<Bounds<float3>> bounds_opt = collect_targets_and_bounds(C, targets);
 
+  if (targets.is_empty()) {
+    RNA_boolean_set(op->ptr, "fit_to_selected", false);
+  }
+
   Object *ob = add_type(C, OB_LATTICE, nullptr, loc, rot, enter_editmode, local_view_bits);
   Lattice *lt = (Lattice *)ob->data;
 
