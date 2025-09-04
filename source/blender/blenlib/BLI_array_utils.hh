@@ -71,6 +71,9 @@ inline void copy(const Span<T> src,
                                              [&](const int64_t i) { dst[i] = src[i]; });
 }
 
+/**
+ * Fill the destination array at the given indices.
+ */
 template<typename T>
 inline void fill(const T &value,
                  const IndexMask &selection,
