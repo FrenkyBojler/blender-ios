@@ -71,6 +71,16 @@ inline void copy(const Span<T> src,
                                              [&](const int64_t i) { dst[i] = src[i]; });
 }
 
+template<typename T>
+inline void fill(const T &value,
+                 const IndexMask &selection,
+                 MutableSpan<T> dst,
+                 const int64_t grain_size = 4096)
+{
+  selection.foreach_index_optimized<int64_t>(GrainSize(grain_size),
+                                             [&](const int64_t i) { dst[i] = value; });
+}
+
 template<typename T> T compute_sum(const Span<T> data)
 {
   /* Explicitly splitting work into chunks for a couple of reasons:
