@@ -453,7 +453,7 @@ void draw_image_main_helpers(const bContext *C, ARegion *region)
     ED_space_image_get_zoom(sima, region, &zoomx, &zoomy);
     draw_render_info(C, sima->iuser.scene, ima, region, zoomx, zoomy);
   }
-  
+
   ToolSettings *ts = scene->toolsettings;
   if (ts->uv_flag & UV_SHOW_USER_REGION) {
     float zoomx, zoomy;

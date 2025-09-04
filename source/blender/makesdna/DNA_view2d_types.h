@@ -66,7 +66,6 @@ typedef struct View2D {
   /* animated smooth view */
   struct SmoothView2DStore *sms;
   struct wmTimer *smooth_timer;
-
 } View2D;
 
 /* ---------------------------------- */

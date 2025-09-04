@@ -1683,7 +1683,6 @@ struct UVPackIslandsData {
   bool use_job;
 
   blender::geometry::UVPackIsland_Params pack_island_params;
-  View2D *v2d;
   rctf user_region;
 };
 
@@ -1772,7 +1771,6 @@ static wmOperatorStatus pack_islands_exec(bContext *C, wmOperator *op)
   pid->sima = sima;
   pid->udim_source = udim_source;
   pid->wm = CTX_wm_manager(C);
-  pid->v2d = &region->v2d;
   pid->user_region = ts->uv_pack_region;
   blender::geometry::UVPackIsland_Params &pack_island_params = pid->pack_island_params;
   {
@@ -4255,7 +4253,7 @@ static wmOperatorStatus cube_project_exec(bContext *C, wmOperator *op)
     }
 
     float bounds[2][3];
-    float (*bounds_buf)[3] = nullptr;
+    float(*bounds_buf)[3] = nullptr;
 
     if (!RNA_property_is_set(op->ptr, prop_cube_size)) {
       bounds_buf = bounds;
