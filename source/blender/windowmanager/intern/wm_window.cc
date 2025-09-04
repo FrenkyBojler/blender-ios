@@ -1005,6 +1005,7 @@ static void wm_window_ghostwindow_add(wmWindowManager *wm,
     UI_GetThemeColor3fv(TH_BACK, window_bg_color);
 
     /* Until screens get drawn, draw a default background using the window theme color. */
+    wm_window_swap_buffer_acquire(win);
     GPU_clear_color(window_bg_color[0], window_bg_color[1], window_bg_color[2], 1.0f);
 
     /* Needed here, because it's used before it reads #UserDef. */
