@@ -339,18 +339,18 @@ struct PositionUndoStorage : NonMovable {
   explicit PositionUndoStorage(StepData &step_data)
       : nodes_to_compress(std::move(step_data.nodes)), owner_step_data(&step_data)
   {
-    multires_undo = step_data.grids.grids_num != 0;
+    this->multires_undo = step_data.grids.grids_num != 0;
     if (!multires_undo) {
-      unique_verts_nums.reinitialize(nodes_to_compress.size());
-      for (const int i : nodes_to_compress.index_range()) {
-        unique_verts_nums[i] = nodes_to_compress[i]->unique_verts_num;
+      this->unique_verts_nums.reinitialize(this->nodes_to_compress.size());
+      for (const int i : this->nodes_to_compress.index_range()) {
+        this->unique_verts_nums[i] = this->nodes_to_compress[i]->unique_verts_num;
       }
     }
 
-    compression_task_pool = BLI_task_pool_create_background(this, TASK_PRIORITY_LOW);
-    compression_started = true;
+    this->compression_task_pool = BLI_task_pool_create_background(this, TASK_PRIORITY_LOW);
+    this->compression_started = true;
 
-    BLI_task_pool_push(compression_task_pool, compress_fn, this, false, nullptr);
+    BLI_task_pool_push(this->compression_task_pool, compress_fn, this, false, nullptr);
   }
 
   ~PositionUndoStorage()
