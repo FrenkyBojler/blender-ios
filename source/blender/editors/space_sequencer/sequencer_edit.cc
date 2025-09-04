@@ -768,7 +768,7 @@ static void slip_update_header(const Scene *scene,
 
 static SlipData *slip_data_init(bContext *C, const wmOperator *op, const wmEvent *event)
 {
-  const Scene *scene = CTX_data_scene(C);
+  const Scene *scene = CTX_data_sequencer_scene(C);
   const Editing *ed = seq::editing_get(scene);
   const View2D *v2d = UI_view2d_fromcontext(C);
 
@@ -1596,6 +1596,12 @@ static wmOperatorStatus sequencer_reassign_inputs_exec(bContext *C, wmOperator *
    * of mapping effect range to inputs. This mapping could be cached though. */
   seq::strip_lookup_invalidate(scene->ed);
   seq::time_left_handle_frame_set(scene, input1, seq::time_left_handle_frame_get(scene, input1));
+
+  Editing *ed = seq::editing_get(scene);
+  ListBase *active_seqbase = seq::active_seqbase_get(ed);
+  if (seq::transform_test_overlap(scene, active_seqbase, active_strip)) {
+    seq::transform_seqbase_shuffle(active_seqbase, active_strip, scene);
+  }
 
   seq::relations_invalidate_cache(scene, active_strip);
   seq::offset_animdata(scene, active_strip, (active_strip->start - old_start));

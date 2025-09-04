@@ -280,6 +280,7 @@ class USERPREF_PT_interface_editors(InterfacePanel, CenterAlignMixIn, Panel):
 
         col = layout.column()
         col.prop(system, "use_region_overlap")
+        col.prop(view, "show_area_handle")
         col.prop(view, "show_navigate_ui")
         col.prop(view, "border_width")
         col.prop(view, "color_picker_type")
@@ -544,7 +545,6 @@ class USERPREF_PT_edit_sequence_editor(EditingPanel, CenterAlignMixIn, Panel):
         prefs = context.preferences
         edit = prefs.edit
 
-        layout.prop(edit, "use_sequencer_simplified_tweaking")
         layout.prop(edit, "connect_strips_by_default")
 
 
@@ -1118,6 +1118,9 @@ class USERPREF_PT_theme_interface_panel(ThemePanel, CenterAlignMixIn, Panel):
         col = col.column(align=True)
         col.prop(ui, "panel_back", text="Background")
         col.prop(ui, "panel_sub_back", text="Sub-Panel")
+
+        col = col.column()
+        col.prop(ui, "panel_active", text="Active")
 
         col = flow.column(align=True)
         col.prop(ui, "panel_title", text="Title")
@@ -2094,11 +2097,11 @@ class USERPREF_PT_ndof_settings(Panel):
     @staticmethod
     def draw_settings(layout, props, show_3dview_settings=True):
 
-        layout.separator()
+        # Include this setting as it impacts 2D views as well (inverting translation).
+        col = layout.column()
+        col.row().prop(props, "ndof_navigation_mode", text="Navigation Mode")
 
         if show_3dview_settings:
-            col = layout.column()
-            col.row().prop(props, "ndof_navigation_mode", text="Navigation Mode")
             col.prop(props, "ndof_lock_horizon", text="Lock Horizon")
 
             layout.separator()
