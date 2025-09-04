@@ -49,6 +49,33 @@ class TOPBAR_HT_upper_bar(Header):
             layout.template_reports_banner()
             layout.template_running_jobs()
 
+        layout.popover(
+            panel="TOPBAR_PT_scene",
+            icon='SCENE_DATA',
+        )
+
+
+class TOPBAR_PT_scene(Panel):
+    """
+    Popover panel for selecting active scene and viewlayer
+    """
+    bl_idname = "TOPBAR_PT_scene"
+    bl_region_type = 'HEADER'
+    bl_space_type = 'TOPBAR'
+    bl_label = "Scene"
+    bl_description = "Active Scene and ViewLayer selector"
+
+    def draw_header(self, context):
+        scene = context.scene
+        viewlayer = context.view_layer
+        self.bl_label = "{:s} | {:s}".format(scene.name, viewlayer.name)
+
+    def draw(self, context):
+        layout = self.layout
+
+        window = context.window
+        scene = window.scene
+
         # Active workspace view-layer is retrieved through window, not through workspace.
         layout.template_ID(window, "scene", new="scene.new", unlink="scene.delete")
 
@@ -844,6 +871,7 @@ classes = (
     TOPBAR_MT_render,
     TOPBAR_MT_window,
     TOPBAR_MT_help,
+    TOPBAR_PT_scene,
     TOPBAR_PT_tool_fallback,
     TOPBAR_PT_tool_settings_extra,
     TOPBAR_PT_gpencil_primitive,
