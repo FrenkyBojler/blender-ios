@@ -242,7 +242,11 @@ static bool uiTemplateInputStatus3DView(bContext *C, uiLayout *row)
     return false;
   }
 
-  if (!(fabsf(ob->scale[0] - ob->scale[1]) < 1e-4f && fabsf(ob->scale[1] - ob->scale[2]) < 1e-4f))
+  if (ob->type == OB_LATTICE) {
+    /* Skip showing non-uniform scale warning for lattices. */
+  }
+  else if (!(fabsf(ob->scale[0] - ob->scale[1]) < 1e-4f &&
+             fabsf(ob->scale[1] - ob->scale[2]) < 1e-4f))
   {
     row->separator(1.0f);
     row->label("", ICON_ERROR);
@@ -250,7 +254,6 @@ static bool uiTemplateInputStatus3DView(bContext *C, uiLayout *row)
     row->label(IFACE_("Active object has non-uniform scale"), ICON_NONE);
     row->separator(0.5f, LayoutSeparatorType::Line);
     row->separator(0.5f);
-    /* Return false to allow other items to be added after. */
     return false;
   }
 
