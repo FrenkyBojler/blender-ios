@@ -282,7 +282,10 @@ static void file_draw_tooltip_custom_func(bContext & /*C*/,
     else if (file->typeflag & FILE_TYPE_FTFONT) {
       float color[4];
       UI_GetThemeColor4fv(TH_TEXT, color);
-      thumb = IMB_font_preview(full_path, 192 * UI_SCALE_FAC, color);
+      thumb = IMB_font_preview(full_path,
+                               512 * UI_SCALE_FAC,
+                               color,
+                               TIP_("The five boxing wizards jump quickly! 0123456789"));
     }
 
     char date_str[FILELIST_DIRENTRY_DATE_LEN], time_str[FILELIST_DIRENTRY_TIME_LEN];
@@ -330,7 +333,7 @@ static void file_draw_tooltip_custom_func(bContext & /*C*/,
     UI_tooltip_text_field_add(tip, {}, {}, UI_TIP_STYLE_SPACER, UI_TIP_LC_NORMAL);
     UI_tooltip_text_field_add(tip, {}, {}, UI_TIP_STYLE_SPACER, UI_TIP_LC_NORMAL);
     uiTooltipImage image_data;
-    float scale = (192.0f * UI_SCALE_FAC) / float(std::max(thumb->x, thumb->y));
+    float scale = (512.0f * UI_SCALE_FAC) / float(std::max(thumb->x, thumb->y));
     image_data.ibuf = thumb;
     image_data.width = short(float(thumb->x) * scale);
     image_data.height = short(float(thumb->y) * scale);

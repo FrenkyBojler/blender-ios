@@ -54,13 +54,12 @@ ImBuf *IMB_font_preview(const char *filepath,
   if (font_id == -1) {
     return nullptr;
   }
-  const char default_sample[] = "ABCDEabefg123";
+  const char default_sample[] = "ABCDabefg&0123";
   const char *sample = sample_text ? sample_text : default_sample;
 
   BLF_buffer_col(font_id, color);
 
   BLF_size(font_id, 50.0f);
-  BLF_enable(font_id, BLF_WORD_WRAP);
   float name_w;
   float name_h;
   BLF_width_and_height(font_id, sample, strlen(sample), &name_w, &name_h);
