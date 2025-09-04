@@ -7,6 +7,7 @@
  * \ingroup imbuf
  */
 
+#include "BLI_array.hh"
 #include "BLI_rect.h"
 #include "BLI_task.hh"
 
@@ -635,26 +636,27 @@ void IMB_byte_from_float(ImBuf *ibuf)
     processor = nullptr;
   }
 
+  /* At 4 floats per pixel, this is 32KB of data, and fits into typical CPU L1 cache. */
   static constexpr int grain_size = 2048;
   threading::parallel_for(
       IndexRange(IMB_get_pixel_count(ibuf)), grain_size, [&](const IndexRange range) {
         /* Copy chunk of source float pixels into a local buffer. */
-        float buffer[grain_size * 4];
-        memcpy(buffer,
+        Array<float, grain_size * 4> buffer(range.size() * ibuf->channels);
+        memcpy(buffer.data(),
                ibuf->float_buffer.data + range.first() * ibuf->channels,
                range.size() * ibuf->channels * sizeof(float));
         /* Unpremultiply alpha if needed. */
         if (predivide) {
-          IMB_unpremultiply_rect_float(buffer, ibuf->channels, range.size(), 1);
+          IMB_unpremultiply_rect_float(buffer.data(), ibuf->channels, range.size(), 1);
         }
         /* Convert to byte color space if needed. */
         if (processor) {
           IMB_colormanagement_processor_apply(
-              processor, buffer, range.size(), 1, ibuf->channels, false);
+              processor, buffer.data(), range.size(), 1, ibuf->channels, false);
         }
         /* Convert to bytes. */
         IMB_buffer_byte_from_float(ibuf->byte_buffer.data + range.first() * 4,
-                                   buffer,
+                                   buffer.data(),
                                    ibuf->channels,
                                    ibuf->dither,
                                    IB_PROFILE_SRGB,
