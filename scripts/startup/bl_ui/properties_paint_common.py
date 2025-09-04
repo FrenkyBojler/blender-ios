@@ -302,8 +302,8 @@ class UnifiedPaintPanel:
             row.prop(ups, unified_name, text="", icon='BRUSHES_ALL')
 
         if curve_visibility_name and not header:
-            row.prop(paint, curve_visibility_name, text="", icon='RNDCURVE')
-
+            row.separator()
+            row.prop(paint, curve_visibility_name, text="", icon='DOWNARROW_HLT')
         return row
 
     @staticmethod
