@@ -1840,7 +1840,7 @@ static bool is_opaque_alpha_over(const Strip *strip)
   }
   LISTBASE_FOREACH (StripModifierData *, smd, &strip->modifiers) {
     /* Assume result is not opaque if there is an enabled Mask modifier. */
-    if ((smd->flag & STRIP_MODIFIER_FLAG_MUTE) == 0 && smd->type == seqModifierType_Mask) {
+    if ((smd->flag & STRIP_MODIFIER_FLAG_MUTE) == 0 && smd->type == eSeqModifierType_Mask) {
       return false;
     }
   }
@@ -1985,13 +1985,14 @@ ImBuf *render_give_ibuf(const RenderData *context, float timeline_frame, int cha
   if ((chanshown < 0) && !BLI_listbase_is_empty(&ed->metastack)) {
     int count = BLI_listbase_count(&ed->metastack);
     count = max_ii(count + chanshown, 0);
-    seqbasep = ((MetaStack *)BLI_findlink(&ed->metastack, count))->oldbasep;
-    channels = ((MetaStack *)BLI_findlink(&ed->metastack, count))->old_channels;
+    MetaStack *ms = static_cast<MetaStack *>(BLI_findlink(&ed->metastack, count));
+    seqbasep = &ms->old_strip->seqbase;
+    channels = &ms->old_strip->channels;
     chanshown = 0;
   }
   else {
-    seqbasep = ed->seqbasep;
-    channels = ed->displayed_channels;
+    seqbasep = ed->current_strips();
+    channels = ed->current_channels();
   }
 
   intra_frame_cache_set_cur_frame(
@@ -2000,7 +2001,7 @@ ImBuf *render_give_ibuf(const RenderData *context, float timeline_frame, int cha
   Scene *orig_scene = prefetch_get_original_scene(context);
   ImBuf *out = nullptr;
   if (!context->skip_cache && !context->is_proxy_render) {
-    out = final_image_cache_get(orig_scene, seqbasep, timeline_frame, context->view_id, chanshown);
+    out = final_image_cache_get(orig_scene, timeline_frame, context->view_id, chanshown);
   }
 
   Vector<Strip *> strips = seq_shown_strips_get(
@@ -2022,8 +2023,7 @@ ImBuf *render_give_ibuf(const RenderData *context, float timeline_frame, int cha
     if (out && (orig_scene->ed->cache_flag & SEQ_CACHE_STORE_FINAL_OUT) && !context->skip_cache &&
         !context->is_proxy_render)
     {
-      final_image_cache_put(
-          orig_scene, seqbasep, timeline_frame, context->view_id, chanshown, out);
+      final_image_cache_put(orig_scene, timeline_frame, context->view_id, chanshown, out);
     }
   }
 

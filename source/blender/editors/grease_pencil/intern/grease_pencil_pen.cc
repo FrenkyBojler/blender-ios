@@ -312,16 +312,23 @@ struct PenToolOperation {
         return;
       }
 
+      const bool is_left = !right_selected[point_i];
       if (this->move_handle) {
-        const float2 pos_right = this->layer_to_screen(layer_to_object, handles_right[point_i]);
-        handles_right[point_i] = this->screen_to_layer(
-            layer_to_world, pos_right + offset, depth_point);
+        if (is_left) {
+          const float2 pos_left = this->layer_to_screen(layer_to_object, handles_left[point_i]);
+          handles_left[point_i] = this->screen_to_layer(
+              layer_to_world, pos_left + offset, depth_point);
+        }
+        else {
+          const float2 pos_right = this->layer_to_screen(layer_to_object, handles_right[point_i]);
+          handles_right[point_i] = this->screen_to_layer(
+              layer_to_world, pos_right + offset, depth_point);
+        }
         handle_types_left[point_i] = BEZIER_HANDLE_FREE;
         handle_types_right[point_i] = BEZIER_HANDLE_FREE;
         return;
       }
 
-      const bool is_left = !right_selected[point_i];
       const float2 center_point = this->layer_to_screen(layer_to_object, depth_point);
       offset = this->mouse_co - this->center_of_mass_co;
 
@@ -665,7 +672,7 @@ struct PenToolOperation {
     curves.update_curve_types();
 
     const int material_index = this->vc.obact->actcol - 1;
-    if (material_index != 0) {
+    if (material_index != -1) {
       bke::SpanAttributeWriter<int> material_indexes =
           attributes.lookup_or_add_for_write_span<int>(
               "material_index",
@@ -1160,40 +1167,64 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
   ptd.closest_element = pen_find_closest_element(ptd, ptd.mouse_co);
 
   threading::parallel_for(ptd.drawings.index_range(), 1, [&](const IndexRange drawing_range) {
-    const int drawing_index = drawing_range.first();
-    const MutableDrawingInfo &info = ptd.drawings[drawing_index];
-    bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
+    for (const int drawing_index : drawing_range) {
+      const MutableDrawingInfo &info = ptd.drawings[drawing_index];
+      bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
 
-    if (curves.is_empty()) {
-      return;
-    }
-
-    if (ptd.closest_element.element_mode == ElementMode::Edge) {
-      add_single.store(false, std::memory_order_relaxed);
-      if (ptd.insert_point) {
-        ptd.insert_point_to_curve(curves);
-        info.drawing.tag_topology_changed();
-        changed.store(true, std::memory_order_relaxed);
+      if (curves.is_empty()) {
+        continue;
       }
-      return;
-    }
 
-    if (ptd.closest_element.element_mode == ElementMode::None) {
-      if (ptd.extrude_point) {
-        const bke::greasepencil::Layer &layer = ptd.grease_pencil->layer(info.layer_index);
-        const float4x4 layer_to_object = layer.local_transform();
-
-        IndexMaskMemory memory;
-        const IndexMask editable_curves = ed::greasepencil::retrieve_editable_strokes(
-            *ptd.vc.obact, info.drawing, info.layer_index, memory);
-        const bke::CurvesGeometry &src = info.drawing.strokes();
-
-        if (std::optional<bke::CurvesGeometry> result = ptd.extrude_curves(
-                src, layer_to_object, editable_curves))
-        {
-          curves = std::move(*result);
+      if (ptd.closest_element.element_mode == ElementMode::Edge) {
+        add_single.store(false, std::memory_order_relaxed);
+        if (ptd.insert_point && ptd.closest_element.drawing_index == drawing_index) {
+          ptd.insert_point_to_curve(curves);
+          info.drawing.tag_topology_changed();
+          changed.store(true, std::memory_order_relaxed);
         }
-        else {
+        continue;
+      }
+
+      if (ptd.closest_element.element_mode == ElementMode::None) {
+        if (ptd.extrude_point) {
+          const bke::greasepencil::Layer &layer = ptd.grease_pencil->layer(info.layer_index);
+          const float4x4 layer_to_object = layer.local_transform();
+
+          IndexMaskMemory memory;
+          const IndexMask editable_curves = ed::greasepencil::retrieve_editable_strokes(
+              *ptd.vc.obact, info.drawing, info.layer_index, memory);
+          const bke::CurvesGeometry &src = info.drawing.strokes();
+
+          if (std::optional<bke::CurvesGeometry> result = ptd.extrude_curves(
+                  src, layer_to_object, editable_curves))
+          {
+            curves = std::move(*result);
+          }
+          else {
+            for (const StringRef selection_attribute_name :
+                 ed::curves::get_curves_selection_attribute_names(curves))
+            {
+              bke::GSpanAttributeWriter selection_writer = ed::curves::ensure_selection_attribute(
+                  curves, bke::AttrDomain::Point, bke::AttrType::Bool, selection_attribute_name);
+              ed::curves::fill_selection_false(selection_writer.span);
+              selection_writer.finish();
+            }
+            continue;
+          }
+
+          add_single.store(false, std::memory_order_relaxed);
+          point_added.store(true, std::memory_order_relaxed);
+          info.drawing.tag_topology_changed();
+
+          changed.store(true, std::memory_order_relaxed);
+          continue;
+        }
+
+        continue;
+      }
+
+      if (drawing_index != ptd.closest_element.drawing_index) {
+        if (event->val != KM_DBL_CLICK && !ptd.delete_point) {
           for (const StringRef selection_attribute_name :
                ed::curves::get_curves_selection_attribute_names(curves))
           {
@@ -1202,65 +1233,42 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
             ed::curves::fill_selection_false(selection_writer.span);
             selection_writer.finish();
           }
-          return;
         }
 
-        add_single.store(false, std::memory_order_relaxed);
-        point_added.store(true, std::memory_order_relaxed);
+        continue;
+      }
+
+      const OffsetIndices<int> points_by_curve = curves.points_by_curve();
+      const IndexRange points = points_by_curve[ptd.closest_element.curve_index];
+
+      if (event->val == KM_DBL_CLICK && ptd.cycle_handle_type) {
+        const int8_t handle_type = curves.handle_types_right()[ptd.closest_element.point_index];
+        /* Cycle to the next type. */
+        const int8_t new_handle_type = (handle_type + 1) % CURVE_HANDLE_TYPES_NUM;
+
+        curves.handle_types_left_for_write()[ptd.closest_element.point_index] = new_handle_type;
+        curves.handle_types_right_for_write()[ptd.closest_element.point_index] = new_handle_type;
+        curves.calculate_bezier_auto_handles();
         info.drawing.tag_topology_changed();
-
-        changed.store(true, std::memory_order_relaxed);
-        return;
+        add_single.store(false, std::memory_order_relaxed);
       }
 
-      return;
-    }
-
-    if (drawing_index != ptd.closest_element.drawing_index) {
-      if (event->val != KM_DBL_CLICK && !ptd.delete_point) {
-        for (const StringRef selection_attribute_name :
-             ed::curves::get_curves_selection_attribute_names(curves))
-        {
-          bke::GSpanAttributeWriter selection_writer = ed::curves::ensure_selection_attribute(
-              curves, bke::AttrDomain::Point, bke::AttrType::Bool, selection_attribute_name);
-          ed::curves::fill_selection_false(selection_writer.span);
-          selection_writer.finish();
-        }
+      if (ptd.delete_point) {
+        curves.remove_points(IndexRange::from_single(ptd.closest_element.point_index), {});
+        add_single.store(false, std::memory_order_relaxed);
+        point_removed.store(true, std::memory_order_relaxed);
+        info.drawing.tag_topology_changed();
+        continue;
       }
 
-      return;
+      const bool clear_selection = event->val != KM_DBL_CLICK && !ptd.delete_point;
+      if (ptd.close_curve_and_select(curves, points, clear_selection)) {
+        info.drawing.tag_topology_changed();
+        add_single.store(false, std::memory_order_relaxed);
+      }
+
+      changed.store(true, std::memory_order_relaxed);
     }
-
-    const OffsetIndices<int> points_by_curve = curves.points_by_curve();
-    const IndexRange points = points_by_curve[ptd.closest_element.curve_index];
-
-    if (event->val == KM_DBL_CLICK && ptd.cycle_handle_type) {
-      const int8_t handle_type = curves.handle_types_right()[ptd.closest_element.point_index];
-      /* Cycle to the next type. */
-      const int8_t new_handle_type = (handle_type + 1) % CURVE_HANDLE_TYPES_NUM;
-
-      curves.handle_types_left_for_write()[ptd.closest_element.point_index] = new_handle_type;
-      curves.handle_types_right_for_write()[ptd.closest_element.point_index] = new_handle_type;
-      curves.calculate_bezier_auto_handles();
-      info.drawing.tag_topology_changed();
-      add_single.store(false, std::memory_order_relaxed);
-    }
-
-    if (ptd.delete_point) {
-      curves.remove_points(IndexRange::from_single(ptd.closest_element.point_index), {});
-      add_single.store(false, std::memory_order_relaxed);
-      point_removed.store(true, std::memory_order_relaxed);
-      info.drawing.tag_topology_changed();
-      return;
-    }
-
-    const bool clear_selection = event->val != KM_DBL_CLICK && !ptd.delete_point;
-    if (ptd.close_curve_and_select(curves, points, clear_selection)) {
-      info.drawing.tag_topology_changed();
-      add_single.store(false, std::memory_order_relaxed);
-    }
-
-    changed.store(true, std::memory_order_relaxed);
   });
 
   if (add_single) {
