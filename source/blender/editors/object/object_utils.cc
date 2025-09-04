@@ -57,7 +57,7 @@ bool material_active_index_set(Object *ob, const int index)
 /** \} */
 
 /* -------------------------------------------------------------------- */
-/** \name Active Element Center
+/** \name Active Element Center in World Coords
  * \{ */
 
 bool calc_active_transform_for_editmode(Object *obedit,
@@ -65,6 +65,7 @@ bool calc_active_transform_for_editmode(Object *obedit,
                                         float3 *r_center,
                                         float3x3 *r_orientation)
 {
+  // Center will be transformed to world at the end of function
   if (!r_center && !r_orientation) {
     return false;
   }
@@ -170,6 +171,8 @@ bool calc_active_transform_for_editmode(Object *obedit,
     }
   }
 
+  mul_m4_v3(obedit->object_to_world().ptr(), *r_center);
+
   return result;
 }
 
@@ -183,9 +186,12 @@ bool calc_active_transform_for_posemode(Object *ob,
   if (pchan && (!select_only || (pchan->bone->flag & BONE_SELECTED))) {
     if (r_center) {
       copy_v3_v3(*r_center, pchan->pose_head);
+      mul_m4_v3(ob->object_to_world().ptr(), *r_center);
     }
     if (r_orientation) {
       copy_m3_m4(r_orientation->ptr(), pchan->pose_mat);
+      *r_orientation = (float3x3)ob->object_to_world() * *r_orientation;
+      orthogonalize_m3_stable(r_orientation->ptr(), 1, true);
       result = true;
     }
   }
@@ -197,34 +203,14 @@ bool calc_active_transform(Object *ob,
                            float3 *r_center,
                            float3x3 *r_orientation)
 {
-  bool result = false;
   if (ob->mode & OB_MODE_EDIT) {
-    if (calc_active_transform_for_editmode(ob, select_only, r_center, r_orientation)) {
-      if (r_center) {
-        mul_m4_v3(ob->object_to_world().ptr(), *r_center);
-        result = true;
-      }
-      if (r_orientation) {
-        result = true;
-      }
-    }
-    return result;
+    return calc_active_transform_for_editmode(ob, select_only, r_center, r_orientation);
   }
   if (ob->mode & OB_MODE_POSE) {
-    if (calc_active_transform_for_posemode(ob, select_only, r_center, r_orientation)) {
-      if (r_center) {
-        mul_m4_v3(ob->object_to_world().ptr(), *r_center);
-        result = true;
-      }
-      if (r_orientation) {
-        *r_orientation = (float3x3)ob->object_to_world() * *r_orientation;
-        orthogonalize_m3_stable(r_orientation->ptr(), 1, true);
-        result = true;
-      }
-    }
-    return result;
+    return calc_active_transform_for_posemode(ob, select_only, r_center, r_orientation);
   }
   if (!select_only || (ob->base_flag & BASE_SELECTED)) {
+    bool result = false;
     if (r_center) {
       *r_center = ob->object_to_world().location();
       result = true;
@@ -236,7 +222,7 @@ bool calc_active_transform(Object *ob,
     }
     return result;
   }
-  return result;
+  return false;
 }
 
 /** \} */

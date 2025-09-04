@@ -8493,7 +8493,6 @@ static wmOperatorStatus edbm_point_normals_modal(bContext *C, wmOperator *op, co
           /* Point to newly selected active. */
           blender::ed::object::calc_active_transform_for_editmode(
               obedit, false, (blender::float3 *)target);
-          add_v3_v3(target, obedit->loc);
           ret = OPERATOR_RUNNING_MODAL;
         }
         break;
@@ -8539,9 +8538,8 @@ static wmOperatorStatus edbm_point_normals_modal(bContext *C, wmOperator *op, co
             if (!blender::ed::object::calc_active_transform_for_editmode(
                     obedit, false, (blender::float3 *)target))
             {
-              zero_v3(target);
+              copy_v3_v3(target, obedit->loc);
             }
-            add_v3_v3(target, obedit->loc);
             break;
 
           default:
