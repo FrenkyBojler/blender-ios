@@ -44,11 +44,11 @@ struct EffectInfo {
 #define RNA_ENUM_SEQUENCER_VIDEO_MODIFIER_TYPE_ITEMS \
   {seqModifierType_BrightContrast, "BRIGHT_CONTRAST", ICON_NONE, "Brightness/Contrast", ""}, \
   {seqModifierType_ColorBalance, "COLOR_BALANCE", ICON_NONE, "Color Balance", ""}, \
+  {seqModifierType_Compositor, "COMPOSITOR", ICON_NONE, "Compositor", ""}, \
   {seqModifierType_Curves, "CURVES", ICON_NONE, "Curves", ""}, \
   {seqModifierType_HueCorrect, "HUE_CORRECT", ICON_NONE, "Hue Correct", ""}, \
   {seqModifierType_Mask, "MASK", ICON_NONE, "Mask", ""}, \
   {seqModifierType_Tonemap, "TONEMAP", ICON_NONE, "Tone Map", ""}, \
-  {seqModifierType_Compositor, "COMPOSITOR", ICON_NONE, "Compositor", ""}, \
   {seqModifierType_WhiteBalance, "WHITE_BALANCE", ICON_NONE, "White Balance", ""}
 
 #define RNA_ENUM_SEQUENCER_AUDIO_MODIFIER_TYPE_ITEMS \
