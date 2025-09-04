@@ -17,6 +17,7 @@
 #include "DNA_mesh_types.h"
 #include "DNA_object_force_types.h"
 #include "DNA_pointcloud_types.h"
+#include "DNA_screen_types.h"
 #include "DNA_sequence_types.h"
 
 #include "BLI_listbase.h"
@@ -2695,7 +2696,7 @@ static void do_version_composite_viewer_remove_alpha(bNodeTree *node_tree)
 
   /* Find links going into the composite and viewer nodes. */
   LISTBASE_FOREACH (bNodeLink *, link, &node_tree->links) {
-    if (!ELEM(link->tonode->type_legacy, CMP_NODE_COMPOSITE, CMP_NODE_VIEWER)) {
+    if (!ELEM(link->tonode->type_legacy, CMP_NODE_COMPOSITE_DEPRECATED, CMP_NODE_VIEWER)) {
       continue;
     }
 
@@ -2708,7 +2709,7 @@ static void do_version_composite_viewer_remove_alpha(bNodeTree *node_tree)
   }
 
   LISTBASE_FOREACH (bNode *, node, &node_tree->nodes) {
-    if (!ELEM(node->type_legacy, CMP_NODE_COMPOSITE, CMP_NODE_VIEWER)) {
+    if (!ELEM(node->type_legacy, CMP_NODE_COMPOSITE_DEPRECATED, CMP_NODE_VIEWER)) {
       continue;
     }
 
@@ -3131,19 +3132,19 @@ static void do_version_blur_defocus_nodes_remove_gamma(bNodeTree *node_tree)
       continue;
     }
 
-    bNode *gamma_node = blender::bke::node_add_static_node(nullptr, *node_tree, CMP_NODE_GAMMA);
+    bNode *gamma_node = blender::bke::node_add_static_node(nullptr, *node_tree, SH_NODE_GAMMA);
     gamma_node->parent = link->tonode->parent;
     gamma_node->location[0] = link->tonode->location[0] - link->tonode->width - 20.0f;
     gamma_node->location[1] = link->tonode->location[1];
 
-    bNodeSocket *image_input = blender::bke::node_find_socket(*gamma_node, SOCK_IN, "Image");
-    bNodeSocket *image_output = blender::bke::node_find_socket(*gamma_node, SOCK_OUT, "Image");
+    bNodeSocket *color_input = blender::bke::node_find_socket(*gamma_node, SOCK_IN, "Color");
+    bNodeSocket *color_output = blender::bke::node_find_socket(*gamma_node, SOCK_OUT, "Color");
 
     bNodeSocket *gamma_input = blender::bke::node_find_socket(*gamma_node, SOCK_IN, "Gamma");
     gamma_input->default_value_typed<bNodeSocketValueFloat>()->value = 2.0f;
 
-    version_node_add_link(*node_tree, *link->fromnode, *link->fromsock, *gamma_node, *image_input);
-    version_node_add_link(*node_tree, *gamma_node, *image_output, *link->tonode, *link->tosock);
+    version_node_add_link(*node_tree, *link->fromnode, *link->fromsock, *gamma_node, *color_input);
+    version_node_add_link(*node_tree, *gamma_node, *color_output, *link->tonode, *link->tosock);
 
     blender::bke::node_remove_link(node_tree, *link);
   }
@@ -3165,19 +3166,19 @@ static void do_version_blur_defocus_nodes_remove_gamma(bNodeTree *node_tree)
       continue;
     }
 
-    bNode *gamma_node = blender::bke::node_add_static_node(nullptr, *node_tree, CMP_NODE_GAMMA);
+    bNode *gamma_node = blender::bke::node_add_static_node(nullptr, *node_tree, SH_NODE_GAMMA);
     gamma_node->parent = link->fromnode->parent;
     gamma_node->location[0] = link->fromnode->location[0] + link->fromnode->width + 20.0f;
     gamma_node->location[1] = link->fromnode->location[1];
 
-    bNodeSocket *image_input = blender::bke::node_find_socket(*gamma_node, SOCK_IN, "Image");
-    bNodeSocket *image_output = blender::bke::node_find_socket(*gamma_node, SOCK_OUT, "Image");
+    bNodeSocket *color_input = blender::bke::node_find_socket(*gamma_node, SOCK_IN, "Color");
+    bNodeSocket *color_output = blender::bke::node_find_socket(*gamma_node, SOCK_OUT, "Color");
 
     bNodeSocket *gamma_input = blender::bke::node_find_socket(*gamma_node, SOCK_IN, "Gamma");
     gamma_input->default_value_typed<bNodeSocketValueFloat>()->value = 0.5f;
 
-    version_node_add_link(*node_tree, *link->fromnode, *link->fromsock, *gamma_node, *image_input);
-    version_node_add_link(*node_tree, *gamma_node, *image_output, *link->tonode, *link->tosock);
+    version_node_add_link(*node_tree, *link->fromnode, *link->fromsock, *gamma_node, *color_input);
+    version_node_add_link(*node_tree, *gamma_node, *color_output, *link->tonode, *link->tosock);
 
     blender::bke::node_remove_link(node_tree, *link);
   }
@@ -3200,8 +3201,8 @@ static void version_escape_curly_braces_in_compositor_file_output_nodes(bNodeTre
       continue;
     }
 
-    NodeImageMultiFile *node_data = static_cast<NodeImageMultiFile *>(node->storage);
-    version_escape_curly_braces(node_data->base_path, FILE_MAX);
+    NodeCompositorFileOutput *node_data = static_cast<NodeCompositorFileOutput *>(node->storage);
+    version_escape_curly_braces(node_data->directory, FILE_MAX);
 
     LISTBASE_FOREACH (bNodeSocket *, sock, &node->inputs) {
       NodeImageMultiFileSocket *socket_data = static_cast<NodeImageMultiFileSocket *>(
@@ -3221,6 +3222,10 @@ static void do_version_translate_node_remove_relative(bNodeTree *node_tree)
     }
 
     const NodeTranslateData *data = static_cast<NodeTranslateData *>(node->storage);
+    if (!data) {
+      continue;
+    }
+
     if (!bool(data->relative)) {
       continue;
     }
@@ -4601,7 +4606,7 @@ void do_versions_after_linking_450(FileData * /*fd*/, Main *bmain)
     FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
       if (node_tree->type == NTREE_COMPOSIT) {
         LISTBASE_FOREACH (bNode *, node, &node_tree->nodes) {
-          if (node->type_legacy == CMP_NODE_SUNBEAMS) {
+          if (node->type_legacy == CMP_NODE_SUNBEAMS_DEPRECATED) {
             do_version_sun_beams_node_options_to_inputs_animation(node_tree, node);
           }
         }
@@ -4676,7 +4681,8 @@ void do_versions_after_linking_450(FileData * /*fd*/, Main *bmain)
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 76)) {
-    ToolSettings toolsettings_default = *DNA_struct_default_get(ToolSettings);
+    ToolSettings toolsettings_default = blender::dna::shallow_copy(
+        *DNA_struct_default_get(ToolSettings));
     LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
       scene->toolsettings->snap_playhead_mode = toolsettings_default.snap_playhead_mode;
       scene->toolsettings->snap_step_frames = toolsettings_default.snap_step_frames;
@@ -4937,6 +4943,20 @@ static void version_convert_sculpt_planar_brushes(Main *bmain)
         brush->plane_inversion_mode = brush->flag & BRUSH_INVERT_TO_SCRAPE_FILL ?
                                           BRUSH_PLANE_SWAP_HEIGHT_AND_DEPTH :
                                           BRUSH_PLANE_INVERT_DISPLACEMENT;
+
+        /* Note, this fix was committed after some users had already run the versioning after
+         * 4.5 was released. Since 4.5 is an LTS and will be used for the foreseeable future to
+         * transition between 4.x and 5.x the fix has been added here, even though that does
+         * not fix the issue for some users with custom brush assets who have started using 4.5
+         * already.
+         *
+         * Since the `sculpt_brush_type` field changed from 'SCULPT_BRUSH_TYPE_SCRAPE' to
+         * 'SCULPT_BRUSH_TYPE_PLANE', we do not have a value that can be used to definitively apply
+         * a corrective versioning step along with a subversion bump without potentially affecting
+         * some false positives.
+         *
+         * See #142151 for more details. */
+        brush->plane_offset *= -1.0f;
       }
 
       if (brush->flag & BRUSH_PLANE_TRIM) {
@@ -5618,7 +5638,7 @@ void blo_do_versions_450(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
     FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
       if (node_tree->type == NTREE_COMPOSIT) {
         LISTBASE_FOREACH (bNode *, node, &node_tree->nodes) {
-          if (node->type_legacy == CMP_NODE_SUNBEAMS) {
+          if (node->type_legacy == CMP_NODE_SUNBEAMS_DEPRECATED) {
             do_version_sun_beams_node_options_to_inputs(node_tree, node);
           }
         }

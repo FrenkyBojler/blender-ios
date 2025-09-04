@@ -32,6 +32,7 @@
 #include "BKE_object_types.hh"
 #include "BKE_paint.hh"
 #include "BKE_paint_bvh.hh"
+#include "BKE_paint_types.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -161,7 +162,8 @@ void cache_init(bContext *C,
     copy_m4_m4(ss.filter_cache->viewmat_inv.ptr(), vc.rv3d->viewinv);
   }
 
-  UnifiedPaintSettings *ups = &sd.paint.unified_paint_settings;
+  const UnifiedPaintSettings *ups = &sd.paint.unified_paint_settings;
+  bke::PaintRuntime *paint_runtime = sd.paint.runtime;
 
   float3 co;
 
@@ -174,7 +176,8 @@ void cache_init(bContext *C,
       radius = object_space_radius_get(vc, sd.paint, *brush, co, area_normal_radius);
     }
     else {
-      radius = paint_calc_object_space_radius(vc, co, float(ups->size) * area_normal_radius);
+      radius = paint_calc_object_space_radius(
+          vc, co, float(ups->size / 2.0f) * area_normal_radius);
     }
 
     const float radius_sq = math::square(radius);
@@ -198,9 +201,9 @@ void cache_init(bContext *C,
 
     mul_m4_v3(ob.object_to_world().ptr(), co);
 
-    add_v3_v3(ups->average_stroke_accum, co);
-    ups->average_stroke_counter++;
-    ups->last_stroke_valid = true;
+    add_v3_v3(paint_runtime->average_stroke_accum, co);
+    paint_runtime->average_stroke_counter++;
+    paint_runtime->last_stroke_valid = true;
   }
   else {
     /* Use last normal. */

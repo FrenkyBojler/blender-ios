@@ -18,7 +18,9 @@
 #include "BKE_fcurve.hh"
 
 #include "DNA_listBase.h"
+
 #include "RNA_types.hh"
+
 #include "UI_interface.hh"
 #include "UI_interface_layout.hh"
 #include "UI_resources.hh"
@@ -99,7 +101,7 @@ enum {
 };
 
 /** #uiBut.pie_dir */
-enum RadialDirection {
+enum RadialDirection : int8_t {
   UI_RADIAL_NONE = -1,
   UI_RADIAL_N = 0,
   UI_RADIAL_NE = 1,
@@ -175,12 +177,26 @@ struct uiBut {
   /** Pointer back to the layout item holding this button. */
   uiLayout *layout = nullptr;
   int flag = 0;
-  int flag2 = 0;
   int drawflag = 0;
+  char flag2 = 0;
+
   ButType type = ButType(0);
   ButPointerType pointype = ButPointerType::None;
-  short bit = 0, bitnr = 0, retval = 0, strwidth = 0, alignnr = 0;
+  bool bit = 0;
+  /* 0-31 bit index. */
+  char bitnr = 0;
+
+  /** When non-zero, this is the key used to activate a menu items (`a-z` always lower case). */
+  uchar menu_key = 0;
+
+  short retval = 0, strwidth = 0, alignnr = 0;
   short ofs = 0, pos = 0, selsta = 0, selend = 0;
+
+  /**
+   * Optional color for monochrome icon. Also used as text
+   * color for labels without icons. Set with #UI_but_color_set().
+   */
+  uchar col[4] = {0};
 
   std::string str;
 
@@ -193,12 +209,6 @@ struct uiBut {
 
   char *poin = nullptr;
   float hardmin = 0, hardmax = 0, softmin = 0, softmax = 0;
-
-  /**
-   * Optional color for monochrome icon. Also used as text
-   * color for labels without icons. Set with #UI_but_color_set().
-   */
-  uchar col[4] = {0};
 
   /** See \ref UI_but_func_identity_compare_set(). */
   uiButIdentityCompareFunc identity_cmp_func = nullptr;
@@ -249,19 +259,27 @@ struct uiBut {
   /** info on why button is disabled, displayed in tooltip */
   const char *disabled_info = nullptr;
 
-  BIFIconID icon = ICON_NONE;
+  /** Little indicator (e.g., counter) displayed on top of some icons. */
+  IconTextOverlay icon_overlay_text = {};
+
   /** Copied from the #uiBlock.emboss */
   blender::ui::EmbossType emboss = blender::ui::EmbossType::Emboss;
   /** direction in a pie menu, used for collision detection. */
   RadialDirection pie_dir = UI_RADIAL_NONE;
   /** could be made into a single flag */
   bool changed = false;
-  /** so buttons can support unit systems which are not RNA */
-  uchar unit_type = 0;
-  short iconadd = 0;
+
+  BIFIconID icon = ICON_NONE;
 
   /** Affects the order if this uiBut is used in menu-search. */
   float search_weight = 0.0f;
+
+  short iconadd = 0;
+  /** so buttons can support unit systems which are not RNA */
+  uchar unit_type = 0;
+
+  /** See #UI_but_menu_disable_hover_open(). */
+  bool menu_no_hover_open = false;
 
   /** #ButType::Block data */
   uiBlockCreateFunc block_create_func = nullptr;
@@ -270,35 +288,30 @@ struct uiBut {
   uiMenuCreateFunc menu_create_func = nullptr;
 
   uiMenuStepFunc menu_step_func = nullptr;
-  /** See #UI_but_menu_disable_hover_open(). */
-  bool menu_no_hover_open = false;
 
   /* RNA data */
   PointerRNA rnapoin = {};
   PropertyRNA *rnaprop = nullptr;
   int rnaindex = 0;
 
-  /* Operator data */
-  wmOperatorType *optype = nullptr;
-  PointerRNA *opptr = nullptr;
-  blender::wm::OpCallContext opcontext = blender::wm::OpCallContext::InvokeDefault;
+  BIFIconID drag_preview_icon_id;
+  void *dragpoin = nullptr;
+  const ImBuf *imb = nullptr;
+  float imb_scale = 0;
+  eWM_DragDataType dragtype = WM_DRAG_ID;
+  int8_t dragflag = 0;
+
   /**
    * Keep an operator attached but never actually call it through the button. See
    * #UI_but_operator_set_never_call().
    */
   bool operator_never_call = false;
-
-  /** When non-zero, this is the key used to activate a menu items (`a-z` always lower case). */
-  uchar menu_key = 0;
+  /* Operator data */
+  blender::wm::OpCallContext opcontext = blender::wm::OpCallContext::InvokeDefault;
+  wmOperatorType *optype = nullptr;
+  PointerRNA *opptr = nullptr;
 
   ListBase extra_op_icons = {nullptr, nullptr}; /** #uiButExtraOpIcon */
-
-  eWM_DragDataType dragtype = WM_DRAG_ID;
-  short dragflag = 0;
-  void *dragpoin = nullptr;
-  BIFIconID drag_preview_icon_id;
-  const ImBuf *imb = nullptr;
-  float imb_scale = 0;
 
   /**
    * Active button data, set when the user is hovering or interacting with a button (#UI_HOVER and
@@ -326,9 +339,6 @@ struct uiBut {
   float *editvec = nullptr;
 
   std::function<bool(const uiBut &)> pushed_state_func;
-
-  /** Little indicator (e.g., counter) displayed on top of some icons. */
-  IconTextOverlay icon_overlay_text = {};
 
   /* pointer back */
   uiBlock *block = nullptr;
@@ -403,11 +413,15 @@ struct uiButDecorator : public uiBut {
   PointerRNA decorated_rnapoin = {};
   PropertyRNA *decorated_rnaprop = nullptr;
   int decorated_rnaindex = -1;
+  /* The only action allowed to decorators currently is to set or clear animation keyframes.
+   * However, they should be able to do it only under some circumstances (typically, when they do
+   * display animation-related status). */
+  bool toggle_keyframe_on_click = false;
 };
 
 /** Derived struct for #ButType::Progress. */
 struct uiButProgress : public uiBut {
-  /** Progress in  0..1 range */
+  /** Progress in 0..1 range. */
   float progress_factor = 0.0f;
   /** The display style (bar, pie... etc). */
   blender::ui::ButProgressType progress_type = blender::ui::ButProgressType::Bar;
@@ -493,11 +507,19 @@ struct ColorPicker {
   bool is_init;
 
   /**
-   * HSV or HSL color in scene linear color space value used for number
-   * buttons. This is scene linear so that there is a clear correspondence
-   * to the scene linear RGB values.
+   * HSV or HSL in color picker space used for number sliders. This is the same
+   * colorspace as the rgb slider for a clear correspondence.
    */
-  float hsv_scene_linear[3];
+  float hsv_slider[3];
+
+  /*
+   * RGB in color picker used for number sliders, when the space is not scene linear.
+   * When it is linear, the RNA property is used directly so that keyframing works.
+   */
+  float rgb_slider[3];
+
+  /* Hex Color string */
+  char hexcol[128];
 
   /** Cubic saturation for the color wheel. */
   bool use_color_cubic;
@@ -573,6 +595,8 @@ struct uiBlockDynamicListener {
   void (*listener_func)(const wmRegionListenerParams *params);
 };
 
+enum class uiBlockAlertLevel : int8_t { None, Info, Success, Warning, Error };
+
 struct uiBlock {
   uiBlock *next, *prev;
 
@@ -603,6 +627,8 @@ struct uiBlock {
 
   rctf rect;
   float aspect;
+
+  uiBlockAlertLevel alert_level = uiBlockAlertLevel::None;
 
   /** Unique hash used to implement popup menu memory. */
   uint puphash;
@@ -1120,7 +1146,11 @@ void ui_layout_panel_popup_scroll_apply(Panel *panel, const float dy);
 /**
  * Draws in resolution of 48x4 colors.
  */
-void ui_draw_gradient(const rcti *rect, const float hsv[3], eButGradientType type, float alpha);
+void ui_draw_gradient(const rcti *rect,
+                      const float hsv[3],
+                      eButGradientType type,
+                      float alpha,
+                      const ColorManagedDisplay *display);
 
 /**
  * Draws rounded corner segments but inverted. Imagine each corner like a filled right triangle,

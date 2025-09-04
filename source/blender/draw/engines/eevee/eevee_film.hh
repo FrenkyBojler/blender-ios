@@ -67,10 +67,10 @@ class Film {
   Instance &inst_;
 
   /** Incoming combined buffer with post FX applied (motion blur + depth of field). */
-  GPUTexture *combined_final_tx_ = nullptr;
+  gpu::Texture *combined_final_tx_ = nullptr;
 
   /** Are we using the compute shader/pipeline. */
-  bool use_compute_;
+  bool use_compute_ = false;
 
   /** Copy of v3d->shading properties used to detect viewport settings update. */
   eViewLayerEEVEEPassType ui_render_pass_ = eViewLayerEEVEEPassType(0);
@@ -96,7 +96,7 @@ class Film {
   PassSimple cryptomatte_post_ps_ = {"Film.Cryptomatte.Post"};
 
   FilmData &data_;
-  int2 display_extent;
+  int2 display_extent = int2(-1);
 
   eViewLayerEEVEEPassType enabled_passes_ = eViewLayerEEVEEPassType(0);
   /* Store the pass types needed by the viewport compositor separately, because some passes might
@@ -121,7 +121,7 @@ class Film {
   }
 
   /** Accumulate the newly rendered sample contained in #RenderBuffers and blit to display. */
-  void accumulate(View &view, GPUTexture *combined_final_tx);
+  void accumulate(View &view, gpu::Texture *combined_final_tx);
 
   /** Sort and normalize cryptomatte samples. */
   void cryptomatte_sort();
@@ -132,8 +132,8 @@ class Film {
   float *read_pass(eViewLayerEEVEEPassType pass_type, int layer_offset);
   float *read_aov(ViewLayerAOV *aov);
 
-  GPUTexture *get_pass_texture(eViewLayerEEVEEPassType pass_type, int layer_offset);
-  GPUTexture *get_aov_texture(ViewLayerAOV *aov);
+  gpu::Texture *get_pass_texture(eViewLayerEEVEEPassType pass_type, int layer_offset);
+  gpu::Texture *get_aov_texture(ViewLayerAOV *aov);
 
   void write_viewport_compositor_passes();
 
@@ -353,7 +353,7 @@ class Film {
    */
   void update_sample_table();
 
-  void init_pass(PassSimple &pass, GPUShader *sh);
+  void init_pass(PassSimple &pass, gpu::Shader *sh);
 };
 
 /** \} */

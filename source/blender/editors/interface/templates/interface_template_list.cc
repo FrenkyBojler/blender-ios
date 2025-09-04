@@ -16,6 +16,7 @@
 #include "BLI_math_base.h"
 #include "BLI_string.h"
 #include "BLI_string_ref.hh"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 #include "BLI_vector.hh"
 
@@ -197,7 +198,8 @@ struct StringCmp {
 static int cmpstringp(const void *p1, const void *p2)
 {
   /* Case-insensitive comparison. */
-  return BLI_strcasecmp(((StringCmp *)p1)->name, ((StringCmp *)p2)->name);
+  return BLI_strcasecmp(static_cast<const StringCmp *>(p1)->name,
+                        static_cast<const StringCmp *>(p2)->name);
 }
 
 void UI_list_filter_and_sort_items(uiList *ui_list,
@@ -659,7 +661,7 @@ static uiList *ui_list_ensure(const bContext *C,
 
   if (!ui_list) {
     ui_list = MEM_callocN<uiList>("uiList");
-    STRNCPY(ui_list->list_id, full_list_id);
+    STRNCPY_UTF8(ui_list->list_id, full_list_id);
     BLI_addtail(&region->ui_lists, ui_list);
     ui_list->list_grip = -UI_LIST_AUTO_SIZE_THRESHOLD; /* Force auto size by default. */
     if (sort_reverse) {
@@ -860,7 +862,7 @@ static void ui_template_list_layout_draw(const bContext *C,
       }
 
       /* next/prev button */
-      SNPRINTF(numstr, "%d :", dyn_data->items_shown);
+      SNPRINTF_UTF8(numstr, "%d :", dyn_data->items_shown);
       but = uiDefIconTextButR_prop(block,
                                    ButType::Num,
                                    0,

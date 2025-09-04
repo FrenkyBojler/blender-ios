@@ -165,7 +165,15 @@ void WM_init_gpu()
     GPU_shader_compile_static();
   }
 
+  /* Some part of the code assumes no context is left bound. */
+  DRW_gpu_context_disable_ex(true);
+
   gpu_is_init = true;
+}
+
+bool WM_gpu_is_initialized()
+{
+  return gpu_is_init;
 }
 
 static void sound_jack_sync_callback(Main *bmain, int mode, double time)
@@ -348,7 +356,7 @@ void WM_init(bContext *C, int argc, const char **argv)
   wm_init_scripts_extensions_once(C);
 
   WM_keyconfig_update_postpone_end();
-  WM_keyconfig_update(static_cast<wmWindowManager *>(G_MAIN->wm.first));
+  WM_keyconfig_update_on_startup(static_cast<wmWindowManager *>(G_MAIN->wm.first));
 
   wm_homefile_read_post(C, params_file_read_post);
 }
@@ -449,6 +457,12 @@ void WM_exit_ex(bContext *C, const bool do_python_exit, const bool do_user_exit_
   using namespace blender;
   wmWindowManager *wm = C ? CTX_wm_manager(C) : nullptr;
 
+  if (gpu_is_init) {
+    /* We need a context bound even when dealing with non context dependent GPU resources,
+     * since GL functions may be null otherwise (See #141233, #144526). */
+    DRW_gpu_context_enable();
+  }
+
   /* While nothing technically prevents saving user data in background mode,
    * don't do this as not typically useful and more likely to cause problems
    * if automated scripts happen to write changes to the preferences for example.
@@ -471,9 +485,7 @@ void WM_exit_ex(bContext *C, const bool do_python_exit, const bool do_user_exit_
 
       BlendFileWriteParams blend_file_write_params{};
       if (BLO_write_file(bmain, filepath, fileflags, &blend_file_write_params, nullptr)) {
-        if (!G.quiet) {
-          CLOG_INFO_NOCHECK(&LOG_BLEND, "Saved session recovery to \"%s\"", filepath);
-        }
+        CLOG_INFO_NOCHECK(&LOG_BLEND, "Saved session recovery to \"%s\"", filepath);
       }
     }
 
@@ -639,7 +651,6 @@ void WM_exit_ex(bContext *C, const bool do_python_exit, const bool do_user_exit_
   /* Delete GPU resources and context. The UI also uses GPU resources and so
    * is also deleted with the context active. */
   if (gpu_is_init) {
-    DRW_gpu_context_enable_ex(false);
     UI_exit();
     GPU_shader_cache_dir_clear_old();
     GPU_exit();
@@ -687,7 +698,7 @@ void WM_exit(bContext *C, const int exit_code)
   const bool do_user_exit_actions = G.background ? false : (exit_code == EXIT_SUCCESS);
   WM_exit_ex(C, true, do_user_exit_actions);
 
-  if (!G.quiet) {
+  if (!CLG_quiet_get()) {
     printf("\nBlender quit\n");
   }
 

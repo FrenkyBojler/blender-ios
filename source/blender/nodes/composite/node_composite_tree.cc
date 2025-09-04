@@ -126,11 +126,14 @@ static bool composite_node_tree_socket_type_valid(blender::bke::bNodeTreeType * 
                                                                         SOCK_BOOLEAN,
                                                                         SOCK_VECTOR,
                                                                         SOCK_RGBA,
-                                                                        SOCK_MENU);
+                                                                        SOCK_MENU,
+                                                                        SOCK_STRING);
 }
 
-/* Keep consistent with the is_conversion_supported function in compositor::ConversionOperation on
- * the compositor side.*/
+/**
+ * Keep consistent with the #is_conversion_supported function in #compositor::ConversionOperation
+ * on the compositor side.
+ */
 static bool composite_validate_link(eNodeSocketDatatype from_type, eNodeSocketDatatype to_type)
 {
   /* Basic math types can be implicitly converted to each other. */
@@ -203,7 +206,7 @@ void ntreeCompositTagRender(Scene *scene)
   {
     if (sce_iter->compositing_node_group) {
       for (bNode *node : sce_iter->compositing_node_group->all_nodes()) {
-        if (node->id == (ID *)scene || node->type_legacy == CMP_NODE_COMPOSITE) {
+        if (node->id == (ID *)scene) {
           BKE_ntree_update_tag_node_property(sce_iter->compositing_node_group, node);
         }
       }

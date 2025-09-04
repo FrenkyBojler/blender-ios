@@ -15,6 +15,7 @@
 #include "BKE_material.hh"
 #include "BKE_object_deform.h"
 #include "BKE_paint.hh"
+#include "BKE_paint_types.hh"
 #include "BKE_report.hh"
 #include "BKE_screen.hh"
 
@@ -1513,9 +1514,9 @@ static bool grease_pencil_fill_init(bContext &C, wmOperator &op)
   BKE_curvemapping_init(brush.gpencil_settings->curve_rand_pressure);
   BKE_curvemapping_init(brush.gpencil_settings->curve_rand_strength);
   BKE_curvemapping_init(brush.gpencil_settings->curve_rand_uv);
-  BKE_curvemapping_init(brush.gpencil_settings->curve_rand_hue);
-  BKE_curvemapping_init(brush.gpencil_settings->curve_rand_saturation);
-  BKE_curvemapping_init(brush.gpencil_settings->curve_rand_value);
+  BKE_curvemapping_init(brush.curve_rand_hue);
+  BKE_curvemapping_init(brush.curve_rand_saturation);
+  BKE_curvemapping_init(brush.curve_rand_value);
 
   Material *material = BKE_grease_pencil_object_material_ensure_from_brush(&bmain, &ob, &brush);
   const int material_index = BKE_object_material_index_get(&ob, material);
