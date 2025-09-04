@@ -25,7 +25,6 @@
 #include "vk_state_manager.hh"
 #include "vk_vertex_buffer.hh"
 
-
 #include "BLI_math_vector.hh"
 
 #include "BKE_global.hh"
@@ -202,6 +201,8 @@ void VKTexture::read_sub(
   const uint64_t xy_bytesize = x_bytesize * extent.y;
   const uint64_t xyz_bytesize = xy_bytesize * extent.z;
   const uint64_t xyzl_bytesize = xyz_bytesize * layers.size();
+  /* #144887: Using a max transfer size of 2GB. NVIDIA doesn't seem to allocate transfer buffers
+   * larger than 4GB.*/
   constexpr uint64_t max_transferbuffer_bytesize = 2ul * 1024ul * 1024ul * 1024ul;
   BLI_assert_msg(x_bytesize < max_transferbuffer_bytesize,
                  "Transfer buffer should at least fit all pixels of a single row.");
