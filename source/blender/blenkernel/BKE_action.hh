@@ -324,14 +324,6 @@ void BKE_pose_channel_gizmo_orientation(const bArmature *arm,
                                         const bPoseChannel *pose_bone,
                                         float r_pose_orientation[3][3]);
 
-/**
- * Get the effective BoneParentTransform to use for gizmos, accounting for
- * POSE_GIZMO_AT_CUSTOM_TX.
- */
-void BKE_pose_channel_gizmo_parent_transform(const bArmature *arm,
-                                             const bPoseChannel *pose_bone,
-                                             BoneParentTransform *r_bpt);
-
 /* Bone Groups API --------------------- */
 
 /**

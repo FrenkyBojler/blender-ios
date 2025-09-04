@@ -452,7 +452,7 @@ static void add_pose_transdata(
     BoneParentTransform bpt;
     float rpmat[3][3];
 
-    /* Not using `BKE_pose_channel_gizmo_parent_transform` because we need the transormation to be
+    /* Not using the pchan->custom_tx here because we need the transformation to be
      * relative to the actual bone being modified, not it's visual representation.  */
     BKE_bone_parent_transform_calc_from_pchan(pchan, &bpt);
     if (t->mode == TFM_TRANSLATION) {
