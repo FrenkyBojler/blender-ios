@@ -2790,10 +2790,8 @@ PROFILE_FUNCTION static Map<SimPointsKey, PinnedPositions> compute_pinned_positi
     auto get_and_update_position_pair = [&](const int point_i) -> StartStopPair<float3> {
       const float3 new_position = positions[point_i];
       PositionConstraintGoals::GoalItem &old_goal_item =
-          old_position_constraint_goals.goals.lookup_or_add_cb(point_i, [&]() {
-            int x = 2;
-            return PositionConstraintGoals::GoalItem{new_position};
-          });
+          old_position_constraint_goals.goals.lookup_or_add_cb(
+              point_i, [&]() { return PositionConstraintGoals::GoalItem{new_position}; });
       const float3 old_position = old_goal_item.goal;
       old_goal_item.used = true;
       old_goal_item.goal = new_position;
