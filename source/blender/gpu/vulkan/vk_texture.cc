@@ -194,34 +194,65 @@ void VKTexture::mip_range_set(int min, int max)
 void VKTexture::read_sub(
     int mip, eGPUDataFormat format, const int region[6], const IndexRange layers, void *r_data)
 {
-  Vector<TransferRegion> transfer_regions;
   const int3 offset = int3(region[0], region[1], region[2]);
   const int3 extent = int3(region[3] - region[0], region[4] - region[1], region[5] - region[2]);
-  TransferRegion global_region = {offset, extent, layers};
-  transfer_regions.append(global_region);
-
+  TransferRegion full_transfer_region({offset, extent, layers});
   const VkDeviceSize sample_bytesize = to_bytesize(device_format_);
-  constexpr VkDeviceSize max_region_bytesize = 2ul * 1024ul * 1024ul * 1024ul;
+  const uint64_t x_bytesize = sample_bytesize * extent.x;
+  const uint64_t xy_bytesize = x_bytesize * extent.y;
+  const uint64_t xyz_bytesize = xy_bytesize * extent.z;
+  const uint64_t xyzl_bytesize = xyz_bytesize * layers.size();
+  constexpr uint64_t max_transferbuffer_bytesize = 2ul * 1024ul * 1024ul * 1024ul;
+  BLI_assert_msg(x_bytesize < max_transferbuffer_bytesize,
+                 "Transfer buffer should at least fit all pixels of a single row.");
 
-  /** Split the region to all fit in 2 GB buffers. */
-  bool finished_split = false;
-  while (!finished_split) {
-    finished_split = true;
-    for (TransferRegion &transfer_region : transfer_regions) {
-      VkDeviceSize device_size = transfer_region.sample_count() * sample_bytesize;
-      if (device_size > max_region_bytesize) {
-        finished_split = false;
-        TransferRegion new_region = transfer_region.split();
-        BLI_assert(device_size == transfer_region.sample_count() * sample_bytesize +
-                                      new_region.sample_count() * sample_bytesize);
-        transfer_regions.append(new_region);
-        break;
+  /* Build a list of transfer regions to transfer the data back to the CPU, where the data can
+   * still be read as a continuous stream of data. This will reduce complexity during conversion.
+   */
+  Vector<TransferRegion> transfer_regions;
+  if (xyzl_bytesize <= max_transferbuffer_bytesize) {
+    /* All data fits in a single transfer buffer. */
+    transfer_regions.append(full_transfer_region);
+  }
+  else {
+    /* Always split by layer. */
+    for (int layer : layers) {
+      if (xyz_bytesize <= max_transferbuffer_bytesize) {
+        /* xyz data fits in a single transfer buffer. */
+        transfer_regions.append({offset, extent, IndexRange(layer, 1)});
+      }
+      else {
+        if (xy_bytesize <= max_transferbuffer_bytesize) {
+          /* Split by depth, transfer multiple depths at a time */
+          int64_t xy_in_single_transfer = max_transferbuffer_bytesize / xy_bytesize;
+          int depths_added = 0;
+          while (depths_added < extent.z) {
+            int3 offset_region(offset.x, offset.y, offset.z + depths_added);
+            int3 extent_region(
+                extent.x, extent.y, min_ii(xy_in_single_transfer, extent.z - depths_added));
+            transfer_regions.append({offset_region, extent_region, IndexRange(layer, 1)});
+            depths_added += extent_region.z;
+          }
+        }
+        else {
+          /* Split by depth and rows, transfer multiple rows at a time. */
+          int64_t x_in_single_transfer = max_transferbuffer_bytesize / x_bytesize;
+          for (int z = 0; z < extent.z; z++) {
+            int rows_added = 0;
+            while (rows_added < extent.y) {
+              int3 offset_region(offset.x, offset.y + rows_added, offset.z + z);
+              int3 extent_region(extent.x, min_ii(x_in_single_transfer, extent.y - rows_added), 1);
+              transfer_regions.append({offset_region, extent_region, IndexRange(layer, 1)});
+              rows_added += extent_region.y;
+            }
+          }
+        }
       }
     }
   }
 
+  /* Create and schedule transfer regions. */
   Array<VKBuffer> staging_buffers(transfer_regions.size());
-
   VKContext &context = *VKContext::get();
   context.rendering_end();
   for (int index : transfer_regions.index_range()) {
@@ -259,31 +290,27 @@ void VKTexture::read_sub(
 
     context.render_graph().add_node(copy_image_to_buffer);
   }
+
+  /* Submit and wait for the transfers to be completed. */
   context.flush_render_graph(RenderGraphFlushFlags::SUBMIT |
                              RenderGraphFlushFlags::RENEW_RENDER_GRAPH |
                              RenderGraphFlushFlags::WAIT_FOR_COMPLETION);
 
+  /* Convert the data to r_data. */
   for (int index : transfer_regions.index_range()) {
     const TransferRegion &transfer_region = transfer_regions[index];
     const VKBuffer &staging_buffer = staging_buffers[index];
     size_t sample_len = transfer_region.sample_count();
 
-    // TODO: calculate the offset in r_data.
-    // Check if region is sequential layed out. If not we will perform the conversion per row.
-    size_t data_offset;
-    if (transfer_region.is_sequential(global_region)) {
-      size_t data_offset = global_region.result_offset(transfer_region.offset,
-                                                       transfer_region.layers.start());
-      convert_device_to_host(static_cast<void *>(static_cast<uint8_t *>(r_data) + data_offset),
-                             staging_buffer.mapped_memory_get(),
-                             sample_len,
-                             format,
-                             format_,
-                             device_format_);
-    }
-    else {
-      BLI_assert_unreachable();
-    }
+    size_t data_offset = full_transfer_region.result_offset(transfer_region.offset,
+                                                            transfer_region.layers.start()) *
+                         sample_bytesize;
+    convert_device_to_host(static_cast<void *>(static_cast<uint8_t *>(r_data) + data_offset),
+                           staging_buffer.mapped_memory_get(),
+                           sample_len,
+                           format,
+                           format_,
+                           device_format_);
   }
 }
 

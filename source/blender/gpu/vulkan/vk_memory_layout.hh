@@ -121,7 +121,7 @@ template<typename LayoutT> static void align_end_of_struct(uint32_t *r_offset)
 }
 
 /**
- * Image transfers can require downloads to happen in smaller chunks.
+ * Image transfers can use multiple transfer buffers for a single request.
  *
  * This helper class helps in splitting the transfers in smaller chunks.
  */
@@ -135,63 +135,15 @@ struct TransferRegion {
     return int64_t(extent.x) * int64_t(extent.y) * int64_t(extent.z) * layers.size();
   }
 
-  /** Split the current region. first on layers, then z extent then y extent. */
-  TransferRegion split()
+  int64_t result_offset(int3 sub_offset, int layer) const
   {
-    int3 offset_a;
-    int3 offset_b;
-    int3 extent_a;
-    int3 extent_b;
-    IndexRange layers_a;
-    IndexRange layers_b;
+    int64_t diff_x = sub_offset.x - offset.x;
+    int64_t diff_y = sub_offset.y - offset.y;
+    int64_t diff_z = sub_offset.z - offset.z;
+    int64_t diff_l = layer - layers.start();
 
-    if (layers.size() > 1) {
-      int split_after = layers.first() + divide_floor_i(layers.last() - layers.first(), 2);
-      offset_a = offset;
-      offset_b = offset;
-      extent_a = extent;
-      extent_b = extent;
-      layers_a = IndexRange::from_begin_end(layers.first(), split_after);
-      layers_b = IndexRange::from_begin_end_inclusive(split_after, layers.last());
-    }
-    else if (extent.z > 1) {
-      int split_after = divide_floor_i(extent.z, 2);
-      offset_a = offset;
-      offset_b = {offset.x, offset.y, offset.z + split_after};
-      extent_a = {extent.x, extent.y, split_after};
-      extent_b = {extent.x, extent.y, extent.z - split_after};
-      layers_a = layers;
-      layers_b = layers;
-    }
-    else if (extent.y > 1) {
-      int split_after = divide_floor_i(extent.y, 2);
-      offset_a = offset;
-      offset_b = {offset.x, offset.y + split_after, offset.z};
-      extent_a = {extent.x, split_after, extent.z};
-      extent_b = {extent.x, extent.y - split_after, extent.z};
-      layers_a = layers;
-      layers_b = layers;
-    }
-    else {
-      BLI_assert_unreachable();
-    }
-
-    offset = offset_a;
-    extent = extent_a;
-    layers = layers_a;
-    return {offset_b, extent_b, layers_b};
-  }
-
-  bool is_sequential(const TransferRegion &other) const
-  {
-    BLI_assert_unreachable();
-    return true;
-  }
-
-  size_t result_offset(int3 offset, int layer) const
-  {
-    BLI_assert_unreachable();
-    return 0;
+    return (diff_l * extent.x * extent.y * extent.z) + (diff_z * extent.x * extent.y) +
+           (diff_y * extent.x) + diff_x;
   }
 };
 
