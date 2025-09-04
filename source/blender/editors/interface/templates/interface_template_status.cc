@@ -254,6 +254,7 @@ static bool uiTemplateInputStatus3DView(bContext *C, uiLayout *row)
     row->label(IFACE_("Active object has non-uniform scale"), ICON_NONE);
     row->separator(0.5f, LayoutSeparatorType::Line);
     row->separator(0.5f);
+    /* Return false to allow other items to be added after. */
     return false;
   }
 
