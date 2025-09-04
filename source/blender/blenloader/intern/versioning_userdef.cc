@@ -1668,6 +1668,12 @@ void blo_do_versions_userdef(UserDef *userdef)
     userdef->preferences_display_type = USER_TEMP_SPACE_DISPLAY_WINDOW;
   }
 
+  if (!USER_VERSION_ATLEAST(500, 76)) {
+    if (userdef->stored_bounds.file.xmin == userdef->stored_bounds.file.xmax) {
+      memcpy(&userdef->stored_bounds, &U_default.stored_bounds, sizeof(userdef->stored_bounds));
+    }
+  }
+
   if (!USER_VERSION_ATLEAST(500, 100)) {
     userdef->flag |= USER_MENU_OPEN_NEIGHBORS;
   }
