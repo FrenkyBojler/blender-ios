@@ -37,28 +37,25 @@ namespace gbuffer::detail {
 
 uint fetch_object_id(int2 texel)
 {
-  usampler2DArray tx = sampler_get(eevee_gbuffer_data, gbuf_header_tx);
-  return texelFetch(tx, int3(texel, 1), 0).r;
+  return texelFetch(sampler_get(eevee_gbuffer_data, gbuf_header_tx), int3(texel, 1), 0).r;
 }
 
 float4 fetch_data(int2 texel, uchar layer)
 {
-  sampler2DArray tx = sampler_get(eevee_gbuffer_data, gbuf_closure_tx);
-  return texelFetch(tx, int3(texel, layer), 0);
+  return texelFetch(sampler_get(eevee_gbuffer_data, gbuf_closure_tx), int3(texel, layer), 0);
 }
 
 float4 fetch_normal(int2 texel, uchar layer)
 {
-  sampler2DArray tx = sampler_get(eevee_gbuffer_data, gbuf_normal_tx);
-  return texelFetch(tx, int3(texel, layer), 0);
+  return texelFetch(sampler_get(eevee_gbuffer_data, gbuf_normal_tx), int3(texel, layer), 0);
 }
 
 ClosureUndetermined unpack_closure(gbuffer::ClosurePacking cl_in)
 {
   ClosureUndetermined cl;
-  cl.type = mode_to_closure_type(cl_in.mode);
+  cl.type = gbuffer::mode_to_closure_type(cl_in.mode);
   /* Common to all configs. */
-  cl.color = closure_color_unpack(cl_in.data0);
+  cl.color = gbuffer::closure_color_unpack(cl_in.data0);
   cl.N = cl_in.N;
   /* Some closures require additional unpacking. */
   switch (cl_in.mode) {
@@ -100,12 +97,12 @@ ClosureUndetermined read_layer(
   gbuffer::ClosurePacking cl_in;
   cl_in.mode = bin_mode;
 
-  float2 packed_N = detail::fetch_normal(texel, normal_id).xy;
-  cl_in.N = normal_unpack(packed_N);
+  float2 packed_N = gbuffer::detail::fetch_normal(texel, normal_id).xy;
+  cl_in.N = gbuffer::normal_unpack(packed_N);
 
-  cl_in.data0 = detail::fetch_data(texel, layer_id);
+  cl_in.data0 = gbuffer::detail::fetch_data(texel, layer_id);
   if (cl_in.use_data1()) {
-    cl_in.data1 = detail::fetch_data(texel, layer_id + closure_len);
+    cl_in.data1 = gbuffer::detail::fetch_data(texel, layer_id + closure_len);
   }
   return unpack_closure(cl_in);
 }
@@ -128,34 +125,38 @@ struct Layers {
   {
     switch (i) {
       case 0:
-        return layer[0];
+        return this->layer[0];
+#if GBUFFER_LAYER_MAX > 1
       case 1:
-        return layer[1];
+        return this->layer[1];
+#endif
+#if GBUFFER_LAYER_MAX > 2
       case 2:
-        return layer[2];
+        return this->layer[2];
+#endif
     }
     assert(0);
-    return layer[0];
+    return this->layer[0];
   }
 
   float3 surface_N() const
   {
-    return layer[0].N;
+    return this->layer[0].N;
   }
 
   bool has_any_closure() const
   {
-    return layer[0].type != CLOSURE_NONE_ID;
+    return this->layer[0].type != CLOSURE_NONE_ID;
   }
   bool has_no_closure() const
   {
-    return layer[0].type == CLOSURE_NONE_ID;
+    return this->layer[0].type == CLOSURE_NONE_ID;
   }
 };
 
 Header read_header(int2 texel)
 {
-  usampler2DArray tx = sampler_get(eevee_gbuffer_data, gbuf_header_tx);
+  auto &tx = sampler_get(eevee_gbuffer_data, gbuf_header_tx);
   return Header::from_data(texelFetch(tx, int3(texel, 0), 0).r);
 }
 
@@ -207,13 +208,13 @@ float read_thickness(Header header, int2 texel)
   }
   uint closure_len = header.closure_len();
   float2 data_packed = gbuffer::detail::fetch_normal(texel, closure_len).rg;
-  return AdditionalInfo::unpack(data_packed).thickness;
+  return gbuffer::AdditionalInfo::unpack(data_packed).thickness;
 }
 
 /* Returns the first world normal stored in the gbuffer. Assume gbuffer header is non-null. */
 float3 read_normal(int2 texel)
 {
-  return normal_unpack(gbuffer::detail::fetch_normal(texel, 0).rg);
+  return gbuffer::normal_unpack(gbuffer::detail::fetch_normal(texel, 0).rg);
 }
 
 /* Returns the object id stored in the gbuffer. Assume gbuffer header is non-null and object id is
