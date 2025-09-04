@@ -835,9 +835,6 @@ static void blend_write(BlendWriter *writer, const ID *id_owner, const ModifierD
   BLO_write_struct_at_address(writer, LaplacianDeformModifierData, md, &lmd);
 
   if (lmd.vertexco != nullptr) {
-    BLO_write_float3_array(writer, lmd.verts_num, lmd.vertexco);
-  }
-  if (lmd.vertexco != nullptr) {
     BLO_write_shared(
         writer, lmd.vertexco, sizeof(float[3]) * lmd.verts_num, lmd.vertexco_sharing_info, [&]() {
           BLO_write_float3_array(writer, lmd.verts_num, lmd.vertexco);
