@@ -626,10 +626,12 @@ static void blend_read(BlendDataReader *reader, ModifierData *md)
   /* NOTE: `bindoffset` is abusing `verts_num + 1` as its size, this becomes an incorrect value in
    * case `verts_num == 0`, since `bindoffset` is then nullptr, not a size 1 allocated array. */
   if (mmd->verts_num > 0) {
-    mmd->bindoffsets_sharing_info = BLO_read_shared(reader, &mmd->bindoffsets, [&]() {
-      BLO_read_int32_array(reader, mmd->verts_num + 1, &mmd->bindoffsets);
-      return blender::implicit_sharing::info_for_mem_free(mmd->bindoffsets);
-    });
+    if (mmd->bindoffsets) {
+      mmd->bindoffsets_sharing_info = BLO_read_shared(reader, &mmd->bindoffsets, [&]() {
+        BLO_read_int32_array(reader, mmd->verts_num + 1, &mmd->bindoffsets);
+        return blender::implicit_sharing::info_for_mem_free(mmd->bindoffsets);
+      });
+    }
   }
 
   if (mmd->bindcagecos) {
