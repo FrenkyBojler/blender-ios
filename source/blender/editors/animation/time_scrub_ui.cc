@@ -130,7 +130,7 @@ static void draw_current_frame(const Scene *scene,
      * used to force an odd width (but still pixel-aligned) to better
      * line up with the odd widths of the keyframe icons. #98089. */
 
-    const float tri_top = scrub_region_rect->ymin + box_margin;
+    const float tri_top = floor(scrub_region_rect->ymin + box_margin);
     const float tri_half_width = 6 * UI_SCALE_FAC;
     const float tri_height = 6 * UI_SCALE_FAC;
 
