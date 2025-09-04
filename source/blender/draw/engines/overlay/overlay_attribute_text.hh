@@ -76,7 +76,7 @@ class AttributeTexts : Overlay {
     switch (object.type) {
       case OB_MESH: {
         const Mesh &mesh = DRW_object_get_data_for_drawing<Mesh>(object);
-        add_mesh_attributes_to_text_cache(state, dt, mesh, object_to_world);
+        add_mesh_attributes_to_text_cache(state, mesh, object_to_world);
         break;
       }
       case OB_POINTCLOUD: {
@@ -118,7 +118,6 @@ class AttributeTexts : Overlay {
   }
 
   void add_mesh_attributes_to_text_cache(const State &state,
-                                         DRWTextStore *dt,
                                          const Mesh &mesh,
                                          const float4x4 &object_to_world)
   {
@@ -161,16 +160,17 @@ class AttributeTexts : Overlay {
                 positions[corner_verts[corner_prev]],
                 positions[corner_verts[corner_next]],
                 face_normal,
-                state,
+                state.rv3d,
                 object_to_world,
                 offset_by_type);
           }
         }
       });
-      add_values_to_text_cache(dt, attribute.varray, corner_positions.as_span(), object_to_world);
+      add_values_to_text_cache(
+          state.dt, attribute.varray, corner_positions.as_span(), object_to_world);
     }
     else {
-      add_values_to_text_cache(dt, attribute.varray, positions, object_to_world);
+      add_values_to_text_cache(state.dt, attribute.varray, positions, object_to_world);
     }
   }
 
@@ -367,7 +367,7 @@ class AttributeTexts : Overlay {
                                           const float3 &prev_corner_pos,
                                           const float3 &next_corner_pos,
                                           const float3 &face_normal,
-                                          const State &state,
+                                          const RegionView3D *rv3d,
                                           const float4x4 &object_to_world,
                                           const float offset_scale = 1.0f)
   {
@@ -389,7 +389,7 @@ class AttributeTexts : Overlay {
     const float sharp_multiplier = math::pow(sharp_factor, 4.0f) * 2 + 1;
 
     const float3 pos_o_world = math::transform_point(object_to_world, corner_pos);
-    const float pixel_size = ED_view3d_pixel_size(state.rv3d, pos_o_world);
+    const float pixel_size = ED_view3d_pixel_size(rv3d, pos_o_world);
     const float pixel_offset = UI_style_get()->widget.points * 7.0f * UI_SCALE_FAC;
     const float screen_space_offset = pixel_size * pixel_offset;
 
