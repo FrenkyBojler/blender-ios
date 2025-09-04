@@ -8,6 +8,9 @@
  * \ingroup sequencer
  */
 
+#include "DNA_sequence_types.h"
+
+struct ARegionType;
 struct BlendDataReader;
 struct BlendWriter;
 struct ImBuf;
@@ -21,11 +24,17 @@ struct StripScreenQuad;
 struct RenderData;
 
 struct StripModifierTypeInfo {
+  /**
+   * A unique identifier for this modifier. Used to generate the panel id type name.
+   * See #seq::modifier_type_panel_id.
+   */
+  char idname[/*MAX_NAME*/ 64];
+
   /* default name for the modifier */
-  char name[64]; /* MAX_NAME */
+  char name[/*MAX_NAME*/ 64];
 
   /* DNA structure name used on load/save filed */
-  char struct_name[64]; /* MAX_NAME */
+  char struct_name[/*MAX_NAME*/ 64];
 
   /* size of modifier data structure, used by allocation */
   int struct_size;
@@ -45,7 +54,12 @@ struct StripModifierTypeInfo {
   /* Apply modifier on an image buffer.
    * quad contains four corners of the (pre-transform) strip rectangle in pixel space. */
   void (*apply)(const StripScreenQuad &quad, StripModifierData *smd, ImBuf *ibuf, ImBuf *mask);
+
+  /** Register the panel types for the modifier's UI. */
+  void (*panel_register)(ARegionType *region_type);
 };
+
+void modifiers_init();
 
 const StripModifierTypeInfo *modifier_type_info_get(int type);
 StripModifierData *modifier_new(Strip *strip, const char *name, int type);
@@ -58,10 +72,20 @@ void modifier_apply_stack(const RenderData *context,
                           const Strip *strip,
                           ImBuf *ibuf,
                           int timeline_frame);
+StripModifierData *modifier_copy(Strip &strip_dst, StripModifierData *mod_src);
 void modifier_list_copy(Strip *strip_new, Strip *strip);
 int sequence_supports_modifiers(Strip *strip);
 
 void modifier_blend_write(BlendWriter *writer, ListBase *modbase);
 void modifier_blend_read_data(BlendDataReader *reader, ListBase *lb);
+void modifier_persistent_uid_init(const Strip &strip, StripModifierData &smd);
+
+bool modifier_move_to_index(Strip *strip, StripModifierData *smd, int new_index);
+
+StripModifierData *modifier_get_active(const Strip *strip);
+void modifier_set_active(Strip *strip, StripModifierData *smd);
+
+static constexpr char STRIP_MODIFIER_TYPE_PANEL_PREFIX[] = "STRIPMOD_PT_";
+void modifier_type_panel_id(eStripModifierType type, char *r_idname);
 
 }  // namespace blender::seq

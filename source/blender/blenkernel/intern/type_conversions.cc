@@ -716,7 +716,7 @@ void DataTypeConversions::convert_to_initialized_n(GSpan from_span, GMutableSpan
                                                                     DataType::ForSingle(to_type));
 
   to_type.destruct_n(to_span.data(), to_span.size());
-  call_convert_to_uninitialized_fn(GVArray::ForSpan(from_span), *fn, to_span);
+  call_convert_to_uninitialized_fn(GVArray::from_span(from_span), *fn, to_span);
 }
 
 class GVArray_For_ConvertedGVArray : public GVArrayImpl {
@@ -751,14 +751,13 @@ class GVArray_For_ConvertedGVArray : public GVArrayImpl {
     from_type_.destruct(buffer);
   }
 
-  void materialize(const IndexMask &mask, void *dst) const override
+  void materialize(const IndexMask &mask,
+                   void *dst,
+                   const bool dst_is_uninitialized) const override
   {
-    type_->destruct_n(dst, mask.min_array_size());
-    this->materialize_to_uninitialized(mask, dst);
-  }
-
-  void materialize_to_uninitialized(const IndexMask &mask, void *dst) const override
-  {
+    if (!dst_is_uninitialized) {
+      type_->destruct_n(dst, mask.min_array_size());
+    }
     call_convert_to_uninitialized_fn(varray_,
                                      *old_to_new_conversions_.multi_function,
                                      mask,
@@ -809,14 +808,13 @@ class GVMutableArray_For_ConvertedGVMutableArray : public GVMutableArrayImpl {
     varray_.set_by_relocate(index, buffer);
   }
 
-  void materialize(const IndexMask &mask, void *dst) const override
+  void materialize(const IndexMask &mask,
+                   void *dst,
+                   const bool dst_is_uninitialized) const override
   {
-    type_->destruct_n(dst, mask.min_array_size());
-    this->materialize_to_uninitialized(mask, dst);
-  }
-
-  void materialize_to_uninitialized(const IndexMask &mask, void *dst) const override
-  {
+    if (!dst_is_uninitialized) {
+      type_->destruct_n(dst, mask.min_array_size());
+    }
     call_convert_to_uninitialized_fn(varray_,
                                      *old_to_new_conversions_.multi_function,
                                      mask,
@@ -833,7 +831,7 @@ GVArray DataTypeConversions::try_convert(GVArray varray, const CPPType &to_type)
   if (!this->is_convertible(from_type, to_type)) {
     return {};
   }
-  return GVArray::For<GVArray_For_ConvertedGVArray>(std::move(varray), to_type, *this);
+  return GVArray::from<GVArray_For_ConvertedGVArray>(std::move(varray), to_type, *this);
 }
 
 GVMutableArray DataTypeConversions::try_convert(GVMutableArray varray,
@@ -846,7 +844,7 @@ GVMutableArray DataTypeConversions::try_convert(GVMutableArray varray,
   if (!this->is_convertible(from_type, to_type)) {
     return {};
   }
-  return GVMutableArray::For<GVMutableArray_For_ConvertedGVMutableArray>(
+  return GVMutableArray::from<GVMutableArray_For_ConvertedGVMutableArray>(
       std::move(varray), to_type, *this);
 }
 
@@ -861,7 +859,7 @@ fn::GField DataTypeConversions::try_convert(fn::GField field, const CPPType &to_
   }
   const mf::MultiFunction &fn = *this->get_conversion_multi_function(
       mf::DataType::ForSingle(from_type), mf::DataType::ForSingle(to_type));
-  return {fn::FieldOperation::Create(fn, {std::move(field)})};
+  return {fn::FieldOperation::from(fn, {std::move(field)})};
 }
 
 }  // namespace blender::bke

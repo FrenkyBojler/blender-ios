@@ -53,12 +53,11 @@ GLStateManager::GLStateManager()
 
 void GLStateManager::apply_state()
 {
-  if (!this->use_bgl) {
-    this->set_state(this->state);
-    this->set_mutable_state(this->mutable_state);
-    this->texture_bind_apply();
-    this->image_bind_apply();
-  }
+  this->set_state(this->state);
+  this->set_mutable_state(this->mutable_state);
+  this->texture_bind_apply();
+  this->image_bind_apply();
+
   /* This is needed by gpu_py_offscreen. */
   active_fb->apply_state();
 };
@@ -335,14 +334,12 @@ void GLStateManager::set_shadow_bias(const bool enable)
 
 void GLStateManager::set_clip_control(const bool enable)
 {
-  if (GLContext::clip_control_support) {
-    if (enable) {
-      /* Match Vulkan and Metal by default. */
-      glClipControl(GL_LOWER_LEFT, GL_ZERO_TO_ONE);
-    }
-    else {
-      glClipControl(GL_LOWER_LEFT, GL_NEGATIVE_ONE_TO_ONE);
-    }
+  if (enable) {
+    /* Match Vulkan and Metal by default. */
+    glClipControl(GL_LOWER_LEFT, GL_ZERO_TO_ONE);
+  }
+  else {
+    glClipControl(GL_LOWER_LEFT, GL_NEGATIVE_ONE_TO_ONE);
   }
 }
 
@@ -585,6 +582,7 @@ void GLStateManager::image_bind(Texture *tex_, int unit)
   }
   images_[unit] = tex->tex_id_;
   formats_[unit] = to_gl_internal_format(tex->format_);
+  image_formats[unit] = TextureWriteFormat(tex->format_get());
   tex->is_bound_image_ = true;
   dirty_image_binds_ |= 1ULL << unit;
 }
@@ -600,6 +598,7 @@ void GLStateManager::image_unbind(Texture *tex_)
   for (int i = 0; i < ARRAY_SIZE(images_); i++) {
     if (images_[i] == tex_id) {
       images_[i] = 0;
+      image_formats[i] = TextureWriteFormat::Invalid;
       dirty_image_binds_ |= 1ULL << i;
     }
   }
@@ -614,6 +613,7 @@ void GLStateManager::image_unbind_all()
       dirty_image_binds_ |= 1ULL << i;
     }
   }
+  image_formats.fill(TextureWriteFormat::Invalid);
   this->image_bind_apply();
 }
 

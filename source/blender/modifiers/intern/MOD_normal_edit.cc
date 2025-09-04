@@ -30,7 +30,7 @@
 #include "BKE_lib_query.hh"
 #include "BKE_mesh.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "RNA_access.hh"
@@ -135,13 +135,8 @@ static void mix_normals(const float mix_factor,
 
   if (dvert) {
     facs = MEM_malloc_arrayN<float>(size_t(corner_verts.size()), __func__);
-    BKE_defvert_extract_vgroup_to_loopweights(dvert,
-                                              defgrp_index,
-                                              verts_num,
-                                              corner_verts.data(),
-                                              corner_verts.size(),
-                                              use_invert_vgroup,
-                                              facs);
+    BKE_defvert_extract_vgroup_to_loopweights(
+        dvert, defgrp_index, verts_num, corner_verts, use_invert_vgroup, facs);
   }
 
   for (i = corner_verts.size(), no_new = nos_new, no_old = nos_old, wfac = facs; i--;
@@ -624,7 +619,7 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
 
   layout->prop(ptr, "mode", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
 
-  uiLayoutSetPropSep(layout, true);
+  layout->use_property_split_set(true);
 
   layout->prop(ptr, "target", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
@@ -644,7 +639,7 @@ static void mix_mode_panel_draw(const bContext * /*C*/, Panel *panel)
   PointerRNA ob_ptr;
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, &ob_ptr);
 
-  uiLayoutSetPropSep(layout, true);
+  layout->use_property_split_set(true);
 
   layout->prop(ptr, "mix_mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   layout->prop(ptr, "mix_factor", UI_ITEM_NONE, std::nullopt, ICON_NONE);
@@ -673,7 +668,7 @@ static void offset_panel_draw(const bContext * /*C*/, Panel *panel)
                              (mode == MOD_NORMALEDIT_MODE_DIRECTIONAL &&
                               RNA_boolean_get(ptr, "use_direction_parallel"));
 
-  uiLayoutSetPropSep(layout, true);
+  layout->use_property_split_set(true);
 
   layout->active_set(needs_object_offset);
   layout->prop(ptr, "offset", UI_ITEM_NONE, std::nullopt, ICON_NONE);

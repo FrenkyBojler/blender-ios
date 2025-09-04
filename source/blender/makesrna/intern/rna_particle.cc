@@ -98,7 +98,7 @@ static const EnumPropertyItem part_hair_ren_as_items[] = {
 
 static const EnumPropertyItem part_type_items[] = {
     {PART_EMITTER, "EMITTER", 0, "Emitter", ""},
-    /*{PART_REACTOR, "REACTOR", 0, "Reactor", ""}, */
+    // {PART_REACTOR, "REACTOR", 0, "Reactor", ""},
     {PART_HAIR, "HAIR", 0, "Hair", ""},
     {0, nullptr, 0, nullptr, nullptr},
 };
@@ -1354,10 +1354,10 @@ static size_t rna_ParticleDupliWeight_name_get_impl(PointerRNA *ptr,
   ParticleDupliWeight *dw = static_cast<ParticleDupliWeight *>(ptr->data);
 
   if (dw->ob) {
-    return BLI_snprintf_rlen(value, value_maxncpy, "%s: %i", dw->ob->id.name + 2, dw->count);
+    return BLI_snprintf_utf8_rlen(value, value_maxncpy, "%s: %i", dw->ob->id.name + 2, dw->count);
   }
 
-  return BLI_strncpy_rlen(value, "No object", value_maxncpy);
+  return BLI_strncpy_utf8_rlen(value, "No object", value_maxncpy);
 }
 
 static void rna_ParticleDupliWeight_name_get(PointerRNA *ptr, char *value)
@@ -1824,7 +1824,7 @@ static void rna_def_particle(BlenderRNA *brna)
   PropertyRNA *parm;
 
   static const EnumPropertyItem alive_items[] = {
-      /*{PARS_KILLED, "KILLED", 0, "Killed", ""}, */
+      // {PARS_KILLED, "KILLED", 0, "Killed", ""},
       {PARS_DEAD, "DEAD", 0, "Dead", ""},
       {PARS_UNBORN, "UNBORN", 0, "Unborn", ""},
       {PARS_ALIVE, "ALIVE", 0, "Alive", ""},

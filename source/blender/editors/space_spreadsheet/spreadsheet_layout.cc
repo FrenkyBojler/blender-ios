@@ -45,7 +45,7 @@ class SpreadsheetLayoutDrawer : public SpreadsheetDrawer {
   {
     const StringRefNull name = spreadsheet_layout_.columns[column_index].values->name();
     uiBut *but = uiDefIconTextBut(params.block,
-                                  UI_BTYPE_LABEL,
+                                  ButType::Label,
                                   0,
                                   ICON_NONE,
                                   name,
@@ -54,8 +54,6 @@ class SpreadsheetLayoutDrawer : public SpreadsheetDrawer {
                                   params.width,
                                   params.height,
                                   nullptr,
-                                  0,
-                                  0,
                                   std::nullopt);
     UI_but_func_tooltip_set(
         but,
@@ -74,7 +72,7 @@ class SpreadsheetLayoutDrawer : public SpreadsheetDrawer {
     const int real_index = spreadsheet_layout_.row_indices[row_index];
     std::string index_str = std::to_string(real_index);
     uiBut *but = uiDefIconTextBut(params.block,
-                                  UI_BTYPE_LABEL,
+                                  ButType::Label,
                                   0,
                                   ICON_NONE,
                                   index_str,
@@ -83,8 +81,6 @@ class SpreadsheetLayoutDrawer : public SpreadsheetDrawer {
                                   params.width,
                                   params.height,
                                   nullptr,
-                                  0,
-                                  0,
                                   std::nullopt);
     /* Right-align indices. */
     UI_but_drawflag_enable(but, UI_BUT_TEXT_RIGHT);
@@ -100,12 +96,21 @@ class SpreadsheetLayoutDrawer : public SpreadsheetDrawer {
     }
 
     const GVArray &data = column.data();
+    const CPPType &type = data.type();
+    BUFFER_FOR_CPP_TYPE_VALUE(type, buffer);
+    data.get_to_uninitialized(real_index, buffer);
+    this->draw_content_cell_value(GPointer(type, buffer), params);
+    type.destruct(buffer);
+  }
 
-    if (data.type().is<int>()) {
-      const int value = data.get<int>(real_index);
+  void draw_content_cell_value(const GPointer value_ptr, const CellDrawParams &params) const
+  {
+    const CPPType &type = *value_ptr.type();
+    if (type.is<int>()) {
+      const int value = *value_ptr.get<int>();
       const std::string value_str = std::to_string(value);
       uiBut *but = uiDefIconTextBut(params.block,
-                                    UI_BTYPE_LABEL,
+                                    ButType::Label,
                                     0,
                                     ICON_NONE,
                                     value_str,
@@ -114,8 +119,6 @@ class SpreadsheetLayoutDrawer : public SpreadsheetDrawer {
                                     params.width,
                                     params.height,
                                     nullptr,
-                                    0,
-                                    0,
                                     std::nullopt);
       UI_but_func_tooltip_set(
           but,
@@ -127,12 +130,13 @@ class SpreadsheetLayoutDrawer : public SpreadsheetDrawer {
       /* Right-align Integers. */
       UI_but_drawflag_disable(but, UI_BUT_TEXT_LEFT);
       UI_but_drawflag_enable(but, UI_BUT_TEXT_RIGHT);
+      return;
     }
-    if (data.type().is<int8_t>()) {
-      const int8_t value = data.get<int8_t>(real_index);
+    if (type.is<int8_t>()) {
+      const int8_t value = *value_ptr.get<int8_t>();
       const std::string value_str = std::to_string(value);
       uiBut *but = uiDefIconTextBut(params.block,
-                                    UI_BTYPE_LABEL,
+                                    ButType::Label,
                                     0,
                                     ICON_NONE,
                                     value_str,
@@ -141,28 +145,29 @@ class SpreadsheetLayoutDrawer : public SpreadsheetDrawer {
                                     params.width,
                                     params.height,
                                     nullptr,
-                                    0,
-                                    0,
                                     std::nullopt);
       /* Right-align Integers. */
       UI_but_drawflag_disable(but, UI_BUT_TEXT_LEFT);
       UI_but_drawflag_enable(but, UI_BUT_TEXT_RIGHT);
+      return;
     }
-    else if (data.type().is<short2>()) {
-      const int2 value = int2(data.get<short2>(real_index));
+    if (type.is<short2>()) {
+      const int2 value = int2(*value_ptr.get<short2>());
       this->draw_int_vector(params, Span(&value.x, 2));
+      return;
     }
-    else if (data.type().is<int2>()) {
-      const int2 value = data.get<int2>(real_index);
+    if (type.is<int2>()) {
+      const int2 value = *value_ptr.get<int2>();
       this->draw_int_vector(params, Span(&value.x, 2));
+      return;
     }
-    else if (data.type().is<float>()) {
-      const float value = data.get<float>(real_index);
+    if (type.is<float>()) {
+      const float value = *value_ptr.get<float>();
       std::stringstream ss;
       ss << std::fixed << std::setprecision(3) << value;
       const std::string value_str = ss.str();
       uiBut *but = uiDefIconTextBut(params.block,
-                                    UI_BTYPE_LABEL,
+                                    ButType::Label,
                                     0,
                                     ICON_NONE,
                                     value_str,
@@ -171,8 +176,6 @@ class SpreadsheetLayoutDrawer : public SpreadsheetDrawer {
                                     params.width,
                                     params.height,
                                     nullptr,
-                                    0,
-                                    0,
                                     std::nullopt);
       UI_but_func_tooltip_set(
           but,
@@ -184,12 +187,13 @@ class SpreadsheetLayoutDrawer : public SpreadsheetDrawer {
       /* Right-align Floats. */
       UI_but_drawflag_disable(but, UI_BUT_TEXT_LEFT);
       UI_but_drawflag_enable(but, UI_BUT_TEXT_RIGHT);
+      return;
     }
-    else if (data.type().is<bool>()) {
-      const bool value = data.get<bool>(real_index);
+    if (type.is<bool>()) {
+      const bool value = *value_ptr.get<bool>();
       const int icon = value ? ICON_CHECKBOX_HLT : ICON_CHECKBOX_DEHLT;
       uiBut *but = uiDefIconTextBut(params.block,
-                                    UI_BTYPE_LABEL,
+                                    ButType::Label,
                                     0,
                                     icon,
                                     "",
@@ -198,40 +202,45 @@ class SpreadsheetLayoutDrawer : public SpreadsheetDrawer {
                                     params.width,
                                     params.height,
                                     nullptr,
-                                    0,
-                                    0,
                                     std::nullopt);
       UI_but_drawflag_disable(but, UI_BUT_ICON_LEFT);
+      return;
     }
-    else if (data.type().is<float2>()) {
-      const float2 value = data.get<float2>(real_index);
+    if (type.is<float2>()) {
+      const float2 value = *value_ptr.get<float2>();
       this->draw_float_vector(params, Span(&value.x, 2));
+      return;
     }
-    else if (data.type().is<float3>()) {
-      const float3 value = data.get<float3>(real_index);
+    if (type.is<float3>()) {
+      const float3 value = *value_ptr.get<float3>();
       this->draw_float_vector(params, Span(&value.x, 3));
+      return;
     }
-    else if (data.type().is<ColorGeometry4f>()) {
-      const ColorGeometry4f value = data.get<ColorGeometry4f>(real_index);
+    if (type.is<ColorGeometry4f>()) {
+      const ColorGeometry4f value = *value_ptr.get<ColorGeometry4f>();
       this->draw_float_vector(params, Span(&value.r, 4));
+      return;
     }
-    else if (data.type().is<ColorGeometry4b>()) {
-      const ColorGeometry4b value = data.get<ColorGeometry4b>(real_index);
+    if (type.is<ColorGeometry4b>()) {
+      const ColorGeometry4b value = *value_ptr.get<ColorGeometry4b>();
       this->draw_byte_color(params, value);
+      return;
     }
-    else if (data.type().is<math::Quaternion>()) {
-      const float4 value = float4(data.get<math::Quaternion>(real_index));
+    if (type.is<math::Quaternion>()) {
+      const float4 value = float4(*value_ptr.get<math::Quaternion>());
       this->draw_float_vector(params, Span(&value.x, 4));
+      return;
     }
-    else if (data.type().is<float4x4>()) {
-      this->draw_float4x4(params, data.get<float4x4>(real_index));
+    if (type.is<float4x4>()) {
+      this->draw_float4x4(params, *value_ptr.get<float4x4>());
+      return;
     }
-    else if (data.type().is<bke::InstanceReference>()) {
-      const bke::InstanceReference value = data.get<bke::InstanceReference>(real_index);
+    if (type.is<bke::InstanceReference>()) {
+      const bke::InstanceReference value = *value_ptr.get<bke::InstanceReference>();
       const StringRefNull name = value.name().is_empty() ? IFACE_("(Geometry)") : value.name();
       const int icon = get_instance_reference_icon(value);
       uiDefIconTextBut(params.block,
-                       UI_BTYPE_LABEL,
+                       ButType::Label,
                        0,
                        icon,
                        name.c_str(),
@@ -240,30 +249,28 @@ class SpreadsheetLayoutDrawer : public SpreadsheetDrawer {
                        params.width,
                        params.height,
                        nullptr,
-                       0,
-                       0,
                        std::nullopt);
+      return;
     }
-    else if (data.type().is<std::string>()) {
+    if (type.is<std::string>()) {
       uiDefIconTextBut(params.block,
-                       UI_BTYPE_LABEL,
+                       ButType::Label,
                        0,
                        ICON_NONE,
-                       data.get<std::string>(real_index),
+                       *value_ptr.get<std::string>(),
                        params.xmin,
                        params.ymin,
                        params.width,
                        params.height,
                        nullptr,
-                       0,
-                       0,
                        std::nullopt);
+      return;
     }
-    else if (data.type().is<MStringProperty>()) {
+    if (type.is<MStringProperty>()) {
       MStringProperty *prop = MEM_callocN<MStringProperty>(__func__);
-      data.get_to_uninitialized(real_index, prop);
+      *prop = *value_ptr.get<MStringProperty>();
       uiBut *but = uiDefIconTextBut(params.block,
-                                    UI_BTYPE_LABEL,
+                                    ButType::Label,
                                     0,
                                     ICON_NONE,
                                     StringRef(prop->s, prop->s_len),
@@ -272,8 +279,6 @@ class SpreadsheetLayoutDrawer : public SpreadsheetDrawer {
                                     params.width,
                                     params.height,
                                     nullptr,
-                                    0,
-                                    0,
                                     std::nullopt);
 
       UI_but_func_tooltip_set(
@@ -284,6 +289,7 @@ class SpreadsheetLayoutDrawer : public SpreadsheetDrawer {
           },
           prop,
           MEM_freeN);
+      return;
     }
   }
 
@@ -297,7 +303,7 @@ class SpreadsheetLayoutDrawer : public SpreadsheetDrawer {
       ss << " " << std::fixed << std::setprecision(3) << value;
       const std::string value_str = ss.str();
       uiBut *but = uiDefIconTextBut(params.block,
-                                    UI_BTYPE_LABEL,
+                                    ButType::Label,
                                     0,
                                     ICON_NONE,
                                     value_str,
@@ -306,8 +312,6 @@ class SpreadsheetLayoutDrawer : public SpreadsheetDrawer {
                                     segment_width,
                                     params.height,
                                     nullptr,
-                                    0,
-                                    0,
                                     std::nullopt);
 
       UI_but_func_tooltip_set(
@@ -333,7 +337,7 @@ class SpreadsheetLayoutDrawer : public SpreadsheetDrawer {
       ss << " " << value;
       const std::string value_str = ss.str();
       uiBut *but = uiDefIconTextBut(params.block,
-                                    UI_BTYPE_LABEL,
+                                    ButType::Label,
                                     0,
                                     ICON_NONE,
                                     value_str,
@@ -342,8 +346,6 @@ class SpreadsheetLayoutDrawer : public SpreadsheetDrawer {
                                     segment_width,
                                     params.height,
                                     nullptr,
-                                    0,
-                                    0,
                                     std::nullopt);
       UI_but_func_tooltip_set(
           but,
@@ -369,7 +371,7 @@ class SpreadsheetLayoutDrawer : public SpreadsheetDrawer {
       ss << " " << std::fixed << std::setprecision(3) << value;
       const std::string value_str = ss.str();
       uiBut *but = uiDefIconTextBut(params.block,
-                                    UI_BTYPE_LABEL,
+                                    ButType::Label,
                                     0,
                                     ICON_NONE,
                                     value_str,
@@ -378,8 +380,6 @@ class SpreadsheetLayoutDrawer : public SpreadsheetDrawer {
                                     segment_width,
                                     params.height,
                                     nullptr,
-                                    0,
-                                    0,
                                     std::nullopt);
       /* Right-align Floats. */
       UI_but_drawflag_disable(but, UI_BUT_TEXT_LEFT);
@@ -405,7 +405,7 @@ class SpreadsheetLayoutDrawer : public SpreadsheetDrawer {
   void draw_float4x4(const CellDrawParams &params, const float4x4 &value) const
   {
     uiBut *but = uiDefIconTextBut(params.block,
-                                  UI_BTYPE_LABEL,
+                                  ButType::Label,
                                   0,
                                   ICON_NONE,
                                   "...",
@@ -414,8 +414,6 @@ class SpreadsheetLayoutDrawer : public SpreadsheetDrawer {
                                   params.width,
                                   params.height,
                                   nullptr,
-                                  0,
-                                  0,
                                   std::nullopt);
     /* Center alignment. */
     UI_but_drawflag_disable(but, UI_BUT_TEXT_LEFT);

@@ -88,13 +88,12 @@ static void add_reroute_node_fn(nodes::LinkSearchOpParams &params)
 static void add_group_input_node_fn(nodes::LinkSearchOpParams &params)
 {
   /* Add a group input based on the connected socket, and add a new group input node. */
-  bNodeTreeInterfaceSocket *socket_iface = params.node_tree.tree_interface.add_socket(
-      params.socket.name,
-      params.socket.description,
+  bNodeTreeInterfaceSocket *socket_iface = bke::node_interface::add_interface_socket_from_node(
+      params.node_tree,
+      params.node,
+      params.socket,
       params.socket.typeinfo->idname,
-      NODE_INTERFACE_SOCKET_INPUT,
-      nullptr);
-  socket_iface->init_from_socket_instance(&params.socket);
+      params.socket.name);
   params.node_tree.tree_interface.active_item_set(&socket_iface->item);
 
   bNode &group_input = params.add_node("NodeGroupInput");
@@ -416,7 +415,7 @@ static void link_drag_search_exec_fn(bContext *C, void *arg1, void *arg2)
   BLI_assert(ot);
   PointerRNA ptr;
   WM_operator_properties_create_ptr(&ptr, ot);
-  WM_operator_name_call_ptr(C, ot, WM_OP_INVOKE_DEFAULT, &ptr, nullptr);
+  WM_operator_name_call_ptr(C, ot, wm::OpCallContext::InvokeDefault, &ptr, nullptr);
   WM_operator_properties_free(&ptr);
 }
 
@@ -430,7 +429,7 @@ static uiBlock *create_search_popup_block(bContext *C, ARegion *region, void *ar
 {
   LinkDragSearchStorage &storage = *(LinkDragSearchStorage *)arg_op;
 
-  uiBlock *block = UI_block_begin(C, region, "_popup", blender::ui::EmbossType::Emboss);
+  uiBlock *block = UI_block_begin(C, region, "_popup", ui::EmbossType::Emboss);
   UI_block_flag_enable(block, UI_BLOCK_LOOP | UI_BLOCK_MOVEMOUSE_QUIT | UI_BLOCK_SEARCH_MENU);
   UI_block_theme_style_set(block, UI_BLOCK_THEME_STYLE_POPUP);
 
@@ -458,7 +457,7 @@ static uiBlock *create_search_popup_block(bContext *C, ARegion *region, void *ar
 
   /* Fake button to hold space for the search items. */
   uiDefBut(block,
-           UI_BTYPE_LABEL,
+           ButType::Label,
            0,
            "",
            storage.in_out() == SOCK_OUT ? 10 : 10 - UI_searchbox_size_x(),

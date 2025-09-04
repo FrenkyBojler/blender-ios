@@ -75,10 +75,10 @@ enum ThemeColorID {
   TH_PANEL_HEADER,
   TH_PANEL_BACK,
   TH_PANEL_SUB_BACK,
+  TH_PANEL_OUTLINE,
+  TH_PANEL_ACTIVE,
 
   TH_BUTBACK,
-  TH_BUTBACK_TEXT,
-  TH_BUTBACK_TEXT_HI,
 
   TH_SHADE1,
   TH_SHADE2,
@@ -105,7 +105,6 @@ enum ThemeColorID {
   TH_EDGE_SELECT, /* Stands for edge selection, not edge select mode. */
   TH_EDGE_MODE_SELECT,
   TH_EDGE_SEAM,
-  TH_EDGE_FACESEL,
   TH_FACE,
   TH_FACE_SELECT, /* Stands for face selection, not face select mode. */
   TH_FACE_MODE_SELECT,
@@ -123,7 +122,6 @@ enum ThemeColorID {
   TH_TIME_SCRUB_BACKGROUND,
   TH_TIME_MARKER_LINE,
   TH_TIME_MARKER_LINE_SELECTED,
-  TH_TIME_KEYFRAME,
   TH_TIME_GP_KEYFRAME,
   TH_NURB_ULINE,
   TH_NURB_VLINE,
@@ -143,7 +141,6 @@ enum ThemeColorID {
   TH_HANDLE_SEL_AUTOCLAMP,
 
   TH_ACTIVE_SPLINE,
-  TH_ACTIVE_VERT, /* equivalent of TH_EDITMESH_ACTIVE for splines */
 
   TH_SYNTAX_B,
   TH_SYNTAX_V,
@@ -162,6 +159,10 @@ enum ThemeColorID {
 
   TH_STRIP,
   TH_STRIP_SELECT,
+  TH_TRACK_SELECT,
+
+  TH_LONGKEY,
+  TH_LONGKEY_SELECT,
 
   TH_KEYTYPE_KEYFRAME, /* KEYTYPES */
   TH_KEYTYPE_KEYFRAME_SELECT,
@@ -191,9 +192,7 @@ enum ThemeColorID {
   TH_NODE_FILTER,
   TH_NODE_VECTOR,
   TH_NODE_TEXTURE,
-  TH_NODE_PATTERN,
   TH_NODE_SCRIPT,
-  TH_NODE_LAYOUT,
   TH_NODE_SHADER,
   TH_NODE_INTERFACE,
   TH_NODE_CONVERTER,
@@ -342,6 +341,8 @@ enum ThemeColorID {
   TH_AXIS_X, /* X/Y/Z Axis */
   TH_AXIS_Y,
   TH_AXIS_Z,
+
+  TH_AXIS_W, /* W (quaternion and axis-angle rotations) */
 
   TH_GIZMO_HI,
   TH_GIZMO_PRIMARY,

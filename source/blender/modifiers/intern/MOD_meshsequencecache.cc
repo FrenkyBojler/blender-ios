@@ -31,6 +31,7 @@
 #include "BKE_mesh.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "RNA_access.hh"
@@ -135,6 +136,8 @@ static bool can_use_mesh_for_orco_evaluation(MeshSeqCacheModifierData *mcmd,
       {
         return true;
       }
+#  else
+      UNUSED_VARS(frame_offset);
 #  endif
       break;
     case CACHE_FILE_TYPE_INVALID:
@@ -176,7 +179,8 @@ static void modify_geometry_set(ModifierData *md,
   CacheFile *cache_file = mcmd->cache_file;
   const double frame = double(DEG_get_ctime(ctx->depsgraph));
   const double frame_offset = BKE_cachefile_frame_offset(cache_file, frame);
-  const double time_offset = BKE_cachefile_time_offset(cache_file, frame, FPS);
+  const double time_offset = BKE_cachefile_time_offset(
+      cache_file, frame, scene->frames_per_second());
   const char *err_str = nullptr;
 
   if (!mcmd->reader || !STREQ(mcmd->reader_object_path, mcmd->object_path)) {
@@ -219,7 +223,7 @@ static void modify_geometry_set(ModifierData *md,
 #  ifdef WITH_ALEMBIC
   float velocity_scale = mcmd->velocity_scale;
   if (mcmd->cache_file->velocity_unit == CACHEFILE_VELOCITY_UNIT_FRAME) {
-    velocity_scale *= FPS;
+    velocity_scale *= scene->frames_per_second();
   }
 #  endif
 
@@ -272,7 +276,8 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
   CacheFile *cache_file = mcmd->cache_file;
   const double frame = double(DEG_get_ctime(ctx->depsgraph));
   const double frame_offset = BKE_cachefile_frame_offset(cache_file, frame);
-  const double time_offset = BKE_cachefile_time_offset(cache_file, frame, FPS);
+  const double time_offset = BKE_cachefile_time_offset(
+      cache_file, frame, scene->frames_per_second());
   const char *err_str = nullptr;
 
   if (!mcmd->reader || !STREQ(mcmd->reader_object_path, mcmd->object_path)) {
@@ -378,13 +383,13 @@ static void panel_draw(const bContext *C, Panel *panel)
   PointerRNA cache_file_ptr = RNA_pointer_get(ptr, "cache_file");
   bool has_cache_file = !RNA_pointer_is_null(&cache_file_ptr);
 
-  uiLayoutSetPropSep(layout, true);
+  layout->use_property_split_set(true);
 
   uiTemplateCacheFile(layout, C, ptr, "cache_file");
 
   if (has_cache_file) {
-    uiItemPointerR(
-        layout, ptr, "object_path", &cache_file_ptr, "object_paths", std::nullopt, ICON_NONE);
+    layout->prop_search(
+        ptr, "object_path", &cache_file_ptr, "object_paths", std::nullopt, ICON_NONE);
   }
 
   if (RNA_enum_get(&ob_ptr, "type") == OB_MESH) {
@@ -410,7 +415,7 @@ static void velocity_panel_draw(const bContext * /*C*/, Panel *panel)
     return;
   }
 
-  uiLayoutSetPropSep(layout, true);
+  layout->use_property_split_set(true);
   uiTemplateCacheFileVelocity(layout, &fileptr);
   layout->prop(ptr, "velocity_scale", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
@@ -427,7 +432,7 @@ static void time_panel_draw(const bContext * /*C*/, Panel *panel)
     return;
   }
 
-  uiLayoutSetPropSep(layout, true);
+  layout->use_property_split_set(true);
   uiTemplateCacheFileTimeSettings(layout, &fileptr);
 }
 
@@ -443,7 +448,7 @@ static void render_procedural_panel_draw(const bContext *C, Panel *panel)
     return;
   }
 
-  uiLayoutSetPropSep(layout, true);
+  layout->use_property_split_set(true);
   uiTemplateCacheFileProcedural(layout, C, &fileptr);
 }
 
@@ -459,7 +464,7 @@ static void override_layers_panel_draw(const bContext *C, Panel *panel)
     return;
   }
 
-  uiLayoutSetPropSep(layout, true);
+  layout->use_property_split_set(true);
   uiTemplateCacheFileLayers(layout, C, &fileptr);
 }
 

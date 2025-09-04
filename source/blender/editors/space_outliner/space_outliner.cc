@@ -15,7 +15,7 @@
 
 #include "BLI_listbase.h"
 #include "BLI_mempool.h"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_context.hh"
@@ -61,6 +61,8 @@ static void outliner_main_region_init(wmWindowManager *wm, ARegion *region)
   ListBase *lb;
   wmKeyMap *keymap;
 
+  region->flag |= RGN_FLAG_INDICATE_OVERFLOW;
+
   /* make sure we keep the hide flags */
   region->v2d.scroll |= (V2D_SCROLL_RIGHT | V2D_SCROLL_BOTTOM);
   region->v2d.scroll &= ~(V2D_SCROLL_LEFT | V2D_SCROLL_TOP); /* prevent any noise of past */
@@ -75,7 +77,7 @@ static void outliner_main_region_init(wmWindowManager *wm, ARegion *region)
   UI_view2d_region_reinit(&region->v2d, V2D_COMMONVIEW_LIST, region->winx, region->winy);
 
   /* own keymap */
-  keymap = WM_keymap_ensure(wm->defaultconf, "Outliner", SPACE_OUTLINER, RGN_TYPE_WINDOW);
+  keymap = WM_keymap_ensure(wm->runtime->defaultconf, "Outliner", SPACE_OUTLINER, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler_v2d_mask(&region->runtime->handlers, keymap);
 
   /* Add dropboxes */
@@ -105,6 +107,8 @@ static void outliner_main_region_draw(const bContext *C, ARegion *region)
 
   /* reset view matrix */
   UI_view2d_view_restore(C);
+
+  ED_region_draw_overflow_indication(CTX_wm_area(C), region);
 
   /* scrollers */
   UI_view2d_scrollers_draw(v2d, nullptr);
@@ -659,7 +663,7 @@ void ED_spacetype_outliner()
   ARegionType *art;
 
   st->spaceid = SPACE_OUTLINER;
-  STRNCPY(st->name, "Outliner");
+  STRNCPY_UTF8(st->name, "Outliner");
 
   st->create = outliner_create;
   st->free = outliner_free;

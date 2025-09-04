@@ -20,11 +20,10 @@
 #include "BKE_lib_id.hh"
 #include "BKE_volume.hh"
 
-#include "ED_spreadsheet.hh"
 #include "RNA_access.hh"
 #include "RNA_prototypes.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_tree_view.hh"
 
 #include "WM_api.hh"
@@ -33,6 +32,7 @@
 #include "BLT_translation.hh"
 
 #include "ED_outliner.hh"
+#include "ED_spreadsheet.hh"
 
 #include "spreadsheet_data_source_geometry.hh"
 #include "spreadsheet_dataset_draw.hh"
@@ -180,6 +180,7 @@ class InstanceReferenceViewItem : public InstancesTreeViewItem {
 
 class GeometryInstancesTreeView : public ui::AbstractTreeView {
  private:
+  ResourceScope scope_;
   bke::GeometrySet root_geometry_set_;
   SpaceSpreadsheet &sspreadsheet_;
   bScreen &screen_;
@@ -210,7 +211,7 @@ class GeometryInstancesTreeView : public ui::AbstractTreeView {
       auto &reference_item = parent.add_tree_item<InstanceReferenceViewItem>(instances,
                                                                              reference_i);
       const bke::InstanceReference &reference = references[reference_i];
-      bke::GeometrySet reference_geometry;
+      bke::GeometrySet &reference_geometry = scope_.construct<bke::GeometrySet>();
       reference.to_geometry_set(reference_geometry);
       if (const bke::Instances *child_instances = reference_geometry.get_instances()) {
         this->build_tree_for_instances(reference_item, *child_instances);
@@ -1012,7 +1013,7 @@ static bool viewer_path_ends_with_viewer_node(const ViewerPath &viewer_path)
 
 static void draw_viewer_path_panel(const bContext &C, uiLayout &layout)
 {
-  uiBlock *block = uiLayoutGetBlock(&layout);
+  uiBlock *block = layout.block();
   ui::AbstractTreeView *tree_view = UI_block_add_view(
       *block, "Viewer Path", std::make_unique<ViewerPathTreeView>(C));
   tree_view->set_context_menu_title("Viewer Path");
@@ -1089,8 +1090,8 @@ void spreadsheet_data_set_panel_draw(const bContext *C, Panel *panel)
   SpaceSpreadsheet *sspreadsheet = CTX_wm_space_spreadsheet(C);
 
   uiLayout *layout = panel->layout;
-  uiBlock *block = uiLayoutGetBlock(layout);
-  UI_block_layout_set_current(block, layout);
+  uiBlock *block = layout->block();
+  ui::block_layout_set_current(block, layout);
 
   draw_context_panel(*C, *layout);
 

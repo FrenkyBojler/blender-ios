@@ -51,7 +51,7 @@
 
 using blender::Vector;
 
-static CLG_LogRef LOG = {"bke.context"};
+static CLG_LogRef LOG = {"context"};
 
 /* struct */
 
@@ -239,7 +239,7 @@ std::optional<int64_t> CTX_store_int_lookup(const bContextStore *store,
 
 /* is python initialized? */
 
-bool CTX_py_init_get(bContext *C)
+bool CTX_py_init_get(const bContext *C)
 {
   return C->data.py_init;
 }
@@ -292,18 +292,18 @@ static void *ctx_wm_python_context_get(const bContext *C,
 #ifdef WITH_PYTHON
   if (UNLIKELY(C && CTX_py_dict_get(C))) {
     bContextDataResult result{};
-    BPY_context_member_get((bContext *)C, member, &result);
+    if (BPY_context_member_get((bContext *)C, member, &result)) {
+      if (result.ptr.data) {
+        if (RNA_struct_is_a(result.ptr.type, member_type)) {
+          return result.ptr.data;
+        }
 
-    if (result.ptr.data) {
-      if (RNA_struct_is_a(result.ptr.type, member_type)) {
-        return result.ptr.data;
+        CLOG_WARN(&LOG,
+                  "PyContext '%s' is a '%s', expected a '%s'",
+                  member,
+                  RNA_struct_identifier(result.ptr.type),
+                  RNA_struct_identifier(member_type));
       }
-
-      CLOG_WARN(&LOG,
-                "PyContext '%s' is a '%s', expected a '%s'",
-                member,
-                RNA_struct_identifier(result.ptr.type),
-                RNA_struct_identifier(member_type));
     }
   }
 #else
@@ -822,7 +822,7 @@ wmGizmoGroup *CTX_wm_gizmo_group(const bContext *C)
 
 wmMsgBus *CTX_wm_message_bus(const bContext *C)
 {
-  return C->wm.manager ? C->wm.manager->message_bus : nullptr;
+  return C->wm.manager ? C->wm.manager->runtime->message_bus : nullptr;
 }
 
 ReportList *CTX_wm_reports(const bContext *C)
@@ -1158,6 +1158,19 @@ Scene *CTX_data_scene(const bContext *C)
   return C->data.scene;
 }
 
+Scene *CTX_data_sequencer_scene(const bContext *C)
+{
+  Scene *scene;
+  if (ctx_data_pointer_verify(C, "sequencer_scene", (void **)&scene)) {
+    return scene;
+  }
+  WorkSpace *workspace = CTX_wm_workspace(C);
+  if (workspace) {
+    return workspace->sequencer_scene;
+  }
+  return nullptr;
+}
+
 ViewLayer *CTX_data_view_layer(const bContext *C)
 {
   ViewLayer *view_layer;
@@ -1361,8 +1374,12 @@ void CTX_data_scene_set(bContext *C, Scene *scene)
 
 ToolSettings *CTX_data_tool_settings(const bContext *C)
 {
-  Scene *scene = CTX_data_scene(C);
+  ToolSettings *toolsettings;
+  if (ctx_data_pointer_verify(C, "tool_settings", (void **)&toolsettings)) {
+    return toolsettings;
+  }
 
+  Scene *scene = CTX_data_scene(C);
   if (scene) {
     return scene->toolsettings;
   }
@@ -1531,12 +1548,8 @@ const AssetLibraryReference *CTX_wm_asset_library_ref(const bContext *C)
 
 blender::asset_system::AssetRepresentation *CTX_wm_asset(const bContext *C)
 {
-  if (auto *asset = static_cast<blender::asset_system::AssetRepresentation *>(
-          ctx_data_pointer_get(C, "asset")))
-  {
-    return asset;
-  }
-  return nullptr;
+  return static_cast<blender::asset_system::AssetRepresentation *>(
+      ctx_data_pointer_get(C, "asset"));
 }
 
 Depsgraph *CTX_data_depsgraph_pointer(const bContext *C)
