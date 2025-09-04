@@ -275,6 +275,7 @@ const bTheme U_theme_default = {
     .panel_outline = RGBA(0xffffff11),
     .panel_title = RGBA(0xe6e6e6ff),
     .panel_text = RGBA(0xe6e6e6ff),
+    .panel_active = RGBA(0x4772b3ff),
   },
   .common = {
     .anim = {
@@ -327,7 +328,6 @@ const bTheme U_theme_default = {
     .header_text_hi = RGBA(0xffffffff),
     .tab_back = RGBA(0x1d1d1d00),
     .button = RGBA(0x303030ff),
-    .active = RGBA(0x4772b3ff),
     .vertex_size = 3,
     .outline_width = 1,
     .facedot_size = 4,
@@ -582,7 +582,6 @@ const bTheme U_theme_default = {
     .gp_vertex_select = RGBA(0xff8500ff),
     .row_alternate = RGBA(0xffffff05),
     .metadatatext = RGBA(0xffffffff),
-    .active = RGBA(0x4772b3ff),
   },
   .space_image = {
     .back = RGBA(0x30303000),
