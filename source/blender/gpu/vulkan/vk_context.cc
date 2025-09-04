@@ -402,7 +402,8 @@ void VKContext::swap_buffers_pre_handler(const GHOST_VulkanSwapChainData &swap_c
       shader = device.vk_backbuffer_blit_extended_linear_sh_get();
     }
     else {
-      shader = device.vk_backbuffer_blit_hdr10_st2084_sh_get();
+      shader = device.vk_backbuffer_blit_hdr10_st2084_sh_get(
+          swap_chain_data.surface_format.format);
     }
     GPU_shader_bind(shader);
     GPU_shader_uniform_1f(shader, "sdr_scale", swap_chain_data.sdr_scale);

@@ -239,7 +239,9 @@ class VKDevice : public NonCopyable {
   Vector<VKThreadData *> thread_data_;
 
   Shader *vk_backbuffer_blit_extended_linear_sh_ = nullptr;
-  Shader *vk_backbuffer_blit_hdr10_st2084_sh_ = nullptr;
+  Shader *vk_backbuffer_blit_hdr10_st2084_sfloat16_sh_ = nullptr;
+  Shader *vk_backbuffer_blit_hdr10_st2084_b10g10r10_sh_ = nullptr;
+  Shader *vk_backbuffer_blit_hdr10_st2084_r10b10g10_sh_ = nullptr;
 
  public:
   render_graph::VKResourceStateTracker resources;
@@ -499,13 +501,33 @@ class VKDevice : public NonCopyable {
     return vk_backbuffer_blit_extended_linear_sh_;
   }
 
-  Shader *vk_backbuffer_blit_hdr10_st2084_sh_get()
+  Shader *vk_backbuffer_blit_hdr10_st2084_sh_get(VkFormat format)
   {
-    if (vk_backbuffer_blit_hdr10_st2084_sh_ == nullptr) {
-      vk_backbuffer_blit_hdr10_st2084_sh_ = GPU_shader_create_from_info_name(
-          "vk_backbuffer_blit_hdr10_st2084");
+    if (format == VK_FORMAT_R16G16B16A16_SFLOAT) {
+      if (vk_backbuffer_blit_hdr10_st2084_sfloat16_sh_ == nullptr) {
+        vk_backbuffer_blit_hdr10_st2084_sfloat16_sh_ = GPU_shader_create_from_info_name(
+            "vk_backbuffer_blit_hdr10_st2084_sfloat16");
+      }
+      return vk_backbuffer_blit_hdr10_st2084_sfloat16_sh_;
     }
-    return vk_backbuffer_blit_hdr10_st2084_sh_;
+    else if (format == VK_FORMAT_A2B10G10R10_UNORM_PACK32) {
+      if (vk_backbuffer_blit_hdr10_st2084_b10g10r10_sh_ == nullptr) {
+        vk_backbuffer_blit_hdr10_st2084_b10g10r10_sh_ = GPU_shader_create_from_info_name(
+            "vk_backbuffer_blit_hdr10_st2084_b10g10r10");
+      }
+      return vk_backbuffer_blit_hdr10_st2084_b10g10r10_sh_;
+    }
+    else if (format == VK_FORMAT_A2R10G10B10_UNORM_PACK32) {
+      if (vk_backbuffer_blit_hdr10_st2084_r10b10g10_sh_ == nullptr) {
+        vk_backbuffer_blit_hdr10_st2084_r10b10g10_sh_ = GPU_shader_create_from_info_name(
+            "vk_backbuffer_blit_hdr10_st2084_r10b10g10");
+      }
+      return vk_backbuffer_blit_hdr10_st2084_r10b10g10_sh_;
+    }
+    else {
+      BLI_assert_unreachable();
+      return nullptr;
+    }
   }
 
  private:

@@ -76,7 +76,9 @@ void VKDevice::deinit()
   dummy_buffer.free();
   samplers_.free();
   GPU_SHADER_FREE_SAFE(vk_backbuffer_blit_extended_linear_sh_);
-  GPU_SHADER_FREE_SAFE(vk_backbuffer_blit_hdr10_st2084_sh_);
+  GPU_SHADER_FREE_SAFE(vk_backbuffer_blit_hdr10_st2084_sfloat16_sh_);
+  GPU_SHADER_FREE_SAFE(vk_backbuffer_blit_hdr10_st2084_b10g10r10_sh_);
+  GPU_SHADER_FREE_SAFE(vk_backbuffer_blit_hdr10_st2084_r10b10g10_sh_);
 
   orphaned_data_render.deinit(*this);
   orphaned_data.deinit(*this);
