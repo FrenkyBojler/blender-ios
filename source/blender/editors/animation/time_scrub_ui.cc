@@ -141,14 +141,15 @@ static void draw_current_frame(const Scene *scene,
     immVertex2f(pos, floor(subframe_x + U.pixelsize + 1.0f + shadow_width), 0.0f);
     immVertex2f(pos, floor(subframe_x - U.pixelsize - shadow_width), 0.0f);
 
+    float diag_offset = 0.5f * UI_SCALE_FAC;
     immVertex2f(pos,
                 floor(subframe_x + U.pixelsize + 1.0f + shadow_width),
-                tri_top - tri_height + shadow_width);
-    immVertex2f(
-        pos, floor(subframe_x - U.pixelsize - shadow_width), tri_top - tri_height + shadow_width);
-
-    immVertex2f(pos, floor(frame_x + tri_half_width + shadow_width + 1.0f), tri_top);
-    immVertex2f(pos, floor(frame_x - tri_half_width - shadow_width), tri_top);
+                tri_top - tri_height + shadow_width - diag_offset);
+    immVertex2f(pos,
+                floor(subframe_x - U.pixelsize - shadow_width),
+                tri_top - tri_height + shadow_width - diag_offset);
+    immVertex2f(pos, floor(frame_x + tri_half_width + shadow_width + 1.0f + diag_offset), tri_top);
+    immVertex2f(pos, floor(frame_x - tri_half_width - shadow_width - diag_offset), tri_top);
     immEnd();
     GPU_polygon_smooth(false);
 
