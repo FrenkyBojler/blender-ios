@@ -1340,13 +1340,14 @@ static void select_marker_camera_switch(
     BKE_view_layer_synced_ensure(scene, view_layer);
 
     LISTBASE_FOREACH (TimeMarker *, marker, markers) {
-      if (marker->camera && marker->frame == cfra) {
-        Base *base = BKE_view_layer_base_find(view_layer, marker->camera);
-        if (base) {
-          object::base_select(base, object::eObjectSelect_Mode(sel));
-
-          if (!extend) {
-            object::base_activate(C, base);
+      if (marker->camera) {
+        if (marker->frame == cfra) {
+          base = BKE_view_layer_base_find(view_layer, marker->camera);
+          if (base) {
+            object::base_select(base, object::eObjectSelect_Mode(sel));
+            if (!extend) {
+              object::base_activate(C, base);
+            }
           }
         }
       }
@@ -1374,7 +1375,7 @@ static wmOperatorStatus ed_marker_select(bContext *C,
 
   const bool is_sequencer = CTX_wm_space_seq(C) != nullptr;
   ListBase *markers = is_sequencer ? ED_sequencer_context_get_markers(C) :
-                                   ED_context_get_markers(C);
+                                     ED_context_get_markers(C);
 
   const View2D *v2d = UI_view2d_fromcontext(C);
   wmOperatorStatus ret_val = OPERATOR_FINISHED;
