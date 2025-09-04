@@ -696,10 +696,60 @@ static bool object_can_have_lattice_modifier(const Object *ob)
   return ELEM(ob->type, OB_MESH, OB_CURVES_LEGACY, OB_SURF, OB_FONT, OB_CURVES, OB_GREASE_PENCIL);
 }
 
+/* for object add operator */
+static wmOperatorStatus object_add_exec(bContext *C, wmOperator *op)
+{
+  ushort local_view_bits;
+  bool enter_editmode;
+  float loc[3], rot[3], radius;
+  WM_operator_view3d_unit_defaults(C, op);
+  add_generic_get_opts(C, op, 'Z', loc, rot, nullptr, &enter_editmode, &local_view_bits, nullptr);
+
+  radius = RNA_float_get(op->ptr, "radius");
+  Object *ob = add_type(
+      C, RNA_enum_get(op->ptr, "type"), nullptr, loc, rot, enter_editmode, local_view_bits);
+
+  if (ob->type == OB_LATTICE) {
+    /* lattice is a special case!
+     * we never want to scale the obdata since that is the rest-state */
+    copy_v3_fl(ob->scale, radius);
+  }
+  else {
+    BKE_object_obdata_size_init(ob, radius);
+  }
+
+  return OPERATOR_FINISHED;
+}
+
+void OBJECT_OT_add(wmOperatorType *ot)
+{
+  /* identifiers */
+  ot->name = "Add Object";
+  ot->description = "Add an object to the scene";
+  ot->idname = "OBJECT_OT_add";
+
+  /* API callbacks. */
+  ot->exec = object_add_exec;
+  ot->poll = ED_operator_objectmode;
+
+  /* flags */
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+  /* properties */
+  add_unit_props_radius(ot);
+  PropertyRNA *prop = RNA_def_enum(ot->srna, "type", rna_enum_object_type_items, 0, "Type", "");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_ID);
+
+  add_generic_props(ot, true);
+}
+
+/* -------------------------------------------------------------------- */
+/** \name Lattice Deform Operator
+ * \{ */
+
 static std::optional<blender::Bounds<blender::float3>> collect_targets_and_bounds(
     bContext *C, blender::Vector<Object *> &r_targets)
 {
-  using namespace blender;
   ViewLayer *view_layer = CTX_data_view_layer(C);
   View3D *v3d = CTX_wm_view3d(C);
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
@@ -720,8 +770,6 @@ static std::optional<blender::Bounds<blender::float3>> collect_targets_and_bound
           float object_to_world[4][4];
           BKE_object_to_mat4(ob_eval, object_to_world);
 
-          const float3 &bb_min = bounds->min;
-          const float3 &bb_max = bounds->max;
           /* Generate all 8 corners of the bounding box */
           std::array<float3, 8> corners = blender::bounds::corners(*bounds);
 
@@ -753,122 +801,89 @@ static std::optional<blender::Bounds<blender::float3>> collect_targets_and_bound
   return std::nullopt;
 }
 
-/* for object add operator */
-static wmOperatorStatus object_add_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus lattice_add_exec(bContext *C, wmOperator *op)
 {
+
   ushort local_view_bits;
   bool enter_editmode;
-  float loc[3], rot[3], radius;
+  float loc[3], rot[3];
   WM_operator_view3d_unit_defaults(C, op);
   add_generic_get_opts(C, op, 'Z', loc, rot, nullptr, &enter_editmode, &local_view_bits, nullptr);
 
-  radius = RNA_float_get(op->ptr, "radius");
-  const int object_type = RNA_enum_get(op->ptr, "type");
+  const bool fit_to_selected = RNA_boolean_get(op->ptr, "fit_to_selected");
+  const float offset = RNA_float_get(op->ptr, "offset");
+  const bool add_modifiers = RNA_boolean_get(op->ptr, "add_modifiers");
+  const int res_u = RNA_int_get(op->ptr, "resolution_u");
+  const int res_v = RNA_int_get(op->ptr, "resolution_v");
+  const int res_w = RNA_int_get(op->ptr, "resolution_w");
 
-  blender::Vector<Object *> targets;
-  float3 sel_min, sel_max;
-  std::optional<blender::Bounds<blender::float3>> bounds_opt = collect_targets_and_bounds(C,
-                                                                                          targets);
+  Vector<Object *> targets;
+  std::optional<Bounds<float3>> bounds_opt = collect_targets_and_bounds(C, targets);
 
-  bool had_bounds = bounds_opt.has_value();
-  if (had_bounds) {
-    sel_min = bounds_opt->min;
-    sel_max = bounds_opt->max;
-  }
+  Object *ob = add_type(C, OB_LATTICE, nullptr, loc, rot, enter_editmode, local_view_bits);
+  Lattice *lt = (Lattice *)ob->data;
 
-  Object *ob = add_type(C, object_type, nullptr, loc, rot, enter_editmode, local_view_bits);
+  BKE_lattice_resize(lt, max_ii(1, res_u), max_ii(1, res_v), max_ii(1, res_w), nullptr);
+  DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
 
-  if (ob->type == OB_LATTICE) {
-    /* lattice is a special case!
-     * we never want to scale the obdata since that is the rest-state */
-    const bool fit_to_selected = RNA_boolean_get(op->ptr, "fit_to_selected");
-    const float offset = RNA_float_get(op->ptr, "offset");
-    const bool add_modifiers = RNA_boolean_get(op->ptr, "add_modifiers");
-    const int res_u = RNA_int_get(op->ptr, "resolution_u");
-    const int res_v = RNA_int_get(op->ptr, "resolution_v");
-    const int res_w = RNA_int_get(op->ptr, "resolution_w");
+  if (fit_to_selected && bounds_opt.has_value()) {
+    if (targets.size() == 1) {
+      /* Aligns lattice to rotation and scale of a single selected object*/
+      Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+      Object *tob = targets[0];
+      Object *tob_eval = (Object *)DEG_get_evaluated_id(depsgraph, &tob->id);
 
-    Lattice *lt = (Lattice *)ob->data;
-    BKE_lattice_resize(lt, max_ii(1, res_u), max_ii(1, res_v), max_ii(1, res_w), nullptr);
-    DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-    if (fit_to_selected && had_bounds) {
+      float min_l[3], max_l[3];
+      bool have_local_bb = false;
 
-      if (targets.size() == 1) {
-        Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-        Object *tob = targets[0];
-        Object *tob_eval = (Object *)DEG_get_evaluated_id(depsgraph, &tob->id);
+      if (std::optional<blender::Bounds<blender::float3>> b = BKE_object_boundbox_get(tob_eval)) {
+        copy_v3_v3(min_l, b->min);
+        copy_v3_v3(max_l, b->max);
+        have_local_bb = true;
+      }
 
-        float min_l[3], max_l[3];
-        bool have_local_bb = false;
+      if (have_local_bb) {
+        float center_l[3], size_l[3];
+        mid_v3_v3v3(center_l, min_l, max_l);
+        sub_v3_v3v3(size_l, max_l, min_l);
 
-        if (std::optional<blender::Bounds<blender::float3>> b = BKE_object_boundbox_get(tob_eval))
-        {
-          copy_v3_v3(min_l, b->min);
-          copy_v3_v3(max_l, b->max);
-          have_local_bb = true;
-        }
+        float M[4][4], center_w[3];
+        BKE_object_to_mat4(tob_eval, M);
+        mul_v3_m4v3(center_w, M, center_l);
 
-        if (have_local_bb) {
-          float center_l[3], size_l[3];
-          mid_v3_v3v3(center_l, min_l, max_l);
-          sub_v3_v3v3(size_l, max_l, min_l);
+        float R_raw[3][3], R[3][3], q[4];
+        copy_m3_m4(R_raw, M);
+        normalize_m3_m3(R, R_raw);
+        mat3_to_quat(q, R);
 
-          float M[4][4], center_w[3];
-          BKE_object_to_mat4(tob_eval, M);
-          mul_v3_m4v3(center_w, M, center_l);
+        float s[3];
+        s[0] = len_v3((float[3]){M[0][0], M[1][0], M[2][0]});
+        s[1] = len_v3((float[3]){M[0][1], M[1][1], M[2][1]});
+        s[2] = len_v3((float[3]){M[0][2], M[1][2], M[2][2]});
 
-          float R_raw[3][3], R[3][3], q[4];
-          copy_m3_m4(R_raw, M);
-          normalize_m3_m3(R, R_raw);
-          mat3_to_quat(q, R);
+        float dims[3] = {
+            size_l[0] * s[0] + offset,
+            size_l[1] * s[1] + offset,
+            size_l[2] * s[2] + offset,
+        };
 
-          float s[3];
-          s[0] = len_v3((float[3]){M[0][0], M[1][0], M[2][0]});
-          s[1] = len_v3((float[3]){M[0][1], M[1][1], M[2][1]});
-          s[2] = len_v3((float[3]){M[0][2], M[1][2], M[2][2]});
+        const float lat_rest[3] = {1.0f, 1.0f, 1.0f};
 
-          float dims[3] = {
-              size_l[0] * s[0] + 1.0f * offset,
-              size_l[1] * s[1] + 1.0f * offset,
-              size_l[2] * s[2] + 1.0f * offset,
-          };
+        ob->rotmode = ROT_MODE_QUAT;
+        copy_qt_qt(ob->quat, q);
 
-          const float lat_rest[3] = {1.0f, 1.0f, 1.0f};
+        ob->scale[0] = dims[0] / lat_rest[0];
+        ob->scale[1] = dims[1] / lat_rest[1];
+        ob->scale[2] = dims[2] / lat_rest[2];
 
-          ob->rotmode = ROT_MODE_QUAT;
-          copy_qt_qt(ob->quat, q);
-
-          ob->scale[0] = dims[0] / lat_rest[0];
-          ob->scale[1] = dims[1] / lat_rest[1];
-          ob->scale[2] = dims[2] / lat_rest[2];
-
-          copy_v3_v3(ob->loc, center_w);
-          BKE_object_dimensions_set(ob, dims, 0);
-          DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
-        }
-        else {
-          float bb_min[3], bb_max[3];
-          copy_v3_v3(bb_min, sel_min);
-          copy_v3_v3(bb_max, sel_max);
-
-          for (int i = 0; i < 3; i++) {
-            bb_min[i] -= offset;
-            bb_max[i] += offset;
-          }
-
-          float center[3], size[3];
-          mid_v3_v3v3(center, bb_min, bb_max);
-          sub_v3_v3v3(size, bb_max, bb_min);
-
-          copy_v3_v3(ob->loc, center);
-          BKE_object_dimensions_set(ob, size, 0);
-          DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
-        }
+        copy_v3_v3(ob->loc, center_w);
+        BKE_object_dimensions_set(ob, dims, 0);
+        DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
       }
       else {
         float bb_min[3], bb_max[3];
-        copy_v3_v3(bb_min, sel_min);
-        copy_v3_v3(bb_max, sel_max);
+        copy_v3_v3(bb_min, bounds_opt->min);
+        copy_v3_v3(bb_max, bounds_opt->max);
 
         for (int i = 0; i < 3; i++) {
           bb_min[i] -= offset;
@@ -885,35 +900,51 @@ static wmOperatorStatus object_add_exec(bContext *C, wmOperator *op)
       }
     }
     else {
-      copy_v3_fl(ob->scale, radius);
-    }
+      /* Aligns lattice to a bounding box fit for multiple selected */
+      float3 sel_min = bounds_opt->min;
+      float3 sel_max = bounds_opt->max;
 
-    if (add_modifiers) {
-      for (Object *tob : targets) {
-        if (tob == ob) {
-          continue;
-        }
-        if (!object_can_have_lattice_modifier(tob)) {
-          continue;
-        }
-
-        ModifierData *md = BKE_modifier_new(eModifierType_Lattice);
-        BLI_addtail(&tob->modifiers, md);
-        ((LatticeModifierData *)md)->object = ob;
-
-        BKE_modifiers_persistent_uid_init(*tob, *md);
-
-        DEG_id_tag_update(&tob->id, ID_RECALC_GEOMETRY);
-        WM_main_add_notifier(NC_OBJECT | ND_MODIFIER, tob);
+      for (int i = 0; i < 3; i++) {
+        sel_min[i] -= offset;
+        sel_max[i] += offset;
       }
+
+      float center[3], size[3];
+      mid_v3_v3v3(center, sel_min, sel_max);
+      sub_v3_v3v3(size, sel_max, sel_min);
+
+      copy_v3_v3(ob->loc, center);
+      BKE_object_dimensions_set(ob, size, 0);
+      DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
     }
   }
   else {
-    BKE_object_obdata_size_init(ob, radius);
+    /*  Fallback when fit to selected is off */
+    copy_v3_fl(ob->scale, RNA_float_get(op->ptr, "radius"));
+    DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
+  }
+
+  if (add_modifiers) {
+    for (Object *tob : targets) {
+      if (tob == ob) {
+        continue;
+      }
+      if (!object_can_have_lattice_modifier(tob)) {
+        continue;
+      }
+
+      ModifierData *md = BKE_modifier_new(eModifierType_Lattice);
+      BLI_addtail(&tob->modifiers, md);
+      ((LatticeModifierData *)md)->object = ob;
+
+      BKE_modifiers_persistent_uid_init(*tob, *md);
+
+      DEG_id_tag_update(&tob->id, ID_RECALC_GEOMETRY);
+      WM_main_add_notifier(NC_OBJECT | ND_MODIFIER, tob);
+    }
   }
 
   DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
-
   return OPERATOR_FINISHED;
 }
 
@@ -935,19 +966,18 @@ static bool object_add_poll_property(const bContext *C, wmOperator *op, const Pr
   return true;
 }
 
-void OBJECT_OT_add(wmOperatorType *ot)
+void OBJECT_OT_lattice_add(wmOperatorType *ot)
 {
   /* identifiers */
-  ot->name = "Add Object";
-  ot->description = "Add an object to the scene";
-  ot->idname = "OBJECT_OT_add";
+  ot->name = "Add Lattice Deformer";
+  ot->description = "Add a lattice and use it to deform selected objects";
+  ot->idname = "OBJECT_OT_lattice_add";
 
   /* API callbacks. */
-  ot->exec = object_add_exec;
+  ot->exec = lattice_add_exec;
   ot->poll = ED_operator_objectmode;
   ot->poll_property = object_add_poll_property;
 
-  /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
   /* properties */
