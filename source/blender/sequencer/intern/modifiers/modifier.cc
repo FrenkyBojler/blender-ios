@@ -152,7 +152,7 @@ void draw_mask_input_type_settings(const bContext *C, uiLayout *layout, PointerR
 
   layout->use_property_split_set(true);
 
-  col = &layout->column(true);
+  col = &layout->column(false);
   row = &col->row(true);
   row->prop(ptr, "input_mask_type", UI_ITEM_R_EXPAND, "Type", ICON_NONE);
 
