@@ -99,6 +99,7 @@ static void node_register()
 
   fn_node_type_base(&ntype, "FunctionNodeCombineColor", FN_NODE_COMBINE_COLOR);
   ntype.ui_name = "Combine Color";
+  ntype.ui_description= "Combine four grayscale channels into one color image, based on a particular color model";
   ntype.enum_name_legacy = "COMBINE_COLOR";
   ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.declare = node_declare;

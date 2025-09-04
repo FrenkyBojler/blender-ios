@@ -61,6 +61,7 @@ static void node_register()
   static blender::bke::bNodeType ntype;
   fn_node_type_base(&ntype, "FunctionNodeRotationToQuaternion", FN_NODE_ROTATION_TO_QUATERNION);
   ntype.ui_name = "Rotation to Quaternion";
+  ntype.ui_description= "Convert a standard rotation value to a quaternion rotation";
   ntype.enum_name_legacy = "ROTATION_TO_QUATERNION";
   ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.declare = node_declare;
