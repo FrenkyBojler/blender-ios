@@ -27,23 +27,23 @@ static void node_declare(NodeDeclarationBuilder &b)
     const eNodeSocketDatatype data_type = eNodeSocketDatatype(node->custom1);
     b.add_output(data_type, "Value");
   }
-  
+
   b.add_output<decl::Int>("Length");
 }
 
 static const mf::MultiFunction *get_multi_function(const bNode &bnode)
 {
   static auto str_to_float_fn = mf::build::SI1_SO2<std::string, float, int>(
-    "String to Value", [](const std::string &s, float &value, int &length) -> void {
-      const auto result = fast_float::from_chars(s.data(), s.data() + s.size(), value);
-      length = BLI_strnlen_utf8(s.data(), result.ptr - s.data());
-    });
+      "String to Value", [](const std::string &s, float &value, int &length) -> void {
+        const auto result = fast_float::from_chars(s.data(), s.data() + s.size(), value);
+        length = BLI_strnlen_utf8(s.data(), result.ptr - s.data());
+      });
 
   static auto str_to_int_fn = mf::build::SI1_SO2<std::string, int, int>(
-    "String to Value", [](const std::string &s, int &value, int &length) -> void {
-      const auto result = std::from_chars(s.data(), s.data() + s.size(), value);
-      length = BLI_strnlen_utf8(s.data(), result.ptr - s.data());
-    });
+      "String to Value", [](const std::string &s, int &value, int &length) -> void {
+        const auto result = std::from_chars(s.data(), s.data() + s.size(), value);
+        length = BLI_strnlen_utf8(s.data(), result.ptr - s.data());
+      });
 
   switch (eNodeSocketDatatype(bnode.custom1)) {
     case SOCK_FLOAT:
@@ -111,10 +111,9 @@ static void node_layout(uiLayout *layout, bContext *, PointerRNA *ptr)
 static void node_rna(StructRNA *srna)
 {
   static const EnumPropertyItem data_types[] = {
-    {SOCK_FLOAT, "FLOAT", ICON_NODE_SOCKET_FLOAT, "Float", "Floating-point value"},
-    {SOCK_INT, "INT", ICON_NODE_SOCKET_INT, "Integer", "32-bit integer"},
-    {0, nullptr, 0, nullptr, nullptr}
-  };
+      {SOCK_FLOAT, "FLOAT", ICON_NODE_SOCKET_FLOAT, "Float", "Floating-point value"},
+      {SOCK_INT, "INT", ICON_NODE_SOCKET_INT, "Integer", "32-bit integer"},
+      {0, nullptr, 0, nullptr, nullptr}};
 
   RNA_def_node_enum(srna,
                     "data_type",
