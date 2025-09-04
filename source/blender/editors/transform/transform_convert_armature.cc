@@ -396,15 +396,8 @@ static void add_pose_transdata(
   float pmat[3][3], omat[3][3];
   float cmat[3][3], tmat[3][3];
 
-  /* This has to use the pchan->pose_mat and ignore the pchan->custom_tx in case it is set.
-   * Otherwise rotations around the 3D cursor don't work as expected. */
-  if (pchan->flag & POSE_TEMP_SWITCH) {
-    const bArmature *arm = static_cast<bArmature *>(ob->data);
-    BKE_pose_channel_gizmo_location(arm, pchan, td->center);
-  }
-  else {
-    copy_v3_v3(td->center, pchan->pose_mat[3]);
-  }
+  const bArmature *arm = static_cast<bArmature *>(ob->data);
+  BKE_pose_channel_gizmo_location(arm, pchan, td->center);
 
   td->flag = TD_SELECTED;
   if (bone->flag & BONE_HINGE_CHILD_TRANSFORM) {
@@ -505,7 +498,6 @@ static void add_pose_transdata(
   }
 
   /* For `axismtx` we use the bone's own transform. */
-  const bArmature *arm = static_cast<bArmature *>(ob->data);
   BKE_pose_channel_gizmo_orientation(arm, pchan, pmat);
   mul_m3_m3m3(td->axismtx, omat, pmat);
   normalize_m3(td->axismtx);
