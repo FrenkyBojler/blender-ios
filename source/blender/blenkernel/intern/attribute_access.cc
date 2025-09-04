@@ -732,6 +732,7 @@ GAttributeReader AttributeAccessor::lookup(const StringRef attribute_id,
 GAttributeReader AttributeIter::get(std::optional<AttrDomain> domain,
                                     std::optional<AttrType> data_type) const
 {
+  BLI_assert(this->accessor != nullptr);
   return adapt_domain_and_type_if_necessary(this->get(), domain, data_type, *accessor);
 }
 
@@ -1151,6 +1152,13 @@ void fill_attribute_range_default(MutableAttributeAccessor attributes,
                                   const AttributeFilter &attribute_filter,
                                   const IndexRange range)
 {
+  /* While it is valid to call this function for any valid range which can be placed in target
+   * domain, it is computationally costly to peform this loop. This check is COW elision and not
+   * just loop skip. */
+  if (range.is_empty()) {
+    return;
+  }
+
   attributes.foreach_attribute([&](const AttributeIter &iter) {
     if (iter.domain != domain) {
       return;

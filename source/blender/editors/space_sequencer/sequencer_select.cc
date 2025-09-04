@@ -10,6 +10,7 @@
 #include <cstdlib>
 #include <cstring>
 
+#include "BLI_rect.h"
 #include "MEM_guardedalloc.h"
 
 #include "BLI_ghash.h"
@@ -318,7 +319,7 @@ Strip *find_neighboring_strip(const Scene *scene, const Strip *test, const int l
   if (sel > 0) {
     sel = SELECT;
   }
-  LISTBASE_FOREACH (Strip *, strip, ed->seqbasep) {
+  LISTBASE_FOREACH (Strip *, strip, ed->current_strips()) {
     if ((strip != test) && (test->channel == strip->channel) &&
         ((sel == -1) || (sel && (strip->flag & SELECT)) ||
          (sel == 0 && (strip->flag & SELECT) == 0)))
@@ -625,7 +626,7 @@ static void sequencer_select_linked_handle(const bContext *C,
           if ((strip->flag & SEQ_LEFTSEL) && (neighbor->flag & SEQ_RIGHTSEL)) {
             strip->flag |= SELECT;
             select_active_side(scene,
-                               ed->seqbasep,
+                               ed->current_strips(),
                                seq::SIDE_LEFT,
                                strip->channel,
                                seq::time_left_handle_frame_get(scene, strip));
@@ -642,7 +643,7 @@ static void sequencer_select_linked_handle(const bContext *C,
           if ((strip->flag & SEQ_RIGHTSEL) && (neighbor->flag & SEQ_LEFTSEL)) {
             strip->flag |= SELECT;
             select_active_side(scene,
-                               ed->seqbasep,
+                               ed->current_strips(),
                                seq::SIDE_RIGHT,
                                strip->channel,
                                seq::time_left_handle_frame_get(scene, strip));
@@ -660,7 +661,7 @@ static void sequencer_select_linked_handle(const bContext *C,
     else {
 
       select_active_side(scene,
-                         ed->seqbasep,
+                         ed->current_strips(),
                          sel_side,
                          strip->channel,
                          seq::time_left_handle_frame_get(scene, strip));
@@ -1075,7 +1076,7 @@ static blender::Vector<Strip *> padded_strips_under_mouse_get(const Scene *scene
   }
 
   blender::Vector<Strip *> strips;
-  LISTBASE_FOREACH (Strip *, strip, ed->seqbasep) {
+  LISTBASE_FOREACH (Strip *, strip, ed->current_strips()) {
     if (strip->channel != int(mouse_co[1])) {
       continue;
     }
@@ -1857,7 +1858,7 @@ static wmOperatorStatus sequencer_select_handles_exec(bContext *C, wmOperator *o
   Scene *scene = CTX_data_sequencer_scene(C);
   Editing *ed = seq::editing_get(scene);
   int sel_side = RNA_enum_get(op->ptr, "side");
-  LISTBASE_FOREACH (Strip *, strip, ed->seqbasep) {
+  LISTBASE_FOREACH (Strip *, strip, ed->current_strips()) {
     if (strip->flag & SELECT) {
       Strip *l_neighbor = find_neighboring_strip(scene, strip, seq::SIDE_LEFT, -1);
       Strip *r_neighbor = find_neighboring_strip(scene, strip, seq::SIDE_RIGHT, -1);
@@ -1903,8 +1904,8 @@ static wmOperatorStatus sequencer_select_handles_exec(bContext *C, wmOperator *o
       }
     }
   }
-  /*   Select strips */
-  LISTBASE_FOREACH (Strip *, strip, ed->seqbasep) {
+  /* Select strips. */
+  LISTBASE_FOREACH (Strip *, strip, ed->current_strips()) {
     if ((strip->flag & SEQ_LEFTSEL) || (strip->flag & SEQ_RIGHTSEL)) {
       if (!(strip->flag & SELECT)) {
         strip->flag |= SELECT;
@@ -2036,7 +2037,7 @@ static wmOperatorStatus sequencer_select_side_exec(bContext *C, wmOperator *op)
 
   copy_vn_i(frame_ranges, ARRAY_SIZE(frame_ranges), frame_init);
 
-  LISTBASE_FOREACH (Strip *, strip, ed->seqbasep) {
+  LISTBASE_FOREACH (Strip *, strip, ed->current_strips()) {
     if (UNLIKELY(strip->channel >= seq::MAX_CHANNELS)) {
       continue;
     }
@@ -2056,7 +2057,7 @@ static wmOperatorStatus sequencer_select_side_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  select_active_side_range(scene, ed->seqbasep, sel_side, frame_ranges, frame_init);
+  select_active_side_range(scene, ed->current_strips(), sel_side, frame_ranges, frame_init);
 
   ED_outliner_select_sync_from_sequence_tag(C);
 
@@ -2185,7 +2186,7 @@ static wmOperatorStatus sequencer_box_select_exec(bContext *C, wmOperator *op)
     return OPERATOR_FINISHED;
   }
 
-  LISTBASE_FOREACH (Strip *, strip, ed->seqbasep) {
+  LISTBASE_FOREACH (Strip *, strip, ed->current_strips()) {
     rctf rq;
     strip_rectf(scene, strip, &rq);
     if (BLI_rctf_isect(&rq, &rectf, nullptr)) {
@@ -2316,6 +2317,167 @@ void SEQUENCER_OT_select_box(wmOperatorType *ot)
   prop = RNA_def_boolean(
       ot->srna, "include_handles", false, "Select Handles", "Select the strips and their handles");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+
+  prop = RNA_def_boolean(ot->srna,
+                         "ignore_connections",
+                         false,
+                         "Ignore Connections",
+                         "Select strips individually whether or not they are connected");
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+}
+
+static bool strip_circle_select_radius_image_isect(const Scene *scene,
+                                                   const Strip *strip,
+                                                   const int *radius,
+                                                   const float2 mval)
+{
+  float2 origin = seq::image_transform_origin_offset_pixelspace_get(scene, strip);
+
+  float dx = origin.x - float(mval[0]);
+  float dy = origin.y - float(mval[1]);
+  float dist_sq = sqrt(dx * dx + dy * dy);
+
+  return dist_sq <= *radius;
+}
+
+static void seq_circle_select_strip_from_preview(bContext *C,
+                                                 int radius,
+                                                 const float2 mval,
+                                                 const eSelectOp mode)
+{
+  Scene *scene = CTX_data_scene(C);
+  Editing *ed = seq::editing_get(scene);
+  ListBase *seqbase = seq::active_seqbase_get(ed);
+  ListBase *channels = seq::channels_displayed_get(ed);
+  SpaceSeq *sseq = CTX_wm_space_seq(C);
+
+  VectorSet strips = seq::query_rendered_strips(
+      scene, channels, seqbase, scene->r.cfra, sseq->chanshown);
+  for (Strip *strip : strips) {
+    if (!strip_circle_select_radius_image_isect(scene, strip, &radius, mval)) {
+      continue;
+    }
+
+    if (ELEM(mode, SEL_OP_ADD, SEL_OP_SET)) {
+      strip->flag |= SELECT;
+    }
+    else {
+      BLI_assert(mode == SEL_OP_SUB);
+      strip->flag &= ~SELECT;
+    }
+  }
+}
+
+static bool check_circle_intersection_in_timeline(const rctf *rect,
+                                                  const float xy[2],
+                                                  const float x_radius,
+                                                  const float y_radius)
+{
+  float dx, dy;
+
+  if (xy[0] >= rect->xmin && xy[0] <= rect->xmax) {
+    dx = 0;
+  }
+  else {
+    dx = (xy[0] < rect->xmin) ? (rect->xmin - xy[0]) : (xy[0] - rect->xmax);
+  }
+
+  if (xy[1] >= rect->ymin && xy[1] <= rect->ymax) {
+    dy = 0;
+  }
+  else {
+    dy = (xy[1] < rect->ymin) ? (rect->ymin - xy[1]) : (xy[1] - rect->ymax);
+  }
+
+  return ((dx * dx) / (x_radius * x_radius) + (dy * dy) / (y_radius * y_radius) <= 1.0f);
+}
+static wmOperatorStatus vse_circle_select_exec(bContext *C, wmOperator *op)
+{
+  const int radius = RNA_int_get(op->ptr, "radius");
+  const int mval[2] = {RNA_int_get(op->ptr, "x"), RNA_int_get(op->ptr, "y")};
+  wmGesture *gesture = static_cast<wmGesture *>(op->customdata);
+  const eSelectOp sel_op = eSelectOp(RNA_enum_get(op->ptr, "mode"));
+
+  Scene *scene = CTX_data_scene(C);
+  View2D *v2d = UI_view2d_fromcontext(C);
+  Editing *ed = seq::editing_get(scene);
+  ARegion *region = CTX_wm_region(C);
+
+  const bool use_pre_deselect = SEL_OP_USE_PRE_DESELECT(sel_op);
+
+  if (use_pre_deselect && WM_gesture_is_modal_first(gesture)) {
+    deselect_all_strips(scene);
+    sequencer_select_do_updates(C, scene);
+  }
+
+  if (ed == nullptr) {
+    return OPERATOR_CANCELLED;
+  }
+
+  float2 view_mval;
+  UI_view2d_region_to_view(v2d, mval[0], mval[1], &view_mval[0], &view_mval[1]);
+  float pixel_radius = radius / UI_view2d_scale_get_x(v2d);
+
+  if (region->regiontype == RGN_TYPE_PREVIEW) {
+    seq_circle_select_strip_from_preview(C, pixel_radius, view_mval, sel_op);
+    sequencer_select_do_updates(C, scene);
+    return OPERATOR_FINISHED;
+  }
+
+  float x_radius = radius / UI_view2d_scale_get_x(v2d);
+  float y_radius = radius / UI_view2d_scale_get_y(v2d);
+  bool changed = false;
+  LISTBASE_FOREACH (Strip *, strip, ed->current_strips()) {
+    rctf rq;
+    strip_rectf(scene, strip, &rq);
+    /* Use custom function to check the distance because in timeline the circle is a ellipse. */
+    if (check_circle_intersection_in_timeline(&rq, view_mval, x_radius, y_radius)) {
+      if (ELEM(sel_op, SEL_OP_ADD, SEL_OP_SET)) {
+        strip->flag |= SELECT;
+      }
+      else {
+        BLI_assert(sel_op == SEL_OP_SUB);
+        strip->flag &= ~SELECT;
+      }
+      changed = true;
+
+      const bool ignore_connections = RNA_boolean_get(op->ptr, "ignore_connections");
+      if (!ignore_connections) {
+        /* Propagate selection to connected strips. */
+        StripSelection selection;
+        selection.strip1 = strip;
+        sequencer_select_connected_strips(selection);
+      }
+    }
+  }
+  if (changed) {
+    sequencer_select_do_updates(C, scene);
+  }
+  return OPERATOR_FINISHED;
+}
+
+void SEQUENCER_OT_select_circle(wmOperatorType *ot)
+{
+  PropertyRNA *prop;
+
+  ot->name = "Circle Select";
+  ot->description = "Select strips using circle selection";
+  ot->idname = "SEQUENCER_OT_select_circle";
+
+  ot->invoke = WM_gesture_circle_invoke;
+  ot->modal = WM_gesture_circle_modal;
+  ot->exec = vse_circle_select_exec;
+
+  ot->poll = ED_operator_sequencer_active;
+
+  ot->get_name = ED_select_circle_get_name;
+
+  /* flags */
+  ot->flag = OPTYPE_UNDO;
+
+  /* properties */
+  WM_operator_properties_gesture_circle(ot);
+  WM_operator_properties_select_operation_simple(ot);
 
   prop = RNA_def_boolean(ot->srna,
                          "ignore_connections",
