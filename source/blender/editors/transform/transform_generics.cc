@@ -1083,8 +1083,6 @@ void calculateCenterBound(TransInfo *t, float r_center[3])
 bool calculateCenterActive(TransInfo *t, bool select_only, float r_center[3])
 {
   TransDataContainer *tc = TRANS_DATA_CONTAINER_FIRST_OK(t);
-  std::optional<float3> center_f3 = {};
-  std::optional<float3x3> rot_f3x3 = {};
 
   if (t->spacetype != SPACE_VIEW3D) {
     return false;
@@ -1092,8 +1090,7 @@ bool calculateCenterActive(TransInfo *t, bool select_only, float r_center[3])
   if (tc->obedit) {
 
     bool res = object::calc_active_transform_for_editmode(
-        tc->obedit, select_only, center_f3, rot_f3x3);
-    copy_v3_v3(r_center, *center_f3);
+        tc->obedit, select_only, (float3 *)r_center);
     if (res) {
       mul_m4_v3(tc->obedit->object_to_world().ptr(), r_center);
       return true;
@@ -1102,8 +1099,7 @@ bool calculateCenterActive(TransInfo *t, bool select_only, float r_center[3])
   else if (t->options & CTX_POSE_BONE) {
     BKE_view_layer_synced_ensure(t->scene, t->view_layer);
     Object *ob = BKE_view_layer_active_object_get(t->view_layer);
-    bool res = object::calc_active_transform_for_posemode(ob, select_only, center_f3, rot_f3x3);
-    copy_v3_v3(r_center, *center_f3);
+    bool res = object::calc_active_transform_for_posemode(ob, select_only, (float3 *)r_center);
     if (res) {
       mul_m4_v3(ob->object_to_world().ptr(), r_center);
       return true;

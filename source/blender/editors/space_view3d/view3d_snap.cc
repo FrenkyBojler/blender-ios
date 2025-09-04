@@ -64,8 +64,8 @@ using blender::Vector;
 static bool snap_curs_to_sel_ex(bContext *C, const int pivot_point, float r_cursor[3]);
 static bool snap_calc_active_transform(bContext *C,
                                        const bool select_only,
-                                       std::optional<blender::float3> &center,
-                                       std::optional<blender::float3x3> &rotation);
+                                       blender::float3 *r_center = nullptr,
+                                       blender::float3x3 *r_orientation = nullptr);
 
 /* -------------------------------------------------------------------- */
 /** \name Snap Selection to Grid Operator
@@ -329,11 +329,8 @@ static bool snap_selected_to_location_rotation(bContext *C,
                                   blender::float3x3::zero();
 
   if (use_offset) {
-    std::optional<blender::float3> center_f3 = {};
-    std::optional<blender::float3x3> rot_f3x3 = {};
     bool res = (pivot_point == V3D_AROUND_ACTIVE) &&
-               snap_calc_active_transform(C, true, center_f3, rot_f3x3);
-    copy_v3_v3(center_global, *center_f3);
+               snap_calc_active_transform(C, true, (blender::float3 *)center_global);
     if (res) {
       /* pass */
     }
@@ -766,10 +763,7 @@ void VIEW3D_OT_snap_selected_to_cursor(wmOperatorType *ot)
 static wmOperatorStatus snap_selected_to_active_exec(bContext *C, wmOperator *op)
 {
   float target_loc_global[3];
-  std::optional<blender::float3> target_f3 = {};
-  std::optional<blender::float3x3> rot_f3x3 = {};
-  bool res = snap_calc_active_transform(C, false, target_f3, rot_f3x3);
-  copy_v3_v3(target_loc_global, *target_f3);
+  bool res = snap_calc_active_transform(C, false, (blender::float3 *)target_loc_global);
   if (res == false) {
     BKE_report(op->reports, RPT_ERROR, "No active element found!");
     return OPERATOR_CANCELLED;
@@ -1043,14 +1037,14 @@ void VIEW3D_OT_snap_cursor_to_selected(wmOperatorType *ot)
  */
 static bool snap_calc_active_transform(bContext *C,
                                        const bool select_only,
-                                       std::optional<blender::float3> &center,
-                                       std::optional<blender::float3x3> &rotation)
+                                       blender::float3 *r_center,
+                                       blender::float3x3 *r_orientation)
 {
   Object *ob = CTX_data_active_object(C);
   if (ob == nullptr) {
     return false;
   }
-  return blender::ed::object::calc_active_transform(ob, select_only, center, rotation);
+  return blender::ed::object::calc_active_transform(ob, select_only, r_center, r_orientation);
 }
 
 static wmOperatorStatus snap_curs_to_active_exec(bContext *C, wmOperator *op)
@@ -1059,15 +1053,15 @@ static wmOperatorStatus snap_curs_to_active_exec(bContext *C, wmOperator *op)
   const bool is_loc_on = RNA_boolean_get(op->ptr, "location");
   const bool is_rot_on = RNA_boolean_get(op->ptr, "rotation");
   bool is_snap_done = false;
-  std::optional<blender::float3> center = {};
-  std::optional<blender::float3x3> rotation = {};
-  if (snap_calc_active_transform(C, false, center, rotation)) {
+  blender::float3 *r_center = new blender::float3();
+  blender::float3x3 *r_orientation = new blender::float3x3();
+  if (snap_calc_active_transform(C, false, r_center, r_orientation)) {
     if (is_loc_on) {
-      copy_v3_v3(scene->cursor.location, *center);
+      copy_v3_v3(scene->cursor.location, *r_center);
       is_snap_done = true;
     }
     if (is_rot_on) {
-      scene->cursor.set_matrix(*rotation, false);
+      scene->cursor.set_matrix(*r_orientation, false);
       is_snap_done = true;
     }
   }

@@ -1063,10 +1063,7 @@ static bool gizmo_3d_calc_pos(const bContext *C,
           copy_v3_v3(r_pivot_pos, ss->pivot_pos);
           return true;
         }
-        std::optional<float3> center_f3 = {};
-        std::optional<float3x3> rot_f3x3 = {};
-        bool res = object::calc_active_transform(ob, false, center_f3, rot_f3x3);
-        copy_v3_v3(r_pivot_pos, *center_f3);
+        bool res = object::calc_active_transform(ob, false, (float3 *)r_pivot_pos);
         if (res) {
           return true;
         }
