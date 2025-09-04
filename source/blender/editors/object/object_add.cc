@@ -695,18 +695,16 @@ static bool object_can_have_lattice_modifier(const Object *ob)
   return ELEM(ob->type, OB_MESH, OB_CURVES_LEGACY, OB_SURF, OB_FONT, OB_CURVES, OB_GREASE_PENCIL);
 }
 
-static bool collect_targets_and_bounds(bContext *C,
-                                       blender::Vector<Object *> &r_targets,
-                                       blender::float3 &r_min,
-                                       blender::float3 &r_max)
+static std::optional<blender::Bounds<blender::float3>> collect_targets_and_bounds(
+    bContext *C, blender::Vector<Object *> &r_targets)
 {
   using namespace blender;
   ViewLayer *view_layer = CTX_data_view_layer(C);
   View3D *v3d = CTX_wm_view3d(C);
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
 
-  r_min = float3(FLT_MAX);
-  r_max = float3(-FLT_MAX);
+  float3 r_min(FLT_MAX);
+  float3 r_max(-FLT_MAX);
   bool any = false;
 
   LISTBASE_FOREACH (Base *, base, &view_layer->object_bases) {
@@ -715,45 +713,27 @@ static bool collect_targets_and_bounds(bContext *C,
 
       Object *ob_eval = (Object *)DEG_get_evaluated_id(depsgraph, &base->object->id);
       if (ob_eval && DEG_object_transform_is_evaluated(*ob_eval)) {
-        std::optional<blender::Bounds<blender::float3>> bounds = BKE_object_boundbox_get(ob_eval);
-        if (bounds.has_value()) {
+        if (std::optional<blender::Bounds<blender::float3>>  bounds = BKE_object_boundbox_get(ob_eval)) {
           float object_to_world[4][4];
           BKE_object_to_mat4(ob_eval, object_to_world);
 
-          float corners[8][3];
-          const blender::float3 &bb_min = bounds->min;
-          const blender::float3 &bb_max = bounds->max;
-
+          const float3 &bb_min = bounds->min;
+          const float3 &bb_max = bounds->max;
           /* Generate all 8 corners of the bounding box */
-          corners[0][0] = bb_min[0];
-          corners[0][1] = bb_min[1];
-          corners[0][2] = bb_min[2];
-          corners[1][0] = bb_max[0];
-          corners[1][1] = bb_min[1];
-          corners[1][2] = bb_min[2];
-          corners[2][0] = bb_min[0];
-          corners[2][1] = bb_max[1];
-          corners[2][2] = bb_min[2];
-          corners[3][0] = bb_max[0];
-          corners[3][1] = bb_max[1];
-          corners[3][2] = bb_min[2];
-          corners[4][0] = bb_min[0];
-          corners[4][1] = bb_min[1];
-          corners[4][2] = bb_max[2];
-          corners[5][0] = bb_max[0];
-          corners[5][1] = bb_min[1];
-          corners[5][2] = bb_max[2];
-          corners[6][0] = bb_min[0];
-          corners[6][1] = bb_max[1];
-          corners[6][2] = bb_max[2];
-          corners[7][0] = bb_max[0];
-          corners[7][1] = bb_max[1];
-          corners[7][2] = bb_max[2];
 
+          float corners[8][3] = {
+              {bb_min[0], bb_min[1], bb_min[2]},
+              {bb_max[0], bb_min[1], bb_min[2]},
+              {bb_min[0], bb_max[1], bb_min[2]},
+              {bb_max[0], bb_max[1], bb_min[2]},
+              {bb_min[0], bb_min[1], bb_max[2]},
+              {bb_max[0], bb_min[1], bb_max[2]},
+              {bb_min[0], bb_max[1], bb_max[2]},
+              {bb_max[0], bb_max[1], bb_max[2]},
+          };
           /* Transform each corner to world space and update bounds */
           for (int i = 0; i < 8; i++) {
             mul_m4_v3(object_to_world, corners[i]);
-
             /* Update world-space min/max */
             for (int axis = 0; axis < 3; axis++) {
               r_min[axis] = min_ff(r_min[axis], corners[i][axis]);
@@ -773,7 +753,11 @@ static bool collect_targets_and_bounds(bContext *C,
       any = true;
     }
   }
-  return any;
+
+  if (any) {
+    return blender::Bounds<float3>(r_min, r_max);
+  }
+  return std::nullopt;
 }
 
 /* for object add operator */
@@ -790,7 +774,14 @@ static wmOperatorStatus object_add_exec(bContext *C, wmOperator *op)
 
   blender::Vector<Object *> targets;
   float3 sel_min, sel_max;
-  const bool had_bounds = collect_targets_and_bounds(C, targets, sel_min, sel_max);
+  std::optional<blender::Bounds<blender::float3>> bounds_opt = collect_targets_and_bounds(C,
+                                                                                          targets);
+
+  bool had_bounds = bounds_opt.has_value();
+  if (had_bounds) {
+    sel_min = bounds_opt->min;
+    sel_max = bounds_opt->max;
+  }
 
   Object *ob = add_type(C, object_type, nullptr, loc, rot, enter_editmode, local_view_bits);
 
@@ -808,19 +799,97 @@ static wmOperatorStatus object_add_exec(bContext *C, wmOperator *op)
     BKE_lattice_resize(lt, max_ii(1, res_u), max_ii(1, res_v), max_ii(1, res_w), nullptr);
     DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
     if (fit_to_selected && had_bounds) {
-      float bb_min[3], bb_max[3];
-      copy_v3_v3(bb_min, sel_min);
-      copy_v3_v3(bb_max, sel_max);
-      for (int i = 0; i < 3; i++) {
-        bb_min[i] -= offset;
-        bb_max[i] += offset;
-      }
-      float center[3], size[3];
-      mid_v3_v3v3(center, bb_min, bb_max);
-      sub_v3_v3v3(size, bb_max, bb_min);
 
-      copy_v3_v3(ob->loc, center);
-      BKE_object_dimensions_set(ob, size, 0);
+      if (targets.size() == 1) {
+        Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+        Object *tob = targets[0];
+        Object *tob_eval = (Object *)DEG_get_evaluated_id(depsgraph, &tob->id);
+
+        float min_l[3], max_l[3];
+        bool have_local_bb = false;
+
+        if (std::optional<blender::Bounds<blender::float3>> b = BKE_object_boundbox_get(tob_eval))
+        {
+          copy_v3_v3(min_l, b->min);
+          copy_v3_v3(max_l, b->max);
+          have_local_bb = true;
+        }
+
+        if (have_local_bb) {
+          float center_l[3], size_l[3];
+          mid_v3_v3v3(center_l, min_l, max_l);
+          sub_v3_v3v3(size_l, max_l, min_l);
+
+          float M[4][4], center_w[3];
+          BKE_object_to_mat4(tob_eval, M);
+          mul_v3_m4v3(center_w, M, center_l);
+
+          float R_raw[3][3], R[3][3], q[4];
+          copy_m3_m4(R_raw, M);
+          normalize_m3_m3(R, R_raw);
+          mat3_to_quat(q, R);
+
+          float s[3];
+          s[0] = len_v3((float[3]){M[0][0], M[1][0], M[2][0]});
+          s[1] = len_v3((float[3]){M[0][1], M[1][1], M[2][1]});
+          s[2] = len_v3((float[3]){M[0][2], M[1][2], M[2][2]});
+
+          float dims[3] = {
+              size_l[0] * s[0] + 1.0f * offset,
+              size_l[1] * s[1] + 1.0f * offset,
+              size_l[2] * s[2] + 1.0f * offset,
+          };
+
+          const float lat_rest[3] = {1.0f, 1.0f, 1.0f};
+
+          ob->rotmode = ROT_MODE_QUAT;
+          copy_qt_qt(ob->quat, q);
+
+          ob->scale[0] = dims[0] / lat_rest[0];
+          ob->scale[1] = dims[1] / lat_rest[1];
+          ob->scale[2] = dims[2] / lat_rest[2];
+
+          copy_v3_v3(ob->loc, center_w);
+          BKE_object_dimensions_set(ob, dims, 0);
+          DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
+        }
+        else {
+          float bb_min[3], bb_max[3];
+          copy_v3_v3(bb_min, sel_min);
+          copy_v3_v3(bb_max, sel_max);
+
+          for (int i = 0; i < 3; i++) {
+            bb_min[i] -= offset;
+            bb_max[i] += offset;
+          }
+
+          float center[3], size[3];
+          mid_v3_v3v3(center, bb_min, bb_max);
+          sub_v3_v3v3(size, bb_max, bb_min);
+
+          copy_v3_v3(ob->loc, center);
+          BKE_object_dimensions_set(ob, size, 0);
+          DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
+        }
+      }
+      else {
+        float bb_min[3], bb_max[3];
+        copy_v3_v3(bb_min, sel_min);
+        copy_v3_v3(bb_max, sel_max);
+
+        for (int i = 0; i < 3; i++) {
+          bb_min[i] -= offset;
+          bb_max[i] += offset;
+        }
+
+        float center[3], size[3];
+        mid_v3_v3v3(center, bb_min, bb_max);
+        sub_v3_v3v3(size, bb_max, bb_min);
+
+        copy_v3_v3(ob->loc, center);
+        BKE_object_dimensions_set(ob, size, 0);
+        DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
+      }
     }
     else {
       copy_v3_fl(ob->scale, radius);
