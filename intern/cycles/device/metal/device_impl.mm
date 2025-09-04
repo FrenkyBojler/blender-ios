@@ -928,10 +928,16 @@ void MetalDevice::const_copy_to(const char *name, void *host, const size_t size)
 
   /* Update data storage pointers in launch parameters. */
   if (strcmp(name, "integrator_state") == 0) {
-    /* IntegratorStateGPU is contiguous pointers */
+    /* IntegratorStateGPU is contiguous pointers up until sort_partition_divisor. */
     const size_t pointer_block_size = offsetof(IntegratorStateGPU, sort_partition_divisor);
     update_launch_pointers(
         offsetof(KernelParamsMetal, integrator_state), host, pointer_block_size);
+
+    /* Ensure the non-pointers part of IntegratorStateGPU is copied (this is the proper fix for
+     * #144713). */
+    memcpy((uint8_t *)&launch_params->integrator_state + pointer_block_size,
+           (uint8_t *)host + pointer_block_size,
+           sizeof(IntegratorStateGPU) - pointer_block_size);
   }
 #  define KERNEL_DATA_ARRAY(data_type, tex_name) \
     else if (strcmp(name, #tex_name) == 0) { \

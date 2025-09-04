@@ -83,6 +83,7 @@
 #include "UI_interface_layout.hh"
 
 #include "BLF_api.hh"
+#include "GPU_capabilities.hh"
 #include "GPU_context.hh"
 #include "GPU_framebuffer.hh"
 #include "GPU_init_exit.hh"
@@ -228,6 +229,13 @@ static void wm_ghostwindow_destroy(wmWindowManager *wm, wmWindow *win)
     wm->runtime->winactive = nullptr;
   }
 
+  GHOST_ContextHandle restore_ghost_context = GHOST_GetActiveGPUContext();
+  GPUContext *restore_context = GPU_context_active_get();
+  if (restore_context == win->gpuctx) {
+    restore_ghost_context = nullptr;
+    restore_context = nullptr;
+  }
+
   /* We need this window's GPU context active to discard it. */
   GHOST_ActivateWindowDrawingContext(static_cast<GHOST_WindowHandle>(win->ghostwin));
   GPU_context_active_set(static_cast<GPUContext *>(win->gpuctx));
@@ -238,6 +246,11 @@ static void wm_ghostwindow_destroy(wmWindowManager *wm, wmWindow *win)
   GHOST_DisposeWindow(g_system, static_cast<GHOST_WindowHandle>(win->ghostwin));
   win->ghostwin = nullptr;
   win->gpuctx = nullptr;
+
+  if (restore_ghost_context && restore_context) {
+    GHOST_ActivateGPUContext(restore_ghost_context);
+    GPU_context_active_set(restore_context);
+  }
 }
 
 void wm_window_free(bContext *C, wmWindowManager *wm, wmWindow *win)
@@ -2881,6 +2894,12 @@ bool WM_window_is_main_top_level(const wmWindow *win)
     return false;
   }
   return true;
+}
+
+bool WM_window_support_hdr_color(const wmWindow *win)
+{
+  return GPU_hdr_support() && win->ghostwin &&
+         GHOST_WindowGetHDRInfo(static_cast<GHOST_WindowHandle>(win->ghostwin)).hdr_enabled;
 }
 
 /** \} */
