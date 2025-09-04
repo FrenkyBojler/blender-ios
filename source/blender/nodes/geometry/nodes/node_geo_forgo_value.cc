@@ -41,17 +41,42 @@ static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
   layout->prop(ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
 }
 
-static void node_geo_exec(GeoNodeExecParams params)
-{
-  SocketValueVariant value = params.extract_input<SocketValueVariant>("Value");
-  const bool keep = params.extract_input<bool>("Keep");
-  if (keep) {
-    params.set_output("Value", std::move(value));
+class LazyFunctionForForgoValueNode : public LazyFunction {
+  const bNode &node_;
+
+ public:
+  LazyFunctionForForgoValueNode(const bNode &node, MutableSpan<int> r_lf_index_by_bsocket)
+      : node_(node)
+  {
+    r_lf_index_by_bsocket[node.input_socket(0).index_in_tree()] = inputs_.append_and_get_index_as(
+        "Value", CPPType::get<SocketValueVariant>(), lf::ValueUsage::Maybe);
+    r_lf_index_by_bsocket[node.input_socket(1).index_in_tree()] = inputs_.append_and_get_index_as(
+        "Keep", CPPType::get<SocketValueVariant>());
+    r_lf_index_by_bsocket[node.output_socket(0).index_in_tree()] =
+        outputs_.append_and_get_index_as("Value", CPPType::get<SocketValueVariant>());
   }
-  else {
-    params.set_default_remaining_outputs();
+
+  void execute_impl(lf::Params &params, const lf::Context & /*context*/) const override
+  {
+    const bke::SocketValueVariant keep_variant = params.get_input<bke::SocketValueVariant>(1);
+    if (!keep_variant.is_single()) {
+      set_default_remaining_node_outputs(params, node_);
+      return;
+    }
+    const bool keep = keep_variant.get<bool>();
+    if (!keep) {
+      set_default_remaining_node_outputs(params, node_);
+      return;
+    }
+    const bke::SocketValueVariant *value_variant =
+        params.try_get_input_data_ptr_or_request<bke::SocketValueVariant>(0);
+    if (!value_variant) {
+      /* Wait until the value is available. */
+      return;
+    }
+    params.set_output(0, std::move(*value_variant));
   }
-}
+};
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
@@ -127,7 +152,6 @@ static void node_register()
   ntype.ui_description = "Either pass through the input value or output the fallback value";
   ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.initfunc = node_init;
-  ntype.geometry_node_execute = node_geo_exec;
   ntype.draw_buttons = node_layout;
   ntype.declare = node_declare;
   ntype.get_compositor_operation = node_get_compositor_operation;
@@ -138,3 +162,15 @@ static void node_register()
 NOD_REGISTER_NODE(node_register)
 
 }  // namespace blender::nodes::node_geo_forgo_value_cc
+
+namespace blender::nodes {
+
+std::unique_ptr<LazyFunction> get_forgo_value_node_lazy_function(
+    const bNode &node, GeometryNodesLazyFunctionGraphInfo &own_lf_graph_info)
+{
+  using namespace node_geo_forgo_value_cc;
+  return std::make_unique<LazyFunctionForForgoValueNode>(
+      node, own_lf_graph_info.mapping.lf_index_by_bsocket);
+}
+
+}  // namespace blender::nodes
