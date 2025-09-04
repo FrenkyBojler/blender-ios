@@ -167,16 +167,15 @@ static bool sequencer_write_copy_paste_file(Main *bmain_src,
 
   /* Create an empty sequence editor data to store all copied strips. */
   scene_dst->ed = MEM_callocN<Editing>(__func__);
-  scene_dst->ed->seqbasep = &scene_dst->ed->seqbase;
-  seq::seqbase_duplicate_recursive(scene_src,
+  seq::seqbase_duplicate_recursive(bmain_src,
+                                   scene_src,
                                    scene_dst,
                                    &scene_dst->ed->seqbase,
-                                   scene_src->ed->seqbasep,
+                                   scene_src->ed->current_strips(),
                                    seq::StripDuplicate::Selected,
                                    0);
 
   BLI_duplicatelist(&scene_dst->ed->channels, &scene_src->ed->channels);
-  scene_dst->ed->displayed_channels = &scene_dst->ed->channels;
 
   /* Save current frame and active strip. */
   scene_dst->r.cfra = scene_src->r.cfra;
@@ -316,7 +315,7 @@ wmOperatorStatus sequencer_clipboard_copy_exec(bContext *C, wmOperator *op)
   Scene *scene = CTX_data_sequencer_scene(C);
   Editing *ed = seq::editing_get(scene);
 
-  blender::VectorSet<Strip *> selected = seq::query_selected_strips(ed->seqbasep);
+  blender::VectorSet<Strip *> selected = seq::query_selected_strips(ed->current_strips());
 
   if (selected.is_empty()) {
     return OPERATOR_CANCELLED;
@@ -324,7 +323,8 @@ wmOperatorStatus sequencer_clipboard_copy_exec(bContext *C, wmOperator *op)
 
   blender::VectorSet<Strip *> effect_chain;
   effect_chain.add_multiple(selected);
-  seq::iterator_set_expand(scene, ed->seqbasep, effect_chain, seq::query_strip_effect_chain);
+  seq::iterator_set_expand(
+      scene, ed->current_strips(), effect_chain, seq::query_strip_effect_chain);
 
   blender::VectorSet<Strip *> expanded;
   for (Strip *strip : effect_chain) {
@@ -480,8 +480,13 @@ wmOperatorStatus sequencer_clipboard_paste_exec(bContext *C, wmOperator *op)
   ListBase nseqbase = {nullptr, nullptr};
   /* NOTE: seq::seqbase_duplicate_recursive() takes care of generating
    * new UIDs for sequences in the new list. */
-  seq::seqbase_duplicate_recursive(
-      scene_src, scene_dst, &nseqbase, &scene_src->ed->seqbase, seq::StripDuplicate::Selected, 0);
+  seq::seqbase_duplicate_recursive(bmain_dst,
+                                   scene_src,
+                                   scene_dst,
+                                   &nseqbase,
+                                   &scene_src->ed->seqbase,
+                                   seq::StripDuplicate::Selected,
+                                   0);
 
   /* BKE_main_merge will copy the scene_src and its action into bmain_dst. Remove them as
    * we merge the data from these manually.
@@ -492,7 +497,7 @@ wmOperatorStatus sequencer_clipboard_paste_exec(bContext *C, wmOperator *op)
   BKE_id_delete(bmain_dst, scene_src);
 
   Strip *iseq_first = static_cast<Strip *>(nseqbase.first);
-  BLI_movelisttolist(ed_dst->seqbasep, &nseqbase);
+  BLI_movelisttolist(ed_dst->current_strips(), &nseqbase);
   /* Restore "first" pointer as BLI_movelisttolist sets it to nullptr */
   nseqbase.first = iseq_first;
 
@@ -510,8 +515,8 @@ wmOperatorStatus sequencer_clipboard_paste_exec(bContext *C, wmOperator *op)
      * strip. */
     seq::transform_translate_strip(scene_dst, istrip, ofs);
     /* Ensure, that pasted strips don't overlap. */
-    if (seq::transform_test_overlap(scene_dst, ed_dst->seqbasep, istrip)) {
-      seq::transform_seqbase_shuffle(ed_dst->seqbasep, istrip, scene_dst);
+    if (seq::transform_test_overlap(scene_dst, ed_dst->current_strips(), istrip)) {
+      seq::transform_seqbase_shuffle(ed_dst->current_strips(), istrip, scene_dst);
     }
   }
 
