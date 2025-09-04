@@ -538,25 +538,25 @@ static bool uvedit_uv_straighten(Scene *scene, BMesh *bm, eUVWeldAlign tool)
   return changed;
 }
 enum class UVAlignStartPosition {
-  BoundingBox,
-  UVTileGrid,
-  ActiveUDIM,
-  Cursor,
+  BoundingBox = 0,
+  UVTileGrid = 1,
+  ActiveUDIM = 2,
+  Cursor = 3,
 };
 enum class UVAlignIslandAxis {
   X = 0,
   Y = 1,
 };
 enum class UVAlignIslandMode {
-  Max,
-  Min,
-  Center,
-  None,
+  Max = 0,
+  Min = 1,
+  Center = 2,
+  None = 3,
 };
 enum UVAlignIslandOrder {
-  LargeToSmall,
-  SmallToLarge,
-  Fixed,
+  LargeToSmall = 0,
+  SmallToLarge = 1,
+  Fixed = 2,
 };
 
 struct UVAlignIslandBounds {
@@ -641,7 +641,8 @@ static wmOperatorStatus uv_arrange_island_exec(bContext *C, wmOperator *op)
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
       scene, view_layer, nullptr);
 
-  UVAlignStartPosition start = UVAlignStartPosition(RNA_enum_get(op->ptr, "start"));
+  UVAlignStartPosition initial_position = UVAlignStartPosition(
+      RNA_enum_get(op->ptr, "initial_position"));
   UVAlignIslandAxis axis = UVAlignIslandAxis(RNA_enum_get(op->ptr, "axis"));
   UVAlignIslandMode align = UVAlignIslandMode(RNA_enum_get(op->ptr, "align"));
   UVAlignIslandOrder order = UVAlignIslandOrder(RNA_enum_get(op->ptr, "order"));
@@ -650,7 +651,7 @@ static wmOperatorStatus uv_arrange_island_exec(bContext *C, wmOperator *op)
 
   float2 position = {0.0f, 0.0f};
   Bounds<float2> bounds;
-  if (start == UVAlignStartPosition::BoundingBox) {
+  if (initial_position == UVAlignStartPosition::BoundingBox) {
     INIT_MINMAX2(bounds.min, bounds.max);
     for (Object *obedit : objects) {
       BMesh *bm = BKE_editmesh_from_object(obedit)->bm;
@@ -659,7 +660,7 @@ static wmOperatorStatus uv_arrange_island_exec(bContext *C, wmOperator *op)
       });
     }
   }
-  else if (start == UVAlignStartPosition::ActiveUDIM) {
+  else if (initial_position == UVAlignStartPosition::ActiveUDIM) {
     if (sima->image && sima->image->source == IMA_SRC_TILED) {
       bounds.min[0] = bounds.min[1] = sima->image->active_tile_index;
       bounds.max[0] = bounds.max[1] = sima->image->active_tile_index + 1.0f;
@@ -669,7 +670,7 @@ static wmOperatorStatus uv_arrange_island_exec(bContext *C, wmOperator *op)
       bounds.max[0] = bounds.max[1] = 1.0f;
     }
   }
-  else if (start == UVAlignStartPosition::UVTileGrid) {
+  else if (initial_position == UVAlignStartPosition::UVTileGrid) {
     bounds.min[0] = bounds.min[1] = 0.0f;
     bounds.max[0] = sima->tile_grid_shape[0];
     bounds.max[1] = sima->tile_grid_shape[1];
@@ -678,7 +679,7 @@ static wmOperatorStatus uv_arrange_island_exec(bContext *C, wmOperator *op)
     position.x = sima->cursor[0];
     position.y = sima->cursor[1];
   }
-  if (ELEM(start,
+  if (ELEM(initial_position,
            UVAlignStartPosition::BoundingBox,
            UVAlignStartPosition::ActiveUDIM,
            UVAlignStartPosition::UVTileGrid))
@@ -783,7 +784,7 @@ static void UV_OT_arrange_island(wmOperatorType *ot)
 
   /* properties */
   RNA_def_enum(ot->srna,
-               "start",
+               "initial_position",
                initial_position_items,
                int(UVAlignStartPosition::BoundingBox),
                "Initial Position",
@@ -808,7 +809,7 @@ static void UV_OT_arrange_island(wmOperatorType *ot)
                "Order of islands");
 
   RNA_def_float(
-      ot->srna, "margin", 0.05f, 0.0f, 1.0f, "Margin", "Distance between islands", 0.0f, 1.0f);
+      ot->srna, "margin", 0.05f, 0.0f, 1.0f, "Margin", "Space between islands", 0.0f, 1.0f);
 }
 
 static void uv_weld_align(bContext *C, eUVWeldAlign tool)
