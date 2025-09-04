@@ -91,37 +91,37 @@ struct Packer {
   /* Swap closures to avoid gap in data. Closures are then in layer order. */
   void closures_to_layer_order()
   {
-    /* NOTE: 4 closures mode are not yet supported but might be in the future. */
-    if (this->closures[2].is_empty()) {
+/* NOTE: 4 closures mode are not yet supported but might be in the future. */
 #if GBUFFER_LAYER_MAX > 3
+    if (this->closures[2].is_empty()) {
       this->closures[2] = this->closures[3];
       this->closures[3].mode = GBUF_NONE;
-#endif
     }
-    if (this->closures[1].is_empty()) {
+#endif
 #if GBUFFER_LAYER_MAX > 2
+    if (this->closures[1].is_empty()) {
       this->closures[1] = this->closures[2];
       this->closures[2].mode = GBUF_NONE;
-#endif
-#if GBUFFER_LAYER_MAX > 3
+#  if GBUFFER_LAYER_MAX > 3
       this->closures[2] = this->closures[3];
       this->closures[3].mode = GBUF_NONE;
-#endif
+#  endif
     }
-    if (this->closures[0].is_empty()) {
+#endif
 #if GBUFFER_LAYER_MAX > 1
+    if (this->closures[0].is_empty()) {
       this->closures[0] = this->closures[1];
       this->closures[1].mode = GBUF_NONE;
-#endif
-#if GBUFFER_LAYER_MAX > 2
+#  if GBUFFER_LAYER_MAX > 2
       this->closures[1] = this->closures[2];
       this->closures[2].mode = GBUF_NONE;
-#endif
-#if GBUFFER_LAYER_MAX > 3
+#  endif
+#  if GBUFFER_LAYER_MAX > 3
       this->closures[2] = this->closures[3];
       this->closures[3].mode = GBUF_NONE;
-#endif
+#  endif
     }
+#endif
   }
 
   /* Needs to happen in layer order. */
