@@ -53,6 +53,8 @@ struct SocketUsageInferencer {
    * known yet.
    */
   Map<SocketInContext, bool> all_socket_usages_;
+  
+  int total_ = 0;
 
  public:
   SocketUsageInferencer(const bNodeTree &tree,
@@ -68,6 +70,11 @@ struct SocketUsageInferencer {
   {
     root_tree_.ensure_topology_cache();
     root_tree_.ensure_interface_cache();
+  }
+
+  ~SocketUsageInferencer()
+  {
+    printf(">> >> >> : %d;\n", total_);
   }
 
   void mark_top_level_node_outputs_as_used()
@@ -110,6 +117,7 @@ struct SocketUsageInferencer {
     }
 
     BLI_assert(usage_tasks_.is_empty());
+    total_++;
     usage_tasks_.push(socket);
 
     while (!usage_tasks_.is_empty()) {
@@ -462,20 +470,30 @@ struct SocketUsageInferencer {
                                           const ComputeContext *dependent_socket_context)
   {
     /* Check if any of the dependent outputs are used. */
-    int max_socket_distance_to_group_out = std::numeric_limits<int>::min();
+    [[maybe_unused]] int old_socket_distance_to_group_out = 0;
+    [[maybe_unused]] int min_socket_distance_to_group_out = std::numeric_limits<int>::min();
+    [[maybe_unused]] int max_socket_distance_to_group_out = std::numeric_limits<int>::max();
     SocketInContext next_unknown_output;
     bool any_output_used = false;
 
     for (const bNodeSocket *dependent_socket_ptr : dependent_outputs) {
       const SocketInContext dependent_socket{dependent_socket_context, dependent_socket_ptr};
       const std::optional<bool> is_used = all_socket_usages_.lookup_try(dependent_socket);
-      const int socket_distance_to_group_out =
-          dependent_socket_ptr->owner_node().runtime->toposort_right_to_left_index;
+      [[maybe_unused]] const int socket_distance_to_group_out_left = dependent_socket_ptr->owner_node().runtime->toposort_right_to_left_index;
+      [[maybe_unused]] const int socket_distance_to_group_out_right = dependent_socket_ptr->owner_node().runtime->toposort_left_to_right_index;
       if (!is_used.has_value() &&
-          (socket_distance_to_group_out > max_socket_distance_to_group_out))
+          (old_socket_distance_to_group_out == 0))                                     // old 
+          // (socket_distance_to_group_out_left > min_socket_distance_to_group_out))   // max(toposort_right_to_left_index)
+          // (socket_distance_to_group_out_left < max_socket_distance_to_group_out))   // min(toposort_right_to_left_index)
+          // (socket_distance_to_group_out_right > min_socket_distance_to_group_out))  // max(toposort_left_to_right_index)
+          // (socket_distance_to_group_out_right < max_socket_distance_to_group_out))  // min(toposort_left_to_right_index)
       {
         next_unknown_output = dependent_socket;
-        max_socket_distance_to_group_out = socket_distance_to_group_out;
+        old_socket_distance_to_group_out = 1;
+        // min_socket_distance_to_group_out = socket_distance_to_group_out_left;
+        // max_socket_distance_to_group_out = socket_distance_to_group_out_left;
+        // min_socket_distance_to_group_out = socket_distance_to_group_out_right;
+        // max_socket_distance_to_group_out = socket_distance_to_group_out_right;
         continue;
       }
       if (is_used.value_or(false)) {
@@ -513,6 +531,7 @@ struct SocketUsageInferencer {
 
   void push_usage_task(const SocketInContext &socket)
   {
+    total_++;
     usage_tasks_.push(socket);
   }
 
