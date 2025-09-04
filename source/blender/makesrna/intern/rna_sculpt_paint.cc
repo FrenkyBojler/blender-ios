@@ -758,7 +758,8 @@ static void rna_def_paint(BlenderRNA *brna)
   RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr);
 
   prop = RNA_def_property(srna, "show_strength_curve", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "curve_visibility_flags", PAINT_CURVE_SHOW_STRENGTH);
+  RNA_def_property_boolean_sdna(
+      prop, nullptr, "curve_visibility_flags", PAINT_CURVE_SHOW_STRENGTH);
   RNA_def_property_ui_text(prop, "Show Strength Curve", "Show strength curve");
   RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr);
 
