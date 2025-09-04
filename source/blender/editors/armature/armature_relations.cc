@@ -714,7 +714,7 @@ static wmOperatorStatus separate_armature_exec(bContext *C, wmOperator *op)
       bool has_selected_bone = false;
       bool has_selected_any = false;
       LISTBASE_FOREACH (EditBone *, ebone, arm_old->edbo) {
-        if (blender::animrig::bone_is_visible_editbone(arm_old, ebone)) {
+        if (blender::animrig::bone_is_visible(arm_old, ebone)) {
           if (ebone->flag & BONE_SELECTED) {
             has_selected_bone = true;
             break;
@@ -1139,7 +1139,7 @@ static wmOperatorStatus armature_parent_clear_invoke(bContext *C,
 
   uiLayout *row_disconnect = &layout->row(false);
   row_disconnect->enabled_set(enable_disconnect);
-  op_ptr = row_clear->op("ARMATURE_OT_parent_clear", IFACE_("Disconnect Bone"), ICON_NONE);
+  op_ptr = row_disconnect->op("ARMATURE_OT_parent_clear", IFACE_("Disconnect Bone"), ICON_NONE);
   RNA_enum_set(&op_ptr, "type", ARM_PAR_CLEAR_DISCONNECT);
 
   UI_popup_menu_end(C, pup);
