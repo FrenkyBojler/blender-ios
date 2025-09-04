@@ -876,24 +876,6 @@ static wmOperatorStatus lattice_add_exec(bContext *C, wmOperator *op)
         DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
         DEG_relations_tag_update(CTX_data_main(C));
       }
-      else {
-        float bb_min[3], bb_max[3];
-        copy_v3_v3(bb_min, bounds_opt->min);
-        copy_v3_v3(bb_max, bounds_opt->max);
-
-        for (int i = 0; i < 3; i++) {
-          bb_min[i] -= offset;
-          bb_max[i] += offset;
-        }
-
-        float center[3], size[3];
-        mid_v3_v3v3(center, bb_min, bb_max);
-        sub_v3_v3v3(size, bb_max, bb_min);
-
-        copy_v3_v3(ob->loc, center);
-        BKE_object_dimensions_set(ob, size, 0);
-        DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
-      }
     }
     else {
       /* Aligns lattice to a bounding box fit for multiple selected */
