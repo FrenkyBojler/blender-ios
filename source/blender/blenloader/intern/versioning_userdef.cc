@@ -400,6 +400,10 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
   }
 
   if (!USER_VERSION_ATLEAST(500, 74)) {
+    FROM_DEFAULT_V4_UCHAR(tui.panel_active);
+  }
+
+  if (!USER_VERSION_ATLEAST(500, 75)) {
     FROM_DEFAULT_V4_UCHAR(space_action.interpolation_bezier);
     FROM_DEFAULT_V4_UCHAR(space_action.interpolation_constant);
     FROM_DEFAULT_V4_UCHAR(space_action.interpolation_linear);
