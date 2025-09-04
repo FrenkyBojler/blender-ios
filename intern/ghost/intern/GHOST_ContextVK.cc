@@ -696,6 +696,11 @@ GHOST_ContextVK::~GHOST_ContextVK()
   }
 }
 
+GHOST_TSuccess GHOST_ContextVK::swapBufferAcquire()
+{
+  return GHOST_kSuccess;
+}
+
 GHOST_TSuccess GHOST_ContextVK::swapBuffers()
 {
   GHOST_DeviceVK &device_vk = vulkan_instance->device.value();

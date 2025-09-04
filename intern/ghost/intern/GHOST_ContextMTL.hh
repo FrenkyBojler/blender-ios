@@ -50,6 +50,12 @@ class GHOST_ContextMTL : public GHOST_Context {
    */
   ~GHOST_ContextMTL() override;
 
+  /** \copydoc #GHOST_IContext::swapBuffersAcquire */
+  GHOST_TSuccess swapBufferAcquire() override
+  {
+    return GHOST_kSuccess;
+  }
+
   /**
    * Swaps front and back buffers of a window.
    * \return A boolean success indicator.

@@ -141,6 +141,7 @@ static void mainwindow_log(MainWindow *mw, char *str)
 static void mainwindow_do_draw(MainWindow *mw)
 {
   GHOST_ActivateWindowDrawingContext(mw->win);
+  GHOST_SwapWindowBufferAcquire(mw->win);
   GPU_context_active_set(mw->gpu_context);
 
   if (mw->lmbut[0]) {
@@ -432,6 +433,7 @@ static void loggerwindow_do_draw(LoggerWindow *lw)
   int sb_rect[2][2], sb_thumb[2][2];
 
   GHOST_ActivateWindowDrawingContext(lw->win);
+  GHOST_SwapWindowBufferAcquire(lw->win);
   GPU_context_active_set(lw->gpu_context);
 
   glClearColor(1, 1, 1, 1);
@@ -657,6 +659,7 @@ typedef struct {
 static void extrawindow_do_draw(ExtraWindow *ew)
 {
   GHOST_ActivateWindowDrawingContext(ew->win);
+  GHOST_SwapWindowBufferAcquire(eq->win);
   GPU_context_active_set(ew->gpu_context);
 
   glClearColor(1, 1, 1, 1);

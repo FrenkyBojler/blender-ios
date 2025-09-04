@@ -102,6 +102,10 @@ GHOST_IContext *GHOST_Window::getDrawingContext()
   return context_;
 }
 
+GHOST_TSuccess GHOST_Window::swapBufferAcquire()
+{
+  return context_->swapBufferAcquire();
+}
 GHOST_TSuccess GHOST_Window::swapBuffers()
 {
   return context_->swapBuffers();

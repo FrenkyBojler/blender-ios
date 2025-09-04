@@ -125,6 +125,8 @@ class GHOST_ContextVK : public GHOST_Context {
    */
   ~GHOST_ContextVK() override;
 
+  /** \copydoc #GHOST_IContext::swapBuffersAcquire */
+  GHOST_TSuccess swapBufferAcquire() override;
   /**
    * Swaps front and back buffers of a window.
    * \return  A boolean success indicator.

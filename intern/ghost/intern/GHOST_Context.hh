@@ -43,6 +43,9 @@ class GHOST_Context : public GHOST_IContext {
     return active_context_;
   }
 
+  /** \copydoc #GHOST_IContext::swapBuffersAcquire */
+  GHOST_TSuccess swapBufferAcquire() override = 0;
+
   /** \copydoc #GHOST_IContext::swapBuffers */
   GHOST_TSuccess swapBuffers() override = 0;
 

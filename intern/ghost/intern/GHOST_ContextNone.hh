@@ -16,6 +16,12 @@ class GHOST_ContextNone : public GHOST_Context {
  public:
   GHOST_ContextNone(const GHOST_ContextParams &context_params) : GHOST_Context(context_params) {}
 
+  /** \copydoc #GHOST_IContext::swapBuffersAcquire */
+  GHOST_TSuccess swapBufferAcquire() override
+  {
+    return GHOST_kSuccess;
+  }
+
   /**
    * Dummy function
    * \return Always succeeds

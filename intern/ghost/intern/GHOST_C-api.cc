@@ -711,6 +711,13 @@ GHOST_TSuccess GHOST_SetWindowOrder(GHOST_WindowHandle windowhandle, GHOST_TWind
   return window->setOrder(order);
 }
 
+GHOST_TSuccess GHOST_SwapWindowBufferAcquire(GHOST_WindowHandle windowhandle)
+{
+  GHOST_IWindow *window = (GHOST_IWindow *)windowhandle;
+
+  return window->swapBufferAcquire();
+}
+
 GHOST_TSuccess GHOST_SwapWindowBuffers(GHOST_WindowHandle windowhandle)
 {
   GHOST_IWindow *window = (GHOST_IWindow *)windowhandle;

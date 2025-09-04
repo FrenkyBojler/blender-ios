@@ -722,6 +722,13 @@ extern GHOST_TSuccess GHOST_SetWindowOrder(GHOST_WindowHandle windowhandle,
                                            GHOST_TWindowOrder order);
 
 /**
+ * Acquire a swap chain buffer.
+ * \param windowhandle: The handle to the window.
+ * \return A success indicator.
+ */
+extern GHOST_TSuccess GHOST_SwapWindowBufferAcquire(GHOST_WindowHandle windowhandle);
+
+/**
  * Swaps front and back buffers of a window.
  * \param windowhandle: The handle to the window.
  * \return A success indicator.

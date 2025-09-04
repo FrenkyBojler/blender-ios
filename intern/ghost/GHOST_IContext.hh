@@ -52,6 +52,12 @@ class GHOST_IContext {
    */
   virtual unsigned int getDefaultFramebuffer() = 0;
   /**
+   * Acquire next buffer for drawing.
+   * \return A boolean success indicator.
+   */
+  virtual GHOST_TSuccess swapBufferAcquire() = 0;
+
+  /**
    * Swaps front and back buffers of a window.
    * \return A boolean success indicator.
    */

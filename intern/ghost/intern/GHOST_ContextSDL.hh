@@ -44,6 +44,12 @@ class GHOST_ContextSDL : public GHOST_Context {
    */
   ~GHOST_ContextSDL() override;
 
+  /** \copydoc #GHOST_IContext::swapBuffersAcquire */
+  GHOST_TSuccess swapBufferAcquire() override
+  {
+    return GHOST_kSuccess;
+  }
+
   /**
    * Swaps front and back buffers of a window.
    * \return A boolean success indicator.
