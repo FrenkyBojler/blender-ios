@@ -64,23 +64,23 @@ ClosureUndetermined unpack_closure(gbuffer::ClosurePacking cl_in)
   switch (cl_in.mode) {
 #ifdef GBUFFER_HAS_REFLECTION
     case GBUF_REFLECTION:
-      closure::Reflection::unpack_additional(cl, cl_in.data1);
+      gbuffer::Reflection::unpack_additional(cl, cl_in.data1);
       break;
     case GBUF_REFLECTION_COLORLESS:
-      closure::ReflectionColorless::unpack_additional(cl, cl_in.data0);
+      gbuffer::ReflectionColorless::unpack_additional(cl, cl_in.data0);
       break;
 #endif
 #ifdef GBUFFER_HAS_REFRACTION
     case GBUF_REFRACTION:
-      closure::Refraction::unpack_additional(cl, cl_in.data1);
+      gbuffer::Refraction::unpack_additional(cl, cl_in.data1);
       break;
     case GBUF_REFRACTION_COLORLESS:
-      closure::RefractionColorless::unpack_additional(cl, cl_in.data0);
+      gbuffer::RefractionColorless::unpack_additional(cl, cl_in.data0);
       break;
 #endif
 #ifdef GBUFFER_HAS_SUBSURFACE
     case GBUF_SUBSURFACE:
-      closure::Subsurface::unpack_additional(cl, cl_in.data1);
+      gbuffer::Subsurface::unpack_additional(cl, cl_in.data1);
       break;
 #endif
     default:
@@ -114,16 +114,55 @@ ClosureUndetermined read_layer(
 
 namespace gbuffer {
 
-gbuffer::Header read_header(int2 texel)
+using Header = gbuffer::Header;
+
+/* Result of reading the GBuffer. Data are to be indexed by layers.
+ * Note that the normal of the first closure is always guaranteed to be valid even if the closure
+ * has invalid type.*/
+struct Layers {
+  ClosureUndetermined layer[GBUFFER_LAYER_MAX];
+  Header header;
+
+  /* TODO(fclem): Ideally, all loops that index this should be unrolled. */
+  ClosureUndetermined layer_get(uchar i) const
+  {
+    switch (i) {
+      case 0:
+        return layer[0];
+      case 1:
+        return layer[1];
+      case 2:
+        return layer[2];
+    }
+    assert(0);
+    return layer[0];
+  }
+
+  float3 surface_N() const
+  {
+    return layer[0].N;
+  }
+
+  bool has_any_closure() const
+  {
+    return layer[0].type != CLOSURE_NONE_ID;
+  }
+  bool has_no_closure() const
+  {
+    return layer[0].type == CLOSURE_NONE_ID;
+  }
+};
+
+Header read_header(int2 texel)
 {
   usampler2DArray tx = sampler_get(eevee_gbuffer_data, gbuf_header_tx);
   return Header::from_data(texelFetch(tx, int3(texel, 0), 0).r);
 }
 
 /* Read the entirety of the GBuffer by layer. */
-gbuffer::Layers read_layers(int2 texel)
+Layers read_layers(int2 texel)
 {
-  gbuffer::Layers layers;
+  Layers layers;
 
   layers.header = gbuffer::read_header(texel);
   uint3 layer_types = layers.header.bin_types_per_layer();

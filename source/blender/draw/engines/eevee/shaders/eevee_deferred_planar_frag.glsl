@@ -23,7 +23,6 @@ void main()
 
   const gbuffer::Layers gbuf = gbuffer::read_layers(texel);
   const uchar closure_count = gbuf.header.closure_len();
-  const uint3 bin_indices = gbuf.header.bin_index_per_layer();
   const float thickness = gbuffer::read_thickness(gbuf.header, texel);
 
   float3 albedo_front = float3(0.0f);

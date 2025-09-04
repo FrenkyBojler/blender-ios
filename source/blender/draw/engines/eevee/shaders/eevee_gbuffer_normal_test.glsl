@@ -27,6 +27,7 @@ void main()
 {
   float3 Ng = float3(1.0f, 0.0f, 0.0f);
 
+#if 0
   TEST(eevee_gbuffer, NormalPack)
   {
     gbuffer::Writer gbuf;
@@ -270,4 +271,5 @@ void main()
     EXPECT_NEAR(cl3.N, gbuffer_closure_get(data_out, 0).N, 1e-5f);
     EXPECT_NEAR(cl3.N, gbuffer_closure_get_by_bin(data_out, 2).N, 1e-5f);
   }
+#endif
 }

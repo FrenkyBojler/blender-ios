@@ -28,7 +28,7 @@ void main()
 
   float shade = saturate(drw_normal_world_to_view(gbuf.surface_N()).z);
 
-  uint header = gbuffer::read_header(texel).data();
+  uint header = gbuffer::read_header(texel).raw();
   uint4 closure_types = (uint4(header) >> uint4(0u, 4u, 8u, 12u)) & 15u;
   float storage_cost = reduce_add(float4(not(equal(closure_types, uint4(0u)))));
 

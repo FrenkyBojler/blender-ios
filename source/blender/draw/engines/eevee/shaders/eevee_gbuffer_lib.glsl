@@ -29,18 +29,18 @@
 enum UsedLayerFlag : uchar {
   /* Data 0 is always used. */
   /* Data 1 is always used. */
-  CLOSURE_DATA_2 = 1u < 0u,
-  CLOSURE_DATA_3 = 1u < 1u,
-  CLOSURE_DATA_4 = 1u < 2u,
-  CLOSURE_DATA_5 = 1u < 3u,
+  CLOSURE_DATA_2 = 1u << 0u,
+  CLOSURE_DATA_3 = 1u << 1u,
+  CLOSURE_DATA_4 = 1u << 2u,
+  CLOSURE_DATA_5 = 1u << 3u,
 
   /* Normal 0 is always used. */
-  NORMAL_DATA_1 = 1u < 4u,
-  NORMAL_DATA_2 = 1u < 5u,
+  NORMAL_DATA_1 = 1u << 4u,
+  NORMAL_DATA_2 = 1u << 5u,
 
-  ADDITIONAL_DATA = 1u < 6u,
+  ADDITIONAL_DATA = 1u << 6u,
 
-  OBJECT_ID = 1u < 7u,
+  OBJECT_ID = 1u << 7u,
 };
 
 namespace gbuffer {
@@ -259,7 +259,7 @@ uint geometry_normal_pack(float3 Ng, float3 N)
   data |= (Ng_quantize.x < 0.0f) ? (1u << 3u) : 0u;
   data |= (Ng_quantize.y < 0.0f) ? (1u << 4u) : 0u;
   data |= (Ng_quantize.z < 0.0f) ? (1u << 5u) : 0u;
-  return data;
+  return data << 20u;
 }
 
 float3 geometry_normal_unpack(uint data, float3 N)
@@ -354,11 +354,10 @@ struct Header {
   void tangent_space_id_set(uint layer_id, uint normal_id)
   {
     /* Layer 0 will always have normal id 0. It doesn't have to be encoded. Skip it. */
-    if (layer_id != 0u) {
-      /* Note: Keep this in the if statement as it compiles faster somehow. */
-      /* -2 is to skip the layer_id 0 and start encoding for layer_id 1. This keeps the FMA. */
-      this->header_ |= normal_id << ((GBUFFER_NORMAL_BITS_SHIFT - 2u) + layer_id * 2u);
-    }
+    assert(layer_id > 0u);
+    /* Note: Keep this in the if statement as it compiles faster somehow. */
+    /* -2 is to skip the layer_id 0 and start encoding for layer_id 1. This keeps the FMA. */
+    this->header_ |= normal_id << ((GBUFFER_NORMAL_BITS_SHIFT - 2u) + layer_id * 2u);
   }
   uchar tangent_space_id(uint layer_id) const
   {
@@ -426,12 +425,12 @@ struct Header {
   /* Return which closures are empty (equal to GBUF_NONE). */
   bool3 empty_bins() const
   {
-    return equal(bin_types(), uint3(0u));
+    return equal(this->bin_types(), uint3(GBUF_NONE));
   }
 
   uchar closure_len() const
   {
-    return reduce_add(int3(not(empty_bins())));
+    return reduce_add(int3(not(this->empty_bins())));
   }
 
   uchar normal_len() const
@@ -446,7 +445,7 @@ struct Header {
     return count;
   }
 
-  uint data() const
+  uint raw() const
   {
     return this->header_;
   }
@@ -464,7 +463,7 @@ struct Header {
   bool has_additional_data() const
   {
     /* For now, this is true. Only the transmission closures use the thickness data. */
-    return has_transmission();
+    return this->has_transmission();
   }
 
   /* For a given bin index, return the associated layer index.
@@ -526,52 +525,10 @@ struct ClosurePacking {
     return this->mode == GBUF_REFLECTION || this->mode == GBUF_REFRACTION ||
            this->mode == GBUF_SUBSURFACE;
   }
-};
 
-/* Data laid-out as stored in the gbuffer. */
-struct Packed {
-  float4 closure[GBUFFER_LAYER_MAX * 2];
-  float2 normal[GBUFFER_LAYER_MAX];
-  float2 additional_info;
-  uint header;
-  uint object_id;
-  UsedLayerFlag used_layers;
-};
-
-/* Result of reading the GBuffer. Data are to be indexed by layers.
- * Note that the normal of the first closure is always guaranteed to be valid even if the closure
- * has invalid type.*/
-struct Layers {
-  ClosureUndetermined layer[GBUFFER_LAYER_MAX];
-  Header header;
-
-  /* TODO(fclem): Ideally, all loops that index this should be unrolled. */
-  ClosureUndetermined layer_get(uchar i) const
+  bool is_empty() const
   {
-    switch (i) {
-      case 0:
-        return layer[0];
-      case 1:
-        return layer[1];
-      case 2:
-        return layer[2];
-    }
-    assert(0);
-    return layer[0];
-  }
-
-  float3 surface_N() const
-  {
-    return layer[0].N;
-  }
-
-  bool has_any_closure() const
-  {
-    return layer[0].type != CLOSURE_NONE_ID;
-  }
-  bool has_no_closure() const
-  {
-    return layer[0].type == CLOSURE_NONE_ID;
+    return this->mode == GBUF_NONE;
   }
 };
 
@@ -579,7 +536,9 @@ struct Layers {
 
 }  // namespace gbuffer
 
-namespace gbuffer::closure {
+namespace gbuffer {
+
+using ClosurePacking = gbuffer::ClosurePacking;
 
 /* -------------------------------------------------------------------- */
 /** \name Pack / Unpack Closures
@@ -587,19 +546,19 @@ namespace gbuffer::closure {
  * \{ */
 
 struct Subsurface {
-  static void pack_additional(gbuffer::ClosurePacking &cl_packed, ClosureUndetermined cl)
+  static void pack_additional(ClosurePacking &cl_packed, ClosureUndetermined cl)
   {
-    cl_packed.data1 = sss_radii_pack(cl.data.xyz);
+    cl_packed.data1 = gbuffer::sss_radii_pack(cl.data.xyz);
   }
 
   static void unpack_additional(ClosureUndetermined &cl, float4 data1)
   {
-    cl.data.rgb = sss_radii_unpack(data1);
+    cl.data.rgb = gbuffer::sss_radii_unpack(data1);
   }
 };
 
 struct Reflection {
-  static void pack_additional(gbuffer::ClosurePacking &cl_packed, ClosureUndetermined cl)
+  static void pack_additional(ClosurePacking &cl_packed, ClosureUndetermined cl)
   {
     cl_packed.data1 = float4(cl.data.x, 0.0f, 0.0f, 0.0f);
   }
@@ -611,21 +570,21 @@ struct Reflection {
 };
 
 struct Refraction {
-  static void pack_additional(gbuffer::ClosurePacking &cl_packed, ClosureUndetermined cl)
+  static void pack_additional(ClosurePacking &cl_packed, ClosureUndetermined cl)
   {
-    cl_packed.data1 = float4(cl.data.x, ior_pack(cl.data.y), 0.0f, 0.0f);
+    cl_packed.data1 = float4(cl.data.x, gbuffer::ior_pack(cl.data.y), 0.0f, 0.0f);
   }
 
   static void unpack_additional(ClosureUndetermined &cl, float4 data1)
   {
     cl.data.x = data1.x; /* Roughness. */
-    cl.data.y = ior_unpack(data1.y);
+    cl.data.y = gbuffer::ior_unpack(data1.y);
   }
 };
 
 /* Special case where we can save 1 data layers per closure. */
 struct ReflectionColorless {
-  static void pack_additional(gbuffer::ClosurePacking &cl_packed, ClosureUndetermined cl)
+  static void pack_additional(ClosurePacking &cl_packed, ClosureUndetermined cl)
   {
     cl_packed.data0 = float4(cl.data.x, 0.0f, cl_packed.data0.zw);
   }
@@ -639,19 +598,19 @@ struct ReflectionColorless {
 
 /* Special case where we can save 1 data layers per closure. */
 struct RefractionColorless {
-  static void pack_additional(gbuffer::ClosurePacking &cl_packed, ClosureUndetermined cl)
+  static void pack_additional(ClosurePacking &cl_packed, ClosureUndetermined cl)
   {
-    cl_packed.data0 = float4(cl.data.x, ior_pack(cl.data.y), cl_packed.data0.zw);
+    cl_packed.data0 = float4(cl.data.x, gbuffer::ior_pack(cl.data.y), cl_packed.data0.zw);
   }
 
   static void unpack_additional(ClosureUndetermined &cl, float4 data0)
   {
     cl.color = cl.color.zzz;
     cl.data.x = data0.x; /* Roughness. */
-    cl.data.y = ior_unpack(data0.y);
+    cl.data.y = gbuffer::ior_unpack(data0.y);
   }
 };
 
 /** \} */
 
-}  // namespace gbuffer::closure
+}  // namespace gbuffer

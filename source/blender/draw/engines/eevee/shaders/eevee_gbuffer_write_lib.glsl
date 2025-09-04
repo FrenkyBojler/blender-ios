@@ -26,38 +26,41 @@
 
 namespace gbuffer {
 
-gbuffer::ClosurePacking pack_closure(ClosureUndetermined cl)
+using ClosurePacking = gbuffer::ClosurePacking;
+using Header = gbuffer::Header;
+
+ClosurePacking pack_closure(ClosureUndetermined cl)
 {
-  gbuffer::ClosurePacking cl_packed;
-  cl_packed.mode = closure_type_to_mode(cl.type, color_is_grayscale(cl.color));
+  ClosurePacking cl_packed;
+  cl_packed.mode = gbuffer::closure_type_to_mode(cl.type, gbuffer::color_is_grayscale(cl.color));
 
   if (cl.weight <= CLOSURE_WEIGHT_CUTOFF) {
     cl_packed.mode = GBUF_NONE;
   }
   /* Common to all configs. */
   cl_packed.N = cl.N;
-  cl_packed.data0 = closure_color_pack(cl.color);
+  cl_packed.data0 = gbuffer::closure_color_pack(cl.color);
   /* Some closures require additional packing. */
   switch (cl_packed.mode) {
 #ifdef GBUFFER_HAS_REFLECTION
     case GBUF_REFLECTION:
-      closure::Reflection::pack_additional(cl_packed, cl);
+      gbuffer::Reflection::pack_additional(cl_packed, cl);
       break;
     case GBUF_REFLECTION_COLORLESS:
-      closure::ReflectionColorless::pack_additional(cl_packed, cl);
+      gbuffer::ReflectionColorless::pack_additional(cl_packed, cl);
       break;
 #endif
 #ifdef GBUFFER_HAS_REFRACTION
     case GBUF_REFRACTION:
-      closure::Refraction::pack_additional(cl_packed, cl);
+      gbuffer::Refraction::pack_additional(cl_packed, cl);
       break;
     case GBUF_REFRACTION_COLORLESS:
-      closure::RefractionColorless::pack_additional(cl_packed, cl);
+      gbuffer::RefractionColorless::pack_additional(cl_packed, cl);
       break;
 #endif
 #ifdef GBUFFER_HAS_SUBSURFACE
     case GBUF_SUBSURFACE:
-      closure::Subsurface::pack_additional(cl_packed, cl);
+      gbuffer::Subsurface::pack_additional(cl_packed, cl);
       break;
 #endif
     default:
@@ -65,6 +68,16 @@ gbuffer::ClosurePacking pack_closure(ClosureUndetermined cl)
   }
   return cl_packed;
 }
+
+/* Data laid-out as stored in the gbuffer. */
+struct Packed {
+  float4 closure[GBUFFER_LAYER_MAX * 2];
+  float2 normal[GBUFFER_LAYER_MAX];
+  float2 additional_info;
+  uint header;
+  uint object_id;
+  UsedLayerFlag used_layers;
+};
 
 /* Transient data used during packing. */
 struct Packer {
@@ -76,44 +89,65 @@ struct Packer {
   Header header;
 
   /* Swap closures to avoid gap in data. Closures are then in layer order. */
-  void closures_to_layer_order(const bool3 empty_bins)
+  void closures_to_layer_order()
   {
-    if (empty_bins.y) {
-#if GBUFFER_LAYER_MAX > 2
-      closures[1] = closures[2];
-      closures[2].mode = GBUF_NONE;
+    /* NOTE: 4 closures mode are not yet supported but might be in the future. */
+    if (this->closures[2].is_empty()) {
+#if GBUFFER_LAYER_MAX > 3
+      this->closures[2] = this->closures[3];
+      this->closures[3].mode = GBUF_NONE;
 #endif
     }
-    if (empty_bins.x) {
-#if GBUFFER_LAYER_MAX > 1
-      closures[0] = closures[1];
-      closures[1].mode = GBUF_NONE;
+    if (this->closures[1].is_empty()) {
+#if GBUFFER_LAYER_MAX > 2
+      this->closures[1] = this->closures[2];
+      this->closures[2].mode = GBUF_NONE;
 #endif
+#if GBUFFER_LAYER_MAX > 3
+      this->closures[2] = this->closures[3];
+      this->closures[3].mode = GBUF_NONE;
+#endif
+    }
+    if (this->closures[0].is_empty()) {
 #if GBUFFER_LAYER_MAX > 1
-      closures[1] = closures[2];
-      closures[2].mode = GBUF_NONE;
+      this->closures[0] = this->closures[1];
+      this->closures[1].mode = GBUF_NONE;
+#endif
+#if GBUFFER_LAYER_MAX > 2
+      this->closures[1] = this->closures[2];
+      this->closures[2].mode = GBUF_NONE;
+#endif
+#if GBUFFER_LAYER_MAX > 3
+      this->closures[2] = this->closures[3];
+      this->closures[3].mode = GBUF_NONE;
 #endif
     }
   }
 
   /* Needs to happen in layer order. */
-  void reuse_tangent_spaces(const bool3 empty_bins)
+  void reuse_tangent_spaces()
   {
+    /* Assume that the header was cleared to 0 and all layers point to the 1st tangent (0 id). */
+    /* Since this function runs in layer ordering (after compaction) each layer (if non-empty) can
+     * rely on the previous one to also be non-empty. */
 #if GBUFFER_LAYER_MAX > 1
-    if (empty_bins[1] || (all(equal(closures[0].N, closures[1].N)))) {
-      this->header.tangent_space_id_set(1, 0);
-#  if GBUFFER_LAYER_MAX > 2
-      if (empty_bins[2] || (all(equal(closures[0].N, closures[2].N)))) {
-        this->header.tangent_space_id_set(2, 0);
+    if (!this->closures[1].is_empty()) {
+      if (!all(equal(this->closures[0].N, this->closures[1].N))) {
+        /* Unique tangent space. */
+        this->header.tangent_space_id_set(1, 1);
       }
-#  endif
     }
-    else {
-#  if GBUFFER_LAYER_MAX > 2
-      if (empty_bins[2] || (all(equal(closures[1].N, closures[2].N)))) {
+#endif
+#if GBUFFER_LAYER_MAX > 2
+    if (!this->closures[2].is_empty()) {
+      if (all(equal(this->closures[1].N, this->closures[2].N))) {
+        /* Reuse layer 1 tangent space. */
         this->header.tangent_space_id_set(2, 1);
       }
-#  endif
+      else if (!all(equal(this->closures[0].N, this->closures[2].N))) {
+        /* Unique tangent space. */
+        this->header.tangent_space_id_set(2, 2);
+      }
     }
 #endif
   }
@@ -121,10 +155,10 @@ struct Packer {
   UsedLayerFlag get_used_normal_layers()
   {
     uchar flag = 0;
-    if (this->header.tangent_space_id(1) != 1u) {
+    if (this->header.tangent_space_id(1) == 1u) {
       flag |= NORMAL_DATA_1;
     }
-    if (this->header.tangent_space_id(2) != 2u) {
+    if (this->header.tangent_space_id(2) == 2u) {
       flag |= NORMAL_DATA_2;
     }
     return UsedLayerFlag(flag);
@@ -133,10 +167,14 @@ struct Packer {
   Packed result_get()
   {
     Packed data;
-    data.normal[0] = normal_pack(this->closures[0].N);
-    data.normal[1] = normal_pack(this->closures[1].N);
-    data.normal[2] = normal_pack(this->closures[2].N);
-    uchar used_layers = get_used_normal_layers();
+    data.normal[0] = gbuffer::normal_pack(this->closures[0].N);
+#if GBUFFER_LAYER_MAX > 1
+    data.normal[1] = gbuffer::normal_pack(this->closures[1].N);
+#endif
+#if GBUFFER_LAYER_MAX > 2
+    data.normal[2] = gbuffer::normal_pack(this->closures[2].N);
+#endif
+    uchar used_layers = this->get_used_normal_layers();
 
     uint closure_len = this->header.closure_len();
 
@@ -183,7 +221,7 @@ struct Packer {
       set_flag_from_test(used_layers, true, OBJECT_ID);
     }
 
-    data.header = this->header.data();
+    data.header = this->header.raw();
 
     return data;
   }
@@ -203,7 +241,7 @@ Packed pack(
     InputClosures cl_data, float3 Ng, packed_float3 surface_N, float thickness, bool use_object_id)
 {
   Packer packer;
-  packer.header = gbuffer::Header::zero();
+  packer.header = Header::zero();
   packer.header.use_object_id_set(use_object_id);
 
   for (int i = 0; i < GBUFFER_LAYER_MAX; i++) {
@@ -215,23 +253,21 @@ Packed pack(
   }
 
   if (packer.header.has_additional_data()) {
-    packer.additional_info = AdditionalInfo::pack(thickness).x;
+    packer.additional_info = gbuffer::AdditionalInfo::pack(thickness).x;
   }
 
-  bool3 empty_bins = packer.header.empty_bins();
-
   /* ---- Switch from Bin to Layer order. ---- */
-  packer.closures_to_layer_order(empty_bins);
+  packer.closures_to_layer_order();
 
   /* This is correct in layer order. */
   bool has_any_closure = packer.closures[0].mode != GBUF_NONE;
   if (!has_any_closure) {
     /* Output dummy closure in the case of unlit materials for correct render passes data. */
-    packer.closures[0] = gbuffer::ClosurePacking::fallback(surface_N);
+    packer.closures[0] = ClosurePacking::fallback(surface_N);
     packer.header.closure_set(0, packer.closures[0].mode);
   }
 
-  packer.reuse_tangent_spaces(empty_bins);
+  packer.reuse_tangent_spaces();
 
   /* Needs to happen in layer order and after normal fallback. */
   packer.header.geometry_normal_set(Ng, packer.closures[0].N);
