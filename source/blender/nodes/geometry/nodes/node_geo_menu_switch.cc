@@ -225,7 +225,7 @@ class MenuSwitchFn : public mf::MultiFunction {
         for (const int item_i : IndexRange(inputs_num)) {
           MutableSpan<bool> item_mask_output = item_mask_outputs[item_i];
           if (!item_mask_output.is_empty()) {
-            array_utils::fill(item_i == index, mask, item_mask_output);
+            index_mask::masked_fill(item_mask_output, item_i == index, mask);
           }
         }
       }
@@ -236,7 +236,7 @@ class MenuSwitchFn : public mf::MultiFunction {
         for (const int item_i : IndexRange(inputs_num)) {
           MutableSpan<bool> item_mask_output = item_mask_outputs[item_i];
           if (!item_mask_output.is_empty()) {
-            array_utils::fill(false, mask, item_mask_output);
+            index_mask::masked_fill(item_mask_output, false, mask);
           }
         }
       }
@@ -258,9 +258,9 @@ class MenuSwitchFn : public mf::MultiFunction {
       if (!item_mask_output.is_empty()) {
         if (mask.size() != mask_for_index.size()) {
           /* First set output to false before setting selected items to true. */
-          array_utils::fill(false, mask, item_mask_output);
+          index_mask::masked_fill(item_mask_output, false, mask);
         }
-        array_utils::fill(true, mask_for_index, item_mask_output);
+        index_mask::masked_fill(item_mask_output, true, mask_for_index);
       }
     }
 
