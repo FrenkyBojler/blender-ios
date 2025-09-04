@@ -240,6 +240,10 @@ struct SocketUsageInferencer {
         break;
       }
       default: {
+        if (node->is_type("NodeForgoValue")) {
+          this->usage_task__input__forgo_value(socket);
+          break;
+        }
         this->usage_task__input__fallback(socket);
         break;
       }
@@ -404,6 +408,20 @@ struct SocketUsageInferencer {
     const NodeInContext node = socket.owner_node();
     this->usage_task__with_dependent_sockets(
         socket, {&node->output_socket(socket->index())}, {}, socket.context);
+  }
+
+  void usage_task__input__forgo_value(const SocketInContext &socket)
+  {
+    const NodeInContext node = socket.owner_node();
+    const SocketInContext keep_socket = node.input_socket(1);
+    const SocketInContext output_socket = node.output_socket(0);
+    if (socket == keep_socket) {
+      this->usage_task__with_dependent_sockets(socket, {&*output_socket}, {}, socket.context);
+    }
+    else {
+      this->usage_task__with_dependent_sockets(
+          socket, {&*output_socket}, {&*keep_socket}, socket.context);
+    }
   }
 
   void usage_task__input__fallback(const SocketInContext &socket)
@@ -597,6 +615,10 @@ Array<SocketUsage> infer_all_sockets_usage(const bNodeTree &tree)
     usage.is_visible = false;
   }
   for (const bNodeSocket *socket : all_output_sockets) {
+    const bNode &node = socket->owner_node();
+    if (node.is_group_input()) {
+      continue;
+    }
     const SocketInContext socket_ctx{nullptr, socket};
     if (inferencer_all_unknown.socket_has_default_value(socket_ctx)) {
       /* The output always has the default value unconditionally. */
