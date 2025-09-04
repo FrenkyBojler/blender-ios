@@ -492,7 +492,6 @@ class WorkspaceStatus {
 
   /**
    * Add extra (or negative) space between items.
-   *
    */
   void separator(float factor = 1.0f);
 
