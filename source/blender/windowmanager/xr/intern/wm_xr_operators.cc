@@ -1353,6 +1353,75 @@ static void WM_OT_xr_navigation_fly(wmOperatorType *ot)
  * Casts a ray from an XR controller's pose and teleports to any hit geometry.
  * \{ */
 
+static float wm_xr_navigation_teleport_pose_calc(wmXrData *xr,
+                                                 float nav_destination[3],
+                                                 const float destination[4],
+                                                 const float normal[3],
+                                                 const bool teleport_axes[3],
+                                                 float teleport_t,
+                                                 float teleport_ofs,
+                                                 float vertical_ofs)
+{
+  float nav_location[3], nav_rotation[4], viewer_location[3];
+  WM_xr_session_state_nav_location_get(xr, nav_location);
+  WM_xr_session_state_nav_rotation_get(xr, nav_rotation);
+  WM_xr_session_state_viewer_pose_location_get(xr, viewer_location);
+
+  float nav_axes[3][3], projected[3], v0[3], v1[3], destination_with_ofs[3];
+
+  copy_v3_fl(nav_destination, 0.0f);
+  copy_v3_v3(destination_with_ofs, destination);
+  destination_with_ofs[2] += vertical_ofs;
+
+  wm_xr_basenav_rotation_calc(xr, nav_rotation, nav_rotation);
+  quat_to_mat3(nav_axes, nav_rotation);
+
+  /* Project locations onto navigation axes. */
+  for (int a = 0; a < 3; ++a) {
+    project_v3_v3v3_normalized(projected, nav_location, nav_axes[a]);
+    if (teleport_axes[a]) {
+      /* Interpolate between projected locations. */
+      project_v3_v3v3_normalized(v0, destination_with_ofs, nav_axes[a]);
+      project_v3_v3v3_normalized(v1, viewer_location, nav_axes[a]);
+      sub_v3_v3(v0, v1);
+      madd_v3_v3fl(projected, v0, teleport_t);
+      /* Subtract offset. */
+      project_v3_v3v3_normalized(v0, normal, nav_axes[a]);
+      madd_v3_v3fl(projected, v0, teleport_ofs);
+    }
+    /* Add to final location. */
+    add_v3_v3(nav_destination, projected);
+  }
+
+  return len_v3v3(viewer_location, destination);
+}
+
+static bool wm_xr_navigation_teleport_ground_plane(float points[XR_MAX_RAYCASTS + 1][4],
+                                                   int *num_points,
+                                                   float *ray_dist)
+{
+  constexpr uint z = 2;
+  for (int i = 1; i < *num_points; ++i) {
+    float *startpoint = points[i - 1], *endpoint = points[i];
+
+    if (startpoint[z] < 0 == endpoint[z] < 0) {
+      continue;
+    }
+
+    if (startpoint[z] == endpoint[z]) {
+      break;
+    }
+
+    float segment_ray_dist = len_v3v3(startpoint, endpoint);
+    float alpha = startpoint[z] / (startpoint[z] - endpoint[z]);
+    interp_v3_v3v3(endpoint, startpoint, endpoint, alpha);
+
+    *ray_dist = segment_ray_dist * (i - 1) + len_v3v3(startpoint, endpoint);
+    *num_points = i + 1;
+    return true;
+  }
+}
+
 static bool wm_xr_navigation_teleport(bContext *C,
                                       wmXrData *xr,
                                       float nav_destination[3],
@@ -1365,22 +1434,21 @@ static bool wm_xr_navigation_teleport(bContext *C,
                                       const bool teleport_axes[3],
                                       float teleport_t,
                                       float teleport_ofs,
-                                      float gravity)
+                                      float gravity,
+                                      float head_height)
 {
-  float nav_location[3], nav_rotation[4], viewer_location[3];
-  WM_xr_session_state_nav_location_get(xr, nav_location);
-  WM_xr_session_state_nav_rotation_get(xr, nav_rotation);
-  WM_xr_session_state_viewer_pose_location_get(xr, viewer_location);
-
   Scene *scene = CTX_data_scene(C);
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-  float normal[3], segment_direction[3];
   int index;
   const Object *ob = nullptr;
   float obmat[4][4];
-  bool result;
+
+  float normal[3], segment_direction[3];
+  float vertical_ofs = 0;
+  bool result = false;
 
   copy_v3_v3(segment_direction, direction);
+  copy_v3_fl3(normal, 0, 1, 0);
 
   /* When ray_dist == 0 or -1, the raycast is a line of infinite length. */
   if (*ray_dist <= 0.0f) {
@@ -1415,6 +1483,7 @@ static bool wm_xr_navigation_teleport(bContext *C,
         mul_v3_fl(normal, -1.0f);
       }
 
+      result = true;
       break;
     }
 
@@ -1425,66 +1494,67 @@ static bool wm_xr_navigation_teleport(bContext *C,
     normalize_v3(segment_direction);
   }
 
-  result = ob != nullptr;
-
-  /** Fall back to whether the raycast intersected with the ground plane. */
+  /** Fall back to raycast intersecting with the ground plane. */
   if (!result) {
-    constexpr uint z = 2;
-    for (int i = 1; i < *num_points; ++i) {
-      float *startpoint = points[i - 1], *endpoint = points[i];
-
-      if (startpoint[z] < 0 == endpoint[z] < 0) {
-        continue;
-      }
-
-      if (startpoint[z] == endpoint[z]) {
-        break;
-      }
-
-      float alpha = startpoint[z] / (startpoint[z] - endpoint[z]);
-      interp_v3_v3v3(endpoint, startpoint, endpoint, alpha);
-
-      *ray_dist = segment_ray_dist * (i - 1) + len_v3v3(startpoint, endpoint);
-
-      copy_v3_fl3(normal, 0, 0, startpoint[z] < 0 ? -1 : 1);
-
-      *num_points = i + 1;
-      result = true;
-      break;
-    }
+    result = wm_xr_navigation_teleport_ground_plane(points, num_points, ray_dist);
+    vertical_ofs = head_height;
   }
 
-  /* Calculate teleportation destination in navigation space */
   if (result) {
-    float nav_axes[3][3], projected[3], v0[3], v1[3];
-    copy_v3_fl(nav_destination, 0.0f);
+    float origin[3], dummy_dest[3], dummy_normal[3];
 
-    wm_xr_basenav_rotation_calc(xr, nav_rotation, nav_rotation);
-    quat_to_mat3(nav_axes, nav_rotation);
+    /* Raycast downward to see if we're on the floor */
+    copy_v3_fl3(segment_direction, 0, 0, -1);
 
-    /* Project locations onto navigation axes. */
-    for (int a = 0; a < 3; ++a) {
-      project_v3_v3v3_normalized(projected, nav_location, nav_axes[a]);
-      if (teleport_axes[a]) {
-        /* Interpolate between projected locations. */
-        project_v3_v3v3_normalized(v0, points[*num_points - 1], nav_axes[a]);
-        project_v3_v3v3_normalized(v1, viewer_location, nav_axes[a]);
-        sub_v3_v3(v0, v1);
-        madd_v3_v3fl(projected, v0, teleport_t);
-        /* Subtract offset. */
-        project_v3_v3v3_normalized(v0, normal, nav_axes[a]);
-        madd_v3_v3fl(projected, v0, teleport_ofs);
-      }
-      /* Add to final location. */
-      add_v3_v3(nav_destination, projected);
+    copy_v3_v3(origin, points[*num_points - 1]);
+    madd_v3_v3fl(origin, normal, teleport_ofs);
+    madd_v3_v3fl(origin, segment_direction, -vertical_ofs);
+
+    segment_ray_dist = head_height;
+    wm_xr_raycast(scene,
+                  depsgraph,
+                  origin,
+                  segment_direction,
+                  &segment_ray_dist,
+                  selectable_only,
+                  dummy_dest,
+                  dummy_normal,
+                  &index,
+                  &ob,
+                  obmat);
+
+    /* Raycast upward to make sure we don't clip through the ceiling */
+    if (ob) {
+      copy_v3_fl3(segment_direction, 0, 0, 1);
+
+      copy_v3_v3(origin, points[*num_points - 1]);
+      madd_v3_v3fl(origin, normal, teleport_ofs);
+
+      segment_ray_dist = head_height - segment_ray_dist;
+      wm_xr_raycast(scene,
+                    depsgraph,
+                    origin,
+                    segment_direction,
+                    &segment_ray_dist,
+                    selectable_only,
+                    dummy_dest,
+                    dummy_normal,
+                    &index,
+                    &ob,
+                    obmat);
+
+      vertical_ofs = segment_ray_dist;
     }
 
-    /* If we're teleporting based on ground plane, prevent vertical movement */
-    if (ob == nullptr) {
-      nav_destination[2] = nav_location[2];
-    }
-
-    *destination_dist = len_v3v3(viewer_location, points[*num_points - 1]);
+    /* Calculate teleportation destination in navigation space */
+    *destination_dist = wm_xr_navigation_teleport_pose_calc(xr,
+                                                            nav_destination,
+                                                            points[*num_points - 1],
+                                                            normal,
+                                                            teleport_axes,
+                                                            teleport_t,
+                                                            teleport_ofs,
+                                                            vertical_ofs);
   }
 
   return result;
@@ -1532,7 +1602,7 @@ static wmOperatorStatus wm_xr_navigation_teleport_modal(bContext *C,
 
   XrRaycastData *data = static_cast<XrRaycastData *>(op->customdata);
   bool selectable_only, teleport_axes[3];
-  float teleport_t, teleport_ofs, ray_dist, gravity, nav_scale, destination_dist,
+  float teleport_t, teleport_ofs, ray_dist, gravity, head_height, nav_scale, destination_dist,
       nav_destination[3];
 
   WM_xr_session_state_nav_scale_get(xr, &nav_scale);
@@ -1543,6 +1613,7 @@ static wmOperatorStatus wm_xr_navigation_teleport_modal(bContext *C,
   selectable_only = RNA_boolean_get(op->ptr, "selectable_only");
   ray_dist = RNA_float_get(op->ptr, "distance") * nav_scale;
   gravity = RNA_float_get(op->ptr, "gravity");
+  head_height = xr->runtime->session_state.prev_local_pose.position[1] * nav_scale;
 
   data->num_points = XR_MAX_RAYCASTS + 1;
   data->success = wm_xr_navigation_teleport(C,
@@ -1557,7 +1628,8 @@ static wmOperatorStatus wm_xr_navigation_teleport_modal(bContext *C,
                                             teleport_axes,
                                             teleport_t,
                                             teleport_ofs,
-                                            gravity);
+                                            gravity,
+                                            head_height);
 
   if (data->success) {
     RNA_float_get_array(op->ptr, "hit_color", data->color);
