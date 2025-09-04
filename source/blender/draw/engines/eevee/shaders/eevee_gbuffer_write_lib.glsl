@@ -167,6 +167,9 @@ struct Packer {
   Packed result_get()
   {
     Packed data;
+    /* Note: Normals are not interleaved or packed together.
+     * Even if they are packed, only the first one is required to be written in the gbuffer.
+     * The other ones are optional. This means layer's tangent space are indexed using layer id. */
     data.normal[0] = gbuffer::normal_pack(this->closures[0].N);
 #if GBUFFER_LAYER_MAX > 1
     data.normal[1] = gbuffer::normal_pack(this->closures[1].N);

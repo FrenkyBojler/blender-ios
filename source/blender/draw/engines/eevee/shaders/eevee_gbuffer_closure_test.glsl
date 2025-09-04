@@ -40,8 +40,8 @@ void main()
     data_in.closure[1].color = float3(0.1f, 0.2f, 0.3f);
     data_in.closure[1].N = normalize(float3(0.2f, 0.1f, 0.3f));
 
-    gbuffer::Packed data_out = gbuffer::pack(data_in, Ng, N, thickness, false);
-    gbuffer::Header header = gbuffer::Header::from_data(data_out.header);
+    const gbuffer::Packed data_out = gbuffer::pack(data_in, Ng, N, thickness, false);
+    const gbuffer::Header header = gbuffer::Header::from_data(data_out.header);
 
     EXPECT_EQ(uint(data_out.used_layers), 0u);
     EXPECT_EQ(uint3(header.empty_bins()), uint3(1, 0, 1));
@@ -66,8 +66,8 @@ void main()
     data_in.closure[0].data.rgb = float3(0.2f, 0.3f, 0.4f);
     data_in.closure[0].N = normalize(float3(0.2f, 0.1f, 0.3f));
 
-    gbuffer::Packed data_out = gbuffer::pack(data_in, Ng, N, thickness, false);
-    gbuffer::Header header = gbuffer::Header::from_data(data_out.header);
+    const gbuffer::Packed data_out = gbuffer::pack(data_in, Ng, N, thickness, false);
+    const gbuffer::Header header = gbuffer::Header::from_data(data_out.header);
 
     EXPECT_EQ(uint(data_out.used_layers), uint(ADDITIONAL_DATA));
     EXPECT_EQ(uint3(header.empty_bins()), uint3(0, 1, 1));
@@ -93,8 +93,8 @@ void main()
     data_in.closure[0].color = float3(0.1f, 0.2f, 0.3f);
     data_in.closure[0].N = normalize(float3(0.2f, 0.1f, 0.3f));
 
-    gbuffer::Packed data_out = gbuffer::pack(data_in, Ng, N, thickness, false);
-    gbuffer::Header header = gbuffer::Header::from_data(data_out.header);
+    const gbuffer::Packed data_out = gbuffer::pack(data_in, Ng, N, thickness, false);
+    const gbuffer::Header header = gbuffer::Header::from_data(data_out.header);
 
     EXPECT_EQ(uint(data_out.used_layers), uint(ADDITIONAL_DATA));
     EXPECT_EQ(uint3(header.empty_bins()), uint3(0, 1, 1));
@@ -119,8 +119,8 @@ void main()
     data_in.closure[0].data.x = 0.4f;
     data_in.closure[0].N = normalize(float3(0.2f, 0.1f, 0.3f));
 
-    gbuffer::Packed data_out = gbuffer::pack(data_in, Ng, N, thickness, false);
-    gbuffer::Header header = gbuffer::Header::from_data(data_out.header);
+    const gbuffer::Packed data_out = gbuffer::pack(data_in, Ng, N, thickness, false);
+    const gbuffer::Header header = gbuffer::Header::from_data(data_out.header);
 
     EXPECT_EQ(uint(data_out.used_layers), 0u);
     EXPECT_EQ(uint3(header.empty_bins()), uint3(0, 1, 1));
@@ -148,8 +148,8 @@ void main()
     data_in.closure[0].data.y = 0.5f;
     data_in.closure[0].N = normalize(float3(0.2f, 0.1f, 0.3f));
 
-    gbuffer::Packed data_out = gbuffer::pack(data_in, Ng, N, thickness, false);
-    gbuffer::Header header = gbuffer::Header::from_data(data_out.header);
+    const gbuffer::Packed data_out = gbuffer::pack(data_in, Ng, N, thickness, false);
+    const gbuffer::Header header = gbuffer::Header::from_data(data_out.header);
 
     EXPECT_EQ(uint(data_out.used_layers), uint(ADDITIONAL_DATA));
     EXPECT_EQ(uint3(header.empty_bins()), uint3(0, 1, 1));
@@ -187,8 +187,8 @@ void main()
     data_in.closure[0] = in_cl0;
     data_in.closure[2] = in_cl1;
 
-    gbuffer::Packed data_out = gbuffer::pack(data_in, Ng, N, thickness, false);
-    gbuffer::Header header = gbuffer::Header::from_data(data_out.header);
+    const gbuffer::Packed data_out = gbuffer::pack(data_in, Ng, N, thickness, false);
+    const gbuffer::Header header = gbuffer::Header::from_data(data_out.header);
 
     EXPECT_EQ(uint(data_out.used_layers),
               uint(ADDITIONAL_DATA | NORMAL_DATA_1 | CLOSURE_DATA_2 | CLOSURE_DATA_3));
@@ -235,8 +235,8 @@ void main()
     data_in.closure[1].data.x = 0.4f;
     data_in.closure[1].N = normalize(float3(0.2f, 0.3f, 0.4f));
 
-    gbuffer::Packed data_out = gbuffer::pack(data_in, Ng, N, thickness, false);
-    gbuffer::Header header = gbuffer::Header::from_data(data_out.header);
+    const gbuffer::Packed data_out = gbuffer::pack(data_in, Ng, N, thickness, false);
+    const gbuffer::Header header = gbuffer::Header::from_data(data_out.header);
 
     EXPECT_EQ(uint(data_out.used_layers), uint(ADDITIONAL_DATA | NORMAL_DATA_1));
     EXPECT_EQ(uint3(header.empty_bins()), uint3(0, 0, 1));
