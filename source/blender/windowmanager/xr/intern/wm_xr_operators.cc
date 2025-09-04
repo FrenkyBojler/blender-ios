@@ -1525,12 +1525,13 @@ static bool wm_xr_navigation_teleport(bContext *C,
 
     /* Raycast upward to make sure we don't clip through the ceiling */
     if (ob) {
+      vertical_ofs = head_height - segment_ray_dist;
       copy_v3_fl3(segment_direction, 0, 0, 1);
 
       copy_v3_v3(origin, points[*num_points - 1]);
       madd_v3_v3fl(origin, normal, teleport_ofs);
 
-      segment_ray_dist = head_height - segment_ray_dist;
+      segment_ray_dist = vertical_ofs;
       wm_xr_raycast(scene,
                     depsgraph,
                     origin,
@@ -1543,7 +1544,9 @@ static bool wm_xr_navigation_teleport(bContext *C,
                     &ob,
                     obmat);
 
-      vertical_ofs = segment_ray_dist;
+      if (ob) {
+        vertical_ofs = max_ff(0.0f, segment_ray_dist - teleport_ofs);
+      }
     }
 
     /* Calculate teleportation destination in navigation space */
