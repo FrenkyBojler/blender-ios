@@ -336,7 +336,9 @@ class LazyFunctionForMenuSwitchNode : public LazyFunction {
       else {
         params.set_input_unused(input_index);
       }
-      params.set_output(i + 1, SocketValueVariant(is_selected));
+      if (!params.output_was_set(i + 1)) {
+        params.set_output(i + 1, SocketValueVariant(is_selected));
+      }
     }
     /* No guarantee that the switch input matches any enum,
      * set default outputs to ensure valid state. */
