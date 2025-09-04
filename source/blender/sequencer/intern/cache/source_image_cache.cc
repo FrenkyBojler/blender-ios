@@ -18,6 +18,7 @@
 #include "SEQ_relations.hh"
 #include "SEQ_render.hh"
 #include "SEQ_time.hh"
+#include "SEQ_utils.hh"
 
 #include "prefetch.hh"
 #include "source_image_cache.hh"
@@ -136,9 +137,7 @@ ImBuf *source_image_cache_get(const RenderData *context, const Strip *strip, flo
 
     /* For effect and scene strips, check if the cached result matches our current
      * render resolution. If it does not, remove stale source entries for this strip. */
-    if (res != nullptr &&
-        ((strip->type & STRIP_TYPE_EFFECT) != 0 || strip->type == STRIP_TYPE_SCENE))
-    {
+    if (res != nullptr && (strip_is_effect(strip) || strip->type == STRIP_TYPE_SCENE)) {
       if (res->x != context->rectx || res->y != context->recty) {
         cache->remove_entry(strip);
         return nullptr;

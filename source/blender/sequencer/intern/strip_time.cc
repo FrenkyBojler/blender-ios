@@ -31,6 +31,7 @@
 #include "SEQ_sequencer.hh"
 #include "SEQ_time.hh"
 #include "SEQ_transform.hh"
+#include "SEQ_utils.hh"
 
 #include "sequencer.hh"
 #include "strip_time.hh"
@@ -56,7 +57,7 @@ float give_frame_index(const Scene *scene, const Strip *strip, float timeline_fr
   float end = time_content_end_frame_get(scene, strip) - 1;
   float frame_index_max = strip->len - 1;
 
-  if (strip->type & STRIP_TYPE_EFFECT) {
+  if (strip_is_effect(strip)) {
     end = time_right_handle_frame_get(scene, strip);
     frame_index_max = end - sta;
   }
@@ -575,7 +576,7 @@ static void strip_time_slip_strip_ex(const Scene *scene,
 
   /* Effects only have a start frame and a length, so unless we're inside
    * a meta strip, there's no need to do anything. */
-  if (!recursed && (strip->type & STRIP_TYPE_EFFECT)) {
+  if (!recursed && strip_is_effect(strip)) {
     return;
   }
 

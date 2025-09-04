@@ -19,6 +19,8 @@ struct StripElem;
 
 namespace blender::seq {
 
+bool strip_is_effect(const Strip *strip);
+
 void strip_unique_name_set(Scene *scene, ListBase *seqbasep, Strip *strip);
 const char *get_default_stripname_by_type(int type);
 const char *strip_give_name(const Strip *strip);

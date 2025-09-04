@@ -37,6 +37,7 @@
 #include "SEQ_sequencer.hh"
 #include "SEQ_time.hh"
 #include "SEQ_transform.hh"
+#include "SEQ_utils.hh"
 
 #include "transform.hh"
 #include "transform_convert.hh"
@@ -214,7 +215,7 @@ static VectorSet<Strip *> query_snap_targets_timeline(Scene *scene,
   VectorSet effects_of_snap_sources = snap_sources;
   seq::iterator_set_expand(scene, seqbase, effects_of_snap_sources, query_strip_effects_fn);
   effects_of_snap_sources.remove_if([&](Strip *strip) {
-    return (strip->type & STRIP_TYPE_EFFECT) != 0 && seq::effect_get_num_inputs(strip->type) == 0;
+    return seq::strip_is_effect(strip) && seq::effect_get_num_inputs(strip->type) == 0;
   });
 
   VectorSet<Strip *> snap_targets;
@@ -310,7 +311,7 @@ static void points_build_targets_timeline(const Scene *scene,
       int content_end = seq::time_content_end_frame_get(scene, strip);
 
       /* Effects and single image strips produce incorrect content length. Skip these strips. */
-      if ((strip->type & STRIP_TYPE_EFFECT) != 0 || strip->len == 1) {
+      if (seq::strip_is_effect(strip) || strip->len == 1) {
         content_start = seq::time_left_handle_frame_get(scene, strip);
         content_end = seq::time_right_handle_frame_get(scene, strip);
       }

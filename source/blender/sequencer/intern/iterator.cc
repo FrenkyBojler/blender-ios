@@ -20,6 +20,7 @@
 #include "SEQ_relations.hh"
 #include "SEQ_render.hh"
 #include "SEQ_time.hh"
+#include "SEQ_utils.hh"
 
 namespace blender::seq {
 
@@ -186,13 +187,11 @@ static bool must_render_strip(const VectorSet<Strip *> &strips, Strip *strip)
   bool strip_have_effect_in_stack = false;
   for (Strip *strip_iter : strips) {
     /* Strips is below another strip with replace blending are not rendered. */
-    if (strip_iter->blend_mode == SEQ_BLEND_REPLACE && strip->channel < strip_iter->channel) {
+    if (strip_iter->blend_mode == STRIP_BLEND_REPLACE && strip->channel < strip_iter->channel) {
       return false;
     }
 
-    if ((strip_iter->type & STRIP_TYPE_EFFECT) != 0 &&
-        relation_is_effect_of_strip(strip_iter, strip))
-    {
+    if (strip_is_effect(strip_iter) && relation_is_effect_of_strip(strip_iter, strip)) {
       /* Strips in same channel or higher than its effect are rendered. */
       if (strip->channel >= strip_iter->channel) {
         return true;
@@ -203,7 +202,7 @@ static bool must_render_strip(const VectorSet<Strip *> &strips, Strip *strip)
   }
 
   /* All non-generator effects are rendered (with respect to conditions above). */
-  if ((strip->type & STRIP_TYPE_EFFECT) != 0 && effect_get_num_inputs(strip->type) != 0) {
+  if (strip_is_effect(strip) && effect_get_num_inputs(strip->type) != 0) {
     return true;
   }
 
@@ -265,7 +264,7 @@ void query_strip_effect_chain(const Scene *scene,
   r_strips.add(reference_strip);
 
   /* Find all input strips for `reference_strip`. */
-  if (reference_strip->type & STRIP_TYPE_EFFECT) {
+  if (strip_is_effect(reference_strip)) {
     if (reference_strip->input1) {
       query_strip_effect_chain(scene, reference_strip->input1, seqbase, r_strips);
     }

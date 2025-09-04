@@ -18,6 +18,7 @@
 #include "BLI_math_geom.h"
 #include "BLI_math_vector.h"
 #include "BLI_math_vector_types.hh"
+#include "BLI_set.hh"
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
@@ -44,6 +45,7 @@
 #include "SEQ_sequencer.hh"
 #include "SEQ_time.hh"
 #include "SEQ_transform.hh"
+#include "SEQ_utils.hh"
 
 /* For menu, popup, icons, etc. */
 
@@ -1335,7 +1337,7 @@ wmOperatorStatus sequencer_select_exec(bContext *C, wmOperator *op)
   if (copy_handles_to_sel) {
     copy_to = seq::query_selected_strips(seq::active_seqbase_get(scene->ed));
     copy_to.remove(selection.strip1);
-    copy_to.remove_if([](Strip *strip) { return (strip->type & STRIP_TYPE_EFFECT); });
+    copy_to.remove_if([](Strip *strip) { return seq::strip_is_effect(strip); });
   }
 
   bool changed = false;
@@ -2528,10 +2530,7 @@ static const EnumPropertyItem sequencer_prop_select_grouped_types[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-#define STRIP_IS_SOUND(_strip) \
-  ((_strip->type & STRIP_TYPE_SOUND_RAM) && !(_strip->type & STRIP_TYPE_EFFECT))
-
-#define STRIP_IS_EFFECT(_strip) ((_strip->type & STRIP_TYPE_EFFECT) != 0)
+#define STRIP_IS_SOUND(_strip) (_strip->type == STRIP_TYPE_SOUND_RAM)
 
 #define STRIP_USE_DATA(_strip) \
   (ELEM(_strip->type, STRIP_TYPE_SCENE, STRIP_TYPE_MOVIECLIP, STRIP_TYPE_MASK) || \
@@ -2582,11 +2581,11 @@ static bool select_grouped_type_effect(blender::Span<Strip *> strips,
                                        const int channel)
 {
   bool changed = false;
-  const bool is_effect = STRIP_IS_EFFECT(act_strip);
+  const bool is_effect = seq::strip_is_effect(act_strip);
 
   for (Strip *strip : strips) {
     if (STRIP_CHANNEL_CHECK(strip, channel) &&
-        (is_effect ? STRIP_IS_EFFECT(strip) : !STRIP_IS_EFFECT(strip)))
+        (is_effect ? seq::strip_is_effect(strip) : !seq::strip_is_effect(strip)))
     {
       strip->flag |= SELECT;
       changed = true;
@@ -2661,22 +2660,18 @@ static bool select_grouped_effect(blender::Span<Strip *> strips,
                                   const int channel)
 {
   bool changed = false;
-  bool effects[STRIP_TYPE_MAX + 1];
+  blender::Set<StripType> effects;
 
-  for (int i = 0; i <= STRIP_TYPE_MAX; i++) {
-    effects[i] = false;
-  }
-
-  for (Strip *strip : strips) {
-    if (STRIP_CHANNEL_CHECK(strip, channel) && (strip->type & STRIP_TYPE_EFFECT) &&
+  for (const Strip *strip : strips) {
+    if (STRIP_CHANNEL_CHECK(strip, channel) && seq::strip_is_effect(strip) &&
         seq::relation_is_effect_of_strip(strip, act_strip))
     {
-      effects[strip->type] = true;
+      effects.add(StripType(strip->type));
     }
   }
 
   for (Strip *strip : strips) {
-    if (STRIP_CHANNEL_CHECK(strip, channel) && effects[strip->type]) {
+    if (STRIP_CHANNEL_CHECK(strip, channel) && effects.contains(StripType(strip->type))) {
       if (strip->input1) {
         strip->input1->flag |= SELECT;
       }
@@ -2760,7 +2755,6 @@ static bool select_grouped_effect_link(const Scene *scene,
 }
 
 #undef STRIP_IS_SOUND
-#undef STRIP_IS_EFFECT
 #undef STRIP_USE_DATA
 
 static wmOperatorStatus sequencer_select_grouped_exec(bContext *C, wmOperator *op)
