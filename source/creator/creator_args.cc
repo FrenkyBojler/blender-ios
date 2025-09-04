@@ -82,6 +82,12 @@
 /**
  * Support extracting arguments for all platforms (for documentation purposes).
  * These names match the upper case defines.
+ *
+ * \note these build-defines should only be used to exclude arguments
+ * from `--help` when those arguments are not handled at all.
+ * Where using them would be the same as passing in an unknown argument.
+ * It's possible scripts are shared between platforms,
+ * so it's preferable that known arguments are documented.
  */
 struct BuildDefs {
   bool win32;
@@ -818,9 +824,8 @@ static void print_help(bArgs *ba, bool all)
   BLI_args_print_arg_doc(ba, "--register-allusers");
   BLI_args_print_arg_doc(ba, "--unregister");
   BLI_args_print_arg_doc(ba, "--unregister-allusers");
-  if (defs.win32 || all) {
-    BLI_args_print_arg_doc(ba, "--qos");
-  }
+  /* Windows only.  */
+  BLI_args_print_arg_doc(ba, "--qos");
 
   BLI_args_print_arg_doc(ba, "--version");
 
@@ -1924,6 +1929,8 @@ static int arg_handle_register_extension(int argc, const char **argv, void *data
     main_arg_deferred_setup(arg_handle_register_extension, argc, argv, data);
     return argc - 1;
   }
+#  else
+  UNUSED_VARS(argv, data);
 #  endif
   arg_handle_extension_registration(true, false);
   return argc - 1;
@@ -1942,6 +1949,8 @@ static int arg_handle_register_extension_all(int argc, const char **argv, void *
     main_arg_deferred_setup(arg_handle_register_extension_all, argc, argv, data);
     return argc - 1;
   }
+#  else
+  UNUSED_VARS(argv, data);
 #  endif
   arg_handle_extension_registration(true, true);
   return argc - 1;
@@ -1960,6 +1969,8 @@ static int arg_handle_unregister_extension(int argc, const char **argv, void *da
     main_arg_deferred_setup(arg_handle_unregister_extension, argc, argv, data);
     return argc - 1;
   }
+#  else
+  UNUSED_VARS(argc, argv, data);
 #  endif
   arg_handle_extension_registration(false, false);
   return 0;
@@ -1978,6 +1989,8 @@ static int arg_handle_unregister_extension_all(int argc, const char **argv, void
     main_arg_deferred_setup(arg_handle_unregister_extension_all, argc, argv, data);
     return argc - 1;
   }
+#  else
+  UNUSED_VARS(argc, argv, data);
 #  endif
   arg_handle_extension_registration(false, true);
   return 0;

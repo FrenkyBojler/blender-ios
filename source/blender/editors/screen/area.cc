@@ -1238,6 +1238,10 @@ static bool region_azone_edge_poll(const ScrArea *area,
     return false;
   }
 
+  if (area->winy < int(float(ED_area_headersize()) * 1.5f)) {
+    return false;
+  }
+
   /* Don't use edge if the region hides with previous region which is now hidden. See #116196. */
   if ((region->alignment & (RGN_SPLIT_PREV | RGN_ALIGN_HIDE_WITH_PREV) && region->prev) &&
       region->prev->flag & (RGN_FLAG_HIDDEN | RGN_FLAG_TOO_SMALL))
@@ -1651,7 +1655,7 @@ static void region_rect_recursive(
   else if (ELEM(alignment, RGN_ALIGN_TOP, RGN_ALIGN_BOTTOM)) {
     rcti *winrct = (region->overlap) ? overlap_remainder : remainder;
 
-    if ((prefsizey == 0) || (rct_fits(winrct, SCREEN_AXIS_V, prefsizey) < 0)) {
+    if ((prefsizey == 0) || (rct_fits(winrct, SCREEN_AXIS_V, prefsizey) < (U.pixelsize * -2))) {
       region->flag |= RGN_FLAG_TOO_SMALL;
     }
     else {
@@ -1778,6 +1782,11 @@ static void region_rect_recursive(
   /* for speedup */
   region->winx = BLI_rcti_size_x(&region->winrct) + 1;
   region->winy = BLI_rcti_size_y(&region->winrct) + 1;
+
+  if (region->winy <= U.border_width && !(region->flag & RGN_FLAG_HIDDEN)) {
+    /* Don't draw when just a couple pixels tall. #143617. */
+    region->flag |= RGN_FLAG_TOO_SMALL;
+  }
 
   /* If region opened normally, we store this for hide/reveal usage. */
   /* Prevent rounding errors for UI_SCALE_FAC multiply and divide. */
@@ -3783,9 +3792,9 @@ void ED_region_header_layout(const bContext *C, ARegion *region)
 {
   const uiStyle *style = UI_style_get_dpi();
   bool region_layout_based = region->flag & RGN_FLAG_DYNAMIC_SIZE;
-  ScrArea *area = CTX_wm_area(C);
-  const int offset = ELEM(area->spacetype, SPACE_TOPBAR, SPACE_STATUSBAR) ? 4.0f * UI_SCALE_FAC :
-                                                                            int(UI_HEADER_OFFSET);
+  const ScrArea *area = CTX_wm_area(C);
+  const bool is_global = area && ELEM(area->spacetype, SPACE_TOPBAR, SPACE_STATUSBAR);
+  const int offset = is_global ? 4.0f * UI_SCALE_FAC : int(UI_HEADER_OFFSET);
 
   /* Height of buttons and scaling needed to achieve it. */
   const int buttony = min_ii(UI_UNIT_Y, region->winy - 2 * UI_SCALE_FAC);

@@ -4477,7 +4477,7 @@ static bool is_header_azone_location(ScrArea *area, const wmEvent *event)
   }
 
   ARegion *header = BKE_area_find_region_type(area, RGN_TYPE_HEADER);
-  if (header->flag & RGN_FLAG_HIDDEN) {
+  if (!header || header->flag & RGN_FLAG_HIDDEN) {
     return false;
   }
 
@@ -4485,7 +4485,6 @@ static bool is_header_azone_location(ScrArea *area, const wmEvent *event)
   if (header->alignment == RGN_ALIGN_TOP && event->xy[1] > (area->totrct.ymax - height)) {
     return true;
   }
-
   if (header->alignment == RGN_ALIGN_BOTTOM && event->xy[1] < (area->totrct.ymin + height)) {
     return true;
   }
