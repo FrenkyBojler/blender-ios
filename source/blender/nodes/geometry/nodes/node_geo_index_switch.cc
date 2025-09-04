@@ -2,6 +2,8 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include <fmt/format.h>
+
 #include "node_geometry_util.hh"
 
 #include "UI_interface_layout.hh"
@@ -13,12 +15,14 @@
 #include "NOD_socket_items_blend.hh"
 #include "NOD_socket_items_ops.hh"
 #include "NOD_socket_search_link.hh"
+#include "NOD_trace_values.hh"
 
 #include "RNA_enum_types.hh"
 #include "RNA_prototypes.hh"
 
 #include "BLO_read_write.hh"
 
+#include "BKE_compute_context_cache.hh"
 #include "BKE_node_socket_value.hh"
 
 namespace blender::nodes::node_geo_index_switch_cc {
@@ -48,6 +52,54 @@ static void node_declare(NodeDeclarationBuilder &b)
   for (const int i : items.index_range()) {
     const std::string identifier = IndexSwitchItemsAccessor::socket_identifier_for_item(items[i]);
     auto &input = b.add_input(data_type, std::to_string(i), std::move(identifier));
+    input.custom_draw([index = i](CustomSocketDrawParams &params) {
+      const SpaceNode *snode = CTX_wm_space_node(&params.C);
+      if (!snode) {
+        params.draw_standard(params.layout);
+        return;
+      }
+      bke::ComputeContextCache compute_context_cache;
+      const ComputeContext *compute_context = ed::space_node::compute_context_for_edittree_socket(
+          *snode, compute_context_cache, params.socket);
+      if (!compute_context) {
+        params.draw_standard(params.layout);
+        return;
+      }
+      const std::optional<NodeInContext> menu_switch = find_origin_index_menu_switch(
+          {compute_context, &params.node.input_socket(0)}, compute_context_cache);
+      if (!menu_switch.has_value()) {
+        params.draw_standard(params.layout);
+        return;
+      }
+      const auto &menu_switch_storage = *static_cast<const NodeMenuSwitch *>(
+          menu_switch->node->storage);
+      BLI_assert(menu_switch_storage.data_type == SOCK_INT);
+      const NodeEnumItem *found_item = nullptr;
+      for (const int i : IndexRange(menu_switch_storage.enum_definition.items_num)) {
+        const NodeEnumItem &item = menu_switch_storage.enum_definition.items_array[i];
+        const bNodeSocket &menu_switch_input_socket = menu_switch->node->input_socket(1 + i);
+        if (menu_switch_input_socket.is_directly_linked()) {
+          params.draw_standard(params.layout);
+          return;
+        }
+        const auto &menu_switch_input_socket_value = *static_cast<const bNodeSocketValueInt *>(
+            menu_switch_input_socket.default_value);
+        if (menu_switch_input_socket_value.value == index) {
+          if (found_item) {
+            /* Found multiple items, so there is not a unique label for this index. */
+            params.draw_standard(params.layout);
+            return;
+          }
+          found_item = &item;
+        }
+      }
+      if (!found_item) {
+        params.draw_standard(params.layout);
+        return;
+      }
+      const std::string label = fmt::format("{}: {}", index, found_item->name);
+      params.draw_standard(params.layout, label);
+    });
     if (supports_fields) {
       input.supports_field();
     }

@@ -9,6 +9,7 @@
 #include <type_traits>
 
 #include "BLI_array.hh"
+#include "BLI_compute_context.hh"
 #include "BLI_string_ref.hh"
 #include "BLI_utildefines.h"
 #include "BLI_vector.hh"
@@ -19,6 +20,7 @@
 
 #include "RNA_types.hh"
 
+#include "NOD_geometry_nodes_log_fwd.hh"
 #include "NOD_socket_usage_inference_fwd.hh"
 
 struct bContext;
@@ -189,6 +191,10 @@ struct CustomSocketDrawParams {
   bNodeSocket &socket;
   PointerRNA node_ptr;
   PointerRNA socket_ptr;
+  StringRefNull label;
+  const geo_eval_log::ContextualGeoTreeLogs *tree_logs = nullptr;
+
+  void draw_standard(uiLayout &layout, std::optional<StringRefNull> label_override = std::nullopt);
 };
 
 using CustomSocketDrawFn = std::function<void(CustomSocketDrawParams &params)>;

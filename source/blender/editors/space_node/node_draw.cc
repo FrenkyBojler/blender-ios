@@ -486,7 +486,31 @@ const char *node_socket_get_label(const bNodeSocket *socket, const char *panel_l
   return translated_socket_label;
 }
 
-static bool node_update_basis_socket(const bContext &C,
+static void draw_socket_layout(TreeDrawContext &tree_draw_ctx,
+                               const bContext &C,
+                               uiLayout &layout,
+                               bNodeSocket &socket,
+                               bNodeTree &ntree,
+                               bNode &node,
+                               PointerRNA &node_ptr,
+                               PointerRNA &socket_ptr,
+                               const char *panel_label)
+{
+  const nodes::SocketDeclaration *socket_decl = socket.runtime->declaration;
+  const StringRefNull label = node_socket_get_label(&socket, panel_label);
+  nodes::CustomSocketDrawParams params{
+      C, layout, ntree, node, socket, node_ptr, socket_ptr, label, &tree_draw_ctx.tree_logs};
+  if (socket_decl) {
+    if (socket_decl->custom_draw_fn) {
+      (*socket_decl->custom_draw_fn)(params);
+      return;
+    }
+  }
+  params.draw_standard(layout);
+}
+
+static bool node_update_basis_socket(TreeDrawContext &tree_draw_ctx,
+                                     const bContext &C,
                                      bNodeTree &ntree,
                                      bNode &node,
                                      const char *panel_label,
@@ -542,8 +566,8 @@ static bool node_update_basis_socket(const bContext &C,
 
     row->alignment_set(ui::LayoutAlign::Expand);
 
-    input_socket->typeinfo->draw(
-        (bContext *)&C, row, &sockptr, &nodeptr, node_socket_get_label(input_socket, panel_label));
+    draw_socket_layout(
+        tree_draw_ctx, C, *row, *input_socket, ntree, node, nodeptr, sockptr, panel_label);
   }
   else {
     /* Context pointers for current node and socket. */
@@ -553,11 +577,8 @@ static bool node_update_basis_socket(const bContext &C,
     /* Align output buttons to the right. */
     row->alignment_set(ui::LayoutAlign::Right);
 
-    output_socket->typeinfo->draw((bContext *)&C,
-                                  row,
-                                  &sockptr,
-                                  &nodeptr,
-                                  node_socket_get_label(output_socket, panel_label));
+    draw_socket_layout(
+        tree_draw_ctx, C, *row, *output_socket, ntree, node, nodeptr, sockptr, panel_label);
   }
 
   if (input_socket) {
@@ -1095,8 +1116,13 @@ static void tag_final_panel(bNode &node, const Span<FlatNodeItem> items)
 }
 
 /* Advanced drawing with panels and arbitrary input/output ordering. */
-static void node_update_basis_from_declaration(
-    const bContext &C, bNodeTree &ntree, bNode &node, uiBlock &block, const int locx, int &locy)
+static void node_update_basis_from_declaration(TreeDrawContext &tree_draw_ctx,
+                                               const bContext &C,
+                                               bNodeTree &ntree,
+                                               bNode &node,
+                                               uiBlock &block,
+                                               const int locx,
+                                               int &locy)
 {
   BLI_assert(is_node_panels_supported(node));
   BLI_assert(node.runtime->panels.size() == node.num_panel_states);
@@ -1143,8 +1169,16 @@ static void node_update_basis_from_declaration(
             bNodeSocket *output_socket = item.output;
             const nodes::PanelDeclaration *panel_decl = item.panel_decl;
             const char *parent_label = panel_decl ? panel_decl->name.c_str() : "";
-            node_update_basis_socket(
-                C, ntree, node, parent_label, input_socket, output_socket, block, locx, locy);
+            node_update_basis_socket(tree_draw_ctx,
+                                     C,
+                                     ntree,
+                                     node,
+                                     parent_label,
+                                     input_socket,
+                                     output_socket,
+                                     block,
+                                     locx,
+                                     locy);
           }
           else if constexpr (std::is_same_v<ItemT, flat_item::Layout>) {
             const nodes::LayoutDeclaration &decl = *item.decl;
@@ -1220,8 +1254,13 @@ static void node_update_basis_from_declaration(
 }
 
 /* Conventional drawing in outputs/buttons/inputs order. */
-static void node_update_basis_from_socket_lists(
-    const bContext &C, bNodeTree &ntree, bNode &node, uiBlock &block, const int locx, int &locy)
+static void node_update_basis_from_socket_lists(TreeDrawContext &tree_draw_ctx,
+                                                const bContext &C,
+                                                bNodeTree &ntree,
+                                                bNode &node,
+                                                uiBlock &block,
+                                                const int locx,
+                                                int &locy)
 {
   /* Space at the top. */
   locy -= NODE_DYS / 2;
@@ -1233,7 +1272,9 @@ static void node_update_basis_from_socket_lists(
     /* Clear flag, conventional drawing does not support panels. */
     socket->flag &= ~SOCK_PANEL_COLLAPSED;
 
-    if (node_update_basis_socket(C, ntree, node, nullptr, nullptr, socket, block, locx, locy)) {
+    if (node_update_basis_socket(
+            tree_draw_ctx, C, ntree, node, nullptr, nullptr, socket, block, locx, locy))
+    {
       if (socket->next) {
         locy -= NODE_ITEM_SPACING_Y;
       }
@@ -1255,7 +1296,9 @@ static void node_update_basis_from_socket_lists(
     /* Clear flag, conventional drawing does not support panels. */
     socket->flag &= ~SOCK_PANEL_COLLAPSED;
 
-    if (node_update_basis_socket(C, ntree, node, nullptr, socket, nullptr, block, locx, locy)) {
+    if (node_update_basis_socket(
+            tree_draw_ctx, C, ntree, node, nullptr, socket, nullptr, block, locx, locy))
+    {
       if (socket->next) {
         locy -= NODE_ITEM_SPACING_Y;
       }
@@ -1273,7 +1316,7 @@ static void node_update_basis_from_socket_lists(
  * Based on settings and sockets in node, set drawing rect info.
  */
 static void node_update_basis(const bContext &C,
-                              const TreeDrawContext & /*tree_draw_ctx*/,
+                              TreeDrawContext &tree_draw_ctx,
                               bNodeTree &ntree,
                               bNode &node,
                               uiBlock &block)
@@ -1287,10 +1330,10 @@ static void node_update_basis(const bContext &C,
   dy -= NODE_DY;
 
   if (is_node_panels_supported(node)) {
-    node_update_basis_from_declaration(C, ntree, node, block, loc.x, dy);
+    node_update_basis_from_declaration(tree_draw_ctx, C, ntree, node, block, loc.x, dy);
   }
   else {
-    node_update_basis_from_socket_lists(C, ntree, node, block, loc.x, dy);
+    node_update_basis_from_socket_lists(tree_draw_ctx, C, ntree, node, block, loc.x, dy);
   }
 
   node.runtime->draw_bounds.xmin = loc.x;
