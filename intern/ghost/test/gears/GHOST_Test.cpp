@@ -609,7 +609,7 @@ bool Application::processEvent(const GHOST_IEvent *event)
         RenderScene();
         glPopMatrix();
       }
-      window2->swap_buffer_release();
+      window2->swapBufferRelease();
       break;
     }
 

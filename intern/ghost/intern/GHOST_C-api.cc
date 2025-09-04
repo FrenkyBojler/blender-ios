@@ -722,7 +722,7 @@ GHOST_TSuccess GHOST_SwapWindowBufferRelease(GHOST_WindowHandle windowhandle)
 {
   GHOST_IWindow *window = (GHOST_IWindow *)windowhandle;
 
-  return window->swap_buffer_release();
+  return window->swapBufferRelease();
 }
 
 GHOST_TSuccess GHOST_SetSwapInterval(GHOST_WindowHandle windowhandle, int interval)

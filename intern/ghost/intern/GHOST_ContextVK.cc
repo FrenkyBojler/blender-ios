@@ -808,7 +808,7 @@ GHOST_TSuccess GHOST_ContextVK::swapBufferAcquire()
   return GHOST_kSuccess;
 }
 
-GHOST_TSuccess GHOST_ContextVK::swap_buffer_release()
+GHOST_TSuccess GHOST_ContextVK::swapBufferRelease()
 {
   if (swapchain_ == VK_NULL_HANDLE) {
     /* Minimized windows could have no allocated swapchain. */

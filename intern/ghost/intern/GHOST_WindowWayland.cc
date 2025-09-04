@@ -2170,10 +2170,10 @@ GHOST_WindowWayland::~GHOST_WindowWayland()
 }
 
 #ifdef USE_EVENT_BACKGROUND_THREAD
-GHOST_TSuccess GHOST_WindowWayland::swap_buffer_release()
+GHOST_TSuccess GHOST_WindowWayland::swapBufferRelease()
 {
   GHOST_ASSERT(system_->main_thread_id == std::this_thread::get_id(), "Only from main thread!");
-  return GHOST_Window::swap_buffer_release();
+  return GHOST_Window::swapBufferRelease();
 }
 #endif /* USE_EVENT_BACKGROUND_THREAD */
 

@@ -215,7 +215,7 @@ class GHOST_IWindow {
    * Swaps front and back buffers of a window.
    * \return A boolean success indicator.
    */
-  virtual GHOST_TSuccess swap_buffer_release() = 0;
+  virtual GHOST_TSuccess swapBufferRelease() = 0;
 
   /**
    * Sets the swap interval for #swapBuffers.

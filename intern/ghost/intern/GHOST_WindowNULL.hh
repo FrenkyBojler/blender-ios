@@ -105,7 +105,7 @@ class GHOST_WindowNULL : public GHOST_Window {
     outX = inX;
     outY = inY;
   }
-  GHOST_TSuccess swap_buffer_release() override
+  GHOST_TSuccess swapBufferRelease() override
   {
     return GHOST_kFailure;
   }

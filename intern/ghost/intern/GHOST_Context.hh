@@ -47,7 +47,7 @@ class GHOST_Context : public GHOST_IContext {
   GHOST_TSuccess swapBufferAcquire() override = 0;
 
   /** \copydoc #GHOST_IContext::swapBuffers */
-  GHOST_TSuccess swap_buffer_release() override = 0;
+  GHOST_TSuccess swapBufferRelease() override = 0;
 
   /** \copydoc #GHOST_IContext::activateDrawingContext */
   GHOST_TSuccess activateDrawingContext() override = 0;

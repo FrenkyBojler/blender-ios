@@ -54,7 +54,7 @@ class GHOST_ContextGLX : public GHOST_Context {
    * Swaps front and back buffers of a window.
    * \return A boolean success indicator.
    */
-  GHOST_TSuccess swap_buffer_release() override;
+  GHOST_TSuccess swapBufferRelease() override;
 
   /**
    * Activates the drawing context of this window.

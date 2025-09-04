@@ -246,7 +246,7 @@ GHOST_ContextEGL::~GHOST_ContextEGL()
   }
 }
 
-GHOST_TSuccess GHOST_ContextEGL::swap_buffer_release()
+GHOST_TSuccess GHOST_ContextEGL::swapBufferRelease()
 {
   return EGL_CHK(::eglSwapBuffers(display_, surface_)) ? GHOST_kSuccess : GHOST_kFailure;
 }

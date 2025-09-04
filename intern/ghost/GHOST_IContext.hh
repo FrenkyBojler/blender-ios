@@ -61,7 +61,7 @@ class GHOST_IContext {
    * Swaps front and back buffers of a window.
    * \return A boolean success indicator.
    */
-  virtual GHOST_TSuccess swap_buffer_release() = 0;
+  virtual GHOST_TSuccess swapBufferRelease() = 0;
 
 #ifdef WITH_VULKAN_BACKEND
   /**

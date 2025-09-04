@@ -26,7 +26,7 @@ class GHOST_ContextNone : public GHOST_Context {
    * Dummy function
    * \return Always succeeds
    */
-  GHOST_TSuccess swap_buffer_release() override;
+  GHOST_TSuccess swapBufferRelease() override;
 
   /**
    * Dummy function

@@ -73,7 +73,7 @@ GHOST_ContextGLX::~GHOST_ContextGLX()
   }
 }
 
-GHOST_TSuccess GHOST_ContextGLX::swap_buffer_release()
+GHOST_TSuccess GHOST_ContextGLX::swapBufferRelease()
 {
   ::glXSwapBuffers(display_, window_);
 

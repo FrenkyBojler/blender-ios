@@ -106,9 +106,9 @@ GHOST_TSuccess GHOST_Window::swapBufferAcquire()
 {
   return context_->swapBufferAcquire();
 }
-GHOST_TSuccess GHOST_Window::swap_buffer_release()
+GHOST_TSuccess GHOST_Window::swapBufferRelease()
 {
-  return context_->swap_buffer_release();
+  return context_->swapBufferRelease();
 }
 
 GHOST_TSuccess GHOST_Window::setSwapInterval(int interval)
