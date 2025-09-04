@@ -107,6 +107,12 @@ struct FileData {
   DNA_ReconstructInfo *reconstruct_info = nullptr;
 
   int fileversion = 0;
+  /**
+   * Unlike the `fileversion` which is read from the header,
+   * this is initialized from #read_file_dna.
+   */
+  int filesubversion = 0;
+
   /** Used to retrieve ID names from (bhead+1). */
   int id_name_offset = 0;
   /** Used to retrieve asset data from (bhead+1). NOTE: This may not be available in old files,
@@ -144,9 +150,24 @@ struct FileData {
 
   std::optional<blender::Map<blender::StringRefNull, BHead *>> bhead_idname_map;
 
-  ListBase *mainlist = nullptr;
-  /** Used for undo. */
-  ListBase *old_mainlist = nullptr;
+  /**
+   * The root (main, local) Main.
+   * The Main that will own Library IDs.
+   *
+   * When reading libraries, this is typically _not_ the same Main as the one being populated from
+   * the content of this filedata, see #fd_bmain.
+   */
+  Main *bmain = nullptr;
+  /** The existing root (main, local) Main, used for undo. */
+  Main *old_bmain = nullptr;
+  /**
+   * The main for the (local) data loaded from this filedata.
+   *
+   * This is the same as #bmain when opening a blendfile, but not when reading/loading from
+   * libraries blendfiles.
+   */
+  Main *fd_bmain = nullptr;
+
   /**
    * IDMap using UID's as keys of all the old IDs in the old bmain. Used during undo to find a
    * matching old data when reading a new ID. */
@@ -169,8 +190,8 @@ struct FileData {
 };
 
 /***/
-void blo_join_main(ListBase *mainlist);
-void blo_split_main(ListBase *mainlist, Main *main);
+void blo_join_main(Main *bmain);
+void blo_split_main(Main *bmain);
 
 BlendFileData *blo_read_file_internal(FileData *fd, const char *filepath) ATTR_NONNULL(1, 2);
 

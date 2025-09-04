@@ -358,7 +358,12 @@ static void modify_drawing(const GreasePencilDashModifierData &dmd,
   bke::GeometrySet unselected_geo = bke::GeometrySet::from_curves(unselected_curves_id);
   bke::GeometrySet joined_geo = geometry::join_geometries({unselected_geo, masked_geo}, {});
 
-  drawing.strokes_for_write() = std::move(joined_geo.get_curves_for_write()->geometry.wrap());
+  if (!joined_geo.has_curves()) {
+    drawing.strokes_for_write() = {};
+  }
+  else {
+    drawing.strokes_for_write() = std::move(joined_geo.get_curves_for_write()->geometry.wrap());
+  }
   drawing.tag_topology_changed();
 }
 
@@ -424,14 +429,11 @@ static void panel_draw(const bContext *C, Panel *panel)
   sub->op("OBJECT_OT_grease_pencil_dash_modifier_segment_remove", "", ICON_REMOVE);
   col->separator();
   sub = &col->column(true);
-  uiItemEnumO_string(
-      sub, "", ICON_TRIA_UP, "OBJECT_OT_grease_pencil_dash_modifier_segment_move", "type", "UP");
-  uiItemEnumO_string(sub,
-                     "",
-                     ICON_TRIA_DOWN,
-                     "OBJECT_OT_grease_pencil_dash_modifier_segment_move",
-                     "type",
-                     "DOWN");
+  PointerRNA op_ptr = layout->op(
+      "OBJECT_OT_grease_pencil_dash_modifier_segment_move", "", ICON_TRIA_UP);
+  RNA_enum_set(&op_ptr, "type", /* blender::ed::object::DashSegmentMoveDirection::Up */ -1);
+  op_ptr = layout->op("OBJECT_OT_grease_pencil_dash_modifier_segment_move", "", ICON_TRIA_DOWN);
+  RNA_enum_set(&op_ptr, "type", /* blender::ed::object::DashSegmentMoveDirection::Down */ 1);
 
   if (dmd->segment_active_index >= 0 && dmd->segment_active_index < dmd->segments_num) {
     PointerRNA ds_ptr = RNA_pointer_create_discrete(ptr->owner_id,
