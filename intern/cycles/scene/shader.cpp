@@ -18,6 +18,7 @@
 #include "scene/shader_nodes.h"
 #include "scene/svm.h"
 #include "scene/tables.h"
+#include "scene/volume.h"
 
 #include "util/log.h"
 #include "util/murmurhash.h"
@@ -53,7 +54,6 @@ NODE_DEFINE(Shader)
 
   SOCKET_BOOLEAN(use_transparent_shadow, "Use Transparent Shadow", true);
   SOCKET_BOOLEAN(use_bump_map_correction, "Bump Map Correction", true);
-  SOCKET_BOOLEAN(heterogeneous_volume, "Heterogeneous Volume", true);
 
   static NodeEnum volume_sampling_method_enum;
   volume_sampling_method_enum.insert("distance", VOLUME_SAMPLING_DISTANCE);
@@ -71,8 +71,6 @@ NODE_DEFINE(Shader)
               "Volume Interpolation Method",
               volume_interpolation_method_enum,
               VOLUME_INTERPOLATION_LINEAR);
-
-  SOCKET_FLOAT(volume_step_rate, "Volume Step Rate", 1.0f);
 
   static NodeEnum displacement_method_enum;
   displacement_method_enum.insert("bump", DISPLACE_BUMP);
@@ -103,7 +101,7 @@ Shader::Shader() : Node(get_node_type())
   has_volume_spatial_varying = false;
   has_volume_attribute_dependency = false;
   has_volume_connected = false;
-  prev_volume_step_rate = 0.0f;
+  has_light_path_node = false;
 
   emission_estimate = zero_float3();
   emission_sampling = EMISSION_SAMPLING_NONE;
@@ -392,10 +390,13 @@ void Shader::tag_update(Scene *scene)
     scene->procedural_manager->tag_update();
   }
 
-  if (has_volume != prev_has_volume || volume_step_rate != prev_volume_step_rate) {
+  if (has_volume != prev_has_volume) {
     scene->geometry_manager->need_flags_update = true;
     scene->object_manager->need_flags_update = true;
-    prev_volume_step_rate = volume_step_rate;
+  }
+
+  if (has_volume || prev_has_volume) {
+    scene->volume_manager->tag_update(this);
   }
 }
 
@@ -417,7 +418,7 @@ bool Shader::need_update_geometry() const
 
 /* Shader Manager */
 
-ShaderManager::ShaderManager()
+ShaderManager::ShaderManager() : thin_film_table_offset_(TABLE_OFFSET_INVALID)
 {
   update_flags = UPDATE_ALL;
 
@@ -482,12 +483,13 @@ int ShaderManager::get_shader_id(Shader *shader, bool smooth)
   return id;
 }
 
-void ShaderManager::device_update_pre(Device *device,
+void ShaderManager::device_update_pre(Device * /*device*/,
                                       DeviceScene *dscene,
                                       Scene *scene,
-                                      Progress &progress)
+                                      Progress & /*progress*/)
 {
-  /* This runs before kernels have been loaded, so can't copy to device yet. */
+  /* This optimizes the shader graphs, but does not update anything on the device yet.
+   * After this we'll know the kernel features actually used, to load the kernels. */
   if (!need_update()) {
     return;
   }
@@ -504,14 +506,59 @@ void ShaderManager::device_update_pre(Device *device,
   assert(scene->default_background->reference_count() != 0);
   assert(scene->default_empty->reference_count() != 0);
 
-  device_update_specific(device, dscene, scene, progress);
+  /* Preprocess shader graph. */
+  bool has_volumes = false;
+
+  for (Shader *shader : scene->shaders) {
+    if (shader->is_modified()) {
+      ShaderNode *output = shader->graph->output();
+      shader->has_bump = (shader->get_displacement_method() != DISPLACE_TRUE) &&
+                         output->input("Surface")->link && output->input("Displacement")->link;
+      shader->has_bssrdf_bump = shader->has_bump;
+
+      shader->graph->finalize(
+          scene, shader->has_bump, shader->get_displacement_method() == DISPLACE_BOTH);
+
+      shader->has_surface = output->input("Surface")->link != nullptr;
+      shader->has_surface_transparent = false;
+      shader->has_surface_raytrace = false;
+      shader->has_surface_bssrdf = false;
+      shader->has_surface_spatial_varying = false;
+      shader->has_volume = output->input("Volume")->link != nullptr;
+      shader->has_volume_spatial_varying = false;
+      shader->has_volume_attribute_dependency = false;
+      shader->has_displacement = output->input("Displacement")->link != nullptr;
+
+      shader->has_light_path_node = false;
+      for (ShaderNode *node : shader->graph->nodes) {
+        if (node->special_type == SHADER_SPECIAL_TYPE_LIGHT_PATH) {
+          /* TODO: check if the light path node is linked to the volume output. */
+          shader->has_light_path_node = true;
+          break;
+        }
+      }
+    }
+
+    if (shader->reference_count()) {
+      has_volumes |= shader->has_volume;
+    }
+  }
+
+  /* Set this early as it is needed by volume rendering passes. */
+  KernelIntegrator *kintegrator = &dscene->data.integrator;
+  if (bool(kintegrator->use_volumes) != has_volumes) {
+    scene->tag_has_volume_modified();
+    kintegrator->use_volumes = has_volumes;
+  }
 }
 
-void ShaderManager::device_update_post(Device * /*device*/,
+void ShaderManager::device_update_post(Device *device,
                                        DeviceScene *dscene,
-                                       Scene * /*scene*/,
-                                       Progress & /*progress*/)
+                                       Scene *scene,
+                                       Progress &progress)
 {
+  device_update_specific(device, dscene, scene, progress);
+
   /* This runs after kernels have been loaded, so can copy to device. */
   dscene->shaders.copy_to_device_if_modified();
   dscene->svm_nodes.copy_to_device_if_modified();
@@ -529,7 +576,6 @@ void ShaderManager::device_update_common(Device * /*device*/,
   }
 
   KernelShader *kshader = dscene->shaders.alloc(scene->shaders.size());
-  bool has_volumes = false;
   bool has_transparent_shadow = false;
 
   for (Shader *shader : scene->shaders) {
@@ -556,8 +602,6 @@ void ShaderManager::device_update_common(Device * /*device*/,
     }
     if (shader->has_volume) {
       flag |= SD_HAS_VOLUME;
-      has_volumes = true;
-
       /* todo: this could check more fine grained, to skip useless volumes
        * enclosed inside an opaque bsdf.
        */
@@ -567,10 +611,8 @@ void ShaderManager::device_update_common(Device * /*device*/,
     if (shader->has_volume_connected && !shader->has_surface) {
       flag |= SD_HAS_ONLY_VOLUME;
     }
-    if (shader->has_volume) {
-      if (shader->get_heterogeneous_volume() && shader->has_volume_spatial_varying) {
-        flag |= SD_HETEROGENEOUS_VOLUME;
-      }
+    if (shader->has_volume && shader->has_volume_spatial_varying) {
+      flag |= SD_HETEROGENEOUS_VOLUME;
     }
     if (shader->has_volume_attribute_dependency) {
       flag |= SD_NEED_VOLUME_ATTRIBUTES;
@@ -602,6 +644,10 @@ void ShaderManager::device_update_common(Device * /*device*/,
       flag |= SD_HAS_CONSTANT_EMISSION;
     }
 
+    if (shader->has_light_path_node) {
+      flag |= SD_HAS_LIGHT_PATH_NODE;
+    }
+
     const uint32_t cryptomatte_id = util_murmur_hash3(
         shader->name.c_str(), shader->name.length(), 0);
 
@@ -629,9 +675,13 @@ void ShaderManager::device_update_common(Device * /*device*/,
   ktables->ggx_gen_schlick_ior_s = ensure_bsdf_table(dscene, scene, table_ggx_gen_schlick_ior_s);
   ktables->ggx_gen_schlick_s = ensure_bsdf_table(dscene, scene, table_ggx_gen_schlick_s);
 
+  if (thin_film_table_offset_ == TABLE_OFFSET_INVALID) {
+    thin_film_table_offset_ = scene->lookup_tables->add_table(dscene, thin_film_table);
+  }
+  dscene->data.tables.thin_film_table = (int)thin_film_table_offset_;
+
   /* integrator */
   KernelIntegrator *kintegrator = &dscene->data.integrator;
-  kintegrator->use_volumes = has_volumes;
   /* TODO(sergey): De-duplicate with flags set in integrator.cpp. */
   kintegrator->transparent_shadows = has_transparent_shadow;
 
@@ -655,6 +705,8 @@ void ShaderManager::device_free_common(Device * /*device*/, DeviceScene *dscene,
     scene->lookup_tables->remove_table(&entry.second);
   }
   bsdf_tables.clear();
+  scene->lookup_tables->remove_table(&thin_film_table_offset_);
+  thin_film_table_offset_ = TABLE_OFFSET_INVALID;
 
   dscene->shaders.free();
 }
@@ -665,10 +717,8 @@ void ShaderManager::add_default(Scene *scene)
   {
     unique_ptr<ShaderGraph> graph = make_unique<ShaderGraph>();
 
-    DiffuseBsdfNode *diffuse = graph->create_node<DiffuseBsdfNode>();
-    diffuse->set_color(make_float3(0.8f, 0.8f, 0.8f));
-
-    graph->connect(diffuse->output("BSDF"), graph->output()->input("Surface"));
+    PrincipledBsdfNode *bsdf = graph->create_node<PrincipledBsdfNode>();
+    graph->connect(bsdf->output("BSDF"), graph->output()->input("Surface"));
 
     Shader *shader = scene->create_node<Shader>();
     shader->name = "default_surface";
@@ -862,6 +912,79 @@ static bool to_scene_linear_transform(OCIO::ConstConfigRcPtr &config,
 }
 #endif
 
+void ShaderManager::compute_thin_film_table(const Transform &xyz_to_rgb)
+{
+  /* Our implementation of Thin Film Fresnel is based on
+   * "A Practical Extension to Microfacet Theory for the Modeling of Varying Iridescence"
+   * by Laurent Belcour and Pascal Barla
+   * (https://belcour.github.io/blog/research/publication/2017/05/01/brdf-thin-film.html).
+   *
+   * The idea there is that for a naive implementation of Thin Film interference, you'd compute
+   * the reflectivity for a given wavelength using Airy summation, and then numerically integrate
+   * the product of this reflectivity function and the Color Matching Functions of the colorspace
+   * you're working in to obtain the RGB (or XYZ) values.
+   * However, this integration would require too many evaluations to be practical.
+   * Therefore, they reformulate the computation as a rapidly converging series involving the
+   * Fourier transform of the CMFs.
+   *
+   * Specifically, we need to:
+   * - Compute the RGB CMFs from the XYZ CMFs using the working color space's XYZ-to-RGB matrix
+   * - Resample the RGB CMFs to be parametrized by frequency instead of wavelength as usual
+   * - Compute the FFT of the CMFs
+   * - Store the result as a LUT
+   * - Look up the values for each channel at runtime based on the optical path difference and
+   *   phase shift.
+   *
+   * Computing an FFT here would be annoying, so we'd like to precompute it, but we only know
+   * the XYZ-to-RGB matrix at runtime. Luckily, both resampling and FFT are linear operations,
+   * so we can precompute the FFT of the resampled XYZ CMFs and then multiply each entry with
+   * the XYZ-to-RGB matrix to get the RGB LUT.
+   *
+   * That's what this function does: We load the precomputed values, convert to RGB, normalize
+   * the result to make the DC term equal to 1, convert from real/imaginary to magnitude/phase
+   * since that form is smoother and therefore interpolates more nicely, and then store that
+   * into the final table that's used by the kernel.
+   */
+  assert(sizeof(table_thin_film_cmf) == 6 * THIN_FILM_TABLE_SIZE * sizeof(float));
+  thin_film_table.resize(6 * THIN_FILM_TABLE_SIZE);
+
+  float3 normalization;
+  float3 prevPhase = zero_float3();
+  for (int i = 0; i < THIN_FILM_TABLE_SIZE; i++) {
+    const float *table_row = table_thin_film_cmf[i];
+    /* Load precomputed resampled Fourier-transformed XYZ CMFs. */
+    const float3 xyzReal = make_float3(table_row[0], table_row[1], table_row[2]);
+    const float3 xyzImag = make_float3(table_row[3], table_row[4], table_row[5]);
+
+    /* Linearly combine precomputed data to produce the RGB equivalents. Works since both
+     * resampling and Fourier transformation are linear operations. */
+    const float3 rgbReal = transform_direction(&xyz_to_rgb, xyzReal);
+    const float3 rgbImag = transform_direction(&xyz_to_rgb, xyzImag);
+
+    /* We normalize all entries by the first element. Since that is the DC component, it normalizes
+     * the CMF (in non-Fourier space) to an area of 1. */
+    if (i == 0) {
+      normalization = 1.0f / rgbReal;
+    }
+
+    /* Convert the complex value into magnitude/phase representation. */
+    const float3 rgbMag = sqrt(sqr(rgbReal) + sqr(rgbImag));
+    float3 rgbPhase = atan2(rgbImag, rgbReal);
+
+    /* Unwrap phase to avoid jumps. */
+    rgbPhase -= M_2PI_F * round((rgbPhase - prevPhase) * M_1_2PI_F);
+    prevPhase = rgbPhase;
+
+    /* Store in lookup table. */
+    thin_film_table[i + 0 * THIN_FILM_TABLE_SIZE] = rgbMag.x * normalization.x;
+    thin_film_table[i + 1 * THIN_FILM_TABLE_SIZE] = rgbMag.y * normalization.y;
+    thin_film_table[i + 2 * THIN_FILM_TABLE_SIZE] = rgbMag.z * normalization.z;
+    thin_film_table[i + 3 * THIN_FILM_TABLE_SIZE] = rgbPhase.x;
+    thin_film_table[i + 4 * THIN_FILM_TABLE_SIZE] = rgbPhase.y;
+    thin_film_table[i + 5 * THIN_FILM_TABLE_SIZE] = rgbPhase.z;
+  }
+}
+
 void ShaderManager::init_xyz_transforms()
 {
   /* Default to ITU-BT.709 in case no appropriate transform found.
@@ -890,6 +1013,8 @@ void ShaderManager::init_xyz_transforms()
   rec709_to_b = make_float3(0.0f, 0.0f, 1.0f);
   is_rec709 = true;
 
+  compute_thin_film_table(xyz_to_rec709);
+
 #ifdef WITH_OCIO
   /* Get from OpenColorO config if it has the required roles. */
   OCIO::ConstConfigRcPtr config = nullptr;
@@ -897,7 +1022,7 @@ void ShaderManager::init_xyz_transforms()
     config = OCIO::GetCurrentConfig();
   }
   catch (OCIO::Exception &exception) {
-    VLOG_WARNING << "OCIO config error: " << exception.what();
+    LOG_WARNING << "OCIO config error: " << exception.what();
     return;
   }
 
@@ -955,6 +1080,8 @@ void ShaderManager::init_xyz_transforms()
   rec709_to_g = make_float3(rec709_to_rgb.y);
   rec709_to_b = make_float3(rec709_to_rgb.z);
   is_rec709 = transform_equal_threshold(xyz_to_rgb, xyz_to_rec709, 0.0001f);
+
+  compute_thin_film_table(xyz_to_rgb);
 #endif
 }
 

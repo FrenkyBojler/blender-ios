@@ -181,6 +181,14 @@ static bool object_materials_supported_poll(bContext *C)
   return object_materials_supported_poll_ex(C, ob);
 }
 
+static bool material_slot_populated_poll(bContext *C)
+{
+  const Object *ob_active = CTX_data_active_object(C);
+  if (ob_active == nullptr) {
+    return false;
+  }
+  return ob_active->actcol > 0;
+}
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -243,6 +251,9 @@ static bool material_slot_remove_poll(bContext *C)
   /* Removing material slots in edit mode screws things up, see bug #21822. */
   if (BKE_object_is_in_editmode(ob)) {
     CTX_wm_operator_poll_msg_set(C, "Unable to remove material slot in edit mode");
+    return false;
+  }
+  if (!material_slot_populated_poll(C)) {
     return false;
   }
 
@@ -357,10 +368,11 @@ static wmOperatorStatus material_slot_assign_exec(bContext *C, wmOperator * /*op
       }
     }
     else if (ob->type == OB_FONT) {
-      EditFont *ef = ((Curve *)ob->data)->editfont;
+      const Curve *cu = static_cast<const Curve *>(ob->data);
+      EditFont *ef = cu->editfont;
       int i, selstart, selend;
 
-      if (ef && BKE_vfont_select_get(ob, &selstart, &selend)) {
+      if (ef && BKE_vfont_select_get(cu, &selstart, &selend)) {
         for (i = selstart; i <= selend; i++) {
           changed = true;
           ef->textbufinfo[i].mat_nr = mat_nr_active;
@@ -593,6 +605,7 @@ void OBJECT_OT_material_slot_copy(wmOperatorType *ot)
 
   /* API callbacks. */
   ot->exec = material_slot_copy_exec;
+  ot->poll = material_slot_populated_poll;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_INTERNAL;
@@ -745,20 +758,6 @@ void OBJECT_OT_material_slot_remove_unused(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-static bool material_slot_remove_all_poll(bContext *C)
-{
-  if (!material_slot_remove_poll(C)) {
-    return false;
-  }
-
-  const Object *ob_active = CTX_data_active_object(C);
-  if (ob_active->actcol <= 0) {
-    return false;
-  }
-
-  return true;
-}
-
 static wmOperatorStatus material_slot_remove_all_exec(bContext *C, wmOperator *op)
 {
   /* Removing material slots in edit mode screws things up, see bug #21822. */
@@ -814,7 +813,7 @@ void OBJECT_OT_material_slot_remove_all(wmOperatorType *ot)
 
   /* API callbacks. */
   ot->exec = material_slot_remove_all_exec;
-  ot->poll = material_slot_remove_all_poll;
+  ot->poll = material_slot_remove_poll;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -985,7 +984,6 @@ static wmOperatorStatus new_world_exec(bContext *C, wmOperator * /*op*/)
   else {
     wo = BKE_world_add(bmain, CTX_DATA_(BLT_I18NCONTEXT_ID_WORLD, "World"));
     ED_node_shader_default(C, &wo->id);
-    wo->use_nodes = true;
   }
 
   /* hook into UI */
@@ -1541,7 +1539,7 @@ static wmOperatorStatus lightprobe_cache_bake_invoke(bContext *C,
       wm, win, bmain, view_layer, scene, probes, data->report, scene->r.cfra, 0);
   if (wm_job == nullptr) {
     MEM_delete(data);
-    BKE_report(op->reports, RPT_WARNING, "Can't bake light probe while rendering");
+    BKE_report(op->reports, RPT_WARNING, "Cannot bake light probe while rendering");
     return OPERATOR_CANCELLED;
   }
 
@@ -2750,6 +2748,7 @@ void MATERIAL_OT_copy(wmOperatorType *ot)
 
   /* API callbacks. */
   ot->exec = copy_material_exec;
+  ot->poll = material_slot_populated_poll;
 
   /* flags */
   /* no undo needed since no changes are made to the material */

@@ -174,9 +174,7 @@ void time_update_meta_strip_range(const Scene *scene, Strip *strip_meta)
   }
 
   strip_meta->start = min + strip_meta->anim_startofs;
-  strip_meta->len = max - min;
-  strip_meta->len -= strip_meta->anim_startofs;
-  strip_meta->len -= strip_meta->anim_endofs;
+  strip_meta->len = max - strip_meta->anim_endofs - strip_meta->start;
 
   /* Functions `SEQ_time_*_handle_frame_set()` can not be used here, because they are clamped, so
    * change must be done at once. */
@@ -260,7 +258,7 @@ int time_find_next_prev_edit(Scene *scene,
     return timeline_frame;
   }
 
-  LISTBASE_FOREACH (Strip *, strip, ed->seqbasep) {
+  LISTBASE_FOREACH (Strip *, strip, ed->current_strips()) {
     int i;
 
     if (do_skip_mute && render_is_muted(channels, strip)) {
@@ -510,8 +508,8 @@ void time_left_handle_frame_set(const Scene *scene, Strip *strip, int timeline_f
   float offset = timeline_frame - time_start_frame_get(strip);
 
   if (transform_single_image_check(strip)) {
-    /* This strip has only 1 frame of content, that is always stretched to whole strip length.
-     * Therefore, strip start should be moved instead of adjusting offset. */
+    /* This strip has only 1 frame of content that is always stretched to the whole strip length.
+     * Move strip start left and adjust end offset to be negative (rightwards past the 1 frame). */
     time_start_frame_set(scene, strip, timeline_frame);
     strip->endofs += offset;
   }
@@ -562,7 +560,7 @@ static void strip_time_slip_strip_ex(const Scene *scene,
                                      bool recursed)
 {
   if (strip->type == STRIP_TYPE_SOUND_RAM && subframe_delta != 0.0f) {
-    strip->sound_offset += subframe_delta / FPS;
+    strip->sound_offset += subframe_delta / scene->frames_per_second();
   }
 
   if (delta == 0 && (!slip_keyframes || subframe_delta == 0.0f)) {

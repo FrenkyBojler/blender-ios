@@ -746,7 +746,7 @@ bool RNA_struct_override_matches(Main *bmain,
       continue;
     }
 
-    CLOG_INFO(&LOG, 5, "Override Checking %s", rna_path->c_str());
+    CLOG_DEBUG(&LOG, "Override Checking %s", rna_path->c_str());
 
     if (ignore_overridden) {
       IDOverrideLibraryProperty *op = BKE_lib_override_library_property_find(liboverride,
@@ -832,21 +832,19 @@ bool RNA_struct_override_matches(Main *bmain,
               const bool is_restored = rna_property_override_operation_apply(bmain, rnaapply_ctx);
 
               if (is_restored) {
-                CLOG_INFO(&LOG,
-                          5,
-                          "Restoreed forbidden liboverride `%s` for override data '%s'",
-                          rna_path->c_str(),
-                          ptr_local->owner_id->name);
+                CLOG_DEBUG(&LOG,
+                           "Restoreed forbidden liboverride `%s` for override data '%s'",
+                           rna_path->c_str(),
+                           ptr_local->owner_id->name);
                 if (r_report_flags) {
                   *r_report_flags |= RNA_OVERRIDE_MATCH_RESULT_RESTORED;
                 }
               }
               else {
-                CLOG_INFO(&LOG,
-                          2,
-                          "Failed to restore forbidden liboverride `%s` for override data '%s'",
-                          rna_path->c_str(),
-                          ptr_local->owner_id->name);
+                CLOG_DEBUG(&LOG,
+                           "Failed to restore forbidden liboverride `%s` for override data '%s'",
+                           rna_path->c_str(),
+                           ptr_local->owner_id->name);
               }
             }
             else {
@@ -875,9 +873,8 @@ bool RNA_struct_override_matches(Main *bmain,
               opop_restore->tag |= LIBOVERRIDE_PROP_TAG_NEEDS_RETORE;
               liboverride->runtime->tag |= LIBOVERRIDE_TAG_NEEDS_RESTORE;
 
-              CLOG_INFO(
+              CLOG_DEBUG(
                   &LOG,
-                  5,
                   "Tagging for restoration forbidden liboverride `%s` for override data '%s'",
                   rna_path->c_str(),
                   ptr_local->owner_id->name);
@@ -1074,6 +1071,8 @@ static void rna_property_override_collection_subitem_name_index_lookup(
     const char *item_name,
     const std::optional<ID *> &item_id,
     const int item_index,
+    /* Never use index-only lookup to validate a match (unless no item name (+ id) was given). */
+    const bool ignore_index_only_lookup,
     PointerRNA *r_ptr_item_name,
     PointerRNA *r_ptr_item_index)
 {
@@ -1104,6 +1103,13 @@ static void rna_property_override_collection_subitem_name_index_lookup(
 
   if (!item_name) {
     return;
+  }
+
+  /* If index + name (+ id) lookup failed, do not keep result of index-only lookup. That means that
+   * if the name (+ id) only lookup fails, no matching item was found, even if index-only would
+   * have matched. */
+  if (ignore_index_only_lookup) {
+    r_ptr_item_index->invalidate();
   }
 
   /* Then, lookup by name (+ id) only. */
@@ -1155,6 +1161,16 @@ static void rna_property_override_collection_subitem_lookup(
     ptr_item_storage->invalidate();
   }
 
+  /* If there is an item ID, there should _always_ be a valid item name too. */
+  BLI_assert(opop->subitem_local_name || !subitem_local_id);
+  BLI_assert(opop->subitem_reference_name || !subitem_reference_id);
+  /* Do not match by index only, if there are valid item names and ID.
+   *
+   * Otherwise, it can end up 'matching by index' e.g. collection childrens, re-assigning
+   * completely wrong collections only based on indices. This is especially bad when some
+   * collections are _removed_ from the reference collection's children. */
+  const bool ignore_index_only_lookup = (subitem_local_id || subitem_reference_id);
+
   PointerRNA ptr_item_dst_name, ptr_item_dst_index;
   PointerRNA ptr_item_src_name, ptr_item_src_index;
   PointerRNA ptr_item_storage_name, ptr_item_storage_index;
@@ -1163,6 +1179,7 @@ static void rna_property_override_collection_subitem_lookup(
                                                              opop->subitem_local_name,
                                                              subitem_local_id,
                                                              opop->subitem_local_index,
+                                                             ignore_index_only_lookup,
                                                              &ptr_item_src_name,
                                                              &ptr_item_src_index);
   rna_property_override_collection_subitem_name_index_lookup(ptr_dst,
@@ -1170,6 +1187,7 @@ static void rna_property_override_collection_subitem_lookup(
                                                              opop->subitem_reference_name,
                                                              subitem_reference_id,
                                                              opop->subitem_reference_index,
+                                                             ignore_index_only_lookup,
                                                              &ptr_item_dst_name,
                                                              &ptr_item_dst_index);
   /* This is rather fragile, but the fact that local override IDs may have a different name
@@ -1191,6 +1209,7 @@ static void rna_property_override_collection_subitem_lookup(
         {},
         opop->subitem_reference_index != -1 ? opop->subitem_reference_index :
                                               opop->subitem_local_index,
+        ignore_index_only_lookup,
         &ptr_item_dst_name,
         &ptr_item_dst_index);
   }
@@ -1205,6 +1224,7 @@ static void rna_property_override_collection_subitem_lookup(
         {},
         opop->subitem_reference_index != -1 ? opop->subitem_reference_index :
                                               opop->subitem_local_index,
+        ignore_index_only_lookup,
         &ptr_item_dst_name,
         &ptr_item_dst_index);
   }
@@ -1216,6 +1236,7 @@ static void rna_property_override_collection_subitem_lookup(
                                                                opop->subitem_local_index != -1 ?
                                                                    opop->subitem_local_index :
                                                                    opop->subitem_reference_index,
+                                                               ignore_index_only_lookup,
                                                                &ptr_item_src_name,
                                                                &ptr_item_src_index);
   }
@@ -1225,6 +1246,7 @@ static void rna_property_override_collection_subitem_lookup(
                                                                nullptr,
                                                                {},
                                                                opop->subitem_local_index,
+                                                               ignore_index_only_lookup,
                                                                &ptr_item_dst_name,
                                                                &ptr_item_dst_index);
   }
@@ -1234,6 +1256,7 @@ static void rna_property_override_collection_subitem_lookup(
                                                                nullptr,
                                                                {},
                                                                opop->subitem_reference_index,
+                                                               ignore_index_only_lookup,
                                                                &ptr_item_src_name,
                                                                &ptr_item_src_index);
   }
@@ -1245,6 +1268,7 @@ static void rna_property_override_collection_subitem_lookup(
                                                                opop->subitem_local_name,
                                                                subitem_local_id,
                                                                opop->subitem_local_index,
+                                                               ignore_index_only_lookup,
                                                                &ptr_item_storage_name,
                                                                &ptr_item_storage_index);
     if (ptr_item_storage_name.data == nullptr) {
@@ -1253,6 +1277,7 @@ static void rna_property_override_collection_subitem_lookup(
                                                                  opop->subitem_reference_name,
                                                                  subitem_reference_id,
                                                                  opop->subitem_reference_index,
+                                                                 ignore_index_only_lookup,
                                                                  &ptr_item_storage_name,
                                                                  &ptr_item_storage_index);
     }
@@ -1262,20 +1287,25 @@ static void rna_property_override_collection_subitem_lookup(
                                                                  nullptr,
                                                                  {},
                                                                  opop->subitem_local_index,
+                                                                 ignore_index_only_lookup,
                                                                  &ptr_item_storage_name,
                                                                  &ptr_item_storage_index);
     }
   }
 
-  /* Final selection. both matches have to be based on names, or indices, but not a mix of both. */
-  if (ptr_item_src_name.type != nullptr && ptr_item_dst_name.type != nullptr) {
+  /* Final selection. Both matches have to be based on names, or indices, but not a mix of both.
+   * If we are missing either source or destination data based on names, and based on indices, then
+   * use partial data from names (allows to handle 'need resync' detection cases). */
+  if ((ptr_item_src_name.type || ptr_item_dst_name.type) &&
+      !(ptr_item_src_index.type && ptr_item_dst_index.type))
+  {
     *ptr_item_src = ptr_item_src_name;
     *ptr_item_dst = ptr_item_dst_name;
     if (prop_storage != nullptr) {
       *ptr_item_storage = ptr_item_storage_name;
     }
   }
-  else if (ptr_item_src_index.type != nullptr && ptr_item_dst_index.type != nullptr) {
+  else if (ptr_item_src_index.type != nullptr || ptr_item_dst_index.type != nullptr) {
     *ptr_item_src = ptr_item_src_index;
     *ptr_item_dst = ptr_item_dst_index;
     if (prop_storage != nullptr) {
@@ -1290,25 +1320,23 @@ static void rna_property_override_collection_subitem_lookup(
       ((opop->subitem_reference_name != nullptr && opop->subitem_reference_name[0] != '\0') ||
        opop->subitem_reference_index != -1))
   {
-    CLOG_INFO(&LOG,
-              2,
-              "Failed to find destination sub-item '%s' (%d) of '%s' in new override data '%s'",
-              opop->subitem_reference_name != nullptr ? opop->subitem_reference_name : "",
-              opop->subitem_reference_index,
-              op->rna_path,
-              ptr_dst->owner_id->name);
+    CLOG_DEBUG(&LOG,
+               "Failed to find destination sub-item '%s' (%d) of '%s' in new override data '%s'",
+               opop->subitem_reference_name != nullptr ? opop->subitem_reference_name : "",
+               opop->subitem_reference_index,
+               op->rna_path,
+               ptr_dst->owner_id->name);
   }
   if (ptr_item_src->type == nullptr &&
       ((opop->subitem_local_name != nullptr && opop->subitem_local_name[0] != '\0') ||
        opop->subitem_local_index != -1))
   {
-    CLOG_INFO(&LOG,
-              2,
-              "Failed to find source sub-item '%s' (%d) of '%s' in old override data '%s'",
-              opop->subitem_local_name != nullptr ? opop->subitem_local_name : "",
-              opop->subitem_local_index,
-              op->rna_path,
-              ptr_src->owner_id->name);
+    CLOG_DEBUG(&LOG,
+               "Failed to find source sub-item '%s' (%d) of '%s' in old override data '%s'",
+               opop->subitem_local_name != nullptr ? opop->subitem_local_name : "",
+               opop->subitem_local_index,
+               op->rna_path,
+               ptr_src->owner_id->name);
   }
 }
 
@@ -1359,21 +1387,19 @@ static void rna_property_override_check_resync(Main *bmain,
     if (ID_IS_LINKED(id_owner_src)) {
       id_owner_src->lib->runtime->tag |= LIBRARY_TAG_RESYNC_REQUIRED;
     }
-    CLOG_INFO(&LOG,
-              3,
-              "Local override %s detected as needing resync due to mismatch in its used IDs",
-              id_owner_dst->name);
+    CLOG_DEBUG(&LOG,
+               "Local override %s detected as needing resync due to mismatch in its used IDs",
+               id_owner_dst->name);
   }
   if ((id_owner_src->override_library->reference->tag & ID_TAG_LIBOVERRIDE_NEED_RESYNC) != 0) {
     id_owner_dst->tag |= ID_TAG_LIBOVERRIDE_NEED_RESYNC;
     if (ID_IS_LINKED(id_owner_src)) {
       id_owner_src->lib->runtime->tag |= LIBRARY_TAG_RESYNC_REQUIRED;
     }
-    CLOG_INFO(&LOG,
-              3,
-              "Local override %s detected as needing resync as its liboverride reference is "
-              "already tagged for resync",
-              id_owner_dst->name);
+    CLOG_DEBUG(&LOG,
+               "Local override %s detected as needing resync as its liboverride reference is "
+               "already tagged for resync",
+               id_owner_dst->name);
   }
 }
 
@@ -1392,7 +1418,7 @@ static void rna_property_override_apply_ex(Main *bmain,
         !ELEM(opop->operation, LIBOVERRIDE_OP_INSERT_AFTER, LIBOVERRIDE_OP_INSERT_BEFORE))
     {
       if (!do_insert) {
-        CLOG_INFO(&LOG, 5, "Skipping insert override operations in first pass (%s)", op->rna_path);
+        CLOG_DEBUG(&LOG, "Skipping insert override operations in first pass (%s)", op->rna_path);
       }
       continue;
     }
@@ -1402,11 +1428,10 @@ static void rna_property_override_apply_ex(Main *bmain,
     rna_property_override_collection_subitem_lookup(rnaapply_ctx);
 
     if (!rna_property_override_operation_apply(bmain, rnaapply_ctx)) {
-      CLOG_INFO(&LOG,
-                4,
-                "Failed to apply '%s' override operation on %s\n",
-                op->rna_path,
-                rnaapply_ctx.ptr_src.owner_id->name);
+      CLOG_DEBUG(&LOG,
+                 "Failed to apply '%s' override operation on %s\n",
+                 op->rna_path,
+                 rnaapply_ctx.ptr_src.owner_id->name);
     }
   }
 
@@ -1438,12 +1463,11 @@ static bool override_apply_property_check_skip(Main *bmain,
 
   /* IDProperties case. */
   if (rnaapply_ctx.prop_dst->magic != RNA_MAGIC) {
-    CLOG_INFO(&LOG,
-              2,
-              "%s: Ignoring local override on ID pointer custom property '%s', as requested by "
-              "RNA_OVERRIDE_APPLY_FLAG_IGNORE_ID_POINTERS flag",
-              id_ptr_dst->owner_id->name,
-              op->rna_path);
+    CLOG_DEBUG(&LOG,
+               "%s: Ignoring local override on ID pointer custom property '%s', as requested by "
+               "RNA_OVERRIDE_APPLY_FLAG_IGNORE_ID_POINTERS flag",
+               id_ptr_dst->owner_id->name,
+               op->rna_path);
     return true;
   }
 
@@ -1457,12 +1481,11 @@ static bool override_apply_property_check_skip(Main *bmain,
         BLI_assert(id_ptr_dst->owner_id == rna_property_override_property_real_id_owner(
                                                bmain, &rnaapply_ctx.ptr_dst, nullptr, nullptr));
 
-        CLOG_INFO(&LOG,
-                  2,
-                  "%s: Ignoring local override on ID pointer property '%s', as requested by "
-                  "RNA_OVERRIDE_APPLY_FLAG_IGNORE_ID_POINTERS flag",
-                  id_ptr_dst->owner_id->name,
-                  op->rna_path);
+        CLOG_DEBUG(&LOG,
+                   "%s: Ignoring local override on ID pointer property '%s', as requested by "
+                   "RNA_OVERRIDE_APPLY_FLAG_IGNORE_ID_POINTERS flag",
+                   id_ptr_dst->owner_id->name,
+                   op->rna_path);
         return true;
       }
       break;
@@ -1471,12 +1494,11 @@ static bool override_apply_property_check_skip(Main *bmain,
       /* For collections of ID pointers just completely skip the override ops here... A tad brutal,
        * but this is a backup 'fix the mess' tool, and in practice this should never be an issue.
        * Can always be refined later if needed. */
-      CLOG_INFO(&LOG,
-                2,
-                "%s: Ignoring all local override on ID pointer collection property '%s', as "
-                "requested by RNA_OVERRIDE_APPLY_FLAG_IGNORE_ID_POINTERS flag",
-                id_ptr_dst->owner_id->name,
-                op->rna_path);
+      CLOG_DEBUG(&LOG,
+                 "%s: Ignoring all local override on ID pointer collection property '%s', as "
+                 "requested by RNA_OVERRIDE_APPLY_FLAG_IGNORE_ID_POINTERS flag",
+                 id_ptr_dst->owner_id->name,
+                 op->rna_path);
       return true;
     }
     default:
@@ -1529,16 +1551,15 @@ void RNA_struct_override_apply(Main *bmain,
                                                        &rnaapply_ctx.prop_src,
                                                        &rnaapply_ctx.ptr_item_src)))
       {
-        CLOG_INFO(&LOG,
-                  4,
-                  "Failed to apply library override operation to '%s.%s' "
-                  "(could not resolve some properties, local:  %d, override: %d)",
-                  static_cast<ID *>(id_ptr_src->owner_id)->name,
-                  op->rna_path,
-                  RNA_path_resolve_property(
-                      id_ptr_dst, op->rna_path, &rnaapply_ctx.ptr_dst, &rnaapply_ctx.prop_dst),
-                  RNA_path_resolve_property(
-                      id_ptr_src, op->rna_path, &rnaapply_ctx.ptr_src, &rnaapply_ctx.prop_src));
+        CLOG_DEBUG(&LOG,
+                   "Failed to apply library override operation to '%s.%s' "
+                   "(could not resolve some properties, local:  %d, override: %d)",
+                   static_cast<ID *>(id_ptr_src->owner_id)->name,
+                   op->rna_path,
+                   RNA_path_resolve_property(
+                       id_ptr_dst, op->rna_path, &rnaapply_ctx.ptr_dst, &rnaapply_ctx.prop_dst),
+                   RNA_path_resolve_property(
+                       id_ptr_src, op->rna_path, &rnaapply_ctx.ptr_src, &rnaapply_ctx.prop_src));
         continue;
       }
 

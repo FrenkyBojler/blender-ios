@@ -64,11 +64,7 @@
 #include "BKE_effect.h"
 #include "BKE_geometry_set.hh"
 #include "BKE_geometry_set_instances.hh"
-#include "BKE_gpencil_geom_legacy.h"
-#include "BKE_gpencil_legacy.h"
-#include "BKE_gpencil_modifier_legacy.h"
 #include "BKE_grease_pencil.hh"
-#include "BKE_grease_pencil_legacy_convert.hh"
 #include "BKE_key.hh"
 #include "BKE_lattice.hh"
 #include "BKE_layer.hh"
@@ -1471,7 +1467,7 @@ static wmOperatorStatus object_grease_pencil_add_exec(bContext *C, wmOperator *o
         md->source_type = LINEART_SOURCE_SCENE;
       }
       /* Only created one layer and one material. */
-      STRNCPY(md->target_layer, grease_pencil->get_active_layer()->name().c_str());
+      STRNCPY_UTF8(md->target_layer, grease_pencil->get_active_layer()->name().c_str());
       md->target_material = BKE_object_material_get(object, 0);
       if (md->target_material) {
         id_us_plus(&md->target_material->id);
@@ -1547,7 +1543,7 @@ void OBJECT_OT_grease_pencil_add(wmOperatorType *ot)
                 0.0f,
                 0.5f);
   RNA_def_boolean(
-      ot->srna, "use_lights", false, "Use Lights", "Use lights for this Grease Pencil object");
+      ot->srna, "use_lights", true, "Use Lights", "Use lights for this Grease Pencil object");
   RNA_def_enum(
       ot->srna,
       "stroke_depth_order",
@@ -2346,7 +2342,7 @@ static void copy_object_set_idnew(bContext *C)
   Main *bmain = CTX_data_main(C);
 
   CTX_DATA_BEGIN (C, Object *, ob, selected_editable_objects) {
-    BKE_libblock_relink_to_newid(bmain, &ob->id, 0);
+    BKE_libblock_relink_to_newid(bmain, &ob->id, ID_REMAP_SKIP_USER_CLEAR);
   }
   CTX_DATA_END;
 
@@ -2609,7 +2605,7 @@ static void make_object_duplilist_real(bContext *C,
       if (ob_dst_par) {
         /* allow for all possible parent types */
         ob_dst->partype = ob_src->partype;
-        STRNCPY(ob_dst->parsubstr, ob_src->parsubstr);
+        STRNCPY_UTF8(ob_dst->parsubstr, ob_src->parsubstr);
         ob_dst->par1 = ob_src->par1;
         ob_dst->par2 = ob_src->par2;
         ob_dst->par3 = ob_src->par3;
@@ -2825,14 +2821,14 @@ static bool object_convert_poll(bContext *C)
   ViewLayer *view_layer = CTX_data_view_layer(C);
   BKE_view_layer_synced_ensure(scene, view_layer);
   /* Don't use `active_object` in the context, it's important this value
-   * is from the view-layer as it's used to check if Blender is in edit-mode. */
+   * is from the view-layer as it's used to check if Blender is in object mode. */
   Object *obact = BKE_view_layer_active_object_get(view_layer);
-  if (obact && BKE_object_is_in_editmode(obact)) {
+  if (obact && obact->mode != OB_MODE_OBJECT) {
     return false;
   }
 
   /* Note that `obact` may not be editable,
-   * only check the active object to ensure Blender is not in edit-mode. */
+   * only check the active object to ensure Blender is in object mode. */
   return true;
 }
 
@@ -3252,7 +3248,7 @@ static void mesh_data_to_grease_pencil(const Mesh &mesh_eval,
       unique_attribute_id,
       bke::AttrDomain::Point,
       bke::AttrType::Float3,
-      bke::AttributeInitVArray(VArray<float3>::ForSpan(normals)));
+      bke::AttributeInitVArray(VArray<float3>::from_span(normals)));
 
   const int edges_num = mesh_copied->edges_num;
   bke::CurvesGeometry curves = geometry::mesh_edges_to_curves_convert(
@@ -3303,8 +3299,6 @@ static Object *convert_mesh_to_grease_pencil(Base &base,
     fill_colors = mesh_to_grease_pencil_get_material_list(*ob_eval, *mesh_eval, material_remap);
   }
 
-  Mesh *newob_mesh = static_cast<Mesh *>(newob->data);
-  BKE_id_material_clear(info.bmain, &newob_mesh->id);
   BKE_object_free_derived_caches(newob);
   BKE_object_free_modifiers(newob, 0);
 
@@ -3312,12 +3306,11 @@ static Object *convert_mesh_to_grease_pencil(Base &base,
   newob->data = grease_pencil;
   newob->type = OB_GREASE_PENCIL;
 
-  /* Reset `ob->totcol` and `ob->actcol` since currently the generic / grease pencil material
+  /* Reset object material array and count since currently the generic / grease pencil material
    * functions still depend on this value being coherent (The same value as
    * `GreasePencil::material_array_num`).
    */
-  newob->totcol = 0;
-  newob->actcol = 0;
+  BKE_object_material_resize(info.bmain, newob, 0, true);
 
   mesh_to_grease_pencil_add_material(
       *info.bmain, *newob, DATA_("Stroke"), float4(0.0f, 0.0f, 0.0f, 1.0f), {});
@@ -3541,10 +3534,7 @@ static Object *convert_grease_pencil_to_mesh(Base &base,
         const bke::greasepencil::Layer *layer = grease_pencil->layers()[layer_index];
         blender::float4x4 to_object = layer->to_object_space(*ob);
         bke::CurvesGeometry &new_curves = curves_id->geometry.wrap();
-        MutableSpan<blender::float3> positions = new_curves.positions_for_write();
-        for (const int point_i : new_curves.points_range()) {
-          positions[point_i] = blender::math::transform_point(to_object, positions[point_i]);
-        }
+        math::transform_points(to_object, new_curves.positions_for_write());
         geometries[i] = bke::GeometrySet::from_curves(curves_id);
       }
       if (geometries.size() > 0) {
@@ -3605,9 +3595,10 @@ static Object *convert_font_to_curve_legacy_generic(Object *ob,
 
   Object *ob_eval = DEG_get_evaluated(info.depsgraph, ob);
   BKE_vfont_to_curve_ex(ob_eval,
-                        static_cast<Curve *>(ob_eval->data),
+                        *static_cast<const Curve *>(ob_eval->data),
                         FO_EDIT,
                         &cu->nurb,
+                        nullptr,
                         nullptr,
                         nullptr,
                         nullptr,
@@ -4970,6 +4961,20 @@ static wmOperatorStatus update_all_shape_keys_exec(bContext *C, wmOperator *op)
   return ED_mesh_shapes_join_objects_exec(C, false, op->reports);
 }
 
+static bool object_update_shapes_poll(bContext *C)
+{
+  if (!active_shape_key_editable_poll(C)) {
+    return false;
+  }
+
+  Object *ob = CTX_data_active_object(C);
+  const Key *key = BKE_key_from_object(ob);
+  if (!key || BLI_listbase_is_empty(&key->block)) {
+    return false;
+  }
+  return true;
+}
+
 void OBJECT_OT_update_shapes(wmOperatorType *ot)
 {
   ot->name = "Update from Objects";
@@ -4979,7 +4984,7 @@ void OBJECT_OT_update_shapes(wmOperatorType *ot)
   ot->idname = "OBJECT_OT_update_shapes";
 
   ot->exec = update_all_shape_keys_exec;
-  ot->poll = active_shape_key_editable_poll;
+  ot->poll = object_update_shapes_poll;
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }

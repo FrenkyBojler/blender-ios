@@ -11,7 +11,6 @@
 #include "BKE_compositor.hh"
 #include "BKE_context.hh"
 #include "BKE_curves.hh"
-#include "BKE_gpencil_geom_legacy.h"
 #include "BKE_gpencil_legacy.h"
 #include "BKE_grease_pencil.hh"
 #include "BKE_material.hh"
@@ -61,12 +60,13 @@ void Instance::init()
 
   if (!dummy_texture.is_valid()) {
     const float pixels[1][4] = {{1.0f, 0.0f, 1.0f, 1.0f}};
-    dummy_texture.ensure_2d(GPU_RGBA8, int2(1), GPU_TEXTURE_USAGE_SHADER_READ, &pixels[0][0]);
+    dummy_texture.ensure_2d(
+        gpu::TextureFormat::UNORM_8_8_8_8, int2(1), GPU_TEXTURE_USAGE_SHADER_READ, &pixels[0][0]);
   }
   if (!dummy_depth.is_valid()) {
     const float pixels[1] = {1.0f};
     dummy_depth.ensure_2d(
-        GPU_DEPTH_COMPONENT32F, int2(1), GPU_TEXTURE_USAGE_SHADER_READ, &pixels[0]);
+        gpu::TextureFormat::SFLOAT_32_DEPTH, int2(1), GPU_TEXTURE_USAGE_SHADER_READ, &pixels[0]);
   }
 
   /* Resize and reset memory-blocks. */
@@ -172,13 +172,12 @@ void Instance::begin_sync()
   this->use_layer_fb = false;
   this->use_object_fb = false;
   this->use_mask_fb = false;
-  this->use_separate_pass =
-      draw_ctx->is_viewport_compositor_enabled() ?
-          bke::compositor::get_used_passes(*scene, view_layer).contains("GreasePencil") :
-          false;
-  /* Always use high precision for render and viewport compositor (viewport compositor only takes
-   * RGBA16F/32F formats). */
-  this->use_signed_fb = this->use_separate_pass || !this->is_viewport;
+
+  const bool use_viewport_compositor = draw_ctx->is_viewport_compositor_enabled();
+  const bool has_grease_pencil_pass =
+      bke::compositor::get_used_passes(*scene, view_layer).contains("GreasePencil");
+  this->use_separate_pass = use_viewport_compositor ? has_grease_pencil_pass : false;
+  this->use_signed_fb = !this->is_viewport;
 
   if (draw_ctx->v3d) {
     const bool hide_overlay = ((draw_ctx->v3d->flag2 & V3D_HIDE_OVERLAYS) != 0);
@@ -351,8 +350,8 @@ tObject *Instance::object_sync_do(Object *ob, ResourceHandleRange res_handle)
   int mat_ofs = 0;
   MaterialPool *matpool = gpencil_material_pool_create(this, ob, &mat_ofs, is_vertex_mode);
 
-  GPUTexture *tex_fill = this->dummy_tx;
-  GPUTexture *tex_stroke = this->dummy_tx;
+  gpu::Texture *tex_fill = this->dummy_tx;
+  gpu::Texture *tex_stroke = this->dummy_tx;
 
   gpu::Batch *iter_geom = nullptr;
   PassSimple *last_pass = nullptr;
@@ -448,10 +447,10 @@ tObject *Instance::object_sync_do(Object *ob, ResourceHandleRange res_handle)
                             ((layer.base.flag & GP_LAYER_TREE_NODE_USE_LIGHTS) != 0) &&
                             (ob->dtx & OB_USE_GPENCIL_LIGHTS);
 
-    GPUUniformBuf *lights_ubo = (use_lights) ? this->global_light_pool->ubo :
-                                               this->shadeless_light_pool->ubo;
+    gpu::UniformBuf *lights_ubo = (use_lights) ? this->global_light_pool->ubo :
+                                                 this->shadeless_light_pool->ubo;
 
-    GPUUniformBuf *ubo_mat;
+    gpu::UniformBuf *ubo_mat;
     gpencil_material_resources_get(matpool, 0, nullptr, nullptr, &ubo_mat);
 
     pass.bind_ubo("gp_lights", lights_ubo);
@@ -503,9 +502,9 @@ tObject *Instance::object_sync_do(Object *ob, ResourceHandleRange res_handle)
         return;
       }
 
-      GPUUniformBuf *new_ubo_mat;
-      GPUTexture *new_tex_fill = nullptr;
-      GPUTexture *new_tex_stroke = nullptr;
+      gpu::UniformBuf *new_ubo_mat;
+      gpu::Texture *new_tex_fill = nullptr;
+      gpu::Texture *new_tex_stroke = nullptr;
       gpencil_material_resources_get(
           matpool, mat_ofs + material_index, &new_tex_stroke, &new_tex_fill, &new_ubo_mat);
 
@@ -612,10 +611,12 @@ void Instance::acquire_resources()
 
   const int2 size = int2(draw_ctx->viewport_size_get());
 
-  const eGPUTextureFormat format_color = this->use_signed_fb ? GPU_RGBA16F : GPU_R11F_G11F_B10F;
-  const eGPUTextureFormat format_reveal = this->use_signed_fb ? GPU_RGBA16F : GPU_RGB10_A2;
+  const gpu::TextureFormat format_color = gpu::TextureFormat::SFLOAT_16_16_16_16;
+  const gpu::TextureFormat format_reveal = this->use_signed_fb ?
+                                               gpu::TextureFormat::SFLOAT_16_16_16_16 :
+                                               gpu::TextureFormat::UNORM_10_10_10_2;
 
-  this->depth_tx.acquire(size, GPU_DEPTH32F_STENCIL8);
+  this->depth_tx.acquire(size, gpu::TextureFormat::SFLOAT_32_DEPTH_UINT_8);
   this->color_tx.acquire(size, format_color);
   this->reveal_tx.acquire(size, format_reveal);
 
@@ -643,11 +644,12 @@ void Instance::acquire_resources()
 
   if (this->use_mask_fb) {
     /* Use high quality format for render. */
-    const eGPUTextureFormat mask_format = this->is_render ? GPU_R16 : GPU_R8;
+    const gpu::TextureFormat mask_format = this->is_render ? gpu::TextureFormat::UNORM_16 :
+                                                             gpu::TextureFormat::UNORM_8;
     /* We need an extra depth to not disturb the normal drawing. */
-    this->mask_depth_tx.acquire(size, GPU_DEPTH32F_STENCIL8);
+    this->mask_depth_tx.acquire(size, gpu::TextureFormat::SFLOAT_32_DEPTH_UINT_8);
     /* The mask_color_tx is needed for frame-buffer completeness. */
-    this->mask_color_tx.acquire(size, GPU_R8);
+    this->mask_color_tx.acquire(size, gpu::TextureFormat::UNORM_8);
     this->mask_tx.acquire(size, mask_format);
 
     this->mask_fb.ensure(GPU_ATTACHMENT_TEXTURE(this->mask_depth_tx),
@@ -658,7 +660,7 @@ void Instance::acquire_resources()
   if (this->use_separate_pass) {
     const int2 size = int2(draw_ctx->viewport_size_get());
     draw::TextureFromPool &output_pass_texture = DRW_viewport_pass_texture_get("GreasePencil");
-    output_pass_texture.acquire(size, GPU_RGBA16F);
+    output_pass_texture.acquire(size, gpu::TextureFormat::SFLOAT_16_16_16_16);
     this->gpencil_pass_fb.ensure(GPU_ATTACHMENT_NONE, GPU_ATTACHMENT_TEXTURE(output_pass_texture));
   }
 }
