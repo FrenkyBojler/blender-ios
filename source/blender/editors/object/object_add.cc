@@ -708,10 +708,7 @@ static wmOperatorStatus object_add_exec(bContext *C, wmOperator *op)
   radius = RNA_float_get(op->ptr, "radius");
   Object *ob = add_type(
       C, RNA_enum_get(op->ptr, "type"), nullptr, loc, rot, enter_editmode, local_view_bits);
-  else {
-    BKE_object_obdata_size_init(ob, radius);
-  }
-
+  BKE_object_obdata_size_init(ob, radius);
   return OPERATOR_FINISHED;
 }
 
@@ -818,7 +815,7 @@ static wmOperatorStatus lattice_add_exec(bContext *C, wmOperator *op)
   Lattice *lt = (Lattice *)ob->data;
 
   BKE_lattice_resize(lt, max_ii(1, res_u), max_ii(1, res_v), max_ii(1, res_w), nullptr);
-  DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
+  DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY | ID_RECALC_TRANSFORM);
 
   if (fit_to_selected && bounds_opt.has_value()) {
     if (targets.size() == 1) {
@@ -873,6 +870,7 @@ static wmOperatorStatus lattice_add_exec(bContext *C, wmOperator *op)
         copy_v3_v3(ob->loc, center_w);
         BKE_object_dimensions_set(ob, dims, 0);
         DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
+        DEG_relations_tag_update(CTX_data_main(C));
       }
       else {
         float bb_min[3], bb_max[3];
