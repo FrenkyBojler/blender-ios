@@ -15,6 +15,7 @@
 #include <regex>
 #include <sstream>
 #include <string>
+#include <unordered_set>
 #include <vector>
 
 #include "shader_parser.hh"
@@ -1027,13 +1028,20 @@ class Preprocessor {
         });
       };
 
+      unordered_set<string> processed_functions;
+
       scope.foreach_function([&](bool, Token, Token fn_name, Scope, bool, Scope) {
         /* Note: Struct scopes are currently parsed as Local. */
         if (fn_name.scope().type() == ScopeType::Local) {
-          /* Don't process functions inside a struct scope as the namespace must not be apply to
-           * them, but to the type. Otherwise, method calls will not work. */
+          /* Don't process functions inside a struct scope as the namespace must not be apply
+           * to them, but to the type. Otherwise, method calls will not work. */
           return;
         }
+        if (processed_functions.count(fn_name.str())) {
+          /* Don't process function names twice. Can happen with overloads. */
+          return;
+        }
+        processed_functions.emplace(fn_name.str());
         process_symbol(fn_name);
       });
       scope.foreach_struct([&](Token, Token struct_name, Scope) { process_symbol(struct_name); });
