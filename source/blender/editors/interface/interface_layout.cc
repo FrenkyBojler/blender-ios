@@ -5391,7 +5391,7 @@ void pie_menu_apply_page_scroll(const uiBlock *block)
 
 static void pie_menu_add_buts_to_page(PieMenuPage &page, const uiItem *item)
 {
-  if (item->type_ != uiItemType::Button) {
+  if (item->type() != uiItemType::Button) {
     const uiLayout *litem = static_cast<const uiLayout *>(item);
     for (const uiItem *subitem : litem->items_) {
       pie_menu_add_buts_to_page(page, subitem);
@@ -5407,7 +5407,7 @@ static void pie_menu_create_scroll_pages(uiBlock *block, uiLayout *layout)
 {
   BLI_assert(layout->root_->type == blender::ui::LayoutType::PieMenu);
   uiItem **pie_menu = std::find_if(layout->items_.begin(), layout->items_.end(), [](uiItem *item) {
-    return item->type_ == uiItemType::LayoutRadial;
+    return item->type() == uiItemType::LayoutRadial;
   });
   if (pie_menu == layout->items_.end()) {
     return;
