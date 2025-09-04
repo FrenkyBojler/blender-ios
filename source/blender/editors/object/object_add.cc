@@ -30,6 +30,7 @@
 #include "DNA_vfont_types.h"
 
 #include "BLI_array_utils.hh"
+#include "BLI_bounds.hh"
 #include "BLI_ghash.h"
 #include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
@@ -713,31 +714,23 @@ static std::optional<blender::Bounds<blender::float3>> collect_targets_and_bound
 
       Object *ob_eval = (Object *)DEG_get_evaluated_id(depsgraph, &base->object->id);
       if (ob_eval && DEG_object_transform_is_evaluated(*ob_eval)) {
-        if (std::optional<blender::Bounds<blender::float3>>  bounds = BKE_object_boundbox_get(ob_eval)) {
+        if (std::optional<blender::Bounds<blender::float3>> bounds = BKE_object_boundbox_get(
+                ob_eval))
+        {
           float object_to_world[4][4];
           BKE_object_to_mat4(ob_eval, object_to_world);
 
           const float3 &bb_min = bounds->min;
           const float3 &bb_max = bounds->max;
           /* Generate all 8 corners of the bounding box */
+          std::array<float3, 8> corners = blender::bounds::corners(*bounds);
 
-          float corners[8][3] = {
-              {bb_min[0], bb_min[1], bb_min[2]},
-              {bb_max[0], bb_min[1], bb_min[2]},
-              {bb_min[0], bb_max[1], bb_min[2]},
-              {bb_max[0], bb_max[1], bb_min[2]},
-              {bb_min[0], bb_min[1], bb_max[2]},
-              {bb_max[0], bb_min[1], bb_max[2]},
-              {bb_min[0], bb_max[1], bb_max[2]},
-              {bb_max[0], bb_max[1], bb_max[2]},
-          };
           /* Transform each corner to world space and update bounds */
-          for (int i = 0; i < 8; i++) {
-            mul_m4_v3(object_to_world, corners[i]);
-            /* Update world-space min/max */
+          for (float3 &corner : corners) {
+            mul_m4_v3(object_to_world, corner);
             for (int axis = 0; axis < 3; axis++) {
-              r_min[axis] = min_ff(r_min[axis], corners[i][axis]);
-              r_max[axis] = max_ff(r_max[axis], corners[i][axis]);
+              r_min[axis] = min_ff(r_min[axis], corner[axis]);
+              r_max[axis] = max_ff(r_max[axis], corner[axis]);
             }
           }
         }
