@@ -2340,6 +2340,8 @@ static void sculpt_expand_status(bContext *C, wmOperator *op, Cache *expand_cach
   }
 
   status.opmodal({}, op->type, SCULPT_EXPAND_MODAL_LOOP_COUNT_INCREASE);
+  status.item("/", 0);
+  status.separator(-1.2f);
   status.opmodal(IFACE_("Loop Count"), op->type, SCULPT_EXPAND_MODAL_LOOP_COUNT_DECREASE);
 
   status.opmodal(IFACE_("Geodesic Step"), op->type, SCULPT_EXPAND_MODAL_RECURSION_STEP_GEODESIC);
