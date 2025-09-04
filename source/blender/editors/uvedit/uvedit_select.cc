@@ -5755,65 +5755,39 @@ void UV_OT_select_mode(wmOperatorType *ot)
   RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 }
 
-static wmOperatorStatus uv_box_region_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus uv_user_region_exec(bContext *C, wmOperator *op)
 {
+  Scene *scene = CTX_data_scene(C);
   ARegion *region = CTX_wm_region(C);
+  ToolSettings *ts = scene->toolsettings;
 
-  rctf *rectf = &region->v2d.box_region;
+  WM_operator_properties_border_to_rctf(op, &ts->uv_pack_region);
+  UI_view2d_region_to_view_rctf(&region->v2d, &ts->uv_pack_region, &ts->uv_pack_region);
 
-  /* get rectangle from operator */
-  WM_operator_properties_border_to_rctf(op, rectf);
-  UI_view2d_region_to_view_rctf(&region->v2d, rectf, rectf);
-
-  region->v2d.flag |= V2D_BOX_REGION;
+  ts->uv_flag |= UV_SHOW_USER_REGION;
 
   return OPERATOR_FINISHED;
 }
 
-void UV_OT_box_region(wmOperatorType *ot)
+void UV_OT_user_region(wmOperatorType *ot)
 {
   /* identifiers */
-  ot->name = "Set Box Region";
-  ot->description = "Set the boundaries of the box region";
-  ot->idname = "UV_OT_box_region";
+  ot->name = "Set User Region";
+  ot->description = "Set the boundaries of the user region";
+  ot->idname = "UV_OT_user_region";
 
   /* API callbacks. */
   ot->invoke = WM_gesture_box_invoke;
-  ot->exec = uv_box_region_exec;
+  ot->exec = uv_user_region_exec;
   ot->modal = WM_gesture_box_modal;
   ot->poll = ED_operator_uvedit_space_image;
   ot->cancel = WM_gesture_box_cancel;
 
   /* flags */
-  ot->flag = OPTYPE_REGISTER;
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
   /* properties */
   WM_operator_properties_gesture_box(ot);
 }
 
-static wmOperatorStatus uv_disable_box_region_exec(bContext *C, wmOperator *op)
-{
-  ARegion *region = CTX_wm_region(C);
-  printf("Disabling box region\n");
-  region->v2d.flag &= ~V2D_BOX_REGION;
-
-  ED_region_tag_redraw(region);
-
-  return OPERATOR_FINISHED;
-}
-
-void UV_OT_disable_box_region(wmOperatorType *ot)
-{
-  /* identifiers */
-  ot->name = "Clear Box Region";
-  ot->description = "Disables the box region";
-  ot->idname = "UV_OT_disable_box_region";
-
-  /* API callbacks. */
-  ot->exec = uv_disable_box_region_exec;
-  ot->poll = ED_operator_uvedit_space_image;
-
-  /* flags */
-  ot->flag = OPTYPE_REGISTER;
-}
 /** \} */

@@ -1843,6 +1843,7 @@ typedef struct ToolSettings {
   /* Pixel threshold that needs to be crossed before the playhead is snapped to a point. */
   int playhead_snap_distance;
 
+  rctf uv_pack_region;
 } ToolSettings;
 
 /** \} */
@@ -2781,6 +2782,7 @@ enum {
 enum {
   UV_SYNC_SELECTION = 1,
   UV_SHOW_SAME_IMAGE = 2,
+  UV_SHOW_USER_REGION = 4,
 };
 
 /** #ToolSettings::uv_selectmode */

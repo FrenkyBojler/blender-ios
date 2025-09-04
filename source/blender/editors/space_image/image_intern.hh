@@ -9,6 +9,7 @@
 #pragma once
 
 /* internal exports only */
+#include "DNA_vec_types.h"
 struct ARegion;
 struct ARegionType;
 struct ImageUser;
@@ -28,7 +29,7 @@ extern const char *image_context_dir[]; /* doc access */
 void draw_image_main_helpers(const bContext *C, ARegion *region);
 void draw_image_cache(const bContext *C, ARegion *region);
 void draw_image_sample_line(SpaceImage *sima);
-void draw_box_region(ARegion *region, View2D *v2d, float xzoom, float yzoom);
+void draw_user_region(ARegion *region, rctf user_region);
 /* `image_ops.cc` */
 
 bool space_image_main_region_poll(bContext *C);

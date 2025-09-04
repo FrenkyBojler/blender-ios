@@ -469,9 +469,10 @@ class IMAGE_MT_uvs(Menu):
         layout.operator("uv.pack_islands")
         layout.operator_context = 'EXEC_REGION_WIN'
         layout.operator("uv.average_islands_scale")
-        layout.operator("uv.box_region")
-        layout.operator("uv.disable_box_region")
-
+        layout.operator_context = 'INVOKE_REGION_WIN'
+        layout.operator("uv.user_region")
+        layout.operator_context = 'EXEC_REGION_WIN'
+        layout.prop(context.tool_settings, "clear_user_region", text="Disable User Region", toggle=True)
         layout.separator()
 
         layout.operator("uv.minimize_stretch")

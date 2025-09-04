@@ -14,6 +14,7 @@
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
+#include "DNA_vec_types.h"
 #include "DNA_view2d_types.h"
 
 #include "BLI_rect.h"
@@ -441,6 +442,7 @@ void draw_image_sample_line(SpaceImage *sima)
 
 void draw_image_main_helpers(const bContext *C, ARegion *region)
 {
+  Scene *scene = CTX_data_scene(C);
   SpaceImage *sima = CTX_wm_space_image(C);
   Image *ima = ED_space_image(sima);
 
@@ -451,11 +453,12 @@ void draw_image_main_helpers(const bContext *C, ARegion *region)
     ED_space_image_get_zoom(sima, region, &zoomx, &zoomy);
     draw_render_info(C, sima->iuser.scene, ima, region, zoomx, zoomy);
   }
-
-  if (region->v2d.flag & V2D_BOX_REGION) {
+  
+  ToolSettings *ts = scene->toolsettings;
+  if (ts->uv_flag & UV_SHOW_USER_REGION) {
     float zoomx, zoomy;
     ED_space_image_get_zoom(sima, region, &zoomx, &zoomy);
-    draw_box_region(region, &region->v2d, zoomx, zoomy);
+    draw_user_region(region, ts->uv_pack_region);
   }
 }
 
@@ -614,7 +617,7 @@ float ED_space_image_increment_snap_value(const int grid_dimensions,
   return grid_steps[0];
 }
 
-void draw_box_region(ARegion *region, View2D *v2d, float xzoom, float yzoom)
+void draw_user_region(ARegion *region, rctf user_region)
 {
   /* use the same program for everything */
   const uint shdr_pos = GPU_vertformat_attr_add(
@@ -634,8 +637,8 @@ void draw_box_region(ARegion *region, View2D *v2d, float xzoom, float yzoom)
   immUniform1f("udash_factor", 0.5f);
   int xmin, ymin, xmax, ymax;
 
-  UI_view2d_view_to_region(&region->v2d, v2d->box_region.xmin, v2d->box_region.ymin, &xmin, &ymin);
-  UI_view2d_view_to_region(&region->v2d, v2d->box_region.xmax, v2d->box_region.ymax, &xmax, &ymax);
+  UI_view2d_view_to_region(&region->v2d, user_region.xmin, user_region.ymin, &xmin, &ymin);
+  UI_view2d_view_to_region(&region->v2d, user_region.xmax, user_region.ymax, &xmax, &ymax);
 
   imm_draw_box_wire_2d(shdr_pos, xmin, ymin, xmax, ymax);
 

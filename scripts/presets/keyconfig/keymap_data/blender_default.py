@@ -1414,8 +1414,7 @@ def km_uv_editor(params):
          {"properties": [("clear", True)]}),
         ("uv.copy", {"type": 'C', "value": 'PRESS', "ctrl": True}, None),
         ("uv.paste", {"type": 'V', "value": 'PRESS', "ctrl": True}, None),
-        ("uv.box_region", {"type": 'R', "value": 'PRESS', "shift": True}, None),
-        ("uv.disable_box_region", {"type": 'R', "value": 'PRESS', "shift": True, "alt": True}, None),
+        ("uv.user_region", {"type": 'R', "value": 'PRESS', "shift": True}, None),
 
         op_menu("IMAGE_MT_uvs_unwrap", {"type": 'U', "value": 'PRESS'}),
         (
