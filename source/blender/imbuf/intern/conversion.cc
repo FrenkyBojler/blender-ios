@@ -635,7 +635,7 @@ void IMB_byte_from_float(ImBuf *ibuf)
     processor = nullptr;
   }
 
-  constexpr int grain_size = 2048;
+  static constexpr int grain_size = 2048;
   threading::parallel_for(
       IndexRange(IMB_get_pixel_count(ibuf)), grain_size, [&](const IndexRange range) {
         /* Copy chunk of source float pixels into a local buffer. */
