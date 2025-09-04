@@ -78,7 +78,7 @@ static void copy_data(const ModifierData *md, ModifierData *target, const int fl
 
 static void freeBind(CorrectiveSmoothModifierData *csmd)
 {
-  blender::implicit_sharing::free_shared_data(&csmd, &csmd->bind_coords_sharing_info);
+  blender::implicit_sharing::free_shared_data(&csmd->bind_coords, &csmd->bind_coords_sharing_info);
   MEM_SAFE_FREE(csmd->delta_cache.deltas);
 
   csmd->bind_coords_num = 0;
