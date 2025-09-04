@@ -57,6 +57,8 @@ roles:
 displays:
   sRGB:
     - !<View> {name: Standard, colorspace: sRGB}
+    - !<View> {name: flim, colorspace: flim}
+    - !<View> {name: flim (silver), colorspace: flim (silver)}
     - !<View> {name: ACES 2.0, colorspace: ACES 2.0 sRGB}
     - !<View> {name: Khronos PBR Neutral, colorspace: Khronos PBR Neutral sRGB}
     - !<View> {name: AgX, colorspace: AgX Base sRGB}
@@ -72,6 +74,8 @@ displays:
     - !<View> {name: Raw, colorspace: Non-Color}
   Rec.1886:
     - !<View> {name: Standard, colorspace: Rec.1886}
+    - !<View> {name: flim, colorspace: flim - BT.1886 2.4}
+    - !<View> {name: flim (silver), colorspace: flim (silver) - BT.1886 2.4}
     - !<View> {name: ACES 2.0, colorspace: ACES 2.0 Rec.1886}
     - !<View> {name: AgX, colorspace: AgX Base Rec.1886}
     - !<View> {name: False Color, colorspace: AgX False Color Rec.709}
@@ -100,7 +104,7 @@ displays:
     - !<View> {name: False Color, colorspace: AgX False Color Rec.2100-HLG}
     - !<View> {name: Raw, colorspace: Non-Color}
 active_displays: [sRGB, Display P3, Rec.1886, Rec.2020, Rec.2100-PQ, Rec.2100-HLG]
-active_views: [Standard, ACES 2.0, ACES 2.0 - HDR 500 nits, ACES 2.0 - HDR 1000 nits, ACES 2.0 - HDR 2000 nits, ACES 2.0 - HDR 4000 nits, Khronos PBR Neutral, AgX, AgX - HDR 1000 nits, Filmic, Filmic Log, False Color, Raw]
+active_views: [Standard, flim, flim (silver), ACES 2.0, ACES 2.0 - HDR 500 nits, ACES 2.0 - HDR 1000 nits, ACES 2.0 - HDR 2000 nits, ACES 2.0 - HDR 4000 nits, Khronos PBR Neutral, AgX, AgX - HDR 1000 nits, Filmic, Filmic Log, False Color, Raw]
 inactive_colorspaces: [Luminance Compensation Rec.2020, AgX False Color Rec.709, AgX False Color P3, AgX False Color Rec.2020, AgX False Color Rec.2100-HLG, AgX False Color Rec.2100-PQ, ACES 2.0 Rec.2100-PQ - HDR 500 nits, ACES 2.0 Rec.2100-PQ - HDR 1000 nits, ACES 2.0 Rec.2100-PQ - HDR 2000 nits, ACES 2.0 Rec.2100-PQ - HDR 4000 nits, ACES 2.0 Rec.2020, AgX Rec.2100-HLG - HDR 1000 nits (P3 D65), AgX Rec.2100-PQ - HDR 1000 nits (P3 D65), AgX Rec.2100-HLG - SDR, AgX Rec.2100-PQ - SDR, ACES 2.0 Rec.2100-HLG - HDR 1000 nits]
 
 colorspaces:
@@ -737,6 +741,62 @@ colorspaces:
       children:
         - !<ColorSpaceTransform> {src: Linear CIE-XYZ E, dst: AgX Rec.2100-HLG - HDR 1000 nits (P3 D65)}
         - !<ColorSpaceTransform> {src: Rec.2100-HLG, dst: Rec.2100-PQ}
+
+  - !<ColorSpace>
+    name: flim
+    family: Image Formation
+    equalitygroup: ""
+    bitdepth: unknown
+    description: flim v1.1.0 - https://github.com/bean-mhm/flim
+    isdata: false
+    allocation: uniform
+    from_scene_reference: !<GroupTransform>
+      children:
+        - !<ColorSpaceTransform> {src: reference, dst: Linear BT.709 I-D65}
+        - !<RangeTransform> {min_in_value: 0., min_out_value: 0.}
+        - !<AllocationTransform> {allocation: lg2, vars: [-10, 10, 0.0009765625]}
+        - !<FileTransform> {src: flim_default.spi3d, interpolation: linear}
+  
+  - !<ColorSpace>
+    name: flim - BT.1886 2.4
+    family: Image Formation
+    equalitygroup: ""
+    bitdepth: unknown
+    description: flim v1.1.0 - https://github.com/bean-mhm/flim
+    isdata: false
+    allocation: uniform
+    from_scene_reference: !<GroupTransform>
+      children:
+        - !<ColorSpaceTransform> {src: reference, dst: flim}
+        - !<ColorSpaceTransform> {src: sRGB 2.2, dst: BT.1886 2.4}
+  
+  - !<ColorSpace>
+    name: flim (silver)
+    family: Image Formation
+    equalitygroup: ""
+    bitdepth: unknown
+    description: flim v1.1.0 - https://github.com/bean-mhm/flim
+    isdata: false
+    allocation: uniform
+    from_scene_reference: !<GroupTransform>
+      children:
+        - !<ColorSpaceTransform> {src: reference, dst: Linear BT.709 I-D65}
+        - !<RangeTransform> {min_in_value: 0., min_out_value: 0.}
+        - !<AllocationTransform> {allocation: lg2, vars: [-10, 10, 0.0009765625]}
+        - !<FileTransform> {src: flim_silver.spi3d, interpolation: linear}
+  
+  - !<ColorSpace>
+    name: flim (silver) - BT.1886 2.4
+    family: Image Formation
+    equalitygroup: ""
+    bitdepth: unknown
+    description: flim v1.1.0 - https://github.com/bean-mhm/flim
+    isdata: false
+    allocation: uniform
+    from_scene_reference: !<GroupTransform>
+      children:
+        - !<ColorSpaceTransform> {src: reference, dst: flim (silver)}
+        - !<ColorSpaceTransform> {src: sRGB 2.2, dst: BT.1886 2.4}
 
 looks:
   - !<Look>
