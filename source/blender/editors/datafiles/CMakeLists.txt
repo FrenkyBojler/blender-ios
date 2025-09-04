@@ -186,6 +186,7 @@ if(WITH_BLENDER)
       action_slot
       action_tweak
       add
+      adjust_curves
       aliased
       align_bottom
       align_center
@@ -193,7 +194,7 @@ if(WITH_BLENDER)
       align_justify
       align_left
       align_middle
-      align_right      
+      align_right
       align_top
       anchor_bottom
       anchor_center
@@ -926,6 +927,7 @@ if(WITH_BLENDER)
       volume_data
       vpaint_hlt
       warning_large
+      white_balance
       window
       wordwrap_off
       wordwrap_on
