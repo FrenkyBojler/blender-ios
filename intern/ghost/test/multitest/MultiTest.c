@@ -155,7 +155,7 @@ static void mainwindow_do_draw(MainWindow *mw)
   glColor3f(0.5, 0.6, 0.8);
   glRecti(mw->tmouse[0] - 5, mw->tmouse[1] - 5, mw->tmouse[0] + 5, mw->tmouse[1] + 5);
 
-  GHOST_SwapWindowBuffers(mw->win);
+  GHOST_SwapWindowBufferRelease(mw->win);
 }
 
 static void mainwindow_do_reshape(MainWindow *mw)
@@ -470,7 +470,7 @@ static void loggerwindow_do_draw(LoggerWindow *lw)
     BLF_draw(lw->font, line, 256);  // XXX
   }
 
-  GHOST_SwapWindowBuffers(lw->win);
+  GHOST_SwapWindowBufferRelease(lw->win);
 
   immDeactivate();
 }
@@ -668,7 +668,7 @@ static void extrawindow_do_draw(ExtraWindow *ew)
   glColor3f(0.8, 0.8, 0.8);
   glRecti(10, 10, ew->size[0] - 10, ew->size[1] - 10);
 
-  GHOST_SwapWindowBuffers(ew->win);
+  GHOST_SwapWindowBufferRelease(ew->win);
 }
 
 static void extrawindow_do_reshape(ExtraWindow *ew)

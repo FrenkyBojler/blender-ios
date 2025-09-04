@@ -733,7 +733,7 @@ extern GHOST_TSuccess GHOST_SwapWindowBufferAcquire(GHOST_WindowHandle windowhan
  * \param windowhandle: The handle to the window.
  * \return A success indicator.
  */
-extern GHOST_TSuccess GHOST_SwapWindowBuffers(GHOST_WindowHandle windowhandle);
+extern GHOST_TSuccess GHOST_SwapWindowBufferRelease(GHOST_WindowHandle windowhandle);
 
 /**
  * Sets the swap interval for #swapBuffers.
@@ -1306,20 +1306,18 @@ void GHOST_GetVulkanHandles(GHOST_ContextHandle context, GHOST_VulkanHandles *r_
  *
  * \param context: GHOST context handle of a vulkan context to
  *     get the Vulkan handles from.
- * \param swap_buffers_pre_callback: Function pointer to be called at the beginning of swapBuffers.
+ * \param swap_buffer_draw_callback: Function pointer to be called at the beginning of swapBuffers.
  *     Inside this callback the next swap-chain image needs to be acquired and filled.
- * \param swap_buffers_post_callback: Function to be called at th end of swapBuffers. swapBuffers
- *     can recreate the swap-chain. When this is done the application should be informed by those
- *     changes.
- * \param openxr_acquire_image_callback: Function to be called when an image needs to be acquired
- *     to be drawn to an OpenXR swap-chain.
- * \param openxr_release_image_callback: Function to be called after an image has been drawn to the
- *     OpenXR swap-chain.
+ * \param swap_buffer_acquired_callback: Function to be called at th end of swapBuffers.
+ * swapBuffers can recreate the swap-chain. When this is done the application should be informed by
+ * those changes. \param openxr_acquire_image_callback: Function to be called when an image needs
+ * to be acquired to be drawn to an OpenXR swap-chain. \param openxr_release_image_callback:
+ * Function to be called after an image has been drawn to the OpenXR swap-chain.
  */
 void GHOST_SetVulkanSwapBuffersCallbacks(
     GHOST_ContextHandle context,
-    void (*swap_buffers_pre_callback)(const GHOST_VulkanSwapChainData *),
-    void (*swap_buffers_post_callback)(void),
+    void (*swap_buffer_draw_callback)(const GHOST_VulkanSwapChainData *),
+    void (*swap_buffer_acquired_callback)(void),
     void (*openxr_acquire_image_callback)(GHOST_VulkanOpenXRData *),
     void (*openxr_release_image_callback)(GHOST_VulkanOpenXRData *));
 

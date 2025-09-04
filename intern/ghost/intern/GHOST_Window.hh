@@ -57,7 +57,7 @@ class GHOST_Window : public GHOST_IWindow {
    * virtual GHOST_TSuccess setState(GHOST_TWindowState state) = 0;
    * virtual GHOST_TSuccess setOrder(GHOST_TWindowOrder order) = 0;
    * virtual GHOST_TSuccess swapBufferAcquire() = 0;
-   * virtual GHOST_TSuccess swapBuffers() = 0;
+   * virtual GHOST_TSuccess swap_buffer_release() = 0;
    * virtual GHOST_TSuccess setSwapInterval() = 0;
    * virtual GHOST_TSuccess getSwapInterval(int& interval_out) = 0;
    * virtual GHOST_TSuccess activateDrawingContext() = 0;
@@ -199,7 +199,7 @@ class GHOST_Window : public GHOST_IWindow {
   /** \copydoc #GHOST_IWindow::swapBufferAcquire */
   GHOST_TSuccess swapBufferAcquire() override;
   /** \copydoc #GHOST_IWindow::swapBuffers */
-  GHOST_TSuccess swapBuffers() override;
+  GHOST_TSuccess swap_buffer_release() override;
 
   /** \copydoc #GHOST_IWindow::activateDrawingContext */
   GHOST_TSuccess activateDrawingContext() override;

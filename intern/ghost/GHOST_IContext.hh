@@ -61,7 +61,7 @@ class GHOST_IContext {
    * Swaps front and back buffers of a window.
    * \return A boolean success indicator.
    */
-  virtual GHOST_TSuccess swapBuffers() = 0;
+  virtual GHOST_TSuccess swap_buffer_release() = 0;
 
 #ifdef WITH_VULKAN_BACKEND
   /**
@@ -97,10 +97,10 @@ class GHOST_IContext {
    *
    * \param context: GHOST context handle of a vulkan context to
    *     get the Vulkan handles from.
-   * \param swap_buffers_pre_callback: Function pointer to be called at the beginning of
+   * \param swap_buffer_draw_callback: Function pointer to be called at the beginning of
    *     swapBuffers. Inside this callback the next swap-chain image needs to be acquired and
    *     filled.
-   * \param swap_buffers_post_callback: Function to be called at th end of swapBuffers.
+   * \param swap_buffer_acquired_callback: Function to be called at th end of swapBuffers.
    *     swapBuffers can recreate the swap-chain. When this is done the application should be
    *     informed by those changes.
    * \param openxr_acquire_image_callback: Function to be called when an
@@ -109,8 +109,8 @@ class GHOST_IContext {
    *     the OpenXR swap-chain.
    */
   virtual GHOST_TSuccess setVulkanSwapBuffersCallbacks(
-      std::function<void(const GHOST_VulkanSwapChainData *)> swap_buffers_pre_callback,
-      std::function<void(void)> swap_buffers_post_callback,
+      std::function<void(const GHOST_VulkanSwapChainData *)> swap_buffer_draw_callback,
+      std::function<void(void)> swap_buffer_acquired_callback,
       std::function<void(GHOST_VulkanOpenXRData *)> openxr_acquire_framebuffer_image_callback,
       std::function<void(GHOST_VulkanOpenXRData *)> openxr_release_framebuffer_image_callback) = 0;
 #endif

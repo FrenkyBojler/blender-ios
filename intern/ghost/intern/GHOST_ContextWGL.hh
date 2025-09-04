@@ -49,7 +49,7 @@ class GHOST_ContextWGL : public GHOST_Context {
    * Swaps front and back buffers of a window.
    * \return A boolean success indicator.
    */
-  GHOST_TSuccess swapBuffers() override;
+  GHOST_TSuccess swap_buffer_release() override;
 
   /**
    * Activates the drawing context of this window.

@@ -10,7 +10,7 @@
 
 #include "GHOST_ContextNone.hh"
 
-GHOST_TSuccess GHOST_ContextNone::swapBuffers()
+GHOST_TSuccess GHOST_ContextNone::swap_buffer_release()
 {
   return GHOST_kSuccess;
 }

@@ -32,7 +32,7 @@ GHOST_ContextD3D::~GHOST_ContextD3D()
   device_ctx_->Release();
 }
 
-GHOST_TSuccess GHOST_ContextD3D::swapBuffers()
+GHOST_TSuccess GHOST_ContextD3D::swap_buffer_release()
 {
   return GHOST_kSuccess;
 }
