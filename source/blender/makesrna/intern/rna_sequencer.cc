@@ -3885,6 +3885,7 @@ static void rna_def_colorbalance_modifier(BlenderRNA *brna)
   PropertyRNA *prop;
 
   srna = RNA_def_struct(brna, "ColorBalanceModifier", "StripModifier");
+  RNA_def_struct_ui_icon(srna, ICON_COLOR_BALANCE);
   RNA_def_struct_sdna(srna, "ColorBalanceModifierData");
   RNA_def_struct_ui_text(
       srna, "ColorBalanceModifier", "Color balance modifier for sequence strip");
@@ -3963,6 +3964,7 @@ static void rna_def_brightcontrast_modifier(BlenderRNA *brna)
   PropertyRNA *prop;
 
   srna = RNA_def_struct(brna, "BrightContrastModifier", "StripModifier");
+  RNA_def_struct_ui_icon(srna, ICON_BRIGHTNESS_CONTRAST);
   RNA_def_struct_sdna(srna, "BrightContrastModifierData");
   RNA_def_struct_ui_text(
       srna, "BrightContrastModifier", "Bright/contrast modifier data for sequence strip");

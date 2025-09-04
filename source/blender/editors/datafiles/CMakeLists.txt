@@ -193,7 +193,7 @@ if(WITH_BLENDER)
       align_justify
       align_left
       align_middle
-      align_right
+      align_right      
       align_top
       anchor_bottom
       anchor_center
@@ -228,6 +228,7 @@ if(WITH_BLENDER)
       bone_data
       bookmarks
       bordermove
+      brightness_contrast
       brushes_all
       brush_data
       camera_data
@@ -245,6 +246,7 @@ if(WITH_BLENDER)
       collapsemenu
       collection_new
       color
+      color_balance
       color_blue
       color_green
       color_red
