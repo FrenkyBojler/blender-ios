@@ -1172,8 +1172,7 @@ def brush_shared_settings(layout, context, brush, popover=False):
         if mode in {'PAINT_TEXTURE', 'PAINT_2D', 'SCULPT', 'PAINT_VERTEX', 'PAINT_WEIGHT', 'SCULPT_CURVES'}:
             if paint.show_size_curve:
                 col = layout.column()
-                # TODO: This doesn't quite work, only the first element is greyed out.
-                # col.active = brush.use_pressure_size
+                col.active = brush.use_pressure_size
                 col.template_curve_mapping(brush, "curve_size", brush=True, use_negative_slope=True)
         if size_mode:
             layout.row().prop(size_owner, "use_locked_size", expand=True)
@@ -1195,8 +1194,7 @@ def brush_shared_settings(layout, context, brush, popover=False):
         if mode in {'PAINT_TEXTURE', 'PAINT_2D', 'SCULPT', 'PAINT_VERTEX', 'PAINT_WEIGHT', 'SCULPT_CURVES'}:
             if paint.show_strength_curve:
                 col = layout.column()
-                # TODO: This doesn't quite work, only the first element is greyed out.
-                # col.active = brush.use_pressure_strength
+                col.active = brush.use_pressure_strength
                 col.template_curve_mapping(brush, "curve_strength", brush=True, use_negative_slope=True)
         layout.separator()
 
