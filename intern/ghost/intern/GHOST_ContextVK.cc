@@ -102,19 +102,6 @@ static const char *vulkan_error_as_string(VkResult result)
     } \
   } while (0)
 
-/* Check if the given extension name is in the extension_list.
- */
-static bool contains_extension(const vector<VkExtensionProperties> &extension_list,
-                               const char *extension_name)
-{
-  for (const VkExtensionProperties &extension_properties : extension_list) {
-    if (strcmp(extension_properties.extensionName, extension_name) == 0) {
-      return true;
-    }
-  }
-  return false;
-};
-
 /* -------------------------------------------------------------------- */
 /** \name Swap-chain resources
  * \{ */
@@ -925,40 +912,6 @@ GHOST_TSuccess GHOST_ContextVK::releaseDrawingContext()
   return GHOST_kSuccess;
 }
 
-static vector<VkExtensionProperties> getExtensionsAvailable()
-{
-  uint32_t extension_count = 0;
-  vkEnumerateInstanceExtensionProperties(nullptr, &extension_count, nullptr);
-
-  vector<VkExtensionProperties> extensions(extension_count);
-  vkEnumerateInstanceExtensionProperties(nullptr, &extension_count, extensions.data());
-
-  return extensions;
-}
-
-static bool checkExtensionSupport(const vector<VkExtensionProperties> &extensions_available,
-                                  const char *extension_name)
-{
-  for (const auto &extension : extensions_available) {
-    if (strcmp(extension_name, extension.extensionName) == 0) {
-      return true;
-    }
-  }
-  return false;
-}
-
-static void requireExtension(const vector<VkExtensionProperties> &extensions_available,
-                             vector<const char *> &extensions_enabled,
-                             const char *extension_name)
-{
-  if (checkExtensionSupport(extensions_available, extension_name)) {
-    extensions_enabled.push_back(extension_name);
-  }
-  else {
-    CLOG_ERROR(&LOG, "Vulkan: required extension not found: %s", extension_name);
-  }
-}
-
 static GHOST_TSuccess selectPresentMode(const GHOST_TVSyncModes vsync,
                                         VkPhysicalDevice device,
                                         VkSurfaceKHR surface,
@@ -1382,7 +1335,7 @@ GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
       /* X11 doesn't use the correct swapchain offset, flipping can squash the first frames. */
       const bool use_vk_ext_swapchain_maintenance1 =
 #if WITH_GHOST_X11
-          platform != GHOST_kVulkanPlatformX11 &&
+          platform_ != GHOST_kVulkanPlatformX11 &&
 #endif
           instance_vk.extensions.is_supported(VK_EXT_SURFACE_MAINTENANCE_1_EXTENSION_NAME) &&
           instance_vk.extensions.is_supported(VK_KHR_GET_SURFACE_CAPABILITIES_2_EXTENSION_NAME);
@@ -1423,7 +1376,8 @@ GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
     info.pNext = nullptr;
     info.flags = 0;
     info.pLayer = metal_layer_;
-    VK_CHECK(vkCreateMetalSurfaceEXT(instance, &info, nullptr, &surface_), GHOST_kFailure);
+    VK_CHECK(vkCreateMetalSurfaceEXT(instance_vk.vk_instance, &info, nullptr, &surface_),
+             GHOST_kFailure);
 #else
     switch (platform_) {
 #  ifdef WITH_GHOST_X11
@@ -1432,7 +1386,8 @@ GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
         surface_create_info.sType = VK_STRUCTURE_TYPE_XLIB_SURFACE_CREATE_INFO_KHR;
         surface_create_info.dpy = display_;
         surface_create_info.window = window_;
-        VK_CHECK(vkCreateXlibSurfaceKHR(instance, &surface_create_info, nullptr, &surface_),
+        VK_CHECK(vkCreateXlibSurfaceKHR(
+                     instance_vk.vk_instance, &surface_create_info, nullptr, &surface_),
                  GHOST_kFailure);
         break;
       }
@@ -1443,7 +1398,8 @@ GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
         surface_create_info.sType = VK_STRUCTURE_TYPE_WAYLAND_SURFACE_CREATE_INFO_KHR;
         surface_create_info.display = wayland_display_;
         surface_create_info.surface = wayland_surface_;
-        VK_CHECK(vkCreateWaylandSurfaceKHR(instance, &surface_create_info, nullptr, &surface_),
+        VK_CHECK(vkCreateWaylandSurfaceKHR(
+                     instance_vk.vk_instance, &surface_create_info, nullptr, &surface_),
                  GHOST_kFailure);
         break;
       }
@@ -1462,7 +1418,7 @@ GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
     /* External memory extensions. */
 #ifdef _WIN32
     optional_device_extensions.push_back(VK_KHR_EXTERNAL_MEMORY_WIN32_EXTENSION_NAME);
-#elif
+#else
     optional_device_extensions.push_back(VK_KHR_EXTERNAL_MEMORY_FD_EXTENSION_NAME);
 #endif
 
