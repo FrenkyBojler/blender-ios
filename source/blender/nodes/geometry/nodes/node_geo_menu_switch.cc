@@ -420,24 +420,33 @@ class MenuSwitchOperation : public NodeOperation {
 
   void execute() override
   {
-    Result &output = this->get_result("Output");
+    Result &value_output = this->get_result("Output");
     const MenuValue menu_identifier = this->get_input("Menu").get_single_value<MenuValue>();
     const NodeEnumDefinition &enum_definition = node_storage(bnode()).enum_definition;
+    bool found_item = false;
 
     for (const int i : IndexRange(enum_definition.items_num)) {
       const NodeEnumItem &enum_item = enum_definition.items()[i];
-      if (enum_item.identifier != menu_identifier.value) {
-        continue;
-      }
       const std::string identifier = MenuSwitchItemsAccessor::socket_identifier_for_item(
           enum_item);
+      const bool is_selected = enum_item.identifier == menu_identifier.value;
+      Result &item_output = this->get_result(identifier);
+      if (item_output.should_compute()) {
+        item_output.allocate_single_value();
+        item_output.set_single_value(is_selected);
+      }
+      if (!is_selected) {
+        continue;
+      }
       const Result &input = this->get_input(identifier);
-      output.share_data(input);
-      return;
+      value_output.share_data(input);
+      found_item = true;
     }
 
-    /* The menu identifier didn't match any item, so allocate an invalid output. */
-    output.allocate_invalid();
+    if (!found_item) {
+      /* The menu identifier didn't match any item, so allocate an invalid output. */
+      value_output.allocate_invalid();
+    }
   }
 };
 
