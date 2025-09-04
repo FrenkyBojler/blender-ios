@@ -761,10 +761,10 @@ static std::optional<blender::Bounds<blender::float3>> collect_targets_and_bound
           float object_to_world[4][4];
           BKE_object_to_mat4(ob_eval, object_to_world);
 
-          /* Generate all 8 corners of the bounding box */
+          /* Generate all 8 corners of the bounding box. */
           std::array<float3, 8> corners = blender::bounds::corners(*bounds);
 
-          /* Transform each corner to world space and update bounds */
+          /* Transform each corner to world space and update bounds. */
           for (float3 &corner : corners) {
             mul_m4_v3(object_to_world, corner);
             for (int axis = 0; axis < 3; axis++) {
@@ -774,12 +774,12 @@ static std::optional<blender::Bounds<blender::float3>> collect_targets_and_bound
           }
         }
         else {
-          /* Fallback if no bounding box available */
+          /* Fallback if no bounding box available. */
           BKE_object_minmax(ob_eval, r_min, r_max);
         }
       }
       else {
-        /* Fallback to original object if evaluation fails or is incomplete */
+        /* Fallback to original object if evaluation fails or is incomplete. */
         BKE_object_minmax(base->object, r_min, r_max);
       }
       any = true;
@@ -823,7 +823,7 @@ static wmOperatorStatus lattice_add_exec(bContext *C, wmOperator *op)
 
   if (fit_to_selected && bounds_opt.has_value()) {
     if (targets.size() == 1) {
-      /* Aligns lattice to rotation and scale of a single selected object*/
+      /* Aligns lattice to rotation and scale of a single selected object.*/
       Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
       Object *tob = targets[0];
       Object *tob_eval = (Object *)DEG_get_evaluated_id(depsgraph, &tob->id);
@@ -878,7 +878,7 @@ static wmOperatorStatus lattice_add_exec(bContext *C, wmOperator *op)
       }
     }
     else {
-      /* Aligns lattice to a bounding box fit for multiple selected objects */
+      /* Aligns lattice to a bounding box fit for multiple selected objects. */
       float3 sel_min = bounds_opt->min;
       float3 sel_max = bounds_opt->max;
 
@@ -897,7 +897,7 @@ static wmOperatorStatus lattice_add_exec(bContext *C, wmOperator *op)
     }
   }
   else {
-    /*  Fallback when fit to selected is off */
+    /*  Fallback when fit to selected is off. */
     copy_v3_fl(ob->scale, RNA_float_get(op->ptr, "radius"));
     DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
   }
