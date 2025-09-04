@@ -1227,6 +1227,10 @@ static bool region_azone_edge_poll(const ScrArea *area,
     return false;
   }
 
+  if (area->winy < int(float(ED_area_headersize()) * 1.5f)) {
+    return false;
+  }
+
   /* Don't use edge if the region hides with previous region which is now hidden. See #116196. */
   if ((region->alignment & (RGN_SPLIT_PREV | RGN_ALIGN_HIDE_WITH_PREV) && region->prev) &&
       region->prev->flag & (RGN_FLAG_HIDDEN | RGN_FLAG_TOO_SMALL))
@@ -1640,7 +1644,7 @@ static void region_rect_recursive(
   else if (ELEM(alignment, RGN_ALIGN_TOP, RGN_ALIGN_BOTTOM)) {
     rcti *winrct = (region->overlap) ? overlap_remainder : remainder;
 
-    if ((prefsizey == 0) || (rct_fits(winrct, SCREEN_AXIS_V, prefsizey) < 0)) {
+    if ((prefsizey == 0) || (rct_fits(winrct, SCREEN_AXIS_V, prefsizey) < (U.pixelsize * -2))) {
       region->flag |= RGN_FLAG_TOO_SMALL;
     }
     else {
@@ -1767,6 +1771,11 @@ static void region_rect_recursive(
   /* for speedup */
   region->winx = BLI_rcti_size_x(&region->winrct) + 1;
   region->winy = BLI_rcti_size_y(&region->winrct) + 1;
+
+  if (region->winy <= U.border_width && !(region->flag & RGN_FLAG_HIDDEN)) {
+    /* Don't draw when just a couple pixels tall. #143617. */
+    region->flag |= RGN_FLAG_TOO_SMALL;
+  }
 
   /* If region opened normally, we store this for hide/reveal usage. */
   /* Prevent rounding errors for UI_SCALE_FAC multiply and divide. */
@@ -3491,6 +3500,8 @@ void ED_region_panels_layout(const bContext *C, ARegion *region)
 void ED_region_panels_draw(const bContext *C, ARegion *region)
 {
   View2D *v2d = &region->v2d;
+  const float aspect = BLI_rctf_size_y(&region->v2d.cur) /
+                       (BLI_rcti_size_y(&region->v2d.mask) + 1);
 
   if (region->alignment != RGN_ALIGN_FLOAT) {
     ED_region_clear(C,
@@ -3508,8 +3519,13 @@ void ED_region_panels_draw(const bContext *C, ARegion *region)
   /* View2D matrix might have changed due to dynamic sized regions. */
   UI_blocklist_update_window_matrix(C, &region->runtime->uiblocks);
 
-  /* draw panels */
-  UI_panels_draw(C, region);
+  /* draw panels if they are large enough. */
+  const bool has_catgories = (region->panels_category_active.first != nullptr);
+  const short min_draw_size = has_catgories ? short(UI_PANEL_CATEGORY_MIN_WIDTH) + 20 :
+                                              std::min(region->runtime->type->prefsizex, 20);
+  if (region->winx >= (min_draw_size * UI_SCALE_FAC / aspect)) {
+    UI_panels_draw(C, region);
+  }
 
   /* restore view matrix */
   UI_view2d_view_restore(C);
@@ -3541,8 +3557,6 @@ void ED_region_panels_draw(const bContext *C, ARegion *region)
   ED_region_draw_overflow_indication(CTX_wm_area(C), region, use_mask ? &mask : nullptr);
 
   /* Hide scrollbars below a threshold. */
-  const float aspect = BLI_rctf_size_y(&region->v2d.cur) /
-                       (BLI_rcti_size_y(&region->v2d.mask) + 1);
   int min_width = UI_panel_category_is_visible(region) ? 60.0f * UI_SCALE_FAC / aspect :
                                                          40.0f * UI_SCALE_FAC / aspect;
   if (BLI_rcti_size_x(&region->winrct) <= min_width) {
