@@ -1267,28 +1267,32 @@ static void compositor_modifier_init_data(StripModifierData *strip_modifier_data
   modifier_data->node_group = nullptr;
 }
 
-static ImBuf *compute_linear_float_buffer(ImBuf *image_buffer)
+static bool ensure_linear_float_buffer(ImBuf *ibuf)
 {
-  if (image_buffer->float_buffer.data &&
-      IMB_colormanagement_space_is_scene_linear(image_buffer->float_buffer.colorspace))
+  /* Already have scene linear float pixels, nothing to do. */
+  if (ibuf->float_buffer.data &&
+      IMB_colormanagement_space_is_scene_linear(ibuf->float_buffer.colorspace))
   {
-    return image_buffer;
+    return true;
   }
 
-  ImBuf *linear_float_buffer = IMB_dupImBuf(image_buffer);
-  if (image_buffer->float_buffer.data == nullptr) {
-    IMB_float_from_byte(linear_float_buffer);
+  if (ibuf->float_buffer.data == nullptr) {
+    IMB_float_from_byte(ibuf);
   }
   else {
-    IMB_colormanagement_colorspace_to_scene_linear(linear_float_buffer->float_buffer.data,
-                                                   linear_float_buffer->x,
-                                                   linear_float_buffer->y,
-                                                   4,
-                                                   image_buffer->float_buffer.colorspace,
-                                                   false);
+    const char *from_colorspace = IMB_colormanagement_get_float_colorspace(ibuf);
+    const char *to_colorspace = IMB_colormanagement_role_colorspace_name_get(
+        COLOR_ROLE_SCENE_LINEAR);
+    IMB_colormanagement_transform_float(ibuf->float_buffer.data,
+                                        ibuf->x,
+                                        ibuf->y,
+                                        ibuf->channels,
+                                        from_colorspace,
+                                        to_colorspace,
+                                        true);
+    IMB_colormanagement_assign_float_colorspace(ibuf, to_colorspace);
   }
-
-  return linear_float_buffer;
+  return false;
 }
 
 static void compositor_modifier_apply(const RenderData *render_data,
@@ -1303,32 +1307,24 @@ static void compositor_modifier_apply(const RenderData *render_data,
     return;
   }
 
-  ImBuf *linear_float_buffer = compute_linear_float_buffer(image_buffer);
+  const bool was_float_linear = ensure_linear_float_buffer(image_buffer);
+  const bool was_byte = image_buffer->float_buffer.data == nullptr;
 
-  CompositorContext context(*render_data, modifier_data, linear_float_buffer);
+  CompositorContext context(*render_data, modifier_data, image_buffer);
   compositor::Evaluator evaluator(context);
   evaluator.evaluate();
 
-  if (image_buffer == linear_float_buffer) {
+  if (was_float_linear) {
     return;
   }
 
-  const bool is_byte_buffer = image_buffer->float_buffer.data == nullptr;
-  IMB_assign_float_buffer(
-      image_buffer, IMB_steal_float_buffer(linear_float_buffer), IB_TAKE_OWNERSHIP);
-  if (is_byte_buffer) {
+  if (was_byte) {
     IMB_byte_from_float(image_buffer);
     IMB_free_float_pixels(image_buffer);
   }
   else {
-    IMB_colormanagement_scene_linear_to_colorspace(linear_float_buffer->float_buffer.data,
-                                                   linear_float_buffer->x,
-                                                   linear_float_buffer->y,
-                                                   4,
-                                                   image_buffer->float_buffer.colorspace);
+    seq_imbuf_to_sequencer_space(render_data->scene, image_buffer, true);
   }
-
-  IMB_freeImBuf(linear_float_buffer);
 }
 
 /** \} */
