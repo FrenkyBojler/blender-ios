@@ -5496,7 +5496,7 @@ uiLayout &block_layout(uiBlock *block,
   }
   else {
     layout->w_ = size;
-    layout->root()->emh = em * UI_UNIT_X;
+    layout->root()->emw = em * UI_UNIT_X;
   }
 
   block->curlayout = layout;
