@@ -3141,6 +3141,31 @@ void blo_do_versions_500(FileData *fd, Library * /*lib*/, Main *bmain)
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 73)) {
+    /* Old files created on WIN32 use `\r`. */
+    LISTBASE_FOREACH (Curve *, cu, &bmain->curves) {
+      if (cu->str) {
+        BLI_string_replace_char(cu->str, '\r', '\n');
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 74)) {
+    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+      if (scene->ed != nullptr) {
+        /* Set the first strip modifier as the active one and uncollapse the root panel. */
+        blender::seq::for_each_callback(&scene->ed->seqbase, [&](Strip *strip) -> bool {
+          seq::modifier_set_active(strip,
+                                   static_cast<StripModifierData *>(strip->modifiers.first));
+          LISTBASE_FOREACH (StripModifierData *, smd, &strip->modifiers) {
+            smd->layout_panel_open_flag |= UI_PANEL_DATA_EXPAND_ROOT;
+          }
+          return true;
+        });
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 74)) {
     LISTBASE_FOREACH (Material *, material, &bmain->materials) {
       do_version_material_remove_use_nodes(bmain, material);
     }
