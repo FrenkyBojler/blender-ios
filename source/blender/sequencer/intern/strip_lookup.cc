@@ -60,7 +60,7 @@ static void strip_by_scene_lookup_build(Strip *strip, StripLookup *lookup)
 static void strip_by_compositor_node_group_lookup_build(Strip *strip, StripLookup *lookup)
 {
   LISTBASE_FOREACH (StripModifierData *, modifier, &strip->modifiers) {
-    if (modifier->type != seqModifierType_Compositor) {
+    if (modifier->type != eSeqModifierType_Compositor) {
       continue;
     }
 

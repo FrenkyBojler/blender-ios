@@ -809,7 +809,7 @@ static bool strip_foreach_member_id_cb(Strip *strip, void *user_data)
   });
   LISTBASE_FOREACH (StripModifierData *, smd, &strip->modifiers) {
     FOREACHID_PROCESS_IDSUPER(data, smd->mask_id, IDWALK_CB_USER);
-    if (smd->type == seqModifierType_Compositor) {
+    if (smd->type == eSeqModifierType_Compositor) {
       auto *modifier_data = reinterpret_cast<SequencerCompositorModifierData *>(smd);
       FOREACHID_PROCESS_IDSUPER(data, modifier_data->node_group, IDWALK_CB_USER);
     }

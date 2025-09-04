@@ -3443,7 +3443,7 @@ static bool strip_build_prop_cb(Strip *strip, void *user_data)
     cd->builder->build_scene_speakers(strip->scene, sequence_view_layer);
   }
   LISTBASE_FOREACH (StripModifierData *, modifier, &strip->modifiers) {
-    if (modifier->type != seqModifierType_Compositor) {
+    if (modifier->type != eSeqModifierType_Compositor) {
       continue;
     }
 
