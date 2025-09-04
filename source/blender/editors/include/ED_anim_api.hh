@@ -134,8 +134,8 @@ struct bAnimContext {
   /** active object */
   Object *obact;
   /**
-   * Active Action, only set when the dope sheet shows an Action (in its Action
-   * and Shape Key modes).
+   * Active Action, only set when the Dope Sheet shows a single Action (in its
+   * Action and Shape Key modes).
    */
   bAction *active_action;
   /** The ID that was used to obtain the above active_action. */
