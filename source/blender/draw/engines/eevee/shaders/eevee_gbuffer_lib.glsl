@@ -70,6 +70,9 @@ enum GBufferMode : uchar {
   GBUF_REFLECTION = 2u,
   GBUF_REFLECTION_COLORLESS = 3u,
 
+  /** Used for surfaces that have no lit closure and just encode a normal layer. */
+  GBUF_UNLIT = 4u,
+
   /**
    * Special bit that marks all closures with refraction.
    * Allows to detect the presence of transmission more easily.
@@ -513,7 +516,7 @@ struct ClosurePacking {
   static ClosurePacking fallback(float3 surface_N)
   {
     ClosurePacking cl;
-    cl.mode = GBUF_DIFFUSE;
+    cl.mode = GBUF_UNLIT;
     cl.data0 = float4(0);
     cl.data1 = float4(0);
     cl.N = surface_N;
