@@ -754,8 +754,8 @@ GHOST_TSuccess GHOST_ContextVK::swapBufferAcquire()
     }
 #endif
   }
-  /* there is no valid swapchain as the previous window was minimized. user can have maximized the
-   * window so we need to check if the swapchain can be created. */
+  /* there is no valid swapchain when the previous window was minimized. User can have maximized
+   * the window so we need to check if the swapchain has to be created. */
   if (swapchain_ == VK_NULL_HANDLE) {
     recreateSwapchain(use_hdr_swapchain);
   }
@@ -780,20 +780,10 @@ GHOST_TSuccess GHOST_ContextVK::swapBufferAcquire()
       }
     }
   }
-
-  /* Fast path for invalid swapchains. When not valid we don't acquire/present, but we do render to
-   * make sure the render graphs don't keep memory allocated that isn't used. */
-  if (swapchain_ == VK_NULL_HANDLE) {
-    CLOG_TRACE(
-        &LOG,
-        "Swap-chain invalid (due to minimized window), perform rendering to reduce render graph "
-        "resources.");
+  else {
+    CLOG_TRACE(&LOG, "Swap-chain unavailable (minimized window).");
     if (swap_buffer_acquired_callback_) {
       swap_buffer_acquired_callback_();
-    }
-    GHOST_VulkanSwapChainData swap_chain_data = {};
-    if (swap_buffer_draw_callback_) {
-      swap_buffer_draw_callback_(&swap_chain_data);
     }
 
     return GHOST_kSuccess;
@@ -810,8 +800,13 @@ GHOST_TSuccess GHOST_ContextVK::swapBufferAcquire()
 
 GHOST_TSuccess GHOST_ContextVK::swapBufferRelease()
 {
+  /* Minimized windows don't have a swapchain and swapchain image. In this case we perform the draw
+   * to release render graph and discarded resources. */
   if (swapchain_ == VK_NULL_HANDLE) {
-    /* Minimized windows could have no allocated swapchain. */
+    GHOST_VulkanSwapChainData swap_chain_data = {};
+    if (swap_buffer_draw_callback_) {
+      swap_buffer_draw_callback_(&swap_chain_data);
+    }
     return GHOST_kSuccess;
   }
 
