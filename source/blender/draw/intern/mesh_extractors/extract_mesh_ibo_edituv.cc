@@ -27,7 +27,7 @@ inline bool skip_bm_face(const BMFace &face, const bool sync_selection)
   if (BM_elem_flag_test(&face, BM_ELEM_HIDDEN)) {
     return true;
   }
-  if (sync_selection) {
+  if (!sync_selection) {
     if (!BM_elem_flag_test_bool(&face, BM_ELEM_SELECT)) {
       return true;
     }
