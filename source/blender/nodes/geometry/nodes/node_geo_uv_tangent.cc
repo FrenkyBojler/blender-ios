@@ -17,8 +17,12 @@ enum class Method {
 };
 
 static EnumPropertyItem method_items[] = {
-    {int(Method::Simple), "SIMPLE", 0, "Simple", "Simple tangent calculation"},
-    {int(Method::Mikktspace), "MIKK", 0, "Mikktspace", "UV tangent calculation"},
+    {int(Method::Mikktspace),
+     "MIKKTSPACE",
+     0,
+     "Mikktspace",
+     "Calculation consistent with tangents used elsewhere in Blender"},
+    {int(Method::Simple), "SIMPLE", 0, "Simple", "Simpler but faster tangent calculation"},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -51,7 +55,7 @@ static float3 compute_triangle_tangent(const float3 &p1,
   return tangent;
 }
 
-static void compute_corner_tangents(const Span<float3> positions,
+static void calc_uv_tangents_simple(const Span<float3> positions,
                                     const Span<int> corner_verts,
                                     const Span<int3> corner_tris,
                                     const GroupedSpan<int> vert_to_corners_map,
@@ -145,7 +149,7 @@ class TangentFieldInput final : public bke::MeshFieldInput {
     Array<float3> corner_tangents(mesh.corners_num);
     switch (method_) {
       case Method::Simple: {
-        compute_corner_tangents(mesh.vert_positions(),
+        calc_uv_tangents_simple(mesh.vert_positions(),
                                 mesh.corner_verts(),
                                 mesh.corner_tris(),
                                 mesh.vert_to_corner_map(),
