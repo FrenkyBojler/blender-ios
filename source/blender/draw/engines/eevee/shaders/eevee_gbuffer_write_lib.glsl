@@ -136,17 +136,25 @@ struct Packer {
         /* Unique tangent space. */
         this->header.tangent_space_id_set(1, 1);
       }
+      else {
+        /* Reuse layer 0 tangent space. */
+      }
     }
 #endif
 #if GBUFFER_LAYER_MAX > 2
     if (!this->closures[2].is_empty()) {
-      if (all(equal(this->closures[1].N, this->closures[2].N))) {
-        /* Reuse layer 1 tangent space. */
-        this->header.tangent_space_id_set(2, 1);
+      if (!all(equal(this->closures[0].N, this->closures[2].N))) {
+        if (!all(equal(this->closures[1].N, this->closures[2].N))) {
+          /* Unique tangent space. */
+          this->header.tangent_space_id_set(2, 2);
+        }
+        else {
+          /* Reuse layer 1 tangent space. */
+          this->header.tangent_space_id_set(2, 1);
+        }
       }
-      else if (!all(equal(this->closures[0].N, this->closures[2].N))) {
-        /* Unique tangent space. */
-        this->header.tangent_space_id_set(2, 2);
+      else {
+        /* Reuse layer 0 tangent space. */
       }
     }
 #endif
