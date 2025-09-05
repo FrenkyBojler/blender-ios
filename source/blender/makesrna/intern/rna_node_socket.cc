@@ -1749,15 +1749,15 @@ static void rna_def_node_socket_interface_closure(BlenderRNA *brna, const char *
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_enum_items(prop, rna_socket_closure_type_items);
   RNA_def_property_ui_text(prop, "Type", "");
-  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_NodeTreeInterfaceSocket_value_update");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_NodeTreeInterfaceItem_update");
 
   prop = RNA_def_property(srna, "curve_mapping", PROP_POINTER, PROP_NONE);
   RNA_def_property_ui_text(prop, "Curve Mapping", "");
-  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_NodeTreeInterfaceSocket_value_update");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_NodeTreeInterfaceItem_update");
 
   prop = RNA_def_property(srna, "color_ramp", PROP_POINTER, PROP_NONE);
   RNA_def_property_ui_text(prop, "Color Ramp", "");
-  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_NodeTreeInterfaceSocket_value_update");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_NodeTreeInterfaceItem_update");
 }
 
 static void rna_def_node_socket_collection(BlenderRNA *brna, const char *identifier)
