@@ -493,6 +493,9 @@ class SEQUENCER_MT_view(Menu):
         layout.operator_context = 'INVOKE_DEFAULT'
         layout.separator()
 
+        layout.menu("SEQUENCER_MT_fullscreen_preview")
+        layout.separator()
+
         layout.operator_context = 'INVOKE_REGION_WIN'
         if st.view_type == 'PREVIEW':
             # See above (#32595)
@@ -513,7 +516,6 @@ class SEQUENCER_MT_view(Menu):
                 layout.separator()
             layout.operator_context = 'INVOKE_REGION_PREVIEW'
             layout.operator("sequencer.view_all_preview", text="Fit Preview in Window")
-            layout.menu("SEQUENCER_MT_fullscreen_preview")
             if is_sequencer_view:
                 layout.menu("SEQUENCER_MT_preview_zoom", text="Preview Zoom")
             else:

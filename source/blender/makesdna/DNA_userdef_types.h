@@ -8,6 +8,8 @@
 
 #pragma once
 
+#include "BLI_rect.h"
+
 #include "DNA_ID.h"
 #include "DNA_colorband_types.h"
 #include "DNA_listBase.h"
@@ -194,11 +196,16 @@ typedef struct UserDef_FileSpaceData {
   int flag;           /* FileSelectParams.flag */
   int _pad0;
   uint64_t filter_id; /* FileSelectParams.filter_id */
-
-  /** Info used when creating the file browser in a temporary window. */
-  int temp_win_sizex;
-  int temp_win_sizey;
 } UserDef_FileSpaceData;
+
+typedef struct UserDef_TempWinBounds {
+  rctf file;
+  rctf userpref;
+  rctf image;
+  rctf graph;
+  rctf info;
+  rctf outliner;
+} UserDef_TempWinBounds;
 
 /**
  * Checking experimental members must use the #USER_EXPERIMENTAL_TEST() macro
@@ -614,6 +621,8 @@ typedef struct UserDef {
   UserDef_SpaceData space_data;
   UserDef_FileSpaceData file_space_data;
 
+  UserDef_TempWinBounds stored_bounds;
+
   UserDef_Experimental experimental;
 
   /** Runtime data (keep last). */
@@ -754,7 +763,7 @@ typedef enum eWalkNavigation_Flag {
 /** #UserDef.uiflag */
 typedef enum eUserpref_UI_Flag {
   USER_NO_MULTITOUCH_GESTURES = (1 << 0),
-  USER_UIFLAG_UNUSED_1 = (1 << 1), /* cleared */
+  USER_REDUCE_MOTION = (1 << 1),
   USER_WHEELZOOMDIR = (1 << 2),
   USER_FILTERFILEEXTS = (1 << 3),
   USER_DRAWVIEWINFO = (1 << 4),
