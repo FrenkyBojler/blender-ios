@@ -523,9 +523,24 @@ static void sample_curve_positions_and_handles(const bke::CurvesGeometry &src_cu
       length_parameterize::interpolate(src_pos, dst_indices, dst_factors, dst_pos);
 
       if (dst_types[i_dst_curve] == CURVE_TYPE_BEZIER) {
-        /* TODO. */
-        dst_left.fill(float3(0.0f));
-        dst_right.fill(float3(0.0f));
+        for (const int i : dst_points.index_range()) {
+          const int i_prev = (i - 1 + dst_points.size()) % dst_points.size();
+          const int i_next = (i + 1) % dst_points.size();
+
+          if (cyclic || i != 0) {
+            dst_left[i] = math::interpolate(dst_pos[i], dst_pos[i_prev], 1.0f / 3.0f);
+          }
+          else {
+            dst_left[i] = math::interpolate(dst_pos[i], dst_pos[i_next], -1.0f / 3.0f);
+          }
+
+          if (cyclic || i != dst_points.size() - 1) {
+            dst_right[i] = math::interpolate(dst_pos[i], dst_pos[i_next], 1.0f / 3.0f);
+          }
+          else {
+            dst_right[i] = math::interpolate(dst_pos[i], dst_pos[i_prev], -1.0f / 3.0f);
+          }
+        }
       }
     }
     else if (src_types[i_src_curve] == CURVE_TYPE_NURBS) {
