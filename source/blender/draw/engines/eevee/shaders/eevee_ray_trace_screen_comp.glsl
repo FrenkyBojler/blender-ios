@@ -72,7 +72,7 @@ void main()
 
   /* Only closure 0 can be a transmission closure. */
   if (closure_index == 0) {
-    const float thickness = gbuffer::read_thickness(gbuf_header, texel);
+    const float thickness = gbuffer::read_thickness(gbuf_header, texel_fullres);
     if (thickness != 0.0f) {
       ClosureUndetermined cl = gbuffer::read_bin(texel_fullres, closure_index);
       ray = raytrace_thickness_ray_amend(ray, cl, V, thickness);
