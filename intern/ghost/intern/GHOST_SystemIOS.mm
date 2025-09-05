@@ -999,53 +999,76 @@ void GHOST_SystemIOS::putClipboard(const char *buffer, bool selection) const
 
 GHOST_TSuccess GHOST_SystemIOS::hasClipboardImage() const
 {
-  UIPasteboard *pasteboard = [UIPasteboard generalPasteboard];
+  /* Transferred logic to getClipboardImage() to bypass IMAGE_OT_clipboard_paste poll.
+   * Which do an early alert about pasting image. */
+  return GHOST_kSuccess;
+}
 
+static CGContextRef createContext(uint *rgba, int width, int height)
+{
   @autoreleasepool {
-    if (!pasteboard.image) {
-      return GHOST_kFailure;
-    }
+    const size_t bytesPerRow = width * 4;
+
+    CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
+    CGContextRef context = CGBitmapContextCreate(rgba,
+                                                 width,
+                                                 height,
+                                                 8,
+                                                 bytesPerRow,
+                                                 colorSpace,
+                                                 kCGImageAlphaPremultipliedLast |
+                                                     kCGBitmapByteOrder32Big);
+    CGColorSpaceRelease(colorSpace);
+
+    return context;
+  }
+}
+
+static void flipContext(CGContextRef context, int width, int height, CGImageRef image)
+{
+  CGContextTranslateCTM(context, 0, height);
+  CGContextScaleCTM(context, 1.0, -1.0);
+
+  CGRect rect = CGRectMake(0, 0, width, height);
+
+  bool createdImage = false;
+  if (!image) {
+    image = CGBitmapContextCreateImage(context);
+    createdImage = true;
   }
 
-  return GHOST_kSuccess;
+  CGContextDrawImage(context, rect, image);
+
+  if (createdImage) {
+    CGImageRelease(image);
+    return;
+  }
+
+  CGContextRelease(context);
 }
 
 uint *GHOST_SystemIOS::getClipboardImage(int *r_width, int *r_height) const
 {
-  if (!hasClipboardImage()) {
-    return nullptr;
-  }
-
   @autoreleasepool {
     UIPasteboard *pasteboard = [UIPasteboard generalPasteboard];
     UIImage *image = pasteboard.image;
 
+    if (!image) {
+      return nullptr;
+    }
+
     const CGSize imageSize = CGSizeMake(CGImageGetWidth(image.CGImage),
                                         CGImageGetHeight(image.CGImage));
-    const size_t bytesPerRow = imageSize.width * 4;
-    const size_t bitsPreComponent = 8;
 
-    uint *rgba = (uint *)calloc(imageSize.height * bytesPerRow, sizeof(uint));
-    CGContextRef context = CGBitmapContextCreate(rgba,
-                                                 imageSize.width,
-                                                 imageSize.height,
-                                                 bitsPreComponent,
-                                                 bytesPerRow,
-                                                 CGImageGetColorSpace(image.CGImage),
-                                                 kCGImageAlphaPremultipliedLast |
-                                                     kCGBitmapByteOrder32Big);
+    uint *rgba = (uint *)malloc(imageSize.height * imageSize.width * 4);
+    CGContextRef context = createContext(rgba, imageSize.width, imageSize.height);
 
     if (!context) {
       free(rgba);
       return nullptr;
     }
 
-    CGRect rect = CGRectMake(0, 0, imageSize.width, imageSize.height);
-
-    CGContextTranslateCTM(context, 0, imageSize.height);
-    CGContextScaleCTM(context, 1.0, -1.0);
-    CGContextDrawImage(context, rect, image.CGImage);
-    CGContextRelease(context);
+    flipContext(context, imageSize.width, imageSize.height, image.CGImage);
 
     *r_width = imageSize.width;
     *r_height = imageSize.height;
@@ -1059,42 +1082,22 @@ uint *GHOST_SystemIOS::getClipboardImage(int *r_width, int *r_height) const
 GHOST_TSuccess GHOST_SystemIOS::putClipboardImage(uint *rgba, int width, int height) const
 {
   @autoreleasepool {
-    const size_t bytesPerRow = width * 4;
+    CGContextRef context = createContext(rgba, width, height);
 
-    NSData *imageData = [NSData dataWithBytes:rgba length:height * bytesPerRow];
-
-    CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
-    CGDataProviderRef provider = CGDataProviderCreateWithCFData((__bridge CFDataRef)imageData);
-
-    if (!provider) {
-      CGColorSpaceRelease(colorSpace);
+    if (!context) {
       return GHOST_kFailure;
     }
 
-    CGImageRef cgImage = CGImageCreate(width,
-                                       height,
-                                       8,
-                                       32,
-                                       bytesPerRow,
-                                       colorSpace,
-                                       kCGImageAlphaPremultipliedLast | kCGBitmapByteOrder32Big,
-                                       provider,
-                                       nullptr,
-                                       false,
-                                       kCGRenderingIntentDefault);
+    flipContext(context, width, height, nullptr);
 
-    if (!cgImage) {
-      CGDataProviderRelease(provider);
-      CGColorSpaceRelease(colorSpace);
-      return GHOST_kFailure;
-    }
+    CGImageRef cgImage = CGBitmapContextCreateImage(context);
+
+    CGContextRelease(context);
 
     UIPasteboard *pasteboard = [UIPasteboard generalPasteboard];
     pasteboard.image = [UIImage imageWithCGImage:cgImage];
 
     CGImageRelease(cgImage);
-    CGDataProviderRelease(provider);
-    CGColorSpaceRelease(colorSpace);
   }
 
   return GHOST_kSuccess;
