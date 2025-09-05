@@ -242,7 +242,7 @@ static bool interpolate_attribute_to_curves(const StringRef attribute_id,
   if (ELEM(attribute_id, "handle_type_left", "handle_type_right")) {
     return type_counts[CURVE_TYPE_BEZIER] != 0;
   }
-  /* Handles get are interpolated manually. */
+  /* Handles are interpolated manually. */
   if (ELEM(attribute_id, "handle_left", "handle_right")) {
     return false;
   }
