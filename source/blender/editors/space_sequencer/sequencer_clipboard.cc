@@ -540,7 +540,9 @@ wmOperatorStatus sequencer_clipboard_paste_exec(bContext *C, wmOperator *op)
     }
   }
 
-  strip_mean_pos /= image_strip_count;
+  if (image_strip_count > 0) {
+    strip_mean_pos /= image_strip_count;
+  }
 
   LISTBASE_FOREACH (Strip *, istrip, &nseqbase) {
     /* Translate after name has been changed, otherwise this will affect animdata of original
