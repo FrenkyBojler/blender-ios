@@ -1,2 +1,2 @@
 Referenced by issue #145396, Viewport: Viewport selection considers objects outside of local view for occlusion
-Referenced by issue #145651, MacOS - Memory leak in 'Shading' workspace
+Referenced by issue #145651, GPU: Memoryleak drawing node links
