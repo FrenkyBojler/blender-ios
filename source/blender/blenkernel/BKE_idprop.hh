@@ -172,7 +172,6 @@ void IDP_MergeGroup_ex(IDProperty *dest, const IDProperty *src, bool do_overwrit
  * and free the property.
  */
 bool IDP_AddToGroup(IDProperty *group, IDProperty *prop) ATTR_NONNULL();
-
 /**
  * \note this does not free the property!
  *
@@ -188,7 +187,6 @@ void IDP_FreeFromGroup(IDProperty *group, IDProperty *prop) ATTR_NONNULL();
 IDProperty *IDP_GetPropertyFromGroup(const IDProperty *prop,
                                      blender::StringRef name) ATTR_WARN_UNUSED_RESULT
     ATTR_NONNULL();
-
 /**
  * Same as #IDP_GetPropertyFromGroup but ensure the `type` matches.
  */
@@ -430,7 +428,7 @@ struct IDPropertyGroupChildrenSet {
     }
   };
 
-  CustomIDVectorSet<IDProperty *, IDPropNameGetter, 16> children;
+  CustomIDVectorSet<IDProperty *, IDPropNameGetter, 8> children;
 };
 
 /** \brief Allocate a new IDProperty of type IDP_BOOLEAN, set its name and value. */

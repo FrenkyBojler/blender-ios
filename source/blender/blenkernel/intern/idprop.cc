@@ -636,9 +636,9 @@ void IDP_ReplaceGroupInGroup(IDProperty *dest, const IDProperty *src)
   BLI_assert(dest->type == IDP_GROUP);
   BLI_assert(src->type == IDP_GROUP);
 
-  LISTBASE_FOREACH (IDProperty *, src_prop, &src->data.group) {
-    IDProperty *old_dest_prop = IDP_GetPropertyFromGroup(dest, src_prop->name);
-    IDP_ReplaceInGroup_ex(dest, IDP_CopyProperty(src_prop), old_dest_prop, 0);
+  LISTBASE_FOREACH (IDProperty *, prop, &src->data.group) {
+    IDProperty *old_dest_prop = IDP_GetPropertyFromGroup(dest, prop->name);
+    IDP_ReplaceInGroup_ex(dest, IDP_CopyProperty(prop), old_dest_prop, 0);
   }
 }
 
