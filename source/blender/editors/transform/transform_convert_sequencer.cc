@@ -29,7 +29,6 @@
 #include "SEQ_sequencer.hh"
 #include "SEQ_time.hh"
 #include "SEQ_transform.hh"
-#include "SEQ_utils.hh"
 
 #include "UI_view2d.hh"
 
@@ -481,7 +480,7 @@ static void create_trans_seq_clamp_data(TransInfo *t, const Scene *scene)
 
   VectorSet<Strip *> strips = seq::query_selected_strips(seq::active_seqbase_get(ed));
   for (Strip *strip : strips) {
-    if (!seq::strip_is_effect(strip) || seq::effect_get_num_inputs(strip->type) == 0) {
+    if (!strip->is_effect() || seq::effect_get_num_inputs(strip->type) == 0) {
       continue;
     }
     /* If there is an effect strip with no inputs selected, prevent any x-direction movement,
@@ -709,7 +708,7 @@ static void flushTransSeq(TransInfo *t)
     if (tdsq->sel_flag & SEQ_RIGHTSEL) {
       strip->runtime.flag &= ~STRIP_CLAMPED_RH;
     }
-    if (!seq::transform_single_image_check(strip) && !seq::strip_is_effect(strip)) {
+    if (!seq::transform_single_image_check(strip) && !strip->is_effect()) {
       if (offset_clamped[0] > offset[0] && new_frame == seq::time_start_frame_get(strip)) {
         strip->runtime.flag |= STRIP_CLAMPED_LH;
       }

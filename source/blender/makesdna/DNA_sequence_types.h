@@ -301,6 +301,10 @@ typedef struct Strip {
   char _pad6[4];
 
   StripRuntime runtime;
+
+#ifdef __cplusplus
+  bool is_effect() const;
+#endif
 } Strip;
 
 typedef struct MetaStack {
@@ -794,7 +798,7 @@ typedef enum eStripAlphaMode {
 /**
  * #Strip.type
  *
- * Note: update #strip_is_effect if adding new effect types.
+ * Note: update #Strip::is_effect when adding new effect types.
  */
 typedef enum StripType {
   STRIP_TYPE_IMAGE = 0,

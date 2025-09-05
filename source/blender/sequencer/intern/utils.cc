@@ -51,14 +51,6 @@
 
 namespace blender::seq {
 
-bool strip_is_effect(const Strip *strip)
-{
-  const StripType type = StripType(strip->type);
-  return (type >= STRIP_TYPE_CROSS && type <= STRIP_TYPE_OVERDROP_REMOVED) ||
-         (type >= STRIP_TYPE_WIPE && type <= STRIP_TYPE_ADJUSTMENT) ||
-         (type >= STRIP_TYPE_GAUSSIAN_BLUR && type <= STRIP_TYPE_COLORMIX);
-}
-
 struct StripUniqueInfo {
   Strip *strip;
   char name_src[STRIP_NAME_MAXSTR];
@@ -178,7 +170,7 @@ const char *strip_give_name(const Strip *strip)
   const char *name = get_default_stripname_by_type(strip->type);
 
   if (!name) {
-    if (!strip_is_effect(strip)) {
+    if (!strip->is_effect()) {
       return strip->data->dirpath;
     }
 

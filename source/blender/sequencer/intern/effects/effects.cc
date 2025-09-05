@@ -19,7 +19,6 @@
 
 #include "SEQ_render.hh"
 #include "SEQ_time.hh"
-#include "SEQ_utils.hh"
 
 #include "effects.hh"
 #include "render.hh"
@@ -295,7 +294,7 @@ EffectHandle strip_effect_handle_get(Strip *strip)
 {
   EffectHandle rval = {};
 
-  if (strip_is_effect(strip)) {
+  if (strip->is_effect()) {
     rval = effect_handle_get(StripType(strip->type));
     if ((strip->runtime.flag & STRIP_EFFECT_NOT_LOADED) != 0) {
       rval.load(strip);

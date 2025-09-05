@@ -45,7 +45,6 @@
 #include "SEQ_sequencer.hh"
 #include "SEQ_time.hh"
 #include "SEQ_transform.hh"
-#include "SEQ_utils.hh"
 
 /* For menu, popup, icons, etc. */
 
@@ -1337,7 +1336,7 @@ wmOperatorStatus sequencer_select_exec(bContext *C, wmOperator *op)
   if (copy_handles_to_sel) {
     copy_to = seq::query_selected_strips(seq::active_seqbase_get(scene->ed));
     copy_to.remove(selection.strip1);
-    copy_to.remove_if([](Strip *strip) { return seq::strip_is_effect(strip); });
+    copy_to.remove_if([](Strip *strip) { return strip->is_effect(); });
   }
 
   bool changed = false;
@@ -2581,11 +2580,11 @@ static bool select_grouped_type_effect(blender::Span<Strip *> strips,
                                        const int channel)
 {
   bool changed = false;
-  const bool is_effect = seq::strip_is_effect(act_strip);
+  const bool is_effect = act_strip->is_effect();
 
   for (Strip *strip : strips) {
     if (STRIP_CHANNEL_CHECK(strip, channel) &&
-        (is_effect ? seq::strip_is_effect(strip) : !seq::strip_is_effect(strip)))
+        (is_effect ? strip->is_effect() : !strip->is_effect()))
     {
       strip->flag |= SELECT;
       changed = true;
@@ -2663,7 +2662,7 @@ static bool select_grouped_effect(blender::Span<Strip *> strips,
   blender::Set<StripType> effects;
 
   for (const Strip *strip : strips) {
-    if (STRIP_CHANNEL_CHECK(strip, channel) && seq::strip_is_effect(strip) &&
+    if (STRIP_CHANNEL_CHECK(strip, channel) && strip->is_effect() &&
         seq::relation_is_effect_of_strip(strip, act_strip))
     {
       effects.add(StripType(strip->type));

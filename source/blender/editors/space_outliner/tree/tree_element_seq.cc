@@ -13,8 +13,6 @@
 
 #include "BLT_translation.hh"
 
-#include "SEQ_utils.hh"
-
 #include "../outliner_intern.hh"
 #include "tree_element_seq.hh"
 
@@ -29,7 +27,7 @@ TreeElementStrip::TreeElementStrip(TreeElement &legacy_te, Strip &strip)
 
 bool TreeElementStrip::expand_poll(const SpaceOutliner & /*space_outliner*/) const
 {
-  return !seq::strip_is_effect(&strip_);
+  return !strip_.is_effect();
 }
 
 void TreeElementStrip::expand(SpaceOutliner & /*space_outliner*/) const

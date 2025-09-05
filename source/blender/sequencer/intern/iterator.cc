@@ -20,7 +20,6 @@
 #include "SEQ_relations.hh"
 #include "SEQ_render.hh"
 #include "SEQ_time.hh"
-#include "SEQ_utils.hh"
 
 namespace blender::seq {
 
@@ -191,7 +190,7 @@ static bool must_render_strip(const VectorSet<Strip *> &strips, Strip *strip)
       return false;
     }
 
-    if (strip_is_effect(strip_iter) && relation_is_effect_of_strip(strip_iter, strip)) {
+    if (strip_iter->is_effect() && relation_is_effect_of_strip(strip_iter, strip)) {
       /* Strips in same channel or higher than its effect are rendered. */
       if (strip->channel >= strip_iter->channel) {
         return true;
@@ -202,7 +201,7 @@ static bool must_render_strip(const VectorSet<Strip *> &strips, Strip *strip)
   }
 
   /* All non-generator effects are rendered (with respect to conditions above). */
-  if (strip_is_effect(strip) && effect_get_num_inputs(strip->type) != 0) {
+  if (strip->is_effect() && effect_get_num_inputs(strip->type) != 0) {
     return true;
   }
 
@@ -264,7 +263,7 @@ void query_strip_effect_chain(const Scene *scene,
   r_strips.add(reference_strip);
 
   /* Find all input strips for `reference_strip`. */
-  if (strip_is_effect(reference_strip)) {
+  if (reference_strip->is_effect()) {
     if (reference_strip->input1) {
       query_strip_effect_chain(scene, reference_strip->input1, seqbase, r_strips);
     }

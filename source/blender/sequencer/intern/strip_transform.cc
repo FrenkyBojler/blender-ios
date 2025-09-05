@@ -30,7 +30,6 @@
 #include "SEQ_sequencer.hh"
 #include "SEQ_time.hh"
 #include "SEQ_transform.hh"
-#include "SEQ_utils.hh"
 
 #include "effects/effects.hh"
 #include "sequencer.hh"
@@ -45,7 +44,7 @@ bool transform_single_image_check(const Strip *strip)
 
 bool transform_strip_can_be_translated(const Strip *strip)
 {
-  return !strip_is_effect(strip) || (effect_get_num_inputs(strip->type) == 0);
+  return !strip->is_effect() || (effect_get_num_inputs(strip->type) == 0);
 }
 
 bool transform_test_overlap(const Scene *scene, Strip *strip1, Strip *strip2)
@@ -260,7 +259,7 @@ static blender::VectorSet<Strip *> extract_standalone_strips(
   blender::VectorSet<Strip *> standalone_strips;
 
   for (Strip *strip : transformed_strips) {
-    if (!strip_is_effect(strip) || strip->input1 == nullptr) {
+    if (!strip->is_effect() || strip->input1 == nullptr) {
       standalone_strips.add(strip);
     }
   }
@@ -435,13 +434,13 @@ static void strip_transform_handle_overwrite_trim(Scene *scene,
       target, scene, seqbasep, query_strip_effect_chain);
 
   /* Expand collection by adding all target's children, effects and their children. */
-  if (strip_is_effect(target)) {
+  if (target->is_effect()) {
     iterator_set_expand(scene, seqbasep, targets, query_strip_effect_chain);
   }
 
   /* Trim all non effects, that have influence on effect length which is overlapping. */
   for (Strip *strip : targets) {
-    if (strip_is_effect(strip) && effect_get_num_inputs(strip->type) > 0) {
+    if (strip->is_effect() && effect_get_num_inputs(strip->type) > 0) {
       continue;
     }
     if (overlap == STRIP_OVERLAP_LEFT_SIDE) {

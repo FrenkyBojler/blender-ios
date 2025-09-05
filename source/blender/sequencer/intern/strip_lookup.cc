@@ -7,7 +7,6 @@
  */
 
 #include "SEQ_sequencer.hh"
-#include "SEQ_utils.hh"
 #include "sequencer.hh"
 
 #include "DNA_listBase.h"
@@ -58,7 +57,7 @@ static void strip_by_scene_lookup_build(Strip *strip, StripLookup *lookup)
 
 static void strip_lookup_build_effect(Strip *strip, StripLookup *lookup)
 {
-  if (!strip_is_effect(strip)) {
+  if (!strip->is_effect()) {
     return;
   }
 

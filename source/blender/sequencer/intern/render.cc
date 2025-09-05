@@ -432,7 +432,7 @@ static bool seq_need_scale_to_render_size(const Strip *strip, bool is_proxy_imag
   if (is_proxy_image) {
     return false;
   }
-  if (strip_is_effect(strip) || strip->type == STRIP_TYPE_MASK || strip->type == STRIP_TYPE_META ||
+  if (strip->is_effect() || strip->type == STRIP_TYPE_MASK || strip->type == STRIP_TYPE_META ||
       (strip->type == STRIP_TYPE_SCENE && ((strip->flag & SEQ_SCENE_STRIPS) != 0)))
   {
     return false;
@@ -711,7 +711,7 @@ static ImBuf *seq_render_preprocess_ibuf(const RenderData *context,
   }
 
   /* Proxies and non-generator effect strips are not stored in cache. */
-  const bool is_effect_with_inputs = strip_is_effect(strip) &&
+  const bool is_effect_with_inputs = strip->is_effect() &&
                                      (effect_get_num_inputs(strip->type) != 0 ||
                                       (strip->type == STRIP_TYPE_ADJUSTMENT));
   if (!is_proxy_image && !is_effect_with_inputs) {
@@ -1689,7 +1689,7 @@ static ImBuf *do_render_strip_uncached(const RenderData *context,
       ibuf = seq_render_scene_strip(context, strip, frame_index, timeline_frame);
     }
   }
-  else if (strip_is_effect(strip)) {
+  else if (strip->is_effect()) {
     ibuf = seq_render_effect_strip_impl(context, state, strip, timeline_frame);
   }
   else if (strip->type == STRIP_TYPE_IMAGE) {
