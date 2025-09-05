@@ -471,6 +471,7 @@ static void sample_curve_positions_and_handles(const bke::CurvesGeometry &src_cu
   const OffsetIndices<int> src_points_by_curve = src_curves.points_by_curve();
   const VArray<int8_t> curve_types = src_curves.curve_types();
   const Span<float3> src_positions = src_curves.positions();
+  const VArray<bool> src_cyclic = src_curves.cyclic();
   const std::optional<Span<float3>> src_handle_left = src_curves.handle_positions_left();
   const std::optional<Span<float3>> src_handle_right = src_curves.handle_positions_right();
 
@@ -487,6 +488,8 @@ static void sample_curve_positions_and_handles(const bke::CurvesGeometry &src_cu
     if (i_src_curve < 0) {
       return;
     }
+
+    const bool cyclic = src_cyclic[i_src_curve];
 
     const IndexRange src_points = src_points_by_curve[i_src_curve];
     const IndexRange dst_points = dst_points_by_curve[i_dst_curve];
@@ -524,10 +527,25 @@ static void sample_curve_positions_and_handles(const bke::CurvesGeometry &src_cu
         const int src_index = dst_sample_indices[i];
         const float src_factor = dst_sample_factors[i];
 
+        const int i_prev = (i - 1 + dst_points.size()) % dst_points.size();
+        float src_factor_prev = dst_sample_factors[i_prev];
+
+        const int i_next = (i + 1) % dst_points.size();
+        float src_factor_next = dst_sample_factors[i_next];
+
         if (src_factor == 0.0f) {
           dst_positions[i] = src_pos[src_index];
           dst_handles_left[i] = src_left[src_index];
           dst_handles_right[i] = src_right[src_index];
+
+          if ((cyclic || i != 0) && dst_sample_indices[i_prev] == src_index - 1) {
+            dst_handles_left[i] = dst_positions[i] + (dst_handles_left[i] - dst_positions[i]) *
+                                                         (1.0f - src_factor_prev);
+          }
+          if ((cyclic || i != dst_points.size() - 1) && dst_sample_indices[i_next] == src_index) {
+            dst_handles_right[i] = dst_positions[i] + (dst_handles_right[i] - dst_positions[i]) *
+                                                          (1.0f - src_factor_next);
+          }
         }
         else {
           const int src_index_next = (src_index + 1) % src_pos.size();
@@ -542,6 +560,17 @@ static void sample_curve_positions_and_handles(const bke::CurvesGeometry &src_cu
           dst_positions[i] = insert_point.position;
           dst_handles_left[i] = insert_point.left_handle;
           dst_handles_right[i] = insert_point.right_handle;
+
+          if ((cyclic || i != 0) && dst_sample_indices[i_prev] == src_index) {
+            dst_handles_left[i] = dst_positions[i] + (dst_handles_left[i] - dst_positions[i]) *
+                                                         (src_factor - src_factor_prev) /
+                                                         src_factor;
+          }
+          if ((cyclic || i != dst_points.size() - 1) && dst_sample_indices[i_next] == src_index) {
+            dst_handles_right[i] = dst_positions[i] + (dst_handles_right[i] - dst_positions[i]) *
+                                                          (src_factor_next - src_factor) /
+                                                          (1.0f - src_factor);
+          }
         }
       }
     }
