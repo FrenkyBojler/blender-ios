@@ -727,9 +727,6 @@ void interpolate_curves_with_samples(const CurvesGeometry &from_curves,
   MutableSpan<float3> dst_left = dst_curves.handle_positions_left_for_write();
   MutableSpan<float3> dst_right = dst_curves.handle_positions_right_for_write();
 
-  dst_left.fill(float3(0.0f));
-  dst_right.fill(float3(0.0f));
-
   AttributesForInterpolation point_attributes = gather_point_attributes_to_interpolate(
       from_curves, to_curves, dst_curves);
   AttributesForInterpolation curve_attributes = gather_curve_attributes_to_interpolate(
