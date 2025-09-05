@@ -224,7 +224,7 @@ typedef struct UserDef_Experimental {
   char use_extensions_debug;
   char use_recompute_usercount_on_save_debug;
   char write_legacy_blend_file_format;
-  char use_data_block_packing;
+  char no_data_block_packing;
   char SANITIZE_AFTER_HERE;
   /* The following options are automatically sanitized (set to 0)
    * when the release cycle is not alpha. */

@@ -29,9 +29,8 @@ ID *asset_local_id_ensure_imported(Main &bmain, const asset_system::AssetReprese
     return nullptr;
   }
 
-  eAssetImportMethod import_method = asset.get_import_method().value_or(
-      U.experimental.use_data_block_packing ? ASSET_IMPORT_PACK : ASSET_IMPORT_APPEND_REUSE);
-  if (!U.experimental.use_data_block_packing && import_method == ASSET_IMPORT_PACK) {
+  eAssetImportMethod import_method = asset.get_import_method().value_or(ASSET_IMPORT_PACK);
+  if (U.experimental.no_data_block_packing && import_method == ASSET_IMPORT_PACK) {
     import_method = ASSET_IMPORT_APPEND_REUSE;
   }
 

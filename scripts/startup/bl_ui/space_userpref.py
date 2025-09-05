@@ -2889,7 +2889,6 @@ class USERPREF_PT_experimental_prototypes(ExperimentalPanel, Panel):
                 ({"property": "use_new_curves_tools"}, ("blender/blender/issues/68981", "#68981")),
                 ({"property": "use_sculpt_texture_paint"}, ("blender/blender/issues/96225", "#96225")),
                 ({"property": "write_legacy_blend_file_format"}, ("/blender/blender/issues/129309", "#129309")),
-                ({"property": "use_data_block_packing"}, ("/blender/blender/issues/132167", "#132167")),
             ),
         )
 
@@ -2931,6 +2930,7 @@ class USERPREF_PT_experimental_debugging(ExperimentalPanel, Panel):
                 ({"property": "use_viewport_debug"}, None),
                 ({"property": "use_eevee_debug"}, None),
                 ({"property": "use_extensions_debug"}, ("/blender/blender/issues/119521", "#119521")),
+                ({"property": "no_data_block_packing"}, ("/blender/blender/issues/132167", "#132167")),
             ),
         )
 

@@ -3791,7 +3791,7 @@ static const EnumPropertyItem *rna_FileAssetSelectParams_import_method_itemf(
   for (const EnumPropertyItem *item = rna_enum_asset_import_method_items; item->identifier; item++)
   {
     if (item->value == FILE_ASSET_IMPORT_PACK) {
-      if (U.experimental.use_data_block_packing) {
+      if (!U.experimental.no_data_block_packing) {
         RNA_enum_item_add(&items, &items_num, item);
       }
     }

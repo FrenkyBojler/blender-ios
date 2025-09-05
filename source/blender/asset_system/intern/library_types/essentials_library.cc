@@ -22,8 +22,10 @@ EssentialsAssetLibrary::EssentialsAssetLibrary()
                          {},
                          utils::normalize_directory_path(essentials_directory_path()))
 {
-  import_method_ = U.experimental.use_data_block_packing ? ASSET_IMPORT_PACK :
-                                                           ASSET_IMPORT_APPEND_REUSE;
+  import_method_ = ASSET_IMPORT_PACK;
+  if (U.experimental.no_data_block_packing) {
+    import_method_ = ASSET_IMPORT_APPEND_REUSE;
+  }
 }
 
 std::optional<AssetLibraryReference> EssentialsAssetLibrary::library_reference() const
@@ -36,8 +38,10 @@ std::optional<AssetLibraryReference> EssentialsAssetLibrary::library_reference()
 
 void EssentialsAssetLibrary::update_default_import_method()
 {
-  import_method_ = U.experimental.use_data_block_packing ? ASSET_IMPORT_PACK :
-                                                           ASSET_IMPORT_APPEND_REUSE;
+  import_method_ = ASSET_IMPORT_PACK;
+  if (U.experimental.no_data_block_packing) {
+    import_method_ = ASSET_IMPORT_APPEND_REUSE;
+  }
 }
 
 StringRefNull essentials_directory_path()

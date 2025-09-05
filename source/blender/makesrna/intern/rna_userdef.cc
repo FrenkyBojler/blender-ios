@@ -1520,7 +1520,7 @@ static const EnumPropertyItem *rna_preference_asset_libray_import_method_itemf(
        item++)
   {
     if (item->value == ASSET_IMPORT_PACK) {
-      if (U.experimental.use_data_block_packing) {
+      if (!U.experimental.no_data_block_packing) {
         RNA_enum_item_add(&items, &items_num, item);
       }
     }
@@ -1533,9 +1533,9 @@ static const EnumPropertyItem *rna_preference_asset_libray_import_method_itemf(
   return items;
 }
 
-static void rna_experimental_use_data_block_packing_update(Main *bmain,
-                                                           Scene *scene,
-                                                           PointerRNA *ptr)
+static void rna_experimental_no_data_block_packing_update(Main *bmain,
+                                                          Scene *scene,
+                                                          PointerRNA *ptr)
 {
   rna_userdef_update(bmain, scene, ptr);
   blender::asset_system::essentials_update_import_method();
@@ -7403,11 +7403,11 @@ static void rna_def_userdef_experimental(BlenderRNA *brna)
       "Use file format used before Blender 5.0. This format is more limited "
       "but it may have better compatibility with tools that don't support the new format yet");
 
-  prop = RNA_def_property(srna, "use_data_block_packing", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "use_data_block_packing", 1);
+  prop = RNA_def_property(srna, "no_data_block_packing", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "no_data_block_packing", 1);
   RNA_def_property_ui_text(
-      prop, "Data-Block Packing", "Enable support for packing linked data-blocks such as assets");
-  RNA_def_property_update(prop, 0, "rna_experimental_use_data_block_packing_update");
+      prop, "No Data-Block Packing", "Fall-back to appending instead of packing data-blocks");
+  RNA_def_property_update(prop, 0, "rna_experimental_no_data_block_packing_update");
 
   prop = RNA_def_property(srna, "use_all_linked_data_direct", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_ui_text(
