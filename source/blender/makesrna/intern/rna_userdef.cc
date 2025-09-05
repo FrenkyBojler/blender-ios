@@ -4947,7 +4947,7 @@ static void rna_def_userdef_view(BlenderRNA *brna)
   prop = RNA_def_property(srna, "show_number_arrows", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "uiflag2", USER_ALWAYS_SHOW_NUMBER_ARROWS);
   RNA_def_property_ui_text(
-      prop, "Always show number arrows", "Display the arrows on each side of numerical inputs");
+      prop, "Show Number Input Arrows", "Display arrows in numeric input fields for increasing or decreasing values");
   RNA_def_property_update(prop, 0, "rna_userdef_update");
 
   prop = RNA_def_property(srna, "show_object_info", PROP_BOOLEAN, PROP_NONE);
