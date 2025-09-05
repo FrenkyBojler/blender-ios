@@ -329,7 +329,7 @@ static void wm_xr_controller_model_draw(const XrSessionSettings *settings,
   }
 }
 
-static void wm_xr_vignette_draw(const XrSessionSettings *settings, wmXrSessionState *state)
+static void wm_xr_vignette_draw(wmXrSessionState *state)
 {
   float viewport[4], bg_color[4], bg_color_grad[4], aperture = state->vignette_data->aperture,
                                                     falloff = 0.15f;
@@ -486,6 +486,6 @@ void wm_xr_draw_controllers(const bContext * /*C*/, ARegion * /*region*/, void *
   wmXrSessionState *state = &xr->runtime->session_state;
 
   wm_xr_controller_model_draw(settings, xr_context, state);
-  wm_xr_vignette_draw(settings, state);
+  wm_xr_vignette_draw(state);
   wm_xr_controller_aim_draw(settings, state);
 }
