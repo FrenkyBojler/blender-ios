@@ -3284,7 +3284,7 @@ class _defs_sequencer_select:
             label="Select Lasso",
             icon="ops.generic.select_lasso",
             widget=None,
-            keymap="Preview Tool: Select Lasso",
+            keymap="Sequencer Tool: Select Lasso",
             draw_settings=draw_settings,
         )
 

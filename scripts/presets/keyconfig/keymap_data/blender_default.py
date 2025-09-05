@@ -8457,7 +8457,7 @@ def km_sequencer_tool_generic_select_box(params, *, fallback):
 
 def km_sequencer_tool_generic_select_lasso(params, *, fallback):
     return (
-        _fallback_id("Preview Tool: Select Lasso", fallback),
+        _fallback_id("Sequencer Tool: Select Lasso", fallback),
         {"space_type": 'SEQUENCE_EDITOR', "region_type": 'WINDOW'},
         {"items": [
             *([] if (fallback and not params.use_fallback_tool) else _template_items_tool_select_actions_simple(
