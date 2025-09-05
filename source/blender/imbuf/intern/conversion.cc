@@ -642,9 +642,8 @@ void IMB_byte_from_float(ImBuf *ibuf)
       IndexRange(IMB_get_pixel_count(ibuf)), grain_size, [&](const IndexRange range) {
         /* Copy chunk of source float pixels into a local buffer. */
         Array<float, grain_size * 4> buffer(range.size() * ibuf->channels);
-        memcpy(buffer.data(),
-               ibuf->float_buffer.data + range.first() * ibuf->channels,
-               range.size() * ibuf->channels * sizeof(float));
+        buffer.as_mutable_span().copy_from(
+            Span(ibuf->float_buffer.data + range.first() * ibuf->channels, buffer.size()));
         /* Unpremultiply alpha if needed. */
         if (predivide) {
           IMB_unpremultiply_rect_float(buffer.data(), ibuf->channels, range.size(), 1);
