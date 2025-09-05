@@ -122,8 +122,10 @@ class TangentFieldInput final : public bke::MeshFieldInput {
   Field<float3> uv_field_;
 
  public:
-  TangentFieldInput(Field<float3> uv)
-      : bke::MeshFieldInput(CPPType::get<float3>(), "Tangent Field"), uv_field_(std::move(uv))
+  TangentFieldInput(const Method method, Field<float3> uv)
+      : bke::MeshFieldInput(CPPType::get<float3>(), "Tangent Field"),
+        method_(method),
+        uv_field_(std::move(uv))
   {
     category_ = Category::Generated;
   }
@@ -197,8 +199,10 @@ class TangentFieldInput final : public bke::MeshFieldInput {
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
+  const Method method = params.extract_input<Method>("Method");
   Field<float3> uv_field = params.extract_input<Field<float3>>("UV");
-  params.set_output("Tangent", Field<float3>(std::make_shared<TangentFieldInput>(uv_field)));
+  params.set_output("Tangent",
+                    Field<float3>(std::make_shared<TangentFieldInput>(method, uv_field)));
 }
 
 static void node_register()
