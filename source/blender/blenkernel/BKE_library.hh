@@ -15,6 +15,8 @@
 #include "BLI_set.hh"
 #include "BLI_string_ref.hh"
 
+#include "BKE_main.hh"
+
 struct FileData;
 struct ListBase;
 struct Main;
@@ -68,6 +70,9 @@ struct LibraryRuntime {
   /** See BLENDER_FILE_VERSION, BLENDER_FILE_SUBVERSION, needed for do_versions. */
   short versionfile = 0;
   short subversionfile = 0;
+
+  /* Colorspace information. */
+  MainColorspace colorspace;
 };
 
 /**
