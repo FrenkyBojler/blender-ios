@@ -151,6 +151,12 @@ static void node_rna(StructRNA *srna)
   RNA_def_property_override_flag(prop, PROPOVERRIDE_IGNORE);
   RNA_def_property_int_default(prop, NODE_VIEWER_SHORTCUT_NONE);
   RNA_def_property_update_notifier(prop, NC_NODE | ND_DISPLAY);
+
+  RNA_def_node_boolean(srna,
+                       "is_active_viewer",
+                       "Active Viewer",
+                       "True if this node is the active viewer",
+                       NOD_inline_boolean_accessors(flag, NODE_DO_OUTPUT));
 }
 
 static void node_register()
