@@ -668,6 +668,7 @@ class NODE_MT_gn_utilities_text_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "FunctionNodeFindInString")
         self.node_operator(layout, "FunctionNodeStringLength")
         self.node_operator(layout, "GeometryNodeStringToCurves")
+        self.node_operator(layout, "FunctionNodeStringToValue")
         self.node_operator(layout, "FunctionNodeValueToString")
         layout.separator()
         self.node_operator(layout, "FunctionNodeInputSpecialCharacters")

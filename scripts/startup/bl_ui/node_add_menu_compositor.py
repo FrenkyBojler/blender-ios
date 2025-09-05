@@ -88,6 +88,7 @@ class NODE_MT_compositor_node_color_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "ShaderNodeBlackbody")
         self.node_operator(layout, "ShaderNodeValToRGB")
         self.node_operator(layout, "CompositorNodeConvertColorSpace")
+        self.node_operator(layout, "CompositorNodeConvertToDisplay")
         self.node_operator(layout, "CompositorNodeSetAlpha")
         layout.separator()
         self.node_operator(layout, "CompositorNodeInvert")
