@@ -193,13 +193,6 @@ void IDP_FreeFromGroup(IDProperty *group, IDProperty *prop) ATTR_NONNULL();
 IDProperty *IDP_GetPropertyFromGroup(const IDProperty *prop,
                                      blender::StringRef name) ATTR_WARN_UNUSED_RESULT
     ATTR_NONNULL();
-
-/**
- * Same as #IDP_GetPropertyFromGroup but allows the property group to be null, in which case null
- * is returned.
- */
-IDProperty *IDP_GetPropertyFromGroup_null(const IDProperty *prop,
-                                          blender::StringRef name) ATTR_WARN_UNUSED_RESULT;
 /**
  * This is a slightly more efficient version of the function above in the when there are lots of
  * properties. It can be faster because it avoids computing the length of everything that the

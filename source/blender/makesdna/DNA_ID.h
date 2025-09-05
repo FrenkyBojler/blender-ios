@@ -141,6 +141,10 @@ typedef struct IDPropertyUIDataID {
 typedef struct IDPropertyData {
   void *pointer;
   ListBase group;
+  /**
+   * Allows constant time lookup by name of the children in this group. This may be null if the
+   * group is empty.
+   */
   IDPropertyGroupChildrenSet *children_map;
   /** NOTE: a `double` is written into two 32bit integers. */
   int val, val2;
