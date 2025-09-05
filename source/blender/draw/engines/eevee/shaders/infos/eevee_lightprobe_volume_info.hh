@@ -9,7 +9,8 @@
 #  include "draw_object_infos_info.hh"
 #  include "draw_view_info.hh"
 #  include "eevee_common_info.hh"
-#  include "eevee_shader_shared.hh"
+#  include "eevee_debug_shared.hh"
+#  include "eevee_lightprobe_shared.hh"
 
 #  define SPHERE_PROBE
 #endif

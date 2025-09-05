@@ -8,6 +8,7 @@
 
 #  include "draw_view_info.hh"
 #  include "eevee_common_info.hh"
+#  include "eevee_debug_shared.hh"
 #  include "gpu_shader_fullscreen_info.hh"
 #endif
 

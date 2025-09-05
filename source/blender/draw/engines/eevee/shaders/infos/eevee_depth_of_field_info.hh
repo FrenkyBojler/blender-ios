@@ -10,7 +10,7 @@
 
 #  include "draw_view_info.hh"
 #  include "eevee_common_info.hh"
-#  include "eevee_shader_shared.hh"
+#  include "eevee_depth_of_field_shared.hh"
 #  include "eevee_velocity_info.hh"
 
 #  define DOF_BOKEH_TEXTURE true

@@ -18,10 +18,13 @@
 
 #pragma once
 
-#include "eevee_shader.hh"
-#include "eevee_shader_shared.hh"
+#include "draw_pass.hh"
+
+#include "eevee_subsurface_shared.hh"
 
 namespace blender::eevee {
+
+using namespace draw;
 
 /* -------------------------------------------------------------------- */
 /** \name Subsurface

@@ -8,7 +8,7 @@
 
 #  include "draw_view_info.hh"
 #  include "eevee_common_info.hh"
-#  include "eevee_shader_shared.hh"
+#  include "eevee_film_shared.hh"
 #  include "eevee_velocity_info.hh"
 #  include "gpu_shader_fullscreen_info.hh"
 #endif

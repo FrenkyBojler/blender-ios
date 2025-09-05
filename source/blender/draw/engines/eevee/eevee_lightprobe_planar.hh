@@ -8,14 +8,15 @@
 
 #pragma once
 
-#include "eevee_shader_shared.hh"
+#include "eevee_lightprobe_shared.hh"
+#include "eevee_uniform_shared.hh"
 
-#include "BKE_cryptomatte.hh"
-
-extern "C" {
-}
+#include "draw_pass.hh"
+#include "draw_view.hh"
 
 namespace blender::eevee {
+
+using namespace draw;
 
 class Instance;
 class HiZBuffer;

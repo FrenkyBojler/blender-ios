@@ -13,7 +13,6 @@
 #include "BLI_math_quaternion_types.hh"
 
 #include "eevee_lightprobe.hh"
-#include "eevee_shader_shared.hh"
 
 namespace blender::eevee {
 

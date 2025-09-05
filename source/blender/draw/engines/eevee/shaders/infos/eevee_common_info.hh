@@ -8,10 +8,11 @@
 
 #  include "draw_object_infos_info.hh"
 #  include "draw_view_info.hh"
-#  include "eevee_shader_shared.hh"
+#  include "eevee_lightprobe_shared.hh"
+#  include "eevee_sampling_shared.hh"
+#  include "eevee_uniform_shared.hh"
 
 #  define EEVEE_SAMPLING_DATA
-#  define EEVEE_UTILITY_TX
 #  define MAT_CLIP_PLANE
 #  define PLANAR_PROBES
 #  define MAT_RENDER_PASS_SUPPORT
@@ -41,7 +42,6 @@ GPU_SHADER_CREATE_END()
 
 GPU_SHADER_CREATE_INFO(eevee_shared)
 TYPEDEF_SOURCE("eevee_defines.hh")
-TYPEDEF_SOURCE("eevee_shader_shared.hh")
 GPU_SHADER_CREATE_END()
 
 GPU_SHADER_CREATE_INFO(eevee_global_ubo)
@@ -60,7 +60,6 @@ STORAGE_BUF(SAMPLING_BUF_SLOT, read, SamplingData, sampling_buf)
 GPU_SHADER_CREATE_END()
 
 GPU_SHADER_CREATE_INFO(eevee_utility_texture)
-DEFINE("EEVEE_UTILITY_TX")
 SAMPLER(RBUFS_UTILITY_TEX_SLOT, sampler2DArray, utility_tx)
 GPU_SHADER_CREATE_END()
 

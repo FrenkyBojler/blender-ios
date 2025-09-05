@@ -2214,7 +2214,6 @@ using AOVsInfoDataBuf = draw::StorageBuffer<AOVsInfoData>;
 using CameraDataBuf = draw::UniformBuffer<CameraData>;
 using ClosureTileBuf = draw::StorageArrayBuffer<uint, 1024, true>;
 using DepthOfFieldDataBuf = draw::UniformBuffer<DepthOfFieldData>;
-using DepthOfFieldScatterListBuf = draw::StorageArrayBuffer<ScatterRect, 16, true>;
 using DrawIndirectBuf = draw::StorageBuffer<DrawCommand, true>;
 using DispatchIndirectBuf = draw::StorageBuffer<DispatchCommand>;
 using UniformDataBuf = draw::UniformBuffer<UniformData>;

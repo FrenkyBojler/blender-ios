@@ -18,8 +18,8 @@
 #include "BLI_map.hh"
 
 #include "GPU_batch.hh"
-#include "eevee_shader_shared.hh"
 #include "eevee_sync.hh"
+#include "eevee_velocity_shared.hh"
 
 namespace blender::eevee {
 

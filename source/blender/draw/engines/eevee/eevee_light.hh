@@ -24,14 +24,16 @@
 #include "DNA_light_types.h"
 
 #include "eevee_camera.hh"
+#include "eevee_light_shared.hh"
 #include "eevee_sampling.hh"
-#include "eevee_shader_shared.hh"
 #include "eevee_sync.hh"
 
 namespace blender::eevee {
 
 class Instance;
 class ShadowModule;
+class ShadowDirectional;
+class ShadowPunctual;
 
 /* -------------------------------------------------------------------- */
 /** \name Light Object

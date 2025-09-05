@@ -18,7 +18,7 @@
 #include "eevee_camera.hh"
 #include "eevee_material.hh"
 #include "eevee_shader.hh"
-#include "eevee_shader_shared.hh"
+#include "eevee_shadow_shared.hh"
 #include "eevee_sync.hh"
 
 namespace blender::eevee {
@@ -180,6 +180,9 @@ struct ShadowObject {
  *
  * Manages shadow atlas and shadow region data.
  * \{ */
+
+class ShadowPunctual;
+class ShadowDirectional;
 
 class ShadowModule {
   friend ShadowPunctual;
