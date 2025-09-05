@@ -30,6 +30,8 @@
 #include "GPU_state.hh"
 #include "GPU_viewport.hh"
 
+#include "UI_resources.hh"
+
 #include "WM_api.hh"
 
 #include "wm_xr_intern.hh"
@@ -329,15 +331,21 @@ static void wm_xr_controller_model_draw(const XrSessionSettings *settings,
 
 static void wm_xr_vignette_draw(const XrSessionSettings *settings, wmXrSessionState *state)
 {
-  float viewport[4], color[4] = {0, 0, 0, 1}, aperture = state->vignette_data->aperture,
-                     falloff = 0.15f;
+  float viewport[4], bg_color[4], bg_color_grad[4], aperture = state->vignette_data->aperture,
+                                                    falloff = 0.15f;
+  int bg_type;
 
   if (aperture > M_SQRT1_2) {
     return;
   }
 
+  /* Viewport size -- used to calculate screen space coordinates */
   GPU_viewport_size_get_f(viewport);
-  copy_v3_v3(color, settings->shading.background_color);
+
+  /* Variables controlling background appearance. */
+  UI_GetThemeColor4fv(TH_BACK, bg_color);
+  UI_GetThemeColor4fv(TH_BACK_GRAD, bg_color_grad);
+  bg_type = UI_GetThemeValue(TH_BACKGROUND_TYPE);
 
   GPU_depth_test(GPU_DEPTH_NONE);
   GPU_blend(GPU_BLEND_ALPHA);
@@ -349,7 +357,10 @@ static void wm_xr_vignette_draw(const XrSessionSettings *settings, wmXrSessionSt
 
   blender::gpu::Batch *quad = GPU_batch_preset_quad();
   GPU_batch_program_set_builtin(quad, GPU_SHADER_XR_VIGNETTE);
-  GPU_batch_uniform_4fv(quad, "color", color);
+  GPU_batch_uniform_4fv(quad, "background", bg_color);
+  GPU_batch_uniform_4fv(quad, "background_gradient", bg_color_grad);
+  GPU_batch_uniform_1i(quad, "background_type", bg_type);
+
   GPU_batch_uniform_1f(quad, "aperture", aperture);
   GPU_batch_uniform_1f(quad, "falloff", falloff);
   GPU_batch_uniform_2fv(quad, "viewportSize", &viewport[2]);
