@@ -687,7 +687,7 @@ void infer_group_interface_inputs_usage(const bNodeTree &group,
 }
 
 void infer_group_interface_inputs_usage(const bNodeTree &group,
-                                        const IDProperty *properties,
+                                        const PropertiesVectorSet &properties,
                                         MutableSpan<SocketUsage> r_input_usages)
 {
   ResourceScope scope;
