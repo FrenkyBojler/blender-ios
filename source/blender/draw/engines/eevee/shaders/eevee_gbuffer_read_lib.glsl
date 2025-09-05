@@ -50,6 +50,12 @@ float4 fetch_normal(int2 texel, uchar layer)
   return texelFetch(sampler_get(eevee_gbuffer_data, gbuf_normal_tx), int3(texel, layer), 0);
 }
 
+float4 fetch_additional_data(int2 texel)
+{
+  auto &samp = sampler_get(eevee_gbuffer_data, gbuf_normal_tx);
+  return texelFetch(samp, int3(texel, textureSize(samp, 0).z - 1), 0);
+}
+
 ClosureUndetermined unpack_closure(gbuffer::ClosurePacking cl_in)
 {
   ClosureUndetermined cl;
@@ -206,8 +212,7 @@ float read_thickness(Header header, int2 texel)
   if (!header.has_additional_data()) {
     return 0.0f;
   }
-  uint closure_len = header.closure_len();
-  float2 data_packed = gbuffer::detail::fetch_normal(texel, closure_len).rg;
+  float2 data_packed = gbuffer::detail::fetch_additional_data(texel).rg;
   return gbuffer::AdditionalInfo::unpack(data_packed).thickness;
 }
 

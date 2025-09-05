@@ -172,7 +172,10 @@ void main()
 #if defined(GBUFFER_HAS_REFRACTION) || defined(GBUFFER_HAS_SUBSURFACE) || \
     defined(GBUFFER_HAS_TRANSLUCENT)
   if (flag_test(gbuf.used_layers, ADDITIONAL_DATA)) {
-    write_normal_data(out_texel, GBUFFER_LAYER_MAX, gbuf.additional_info);
+    /* NOTE: The image view covers layers starting from layer 1 (and not layer 0). */
+    write_normal_data(out_texel,
+                      GBUF_NORMAL_FB_LAYER_COUNT + imageSize(out_gbuf_normal_img).z - 1,
+                      gbuf.additional_info);
   }
 #endif
 
