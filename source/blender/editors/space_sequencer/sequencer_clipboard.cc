@@ -61,6 +61,8 @@
 #include "WM_api.hh"
 #include "WM_types.hh"
 
+#include "../sequencer/intern/utils.hh"
+
 #ifdef WITH_AUDASPACE
 #  include <AUD_Special.h>
 #endif
@@ -522,6 +524,7 @@ wmOperatorStatus sequencer_clipboard_paste_exec(bContext *C, wmOperator *op)
   nseqbase.first = iseq_first;
 
   int2 strip_mean_pos = {0, 0};
+  int image_strip_count = 0;
   LISTBASE_FOREACH (Strip *, istrip, &nseqbase) {
     if (istrip->name == active_seq_name) {
       seq::select_active_set(scene_dst, istrip);
@@ -530,13 +533,14 @@ wmOperatorStatus sequencer_clipboard_paste_exec(bContext *C, wmOperator *op)
      * adding strips to seqbase, for lookup cache to work correctly. */
     seq::ensure_unique_name(istrip, scene_dst);
 
-    if (region->regiontype == RGN_TYPE_PREVIEW && !(istrip->type & STRIP_TYPE_SOUND_RAM)) {
+    if (region->regiontype == RGN_TYPE_PREVIEW && seq::sequencer_strip_generates_image(istrip)) {
       strip_mean_pos += static_cast<int2>(
           seq::image_transform_origin_offset_pixelspace_get(scene, istrip));
+      image_strip_count++;
     }
   }
 
-  strip_mean_pos /= BLI_listbase_count(&nseqbase);
+  strip_mean_pos /= image_strip_count;
 
   LISTBASE_FOREACH (Strip *, istrip, &nseqbase) {
     /* Translate after name has been changed, otherwise this will affect animdata of original
@@ -547,7 +551,7 @@ wmOperatorStatus sequencer_clipboard_paste_exec(bContext *C, wmOperator *op)
       seq::transform_seqbase_shuffle(ed_dst->current_strips(), istrip, scene_dst);
     }
     if (region->regiontype == RGN_TYPE_PREVIEW && !(RNA_boolean_get(op->ptr, "keep_offset")) &&
-        !(istrip->type & STRIP_TYPE_SOUND_RAM))
+        seq::sequencer_strip_generates_image(istrip))
     {
       StripTransform *transform = istrip->data->transform;
       const float2 mirror = seq::image_transform_mirror_factor_get(istrip);
