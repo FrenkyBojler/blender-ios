@@ -89,11 +89,11 @@ static void draw_current_frame(const Scene *scene,
   char frame_str[64];
   get_current_time_str(scene, display_seconds, current_frame, frame_str, sizeof(frame_str));
 
-  const float box_min_width = 24 * UI_SCALE_FAC;
-  const float text_padding = 3 * UI_SCALE_FAC;
+  const float box_min_width = 24.0f * UI_SCALE_FAC;
+  const float text_padding = 4.0f * UI_SCALE_FAC;
   const float text_width = UI_fontstyle_string_width(fstyle, frame_str);
   const float box_width = std::max(text_width + (2.0f * text_padding), box_min_width);
-  const float box_margin = 5 * UI_SCALE_FAC;
+  const float box_margin = 2.0f * UI_SCALE_FAC;
   const float shadow_width = U.pixelsize;
 
   float fg_color[4];
@@ -103,11 +103,11 @@ static void draw_current_frame(const Scene *scene,
 
   /* Box. */
   UI_draw_roundbox_corner_set(UI_CNR_ALL);
-  const float box_corner_radius = 3 * UI_SCALE_FAC;
+  const float box_corner_radius = 4.0f * UI_SCALE_FAC;
   rctf rect{};
   rect.xmin = frame_x - (box_width / 2.0f);
   rect.xmax = frame_x + (box_width / 2.0f) + 1.0f;
-  rect.ymin = floor(scrub_region_rect->ymin + box_margin - shadow_width);
+  rect.ymin = floor(scrub_region_rect->ymin + (box_margin - shadow_width));
   rect.ymax = ceil(scrub_region_rect->ymax - box_margin + shadow_width);
   UI_draw_roundbox_4fv_ex(
       &rect, fg_color, nullptr, 1.0f, bg_color, shadow_width, box_corner_radius);
@@ -141,7 +141,7 @@ static void draw_current_frame(const Scene *scene,
     immVertex2f(pos, floor(subframe_x + U.pixelsize + 1.0f + shadow_width), 0.0f);
     immVertex2f(pos, floor(subframe_x - U.pixelsize - shadow_width), 0.0f);
 
-    float diag_offset = 0.5f * UI_SCALE_FAC;
+    float diag_offset = 0.4f * UI_SCALE_FAC;
     immVertex2f(pos,
                 floor(subframe_x + U.pixelsize + 1.0f + shadow_width),
                 tri_top - tri_height + shadow_width - diag_offset);
