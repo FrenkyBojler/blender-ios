@@ -312,16 +312,23 @@ struct PenToolOperation {
         return;
       }
 
+      const bool is_left = !right_selected[point_i];
       if (this->move_handle) {
-        const float2 pos_right = this->layer_to_screen(layer_to_object, handles_right[point_i]);
-        handles_right[point_i] = this->screen_to_layer(
-            layer_to_world, pos_right + offset, depth_point);
+        if (is_left) {
+          const float2 pos_left = this->layer_to_screen(layer_to_object, handles_left[point_i]);
+          handles_left[point_i] = this->screen_to_layer(
+              layer_to_world, pos_left + offset, depth_point);
+        }
+        else {
+          const float2 pos_right = this->layer_to_screen(layer_to_object, handles_right[point_i]);
+          handles_right[point_i] = this->screen_to_layer(
+              layer_to_world, pos_right + offset, depth_point);
+        }
         handle_types_left[point_i] = BEZIER_HANDLE_FREE;
         handle_types_right[point_i] = BEZIER_HANDLE_FREE;
         return;
       }
 
-      const bool is_left = !right_selected[point_i];
       const float2 center_point = this->layer_to_screen(layer_to_object, depth_point);
       offset = this->mouse_co - this->center_of_mass_co;
 
@@ -665,7 +672,7 @@ struct PenToolOperation {
     curves.update_curve_types();
 
     const int material_index = this->vc.obact->actcol - 1;
-    if (material_index != 0) {
+    if (material_index != -1) {
       bke::SpanAttributeWriter<int> material_indexes =
           attributes.lookup_or_add_for_write_span<int>(
               "material_index",
@@ -1170,7 +1177,7 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
 
       if (ptd.closest_element.element_mode == ElementMode::Edge) {
         add_single.store(false, std::memory_order_relaxed);
-        if (ptd.insert_point) {
+        if (ptd.insert_point && ptd.closest_element.drawing_index == drawing_index) {
           ptd.insert_point_to_curve(curves);
           info.drawing.tag_topology_changed();
           changed.store(true, std::memory_order_relaxed);

@@ -145,7 +145,6 @@ void draw_timeline_seq_display(const bContext *C, ARegion *region);
  * region.
  */
 void sequencer_preview_region_draw(const bContext *C, ARegion *region);
-int sequencer_draw_get_transform_preview_frame(const Scene *scene);
 void sequencer_special_update_set(Strip *strip);
 
 /* UNUSED */
@@ -276,6 +275,7 @@ void SEQUENCER_OT_select_linked_pick(wmOperatorType *ot);
 void SEQUENCER_OT_select_handles(wmOperatorType *ot);
 void SEQUENCER_OT_select_side(wmOperatorType *ot);
 void SEQUENCER_OT_select_box(wmOperatorType *ot);
+void SEQUENCER_OT_select_circle(wmOperatorType *ot);
 void SEQUENCER_OT_select_inverse(wmOperatorType *ot);
 void SEQUENCER_OT_select_grouped(wmOperatorType *ot);
 

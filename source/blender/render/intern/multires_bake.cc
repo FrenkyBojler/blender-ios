@@ -473,7 +473,61 @@ static float2 get_tile_uv(Image &image, ImageTile &tile)
 
 static bool need_tangent(const MultiresBakeRender &bake)
 {
-  return bake.type == R_BAKE_NORMALS;
+  return (bake.type == R_BAKE_NORMALS) || (bake.type == R_BAKE_VECTOR_DISPLACEMENT &&
+                                           bake.displacement_space == R_BAKE_SPACE_TANGENT);
+}
+
+/* Get matrix which converts tangent space to object space in the (tangent, bitangent, normal)
+ * convention. */
+static float3x3 get_from_tangent_matrix_tbn(const RasterizeTriangle &triangle,
+                                            const float2 &bary_uv)
+{
+  if (!triangle.has_uv_tangents) {
+    return float3x3::identity();
+  }
+
+  const float u = bary_uv.x;
+  const float v = bary_uv.y;
+  const float w = 1 - u - v;
+
+  const float3 &no0 = triangle.normals[0];
+  const float3 &no1 = triangle.normals[1];
+  const float3 &no2 = triangle.normals[2];
+
+  const float4 &tang0 = triangle.uv_tangents[0];
+  const float4 &tang1 = triangle.uv_tangents[1];
+  const float4 &tang2 = triangle.uv_tangents[2];
+
+  /* The sign is the same at all face vertices for any non-degenerate face.
+   * Just in case we clamp the interpolated value though. */
+  const float sign = (tang0.w * u + tang1.w * v + tang2.w * w) < 0 ? (-1.0f) : 1.0f;
+
+  /* x - tangent
+   * y - bitangent (B = sign * cross(N, T))
+   * z - normal */
+  float3x3 from_tangent;
+  from_tangent.x = tang0.xyz() * u + tang1.xyz() * v + tang2.xyz() * w;
+  from_tangent.z = no0.xyz() * u + no1.xyz() * v + no2.xyz() * w;
+  from_tangent.y = sign * math::cross(from_tangent.z, from_tangent.x);
+
+  return from_tangent;
+}
+
+/* Get matrix which converts object space to tangent space in the (tangent, bitangent, normal)
+ * convention. */
+static float3x3 get_to_tangent_matrix_tbn(const RasterizeTriangle &triangle, const float2 &bary_uv)
+{
+  const float3x3 from_tangent = get_from_tangent_matrix_tbn(triangle, bary_uv);
+  return math::invert(from_tangent);
+}
+
+/* Get matrix which converts object space to tangent space in the (tangent, normal, bitangent)
+ * convention. */
+static float3x3 get_to_tangent_matrix_tnb(const RasterizeTriangle &triangle, const float2 &bary_uv)
+{
+  float3x3 from_tangent = get_from_tangent_matrix_tbn(triangle, bary_uv);
+  std::swap(from_tangent.y, from_tangent.z);
+  return math::invert(from_tangent);
 }
 
 /** \} */
@@ -489,8 +543,7 @@ static void flush_pixel(const MultiresBaker &baker,
                         const int y,
                         RasterizeResult &result)
 {
-  const float2 st{(x + 0.5f) / tile.ibuf->x + tile.uv_offset.x,
-                  (y + 0.5f) / tile.ibuf->y + tile.uv_offset.y};
+  const float2 st{(x + 0.5f) / tile.ibuf->x, (y + 0.5f) / tile.ibuf->y};
 
   const float2 bary_uv = resolve_tri_uv(
       st, triangle.tex_uvs[0], triangle.tex_uvs[1], triangle.tex_uvs[2]);
@@ -704,10 +757,11 @@ class MultiresDisplacementBaker : public MultiresBaker {
 
 class MultiresVectorDisplacementBaker : public MultiresBaker {
   const SubdivCCG &high_subdiv_ccg_;
+  eBakeSpace space_;
 
  public:
-  explicit MultiresVectorDisplacementBaker(const SubdivCCG &subdiv_ccg)
-      : high_subdiv_ccg_(subdiv_ccg)
+  MultiresVectorDisplacementBaker(const SubdivCCG &subdiv_ccg, const eBakeSpace space)
+      : high_subdiv_ccg_(subdiv_ccg), space_(space)
   {
   }
 
@@ -721,7 +775,14 @@ class MultiresVectorDisplacementBaker : public MultiresBaker {
     const float3 high_level_position = sample_position_on_subdiv_ccg(
         high_subdiv_ccg_, triangle.grid_index, grid_uv);
 
-    return high_level_position - bake_level_position;
+    const float3 displacement = high_level_position - bake_level_position;
+
+    if (space_ == R_BAKE_SPACE_TANGENT) {
+      const float3x3 to_tangent = get_to_tangent_matrix_tnb(triangle, bary_uv);
+      return to_tangent * displacement;
+    }
+
+    return displacement;
   }
 
   void write_pixel(const RasterizeTile &tile,
@@ -749,7 +810,7 @@ class MultiresNormalsBaker : public MultiresBaker {
                     const float2 &grid_uv,
                     RasterizeResult & /*result*/) const override
   {
-    const float3x3 to_tangent = get_to_tangent_matrix(triangle, bary_uv);
+    const float3x3 to_tangent = get_to_tangent_matrix_tbn(triangle, bary_uv);
     const float3 normal = sample_normal_on_subdiv_ccg(subdiv_ccg_, triangle.grid_index, grid_uv);
     return math::normalize(to_tangent * normal) * 0.5f + float3(0.5f, 0.5f, 0.5f);
   }
@@ -759,39 +820,6 @@ class MultiresNormalsBaker : public MultiresBaker {
                    const float3 &value) const override
   {
     write_pixel_to_image_buffer(*tile.ibuf, coord, value);
-  }
-
- private:
-  float3x3 get_to_tangent_matrix(const RasterizeTriangle &triangle, const float2 &bary_uv) const
-  {
-    if (!triangle.has_uv_tangents) {
-      return float3x3::identity();
-    }
-
-    const float u = bary_uv.x;
-    const float v = bary_uv.y;
-    const float w = 1 - u - v;
-
-    const float3 &no0 = triangle.normals[0];
-    const float3 &no1 = triangle.normals[1];
-    const float3 &no2 = triangle.normals[2];
-
-    const float4 &tang0 = triangle.uv_tangents[0];
-    const float4 &tang1 = triangle.uv_tangents[1];
-    const float4 &tang2 = triangle.uv_tangents[2];
-
-    /* The sign is the same at all face vertices for any non-degenerate face.
-     * Just in case we clamp the interpolated value though. */
-    const float sign = (tang0.w * u + tang1.w * v + tang2.w * w) < 0 ? (-1.0f) : 1.0f;
-
-    /* This sequence of math is designed specifically as is with great care to be compatible with
-     * our shader. Please don't change without good reason. */
-    float3x3 from_tang;
-    from_tang.x = tang0.xyz() * u + tang1.xyz() * v + tang2.xyz() * w;
-    from_tang.z = no0.xyz() * u + no1.xyz() * v + no2.xyz() * w;
-    from_tang.y = sign * math::cross(from_tang[2], from_tang[0]); /* `B = sign * cross(N, T)` */
-
-    return math::invert(from_tang);
   }
 };
 
@@ -829,7 +857,8 @@ static std::unique_ptr<MultiresBaker> create_baker(const MultiresBakeRender &bak
     case R_BAKE_DISPLACEMENT:
       return std::make_unique<MultiresDisplacementBaker>(subdiv_ccg, ibuf, extra_buffers);
     case R_BAKE_VECTOR_DISPLACEMENT:
-      return std::make_unique<MultiresVectorDisplacementBaker>(subdiv_ccg);
+      return std::make_unique<MultiresVectorDisplacementBaker>(subdiv_ccg,
+                                                               bake.displacement_space);
     case R_BAKE_AO:
       /* Not implemented, should not be used. */
       break;
@@ -860,7 +889,7 @@ static void rasterize_base_face(const MultiresBaker &baker,
   quad.grid_uvs[2] = float2(1.0f, 1.0f);
   quad.grid_uvs[3] = float2(0.0f, 1.0f);
 
-  quad.tex_uvs[0] = face_center_tex_uv_calc(mesh_arrays, face_index);
+  quad.tex_uvs[0] = face_center_tex_uv_calc(mesh_arrays, face_index) - tile.uv_offset;
   quad.positions[0] = bke::mesh::face_center_calc(mesh_arrays.vert_positions, face_verts);
 
   /* TODO(sergey): Support corner normals. */
@@ -890,9 +919,11 @@ static void rasterize_base_face(const MultiresBaker &baker,
 
     quad.grid_index = corner;
 
-    quad.tex_uvs[1] = (mesh_arrays.uv_map[corner] + mesh_arrays.uv_map[next_corner]) * 0.5f;
+    quad.tex_uvs[1] = (mesh_arrays.uv_map[corner] + mesh_arrays.uv_map[next_corner]) * 0.5f -
+                      tile.uv_offset;
     quad.tex_uvs[2] = mesh_arrays.uv_map[corner] - tile.uv_offset;
-    quad.tex_uvs[3] = (mesh_arrays.uv_map[prev_corner] + mesh_arrays.uv_map[corner]) * 0.5f;
+    quad.tex_uvs[3] = (mesh_arrays.uv_map[prev_corner] + mesh_arrays.uv_map[corner]) * 0.5f -
+                      tile.uv_offset;
 
     quad.positions[1] = (position + next_position) * 0.5f;
     quad.positions[2] = position;
@@ -1097,7 +1128,7 @@ static void rasterize_subdivided_face(const MultiresBaker &baker,
     BLI_assert(corner_grid_coords[corner].grid_index == quad.grid_index);
     quad.grid_uvs[i] = corner_grid_coords[corner].uv;
 
-    quad.tex_uvs[i] = mesh_arrays.uv_map[corner];
+    quad.tex_uvs[i] = mesh_arrays.uv_map[corner] - tile.uv_offset;
     quad.positions[i] = mesh_arrays.vert_positions[vertex];
     if (!quad.is_flat) {
       quad.normals[i] = mesh_arrays.vert_normals[vertex];
@@ -1350,7 +1381,11 @@ static void bake_single_image_displacement(MultiresBakeRender &bake,
     return;
   }
 
-  const Mesh *highres_bake_mesh = create_highres_mesh(bake_level_mesh, *bake.multires_modifier);
+  const Mesh *highres_bake_mesh = result.highres_bake_mesh;
+  if (!highres_bake_mesh) {
+    highres_bake_mesh = create_highres_mesh(bake_level_mesh, *bake.multires_modifier);
+    result.highres_bake_mesh = highres_bake_mesh;
+  }
 
   const Array<GridCoord> corner_grid_coords = get_highres_mesh_loop_grid_coords(
       *subdiv_ccg.subdiv,
@@ -1411,8 +1446,6 @@ static void bake_single_image_displacement(MultiresBakeRender &bake,
     }
   });
   BLI_spin_end(&spin_lock);
-
-  result.highres_bake_mesh = highres_bake_mesh;
 }
 
 /** \} */
