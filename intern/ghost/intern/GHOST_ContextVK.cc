@@ -907,7 +907,8 @@ GHOST_TSuccess GHOST_ContextVK::swapBufferAcquire()
    * still happen in parallel, but acquiring needs can only happen when the frame acquire semaphore
    * has been signaled and waited for. */
   if (submission_frame_data.submission_fence) {
-    device_vk.functions.vkWaitForFences(vk_device, 1, &submission_frame_data.submission_fence, true, UINT64_MAX);
+    device_vk.functions.vkWaitForFences(
+        vk_device, 1, &submission_frame_data.submission_fence, true, UINT64_MAX);
   }
   submission_frame_data.discard_pile.destroy(vk_device, device_vk.functions);
 
@@ -952,13 +953,14 @@ GHOST_TSuccess GHOST_ContextVK::swapBufferAcquire()
     while (swapchain_ != VK_NULL_HANDLE &&
            (ELEM(acquire_result, VK_ERROR_OUT_OF_DATE_KHR, VK_SUBOPTIMAL_KHR)))
     {
-      acquire_result = device_vk.functions.vkAcquireNextImageKHR(vk_device,
-                                             swapchain_,
-                                             UINT64_MAX,
-                                             submission_frame_data.acquire_semaphore,
-                                             VK_NULL_HANDLE,
-                                             &image_index);
-      if (ELEM(acquire_result, VK_ERROR_OUT_OF_DATE_KHR, VK_SUBOPTIMAL_KHR)) {
+      acquire_result = device_vk.functions.vkAcquireNextImageKHR(
+          vk_device,
+          swapchain_,
+          UINT64_MAX,
+          submission_frame_data.acquire_semaphore,
+          VK_NULL_HANDLE,
+          &image_index);
+      if (acquire_result == VK_ERROR_OUT_OF_DATE_KHR || acquire_result == VK_SUBOPTIMAL_KHR) {
         recreateSwapchain(use_hdr_swapchain);
       }
     }

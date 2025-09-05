@@ -55,7 +55,8 @@ void VKDescriptorPools::ensure_pool(const VKDevice &device)
   pool_info.maxSets = POOL_SIZE_DESCRIPTOR_SETS;
   pool_info.poolSizeCount = pool_sizes.size();
   pool_info.pPoolSizes = pool_sizes.data();
-  device.functions.vkCreateDescriptorPool(device.vk_handle(), &pool_info, nullptr, &vk_descriptor_pool_);
+  device.functions.vkCreateDescriptorPool(
+      device.vk_handle(), &pool_info, nullptr, &vk_descriptor_pool_);
 }
 
 void VKDescriptorPools::discard_active_pool(VKContext &context)
