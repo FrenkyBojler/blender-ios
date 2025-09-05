@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include "BLI_color.hh"
 #include "BLI_math_quaternion_types.hh"
 #include "BLI_string_utf8.h"
 
@@ -16,7 +17,6 @@
 
 #include "BKE_attribute.hh"
 #include "BKE_curves.hh"
-#include "BKE_duplilist.hh"
 #include "BKE_geometry_set.hh"
 #include "BKE_instances.hh"
 #include "BKE_mesh.hh"
@@ -289,19 +289,11 @@ class AttributeTexts : Overlay {
                              col);
         }
         else if constexpr (std::is_same_v<T, ColorGeometry4b>) {
-          const ColorGeometry4f color = value.decode();
-          char r_str[64], g_str[64], b_str[64], a_str[64];
-          const size_t r_str_len = SNPRINTF_UTF8_RLEN(r_str, "R: %.3f", color.r);
-          const size_t g_str_len = SNPRINTF_UTF8_RLEN(g_str, "G: %.3f", color.g);
-          const size_t b_str_len = SNPRINTF_UTF8_RLEN(b_str, "B: %.3f", color.b);
-          const size_t a_str_len = SNPRINTF_UTF8_RLEN(a_str, "A: %.3f", color.a);
-          add_lines_to_cache(dt,
-                             position,
-                             {StringRef(r_str, r_str_len),
-                              StringRef(g_str, g_str_len),
-                              StringRef(b_str, b_str_len),
-                              StringRef(a_str, a_str_len)},
-                             col);
+          const ColorGeometry4f color = color::decode(value);
+          char numstr[64];
+          const size_t numstr_len = SNPRINTF_UTF8_RLEN(
+              numstr, "(%.3f, %.3f, %.3f, %.3f)", color.r, color.g, color.b, color.a);
+          add_text_to_cache(dt, position, StringRef(numstr, numstr_len), col);
         }
         else if constexpr (std::is_same_v<T, ColorGeometry4f>) {
           char r_str[64], g_str[64], b_str[64], a_str[64];
