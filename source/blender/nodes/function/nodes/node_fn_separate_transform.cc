@@ -108,7 +108,9 @@ static void node_register()
   static blender::bke::bNodeType ntype;
   fn_node_type_base(&ntype, "FunctionNodeSeparateTransform", FN_NODE_SEPARATE_TRANSFORM);
   ntype.ui_name = "Separate Transform";
-  ntype.ui_description= "Split a transformation matrix into a translation vector, a rotation component, and a scale vector";
+  ntype.ui_description =
+      "Split a transformation matrix into a translation vector, a rotation component, and a scale "
+      "vector";
   ntype.enum_name_legacy = "SEPARATE_TRANSFORM";
   ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.declare = node_declare;
