@@ -333,7 +333,6 @@ static void file_draw_tooltip_custom_func(bContext & /*C*/,
 
   if (thumb && file->typeflag & FILE_TYPE_FTFONT) {
     UI_tooltip_text_field_add(tip, {}, {}, UI_TIP_STYLE_SPACER, UI_TIP_LC_NORMAL);
-    UI_tooltip_text_field_add(tip, {}, {}, UI_TIP_STYLE_SPACER, UI_TIP_LC_NORMAL);
     uiTooltipImage image_data;
     float scale = (512.0f * UI_SCALE_FAC) / float(std::max(thumb->x, thumb->y));
     image_data.ibuf = thumb;
