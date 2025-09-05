@@ -403,7 +403,7 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
     FROM_DEFAULT_V4_UCHAR(tui.panel_active);
   }
 
-  if (!USER_VERSION_ATLEAST(500, 75)) {
+  if (!USER_VERSION_ATLEAST(500, 76)) {
     FROM_DEFAULT_V4_UCHAR(space_action.interpolation_bezier);
     FROM_DEFAULT_V4_UCHAR(space_action.interpolation_constant);
     FROM_DEFAULT_V4_UCHAR(space_action.interpolation_linear);
@@ -1288,7 +1288,7 @@ void blo_do_versions_userdef(UserDef *userdef)
       userdef->pixelsize = 1.0f;
     }
     /* Clear old userdef flag for "Camera Parent Lock". */
-    userdef->uiflag &= ~USER_UIFLAG_UNUSED_3;
+    userdef->uiflag &= ~USER_AREA_CORNER_HANDLE;
   }
 
   if (!USER_VERSION_ATLEAST(292, 9)) {
@@ -1674,6 +1674,12 @@ void blo_do_versions_userdef(UserDef *userdef)
 
   if (!USER_VERSION_ATLEAST(500, 59)) {
     userdef->preferences_display_type = USER_TEMP_SPACE_DISPLAY_WINDOW;
+  }
+
+  if (!USER_VERSION_ATLEAST(500, 76)) {
+    if (userdef->stored_bounds.file.xmin == userdef->stored_bounds.file.xmax) {
+      memcpy(&userdef->stored_bounds, &U_default.stored_bounds, sizeof(userdef->stored_bounds));
+    }
   }
 
   /**
