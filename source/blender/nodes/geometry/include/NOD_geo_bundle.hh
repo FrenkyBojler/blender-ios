@@ -32,8 +32,14 @@ inline bool socket_type_supported_in_bundle(const eNodeSocketDatatype socket_typ
                   SOCK_BUNDLE,
                   SOCK_CLOSURE);
     case NTREE_SHADER:
-      return ELEM(
-          socket_type, SOCK_FLOAT, SOCK_VECTOR, SOCK_RGBA, SOCK_SHADER, SOCK_BUNDLE, SOCK_CLOSURE);
+      return ELEM(socket_type,
+                  SOCK_FLOAT,
+                  SOCK_VECTOR,
+                  SOCK_RGBA,
+                  SOCK_SHADER,
+                  SOCK_BUNDLE,
+                  SOCK_CLOSURE,
+                  SOCK_INT);
     default:
       BLI_assert_unreachable();
       return false;
