@@ -95,7 +95,7 @@ static void compute_corner_tangents(const Span<float3> positions,
         const float3 &tri_tangent = r_corner_tangents[corner];
         bool found = false;
         for (SharedCorners &shared_corner : shared_corners) {
-          if (math::distance_manhattan(uv, shared_corner.uv) < 0.00001) {
+          if (math::distance_manhattan(uv, shared_corner.uv) < 0.00001f) {
             shared_corner.corners.append(corner);
             shared_corner.tangent_sum += tri_tangent;
             found = true;
