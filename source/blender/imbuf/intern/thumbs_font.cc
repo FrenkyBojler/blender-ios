@@ -63,12 +63,12 @@ ImBuf *IMB_font_preview(const char *filepath,
   float name_w;
   float name_h;
   BLF_width_and_height(font_id, sample, strlen(sample), &name_w, &name_h);
-  float scale = float(width) / name_w;
+  const float scale = float(width) / name_w;
   BLF_size(font_id, scale * 50.0f);
   name_w *= scale;
   name_h *= scale;
 
-  int height = int(name_h * 1.8f);
+  const int height = int(name_h * 1.8f);
   ImBuf *ibuf = IMB_allocImBuf(width, height, 32, IB_byte_data);
   /* fill with white and zero alpha */
   const float col[4] = {1.0f, 1.0f, 1.0f, 0.0f};
