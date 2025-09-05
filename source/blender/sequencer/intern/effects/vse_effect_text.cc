@@ -905,7 +905,7 @@ static void apply_word_wrapping(const TextVars *data,
   }
 
   /* Third pass: Ensure, that lines have correct width.
-   * Note, that with itallic fonts it is not possible to rely on `advance_x` value only. The actual
+   * Note, that with italic fonts it is not possible to rely on `advance_x` value only. The actual
    * last character position (\0 or \n) is not changed, because cursor would be drawn at slightly
    * incorrect position. */
   for (LineInfo &line : runtime->lines) {
