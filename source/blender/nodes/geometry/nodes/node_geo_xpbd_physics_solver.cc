@@ -2803,7 +2803,7 @@ PROFILE_FUNCTION static Map<SimPointsKey, PinnedPositions> compute_pinned_positi
         const int old_size = pinned_positions.hard_indices.size();
         pinned_positions.hard_indices.resize(old_size + mask_size);
         pinned_positions.hard_animations.resize(old_size + mask_size);
-        mask.foreach_index(GrainSize(512), [&](const int point_i, const int pos) {
+        mask.foreach_index([&](const int point_i, const int pos) {
           pinned_positions.hard_indices[old_size + pos] = point_i;
           pinned_positions.hard_animations[old_size + pos] = get_and_update_position_pair(point_i);
         });
@@ -2813,7 +2813,7 @@ PROFILE_FUNCTION static Map<SimPointsKey, PinnedPositions> compute_pinned_positi
         pinned_positions.soft_indices.resize(old_size + mask_size);
         pinned_positions.soft_animations.resize(old_size + mask_size);
         pinned_positions.soft_compliance_terms.resize(old_size + mask_size);
-        mask.foreach_index(GrainSize(512), [&](const int point_i, const int pos) {
+        mask.foreach_index([&](const int point_i, const int pos) {
           pinned_positions.soft_indices[old_size + pos] = point_i;
           pinned_positions.soft_compliance_terms[old_size + pos] = compliance_terms[point_i];
           pinned_positions.soft_animations[old_size + pos] = get_and_update_position_pair(point_i);
@@ -2872,7 +2872,7 @@ PROFILE_FUNCTION static Map<SimPointsKey, PinnedRotations> compute_pinned_rotati
         const int old_size = pinned_rotations.hard_indices.size();
         pinned_rotations.hard_indices.resize(old_size + mask_size);
         pinned_rotations.hard_animations.resize(old_size + mask_size);
-        mask.foreach_index(GrainSize(512), [&](const int point_i, const int pos) {
+        mask.foreach_index([&](const int point_i, const int pos) {
           pinned_rotations.hard_indices[old_size + pos] = point_i;
           pinned_rotations.hard_animations[old_size + pos] = get_and_update_rotation_pair(point_i);
         });
@@ -2882,7 +2882,7 @@ PROFILE_FUNCTION static Map<SimPointsKey, PinnedRotations> compute_pinned_rotati
         pinned_rotations.soft_indices.resize(old_size + mask_size);
         pinned_rotations.soft_animations.resize(old_size + mask_size);
         pinned_rotations.soft_compliance_terms.resize(old_size + mask_size);
-        mask.foreach_index(GrainSize(512), [&](const int point_i, const int pos) {
+        mask.foreach_index([&](const int point_i, const int pos) {
           pinned_rotations.soft_indices[old_size + pos] = point_i;
           pinned_rotations.soft_compliance_terms[old_size + pos] = compliance_terms[point_i];
           pinned_rotations.soft_animations[old_size + pos] = get_and_update_rotation_pair(point_i);
