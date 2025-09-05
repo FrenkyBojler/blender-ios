@@ -434,13 +434,17 @@ static void sequencer_fullscreen_preview_menu_draw(const bContext *C_const, Menu
   bContext *C = (bContext *)C_const;
   SpaceSeq *sseq = CTX_wm_space_seq(C);
   uiLayout *layout = menu->layout;
+  wmWindow *win = CTX_wm_window(C);
   PointerRNA ptr;
+
   ptr = layout->op("SEQUENCER_OT_fullscreen_preview",
                    IFACE_("This Monitor"),
                    ICON_RESTRICT_VIEW_OFF,
                    blender::wm::OpCallContext::InvokeDefault,
                    UI_ITEM_NONE);
-  RNA_int_set(&ptr, "monitor", 0);
+  RNA_int_set(&ptr, "monitor_x", win->posx + 10);
+  RNA_int_set(&ptr, "monitor_y", win->posy + 10);
+
   size_t displays = wm_get_num_displays();
   rcti desktop = {0};
   for (size_t i = 0; i < displays; i++) {
