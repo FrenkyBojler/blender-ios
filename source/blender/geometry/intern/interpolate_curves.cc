@@ -692,7 +692,22 @@ void interpolate_curves_with_samples(const CurvesGeometry &from_curves,
 
   dst_curve_mask.foreach_index([&](const int i_dst_curve, const int pos) {
     const int i_from_curve = from_curve_indices[pos];
-    dst_curve_types[i_dst_curve] = curve_types[i_from_curve];
+    const int i_to_curve = to_curve_indices[pos];
+    const int8_t from_type = curve_types[i_from_curve];
+    const int8_t to_type = curve_types[i_to_curve];
+    if (from_type == CURVE_TYPE_NURBS || to_type == CURVE_TYPE_NURBS) {
+      dst_curve_types[i_dst_curve] = CURVE_TYPE_NURBS;
+      return;
+    }
+    if (from_type == CURVE_TYPE_BEZIER || to_type == CURVE_TYPE_BEZIER) {
+      dst_curve_types[i_dst_curve] = CURVE_TYPE_BEZIER;
+      return;
+    }
+    if (from_type == CURVE_TYPE_CATMULL_ROM || to_type == CURVE_TYPE_CATMULL_ROM) {
+      dst_curve_types[i_dst_curve] = CURVE_TYPE_CATMULL_ROM;
+      return;
+    }
+    dst_curve_types[i_dst_curve] = CURVE_TYPE_POLY;
   });
 
   dst_curves.update_curve_types();
