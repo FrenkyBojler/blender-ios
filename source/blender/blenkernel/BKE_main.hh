@@ -140,11 +140,19 @@ enum {
   MAINIDRELATIONS_INCLUDE_UI = 1 << 0,
 };
 
+struct MainColorspace {
+  /*
+   * A colorspace, view or display was not found, which likely means the OpenColorIO config
+   * used to create this blend file is missing.
+   */
+  bool is_missing_opencolorio_config = false;
+};
+
 struct Main : blender::NonCopyable, blender::NonMovable {
   /**
    * Runtime vector storing all split Mains (one Main for each library data), during readfile or
    * linking process.
-   * Shared accross all of the split mains when defined.
+   * Shared across all of the split mains when defined.
    */
   std::shared_ptr<blender::VectorSet<Main *>> split_mains = {};
   /**
@@ -250,6 +258,11 @@ struct Main : blender::NonCopyable, blender::NonMovable {
    * isolate and process all linked IDs from a single library.
    */
   Library *curlib = nullptr;
+
+  /*
+   * Colorspace information for this file.
+   */
+  MainColorspace colorspace;
 
   /* List bases for all ID types, containing all IDs for the current #Main. */
 

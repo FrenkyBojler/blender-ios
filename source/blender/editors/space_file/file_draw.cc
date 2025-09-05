@@ -281,11 +281,13 @@ static void file_draw_tooltip_custom_func(bContext & /*C*/,
     }
     else if (file->typeflag & FILE_TYPE_FTFONT) {
       float color[4];
-      UI_GetThemeColor4fv(TH_TEXT, color);
+      bTheme *btheme = UI_GetTheme();
+      rgba_uchar_to_float(color, btheme->tui.wcol_tooltip.text);
       thumb = IMB_font_preview(full_path,
                                512 * UI_SCALE_FAC,
                                color,
                                TIP_("The five boxing wizards jump quickly! 0123456789"));
+      free_imbuf = true;
     }
 
     char date_str[FILELIST_DIRENTRY_DATE_LEN], time_str[FILELIST_DIRENTRY_TIME_LEN];
@@ -337,9 +339,10 @@ static void file_draw_tooltip_custom_func(bContext & /*C*/,
     image_data.ibuf = thumb;
     image_data.width = short(float(thumb->x) * scale);
     image_data.height = short(float(thumb->y) * scale);
-    image_data.border = true;
+    image_data.border = false;
     image_data.background = uiTooltipImageBackground::None;
     image_data.premultiplied = false;
+    image_data.text_color = true;
     UI_tooltip_image_field_add(tip, image_data);
   }
   else if (thumb && params->display != FILE_IMGDISPLAY) {
