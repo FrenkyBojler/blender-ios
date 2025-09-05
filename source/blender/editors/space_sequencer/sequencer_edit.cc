@@ -768,7 +768,7 @@ static void slip_update_header(const Scene *scene,
 
 static SlipData *slip_data_init(bContext *C, const wmOperator *op, const wmEvent *event)
 {
-  const Scene *scene = CTX_data_scene(C);
+  const Scene *scene = CTX_data_sequencer_scene(C);
   const Editing *ed = seq::editing_get(scene);
   const View2D *v2d = UI_view2d_fromcontext(C);
 
@@ -2860,6 +2860,7 @@ void SEQUENCER_OT_paste(wmOperatorType *ot)
   ot->description = "Paste strips from the internal clipboard";
 
   /* API callbacks. */
+  ot->invoke = sequencer_clipboard_paste_invoke;
   ot->exec = sequencer_clipboard_paste_exec;
   ot->poll = ED_operator_sequencer_active;
 
@@ -2874,6 +2875,10 @@ void SEQUENCER_OT_paste(wmOperatorType *ot)
       "Keep Offset",
       "Keep strip offset relative to the current frame when pasting");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+  prop = RNA_def_int(ot->srna, "x", 0, INT_MIN, INT_MAX, "X", "", INT_MIN, INT_MAX);
+  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
+  prop = RNA_def_int(ot->srna, "y", 0, INT_MIN, INT_MAX, "Y", "", INT_MIN, INT_MAX);
+  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 }
 
 /** \} */
