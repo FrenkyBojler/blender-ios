@@ -384,7 +384,7 @@ static void rna_userdef_asset_library_path_set(PointerRNA *ptr, const char *valu
   BKE_preferences_asset_library_path_set(library, value);
 }
 
-static void rna_userdef_asset_library_path_update(bContext *C, PointerRNA *ptr)
+static void rna_userdef_asset_library_update(bContext *C, PointerRNA *ptr)
 {
   blender::ed::asset::list::clear_all_library(C);
   rna_userdef_update(CTX_data_main(C), CTX_data_scene(C), ptr);
@@ -1543,12 +1543,13 @@ static const EnumPropertyItem *rna_preference_asset_libray_import_method_itemf(
   return items;
 }
 
-static void rna_experimental_no_data_block_packing_update(Main *bmain,
-                                                          Scene *scene,
-                                                          PointerRNA *ptr)
+static void rna_experimental_no_data_block_packing_update(bContext *C, PointerRNA *ptr)
 {
+  Main *bmain = CTX_data_main(C);
+  Scene *scene = CTX_data_scene(C);
   rna_userdef_update(bmain, scene, ptr);
   AS_asset_library_import_method_ensure_valid(*bmain);
+  rna_userdef_asset_library_update(C, ptr);
 }
 
 #else
@@ -6777,7 +6778,7 @@ static void rna_def_userdef_filepaths_asset_library(BlenderRNA *brna)
   RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_EDITOR_FILEBROWSER);
   RNA_def_property_string_funcs(prop, nullptr, nullptr, "rna_userdef_asset_library_path_set");
   RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
-  RNA_def_property_update(prop, 0, "rna_userdef_asset_library_path_update");
+  RNA_def_property_update(prop, 0, "rna_userdef_asset_library_update");
 
   prop = RNA_def_property(srna, "import_method", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_items(prop, rna_enum_preferences_asset_import_method_items);
@@ -6787,7 +6788,8 @@ static void rna_def_userdef_filepaths_asset_library(BlenderRNA *brna)
       prop,
       "Default Import Method",
       "Determine how the asset will be imported, unless overridden by the Asset Browser");
-  RNA_def_property_update(prop, 0, "rna_userdef_update");
+  RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
+  RNA_def_property_update(prop, 0, "rna_userdef_asset_library_update");
 
   prop = RNA_def_property(srna, "use_relative_path", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", ASSET_LIBRARY_RELATIVE_PATH);
@@ -7417,6 +7419,7 @@ static void rna_def_userdef_experimental(BlenderRNA *brna)
   RNA_def_property_boolean_sdna(prop, nullptr, "no_data_block_packing", 1);
   RNA_def_property_ui_text(
       prop, "No Data-Block Packing", "Fall-back to appending instead of packing data-blocks");
+  RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
   RNA_def_property_update(prop, 0, "rna_experimental_no_data_block_packing_update");
 
   prop = RNA_def_property(srna, "use_all_linked_data_direct", PROP_BOOLEAN, PROP_NONE);
