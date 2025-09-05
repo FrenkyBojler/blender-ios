@@ -71,8 +71,6 @@ LightProbeRay bxdf_oren_nayar_lightprobe(float3 N)
   return probe;
 }
 
-#ifdef EEVEE_UTILITY_TX
-
 ClosureLight bxdf_oren_nayar_light(ClosureUndetermined cl)
 {
   ClosureLight light;
@@ -83,7 +81,5 @@ ClosureLight bxdf_oren_nayar_light(ClosureUndetermined cl)
   light.type = LIGHT_DIFFUSE;
   return light;
 }
-
-#endif
 
 /** \} */

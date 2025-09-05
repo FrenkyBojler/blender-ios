@@ -7,6 +7,7 @@
 #  include "gpu_glsl_cpp_stubs.hh"
 
 #  include "eevee_common_info.hh"
+#  include "eevee_precompute_shared.hh"
 #endif
 
 #include "eevee_defines.hh"
@@ -17,7 +18,7 @@ LOCAL_GROUP_SIZE(LUT_WORKGROUP_SIZE, LUT_WORKGROUP_SIZE, 1)
 PUSH_CONSTANT(int, table_type)
 PUSH_CONSTANT(int3, table_extent)
 IMAGE(0, SFLOAT_32_32_32_32, read_write, image3D, table_img)
-ADDITIONAL_INFO(eevee_shared)
+TYPEDEF_SOURCE("eevee_defines.hh")
 COMPUTE_SOURCE("eevee_lut_comp.glsl")
 DO_STATIC_COMPILATION()
 GPU_SHADER_CREATE_END()

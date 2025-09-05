@@ -50,8 +50,6 @@ LightProbeRay bxdf_diffuse_lightprobe(float3 N)
   return probe;
 }
 
-#ifdef EEVEE_UTILITY_TX
-
 ClosureLight bxdf_diffuse_light(ClosureUndetermined cl)
 {
   ClosureLight light;
@@ -61,8 +59,6 @@ ClosureLight bxdf_diffuse_light(ClosureUndetermined cl)
   light.type = LIGHT_DIFFUSE;
   return light;
 }
-
-#endif
 
 /** \} */
 
@@ -133,8 +129,6 @@ Ray bxdf_translucent_ray_amend(ClosureUndetermined cl, float3 V, Ray ray, float 
   return ray;
 }
 
-#ifdef EEVEE_UTILITY_TX
-
 ClosureLight bxdf_translucent_light(ClosureUndetermined cl, float3 V, float thickness)
 {
   /* A translucent sphere lit by a light outside the sphere transmits the
@@ -151,7 +145,5 @@ ClosureLight bxdf_translucent_light(ClosureUndetermined cl, float3 V, float thic
   light.type = (thickness > 0.0f) ? LIGHT_TRANSLUCENT_WITH_THICKNESS : LIGHT_DIFFUSE;
   return light;
 }
-
-#endif
 
 /** \} */

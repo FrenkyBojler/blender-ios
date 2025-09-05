@@ -40,10 +40,6 @@ GPU_SHADER_CREATE_INFO(eevee_node_tree)
 UNIFORM_BUF(0 /*GPU_NODE_TREE_UBO_SLOT*/, NodeTree, node_tree)
 GPU_SHADER_CREATE_END()
 
-GPU_SHADER_CREATE_INFO(eevee_shared)
-TYPEDEF_SOURCE("eevee_defines.hh")
-GPU_SHADER_CREATE_END()
-
 GPU_SHADER_CREATE_INFO(eevee_global_ubo)
 UNIFORM_BUF(UNIFORM_BUF_SLOT, UniformData, uniform_buf)
 GPU_SHADER_CREATE_END()
@@ -55,7 +51,7 @@ GPU_SHADER_CREATE_END()
 
 GPU_SHADER_CREATE_INFO(eevee_sampling_data)
 DEFINE("EEVEE_SAMPLING_DATA")
-ADDITIONAL_INFO(eevee_shared)
+TYPEDEF_SOURCE("eevee_defines.hh")
 STORAGE_BUF(SAMPLING_BUF_SLOT, read, SamplingData, sampling_buf)
 GPU_SHADER_CREATE_END()
 

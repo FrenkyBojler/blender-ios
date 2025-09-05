@@ -8,6 +8,7 @@
 
 #  include "draw_object_infos_info.hh"
 #  include "draw_view_info.hh"
+#  include "eevee_camera_shared.hh"
 #  include "eevee_velocity_shared.hh"
 
 #  define VELOCITY_CAMERA

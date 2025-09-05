@@ -94,8 +94,6 @@ float3 lightprobe_eval_direction(LightProbeSample samp, float3 P, float3 L, floa
   return radiance_sh;
 }
 
-#  ifdef EEVEE_UTILITY_TX
-
 /* TODO: Port that inside a BSSDF file. */
 float3 lightprobe_eval(
     LightProbeSample samp, ClosureSubsurface cl, float3 P, float3 V, float thickness)
@@ -120,6 +118,5 @@ float3 lightprobe_eval(
                                                             samp.volume_irradiance);
   return mix(radiance_cube, radiance_sh, fac);
 }
-#  endif
 
 #endif /* SPHERE_PROBE */
