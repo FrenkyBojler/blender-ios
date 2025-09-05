@@ -729,7 +729,7 @@ PROFILE_FUNCTION static void integrate_angular_velocities(
   for (const int i : range.index_range()) {
     const int point_i = range[i];
     const float3 &external_torque = torques.has_value() ? (*torques)[point_i] : float3(0.0f);
-    const float3 &inertia = props.inertias[i];
+    const float3 &inertia = props.inertias[point_i];
     const float3 &inverse_inertia = props.inverse_inertias[point_i];
     if (math::is_zero(inverse_inertia)) {
       continue;
