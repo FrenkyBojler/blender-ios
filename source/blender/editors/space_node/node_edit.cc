@@ -1879,7 +1879,7 @@ static wmOperatorStatus test_inline_shader_nodes_exec(bContext *C, wmOperator * 
 void NODE_OT_test_inlining_shader_nodes(wmOperatorType *ot)
 {
   ot->name = "Test Inlining Shader Nodes";
-  ot->description = "Text";
+  ot->description = "Create a new inlined shader node tree as is consumed by renderers";
   ot->idname = "NODE_OT_test_inlining_shader_nodes";
 
   ot->exec = test_inline_shader_nodes_exec;
