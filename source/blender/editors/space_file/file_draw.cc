@@ -332,16 +332,16 @@ static void file_draw_tooltip_custom_func(bContext & /*C*/,
   }
 
   if (thumb && file->typeflag & FILE_TYPE_FTFONT) {
-    UI_tooltip_text_field_add(tip, {}, {}, UI_TIP_STYLE_SPACER, UI_TIP_LC_NORMAL);
-    uiTooltipImage image_data;
     const float scale = (512.0f * UI_SCALE_FAC) / float(std::max(thumb->x, thumb->y));
+    uiTooltipImage image_data;
     image_data.ibuf = thumb;
     image_data.width = short(float(thumb->x) * scale);
     image_data.height = short(float(thumb->y) * scale);
-    image_data.border = false;
     image_data.background = uiTooltipImageBackground::None;
     image_data.premultiplied = false;
     image_data.text_color = true;
+    image_data.border = false;
+    UI_tooltip_text_field_add(tip, {}, {}, UI_TIP_STYLE_SPACER, UI_TIP_LC_NORMAL);
     UI_tooltip_image_field_add(tip, image_data);
   }
   else if (thumb && params->display != FILE_IMGDISPLAY) {
