@@ -150,7 +150,7 @@ TreeElement *TreeDisplayLibraries::add_library_contents(Main &mainvar, ListBase 
         if (filter_id_type) {
           ten = tenlib;
         }
-        else {
+        else if (library_id_filter_poll(lib, id)) {
           ten = add_element(
               &tenlib->subtree, reinterpret_cast<ID *>(lib), nullptr, nullptr, TSE_ID_BASE, a);
           ten->directdata = lbarray[a];
