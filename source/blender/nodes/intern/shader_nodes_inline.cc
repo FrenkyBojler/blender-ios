@@ -638,11 +638,18 @@ class ShaderNodesInliner {
         closure_zone_value->closure_creation_context ?
             closure_zone_value->closure_creation_context->hash() :
             ComputeContextHash{}};
-    const ComputeContext &closure_eval_context = compute_context_cache_.for_evaluate_closure(
-        socket.context,
-        evaluate_closure_node->identifier,
-        &socket->owner_tree(),
-        closure_source_location);
+    const bke::EvaluateClosureComputeContext &closure_eval_context =
+        compute_context_cache_.for_evaluate_closure(socket.context,
+                                                    evaluate_closure_node->identifier,
+                                                    &socket->owner_tree(),
+                                                    closure_source_location);
+
+    if (closure_eval_context.is_recursive()) {
+      this->store_socket_value_fallback(socket);
+      params_.r_error_messages.append(
+          {&*evaluate_closure_node, TIP_("Recursive closures are not supported")});
+      return;
+    }
 
     for (const int i : IndexRange(closure_storage.output_items.items_num)) {
       const NodeClosureOutputItem &item = closure_storage.output_items.items[i];
