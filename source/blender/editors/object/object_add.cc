@@ -944,12 +944,12 @@ static bool object_add_poll_property(const bContext *C, wmOperator *op, const Pr
   return true;
 }
 
-void OBJECT_OT_lattice_add(wmOperatorType *ot)
+void OBJECT_OT_lattice_add_to_selected(wmOperatorType *ot)
 {
   /* identifiers */
   ot->name = "Add Lattice Deformer";
   ot->description = "Add a lattice and use it to deform selected objects";
-  ot->idname = "OBJECT_OT_lattice_add";
+  ot->idname = "OBJECT_OT_lattice_add_to_selected";
 
   /* API callbacks. */
   ot->exec = lattice_add_exec;
