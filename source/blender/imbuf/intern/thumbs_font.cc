@@ -63,7 +63,7 @@ ImBuf *IMB_font_preview(const char *filepath,
   float name_w;
   float name_h;
   BLF_width_and_height(font_id, sample, strlen(sample), &name_w, &name_h);
-  const float scale = float(width) / name_w;
+  const float scale = float(width) / name_w * 0.98f;
   BLF_size(font_id, scale * 50.0f);
   name_w *= scale;
   name_h *= scale;
