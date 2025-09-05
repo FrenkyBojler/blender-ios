@@ -718,14 +718,12 @@ bool IDP_AddToGroup(IDProperty *group, IDProperty *prop)
 {
   BLI_assert(group->type == IDP_GROUP);
 
-  if (IDP_GetPropertyFromGroup(group, prop->name) == nullptr) {
+  idp_group_children_map_ensure(*group);
+  if (group->data.children_map->children.add(prop)) {
     group->len++;
     BLI_addtail(&group->data.group, prop);
-    idp_group_children_map_ensure(*group);
-    group->data.children_map->children.add_new(prop);
     return true;
   }
-
   return false;
 }
 
