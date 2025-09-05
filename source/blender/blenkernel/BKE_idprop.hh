@@ -172,12 +172,7 @@ void IDP_MergeGroup_ex(IDProperty *dest, const IDProperty *src, bool do_overwrit
  * and free the property.
  */
 bool IDP_AddToGroup(IDProperty *group, IDProperty *prop) ATTR_NONNULL();
-/**
- * This is the same as IDP_AddToGroup, only you pass an item
- * in the group list to be inserted after.
- */
-bool IDP_InsertToGroup(IDProperty *group, IDProperty *previous, IDProperty *pnew)
-    ATTR_NONNULL(1 /*group*/, 3 /*pnew*/);
+
 /**
  * \note this does not free the property!
  *

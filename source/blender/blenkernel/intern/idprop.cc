@@ -573,14 +573,10 @@ static IDProperty *IDP_CopyGroup(const IDProperty *prop, const int flag)
 {
   BLI_assert(prop->type == IDP_GROUP);
   IDProperty *newp = idp_generic_copy(prop, flag);
-  newp->len = prop->len;
   newp->subtype = prop->subtype;
 
   LISTBASE_FOREACH (IDProperty *, link, &prop->data.group) {
-    IDProperty *new_child = IDP_CopyProperty_ex(link, flag);
-    BLI_addtail(&newp->data.group, new_child);
-    idp_group_children_map_ensure(*newp);
-    newp->data.children_map->children.add_new(new_child);
+    IDP_AddToGroup(newp, IDP_CopyProperty_ex(link, flag));
   }
 
   return newp;
@@ -655,6 +651,7 @@ void IDP_ReplaceInGroup_ex(IDProperty *group,
   BLI_assert(prop_exist == IDP_GetPropertyFromGroup(group, prop->name));
 
   if (prop_exist != nullptr) {
+    /* Insert the new property at the same position as the old one in the linked list. */
     BLI_insertlinkreplace(&group->data.group, prop_exist, prop);
     BLI_assert(group->data.children_map);
     group->data.children_map->children.remove_contained(prop_exist);
@@ -662,10 +659,7 @@ void IDP_ReplaceInGroup_ex(IDProperty *group,
     IDP_FreeProperty_ex(prop_exist, (flag & LIB_ID_CREATE_NO_USER_REFCOUNT) == 0);
   }
   else {
-    group->len++;
-    BLI_addtail(&group->data.group, prop);
-    idp_group_children_map_ensure(*group);
-    group->data.children_map->children.add_new(prop);
+    IDP_AddToGroup(group, prop);
   }
 }
 
@@ -729,21 +723,6 @@ bool IDP_AddToGroup(IDProperty *group, IDProperty *prop)
     BLI_addtail(&group->data.group, prop);
     idp_group_children_map_ensure(*group);
     group->data.children_map->children.add_new(prop);
-    return true;
-  }
-
-  return false;
-}
-
-bool IDP_InsertToGroup(IDProperty *group, IDProperty *previous, IDProperty *pnew)
-{
-  BLI_assert(group->type == IDP_GROUP);
-
-  if (IDP_GetPropertyFromGroup(group, pnew->name) == nullptr) {
-    group->len++;
-    BLI_insertlinkafter(&group->data.group, previous, pnew);
-    idp_group_children_map_ensure(*group);
-    group->data.children_map->children.add_new(pnew);
     return true;
   }
 
