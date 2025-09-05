@@ -91,17 +91,17 @@ bool ClosureSignature::all_matching_exactly(const Span<ClosureSignature> signatu
 
 ClosureSignature ClosureSignature::from_closure_output_node(const bNode &node)
 {
-  BLI_assert(node.is_type("GeometryNodeClosureOutput"));
-  const auto &storage = *static_cast<const NodeGeometryClosureOutput *>(node.storage);
+  BLI_assert(node.is_type("NodeClosureOutput"));
+  const auto &storage = *static_cast<const NodeClosureOutput *>(node.storage);
   nodes::ClosureSignature signature;
   for (const int i : IndexRange(storage.input_items.items_num)) {
-    const NodeGeometryClosureInputItem &item = storage.input_items.items[i];
+    const NodeClosureInputItem &item = storage.input_items.items[i];
     if (const bke::bNodeSocketType *stype = bke::node_socket_type_find_static(item.socket_type)) {
       signature.inputs.add({item.name, stype});
     }
   }
   for (const int i : IndexRange(storage.output_items.items_num)) {
-    const NodeGeometryClosureOutputItem &item = storage.output_items.items[i];
+    const NodeClosureOutputItem &item = storage.output_items.items[i];
     if (const bke::bNodeSocketType *stype = bke::node_socket_type_find_static(item.socket_type)) {
       signature.outputs.add({item.name, stype});
     }
@@ -111,17 +111,17 @@ ClosureSignature ClosureSignature::from_closure_output_node(const bNode &node)
 
 ClosureSignature ClosureSignature::from_evaluate_closure_node(const bNode &node)
 {
-  BLI_assert(node.is_type("GeometryNodeEvaluateClosure"));
-  const auto &storage = *static_cast<const NodeGeometryEvaluateClosure *>(node.storage);
+  BLI_assert(node.is_type("NodeEvaluateClosure"));
+  const auto &storage = *static_cast<const NodeEvaluateClosure *>(node.storage);
   nodes::ClosureSignature signature;
   for (const int i : IndexRange(storage.input_items.items_num)) {
-    const NodeGeometryEvaluateClosureInputItem &item = storage.input_items.items[i];
+    const NodeEvaluateClosureInputItem &item = storage.input_items.items[i];
     if (const bke::bNodeSocketType *stype = bke::node_socket_type_find_static(item.socket_type)) {
       signature.inputs.add({item.name, stype, nodes::StructureType(item.structure_type)});
     }
   }
   for (const int i : IndexRange(storage.output_items.items_num)) {
-    const NodeGeometryEvaluateClosureOutputItem &item = storage.output_items.items[i];
+    const NodeEvaluateClosureOutputItem &item = storage.output_items.items[i];
     if (const bke::bNodeSocketType *stype = bke::node_socket_type_find_static(item.socket_type)) {
       signature.outputs.add({item.name, stype, nodes::StructureType(item.structure_type)});
     }
@@ -288,11 +288,11 @@ class ClosureLazyFunctionForMultiFunction : public lf::LazyFunction {
   }
 };
 
-ClosurePtr Closure::FromMultiFunction(std::shared_ptr<ClosureSignature> signature,
-                                      std::shared_ptr<mf::MultiFunction> multi_function,
-                                      Vector<const void *> default_input_values,
-                                      std::optional<ClosureSourceLocation> source_location,
-                                      std::shared_ptr<ClosureEvalLog> eval_log)
+ClosurePtr Closure::from_multi_function(std::shared_ptr<ClosureSignature> signature,
+                                        std::shared_ptr<mf::MultiFunction> multi_function,
+                                        Vector<bke::SocketValueVariant> default_input_values,
+                                        std::optional<ClosureSourceLocation> source_location,
+                                        std::shared_ptr<ClosureEvalLog> eval_log)
 {
   std::unique_ptr<ResourceScope> scope = std::make_unique<ResourceScope>();
   const auto &lazy_function = scope->construct<ClosureLazyFunctionForMultiFunction>(
@@ -302,7 +302,7 @@ ClosurePtr Closure::FromMultiFunction(std::shared_ptr<ClosureSignature> signatur
                                      std::move(scope),
                                      lazy_function,
                                      lazy_function.indices(),
-                                     default_input_values,
+                                     std::move(default_input_values),
                                      std::move(source_location),
                                      std::move(eval_log)));
 }

@@ -49,6 +49,9 @@ enum class EmbossType : uint8_t;
 enum class LayoutAlign : int8_t;
 enum class ButProgressType : int8_t;
 enum class LayoutDirection : int8_t;
+
+struct ItemInternal;
+struct LayoutInternal;
 }  // namespace blender::ui
 
 namespace blender::wm {
@@ -60,23 +63,22 @@ struct PanelLayout {
   uiLayout *body;
 };
 
-/**
- * NOTE: `uiItem` properties should be considered private outside `interface_layout.cc`,
- * incoming refactors would remove public access and add public read/write function methods.
- * Meanwhile keep using `uiLayout*` functions to read/write this properties.
- */
 struct uiItem {
 
   uiItem(blender::ui::ItemType type);
   uiItem(const uiItem &) = default;
   virtual ~uiItem() = default;
 
+  [[nodiscard]] bool fixed_size() const;
+  void fixed_size_set(bool fixed_size);
+
   [[nodiscard]] blender::ui::ItemType type() const;
 
+ protected:
   blender::ui::ItemInternalFlag flag_ = {};
-
- private:
   blender::ui::ItemType type_ = {};
+
+  friend struct blender::ui::ItemInternal;
 };
 
 enum eUI_Item_Flag : uint16_t;
@@ -94,12 +96,6 @@ enum class LayoutSeparatorType : int8_t {
  */
 struct uiLayout : public uiItem, blender::NonCopyable, blender::NonMovable {
   // protected:
-  uiLayoutRoot *root_ = nullptr;
-  bContextStore *context_ = nullptr;
-  uiLayout *parent_ = nullptr;
-  blender::Vector<uiItem *> items_;
-
-  std::string heading_;
 
   /** Sub layout to add child items, if not the layout itself. */
   uiLayout *child_items_layout_ = nullptr;
@@ -122,8 +118,16 @@ struct uiLayout : public uiItem, blender::NonCopyable, blender::NonMovable {
   /** Is copied to uiButs created in this layout. */
   float search_weight_ = 0.0f;
 
+ protected:
+  uiLayoutRoot *root_ = nullptr;
+  bContextStore *context_ = nullptr;
+  uiLayout *parent_ = nullptr;
+  std::string heading_;
+
+  blender::Vector<uiItem *> items_;
+
  public:
-  uiLayout(blender::ui::ItemType type);
+  uiLayout(blender::ui::ItemType type, uiLayoutRoot *root);
 
   [[nodiscard]] bool active() const;
   /**
@@ -181,9 +185,6 @@ struct uiLayout : public uiItem, blender::NonCopyable, blender::NonMovable {
 
   [[nodiscard]] blender::ui::EmbossType emboss() const;
   void emboss_set(blender::ui::EmbossType emboss);
-
-  [[nodiscard]] bool fixed_size() const;
-  void fixed_size_set(bool fixed_size);
 
   [[nodiscard]] blender::ui::LayoutDirection local_direction() const;
 
@@ -676,6 +677,15 @@ struct uiLayout : public uiItem, blender::NonCopyable, blender::NonMovable {
 
   /** Adds a spacer item that inserts empty horizontal space between other items in the layout. */
   void separator_spacer();
+
+  friend struct blender::ui::LayoutInternal;
+
+  [[nodiscard]] uiLayoutRoot *root() const;
+  [[nodiscard]] const bContextStore *context() const;
+  [[nodiscard]] uiLayout *parent() const;
+  [[nodiscard]] blender::StringRef heading() const;
+  void heading_reset();
+  [[nodiscard]] blender::Span<uiItem *> items() const;
 };
 
 inline bool uiLayout::active() const

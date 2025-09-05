@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.0.0 Alpha (b'a7042ca30c82')\n"
+"Project-Id-Version: Blender 5.0.0 Alpha (b'61dd8a1435fb')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-07-29 08:51+0000\n"
+"POT-Creation-Date: 2025-09-01 09:40+0000\n"
 "PO-Revision-Date: 2025-07-23 15:32+0000\n"
 "Last-Translator: Leevi Oksanen <laavi.oksanen@gmail.com>\n"
 "Language-Team: Finnish <https://translate.blender.org/projects/blender-ui/ui/fi/>\n"
@@ -1307,6 +1307,14 @@ msgid "Cage Object"
 msgstr "Häkkiobjekti"
 
 
+msgid "Object"
+msgstr "Objekti"
+
+
+msgid "Tangent"
+msgstr "Tangentti"
+
+
 msgid "File Path"
 msgstr "Tiedostopolku"
 
@@ -1371,14 +1379,6 @@ msgid "Axis to bake in red channel"
 msgstr "Akseli paistetaan punaiselle kanavalle"
 
 
-msgid "Object"
-msgstr "Objekti"
-
-
-msgid "Tangent"
-msgstr "Tangentti"
-
-
 msgid "Emit"
 msgstr "Säteily"
 
@@ -1417,6 +1417,10 @@ msgstr "Kohde"
 
 msgid "Image Textures"
 msgstr "Kuvatekstuurit"
+
+
+msgid "Normals"
+msgstr "Normaalit"
 
 
 msgid "Automatic Name"
@@ -5774,6 +5778,10 @@ msgid "Menu"
 msgstr "Menu"
 
 
+msgid "Shader"
+msgstr "Varjostin"
+
+
 msgid "Collection"
 msgstr "Kokoelma"
 
@@ -6294,10 +6302,6 @@ msgid "Small Caps"
 msgstr "Pienet kirjaimet"
 
 
-msgid "Normals"
-msgstr "Normaalit"
-
-
 msgid "Node Tree"
 msgstr "Noodipuu"
 
@@ -6308,50 +6312,6 @@ msgstr "2D-tasot"
 
 msgid "3D Location"
 msgstr "3D-sijainti"
-
-
-msgid "BMP"
-msgstr "BMP"
-
-
-msgid "Iris"
-msgstr "Iris"
-
-
-msgid "JPEG"
-msgstr "JPEG"
-
-
-msgid "JPEG 2000"
-msgstr "JPEG 2000"
-
-
-msgid "Targa"
-msgstr "Targa"
-
-
-msgid "Targa Raw"
-msgstr "Targa Raw"
-
-
-msgid "Cineon"
-msgstr "Cineon"
-
-
-msgid "DPX"
-msgstr "DPX"
-
-
-msgid "TIFF"
-msgstr "TIFF"
-
-
-msgid "WebP"
-msgstr "WebP"
-
-
-msgid "OpenEXR MultiLayer"
-msgstr "OpenEXR MultiLayer"
 
 
 msgid "FFmpeg Video"
@@ -6618,10 +6578,6 @@ msgstr "Attribuutti"
 
 msgid "Script"
 msgstr "Koodi"
-
-
-msgid "Shader"
-msgstr "Varjostin"
 
 
 msgid "Pattern"
@@ -7312,6 +7268,10 @@ msgid "Mask"
 msgstr "Maski"
 
 
+msgid "UV Mapping"
+msgstr "UV-kartoittaminen"
+
+
 msgid "Select More/Less"
 msgstr "Valitse enemmän/vähemmän"
 
@@ -7370,10 +7330,6 @@ msgstr "Muodon valintatila"
 
 msgid "Text"
 msgstr "Teksti"
-
-
-msgid "UV Mapping"
-msgstr "UV-kartoittaminen"
 
 
 msgid "Basic"
@@ -8012,6 +7968,10 @@ msgid "ITU 709"
 msgstr "ITU 709"
 
 
+msgid "JPEG"
+msgstr "JPEG"
+
+
 msgid "Combine Color"
 msgstr "Yhdistä väri"
 
@@ -8060,20 +8020,16 @@ msgid "Keep In"
 msgstr "Pidä sisällä"
 
 
-msgid "Red Channel"
-msgstr "Punainen kanava"
-
-
-msgid "Green Channel"
-msgstr "Vihreä kanava"
-
-
-msgid "Blue Channel"
-msgstr "Sininen kanava"
-
-
 msgid "File Output"
 msgstr "Tiedoston ulostulo"
+
+
+msgid "Active Item Index"
+msgstr "Aktiivinen esineindeksi"
+
+
+msgid "Index of the active item"
+msgstr "Aktiivisen esineen indeksi"
 
 
 msgid "Save as Render"
@@ -8181,14 +8137,6 @@ msgstr "Pyöristä alaspäin"
 msgctxt "NodeTree"
 msgid "Truncate"
 msgstr "Poista luvun desimaaliosa"
-
-
-msgid "Active Item Index"
-msgstr "Aktiivinen esineindeksi"
-
-
-msgid "Index of the active item"
-msgstr "Aktiivisen esineen indeksi"
 
 
 msgctxt "NodeTree"
@@ -8595,10 +8543,6 @@ msgid "Sample Grid"
 msgstr "Kerää ruudukko"
 
 
-msgid "Nearest Neighbor"
-msgstr "Lähin naapuri"
-
-
 msgid "Sample Grid Index"
 msgstr "Kerää ruudukon indeksi"
 
@@ -8621,10 +8565,6 @@ msgstr "Kerää UV-pinta"
 
 msgid "Scale Elements"
 msgstr "Skaalaa elementtejä"
-
-
-msgid "Scale Mode"
-msgstr "Skaalaustila"
 
 
 msgid "Scale Instances"
@@ -9965,14 +9905,6 @@ msgid "Custom"
 msgstr "Mukautettu"
 
 
-msgid "Join and Copy"
-msgstr "Liitä ja kopioi"
-
-
-msgid "Join"
-msgstr "Liitä"
-
-
 msgctxt "Operator"
 msgid "Add New Layer"
 msgstr "Lisää uusi taso"
@@ -10190,6 +10122,18 @@ msgid "Max Speed"
 msgstr "Maksiminopeus"
 
 
+msgid "BMP"
+msgstr "BMP"
+
+
+msgid "DPX"
+msgstr "DPX"
+
+
+msgid "TIFF"
+msgstr "TIFF"
+
+
 msgid "Mouse location"
 msgstr "Hiiren sijainti"
 
@@ -10223,6 +10167,10 @@ msgstr "Isännät"
 msgctxt "Operator"
 msgid "Random"
 msgstr "Satunnainen"
+
+
+msgid "Join"
+msgstr "Liitä"
 
 
 msgid "Column"
@@ -10564,15 +10512,6 @@ msgstr "Kursorin sijainti"
 
 msgid "Edit Tree"
 msgstr "Muokkaa puuta"
-
-
-msgid "Node Tool Tree"
-msgstr "Noodityökalupuu"
-
-
-msgctxt "ID"
-msgid "Geometry Nodes Type"
-msgstr "Geometrianoodien tyyppi"
 
 
 msgctxt "ID"
@@ -11335,10 +11274,6 @@ msgid "Vignette"
 msgstr "Vinjetti"
 
 
-msgid "Vertex Bevel"
-msgstr "Kärkiviiste"
-
-
 msgid "Vertex Select"
 msgstr "Kärkivalinta"
 
@@ -11387,10 +11322,6 @@ msgid "Input Node"
 msgstr "Syötenoodi"
 
 
-msgid "Layout Node"
-msgstr "Pohjapiirrosnoodi"
-
-
 msgid "Node Selected"
 msgstr "Noodi valittu"
 
@@ -11403,10 +11334,6 @@ msgid "Script Node"
 msgstr "Koodinoodi"
 
 
-msgid "Selected Text"
-msgstr "Valittu teksti"
-
-
 msgid "Simulation Zone"
 msgstr "Simulaatioalue"
 
@@ -11417,6 +11344,10 @@ msgstr "Vektorinoodi"
 
 msgid "Edited Object"
 msgstr "Muokattu Objekti"
+
+
+msgid "Selected Text"
+msgstr "Valittu teksti"
 
 
 msgid "Gizmo A"
@@ -11441,6 +11372,10 @@ msgstr "Reunan Valinta"
 
 msgid "Object Selected"
 msgstr "Objekti Valittu"
+
+
+msgid "Vertex Bevel"
+msgstr "Kärkiviiste"
 
 
 msgid "Inner"
@@ -12761,6 +12696,11 @@ msgstr "Ei lisättäviä tasoja"
 
 
 msgctxt "Operator"
+msgid "Flip"
+msgstr "Käännä"
+
+
+msgctxt "Operator"
 msgid "Search..."
 msgstr "Etsi..."
 
@@ -13676,11 +13616,6 @@ msgstr "Vahva"
 
 
 msgctxt "Operator"
-msgid "Flip"
-msgstr "Käännä"
-
-
-msgctxt "Operator"
 msgid "Edge Loops"
 msgstr "Reunasilmukat"
 
@@ -13697,10 +13632,6 @@ msgstr "Järjestä"
 
 msgid "Local Camera"
 msgstr "Lokaalikamera"
-
-
-msgid "Seams"
-msgstr "Saumat"
 
 
 msgctxt "Operator"
@@ -14073,6 +14004,10 @@ msgid "Lightness:"
 msgstr "Valoisuus:"
 
 
+msgid "Value:"
+msgstr "Arvo:"
+
+
 msgid "Alpha:"
 msgstr "Alfa:"
 
@@ -14376,6 +14311,10 @@ msgstr "Pallo"
 msgctxt "Mesh"
 msgid "Icosphere"
 msgstr "Icopallo"
+
+
+msgid "Seams"
+msgstr "Saumat"
 
 
 msgid "Close"
@@ -14936,10 +14875,6 @@ msgid "Driver Value:"
 msgstr "Ajuriarvo:"
 
 
-msgid "Value:"
-msgstr "Arvo:"
-
-
 msgid "Driver:"
 msgstr "Ajuri:"
 
@@ -14966,10 +14901,6 @@ msgstr "Valitse väylä"
 
 msgid "Select View"
 msgstr "Valitse näkymä"
-
-
-msgid "Can't Load Image"
-msgstr "Kuvaa ei voida ladata"
 
 
 msgid " RGBA float"
@@ -15138,14 +15069,6 @@ msgstr "(tyhjä)"
 
 msgid "Mask not found"
 msgstr "Maskia ei löydy"
-
-
-msgid "Can't create subtitle file"
-msgstr "Tekstitystiedostoa ei kyetty luomaan"
-
-
-msgid "Can't overwrite export file"
-msgstr "Vientitiedostoa ei voida päällekirjoittaa"
 
 
 msgid "Rows:"
@@ -16487,6 +16410,10 @@ msgstr "Iteraatio"
 
 msgid "Sample UV"
 msgstr "Kerää UV"
+
+
+msgid "Scale Mode"
+msgstr "Skaalaustila"
 
 
 msgid "Grid 1"

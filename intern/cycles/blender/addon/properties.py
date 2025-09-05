@@ -245,6 +245,12 @@ enum_view3d_shading_render_pass = (
     ('SAMPLE_COUNT', "Sample Count", "Per-pixel number of samples"),
 )
 
+enum_view3d_debug_render_pass = (
+    ('VOLUME_SCATTER', "Volume Scatter", "Show the contribution of scattered ray in volume"),
+    ('VOLUME_TRANSMIT', "Volume Transmit", "Show the contribution of transmitted ray in volume"),
+    ('VOLUME_MAJORANT', "Volume Majorant", "Show the majorant transmittance of the volume")
+)
+
 enum_guiding_distribution = (
     ('PARALLAX_AWARE_VMM', "Parallax-Aware VMM", "Use Parallax-aware von Mises-Fisher models as directional distribution", 0),
     ('DIRECTIONAL_QUAD_TREE', "Directional Quad Tree", "Use Directional Quad Trees as directional distribution", 1),
@@ -791,28 +797,11 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
         default=8,
     )
 
-    volume_step_rate: FloatProperty(
-        name="Step Rate",
-        description="Globally adjust detail for volume rendering, on top of automatically estimated step size. "
-                    "Higher values reduce render time, lower values render with more detail",
-        default=1.0,
-        min=0.01, max=100.0, soft_min=0.1, soft_max=10.0, precision=2
-    )
-
-    volume_preview_step_rate: FloatProperty(
-        name="Step Rate",
-        description="Globally adjust detail for volume rendering, on top of automatically estimated step size. "
-                    "Higher values reduce render time, lower values render with more detail",
-        default=1.0,
-        min=0.01, max=100.0, soft_min=0.1, soft_max=10.0, precision=2
-    )
-
-    volume_max_steps: IntProperty(
-        name="Max Steps",
-        description="Maximum number of steps through the volume before giving up, "
-        "to avoid extremely long render times with big objects or small step sizes",
-        default=1024,
-        min=2, max=65536
+    volume_unbiased: BoolProperty(
+        name="Unbiased",
+        description="If enabled, volume rendering converges to the correct result with sufficiently large numbers "
+        "of samples, but might appear noisier in the process",
+        default=False,
     )
 
     dicing_rate: FloatProperty(
@@ -1150,12 +1139,6 @@ class CyclesMaterialSettings(bpy.types.PropertyGroup):
         description="Apply corrections to solve shadow terminator artifacts caused by bump mapping",
         default=True,
     )
-    homogeneous_volume: BoolProperty(
-        name="Homogeneous Volume",
-        description="When using volume rendering, assume volume has the same density everywhere "
-        "(not using any textures), for faster rendering",
-        default=False,
-    )
     volume_sampling: EnumProperty(
         name="Volume Sampling",
         description="Sampling method to use for volumes",
@@ -1168,14 +1151,6 @@ class CyclesMaterialSettings(bpy.types.PropertyGroup):
         description="Interpolation method to use for smoke/fire volumes",
         items=enum_volume_interpolation,
         default='LINEAR',
-    )
-
-    volume_step_rate: FloatProperty(
-        name="Step Rate",
-        description="Scale the distance between volume shader samples when rendering the volume "
-                    "(lower values give more accurate and detailed results, but also increased render time)",
-        default=1.0,
-        min=0.001, max=1000.0, soft_min=0.1, soft_max=10.0, precision=4
     )
 
     @classmethod
@@ -1260,12 +1235,6 @@ class CyclesWorldSettings(bpy.types.PropertyGroup):
         min=0, max=1024,
         default=1024,
     )
-    homogeneous_volume: BoolProperty(
-        name="Homogeneous Volume",
-        description="When using volume rendering, assume volume has the same density everywhere "
-        "(not using any textures), for faster rendering",
-        default=False,
-    )
     volume_sampling: EnumProperty(
         name="Volume Sampling",
         description="Sampling method to use for volumes",
@@ -1277,13 +1246,6 @@ class CyclesWorldSettings(bpy.types.PropertyGroup):
         description="Interpolation method to use for volumes",
         items=enum_volume_interpolation,
         default='LINEAR',
-    )
-    volume_step_size: FloatProperty(
-        name="Step Size",
-        description="Distance between volume shader samples when rendering the volume "
-                    "(lower values give more accurate and detailed results, but also increased render time)",
-        default=1.0,
-        min=0.0000001, max=100000.0, soft_min=0.1, soft_max=100.0, precision=4
     )
 
     @classmethod
@@ -1529,6 +1491,24 @@ class CyclesRenderLayerSettings(bpy.types.PropertyGroup):
         default=False,
         update=update_render_passes,
     )
+    use_pass_volume_scatter: BoolProperty(
+        name="Volume Scatter",
+        description="Contribution of paths that scattered in the volume at the primary ray",
+        default=False,
+        update=update_render_passes,
+    )
+    use_pass_volume_transmit: BoolProperty(
+        name="Volume Transmit",
+        description="Contribution of paths that transmitted through the volume at the primary ray",
+        default=False,
+        update=update_render_passes,
+    )
+    use_pass_volume_majorant: BoolProperty(
+        name="Volume Majorant",
+        description="Majorant transmittance of the volume",
+        default=False,
+        update=update_render_passes,
+    )
 
     use_pass_shadow_catcher: BoolProperty(
         name="Shadow Catcher",
@@ -1632,8 +1612,9 @@ class CyclesPreferences(bpy.types.AddonPreferences):
     )
 
     use_hiprt: BoolProperty(
-        name="HIP RT",
-        description="HIP RT enables AMD hardware ray tracing on RDNA2 and above",
+        name="HIP RT (Unstable)",
+        description="HIP RT enables AMD hardware ray tracing on RDNA2 and above. This currently has known stability "
+        "issues, that are expected to be solved before the next release.",
         default=False,
     )
 
@@ -1823,7 +1804,7 @@ class CyclesPreferences(bpy.types.AddonPreferences):
                           icon='BLANK1', translate=False)
             elif device_type == 'OPTIX':
                 compute_capability = "5.0"
-                driver_version = "470"
+                driver_version = "535"
                 col.label(text=rpt_("Requires NVIDIA GPU with compute capability %s") % compute_capability,
                           icon='BLANK1', translate=False)
                 col.label(text=rpt_("and NVIDIA driver version %s or newer") % driver_version,
@@ -1929,17 +1910,9 @@ class CyclesPreferences(bpy.types.AddonPreferences):
                 row.prop(self, "metalrt")
 
         if compute_device_type == 'HIP':
-            col = layout.column()
-            row = col.row()
+            row = layout.row()
             row.active = has_hardware_rt
             row.prop(self, "use_hiprt")
-
-            row_status = col.split(factor=0.7)
-            row_status.label(text="HIP has known stability issues", icon='ERROR')
-            row_status.operator(
-                "wm.url_open",
-                text='#140278',
-                icon='URL').url = "https://projects.blender.org/blender/blender/issues/140278"
 
         elif compute_device_type == 'ONEAPI' and _cycles.with_embree_gpu:
             row = layout.row()
@@ -1953,10 +1926,14 @@ class CyclesPreferences(bpy.types.AddonPreferences):
 class CyclesView3DShadingSettings(bpy.types.PropertyGroup):
     __slots__ = ()
 
+    prefs = bpy.context.preferences
+    use_debug = prefs.experimental.use_cycles_debug and prefs.view.show_developer_ui
+
     render_pass: EnumProperty(
         name="Render Pass",
         description="Render pass to show in the 3D Viewport",
-        items=enum_view3d_shading_render_pass,
+        items=enum_view3d_shading_render_pass +
+        enum_view3d_debug_render_pass if use_debug else enum_view3d_shading_render_pass,
         default='COMBINED',
     )
     show_active_pixels: BoolProperty(
