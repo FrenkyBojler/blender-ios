@@ -812,11 +812,6 @@ option(WITH_GPU_RENDER_TESTS "\
 Enable GPU render related unit testing (EEVEE, Workbench and Grease Pencil)"
   OFF
 )
-option(WITH_GPU_RENDER_TESTS_VULKAN "\
-Enable GPU render related unit testing using Vulkan"
-  OFF
-)
-mark_as_advanced(WITH_GPU_RENDER_TESTS_VULKAN)
 option(WITH_GPU_RENDER_TESTS_HEADED "\
 Enable GPU render related unit testing that doesn't work in background mode. \
 These tests require an environment with a display server to run. \

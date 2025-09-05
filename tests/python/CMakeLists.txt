@@ -819,7 +819,7 @@ if((WITH_CYCLES OR WITH_GPU_RENDER_TESTS) AND TEST_SRC_DIR_EXISTS)
       endforeach()
     endif()
 
-    if(WITH_VULKAN_BACKEND AND WITH_GPU_RENDER_TESTS_VULKAN)
+    if(WITH_VULKAN_BACKEND)
       foreach(render_test ${gpu_render_tests})
         add_render_test(
           eevee_vulkan_${render_test}
@@ -859,7 +859,7 @@ if((WITH_CYCLES OR WITH_GPU_RENDER_TESTS) AND TEST_SRC_DIR_EXISTS)
       endforeach()
     endif()
 
-    if(WITH_VULKAN_BACKEND AND WITH_GPU_RENDER_TESTS_VULKAN)
+    if(WITH_VULKAN_BACKEND)
       foreach(render_test ${gpu_render_tests})
         add_render_test(
           workbench_vulkan_${render_test}
@@ -896,7 +896,7 @@ if((WITH_CYCLES OR WITH_GPU_RENDER_TESTS) AND TEST_SRC_DIR_EXISTS)
         )
       endif()
 
-      if(WITH_VULKAN_BACKEND AND WITH_GPU_RENDER_TESTS_VULKAN)
+      if(WITH_VULKAN_BACKEND)
         add_render_test(
           overlay_vulkan
           ${CMAKE_CURRENT_LIST_DIR}/overlay_render_tests.py
