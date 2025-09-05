@@ -234,7 +234,7 @@ BLI_INLINE void bicubic_interpolation(const T *src_buffer,
 
   /* Mitchell filter has negative lobes; prevent output from going out of range. */
   if constexpr (filter == eCubicFilter::Mitchell) {
-    for (int i = 0; i < components; i++) {
+    for (int i = 0; i < 4; i++) {
       out[i] = math::max(out[i], 0.0f);
       if constexpr (std::is_same_v<T, uchar>) {
         out[i] = math::min(out[i], 255.0f);
@@ -744,6 +744,170 @@ void interpolate_cubic_mitchell_fl(
                                                        v,
                                                        InterpWrapMode::Extend,
                                                        InterpWrapMode::Extend);
+}
+
+/***************************************************************************
+ * 2-pass sample filtering.
+ ***************************************************************************/
+
+/** This does the wrap effects */
+float4 sample_nearest(const SamplingBuffer &source,
+                      const SamplingOptions &options,
+                      float u,
+                      float v)
+{
+  int x;
+  if (u < 0) {
+    switch (options.wrap_x) {
+      case InterpWrapMode::Extend:
+        x = 0;
+        break;
+      case InterpWrapMode::Repeat:
+        x = int(floored_fmod(u, float(source.width)));
+        break;
+      case InterpWrapMode::Border:
+        return float4(0);
+    }
+  }
+  else if (u >= float(source.width)) {
+    switch (options.wrap_x) {
+      case InterpWrapMode::Extend:
+        x = source.width - 1;
+        break;
+      case InterpWrapMode::Repeat:
+        x = int(floored_fmod(u, float(source.width)));
+        break;
+      case InterpWrapMode::Border:
+        return float4(0);
+    }
+  }
+  else {
+    x = int(u);
+  }
+  int y;
+  if (v < 0) {
+    switch (options.wrap_y) {
+      case InterpWrapMode::Extend:
+        y = 0;
+        break;
+      case InterpWrapMode::Repeat:
+        y = int(floored_fmod(v, float(source.height)));
+        break;
+      case InterpWrapMode::Border:
+        return float4(0);
+    }
+  }
+  else if (v >= float(source.height)) {
+    switch (options.wrap_y) {
+      case InterpWrapMode::Extend:
+        y = source.height - 1;
+        break;
+      case InterpWrapMode::Repeat:
+        y = int(floored_fmod(v, float(source.height)));
+        break;
+      case InterpWrapMode::Border:
+        return float4(0);
+    }
+  }
+  else {
+    y = int(v);
+  }
+  const float *p = source.buffer + (y * source.width + x) * source.components;
+  switch (source.components) {
+    case 1:
+      return float4(*p);  // float4(*p,0,0,1)?
+    case 2:
+      return float4(*(float2 *)p, 0, 1);
+    case 3:
+      return float4(*(float3 *)p, 1);
+    default:
+      return *(float4 *)p;
+  }
+}
+
+struct _Sampler {
+  // maximum x that can be passed to weight()
+  virtual float radius(float w) const = 0;
+  // weight at distance x from center when derivative is w
+  virtual float weight(float x, float w) const = 0;
+};
+
+static struct NearestSampler : public _Sampler {
+  float radius(float) const override
+  {
+    return 0.5f;
+  }
+  float weight(float, float) const override
+  {
+    return 1.0f;
+  }
+} nearestSampler;
+
+static struct BoxSampler : public _Sampler {
+  float radius(float w) const override
+  {
+    return (w + 1) / 2;
+  }
+  float weight(float x, float w) const override
+  {
+    return std::min((w + 1) / 2 - fabsf(x), 1.0f);
+  }
+} boxSampler;
+
+static struct BSplineSampler : public _Sampler {
+  float radius(float w) const override
+  {
+    return 2 * w;
+  }
+  float weight(float x, float w) const override
+  {
+    x = fabsf(x / w);
+    return x < 1 ? (0.5f * x - 1) * x * x + 4.0f / 6 :
+                   ((-1 / 6.0f * x + 1) * x - 2) * x + 4.0f / 3;
+  }
+} bsplineSampler;
+
+// indexes must match math::Sampler enumeration
+static const _Sampler *table[4] = {
+    &nearestSampler,
+    &boxSampler,
+    &bsplineSampler,
+    &boxSampler,  // for anistropic
+};
+
+float4 sample_rect(const SamplingBuffer &source,
+                   const SamplingOptions &options,
+                   const float2 &uv,
+                   const float2 &wh)
+{
+  const _Sampler &sampler = *table[unsigned(options.sampler)];
+  float wx = std::max(wh.x, 1.0f);
+  float wy = std::max(wh.y, 1.0f);
+  float rx = sampler.radius(wx);
+  float ry = sampler.radius(wy);
+  float dx = ceilf(wx / 8.0f);
+  float dy = ceilf(wy / 8.0f);
+  float ax = ceilf(uv.x - 0.5f - rx) + 0.5f;
+  float ay = ceilf(uv.y - 0.5f - ry) + 0.5f;
+  int nx = int((floor(uv.x - 0.5f + rx) + 0.5f - ax) / dx) + 1;
+  int ny = int((floor(uv.y - 0.5f + ry) + 0.5f - ay) / dy) + 1;
+  float4 sum{0.0f};
+  float div = 0.0f;
+  for (int i = 0; i < ny; i++) {  // vertical filter
+    float v = ay + float(i) * dy;
+    float4 sumx{0.0f};
+    float divx = 0.0f;
+    for (int j = 0; j < nx; j++) {  // horizontal filter
+      float u = ax + float(j) * dx;
+      float weight = sampler.weight(u - uv.x, wx);
+      sumx += sample_nearest(source, options, u, v) * weight;
+      divx += weight;
+    }
+    float weight = sampler.weight(v - uv.y, wy);
+    sum += sumx * weight;
+    div += divx * weight;
+  }
+  return sum / div;
 }
 
 }  // namespace blender::math

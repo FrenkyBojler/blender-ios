@@ -222,7 +222,7 @@ class ScaleOperation : public NodeOperation {
       case CMP_NODE_INTERPOLATION_NEAREST:
         ret.sampler = math::Sampler::Nearest;
         break;
-      default: // CMP_NODE_INTERPOLATION_BILINEAR
+      default:  // CMP_NODE_INTERPOLATION_BILINEAR
         ret.sampler = math::Sampler::Box;
         break;
       case CMP_NODE_INTERPOLATION_BICUBIC:

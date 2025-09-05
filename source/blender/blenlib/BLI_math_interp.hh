@@ -51,6 +51,14 @@ struct SamplingOptions {
   InterpWrapMode wrap_y = InterpWrapMode::Extend;
 };
 
+/** Describes a source buffer as a single structure to simplify function parameters */
+struct SamplingBuffer {
+  const float *buffer;
+  int width;       // must be > 0
+  int height;      // must be > 0
+  int components;  // must be 1..4
+};
+
 /* -------------------------------------------------------------------- */
 /* Nearest (point) sampling. */
 
@@ -355,6 +363,27 @@ void interpolate_cubic_bspline_wrapmode_fl(const float *buffer,
 
 void interpolate_cubic_mitchell_fl(
     const float *buffer, float *output, int width, int height, int components, float u, float v);
+
+/** does the wrap effects */
+float4 sample_nearest(const SamplingBuffer &source,
+                      const SamplingOptions &options,
+                      float u,
+                      float v);
+
+/**
+ * Sample using an arbitrary filter and rectangular area for the (box) filter.
+ * Most filters will sample outside this rectangle.
+ */
+float4 sample_rect(const SamplingBuffer &source,
+                   const SamplingOptions &options,
+                   const float2 &uv,
+                   const float2 &wh);
+
+/** Figure out wh rectangle from dPdx and dPdy pair */
+inline float2 hypot2(const float2 &dPdx, const float2 &dPdy)
+{
+  return float2(hypotf(dPdx.x, dPdy.x), hypotf(dPdx.y, dPdy.y));
+}
 
 }  // namespace blender::math
 

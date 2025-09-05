@@ -425,8 +425,13 @@ class Result {
    * works. */
   void store_pixel_generic_type(const int2 &texel, const float4 &pixel_value);
 
-  /* Same as sample_rect(uv, options, float2(1,1)) */
+  /* Warning: this is using 0-1 coordinates, not pixel coordinates */
   float4 sample(const float2 &uv, const blender::math::SamplingOptions &options) const;
+
+  /* filtered sampling */
+  float4 sample_rect(const blender::math::SamplingOptions &options,
+                     const float2 &uv,
+                     const float2 &wh) const;
 
   /* Identical to sample_nearest_zero but with bilinear interpolation. */
   float4 sample_bilinear_zero(const float2 &coordinates) const;
@@ -628,6 +633,20 @@ BLI_INLINE_METHOD void Result::store_pixel_generic_type(const int2 &texel,
                                                         const float4 &pixel_value)
 {
   this->get_cpp_type().copy_assign(pixel_value, this->cpu_data()[this->get_pixel_index(texel)]);
+}
+
+BLI_INLINE_METHOD float4 Result::sample_rect(const blender::math::SamplingOptions &options,
+                                             const float2 &uv,
+                                             const float2 &wh) const
+{
+  if (is_single_value_) {
+    float4 pixel_value = float4(0.0f, 0.0f, 0.0f, 1.0f);
+    this->get_cpp_type().copy_assign(this->cpu_data().data(), pixel_value);
+    return pixel_value;
+  }
+  const float *buffer = static_cast<const float *>(this->cpu_data().data());
+  return math::sample_rect(
+      {buffer, domain_.size.x, domain_.size.y, int(this->channels_count())}, options, uv, wh);
 }
 
 BLI_INLINE_METHOD float4 Result::sample(const float2 &coordinates,

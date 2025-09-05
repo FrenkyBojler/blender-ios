@@ -190,25 +190,34 @@ class MapUVOperation : public NodeOperation {
   {
     const Result &input_image = get_input("Image");
     const Result &input_uv = get_input("UV");
-
     const Domain domain = compute_domain();
     Result &output_image = get_result("Image");
     output_image.allocate_texture(domain);
+    float2 scale = float2(domain.size);
 
     parallel_for(domain.size, [&](const int2 texel) {
-      float2 uv_coordinates = input_uv.load_pixel<float3>(texel).xy();
-      float4 sampled_color = input_image.sample(uv_coordinates, options);
-      /* The UV input is assumed to contain an alpha channel as its third channel, since the
-       * UV coordinates might be defined in only a subset area of the UV texture as mentioned.
-       * In that case, the alpha is typically opaque at the subset area and transparent
-       * everywhere else, and alpha pre-multiplication is then performed. This format of having
-       * an alpha channel in the UV coordinates is the format used by UV passes in render
-       * engines, hence the mentioned logic. */
-      float alpha = input_uv.load_pixel<float3>(texel).z;
-
-      float4 result = sampled_color * alpha;
-
-      output_image.store_pixel(texel, result);
+      float3 uva = input_uv.load_pixel<float3>(texel);
+      /* The UV texture is assumed to contain an alpha channel as its third channel, since the UV
+       * coordinates might be defined in only a subset area of the UV texture as mentioned. In that
+       * case, the alpha is typically opaque at the subset area and transparent everywhere else,
+       * and alpha pre-multiplication is then performed. This format of having an alpha channel in
+       * the UV coordinates is the format used by UV passes in render engines, hence the mentioned
+       * logic. */
+      if (uva.z <= 0) {
+        output_image.store_pixel(texel, float4(0.0f));
+      }
+      else {
+        float2 uv = uva.xy() * scale;
+        // derivative is from neighboring pixels. Fortunatly we don't care about sign
+        // so it can look in either direction
+        int2 texel2 = int2(texel.x ? texel.x - 1 : texel.x + 1, texel.y);
+        float2 dPdx = input_uv.load_pixel<float3>(texel2).xy() - uva.xy();
+        texel2 = int2(texel.x, texel.y ? texel.y - 1 : texel.y + 1);
+        float2 dPdy = input_uv.load_pixel<float3>(texel2).xy() - uva.xy();
+        float2 wh = math::hypot2(dPdx, dPdy) * scale;
+        float4 result = input_image.sample_rect(options, uv, wh) * uva.z;
+        output_image.store_pixel(texel, result);
+      }
     });
   }
 
