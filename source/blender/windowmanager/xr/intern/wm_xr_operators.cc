@@ -622,13 +622,20 @@ static void WM_OT_xr_navigation_grab(wmOperatorType *ot)
 static const float g_xr_default_raycast_axis[3] = {0.0f, 0.0f, -1.0f};
 static const float g_xr_default_raycast_hit_color[4] = {0.35f, 0.35f, 1.0f, 1.0f};
 static const float g_xr_default_raycast_miss_color[4] = {1.0f, 0.35f, 0.35f, 1.0f};
+static const float g_xr_default_raycast_fallback_color[4] = {0.35f, 0.35f, 1.0f, 1.0f};
+
+enum XrRaycastResult : uint8_t {
+  XR_RAYCAST_MISS,
+  XR_RAYCAST_HIT,
+  XR_RAYCAST_FALLBACK,
+};
 
 struct XrRaycastData {
   /** Raycast info */
   bool from_viewer;
 
   /** Raycast results */
-  bool success;
+  XrRaycastResult result;
   int num_points;
   float points[XR_MAX_RAYCASTS + 1][4];
   float direction[3];
@@ -661,7 +668,7 @@ static void wm_xr_raycast_draw(const bContext * /*C*/, ARegion * /*region*/, voi
 {
   const XrRaycastData *data = static_cast<const XrRaycastData *>(customdata);
 
-  if (data->success) {
+  if (data->result != XR_RAYCAST_MISS) {
     wm_xr_raycast_destination_draw(data);
   }
 
@@ -1422,20 +1429,20 @@ static bool wm_xr_navigation_teleport_ground_plane(float points[XR_MAX_RAYCASTS 
   }
 }
 
-static bool wm_xr_navigation_teleport(bContext *C,
-                                      wmXrData *xr,
-                                      float nav_destination[3],
-                                      float points[XR_MAX_RAYCASTS + 1][4],
-                                      const float direction[3],
-                                      int *num_points,
-                                      float *ray_dist,
-                                      float *destination_dist,
-                                      bool selectable_only,
-                                      const bool teleport_axes[3],
-                                      float teleport_t,
-                                      float teleport_ofs,
-                                      float gravity,
-                                      float head_height)
+static XrRaycastResult wm_xr_navigation_teleport(bContext *C,
+                                                 wmXrData *xr,
+                                                 float nav_destination[3],
+                                                 float points[XR_MAX_RAYCASTS + 1][4],
+                                                 const float direction[3],
+                                                 int *num_points,
+                                                 float *ray_dist,
+                                                 float *destination_dist,
+                                                 bool selectable_only,
+                                                 const bool teleport_axes[3],
+                                                 float teleport_t,
+                                                 float teleport_ofs,
+                                                 float gravity,
+                                                 float head_height)
 {
   Scene *scene = CTX_data_scene(C);
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
@@ -1445,7 +1452,7 @@ static bool wm_xr_navigation_teleport(bContext *C,
 
   float normal[3], segment_direction[3];
   float vertical_ofs = 0;
-  bool result = false;
+  XrRaycastResult result = XR_RAYCAST_MISS;
 
   copy_v3_v3(segment_direction, direction);
   copy_v3_fl3(normal, 0, 1, 0);
@@ -1483,7 +1490,7 @@ static bool wm_xr_navigation_teleport(bContext *C,
         mul_v3_fl(normal, -1.0f);
       }
 
-      result = true;
+      result = XR_RAYCAST_HIT;
       break;
     }
 
@@ -1495,12 +1502,15 @@ static bool wm_xr_navigation_teleport(bContext *C,
   }
 
   /** Fall back to raycast intersecting with the ground plane. */
-  if (!result) {
-    result = wm_xr_navigation_teleport_ground_plane(points, num_points, ray_dist);
+  if (result == XR_RAYCAST_MISS) {
     vertical_ofs = head_height;
+
+    if (wm_xr_navigation_teleport_ground_plane(points, num_points, ray_dist)) {
+      result = XR_RAYCAST_FALLBACK;
+    }
   }
 
-  if (result) {
+  if (result != XR_RAYCAST_MISS) {
     float origin[3], dummy_dest[3], dummy_normal[3];
 
     /* Raycast downward to see if we're on the floor */
@@ -1619,35 +1629,44 @@ static wmOperatorStatus wm_xr_navigation_teleport_modal(bContext *C,
   head_height = xr->runtime->session_state.prev_local_pose.position[1] * nav_scale;
 
   data->num_points = XR_MAX_RAYCASTS + 1;
-  data->success = wm_xr_navigation_teleport(C,
-                                            xr,
-                                            nav_destination,
-                                            data->points,
-                                            data->direction,
-                                            &data->num_points,
-                                            &ray_dist,
-                                            &destination_dist,
-                                            selectable_only,
-                                            teleport_axes,
-                                            teleport_t,
-                                            teleport_ofs,
-                                            gravity,
-                                            head_height);
+  data->result = wm_xr_navigation_teleport(C,
+                                           xr,
+                                           nav_destination,
+                                           data->points,
+                                           data->direction,
+                                           &data->num_points,
+                                           &ray_dist,
+                                           &destination_dist,
+                                           selectable_only,
+                                           teleport_axes,
+                                           teleport_t,
+                                           teleport_ofs,
+                                           gravity,
+                                           head_height);
 
-  if (data->success) {
-    RNA_float_get_array(op->ptr, "hit_color", data->color);
-    data->destination_size = RNA_float_get(op->ptr, "destination_scale") *
-                             sqrt(destination_dist / nav_scale) * nav_scale;
-  }
-  else {
-    RNA_float_get_array(op->ptr, "miss_color", data->color);
+  data->destination_size = RNA_float_get(op->ptr, "destination_scale") *
+                           sqrt(destination_dist / nav_scale) * nav_scale;
+
+  switch (data->result) {
+    case XR_RAYCAST_MISS:
+      RNA_float_get_array(op->ptr, "miss_color", data->color);
+      break;
+    case XR_RAYCAST_HIT:
+      RNA_float_get_array(op->ptr, "hit_color", data->color);
+      break;
+    case XR_RAYCAST_FALLBACK:
+      RNA_float_get_array(op->ptr, "fallback_color", data->color);
+      break;
+    default:
+      BLI_assert_unreachable();
+      break;
   }
 
   switch (event->val) {
     case KM_PRESS:
       return OPERATOR_RUNNING_MODAL;
     case KM_RELEASE: {
-      if (data->success) {
+      if (data->result != XR_RAYCAST_MISS) {
         WM_xr_session_state_nav_location_set(xr, nav_destination);
       }
 
@@ -1784,6 +1803,16 @@ static void WM_OT_xr_navigation_teleport(wmOperatorType *ot)
                       1.0f,
                       "Miss Color",
                       "Color of raycast when it misses",
+                      0.0f,
+                      1.0f);
+  RNA_def_float_color(ot->srna,
+                      "fallback_color",
+                      4,
+                      g_xr_default_raycast_fallback_color,
+                      0.0f,
+                      1.0f,
+                      "Fallback Color",
+                      "Color of raycast when a fallback case succeeds",
                       0.0f,
                       1.0f);
 }
