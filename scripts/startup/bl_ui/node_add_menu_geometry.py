@@ -460,7 +460,6 @@ class NODE_MT_geometry_node_GEO_MESH_READ(Menu):
         node_add_menu.add_node_type(layout, "GeometryNodeInputShadeSmooth")
         node_add_menu.add_node_type(layout, "GeometryNodeInputEdgeSmooth")
         node_add_menu.add_node_type(layout, "GeometryNodeInputMeshIsland")
-        node_add_menu.add_node_type(layout, "GeometryNodeMeshTangent")
         node_add_menu.add_node_type(layout, "GeometryNodeInputShortestEdgePaths")
         node_add_menu.add_node_type(layout, "GeometryNodeInputMeshVertexNeighbors")
         node_add_menu.draw_assets_for_catalog(layout, "Mesh/Read")
@@ -809,6 +808,7 @@ class NODE_MT_category_GEO_UV(Menu):
     def draw(self, _context):
         layout = self.layout
         node_add_menu.add_node_type(layout, "GeometryNodeUVPackIslands")
+        node_add_menu.add_node_type(layout, "GeometryNodeUVTangent")
         node_add_menu.add_node_type(layout, "GeometryNodeUVUnwrap")
         node_add_menu.draw_assets_for_catalog(layout, "Mesh/UV")
 

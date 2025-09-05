@@ -164,7 +164,6 @@ set(SRC
   nodes/node_geo_mesh_primitive_line.cc
   nodes/node_geo_mesh_primitive_uv_sphere.cc
   nodes/node_geo_mesh_subdivide.cc
-  nodes/node_geo_mesh_tangent.cc
   nodes/node_geo_mesh_to_curve.cc
   nodes/node_geo_mesh_to_density_grid.cc
   nodes/node_geo_mesh_to_points.cc
@@ -242,6 +241,7 @@ set(SRC
   nodes/node_geo_translate_instances.cc
   nodes/node_geo_triangulate.cc
   nodes/node_geo_uv_pack_islands.cc
+  nodes/node_geo_uv_tangent.cc
   nodes/node_geo_uv_unwrap.cc
   nodes/node_geo_viewer.cc
   nodes/node_geo_viewport_transform.cc

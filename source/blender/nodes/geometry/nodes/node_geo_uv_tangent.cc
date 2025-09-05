@@ -9,7 +9,7 @@
 
 #include "node_geometry_util.hh"
 
-namespace blender::nodes::node_geo_mesh_tangent_cc {
+namespace blender::nodes::node_geo_uv_tangent_cc {
 
 enum class Method {
   Simple = 0,
@@ -205,8 +205,8 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeMeshTangent");
-  ntype.ui_name = "Tangent";
+  geo_node_type_base(&ntype, "GeometryNodeUVTangent");
+  ntype.ui_name = "UV Tangent";
   ntype.ui_description = "";
   ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.declare = node_declare;
@@ -215,4 +215,4 @@ static void node_register()
 }
 NOD_REGISTER_NODE(node_register)
 
-}  // namespace blender::nodes::node_geo_mesh_tangent_cc
+}  // namespace blender::nodes::node_geo_uv_tangent_cc
