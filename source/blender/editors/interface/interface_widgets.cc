@@ -3604,7 +3604,7 @@ static void widget_numbut_draw(const uiBut *but,
   }
 
   /* decoration */
-  if (((state->but_flag & UI_HOVER) || (U.uiflag & USER_ALWAYS_SHOW_NUMBER_ARROWS)) &&
+  if (((state->but_flag & UI_HOVER) || (U.uiflag2 & USER_ALWAYS_SHOW_NUMBER_ARROWS)) &&
       !state->is_text_input)
   {
     uiWidgetColors wcol_zone;

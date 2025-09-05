@@ -1146,8 +1146,8 @@ void blo_do_versions_userdef(UserDef *userdef)
   }
 
   if (!USER_VERSION_ATLEAST(280, 44)) {
-    userdef->uiflag &= ~(USER_NO_MULTITOUCH_GESTURES | USER_ALWAYS_SHOW_NUMBER_ARROWS);
-    userdef->uiflag2 &= ~USER_UIFLAG2_UNUSED_0;
+    userdef->uiflag &= ~USER_NO_MULTITOUCH_GESTURES;
+    userdef->uiflag2 &= ~USER_ALWAYS_SHOW_NUMBER_ARROWS;
     userdef->gp_settings &= ~GP_PAINT_UNUSED_0;
   }
 
@@ -1668,6 +1668,12 @@ void blo_do_versions_userdef(UserDef *userdef)
 
   if (!USER_VERSION_ATLEAST(500, 59)) {
     userdef->preferences_display_type = USER_TEMP_SPACE_DISPLAY_WINDOW;
+  }
+
+  if (!USER_VERSION_ATLEAST(500, 76)) {
+    if (userdef->stored_bounds.file.xmin == userdef->stored_bounds.file.xmax) {
+      memcpy(&userdef->stored_bounds, &U_default.stored_bounds, sizeof(userdef->stored_bounds));
+    }
   }
 
   /**
