@@ -216,7 +216,7 @@ static void node_register()
   geo_node_type_base(&ntype, "GeometryNodeUVTangent");
   ntype.ui_name = "UV Tangent";
   ntype.ui_description = "Generate tangent directions based on a UV map";
-  ntype.nclass = NODE_CLASS_CONVERTER;
+  ntype.nclass = NODE_CLASS_INPUT;
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
   blender::bke::node_register_type(ntype);
