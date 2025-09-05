@@ -245,7 +245,7 @@ static const EnumPropertyItem rna_enum_preferences_asset_import_method_items[] =
 
 #  include "UI_interface.hh"
 
-#  include "AS_essentials_library.hh"
+#  include "AS_asset_library.hh"
 
 static void rna_userdef_version_get(PointerRNA *ptr, int *value)
 {
@@ -1519,13 +1519,23 @@ static const EnumPropertyItem *rna_preference_asset_libray_import_method_itemf(
        item->identifier;
        item++)
   {
-    if (item->value == ASSET_IMPORT_PACK) {
-      if (!U.experimental.no_data_block_packing) {
-        RNA_enum_item_add(&items, &items_num, item);
+    switch (eAssetImportMethod(item->value)) {
+      case ASSET_IMPORT_APPEND_REUSE: {
+        if (U.experimental.no_data_block_packing) {
+          RNA_enum_item_add(&items, &items_num, item);
+        }
+        break;
       }
-    }
-    else {
-      RNA_enum_item_add(&items, &items_num, item);
+      case ASSET_IMPORT_PACK: {
+        if (!U.experimental.no_data_block_packing) {
+          RNA_enum_item_add(&items, &items_num, item);
+        }
+        break;
+      }
+      default: {
+        RNA_enum_item_add(&items, &items_num, item);
+        break;
+      }
     }
   }
   RNA_enum_item_end(&items, &items_num);
@@ -1538,7 +1548,7 @@ static void rna_experimental_no_data_block_packing_update(Main *bmain,
                                                           PointerRNA *ptr)
 {
   rna_userdef_update(bmain, scene, ptr);
-  blender::asset_system::essentials_update_import_method();
+  AS_asset_library_import_method_ensure_valid(*bmain);
 }
 
 #else

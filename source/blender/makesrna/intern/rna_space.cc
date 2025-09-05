@@ -3790,13 +3790,23 @@ static const EnumPropertyItem *rna_FileAssetSelectParams_import_method_itemf(
   int items_num = 0;
   for (const EnumPropertyItem *item = rna_enum_asset_import_method_items; item->identifier; item++)
   {
-    if (item->value == FILE_ASSET_IMPORT_PACK) {
-      if (!U.experimental.no_data_block_packing) {
-        RNA_enum_item_add(&items, &items_num, item);
+    switch (eFileAssetImportMethod(item->value)) {
+      case FILE_ASSET_IMPORT_APPEND_REUSE: {
+        if (U.experimental.no_data_block_packing) {
+          RNA_enum_item_add(&items, &items_num, item);
+        }
+        break;
       }
-    }
-    else {
-      RNA_enum_item_add(&items, &items_num, item);
+      case FILE_ASSET_IMPORT_PACK: {
+        if (!U.experimental.no_data_block_packing) {
+          RNA_enum_item_add(&items, &items_num, item);
+        }
+        break;
+      }
+      default: {
+        RNA_enum_item_add(&items, &items_num, item);
+        break;
+      }
     }
   }
   RNA_enum_item_end(&items, &items_num);
