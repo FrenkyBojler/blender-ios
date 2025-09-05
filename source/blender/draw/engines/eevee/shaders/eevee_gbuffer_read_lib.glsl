@@ -173,19 +173,19 @@ Layers read_layers(int2 texel)
 
   layers.header = gbuffer::read_header(texel);
   uint3 layer_types = layers.header.bin_types_per_layer();
-  uchar closure_len = layers.header.closure_len();
+  uchar closure_count = layers.header.closure_len();
 
   layers.layer[0] = gbuffer::detail::read_layer(
-      layers.header.tangent_space_id(0), closure_len, GBufferMode(layer_types[0]), texel, 0);
+      layers.header.tangent_space_id(0), closure_count, GBufferMode(layer_types[0]), texel, 0);
 
 #if GBUFFER_LAYER_MAX > 1
   layers.layer[1] = gbuffer::detail::read_layer(
-      layers.header.tangent_space_id(1), closure_len, GBufferMode(layer_types[1]), texel, 1);
+      layers.header.tangent_space_id(1), closure_count, GBufferMode(layer_types[1]), texel, 1);
 #endif
 
 #if GBUFFER_LAYER_MAX > 2
   layers.layer[2] = gbuffer::detail::read_layer(
-      layers.header.tangent_space_id(2), closure_len, GBufferMode(layer_types[2]), texel, 2);
+      layers.header.tangent_space_id(2), closure_count, GBufferMode(layer_types[2]), texel, 2);
 #endif
   return layers;
 }
@@ -197,9 +197,9 @@ ClosureUndetermined read_bin(Header header, int2 texel, uchar bin_index)
 
   uchar layer_id = header.bin_to_layer(bin_index);
   uchar normal_id = header.tangent_space_id(layer_id);
-  uchar closure_len = header.closure_len();
+  uchar closure_count = header.closure_len();
 
-  return gbuffer::detail::read_layer(normal_id, closure_len, bin_mode, texel, layer_id);
+  return gbuffer::detail::read_layer(normal_id, closure_count, bin_mode, texel, layer_id);
 }
 ClosureUndetermined read_bin(int2 texel, uchar bin_index)
 {
