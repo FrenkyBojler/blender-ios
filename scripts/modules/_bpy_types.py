@@ -1517,3 +1517,16 @@ class GreasePencilDrawing(_StructRNA):
         from _bpy_internal.grease_pencil.stroke import GreasePencilStrokeSlice
         num_strokes = self.attributes.domain_size('CURVE')
         return GreasePencilStrokeSlice(self, 0, num_strokes)
+
+
+class Material(_StructRNA):
+    def inline_shader_nodes(self):
+        """
+        Get the inlined shader nodes of this material. This preprocesses the node tree
+        to remove nested groups, repeat zones and more.
+
+        :return: The inlined shader nodes.
+        :rtype: :class:`bpy.types.InlineShaderNodes`
+        """
+        from bpy.types import InlineShaderNodes
+        return InlineShaderNodes.from_material(self)
