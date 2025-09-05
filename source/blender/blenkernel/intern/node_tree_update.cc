@@ -897,16 +897,23 @@ class NodeTreeMainUpdater {
     }
   }
 
-  static int get_input_socket_shape(const SocketDeclaration &decl,
-                                    const StructureType structure_type)
+  static int get_socket_shape(const bNodeSocket &socket,
+                              const bool use_inferred_structure_type = false)
   {
-    if (decl.identifier == "__extend__") {
-      return SOCK_DISPLAY_SHAPE_CIRCLE;
-    }
-    if (nodes::socket_type_always_single(decl.socket_type)) {
+    if (nodes::socket_type_always_single(socket.typeinfo->type)) {
       return SOCK_DISPLAY_SHAPE_LINE;
     }
-    switch (structure_type) {
+    const SocketDeclaration *decl = socket.runtime->declaration;
+    if (!decl) {
+      return SOCK_DISPLAY_SHAPE_CIRCLE;
+    }
+    if (decl->identifier == "__extend__") {
+      return SOCK_DISPLAY_SHAPE_CIRCLE;
+    }
+    const StructureType display_structure_type = use_inferred_structure_type ?
+                                                     socket.runtime->inferred_structure_type :
+                                                     decl->structure_type;
+    switch (display_structure_type) {
       case StructureType::Single:
         return SOCK_DISPLAY_SHAPE_LINE;
       case StructureType::Dynamic:
@@ -917,36 +924,6 @@ class NodeTreeMainUpdater {
         return SOCK_DISPLAY_SHAPE_VOLUME_GRID;
       case StructureType::List:
         return SOCK_DISPLAY_SHAPE_LIST;
-    }
-    BLI_assert_unreachable();
-    return SOCK_DISPLAY_SHAPE_CIRCLE;
-  }
-
-  static int get_output_socket_shape(const SocketDeclaration &decl,
-                                     const StructureType structure_type)
-  {
-    if (decl.identifier == "__extend__") {
-      return SOCK_DISPLAY_SHAPE_CIRCLE;
-    }
-    if (nodes::socket_type_always_single(decl.socket_type)) {
-      return SOCK_DISPLAY_SHAPE_LINE;
-    }
-    switch (structure_type) {
-      case StructureType::Single: {
-        return SOCK_DISPLAY_SHAPE_LINE;
-      }
-      case StructureType::Dynamic: {
-        return SOCK_DISPLAY_SHAPE_CIRCLE;
-      }
-      case StructureType::Field: {
-        return SOCK_DISPLAY_SHAPE_DIAMOND;
-      }
-      case StructureType::Grid: {
-        return SOCK_DISPLAY_SHAPE_VOLUME_GRID;
-      }
-      case StructureType::List: {
-        return SOCK_DISPLAY_SHAPE_LIST;
-      }
     }
     BLI_assert_unreachable();
     return SOCK_DISPLAY_SHAPE_CIRCLE;
@@ -965,12 +942,10 @@ class NodeTreeMainUpdater {
         case NODE_GROUP_OUTPUT:
         case NODE_GROUP_INPUT: {
           for (bNodeSocket *socket : node->input_sockets()) {
-            socket->display_shape = get_input_socket_shape(
-                *socket->runtime->declaration, socket->runtime->inferred_structure_type);
+            socket->display_shape = get_socket_shape(*socket, true);
           }
           for (bNodeSocket *socket : node->output_sockets()) {
-            socket->display_shape = get_output_socket_shape(
-                *socket->runtime->declaration, socket->runtime->inferred_structure_type);
+            socket->display_shape = get_socket_shape(*socket, true);
           }
           break;
         }
@@ -979,14 +954,8 @@ class NodeTreeMainUpdater {
           for (const int i : IndexRange(storage.items_num)) {
             const NodeCombineBundleItem &item = storage.items[i];
             bNodeSocket &socket = node->input_socket(i);
-            if (item.structure_type == NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO) {
-              socket.display_shape = get_input_socket_shape(
-                  *socket.runtime->declaration, socket.runtime->inferred_structure_type);
-            }
-            else {
-              socket.display_shape = get_input_socket_shape(
-                  *socket.runtime->declaration, socket.runtime->declaration->structure_type);
-            }
+            socket.display_shape = get_socket_shape(
+                socket, item.structure_type == NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO);
           }
           break;
         }
@@ -995,14 +964,8 @@ class NodeTreeMainUpdater {
           for (const int i : IndexRange(storage.items_num)) {
             const NodeSeparateBundleItem &item = storage.items[i];
             bNodeSocket &socket = node->output_socket(i);
-            if (item.structure_type == NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO) {
-              socket.display_shape = get_output_socket_shape(
-                  *socket.runtime->declaration, socket.runtime->inferred_structure_type);
-            }
-            else {
-              socket.display_shape = get_output_socket_shape(
-                  *socket.runtime->declaration, socket.runtime->declaration->structure_type);
-            }
+            socket.display_shape = get_socket_shape(
+                socket, item.structure_type == NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO);
           }
           break;
         }
@@ -1015,14 +978,8 @@ class NodeTreeMainUpdater {
             for (const int i : IndexRange(storage.input_items.items_num)) {
               const NodeClosureInputItem &item = storage.input_items.items[i];
               bNodeSocket &socket = node->output_socket(i);
-              if (item.structure_type == NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO) {
-                socket.display_shape = get_output_socket_shape(
-                    *socket.runtime->declaration, socket.runtime->inferred_structure_type);
-              }
-              else {
-                socket.display_shape = get_output_socket_shape(
-                    *socket.runtime->declaration, socket.runtime->declaration->structure_type);
-              }
+              socket.display_shape = get_socket_shape(
+                  socket, item.structure_type == NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO);
             }
           }
           break;
@@ -1032,14 +989,8 @@ class NodeTreeMainUpdater {
           for (const int i : IndexRange(storage.output_items.items_num)) {
             const NodeClosureOutputItem &item = storage.output_items.items[i];
             bNodeSocket &socket = node->input_socket(i);
-            if (item.structure_type == NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO) {
-              socket.display_shape = get_input_socket_shape(
-                  *socket.runtime->declaration, socket.runtime->inferred_structure_type);
-            }
-            else {
-              socket.display_shape = get_input_socket_shape(
-                  *socket.runtime->declaration, socket.runtime->declaration->structure_type);
-            }
+            socket.display_shape = get_socket_shape(
+                socket, item.structure_type == NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO);
           }
           break;
         }
@@ -1048,42 +999,24 @@ class NodeTreeMainUpdater {
           for (const int i : IndexRange(storage.input_items.items_num)) {
             const NodeEvaluateClosureInputItem &item = storage.input_items.items[i];
             bNodeSocket &socket = node->input_socket(i + 1);
-            if (item.structure_type == NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO) {
-              socket.display_shape = get_input_socket_shape(
-                  *socket.runtime->declaration, socket.runtime->inferred_structure_type);
-            }
-            else {
-              socket.display_shape = get_input_socket_shape(
-                  *socket.runtime->declaration, socket.runtime->declaration->structure_type);
-            }
+            socket.display_shape = get_socket_shape(
+                socket, item.structure_type == NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO);
           }
           for (const int i : IndexRange(storage.output_items.items_num)) {
             const NodeEvaluateClosureOutputItem &item = storage.output_items.items[i];
             bNodeSocket &socket = node->output_socket(i);
-            if (item.structure_type == NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO) {
-              socket.display_shape = get_output_socket_shape(
-                  *socket.runtime->declaration, socket.runtime->inferred_structure_type);
-            }
-            else {
-              socket.display_shape = get_output_socket_shape(
-                  *socket.runtime->declaration, socket.runtime->declaration->structure_type);
-            }
+            socket.display_shape = get_socket_shape(
+                socket, item.structure_type == NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO);
           }
           break;
         }
         default: {
           /* For other nodes we just use the static structure types defined in the declaration. */
           for (bNodeSocket *socket : node->input_sockets()) {
-            if (const SocketDeclaration *declaration = socket->runtime->declaration) {
-              socket->display_shape = get_input_socket_shape(*declaration,
-                                                             declaration->structure_type);
-            }
+            socket->display_shape = get_socket_shape(*socket);
           }
           for (bNodeSocket *socket : node->output_sockets()) {
-            if (const SocketDeclaration *declaration = socket->runtime->declaration) {
-              socket->display_shape = get_output_socket_shape(*declaration,
-                                                              declaration->structure_type);
-            }
+            socket->display_shape = get_socket_shape(*socket);
           }
           break;
         }

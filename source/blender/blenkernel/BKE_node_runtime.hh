@@ -288,6 +288,15 @@ class bNodeSocketRuntime : NonCopyable, NonMovable {
    */
   float2 location;
 
+  /**
+   * Inferred structure type of the socket. This is not necessarily the same as the structure type
+   * that is displayed in the UI. For example, it would be #StructureType::Single for an unlinked
+   * input of the Math node, but the socket is displayed as #StructureType::Dynamic.
+   *
+   * This is stored on the socket instead of as array in #bNodeTreeRuntime because the data needs
+   * to stay attached to the socket even when the node tree changes. This is used when e.g. syncing
+   * a newly created Separate Bundle node to an existing Combine Bundle node.
+   */
   nodes::StructureType inferred_structure_type = nodes::StructureType::Dynamic;
 
   /** Only valid when #topology_cache_is_dirty is false. */

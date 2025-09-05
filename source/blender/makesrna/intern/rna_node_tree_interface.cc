@@ -14,8 +14,6 @@
 
 #include "rna_internal.hh"
 
-#include "NOD_rna_define.hh"
-
 #include "WM_types.hh"
 
 const EnumPropertyItem rna_enum_node_tree_interface_item_type_items[] = {
@@ -99,6 +97,7 @@ static const EnumPropertyItem node_default_input_items[] = {
 #  include "BLT_translation.hh"
 
 #  include "NOD_node_declaration.hh"
+#  include "NOD_rna_define.hh"
 #  include "NOD_socket.hh"
 
 #  include "DNA_material_types.h"
