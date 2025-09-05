@@ -41,6 +41,7 @@ UNIFORM_BUF(0 /*GPU_NODE_TREE_UBO_SLOT*/, NodeTree, node_tree)
 GPU_SHADER_CREATE_END()
 
 GPU_SHADER_CREATE_INFO(eevee_global_ubo)
+TYPEDEF_SOURCE("eevee_uniform_shared.hh")
 UNIFORM_BUF(UNIFORM_BUF_SLOT, UniformData, uniform_buf)
 GPU_SHADER_CREATE_END()
 
@@ -52,6 +53,7 @@ GPU_SHADER_CREATE_END()
 GPU_SHADER_CREATE_INFO(eevee_sampling_data)
 DEFINE("EEVEE_SAMPLING_DATA")
 TYPEDEF_SOURCE("eevee_defines.hh")
+TYPEDEF_SOURCE("eevee_sampling_shared.hh")
 STORAGE_BUF(SAMPLING_BUF_SLOT, read, SamplingData, sampling_buf)
 GPU_SHADER_CREATE_END()
 
@@ -65,17 +67,20 @@ GPU_SHADER_NAMED_INTERFACE_END(clip_interp)
 
 GPU_SHADER_CREATE_INFO(eevee_clip_plane)
 VERTEX_OUT(eevee_clip_plane_iface)
+TYPEDEF_SOURCE("eevee_uniform_shared.hh")
 UNIFORM_BUF(CLIP_PLANE_BUF, ClipPlaneData, clip_plane)
 DEFINE("MAT_CLIP_PLANE")
 GPU_SHADER_CREATE_END()
 
 GPU_SHADER_CREATE_INFO(eevee_lightprobe_sphere_data)
 DEFINE("SPHERE_PROBE")
+TYPEDEF_SOURCE("eevee_lightprobe_shared.hh")
 UNIFORM_BUF(SPHERE_PROBE_BUF_SLOT, SphereProbeData, lightprobe_sphere_buf[SPHERE_PROBE_MAX])
 SAMPLER(SPHERE_PROBE_TEX_SLOT, sampler2DArray, lightprobe_spheres_tx)
 GPU_SHADER_CREATE_END()
 
 GPU_SHADER_CREATE_INFO(eevee_volume_probe_data)
+TYPEDEF_SOURCE("eevee_lightprobe_shared.hh")
 UNIFORM_BUF(IRRADIANCE_GRID_BUF_SLOT, VolumeProbeData, grids_infos_buf[IRRADIANCE_GRID_MAX])
 /* NOTE: Use uint instead of IrradianceBrickPacked because Metal needs to know the exact type.
  */
@@ -86,6 +91,7 @@ GPU_SHADER_CREATE_END()
 
 GPU_SHADER_CREATE_INFO(eevee_lightprobe_planar_data)
 DEFINE("SPHERE_PROBE")
+TYPEDEF_SOURCE("eevee_lightprobe_shared.hh")
 UNIFORM_BUF(PLANAR_PROBE_BUF_SLOT, PlanarProbeData, probe_planar_buf[PLANAR_PROBE_MAX])
 SAMPLER(PLANAR_PROBE_RADIANCE_TEX_SLOT, sampler2DArray, planar_radiance_tx)
 SAMPLER(PLANAR_PROBE_DEPTH_TEX_SLOT, sampler2DArrayDepth, planar_depth_tx)
@@ -118,6 +124,7 @@ SAMPLER(SHADOW_TILEMAPS_TEX_SLOT, usampler2D, shadow_tilemaps_tx)
 GPU_SHADER_CREATE_END()
 
 GPU_SHADER_CREATE_INFO(eevee_surfel_common)
+TYPEDEF_SOURCE("eevee_lightprobe_shared.hh")
 STORAGE_BUF(SURFEL_BUF_SLOT, read_write, Surfel, surfel_buf[])
 STORAGE_BUF(CAPTURE_BUF_SLOT, read, CaptureInfoData, capture_info_buf)
 GPU_SHADER_CREATE_END()
