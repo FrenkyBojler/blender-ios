@@ -530,8 +530,10 @@ wmOperatorStatus sequencer_clipboard_paste_exec(bContext *C, wmOperator *op)
      * adding strips to seqbase, for lookup cache to work correctly. */
     seq::ensure_unique_name(istrip, scene_dst);
 
-    strip_mean_pos += static_cast<int2>(
-        seq::image_transform_origin_offset_pixelspace_get(scene, istrip));
+    if (region->regiontype == RGN_TYPE_PREVIEW && !(istrip->type & STRIP_TYPE_SOUND_RAM)) {
+      strip_mean_pos += static_cast<int2>(
+          seq::image_transform_origin_offset_pixelspace_get(scene, istrip));
+    }
   }
 
   strip_mean_pos /= BLI_listbase_count(&nseqbase);
@@ -544,7 +546,9 @@ wmOperatorStatus sequencer_clipboard_paste_exec(bContext *C, wmOperator *op)
     if (seq::transform_test_overlap(scene_dst, ed_dst->current_strips(), istrip)) {
       seq::transform_seqbase_shuffle(ed_dst->current_strips(), istrip, scene_dst);
     }
-    if (region->regiontype == RGN_TYPE_PREVIEW && !(RNA_boolean_get(op->ptr, "keep_offset"))) {
+    if (region->regiontype == RGN_TYPE_PREVIEW && !(RNA_boolean_get(op->ptr, "keep_offset")) &&
+        !(istrip->type & STRIP_TYPE_SOUND_RAM))
+    {
       StripTransform *transform = istrip->data->transform;
       const float2 mirror = seq::image_transform_mirror_factor_get(istrip);
       const float2 origin = seq::image_transform_origin_offset_pixelspace_get(scene, istrip);
