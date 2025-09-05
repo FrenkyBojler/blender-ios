@@ -3165,7 +3165,16 @@ void blo_do_versions_500(FileData *fd, Library * /*lib*/, Main *bmain)
     }
   }
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 74)) {
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 75)) {
+    FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
+      if (ntree->type == NTREE_COMPOSIT) {
+        version_node_socket_name(ntree, CMP_NODE_RGB, "RGBA", "Color");
+      }
+    }
+    FOREACH_NODETREE_END;
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 76)) {
     LISTBASE_FOREACH (Material *, material, &bmain->materials) {
       do_version_material_remove_use_nodes(bmain, material);
     }
