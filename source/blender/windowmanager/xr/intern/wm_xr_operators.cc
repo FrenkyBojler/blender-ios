@@ -1636,7 +1636,8 @@ static wmOperatorStatus wm_xr_navigation_teleport_modal(bContext *C,
 
   if (data->success) {
     RNA_float_get_array(op->ptr, "hit_color", data->color);
-    data->destination_size = RNA_float_get(op->ptr, "destination_scale") * sqrt(destination_dist);
+    data->destination_size = RNA_float_get(op->ptr, "destination_scale") *
+                             sqrt(destination_dist / nav_scale) * nav_scale;
   }
   else {
     RNA_float_get_array(op->ptr, "miss_color", data->color);
