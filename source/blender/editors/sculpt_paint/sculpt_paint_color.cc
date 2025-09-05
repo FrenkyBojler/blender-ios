@@ -37,7 +37,6 @@
 #include "IMB_imbuf.hh"
 
 #include <cmath>
-#include <cstdlib>
 
 namespace blender::ed::sculpt_paint::color {
 
@@ -430,8 +429,6 @@ static void do_paint_brush_task(const Depsgraph &depsgraph,
 
   float3 brush_color_rgb = ss.cache->invert ? BKE_brush_secondary_color_get(&paint, &brush) :
                                               BKE_brush_color_get(&paint, &brush);
-
-  IMB_colormanagement_srgb_to_scene_linear_v3(brush_color_rgb, brush_color_rgb);
 
   const std::optional<BrushColorJitterSettings> color_jitter_settings =
       BKE_brush_color_jitter_get_settings(&paint, &brush);

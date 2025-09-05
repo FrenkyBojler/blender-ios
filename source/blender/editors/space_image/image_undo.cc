@@ -42,6 +42,7 @@
 #include "BKE_context.hh"
 #include "BKE_image.hh"
 #include "BKE_paint.hh"
+#include "BKE_paint_types.hh"
 #include "BKE_undo_system.hh"
 
 #include "DEG_depsgraph.hh"
@@ -53,7 +54,7 @@
 
 #include "WM_api.hh"
 
-static CLG_LogRef LOG = {"ed.image.undo"};
+static CLG_LogRef LOG = {"undo.image"};
 
 /* -------------------------------------------------------------------- */
 /** \name Thread Locking

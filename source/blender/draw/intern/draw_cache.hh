@@ -14,8 +14,8 @@
 #include "BKE_volume_grid_fwd.hh"
 
 struct GPUMaterial;
-struct GPUTexture;
 namespace blender::gpu {
+class Texture;
 class Batch;
 class VertBuf;
 }  // namespace blender::gpu
@@ -129,7 +129,7 @@ struct DRWVolumeGrid {
   char *name;
 
   /* 3D texture. */
-  GPUTexture *texture;
+  gpu::Texture *texture;
 
   /* Transform between 0..1 texture space and object space. */
   float4x4 texture_to_object;
@@ -152,6 +152,7 @@ gpu::Batch *DRW_cache_volume_selection_surface_get(Object *ob);
 gpu::Batch *DRW_cache_grease_pencil_get(const Scene *scene, Object *ob);
 gpu::Batch *DRW_cache_grease_pencil_edit_points_get(const Scene *scene, Object *ob);
 gpu::Batch *DRW_cache_grease_pencil_edit_lines_get(const Scene *scene, Object *ob);
+gpu::Batch *DRW_cache_grease_pencil_edit_handles_get(const Scene *scene, Object *ob);
 gpu::VertBuf *DRW_cache_grease_pencil_position_buffer_get(const Scene *scene, Object *ob);
 gpu::VertBuf *DRW_cache_grease_pencil_color_buffer_get(const Scene *scene, Object *ob);
 gpu::Batch *DRW_cache_grease_pencil_weight_points_get(const Scene *scene, Object *ob);
