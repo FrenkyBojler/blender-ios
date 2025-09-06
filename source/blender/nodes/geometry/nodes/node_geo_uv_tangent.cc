@@ -201,6 +201,20 @@ class TangentFieldInput final : public bke::MeshFieldInput {
     uv_field_.node().for_each_field_input_recursive(fn);
   }
 
+  bool is_equal_to(const FieldNode &other) const override
+  {
+    if (const TangentFieldInput *other_endpoint = dynamic_cast<const TangentFieldInput *>(&other))
+    {
+      return method_ == other_endpoint->method_ && uv_field_ == other_endpoint->uv_field_;
+    }
+    return false;
+  }
+
+  uint64_t hash() const override
+  {
+    return get_default_hash(method_, uv_field_);
+  }
+
   std::optional<AttrDomain> preferred_domain(const Mesh & /*mesh*/) const override
   {
     return AttrDomain::Corner;
