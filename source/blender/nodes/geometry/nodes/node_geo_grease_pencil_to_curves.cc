@@ -74,7 +74,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     curves_id->mat = static_cast<Material **>(MEM_dupallocN(grease_pencil->material_array));
     curves_id->totcol = grease_pencil->material_array_num;
     GeometrySet curves_geometry = GeometrySet::from_curves(curves_id);
-    curves_geometry.name = layer.name();
+    curves_geometry.set_name(layer.name());
     const int handle = instances->add_reference(std::move(curves_geometry));
     instances->add_instance(handle, transform);
   });
@@ -128,7 +128,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   }
 
   GeometrySet curves_geometry = GeometrySet::from_instances(instances);
-  curves_geometry.name = std::move(grease_pencil_geometry.name);
+  curves_geometry.copy_bundle_from(grease_pencil_geometry);
 
   const bool layers_as_instances = params.extract_input<bool>("Layers as Instances");
   if (!layers_as_instances) {

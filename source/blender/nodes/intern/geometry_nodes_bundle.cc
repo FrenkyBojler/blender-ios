@@ -169,6 +169,20 @@ const BundleItemValue *Bundle::lookup_path(const StringRef path) const
   return this->lookup_path(path_elems);
 }
 
+void Bundle::merge(const Bundle &other)
+{
+  for (const StoredItem &item : other.items_) {
+    this->add(item.key, item.value);
+  }
+}
+
+void Bundle::merge_override(const Bundle &other)
+{
+  for (const StoredItem &item : other.items_) {
+    this->add_override(item.key, item.value);
+  }
+}
+
 BundlePtr Bundle::copy() const
 {
   BundlePtr copy_ptr = Bundle::create();

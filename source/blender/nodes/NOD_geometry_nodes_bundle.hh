@@ -84,6 +84,9 @@ class Bundle : public ImplicitSharingMixin {
   template<typename T> std::optional<T> lookup(StringRef key) const;
   template<typename T> std::optional<T> lookup_path(StringRef path) const;
 
+  void merge(const Bundle &other);
+  void merge_override(const Bundle &other);
+
   bool is_empty() const;
   int64_t size() const;
 

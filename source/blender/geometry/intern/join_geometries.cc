@@ -200,7 +200,9 @@ GeometrySet join_geometries(
     const bool allow_merging_instance_references)
 {
   GeometrySet result;
-  result.name = geometries.is_empty() ? "" : geometries[0].name;
+  for (const GeometrySet &geometry_set : geometries) {
+    result.merge_bundle_from(geometry_set);
+  }
   static const Array<GeometryComponent::Type> supported_types(
       {GeometryComponent::Type::Mesh,
        GeometryComponent::Type::PointCloud,

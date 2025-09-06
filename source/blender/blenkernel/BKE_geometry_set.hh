@@ -39,6 +39,10 @@ class MutableAttributeAccessor;
 enum class AttrDomain : int8_t;
 struct GizmoEditHints;
 }  // namespace blender::bke
+namespace blender::nodes {
+class Bundle;
+using BundlePtr = ImplicitSharingPtr<Bundle>;
+}  // namespace blender::nodes
 
 namespace blender::bke {
 
@@ -146,15 +150,9 @@ struct GeometrySet {
  private:
   /* Indexed by #GeometryComponent::Type. */
   std::array<GeometryComponentPtr, GEO_COMPONENT_TYPE_ENUM_SIZE> components_;
+  nodes::BundlePtr bundle_;
 
  public:
-  /**
-   * A user defined name for this geometry. It is not expected to be unique. Its main
-   * purpose is help debugging instance trees. It may eventually also be used when exporting
-   * instance trees or when creating separate objects from them.
-   */
-  std::string name;
-
   /**
    * The methods are defaulted here so that they are not instantiated in every translation unit.
    */
@@ -442,16 +440,44 @@ struct GeometrySet {
   void replace_grease_pencil(GreasePencil *grease_pencil,
                              GeometryOwnershipType ownership = GeometryOwnershipType::Owned);
 
+  bool has_bundle() const
+  {
+    return bundle_;
+  }
+
+  const nodes::Bundle *bundle() const
+  {
+    return bundle_.get();
+  }
+
+  const nodes::BundlePtr &bundle_ptr() const
+  {
+    return bundle_;
+  }
+
+  nodes::BundlePtr &bundle_ptr()
+  {
+    return bundle_;
+  }
+
+  nodes::Bundle &bundle_for_write();
+
+  void copy_bundle_from(const GeometrySet &other);
+  void merge_bundle_from(const GeometrySet &other);
+
+  StringRefNull name() const;
+  void set_name(std::string name);
+
   friend bool operator==(const GeometrySet &a, const GeometrySet &b)
   {
     /* This compares only the component pointers, not the actual geometry data. */
-    return Span(a.components_) == Span(b.components_) && a.name == b.name;
+    return Span(a.components_) == Span(b.components_) && a.bundle_ == b.bundle_;
   }
 
   uint64_t hash() const
   {
     /* This should have the same data that's also taken into account in #operator==. */
-    return get_default_hash(Span(components_), this->name);
+    return get_default_hash(Span(components_), this->bundle_.get());
   }
 
   void count_memory(MemoryCounter &memory) const;

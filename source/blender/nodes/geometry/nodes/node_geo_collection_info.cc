@@ -152,7 +152,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     instances->add_instance(handle, transform);
   }
   GeometrySet geometry = GeometrySet::from_instances(instances.release());
-  geometry.name = collection->id.name + 2;
+  geometry.set_name(collection->id.name + 2);
 
   params.set_output("Instances", std::move(geometry));
 }

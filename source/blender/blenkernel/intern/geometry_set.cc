@@ -21,6 +21,8 @@
 #include "BKE_subdiv_modifier.hh"
 #include "BKE_volume.hh"
 
+#include "NOD_geometry_nodes_bundle.hh"
+
 #include "DNA_object_types.h"
 #include "DNA_pointcloud_types.h"
 
@@ -214,8 +216,9 @@ std::optional<Bounds<float3>> GeometrySet::compute_boundbox_without_instances(
 std::ostream &operator<<(std::ostream &stream, const GeometrySet &geometry_set)
 {
   Vector<std::string> parts;
-  if (!geometry_set.name.empty()) {
-    parts.append(fmt::format("\"{}\"", geometry_set.name));
+  const StringRefNull name = geometry_set.name();
+  if (!name.is_empty()) {
+    parts.append(fmt::format("\"{}\"", name));
   }
   if (const Mesh *mesh = geometry_set.get_mesh()) {
     parts.append(std::to_string(mesh->verts_num) + " verts");
@@ -785,6 +788,69 @@ Vector<GeometryComponent::Type> GeometrySet::gather_component_types(const bool i
   Vector<GeometryComponent::Type> types;
   gather_component_types_recursive(*this, include_instances, ignore_empty, types);
   return types;
+}
+
+nodes::Bundle &GeometrySet::bundle_for_write()
+{
+  if (!bundle_) {
+    bundle_ = nodes::Bundle::create();
+  }
+  else if (bundle_->is_mutable()) {
+    bundle_->tag_ensured_mutable();
+  }
+  else {
+    bundle_ = bundle_->copy();
+  }
+  return const_cast<nodes::Bundle &>(*bundle_);
+}
+
+void GeometrySet::copy_bundle_from(const GeometrySet &other)
+{
+  bundle_ = other.bundle_;
+}
+
+void GeometrySet::merge_bundle_from(const GeometrySet &other)
+{
+  if (!other.has_bundle()) {
+    return;
+  }
+  if (bundle_) {
+    this->bundle_for_write().merge(*other.bundle());
+  }
+  else {
+    this->copy_bundle_from(other);
+  }
+}
+
+StringRefNull GeometrySet::name() const
+{
+  if (!bundle_) {
+    return "";
+  }
+  /* Use this more low level access, so that we can get a #StringRefNull instead of having to make
+   * a copy of the string. */
+  const nodes::BundleItemValue *name_value = bundle_->lookup("name");
+  if (!name_value) {
+    return "";
+  }
+  const auto *name_socket_value = std::get_if<nodes::BundleItemSocketValue>(&name_value->value);
+  if (!name_socket_value) {
+    return "";
+  }
+  if (!name_socket_value->value.is_single()) {
+    return "";
+  }
+  const GPointer single_value_ptr = name_socket_value->value.get_single_ptr();
+  if (!single_value_ptr.is_type<std::string>()) {
+    return "";
+  }
+  return *single_value_ptr.get<std::string>();
+}
+
+void GeometrySet::set_name(std::string name)
+{
+  nodes::Bundle &bundle = this->bundle_for_write();
+  bundle.add_override("name", std::move(name));
 }
 
 bool object_has_geometry_set_instances(const Object &object)

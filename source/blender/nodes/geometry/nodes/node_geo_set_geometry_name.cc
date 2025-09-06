@@ -19,7 +19,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 {
   GeometrySet geometry_set = params.extract_input<GeometrySet>("Geometry");
   std::string name = params.extract_input<std::string>("Name");
-  geometry_set.name = std::move(name);
+  geometry_set.set_name(std::move(name));
   params.set_output("Geometry", std::move(geometry_set));
 }
 
