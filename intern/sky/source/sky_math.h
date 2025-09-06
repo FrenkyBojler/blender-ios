@@ -436,18 +436,12 @@ inline float clamp(float x, float min, float max)
   return x;
 }
 
-inline float sign(float x)
+inline float saturate(const float a)
 {
-  if (x < 0.0f) {
-    return -1.0f;
-  }
-  if (x == 0.0f) {
-    return 0.0f;
-  }
-  return 1.0f;
+  return clamp(a, 0.0f, 1.0f);
 }
 
-inline float mix(float x, float y, float a)
+template<typename T> inline T mix(T x, T y, float a)
 {
   return x + a * (y - x);
 }
@@ -455,6 +449,23 @@ inline float mix(float x, float y, float a)
 inline float3 sun_direction(float sun_cos_theta)
 {
   return make_float3(-sqrtf(1.0f - sun_cos_theta * sun_cos_theta), 0.0f, sun_cos_theta);
+}
+
+inline float ray_sphere_intersection(float3 pos, float3 dir, float radius)
+{
+  float b = dot(pos, dir);
+  float c = dot(pos, pos) - radius * radius;
+  if (c > 0.0f && b > 0.0f) {
+    return -1.0f;
+  }
+  float d = b * b - c;
+  if (d < 0) {
+    return -1.0f;
+  }
+  if (d >= b * b) {
+    return -b + sqrtf(d);
+  }
+  return -b - sqrtf(d);
 }
 
 /* Minimal parallel for implementation. */
