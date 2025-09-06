@@ -212,14 +212,9 @@ static void colorband_buttons_layout(uiLayout *layout,
                                      const rctf *butr,
                                      const RNAUpdateCb &cb,
                                      int expand,
-                                     const blender::StringRef label,
                                      const bool with_popup)
 {
   if (with_popup) {
-    uiLayout &row = layout->row(false);
-    if (!label.is_empty()) {
-      row.label(label, ICON_NONE);
-    }
     const int width = std::max<int>(layout->width(), UI_UNIT_X);
     uiButColorBand *colorband_but = static_cast<uiButColorBand *>(
         uiDefBut(block, ButType::ColorBand, 0, "", 0, 0, width, UI_UNIT_Y, coba, 0, 0, ""));
@@ -399,9 +394,7 @@ static void colorband_buttons_layout(uiLayout *layout,
 void uiTemplateColorRamp(uiLayout *layout,
                          PointerRNA *ptr,
                          const StringRefNull propname,
-                         bool expand,
-                         const blender::StringRef label,
-                         const bool with_popup)
+                         bool expand)
 {
   PropertyRNA *prop = RNA_struct_find_property(ptr, propname.c_str());
 
@@ -431,8 +424,42 @@ void uiTemplateColorRamp(uiLayout *layout,
                            &rect,
                            RNAUpdateCb{*ptr, prop},
                            expand,
-                           label,
-                           with_popup);
+                           false);
+
+  UI_block_lock_clear(block);
+}
+
+void uiTemplateColorRampPreview(uiLayout *layout, PointerRNA *ptr, blender::StringRefNull propname)
+{
+  PropertyRNA *prop = RNA_struct_find_property(ptr, propname.c_str());
+
+  if (!prop || RNA_property_type(prop) != PROP_POINTER) {
+    return;
+  }
+
+  const PointerRNA cptr = RNA_property_pointer_get(ptr, prop);
+  if (!cptr.data || !RNA_struct_is_a(cptr.type, &RNA_ColorRamp)) {
+    return;
+  }
+
+  rctf rect;
+  rect.xmin = 0;
+  rect.xmax = 10.0f * UI_UNIT_X;
+  rect.ymin = 0;
+  rect.ymax = 19.5f * UI_UNIT_X;
+
+  uiBlock *block = layout->absolute_block();
+
+  ID *id = cptr.owner_id;
+  UI_block_lock_set(block, (id && !ID_IS_EDITABLE(id)), ERROR_LIBDATA_MESSAGE);
+
+  colorband_buttons_layout(layout,
+                           block,
+                           static_cast<ColorBand *>(cptr.data),
+                           &rect,
+                           RNAUpdateCb{*ptr, prop},
+                           false,
+                           true);
 
   UI_block_lock_clear(block);
 }
