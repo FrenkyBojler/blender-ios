@@ -999,15 +999,15 @@ void OBJECT_OT_lattice_add_to_selected(wmOperatorType *ot)
                      "Resolution U",
                      "Lattice resolution in U direction",
                      1,
-                     10);
+                     64);
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 
   prop = RNA_def_int(
-      ot->srna, "resolution_v", 2, 1, 64, "V", "Lattice resolution in V direction", 1, 10);
+      ot->srna, "resolution_v", 2, 1, 64, "V", "Lattice resolution in V direction", 1, 64);
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 
   prop = RNA_def_int(
-      ot->srna, "resolution_w", 2, 1, 64, "W", "Lattice resolution in W direction", 1, 10);
+      ot->srna, "resolution_w", 2, 1, 64, "W", "Lattice resolution in W direction", 1, 64);
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
   add_generic_props(ot, true);
 }
