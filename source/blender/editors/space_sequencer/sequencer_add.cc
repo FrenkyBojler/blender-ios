@@ -509,6 +509,10 @@ static bool load_data_init_from_operator(seq::LoadData *load_data, bContext *C, 
     }
   }
 
+  if (region == nullptr) {
+    RNA_boolean_set(op->ptr, "move_strips", false);
+  }
+
   /* Override strip position by current mouse position. */
   if (can_move_strips(op) && region != nullptr) {
     const wmWindow *win = CTX_wm_window(C);
