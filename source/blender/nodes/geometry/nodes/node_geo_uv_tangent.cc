@@ -12,7 +12,7 @@
 namespace blender::nodes::node_geo_uv_tangent_cc {
 
 enum class Method {
-  Simple = 0,
+  Smoothed = 0,
   Mikktspace = 1,
 };
 
@@ -22,7 +22,13 @@ static EnumPropertyItem method_items[] = {
      0,
      "Mikktspace",
      "Calculation consistent with tangents used elsewhere in Blender"},
-    {int(Method::Simple), "SIMPLE", 0, "Simple", "Simpler but faster tangent calculation"},
+    {int(Method::Smoothed),
+     "SMOOTHED",
+     0,
+     "Smoothed",
+     "Significantly faster method that approximates tangents interpolated across face corners "
+     "with matching UVs. For a value actually tangential to the surface, use the cross product "
+     "with the normal."},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -148,7 +154,7 @@ class TangentFieldInput final : public bke::MeshFieldInput {
 
     Array<float3> corner_tangents(mesh.corners_num);
     switch (method_) {
-      case Method::Simple: {
+      case Method::Smoothed: {
         calc_uv_tangents_simple(mesh.vert_positions(),
                                 mesh.corner_verts(),
                                 mesh.corner_tris(),
