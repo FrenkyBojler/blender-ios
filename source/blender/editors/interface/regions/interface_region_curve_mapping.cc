@@ -6,17 +6,7 @@
  * \ingroup edinterface
  */
 
-#include <cstdarg>
-#include <cstdlib>
-#include <cstring>
-
-#include "MEM_guardedalloc.h"
-
 #include "DNA_userdef_types.h"
-
-#include "BLI_listbase.h"
-#include "BLI_string_utf8.h"
-#include "BLI_utildefines.h"
 
 #include "BKE_context.hh"
 
@@ -25,10 +15,6 @@
 #include "WM_types.hh"
 
 #include "RNA_access.hh"
-
-#include "BLT_translation.hh"
-
-#include "IMB_colormanagement.hh"
 
 #include "interface_intern.hh"
 
