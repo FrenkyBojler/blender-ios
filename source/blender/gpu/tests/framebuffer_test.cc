@@ -161,14 +161,8 @@ static void test_framebuffer_scissor_test()
   blender::gpu::Texture *texture = GPU_texture_create_2d(
       __func__, UNPACK2(size), 1, TextureFormat::SFLOAT_32_32_32_32, usage, nullptr);
 
-  ShaderCreateInfo create_info("");
-  create_info.vertex_source("gpu_framebuffer_uniform_color_test.glsl");
-  create_info.fragment_source("gpu_framebuffer_uniform_color_test.glsl");
-  create_info.push_constant(Type::float4_t, "color");
-  create_info.fragment_out(0, Type::float4_t, "fragColor0");
-
-  gpu::Shader *shader = GPU_shader_create_from_info(
-      reinterpret_cast<GPUShaderCreateInfo *>(&create_info));
+  gpu::Shader *shader = GPU_shader_create_from_info_name("gpu_framebuffer_uniform_color_test");
+  EXPECT_NE(shader, nullptr);
 
   int color_loc = GPU_shader_get_uniform(shader, "color");
 

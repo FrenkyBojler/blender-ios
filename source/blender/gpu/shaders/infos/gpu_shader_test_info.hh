@@ -71,6 +71,14 @@ COMPUTE_SOURCE("gpu_compute_dummy_test.glsl")
 DO_STATIC_COMPILATION()
 GPU_SHADER_CREATE_END()
 
+GPU_SHADER_CREATE_INFO(gpu_framebuffer_uniform_color_test)
+VERTEX_SOURCE("gpu_framebuffer_uniform_color_test.glsl")
+FRAGMENT_SOURCE("gpu_framebuffer_uniform_color_test.glsl")
+PUSH_CONSTANT(float4, color)
+FRAGMENT_OUT(0, float4, fragColor0)
+DO_STATIC_COMPILATION()
+GPU_SHADER_CREATE_END()
+
 /* Push constants. */
 GPU_SHADER_CREATE_INFO(gpu_push_constants_base_test)
 LOCAL_GROUP_SIZE(1)
