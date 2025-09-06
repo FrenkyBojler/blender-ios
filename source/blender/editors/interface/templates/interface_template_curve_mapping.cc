@@ -330,8 +330,7 @@ static void curvemap_buttons_layout(uiLayout *layout,
                                     bool brush,
                                     bool neg_slope,
                                     bool tone,
-                                    const RNAUpdateCb &cb,
-                                    const bool with_popup)
+                                    const RNAUpdateCb &cb)
 {
   CurveMapping *cumap = static_cast<CurveMapping *>(ptr->data);
   CurveMap *cm = &cumap->cm[cumap->cur];
@@ -348,26 +347,9 @@ static void curvemap_buttons_layout(uiLayout *layout,
     split->row(false).prop(ptr, "tone", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
   }
 
-  {
-    const int width = std::max<int>(layout->width(), UI_UNIT_X);
-    if (with_popup) {
-      uiButCurveMapping *curve_but = static_cast<uiButCurveMapping *>(
-          uiDefBut(block, ButType::Curve, 0, "", 0, 0, width, UI_UNIT_Y, cumap, 0.0f, 1.0f, ""));
-      curve_but->gradient_type = bg;
-      curve_but->is_preview = true;
-      curve_but->rnapoin = cb.ptr;
-      curve_but->rnaprop = cb.prop;
-      curve_but->type = labeltype;
-      curve_but->levels = levels;
-      curve_but->brush = brush;
-      curve_but->neg_slope = neg_slope;
-      curve_but->tone = tone;
-      return;
-    }
-  }
-
   /* curve chooser */
   uiLayout *row = &layout->row(false);
+
   if (labeltype == 'v') {
     /* vector */
     uiLayout *sub = &row->row(true);
@@ -808,7 +790,7 @@ void uiTemplateCurveMapping(uiLayout *layout,
   UI_block_lock_set(block, (id && !ID_IS_EDITABLE(id)), ERROR_LIBDATA_MESSAGE);
 
   curvemap_buttons_layout(
-      layout, &cptr, type, levels, brush, neg_slope, tone, RNAUpdateCb{*ptr, prop}, false);
+      layout, &cptr, type, levels, brush, neg_slope, tone, RNAUpdateCb{*ptr, prop});
 
   UI_block_lock_clear(block);
 }
@@ -823,30 +805,40 @@ void uiTemplateCurveMappingPreview(uiLayout *layout,
                                    bool tone)
 {
   PropertyRNA *prop = RNA_struct_find_property(ptr, propname.c_str());
-  uiBlock *block = layout->block();
-
   if (!prop) {
     RNA_warning(
         "curve property not found: %s.%s", RNA_struct_identifier(ptr->type), propname.c_str());
     return;
   }
-
   if (RNA_property_type(prop) != PROP_POINTER) {
     RNA_warning(
         "curve is not a pointer: %s.%s", RNA_struct_identifier(ptr->type), propname.c_str());
     return;
   }
-
   PointerRNA cptr = RNA_property_pointer_get(ptr, prop);
   if (!cptr.data || !RNA_struct_is_a(cptr.type, &RNA_CurveMapping)) {
     return;
   }
 
+  uiBlock *block = layout->absolute_block();
+
   ID *id = cptr.owner_id;
   UI_block_lock_set(block, (id && !ID_IS_EDITABLE(id)), ERROR_LIBDATA_MESSAGE);
 
-  curvemap_buttons_layout(
-      layout, &cptr, type, levels, brush, neg_slope, tone, RNAUpdateCb{*ptr, prop}, true);
+  const int width = std::max<int>(layout->width(), UI_UNIT_X);
+  CurveMapping *cumap = static_cast<CurveMapping *>(cptr.data);
+
+  uiButCurveMapping *curve_but = static_cast<uiButCurveMapping *>(
+      uiDefBut(block, ButType::Curve, 0, "", 0, 0, width, UI_UNIT_Y, cumap, 0.0f, 1.0f, ""));
+  curve_but->gradient_type = UI_GRAD_NONE;
+  curve_but->is_preview = true;
+  curve_but->rnapoin = *ptr;
+  curve_but->rnaprop = prop;
+  curve_but->type = type;
+  curve_but->levels = levels;
+  curve_but->brush = brush;
+  curve_but->neg_slope = neg_slope;
+  curve_but->tone = tone;
 
   UI_block_lock_clear(block);
 }
