@@ -634,8 +634,7 @@ static int *bmesh_find_doubles_by_distance_impl(BMesh *bm,
                                                 const bool has_keep_vert)
 {
   int *duplicates = MEM_malloc_arrayN<int>(verts_len, __func__);
-  bool *visited   = MEM_calloc_arrayN<bool>(verts_len, __func__);
-
+  blender::Array<bool> visited(verts_len, false);
 
   for (int i = 0; i < verts_len; i++) {
     if (has_keep_vert && BMO_vert_flag_test(bm, verts[i], VERT_KEEP)) {
@@ -651,8 +650,6 @@ static int *bmesh_find_doubles_by_distance_impl(BMesh *bm,
     BLI_kdtree_3d_insert(tree, i, verts[i]->co);
   }
   BLI_kdtree_3d_balance(tree);
-
-  const float dist_sq = dist * dist;
 
   for (int i = 0; i < verts_len; i++) {
     if (visited[i]) {
@@ -701,15 +698,13 @@ static int *bmesh_find_doubles_by_distance_impl(BMesh *bm,
     /* Assign cluster mappings. */
     duplicates[survivor_idx] = survivor_idx;
     for (int idx : cluster) {
-      if (idx == survivor_idx) {
-        continue;
+      if (idx != survivor_idx) {
+        duplicates[idx] = survivor_idx;
       }
-      duplicates[idx] = survivor_idx;
     }
   }
 
   BLI_kdtree_3d_free(tree);
-  MEM_freeN(visited);
 
   return duplicates;
 }
