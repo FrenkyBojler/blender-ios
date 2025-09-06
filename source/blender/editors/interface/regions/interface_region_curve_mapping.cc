@@ -34,32 +34,32 @@
 
 uiBlock *ui_block_func_CURVE_MAPPING(bContext *C, uiPopupBlockHandle *handle, void *arg_but)
 {
-  uiBut *but = static_cast<uiBut *>(arg_but);
-  uiButCurveMapping *but_cumap = static_cast<uiButCurveMapping *>(but);
+  uiButCurveMapping *but_cumap = static_cast<uiButCurveMapping *>(arg_but);
 
   uiBlock *block = UI_block_begin(C, handle->region, __func__, blender::ui::EmbossType::Emboss);
   block->direction = UI_DIR_UP;
+  block->flag = UI_BLOCK_LOOP | UI_BLOCK_KEEP_OPEN | UI_BLOCK_OUT_1 | UI_BLOCK_MOVEMOUSE_QUIT;
 
+  const uiStyle *style = UI_style_get_dpi();
   uiLayout &layout = blender::ui::block_layout(block,
                                                blender::ui::LayoutDirection::Vertical,
                                                blender::ui::LayoutType::Panel,
-                                               100,
-                                               100,
-                                               200,
-                                               1,
                                                0,
-                                               UI_style_get_dpi());
+                                               0,
+                                               10 * UI_UNIT_X,
+                                               0,
+                                               0,
+                                               style);
 
   uiTemplateCurveMapping(&layout,
-                         &but->rnapoin,
-                         RNA_property_identifier(but->rnaprop),
+                         &but_cumap->rnapoin,
+                         RNA_property_identifier(but_cumap->rnaprop),
                          0,
                          false,
                          false,
                          false,
                          false);
 
-  layout.label("Hello World", ICON_NONE);
   blender::ui::block_layout_resolve(block);
 
   return block;
