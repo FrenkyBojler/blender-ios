@@ -4701,8 +4701,8 @@ enum class CornerType : uint8_t {
 
 static const EnumPropertyItem prop_corner_types[] = {
     {int(CornerType::Round), "ROUND", 0, "Round", ""},
-    {int(CornerType::Bevel), "BEVEL", 0, "Bevel", ""},
-    {int(CornerType::Miter), "MITER", 0, "Miter", ""},
+    {int(CornerType::Bevel), "FLAT", 0, "Flat", ""},
+    {int(CornerType::Miter), "SHARP", 0, "Sharp", ""},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -4712,6 +4712,7 @@ static wmOperatorStatus grease_pencil_set_corner_type_exec(bContext *C, wmOperat
 
   const Scene *scene = CTX_data_scene(C);
   Object *object = CTX_data_active_object(C);
+  View3D *v3d = CTX_wm_view3d(C);
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
 
   const CornerType corner_type = CornerType(RNA_enum_get(op->ptr, "corner_type"));
@@ -4734,8 +4735,8 @@ static wmOperatorStatus grease_pencil_set_corner_type_exec(bContext *C, wmOperat
   const Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(*scene, grease_pencil);
   threading::parallel_for_each(drawings, [&](const MutableDrawingInfo &info) {
     IndexMaskMemory memory;
-    const IndexMask selection = ed::greasepencil::retrieve_editable_and_selected_strokes(
-        *object, info.drawing, info.layer_index, memory);
+    const IndexMask selection = ed::greasepencil::retrieve_editable_and_all_selected_points(
+        *object, info.drawing, info.layer_index, v3d->overlay.handle_display, memory);
     if (selection.is_empty()) {
       return;
     }
@@ -4749,7 +4750,7 @@ static wmOperatorStatus grease_pencil_set_corner_type_exec(bContext *C, wmOperat
     }
 
     /* Remove the attribute if we are storing all default. */
-    if (miter_angle == GP_STROKE_MITER_ANGLE_ROUND && selection == curves.curves_range()) {
+    if (miter_angle == GP_STROKE_MITER_ANGLE_ROUND && selection == curves.points_range()) {
       attributes.remove("miter_angle");
       changed = true;
       return;
@@ -4757,9 +4758,9 @@ static wmOperatorStatus grease_pencil_set_corner_type_exec(bContext *C, wmOperat
 
     bke::SpanAttributeWriter<float> miter_angles = attributes.lookup_or_add_for_write_span<float>(
         "miter_angle",
-        bke::AttrDomain::Curve,
+        bke::AttrDomain::Point,
         bke::AttributeInitVArray(
-            VArray<float>::from_single(GP_STROKE_MITER_ANGLE_ROUND, curves.curves_num())));
+            VArray<float>::from_single(GP_STROKE_MITER_ANGLE_ROUND, curves.points_num())));
 
     index_mask::masked_fill(miter_angles.span, miter_angle, selection);
 
@@ -4801,7 +4802,7 @@ static void GREASE_PENCIL_OT_set_corner_type(wmOperatorType *ot)
   /* Identifiers. */
   ot->name = "Set Corner Type";
   ot->idname = "GREASE_PENCIL_OT_set_corner_type";
-  ot->description = "Set the selected strokes corners";
+  ot->description = "Set the corner type of the selected points";
 
   /* Callbacks. */
   ot->exec = grease_pencil_set_corner_type_exec;
@@ -4819,7 +4820,7 @@ static void GREASE_PENCIL_OT_set_corner_type(wmOperatorType *ot)
                                     0.0f,
                                     M_PI,
                                     "Miter Cut Angle",
-                                    "All corners sharper than the Miter angle will be cut",
+                                    "All corners sharper than the Miter angle will be cut flat",
                                     0.0f,
                                     M_PI);
   RNA_def_property_subtype(ot->prop, PROP_ANGLE);
