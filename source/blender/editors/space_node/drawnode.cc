@@ -1322,7 +1322,7 @@ static void std_node_socket_draw(
           if (default_value->curve_mapping) {
             uiLayout &col = layout->column(false);
             uiTemplateCurveMapping(
-                &col, ptr, "curve_mapping", 0, false, false, false, false, text);
+                &col, ptr, "curve_mapping", 0, false, false, false, false, text, true);
           }
           else {
             draw_node_socket_without_value(layout, sock, text);
@@ -1333,7 +1333,7 @@ static void std_node_socket_draw(
           if (default_value->curve_mapping) {
             uiLayout &col = layout->column(false);
             uiTemplateCurveMapping(
-                &col, ptr, "curve_mapping", 'v', false, false, false, false, text);
+                &col, ptr, "curve_mapping", 'v', false, false, false, false, text, true);
           }
           else {
             draw_node_socket_without_value(layout, sock, text);
@@ -1344,7 +1344,7 @@ static void std_node_socket_draw(
           if (default_value->curve_mapping) {
             uiLayout &col = layout->column(false);
             uiTemplateCurveMapping(
-                &col, ptr, "curve_mapping", 'c', false, false, false, false, text);
+                &col, ptr, "curve_mapping", 'c', false, false, false, false, text, true);
           }
           else {
             draw_node_socket_without_value(layout, sock, text);

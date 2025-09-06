@@ -44,6 +44,7 @@ set(SRC
   interface_panel.cc
   interface_query.cc
   regions/interface_region_color_picker.cc
+  regions/interface_region_curve_mapping.cc
   regions/interface_region_hud.cc
   regions/interface_region_menu_pie.cc
   regions/interface_region_menu_popup.cc

@@ -2442,7 +2442,8 @@ void uiTemplateCurveMapping(uiLayout *layout,
                             bool brush,
                             bool neg_slope,
                             bool tone,
-                            blender::StringRef label = "");
+                            blender::StringRef label = "",
+                            bool with_popup = false);
 /**
  * Template for a path creation widget intended for custom bevel profiles.
  * This section is quite similar to #uiTemplateCurveMapping, but with reduced complexity.

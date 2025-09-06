@@ -4480,6 +4480,11 @@ static void ui_block_open_begin(bContext *C, uiBut *but, uiHandleButtonData *dat
       }
       arg = but;
       break;
+    case ButType::Curve: {
+      handlefunc = ui_block_func_CURVE_MAPPING;
+      arg = but;
+      break;
+    }
 
       /* quiet warnings for unhandled types */
     default:
@@ -7631,12 +7636,8 @@ static int ui_do_but_CURVE(
   ui_window_to_block(data->region, block, &mx, &my);
 
   if (but_cumap->is_preview) {
-    if (data->state == BUTTON_STATE_HIGHLIGHT && event->type == LEFTMOUSE &&
-        event->val == KM_PRESS)
-    {
-      CurveMapping *cumap = (CurveMapping *)but->poin;
-      const bool is_collapsed = cumap->flag & CUMA_COLLAPSED;
-      SET_FLAG_FROM_TEST(cumap->flag, !is_collapsed, CUMA_COLLAPSED);
+    if (ELEM(event->type, LEFTMOUSE, EVT_PADENTER, EVT_RETKEY) && event->val == KM_PRESS) {
+      button_activate_state(C, but, BUTTON_STATE_MENU_OPEN);
       ED_region_tag_redraw(CTX_wm_region(C));
       return WM_UI_HANDLER_BREAK;
     }

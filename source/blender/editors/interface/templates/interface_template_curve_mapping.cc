@@ -331,7 +331,10 @@ static void curvemap_buttons_layout(uiLayout *layout,
                                     bool neg_slope,
                                     bool tone,
                                     const RNAUpdateCb &cb,
-                                    const blender::StringRef label)
+                                    const blender::StringRef label,
+                                    const bool with_popup,
+                                    PointerRNA *owner_ptr,
+                                    PropertyRNA *owner_prop)
 {
   CurveMapping *cumap = static_cast<CurveMapping *>(ptr->data);
   CurveMap *cm = &cumap->cm[cumap->cur];
@@ -355,29 +358,15 @@ static void curvemap_buttons_layout(uiLayout *layout,
     }
 
     const int width = std::max<int>(layout->width(), UI_UNIT_X);
-    if (cumap->flag & CUMA_COLLAPSED) {
+    if (with_popup) {
       uiButCurveMapping *curve_but = static_cast<uiButCurveMapping *>(
           uiDefBut(block, ButType::Curve, 0, "", 0, 0, width, UI_UNIT_Y, cumap, 0.0f, 1.0f, ""));
       curve_but->gradient_type = bg;
       curve_but->is_preview = true;
+      curve_but->rnapoin = *owner_ptr;
+      curve_but->rnaprop = owner_prop;
       return;
     }
-    uiBut *but = uiDefIconBut(block,
-                              ButType::But,
-                              0,
-                              ICON_THREE_DOTS_HORIZONTAL,
-                              0,
-                              0,
-                              width,
-                              UI_UNIT_Y,
-                              nullptr,
-                              0.0f,
-                              0.0f,
-                              "");
-    UI_but_func_set(but, [cumap](bContext &C) {
-      cumap->flag |= CUMA_COLLAPSED;
-      ED_region_tag_redraw(CTX_wm_region(&C));
-    });
   }
 
   /* curve chooser */
@@ -797,7 +786,8 @@ void uiTemplateCurveMapping(uiLayout *layout,
                             bool brush,
                             bool neg_slope,
                             bool tone,
-                            const blender::StringRef label)
+                            const blender::StringRef label,
+                            const bool with_popup)
 {
   PropertyRNA *prop = RNA_struct_find_property(ptr, propname.c_str());
   uiBlock *block = layout->block();
@@ -822,8 +812,18 @@ void uiTemplateCurveMapping(uiLayout *layout,
   ID *id = cptr.owner_id;
   UI_block_lock_set(block, (id && !ID_IS_EDITABLE(id)), ERROR_LIBDATA_MESSAGE);
 
-  curvemap_buttons_layout(
-      layout, &cptr, type, levels, brush, neg_slope, tone, RNAUpdateCb{*ptr, prop}, label);
+  curvemap_buttons_layout(layout,
+                          &cptr,
+                          type,
+                          levels,
+                          brush,
+                          neg_slope,
+                          tone,
+                          RNAUpdateCb{*ptr, prop},
+                          label,
+                          with_popup,
+                          ptr,
+                          prop);
 
   UI_block_lock_clear(block);
 }

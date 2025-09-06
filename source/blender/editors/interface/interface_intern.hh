@@ -1024,6 +1024,10 @@ void ui_perceptual_to_scene_linear_space(uiBut *but, float rgb[3]);
 uiBlock *ui_block_func_COLOR(bContext *C, uiPopupBlockHandle *handle, void *arg_but);
 ColorPicker *ui_block_colorpicker_create(uiBlock *block);
 
+/* `interface_region_curve_mapping.cc` */
+
+uiBlock *ui_block_func_CURVE_MAPPING(bContext *C, uiPopupBlockHandle *handle, void *arg_but);
+
 /* `interface_region_search.cc` */
 
 /**
