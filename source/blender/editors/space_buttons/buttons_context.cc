@@ -547,8 +547,7 @@ static bool buttons_context_linestyle_pinnable(const bContext *C, ViewLayer *vie
 }
 #endif
 
-static eSpaceButtons_Context context_from_path(const bContext *C,
-                                               ButsContextPath *path)
+static eSpaceButtons_Context context_from_path(const bContext *C, ButsContextPath *path)
 {
   SpaceProperties *sbuts = CTX_wm_space_properties(C);
   wmWindow *window = CTX_wm_window(C);
@@ -572,7 +571,8 @@ static eSpaceButtons_Context context_from_path(const bContext *C,
     return BCONTEXT_MATERIAL;
   }
   else if (buttons_context_path_texture(
-      C, path, static_cast<ButsContextTexture *>(sbuts->texuser))) {
+               C, path, static_cast<ButsContextTexture *>(sbuts->texuser)))
+  {
     return BCONTEXT_TEXTURE;
   }
   else if (buttons_context_path_particle(path)) {
@@ -1283,9 +1283,9 @@ static void buttons_panel_context_draw(const bContext *C, Panel *panel)
     char namebuf[128];
     char *name = RNA_struct_name_get_alloc(ptr, namebuf, sizeof(namebuf), nullptr);
     if (name) {
-      ButsContextPath tmppath {
-        .ptr = *ptr,
-        .len = 1,
+      ButsContextPath tmppath{
+          .ptr = *ptr,
+          .len = 1,
       };
       eSpaceButtons_Context context = context_from_path(C, &tmppath);
       if (context != BCONTEXT_TOT) {
