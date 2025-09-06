@@ -1065,7 +1065,7 @@ void scatter_attributes(const AttributeAccessor src_attributes,
 
     attribute_math::convert_to_static_type(dst.span.type(), [&](auto dummy) {
       using T = decltype(dummy);
-      фrray_utils::scatter<T>(src.varray.typed<T>(), selection, dst.span.typed<T>());
+      array_utils::scatter<T>(src.varray.typed<T>(), selection, dst.span.typed<T>());
     });
 
     dst.finish();
@@ -1192,6 +1192,13 @@ void fill_attribute_range_default(MutableAttributeAccessor attributes,
                                   const AttributeFilter &attribute_filter,
                                   const IndexRange range)
 {
+  /* While it is valid to call this function for any valid range which can be placed in target
+   * domain, it is computationally costly to perform this loop. This check is COW elision and not
+   * just loop skip. */
+  if (range.is_empty()) {
+    return;
+  }
+
   attributes.foreach_attribute([&](const AttributeIter &iter) {
     if (iter.domain != domain) {
       return;
