@@ -49,7 +49,6 @@
 #include "ED_screen.hh"
 #include "ED_space_api.hh"
 
-#include "NOD_socket_declarations.hh"
 #include "UI_view2d.hh"
 
 #include "DEG_depsgraph.hh"

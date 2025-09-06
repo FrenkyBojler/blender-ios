@@ -3060,6 +3060,7 @@ void blo_do_versions_500(FileData *fd, Library * /*lib*/, Main *bmain)
     bke::mesh_freestyle_marks_to_generic(*mesh);
   }
 
+  /* TODO: Move to subversion bump. */
   FOREACH_NODETREE_BEGIN (bmain, tree, id) {
     LISTBASE_FOREACH (bNode *, node, &tree->nodes) {
       LISTBASE_FOREACH (bNodeSocket *, socket, &node->inputs) {

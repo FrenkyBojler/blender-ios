@@ -866,7 +866,6 @@ if(WITH_BLENDER)
       texture
       texture_data
       three_dots
-      three_dots_horizontal
       time
       tool_settings
       topbar
