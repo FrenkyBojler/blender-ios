@@ -548,25 +548,47 @@ static bool buttons_context_linestyle_pinnable(const bContext *C, ViewLayer *vie
 #endif
 
 static eSpaceButtons_Context context_from_path(const bContext *C,
-                                               ButsContextPath *path,
-                                               PointerRNA *ptr)
+                                               ButsContextPath *path)
 {
-  wmWindow *window = CTX_wm_window(C);
   SpaceProperties *sbuts = CTX_wm_space_properties(C);
-  Scene *scene = WM_window_get_active_scene(window);
-  ViewLayer *view_layer = WM_window_get_active_view_layer(window);
+  wmWindow *window = CTX_wm_window(C);
 
   if (buttons_context_path_scene(path)) {
     return BCONTEXT_SCENE;
   }
-  else if (buttons_context_path_collection(C, path, window)) {
-    return BCONTEXT_COLLECTION;
+  else if (buttons_context_path_view_layer(path, window)) {
+    return BCONTEXT_VIEW_LAYER;
+  }
+  else if (buttons_context_path_world(path)) {
+    return BCONTEXT_WORLD;
   }
   else if (buttons_context_path_object(path)) {
     return BCONTEXT_OBJECT;
   }
   else if (buttons_context_path_data(path, -1)) {
     return BCONTEXT_DATA;
+  }
+  else if (buttons_context_path_material(path)) {
+    return BCONTEXT_MATERIAL;
+  }
+  else if (buttons_context_path_texture(
+      C, path, static_cast<ButsContextTexture *>(sbuts->texuser))) {
+    return BCONTEXT_TEXTURE;
+  }
+  else if (buttons_context_path_particle(path)) {
+    return BCONTEXT_PARTICLE;
+  }
+  else if (buttons_context_path_bone(path)) {
+    return BCONTEXT_BONE;
+  }
+  else if (buttons_context_path_pose_bone(path)) {
+    return BCONTEXT_BONE_CONSTRAINT;
+  }
+  else if (buttons_context_path_shaderfx(path)) {
+    return BCONTEXT_SHADERFX;
+  }
+  else if (buttons_context_path_collection(C, path, window)) {
+    return BCONTEXT_COLLECTION;
   }
 
   return BCONTEXT_TOT;
@@ -1261,11 +1283,16 @@ static void buttons_panel_context_draw(const bContext *C, Panel *panel)
     char namebuf[128];
     char *name = RNA_struct_name_get_alloc(ptr, namebuf, sizeof(namebuf), nullptr);
     if (name) {
-      eSpaceButtons_Context context = context_from_path(C, path, ptr);
+      ButsContextPath tmppath {
+        .ptr = *ptr,
+        .len = 1,
+      };
+      eSpaceButtons_Context context = context_from_path(C, &tmppath);
       if (context != BCONTEXT_TOT) {
         row->emboss_set(blender::ui::EmbossType::None);
         row->button(name, icon, [sbuts, ptr, context](const bContext &C) {
           ED_buttons_set_context(&C, sbuts, ptr, context);
+          WM_event_add_notifier(&C, NC_SPACE | ND_SPACE_PROPERTIES, nullptr);
         });
       }
       else {
