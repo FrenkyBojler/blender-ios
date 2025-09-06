@@ -647,7 +647,7 @@ static void generate_stroke_perimeter(const Span<float3> all_positions,
     const float3 pt_b = positions[b];
     const float3 pt_c = positions[c];
     const float radius = std::max(all_radii[point] + outline_offset, 0.0f);
-    const float miter_angle = miter_angles[b];
+    const float miter_angle = miter_angles[point];
     generate_corner(pt_a,
                     pt_b,
                     pt_c,
