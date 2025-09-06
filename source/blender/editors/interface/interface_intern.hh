@@ -462,6 +462,9 @@ struct uiButHSVCube : public uiBut {
 /** Derived struct for #ButType::ColorBand. */
 struct uiButColorBand : public uiBut {
   ColorBand *edit_coba = nullptr;
+  bool is_preview = false;
+
+  bool expand;
 };
 
 /** Derived struct for #ButType::CurveProfile. */
@@ -1033,6 +1036,10 @@ ColorPicker *ui_block_colorpicker_create(uiBlock *block);
 /* `interface_region_curve_mapping.cc` */
 
 uiBlock *ui_block_func_CURVE_MAPPING(bContext *C, uiPopupBlockHandle *handle, void *arg_but);
+
+/* `interface_region_color_ramp.cc` */
+
+uiBlock *ui_block_func_COLOR_RAMP(bContext *C, uiPopupBlockHandle *handle, void *arg_but);
 
 /* `interface_region_search.cc` */
 

@@ -1354,7 +1354,7 @@ static void std_node_socket_draw(
         case CLOSURE_SOCKET_VALUE_TYPE_COLOR_RAMP: {
           if (default_value->color_ramp) {
             uiLayout &col = layout->column(false);
-            uiTemplateColorRamp(&col, ptr, "color_ramp", false);
+            uiTemplateColorRamp(&col, ptr, "color_ramp", false, text, true);
           }
           else {
             draw_node_socket_without_value(layout, sock, text);

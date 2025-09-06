@@ -4485,6 +4485,11 @@ static void ui_block_open_begin(bContext *C, uiBut *but, uiHandleButtonData *dat
       arg = but;
       break;
     }
+    case ButType::ColorBand: {
+      handlefunc = ui_block_func_COLOR_RAMP;
+      arg = but;
+      break;
+    }
 
       /* quiet warnings for unhandled types */
     default:
@@ -7434,11 +7439,21 @@ static bool ui_numedit_but_COLORBAND(uiBut *but, uiHandleButtonData *data, int m
 static int ui_do_but_COLORBAND(
     bContext *C, uiBlock *block, uiBut *but, uiHandleButtonData *data, const wmEvent *event)
 {
+  uiButColorBand *but_colorband = static_cast<uiButColorBand *>(but);
+
   int mx = event->xy[0];
   int my = event->xy[1];
   ui_window_to_block(data->region, block, &mx, &my);
 
   if (data->state == BUTTON_STATE_HIGHLIGHT) {
+    if (but_colorband->is_preview) {
+      if (ELEM(event->type, LEFTMOUSE, EVT_PADENTER, EVT_RETKEY) && event->val == KM_PRESS) {
+        button_activate_state(C, but, BUTTON_STATE_MENU_OPEN);
+        ED_region_tag_redraw(CTX_wm_region(C));
+        return WM_UI_HANDLER_BREAK;
+      }
+      return WM_UI_HANDLER_CONTINUE;
+    }
     if (event->type == LEFTMOUSE && event->val == KM_PRESS) {
       ColorBand *coba = (ColorBand *)but->poin;
 
@@ -7635,16 +7650,15 @@ static int ui_do_but_CURVE(
   int my = event->xy[1];
   ui_window_to_block(data->region, block, &mx, &my);
 
-  if (but_cumap->is_preview) {
-    if (ELEM(event->type, LEFTMOUSE, EVT_PADENTER, EVT_RETKEY) && event->val == KM_PRESS) {
-      button_activate_state(C, but, BUTTON_STATE_MENU_OPEN);
-      ED_region_tag_redraw(CTX_wm_region(C));
-      return WM_UI_HANDLER_BREAK;
-    }
-    return WM_UI_HANDLER_CONTINUE;
-  }
-
   if (data->state == BUTTON_STATE_HIGHLIGHT) {
+    if (but_cumap->is_preview) {
+      if (ELEM(event->type, LEFTMOUSE, EVT_PADENTER, EVT_RETKEY) && event->val == KM_PRESS) {
+        button_activate_state(C, but, BUTTON_STATE_MENU_OPEN);
+        ED_region_tag_redraw(CTX_wm_region(C));
+        return WM_UI_HANDLER_BREAK;
+      }
+      return WM_UI_HANDLER_CONTINUE;
+    }
     if (event->type == LEFTMOUSE && event->val == KM_PRESS) {
       CurveMapping *cumap = (CurveMapping *)but->poin;
       CurveMap *cuma = cumap->cm + cumap->cur;

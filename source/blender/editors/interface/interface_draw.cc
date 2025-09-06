@@ -1468,23 +1468,25 @@ void ui_draw_but_COLORBAND(uiBut *but, const uiWidgetColors *wcol, const rcti *r
 
   immUnbindProgram();
 
-  /* New format */
-  format = immVertexFormat();
-  pos_id = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
+  if (!but_coba->is_preview) {
+    /* New format */
+    format = immVertexFormat();
+    pos_id = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
 
-  /* layer: draw handles */
-  for (int a = 0; a < coba->tot; a++, cbd++) {
-    if (a != coba->cur) {
-      const float pos = x1 + cbd->pos * (sizex - 1) + 1;
-      ui_draw_colorband_handle(pos_id, rect, pos, &cbd->r, display, false);
+    /* layer: draw handles */
+    for (int a = 0; a < coba->tot; a++, cbd++) {
+      if (a != coba->cur) {
+        const float pos = x1 + cbd->pos * (sizex - 1) + 1;
+        ui_draw_colorband_handle(pos_id, rect, pos, &cbd->r, display, false);
+      }
     }
-  }
 
-  /* layer: active handle */
-  if (coba->tot != 0) {
-    cbd = &coba->data[coba->cur];
-    const float pos = x1 + cbd->pos * (sizex - 1) + 1;
-    ui_draw_colorband_handle(pos_id, rect, pos, &cbd->r, display, true);
+    /* layer: active handle */
+    if (coba->tot != 0) {
+      cbd = &coba->data[coba->cur];
+      const float pos = x1 + cbd->pos * (sizex - 1) + 1;
+      ui_draw_colorband_handle(pos_id, rect, pos, &cbd->r, display, true);
+    }
   }
 }
 

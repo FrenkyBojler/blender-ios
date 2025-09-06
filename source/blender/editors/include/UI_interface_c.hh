@@ -2417,7 +2417,9 @@ void uiTemplatePreview(uiLayout *layout,
 void uiTemplateColorRamp(uiLayout *layout,
                          PointerRNA *ptr,
                          blender::StringRefNull propname,
-                         bool expand);
+                         bool expand,
+                         blender::StringRef label = "",
+                         bool with_popup = false);
 /**
  * \param icon_scale: Scale of the icon, 1x == button height.
  */

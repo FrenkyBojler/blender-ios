@@ -211,8 +211,25 @@ static void colorband_buttons_layout(uiLayout *layout,
                                      ColorBand *coba,
                                      const rctf *butr,
                                      const RNAUpdateCb &cb,
-                                     int expand)
+                                     int expand,
+                                     const blender::StringRef label,
+                                     const bool with_popup)
 {
+  if (with_popup) {
+    uiLayout &row = layout->row(false);
+    if (!label.is_empty()) {
+      row.label(label, ICON_NONE);
+    }
+    const int width = std::max<int>(layout->width(), UI_UNIT_X);
+    uiButColorBand *colorband_but = static_cast<uiButColorBand *>(
+        uiDefBut(block, ButType::ColorBand, 0, "", 0, 0, width, UI_UNIT_Y, coba, 0, 0, ""));
+    colorband_but->rnapoin = cb.ptr;
+    colorband_but->rnaprop = cb.prop;
+    colorband_but->is_preview = true;
+    colorband_but->expand = expand;
+    return;
+  }
+
   uiBut *bt;
   const float unit = BLI_rctf_size_x(butr) / 14.0f;
   const float xs = butr->xmin;
@@ -224,6 +241,7 @@ static void colorband_buttons_layout(uiLayout *layout,
 
   UI_block_emboss_set(block, blender::ui::EmbossType::None);
   UI_block_align_begin(block);
+
   uiLayout *row = &split->row(false);
 
   bt = uiDefIconTextBut(block,
@@ -382,7 +400,9 @@ static void colorband_buttons_layout(uiLayout *layout,
 void uiTemplateColorRamp(uiLayout *layout,
                          PointerRNA *ptr,
                          const StringRefNull propname,
-                         bool expand)
+                         bool expand,
+                         const blender::StringRef label,
+                         const bool with_popup)
 {
   PropertyRNA *prop = RNA_struct_find_property(ptr, propname.c_str());
 
@@ -406,8 +426,14 @@ void uiTemplateColorRamp(uiLayout *layout,
   ID *id = cptr.owner_id;
   UI_block_lock_set(block, (id && !ID_IS_EDITABLE(id)), ERROR_LIBDATA_MESSAGE);
 
-  colorband_buttons_layout(
-      layout, block, static_cast<ColorBand *>(cptr.data), &rect, RNAUpdateCb{*ptr, prop}, expand);
+  colorband_buttons_layout(layout,
+                           block,
+                           static_cast<ColorBand *>(cptr.data),
+                           &rect,
+                           RNAUpdateCb{*ptr, prop},
+                           expand,
+                           label,
+                           with_popup);
 
   UI_block_lock_clear(block);
 }

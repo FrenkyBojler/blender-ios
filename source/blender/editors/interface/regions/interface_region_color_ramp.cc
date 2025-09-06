@@ -18,9 +18,9 @@
 
 #include "interface_intern.hh"
 
-uiBlock *ui_block_func_CURVE_MAPPING(bContext *C, uiPopupBlockHandle *handle, void *arg_but)
+uiBlock *ui_block_func_COLOR_RAMP(bContext *C, uiPopupBlockHandle *handle, void *arg_but)
 {
-  uiButCurveMapping *but_cumap = static_cast<uiButCurveMapping *>(arg_but);
+  uiButColorBand *but_ramp = static_cast<uiButColorBand *>(arg_but);
 
   uiBlock *block = UI_block_begin(C, handle->region, __func__, blender::ui::EmbossType::Emboss);
   block->direction = UI_DIR_UP;
@@ -39,14 +39,12 @@ uiBlock *ui_block_func_CURVE_MAPPING(bContext *C, uiPopupBlockHandle *handle, vo
                                                0,
                                                style);
 
-  uiTemplateCurveMapping(&layout,
-                         &but_cumap->rnapoin,
-                         RNA_property_identifier(but_cumap->rnaprop),
-                         but_cumap->type,
-                         but_cumap->levels,
-                         but_cumap->brush,
-                         but_cumap->neg_slope,
-                         but_cumap->tone);
+  uiTemplateColorRamp(&layout,
+                      &but_ramp->rnapoin,
+                      RNA_property_identifier(but_ramp->rnaprop),
+                      but_ramp->expand,
+                      "",
+                      false);
 
   blender::ui::block_layout_resolve(block);
 
