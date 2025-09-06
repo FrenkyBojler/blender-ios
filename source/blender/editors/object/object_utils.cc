@@ -66,9 +66,7 @@ bool calc_active_transform_for_editmode(Object *obedit,
                                         float3x3 *r_orientation)
 {
   // Center will be transformed to world at the end of function
-  if (!r_center && !r_orientation) {
-    return false;
-  }
+  BLI_assert(r_center || r_orientation);
   bool result = false;
   switch (obedit->type) {
     case OB_MESH: {
@@ -103,7 +101,7 @@ bool calc_active_transform_for_editmode(Object *obedit,
           result = true;
         }
         if (r_orientation) {
-          *r_orientation = float3x3(obedit->object_to_world() * (float4x4)ebo->disp_mat);
+          mul_m3_m4m4(r_orientation->ptr(), obedit->object_to_world().ptr(), ebo->disp_mat);
           orthogonalize_m3_stable(r_orientation->ptr(), 1, true);
           result = true;
         }
@@ -119,7 +117,7 @@ bool calc_active_transform_for_editmode(Object *obedit,
         result = true;
       }
       if (r_orientation && ED_curve_active_rot(cu, r_orientation->ptr())) {
-        *r_orientation = (float3x3)obedit->object_to_world() * *r_orientation;
+        mul_m3_m4m3(r_orientation->ptr(), obedit->object_to_world().ptr(), r_orientation->ptr());
         orthogonalize_m3_stable(r_orientation->ptr(), 1, true);
         result = true;
       }
@@ -131,11 +129,11 @@ bool calc_active_transform_for_editmode(Object *obedit,
 
       if (ml_act && (!select_only || (ml_act->flag & SELECT))) {
         if (r_center) {
-          *r_center = (float3)&ml_act->x;
+          copy_v3_v3(*r_center, &ml_act->x);
           result = true;
         }
         if (r_orientation) {
-          *r_orientation = (float3x3)obedit->object_to_world();
+          copy_m3_m4(r_orientation->ptr(), obedit->object_to_world().ptr());
           orthogonalize_m3_stable(r_orientation->ptr(), 2, true);
           result = true;
         }
@@ -151,7 +149,7 @@ bool calc_active_transform_for_editmode(Object *obedit,
           result = true;
         }
         if (r_orientation) {
-          *r_orientation = (float3x3)obedit->object_to_world();
+          copy_m3_m4(r_orientation->ptr(), obedit->object_to_world().ptr());
           orthogonalize_m3_stable(r_orientation->ptr(), 2, true);
           result = true;
         }
@@ -160,7 +158,7 @@ bool calc_active_transform_for_editmode(Object *obedit,
     }
     case OB_GREASE_PENCIL: {
       if (r_center) {
-        *r_center = (float3)obedit->loc;
+        copy_v3_v3(*r_center, obedit->loc);
         mul_m4_v3(obedit->world_to_object().ptr(), *r_center);
       }
       if (r_orientation) {
@@ -181,6 +179,7 @@ bool calc_active_transform_for_posemode(Object *ob,
                                         float3 *r_center,
                                         float3x3 *r_orientation)
 {
+  BLI_assert(r_center || r_orientation);
   bool result = false;
   bPoseChannel *pchan = BKE_pose_channel_active_if_bonecoll_visible(ob);
   if (pchan && (!select_only || (pchan->bone->flag & BONE_SELECTED))) {
@@ -190,7 +189,7 @@ bool calc_active_transform_for_posemode(Object *ob,
     }
     if (r_orientation) {
       copy_m3_m4(r_orientation->ptr(), pchan->pose_mat);
-      *r_orientation = (float3x3)ob->object_to_world() * *r_orientation;
+      mul_m3_m4m3(r_orientation->ptr(), ob->object_to_world().ptr(), r_orientation->ptr());
       orthogonalize_m3_stable(r_orientation->ptr(), 1, true);
       result = true;
     }
@@ -203,6 +202,7 @@ bool calc_active_transform(Object *ob,
                            float3 *r_center,
                            float3x3 *r_orientation)
 {
+  BLI_assert(r_center || r_orientation);
   if (ob->mode & OB_MODE_EDIT) {
     return calc_active_transform_for_editmode(ob, select_only, r_center, r_orientation);
   }
@@ -212,11 +212,11 @@ bool calc_active_transform(Object *ob,
   if (!select_only || (ob->base_flag & BASE_SELECTED)) {
     bool result = false;
     if (r_center) {
-      *r_center = ob->object_to_world().location();
+      copy_v3_v3(*r_center, ob->object_to_world().location());
       result = true;
     }
     if (r_orientation) {
-      *r_orientation = (float3x3)ob->object_to_world();
+      copy_m3_m4(r_orientation->ptr(), ob->object_to_world().ptr());
       orthogonalize_m3_stable(r_orientation->ptr(), 2, true);
       result = true;
     }

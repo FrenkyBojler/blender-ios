@@ -1053,15 +1053,15 @@ static wmOperatorStatus snap_curs_to_active_exec(bContext *C, wmOperator *op)
   const bool is_loc_on = RNA_boolean_get(op->ptr, "location");
   const bool is_rot_on = RNA_boolean_get(op->ptr, "rotation");
   bool is_snap_done = false;
-  blender::float3 *r_center = new blender::float3();
-  blender::float3x3 *r_orientation = new blender::float3x3();
-  if (snap_calc_active_transform(C, false, r_center, r_orientation)) {
+  blender::float3 r_center;
+  blender::float3x3 r_orientation;
+  if (snap_calc_active_transform(C, false, &r_center, &r_orientation)) {
     if (is_loc_on) {
-      copy_v3_v3(scene->cursor.location, *r_center);
+      copy_v3_v3(scene->cursor.location, r_center);
       is_snap_done = true;
     }
     if (is_rot_on) {
-      scene->cursor.set_matrix(*r_orientation, false);
+      scene->cursor.set_matrix(r_orientation, false);
       is_snap_done = true;
     }
   }
