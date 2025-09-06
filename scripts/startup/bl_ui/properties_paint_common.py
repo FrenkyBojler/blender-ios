@@ -564,7 +564,7 @@ class StrokePanel(BrushPanel):
             col.row().prop(brush, "jitter_unit", expand=True)
             # Pen pressure mapping curve for Jitter.
             if brush.use_pressure_jitter and self.is_popover is False:
-                col.template_curve_mapping(brush, "curve_jitter", brush=True, use_negative_slope=True)
+                col.template_curve_mapping(brush, "curve_jitter", brush=True)
 
         col.separator()
         UnifiedPaintPanel.prop_unified(
@@ -646,7 +646,7 @@ class FalloffPanel(BrushPanel):
             col.prop(brush, "curve_preset", text="")
 
         if brush.curve_preset == 'CUSTOM':
-            layout.template_curve_mapping(brush, "curve", brush=True)
+            layout.template_curve_mapping(brush, "curve", brush=True, use_negative_slope=True)
 
             col = layout.column(align=True)
             row = col.row(align=True)
@@ -1161,7 +1161,7 @@ def brush_shared_settings(layout, context, brush, popover=False):
             )
         if mode in {'PAINT_TEXTURE', 'PAINT_2D', 'SCULPT', 'PAINT_VERTEX', 'PAINT_WEIGHT', 'SCULPT_CURVES'}:
             if brush.use_pressure_size:
-                layout.template_curve_mapping(brush, "curve_size", brush=True, use_negative_slope=True)
+                layout.template_curve_mapping(brush, "curve_size", brush=True)
         if size_mode:
             layout.row().prop(size_owner, "use_locked_size", expand=True)
             layout.separator()
@@ -1179,7 +1179,7 @@ def brush_shared_settings(layout, context, brush, popover=False):
         )
         if mode in {'PAINT_TEXTURE', 'PAINT_2D', 'SCULPT', 'PAINT_VERTEX', 'PAINT_WEIGHT', 'SCULPT_CURVES'}:
             if brush.use_pressure_strength:
-                layout.template_curve_mapping(brush, "curve_strength", brush=True, use_negative_slope=True)
+                layout.template_curve_mapping(brush, "curve_strength", brush=True)
         layout.separator()
 
     if direction:
@@ -1300,7 +1300,7 @@ def brush_settings_advanced(layout, context, settings, brush, popover=False):
             col.prop(brush, "use_automasking_custom_cavity_curve", text="Custom Curve")
 
             if brush.use_automasking_custom_cavity_curve:
-                col.template_curve_mapping(brush, "automasking_cavity_curve")
+                col.template_curve_mapping(brush, "automasking_cavity_curve", brush=True)
 
         layout.separator()
 
@@ -1669,7 +1669,7 @@ def brush_basic_grease_pencil_paint_settings(layout, context, brush, props, *, c
 
         if brush.use_pressure_size and not compact:
             col = layout.column()
-            col.template_curve_mapping(gp_settings, "curve_sensitivity", brush=True, use_negative_slope=True)
+            col.template_curve_mapping(gp_settings, "curve_sensitivity", brush=True)
 
         row = layout.row(align=True)
         row.prop(brush, "strength", slider=True, text="Strength")
@@ -1677,7 +1677,7 @@ def brush_basic_grease_pencil_paint_settings(layout, context, brush, props, *, c
 
         if brush.use_pressure_strength and not compact:
             col = layout.column()
-            col.template_curve_mapping(gp_settings, "curve_strength", brush=True, use_negative_slope=True)
+            col.template_curve_mapping(gp_settings, "curve_strength", brush=True)
 
     if props:
         layout.prop(props, "subdivision")
