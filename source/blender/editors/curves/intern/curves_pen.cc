@@ -1397,7 +1397,11 @@ static wmOperatorStatus curves_pen_invoke(bContext *C, wmOperator *op, const wmE
   op->customdata = ptd_pointer;
   CurvesPenToolOperation &ptd = *ptd_pointer;
 
-  return ptd.invoke(C, op, event);
+  const wmOperatorStatus result = ptd.invoke(C, op, event);
+  if (result != OPERATOR_RUNNING_MODAL) {
+    curves_pen_exit(C, op);
+  }
+  return result;
 }
 
 /* Modal handler: Events handling during interactive part. */
