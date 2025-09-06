@@ -118,7 +118,7 @@ float gpencil_stroke_segment_mask(
       dist *= dist;
     }
     else {
-      /* Continue the main line to get a shape corner. */
+      /* Continue the main line to get a sharp corner. */
       dist = dist_sq_1;
     }
   }
@@ -133,7 +133,7 @@ float gpencil_stroke_segment_mask(
       dist *= dist;
     }
     else {
-      /* Continue the main line to get a shape corner. */
+      /* Continue the main line to get a sharp corner. */
       dist = dist_sq_1;
     }
   }
