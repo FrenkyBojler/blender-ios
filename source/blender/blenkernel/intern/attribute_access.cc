@@ -1065,7 +1065,7 @@ void scatter_attributes(const AttributeAccessor src_attributes,
 
     attribute_math::convert_to_static_type(dst.span.type(), [&](auto dummy) {
       using T = decltype(dummy);
-      array_utils::scatter<T>(src.varray.typed<T>(), selection, dst.span.typed<T>());
+      фrray_utils::scatter<T>(src.varray.typed<T>(), selection, dst.span.typed<T>());
     });
 
     dst.finish();
