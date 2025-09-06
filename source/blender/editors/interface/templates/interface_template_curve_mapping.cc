@@ -365,6 +365,11 @@ static void curvemap_buttons_layout(uiLayout *layout,
       curve_but->is_preview = true;
       curve_but->rnapoin = *owner_ptr;
       curve_but->rnaprop = owner_prop;
+      curve_but->type = labeltype;
+      curve_but->levels = levels;
+      curve_but->brush = brush;
+      curve_but->neg_slope = neg_slope;
+      curve_but->tone = tone;
       return;
     }
   }
