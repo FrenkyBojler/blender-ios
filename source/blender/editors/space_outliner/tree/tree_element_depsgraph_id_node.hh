@@ -32,9 +32,6 @@ class TreeElementDepsgraphIDNode final : public AbstractTreeElement {
 
   std::optional<double> node_evaluation_time() const;
   std::optional<float> node_evaluation_percent() const;
-
-  private:
-    void expand_scene(const Scene *scene) const;
 };
 
 }  // namespace blender::ed::outliner

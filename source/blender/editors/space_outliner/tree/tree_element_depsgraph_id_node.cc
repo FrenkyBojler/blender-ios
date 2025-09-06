@@ -36,34 +36,24 @@ TreeElementDepsgraphIDNode::TreeElementDepsgraphIDNode(TreeElement &legacy_te,
   }
 }
 
-void TreeElementDepsgraphIDNode::expand_scene(const Scene *scene) const
-{
-  FOREACH_SCENE_OBJECT_BEGIN (const_cast<Scene *>(scene), ob) {
-    ID *ob_id = &ob->id;
-    DepsgraphIDNodeData data{depsgraph_, ob_id};
-    add_element(&legacy_te_.subtree, ob_id, &data, &legacy_te_, TSE_DEPSGRAPH_ID_NODE, 0);
-  }
-  FOREACH_SCENE_OBJECT_END;
-  outliner_make_object_parent_hierarchy(&legacy_te_.subtree);
-}
-
 void TreeElementDepsgraphIDNode::expand(SpaceOutliner & /*soops*/) const
 {
   if (!orig_id_) {
-    Scene *scene = DEG_get_input_scene(depsgraph_);
-    DepsgraphIDNodeData data{depsgraph_, &scene->id};
-    add_element(&legacy_te_.subtree, &scene->id, &data, &legacy_te_, TSE_DEPSGRAPH_ID_NODE, 0);
+    DEG_foreach_ID(depsgraph_, [&](ID *orig_id){
+      DepsgraphIDNodeData data{depsgraph_, orig_id};
+      add_element(&legacy_te_.subtree, orig_id, &data, &legacy_te_, TSE_DEPSGRAPH_ID_NODE, 0);
+    });
     return;
   }
 
   switch (GS(orig_id_->name)) {
     case ID_SCE: {
-      const Scene *scene = reinterpret_cast<const Scene *>(orig_id_);
-      this->expand_scene(scene);
+      // const Scene *scene = reinterpret_cast<const Scene *>(orig_id_);
+      // this->expand_scene(scene);
       break;
     }
     case ID_OB: {
-      const_cast<ID *>(orig_id_)->newid = (ID *)(&legacy_te_);
+      // const_cast<ID *>(orig_id_)->newid = (ID *)(&legacy_te_);
       break;
     }
     default:
