@@ -50,7 +50,7 @@
 
 using blender::StringRef;
 using blender::StringRefNull;
-struct uiButtonItem ;
+struct uiButtonItem;
 
 /* Show an icon button after each RNA button to use to quickly set keyframes,
  * this is a way to display animation/driven/override status, see #54951. */
@@ -5564,8 +5564,7 @@ void ui_layout_add_but(uiLayout *layout, uiBut *but)
   LayoutInternal::layout_add_but(layout, but);
 };
 
- uiButtonItem *LayoutInternal::ui_layout_find_button_item(const uiLayout *layout,
-                                                                const uiBut *but)
+uiButtonItem *LayoutInternal::ui_layout_find_button_item(const uiLayout *layout, const uiBut *but)
 {
   const blender::Vector<uiItem *> &child_list = layout->child_items_layout_ ?
                                                     layout->child_items_layout_->items() :
@@ -6203,11 +6202,11 @@ bool uiLayout::align() const
 {
   return align_;
 }
-[[nodiscard]] bool uiLayout::variable_size()const
+[[nodiscard]] bool uiLayout::variable_size() const
 {
   return variable_size_;
 }
-[[nodiscard]] blender::ui::EmbossType uiLayout::emboss_or_undefined()const
+[[nodiscard]] blender::ui::EmbossType uiLayout::emboss_or_undefined() const
 {
   return emboss_;
 }
