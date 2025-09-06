@@ -753,8 +753,7 @@ static std::optional<blender::Bounds<blender::float3>> collect_targets_and_bound
   View3D *v3d = CTX_wm_view3d(C);
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
 
-  float3 r_min(FLT_MAX);
-  float3 r_max(-FLT_MAX);
+  Bounds<float3> world_bounds;
   bool any = false;
 
   LISTBASE_FOREACH (Base *, base, &view_layer->object_bases) {
@@ -763,39 +762,35 @@ static std::optional<blender::Bounds<blender::float3>> collect_targets_and_bound
 
       Object *ob_eval = (Object *)DEG_get_evaluated_id(depsgraph, &base->object->id);
       if (ob_eval && DEG_object_transform_is_evaluated(*ob_eval)) {
-        if (std::optional<blender::Bounds<blender::float3>> bounds = BKE_object_boundbox_get(
-                ob_eval))
-        {
+        if (std::optional<Bounds<float3>> ob_bounds = BKE_object_boundbox_get(ob_eval)) {
           float object_to_world[4][4];
           BKE_object_to_mat4(ob_eval, object_to_world);
 
           /* Generate all 8 corners of the bounding box. */
-          std::array<float3, 8> corners = blender::bounds::corners(*bounds);
+          std::array<float3, 8> corners = bounds::corners(*ob_bounds);
 
           /* Transform each corner to world space and update bounds. */
           for (float3 &corner : corners) {
             mul_m4_v3(object_to_world, corner);
-            for (int axis = 0; axis < 3; axis++) {
-              r_min[axis] = min_ff(r_min[axis], corner[axis]);
-              r_max[axis] = max_ff(r_max[axis], corner[axis]);
-            }
+            world_bounds.min = math::min(world_bounds.min, corner);
+            world_bounds.max = math::max(world_bounds.max, corner);
           }
         }
         else {
           /* Fallback if no bounding box available. */
-          BKE_object_minmax(ob_eval, r_min, r_max);
+          BKE_object_minmax(ob_eval, world_bounds.min, world_bounds.max);
         }
       }
       else {
         /* Fallback to original object if evaluation fails or is incomplete. */
-        BKE_object_minmax(base->object, r_min, r_max);
+        BKE_object_minmax(base->object, world_bounds.min, world_bounds.max);
       }
       any = true;
     }
   }
 
   if (any) {
-    return blender::Bounds<float3>(r_min, r_max);
+    return world_bounds;
   }
   return std::nullopt;
 }
