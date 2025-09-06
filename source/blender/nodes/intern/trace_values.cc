@@ -44,12 +44,9 @@ static bool use_link_for_tracing(const bNodeLink &link)
   return true;
 }
 
-static bool is_non_empty_unlinked_closure_input(const nodes::SocketInContext &socket)
+static bool is_closure_input_with_signature(const nodes::SocketInContext &socket)
 {
   if (!socket->is_input()) {
-    return false;
-  }
-  if (socket->is_logically_linked()) {
     return false;
   }
   const auto *socket_decl = dynamic_cast<const decl::Closure *>(socket->runtime->declaration);
@@ -60,6 +57,14 @@ static bool is_non_empty_unlinked_closure_input(const nodes::SocketInContext &so
     return false;
   }
   return true;
+}
+
+static bool is_unlinked_closure_input_with_signature(const nodes::SocketInContext &socket)
+{
+  if (socket->is_logically_linked()) {
+    return false;
+  }
+  return is_closure_input_with_signature(socket);
 }
 
 static Vector<SocketInContext> find_origin_sockets_through_contexts(
@@ -633,16 +638,24 @@ Vector<ClosureSignature> gather_linked_target_closure_signatures(
     const bNodeSocket &closure_socket,
     bke::ComputeContextCache &compute_context_cache)
 {
+  Vector<ClosureSignature> signatures;
   const Vector<SocketInContext> target_sockets = find_target_sockets_through_contexts(
       {closure_socket_context, &closure_socket},
       compute_context_cache,
-      is_evaluate_closure_node_input,
+      [&](const SocketInContext &socket) {
+        if (is_evaluate_closure_node_input(socket)) {
+          signatures.append(ClosureSignature::from_evaluate_closure_node(socket->owner_node()));
+          return true;
+        }
+        if (is_closure_input_with_signature(socket)) {
+          signatures.append(*nodes::ClosureSignature::from_builtin(
+              dynamic_cast<const nodes::decl::Closure &>(*socket->runtime->declaration)
+                  .closure_type));
+          return true;
+        }
+        return false;
+      },
       true);
-  Vector<ClosureSignature> signatures;
-  for (const SocketInContext &target_socket : target_sockets) {
-    const NodeInContext &target_node = target_socket.owner_node();
-    signatures.append(ClosureSignature::from_evaluate_closure_node(*target_node.node));
-  }
   return signatures;
 }
 
@@ -660,7 +673,7 @@ Vector<ClosureSignature> gather_linked_origin_closure_signatures(
           signatures.append(ClosureSignature::from_closure_output_node(socket->owner_node()));
           return true;
         }
-        if (is_non_empty_unlinked_closure_input(socket)) {
+        if (is_unlinked_closure_input_with_signature(socket)) {
           signatures.append(*nodes::ClosureSignature::from_builtin(
               dynamic_cast<const nodes::decl::Closure &>(*socket->runtime->declaration)
                   .closure_type));
