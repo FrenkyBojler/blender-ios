@@ -118,9 +118,15 @@ typedef struct ThemeRegionsChannels {
   char _pad0[4];
 } ThemeRegionsChannels;
 
+typedef struct ThemeRegionsSidebars {
+  unsigned char back[4];
+  unsigned char tab_back[4];
+} ThemeRegionsSidebars;
+
 typedef struct ThemeRegions {
   ThemeRegionsAssetShelf asset_shelf;
   ThemeRegionsChannels channels;
+  ThemeRegionsSidebars sidebars;
 } ThemeRegions;
 
 typedef struct ThemeCommonAnim {
@@ -291,14 +297,9 @@ typedef struct ThemeSpace {
   unsigned char header_title[4];
   unsigned char header_text[4];
   unsigned char header_text_hi[4];
-
-  /* region tabs */
-  unsigned char tab_back[4];
   char _pad2[4];
 
   /* button/tool regions */
-  /** Region background. */
-  unsigned char button[4];
   unsigned char _pad3[4];
 
   unsigned char shade1[4];

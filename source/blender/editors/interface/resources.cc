@@ -181,7 +181,7 @@ const uchar *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
             cp = ts->header;
           }
           else if (g_theme_state.regionid == RGN_TYPE_NAV_BAR) {
-            cp = ts->tab_back;
+            cp = btheme->regions.sidebars.tab_back;
           }
           else if (g_theme_state.regionid == RGN_TYPE_ASSET_SHELF) {
             cp = btheme->regions.asset_shelf.back;
@@ -190,7 +190,7 @@ const uchar *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
             cp = btheme->regions.asset_shelf.header_back;
           }
           else {
-            cp = ts->button;
+            cp = btheme->regions.sidebars.back;
           }
 
           copy_v4_v4_uchar(back, cp);
@@ -287,10 +287,6 @@ const uchar *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
           cp = btheme->tui.panel_active;
           break;
 
-        case TH_BUTBACK:
-          cp = ts->button;
-          break;
-
         case TH_TAB_TEXT:
           cp = btheme->tui.wcol_tab.text;
           break;
@@ -311,7 +307,7 @@ const uchar *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
           break;
         case TH_TAB_BACK:
           /* Tab background is set per editor. */
-          cp = ts->tab_back;
+          cp = btheme->regions.sidebars.tab_back;
           break;
 
         case TH_SHADE1:

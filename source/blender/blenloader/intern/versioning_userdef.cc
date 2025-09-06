@@ -202,27 +202,6 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
     FROM_DEFAULT_V4_UCHAR(space_node.node_zone_closure);
   }
 
-  if (!USER_VERSION_ATLEAST(500, 5)) {
-    FROM_DEFAULT_V4_UCHAR(space_properties.tab_back);
-    FROM_DEFAULT_V4_UCHAR(space_view3d.tab_back);
-    FROM_DEFAULT_V4_UCHAR(space_file.tab_back);
-    FROM_DEFAULT_V4_UCHAR(space_graph.tab_back);
-    FROM_DEFAULT_V4_UCHAR(space_info.tab_back);
-    FROM_DEFAULT_V4_UCHAR(space_action.tab_back);
-    FROM_DEFAULT_V4_UCHAR(space_nla.tab_back);
-    FROM_DEFAULT_V4_UCHAR(space_sequencer.tab_back);
-    FROM_DEFAULT_V4_UCHAR(space_image.tab_back);
-    FROM_DEFAULT_V4_UCHAR(space_text.tab_back);
-    FROM_DEFAULT_V4_UCHAR(space_outliner.tab_back);
-    FROM_DEFAULT_V4_UCHAR(space_node.tab_back);
-    FROM_DEFAULT_V4_UCHAR(space_preferences.tab_back);
-    FROM_DEFAULT_V4_UCHAR(space_console.tab_back);
-    FROM_DEFAULT_V4_UCHAR(space_clip.tab_back);
-    FROM_DEFAULT_V4_UCHAR(space_topbar.tab_back);
-    FROM_DEFAULT_V4_UCHAR(space_statusbar.tab_back);
-    FROM_DEFAULT_V4_UCHAR(space_spreadsheet.tab_back);
-  }
-
   if (!USER_VERSION_ATLEAST(500, 6)) {
     /* Match the selected/unselected outline colors. */
     copy_v4_v4_uchar(btheme->tui.wcol_box.outline_sel, U_theme_default.tui.wcol_box.outline);
@@ -280,10 +259,6 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
     FROM_DEFAULT_V4_UCHAR(space_node.nodeclass_vector);
   }
 
-  if (!USER_VERSION_ATLEAST(500, 18)) {
-    FROM_DEFAULT_V4_UCHAR(space_preferences.button);
-  }
-
   if (!USER_VERSION_ATLEAST(500, 19)) {
     btheme->tui.menu_shadow_fac = U_theme_default.tui.menu_shadow_fac;
     btheme->tui.menu_shadow_width = U_theme_default.tui.menu_shadow_width;
@@ -292,11 +267,6 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
   if (!USER_VERSION_ATLEAST(500, 24)) {
     FROM_DEFAULT_V4_UCHAR(tui.panel_title);
     FROM_DEFAULT_V4_UCHAR(tui.panel_text);
-  }
-
-  if (!USER_VERSION_ATLEAST(500, 25)) {
-    FROM_DEFAULT_V4_UCHAR(space_properties.tab_back);
-    FROM_DEFAULT_V4_UCHAR(space_properties.button);
   }
 
   if (!USER_VERSION_ATLEAST(500, 29)) {
@@ -387,6 +357,8 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
     FROM_DEFAULT_V4_UCHAR(regions.channels.text_selected);
     FROM_DEFAULT_V4_UCHAR(regions.asset_shelf.back);
     FROM_DEFAULT_V4_UCHAR(regions.asset_shelf.header_back);
+    FROM_DEFAULT_V4_UCHAR(regions.sidebars.back);
+    FROM_DEFAULT_V4_UCHAR(regions.sidebars.tab_back);
   }
 
   /**
