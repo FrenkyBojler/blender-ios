@@ -14,7 +14,7 @@ from bpy.app.translations import (
 # NOTE: This is kept for compatibility's sake, as some scripts import node_add_menu.add_node_type
 def add_node_type(layout, node_type, *, label=None, poll=None, search_weight=0.0, translate=True):
     """Add a node type to a menu."""
-    return AddNodeMenu.node_operator(layout, node_type, label, poll, search_weight, translate)
+    return AddNodeMenu.node_operator(layout, node_type, label=label, poll=poll, search_weight=search_weight, translate=translate)
 
 
 def add_node_type_with_searchable_enum(context, layout, node_idname, property_name, search_weight=0.0):
@@ -33,7 +33,7 @@ def add_node_type_with_searchable_enum_socket(
 
 
 def add_node_type_with_outputs(context, layout, node_type, subnames, *, label=None, search_weight=0.0):
-    return AddNodeMenu.node_operator_with_outputs(context, layout, node_type, subnames, label, search_weight)
+    return AddNodeMenu.node_operator_with_outputs(context, layout, node_type, subnames, label=label, search_weight=search_weight)
 
 
 def add_color_mix_node(context, layout):
