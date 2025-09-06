@@ -764,36 +764,39 @@ static std::optional<blender::Bounds<blender::float3>> collect_targets_and_bound
   bool any = false;
 
   LISTBASE_FOREACH (Base *, base, &view_layer->object_bases) {
-    if (BASE_SELECTED_EDITABLE(v3d, base) && object_can_have_lattice_modifier(base->object)) {
-      r_targets.append(base->object);
+    if (!BASE_SELECTED_EDITABLE(v3d, base) || !object_can_have_lattice_modifier(base->object)) {
+      continue;
+    }
 
-      Object *ob_eval = (Object *)DEG_get_evaluated_id(depsgraph, &base->object->id);
-      if (ob_eval && DEG_object_transform_is_evaluated(*ob_eval)) {
-        if (std::optional<Bounds<float3>> ob_bounds = BKE_object_boundbox_get(ob_eval)) {
-          float object_to_world[4][4];
-          BKE_object_to_mat4(ob_eval, object_to_world);
+    r_targets.append(base->object);
 
-          /* Generate all 8 corners of the bounding box. */
-          std::array<float3, 8> corners = bounds::corners(*ob_bounds);
+    Object *ob_eval = (Object *)DEG_get_evaluated_id(depsgraph, &base->object->id);
+    if (ob_eval && DEG_object_transform_is_evaluated(*ob_eval)) {
+      if (std::optional<Bounds<float3>> ob_bounds = BKE_object_boundbox_get(ob_eval)) {
+        float object_to_world[4][4];
+        BKE_object_to_mat4(ob_eval, object_to_world);
 
-          /* Transform each corner to world space and update bounds. */
-          for (float3 &corner : corners) {
-            mul_m4_v3(object_to_world, corner);
-            world_bounds.min = math::min(world_bounds.min, corner);
-            world_bounds.max = math::max(world_bounds.max, corner);
-          }
-        }
-        else {
-          /* Fallback if no bounding box available. */
-          BKE_object_minmax(ob_eval, world_bounds.min, world_bounds.max);
+        /* Generate all 8 corners of the bounding box. */
+        std::array<float3, 8> corners = bounds::corners(*ob_bounds);
+
+        /* Transform each corner to world space and update bounds. */
+        for (float3 &corner : corners) {
+          mul_m4_v3(object_to_world, corner);
+          world_bounds.min = math::min(world_bounds.min, corner);
+          world_bounds.max = math::max(world_bounds.max, corner);
         }
       }
       else {
-        /* Fallback to original object if evaluation fails or is incomplete. */
-        BKE_object_minmax(base->object, world_bounds.min, world_bounds.max);
+        /* Fallback if no bounding box available. */
+        BKE_object_minmax(ob_eval, world_bounds.min, world_bounds.max);
       }
-      any = true;
     }
+    else {
+      /* Fallback to original object if evaluation fails or is incomplete. */
+      BKE_object_minmax(base->object, world_bounds.min, world_bounds.max);
+    }
+
+    any = true;
   }
 
   if (any) {
