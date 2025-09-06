@@ -5243,10 +5243,13 @@ void ui_draw_but(const bContext *C, ARegion *region, uiStyle *style, uiBut *but,
         break;
 
       case ButType::ColorBand: {
-        /* Horizontal padding to make room for handles at edges. */
-        const int padding = BLI_rcti_size_y(rect) / 6;
-        rect->xmin += padding;
-        rect->xmax -= padding;
+        uiButColorBand *but_coba = static_cast<uiButColorBand *>(but);
+        if (!but_coba->is_preview) {
+          /* Horizontal padding to make room for handles at edges. */
+          const int padding = BLI_rcti_size_y(rect) / 6;
+          rect->xmin += padding;
+          rect->xmax -= padding;
+        }
         ui_draw_but_COLORBAND(but, &tui->wcol_regular, rect);
         break;
       }
