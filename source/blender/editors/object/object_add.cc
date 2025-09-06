@@ -693,7 +693,14 @@ Object *add_type(bContext *C,
 
 static bool object_can_have_lattice_modifier(const Object *ob)
 {
-  return ELEM(ob->type, OB_MESH, OB_CURVES_LEGACY, OB_SURF, OB_FONT, OB_CURVES, OB_GREASE_PENCIL);
+  return ELEM(ob->type,
+              OB_MESH,
+              OB_CURVES_LEGACY,
+              OB_SURF,
+              OB_FONT,
+              OB_CURVES,
+              OB_GREASE_PENCIL,
+              OB_LATTICE);
 }
 
 /* for object add operator */
