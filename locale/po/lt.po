@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.0.0 Alpha (b'066280446c16')\n"
+"Project-Id-Version: Blender 5.0.0 Alpha (b'61dd8a1435fb')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-08-18 09:16+0000\n"
+"POT-Creation-Date: 2025-09-01 09:40+0000\n"
 "PO-Revision-Date: 2025-07-23 15:18+0000\n"
 "Last-Translator: Aras Pranckevičius <aras@nesnausk.org>\n"
 "Language-Team: Lithuanian <https://translate.blender.org/projects/blender-ui/ui/lt/>\n"
@@ -901,6 +901,10 @@ msgid "Default Color Attribute"
 msgstr "Numatytasis spalvos atributas"
 
 
+msgid "Object"
+msgstr "Objektas"
+
+
 msgid "File Path"
 msgstr "Failo kelias"
 
@@ -941,10 +945,6 @@ msgid "-Z"
 msgstr "- Z"
 
 
-msgid "Object"
-msgstr "Objektas"
-
-
 msgid "None"
 msgstr "Joks/-ia"
 
@@ -971,6 +971,10 @@ msgstr "Vidinis/-ė"
 
 msgid "External"
 msgstr "Išorinis/-ė"
+
+
+msgid "Normals"
+msgstr "Normalės"
 
 
 msgid "Free"
@@ -2465,10 +2469,6 @@ msgid "Textboxes"
 msgstr "Teksto laukai"
 
 
-msgid "Normals"
-msgstr "Normalės"
-
-
 msgid "Active Texture"
 msgstr "Aktyvi tekstūra"
 
@@ -3105,12 +3105,12 @@ msgid "Apply"
 msgstr "Pritaikyti"
 
 
-msgid "Show/Hide"
-msgstr "Rodyti/Slėpti"
-
-
 msgid "Track"
 msgstr "Sekti"
+
+
+msgid "Show/Hide"
+msgstr "Rodyti/Slėpti"
 
 
 msgid "Text"
@@ -3225,10 +3225,6 @@ msgstr "pks."
 
 msgid "JPEG"
 msgstr "„JPEG“"
-
-
-msgid "Growing/shrinking mode"
-msgstr "Augimo/Susitraukimo veiksena"
 
 
 msgctxt "NodeTree"
@@ -3914,6 +3910,10 @@ msgid "Display warnings"
 msgstr "Rodyti/Vaizduoti įspėjimus/perspėjimus"
 
 
+msgid "ID From"
+msgstr "ID iš"
+
+
 msgctxt "ID"
 msgid "Modifier"
 msgstr "Keitiklis"
@@ -3922,10 +3922,6 @@ msgstr "Keitiklis"
 msgctxt "ID"
 msgid "Tool"
 msgstr "Įrankis"
-
-
-msgid "ID From"
-msgstr "ID iš"
 
 
 msgid "Blender File"
