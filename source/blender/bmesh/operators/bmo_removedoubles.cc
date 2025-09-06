@@ -634,11 +634,10 @@ static int *bmesh_find_doubles_by_distance_impl(BMesh *bm,
                                                 const bool has_keep_vert)
 {
   int *duplicates = MEM_malloc_arrayN<int>(verts_len, __func__);
-  bool found_duplicates = false;
+  bool *visited   = MEM_calloc_arrayN<bool>(verts_len, __func__);
 
-  KDTree_3d *tree = BLI_kdtree_3d_new(verts_len);
+
   for (int i = 0; i < verts_len; i++) {
-    BLI_kdtree_3d_insert(tree, i, verts[i]->co);
     if (has_keep_vert && BMO_vert_flag_test(bm, verts[i], VERT_KEEP)) {
       duplicates[i] = i;
     }
@@ -647,14 +646,71 @@ static int *bmesh_find_doubles_by_distance_impl(BMesh *bm,
     }
   }
 
-  BLI_kdtree_3d_balance(tree);
-  found_duplicates = BLI_kdtree_3d_calc_duplicates_fast(tree, dist, false, duplicates) != 0;
-  BLI_kdtree_3d_free(tree);
-
-  if (!found_duplicates) {
-    MEM_freeN(duplicates);
-    duplicates = nullptr;
+  KDTree_3d *tree = BLI_kdtree_3d_new(verts_len);
+  for (int i = 0; i < verts_len; i++) {
+    BLI_kdtree_3d_insert(tree, i, verts[i]->co);
   }
+  BLI_kdtree_3d_balance(tree);
+
+  const float dist_sq = dist * dist;
+
+  for (int i = 0; i < verts_len; i++) {
+    if (visited[i]) {
+      continue; /* already clustered */
+    }
+    if (duplicates[i] != -1) {
+      visited[i] = true;
+      continue; /* keep_verts survivor */
+    }
+
+    /* Gather cluster members within threshold. */
+    blender::Vector<int> cluster;
+    KDTreeNearest_3d *neighbors = nullptr;
+    int found = BLI_kdtree_3d_range_search(tree, verts[i]->co, &neighbors, dist);
+
+    for (int n = 0; n < found; n++) {
+      int j = neighbors[n].index;
+      if (!visited[j]) {
+        cluster.append(j);
+        visited[j] = true;
+      }
+    }
+    MEM_freeN(neighbors);
+
+    if (cluster.is_empty()) {
+      continue;
+    }
+
+    /* Compute centroid. */
+    float centroid[3] = {0, 0, 0};
+    for (int idx : cluster) {
+      add_v3_v3(centroid, verts[idx]->co);
+    }
+    mul_v3_fl(centroid, 1.0f / cluster.size());
+
+    /* Choose survivor: lowest index in cluster. */
+    int survivor_idx = cluster[0];
+    for (int idx : cluster) {
+      if (idx < survivor_idx) {
+        survivor_idx = idx;
+      }
+    }
+    BMVert *v_survivor = verts[survivor_idx];
+    copy_v3_v3(v_survivor->co, centroid);
+
+    /* Assign cluster mappings. */
+    duplicates[survivor_idx] = survivor_idx;
+    for (int idx : cluster) {
+      if (idx == survivor_idx) {
+        continue;
+      }
+      duplicates[idx] = survivor_idx;
+    }
+  }
+
+  BLI_kdtree_3d_free(tree);
+  MEM_freeN(visited);
+
   return duplicates;
 }
 
