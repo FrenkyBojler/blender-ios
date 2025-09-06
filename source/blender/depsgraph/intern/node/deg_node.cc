@@ -268,12 +268,12 @@ Node::Stats::Stats()
 
 void Node::Stats::reset()
 {
-  current_time = 0.0;
+  current_time = start_eval_time = end_eval_time = 0.0;
 }
 
 void Node::Stats::reset_current()
 {
-  current_time = 0.0;
+  current_time = start_eval_time = end_eval_time = 0.0;
 }
 
 /*******************************************************************************

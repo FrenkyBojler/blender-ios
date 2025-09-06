@@ -91,9 +91,9 @@ void evaluate_node(const DepsgraphEvalState *state, OperationNode *operation_nod
   /* Sanity checks. */
   BLI_assert_msg(!operation_node->is_noop(), "NOOP nodes should not actually be scheduled");
   /* Perform operation. */
-  const double start_time = BLI_time_now_seconds();
+  operation_node->stats.start_eval_time = BLI_time_now_seconds();
   operation_node->evaluate(depsgraph);
-  operation_node->stats.current_time += BLI_time_now_seconds() - start_time;
+  operation_node->stats.end_eval_time = BLI_time_now_seconds();
 
   /* Clear the flag early on, allowing partial updates without re-evaluating the same node multiple
    * times.

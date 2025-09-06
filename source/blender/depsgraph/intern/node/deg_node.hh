@@ -168,6 +168,10 @@ struct Node {
     /* Reset counters needed for the current graph evaluation, does not
      * touch averaging accumulators. */
     void reset_current();
+    
+    double start_eval_time;
+    double end_eval_time;
+
     /* Time spent on this node during current graph evaluation. */
     double current_time;
   };
