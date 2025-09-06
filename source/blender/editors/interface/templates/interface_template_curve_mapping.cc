@@ -331,7 +331,6 @@ static void curvemap_buttons_layout(uiLayout *layout,
                                     bool neg_slope,
                                     bool tone,
                                     const RNAUpdateCb &cb,
-                                    const blender::StringRef label,
                                     const bool with_popup)
 {
   CurveMapping *cumap = static_cast<CurveMapping *>(ptr->data);
@@ -350,11 +349,6 @@ static void curvemap_buttons_layout(uiLayout *layout,
   }
 
   {
-    uiLayout *row = &layout->row(false);
-    if (!label.is_empty()) {
-      row->label(label, ICON_NONE);
-    }
-
     const int width = std::max<int>(layout->width(), UI_UNIT_X);
     if (with_popup) {
       uiButCurveMapping *curve_but = static_cast<uiButCurveMapping *>(
@@ -788,9 +782,7 @@ void uiTemplateCurveMapping(uiLayout *layout,
                             bool levels,
                             bool brush,
                             bool neg_slope,
-                            bool tone,
-                            const blender::StringRef label,
-                            const bool with_popup)
+                            bool tone)
 {
   PropertyRNA *prop = RNA_struct_find_property(ptr, propname.c_str());
   uiBlock *block = layout->block();
@@ -815,16 +807,46 @@ void uiTemplateCurveMapping(uiLayout *layout,
   ID *id = cptr.owner_id;
   UI_block_lock_set(block, (id && !ID_IS_EDITABLE(id)), ERROR_LIBDATA_MESSAGE);
 
-  curvemap_buttons_layout(layout,
-                          &cptr,
-                          type,
-                          levels,
-                          brush,
-                          neg_slope,
-                          tone,
-                          RNAUpdateCb{*ptr, prop},
-                          label,
-                          with_popup);
+  curvemap_buttons_layout(
+      layout, &cptr, type, levels, brush, neg_slope, tone, RNAUpdateCb{*ptr, prop}, false);
+
+  UI_block_lock_clear(block);
+}
+
+void uiTemplateCurveMappingPreview(uiLayout *layout,
+                                   PointerRNA *ptr,
+                                   blender::StringRefNull propname,
+                                   int type,
+                                   bool levels,
+                                   bool brush,
+                                   bool neg_slope,
+                                   bool tone)
+{
+  PropertyRNA *prop = RNA_struct_find_property(ptr, propname.c_str());
+  uiBlock *block = layout->block();
+
+  if (!prop) {
+    RNA_warning(
+        "curve property not found: %s.%s", RNA_struct_identifier(ptr->type), propname.c_str());
+    return;
+  }
+
+  if (RNA_property_type(prop) != PROP_POINTER) {
+    RNA_warning(
+        "curve is not a pointer: %s.%s", RNA_struct_identifier(ptr->type), propname.c_str());
+    return;
+  }
+
+  PointerRNA cptr = RNA_property_pointer_get(ptr, prop);
+  if (!cptr.data || !RNA_struct_is_a(cptr.type, &RNA_CurveMapping)) {
+    return;
+  }
+
+  ID *id = cptr.owner_id;
+  UI_block_lock_set(block, (id && !ID_IS_EDITABLE(id)), ERROR_LIBDATA_MESSAGE);
+
+  curvemap_buttons_layout(
+      layout, &cptr, type, levels, brush, neg_slope, tone, RNAUpdateCb{*ptr, prop}, true);
 
   UI_block_lock_clear(block);
 }

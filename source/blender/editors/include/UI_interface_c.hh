@@ -2437,6 +2437,7 @@ void uiTemplateIconView(uiLayout *layout,
 void uiTemplateHistogram(uiLayout *layout, PointerRNA *ptr, blender::StringRefNull propname);
 void uiTemplateWaveform(uiLayout *layout, PointerRNA *ptr, blender::StringRefNull propname);
 void uiTemplateVectorscope(uiLayout *layout, PointerRNA *ptr, blender::StringRefNull propname);
+
 void uiTemplateCurveMapping(uiLayout *layout,
                             PointerRNA *ptr,
                             blender::StringRefNull propname,
@@ -2444,9 +2445,15 @@ void uiTemplateCurveMapping(uiLayout *layout,
                             bool levels,
                             bool brush,
                             bool neg_slope,
-                            bool tone,
-                            blender::StringRef label = "",
-                            bool with_popup = false);
+                            bool tone);
+void uiTemplateCurveMappingPreview(uiLayout *layout,
+                                   PointerRNA *ptr,
+                                   blender::StringRefNull propname,
+                                   int type,
+                                   bool levels,
+                                   bool brush,
+                                   bool neg_slope,
+                                   bool tone);
 /**
  * Template for a path creation widget intended for custom bevel profiles.
  * This section is quite similar to #uiTemplateCurveMapping, but with reduced complexity.
