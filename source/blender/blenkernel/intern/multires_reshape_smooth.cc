@@ -1402,9 +1402,7 @@ void multires_reshape_smooth_object_grids_v2(const MultiresReshapeContext *resha
 
   MultiresReshapeSmoothContext reshape_smooth_context(reshape_context, mode);
   geometry_create(&reshape_smooth_context);
-  /* TODO: Ignored for now...
-   * evaluate_linear_delta_grids(&reshape_smooth_context);
-   */
+  evaluate_linear_delta_grids(&reshape_smooth_context);
 
   reshape_subdiv_create(&reshape_smooth_context);
 
