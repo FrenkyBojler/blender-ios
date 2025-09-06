@@ -4423,6 +4423,7 @@ static void ui_block_open_begin(bContext *C, uiBut *but, uiHandleButtonData *dat
    * While this should only ever happen rarely, it shouldn't crash, see #144716. */
   PanelType *popover_panel_type = nullptr;
   void *arg = nullptr;
+  bool can_refresh = false;
 
   if (but->type != ButType::Pulldown) {
     /* Clear the status bar. */
@@ -4483,11 +4484,13 @@ static void ui_block_open_begin(bContext *C, uiBut *but, uiHandleButtonData *dat
     case ButType::Curve: {
       handlefunc = ui_block_func_CURVE_MAPPING;
       arg = but;
+      can_refresh = true;
       break;
     }
     case ButType::ColorBand: {
       handlefunc = ui_block_func_COLOR_RAMP;
       arg = but;
+      can_refresh = true;
       break;
     }
 
@@ -4498,7 +4501,7 @@ static void ui_block_open_begin(bContext *C, uiBut *but, uiHandleButtonData *dat
 
   if (func || handlefunc) {
     data->menu = ui_popup_block_create(
-        C, data->region, but, func, handlefunc, arg, nullptr, false);
+        C, data->region, but, func, handlefunc, arg, nullptr, can_refresh);
     if (but->block->handle) {
       data->menu->popup = but->block->handle->popup;
     }
