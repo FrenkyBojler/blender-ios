@@ -241,6 +241,7 @@ class NODE_MT_geometry_node_GEO_GEOMETRY_WRITE(Menu):
 
     def draw(self, context):
         layout = self.layout
+        node_add_menu.add_node_type(layout, "GeometryNodeSetGeometryBundle")
         node_add_menu.add_node_type(layout, "GeometryNodeSetGeometryName")
         node_add_menu.add_node_type(layout, "GeometryNodeSetID")
         node_add_menu.add_node_type(layout, "GeometryNodeSetPosition", search_weight=1.0)

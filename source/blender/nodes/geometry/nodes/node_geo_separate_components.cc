@@ -18,6 +18,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .translation_context(BLT_I18NCONTEXT_ID_ID)
       .propagate_all();
   b.add_output<decl::Geometry>("Instances").propagate_all();
+  b.add_output<decl::Bundle>("Bundle").propagate_all();
 }
 
 static void node_geo_exec(GeoNodeExecParams params)
@@ -63,6 +64,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   params.set_output("Point Cloud", pointclouds);
   params.set_output("Volume", volumes);
   params.set_output("Instances", instances);
+  params.set_output("Bundle", geometry_set.bundle_ptr());
 }
 
 static void node_register()

@@ -83,7 +83,8 @@ static void node_geo_exec(GeoNodeExecParams params)
   options.attribute_filter = attribute_filter;
   GeometrySet new_geometry_set = geometry::realize_instances(
       geometry_set, options, varied_depth_option);
-  new_geometry_set.copy_bundle_from(geometry_set);
+  // TODO: Override.
+  new_geometry_set.merge_bundle_from(geometry_set);
   params.set_output("Geometry", std::move(new_geometry_set));
 }
 

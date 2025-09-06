@@ -208,6 +208,7 @@ set(SRC
   nodes/node_geo_set_curve_normal.cc
   nodes/node_geo_set_curve_radius.cc
   nodes/node_geo_set_curve_tilt.cc
+  nodes/node_geo_set_geometry_bundle.cc
   nodes/node_geo_set_geometry_name.cc
   nodes/node_geo_set_grease_pencil_color.cc
   nodes/node_geo_set_grease_pencil_depth_mode.cc
