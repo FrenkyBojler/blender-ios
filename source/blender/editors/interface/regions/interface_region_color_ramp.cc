@@ -39,12 +39,8 @@ uiBlock *ui_block_func_COLOR_RAMP(bContext *C, uiPopupBlockHandle *handle, void 
                                                0,
                                                style);
 
-  uiTemplateColorRamp(&layout,
-                      &but_ramp->rnapoin,
-                      RNA_property_identifier(but_ramp->rnaprop),
-                      but_ramp->expand,
-                      "",
-                      false);
+  uiTemplateColorRamp(
+      &layout, &but_ramp->rnapoin, RNA_property_identifier(but_ramp->rnaprop), false, "", false);
 
   blender::ui::block_layout_resolve(block);
 

@@ -463,8 +463,6 @@ struct uiButHSVCube : public uiBut {
 struct uiButColorBand : public uiBut {
   ColorBand *edit_coba = nullptr;
   bool is_preview = false;
-
-  bool expand;
 };
 
 /** Derived struct for #ButType::CurveProfile. */

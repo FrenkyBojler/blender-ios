@@ -226,7 +226,6 @@ static void colorband_buttons_layout(uiLayout *layout,
     colorband_but->rnapoin = cb.ptr;
     colorband_but->rnaprop = cb.prop;
     colorband_but->is_preview = true;
-    colorband_but->expand = expand;
     return;
   }
 
