@@ -708,7 +708,15 @@ static wmOperatorStatus object_add_exec(bContext *C, wmOperator *op)
   radius = RNA_float_get(op->ptr, "radius");
   Object *ob = add_type(
       C, RNA_enum_get(op->ptr, "type"), nullptr, loc, rot, enter_editmode, local_view_bits);
-  BKE_object_obdata_size_init(ob, radius);
+
+  if (ob->type == OB_LATTICE) {
+    /* lattice is a special case!
+     * we never want to scale the obdata since that is the rest-state */
+    copy_v3_fl(ob->scale, radius);
+  }
+  else {
+    BKE_object_obdata_size_init(ob, radius);
+  }
   return OPERATOR_FINISHED;
 }
 
