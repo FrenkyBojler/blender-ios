@@ -209,14 +209,16 @@ class NodeSwapOperator(NodeOperator):
 
         return True
 
-    @staticmethod
-    def transfer_input_values(old_node, new_node):
+    def transfer_input_values(self, old_node, new_node):
         for input in old_node.inputs:
             try:
                 new_socket = new_node.inputs[input.name]
                 new_value = cast_value(source=input, target=new_socket)
+                
+                settings_name = f'inputs["{input.name}"].default_value'
+                already_defined = (settings_name in self.settings)
 
-                if new_value is not None:
+                if (new_value is not None) and not already_defined:
                     new_socket.default_value = new_value
 
             except (AttributeError, KeyError, TypeError):
