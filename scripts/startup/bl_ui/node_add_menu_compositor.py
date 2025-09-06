@@ -293,7 +293,7 @@ class NODE_MT_compositor_node_utilities_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "CompositorNodeSplit")
         self.node_operator(layout, "CompositorNodeSwitch")
         self.node_operator(layout, "GeometryNodeMenuSwitch")
-        node_add_menu.add_node_type(
+        self.node_operator(
             layout, "CompositorNodeSwitchView",
             label="Switch Stereo View")
         layout.separator()
