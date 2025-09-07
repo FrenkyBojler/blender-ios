@@ -2204,8 +2204,6 @@ static void widget_draw_textbox(const uiFontStyle *fstyle,
       immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
       immUniformThemeColor(TH_WIDGET_TEXT_CURSOR);
-      static int iii = 0;
-
       int y = rect->ymax - (line_height * (line_cursor - scroll));
       /* draw cursor */
       immRectf(pos,

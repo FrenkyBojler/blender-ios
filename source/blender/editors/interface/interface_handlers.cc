@@ -3109,7 +3109,7 @@ static bool ui_textedit_delete_selection(uiBut *but, uiTextEdit &text_edit)
   return changed;
 }
 
-blender::Vector<blender::StringRef> ui_but_textbox_wrap_lines(const ARegion *region,
+static blender::Vector<blender::StringRef> ui_but_textbox_wrap_lines(const ARegion *region,
                                                               uiButTextBox *textbox)
 {
   rcti rect;
