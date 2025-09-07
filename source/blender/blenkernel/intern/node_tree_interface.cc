@@ -393,6 +393,12 @@ template<> void socket_data_read_data_impl(BlendDataReader *reader, bNodeSocketV
 template<> void socket_data_read_data_impl(BlendDataReader *reader, bNodeSocketValueClosure **data)
 {
   BLO_read_struct(reader, bNodeSocketValueClosure, data);
+  if (!*data) {
+    /* Closure sockets did not have data when they were first introduced. */
+    *data = MEM_callocN<bNodeSocketValueClosure>(__func__);
+    return;
+  }
+
   BLO_read_struct(reader, CurveMapping, &(*data)->curve_mapping);
   if ((*data)->curve_mapping) {
     BKE_curvemapping_blend_read(reader, (*data)->curve_mapping);
