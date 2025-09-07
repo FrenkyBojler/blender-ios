@@ -1,2 +1,3 @@
 Referenced by issue #145703, Vertex Slide - Limited to one "edge direction"
 Referenced by pull request #145707, Fix #145703: Set clamp mode to on by default during vertex slide
+Referenced by commit d40b5dfda3638ab0cf7eef63bf5b9e1db12e6000, Fix #145703: Set clamp mode to on by default during vertex slide
