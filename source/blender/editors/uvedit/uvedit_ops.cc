@@ -363,7 +363,7 @@ static wmOperatorStatus uv_shift_selected_exec(bContext *C, wmOperator *op)
       scene, view_layer, nullptr);
   UVMoveType type = UVMoveType(RNA_enum_get(op->ptr, "type"));
   UVMoveDirection axis = UVMoveDirection(RNA_enum_get(op->ptr, "axis"));
-  int distance = RNA_int_get(op->ptr, "threshold");
+  int distance = RNA_int_get(op->ptr, "distance");
 
   int width = 0, height = 0;
   ED_space_image_get_size(sima, &width, &height);
@@ -845,7 +845,7 @@ static wmOperatorStatus uv_remove_doubles_to_unselected(bContext *C, wmOperator 
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   SpaceImage *sima = CTX_wm_space_image(C);
-  const float threshold = RNA_float_get(op->ptr, "distance");
+  const float threshold = RNA_float_get(op->ptr, "threshold");
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
       scene, view_layer, nullptr);
