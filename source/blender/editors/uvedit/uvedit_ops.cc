@@ -603,7 +603,7 @@ static void uv_align(bContext *C, eUVWeldAlign tool, UVAlignPositionMode positio
     }
   }
   else {
-    ED_uvedit_center_multi(scene, objects, pos, 0);
+    ED_uvedit_center_multi(scene, objects, pos, V3D_AROUND_CENTER_MEDIAN);
   }
 
   for (Object *obedit : objects) {
