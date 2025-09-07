@@ -845,7 +845,7 @@ static wmOperatorStatus uv_remove_doubles_to_unselected(bContext *C, wmOperator 
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   SpaceImage *sima = CTX_wm_space_image(C);
-  const float threshold = RNA_float_get(op->ptr, "distance");
+  const float threshold = RNA_float_get(op->ptr, "threshold");
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
       scene, view_layer, nullptr);
@@ -1023,8 +1023,7 @@ static void UV_OT_remove_doubles(wmOperatorType *ot)
 {
   /* identifiers */
   ot->name = "Merge UVs by Distance";
-  ot->description =
-      "Selected UV vertices that are within a radius of each other are welded together";
+  ot->description = "Selected UVs that are within a radius of each other are welded together";
   ot->idname = "UV_OT_remove_doubles";
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
