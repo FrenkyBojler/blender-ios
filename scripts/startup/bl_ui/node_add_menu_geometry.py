@@ -698,6 +698,7 @@ class NODE_MT_category_GEO_UTILITIES_FIELD(Menu):
         layout = self.layout
         node_add_menu.add_node_type(layout, "GeometryNodeAccumulateField")
         node_add_menu.add_node_type(layout, "GeometryNodeFieldAtIndex")
+        node_add_menu.add_node_type(layout, "GeometryNodeEvaluateAtPosition")
         node_add_menu.add_node_type(layout, "GeometryNodeFieldOnDomain")
         node_add_menu.add_node_type(layout, "GeometryNodeFieldAverage")
         node_add_menu.add_node_type(layout, "GeometryNodeFieldMinAndMax")

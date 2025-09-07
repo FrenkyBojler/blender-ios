@@ -166,6 +166,8 @@ class GeometryFieldContext : public fn::FieldContext {
 
   friend GeometryFieldInput;
 
+  Map<std::string, GVArray> attribute_overrides_;
+
  public:
   GeometryFieldContext(const GeometryFieldContext &other, AttrDomain domain);
   GeometryFieldContext(const GeometryComponent &component, AttrDomain domain);
@@ -212,6 +214,12 @@ class GeometryFieldContext : public fn::FieldContext {
   const Instances *instances() const;
   const CurvesGeometry *curves_or_strokes() const;
   const Curves *curves_id() const;
+
+  void add_attribute_override(std::string attribute_name, GVArray attribute);
+
+  GVArray get_varray_for_input(const fn::FieldInput &field_input,
+                               const IndexMask &mask,
+                               ResourceScope &scope) const final;
 };
 
 class GeometryFieldInput : public fn::FieldInput {
@@ -433,6 +441,18 @@ class EvaluateAtIndexInput final : public bke::GeometryFieldInput {
   {
     return value_field_domain_;
   }
+};
+
+class EvaluateAtPositionInput final : public GeometryFieldInput {
+ private:
+  fn::Field<float3> position_field_;
+  fn::GField value_field_;
+
+ public:
+  EvaluateAtPositionInput(fn::Field<float3> position_field, fn::GField value_field);
+
+  GVArray get_varray_for_context(const GeometryFieldContext &context,
+                                 const IndexMask &mask) const final;
 };
 
 void copy_with_checked_indices(const GVArray &src,

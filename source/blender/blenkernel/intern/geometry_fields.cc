@@ -65,7 +65,8 @@ GeometryFieldContext::GeometryFieldContext(const GeometryFieldContext &other,
       type_(other.type_),
       domain_(domain),
       curves_id_(other.curves_id_),
-      grease_pencil_layer_index_(other.grease_pencil_layer_index_)
+      grease_pencil_layer_index_(other.grease_pencil_layer_index_),
+      attribute_overrides_(other.attribute_overrides_)
 {
 }
 
@@ -250,6 +251,26 @@ const Instances *GeometryFieldContext::instances() const
   return this->type() == GeometryComponent::Type::Instance ?
              static_cast<const Instances *>(geometry_) :
              nullptr;
+}
+
+void GeometryFieldContext::add_attribute_override(std::string attribute_name, GVArray attribute)
+{
+  attribute_overrides_.add_overwrite(std::move(attribute_name), std::move(attribute));
+}
+
+GVArray GeometryFieldContext::get_varray_for_input(const fn::FieldInput &field_input,
+                                                   const IndexMask &mask,
+                                                   ResourceScope &scope) const
+{
+  if (const auto *attribute_field_input = dynamic_cast<const AttributeFieldInput *>(&field_input))
+  {
+    const StringRef attribute_name = attribute_field_input->attribute_name();
+    if (const GVArray *attribute = attribute_overrides_.lookup_ptr(attribute_name)) {
+      BLI_assert(attribute->size() >= mask.min_array_size());
+      return *attribute;
+    }
+  }
+  return field_input.get_varray_for_context(*this, mask, scope);
 }
 
 GVArray GeometryFieldInput::get_varray_for_context(const fn::FieldContext &context,
@@ -642,6 +663,33 @@ GVArray EvaluateAtIndexInput::get_varray_for_context(const bke::GeometryFieldCon
 
   GArray<> dst_array(values.type(), mask.min_array_size());
   copy_with_checked_indices(values, indices, mask, dst_array);
+  return GVArray::from_garray(std::move(dst_array));
+}
+
+EvaluateAtPositionInput::EvaluateAtPositionInput(fn::Field<float3> position_field,
+                                                 fn::GField value_field)
+    : bke::GeometryFieldInput(value_field.cpp_type(), "Evaluate at Position"),
+      position_field_(std::move(position_field)),
+      value_field_(std::move(value_field))
+{
+}
+
+GVArray EvaluateAtPositionInput::get_varray_for_context(const GeometryFieldContext &context,
+                                                        const IndexMask &mask) const
+{
+
+  fn::FieldEvaluator position_evaluator{context, mask.min_array_size()};
+  position_evaluator.add(position_field_);
+  position_evaluator.evaluate();
+  const VArray<float3> positions = position_evaluator.get_evaluated<float3>(0);
+
+  bke::GeometryFieldContext value_context{context, context.domain()};
+  value_context.add_attribute_override("position", positions);
+  GArray<> dst_array(value_field_.cpp_type(), mask.min_array_size());
+  fn::FieldEvaluator value_evaluator{value_context, mask.min_array_size()};
+  value_evaluator.add_with_destination(value_field_, dst_array);
+  value_evaluator.evaluate();
+
   return GVArray::from_garray(std::move(dst_array));
 }
 
