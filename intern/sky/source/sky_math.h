@@ -313,6 +313,14 @@ struct float4 {
     this->z += b.z;
     this->w += b.w;
   }
+
+  void operator*=(const float4 &b)
+  {
+    this->x *= b.x;
+    this->y *= b.y;
+    this->z *= b.z;
+    this->w *= b.w;
+  }
 };
 
 inline float sqr(float a)

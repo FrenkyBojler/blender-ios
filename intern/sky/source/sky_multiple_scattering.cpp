@@ -126,48 +126,35 @@ class SkyMultipleScattering {
                         const float ozone_density)
       : air_density(air_density), aerosol_density(aerosol_density), ozone_density(ozone_density)
   {
-    precompute_lut();
   }
 
-  /* Look up a transmittance from the precomputed LUT. */
-  inline float4 lookup_transmittance(const float cos_theta, const float normalized_altitude) const
+  /* Compute atmosphere's transmittance from the given altitude to the sun. */
+  inline float4 get_transmittance(const float cos_theta, const float normalized_altitude) const
   {
-    const float u = saturate(cos_theta * 0.5f + 0.5f);
-    const float v = saturate(normalized_altitude);
-    const float x = float(TRANSMITTANCE_RES_X - 1) * u;
-    const float y = float(TRANSMITTANCE_RES_Y - 1) * v;
-    const int x1 = int(x);
-    const int y1 = int(y);
-    const int x2 = min(x1 + 1, TRANSMITTANCE_RES_X - 1);
-    const int y2 = min(y1 + 1, TRANSMITTANCE_RES_Y - 1);
-    const float fx = x - x1;
-    const float fy = y - y1;
-    const float4 bottom = mix(transmittance_lut[x1][y1], transmittance_lut[x2][y1], fx);
-    const float4 top = mix(transmittance_lut[x1][y2], transmittance_lut[x2][y2], fx);
-    return mix(bottom, top, fy);
-  }
+    const float3 sun_dir = sun_direction(cos_theta);
+    const float distance_to_earth_center = mix(
+        EARTH_RADIUS, ATMOSPHERE_RADIUS, normalized_altitude);
+    const float3 ray_origin = make_float3(0.0f, 0.0f, distance_to_earth_center);
+    const float t_d = ray_sphere_intersection(ray_origin, sun_dir, ATMOSPHERE_RADIUS);
+    const float t_step = t_d / TRANSMITTANCE_STEPS;
 
-  /* Specialized versions of lookup_transmittance that skip one interpolation. */
-  inline float4 lookup_transmittance_at_ground(const float cos_theta) const
-  {
-    const float u = saturate(cos_theta * 0.5f + 0.5f);
-    const float x = float(TRANSMITTANCE_RES_X - 1) * u;
-    const int x1 = int(x);
-    const int x2 = min(x1 + 1, TRANSMITTANCE_RES_X - 1);
-    const int y = TRANSMITTANCE_RES_Y - 1;
-    const float fx = x - x1;
-    return mix(transmittance_lut[x1][y], transmittance_lut[x2][y], fx);
-  }
+    float4 result = make_float4(0.0f, 0.0f, 0.0f, 0.0f);
+    for (int step = 0; step < TRANSMITTANCE_STEPS; step++) {
+      const float t = (step + 0.5f) * t_step;
+      const float3 x_t = ray_origin + sun_dir * t;
+      const float altitude = fmaxf(x_t.length() - EARTH_RADIUS, 0.0f);
+      float4 aerosol_absorption, aerosol_scattering, molecular_absorption, molecular_scattering;
+      get_atmosphere_collision_coefficients(altitude,
+                                            aerosol_absorption,
+                                            aerosol_scattering,
+                                            molecular_absorption,
+                                            molecular_scattering);
+      const float4 extinction = aerosol_absorption + aerosol_scattering + molecular_absorption +
+                                molecular_scattering;
+      result += extinction * t_step;
+    }
 
-  inline float4 lookup_transmittance_to_sun(const float normalized_altitude) const
-  {
-    const float v = saturate(normalized_altitude);
-    const float y = float(TRANSMITTANCE_RES_Y - 1) * v;
-    const int x = TRANSMITTANCE_RES_X - 1;
-    const int y1 = int(y);
-    const int y2 = min(y1 + 1, TRANSMITTANCE_RES_Y - 1);
-    const float fy = y - y1;
-    return mix(transmittance_lut[x][y1], transmittance_lut[x][y2], fy);
+    return exp(-result);
   }
 
   /* Compute in-scattered radiance for the given ray. */
@@ -211,14 +198,28 @@ class SkyMultipleScattering {
       const float4 cut_ext = max(extinction, 1e-7f);
       const float4 S_int = (S - S * step_transmittance) / cut_ext;
       L_inscattering = L_inscattering + transmittance * S_int;
-      transmittance = transmittance * step_transmittance;
+      transmittance *= step_transmittance;
     }
 
     return L_inscattering;
   }
 
+  /* Precompute the transmittance LUT. Must be called before get_inscattering(). */
+  void precompute_lut()
+  {
+    SKY_parallel_for(0, TRANSMITTANCE_RES_Y, 4, [&](const size_t begin, const size_t end) {
+      for (int y = begin; y < end; y++) {
+        for (int x = 0; x < TRANSMITTANCE_RES_X; x++) {
+          const float2 uv = make_float2(x / float(TRANSMITTANCE_RES_X - 1),
+                                        y / float(TRANSMITTANCE_RES_Y - 1));
+          transmittance_lut[y][x] = get_transmittance(uv.x * 2.0f - 1.0f, uv.y);
+        }
+      }
+    });
+  }
+
  protected:
-  float4 transmittance_lut[TRANSMITTANCE_RES_X][TRANSMITTANCE_RES_Y];
+  float4 transmittance_lut[TRANSMITTANCE_RES_Y][TRANSMITTANCE_RES_X];
   float air_density;
   float aerosol_density;
   float ozone_density;
@@ -237,43 +238,6 @@ class SkyMultipleScattering {
     molecular_scattering = get_molecular_scattering_coefficient(altitude) * air_density;
   }
 
-  void precompute_lut()
-  {
-    SKY_parallel_for(0, TRANSMITTANCE_RES_Y, 4, [&](const size_t begin, const size_t end) {
-      for (int y = begin; y < end; y++) {
-        for (int x = 0; x < TRANSMITTANCE_RES_X; x++) {
-          const float2 uv = make_float2(x / float(TRANSMITTANCE_RES_X - 1),
-                                        y / float(TRANSMITTANCE_RES_Y - 1));
-
-          const float3 sun_dir = sun_direction(uv.x * 2.0f - 1.0f);
-          const float distance_to_earth_center = mix(EARTH_RADIUS, ATMOSPHERE_RADIUS, uv.y);
-          const float3 ray_origin = make_float3(0.0f, 0.0f, distance_to_earth_center);
-          const float t_d = ray_sphere_intersection(ray_origin, sun_dir, ATMOSPHERE_RADIUS);
-          const float t_step = t_d / TRANSMITTANCE_STEPS;
-
-          float4 result = make_float4(0.0f, 0.0f, 0.0f, 0.0f);
-          for (int step = 0; step < TRANSMITTANCE_STEPS; step++) {
-            const float t = (step + 0.5f) * t_step;
-            const float3 x_t = ray_origin + sun_dir * t;
-            const float altitude = fmaxf(x_t.length() - EARTH_RADIUS, 0.0f);
-            float4 aerosol_absorption, aerosol_scattering, molecular_absorption,
-                molecular_scattering;
-            get_atmosphere_collision_coefficients(altitude,
-                                                  aerosol_absorption,
-                                                  aerosol_scattering,
-                                                  molecular_absorption,
-                                                  molecular_scattering);
-            const float4 extinction = aerosol_absorption + aerosol_scattering +
-                                      molecular_absorption + molecular_scattering;
-            result += extinction * t_step;
-          }
-
-          transmittance_lut[x][y] = exp(-result);
-        }
-      }
-    });
-  }
-
   inline float4 lookup_multiscattering(float cos_theta, float normalized_height, float d) const
   {
     /* Solid angle subtended by the planet from a point at d distance from the planet center. */
@@ -289,6 +253,47 @@ class SkyMultipleScattering {
                         (1.0f / (1.0f + 5.0f * expf(-17.92f * cos_theta)));
     return L_ms + L_ground;
   }
+
+  /* Look up a transmittance from the precomputed LUT. */
+  inline float4 lookup_transmittance(const float cos_theta, const float normalized_altitude) const
+  {
+    const float u = saturate(cos_theta * 0.5f + 0.5f);
+    const float v = saturate(normalized_altitude);
+    const float x = float(TRANSMITTANCE_RES_X - 1) * u;
+    const float y = float(TRANSMITTANCE_RES_Y - 1) * v;
+    const int x1 = int(x);
+    const int y1 = int(y);
+    const int x2 = min(x1 + 1, TRANSMITTANCE_RES_X - 1);
+    const int y2 = min(y1 + 1, TRANSMITTANCE_RES_Y - 1);
+    const float fx = x - x1;
+    const float fy = y - y1;
+    const float4 bottom = mix(transmittance_lut[y1][x1], transmittance_lut[y1][x2], fx);
+    const float4 top = mix(transmittance_lut[y2][x1], transmittance_lut[y2][x2], fx);
+    return mix(bottom, top, fy);
+  }
+
+  /* Specialized versions of lookup_transmittance that skip one interpolation. */
+  inline float4 lookup_transmittance_at_ground(const float cos_theta) const
+  {
+    const float u = saturate(cos_theta * 0.5f + 0.5f);
+    const float x = float(TRANSMITTANCE_RES_X - 1) * u;
+    const int x1 = int(x);
+    const int x2 = min(x1 + 1, TRANSMITTANCE_RES_X - 1);
+    const int y = TRANSMITTANCE_RES_Y - 1;
+    const float fx = x - x1;
+    return mix(transmittance_lut[y][x1], transmittance_lut[y][x2], fx);
+  }
+
+  inline float4 lookup_transmittance_to_sun(const float normalized_altitude) const
+  {
+    const float v = saturate(normalized_altitude);
+    const float y = float(TRANSMITTANCE_RES_Y - 1) * v;
+    const int x = TRANSMITTANCE_RES_X - 1;
+    const int y1 = int(y);
+    const int y2 = min(y1 + 1, TRANSMITTANCE_RES_Y - 1);
+    const float fy = y - y1;
+    return mix(transmittance_lut[y1][x], transmittance_lut[y2][x], fy);
+  }
 };
 
 void SKY_multiple_scattering_precompute_texture(float *pixels,
@@ -301,7 +306,8 @@ void SKY_multiple_scattering_precompute_texture(float *pixels,
                                                 float aerosol_density,
                                                 float ozone_density)
 {
-  const SkyMultipleScattering sms(air_density, aerosol_density, ozone_density);
+  SkyMultipleScattering sms(air_density, aerosol_density, ozone_density);
+  sms.precompute_lut();
 
   /* Clamp altitude to avoid numerical issues. */
   altitude = clamp(altitude, 1.0f, 99999.0f) / 1000.0f;
@@ -368,8 +374,8 @@ void SKY_multiple_scattering_precompute_sun(float sun_elevation,
   /* Compute 2 pixels for Sun disc: one is the lowest point of the disc, one is the highest. */
   auto get_sun_xyz = [&](const float elevation) {
     const float sun_zenith_cos_angle = cosf(M_PI_2_F - elevation);
-    const float4 transmittance_to_sun = sms.lookup_transmittance(sun_zenith_cos_angle,
-                                                                 normalized_altitude);
+    const float4 transmittance_to_sun = sms.get_transmittance(sun_zenith_cos_angle,
+                                                              normalized_altitude);
     const float4 spectrum = SUN_SPECTRAL_IRRADIANCE * transmittance_to_sun / solid_angle;
     return spectral_to_xyz(spectrum);
   };
