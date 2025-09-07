@@ -476,6 +476,8 @@ struct uiButCurveMapping : public uiBut {
   eButGradientType gradient_type = UI_GRAD_SV;
   bool is_preview = false;
 
+  /* These properties are forwarded to #uiTemplateCurveMapping in the popup when this button is
+   * only a preview. */
   char type;
   bool levels;
   bool brush;
@@ -1338,6 +1340,9 @@ const uiWidgetColors *ui_tooltip_get_theme();
 void ui_draw_widget_menu_back_color(const rcti *rect, bool use_shadow, const float color[4]);
 void ui_draw_widget_menu_back(const rcti *rect, bool use_shadow);
 void ui_draw_tooltip_background(const uiStyle *style, uiBlock *block, const rcti *rect);
+
+/** Change the colors to indicate that the button is active/hovered. */
+void ui_widget_color_hover(uiWidgetColors *wcol);
 
 /**
  * Conversion from old to new buttons, so still messy.

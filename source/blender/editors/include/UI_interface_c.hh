@@ -573,9 +573,6 @@ enum {
  */
 void UI_draw_widget_scroll(uiWidgetColors *wcol, const rcti *rect, const rcti *slider, int state);
 
-/** Change the colors to indicate that the button is active/hovered. */
-void UI_widget_color_hover(uiWidgetColors *wcol);
-
 /**
  * Shortening string helper.
  *

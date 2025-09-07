@@ -1630,7 +1630,7 @@ void ui_draw_but_CURVE(ARegion *region,
   const bool is_hovered = but->flag & UI_HOVER;
   uiWidgetColors wcol = *wcol_base;
   if (but_cumap->is_preview && is_hovered) {
-    UI_widget_color_hover(&wcol);
+    ui_widget_color_hover(&wcol);
   }
 
   const float clip_size_x = BLI_rctf_size_x(&cumap->curr);

@@ -2599,7 +2599,7 @@ static void ui_widget_color_disabled(uiWidgetType *wt, const uiWidgetStateInfo *
   wt->wcol_theme = &wcol_theme_s;
 }
 
-void UI_widget_color_hover(uiWidgetColors *wcol)
+void ui_widget_color_hover(uiWidgetColors *wcol)
 {
   const bool dark = (srgb_to_grayscale_byte(wcol->text) > srgb_to_grayscale_byte(wcol->inner));
   color_mul_hsl_v3(wcol->inner, 1.0f, 1.15f, dark ? 1.2f : 1.1f);
@@ -2683,7 +2683,7 @@ static void widget_state(uiWidgetType *wt,
      * as buttons can be created and updated without respect to mouse
      * position and so can draw without UI_HOVER set.  See D6503. */
     if (state->but_flag & UI_HOVER) {
-      UI_widget_color_hover(&wt->wcol);
+      ui_widget_color_hover(&wt->wcol);
     }
   }
 
@@ -3623,7 +3623,7 @@ static void widget_numbut_draw(const uiBut *but,
       wcol_zone.item[3] = 180;
     }
     if (state->but_drawflag & UI_BUT_HOVER_LEFT) {
-      UI_widget_color_hover(&wcol_zone);
+      ui_widget_color_hover(&wcol_zone);
     }
 
     rect_zone = *rect;
@@ -3646,7 +3646,7 @@ static void widget_numbut_draw(const uiBut *but,
       wcol_zone.item[3] = 180;
     }
     if (state->but_drawflag & UI_BUT_HOVER_RIGHT) {
-      UI_widget_color_hover(&wcol_zone);
+      ui_widget_color_hover(&wcol_zone);
     }
 
     rect_zone = *rect;
@@ -3667,7 +3667,7 @@ static void widget_numbut_draw(const uiBut *but,
     if ((state->but_flag & UI_HOVER) &&
         !(state->but_drawflag & (UI_BUT_HOVER_LEFT | UI_BUT_HOVER_RIGHT)))
     {
-      UI_widget_color_hover(&wcol_zone);
+      ui_widget_color_hover(&wcol_zone);
     }
 
     rect_zone = *rect;
