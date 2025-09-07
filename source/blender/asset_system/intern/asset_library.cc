@@ -164,18 +164,6 @@ void AS_asset_full_path_explode_from_weak_ref(const AssetWeakReference *asset_re
   }
 }
 
-static void update_import_method_for_essentials_library()
-{
-  AssetLibraryReference library_ref{};
-  library_ref.custom_library_index = -1;
-  library_ref.type = ASSET_LIBRARY_ESSENTIALS;
-  EssentialsAssetLibrary *library = dynamic_cast<EssentialsAssetLibrary *>(
-      AS_asset_library_load(nullptr, library_ref));
-  if (library) {
-    library->update_default_import_method();
-  }
-}
-
 static void update_import_method_for_user_libraries()
 {
   LISTBASE_FOREACH (bUserAssetLibrary *, library, &U.asset_libraries) {
@@ -221,9 +209,20 @@ static void update_import_method_for_asset_browsers(Main &bmain)
 
 void AS_asset_library_import_method_ensure_valid(Main &bmain)
 {
-  update_import_method_for_essentials_library();
   update_import_method_for_user_libraries();
   update_import_method_for_asset_browsers(bmain);
+}
+
+void AS_asset_library_essential_import_method_update()
+{
+  AssetLibraryReference library_ref{};
+  library_ref.custom_library_index = -1;
+  library_ref.type = ASSET_LIBRARY_ESSENTIALS;
+  EssentialsAssetLibrary *library = dynamic_cast<EssentialsAssetLibrary *>(
+      AS_asset_library_load(nullptr, library_ref));
+  if (library) {
+    library->update_default_import_method();
+  }
 }
 
 namespace blender::asset_system {
