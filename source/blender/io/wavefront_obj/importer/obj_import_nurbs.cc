@@ -176,7 +176,7 @@ void CurveFromGeometry::create_nurbs(bke::CurvesGeometry &curves,
   MutableSpan<float3> positions = curves.positions_for_write().slice(point_range);
   MutableSpan<float> weights = curves.nurbs_weights_for_write().slice(point_range);
   for (const int i : indices.index_range()) {
-    copy_v3_v3(positions[i], global_vertices_.vertices[indices[i]]);
+    positions[i] = global_vertices_.vertices[indices[i]];
     weights[i] = (global_vertices_.vertex_weights.size() > indices[i]) ?
                      global_vertices_.vertex_weights[indices[i]] :
                      1.0f;
