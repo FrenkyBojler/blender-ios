@@ -1443,7 +1443,7 @@ static void std_node_socket_interface_draw(ID *id,
       break;
     }
     case SOCK_CLOSURE: {
-      col->prop(&ptr, "closure_type", DEFAULT_FLAGS, IFACE_("Closure Type"), ICON_NONE);
+      col->prop(&ptr, "closure_type", DEFAULT_FLAGS, IFACE_("Built-in Type"), ICON_NONE);
       const bNodeSocketValueClosure &socket_data = *static_cast<bNodeSocketValueClosure *>(
           interface_socket->socket_data);
       switch (ClosureSocketValueType(socket_data.type)) {
