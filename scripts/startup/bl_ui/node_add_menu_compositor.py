@@ -66,6 +66,7 @@ class NODE_MT_category_compositor_output(Menu):
         del context
         layout = self.layout
         node_add_menu.add_node_type(layout, "NodeGroupOutput")
+        node_add_menu.add_node_type(layout, "NodeForgoValue")
         node_add_menu.add_node_type(layout, "CompositorNodeViewer")
         layout.separator()
         node_add_menu.add_node_type(layout, "CompositorNodeOutputFile")
@@ -292,7 +293,6 @@ class NODE_MT_category_compositor_utilities(Menu):
         node_add_menu.add_node_type(layout, "ShaderNodeMix")
         node_add_menu.add_node_type(layout, "ShaderNodeClamp")
         node_add_menu.add_node_type(layout, "ShaderNodeFloatCurve")
-        node_add_menu.add_node_type(layout, "NodeForgoValue")
         layout.separator()
         node_add_menu.add_node_type(layout, "CompositorNodeLevels")
         node_add_menu.add_node_type(layout, "CompositorNodeNormalize")

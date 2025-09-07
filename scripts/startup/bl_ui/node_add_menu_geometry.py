@@ -572,6 +572,7 @@ class NODE_MT_category_GEO_OUTPUT(Menu):
     def draw(self, context):
         layout = self.layout
         node_add_menu.add_node_type(layout, "NodeGroupOutput")
+        node_add_menu.add_node_type(layout, "NodeForgoValue")
         node_add_menu.add_node_type(layout, "GeometryNodeViewer")
         node_add_menu.add_node_type_with_searchable_enum(context, layout, "GeometryNodeWarning", "warning_type")
         node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
@@ -671,7 +672,6 @@ class NODE_MT_category_GEO_UTILITIES(Menu):
         layout.menu("NODE_MT_category_GEO_UTILITIES_DEPRECATED")
         layout.separator()
         node_add_menu.add_foreach_geometry_element_zone(layout, label="For Each Element")
-        node_add_menu.add_node_type(layout, "NodeForgoValue")
         node_add_menu.add_node_type(layout, "GeometryNodeIndexSwitch")
         node_add_menu.add_node_type(layout, "GeometryNodeMenuSwitch")
         node_add_menu.add_node_type(layout, "FunctionNodeRandomValue")

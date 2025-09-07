@@ -150,7 +150,7 @@ static void node_register()
   geo_cmp_node_type_base(&ntype, "NodeForgoValue");
   ntype.ui_name = "Forgo Value";
   ntype.ui_description = "Either pass through the input value or output the fallback value";
-  ntype.nclass = NODE_CLASS_CONVERTER;
+  ntype.nclass = NODE_CLASS_INTERFACE;
   ntype.initfunc = node_init;
   ntype.draw_buttons = node_layout;
   ntype.declare = node_declare;
