@@ -750,6 +750,22 @@ void interpolate_cubic_mitchell_fl(
  * 2-pass sample filtering.
  ***************************************************************************/
 
+/** x and y must be in range. Converts data to a float4 */
+static float4 sample_at(const SamplingBuffer &source, int x, int y)
+{
+  const float *p = source.buffer + (y * source.width + x) * source.components;
+  switch (source.components) {
+    case 1:
+      return float4(*p);  // float4(*p,0,0,1)?
+    case 2:
+      return float4(*(float2 *)p, 0, 1);
+    case 3:
+      return float4(*(float3 *)p, 1);
+    default:
+      return *(float4 *)p;
+  }
+}
+
 /** This does the wrap effects */
 float4 sample_nearest(const SamplingBuffer &source,
                       const SamplingOptions &options,
@@ -812,17 +828,7 @@ float4 sample_nearest(const SamplingBuffer &source,
   else {
     y = int(v);
   }
-  const float *p = source.buffer + (y * source.width + x) * source.components;
-  switch (source.components) {
-    case 1:
-      return float4(*p);  // float4(*p,0,0,1)?
-    case 2:
-      return float4(*(float2 *)p, 0, 1);
-    case 3:
-      return float4(*(float3 *)p, 1);
-    default:
-      return *(float4 *)p;
-  }
+  return sample_at(source, x, y);
 }
 
 struct _Sampler {
@@ -875,39 +881,98 @@ static const _Sampler *table[4] = {
     &boxSampler,  // for anistropic
 };
 
+// large filters just do this many samples somewhat evenly spaced
+static const int MAX_PER_RADIUS = 8;
+static const int MAX_SAMPLES = 4 * MAX_PER_RADIUS + 1;
+
+// Compute a 1-d filter
+// fill in arrays with integer pixel sample locations and weights
+// returns number of entries
+static unsigned make_samples(
+  const _Sampler &sampler,
+  InterpWrapMode wrap,
+  int width, // size of image in this direction
+  float u, // center of filter (before wrap)
+  float w, // width of (box) filter
+  int positions[MAX_SAMPLES],
+  float weights[MAX_SAMPLES],
+  float& sum) // sum of all weights written here, or larger for border antialiasing
+{
+  w = std::max(w, 1.0f);
+  // Todo: wrap could be computed outside the loop and sets the positions, which
+  // could then be integers. Be careful that huge/inf/NaN values do not produce
+  // infinite loops however.
+  float r = sampler.radius(w);
+  float d = ceilf(w / MAX_PER_RADIUS);
+  float a = ceilf(u - 0.5f - r) + 0.5f;
+  int n = int((floorf(u - 0.5f + r) + 0.5f - a) / d) + 1;
+  unsigned count = 0;
+  sum = 0.0f;
+  for (int i = 0; i < n; i++) {
+    float v = a + float(i) * d; // center of source pixel
+    int y;
+    if (v < 0) {
+      switch (wrap) {
+        case InterpWrapMode::Extend:
+          y = 0;
+          break;
+        case InterpWrapMode::Repeat:
+          y = int(floored_fmod(v, float(width)));
+          break;
+        case InterpWrapMode::Border:
+          continue;
+      }
+    } else if (v >= float(width)) {
+      switch (wrap) {
+        case InterpWrapMode::Extend:
+          y = width - 1;
+          break;
+        case InterpWrapMode::Repeat:
+          y = int(floored_fmod(v, float(width)));
+          break;
+        case InterpWrapMode::Border:
+          continue;
+      }
+    } else {
+      y = int(v);
+    }
+    positions[count] = y;
+    sum += (weights[count] = sampler.weight(v - u, w));
+    count++;
+  }
+  return count;
+}
+
 float4 sample_rect(const SamplingBuffer &source,
                    const SamplingOptions &options,
                    const float2 &uv,
                    const float2 &wh)
 {
   const _Sampler &sampler = *table[unsigned(options.sampler)];
-  float wx = std::max(wh.x, 1.0f);
-  float wy = std::max(wh.y, 1.0f);
-  float rx = sampler.radius(wx);
-  float ry = sampler.radius(wy);
-  float dx = ceilf(wx / 8.0f);
-  float dy = ceilf(wy / 8.0f);
-  float ax = ceilf(uv.x - 0.5f - rx) + 0.5f;
-  float ay = ceilf(uv.y - 0.5f - ry) + 0.5f;
-  int nx = int((floor(uv.x - 0.5f + rx) + 0.5f - ax) / dx) + 1;
-  int ny = int((floor(uv.y - 0.5f + ry) + 0.5f - ay) / dy) + 1;
+
+  int positions_x[MAX_SAMPLES];
+  float weights_x[MAX_SAMPLES];
+  float sum_x;
+  unsigned nx = make_samples(sampler, options.wrap_x, source.width, uv.x, wh.x, positions_x, weights_x, sum_x);
+  if (!nx) return float4(0.0f);
+
+  int positions_y[MAX_SAMPLES];
+  float weights_y[MAX_SAMPLES];
+  float sum_y;
+  unsigned ny = make_samples(sampler, options.wrap_y, source.height, uv.y, wh.y, positions_y, weights_y, sum_y);
+  if (!ny) return float4(0.0f);
+
   float4 sum{0.0f};
-  float div = 0.0f;
-  for (int i = 0; i < ny; i++) {  // vertical filter
-    float v = ay + float(i) * dy;
+  for (unsigned i = 0; i < ny; i++) {  // vertical filter
+    int y = positions_y[i];
     float4 sumx{0.0f};
-    float divx = 0.0f;
-    for (int j = 0; j < nx; j++) {  // horizontal filter
-      float u = ax + float(j) * dx;
-      float weight = sampler.weight(u - uv.x, wx);
-      sumx += sample_nearest(source, options, u, v) * weight;
-      divx += weight;
+    for (unsigned j = 0; j < nx; j++) {  // horizontal filter
+      int x = positions_x[j];
+      sumx += sample_at(source, x, y) * weights_x[j];
     }
-    float weight = sampler.weight(v - uv.y, wy);
-    sum += sumx * weight;
-    div += divx * weight;
+    sum += sumx * weights_y[i];
   }
-  return sum / div;
+  return sum / (sum_x * sum_y);
 }
 
 }  // namespace blender::math
