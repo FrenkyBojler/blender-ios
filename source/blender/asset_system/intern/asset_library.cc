@@ -171,8 +171,9 @@ static void update_import_method_for_essentials_library()
   library_ref.type = ASSET_LIBRARY_ESSENTIALS;
   EssentialsAssetLibrary *library = dynamic_cast<EssentialsAssetLibrary *>(
       AS_asset_library_load(nullptr, library_ref));
-  BLI_assert(library);
-  library->update_default_import_method();
+  if (library) {
+    library->update_default_import_method();
+  }
 }
 
 static void update_import_method_for_user_libraries()
