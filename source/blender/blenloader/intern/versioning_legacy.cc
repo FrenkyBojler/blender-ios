@@ -447,7 +447,7 @@ static bool strip_set_alpha_mode_cb(Strip *strip, void * /*user_data*/)
 
 static bool strip_set_blend_mode_cb(Strip *strip, void * /*user_data*/)
 {
-  if (strip->blend_mode == 0) {
+  if (strip->blend_mode == STRIP_BLEND_REPLACE) {
     strip->blend_opacity = 100.0f;
   }
   return true;
@@ -1832,17 +1832,6 @@ void blo_do_versions_pre250(FileData *fd, Library *lib, Main *bmain)
         if (ma->nodetree) {
           do_version_ntree_242_2(ma->nodetree);
         }
-      }
-    }
-
-    if (bmain->subversionfile < 4) {
-      for (sce = static_cast<Scene *>(bmain->scenes.first); sce;
-           sce = static_cast<Scene *>(sce->id.next))
-      {
-        sce->r.bake_mode = 1; /* prevent to include render stuff here */
-        sce->r.bake_margin = 16;
-        sce->r.bake_margin_type = R_BAKE_ADJACENT_FACES;
-        sce->r.bake_flag = R_BAKE_CLEAR;
       }
     }
   }

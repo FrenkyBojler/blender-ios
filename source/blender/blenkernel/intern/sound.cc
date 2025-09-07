@@ -222,6 +222,7 @@ IDTypeInfo IDType_ID_SO = {
     /*foreach_id*/ sound_foreach_id,
     /*foreach_cache*/ sound_foreach_cache,
     /*foreach_path*/ sound_foreach_path,
+    /*foreach_working_space_color*/ nullptr,
     /*owner_pointer_get*/ nullptr,
 
     /*blend_write*/ sound_blend_write,
@@ -1097,7 +1098,7 @@ void BKE_sound_play_scene(Scene *scene)
   sound_verify_evaluated_id(&scene->id);
 
   AUD_Status status;
-  const double cur_time = FRA2TIME((scene->r.cfra + scene->r.subframe));
+  const double cur_time = FRA2TIME(scene->r.cfra + scene->r.subframe);
 
   AUD_Device_lock(g_state.sound_device);
 

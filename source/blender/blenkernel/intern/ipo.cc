@@ -157,6 +157,7 @@ IDTypeInfo IDType_ID_IP = {
     /*foreach_id*/ ipo_foreach_id,
     /*foreach_cache*/ nullptr,
     /*foreach_path*/ nullptr,
+    /*foreach_working_space_color*/ nullptr,
     /*owner_pointer_get*/ nullptr,
 
     /*blend_write*/ nullptr,
@@ -2387,7 +2388,7 @@ void do_versions_ipos_to_layered_actions(Main *bmain)
   for (id = static_cast<ID *>(bmain->scenes.first); id; id = static_cast<ID *>(id->next)) {
     Scene *scene = (Scene *)id;
     Editing *ed = scene->ed;
-    if (ed && ed->seqbasep) {
+    if (ed && ed->current_strips()) {
       Seq_callback_data cb_data = {bmain, scene, BKE_animdata_ensure_id(id)};
       seq::for_each_callback(&ed->seqbase, strip_convert_callback, &cb_data);
     }

@@ -362,7 +362,12 @@ void VKDescriptorSetPoolUpdator::bind_buffer(VkDescriptorType vk_descriptor_type
                                              VkDeviceSize size_in_bytes,
                                              VKDescriptorSet::Location location)
 {
-  vk_descriptor_buffer_infos_.append({vk_buffer, buffer_offset, size_in_bytes});
+  if (vk_buffer == VK_NULL_HANDLE) {
+    vk_descriptor_buffer_infos_.append({VK_NULL_HANDLE, 0, VK_WHOLE_SIZE});
+  }
+  else {
+    vk_descriptor_buffer_infos_.append({vk_buffer, buffer_offset, size_in_bytes});
+  }
   vk_write_descriptor_sets_.append({VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
                                     nullptr,
                                     vk_descriptor_set,
@@ -535,7 +540,8 @@ void VKDescriptorBufferUpdator::allocate_new_descriptor_set(
                        VK_BUFFER_USAGE_RESOURCE_DESCRIPTOR_BUFFER_BIT_EXT,
                    VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
                    0,
-                   VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT);
+                   VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT,
+                   0.8f);
     debug::object_label(buffer->vk_handle(), "DescriptorBuffer");
     descriptor_buffer_data = static_cast<uint8_t *>(buffer->mapped_memory_get());
     descriptor_buffer_device_address = buffer->device_address_get();

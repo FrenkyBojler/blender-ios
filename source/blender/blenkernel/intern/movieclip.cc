@@ -314,6 +314,7 @@ IDTypeInfo IDType_ID_MC = {
     /*foreach_id*/ movie_clip_foreach_id,
     /*foreach_cache*/ movie_clip_foreach_cache,
     /*foreach_path*/ movie_clip_foreach_path,
+    /*foreach_working_space_color*/ nullptr,
     /*owner_pointer_get*/ nullptr,
 
     /*blend_write*/ movieclip_blend_write,
@@ -2025,7 +2026,7 @@ blender::gpu::Texture *BKE_movieclip_get_gpu_texture(MovieClip *clip, MovieClipU
   /* check if we have a valid image buffer */
   ImBuf *ibuf = BKE_movieclip_get_ibuf(clip, cuser);
   if (ibuf == nullptr) {
-    CLOG_ERROR(&LOG, "Failed to created GPU texture from Blender movie clip");
+    CLOG_ERROR(&LOG, "Failed to create GPU texture from Blender movie clip");
     *tex = GPU_texture_create_error(2, false);
     return *tex;
   }

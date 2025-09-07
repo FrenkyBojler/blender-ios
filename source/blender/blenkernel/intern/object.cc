@@ -125,7 +125,6 @@
 #include "BKE_softbody.h"
 #include "BKE_speaker.h"
 #include "BKE_subdiv_ccg.hh"
-#include "BKE_subsurf.hh"
 #include "BKE_vfont.hh"
 #include "BKE_volume.hh"
 
@@ -496,6 +495,16 @@ static void object_foreach_id(ID *id, LibraryForeachIDData *data)
       BKE_LIB_FOREACHID_PROCESS_ID_NOCHECK(data, chan->ipo, IDWALK_CB_USER);
     }
 
+    /* Note: This is technically _not_ needed currently, because readcode (see
+     * #object_blend_read_data) directly converts and removes these deprecated ObHook data.
+     * However, for sake of consistency, better have this ID pointer handled here nonetheless. */
+    LISTBASE_FOREACH (ObHook *, hook, &object->hooks) {
+      /* No `ObHook` data should ever exist currently at a point where 'foreach_id' code is
+       * executed. */
+      BLI_assert_unreachable();
+      BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, hook->parent, IDWALK_CB_NOP);
+    }
+
     LISTBASE_FOREACH (bActionStrip *, strip, &object->nlastrips) {
       BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, strip->object, IDWALK_CB_NOP);
       BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, strip->act, IDWALK_CB_USER);
@@ -601,6 +610,28 @@ static void object_foreach_cache(ID *id,
           function_callback(id, &cache_key, cache_p, flags, user_data);
         });
       }
+    }
+  }
+}
+
+static void object_foreach_working_space_color(ID *id,
+                                               const IDTypeForeachColorFunctionCallback &fn)
+{
+  Object *ob = (Object *)id;
+
+  fn.single(ob->color);
+
+  LISTBASE_FOREACH (ShaderFxData *, fx, &ob->shader_fx) {
+    const ShaderFxTypeInfo *fxi = BKE_shaderfx_get_info(ShaderFxType(fx->type));
+    if (fxi && fxi->foreach_working_space_color) {
+      fxi->foreach_working_space_color(fx, fn);
+    }
+  }
+
+  LISTBASE_FOREACH (ModifierData *, md, &ob->modifiers) {
+    const ModifierTypeInfo *mti = BKE_modifier_get_info(ModifierType(md->type));
+    if (mti && mti->foreach_working_space_color) {
+      mti->foreach_working_space_color(md, fn);
     }
   }
 }
@@ -1103,6 +1134,7 @@ IDTypeInfo IDType_ID_OB = {
     /*foreach_id*/ object_foreach_id,
     /*foreach_cache*/ object_foreach_cache,
     /*foreach_path*/ object_foreach_path,
+    /*foreach_working_space_color*/ object_foreach_working_space_color,
     /*owner_pointer_get*/ nullptr,
 
     /*blend_write*/ object_blend_write,
@@ -2661,7 +2693,7 @@ Object *BKE_object_duplicate(Main *bmain,
     /* Unfortunate, but with some types (e.g. meshes), an object is considered in Edit mode if its
      * obdata contains edit mode runtime data. This can be the case of all newly duplicated
      * objects, as even though duplicate code move the object back in Object mode, they are still
-     * using the original obdata ID, leading to them being falsly detected as being in Edit mode,
+     * using the original obdata ID, leading to them being falsely detected as being in Edit mode,
      * and therefore not remapping their obdata to the newly duplicated one.
      * See #139715. */
     BKE_libblock_relink_to_newid(
@@ -5194,7 +5226,7 @@ KDTree_3d *BKE_object_as_kdtree(Object *ob, int *r_tot)
 /**
  * Set "ignore cache" flag for all caches on this object.
  */
-static void object_cacheIgnoreClear(Object *ob, int state)
+static void object_cacheIgnoreClear(Object *ob, const bool state)
 {
   ListBase pidlist;
   BKE_ptcache_ids_from_object(&pidlist, ob, nullptr, 0);
@@ -5213,18 +5245,41 @@ static void object_cacheIgnoreClear(Object *ob, int state)
   BLI_freelistN(&pidlist);
 }
 
-bool BKE_object_modifier_update_subframe(Depsgraph *depsgraph,
-                                         Scene *scene,
-                                         Object *ob,
-                                         bool update_mesh,
-                                         int parent_recursion,
-                                         float frame,
-                                         int type)
-{
-  const bool flush_to_original = DEG_is_active(depsgraph);
-  ModifierData *md = BKE_modifiers_findby_type(ob, (ModifierType)type);
+struct ObjectModifierUpdateContext {
+  ModifierType modifier_type;
 
-  if (type == eModifierType_DynamicPaint) {
+  /** Update or tagging logic should go here. */
+  blender::FunctionRef<void(Object *object, bool update_mesh)> update_or_tag_fn;
+};
+
+/**
+ * Utility used to implement
+ * - #BKE_object_modifier_update_subframe
+ * - #BKE_object_modifier_update_subframe_only_callback
+ *
+ * The actual updating may be done by a callback: `ctx.update_or_tag_fn`,
+ * called by this function for each object.
+ */
+static bool object_modifier_recurse_for_update_subframe(const ObjectModifierUpdateContext &ctx,
+                                                        Object *ob,
+                                                        const bool update_mesh,
+                                                        const int parent_recursion_limit)
+{
+  /* NOTE: this function must not modify the object
+   * since this is used for setting up depsgraph relationships.
+   *
+   * Although the #ObjectModifierUpdateContext::update_or_tag_fn callback may change the object
+   * as this is needed to implement #BKE_object_modifier_update_subframe. */
+
+  /* NOTE(@ideasman42): `parent_recursion_limit` is used to prevent this function attempting to
+   * scan object hierarchies infinitely, needed since constraint targets are also included.
+   * A more elegant alternative may be to track which objects have been handled.
+   * Since #BKE_object_modifier_update_subframe is documented not to be used
+   * for new code (if possible), leave as-is. */
+
+  ModifierData *md = BKE_modifiers_findby_type(ob, ctx.modifier_type);
+
+  if (ctx.modifier_type == eModifierType_DynamicPaint) {
     DynamicPaintModifierData *pmd = (DynamicPaintModifierData *)md;
 
     /* if other is dynamic paint canvas, don't update */
@@ -5232,7 +5287,7 @@ bool BKE_object_modifier_update_subframe(Depsgraph *depsgraph,
       return true;
     }
   }
-  else if (type == eModifierType_Fluid) {
+  else if (ctx.modifier_type == eModifierType_Fluid) {
     FluidModifierData *fmd = (FluidModifierData *)md;
 
     if (fmd && (fmd->type & MOD_FLUID_TYPE_DOMAIN) != 0) {
@@ -5241,16 +5296,11 @@ bool BKE_object_modifier_update_subframe(Depsgraph *depsgraph,
   }
 
   /* if object has parents, update them too */
-  if (parent_recursion) {
-    int recursion = parent_recursion - 1;
+  if (parent_recursion_limit) {
+    const int recursion = parent_recursion_limit - 1;
     bool no_update = false;
     if (ob->parent) {
-      no_update |= BKE_object_modifier_update_subframe(
-          depsgraph, scene, ob->parent, false, recursion, frame, type);
-    }
-    if (ob->track) {
-      no_update |= BKE_object_modifier_update_subframe(
-          depsgraph, scene, ob->track, false, recursion, frame, type);
+      no_update |= object_modifier_recurse_for_update_subframe(ctx, ob->parent, false, recursion);
     }
 
     /* Skip sub-frame if object is parented to vertex of a dynamic paint canvas. */
@@ -5265,8 +5315,7 @@ bool BKE_object_modifier_update_subframe(Depsgraph *depsgraph,
       if (BKE_constraint_targets_get(con, &targets)) {
         LISTBASE_FOREACH (bConstraintTarget *, ct, &targets) {
           if (ct->tar) {
-            BKE_object_modifier_update_subframe(
-                depsgraph, scene, ct->tar, false, recursion, frame, type);
+            object_modifier_recurse_for_update_subframe(ctx, ct->tar, false, recursion);
           }
         }
         /* free temp targets */
@@ -5275,39 +5324,75 @@ bool BKE_object_modifier_update_subframe(Depsgraph *depsgraph,
     }
   }
 
-  /* was originally ID_RECALC_ALL - TODO: which flags are really needed??? */
-  /* TODO(sergey): What about animation? */
-  const AnimationEvalContext anim_eval_context = BKE_animsys_eval_context_construct(depsgraph,
-                                                                                    frame);
-
-  ob->id.recalc |= ID_RECALC_ALL;
-  if (update_mesh) {
-    BKE_animsys_evaluate_animdata(
-        &ob->id, ob->adt, &anim_eval_context, ADT_RECALC_ANIM, flush_to_original);
-    /* Ignore cache clear during sub-frame updates to not mess up cache validity. */
-    object_cacheIgnoreClear(ob, 1);
-    BKE_object_handle_update(depsgraph, scene, ob);
-    object_cacheIgnoreClear(ob, 0);
-  }
-  else {
-    BKE_object_where_is_calc_time(depsgraph, scene, ob, frame);
-  }
-
-  /* for curve following objects, parented curve has to be updated too */
-  if (ob->type == OB_CURVES_LEGACY) {
-    Curve *cu = (Curve *)ob->data;
-    BKE_animsys_evaluate_animdata(
-        &cu->id, cu->adt, &anim_eval_context, ADT_RECALC_ANIM, flush_to_original);
-  }
-  /* and armatures... */
-  if (ob->type == OB_ARMATURE) {
-    bArmature *arm = (bArmature *)ob->data;
-    BKE_animsys_evaluate_animdata(
-        &arm->id, arm->adt, &anim_eval_context, ADT_RECALC_ANIM, flush_to_original);
-    BKE_pose_where_is(depsgraph, scene, ob);
-  }
+  ctx.update_or_tag_fn(ob, update_mesh);
 
   return false;
+}
+
+void BKE_object_modifier_update_subframe_only_callback(
+    Object *ob,
+    const bool update_mesh,
+    const int parent_recursion_limit,
+    const /*ModifierType*/ int modifier_type,
+    blender::FunctionRef<void(Object *object, bool update_mesh)> update_or_tag_fn)
+{
+  ObjectModifierUpdateContext ctx = {
+      ModifierType(modifier_type),
+      update_or_tag_fn,
+  };
+  object_modifier_recurse_for_update_subframe(ctx, ob, update_mesh, parent_recursion_limit);
+}
+
+void BKE_object_modifier_update_subframe(Depsgraph *depsgraph,
+                                         Scene *scene,
+                                         Object *ob,
+                                         const bool update_mesh,
+                                         const int parent_recursion_limit,
+                                         const float frame,
+                                         const /*ModifierType*/ int modifier_type)
+{
+  const bool flush_to_original = DEG_is_active(depsgraph);
+
+  auto update_or_tag_fn = [depsgraph, scene, frame, flush_to_original](Object *ob,
+                                                                       const bool update_mesh) {
+    /* NOTE: changes here may require updates to #DEG_add_collision_relations
+     * so the depsgraph is handling updates correctly. */
+
+    /* was originally ID_RECALC_ALL - TODO: which flags are really needed??? */
+    /* TODO(sergey): What about animation? */
+    const AnimationEvalContext anim_eval_context = BKE_animsys_eval_context_construct(depsgraph,
+                                                                                      frame);
+
+    ob->id.recalc |= ID_RECALC_ALL;
+    if (update_mesh) {
+      BKE_animsys_evaluate_animdata(
+          &ob->id, ob->adt, &anim_eval_context, ADT_RECALC_ANIM, flush_to_original);
+      /* Ignore cache clear during sub-frame updates to not mess up cache validity. */
+      object_cacheIgnoreClear(ob, true);
+      BKE_object_handle_update(depsgraph, scene, ob);
+      object_cacheIgnoreClear(ob, false);
+    }
+    else {
+      BKE_object_where_is_calc_time(depsgraph, scene, ob, frame);
+    }
+
+    /* for curve following objects, parented curve has to be updated too */
+    if (ob->type == OB_CURVES_LEGACY) {
+      Curve *cu = (Curve *)ob->data;
+      BKE_animsys_evaluate_animdata(
+          &cu->id, cu->adt, &anim_eval_context, ADT_RECALC_ANIM, flush_to_original);
+    }
+    /* and armatures... */
+    if (ob->type == OB_ARMATURE) {
+      bArmature *arm = (bArmature *)ob->data;
+      BKE_animsys_evaluate_animdata(
+          &arm->id, arm->adt, &anim_eval_context, ADT_RECALC_ANIM, flush_to_original);
+      BKE_pose_where_is(depsgraph, scene, ob);
+    }
+  };
+
+  BKE_object_modifier_update_subframe_only_callback(
+      ob, update_mesh, parent_recursion_limit, modifier_type, update_or_tag_fn);
 }
 
 void BKE_object_update_select_id(Main *bmain)
