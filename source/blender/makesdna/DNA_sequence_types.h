@@ -31,6 +31,7 @@ namespace blender::seq {
 struct FinalImageCache;
 struct IntraFrameCache;
 struct MediaPresence;
+struct PreviewCache;
 struct ThumbnailCache;
 struct TextVarsRuntime;
 struct PrefetchJob;
@@ -40,6 +41,7 @@ struct StripLookup;
 using FinalImageCache = blender::seq::FinalImageCache;
 using IntraFrameCache = blender::seq::IntraFrameCache;
 using MediaPresence = blender::seq::MediaPresence;
+using PreviewCache = blender::seq::PreviewCache;
 using ThumbnailCache = blender::seq::ThumbnailCache;
 using TextVarsRuntime = blender::seq::TextVarsRuntime;
 using PrefetchJob = blender::seq::PrefetchJob;
@@ -49,6 +51,7 @@ using StripLookup = blender::seq::StripLookup;
 typedef struct FinalImageCache FinalImageCache;
 typedef struct IntraFrameCache IntraFrameCache;
 typedef struct MediaPresence MediaPresence;
+typedef struct PreviewCache PreviewCache;
 typedef struct ThumbnailCache ThumbnailCache;
 typedef struct TextVarsRuntime TextVarsRuntime;
 typedef struct PrefetchJob PrefetchJob;
@@ -302,8 +305,11 @@ typedef struct Strip {
 
 typedef struct MetaStack {
   struct MetaStack *next, *prev;
-  ListBase *oldbasep;
-  ListBase *old_channels;
+  /**
+   * The meta-strip that contains `parent_strip`. May be null (that means it is the top-most
+   * strips).
+   */
+  Strip *old_strip;
   Strip *parent_strip;
   /* The startdisp/enddisp when entering the metastrip. */
   int disp_range[2];
@@ -328,20 +334,16 @@ typedef struct EditingRuntime {
   IntraFrameCache *intra_frame_cache;
   SourceImageCache *source_image_cache;
   FinalImageCache *final_image_cache;
+  PreviewCache *preview_cache;
 } EditingRuntime;
 
 typedef struct Editing {
   /**
-   * Pointer to the current list of strips being edited (can be within a meta-strip).
-   * \note Use #current_strips() to access, rather than using this variable directly.
+   * The current meta-strip being edited and/or viewed, may be null, in which case the top-most
+   * strips are used.
    */
-  ListBase *seqbasep;
-  /**
-   * Pointer to the current list of channels being displayed (can be within a meta-strip).
-   * \note Use #current_channels() to access, rather than using this variable directly.
-   */
-  ListBase *displayed_channels;
-  void *_pad0;
+  Strip *current_meta_strip;
+
   /** Pointer to the top-most strips. */
   ListBase seqbase;
   ListBase metastack;
@@ -558,7 +560,11 @@ typedef struct StripModifierData {
   struct Mask *mask_id;
 
   int persistent_uid;
-  char _pad[4];
+  /**
+   * Bits that can be used for open-states of layout panels in the modifier.
+   */
+  uint16_t layout_panel_open_flag;
+  char _pad[2];
 
   StripModifierDataRuntime runtime;
 } StripModifierData;
@@ -870,14 +876,15 @@ enum {
 
 /** #StripModifierData.type */
 typedef enum eStripModifierType {
-  seqModifierType_ColorBalance = 1,
-  seqModifierType_Curves = 2,
-  seqModifierType_HueCorrect = 3,
-  seqModifierType_BrightContrast = 4,
-  seqModifierType_Mask = 5,
-  seqModifierType_WhiteBalance = 6,
-  seqModifierType_Tonemap = 7,
-  seqModifierType_SoundEqualizer = 8,
+  eSeqModifierType_None = 0,
+  eSeqModifierType_ColorBalance = 1,
+  eSeqModifierType_Curves = 2,
+  eSeqModifierType_HueCorrect = 3,
+  eSeqModifierType_BrightContrast = 4,
+  eSeqModifierType_Mask = 5,
+  eSeqModifierType_WhiteBalance = 6,
+  eSeqModifierType_Tonemap = 7,
+  eSeqModifierType_SoundEqualizer = 8,
   /* Keep last. */
   NUM_STRIP_MODIFIER_TYPES,
 } eStripModifierType;
@@ -886,6 +893,7 @@ typedef enum eStripModifierType {
 typedef enum eStripModifierFlag {
   STRIP_MODIFIER_FLAG_MUTE = (1 << 0),
   STRIP_MODIFIER_FLAG_EXPANDED = (1 << 1),
+  STRIP_MODIFIER_FLAG_ACTIVE = (1 << 2),
 } eStripModifierFlag;
 
 typedef enum eModMaskInput {

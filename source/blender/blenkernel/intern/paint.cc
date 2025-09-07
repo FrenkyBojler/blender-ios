@@ -6,6 +6,9 @@
  * \ingroup bke
  */
 
+/* ALlow using deprecated color for sync legacy. */
+#define DNA_DEPRECATED_ALLOW
+
 #include <cstdlib>
 #include <cstring>
 #include <optional>
@@ -65,7 +68,6 @@
 #include "BKE_paint_types.hh"
 #include "BKE_scene.hh"
 #include "BKE_subdiv_ccg.hh"
-#include "BKE_subsurf.hh"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_query.hh"
@@ -73,6 +75,8 @@
 #include "RNA_enum_types.hh"
 
 #include "BLO_read_write.hh"
+
+#include "IMB_colormanagement.hh"
 
 #include "bmesh.hh"
 
@@ -236,14 +240,6 @@ IDTypeInfo IDType_ID_PC = {
 
     /*lib_override_apply_post*/ nullptr,
 };
-
-const uchar PAINT_CURSOR_SCULPT[3] = {255, 100, 100};
-const uchar PAINT_CURSOR_VERTEX_PAINT[3] = {255, 255, 255};
-const uchar PAINT_CURSOR_WEIGHT_PAINT[3] = {200, 200, 255};
-const uchar PAINT_CURSOR_TEXTURE_PAINT[3] = {255, 255, 255};
-const uchar PAINT_CURSOR_SCULPT_CURVES[3] = {255, 100, 100};
-const uchar PAINT_CURSOR_PAINT_GREASE_PENCIL[3] = {255, 100, 100};
-const uchar PAINT_CURSOR_SCULPT_GREASE_PENCIL[3] = {255, 100, 100};
 
 static ePaintOverlayControlFlags overlay_flags = (ePaintOverlayControlFlags)0;
 
@@ -1036,7 +1032,7 @@ static void paint_brush_set_default_reference(Paint *paint,
                                               const bool do_regular = true,
                                               const bool do_eraser = true)
 {
-  if (!paint->runtime->initialized) {
+  if (!paint->runtime || !paint->runtime->initialized) {
     /* Can happen when loading old file where toolsettings are created in versioning, without
      * calling #paint_runtime_init(). Will be done later when necessary. */
     return;
@@ -1402,6 +1398,17 @@ void BKE_palette_clear(Palette *palette)
   palette->active_color = 0;
 }
 
+void BKE_palette_color_set(PaletteColor *color, const float rgb[3])
+{
+  copy_v3_v3(color->color, rgb);
+  BKE_palette_color_sync_legacy(color);
+}
+
+void BKE_palette_color_sync_legacy(PaletteColor *color)
+{
+  linearrgb_to_srgb_v3_v3(color->rgb, color->color);
+}
+
 Palette *BKE_palette_add(Main *bmain, const char *name)
 {
   Palette *palette = BKE_id_new<Palette>(bmain, name);
@@ -1555,7 +1562,7 @@ void BKE_palette_sort_luminance(tPaletteColorHSV *color_array, const int totcol)
   qsort(color_array, totcol, sizeof(tPaletteColorHSV), palettecolor_compare_luminance);
 }
 
-bool BKE_palette_from_hash(Main *bmain, GHash *color_table, const char *name, const bool linear)
+bool BKE_palette_from_hash(Main *bmain, GHash *color_table, const char *name)
 {
   tPaletteColorHSV *color_array = nullptr;
   tPaletteColorHSV *col_elm = nullptr;
@@ -1597,10 +1604,8 @@ bool BKE_palette_from_hash(Main *bmain, GHash *color_table, const char *name, co
         col_elm = &color_array[i];
         PaletteColor *palcol = BKE_palette_color_add(palette);
         if (palcol) {
-          copy_v3_v3(palcol->rgb, col_elm->rgb);
-          if (linear) {
-            linearrgb_to_srgb_v3_v3(palcol->rgb, palcol->rgb);
-          }
+          /* Hex was stored as sRGB. */
+          IMB_colormanagement_srgb_to_scene_linear_v3(palcol->color, col_elm->rgb);
         }
       }
       done = true;
@@ -1698,7 +1703,7 @@ static void paint_init_data(Paint &paint)
   const UnifiedPaintSettings &default_ups = *DNA_struct_default_get(UnifiedPaintSettings);
   paint.unified_paint_settings.size = default_ups.size;
   paint.unified_paint_settings.input_samples = default_ups.input_samples;
-  paint.unified_paint_settings.unprojected_radius = default_ups.unprojected_radius;
+  paint.unified_paint_settings.unprojected_size = default_ups.unprojected_size;
   paint.unified_paint_settings.alpha = default_ups.alpha;
   paint.unified_paint_settings.weight = default_ups.weight;
   paint.unified_paint_settings.flag = default_ups.flag;
@@ -1711,8 +1716,8 @@ static void paint_init_data(Paint &paint)
   if (!paint.unified_paint_settings.curve_rand_value) {
     paint.unified_paint_settings.curve_rand_value = BKE_paint_default_curve();
   }
-  copy_v3_v3(paint.unified_paint_settings.rgb, default_ups.rgb);
-  copy_v3_v3(paint.unified_paint_settings.secondary_rgb, default_ups.secondary_rgb);
+  copy_v3_v3(paint.unified_paint_settings.color, default_ups.color);
+  copy_v3_v3(paint.unified_paint_settings.secondary_color, default_ups.secondary_color);
 }
 
 bool BKE_paint_ensure(ToolSettings *ts, Paint **r_paint)
@@ -1738,10 +1743,10 @@ bool BKE_paint_ensure(ToolSettings *ts, Paint **r_paint)
                       (Paint *)ts->curves_sculpt,
                       (Paint *)&ts->imapaint));
 #ifndef NDEBUG
-      Paint paint_test = **r_paint;
+      Paint paint_test = blender::dna::shallow_copy(**r_paint);
       paint_runtime_init(ts, *r_paint);
       /* Swap so debug doesn't hide errors when release fails. */
-      std::swap(**r_paint, paint_test);
+      blender::dna::shallow_swap(**r_paint, paint_test);
       BLI_assert(paint_test.runtime->ob_mode == (*r_paint)->runtime->ob_mode);
 #endif
     }
@@ -1756,7 +1761,7 @@ bool BKE_paint_ensure(ToolSettings *ts, Paint **r_paint)
   else if ((Sculpt **)r_paint == &ts->sculpt) {
     Sculpt *data = MEM_callocN<Sculpt>(__func__);
 
-    *data = *DNA_struct_default_get(Sculpt);
+    *data = blender::dna::shallow_copy(*DNA_struct_default_get(Sculpt));
 
     paint = &data->paint;
     paint_init_data(*paint);
@@ -1817,8 +1822,7 @@ void BKE_paint_brushes_ensure(Main *bmain, Paint *paint)
   }
 }
 
-void BKE_paint_init(
-    Main *bmain, Scene *sce, PaintMode mode, const uchar col[3], const bool ensure_brushes)
+void BKE_paint_init(Main *bmain, Scene *sce, PaintMode mode, const bool ensure_brushes)
 {
 
   BKE_paint_ensure_from_paintmode(sce, mode);
@@ -1828,8 +1832,6 @@ void BKE_paint_init(
     BKE_paint_brushes_ensure(bmain, paint);
   }
 
-  copy_v3_v3_uchar(paint->paint_cursor_col, col);
-  paint->paint_cursor_col[3] = 128;
   if (!paint->cavity_curve) {
     BKE_paint_cavity_curve_preset(paint, CURVE_PRESET_LINE);
   }
@@ -2070,8 +2072,6 @@ void BKE_paint_blend_read_data(BlendDataReader *reader, const Scene *scene, Pain
     BKE_curvemapping_init(ups->curve_rand_value);
   }
 
-  paint->paint_cursor = nullptr;
-
   paint->runtime = MEM_new<blender::bke::PaintRuntime>(__func__);
 
   paint_runtime_init(scene->toolsettings, paint);
@@ -2105,8 +2105,8 @@ bool paint_is_bmesh_face_hidden(const BMFace *f)
 
 float paint_grid_paint_mask(const GridPaintMask *gpm, uint level, uint x, uint y)
 {
-  int factor = BKE_ccg_factor(level, gpm->level);
-  int gridsize = BKE_ccg_gridsize(gpm->level);
+  int factor = CCG_grid_factor(level, gpm->level);
+  int gridsize = CCG_grid_size(gpm->level);
 
   return gpm->data[(y * factor) * gridsize + (x * factor)];
 }
@@ -2770,7 +2770,7 @@ void BKE_sculpt_mask_layers_ensure(Depsgraph *depsgraph,
    * isn't one already */
   if (mmd && !CustomData_has_layer(&mesh->corner_data, CD_GRID_PAINT_MASK)) {
     int level = max_ii(1, mmd->sculptlvl);
-    int gridsize = BKE_ccg_gridsize(level);
+    int gridsize = CCG_grid_size(level);
     int gridarea = gridsize * gridsize;
 
     GridPaintMask *gmask = static_cast<GridPaintMask *>(CustomData_add_layer(

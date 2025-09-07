@@ -8,6 +8,8 @@
 
 #pragma once
 
+#include "BLI_rect.h"
+
 #include "DNA_ID.h"
 #include "DNA_colorband_types.h"
 #include "DNA_listBase.h"
@@ -194,11 +196,16 @@ typedef struct UserDef_FileSpaceData {
   int flag;           /* FileSelectParams.flag */
   int _pad0;
   uint64_t filter_id; /* FileSelectParams.filter_id */
-
-  /** Info used when creating the file browser in a temporary window. */
-  int temp_win_sizex;
-  int temp_win_sizey;
 } UserDef_FileSpaceData;
+
+typedef struct UserDef_TempWinBounds {
+  rctf file;
+  rctf userpref;
+  rctf image;
+  rctf graph;
+  rctf info;
+  rctf outliner;
+} UserDef_TempWinBounds;
 
 /**
  * Checking experimental members must use the #USER_EXPERIMENTAL_TEST() macro
@@ -614,6 +621,8 @@ typedef struct UserDef {
   UserDef_SpaceData space_data;
   UserDef_FileSpaceData file_space_data;
 
+  UserDef_TempWinBounds stored_bounds;
+
   UserDef_Experimental experimental;
 
   /** Runtime data (keep last). */
@@ -773,7 +782,7 @@ typedef enum eUserpref_UI_Flag {
   USER_HIDE_DOT = (1 << 16),
   USER_SHOW_GIZMO_NAVIGATE = (1 << 17),
   USER_SHOW_VIEWPORTNAME = (1 << 18),
-  USER_UIFLAG_UNUSED_3 = (1 << 19), /* Cleared. */
+  USER_AREA_CORNER_HANDLE = (1 << 19),
   USER_ZOOM_TO_MOUSEPOS = (1 << 20),
   USER_SHOW_FPS = (1 << 21),
   USER_REGISTER_ALL_USERS = (1 << 22),
@@ -1048,6 +1057,9 @@ typedef enum eNdof_Navigation_Mode {
   /**
    * 3D mouse cap controls the movement of the view window
    * and allows for flying through the scene.
+   *
+   * \note this also inverts navigation for 2D views,
+   * since it's confusing for users when 2D/3D navigation is inverted, see: #144751.
    */
   NDOF_NAVIGATION_MODE_FLY = 1,
   /* TODO: implement "Target Camera Mode" and "Drone Mode" */

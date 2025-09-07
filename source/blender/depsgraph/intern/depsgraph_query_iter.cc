@@ -90,9 +90,17 @@ bool deg_object_hide_original(eEvaluationMode eval_mode, const Object *ob, const
 
 void deg_iterator_duplis_init(DEGObjectIterData *data, Object *object)
 {
+  /* This should have been set to default values at `DEG_iterator_objects_begin`, or at the end of
+   * the previous `deg_iterator_duplis_step` cycle. */
+  BLI_assert(data->dupli_parent == nullptr);
+  BLI_assert(data->dupli_object_next == nullptr);
+  BLI_assert(data->dupli_object_next_index == -1);
+  if (data->dupli_list.is_empty()) {
+    return;
+  }
   data->dupli_parent = object;
-  data->dupli_object_next = data->dupli_list.is_empty() ? nullptr : &data->dupli_list.first();
-  data->dupli_object_next_index = data->dupli_object_next ? 0 : -1;
+  data->dupli_object_next = &data->dupli_list.first();
+  data->dupli_object_next_index = 0;
 }
 
 /* Returns false when iterator is exhausted. */
@@ -523,7 +531,8 @@ bool evil::DEG_iterator_temp_object_from_dupli(const Object *dupli_parent,
   return true;
 }
 
-void ensure_id_properties_freed(const IDProperty *dupli_idprops, IDProperty **temp_dupli_idprops)
+static void ensure_id_properties_freed(const IDProperty *dupli_idprops,
+                                       IDProperty **temp_dupli_idprops)
 {
   if (*temp_dupli_idprops == nullptr) {
     /* No ID properties in temp data-block -- no leak is possible. */
