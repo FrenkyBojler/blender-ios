@@ -449,21 +449,6 @@ colorspaces:
         - !<BuiltinTransform> {style: "UTILITY - ACES-AP0_to_CIE-XYZ-D65_BFD", direction: inverse}
 
   - !<ColorSpace>
-    name: ACES 2.0 Rec.2100-PQ - SDR
-    family: ACES
-    equalitygroup:
-    bitdepth: 32f
-    description: |
-       ACES 2 Output Transform for 100 nit SDR Rec709
-    encoding: hdr-video
-    isdata: false
-    from_scene_reference: !<GroupTransform>
-      children:
-        - !<ColorSpaceTransform> {src: Linear CIE-XYZ E, dst: ACES2065-1}
-        - !<BuiltinTransform> {style: ACES-OUTPUT - ACES2065-1_to_CIE-XYZ-D65 - SDR-100nit-REC709_2.0}
-        - !<BuiltinTransform> {style: DISPLAY - CIE-XYZ-D65_to_REC.2100-PQ}
-
-  - !<ColorSpace>
     name: ACEScg
     aliases: [lin_ap1_scene, lin_ap1, Linear ACEScg, ACES - ACEScg, "ACEScg: Linear - AP1"]
     family: Linear
