@@ -282,13 +282,6 @@ class bNodeSocketRuntime : NonCopyable, NonMovable {
   short total_inputs = 0;
 
   /**
-   * The location of the socket in the tree, calculated while drawing the nodes and invalid if the
-   * node tree hasn't been drawn yet. In the node tree's "world space" (the same as
-   * #bNode::runtime::draw_bounds).
-   */
-  float2 location;
-
-  /**
    * Inferred structure type of the socket. This is not necessarily the same as the structure type
    * that is displayed in the UI. For example, it would be #StructureType::Single for an unlinked
    * input of the Math node, but the socket is displayed as #StructureType::Dynamic.
@@ -298,6 +291,13 @@ class bNodeSocketRuntime : NonCopyable, NonMovable {
    * a newly created Separate Bundle node to an existing Combine Bundle node.
    */
   nodes::StructureType inferred_structure_type = nodes::StructureType::Dynamic;
+
+  /**
+   * The location of the socket in the tree, calculated while drawing the nodes and invalid if the
+   * node tree hasn't been drawn yet. In the node tree's "world space" (the same as
+   * #bNode::runtime::draw_bounds).
+   */
+  float2 location;
 
   /** Only valid when #topology_cache_is_dirty is false. */
   Vector<bNodeLink *> directly_linked_links;
