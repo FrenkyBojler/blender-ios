@@ -243,7 +243,10 @@ class SkyMultipleScattering {
     /* Solid angle subtended by the planet from a point at d distance from the planet center. */
     const float omega = M_2PI_F * (1.0f - sqrtf(1.0f - sqr(EARTH_RADIUS / d)));
     const float4 T_to_ground = lookup_transmittance_at_ground(cos_theta);
-    const float4 T_ground_to_sample = lookup_transmittance_at_ground(1.0f) /
+    /* We can split the path into Ground <-> Sample <-> Sun.
+     * The LUT gives us both T(Sample,Sun) and T(Ground,Sun) = T(Ground,Sample)*T(Sample,Sun),
+     * so we can easily compute T(Ground,Sample) from those two. */
+    const float4 T_ground_to_sample = lookup_transmittance_to_sun(0.0f) /
                                       lookup_transmittance_to_sun(normalized_height);
     /* 2nd order scattering from the ground. */
     const float4 L_ground = PHASE_ISOTROPIC * omega * (GROUND_ALBEDO * M_1_PI_F) * T_to_ground *
