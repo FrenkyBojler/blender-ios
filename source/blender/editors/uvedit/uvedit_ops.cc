@@ -363,7 +363,7 @@ static wmOperatorStatus uv_shift_selected_exec(bContext *C, wmOperator *op)
       scene, view_layer, nullptr);
   UVMoveType type = UVMoveType(RNA_enum_get(op->ptr, "type"));
   UVMoveDirection axis = UVMoveDirection(RNA_enum_get(op->ptr, "axis"));
-  int distance = RNA_int_get(op->ptr, "distance");
+  int distance = RNA_int_get(op->ptr, "threshold");
 
   int width = 0, height = 0;
   ED_space_image_get_size(sima, &width, &height);
@@ -403,14 +403,14 @@ static void UV_OT_shift_selected(wmOperatorType *ot)
   };
 
   static const EnumPropertyItem axis_items[] = {
-      {int(UVMoveDirection::X), "X", 0, "X axis", "Move vertices on the X axis"},
-      {int(UVMoveDirection::Y), "Y", 0, "Y axis", "Move vertices on the Y axis"},
+      {int(UVMoveDirection::X), "X", 0, "X axis", "Shift vertices on the X axis"},
+      {int(UVMoveDirection::Y), "Y", 0, "Y axis", "Shift vertices on the Y axis"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
   /* identifiers */
   ot->name = "Shift Selected";
-  ot->description = "Shift selected UV vertices on a line";
+  ot->description = "Shift selected UVs on a line";
   ot->idname = "UV_OT_shift_selected";
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
@@ -428,7 +428,7 @@ static void UV_OT_shift_selected(wmOperatorType *ot)
               INT_MIN,
               INT_MAX,
               "Distance",
-              "Distance to shift UV vertices",
+              "Distance to shift UVs",
               INT_MIN,
               INT_MAX);
 }
@@ -845,7 +845,7 @@ static wmOperatorStatus uv_remove_doubles_to_unselected(bContext *C, wmOperator 
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   SpaceImage *sima = CTX_wm_space_image(C);
-  const float threshold = RNA_float_get(op->ptr, "threshold");
+  const float threshold = RNA_float_get(op->ptr, "distance");
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
       scene, view_layer, nullptr);
@@ -1023,7 +1023,8 @@ static void UV_OT_remove_doubles(wmOperatorType *ot)
 {
   /* identifiers */
   ot->name = "Merge UVs by Distance";
-  ot->description = "Selected UVs that are within a radius of each other are welded together";
+  ot->description =
+      "Selected UV vertices that are within a radius of each other are welded together";
   ot->idname = "UV_OT_remove_doubles";
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
