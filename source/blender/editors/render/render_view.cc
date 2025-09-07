@@ -11,6 +11,7 @@
 #include <cstring>
 
 #include "BLI_listbase.h"
+#include "BLI_string.h"
 
 #include "DNA_scene_types.h"
 #include "DNA_userdef_types.h"
@@ -32,6 +33,8 @@
 #include "wm_window.hh"
 
 #include "render_intern.hh"
+
+#include "RE_engine.h"
 
 /* -------------------------------------------------------------------- */
 /** \name Utilities for Finding Areas
@@ -156,9 +159,17 @@ ScrArea *render_view_open(bContext *C, int mx, int my, ReportList *reports)
         /*ymax*/ my + sizey,
     };
 
+    RenderEngineType *re_type = RE_engines_find(scene->r.engine);
+    const char *suffix = IFACE_("Render");
+
+    /* extra 2 bytes are for space and null terminator */
+    size_t len = strlen(re_type->name) + strlen(suffix) + 2; 
+    char *window_title = (char *)MEM_mallocN(len, "window_title");
+    BLI_snprintf(window_title, len, "%s %s", re_type->name, suffix);
+
     /* changes context! */
     if (WM_window_open(C,
-                       IFACE_("Blender Render"),
+                       window_title,
                        &window_rect,
                        SPACE_IMAGE,
                        true,
@@ -171,6 +182,8 @@ ScrArea *render_view_open(bContext *C, int mx, int my, ReportList *reports)
       BKE_report(reports, RPT_ERROR, "Failed to open window!");
       return nullptr;
     }
+
+    MEM_freeN(window_title);
 
     area = CTX_wm_area(C);
     if (BLI_listbase_is_single(&area->spacedata) == false) {
