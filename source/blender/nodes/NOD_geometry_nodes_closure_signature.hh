@@ -20,7 +20,7 @@ class ClosureSignature {
   };
 
   struct ItemKeyGetter {
-    StringRefNull operator()(const Item &item)
+    std::string operator()(const Item &item)
     {
       return item.key;
     }
