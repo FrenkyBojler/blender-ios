@@ -1,1 +1,2 @@
 Referenced by issue #145843, Crash selecting edge behind another mesh set to wireframe mode if the retopology overlay is turned on
+Referenced by issue #145783, Crash when selecting edge behind bounds or wireframe object when using Retopology
