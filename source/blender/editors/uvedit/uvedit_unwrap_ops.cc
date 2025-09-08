@@ -1678,7 +1678,6 @@ struct UVPackIslandsData {
   const Scene *scene;
 
   Vector<Object *> objects;
-
   const SpaceImage *sima;
   int udim_source;
 
@@ -1949,7 +1948,6 @@ static void uv_pack_islands_ui(bContext *C, wmOperator *op)
 
 static wmOperatorStatus uv_pack_islands_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-
   return WM_operator_props_popup_confirm_ex(C, op, event, IFACE_("Pack Islands"), IFACE_("Pack"));
 }
 
@@ -4257,7 +4255,7 @@ static wmOperatorStatus cube_project_exec(bContext *C, wmOperator *op)
     }
 
     float bounds[2][3];
-    float (*bounds_buf)[3] = nullptr;
+    float(*bounds_buf)[3] = nullptr;
 
     if (!RNA_property_is_set(op->ptr, prop_cube_size)) {
       bounds_buf = bounds;
