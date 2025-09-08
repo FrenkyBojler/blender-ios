@@ -90,9 +90,9 @@ class GreasePencilDisplayPanel:
             return
 
         tool_settings = context.tool_settings
-        if context.mode == 'PAINT_GREASE_GPENCIL':
+        if context.mode == 'PAINT_GREASE_PENCIL':
             settings = tool_settings.gpencil_paint
-        elif context.mode == 'SCULPT_GREASE_GPENCIL':
+        elif context.mode == 'SCULPT_GREASE_PENCIL':
             settings = tool_settings.gpencil_sculpt_paint
         elif context.mode == 'WEIGHT_GREASE_PENCIL':
             settings = tool_settings.gpencil_weight_paint
