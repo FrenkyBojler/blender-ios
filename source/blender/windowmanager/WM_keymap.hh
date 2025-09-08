@@ -40,8 +40,9 @@ void WM_keyconfig_set_active(wmWindowManager *wm, const char *idname);
  */
 void WM_keyconfig_update_ex(wmWindowManager *wm, bool keep_properties);
 void WM_keyconfig_update(wmWindowManager *wm);
+void WM_keyconfig_update_on_startup(wmWindowManager *wm);
 void WM_keyconfig_update_tag(wmKeyMap *keymap, wmKeyMapItem *kmi);
-void WM_keyconfig_update_operatortype();
+void WM_keyconfig_update_operatortype_tag();
 
 void WM_keyconfig_update_suppress_begin();
 void WM_keyconfig_update_suppress_end();
@@ -218,14 +219,14 @@ std::optional<std::string> WM_keymap_item_raw_to_string(int8_t shift,
  */
 wmKeyMapItem *WM_key_event_operator(const bContext *C,
                                     const char *opname,
-                                    wmOperatorCallContext opcontext,
+                                    blender::wm::OpCallContext opcontext,
                                     IDProperty *properties,
                                     short include_mask,
                                     short exclude_mask,
                                     wmKeyMap **r_keymap);
 std::optional<std::string> WM_key_event_operator_string(const bContext *C,
                                                         const char *opname,
-                                                        wmOperatorCallContext opcontext,
+                                                        blender::wm::OpCallContext opcontext,
                                                         IDProperty *properties,
                                                         bool is_strict);
 

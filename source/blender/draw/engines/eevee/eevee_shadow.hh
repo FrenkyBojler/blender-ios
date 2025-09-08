@@ -76,10 +76,10 @@ struct ShadowTileMap : public ShadowTileMapData {
   /** Cube face index. */
   eCubeFace cubeface = Z_NEG;
   /** Cached, used for detecting updates. */
-  float4x4 object_mat;
+  float4x4 object_mat = float4x4::identity();
 
  public:
-  ShadowTileMap(int tiles_index_)
+  ShadowTileMap(int tiles_index_) : ShadowTileMapData{}
   {
     tiles_index = tiles_index_;
     /* For now just the same index. */
@@ -169,7 +169,7 @@ struct ShadowTileMapPool {
 
 /* Can be either a shadow caster or a shadow receiver. */
 struct ShadowObject {
-  ResourceHandle resource_handle = {0};
+  ResourceHandleRange resource_handle = {};
   bool used = true;
 };
 
@@ -219,7 +219,7 @@ class ShadowModule {
   PassMain::Sub *tilemap_usage_transparent_ps_ = nullptr;
   gpu::Batch *box_batch_ = nullptr;
   /* Source texture for depth buffer analysis. */
-  GPUTexture *src_depth_tx_ = nullptr;
+  gpu::Texture *src_depth_tx_ = nullptr;
 
   Framebuffer usage_tag_fb;
 
@@ -260,7 +260,7 @@ class ShadowModule {
   /** \name Page Management
    * \{ */
 
-  static constexpr eGPUTextureFormat atlas_type = GPU_R32UI;
+  static constexpr gpu::TextureFormat atlas_type = gpu::TextureFormat::UINT_32;
   /** Atlas containing all physical pages. */
   Texture atlas_tx_ = {"shadow_atlas_tx_"};
 
@@ -351,7 +351,7 @@ class ShadowModule {
   /** Register a shadow caster or receiver. */
   void sync_object(const Object *ob,
                    const ObjectHandle &handle,
-                   const ResourceHandle &resource_handle,
+                   const ResourceHandleRange &resource_handle,
                    bool is_alpha_blend,
                    bool has_transparent_shadows);
   void end_sync();

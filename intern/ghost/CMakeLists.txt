@@ -90,16 +90,6 @@ if(WITH_OPENGL_BACKEND)
 endif()
 
 if(WITH_VULKAN_BACKEND)
-  if(WITH_VULKAN_MOLTENVK)
-    list(APPEND INC_SYS
-      PUBLIC ${MOLTENVK_INCLUDE_DIRS}
-    )
-
-    list(APPEND LIB
-      ${MOLTENVK_LIBRARIES}
-    )
-  endif()
-
   list(APPEND SRC
     intern/GHOST_ContextVK.cc
 
@@ -138,12 +128,17 @@ if(WITH_INPUT_NDOF)
     intern/GHOST_NDOFManager.hh
   )
 
-  list(APPEND INC_SYS
-    ${NDOF_INCLUDE_DIRS}
-  )
-  list(APPEND LIB
-    ${NDOF_LIBRARIES}
-  )
+  # Only some platforms define this.
+  if(DEFINED NDOF_INCLUDE_DIRS)
+    list(APPEND INC_SYS
+      ${NDOF_INCLUDE_DIRS}
+    )
+  endif()
+  if(DEFINED NDOF_LIBRARIES)
+    list(APPEND LIB
+      ${NDOF_LIBRARIES}
+    )
+  endif()
 endif()
 
 list(APPEND SRC
@@ -393,7 +388,7 @@ elseif(WITH_GHOST_X11 OR WITH_GHOST_WAYLAND)
     generate_protocol_bindings(
       "${WAYLAND_PROTOCOLS_DIR}/staging/fractional-scale/fractional-scale-v1.xml"
     )
-    # Viewport (only required when fractional scale is in use).
+    # ViewPorter (only required when fractional scale is in use).
     generate_protocol_bindings(
       "${WAYLAND_PROTOCOLS_DIR}/stable/viewporter/viewporter.xml"
     )
@@ -422,6 +417,10 @@ elseif(WITH_GHOST_X11 OR WITH_GHOST_WAYLAND)
         "${WAYLAND_PROTOCOLS_DIR}/unstable/text-input/text-input-unstable-v3.xml"
       )
     endif()
+    # Desktop compositor controlled cursor rendering.
+    generate_protocol_bindings(
+      "${WAYLAND_PROTOCOLS_DIR}/staging/cursor-shape/cursor-shape-v1.xml"
+    )
 
     unset(INC_DST)
 
@@ -508,9 +507,9 @@ endif()
 if(APPLE)
   if(WITH_METAL_BACKEND)
     list(APPEND SRC
-      intern/GHOST_ContextCGL.mm
+      intern/GHOST_ContextMTL.mm
 
-      intern/GHOST_ContextCGL.hh
+      intern/GHOST_ContextMTL.hh
     )
   endif()
 endif()

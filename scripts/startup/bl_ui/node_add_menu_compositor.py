@@ -5,7 +5,6 @@
 from bpy.types import Menu
 from bl_ui import node_add_menu
 from bpy.app.translations import (
-    pgettext_iface as iface_,
     contexts as i18n_contexts,
 )
 
@@ -15,23 +14,18 @@ class NODE_MT_category_compositor_input(Menu):
     bl_label = "Input"
 
     def draw(self, context):
-        snode = context.space_data
-        is_group = (len(snode.path) > 1)
-
+        del context
         layout = self.layout
         layout.menu("NODE_MT_category_compositor_input_constant")
         layout.separator()
+        node_add_menu.add_node_type(layout, "NodeGroupInput")
         node_add_menu.add_node_type(layout, "CompositorNodeBokehImage")
         node_add_menu.add_node_type(layout, "CompositorNodeImage")
         node_add_menu.add_node_type(layout, "CompositorNodeImageInfo")
         node_add_menu.add_node_type(layout, "CompositorNodeImageCoordinates")
         node_add_menu.add_node_type(layout, "CompositorNodeMask")
         node_add_menu.add_node_type(layout, "CompositorNodeMovieClip")
-        node_add_menu.add_node_type(layout, "CompositorNodeTexture")
 
-        if is_group:
-            layout.separator()
-            node_add_menu.add_node_type(layout, "NodeGroupInput")
         layout.separator()
         layout.menu("NODE_MT_category_compositor_input_scene")
 
@@ -46,6 +40,7 @@ class NODE_MT_category_compositor_input_constant(Menu):
         layout = self.layout
         node_add_menu.add_node_type(layout, "CompositorNodeRGB")
         node_add_menu.add_node_type(layout, "ShaderNodeValue")
+        node_add_menu.add_node_type(layout, "CompositorNodeNormal")
 
         node_add_menu.draw_assets_for_catalog(layout, "Input/Constant")
 
@@ -68,18 +63,12 @@ class NODE_MT_category_compositor_output(Menu):
     bl_label = "Output"
 
     def draw(self, context):
-        snode = context.space_data
-        is_group = (len(snode.path) > 1)
-
+        del context
         layout = self.layout
-        node_add_menu.add_node_type(layout, "CompositorNodeComposite")
+        node_add_menu.add_node_type(layout, "NodeGroupOutput")
         node_add_menu.add_node_type(layout, "CompositorNodeViewer")
         layout.separator()
         node_add_menu.add_node_type(layout, "CompositorNodeOutputFile")
-
-        if is_group:
-            layout.separator()
-            node_add_menu.add_node_type(layout, "NodeGroupOutput")
 
         node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
 
@@ -98,6 +87,7 @@ class NODE_MT_category_compositor_color(Menu):
         node_add_menu.add_node_type(layout, "ShaderNodeBlackbody")
         node_add_menu.add_node_type(layout, "ShaderNodeValToRGB")
         node_add_menu.add_node_type(layout, "CompositorNodeConvertColorSpace")
+        node_add_menu.add_node_type(layout, "CompositorNodeConvertToDisplay")
         node_add_menu.add_node_type(layout, "CompositorNodeSetAlpha")
         layout.separator()
         node_add_menu.add_node_type(layout, "CompositorNodeInvert")
@@ -116,7 +106,7 @@ class NODE_MT_category_compositor_color_adjust(Menu):
         node_add_menu.add_node_type(layout, "CompositorNodeColorBalance")
         node_add_menu.add_node_type(layout, "CompositorNodeColorCorrection")
         node_add_menu.add_node_type(layout, "CompositorNodeExposure")
-        node_add_menu.add_node_type(layout, "CompositorNodeGamma")
+        node_add_menu.add_node_type(layout, "ShaderNodeGamma")
         node_add_menu.add_node_type(layout, "CompositorNodeHueCorrect")
         node_add_menu.add_node_type(layout, "CompositorNodeHueSat")
         node_add_menu.add_node_type(layout, "CompositorNodeCurveRGB")
@@ -136,8 +126,8 @@ class NODE_MT_category_compositor_color_mix(Menu):
         node_add_menu.add_node_type(layout, "CompositorNodeCombineColor")
         node_add_menu.add_node_type(layout, "CompositorNodeSeparateColor")
         layout.separator()
-        node_add_menu.add_color_mix_node(context, layout)
         node_add_menu.add_node_type(layout, "CompositorNodeZcombine")
+        node_add_menu.add_color_mix_node(context, layout)
         node_add_menu.draw_assets_for_catalog(layout, "Color/Mix")
 
 
@@ -150,18 +140,22 @@ class NODE_MT_category_compositor_filter(Menu):
         layout.menu("NODE_MT_category_compositor_filter_blur")
         layout.separator()
         node_add_menu.add_node_type(layout, "CompositorNodeAntiAliasing")
+        node_add_menu.add_node_type(layout, "CompositorNodeConvolve")
         node_add_menu.add_node_type(layout, "CompositorNodeDenoise")
         node_add_menu.add_node_type(layout, "CompositorNodeDespeckle")
         layout.separator()
         node_add_menu.add_node_type(layout, "CompositorNodeDilateErode")
         node_add_menu.add_node_type(layout, "CompositorNodeInpaint")
         layout.separator()
-        node_add_menu.add_node_type_with_searchable_enum(context, layout, "CompositorNodeFilter", "filter_type")
-        node_add_menu.add_node_type_with_searchable_enum(context, layout, "CompositorNodeGlare", "glare_type")
+        node_add_menu.add_node_type_with_searchable_enum_socket(
+            context, layout, "CompositorNodeFilter", "Type", [
+                "Soften", "Box Sharpen", "Diamond Sharpen", "Laplace", "Sobel", "Prewitt", "Kirsch", "Shadow"])
+        node_add_menu.add_node_type_with_searchable_enum_socket(
+            context, layout, "CompositorNodeGlare", "Type", [
+                "Bloom", "Ghosts", "Streaks", "Fog Glow", "Simple Star", "Sun Beams"])
         node_add_menu.add_node_type(layout, "CompositorNodeKuwahara")
         node_add_menu.add_node_type(layout, "CompositorNodePixelate")
         node_add_menu.add_node_type(layout, "CompositorNodePosterize")
-        node_add_menu.add_node_type(layout, "CompositorNodeSunBeams")
 
         node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
 
@@ -304,9 +298,10 @@ class NODE_MT_category_compositor_utilities(Menu):
         layout.separator()
         node_add_menu.add_node_type(layout, "CompositorNodeSplit")
         node_add_menu.add_node_type(layout, "CompositorNodeSwitch")
+        node_add_menu.add_node_type(layout, "GeometryNodeMenuSwitch")
         node_add_menu.add_node_type(
             layout, "CompositorNodeSwitchView",
-            label=iface_("Switch Stereo View"))
+            label="Switch Stereo View")
         layout.separator()
         node_add_menu.add_node_type(layout, "CompositorNodeRelativeToPixel")
 
@@ -322,11 +317,10 @@ class NODE_MT_category_compositor_vector(Menu):
         node_add_menu.add_node_type(layout, "ShaderNodeCombineXYZ")
         node_add_menu.add_node_type(layout, "ShaderNodeSeparateXYZ")
         layout.separator()
-        props = node_add_menu.add_node_type(layout, "ShaderNodeMix", label=iface_("Mix Vector"))
+        props = node_add_menu.add_node_type(layout, "ShaderNodeMix", label="Mix Vector")
         ops = props.settings.add()
         ops.name = "data_type"
         ops.value = "'VECTOR'"
-        node_add_menu.add_node_type(layout, "CompositorNodeNormal")
         node_add_menu.add_node_type(layout, "ShaderNodeVectorCurve")
         node_add_menu.add_node_type_with_searchable_enum(context, layout, "ShaderNodeVectorMath", "operation")
         node_add_menu.add_node_type(layout, "ShaderNodeVectorRotate")

@@ -454,7 +454,7 @@ class UpdateAnimatedTransformConstraint(Operator):
             print(log)
             text = bpy.data.texts.new("UpdateAnimatedTransformConstraint Report")
             text.from_string(log)
-            self.report({'INFO'}, rpt_("Complete report available on '{:s}' text datablock").format(text.name))
+            self.report({'INFO'}, rpt_("Complete report available on '{:s}' text data-block").format(text.name))
         return {'FINISHED'}
 
 
@@ -501,7 +501,7 @@ class ARMATURE_OT_copy_bone_color_to_selected(Operator):
 
             # Anything else:
             case _:
-                self.report({'ERROR'}, "Cannot do anything in mode {!r}".format(context.mode))
+                self.report({'ERROR'}, rpt_("Cannot do anything in mode {!r}").format(context.mode))
                 return {'CANCELLED'}
 
         if not bone_source:

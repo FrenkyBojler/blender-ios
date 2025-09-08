@@ -57,6 +57,7 @@
 #include "WM_types.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 #include "UI_view2d.hh"
 
@@ -204,7 +205,7 @@ void ED_uvedit_foreach_uv(const Scene *scene,
                           FunctionRef<void(float[2])> user_fn)
 {
   /* Check selection for quick return. */
-  const bool synced_selection = (scene->toolsettings->uv_flag & UV_SYNC_SELECTION) != 0;
+  const bool synced_selection = (scene->toolsettings->uv_flag & UV_FLAG_SYNC_SELECT) != 0;
   if (synced_selection && bm->totvertsel == (selected ? 0 : bm->totvert)) {
     return;
   }
@@ -308,7 +309,7 @@ bool ED_uvedit_center_multi(const Scene *scene,
   return changed;
 }
 
-bool ED_uvedit_center_from_pivot_ex(SpaceImage *sima,
+bool ED_uvedit_center_from_pivot_ex(const SpaceImage *sima,
                                     Scene *scene,
                                     ViewLayer *view_layer,
                                     float r_center[2],
@@ -650,8 +651,8 @@ static wmOperatorStatus uv_remove_doubles_to_selected(bContext *C, wmOperator *o
   bool *changed = MEM_calloc_arrayN<bool>(objects.size(), __func__);
 
   /* Maximum index of an objects[i]'s UVs in UV_arr.
-   * It helps find which UV in *mloopuv_arr belongs to which object. */
-  uint *ob_mloopuv_max_idx = MEM_calloc_arrayN<uint>(objects.size(), __func__);
+   * It helps find which UV in *uv_map_arr belongs to which object. */
+  uint *ob_uv_map_max_idx = MEM_calloc_arrayN<uint>(objects.size(), __func__);
 
   /* Calculate max possible number of kdtree nodes. */
   int uv_maxlen = 0;
@@ -668,21 +669,21 @@ static wmOperatorStatus uv_remove_doubles_to_selected(bContext *C, wmOperator *o
   KDTree_2d *tree = BLI_kdtree_2d_new(uv_maxlen);
 
   blender::Vector<int> duplicates;
-  blender::Vector<float *> mloopuv_arr;
+  blender::Vector<float *> uv_map_arr;
 
-  int mloopuv_count = 0; /* Also used for *duplicates count. */
+  int uv_map_count = 0; /* Also used for *duplicates count. */
 
   for (const int ob_index : objects.index_range()) {
     Object *obedit = objects[ob_index];
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
     ED_uvedit_foreach_uv(scene, em->bm, true, true, [&](float luv[2]) {
-      BLI_kdtree_2d_insert(tree, mloopuv_count, luv);
+      BLI_kdtree_2d_insert(tree, uv_map_count, luv);
       duplicates.append(-1);
-      mloopuv_arr.append(luv);
-      mloopuv_count++;
+      uv_map_arr.append(luv);
+      uv_map_count++;
     });
 
-    ob_mloopuv_max_idx[ob_index] = mloopuv_count - 1;
+    ob_uv_map_max_idx[ob_index] = uv_map_count - 1;
   }
 
   BLI_kdtree_2d_balance(tree);
@@ -691,8 +692,8 @@ static wmOperatorStatus uv_remove_doubles_to_selected(bContext *C, wmOperator *o
 
   if (found_duplicates > 0) {
     /* Calculate average uv for duplicates. */
-    int *uv_duplicate_count = MEM_calloc_arrayN<int>(mloopuv_count, __func__);
-    for (int i = 0; i < mloopuv_count; i++) {
+    int *uv_duplicate_count = MEM_calloc_arrayN<int>(uv_map_count, __func__);
+    for (int i = 0; i < uv_map_count; i++) {
       if (duplicates[i] == -1) { /* If doesn't reference another */
         uv_duplicate_count[i]++; /* self */
         continue;
@@ -701,27 +702,27 @@ static wmOperatorStatus uv_remove_doubles_to_selected(bContext *C, wmOperator *o
       if (duplicates[i] != i) {
         /* If not self then accumulate uv for averaging.
          * Self uv is already present in accumulator */
-        add_v2_v2(mloopuv_arr[duplicates[i]], mloopuv_arr[i]);
+        add_v2_v2(uv_map_arr[duplicates[i]], uv_map_arr[i]);
       }
       uv_duplicate_count[duplicates[i]]++;
     }
 
-    for (int i = 0; i < mloopuv_count; i++) {
+    for (int i = 0; i < uv_map_count; i++) {
       if (uv_duplicate_count[i] < 2) {
         continue;
       }
 
-      mul_v2_fl(mloopuv_arr[i], 1.0f / float(uv_duplicate_count[i]));
+      mul_v2_fl(uv_map_arr[i], 1.0f / float(uv_duplicate_count[i]));
     }
     MEM_freeN(uv_duplicate_count);
 
     /* Update duplicated uvs. */
     uint ob_index = 0;
-    for (int i = 0; i < mloopuv_count; i++) {
-      /* Make sure we know which object owns the mloopuv at this index.
+    for (int i = 0; i < uv_map_count; i++) {
+      /* Make sure we know which object owns the uv_map at this index.
        * Remember that in some cases the object will have no loop uv,
        * thus we need the while loop, and not simply an if check. */
-      while (ob_mloopuv_max_idx[ob_index] < i) {
+      while (ob_uv_map_max_idx[ob_index] < i) {
         ob_index++;
       }
 
@@ -729,7 +730,7 @@ static wmOperatorStatus uv_remove_doubles_to_selected(bContext *C, wmOperator *o
         continue;
       }
 
-      copy_v2_v2(mloopuv_arr[i], mloopuv_arr[duplicates[i]]);
+      copy_v2_v2(uv_map_arr[i], uv_map_arr[duplicates[i]]);
       changed[ob_index] = true;
     }
 
@@ -745,7 +746,7 @@ static wmOperatorStatus uv_remove_doubles_to_selected(bContext *C, wmOperator *o
 
   BLI_kdtree_2d_free(tree);
   MEM_freeN(changed);
-  MEM_freeN(ob_mloopuv_max_idx);
+  MEM_freeN(ob_uv_map_max_idx);
 
   return OPERATOR_FINISHED;
 }
@@ -769,15 +770,15 @@ static wmOperatorStatus uv_remove_doubles_to_unselected(bContext *C, wmOperator 
 
   KDTree_2d *tree = BLI_kdtree_2d_new(uv_maxlen);
 
-  blender::Vector<float *> mloopuv_arr;
+  blender::Vector<float *> uv_map_arr;
 
-  int mloopuv_count = 0;
+  int uv_map_count = 0;
 
   /* Add visible non-selected uvs to tree */
   ED_uvedit_foreach_uv_multi(scene, objects, true, false, [&](float luv[2]) {
-    BLI_kdtree_2d_insert(tree, mloopuv_count, luv);
-    mloopuv_arr.append(luv);
-    mloopuv_count++;
+    BLI_kdtree_2d_insert(tree, uv_map_count, luv);
+    uv_map_arr.append(luv);
+    uv_map_count++;
   });
 
   BLI_kdtree_2d_balance(tree);
@@ -791,7 +792,7 @@ static wmOperatorStatus uv_remove_doubles_to_unselected(bContext *C, wmOperator 
       const int i = BLI_kdtree_2d_find_nearest(tree, luv, &nearest);
 
       if (i != -1 && nearest.dist < threshold) {
-        copy_v2_v2(luv, mloopuv_arr[i]);
+        copy_v2_v2(luv, uv_map_arr[i]);
         changed = true;
       }
     });
@@ -1280,7 +1281,7 @@ static wmOperatorStatus uv_pin_exec(bContext *C, wmOperator *op)
   const ToolSettings *ts = scene->toolsettings;
   const bool clear = RNA_boolean_get(op->ptr, "clear");
   const bool invert = RNA_boolean_get(op->ptr, "invert");
-  const bool synced_selection = (ts->uv_flag & UV_SYNC_SELECTION) != 0;
+  const bool synced_selection = (ts->uv_flag & UV_FLAG_SYNC_SELECT) != 0;
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
       scene, view_layer, nullptr);
@@ -1400,6 +1401,7 @@ static wmOperatorStatus uv_hide_exec(bContext *C, wmOperator *op)
   const ToolSettings *ts = scene->toolsettings;
   const bool swap = RNA_boolean_get(op->ptr, "unselected");
   const bool use_face_center = (ts->uv_selectmode == UV_SELECT_FACE);
+  const bool use_select_linked = ED_uvedit_select_island_check(ts);
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
       scene, view_layer, nullptr);
@@ -1410,7 +1412,7 @@ static wmOperatorStatus uv_hide_exec(bContext *C, wmOperator *op)
     BMLoop *l;
     BMIter iter, liter;
 
-    if (ts->uv_flag & UV_SYNC_SELECTION) {
+    if (ts->uv_flag & UV_FLAG_SYNC_SELECT) {
       /* Pass. */
     }
     else {
@@ -1421,7 +1423,7 @@ static wmOperatorStatus uv_hide_exec(bContext *C, wmOperator *op)
     }
     const BMUVOffsets offsets = BM_uv_map_offsets_get(em->bm);
 
-    if (ts->uv_flag & UV_SYNC_SELECTION) {
+    if (ts->uv_flag & UV_FLAG_SYNC_SELECT) {
       if (EDBM_mesh_hide(em, swap)) {
         Mesh *mesh = static_cast<Mesh *>(ob->data);
         EDBMUpdate_Params params = {0};
@@ -1487,7 +1489,7 @@ static wmOperatorStatus uv_hide_exec(bContext *C, wmOperator *op)
               BM_face_select_set(em->bm, efa, false);
               break;
             }
-            if (ts->uv_selectmode == UV_SELECT_ISLAND) {
+            if (use_select_linked) {
               BM_face_select_set(em->bm, efa, false);
               break;
             }
@@ -1583,7 +1585,7 @@ static wmOperatorStatus uv_reveal_exec(bContext *C, wmOperator *op)
     BMLoop *l;
     BMIter iter, liter;
 
-    if (ts->uv_flag & UV_SYNC_SELECTION) {
+    if (ts->uv_flag & UV_FLAG_SYNC_SELECT) {
       /* Pass. */
     }
     else {
@@ -1600,7 +1602,7 @@ static wmOperatorStatus uv_reveal_exec(bContext *C, wmOperator *op)
      * visibility checks internally. Current implementation handles each case separately. */
 
     /* call the mesh function if we are in mesh sync sel */
-    if (ts->uv_flag & UV_SYNC_SELECTION) {
+    if (ts->uv_flag & UV_FLAG_SYNC_SELECT) {
       if (EDBM_mesh_reveal(em, select)) {
         Mesh *mesh = static_cast<Mesh *>(ob->data);
         EDBMUpdate_Params params = {0};
@@ -1895,7 +1897,7 @@ static wmOperatorStatus uv_mark_seam_exec(bContext *C, wmOperator *op)
   BMIter iter, liter;
 
   const bool flag_set = !RNA_boolean_get(op->ptr, "clear");
-  const bool synced_selection = (ts->uv_flag & UV_SYNC_SELECTION) != 0;
+  const bool synced_selection = (ts->uv_flag & UV_FLAG_SYNC_SELECT) != 0;
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
       scene, view_layer, nullptr);
@@ -1949,7 +1951,7 @@ static wmOperatorStatus uv_mark_seam_invoke(bContext *C, wmOperator *op, const w
   pup = UI_popup_menu_begin(C, IFACE_("Edges"), ICON_NONE);
   layout = UI_popup_menu_layout(pup);
 
-  layout->operator_context_set(WM_OP_EXEC_DEFAULT);
+  layout->operator_context_set(blender::wm::OpCallContext::ExecDefault);
   PointerRNA op_ptr = layout->op(
       op->type->idname, CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Mark Seam"), ICON_NONE);
   RNA_boolean_set(&op_ptr, "clear", false);

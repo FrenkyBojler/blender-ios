@@ -8,11 +8,13 @@
 
 #include "node_shader_util.hh"
 
+#include "BLI_math_base.h"
+
 #include "FN_multi_function_builder.hh"
 
 #include "NOD_multi_function.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 namespace blender::nodes::node_shader_clamp_cc {

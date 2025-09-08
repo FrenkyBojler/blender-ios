@@ -14,7 +14,7 @@
 #include "BLI_math_matrix.hh"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_task.hh"
 
 #include "BKE_image.hh"
@@ -23,9 +23,10 @@
 
 #include "ED_screen.hh"
 
-#include "UI_interface.hh"
-
 #include "BLT_translation.hh"
+
+#include "UI_interface_types.hh"
+#include "UI_view2d.hh"
 
 #include "transform.hh"
 #include "transform_convert.hh"
@@ -67,6 +68,7 @@ struct TranslateCustomData {
 static void transdata_elem_translate(const TransInfo *t,
                                      const TransDataContainer *tc,
                                      TransData *td,
+                                     TransDataExtension *td_ext,
                                      const float3 &snap_source_local,
                                      const float3 &vec,
                                      enum eTranslateRotateMode rotate_mode)
@@ -103,7 +105,7 @@ static void transdata_elem_translate(const TransInfo *t,
       rotation_between_vecs_to_mat3(mat, original_normal, t->tsnap.snapNormal);
     }
 
-    ElementRotation_ex(t, tc, td, mat, snap_source_local);
+    ElementRotation_ex(t, tc, td, td_ext, mat, snap_source_local);
 
     if (td->loc) {
       use_rotate_offset = true;
@@ -166,7 +168,8 @@ static void translate_dist_to_str(char *r_str,
   }
   else {
     /* Check range to prevent string buffer overflow. */
-    BLI_snprintf(r_str, r_str_maxncpy, IN_RANGE_INCL(val, -1e10f, 1e10f) ? "%.4f" : "%.4e", val);
+    BLI_snprintf_utf8(
+        r_str, r_str_maxncpy, IN_RANGE_INCL(val, -1e10f, 1e10f) ? "%.4f" : "%.4e", val);
   }
 }
 
@@ -233,47 +236,47 @@ static void headerTranslation(TransInfo *t, const float vec[3], char str[UI_MAX_
     char prop_str[NUM_STR_REP_LEN];
     translate_dist_to_str(prop_str, sizeof(prop_str), t->prop_size, unit);
 
-    ofs += BLI_snprintf_rlen(str + ofs,
-                             UI_MAX_DRAW_STR - ofs,
-                             "%s %s: %s   ",
-                             IFACE_("Proportional Size"),
-                             t->proptext,
-                             prop_str);
+    ofs += BLI_snprintf_utf8_rlen(str + ofs,
+                                  UI_MAX_DRAW_STR - ofs,
+                                  "%s %s: %s   ",
+                                  IFACE_("Proportional Size"),
+                                  t->proptext,
+                                  prop_str);
   }
 
   if (t->flag & T_AUTOIK) {
     short chainlen = t->settings->autoik_chainlen;
     if (chainlen) {
-      ofs += BLI_snprintf_rlen(
+      ofs += BLI_snprintf_utf8_rlen(
           str + ofs, UI_MAX_DRAW_STR - ofs, IFACE_("Auto IK Length: %d"), chainlen);
-      ofs += BLI_strncpy_rlen(str + ofs, "   ", UI_MAX_DRAW_STR - ofs);
+      ofs += BLI_strncpy_utf8_rlen(str + ofs, "   ", UI_MAX_DRAW_STR - ofs);
     }
   }
 
   if (t->con.mode & CON_APPLY) {
     switch (t->num.idx_max) {
       case 0:
-        ofs += BLI_snprintf_rlen(
+        ofs += BLI_snprintf_utf8_rlen(
             str + ofs, UI_MAX_DRAW_STR - ofs, "D: %s (%s)%s", dvec_str[0], dist_str, t->con.text);
         break;
       case 1:
-        ofs += BLI_snprintf_rlen(str + ofs,
-                                 UI_MAX_DRAW_STR - ofs,
-                                 "D: %s   D: %s (%s)%s",
-                                 dvec_str[0],
-                                 dvec_str[1],
-                                 dist_str,
-                                 t->con.text);
+        ofs += BLI_snprintf_utf8_rlen(str + ofs,
+                                      UI_MAX_DRAW_STR - ofs,
+                                      "D: %s   D: %s (%s)%s",
+                                      dvec_str[0],
+                                      dvec_str[1],
+                                      dist_str,
+                                      t->con.text);
         break;
       case 2:
-        ofs += BLI_snprintf_rlen(str + ofs,
-                                 UI_MAX_DRAW_STR - ofs,
-                                 "D: %s   D: %s   D: %s (%s)%s",
-                                 dvec_str[0],
-                                 dvec_str[1],
-                                 dvec_str[2],
-                                 dist_str,
-                                 t->con.text);
+        ofs += BLI_snprintf_utf8_rlen(str + ofs,
+                                      UI_MAX_DRAW_STR - ofs,
+                                      "D: %s   D: %s   D: %s (%s)%s",
+                                      dvec_str[0],
+                                      dvec_str[1],
+                                      dvec_str[2],
+                                      dist_str,
+                                      t->con.text);
         break;
     }
   }
@@ -284,29 +287,29 @@ static void headerTranslation(TransInfo *t, const float vec[3], char str[UI_MAX_
         const char *str_dir = (snode->insert_ofs_dir == SNODE_INSERTOFS_DIR_RIGHT) ?
                                   IFACE_("right") :
                                   IFACE_("left");
-        ofs += BLI_snprintf_rlen(
+        ofs += BLI_snprintf_utf8_rlen(
             str, UI_MAX_DRAW_STR, IFACE_("Auto-offset direction: %s"), str_dir);
       }
     }
     else {
       if (t->flag & T_2D_EDIT) {
-        ofs += BLI_snprintf_rlen(str + ofs,
-                                 UI_MAX_DRAW_STR - ofs,
-                                 "Dx: %s   Dy: %s (%s)%s",
-                                 dvec_str[0],
-                                 dvec_str[1],
-                                 dist_str,
-                                 t->con.text);
+        ofs += BLI_snprintf_utf8_rlen(str + ofs,
+                                      UI_MAX_DRAW_STR - ofs,
+                                      "Dx: %s   Dy: %s (%s)%s",
+                                      dvec_str[0],
+                                      dvec_str[1],
+                                      dist_str,
+                                      t->con.text);
       }
       else {
-        ofs += BLI_snprintf_rlen(str + ofs,
-                                 UI_MAX_DRAW_STR - ofs,
-                                 "Dx: %s   Dy: %s   Dz: %s (%s)%s",
-                                 dvec_str[0],
-                                 dvec_str[1],
-                                 dvec_str[2],
-                                 dist_str,
-                                 t->con.text);
+        ofs += BLI_snprintf_utf8_rlen(str + ofs,
+                                      UI_MAX_DRAW_STR - ofs,
+                                      "Dx: %s   Dy: %s   Dz: %s (%s)%s",
+                                      dvec_str[0],
+                                      dvec_str[1],
+                                      dvec_str[2],
+                                      dist_str,
+                                      t->con.text);
       }
     }
   }
@@ -435,10 +438,11 @@ static void applyTranslationValue(TransInfo *t, const float vec[3])
     threading::parallel_for(IndexRange(tc->data_len), 1024, [&](const IndexRange range) {
       for (const int i : range) {
         TransData *td = &tc->data[i];
+        TransDataExtension *td_ext = tc->data_ext ? &tc->data_ext[i] : nullptr;
         if (td->flag & TD_SKIP) {
           continue;
         }
-        transdata_elem_translate(t, tc, td, snap_source_local, vec, rotate_mode);
+        transdata_elem_translate(t, tc, td, td_ext, snap_source_local, vec, rotate_mode);
       }
     });
   }
@@ -591,10 +595,21 @@ static void initTranslation(TransInfo *t, wmOperator * /*op*/)
   t->num.flag = 0;
   t->num.idx_max = t->idx_max;
 
-  t->snap[0] = t->snap_spatial[0];
-  t->snap[1] = t->snap_spatial[0] * t->snap_spatial_precision;
+  float3 aspect = t->aspect;
+  /* Custom aspect for fcurve. */
+  if (t->spacetype == SPACE_GRAPH) {
+    View2D *v2d = &t->region->v2d;
+    Scene *scene = t->scene;
+    SpaceGraph *sipo = static_cast<SpaceGraph *>(t->area->spacedata.first);
+    aspect[0] = UI_view2d_grid_resolution_x__frames_or_seconds(
+        v2d, scene, sipo->flag & SIPO_DRAWTIME);
+    aspect[1] = UI_view2d_grid_resolution_y__values(v2d);
+  }
 
-  copy_v3_fl(t->num.val_inc, t->snap[0]);
+  t->increment = t->snap_spatial * aspect;
+  t->increment_precision = t->snap_spatial_precision;
+
+  copy_v3_fl(t->num.val_inc, t->increment[0]);
   t->num.unit_sys = t->scene->unit.system;
   if (t->spacetype == SPACE_VIEW3D) {
     /* Handling units makes only sense in 3Dview... See #38877. */

@@ -18,6 +18,7 @@
 #include "DNA_scene_types.h"
 
 #include "BKE_mesh.hh"
+#include "BKE_object.hh"
 
 #include "bmesh.hh"
 
@@ -120,7 +121,17 @@ struct MeshRenderData {
   const char *default_color_name;
 };
 
-const Mesh &editmesh_final_or_this(const Object &object, const Mesh &mesh);
+inline const Mesh &editmesh_final_or_this(const Object &object, const Mesh &mesh)
+{
+  if (mesh.runtime->edit_mesh != nullptr) {
+    if (const Mesh *editmesh_eval_final = BKE_object_get_editmesh_eval_final(&object)) {
+      return *editmesh_eval_final;
+    }
+  }
+
+  return mesh;
+}
+
 const CustomData &mesh_cd_vdata_get_from_mesh(const Mesh &mesh);
 const CustomData &mesh_cd_edata_get_from_mesh(const Mesh &mesh);
 const CustomData &mesh_cd_pdata_get_from_mesh(const Mesh &mesh);
@@ -349,13 +360,20 @@ gpu::VertBufPtr extract_edituv_stretch_angle_subdiv(const MeshRenderData &mr,
 gpu::VertBufPtr extract_edituv_data(const MeshRenderData &mr);
 gpu::VertBufPtr extract_edituv_data_subdiv(const MeshRenderData &mr,
                                            const DRWSubdivCache &subdiv_cache);
-gpu::IndexBufPtr extract_edituv_tris(const MeshRenderData &mr);
+gpu::IndexBufPtr extract_edituv_tris(const MeshRenderData &mr, bool edit_uvs);
 gpu::IndexBufPtr extract_edituv_tris_subdiv(const MeshRenderData &mr,
                                             const DRWSubdivCache &subdiv_cache);
-gpu::IndexBufPtr extract_edituv_lines(const MeshRenderData &mr, bool edit_uvs);
+
+enum class UvExtractionMode : int8_t {
+  Edit,
+  Selection,
+  All,
+};
+
+gpu::IndexBufPtr extract_edituv_lines(const MeshRenderData &mr, UvExtractionMode mode);
 gpu::IndexBufPtr extract_edituv_lines_subdiv(const MeshRenderData &mr,
                                              const DRWSubdivCache &subdiv_cache,
-                                             bool edit_uvs);
+                                             UvExtractionMode mode);
 gpu::IndexBufPtr extract_edituv_points(const MeshRenderData &mr);
 gpu::IndexBufPtr extract_edituv_points_subdiv(const MeshRenderData &mr,
                                               const DRWSubdivCache &subdiv_cache);
@@ -376,5 +394,9 @@ gpu::VertBufPtr extract_attribute_subdiv(const MeshRenderData &mr,
                                          const DRWSubdivCache &subdiv_cache,
                                          StringRef name);
 gpu::VertBufPtr extract_attr_viewer(const MeshRenderData &mr);
+
+gpu::VertBufPtr extract_paint_overlay_flags(const MeshRenderData &mr);
+gpu::VertBufPtr extract_paint_overlay_flags_subdiv(const MeshRenderData &mr,
+                                                   const DRWSubdivCache &subdiv_cache);
 
 }  // namespace blender::draw

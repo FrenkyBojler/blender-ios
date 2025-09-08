@@ -16,6 +16,7 @@
 
 struct BlendDataReader;
 struct BlendWriter;
+struct IDTypeForeachColorFunctionCallback;
 namespace blender {
 class GPointer;
 class CPPType;
@@ -43,9 +44,10 @@ class Attribute {
     /* The number of elements in the array. */
     int64_t size;
     ImplicitSharingPtr<> sharing_info;
-    static ArrayData ForValue(const GPointer &value, int64_t domain_size);
-    static ArrayData ForDefaultValue(const CPPType &type, int64_t domain_size);
-    static ArrayData ForConstructed(const CPPType &type, int64_t domain_size);
+    static ArrayData from_value(const GPointer &value, int64_t domain_size);
+    static ArrayData from_default_value(const CPPType &type, int64_t domain_size);
+    static ArrayData from_uninitialized(const CPPType &type, int64_t domain_size);
+    static ArrayData from_constructed(const CPPType &type, int64_t domain_size);
   };
   /** Data for an attribute stored as a single value for the entire domain. */
   struct SingleData {
@@ -53,8 +55,8 @@ class Attribute {
      * It's not necessary to manage a single value. */
     void *value;
     ImplicitSharingPtr<> sharing_info;
-    static SingleData ForValue(const GPointer &value);
-    static SingleData ForDefaultValue(const CPPType &type);
+    static SingleData from_value(const GPointer &value);
+    static SingleData from_default_value(const CPPType &type);
   };
   using DataVariant = std::variant<ArrayData, SingleData>;
   friend AttributeStorage;
@@ -103,10 +105,11 @@ class Attribute {
   /**
    * The same as #data(), but if the attribute data is shared initially, it will be unshared and
    * made mutable.
-   *
-   * \warning Does not yet support attributes stored as a single value (#AttrStorageType::Single).
    */
   DataVariant &data_for_write();
+
+  /** Replace the attribute's data without first making the existing data mutable. */
+  void assign_data(DataVariant &&data);
 };
 
 class AttributeStorageRuntime {
@@ -176,10 +179,16 @@ class AttributeStorage : public ::AttributeStorage {
                  Attribute::DataVariant data);
 
   /** Return a possibly changed version of the input name that is unique within existing names. */
-  std::string unique_name_calc(StringRef name);
+  std::string unique_name_calc(StringRef name) const;
 
   /** Change the name of a single existing attribute. */
   void rename(StringRef old_name, std::string new_name);
+
+  /**
+   * Resize the data for a given domain. New values will be default initialized (meaning no zero
+   * initialization for trivial types).
+   */
+  void resize(AttrDomain domain, int64_t new_size);
 
   /**
    * Read data owned by the #AttributeStorage struct. This works by converting the DNA-specific
@@ -192,13 +201,19 @@ class AttributeStorage : public ::AttributeStorage {
    */
   struct BlendWriteData {
     ResourceScope &scope;
-    Vector<::Attribute, 16> attributes;
+    Vector<::Attribute, 16> &attributes;
+    explicit BlendWriteData(ResourceScope &scope);
   };
   /**
    * Write the prepared data and the data stored in the DNA fields in
    * the #AttributeStorage struct.
    */
   void blend_write(BlendWriter &writer, const BlendWriteData &write_data);
+
+  /**
+   * Iterate over every color to change it to another colorspace.
+   */
+  void foreach_working_space_color(const IDTypeForeachColorFunctionCallback &fn);
 
   void count_memory(MemoryCounter &memory) const;
 };
@@ -224,6 +239,11 @@ inline AttrType Attribute::data_type() const
 inline const Attribute::DataVariant &Attribute::data() const
 {
   return data_;
+}
+
+inline void Attribute::assign_data(DataVariant &&data)
+{
+  data_ = std::move(data);
 }
 
 }  // namespace blender::bke
