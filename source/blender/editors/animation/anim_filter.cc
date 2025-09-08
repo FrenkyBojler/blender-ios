@@ -108,13 +108,13 @@ bAction *ANIM_active_action_from_area(Scene *scene,
                                       ID **r_action_user)
 {
   if (area->spacetype != SPACE_ACTION) {
-    return {};
+    return nullptr;
   }
 
   BKE_view_layer_synced_ensure(scene, view_layer);
   Object *ob = BKE_view_layer_active_object_get(view_layer);
   if (!ob) {
-    return {};
+    return nullptr;
   }
 
   const SpaceAction *saction = static_cast<const SpaceAction *>(area->spacedata.first);
