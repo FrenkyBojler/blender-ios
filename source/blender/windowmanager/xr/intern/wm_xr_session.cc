@@ -96,10 +96,20 @@ static void wm_xr_session_vignette_data_free(wmXrSessionState *state)
   }
 }
 
+static void wm_xr_operator_data_free(wmXrSessionState *state)
+{
+  ListBase *lb = &state->operator_cleanup_fns;
+  while (wmXrOperatorCleanupData *data = static_cast<wmXrOperatorCleanupData *>(BLI_pophead(lb))) {
+    (data->cleanup_fn)(data->op);
+    BLI_freelinkN(lb, data);
+  }
+}
+
 void wm_xr_session_data_free(wmXrSessionState *state)
 {
   wm_xr_session_controller_data_free(state);
   wm_xr_session_vignette_data_free(state);
+  wm_xr_operator_data_free(state);
 }
 
 static void wm_xr_session_exit_cb(void *customdata)

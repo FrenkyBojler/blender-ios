@@ -414,8 +414,12 @@ static wmOperatorStatus wm_xr_navigation_grab_invoke(bContext *C,
     return OPERATOR_PASS_THROUGH;
   }
 
+  wmWindowManager *wm = CTX_wm_manager(C);
+  wmXrData *xr = &wm->xr;
+
   const wmXrActionData *actiondata = static_cast<const wmXrActionData *>(event->customdata);
 
+  wm_xr_operator_init(op, wm_xr_grab_uninit, xr);
   wm_xr_grab_init(op);
   wm_xr_grab_update(op, actiondata);
 
@@ -574,11 +578,11 @@ static wmOperatorStatus wm_xr_navigation_grab_modal(bContext *C,
     case KM_PRESS:
       return OPERATOR_RUNNING_MODAL;
     case KM_RELEASE:
-      wm_xr_grab_uninit(op);
+      wm_xr_operator_uninit(op, xr);
       return OPERATOR_FINISHED;
     default:
       BLI_assert_unreachable();
-      wm_xr_grab_uninit(op);
+      wm_xr_operator_uninit(op, xr);
       return OPERATOR_CANCELLED;
   }
 }
@@ -994,8 +998,10 @@ static wmOperatorStatus wm_xr_navigation_fly_invoke(bContext *C,
   }
 
   wmWindowManager *wm = CTX_wm_manager(C);
+  wmXrData *xr = &wm->xr;
 
-  wm_xr_fly_init(op, &wm->xr);
+  wm_xr_operator_init(op, wm_xr_fly_uninit, xr);
+  wm_xr_fly_init(op, xr);
 
   WM_event_add_modal_handler(C, op);
 
@@ -1015,15 +1021,16 @@ static wmOperatorStatus wm_xr_navigation_fly_modal(bContext *C,
     return OPERATOR_PASS_THROUGH;
   }
 
+  wmWindowManager *wm = CTX_wm_manager(C);
+  wmXrData *xr = &wm->xr;
+
   if (event->val == KM_RELEASE) {
-    wm_xr_fly_uninit(op);
+    wm_xr_operator_uninit(op, xr);
     return OPERATOR_FINISHED;
   }
 
   const wmXrActionData *actiondata = static_cast<const wmXrActionData *>(event->customdata);
   XrFlyData *data = static_cast<XrFlyData *>(op->customdata);
-  wmWindowManager *wm = CTX_wm_manager(C);
-  wmXrData *xr = &wm->xr;
   eXrFlyMode mode;
   bool turn, snap_turn, invert_rotation, swap_hands, locz_lock, dir_lock, speed_frame_based;
   bool speed_interp_cubic = false;
@@ -1219,7 +1226,7 @@ static wmOperatorStatus wm_xr_navigation_fly_modal(bContext *C,
 
   /* XR events currently only support press and release. */
   BLI_assert_unreachable();
-  wm_xr_fly_uninit(op);
+  wm_xr_operator_uninit(op, xr);
   return OPERATOR_CANCELLED;
 }
 
@@ -1583,6 +1590,10 @@ static wmOperatorStatus wm_xr_navigation_teleport_invoke(bContext *C,
     return OPERATOR_PASS_THROUGH;
   }
 
+  wmWindowManager *wm = CTX_wm_manager(C);
+  wmXrData *xr = &wm->xr;
+
+  wm_xr_operator_init(op, wm_xr_raycast_uninit, xr);
   wm_xr_raycast_init(op);
 
   const wmOperatorStatus retval = op->type->modal(C, op, event);
@@ -1673,14 +1684,14 @@ static wmOperatorStatus wm_xr_navigation_teleport_modal(bContext *C,
       }
 
       xr->runtime->session_state.is_raycast_shown = false;
-      wm_xr_raycast_uninit(op);
+      wm_xr_operator_uninit(op, xr);
 
       return OPERATOR_FINISHED;
     }
     default:
       /* XR events currently only support press and release. */
       BLI_assert_unreachable();
-      wm_xr_raycast_uninit(op);
+      wm_xr_operator_uninit(op, xr);
       return OPERATOR_CANCELLED;
   }
 }
@@ -1990,6 +2001,35 @@ void wm_xr_operatortypes_register()
   WM_operatortype_append(WM_OT_xr_navigation_teleport);
   WM_operatortype_append(WM_OT_xr_navigation_reset);
   WM_operatortype_append(WM_OT_xr_navigation_swap_hands);
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Operator Cleanup
+ * \{ */
+
+void wm_xr_operator_init(wmOperator *op, wmXrOperatorCleanupFn cleanup_fn, const wmXrData *xr)
+{
+  wmXrSessionState *state = &xr->runtime->session_state;
+  wmXrOperatorCleanupData *data = MEM_callocN<wmXrOperatorCleanupData>(__func__);
+  data->op = op;
+  data->cleanup_fn = cleanup_fn;
+
+  BLI_addtail(&state->operator_cleanup_fns, data);
+}
+
+void wm_xr_operator_uninit(wmOperator *op, const wmXrData *xr)
+{
+  wmXrSessionState *state = &xr->runtime->session_state;
+  ListBase *lb = &state->operator_cleanup_fns;
+  LISTBASE_FOREACH (wmXrOperatorCleanupData *, data, lb) {
+    if (data->op == op) {
+      (*data->cleanup_fn)(data->op);
+      BLI_freelinkN(lb, data);
+      return;
+    }
+  }
 }
 
 /** \} */
