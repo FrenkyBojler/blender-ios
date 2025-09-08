@@ -78,7 +78,7 @@ static void strip_by_compositor_node_group_lookup_build(Strip *strip, StripLooku
 
 static void strip_lookup_build_effect(Strip *strip, StripLookup *lookup)
 {
-  if ((strip->type & STRIP_TYPE_EFFECT) == 0) {
+  if (!strip->is_effect()) {
     return;
   }
 
