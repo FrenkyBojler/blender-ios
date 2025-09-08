@@ -23,6 +23,8 @@
 #include "ED_mesh.hh"
 #include "ED_transform.hh"
 #include "ED_view3d.hh"
+#include "RNA_access.hh"
+#include "RNA_define.hh"
 
 #include "bmesh.hh"
 
@@ -34,9 +36,7 @@ using blender::Vector;
 /* uses total number of selected edges around a vertex to choose how to extend */
 #define USE_TRICKY_EXTEND
 
-static wmOperatorStatus edbm_rip_edge_invoke(bContext *C,
-                                             wmOperator * /*op*/,
-                                             const wmEvent *event)
+static wmOperatorStatus edbm_rip_edge_exec(bContext *C, wmOperator *op)
 {
   ARegion *region = CTX_wm_region(C);
   RegionView3D *rv3d = CTX_wm_region_view3d(C);
@@ -45,19 +45,19 @@ static wmOperatorStatus edbm_rip_edge_invoke(bContext *C,
   const Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
       scene, view_layer, CTX_wm_view3d(C));
 
+  float mval_dir[2];
+  RNA_float_get_array(op->ptr, "direction", mval_dir);
+  normalize_v2(mval_dir);
+
   for (Object *obedit : objects) {
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
     BMesh *bm = em->bm;
 
     BMIter viter;
     BMVert *v;
-    const float mval_fl[2] = {float(event->mval[0]), float(event->mval[1])};
     float cent_sco[2];
     int cent_tot;
     bool changed = false;
-
-    /* mouse direction to view center */
-    float mval_dir[2];
 
     if (bm->totvertsel == 0) {
       continue;
@@ -87,7 +87,7 @@ static wmOperatorStatus edbm_rip_edge_invoke(bContext *C,
        * try re-position the center to the closest edge */
       BMIter eiter;
       BMEdge *e;
-      float dist_sq_best = len_squared_v2v2(cent_sco, mval_fl);
+      float dist_sq_best = FLT_MAX;
 
       BM_ITER_MESH (e, &eiter, bm, BM_EDGES_OF_MESH) {
         if (BM_elem_flag_test(e, BM_ELEM_SELECT)) {
@@ -97,8 +97,8 @@ static wmOperatorStatus edbm_rip_edge_invoke(bContext *C,
           const float2 e_sco_0 = ED_view3d_project_float_v2_m4(region, e->v1->co, projectMat);
           const float2 e_sco_1 = ED_view3d_project_float_v2_m4(region, e->v2->co, projectMat);
 
-          closest_to_line_segment_v2(cent_sco_test, mval_fl, e_sco_0, e_sco_1);
-          dist_sq_test = len_squared_v2v2(cent_sco_test, mval_fl);
+          copy_v2_v2(cent_sco_test, cent_sco);
+          dist_sq_test = 0.0f;
           if (dist_sq_test < dist_sq_best) {
             dist_sq_best = dist_sq_test;
 
@@ -108,9 +108,6 @@ static wmOperatorStatus edbm_rip_edge_invoke(bContext *C,
         }
       }
     }
-
-    sub_v2_v2v2(mval_dir, mval_fl, cent_sco);
-    normalize_v2(mval_dir);
 
     /* operate on selected verts */
     BM_ITER_MESH (v, &viter, bm, BM_VERTS_OF_MESH) {
@@ -218,6 +215,79 @@ static wmOperatorStatus edbm_rip_edge_invoke(bContext *C,
   return OPERATOR_FINISHED;
 }
 
+static wmOperatorStatus edbm_rip_edge_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+{
+  ARegion *region = CTX_wm_region(C);
+  RegionView3D *rv3d = CTX_wm_region_view3d(C);
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  const Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
+      scene, view_layer, CTX_wm_view3d(C));
+
+  float mval_dir[2] = {0.0f, 0.0f};
+
+  for (Object *obedit : objects) {
+    BMEditMesh *em = BKE_editmesh_from_object(obedit);
+    BMesh *bm = em->bm;
+
+    BMIter viter;
+    BMVert *v;
+    const float mval_fl[2] = {float(event->mval[0]), float(event->mval[1])};
+    float cent_sco[2];
+    int cent_tot;
+
+    if (bm->totvertsel == 0) {
+      continue;
+    }
+
+    const blender::float4x4 projectMat = ED_view3d_ob_project_mat_get(rv3d, obedit);
+
+    zero_v2(cent_sco);
+    cent_tot = 0;
+
+    BM_ITER_MESH (v, &viter, bm, BM_VERTS_OF_MESH) {
+      if (BM_elem_flag_test(v, BM_ELEM_SELECT)) {
+        const float2 v_sco = ED_view3d_project_float_v2_m4(region, v->co, projectMat);
+
+        add_v2_v2(cent_sco, v_sco);
+        cent_tot += 1;
+      }
+    }
+    mul_v2_fl(cent_sco, 1.0f / float(cent_tot));
+
+    if (bm->totedgesel) {
+      BMIter eiter;
+      BMEdge *e;
+      float dist_sq_best = len_squared_v2v2(cent_sco, mval_fl);
+
+      BM_ITER_MESH (e, &eiter, bm, BM_EDGES_OF_MESH) {
+        if (BM_elem_flag_test(e, BM_ELEM_SELECT)) {
+          float cent_sco_test[2];
+          float dist_sq_test;
+
+          const float2 e_sco_0 = ED_view3d_project_float_v2_m4(region, e->v1->co, projectMat);
+          const float2 e_sco_1 = ED_view3d_project_float_v2_m4(region, e->v2->co, projectMat);
+
+          closest_to_line_segment_v2(cent_sco_test, mval_fl, e_sco_0, e_sco_1);
+          dist_sq_test = len_squared_v2v2(cent_sco_test, mval_fl);
+          if (dist_sq_test < dist_sq_best) {
+            dist_sq_best = dist_sq_test;
+            copy_v2_v2(cent_sco, cent_sco_test);
+          }
+        }
+      }
+    }
+
+    sub_v2_v2v2(mval_dir, mval_fl, cent_sco);
+    normalize_v2(mval_dir);
+    break;
+  }
+
+  RNA_float_set_array(op->ptr, "direction", mval_dir);
+
+  return edbm_rip_edge_exec(C, op);
+}
+
 void MESH_OT_rip_edge(wmOperatorType *ot)
 {
   /* identifiers */
@@ -227,11 +297,22 @@ void MESH_OT_rip_edge(wmOperatorType *ot)
 
   /* API callbacks. */
   ot->invoke = edbm_rip_edge_invoke;
+  ot->exec = edbm_rip_edge_exec;
   ot->poll = EDBM_view3d_poll;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_DEPENDS_ON_CURSOR;
 
-  /* to give to transform */
-  blender::ed::transform::properties_register(ot, P_PROPORTIONAL | P_MIRROR_DUMMY);
+  PropertyRNA *prop;
+  prop = RNA_def_float_vector(ot->srna,
+                              "direction",
+                              2,
+                              nullptr,
+                              -FLT_MAX,
+                              FLT_MAX,
+                              "Direction",
+                              "Direction vector for extending vertices",
+                              -1.0f,
+                              1.0f);
+  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 }
