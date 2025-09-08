@@ -1088,7 +1088,6 @@ def main():
     output = nodes.new("ShaderNodeOutputMaterial")
     material.node_tree.links.new(bsdf.outputs["BSDF"], output.inputs["Surface"])
     bsdf.inputs['Base Color'].default_value = (0.4, 0.4, 0.4, 1.0)
-    # todo(habib): test
     MATERIAL_FROM_COLOR["grey"] = material
     del material
 

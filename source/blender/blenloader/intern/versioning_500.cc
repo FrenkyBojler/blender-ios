@@ -2051,7 +2051,6 @@ static void do_version_material_remove_use_nodes(Main *bmain, Material *material
     new_output_eevee.flag |= NODE_DO_OUTPUT;
     new_output_eevee.custom1 = SHD_OUTPUT_EEVEE;
 
-    // todo(habib): use version_node_add_empty and add the 500 bsdf sockets :(
     bNode &shader_eevee = *blender::bke::node_add_static_node(
         nullptr, *ntree, SH_NODE_BSDF_PRINCIPLED);
     bNodeSocket &shader_bsdf_output = *blender::bke::node_find_socket(
@@ -2065,10 +2064,8 @@ static void do_version_material_remove_use_nodes(Main *bmain, Material *material
     bNodeSocket &roughness_input = *blender::bke::node_find_socket(
         shader_eevee, SOCK_IN, "Roughness");
 
-    // todo(habib): use version_node_add_link()
-    blender::bke::node_add_link(
+    version_node_add_link(
         *ntree, shader_eevee, shader_bsdf_output, new_output_eevee, output_surface_input);
-    // version_node_add_link(*ntree, shader, shader_bsdf_output, new_output, output_surface_input);
 
     bNodeSocketValueRGBA *rgba = shader_color_input.default_value_typed<bNodeSocketValueRGBA>();
     rgba->value[0] = material->r;
@@ -2113,10 +2110,8 @@ static void do_version_material_remove_use_nodes(Main *bmain, Material *material
     bNodeSocket &shader_color_input = *blender::bke::node_find_socket(
         shader_cycles, SOCK_IN, "Color");
 
-    // todo(habib): use version_node_add_link()
-    blender::bke::node_add_link(
+    version_node_add_link(
         *ntree, shader_cycles, shader_bsdf_output, new_output_cycles, output_surface_input);
-    // version_node_add_link(*ntree, shader, shader_bsdf_output, new_output, output_surface_input);
 
     bNodeSocketValueRGBA *rgba = shader_color_input.default_value_typed<bNodeSocketValueRGBA>();
     rgba->value[0] = material->r;
