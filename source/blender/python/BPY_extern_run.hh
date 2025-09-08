@@ -30,10 +30,7 @@
 struct ReportList;
 struct Text;
 struct bContext;
-
-/* Taken from `pytypedefs.h`, so that this file does not require including all of `Python.h`. */
-struct _object;
-typedef struct _object PyObject;
+struct IDProperty;
 
 /* `bpy_interface_run.cc` */
 
@@ -110,13 +107,11 @@ bool BPY_run_string_eval(bContext *C, const char *imports[], const char *expr);
  *
  * \param script The Python script to run, can be multiple lines.
  *
- * \param set_locals_fn A function that gets the 'locals' dictionary, in order to add local
- * variables to it. This is done via a callback function so that the caller of
- * BPY_run_string_with_locals() doesn't have to bother with obtaining the GIL.
+ * \param locals group property with string keys, defining the script's local variables.
  */
 bool BPY_run_string_with_locals(bContext *C,
                                 const blender::StringRefNull script,
-                                blender::FunctionRef<void(PyObject *py_locals)> set_locals_fn);
+                                IDProperty &locals);
 
 /** \} */
 

@@ -13,11 +13,10 @@
 
 #include "BKE_context.hh"
 #include "BKE_global.hh"
+#include "BKE_idprop.hh"
 
 #ifdef WITH_PYTHON
 #  include "BPY_extern_run.hh"
-
-#  include <Python.h>
 #endif
 
 #include "DNA_userdef_types.h"
@@ -336,30 +335,14 @@ void remote_library_request_asset_download(bContext &C,
         "    dst_filepath, Path(dst_filepath),\n"
         ")\n";
 
-    const StringRefNull library_path = library.root_path();
-
     /* Construct local variables for the above script. */
-    auto set_locals = [&](PyObject *py_locals) {
-      PyObject *py_library_url = PyUnicode_FromStringAndSize(library_url->c_str(),
-                                                             library_url->size());
-
-      PyObject *py_library_path = PyUnicode_FromStringAndSize(library_path.c_str(),
-                                                              library_path.size());
-
-      PyObject *py_dst_filepath = PyUnicode_FromStringAndSize(dst_filepath->data(),
-                                                              dst_filepath->size());
-
-      PyDict_SetItemString(py_locals, "library_url", py_library_url);
-      PyDict_SetItemString(py_locals, "library_path", py_library_path);
-      PyDict_SetItemString(py_locals, "dst_filepath", py_dst_filepath);
-
-      Py_DECREF(py_library_url);
-      Py_DECREF(py_library_path);
-      Py_DECREF(py_dst_filepath);
-    };
+    std::unique_ptr locals = bke::idprop::create_group("locals");
+    IDP_AddToGroup(locals.get(), IDP_NewString(*library_url, "library_url"));
+    IDP_AddToGroup(locals.get(), IDP_NewString(library.root_path(), "library_path"));
+    IDP_AddToGroup(locals.get(), IDP_NewString(*dst_filepath, "dst_filepath"));
 
     /* TODO: report errors in the UI somehow. */
-    BPY_run_string_with_locals(&C, script, set_locals);
+    BPY_run_string_with_locals(&C, script, *locals);
   }
 #else
   UNUSED_VARS(C, asset);
