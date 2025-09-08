@@ -33,6 +33,15 @@ struct DRW_MeshCDMask {
   bool edit_uv = false;
   BLI_STRUCT_EQUALITY_OPERATORS_6(
       DRW_MeshCDMask, uv.as_span(), uv.as_span(), orco, tan_orco, sculpt_overlays, edit_uv);
+  void clear()
+  {
+    uv.clear_and_keep_capacity();
+    tan.clear_and_keep_capacity();
+    orco = false;
+    tan_orco = false;
+    sculpt_overlays = false;
+    edit_uv = false;
+  }
 };
 
 void drw_attributes_merge(VectorSet<std::string> *dst, const VectorSet<std::string> *src);

@@ -1050,7 +1050,7 @@ void DRW_mesh_batch_cache_free_old(Mesh *mesh, int ctime)
     mesh_batch_cache_discard_shaded_tri(*cache);
   }
 
-  cache->cd_used_over_time = {};
+  cache->cd_used_over_time.clear();
   cache->attr_used_over_time.clear();
 }
 
@@ -1169,7 +1169,7 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
       drw_attributes_merge(&cache.attr_used, &cache.attr_needed);
     }
     mesh_cd_layers_type_merge(&cache.cd_used_over_time, cache.cd_needed);
-    cache.cd_needed = {};
+    cache.cd_needed.clear();
 
     drw_attributes_merge(&cache.attr_used_over_time, &cache.attr_needed);
     cache.attr_needed.clear();
