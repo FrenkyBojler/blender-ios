@@ -2,8 +2,6 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "BLI_string.h"
-
 #include "NOD_socket_declarations.hh"
 #include "NOD_socket_declarations_geometry.hh"
 
@@ -11,6 +9,8 @@
 #include "BKE_node_runtime.hh"
 
 #include "BLI_math_vector.h"
+#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 
 namespace blender::nodes::decl {
 
@@ -63,7 +63,7 @@ static bool basic_types_can_connect(const SocketDeclaration & /*socket_decl*/,
 static void modify_subtype_except_for_storage(bNodeSocket &socket, int new_subtype)
 {
   const StringRefNull idname = *bke::node_static_socket_type(socket.type, new_subtype);
-  STRNCPY(socket.idname, idname.c_str());
+  STRNCPY_UTF8(socket.idname, idname.c_str());
   bke::bNodeSocketType *socktype = bke::node_socket_type_find(idname);
   socket.typeinfo = socktype;
 }
@@ -71,7 +71,7 @@ static void modify_subtype_except_for_storage(bNodeSocket &socket, int new_subty
 static void modify_subtype_except_for_storage(bNodeSocket &socket, int subtype, int dimensions)
 {
   const StringRefNull idname = *bke::node_static_socket_type(socket.type, subtype, dimensions);
-  STRNCPY(socket.idname, idname.c_str());
+  STRNCPY_UTF8(socket.idname, idname.c_str());
   bke::bNodeSocketType *socktype = bke::node_socket_type_find(idname);
   socket.typeinfo = socktype;
 }
@@ -573,7 +573,7 @@ bNodeSocket &Menu::build(bNodeTree &ntree, bNode &node) const
                                                      this->identifier.c_str(),
                                                      this->name.c_str());
 
-  ((bNodeSocketValueMenu *)socket.default_value)->value = this->default_value;
+  ((bNodeSocketValueMenu *)socket.default_value)->value = this->default_value.value;
   this->set_common_flags(socket);
   return socket;
 }
@@ -602,6 +602,30 @@ bNodeSocket &Menu::update_or_build(bNodeTree &ntree, bNode &node, bNodeSocket &s
   }
   this->set_common_flags(socket);
   return socket;
+}
+
+MenuBuilder &MenuBuilder::static_items(const EnumPropertyItem *items)
+{
+  /* Using a global map ensures that the same runtime data is used for the same static items.
+   * This is necessary because otherwise each node would have a different (incompatible) menu
+   * definition. */
+  static Mutex mutex;
+  static Map<const EnumPropertyItem *, ImplicitSharingPtr<bke::RuntimeNodeEnumItems>>
+      items_by_enum_ptr;
+
+  std::lock_guard lock{mutex};
+  decl_->items = items_by_enum_ptr.lookup_or_add_cb(items, [&]() {
+    bke::RuntimeNodeEnumItems *runtime_items = new bke::RuntimeNodeEnumItems();
+    for (const EnumPropertyItem *item = items; item->identifier; item++) {
+      bke::RuntimeNodeEnumItem runtime_item;
+      runtime_item.name = item->name;
+      runtime_item.description = item->description;
+      runtime_item.identifier = item->value;
+      runtime_items->items.append(std::move(runtime_item));
+    }
+    return ImplicitSharingPtr<bke::RuntimeNodeEnumItems>(runtime_items);
+  });
+  return *this;
 }
 
 /** \} */
@@ -650,6 +674,13 @@ bNodeSocket &Bundle::update_or_build(bNodeTree &ntree, bNode &node, bNodeSocket 
   }
   this->set_common_flags(socket);
   return socket;
+}
+
+BundleBuilder &BundleBuilder::pass_through_input_index(const std::optional<int> index)
+{
+  BLI_assert(this->is_output());
+  decl_->pass_through_input_index = std::move(index);
+  return *this;
 }
 
 /** \} */

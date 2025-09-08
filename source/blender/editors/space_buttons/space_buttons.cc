@@ -11,6 +11,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "DNA_scene_types.h"
+#include "DNA_sequence_types.h"
 #include "DNA_space_types.h"
 #include "DNA_view2d_types.h"
 
@@ -19,6 +20,7 @@
 #include "BLI_span.hh"
 #include "BLI_string.h"
 #include "BLI_string_ref.hh"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_context.hh"
@@ -41,6 +43,8 @@
 
 #include "RNA_access.hh"
 #include "RNA_prototypes.hh"
+
+#include "SEQ_modifier.hh"
 
 #include "UI_interface.hh"
 #include "UI_interface_c.hh"
@@ -156,7 +160,10 @@ static void buttons_main_region_init(wmWindowManager *wm, ARegion *region)
 
   ED_region_panels_init(wm, region);
 
-  keymap = WM_keymap_ensure(wm->defaultconf, "Property Editor", SPACE_PROPERTIES, RGN_TYPE_WINDOW);
+  region->flag |= RGN_FLAG_INDICATE_OVERFLOW;
+
+  keymap = WM_keymap_ensure(
+      wm->runtime->defaultconf, "Property Editor", SPACE_PROPERTIES, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler(&region->runtime->handlers, keymap);
 }
 
@@ -193,7 +200,7 @@ void ED_buttons_visible_tabs_menu(bContext *C, uiLayout *layout, void * /*arg*/)
 void ED_buttons_navbar_menu(bContext *C, uiLayout *layout, void * /*arg*/)
 {
   ED_screens_region_flip_menu_create(C, layout, nullptr);
-  layout->operator_context_set(WM_OP_INVOKE_DEFAULT);
+  layout->operator_context_set(blender::wm::OpCallContext::InvokeDefault);
   layout->op("SCREEN_OT_region_toggle", IFACE_("Hide"), ICON_NONE);
 }
 
@@ -309,8 +316,12 @@ static void buttons_main_region_layout_properties(const bContext *C,
 
   const char *contexts[2] = {buttons_main_region_context_string(sbuts->mainb), nullptr};
 
-  ED_region_panels_layout_ex(
-      C, region, &region->runtime->type->paneltypes, WM_OP_INVOKE_REGION_WIN, contexts, nullptr);
+  ED_region_panels_layout_ex(C,
+                             region,
+                             &region->runtime->type->paneltypes,
+                             blender::wm::OpCallContext::InvokeRegionWin,
+                             contexts,
+                             nullptr);
 }
 
 /** \} */
@@ -332,7 +343,7 @@ int ED_buttons_search_string_length(SpaceProperties *sbuts)
 void ED_buttons_search_string_set(SpaceProperties *sbuts, const char *value)
 {
   if (sbuts->runtime) {
-    STRNCPY(sbuts->runtime->search_string, value);
+    STRNCPY_UTF8(sbuts->runtime->search_string, value);
   }
 }
 
@@ -665,7 +676,7 @@ static void buttons_header_region_message_subscribe(const wmRegionMessageSubscri
 
 static void buttons_navigation_bar_region_init(wmWindowManager *wm, ARegion *region)
 {
-  region->flag |= RGN_FLAG_NO_USER_RESIZE;
+  region->flag |= RGN_FLAG_NO_USER_RESIZE | RGN_FLAG_INDICATE_OVERFLOW;
 
   ED_region_panels_init(wm, region);
   region->v2d.keepzoom |= V2D_LOCKZOOM_X | V2D_LOCKZOOM_Y;
@@ -892,6 +903,11 @@ static void buttons_area_listener(const wmSpaceTypeListenerParams *params)
             ED_area_tag_redraw(area);
           }
           break;
+        case ND_ANIMCHAN:
+          if (wmn->action == NA_SELECTED) {
+            ED_area_tag_redraw(area);
+          }
+          break;
       }
       break;
     case NC_GPENCIL:
@@ -1072,7 +1088,7 @@ void ED_spacetype_buttons()
   ARegionType *art;
 
   st->spaceid = SPACE_PROPERTIES;
-  STRNCPY(st->name, "Buttons");
+  STRNCPY_UTF8(st->name, "Buttons");
 
   st->create = buttons_create;
   st->free = buttons_free;
@@ -1096,7 +1112,7 @@ void ED_spacetype_buttons()
   art->draw = ED_region_panels_draw;
   art->listener = buttons_main_region_listener;
   art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_FRAMES;
-  art->lock = true;
+  art->lock = REGION_DRAW_LOCK_ALL;
   buttons_context_register(art);
   BLI_addhead(&st->regiontypes, art);
 
@@ -1115,6 +1131,14 @@ void ED_spacetype_buttons()
     const ShaderFxTypeInfo *fxti = BKE_shaderfx_get_info(ShaderFxType(i));
     if (fxti != nullptr && fxti->panel_register != nullptr) {
       fxti->panel_register(art);
+    }
+  }
+  /* Register the panel types from strip modifiers. The actual panels are built per strip modifier
+   * rather than per modifier type. */
+  for (int i = 0; i < NUM_STRIP_MODIFIER_TYPES; i++) {
+    const blender::seq::StripModifierTypeInfo *mti = blender::seq::modifier_type_info_get(i);
+    if (mti != nullptr && mti->panel_register != nullptr) {
+      mti->panel_register(art);
     }
   }
 

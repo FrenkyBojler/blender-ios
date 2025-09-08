@@ -15,6 +15,7 @@
 #include "DNA_node_types.h"
 
 #include "NOD_node_declaration.hh"
+#include "NOD_socket.hh"
 
 namespace blender::bke::node_structure_type_inferencing {
 
@@ -86,7 +87,7 @@ static Array<nodes::StructureTypeInterface> calc_node_interfaces(const bNodeTree
   return interfaces;
 }
 
-enum class DataRequirement : int8_t { None, Field, Single, Grid, Invalid };
+enum class DataRequirement : int8_t { None, Field, Single, Grid, List, Invalid };
 
 static DataRequirement merge(const DataRequirement a, const DataRequirement b)
 {
@@ -119,6 +120,8 @@ static StructureType data_requirement_to_auto_structure_type(const DataRequireme
       return StructureType::Single;
     case DataRequirement::Grid:
       return StructureType::Grid;
+    case DataRequirement::List:
+      return StructureType::List;
     case DataRequirement::Invalid:
       return StructureType::Dynamic;
   }
@@ -130,7 +133,7 @@ static void init_input_requirements(const bNodeTree &tree,
                                     MutableSpan<DataRequirement> input_requirements)
 {
   for (const bNode *node : tree.all_nodes()) {
-    if (ELEM(node->type_legacy, NODE_GROUP_OUTPUT, GEO_NODE_CLOSURE_OUTPUT)) {
+    if (ELEM(node->type_legacy, NODE_GROUP_OUTPUT, NODE_CLOSURE_OUTPUT)) {
       for (const bNodeSocket *socket : node->input_sockets()) {
         /* Inputs of these nodes have no requirements. */
         input_requirements[socket->index_in_all_inputs()] = DataRequirement::None;
@@ -142,6 +145,10 @@ static void init_input_requirements(const bNodeTree &tree,
       const nodes::SocketDeclaration *declaration = socket->runtime->declaration;
       if (!declaration) {
         requirement = DataRequirement::None;
+        continue;
+      }
+      if (nodes::socket_type_always_single(eNodeSocketDatatype(socket->type))) {
+        requirement = DataRequirement::Single;
         continue;
       }
       switch (declaration->structure_type) {
@@ -159,6 +166,10 @@ static void init_input_requirements(const bNodeTree &tree,
         }
         case StructureType::Field: {
           requirement = DataRequirement::Field;
+          break;
+        }
+        case StructureType::List: {
+          requirement = DataRequirement::List;
           break;
         }
       }
@@ -225,12 +236,12 @@ static void store_closure_input_structure_types(const bNodeTree &tree,
     if (!input_node || !output_node) {
       continue;
     }
-    if (!output_node->is_type("GeometryNodeClosureOutput")) {
+    if (!output_node->is_type("NodeClosureOutput")) {
       continue;
     }
-    const auto *storage = static_cast<const NodeGeometryClosureOutput *>(output_node->storage);
+    const auto *storage = static_cast<const NodeClosureOutput *>(output_node->storage);
     for (const int i : IndexRange(storage->input_items.items_num)) {
-      const NodeGeometryClosureInputItem &item = storage->input_items.items[i];
+      const NodeClosureInputItem &item = storage->input_items.items[i];
       const bNodeSocket &socket = input_node->output_socket(i);
       StructureType &structure_type = structure_types[socket.index_in_tree()];
       if (item.structure_type != NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO) {
@@ -398,7 +409,8 @@ static void propagate_right_to_left(const bNodeTree &tree,
             break;
           }
           case DataRequirement::Field:
-          case DataRequirement::Grid: {
+          case DataRequirement::Grid:
+          case DataRequirement::List: {
             /* When a data requirement could be provided by multiple node inputs (i.e. only a
              * single node input involved in a math operation has to be a volume grid for the
              * output to be a grid), it's better to not propagate the data requirement than
@@ -440,20 +452,8 @@ static StructureType left_to_right_merge(const StructureType a, const StructureT
   if (a == b) {
     return a;
   }
-  if ((a == StructureType::Dynamic && b == StructureType::Single) ||
-      (a == StructureType::Single && b == StructureType::Dynamic))
-  {
+  if (a == StructureType::Dynamic || b == StructureType::Dynamic) {
     return StructureType::Dynamic;
-  }
-  if ((a == StructureType::Dynamic && b == StructureType::Field) ||
-      (a == StructureType::Field && b == StructureType::Dynamic))
-  {
-    return StructureType::Dynamic;
-  }
-  if ((a == StructureType::Dynamic && b == StructureType::Grid) ||
-      (a == StructureType::Grid && b == StructureType::Dynamic))
-  {
-    return StructureType::Grid;
   }
   if ((a == StructureType::Field && b == StructureType::Grid) ||
       (a == StructureType::Grid && b == StructureType::Field))
@@ -469,6 +469,16 @@ static StructureType left_to_right_merge(const StructureType a, const StructureT
       (a == StructureType::Grid && b == StructureType::Single))
   {
     return StructureType::Grid;
+  }
+  if ((a == StructureType::Single && b == StructureType::List) ||
+      (a == StructureType::List && b == StructureType::Single))
+  {
+    return StructureType::List;
+  }
+  if ((a == StructureType::Field && b == StructureType::List) ||
+      (a == StructureType::List && b == StructureType::Field))
+  {
+    return StructureType::List;
   }
   /* Invalid combination. */
   return a;
@@ -628,7 +638,7 @@ static void propagate_left_to_right(const bNodeTree &tree,
         }
         continue;
       }
-      if (node->type_legacy == GEO_NODE_CLOSURE_INPUT) {
+      if (node->type_legacy == NODE_CLOSURE_INPUT) {
         /* Initialized in #store_closure_input_structure_types already. */
         continue;
       }
@@ -799,6 +809,14 @@ static StructureTypeInferenceResult calc_structure_type_interface(const bNodeTre
       tree, node_interfaces, result.group_interface.inputs, result.socket_structure_types);
   store_group_output_structure_types(
       tree, node_interfaces, result.socket_structure_types, result.group_interface);
+
+  /* Ensure that the structure type is never invalid. */
+  for (const int i : tree.all_sockets().index_range()) {
+    const bNodeSocket &socket = *tree.all_sockets()[i];
+    if (nodes::socket_type_always_single(eNodeSocketDatatype(socket.type))) {
+      result.socket_structure_types[i] = StructureType::Single;
+    }
+  }
 
   return result;
 }

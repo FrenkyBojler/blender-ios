@@ -98,7 +98,7 @@ static void panel_draw(const bContext *C, Panel *panel)
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, &ob_ptr);
   VolumeDisplaceModifierData *vdmd = static_cast<VolumeDisplaceModifierData *>(ptr->data);
 
-  uiLayoutSetPropSep(layout, true);
+  layout->use_property_split_set(true);
 
   uiTemplateID(layout, C, ptr, "texture", "texture.new", nullptr, nullptr);
   layout->prop(ptr, "texture_map_mode", UI_ITEM_NONE, IFACE_("Texture Mapping"), ICON_NONE);
@@ -205,7 +205,7 @@ struct DisplaceGridOp {
     typename GridType::Ptr temp_grid = grid.deepCopy();
 
     /* Dilate grid, because the currently inactive cells might become active during the displace
-     * operation. The quality of the approximation of the has a big impact on performance. */
+     * operation. The quality of the approximation of this has a big impact on performance. */
     const float max_voxel_side_length = get_max_voxel_side_length(grid);
     const float sample_radius = vdmd.texture_sample_radius * std::abs(vdmd.strength) /
                                 max_voxel_side_length / 2.0f;
@@ -341,4 +341,5 @@ ModifierTypeInfo modifierType_VolumeDisplace = {
     /*blend_write*/ nullptr,
     /*blend_read*/ nullptr,
     /*foreach_cache*/ nullptr,
+    /*foreach_working_space_color*/ nullptr,
 };

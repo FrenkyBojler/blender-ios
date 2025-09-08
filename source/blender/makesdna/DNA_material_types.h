@@ -18,7 +18,6 @@
 
 struct AnimData;
 struct Image;
-struct Ipo;
 struct bNodeTree;
 
 /* WATCH IT: change type? also make changes in ipo.h */
@@ -31,7 +30,7 @@ typedef struct TexPaintSlot {
   struct ImageUser *image_user;
 
   /**
-   * Custom-data index for uv layer, #MAX_NAME.
+   * Custom-data index for uv layer, #MAX_CUSTOMDATA_LAYER_NAME_NO_PREFIX.
    * May reference #NodeShaderUVMap::uv_name.
    */
   char *uvname;
@@ -200,8 +199,6 @@ typedef struct Material {
   short index;
 
   struct bNodeTree *nodetree;
-  /** Old animation system, deprecated for 2.5. */
-  struct Ipo *ipo DNA_DEPRECATED;
   struct PreviewImage *preview;
 
   /* Freestyle line settings. */

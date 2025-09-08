@@ -12,6 +12,7 @@ from bpy.app.translations import (
 )
 from rna_prop_ui import PropertyPanel
 
+
 class StripButtonsPanel:
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
@@ -19,7 +20,7 @@ class StripButtonsPanel:
 
     @classmethod
     def poll(cls, context):
-        return context.active_sequence_strip is not None
+        return context.active_strip is not None
 
 
 class StripColorTagPicker:
@@ -35,7 +36,7 @@ class StripColorTagPicker:
 class STRIP_PT_color_tag_picker(StripColorTagPicker, Panel):
     bl_label = "Color Tag"
     bl_options = {'HIDE_HEADER', 'INSTANCED'}
-    #bl_category = "Strip"
+    # bl_category = "Strip"
 
     def draw(self, _context):
         layout = self.layout
@@ -312,7 +313,7 @@ class STRIP_PT_effect_text_layout(StripButtonsPanel, Panel):
 class STRIP_PT_effect_text_style(StripButtonsPanel, Panel):
     bl_label = "Style"
     bl_parent_id = "STRIP_PT_effect"
-    
+
     @classmethod
     def poll(cls, context):
         strip = context.active_strip
@@ -337,6 +338,7 @@ class STRIP_PT_effect_text_style(StripButtonsPanel, Panel):
 class STRIP_PT_effect_text_outline(StripButtonsPanel, Panel):
     bl_label = "Outline"
     bl_options = {'DEFAULT_CLOSED'}
+
     bl_parent_id = "STRIP_PT_effect_text_style"
 
     @classmethod
@@ -363,6 +365,7 @@ class STRIP_PT_effect_text_outline(StripButtonsPanel, Panel):
 class STRIP_PT_effect_text_shadow(StripButtonsPanel, Panel):
     bl_label = "Shadow"
     bl_options = {'DEFAULT_CLOSED'}
+
     bl_parent_id = "STRIP_PT_effect_text_style"
 
     @classmethod
@@ -392,6 +395,7 @@ class STRIP_PT_effect_text_box(StripButtonsPanel, Panel):
     bl_label = "Box"
     bl_translation_context = i18n_contexts.id_sequence
     bl_options = {'DEFAULT_CLOSED'}
+
     bl_parent_id = "STRIP_PT_effect_text_style"
 
     @classmethod
@@ -432,7 +436,7 @@ class STRIP_PT_source(StripButtonsPanel, Panel):
         layout.use_property_split = True
         layout.use_property_decorate = False
 
-        scene = context.scene
+        scene = context.sequencer_scene
         strip = context.active_strip
         strip_type = strip.type
 
@@ -694,7 +698,7 @@ class STRIP_PT_time(StripButtonsPanel, Panel):
         layout.use_property_split = False
         layout.use_property_decorate = False
 
-        scene = context.scene
+        scene = context.sequencer_scene
         frame_current = scene.frame_current
         strip = context.active_strip
 
@@ -840,7 +844,6 @@ class STRIP_PT_adjust_sound(StripButtonsPanel, Panel):
     def draw(self, context):
         layout = self.layout
 
-        st = context.space_data
         strip = context.active_strip
         sound = strip.sound
 
@@ -865,7 +868,7 @@ class STRIP_PT_adjust_sound(StripButtonsPanel, Panel):
             layout.use_property_split = True
             col = layout.column()
 
-            audio_channels = context.scene.render.ffmpeg.audio_channels
+            audio_channels = context.sequencer_scene.render.ffmpeg.audio_channels
             pan_enabled = sound.use_mono and audio_channels != 'MONO'
             pan_text = "{:.2f}°".format(strip.pan * 90.0)
 
@@ -888,10 +891,7 @@ class STRIP_PT_adjust_sound(StripButtonsPanel, Panel):
 
             layout.use_property_split = False
             col = layout.column()
-
-            split = col.split(factor=0.4)
-            split.label(text="")
-            split.prop(strip, "show_waveform") # XXX needs spaceseq, but those can have different waveform showing options. This setup is ilogical
+            split.prop(strip, "show_waveform")
 
 
 class STRIP_PT_adjust_comp(StripButtonsPanel, Panel):
@@ -920,6 +920,8 @@ class STRIP_PT_adjust_comp(StripButtonsPanel, Panel):
 
 class STRIP_PT_adjust_transform(StripButtonsPanel, Panel):
     bl_label = "Transform"
+
+    bl_options = {'DEFAULT_CLOSED'}
 
     @classmethod
     def poll(cls, context):
@@ -952,7 +954,7 @@ class STRIP_PT_adjust_transform(StripButtonsPanel, Panel):
         col = layout.column(align=True)
         col.prop(strip.transform, "origin")
 
-        col = layout.column(heading="Mirror", align=True)
+        col = layout.column(heading="Mirror", align=True, heading_ctxt=i18n_contexts.id_image)
         col.prop(strip, "use_flip_x", text="X", toggle=True)
         col.prop(strip, "use_flip_y", text="Y", toggle=True)
 
@@ -1032,7 +1034,7 @@ class STRIP_PT_modifiers(StripButtonsPanel, Panel):
         layout.use_property_split = True
 
         strip = context.active_strip
-        ed = context.scene.sequence_editor
+        ed = context.sequencer_scene.sequence_editor
         if strip.type == 'SOUND':
             sound = strip.sound
         else:
@@ -1044,103 +1046,7 @@ class STRIP_PT_modifiers(StripButtonsPanel, Panel):
         layout.operator_menu_enum("sequencer.strip_modifier_add", "type")
         layout.operator("sequencer.strip_modifier_copy")
 
-        for mod in strip.modifiers:
-            box = layout.box()
-
-            row = box.row()
-            row.use_property_decorate = False
-            row.prop(mod, "show_expanded", text="", emboss=False)
-            row.prop(mod, "name", text="")
-
-            row.prop(mod, "mute", text="")
-            row.use_property_decorate = True
-
-            sub = row.row(align=True)
-            props = sub.operator("sequencer.strip_modifier_move", text="", icon='TRIA_UP')
-            props.name = mod.name
-            props.direction = 'UP'
-            props = sub.operator("sequencer.strip_modifier_move", text="", icon='TRIA_DOWN')
-            props.name = mod.name
-            props.direction = 'DOWN'
-
-            row.operator("sequencer.strip_modifier_remove", text="", icon='X', emboss=False).name = mod.name
-
-            if mod.show_expanded:
-                if sound is None:
-                    if mod.type == 'COLOR_BALANCE':
-                        box.prop(mod, "color_multiply")
-                        draw_color_balance(box, mod.color_balance)
-                    elif mod.type == 'CURVES':
-                        box.template_curve_mapping(mod, "curve_mapping", type='COLOR', show_tone=True)
-                    elif mod.type == 'HUE_CORRECT':
-                        box.template_curve_mapping(mod, "curve_mapping", type='HUE')
-                    elif mod.type == 'BRIGHT_CONTRAST':
-                        col = box.column()
-                        col.prop(mod, "bright")
-                        col.prop(mod, "contrast")
-                    elif mod.type == 'WHITE_BALANCE':
-                        col = box.column()
-                        col.prop(mod, "white_value")
-                    elif mod.type == 'TONEMAP':
-                        col = box.column()
-                        col.prop(mod, "tonemap_type")
-                        if mod.tonemap_type == 'RD_PHOTORECEPTOR':
-                            col.prop(mod, "intensity")
-                            col.prop(mod, "contrast")
-                            col.prop(mod, "adaptation")
-                            col.prop(mod, "correction")
-                        elif mod.tonemap_type == 'RH_SIMPLE':
-                            col.prop(mod, "key")
-                            col.prop(mod, "offset")
-                            col.prop(mod, "gamma")
-
-                    box.separator(type='LINE')
-
-                    col = box.column()
-                    row = col.row()
-                    row.prop(mod, "input_mask_type", expand=True)
-
-                    if mod.input_mask_type == 'STRIP':
-                        sequences_object = ed
-                        if ed.meta_stack:
-                            sequences_object = ed.meta_stack[-1]
-                        col.prop_search(mod, "input_mask_strip", sequences_object, "strips", text="Mask")
-                    else:
-                        col.prop(mod, "input_mask_id")
-                        row = col.row()
-                        row.prop(mod, "mask_time", expand=True)
-                else:
-                    if mod.type == 'SOUND_EQUALIZER':
-                        # eq_row = box.row()
-                        # eq_graphs = eq_row.operator_menu_enum("sequencer.strip_modifier_equalizer_redefine", "graphs")
-                        # eq_graphs.name = mod.name
-                        flow = box.grid_flow(
-                            row_major=True,
-                            columns=0,
-                            even_columns=True,
-                            even_rows=False,
-                            align=False,
-                        )
-                        for sound_eq in mod.graphics:
-                            col = flow.column()
-                            box = col.box()
-                            split = box.split(factor=0.4)
-                            split.label(text="{:.2f}".format(sound_eq.curve_mapping.clip_min_x), translate=False)
-                            split.label(text="Hz")
-                            split.alignment = 'RIGHT'
-                            split.label(text="{:.2f}".format(sound_eq.curve_mapping.clip_max_x), translate=False)
-                            box.template_curve_mapping(
-                                sound_eq,
-                                "curve_mapping",
-                                type='NONE',
-                                levels=False,
-                                brush=True,
-                                use_negative_slope=True,
-                                show_tone=False,
-                            )
-                            second_row = col.row()
-                            second_row.label(text="dB")
-                            second_row.alignment = 'CENTER'
+        layout.template_strip_modifiers()
 
 
 class STRIP_PT_custom_props(StripButtonsPanel, PropertyPanel, Panel):

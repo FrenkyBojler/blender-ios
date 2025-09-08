@@ -16,10 +16,6 @@ from bl_ui.properties_data_grease_pencil import (
     GreasePencil_LayerAdjustmentsPanel,
     GreasePencil_LayerDisplayPanel,
 )
-
-from bl_ui.utils import (
-    PlayheadSnappingPanel,
-)
 from bl_ui.space_time import playback_controls
 
 from rna_prop_ui import PropertyPanel
@@ -127,6 +123,8 @@ class DopesheetFilterPopoverBase:
             flow.prop(dopesheet, "show_pointclouds", text="Point Clouds")
         if bpy.data.volumes:
             flow.prop(dopesheet, "show_volumes", text="Volumes")
+        if bpy.data.lightprobes:
+            flow.prop(dopesheet, "show_lightprobes", text="Light Probes")
 
         # data types
         flow.prop(dopesheet, "show_worlds", text="Worlds")
@@ -218,10 +216,6 @@ class DOPESHEET_HT_header(Header):
             DOPESHEET_HT_editor_buttons.draw_header(context, layout)
 
 
-class DOPESHEET_PT_playhead_snapping(PlayheadSnappingPanel, Panel):
-    bl_space_type = 'DOPESHEET_EDITOR'
-
-
 # Header for "normal" dopesheet editor modes (e.g. Dope Sheet, Action, Shape Keys, etc.)
 class DOPESHEET_HT_editor_buttons:
 
@@ -282,8 +276,6 @@ class DOPESHEET_HT_editor_buttons:
                 panel="DOPESHEET_PT_snapping",
                 text="",
             )
-
-        layout.popover(panel="DOPESHEET_PT_playhead_snapping")
 
         row = layout.row(align=True)
         row.prop(tool_settings, "use_proportional_action", text="", icon_only=True)
@@ -384,20 +376,21 @@ class DOPESHEET_MT_editor_menus(Menu):
     def draw(self, context):
         layout = self.layout
         st = context.space_data
+        active_action = context.active_action
 
         layout.menu("DOPESHEET_MT_view")
         layout.menu("DOPESHEET_MT_select")
         if st.show_markers:
             layout.menu("DOPESHEET_MT_marker")
 
-        if st.mode == 'DOPESHEET' or (st.mode == 'ACTION' and st.action is not None):
+        if st.mode == 'DOPESHEET' or (st.mode == 'ACTION' and active_action is not None):
             layout.menu("DOPESHEET_MT_channel")
         elif st.mode == 'GPENCIL':
             layout.menu("DOPESHEET_MT_gpencil_channel")
 
         layout.menu("DOPESHEET_MT_key")
 
-        if st.mode in {'ACTION', 'SHAPEKEY'} and st.action is not None:
+        if st.mode in {'ACTION', 'SHAPEKEY'} and active_action is not None:
             layout.menu("DOPESHEET_MT_action")
 
 
@@ -455,6 +448,9 @@ class DOPESHEET_MT_view(Menu):
         props.value = 'GRAPH_EDITOR'
         layout.separator()
 
+        layout.menu("DOPESHEET_MT_cache")
+        layout.separator()
+
         layout.menu("INFO_MT_area")
 
 
@@ -472,6 +468,29 @@ class DOPESHEET_MT_view_pie(Menu):
             pie.operator("anim.scene_range_frame", text="Frame Preview Range")
         else:
             pie.operator("anim.scene_range_frame", text="Frame Scene Range")
+
+
+class DOPESHEET_MT_cache(Menu):
+    bl_label = "Cache"
+
+    def draw(self, context):
+        layout = self.layout
+
+        st = context.space_data
+
+        layout.prop(st, "show_cache")
+
+        layout.separator()
+
+        col = layout.column()
+        col.enabled = st.show_cache
+        col.prop(st, "cache_softbody")
+        col.prop(st, "cache_particles")
+        col.prop(st, "cache_cloth")
+        col.prop(st, "cache_simulation_nodes")
+        col.prop(st, "cache_smoke")
+        col.prop(st, "cache_dynamicpaint")
+        col.prop(st, "cache_rigidbody")
 
 
 class DOPESHEET_MT_select(Menu):
@@ -526,7 +545,7 @@ class DOPESHEET_MT_marker(Menu):
 
         st = context.space_data
 
-        if st.mode in {'ACTION', 'SHAPEKEY'} and st.action:
+        if st.mode in {'ACTION', 'SHAPEKEY'} and context.active_action:
             layout.separator()
             layout.prop(st, "show_pose_markers")
 
@@ -886,26 +905,6 @@ class DOPESHEET_MT_snap_pie(Menu):
         pie.operator("action.snap", text="Selection to Nearest Marker").type = 'NEAREST_MARKER'
 
 
-class LayersDopeSheetPanel:
-    bl_space_type = 'DOPESHEET_EDITOR'
-    bl_region_type = 'UI'
-    bl_category = "View"
-
-    @classmethod
-    def poll(cls, context):
-        st = context.space_data
-        ob = context.object
-        if st.mode != 'GPENCIL' or ob is None or ob.type != 'GREASEPENCIL':
-            return False
-
-        gpd = ob.data
-        gpl = gpd.layers.active
-        if gpl:
-            return True
-
-        return False
-
-
 class GreasePencilLayersDopeSheetPanel:
     bl_space_type = 'DOPESHEET_EDITOR'
     bl_region_type = 'UI'
@@ -1001,6 +1000,7 @@ classes = (
     DOPESHEET_PT_proportional_edit,
     DOPESHEET_MT_editor_menus,
     DOPESHEET_MT_view,
+    DOPESHEET_MT_cache,
     DOPESHEET_MT_select,
     DOPESHEET_MT_marker,
     DOPESHEET_MT_channel,
@@ -1024,7 +1024,6 @@ classes = (
     DOPESHEET_PT_grease_pencil_layer_adjustments,
     DOPESHEET_PT_grease_pencil_layer_relations,
     DOPESHEET_PT_grease_pencil_layer_display,
-    DOPESHEET_PT_playhead_snapping,
 )
 
 if __name__ == "__main__":  # only for live edit.

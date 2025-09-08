@@ -15,6 +15,8 @@
 
 #include "DNA_defaults.h"
 #include "DNA_gpencil_modifier_types.h"
+#include "DNA_object_types.h"
+#include "DNA_screen_types.h"
 
 #include "BKE_colortools.hh"
 #include "BKE_curves.hh"
@@ -276,7 +278,7 @@ static void panel_draw(const bContext *C, Panel *panel)
 
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, nullptr);
 
-  uiLayoutSetPropSep(layout, true);
+  layout->use_property_split_set(true);
 
   col = &layout->column(false);
   col->prop(ptr, "factor", UI_ITEM_NONE, IFACE_("Position"), ICON_NONE);

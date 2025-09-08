@@ -20,7 +20,7 @@
 #include "DNA_view3d_types.h"
 
 #include "BLI_math_vector.h"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 
 #include "BKE_context.hh"
 #include "BKE_lib_id.hh"
@@ -120,7 +120,7 @@ static bool depthdropper_test(bContext *C, wmOperator *op)
   /* check if there's an active button taking depth value */
   if ((CTX_wm_window(C) != nullptr) &&
       (but = UI_context_active_but_prop_get(C, &ptr, &prop, &index_dummy)) &&
-      (but->type == UI_BTYPE_NUM) && (prop != nullptr))
+      (but->type == ButType::Num) && (prop != nullptr))
   {
     if ((RNA_property_type(prop) == PROP_FLOAT) &&
         (RNA_property_subtype(prop) & PROP_UNIT_LENGTH) &&
@@ -151,14 +151,13 @@ static int depthdropper_init(bContext *C, wmOperator *op)
   if ((prop = RNA_struct_find_property(op->ptr, "prop_data_path")) &&
       RNA_property_is_set(op->ptr, prop))
   {
-    char *prop_data_path = RNA_string_get_alloc(op->ptr, "prop_data_path", nullptr, 0, nullptr);
-    BLI_SCOPED_DEFER([&] { MEM_SAFE_FREE(prop_data_path); });
-    if (!prop_data_path) {
+    std::string prop_data_path = RNA_string_get(op->ptr, "prop_data_path");
+    if (prop_data_path.empty()) {
       MEM_delete(ddr);
       return false;
     }
     PointerRNA ctx_ptr = RNA_pointer_create_discrete(nullptr, &RNA_Context, C);
-    if (!depthdropper_get_path(&ctx_ptr, op, prop_data_path, &ddr->ptr, &ddr->prop)) {
+    if (!depthdropper_get_path(&ctx_ptr, op, prop_data_path.c_str(), &ddr->ptr, &ddr->prop)) {
       MEM_delete(ddr);
       return false;
     }
@@ -288,7 +287,7 @@ static void depthdropper_depth_sample_pt(bContext *C,
                                    false);
         }
         else {
-          STRNCPY(ddr->name, "Nothing under cursor");
+          STRNCPY_UTF8(ddr->name, "Nothing under cursor");
         }
       }
     }
@@ -446,7 +445,7 @@ static bool depthdropper_poll(bContext *C)
       return true;
     }
 
-    if ((but->type == UI_BTYPE_NUM) && (prop != nullptr) &&
+    if ((but->type == ButType::Num) && (prop != nullptr) &&
         (RNA_property_type(prop) == PROP_FLOAT) &&
         (RNA_property_subtype(prop) & PROP_UNIT_LENGTH) &&
         (RNA_property_array_check(prop) == false))

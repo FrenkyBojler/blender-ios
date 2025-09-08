@@ -20,6 +20,7 @@
 #include "BKE_curves.hh"
 #include "BKE_geometry_set.hh"
 #include "BKE_grease_pencil.hh"
+#include "BKE_idtype.hh"
 #include "BKE_lib_query.hh"
 #include "BKE_material.hh"
 #include "BKE_modifier.hh"
@@ -102,6 +103,14 @@ static void foreach_ID_link(ModifierData *md, Object *ob, IDWalkFunc walk, void 
   auto *tmd = reinterpret_cast<GreasePencilTintModifierData *>(md);
   modifier::greasepencil::foreach_influence_ID_link(&tmd->influence, ob, walk, user_data);
   walk(user_data, ob, (ID **)&tmd->object, IDWALK_CB_NOP);
+}
+
+static void foreach_working_space_color(ModifierData *md,
+                                        const IDTypeForeachColorFunctionCallback &fn)
+{
+  auto *tmd = reinterpret_cast<GreasePencilTintModifierData *>(md);
+  fn.single(tmd->color);
+  BKE_colorband_foreach_working_space_color(tmd->color_ramp, fn);
 }
 
 static bool is_disabled(const Scene * /*scene*/, ModifierData *md, bool /*use_render_params*/)
@@ -418,7 +427,7 @@ static void panel_draw(const bContext *C, Panel *panel)
   PointerRNA ob_ptr;
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, &ob_ptr);
 
-  uiLayoutSetPropSep(layout, true);
+  layout->use_property_split_set(true);
 
   const GreasePencilTintModifierMode tint_mode = GreasePencilTintModifierMode(
       RNA_enum_get(ptr, "tint_mode"));
@@ -438,7 +447,7 @@ static void panel_draw(const bContext *C, Panel *panel)
       break;
     case MOD_GREASE_PENCIL_TINT_GRADIENT:
       uiLayout *col = &layout->column(false);
-      uiLayoutSetPropSep(col, false);
+      col->use_property_split_set(false);
       uiTemplateColorRamp(col, ptr, "color_ramp", true);
       layout->separator();
       layout->prop(ptr, "object", UI_ITEM_NONE, std::nullopt, ICON_NONE);
@@ -517,4 +526,6 @@ ModifierTypeInfo modifierType_GreasePencilTint = {
     /*panel_register*/ blender::panel_register,
     /*blend_write*/ blender::blend_write,
     /*blend_read*/ blender::blend_read,
+    /*foreach_cache*/ nullptr,
+    /*foreach_working_space_color*/ blender::foreach_working_space_color,
 };
