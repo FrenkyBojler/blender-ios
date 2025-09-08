@@ -1715,9 +1715,9 @@ static wmOperatorStatus exec(bContext *C, wmOperator *op)
 
 static void CURVES_OT_add_bezier(wmOperatorType *ot)
 {
-  ot->name = "Add Bezier";
+  ot->name = "Add Bézier";
   ot->idname = __func__;
-  ot->description = "Add new bezier curve";
+  ot->description = "Add new Bézier curve";
 
   ot->exec = add_bezier::exec;
   ot->poll = editable_curves_in_edit_mode_poll;
@@ -1866,6 +1866,8 @@ void operatortypes_curves()
   WM_operatortype_append(CURVES_OT_add_circle);
   WM_operatortype_append(CURVES_OT_add_bezier);
   WM_operatortype_append(CURVES_OT_handle_type_set);
+
+  ED_operatortypes_curves_pen();
 }
 
 void operatormacros_curves()
@@ -1897,6 +1899,8 @@ void keymap_curves(wmKeyConfig *keyconf)
   /* Only set in editmode curves, by space_view3d listener. */
   wmKeyMap *keymap = WM_keymap_ensure(keyconf, "Curves", SPACE_EMPTY, RGN_TYPE_WINDOW);
   keymap->poll = editable_curves_in_edit_mode_poll;
+
+  ED_curves_pentool_modal_keymap(keyconf);
 }
 
 }  // namespace blender::ed::curves
