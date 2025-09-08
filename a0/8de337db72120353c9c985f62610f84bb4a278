@@ -1,1 +1,2 @@
 Referenced by issue #135848, 4.4 Beta Backface Culling Selected error
+Referenced by pull request #145924, Fix #145203: Switching armatures in pose mode fails when behind mesh
