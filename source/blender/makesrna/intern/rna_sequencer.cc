@@ -3206,7 +3206,7 @@ static void rna_def_sound(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop,
       "Preserve Pitch",
-      "Maintain the original pitch of the sound when changing playback speed");
+      "Maintain the original pitch of the audio when changing playback speed");
   RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_sound_update");
   rna_def_retiming_keys(srna);
   rna_def_input(srna);
