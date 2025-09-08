@@ -633,8 +633,12 @@ static int *bmesh_find_doubles_by_distance_impl(BMesh *bm,
                                                 const float dist,
                                                 const bool has_keep_vert)
 {
+  if (verts_len == 0) {
+    return nullptr;
+  }
+
   int *duplicates = MEM_malloc_arrayN<int>(verts_len, __func__);
-  blender::Array<bool> visited(verts_len, false);
+  float(*survivor_cos)[3] = MEM_malloc_arrayN<float[3]>(verts_len, "survivor_cos");
 
   for (int i = 0; i < verts_len; i++) {
     if (has_keep_vert && BMO_vert_flag_test(bm, verts[i], VERT_KEEP)) {
@@ -651,60 +655,17 @@ static int *bmesh_find_doubles_by_distance_impl(BMesh *bm,
   }
   BLI_kdtree_3d_balance(tree);
 
+  BLI_kdtree_3d_calc_duplicates_stable(tree, dist, duplicates, survivor_cos);
+
+  BLI_kdtree_3d_free(tree);
+
   for (int i = 0; i < verts_len; i++) {
-    if (visited[i]) {
-      continue; /* already clustered */
-    }
-    if (duplicates[i] != -1) {
-      visited[i] = true;
-      continue; /* keep_verts survivor */
-    }
-
-    /* Gather cluster members within threshold. */
-    blender::Vector<int> cluster;
-    KDTreeNearest_3d *neighbors = nullptr;
-    int found = BLI_kdtree_3d_range_search(tree, verts[i]->co, &neighbors, dist);
-
-    for (int n = 0; n < found; n++) {
-      int j = neighbors[n].index;
-      if (!visited[j]) {
-        cluster.append(j);
-        visited[j] = true;
-      }
-    }
-    MEM_freeN(neighbors);
-
-    if (cluster.is_empty()) {
-      continue;
-    }
-
-    /* Compute centroid. */
-    float centroid[3] = {0, 0, 0};
-    for (int idx : cluster) {
-      add_v3_v3(centroid, verts[idx]->co);
-    }
-    mul_v3_fl(centroid, 1.0f / cluster.size());
-
-    /* Choose survivor: lowest index in cluster. */
-    int survivor_idx = cluster[0];
-    for (int idx : cluster) {
-      if (idx < survivor_idx) {
-        survivor_idx = idx;
-      }
-    }
-    BMVert *v_survivor = verts[survivor_idx];
-    copy_v3_v3(v_survivor->co, centroid);
-
-    /* Assign cluster mappings. */
-    duplicates[survivor_idx] = survivor_idx;
-    for (int idx : cluster) {
-      if (idx != survivor_idx) {
-        duplicates[idx] = survivor_idx;
-      }
+    if (duplicates[i] == i) {
+      copy_v3_v3(verts[i]->co, survivor_cos[i]);
     }
   }
 
-  BLI_kdtree_3d_free(tree);
+  MEM_freeN(survivor_cos);
 
   return duplicates;
 }

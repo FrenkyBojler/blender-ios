@@ -8,6 +8,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_array.hh"
 #include "BLI_kdtree_impl.h"
 #include "BLI_math_base.h"
 #include "BLI_utildefines.h"
@@ -926,6 +927,118 @@ int BLI_kdtree_nd_(calc_duplicates_fast)(const KDTree *tree,
           /* Prevent chains of doubles. */
           duplicates[index] = index;
         }
+      }
+    }
+  }
+  return found;
+}
+
+/** \} */
+/* -------------------------------------------------------------------- */
+/** \name BLI_kdtree_3d_calc_duplicates_stable
+ * \{ */
+
+int BLI_kdtree_nd_(calc_duplicates_stable)(const KDTree *tree,
+                                           const float range,
+                                           int *duplicates,
+                                           float (*r_survivor_cos)[KD_DIMS])
+{
+#ifndef NDEBUG
+  BLI_assert(tree->is_balanced == true);
+#endif
+
+  if (UNLIKELY(tree->root == KD_NODE_UNSET)) {
+    return 0;
+  }
+
+  int found = 0;
+  const uint nodes_len = tree->nodes_len;
+  blender::Array<bool> visited(tree->max_node_index + 1, false);
+
+  for (uint i = 0; i < nodes_len; i++) {
+    const int current_idx = tree->nodes[i].index;
+
+    if (visited[current_idx]) {
+      continue;
+    }
+
+    if (duplicates[current_idx] != -1) {
+      visited[current_idx] = true;
+      continue;
+    }
+
+    /* Gather all connected members of a cluster within the distance threshold. */
+    blender::Vector<int> cluster;
+    blender::Vector<int> to_visit;
+
+    to_visit.append(current_idx);
+    visited[current_idx] = true;
+
+    while (!to_visit.is_empty()) {
+      const int search_idx = to_visit.pop_last();
+      cluster.append(search_idx);
+
+      /* Find the node corresponding to search_idx to get its coordinates. */
+      const float *search_co = nullptr;
+      for (uint j = 0; j < nodes_len; j++) {
+        if (tree->nodes[j].index == search_idx) {
+          search_co = tree->nodes[j].co;
+          break;
+        }
+      }
+      BLI_assert(search_co != nullptr);
+
+      KDTreeNearest *neighbors = nullptr;
+      int neighbors_found = BLI_kdtree_nd_(range_search)(tree, search_co, &neighbors, range);
+
+      for (int n = 0; n < neighbors_found; n++) {
+        const int neighbor_idx = neighbors[n].index;
+        if (!visited[neighbor_idx] && duplicates[neighbor_idx] == -1) {
+          visited[neighbor_idx] = true;
+          to_visit.append(neighbor_idx);
+        }
+      }
+      MEM_freeN(neighbors);
+    }
+
+    if (cluster.size() <= 1) {
+      continue;
+    }
+
+    /* Compute centroid of the cluster. */
+    float centroid[3] = {0, 0, 0};
+    for (int idx : cluster) {
+      for (uint j = 0; j < nodes_len; j++) {
+        if (tree->nodes[j].index == idx) {
+          for (uint d = 0; d < KD_DIMS; d++) {
+            centroid[d] += tree->nodes[j].co[d];
+          }
+          break;
+        }
+      }
+    }
+
+    const float cluster_size_inv = 1.0f / cluster.size();
+    for (uint d = 0; d < KD_DIMS; d++) {
+      centroid[d] *= cluster_size_inv;
+    }
+
+    /* Choose survivor: lowest index in cluster. */
+    int survivor_idx = cluster[0];
+    for (int idx : cluster) {
+      if (idx < survivor_idx) {
+        survivor_idx = idx;
+      }
+    }
+
+    copy_vn_vn(r_survivor_cos[survivor_idx], centroid);
+
+    /* Assign cluster mappings. */
+    duplicates[survivor_idx] = survivor_idx;
+    for (int idx : cluster) {
+      if (idx != survivor_idx) {
+        duplicates[idx] = survivor_idx;
+        found++;
       }
     }
   }
