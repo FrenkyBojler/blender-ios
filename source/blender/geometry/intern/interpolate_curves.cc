@@ -445,12 +445,15 @@ static void sample_curve_attribute(const bke::CurvesGeometry &src_curves,
           for (const int i : dst_points.index_range()) {
             const int dst_i = dst_points[i];
             const int dst_index = dst_sample_indices[dst_i];
-            const int dst_factor = dst_sample_factors[dst_i];
+            const float dst_factor = dst_sample_factors[dst_i];
             const IndexRange segment_eval = IndexRange::from_begin_end_inclusive(
                 offsets[dst_index], offsets[dst_index + 1]);
 
-            dst_sample_indices_eval[i] = segment_eval[int(math::floor(dst_factor))];
-            dst_sample_factors_eval[i] = math::mod(dst_factor * float(segment_eval.size()), 1.0f);
+            const float segment_parameter = segment_eval.first() +
+                                            dst_factor * segment_eval.size();
+
+            dst_sample_indices_eval[i] = math::floor(segment_parameter);
+            dst_sample_factors_eval[i] = math::mod(segment_parameter, 1.0f);
           }
         }
         else {
@@ -458,9 +461,13 @@ static void sample_curve_attribute(const bke::CurvesGeometry &src_curves,
 
           for (const int i : dst_points.index_range()) {
             const int dst_i = dst_points[i];
-            dst_sample_indices_eval[i] = dst_sample_indices[dst_i] * resolution +
-                                         math::floor(dst_sample_factors[dst_i] * resolution);
-            dst_sample_factors_eval[i] = math::mod(dst_sample_factors[dst_i] * resolution, 1.0f);
+            const int dst_index = dst_sample_indices[dst_i];
+            const float dst_factor = dst_sample_factors[dst_i];
+
+            const float segment_parameter = (dst_index + dst_factor) * resolution;
+
+            dst_sample_indices_eval[i] = math::floor(segment_parameter);
+            dst_sample_factors_eval[i] = math::mod(segment_parameter, 1.0f);
           }
         }
 
