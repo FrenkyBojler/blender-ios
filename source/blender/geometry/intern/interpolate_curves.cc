@@ -577,7 +577,7 @@ static void sample_curve_positions_and_handles(const bke::CurvesGeometry &src_cu
             dst_left[i] = dst_pos[i] + (dst_left[i] - dst_pos[i]) * (1.0f - src_factor_prev);
           }
           if ((cyclic || i != dst_points.size() - 1) && dst_indices[i_next] == src_index) {
-            dst_right[i] = dst_pos[i] + (dst_right[i] - dst_pos[i]) * (1.0f - src_factor_next);
+            dst_right[i] = dst_pos[i] + (dst_right[i] - dst_pos[i]) * src_factor_next;
           }
         }
         else {
