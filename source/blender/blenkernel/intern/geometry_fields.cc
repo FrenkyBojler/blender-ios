@@ -693,6 +693,13 @@ GVArray EvaluateAtPositionInput::get_varray_for_context(const GeometryFieldConte
   return GVArray::from_garray(std::move(dst_array));
 }
 
+void EvaluateAtPositionInput::for_each_field_input_recursive(
+    FunctionRef<void(const FieldInput &)> fn) const
+{
+  position_field_.node().for_each_field_input_recursive(fn);
+  value_field_.node().for_each_field_input_recursive(fn);
+}
+
 EvaluateOnDomainInput::EvaluateOnDomainInput(fn::GField field, AttrDomain domain)
     : bke::GeometryFieldInput(field.cpp_type(), "Evaluate on Domain"),
       src_field_(std::move(field)),

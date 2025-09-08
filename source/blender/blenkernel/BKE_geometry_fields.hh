@@ -453,6 +453,8 @@ class EvaluateAtPositionInput final : public GeometryFieldInput {
 
   GVArray get_varray_for_context(const GeometryFieldContext &context,
                                  const IndexMask &mask) const final;
+
+  void for_each_field_input_recursive(FunctionRef<void(const FieldInput &)> fn) const override;
 };
 
 void copy_with_checked_indices(const GVArray &src,
