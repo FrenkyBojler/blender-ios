@@ -185,12 +185,12 @@ struct Packer {
 #if GBUFFER_LAYER_MAX > 2
     data.normal[2] = gbuffer::normal_pack(this->closures[2].N);
 #endif
-    uchar used_layers = this->get_used_normal_layers();
+    uint used_layers = this->get_used_normal_layers();
 
-    uint closure_len = this->header.closure_len();
+    uint closure_count = this->header.closure_len();
 
     /* Interleave data to simplify loading code and keep packed storage. */
-    switch (closure_len) {
+    switch (closure_count) {
       case 1u:
         data.closure[0] = this->closures[0].data0;
         data.closure[1] = this->closures[0].data1;
