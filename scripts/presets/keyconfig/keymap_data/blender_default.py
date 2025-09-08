@@ -1426,7 +1426,7 @@ def km_uv_editor(params):
          {"properties": [("clear", True)]}),
         ("uv.copy", {"type": 'C', "value": 'PRESS', "ctrl": True}, None),
         ("uv.paste", {"type": 'V', "value": 'PRESS', "ctrl": True}, None),
-        ("uv.user_region", {"type": 'R', "value": 'PRESS', "shift": True}, None),
+        ("uv.set_user_region", {"type": 'R', "value": 'PRESS', "shift": True}, None),
 
         op_menu("IMAGE_MT_uvs_unwrap", {"type": 'U', "value": 'PRESS'}),
         (

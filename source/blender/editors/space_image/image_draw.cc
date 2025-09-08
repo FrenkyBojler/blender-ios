@@ -22,6 +22,7 @@
 #include "BLI_threads.h"
 #include "BLI_utildefines.h"
 
+#include "GPU_vertex_format.hh"
 #include "IMB_colormanagement.hh"
 #include "IMB_imbuf_enums.h"
 #include "IMB_moviecache.hh"
@@ -453,7 +454,7 @@ void draw_image_main_helpers(const bContext *C, ARegion *region)
   }
 
   ToolSettings *ts = scene->toolsettings;
-  if (ts->uv_flag & UV_SHOW_USER_REGION) {
+  if (ts->uv_flag & UV_FLAG_USER_REGION) {
     float zoomx, zoomy;
     ED_space_image_get_zoom(sima, region, &zoomx, &zoomy);
     draw_user_region(region, ts->uv_pack_region);
@@ -620,7 +621,7 @@ void draw_user_region(ARegion *region, rctf user_region)
 {
   /* use the same program for everything */
   const uint shdr_pos = GPU_vertformat_attr_add(
-      immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+      immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
 
   GPU_line_width(1.0f);
 

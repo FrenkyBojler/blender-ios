@@ -2801,7 +2801,7 @@ enum {
    * selection should be used - since not all combinations of options support it.
    */
   UV_FLAG_ISLAND_SELECT = 1 << 2,
-  UV_SHOW_USER_REGION = 1 << 3,
+  UV_FLAG_USER_REGION = 1 << 3,
 };
 
 /** #ToolSettings::uv_selectmode */

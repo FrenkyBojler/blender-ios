@@ -70,6 +70,7 @@
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
+#include "RNA_prototypes.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -1938,9 +1939,10 @@ static void uv_pack_islands_ui(bContext *C, wmOperator *op)
   layout->prop(op->ptr, "udim_source", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   const int udim_source = RNA_enum_get(op->ptr, "udim_source");
   ToolSettings *ts = scene->toolsettings;
-  if (udim_source == PACK_USER_REGION && !(ts->uv_flag & UV_SHOW_USER_REGION)) {
+  if (udim_source == PACK_USER_REGION && !(ts->uv_flag & UV_FLAG_USER_REGION)) {
     ts->uv_pack_region = {0.0f, 1.0f, 0.0f, 1.0f};
-    ts->uv_flag |= UV_SHOW_USER_REGION;
+    PointerRNA ts_ptr = RNA_pointer_create_discrete(&scene->id, &RNA_ToolSettings, ts);
+    RNA_boolean_set(&ts_ptr, "user_region", true);
     ED_region_tag_redraw(region);
   }
   layout->separator();
