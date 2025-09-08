@@ -888,28 +888,27 @@ static const int MAX_SAMPLES = 4 * MAX_PER_RADIUS + 1;
 // Compute a 1-d filter
 // fill in arrays with integer pixel sample locations and weights
 // returns number of entries
-static unsigned make_samples(
-  const _Sampler &sampler,
-  InterpWrapMode wrap,
-  int width, // size of image in this direction
-  float u, // center of filter (before wrap)
-  float w, // width of (box) filter
-  int positions[MAX_SAMPLES],
-  float weights[MAX_SAMPLES],
-  float& sum) // sum of all weights written here, or larger for border antialiasing
+static unsigned make_samples(const _Sampler &sampler,
+                             InterpWrapMode wrap,
+                             int width,  // size of image in this direction
+                             float u,    // center of filter (before wrap)
+                             float w,    // width of (box) filter
+                             int positions[MAX_SAMPLES],
+                             float weights[MAX_SAMPLES])
 {
+  // Todo: w and u may both be well out of MAXINT range, including inf and NaN.
+  // This requires doing more work than should be necessary in float instead of int
   w = std::max(w, 1.0f);
-  // Todo: wrap could be computed outside the loop and sets the positions, which
-  // could then be integers. Be careful that huge/inf/NaN values do not produce
-  // infinite loops however.
   float r = sampler.radius(w);
   float d = ceilf(w / MAX_PER_RADIUS);
   float a = ceilf(u - 0.5f - r) + 0.5f;
   int n = int((floorf(u - 0.5f + r) + 0.5f - a) / d) + 1;
   unsigned count = 0;
-  sum = 0.0f;
+  float sum = 0.0f;
   for (int i = 0; i < n; i++) {
-    float v = a + float(i) * d; // center of source pixel
+    float v = a + float(i) * d;           // center of source pixel
+    float wt = sampler.weight(v - u, w);  // weight
+    sum += wt;
     int y;
     if (v < 0) {
       switch (wrap) {
@@ -922,7 +921,8 @@ static unsigned make_samples(
         case InterpWrapMode::Border:
           continue;
       }
-    } else if (v >= float(width)) {
+    }
+    else if (v >= float(width)) {
       switch (wrap) {
         case InterpWrapMode::Extend:
           y = width - 1;
@@ -933,13 +933,17 @@ static unsigned make_samples(
         case InterpWrapMode::Border:
           continue;
       }
-    } else {
+    }
+    else {
       y = int(v);
     }
     positions[count] = y;
-    sum += (weights[count] = sampler.weight(v - u, w));
+    weights[count] = wt;
     count++;
   }
+  float m = 1.0f / sum;
+  for (unsigned i = 0; i < count; ++i)
+    weights[i] *= m;
   return count;
 }
 
@@ -950,29 +954,74 @@ float4 sample_rect(const SamplingBuffer &source,
 {
   const _Sampler &sampler = *table[unsigned(options.sampler)];
 
-  int positions_x[MAX_SAMPLES];
-  float weights_x[MAX_SAMPLES];
-  float sum_x;
-  unsigned nx = make_samples(sampler, options.wrap_x, source.width, uv.x, wh.x, positions_x, weights_x, sum_x);
-  if (!nx) return float4(0.0f);
-
   int positions_y[MAX_SAMPLES];
   float weights_y[MAX_SAMPLES];
-  float sum_y;
-  unsigned ny = make_samples(sampler, options.wrap_y, source.height, uv.y, wh.y, positions_y, weights_y, sum_y);
-  if (!ny) return float4(0.0f);
+  unsigned ny = make_samples(
+      sampler, options.wrap_y, source.height, uv.y, wh.y, positions_y, weights_y);
+  if (!ny)
+    return float4(0.0f);
 
-  float4 sum{0.0f};
-  for (unsigned i = 0; i < ny; i++) {  // vertical filter
-    int y = positions_y[i];
-    float4 sumx{0.0f};
-    for (unsigned j = 0; j < nx; j++) {  // horizontal filter
-      int x = positions_x[j];
-      sumx += sample_at(source, x, y) * weights_x[j];
+  int positions_x[MAX_SAMPLES];
+  float weights_x[MAX_SAMPLES];
+  unsigned nx = make_samples(
+      sampler, options.wrap_x, source.width, uv.x, wh.x, positions_x, weights_x);
+  if (!nx)
+    return float4(0.0f);
+
+  switch (source.components) {
+    default: {  // 1
+      float2 sum{0.0f};
+      for (unsigned i = 0; i < ny; i++) {
+        int y = positions_y[i];
+        float2 sumx{0.0f};
+        for (unsigned j = 0; j < nx; j++) {
+          const float *p = source.buffer + (y * source.width + positions_x[j]) * 1;
+          sumx += float2(*p, 1.0f) * weights_x[j];
+        }
+        sum += sumx * weights_y[i];
+      }
+      return float4(sum.x, sum.x, sum.x, sum.y);
     }
-    sum += sumx * weights_y[i];
+    case 2: {
+      float3 sum{0.0f};
+      for (unsigned i = 0; i < ny; i++) {
+        int y = positions_y[i];
+        float3 sumx{0.0f};
+        for (unsigned j = 0; j < nx; j++) {
+          const float *p = source.buffer + (y * source.width + positions_x[j]) * 2;
+          sumx += float3(p[0], p[1], 1.0f) * weights_x[j];
+        }
+        sum += sumx * weights_y[i];
+      }
+      return float4(sum.x, sum.y, 0.0f, sum.z);
+    }
+    case 3: {
+      float4 sum{0.0f};
+      for (unsigned i = 0; i < ny; i++) {
+        int y = positions_y[i];
+        float4 sumx{0.0f};
+        for (unsigned j = 0; j < nx; j++) {
+          const float *p = source.buffer + (y * source.width + positions_x[j]) * 3;
+          sumx += float4(p[0], p[1], p[2], 1.0f) * weights_x[j];
+        }
+        sum += sumx * weights_y[i];
+      }
+      return sum;
+    }
+    case 4: {
+      float4 sum{0.0f};
+      for (unsigned i = 0; i < ny; i++) {
+        int y = positions_y[i];
+        float4 sumx{0.0f};
+        for (unsigned j = 0; j < nx; j++) {
+          const float *p = source.buffer + (y * source.width + positions_x[j]) * 4;
+          sumx += *(float4 *)p * weights_x[j];
+        }
+        sum += sumx * weights_y[i];
+      }
+      return sum;
+    }
   }
-  return sum / (sum_x * sum_y);
 }
 
 }  // namespace blender::math
