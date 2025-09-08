@@ -151,8 +151,8 @@ static void view_pan_init(bContext *C, wmOperator *op)
   vpd->v2d = &vpd->region->v2d;
 
   /* calculate translation factor - based on size of view */
-  const float winx = float(BLI_rcti_size_x(&vpd->region->winrct) + 1);
-  const float winy = float(BLI_rcti_size_y(&vpd->region->winrct) + 1);
+  const float winx = float(BLI_rcti_size_x(&vpd->region->winrct));
+  const float winy = float(BLI_rcti_size_y(&vpd->region->winrct));
   vpd->facx = BLI_rctf_size_x(&vpd->v2d->cur) / winx;
   vpd->facy = BLI_rctf_size_y(&vpd->v2d->cur) / winy;
 
