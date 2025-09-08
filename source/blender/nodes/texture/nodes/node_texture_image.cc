@@ -6,10 +6,13 @@
  * \ingroup texnodes
  */
 
-#include "BKE_image.hh"
 #include "BLI_math_vector.h"
 #include "BLI_threads.h"
+
 #include "IMB_imbuf.hh"
+
+#include "BKE_image.hh"
+
 #include "node_texture_util.hh"
 #include "node_util.hh"
 
@@ -86,7 +89,7 @@ static void exec(void *data,
 
 static void init(bNodeTree * /*ntree*/, bNode *node)
 {
-  ImageUser *iuser = MEM_cnew<ImageUser>("node image user");
+  ImageUser *iuser = MEM_callocN<ImageUser>("node image user");
   node->storage = iuser;
   iuser->sfra = 1;
   iuser->flag |= IMA_ANIM_ALWAYS;

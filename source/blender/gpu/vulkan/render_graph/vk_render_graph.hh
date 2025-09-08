@@ -43,7 +43,7 @@
 
 #include "BKE_global.hh"
 
-#include "BLI_color.hh"
+#include "BLI_color_types.hh"
 #include "BLI_map.hh"
 #include "BLI_utility_mixins.hh"
 #include "BLI_vector.hh"
@@ -69,9 +69,9 @@ class VKRenderGraph : public NonCopyable {
   using DebugGroupID = int64_t;
 
   /** All links inside the graph indexable via NodeHandle. */
-  Vector<VKRenderGraphNodeLinks> links_;
+  Vector<VKRenderGraphNodeLinks, 1024> links_;
   /** All nodes inside the graph indexable via NodeHandle. */
-  Vector<VKRenderGraphNode> nodes_;
+  Vector<VKRenderGraphNode, 1024> nodes_;
   /** Storage for large node datas to improve CPU cache pre-loading. */
   VKRenderGraphStorage storage_;
 
@@ -249,6 +249,8 @@ class VKRenderGraph : public NonCopyable {
    * Reset the render graph.
    */
   void reset();
+
+  void memstats() const;
 
  private:
 };

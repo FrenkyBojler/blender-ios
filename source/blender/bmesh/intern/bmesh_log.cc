@@ -387,33 +387,6 @@ static void bm_log_entry_free(BMLogEntry *entry)
   BLI_assert(entry->face_pool.is_empty());
 }
 
-static int uint_compare(const void *a_v, const void *b_v)
-{
-  const uint *a = static_cast<const uint *>(a_v);
-  const uint *b = static_cast<const uint *>(b_v);
-  return *a < *b;
-}
-
-/* Remap IDs to contiguous indices
- *
- * E.g. if the vertex IDs are (4, 1, 10, 3), the mapping will be:
- *    4 -> 2
- *    1 -> 0
- *   10 -> 3
- *    3 -> 1
- */
-static blender::Map<uint, uint> bm_log_compress_ids_to_indices(uint *ids, uint totid)
-{
-  blender::Map<uint, uint> result;
-  qsort(ids, totid, sizeof(*ids), uint_compare);
-
-  for (uint i = 0; i < totid; i++) {
-    result.add(ids[i], i);
-  }
-
-  return result;
-}
-
 /***************************** Public API *****************************/
 
 BMLog *BM_log_create(BMesh *bm)
@@ -534,53 +507,6 @@ void BM_log_free(BMLog *log)
   }
 
   MEM_delete(log);
-}
-
-int BM_log_length(const BMLog *log)
-{
-  return BLI_listbase_count(&log->entries);
-}
-
-void BM_log_mesh_elems_reorder(BMesh *bm, BMLog *log)
-{
-  BMIter bm_iter;
-
-  uint i;
-
-  BMVert *v;
-  /* Put all vertex IDs into an array */
-  uint *varr = static_cast<uint *>(MEM_mallocN(sizeof(int) * size_t(bm->totvert), __func__));
-  BM_ITER_MESH_INDEX (v, &bm_iter, bm, BM_VERTS_OF_MESH, i) {
-    varr[i] = bm_log_vert_id_get(log, v);
-  }
-
-  BMFace *f;
-  /* Put all face IDs into an array */
-  uint *farr = static_cast<uint *>(MEM_mallocN(sizeof(int) * size_t(bm->totface), __func__));
-  BM_ITER_MESH_INDEX (f, &bm_iter, bm, BM_FACES_OF_MESH, i) {
-    farr[i] = bm_log_face_id_get(log, f);
-  }
-
-  /* Create BMVert index remap array */
-  blender::Map<uint, uint> vert_compression_map = bm_log_compress_ids_to_indices(
-      varr, uint(bm->totvert));
-  BM_ITER_MESH_INDEX (v, &bm_iter, bm, BM_VERTS_OF_MESH, i) {
-    const uint id = bm_log_vert_id_get(log, v);
-    varr[i] = vert_compression_map.lookup(id);
-  }
-
-  /* Create BMFace index remap array */
-  blender::Map<uint, uint> face_compression_map = bm_log_compress_ids_to_indices(
-      farr, uint(bm->totface));
-  BM_ITER_MESH_INDEX (f, &bm_iter, bm, BM_FACES_OF_MESH, i) {
-    const uint id = bm_log_face_id_get(log, f);
-    farr[i] = face_compression_map.lookup(id);
-  }
-
-  BM_mesh_remap(bm, varr, nullptr, farr);
-
-  MEM_freeN(varr);
-  MEM_freeN(farr);
 }
 
 BMLogEntry *BM_log_entry_add(BMLog *log)
@@ -875,39 +801,6 @@ const float *BM_log_find_original_vert_mask(BMLog *log, BMVert *v)
     return &log_vert.value()->mask;
   }
   return nullptr;
-}
-
-const float *BM_log_original_vert_co(BMLog *log, BMVert *v)
-{
-  BMLogEntry *entry = log->current_entry;
-  BLI_assert(entry);
-
-  const uint v_id = bm_log_vert_id_get(log, v);
-
-  BLI_assert(entry->modified_verts.contains(v_id));
-  return entry->modified_verts.lookup(v_id)->position;
-}
-
-const float *BM_log_original_vert_no(BMLog *log, BMVert *v)
-{
-  BMLogEntry *entry = log->current_entry;
-  BLI_assert(entry);
-
-  const uint v_id = bm_log_vert_id_get(log, v);
-
-  BLI_assert(entry->modified_verts.contains(v_id));
-  return entry->modified_verts.lookup(v_id)->normal;
-}
-
-float BM_log_original_mask(BMLog *log, BMVert *v)
-{
-  BMLogEntry *entry = log->current_entry;
-  BLI_assert(entry);
-
-  const uint v_id = bm_log_vert_id_get(log, v);
-
-  BLI_assert(entry->modified_verts.contains(v_id));
-  return entry->modified_verts.lookup(v_id)->mask;
 }
 
 void BM_log_original_vert_data(BMLog *log, BMVert *v, const float **r_co, const float **r_no)

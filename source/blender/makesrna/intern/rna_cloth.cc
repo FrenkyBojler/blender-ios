@@ -36,6 +36,8 @@
 #  include "BKE_cloth.hh"
 #  include "BKE_context.hh"
 
+#  include "BLT_translation.hh"
+
 #  include "DEG_depsgraph.hh"
 #  include "DEG_depsgraph_build.hh"
 
@@ -446,7 +448,7 @@ static int rna_ClothSettings_internal_editable(const PointerRNA *ptr, const char
   ClothSimSettings *sim = (ClothSimSettings *)ptr->data;
 
   if (sim && (sim->bending_model == CLOTH_BENDING_LINEAR)) {
-    *r_info = "Only available with angular bending springs.";
+    *r_info = N_("Only available with angular bending springs.");
     return 0;
   }
 
@@ -486,9 +488,9 @@ static void rna_def_cloth_solver_result(BlenderRNA *brna)
   RNA_define_verify_sdna(false);
 
   prop = RNA_def_property(srna, "status", PROP_ENUM, PROP_NONE);
+  RNA_def_property_flag(prop, PROP_ENUM_FLAG);
   RNA_def_property_enum_items(prop, status_items);
   RNA_def_property_enum_sdna(prop, nullptr, "status");
-  RNA_def_property_flag(prop, PROP_ENUM_FLAG);
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
   RNA_def_property_ui_text(prop, "Status", "Status of the solver iteration");
 

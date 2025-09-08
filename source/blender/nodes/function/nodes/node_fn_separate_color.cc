@@ -4,7 +4,9 @@
 
 #include "node_function_util.hh"
 
-#include "UI_interface.hh"
+#include "BLI_math_color.h"
+
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "NOD_rna_define.hh"
@@ -27,7 +29,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "mode", UI_ITEM_NONE, "", ICON_NONE);
+  layout->prop(ptr, "mode", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void node_update(bNodeTree * /*tree*/, bNode *node)
@@ -38,7 +40,7 @@ static void node_update(bNodeTree * /*tree*/, bNode *node)
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeCombSepColor *data = MEM_cnew<NodeCombSepColor>(__func__);
+  NodeCombSepColor *data = MEM_callocN<NodeCombSepColor>(__func__);
   data->mode = NODE_COMBSEP_COLOR_RGB;
   node->storage = data;
 }

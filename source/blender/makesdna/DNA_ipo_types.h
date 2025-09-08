@@ -83,6 +83,11 @@ typedef struct IpoCurve {
 
 /* IPO Data-Block */
 typedef struct Ipo {
+#ifdef __cplusplus
+  /** See #ID_Type comment for why this is here. */
+  static constexpr ID_Type id_type = ID_IP;
+#endif
+
   ID id;
 
   /** A list of IpoCurve structs in a linked list. */
@@ -497,7 +502,7 @@ typedef struct Ipo {
 
 /* ---------- IPO Drivers ----------- */
 
-/* Offset in driver->name for finding second posechannel for rot-diff. */
+/** Offset in driver->name for finding second pose-channel for rot-diff. */
 #define DRIVER_NAME_OFFS 32
 
 /* driver->type */
@@ -505,5 +510,5 @@ typedef struct Ipo {
 #define IPO_DRIVER_TYPE_PYTHON 1
 
 /* driver->flag */
-/* invalid flag: currently only used for buggy pydriver expressions */
+/** Invalid flag: currently only used for invalid Python-driver expressions. */
 #define IPO_DRIVER_FLAG_INVALID (1 << 0)

@@ -7,7 +7,6 @@
  */
 
 #include <cerrno>
-#include <cstdio>
 #include <cstdlib>
 
 #include "BLI_path_utils.hh" /* For assertions. */
@@ -17,7 +16,11 @@
 #include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
 
-bool IMB_saveiff(ImBuf *ibuf, const char *filepath, int flags)
+#include "CLG_log.h"
+
+static CLG_LogRef LOG = {"image.write"};
+
+bool IMB_save_image(ImBuf *ibuf, const char *filepath, const int flags)
 {
   errno = 0;
 
@@ -30,7 +33,7 @@ bool IMB_saveiff(ImBuf *ibuf, const char *filepath, int flags)
 
   const ImFileType *type = IMB_file_type_from_ibuf(ibuf);
   if (type == nullptr || type->save == nullptr) {
-    fprintf(stderr, "Couldn't save picture.\n");
+    CLOG_ERROR(&LOG, "Couldn't save image to \"%s\"", filepath);
     return false;
   }
 

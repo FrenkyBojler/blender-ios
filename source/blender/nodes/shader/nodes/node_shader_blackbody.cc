@@ -15,7 +15,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   b.is_function_node();
   b.add_input<decl::Float>("Temperature")
-      .default_value(1500.0f)
+      .default_value(6500.0f)
       .min(800.0f)
       .max(12000.0f)
       .subtype(PROP_COLOR_TEMPERATURE);
@@ -29,7 +29,7 @@ static int node_shader_gpu_blackbody(GPUMaterial *mat,
                                      GPUNodeStack *out)
 {
   const int size = CM_TABLE + 1;
-  float *data = static_cast<float *>(MEM_mallocN(sizeof(float) * size * 4, "blackbody texture"));
+  float *data = MEM_malloc_arrayN<float>(size * 4, "blackbody texture");
 
   IMB_colormanagement_blackbody_temperature_to_rgb_table(data, size, 800.0f, 12000.0f);
 

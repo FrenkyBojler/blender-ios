@@ -8,7 +8,7 @@
  * floats, but even if some compilers claim full support,
  * their standard libraries are not quite there yet.
  * LLVM/libc++ only has a float parser since LLVM 14,
- * and gcc/libstdc++ since 11.1. So until at least these are
+ * and GCC/libstdc++ since 11.1. So until at least these are
  * the minimum spec, use an external library. */
 #include "fast_float.h"
 #include <charconv>
@@ -46,12 +46,12 @@ void fixup_line_continuations(char *p, char *end)
     if (backslash == end) {
       break;
     }
-    /* Skip over possible whitespace right after it. */
+    /* Skip over possible white-space right after it. */
     p = backslash + 1;
     while (p < end && is_whitespace(*p) && *p != '\n') {
       ++p;
     }
-    /* If then we have a newline, turn both backslash
+    /* If we have a newline, turn both backslash
      * and the newline into regular spaces. */
     if (p < end && *p == '\n') {
       *backslash = ' ';
