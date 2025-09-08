@@ -357,11 +357,16 @@ static blender::Vector<SnapTarget> seq_get_snap_targets(bContext *C,
 {
   Scene *scene = CTX_data_scene(C);
   ToolSettings *tool_settings = scene->toolsettings;
+  Editing *ed = blender::seq::editing_get(scene);
+
+  if (ed == nullptr) {
+    return {};
+  }
 
   blender::Vector<SnapTarget> targets;
 
   if (tool_settings->snap_playhead_mode & SCE_SNAP_TO_STRIPS) {
-    ListBase *seqbase = blender::seq::active_seqbase_get(blender::seq::editing_get(scene));
+    ListBase *seqbase = blender::seq::active_seqbase_get(ed);
     append_sequencer_strip_snap_target(
         blender::seq::query_all_strips(seqbase), scene, timeline_frame, targets);
   }
