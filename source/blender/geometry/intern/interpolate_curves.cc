@@ -473,6 +473,18 @@ static void sample_curve_attribute(const bke::CurvesGeometry &src_curves,
   });
 }
 
+static float4 calculate_catmull_rom_basis_derivative(const float parameter)
+{
+  const float t = parameter;
+  const float s = 1.0f - parameter;
+  return {
+      s * (3.0f * t - 1.0f),
+      9.0f * t * t - 10.0f * t,
+      10.0f * s - 9.0f * s * s,
+      t * (3.0f * t - 2.0f),
+  };
+}
+
 /* Resample the positions and handles. */
 static void sample_curve_positions_and_handles(const bke::CurvesGeometry &src_curves,
                                                const Span<int> src_curve_indices,
@@ -511,6 +523,8 @@ static void sample_curve_positions_and_handles(const bke::CurvesGeometry &src_cu
     const IndexRange src_points = src_points_by_curve[i_src_curve];
     const IndexRange dst_points = dst_points_by_curve[i_dst_curve];
 
+    const int src_index_last = src_points.size() - 1;
+
     const Span<float3> src_pos = src_positions.slice(src_points);
     const Span<int> dst_indices = dst_sample_indices.slice(dst_points);
     const Span<float> dst_factors = dst_sample_factors.slice(dst_points);
@@ -544,12 +558,100 @@ static void sample_curve_positions_and_handles(const bke::CurvesGeometry &src_cu
       }
     }
     else if (src_types[i_src_curve] == CURVE_TYPE_NURBS) {
-      /* TODO. */
       length_parameterize::interpolate(src_pos, dst_indices, dst_factors, dst_pos);
+
+      /* NURBS take priority over Bézier, so we should never be trying to be Bézier. */
+      if (dst_types[i_dst_curve] == CURVE_TYPE_BEZIER) {
+        BLI_assert_unreachable();
+      }
     }
     else if (src_types[i_src_curve] == CURVE_TYPE_CATMULL_ROM) {
-      /* TODO. */
-      length_parameterize::interpolate(src_pos, dst_indices, dst_factors, dst_pos);
+      for (const int i : dst_points.index_range()) {
+        const int src_index = dst_indices[i];
+        const float src_factor = dst_factors[i];
+
+        const int i_prev = (i - 1 + dst_points.size()) % dst_points.size();
+        const float src_factor_prev = dst_factors[i_prev];
+
+        const int i_next = (i + 1) % dst_points.size();
+        const float src_factor_next = dst_factors[i_next];
+
+        int src_index_a = src_index - 1;
+        int src_index_b = src_index;
+        int src_index_c = src_index + 1;
+        int src_index_d = src_index + 2;
+
+        if (src_index_a == -1) {
+          if (cyclic) {
+            src_index_a = src_index_last;
+          }
+          else {
+            src_index_a = 0;
+          }
+        }
+
+        if (src_index_c > src_index_last) {
+          if (cyclic) {
+            src_index_c -= src_index_last;
+          }
+          else {
+            src_index_c = src_index_last;
+          }
+        }
+
+        if (src_index_d > src_index_last) {
+          if (cyclic) {
+            src_index_d -= src_index_last;
+          }
+          else {
+            src_index_d = src_index_last;
+          }
+        }
+
+        const float3 &a = src_pos[src_index_a];
+        const float3 &b = src_pos[src_index_b];
+        const float3 &c = src_pos[src_index_c];
+        const float3 &d = src_pos[src_index_d];
+
+        if (src_factor == 0.0f) {
+          dst_pos[i] = src_pos[src_index];
+
+          if (dst_types[i_dst_curve] == CURVE_TYPE_BEZIER) {
+            const float3 derivative = 0.5f * (c - a);
+            dst_right[i] = dst_pos[i] + derivative / 3.0f;
+            dst_left[i] = dst_pos[i] - derivative / 3.0f;
+
+            if ((cyclic || i != 0) && dst_indices[i_prev] == src_index - 1) {
+              dst_left[i] = dst_pos[i] + (dst_left[i] - dst_pos[i]) * (1.0f - src_factor_prev);
+            }
+            if ((cyclic || i != dst_points.size() - 1) && dst_indices[i_next] == src_index) {
+              dst_right[i] = dst_pos[i] + (dst_right[i] - dst_pos[i]) * src_factor_next;
+            }
+          }
+        }
+        else {
+          const float4 weights = bke::curves::catmull_rom::calculate_basis(src_factor);
+
+          dst_pos[i] = 0.5f * bke::attribute_math::mix4<float3>(weights, a, b, c, d);
+          if (dst_types[i_dst_curve] == CURVE_TYPE_BEZIER) {
+            const float4 dweightsdt = calculate_catmull_rom_basis_derivative(src_factor);
+
+            const float3 derivative = 0.5f *
+                                      bke::attribute_math::mix4<float3>(dweightsdt, a, b, c, d);
+            dst_right[i] = dst_pos[i] + derivative / 3.0f;
+            dst_left[i] = dst_pos[i] - derivative / 3.0f;
+
+            if ((cyclic || i != 0) && dst_indices[i_prev] == src_index - 1) {
+              dst_left[i] = dst_pos[i] +
+                            (dst_left[i] - dst_pos[i]) * (src_factor - src_factor_prev);
+            }
+            if ((cyclic || i != dst_points.size() - 1) && dst_indices[i_next] == src_index) {
+              dst_right[i] = dst_pos[i] +
+                             (dst_right[i] - dst_pos[i]) * (src_factor_next - src_factor);
+            }
+          }
+        }
+      }
     }
     else if (src_types[i_src_curve] == CURVE_TYPE_BEZIER) {
       BLI_assert(src_handle_left);
@@ -563,10 +665,10 @@ static void sample_curve_positions_and_handles(const bke::CurvesGeometry &src_cu
         const float src_factor = dst_factors[i];
 
         const int i_prev = (i - 1 + dst_points.size()) % dst_points.size();
-        float src_factor_prev = dst_factors[i_prev];
+        const float src_factor_prev = dst_factors[i_prev];
 
         const int i_next = (i + 1) % dst_points.size();
-        float src_factor_next = dst_factors[i_next];
+        const float src_factor_next = dst_factors[i_next];
 
         if (src_factor == 0.0f) {
           dst_pos[i] = src_pos[src_index];
