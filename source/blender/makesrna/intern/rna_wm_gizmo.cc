@@ -66,8 +66,6 @@ static void rna_gizmo_draw_cb(const bContext *C, wmGizmo *gz)
   RNA_parameter_set_lookup(&list, "context", &C);
   gzgroup->type->rna_ext.call((bContext *)C, &gz_ptr, func, &list);
   RNA_parameter_list_free(&list);
-  /* This callback may have called bgl functions. */
-  GPU_bgl_end();
 }
 
 static void rna_gizmo_draw_select_cb(const bContext *C, wmGizmo *gz, int select_id)
@@ -84,8 +82,6 @@ static void rna_gizmo_draw_select_cb(const bContext *C, wmGizmo *gz, int select_
   RNA_parameter_set_lookup(&list, "select_id", &select_id);
   gzgroup->type->rna_ext.call((bContext *)C, &gz_ptr, func, &list);
   RNA_parameter_list_free(&list);
-  /* This callback may have called bgl functions. */
-  GPU_bgl_end();
 }
 
 static int rna_gizmo_test_select_cb(bContext *C, wmGizmo *gz, const int location[2])
@@ -1331,7 +1327,7 @@ static void rna_def_gizmo(BlenderRNA *brna, PropertyRNA *cprop)
   srna = RNA_def_struct(brna, "GizmoProperties", nullptr);
   RNA_def_struct_ui_text(srna, "Gizmo Properties", "Input properties of a Gizmo");
   RNA_def_struct_refine_func(srna, "rna_GizmoProperties_refine");
-  RNA_def_struct_idprops_func(srna, "rna_GizmoProperties_idprops");
+  RNA_def_struct_system_idprops_func(srna, "rna_GizmoProperties_idprops");
   RNA_def_struct_flag(srna, STRUCT_NO_DATABLOCK_IDPROPERTIES);
 }
 
@@ -1434,9 +1430,9 @@ static void rna_def_gizmogroup(BlenderRNA *brna)
       {0, nullptr, 0, nullptr, nullptr},
   };
   prop = RNA_def_property(srna, "bl_options", PROP_ENUM, PROP_NONE);
+  RNA_def_property_flag(prop, PROP_REGISTER_OPTIONAL | PROP_ENUM_FLAG);
   RNA_def_property_enum_sdna(prop, nullptr, "type->flag");
   RNA_def_property_enum_items(prop, gizmogroup_flag_items);
-  RNA_def_property_flag(prop, PROP_REGISTER_OPTIONAL | PROP_ENUM_FLAG);
   RNA_def_property_ui_text(prop, "Options", "Options for this operator type");
 
   RNA_define_verify_sdna(true); /* not in sdna */
@@ -1527,7 +1523,7 @@ static void rna_def_gizmogroup(BlenderRNA *brna)
   srna = RNA_def_struct(brna, "GizmoGroupProperties", nullptr);
   RNA_def_struct_ui_text(srna, "Gizmo Group Properties", "Input properties of a Gizmo Group");
   RNA_def_struct_refine_func(srna, "rna_GizmoGroupProperties_refine");
-  RNA_def_struct_idprops_func(srna, "rna_GizmoGroupProperties_idprops");
+  RNA_def_struct_system_idprops_func(srna, "rna_GizmoGroupProperties_idprops");
   RNA_def_struct_flag(srna, STRUCT_NO_DATABLOCK_IDPROPERTIES);
 }
 

@@ -39,7 +39,7 @@ BLOCKLIST_OSL_LIMITED = []
 # So blocking these tests doesn't lose any test permutations.
 BLOCKLIST_OSL_ALL = BLOCKLIST_OSL_LIMITED + [
     # AOVs are not supported. See 73266
-    'aov_position.blend',
+    'aov_.*.blend',
     'render_passes_aov.*.blend',
     # Image sampling is different from SVM. There are OSL variants of these tests
     'image_byte.*.blend',
@@ -70,6 +70,8 @@ BLOCKLIST_OPTIX_OSL_LIMITED = [
     'image_.*_osl.blend',
     # OptiX OSL doesn't support the trace function
     'osl_trace_shader.blend',
+    # Noise functions do not return color with OptiX OSL
+    'osl_camera_advanced.blend',
 ]
 
 # Blocklist for SVM tests that fail when forced to run with OptiX OSL
@@ -79,8 +81,6 @@ BLOCKLIST_OPTIX_OSL_ALL = BLOCKLIST_OPTIX_OSL_LIMITED + [
     'bake_bevel.blend',
     'bevel.blend',
     'principled_bsdf_bevel_emission_137420.blend',
-    # The 3D texture doesn't have the right mappings
-    'point_density_.*_object.blend',
     # Dicing tests use wireframe node which doesn't appear to be supported with OptiX OSL
     'dicing_camera.blend',
     'offscreen_dicing.blend',
@@ -108,7 +108,6 @@ BLOCKLIST_GPU = [
     'image_log.blend',
     'glass_mix_40964.blend',
     'filter_glossy_refraction_45609.blend',
-    'smoke_color.blend',
     'bevel_mblur.blend',
     # Inconsistency between Embree and Hair primitive on GPU.
     'denoise_hair.blend',
@@ -271,6 +270,16 @@ def main():
     # noticably different noise causing OSL Principled BSDF tests to fail.
     if ((args.osl == 'all') and (test_dir_name == 'principled_bsdf')):
         report.set_fail_threshold(0.06)
+
+    # Volume scattering probability guiding renders differently on different platforms
+    if (test_dir_name in {'shadow_catcher', 'light'}):
+        report.set_fail_threshold(0.038)
+    if (test_dir_name in {'light', 'camera'}):
+        report.set_fail_threshold(0.02)
+        report.set_fail_percent(4)
+    if (test_dir_name in {'volume', 'openvdb'}):
+        report.set_fail_threshold(0.048)
+        report.set_fail_percent(3)
 
     ok = report.run(args.testdir, args.blender, get_arguments, batch=args.batch)
 

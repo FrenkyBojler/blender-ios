@@ -77,9 +77,9 @@ struct BakeItemsAccessor : public socket_items::SocketItemsAccessorDefaults {
     return &item.name;
   }
 
-  static bool supports_socket_type(const eNodeSocketDatatype socket_type)
+  static bool supports_socket_type(const eNodeSocketDatatype socket_type, const int ntree_type)
   {
-    return SimulationItemsAccessor::supports_socket_type(socket_type);
+    return SimulationItemsAccessor::supports_socket_type(socket_type, ntree_type);
   }
 
   static void init_with_socket_type_and_name(bNode &node,
@@ -111,6 +111,7 @@ struct BakeDrawContext {
   bool bake_still;
   bool is_baked;
   std::optional<NodesModifierBakeTarget> bake_target;
+  bool is_bakeable_in_current_context;
 };
 
 [[nodiscard]] bool get_bake_draw_context(const bContext *C,

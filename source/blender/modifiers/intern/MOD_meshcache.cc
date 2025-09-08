@@ -29,7 +29,7 @@
 #include "BKE_mesh.hh"
 #include "BKE_scene.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "RNA_access.hh"
@@ -85,7 +85,7 @@ static void meshcache_do(MeshCacheModifierData *mcmd,
                                    nullptr;
   float(*vertexCos)[3] = vertexCos_Store ? vertexCos_Store : vertexCos_Real;
 
-  const float fps = FPS;
+  const float fps = scene->frames_per_second();
 
   char filepath[FILE_MAX];
   const char *err_str = nullptr;
@@ -117,7 +117,7 @@ static void meshcache_do(MeshCacheModifierData *mcmd,
     /* apply offset and scale */
     time = (mcmd->frame_scale * time) - mcmd->frame_start;
   }
-  else { /*  if (mcmd->play_mode == MOD_MESHCACHE_PLAY_EVAL) { */
+  else { /* `if (mcmd->play_mode == MOD_MESHCACHE_PLAY_EVAL) {`. */
     switch (mcmd->time_mode) {
       case MOD_MESHCACHE_TIME_FRAME: {
         time = mcmd->eval_frame;
@@ -293,7 +293,7 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
   PointerRNA ob_ptr;
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, &ob_ptr);
 
-  uiLayoutSetPropSep(layout, true);
+  layout->use_property_split_set(true);
 
   layout->prop(ptr, "cache_format", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   layout->prop(ptr, "filepath", UI_ITEM_NONE, std::nullopt, ICON_NONE);
@@ -314,7 +314,7 @@ static void time_remapping_panel_draw(const bContext * /*C*/, Panel *panel)
 
   layout->prop(ptr, "time_mode", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
 
-  uiLayoutSetPropSep(layout, true);
+  layout->use_property_split_set(true);
 
   layout->prop(ptr, "play_mode", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
 
@@ -343,10 +343,10 @@ static void axis_mapping_panel_draw(const bContext * /*C*/, Panel *panel)
 
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, nullptr);
 
-  uiLayoutSetPropSep(layout, true);
+  layout->use_property_split_set(true);
 
   col = &layout->column(true);
-  uiLayoutSetRedAlert(col, RNA_enum_get(ptr, "forward_axis") == RNA_enum_get(ptr, "up_axis"));
+  col->red_alert_set(RNA_enum_get(ptr, "forward_axis") == RNA_enum_get(ptr, "up_axis"));
   col->prop(ptr, "forward_axis", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   col->prop(ptr, "up_axis", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 

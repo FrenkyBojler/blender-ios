@@ -36,7 +36,7 @@
 #include "BKE_subdiv_mesh.hh"
 #include "BKE_subdiv_modifier.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "RE_engine.h"
@@ -50,8 +50,6 @@
 #include "MOD_modifiertypes.hh"
 #include "MOD_ui_common.hh"
 
-#include "intern/CCGSubSurf.h"
-
 static void init_data(ModifierData *md)
 {
   SubsurfModifierData *smd = (SubsurfModifierData *)md;
@@ -59,18 +57,6 @@ static void init_data(ModifierData *md)
   BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(smd, modifier));
 
   MEMCPY_STRUCT_AFTER(smd, DNA_struct_default_get(SubsurfModifierData), modifier);
-}
-
-static void copy_data(const ModifierData *md, ModifierData *target, const int flag)
-{
-#if 0
-  const SubsurfModifierData *smd = (const SubsurfModifierData *)md;
-#endif
-  SubsurfModifierData *tsmd = (SubsurfModifierData *)target;
-
-  BKE_modifier_copydata_generic(md, target, flag);
-
-  tsmd->emCache = tsmd->mCache = nullptr;
 }
 
 static void free_runtime_data(void *runtime_data_v)
@@ -92,14 +78,6 @@ static void free_data(ModifierData *md)
 {
   SubsurfModifierData *smd = (SubsurfModifierData *)md;
 
-  if (smd->mCache) {
-    ccgSubSurf_free(static_cast<CCGSubSurf *>(smd->mCache));
-    smd->mCache = nullptr;
-  }
-  if (smd->emCache) {
-    ccgSubSurf_free(static_cast<CCGSubSurf *>(smd->emCache));
-    smd->emCache = nullptr;
-  }
   free_runtime_data(smd->modifier.runtime);
 }
 
@@ -393,7 +371,7 @@ static void panel_draw(const bContext *C, Panel *panel)
 
   layout->prop(ptr, "subdivision_type", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
 
-  uiLayoutSetPropSep(layout, true);
+  layout->use_property_split_set(true);
 
   uiLayout *col = &layout->column(true);
   col->prop(ptr, "levels", UI_ITEM_NONE, IFACE_("Levels Viewport"), ICON_NONE);
@@ -433,7 +411,7 @@ static void panel_draw(const bContext *C, Panel *panel)
         "use_adaptive_subdivision",
         IFACE_("Adaptive Subdivision"));
     if (adaptive_panel.body) {
-      uiLayoutSetActive(adaptive_panel.body, ob_use_adaptive_subdivision);
+      adaptive_panel.body->active_set(ob_use_adaptive_subdivision);
       adaptive_panel.body->prop(
           &ob_cycles_ptr, "dicing_rate", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
@@ -455,13 +433,12 @@ static void panel_draw(const bContext *C, Panel *panel)
   if (uiLayout *advanced_layout = layout->panel_prop(
           C, ptr, "open_advanced_panel", IFACE_("Advanced")))
   {
-    uiLayoutSetPropSep(advanced_layout, true);
+    advanced_layout->use_property_split_set(true);
 
     advanced_layout->prop(ptr, "use_limit_surface", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
     uiLayout *col = &advanced_layout->column(true);
-    uiLayoutSetActive(col,
-                      ob_use_adaptive_subdivision || RNA_boolean_get(ptr, "use_limit_surface"));
+    col->active_set(ob_use_adaptive_subdivision || RNA_boolean_get(ptr, "use_limit_surface"));
     col->prop(ptr, "quality", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
     advanced_layout->prop(ptr, "uv_smooth", UI_ITEM_NONE, std::nullopt, ICON_NONE);
@@ -478,13 +455,6 @@ static void panel_register(ARegionType *region_type)
   modifier_panel_register(region_type, eModifierType_Subsurf, panel_draw);
 }
 
-static void blend_read(BlendDataReader * /*reader*/, ModifierData *md)
-{
-  SubsurfModifierData *smd = (SubsurfModifierData *)md;
-
-  smd->emCache = smd->mCache = nullptr;
-}
-
 ModifierTypeInfo modifierType_Subsurf = {
     /*idname*/ "Subdivision",
     /*name*/ N_("Subdivision"),
@@ -497,7 +467,7 @@ ModifierTypeInfo modifierType_Subsurf = {
         eModifierTypeFlag_AcceptsCVs,
     /*icon*/ ICON_MOD_SUBSURF,
 
-    /*copy_data*/ copy_data,
+    /*copy_data*/ BKE_modifier_copydata_generic,
 
     /*deform_verts*/ nullptr,
     /*deform_matrices*/ deform_matrices,
@@ -518,6 +488,6 @@ ModifierTypeInfo modifierType_Subsurf = {
     /*free_runtime_data*/ free_runtime_data,
     /*panel_register*/ panel_register,
     /*blend_write*/ nullptr,
-    /*blend_read*/ blend_read,
+    /*blend_read*/ nullptr,
     /*foreach_cache*/ nullptr,
 };

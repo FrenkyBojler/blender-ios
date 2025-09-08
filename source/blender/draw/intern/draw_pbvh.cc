@@ -18,6 +18,7 @@
 #include "DNA_object_types.h"
 
 #include "BKE_attribute.hh"
+#include "BKE_attribute_legacy_convert.hh"
 #include "BKE_attribute_math.hh"
 #include "BKE_customdata.hh"
 #include "BKE_mesh.hh"
@@ -281,46 +282,46 @@ BLI_NOINLINE static void free_batches(const MutableSpan<gpu::Batch *> batches,
 static const GPUVertFormat &position_format()
 {
   static const GPUVertFormat format = GPU_vertformat_from_attribute(
-      "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
+      "pos", gpu::VertAttrType::SFLOAT_32_32_32);
   return format;
 }
 
 static const GPUVertFormat &normal_format()
 {
   static const GPUVertFormat format = GPU_vertformat_from_attribute(
-      "nor", GPU_COMP_I16, 4, GPU_FETCH_INT_TO_FLOAT_UNIT);
+      "nor", gpu::VertAttrType::SNORM_16_16_16_16);
   return format;
 }
 
 static const GPUVertFormat &mask_format()
 {
-  static const GPUVertFormat format = GPU_vertformat_from_attribute(
-      "msk", GPU_COMP_F32, 1, GPU_FETCH_FLOAT);
+  static const GPUVertFormat format = GPU_vertformat_from_attribute("msk",
+                                                                    gpu::VertAttrType::SFLOAT_32);
   return format;
 }
 
 static const GPUVertFormat &face_set_format()
 {
   static const GPUVertFormat format = GPU_vertformat_from_attribute(
-      "fset", GPU_COMP_U8, 4, GPU_FETCH_INT_TO_FLOAT_UNIT);
+      "fset", gpu::VertAttrType::UNORM_8_8_8_8);
   return format;
 }
 
 static GPUVertFormat attribute_format(const OrigMeshData &orig_mesh_data,
                                       const StringRef name,
-                                      const eCustomDataType data_type)
+                                      const bke::AttrType data_type)
 {
   GPUVertFormat format = init_format_for_attribute(data_type, "data");
 
   bool is_render, is_active;
   const char *prefix = "a";
 
-  if (CD_TYPE_AS_MASK(data_type) & CD_MASK_COLOR_ALL) {
+  if (CD_TYPE_AS_MASK(*bke::attr_type_to_custom_data_type(data_type))) {
     prefix = "c";
     is_active = orig_mesh_data.active_color == name;
     is_render = orig_mesh_data.default_color == name;
   }
-  if (data_type == CD_PROP_FLOAT2) {
+  if (data_type == bke::AttrType::Float2) {
     prefix = "u";
     is_active = orig_mesh_data.active_uv_map == name;
     is_render = orig_mesh_data.default_uv_map == name;
@@ -705,7 +706,7 @@ BLI_NOINLINE static void update_generic_attribute_mesh(const Object &object,
   if (!attr || attr.domain == bke::AttrDomain::Edge) {
     return;
   }
-  const eCustomDataType data_type = bke::cpp_type_to_custom_data_type(attr.varray.type());
+  const bke::AttrType data_type = bke::cpp_type_to_attribute_type(attr.varray.type());
   ensure_vbos_allocated_mesh(
       object, attribute_format(orig_mesh_data, name, data_type), node_mask, vbos);
   node_mask.foreach_index(GrainSize(1), [&](const int i) {
@@ -1053,41 +1054,6 @@ BLI_NOINLINE static void update_face_sets_bmesh(const Object &object,
   }
 }
 
-struct BMeshAttributeLookup {
-  const int offset = -1;
-  bke::AttrDomain domain;
-  eCustomDataType type;
-  operator bool() const
-  {
-    return offset != -1;
-  }
-};
-
-static BMeshAttributeLookup lookup_bmesh_attribute(const BMesh &bm, const StringRef name)
-{
-  for (const CustomDataLayer &layer : Span(bm.vdata.layers, bm.vdata.totlayer)) {
-    if (layer.name == name) {
-      return {layer.offset, bke::AttrDomain::Point, eCustomDataType(layer.type)};
-    }
-  }
-  for (const CustomDataLayer &layer : Span(bm.edata.layers, bm.edata.totlayer)) {
-    if (layer.name == name) {
-      return {layer.offset, bke::AttrDomain::Edge, eCustomDataType(layer.type)};
-    }
-  }
-  for (const CustomDataLayer &layer : Span(bm.pdata.layers, bm.pdata.totlayer)) {
-    if (layer.name == name) {
-      return {layer.offset, bke::AttrDomain::Face, eCustomDataType(layer.type)};
-    }
-  }
-  for (const CustomDataLayer &layer : Span(bm.ldata.layers, bm.ldata.totlayer)) {
-    if (layer.name == name) {
-      return {layer.offset, bke::AttrDomain::Corner, eCustomDataType(layer.type)};
-    }
-  }
-  return {};
-}
-
 BLI_NOINLINE static void update_generic_attribute_bmesh(const Object &object,
                                                         const OrigMeshData &orig_mesh_data,
                                                         const IndexMask &node_mask,
@@ -1097,7 +1063,7 @@ BLI_NOINLINE static void update_generic_attribute_bmesh(const Object &object,
   const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   const Span<bke::pbvh::BMeshNode> nodes = pbvh.nodes<bke::pbvh::BMeshNode>();
   const BMesh &bm = *object.sculpt->bm;
-  const BMeshAttributeLookup attr = lookup_bmesh_attribute(bm, name);
+  const BMDataLayerLookup attr = BM_data_layer_lookup(bm, name);
   if (!attr || attr.domain == bke::AttrDomain::Edge) {
     return;
   }
@@ -1191,12 +1157,12 @@ static gpu::IndexBufPtr create_lines_index_bmesh(const Set<BMFace *, 0> &faces,
   return gpu::IndexBufPtr(GPU_indexbuf_build_ex(&builder, 0, visible_faces_num * 3, false));
 }
 
-static void create_tri_index_grids(const Span<int> grid_indices,
-                                   const BitGroupVector<> &grid_hidden,
-                                   const int gridsize,
-                                   const int skip,
-                                   const int totgrid,
-                                   MutableSpan<uint3> data)
+static int create_tri_index_grids(const Span<int> grid_indices,
+                                  const BitGroupVector<> &grid_hidden,
+                                  const int gridsize,
+                                  const int skip,
+                                  const int totgrid,
+                                  MutableSpan<uint3> data)
 {
   int tri_index = 0;
   int offset = 0;
@@ -1226,14 +1192,16 @@ static void create_tri_index_grids(const Span<int> grid_indices,
       }
     }
   }
+
+  return tri_index;
 }
 
-static void create_tri_index_grids_flat_layout(const Span<int> grid_indices,
-                                               const BitGroupVector<> &grid_hidden,
-                                               const int gridsize,
-                                               const int skip,
-                                               const int totgrid,
-                                               MutableSpan<uint3> data)
+static int create_tri_index_grids_flat_layout(const Span<int> grid_indices,
+                                              const BitGroupVector<> &grid_hidden,
+                                              const int gridsize,
+                                              const int skip,
+                                              const int totgrid,
+                                              MutableSpan<uint3> data)
 {
   int tri_index = 0;
   int offset = 0;
@@ -1277,6 +1245,7 @@ static void create_tri_index_grids_flat_layout(const Span<int> grid_indices,
       }
     }
   }
+  return tri_index;
 }
 
 static void create_lines_index_grids(const Span<int> grid_indices,
@@ -1561,14 +1530,22 @@ static gpu::IndexBufPtr create_tri_index_grids(const CCGKey &key,
 
   MutableSpan<uint3> data = GPU_indexbuf_get_data(&builder).cast<uint3>();
 
+  int tri_count;
   if (use_flat_layout) {
-    create_tri_index_grids_flat_layout(grid_indices, grid_hidden, gridsize, skip, totgrid, data);
+    tri_count = create_tri_index_grids_flat_layout(
+        grid_indices, grid_hidden, gridsize, skip, totgrid, data);
   }
   else {
-    create_tri_index_grids(grid_indices, grid_hidden, gridsize, skip, totgrid, data);
+    tri_count = create_tri_index_grids(grid_indices, grid_hidden, gridsize, skip, totgrid, data);
   }
 
-  return gpu::IndexBufPtr(GPU_indexbuf_build_ex(&builder, 0, 6 * visible_quad_len, false));
+  builder.index_len = tri_count * 3;
+  builder.index_min = 0;
+  builder.index_max = 6 * visible_quad_len;
+  builder.uses_restart_indices = false;
+  gpu::IndexBufPtr result = gpu::IndexBufPtr(GPU_indexbuf_calloc());
+  GPU_indexbuf_build_in_place(&builder, result.get());
+  return result;
 }
 
 static gpu::IndexBufPtr create_lines_index_grids(const CCGKey &key,
@@ -1739,11 +1716,12 @@ Span<gpu::VertBufPtr> DrawCacheImpl::ensure_attribute_data(const Object &object,
         }
       }
       else {
-        ensure_vbos_allocated_grids(object,
-                                    attribute_format(orig_mesh_data, "Dummy", CD_PROP_FLOAT3),
-                                    use_flat_layout_,
-                                    mask,
-                                    vbos);
+        ensure_vbos_allocated_grids(
+            object,
+            attribute_format(orig_mesh_data, "Dummy", bke::AttrType::Float3),
+            use_flat_layout_,
+            mask,
+            vbos);
         mask.foreach_index(GrainSize(1),
                            [&](const int i) { vbos[i]->data<float3>().fill(float3(0.0f)); });
       }

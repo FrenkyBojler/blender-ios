@@ -9,6 +9,7 @@
  * \brief Low-level operations for curves.
  */
 
+#include "BLI_array_utils.hh"
 #include "BLI_bounds_types.hh"
 #include "BLI_implicit_sharing_ptr.hh"
 #include "BLI_index_mask_fwd.hh"
@@ -93,6 +94,8 @@ class CurvesGeometryRuntime {
     Vector<int> all_bezier_offsets;
   };
   mutable SharedCache<EvaluatedOffsets> evaluated_offsets_cache;
+
+  mutable SharedCache<bool> has_cyclic_curve_cache;
 
   mutable SharedCache<Vector<curves::nurbs::BasisCache>> nurbs_basis_cache;
 
@@ -274,9 +277,9 @@ class CurvesGeometry : public ::CurvesGeometry {
    * values may be generated automatically based on the handle types. Call #tag_positions_changed
    * after changes.
    */
-  Span<float3> handle_positions_left() const;
+  std::optional<Span<float3>> handle_positions_left() const;
   MutableSpan<float3> handle_positions_left_for_write();
-  Span<float3> handle_positions_right() const;
+  std::optional<Span<float3>> handle_positions_right() const;
   MutableSpan<float3> handle_positions_right_for_write();
 
   /**
@@ -296,13 +299,13 @@ class CurvesGeometry : public ::CurvesGeometry {
   /**
    * The weight for each control point for NURBS curves. Call #tag_positions_changed after changes.
    */
-  Span<float> nurbs_weights() const;
+  std::optional<Span<float>> nurbs_weights() const;
   MutableSpan<float> nurbs_weights_for_write();
 
   /**
    * UV coordinate for each curve that encodes where the curve is attached to the surface mesh.
    */
-  Span<float2> surface_uv_coords() const;
+  std::optional<Span<float2>> surface_uv_coords() const;
   MutableSpan<float2> surface_uv_coords_for_write();
 
   /**
@@ -381,6 +384,8 @@ class CurvesGeometry : public ::CurvesGeometry {
    * evaluated offsets cache is current.
    */
   Span<int> bezier_evaluated_offsets_for_curve(int curve_index) const;
+
+  bool has_cyclic_curve() const;
 
   Span<float3> evaluated_positions() const;
   Span<float3> evaluated_tangents() const;
@@ -496,10 +501,11 @@ class CurvesGeometry : public ::CurvesGeometry {
    * Helper struct for `CurvesGeometry::blend_write_*` functions.
    */
   struct BlendWriteData {
-    Vector<CustomDataLayer, 16> point_layers;
-    Vector<CustomDataLayer, 16> curve_layers;
+    ResourceScope &scope;
+    Vector<CustomDataLayer, 16> &point_layers;
+    Vector<CustomDataLayer, 16> &curve_layers;
     AttributeStorage::BlendWriteData attribute_data;
-    explicit BlendWriteData(ResourceScope &scope) : attribute_data{scope} {}
+    explicit BlendWriteData(ResourceScope &scope);
   };
   /**
    * This function needs to be called before `blend_write` and before the `CurvesGeometry` struct
@@ -854,8 +860,12 @@ bool check_valid_num_and_order(int points_num, int8_t order, bool cyclic, KnotsM
  * for predictability and so that cached basis weights of NURBS curves with these properties can be
  * shared.
  */
-int calculate_evaluated_num(
-    int points_num, int8_t order, bool cyclic, int resolution, KnotsMode knots_mode);
+int calculate_evaluated_num(int points_num,
+                            int8_t order,
+                            bool cyclic,
+                            int resolution,
+                            KnotsMode knots_mode,
+                            Span<float> knots);
 
 /**
  * Calculate the length of the knot vector for a NURBS curve with the given properties.
@@ -863,6 +873,12 @@ int calculate_evaluated_num(
  * last evaluated points that are also influenced by the first control points.
  */
 int knots_num(int points_num, int8_t order, bool cyclic);
+
+/**
+ * Calculate the total number of control points for a NURBS curve including virtual/repeated points
+ * for a cyclic/closed curve.
+ */
+int control_points_num(int num_control_points, int8_t order, bool cyclic);
 
 /**
  * Depending on KnotsMode calculates knots or copies custom knots into given `MutableSpan`.
@@ -906,6 +922,7 @@ Vector<int> calculate_multiplicity_sequence(Span<float> knots);
 void calculate_basis_cache(int points_num,
                            int evaluated_num,
                            int8_t order,
+                           int resolution,
                            bool cyclic,
                            Span<float> knots,
                            BasisCache &basis_cache);
@@ -1106,6 +1123,27 @@ inline float3 calculate_vector_handle(const float3 &point, const float3 &next_po
 }
 
 }  // namespace bezier
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name NURBS Inline Methods
+ * \{ */
+
+namespace nurbs {
+
+inline int knots_num(const int points_num, const int8_t order, const bool cyclic)
+{
+  /* Cyclic: points_num + order * 2 - 1 */
+  return points_num + order + cyclic * (order - 1);
+}
+
+inline int control_points_num(const int points_num, const int8_t order, const bool cyclic)
+{
+  return points_num + cyclic * (order - 1);
+}
+
+}  // namespace nurbs
 
 /** \} */
 

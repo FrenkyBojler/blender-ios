@@ -22,9 +22,10 @@ class LibOCIOColorSpace : public ColorSpace {
   OCIO_NAMESPACE::ConstColorSpaceRcPtr ocio_color_space_;
 
   std::string clean_description_;
-  bool is_inveetible_ = false;
+  StringRefNull interop_id_;
+  bool is_invertible_ = false;
 
-  /*  Mutable because they are lazily initialized and cached from the is_scene_linear() and
+  /* Mutable because they are lazily initialized and cached from the is_scene_linear() and
    * is_srgb(). */
   mutable bool is_info_cached_ = false;
   mutable bool is_scene_linear_ = false;
@@ -48,9 +49,14 @@ class LibOCIOColorSpace : public ColorSpace {
     return clean_description_;
   }
 
+  StringRefNull interop_id() const override
+  {
+    return interop_id_;
+  }
+
   bool is_invertible() const override
   {
-    return is_inveetible_;
+    return is_invertible_;
   }
 
   bool is_scene_linear() const override;

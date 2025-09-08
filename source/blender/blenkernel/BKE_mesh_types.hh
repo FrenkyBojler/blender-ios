@@ -20,6 +20,7 @@
 #include "BLI_mutex.hh"
 #include "BLI_shared_cache.hh"
 #include "BLI_vector.hh"
+#include "BLI_vector_set.hh"
 #include "BLI_virtual_array_fwd.hh"
 
 #include "DNA_customdata_types.h"
@@ -128,6 +129,24 @@ struct TrianglesCache {
   void tag_dirty();
 };
 
+struct MeshGroup {
+  /** Range of unique vertices in reordered mesh. */
+  IndexRange unique_verts;
+  /** Range of all faces in reordered mesh. */
+  IndexRange faces;
+  /**
+   * Indices of vertices that are shared with other groups in reordered mesh.
+   * This is empty if all vertices in the group are unique.
+   */
+  Array<int> shared_verts;
+  /** Parent node index (-1 for root). */
+  int parent;
+  /** Children node offset (empty for leaf nodes). */
+  int children_offset;
+  /** Number of corners in each group, calculated from number of faces. */
+  int corners_count;
+};
+
 struct MeshRuntime {
   /**
    * "Evaluated" mesh owned by this mesh. Used for objects which don't have effective modifiers, so
@@ -137,9 +156,6 @@ struct MeshRuntime {
    */
   Mesh *mesh_eval = nullptr;
   Mutex eval_mutex;
-
-  /** Needed to ensure some thread-safety during render data pre-processing. */
-  Mutex render_mutex;
 
   /** Implicit sharing user count for #Mesh::face_offset_indices. */
   const ImplicitSharingInfo *face_offsets_sharing_info = nullptr;
@@ -190,9 +206,17 @@ struct MeshRuntime {
   SharedCache<std::unique_ptr<BVHTree, BVHTreeDeleter>> bvh_cache_loose_edges_no_hidden;
 
   SharedCache<std::optional<int>> max_material_index;
+  SharedCache<VectorSet<int>> used_material_indices;
 
   /** Needed in case we need to lazily initialize the mesh. */
   CustomData_MeshMasks cd_mask_extra = {};
+
+  /**
+   * Pre-computed groups of vertices and faces for a mesh's BVH (Bounding Volume Hierarchy) nodes,
+   * used to quickly access the node data for the BVH. Used to avoid recomputing the offsets every
+   * time the BVH is built.
+   */
+  std::unique_ptr<Array<MeshGroup>> spatial_groups;
 
   /**
    * Grids representation for multi-resolution sculpting. When this is set, the mesh data
@@ -218,8 +242,8 @@ struct MeshRuntime {
 
   /**
    * Settings for lazily evaluating the subdivision on the CPU if needed. These are
-   * set in the modifier when GPU subdivision can be performed, and owned by the by
-   * the modifier in the object.
+   * set in the modifier when GPU subdivision can be performed,
+   * and owned by the modifier in the object.
    */
   SubsurfRuntimeData *subsurf_runtime_data = nullptr;
 

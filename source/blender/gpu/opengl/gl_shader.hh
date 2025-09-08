@@ -133,7 +133,6 @@ class GLShader : public Shader {
   ~GLShader();
 
   void init(const shader::ShaderCreateInfo &info, bool is_batch_compilation) override;
-  void init() override;
 
   /** Return true on success. */
   void vertex_shader_from_glsl(MutableSpan<StringRefNull> sources) override;
@@ -198,8 +197,8 @@ class GLShader : public Shader {
 
 class GLShaderCompiler : public ShaderCompiler {
  public:
-  GLShaderCompiler(uint32_t threads_count = 1)
-      : ShaderCompiler(threads_count, GPUWorker::ContextType::PerThread, true){};
+  GLShaderCompiler()
+      : ShaderCompiler(GPU_max_parallel_compilations(), GPUWorker::ContextType::PerThread, true){};
 
   virtual void specialize_shader(ShaderSpecialization &specialization) override;
 };

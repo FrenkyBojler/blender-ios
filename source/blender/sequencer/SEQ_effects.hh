@@ -29,16 +29,6 @@ enum class StripEarlyOut {
   UseInput2 = 2, /* Output = input2. */
 };
 
-/* Wipe effect */
-enum {
-  DO_SINGLE_WIPE,
-  DO_DOUBLE_WIPE,
-  /* DO_BOX_WIPE, */   /* UNUSED */
-  /* DO_CROSS_WIPE, */ /* UNUSED */
-  DO_IRIS_WIPE,
-  DO_CLOCK_WIPE,
-};
-
 struct EffectHandle {
   /* constructors & destructor */
   /* init is _only_ called on first creation */
@@ -85,7 +75,7 @@ bool effects_can_render_text(const Strip *strip);
 
 struct CharInfo {
   int index = 0;
-  const char *str_ptr = nullptr;
+  int offset = 0; /* Offset in bytes within text buffer. */
   int byte_length = 0;
   float2 position{0.0f, 0.0f};
   int advance_x = 0;

@@ -258,14 +258,14 @@ static bke::CurvesGeometry extrude_curves(const bke::CurvesGeometry &curves,
 
     GVArray src_selection_array = *src_attributes.lookup(selection_name, bke::AttrDomain::Point);
     if (!src_selection_array) {
-      src_selection_array = VArray<bool>::ForSingle(true, curves.points_num());
+      src_selection_array = VArray<bool>::from_single(true, curves.points_num());
     }
 
     src_selection[selection_i] = src_selection_array;
     dst_selections[selection_i] = ensure_selection_attribute(
         new_curves,
         bke::AttrDomain::Point,
-        src_selection_array.type().is<bool>() ? CD_PROP_BOOL : CD_PROP_FLOAT,
+        src_selection_array.type().is<bool>() ? bke::AttrType::Bool : bke::AttrType::Float,
         selection_name);
   }
 

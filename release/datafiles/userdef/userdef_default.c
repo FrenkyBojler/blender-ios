@@ -116,7 +116,8 @@ const UserDef U_default = {
 #else
     .gpu_backend = GPU_BACKEND_OPENGL,
 #endif
-    .max_shader_compilation_subprocesses = 0,
+    .gpu_shader_workers = 0,
+    .shader_compilation_method = USER_SHADER_COMPILE_THREAD,
 
     /** Initialized by: #BKE_studiolight_default. */
     .light_param = {{0}},
@@ -154,8 +155,8 @@ const UserDef U_default = {
     .tablet_api = USER_TABLET_AUTOMATIC,
     .pressure_threshold_max = 1.0,
     .pressure_softness = 0.0,
-    .ndof_sensitivity = 4.0,
-    .ndof_orbit_sensitivity = 4.0,
+    .ndof_translation_sensitivity = 4.0,
+    .ndof_rotation_sensitivity = 4.0,
     .ndof_deadzone = 0.0,
     .ndof_flag = (NDOF_SHOW_GUIDE_ORBIT_CENTER | NDOF_ORBIT_CENTER_AUTO | NDOF_LOCK_HORIZON |
                   NDOF_SHOULD_PAN | NDOF_SHOULD_ZOOM | NDOF_SHOULD_ROTATE | NDOF_CAMERA_PAN_ZOOM),
@@ -193,6 +194,7 @@ const UserDef U_default = {
     .factor_display_type = USER_FACTOR_AS_FACTOR,
     .render_display_type = USER_RENDER_DISPLAY_WINDOW,
     .filebrowser_display_type = USER_TEMP_SPACE_DISPLAY_WINDOW,
+    .preferences_display_type = USER_TEMP_SPACE_DISPLAY_WINDOW,
     .viewport_aa = 8,
 
     .walk_navigation =
@@ -219,9 +221,16 @@ const UserDef U_default = {
             .details_flags = FILE_DETAILS_SIZE | FILE_DETAILS_DATETIME,
             .flag = FILE_HIDE_DOT,
             .filter_id = FILTER_ID_ALL,
+        },
 
-            .temp_win_sizex = 1060,
-            .temp_win_sizey = 600,
+    .stored_bounds =
+        {
+            .file = {100.0f, 1160.0f, 350.0f, 950.0f},
+            .userpref = {100.0f, 940.0f, 350.0f, 900.0f},
+            .image = {50.0f, 1360.0f, 50.0f, 830.0f},
+            .graph = {50.0f, 950.0f, 200.0f, 780.0f},
+            .info = {100.0f, 1000.0f, 300.0f, 880.0f},
+            .outliner = {100.0f, 550.0f, 350.0f, 800.0f},
         },
 
     .sequencer_proxy_setup = USER_SEQ_PROXY_SETUP_AUTOMATIC,
@@ -231,7 +240,7 @@ const UserDef U_default = {
     .statusbar_flag = STATUSBAR_SHOW_VERSION | STATUSBAR_SHOW_EXTENSIONS_UPDATES,
     .file_preview_type = USER_FILE_PREVIEW_AUTO,
 
-    .sequencer_editor_flag = USER_SEQ_ED_SIMPLE_TWEAKING | USER_SEQ_ED_CONNECT_STRIPS_BY_DEFAULT,
+    .sequencer_editor_flag = USER_SEQ_ED_CONNECT_STRIPS_BY_DEFAULT,
 
     .runtime =
         {
