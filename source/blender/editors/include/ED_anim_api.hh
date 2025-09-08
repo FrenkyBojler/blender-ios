@@ -133,13 +133,15 @@ struct bAnimContext {
   Depsgraph *depsgraph;
   /** active object */
   Object *obact;
+
   /**
    * Active Action, only set when the Dope Sheet shows a single Action (in its
    * Action and Shape Key modes).
    */
   bAction *active_action;
-  /** The ID that was used to obtain the above active_action. */
-  ID *active_action_owner;
+  /** The ID that is animated by `active_action`, and that was used to obtain the pointer. */
+  ID *active_action_user;
+
   /** active set of markers */
   ListBase *markers;
 

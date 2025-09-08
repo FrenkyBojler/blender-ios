@@ -241,7 +241,7 @@ class KeylistSummaryTest : public testing::Test {
      *
      * Tests should fill in:
      * - ac.obact
-     * - ac.active_action_owner (= &ac.obact.id)
+     * - ac.active_action_user (= &ac.obact.id)
      */
     saction.ads.filterflag = eDopeSheet_FilterFlag(0);
     ac.bmain = bmain;
@@ -257,7 +257,7 @@ class KeylistSummaryTest : public testing::Test {
   {
     ac.obact = nullptr;
     ac.active_action = nullptr;
-    ac.active_action_owner = nullptr;
+    ac.active_action_user = nullptr;
 
     BKE_main_free(bmain);
     G_MAIN = nullptr;
@@ -289,7 +289,7 @@ TEST_F(KeylistSummaryTest, slot_summary_simple)
   /* Generate slot summary keylist. */
   AnimKeylist *keylist = ED_keylist_create();
   ac.obact = cube;
-  ac.active_action_owner = &cube->id;
+  ac.active_action_user = &cube->id;
   action_slot_summary_to_keylist(
       &ac, &cube->id, *action, slot_cube.handle, keylist, 0, {0.0, 6.0});
   ED_keylist_prepare_for_direct_access(keylist);
@@ -350,7 +350,7 @@ TEST_F(KeylistSummaryTest, slot_summary_bone_selection)
   AnimKeylist *keylist = ED_keylist_create();
   saction.ads.filterflag = ADS_FILTER_ONLYSEL; /* Filter by selection. */
   ac.obact = armature;
-  ac.active_action_owner = &armature->id;
+  ac.active_action_user = &armature->id;
   action_slot_summary_to_keylist(
       &ac, &armature->id, *action, slot_armature.handle, keylist, 0, {0.0, 6.0});
   ED_keylist_prepare_for_direct_access(keylist);

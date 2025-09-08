@@ -110,7 +110,7 @@ TEST_F(ActionFilterTest, slots_expanded_or_not)
   ac.sl = reinterpret_cast<SpaceLink *>(&saction);
   ac.obact = cube;
   ac.active_action = action;
-  ac.active_action_owner = &cube->id;
+  ac.active_action_user = &cube->id;
   ac.ads = &saction.ads;
 
   { /* Test with collapsed slots. */
@@ -267,7 +267,7 @@ TEST_F(ActionFilterTest, layered_action_active_fcurves)
   ac.sl = reinterpret_cast<SpaceLink *>(&saction);
   ac.obact = cube;
   ac.active_action = action;
-  ac.active_action_owner = &cube->id;
+  ac.active_action_user = &cube->id;
   ac.ads = &saction.ads;
 
   {

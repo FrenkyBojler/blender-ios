@@ -182,7 +182,7 @@ static bool actedit_get_context(bAnimContext *ac, SpaceAction *saction)
   ac->dopesheet_mode = eAnimEdit_Context(saction->mode);
 
   ac->active_action = ANIM_active_action_from_area(
-      ac->scene, ac->view_layer, ac->area, &ac->active_action_owner);
+      ac->scene, ac->view_layer, ac->area, &ac->active_action_user);
 
   /* sync settings with current view status, then return appropriate data */
   switch (saction->mode) {

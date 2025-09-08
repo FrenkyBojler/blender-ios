@@ -240,7 +240,7 @@ static void action_main_region_draw(const bContext *C, ARegion *region)
 
   /* Draw the manually set intended playback frame range highlight in the Action editor. */
   if (ac.active_action) {
-    AnimData *adt = BKE_animdata_from_id(ac.active_action_owner);
+    AnimData *adt = BKE_animdata_from_id(ac.active_action_user);
     ANIM_draw_action_framerange(adt, ac.active_action, v2d, -FLT_MAX, FLT_MAX);
   }
 
