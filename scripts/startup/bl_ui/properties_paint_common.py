@@ -239,19 +239,9 @@ class UnifiedPaintPanel:
         # 2D paint settings
         elif mode == 'PAINT_2D':
             return tool_settings.image_paint
-        # Grease Pencil settings
-        elif mode == 'PAINT_GPENCIL':
-            return tool_settings.gpencil_paint
-        elif mode == 'SCULPT_GPENCIL':
-            return tool_settings.gpencil_sculpt_paint
-        elif mode == 'WEIGHT_GPENCIL':
-            return tool_settings.gpencil_weight_paint
-        elif mode == 'VERTEX_GPENCIL':
-            return tool_settings.gpencil_vertex_paint
-        elif mode == 'PAINT_GREASE_PENCIL':
-            return tool_settings.gpencil_paint
         elif mode == 'SCULPT_CURVES':
             return tool_settings.curves_sculpt
+        # Grease Pencil settings
         elif mode == 'PAINT_GREASE_PENCIL':
             return tool_settings.gpencil_paint
         elif mode == 'SCULPT_GREASE_PENCIL':
@@ -1178,7 +1168,7 @@ def brush_shared_settings(layout, context, brush, popover=False):
             slider=True,
         )
         if mode in {'PAINT_TEXTURE', 'PAINT_2D', 'SCULPT', 'PAINT_VERTEX', 'PAINT_WEIGHT', 'SCULPT_CURVES'}:
-            if brush.use_pressure_strength:
+            if strength_pressure and brush.use_pressure_strength:
                 layout.template_curve_mapping(brush, "curve_strength", brush=True, use_negative_slope=True)
         layout.separator()
 
