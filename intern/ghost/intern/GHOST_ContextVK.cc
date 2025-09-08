@@ -10,6 +10,7 @@
 
 #include <vulkan/vulkan_core.h>
 
+#define VOLK_NO_DEVICE_PROTOTYPES
 #define VK_NO_PROTOTYPES
 #ifdef _WIN32
 #  define VK_USE_PLATFORM_WIN32_KHR

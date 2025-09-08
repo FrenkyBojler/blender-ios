@@ -5,6 +5,7 @@
 #include <cstdio>
 
 #define VOLK_CPP_NAMESPACE volk
+#define VOLK_NO_DEVICE_PROTOTYPES
 #include "volk.h"
 using namespace VOLK_CPP_NAMESPACE;
 
