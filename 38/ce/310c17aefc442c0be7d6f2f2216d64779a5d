@@ -1,3 +1,4 @@
 Referenced by issue #136911, 3D Cursor disappears when File > Open dialogue is opened
 Referenced by issue #138291, Python API: 3D cursor draws behind triangles drawn by GPU module
 Referenced by issue #145028, Regression: 3D cursor misaligned with axes in certain viewport rotations
+Referenced by pull request #145927, Fix #145028: Regression: 3D cursor misaligned with axes
