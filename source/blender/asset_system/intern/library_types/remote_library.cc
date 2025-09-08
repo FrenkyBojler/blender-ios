@@ -6,6 +6,8 @@
  * \ingroup asset_system
  */
 
+#include <filesystem>
+
 #include "BLI_fileops.h"
 #include "BLI_listbase.h"
 
@@ -104,6 +106,7 @@ void RemoteLibraryLoadingStatus::begin_loading(const StringRef url, const float 
   new_status.timeout_ = timeout;
   new_status.status_ = RemoteLibraryLoadingStatus::Loading;
   new_status.reset_timeout();
+  new_status.loading_start_time_point_ = FileSystemTimePoint::clock::now();
   new_status.last_new_pages_time_point_ = std::chrono::steady_clock::now();
   library_to_status_map().add_overwrite(url, new_status);
 }
@@ -149,6 +152,12 @@ void RemoteLibraryLoadingStatus::ping_new_previews(const StringRef url)
 void RemoteLibraryLoadingStatus::ping_new_assets(const bContext &C, const StringRef url)
 {
   WM_msg_publish_remote_io(CTX_wm_message_bus(&C), url);
+
+  /* Redraw drags, they may show some "asset being downloaded" info. */
+  const wmWindowManager *wm = CTX_wm_manager(&C);
+  if (!BLI_listbase_is_empty(&wm->runtime->drags)) {
+    WM_event_add_mousemove(CTX_wm_window(&C));
+  }
 }
 
 void RemoteLibraryLoadingStatus::ping_metafiles_in_place(const StringRef url)
@@ -180,6 +189,20 @@ std::optional<bool> RemoteLibraryLoadingStatus::metafiles_in_place(const StringR
   }
 
   return status->metafiles_in_place_;
+}
+
+std::optional<RemoteLibraryLoadingStatus::FileSystemTimePoint> RemoteLibraryLoadingStatus::
+    loading_start_time(const StringRef url)
+{
+  const RemoteLibraryLoadingStatus *status = library_to_status_map().lookup_ptr(url);
+  if (!status) {
+    return {};
+  }
+  if (status->status_ != Loading) {
+    return {};
+  }
+
+  return status->loading_start_time_point_;
 }
 
 std::optional<RemoteLibraryLoadingStatus::TimePoint> RemoteLibraryLoadingStatus::
