@@ -361,6 +361,12 @@ IDNewNameResult BKE_id_rename(Main &bmain,
                               blender::StringRefNull name,
                               const IDNewNameMode mode = IDNewNameMode::RenameExistingNever);
 
+/**
+ * Find an ID in `bmain` by its type, name, and library ID.
+ *
+ * If `lib` is unset, the first ID matching the looked-up name is returned (local or linked). If
+ * `lib` is null, the ID is searched into local ones only.
+ */
 ID *BKE_libblock_find_name(Main *bmain,
                            short type,
                            const char *name,
@@ -368,10 +374,20 @@ ID *BKE_libblock_find_name(Main *bmain,
     ATTR_WARN_UNUSED_RESULT ATTR_NONNULL();
 ID *BKE_libblock_find_session_uid(Main *bmain, short type, uint32_t session_uid);
 ID *BKE_libblock_find_session_uid(Main *bmain, uint32_t session_uid);
+/**
+ * Find an ID in `bmain` by its type, name, and library ID name.
+ *
+ * If `lib_name` is null or empty, the ID is searched into local ones only.
+ */
 ID *BKE_libblock_find_name_and_library(Main *bmain,
                                        short type,
                                        const char *name,
                                        const char *lib_name);
+/**
+ * Find an ID in `bmain` by its type, name, and absolute library file path.
+ *
+ * If `lib_filepath_abs` is null or empty, the ID is searched into local ones only.
+ */
 ID *BKE_libblock_find_name_and_library_filepath(Main *bmain,
                                                 short type,
                                                 const char *name,
@@ -729,7 +745,7 @@ void BKE_lib_id_expand_local(Main *bmain, ID *id, int flags);
  *
  * \param newname: The new name of the given ID, if `nullptr` the current given ID name is used
  * instead. If the given ID has no name (or the given name is an empty string), the default
- * matching data name is used as fallback.
+ * matching data name is used as a fallback.
  * \param do_linked_data: if true, also ensure a unique name in case the given ID is linked
  * (otherwise, just ensure that it is properly sorted).
  *
@@ -788,8 +804,10 @@ void BKE_main_lib_objects_recalc_all(Main *bmain);
  */
 void BKE_main_id_repair_duplicate_names_listbase(Main *bmain, ListBase *lb);
 
-#define MAX_ID_FULL_NAME (64 + 64 + 3 + 1)         /* 64 is MAX_ID_NAME - 2 */
-#define MAX_ID_FULL_NAME_UI (MAX_ID_FULL_NAME + 3) /* Adds `keycode` two letters at beginning. */
+/** 256 is MAX_ID_NAME - 2 */
+#define MAX_ID_FULL_NAME (256 + 256 + 3 + 1)
+/** Adds 'key-code' two letters at beginning. */
+#define MAX_ID_FULL_NAME_UI (MAX_ID_FULL_NAME + 3)
 /**
  * Generate full name of the data-block (without ID code, but with library if any).
  *

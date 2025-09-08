@@ -22,7 +22,7 @@
 #include "BKE_lib_id.hh"
 #include "BKE_mesh.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "RNA_prototypes.hh"
@@ -214,4 +214,5 @@ ModifierTypeInfo modifierType_Surface = {
     /*blend_write*/ nullptr,
     /*blend_read*/ blend_read,
     /*foreach_cache*/ nullptr,
+    /*foreach_working_space_color*/ nullptr,
 };

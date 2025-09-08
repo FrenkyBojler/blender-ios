@@ -4,7 +4,7 @@
 
 #include "NOD_rna_define.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "RNA_enum_types.hh"
@@ -15,7 +15,10 @@ namespace blender::nodes::node_geo_attribute_domain_size_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Geometry>("Geometry");
+  b.add_input<decl::Geometry>("Geometry")
+      .description(
+          "Geometry to get the domain sizes of. Only the root geometry is considered, not nested "
+          "instances");
   auto &total_points = b.add_output<decl::Int>("Point Count")
                            .make_available([](bNode &node) {
                              node.custom1 = int16_t(GeometryComponent::Type::Mesh);

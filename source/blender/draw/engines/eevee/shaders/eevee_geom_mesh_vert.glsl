@@ -9,7 +9,7 @@ VERTEX_SHADER_CREATE_INFO(eevee_geom_mesh)
 
 #include "draw_model_lib.glsl"
 #include "eevee_attributes_mesh_lib.glsl"
-#include "eevee_nodetree_lib.glsl"
+#include "eevee_nodetree_vert_lib.glsl"
 #include "eevee_reverse_z_lib.glsl"
 #include "eevee_surf_lib.glsl"
 #include "eevee_velocity_lib.glsl"
@@ -37,7 +37,7 @@ void main()
 #endif
 
   init_globals();
-  attrib_load();
+  attrib_load(MeshVertex(0));
 
   interp.P += nodetree_displacement();
 

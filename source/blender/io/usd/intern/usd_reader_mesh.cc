@@ -28,8 +28,12 @@
 #include "BLI_map.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_ordered_edge.hh"
+#include "BLI_set.hh"
 #include "BLI_span.hh"
+#include "BLI_task.hh"
 #include "BLI_vector_set.hh"
+
+#include "BLT_translation.hh"
 
 #include "DNA_customdata_types.h"
 #include "DNA_material_types.h"
@@ -46,6 +50,8 @@
 #include <pxr/usd/usdShade/materialBindingAPI.h>
 #include <pxr/usd/usdShade/tokens.h>
 #include <pxr/usd/usdSkel/bindingAPI.h>
+
+#include <fmt/core.h>
 
 #include <algorithm>
 
@@ -175,12 +181,12 @@ void USDMeshReader::create_object(Main *bmain)
   object_->data = mesh;
 }
 
-void USDMeshReader::read_object_data(Main *bmain, const double motionSampleTime)
+void USDMeshReader::read_object_data(Main *bmain, const pxr::UsdTimeCode time)
 {
   Mesh *mesh = (Mesh *)object_->data;
 
   is_initial_load_ = true;
-  const USDMeshReadParams params = create_mesh_read_params(motionSampleTime,
+  const USDMeshReadParams params = create_mesh_read_params(time.GetValue(),
                                                            import_params_.mesh_read_flag);
 
   Mesh *read_mesh = this->read_mesh(mesh, params, nullptr);
@@ -190,10 +196,16 @@ void USDMeshReader::read_object_data(Main *bmain, const double motionSampleTime)
     BKE_mesh_nomain_to_mesh(read_mesh, mesh, object_);
   }
 
-  readFaceSetsSample(bmain, mesh, motionSampleTime);
+  readFaceSetsSample(bmain, mesh, time);
 
   if (mesh_prim_.GetPointsAttr().ValueMightBeTimeVarying() ||
-      mesh_prim_.GetVelocitiesAttr().ValueMightBeTimeVarying())
+      mesh_prim_.GetNormalsAttr().ValueMightBeTimeVarying() ||
+      mesh_prim_.GetVelocitiesAttr().ValueMightBeTimeVarying() ||
+      mesh_prim_.GetCreaseSharpnessesAttr().ValueMightBeTimeVarying() ||
+      mesh_prim_.GetCreaseLengthsAttr().ValueMightBeTimeVarying() ||
+      mesh_prim_.GetCreaseIndicesAttr().ValueMightBeTimeVarying() ||
+      mesh_prim_.GetCornerSharpnessesAttr().ValueMightBeTimeVarying() ||
+      mesh_prim_.GetCornerIndicesAttr().ValueMightBeTimeVarying())
   {
     is_time_varying_ = true;
   }
@@ -202,9 +214,9 @@ void USDMeshReader::read_object_data(Main *bmain, const double motionSampleTime)
     add_cache_modifier();
   }
 
-  if (import_params_.import_subdiv) {
+  if (import_params_.import_subdivision) {
     pxr::TfToken subdivScheme;
-    mesh_prim_.GetSubdivisionSchemeAttr().Get(&subdivScheme, motionSampleTime);
+    mesh_prim_.GetSubdivisionSchemeAttr().Get(&subdivScheme, time);
 
     if (subdivScheme == pxr::UsdGeomTokens->catmullClark) {
       add_subdiv_modifier();
@@ -220,17 +232,17 @@ void USDMeshReader::read_object_data(Main *bmain, const double motionSampleTime)
     import_mesh_skel_bindings(object_, prim_, reports());
   }
 
-  USDXformReader::read_object_data(bmain, motionSampleTime);
+  USDXformReader::read_object_data(bmain, time);
 }
 
-bool USDMeshReader::topology_changed(const Mesh *existing_mesh, const double motionSampleTime)
+bool USDMeshReader::topology_changed(const Mesh *existing_mesh, const pxr::UsdTimeCode time)
 {
   /* TODO(makowalski): Is it the best strategy to cache the mesh
-   * geometry in this function?  This needs to be revisited. */
+   * geometry in this function? This needs to be revisited. */
 
-  mesh_prim_.GetFaceVertexIndicesAttr().Get(&face_indices_, motionSampleTime);
-  mesh_prim_.GetFaceVertexCountsAttr().Get(&face_counts_, motionSampleTime);
-  mesh_prim_.GetPointsAttr().Get(&positions_, motionSampleTime);
+  mesh_prim_.GetFaceVertexIndicesAttr().Get(&face_indices_, time);
+  mesh_prim_.GetFaceVertexCountsAttr().Get(&face_counts_, time);
+  mesh_prim_.GetPointsAttr().Get(&positions_, time);
 
   const pxr::UsdGeomPrimvarsAPI primvarsAPI(mesh_prim_);
 
@@ -240,11 +252,11 @@ bool USDMeshReader::topology_changed(const Mesh *existing_mesh, const double mot
   /* If 'normals' and 'primvars:normals' are both specified, the latter has precedence. */
   const pxr::UsdGeomPrimvar primvar = primvarsAPI.GetPrimvar(usdtokens::normalsPrimvar);
   if (primvar.HasValue()) {
-    primvar.ComputeFlattened(&normals_, motionSampleTime);
+    primvar.ComputeFlattened(&normals_, time);
     normal_interpolation_ = primvar.GetInterpolation();
   }
   else {
-    mesh_prim_.GetNormalsAttr().Get(&normals_, motionSampleTime);
+    mesh_prim_.GetNormalsAttr().Get(&normals_, time);
     normal_interpolation_ = mesh_prim_.GetNormalsInterpolation();
   }
 
@@ -253,7 +265,7 @@ bool USDMeshReader::topology_changed(const Mesh *existing_mesh, const double mot
          face_indices_.size() != existing_mesh->corners_num;
 }
 
-void USDMeshReader::read_mpolys(Mesh *mesh) const
+bool USDMeshReader::read_faces(Mesh *mesh) const
 {
   MutableSpan<int> face_offsets = mesh->face_offsets_for_write();
   MutableSpan<int> corner_verts = mesh->corner_verts_for_write();
@@ -281,17 +293,60 @@ void USDMeshReader::read_mpolys(Mesh *mesh) const
     }
   }
 
+  /* Check for faces with duplicate vertex indices. These will require a mesh validate to fix. */
+  const OffsetIndices<int> faces = mesh->faces();
+  const bool all_faces_ok = threading::parallel_reduce(
+      faces.index_range(),
+      1024,
+      true,
+      [&](const IndexRange part, const bool ok_so_far) {
+        bool current_faces_ok = ok_so_far;
+        if (ok_so_far) {
+          for (const int i : part) {
+            const IndexRange face_range = faces[i];
+            const Set<int, 32> used_verts(corner_verts.slice(face_range));
+            current_faces_ok = current_faces_ok && used_verts.size() == face_range.size();
+          }
+        }
+        return current_faces_ok;
+      },
+      std::logical_and<>());
+
+  /* If we detect bad faces it would be unsafe to continue beyond this point without first
+   * performing a destructive validate. Any operation requiring mesh connectivity information can
+   * assert or crash if the problem isn't addressed. Performing the check here, before most of the
+   * data has been loaded, unfortunately means any remaining data will be lost. */
+  if (!all_faces_ok) {
+    if (is_initial_load_) {
+      const char *message = N_(
+          "Invalid face data detected for mesh '%s'. Automatic correction will be used, but some "
+          "data will most likely be lost");
+      const std::string prim_path = this->prim_path().GetAsString();
+      BKE_reportf(this->reports(), RPT_WARNING, message, prim_path.c_str());
+      CLOG_WARN(&LOG, message, prim_path.c_str());
+    }
+    BKE_mesh_validate(mesh, false, false);
+  }
+
   bke::mesh_calc_edges(*mesh, false, false);
+
+  /* It's possible that the number of faces, indices, and verts remain the same but the topology
+   * itself is different. Until finer-grained topology detection can be implemented, always tag the
+   * mesh as needing updated topology mappings. Without this, a time varying mesh could trigger
+   * undefined behavior. */
+  mesh->tag_topology_changed();
+
+  return all_faces_ok;
 }
 
 void USDMeshReader::read_uv_data_primvar(Mesh *mesh,
                                          const pxr::UsdGeomPrimvar &primvar,
-                                         const double motionSampleTime)
+                                         const pxr::UsdTimeCode time)
 {
   const StringRef primvar_name(
       pxr::UsdGeomPrimvar::StripPrimvarsName(primvar.GetName()).GetString());
 
-  const pxr::VtVec2fArray usd_uvs = get_primvar_array<pxr::GfVec2f>(primvar, motionSampleTime);
+  const pxr::VtVec2fArray usd_uvs = get_primvar_array<pxr::GfVec2f>(primvar, time);
   if (usd_uvs.empty()) {
     return;
   }
@@ -395,15 +450,15 @@ void USDMeshReader::read_subdiv()
   }
 }
 
-void USDMeshReader::read_vertex_creases(Mesh *mesh, const double motionSampleTime)
+void USDMeshReader::read_vertex_creases(Mesh *mesh, const pxr::UsdTimeCode time)
 {
   pxr::VtIntArray usd_corner_indices;
-  if (!mesh_prim_.GetCornerIndicesAttr().Get(&usd_corner_indices, motionSampleTime)) {
+  if (!mesh_prim_.GetCornerIndicesAttr().Get(&usd_corner_indices, time)) {
     return;
   }
 
   pxr::VtFloatArray usd_corner_sharpnesses;
-  if (!mesh_prim_.GetCornerSharpnessesAttr().Get(&usd_corner_sharpnesses, motionSampleTime)) {
+  if (!mesh_prim_.GetCornerSharpnessesAttr().Get(&usd_corner_sharpnesses, time)) {
     return;
   }
 
@@ -444,14 +499,14 @@ void USDMeshReader::read_vertex_creases(Mesh *mesh, const double motionSampleTim
   creases.finish();
 }
 
-void USDMeshReader::read_edge_creases(Mesh *mesh, const double motionSampleTime)
+void USDMeshReader::read_edge_creases(Mesh *mesh, const pxr::UsdTimeCode time)
 {
   pxr::VtArray<int> usd_crease_lengths;
   pxr::VtArray<int> usd_crease_indices;
   pxr::VtArray<float> usd_crease_sharpness;
-  mesh_prim_.GetCreaseLengthsAttr().Get(&usd_crease_lengths, motionSampleTime);
-  mesh_prim_.GetCreaseIndicesAttr().Get(&usd_crease_indices, motionSampleTime);
-  mesh_prim_.GetCreaseSharpnessesAttr().Get(&usd_crease_sharpness, motionSampleTime);
+  mesh_prim_.GetCreaseLengthsAttr().Get(&usd_crease_lengths, time);
+  mesh_prim_.GetCreaseIndicesAttr().Get(&usd_crease_indices, time);
+  mesh_prim_.GetCreaseSharpnessesAttr().Get(&usd_crease_sharpness, time);
 
   /* Prevent the creation of the `crease_edge` attribute if we have no data. */
   if (usd_crease_lengths.empty() || usd_crease_indices.empty() || usd_crease_sharpness.empty()) {
@@ -532,10 +587,10 @@ void USDMeshReader::read_edge_creases(Mesh *mesh, const double motionSampleTime)
   creases.finish();
 }
 
-void USDMeshReader::read_velocities(Mesh *mesh, const double motionSampleTime)
+void USDMeshReader::read_velocities(Mesh *mesh, const pxr::UsdTimeCode time)
 {
   pxr::VtVec3fArray velocities;
-  mesh_prim_.GetVelocitiesAttr().Get(&velocities, motionSampleTime);
+  mesh_prim_.GetVelocitiesAttr().Get(&velocities, time);
 
   if (!velocities.empty()) {
     bke::MutableAttributeAccessor attributes = mesh->attributes_for_write();
@@ -630,7 +685,7 @@ void USDMeshReader::process_normals_uniform(Mesh *mesh) const
 
 void USDMeshReader::read_mesh_sample(ImportSettings *settings,
                                      Mesh *mesh,
-                                     const double motionSampleTime,
+                                     const pxr::UsdTimeCode time,
                                      const bool new_mesh)
 {
   /* Note that for new meshes we always want to read verts and faces,
@@ -642,12 +697,14 @@ void USDMeshReader::read_mesh_sample(ImportSettings *settings,
     vert_positions.copy_from(Span(positions_.cdata(), positions_.size()).cast<float3>());
     mesh->tag_positions_changed();
 
-    read_vertex_creases(mesh, motionSampleTime);
+    read_vertex_creases(mesh, time);
   }
 
   if (new_mesh || (settings->read_flag & MOD_MESHSEQ_READ_POLY) != 0) {
-    read_mpolys(mesh);
-    read_edge_creases(mesh, motionSampleTime);
+    if (!read_faces(mesh)) {
+      return;
+    }
+    read_edge_creases(mesh, time);
 
     if (normal_interpolation_ == pxr::UsdGeomTokens->faceVarying) {
       process_normals_face_varying(mesh);
@@ -669,14 +726,14 @@ void USDMeshReader::read_mesh_sample(ImportSettings *settings,
       (settings->read_flag & MOD_MESHSEQ_READ_COLOR) ||
       (settings->read_flag & MOD_MESHSEQ_READ_ATTRIBUTES))
   {
-    read_velocities(mesh, motionSampleTime);
-    read_custom_data(settings, mesh, motionSampleTime, new_mesh);
+    read_velocities(mesh, time);
+    read_custom_data(settings, mesh, time, new_mesh);
   }
 }
 
 void USDMeshReader::read_custom_data(const ImportSettings *settings,
                                      Mesh *mesh,
-                                     const double motionSampleTime,
+                                     const pxr::UsdTimeCode time,
                                      const bool new_mesh)
 {
   if (!(mesh && mesh->corners_num > 0)) {
@@ -720,7 +777,7 @@ void USDMeshReader::read_custom_data(const ImportSettings *settings,
     }
 
     /* Read Color primvars. */
-    if (convert_usd_type_to_blender(type) == CD_PROP_COLOR) {
+    if (convert_usd_type_to_blender(type) == bke::AttrType::ColorFloat) {
       if ((settings->read_flag & MOD_MESHSEQ_READ_COLOR) != 0) {
         /* Set the active color name to 'displayColor', if a color primvar
          * with this name exists.  Otherwise, use the name of the first
@@ -729,7 +786,7 @@ void USDMeshReader::read_custom_data(const ImportSettings *settings,
           active_color_name = name;
         }
 
-        read_generic_mesh_primvar(mesh, pv, motionSampleTime, is_left_handed_);
+        read_generic_mesh_primvar(mesh, pv, time, is_left_handed_);
       }
     }
 
@@ -738,7 +795,7 @@ void USDMeshReader::read_custom_data(const ImportSettings *settings,
                   pxr::UsdGeomTokens->vertex,
                   pxr::UsdGeomTokens->faceVarying,
                   pxr::UsdGeomTokens->varying) &&
-             convert_usd_type_to_blender(type) == CD_PROP_FLOAT2)
+             convert_usd_type_to_blender(type) == bke::AttrType::Float2)
     {
       if ((settings->read_flag & MOD_MESHSEQ_READ_UV) != 0) {
         /* Set the active uv set name to 'st', if a uv set primvar
@@ -747,14 +804,14 @@ void USDMeshReader::read_custom_data(const ImportSettings *settings,
         if (active_uv_set_name.IsEmpty() || name == usdtokens::st) {
           active_uv_set_name = name;
         }
-        this->read_uv_data_primvar(mesh, pv, motionSampleTime);
+        this->read_uv_data_primvar(mesh, pv, time);
       }
     }
 
     /* Read all other primvars. */
     else {
       if ((settings->read_flag & MOD_MESHSEQ_READ_ATTRIBUTES) != 0) {
-        read_generic_mesh_primvar(mesh, pv, motionSampleTime, is_left_handed_);
+        read_generic_mesh_primvar(mesh, pv, time, is_left_handed_);
       }
     }
 
@@ -783,7 +840,7 @@ void USDMeshReader::read_custom_data(const ImportSettings *settings,
   }
 }
 
-void USDMeshReader::assign_facesets_to_material_indices(double motionSampleTime,
+void USDMeshReader::assign_facesets_to_material_indices(pxr::UsdTimeCode time,
                                                         MutableSpan<int> material_indices,
                                                         blender::Map<pxr::SdfPath, int> *r_mat_map)
 {
@@ -816,7 +873,7 @@ void USDMeshReader::assign_facesets_to_material_indices(double motionSampleTime,
       }
 
       pxr::TfToken element_type;
-      subset.GetElementTypeAttr().Get(&element_type, motionSampleTime);
+      subset.GetElementTypeAttr().Get(&element_type, time);
       if (element_type != pxr::UsdGeomTokens->face) {
         CLOG_WARN(&LOG,
                   "UsdGeomSubset '%s' uses unsupported elementType: %s",
@@ -829,7 +886,7 @@ void USDMeshReader::assign_facesets_to_material_indices(double motionSampleTime,
       const int max_element_idx = std::max(0, int(material_indices.size() - 1));
 
       pxr::VtIntArray indices;
-      subset.GetIndicesAttr().Get(&indices, motionSampleTime);
+      subset.GetIndicesAttr().Get(&indices, time);
 
       int bad_element_count = 0;
       for (const int element_idx : indices.AsConst()) {
@@ -860,7 +917,7 @@ void USDMeshReader::assign_facesets_to_material_indices(double motionSampleTime,
   }
 }
 
-void USDMeshReader::readFaceSetsSample(Main *bmain, Mesh *mesh, const double motionSampleTime)
+void USDMeshReader::readFaceSetsSample(Main *bmain, Mesh *mesh, const pxr::UsdTimeCode time)
 {
   if (!import_params_.import_materials) {
     return;
@@ -871,7 +928,7 @@ void USDMeshReader::readFaceSetsSample(Main *bmain, Mesh *mesh, const double mot
   bke::MutableAttributeAccessor attributes = mesh->attributes_for_write();
   bke::SpanAttributeWriter<int> material_indices = attributes.lookup_or_add_for_write_span<int>(
       "material_index", bke::AttrDomain::Face);
-  this->assign_facesets_to_material_indices(motionSampleTime, material_indices.span, &mat_map);
+  this->assign_facesets_to_material_indices(time, material_indices.span, &mat_map);
   material_indices.finish();
   /* Build material name map if it's not built yet. */
   if (this->settings_->mat_name_to_mat.is_empty()) {
@@ -962,7 +1019,7 @@ pxr::SdfPath USDMeshReader::get_skeleton_path() const
   return {};
 }
 
-std::optional<XformResult> USDMeshReader::get_local_usd_xform(const float time) const
+std::optional<XformResult> USDMeshReader::get_local_usd_xform(const pxr::UsdTimeCode time) const
 {
   if (!import_params_.import_skeletons || prim_.IsInstanceProxy()) {
     /* Use the standard transform computation, since we are ignoring

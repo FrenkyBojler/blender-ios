@@ -108,11 +108,8 @@ MINLINE unsigned short to_srgb_table_lookup(const float f)
     unsigned short us[2];
   } tmp;
   tmp.f = f;
-#  ifdef __BIG_ENDIAN__
-  return BLI_color_to_srgb_table[tmp.us[0]];
-#  else
+  /* NOTE: this is endianness-sensitive. */
   return BLI_color_to_srgb_table[tmp.us[1]];
-#  endif
 }
 
 MINLINE void linearrgb_to_srgb_ushort4(unsigned short srgb[4], const float linear[4])
@@ -146,6 +143,31 @@ MINLINE void srgb_to_linearrgb_uchar4_predivide(float linear[4], const unsigned 
   }
 
   srgb_to_linearrgb_predivide_v4(linear, fsrgb);
+}
+
+MINLINE void rgb_uchar_to_float(float r_col[3], const uchar col_ub[3])
+{
+  r_col[0] = float(col_ub[0]) * (1.0f / 255.0f);
+  r_col[1] = float(col_ub[1]) * (1.0f / 255.0f);
+  r_col[2] = float(col_ub[2]) * (1.0f / 255.0f);
+}
+
+MINLINE void rgba_uchar_to_float(float r_col[4], const uchar col_ub[4])
+{
+  r_col[0] = float(col_ub[0]) * (1.0f / 255.0f);
+  r_col[1] = float(col_ub[1]) * (1.0f / 255.0f);
+  r_col[2] = float(col_ub[2]) * (1.0f / 255.0f);
+  r_col[3] = float(col_ub[3]) * (1.0f / 255.0f);
+}
+
+MINLINE void rgb_float_to_uchar(uchar r_col[3], const float col_f[3])
+{
+  unit_float_to_uchar_clamp_v3(r_col, col_f);
+}
+
+MINLINE void rgba_float_to_uchar(uchar r_col[4], const float col_f[4])
+{
+  unit_float_to_uchar_clamp_v4(r_col, col_f);
 }
 
 MINLINE void rgba_uchar_args_set(

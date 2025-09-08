@@ -17,6 +17,7 @@
 
 #  include "BLI_path_utils.hh"
 #  include "BLI_string.h"
+#  include "BLI_string_utf8.h"
 
 #  include "BLT_translation.hh"
 
@@ -27,6 +28,7 @@
 #  include "RNA_define.hh"
 
 #  include "UI_interface.hh"
+#  include "UI_interface_layout.hh"
 #  include "UI_resources.hh"
 
 #  include "WM_api.hh"
@@ -59,6 +61,19 @@ static const EnumPropertyItem io_obj_path_mode[] = {
     {PATH_REFERENCE_COPY, "COPY", 0, "Copy", "Copy the file to the destination path"},
     {0, nullptr, 0, nullptr, nullptr}};
 
+static const EnumPropertyItem io_obj_mtl_name_collision_mode[] = {
+    {OBJ_MTL_NAME_COLLISION_MAKE_UNIQUE,
+     "MAKE_UNIQUE",
+     0,
+     "Make Unique",
+     "Create new materials with unique names for each OBJ file"},
+    {OBJ_MTL_NAME_COLLISION_REFERENCE_EXISTING,
+     "REFERENCE_EXISTING",
+     0,
+     "Reference Existing",
+     "Use existing materials with same name instead of creating new ones"},
+    {0, nullptr, 0, nullptr, nullptr}};
+
 static wmOperatorStatus wm_obj_export_invoke(bContext *C,
                                              wmOperator *op,
                                              const wmEvent * /*event*/)
@@ -87,6 +102,7 @@ static wmOperatorStatus wm_obj_export_exec(bContext *C, wmOperator *op)
   export_params.up_axis = eIOAxis(RNA_enum_get(op->ptr, "up_axis"));
   export_params.global_scale = RNA_float_get(op->ptr, "global_scale");
   export_params.apply_modifiers = RNA_boolean_get(op->ptr, "apply_modifiers");
+  export_params.apply_transform = RNA_boolean_get(op->ptr, "apply_transform");
   export_params.export_eval_mode = eEvaluationMode(RNA_enum_get(op->ptr, "export_eval_mode"));
 
   export_params.export_selected_objects = RNA_boolean_get(op->ptr, "export_selected_objects");
@@ -125,8 +141,8 @@ static void ui_obj_export_settings(const bContext *C, uiLayout *layout, PointerR
   const bool export_smooth_groups = RNA_boolean_get(ptr, "export_smooth_groups");
   const bool export_materials = RNA_boolean_get(ptr, "export_materials");
 
-  uiLayoutSetPropSep(layout, true);
-  uiLayoutSetPropDecorate(layout, false);
+  layout->use_property_split_set(true);
+  layout->use_property_decorate_set(false);
 
   /* Object General options. */
   if (uiLayout *panel = layout->panel(C, "OBJ_export_general", false, IFACE_("General"))) {
@@ -153,6 +169,7 @@ static void ui_obj_export_settings(const bContext *C, uiLayout *layout, PointerR
     col->prop(
         ptr, "export_triangulated_mesh", UI_ITEM_NONE, IFACE_("Triangulated Mesh"), ICON_NONE);
     col->prop(ptr, "apply_modifiers", UI_ITEM_NONE, IFACE_("Apply Modifiers"), ICON_NONE);
+    col->prop(ptr, "apply_transform", UI_ITEM_NONE, IFACE_("Apply Transform"), ICON_NONE);
     col->prop(ptr, "export_eval_mode", UI_ITEM_NONE, IFACE_("Properties"), ICON_NONE);
   }
 
@@ -164,19 +181,19 @@ static void ui_obj_export_settings(const bContext *C, uiLayout *layout, PointerR
     col->prop(ptr, "export_vertex_groups", UI_ITEM_NONE, IFACE_("Vertex Groups"), ICON_NONE);
     col->prop(ptr, "export_smooth_groups", UI_ITEM_NONE, IFACE_("Smooth Groups"), ICON_NONE);
     col = &col->column(false);
-    uiLayoutSetEnabled(col, export_smooth_groups);
+    col->enabled_set(export_smooth_groups);
     col->prop(
         ptr, "smooth_group_bitflags", UI_ITEM_NONE, IFACE_("Smooth Group Bitflags"), ICON_NONE);
   }
 
   /* Material options. */
   PanelLayout panel = layout->panel(C, "OBJ_export_materials", false);
-  uiLayoutSetPropSep(panel.header, false);
+  panel.header->use_property_split_set(false);
   panel.header->prop(ptr, "export_materials", UI_ITEM_NONE, "", ICON_NONE);
   panel.header->label(IFACE_("Materials"), ICON_NONE);
   if (panel.body) {
     uiLayout *col = &panel.body->column(false);
-    uiLayoutSetEnabled(col, export_materials);
+    col->enabled_set(export_materials);
 
     col->prop(ptr, "export_pbr_extensions", UI_ITEM_NONE, IFACE_("PBR Extensions"), ICON_NONE);
     col->prop(ptr, "path_mode", UI_ITEM_NONE, IFACE_("Path Mode"), ICON_NONE);
@@ -184,12 +201,12 @@ static void ui_obj_export_settings(const bContext *C, uiLayout *layout, PointerR
 
   /* Animation options. */
   panel = layout->panel(C, "OBJ_export_animation", true);
-  uiLayoutSetPropSep(panel.header, false);
+  panel.header->use_property_split_set(false);
   panel.header->prop(ptr, "export_animation", UI_ITEM_NONE, "", ICON_NONE);
   panel.header->label(IFACE_("Animation"), ICON_NONE);
   if (panel.body) {
     uiLayout *col = &panel.body->column(false);
-    uiLayoutSetEnabled(col, export_animation);
+    col->enabled_set(export_animation);
 
     col->prop(ptr, "start_frame", UI_ITEM_NONE, IFACE_("Frame Start"), ICON_NONE);
     col->prop(ptr, "end_frame", UI_ITEM_NONE, IFACE_("End"), ICON_NONE);
@@ -307,6 +324,11 @@ void WM_OT_obj_export(wmOperatorType *ot)
   /* File Writer options. */
   RNA_def_boolean(
       ot->srna, "apply_modifiers", true, "Apply Modifiers", "Apply modifiers to exported meshes");
+  RNA_def_boolean(ot->srna,
+                  "apply_transform",
+                  true,
+                  "Apply Transform",
+                  "Apply object transforms to exported vertices");
   RNA_def_enum(ot->srna,
                "export_eval_mode",
                io_obj_export_evaluation_mode,
@@ -339,12 +361,13 @@ void WM_OT_obj_export(wmOperatorType *ot)
                   "Export Materials with PBR Extensions",
                   "Export MTL library using PBR extensions (roughness, metallic, sheen, "
                   "coat, anisotropy, transmission)");
-  RNA_def_enum(ot->srna,
-               "path_mode",
-               io_obj_path_mode,
-               PATH_REFERENCE_AUTO,
-               "Path Mode",
-               "Method used to reference paths");
+  prop = RNA_def_enum(ot->srna,
+                      "path_mode",
+                      io_obj_path_mode,
+                      PATH_REFERENCE_AUTO,
+                      "Path Mode",
+                      "Method used to reference paths");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_EDITOR_FILEBROWSER);
   RNA_def_boolean(ot->srna,
                   "export_triangulated_mesh",
                   false,
@@ -394,7 +417,7 @@ void WM_OT_obj_export(wmOperatorType *ot)
   prop = RNA_def_string(ot->srna, "filter_glob", "*.obj;*.mtl", 0, "Extension Filter", "");
   RNA_def_property_flag(prop, PROP_HIDDEN);
 
-  prop = RNA_def_string(ot->srna, "collection", nullptr, MAX_IDPROP_NAME, "Collection", nullptr);
+  prop = RNA_def_string(ot->srna, "collection", nullptr, MAX_ID_NAME - 2, "Collection", nullptr);
   RNA_def_property_flag(prop, PROP_HIDDEN);
 }
 
@@ -415,6 +438,8 @@ static wmOperatorStatus wm_obj_import_exec(bContext *C, wmOperator *op)
   import_params.collection_separator = separator[0];
   import_params.relative_paths = ((U.flag & USER_RELPATHS) != 0);
   import_params.clear_selection = true;
+  import_params.mtl_name_collision_mode = eOBJMtlNameCollisionMode(
+      RNA_enum_get(op->ptr, "mtl_name_collision_mode"));
 
   import_params.reports = op->reports;
 
@@ -442,8 +467,8 @@ static wmOperatorStatus wm_obj_import_exec(bContext *C, wmOperator *op)
 
 static void ui_obj_import_settings(const bContext *C, uiLayout *layout, PointerRNA *ptr)
 {
-  uiLayoutSetPropSep(layout, true);
-  uiLayoutSetPropDecorate(layout, false);
+  layout->use_property_split_set(true);
+  layout->use_property_decorate_set(false);
 
   if (uiLayout *panel = layout->panel(C, "OBJ_import_general", false, IFACE_("General"))) {
     uiLayout *col = &panel->column(false);
@@ -461,6 +486,11 @@ static void ui_obj_import_settings(const bContext *C, uiLayout *layout, PointerR
     col->prop(ptr, "validate_meshes", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     col->prop(ptr, "close_spline_loops", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     col->prop(ptr, "collection_separator", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  }
+
+  if (uiLayout *panel = layout->panel(C, "OBJ_import_materials", false, IFACE_("Materials"))) {
+    uiLayout *col = &panel->column(false);
+    col->prop(ptr, "mtl_name_collision_mode", UI_ITEM_NONE, IFACE_("Name Collision"), ICON_NONE);
   }
 }
 
@@ -553,6 +583,14 @@ void WM_OT_obj_import(wmOperatorType *ot)
                  "Path Separator",
                  "Character used to separate objects name into hierarchical structure");
 
+  /* Material options */
+  RNA_def_enum(ot->srna,
+               "mtl_name_collision_mode",
+               io_obj_mtl_name_collision_mode,
+               OBJ_MTL_NAME_COLLISION_MAKE_UNIQUE,
+               "Material Name Collision",
+               "How to handle naming collisions when importing materials");
+
   /* Only show `.obj` or `.mtl` files by default. */
   prop = RNA_def_string(ot->srna, "filter_glob", "*.obj;*.mtl", 0, "Extension Filter", "");
   RNA_def_property_flag(prop, PROP_HIDDEN);
@@ -562,11 +600,11 @@ namespace blender::ed::io {
 void obj_file_handler_add()
 {
   auto fh = std::make_unique<blender::bke::FileHandlerType>();
-  STRNCPY(fh->idname, "IO_FH_obj");
-  STRNCPY(fh->import_operator, "WM_OT_obj_import");
-  STRNCPY(fh->export_operator, "WM_OT_obj_export");
-  STRNCPY(fh->label, "Wavefront OBJ");
-  STRNCPY(fh->file_extensions_str, ".obj");
+  STRNCPY_UTF8(fh->idname, "IO_FH_obj");
+  STRNCPY_UTF8(fh->import_operator, "WM_OT_obj_import");
+  STRNCPY_UTF8(fh->export_operator, "WM_OT_obj_export");
+  STRNCPY_UTF8(fh->label, "Wavefront OBJ");
+  STRNCPY_UTF8(fh->file_extensions_str, ".obj");
   fh->poll_drop = poll_file_object_drop;
   bke::file_handler_add(std::move(fh));
 }

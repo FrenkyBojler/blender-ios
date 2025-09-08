@@ -52,7 +52,6 @@ enum eMaterialGeometry {
   MAT_GEOM_MESH = 0,
   MAT_GEOM_POINTCLOUD,
   MAT_GEOM_CURVES,
-  MAT_GEOM_GPENCIL,
   MAT_GEOM_VOLUME,
 
   /* These maps to special shader. */
@@ -192,8 +191,6 @@ static inline eMaterialGeometry to_material_geometry(const Object *ob)
       return MAT_GEOM_CURVES;
     case OB_VOLUME:
       return MAT_GEOM_VOLUME;
-    case OB_GREASE_PENCIL:
-      return MAT_GEOM_GPENCIL;
     case OB_POINTCLOUD:
       return MAT_GEOM_POINTCLOUD;
     default:
@@ -231,14 +228,6 @@ struct MaterialKey {
     return uint64_t(mat) + options;
   }
 
-  bool operator<(const MaterialKey &k) const
-  {
-    if (mat == k.mat) {
-      return options < k.options;
-    }
-    return mat < k.mat;
-  }
-
   bool operator==(const MaterialKey &k) const
   {
     return (mat == k.mat) && (options == k.options);
@@ -259,7 +248,7 @@ struct MaterialKey {
  * Should only include pipeline options that are not baked in the shader itself.
  */
 struct ShaderKey {
-  GPUShader *shader;
+  gpu::Shader *shader;
   uint64_t options;
 
   ShaderKey(GPUMaterial *gpumat, ::Material *blender_mat, eMaterialProbe probe_capture)
@@ -273,11 +262,6 @@ struct ShaderKey {
   uint64_t hash() const
   {
     return uint64_t(shader) + options;
-  }
-
-  bool operator<(const ShaderKey &k) const
-  {
-    return (shader == k.shader) ? (options < k.options) : (shader < k.shader);
   }
 
   bool operator==(const ShaderKey &k) const
@@ -355,7 +339,10 @@ class MaterialModule {
   ::Material *default_surface;
   ::Material *default_volume;
 
+  ::Material *material_override = nullptr;
+
   int64_t queued_shaders_count = 0;
+  int64_t queued_textures_count = 0;
   int64_t queued_optimize_shaders_count = 0;
 
  private:
@@ -373,11 +360,14 @@ class MaterialModule {
   uint64_t gpu_pass_last_update_ = 0;
   uint64_t gpu_pass_next_update_ = 0;
 
+  Vector<GPUMaterialTexture *> texture_loading_queue_;
+
  public:
   MaterialModule(Instance &inst);
   ~MaterialModule();
 
   void begin_sync();
+  void end_sync();
 
   /**
    * Returned Material references are valid until the next call to this function or material_get().
@@ -388,6 +378,16 @@ class MaterialModule {
    * material_array_get().
    */
   Material &material_get(Object *ob, bool has_motion, int mat_nr, eMaterialGeometry geometry_type);
+
+  /* Request default materials and return DEFAULT_MATERIALS if they are compiled. */
+  ShaderGroups default_materials_load_async()
+  {
+    return default_materials_load(false);
+  }
+  ShaderGroups default_materials_wait_ready()
+  {
+    return default_materials_load(true);
+  }
 
  private:
   Material &material_sync(Object *ob,
@@ -402,6 +402,11 @@ class MaterialModule {
                                  eMaterialPipeline pipeline_type,
                                  eMaterialGeometry geometry_type,
                                  eMaterialProbe probe_capture = MAT_PROBE_NONE);
+
+  /* Push unloaded texture used by this material to the texture loading queue. */
+  void queue_texture_loading(GPUMaterial *material);
+
+  ShaderGroups default_materials_load(bool block_until_ready = false);
 };
 
 /** \} */

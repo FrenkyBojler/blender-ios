@@ -12,7 +12,6 @@
 #include "device/denoise.h"
 #include "device/memory.h"
 
-#include "util/log.h"
 #include "util/profiling.h"
 #include "util/stats.h"
 #include "util/string.h"
@@ -94,6 +93,10 @@ class DeviceInfo {
   bool has_gpu_queue = false;           /* Device supports GPU queue. */
   bool use_hardware_raytracing = false; /* Use hardware instructions to accelerate ray tracing. */
   bool use_metalrt_by_default = false;  /* Use MetalRT by default. */
+  /* Indicate that device execution has been optimized by Blender or vendor developers.
+   * For LTS versions, this helps communicate that newer versions may have better performance. */
+  bool has_execution_optimization = true;
+
   KernelOptimizationLevel kernel_optimization_level =
       KERNEL_OPTIMIZATION_LEVEL_FULL;         /* Optimization level applied to path tracing
                                                * kernels (Metal only). */
@@ -155,14 +158,7 @@ class Device {
   {
     return !error_message().empty();
   }
-  virtual void set_error(const string &error)
-  {
-    if (!have_error()) {
-      error_msg = error;
-    }
-    fprintf(stderr, "%s\n", error.c_str());
-    fflush(stderr);
-  }
+  virtual void set_error(const string &error);
   virtual BVHLayoutMask get_bvh_layout_mask(const uint kernel_features) const = 0;
 
   /* statistics */
@@ -215,6 +211,12 @@ class Device {
   /* Used by Metal and OptiX. */
   virtual void release_bvh(BVH * /*bvh*/) {}
 
+  /* Inform of BVH limits, return true to force-rebuild all BVHs and kernels. */
+  virtual bool set_bvh_limits(size_t /*instance_count*/, size_t /*max_prim_count*/)
+  {
+    return false;
+  }
+
   /* multi device */
   virtual int device_number(Device * /*sub_device*/)
   {
@@ -266,11 +268,7 @@ class Device {
   /* Guiding */
 
   /* Returns path guiding device handle. */
-  virtual void *get_guiding_device() const
-  {
-    LOG(ERROR) << "Request guiding field from a device which does not support it.";
-    return nullptr;
-  }
+  virtual void *get_guiding_device() const;
 
   /* Sub-devices */
 

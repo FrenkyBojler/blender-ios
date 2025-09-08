@@ -250,6 +250,16 @@ void AbstractView::clear_search_highlight()
   this->foreach_view_item([](AbstractViewItem &item) { item.is_highlighted_search_ = false; });
 }
 
+void AbstractView::allow_multiselect_items()
+{
+  is_multiselect_supported_ = true;
+}
+
+bool AbstractView::is_multiselect_supported() const
+{
+  return is_multiselect_supported_;
+}
+
 void AbstractView::set_sort_order()
 {
   this->invert_sort_order = (this->invert_sort_order + 1) % 3;
@@ -279,6 +289,8 @@ bool AbstractView::is_filtering_collapsed() const
 {
   return this->filtering_collapsed_state;
 }
+
+
 /** \} */
 
 }  // namespace blender::ui

@@ -4,7 +4,7 @@
 
 #include "node_function_util.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "NOD_geometry_nodes_gizmos.hh"
@@ -15,7 +15,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_output<decl::Int>("Integer").custom_draw([](CustomSocketDrawParams &params) {
     uiLayout &row = params.layout.row(true);
-    row.prop(&params.node_ptr, "integer", UI_ITEM_NONE, "", ICON_NONE);
+    row.prop(&params.node_ptr, "integer", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
     if (gizmos::value_node_has_gizmo(params.tree, params.node)) {
       row.prop(&params.socket_ptr, "pin_gizmo", UI_ITEM_NONE, "", ICON_GIZMO);
     }

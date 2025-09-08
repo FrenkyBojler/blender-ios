@@ -34,9 +34,10 @@
 
 #  include "DEG_depsgraph.hh"
 
-#  include "ED_node.hh"
 #  include "WM_api.hh"
 #  include "WM_types.hh"
+
+#  include "ED_node.hh"
 
 static StructRNA *rna_Light_refine(PointerRNA *ptr)
 {
@@ -165,7 +166,7 @@ static void rna_def_light(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Color", "Light color");
   RNA_def_property_update(prop, 0, "rna_Light_draw_update");
 
-  prop = RNA_def_property(srna, "temperature", PROP_FLOAT, PROP_TEMPERATURE);
+  prop = RNA_def_property(srna, "temperature", PROP_FLOAT, PROP_COLOR_TEMPERATURE);
   RNA_def_property_float_sdna(prop, nullptr, "temperature");
   RNA_def_property_range(prop, 800.0f, 20000.0f);
   RNA_def_property_ui_range(prop, 800.0f, 20000.0f, 400.0f, 1);
@@ -517,7 +518,7 @@ static void rna_def_spot_light(BlenderRNA *brna)
   prop = RNA_def_property(srna, "spot_size", PROP_FLOAT, PROP_ANGLE);
   RNA_def_property_float_sdna(prop, nullptr, "spotsize");
   RNA_def_property_range(prop, DEG2RADF(1.0f), DEG2RADF(180.0f));
-  RNA_def_property_ui_text(prop, "Spot Size", "Angle of the spotlight beam");
+  RNA_def_property_ui_text(prop, "Beam Angle", "Angular diameter of the spotlight beam");
   RNA_def_property_update(prop, 0, "rna_Light_draw_update");
 
   prop = RNA_def_property(srna, "show_cone", PROP_BOOLEAN, PROP_NONE);

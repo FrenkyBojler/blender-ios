@@ -43,7 +43,7 @@
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
 #include "BLI_rand.h"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_task.h"
 #include "BLI_threads.h"
 #include "BLI_utildefines.h"
@@ -399,6 +399,7 @@ IDTypeInfo IDType_ID_PA = {
     /*foreach_id*/ particle_settings_foreach_id,
     /*foreach_cache*/ nullptr,
     /*foreach_path*/ nullptr,
+    /*foreach_working_space_color*/ nullptr,
     /*owner_pointer_get*/ nullptr,
 
     /*blend_write*/ particle_settings_blend_write,
@@ -3942,7 +3943,7 @@ static ModifierData *object_add_or_copy_particle_system(
     psys->part = BKE_particlesettings_add(bmain, DATA_("ParticleSettings"));
   }
   md = BKE_modifier_new(eModifierType_ParticleSystem);
-  STRNCPY(md->name, psys->name);
+  STRNCPY_UTF8(md->name, psys->name);
   BKE_modifier_unique_name(&ob->modifiers, md);
 
   psmd = (ParticleSystemModifierData *)md;
