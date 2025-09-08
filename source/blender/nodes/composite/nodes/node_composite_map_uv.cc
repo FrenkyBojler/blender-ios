@@ -178,51 +178,7 @@ class MapUVOperation : public NodeOperation {
   void execute_cpu()
   {
     const math::SamplingOptions options = this->get_options();
-    if (options.sampler == math::Sampler::Anisotropic) {
-      this->execute_cpu_anisotropic();
-    }
-    else {
-      this->execute_cpu_interpolation(options);
-    }
-  }
 
-  void execute_cpu_interpolation(const math::SamplingOptions &options)
-  {
-    const Result &input_image = get_input("Image");
-    const Result &input_uv = get_input("UV");
-    const Domain domain = compute_domain();
-    Result &output_image = get_result("Image");
-    output_image.allocate_texture(domain);
-    float2 scale = float2(domain.size);
-
-    parallel_for(domain.size, [&](const int2 texel) {
-      float3 uva = input_uv.load_pixel<float3>(texel);
-      /* The UV texture is assumed to contain an alpha channel as its third channel, since the UV
-       * coordinates might be defined in only a subset area of the UV texture as mentioned. In that
-       * case, the alpha is typically opaque at the subset area and transparent everywhere else,
-       * and alpha pre-multiplication is then performed. This format of having an alpha channel in
-       * the UV coordinates is the format used by UV passes in render engines, hence the mentioned
-       * logic. */
-      if (uva.z <= 0) {
-        output_image.store_pixel(texel, float4(0.0f));
-      }
-      else {
-        float2 uv = uva.xy() * scale;
-        // derivative is from neighboring pixels. Fortunatly we don't care about sign
-        // so it can look in either direction
-        int2 texel2 = int2(texel.x ? texel.x - 1 : texel.x + 1, texel.y);
-        float2 dPdx = input_uv.load_pixel<float3>(texel2).xy() - uva.xy();
-        texel2 = int2(texel.x, texel.y ? texel.y - 1 : texel.y + 1);
-        float2 dPdy = input_uv.load_pixel<float3>(texel2).xy() - uva.xy();
-        float2 wh = math::hypot2(dPdx, dPdy) * scale;
-        float4 result = input_image.sample_rect(options, uv, wh) * uva.z;
-        output_image.store_pixel(texel, result);
-      }
-    });
-  }
-
-  void execute_cpu_anisotropic()
-  {
     const Result &input_image = get_input("Image");
     const Result &input_uv = get_input("UV");
 
@@ -237,61 +193,65 @@ class MapUVOperation : public NodeOperation {
      * vertically across the 2x2 block such that odd texels use a forward finite difference
      * equation while even invocations use a backward finite difference equation. */
     const int2 size = domain.size;
-    const int2 uv_size = input_uv.domain().size;
+    const float2 scale = float2(size);
     parallel_for(math::divide_ceil(size, int2(2)), [&](const int2 base_texel) {
       const int x = base_texel.x * 2;
       const int y = base_texel.y * 2;
 
+      // Block might only have one pixel on the top/right. In this case compute the derivative
+      // in the opposite direction (fortunatly the sampling does not care about sign)
       const int2 lower_left_texel = int2(x, y);
-      const int2 lower_right_texel = int2(x + 1, y);
-      const int2 upper_left_texel = int2(x, y + 1);
-      const int2 upper_right_texel = int2(x + 1, y + 1);
+      const int x_dir = x < size.x ? 1 : -1;
+      const int2 lower_right_texel = int2(x + x_dir, y);
+      const int y_dir = y < size.y ? 1 : -1;
+      const int2 upper_left_texel = int2(x, y + y_dir);
+      const int2 upper_right_texel = int2(x + x_dir, y + y_dir);
 
-      const float2 lower_left_uv = input_uv.load_pixel<float3>(lower_left_texel).xy();
-      const float2 lower_right_uv = input_uv.load_pixel_extended<float3>(lower_right_texel).xy();
-      const float2 upper_left_uv = input_uv.load_pixel_extended<float3>(upper_left_texel).xy();
-      const float2 upper_right_uv = input_uv.load_pixel_extended<float3>(upper_right_texel).xy();
+      const float3 lower_left_uv = input_uv.load_pixel<float3>(lower_left_texel);
+      const float3 lower_right_uv = input_uv.load_pixel_extended<float3>(lower_right_texel);
+      const float3 upper_left_uv = input_uv.load_pixel_extended<float3>(upper_left_texel);
+      const float3 upper_right_uv = input_uv.load_pixel_extended<float3>(upper_right_texel);
 
-      /* Compute the partial derivatives using finite difference. Divide by the input size since
-       * sample_ewa_zero assumes derivatives with respect to texel coordinates. */
-      const float2 lower_x_gradient = (lower_right_uv - lower_left_uv) / uv_size.x;
-      const float2 left_y_gradient = (upper_left_uv - lower_left_uv) / uv_size.y;
-      const float2 right_y_gradient = (upper_right_uv - lower_right_uv) / uv_size.y;
-      const float2 upper_x_gradient = (upper_right_uv - upper_left_uv) / uv_size.x;
+      /* Compute the partial derivatives using finite difference. */
+      const float2 lower_x_gradient = lower_right_uv.xy() - lower_left_uv.xy();
+      const float2 left_y_gradient = upper_left_uv.xy() - lower_left_uv.xy();
+      const float2 right_y_gradient = upper_right_uv.xy() - lower_right_uv.xy();
+      const float2 upper_x_gradient = upper_right_uv.xy() - upper_left_uv.xy();
 
       /* Computes one of the 2x2 pixels given its texel location, coordinates, and gradients. */
       auto compute_pixel = [&](const int2 &texel,
-                               const float2 &coordinates,
+                               const float3 &coordinates,
                                const float2 &x_gradient,
                                const float2 &y_gradient) {
-        /* Sample the input using the UV coordinates passing in the computed gradients in order
-         * to utilize the anisotropic filtering capabilities of the sampler. */
-        float4 sampled_color = input_image.sample_ewa_zero(coordinates, x_gradient, y_gradient);
-
         /* The UV input is assumed to contain an alpha channel as its third channel, since the
          * UV coordinates might be defined in only a subset area of the UV texture as mentioned.
          * In that case, the alpha is typically opaque at the subset area and transparent
          * everywhere else, and alpha pre-multiplication is then performed. This format of having
          * an alpha channel in the UV coordinates is the format used by UV passes in render
          * engines, hence the mentioned logic. */
-        float alpha = input_uv.load_pixel<float3>(texel).z;
-
-        float4 result = sampled_color * alpha;
-
+        const float alpha = coordinates.z;
+        float4 result;
+        if (alpha <= 0.0f) {
+          result = float4(0.0f);
+        } else if (options.sampler == math::Sampler::Anisotropic) {
+          result = alpha * input_image.sample_ewa_zero(coordinates.xy(), x_gradient, y_gradient);
+        } else {
+          result = alpha * input_image.sample_rect(options, coordinates.xy()*scale, math::hypot2(x_gradient, y_gradient) * scale);
+        }
         output_image.store_pixel(texel, result);
       };
 
       /* Compute each of the pixels in the 2x2 block, making sure to exempt out of bounds right
        * and upper pixels. */
       compute_pixel(lower_left_texel, lower_left_uv, lower_x_gradient, left_y_gradient);
-      if (lower_right_texel.x != size.x) {
+      if (x_dir > 0) {
         compute_pixel(lower_right_texel, lower_right_uv, lower_x_gradient, right_y_gradient);
       }
-      if (upper_left_texel.y != size.y) {
+      if (y_dir > 0) {
         compute_pixel(upper_left_texel, upper_left_uv, upper_x_gradient, left_y_gradient);
-      }
-      if (upper_right_texel.x != size.x && upper_right_texel.y != size.y) {
-        compute_pixel(upper_right_texel, upper_right_uv, upper_x_gradient, right_y_gradient);
+        if (x_dir > 0) {
+          compute_pixel(upper_right_texel, upper_right_uv, upper_x_gradient, right_y_gradient);
+        }
       }
     });
   }
