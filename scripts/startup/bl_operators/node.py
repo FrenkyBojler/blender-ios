@@ -687,7 +687,7 @@ class NODE_OT_viewer_shortcut_set(Operator):
 
 
 class NODE_OT_viewer_shortcut_get(Operator):
-    """Activate a specific viewer node using 1,2,..,9 keys"""
+    """Toggle a specific viewer node using 1,2,..,9 keys"""
     bl_idname = "node.viewer_shortcut_get"
     bl_label = "Fast Preview"
     bl_options = {'REGISTER', 'UNDO'}
