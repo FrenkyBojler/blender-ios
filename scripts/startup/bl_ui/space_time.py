@@ -42,15 +42,16 @@ def playback_controls(layout, context):
     tool_settings = context.tool_settings
     screen = context.screen
 
-    row = layout.row(align=True)
-    row.popover(
+    layout.popover(
         panel="TIME_PT_playback",
         text="Playback",
     )
-    row.popover(
+
+    icon_keytype = 'KEYTYPE_{:s}_VEC'.format(context.tool_settings.keyframe_type)
+    layout.popover(
         panel="TIME_PT_keyframing_settings",
-        text="Keying",
         text_ctxt=i18n_contexts.id_windowmanager,
+        icon=icon_keytype,
     )
 
     if is_sequencer:
@@ -284,6 +285,14 @@ class TIME_PT_keyframing_settings(TimelinePanelButtons, Panel):
     bl_label = "Keyframing Settings"
     bl_options = {'HIDE_HEADER'}
     bl_region_type = 'HEADER'
+    bl_description = "Active keying set and keyframing settings"
+
+    def draw_header(self, context):
+        st = context.space_data
+        is_sequencer = st.type == 'SEQUENCE_EDITOR' and st.view_type == 'SEQUENCER'
+        scene = context.scene if not is_sequencer else context.sequencer_scene
+        self.bl_label = "{:s}".format(
+            scene.keying_sets_all.active.bl_label if scene.keying_sets_all.active else "Keying")
 
     def draw(self, context):
         layout = self.layout
