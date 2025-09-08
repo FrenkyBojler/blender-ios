@@ -2192,14 +2192,10 @@ static float brush_strength(const Sculpt &sd,
 
   const float flip = brush_flip(brush, cache);
 
-  /* Pressure final value after being tweaked depending on the brush. */
-  float final_pressure;
-
   switch (brush.sculpt_brush_type) {
     case SCULPT_BRUSH_TYPE_CLAY:
-      final_pressure = pow4f(pressure);
       overlap = (1.0f + overlap) / 2.0f;
-      return 0.25f * alpha * flip * final_pressure * overlap * feather;
+      return 0.25f * alpha * flip * pressure * overlap * feather;
     case SCULPT_BRUSH_TYPE_DRAW:
     case SCULPT_BRUSH_TYPE_DRAW_SHARP:
     case SCULPT_BRUSH_TYPE_LAYER:
@@ -2229,18 +2225,14 @@ static float brush_strength(const Sculpt &sd,
     case SCULPT_BRUSH_TYPE_SLIDE_RELAX:
       return alpha * pressure * overlap * feather * 2.0f;
     case SCULPT_BRUSH_TYPE_PAINT:
-      final_pressure = pressure * pressure;
-      return final_pressure * overlap * feather;
+      return pressure * overlap * feather;
     case SCULPT_BRUSH_TYPE_SMEAR:
     case SCULPT_BRUSH_TYPE_DISPLACEMENT_SMEAR:
       return alpha * pressure * overlap * feather;
     case SCULPT_BRUSH_TYPE_CLAY_STRIPS:
-      /* Clay Strips needs less strength to compensate the curve. */
-      final_pressure = powf(pressure, 1.5f);
-      return alpha * flip * final_pressure * overlap * feather * 0.3f;
+      return alpha * flip * pressure * overlap * feather * 0.3f;
     case SCULPT_BRUSH_TYPE_CLAY_THUMB:
-      final_pressure = pressure * pressure;
-      return alpha * flip * final_pressure * overlap * feather * 1.3f;
+      return alpha * flip * pressure * overlap * feather * 1.3f;
 
     case SCULPT_BRUSH_TYPE_MASK:
       overlap = (1.0f + overlap) / 2.0f;
@@ -4084,10 +4076,6 @@ static float brush_dynamic_size_get(const Brush &brush,
 {
   const float pressure_eval = BKE_curvemapping_evaluateF(brush.curve_size, 0, cache.pressure);
   switch (brush.sculpt_brush_type) {
-    case SCULPT_BRUSH_TYPE_CLAY:
-      return max_ff(initial_size * 0.20f, initial_size * pow3f(pressure_eval));
-    case SCULPT_BRUSH_TYPE_CLAY_STRIPS:
-      return max_ff(initial_size * 0.30f, initial_size * powf(pressure_eval, 1.5f));
     case SCULPT_BRUSH_TYPE_CLAY_THUMB: {
       float clay_stabilized_pressure = brushes::clay_thumb_get_stabilized_pressure(cache);
       return initial_size *
