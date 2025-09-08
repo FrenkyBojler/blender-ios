@@ -27,35 +27,37 @@ namespace blender::nodes::node_composite_crop_cc {
 
 static void cmp_node_crop_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Color>("Image").default_value({1.0f, 1.0f, 1.0f, 1.0f});
+  b.add_input<decl::Color>("Image")
+      .default_value({1.0f, 1.0f, 1.0f, 1.0f})
+      .structure_type(StructureType::Dynamic);
   b.add_input<decl::Int>("X")
       .default_value(0)
       .min(0)
-      .compositor_expects_single_value()
+
       .description("The X position of the lower left corner of the crop region");
   b.add_input<decl::Int>("Y")
       .default_value(0)
       .min(0)
-      .compositor_expects_single_value()
+
       .description("The Y position of the lower left corner of the crop region");
   b.add_input<decl::Int>("Width")
       .default_value(1920)
       .min(1)
-      .compositor_expects_single_value()
+
       .description("The width of the crop region");
   b.add_input<decl::Int>("Height")
       .default_value(1080)
       .min(1)
-      .compositor_expects_single_value()
-      .description("The width of the crop region");
+
+      .description("The height of the crop region");
   b.add_input<decl::Bool>("Alpha Crop")
       .default_value(false)
-      .compositor_expects_single_value()
+
       .description(
           "Sets the areas outside of the crop region to be transparent instead of actually "
           "cropping the size of the image");
 
-  b.add_output<decl::Color>("Image");
+  b.add_output<decl::Color>("Image").structure_type(StructureType::Dynamic);
 }
 
 using namespace blender::compositor;
@@ -95,7 +97,7 @@ class CropOperation : public NodeOperation {
 
   void execute_alpha_crop_gpu()
   {
-    GPUShader *shader = this->context().get_shader("compositor_alpha_crop");
+    gpu::Shader *shader = this->context().get_shader("compositor_alpha_crop");
     GPU_shader_bind(shader);
 
     const Bounds<int2> bounds = this->compute_cropping_bounds();
@@ -153,7 +155,7 @@ class CropOperation : public NodeOperation {
   {
     const Bounds<int2> bounds = this->compute_cropping_bounds();
 
-    GPUShader *shader = this->context().get_shader("compositor_image_crop");
+    gpu::Shader *shader = this->context().get_shader("compositor_image_crop");
     GPU_shader_bind(shader);
 
     GPU_shader_uniform_2iv(shader, "lower_bound", bounds.min);

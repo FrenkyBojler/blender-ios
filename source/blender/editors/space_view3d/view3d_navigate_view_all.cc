@@ -8,11 +8,11 @@
 
 #include "BKE_armature.hh"
 #include "BKE_context.hh"
-#include "BKE_gpencil_geom_legacy.h"
 #include "BKE_layer.hh"
 #include "BKE_library.hh"
 #include "BKE_object.hh"
 #include "BKE_paint.hh"
+#include "BKE_paint_types.hh"
 #include "BKE_scene.hh"
 #include "BKE_screen.hh"
 

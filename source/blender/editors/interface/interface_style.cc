@@ -18,11 +18,14 @@
 #include "BLI_listbase.h"
 #include "BLI_rect.h"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_global.hh"
 
 #include "BLF_api.hh"
+
+#include "CLG_log.h"
 
 #include "interface_intern.hh"
 
@@ -31,6 +34,8 @@
 #endif
 
 using blender::StringRef;
+
+static CLG_LogRef LOG = {"ui.font"};
 
 static void fontstyle_set_ex(const uiFontStyle *fs, const float dpi_fac);
 
@@ -58,7 +63,7 @@ static uiStyle *ui_style_new(ListBase *styles, const char *name, short uifont_id
   uiStyle *style = MEM_callocN<uiStyle>(__func__);
 
   BLI_addtail(styles, style);
-  STRNCPY(style->name, name);
+  STRNCPY_UTF8(style->name, name);
 
   style->panelzoom = 1.0; /* unused */
 
@@ -132,7 +137,7 @@ void UI_fontstyle_draw_ex(const uiFontStyle *fs,
                           ResultBLF *r_info)
 {
   int xofs = 0, yofs;
-  int font_flag = BLF_CLIPPING;
+  FontFlags font_flag = BLF_CLIPPING;
 
   UI_fontstyle_set(fs);
 
@@ -212,7 +217,7 @@ void UI_fontstyle_draw_multiline_clipped_ex(const uiFontStyle *fs,
                                             ResultBLF *r_info)
 {
   int xofs = 0, yofs;
-  int font_flag = BLF_CLIPPING;
+  FontFlags font_flag = BLF_CLIPPING;
 
   /* Recommended for testing: Results should be the same with or without BLF clipping since the
    * string is wrapped and shortened to fit. Disabling it can help spot issues. */
@@ -511,7 +516,7 @@ void uiStyleInit()
 
     if (font->blf_id == -1) {
       if (G.debug & G_DEBUG) {
-        printf("%s: error, no fonts available\n", __func__);
+        CLOG_WARN(&LOG, "%s: error, no fonts available", __func__);
       }
     }
   }
@@ -539,9 +544,9 @@ void uiStyleInit()
 
   /* Set default flags based on UI preferences (not render fonts) */
   {
-    const int flag_disable = (BLF_MONOCHROME | BLF_HINTING_NONE | BLF_HINTING_SLIGHT |
-                              BLF_HINTING_FULL | BLF_RENDER_SUBPIXELAA);
-    int flag_enable = 0;
+    const FontFlags flag_disable = (BLF_MONOCHROME | BLF_HINTING_NONE | BLF_HINTING_SLIGHT |
+                                    BLF_HINTING_FULL | BLF_RENDER_SUBPIXELAA);
+    FontFlags flag_enable = BLF_NONE;
 
     if (U.text_render & USER_TEXT_HINTING_NONE) {
       flag_enable |= BLF_HINTING_NONE;

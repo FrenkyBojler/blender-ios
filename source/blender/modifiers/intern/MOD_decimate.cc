@@ -242,7 +242,7 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
     sub = &sub->row(true);
     sub->active_set(RNA_boolean_get(ptr, "use_symmetry"));
     sub->prop(ptr, "symmetry_axis", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
-    uiItemDecoratorR(row, ptr, "symmetry_axis", 0);
+    row->decorator(ptr, "symmetry_axis", 0);
 
     layout->prop(ptr, "use_collapse_triangulate", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
@@ -304,4 +304,5 @@ ModifierTypeInfo modifierType_Decimate = {
     /*blend_write*/ nullptr,
     /*blend_read*/ nullptr,
     /*foreach_cache*/ nullptr,
+    /*foreach_working_space_color*/ nullptr,
 };

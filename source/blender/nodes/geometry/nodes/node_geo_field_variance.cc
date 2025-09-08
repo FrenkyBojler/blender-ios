@@ -169,8 +169,8 @@ class FieldVarianceInput final : public bke::GeometryFieldInput {
                   T difference = mean - value;
                   return accumulator + difference * difference;
                 });
-            g_outputs = VArray<T>::ForSingle(math::sqrt(sum_of_squared_diffs / domain_size),
-                                             domain_size);
+            g_outputs = VArray<T>::from_single(math::sqrt(sum_of_squared_diffs / domain_size),
+                                               domain_size);
           }
           else {
             Map<int, std::pair<T, int>> sum_and_counts;
@@ -197,7 +197,7 @@ class FieldVarianceInput final : public bke::GeometryFieldInput {
               const auto &pair = sum_and_counts.lookup(group_indices[i]);
               outputs[i] = math::sqrt(deviations.lookup(group_indices[i]) / pair.second);
             }
-            g_outputs = VArray<T>::ForContainer(std::move(outputs));
+            g_outputs = VArray<T>::from_container(std::move(outputs));
           }
         }
         else {
@@ -208,7 +208,7 @@ class FieldVarianceInput final : public bke::GeometryFieldInput {
                   T difference = mean - value;
                   return accumulator + difference * difference;
                 });
-            g_outputs = VArray<T>::ForSingle(sum_of_squared_diffs / domain_size, domain_size);
+            g_outputs = VArray<T>::from_single(sum_of_squared_diffs / domain_size, domain_size);
           }
           else {
             Map<int, std::pair<T, int>> sum_and_counts;
@@ -235,13 +235,19 @@ class FieldVarianceInput final : public bke::GeometryFieldInput {
               const auto &pair = sum_and_counts.lookup(group_indices[i]);
               outputs[i] = deviations.lookup(group_indices[i]) / pair.second;
             }
-            g_outputs = VArray<T>::ForContainer(std::move(outputs));
+            g_outputs = VArray<T>::from_container(std::move(outputs));
           }
         }
       }
     });
 
     return attributes.adapt_domain(std::move(g_outputs), source_domain_, context.domain());
+  }
+
+  void for_each_field_input_recursive(FunctionRef<void(const FieldInput &)> fn) const final
+  {
+    input_.node().for_each_field_input_recursive(fn);
+    group_index_.node().for_each_field_input_recursive(fn);
   }
 
   uint64_t hash() const override
@@ -289,8 +295,12 @@ static void node_geo_exec(GeoNodeExecParams params)
 static void node_rna(StructRNA *srna)
 {
   static EnumPropertyItem items[] = {
-      {CD_PROP_FLOAT, "FLOAT", 0, "Float", "Floating-point value"},
-      {CD_PROP_FLOAT3, "FLOAT_VECTOR", 0, "Vector", "3D vector with floating-point values"},
+      {CD_PROP_FLOAT, "FLOAT", ICON_NODE_SOCKET_FLOAT, "Float", "Floating-point value"},
+      {CD_PROP_FLOAT3,
+       "FLOAT_VECTOR",
+       ICON_NODE_SOCKET_VECTOR,
+       "Vector",
+       "3D vector with floating-point values"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 

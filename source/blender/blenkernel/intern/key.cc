@@ -100,13 +100,7 @@ static void shapekey_free_data(ID *id)
 static void shapekey_foreach_id(ID *id, LibraryForeachIDData *data)
 {
   Key *key = reinterpret_cast<Key *>(id);
-  const int flag = BKE_lib_query_foreachid_process_flags_get(data);
-
   BKE_LIB_FOREACHID_PROCESS_ID(data, key->from, IDWALK_CB_LOOPBACK);
-
-  if (flag & IDWALK_DO_DEPRECATED_POINTERS) {
-    BKE_LIB_FOREACHID_PROCESS_ID_NOCHECK(data, key->ipo, IDWALK_CB_USER);
-  }
 }
 
 static ID **shapekey_owner_pointer_get(ID *id, const bool debug_relationship_assert)
@@ -194,6 +188,7 @@ IDTypeInfo IDType_ID_KE = {
     /*foreach_id*/ shapekey_foreach_id,
     /*foreach_cache*/ nullptr,
     /*foreach_path*/ nullptr,
+    /*foreach_working_space_color*/ nullptr,
     /* A bit weird, due to shape-keys not being strictly speaking embedded data... But they also
      * share a lot with those (non linkable, only ever used by one owner ID, etc.). */
     /*owner_pointer_get*/ shapekey_owner_pointer_get,
@@ -1821,14 +1816,14 @@ KeyBlock *BKE_keyblock_add(Key *key, const char *name)
 
   tot = BLI_listbase_count(&key->block);
   if (name) {
-    STRNCPY(kb->name, name);
+    STRNCPY_UTF8(kb->name, name);
   }
   else {
     if (tot == 1) {
       STRNCPY_UTF8(kb->name, DATA_("Basis"));
     }
     else {
-      SNPRINTF(kb->name, DATA_("Key %d"), tot - 1);
+      SNPRINTF_UTF8(kb->name, DATA_("Key %d"), tot - 1);
     }
   }
 
