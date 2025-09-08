@@ -502,7 +502,9 @@ static void sample_curve_positions_and_handles(const bke::CurvesGeometry &src_cu
                                                const Span<float> dst_sample_factors,
                                                MutableSpan<float3> dst_positions,
                                                MutableSpan<float3> dst_handles_left,
-                                               MutableSpan<float3> dst_handles_right)
+                                               MutableSpan<float3> dst_handles_right,
+                                               MutableSpan<int8_t> dst_handle_types_left,
+                                               MutableSpan<int8_t> dst_handle_types_right)
 {
   const OffsetIndices<int> src_points_by_curve = src_curves.points_by_curve();
   const VArray<int8_t> src_types = src_curves.curve_types();
@@ -510,6 +512,8 @@ static void sample_curve_positions_and_handles(const bke::CurvesGeometry &src_cu
   const VArray<bool> src_cyclic = src_curves.cyclic();
   const std::optional<Span<float3>> src_handle_left = src_curves.handle_positions_left();
   const std::optional<Span<float3>> src_handle_right = src_curves.handle_positions_right();
+  const VArray<int8_t> src_types_left = src_curves.handle_types_left();
+  const VArray<int8_t> src_types_right = src_curves.handle_types_right();
 
 #ifndef NDEBUG
   const int dst_points_num = dst_positions.size();
@@ -539,11 +543,16 @@ static void sample_curve_positions_and_handles(const bke::CurvesGeometry &src_cu
     MutableSpan<float3> dst_pos = dst_positions.slice(dst_points);
     MutableSpan<float3> dst_left = dst_handles_left.slice(dst_points);
     MutableSpan<float3> dst_right = dst_handles_right.slice(dst_points);
+    MutableSpan<int8_t> dst_types_left = dst_handle_types_left.slice(dst_points);
+    MutableSpan<int8_t> dst_types_right = dst_handle_types_right.slice(dst_points);
 
     if (src_types[i_src_curve] == CURVE_TYPE_POLY) {
       length_parameterize::interpolate(src_pos, dst_indices, dst_factors, dst_pos);
 
       if (dst_types[i_dst_curve] == CURVE_TYPE_BEZIER) {
+        dst_types_left.fill(BEZIER_HANDLE_VECTOR);
+        dst_types_right.fill(BEZIER_HANDLE_VECTOR);
+
         for (const int i : dst_points.index_range()) {
           const int i_prev = (i - 1 + dst_points.size()) % dst_points.size();
           const int i_next = (i + 1) % dst_points.size();
@@ -573,6 +582,9 @@ static void sample_curve_positions_and_handles(const bke::CurvesGeometry &src_cu
       }
     }
     else if (src_types[i_src_curve] == CURVE_TYPE_CATMULL_ROM) {
+      dst_types_left.fill(BEZIER_HANDLE_ALIGN);
+      dst_types_right.fill(BEZIER_HANDLE_ALIGN);
+
       for (const int i : dst_points.index_range()) {
         const int src_index = dst_indices[i];
         const float src_factor = dst_factors[i];
@@ -688,6 +700,9 @@ static void sample_curve_positions_and_handles(const bke::CurvesGeometry &src_cu
           if ((cyclic || i != dst_points.size() - 1) && dst_indices[i_next] == src_index) {
             dst_right[i] = dst_pos[i] + (dst_right[i] - dst_pos[i]) * src_factor_next;
           }
+
+          dst_types_left[i] = src_types_left[src_index];
+          dst_types_right[i] = src_types_right[src_index];
         }
         else {
           const int src_index_next = (src_index + 1) % src_pos.size();
@@ -710,6 +725,17 @@ static void sample_curve_positions_and_handles(const bke::CurvesGeometry &src_cu
           if ((cyclic || i != dst_points.size() - 1) && dst_indices[i_next] == src_index) {
             dst_right[i] = dst_pos[i] + (dst_right[i] - dst_pos[i]) *
                                             (src_factor_next - src_factor) / (1.0f - src_factor);
+          }
+
+          if (src_types_left[src_index] == BEZIER_HANDLE_VECTOR &&
+              src_types_left[src_index_next] == BEZIER_HANDLE_VECTOR)
+          {
+            dst_types_left[i] = BEZIER_HANDLE_VECTOR;
+            dst_types_right[i] = BEZIER_HANDLE_VECTOR;
+          }
+          else {
+            dst_types_left[i] = BEZIER_HANDLE_ALIGN;
+            dst_types_right[i] = BEZIER_HANDLE_ALIGN;
           }
         }
       }
@@ -784,6 +810,48 @@ static void mix_arrays(const GSpan src_from,
   });
 }
 
+static int8_t mix_handle_type(const int8_t from_type, const int8_t to_type)
+{
+  if (from_type == BEZIER_HANDLE_FREE || to_type == BEZIER_HANDLE_FREE) {
+    return BEZIER_HANDLE_FREE;
+  }
+
+  if (from_type == BEZIER_HANDLE_ALIGN) {
+    if (to_type == BEZIER_HANDLE_VECTOR) {
+      return BEZIER_HANDLE_FREE;
+    }
+    return BEZIER_HANDLE_ALIGN;
+  }
+
+  if (to_type == BEZIER_HANDLE_ALIGN) {
+    if (from_type == BEZIER_HANDLE_VECTOR) {
+      return BEZIER_HANDLE_FREE;
+    }
+    return BEZIER_HANDLE_ALIGN;
+  }
+
+  if (from_type == BEZIER_HANDLE_VECTOR && to_type == BEZIER_HANDLE_VECTOR) {
+    return BEZIER_HANDLE_VECTOR;
+  }
+  if (from_type == BEZIER_HANDLE_VECTOR || to_type == BEZIER_HANDLE_VECTOR) {
+    return BEZIER_HANDLE_FREE;
+  }
+  return BEZIER_HANDLE_AUTO;
+}
+
+static void mix_handle_type_arrays(const Span<int8_t> src_from,
+                                   const Span<int8_t> src_to,
+                                   const IndexMask &group_selection,
+                                   const OffsetIndices<int> groups,
+                                   const MutableSpan<int8_t> dst)
+{
+  group_selection.foreach_index(GrainSize(32), [&](const int curve) {
+    for (const int i : groups[curve]) {
+      dst[i] = mix_handle_type(src_from[i], src_to[i]);
+    }
+  });
+}
+
 void interpolate_curves_with_samples(const CurvesGeometry &from_curves,
                                      const CurvesGeometry &to_curves,
                                      const Span<int> from_curve_indices,
@@ -851,6 +919,8 @@ void interpolate_curves_with_samples(const CurvesGeometry &from_curves,
   MutableSpan<float3> dst_positions = dst_curves.positions_for_write();
   MutableSpan<float3> dst_left = dst_curves.handle_positions_left_for_write();
   MutableSpan<float3> dst_right = dst_curves.handle_positions_right_for_write();
+  MutableSpan<int8_t> dst_types_left = dst_curves.handle_types_left_for_write();
+  MutableSpan<int8_t> dst_types_right = dst_curves.handle_types_right_for_write();
 
   AttributesForInterpolation point_attributes = gather_point_attributes_to_interpolate(
       from_curves, to_curves, dst_curves);
@@ -960,6 +1030,11 @@ void interpolate_curves_with_samples(const CurvesGeometry &from_curves,
     Array<float3> from_right(dst_right.size());
     Array<float3> to_right(dst_right.size());
 
+    Array<int8_t> from_types_left(dst_left.size());
+    Array<int8_t> to_types_left(dst_left.size());
+    Array<int8_t> from_types_right(dst_right.size());
+    Array<int8_t> to_types_right(dst_right.size());
+
     /* Interpolate the positions and handles to the resampled curves. */
     sample_curve_positions_and_handles(from_curves,
                                        from_curve_indices,
@@ -970,7 +1045,9 @@ void interpolate_curves_with_samples(const CurvesGeometry &from_curves,
                                        from_sample_factors,
                                        from_pos.as_mutable_span(),
                                        from_left.as_mutable_span(),
-                                       from_right.as_mutable_span());
+                                       from_right.as_mutable_span(),
+                                       from_types_left.as_mutable_span(),
+                                       from_types_right.as_mutable_span());
     sample_curve_positions_and_handles(to_curves,
                                        to_curve_indices,
                                        dst_points_by_curve,
@@ -980,7 +1057,9 @@ void interpolate_curves_with_samples(const CurvesGeometry &from_curves,
                                        to_sample_factors,
                                        to_pos.as_mutable_span(),
                                        to_left.as_mutable_span(),
-                                       to_right.as_mutable_span());
+                                       to_right.as_mutable_span(),
+                                       to_types_left.as_mutable_span(),
+                                       to_types_right.as_mutable_span());
 
     mix_arrays(from_pos.as_span(),
                to_pos.as_span(),
@@ -1000,6 +1079,17 @@ void interpolate_curves_with_samples(const CurvesGeometry &from_curves,
                dst_curve_mask,
                dst_points_by_curve,
                dst_right);
+
+    mix_handle_type_arrays(from_types_left.as_span(),
+                           to_types_left.as_span(),
+                           dst_curve_mask,
+                           dst_points_by_curve,
+                           dst_types_left);
+    mix_handle_type_arrays(from_types_right.as_span(),
+                           to_types_right.as_span(),
+                           dst_curve_mask,
+                           dst_points_by_curve,
+                           dst_types_right);
   }
 
   for (const int i_attribute : curve_attributes.dst.index_range()) {
