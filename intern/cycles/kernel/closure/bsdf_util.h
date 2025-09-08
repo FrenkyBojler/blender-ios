@@ -24,6 +24,19 @@ struct FresnelThinFilm {
 template<typename T> struct complex {
   T re;
   T im;
+
+  ccl_device_inline_method complex<T> operator*=(ccl_private const complex<T> &other)
+  {
+    const T im = this->re * other.im + this->im * other.re;
+    this->re = this->re * other.re - this->im * other.im;
+    this->im = im;
+    return *this;
+  }
+
+  ccl_device_inline_method complex<T> operator*(ccl_private const float &other)
+  {
+    return complex<T>{this->re * other, this->im * other};
+  }
 };
 
 /* Compute fresnel reflectance for perpendicular (aka S-) and parallel (aka P-) polarized light.
@@ -240,18 +253,7 @@ ccl_device float ior_from_F0(const float f0)
   return (1.0f + sqrt_f0) / (1.0f - sqrt_f0);
 }
 
-ccl_device float3 ior_from_F0(const float3 f0)
-{
-  const float3 sqrt_f0 = sqrt(clamp(f0, zero_float3(), make_float3(0.99f)));
-  return (1.0f + sqrt_f0) / (1.0f - sqrt_f0);
-}
-
 ccl_device float F0_from_ior(const float ior)
-{
-  return sqr((ior - 1.0f) / (ior + 1.0f));
-}
-
-ccl_device float3 F0_from_ior(const float3 ior)
 {
   return sqr((ior - 1.0f) / (ior + 1.0f));
 }
@@ -449,22 +451,19 @@ ccl_device_inline float3 iridescence_airy_summation(KernelGlobals kg,
   const SpectrumOrFloat r123 = sqrt(R123);
   const SpectrumOrFloat Rs = sqr(T121) * R23 / (1.0f - R123);
 
+  /* Initialize complex number for exp(i * phi)^m, equivalent to {cos(m * phi), sin(m * phi)} as
+   * used in equation 10. */
+  complex<SpectrumOrFloat> accumulator = phasor;
+
   /* Perform summation over path order differences (equation 10). */
   Spectrum R = make_spectrum(Rs + R12); /* C0 */
   SpectrumOrFloat Cm = (Rs - T121) * r123;
   complex<Spectrum> S = iridescence_lookup_sensitivity(kg, OPD);
-  complex<SpectrumOrFloat> accumulator = phasor;
-
-  /* R += Cm * 2.0f * (cos(m * phi) * Re(S) + sin(m * phi) * Im(S)): */
   R += Cm * 2.0f * (accumulator.re * S.re + accumulator.im * S.im);
 
   /* Truncate after m=3, higher differences have barely any impact. */
   for (int m = 2; m < 4; m++) {
-    /* Calculate exp(i phi)^m: accumulator *= phasor (complex) */
-    const SpectrumOrFloat tmp_im = phasor.re * accumulator.im + phasor.im * accumulator.re;
-    accumulator.re = phasor.re * accumulator.re - phasor.im * accumulator.im;
-    accumulator.im = tmp_im;
-
+    accumulator *= phasor;
     Cm *= r123;
     S = iridescence_lookup_sensitivity(kg, m * OPD);
     R += Cm * 2.0f * (accumulator.re * S.re + accumulator.im * S.im);
@@ -500,6 +499,7 @@ ccl_device Spectrum fresnel_iridescence(KernelGlobals kg,
   }
 
   float cos_theta_2;
+  /* The real component of exp(i * phi12), equivalent to cos(phi12). */
   float2 phasor12_real;
 
   /* Compute reflection at the top interface (ambient to film). */
@@ -518,8 +518,7 @@ ccl_device Spectrum fresnel_iridescence(KernelGlobals kg,
     if (F82 != nullptr) {
       /* Calculate reflectance using the F82 model if the caller requested it. */
 
-      /* Scale n and k by the film ior, and recompute F0 according to "Artist Friendly Metallic
-       * Fresnel" by Ole Gulbrandsen, Eqs. (14,15). */
+      /* Scale n and k by the film ior, and recompute F0. */
       const Spectrum n = substrate_ior.re / film_ior;
       const Spectrum k_sq = sqr(substrate_ior.im / film_ior);
       const Spectrum F0 = (sqr(n - 1.0f) + k_sq) / (sqr(n + 1.0f) + k_sq);
@@ -555,11 +554,10 @@ ccl_device Spectrum fresnel_iridescence(KernelGlobals kg,
   /* Compute optical path difference inside the thin film. */
   const float OPD = -2.0f * film_ior * thin_film.thickness * cos_theta_2;
 
-  /* Compute full phase shifts in the form exp(i * (phi23 + phi21)). */
-  const complex<SpectrumOrFloat> phasor_s = {phasor23_s.re * -phasor12_real.x,
-                                             phasor23_s.im * -phasor12_real.x};
-  const complex<SpectrumOrFloat> phasor_p = {phasor23_p.re * -phasor12_real.y,
-                                             phasor23_p.im * -phasor12_real.y};
+  /* Compute full phase shifts due to reflection, as a complex number exp(i * (phi23 + phi21)).
+   * This complex form avoids the atan2 and cos calls needed to directly get the phase shift. */
+  const complex<SpectrumOrFloat> phasor_s = phasor23_s * -phasor12_real.x;
+  const complex<SpectrumOrFloat> phasor_p = phasor23_p * -phasor12_real.y;
 
   /* Perform Airy summation and average the polarizations. */
   const Spectrum R_s = iridescence_airy_summation(kg, R12.x, R23_s, OPD, phasor_s);
