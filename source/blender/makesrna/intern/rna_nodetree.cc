@@ -6971,11 +6971,6 @@ static void def_cmp_viewer(BlenderRNA * /*brna*/, StructRNA *srna)
   RNA_def_property_override_flag(prop, PROPOVERRIDE_IGNORE);
   RNA_def_property_int_default(prop, NODE_VIEWER_SHORTCUT_NONE);
   RNA_def_property_update(prop, NC_NODE | ND_DISPLAY, nullptr);
-
-  prop = RNA_def_property(srna, "is_active_viewer", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "flag", NODE_DO_OUTPUT);
-  RNA_def_property_ui_text(prop, "Active Viewer", "True if this node is the active viewer");
-  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 }
 
 static void def_cmp_keyingscreen(BlenderRNA * /*brna*/, StructRNA *srna)

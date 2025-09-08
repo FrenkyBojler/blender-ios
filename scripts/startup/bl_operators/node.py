@@ -721,10 +721,7 @@ class NODE_OT_viewer_shortcut_get(Operator):
             return {'CANCELLED'}
 
         with bpy.context.temp_override(node=viewer_node):
-            if viewer_node.is_active_viewer:
-                bpy.ops.node.deactivate_viewer()
-            else:
-                bpy.ops.node.activate_viewer()
+            bpy.ops.node.toggle_viewer()
 
         return {'FINISHED'}
 
