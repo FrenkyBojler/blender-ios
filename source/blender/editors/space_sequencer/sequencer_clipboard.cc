@@ -61,8 +61,6 @@
 #include "WM_api.hh"
 #include "WM_types.hh"
 
-#include "../sequencer/intern/utils.hh"
-
 #ifdef WITH_AUDASPACE
 #  include <AUD_Special.h>
 #endif
@@ -533,7 +531,9 @@ wmOperatorStatus sequencer_clipboard_paste_exec(bContext *C, wmOperator *op)
      * adding strips to seqbase, for lookup cache to work correctly. */
     seq::ensure_unique_name(istrip, scene_dst);
 
-    if (region->regiontype == RGN_TYPE_PREVIEW && seq::sequencer_strip_generates_image(istrip)) {
+    if (region->regiontype == RGN_TYPE_PREVIEW && istrip->type != STRIP_TYPE_SOUND_RAM &&
+        seq::must_render_strip(seq::query_all_strips(&nseqbase), istrip))
+    {
       strip_mean_pos += static_cast<int2>(
           seq::image_transform_origin_offset_pixelspace_get(scene, istrip));
       image_strip_count++;
@@ -545,15 +545,10 @@ wmOperatorStatus sequencer_clipboard_paste_exec(bContext *C, wmOperator *op)
   }
 
   LISTBASE_FOREACH (Strip *, istrip, &nseqbase) {
-    /* Translate after name has been changed, otherwise this will affect animdata of original
-     * strip. */
-    seq::transform_translate_strip(scene_dst, istrip, ofs);
-    /* Ensure, that pasted strips don't overlap. */
-    if (seq::transform_test_overlap(scene_dst, ed_dst->current_strips(), istrip)) {
-      seq::transform_seqbase_shuffle(ed_dst->current_strips(), istrip, scene_dst);
-    }
+    /* Place strips that generate an image at the mouse cursor. */
     if (region->regiontype == RGN_TYPE_PREVIEW && !(RNA_boolean_get(op->ptr, "keep_offset")) &&
-        seq::sequencer_strip_generates_image(istrip))
+        istrip->type != STRIP_TYPE_SOUND_RAM &&
+        seq::must_render_strip(seq::query_all_strips(&nseqbase), istrip))
     {
       StripTransform *transform = istrip->data->transform;
       const float2 mirror = seq::image_transform_mirror_factor_get(istrip);
@@ -561,6 +556,13 @@ wmOperatorStatus sequencer_clipboard_paste_exec(bContext *C, wmOperator *op)
       transform->xofs = (view_mval[0] - (strip_mean_pos[0] - origin[0])) * mirror[0];
       transform->yofs = (view_mval[1] - (strip_mean_pos[1] - origin[1])) * mirror[1];
       seq::relations_invalidate_cache(scene, istrip);
+    }
+    /* Translate after name has been changed, otherwise this will affect animdata of original
+     * strip. */
+    seq::transform_translate_strip(scene_dst, istrip, ofs);
+    /* Ensure, that pasted strips don't overlap. */
+    if (seq::transform_test_overlap(scene_dst, ed_dst->current_strips(), istrip)) {
+      seq::transform_seqbase_shuffle(ed_dst->current_strips(), istrip, scene_dst);
     }
   }
 
