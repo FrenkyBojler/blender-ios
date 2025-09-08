@@ -4227,7 +4227,7 @@ static void rna_def_tool_settings(BlenderRNA *brna)
   prop = RNA_def_property(srna, "user_region", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "uv_flag", UV_FLAG_USER_REGION);
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
-  RNA_def_property_ui_text(prop, "User Region", "user defined box region");
+  RNA_def_property_ui_text(prop, "User Region", "User defined region");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_IMAGE, nullptr);
 
   /* Mesh */

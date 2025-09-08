@@ -1741,7 +1741,6 @@ static wmOperatorStatus pack_islands_exec(bContext *C, wmOperator *op)
   ViewLayer *view_layer = CTX_data_view_layer(C);
   const Scene *scene = CTX_data_scene(C);
   const SpaceImage *sima = CTX_wm_space_image(C);
-  ARegion *region = CTX_wm_region(C);
   const ToolSettings *ts = scene->toolsettings;
 
   UnwrapOptions options = unwrap_options_get(op, nullptr, scene->toolsettings);
@@ -1968,7 +1967,7 @@ void UV_OT_pack_islands(wmOperatorType *ot)
        0,
        "Original bounding box",
        "Pack to starting bounding box of islands"},
-      {PACK_USER_REGION, "USER_REGION", 0, "Box Bounding Region", "Pack islands to box region"},
+      {PACK_USER_REGION, "USER_REGION", 0, "User Region", "Pack islands to user region"},
       {0, nullptr, 0, nullptr, nullptr},
   };
   /* identifiers */
@@ -4258,7 +4257,7 @@ static wmOperatorStatus cube_project_exec(bContext *C, wmOperator *op)
     }
 
     float bounds[2][3];
-    float(*bounds_buf)[3] = nullptr;
+    float (*bounds_buf)[3] = nullptr;
 
     if (!RNA_property_is_set(op->ptr, prop_cube_size)) {
       bounds_buf = bounds;
