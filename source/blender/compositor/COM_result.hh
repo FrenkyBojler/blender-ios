@@ -428,10 +428,22 @@ class Result {
   /* Warning: this is using 0-1 coordinates, not pixel coordinates */
   float4 sample(const float2 &uv, const blender::math::SamplingOptions &options) const;
 
-  /* filtered sampling */
+  /* Convert the single value (or the lower-left pixel of buffer) to a float4 */
+  float4 sample_single() const;
+
+  /* nearest filtering sampling. Coordinates are in pixels */
+  float4 sample_nearest(const blender::math::SamplingOptions &options, const float2 &uv) const;
+
+  /* filtered sampling. Coordinates and derivatives are in pixels */
   float4 sample_rect(const blender::math::SamplingOptions &options,
                      const float2 &uv,
                      const float2 &wh) const;
+
+  /* Supports Anisotropic sampling. Coordinates and derivatives are in pixels */
+  float4 sample_area(const blender::math::SamplingOptions &options,
+                     const float2 &uv,
+                     const float2 &dPdx,
+                     const float2 &dPdy) const;
 
   /* Identical to sample_nearest_zero but with bilinear interpolation. */
   float4 sample_bilinear_zero(const float2 &coordinates) const;
@@ -635,28 +647,49 @@ BLI_INLINE_METHOD void Result::store_pixel_generic_type(const int2 &texel,
   this->get_cpp_type().copy_assign(pixel_value, this->cpu_data()[this->get_pixel_index(texel)]);
 }
 
+BLI_INLINE_METHOD float4 Result::sample_single() const
+{
+  float4 pixel_value = float4(0.0f, 0.0f, 0.0f, 1.0f);
+  this->get_cpp_type().copy_assign(this->cpu_data().data(), pixel_value);
+  return pixel_value;
+}
+
 BLI_INLINE_METHOD float4 Result::sample_rect(const blender::math::SamplingOptions &options,
                                              const float2 &uv,
                                              const float2 &wh) const
 {
-  if (is_single_value_) {
-    float4 pixel_value = float4(0.0f, 0.0f, 0.0f, 1.0f);
-    this->get_cpp_type().copy_assign(this->cpu_data().data(), pixel_value);
-    return pixel_value;
-  }
+  if (is_single_value_)
+    return sample_single();
   const float *buffer = static_cast<const float *>(this->cpu_data().data());
   return math::sample_rect(
       {buffer, domain_.size.x, domain_.size.y, int(this->channels_count())}, options, uv, wh);
 }
 
+BLI_INLINE_METHOD float4 Result::sample_nearest(const blender::math::SamplingOptions &options,
+                                                const float2 &uv) const
+{
+  if (is_single_value_)
+    return sample_single();
+
+  const float *buffer = static_cast<const float *>(this->cpu_data().data());
+  float4 pixel_value = float4(0.0f, 0.0f, 0.0f, 1.0f);
+  math::interpolate_nearest_wrapmode_fl(buffer,
+                                        pixel_value,
+                                        domain_.size.x,
+                                        domain_.size.y,
+                                        this->channels_count(),
+                                        uv.x,
+                                        uv.y,
+                                        options.wrap_x,
+                                        options.wrap_y);
+  return pixel_value;
+}
+
 BLI_INLINE_METHOD float4 Result::sample(const float2 &coordinates,
                                         const blender::math::SamplingOptions &options) const
 {
-  float4 pixel_value = float4(0.0f, 0.0f, 0.0f, 1.0f);
-  if (is_single_value_) {
-    this->get_cpp_type().copy_assign(this->cpu_data().data(), pixel_value);
-    return pixel_value;
-  }
+  if (is_single_value_)
+    return sample_single();
 
   const int2 size = domain_.size;
   const float2 texel_coordinates = (options.sampler == math::Sampler::Nearest) ?
@@ -667,6 +700,7 @@ BLI_INLINE_METHOD float4 Result::sample(const float2 &coordinates,
   const math::InterpWrapMode extension_mode_x = options.wrap_x;
   const math::InterpWrapMode extension_mode_y = options.wrap_y;
 
+  float4 pixel_value = float4(0.0f, 0.0f, 0.0f, 1.0f);
   switch (options.sampler) {
     case math::Sampler::Nearest:
       math::interpolate_nearest_wrapmode_fl(buffer,
@@ -712,16 +746,14 @@ BLI_INLINE_METHOD float4 Result::sample(const float2 &coordinates,
 
 BLI_INLINE_METHOD float4 Result::sample_bilinear_zero(const float2 &coordinates) const
 {
-  float4 pixel_value = float4(0.0f, 0.0f, 0.0f, 1.0f);
-  if (is_single_value_) {
-    this->get_cpp_type().copy_assign(this->cpu_data().data(), pixel_value);
-    return pixel_value;
-  }
+  if (is_single_value_)
+    return sample_single();
 
   const int2 size = domain_.size;
   const float2 texel_coordinates = (coordinates * float2(size)) - 0.5f;
 
   const float *buffer = static_cast<const float *>(this->cpu_data().data());
+  float4 pixel_value = float4(0.0f, 0.0f, 0.0f, 1.0f);
   math::interpolate_bilinear_border_fl(buffer,
                                        pixel_value,
                                        size.x,
@@ -734,16 +766,14 @@ BLI_INLINE_METHOD float4 Result::sample_bilinear_zero(const float2 &coordinates)
 
 BLI_INLINE_METHOD float4 Result::sample_nearest_extended(const float2 &coordinates) const
 {
-  float4 pixel_value = float4(0.0f, 0.0f, 0.0f, 1.0f);
-  if (is_single_value_) {
-    this->get_cpp_type().copy_assign(this->cpu_data().data(), pixel_value);
-    return pixel_value;
-  }
+  if (is_single_value_)
+    return sample_single();
 
   const int2 size = domain_.size;
   const float2 texel_coordinates = coordinates * float2(size);
 
   const float *buffer = static_cast<const float *>(this->cpu_data().data());
+  float4 pixel_value = float4(0.0f, 0.0f, 0.0f, 1.0f);
   math::interpolate_nearest_fl(buffer,
                                pixel_value,
                                size.x,
@@ -756,16 +786,14 @@ BLI_INLINE_METHOD float4 Result::sample_nearest_extended(const float2 &coordinat
 
 BLI_INLINE_METHOD float4 Result::sample_bilinear_extended(const float2 &coordinates) const
 {
-  float4 pixel_value = float4(0.0f, 0.0f, 0.0f, 1.0f);
-  if (is_single_value_) {
-    this->get_cpp_type().copy_assign(this->cpu_data().data(), pixel_value);
-    return pixel_value;
-  }
+  if (is_single_value_)
+    return sample_single();
 
   const int2 size = domain_.size;
   const float2 texel_coordinates = (coordinates * float2(size)) - 0.5f;
 
   const float *buffer = static_cast<const float *>(this->cpu_data().data());
+  float4 pixel_value = float4(0.0f, 0.0f, 0.0f, 1.0f);
   math::interpolate_bilinear_fl(buffer,
                                 pixel_value,
                                 size.x,
@@ -793,15 +821,12 @@ BLI_INLINE_METHOD float4 Result::sample_ewa_extended(const float2 &coordinates,
 {
   BLI_assert(type_ == ResultType::Color);
 
-  float4 pixel_value = float4(0.0f, 0.0f, 0.0f, 1.0f);
-  if (is_single_value_) {
-    this->get_cpp_type().copy_assign(this->cpu_data().data(), pixel_value);
-    return pixel_value;
-  }
+  if (is_single_value_)
+    return sample_single();
 
-  const int2 size = domain_.size;
-  BLI_ewa_filter(size.x,
-                 size.y,
+  float4 pixel_value = float4(0.0f, 0.0f, 0.0f, 1.0f);
+  BLI_ewa_filter(domain_.size.x,
+                 domain_.size.y,
                  false,
                  true,
                  coordinates,
@@ -830,15 +855,12 @@ BLI_INLINE_METHOD float4 Result::sample_ewa_zero(const float2 &coordinates,
 {
   BLI_assert(type_ == ResultType::Color);
 
-  float4 pixel_value = float4(0.0f, 0.0f, 0.0f, 1.0f);
-  if (is_single_value_) {
-    this->get_cpp_type().copy_assign(this->cpu_data().data(), pixel_value);
-    return pixel_value;
-  }
+  if (is_single_value_)
+    return sample_single();
 
-  const int2 size = domain_.size;
-  BLI_ewa_filter(size.x,
-                 size.y,
+  float4 pixel_value = float4(0.0f, 0.0f, 0.0f, 1.0f);
+  BLI_ewa_filter(domain_.size.x,
+                 domain_.size.y,
                  false,
                  true,
                  coordinates,
@@ -857,5 +879,40 @@ BLI_INLINE_METHOD int64_t Result::get_pixel_index(const int2 &texel) const
   BLI_assert(texel.x >= 0 && texel.y >= 0 && texel.x < domain_.size.x && texel.y < domain_.size.y);
   return int64_t(texel.y) * domain_.size.x + texel.x;
 }
+
+// Not all wrap modes are supported yet!
+BLI_INLINE_METHOD float4 Result::sample_area(const blender::math::SamplingOptions &options,
+                                             const float2 &uv,
+                                             const float2 &dPdx,
+                                             const float2 &dPdy) const
+{
+  if (is_single_value_)
+    return sample_single();
+
+  if (options.sampler != math::Sampler::Anisotropic) {
+    const float *buffer = static_cast<const float *>(this->cpu_data().data());
+    return math::sample_rect(
+      {buffer, domain_.size.x, domain_.size.y, int(this->channels_count())}, options, uv, math::hypot2(dPdx, dPdy));
+  }
+
+  float2 scale = 1.0f / float2(domain_.size);
+  float4 pixel_value = float4(0.0f, 0.0f, 0.0f, 1.0f);
+  BLI_ewa_filter(domain_.size.x,
+                 domain_.size.y,
+                 false,
+                 true,
+                 uv * scale,
+                 dPdx * scale,
+                 dPdy * scale,
+                 options.wrap_x == math::InterpWrapMode::Border ?
+                   sample_ewa_zero_read_callback :
+                   sample_ewa_extended_read_callback,
+                 const_cast<Result *>(this),
+                 pixel_value);
+  return pixel_value;
+}
+
+
+
 
 }  // namespace blender::compositor

@@ -56,11 +56,14 @@ void RealizeOnDomainOperation::execute()
   const float3x3 inverse_transformation = math::invert(input_transformation) *
                                           output_transformation;
 
+  /* Translate from 0,0 in center of lower-left texel, rather than lower-left of input */
+  const float3x3 imat = inverse_transformation * math::from_location<float3x3>(float2(0.5f));
+
   if (this->context().use_gpu()) {
-    this->realize_on_domain_gpu(inverse_transformation);
+    this->realize_on_domain_gpu(imat);
   }
   else {
-    this->realize_on_domain_cpu(inverse_transformation);
+    this->realize_on_domain_cpu(imat);
   }
 }
 
@@ -83,11 +86,8 @@ float2 RealizeOnDomainOperation::compute_corrective_translation()
                 ((input_size[1] ^ output_size[1]) & 1) ? -0.5f : 0.0f);
 }
 
-void RealizeOnDomainOperation::realize_on_domain_gpu(const float3x3 &inverse_transformation)
+void RealizeOnDomainOperation::realize_on_domain_gpu(const float3x3 &imat)
 {
-  // matrix is between pixel corners, change so input is pixel centers / texel
-  float3x3 imat = inverse_transformation * math::from_location<float3x3>(float2(0.5f));
-
   // derivatives converted to nearest rectangle:
   float2 wh{hypotf(imat[0][0], imat[1][0]), hypotf(imat[0][1], imat[1][1])};
 
@@ -119,8 +119,6 @@ void RealizeOnDomainOperation::realize_on_domain_gpu(const float3x3 &inverse_tra
 
   if (fast) {
     strcat(shader_name, "_fast");
-    // make matrix produce texture coordinates
-    imat = math::from_scale<float3x3>(1.0f / float2(input.domain().size)) * imat;
   }
 
   switch (input.type()) {
@@ -150,8 +148,12 @@ void RealizeOnDomainOperation::realize_on_domain_gpu(const float3x3 &inverse_tra
   gpu::Shader *shader = this->context().get_shader(shader_name);
   GPU_shader_bind(shader);
 
-  GPU_shader_uniform_mat3_as_mat4(shader, "imat", imat.ptr());
-  if (!fast) {
+  if (fast) {
+    // the matrix must produce uv coordinates
+    const float3x3 mat = math::from_scale<float3x3>(1.0f / float2(input.domain().size)) * imat;
+    GPU_shader_uniform_mat3_as_mat4(shader, "imat", mat.ptr());
+  } else {
+    GPU_shader_uniform_mat3_as_mat4(shader, "imat", imat.ptr());
     GPU_shader_uniform_2fv(shader, "wh", wh);
   }
 
@@ -173,7 +175,7 @@ void RealizeOnDomainOperation::realize_on_domain_gpu(const float3x3 &inverse_tra
   GPU_shader_unbind();
 }
 
-void RealizeOnDomainOperation::realize_on_domain_cpu(const float3x3 &inverse_transformation)
+void RealizeOnDomainOperation::realize_on_domain_cpu(const float3x3 &imat)
 {
   Result &input = this->get_input();
   Result &output = this->get_result();
@@ -182,23 +184,24 @@ void RealizeOnDomainOperation::realize_on_domain_cpu(const float3x3 &inverse_tra
   output.allocate_texture(domain);
 
   const blender::math::SamplingOptions options = input.get_sampling_options();
-  parallel_for(domain.size, [&](const int2 texel) {
-    /* Add 0.5 to evaluate the input sampler at the center of the pixel. */
-    float2 coordinates = float2(texel) + float2(0.5f);
 
-    /* Transform the input image by transforming the domain coordinates with the inverse of input
-     * image's transformation. The inverse transformation is an affine matrix and thus the
-     * coordinates should be in homogeneous coordinates. */
-    coordinates = (inverse_transformation * float3(coordinates, 1.0f)).xy();
+  // Detect if nearest filtering will work. Todo: can work for integer translations
+  if (options.sampler == math::Sampler::Nearest) {
+    parallel_for(domain.size, [&](const int2 texel) {
+      float2 uv = (imat[0].xy() * texel.x) + (imat[1].xy() * texel.y) + imat[2].xy();
+      float4 sample = input.sample_nearest(options, uv);
+      output.store_pixel_generic_type(texel, sample);
+    });
 
-    /* Subtract the offset and divide by the input image size to get the relevant coordinates into
-     * the sampler's expected [0, 1] range. */
-    const int2 input_size = input.domain().size;
-    float2 normalized_coordinates = coordinates / float2(input_size);
-
-    float4 sample = input.sample(normalized_coordinates, options);
-    output.store_pixel_generic_type(texel, sample);
-  });
+  } else {
+    // derivatives converted to nearest rectangle:
+    float2 wh{hypotf(imat[0].x, imat[1].x), hypotf(imat[0].y, imat[1].y)};
+    parallel_for(domain.size, [&](const int2 texel) {
+      float2 uv = (imat[0].xy() * texel.x) + (imat[1].xy() * texel.y) + imat[2].xy();
+      float4 sample = input.sample_rect(options, uv, wh);
+      output.store_pixel_generic_type(texel, sample);
+    });
+  }
 }
 
 Domain RealizeOnDomainOperation::compute_domain()
