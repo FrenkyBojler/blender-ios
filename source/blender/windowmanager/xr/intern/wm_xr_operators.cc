@@ -1427,6 +1427,8 @@ static bool wm_xr_navigation_teleport_ground_plane(float points[XR_MAX_RAYCASTS 
     *num_points = i + 1;
     return true;
   }
+
+  return false;
 }
 
 static XrRaycastResult wm_xr_navigation_teleport(bContext *C,
