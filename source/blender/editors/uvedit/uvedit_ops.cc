@@ -61,6 +61,7 @@
 #include "UI_resources.hh"
 #include "UI_view2d.hh"
 
+#include "intern/bmesh_iterators.hh"
 #include "uvedit_intern.hh"
 
 using namespace blender;
@@ -1993,18 +1994,14 @@ static bool uv_copy_mirrored_faces(BMesh *bm, int direction, int precision, int 
   BMVert *v;
   BMIter iter;
   BM_ITER_MESH (v, &iter, bm, BM_VERTS_OF_MESH) {
-    const float *co = v->co;
-    float3 pos(std::round(co[0] * precision_scale),
-               std::round(co[1] * precision_scale),
-               std::round(co[2] * precision_scale));
-
-    if (co[0] >= 0.0f) {
+    float3 pos = math::round(float3(v->co) * precision_scale);
+    if (pos.x >= 0.0f) {
       if (mirror_gt.contains(pos)) {
         (*r_double_warn)++;
       }
       mirror_gt.add(pos, v);
     }
-    if (co[0] <= 0.0f) {
+    if (pos.x <= 0.0f) {
       if (mirror_lt.contains(pos)) {
         (*r_double_warn)++;
       }
@@ -2029,27 +2026,24 @@ static bool uv_copy_mirrored_faces(BMesh *bm, int direction, int precision, int 
     }
   }
 
-  /* Blender's Array type doesn't support hashing, using a Vector with a predefined length
-   * instead.
-   */
-  Map<Vector<BMVert *>, BMFace *> sorted_verts_to_face;
+  Map<Array<BMVert *>, BMFace *> sorted_verts_to_face;
   /* Maps faces to their corresponding mirrored face. */
   Map<BMFace *, BMFace *> face_map;
 
   BMFace *f;
   BMIter iter_face;
   BM_ITER_MESH (f, &iter_face, bm, BM_FACES_OF_MESH) {
-    Vector<BMVert *> sorted_verts;
-    sorted_verts.reserve(f->len);
+    Array<BMVert *> sorted_verts(f->len);
     bool valid = true;
+    int loop_index = 0;
     BMLoop *l;
     BMIter iter_loop;
-    BM_ITER_ELEM (l, &iter_loop, f, BM_LOOPS_OF_FACE) {
+    BM_ITER_ELEM_INDEX (l, &iter_loop, f, BM_LOOPS_OF_FACE, loop_index) {
       if (!vmap.contains(l->v)) {
         valid = false;
         break;
       }
-      sorted_verts.append_unchecked(l->v);
+      sorted_verts[loop_index] = l->v;
     }
     if (valid) {
       std::sort(sorted_verts.begin(), sorted_verts.end());
@@ -2058,11 +2052,9 @@ static bool uv_copy_mirrored_faces(BMesh *bm, int direction, int precision, int 
   }
 
   for (const auto &[sorted_verts, f_dst] : sorted_verts_to_face.items()) {
-    Vector<BMVert *> mirror_verts;
-    mirror_verts.reserve(sorted_verts.size());
-    for (BMVert *v : sorted_verts) {
-      BMVert *v_mirror = vmap.lookup_default(v, nullptr);
-      mirror_verts.append_unchecked(v_mirror);
+    Array<BMVert *> mirror_verts(sorted_verts.size());
+    for (int index = 0; index < sorted_verts.size(); index++) {
+      mirror_verts[index] = vmap.lookup_default(sorted_verts[index], nullptr);
     }
     std::sort(mirror_verts.begin(), mirror_verts.end());
     BMFace *f_src = sorted_verts_to_face.lookup_default(mirror_verts, nullptr);
