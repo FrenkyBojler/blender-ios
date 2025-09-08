@@ -95,8 +95,6 @@ static void node_declare(blender::nodes::NodeDeclarationBuilder &b)
       .structure_type(StructureType::Dynamic)
       .custom_draw([](CustomSocketDrawParams &params) {
         uiLayout &layout = params.layout;
-        layout.alignment_set(ui::LayoutAlign::Left);
-        layout.emboss_set(ui::EmbossType::None);
         PointerRNA op_ptr = layout.op("node.enum_definition_item_add", IFACE_("Add"), ICON_ADD);
         RNA_int_set(&op_ptr, "node_identifier", params.node.identifier);
       });

@@ -68,8 +68,6 @@ static void node_declare(NodeDeclarationBuilder &b)
 
   b.add_input<decl::Extend>("", "__extend__").custom_draw([](CustomSocketDrawParams &params) {
     uiLayout &layout = params.layout;
-    layout.alignment_set(ui::LayoutAlign::Left);
-    layout.emboss_set(ui::EmbossType::None);
     PointerRNA op_ptr = layout.op("node.index_switch_item_add", IFACE_("Add"), ICON_ADD);
     RNA_int_set(&op_ptr, "node_identifier", params.node.identifier);
   });
