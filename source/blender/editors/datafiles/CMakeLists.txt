@@ -763,6 +763,7 @@ if(WITH_BLENDER)
       render_animation
       render_result
       render_still
+      render_xy_swap
       restrict_color_off
       restrict_color_on
       restrict_instanced_off

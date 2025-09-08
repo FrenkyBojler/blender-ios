@@ -114,8 +114,26 @@ class RENDER_PT_format(RenderOutputButtonsPanel, Panel):
         rd = context.scene.render
 
         col = layout.column(align=True)
-        col.prop(rd, "resolution_x", text="Resolution X")
-        col.prop(rd, "resolution_y", text="Y")
+
+        split = col.split(factor=0.4, align=True)
+
+        labelcol = split.column(align=True)
+        sub = labelcol.row()
+        sub.alignment = "RIGHT"
+        sub.label(text="Resolution X")
+        sub = labelcol.row()
+        sub.alignment = "RIGHT"
+        sub.label(text="Y")
+
+        row = split.row(align=True)
+        sub = row.column(align=True)
+        sub.prop(rd, "resolution_x", text="")
+        sub.prop(rd, "resolution_y", text="")
+
+        sub = row.column(align=True)
+        sub.scale_y = 2
+        sub.operator('render.swap_dimensions', text="", icon='RENDER_XY_SWAP')
+
         col.prop(rd, "resolution_percentage", text="%")
 
         col = layout.column(align=True)
