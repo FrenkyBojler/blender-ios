@@ -1,0 +1,15 @@
+diff --git a/hiprt/impl/InstanceList.h b/hiprt/impl/InstanceList.h
+index 708496b..7ccb92b 100644
+--- a/hiprt/impl/InstanceList.h
++++ b/hiprt/impl/InstanceList.h
+@@ -45,9 +45,9 @@ class InstanceList
+ #if defined( __KERNELCC__ )
+ 	HIPRT_DEVICE InstanceNode fetchPrimNode( const uint32_t index ) const
+ 	{
+-		const Frame				   frame	 = fetchFrame( index );
+ 		const hiprtInstance		   instance	 = fetchInstance( index );
+ 		const hiprtTransformHeader transform = fetchTransformHeader( index );
++		const Frame				   frame	 = fetchFrame( transform.frameIndex );
+ 		const uint32_t			   mask		 = fetchMask( index );
+ 
+ 		InstanceNode instanceNode{};
