@@ -23,6 +23,10 @@
 
 #include <string.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 extern "C" {
 	#ifdef _WIN32
 	__declspec(dllimport) HMODULE __stdcall LoadLibraryA(LPCSTR);
@@ -31,7 +35,17 @@ extern "C" {
 	#endif
 }
 
-namespace volk {
+#ifdef __cplusplus
+}
+#endif
+
+#ifdef __cplusplus
+#    ifdef VOLK_CPP_NAMESPACE
+namespace VOLK_CPP_NAMESPACE {
+#    else
+extern "C" {
+#    endif
+#endif
 
 #if defined(__GNUC__)
 #    define VOLK_DISABLE_GCC_PEDANTIC_WARNINGS \

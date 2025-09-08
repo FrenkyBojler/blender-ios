@@ -8,7 +8,6 @@ set(INC
 
 set(INC_SYS
   ${VULKAN_INCLUDE_DIRS}
-  ${MOLTENVK_INCLUDES}
 )
 
 # volk.c is not a translation unit, it is included by volk.h but we 

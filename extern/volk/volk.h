@@ -31,7 +31,13 @@
 #	endif
 #endif
 
-namespace volk {
+#ifdef __cplusplus
+#    ifdef VOLK_CPP_NAMESPACE
+namespace VOLK_CPP_NAMESPACE {
+#    else
+extern "C" {
+#    endif
+#endif
 
 struct VolkDeviceTable;
 
@@ -102,7 +108,9 @@ VkDevice volkGetLoadedDevice(void);
  */
 void volkLoadDeviceTable(struct VolkDeviceTable* table, VkDevice device);
 
+#ifdef __cplusplus
 }
+#endif
 
 /* Instead of directly including vulkan.h, we include platform-specific parts of the SDK manually
  * This is necessary to avoid including platform headers in some cases (which vulkan.h does unconditionally)
@@ -198,7 +206,13 @@ typedef unsigned long RROutput;
 
 #endif
 
-namespace volk {
+#ifdef __cplusplus
+#    ifdef VOLK_CPP_NAMESPACE
+namespace VOLK_CPP_NAMESPACE {
+#    else
+extern "C" {
+#    endif
+#endif
 /**
  * Device-specific function pointer table
  */
@@ -2682,12 +2696,10 @@ extern PFN_vkAcquireNextImage2KHR vkAcquireNextImage2KHR;
 #endif /* (defined(VK_KHR_device_group) && defined(VK_KHR_swapchain)) || (defined(VK_KHR_swapchain) && defined(VK_VERSION_1_1)) */
 /* VOLK_GENERATE_PROTOTYPES_H */
 
+#ifdef __cplusplus
 }
-
 #endif
 
-#ifndef VOLK_IMPLEMENTATION
-using namespace volk;
 #endif
 
 #ifdef VOLK_IMPLEMENTATION

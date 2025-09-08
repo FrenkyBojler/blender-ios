@@ -4,9 +4,9 @@
 
 #include <cstdio>
 
+#define VOLK_CPP_NAMESPACE volk
 #include "volk.h"
-
-using namespace volk;
+using namespace VOLK_CPP_NAMESPACE;
 
 #define VMA_IMPLEMENTATION
 
