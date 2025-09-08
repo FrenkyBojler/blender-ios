@@ -105,7 +105,7 @@ using namespace blender;
 bAction *ANIM_active_action_from_area(Scene *scene,
                                       ViewLayer *view_layer,
                                       const ScrArea *area,
-                                      ID **r_action_owner)
+                                      ID **r_action_user)
 {
   if (area->spacetype != SPACE_ACTION) {
     return {};
@@ -121,8 +121,8 @@ bAction *ANIM_active_action_from_area(Scene *scene,
   switch (eAnimEdit_Context(saction->mode)) {
     case SACTCONT_ACTION: {
       bAction *active_action = ob->adt ? ob->adt->action : nullptr;
-      if (r_action_owner) {
-        *r_action_owner = &ob->id;
+      if (r_action_user) {
+        *r_action_user = &ob->id;
       }
       return active_action;
     }
@@ -130,8 +130,8 @@ bAction *ANIM_active_action_from_area(Scene *scene,
     case SACTCONT_SHAPEKEY: {
       Key *active_key = BKE_key_from_object(ob);
       bAction *active_action = (active_key && active_key->adt) ? active_key->adt->action : nullptr;
-      if (r_action_owner) {
-        *r_action_owner = &active_key->id;
+      if (r_action_user) {
+        *r_action_user = &active_key->id;
       }
       return active_action;
     }
@@ -141,8 +141,8 @@ bAction *ANIM_active_action_from_area(Scene *scene,
     case SACTCONT_MASK:
     case SACTCONT_CACHEFILE:
     case SACTCONT_TIMELINE:
-      if (r_action_owner) {
-        *r_action_owner = nullptr;
+      if (r_action_user) {
+        *r_action_user = nullptr;
       }
       return nullptr;
   }

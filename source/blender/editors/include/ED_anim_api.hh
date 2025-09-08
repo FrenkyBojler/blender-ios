@@ -610,7 +610,7 @@ bool ANIM_animdata_can_have_greasepencil(const eAnimCont_Types type);
 bAction *ANIM_active_action_from_area(Scene *scene,
                                       ViewLayer *view_layer,
                                       const ScrArea *area,
-                                      ID **r_action_owner = nullptr);
+                                      ID **r_action_user = nullptr);
 
 /* ************************************************ */
 /* ANIMATION CHANNELS LIST */
