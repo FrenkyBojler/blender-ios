@@ -157,6 +157,9 @@ static bool shader_validate_link(eNodeSocketDatatype from, eNodeSocketDatatype t
   if (from == SOCK_SHADER) {
     return to == SOCK_SHADER;
   }
+  if (ELEM(to, SOCK_BUNDLE, SOCK_CLOSURE) || ELEM(from, SOCK_BUNDLE, SOCK_CLOSURE)) {
+    return from == to;
+  }
   return true;
 }
 

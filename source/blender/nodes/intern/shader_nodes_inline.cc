@@ -977,8 +977,12 @@ class ShaderNodesInliner {
          * link it instead. */
         const NodeAndSocket node_and_socket = this->primitive_value_to_output_socket(
             *primitive_value);
-        bke::node_add_link(
-            dst_tree_, *node_and_socket.node, *node_and_socket.socket, dst_node, dst_socket);
+        if (dst_tree_.typeinfo->validate_link(node_and_socket.socket->typeinfo->type,
+                                              dst_socket.typeinfo->type))
+        {
+          bke::node_add_link(
+              dst_tree_, *node_and_socket.node, *node_and_socket.socket, dst_node, dst_socket);
+        }
       }
       else {
         this->set_primitive_value_on_socket(dst_socket, *primitive_value);
@@ -1004,8 +1008,12 @@ class ShaderNodesInliner {
       return;
     }
     if (const auto *src_socket_value = std::get_if<LinkedSocketValue>(&value.value)) {
-      bke::node_add_link(
-          dst_tree_, *src_socket_value->node, *src_socket_value->socket, dst_node, dst_socket);
+      if (dst_tree_.typeinfo->validate_link(src_socket_value->socket->typeinfo->type,
+                                            dst_socket.typeinfo->type))
+      {
+        bke::node_add_link(
+            dst_tree_, *src_socket_value->node, *src_socket_value->socket, dst_node, dst_socket);
+      }
       return;
     }
     BLI_assert_unreachable();
