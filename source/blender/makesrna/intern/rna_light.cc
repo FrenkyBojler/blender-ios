@@ -92,21 +92,21 @@ static void rna_Light_unit_system_set(PointerRNA *ptr, int value)
   /* Set the new unit system */
   la->unit_system = value;
 
-  /* Disable advanced features when unit system is NONE */
-  if (value == LA_NONE) {
-    la->mode |= LA_USE_ADVANCED; /* Set the flag to disable use_advanced (negative boolean) */
+  /* Disable advanced features when unit system is NONE or RADIOMETRIC */
+  if (value == LA_NONE || value == LA_RADIOMETRIC) {
+    la->mode &= ~LA_USE_ADVANCED; /* Set the flag to disable use_advanced (negative boolean) */
   }
   else {
-    la->mode &= ~LA_USE_ADVANCED; /* Clear the flag to enable use_advanced (negative boolean) */
+    la->mode = LA_USE_ADVANCED; /* Clear the flag to enable use_advanced (negative boolean) */
   }
 
   /* Convert energy value if switching between radiometric and photometric */
   if (prev_unit_system != value) {
-    if (prev_unit_system == LA_RADIOMETRIC && value == LA_PHOTOMETRIC) {
+    if ((prev_unit_system == LA_RADIOMETRIC || prev_unit_system == LA_NONE) && value == LA_PHOTOMETRIC) {
       /* Convert from radiometric (W) to photometric (lm) */
       la->energy = BKE_light_photometric_to_radiometric_power(*la, la->energy);
     }
-    else if (prev_unit_system == LA_PHOTOMETRIC && value == LA_RADIOMETRIC) {
+    else if (prev_unit_system == LA_PHOTOMETRIC && (value == LA_RADIOMETRIC || value == LA_NONE)) {
       /* Convert from photometric (lm) to radiometric (W) */
       la->energy = BKE_light_radiometric_to_photometric_power(*la, la->energy);
     }
@@ -328,7 +328,7 @@ static void rna_def_light(BlenderRNA *brna)
   RNA_def_property_update(prop, 0, "rna_Light_use_nodes_update");
 
   prop = RNA_def_property(srna, "use_advanced", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_negative_sdna(prop, nullptr, "mode", LA_USE_ADVANCED);
+  RNA_def_property_boolean_sdna(prop, nullptr, "mode", LA_USE_ADVANCED);
   RNA_def_property_ui_text(
       prop, "Use Advanced", "Use light's advanced properties");
   RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_LIGHT);
