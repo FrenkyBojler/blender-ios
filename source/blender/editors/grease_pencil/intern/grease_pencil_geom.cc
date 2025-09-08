@@ -586,17 +586,26 @@ static void generate_corner(const float3 &pt_a,
     return;
   }
 
-  const bool is_bevel = -math::dot(tangent, tangent_prev) > math::cos(miter_limit_angle);
-  if (is_outside_corner && is_bevel) {
-    r_perimeter.append(pt_b + normal_prev * radius);
-    r_perimeter.append(pt_b + normal * radius);
-    r_src_indices.append_n_times(src_point_index, 2);
-    return;
-  }
-
   const float2 avg_tangent = math::normalize(tangent_prev + tangent);
   const float3 miter = {avg_tangent.y, -avg_tangent.x, 0.0f};
   const float miter_invscale = math::dot(normal, miter);
+
+  if (is_outside_corner) {
+    const bool is_bevel = -math::dot(tangent, tangent_prev) > math::cos(miter_limit_angle);
+    if (is_bevel) {
+      r_perimeter.append(pt_b + normal_prev * radius);
+      r_perimeter.append(pt_b + normal * radius);
+      r_src_indices.append_n_times(src_point_index, 2);
+      return;
+    }
+    else {
+      const float3 miter_point = pt_b + miter * radius / miter_invscale;
+
+      r_perimeter.append(miter_point);
+      r_src_indices.append(src_point_index);
+      return;
+    }
+  }
 
   /* Avoid division by tiny values for steep angles. */
   const float3 miter_point = (radius < length * miter_invscale &&
