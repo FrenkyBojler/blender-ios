@@ -811,7 +811,8 @@ void interpolate_curves_with_samples(const CurvesGeometry &from_curves,
   from_curves.ensure_can_interpolate_to_evaluated();
   to_curves.ensure_can_interpolate_to_evaluated();
 
-  const VArray<int8_t> curve_types = to_curves.curve_types();
+  const VArray<int8_t> from_types = from_curves.curve_types();
+  const VArray<int8_t> to_types = to_curves.curve_types();
   MutableSpan<int8_t> dst_curve_types = dst_curves.curve_types_for_write();
 
   dst_curve_mask.foreach_index([&](const int i_dst_curve, const int pos) {
@@ -819,16 +820,16 @@ void interpolate_curves_with_samples(const CurvesGeometry &from_curves,
     const int i_to_curve = to_curve_indices[pos];
 
     if (i_from_curve < 0) {
-      dst_curve_types[i_dst_curve] = curve_types[i_to_curve];
+      dst_curve_types[i_dst_curve] = to_types[i_to_curve];
       return;
     }
     if (i_to_curve < 0) {
-      dst_curve_types[i_dst_curve] = curve_types[i_from_curve];
+      dst_curve_types[i_dst_curve] = from_types[i_from_curve];
       return;
     }
 
-    const int8_t from_type = curve_types[i_from_curve];
-    const int8_t to_type = curve_types[i_to_curve];
+    const int8_t from_type = from_types[i_from_curve];
+    const int8_t to_type = to_types[i_to_curve];
 
     if (from_type == CURVE_TYPE_NURBS || to_type == CURVE_TYPE_NURBS) {
       dst_curve_types[i_dst_curve] = CURVE_TYPE_NURBS;
