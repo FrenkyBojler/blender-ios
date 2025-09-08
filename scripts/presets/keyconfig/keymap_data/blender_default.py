@@ -1112,6 +1112,7 @@ def km_mask_editing(params):
         ("mask.duplicate_move", {"type": 'D', "value": 'PRESS', "shift": True}, None),
         ("mask.copy_splines", {"type": 'C', "value": 'PRESS', "ctrl": True}, None),
         ("mask.paste_splines", {"type": 'V', "value": 'PRESS', "ctrl": True}, None),
+        ("mask.move_to_layer", {"type": 'M', "value": 'PRESS', "shift": True}, None),
         ("transform.translate", {"type": 'G', "value": 'PRESS'}, None),
         ("transform.translate", {"type": params.select_mouse, "value": 'CLICK_DRAG'}, None),
         ("transform.rotate", {"type": 'R', "value": 'PRESS'}, None),
