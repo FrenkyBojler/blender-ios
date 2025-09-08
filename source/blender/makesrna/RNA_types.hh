@@ -186,7 +186,6 @@ enum PropertyUnit {
   PROP_UNIT_WAVELENGTH = (13 << 16),        /* `nm` (independent of scene). */
   PROP_UNIT_COLOR_TEMPERATURE = (14 << 16), /* K */
   PROP_UNIT_FREQUENCY = (15 << 16),         /* Hz */
-  PROP_UNIT_PIXEL_DENSITY = (16 << 16),     /* px/m */
 };
 ENUM_OPERATORS(PropertyUnit, PROP_UNIT_TEMPERATURE)
 
@@ -291,8 +290,6 @@ enum PropertySubType {
   PROP_COLOR_TEMPERATURE = 45 | PROP_UNIT_COLOR_TEMPERATURE,
 
   PROP_FREQUENCY = 46 | PROP_UNIT_FREQUENCY,
-  PROP_PIXEL_DIAMETER = 47,
-  PROP_DISTANCE_DIAMETER = 48 | PROP_UNIT_LENGTH,
 };
 
 /* Make sure enums are updated with these */

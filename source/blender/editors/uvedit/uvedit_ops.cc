@@ -800,16 +800,15 @@ static void UV_OT_apply_texel_density(wmOperatorType *ot)
   RNA_def_boolean(
       ot->srna, "use_custom_density", false, "Custom Density", "Set a custom texel density");
 
-  prop = RNA_def_float(ot->srna,
-                       "density",
-                       1024.0f,
-                       0.0f,
-                       FLT_MAX,
-                       "Texel Density",
-                       "Custom texel density applied to the selected islands",
-                       0.0f,
-                       FLT_MAX);
-  RNA_def_property_subtype(prop, PROP_PIXEL_DENSITY);
+  RNA_def_float(ot->srna,
+                "density",
+                1024.0f,
+                0.0f,
+                FLT_MAX,
+                "Texel Density",
+                "Custom texel density applied to the selected islands",
+                0.0f,
+                FLT_MAX);
 
   RNA_def_boolean(ot->srna,
                   "use_selected_faces",
