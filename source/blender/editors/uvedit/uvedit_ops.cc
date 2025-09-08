@@ -2047,7 +2047,7 @@ static bool uv_copy_mirrored_faces(BMesh *bm, int direction, int precision, int 
     }
     if (valid) {
       std::sort(sorted_verts.begin(), sorted_verts.end());
-      sorted_verts_to_face.add(sorted_verts, f);
+      sorted_verts_to_face.add(std::move(sorted_verts), f);
     }
   }
 
