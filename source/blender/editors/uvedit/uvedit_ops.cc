@@ -345,16 +345,16 @@ bool ED_uvedit_center_from_pivot_ex(const SpaceImage *sima,
 }
 
 enum UVMoveType {
-  Dynamic,
-  Pixel,
-  Udim,
+  Dynamic = 0,
+  Pixel = 1,
+  Udim = 2,
 };
 enum class UVMoveDirection {
   X = 0,
   Y = 1,
 };
 
-static wmOperatorStatus uv_shift_selected_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus uv_move_on_axis_exec(bContext *C, wmOperator *op)
 
 {
   Scene *scene = CTX_data_scene(C);
@@ -366,22 +366,24 @@ static wmOperatorStatus uv_shift_selected_exec(bContext *C, wmOperator *op)
   UVMoveDirection axis = UVMoveDirection(RNA_enum_get(op->ptr, "axis"));
   int distance = RNA_int_get(op->ptr, "distance");
 
-  int width = 0, height = 0;
-  ED_space_image_get_size(sima, &width, &height);
+  int size[2];
+  ED_space_image_get_size(sima, &size[0], &size[1]);
+  float distance_final;
+  if (type == Dynamic) {
+    distance_final = (float)distance / sima->tile_grid_shape[int(axis)];
+  }
+  else if (type == Pixel) {
+    distance_final = (float)distance / size[int(axis)];
+  }
+  else {
+    distance_final = distance;
+  }
   for (Object *obedit : objects) {
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
     bool changed = false;
 
     ED_uvedit_foreach_uv(scene, em->bm, true, true, [&](float luv[2]) {
-      if (type == Dynamic) {
-        luv[int(axis)] += (float)distance / sima->tile_grid_shape[int(axis)];
-      }
-      else if (type == Pixel) {
-        luv[int(axis)] += (float)distance / width;
-      }
-      else {
-        luv[int(axis)] += distance;
-      }
+      luv[int(axis)] += distance_final;
       changed = true;
     });
 
@@ -394,12 +396,12 @@ static wmOperatorStatus uv_shift_selected_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static void UV_OT_shift_selected(wmOperatorType *ot)
+static void UV_OT_move_on_axis(wmOperatorType *ot)
 {
   static const EnumPropertyItem shift_items[] = {
-      {Dynamic, "DYNAMIC", 0, "Dynamic", "Shift selected by dynamic grid"},
-      {Pixel, "PIXEL", 0, "Pixel", "Shift selected by pixel"},
-      {Udim, "UDIM", 0, "UDIM", "Shift selected by UDIM"},
+      {Dynamic, "DYNAMIC", 0, "Dynamic", "Move on Axis by dynamic grid"},
+      {Pixel, "PIXEL", 0, "Pixel", "Move on Axis by pixel"},
+      {Udim, "UDIM", 0, "UDIM", "Move on Axis by UDIM"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
@@ -410,13 +412,13 @@ static void UV_OT_shift_selected(wmOperatorType *ot)
   };
 
   /* identifiers */
-  ot->name = "Shift Selected";
-  ot->description = "Shift selected UVs on a line";
-  ot->idname = "UV_OT_shift_selected";
+  ot->name = "Move on Axis";
+  ot->description = "Move UVs on an axis";
+  ot->idname = "UV_OT_move_on_axis";
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
   /* API callbacks. */
-  ot->exec = uv_shift_selected_exec;
+  ot->exec = uv_move_on_axis_exec;
   ot->poll = ED_operator_uvedit;
 
   /* properties */
@@ -2672,7 +2674,7 @@ void ED_operatortypes_uvedit()
 
   WM_operatortype_append(UV_OT_cursor_set);
   WM_operatortype_append(UV_OT_copy_mirrored_faces);
-  WM_operatortype_append(UV_OT_shift_selected);
+  WM_operatortype_append(UV_OT_move_on_axis);
 }
 
 void ED_operatormacros_uvedit()
