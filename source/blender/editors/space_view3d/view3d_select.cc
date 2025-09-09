@@ -1829,7 +1829,7 @@ static wmOperatorStatus bone_select_menu_exec(bContext *C, wmOperator *op)
   }
   else {
     bPoseChannel *pchan = (bPoseChannel *)object_mouse_select_menu_data[name_index].item_ptr;
-    ED_armature_pose_select_pick_bone(scene, view_layer, v3d, basact->object, pchan->bone, params);
+    ED_armature_pose_select_pick_bone(scene, view_layer, v3d, basact->object, pchan, params);
   }
 
   /* Weak but ensures we activate the menu again before using the enum. */
@@ -5024,10 +5024,10 @@ static bool pchan_circle_doSelectJoint(void *user_data,
 
   if (len_squared_v2v2(data->mval_fl, screen_co) <= data->radius_squared) {
     if (data->select) {
-      pchan->bone->flag |= BONE_SELECTED;
+      pchan->flag |= POSE_SELECTED;
     }
     else {
-      pchan->bone->flag &= ~BONE_SELECTED;
+      pchan->flag &= ~POSE_SELECTED;
     }
     return true;
   }
@@ -5074,10 +5074,10 @@ static void do_circle_select_pose__doSelectBone(void *user_data,
       edge_inside_circle(data->mval_fl, data->radius, screen_co_a, screen_co_b))
   {
     if (data->select) {
-      pchan->bone->flag |= BONE_SELECTED;
+      pchan->flag |= POSE_SELECTED;
     }
     else {
-      pchan->bone->flag &= ~BONE_SELECTED;
+      pchan->flag &= ~POSE_SELECTED;
     }
     data->is_changed = true;
   }

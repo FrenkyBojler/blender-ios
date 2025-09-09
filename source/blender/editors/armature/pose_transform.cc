@@ -380,7 +380,7 @@ static void applyarmature_reset_constraints(bPose *pose, const bool use_selected
 {
   LISTBASE_FOREACH (bPoseChannel *, pchan, &pose->chanbase) {
     BLI_assert(pchan->bone != nullptr);
-    if (use_selected && (pchan->bone->flag & BONE_SELECTED) == 0) {
+    if (use_selected && (pchan->flag & POSE_SELECTED) == 0) {
       continue;
     }
     applyarmature_reset_bone_constraints(pchan);
@@ -652,7 +652,7 @@ static bPoseChannel *pose_bone_do_paste(Object *ob,
   if (pchan == nullptr) {
     return nullptr;
   }
-  if (selOnly && (pchan->bone->flag & BONE_SELECTED) == 0) {
+  if (selOnly && (pchan->flag & POSE_SELECTED) == 0) {
     return nullptr;
   }
 

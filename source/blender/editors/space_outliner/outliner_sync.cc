@@ -231,12 +231,12 @@ static void outliner_select_sync_to_pose_bone(TreeElement *te,
 
   if (PBONE_SELECTABLE(arm, pchan->bone)) {
     if (tselem->flag & TSE_SELECTED) {
-      pchan->bone->flag |= BONE_SELECTED;
+      pchan->flag |= POSE_SELECTED;
 
       selected_pbones.add(pchan);
     }
     else if (!selected_pbones.contains(pchan)) {
-      pchan->bone->flag &= ~BONE_SELECTED;
+      pchan->flag &= ~POSE_SELECTED;
     }
   }
 
@@ -409,7 +409,6 @@ static void outliner_select_sync_from_pose_bone(bPoseChannel *pchan_active,
                                                 TreeStoreElem *tselem)
 {
   bPoseChannel *pchan = (bPoseChannel *)te->directdata;
-  Bone *bone = pchan->bone;
 
   if (pchan == pchan_active) {
     tselem->flag |= TSE_ACTIVE;
@@ -418,7 +417,7 @@ static void outliner_select_sync_from_pose_bone(bPoseChannel *pchan_active,
     tselem->flag &= ~TSE_ACTIVE;
   }
 
-  if (bone->flag & BONE_SELECTED) {
+  if (pchan->flag & POSE_SELECTED) {
     tselem->flag |= TSE_SELECTED;
   }
   else {

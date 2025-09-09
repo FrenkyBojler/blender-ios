@@ -128,7 +128,7 @@ bool any_bone_selected(const blender::Span<const Object *> objects)
       continue;
     }
     LISTBASE_FOREACH (bPoseChannel *, pose_bone, &obj->pose->chanbase) {
-      if (pose_bone->bone->flag & BONE_SELECTED) {
+      if (pose_bone->flag & POSE_SELECTED) {
         return true;
       }
     }

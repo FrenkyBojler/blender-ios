@@ -313,8 +313,9 @@ typedef struct bPoseChannel {
   short agrp_index;
   /** For quick detecting which constraints affect this channel. */
   char constflag;
-  /** Copy of bone flag, so you can work with library armatures, not for runtime use. */
-  char selectflag;
+  /** This used to store the selectionfalg for serialization but is not longer required since that
+   * is now natively stored on the `flag` property. */
+  char selectflag DNA_DEPRECATED;
   char drawflag;
   char bboneflag DNA_DEPRECATED;
   char _pad0[4];
@@ -454,6 +455,7 @@ typedef enum ePchan_Flag {
 
   /* has BBone deforms */
   POSE_BBONE_SHAPE = (1 << 3),
+  POSE_SELECTED = (1 << 4),
 
   /* IK/Pose solving */
   POSE_CHAIN = (1 << 9),

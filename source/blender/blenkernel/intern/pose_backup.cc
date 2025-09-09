@@ -109,7 +109,7 @@ static blender::Set<bPoseChannel *> armature_find_selected_pose_bones(
   for (Object *obj : objects) {
     /* Iterate over the selected bones to fill the set of bone names. */
     LISTBASE_FOREACH (bPoseChannel *, pose_bone, &obj->pose->chanbase) {
-      if (pose_bone->bone->flag & BONE_SELECTED) {
+      if (pose_bone->flag & POSE_SELECTED) {
         selected_bones.add(pose_bone);
       }
       else {

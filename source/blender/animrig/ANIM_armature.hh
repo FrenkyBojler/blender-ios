@@ -48,7 +48,7 @@ inline bool bone_is_selected(const bArmature *armature, const Bone *bone)
 
 inline bool bone_is_selected(const bArmature *armature, const bPoseChannel *pchan)
 {
-  return (pchan->bone->flag & BONE_SELECTED) && bone_is_visible(armature, pchan);
+  return (pchan->flag & POSE_SELECTED) && bone_is_visible(armature, pchan);
 }
 
 inline bool bone_is_selected(const bArmature *armature, const EditBone *ebone)
