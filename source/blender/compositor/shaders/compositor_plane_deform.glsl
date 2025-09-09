@@ -39,12 +39,14 @@ void main()
   float2 wh = hypot2(dPdx, dPdy);
 
 #if defined(PREMULTIPLY_MASK)
-  float2 pixels = float2(textureSize(input_tx, 0));
-  float2 mm = clamp(min(uv, pixels - uv) / wh + 0.5f, 0, 1);  // coverage of wh by image
-  if (m < 1)
-    mm = float2(0);         // remove artifacts at horizon
-  mm = max(mm, mask_mult);  // keep unclipped sides
-  m *= mm.x * mm.y;
+  if (m < 1) {
+    m = 0; // remove artifacts at horizon
+  } else {
+    float2 pixels = float2(textureSize(input_tx, 0));
+    float2 mm = clamp(min(uv, pixels - uv) / wh + 0.5f, 0, 1);  // coverage of wh by image
+    mm = max(mm, mask_mult); // keep unclipped sides (nyi for anisotropic)
+    m = mm.x * mm.y;
+  }
   if (m <= 0) {
     imageStore(output_img, texel, float4(0.0f));
     return;

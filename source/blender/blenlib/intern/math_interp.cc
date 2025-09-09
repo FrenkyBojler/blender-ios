@@ -815,9 +815,8 @@ static unsigned make_samples(const _Sampler &sampler,
                              int positions[MAX_SAMPLES],
                              float weights[MAX_SAMPLES])
 {
-  // Todo: w and u may both be well out of MAXINT range, including inf and NaN.
-  // This requires doing more work than should be necessary in float instead of int
-  w = std::max(w, 1.0f);
+  if (!(w >= 1.0f)) // this test is written so that NaN turns into 1.0
+    w = 1.0f;
   float r = sampler.radius(w);
   float d = ceilf(w / MAX_PER_RADIUS);
   float a = ceilf(u - 0.5f - r) + 0.5f;
@@ -835,7 +834,7 @@ static unsigned make_samples(const _Sampler &sampler,
           y = 0;
           break;
         case InterpWrapMode::Repeat:
-          y = int(floored_fmod(v, float(width)));
+          y = (v > -1e6f) ? (int(v) % width + width) % width : width / 2;
           break;
         case InterpWrapMode::Border:
           continue;
@@ -847,7 +846,7 @@ static unsigned make_samples(const _Sampler &sampler,
           y = width - 1;
           break;
         case InterpWrapMode::Repeat:
-          y = int(floored_fmod(v, float(width)));
+          y = (v < 1e6f) ? int(v) % width : width / 2;
           break;
         case InterpWrapMode::Border:
           continue;

@@ -97,6 +97,12 @@ class CornerPinOperation : public NodeOperation {
   void execute() override
   {
     const float3x3 homography_matrix = compute_homography_matrix();
+    // convert the matrix to translate pixel centers to pixel corners
+    const Domain domain = compute_domain();
+    float3x3 to_bounds = math::translate(math::from_scale<float3x3>(1.0f / float2(domain.size)),
+                                         float2(0.5f));
+    float3x3 from_bounds = math::from_scale<float3x3>(float2(domain.size));
+    float3x3 imat = from_bounds * homography_matrix * to_bounds;
 
     const Result &input_image = this->get_input("Image");
     Result &output_image = this->get_result("Image");
@@ -112,53 +118,18 @@ class CornerPinOperation : public NodeOperation {
       return;
     }
 
-    /* Only compute the mask if extension modes are not set to clip and if it is not used as an
-     * output. */
-    if (this->should_compute_mask() && !this->context().use_gpu()) {
-
-      Result plane_mask = compute_plane_mask(homography_matrix);
-      Result anti_aliased_plane_mask = context().create_result(ResultType::Float);
-      smaa(context(), plane_mask, anti_aliased_plane_mask);
-      plane_mask.release();
-
-      if (output_image.should_compute()) {
-        this->compute_plane(homography_matrix, &anti_aliased_plane_mask);
-      }
-
-      if (output_mask.should_compute()) {
-        output_mask.steal_data(anti_aliased_plane_mask);
+    if (output_image.should_compute()) {
+      if (this->context().use_gpu()) {
+        this->compute_plane_gpu(imat);
       }
       else {
-        anti_aliased_plane_mask.release();
-      }
-    }
-    else {
-      if (output_image.should_compute()) {
-        this->compute_plane(homography_matrix, nullptr);
+        this->compute_plane_cpu(imat);
       }
     }
   }
 
-  void compute_plane(const float3x3 &homography_matrix, Result *plane_mask)
+  void compute_plane_gpu(const float3x3 &imat)
   {
-    if (this->context().use_gpu()) {
-      this->compute_plane_gpu(homography_matrix);
-    }
-    else {
-      this->compute_plane_cpu(homography_matrix, plane_mask);
-    }
-  }
-
-  void compute_plane_gpu(const float3x3 &homography_matrix)
-  {
-    // convert the matrix to translate pixel centers to pixel corners
-    // todo: this calculation should be done by caller
-    const Domain domain = compute_domain();
-    float3x3 to_bounds = math::translate(math::from_scale<float3x3>(1.0f / float2(domain.size)),
-                                         float2(0.5f));
-    float3x3 from_bounds = math::from_scale<float3x3>(float2(domain.size));
-    float3x3 imat = from_bounds * homography_matrix * to_bounds;
-
     math::SamplingOptions options = this->get_options();
 
     // can we use texture() call:
@@ -184,7 +155,8 @@ class CornerPinOperation : public NodeOperation {
 
     bool masked = false;
     if (!fast && (options.wrap_x == math::InterpWrapMode::Border ||
-                  options.wrap_y == math::InterpWrapMode::Border))
+                  options.wrap_y == math::InterpWrapMode::Border ||
+                  options.sampler == math::Sampler::Anisotropic))
     {
       masked = true;
       strcat(shader_name, "_masked");
@@ -193,10 +165,15 @@ class CornerPinOperation : public NodeOperation {
     gpu::Shader *shader = this->context().get_shader(shader_name);
     GPU_shader_bind(shader);
 
-    if (fast) {  // make matrix produce texture coordinates
-      imat = math::from_scale<float3x3>(1.0f / float2(domain.size)) * imat;
+    const Domain domain = compute_domain();
+
+    if (fast) {
+      // make matrix produce texture coordinates
+      const float3x3 mat = math::from_scale<float3x3>(1.0f / float2(domain.size)) * imat;
+      GPU_shader_uniform_mat3_as_mat4(shader, "imat", mat.ptr());
+    } else {
+      GPU_shader_uniform_mat3_as_mat4(shader, "imat", imat.ptr());
     }
-    GPU_shader_uniform_mat3_as_mat4(shader, "imat", imat.ptr());
 
     if (masked) {
       float mx = 1;
@@ -236,7 +213,7 @@ class CornerPinOperation : public NodeOperation {
     GPU_shader_unbind();
   }
 
-  void compute_plane_cpu(const float3x3 &homography_matrix, Result *plane_mask)
+  void compute_plane_cpu(const float3x3 &imat)
   {
     Result &input = get_input("Image");
 
@@ -245,79 +222,75 @@ class CornerPinOperation : public NodeOperation {
     output.allocate_texture(domain);
 
     math::SamplingOptions options = this->get_options();
-
     const int2 size = domain.size;
-    parallel_for(size, [&](const int2 texel) {
-      float2 coordinates = (float2(texel) + float2(0.5f)) / float2(size);
 
-      float3 transformed_coordinates = float3x3(homography_matrix) * float3(coordinates, 1.0f);
-      /* Point is at infinity and will be zero when sampled, so early exit. */
-      if (transformed_coordinates.z == 0.0f) {
+    // detect when Nearest sampling works. This will also work for integer translations with no rotation
+    if (options.sampler == math::Sampler::Nearest) {
+      parallel_for(size, [&](const int2 texel) {
+        float3 uvw = imat * float3(texel.x, texel.y, 1.0f);
+        float4 sampled_color;
+        if (uvw.z <= 0.0f) {
+          sampled_color = float4(0.0f);
+        } else {
+          sampled_color = input.sample_nearest(options, uvw.xy() / uvw.z);
+        }
+        output.store_pixel(texel, sampled_color);
+      });
+      return;
+    }
+
+    bool clip_x = options.sampler == math::Sampler::Anisotropic || options.wrap_x == math::InterpWrapMode::Border;
+    if (clip_x) options.wrap_x = math::InterpWrapMode::Extend;
+    bool clip_y = options.sampler == math::Sampler::Anisotropic || options.wrap_y == math::InterpWrapMode::Border;
+    if (clip_y) options.wrap_y = math::InterpWrapMode::Extend;
+
+    parallel_for(size, [&](const int2 texel) {
+
+      float3 uvw = imat * float3(texel.x, texel.y, 1.0f);
+
+      // Point is at infinity and will be zero when sampled, so early exit.
+      // Also negative numbers indicate "behind camera" and should be cropped as well.
+      if (uvw.z <= 0.0f) {
         output.store_pixel(texel, float4(0.0f));
         return;
       }
 
-      float2 projected_coordinates = transformed_coordinates.xy() / transformed_coordinates.z;
-      float4 sampled_color;
+      float iw = 1.0f / uvw.z;  // 1/w
 
-      if (options.sampler != math::Sampler::Anisotropic) {
-        sampled_color = input.sample(projected_coordinates, options);
+  // compute derivative of source location
+      const float3& m0 = imat[0];
+      float2 dPdx = (m0.xy() - uvw.xy() * m0.z * iw) * iw;
+      const float3& m1 = imat[1];
+      float2 dPdy = (m1.xy() - uvw.xy() * m1.z * iw) * iw;
+
+      float m = 1;
+
+      // antialias the horizon line
+      float dw = hypotf(m0.z, m1.z);
+      if (dw > uvw.z)
+        m = uvw.z / dw;
+
+      float2 uv = uvw.xy() * iw;
+
+      if (clip_x || clip_y) {
+        if (m < 1)
+          m = 0; // remove artifacts at horizon
+        else {
+          const float2 wh = math::hypot2(dPdx, dPdy);
+          if (clip_x)
+            m = math::clamp(std::min(uv.x, size.x - uv.x) / wh.x + 0.5f, 0.0f, 1.0f);
+          if (clip_y)
+            m *= math::clamp(std::min(uv.y, size.y - uv.y) / wh.y + 0.5f, 0.0f, 1.0f);
+        }
+        if (m <= 0.0f) {
+          output.store_pixel(texel, float4(0.0f));
+          return;
+        }
       }
-      else {
-        /* The derivatives of the projected coordinates with respect to x and y are the first and
-         * second columns respectively, divided by the z projection factor as can be shown by
-         * differentiating the above matrix multiplication with respect to x and y. Divide by the
-         * output size since sample_ewa assumes derivatives with respect to texel coordinates. */
-        float2 x_gradient = (homography_matrix[0].xy() / transformed_coordinates.z) / size.x;
-        float2 y_gradient = (homography_matrix[1].xy() / transformed_coordinates.z) / size.y;
-        sampled_color = input.sample_ewa_extended(projected_coordinates, x_gradient, y_gradient);
-      }
 
-      float4 plane_color = plane_mask ? sampled_color * plane_mask->load_pixel<float>(texel) :
-                                        sampled_color;
-
-      output.store_pixel(texel, plane_color);
+      float4 sampled_color = m * input.sample_area(options, uv, dPdx, dPdy);
+      output.store_pixel(texel, sampled_color);
     });
-  }
-
-  Result compute_plane_mask(const float3x3 &homography_matrix)
-  {
-    return this->compute_plane_mask_cpu(homography_matrix);
-  }
-
-  Result compute_plane_mask_cpu(const float3x3 &homography_matrix)
-  {
-    const math::SamplingOptions options = this->get_options();
-    const bool is_x_clipped = options.wrap_x == math::InterpWrapMode::Border;
-    const bool is_y_clipped = options.wrap_y == math::InterpWrapMode::Border;
-    const Domain domain = compute_domain();
-    Result plane_mask = context().create_result(ResultType::Float);
-    plane_mask.allocate_texture(domain);
-
-    const int2 size = domain.size;
-    parallel_for(size, [&](const int2 texel) {
-      float2 coordinates = (float2(texel) + float2(0.5f)) / float2(size);
-
-      float3 transformed_coordinates = float3x3(homography_matrix) * float3(coordinates, 1.0f);
-      /* Point is at infinity and will be zero when sampled, so early exit. */
-      if (transformed_coordinates.z == 0.0f) {
-        plane_mask.store_pixel(texel, 0.0f);
-        return;
-      }
-      float2 projected_coordinates = transformed_coordinates.xy() / transformed_coordinates.z;
-      bool is_inside_plane_x = projected_coordinates.x >= 0.0f && projected_coordinates.x <= 1.0f;
-      bool is_inside_plane_y = projected_coordinates.y >= 0.0f && projected_coordinates.y <= 1.0f;
-
-      /* If not inside the plane and not clipped, use extend or repeat extension mode for the
-       * mask. */
-      bool is_x_masked = is_inside_plane_x || !is_x_clipped;
-      bool is_y_masked = is_inside_plane_y || !is_y_clipped;
-      float mask_value = is_x_masked && is_y_masked ? 1.0f : 0.0f;
-
-      plane_mask.store_pixel(texel, mask_value);
-    });
-
-    return plane_mask;
   }
 
   float3x3 compute_homography_matrix()
