@@ -7410,7 +7410,8 @@ static void rna_def_userdef_experimental(BlenderRNA *brna)
                            "of data due to wrongly detected unused data-blocks");
 
   prop = RNA_def_property(srna, "use_vse_compositor_strip_modifier", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_ui_text(prop, "VSE Compositor Strip Modifier", "Enable new compositor strip modifier");
+  RNA_def_property_ui_text(
+      prop, "VSE Compositor Strip Modifier", "Enable new compositor strip modifier");
 }
 
 static void rna_def_userdef_addon_collection(BlenderRNA *brna, PropertyRNA *cprop)
