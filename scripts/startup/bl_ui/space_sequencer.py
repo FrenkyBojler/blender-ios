@@ -1236,7 +1236,7 @@ class SEQUENCER_MT_strip(Menu):
             if strip:
                 strip_type = strip.type
                 layout.separator()
-                layout.menu("SEQUENCER_MT_strip_modifiers")
+                layout.menu("SEQUENCER_MT_strip_modifiers", icon='MODIFIER')
 
                 if strip_type in {
                         'CROSS', 'ADD', 'SUBTRACT', 'ALPHA_OVER', 'ALPHA_UNDER',
