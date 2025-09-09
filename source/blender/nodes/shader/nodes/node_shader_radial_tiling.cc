@@ -22,9 +22,9 @@ static void sh_node_radial_tiling_declare(NodeDeclarationBuilder &b)
 {
   b.is_function_node();
 
-  b.add_output<decl::Vector>("Segment Coordinates")
+  b.add_output<decl::Vector>("Segment Coordinate")
       .no_muted_links()
-      .description("Coordinate system for every angular segment");
+      .description("Segment coordinate for texture mapping within each angular segment");
   b.add_output<decl::Float>("Segment ID")
       .no_muted_links()
       .description(
@@ -32,32 +32,33 @@ static void sh_node_radial_tiling_declare(NodeDeclarationBuilder &b)
           "1");
   b.add_output<decl::Float>("Segment Width")
       .no_muted_links()
-      .description("Maximum X-coordinate value at Y-coordinate = 0 assuming no normalization");
+      .description(
+          "Relatve width of each angular segment. May be used to scale textures to fit into each "
+          "segment");
   b.add_output<decl::Float>("Segment Rotation")
       .no_muted_links()
       .description(
-          "Counterclockwise angle between the Y-axis of each segment coordinate system and the "
-          "global X-axis");
+          "Counterclockwise rotation of each segment coordinate system. May be used to align the "
+          "rotation of the textures of each segment");
 
   b.add_input<decl::Vector>("Vector")
       .dimensions(2)
       .default_value(float3{0.0f, 0.0f, 0.0f})
-      .description("Input vector");
+      .description("Input texture coordinate");
   b.add_input<decl::Float>("Sides").min(2.0f).max(1000.0f).default_value(5.0f).description(
       "Number of angular segments for tiling. A non-integer value results in an irregular "
-      "segment with an irregular corner");
+      "segment");
   b.add_input<decl::Float>("Roundness")
       .min(0.0f)
       .max(1.0f)
       .default_value(0.0f)
       .subtype(PROP_FACTOR)
-      .description("Roundness of the segment coordinates");
+      .description("Roundness of the segment coordinate systems");
 }
 
 static void node_shader_buts_radial_tiling(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  layout->prop(
-      ptr, "normalize_r_gon_parameter", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+  layout->prop(ptr, "normalize", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
 }
 
 static void node_shader_init_radial_tiling(bNodeTree * /*ntree*/, bNode *node)
@@ -124,7 +125,7 @@ class RoundedPolygonFunction : public mf::MultiFunction {
     builder.single_input<float>("Sides");
     builder.single_input<float>("Roundness");
 
-    builder.single_output<float3>("Segment Coordinates", mf::ParamFlag::SupportsUnusedOutput);
+    builder.single_output<float3>("Segment Coordinate", mf::ParamFlag::SupportsUnusedOutput);
     builder.single_output<float>("Segment ID", mf::ParamFlag::SupportsUnusedOutput);
     builder.single_output<float>("Segment Width", mf::ParamFlag::SupportsUnusedOutput);
     builder.single_output<float>("Segment Rotation", mf::ParamFlag::SupportsUnusedOutput);
@@ -143,7 +144,7 @@ class RoundedPolygonFunction : public mf::MultiFunction {
                                                                                "Roundness");
 
     MutableSpan<float3> r_segment_coordinates =
-        params.uninitialized_single_output_if_required<float3>(param++, "Segment Coordinates");
+        params.uninitialized_single_output_if_required<float3>(param++, "Segment Coordinate");
     MutableSpan<float> r_segment_id = params.uninitialized_single_output_if_required<float>(
         param++, "Segment ID");
     MutableSpan<float> r_max_unit_parameter =

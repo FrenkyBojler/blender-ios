@@ -6000,13 +6000,15 @@ static void def_sh_radial_tiling(BlenderRNA * /*brna*/, StructRNA *srna)
 
   RNA_def_struct_sdna_from(srna, "NodeRadialTiling", "storage");
 
-  prop = RNA_def_property(srna, "normalize_r_gon_parameter", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, NULL, "normalize_r_gon_parameter", 0);
+  prop = RNA_def_property(srna, "normalize", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "normalize", 0);
   RNA_def_property_ui_text(
       prop,
       "Normalize",
-      "Normalize the X-coordinate of the Segment Coordinates output to a [0, 1] interval and "
-      "offset the Y-coordinate into a [0, infinity) interval");
+      "Normalize the X coordinate of the Segment Coordinate output to a [0, 1] interval and "
+      "offset the Y coordinate into a [0, infinity) interval. When checked, the textures are "
+      "stretched to fit into each angular segment. When not checked, the parts of the textures "
+      "that don't fit into each angular segment are cropped");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 }
 

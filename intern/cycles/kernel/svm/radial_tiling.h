@@ -19,7 +19,7 @@ struct RoundedPolygonStackOffsets {
   uint vector;
   uint r_gon_sides;
   uint r_gon_roundness;
-  uint segment_coordinates;
+  uint segment_coordinate;
   uint segment_id;
   uint max_unit_parameter;
   uint x_axis_A_angle_bisector;
@@ -33,11 +33,11 @@ ccl_device_noinline int svm_node_radial_tiling(ccl_private float *stack, uint4 n
   uint normalize_r_gon_parameter = node.y;
 
   svm_unpack_node_uchar4(
-      node.z, &(so.vector), &(so.r_gon_sides), &(so.r_gon_roundness), &(so.segment_coordinates));
+      node.z, &(so.vector), &(so.r_gon_sides), &(so.r_gon_roundness), &(so.segment_coordinate));
   svm_unpack_node_uchar3(
       node.w, &(so.segment_id), &(so.max_unit_parameter), &(so.x_axis_A_angle_bisector));
 
-  bool calculate_r_gon_parameter_field = stack_valid(so.segment_coordinates);
+  bool calculate_r_gon_parameter_field = stack_valid(so.segment_coordinate);
   bool calculate_segment_id = stack_valid(so.segment_id);
   bool calculate_max_unit_parameter = stack_valid(so.max_unit_parameter);
   bool calculate_x_axis_A_angle_bisector = stack_valid(so.x_axis_A_angle_bisector);
@@ -58,7 +58,7 @@ ccl_device_noinline int svm_node_radial_tiling(ccl_private float *stack, uint4 n
 
     if (calculate_r_gon_parameter_field) {
       stack_store_float3(
-          stack, so.segment_coordinates, make_float3(out_variables.y, out_variables.x, 0.0f));
+          stack, so.segment_coordinate, make_float3(out_variables.y, out_variables.x, 0.0f));
     }
     if (calculate_max_unit_parameter) {
       stack_store_float(stack, so.max_unit_parameter, out_variables.z);

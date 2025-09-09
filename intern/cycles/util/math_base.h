@@ -596,11 +596,6 @@ ccl_device float safe_modulo(const float a, const float b)
   return (b != 0.0f) ? fmodf(a, b) : 0.0f;
 }
 
-ccl_device float floored_modulo(float a, float b)
-{
-  return a - floorf(a / b) * b;
-}
-
 ccl_device float safe_floored_modulo(const float a, const float b)
 {
   return (b != 0.0f) ? a - floorf(a / b) * b : 0.0f;

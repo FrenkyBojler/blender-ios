@@ -22,13 +22,13 @@ shader node_radial_tiling(int normalize_r_gon_parameter = 0,
                           vector3 Vector = P,
                           float Sides = 5.0,
                           float Roundness = 0.0,
-                          output vector3 SegmentCoordinates = vector3(0.0, 0.0, 0.0),
+                          output vector3 SegmentCoordinate = vector3(0.0, 0.0, 0.0),
                           output float SegmentID = 0.0,
                           output float SegmentWidth = 0.0,
                           output float SegmentRotation = 0.0)
 {
   /* isconnected() returns 2 when output socket is connected. */
-  int calculate_r_gon_parameter_field = int(isconnected(SegmentCoordinates) != 0);
+  int calculate_r_gon_parameter_field = int(isconnected(SegmentCoordinate) != 0);
   int calculate_segment_id = int(isconnected(SegmentID) != 0);
   int calculate_max_unit_parameter = int(isconnected(SegmentWidth) != 0);
   int calculate_x_axis_A_angle_bisector = int(isconnected(SegmentRotation) != 0);
@@ -43,7 +43,7 @@ shader node_radial_tiling(int normalize_r_gon_parameter = 0,
                                                     clamp(Roundness, 0.0, 1.0),
                                                     vector2(Vector.x, Vector.y));
 
-    SegmentCoordinates = vector3(out_variables.y, out_variables.x, 0.0);
+    SegmentCoordinate = vector3(out_variables.y, out_variables.x, 0.0);
     SegmentWidth = out_variables.z;
     SegmentRotation = out_variables.w;
   }
