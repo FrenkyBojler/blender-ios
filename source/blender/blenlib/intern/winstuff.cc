@@ -15,6 +15,9 @@
 #  include <stdlib.h>
 #  define COBJMACROS /* Remove this when converting to C++ */
 #  include <dxgi.h>
+#  include <mlang.h>
+#  include <vector>
+#  include <wrl.h>
 
 #  include "MEM_guardedalloc.h"
 
@@ -588,6 +591,94 @@ void BLI_windows_process_set_qos(QoSMode qos_mode, QoSPrecedence qos_precedence)
     return;
   }
   qos_precedence_last = qos_precedence;
+}
+
+size_t BLI_windows_read_rsp_fileW(LPCWSTR filename, LPWSTR buffer, size_t buffer_size)
+{
+  HANDLE hFile = CreateFileW(filename,
+                             GENERIC_READ,
+                             FILE_SHARE_READ,
+                             nullptr,
+                             OPEN_EXISTING,
+                             FILE_ATTRIBUTE_NORMAL,
+                             nullptr);
+  if (hFile == INVALID_HANDLE_VALUE)
+    return 0;
+
+  DWORD fileSize = GetFileSize(hFile, nullptr);
+  if (fileSize == INVALID_FILE_SIZE || fileSize == 0) {
+    CloseHandle(hFile);
+    return 0;
+  }
+  /* Not using the blender vector class here because we can't use `guardedalloc` allocation here,
+   * as it's not yet initialized (it depends on the arguments passed in, which is what we're
+   * getting here!). */
+  std::vector<BYTE> raw(fileSize);
+  DWORD bytesRead = 0;
+  if (!ReadFile(hFile, raw.data(), fileSize, &bytesRead, nullptr)) {
+    CloseHandle(hFile);
+    return 0;
+  }
+  CloseHandle(hFile);
+
+  Microsoft::WRL::ComPtr<IMultiLanguage2> pMLang;
+  HRESULT hr = CoCreateInstance(CLSID_CMultiLanguage,
+                                nullptr,
+                                CLSCTX_INPROC_SERVER,
+                                IID_IMultiLanguage2,
+                                reinterpret_cast<void **>(pMLang.GetAddressOf()));
+  if (FAILED(hr)) {
+    return 0;
+  }
+
+  /* Try to detect what kind of encoding is used is in the buffer. */
+  DetectEncodingInfo encInfo[1] = {};
+  INT nScores = 1;
+  UINT codePage =
+      CP_UTF8; /* if no detection can be made, just assume UTF8 and hope for the best. */
+
+  /* Inconsistent API DetectInputCodepage takes an int, ConvertStringToUnicode takes an uint, just
+   * add the type to the variable name to differentiate between the two. */
+  INT srcSize_int = INT(bytesRead);
+  hr = pMLang->DetectInputCodepage(
+      MLDETECTCP_NONE, 0, reinterpret_cast<CHAR *>(raw.data()), &srcSize_int, encInfo, &nScores);
+
+  if (SUCCEEDED(hr) && nScores > 0) {
+    codePage = encInfo[0].nCodePage;
+  }
+
+  /* Note: The most obviouos way to do this is just call MultiByteToWideChar here, but that won't
+   * be able to deal with UTF 16 BE/LE so an alternative method has been chosen, since we already
+   * used mlang for detecting, we may as well keep using it. */
+
+  /* Figure out how big of a buffer we need. */
+  UINT dstSize = 0;
+  DWORD mode = 0;
+  UINT srcSize_uint = UINT(bytesRead);
+  hr = pMLang->ConvertStringToUnicode(
+      &mode, codePage, reinterpret_cast<CHAR *>(raw.data()), &srcSize_uint, nullptr, &dstSize);
+  if (FAILED(hr))
+    return 0;
+
+  size_t required = size_t(dstSize) + 1; /* +1 for zero terminator. */
+  if (buffer_size == 0) {
+    return required;
+  }
+
+  if (!buffer || buffer_size < required)
+    return 0;  // insufficient buffer
+
+  /* The call to ConvertStringToUnicode above may have messed with this value, it likely won't
+     matter but reset it to its original value anyhow. */
+  srcSize_uint = UINT(bytesRead);
+  dstSize = UINT(buffer_size - 1); /* -1 so there room left for a zero terminator. */
+  hr = pMLang->ConvertStringToUnicode(
+      &mode, codePage, reinterpret_cast<CHAR *>(raw.data()), &srcSize_uint, buffer, &dstSize);
+  if (FAILED(hr))
+    return 0;
+
+  buffer[dstSize] = L'\0';
+  return size_t(dstSize) + 1;
 }
 
 #else

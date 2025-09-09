@@ -147,3 +147,19 @@ enum class QoSPrecedence {
  * \param qos_precedence: The precedence of the caller (higher wins).
  */
 void BLI_windows_process_set_qos(QoSMode qos_mode, QoSPrecedence qos_precedence);
+
+/**
+ * Reads an .rsp file into a wide string buffer, detecting encoding and converting to wide chars.
+ *
+ * @param[in]  filename     Path to the .rsp file to read.
+ * @param[out] buffer       Pointer to a caller-allocated buffer for wide characters.
+ *                          If buffer_size is 0, this can be nullptr.
+ * @param[in]  buffer_size  Size of buffer in wchar_t units. If 0, the function does not
+ *                          write data but returns the number of wchar_t required.
+ *
+ * @return The number of wchar_t required or written, including the null terminator.
+ *         Returns 0 on error.
+ *
+ * @note The caller must call CoInitialize/CoInitializeEx before using this function.
+ */
+size_t BLI_windows_read_rsp_fileW(LPCWSTR filename, LPWSTR buffer, size_t buffer_size);

@@ -35,6 +35,10 @@
 #include "BLI_task.h"
 #include "BLI_threads.h"
 #include "BLI_utildefines.h"
+#ifdef _MSC_VER
+#  include "BLI_winstuff.h"
+#  include "BLI_winstuff_com.hh"
+#endif
 
 /* Mostly initialization functions. */
 #include "BKE_appdir.hh"
@@ -330,6 +334,26 @@ int main(int argc,
     /* NOTE: Can't use `guardedalloc` allocation here, as it's not yet initialized
      * (it depends on the arguments passed in, which is what we're getting here!). */
     wchar_t **argv_16 = CommandLineToArgvW(GetCommandLineW(), &argc);
+    /* If there is a single argument and it starts with @ assume its an rsp file and read the
+     * command line from there. if there is any problem reading the file, keep the command line
+     * arguments as is. */
+    if (argc == 2 && argv_16[1][0] == L'@') {
+      blender::CoInitializeWrapper initialize(COINIT_APARTMENTTHREADED);
+      if (SUCCEEDED(initialize)) {
+        size_t size_required = BLI_windows_read_rsp_fileW(&argv_16[1][1], nullptr, 0);
+        if (size_required) {
+          wchar_t *buffer = static_cast<wchar_t *>(malloc(size_required * sizeof(wchar_t)));
+          size_t size_written = BLI_windows_read_rsp_fileW(&argv_16[1][1], buffer, size_required);
+          if (size_written) {
+            LocalFree(argv_16);
+            argv_16 = CommandLineToArgvW(buffer, &argc);
+          }
+          /* CommandLineToArgvW appears to be copying the data, so we can free the buffer right
+           * away. */
+          free(buffer);
+        }
+      }
+    }
     app_init_data.argv = static_cast<char **>(malloc(argc * sizeof(char *)));
     for (int i = 0; i < argc; i++) {
       app_init_data.argv[i] = alloc_utf_8_from_16(argv_16[i], 0);
