@@ -621,8 +621,6 @@ static void WM_OT_xr_navigation_grab(wmOperatorType *ot)
 /** \name XR Raycast Utilities
  * \{ */
 
-#define XR_MAX_RAYCASTS 8
-
 static const float g_xr_default_raycast_axis[3] = {0.0f, 0.0f, -1.0f};
 static const float g_xr_default_raycast_hit_color[4] = {0.35f, 0.35f, 1.0f, 1.0f};
 static const float g_xr_default_raycast_miss_color[4] = {1.0f, 0.35f, 0.35f, 1.0f};

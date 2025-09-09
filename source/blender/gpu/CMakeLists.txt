@@ -40,6 +40,8 @@ set(INC
   ../../../intern/ghost
   ../../../intern/mantaflow/extern
   ../../../intern/opensubdiv
+
+  ../windowmanager/xr
 )
 
 if(WITH_BUILDINFO)

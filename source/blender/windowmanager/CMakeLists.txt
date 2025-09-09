@@ -205,6 +205,7 @@ if(WITH_XR_OPENXR)
     xr/intern/wm_xr_session.cc
 
     xr/wm_xr.hh
+    xr/wm_xr_defines.hh
     xr/intern/wm_xr_intern.hh
   )
 endif()

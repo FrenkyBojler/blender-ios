@@ -14,9 +14,7 @@
 #endif
 
 #include "gpu_shader_create_info.hh"
-
-/* TODO(fclem): Share with C code. */
-#define XR_MAX_RAYCASTS 8
+#include "wm_xr_defines.hh"
 
 GPU_SHADER_CREATE_INFO(gpu_shader_xr_raycast)
 DEFINE_VALUE("XR_MAX_RAYCASTS", STRINGIFY(XR_MAX_RAYCASTS))
