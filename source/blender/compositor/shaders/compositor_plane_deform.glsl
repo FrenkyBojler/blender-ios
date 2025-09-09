@@ -40,11 +40,12 @@ void main()
 
 #if defined(PREMULTIPLY_MASK)
   if (m < 1) {
-    m = 0; // remove artifacts at horizon
-  } else {
+    m = 0;  // remove artifacts at horizon
+  }
+  else {
     float2 pixels = float2(textureSize(input_tx, 0));
     float2 mm = clamp(min(uv, pixels - uv) / wh + 0.5f, 0, 1);  // coverage of wh by image
-    mm = max(mm, mask_mult); // keep unclipped sides (nyi for anisotropic)
+    mm = max(mm, mask_mult);  // keep unclipped sides (nyi for anisotropic)
     m = mm.x * mm.y;
   }
   if (m <= 0) {

@@ -891,8 +891,10 @@ BLI_INLINE_METHOD float4 Result::sample_area(const blender::math::SamplingOption
 
   if (options.sampler != math::Sampler::Anisotropic) {
     const float *buffer = static_cast<const float *>(this->cpu_data().data());
-    return math::sample_rect(
-      {buffer, domain_.size.x, domain_.size.y, int(this->channels_count())}, options, uv, math::hypot2(dPdx, dPdy));
+    return math::sample_rect({buffer, domain_.size.x, domain_.size.y, int(this->channels_count())},
+                             options,
+                             uv,
+                             math::hypot2(dPdx, dPdy));
   }
 
   float2 scale = 1.0f / float2(domain_.size);
@@ -905,14 +907,11 @@ BLI_INLINE_METHOD float4 Result::sample_area(const blender::math::SamplingOption
                  dPdx * scale,
                  dPdy * scale,
                  options.wrap_x == math::InterpWrapMode::Border ?
-                   sample_ewa_zero_read_callback :
-                   sample_ewa_extended_read_callback,
+                     sample_ewa_zero_read_callback :
+                     sample_ewa_extended_read_callback,
                  const_cast<Result *>(this),
                  pixel_value);
   return pixel_value;
 }
-
-
-
 
 }  // namespace blender::compositor

@@ -815,7 +815,7 @@ static unsigned make_samples(const _Sampler &sampler,
                              int positions[MAX_SAMPLES],
                              float weights[MAX_SAMPLES])
 {
-  if (!(w >= 1.0f)) // this test is written so that NaN turns into 1.0
+  if (!(w >= 1.0f))  // this test is written so that NaN turns into 1.0
     w = 1.0f;
   float r = sampler.radius(w);
   float d = ceilf(w / MAX_PER_RADIUS);

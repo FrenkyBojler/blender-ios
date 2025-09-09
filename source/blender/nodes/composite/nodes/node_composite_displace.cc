@@ -170,7 +170,8 @@ class DisplaceOperation : public NodeOperation {
     Result &output = get_result("Image");
     output.allocate_texture(domain);
 
-    // Same as node_composite_map_uv, this computes 4 pixels at a time in order to share derivatives */
+    // Same as node_composite_map_uv, this computes 4 pixels at a time in order to share
+    // derivatives */
     const int2 size = domain.size;
 
     /* 2x2 blocks are used, with the differences between them used as the derivatives */
@@ -232,7 +233,8 @@ class DisplaceOperation : public NodeOperation {
   {
     float2 scale = float2(x_scale.load_pixel_extended<float, true>(texel),
                           y_scale.load_pixel_extended<float, true>(texel));
-    return float2(texel) + float2(0.5f) - input_displacement.load_pixel_extended<float2, true>(texel) * scale;
+    return float2(texel) + float2(0.5f) -
+           input_displacement.load_pixel_extended<float2, true>(texel) * scale;
   }
 
   math::SamplingOptions get_options() const

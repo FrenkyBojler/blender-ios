@@ -152,13 +152,14 @@ void RealizeOnDomainOperation::realize_on_domain_gpu(const float3x3 &imat)
     // the matrix must produce uv coordinates
     const float3x3 mat = math::from_scale<float3x3>(1.0f / float2(input.domain().size)) * imat;
     GPU_shader_uniform_mat3_as_mat4(shader, "imat", mat.ptr());
-  } else {
+  }
+  else {
     GPU_shader_uniform_mat3_as_mat4(shader, "imat", imat.ptr());
     GPU_shader_uniform_2fv(shader, "wh", wh);
   }
 
   GPU_texture_filter_mode(input, bilinear);
-  //GPU_texture_anisotropic_filter(input, false);
+  // GPU_texture_anisotropic_filter(input, false);
   GPU_texture_extend_mode_x(input, map_extension_mode_to_extend_mode(options.wrap_x));
   GPU_texture_extend_mode_y(input, map_extension_mode_to_extend_mode(options.wrap_y));
   input.bind_as_texture(shader, "input_tx");
@@ -192,8 +193,8 @@ void RealizeOnDomainOperation::realize_on_domain_cpu(const float3x3 &imat)
       float4 sample = input.sample_nearest(options, uv);
       output.store_pixel_generic_type(texel, sample);
     });
-
-  } else {
+  }
+  else {
     // derivatives converted to nearest rectangle:
     float2 wh{hypotf(imat[0].x, imat[1].x), hypotf(imat[0].y, imat[1].y)};
     parallel_for(domain.size, [&](const int2 texel) {

@@ -171,7 +171,8 @@ class CornerPinOperation : public NodeOperation {
       // make matrix produce texture coordinates
       const float3x3 mat = math::from_scale<float3x3>(1.0f / float2(domain.size)) * imat;
       GPU_shader_uniform_mat3_as_mat4(shader, "imat", mat.ptr());
-    } else {
+    }
+    else {
       GPU_shader_uniform_mat3_as_mat4(shader, "imat", imat.ptr());
     }
 
@@ -224,14 +225,16 @@ class CornerPinOperation : public NodeOperation {
     math::SamplingOptions options = this->get_options();
     const int2 size = domain.size;
 
-    // detect when Nearest sampling works. This will also work for integer translations with no rotation
+    // detect when Nearest sampling works. This will also work for integer translations with no
+    // rotation
     if (options.sampler == math::Sampler::Nearest) {
       parallel_for(size, [&](const int2 texel) {
         float3 uvw = imat * float3(texel.x, texel.y, 1.0f);
         float4 sampled_color;
         if (uvw.z <= 0.0f) {
           sampled_color = float4(0.0f);
-        } else {
+        }
+        else {
           sampled_color = input.sample_nearest(options, uvw.xy() / uvw.z);
         }
         output.store_pixel(texel, sampled_color);
@@ -239,13 +242,16 @@ class CornerPinOperation : public NodeOperation {
       return;
     }
 
-    bool clip_x = options.sampler == math::Sampler::Anisotropic || options.wrap_x == math::InterpWrapMode::Border;
-    if (clip_x) options.wrap_x = math::InterpWrapMode::Extend;
-    bool clip_y = options.sampler == math::Sampler::Anisotropic || options.wrap_y == math::InterpWrapMode::Border;
-    if (clip_y) options.wrap_y = math::InterpWrapMode::Extend;
+    bool clip_x = options.sampler == math::Sampler::Anisotropic ||
+                  options.wrap_x == math::InterpWrapMode::Border;
+    if (clip_x)
+      options.wrap_x = math::InterpWrapMode::Extend;
+    bool clip_y = options.sampler == math::Sampler::Anisotropic ||
+                  options.wrap_y == math::InterpWrapMode::Border;
+    if (clip_y)
+      options.wrap_y = math::InterpWrapMode::Extend;
 
     parallel_for(size, [&](const int2 texel) {
-
       float3 uvw = imat * float3(texel.x, texel.y, 1.0f);
 
       // Point is at infinity and will be zero when sampled, so early exit.
@@ -257,10 +263,10 @@ class CornerPinOperation : public NodeOperation {
 
       float iw = 1.0f / uvw.z;  // 1/w
 
-  // compute derivative of source location
-      const float3& m0 = imat[0];
+      // compute derivative of source location
+      const float3 &m0 = imat[0];
       float2 dPdx = (m0.xy() - uvw.xy() * m0.z * iw) * iw;
-      const float3& m1 = imat[1];
+      const float3 &m1 = imat[1];
       float2 dPdy = (m1.xy() - uvw.xy() * m1.z * iw) * iw;
 
       float m = 1;
@@ -274,7 +280,7 @@ class CornerPinOperation : public NodeOperation {
 
       if (clip_x || clip_y) {
         if (m < 1)
-          m = 0; // remove artifacts at horizon
+          m = 0;  // remove artifacts at horizon
         else {
           const float2 wh = math::hypot2(dPdx, dPdy);
           if (clip_x)

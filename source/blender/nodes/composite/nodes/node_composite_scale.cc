@@ -196,9 +196,8 @@ class ScaleOperation : public NodeOperation {
 
     const float2 center = float2(size) / 2;
     parallel_for(size, [&](const int2 texel) {
-      float2 scale = float2(
-        1 / std::max(x_scale.load_pixel<float, true>(texel), 0.0001f),
-        1 / std::max(y_scale.load_pixel<float, true>(texel), 0.0001f));
+      float2 scale = float2(1 / std::max(x_scale.load_pixel<float, true>(texel), 0.0001f),
+                            1 / std::max(y_scale.load_pixel<float, true>(texel), 0.0001f));
       // The derivatives of the scale images are ignored. GPU version is more accurate
       float2 uv = (float2(texel) + float2(0.5f) - center) * scale + center;
       output.store_pixel(texel, input.sample_rect(options, uv, scale));

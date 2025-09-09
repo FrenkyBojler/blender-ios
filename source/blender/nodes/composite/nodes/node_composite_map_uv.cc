@@ -233,8 +233,11 @@ class MapUVOperation : public NodeOperation {
         float4 result;
         if (alpha <= 0.0f) {
           result = float4(0.0f);
-        } else {
-          result = alpha * input_image.sample_area(options, coordinates.xy() * scale, x_gradient * scale, y_gradient * scale);
+        }
+        else {
+          result = alpha *
+                   input_image.sample_area(
+                       options, coordinates.xy() * scale, x_gradient * scale, y_gradient * scale);
         }
         output_image.store_pixel(texel, result);
       };
