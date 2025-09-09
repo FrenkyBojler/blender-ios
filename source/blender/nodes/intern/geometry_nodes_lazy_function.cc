@@ -1335,7 +1335,7 @@ class LazyFunctionForEnableOutputSocketUsage : public lf::LazyFunction {
   LazyFunctionForEnableOutputSocketUsage()
   {
     debug_name_ = "Enable Output Socket Usage";
-    inputs_.append_as("Keep", CPPType::get<SocketValueVariant>());
+    inputs_.append_as("Enable", CPPType::get<SocketValueVariant>());
     outputs_.append_as("Usage", CPPType::get<bool>());
   }
 
@@ -3543,7 +3543,7 @@ struct GeometryNodesLazyFunctionBuilder {
 
   void build_enable_output_node_socket_usage(const bNode &bnode, BuildGraphParams &graph_params)
   {
-    const bNodeSocket &keep_bsocket = *bnode.input_by_identifier("Keep");
+    const bNodeSocket &enable_bsocket = *bnode.input_by_identifier("Enable");
     const bNodeSocket &value_input_bsocket = *bnode.input_by_identifier("Value");
     const bNodeSocket &output_bsocket = bnode.output_socket(0);
     lf::OutputSocket *output_is_used_socket = graph_params.usage_by_bsocket.lookup_default(
@@ -3553,8 +3553,8 @@ struct GeometryNodesLazyFunctionBuilder {
     }
     static LazyFunctionForEnableOutputSocketUsage socket_usage_fn;
     lf::Node &lf_node = graph_params.lf_graph.add_function(socket_usage_fn);
-    graph_params.lf_inputs_by_bsocket.add(&keep_bsocket, &lf_node.input(0));
-    graph_params.usage_by_bsocket.add(&keep_bsocket, output_is_used_socket);
+    graph_params.lf_inputs_by_bsocket.add(&enable_bsocket, &lf_node.input(0));
+    graph_params.usage_by_bsocket.add(&enable_bsocket, output_is_used_socket);
     graph_params.usage_by_bsocket.add(&value_input_bsocket, &lf_node.output(0));
   }
 

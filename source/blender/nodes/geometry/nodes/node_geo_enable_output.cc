@@ -30,9 +30,9 @@ static void node_declare(NodeDeclarationBuilder &b)
   const eNodeSocketDatatype data_type = eNodeSocketDatatype(node->custom1);
 
   b.add_default_layout();
+  b.add_input<decl::Bool>("Enable").default_value(false).structure_type(StructureType::Single);
   b.add_input(data_type, "Value").hide_value().structure_type(StructureType::Dynamic);
   b.add_output(data_type, "Value").align_with_previous().structure_type(StructureType::Dynamic);
-  b.add_input<decl::Bool>("Keep").default_value(false).structure_type(StructureType::Single);
 }
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
@@ -50,27 +50,27 @@ class LazyFunctionForEnableOutputNode : public LazyFunction {
       : node_(node)
   {
     r_lf_index_by_bsocket[node.input_socket(0).index_in_tree()] = inputs_.append_and_get_index_as(
-        "Value", CPPType::get<SocketValueVariant>(), lf::ValueUsage::Maybe);
+        "Enable", CPPType::get<SocketValueVariant>());
     r_lf_index_by_bsocket[node.input_socket(1).index_in_tree()] = inputs_.append_and_get_index_as(
-        "Keep", CPPType::get<SocketValueVariant>());
+        "Value", CPPType::get<SocketValueVariant>(), lf::ValueUsage::Maybe);
     r_lf_index_by_bsocket[node.output_socket(0).index_in_tree()] =
         outputs_.append_and_get_index_as("Value", CPPType::get<SocketValueVariant>());
   }
 
   void execute_impl(lf::Params &params, const lf::Context & /*context*/) const override
   {
-    const bke::SocketValueVariant keep_variant = params.get_input<bke::SocketValueVariant>(1);
-    if (!keep_variant.is_single()) {
+    const bke::SocketValueVariant enable_variant = params.get_input<bke::SocketValueVariant>(0);
+    if (!enable_variant.is_single()) {
       set_default_remaining_node_outputs(params, node_);
       return;
     }
-    const bool keep = keep_variant.get<bool>();
+    const bool keep = enable_variant.get<bool>();
     if (!keep) {
       set_default_remaining_node_outputs(params, node_);
       return;
     }
     const bke::SocketValueVariant *value_variant =
-        params.try_get_input_data_ptr_or_request<bke::SocketValueVariant>(0);
+        params.try_get_input_data_ptr_or_request<bke::SocketValueVariant>(1);
     if (!value_variant) {
       /* Wait until the value is available. */
       return;
@@ -92,7 +92,7 @@ class EnableOutputOperation : public NodeOperation {
 
   void execute() override
   {
-    const bool keep = this->get_input("Keep").get_single_value_default<bool>(true);
+    const bool keep = this->get_input("Enable").get_single_value_default<bool>(true);
     Result &output = this->get_result("Value");
     if (keep) {
       const Result &input = this->get_input("Value");

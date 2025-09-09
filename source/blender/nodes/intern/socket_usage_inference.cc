@@ -431,14 +431,14 @@ struct SocketUsageInferencer {
   void usage_task__input__enable_output(const SocketInContext &socket)
   {
     const NodeInContext node = socket.owner_node();
-    const SocketInContext keep_socket = node.input_socket(1);
+    const SocketInContext enable_socket = node.input_socket(0);
     const SocketInContext output_socket = node.output_socket(0);
-    if (socket == keep_socket) {
+    if (socket == enable_socket) {
       this->usage_task__with_dependent_sockets(socket, {&*output_socket}, {}, socket.context);
     }
     else {
       this->usage_task__with_dependent_sockets(
-          socket, {&*output_socket}, {&*keep_socket}, socket.context);
+          socket, {&*output_socket}, {&*enable_socket}, socket.context);
     }
   }
 

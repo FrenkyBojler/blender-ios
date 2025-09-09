@@ -504,13 +504,13 @@ class SocketValueInferencerImpl {
   void value_task__output__enable_output(const SocketInContext &socket)
   {
     const NodeInContext node = socket.owner_node();
-    const SocketInContext value_input_socket = node.input_socket(0);
-    const SocketInContext keep_input_socket = node.input_socket(1);
+    const SocketInContext enable_input_socket = node.input_socket(0);
+    const SocketInContext value_input_socket = node.input_socket(1);
 
     const std::optional<InferenceValue> keep_value = all_socket_values_.lookup_try(
-        keep_input_socket);
+        enable_input_socket);
     if (!keep_value.has_value()) {
-      this->push_value_task(keep_input_socket);
+      this->push_value_task(enable_input_socket);
       return;
     }
     if (!keep_value->is_primitive_value()) {
