@@ -91,7 +91,7 @@ class ForgoValueOperation : public NodeOperation {
 
   void execute() override
   {
-    const bool keep = this->get_input("Keep").get_single_value<bool>();
+    const bool keep = this->get_input("Keep").get_single_value_default<bool>(true);
     Result &output = this->get_result("Value");
     if (keep) {
       const Result &input = this->get_input("Value");
