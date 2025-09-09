@@ -40,9 +40,13 @@ ExternalProject_Add(external_hiprt
   CMAKE_GENERATOR ${PLATFORM_ALT_GENERATOR}
   PREFIX ${BUILD_DIR}/hiprt
 
-  PATCH_COMMAND ${PATCH_CMD} -p 1 -d
-    ${BUILD_DIR}/hiprt/src/external_hiprt <
-    ${PATCH_DIR}/hiprt_motion_blur_fix.diff
+  PATCH_COMMAND
+    ${PATCH_CMD} -p 1 -d
+      ${BUILD_DIR}/hiprt/src/external_hiprt <
+      ${PATCH_DIR}/hiprt_motion_blur_fix.diff &&
+    ${PATCH_CMD} -p 1 -d
+      ${BUILD_DIR}/hiprt/src/external_hiprt <
+      ${PATCH_DIR}/hiprt_disable_rdna4_rt.diff
 
   CMAKE_ARGS
     -DCMAKE_INSTALL_PREFIX=${LIBDIR}/hiprt

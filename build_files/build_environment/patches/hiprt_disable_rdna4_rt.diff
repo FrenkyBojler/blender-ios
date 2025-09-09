@@ -1,0 +1,56 @@
+diff --git a/hiprt/hiprt_common.h b/hiprt/hiprt_common.h
+index c84d892..0aef8bf 100644
+--- a/hiprt/hiprt_common.h
++++ b/hiprt/hiprt_common.h
+@@ -182,8 +182,7 @@ constexpr uint32_t InstanceIDBits			 = 24u;
+ #ifndef HIPRT_RTIP
+ #if __gfx1200__ || __gfx1201__
+ // to enable full hardware support, we need either the Rocm 6.4+ on Windows, or the Rocm 7+ on Linux
+-#if ( HIP_VERSION_MAJOR >= 7 ) || \
+-	( defined( HIPCC_OS_WINDOWS ) && ( ( HIP_VERSION_MAJOR > 6 ) || ( HIP_VERSION_MAJOR == 6 && HIP_VERSION_MINOR >= 4 ) ) )
++#if ( HIP_VERSION_MAJOR > 7 )
+ #define HIPRT_RTIP 31
+ #else
+ #define HIPRT_RTIP 20
+diff --git a/hiprt/impl/Context.cpp b/hiprt/impl/Context.cpp
+index 86e9fc8..ac8c8b7 100644
+--- a/hiprt/impl/Context.cpp
++++ b/hiprt/impl/Context.cpp
+@@ -1005,37 +1005,6 @@ uint32_t Context::getRtip() const
+ 	{
+ 		if ( archNumber >= 1030 ) rtip = 11;
+ 		if ( archNumber >= 1100 ) rtip = 20;
+-		if ( archNumber >= 1200 )
+-		{
+-			int driverVersion = 0;
+-			checkOro( oroDriverGetVersion( &driverVersion ) );
+-
+-			bool driverRtip31 = false;
+-#if defined( __WINDOWS__ )
+-			if ( driverVersion >= 60400000 ) // on windows: rocm >= 6.4
+-#else
+-			if ( driverVersion >= 70000000 ) // on linux: rocm >= 7.0
+-#endif
+-				driverRtip31 = true;
+-
+-			const bool rtcRtip31 = m_compiler.isRtip31Supported();
+-#if defined( __WINDOWS__ )
+-			if ( driverRtip31 && !rtcRtip31 )
+-				logWarn( "The driver supports RTIP 3.1 but HIPRTC DLLs are of an older version; use HIPRTC DLLs 6.4+ to fully "
+-						 "utilize "
+-						 "HW ray tracing features\n" );
+-#else
+-			if ( !driverRtip31 )
+-				logWarn( "HW supports RTIP 3.1 but the driver is of an older version; use driver ROCm 6.4+ (Win) or 7.0+ "
+-						 "(Linux) to fully "
+-						 "utilize HW ray tracing features\n" );
+-#endif
+-
+-			if ( driverRtip31 && rtcRtip31 )
+-				rtip = 31;
+-			else
+-				rtip = 20;
+-		}
+ 	}
+ 
+ 	return rtip;
