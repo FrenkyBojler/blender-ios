@@ -24,6 +24,7 @@
 
 #include "BLI_array.hh"
 #include "BLI_listbase.h"
+#include "BLI_math_base_safe.h"
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_matrix.hh"
@@ -2640,11 +2641,8 @@ static void light_orbit_around_target_init_data(bContext *C, wmOperator *op, con
     else {
       /* Convert to spherical coordinates. */
       light.current_azimuth = atan2f(dir[0], dir[1]);
-      light.current_elevation = asinf(dir[2]);
+      light.current_elevation = safe_asinf(dir[2]);
     }
-    
-    /* Initialize direction inversion state. */
-    light.direction_inverted = false;
   }
 }
 
@@ -2695,19 +2693,18 @@ static void light_orbit_around_target_cancel(bContext *C, wmOperator *op)
   
   ED_region_tag_redraw(loatd->vc.region);
   ED_workspace_status_text(C, nullptr);
+  
+  MEM_delete(loatd);
 }
 
 static wmOperatorStatus light_orbit_around_target_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  if (CTX_data_edit_object(C)) {
-    return OPERATOR_CANCELLED;
-  }
-  
   light_orbit_around_target_init_data(C, op, event);
   LightOrbitAroundTargetData *loatd = static_cast<LightOrbitAroundTargetData *>(op->customdata);
   
   if (loatd->lights.is_empty()) {
-
+    MEM_delete(loatd);
+    op->customdata = nullptr;
     ED_workspace_status_text(C, nullptr);
     return OPERATOR_CANCELLED;
   }
@@ -3027,6 +3024,11 @@ static wmOperatorStatus light_orbit_around_target_modal(bContext *C, wmOperator 
 static bool light_orbit_around_target_poll(bContext *C)
 {
   if (!ED_operator_region_view3d_active(C)) {
+    return false;
+  }
+  
+  /* Should not be used in edit mode. */
+  if (CTX_data_edit_object(C)) {
     return false;
   }
   
