@@ -472,9 +472,9 @@ class IMAGE_MT_uvs(Menu):
         layout.operator("uv.average_islands_scale")
         layout.operator("uv.arrange_islands")
         layout.operator_context = 'INVOKE_REGION_WIN'
-        layout.operator("uv.set_user_region")
+        layout.operator("uv.custom_region_set")
         layout.operator_context = 'EXEC_REGION_WIN'
-        layout.prop(context.tool_settings, "user_region", text="User Region", toggle=True)        
+        layout.prop(context.tool_settings, "use_custom_region", text="Custom Region", toggle=True)
 
         layout.separator()
 

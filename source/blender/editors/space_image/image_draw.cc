@@ -454,10 +454,10 @@ void draw_image_main_helpers(const bContext *C, ARegion *region)
   }
 
   ToolSettings *ts = scene->toolsettings;
-  if (ts->uv_flag & UV_FLAG_USER_REGION) {
+  if (ts->uv_flag & UV_FLAG_CUSTOM_REGION) {
     float zoomx, zoomy;
     ED_space_image_get_zoom(sima, region, &zoomx, &zoomy);
-    draw_user_region(region, ts->uv_pack_region);
+    draw_custom_region(region, ts->uv_pack_region);
   }
 }
 
@@ -617,7 +617,7 @@ float ED_space_image_increment_snap_value(const int grid_dimensions,
   return grid_steps[0];
 }
 
-void draw_user_region(ARegion *region, rctf user_region)
+void draw_custom_region(ARegion *region, const rctf &custom_region)
 {
   /* use the same program for everything */
   const uint shdr_pos = GPU_vertformat_attr_add(
@@ -637,8 +637,8 @@ void draw_user_region(ARegion *region, rctf user_region)
   immUniform1f("udash_factor", 0.5f);
   int xmin, ymin, xmax, ymax;
 
-  UI_view2d_view_to_region(&region->v2d, user_region.xmin, user_region.ymin, &xmin, &ymin);
-  UI_view2d_view_to_region(&region->v2d, user_region.xmax, user_region.ymax, &xmax, &ymax);
+  UI_view2d_view_to_region(&region->v2d, custom_region.xmin, custom_region.ymin, &xmin, &ymin);
+  UI_view2d_view_to_region(&region->v2d, custom_region.xmax, custom_region.ymax, &xmax, &ymax);
 
   imm_draw_box_wire_2d(shdr_pos, xmin, ymin, xmax, ymax);
 

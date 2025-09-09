@@ -1440,9 +1440,9 @@ static void uvedit_pack_islands_multi(const Scene *scene,
                                       BMesh **bmesh_override,
                                       const SpaceImage *udim_source_closest,
                                       const bool original_selection,
-                                      const bool use_user_region,
+                                      const bool use_custom_region,
                                       const bool notify_wm,
-                                      rctf user_region,
+                                      rctf custom_region,
                                       blender::geometry::UVPackIsland_Params *params)
 {
   blender::Vector<FaceIsland *> island_vector;
@@ -1531,12 +1531,12 @@ static void uvedit_pack_islands_multi(const Scene *scene,
                                 (selection_max_co[1] - selection_min_co[1]);
     }
   }
-  else if (use_user_region) {
-    if ((user_region.xmax - user_region.xmin) * (user_region.ymax - user_region.ymin) > 1e-40f) {
-      copy_v2_v2(params->udim_base_offset, float2(user_region.xmin, user_region.ymin));
-      params->target_extent = user_region.ymax - user_region.ymin;
-      params->target_aspect_y = (user_region.xmax - user_region.xmin) /
-                                (user_region.ymax - user_region.ymin);
+  else if (use_custom_region) {
+    if (!BLI_rctf_is_empty(&custom_region)) {
+      copy_v2_v2(params->udim_base_offset, float2(custom_region.xmin, custom_region.ymin));
+      params->target_extent = custom_region.ymax - custom_region.ymin;
+      params->target_aspect_y = (custom_region.xmax - custom_region.xmin) /
+                                (custom_region.ymax - custom_region.ymin);
     }
   }
 
@@ -1669,7 +1669,7 @@ enum {
   PACK_UDIM_SRC_CLOSEST = 0,
   PACK_UDIM_SRC_ACTIVE,
   PACK_ORIGINAL_AABB,
-  PACK_USER_REGION,
+  PACK_CUSTOM_REGION,
 };
 
 struct UVPackIslandsData {
@@ -1686,7 +1686,7 @@ struct UVPackIslandsData {
   bool use_job;
 
   blender::geometry::UVPackIsland_Params pack_island_params;
-  rctf user_region;
+  rctf custom_region;
 };
 
 static void pack_islands_startjob(void *pidv, wmJobWorkerStatus *worker_status)
@@ -1704,9 +1704,9 @@ static void pack_islands_startjob(void *pidv, wmJobWorkerStatus *worker_status)
                             nullptr,
                             (pid->udim_source == PACK_UDIM_SRC_CLOSEST) ? pid->sima : nullptr,
                             (pid->udim_source == PACK_ORIGINAL_AABB),
-                            (pid->udim_source == PACK_USER_REGION),
+                            (pid->udim_source == PACK_CUSTOM_REGION),
                             !pid->use_job,
-                            pid->user_region,
+                            pid->custom_region,
                             &pid->pack_island_params);
 
   worker_status->progress = 0.99f;
@@ -1773,7 +1773,7 @@ static wmOperatorStatus pack_islands_exec(bContext *C, wmOperator *op)
   pid->sima = sima;
   pid->udim_source = udim_source;
   pid->wm = CTX_wm_manager(C);
-  pid->user_region = ts->uv_pack_region;
+  pid->custom_region = ts->uv_pack_region;
   blender::geometry::UVPackIsland_Params &pack_island_params = pid->pack_island_params;
   {
     /* Call default constructor and copy the defaults. */
@@ -1937,10 +1937,10 @@ static void uv_pack_islands_ui(bContext *C, wmOperator *op)
   layout->prop(op->ptr, "udim_source", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   const int udim_source = RNA_enum_get(op->ptr, "udim_source");
   ToolSettings *ts = scene->toolsettings;
-  if (udim_source == PACK_USER_REGION && !(ts->uv_flag & UV_FLAG_USER_REGION)) {
+  if (udim_source == PACK_CUSTOM_REGION && !(ts->uv_flag & UV_FLAG_CUSTOM_REGION)) {
     ts->uv_pack_region = {0.0f, 1.0f, 0.0f, 1.0f};
     PointerRNA ts_ptr = RNA_pointer_create_discrete(&scene->id, &RNA_ToolSettings, ts);
-    RNA_boolean_set(&ts_ptr, "user_region", true);
+    RNA_boolean_set(&ts_ptr, "use_custom_region", true);
     ED_region_tag_redraw(region);
   }
   layout->separator();
@@ -1965,7 +1965,7 @@ void UV_OT_pack_islands(wmOperatorType *ot)
        0,
        "Original bounding box",
        "Pack to starting bounding box of islands"},
-      {PACK_USER_REGION, "USER_REGION", 0, "User Region", "Pack islands to user region"},
+      {PACK_CUSTOM_REGION, "CUSTOM_REGION", 0, "Custom Region", "Pack islands to custom region"},
       {0, nullptr, 0, nullptr, nullptr},
   };
   /* identifiers */

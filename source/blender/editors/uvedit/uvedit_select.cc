@@ -5874,7 +5874,7 @@ void UV_OT_select_mode(wmOperatorType *ot)
   RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 }
 
-static wmOperatorStatus uv_set_user_region_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus uv_custom_region_set_exec(bContext *C, wmOperator *op)
 {
   Scene *scene = CTX_data_scene(C);
   ARegion *region = CTX_wm_region(C);
@@ -5883,21 +5883,21 @@ static wmOperatorStatus uv_set_user_region_exec(bContext *C, wmOperator *op)
   WM_operator_properties_border_to_rctf(op, &ts->uv_pack_region);
   UI_view2d_region_to_view_rctf(&region->v2d, &ts->uv_pack_region, &ts->uv_pack_region);
   PointerRNA ts_ptr = RNA_pointer_create_discrete(&scene->id, &RNA_ToolSettings, ts);
-  RNA_boolean_set(&ts_ptr, "user_region", true);
+  RNA_boolean_set(&ts_ptr, "use_custom_region", true);
 
   return OPERATOR_FINISHED;
 }
 
-void UV_OT_set_user_region(wmOperatorType *ot)
+void UV_OT_custom_region_set(wmOperatorType *ot)
 {
   /* identifiers */
   ot->name = "Set User Region";
   ot->description = "Set the boundaries of the user region";
-  ot->idname = "UV_OT_set_user_region";
+  ot->idname = "UV_OT_custom_region_set";
 
   /* API callbacks. */
   ot->invoke = WM_gesture_box_invoke;
-  ot->exec = uv_set_user_region_exec;
+  ot->exec = uv_custom_region_set_exec;
   ot->modal = WM_gesture_box_modal;
   ot->poll = ED_operator_uvedit_space_image;
   ot->cancel = WM_gesture_box_cancel;
