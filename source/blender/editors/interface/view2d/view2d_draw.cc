@@ -18,7 +18,6 @@
 #include "BLI_rect.h"
 #include "BLI_string_utf8.h"
 #include "BLI_timecode.h"
-#include "BLI_timeit.hh"
 #include "BLI_utildefines.h"
 #include "BLI_vector.hh"
 
@@ -38,11 +37,15 @@
 
 #define MIN_MAJOR_LINE_DISTANCE (U.v2d_min_gridsize * UI_SCALE_FAC)
 
+/* This number defines the smalles scale unit that will be displayed. For example 100 will give
+ * 1/100 -> 0.01 as the smallest step. This is only relevant for editors that do display subframe
+ * information, for example the Graph Editor. */
+constexpr int subframe_range = 100;
+
 /* This esentially performs a special prime factor decomposition where it can only use 2, 3 and 5
  * as prime factors. Divisions that result in 2 are preferred. */
 static int get_divisor(const int distance)
 {
-  SCOPED_TIMER_AVERAGED("calc");
   const int divisors[3] = {2, 3, 5};
   constexpr uint8_t num_divisors = ARRAY_SIZE(divisors);
   bool divides_no_remainder[num_divisors];
@@ -115,7 +118,6 @@ static float calculate_grid_step_subframes(const int base,
     return distance;
   }
 
-  constexpr int subframe_range = 100;
   /* Using `calculate_grid_step` to break down subframe_range simulating a larger view. */
   distance = calculate_grid_step(subframe_range, pixel_width, view_width * subframe_range);
   return distance / subframe_range;
@@ -251,7 +253,11 @@ static void view2d_draw_lines(const View2D *v2d,
       distance_int = round_fl_to_int(major_distance);
     }
     else {
-      distance_int = round_fl_to_int(major_distance * 100);
+      /* By multiplying by the subframe range, the smallest distance in which minor lines are drawn
+       * is the same as the smallest distance between major lines. We can just do this
+       * multiplication because from the result, the next divisor is found and applied to the
+       * major distance. The returned divisor may be 1. */
+      distance_int = round_fl_to_int(major_distance * subframe_range);
     }
     const int divisor = get_divisor(distance_int);
     minor_lines.distance = major_distance / divisor;
