@@ -1582,7 +1582,8 @@ class SEQUENCER_MT_modifier_add(Menu):
 
         self.operator_modifier_add(layout, 'BRIGHT_CONTRAST')
         self.operator_modifier_add(layout, 'COLOR_BALANCE')
-        self.operator_modifier_add(layout, 'COMPOSITOR')
+        if context.preferences.experimental.use_vse_compositor_strip_modifier:
+            self.operator_modifier_add(layout, 'COMPOSITOR')
         self.operator_modifier_add(layout, 'CURVES')
         self.operator_modifier_add(layout, 'HUE_CORRECT')
         self.operator_modifier_add(layout, 'MASK')
