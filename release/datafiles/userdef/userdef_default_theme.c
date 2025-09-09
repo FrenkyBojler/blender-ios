@@ -288,7 +288,7 @@ const bTheme U_theme_default = {
       .text_selected = RGBA(0xffaf23ff),
     },
     .sidebars = {
-      .back = RGBA(0x30303000),
+      .back = RGBA(0x18181800),
       .tab_back = RGBA(0x30303000),
     }
   },
