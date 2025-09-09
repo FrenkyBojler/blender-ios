@@ -399,15 +399,15 @@ static wmOperatorStatus uv_move_on_axis_exec(bContext *C, wmOperator *op)
 static void UV_OT_move_on_axis(wmOperatorType *ot)
 {
   static const EnumPropertyItem shift_items[] = {
-      {Dynamic, "DYNAMIC", 0, "Dynamic", "Move on Axis by dynamic grid"},
-      {Pixel, "PIXEL", 0, "Pixel", "Move on Axis by pixel"},
-      {Udim, "UDIM", 0, "UDIM", "Move on Axis by UDIM"},
+      {Dynamic, "DYNAMIC", 0, "Dynamic", "Move by dynamic grid"},
+      {Pixel, "PIXEL", 0, "Pixel", "Move by pixel"},
+      {Udim, "UDIM", 0, "UDIM", "Move by UDIM"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
   static const EnumPropertyItem axis_items[] = {
-      {int(UVMoveDirection::X), "X", 0, "X axis", "Shift vertices on the X axis"},
-      {int(UVMoveDirection::Y), "Y", 0, "Y axis", "Shift vertices on the Y axis"},
+      {int(UVMoveDirection::X), "X", 0, "X axis", "Move vertices on the X axis"},
+      {int(UVMoveDirection::Y), "Y", 0, "Y axis", "Move vertices on the Y axis"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
@@ -422,7 +422,7 @@ static void UV_OT_move_on_axis(wmOperatorType *ot)
   ot->poll = ED_operator_uvedit;
 
   /* properties */
-  RNA_def_enum(ot->srna, "type", shift_items, Dynamic, "Type", "Shift Type");
+  RNA_def_enum(ot->srna, "type", shift_items, Dynamic, "Type", "Move Type");
   RNA_def_enum(
       ot->srna, "axis", axis_items, int(UVMoveDirection::X), "Axis", "Axis to move UVs on");
   RNA_def_int(ot->srna,
@@ -431,7 +431,7 @@ static void UV_OT_move_on_axis(wmOperatorType *ot)
               INT_MIN,
               INT_MAX,
               "Distance",
-              "Distance to shift UVs",
+              "Distance to move UVs",
               INT_MIN,
               INT_MAX);
 }
