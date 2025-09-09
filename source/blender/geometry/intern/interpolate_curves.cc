@@ -1115,6 +1115,8 @@ void interpolate_curves_with_samples(const CurvesGeometry &from_curves,
                            dst_curve_mask,
                            dst_points_by_curve,
                            dst_types_right);
+
+    dst_curves.calculate_bezier_auto_handles();
   }
 
   for (const int i_attribute : curve_attributes.dst.index_range()) {
