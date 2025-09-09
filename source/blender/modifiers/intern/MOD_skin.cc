@@ -2038,13 +2038,13 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
   op_ptr = row->op("OBJECT_OT_skin_loose_mark_clear",
                    IFACE_("Mark Loose"),
                    ICON_NONE,
-                   WM_OP_EXEC_DEFAULT,
+                   blender::wm::OpCallContext::ExecDefault,
                    UI_ITEM_NONE);
   RNA_enum_set(&op_ptr, "action", 0); /* SKIN_LOOSE_MARK */
   op_ptr = row->op("OBJECT_OT_skin_loose_mark_clear",
                    IFACE_("Clear Loose"),
                    ICON_NONE,
-                   WM_OP_EXEC_DEFAULT,
+                   blender::wm::OpCallContext::ExecDefault,
                    UI_ITEM_NONE);
   RNA_enum_set(&op_ptr, "action", 1); /* SKIN_LOOSE_CLEAR */
 
@@ -2092,4 +2092,5 @@ ModifierTypeInfo modifierType_Skin = {
     /*blend_write*/ nullptr,
     /*blend_read*/ nullptr,
     /*foreach_cache*/ nullptr,
+    /*foreach_working_space_color*/ nullptr,
 };

@@ -210,8 +210,10 @@ void MaterialModule::end_sync()
       GPUMaterialTexture *tex = texture_loading_queue_[i];
       ImageUser *iuser = tex->iuser_available ? &tex->iuser : nullptr;
       BKE_image_get_tile(tex->ima, 0);
-      ImBuf *imbuf = BKE_image_acquire_ibuf(tex->ima, iuser, nullptr);
-      BKE_image_release_ibuf(tex->ima, imbuf, nullptr);
+      threading::isolate_task([&]() {
+        ImBuf *imbuf = BKE_image_acquire_ibuf(tex->ima, iuser, nullptr);
+        BKE_image_release_ibuf(tex->ima, imbuf, nullptr);
+      });
     }
   });
 
@@ -220,7 +222,7 @@ void MaterialModule::end_sync()
     BKE_image_tag_time(tex->ima);
   }
 
-  /* Upload to the GPU (create GPUTexture). This part still requires a valid GPU context and
+  /* Upload to the GPU (create gpu::Texture). This part still requires a valid GPU context and
    * is not easily parallelized. */
   for (GPUMaterialTexture *tex : texture_loading_queue_) {
     BLI_assert(tex->ima);

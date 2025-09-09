@@ -17,8 +17,8 @@
 
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_task.hh"
-#include "BLI_threads.h"
 #include "BLI_utildefines.h"
 
 #include "DNA_scene_types.h"
@@ -28,6 +28,8 @@
 #include "IMB_colormanagement.hh"
 #include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
+
+#include "CLG_log.h"
 
 #include "MOV_read.hh"
 
@@ -52,8 +54,14 @@ extern "C" {
 #endif /* WITH_FFMPEG */
 
 #ifdef WITH_FFMPEG
+static CLG_LogRef LOG = {"video.read"};
+#endif
+
+#ifdef WITH_FFMPEG
 static void free_anim_ffmpeg(MovieReader *anim);
 #endif
+
+static bool anim_getnew(MovieReader *anim);
 
 void MOV_close(MovieReader *anim)
 {
@@ -98,6 +106,75 @@ IDProperty *MOV_load_metadata(MovieReader *anim)
   return anim->metadata;
 }
 
+static void probe_video_colorspace(MovieReader *anim, char r_colorspace_name[IM_MAX_SPACE])
+{
+  /* Use default role as fallback (i.e. it is an unknown combination of colorspace and primaries)
+   */
+  BLI_strncpy_utf8(r_colorspace_name,
+                   IMB_colormanagement_role_colorspace_name_get(COLOR_ROLE_DEFAULT_BYTE),
+                   IM_MAX_SPACE);
+
+  if (anim->state == MovieReader::State::Uninitialized) {
+    if (!anim_getnew(anim)) {
+      return;
+    }
+  }
+
+#ifdef WITH_FFMPEG
+  const AVColorTransferCharacteristic color_trc = anim->pCodecCtx->color_trc;
+  const AVColorPrimaries color_primaries = anim->pCodecCtx->color_primaries;
+
+  /* ASWF Color Interop Forum defined display spaces. The CICP codes there match the enum
+   * values defined by ffmpeg. Keep in sync with movie_write.cc.
+   *
+   * Note that pCodecCtx->color_space is ignored because it is only about choice of YUV
+   * encoding for best compression, and ffmpeg will decode to RGB for us. */
+  blender::StringRefNull interop_id;
+
+  if (color_primaries == AVCOL_PRI_BT2020 && color_trc == AVCOL_TRC_SMPTEST2084) {
+    interop_id = "pq_rec2020_display";
+  }
+  else if (color_primaries == AVCOL_PRI_BT2020 && color_trc == AVCOL_TRC_ARIB_STD_B67) {
+    interop_id = "hlg_rec2020_display";
+  }
+  else if ((color_primaries == AVCOL_PRI_SMPTE432 && color_trc == AVCOL_TRC_IEC61966_2_1) ||
+           (color_primaries == AVCOL_PRI_SMPTE432 && color_trc == AVCOL_TRC_BT709))
+  {
+    interop_id = "srgb_p3d65_display";
+  }
+  else if (color_primaries == AVCOL_PRI_SMPTE432 && color_trc == AVCOL_TRC_SMPTEST2084) {
+    interop_id = "pq_p3d65_display";
+  }
+  else if (color_primaries == AVCOL_PRI_SMPTE432 && color_trc == AVCOL_TRC_SMPTE428) {
+    interop_id = "g26_p3d65_display";
+  }
+  else if (color_primaries == AVCOL_PRI_BT709 && color_trc == AVCOL_TRC_GAMMA22) {
+    interop_id = "g22_rec709_display";
+  }
+  else if (color_primaries == AVCOL_PRI_BT2020 && color_trc == AVCOL_TRC_BT709) {
+    interop_id = "g24_rec2020_display";
+  }
+  else if (color_primaries == AVCOL_PRI_BT709 && color_trc == AVCOL_TRC_IEC61966_2_1) {
+    interop_id = "srgb_rec709_display";
+  }
+  else if (color_primaries == AVCOL_PRI_BT709 && color_trc == AVCOL_TRC_BT709) {
+    /* Arguably this should be g24_rec709_display, but we write sRGB like this. */
+    interop_id = "srgb_rec709_display";
+  }
+
+  if (interop_id.is_empty()) {
+    return;
+  }
+  const ColorSpace *colorspace = IMB_colormanagement_space_from_interop_id(interop_id);
+  if (colorspace == nullptr) {
+    return;
+  }
+
+  BLI_strncpy_utf8(
+      r_colorspace_name, IMB_colormanagement_colorspace_get_name(colorspace), IM_MAX_SPACE);
+#endif /* WITH_FFMPEG */
+}
+
 MovieReader *MOV_open_file(const char *filepath,
                            const int ib_flags,
                            const int streamindex,
@@ -110,20 +187,27 @@ MovieReader *MOV_open_file(const char *filepath,
 
   anim = MEM_new<MovieReader>("anim struct");
   if (anim != nullptr) {
-    /* Initialize colorspace to default if not yet set. */
-    const char *default_colorspace = IMB_colormanagement_role_colorspace_name_get(
-        COLOR_ROLE_DEFAULT_BYTE);
-    if (colorspace && colorspace[0] == '\0') {
-      BLI_strncpy(colorspace, default_colorspace, IM_MAX_SPACE);
-    }
-
-    /* Inherit colorspace from argument if provided. */
-    STRNCPY(anim->colorspace, colorspace ? colorspace : default_colorspace);
 
     STRNCPY(anim->filepath, filepath);
     anim->ib_flags = ib_flags;
     anim->streamindex = streamindex;
     anim->keep_original_colorspace = keep_original_colorspace;
+
+    if (colorspace && colorspace[0] != '\0') {
+      /* Use colorspace from argument, if provided. */
+      STRNCPY_UTF8(anim->colorspace, colorspace);
+    }
+    else {
+      /* Try to initialize colorspace from the FFmpeg stream by interpreting color information from
+       * it. */
+      char file_colorspace[IM_MAX_SPACE];
+      probe_video_colorspace(anim, file_colorspace);
+      STRNCPY_UTF8(anim->colorspace, file_colorspace);
+      if (colorspace) {
+        /* Copy the used colorspace into output argument. */
+        BLI_strncpy_utf8(colorspace, file_colorspace, IM_MAX_SPACE);
+      }
+    }
   }
   return anim;
 }
@@ -348,7 +432,7 @@ static int startffmpeg(MovieReader *anim)
     pCodecCtx->thread_count = 0;
   }
   else {
-    pCodecCtx->thread_count = BLI_system_thread_count();
+    pCodecCtx->thread_count = MOV_thread_count();
   }
 
   if (pCodec->capabilities & AV_CODEC_CAP_FRAME_THREADS) {
@@ -431,7 +515,7 @@ static int startffmpeg(MovieReader *anim)
 
   const size_t align = ffmpeg_get_buffer_alignment();
   if (av_frame_get_buffer(anim->pFrameRGB, align) < 0) {
-    fprintf(stderr, "Could not allocate frame data.\n");
+    CLOG_ERROR(&LOG, "Could not allocate frame data.");
     avcodec_free_context(&anim->pCodecCtx);
     avformat_close_input(&anim->pFormatCtx);
     av_packet_free(&anim->cur_packet);
@@ -478,11 +562,11 @@ static int startffmpeg(MovieReader *anim)
                                                      SWS_ACCURATE_RND);
 
   if (!anim->img_convert_ctx) {
-    fprintf(stderr,
-            "ffmpeg: swscale can't transform from pixel format %s to %s (%s)\n",
-            av_get_pix_fmt_name(anim->pCodecCtx->pix_fmt),
-            av_get_pix_fmt_name((AVPixelFormat)anim->pFrameRGB->format),
-            anim->filepath);
+    CLOG_ERROR(&LOG,
+               "ffmpeg: swscale can't transform from pixel format %s to %s (%s)",
+               av_get_pix_fmt_name(anim->pCodecCtx->pix_fmt),
+               av_get_pix_fmt_name((AVPixelFormat)anim->pFrameRGB->format),
+               anim->filepath);
     avcodec_free_context(&anim->pCodecCtx);
     avformat_close_input(&anim->pFormatCtx);
     av_packet_free(&anim->cur_packet);
@@ -654,9 +738,9 @@ static void ffmpeg_postprocess(MovieReader *anim, AVFrame *input, ImBuf *ibuf)
   if (input->data[0] == nullptr && input->data[1] == nullptr && input->data[2] == nullptr &&
       input->data[3] == nullptr)
   {
-    fprintf(stderr,
-            "ffmpeg_fetchibuf: "
-            "data not read properly...\n");
+    CLOG_ERROR(&LOG,
+               "ffmpeg_fetchibuf: "
+               "data not read properly...");
     return;
   }
 
@@ -1359,11 +1443,11 @@ ImBuf *MOV_decode_preview_frame(MovieReader *anim)
 
     char value[128];
     IMB_metadata_ensure(&ibuf->metadata);
-    SNPRINTF(value, "%i", anim->x);
+    SNPRINTF_UTF8(value, "%i", anim->x);
     IMB_metadata_set_field(ibuf->metadata, "Thumb::Video::Width", value);
-    SNPRINTF(value, "%i", anim->y);
+    SNPRINTF_UTF8(value, "%i", anim->y);
     IMB_metadata_set_field(ibuf->metadata, "Thumb::Video::Height", value);
-    SNPRINTF(value, "%i", anim->duration_in_frames);
+    SNPRINTF_UTF8(value, "%i", anim->duration_in_frames);
     IMB_metadata_set_field(ibuf->metadata, "Thumb::Video::Frames", value);
 
 #ifdef WITH_FFMPEG
@@ -1372,9 +1456,9 @@ ImBuf *MOV_decode_preview_frame(MovieReader *anim)
       AVRational frame_rate = av_guess_frame_rate(anim->pFormatCtx, v_st, nullptr);
       if (frame_rate.num != 0) {
         double duration = anim->duration_in_frames / av_q2d(frame_rate);
-        SNPRINTF(value, "%g", av_q2d(frame_rate));
+        SNPRINTF_UTF8(value, "%g", av_q2d(frame_rate));
         IMB_metadata_set_field(ibuf->metadata, "Thumb::Video::FPS", value);
-        SNPRINTF(value, "%g", duration);
+        SNPRINTF_UTF8(value, "%g", duration);
         IMB_metadata_set_field(ibuf->metadata, "Thumb::Video::Duration", value);
         IMB_metadata_set_field(ibuf->metadata, "Thumb::Video::Codec", anim->pCodec->long_name);
       }

@@ -114,7 +114,7 @@ class BokehBlurOperation : public NodeOperation {
 
   void execute_constant_size_gpu(const Result &input)
   {
-    GPUShader *shader = context().get_shader("compositor_bokeh_blur");
+    gpu::Shader *shader = context().get_shader("compositor_bokeh_blur");
     GPU_shader_bind(shader);
 
     GPU_shader_uniform_1i(shader, "radius", int(compute_blur_radius()));
@@ -194,7 +194,7 @@ class BokehBlurOperation : public NodeOperation {
   {
     const int search_radius = compute_variable_size_search_radius();
 
-    GPUShader *shader = context().get_shader("compositor_bokeh_blur_variable_size");
+    gpu::Shader *shader = context().get_shader("compositor_bokeh_blur_variable_size");
     GPU_shader_bind(shader);
 
     GPU_shader_uniform_1f(shader, "base_size", compute_blur_radius());
@@ -407,6 +407,7 @@ static void register_node_type_cmp_bokehblur()
   ntype.nclass = NODE_CLASS_OP_FILTER;
   ntype.declare = file_ns::cmp_node_bokehblur_declare;
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
+  blender::bke::node_type_size(ntype, 160, 140, NODE_DEFAULT_MAX_WIDTH);
 
   blender::bke::node_register_type(ntype);
 }

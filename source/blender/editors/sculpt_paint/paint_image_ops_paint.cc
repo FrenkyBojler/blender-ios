@@ -15,9 +15,11 @@
 #include "BLI_math_vector.h"
 
 #include "BKE_brush.hh"
+#include "BKE_colortools.hh"
 #include "BKE_context.hh"
 #include "BKE_layer.hh"
 #include "BKE_paint.hh"
+#include "BKE_paint_types.hh"
 #include "BKE_undo_system.hh"
 
 #include "ED_paint.hh"
@@ -203,7 +205,7 @@ class ProjectionPaintMode : public AbstractPaintMode {
                       paint_stroke_flipped(stroke),
                       1.0,
                       0.0,
-                      BKE_brush_size_get(paint, brush));
+                      BKE_brush_radius_get(paint, brush));
     /* two redraws, one for GPU update, one for notification */
     paint_proj_redraw(C, stroke_handle, false);
     paint_proj_redraw(C, stroke_handle, true);
@@ -336,10 +338,10 @@ static void paint_stroke_update_step(bContext *C,
 {
   PaintOperation *pop = static_cast<PaintOperation *>(paint_stroke_mode_data(stroke));
   Paint *paint = BKE_paint_get_active_from_context(C);
-  UnifiedPaintSettings *ups = &paint->unified_paint_settings;
+  bke::PaintRuntime *paint_runtime = paint->runtime;
   Brush *brush = BKE_paint_brush(paint);
 
-  float alphafac = (brush->flag & BRUSH_ACCUMULATE) ? ups->overlap_factor : 1.0f;
+  float alphafac = (brush->flag & BRUSH_ACCUMULATE) ? paint_runtime->overlap_factor : 1.0f;
 
   /* initial brush values. Maybe it should be considered moving these to stroke system */
   float startalpha = BKE_brush_alpha_get(paint, brush);
@@ -362,6 +364,7 @@ static void paint_stroke_update_step(bContext *C,
   }
 
   if (BKE_brush_use_alpha_pressure(brush)) {
+    pressure = BKE_curvemapping_evaluateF(brush->curve_strength, 0, pressure);
     BKE_brush_alpha_set(paint, brush, max_ff(0.0f, startalpha * pressure * alphafac));
   }
   else {
@@ -369,7 +372,7 @@ static void paint_stroke_update_step(bContext *C,
   }
 
   if ((brush->flag & BRUSH_DRAG_DOT) || (brush->flag & BRUSH_ANCHORED)) {
-    UndoStack *ustack = CTX_wm_manager(C)->undo_stack;
+    UndoStack *ustack = CTX_wm_manager(C)->runtime->undo_stack;
     ED_image_undo_restore(ustack->step_init);
   }
 

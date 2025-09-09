@@ -122,10 +122,21 @@ static blender::animrig::Action &extract_pose(Main &bmain,
     BLI_assert(pose_object->pose);
     Slot &slot = action.slot_add_for_id(pose_object->id);
     const bArmature *armature = static_cast<bArmature *>(pose_object->data);
+
+    Set<RNAPath> existing_paths;
+    if (pose_object->adt && pose_object->adt->action &&
+        pose_object->adt->slot_handle != Slot::unassigned)
+    {
+      Action &pose_object_action = pose_object->adt->action->wrap();
+      const slot_handle_t pose_object_slot = pose_object->adt->slot_handle;
+      foreach_fcurve_in_action_slot(pose_object_action, pose_object_slot, [&](FCurve &fcurve) {
+        RNAPath existing_path = {fcurve.rna_path, std::nullopt, fcurve.array_index};
+        existing_paths.add(existing_path);
+      });
+    }
+
     LISTBASE_FOREACH (bPoseChannel *, pose_bone, &pose_object->pose->chanbase) {
-      if (!(pose_bone->bone->flag & BONE_SELECTED) ||
-          !blender::animrig::bone_is_visible(armature, pose_bone->bone))
-      {
+      if (!blender::animrig::bone_is_selected(armature, pose_bone)) {
         continue;
       }
       PointerRNA bone_pointer = RNA_pointer_create_discrete(
@@ -147,6 +158,12 @@ static blender::animrig::Action &extract_pose(Main &bmain,
           continue;
         }
         for (const int i : values.index_range()) {
+          if (RNA_property_is_idprop(resolved_property) &&
+              !existing_paths.contains({rna_path_id_to_prop.value(), std::nullopt, i}))
+          {
+            /* Skipping custom properties without animation. */
+            continue;
+          }
           strip_data.keyframe_insert(
               &bmain, slot, {rna_path_id_to_prop.value(), i}, {1, values[i]}, key_settings);
         }
@@ -426,15 +443,6 @@ void POSELIB_OT_create_pose_asset(wmOperatorType *ot)
       ot->srna, "catalog_path", nullptr, MAX_NAME, "Catalog", "Catalog to use for the new asset");
   RNA_def_property_string_search_func_runtime(
       prop, visit_library_prop_catalogs_catalog_for_search_fn, PROP_STRING_SEARCH_SUGGESTION);
-
-  /* This property is just kept to have backwards compatibility and has no functionality. It should
-   * be removed in the 5.0 release. */
-  prop = RNA_def_boolean(ot->srna,
-                         "activate_new_action",
-                         false,
-                         "Activate New Action",
-                         "This property is deprecated and will be removed in the future");
-  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 }
 
 enum AssetModifyMode {
@@ -497,9 +505,7 @@ static Vector<PathValue> generate_path_values(Object &pose_object)
   Vector<PathValue> path_values;
   const bArmature *armature = static_cast<bArmature *>(pose_object.data);
   LISTBASE_FOREACH (bPoseChannel *, pose_bone, &pose_object.pose->chanbase) {
-    if (!(pose_bone->bone->flag & BONE_SELECTED) ||
-        !blender::animrig::bone_is_visible(armature, pose_bone->bone))
-    {
+    if (!blender::animrig::bone_is_selected(armature, pose_bone)) {
       continue;
     }
     PointerRNA bone_pointer = RNA_pointer_create_discrete(

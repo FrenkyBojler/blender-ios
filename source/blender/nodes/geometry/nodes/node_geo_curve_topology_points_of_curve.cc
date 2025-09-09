@@ -14,7 +14,8 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Int>("Curve Index")
       .implicit_field(NODE_DEFAULT_INPUT_INDEX_FIELD)
-      .description("The curve to retrieve data from. Defaults to the curve from the context");
+      .description("The curve to retrieve data from. Defaults to the curve from the context")
+      .structure_type(StructureType::Field);
   b.add_input<decl::Float>("Weights").supports_field().hide_value().description(
       "Values used to sort the curve's points. Uses indices by default");
   b.add_input<decl::Int>("Sort Index")
@@ -73,7 +74,7 @@ class PointsOfCurveInput final : public bke::GeometryFieldInput {
 
     if (context.domain() == AttrDomain::Curve) {
       if (use_start_point_special_case(curve_index_, sort_index_, sort_weight_)) {
-        return VArray<int>::ForSpan(points_by_curve.data());
+        return VArray<int>::from_span(points_by_curve.data());
       }
     }
 
@@ -130,7 +131,7 @@ class PointsOfCurveInput final : public bke::GeometryFieldInput {
       }
     });
 
-    return VArray<int>::ForContainer(std::move(point_of_curve));
+    return VArray<int>::from_container(std::move(point_of_curve));
   }
 
   void for_each_field_input_recursive(FunctionRef<void(const FieldInput &)> fn) const override
@@ -175,7 +176,7 @@ class CurvePointCountInput final : public bke::CurvesFieldInput {
       return {};
     }
     const OffsetIndices points_by_curve = curves.points_by_curve();
-    return VArray<int>::ForFunc(curves.curves_num(), [points_by_curve](const int64_t curve_i) {
+    return VArray<int>::from_func(curves.curves_num(), [points_by_curve](const int64_t curve_i) {
       return points_by_curve[curve_i].size();
     });
   }

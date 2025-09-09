@@ -6,7 +6,7 @@
  * \ingroup cmpnodes
  */
 
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 
 #include "UI_interface_layout.hh"
 #include "UI_resources.hh"
@@ -40,8 +40,8 @@ static void node_composit_init_convert_colorspace(bNodeTree * /*ntree*/, bNode *
   const char *first_colorspace = IMB_colormanagement_role_colorspace_name_get(
       COLOR_ROLE_SCENE_LINEAR);
   if (first_colorspace && first_colorspace[0]) {
-    STRNCPY(ncs->from_color_space, first_colorspace);
-    STRNCPY(ncs->to_color_space, first_colorspace);
+    STRNCPY_UTF8(ncs->from_color_space, first_colorspace);
+    STRNCPY_UTF8(ncs->to_color_space, first_colorspace);
   }
   else {
     ncs->from_color_space[0] = 0;
@@ -98,7 +98,7 @@ class ConvertColorSpaceOperation : public NodeOperation {
         context().cache_manager().ocio_color_space_conversion_shaders.get(
             context(), source, target);
 
-    GPUShader *shader = ocio_shader.bind_shader_and_resources();
+    gpu::Shader *shader = ocio_shader.bind_shader_and_resources();
 
     /* A null shader indicates that the conversion shader is just a stub implementation since OCIO
      * is disabled at compile time, so pass the input through in that case. */
@@ -208,6 +208,7 @@ static void register_node_type_cmp_convert_color_space()
   blender::bke::node_type_storage(
       ntype, "NodeConvertColorSpace", node_free_standard_storage, node_copy_standard_storage);
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
+  blender::bke::node_type_size(ntype, 160, 150, NODE_DEFAULT_MAX_WIDTH);
 
   blender::bke::node_register_type(ntype);
 }
