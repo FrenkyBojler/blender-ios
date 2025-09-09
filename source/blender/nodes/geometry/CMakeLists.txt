@@ -37,6 +37,7 @@ set(SRC
   nodes/node_geo_boolean.cc
   nodes/node_geo_bounding_box.cc
   nodes/node_geo_camera_info.cc
+  nodes/node_geo_closure_to_list.cc
   nodes/node_geo_closure.cc
   nodes/node_geo_collection_info.cc
   nodes/node_geo_combine_bundle.cc
@@ -85,6 +86,7 @@ set(SRC
   nodes/node_geo_extrude_mesh.cc
   nodes/node_geo_field_average.cc
   nodes/node_geo_field_min_and_max.cc
+  nodes/node_geo_field_to_list.cc
   nodes/node_geo_field_variance.cc
   nodes/node_geo_flip_faces.cc
   nodes/node_geo_foreach_geometry_element.cc
@@ -145,8 +147,8 @@ set(SRC
   nodes/node_geo_instances_to_points.cc
   nodes/node_geo_interpolate_curves.cc
   nodes/node_geo_is_viewport.cc
+  nodes/node_geo_items_to_list.cc
   nodes/node_geo_join_geometry.cc
-  nodes/node_geo_list.cc
   nodes/node_geo_list_get_item.cc
   nodes/node_geo_list_length.cc
   nodes/node_geo_material_replace.cc
