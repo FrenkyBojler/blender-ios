@@ -4,7 +4,10 @@
 
 import bpy
 from bpy.types import Menu, Panel
-from bpy.app.translations import contexts as i18n_contexts
+from bpy.app.translations import (
+    pgettext_n as n_,
+    contexts as i18n_contexts,
+)
 
 
 class TIME_PT_playhead_snapping(Panel):
@@ -291,8 +294,18 @@ class TIME_PT_keyframing_settings(TimelinePanelButtons, Panel):
         st = context.space_data
         is_sequencer = st.type == 'SEQUENCE_EDITOR' and st.view_type == 'SEQUENCER'
         scene = context.scene if not is_sequencer else context.sequencer_scene
-        self.bl_label = "{:s}".format(
-            scene.keying_sets_all.active.bl_label if scene.keying_sets_all.active else "Keying")
+        if scene.keying_sets_all.active:
+            self.bl_label = scene.keying_sets_all.active.bl_label
+            if scene.keying_sets_all.active.bl_label in scene.keying_sets:
+                # Do not translate, this keying set is user-defined.
+                self.bl_translation_context = "Do not translate"
+            else:
+                # Use the keying set's translation context (default).
+                self.bl_translation_context = scene.keying_sets_all.active.bl_rna.translation_context
+        else:
+            # Use a custom translation context to differentiate from compositing keying.
+            self.bl_label = n_("Keying", i18n_contexts.id_windowmanager)
+            self.bl_translation_context = i18n_contexts.id_windowmanager
 
     def draw(self, context):
         layout = self.layout
