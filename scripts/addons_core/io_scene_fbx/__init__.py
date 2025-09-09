@@ -4,7 +4,9 @@
 
 bl_info = {
     "name": "FBX format",
-    "author": "Campbell Barton, Bastien Montagne, Jens Restemeier, @Mysteryem",
+    # This is now displayed as the maintainer, so show the foundation.
+    # "author": "Campbell Barton, Bastien Montagne, Jens Restemeier, @Mysteryem", # Original Authors
+    "author": "Blender Foundation",
     "version": (5, 13, 0),
     "blender": (4, 5, 0),
     "location": "File > Import-Export",
@@ -196,6 +198,15 @@ class ImportFBX(bpy.types.Operator, ImportHelper):
         description="Use pre/post rotation from FBX transform (you may have to disable that in some cases)",
         default=True,
     )
+    mtl_name_collision_mode: EnumProperty(
+        name="Material Name Collision",
+        items=(("MAKE_UNIQUE", "Make Unique", "Import each FBX material as a unique Blender material"),
+               ("REFERENCE_EXISTING", "Reference Existing",
+               "If a material with the same name already exists, reference that instead of importing"),
+               ),
+        default='MAKE_UNIQUE',
+        description="Behavior when the name of an imported material conflicts with an existing material",
+    )
 
     def draw(self, context):
         layout = self.layout
@@ -204,6 +215,7 @@ class ImportFBX(bpy.types.Operator, ImportHelper):
 
         import_panel_include(layout, self)
         import_panel_transform(layout, self)
+        import_panel_materials(layout, self)
         import_panel_animation(layout, self)
         import_panel_armature(layout, self)
 
@@ -215,9 +227,8 @@ class ImportFBX(bpy.types.Operator, ImportHelper):
 
         if self.files:
             ret = {'CANCELLED'}
-            dirname = os.path.dirname(self.filepath)
             for file in self.files:
-                path = os.path.join(dirname, file.name)
+                path = os.path.join(self.directory, file.name)
                 if import_fbx.load(self, context, filepath=path, **keywords) == {'FINISHED'}:
                     ret = {'FINISHED'}
             return ret
@@ -266,6 +277,11 @@ def import_panel_transform_orientation(layout, operator):
         body.prop(operator, "axis_forward")
         body.prop(operator, "axis_up")
 
+def import_panel_materials(layout, operator):
+    header, body = layout.panel("FBX_import_material", default_closed=True)
+    header.label(text="Materials")
+    if body:
+        body.prop(operator, "mtl_name_collision_mode")
 
 def import_panel_animation(layout, operator):
     header, body = layout.panel("FBX_import_animation", default_closed=True)
@@ -288,7 +304,6 @@ def import_panel_armature(layout, operator):
         sub.enabled = not operator.automatic_bone_orientation
         sub.prop(operator, "primary_bone_axis")
         sub.prop(operator, "secondary_bone_axis")
-
 
 @orientation_helper(axis_forward='-Z', axis_up='Y')
 class ExportFBX(bpy.types.Operator, ExportHelper):

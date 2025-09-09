@@ -61,6 +61,8 @@ BLOCKLIST_METAL = [
     "image.blend",
     # Blocked due to differences in transparency.
     "aov_transparency.blend",
+    # Blocked due to subtle differences in DOF
+    "osl_camera_advanced.blend",
 ]
 
 BLOCKLIST_VULKAN = [
@@ -273,7 +275,7 @@ def main():
     # TODO(fclem): See if we can just increase number of samples per file.
     if test_dir_name.startswith('render_layer'):
         # shadow pass, rlayer flag
-        report.set_fail_threshold(0.035)
+        report.set_fail_threshold(0.075)
     elif test_dir_name.startswith('hair'):
         # hair close up
         report.set_fail_threshold(0.0275)

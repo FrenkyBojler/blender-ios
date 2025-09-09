@@ -72,7 +72,7 @@ void MTLVertBuf::bind()
   uint64_t required_size = max_ulul(required_size_raw, 128);
 
   if (required_size_raw == 0) {
-    MTL_LOG_INFO("Vertex buffer required_size = 0");
+    MTL_LOG_DEBUG("Vertex buffer required_size = 0");
   }
 
   /* If the vertex buffer has already been allocated, but new data is ready,
@@ -263,8 +263,7 @@ void MTLVertBuf::bind_as_texture(uint binding)
   /* If vertex buffer updated, release existing texture and re-create. */
   id<MTLBuffer> buf = this->get_metal_buffer();
   if (buffer_texture_ != nullptr) {
-    gpu::MTLTexture *mtl_buffer_tex = static_cast<gpu::MTLTexture *>(
-        unwrap(this->buffer_texture_));
+    gpu::MTLTexture *mtl_buffer_tex = static_cast<gpu::MTLTexture *>(this->buffer_texture_);
     id<MTLBuffer> tex_buf = mtl_buffer_tex->get_vertex_buffer();
     if (tex_buf != buf) {
       GPU_TEXTURE_FREE_SAFE(buffer_texture_);

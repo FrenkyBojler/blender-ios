@@ -21,9 +21,12 @@
 #include "CLG_log.h"
 
 #include "BLI_path_utils.hh"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_threads.h"
 #include "BLI_utildefines.h"
+#ifdef WITH_PYTHON_MODULE
+#  include "BLI_string.h"
+#endif
 
 #include "BLT_translation.hh"
 
@@ -347,9 +350,8 @@ void BPY_python_start(bContext *C, int argc, const char **argv)
     PyStatus status;
 
     /* To narrow down reports where the systems Python is inexplicably used, see: #98131. */
-    CLOG_INFO(
+    CLOG_DEBUG(
         BPY_LOG_INTERFACE,
-        2,
         "Initializing %s support for the systems Python environment such as 'PYTHONPATH' and "
         "the user-site directory.",
         py_use_system_env ? "*with*" : "*without*");
@@ -412,6 +414,31 @@ void BPY_python_start(bContext *C, int argc, const char **argv)
     /* Suppress error messages when calculating the module search path.
      * While harmless, it's noisy. */
     config.pathconfig_warnings = 0;
+
+    {
+      /* NOTE: running scripts directly uses the default behavior *but* the default
+       * warning filter doesn't show warnings form module besides `__main__`.
+       * Use the default behavior unless debugging Python. See: !139487. */
+      bool show_python_warnings = false;
+
+#  ifdef NDEBUG
+      show_python_warnings = G.debug & G_DEBUG_PYTHON;
+#  else
+      /* Always show warnings for debug builds so developers are made aware
+       * of outdated API use before any breakages occur. */
+      show_python_warnings = true;
+#  endif
+
+      if (show_python_warnings) {
+        /* Don't overwrite warning settings if they have been set by the environment. */
+        if (!(py_use_system_env && BLI_getenv("PYTHONWARNINGS"))) {
+          /* Confusingly `default` is not the default.
+           * Setting to `default` without any module names shows warnings for all modules.
+           * Useful for development since most functionality occurs outside of `__main__`. */
+          PyWideStringList_Append(&config.warnoptions, L"default");
+        }
+      }
+    }
 
     /* Allow the user site directory because this is used
      * when PIP installing packages from Blender, see: #104000.
@@ -724,7 +751,7 @@ void BPY_modules_load_user(bContext *C)
       if (!(G.f & G_FLAG_SCRIPT_AUTOEXEC)) {
         if (!(G.f & G_FLAG_SCRIPT_AUTOEXEC_FAIL_QUIET)) {
           G.f |= G_FLAG_SCRIPT_AUTOEXEC_FAIL;
-          SNPRINTF(G.autoexec_fail, RPT_("Text '%s'"), text->id.name + 2);
+          SNPRINTF_UTF8(G.autoexec_fail, RPT_("Text '%s'"), text->id.name + 2);
 
           printf("scripts disabled for \"%s\", skipping '%s'\n",
                  BKE_main_blendfile_path(bmain),
@@ -793,7 +820,6 @@ bool BPY_context_member_get(bContext *C, const char *member, bContextDataResult 
         }
         else {
           CLOG_INFO(BPY_LOG_CONTEXT,
-                    1,
                     "'%s' list item not a valid type in sequence type '%s'",
                     member,
                     Py_TYPE(item)->tp_name);
@@ -807,14 +833,14 @@ bool BPY_context_member_get(bContext *C, const char *member, bContextDataResult 
 
   if (done == false) {
     if (item) {
-      CLOG_INFO(BPY_LOG_CONTEXT, 1, "'%s' not a valid type", member);
+      CLOG_INFO(BPY_LOG_CONTEXT, "'%s' not a valid type", member);
     }
     else {
-      CLOG_INFO(BPY_LOG_CONTEXT, 1, "'%s' not found", member);
+      CLOG_INFO(BPY_LOG_CONTEXT, "'%s' not found", member);
     }
   }
   else {
-    CLOG_INFO(BPY_LOG_CONTEXT, 2, "'%s' found", member);
+    CLOG_DEBUG(BPY_LOG_CONTEXT, "'%s' found", member);
   }
 
   if (use_gil) {

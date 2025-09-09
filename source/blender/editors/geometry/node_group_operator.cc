@@ -11,7 +11,7 @@
 #include "BLI_listbase.h"
 #include "BLI_path_utils.hh"
 #include "BLI_rect.h"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 
 #include "DNA_key_types.h"
 #include "ED_curves.hh"
@@ -163,7 +163,7 @@ static void find_socket_log_contexts(const Main &bmain,
         if (snode.edittree == nullptr) {
           continue;
         }
-        if (snode.geometry_nodes_type != SNODE_GEOMETRY_TOOL) {
+        if (snode.node_tree_sub_type != SNODE_GEOMETRY_TOOL) {
           continue;
         }
         bke::ComputeContextCache compute_context_cache;
@@ -240,7 +240,7 @@ static void add_shape_keys_as_attributes(Mesh &mesh, const Key &key)
     const Span<float3> key_data(static_cast<float3 *>(kb->data), kb->totelem);
     attributes.add<float3>(shape_key_attribute_name(*kb),
                            bke::AttrDomain::Point,
-                           bke::AttributeInitVArray(VArray<float3>::ForSpan(key_data)));
+                           bke::AttributeInitVArray(VArray<float3>::from_span(key_data)));
   }
 }
 
@@ -416,7 +416,7 @@ static void store_result_geometry(const bContext &C,
       else {
         if (Key *key = mesh.key) {
           /* Make sure to free the attributes before converting to #BMesh for edit mode; removing
-           * attributes on #BMesh requires reallocating the dynamic AoS storage.*/
+           * attributes on #BMesh requires reallocating the dynamic AoS storage. */
           remove_shape_key_attributes(*new_mesh, *key);
         }
         if (object.mode == OB_MODE_EDIT) {
@@ -892,9 +892,12 @@ static void run_node_group_ui(bContext *C, wmOperator *op)
 
   bke::OperatorComputeContext compute_context;
   GeoOperatorLog &eval_log = get_static_eval_log();
-  geo_log::GeoTreeLog &tree_log = eval_log.log->get_tree_log(compute_context.hash());
+
+  geo_log::GeoTreeLog *tree_log = eval_log.log ?
+                                      &eval_log.log->get_tree_log(compute_context.hash()) :
+                                      nullptr;
   nodes::draw_geometry_nodes_operator_redo_ui(
-      *C, *op, const_cast<bNodeTree &>(*node_tree), &tree_log);
+      *C, *op, const_cast<bNodeTree &>(*node_tree), tree_log);
 }
 
 static bool run_node_ui_poll(wmOperatorType * /*ot*/, PointerRNA *ptr)
@@ -913,16 +916,12 @@ static bool run_node_ui_poll(wmOperatorType * /*ot*/, PointerRNA *ptr)
 
 static std::string run_node_group_get_name(wmOperatorType * /*ot*/, PointerRNA *ptr)
 {
-  int len;
-  char *local_name = RNA_string_get_alloc(ptr, "name", nullptr, 0, &len);
-  BLI_SCOPED_DEFER([&]() { MEM_SAFE_FREE(local_name); })
-  if (len > 0) {
-    return std::string(local_name, len);
+  std::string local_name = RNA_string_get(ptr, "name");
+  if (!local_name.empty()) {
+    return local_name;
   }
-  char *library_asset_identifier = RNA_string_get_alloc(
-      ptr, "relative_asset_identifier", nullptr, 0, &len);
-  BLI_SCOPED_DEFER([&]() { MEM_SAFE_FREE(library_asset_identifier); })
-  StringRef ref(library_asset_identifier, len);
+  std::string library_asset_identifier = RNA_string_get(ptr, "relative_asset_identifier");
+  StringRef ref(library_asset_identifier);
   return ref.drop_prefix(ref.find_last_of(SEP_STR) + 1);
 }
 
@@ -992,44 +991,44 @@ void GEOMETRY_OT_execute_node_group(wmOperatorType *ot)
                              "cursor_position",
                              3,
                              nullptr,
-                             FLT_MIN,
+                             -FLT_MAX,
                              FLT_MAX,
                              "3D Cursor Position",
                              "",
-                             FLT_MIN,
+                             -FLT_MAX,
                              FLT_MAX);
   RNA_def_property_flag(prop, PROP_HIDDEN);
   prop = RNA_def_float_array(ot->srna,
                              "cursor_rotation",
                              4,
                              nullptr,
-                             FLT_MIN,
+                             -FLT_MAX,
                              FLT_MAX,
                              "3D Cursor Rotation",
                              "",
-                             FLT_MIN,
+                             -FLT_MAX,
                              FLT_MAX);
   RNA_def_property_flag(prop, PROP_HIDDEN);
   prop = RNA_def_float_array(ot->srna,
                              "viewport_projection_matrix",
                              16,
                              nullptr,
-                             FLT_MIN,
+                             -FLT_MAX,
                              FLT_MAX,
                              "Viewport Projection Transform",
                              "",
-                             FLT_MIN,
+                             -FLT_MAX,
                              FLT_MAX);
   RNA_def_property_flag(prop, PROP_HIDDEN);
   prop = RNA_def_float_array(ot->srna,
                              "viewport_view_matrix",
                              16,
                              nullptr,
-                             FLT_MIN,
+                             -FLT_MAX,
                              FLT_MAX,
                              "Viewport View Transform",
                              "",
-                             FLT_MIN,
+                             -FLT_MAX,
                              FLT_MAX);
   RNA_def_property_flag(prop, PROP_HIDDEN);
   prop = RNA_def_boolean(
@@ -1371,8 +1370,11 @@ static void catalog_assets_draw(const bContext *C, Menu *menu)
       layout->separator();
       add_separator = false;
     }
-    PointerRNA props_ptr = layout->op(
-        ot, IFACE_(asset->get_name()), ICON_NONE, WM_OP_INVOKE_REGION_WIN, UI_ITEM_NONE);
+    PointerRNA props_ptr = layout->op(ot,
+                                      IFACE_(asset->get_name()),
+                                      ICON_NONE,
+                                      wm::OpCallContext::InvokeRegionWin,
+                                      UI_ITEM_NONE);
     asset::operator_asset_reference_props_set(*asset, props_ptr);
   }
 
@@ -1400,7 +1402,7 @@ static void catalog_assets_draw(const bContext *C, Menu *menu)
 MenuType node_group_operator_assets_menu()
 {
   MenuType type{};
-  STRNCPY(type.idname, "GEO_MT_node_operator_catalog_assets");
+  STRNCPY_UTF8(type.idname, "GEO_MT_node_operator_catalog_assets");
   type.poll = asset_menu_poll;
   type.draw = catalog_assets_draw;
   type.listener = asset::list::asset_reading_region_listen_fn;
@@ -1444,8 +1446,11 @@ static void catalog_assets_draw_unassigned(const bContext *C, Menu *menu)
   uiLayout *layout = menu->layout;
   wmOperatorType *ot = WM_operatortype_find("GEOMETRY_OT_execute_node_group", true);
   for (const asset_system::AssetRepresentation *asset : tree->unassigned_assets) {
-    PointerRNA props_ptr = layout->op(
-        ot, IFACE_(asset->get_name()), ICON_NONE, WM_OP_INVOKE_REGION_WIN, UI_ITEM_NONE);
+    PointerRNA props_ptr = layout->op(ot,
+                                      IFACE_(asset->get_name()),
+                                      ICON_NONE,
+                                      wm::OpCallContext::InvokeRegionWin,
+                                      UI_ITEM_NONE);
     asset::operator_asset_reference_props_set(*asset, props_ptr);
   }
 
@@ -1475,7 +1480,7 @@ static void catalog_assets_draw_unassigned(const bContext *C, Menu *menu)
     }
 
     PointerRNA props_ptr = layout->op(
-        ot, group->id.name + 2, ICON_NONE, WM_OP_INVOKE_REGION_WIN, UI_ITEM_NONE);
+        ot, group->id.name + 2, ICON_NONE, wm::OpCallContext::InvokeRegionWin, UI_ITEM_NONE);
     WM_operator_properties_id_lookup_set_from_id(&props_ptr, &group->id);
     /* Also set the name so it can be used for #run_node_group_get_name. */
     RNA_string_set(&props_ptr, "name", group->id.name + 2);
@@ -1485,8 +1490,8 @@ static void catalog_assets_draw_unassigned(const bContext *C, Menu *menu)
 MenuType node_group_operator_assets_menu_unassigned()
 {
   MenuType type{};
-  STRNCPY(type.label, "Unassigned Node Tools");
-  STRNCPY(type.idname, "GEO_MT_node_operator_unassigned");
+  STRNCPY_UTF8(type.label, "Unassigned Node Tools");
+  STRNCPY_UTF8(type.idname, "GEO_MT_node_operator_unassigned");
   type.poll = asset_menu_poll;
   type.draw = catalog_assets_draw_unassigned;
   type.listener = asset::list::asset_reading_region_listen_fn;

@@ -11,6 +11,8 @@
 
 #include "BLI_string_ref.hh"
 
+#include "BKE_main.hh"
+
 struct FileData;
 struct Library;
 struct ListBase;
@@ -20,10 +22,18 @@ struct UniqueName_Map;
 namespace blender::bke::library {
 
 struct LibraryRuntime {
-  /* Used for efficient calculations of unique names. */
+  /** Used for efficient calculations of unique names. */
   UniqueName_Map *name_map = nullptr;
 
+  /**
+   * Filedata (i.e. opened blendfile) source of this library data.
+   */
   FileData *filedata = nullptr;
+  /**
+   * Whether this library is owning its filedata pointer (and therefore should take care of
+   * releasing it as part of the readfile process).
+   */
+  bool is_filedata_owner = false;
 
   /**
    * Run-time only, absolute file-path (set on read).
@@ -47,6 +57,9 @@ struct LibraryRuntime {
   /** See BLENDER_FILE_VERSION, BLENDER_FILE_SUBVERSION, needed for do_versions. */
   short versionfile = 0;
   short subversionfile = 0;
+
+  /* Colorspace information. */
+  MainColorspace colorspace;
 };
 
 /**

@@ -78,7 +78,7 @@ struct uiPopover {
 static void ui_popover_create_block(bContext *C,
                                     ARegion *region,
                                     uiPopover *pup,
-                                    wmOperatorCallContext opcontext)
+                                    blender::wm::OpCallContext opcontext)
 {
   BLI_assert(pup->ui_size_x != 0);
 
@@ -118,7 +118,7 @@ static uiBlock *ui_block_func_POPOVER(bContext *C, uiPopupBlockHandle *handle, v
 
   /* Create UI block and layout now if it wasn't done between begin/end. */
   if (!pup->layout) {
-    ui_popover_create_block(C, handle->region, pup, WM_OP_INVOKE_REGION_WIN);
+    ui_popover_create_block(C, handle->region, pup, blender::wm::OpCallContext::InvokeRegionWin);
 
     if (pup->popover_func) {
       pup->block->handle = handle;
@@ -131,7 +131,6 @@ static uiBlock *ui_block_func_POPOVER(bContext *C, uiPopupBlockHandle *handle, v
 
   /* Setup and resolve UI layout for block. */
   uiBlock *block = pup->block;
-  int width, height;
 
   /* in some cases we create the block before the region,
    * so we set it delayed here if necessary */
@@ -139,7 +138,7 @@ static uiBlock *ui_block_func_POPOVER(bContext *C, uiPopupBlockHandle *handle, v
     UI_block_region_set(block, handle->region);
   }
 
-  UI_block_layout_resolve(block, &width, &height);
+  blender::ui::block_layout_resolve(block);
   UI_block_direction_set(block, UI_DIR_DOWN | UI_DIR_CENTER_X);
 
   const int block_margin = U.widget_unit / 2;
@@ -377,7 +376,7 @@ uiPopover *UI_popover_begin(bContext *C, int ui_menu_width, bool from_active_but
   pup->butregion = butregion;
 
   /* Operator context default same as menus, change if needed. */
-  ui_popover_create_block(C, nullptr, pup, WM_OP_EXEC_REGION_WIN);
+  ui_popover_create_block(C, nullptr, pup, blender::wm::OpCallContext::ExecRegionWin);
 
   /* Create in advance so we can let buttons point to #uiPopupBlockHandle::retvalue
    * (and other return values) already. */

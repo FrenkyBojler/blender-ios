@@ -16,6 +16,8 @@
 #include "BKE_screen.hh"
 #include "BKE_shader_fx.h"
 
+#include "DNA_screen_types.h"
+
 #include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
@@ -96,5 +98,6 @@ ShaderFxTypeInfo shaderfx_Type_Swirl = {
     /*update_depsgraph*/ update_depsgraph,
     /*depends_on_time*/ nullptr,
     /*foreach_ID_link*/ foreach_ID_link,
+    /*foreach_working_space_color*/ nullptr,
     /*panel_register*/ panel_register,
 };

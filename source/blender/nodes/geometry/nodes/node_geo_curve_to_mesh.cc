@@ -8,6 +8,7 @@
 #include "BKE_grease_pencil.hh"
 #include "BKE_instances.hh"
 
+#include "GEO_foreach_geometry.hh"
 #include "GEO_join_geometries.hh"
 #include "GEO_randomize.hh"
 
@@ -19,11 +20,13 @@ namespace blender::nodes::node_geo_curve_to_mesh_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Geometry>("Curve").supported_type(
-      {GeometryComponent::Type::Curve, GeometryComponent::Type::GreasePencil});
+  b.add_input<decl::Geometry>("Curve")
+      .supported_type({GeometryComponent::Type::Curve, GeometryComponent::Type::GreasePencil})
+      .description("Curve to convert to a mesh using the given profile");
   b.add_input<decl::Geometry>("Profile Curve")
       .only_realized_data()
-      .supported_type(GeometryComponent::Type::Curve);
+      .supported_type(GeometryComponent::Type::Curve)
+      .description("Curves that are swept along the main curve");
   b.add_input<decl::Float>("Scale").default_value(1.0f).min(0.0f).field_on({0}).description(
       "Scale of the profile at each point");
   b.add_input<decl::Bool>("Fill Caps")
@@ -124,7 +127,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   bke::GeometryComponentEditData::remember_deformed_positions_if_necessary(curve_set);
   const AttributeFilter &attribute_filter = params.get_attribute_filter("Mesh");
 
-  curve_set.modify_geometry_sets([&](GeometrySet &geometry_set) {
+  geometry::foreach_real_geometry(curve_set, [&](GeometrySet &geometry_set) {
     if (geometry_set.has_curves()) {
       const Curves &curves = *geometry_set.get_curves();
 
@@ -140,7 +143,9 @@ static void node_geo_exec(GeoNodeExecParams params)
     if (geometry_set.has_grease_pencil()) {
       grease_pencil_to_mesh(geometry_set, profile_set, scale_field, fill_caps, attribute_filter);
     }
-    geometry_set.keep_only_during_modify({GeometryComponent::Type::Mesh});
+    geometry_set.keep_only({GeometryComponent::Type::Mesh,
+                            GeometryComponent::Type::Instance,
+                            GeometryComponent::Type::Edit});
   });
 
   params.set_output("Mesh", std::move(curve_set));
