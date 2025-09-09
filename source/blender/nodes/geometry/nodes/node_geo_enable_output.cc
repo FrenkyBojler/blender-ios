@@ -120,7 +120,7 @@ static void node_extra_info(NodeExtraInfoParams &params)
     const bNode &target_node = target_socket->owner_node();
     if (!target_node.is_group_output() && !target_node.is_reroute()) {
       NodeExtraInfoRow row;
-      row.text = RPT_("Link to Output");
+      row.text = RPT_("Invalid Output Link");
       row.tooltip = TIP_("This node should be linked to the group output node");
       row.icon = ICON_ERROR;
       params.rows.append(std::move(row));
