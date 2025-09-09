@@ -4532,7 +4532,6 @@ static void convert_to_catmull_rom(bke::CurvesGeometry &curves,
   const IndexMask non_catmull_rom_curves_selection =
       curves.indices_for_curve_type(CURVE_TYPE_CATMULL_ROM, selection, memory)
           .complement(selection, memory);
-
   if (non_catmull_rom_curves_selection.is_empty()) {
     return;
   }
