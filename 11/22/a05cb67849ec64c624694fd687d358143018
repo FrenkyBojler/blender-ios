@@ -1,1 +1,2 @@
 Referenced by commit 423203c0fbe2919c850c12c0210c47f12efbf912, Fix: PyDocs: Missing `tool_settings` in `context_type_map`
+Referenced by pull request #145908, Fix #145890: Crash using playhead snapping in VSE in new scene
