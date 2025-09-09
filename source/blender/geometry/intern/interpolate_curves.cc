@@ -625,12 +625,10 @@ static void sample_curve_positions_and_handles(const bke::CurvesGeometry &src_cu
       }
     }
     else if (src_types[i_src_curve] == CURVE_TYPE_NURBS) {
-      length_parameterize::interpolate(src_pos, dst_indices, dst_factors, dst_pos);
-
       /* NURBS take priority over Bézier, so we should never be trying to be Bézier. */
-      if (dst_types[i_dst_curve] == CURVE_TYPE_BEZIER) {
-        BLI_assert_unreachable();
-      }
+      BLI_assert(dst_types[i_dst_curve] != CURVE_TYPE_BEZIER);
+
+      length_parameterize::interpolate(src_pos, dst_indices, dst_factors, dst_pos);
     }
     else if (src_types[i_src_curve] == CURVE_TYPE_CATMULL_ROM) {
       dst_types_left.fill(BEZIER_HANDLE_ALIGN);
