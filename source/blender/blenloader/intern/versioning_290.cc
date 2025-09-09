@@ -378,7 +378,8 @@ static void seq_update_meta_disp_range(Scene *scene)
     blender::seq::time_right_handle_frame_set(scene, ms->parent_strip, ms->disp_range[1]);
 
     /* Recalculate effects using meta strip. */
-    LISTBASE_FOREACH (Strip *, strip, ms->oldbasep) {
+    ListBase *old_seqbasep = ms->old_strip ? &ms->old_strip->seqbase : &ed->seqbase;
+    LISTBASE_FOREACH (Strip *, strip, old_seqbasep) {
       if (strip->input2) {
         strip->start = strip->startdisp = max_ii(strip->input1->startdisp,
                                                  strip->input2->startdisp);
@@ -386,9 +387,8 @@ static void seq_update_meta_disp_range(Scene *scene)
       }
     }
 
-    /* Ensure that active seqbase points to active meta strip seqbase. */
     MetaStack *active_ms = blender::seq::meta_stack_active_get(ed);
-    blender::seq::active_seqbase_set(ed, &active_ms->parent_strip->seqbase);
+    active_ms->old_strip = ms->parent_strip;
   }
 }
 
@@ -1175,7 +1175,7 @@ void blo_do_versions_290(FileData *fd, Library * /*lib*/, Main *bmain)
 
       /* The sub-step method changed from "per second" to "per frame".
        * To get the new value simply divide the old bullet sim FPS with the scene FPS. */
-      rbw->substeps_per_frame /= FPS;
+      rbw->substeps_per_frame /= scene->frames_per_second();
 
       if (rbw->substeps_per_frame <= 0) {
         rbw->substeps_per_frame = 1;
