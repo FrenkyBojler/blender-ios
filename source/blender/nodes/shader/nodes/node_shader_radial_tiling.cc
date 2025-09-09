@@ -64,7 +64,7 @@ static void node_shader_buts_radial_tiling(uiLayout *layout, bContext * /*C*/, P
 static void node_shader_init_radial_tiling(bNodeTree * /*ntree*/, bNode *node)
 {
   NodeRadialTiling *storage = MEM_callocN<NodeRadialTiling>(__func__);
-  storage->normalize_r_gon_parameter = false;
+  storage->normalize = false;
 
   node->storage = storage;
 }
@@ -81,7 +81,7 @@ static int node_shader_gpu_radial_tiling(GPUMaterial *mat,
                                          GPUNodeStack *out)
 {
   const NodeRadialTiling &storage = node_storage(*node);
-  float normalize_r_gon_parameter = storage.normalize_r_gon_parameter;
+  float normalize_r_gon_parameter = storage.normalize;
   float calculate_r_gon_parameter_field = out[0].hasoutput;
   float calculate_segment_id = out[1].hasoutput;
   float calculate_max_unit_parameter = out[2].hasoutput;
@@ -198,7 +198,7 @@ class RoundedPolygonFunction : public mf::MultiFunction {
 static void sh_node_radial_tiling_build_multi_function(NodeMultiFunctionBuilder &builder)
 {
   const NodeRadialTiling &storage = node_storage(builder.node());
-  builder.construct_and_set_matching_fn<RoundedPolygonFunction>(storage.normalize_r_gon_parameter);
+  builder.construct_and_set_matching_fn<RoundedPolygonFunction>(storage.normalize);
 }
 
 }  // namespace blender::nodes::node_shader_radial_tiling_cc

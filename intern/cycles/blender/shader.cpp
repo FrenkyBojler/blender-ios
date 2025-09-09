@@ -1077,7 +1077,7 @@ static ShaderNode *add_node(Scene *scene,
   else if (b_node.is_a(&RNA_ShaderNodeRadialTiling)) {
     BL::ShaderNodeRadialTiling b_radial_tiling_node(b_node);
     RadialTilingNode *radial_tiling = graph->create_node<RadialTilingNode>();
-    radial_tiling->set_normalize_r_gon_parameter(b_radial_tiling_node.normalize_r_gon_parameter());
+    radial_tiling->set_normalize_r_gon_parameter(b_radial_tiling_node.normalize());
     node = radial_tiling;
   }
   else if (b_node.is_a(&RNA_ShaderNodeTangent)) {

@@ -1671,7 +1671,7 @@ typedef struct NodeShaderNormalMap {
 } NodeShaderNormalMap;
 
 typedef struct NodeRadialTiling {
-  uint8_t normalize_r_gon_parameter;
+  uint8_t normalize;
   char _pad[7];
 } NodeRadialTiling;
 
