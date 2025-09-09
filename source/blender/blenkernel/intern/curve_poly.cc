@@ -16,7 +16,7 @@ namespace blender::bke::curves::poly {
 static bool delta_dir(const float3 &pos, const float3 &next, float3 &r_delta_dir)
 {
   const float epsilon = 1e-6f;
-  if (UNLIKELY(math::almost_equal_relative(pos, next, epsilon))) {
+  if (UNLIKELY(pos == next)) {
     return false;
   }
   r_delta_dir = math::normalize(next - pos);
@@ -34,7 +34,7 @@ static float3 direction_bisect(const float3 &pos,
 {
   const float epsilon = 1e-6f;
   const bool prev_equal = is_equal;
-  is_equal = math::almost_equal_relative(pos, next, epsilon);
+  is_equal = pos == next;
   if (UNLIKELY(is_equal)) {
     /* Return the direction relative the 'previous' point. If 'prev_equal' is true this is not
      * the direction from previous point (it would be from the previous 'non-zero' segment).
@@ -48,7 +48,16 @@ static float3 direction_bisect(const float3 &pos,
     /* Return direction to next point as previous direction is not from the adjacent point! */
     return other_dir;
   }
-  return math::normalize(prev_dir + other_dir);
+  const float3 tan_sum = prev_dir + other_dir;
+  const float norm = math::length(tan_sum);
+  if (norm < 0.01f) {
+    const float3 binorm = norm == 0.0f ? math::orthogonal(other_dir) :
+                                         math::cross(other_dir, prev_dir);
+
+    const float3 norm_sum = other_dir - prev_dir;
+    return math::normalize(math::cross(binorm, norm_sum));
+  }
+  return tan_sum / norm;
 }
 
 void calculate_tangents(const Span<float3> positions,
