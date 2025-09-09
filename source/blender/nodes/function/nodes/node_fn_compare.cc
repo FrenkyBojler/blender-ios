@@ -738,8 +738,7 @@ static void node_register()
   static blender::bke::bNodeType ntype;
   fn_node_type_base(&ntype, "FunctionNodeCompare", FN_NODE_COMPARE);
   ntype.ui_name = "Compare";
-  ntype.ui_description =
-      "Perform a comparison operations on the two given inputs, depending on their data type";
+  ntype.ui_description = "Perform a comparison operation on the two given inputs";
   ntype.enum_name_legacy = "COMPARE";
   ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.declare = node_declare;

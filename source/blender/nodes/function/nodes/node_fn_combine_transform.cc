@@ -115,8 +115,7 @@ static void node_register()
   fn_node_type_base(&ntype, "FunctionNodeCombineTransform", FN_NODE_COMBINE_TRANSFORM);
   ntype.ui_name = "Combine Transform";
   ntype.ui_description =
-      "Combines a translation vector, a rotation component, and a scale vector into a "
-      "transformation matrix";
+      "Combine a translation vector, a rotation, and a scale vector into a transformation matrix";
   ntype.enum_name_legacy = "COMBINE_TRANSFORM";
   ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.declare = node_declare;
