@@ -28,6 +28,8 @@
 #include "COM_domain.hh"
 #include "COM_meta_data.hh"
 
+struct IDProperty;
+
 namespace blender::compositor {
 
 class Context;
@@ -197,6 +199,9 @@ class Result {
 
   /* Returns the CPP type corresponding to the given result type. */
   static const CPPType &cpp_type(const ResultType type);
+
+  /* Returns the result type corresponding to the given CPP type. */
+  static const ResultType from_cpp_type(const CPPType &type);
 
   /* Returns a string representation of the given result type. */
   static const char *type_name(const ResultType type);
@@ -386,6 +391,8 @@ class Result {
    * pixel in the image to that value. See the class description for more information. Assumes
    * the result stores a value of the given template type. */
   template<typename T> void set_single_value(const T &value);
+
+  void set_single_value_from_property(const IDProperty &property);
 
   /* Updates the single pixel in the image to the current single value in the result. This is
    * called implicitly in the set_single_value method, but calling this explicitly is useful when

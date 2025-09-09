@@ -43,7 +43,7 @@ class GroupInputOperation : public NodeOperation {
 
       this->context().populate_meta_data_for_pass(&scene, 0, output->name, result.meta_data);
 
-      const Result pass = this->context().get_input(&scene, 0, output->name);
+      const Result pass = this->context().get_input(&scene, 0, output->name, output->identifier);
       this->execute_pass(pass, result);
     }
   }
@@ -162,7 +162,6 @@ void get_compositor_group_input_extra_info(blender::nodes::NodeExtraInfoParams &
   }
 
   Span<const bNodeSocket *> group_inputs = parameters.node.output_sockets().drop_back(1);
-  bool added_warning_for_unsupported_inputs = false;
   for (const bNodeSocket *input : group_inputs) {
     if (StringRef(input->name) == "Image") {
       if (input->type != SOCK_RGBA) {
@@ -171,19 +170,8 @@ void get_compositor_group_input_extra_info(blender::nodes::NodeExtraInfoParams &
         row.icon = ICON_ERROR;
         row.tooltip = TIP_("Node group's main Image input should be of type color");
         parameters.rows.append(std::move(row));
+        break;
       }
-    }
-    else {
-      if (added_warning_for_unsupported_inputs) {
-        continue;
-      }
-      blender::nodes::NodeExtraInfoRow row;
-      row.text = IFACE_("Unsupported Inputs");
-      row.icon = ICON_WARNING_LARGE;
-      row.tooltip = TIP_(
-          "Only a main Image input is supported, the rest are unsupported and will return zero");
-      parameters.rows.append(std::move(row));
-      added_warning_for_unsupported_inputs = true;
     }
   }
 }

@@ -26,6 +26,8 @@
 
 #include "IMB_colormanagement.hh"
 
+#include "NOD_geometry_nodes_execute.hh"
+
 #include "RNA_access.hh"
 #include "RNA_prototypes.hh"
 
@@ -617,6 +619,33 @@ void modifier_type_panel_id(eStripModifierType type, char *r_idname)
   const StripModifierTypeInfo *mti = modifier_type_info_get(type);
   BLI_string_join(
       r_idname, sizeof(PanelType::idname), STRIP_MODIFIER_TYPE_PANEL_PREFIX, mti->idname);
+}
+
+static void update_id_properties_from_node_group(SequencerCompositorModifierData *cmd)
+{
+  if (cmd->node_group == nullptr) {
+    if (cmd->settings.properties) {
+      IDP_FreeProperty(cmd->settings.properties);
+      cmd->settings.properties = nullptr;
+    }
+    return;
+  }
+
+  IDProperty *old_properties = cmd->settings.properties;
+  cmd->settings.properties =
+      bke::idprop::create_group("Sequencer Strip Modifier Settings").release();
+  IDProperty *new_properties = cmd->settings.properties;
+
+  nodes::update_input_properties_from_node_tree(*cmd->node_group, old_properties, *new_properties);
+
+  if (old_properties != nullptr) {
+    IDP_FreeProperty(old_properties);
+  }
+}
+
+void compositor_modifier_update_interface(SequencerCompositorModifierData *cmd)
+{
+  update_id_properties_from_node_group(cmd);
 }
 
 /** \} */

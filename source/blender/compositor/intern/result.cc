@@ -9,6 +9,8 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BKE_idprop.hh"
+
 #include "BLI_assert.h"
 #include "BLI_cpp_type.hh"
 #include "BLI_generic_pointer.hh"
@@ -16,6 +18,8 @@
 #include "BLI_math_matrix_types.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_utildefines.h"
+
+#include "DNA_ID.h"
 
 #include "GPU_shader.hh"
 #include "GPU_state.hh"
@@ -335,6 +339,46 @@ const CPPType &Result::cpp_type(const ResultType type)
 
   BLI_assert_unreachable();
   return CPPType::get<float>();
+}
+
+const ResultType Result::from_cpp_type(const CPPType &type)
+{
+  if (type.is<float>()) {
+    return ResultType::Float;
+  }
+  if (type.is<float2>()) {
+    return ResultType::Float2;
+  }
+  if (type.is<float3>()) {
+    return ResultType::Float3;
+  }
+  if (type.is<float4>()) {
+    return ResultType::Float4;
+  }
+  if (type.is<int32_t>()) {
+    return ResultType::Int;
+  }
+  if (type.is<int2>()) {
+    return ResultType::Int2;
+  }
+  if (type.is<ColorGeometry4f>()) {
+    return ResultType::Color;
+  }
+  if (type.is<ColorGeometry4b>()) {
+    return ResultType::Color;
+  }
+  if (type.is<bool>()) {
+    return ResultType::Bool;
+  }
+  if (type.is<nodes::MenuValue>()) {
+    return ResultType::Menu;
+  }
+  if (type.is<std::string>()) {
+    return ResultType::String;
+  }
+
+  BLI_assert_unreachable();
+  return ResultType::Float;
 }
 
 const char *Result::type_name(const ResultType type)
@@ -795,6 +839,118 @@ GPointer Result::single_value() const
 GMutablePointer Result::single_value()
 {
   return std::visit([](auto &value) { return GMutablePointer(&value); }, single_value_);
+}
+
+void Result::set_single_value_from_property(const IDProperty &property)
+{
+  switch (type_) {
+    case ResultType::Float: {
+      float value = 0.0f;
+      if (property.type == IDP_FLOAT) {
+        value = IDP_Float(&property);
+      }
+      else if (property.type == IDP_DOUBLE) {
+        value = float(IDP_Double(&property));
+      }
+      this->set_single_value<float>(value);
+      break;
+    }
+    case ResultType::Float2: {
+      const void *property_array = IDP_Array(&property);
+      BLI_assert(property.len == 2);
+
+      float2 value = float2(0.0f);
+      if (property.subtype == IDP_FLOAT) {
+        value = float2(static_cast<const float *>(property_array));
+      }
+      if (property.subtype == IDP_DOUBLE) {
+        value = float2(double2(static_cast<const double *>(property_array)));
+      }
+      this->set_single_value<float2>(value);
+      break;
+    }
+    case ResultType::Float3: {
+      const void *property_array = IDP_Array(&property);
+      BLI_assert(property.len <= 3);
+
+      float3 value = float3(0.0f);
+      if (property.subtype == IDP_FLOAT) {
+        for (int i = 0; i < property.len; i++) {
+          value[i] = static_cast<const float *>(property_array)[i];
+        }
+      }
+      if (property.subtype == IDP_DOUBLE) {
+        for (int i = 0; i < property.len; i++) {
+          value[i] = float(static_cast<const double *>(property_array)[i]);
+        }
+      }
+      this->set_single_value<float3>(value);
+      break;
+    }
+    case ResultType::Float4: {
+      const void *property_array = IDP_Array(&property);
+      BLI_assert(property.len == 4);
+
+      float4 value = float4(0.0f);
+      if (property.subtype == IDP_FLOAT) {
+        value = float4(static_cast<const float *>(property_array));
+      }
+      if (property.subtype == IDP_DOUBLE) {
+        value = float4(double4(static_cast<const double *>(property_array)));
+      }
+      this->set_single_value<float4>(value);
+      break;
+    }
+    case ResultType::Int: {
+      int value = IDP_Int(&property);
+      this->set_single_value<int>(value);
+      break;
+    }
+    case ResultType::Int2: {
+      const void *property_array = IDP_Array(&property);
+      BLI_assert(property.len == 2);
+      BLI_assert(property.subtype == IDP_INT);
+
+      int2 value = int2(static_cast<const int *>(property_array));
+      this->set_single_value<int2>(value);
+      break;
+    }
+    case ResultType::Color: {
+      const void *property_array = IDP_Array(&property);
+      BLI_assert(property.len == 4);
+      float4 value;
+      if (property.subtype == IDP_FLOAT) {
+        value = float4(static_cast<const float *>(property_array));
+      }
+      else if (property.subtype == IDP_INT) {
+        value = float4(int4(static_cast<const int *>(property_array)));
+      }
+      else {
+        BLI_assert(property.subtype == IDP_DOUBLE);
+        value = float4(double4(static_cast<const double *>(property_array)));
+      }
+      this->set_single_value<float4>(value);
+      break;
+    }
+    case ResultType::Bool: {
+      const bool value = IDP_Bool(&property);
+      this->set_single_value<bool>(value);
+      break;
+    }
+    case ResultType::String: {
+      std::string value = IDP_String(&property);
+      this->set_single_value<std::string>(std::move(value));
+      break;
+    }
+    case ResultType::Menu: {
+      int value = IDP_Int(&property);
+      this->set_single_value<nodes::MenuValue>(nodes::MenuValue(value));
+      break;
+    }
+    default: {
+      BLI_assert_unreachable();
+    }
+  }
 }
 
 void Result::update_single_value_data()

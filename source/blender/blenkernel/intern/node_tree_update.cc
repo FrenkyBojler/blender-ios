@@ -46,6 +46,10 @@
 
 #include "BLT_translation.hh"
 
+#include "SEQ_iterator.hh"
+#include "SEQ_modifier.hh"
+#include "SEQ_sequencer.hh"
+
 using namespace blender::nodes;
 
 /**
@@ -214,6 +218,8 @@ struct NodeTreeRelations {
   std::optional<Vector<bNodeTree *>> all_trees_;
   std::optional<MultiValueMap<bNodeTree *, TreeNodePair>> group_node_users_;
   std::optional<MultiValueMap<bNodeTree *, ObjectModifierPair>> modifiers_users_;
+  std::optional<MultiValueMap<bNodeTree *, SequencerCompositorModifierData *>>
+      strip_modifiers_users_;
 
  public:
   NodeTreeRelations(Main *bmain) : bmain_(bmain) {}
@@ -282,10 +288,46 @@ struct NodeTreeRelations {
     }
   }
 
+  void ensure_strip_modifier_users()
+  {
+    if (strip_modifiers_users_.has_value()) {
+      return;
+    }
+    strip_modifiers_users_.emplace();
+    if (bmain_ == nullptr) {
+      return;
+    }
+
+    LISTBASE_FOREACH (Scene *, scene, &bmain_->scenes) {
+      Editing *ed = seq::editing_get(scene);
+      if (!ed) {
+        continue;
+      }
+
+      blender::seq::for_each_callback(&ed->seqbase, [&](Strip *strip) -> bool {
+        LISTBASE_FOREACH (StripModifierData *, smd, &strip->modifiers) {
+          if (smd->type == eSeqModifierType_Compositor) {
+            SequencerCompositorModifierData *cmd = (SequencerCompositorModifierData *)smd;
+            if (cmd->node_group != nullptr) {
+              strip_modifiers_users_->add(cmd->node_group, cmd);
+            }
+          }
+        }
+        return true;
+      });
+    }
+  }
+
   Span<ObjectModifierPair> get_modifier_users(bNodeTree *ntree)
   {
     BLI_assert(modifiers_users_.has_value());
     return modifiers_users_->lookup(ntree);
+  }
+
+  Span<SequencerCompositorModifierData *> get_strip_modifier_users(bNodeTree *ntree)
+  {
+    BLI_assert(strip_modifiers_users_.has_value());
+    return strip_modifiers_users_->lookup(ntree);
   }
 
   Span<TreeNodePair> get_group_node_users(bNodeTree *ntree)
@@ -393,6 +435,14 @@ class NodeTreeMainUpdater {
             if (md->type == eModifierType_Nodes) {
               MOD_nodes_update_interface(object, (NodesModifierData *)md);
             }
+          }
+        }
+        else if (ntree->type == NTREE_COMPOSIT) {
+          relations_.ensure_strip_modifier_users();
+          for (SequencerCompositorModifierData *modifier_data :
+               relations_.get_strip_modifier_users(ntree))
+          {
+            seq::compositor_modifier_update_interface(modifier_data);
           }
         }
       }

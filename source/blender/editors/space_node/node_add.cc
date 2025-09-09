@@ -1485,6 +1485,7 @@ static bNodeTree *new_node_tree_impl(bContext *C, StringRef treename, StringRef 
   bNodeTree *node_tree;
 
   node_tree = bke::node_tree_add_tree(bmain, treename, idname);
+  BKE_main_ensure_invariants(*bmain, node_tree->id);
 
   /* Hook into UI. */
   UI_context_active_but_prop_get_templateID(C, &ptr, &prop);
@@ -1621,7 +1622,8 @@ void NODE_OT_new_compositing_node_group(wmOperatorType *ot)
 /** \name New Compositor Sequencer Strip Modifier Node Group Operator
  * \{ */
 
-void initialize_compositor_sequencer_strip_modifier_node_group(const bContext *C, bNodeTree *ntree)
+static void initialize_compositor_sequencer_strip_modifier_node_group(const bContext *C,
+                                                                      bNodeTree *ntree)
 {
   BLI_assert(ntree != nullptr && ntree->type == NTREE_COMPOSIT);
   BLI_assert(BLI_listbase_count(&ntree->nodes) == 0);
@@ -1679,8 +1681,6 @@ static wmOperatorStatus new_compositor_sequencer_strip_modifier_node_group_exec(
   initialize_compositor_sequencer_strip_modifier_node_group(C, ntree);
 
   WM_event_add_notifier(C, NC_NODE | NA_ADDED, nullptr);
-
-  BKE_ntree_update_after_single_tree_change(*CTX_data_main(C), *ntree);
 
   return OPERATOR_FINISHED;
 }

@@ -216,7 +216,10 @@ class Context : public compositor::Context {
     return viewer_output_result_;
   }
 
-  compositor::Result get_input(const Scene *scene, int view_layer_id, const char *name) override
+  compositor::Result get_input(const Scene *scene,
+                               int view_layer_id,
+                               const char *name,
+                               const char * /*identifier*/) override
   {
     /* Blender aliases the Image pass name to be the Combined pass, so we return the combined pass
      * in that case. */

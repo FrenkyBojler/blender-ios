@@ -23,6 +23,10 @@
 
 #include "UI_resources.hh"
 
+#include "SEQ_modifier.hh"
+#include "SEQ_select.hh"
+#include "SEQ_sequencer.hh"
+
 #include "node_common.h"
 
 #include "RNA_prototypes.hh"
@@ -36,13 +40,38 @@ static void composite_get_from_context(const bContext *C,
                                        ID **r_id,
                                        ID **r_from)
 {
+  using namespace blender;
   const SpaceNode *snode = CTX_wm_space_node(C);
   if (snode->node_tree_sub_type == SNODE_COMPOSITOR_SEQUENCER_STRIP_MODIFIER) {
-    if (snode->selected_node_group && snode->selected_node_group->type == NTREE_COMPOSIT) {
-      *r_ntree = snode->selected_node_group;
+    Scene *sequencer_scene = CTX_data_sequencer_scene(C);
+    if (!sequencer_scene) {
+      *r_ntree = nullptr;
       return;
     }
-    *r_ntree = nullptr;
+    Editing *ed = seq::editing_get(sequencer_scene);
+    if (!ed) {
+      *r_ntree = nullptr;
+      return;
+    }
+    Strip *strip = seq::select_active_get(sequencer_scene);
+    if (!strip) {
+      *r_ntree = nullptr;
+      return;
+    }
+    StripModifierData *smd = seq::modifier_get_active(strip);
+    if (!smd) {
+      *r_ntree = nullptr;
+      return;
+    }
+    if (smd->type != eSeqModifierType_Compositor) {
+      *r_ntree = nullptr;
+      return;
+    }
+    SequencerCompositorModifierData *scmd = reinterpret_cast<SequencerCompositorModifierData *>(
+        smd);
+    *r_from = nullptr;
+    *r_id = &sequencer_scene->id;
+    *r_ntree = scmd->node_group;
     return;
   }
 

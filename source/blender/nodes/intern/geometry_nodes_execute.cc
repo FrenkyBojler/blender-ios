@@ -39,13 +39,19 @@ namespace geo_log = blender::nodes::geo_eval_log;
 
 namespace blender::nodes {
 
-bool socket_type_has_attribute_toggle(const eNodeSocketDatatype type)
+bool socket_type_has_attribute_toggle(const bNodeTree &node_tree, const eNodeSocketDatatype type)
 {
+  if (node_tree.type == NTREE_COMPOSIT) {
+    return false;
+  }
   return socket_type_supports_fields(type);
 }
 
 bool input_has_attribute_toggle(const bNodeTree &node_tree, const int socket_index)
 {
+  if (node_tree.type == NTREE_COMPOSIT) {
+    return false;
+  }
   node_tree.ensure_interface_cache();
   const bke::bNodeSocketType *typeinfo =
       node_tree.interface_inputs()[socket_index]->socket_typeinfo();
@@ -685,7 +691,7 @@ static MultiValueMap<bke::AttrDomain, OutputAttributeInfo> find_output_attribute
   const bNode &output_node = *tree.group_output_node();
   MultiValueMap<bke::AttrDomain, OutputAttributeInfo> outputs_by_domain;
   for (const bNodeSocket *socket : output_node.input_sockets().drop_front(1).drop_back(1)) {
-    if (!socket_type_has_attribute_toggle(eNodeSocketDatatype(socket->type))) {
+    if (!socket_type_has_attribute_toggle(tree, eNodeSocketDatatype(socket->type))) {
       continue;
     }
 
@@ -987,7 +993,7 @@ void update_input_properties_from_node_tree(const bNodeTree &tree,
       }
     }
 
-    if (socket_type_has_attribute_toggle(eNodeSocketDatatype(socket_type))) {
+    if (socket_type_has_attribute_toggle(tree, eNodeSocketDatatype(socket_type))) {
       const std::string use_attribute_id = socket_identifier + input_use_attribute_suffix;
       const std::string attribute_name_id = socket_identifier + input_attribute_name_suffix;
 
@@ -1033,7 +1039,7 @@ void update_output_properties_from_node_tree(const bNodeTree &tree,
     const StringRefNull socket_identifier = socket.identifier;
     const bke::bNodeSocketType *typeinfo = socket.socket_typeinfo();
     const eNodeSocketDatatype socket_type = typeinfo ? typeinfo->type : SOCK_CUSTOM;
-    if (!socket_type_has_attribute_toggle(socket_type)) {
+    if (!socket_type_has_attribute_toggle(tree, socket_type)) {
       continue;
     }
 

@@ -625,9 +625,15 @@ typedef enum eModTonemapType {
   SEQ_TONEMAP_RD_PHOTORECEPTOR = 1,
 } eModTonemapType;
 
+typedef struct CompositorModifierSettings {
+  /* This stores data that is passed into the node group. */
+  struct IDProperty *properties;
+} CompositorModifierSettings;
+
 typedef struct SequencerCompositorModifierData {
   StripModifierData modifier;
   struct bNodeTree *node_group;
+  struct CompositorModifierSettings settings;
 } SequencerCompositorModifierData;
 
 /** \} */

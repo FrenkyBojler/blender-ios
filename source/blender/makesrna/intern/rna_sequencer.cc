@@ -1743,6 +1743,13 @@ static void rna_Strip_SoundEqualizer_Curve_clear(SoundEqualizerModifierData *sem
   WM_main_add_notifier(NC_SCENE | ND_SEQUENCER, NULL);
 }
 
+static IDProperty **rna_CompositorModifier_properties(PointerRNA *ptr)
+{
+  SequencerCompositorModifierData *cmd = ptr->data_as<SequencerCompositorModifierData>();
+  CompositorModifierSettings *settings = &cmd->settings;
+  return &settings->properties;
+}
+
 static bool rna_CompositorModifier_node_group_poll(PointerRNA * /*ptr*/, PointerRNA value)
 {
   const bNodeTree *node_tree = value.data_as<bNodeTree>();
@@ -1768,6 +1775,9 @@ static void rna_CompositorModifier_node_group_update(Main *bmain, Scene *scene, 
   /* The sequencer stores a cached mapping between compositor node trees and strips that use them
    * as a modifier, so we need to invalidate the cache since the node tree changed. */
   blender::seq::strip_lookup_invalidate(ed);
+
+  SequencerCompositorModifierData *cmd = ptr->data_as<SequencerCompositorModifierData>();
+  blender::seq::compositor_modifier_update_interface(cmd);
 }
 
 #else
@@ -4081,6 +4091,8 @@ static void rna_def_compositor_modifier(BlenderRNA *brna)
   StructRNA *srna = RNA_def_struct(brna, "SequencerCompositorModifierData", "StripModifier");
   RNA_def_struct_sdna(srna, "SequencerCompositorModifierData");
   RNA_def_struct_ui_text(srna, "SequencerCompositorModifierData", "Compositor Modifier");
+  RNA_def_struct_idprops_func(srna, "rna_CompositorModifier_properties");
+  RNA_def_struct_system_idprops_func(srna, "rna_CompositorModifier_properties");
 
   PropertyRNA *prop = RNA_def_property(srna, "node_group", PROP_POINTER, PROP_NONE);
   RNA_def_property_ui_text(prop, "Node Group", "Node group that controls what this modifier does");

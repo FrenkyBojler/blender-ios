@@ -98,4 +98,6 @@ void modifier_set_active(Strip *strip, StripModifierData *smd);
 static constexpr char STRIP_MODIFIER_TYPE_PANEL_PREFIX[] = "STRIPMOD_PT_";
 void modifier_type_panel_id(eStripModifierType type, char *r_idname);
 
+void compositor_modifier_update_interface(SequencerCompositorModifierData *cmd);
+
 }  // namespace blender::seq

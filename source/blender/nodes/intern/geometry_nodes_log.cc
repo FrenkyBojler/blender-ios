@@ -918,22 +918,24 @@ Map<const bNodeTreeZone *, ComputeContextHash> GeoNodesLog::
 
 static GeoNodesLog *get_root_log(const SpaceNode &snode)
 {
-  switch (SpaceNodeGeometryNodesType(snode.node_tree_sub_type)) {
-    case SNODE_GEOMETRY_MODIFIER: {
-      std::optional<ed::space_node::ObjectAndModifier> object_and_modifier =
-          ed::space_node::get_modifier_for_node_editor(snode);
-      if (!object_and_modifier) {
-        return {};
+  if (ED_node_is_geometry(const_cast<SpaceNode *>(&snode))) {
+    switch (SpaceNodeGeometryNodesType(snode.node_tree_sub_type)) {
+      case SNODE_GEOMETRY_MODIFIER: {
+        std::optional<ed::space_node::ObjectAndModifier> object_and_modifier =
+            ed::space_node::get_modifier_for_node_editor(snode);
+        if (!object_and_modifier) {
+          return {};
+        }
+        return object_and_modifier->nmd->runtime->eval_log.get();
       }
-      return object_and_modifier->nmd->runtime->eval_log.get();
-    }
-    case SNODE_GEOMETRY_TOOL: {
-      const ed::geometry::GeoOperatorLog &log =
-          ed::geometry::node_group_operator_static_eval_log();
-      if (snode.selected_node_group->id.name + 2 != log.node_group_name) {
-        return {};
+      case SNODE_GEOMETRY_TOOL: {
+        const ed::geometry::GeoOperatorLog &log =
+            ed::geometry::node_group_operator_static_eval_log();
+        if (snode.selected_node_group->id.name + 2 != log.node_group_name) {
+          return {};
+        }
+        return log.log.get();
       }
-      return log.log.get();
     }
   }
   return nullptr;

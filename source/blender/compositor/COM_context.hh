@@ -74,7 +74,7 @@ class Context {
   virtual Result get_viewer_output(Domain domain, bool is_data, ResultPrecision precision) = 0;
 
   /* Get the result where the given input is stored. */
-  virtual Result get_input(const Scene *scene, int view_layer, const char *name) = 0;
+  virtual Result get_input(const Scene *scene, int view_layer, const char *name, const char *identifier) = 0;
 
   /* True if the compositor should use GPU acceleration. */
   virtual bool use_gpu() const = 0;

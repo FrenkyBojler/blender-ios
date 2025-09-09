@@ -53,7 +53,7 @@ std::optional<StringRef> input_attribute_name_get(const PropertiesVectorSet &pro
 /**
  * \return Whether using an attribute to input values of this type is supported.
  */
-bool socket_type_has_attribute_toggle(eNodeSocketDatatype type);
+bool socket_type_has_attribute_toggle(const bNodeTree &node_tree, eNodeSocketDatatype type);
 
 /**
  * \return Whether using an attribute to input values of this type is supported, and the node
