@@ -290,7 +290,6 @@ bool AbstractView::is_filtering_collapsed() const
   return this->filtering_collapsed_state;
 }
 
-
 /** \} */
 
 }  // namespace blender::ui

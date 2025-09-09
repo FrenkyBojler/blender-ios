@@ -914,7 +914,7 @@ void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
     }
 
     block_layout_set_current(block, col);
-	  /* Bottom */
+    /* Bottom */
     uiLayout *bottom = &col->row(false);
     UI_block_emboss_set(block, ui::EmbossType::None);
     int icon = tree_view.is_filtering_collapsed() ? ICON_DISCLOSURE_TRI_RIGHT :
