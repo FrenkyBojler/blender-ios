@@ -37,14 +37,15 @@
 
 #define MIN_MAJOR_LINE_DISTANCE (U.v2d_min_gridsize * UI_SCALE_FAC)
 
-/* This esentially does a special prime factor decomposition where it can only use 2, 3 and 5 as
- * prime factors and divisions that result in 2 are preferred. */
+/* This esentially performs a special prime factor decomposition where it can only use 2, 3 and 5
+ * as prime factors. Divisions that result in 2 are preferred. */
 static int get_divisor(const int distance)
 {
   const int divisors[3] = {2, 3, 5};
-  int division_results[3];
+  constexpr uint8_t num_divisors = ARRAY_SIZE(divisors);
+  int division_results[num_divisors];
 
-  for (int i = 0; i < 3; i++) {
+  for (int i = 0; i < num_divisors; i++) {
     const int divisor = divisors[i];
     const int result = distance / divisor;
     /* If the division was without loss due to integer cast and the result is 2, return
@@ -57,7 +58,7 @@ static int get_divisor(const int distance)
   }
 
   /* If no division results in a 2, take the first to divide cleanly. */
-  for (int i = 0; i < 3; i++) {
+  for (int i = 0; i < num_divisors; i++) {
     const int divisor = divisors[i];
     if (division_results[i] * divisor == distance) {
       return divisor;

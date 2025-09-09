@@ -225,11 +225,9 @@ void UI_view2d_dot_grid_draw(const View2D *v2d,
 void UI_view2d_draw_lines_y__values(const View2D *v2d, int base);
 void UI_view2d_draw_lines_x__values(const View2D *v2d, int base);
 void UI_view2d_draw_lines_x__discrete_values(const View2D *v2d,
-                                             const int fps,
+                                             int base,
                                              bool display_minor_lines);
-void UI_view2d_draw_lines_x__discrete_time(const View2D *v2d,
-                                           const int fps,
-                                           bool display_minor_lines);
+void UI_view2d_draw_lines_x__discrete_time(const View2D *v2d, int base, bool display_minor_lines);
 void UI_view2d_draw_lines_x__discrete_frames_or_seconds(const View2D *v2d,
                                                         const Scene *scene,
                                                         bool display_seconds,
@@ -259,7 +257,7 @@ void UI_view2d_draw_scale_x__discrete_frames_or_seconds(const ARegion *region,
                                                         int base);
 /**
  * Draw a text scale in either frames or seconds.
- * This draws indicators on subframes, e.g. "1.5".
+ * This can draw indicators on subframes, e.g. "1.5".
  */
 void UI_view2d_draw_scale_x__frames_or_seconds(const ARegion *region,
                                                const View2D *v2d,
