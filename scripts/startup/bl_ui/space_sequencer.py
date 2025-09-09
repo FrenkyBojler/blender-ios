@@ -1077,7 +1077,7 @@ class SEQUENCER_MT_strip_modifiers(Menu):
 
         layout.menu("SEQUENCER_MT_modifier_add", text="Add Modifier")
 
-        layout.operator("sequencer.strip_modifier_copy")
+        layout.operator("sequencer.strip_modifier_copy", text="Copy to Selected Strips...")
 
 
 class SEQUENCER_MT_strip_effect(Menu):
