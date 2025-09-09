@@ -4,6 +4,7 @@
 
 #include "node_geometry_util.hh"
 
+#include "NOD_node_extra_info.hh"
 #include "NOD_rna_define.hh"
 
 #include "UI_interface_layout.hh"
@@ -108,6 +109,26 @@ static NodeOperation *node_get_compositor_operation(Context &context, DNode node
   return new EnableOutputOperation(context, node);
 }
 
+static void node_extra_info(NodeExtraInfoParams &params)
+{
+  params.tree.ensure_topology_cache();
+  const bNodeSocket &output_socket = params.node.output_socket(0);
+  if (!output_socket.is_directly_linked()) {
+    return;
+  }
+  for (const bNodeSocket *target_socket : output_socket.logically_linked_sockets()) {
+    const bNode &target_node = target_socket->owner_node();
+    if (!target_node.is_group_output() && !target_node.is_reroute()) {
+      NodeExtraInfoRow row;
+      row.text = RPT_("Link to Output");
+      row.tooltip = TIP_("This node should be linked to the group output node");
+      row.icon = ICON_ERROR;
+      params.rows.append(std::move(row));
+      return;
+    }
+  }
+}
+
 static const EnumPropertyItem *data_type_items_callback(bContext * /*C*/,
                                                         PointerRNA *ptr,
                                                         PropertyRNA * /*prop*/,
@@ -147,6 +168,7 @@ static void node_register()
   ntype.draw_buttons = node_layout;
   ntype.declare = node_declare;
   ntype.get_compositor_operation = node_get_compositor_operation;
+  ntype.get_extra_info = node_extra_info;
   blender::bke::node_register_type(ntype);
 
   node_rna(ntype.rna_ext.srna);
