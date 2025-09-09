@@ -109,24 +109,25 @@ static void distance_key(const float4 color,
 
 static void node_build_multi_function(blender::nodes::NodeMultiFunctionBuilder &builder)
 {
-  auto function = mf::build::SI5_SO2<float4, float4, MenuValue, float, float, float4, float>(
-      "Distance Key",
-      [=](const float4 &color,
-          const float4 &key_color,
-          const MenuValue &color_space,
-          const float &tolerance,
-          const float &falloff,
-          float4 &output_color,
-          float &matte) -> void {
-        distance_key(color,
-                     key_color,
-                     CMPNodeDistanceMatteColorSpace(color_space.value),
-                     tolerance,
-                     falloff,
-                     output_color,
-                     matte);
-      },
-      mf::build::exec_presets::SomeSpanOrSingle<0, 1>());
+  static auto function =
+      mf::build::SI5_SO2<float4, float4, MenuValue, float, float, float4, float>(
+          "Distance Key",
+          [=](const float4 &color,
+              const float4 &key_color,
+              const MenuValue &color_space,
+              const float &tolerance,
+              const float &falloff,
+              float4 &output_color,
+              float &matte) -> void {
+            distance_key(color,
+                         key_color,
+                         CMPNodeDistanceMatteColorSpace(color_space.value),
+                         tolerance,
+                         falloff,
+                         output_color,
+                         matte);
+          },
+          mf::build::exec_presets::SomeSpanOrSingle<0, 1>());
   builder.set_matching_fn(function);
 }
 

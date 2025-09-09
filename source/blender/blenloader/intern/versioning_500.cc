@@ -2012,12 +2012,12 @@ static void initialize_missing_closure_and_bundle_node_storage(bNodeTree &ntree)
 
 static void do_version_set_alpha_menus_to_inputs(bNodeTree &ntree, bNode &node)
 {
-  if (blender::bke::node_find_socket(node, SOCK_IN, "Mode")) {
+  if (blender::bke::node_find_socket(node, SOCK_IN, "Type")) {
     return;
   }
 
   const auto &storage = *static_cast<NodeSetAlpha *>(node.storage);
-  bNodeSocket &socket = version_node_add_socket(ntree, node, SOCK_IN, "NodeSocketMenu", "Mode");
+  bNodeSocket &socket = version_node_add_socket(ntree, node, SOCK_IN, "NodeSocketMenu", "Type");
   socket.default_value_typed<bNodeSocketValueMenu>()->value = storage.mode;
 }
 

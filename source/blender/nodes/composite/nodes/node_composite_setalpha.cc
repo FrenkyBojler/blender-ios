@@ -18,7 +18,7 @@
 
 namespace blender::nodes::node_composite_setalpha_cc {
 
-static const EnumPropertyItem mode_items[] = {
+static const EnumPropertyItem type_items[] = {
     {CMP_NODE_SETALPHA_MODE_APPLY,
      "APPLY",
      0,
@@ -43,9 +43,9 @@ static void cmp_node_setalpha_declare(NodeDeclarationBuilder &b)
       .min(0.0f)
       .max(1.0f)
       .compositor_domain_priority(1);
-  b.add_input<decl::Menu>("Mode")
+  b.add_input<decl::Menu>("Type")
       .default_value(CMP_NODE_SETALPHA_MODE_APPLY)
-      .static_items(mode_items);
+      .static_items(type_items);
   b.add_output<decl::Color>("Image");
 }
 
@@ -71,8 +71,8 @@ static void node_build_multi_function(blender::nodes::NodeMultiFunctionBuilder &
 {
   static auto function = mf::build::SI3_SO<float4, float, MenuValue, float4>(
       "Set Alpha",
-      [](const float4 &color, const float alpha, const MenuValue mode) -> float4 {
-        switch (CMPNodeSetAlphaMode(mode.value)) {
+      [](const float4 &color, const float alpha, const MenuValue type) -> float4 {
+        switch (CMPNodeSetAlphaMode(type.value)) {
           case CMP_NODE_SETALPHA_MODE_APPLY:
             return color * alpha;
           case CMP_NODE_SETALPHA_MODE_REPLACE_ALPHA:

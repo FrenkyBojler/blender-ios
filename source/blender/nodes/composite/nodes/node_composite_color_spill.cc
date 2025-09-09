@@ -155,7 +155,7 @@ static float4 color_spill(const float4 color,
 
 static void node_build_multi_function(blender::nodes::NodeMultiFunctionBuilder &builder)
 {
-  auto function = mf::build::
+  static auto function = mf::build::
       SI8_SO<float4, float, MenuValue, MenuValue, MenuValue, float, bool, float4, float4>(
           "Color Spill",
           [=](const float4 &color,

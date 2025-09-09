@@ -846,7 +846,7 @@ static void write_legacy_properties(bNodeTree &ntree)
         }
         else if (node->type_legacy == CMP_NODE_SETALPHA) {
           auto &storage = *static_cast<NodeSetAlpha *>(node->storage);
-          bNodeSocket *socket = node_find_socket(*node, SOCK_IN, "Mode");
+          bNodeSocket *socket = node_find_socket(*node, SOCK_IN, "Type");
           storage.mode = socket->default_value_typed<bNodeSocketValueMenu>()->value;
         }
         else if (node->type_legacy == CMP_NODE_CHANNEL_MATTE) {
