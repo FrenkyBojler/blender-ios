@@ -4571,7 +4571,10 @@ static void convert_to_poly(bke::CurvesGeometry &curves, const IndexMask &select
                                                   .indices_for_curve_type(
                                                       CURVE_TYPE_POLY, selection, memory)
                                                   .complement(selection, memory);
-  BLI_assert(!non_poly_curves_selection.is_empty());
+  if (non_poly_curves_selection.is_empty()) {
+    return;
+  }
+
   curves = geometry::resample_to_evaluated(curves, non_poly_curves_selection);
 }
 
