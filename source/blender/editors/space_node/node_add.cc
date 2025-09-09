@@ -1622,52 +1622,52 @@ void NODE_OT_new_compositing_node_group(wmOperatorType *ot)
  * \{ */
 
 static void initialize_compositor_sequencer_strip_modifier_node_group(const bContext *C,
-                                                                      bNodeTree *ntree)
+                                                                      bNodeTree &ntree)
 {
-  BLI_assert(ntree != nullptr && ntree->type == NTREE_COMPOSIT);
-  BLI_assert(BLI_listbase_count(&ntree->nodes) == 0);
+  BLI_assert(ntree.type == NTREE_COMPOSIT);
+  BLI_assert(BLI_listbase_count(&ntree.nodes) == 0);
 
-  ntree->tree_interface.add_socket(
+  ntree.tree_interface.add_socket(
       DATA_("Image"), "", "NodeSocketColor", NODE_INTERFACE_SOCKET_INPUT, nullptr);
-  ntree->tree_interface.add_socket(
+  ntree.tree_interface.add_socket(
       DATA_("Image"), "", "NodeSocketColor", NODE_INTERFACE_SOCKET_OUTPUT, nullptr);
 
-  bNode *output_node = blender::bke::node_add_node(C, *ntree, "NodeGroupOutput");
+  bNode *output_node = blender::bke::node_add_node(C, ntree, "NodeGroupOutput");
   output_node->location[0] = 200.0f;
   output_node->location[1] = 0.0f;
 
-  bNode *input_node = blender::bke::node_add_node(C, *ntree, "NodeGroupInput");
+  bNode *input_node = blender::bke::node_add_node(C, ntree, "NodeGroupInput");
   input_node->location[0] = -150.0f - input_node->width;
   input_node->location[1] = 0.0f;
-  blender::bke::node_set_active(*ntree, *input_node);
+  blender::bke::node_set_active(ntree, *input_node);
 
-  bNode *reroute = blender::bke::node_add_static_node(C, *ntree, NODE_REROUTE);
+  bNode *reroute = blender::bke::node_add_static_node(C, ntree, NODE_REROUTE);
   reroute->location[0] = 100.0f;
   reroute->location[1] = -35.0f;
 
-  bNode *viewer = blender::bke::node_add_static_node(C, *ntree, CMP_NODE_VIEWER);
+  bNode *viewer = blender::bke::node_add_static_node(C, ntree, CMP_NODE_VIEWER);
   viewer->location[0] = 200.0f;
   viewer->location[1] = -80.0f;
 
-  blender::bke::node_add_link(*ntree,
+  blender::bke::node_add_link(ntree,
                               *input_node,
-                              *(bNodeSocket *)input_node->outputs.first,
+                              *static_cast<bNodeSocket *>(input_node->outputs.first),
                               *reroute,
-                              *(bNodeSocket *)reroute->inputs.first);
+                              *static_cast<bNodeSocket *>(reroute->inputs.first));
 
-  blender::bke::node_add_link(*ntree,
+  blender::bke::node_add_link(ntree,
                               *reroute,
-                              *(bNodeSocket *)reroute->outputs.first,
+                              *static_cast<bNodeSocket *>(reroute->outputs.first),
                               *output_node,
-                              *(bNodeSocket *)output_node->inputs.first);
+                              *static_cast<bNodeSocket *>(output_node->inputs.first));
 
-  blender::bke::node_add_link(*ntree,
+  blender::bke::node_add_link(ntree,
                               *reroute,
-                              *(bNodeSocket *)reroute->outputs.first,
+                              *static_cast<bNodeSocket *>(reroute->outputs.first),
                               *viewer,
-                              *(bNodeSocket *)viewer->inputs.first);
+                              *static_cast<bNodeSocket *>(viewer->inputs.first));
 
-  BKE_ntree_update_after_single_tree_change(*CTX_data_main(C), *ntree);
+  BKE_ntree_update_after_single_tree_change(*CTX_data_main(C), ntree);
 }
 
 static wmOperatorStatus new_compositor_sequencer_strip_modifier_node_group_exec(bContext *C,
@@ -1677,11 +1677,10 @@ static wmOperatorStatus new_compositor_sequencer_strip_modifier_node_group_exec(
   RNA_string_get(op->ptr, "name", tree_name);
 
   bNodeTree *ntree = new_node_tree_impl(C, tree_name, "CompositorNodeTree");
-  initialize_compositor_sequencer_strip_modifier_node_group(C, ntree);
-
-  WM_event_add_notifier(C, NC_NODE | NA_ADDED, nullptr);
-
+  initialize_compositor_sequencer_strip_modifier_node_group(C, *ntree);
+  
   BKE_ntree_update_after_single_tree_change(*CTX_data_main(C), *ntree);
+  WM_event_add_notifier(C, NC_NODE | NA_ADDED, nullptr);
 
   return OPERATOR_FINISHED;
 }
