@@ -1305,8 +1305,8 @@ typedef struct NodeChroma {
   float fstrength DNA_DEPRECATED;
   float falpha DNA_DEPRECATED;
   float key[4] DNA_DEPRECATED;
-  short algorithm;
-  short channel;
+  short algorithm DNA_DEPRECATED;
+  short channel DNA_DEPRECATED;
 } NodeChroma;
 
 typedef struct NodeTwoXYs {
@@ -1421,7 +1421,7 @@ typedef struct NodeColorBalance {
 } NodeColorBalance;
 
 typedef struct NodeColorspill {
-  short limchan;
+  short limchan DNA_DEPRECATED;
   short unspill DNA_DEPRECATED;
   float limscale DNA_DEPRECATED;
   float uspillr DNA_DEPRECATED;
@@ -2982,8 +2982,8 @@ typedef enum CMPNodeAlphaConvertMode {
 
 /** Distance Matte Node. Stored in #NodeChroma.channel. */
 typedef enum CMPNodeDistanceMatteColorSpace {
-  CMP_NODE_DISTANCE_MATTE_COLOR_SPACE_RGBA = 1,
-  CMP_NODE_DISTANCE_MATTE_COLOR_SPACE_YCCA = 2,
+  CMP_NODE_DISTANCE_MATTE_COLOR_SPACE_RGBA = 0,
+  CMP_NODE_DISTANCE_MATTE_COLOR_SPACE_YCCA = 1,
 } CMPNodeDistanceMatteColorSpace;
 
 /** Color Spill Node. Stored in `custom2`. */

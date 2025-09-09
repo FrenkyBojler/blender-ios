@@ -911,6 +911,27 @@ static void write_legacy_properties(bNodeTree &ntree)
           bNodeSocket *socket = node_find_socket(*node, SOCK_IN, "Type");
           node->custom1 = socket->default_value_typed<bNodeSocketValueMenu>()->value;
         }
+        else if (node->type_legacy == CMP_NODE_PREMULKEY) {
+          bNodeSocket *socket = node_find_socket(*node, SOCK_IN, "Type");
+          node->custom1 = socket->default_value_typed<bNodeSocketValueMenu>()->value;
+        }
+        else if (node->type_legacy == CMP_NODE_DIST_MATTE) {
+          bNodeSocket *socket = node_find_socket(*node, SOCK_IN, "Color Space");
+          node->custom1 = socket->default_value_typed<bNodeSocketValueMenu>()->value + 1;
+        }
+        else if (node->type_legacy == CMP_NODE_COLOR_SPILL) {
+          bNodeSocket *spill_channel_socket = node_find_socket(*node, SOCK_IN, "Spill Channel");
+          node->custom1 =
+              spill_channel_socket->default_value_typed<bNodeSocketValueMenu>()->value + 1;
+
+          bNodeSocket *limit_method_socket = node_find_socket(*node, SOCK_IN, "Limit Method");
+          node->custom2 = limit_method_socket->default_value_typed<bNodeSocketValueMenu>()->value;
+
+          auto &storage = *static_cast<NodeColorspill *>(node->storage);
+          bNodeSocket *limit_channel_socket = node_find_socket(*node, SOCK_IN, "Limit Channel");
+          storage.limchan =
+              limit_channel_socket->default_value_typed<bNodeSocketValueMenu>()->value;
+        }
       }
     }
     default:

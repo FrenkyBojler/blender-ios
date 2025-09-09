@@ -392,7 +392,7 @@ class ColorBalanceFunction : public mf::MultiFunction {
     this->set_signature(&signature);
   }
 
-  void call(const IndexMask &mask, mf::Params params, mf::Context context) const override
+  void call(const IndexMask &mask, mf::Params params, mf::Context /*context*/) const override
   {
     const VArray<float> factor_array = params.readonly_single_input<float>(0, "Factor");
     const VArray<float4> color_array = params.readonly_single_input<float4>(1, "Color");

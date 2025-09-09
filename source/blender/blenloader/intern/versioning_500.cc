@@ -2075,6 +2075,46 @@ static void do_version_color_balance_menus_to_inputs(bNodeTree &ntree, bNode &no
   socket.default_value_typed<bNodeSocketValueMenu>()->value = node.custom1;
 }
 
+static void do_version_convert_alpha_menus_to_inputs(bNodeTree &ntree, bNode &node)
+{
+  if (blender::bke::node_find_socket(node, SOCK_IN, "Type")) {
+    return;
+  }
+
+  bNodeSocket &socket = version_node_add_socket(ntree, node, SOCK_IN, "NodeSocketMenu", "Type");
+  socket.default_value_typed<bNodeSocketValueMenu>()->value = node.custom1;
+}
+
+static void do_version_distance_matte_menus_to_inputs(bNodeTree &ntree, bNode &node)
+{
+  if (blender::bke::node_find_socket(node, SOCK_IN, "Color Space")) {
+    return;
+  }
+
+  bNodeSocket &socket = version_node_add_socket(
+      ntree, node, SOCK_IN, "NodeSocketMenu", "Color Space");
+  socket.default_value_typed<bNodeSocketValueMenu>()->value = node.custom1 - 1;
+}
+
+static void do_version_color_spill_menus_to_inputs(bNodeTree &ntree, bNode &node)
+{
+  if (blender::bke::node_find_socket(node, SOCK_IN, "Spill Channel")) {
+    return;
+  }
+
+  bNodeSocket &spill_channel_socket = version_node_add_socket(
+      ntree, node, SOCK_IN, "NodeSocketMenu", "Spill Channel");
+  spill_channel_socket.default_value_typed<bNodeSocketValueMenu>()->value = node.custom1 - 1;
+  bNodeSocket &limit_method_socket = version_node_add_socket(
+      ntree, node, SOCK_IN, "NodeSocketMenu", "Limit Method");
+  limit_method_socket.default_value_typed<bNodeSocketValueMenu>()->value = node.custom2;
+
+  auto &storage = *static_cast<NodeColorspill *>(node.storage);
+  bNodeSocket &limit_channel_socket = version_node_add_socket(
+      ntree, node, SOCK_IN, "NodeSocketMenu", "Limit Channel");
+  limit_channel_socket.default_value_typed<bNodeSocketValueMenu>()->value = storage.limchan;
+}
+
 void do_versions_after_linking_500(FileData *fd, Main *bmain)
 {
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 9)) {
@@ -3053,26 +3093,6 @@ void blo_do_versions_500(FileData *fd, Library * /*lib*/, Main *bmain)
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 69)) {
-    FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
-      if (node_tree->type != NTREE_COMPOSIT) {
-        continue;
-      }
-      LISTBASE_FOREACH (bNode *, node, &node_tree->nodes) {
-        if (node->type_legacy == CMP_NODE_SETALPHA) {
-          do_version_set_alpha_menus_to_inputs(*node_tree, *node);
-        }
-        else if (node->type_legacy == CMP_NODE_CHANNEL_MATTE) {
-          do_version_channel_matte_menus_to_inputs(*node_tree, *node);
-        }
-        else if (node->type_legacy == CMP_NODE_COLORBALANCE) {
-          do_version_color_balance_menus_to_inputs(*node_tree, *node);
-        }
-      }
-    }
-    FOREACH_NODETREE_END;
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 69)) {
     LISTBASE_FOREACH (bNodeTree *, ntree, &bmain->nodetrees) {
       repair_node_link_node_pointers(*fd, *ntree);
     }
@@ -3127,6 +3147,35 @@ void blo_do_versions_500(FileData *fd, Library * /*lib*/, Main *bmain)
     FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
       if (ntree->type == NTREE_COMPOSIT) {
         version_node_socket_name(ntree, CMP_NODE_RGB, "RGBA", "Color");
+      }
+    }
+    FOREACH_NODETREE_END;
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 77)) {
+    FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
+      if (node_tree->type != NTREE_COMPOSIT) {
+        continue;
+      }
+      LISTBASE_FOREACH (bNode *, node, &node_tree->nodes) {
+        if (node->type_legacy == CMP_NODE_SETALPHA) {
+          do_version_set_alpha_menus_to_inputs(*node_tree, *node);
+        }
+        else if (node->type_legacy == CMP_NODE_CHANNEL_MATTE) {
+          do_version_channel_matte_menus_to_inputs(*node_tree, *node);
+        }
+        else if (node->type_legacy == CMP_NODE_COLORBALANCE) {
+          do_version_color_balance_menus_to_inputs(*node_tree, *node);
+        }
+        else if (node->type_legacy == CMP_NODE_PREMULKEY) {
+          do_version_convert_alpha_menus_to_inputs(*node_tree, *node);
+        }
+        else if (node->type_legacy == CMP_NODE_DIST_MATTE) {
+          do_version_distance_matte_menus_to_inputs(*node_tree, *node);
+        }
+        else if (node->type_legacy == CMP_NODE_COLOR_SPILL) {
+          do_version_color_spill_menus_to_inputs(*node_tree, *node);
+        }
       }
     }
     FOREACH_NODETREE_END;
