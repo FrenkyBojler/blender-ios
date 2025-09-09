@@ -1621,7 +1621,8 @@ void NODE_OT_new_compositing_node_group(wmOperatorType *ot)
 /** \name New Compositor Sequencer Strip Modifier Node Group Operator
  * \{ */
 
-void initialize_compositor_sequencer_strip_modifier_node_group(const bContext *C, bNodeTree *ntree)
+static void initialize_compositor_sequencer_strip_modifier_node_group(const bContext *C,
+                                                                      bNodeTree *ntree)
 {
   BLI_assert(ntree != nullptr && ntree->type == NTREE_COMPOSIT);
   BLI_assert(BLI_listbase_count(&ntree->nodes) == 0);
