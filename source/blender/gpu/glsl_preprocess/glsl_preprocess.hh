@@ -782,37 +782,27 @@ class Preprocessor {
                         const Scope cond,
                         const Scope iter,
                         const Scope body) {
-      string body_str = body.str();
       /* Check that there is no unsupported keywords in the loop body. */
-      if (body_str.find(" break;") != std::string::npos ||
-          body_str.find(" continue;") != std::string::npos)
-      {
-        /* Expensive check. Remove other loops and switch scopes inside the unrolled loop scope and
-         * check again to avoid false positive. */
-        string modified_body = body_str;
-
-        std::regex regex_loop(R"( (for|while|do) )");
-        regex_global_search(modified_body, regex_loop, [&](const std::smatch &match) {
-          std::string inner_scope = get_content_between_balanced_pair(match.suffix(), '{', '}');
-          replace_all(modified_body, inner_scope, "");
-        });
-
-        /* Checks if `continue` exists, even in switch statement inside the unrolled loop scope. */
-        if (modified_body.find(" continue;") != std::string::npos) {
-          report_error(ERROR_TOK(loop_start),
-                       "Unrolled loop cannot contain \"continue\" statement.");
+      bool error = false;
+      /* Checks if `continue` exists, even in switch statement inside the unrolled loop. */
+      body.foreach_token(Continue, [&](const Token token) {
+        if (token.first_containing_scope_of_type(ScopeType::LoopBody) == body) {
+          report_error(ERROR_TOK(token), "Unrolled loop cannot contain \"continue\" statement.");
+          error = true;
         }
-
-        std::regex regex_switch(R"( switch )");
-        regex_global_search(modified_body, regex_switch, [&](const std::smatch &match) {
-          std::string inner_scope = get_content_between_balanced_pair(match.suffix(), '{', '}');
-          replace_all(modified_body, inner_scope, "");
-        });
-
-        /* Checks if `break` exists inside the unrolled loop scope. */
-        if (modified_body.find(" break;") != std::string::npos) {
-          report_error(ERROR_TOK(loop_start), "Unrolled loop cannot contain \"break\" statement.");
+      });
+      /* Checks if `break` exists directly the unrolled loop scope. Switch statements are ok. */
+      body.foreach_token(Break, [&](const Token token) {
+        if (token.first_containing_scope_of_type(ScopeType::LoopBody) == body) {
+          const Scope switch_scope = token.first_containing_scope_of_type(ScopeType::SwitchBody);
+          if (switch_scope.is_invalid() || !body.contains(switch_scope)) {
+            report_error(ERROR_TOK(token), "Unrolled loop cannot contain \"break\" statement.");
+            error = true;
+          }
         }
+      });
+      if (error) {
+        return;
       }
 
       if (!parser.replace_try(loop_start, body.end(), "", true)) {
@@ -847,7 +837,7 @@ class Preprocessor {
           parser.insert_after(body.end(), indent_cond + "if(" + cond.str() + ")\n");
         }
         parser.insert_line_number(body.end(), body.start().line_number());
-        parser.insert_after(body.end(), indent_body + body_str + "\n");
+        parser.insert_after(body.end(), indent_body + body.str() + "\n");
         if (iter.is_valid()) {
           parser.insert_line_number(body.end(), iter.start().line_number());
           parser.insert_after(body.end(), indent_iter + iter.str() + ";\n");
