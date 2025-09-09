@@ -1086,10 +1086,8 @@ void retiming_sound_animation_data_set(const Scene *scene, const Strip *strip)
       for (int i = 0; i <= range_length; i++) {
         const int frame = range.start + i;
         if (correct_pitch) {
-          BKE_sound_set_scene_sound_time_stretch_at_frame(sound_handle,
-                                                          (frame + sound_offset) - strip->start,
-                                                          1.0 / range.speed_table[i],
-                                                          true);
+          BKE_sound_set_scene_sound_time_stretch_at_frame(
+              sound_handle, frame - strip->start, 1.0 / range.speed_table[i], true);
         }
         else {
           BKE_sound_set_scene_sound_pitch_at_frame(
@@ -1100,10 +1098,7 @@ void retiming_sound_animation_data_set(const Scene *scene, const Strip *strip)
     else {
       if (correct_pitch) {
         BKE_sound_set_scene_sound_time_stretch_constant_range(
-            sound_handle,
-            (range.start + sound_offset) - strip->start,
-            (range.end + sound_offset) - strip->start,
-            1.0 / range.speed);
+            sound_handle, range.start - strip->start, range.end - strip->start, 1.0 / range.speed);
       }
       else {
         BKE_sound_set_scene_sound_pitch_constant_range(
