@@ -352,7 +352,7 @@ class IMAGE_MT_uvs_mirror(Menu):
     def draw(self, _context):
         layout = self.layout
 
-        layout.operator("mesh.faces_mirror_uv")
+        layout.operator("uv.copy_mirrored_faces")
 
         layout.separator()
 
@@ -470,10 +470,12 @@ class IMAGE_MT_uvs(Menu):
         layout.operator("uv.pack_islands")
         layout.operator_context = 'EXEC_REGION_WIN'
         layout.operator("uv.average_islands_scale")
+        layout.operator("uv.arrange_islands")
         layout.operator_context = 'INVOKE_REGION_WIN'
         layout.operator("uv.set_user_region")
         layout.operator_context = 'EXEC_REGION_WIN'
-        layout.prop(context.tool_settings, "user_region", text="User Region", toggle=True)
+        layout.prop(context.tool_settings, "user_region", text="User Region", toggle=True)        
+
         layout.separator()
 
         layout.operator("uv.minimize_stretch")
