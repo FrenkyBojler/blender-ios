@@ -1,2 +1,3 @@
 Referenced by issue #145959, Hiding from the outliner triggers an assert
 Referenced by pull request #145977, Cleanup: remove unnecessary code from dopesheet editor RNA
+Referenced by commit 4132c7338a8aa6e1280934ff6ed329c838d062aa, Cleanup: remove unnecessary code from dopesheet editor RNA
