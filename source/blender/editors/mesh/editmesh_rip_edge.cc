@@ -45,19 +45,13 @@ static wmOperatorStatus edbm_rip_edge_exec(bContext *C, wmOperator *op)
   const Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
       scene, view_layer, CTX_wm_view3d(C));
 
-  float mval_dir[2];
+  float mval_dir[3];
   RNA_float_get_array(op->ptr, "direction", mval_dir);
-  normalize_v2(mval_dir);
+  normalize_v3(mval_dir);
 
   for (Object *obedit : objects) {
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
     BMesh *bm = em->bm;
-
-    BMIter viter;
-    BMVert *v;
-    float cent_sco[2];
-    int cent_tot;
-    bool changed = false;
 
     if (bm->totvertsel == 0) {
       continue;
@@ -65,143 +59,90 @@ static wmOperatorStatus edbm_rip_edge_exec(bContext *C, wmOperator *op)
 
     const blender::float4x4 projectMat = ED_view3d_ob_project_mat_get(rv3d, obedit);
 
-    zero_v2(cent_sco);
-    cent_tot = 0;
-
-    /* clear tags and calc screen center */
+    BMIter viter;
+    BMVert *v;
     BM_ITER_MESH (v, &viter, bm, BM_VERTS_OF_MESH) {
       BM_elem_flag_disable(v, BM_ELEM_TAG);
-
-      if (BM_elem_flag_test(v, BM_ELEM_SELECT)) {
-        const float2 v_sco = ED_view3d_project_float_v2_m4(region, v->co, projectMat);
-
-        add_v2_v2(cent_sco, v_sco);
-        cent_tot += 1;
-      }
-    }
-    mul_v2_fl(cent_sco, 1.0f / float(cent_tot));
-
-    /* not essential, but gives more expected results with edge selection */
-    if (bm->totedgesel) {
-      /* angle against center can give odd result,
-       * try re-position the center to the closest edge */
-      BMIter eiter;
-      BMEdge *e;
-      float dist_sq_best = FLT_MAX;
-
-      BM_ITER_MESH (e, &eiter, bm, BM_EDGES_OF_MESH) {
-        if (BM_elem_flag_test(e, BM_ELEM_SELECT)) {
-          float cent_sco_test[2];
-          float dist_sq_test;
-
-          const float2 e_sco_0 = ED_view3d_project_float_v2_m4(region, e->v1->co, projectMat);
-          const float2 e_sco_1 = ED_view3d_project_float_v2_m4(region, e->v2->co, projectMat);
-
-          copy_v2_v2(cent_sco_test, cent_sco);
-          dist_sq_test = 0.0f;
-          if (dist_sq_test < dist_sq_best) {
-            dist_sq_best = dist_sq_test;
-
-            /* we have a new screen center */
-            copy_v2_v2(cent_sco, cent_sco_test);
-          }
-        }
-      }
     }
 
-    /* operate on selected verts */
+    bool changed = false;
+
     BM_ITER_MESH (v, &viter, bm, BM_VERTS_OF_MESH) {
+      if (!(BM_elem_flag_test(v, BM_ELEM_SELECT) && !BM_elem_flag_test(v, BM_ELEM_TAG))) {
+        continue;
+      }
+
       BMIter eiter;
       BMEdge *e;
-      float2 v_sco;
-
-      if (BM_elem_flag_test(v, BM_ELEM_SELECT) && BM_elem_flag_test(v, BM_ELEM_TAG) == false) {
-        /* Rules for */
-        float angle_best = FLT_MAX;
-        BMEdge *e_best = nullptr;
+      BMEdge *e_best = nullptr;
+      float angle_best = FLT_MAX;
 
 #ifdef USE_TRICKY_EXTEND
-        /* first check if we can select the edge to split based on selection-only */
-        int tot_sel = 0;
+      int tot_sel = 0;
+      BM_ITER_ELEM (e, &eiter, v, BM_EDGES_OF_VERT) {
+        if (!BM_elem_flag_test(e, BM_ELEM_HIDDEN) && BM_elem_flag_test(e, BM_ELEM_SELECT)) {
+          e_best = e;
+          tot_sel++;
+        }
+      }
 
-        BM_ITER_ELEM (e, &eiter, v, BM_EDGES_OF_VERT) {
-          if (!BM_elem_flag_test(e, BM_ELEM_HIDDEN)) {
-            if (BM_elem_flag_test(e, BM_ELEM_SELECT)) {
-              e_best = e;
-              tot_sel += 1;
-            }
-          }
-        }
-        if (tot_sel != 1) {
-          e_best = nullptr;
-        }
+      if (tot_sel != 1) {
+        e_best = nullptr;
+      }
 
-        /* only one edge selected, operate on that */
-        if (e_best) {
-          goto found_edge;
-        }
-        /* none selected, fall through and find one */
-        else if (tot_sel == 0) {
-          /* pass */
-        }
-        /* selection not 0 or 1, do nothing */
-        else {
-          goto found_edge;
-        }
+      if (e_best) {
+        goto found_edge;
+      }
 #endif
-        v_sco = ED_view3d_project_float_v2_m4(region, v->co, projectMat);
+      {
+        float2 v_sco = ED_view3d_project_float_v2_m4(region, v->co, projectMat);
 
         BM_ITER_ELEM (e, &eiter, v, BM_EDGES_OF_VERT) {
-          if (!BM_elem_flag_test(e, BM_ELEM_HIDDEN)) {
-            BMVert *v_other = BM_edge_other_vert(e, v);
-            float angle_test;
+          if (BM_elem_flag_test(e, BM_ELEM_HIDDEN)) {
+            continue;
+          }
+          BMVert *v_other = BM_edge_other_vert(e, v);
+          float2 v_other_sco = ED_view3d_project_float_v2_m4(region, v_other->co, projectMat);
 
-            float2 v_other_sco = ED_view3d_project_float_v2_m4(region, v_other->co, projectMat);
+          if (len_squared_v2v2(v_sco, v_other_sco) <= 1.0f) {
+            continue;
+          }
 
-            /* avoid comparing with view-axis aligned edges (less than a pixel) */
-            if (len_squared_v2v2(v_sco, v_other_sco) > 1.0f) {
-              float v_dir[2];
+          float v_dir[3];
+          sub_v3_v3v3(v_dir, v_other->co, v->co);
+          normalize_v3(v_dir);
 
-              sub_v2_v2v2(v_dir, v_other_sco, v_sco);
-              normalize_v2(v_dir);
-
-              angle_test = angle_normalized_v2v2(mval_dir, v_dir);
-
-              if (angle_test < angle_best) {
-                angle_best = angle_test;
-                e_best = e;
-              }
-            }
+          float angle_test = angle_normalized_v3v3(mval_dir, v_dir);
+          if (angle_test < angle_best) {
+            angle_best = angle_test;
+            e_best = e;
           }
         }
+      }
 
 #ifdef USE_TRICKY_EXTEND
-      found_edge:
+    found_edge:
 #endif
-        if (e_best) {
-          const bool e_select = BM_elem_flag_test_bool(e_best, BM_ELEM_SELECT);
-          BMVert *v_new;
-          BMEdge *e_new;
+      if (e_best) {
+        const bool e_select = BM_elem_flag_test_bool(e_best, BM_ELEM_SELECT);
+        BMEdge *e_new;
+        BMVert *v_new = BM_edge_split(bm, e_best, v, &e_new, 0.0f);
 
-          v_new = BM_edge_split(bm, e_best, v, &e_new, 0.0f);
+        BM_vert_select_set(bm, v, false);
+        BM_edge_select_set(bm, e_new, false);
 
-          BM_vert_select_set(bm, v, false);
-          BM_edge_select_set(bm, e_new, false);
-
-          BM_vert_select_set(bm, v_new, true);
-          if (e_select) {
-            BM_edge_select_set(bm, e_best, true);
-          }
-          BM_elem_flag_enable(v_new, BM_ELEM_TAG); /* prevent further splitting */
-
-          changed = true;
+        BM_vert_select_set(bm, v_new, true);
+        if (e_select) {
+          BM_edge_select_set(bm, e_best, true);
         }
+        BM_elem_flag_enable(v_new, BM_ELEM_TAG);
+
+        changed = true;
       }
     }
 
     if (changed) {
       BM_select_history_clear(bm);
-
       BM_mesh_select_mode_flush(bm);
 
       EDBMUpdate_Params params{};
@@ -218,72 +159,12 @@ static wmOperatorStatus edbm_rip_edge_exec(bContext *C, wmOperator *op)
 static wmOperatorStatus edbm_rip_edge_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   ARegion *region = CTX_wm_region(C);
-  RegionView3D *rv3d = CTX_wm_region_view3d(C);
-  const Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
-  const Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(C));
+  float mval[2] = {float(event->mval[0]), float(event->mval[1])};
+  float ray_start[3], ray_dir[3];
 
-  float mval_dir[2] = {0.0f, 0.0f};
-
-  for (Object *obedit : objects) {
-    BMEditMesh *em = BKE_editmesh_from_object(obedit);
-    BMesh *bm = em->bm;
-
-    BMIter viter;
-    BMVert *v;
-    const float mval_fl[2] = {float(event->mval[0]), float(event->mval[1])};
-    float cent_sco[2];
-    int cent_tot;
-
-    if (bm->totvertsel == 0) {
-      continue;
-    }
-
-    const blender::float4x4 projectMat = ED_view3d_ob_project_mat_get(rv3d, obedit);
-
-    zero_v2(cent_sco);
-    cent_tot = 0;
-
-    BM_ITER_MESH (v, &viter, bm, BM_VERTS_OF_MESH) {
-      if (BM_elem_flag_test(v, BM_ELEM_SELECT)) {
-        const float2 v_sco = ED_view3d_project_float_v2_m4(region, v->co, projectMat);
-
-        add_v2_v2(cent_sco, v_sco);
-        cent_tot += 1;
-      }
-    }
-    mul_v2_fl(cent_sco, 1.0f / float(cent_tot));
-
-    if (bm->totedgesel) {
-      BMIter eiter;
-      BMEdge *e;
-      float dist_sq_best = len_squared_v2v2(cent_sco, mval_fl);
-
-      BM_ITER_MESH (e, &eiter, bm, BM_EDGES_OF_MESH) {
-        if (BM_elem_flag_test(e, BM_ELEM_SELECT)) {
-          float cent_sco_test[2];
-          float dist_sq_test;
-
-          const float2 e_sco_0 = ED_view3d_project_float_v2_m4(region, e->v1->co, projectMat);
-          const float2 e_sco_1 = ED_view3d_project_float_v2_m4(region, e->v2->co, projectMat);
-
-          closest_to_line_segment_v2(cent_sco_test, mval_fl, e_sco_0, e_sco_1);
-          dist_sq_test = len_squared_v2v2(cent_sco_test, mval_fl);
-          if (dist_sq_test < dist_sq_best) {
-            dist_sq_best = dist_sq_test;
-            copy_v2_v2(cent_sco, cent_sco_test);
-          }
-        }
-      }
-    }
-
-    sub_v2_v2v2(mval_dir, mval_fl, cent_sco);
-    normalize_v2(mval_dir);
-    break;
-  }
-
-  RNA_float_set_array(op->ptr, "direction", mval_dir);
+  ED_view3d_win_to_ray(region, mval, ray_start, ray_dir);
+  normalize_v3(ray_dir);
+  RNA_float_set_array(op->ptr, "direction", ray_dir);
 
   return edbm_rip_edge_exec(C, op);
 }
@@ -306,12 +187,12 @@ void MESH_OT_rip_edge(wmOperatorType *ot)
   PropertyRNA *prop;
   prop = RNA_def_float_vector(ot->srna,
                               "direction",
-                              2,
+                              3,
                               nullptr,
                               -FLT_MAX,
                               FLT_MAX,
                               "Direction",
-                              "Direction vector for extending vertices",
+                              "World-space direction vector for extending vertices",
                               -1.0f,
                               1.0f);
   RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
