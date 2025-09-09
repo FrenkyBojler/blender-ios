@@ -1406,8 +1406,7 @@ class SEQUENCER_MT_context_menu(Menu):
             total, nonsound = selected_strips_count(context)
 
             layout.separator()
-            layout.operator_menu_enum("sequencer.strip_modifier_add", "type", text="Add Modifier")
-            layout.operator("sequencer.strip_modifier_copy", text="Copy Modifiers to Selection")
+            layout.menu("SEQUENCER_MT_strip_modifiers", icon='MODIFIER')
 
             if total == 2:
                 if nonsound == 2:
