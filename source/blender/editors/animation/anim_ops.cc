@@ -157,6 +157,9 @@ static void ensure_change_frame_keylist(bContext *C, FrameChangeModalData &op_da
      * representation. Need to manually add entries to keylist. */
     op_data.keylist = ED_keylist_create();
     Scene *scene = CTX_data_sequencer_scene(C);
+    if (!scene) {
+      return;
+    }
 
     ListBase *seqbase = blender::seq::active_seqbase_get(blender::seq::editing_get(scene));
     LISTBASE_FOREACH (Strip *, strip, seqbase) {
@@ -356,6 +359,10 @@ static blender::Vector<SnapTarget> seq_get_snap_targets(bContext *C,
                                                         const float timeline_frame)
 {
   Scene *scene = CTX_data_sequencer_scene(C);
+  if (!scene) {
+    return {};
+  }
+
   ToolSettings *tool_settings = scene->toolsettings;
   Editing *ed = blender::seq::editing_get(scene);
 
@@ -483,6 +490,10 @@ static float apply_frame_snap(bContext *C, FrameChangeModalData &op_data, const 
   blender::Vector<SnapTarget> targets;
   const bool is_sequencer = CTX_wm_space_seq(C) != nullptr;
   Scene *scene = is_sequencer ? CTX_data_sequencer_scene(C) : CTX_data_scene(C);
+  if (!scene) {
+    return frame;
+  }
+
   switch (area->spacetype) {
     case SPACE_SEQ:
       targets = seq_get_snap_targets(C, op_data, frame);
@@ -626,6 +637,10 @@ static bool use_playhead_snapping(bContext *C)
 {
   const bool is_sequencer = CTX_wm_space_seq(C) != nullptr;
   Scene *scene = is_sequencer ? CTX_data_sequencer_scene(C) : CTX_data_scene(C);
+  if (!scene) {
+    return false;
+  }
+
   ScrArea *area = CTX_wm_area(C);
 
   if (area->spacetype == SPACE_GRAPH) {
