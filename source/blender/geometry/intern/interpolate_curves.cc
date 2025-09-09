@@ -239,11 +239,8 @@ static bool interpolate_attribute_to_curves(const StringRef attribute_id,
   if (bke::attribute_name_is_anonymous(attribute_id)) {
     return true;
   }
-  if (ELEM(attribute_id, "handle_type_left", "handle_type_right")) {
-    return type_counts[CURVE_TYPE_BEZIER] != 0;
-  }
-  /* Handles are interpolated manually. */
-  if (ELEM(attribute_id, "handle_left", "handle_right")) {
+  /* Bezier handles and types are interpolated manually. */
+  if (ELEM(attribute_id, "handle_type_left", "handle_type_right", "handle_left", "handle_right")) {
     return false;
   }
   if (ELEM(attribute_id, "nurbs_weight")) {
@@ -868,37 +865,14 @@ static void mix_handle_type_arrays(const Span<int8_t> src_from,
   });
 }
 
-void interpolate_curves_with_samples(const CurvesGeometry &from_curves,
-                                     const CurvesGeometry &to_curves,
-                                     const Span<int> from_curve_indices,
-                                     const Span<int> to_curve_indices,
-                                     const Span<int> from_sample_indices,
-                                     const Span<int> to_sample_indices,
-                                     const Span<float> from_sample_factors,
-                                     const Span<float> to_sample_factors,
-                                     const IndexMask &dst_curve_mask,
-                                     const float mix_factor,
-                                     CurvesGeometry &dst_curves,
-                                     IndexMaskMemory &memory)
+/* Calculate the new curve's type by using the type with highest priority. */
+static void mix_curve_type(const Span<int> from_curve_indices,
+                           const Span<int> to_curve_indices,
+                           const VArray<int8_t> &from_types,
+                           const VArray<int8_t> &to_types,
+                           const IndexMask &dst_curve_mask,
+                           MutableSpan<int8_t> dst_curve_types)
 {
-  BLI_assert(from_curve_indices.size() == dst_curve_mask.size());
-  BLI_assert(to_curve_indices.size() == dst_curve_mask.size());
-  BLI_assert(from_sample_indices.size() == dst_curves.points_num());
-  BLI_assert(to_sample_indices.size() == dst_curves.points_num());
-  BLI_assert(from_sample_factors.size() == dst_curves.points_num());
-  BLI_assert(to_sample_factors.size() == dst_curves.points_num());
-
-  if (from_curves.is_empty() || to_curves.is_empty()) {
-    return;
-  }
-
-  from_curves.ensure_can_interpolate_to_evaluated();
-  to_curves.ensure_can_interpolate_to_evaluated();
-
-  const VArray<int8_t> from_types = from_curves.curve_types();
-  const VArray<int8_t> to_types = to_curves.curve_types();
-  MutableSpan<int8_t> dst_curve_types = dst_curves.curve_types_for_write();
-
   dst_curve_mask.foreach_index([&](const int i_dst_curve, const int pos) {
     const int i_from_curve = from_curve_indices[pos];
     const int i_to_curve = to_curve_indices[pos];
@@ -929,6 +903,41 @@ void interpolate_curves_with_samples(const CurvesGeometry &from_curves,
     }
     dst_curve_types[i_dst_curve] = CURVE_TYPE_POLY;
   });
+}
+
+void interpolate_curves_with_samples(const CurvesGeometry &from_curves,
+                                     const CurvesGeometry &to_curves,
+                                     const Span<int> from_curve_indices,
+                                     const Span<int> to_curve_indices,
+                                     const Span<int> from_sample_indices,
+                                     const Span<int> to_sample_indices,
+                                     const Span<float> from_sample_factors,
+                                     const Span<float> to_sample_factors,
+                                     const IndexMask &dst_curve_mask,
+                                     const float mix_factor,
+                                     CurvesGeometry &dst_curves,
+                                     IndexMaskMemory &memory)
+{
+  BLI_assert(from_curve_indices.size() == dst_curve_mask.size());
+  BLI_assert(to_curve_indices.size() == dst_curve_mask.size());
+  BLI_assert(from_sample_indices.size() == dst_curves.points_num());
+  BLI_assert(to_sample_indices.size() == dst_curves.points_num());
+  BLI_assert(from_sample_factors.size() == dst_curves.points_num());
+  BLI_assert(to_sample_factors.size() == dst_curves.points_num());
+
+  if (from_curves.is_empty() || to_curves.is_empty()) {
+    return;
+  }
+
+  from_curves.ensure_can_interpolate_to_evaluated();
+  to_curves.ensure_can_interpolate_to_evaluated();
+
+  mix_curve_type(from_curve_indices,
+                 to_curve_indices,
+                 from_curves.curve_types(),
+                 to_curves.curve_types(),
+                 dst_curve_mask,
+                 dst_curves.curve_types_for_write());
 
   dst_curves.update_curve_types();
 
