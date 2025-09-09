@@ -247,8 +247,6 @@ class VIEW3D_PT_vr_info(bpy.types.Panel):
         import platform
         layout = self.layout
         missing_support_string = "Built without VR/OpenXR features"
-        if platform.system() == "Darwin":
-            missing_support_string = "VR is not supported on macOS at the moment"
         layout.label(icon='ERROR', text=missing_support_string)
 
 
