@@ -236,9 +236,11 @@ typedef struct bNodeSocket {
    */
   bool affects_node_output() const;
   /**
-   * This becomes false when it is detected that the input socket is currently not used and its
-   * usage depends on a menu (as opposed to e.g. a boolean input). By convention, sockets whose
-   * visibility is controlled by a menu should be hidden.
+   * This becomes false when it is detected that the socket is unused and should be hidden.
+   * Inputs: An input should be hidden if it's unused and its usage depends on a menu input (as
+   *   opposed to e.g. a boolean input).
+   * Outputs: An output is unused if it outputs the socket types fallback value as a constant given
+   *   the current set of menu inputs and its value depends on a menu input.
    */
   bool inferred_socket_visibility() const;
   /**
