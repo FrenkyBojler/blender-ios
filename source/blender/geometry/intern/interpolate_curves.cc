@@ -840,29 +840,20 @@ static void mix_arrays(const GSpan src_from,
 
 static int8_t mix_handle_type(const int8_t from_type, const int8_t to_type)
 {
-  if (from_type == BEZIER_HANDLE_FREE || to_type == BEZIER_HANDLE_FREE) {
-    return BEZIER_HANDLE_FREE;
-  }
-
-  if (from_type == BEZIER_HANDLE_ALIGN) {
-    if (to_type == BEZIER_HANDLE_VECTOR) {
-      return BEZIER_HANDLE_FREE;
-    }
-    return BEZIER_HANDLE_ALIGN;
-  }
-
-  if (to_type == BEZIER_HANDLE_ALIGN) {
-    if (from_type == BEZIER_HANDLE_VECTOR) {
-      return BEZIER_HANDLE_FREE;
-    }
-    return BEZIER_HANDLE_ALIGN;
-  }
-
+  /* Vector handles can only be mixed with other vector handles, otherwise use free handle as
+   * fallback. */
   if (from_type == BEZIER_HANDLE_VECTOR && to_type == BEZIER_HANDLE_VECTOR) {
     return BEZIER_HANDLE_VECTOR;
   }
   if (from_type == BEZIER_HANDLE_VECTOR || to_type == BEZIER_HANDLE_VECTOR) {
     return BEZIER_HANDLE_FREE;
+  }
+
+  if (from_type == BEZIER_HANDLE_FREE || to_type == BEZIER_HANDLE_FREE) {
+    return BEZIER_HANDLE_FREE;
+  }
+  if (from_type == BEZIER_HANDLE_ALIGN || to_type == BEZIER_HANDLE_ALIGN) {
+    return BEZIER_HANDLE_ALIGN;
   }
   return BEZIER_HANDLE_AUTO;
 }
