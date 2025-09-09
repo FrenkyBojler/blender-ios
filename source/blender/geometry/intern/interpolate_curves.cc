@@ -505,6 +505,45 @@ static float4 calculate_catmull_rom_basis_derivative(const float parameter)
   };
 }
 
+static int4 get_catmull_rom_indices(const int src_index,
+                                    const int src_index_last,
+                                    const bool cyclic)
+{
+  int src_index_a = src_index - 1;
+  int src_index_b = src_index;
+  int src_index_c = src_index + 1;
+  int src_index_d = src_index + 2;
+
+  if (src_index_a == -1) {
+    if (cyclic) {
+      src_index_a = src_index_last;
+    }
+    else {
+      src_index_a = 0;
+    }
+  }
+
+  if (src_index_c > src_index_last) {
+    if (cyclic) {
+      src_index_c -= src_index_last;
+    }
+    else {
+      src_index_c = src_index_last;
+    }
+  }
+
+  if (src_index_d > src_index_last) {
+    if (cyclic) {
+      src_index_d -= src_index_last;
+    }
+    else {
+      src_index_d = src_index_last;
+    }
+  }
+
+  return int4(src_index_a, src_index_b, src_index_c, src_index_d);
+}
+
 /* Resample the positions and handles. */
 static void sample_curve_positions_and_handles(const bke::CurvesGeometry &src_curves,
                                                const Span<int> src_curve_indices,
@@ -547,8 +586,6 @@ static void sample_curve_positions_and_handles(const bke::CurvesGeometry &src_cu
     const IndexRange src_points = src_points_by_curve[i_src_curve];
     const IndexRange dst_points = dst_points_by_curve[i_dst_curve];
 
-    const int src_index_last = src_points.size() - 1;
-
     const Span<float3> src_pos = src_positions.slice(src_points);
     const Span<int> dst_indices = dst_sample_indices.slice(dst_points);
     const Span<float> dst_factors = dst_sample_factors.slice(dst_points);
@@ -570,6 +607,7 @@ static void sample_curve_positions_and_handles(const bke::CurvesGeometry &src_cu
           const int i_prev = (i - 1 + dst_points.size()) % dst_points.size();
           const int i_next = (i + 1) % dst_points.size();
 
+          /* Vector handles are one third the length of the edge. */
           if (cyclic || i != 0) {
             dst_left[i] = math::interpolate(dst_pos[i], dst_pos[i_prev], 1.0f / 3.0f);
           }
@@ -608,48 +646,18 @@ static void sample_curve_positions_and_handles(const bke::CurvesGeometry &src_cu
         const int i_next = (i + 1) % dst_points.size();
         const float src_factor_next = dst_factors[i_next];
 
-        int src_index_a = src_index - 1;
-        int src_index_b = src_index;
-        int src_index_c = src_index + 1;
-        int src_index_d = src_index + 2;
+        const int4 src_indices = get_catmull_rom_indices(src_index, src_points.size() - 1, cyclic);
 
-        if (src_index_a == -1) {
-          if (cyclic) {
-            src_index_a = src_index_last;
-          }
-          else {
-            src_index_a = 0;
-          }
-        }
-
-        if (src_index_c > src_index_last) {
-          if (cyclic) {
-            src_index_c -= src_index_last;
-          }
-          else {
-            src_index_c = src_index_last;
-          }
-        }
-
-        if (src_index_d > src_index_last) {
-          if (cyclic) {
-            src_index_d -= src_index_last;
-          }
-          else {
-            src_index_d = src_index_last;
-          }
-        }
-
-        const float3 &a = src_pos[src_index_a];
-        const float3 &b = src_pos[src_index_b];
-        const float3 &c = src_pos[src_index_c];
-        const float3 &d = src_pos[src_index_d];
+        const float3 &pos_a = src_pos[src_indices[0]];
+        const float3 &pos_b = src_pos[src_indices[1]];
+        const float3 &pos_c = src_pos[src_indices[2]];
+        const float3 &pos_d = src_pos[src_indices[3]];
 
         if (src_factor == 0.0f) {
           dst_pos[i] = src_pos[src_index];
 
           if (dst_types[i_dst_curve] == CURVE_TYPE_BEZIER) {
-            const float3 derivative = 0.5f * (c - a);
+            const float3 derivative = 0.5f * (pos_c - pos_a);
             dst_right[i] = dst_pos[i] + derivative / 3.0f;
             dst_left[i] = dst_pos[i] - derivative / 3.0f;
 
@@ -664,12 +672,15 @@ static void sample_curve_positions_and_handles(const bke::CurvesGeometry &src_cu
         else {
           const float4 weights = bke::curves::catmull_rom::calculate_basis(src_factor);
 
-          dst_pos[i] = 0.5f * bke::attribute_math::mix4<float3>(weights, a, b, c, d);
+          dst_pos[i] = 0.5f *
+                       bke::attribute_math::mix4<float3>(weights, pos_a, pos_b, pos_c, pos_d);
           if (dst_types[i_dst_curve] == CURVE_TYPE_BEZIER) {
-            const float4 dweightsdt = calculate_catmull_rom_basis_derivative(src_factor);
+            const float4 dwdt = calculate_catmull_rom_basis_derivative(src_factor);
 
-            const float3 derivative = 0.5f *
-                                      bke::attribute_math::mix4<float3>(dweightsdt, a, b, c, d);
+            const float3 derivative = 0.5f * bke::attribute_math::mix4<float3>(
+                                                 dwdt, pos_a, pos_b, pos_c, pos_d);
+
+            /* Bezier handles are one third the length the derivative at the control points. */
             dst_right[i] = dst_pos[i] + derivative / 3.0f;
             dst_left[i] = dst_pos[i] - derivative / 3.0f;
 
@@ -732,14 +743,18 @@ static void sample_curve_positions_and_handles(const bke::CurvesGeometry &src_cu
           dst_right[i] = insert_point.right_handle;
 
           if ((cyclic || i != 0) && dst_indices[i_prev] == src_index) {
+            /* the handles already have been scaled by `src_factor`, so we divide to remove. */
             dst_left[i] = dst_pos[i] +
                           (dst_left[i] - dst_pos[i]) * (src_factor - src_factor_prev) / src_factor;
           }
           if ((cyclic || i != dst_points.size() - 1) && dst_indices[i_next] == src_index) {
+            /* the handles already have been scaled by `1.0f - src_factor`, so we divide to remove.
+             */
             dst_right[i] = dst_pos[i] + (dst_right[i] - dst_pos[i]) *
                                             (src_factor_next - src_factor) / (1.0f - src_factor);
           }
 
+          /* Output Vector type if the segment is also Vector, otherwise be aligned. */
           if (src_types_left[src_index] == BEZIER_HANDLE_VECTOR &&
               src_types_left[src_index_next] == BEZIER_HANDLE_VECTOR)
           {
