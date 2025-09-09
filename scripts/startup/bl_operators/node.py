@@ -28,6 +28,15 @@ from bpy.app.translations import (
 )
 
 
+operation_nodes = {
+    "ShaderNodeMath",
+    "ShaderNodeVectorMath",
+    "FunctionNodeIntegerMath",
+    "FunctionNodeBooleanMath",
+    "FunctionNodeBitMath",
+}
+
+
 def cast_value(source, target):
     source_type = source.type
     target_type = target.type
@@ -45,9 +54,12 @@ def cast_value(source, target):
         ('VALUE', 'BOOLEAN'): to_bool,
         ('VALUE', 'RGBA'): single_value_to_color,
         ('VALUE', 'VECTOR'): single_value_to_vector,
+        ('INT', 'VALUE'): float,
         ('INT', 'BOOLEAN'): to_bool,
         ('INT', 'RGBA'): single_value_to_color,
         ('INT', 'VECTOR'): single_value_to_vector,
+        ('BOOLEAN', 'VALUE'): float,
+        ('BOOLEAN', 'INT'): int,
         ('BOOLEAN', 'RGBA'): single_value_to_color,
         ('BOOLEAN', 'VECTOR'): single_value_to_vector,
         ('RGBA', 'VALUE'): color_to_float,
@@ -210,19 +222,28 @@ class NodeSwapOperator(NodeOperator):
         return True
 
     def transfer_input_values(self, old_node, new_node):
-        for input in old_node.inputs:
-            try:
-                new_socket = new_node.inputs[input.name]
-                new_value = cast_value(source=input, target=new_socket)
-                
-                settings_name = f'inputs["{input.name}"].default_value'
-                already_defined = (settings_name in self.settings)
+        if (old_node.bl_idname in operation_nodes) and (new_node.bl_idname in operation_nodes):
+            for source_input, target_input in zip(old_node.inputs, new_node.inputs):
 
-                if (new_value is not None) and not already_defined:
-                    new_socket.default_value = new_value
+                new_value = cast_value(source=source_input, target=target_input)
 
-            except (AttributeError, KeyError, TypeError):
-                pass
+                if new_value is not None:
+                    target_input.default_value = new_value
+
+        else:
+            for input in old_node.inputs:
+                try:
+                    new_socket = new_node.inputs[input.name]
+                    new_value = cast_value(source=input, target=new_socket)
+                    
+                    settings_name = f'inputs["{input.name}"].default_value'
+                    already_defined = (settings_name in self.settings)
+
+                    if (new_value is not None) and not already_defined:
+                        new_socket.default_value = new_value
+
+                except (AttributeError, KeyError, TypeError):
+                    pass
 
     @staticmethod
     def transfer_links(tree, old_node, new_node, is_input):
