@@ -879,7 +879,7 @@ float4 interpolate_ewa_wrapmode(const float *buffer,
   const float max_ratio_between_axes = 8.0f;
 
   /* Scale the coordinates and the Jacobian into texel space. */
-  float2 size = float2(width, height);
+  float2 size = float2(static_cast<float>(width), static_cast<float>(height));
   float2 coords = float2(u, v) * size;
   /* Clip gradients to the max length. */
   const float max_gradient_scale = 1000.0f;
