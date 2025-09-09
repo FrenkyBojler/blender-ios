@@ -52,7 +52,7 @@ static void node_register()
       &ntype, "FunctionNodeInputSpecialCharacters", FN_NODE_INPUT_SPECIAL_CHARACTERS);
   ntype.ui_name = "Special Characters";
   ntype.ui_description =
-      "Output string characters that could not be typed directly with the keyboard";
+      "Output string characters that cannot be typed directly with the keyboard";
   ntype.enum_name_legacy = "INPUT_SPECIAL_CHARACTERS";
   ntype.nclass = NODE_CLASS_INPUT;
   ntype.declare = node_declare;
