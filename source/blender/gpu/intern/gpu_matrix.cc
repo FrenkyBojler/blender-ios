@@ -588,7 +588,7 @@ const float (*GPU_matrix_normal_get(float m[3][3]))[3]
     m = temp3;
   }
 
-  copy_m3_m4(m, (const float(*)[4])GPU_matrix_model_view_get(nullptr));
+  copy_m3_m4(m, GPU_matrix_model_view_get(nullptr));
 
   invert_m3(m);
   transpose_m3(m);
@@ -609,7 +609,7 @@ const float (*GPU_matrix_normal_inverse_get(float m[3][3]))[3]
   return m;
 }
 
-void GPU_matrix_bind(GPUShader *shader)
+void GPU_matrix_bind(blender::gpu::Shader *shader)
 {
   /* set uniform values to matrix stack values
    * call this before a draw call if desired matrices are dirty

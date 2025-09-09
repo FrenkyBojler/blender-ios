@@ -147,6 +147,10 @@ typedef struct Histogram {
   float co[2][2];
 } Histogram;
 
+/* Multiplier to map YUV U,V range (+-0.436, +-0.615) to +-0.5 on both axes. */
+#define SCOPES_VEC_U_SCALE float(0.5f / 0.436f)
+#define SCOPES_VEC_V_SCALE float(0.5f / 0.615f)
+
 typedef struct Scopes {
   int ok;
   int sample_full;
@@ -210,13 +214,15 @@ typedef struct ColorManagedDisplaySettings {
 } ColorManagedDisplaySettings;
 
 typedef struct ColorManagedColorspaceSettings {
-  /** MAX_COLORSPACE_NAME. */
-  char name[64];
+  char name[/*MAX_COLORSPACE_NAME*/ 64];
 } ColorManagedColorspaceSettings;
 
 /** #ColorManagedViewSettings.flag */
 enum {
   COLORMANAGE_VIEW_USE_CURVES = (1 << 0),
-  COLORMANAGE_VIEW_USE_HDR = (1 << 1),
+  COLORMANAGE_VIEW_USE_DEPRECATED = (1 << 1),
   COLORMANAGE_VIEW_USE_WHITE_BALANCE = (1 << 2),
+  /* Only work as pure view transform and look, no other settings.
+   * Not user editable, but fixed depending on where settings are stored. */
+  COLORMANAGE_VIEW_ONLY_VIEW_LOOK = (1 << 3)
 };

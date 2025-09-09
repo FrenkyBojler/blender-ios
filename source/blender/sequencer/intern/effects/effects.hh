@@ -8,32 +8,37 @@
  * \ingroup sequencer
  */
 
+#include "BLF_enums.hh"
+
 #include "BLI_array.hh"
 #include "BLI_math_color.h"
 #include "BLI_math_vector_types.hh"
 #include "BLI_task.hh"
+
 #include "IMB_imbuf_types.hh"
 #include "SEQ_effects.hh"
 
 struct ImBuf;
 struct Scene;
-struct Sequence;
+struct Strip;
 
-SeqEffectHandle seq_effect_get_sequence_blend(Sequence *seq);
+namespace blender::seq {
+
+EffectHandle strip_blend_mode_handle_get(Strip *strip);
 /**
  * Build frame map when speed in mode #SEQ_SPEED_MULTIPLY is animated.
  * This is, because `target_frame` value is integrated over time.
  */
-void seq_effect_speed_rebuild_map(Scene *scene, Sequence *seq);
+void strip_effect_speed_rebuild_map(Scene *scene, Strip *strip);
 /**
  * Override timeline_frame when rendering speed effect input.
  */
-float seq_speed_effect_target_frame_get(Scene *scene,
-                                        Sequence *seq_speed,
-                                        float timeline_frame,
-                                        int input);
+float strip_speed_effect_target_frame_get(Scene *scene,
+                                          Strip *strip_speed,
+                                          float timeline_frame,
+                                          int input);
 
-ImBuf *prepare_effect_imbufs(const SeqRenderData *context,
+ImBuf *prepare_effect_imbufs(const RenderData *context,
                              ImBuf *ibuf1,
                              ImBuf *ibuf2,
                              bool uninitialized_pixels = true);
@@ -78,35 +83,34 @@ inline void store_opaque_black_pixel(float *dst)
   dst[3] = 1.0f;
 }
 
-StripEarlyOut early_out_mul_input1(const Sequence * /*seq*/, float fac);
-StripEarlyOut early_out_mul_input2(const Sequence * /*seq*/, float fac);
-StripEarlyOut early_out_fade(const Sequence * /*seq*/, float fac);
+StripEarlyOut early_out_mul_input1(const Strip * /*seq*/, float fac);
+StripEarlyOut early_out_mul_input2(const Strip * /*seq*/, float fac);
+StripEarlyOut early_out_fade(const Strip * /*seq*/, float fac);
 void get_default_fac_fade(const Scene *scene,
-                          const Sequence *seq,
+                          const Strip *strip,
                           float timeline_frame,
                           float *fac);
 
-SeqEffectHandle get_sequence_effect_impl(int seq_type);
+EffectHandle effect_handle_get(StripType strip_type);
 
-void add_effect_get_handle(SeqEffectHandle &rval);
-void adjustment_effect_get_handle(SeqEffectHandle &rval);
-void alpha_over_effect_get_handle(SeqEffectHandle &rval);
-void alpha_under_effect_get_handle(SeqEffectHandle &rval);
-void blend_mode_effect_get_handle(SeqEffectHandle &rval);
-void color_mix_effect_get_handle(SeqEffectHandle &rval);
-void cross_effect_get_handle(SeqEffectHandle &rval);
-void gamma_cross_effect_get_handle(SeqEffectHandle &rval);
-void gaussian_blur_effect_get_handle(SeqEffectHandle &rval);
-void glow_effect_get_handle(SeqEffectHandle &rval);
-void mul_effect_get_handle(SeqEffectHandle &rval);
-void multi_camera_effect_get_handle(SeqEffectHandle &rval);
-void over_drop_effect_get_handle(SeqEffectHandle &rval);
-void solid_color_effect_get_handle(SeqEffectHandle &rval);
-void speed_effect_get_handle(SeqEffectHandle &rval);
-void sub_effect_get_handle(SeqEffectHandle &rval);
-void text_effect_get_handle(SeqEffectHandle &rval);
-void transform_effect_get_handle(SeqEffectHandle &rval);
-void wipe_effect_get_handle(SeqEffectHandle &rval);
+void add_effect_get_handle(EffectHandle &rval);
+void adjustment_effect_get_handle(EffectHandle &rval);
+void alpha_over_effect_get_handle(EffectHandle &rval);
+void alpha_under_effect_get_handle(EffectHandle &rval);
+void blend_mode_effect_get_handle(EffectHandle &rval);
+void color_mix_effect_get_handle(EffectHandle &rval);
+void cross_effect_get_handle(EffectHandle &rval);
+void gamma_cross_effect_get_handle(EffectHandle &rval);
+void gaussian_blur_effect_get_handle(EffectHandle &rval);
+void glow_effect_get_handle(EffectHandle &rval);
+void mul_effect_get_handle(EffectHandle &rval);
+void multi_camera_effect_get_handle(EffectHandle &rval);
+void solid_color_effect_get_handle(EffectHandle &rval);
+void speed_effect_get_handle(EffectHandle &rval);
+void sub_effect_get_handle(EffectHandle &rval);
+void text_effect_get_handle(EffectHandle &rval);
+void transform_effect_get_handle(EffectHandle &rval);
+void wipe_effect_get_handle(EffectHandle &rval);
 
 /* Given `OpT` that implements an `apply` function:
  *
@@ -142,3 +146,8 @@ static void apply_effect_op(const OpT &op, const ImBuf *src1, const ImBuf *src2,
         }
       });
 }
+
+TextVarsRuntime *text_effect_calc_runtime(const Strip *strip, int font, const int2 image_size);
+int text_effect_font_init(const RenderData *context, const Strip *strip, FontFlags font_flags);
+
+}  // namespace blender::seq

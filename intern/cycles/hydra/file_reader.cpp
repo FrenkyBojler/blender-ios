@@ -6,6 +6,7 @@
 #include "hydra/camera.h"
 #include "hydra/render_delegate.h"
 
+#include "util/log.h"
 #include "util/path.h"
 #include "util/unique_ptr.h"
 
@@ -57,15 +58,15 @@ void HdCyclesFileReader::read(Session *session, const char *filepath, const bool
   PlugRegistry::GetInstance().RegisterPlugins(path_get("usd"));
 
   /* Open Stage. */
-  UsdStageRefPtr stage = UsdStage::Open(filepath);
+  const UsdStageRefPtr stage = UsdStage::Open(filepath);
   if (!stage) {
-    fprintf(stderr, "%s read error\n", filepath);
+    LOG_ERROR << "USD failed to read " << filepath;
     return;
   }
 
   /* Init paths. */
-  SdfPath root_path = SdfPath::AbsoluteRootPath();
-  SdfPath task_path("/_hdCycles/DummyHdTask");
+  const SdfPath root_path = SdfPath::AbsoluteRootPath();
+  const SdfPath task_path("/_hdCycles/DummyHdTask");
 
   /* Create render delegate. */
   HdRenderSettingsMap settings_map;
@@ -108,7 +109,7 @@ void HdCyclesFileReader::read(Session *session, const char *filepath, const bool
   /* Use first camera in stage.
    * TODO: get camera from UsdRender if available. */
   if (use_camera) {
-    for (UsdPrim const &prim : stage->Traverse()) {
+    for (const UsdPrim &prim : stage->Traverse()) {
       if (prim.IsA<UsdGeomCamera>()) {
         HdSprim *sprim = render_index->GetSprim(HdPrimTypeTokens->camera, prim.GetPath());
         if (sprim) {

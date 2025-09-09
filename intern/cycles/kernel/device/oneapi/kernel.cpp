@@ -31,7 +31,7 @@ static const RTCFeatureFlags CYCLES_ONEAPI_EMBREE_BASIC_FEATURES = (const RTCFea
     RTC_FEATURE_FLAG_MOTION_BLUR);
 static const RTCFeatureFlags CYCLES_ONEAPI_EMBREE_ALL_FEATURES = (const RTCFeatureFlags)(
     CYCLES_ONEAPI_EMBREE_BASIC_FEATURES | RTC_FEATURE_FLAG_ROUND_CATMULL_ROM_CURVE |
-    RTC_FEATURE_FLAG_FLAT_CATMULL_ROM_CURVE);
+    RTC_FEATURE_FLAG_FLAT_CATMULL_ROM_CURVE | RTC_FEATURE_FLAG_ROUND_LINEAR_CURVE);
 #  endif
 
 void oneapi_set_error_cb(OneAPIErrorCallback cb, void *user_ptr)
@@ -123,7 +123,7 @@ bool oneapi_run_test_kernel(SyclQueue *queue_)
     sycl::free(B_device, *queue);
     queue->wait_and_throw();
   }
-  catch (sycl::exception const &e) {
+  catch (const sycl::exception &e) {
     if (s_error_cb) {
       s_error_cb(e.what(), s_error_user_ptr);
     }
@@ -133,7 +133,7 @@ bool oneapi_run_test_kernel(SyclQueue *queue_)
   return is_computation_correct;
 }
 
-bool oneapi_zero_memory_on_device(SyclQueue *queue_, void *device_pointer, size_t num_bytes)
+bool oneapi_zero_memory_on_device(SyclQueue *queue_, void *device_pointer, const size_t num_bytes)
 {
   assert(queue_);
   sycl::queue *queue = reinterpret_cast<sycl::queue *>(queue_);
@@ -142,7 +142,7 @@ bool oneapi_zero_memory_on_device(SyclQueue *queue_, void *device_pointer, size_
     queue->wait_and_throw();
     return true;
   }
-  catch (sycl::exception const &e) {
+  catch (const sycl::exception &e) {
     if (s_error_cb) {
       s_error_cb(e.what(), s_error_user_ptr);
     }
@@ -248,7 +248,8 @@ bool oneapi_load_kernels(SyclQueue *queue_,
         }
 
         sycl::kernel_bundle<sycl::bundle_state::input> one_kernel_bundle_input =
-            sycl::get_kernel_bundle<sycl::bundle_state::input>(queue->get_context(), {kernel_id});
+            sycl::get_kernel_bundle<sycl::bundle_state::input>(
+                queue->get_context(), {queue->get_device()}, {kernel_id});
 
         /* Hair requires embree curves support. */
         if (kernel_features & KERNEL_FEATURE_HAIR) {
@@ -265,7 +266,7 @@ bool oneapi_load_kernels(SyclQueue *queue_,
         }
       }
     }
-    catch (sycl::exception const &e) {
+    catch (const sycl::exception &e) {
       if (s_error_cb) {
         s_error_cb(e.what(), s_error_user_ptr);
       }
@@ -294,7 +295,8 @@ bool oneapi_load_kernels(SyclQueue *queue_,
 #  ifdef WITH_EMBREE_GPU
       if (oneapi_kernel_has_intersections(kernel_name)) {
         sycl::kernel_bundle<sycl::bundle_state::input> one_kernel_bundle_input =
-            sycl::get_kernel_bundle<sycl::bundle_state::input>(queue->get_context(), {kernel_id});
+            sycl::get_kernel_bundle<sycl::bundle_state::input>(
+                queue->get_context(), {queue->get_device()}, {kernel_id});
         one_kernel_bundle_input
             .set_specialization_constant<ONEAPIKernelContext::oneapi_embree_features>(
                 RTC_FEATURE_FLAG_NONE);
@@ -304,11 +306,11 @@ bool oneapi_load_kernels(SyclQueue *queue_,
 #  endif
       /* This call will ensure that AoT or cached JIT binaries are available
        * for execution. It will trigger compilation if it is not already the case. */
-      (void)sycl::get_kernel_bundle<sycl::bundle_state::executable>(queue->get_context(),
-                                                                    {kernel_id});
+      (void)sycl::get_kernel_bundle<sycl::bundle_state::executable>(
+          queue->get_context(), {queue->get_device()}, {kernel_id});
     }
   }
-  catch (sycl::exception const &e) {
+  catch (const sycl::exception &e) {
     if (s_error_cb) {
       s_error_cb(e.what(), s_error_user_ptr);
     }
@@ -318,9 +320,9 @@ bool oneapi_load_kernels(SyclQueue *queue_,
 }
 
 bool oneapi_enqueue_kernel(KernelContext *kernel_context,
-                           int kernel,
-                           size_t global_size,
-                           size_t local_size,
+                           const int kernel,
+                           const size_t global_size,
+                           const size_t local_size,
                            const uint kernel_features,
                            bool use_hardware_raytracing,
                            void **args)
@@ -592,8 +594,23 @@ bool oneapi_enqueue_kernel(KernelContext *kernel_context,
                       oneapi_kernel_shader_eval_curve_shadow_transparency);
           break;
         }
+        case DEVICE_KERNEL_SHADER_EVAL_VOLUME_DENSITY: {
+          oneapi_call(
+              kg, cgh, global_size, local_size, args, oneapi_kernel_shader_eval_volume_density);
+          break;
+        }
         case DEVICE_KERNEL_PREFIX_SUM: {
           oneapi_call(kg, cgh, global_size, local_size, args, oneapi_kernel_prefix_sum);
+          break;
+        }
+        case DEVICE_KERNEL_VOLUME_GUIDING_FILTER_X: {
+          oneapi_call(
+              kg, cgh, global_size, local_size, args, oneapi_kernel_volume_guiding_filter_x);
+          break;
+        }
+        case DEVICE_KERNEL_VOLUME_GUIDING_FILTER_Y: {
+          oneapi_call(
+              kg, cgh, global_size, local_size, args, oneapi_kernel_volume_guiding_filter_y);
           break;
         }
 
@@ -614,9 +631,11 @@ bool oneapi_enqueue_kernel(KernelContext *kernel_context,
 
       DEVICE_KERNEL_FILM_CONVERT(depth, DEPTH);
       DEVICE_KERNEL_FILM_CONVERT(mist, MIST);
+      DEVICE_KERNEL_FILM_CONVERT(volume_majorant, VOLUME_MAJORANT);
       DEVICE_KERNEL_FILM_CONVERT(sample_count, SAMPLE_COUNT);
       DEVICE_KERNEL_FILM_CONVERT(float, FLOAT);
       DEVICE_KERNEL_FILM_CONVERT(light_path, LIGHT_PATH);
+      DEVICE_KERNEL_FILM_CONVERT(rgbe, RGBE);
       DEVICE_KERNEL_FILM_CONVERT(float3, FLOAT3);
       DEVICE_KERNEL_FILM_CONVERT(motion, MOTION);
       DEVICE_KERNEL_FILM_CONVERT(cryptomatte, CRYPTOMATTE);
@@ -652,6 +671,10 @@ bool oneapi_enqueue_kernel(KernelContext *kernel_context,
         case DEVICE_KERNEL_FILTER_COLOR_POSTPROCESS: {
           oneapi_call(
               kg, cgh, global_size, local_size, args, oneapi_kernel_filter_color_postprocess);
+          break;
+        }
+        case DEVICE_KERNEL_FILTER_COLOR_FLIP_Y: {
+          oneapi_call(kg, cgh, global_size, local_size, args, oneapi_kernel_filter_color_flip_y);
           break;
         }
         case DEVICE_KERNEL_CRYPTOMATTE_POSTPROCESS: {
@@ -690,7 +713,7 @@ bool oneapi_enqueue_kernel(KernelContext *kernel_context,
       }
     });
   }
-  catch (sycl::exception const &e) {
+  catch (const sycl::exception &e) {
     if (s_error_cb) {
       s_error_cb(e.what(), s_error_user_ptr);
       success = false;

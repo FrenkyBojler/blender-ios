@@ -4,6 +4,15 @@
 
 # these must be all lower case for comparisons
 
+__all__ = (
+    "dict_custom",
+    "dict_ignore",
+    "dict_ignore_hyphenated_prefix",
+    "dict_ignore_hyphenated_suffix",
+    "directories_ignore",
+    "files_ignore",
+)
+
 dict_custom = {
     # Added to newer versions of the dictionary,
     # we can remove these when the updated word-lists have been applied to `aspell-en`.
@@ -39,6 +48,7 @@ dict_custom = {
     "adjugate",
     "affectable",
     "alignable",
+    "bakeable",
     "bindable",
     "branchless",
     "allocatable",
@@ -68,6 +78,7 @@ dict_custom = {
     "canonicalizing",
     "catadioptric",
     "checksums",
+    "chromaticity",
     "chrominance",
     "clearcoat",
     "codecs",
@@ -128,6 +139,7 @@ dict_custom = {
     "dereferencing",
     "derivates",
     "desaturate",
+    "descenders",
     "designator",
     "despeckle",
     "despeckled",
@@ -167,6 +179,7 @@ dict_custom = {
     "extrema",
     "fallbacks",
     "finalizer",
+    "fisheye",
     "flippable",
     "flushable",
     "formatter",
@@ -231,6 +244,7 @@ dict_custom = {
     "monospaced",
     "mutators",
     "natively",
+    "notarizatiom",
     "nullable",
     "occludee",
     "occluder",
@@ -313,6 +327,7 @@ dict_custom = {
     "realtime",
     "rebalancing",
     "rebase",
+    "rebased",
     "recomputation",
     "reconnection",
     "recurse",
@@ -321,12 +336,15 @@ dict_custom = {
     "recursing",
     "recursivity",
     "redefinitions",
+    "rederive",
     "redisplay",
     "redistributions",
     "registerable",
     "reimplement",
+    "reimplementation",
     "reimplemented",
     "reimplementing",
+    "reimport",
     "relink",
     "relinked",
     "relinking",
@@ -378,6 +396,7 @@ dict_custom = {
     "stepsize",
     "stepwise",
     "stitchable",
+    "strobing",
     "subclass",
     "subclasses",
     "subclassing",
@@ -437,6 +456,7 @@ dict_custom = {
     "unclaim",
     "unclamped",
     "unclipped",
+    "unclosed",
     "uncollapsed",
     "uncomment",
     "uncommented",
@@ -458,6 +478,7 @@ dict_custom = {
     "undistorting",
     "unduplicated",
     "uneditable",
+    "unescaped",
     "unflagged",
     "unflip",
     "unfoldable",
@@ -513,7 +534,9 @@ dict_custom = {
     "unsetting",
     "unshadowed",
     "unshared",
+    "unsharing",
     "unsharp",
+    "unshearing",
     "unspecialized",
     "unsqueezed",
     "unstretch",
@@ -882,6 +905,8 @@ dict_ignore_hyphenated_suffix = {
 }
 
 files_ignore = {
+    "scripts/modules/bl_i18n_utils/utils_spell_check.py",  # UI spelling, doesn't always match code spelling.
+    "tools/utils/git_data_canonical_authors.py",  # Too many names which aren't in the dictionary.
     "tools/utils_doc/rna_manual_reference_updater.py",  # Contains language ID references.
 
     # Maintained by 3rd parties.

@@ -8,6 +8,8 @@
 
 #pragma once
 
+#include <Python.h>
+
 #include "BLI_compiler_attrs.h"
 
 struct GPUFrameBuffer;
@@ -25,5 +27,5 @@ struct BPyGPUFrameBuffer {
 #endif
 };
 
-PyObject *BPyGPUFrameBuffer_CreatePyObject(GPUFrameBuffer *fb, bool shared_reference)
+[[nodiscard]] PyObject *BPyGPUFrameBuffer_CreatePyObject(GPUFrameBuffer *fb, bool shared_reference)
     ATTR_NONNULL(1);

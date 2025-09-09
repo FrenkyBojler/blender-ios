@@ -59,15 +59,13 @@ set(INC_SYS
   ${Epoxy_INCLUDE_DIRS}
   ${USD_INCLUDE_DIRS}
   ${BOOST_INCLUDE_DIR}
-  ${TBB_INCLUDE_DIR}
+  ${TBB_INCLUDE_DIRS}
   ${GFLAGS_INCLUDE_DIRS}
-  ${EIGEN3_INCLUDE_DIRS}
 )
 
 set(LIB
   ${Epoxy_LIBRARIES}
   ${PYTHON_LIBRARIES}
-  ${BOOST_LIBRARIES}
   ${USD_LIBRARIES}
   ${TBB_LIBRARIES}
   PRIVATE bf::blenkernel
@@ -77,6 +75,7 @@ set(LIB
   PRIVATE bf::intern::clog
   bf_io_usd
   PRIVATE bf::nodes
+  PRIVATE bf::dependencies::eigen
 )
 
 set(SRC

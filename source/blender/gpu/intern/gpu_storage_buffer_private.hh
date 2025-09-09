@@ -8,13 +8,11 @@
 
 #pragma once
 
-#include "BLI_span.hh"
 #include "BLI_sys_types.h"
-
-struct GPUStorageBuf;
 
 namespace blender::gpu {
 
+class StorageBuf;
 class VertBuf;
 
 #ifndef NDEBUG
@@ -29,12 +27,12 @@ class VertBuf;
  */
 class StorageBuf {
  protected:
-  /** Data size in bytes. */
-  size_t size_in_bytes_;
+  /** Data size in bytes. Doesn't need to match actual allocation size due to alignment rules. */
+  size_t size_in_bytes_ = -1;
   /** Continuous memory block to copy to GPU. This data is owned by the StorageBuf. */
   void *data_ = nullptr;
   /** Debugging name */
-  char name_[DEBUG_NAME_LEN];
+  char name_[DEBUG_NAME_LEN] = {};
 
  public:
   StorageBuf(size_t size, const char *name);
@@ -49,20 +47,6 @@ class StorageBuf {
   virtual void async_flush_to_host() = 0;
   virtual void sync_as_indirect_buffer() = 0;
 };
-
-/* Syntactic sugar. */
-static inline GPUStorageBuf *wrap(StorageBuf *storage_buf)
-{
-  return reinterpret_cast<GPUStorageBuf *>(storage_buf);
-}
-static inline StorageBuf *unwrap(GPUStorageBuf *storage_buf)
-{
-  return reinterpret_cast<StorageBuf *>(storage_buf);
-}
-static inline const StorageBuf *unwrap(const GPUStorageBuf *storage_buf)
-{
-  return reinterpret_cast<const StorageBuf *>(storage_buf);
-}
 
 #undef DEBUG_NAME_LEN
 

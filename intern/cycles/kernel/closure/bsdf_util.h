@@ -7,14 +7,26 @@
 
 #pragma once
 
+#include "kernel/types.h"
+
+#include "kernel/util/colorspace.h"
+#include "kernel/util/lookup_table.h"
+
+#include "util/color.h"
+
 CCL_NAMESPACE_BEGIN
+
+template<typename T> struct ComplexIOR {
+  T eta;
+  T k;
+};
 
 /* Compute fresnel reflectance for perpendicular (aka S-) and parallel (aka P-) polarized light.
  * If requested by the caller, r_phi is set to the phase shift on reflection.
  * Also returns the dot product of the refracted ray and the normal as `cos_theta_t`, as it is
  * used when computing the direction of the refracted ray. */
 ccl_device float2 fresnel_dielectric_polarized(float cos_theta_i,
-                                               float eta,
+                                               const float eta,
                                                ccl_private float *r_cos_theta_t,
                                                ccl_private float2 *r_phi)
 {
@@ -60,8 +72,8 @@ ccl_device float2 fresnel_dielectric_polarized(float cos_theta_i,
 }
 
 /* Compute fresnel reflectance for unpolarized light. */
-ccl_device_forceinline float fresnel_dielectric(float cos_theta_i,
-                                                float eta,
+ccl_device_forceinline float fresnel_dielectric(const float cos_theta_i,
+                                                const float eta,
                                                 ccl_private float *r_cos_theta_t)
 {
   return average(fresnel_dielectric_polarized(cos_theta_i, eta, r_cos_theta_t, nullptr));
@@ -77,54 +89,166 @@ ccl_device_inline float3 refract_angle(const float3 incident,
   return (inv_eta * dot(normal, incident) + cos_theta_t) * normal - inv_eta * incident;
 }
 
-ccl_device float fresnel_dielectric_cos(float cosi, float eta)
+ccl_device float fresnel_dielectric_cos(const float cosi, const float eta)
 {
   // compute fresnel reflectance without explicitly computing
   // the refracted direction
-  float c = fabsf(cosi);
+  const float c = fabsf(cosi);
   float g = eta * eta - 1 + c * c;
   if (g > 0) {
     g = sqrtf(g);
-    float A = (g - c) / (g + c);
-    float B = (c * (g + c) - 1) / (c * (g - c) + 1);
+    const float A = (g - c) / (g + c);
+    const float B = (c * (g + c) - 1) / (c * (g - c) + 1);
     return 0.5f * A * A * (1 + B * B);
   }
   return 1.0f;  // TIR(no refracted component)
 }
 
-ccl_device Spectrum fresnel_conductor(float cosi, const Spectrum eta, const Spectrum k)
+/* Approximates the average single-scattering Fresnel for a given IOR.
+ * This is defined as the integral over 0...1 of 2*cosI * F(cosI, eta) d_cosI, with F being
+ * the real dielectric Fresnel.
+ * The implementation here uses a numerical fit from "Revisiting Physically Based Shading
+ * at Imageworks" by Christopher Kulla and Alejandro Conty. */
+ccl_device_inline float fresnel_dielectric_Fss(const float eta)
 {
-  Spectrum cosi2 = make_spectrum(cosi * cosi);
-  Spectrum one = make_spectrum(1.0f);
-  Spectrum tmp_f = eta * eta + k * k;
-  Spectrum tmp = tmp_f * cosi2;
-  Spectrum Rparl2 = (tmp - (2.0f * eta * cosi) + one) / (tmp + (2.0f * eta * cosi) + one);
-  Spectrum Rperp2 = (tmp_f - (2.0f * eta * cosi) + cosi2) / (tmp_f + (2.0f * eta * cosi) + cosi2);
-  return (Rparl2 + Rperp2) * 0.5f;
+  if (eta < 1.0f) {
+    return 0.997118f + eta * (0.1014f - eta * (0.965241f + eta * 0.130607f));
+  }
+  return (eta - 1.0f) / (4.08567f + 1.00071f * eta);
 }
 
-ccl_device float ior_from_F0(float f0)
+/* Evaluates the Fresnel equations at a dielectric-conductor interface. If requested by the caller,
+ * sets r_R_s and r_R_p to the reflectances for perpendicular and parallel polarized light, and
+ * sets r_phi_s and r_phi_p to the phase shifts due to reflection.
+ * This code is based on equations from section 14.4.1 of Principles of Optics 7th ed. by Born and
+ * Wolf, but uses `n + ik` instead of `n(1 + ik)` for IOR. The phase shifts are calculated so that
+ * phi_p = phi_s at 90 degree incidence to match fresnel_dielectric_polarized. */
+ccl_device void fresnel_conductor_polarized(const float cosi,
+                                            const float ambient_ior,
+                                            const ComplexIOR<Spectrum> conductor_ior,
+                                            ccl_private Spectrum *r_R_s,
+                                            ccl_private Spectrum *r_R_p,
+                                            ccl_private Spectrum *r_phi_s,
+                                            ccl_private Spectrum *r_phi_p)
+{
+  const float eta1 = ambient_ior;
+  const Spectrum eta2 = conductor_ior.eta;
+  const Spectrum k2 = conductor_ior.k;
+
+  const float eta1_sq = sqr(eta1);
+  const Spectrum eta2_sq = sqr(eta2);
+  const Spectrum k2_sq = sqr(k2);
+  const Spectrum two_eta2_k2 = 2.0f * eta2 * k2;
+
+  const Spectrum t1 = eta2_sq - k2_sq - eta1_sq * (1.0f - sqr(cosi));
+  const Spectrum t2 = sqrt(sqr(t1) + sqr(two_eta2_k2));
+
+  const Spectrum u_sq = max(0.5f * (t2 + t1), zero_float3());
+  const Spectrum v_sq = max(0.5f * (t2 - t1), zero_float3());
+  const Spectrum u = sqrt(u_sq);
+  const Spectrum v = sqrt(v_sq);
+
+  if (r_R_s && r_R_p) {
+    *r_R_s = (sqr(eta1 * cosi - u) + v_sq) / (sqr(eta1 * cosi + u) + v_sq);
+
+    const Spectrum t3 = (eta2_sq - k2_sq) * cosi;
+    const Spectrum t4 = two_eta2_k2 * cosi;
+    const Spectrum R_p = (sqr(t3 - eta1 * u) + sqr(t4 - eta1 * v)) /
+                         (sqr(t3 + eta1 * u) + sqr(t4 + eta1 * v));
+    const auto mask = isequal_mask(eta2, zero_spectrum()) & isequal_mask(k2, zero_spectrum());
+    *r_R_p = select(mask, one_spectrum(), R_p);
+  }
+
+  if (r_phi_s && r_phi_p) {
+    const Spectrum s_numerator = 2.0f * eta1 * cosi * v;
+    const Spectrum s_denominator = u_sq + v_sq - sqr(eta1 * cosi);
+    *r_phi_s = atan2(-s_numerator, -s_denominator);
+
+    const Spectrum p_numerator = 2.0f * eta1 * cosi * (two_eta2_k2 * u - (eta2_sq - k2_sq) * v);
+    const Spectrum p_denominator = sqr((eta2_sq + k2_sq) * cosi) - eta1_sq * (u_sq + v_sq);
+    *r_phi_p = atan2(p_numerator, p_denominator);
+  }
+}
+
+/* Calculates Fresnel reflectance at a dielectric-conductor interface given the relative IOR. */
+ccl_device Spectrum fresnel_conductor(const float cosi, const ComplexIOR<Spectrum> ior)
+{
+  Spectrum R_s, R_p;
+  fresnel_conductor_polarized(cosi, 1.0f, ior, &R_s, &R_p, nullptr, nullptr);
+  return (R_s + R_p) * 0.5f;
+}
+
+/* Computes the average single-scattering Fresnel for the F82 metallic model. */
+ccl_device_inline Spectrum fresnel_f82_Fss(const Spectrum F0, const Spectrum B)
+{
+  return mix(F0, one_spectrum(), 1.0f / 21.0f) - B * (1.0f / 126.0f);
+}
+
+/* Precompute the B term for the F82 metallic model, given a tint factor. */
+ccl_device_inline Spectrum fresnel_f82tint_B(const Spectrum F0, const Spectrum tint)
+{
+  /* In the classic F82 model, the F82 input directly determines the value of the Fresnel
+   * model at ~82°, similar to F0 and F90.
+   * With F82-Tint, on the other hand, the value at 82° is the value of the classic Schlick
+   * model multiplied by the tint input.
+   * Therefore, the factor follows by setting F82Tint(cosI) = FSchlick(cosI) - b*cosI*(1-cosI)^6
+   * and F82Tint(acos(1/7)) = FSchlick(acos(1/7)) * f82_tint and solving for b. */
+  const float f = 6.0f / 7.0f;
+  const float f5 = sqr(sqr(f)) * f;
+  const Spectrum F_schlick = mix(F0, one_spectrum(), f5);
+  return F_schlick * (7.0f / (f5 * f)) * (one_spectrum() - tint);
+}
+
+/* Precompute the B term for the F82 metallic model, given the F82 value. */
+ccl_device_inline Spectrum fresnel_f82_B(const Spectrum F0, const Spectrum F82)
+{
+  const float f = 6.0f / 7.0f;
+  const float f5 = sqr(sqr(f)) * f;
+  const Spectrum F_schlick = mix(F0, one_spectrum(), f5);
+  return (7.0f / (f5 * f)) * (F_schlick - F82);
+}
+
+/* Evaluate the F82 metallic model for the given parameters. */
+ccl_device_inline Spectrum fresnel_f82(const float cosi, const Spectrum F0, const Spectrum B)
+{
+  const float s = saturatef(1.0f - cosi);
+  const float s5 = sqr(sqr(s)) * s;
+  const Spectrum F_schlick = mix(F0, one_spectrum(), s5);
+  return saturate(F_schlick - B * cosi * s5 * s);
+}
+
+/* Approximates the average single-scattering Fresnel for a physical conductor. */
+ccl_device_inline Spectrum fresnel_conductor_Fss(const ComplexIOR<Spectrum> ior)
+{
+  /* In order to estimate Fss of the conductor, we fit the F82 model to it based on the
+   * value at 0° and ~82° and then use the analytic expression for its Fss. */
+  const Spectrum F0 = fresnel_conductor(1.0f, ior);
+  const Spectrum F82 = fresnel_conductor(1.0f / 7.0f, ior);
+  return saturate(fresnel_f82_Fss(F0, fresnel_f82_B(F0, F82)));
+}
+
+ccl_device float ior_from_F0(const float f0)
 {
   const float sqrt_f0 = sqrtf(clamp(f0, 0.0f, 0.99f));
   return (1.0f + sqrt_f0) / (1.0f - sqrt_f0);
 }
 
-ccl_device float F0_from_ior(float ior)
+ccl_device float F0_from_ior(const float ior)
 {
   return sqr((ior - 1.0f) / (ior + 1.0f));
 }
 
-ccl_device float schlick_fresnel(float u)
+ccl_device float schlick_fresnel(const float u)
 {
-  float m = clamp(1.0f - u, 0.0f, 1.0f);
-  float m2 = m * m;
+  const float m = clamp(1.0f - u, 0.0f, 1.0f);
+  const float m2 = m * m;
   return m2 * m2 * m;  // pow(m, 5)
 }
 
 /* Calculate the fresnel color, which is a blend between white and the F0 color */
-ccl_device_forceinline Spectrum interpolate_fresnel_color(float3 L,
-                                                          float3 H,
-                                                          float ior,
+ccl_device_forceinline Spectrum interpolate_fresnel_color(const float3 L,
+                                                          const float3 H,
+                                                          const float ior,
                                                           Spectrum F0)
 {
   /* Compute the real Fresnel term and remap it from real_F0..1 to F0..1.
@@ -132,8 +256,8 @@ ccl_device_forceinline Spectrum interpolate_fresnel_color(float3 L,
    * Schlick approximation mix(F0, 1.0, (1.0-cosLH)^5) is that for cases
    * with similar IORs (e.g. ice in water), the relative IOR can be close
    * enough to 1.0 that the Schlick approximation becomes inaccurate. */
-  float real_F = fresnel_dielectric_cos(dot(L, H), ior);
-  float real_F0 = fresnel_dielectric_cos(1.0f, ior);
+  const float real_F = fresnel_dielectric_cos(dot(L, H), ior);
+  const float real_F0 = fresnel_dielectric_cos(1.0f, ior);
 
   return mix(F0, one_spectrum(), inverse_lerp(real_F0, 1.0f, real_F));
 }
@@ -141,7 +265,7 @@ ccl_device_forceinline Spectrum interpolate_fresnel_color(float3 L,
 /* If the shading normal results in specular reflection in the lower hemisphere, raise the shading
  * normal towards the geometry normal so that the specular reflection is just above the surface.
  * Only used for glossy materials. */
-ccl_device float3 ensure_valid_specular_reflection(float3 Ng, float3 I, float3 N)
+ccl_device float3 ensure_valid_specular_reflection(const float3 Ng, const float3 I, float3 N)
 {
   const float3 R = 2 * dot(N, I) * N - I;
 
@@ -218,7 +342,8 @@ ccl_device float3 ensure_valid_specular_reflection(float3 Ng, float3 I, float3 N
 
 /* Do not call #ensure_valid_specular_reflection if the primitive type is curve or if the geometry
  * normal and the shading normal is the same. */
-ccl_device float3 maybe_ensure_valid_specular_reflection(ccl_private ShaderData *sd, float3 N)
+ccl_device float3 maybe_ensure_valid_specular_reflection(ccl_private ShaderData *sd,
+                                                         const float3 N)
 {
   if ((sd->flag & SD_USE_BUMP_MAP_CORRECTION) == 0) {
     return N;
@@ -240,7 +365,7 @@ ccl_device_inline float bsdf_principled_hair_albedo_roughness_scale(
 ccl_device_inline Spectrum
 bsdf_principled_hair_sigma_from_reflectance(const Spectrum color, const float azimuthal_roughness)
 {
-  const Spectrum sigma = log(color) /
+  const Spectrum sigma = log(max(color, zero_spectrum())) /
                          bsdf_principled_hair_albedo_roughness_scale(azimuthal_roughness);
   return sigma * sigma;
 }
@@ -281,29 +406,41 @@ ccl_device_inline Spectrum closure_layering_weight(const Spectrum layer_albedo,
  * transform and store them as a LUT that gets looked up here.
  * In practice, using the XYZ fit and converting the result from XYZ to RGB is easier.
  */
-ccl_device_inline Spectrum iridescence_lookup_sensitivity(float OPD, float shift)
+ccl_device_inline Spectrum iridescence_lookup_sensitivity(KernelGlobals kg,
+                                                          const float OPD,
+                                                          const float shift)
 {
-  float phase = M_2PI_F * OPD * 1e-9f;
-  float3 val = make_float3(5.4856e-13f, 4.4201e-13f, 5.2481e-13f);
-  float3 pos = make_float3(1.6810e+06f, 1.7953e+06f, 2.2084e+06f);
-  float3 var = make_float3(4.3278e+09f, 9.3046e+09f, 6.6121e+09f);
+  /* The LUT covers 0 to 60 um. */
+  float x = M_2PI_F * OPD / 60000.0f;
+  const int size = THIN_FILM_TABLE_SIZE;
 
-  float3 xyz = val * sqrt(M_2PI_F * var) * cos(pos * phase + shift) * exp(-sqr(phase) * var);
-  xyz.x += 1.64408e-8f * cosf(2.2399e+06f * phase + shift) * expf(-4.5282e+09f * sqr(phase));
-  return xyz / 1.0685e-7f;
+  const float3 mag = make_float3(
+      lookup_table_read(kg, x, kernel_data.tables.thin_film_table + 0 * size, size),
+      lookup_table_read(kg, x, kernel_data.tables.thin_film_table + 1 * size, size),
+      lookup_table_read(kg, x, kernel_data.tables.thin_film_table + 2 * size, size));
+  const float3 phase = make_float3(
+      lookup_table_read(kg, x, kernel_data.tables.thin_film_table + 3 * size, size),
+      lookup_table_read(kg, x, kernel_data.tables.thin_film_table + 4 * size, size),
+      lookup_table_read(kg, x, kernel_data.tables.thin_film_table + 5 * size, size));
+
+  return mag * cos(phase - shift);
 }
 
-ccl_device_inline float3
-iridescence_airy_summation(float T121, float R12, float R23, float OPD, float phi)
+ccl_device_inline float3 iridescence_airy_summation(KernelGlobals kg,
+                                                    const float T121,
+                                                    const float R12,
+                                                    const float R23,
+                                                    const float OPD,
+                                                    const float phi)
 {
   if (R23 == 1.0f) {
     /* Shortcut for TIR on the bottom interface. */
     return one_float3();
   }
 
-  float R123 = R12 * R23;
-  float r123 = sqrtf(R123);
-  float Rs = sqr(T121) * R23 / (1.0f - R123);
+  const float R123 = R12 * R23;
+  const float r123 = sqrtf(R123);
+  const float Rs = sqr(T121) * R23 / (1.0f - R123);
 
   /* Perform summation over path order differences (equation 10). */
   float3 R = make_float3(R12 + Rs); /* C0 */
@@ -311,7 +448,7 @@ iridescence_airy_summation(float T121, float R12, float R23, float OPD, float ph
   /* Truncate after m=3, higher differences have barely any impact. */
   for (int m = 1; m < 4; m++) {
     Cm *= r123;
-    R += Cm * 2.0f * iridescence_lookup_sensitivity(m * OPD, m * phi);
+    R += Cm * 2.0f * iridescence_lookup_sensitivity(kg, m * OPD, m * phi);
   }
   return R;
 }
@@ -321,7 +458,7 @@ ccl_device Spectrum fresnel_iridescence(KernelGlobals kg,
                                         float eta2,
                                         float eta3,
                                         float cos_theta_1,
-                                        float thickness,
+                                        const float thickness,
                                         ccl_private float *r_cos_theta_3)
 {
   /* For films below 30nm, the wave-optic-based Airy summation approach no longer applies,
@@ -331,20 +468,22 @@ ccl_device Spectrum fresnel_iridescence(KernelGlobals kg,
   }
 
   float cos_theta_2;
-  float2 phi12, phi23;
+  float2 phi12;
+  float2 phi23;
 
   /* Compute reflection at the top interface (ambient to film). */
-  float2 R12 = fresnel_dielectric_polarized(cos_theta_1, eta2 / eta1, &cos_theta_2, &phi12);
+  const float2 R12 = fresnel_dielectric_polarized(cos_theta_1, eta2 / eta1, &cos_theta_2, &phi12);
   if (isequal(R12, one_float2())) {
     /* TIR at the top interface. */
     return one_spectrum();
   }
 
   /* Compute optical path difference inside the thin film. */
-  float OPD = -2.0f * eta2 * thickness * cos_theta_2;
+  const float OPD = -2.0f * eta2 * thickness * cos_theta_2;
 
   /* Compute reflection at the bottom interface (film to medium). */
-  float2 R23 = fresnel_dielectric_polarized(-cos_theta_2, eta3 / eta2, r_cos_theta_3, &phi23);
+  const float2 R23 = fresnel_dielectric_polarized(
+      -cos_theta_2, eta3 / eta2, r_cos_theta_3, &phi23);
   if (isequal(R23, one_float2())) {
     /* TIR at the bottom interface.
      * All the Airy summation math still simplifies to 1.0 in this case. */
@@ -352,36 +491,15 @@ ccl_device Spectrum fresnel_iridescence(KernelGlobals kg,
   }
 
   /* Compute helper parameters. */
-  float2 T121 = one_float2() - R12;
-  float2 phi = make_float2(M_PI_F, M_PI_F) - phi12 + phi23;
+  const float2 T121 = one_float2() - R12;
+  const float2 phi = make_float2(M_PI_F, M_PI_F) - phi12 + phi23;
 
   /* Perform Airy summation and average the polarizations. */
-  float3 R = mix(iridescence_airy_summation(T121.x, R12.x, R23.x, OPD, phi.x),
-                 iridescence_airy_summation(T121.y, R12.y, R23.y, OPD, phi.y),
+  float3 R = mix(iridescence_airy_summation(kg, T121.x, R12.x, R23.x, OPD, phi.x),
+                 iridescence_airy_summation(kg, T121.y, R12.y, R23.y, OPD, phi.y),
                  0.5f);
 
-  /* Color space conversion here is tricky.
-   * In theory, the correct thing would be to compute the spectral color matching functions
-   * for the RGB channels, take their Fourier transform in wavelength parametrization, and
-   * then use that in iridescence_lookup_sensitivity().
-   * To avoid this complexity, the code here instead uses the reference implementation's
-   * Gaussian fit of the CIE XYZ curves. However, this means that at this point, R is in
-   * XYZ values, not RGB.
-   * Additionally, since I is a reflectivity, not a luminance, the spectral color matching
-   * functions should be multiplied by the reference illuminant. Since the fit is based on
-   * the "raw" CIE XYZ curves, the reference illuminant implicitly is a constant spectrum,
-   * meaning Illuminant E.
-   * Therefore, we can't just use the regular XYZ->RGB conversion here, we need to include
-   * a chromatic adaption from E to whatever the white point of the working color space is.
-   * The proper way to do this would be a Von Kries-style transform, but to keep it simple,
-   * we just multiply by the white point here.
-   *
-   * NOTE: The reference implementation sidesteps all this by just hard-coding a XYZ->CIE RGB
-   * matrix. Since CIE RGB uses E as its white point, this sidesteps the chromatic adaption
-   * topic, but the primary colors don't match (unless you happen to actually work in CIE RGB.)
-   */
-  R *= make_float3(kernel_data.film.white_xyz);
-  return saturate(xyz_to_rgb(kg, R));
+  return saturate(R);
 }
 
 CCL_NAMESPACE_END

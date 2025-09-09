@@ -15,7 +15,6 @@
 #include "BLI_array.hh"
 #include "BLI_linklist.h"
 #include "BLI_math_boolean.hh"
-#include "BLI_math_mpq.hh"
 #include "BLI_math_vector_mpq_types.hh"
 #include "BLI_set.hh"
 #include "BLI_task.hh"
@@ -1449,7 +1448,7 @@ template<typename T> void dc_triangulate(CDTArrangement<T> *cdt, Array<SiteInfo<
 
 /**
  * Do a Delaunay Triangulation of the points in cdt.verts.
- * This  is only a first step in the Constrained Delaunay triangulation,
+ * This is only a first step in the Constrained Delaunay triangulation,
  * because it doesn't yet deal with the segment constraints.
  * The algorithm used is the Divide & Conquer algorithm from the
  * Guibas-Stolfi "Primitives for the Manipulation of General Subdivision
@@ -1683,7 +1682,7 @@ void fill_crossdata_for_intersect(const FatCo<T> &curco,
   switch (isect.kind) {
     case isect_result<VecBase<T, 2>>::LINE_LINE_CROSS: {
 #ifdef WITH_GMP
-      if (!std::is_same<T, mpq_class>::value)
+      if (!std::is_same_v<T, mpq_class>)
 #else
       if (true)
 #endif
@@ -1727,7 +1726,7 @@ void fill_crossdata_for_intersect(const FatCo<T> &curco,
     }
     case isect_result<VecBase<T, 2>>::LINE_LINE_NONE: {
 #ifdef WITH_GMP
-      if (std::is_same<T, mpq_class>::value) {
+      if (std::is_same_v<T, mpq_class>) {
         BLI_assert(false);
       }
 #endif

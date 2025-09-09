@@ -12,6 +12,7 @@
 
 #include "GPU_framebuffer.hh"
 
+#include "BKE_global.hh"
 #include "BLI_set.hh"
 #include "BLI_vector.hh"
 
@@ -55,8 +56,6 @@ class GLContext : public Context {
   static bool native_barycentric_support;
   static bool multi_bind_support;
   static bool multi_bind_image_support;
-  static bool multi_draw_indirect_support;
-  static bool shader_draw_parameters_support;
   static bool stencil_texturing_support;
   static bool texture_barrier_support;
   static bool texture_filter_anisotropic_support;
@@ -70,7 +69,7 @@ class GLContext : public Context {
   /** VBO for missing vertex attribute binding. Avoid undefined behavior on some implementation. */
   GLuint default_attr_vbo_;
 
-  /** Used for debugging purpose. Bitflags of all bound slots. */
+  /** Used for debugging purpose. Bit-flags of all bound slots. */
   uint16_t bound_ubo_slots;
   uint16_t bound_ssbo_slots;
 
@@ -88,6 +87,25 @@ class GLContext : public Context {
   Vector<GLuint> orphaned_framebuffers_;
   /** #GLBackend owns this data. */
   GLSharedOrphanLists &shared_orphan_list_;
+
+  struct TimeQuery {
+    std::string name;
+    union {
+      GLuint handles[2];
+      struct {
+        GLuint handle_start, handle_end;
+      };
+    };
+    bool finished;
+    int64_t cpu_start;
+    int64_t cpu_end;
+  };
+  struct FrameQueries {
+    Vector<TimeQuery> queries;
+  };
+  Vector<FrameQueries> frame_timings;
+
+  void process_frame_timings();
 
  public:
   GLContext(void *ghost_window, GLSharedOrphanLists &shared_orphan_list);

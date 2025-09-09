@@ -9,11 +9,6 @@
  */
 
 #include "BLI_compiler_attrs.h"
-#include "BLI_sys_types.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 /* -------------------------------------------------------------------- */
 /** \name Init
@@ -517,7 +512,7 @@ bool equals_m4m4(const float mat1[4][4], const float mat2[4][4]);
  * (where conversion can be represented by a matrix multiplication).
  *
  * A #SpaceTransform is initialized using:
- * - #BLI_SPACE_TRANSFORM_SETUP(&data,  ob1, ob2)
+ * - #BLI_SPACE_TRANSFORM_SETUP(&data, ob1, ob2)
  *
  * After that the following calls can be used:
  * - Converts a coordinate in ob1 space to the corresponding ob2 space:
@@ -588,7 +583,3 @@ void print_m4(const char *str, const float m[4][4]);
 #define print_m4_id(M) print_m4(STRINGIFY(M), M)
 
 /** \} */
-
-#ifdef __cplusplus
-}
-#endif

@@ -2,8 +2,7 @@
  *
  * SPDX-License-Identifier: Apache-2.0 */
 
-#ifndef __OBJECT_H__
-#define __OBJECT_H__
+#pragma once
 
 #include "graph/node.h"
 
@@ -17,7 +16,6 @@
 #include "util/array.h"
 #include "util/boundbox.h"
 #include "util/param.h"
-#include "util/thread.h"
 #include "util/transform.h"
 #include "util/types.h"
 #include "util/vector.h"
@@ -79,8 +77,12 @@ class Object : public Node {
   /* Set during device update. */
   bool intersects_volume;
 
+  /* Specifies the position of the object in scene->objects and
+   * in the device vectors. Gets set in device_update. */
+  int index;
+
   Object();
-  ~Object();
+  ~Object() override;
 
   void tag_update(Scene *scene);
 
@@ -90,8 +92,8 @@ class Object : public Node {
   /* Convert between normalized -1..1 motion time and index
    * in the motion array. */
   bool use_motion() const;
-  float motion_time(int step) const;
-  int motion_step(float time) const;
+  float motion_time(const int step) const;
+  int motion_step(const float time) const;
   void update_motion();
 
   /* Maximum number of motion steps supported (due to Embree). */
@@ -110,9 +112,6 @@ class Object : public Node {
   /* Returns the index that is used in the kernel for this object. */
   int get_device_index() const;
 
-  /* Compute step size from attributes, shaders, transforms. */
-  float compute_volume_step_size() const;
-
   /* Check whether this object can be used as light-emissive. */
   bool usable_as_light() const;
 
@@ -122,10 +121,6 @@ class Object : public Node {
   bool has_shadow_linking() const;
 
  protected:
-  /* Specifies the position of the object in scene->objects and
-   * in the device vectors. Gets set in device_update. */
-  int index;
-
   /* Reference to the attribute map with object attributes,
    * or 0 if none. Set in update_svm_attributes. */
   size_t attr_map_offset;
@@ -175,7 +170,7 @@ class ObjectManager {
 
   void device_free(Device *device, DeviceScene *dscene, bool force_free);
 
-  void tag_update(Scene *scene, uint32_t flag);
+  void tag_update(Scene *scene, const uint32_t flag);
 
   bool need_update() const;
 
@@ -196,5 +191,3 @@ class ObjectManager {
 };
 
 CCL_NAMESPACE_END
-
-#endif /* __OBJECT_H__ */

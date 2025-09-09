@@ -11,7 +11,6 @@
 #include "CLG_log.h"
 
 #include "BLI_array.hh"
-#include "BLI_linklist.h"
 #include "BLI_utildefines.h"
 
 #include "DNA_collection_types.h"
@@ -25,7 +24,7 @@
 #include "BKE_lib_query.hh"
 #include "BKE_lib_remap.hh"
 #include "BKE_main.hh"
-#include "BKE_material.h"
+#include "BKE_material.hh"
 #include "BKE_mball.hh"
 #include "BKE_modifier.hh"
 #include "BKE_multires.hh"
@@ -40,7 +39,7 @@
 
 using namespace blender::bke::id;
 
-static CLG_LogRef LOG = {"bke.lib_remap"};
+static CLG_LogRef LOG = {"lib.remap"};
 
 BKE_library_free_notifier_reference_cb free_notifier_reference_cb = nullptr;
 
@@ -413,13 +412,13 @@ static void libblock_remap_data_postprocess_obdata_relink(Main *bmain, Object *o
         multires_force_sculpt_rebuild(ob);
         break;
       case ID_CU_LEGACY:
-        BKE_curve_type_test(ob);
+        BKE_curve_type_test(ob, true);
         break;
       default:
         break;
     }
     BKE_modifiers_test_object(ob);
-    BKE_object_materials_test(bmain, ob, new_id);
+    BKE_object_materials_sync_length(bmain, ob, new_id);
   }
 }
 
@@ -892,7 +891,7 @@ static int id_relink_to_newid_looper(LibraryIDLinkCallbackData *cb_data)
   RelinkToNewIDData *relink_data = static_cast<RelinkToNewIDData *>(cb_data->user_data);
 
   if (id) {
-    /* See: NEW_ID macro */
+    /* See: #ID_NEW_SET macro. */
     if (id->newid != nullptr) {
       relink_data->id_remapper.add(id, id->newid);
       id = id->newid;

@@ -13,8 +13,6 @@
 #include "MEM_guardedalloc.h"
 
 #include "DNA_collection_types.h"
-#include "DNA_gpencil_legacy_types.h"
-#include "DNA_linestyle_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
@@ -26,7 +24,6 @@
 #include "DEG_depsgraph.hh"
 
 #include "BLI_listbase.h"
-#include "BLI_string.h"
 #include "BLI_threads.h"
 #include "BLI_utildefines.h"
 
@@ -54,7 +51,7 @@
 
 using blender::Vector;
 
-static CLG_LogRef LOG = {"bke.context"};
+static CLG_LogRef LOG = {"context"};
 
 /* struct */
 
@@ -106,14 +103,14 @@ struct bContext {
 
 bContext *CTX_create()
 {
-  bContext *C = MEM_cnew<bContext>(__func__);
+  bContext *C = MEM_callocN<bContext>(__func__);
 
   return C;
 }
 
 bContext *CTX_copy(const bContext *C)
 {
-  bContext *newC = MEM_cnew<bContext>(__func__);
+  bContext *newC = MEM_callocN<bContext>(__func__);
   *newC = *C;
 
   memset(&newC->wm.operator_poll_msg_dyn_params, 0, sizeof(newC->wm.operator_poll_msg_dyn_params));
@@ -242,7 +239,7 @@ std::optional<int64_t> CTX_store_int_lookup(const bContextStore *store,
 
 /* is python initialized? */
 
-bool CTX_py_init_get(bContext *C)
+bool CTX_py_init_get(const bContext *C)
 {
   return C->data.py_init;
 }
@@ -295,18 +292,18 @@ static void *ctx_wm_python_context_get(const bContext *C,
 #ifdef WITH_PYTHON
   if (UNLIKELY(C && CTX_py_dict_get(C))) {
     bContextDataResult result{};
-    BPY_context_member_get((bContext *)C, member, &result);
+    if (BPY_context_member_get((bContext *)C, member, &result)) {
+      if (result.ptr.data) {
+        if (RNA_struct_is_a(result.ptr.type, member_type)) {
+          return result.ptr.data;
+        }
 
-    if (result.ptr.data) {
-      if (RNA_struct_is_a(result.ptr.type, member_type)) {
-        return result.ptr.data;
+        CLOG_WARN(&LOG,
+                  "PyContext '%s' is a '%s', expected a '%s'",
+                  member,
+                  RNA_struct_identifier(result.ptr.type),
+                  RNA_struct_identifier(member_type));
       }
-
-      CLOG_WARN(&LOG,
-                "PyContext '%s' is a '%s', expected a '%s'",
-                member,
-                RNA_struct_identifier(result.ptr.type),
-                RNA_struct_identifier(member_type));
     }
   }
 #else
@@ -367,7 +364,7 @@ static eContextResult ctx_data_get(bContext *C, const char *member, bContextData
       done = 1;
     }
     else if (std::optional<int64_t> int_value = CTX_store_int_lookup(C->wm.store, member)) {
-      result->int_value = *int_value;
+      result->int_value = int_value;
       result->type = CTX_DATA_TYPE_INT64;
       done = 1;
     }
@@ -612,7 +609,7 @@ static void data_dir_add(ListBase *lb, const char *member, const bool use_all)
     return;
   }
 
-  link = MEM_cnew<LinkData>(__func__);
+  link = MEM_callocN<LinkData>(__func__);
   link->data = (void *)member;
   BLI_addtail(lb, link);
 }
@@ -636,7 +633,7 @@ ListBase CTX_data_dir_get_ex(const bContext *C,
     int namelen;
 
     PropertyRNA *iterprop;
-    PointerRNA ctx_ptr = RNA_pointer_create(nullptr, &RNA_Context, (void *)C);
+    PointerRNA ctx_ptr = RNA_pointer_create_discrete(nullptr, &RNA_Context, (void *)C);
 
     iterprop = RNA_struct_iterator_property(ctx_ptr.type);
 
@@ -708,7 +705,7 @@ void CTX_data_id_pointer_set(bContextDataResult *result, ID *id)
 
 void CTX_data_pointer_set(bContextDataResult *result, ID *id, StructRNA *type, void *data)
 {
-  result->ptr = RNA_pointer_create(id, type, data);
+  result->ptr = RNA_pointer_create_discrete(id, type, data);
 }
 
 void CTX_data_pointer_set_ptr(bContextDataResult *result, const PointerRNA *ptr)
@@ -723,7 +720,7 @@ void CTX_data_id_list_add(bContextDataResult *result, ID *id)
 
 void CTX_data_list_add(bContextDataResult *result, ID *id, StructRNA *type, void *data)
 {
-  result->list.append(RNA_pointer_create(id, type, data));
+  result->list.append(RNA_pointer_create_discrete(id, type, data));
 }
 
 void CTX_data_list_add_ptr(bContextDataResult *result, const PointerRNA *ptr)
@@ -825,7 +822,7 @@ wmGizmoGroup *CTX_wm_gizmo_group(const bContext *C)
 
 wmMsgBus *CTX_wm_message_bus(const bContext *C)
 {
-  return C->wm.manager ? C->wm.manager->message_bus : nullptr;
+  return C->wm.manager ? C->wm.manager->runtime->message_bus : nullptr;
 }
 
 ReportList *CTX_wm_reports(const bContext *C)
@@ -1148,7 +1145,7 @@ Main *CTX_data_main(const bContext *C)
 void CTX_data_main_set(bContext *C, Main *bmain)
 {
   C->data.main = bmain;
-  BKE_sound_init_main(bmain);
+  BKE_sound_refresh_callback_bmain(bmain);
 }
 
 Scene *CTX_data_scene(const bContext *C)
@@ -1159,6 +1156,19 @@ Scene *CTX_data_scene(const bContext *C)
   }
 
   return C->data.scene;
+}
+
+Scene *CTX_data_sequencer_scene(const bContext *C)
+{
+  Scene *scene;
+  if (ctx_data_pointer_verify(C, "sequencer_scene", (void **)&scene)) {
+    return scene;
+  }
+  WorkSpace *workspace = CTX_wm_workspace(C);
+  if (workspace) {
+    return workspace->sequencer_scene;
+  }
+  return nullptr;
 }
 
 ViewLayer *CTX_data_view_layer(const bContext *C)
@@ -1245,7 +1255,7 @@ enum eContextObjectMode CTX_data_mode_enum_ex(const Object *obedit,
       case OB_GREASE_PENCIL:
         return CTX_MODE_EDIT_GREASE_PENCIL;
       case OB_POINTCLOUD:
-        return CTX_MODE_EDIT_POINT_CLOUD;
+        return CTX_MODE_EDIT_POINTCLOUD;
     }
   }
   else {
@@ -1323,7 +1333,7 @@ static const char *data_mode_strings[] = {
     "lattice_edit",
     "curves_edit",
     "grease_pencil_edit",
-    "point_cloud_edit",
+    "pointcloud_edit",
     "posemode",
     "sculpt_mode",
     "weightpaint",
@@ -1364,8 +1374,12 @@ void CTX_data_scene_set(bContext *C, Scene *scene)
 
 ToolSettings *CTX_data_tool_settings(const bContext *C)
 {
-  Scene *scene = CTX_data_scene(C);
+  ToolSettings *toolsettings;
+  if (ctx_data_pointer_verify(C, "tool_settings", (void **)&toolsettings)) {
+    return toolsettings;
+  }
 
+  Scene *scene = CTX_data_scene(C);
   if (scene) {
     return scene->toolsettings;
   }
@@ -1532,47 +1546,10 @@ const AssetLibraryReference *CTX_wm_asset_library_ref(const bContext *C)
   return static_cast<AssetLibraryReference *>(ctx_data_pointer_get(C, "asset_library_reference"));
 }
 
-static AssetHandle ctx_wm_asset_handle(const bContext *C, bool *r_is_valid)
-{
-  AssetHandle *asset_handle_p =
-      (AssetHandle *)CTX_data_pointer_get_type(C, "asset_handle", &RNA_AssetHandle).data;
-  if (asset_handle_p) {
-    *r_is_valid = true;
-    return *asset_handle_p;
-  }
-
-  /* If the asset handle was not found in context directly, try if there's an active file with
-   * asset data there instead. Not nice to have this here, would be better to have this in
-   * `ED_asset.hh`, but we can't include that in BKE. Even better would be not needing this at all
-   * and being able to have editors return this in the usual `context` callback. But that would
-   * require returning a non-owning pointer, which we don't have in the Asset Browser (yet). */
-  FileDirEntry *file =
-      (FileDirEntry *)CTX_data_pointer_get_type(C, "active_file", &RNA_FileSelectEntry).data;
-  if (file && file->asset) {
-    *r_is_valid = true;
-    return AssetHandle{file};
-  }
-
-  *r_is_valid = false;
-  return AssetHandle{nullptr};
-}
-
 blender::asset_system::AssetRepresentation *CTX_wm_asset(const bContext *C)
 {
-  if (auto *asset = static_cast<blender::asset_system::AssetRepresentation *>(
-          ctx_data_pointer_get(C, "asset")))
-  {
-    return asset;
-  }
-
-  /* Expose the asset representation from the asset-handle.
-   * TODO(Julian): #AssetHandle should be properly replaced by #AssetRepresentation. */
-  bool is_valid;
-  if (AssetHandle handle = ctx_wm_asset_handle(C, &is_valid); is_valid) {
-    return handle.file_data->asset;
-  }
-
-  return nullptr;
+  return static_cast<blender::asset_system::AssetRepresentation *>(
+      ctx_data_pointer_get(C, "asset"));
 }
 
 Depsgraph *CTX_data_depsgraph_pointer(const bContext *C)

@@ -52,7 +52,7 @@ void node_get_stack(bNode *node, bNodeStack *stack, bNodeStack **in, bNodeStack 
 
 static void node_init_input_index(bNodeSocket *sock, int *index)
 {
-  /* Only consider existing link if from socket is valid! */
+  /* Only consider existing link when the `from` socket is valid! */
   if (sock->link && !(sock->link->flag & NODE_LINK_MUTED) && sock->link->fromsock &&
       sock->link->fromsock->stack_index >= 0)
   {
@@ -153,13 +153,13 @@ bNodeTreeExec *ntree_exec_begin(bNodeExecContext *context,
   /* Using global main here is likely totally wrong, not sure what to do about that one though...
    * We cannot even check ntree is in global main,
    * since most of the time it won't be (thanks to ntree design)!!! */
-  BKE_ntree_update_main_tree(G.main, ntree, nullptr);
+  BKE_ntree_update_after_single_tree_change(*G.main, *ntree);
 
   ntree->ensure_topology_cache();
   const Span<bNode *> nodelist = ntree->toposort_left_to_right();
 
   /* XXX could let callbacks do this for specialized data */
-  exec = MEM_cnew<bNodeTreeExec>("node tree execution data");
+  exec = MEM_callocN<bNodeTreeExec>("node tree execution data");
   /* Back-pointer to node tree. */
   exec->nodetree = ntree;
 
@@ -173,7 +173,7 @@ bNodeTreeExec *ntree_exec_begin(bNodeExecContext *context,
       node_init_input_index(sock, &index);
     }
 
-    if (node->flag & NODE_MUTED || node->type == NODE_REROUTE) {
+    if (node->is_muted() || node->is_reroute()) {
       LISTBASE_FOREACH (bNodeSocket *, sock, &node->outputs) {
         node_init_output_index_muted(sock, &index, node->runtime->internal_links);
       }
@@ -187,11 +187,10 @@ bNodeTreeExec *ntree_exec_begin(bNodeExecContext *context,
 
   /* allocated exec data pointers for nodes */
   exec->totnodes = nodelist.size();
-  exec->nodeexec = (bNodeExec *)MEM_callocN(exec->totnodes * sizeof(bNodeExec),
-                                            "node execution data");
+  exec->nodeexec = MEM_calloc_arrayN<bNodeExec>(exec->totnodes, "node execution data");
   /* allocate data pointer for node stack */
   exec->stacksize = index;
-  exec->stack = (bNodeStack *)MEM_callocN(exec->stacksize * sizeof(bNodeStack), "bNodeStack");
+  exec->stack = MEM_calloc_arrayN<bNodeStack>(exec->stacksize, "bNodeStack");
 
   /* all non-const results are considered inputs */
   int n;
@@ -223,9 +222,6 @@ bNodeTreeExec *ntree_exec_begin(bNodeExecContext *context,
     }
 
     nodekey = bke::node_instance_key(parent_key, ntree, node);
-    nodeexec->data.preview = context->previews ? (bNodePreview *)bke::node_instance_hash_lookup(
-                                                     context->previews, nodekey) :
-                                                 nullptr;
     if (node->typeinfo->init_exec_fn) {
       nodeexec->data.data = node->typeinfo->init_exec_fn(context, node, nodekey);
     }

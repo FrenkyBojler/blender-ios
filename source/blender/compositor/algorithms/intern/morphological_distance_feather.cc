@@ -6,7 +6,6 @@
 #include "BLI_math_vector_types.hh"
 
 #include "GPU_shader.hh"
-#include "GPU_texture.hh"
 
 #include "COM_algorithm_morphological_distance_feather.hh"
 #include "COM_context.hh"
@@ -143,7 +142,7 @@ static Result horizontal_pass_gpu(Context &context,
                                   const int distance,
                                   const int falloff_type)
 {
-  GPUShader *shader = context.get_shader(get_shader_name(distance));
+  gpu::Shader *shader = context.get_shader(get_shader_name(distance));
   GPU_shader_bind(shader);
 
   input.bind_as_texture(shader, "input_tx");
@@ -231,7 +230,7 @@ static void vertical_pass_gpu(Context &context,
                               const int distance,
                               const int falloff_type)
 {
-  GPUShader *shader = context.get_shader(get_shader_name(distance));
+  gpu::Shader *shader = context.get_shader(get_shader_name(distance));
   GPU_shader_bind(shader);
 
   horizontal_pass_result.bind_as_texture(shader, "input_tx");

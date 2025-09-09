@@ -8,7 +8,6 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "DNA_listBase.h"
 #include "DNA_mesh_types.h"
 #include "DNA_object_types.h"
 
@@ -23,7 +22,6 @@
 #include "BKE_mesh_runtime.hh"
 #include "BKE_mesh_wrapper.hh"
 #include "BKE_object.hh"
-#include "BKE_object_types.hh"
 
 #include "DEG_depsgraph_query.hh"
 
@@ -187,7 +185,7 @@ Span<float3> BKE_editmesh_vert_coords_when_deformed(
     Depsgraph *depsgraph, BMEditMesh *em, Scene *scene, Object *ob, Array<float3> &r_alloc)
 {
 
-  const Object *object_eval = DEG_get_evaluated_object(depsgraph, ob);
+  const Object *object_eval = DEG_get_evaluated(depsgraph, ob);
   const Mesh *editmesh_eval_final = BKE_object_get_editmesh_eval_final(object_eval);
   const Mesh *mesh_cage = BKE_object_get_editmesh_eval_cage(ob);
 

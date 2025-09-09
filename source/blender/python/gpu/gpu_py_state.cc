@@ -125,7 +125,7 @@ PyDoc_STRVAR(
     pygpu_state_clip_distances_set_doc,
     ".. function:: clip_distances_set(distances_enabled)\n"
     "\n"
-    "   Sets the number of `gl_ClipDistance` planes used for clip geometry.\n"
+    "   Sets the number of ``gl_ClipDistance`` planes used for clip geometry.\n"
     "\n"
     "   :arg distances_enabled: Number of clip distances enabled.\n"
     "   :type distances_enabled: int\n");
@@ -154,8 +154,8 @@ PyDoc_STRVAR(
     "   Defines the depth_test equation.\n"
     "\n"
     "   :arg mode: The depth test equation name.\n"
-    "      Possible values are `NONE`, `ALWAYS`, `LESS`, `LESS_EQUAL`, `EQUAL`, "
-    "`GREATER` and `GREATER_EQUAL`.\n"
+    "      Possible values are ``NONE``, ``ALWAYS``, ``LESS``, ``LESS_EQUAL``, ``EQUAL``, "
+    "``GREATER`` and ``GREATER_EQUAL``.\n"
     "   :type mode: str\n");
 static PyObject *pygpu_state_depth_test_set(PyObject * /*self*/, PyObject *value)
 {
@@ -430,7 +430,7 @@ PyDoc_STRVAR(
     "\n"
     "   Specify whether none, front-facing or back-facing facets can be culled.\n"
     "\n"
-    "   :arg mode: `NONE`, `FRONT` or `BACK`.\n"
+    "   :arg mode: ``NONE``, ``FRONT`` or ``BACK``.\n"
     "   :type mode: str\n");
 static PyObject *pygpu_state_face_culling_set(PyObject * /*self*/, PyObject *value)
 {
@@ -510,9 +510,14 @@ static PyObject *pygpu_state_active_framebuffer_get(PyObject * /*self*/)
 /** \name Module
  * \{ */
 
-#if (defined(__GNUC__) && !defined(__clang__))
-#  pragma GCC diagnostic push
-#  pragma GCC diagnostic ignored "-Wcast-function-type"
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic push
+#    pragma clang diagnostic ignored "-Wcast-function-type"
+#  else
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wcast-function-type"
+#  endif
 #endif
 
 static PyMethodDef pygpu_state__tp_methods[] = {
@@ -594,8 +599,12 @@ static PyMethodDef pygpu_state__tp_methods[] = {
     {nullptr, nullptr, 0, nullptr},
 };
 
-#if (defined(__GNUC__) && !defined(__clang__))
-#  pragma GCC diagnostic pop
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic pop
+#  else
+#    pragma GCC diagnostic pop
+#  endif
 #endif
 
 PyDoc_STRVAR(
