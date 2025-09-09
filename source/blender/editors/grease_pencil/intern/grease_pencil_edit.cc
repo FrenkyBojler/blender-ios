@@ -4758,7 +4758,7 @@ static wmOperatorStatus grease_pencil_set_corner_type_exec(bContext *C, wmOperat
     }
   }
 
-  bool changed = false;
+  std::atomic<bool> changed = false;
   const Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(*scene, grease_pencil);
   threading::parallel_for_each(drawings, [&](const MutableDrawingInfo &info) {
     IndexMaskMemory memory;
@@ -4779,7 +4779,7 @@ static wmOperatorStatus grease_pencil_set_corner_type_exec(bContext *C, wmOperat
     /* Remove the attribute if we are storing all default. */
     if (miter_angle == GP_STROKE_MITER_ANGLE_ROUND && selection == curves.points_range()) {
       attributes.remove("miter_angle");
-      changed = true;
+      changed.store(true, std::memory_order_relaxed);
       return;
     }
 
@@ -4792,7 +4792,7 @@ static wmOperatorStatus grease_pencil_set_corner_type_exec(bContext *C, wmOperat
     index_mask::masked_fill(miter_angles.span, miter_angle, selection);
 
     miter_angles.finish();
-    changed = true;
+    changed.store(true, std::memory_order_relaxed);
   });
 
   if (changed) {
