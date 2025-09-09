@@ -325,9 +325,11 @@ ccl_device float4 calculate_out_variables_irregular_circular(bool calculate_r_go
                                                              float2 coord,
                                                              float l_coord)
 {
-  /* Silence potential compiler warnings. */
+#ifdef ADAPT_TO_SVM
+  /* Silence compiler warnings. */
   (void)calculate_r_gon_parameter_field;
   (void)calculate_max_unit_parameter;
+#endif
 
   float x_axis_A_coord = atan2f(coord.y, coord.x) + float(coord.y < float(0.0)) * M_2PI_F;
   float segment_divider_A_angle_bisector = M_PI_F / r_gon_sides;
@@ -792,9 +794,11 @@ ccl_device float4 calculate_out_variables(bool calculate_r_gon_parameter_field,
                                           float r_gon_roundness,
                                           float2 coord)
 {
-  /* Silence potential compiler warnings. */
+#ifdef ADAPT_TO_SVM
+  /* Silence compiler warnings. */
   (void)calculate_r_gon_parameter_field;
   (void)calculate_max_unit_parameter;
+#endif
 
   float l_coord = sqrtf(sqr(coord.x) + sqr(coord.y));
   float4 out_variables;
