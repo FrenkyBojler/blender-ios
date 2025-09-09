@@ -43,9 +43,10 @@ void main()
   bool valid_texel = in_texture_range(texel, gbuf_header_tx);
 
   if (valid_texel) {
+    gbuffer::Header header = gbuffer::read_header(texel);
+
     for (uchar i = 0; i < GBUFFER_LAYER_MAX; i++) {
-      /* TODO(fclem): Move common part out of the loop. */
-      ClosureUndetermined cl = gbuffer::read_bin(texel, i);
+      ClosureUndetermined cl = gbuffer::read_bin(header, texel, i);
       if (cl.type == CLOSURE_NONE_ID) {
         continue;
       }
