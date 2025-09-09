@@ -780,12 +780,23 @@ GHOST_TSuccess GHOST_ContextVK::swapBufferAcquire()
       }
     }
   }
-  else {
-    CLOG_TRACE(&LOG, "Swap-chain unavailable (minimized window).");
-    if (swap_buffer_acquired_callback_) {
-      swap_buffer_acquired_callback_();
-    }
 
+  /* Acquired callback is also called when there is no swapchain.
+   *
+   * When acquiring swap chain (image) and the swap chain is discarded (window has been minimized).
+   * We have trigger a last acquired callback to reduce the attachments of the GPUFramebuffer.
+   * Vulkan backend will retrieve the data (getVulkanSwapChainFormat) containing a render extent of
+   * 0,0.
+   *
+   * The next frame window manager will detect that the window is minimized and doesn't draw the
+   * window at all.
+   */
+  if (swap_buffer_acquired_callback_) {
+    swap_buffer_acquired_callback_();
+  }
+
+  if (swapchain_ == VK_NULL_HANDLE) {
+    CLOG_TRACE(&LOG, "Swap-chain unavailable (minimized window).");
     return GHOST_kSuccess;
   }
 
