@@ -1,1 +1,2 @@
 Referenced by pull request #145907, Fix #145783: Edit Mesh: Crash when selecting edge in some setup
+Referenced by issue #145993, Can't select verts/edges/faces behind wire/bounds objects while retopology overlay is on
