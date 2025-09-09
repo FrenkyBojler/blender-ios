@@ -182,7 +182,7 @@ bool modifier_ui_poll(const bContext *C, PanelType * /*pt*/)
   if (!sequencer_scene) {
     return false;
   }
-  if (SpaceSeq *sseq = CTX_wm_space_seq(C)) {
+  if (const SpaceSeq *sseq = CTX_wm_space_seq(C)) {
     /* Only show modifiers in the sequencer view types, not the preview. */
     if (sseq->view == SEQ_VIEW_PREVIEW) {
       return false;
