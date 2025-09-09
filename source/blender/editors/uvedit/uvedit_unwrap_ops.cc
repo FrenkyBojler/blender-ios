@@ -1772,7 +1772,7 @@ static wmOperatorStatus pack_islands_exec(bContext *C, wmOperator *op)
   pid->sima = sima;
   pid->udim_source = udim_source;
   pid->wm = CTX_wm_manager(C);
-  pid->custom_region = ts->uv_pack_region;
+  pid->custom_region = ts->uv_custom_region;
   blender::geometry::UVPackIsland_Params &pack_island_params = pid->pack_island_params;
   {
     /* Call default constructor and copy the defaults. */
@@ -1937,7 +1937,7 @@ static void uv_pack_islands_ui(bContext *C, wmOperator *op)
   const int udim_source = RNA_enum_get(op->ptr, "udim_source");
   ToolSettings *ts = scene->toolsettings;
   if (udim_source == PACK_CUSTOM_REGION && !(ts->uv_flag & UV_FLAG_CUSTOM_REGION)) {
-    ts->uv_pack_region = {0.0f, 1.0f, 0.0f, 1.0f};
+    ts->uv_custom_region = {0.0f, 1.0f, 0.0f, 1.0f};
     ts->uv_flag |= UV_FLAG_CUSTOM_REGION;
     ED_region_tag_redraw(region);
   }
@@ -2797,7 +2797,7 @@ void ED_uvedit_live_unwrap(const Scene *scene, const Span<Object *> objects)
                               false,
                               true,
                               false,
-                              scene->toolsettings->uv_pack_region,
+                              scene->toolsettings->uv_custom_region,
                               &pack_island_params);
   }
 }
@@ -2906,7 +2906,7 @@ static wmOperatorStatus unwrap_exec(bContext *C, wmOperator *op)
                             false,
                             true,
                             false,
-                            scene->toolsettings->uv_pack_region,
+                            scene->toolsettings->uv_custom_region,
                             &pack_island_params);
 
   if (count_failed == 0 && count_changed == 0) {
@@ -3373,7 +3373,7 @@ static wmOperatorStatus smart_project_exec(bContext *C, wmOperator *op)
                               false,
                               true,
                               false,
-                              scene->toolsettings->uv_pack_region,
+                              scene->toolsettings->uv_custom_region,
                               &params);
 
     /* #uvedit_pack_islands_multi only supports `per_face_aspect = false`. */
@@ -4253,7 +4253,7 @@ static wmOperatorStatus cube_project_exec(bContext *C, wmOperator *op)
     }
 
     float bounds[2][3];
-    float (*bounds_buf)[3] = nullptr;
+    float(*bounds_buf)[3] = nullptr;
 
     if (!RNA_property_is_set(op->ptr, prop_cube_size)) {
       bounds_buf = bounds;
@@ -4353,8 +4353,15 @@ void ED_uvedit_add_simple_uvs(Main *bmain, const Scene *scene, Object *ob)
   params.margin_method = ED_UVPACK_MARGIN_SCALED;
   params.margin = 0.001f;
 
-  uvedit_pack_islands_multi(
-      scene, {ob}, &bm, nullptr, false, true, false, scene->toolsettings->uv_pack_region, &params);
+  uvedit_pack_islands_multi(scene,
+                            {ob},
+                            &bm,
+                            nullptr,
+                            false,
+                            true,
+                            false,
+                            scene->toolsettings->uv_custom_region,
+                            &params);
 
   /* Write back from BMesh to Mesh. */
   BMeshToMeshParams bm_to_me_params{};
