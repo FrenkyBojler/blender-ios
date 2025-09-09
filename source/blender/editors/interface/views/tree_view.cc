@@ -888,7 +888,7 @@ void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
 
   static char search[256] = "";
   uiBut *but = uiDefBut(block,
-                        UI_BTYPE_TEXT,
+                        ButType::Text,
                         1,
                         "",
                         0,
