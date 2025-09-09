@@ -365,7 +365,7 @@
 
 #define _DNA_DEFAULTS_UvSculpt \
   { \
-    .size = 100, \
+    .size = 50, \
     .strength = 1.0f, \
     .curve_preset = BRUSH_CURVE_SMOOTH, \
   }
