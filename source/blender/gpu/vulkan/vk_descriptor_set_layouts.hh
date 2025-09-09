@@ -82,7 +82,7 @@ struct VKDescriptorBufferLayout {
    * Offsets are aligned to
    * VkPhysicalDeviceDescriptorBufferProperties.descriptorBufferOffsetAlignment.
    */
-  Vector<VkDeviceSize> binding_offsets;
+  Vector<VkDeviceSize, 32> binding_offsets;
 };
 
 /**
@@ -96,7 +96,7 @@ class VKDescriptorSetLayouts : NonCopyable {
    * Map containing all created descriptor set layouts.
    */
   Map<VKDescriptorSetLayoutInfo, VkDescriptorSetLayout> vk_descriptor_set_layouts_;
-  Map<VkDescriptorSetLayout, VKDescriptorBufferLayout> descriptor_buffer_layouts_;
+  Map<VkDescriptorSetLayout, std::unique_ptr<VKDescriptorBufferLayout>> descriptor_buffer_layouts_;
 
   /**
    * Reusable descriptor set layout create info.
@@ -129,7 +129,7 @@ class VKDescriptorSetLayouts : NonCopyable {
    * This function has undefined behavior when descriptor buffers extension isn't enabled on the
    * VKDevice.
    */
-  VKDescriptorBufferLayout descriptor_buffer_layout_get(
+  std::unique_ptr<VKDescriptorBufferLayout> &descriptor_buffer_layout_get(
       VkDescriptorSetLayout vk_descriptor_set_layout)
   {
     std::scoped_lock lock(mutex_);
@@ -153,7 +153,7 @@ class VKDescriptorSetLayouts : NonCopyable {
 
  private:
   void update_layout_bindings(const VKDescriptorSetLayoutInfo &info);
-  VKDescriptorBufferLayout create_descriptor_buffer_layout(
+  std::unique_ptr<VKDescriptorBufferLayout> create_descriptor_buffer_layout(
       const VKDevice &device,
       const VKDescriptorSetLayoutInfo &info,
       VkDescriptorSetLayout vk_descriptor_set_layout) const;

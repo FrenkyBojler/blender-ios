@@ -174,7 +174,7 @@ class VKDescriptorBufferUpdator : public VKDescriptorSetUpdator {
   /* Offset to the end (+1) of the current descriptor set. */
   VkDeviceSize descriptor_set_tail = 0;
   /* Current layout of the descriptor set being filled. */
-  VKDescriptorBufferLayout layout;
+  VKDescriptorBufferLayout *layout = nullptr;
   /* Descriptor buffers */
   Vector<std::unique_ptr<VKBuffer>> buffers;
 
@@ -209,7 +209,7 @@ class VKDescriptorBufferUpdator : public VKDescriptorSetUpdator {
  private:
   inline uint8_t *get_descriptor_binding_ptr(uint32_t binding) const
   {
-    return descriptor_buffer_data + descriptor_buffer_offset + layout.binding_offsets[binding];
+    return descriptor_buffer_data + descriptor_buffer_offset + layout->binding_offsets[binding];
   }
 };
 

@@ -446,7 +446,7 @@ void VKBackend::detect_workarounds(VKDevice &device)
       VK_EXT_DYNAMIC_RENDERING_UNUSED_ATTACHMENTS_EXTENSION_NAME);
   extensions.logic_ops = device.physical_device_features_get().logicOp;
   /* For stability reasons descriptor buffers have been disabled. */
-#if 0
+#if 1
   extensions.descriptor_buffer = device.supports_extension(
       VK_EXT_DESCRIPTOR_BUFFER_EXTENSION_NAME);
 #endif

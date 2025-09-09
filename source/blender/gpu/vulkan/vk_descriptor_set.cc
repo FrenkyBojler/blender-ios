@@ -525,22 +525,23 @@ void VKDescriptorBufferUpdator::allocate_new_descriptor_set(
 {
   /* Use descriptor buffer. */
   descriptor_set_head = descriptor_set_tail;
-  layout = device.descriptor_set_layouts_get().descriptor_buffer_layout_get(
-      vk_descriptor_set_layout);
+  layout = device.descriptor_set_layouts_get()
+               .descriptor_buffer_layout_get(vk_descriptor_set_layout)
+               .get();
 
   /* Ensure if there is still place left in the current buffer. */
   if (buffers.is_empty() ||
-      layout.size > buffers.last().get()->size_in_bytes() - descriptor_set_head)
+      layout->size > buffers.last().get()->size_in_bytes() - descriptor_set_head)
   {
-    const VkDeviceSize default_buffer_size = 8 * 1024 * 1024;
+    const VkDeviceSize default_buffer_size = 4 * 1024 * 1024;
     buffers.append(std::make_unique<VKBuffer>());
     VKBuffer *buffer = buffers.last().get();
     buffer->create(default_buffer_size,
                    VK_BUFFER_USAGE_SAMPLER_DESCRIPTOR_BUFFER_BIT_EXT |
                        VK_BUFFER_USAGE_RESOURCE_DESCRIPTOR_BUFFER_BIT_EXT,
-                   VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
+                   VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
                    0,
-                   VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT,
+                   VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT,
                    0.8f);
     debug::object_label(buffer->vk_handle(), "DescriptorBuffer");
     descriptor_buffer_data = static_cast<uint8_t *>(buffer->mapped_memory_get());
@@ -550,7 +551,7 @@ void VKDescriptorBufferUpdator::allocate_new_descriptor_set(
     descriptor_set_tail = 0;
   }
 
-  descriptor_set_tail = descriptor_set_head + layout.size;
+  descriptor_set_tail = descriptor_set_head + layout->size;
 
   /* Update the current descriptor buffer and its offset to point to the active descriptor set. */
   descriptor_buffer_offset = descriptor_set_head;
@@ -669,6 +670,7 @@ void VKDescriptorBufferUpdator::upload_descriptor_sets()
   descriptor_buffer_data = nullptr;
   descriptor_buffer_device_address = 0;
   descriptor_buffer_offset = 0;
+  layout = nullptr;
 }
 
 /** \} */

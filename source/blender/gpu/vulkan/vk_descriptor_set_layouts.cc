@@ -107,23 +107,23 @@ static void align_size(VkDeviceSize &r_size, VkDeviceSize alignment)
     r_size = (r_size + alignment - 1) & ~(alignment - 1);
   }
 }
-VKDescriptorBufferLayout VKDescriptorSetLayouts::create_descriptor_buffer_layout(
+std::unique_ptr<VKDescriptorBufferLayout> VKDescriptorSetLayouts::create_descriptor_buffer_layout(
     const VKDevice &device,
     const VKDescriptorSetLayoutInfo &info,
     VkDescriptorSetLayout vk_descriptor_set_layout) const
 {
   const VkPhysicalDeviceDescriptorBufferPropertiesEXT &properties =
       device.physical_device_descriptor_buffer_properties_get();
-  VKDescriptorBufferLayout result = {};
+  std::unique_ptr<VKDescriptorBufferLayout> result = std::make_unique<VKDescriptorBufferLayout>();
 
   device.functions.vkGetDescriptorSetLayoutSize(
-      device.vk_handle(), vk_descriptor_set_layout, &result.size);
-  align_size(result.size, properties.descriptorBufferOffsetAlignment);
+      device.vk_handle(), vk_descriptor_set_layout, &(result->size));
+  align_size(result->size, properties.descriptorBufferOffsetAlignment);
 
-  result.binding_offsets.resize(info.bindings.size());
+  result->binding_offsets.resize(info.bindings.size());
   for (uint32_t binding : IndexRange(info.bindings.size())) {
     device.functions.vkGetDescriptorSetLayoutBindingOffset(
-        device.vk_handle(), vk_descriptor_set_layout, binding, &result.binding_offsets[binding]);
+        device.vk_handle(), vk_descriptor_set_layout, binding, &result->binding_offsets[binding]);
   }
 
   return result;
