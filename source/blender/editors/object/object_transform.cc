@@ -2422,7 +2422,11 @@ struct LightOrbitAroundTargetData {
   struct LightData {
     Object *ob = nullptr;
     blender::float3 orig_loc{0.0f};
-    blender::float3 orig_rot{0.0f};
+    /* Store original rotation data in all possible formats to avoid lossy conversions. */
+    blender::float3 orig_rot{0.0f};         /* Euler rotation. */
+    blender::float4 orig_quat{0.0f};        /* Quaternion rotation. */
+    blender::float3 orig_rot_axis{0.0f};    /* Axis-angle rotation axis. */
+    float orig_rot_angle = 0.0f;            /* Axis-angle rotation angle. */
     float current_azimuth = 0.0f;   /* Current azimuth in spherical coordinates. */
     float current_elevation = 0.0f; /* Current elevation in spherical coordinates. */
     float current_distance = 0.0f;  /* Current distance from center. */
@@ -2499,21 +2503,51 @@ static void light_orbit_around_target_init_data(bContext *C, wmOperator *op, con
   /* Set initial status text. */
   light_orbit_around_target_update_status(C, op, loatd);
   
-  /* Get selected light objects. */
+  /* Get selected light objects, prioritizing active object if it's selected. */
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   BKE_view_layer_synced_ensure(scene, view_layer);
   
+  /* Add active object first if it's a light and selected. */
+  Object *active_ob = loatd->vc.obact;
+  if (active_ob && active_ob->type == OB_LAMP) {
+    bool is_active_selected = false;
+    CTX_DATA_BEGIN (C, Object *, ob, selected_editable_objects) {
+      if (ob == active_ob) {
+        is_active_selected = true;
+        break;
+      }
+    }
+    CTX_DATA_END;
+    
+    if (is_active_selected) {
+      LightOrbitAroundTargetData::LightData light_data;
+      light_data.ob = active_ob;
+      copy_v3_v3(light_data.orig_loc, active_ob->loc);
+      
+      /* Store original rotation data in all formats to avoid lossy conversions. */
+      copy_v3_v3(light_data.orig_rot, active_ob->rot);
+      copy_v4_v4(light_data.orig_quat, active_ob->quat);
+      copy_v3_v3(light_data.orig_rot_axis, active_ob->rotAxis);
+      light_data.orig_rot_angle = active_ob->rotAngle;
+      
+      loatd->lights.append(light_data);
+    }
+  }
+  
+  /* Add remaining selected light objects. */
   CTX_DATA_BEGIN (C, Object *, ob, selected_editable_objects) {
-    if (ob->type == OB_LAMP) {
+    if (ob->type == OB_LAMP && ob != active_ob) {
       LightOrbitAroundTargetData::LightData light_data;
       light_data.ob = ob;
       copy_v3_v3(light_data.orig_loc, ob->loc);
-      if (ob->rotmode == ROT_MODE_QUAT) {
-        quat_to_eul(light_data.orig_rot, ob->quat);
-      } else {
-        copy_v3_v3(light_data.orig_rot, ob->rot);
-      }
+      
+      /* Store original rotation data in all formats to avoid lossy conversions. */
+      copy_v3_v3(light_data.orig_rot, ob->rot);
+      copy_v4_v4(light_data.orig_quat, ob->quat);
+      copy_v3_v3(light_data.orig_rot_axis, ob->rotAxis);
+      light_data.orig_rot_angle = ob->rotAngle;
+      
       loatd->lights.append(light_data);
     }
   }
@@ -2530,23 +2564,21 @@ static void light_orbit_around_target_init_data(bContext *C, wmOperator *op, con
     copy_v3_v3(light_normal, primary_light->object_to_world().ptr()[2]);
     negate_v3(light_normal);
 
-    using namespace blender::ed::transform;
-    
-    SnapObjectParams snap_params = {};
+    blender::ed::transform::SnapObjectParams snap_params = {};
     snap_params.snap_target_select = SCE_SNAP_TARGET_ALL;
-    snap_params.edit_mode_type = SNAP_GEOM_FINAL;
-    snap_params.occlusion_test = SNAP_OCCLUSION_NEVER;
+    snap_params.edit_mode_type = blender::ed::transform::SNAP_GEOM_FINAL;
+    snap_params.occlusion_test = blender::ed::transform::SNAP_OCCLUSION_NEVER;
     snap_params.use_backface_culling = false;
     snap_params.keep_on_same_target = false;
     snap_params.face_nearest_steps = 1;
     snap_params.grid_size = 0.0f;
     
-    SnapObjectContext *sctx = snap_object_context_create(loatd->vc.scene, 0);
+    blender::ed::transform::SnapObjectContext *sctx = blender::ed::transform::snap_object_context_create(loatd->vc.scene, 0);
     
     float hit_co[3], hit_no[3];
     float ray_depth = 1000.0f; /* Cast ray far into the scene. */
     
-    bool hit = snap_object_project_ray(
+    const bool hit = blender::ed::transform::snap_object_project_ray(
         sctx,
         loatd->vc.depsgraph,
         loatd->vc.v3d,
@@ -2557,7 +2589,7 @@ static void light_orbit_around_target_init_data(bContext *C, wmOperator *op, con
         hit_co,
         hit_no);
     
-    snap_object_context_destroy(sctx);
+    blender::ed::transform::snap_object_context_destroy(sctx);
     
     if (hit) {
       copy_v3_v3(loatd->center, hit_co);
@@ -2641,11 +2673,19 @@ static void light_orbit_around_target_cancel(bContext *C, wmOperator *op)
   /* Restore original positions/rotations. */
   for (const LightOrbitAroundTargetData::LightData &light : loatd->lights) {
     copy_v3_v3(light.ob->loc, light.orig_loc);
+    
+    /* Restore rotation data in the original format to avoid lossy conversions. */
     if (light.ob->rotmode == ROT_MODE_QUAT) {
-      eul_to_quat(light.ob->quat, light.orig_rot);
-    } else {
+      copy_v4_v4(light.ob->quat, light.orig_quat);
+    }
+    else if (light.ob->rotmode == ROT_MODE_AXISANGLE) {
+      copy_v3_v3(light.ob->rotAxis, light.orig_rot_axis);
+      light.ob->rotAngle = light.orig_rot_angle;
+    }
+    else {
       copy_v3_v3(light.ob->rot, light.orig_rot);
     }
+    
     DEG_id_tag_update(&light.ob->id, ID_RECALC_TRANSFORM);
     WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, light.ob);
   }
