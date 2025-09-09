@@ -94,10 +94,10 @@ static void rna_Light_unit_system_set(PointerRNA *ptr, int value)
 
   /* Disable advanced features when unit system is NONE or RADIOMETRIC */
   if (value == LA_NONE || value == LA_RADIOMETRIC) {
-    la->mode &= ~LA_USE_ADVANCED; /* Set the flag to disable use_advanced (negative boolean) */
+    la->mode &= ~LA_USE_ADVANCED; /* Set the flag to disable use_advanced */
   }
   else {
-    la->mode = LA_USE_ADVANCED; /* Clear the flag to enable use_advanced (negative boolean) */
+    la->mode |= LA_USE_ADVANCED; /* Clear the flag to enable use_advanced */
   }
 
   /* Convert energy value if switching between radiometric and photometric */
