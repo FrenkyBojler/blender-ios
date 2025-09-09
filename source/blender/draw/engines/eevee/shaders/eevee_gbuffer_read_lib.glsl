@@ -43,19 +43,21 @@ uint fetch_object_id(int2 texel)
 float4 fetch_data(int2 texel, uchar layer)
 {
 #if defined(GPU_NVIDIA) && defined(GPU_OPENGL)
-  /* WORKAROUND: Compiler bug. */
+  /* WORKAROUND: Compiler bug where the loads are somehow invalid inside the ray tile
+   * classification shader. */
   layer = min(layer, 9999);
 #endif
-  return texelFetch(sampler_get(eevee_gbuffer_data, gbuf_closure_tx), int3(texel, 1), 0);
+  return texelFetch(sampler_get(eevee_gbuffer_data, gbuf_closure_tx), int3(texel, layer), 0);
 }
 
 float4 fetch_normal(int2 texel, uchar layer)
 {
 #if defined(GPU_NVIDIA) && defined(GPU_OPENGL)
-  /* WORKAROUND: Compiler bug. */
+  /* WORKAROUND: Compiler bug where the loads are somehow invalid inside the ray tile
+   * classification shader. */
   layer = min(layer, 9999);
 #endif
-  return texelFetch(sampler_get(eevee_gbuffer_data, gbuf_normal_tx), int3(texel, 1), 0);
+  return texelFetch(sampler_get(eevee_gbuffer_data, gbuf_normal_tx), int3(texel, layer), 0);
 }
 
 float4 fetch_additional_data(int2 texel)
