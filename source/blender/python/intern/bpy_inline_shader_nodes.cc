@@ -9,8 +9,11 @@
 #include "BKE_idtype.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_node.hh"
+
 #include "DNA_material_types.h"
 #include "DNA_node_types.h"
+
+#include "NOD_shader_nodes_inline.hh"
 
 #include "bpy_inline_shader_nodes.hh"
 #include "bpy_rna.hh"
@@ -64,9 +67,14 @@ static BPy_InlineShaderNodes *BPy_InlineShaderNodes_static_from_material(PyObjec
   if (!self) {
     return nullptr;
   }
-  /* TODO: Actually call the node tree inlining code. */
-  self->inline_node_tree = blender::bke::node_tree_copy_tree_ex(
-      *material->nodetree, nullptr, false);
+
+  self->inline_node_tree = blender::bke::node_tree_add_tree(
+      nullptr,
+      (blender::StringRef(material->nodetree->id.name) + " Inlined").c_str(),
+      material->nodetree->idname);
+
+  blender::nodes::InlineShaderNodeTreeParams params;
+  blender::nodes::inline_shader_node_tree(*material->nodetree, *self->inline_node_tree, params);
   return self;
 }
 

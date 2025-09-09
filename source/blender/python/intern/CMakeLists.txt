@@ -132,6 +132,7 @@ set(LIB
   PRIVATE bf::animrig
   bf_python_gpu
   PRIVATE bf::imbuf::opencolorio
+  PRIVATE bf::nodes
 
   ${PYTHON_LINKFLAGS}
   ${PYTHON_LIBRARIES}
