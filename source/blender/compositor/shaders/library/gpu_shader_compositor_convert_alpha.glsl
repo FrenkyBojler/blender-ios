@@ -7,6 +7,7 @@
 
 void node_composite_convert_alpha(const float4 color, const float type, out float4 result)
 {
+  result = color;
   switch (int(type)) {
     case CMP_NODE_ALPHA_CONVERT_PREMULTIPLY:
       result = float4(color.xyz() * color.w, color.w);

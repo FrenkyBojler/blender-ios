@@ -64,6 +64,7 @@ static void node_build_multi_function(blender::nodes::NodeMultiFunctionBuilder &
           case CMP_NODE_ALPHA_CONVERT_UNPREMULTIPLY:
             return color.w == 0.0f ? color : float4(color.xyz() / color.w, color.w);
         }
+        return color;
       },
       mf::build::exec_presets::AllSpanOrSingle());
   builder.set_matching_fn(function);
