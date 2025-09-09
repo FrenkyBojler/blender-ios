@@ -57,8 +57,8 @@ class InputSocketUsageParams {
 };
 
 /**
- * Get a boolean value for each input socket in the given tree that indicates whether that input is
- * used. It is assumed that all output sockets in the tree are used.
+ * Determine which sockets in the tree are currently used and thus which should be grayed out or
+ * made invisible.
  */
 Array<SocketUsage> infer_all_sockets_usage(const bNodeTree &tree);
 
