@@ -105,7 +105,22 @@ class DisplaceOperation : public NodeOperation {
   void execute_gpu()
   {
     const math::SamplingOptions options = this->get_options();
-    gpu::Shader *shader = context().get_shader(this->get_shader_name(options.sampler));
+    const char *shader_name;
+    switch (options.sampler) {
+      case math::Sampler::Anisotropic:
+        shader_name = "compositor_displace_anisotropic";
+        break;
+      case math::Sampler::Bspline:
+        shader_name = "compositor_displace_bspline";
+        break;
+      case math::Sampler::Nearest:
+        shader_name = "compositor_displace_nearest";
+        break;
+      default:
+        shader_name = "compositor_displace_box";
+        break;
+    }
+    gpu::Shader *shader = context().get_shader(shader_name);
     GPU_shader_bind(shader);
 
     const Result &input_image = get_input("Image");
@@ -144,143 +159,80 @@ class DisplaceOperation : public NodeOperation {
 
   void execute_cpu()
   {
+    const math::SamplingOptions options = this->get_options();
+
     const Result &image = get_input("Image");
     const Result &input_displacement = get_input("Vector");
     const Result &x_scale = get_input("X Scale");
     const Result &y_scale = get_input("Y Scale");
 
-    const math::SamplingOptions options = this->get_options();
     const Domain domain = compute_domain();
     Result &output = get_result("Image");
     output.allocate_texture(domain);
 
+    // Same as node_composite_map_uv, this computes 4 pixels at a time in order to share derivatives */
     const int2 size = domain.size;
 
-    if (options.sampler == math::Sampler::Anisotropic) {
-      this->compute_anisotropic(size, image, output, input_displacement, x_scale, y_scale);
-    }
-    else {
-      this->compute_interpolation(
-          options, size, image, output, input_displacement, x_scale, y_scale);
-    }
-  }
-
-  void compute_interpolation(const math::SamplingOptions &options,
-                             const int2 &size,
-                             const Result &image,
-                             Result &output,
-                             const Result &input_displacement,
-                             const Result &x_scale,
-                             const Result &y_scale) const
-  {
-    parallel_for(size, [&](const int2 base_texel) {
-      const float2 coordinates = compute_coordinates(
-          base_texel, size, input_displacement, x_scale, y_scale);
-      output.store_pixel(base_texel, image.sample(coordinates, options));
-    });
-  }
-
-  /* In order to perform EWA sampling, we need to compute the partial derivative of the
-   * displaced coordinates along the x and y directions using a finite difference
-   * approximation. But in order to avoid loading multiple neighboring displacement values for
-   * each pixel, we operate on the image in 2x2 blocks of pixels, where the derivatives are
-   * computed horizontally and vertically across the 2x2 block such that odd texels use a
-   * forward finite difference equation while even invocations use a backward finite difference
-   * equation. */
-  void compute_anisotropic(const int2 &size,
-                           const Result &image,
-                           Result &output,
-                           const Result &input_displacement,
-                           const Result &x_scale,
-                           const Result &y_scale) const
-  {
-    auto compute_anisotropic_pixel = [&](const int2 &texel,
-                                         const float2 &coordinates,
-                                         const float2 &x_gradient,
-                                         const float2 &y_gradient) {
-      /* Sample the input using the displaced coordinates passing in the computed gradients in
-       * order to utilize the anisotropic filtering capabilities of the sampler. */
-      output.store_pixel(texel, image.sample_ewa_zero(coordinates, x_gradient, y_gradient));
-    };
+    /* 2x2 blocks are used, with the differences between them used as the derivatives */
     parallel_for(math::divide_ceil(size, int2(2)), [&](const int2 base_texel) {
-      /* Compute each of the pixels in the 2x2 block, making sure to exempt out of bounds right
-       * and upper pixels. */
       const int x = base_texel.x * 2;
       const int y = base_texel.y * 2;
 
+      // Block might only have one pixel on the top/right. In this case compute the derivative
+      // in the opposite direction (fortunatly the sampling does not care about sign)
       const int2 lower_left_texel = int2(x, y);
-      const int2 lower_right_texel = int2(x + 1, y);
-      const int2 upper_left_texel = int2(x, y + 1);
-      const int2 upper_right_texel = int2(x + 1, y + 1);
+      const int x_dir = x < size.x ? 1 : -1;
+      const int2 lower_right_texel = int2(x + x_dir, y);
+      const int y_dir = y < size.y ? 1 : -1;
+      const int2 upper_left_texel = int2(x, y + y_dir);
+      const int2 upper_right_texel = int2(x + x_dir, y + y_dir);
 
-      const float2 lower_left_coordinates = compute_coordinates(
-          lower_left_texel, size, input_displacement, x_scale, y_scale);
-      const float2 lower_right_coordinates = compute_coordinates(
-          lower_right_texel, size, input_displacement, x_scale, y_scale);
-      const float2 upper_left_coordinates = compute_coordinates(
-          upper_left_texel, size, input_displacement, x_scale, y_scale);
-      const float2 upper_right_coordinates = compute_coordinates(
-          upper_right_texel, size, input_displacement, x_scale, y_scale);
+      const float2 lower_left_uv = compute_coordinates(
+          lower_left_texel, input_displacement, x_scale, y_scale);
+      const float2 lower_right_uv = compute_coordinates(
+          lower_right_texel, input_displacement, x_scale, y_scale);
+      const float2 upper_left_uv = compute_coordinates(
+          upper_left_texel, input_displacement, x_scale, y_scale);
+      const float2 upper_right_uv = compute_coordinates(
+          upper_right_texel, input_displacement, x_scale, y_scale);
 
-      /* Compute the partial derivatives using finite difference. Divide by the input size since
-       * sample_ewa_zero assumes derivatives with respect to texel coordinates. */
-      const float2 lower_x_gradient = (lower_right_coordinates - lower_left_coordinates) / size.x;
-      const float2 left_y_gradient = (upper_left_coordinates - lower_left_coordinates) / size.y;
-      const float2 right_y_gradient = (upper_right_coordinates - lower_right_coordinates) / size.y;
-      const float2 upper_x_gradient = (upper_right_coordinates - upper_left_coordinates) / size.x;
+      /* Compute the partial derivatives using finite difference. */
+      const float2 lower_x_gradient = lower_right_uv - lower_left_uv;
+      const float2 left_y_gradient = upper_left_uv - lower_left_uv;
+      const float2 right_y_gradient = upper_right_uv - lower_right_uv;
+      const float2 upper_x_gradient = upper_right_uv - upper_left_uv;
 
       /* Computes one of the 2x2 pixels given its texel location, coordinates, and gradients. */
+      auto compute_pixel = [&](const int2 &texel,
+                               const float2 &coordinates,
+                               const float2 &x_gradient,
+                               const float2 &y_gradient) {
+        output.store_pixel(texel, image.sample_area(options, coordinates, x_gradient, y_gradient));
+      };
 
-      compute_anisotropic_pixel(
-          lower_left_texel, lower_left_coordinates, lower_x_gradient, left_y_gradient);
-      if (lower_right_texel.x != size.x) {
-        compute_anisotropic_pixel(
-            lower_right_texel, lower_right_coordinates, lower_x_gradient, right_y_gradient);
+      /* Compute each of the pixels in the 2x2 block, making sure to exempt out of bounds right
+       * and upper pixels. */
+      compute_pixel(lower_left_texel, lower_left_uv, lower_x_gradient, left_y_gradient);
+      if (x_dir > 0) {
+        compute_pixel(lower_right_texel, lower_right_uv, lower_x_gradient, right_y_gradient);
       }
-      if (upper_left_texel.y != size.y) {
-        compute_anisotropic_pixel(
-            upper_left_texel, upper_left_coordinates, upper_x_gradient, left_y_gradient);
-      }
-      if (upper_right_texel.x != size.x && upper_right_texel.y != size.y) {
-        compute_anisotropic_pixel(
-            upper_right_texel, upper_right_coordinates, upper_x_gradient, right_y_gradient);
+      if (y_dir > 0) {
+        compute_pixel(upper_left_texel, upper_left_uv, upper_x_gradient, left_y_gradient);
+        if (x_dir > 0) {
+          compute_pixel(upper_right_texel, upper_right_uv, upper_x_gradient, right_y_gradient);
+        }
       }
     });
   }
 
   float2 compute_coordinates(const int2 &texel,
-                             const int2 &size,
                              const Result &input_displacement,
                              const Result &x_scale,
                              const Result &y_scale) const
   {
-    /* Add 0.5 to evaluate the sampler at the center of the pixel and divide by the image
-     * size to get the coordinates into the sampler's expected [0, 1] range. */
-    float2 coordinates = (float2(texel) + float2(0.5f)) / float2(size);
-
-    /* Note that the input displacement is in pixel space, so divide by the input size to
-     * transform it into the normalized sampler space. */
     float2 scale = float2(x_scale.load_pixel_extended<float, true>(texel),
                           y_scale.load_pixel_extended<float, true>(texel));
-    float2 displacement = input_displacement.load_pixel_extended<float2, true>(texel) * scale /
-                          float2(size);
-    return coordinates - displacement;
-  }
-
-  const char *get_shader_name(const math::Sampler &interpolation) const
-  {
-    switch (interpolation) {
-      case math::Sampler::Anisotropic:
-        return "compositor_displace_anisotropic";
-      case math::Sampler::Bspline:
-        return "compositor_displace_bspline";
-      case math::Sampler::Nearest:
-        return "compositor_displace_nearest";
-      default:
-        return "compositor_displace_box";
-    }
-
-    return "compositor_displace";
+    return float2(texel) + float2(0.5f) - input_displacement.load_pixel_extended<float2, true>(texel) * scale;
   }
 
   math::SamplingOptions get_options() const
