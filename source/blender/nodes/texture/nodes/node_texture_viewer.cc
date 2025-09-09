@@ -37,7 +37,6 @@ void register_node_type_tex_viewer()
 
   tex_node_type_base(&ntype, "TextureNodeViewer", TEX_NODE_VIEWER);
   ntype.ui_name = "Viewer";
-  ntype.ui_description = "Preview the results of the connected output";
   ntype.enum_name_legacy = "VIEWER";
   ntype.nclass = NODE_CLASS_OUTPUT;
   blender::bke::node_type_socket_templates(&ntype, inputs, nullptr);
