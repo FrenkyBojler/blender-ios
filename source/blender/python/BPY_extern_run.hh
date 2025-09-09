@@ -23,7 +23,6 @@
 #pragma once
 
 #include "BLI_compiler_attrs.h"
-#include "BLI_function_ref.hh"
 #include "BLI_string_ref.hh"
 #include "BLI_sys_types.h"
 
