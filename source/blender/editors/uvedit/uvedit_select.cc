@@ -54,7 +54,6 @@
 #include "RNA_access.hh"
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
-#include "RNA_prototypes.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -5880,10 +5879,9 @@ static wmOperatorStatus uv_custom_region_set_exec(bContext *C, wmOperator *op)
   ARegion *region = CTX_wm_region(C);
   ToolSettings *ts = scene->toolsettings;
 
-  WM_operator_properties_border_to_rctf(op, &ts->uv_pack_region);
-  UI_view2d_region_to_view_rctf(&region->v2d, &ts->uv_pack_region, &ts->uv_pack_region);
-  PointerRNA ts_ptr = RNA_pointer_create_discrete(&scene->id, &RNA_ToolSettings, ts);
-  RNA_boolean_set(&ts_ptr, "use_custom_region", true);
+  WM_operator_properties_border_to_rctf(op, &ts->uv_custom_region);
+  UI_view2d_region_to_view_rctf(&region->v2d, &ts->uv_custom_region, &ts->uv_custom_region);
+  ts->uv_flag |= UV_FLAG_CUSTOM_REGION;
 
   return OPERATOR_FINISHED;
 }

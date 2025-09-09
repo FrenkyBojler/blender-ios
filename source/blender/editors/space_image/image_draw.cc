@@ -457,7 +457,7 @@ void draw_image_main_helpers(const bContext *C, ARegion *region)
   if (ts->uv_flag & UV_FLAG_CUSTOM_REGION) {
     float zoomx, zoomy;
     ED_space_image_get_zoom(sima, region, &zoomx, &zoomy);
-    draw_custom_region(region, ts->uv_pack_region);
+    draw_custom_region(region, ts->uv_custom_region);
   }
 }
 

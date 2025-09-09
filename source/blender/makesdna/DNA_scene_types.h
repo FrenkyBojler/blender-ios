@@ -1877,7 +1877,7 @@ typedef struct ToolSettings {
   /* Pixel threshold that needs to be crossed before the playhead is snapped to a point. */
   int playhead_snap_distance;
 
-  rctf uv_pack_region;
+  rctf uv_custom_region;
 } ToolSettings;
 
 /** \} */

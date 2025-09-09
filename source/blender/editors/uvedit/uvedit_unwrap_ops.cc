@@ -70,7 +70,6 @@
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
-#include "RNA_prototypes.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -1939,8 +1938,7 @@ static void uv_pack_islands_ui(bContext *C, wmOperator *op)
   ToolSettings *ts = scene->toolsettings;
   if (udim_source == PACK_CUSTOM_REGION && !(ts->uv_flag & UV_FLAG_CUSTOM_REGION)) {
     ts->uv_pack_region = {0.0f, 1.0f, 0.0f, 1.0f};
-    PointerRNA ts_ptr = RNA_pointer_create_discrete(&scene->id, &RNA_ToolSettings, ts);
-    RNA_boolean_set(&ts_ptr, "use_custom_region", true);
+    ts->uv_flag |= UV_FLAG_CUSTOM_REGION;
     ED_region_tag_redraw(region);
   }
   layout->separator();
@@ -4255,7 +4253,7 @@ static wmOperatorStatus cube_project_exec(bContext *C, wmOperator *op)
     }
 
     float bounds[2][3];
-    float(*bounds_buf)[3] = nullptr;
+    float (*bounds_buf)[3] = nullptr;
 
     if (!RNA_property_is_set(op->ptr, prop_cube_size)) {
       bounds_buf = bounds;
