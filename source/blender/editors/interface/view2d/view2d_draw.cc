@@ -18,6 +18,7 @@
 #include "BLI_rect.h"
 #include "BLI_string_utf8.h"
 #include "BLI_timecode.h"
+#include "BLI_timeit.hh"
 #include "BLI_utildefines.h"
 #include "BLI_vector.hh"
 
@@ -41,9 +42,10 @@
  * as prime factors. Divisions that result in 2 are preferred. */
 static int get_divisor(const int distance)
 {
+  SCOPED_TIMER_AVERAGED("calc");
   const int divisors[3] = {2, 3, 5};
   constexpr uint8_t num_divisors = ARRAY_SIZE(divisors);
-  int division_results[num_divisors];
+  bool divides_no_remainder[num_divisors];
 
   for (int i = 0; i < num_divisors; i++) {
     const int divisor = divisors[i];
@@ -54,14 +56,13 @@ static int get_divisor(const int distance)
     if (result * divisor == distance && result == 2) {
       return divisor;
     }
-    division_results[i] = result;
+    divides_no_remainder[i] = result * divisor == distance;
   }
 
   /* If no division results in a 2, take the first to divide cleanly. */
   for (int i = 0; i < num_divisors; i++) {
-    const int divisor = divisors[i];
-    if (division_results[i] * divisor == distance) {
-      return divisor;
+    if (divides_no_remainder[i]) {
+      return divisors[i];
     }
   }
 
@@ -77,7 +78,7 @@ static int get_divisor(const int distance)
  */
 static int calculate_grid_step(const int base, const float pixel_width, const float view_width)
 {
-  if (IS_EQF(view_width, 0.0f)) {
+  if (IS_EQF(view_width, 0.0f) || base == 0) {
     return 1;
   }
   const float pixels_per_view_unit = pixel_width / view_width;
