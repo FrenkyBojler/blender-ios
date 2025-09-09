@@ -705,8 +705,7 @@ Shader *ShaderCompiler::compile(const shader::ShaderCreateInfo &info, bool is_ba
     typedefs.append(info.typedef_source_generated);
   }
   for (auto filename : info.typedef_sources_) {
-    typedefs.extend_non_duplicates(
-        gpu_shader_dependency_get_resolved_source(filename, info.generated_sources));
+    typedefs.append(gpu_shader_dependency_get_source(filename));
   }
 
   if (!info.vertex_source_.is_empty()) {
