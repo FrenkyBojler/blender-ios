@@ -456,6 +456,22 @@ static void sample_curve_attribute(const bke::CurvesGeometry &src_curves,
             dst_sample_factors_eval[i] = math::mod(segment_parameter, 1.0f);
           }
         }
+        else if (curve_types[i_src_curve] == CURVE_TYPE_NURBS) {
+          const int src_size = src_points.size();
+          const int eval_size = src_evaluated_points.size();
+
+          for (const int i : dst_points.index_range()) {
+            const int dst_i = dst_points[i];
+            const int dst_index = dst_sample_indices[dst_i];
+            const float dst_factor = dst_sample_factors[dst_i];
+
+            const float segment_parameter = (dst_index + dst_factor) * float(eval_size) /
+                                            float(src_size);
+
+            dst_sample_indices_eval[i] = math::floor(segment_parameter);
+            dst_sample_factors_eval[i] = math::mod(segment_parameter, 1.0f);
+          }
+        }
         else {
           const int resolution = resolutions[i_src_curve];
 
