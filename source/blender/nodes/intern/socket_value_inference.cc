@@ -205,8 +205,8 @@ class SocketValueInferencerImpl {
         return;
       }
       default: {
-        if (node->is_type("NodeForgoValue")) {
-          this->value_task__output__forgo_value(socket);
+        if (node->is_type("NodeEnableOutput")) {
+          this->value_task__output__enable_output(socket);
           return;
         }
         if (node->typeinfo->build_multi_function) {
@@ -501,7 +501,7 @@ class SocketValueInferencerImpl {
     }
   }
 
-  void value_task__output__forgo_value(const SocketInContext &socket)
+  void value_task__output__enable_output(const SocketInContext &socket)
   {
     const NodeInContext node = socket.owner_node();
     const SocketInContext value_input_socket = node.input_socket(0);

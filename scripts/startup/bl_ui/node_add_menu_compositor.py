@@ -65,8 +65,8 @@ class NODE_MT_category_compositor_output(Menu):
     def draw(self, context):
         del context
         layout = self.layout
+        node_add_menu.add_node_type(layout, "NodeEnableOutput")
         node_add_menu.add_node_type(layout, "NodeGroupOutput")
-        node_add_menu.add_node_type(layout, "NodeForgoValue")
         node_add_menu.add_node_type(layout, "CompositorNodeViewer")
         layout.separator()
         node_add_menu.add_node_type(layout, "CompositorNodeOutputFile")

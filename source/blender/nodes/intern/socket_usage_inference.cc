@@ -245,8 +245,8 @@ struct SocketUsageInferencer {
         break;
       }
       default: {
-        if (node->is_type("NodeForgoValue")) {
-          this->usage_task__input__forgo_value(socket);
+        if (node->is_type("NodeEnableOutput")) {
+          this->usage_task__input__enable_output(socket);
           break;
         }
         this->usage_task__input__fallback(socket);
@@ -415,7 +415,7 @@ struct SocketUsageInferencer {
         socket, {&node->output_socket(socket->index())}, {}, socket.context);
   }
 
-  void usage_task__input__forgo_value(const SocketInContext &socket)
+  void usage_task__input__enable_output(const SocketInContext &socket)
   {
     const NodeInContext node = socket.owner_node();
     const SocketInContext keep_socket = node.input_socket(1);

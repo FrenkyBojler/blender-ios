@@ -14,7 +14,7 @@
 #include "COM_node_operation.hh"
 #include "COM_result.hh"
 
-namespace blender::nodes::node_geo_forgo_value_cc {
+namespace blender::nodes::node_geo_enable_output_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
@@ -41,11 +41,11 @@ static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
   layout->prop(ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
 }
 
-class LazyFunctionForForgoValueNode : public LazyFunction {
+class LazyFunctionForEnableOutputNode : public LazyFunction {
   const bNode &node_;
 
  public:
-  LazyFunctionForForgoValueNode(const bNode &node, MutableSpan<int> r_lf_index_by_bsocket)
+  LazyFunctionForEnableOutputNode(const bNode &node, MutableSpan<int> r_lf_index_by_bsocket)
       : node_(node)
   {
     r_lf_index_by_bsocket[node.input_socket(0).index_in_tree()] = inputs_.append_and_get_index_as(
@@ -85,7 +85,7 @@ static void node_init(bNodeTree * /*tree*/, bNode *node)
 
 using namespace blender::compositor;
 
-class ForgoValueOperation : public NodeOperation {
+class EnableOutputOperation : public NodeOperation {
  public:
   using NodeOperation::NodeOperation;
 
@@ -105,7 +105,7 @@ class ForgoValueOperation : public NodeOperation {
 
 static NodeOperation *node_get_compositor_operation(Context &context, DNode node)
 {
-  return new ForgoValueOperation(context, node);
+  return new EnableOutputOperation(context, node);
 }
 
 static const EnumPropertyItem *data_type_items_callback(bContext * /*C*/,
@@ -139,8 +139,8 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_cmp_node_type_base(&ntype, "NodeForgoValue");
-  ntype.ui_name = "Forgo Value";
+  geo_cmp_node_type_base(&ntype, "NodeEnableOutput");
+  ntype.ui_name = "Enable Output";
   ntype.ui_description = "Either pass through the input value or output the fallback value";
   ntype.nclass = NODE_CLASS_INTERFACE;
   ntype.initfunc = node_init;
@@ -153,15 +153,15 @@ static void node_register()
 }
 NOD_REGISTER_NODE(node_register)
 
-}  // namespace blender::nodes::node_geo_forgo_value_cc
+}  // namespace blender::nodes::node_geo_enable_output_cc
 
 namespace blender::nodes {
 
-std::unique_ptr<LazyFunction> get_forgo_value_node_lazy_function(
+std::unique_ptr<LazyFunction> get_enable_output_node_lazy_function(
     const bNode &node, GeometryNodesLazyFunctionGraphInfo &own_lf_graph_info)
 {
-  using namespace node_geo_forgo_value_cc;
-  return std::make_unique<LazyFunctionForForgoValueNode>(
+  using namespace node_geo_enable_output_cc;
+  return std::make_unique<LazyFunctionForEnableOutputNode>(
       node, own_lf_graph_info.mapping.lf_index_by_bsocket);
 }
 
