@@ -156,7 +156,7 @@ static void ensure_change_frame_keylist(bContext *C, FrameChangeModalData &op_da
     /* Special case for the sequencer since it has retiming keys, but those have no bAnimListElem
      * representation. Need to manually add entries to keylist. */
     op_data.keylist = ED_keylist_create();
-    Scene *scene = CTX_data_scene(C);
+    Scene *scene = CTX_data_sequencer_scene(C);
 
     ListBase *seqbase = blender::seq::active_seqbase_get(blender::seq::editing_get(scene));
     LISTBASE_FOREACH (Strip *, strip, seqbase) {
@@ -355,7 +355,7 @@ static blender::Vector<SnapTarget> seq_get_snap_targets(bContext *C,
                                                         FrameChangeModalData &op_data,
                                                         const float timeline_frame)
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_sequencer_scene(C);
   ToolSettings *tool_settings = scene->toolsettings;
   Editing *ed = blender::seq::editing_get(scene);
 
@@ -481,7 +481,8 @@ static float apply_frame_snap(bContext *C, FrameChangeModalData &op_data, const 
   ScrArea *area = CTX_wm_area(C);
 
   blender::Vector<SnapTarget> targets;
-  Scene *scene = CTX_data_scene(C);
+  const bool is_sequencer = CTX_wm_space_seq(C) != nullptr;
+  Scene *scene = is_sequencer ? CTX_data_sequencer_scene(C) : CTX_data_scene(C);
   switch (area->spacetype) {
     case SPACE_SEQ:
       targets = seq_get_snap_targets(C, op_data, frame);
@@ -623,7 +624,8 @@ static void change_frame_seq_preview_end(SpaceSeq *sseq)
 
 static bool use_playhead_snapping(bContext *C)
 {
-  Scene *scene = CTX_data_scene(C);
+  const bool is_sequencer = CTX_wm_space_seq(C) != nullptr;
+  Scene *scene = is_sequencer ? CTX_data_sequencer_scene(C) : CTX_data_scene(C);
   ScrArea *area = CTX_wm_area(C);
 
   if (area->spacetype == SPACE_GRAPH) {
