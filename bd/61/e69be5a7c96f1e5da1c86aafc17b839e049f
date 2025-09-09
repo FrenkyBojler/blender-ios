@@ -1,1 +1,2 @@
 Referenced by issue #140381, Regression: Crash when deleting a node group after undoing and redoing it in the compositor
+Referenced by issue #145936, Opening an old project makes Blender crash
