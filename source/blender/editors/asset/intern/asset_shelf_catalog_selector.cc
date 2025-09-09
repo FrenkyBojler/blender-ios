@@ -144,7 +144,7 @@ class AssetCatalogSelectorTree : public ui::AbstractTreeView {
 
       uiLayout *subrow = &row.row(false);
       subrow->active_set(catalog_path_enabled_);
-      subrow->label(IFACE_(catalog_item_.get_name().c_str()), ICON_NONE);
+      subrow->label(IFACE_(catalog_item_.get_name()), ICON_NONE);
       ui::block_layout_set_current(block, &row);
 
       uiBut *toggle_but = uiDefButC(block,

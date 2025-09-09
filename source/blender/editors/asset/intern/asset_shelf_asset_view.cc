@@ -120,7 +120,7 @@ void AssetView::build_items()
     const StringRef identifier = asset.library_relative_identifier();
 
     AssetViewItem &item = this->add_item<AssetViewItem>(
-        asset, identifier, IFACE_(asset.get_name().c_str()));
+        asset, identifier, IFACE_(asset.get_name()));
     if (!show_names) {
       item.hide_label();
     }
