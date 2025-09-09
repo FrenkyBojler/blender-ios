@@ -425,7 +425,7 @@ static void UV_OT_move_on_axis(wmOperatorType *ot)
   ot->poll = ED_operator_uvedit;
 
   /* properties */
-  RNA_def_enum(ot->srna, "type", shift_items, Dynamic, "Type", "Move Type");
+  RNA_def_enum(ot->srna, "type", shift_items, Udim, "Type", "Move Type");
   RNA_def_enum(
       ot->srna, "axis", axis_items, int(UVMoveDirection::X), "Axis", "Axis to move UVs on");
   RNA_def_int(ot->srna,
