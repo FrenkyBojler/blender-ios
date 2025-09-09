@@ -15,10 +15,9 @@
 #  define VK_USE_PLATFORM_WIN32_KHR
 #endif
 
-#define VOLK_CPP_NAMESPACE volk
+#define VOLK_NAMESPACE volk
 #define VOLK_NO_DEVICE_PROTOTYPES
 #include "volk.h"
-using namespace VOLK_CPP_NAMESPACE;
 
 #define VMA_VULKAN_VERSION 1002000  // Vulkan 1.2
 #if !defined(_WIN32) or defined(_M_ARM64)

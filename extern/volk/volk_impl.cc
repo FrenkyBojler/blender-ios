@@ -2,7 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#define VOLK_CPP_NAMESPACE volk
+#define VOLK_NAMESPACE
 #define VOLK_IMPLEMENTATION
 #ifdef _WIN32
 #  define VK_USE_PLATFORM_WIN32_KHR

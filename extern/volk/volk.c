@@ -23,28 +23,24 @@
 
 #include <string.h>
 
+#ifdef _WIN32
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-extern "C" {
-	#ifdef _WIN32
-	__declspec(dllimport) HMODULE __stdcall LoadLibraryA(LPCSTR);
-	__declspec(dllimport) FARPROC __stdcall GetProcAddress(HMODULE, LPCSTR);
-	__declspec(dllimport) int __stdcall FreeLibrary(HMODULE);
-	#endif
-}
-
+__declspec(dllimport) HMODULE __stdcall LoadLibraryA(LPCSTR);
+__declspec(dllimport) FARPROC __stdcall GetProcAddress(HMODULE, LPCSTR);
+__declspec(dllimport) int __stdcall FreeLibrary(HMODULE);
 #ifdef __cplusplus
 }
 #endif
+#endif
 
 #ifdef __cplusplus
-#    ifdef VOLK_CPP_NAMESPACE
-namespace VOLK_CPP_NAMESPACE {
-#    else
+#ifdef VOLK_NAMESPACE
+namespace volk {
+#else
 extern "C" {
-#    endif
+#endif
 #endif
 
 #if defined(__GNUC__)
@@ -97,6 +93,10 @@ VkResult volkInitialize(void)
 	void* module = dlopen("libvulkan.dylib", RTLD_NOW | RTLD_LOCAL);
 	if (!module)
 		module = dlopen("libvulkan.1.dylib", RTLD_NOW | RTLD_LOCAL);
+	// modern versions of macOS don't search /usr/local/lib automatically contrary to what man dlopen says
+	// Vulkan SDK uses this as the system-wide installation location, so we're going to fallback to this if all else fails
+	if (!module && getenv("DYLD_FALLBACK_LIBRARY_PATH") == NULL)
+		module = dlopen("/usr/local/lib/libvulkan.dylib", RTLD_NOW | RTLD_LOCAL);
 	if (!module)
 		module = dlopen("libMoltenVK.dylib", RTLD_NOW | RTLD_LOCAL);
 	// Add support for using Vulkan and MoltenVK in a Framework. App store rules for iOS
@@ -105,10 +105,6 @@ VkResult volkInitialize(void)
 		module = dlopen("vulkan.framework/vulkan", RTLD_NOW | RTLD_LOCAL);
 	if (!module)
 		module = dlopen("MoltenVK.framework/MoltenVK", RTLD_NOW | RTLD_LOCAL);
-	// modern versions of macOS don't search /usr/local/lib automatically contrary to what man dlopen says
-	// Vulkan SDK uses this as the system-wide installation location, so we're going to fallback to this if all else fails
-	if (!module && getenv("DYLD_FALLBACK_LIBRARY_PATH") == NULL)
-		module = dlopen("/usr/local/lib/libvulkan.dylib", RTLD_NOW | RTLD_LOCAL);
 	if (!module)
 		return VK_ERROR_INITIALIZATION_FAILED;
 
@@ -3585,5 +3581,7 @@ PFN_vkAcquireNextImage2KHR vkAcquireNextImage2KHR;
 #	pragma GCC visibility pop
 #endif
 
-}
+#ifdef __cplusplus
+} // extern "C" / namespace volk
+#endif
 /* clang-format on */

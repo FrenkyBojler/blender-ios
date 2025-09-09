@@ -10,12 +10,16 @@
 #ifndef VOLK_H_
 #define VOLK_H_
 
+#if defined(VOLK_NAMESPACE) && !defined(__cplusplus)
+#error VOLK_NAMESPACE is only supported in C++
+#endif
+
 #if defined(VULKAN_H_) && !defined(VK_NO_PROTOTYPES)
 #	error To use volk, you need to define VK_NO_PROTOTYPES before including vulkan.h
 #endif
 
 /* VOLK_GENERATE_VERSION_DEFINE */
-#define VOLK_HEADER_VERSION 325
+#define VOLK_HEADER_VERSION 326
 /* VOLK_GENERATE_VERSION_DEFINE */
 
 #ifndef VK_NO_PROTOTYPES
@@ -32,11 +36,11 @@
 #endif
 
 #ifdef __cplusplus
-#    ifdef VOLK_CPP_NAMESPACE
-namespace VOLK_CPP_NAMESPACE {
-#    else
+#ifdef VOLK_NAMESPACE
+namespace volk {
+#else
 extern "C" {
-#    endif
+#endif
 #endif
 
 struct VolkDeviceTable;
@@ -109,7 +113,7 @@ VkDevice volkGetLoadedDevice(void);
 void volkLoadDeviceTable(struct VolkDeviceTable* table, VkDevice device);
 
 #ifdef __cplusplus
-}
+} // extern "C" / namespace volk
 #endif
 
 /* Instead of directly including vulkan.h, we include platform-specific parts of the SDK manually
@@ -207,12 +211,13 @@ typedef unsigned long RROutput;
 #endif
 
 #ifdef __cplusplus
-#    ifdef VOLK_CPP_NAMESPACE
-namespace VOLK_CPP_NAMESPACE {
-#    else
+#ifdef VOLK_NAMESPACE
+namespace volk {
+#else
 extern "C" {
-#    endif
 #endif
+#endif
+
 /**
  * Device-specific function pointer table
  */
@@ -1525,7 +1530,6 @@ struct VolkDeviceTable
 	/* VOLK_GENERATE_DEVICE_TABLE */
 };
 
-
 /* VOLK_GENERATE_PROTOTYPES_H */
 #if defined(VK_VERSION_1_0)
 extern PFN_vkCreateDevice vkCreateDevice;
@@ -1536,8 +1540,8 @@ extern PFN_vkEnumerateDeviceLayerProperties vkEnumerateDeviceLayerProperties;
 extern PFN_vkEnumerateInstanceExtensionProperties vkEnumerateInstanceExtensionProperties;
 extern PFN_vkEnumerateInstanceLayerProperties vkEnumerateInstanceLayerProperties;
 extern PFN_vkEnumeratePhysicalDevices vkEnumeratePhysicalDevices;
-extern PFN_vkGetInstanceProcAddr vkGetInstanceProcAddr;
 extern PFN_vkGetDeviceProcAddr vkGetDeviceProcAddr;
+extern PFN_vkGetInstanceProcAddr vkGetInstanceProcAddr;
 extern PFN_vkGetPhysicalDeviceFeatures vkGetPhysicalDeviceFeatures;
 extern PFN_vkGetPhysicalDeviceFormatProperties vkGetPhysicalDeviceFormatProperties;
 extern PFN_vkGetPhysicalDeviceImageFormatProperties vkGetPhysicalDeviceImageFormatProperties;
@@ -2733,12 +2737,15 @@ extern PFN_vkAcquireNextImage2KHR vkAcquireNextImage2KHR;
 /* VOLK_GENERATE_PROTOTYPES_H_DEVICE */
 #endif
 
-
 #ifdef __cplusplus
-}
+} // extern "C" / namespace volk
 #endif
 
+#ifdef VOLK_NAMESPACE
+using namespace volk;
 #endif
+
+#endif // VOLK_H
 
 #ifdef VOLK_IMPLEMENTATION
 #undef VOLK_IMPLEMENTATION

@@ -6,10 +6,9 @@
  * \ingroup GHOST
  */
 
-#define VOLK_CPP_NAMESPACE volk
-
 #include <vulkan/vulkan_core.h>
 
+#define VOLK_NAMESPACE
 #define VOLK_NO_DEVICE_PROTOTYPES
 #define VK_NO_PROTOTYPES
 #ifdef _WIN32
@@ -18,7 +17,6 @@
 /* On macOS we do not need specific platform headers for volk. */
 #endif
 #include "volk.h"
-using namespace VOLK_CPP_NAMESPACE;
 
 #include "GHOST_Types.hh"
 #include "GHOST_ContextVK.hh"
