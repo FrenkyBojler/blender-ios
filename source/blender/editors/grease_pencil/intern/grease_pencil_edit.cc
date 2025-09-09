@@ -4783,16 +4783,17 @@ static wmOperatorStatus grease_pencil_set_corner_type_exec(bContext *C, wmOperat
       return;
     }
 
-    bke::SpanAttributeWriter<float> miter_angles = attributes.lookup_or_add_for_write_span<float>(
-        "miter_angle",
-        bke::AttrDomain::Point,
-        bke::AttributeInitVArray(
-            VArray<float>::from_single(GP_STROKE_MITER_ANGLE_ROUND, curves.points_num())));
-
-    index_mask::masked_fill(miter_angles.span, miter_angle, selection);
-
-    miter_angles.finish();
-    changed.store(true, std::memory_order_relaxed);
+    if (bke::SpanAttributeWriter<float> miter_angles =
+            attributes.lookup_or_add_for_write_span<float>(
+                "miter_angle",
+                bke::AttrDomain::Point,
+                bke::AttributeInitVArray(
+                    VArray<float>::from_single(GP_STROKE_MITER_ANGLE_ROUND, curves.points_num()))))
+    {
+      index_mask::masked_fill(miter_angles.span, miter_angle, selection);
+      miter_angles.finish();
+      changed.store(true, std::memory_order_relaxed);
+    }
   });
 
   if (changed) {
