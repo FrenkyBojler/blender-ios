@@ -743,12 +743,12 @@ static void sample_curve_positions_and_handles(const bke::CurvesGeometry &src_cu
           dst_right[i] = insert_point.right_handle;
 
           if ((cyclic || i != 0) && dst_indices[i_prev] == src_index) {
-            /* the handles already have been scaled by `src_factor`, so we divide to remove. */
+            /* The handles already have been scaled by `src_factor`, so we divide to remove. */
             dst_left[i] = dst_pos[i] +
                           (dst_left[i] - dst_pos[i]) * (src_factor - src_factor_prev) / src_factor;
           }
           if ((cyclic || i != dst_points.size() - 1) && dst_indices[i_next] == src_index) {
-            /* the handles already have been scaled by `1.0f - src_factor`, so we divide to remove.
+            /* The handles already have been scaled by `1.0f - src_factor`, so we divide to remove.
              */
             dst_right[i] = dst_pos[i] + (dst_right[i] - dst_pos[i]) *
                                             (src_factor_next - src_factor) / (1.0f - src_factor);
