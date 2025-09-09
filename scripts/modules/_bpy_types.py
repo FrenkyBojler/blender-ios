@@ -1520,6 +1520,8 @@ class GreasePencilDrawing(_StructRNA):
 
 
 class Material(_StructRNA):
+    __slots__ = ()
+
     def inline_shader_nodes(self):
         """
         Get the inlined shader nodes of this material. This preprocesses the node tree
