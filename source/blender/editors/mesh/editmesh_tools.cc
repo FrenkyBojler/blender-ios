@@ -8491,8 +8491,7 @@ static wmOperatorStatus edbm_point_normals_modal(bContext *C, wmOperator *op, co
         params.sel_op = SEL_OP_SET;
         if (EDBM_select_pick(C, event->mval, params)) {
           /* Point to newly selected active. */
-          blender::ed::object::calc_active_transform_for_editmode(
-              obedit, false, (blender::float3 *)target);
+          blender::ed::object::calc_active_transform_for_editmode(obedit, false, target, nullptr);
           ret = OPERATOR_RUNNING_MODAL;
         }
         break;
@@ -8536,7 +8535,7 @@ static wmOperatorStatus edbm_point_normals_modal(bContext *C, wmOperator *op, co
 
           case V3D_AROUND_ACTIVE:
             if (!blender::ed::object::calc_active_transform_for_editmode(
-                    obedit, false, (blender::float3 *)target))
+                    obedit, false, target, nullptr))
             {
               copy_v3_v3(target, obedit->loc);
             }

@@ -64,8 +64,8 @@ using blender::Vector;
 static bool snap_curs_to_sel_ex(bContext *C, const int pivot_point, float r_cursor[3]);
 static bool snap_calc_active_transform(bContext *C,
                                        const bool select_only,
-                                       blender::float3 *r_center = nullptr,
-                                       blender::float3x3 *r_orientation = nullptr);
+                                       float r_center[3],
+                                       float r_orientation[3][3]);
 
 /* -------------------------------------------------------------------- */
 /** \name Snap Selection to Grid Operator
@@ -330,7 +330,7 @@ static bool snap_selected_to_location_rotation(bContext *C,
 
   if (use_offset) {
     bool res = (pivot_point == V3D_AROUND_ACTIVE) &&
-               snap_calc_active_transform(C, true, (blender::float3 *)center_global);
+               snap_calc_active_transform(C, true, center_global, nullptr);
     if (res) {
       /* pass */
     }
@@ -763,7 +763,7 @@ void VIEW3D_OT_snap_selected_to_cursor(wmOperatorType *ot)
 static wmOperatorStatus snap_selected_to_active_exec(bContext *C, wmOperator *op)
 {
   float target_loc_global[3];
-  bool res = snap_calc_active_transform(C, false, (blender::float3 *)target_loc_global);
+  bool res = snap_calc_active_transform(C, false, target_loc_global, nullptr);
   if (res == false) {
     BKE_report(op->reports, RPT_ERROR, "No active element found!");
     return OPERATOR_CANCELLED;
@@ -1037,8 +1037,8 @@ void VIEW3D_OT_snap_cursor_to_selected(wmOperatorType *ot)
  */
 static bool snap_calc_active_transform(bContext *C,
                                        const bool select_only,
-                                       blender::float3 *r_center,
-                                       blender::float3x3 *r_orientation)
+                                       float r_center[3],
+                                       float r_orientation[3][3])
 {
   Object *ob = CTX_data_active_object(C);
   if (ob == nullptr) {
@@ -1053,15 +1053,15 @@ static wmOperatorStatus snap_curs_to_active_exec(bContext *C, wmOperator *op)
   const bool is_loc_on = RNA_boolean_get(op->ptr, "location");
   const bool is_rot_on = RNA_boolean_get(op->ptr, "rotation");
   bool is_snap_done = false;
-  blender::float3 r_center;
-  blender::float3x3 r_orientation;
-  if (snap_calc_active_transform(C, false, &r_center, &r_orientation)) {
+  float center[3];
+  float orientation[3][3];
+  if (snap_calc_active_transform(C, false, center, orientation)) {
     if (is_loc_on) {
-      copy_v3_v3(scene->cursor.location, r_center);
+      copy_v3_v3(scene->cursor.location, center);
       is_snap_done = true;
     }
     if (is_rot_on) {
-      scene->cursor.set_matrix(r_orientation, false);
+      scene->cursor.set_matrix(blender::float3x3(orientation), false);
       is_snap_done = true;
     }
   }

@@ -62,10 +62,10 @@ bool material_active_index_set(Object *ob, const int index)
 
 bool calc_active_transform_for_editmode(Object *obedit,
                                         const bool select_only,
-                                        float3 *r_center,
-                                        float3x3 *r_orientation)
+                                        float r_center[3],
+                                        float r_orientation[3][3])
 {
-  // Center will be transformed to world at the end of function
+  /* The `r_center` will be transformed to world at the end of function. */
   BLI_assert(r_center || r_orientation);
   bool result = false;
   switch (obedit->type) {
@@ -75,7 +75,7 @@ bool calc_active_transform_for_editmode(Object *obedit,
 
       if (BM_select_history_active_get(em->bm, &ese)) {
         if (r_center) {
-          BM_editselection_center(&ese, *r_center);
+          BM_editselection_center(&ese, r_center);
           result = true;
         }
         if (r_orientation) {
@@ -85,7 +85,7 @@ bool calc_active_transform_for_editmode(Object *obedit,
           cross_v3_v3v3(rot[1], rot[2], rot[0]);
           mul_m3_m4m3(rot, obedit->object_to_world().ptr(), rot);
           orthogonalize_m3_stable(rot, 2, true);
-          *r_orientation = float3x3(rot);
+          copy_m3_m3(r_orientation, rot);
           result = true;
         }
       }
@@ -97,12 +97,12 @@ bool calc_active_transform_for_editmode(Object *obedit,
 
       if (ebo && (!select_only || (ebo->flag & (BONE_SELECTED | BONE_ROOTSEL)))) {
         if (r_center) {
-          *r_center = float3(ebo->head);
+          copy_v3_v3(r_center, ebo->head);
           result = true;
         }
         if (r_orientation) {
-          mul_m3_m4m4(r_orientation->ptr(), obedit->object_to_world().ptr(), ebo->disp_mat);
-          orthogonalize_m3_stable(r_orientation->ptr(), 1, true);
+          mul_m3_m4m4(r_orientation, obedit->object_to_world().ptr(), ebo->disp_mat);
+          orthogonalize_m3_stable(r_orientation, 1, true);
           result = true;
         }
       }
@@ -113,13 +113,17 @@ bool calc_active_transform_for_editmode(Object *obedit,
     case OB_SURF: {
       Curve *cu = static_cast<Curve *>(obedit->data);
 
-      if (r_center && ED_curve_active_center(cu, *r_center)) {
-        result = true;
+      if (r_center) {
+        if (ED_curve_active_center(cu, r_center)) {
+          result = true;
+        }
       }
-      if (r_orientation && ED_curve_active_rot(cu, r_orientation->ptr())) {
-        mul_m3_m4m3(r_orientation->ptr(), obedit->object_to_world().ptr(), r_orientation->ptr());
-        orthogonalize_m3_stable(r_orientation->ptr(), 1, true);
-        result = true;
+      if (r_orientation) {
+        if (ED_curve_active_rot(cu, r_orientation)) {
+          mul_m3_m4m3(r_orientation, obedit->object_to_world().ptr(), r_orientation);
+          orthogonalize_m3_stable(r_orientation, 1, true);
+          result = true;
+        }
       }
       break;
     }
@@ -129,12 +133,12 @@ bool calc_active_transform_for_editmode(Object *obedit,
 
       if (ml_act && (!select_only || (ml_act->flag & SELECT))) {
         if (r_center) {
-          copy_v3_v3(*r_center, &ml_act->x);
+          copy_v3_v3(r_center, &ml_act->x);
           result = true;
         }
         if (r_orientation) {
-          copy_m3_m4(r_orientation->ptr(), obedit->object_to_world().ptr());
-          orthogonalize_m3_stable(r_orientation->ptr(), 2, true);
+          copy_m3_m4(r_orientation, obedit->object_to_world().ptr());
+          orthogonalize_m3_stable(r_orientation, 2, true);
           result = true;
         }
       }
@@ -145,12 +149,12 @@ bool calc_active_transform_for_editmode(Object *obedit,
 
       if (actbp) {
         if (r_center) {
-          copy_v3_v3(*r_center, actbp->vec);
+          copy_v3_v3(r_center, actbp->vec);
           result = true;
         }
         if (r_orientation) {
-          copy_m3_m4(r_orientation->ptr(), obedit->object_to_world().ptr());
-          orthogonalize_m3_stable(r_orientation->ptr(), 2, true);
+          copy_m3_m4(r_orientation, obedit->object_to_world().ptr());
+          orthogonalize_m3_stable(r_orientation, 2, true);
           result = true;
         }
       }
@@ -158,39 +162,39 @@ bool calc_active_transform_for_editmode(Object *obedit,
     }
     case OB_GREASE_PENCIL: {
       if (r_center) {
-        copy_v3_v3(*r_center, obedit->loc);
-        mul_m4_v3(obedit->world_to_object().ptr(), *r_center);
+        copy_v3_v3(r_center, obedit->loc);
+        mul_m4_v3(obedit->world_to_object().ptr(), r_center);
       }
       if (r_orientation) {
-        copy_m3_m4(r_orientation->ptr(), obedit->object_to_world().ptr());
-        orthogonalize_m3_stable(r_orientation->ptr(), 2, true);
+        copy_m3_m4(r_orientation, obedit->object_to_world().ptr());
+        orthogonalize_m3_stable(r_orientation, 2, true);
         result = true;
       }
     }
   }
 
-  mul_m4_v3(obedit->object_to_world().ptr(), *r_center);
+  mul_m4_v3(obedit->object_to_world().ptr(), r_center);
 
   return result;
 }
 
 bool calc_active_transform_for_posemode(Object *ob,
                                         const bool select_only,
-                                        float3 *r_center,
-                                        float3x3 *r_orientation)
+                                        float r_center[3],
+                                        float r_orientation[3][3])
 {
   BLI_assert(r_center || r_orientation);
   bool result = false;
   bPoseChannel *pchan = BKE_pose_channel_active_if_bonecoll_visible(ob);
   if (pchan && (!select_only || (pchan->bone->flag & BONE_SELECTED))) {
     if (r_center) {
-      copy_v3_v3(*r_center, pchan->pose_head);
-      mul_m4_v3(ob->object_to_world().ptr(), *r_center);
+      copy_v3_v3(r_center, pchan->pose_head);
+      mul_m4_v3(ob->object_to_world().ptr(), r_center);
     }
     if (r_orientation) {
-      copy_m3_m4(r_orientation->ptr(), pchan->pose_mat);
-      mul_m3_m4m3(r_orientation->ptr(), ob->object_to_world().ptr(), r_orientation->ptr());
-      orthogonalize_m3_stable(r_orientation->ptr(), 1, true);
+      copy_m3_m4(r_orientation, pchan->pose_mat);
+      mul_m3_m4m3(r_orientation, ob->object_to_world().ptr(), r_orientation);
+      orthogonalize_m3_stable(r_orientation, 1, true);
       result = true;
     }
   }
@@ -199,8 +203,8 @@ bool calc_active_transform_for_posemode(Object *ob,
 
 bool calc_active_transform(Object *ob,
                            const bool select_only,
-                           float3 *r_center,
-                           float3x3 *r_orientation)
+                           float r_center[3],
+                           float r_orientation[3][3])
 {
   BLI_assert(r_center || r_orientation);
   if (ob->mode & OB_MODE_EDIT) {
@@ -212,12 +216,12 @@ bool calc_active_transform(Object *ob,
   if (!select_only || (ob->base_flag & BASE_SELECTED)) {
     bool result = false;
     if (r_center) {
-      copy_v3_v3(*r_center, ob->object_to_world().location());
+      copy_v3_v3(r_center, ob->object_to_world().location());
       result = true;
     }
     if (r_orientation) {
-      copy_m3_m4(r_orientation->ptr(), ob->object_to_world().ptr());
-      orthogonalize_m3_stable(r_orientation->ptr(), 2, true);
+      copy_m3_m4(r_orientation, ob->object_to_world().ptr());
+      orthogonalize_m3_stable(r_orientation, 2, true);
       result = true;
     }
     return result;

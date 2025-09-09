@@ -1088,14 +1088,14 @@ bool calculateCenterActive(TransInfo *t, bool select_only, float r_center[3])
     return false;
   }
   if (tc->obedit) {
-    if (object::calc_active_transform_for_editmode(tc->obedit, select_only, (float3 *)r_center)) {
+    if (object::calc_active_transform_for_editmode(tc->obedit, select_only, r_center, nullptr)) {
       return true;
     }
   }
   else if (t->options & CTX_POSE_BONE) {
     BKE_view_layer_synced_ensure(t->scene, t->view_layer);
     Object *ob = BKE_view_layer_active_object_get(t->view_layer);
-    if (object::calc_active_transform_for_posemode(ob, select_only, (float3 *)r_center)) {
+    if (object::calc_active_transform_for_posemode(ob, select_only, r_center, nullptr)) {
       return true;
     }
   }
