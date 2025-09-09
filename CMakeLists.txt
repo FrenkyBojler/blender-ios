@@ -417,6 +417,13 @@ Build with external audaspace library installed on the system \
 mark_as_advanced(WITH_AUDASPACE)
 mark_as_advanced(WITH_SYSTEM_AUDASPACE)
 
+if(WITH_AUDASPACE AND NOT WITH_SYSTEM_AUDASPACE)
+  option(WITH_RUBBERBAND "\
+  Build with Rubber Band for audio time-stretching and pitch-scaling (used by Audaspace)" 
+    ON
+  )
+endif()
+
 set_and_warn_dependency(WITH_AUDASPACE WITH_SYSTEM_AUDASPACE OFF)
 
 if(WITH_GHOST_X11)
@@ -589,11 +596,6 @@ mark_as_advanced(WITH_INSTALL_COPYRIGHT)
 if((WITH_AUDASPACE AND NOT WITH_SYSTEM_AUDASPACE) OR WITH_MOD_FLUID)
   option(WITH_PYTHON_NUMPY "Include NumPy in Blender (used by Audaspace and Mantaflow)" ON)
 endif()
-
-if(WITH_AUDASPACE AND NOT WITH_SYSTEM_AUDASPACE)
-  option(WITH_RUBBERBAND "Include Rubber Band Library for audio time-stretching and pitch-scaling (used by Audaspace)" ON)
-endif()
-
 
 if(WIN32 OR APPLE)
   # Windows and macOS have this bundled with Python libraries.
