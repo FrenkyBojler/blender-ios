@@ -381,6 +381,9 @@ static wmOperatorStatus uv_move_on_axis_exec(bContext *C, wmOperator *op)
   for (Object *obedit : objects) {
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
     bool changed = false;
+    if (em->bm->totvertsel == 0) {
+      continue;
+    }
 
     ED_uvedit_foreach_uv(scene, em->bm, true, true, [&](float luv[2]) {
       luv[int(axis)] += distance_final;
