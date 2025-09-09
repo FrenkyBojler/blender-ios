@@ -7456,7 +7456,7 @@ NODE_DEFINE(RadialTilingNode)
 {
   NodeType *type = NodeType::add("radial_tiling", create, NodeType::SHADER);
 
-  SOCKET_BOOLEAN(normalize_r_gon_parameter, "Normalize Edge Parameter", false);
+  SOCKET_BOOLEAN(normalize_r_gon_parameter, "Normalize", false);
   SOCKET_IN_POINT(vector, "Vector", zero_float3());
   SOCKET_IN_FLOAT(r_gon_sides, "Sides", 5.0f);
   SOCKET_IN_FLOAT(r_gon_roundness, "Roundness", 0.0f);
