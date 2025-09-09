@@ -834,7 +834,7 @@ static unsigned make_samples(const _Sampler &sampler,
           y = 0;
           break;
         case InterpWrapMode::Repeat:
-          y = (v > -1e6f) ? (int(v) % width + width) % width : width / 2;
+          y = (v > -1e6f) ? int(floored_fmod(v, float(width))) : width / 2;
           break;
         case InterpWrapMode::Border:
           continue;
