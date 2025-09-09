@@ -22,30 +22,21 @@ vec3 getControlPoint(int idx)
 
 void main()
 {
-  // We output TWO verts per sample: (left, right)
-  int vertex = gl_VertexID;
-  int sampleIx = vertex >> 1;                   // /2
-  int sideBit = vertex & 1;                     // 0 or 1
-  float side = mix(-1.0, 1.0, float(sideBit));  // -1 = left, +1 = right
+  int sampleIdx = gl_VertexID >> 1;
+  float side = (gl_VertexID & 1 != 0) ? -1.0 : 1.0;
 
-  // Map sampleIx -> segment index & local t in [0,1]
-  int seg = sampleIx / samplesPerSegment;  // 0..(N-2)
-  int sInSeg = sampleIx - seg * samplesPerSegment;
-  float t = float(sInSeg) / float(samplesPerSegment - 1);
+  int segmentIdx = sampleIdx / samplesPerSegment;
+  int sampleInSegment = sampleIdx - seg * samplesPerSegment;
+  float t = float(sampleInSegment) / float(samplesPerSegment - 1);
 
-  seg = clamp(seg, 0, max(0, controlPointCount - 2));
+  segmentIdx = clamp(segmentIdx, 0, max(0, controlPointCount - 2));
 
-  // Control points p0..p3 around segment [p1,p2]
-  vec3 p0 = getControlPoint(seg - 1);
-  vec3 p1 = getControlPoint(seg + 0);
-  vec3 p2 = getControlPoint(seg + 1);
-  vec3 p3 = getControlPoint(seg + 2);
+  vec3 p0 = getControlPoint(segmentIdx - 1);
+  vec3 p1 = getControlPoint(segmentIdx + 0);
+  vec3 p2 = getControlPoint(segmentIdx + 1);
+  vec3 p3 = getControlPoint(segmentIdx + 2);
 
-  // Position on curve and tangent
-  vec3 pos = catmullRom(p0, p1, p2, p3, t);
-
-  float halfW = 0.5 * width;
-  pos += side * halfW * rightVector;
+  vec3 pos = catmullRom(p0, p1, p2, p3, t) + 0.5 * width * side * rightVector;
 
   gl_Position = ModelViewProjectionMatrix * vec4(pos, 1.0);
 }
