@@ -855,7 +855,7 @@ static void write_legacy_properties(bNodeTree &ntree)
           node->custom1 = color_space_socket->default_value_typed<bNodeSocketValueMenu>()->value +
                           1;
 
-          switch (CMPNodeChannelMatteColorSpace(node->custom1)) {
+          switch (CMPNodeChannelMatteColorSpace(node->custom1 - 1)) {
             case CMP_NODE_CHANNEL_MATTE_CS_RGB: {
               bNodeSocket *channel_socket = node_find_socket(*node, SOCK_IN, "RGB Key Channel");
               node->custom2 = channel_socket->default_value_typed<bNodeSocketValueMenu>()->value +
@@ -866,16 +866,19 @@ static void write_legacy_properties(bNodeTree &ntree)
               bNodeSocket *channel_socket = node_find_socket(*node, SOCK_IN, "HSV Key Channel");
               node->custom2 = channel_socket->default_value_typed<bNodeSocketValueMenu>()->value +
                               1;
+              break;
             }
             case CMP_NODE_CHANNEL_MATTE_CS_YUV: {
               bNodeSocket *channel_socket = node_find_socket(*node, SOCK_IN, "YUV Key Channel");
               node->custom2 = channel_socket->default_value_typed<bNodeSocketValueMenu>()->value +
                               1;
+              break;
             }
             case CMP_NODE_CHANNEL_MATTE_CS_YCC: {
-              bNodeSocket *channel_socket = node_find_socket(*node, SOCK_IN, "YCC Key Channel");
+              bNodeSocket *channel_socket = node_find_socket(*node, SOCK_IN, "YCbCr Key Channel");
               node->custom2 = channel_socket->default_value_typed<bNodeSocketValueMenu>()->value +
                               1;
+              break;
             }
           }
 
@@ -883,27 +886,31 @@ static void write_legacy_properties(bNodeTree &ntree)
           storage.algorithm =
               limit_method_socket->default_value_typed<bNodeSocketValueMenu>()->value;
 
-          switch (CMPNodeChannelMatteColorSpace(node->custom1)) {
+          switch (CMPNodeChannelMatteColorSpace(node->custom1 - 1)) {
             case CMP_NODE_CHANNEL_MATTE_CS_RGB: {
               bNodeSocket *channel_socket = node_find_socket(*node, SOCK_IN, "RGB Limit Channel");
-              node->custom2 = channel_socket->default_value_typed<bNodeSocketValueMenu>()->value +
-                              1;
+              storage.channel =
+                  channel_socket->default_value_typed<bNodeSocketValueMenu>()->value + 1;
               break;
             }
             case CMP_NODE_CHANNEL_MATTE_CS_HSV: {
               bNodeSocket *channel_socket = node_find_socket(*node, SOCK_IN, "HSV Limit Channel");
-              node->custom2 = channel_socket->default_value_typed<bNodeSocketValueMenu>()->value +
-                              1;
+              storage.channel =
+                  channel_socket->default_value_typed<bNodeSocketValueMenu>()->value + 1;
+              break;
             }
             case CMP_NODE_CHANNEL_MATTE_CS_YUV: {
               bNodeSocket *channel_socket = node_find_socket(*node, SOCK_IN, "YUV Limit Channel");
-              node->custom2 = channel_socket->default_value_typed<bNodeSocketValueMenu>()->value +
-                              1;
+              storage.channel =
+                  channel_socket->default_value_typed<bNodeSocketValueMenu>()->value + 1;
+              break;
             }
             case CMP_NODE_CHANNEL_MATTE_CS_YCC: {
-              bNodeSocket *channel_socket = node_find_socket(*node, SOCK_IN, "YCC Limit Channel");
-              node->custom2 = channel_socket->default_value_typed<bNodeSocketValueMenu>()->value +
-                              1;
+              bNodeSocket *channel_socket = node_find_socket(
+                  *node, SOCK_IN, "YCbCr Limit Channel");
+              storage.channel =
+                  channel_socket->default_value_typed<bNodeSocketValueMenu>()->value + 1;
+              break;
             }
           }
         }
@@ -916,8 +923,9 @@ static void write_legacy_properties(bNodeTree &ntree)
           node->custom1 = socket->default_value_typed<bNodeSocketValueMenu>()->value;
         }
         else if (node->type_legacy == CMP_NODE_DIST_MATTE) {
+          auto &storage = *static_cast<NodeChroma *>(node->storage);
           bNodeSocket *socket = node_find_socket(*node, SOCK_IN, "Color Space");
-          node->custom1 = socket->default_value_typed<bNodeSocketValueMenu>()->value + 1;
+          storage.channel = socket->default_value_typed<bNodeSocketValueMenu>()->value + 1;
         }
         else if (node->type_legacy == CMP_NODE_COLOR_SPILL) {
           bNodeSocket *spill_channel_socket = node_find_socket(*node, SOCK_IN, "Spill Channel");

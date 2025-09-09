@@ -2041,7 +2041,7 @@ static void do_version_channel_matte_menus_to_inputs(bNodeTree &ntree, bNode &no
       ntree, node, SOCK_IN, "NodeSocketMenu", "YUV Key Channel");
   yuv_key_channel_socket.default_value_typed<bNodeSocketValueMenu>()->value = node.custom2 - 1;
   bNodeSocket &ycc_key_channel_socket = version_node_add_socket(
-      ntree, node, SOCK_IN, "NodeSocketMenu", "YCC Key Channel");
+      ntree, node, SOCK_IN, "NodeSocketMenu", "YCbCr Key Channel");
   ycc_key_channel_socket.default_value_typed<bNodeSocketValueMenu>()->value = node.custom2 - 1;
 
   bNodeSocket &limit_method_socket = version_node_add_socket(
@@ -2060,7 +2060,7 @@ static void do_version_channel_matte_menus_to_inputs(bNodeTree &ntree, bNode &no
   yuv_limit_channel_socket.default_value_typed<bNodeSocketValueMenu>()->value = storage.channel -
                                                                                 1;
   bNodeSocket &ycc_limit_channel_socket = version_node_add_socket(
-      ntree, node, SOCK_IN, "NodeSocketMenu", "YCC Limit Channel");
+      ntree, node, SOCK_IN, "NodeSocketMenu", "YCbCr Limit Channel");
   ycc_limit_channel_socket.default_value_typed<bNodeSocketValueMenu>()->value = storage.channel -
                                                                                 1;
 }
@@ -2091,9 +2091,10 @@ static void do_version_distance_matte_menus_to_inputs(bNodeTree &ntree, bNode &n
     return;
   }
 
+  auto &storage = *static_cast<NodeChroma *>(node.storage);
   bNodeSocket &socket = version_node_add_socket(
       ntree, node, SOCK_IN, "NodeSocketMenu", "Color Space");
-  socket.default_value_typed<bNodeSocketValueMenu>()->value = node.custom1 - 1;
+  socket.default_value_typed<bNodeSocketValueMenu>()->value = storage.channel - 1;
 }
 
 static void do_version_color_spill_menus_to_inputs(bNodeTree &ntree, bNode &node)
