@@ -19,6 +19,7 @@
 
 #include "DNA_mask_types.h"
 #include "DNA_sequence_types.h"
+#include "DNA_space_types.h"
 
 #include "BKE_colortools.hh"
 #include "BKE_screen.hh"
