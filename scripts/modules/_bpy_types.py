@@ -1519,7 +1519,7 @@ class GreasePencilDrawing(_StructRNA):
         return GreasePencilStrokeSlice(self, 0, num_strokes)
 
 
-class Material(_StructRNA):
+class Material(_types.ID):
     __slots__ = ()
 
     def inline_shader_nodes(self):
