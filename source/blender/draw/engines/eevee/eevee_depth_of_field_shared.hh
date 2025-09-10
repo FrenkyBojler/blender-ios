@@ -10,6 +10,7 @@
 
 #include "GPU_shader_shared_utils.hh"
 
+#include "eevee_camera_shared.hh"
 #include "eevee_defines.hh"
 
 #ifndef GPU_SHADER
