@@ -1045,11 +1045,6 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
         min=0, max=1024,
     )
 
-    use_auto_tile: BoolProperty(
-        name="Use Tiling",
-        description="Render high resolution images in tiles to reduce memory usage, using the specified tile size. Tiles are cached to disk while rendering to save memory",
-        default=True,
-    )
     tile_size: IntProperty(
         name="Tile Size",
         default=2048,
