@@ -122,11 +122,11 @@ class VIEW3D_PT_vr_viewfinder(Panel):
         layout = self.layout
         session_settings = context.window_manager.xr_session_settings
 
-        col = layout.column()
-        col.use_property_split = True
+        layout.use_property_split = True
 
-        col.prop(session_settings, "viewfinder_width", text="View Width")
-        col.prop(session_settings, "viewfinder_view_point", text ="Point of View")
+        layout.prop(session_settings, "viewfinder_hand", text="Hand", expand=True)
+        layout.prop(session_settings, "viewfinder_width", text="View Width")
+        layout.prop(session_settings, "viewfinder_view_point", text ="Viewpoint")
 
 
 # Landmarks.

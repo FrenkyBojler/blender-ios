@@ -1941,6 +1941,12 @@ static void rna_def_xr_session_settings(BlenderRNA *brna)
       {0, nullptr, 0, nullptr, nullptr},
   };
 
+  static const EnumPropertyItem viewfinder_hands[] = {
+      {XR_VIEWFINDER_HAND_LEFT, "LEFT", 0, "Left", "Display the viewfinder on the left hand controller"},
+      {XR_VIEWFINDER_HAND_RIGHT, "RIGHT", 0, "Right", "Display the viewfinder on the right hand controller"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
   static const EnumPropertyItem viewfinder_view_points[] = {
       {XR_VIEWFINDER_VIEWPOINT_SCENE_CAMERA, "SCENE_CAMERA", 0, "Scene Camera", "Active scene camera"},
       {XR_VIEWFINDER_VIEWPOINT_HANDHELD, "HANDHELD", 0, "Handheld", "Handheld camera"},
@@ -2084,6 +2090,13 @@ static void rna_def_xr_session_settings(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "viewfinder_enable", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_ui_text(prop, "Enable Viewfinder", "Enable the Location Scouting Viewfinder");
+  RNA_def_property_update(prop, NC_WM | ND_XR_DATA_CHANGED, nullptr);
+
+  prop = RNA_def_property(srna, "viewfinder_hand", PROP_ENUM, PROP_NONE);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_enum_items(prop, viewfinder_hands);
+  RNA_def_property_ui_text(
+      prop, "Viewfinder Hand", "Hand on which to display the viewfinder (left/right)");
   RNA_def_property_update(prop, NC_WM | ND_XR_DATA_CHANGED, nullptr);
 
   prop = RNA_def_property(srna, "viewfinder_view_point", PROP_ENUM, PROP_NONE);

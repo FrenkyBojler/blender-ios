@@ -89,6 +89,32 @@ void wm_xr_pose_scale_to_imat(const GHOST_XrPose *pose, float scale, float r_ima
   translate_m4(r_imat, -pose->position[0], -pose->position[1], -pose->position[2]);
 }
 
+static wmXrController *get_viewfinder_controller(const XrSessionSettings *settings,
+                                                 wmXrSessionState *state)
+{
+  const char *subaction_path;
+
+  switch (settings->viewfinder_hand) {
+    case XR_VIEWFINDER_HAND_LEFT:
+      subaction_path = "/user/hand/left";
+      break;
+    case XR_VIEWFINDER_HAND_RIGHT:
+      subaction_path = "/user/hand/right";
+      break;
+    default:
+      BLI_assert_unreachable();
+      return nullptr;
+  }
+
+  LISTBASE_FOREACH (wmXrController *, controller, &state->controllers) {
+    if (STREQ(controller->subaction_path, subaction_path)) {
+      return controller;
+    }
+  }
+
+  return nullptr;
+}
+
 static void wm_xr_draw_matrices_create(const wmXrDrawData *draw_data,
                                        const GHOST_XrDrawViewInfo *draw_view,
                                        const XrSessionSettings *session_settings,
@@ -201,22 +227,26 @@ void wm_xr_draw_view(const GHOST_XrDrawViewInfo *draw_view, void *customdata)
   Object *camera_ob = scene->camera; /* Active scene camera. */
 
   float viewfinder_viewmat[4][4], viewfinder_winmat[4][4];
-  if (settings->viewfinder_view_point == XR_VIEWFINDER_SCENE_CAMERA) {
-    invert_m4_m4(viewfinder_viewmat, camera_ob->object_to_world().ptr());
-  }
-  else if (settings->viewfinder_view_point == XR_VIEWFINDER_HANDHELD) {
-    const wmXrController *first_controller = static_cast<wmXrController *>(
-        session_state->controllers.first);
+  switch (settings->viewfinder_view_point) {
+    case XR_VIEWFINDER_VIEWPOINT_SCENE_CAMERA: {
+      invert_m4_m4(viewfinder_viewmat, camera_ob->object_to_world().ptr());
+      break;
+    }
+    case XR_VIEWFINDER_VIEWPOINT_HANDHELD: {
+      const wmXrController *viewfinder_controller = get_viewfinder_controller(settings,
+                                                                              session_state);
 
-    float handheld_mat[4][4];
-    copy_m4_m4(handheld_mat, first_controller->grip_mat);
-    rotate_m4(handheld_mat, 'X', -M_PI_2); /* Same rotation used to place the viewfinder window. */
-    translate_m4(handheld_mat, -2.5f, 0.0f, 1.2f); /* Hardcoded offset for now. */
+      float handheld_mat[4][4];
+      copy_m4_m4(handheld_mat, viewfinder_controller->grip_mat);
+      rotate_m4(
+          handheld_mat, 'X', -M_PI_2); /* Same rotation used to place the viewfinder window. */
+      translate_m4(handheld_mat, -2.5f, 0.0f, 1.2f); /* Hardcoded offset for now. */
 
-    invert_m4_m4(viewfinder_viewmat, handheld_mat);
-  }
-  else {
-    BLI_assert_unreachable();
+      invert_m4_m4(viewfinder_viewmat, handheld_mat);
+      break;
+    }
+    default:
+      BLI_assert_unreachable();
   }
 
   CameraParams params;
@@ -538,19 +568,21 @@ static void wm_xr_controller_viewfinder_draw(const XrSessionSettings *settings,
     return;
   }
 
-  /* Viewfinder */
-  /* Only draw the viewfinder on the first controller. TODO: Add a left/right hand switch. */
-  const wmXrController *first_controller = static_cast<wmXrController *>(state->controllers.first);
+  const wmXrController *viewfinder_controller = get_viewfinder_controller(settings, state);
+  if (!viewfinder_controller->grip_active) {
+    return;
+  }
 
   /* Fixed 16:9 aspect ratio for now. */
-  rctf viewfinder_rect;
-  BLI_rctf_resize(
-      &viewfinder_rect, settings->viewfinder_width, settings->viewfinder_width * 9.0f / 16.0f);
+  const float viewfinder_height = settings->viewfinder_width * 9.0f / 16.0f;
   const float viewfinder_vertical_offset = 3.5f; /* Center of the viewfinder square. */
+
+  rctf viewfinder_rect;
+  BLI_rctf_resize(&viewfinder_rect, settings->viewfinder_width, viewfinder_height);
 
   /* Initial transform setup. */
   GPU_matrix_push();
-  GPU_matrix_mul(first_controller->grip_mat);
+  GPU_matrix_mul(viewfinder_controller->grip_mat);
   GPU_matrix_scale_1f(0.05f);
   GPU_matrix_translate_3f(0.0f, 0.0f, -viewfinder_vertical_offset);
   GPU_matrix_rotate_3f(-90.0f, 1.0f, 0.0f, 0.0f);

@@ -30,15 +30,15 @@ typedef struct XrSessionSettings {
   char controller_draw_style;
 
   char viewfinder_enable;
+  char viewfinder_hand; /* #eXrSessionViewfinderHand */
   char viewfinder_view_point; /* #eXrSessionViewfinderViewPoint */
-  float viewfinder_width;
 
   /** Active/Selected Viewfinder button/mode, different paradigm as the rest of the Blender UI. */
   char viewfinder_active_mode; /* #eXrSessionViewfinderMode */
   char viewfinder_active_action_live; /* #eXrViewfinderLiveButtonState */
   char viewfinder_active_action_playback; /* #eXrViewfinderPlaybackButtonState */
 
-  char _pad2[1];
+  float viewfinder_width;
 
   /** Clipping distance. */
   float clip_start, clip_end;
@@ -67,6 +67,11 @@ typedef enum eXrSessionControllerDrawStyle {
   XR_CONTROLLER_DRAW_DARK_RAY = 2,
   XR_CONTROLLER_DRAW_LIGHT_RAY = 3,
 } eXrSessionControllerDrawStyle;
+
+typedef enum eXrSessionViewfinderHand {
+  XR_VIEWFINDER_HAND_LEFT= 0,
+  XR_VIEWFINDER_HAND_RIGHT = 1,
+} eXrSessionViewfinderHand;
 
 typedef enum eXrSessionViewfinderViewPoint {
   XR_VIEWFINDER_VIEWPOINT_SCENE_CAMERA = 0,
