@@ -1607,10 +1607,13 @@ static void IDP_DirectLinkGroup(IDProperty *prop, BlendDataReader *reader)
 
   BLO_read_struct_list(reader, IDProperty, lb);
 
+  if (!BLI_listbase_is_empty(&prop->data.group)) {
+    idp_group_children_map_ensure(*prop);
+  }
+
   /* Link child id properties now. */
   LISTBASE_FOREACH (IDProperty *, loop, &prop->data.group) {
     IDP_DirectLinkProperty(loop, reader);
-    idp_group_children_map_ensure(*prop);
     if (!prop->data.children_map->children.add(loop)) {
       CLOG_WARN(&LOG, "duplicate ID property '%s' in group", loop->name);
     }
