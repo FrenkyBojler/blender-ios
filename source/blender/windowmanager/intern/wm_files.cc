@@ -2313,7 +2313,7 @@ static bool wm_autosave_write_try(Main *bmain, wmWindowManager *wm)
 {
   if (wm->file_saved) {
     /* When file is already saved, skip creating an auto-save file, see: #146003 */
-    return false;
+    return true;
   }
 
   char filepath[FILE_MAX];
