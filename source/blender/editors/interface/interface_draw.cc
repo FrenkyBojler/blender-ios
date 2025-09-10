@@ -1629,9 +1629,9 @@ void ui_draw_but_CURVE(ARegion *region, uiBut *but, const uiWidgetColors *wcol, 
   CurveMapping *cumap = (but_cumap->edit_cumap == nullptr) ? (CurveMapping *)but->poin :
                                                              but_cumap->edit_cumap;
 
-  const bool disabled = but->flag & UI_BUT_DISABLED;
-  const uchar alpha = disabled ? 192 : 255;
-  const float float_alpha = disabled ? 0.75f : 1.0f;
+  const bool inactive = but->flag & UI_BUT_INACTIVE;
+  const uchar alpha = inactive ? 192 : 255;
+  const float float_alpha = inactive ? 0.75f : 1.0f;
 
   const float clip_size_x = BLI_rctf_size_x(&cumap->curr);
   const float clip_size_y = BLI_rctf_size_y(&cumap->curr);
@@ -1815,7 +1815,7 @@ void ui_draw_but_CURVE(ARegion *region, uiBut *but, const uiWidgetColors *wcol, 
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
   /* Curve filled. */
-  uchar filled_alpha = disabled ? 64 : 128;
+  uchar filled_alpha = inactive ? 64 : 128;
   immUniformColor3ubvAlpha(wcol->item, filled_alpha);
   immBegin(GPU_PRIM_TRI_STRIP, (CM_TABLE * 2 + 2) + 4);
   immVertex2f(pos, line_range.xmin, rect->ymin);
@@ -1849,43 +1849,46 @@ void ui_draw_but_CURVE(ARegion *region, uiBut *but, const uiWidgetColors *wcol, 
   GPU_blend(GPU_BLEND_NONE);
   immUnbindProgram();
 
-  if (!disabled) {
-    /* The points, use aspect to make them visible on edges. */
-    format = immVertexFormat();
-    pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
-    const uint col = GPU_vertformat_attr_add(
-        format, "color", blender::gpu::VertAttrType::SFLOAT_32_32_32_32);
-    const uint size = GPU_vertformat_attr_add(format, "size", blender::gpu::VertAttrType::SFLOAT_32);
-    immBindBuiltinProgram(GPU_SHADER_3D_POINT_VARYING_SIZE_VARYING_COLOR);
+  /* The points, use aspect to make them visible on edges. */
+  format = immVertexFormat();
+  pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
+  const uint col = GPU_vertformat_attr_add(
+      format, "color", blender::gpu::VertAttrType::SFLOAT_32_32_32_32);
+  const uint size = GPU_vertformat_attr_add(format, "size", blender::gpu::VertAttrType::SFLOAT_32);
+  immBindBuiltinProgram(GPU_SHADER_3D_POINT_VARYING_SIZE_VARYING_COLOR);
 
-    GPU_program_point_size(true);
+  GPU_program_point_size(true);
 
-    /* Calculate vertex colors based on text theme. */
-    float color_vert[4], color_vert_select[4];
-    UI_GetThemeColor4fv(TH_TEXT_HI, color_vert);
-    UI_GetThemeColor4fv(TH_TEXT, color_vert_select);
-    if (len_squared_v3v3(color_vert, color_vert_select) < 0.1f) {
-      interp_v3_v3v3(color_vert, color_vert_select, color_backdrop, 0.75f);
-    }
-    if (len_squared_v3(color_vert) > len_squared_v3(color_vert_select)) {
-      /* Ensure brightest text color is used for selection. */
-      swap_v3_v3(color_vert, color_vert_select);
-    }
-
-    cmp = cuma->curve;
-    const float point_size = max_ff(U.pixelsize * 3.0f,
-                                    min_ff(UI_SCALE_FAC / but->block->aspect * 6.0f, 20.0f));
-    immBegin(GPU_PRIM_POINTS, cuma->totpoint);
-    for (int a = 0; a < cuma->totpoint; a++) {
-      const float fx = rect->xmin + zoomx * (cmp[a].x - offsx);
-      const float fy = rect->ymin + zoomy * (cmp[a].y - offsy);
-      immAttr4fv(col, (cmp[a].flag & CUMA_SELECT) ? color_vert_select : color_vert);
-      immAttr1f(size, point_size);
-      immVertex2f(pos, fx, fy);
-    }
-    immEnd();
-    immUnbindProgram();
+  /* Calculate vertex colors based on text theme. */
+  float color_vert[4], color_vert_select[4];
+  UI_GetThemeColor4fv(TH_TEXT_HI, color_vert);
+  UI_GetThemeColor4fv(TH_TEXT, color_vert_select);
+  if (inactive) {
+    color_vert[3] *= float_alpha;
+    color_vert_select[3] *= float_alpha;
   }
+  if (len_squared_v3v3(color_vert, color_vert_select) < 0.1f) {
+    interp_v3_v3v3(color_vert, color_vert_select, color_backdrop, 0.75f);
+  }
+  if (len_squared_v3(color_vert) > len_squared_v3(color_vert_select)) {
+    /* Ensure brightest text color is used for selection. */
+    swap_v3_v3(color_vert, color_vert_select);
+  }
+
+  cmp = cuma->curve;
+  const float point_size = max_ff(U.pixelsize * 3.0f,
+                                  min_ff(UI_SCALE_FAC / but->block->aspect * 6.0f, 20.0f)) *
+                           float_alpha;
+  immBegin(GPU_PRIM_POINTS, cuma->totpoint);
+  for (int a = 0; a < cuma->totpoint; a++) {
+    const float fx = rect->xmin + zoomx * (cmp[a].x - offsx);
+    const float fy = rect->ymin + zoomy * (cmp[a].y - offsy);
+    immAttr4fv(col, (cmp[a].flag & CUMA_SELECT) ? color_vert_select : color_vert);
+    immAttr1f(size, point_size);
+    immVertex2f(pos, fx, fy);
+  }
+  immEnd();
+  immUnbindProgram();
 
   /* Restore scissor-test. */
   GPU_scissor(scissor[0], scissor[1], scissor[2], scissor[3]);
