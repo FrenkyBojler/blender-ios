@@ -1553,14 +1553,14 @@ class SEQUENCER_MT_modifier_add(Menu):
     MODIFIER_TYPES_I18N_CONTEXT = bpy.types.StripModifier.bl_rna.properties["type"].translation_context
 
     @classmethod
-    def operator_modifier_add(cls, layout, mod_type):
+    def operator_modifier_add(cls, layout, mod_type, icon='NONE'):
         layout.operator(
             "sequencer.strip_modifier_add",
             text=cls.MODIFIER_TYPES_TO_LABELS[mod_type],
             # Although these are operators, the label actually comes from an (enum) property,
             # so the property's translation context must be used here.
             text_ctxt=cls.MODIFIER_TYPES_I18N_CONTEXT,
-            icon='NONE',
+            icon=icon,
         ).type = mod_type
 
     def draw(self, context):
@@ -1580,13 +1580,13 @@ class SEQUENCER_MT_modifier_add(Menu):
 
         layout.operator_context = 'INVOKE_REGION_WIN'
 
-        self.operator_modifier_add(layout, 'BRIGHT_CONTRAST')
-        self.operator_modifier_add(layout, 'COLOR_BALANCE')
-        self.operator_modifier_add(layout, 'CURVES')
+        self.operator_modifier_add(layout, 'BRIGHT_CONTRAST', icon='MOD_BRIGHTNESS_CONTRAST')
+        self.operator_modifier_add(layout, 'COLOR_BALANCE', icon='MOD_COLOR_BALANCE')
+        self.operator_modifier_add(layout, 'CURVES', icon='MOD_CURVES')
         self.operator_modifier_add(layout, 'HUE_CORRECT')
-        self.operator_modifier_add(layout, 'MASK')
+        self.operator_modifier_add(layout, 'MASK', icon='MOD_MASK')
         self.operator_modifier_add(layout, 'TONEMAP')
-        self.operator_modifier_add(layout, 'WHITE_BALANCE')
+        self.operator_modifier_add(layout, 'WHITE_BALANCE', icon='MOD_WHITE_BALANCE')
         if strip.type == 'SOUND':
             self.operator_modifier_add(layout, 'SOUND_EQUALIZER')
 
