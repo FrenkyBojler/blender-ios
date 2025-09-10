@@ -458,17 +458,6 @@ static void p_chart_uv_scale(PChart *chart, const float scale)
     v->uv[1] *= scale;
   }
 }
-static void p_chart_uv_scale_nonuniform(PChart *chart, const float scale_x, const float scale_y)
-{
-  if (scale_x == 1.0f && scale_y == 1.0f) {
-    return; /* Identity transform. */
-  }
-
-  for (PVert *v = chart->verts; v; v = v->nextlink) {
-    v->uv[0] *= scale_x;
-    v->uv[1] *= scale_y;
-  }
-}
 
 static void uv_parametrizer_scale_x(ParamHandle *phandle, const float scale_x)
 {
