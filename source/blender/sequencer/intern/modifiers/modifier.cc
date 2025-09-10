@@ -19,6 +19,7 @@
 
 #include "DNA_mask_types.h"
 #include "DNA_sequence_types.h"
+#include "DNA_space_types.h"
 
 #include "BKE_colortools.hh"
 #include "BKE_screen.hh"
@@ -180,6 +181,12 @@ bool modifier_ui_poll(const bContext *C, PanelType * /*pt*/)
   Scene *sequencer_scene = CTX_data_sequencer_scene(C);
   if (!sequencer_scene) {
     return false;
+  }
+  if (const SpaceSeq *sseq = CTX_wm_space_seq(C)) {
+    /* Only show modifiers in the sequencer view types, not the preview. */
+    if (sseq->view == SEQ_VIEW_PREVIEW) {
+      return false;
+    }
   }
   Strip *active_strip = seq::select_active_get(sequencer_scene);
   return active_strip != nullptr;
@@ -624,23 +631,8 @@ void modifier_blend_write(BlendWriter *writer, ListBase *modbase)
 
     if (smti) {
       BLO_write_struct_by_name(writer, smti->struct_name, smd);
-
-      if (smd->type == eSeqModifierType_Curves) {
-        CurvesModifierData *cmd = (CurvesModifierData *)smd;
-
-        BKE_curvemapping_blend_write(writer, &cmd->curve_mapping);
-      }
-      else if (smd->type == eSeqModifierType_HueCorrect) {
-        HueCorrectModifierData *hcmd = (HueCorrectModifierData *)smd;
-
-        BKE_curvemapping_blend_write(writer, &hcmd->curve_mapping);
-      }
-      else if (smd->type == eSeqModifierType_SoundEqualizer) {
-        SoundEqualizerModifierData *semd = (SoundEqualizerModifierData *)smd;
-        LISTBASE_FOREACH (EQCurveMappingData *, eqcmd, &semd->graphics) {
-          BLO_write_struct_by_name(writer, "EQCurveMappingData", eqcmd);
-          BKE_curvemapping_blend_write(writer, &eqcmd->curve_mapping);
-        }
+      if (smti->blend_write) {
+        smti->blend_write(writer, smd);
       }
     }
     else {
@@ -658,22 +650,9 @@ void modifier_blend_read_data(BlendDataReader *reader, ListBase *lb)
       BLO_read_struct(reader, Strip, &smd->mask_strip);
     }
 
-    if (smd->type == eSeqModifierType_Curves) {
-      CurvesModifierData *cmd = (CurvesModifierData *)smd;
-
-      BKE_curvemapping_blend_read(reader, &cmd->curve_mapping);
-    }
-    else if (smd->type == eSeqModifierType_HueCorrect) {
-      HueCorrectModifierData *hcmd = (HueCorrectModifierData *)smd;
-
-      BKE_curvemapping_blend_read(reader, &hcmd->curve_mapping);
-    }
-    else if (smd->type == eSeqModifierType_SoundEqualizer) {
-      SoundEqualizerModifierData *semd = (SoundEqualizerModifierData *)smd;
-      BLO_read_struct_list(reader, EQCurveMappingData, &semd->graphics);
-      LISTBASE_FOREACH (EQCurveMappingData *, eqcmd, &semd->graphics) {
-        BKE_curvemapping_blend_read(reader, &eqcmd->curve_mapping);
-      }
+    const StripModifierTypeInfo *smti = modifier_type_info_get(smd->type);
+    if (smti && smti->blend_read) {
+      smti->blend_read(reader, smd);
     }
   }
 }
