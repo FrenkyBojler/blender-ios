@@ -1434,6 +1434,8 @@ static StructRNA *rna_StripModifier_refine(PointerRNA *ptr)
       return &RNA_CurvesModifier;
     case eSeqModifierType_HueCorrect:
       return &RNA_HueCorrectModifier;
+    case eSeqModifierType_Mask:
+      return &RNA_MaskStripModifier;
     case eSeqModifierType_BrightContrast:
       return &RNA_BrightContrastModifier;
     case eSeqModifierType_WhiteBalance:
@@ -3961,6 +3963,15 @@ static void rna_def_hue_modifier(BlenderRNA *brna)
   rna_def_modifier_panel_open_prop(srna, "open_mask_input_panel", 1);
 }
 
+static void rna_def_mask_modifier(BlenderRNA *brna)
+{
+  StructRNA *srna;
+  srna = RNA_def_struct(brna, "MaskStripModifier", "StripModifier");
+  RNA_def_struct_ui_text(srna, "Mask Modifier", "Mask modifier for sequence strip");
+
+  /* Mask properties are part of #rna_def_modifier. */
+}
+
 static void rna_def_brightcontrast_modifier(BlenderRNA *brna)
 {
   StructRNA *srna;
@@ -4059,6 +4070,7 @@ static void rna_def_modifiers(BlenderRNA *brna)
   rna_def_colorbalance_modifier(brna);
   rna_def_curves_modifier(brna);
   rna_def_hue_modifier(brna);
+  rna_def_mask_modifier(brna);
   rna_def_brightcontrast_modifier(brna);
   rna_def_whitebalance_modifier(brna);
   rna_def_tonemap_modifier(brna);
