@@ -13,6 +13,9 @@
 #include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
+#include "BLI_utildefines.h"
+#include "BLI_string_utils.hh"
+#include "BLI_string.h"
 
 #include "BKE_context.hh"
 #include "BKE_mask.h"
@@ -2005,26 +2008,20 @@ static wmOperatorStatus mask_move_to_layer_exec(bContext *C, wmOperator *op)
 {
   Mask *mask = CTX_data_edit_mask(C);
 
-  int target_layer_name_length;
-  char *target_layer_name = RNA_string_get_alloc(
-      op->ptr, "target_layer_name", nullptr, 0, &target_layer_name_length);
-  BLI_SCOPED_DEFER([&] { MEM_SAFE_FREE(target_layer_name); });
-  const bool add_new_layer = RNA_boolean_get(op->ptr, "add_new_layer");
-
-  if (add_new_layer) {
-    MaskLayer *mask_layer = BKE_mask_layer_new(mask, target_layer_name);
-    strcpy(target_layer_name, mask_layer->name);
+  MaskLayer *target_mask_layer = nullptr;
+  const std::string target_layer_name = RNA_string_get(op->ptr, "target_layer_name");
+  if (RNA_boolean_get(op->ptr, "add_new_layer")) {
+    target_mask_layer = BKE_mask_layer_new(mask, target_layer_name.c_str());
   }
-
-  MaskLayer *target_mask_layer = BKE_mask_layer_by_name(mask, target_layer_name);
-  if (target_mask_layer == nullptr) {
-    return OPERATOR_CANCELLED;
+  else {
+    target_mask_layer = BKE_mask_layer_by_name(mask, target_layer_name.c_str());
   }
-
-  /* Create a list of selected splines to move to the new layer */
-  ListBase selected_splines = {NULL, NULL};
 
   LISTBASE_FOREACH (MaskLayer *, mask_layer, &mask->masklayers) {
+    if (mask_layer == target_mask_layer ) {
+      continue;
+    }
+
     if (mask_layer->visibility_flag & (MASK_HIDE_VIEW | MASK_HIDE_SELECT)) {
       continue;
     }
@@ -2049,9 +2046,9 @@ static wmOperatorStatus mask_move_to_layer_invoke(bContext *C,
   const bool add_new_layer = RNA_boolean_get(op->ptr, "add_new_layer");
   if (add_new_layer) {
     Mask *mask = CTX_data_edit_mask(C);
-    MaskLayer *mask_layer = MEM_callocN<MaskLayer>(__func__);
-    BKE_mask_layer_unique_name(mask, mask_layer);
-    RNA_string_set(op->ptr, "target_layer_name", mask_layer->name);
+    MaskLayer mask_layer = {0};
+    BKE_mask_layer_unique_name(mask, &mask_layer);
+    RNA_string_set(op->ptr, "target_layer_name", mask_layer.name);
 
     return WM_operator_props_popup_confirm_ex(
         C, op, event, IFACE_("Move to New Layer"), IFACE_("Create"));
@@ -2061,7 +2058,7 @@ static wmOperatorStatus mask_move_to_layer_invoke(bContext *C,
    * pre-set. */
   PropertyRNA *prop = RNA_struct_find_property(op->ptr, "target_layer_name");
   if (!RNA_property_is_set(op->ptr, prop)) {
-    WM_menu_name_call(C, "MASK_MT_move_to_layer", 0);
+    WM_menu_name_call(C, "MASK_MT_move_to_layer", blender::wm::OpCallContext::InvokeDefault);
     return OPERATOR_FINISHED;
   }
 

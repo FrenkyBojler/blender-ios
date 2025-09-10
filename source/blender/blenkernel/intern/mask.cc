@@ -314,7 +314,7 @@ MaskLayer *BKE_mask_layer_active(Mask *mask)
 
 MaskLayer *BKE_mask_layer_by_name(struct Mask *mask, const char *layer_name) {
   LISTBASE_FOREACH (MaskLayer *, mask_layer, &mask->masklayers) {
-    if (strcmp(mask_layer->name, layer_name) == 0) {
+    if (STREQ(mask_layer->name, layer_name)) {
       return mask_layer;
     }
   }
@@ -442,13 +442,13 @@ MaskSpline *BKE_mask_spline_add(MaskLayer *masklay)
   return spline;
 }
 
-void BKE_mask_spline_move_to_layer(struct MaskSpline *spline,
-                                   struct MaskLayer *mask_layer,
-                                   struct MaskLayer *target_mask_layer)
+void BKE_mask_spline_move_to_layer(MaskSpline *spline,
+                                   struct MaskLayer *src_mask_layer,
+                                   struct MaskLayer *dst_mask_layer)
 {
-  if (mask_layer != target_mask_layer) {
-    BLI_remlink(&mask_layer->splines, spline);
-    BLI_addtail(&target_mask_layer->splines, spline);
+  if (src_mask_layer != dst_mask_layer) {
+    BLI_remlink(&src_mask_layer->splines, spline);
+    BLI_addtail(&dst_mask_layer->splines, spline);
   }
 }
 
