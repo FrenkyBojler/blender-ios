@@ -1990,9 +1990,6 @@ static wmOperatorStatus sequencer_box_cut_exec(bContext *C, wmOperator *op)
       }
     }
   }
-  if (!changed) {
-    return OPERATOR_CANCELLED;
-  }
   /* Remove strips that are in the cut area. */
   LISTBASE_FOREACH (Strip *, strip, ed->current_strips()) {
     rctf rq;
@@ -2012,8 +2009,14 @@ static wmOperatorStatus sequencer_box_cut_exec(bContext *C, wmOperator *op)
         }
       }
       seq::edit_remove_flagged_strips(scene, ed->current_strips());
+      changed = true;
     }
   }
+
+  if (!changed) {
+    return OPERATOR_CANCELLED;
+  }
+
   /* Close gaps. */
   if (remove_gaps) {
     LISTBASE_FOREACH (Strip *, strip, ed->current_strips()) {
