@@ -54,6 +54,8 @@
 
 namespace blender::eevee {
 
+using UniformDataBuf = draw::UniformBuffer<UniformData>;
+
 /* Combines data from several modules to avoid wasting binding slots. */
 struct UniformDataModule {
   UniformDataBuf data = {"UniformDataBuf"};

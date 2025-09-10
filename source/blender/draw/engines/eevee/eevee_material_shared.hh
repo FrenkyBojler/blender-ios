@@ -6,16 +6,9 @@
  * Shared code between host and client codebases.
  */
 
-/* __cplusplus is true when compiling with MSL, so ensure we are not inside a shader. */
-#if defined(GPU_SHADER) || defined(GLSL_CPP_STUBS)
-#  define HOST_CODE 0
-#else
-#  define HOST_CODE 1
-#endif
-
 #pragma once
 
-#if HOST_CODE
+#ifndef GPU_SHADER
 namespace blender::eevee {
 #endif
 
@@ -47,6 +40,6 @@ enum eMaterialGeometry {
   MAT_GEOM_WORLD,
 };
 
-#if HOST_CODE
+#ifndef GPU_SHADER
 }  // namespace blender::eevee
 #endif

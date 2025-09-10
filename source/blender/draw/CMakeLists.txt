@@ -515,6 +515,7 @@ set(GLSL_SRC
   engines/eevee/eevee_sampling_shared.hh
   engines/eevee/eevee_shadow_shared.hh
   engines/eevee/eevee_subsurface_shared.hh
+  engines/eevee/eevee_transform.hh
   engines/eevee/eevee_uniform_shared.hh
   engines/eevee/eevee_velocity_shared.hh
   engines/eevee/eevee_volume_shared.hh

@@ -45,6 +45,7 @@ struct DepthOfFieldBuffer {
 };
 
 using DepthOfFieldScatterListBuf = draw::StorageArrayBuffer<ScatterRect, 16, true>;
+using DepthOfFieldDataBuf = draw::UniformBuffer<DepthOfFieldData>;
 
 class DepthOfField {
 

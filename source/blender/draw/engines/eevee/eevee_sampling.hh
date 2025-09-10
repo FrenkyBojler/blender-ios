@@ -20,6 +20,8 @@ namespace blender::eevee {
 
 class Instance;
 
+using SamplingDataBuf = draw::StorageBuffer<SamplingData>;
+
 class Sampling {
  private:
   Instance &inst_;

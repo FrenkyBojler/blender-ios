@@ -26,6 +26,9 @@ class CaptureView;
 /** \name Reflection Probe Module
  * \{ */
 
+using SphereProbeDataBuf = draw::UniformArrayBuffer<SphereProbeData, SPHERE_PROBE_MAX>;
+using SphereProbeDisplayDataBuf = draw::StorageArrayBuffer<SphereProbeDisplayData>;
+
 class SphereProbeModule {
   friend LightProbeModule;
   /* Capture View requires access to the probe texture for frame-buffer configuration. */

@@ -12,6 +12,7 @@
 
 #include "DNA_scene_types.h"
 
+#include "DRW_gpu_wrapper.hh"
 #include "DRW_render.hh"
 
 #include "eevee_raytrace_shared.hh"
@@ -19,6 +20,8 @@
 namespace blender::eevee {
 
 class Instance;
+
+using RayTraceTileBuf = draw::StorageArrayBuffer<uint, 1024, true>;
 
 /* -------------------------------------------------------------------- */
 /** \name Ray-tracing Buffers

@@ -6,27 +6,13 @@
  * Shared code between host and client codebases.
  */
 
-/* __cplusplus is true when compiling with MSL, so ensure we are not inside a shader. */
-#if defined(GPU_SHADER) || defined(GLSL_CPP_STUBS)
-#  define HOST_CODE 0
-#else
-#  define HOST_CODE 1
-#endif
-
 #pragma once
 
 #include "eevee_light_shared.hh"
 #include "eevee_transform.hh"
 
-#if HOST_CODE || defined(GLSL_CPP_STUBS)
-#  include "eevee_defines.hh"
-#endif
-
-#if HOST_CODE
-#  include "DRW_gpu_wrapper.hh"
-
+#ifndef GPU_SHADER
 namespace blender::eevee {
-
 #endif
 
 /* -------------------------------------------------------------------- */
@@ -370,14 +356,6 @@ BLI_STATIC_ASSERT_ALIGN(ShadowSceneData, 16)
 
 /** \} */
 
-#if HOST_CODE
-using ShadowStatisticsBuf = draw::StorageBuffer<ShadowStatistics>;
-using ShadowPagesInfoDataBuf = draw::StorageBuffer<ShadowPagesInfoData>;
-using ShadowPageHeapBuf = draw::StorageVectorBuffer<uint, SHADOW_MAX_PAGE>;
-using ShadowPageCacheBuf = draw::StorageArrayBuffer<uint2, SHADOW_MAX_PAGE, true>;
-using ShadowTileMapDataBuf = draw::StorageVectorBuffer<ShadowTileMapData, SHADOW_MAX_TILEMAP>;
-using ShadowTileMapClipBuf = draw::StorageArrayBuffer<ShadowTileMapClip, SHADOW_MAX_TILEMAP, true>;
-using ShadowTileDataBuf = draw::StorageArrayBuffer<ShadowTileDataPacked, SHADOW_MAX_TILE, true>;
-using ShadowRenderViewBuf = draw::StorageArrayBuffer<ShadowRenderView, SHADOW_VIEW_MAX, true>;
+#ifndef GPU_SHADER
 }  // namespace blender::eevee
 #endif

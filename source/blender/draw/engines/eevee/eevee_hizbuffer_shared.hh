@@ -6,24 +6,11 @@
  * Shared code between host and client codebases.
  */
 
-/* __cplusplus is true when compiling with MSL, so ensure we are not inside a shader. */
-#if defined(GPU_SHADER) || defined(GLSL_CPP_STUBS)
-#  define HOST_CODE 0
-#else
-#  define HOST_CODE 1
-#endif
-
 #pragma once
 
-#include "eevee_transform.hh"
+#include "GPU_shader_shared_utils.hh"
 
-#if HOST_CODE || defined(GLSL_CPP_STUBS)
-#  include "eevee_defines.hh"
-#endif
-
-#if HOST_CODE
-#  include "DRW_gpu_wrapper.hh"
-
+#ifndef GPU_SHADER
 namespace blender::eevee {
 #endif
 
@@ -35,6 +22,6 @@ struct HiZData {
 };
 BLI_STATIC_ASSERT_ALIGN(HiZData, 16)
 
-#if HOST_CODE
+#ifndef GPU_SHADER
 }  // namespace blender::eevee
 #endif

@@ -6,23 +6,11 @@
  * Shared code between host and client codebases.
  */
 
-/* __cplusplus is true when compiling with MSL, so ensure we are not inside a shader. */
-
-#if defined(GPU_SHADER) || defined(GLSL_CPP_STUBS)
-#  define HOST_CODE 0
-#else
-#  define HOST_CODE 1
-#endif
-
 #pragma once
 
-#if HOST_CODE || defined(GLSL_CPP_STUBS)
-#  include "GPU_shader_shared_utils.hh"
-#endif
+#include "GPU_shader_shared_utils.hh"
 
-#if HOST_CODE
-#  include "DRW_gpu_wrapper.hh"
-
+#ifndef GPU_SHADER
 namespace blender::eevee {
 #endif
 
@@ -40,7 +28,7 @@ struct VelocityObjectIndex {
   /** Temporary index to copy this to the #VelocityIndexBuf. */
   uint resource_id;
 
-#ifdef HOST_CODE
+#ifndef GPU_SHADER
   VelocityObjectIndex() : ofs(-1, -1, -1), resource_id(-1){};
 #endif
 };
@@ -59,7 +47,7 @@ struct VelocityGeometryIndex {
 
   int _pad0;
 
-#ifdef HOST_CODE
+#ifndef GPU_SHADER
   VelocityGeometryIndex() : ofs(-1, -1, -1), do_deform(false), len(-1, -1, -1), _pad0(1){};
 #endif
 };
@@ -71,9 +59,6 @@ struct VelocityIndex {
 };
 BLI_STATIC_ASSERT_ALIGN(VelocityGeometryIndex, 16)
 
-#if HOST_CODE
-using VelocityGeometryBuf = draw::StorageArrayBuffer<float4, 16, true>;
-using VelocityIndexBuf = draw::StorageArrayBuffer<VelocityIndex, 16>;
-using VelocityObjectBuf = draw::StorageArrayBuffer<float4x4, 16>;
+#ifndef GPU_SHADER
 }  // namespace blender::eevee
 #endif

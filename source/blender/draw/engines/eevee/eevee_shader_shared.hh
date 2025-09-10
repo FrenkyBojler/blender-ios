@@ -21,7 +21,7 @@
 #  include "eevee_defines.hh"
 #endif
 
-#if !defined(GPU_SHADER) && !defined(GLSL_CPP_STUBS)
+#ifndef GPU_SHADER
 #  include "BLI_math_bits.h"
 #  include "BLI_memory_utils.hh"
 

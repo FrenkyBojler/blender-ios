@@ -6,24 +6,13 @@
  * Shared code between host and client codebases.
  */
 
-/* __cplusplus is true when compiling with MSL, so ensure we are not inside a shader. */
-#if defined(GPU_SHADER) || defined(GLSL_CPP_STUBS)
-#  define HOST_CODE 0
-#else
-#  define HOST_CODE 1
-#endif
-
 #pragma once
+
+#include "GPU_shader_shared_utils.hh"
 
 #include "eevee_camera_shared.hh"
 
-#if HOST_CODE || defined(GLSL_CPP_STUBS)
-#  include "GPU_shader_shared_utils.hh"
-#endif
-
-#if HOST_CODE
-#  include "DRW_gpu_wrapper.hh"
-
+#ifndef GPU_SHADER
 namespace blender::eevee {
 #endif
 
@@ -298,16 +287,6 @@ BLI_STATIC_ASSERT_ALIGN(SurfelListInfoData, 16)
 
 /** \} */
 
-#if HOST_CODE
-using CaptureInfoBuf = draw::StorageBuffer<CaptureInfoData>;
-using IrradianceBrickBuf = draw::StorageVectorBuffer<IrradianceBrickPacked, 16>;
-using PlanarProbeDataBuf = draw::UniformArrayBuffer<PlanarProbeData, PLANAR_PROBE_MAX>;
-using PlanarProbeDisplayDataBuf = draw::StorageArrayBuffer<PlanarProbeDisplayData>;
-using SphereProbeDataBuf = draw::UniformArrayBuffer<SphereProbeData, SPHERE_PROBE_MAX>;
-using SphereProbeDisplayDataBuf = draw::StorageArrayBuffer<SphereProbeDisplayData>;
-using SurfelBuf = draw::StorageArrayBuffer<Surfel, 64>;
-using SurfelListInfoBuf = draw::StorageBuffer<SurfelListInfoData>;
-using SurfelRadianceBuf = draw::StorageArrayBuffer<SurfelRadiance, 64>;
-using VolumeProbeDataBuf = draw::UniformArrayBuffer<VolumeProbeData, IRRADIANCE_GRID_MAX>;
+#ifndef GPU_SHADER
 }  // namespace blender::eevee
 #endif

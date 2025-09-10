@@ -6,26 +6,11 @@
  * Shared code between host and client codebases.
  */
 
-/* __cplusplus is true when compiling with MSL, so ensure we are not inside a shader. */
-
-#if defined(GPU_SHADER) || defined(GLSL_CPP_STUBS)
-#  define HOST_CODE 0
-#else
-#  define HOST_CODE 1
-#endif
-
 #pragma once
 
-#include "eevee_camera_shared.hh"
-#include "eevee_defines.hh"
+#include "GPU_shader_shared_utils.hh"
 
-#if HOST_CODE || defined(GLSL_CPP_STUBS)
-#  include "GPU_shader_shared_utils.hh"
-#endif
-
-#if HOST_CODE
-#  include "DRW_gpu_wrapper.hh"
-
+#ifndef GPU_SHADER
 namespace blender::eevee {
 #endif
 
@@ -84,7 +69,6 @@ static inline float3 burley_eval(float3 d, float r)
   return (exp_r_d + exp_r_3_d) / (4.0 * d);
 }
 
-#if HOST_CODE
-using SubsurfaceTileBuf = draw::StorageArrayBuffer<uint, 1024, true>;
+#ifndef GPU_SHADER
 }  // namespace blender::eevee
 #endif

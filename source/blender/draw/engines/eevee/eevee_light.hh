@@ -23,6 +23,8 @@
 
 #include "DNA_light_types.h"
 
+#include "DRW_gpu_wrapper.hh"
+
 #include "eevee_camera.hh"
 #include "eevee_light_shared.hh"
 #include "eevee_sampling.hh"
@@ -38,6 +40,13 @@ class ShadowPunctual;
 /* -------------------------------------------------------------------- */
 /** \name Light Object
  * \{ */
+
+using LightCullingDataBuf = draw::StorageBuffer<LightCullingData>;
+using LightCullingKeyBuf = draw::StorageArrayBuffer<uint, LIGHT_CHUNK, true>;
+using LightCullingTileBuf = draw::StorageArrayBuffer<uint, LIGHT_CHUNK, true>;
+using LightCullingZbinBuf = draw::StorageArrayBuffer<uint, CULLING_ZBIN_COUNT, true>;
+using LightCullingZdistBuf = draw::StorageArrayBuffer<float, LIGHT_CHUNK, true>;
+using LightDataBuf = draw::StorageArrayBuffer<LightData, LIGHT_CHUNK>;
 
 struct Light : public LightData, NonCopyable {
  public:

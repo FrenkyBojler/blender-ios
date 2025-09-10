@@ -25,6 +25,10 @@ class HiZBuffer;
 /** \name Planar Probe Module
  * \{ */
 
+using ClipPlaneBuf = draw::UniformBuffer<ClipPlaneData>;
+using PlanarProbeDataBuf = draw::UniformArrayBuffer<PlanarProbeData, PLANAR_PROBE_MAX>;
+using PlanarProbeDisplayDataBuf = draw::StorageArrayBuffer<PlanarProbeDisplayData>;
+
 class PlanarProbeModule {
   friend class Instance;
   friend class HiZBuffer;

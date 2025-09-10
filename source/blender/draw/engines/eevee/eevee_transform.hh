@@ -2,20 +2,11 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-/* __cplusplus is true when compiling with MSL, so ensure we are not inside a shader. */
-#if defined(GPU_SHADER) || defined(GLSL_CPP_STUBS)
-#  define HOST_CODE 0
-#else
-#  define HOST_CODE 1
-#endif
-
 #pragma once
 
-#if HOST_CODE || defined(GLSL_CPP_STUBS)
-#  include "GPU_shader_shared_utils.hh"
-#endif
+#include "GPU_shader_shared_utils.hh"
 
-#if HOST_CODE
+#ifndef GPU_SHADER
 namespace blender::eevee {
 #endif
 
@@ -26,7 +17,7 @@ struct Transform {
   /* The transform is stored transposed for compactness. */
   float4 x, y, z;
 
-#if HOST_CODE
+#ifndef GPU_SHADER
   Transform() = default;
   Transform(const float4x4 &tx)
       : x(tx[0][0], tx[1][0], tx[2][0], tx[3][0]),
@@ -79,7 +70,7 @@ static inline float3 transform_location(Transform t)
   return float3(t.x.w, t.y.w, t.z.w);
 }
 
-#if !HOST_CODE
+#ifdef GPU_SHADER
 static inline bool transform_equal(Transform a, Transform b)
 {
   return all(equal(a.x, b.x)) && all(equal(a.y, b.y)) && all(equal(a.z, b.z));
@@ -115,6 +106,6 @@ static inline float3 transform_point_inversed(Transform t, float3 point)
          (point - transform_location(t));
 }
 
-#if HOST_CODE
+#ifndef GPU_SHADER
 }  // namespace blender::eevee
 #endif

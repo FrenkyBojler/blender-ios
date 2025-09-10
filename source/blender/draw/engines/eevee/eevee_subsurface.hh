@@ -33,6 +33,8 @@ using namespace draw;
 
 class Instance;
 
+using SubsurfaceTileBuf = draw::StorageArrayBuffer<uint, 1024, true>;
+
 struct SubsurfaceModule {
  private:
   Instance &inst_;

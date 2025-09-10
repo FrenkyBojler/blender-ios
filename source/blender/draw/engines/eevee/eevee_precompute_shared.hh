@@ -6,20 +6,11 @@
  * Shared code between host and client codebases.
  */
 
-/* __cplusplus is true when compiling with MSL, so ensure we are not inside a shader. */
-#if defined(GPU_SHADER) || defined(GLSL_CPP_STUBS)
-#  define HOST_CODE 0
-#else
-#  define HOST_CODE 1
-#endif
-
 #pragma once
 
-#if HOST_CODE || defined(GLSL_CPP_STUBS)
-#  include "GPU_shader_shared_utils.hh"
-#endif
+#include "GPU_shader_shared_utils.hh"
 
-#if HOST_CODE
+#ifndef GPU_SHADER
 namespace blender::eevee {
 #endif
 
@@ -32,6 +23,6 @@ enum PrecomputeType : uint32_t {
   LUT_RANDOM_WALK_SSS_PROFILE = 4u,
 };
 
-#if HOST_CODE
+#ifndef GPU_SHADER
 }  // namespace blender::eevee
 #endif

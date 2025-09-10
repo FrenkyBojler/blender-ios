@@ -17,7 +17,6 @@
 
 #include "eevee_camera.hh"
 #include "eevee_material.hh"
-#include "eevee_shader.hh"
 #include "eevee_shadow_shared.hh"
 #include "eevee_sync.hh"
 
@@ -57,6 +56,15 @@ enum class ShadowTechnique {
    * a 3-pass solution, first clearing tiles, updating depth and storing final results. */
   TILE_COPY = 1,
 };
+
+using ShadowStatisticsBuf = draw::StorageBuffer<ShadowStatistics>;
+using ShadowPagesInfoDataBuf = draw::StorageBuffer<ShadowPagesInfoData>;
+using ShadowPageHeapBuf = draw::StorageVectorBuffer<uint, SHADOW_MAX_PAGE>;
+using ShadowPageCacheBuf = draw::StorageArrayBuffer<uint2, SHADOW_MAX_PAGE, true>;
+using ShadowTileMapDataBuf = draw::StorageVectorBuffer<ShadowTileMapData, SHADOW_MAX_TILEMAP>;
+using ShadowTileMapClipBuf = draw::StorageArrayBuffer<ShadowTileMapClip, SHADOW_MAX_TILEMAP, true>;
+using ShadowTileDataBuf = draw::StorageArrayBuffer<ShadowTileDataPacked, SHADOW_MAX_TILE, true>;
+using ShadowRenderViewBuf = draw::StorageArrayBuffer<ShadowRenderView, SHADOW_VIEW_MAX, true>;
 
 /* -------------------------------------------------------------------- */
 /** \name Tile-Map

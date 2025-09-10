@@ -42,6 +42,8 @@
 
 #pragma once
 
+#include "DRW_gpu_wrapper.hh"
+
 #include "eevee_motion_blur_shared.hh"
 #include "eevee_sampling.hh"
 
@@ -55,6 +57,9 @@ using namespace draw;
 /** \name MotionBlur
  *
  * \{ */
+
+using MotionBlurDataBuf = draw::UniformBuffer<MotionBlurData>;
+using MotionBlurTileIndirectionBuf = draw::StorageBuffer<MotionBlurTileIndirection, true>;
 
 /**
  * Manages time-steps evaluations and accumulation Motion blur.

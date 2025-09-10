@@ -6,24 +6,13 @@
  * Shared code between host and client codebases.
  */
 
-/* __cplusplus is true when compiling with MSL, so ensure we are not inside a shader. */
-#if defined(GPU_SHADER) || defined(GLSL_CPP_STUBS)
-#  define HOST_CODE 0
-#else
-#  define HOST_CODE 1
-#endif
-
 #pragma once
 
+#include "eevee_defines.hh"
 #include "eevee_transform.hh"
 
-#if HOST_CODE || defined(GLSL_CPP_STUBS)
-#  include "eevee_defines.hh"
-#endif
-
-#if HOST_CODE
+#ifndef GPU_SHADER
 #  include "BLI_math_bits.h"
-#  include "DRW_gpu_wrapper.hh"
 
 namespace blender::eevee {
 #endif
@@ -180,7 +169,7 @@ BLI_STATIC_ASSERT(sizeof(LightSunData) == sizeof(LightLocalData), "Data size mus
 /* Enable when debugging. This is quite costly. */
 #define SAFE_UNION_ACCESS 0
 
-#if HOST_CODE
+#ifndef GPU_SHADER
 /* C++ always uses union. */
 #  define USE_LIGHT_UNION 1
 #elif defined(GPU_BACKEND_METAL) && !SAFE_UNION_ACCESS
@@ -342,11 +331,11 @@ static inline float3 light_position_get(LightData light)
 #define SAFE_ASSIGN_FLOAT_AS_INT(a, b) SAFE_ASSIGN(a, FLOAT_AS_INT, float, b);
 #define SAFE_ASSIGN_INT_AS_FLOAT(a, b) SAFE_ASSIGN(a, INT_AS_FLOAT, int, b);
 
-#if !USE_LIGHT_UNION || HOST_CODE
+#if !USE_LIGHT_UNION || !defined(GPU_SHADER)
 
 /* These functions are not meant to be used in C++ code. They are only defined on the C++ side for
  * static assertions. Hide them. */
-#  if HOST_CODE
+#  if !defined(GPU_SHADER)
 namespace do_not_use {
 #  endif
 
@@ -445,7 +434,7 @@ static inline LightData light_sun_data_set(LightData light, LightSunData sun_dat
   return light;
 }
 
-#  if HOST_CODE
+#  if !defined(GPU_SHADER)
 }  // namespace do_not_use
 #  endif
 
@@ -536,12 +525,6 @@ BLI_STATIC_ASSERT_ALIGN(LightCullingData, 16)
 
 /** \} */
 
-#if HOST_CODE
-using LightCullingDataBuf = draw::StorageBuffer<LightCullingData>;
-using LightCullingKeyBuf = draw::StorageArrayBuffer<uint, LIGHT_CHUNK, true>;
-using LightCullingTileBuf = draw::StorageArrayBuffer<uint, LIGHT_CHUNK, true>;
-using LightCullingZbinBuf = draw::StorageArrayBuffer<uint, CULLING_ZBIN_COUNT, true>;
-using LightCullingZdistBuf = draw::StorageArrayBuffer<float, LIGHT_CHUNK, true>;
-using LightDataBuf = draw::StorageArrayBuffer<LightData, LIGHT_CHUNK>;
+#ifndef GPU_SHADER
 }  // namespace blender::eevee
 #endif
