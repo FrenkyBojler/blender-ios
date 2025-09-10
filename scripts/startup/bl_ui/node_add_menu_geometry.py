@@ -774,8 +774,8 @@ class NODE_MT_category_utilities_list(Menu):
     def draw(self, _context):
         layout = self.layout
         node_add_menu.add_node_type(layout, "GeometryNodeClosureToList")
+        node_add_menu.add_node_type(layout, "GeometryNodeCombineList")
         node_add_menu.add_node_type(layout, "GeometryNodeFieldToList")
-        node_add_menu.add_node_type(layout, "GeometryNodeItemsToList")
         node_add_menu.add_node_type(layout, "GeometryNodeListGetItem")
         node_add_menu.add_node_type(layout, "GeometryNodeListLength")
         node_add_menu.draw_assets_for_catalog(layout, "Utilities/List")

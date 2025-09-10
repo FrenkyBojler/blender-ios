@@ -13,7 +13,7 @@
 
 #include "node_geometry_util.hh"
 
-namespace blender::nodes::node_geo_items_to_list_cc {
+namespace blender::nodes::node_geo_combine_list_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
@@ -41,7 +41,7 @@ class SocketSearchOp {
   eNodeSocketDatatype socket_type;
   void operator()(LinkSearchOpParams &params)
   {
-    bNode &node = params.add_node("GeometryNodeItemsToList");
+    bNode &node = params.add_node("GeometryNodeCombineList");
     node.custom1 = socket_type;
     params.update_and_connect_available_socket(node, socket_name);
   }
@@ -73,13 +73,11 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   Array<int, 16> size_offset_data(inputs.values.size() + 1);
   for (const int i : inputs.values.index_range()) {
-    for (const bke::SocketValueVariant &input : inputs.values) {
-      if (input.is_list()) {
-        size_offset_data[i] = input.get<ListPtr>()->size();
-      }
-      else {
-        size_offset_data[i] = 1;
-      }
+    if (inputs.values[i].is_list()) {
+      size_offset_data[i] = inputs.values[i].get<ListPtr>()->size();
+    }
+    else {
+      size_offset_data[i] = 1;
     }
   }
 
@@ -142,8 +140,8 @@ static void node_rna(StructRNA *srna)
 static void node_register()
 {
   static blender::bke::bNodeType ntype;
-  geo_node_type_base(&ntype, "GeometryNodeItemsToList");
-  ntype.ui_name = "Items to List";
+  geo_node_type_base(&ntype, "GeometryNodeCombineList");
+  ntype.ui_name = "Combine List";
   ntype.ui_description = "Create a list of values";
   ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.geometry_node_execute = node_geo_exec;
@@ -155,4 +153,4 @@ static void node_register()
 }
 NOD_REGISTER_NODE(node_register)
 
-}  // namespace blender::nodes::node_geo_items_to_list_cc
+}  // namespace blender::nodes::node_geo_combine_list_cc
