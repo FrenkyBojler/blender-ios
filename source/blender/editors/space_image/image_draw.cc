@@ -617,7 +617,7 @@ float ED_space_image_increment_snap_value(const int grid_dimensions,
   return grid_steps[0];
 }
 
-void draw_image_uv_custom_region(ARegion *region, const rctf &custom_region)
+void draw_image_uv_custom_region(const ARegion *region, const rctf &custom_region)
 {
   const uint shdr_pos = GPU_vertformat_attr_add(
       immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
