@@ -866,7 +866,6 @@ static StringRef template_id_browse_tip(const StructRNA *type)
 
         /* Use generic text. */
       case ID_LI:
-      case ID_IP:
       case ID_KE:
       case ID_VF:
       case ID_GR:
@@ -996,7 +995,7 @@ static uiBut *template_id_def_new_but(uiBlock *block,
   }
   else {
     but = uiDefIconTextBut(
-        block, but_type, 0, icon, button_text, 0, 0, w, but_height, nullptr, 0, 0, std::nullopt);
+        block, but_type, 0, icon, button_text, 0, 0, w, but_height, nullptr, std::nullopt);
     UI_but_funcN_set(but,
                      template_id_cb,
                      MEM_new<TemplateID>(__func__, template_ui),
@@ -1327,8 +1326,6 @@ static void template_ID(const bContext *C,
                              w,
                              UI_UNIT_Y,
                              nullptr,
-                             0,
-                             0,
                              std::nullopt);
       UI_but_funcN_set(but,
                        template_id_cb,

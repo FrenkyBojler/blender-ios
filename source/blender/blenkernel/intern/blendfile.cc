@@ -982,6 +982,9 @@ static void setup_app_data(bContext *C,
   reuse_data.old_bmain = bmain;
   reuse_data.wm_setup_data = wm_setup_data;
 
+  const bool reuse_editable_assets = mode != LOAD_UNDO && !params->is_factory_settings &&
+                                     reuse_editable_asset_needed(&reuse_data);
+
   if (mode != LOAD_UNDO) {
     const short ui_id_codes[]{ID_WS, ID_SCR};
 
@@ -1008,7 +1011,7 @@ static void setup_app_data(bContext *C,
 
     BKE_main_idmap_destroy(reuse_data.id_map);
 
-    if (!params->is_factory_settings && reuse_editable_asset_needed(&reuse_data)) {
+    if (reuse_editable_assets) {
       unpin_file_local_grease_pencil_brush_materials(&reuse_data);
       /* Keep linked brush asset data, similar to UI data. Only does a known
        * subset know. Could do everything, but that risks dragging along more
@@ -1229,9 +1232,11 @@ static void setup_app_data(bContext *C,
   /* Setting scene might require having a dependency graph, with copy-on-eval
    * we need to make sure we ensure scene has correct color management before
    * constructing dependency graph. */
-  if (mode != LOAD_UNDO) {
-    IMB_colormanagement_check_file_config(bmain);
+  if (params->is_startup) {
+    IMB_colormanagement_working_space_init_startup(bmain);
   }
+  IMB_colormanagement_working_space_check(bmain, mode == LOAD_UNDO, reuse_editable_assets);
+  IMB_colormanagement_check_file_config(bmain);
 
   BKE_scene_set_background(bmain, curscene);
 
@@ -1355,9 +1360,7 @@ BlendFileData *BKE_blendfile_read(const char *filepath,
 {
   /* Don't print startup file loading. */
   if (params->is_startup == false) {
-    if (!G.quiet) {
-      CLOG_INFO_NOCHECK(&LOG_BLEND, "Read blend: \"%s\"", filepath);
-    }
+    CLOG_INFO_NOCHECK(&LOG_BLEND, "Read blend: \"%s\"", filepath);
   }
 
   BlendFileData *bfd = BLO_read_from_file(filepath, eBLOReadSkip(params->skip_flags), reports);
@@ -1636,9 +1639,7 @@ bool BKE_blendfile_userdef_write_all(ReportList *reports)
   if (cfgdir) {
     bool ok_write;
     BLI_path_join(filepath, sizeof(filepath), cfgdir->c_str(), BLENDER_USERPREF_FILE);
-    if (!G.quiet) {
-      printf("Writing userprefs: \"%s\" ", filepath);
-    }
+    CLOG_INFO_NOCHECK(&LOG_BLEND, "Writing user preferences: \"%s\" ", filepath);
     if (use_template_userpref) {
       ok_write = BKE_blendfile_userdef_write_app_template(filepath, reports);
     }
@@ -1647,15 +1648,10 @@ bool BKE_blendfile_userdef_write_all(ReportList *reports)
     }
 
     if (ok_write) {
-      if (!G.quiet) {
-        printf("ok\n");
-      }
       BKE_report(reports, RPT_INFO, "Preferences saved");
     }
     else {
-      if (!G.quiet) {
-        printf("fail\n");
-      }
+      CLOG_WARN(&LOG_BLEND, "Failed to write user preferences");
       ok = false;
       BKE_report(reports, RPT_ERROR, "Saving preferences failed");
     }
@@ -1670,18 +1666,11 @@ bool BKE_blendfile_userdef_write_all(ReportList *reports)
       /* Also save app-template preferences. */
       BLI_path_join(filepath, sizeof(filepath), cfgdir->c_str(), BLENDER_USERPREF_FILE);
 
-      if (!G.quiet) {
-        printf("Writing userprefs app-template: \"%s\" ", filepath);
-      }
+      CLOG_INFO_NOCHECK(&LOG_BLEND, "Writing user preferences app-template: \"%s\" ", filepath);
       if (BKE_blendfile_userdef_write(filepath, reports) != 0) {
-        if (!G.quiet) {
-          printf("ok\n");
-        }
       }
       else {
-        if (!G.quiet) {
-          printf("fail\n");
-        }
+        CLOG_WARN(&LOG_BLEND, "Failed to write user preferences");
         ok = false;
       }
     }

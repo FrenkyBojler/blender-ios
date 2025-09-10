@@ -254,7 +254,9 @@ set(SRC
   nodes/node_geo_xpbd_constraint_residuals.cc
 
   include/NOD_geo_bake.hh
+  include/NOD_geo_bundle.hh
   include/NOD_geo_capture_attribute.hh
+  include/NOD_geo_closure.hh
   include/NOD_geo_foreach_geometry_element.hh
   include/NOD_geo_hair_constraints.hh
   include/NOD_geo_index_switch.hh
@@ -354,16 +356,6 @@ if(WITH_GMP)
   list(APPEND LIB
     ${GMP_LIBRARIES}
   )
-endif()
-
-if(WITH_OPENVDB)
-  list(APPEND INC
-    ../../../../intern/openvdb
-  )
-  list(APPEND INC_SYS
-    ${OPENVDB_INCLUDE_DIRS}
-  )
-  add_definitions(-DWITH_OPENVDB ${OPENVDB_DEFINITIONS})
 endif()
 
 add_node_discovery(

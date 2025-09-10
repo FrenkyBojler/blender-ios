@@ -20,6 +20,7 @@ set(SRC
   intern/extract_elements.cc
   intern/fillet_curves.cc
   intern/fit_curves.cc
+  intern/foreach_geometry.cc
   intern/hair_constraints.cc
   intern/hair_simulation.cc
   intern/hair_solver.cc
@@ -67,6 +68,7 @@ set(SRC
   GEO_extract_elements.hh
   GEO_fillet_curves.hh
   GEO_fit_curves.hh
+  GEO_foreach_geometry.hh
   GEO_hair_constraint_functions.hh
   GEO_hair_constraints.hh
   GEO_hair_simulation.hh
@@ -128,20 +130,6 @@ if(WITH_UV_SLIM)
     ../../../intern/slim
   )
   add_definitions(-DWITH_UV_SLIM)
-endif()
-
-if(WITH_OPENVDB)
-  list(APPEND INC
-    ../../../intern/openvdb
-  )
-  list(APPEND INC_SYS
-    ${OPENVDB_INCLUDE_DIRS}
-  )
-  list(APPEND LIB
-    bf_intern_openvdb
-    ${OPENVDB_LIBRARIES}
-  )
-  add_definitions(-DWITH_OPENVDB ${OPENVDB_DEFINITIONS})
 endif()
 
 if(WITH_GMP)
