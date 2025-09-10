@@ -282,7 +282,7 @@ void mesh_calc_edges(Mesh &mesh,
   calc_edges::add_face_edges_to_hash_maps(mesh, parallel_mask, edge_maps);
   Array<int> edge_sizes;
   const OffsetIndices<int> edge_offsets = calc_edges::edge_map_offsets(edge_maps, edge_sizes);
-  const bool no_new_edges = edge_offsets.total_size() == mesh.edges_num;
+  const bool no_new_edges = edge_offsets.total_size() == original_unique_edge_num;
 
   MutableAttributeAccessor dst_attributes = mesh.attributes_for_write();
   dst_attributes.add<int>(".corner_edge", AttrDomain::Corner, AttributeInitConstruct());
@@ -304,6 +304,14 @@ void mesh_calc_edges(Mesh &mesh,
     return;
   }
 
+  printf("keep_existing_edges: %d;\n", int(keep_existing_edges));
+  
+  printf("mesh.corners_num: %d;\n", int(mesh.corners_num));
+  printf("mesh.edges_num: %d;\n", int(mesh.edges_num));
+  
+  printf("original_edge_maps_prefix: %d;\n", int(original_edge_maps_prefix.total_size()));
+  printf("edge_offsets: %d;\n", int(edge_offsets.total_size()));
+  
   BLI_assert_msg(keep_existing_edges || !no_new_edges,
                  "Mesh must not contain corners at this point");
 
@@ -469,42 +477,47 @@ void mesh_calc_edges(Mesh &mesh,
   BLI_assert(!corner_edges.contains(-1));
   BLI_assert(!edge_verts.contains(int2(-1)));
 
-  Mesh *edge_buffer_mesh = mesh_new_no_attributes(0, 0, 0, 0);
-  CustomData_free(&edge_buffer_mesh->edge_data);
-  CustomData_reset(&edge_buffer_mesh->edge_data);
-  edge_buffer_mesh->edges_num = mesh.edges_num;
-  CustomData_init_from(
-      &mesh.edge_data, &edge_buffer_mesh->edge_data, CD_MASK_MESH.emask, mesh.edges_num);
-
-  CustomData_free(&mesh.edge_data);
-  CustomData_reset(&mesh.edge_data);
-  mesh.edges_num = result_edges_num;
-
-  const AttributeAccessor src_attributes = edge_buffer_mesh->attributes();
-
   BLI_assert(src_to_dst_mask.size() + back_range_of_new_edges.size() == result_edges_num);
   BLI_assert(back_range_of_new_edges.one_after_last() == result_edges_num);
 
-  /* Static storage to extend life-time of strings for reference filter. */
-  constexpr std::array<StringRef, 2> skip = {".edge_verts", ".select_edge"};
-  const auto edge_attribute_filer = bke::attribute_filter_with_skip_ref(attribute_filter, skip);
+  CustomData_free_layer_named(&mesh.edge_data, ".edge_verts");
+  CustomData_free_layer_named(&mesh.edge_data, ".select_edge");
+  for (CustomDataLayer &layer : MutableSpan(mesh.edge_data.layers, mesh.edge_data.totlayer)) {
+    const void *src_data = layer.data;
+    const size_t elem_size = CustomData_sizeof(eCustomDataType(layer.type));
 
-  gather_attributes(src_attributes,
-                    AttrDomain::Edge,
-                    AttrDomain::Edge,
-                    edge_attribute_filer,
-                    src_to_dst_mask,
-                    dst_attributes);
+    void *dst_data = MEM_malloc_arrayN(result_edges_num, elem_size, AT);
+    if (layer.type == CD_ORIGINDEX) {
+      const Span src(static_cast<const int *>(src_data), mesh.edges_num);
+      MutableSpan dst(static_cast<int *>(dst_data), result_edges_num);
+      array_utils::gather(src, src_to_dst_mask, dst.take_front(src_to_dst_mask.size()));
+      dst.slice(back_range_of_new_edges).fill(-1);
+    }
+    else {
+      const CPPType *type = custom_data_type_to_cpp_type(eCustomDataType(layer.type));
+      BLI_assert(type != nullptr);
+      const GSpan src(type, src_data, mesh.edges_num);
+      GMutableSpan dst(type, dst_data, result_edges_num);
+      array_utils::gather(src, src_to_dst_mask, dst.take_front(src_to_dst_mask.size()));
+      type->fill_assign_n(type->default_value(),
+                          dst.slice(back_range_of_new_edges).data(),
+                          dst.slice(back_range_of_new_edges).size());
+    }
 
-  fill_attribute_range_default(
-      dst_attributes, AttrDomain::Edge, edge_attribute_filer, back_range_of_new_edges);
+    if (layer.sharing_info != nullptr) {
+      layer.sharing_info->remove_user_and_delete_if_last();
+    }
+    layer.data = dst_data;
+    layer.sharing_info = implicit_sharing::info_for_mem_free(dst_data);
+  }
 
-  BKE_id_free(nullptr, edge_buffer_mesh);
+  mesh.edges_num = result_edges_num;
 
   dst_attributes.add<int2>(
       ".edge_verts", AttrDomain::Edge, AttributeInitMoveArray(edge_verts.data()));
 
   if (select_new_edges) {
+    /* TODO: Check for ranges. */
     SpanAttributeWriter<bool> select_edge = dst_attributes.lookup_or_add_for_write_span<bool>(
         ".select_edge", AttrDomain::Edge);
     select_edge.span.drop_back(back_range_of_new_edges.size()).fill(false);
