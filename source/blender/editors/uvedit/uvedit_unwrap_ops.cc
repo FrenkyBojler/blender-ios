@@ -2789,7 +2789,7 @@ void ED_uvedit_live_unwrap(const Scene *scene, const Span<Object *> objects)
     pack_island_params.margin = scene->toolsettings->uvcalc_margin;
 
     uvedit_pack_islands_multi(
-        scene, objects, nullptr, nullptr, false, false, nullptr, &pack_island_params);
+        scene, objects, nullptr, nullptr, false, true, nullptr, &pack_island_params);
   }
 }
 
@@ -2891,7 +2891,7 @@ static wmOperatorStatus unwrap_exec(bContext *C, wmOperator *op)
   pack_island_params.margin = RNA_float_get(op->ptr, "margin");
 
   uvedit_pack_islands_multi(
-      scene, objects, nullptr, nullptr, false, false, nullptr, &pack_island_params);
+      scene, objects, nullptr, nullptr, false, true, nullptr, &pack_island_params);
 
   if (count_failed == 0 && count_changed == 0) {
     BKE_report(op->reports,
@@ -3351,7 +3351,7 @@ static wmOperatorStatus smart_project_exec(bContext *C, wmOperator *op)
     params.margin = RNA_float_get(op->ptr, "island_margin");
 
     uvedit_pack_islands_multi(
-        scene, objects_changed, nullptr, nullptr, false, false, nullptr, &params);
+        scene, objects_changed, nullptr, nullptr, false, true, nullptr, &params);
 
     /* #uvedit_pack_islands_multi only supports `per_face_aspect = false`. */
     const bool per_face_aspect = false;
@@ -4330,7 +4330,7 @@ void ED_uvedit_add_simple_uvs(Main *bmain, const Scene *scene, Object *ob)
   params.margin_method = ED_UVPACK_MARGIN_SCALED;
   params.margin = 0.001f;
 
-  uvedit_pack_islands_multi(scene, {ob}, &bm, nullptr, false, false, nullptr, &params);
+  uvedit_pack_islands_multi(scene, {ob}, &bm, nullptr, false, true, nullptr, &params);
 
   /* Write back from BMesh to Mesh. */
   BMeshToMeshParams bm_to_me_params{};
