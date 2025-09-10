@@ -7814,7 +7814,7 @@ static void def_closure_output(BlenderRNA *brna, StructRNA *srna)
                            "This zone defines a closure type that should be used by other nodes");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_flag(prop, PROP_NO_DEG_UPDATE);
-  RNA_def_property_update(prop, NC_NODE, nullptr);
+  RNA_def_property_update(prop, NC_NODE, "rna_Node_update");
 }
 
 static void rna_def_geo_capture_attribute_item(BlenderRNA *brna)
@@ -8012,7 +8012,7 @@ static void def_evaluate_closure(BlenderRNA *brna, StructRNA *srna)
                            "This node defines a closure type that should be used by other nodes");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_flag(prop, PROP_NO_DEG_UPDATE);
-  RNA_def_property_update(prop, NC_NODE, nullptr);
+  RNA_def_property_update(prop, NC_NODE, "rna_Node_update");
 }
 
 static void rna_def_geo_bake_item(BlenderRNA *brna)
@@ -8155,7 +8155,7 @@ static void def_combine_bundle(BlenderRNA *brna, StructRNA *srna)
                            "This node defines a bundle type that should be used by other nodes");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_flag(prop, PROP_NO_DEG_UPDATE);
-  RNA_def_property_update(prop, NC_NODE, nullptr);
+  RNA_def_property_update(prop, NC_NODE, "rna_Node_update");
 }
 
 static void rna_def_separate_bundle_item(BlenderRNA *brna)
@@ -8223,7 +8223,7 @@ static void def_separate_bundle(BlenderRNA *brna, StructRNA *srna)
                            "This node defines a bundle type that should be used by other nodes");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_flag(prop, PROP_NO_DEG_UPDATE);
-  RNA_def_property_update(prop, NC_NODE, nullptr);
+  RNA_def_property_update(prop, NC_NODE, "rna_Node_update");
 }
 
 static void rna_def_index_switch_item(BlenderRNA *brna)

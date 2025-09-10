@@ -8,13 +8,17 @@
 
 #include "BKE_node.hh"
 
+#include "NOD_node_in_compute_context.hh"
+
 namespace blender::nodes {
 
 struct BundleSignature {
   struct Item {
     std::string key;
     const bke::bNodeSocketType *type = nullptr;
-    StructureType structure_type = StructureType::Dynamic;
+    NodeSocketInterfaceStructureType structure_type;
+
+    BLI_STRUCT_EQUALITY_OPERATORS_3(Item, key, type, structure_type);
   };
 
   struct ItemKeyGetter {
@@ -26,12 +30,30 @@ struct BundleSignature {
 
   CustomIDVectorSet<Item, ItemKeyGetter> items;
 
-  bool matches_exactly(const BundleSignature &other) const;
+  friend bool operator==(const BundleSignature &a, const BundleSignature &b);
+  friend bool operator!=(const BundleSignature &a, const BundleSignature &b);
 
-  static bool all_matching_exactly(const Span<BundleSignature> signatures);
+  static BundleSignature from_combine_bundle_node(const bNode &node,
+                                                  bool allow_auto_structure_type);
+  static BundleSignature from_separate_bundle_node(const bNode &node,
+                                                   bool allow_auto_structure_type);
 
-  static BundleSignature from_combine_bundle_node(const bNode &node);
-  static BundleSignature from_separate_bundle_node(const bNode &node);
+  void set_auto_structure_types();
+};
+
+/**
+ * Multiple bundle signatures that may be linked to a single node.
+ */
+struct LinkedBundleSignatures {
+  struct Item {
+    BundleSignature signature;
+    bool is_type_definition = false;
+    SocketInContext socket;
+  };
+  Vector<Item> items;
+  bool has_type_definition() const;
+
+  std::optional<BundleSignature> get_merged_signature() const;
 };
 
 }  // namespace blender::nodes
