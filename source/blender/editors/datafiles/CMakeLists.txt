@@ -612,6 +612,7 @@ if(WITH_BLENDER)
       mod_thickness
       mod_time
       mod_tint
+      mod_tonemap
       mod_triangulate
       mod_uvproject
       mod_vertex_weight

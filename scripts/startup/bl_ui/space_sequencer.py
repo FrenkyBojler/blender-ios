@@ -1585,7 +1585,7 @@ class SEQUENCER_MT_modifier_add(Menu):
         self.operator_modifier_add(layout, 'CURVES', icon='MOD_CURVES')
         self.operator_modifier_add(layout, 'HUE_CORRECT')
         self.operator_modifier_add(layout, 'MASK', icon='MOD_MASK')
-        self.operator_modifier_add(layout, 'TONEMAP')
+        self.operator_modifier_add(layout, 'TONEMAP', icon='MOD_TONEMAP')
         self.operator_modifier_add(layout, 'WHITE_BALANCE', icon='MOD_WHITE_BALANCE')
         if strip.type == 'SOUND':
             self.operator_modifier_add(layout, 'SOUND_EQUALIZER')
