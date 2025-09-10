@@ -45,7 +45,7 @@ struct EffectInfo {
   {eSeqModifierType_BrightContrast, "BRIGHT_CONTRAST", ICON_MOD_BRIGHTNESS_CONTRAST, "Brightness/Contrast", ""}, \
   {eSeqModifierType_ColorBalance, "COLOR_BALANCE", ICON_MOD_COLOR_BALANCE, "Color Balance", ""}, \
   {eSeqModifierType_Curves, "CURVES", ICON_MOD_CURVES, "Curves", ""}, \
-  {eSeqModifierType_HueCorrect, "HUE_CORRECT", ICON_NONE, "Hue Correct", ""}, \
+  {eSeqModifierType_HueCorrect, "HUE_CORRECT", ICON_MOD_HUE_CORRECT, "Hue Correct", ""}, \
   {eSeqModifierType_Mask, "MASK", ICON_MOD_MASK, "Mask", ""}, \
   {eSeqModifierType_Tonemap, "TONEMAP", ICON_MOD_TONEMAP, "Tone Map", ""}, \
   {eSeqModifierType_WhiteBalance, "WHITE_BALANCE", ICON_MOD_WHITE_BALANCE, "White Balance", ""}
@@ -3949,6 +3949,7 @@ static void rna_def_hue_modifier(BlenderRNA *brna)
 
   srna = RNA_def_struct(brna, "HueCorrectModifier", "StripModifier");
   RNA_def_struct_sdna(srna, "HueCorrectModifierData");
+  RNA_def_struct_ui_icon(srna, ICON_MOD_HUE_CORRECT);
   RNA_def_struct_ui_text(srna, "HueCorrectModifier", "Hue correction modifier for sequence strip");
 
   prop = RNA_def_property(srna, "curve_mapping", PROP_POINTER, PROP_NONE);

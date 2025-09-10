@@ -581,6 +581,7 @@ if(WITH_BLENDER)
       mod_explode
       mod_fluid
       mod_fluidsim
+      mod_hue_correct
       mod_hue_saturation
       mod_instance
       mod_lattice
