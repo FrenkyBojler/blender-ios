@@ -206,6 +206,9 @@ static void material_blend_write(BlendWriter *writer, ID *id, const void *id_add
   ma->texpaintslot = nullptr;
   BLI_listbase_clear(&ma->gpumaterial);
 
+  /* Set deprecated #use_nodes for forward compatibility. */
+  ma->use_nodes = true;
+
   /* write LibData */
   BLO_write_id_struct(writer, Material, id_address, &ma->id);
   BKE_id_blend_write(writer, &ma->id);
