@@ -7456,12 +7456,12 @@ NODE_DEFINE(RadialTilingNode)
 {
   NodeType *type = NodeType::add("radial_tiling", create, NodeType::SHADER);
 
-  SOCKET_BOOLEAN(normalize_r_gon_parameter, "Normalize", false);
+  SOCKET_BOOLEAN(use_normalize, "Normalize", false);
   SOCKET_IN_POINT(vector, "Vector", zero_float3());
   SOCKET_IN_FLOAT(r_gon_sides, "Sides", 5.0f);
   SOCKET_IN_FLOAT(r_gon_roundness, "Roundness", 0.0f);
 
-  SOCKET_OUT_POINT(segment_coordinate, "Segment Coordinate");
+  SOCKET_OUT_POINT(segment_coordinates, "Segment Coordinates");
   SOCKET_OUT_FLOAT(segment_id, "Segment ID");
   SOCKET_OUT_FLOAT(max_unit_parameter, "Segment Width");
   SOCKET_OUT_FLOAT(x_axis_A_angle_bisector, "Segment Rotation");
@@ -7477,13 +7477,13 @@ void RadialTilingNode::compile(SVMCompiler &compiler)
   ShaderInput *r_gon_sides_in = input("Sides");
   ShaderInput *r_gon_roundness_in = input("Roundness");
 
-  ShaderOutput *segment_coordinates_out = output("Segment Coordinate");
+  ShaderOutput *segment_coordinates_out = output("Segment Coordinates");
   ShaderOutput *segment_id_out = output("Segment ID");
   ShaderOutput *max_unit_parameter_out = output("Segment Width");
   ShaderOutput *x_axis_A_angle_bisector_out = output("Segment Rotation");
 
   compiler.add_node(NODE_RADIAL_TILING,
-                    normalize_r_gon_parameter,
+                    use_normalize,
                     compiler.encode_uchar4(compiler.stack_assign(vector_in),
                                            compiler.stack_assign(r_gon_sides_in),
                                            compiler.stack_assign(r_gon_roundness_in),
@@ -7495,7 +7495,7 @@ void RadialTilingNode::compile(SVMCompiler &compiler)
 
 void RadialTilingNode::compile(OSLCompiler &compiler)
 {
-  compiler.parameter(this, "normalize_r_gon_parameter");
+  compiler.parameter(this, "use_normalize");
   compiler.add(this, "node_radial_tiling");
 }
 

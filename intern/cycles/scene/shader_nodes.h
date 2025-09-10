@@ -1681,7 +1681,7 @@ class RadialTilingNode : public ShaderNode {
  public:
   SHADER_NODE_CLASS(RadialTilingNode)
 
-  NODE_SOCKET_API(bool, normalize_r_gon_parameter)
+  NODE_SOCKET_API(bool, use_normalize)
   NODE_SOCKET_API(float3, vector)
   NODE_SOCKET_API(float, r_gon_sides)
   NODE_SOCKET_API(float, r_gon_roundness)

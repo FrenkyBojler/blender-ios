@@ -6005,7 +6005,7 @@ static void def_sh_radial_tiling(BlenderRNA * /*brna*/, StructRNA *srna)
   RNA_def_property_ui_text(
       prop,
       "Normalize",
-      "Normalize the X coordinate of the Segment Coordinate output to a [0, 1] interval and "
+      "Normalize the X coordinate of the Segment Coordinates output to a [0, 1] interval and "
       "offset the Y coordinate into a [0, infinity) interval. When checked, the textures are "
       "stretched to fit into each angular segment. When not checked, the parts of the textures "
       "that don't fit into each angular segment are cropped");
