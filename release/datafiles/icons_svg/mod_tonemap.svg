@@ -20,14 +20,12 @@
        style="opacity:1">
       <path
          style="baseline-shift:baseline;display:inline;overflow:visible;opacity:1;vector-effect:none;stroke-linecap:round;stroke-linejoin:round;enable-background:accumulate;stop-color:#000000;stop-opacity:1"
-         d="m 1259.7148,-282.38281 c -0.1781,5.1e-4 -0.3425,0.0957 -0.4316,0.25 l -3.2363,5.60547 c -0.1925,0.33356 0.048,0.75039 0.4336,0.75 h 6.4707 c 0.3851,3.9e-4 0.6261,-0.41644 0.4336,-0.75 l -3.2364,-5.60547 c -0.089,-0.15487 -0.2548,-0.2502 -0.4336,-0.25 z"
-         id="path12"
-         transform="translate(-0.45090507,-2.2250526)" />
+         d="m 1259.2639,-287.60827 c -0.1781,5.1e-4 -0.3425,0.0957 -0.4316,0.25 l -3.2363,5.60547 c -0.1925,0.33356 0.048,0.75039 0.4336,0.75 h 6.4707 c 0.3851,3.9e-4 0.6261,-0.41644 0.4336,-0.75 l -3.2364,-5.60547 c -0.089,-0.15487 -0.2548,-0.2502 -0.4336,-0.25 z"
+         id="path12" />
       <path
          id="path13"
-         style="baseline-shift:baseline;display:inline;overflow:visible;opacity:0.6;vector-effect:none;stroke-linecap:round;stroke-linejoin:round;enable-background:accumulate;stop-color:#000000;stop-opacity:1"
-         d="m 1259.7106,-284.16523 c 0.11,0.008 0.209,0.0696 0.264,0.16523 l 1.4903,2.58289 -0.3825,0.66251 -1.3949,-2.41532 -2.6621,4.60936 h 2.7903 l -0.095,0.16369 c -0.1275,0.22095 0.032,0.49705 0.2872,0.49681 l -3.5572,0.002 c -0.2545,-1.5e-4 -0.4138,-0.27534 -0.2871,-0.49609 L 1259.4004,-284 c 0.063,-0.10992 0.1837,-0.17407 0.3102,-0.16523 z"
-         transform="matrix(1.5096437,0,0,1.5096437,-647.29385,141.52769)" />
+         style="baseline-shift:baseline;display:inline;overflow:visible;opacity:0.6;vector-effect:none;stroke-width:1.50964;stroke-linecap:round;stroke-linejoin:round;enable-background:accumulate;stop-color:#000000;stop-opacity:1"
+         d="m 1254.4203,-290.46097 c 0.1661,0.0121 0.3155,0.10507 0.3986,0.24944 l 2.2498,3.89924 -0.5774,1.00016 -2.1059,-3.64628 -4.0188,6.9585 h 4.2124 l -0.1434,0.24711 c -0.1925,0.33355 0.048,0.75037 0.4335,0.75001 l -5.3701,0.003 c -0.3842,-2.2e-4 -0.6247,-0.41566 -0.4334,-0.74891 l 4.8864,-8.46284 c 0.095,-0.16594 0.2774,-0.26278 0.4683,-0.24944 z" />
     </g>
   </g>
 </svg>
