@@ -784,7 +784,9 @@ class Preprocessor {
                             const Scope init,
                             const Scope cond,
                             const Scope iter,
-                            const Scope body) {
+                            const Scope body,
+                            const string body_prefix = "",
+                            const string body_suffix = "") {
       /* Check that there is no unsupported keywords in the loop body. */
       bool error = false;
       /* Checks if `continue` exists, even in switch statement inside the unrolled loop. */
@@ -828,13 +830,13 @@ class Preprocessor {
 
       /* If possible, replaces the index of the loop iteration inside the given string. */
       auto replace_index = [&](const string &str, int loop_index) {
-        if (iter.is_invalid() || !iteration_is_trivial) {
+        if (iter.is_invalid() || !iteration_is_trivial || str.empty()) {
           return str;
         }
         Parser str_parser(str, report_error);
         str_parser.foreach_token(Word, [&](const Token tok) {
           if (tok.str() == iter[0].str()) {
-            str_parser.replace(tok, std::to_string(loop_index));
+            str_parser.replace(tok, std::to_string(loop_index), true);
           }
         });
         return str_parser.result_get();
@@ -853,8 +855,10 @@ class Preprocessor {
           parser.insert_line_number(body.end(), cond.start().line_number());
           parser.insert_after(body.end(), indent_cond + "if(" + cond.str() + ")\n");
         }
+        parser.insert_after(body.end(), replace_index(body_prefix, value));
         parser.insert_line_number(body.end(), body.start().line_number());
         parser.insert_after(body.end(), indent_body + replace_index(body.str(), value) + "\n");
+        parser.insert_after(body.end(), body_suffix);
         if (iter.is_valid() && !iteration_is_trivial) {
           parser.insert_line_number(body.end(), iter.start().line_number());
           parser.insert_after(body.end(), indent_iter + iter.str() + ";\n");
@@ -963,6 +967,9 @@ class Preprocessor {
 
       /* [[gpu::unroll(n)]]. */
       parser.foreach_match("[[w::w(0)]]f(..){..}", [&](const std::vector<Token> tokens) {
+        if (tokens[5].str() != "unroll") {
+          return;
+        }
         const Scope loop_args = tokens[12].scope();
         const Scope loop_body = tokens[16].scope();
 
@@ -972,6 +979,53 @@ class Preprocessor {
         int iter_count = std::stol(tokens[7].str());
 
         process_loop(tokens[0], iter_count, 0, 0, false, false, init, cond, iter, loop_body);
+      });
+
+      /* [[gpu::unroll_define(max_n)]]. */
+      parser.foreach_match("[[w::w(0)]]f(..){..}", [&](const std::vector<Token> tokens) {
+        if (tokens[5].str() != "unroll_define") {
+          return;
+        }
+        const Scope loop_args = tokens[12].scope();
+        const Scope loop_body = tokens[16].scope();
+
+        /* Validate format. */
+        Token define_name = Token::invalid();
+        Token iter_var = Token::invalid();
+        loop_args.foreach_match("ww=0;w<w;wP", [&](const std::vector<Token> tokens) {
+          if (tokens[1].str() != tokens[5].str() || tokens[5].str() != tokens[9].str()) {
+            return;
+          }
+          iter_var = tokens[1];
+          define_name = tokens[7];
+        });
+
+        if (define_name.is_invalid()) {
+          report_error(ERROR_TOK(loop_args.start()),
+                       "Incompatible loop format for [[gpu::unroll_define(max_n)]], expected "
+                       "'(int i = 0; i < DEFINE; i++)'");
+          return;
+        }
+
+        Scope init, cond, iter;
+        parse_for_args(loop_args, init, cond, iter);
+
+        int iter_count = std::stol(tokens[7].str());
+
+        string body_prefix = "#if " + define_name.str() + " > " + iter_var.str() + "\n";
+
+        process_loop(tokens[0],
+                     iter_count,
+                     0,
+                     1,
+                     true,
+                     true,
+                     init,
+                     cond,
+                     iter,
+                     loop_body,
+                     body_prefix,
+                     "#endif\n");
       });
     } while (parser.apply_mutations());
 
