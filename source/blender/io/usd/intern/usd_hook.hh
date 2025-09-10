@@ -21,9 +21,9 @@ class USDStageReader;
 void register_hook_converters();
 
 /** Call the 'on_export' chaser function defined in the registered #USDHook classes. */
-void call_export_hooks(pxr::UsdStageRefPtr stage,  
+void call_export_hooks(pxr::UsdStageRefPtr stage,
                        const USDExportParams &export_params,
-                       Depsgraph *depsgraph, 
+                       Depsgraph *depsgraph,
                        ReportList *reports);
 
 /** Call the 'on_material_export' hook functions defined in the registered #USDHook classes. */
@@ -34,9 +34,10 @@ void call_material_export_hooks(pxr::UsdStageRefPtr stage,
                                 ReportList *reports);
 
 /** Call the 'on_import' chaser function defined in the registered USDHook classes. */
-void call_import_hooks(USDStageReader *archive,
-                       const USDImportParams &import_params, // TODO: is it worth finagling this into a const?
-                       ReportList *reports);
+void call_import_hooks(
+    USDStageReader *archive,
+    const USDImportParams &import_params,  // TODO: is it worth finagling this into a const?
+    ReportList *reports);
 
 /** Returns true if there is a registered #USDHook class that can convert the given material. */
 bool have_material_import_hook(pxr::UsdStageRefPtr stage,

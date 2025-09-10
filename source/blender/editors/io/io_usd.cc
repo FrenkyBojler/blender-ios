@@ -30,8 +30,8 @@
 #  include "RNA_access.hh"
 #  include "RNA_define.hh"
 #  include "RNA_enum_types.hh"
-#  include "RNA_prototypes.hh"
 #  include "RNA_path.hh"
+#  include "RNA_prototypes.hh"
 
 #  include "UI_interface.hh"
 #  include "UI_interface_layout.hh"
@@ -52,7 +52,7 @@
 #  include <string>
 #  include <utility>
 
-#include <fmt/format.h>
+#  include <fmt/format.h>
 
 using namespace blender::io::usd;
 
@@ -544,23 +544,51 @@ static void wm_usd_export_draw(bContext *C, wmOperator *op)
       Collection *collection = CTX_data_collection(C);
       const int from = collection->active_exporter_index;
 
-      op_ptr = col->op("UI_OT_usd_hook_handle_add", "", ICON_ADD, blender::wm::OpCallContext::InvokeDefault, UI_ITEM_NONE);
-      RNA_string_set(&op_ptr, "list_path",  fmt::format("collection.exporters[{}].export_properties.hooks", from).c_str());
-      RNA_string_set(&op_ptr, "index_path", fmt::format("collection.exporters[{}].export_properties.hook_index", from).c_str());
+      op_ptr = col->op("UI_OT_usd_hook_handle_add",
+                       "",
+                       ICON_ADD,
+                       blender::wm::OpCallContext::InvokeDefault,
+                       UI_ITEM_NONE);
+      RNA_string_set(
+          &op_ptr,
+          "list_path",
+          fmt::format("collection.exporters[{}].export_properties.hooks", from).c_str());
+      RNA_string_set(
+          &op_ptr,
+          "index_path",
+          fmt::format("collection.exporters[{}].export_properties.hook_index", from).c_str());
 
       op_ptr = col->op("UI_OT_usd_hook_handle_remove", "", ICON_REMOVE);
-      RNA_string_set(&op_ptr, "list_path",  fmt::format("collection.exporters[{}].export_properties.hooks", from).c_str());
-      RNA_string_set(&op_ptr, "index_path", fmt::format("collection.exporters[{}].export_properties.hook_index", from).c_str());
+      RNA_string_set(
+          &op_ptr,
+          "list_path",
+          fmt::format("collection.exporters[{}].export_properties.hooks", from).c_str());
+      RNA_string_set(
+          &op_ptr,
+          "index_path",
+          fmt::format("collection.exporters[{}].export_properties.hook_index", from).c_str());
       RNA_int_set(&op_ptr, "index", from);
 
       op_ptr = col->op("UI_OT_usd_hook_handle_move", "", ICON_TRIA_UP);
-      RNA_string_set(&op_ptr, "list_path",  fmt::format("collection.exporters[{}].export_properties.hooks", from).c_str());
-      RNA_string_set(&op_ptr, "index_path", fmt::format("collection.exporters[{}].export_properties.hook_index", from).c_str());
+      RNA_string_set(
+          &op_ptr,
+          "list_path",
+          fmt::format("collection.exporters[{}].export_properties.hooks", from).c_str());
+      RNA_string_set(
+          &op_ptr,
+          "index_path",
+          fmt::format("collection.exporters[{}].export_properties.hook_index", from).c_str());
       RNA_enum_set(&op_ptr, "type", -1);
 
       op_ptr = col->op("UI_OT_usd_hook_handle_move", "", ICON_TRIA_DOWN);
-      RNA_string_set(&op_ptr, "list_path",  fmt::format("collection.exporters[{}].export_properties.hooks", from).c_str());
-      RNA_string_set(&op_ptr, "index_path", fmt::format("collection.exporters[{}].export_properties.hook_index", from).c_str());
+      RNA_string_set(
+          &op_ptr,
+          "list_path",
+          fmt::format("collection.exporters[{}].export_properties.hooks", from).c_str());
+      RNA_string_set(
+          &op_ptr,
+          "index_path",
+          fmt::format("collection.exporters[{}].export_properties.hook_index", from).c_str());
       RNA_enum_set(&op_ptr, "type", 1);
 
       int length = RNA_collection_length(ptr, "hooks");
@@ -576,7 +604,6 @@ static void wm_usd_export_draw(bContext *C, wmOperator *op)
         row->prop(&item, "identifier", UI_ITEM_NONE, std::nullopt, ICON_NONE);
         row = &panel.body->row(false);
         row->prop(&item, "handle_mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-
       }
     }
   }
@@ -915,18 +942,14 @@ void WM_OT_usd_export(wmOperatorType *ot)
                 0.0001f,
                 1000.0f);
 
-  RNA_def_boolean(ot->srna,
-                  "filter_hooks",
-                  false,
-                  "Filter Hooks",
-                  "Only run the selected USD hooks"
-  );
+  RNA_def_boolean(
+      ot->srna, "filter_hooks", false, "Filter Hooks", "Only run the selected USD hooks");
 
   prop = RNA_def_collection_runtime(ot->srna,
-                     "hooks",
-                     &RNA_UsdHookHandle,
-                     "Active Hooks",
-                     "List of USD Hook Functions to run after export");
+                                    "hooks",
+                                    &RNA_UsdHookHandle,
+                                    "Active Hooks",
+                                    "List of USD Hook Functions to run after export");
   RNA_def_property_flag(prop, PROP_EDITABLE);
 
   RNA_def_int(ot->srna, "hook_index", 0, INT_MIN, INT_MAX, "Hook Index", "", INT_MIN, INT_MAX);
@@ -1379,8 +1402,10 @@ void WM_OT_usd_import(wmOperatorType *ot)
 /** \name USD Hook Handle Add
  * \{ */
 
-static const EnumPropertyItem *USDHookHandle_idval_itemf(
-  bContext *C, PointerRNA * /*ptr*/, PropertyRNA * /*prop*/, bool *r_free) 
+static const EnumPropertyItem *USDHookHandle_idval_itemf(bContext *C,
+                                                         PointerRNA * /*ptr*/,
+                                                         PropertyRNA * /*prop*/,
+                                                         bool *r_free)
 {
   if (C == nullptr) {
     return rna_enum_dummy_DEFAULT_items;
@@ -1405,7 +1430,8 @@ static wmOperatorStatus ui_usd_hook_handle_add_exec(bContext *C, wmOperator *op)
 
   if (col_pointer.data == nullptr) {
     return OPERATOR_CANCELLED;
-  } else {
+  }
+  else {
     PointerRNA itemptr;
     RNA_property_collection_add(&col_pointer, col_prop, &itemptr);
 
@@ -1449,8 +1475,7 @@ void UI_OT_usd_hook_handle_add(wmOperatorType *ot)
                  "Index Path",
                  "Data path of the list active index integer relative to context");
 
-  ot->prop = RNA_def_enum(
-      ot->srna, "type", rna_enum_dummy_DEFAULT_items, 0, "Type", "");
+  ot->prop = RNA_def_enum(ot->srna, "type", rna_enum_dummy_DEFAULT_items, 0, "Type", "");
   RNA_def_enum_funcs(ot->prop, USDHookHandle_idval_itemf);
 }
 
@@ -1480,11 +1505,12 @@ static wmOperatorStatus ui_usd_hook_handle_remove_exec(bContext *C, wmOperator *
 
   if (col_pointer.data == nullptr) {
     return OPERATOR_CANCELLED;
-  } else {
+  }
+  else {
     RNA_property_collection_remove(&col_pointer, col_prop, index);
   }
 
-  RNA_property_int_set(&index_pointer, index_prop, std::max(0, index-1));
+  RNA_property_int_set(&index_pointer, index_prop, std::max(0, index - 1));
 
   return OPERATOR_FINISHED;
 }
@@ -1518,19 +1544,17 @@ void UI_OT_usd_hook_handle_remove(wmOperatorType *ot)
                  "Data path of the list active index integer relative to context");
 
   RNA_def_int(ot->srna,
-    "index",
-    0,
-    INT_MIN,
-    INT_MAX,
-    "Index",
-    "The index of the collection property that will be removed.",
-    0,
-    INT_MAX
-  );
+              "index",
+              0,
+              INT_MIN,
+              INT_MAX,
+              "Index",
+              "The index of the collection property that will be removed.",
+              0,
+              INT_MAX);
 }
 
 /** \} */
-
 
 /* -------------------------------------------------------------------- */
 /** \name Tree List Move
@@ -1549,7 +1573,7 @@ static wmOperatorStatus ui_usd_hook_handle_move_exec(bContext *C, wmOperator *op
   RNA_string_get(op->ptr, "list_path", list_path);
   char index_path[MAX_NAME];
   RNA_string_get(op->ptr, "index_path", index_path);
-  
+
   PointerRNA ctx_ptr = RNA_pointer_create_discrete(nullptr, &RNA_Context, (void *)C);
 
   PointerRNA col_pointer;
@@ -1634,8 +1658,7 @@ void UI_OT_usd_hook_handle_move(wmOperatorType *ot)
                  "Data path of the list active index integer relative to context");
 }
 
-
- /** \} */
+/** \} */
 
 namespace blender::ed::io {
 void usd_file_handler_add()

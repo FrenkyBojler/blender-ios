@@ -18,8 +18,8 @@
 #ifdef RNA_RUNTIME
 
 #  include "DNA_object_types.h"
-#  include "WM_api.hh"
 #  include "DNA_usdhook_types.h"
+#  include "WM_api.hh"
 #  include "usd.hh"
 
 using namespace blender::io::usd;
@@ -127,10 +127,13 @@ bool rna_HookHandle_is_valid_get(PointerRNA *ptr)
   return USD_is_hook_valid(RNA_string_get(ptr, "identifier").c_str());
 }
 
-static const EnumPropertyItem default_hook_enum = {0, "INVALID", 0, "Invalid Handle", "Something broke"};
+static const EnumPropertyItem default_hook_enum = {
+    0, "INVALID", 0, "Invalid Handle", "Something broke"};
 
-static const EnumPropertyItem *rna_USDHookHandle_idval_itemf(
-  bContext *C, PointerRNA * /*ptr*/, PropertyRNA * /*prop*/, bool *r_free) 
+static const EnumPropertyItem *rna_USDHookHandle_idval_itemf(bContext *C,
+                                                             PointerRNA * /*ptr*/,
+                                                             PropertyRNA * /*prop*/,
+                                                             bool *r_free)
 {
   if (C == nullptr) {
     return rna_enum_dummy_DEFAULT_items;
@@ -160,12 +163,14 @@ static void rna_USDHookHandle_idval_set(PointerRNA *ptr, int value)
   }
 }
 
-static void rna_USDHookHandle_identifier_get(PointerRNA *ptr, char *value) {
+static void rna_USDHookHandle_identifier_get(PointerRNA *ptr, char *value)
+{
   USDHookHandle *handle = static_cast<USDHookHandle *>(ptr->data);
   strcpy(value, handle->identifier);
 }
 
-static void rna_USDHookHandle_name_get(PointerRNA *ptr, char *value) {
+static void rna_USDHookHandle_name_get(PointerRNA *ptr, char *value)
+{
   USDHookHandle *handle = static_cast<USDHookHandle *>(ptr->data);
   strcpy(value, handle->name);
 }
@@ -204,7 +209,8 @@ static void rna_def_usd_hook(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Description", "A short description of the USD hook");
 }
 
-static void rna_def_usd_hook_handle(BlenderRNA *brna) {
+static void rna_def_usd_hook_handle(BlenderRNA *brna)
+{
   StructRNA *srna;
   PropertyRNA *prop;
 

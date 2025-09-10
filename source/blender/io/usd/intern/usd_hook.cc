@@ -108,9 +108,10 @@ bool USD_is_hook_valid(const char idname[])
   return false;
 }
 
-static const EnumPropertyItem default_hook_enum = {0, "INVALID", 0, "Invalid Handle", "Something broke"};
+static const EnumPropertyItem default_hook_enum = {
+    0, "INVALID", 0, "Invalid Handle", "Something broke"};
 
-const EnumPropertyItem *USD_build_hook_enum() 
+const EnumPropertyItem *USD_build_hook_enum()
 {
   EnumPropertyItem *items = nullptr;
   EnumPropertyItem item_tmp = {0};
@@ -119,7 +120,7 @@ const EnumPropertyItem *USD_build_hook_enum()
   /** Ensure there's always a fallback item for invalid handles*/
   RNA_enum_item_add(&items, &items_count, &default_hook_enum);
   RNA_enum_item_add_separator(&items, &items_count);
-  
+
   USDHookList::const_iterator hook_iter = hook_list().begin();
   while (hook_iter != hook_list().end()) {
     USDHook *hook = hook_iter->get();
@@ -129,12 +130,9 @@ const EnumPropertyItem *USD_build_hook_enum()
     item_tmp.value = items_count;
     item_tmp.name = hook->name;
 
-
     // EnumPropertyItem new_item = {items_count, hook->idname, 0, hook->name, hook->description};
     RNA_enum_item_add(&items, &items_count, &item_tmp);
   }
-
-
 
   RNA_enum_item_end(&items, &items_count);
 
@@ -408,7 +406,9 @@ class USDHookInvoker {
   const Vector<USDHookHandle> *handles_;
 
  public:
-  explicit USDHookInvoker(ReportList *reports, const Vector<USDHookHandle> *handles) : reports_(reports) {
+  explicit USDHookInvoker(ReportList *reports, const Vector<USDHookHandle> *handles)
+      : reports_(reports)
+  {
     handles_ = handles;
   }
   virtual ~USDHookInvoker() = default;
@@ -441,14 +441,12 @@ class USDHookInvoker {
 
       // This feels bad.
       if (filter == true) {
-       if (
-        std::find_if(handles_->begin(), handles_->end(), [hook](USDHookHandle handle) {
-          return (STREQ(hook->idname, handle.identifier) && (handle.enabled == true));
-        }) == handles_->end()
-        ) 
-       {
-        continue;
-       }
+        if (std::find_if(handles_->begin(), handles_->end(), [hook](USDHookHandle handle) {
+              return (STREQ(hook->idname, handle.identifier) && (handle.enabled == true));
+            }) == handles_->end())
+        {
+          continue;
+        }
       }
 
       try {
@@ -491,7 +489,10 @@ class OnExportInvoker final : public USDHookInvoker {
   USDSceneExportContext hook_context_;
 
  public:
-  OnExportInvoker(pxr::UsdStageRefPtr stage, Depsgraph *depsgraph, ReportList *reports, const Vector<USDHookHandle> *handles)
+  OnExportInvoker(pxr::UsdStageRefPtr stage,
+                  Depsgraph *depsgraph,
+                  ReportList *reports,
+                  const Vector<USDHookHandle> *handles)
       : USDHookInvoker(reports, handles), hook_context_(stage, depsgraph)
   {
   }
@@ -545,7 +546,10 @@ class OnImportInvoker final : public USDHookInvoker {
   USDSceneImportContext hook_context_;
 
  public:
-  OnImportInvoker(pxr::UsdStageRefPtr stage, const ImportedPrimMap &prim_map, ReportList *reports, const Vector<USDHookHandle> *handles)
+  OnImportInvoker(pxr::UsdStageRefPtr stage,
+                  const ImportedPrimMap &prim_map,
+                  ReportList *reports,
+                  const Vector<USDHookHandle> *handles)
       : USDHookInvoker(reports, handles), hook_context_(stage, prim_map)
   {
   }
@@ -645,9 +649,9 @@ class OnMaterialImportInvoker final : public USDHookInvoker {
   }
 };
 
-void call_export_hooks(pxr::UsdStageRefPtr stage, 
-                       const USDExportParams &export_params, 
-                       Depsgraph *depsgraph, 
+void call_export_hooks(pxr::UsdStageRefPtr stage,
+                       const USDExportParams &export_params,
+                       Depsgraph *depsgraph,
                        ReportList *reports)
 {
   if (hook_list().empty()) {
@@ -673,7 +677,9 @@ void call_material_export_hooks(pxr::UsdStageRefPtr stage,
   on_material_export.call(export_params.filter_hooks);
 }
 
-void call_import_hooks(USDStageReader *archive, const USDImportParams &import_params, ReportList *reports)
+void call_import_hooks(USDStageReader *archive,
+                       const USDImportParams &import_params,
+                       ReportList *reports)
 {
   if (hook_list().empty()) {
     return;
@@ -719,7 +725,8 @@ bool have_material_import_hook(pxr::UsdStageRefPtr stage,
     return false;
   }
 
-  MaterialImportPollInvoker poll(stage, usd_material, import_params, reports, &import_params.hook_handles);
+  MaterialImportPollInvoker poll(
+      stage, usd_material, import_params, reports, &import_params.hook_handles);
   poll.call();
 
   return poll.result();

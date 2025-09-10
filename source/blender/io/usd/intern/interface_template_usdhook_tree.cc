@@ -29,11 +29,10 @@
 
 #include "usd_hook.hh"
 
-
 namespace blender::ui {
 
 class UsdHookTreeView : public AbstractTreeView {
-//  protected:
+  //  protected:
 
  public:
   wmOperator &op_;
@@ -73,15 +72,12 @@ class UsdHookProxyItem : public ui::AbstractTreeViewItem {
   };
 
   void build_row(uiLayout &row) override
-  { 
+  {
     bool alert = !RNA_boolean_get(&hook_proxy_.data, "valid");
     set_alert(alert);
-    int row_icon = alert 
-      ? ICON_ERROR 
-      : ICON_BLANK1;
-    std::string label = alert 
-      ? RNA_string_get(&hook_proxy_.data, "identifier") 
-      : RNA_string_get(&hook_proxy_.data, "name");
+    int row_icon = alert ? ICON_ERROR : ICON_BLANK1;
+    std::string label = alert ? RNA_string_get(&hook_proxy_.data, "identifier") :
+                                RNA_string_get(&hook_proxy_.data, "name");
 
     uiItemL_ex(&row, label, row_icon, false, false);
     uiLayout *sub = &row.row(true);
@@ -129,9 +125,9 @@ class UsdHookProxyItem : public ui::AbstractTreeViewItem {
   //   ED_undo_push(const_cast<bContext *>(&C), "Rename USD Hook Handle");
   //   return true;
   // }
-  
+
   // StringRef get_rename_string() const override
-  // {    
+  // {
   //   return StringRef(RNA_string_get(&hook_proxy_.data, "identifier").c_str());
   // }
 };
@@ -162,12 +158,11 @@ void template_hook_list(bContext *C, uiLayout *layout, wmOperator *op)
 
   uiBlock *block = layout->block();
   ui::AbstractTreeView *tree_view = UI_block_add_view(
-    *block,
-    "USD Hook Tree View",
-    std::make_unique<UsdHookTreeView>(*op, active_collection, index)
-  );
+      *block,
+      "USD Hook Tree View",
+      std::make_unique<UsdHookTreeView>(*op, active_collection, index));
   tree_view->set_default_rows(4);
 
   ui::TreeViewBuilder::build_tree_view(*C, *tree_view, *layout);
 }
-} // namespace blender::ui
+}  // namespace blender::ui

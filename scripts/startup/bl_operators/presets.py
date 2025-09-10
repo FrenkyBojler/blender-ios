@@ -179,7 +179,8 @@ class AddPresetBase:
                             # Exlude nested properties that have the skip_preset flag. This isn't particularly relevant
                             # for most Blender operators, but it is expected behavior for add-on developers.
                             for sk, sv in value.rna_type.properties.items():
-                                if sk in properties_skip: continue
+                                if sk in properties_skip:
+                                    continue
                                 print(sk, sv)
                                 if sv.is_skip_preset:
                                     properties_skip.add(sk)
