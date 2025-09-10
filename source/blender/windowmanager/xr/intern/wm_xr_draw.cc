@@ -22,6 +22,7 @@
 #include "BLI_rect.h"
 
 #include "BKE_camera.h"
+#include "BKE_context.hh"
 
 #include "ED_view3d_offscreen.hh"
 
@@ -34,11 +35,20 @@
 #include "GPU_state.hh"
 #include "GPU_viewport.hh"
 
+#include "RNA_access.hh"
+#include "RNA_prototypes.hh"
+
+#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
+
 #include "WM_api.hh"
 
 #include "wm_xr_intern.hh"
 
 static GPUOffScreen *g_viewfinder_offscreen;
+
+extern bContext *evil_main_C;
+extern wmWindow *evil_first_main_window;
 
 void wm_xr_pose_to_mat(const GHOST_XrPose *pose, float r_mat[4][4])
 {
@@ -332,9 +342,236 @@ static blender::gpu::Batch *wm_xr_controller_model_batch_create(GHOST_XrContextH
   return GPU_batch_create_ex(GPU_PRIM_TRIS, vbo, ibo, GPU_BATCH_OWNS_VBO | GPU_BATCH_OWNS_INDEX);
 }
 
+static uiLayout &uiblock_prepare(uiBlock **block, const bContext *C, ARegion *region)
+{
+  const uiStyle *style = UI_style_get_dpi();
+  const int viewfinder_width = style->widget.points * 50 * UI_SCALE_FAC;
+
+  *block = UI_block_begin(C, region, __func__, blender::ui::EmbossType::Emboss);
+
+  UI_block_flag_enable(*block, UI_BLOCK_LOOP | UI_BLOCK_KEEP_OPEN | UI_BLOCK_NO_WIN_CLIP);
+  UI_block_theme_style_set(*block, UI_BLOCK_THEME_STYLE_POPUP); /* Can also use REGULAR here. */
+
+  using namespace blender;
+  return ui::block_layout(*block,
+                          ui::LayoutDirection::Vertical,
+                          ui::LayoutType::Panel,
+                          0,
+                          0,
+                          viewfinder_width,
+                          0,
+                          0,
+                          style);
+}
+
+static uiBlock *viewfinder_action_enum_ui_block(const bContext *C,
+                                             ARegion *region,
+                                             const XrSessionSettings *settings)
+{
+  /* XR Session settings RNA pointer. */
+  PointerRNA ptr = RNA_pointer_create_discrete(nullptr, &RNA_XrSessionSettings, (void *)settings);
+  //  PropertyRNA *prop = RNA_struct_find_property(&ptr, "viewfinder_active_but_live");
+
+  uiBlock *block = nullptr;
+  uiLayout &layout = uiblock_prepare(&block, C, region);
+
+  uiLayout &row = layout.row(true);
+
+  const char *active_action_prop = settings->viewfinder_active_mode == XR_VIEWFINDER_MODE_LIVE ?
+                                    "viewfinder_active_action_live" :
+                                    "viewfinder_active_action_playback";
+
+  row.prop(&ptr, active_action_prop, UI_ITEM_R_EXPAND | UI_ITEM_R_ICON_ONLY, "", ICON_NONE);
+  row.scale_x_set(15.0f); /* TODO: Apparently, the scale gets clamped internally at some point. */
+  row.scale_y_set(1.1f);
+
+  UI_block_end(C, block);
+
+  return block;
+}
+
+static uiBlock *viewfinder_settings_label_ui_block(const bContext *C,
+                                                   ARegion *region,
+                                                   const XrSessionSettings * /*settings*/)
+{
+
+  uiBlock *block = nullptr;
+  uiLayout &layout = uiblock_prepare(&block, C, region);
+
+  layout.label("1 / 20    40mm   f 2.8", ICON_NONE); /* Using horrible manual spaces for now. */
+
+  UI_block_end(C, block);
+
+  return block;
+}
+
+static uiBlock *viewfinder_mode_tabs_ui_block(const bContext *C,
+                                              ARegion *region,
+                                              const XrSessionSettings * /*settings*/)
+{
+  uiBlock *block = UI_block_begin(C, region, __func__, blender::ui::EmbossType::Emboss);
+  UI_block_flag_enable(block, UI_BLOCK_LOOP | UI_BLOCK_KEEP_OPEN | UI_BLOCK_NO_WIN_CLIP);
+  UI_block_theme_style_set(block, UI_BLOCK_THEME_STYLE_POPUP);
+
+  const float tab_width = UI_UNIT_X * 10.0f;
+
+  uiBut *but = uiDefBut(
+      block, ButType::Tab, 0, "Live Camera View", 0, 0, tab_width, UI_UNIT_Y, nullptr, 0, 0, "");
+  UI_but_func_pushed_state_set(but, [](const uiBut &) -> bool { return true; });
+
+  but = uiDefBut(block,
+                 ButType::Tab,
+                 0,
+                 "Image Playback",
+                 tab_width,
+                 0,
+                 tab_width,
+                 UI_UNIT_Y,
+                 nullptr,
+                 0,
+                 0,
+                 "");
+  UI_but_func_pushed_state_set(but, [](const uiBut &) -> bool { return false; });
+
+  UI_block_end(C, block);
+
+  return block;
+}
+
+static void wm_xr_controller_viewfinder_draw_ui_widgets(const bContext *C,
+                                                        ARegion *region,
+                                                        const XrSessionSettings *settings,
+                                                        const rctf viewfinder_rect)
+{
+
+  /* Create a fake context to trick the UI drawing code in drawing in places it shouldn't be. */
+  bContext *fake_C = CTX_copy(C);
+  CTX_wm_window_set(fake_C, evil_first_main_window);
+  CTX_wm_region_set(fake_C, region);
+
+  using BlockFuncPtr = decltype(&viewfinder_mode_tabs_ui_block);
+  const auto draw_block = [&](BlockFuncPtr block_func, float x_off, float y_off) {
+    GPU_matrix_push();
+    GPU_matrix_translate_3f(x_off, y_off, 0.0f);
+    GPU_matrix_scale_1f(0.01f);
+
+    uiBlock *block = block_func(fake_C, region, settings);
+    UI_block_draw_vr(fake_C, block); /* Stripped-down VR version of #UI_block_draw. */
+
+    GPU_matrix_pop();
+  };
+
+  const float mode_tabs_x = viewfinder_rect.xmin - 0.15f;
+  const float mode_tabs_y = viewfinder_rect.ymax + 0.45f;
+
+  const float settings_label_x = viewfinder_rect.xmax - 2.3f;
+  const float settings_label_y = viewfinder_rect.ymax + 0.47f;
+
+  const float action_enum_x = viewfinder_rect.xmax - 1.65f;
+  const float action_enum_y = viewfinder_rect.ymin - 0.15f;
+
+  draw_block(viewfinder_mode_tabs_ui_block, mode_tabs_x, mode_tabs_y);
+  draw_block(viewfinder_settings_label_ui_block, settings_label_x, settings_label_y);
+  draw_block(viewfinder_action_enum_ui_block, action_enum_x, action_enum_y);
+}
+
+static void wm_xr_controller_viewfinder_draw_overlays(const rctf viewfinder_rect)
+{
+  /* Colors TODO: Dynamically get these from the current theme. */
+  const float background_col[4] = {0.188f, 0.188f, 0.188f, 1.0f};
+  const float outline_col[4] = {0.3f, 0.3f, 0.3f, 0.3f};
+
+  rctf background_rect = viewfinder_rect;
+  BLI_rctf_pad(&background_rect, 0.2f, 0.6f);
+  BLI_rctf_translate(&background_rect, 0.0f, -0.1f);
+
+  rctf outline_rect = viewfinder_rect;
+  BLI_rctf_pad(&outline_rect, 0.08f, 0.08f);
+
+  GPU_matrix_push();
+  /* Workaround: regain precision on the rect side by a factor of 100. */
+  GPU_matrix_scale_1f(0.01f);
+  BLI_rctf_mul(&background_rect, 100);
+  BLI_rctf_mul(&outline_rect, 100);
+
+  UI_draw_roundbox_3fv_alpha(&background_rect, true, 16, background_col, 1.0f);
+  UI_draw_roundbox_3fv_alpha(&outline_rect, true, 12, outline_col, 0.2f);
+
+  GPU_matrix_pop();
+}
+
+static void wm_xr_controller_viewfinder_draw_view_texture(const rctf viewfinder_rect)
+{
+  /* Obtain the Viewfinder view texture we computed in `wm_xr_draw_view()`. */
+  blender::gpu::Texture *view_tex = GPU_offscreen_color_texture(g_viewfinder_offscreen);
+
+  GPUVertFormat *view_text_format = immVertexFormat();
+  uint view_tex_pos = GPU_vertformat_attr_add(
+      view_text_format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
+  uint view_tex_coord = GPU_vertformat_attr_add(
+      view_text_format, "texCoord", blender::gpu::VertAttrType::SFLOAT_32_32);
+
+  GPU_depth_mask(false);
+  GPU_blend(GPU_BLEND_ALPHA_PREMULT);
+
+  immBindBuiltinProgram(GPU_SHADER_3D_IMAGE_COLOR);
+
+  const float tex_color[4] = {1.0f, 1.0f, 1.0f, 1.0f};
+  immUniformColor4fv(tex_color);
+
+  GPUSamplerExtendMode extend_mode = GPU_SAMPLER_EXTEND_MODE_REPEAT;
+  immBindTextureSampler(
+      "image", view_tex, {GPU_SAMPLER_FILTERING_LINEAR, extend_mode, extend_mode});
+
+  immRectf_with_texco(view_tex_pos, view_tex_coord, viewfinder_rect, rctf{0.0f, 1.0f, 0.0f, 1.0f});
+
+  immUnbindProgram();
+}
+
+static void wm_xr_controller_viewfinder_draw(const XrSessionSettings *settings,
+                                             GHOST_XrContextHandle /*xr_context*/,
+                                             wmXrSessionState *state,
+                                             const bContext *C,
+                                             ARegion *region)
+{
+  if (!settings->use_viewfinder) {
+    return;
+  }
+
+  /* Viewfinder */
+  /* Only draw the viewfinder on the first controller. TODO: Add a left/right hand switch. */
+  const wmXrController *first_controller = static_cast<wmXrController *>(state->controllers.first);
+
+  /* Fixed 16:9 aspect ratio for now. */
+  rctf viewfinder_rect;
+  BLI_rctf_resize(
+      &viewfinder_rect, settings->viewfinder_width, settings->viewfinder_width * 9.0f / 16.0f);
+  const float viewfinder_vertical_offset = 3.5f; /* Center of the viewfinder square. */
+
+  /* Initial transform setup. */
+  GPU_matrix_push();
+  GPU_matrix_mul(first_controller->grip_mat);
+  GPU_matrix_scale_1f(0.05f);
+  GPU_matrix_translate_3f(0.0f, 0.0f, -viewfinder_vertical_offset);
+  GPU_matrix_rotate_3f(-90.0f, 1.0f, 0.0f, 0.0f);
+
+  /* Main background overlays. */
+  wm_xr_controller_viewfinder_draw_overlays(viewfinder_rect);
+
+  /* Viewfinder View Texture. */
+  wm_xr_controller_viewfinder_draw_view_texture(viewfinder_rect);
+
+  /* UI Widgets. */
+  wm_xr_controller_viewfinder_draw_ui_widgets(C, region, settings, viewfinder_rect);
+
+  GPU_matrix_pop();
+}
+
 static void wm_xr_controller_model_draw(const XrSessionSettings *settings,
                                         GHOST_XrContextHandle xr_context,
-                                        wmXrSessionState *state)
+                                        wmXrSessionState *state,
+                                        const bContext *C,
+                                        ARegion *region)
 {
   GHOST_XrControllerModelData model_data;
 
@@ -403,101 +640,7 @@ static void wm_xr_controller_model_draw(const XrSessionSettings *settings,
     }
   }
 
-  if (!settings->use_viewfinder) {
-    return;
-  }
-
-  /* Viewfinder */
-  /* Only draw the viewfinder on the first controller. */
-  const wmXrController *first_controller = static_cast<wmXrController *>(state->controllers.first);
-
-  /* Fixed 16:9 aspect ratio for now. */
-  const blender::float2 viewfinder_size = {settings->viewfinder_width,
-                                           settings->viewfinder_width * 9.0f / 16.0f};
-  const rctf viewfinder_rect = {-viewfinder_size.x / 2.0f,
-                                viewfinder_size.x / 2.0f,
-                                -viewfinder_size.y / 2.0f,
-                                viewfinder_size.y / 2.0f};
-  const float viewfinder_vertical_offset = 2.6f;             /* Center of the viewfinder square. */
-  const float viewfinder_color[] = {0.7f, 0.9, 0.7f, 1.0f};  // TODO: Could obtain from theme.
-
-  const int32_t button_num = 4;
-  const float button_vertical_padding = 0.5f;
-  const float button_size = 0.1f;
-  const float button_color_active[] = {1.0f, 0.6, 0.2, 1.0f};
-  const float button_color_inactive[] = {0.9, 0.9, 0.9, 1.0f};
-
-  // TODO: Could be cycled using the VR controller via an XR action operator
-  int32_t active_button_idx = 1;
-
-  GPU_matrix_push();
-  GPU_matrix_mul(first_controller->grip_mat);
-  GPU_matrix_scale_1f(0.05f);
-  GPU_matrix_translate_3f(0.0f, 0.0f, -viewfinder_vertical_offset);
-  GPU_matrix_rotate_3f(-90.0f, 1.0f, 0.0f, 0.0f);
-
-  float viewport[4];
-  GPU_viewport_size_get_f(viewport);
-
-  GPUVertFormat *format = immVertexFormat();
-  uint pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32_32);
-
-  immBindBuiltinProgram(GPU_SHADER_3D_POLYLINE_UNIFORM_COLOR);
-  immUniform2fv("viewportSize", &viewport[2]);
-  immUniform1f("lineWidth", 1.5f * U.pixelsize);
-  immUniformColor4fv(viewfinder_color);
-
-  /* Viewfinder outline. */
-  imm_draw_box_wire_3d(
-      pos, viewfinder_rect.xmin, viewfinder_rect.ymin, viewfinder_rect.xmax, viewfinder_rect.ymax);
-
-  immUnbindProgram();
-
-  immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
-
-  /* Button outline. */
-  const float button_y_pos = ((viewfinder_size.y / 2.0f) + button_vertical_padding) * -1.0f;
-  const float button_delta = viewfinder_size.x / (button_num + 1);
-  for (int i = 0; i < button_num; ++i) {
-    if (i == active_button_idx) {
-      immUniformColor4fv(button_color_active);
-    }
-    else {
-      immUniformColor4fv(button_color_inactive);
-    }
-    const float button_h_pos = -(viewfinder_size.x / 2) + (i + 1) * button_delta;
-    imm_draw_circle_fill_3d(pos, button_h_pos, button_y_pos, button_size, 16);
-  }
-
-  immUnbindProgram();
-
-  /* Viewfinder View. */
-  /* Obtain the Viewfinder view texture we computed in `wm_xr_draw_view()`. */
-  blender::gpu::Texture *view_tex = GPU_offscreen_color_texture(g_viewfinder_offscreen);
-
-  GPUVertFormat *view_text_format = immVertexFormat();
-  uint view_tex_pos = GPU_vertformat_attr_add(
-      view_text_format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
-  uint view_tex_coord = GPU_vertformat_attr_add(
-      view_text_format, "texCoord", blender::gpu::VertAttrType::SFLOAT_32_32);
-
-  GPU_depth_mask(false);
-  GPU_blend(GPU_BLEND_ALPHA_PREMULT);
-
-  immBindBuiltinProgram(GPU_SHADER_3D_IMAGE_COLOR);
-
-  const float tex_color[4] = {1.0f, 1.0f, 1.0f, 1.0f};
-  immUniformColor4fv(tex_color);
-
-  GPUSamplerExtendMode extend_mode = GPU_SAMPLER_EXTEND_MODE_REPEAT;
-  immBindTextureSampler(
-      "image", view_tex, {GPU_SAMPLER_FILTERING_LINEAR, extend_mode, extend_mode});
-
-  immRectf_with_texco(view_tex_pos, view_tex_coord, viewfinder_rect, rctf{0.0f, 1.0f, 0.0f, 1.0f});
-
-  immUnbindProgram();
-
-  GPU_matrix_pop();
+  wm_xr_controller_viewfinder_draw(settings, xr_context, state, C, region);
 }
 
 static void wm_xr_controller_aim_draw(const XrSessionSettings *settings, wmXrSessionState *state)
@@ -596,13 +739,13 @@ static void wm_xr_controller_aim_draw(const XrSessionSettings *settings, wmXrSes
   immUnbindProgram();
 }
 
-void wm_xr_draw_controllers(const bContext * /*C*/, ARegion * /*region*/, void *customdata)
+void wm_xr_draw_controllers(const bContext * /*C*/, ARegion *region, void *customdata)
 {
   wmXrData *xr = static_cast<wmXrData *>(customdata);
   const XrSessionSettings *settings = &xr->session_settings;
   GHOST_XrContextHandle xr_context = xr->runtime->context;
   wmXrSessionState *state = &xr->runtime->session_state;
 
-  wm_xr_controller_model_draw(settings, xr_context, state);
+  wm_xr_controller_model_draw(settings, xr_context, state, evil_main_C, region);
   wm_xr_controller_aim_draw(settings, state);
 }

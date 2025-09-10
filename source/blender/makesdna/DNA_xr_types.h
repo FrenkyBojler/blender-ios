@@ -29,11 +29,16 @@ typedef struct XrSessionSettings {
   /** Draw style for controller visualization. */
   char controller_draw_style;
 
-  char use_viewfinder;
-  char viewfinder_view_point; /* eXrSessionViewfinderViewPoint */
-
+  char use_viewfinder; // TODO: Rename to viewfinder enable
+  char viewfinder_view_point; /* #eXrSessionViewfinderViewPoint */
   float viewfinder_width;
-  int _pad2;
+
+  /** Active/Selected Viewfinder button/mode, different paradigm as the rest of the Blender UI. */
+  char viewfinder_active_mode; /* #eXrSessionViewfinderMode */
+  char viewfinder_active_action_live; /* #eXrViewfinderLiveButtonState */
+  char viewfinder_active_action_playback; /* #eXrViewfinderPlaybackButtonState */
+
+  char _pad2[1];
 
   /** Clipping distance. */
   float clip_start, clip_end;
@@ -64,9 +69,27 @@ typedef enum eXrSessionControllerDrawStyle {
 } eXrSessionControllerDrawStyle;
 
 typedef enum eXrSessionViewfinderViewPoint {
-  XR_VIEWFINDER_SCENE_CAMERA = 0,
+  XR_VIEWFINDER_SCENE_CAMERA = 0, // TODO: Add a viewpoint prefix
   XR_VIEWFINDER_HANDHELD = 1,
 } eXrSessionViewfinderViewPoint;
+
+typedef enum eXrSessionViewfinderMode {
+  XR_VIEWFINDER_MODE_LIVE = 0,
+  XR_VIEWFINDER_MODE_PLAYBACK = 1
+} eXrSessionViewfinderMode;
+
+typedef enum eXrViewfinderLiveAction {
+  XR_VIEWFINDER_ACTION_LIVE_LENS = 0,
+  XR_VIEWFINDER_ACTION_LIVE_DOF = 1,
+  XR_VIEWFINDER_ACTION_LIVE_FOCUS = 2,
+  XR_VIEWFINDER_ACTION_LIVE_APERTURE = 3
+} eXrViewfinderLiveAction;
+
+typedef enum eXrViewfinderPlaybackAction {
+  XR_VIEWFINDER_ACTION_PB_BROWSE = 0,
+  XR_VIEWFINDER_ACTION_PB_PREVIEW = 1,
+  XR_VIEWFINDER_ACTION_PB_DELETE = 2
+} eXrViewfinderPlaybackAction;
 
 /** XR action type. Enum values match those in GHOST_XrActionType enum for consistency. */
 typedef enum eXrActionType {

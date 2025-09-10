@@ -1947,6 +1947,49 @@ static void rna_def_xr_session_settings(BlenderRNA *brna)
       {0, nullptr, 0, nullptr, nullptr},
   };
 
+  static const EnumPropertyItem viewfinder_modes[] = {
+      {XR_VIEWFINDER_MODE_LIVE,
+       "LIVE",
+       ICON_RECORD_ON,
+       "Live Mode",
+       "Capture a shot using the viewfinder"},
+      {XR_VIEWFINDER_MODE_PLAYBACK,
+       "PLAYBACK",
+       ICON_IMAGE_DATA,
+       "Playback Mode",
+       "Preview and playback captured shots in the viewfinder"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  static const EnumPropertyItem viewfinder_live_but_states[] = {
+      {XR_VIEWFINDER_ACTION_LIVE_LENS,
+       "LENS",
+       ICON_VIEW_ZOOM,
+       "Incremental Lens/Zoom Control",
+       nullptr},
+      {XR_VIEWFINDER_ACTION_LIVE_DOF,
+       "DOF",
+       ICON_COMMUNITY,
+       "Enable/Disable Depth of Field",
+       nullptr},
+      {XR_VIEWFINDER_ACTION_LIVE_FOCUS, "FOCUS", ICON_PIVOT_BOUNDBOX, "Focus Point Control", nullptr},
+      {XR_VIEWFINDER_ACTION_LIVE_APERTURE,
+       "DOF",
+       ICON_PROP_CON,
+       "Depth of Field Aperture Control",
+       nullptr},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  static const EnumPropertyItem viewfinder_playback_but_states[] = {
+      {XR_VIEWFINDER_ACTION_PB_BROWSE, "BROWSE", ICON_RENDERLAYERS, "Browse captured shots", nullptr},
+      {XR_VIEWFINDER_ACTION_PB_PREVIEW,
+       "PREVIEW",
+       ICON_CAMERA_DATA,
+       "Preview selected shot in space"},
+      {XR_VIEWFINDER_ACTION_PB_DELETE, "DELETE", ICON_TRASH, "Delete selected shot"},
+      {0, nullptr, 0, nullptr, nullptr}};
+
   srna = RNA_def_struct(brna, "XrSessionSettings", nullptr);
   RNA_def_struct_ui_text(srna, "XR Session Settings", "");
 
@@ -2052,6 +2095,25 @@ static void rna_def_xr_session_settings(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "viewfinder_width", PROP_FLOAT, PROP_NONE);
   RNA_def_property_ui_text(prop, "Viewfinder Width", "Width of the viewfinder");
+  RNA_def_property_update(prop, NC_WM | ND_XR_DATA_CHANGED, nullptr);
+
+  prop = RNA_def_property(srna, "viewfinder_active_mode", PROP_ENUM, PROP_NONE);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_enum_items(prop, viewfinder_modes);
+  RNA_def_property_ui_text(prop, "Viewfinder Mode", "Active viewfinder mode, live or playback");
+  RNA_def_property_update(prop, NC_WM | ND_XR_DATA_CHANGED, nullptr);
+
+  prop = RNA_def_property(srna, "viewfinder_active_action_live", PROP_ENUM, PROP_NONE);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_enum_items(prop, viewfinder_live_but_states);
+  RNA_def_property_ui_text(prop, "Viewfinder Live Button", "Active viewfinder live button state");
+  RNA_def_property_update(prop, NC_WM | ND_XR_DATA_CHANGED, nullptr);
+
+  prop = RNA_def_property(srna, "viewfinder_active_action_playback", PROP_ENUM, PROP_NONE);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_enum_items(prop, viewfinder_playback_but_states);
+  RNA_def_property_ui_text(
+      prop, "Viewfinder Playback Button", "Active viewfinder playback button state");
   RNA_def_property_update(prop, NC_WM | ND_XR_DATA_CHANGED, nullptr);
 
   prop = RNA_def_property(srna, "clip_start", PROP_FLOAT, PROP_DISTANCE);

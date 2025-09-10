@@ -2312,6 +2312,58 @@ void UI_block_draw(const bContext *C, uiBlock *block)
   GPU_matrix_pop();
 }
 
+void UI_block_draw_vr(const bContext *C, uiBlock *block)
+{
+  /* This hacky (temp) function lets us draw in VR 3D space. This is basically a stripped down
+   * version of #UI_block_draw without background drawing (which relies on window coordinates),
+   * keeping the transform matrix from the outside GPU context for the block to be positioned in
+   * VR space, dropping optimization cases, etc.
+   */
+
+  uiStyle style = *UI_style_get_dpi(); /* XXX pass on as arg */
+
+  /* get menu region or area region */
+  ARegion *region = CTX_wm_region_popup(C);
+  if (!region) {
+    region = CTX_wm_region(C);
+  }
+
+  if (!block->endblock) {
+    UI_block_end(C, block);
+  }
+
+  /* we set this only once */
+  GPU_blend(GPU_BLEND_ALPHA);
+
+  /* scale fonts */
+  ui_fontscale(&style.paneltitle.points, block->aspect);
+  ui_fontscale(&style.grouplabel.points, block->aspect);
+  ui_fontscale(&style.widget.points, block->aspect);
+  ui_fontscale(&style.tooltip.points, block->aspect);
+
+  BLF_batch_draw_begin();
+  UI_widgetbase_draw_cache_begin();
+
+  /* widgets */
+  for (const std::unique_ptr<uiBut> &but : block->buttons) {
+    if (but->flag & (UI_HIDDEN | UI_SCROLLED)) {
+      continue;
+    }
+
+    rcti rect;
+    ui_but_to_pixelrect(&rect, region, block, but.get());
+
+    /* XXX: figure out why invalid coordinates happen when closing render window */
+    /* and material preview is redrawn in main window (temp fix for bug #23848) */
+    if (rect.xmin < rect.xmax && rect.ymin < rect.ymax) {
+      ui_draw_but(C, region, &style, but.get(), &rect);
+    }
+  }
+
+  UI_widgetbase_draw_cache_end();
+  BLF_batch_draw_end();
+}
+
 static void ui_block_message_subscribe(ARegion *region, wmMsgBus *mbus, uiBlock *block)
 {
   uiBut *but_prev = nullptr;
