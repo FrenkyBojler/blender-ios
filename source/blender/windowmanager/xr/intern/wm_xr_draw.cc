@@ -372,12 +372,12 @@ static blender::gpu::Batch *wm_xr_controller_model_batch_create(GHOST_XrContextH
   return GPU_batch_create_ex(GPU_PRIM_TRIS, vbo, ibo, GPU_BATCH_OWNS_VBO | GPU_BATCH_OWNS_INDEX);
 }
 
-static uiLayout &uiblock_prepare(uiBlock **block, const bContext *C, ARegion *region)
+static uiLayout &uiblock_prepare(uiBlock **block, const bContext *C, ARegion *region, blender::ui::EmbossType emboss)
 {
   const uiStyle *style = UI_style_get_dpi();
   const int viewfinder_width = style->widget.points * 50 * UI_SCALE_FAC;
 
-  *block = UI_block_begin(C, region, __func__, blender::ui::EmbossType::Emboss);
+  *block = UI_block_begin(C, region, __func__, emboss);
 
   UI_block_flag_enable(*block, UI_BLOCK_LOOP | UI_BLOCK_KEEP_OPEN | UI_BLOCK_NO_WIN_CLIP);
   UI_block_theme_style_set(*block, UI_BLOCK_THEME_STYLE_POPUP); /* Can also use REGULAR here. */
@@ -394,6 +394,29 @@ static uiLayout &uiblock_prepare(uiBlock **block, const bContext *C, ARegion *re
                           style);
 }
 
+static uiBlock *viewfinder_action_label_ui_block(const bContext *C,
+                                                 ARegion *region,
+                                                 const XrSessionSettings *settings)
+{
+  const char *active_action_prop = settings->viewfinder_active_mode == XR_VIEWFINDER_MODE_LIVE ?
+                                   "viewfinder_active_action_live" :
+                                   "viewfinder_active_action_playback";
+
+  /* XR Session settings RNA pointer. */
+  PointerRNA ptr = RNA_pointer_create_discrete(nullptr, &RNA_XrSessionSettings, (void *)settings);
+  PropertyRNA *prop = RNA_struct_find_property(&ptr, active_action_prop);
+
+  uiBlock *block = nullptr;
+  uiLayout &layout = uiblock_prepare(&block, C, region, blender::ui::EmbossType::None);
+
+  layout.prop(&ptr, active_action_prop, UI_ITEM_R_COMPACT | UI_ITEM_R_ICON_NEVER, "", ICON_NONE);
+  layout.scale_x_set(0.8f);
+
+  UI_block_end(C, block);
+
+  return block;
+}
+
 static uiBlock *viewfinder_action_enum_ui_block(const bContext *C,
                                                 ARegion *region,
                                                 const XrSessionSettings *settings)
@@ -403,7 +426,7 @@ static uiBlock *viewfinder_action_enum_ui_block(const bContext *C,
   //  PropertyRNA *prop = RNA_struct_find_property(&ptr, "viewfinder_active_but_live");
 
   uiBlock *block = nullptr;
-  uiLayout &layout = uiblock_prepare(&block, C, region);
+  uiLayout &layout = uiblock_prepare(&block, C, region, blender::ui::EmbossType::Emboss);
 
   uiLayout &row = layout.row(true);
 
@@ -426,7 +449,7 @@ static uiBlock *viewfinder_settings_label_ui_block(const bContext *C,
 {
 
   uiBlock *block = nullptr;
-  uiLayout &layout = uiblock_prepare(&block, C, region);
+  uiLayout &layout = uiblock_prepare(&block, C, region, blender::ui::EmbossType::Emboss);
 
   layout.label("1 / 20    40mm   f 2.8", ICON_NONE); /* Using horrible manual spaces for now. */
 
@@ -497,11 +520,15 @@ static void wm_xr_controller_viewfinder_draw_ui_widgets(const bContext *C,
   const float settings_label_x = viewfinder_rect.xmax - 2.3f;
   const float settings_label_y = viewfinder_rect.ymax + 0.47f;
 
+  const float action_label_x = viewfinder_rect.xmin - 0.1f;
+  const float action_label_y = viewfinder_rect.ymin - 0.15f;
+
   const float action_enum_x = viewfinder_rect.xmax - 1.65f;
   const float action_enum_y = viewfinder_rect.ymin - 0.15f;
 
   draw_block(viewfinder_mode_tabs_ui_block, mode_tabs_x, mode_tabs_y);
   draw_block(viewfinder_settings_label_ui_block, settings_label_x, settings_label_y);
+  draw_block(viewfinder_action_label_ui_block, action_label_x, action_label_y);
   draw_block(viewfinder_action_enum_ui_block, action_enum_x, action_enum_y);
 }
 
