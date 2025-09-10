@@ -775,16 +775,16 @@ class Preprocessor {
           });
         };
 
-    auto add_loop = [&](const Token loop_start,
-                        const int iter_count,
-                        const int iter_init,
-                        const int iter_incr,
-                        const bool condition_is_trivial,
-                        const bool iteration_is_trivial,
-                        const Scope init,
-                        const Scope cond,
-                        const Scope iter,
-                        const Scope body) {
+    auto process_loop = [&](const Token loop_start,
+                            const int iter_count,
+                            const int iter_init,
+                            const int iter_incr,
+                            const bool condition_is_trivial,
+                            const bool iteration_is_trivial,
+                            const Scope init,
+                            const Scope cond,
+                            const Scope iter,
+                            const Scope body) {
       /* Check that there is no unsupported keywords in the loop body. */
       bool error = false;
       /* Checks if `continue` exists, even in switch statement inside the unrolled loop. */
@@ -865,118 +865,114 @@ class Preprocessor {
     };
 
     do {
-      /* Parse the loop syntax. */
-      {
-        /* [[gpu::unroll]]. */
-        parser.foreach_match("[[w::w]]f(..){..}", [&](const std::vector<Token> tokens) {
-          if (tokens[1].scope().str() != "[gpu::unroll]") {
+      /* [[gpu::unroll]]. */
+      parser.foreach_match("[[w::w]]f(..){..}", [&](const std::vector<Token> tokens) {
+        if (tokens[1].scope().str() != "[gpu::unroll]") {
+          return;
+        }
+        const Token for_tok = tokens[8];
+        const Scope loop_args = tokens[9].scope();
+        const Scope loop_body = tokens[13].scope();
+
+        Scope init, cond, iter;
+        parse_for_args(loop_args, init, cond, iter);
+
+        /* Init statement. */
+        const Token var_type = init[0];
+        const Token var_name = init[1];
+        const Token var_init = init[2];
+        if (var_type.str() != "int" && var_type.str() != "uint") {
+          report_error(ERROR_TOK(var_init), "Can only unroll integer based loop.");
+          return;
+        }
+        if (var_init != '=') {
+          report_error(ERROR_TOK(var_init), "Expecting assignment here.");
+          return;
+        }
+        if (init[3] != '0' && init[3] != '-') {
+          report_error(ERROR_TOK(init[3]), "Expecting integer literal here.");
+          return;
+        }
+
+        /* Conditional statement. */
+        const Token cond_var = cond[0];
+        const Token cond_type = cond[1];
+        const Token cond_sign = (cond[2] == '+' || cond[2] == '-') ? cond[2] : Token::invalid();
+        const Token cond_end = cond_sign.is_valid() ? cond[3] : cond[2];
+        if (cond_var.str() != var_name.str()) {
+          report_error(ERROR_TOK(cond_var), "Non matching loop counter variable.");
+          return;
+        }
+        if (cond_end != '0') {
+          report_error(ERROR_TOK(cond_end), "Expecting integer literal here.");
+          return;
+        }
+
+        /* Iteration statement. */
+        const Token iter_var = iter[0];
+        const Token iter_type = iter[1];
+        const Token iter_end = iter[1];
+        int iter_incr = 0;
+        if (iter_var.str() != var_name.str()) {
+          report_error(ERROR_TOK(iter_var), "Non matching loop counter variable.");
+          return;
+        }
+        if (iter_type == Increment) {
+          iter_incr = +1;
+          if (cond_type == '>') {
+            report_error(ERROR_TOK(for_tok), "Unsupported condition in unrolled loop.");
             return;
           }
-          const Token for_tok = tokens[8];
-          const Scope loop_args = tokens[9].scope();
-          const Scope loop_body = tokens[13].scope();
-
-          Scope init, cond, iter;
-          parse_for_args(loop_args, init, cond, iter);
-
-          /* Init statement. */
-          const Token var_type = init[0];
-          const Token var_name = init[1];
-          const Token var_init = init[2];
-          if (var_type.str() != "int" && var_type.str() != "uint") {
-            report_error(ERROR_TOK(var_init), "Can only unroll integer based loop.");
+        }
+        else if (iter_type == Decrement) {
+          iter_incr = -1;
+          if (cond_type == '<') {
+            report_error(ERROR_TOK(for_tok), "Unsupported condition in unrolled loop.");
             return;
           }
-          if (var_init != '=') {
-            report_error(ERROR_TOK(var_init), "Expecting assignment here.");
-            return;
-          }
-          if (init[3] != '0' && init[3] != '-') {
-            report_error(ERROR_TOK(init[3]), "Expecting integer literal here.");
-            return;
-          }
+        }
+        else {
+          report_error(ERROR_TOK(iter_type), "Unsupported loop expression. Expecting ++ or --.");
+          return;
+        }
 
-          /* Conditional statement. */
-          const Token cond_var = cond[0];
-          const Token cond_type = cond[1];
-          const Token cond_sign = (cond[2] == '+' || cond[2] == '-') ? cond[2] : Token::invalid();
-          const Token cond_end = cond_sign.is_valid() ? cond[3] : cond[2];
-          if (cond_var.str() != var_name.str()) {
-            report_error(ERROR_TOK(cond_var), "Non matching loop counter variable.");
-            return;
-          }
-          if (cond_end != '0') {
-            report_error(ERROR_TOK(cond_end), "Expecting integer literal here.");
-            return;
-          }
+        int64_t init_value = std::stol(
+            parser.substr_range_inclusive(var_init.next(), var_init.scope().end()));
+        int64_t end_value = std::stol(
+            parser.substr_range_inclusive(cond_sign.is_valid() ? cond_sign : cond_end, cond_end));
+        /* TODO(fclem): Support arbitrary strides (aka, arbitrary iter statement). */
+        int iter_count = std::abs(end_value - init_value);
+        if (cond_type == GEqual || cond_type == LEqual) {
+          iter_count += 1;
+        }
 
-          /* Iteration statement. */
-          const Token iter_var = iter[0];
-          const Token iter_type = iter[1];
-          const Token iter_end = iter[1];
-          int iter_incr = 0;
-          if (iter_var.str() != var_name.str()) {
-            report_error(ERROR_TOK(iter_var), "Non matching loop counter variable.");
-            return;
-          }
-          if (iter_type == Increment) {
-            iter_incr = +1;
-            if (cond_type == '>') {
-              report_error(ERROR_TOK(for_tok), "Unsupported condition in unrolled loop.");
-              return;
-            }
-          }
-          else if (iter_type == Decrement) {
-            iter_incr = -1;
-            if (cond_type == '<') {
-              report_error(ERROR_TOK(for_tok), "Unsupported condition in unrolled loop.");
-              return;
-            }
-          }
-          else {
-            report_error(ERROR_TOK(iter_type), "Unsupported loop expression. Expecting ++ or --.");
-            return;
-          }
+        bool condition_is_trivial = (cond_end == cond.end());
+        bool iteration_is_trivial = (iter_end == iter.end());
 
-          int64_t init_value = std::stol(
-              parser.substr_range_inclusive(var_init.next(), var_init.scope().end()));
-          int64_t end_value = std::stol(parser.substr_range_inclusive(
-              cond_sign.is_valid() ? cond_sign : cond_end, cond_end));
-          /* TODO(fclem): Support arbitrary strides (aka, arbitrary iter statement). */
-          int iter_count = std::abs(end_value - init_value);
-          if (cond_type == GEqual || cond_type == LEqual) {
-            iter_count += 1;
-          }
+        process_loop(tokens[0],
+                     iter_count,
+                     init_value,
+                     iter_incr,
+                     condition_is_trivial,
+                     iteration_is_trivial,
+                     init,
+                     cond,
+                     iter,
+                     loop_body);
+      });
 
-          bool condition_is_trivial = (cond_end == cond.end());
-          bool iteration_is_trivial = (iter_end == iter.end());
+      /* [[gpu::unroll(n)]]. */
+      parser.foreach_match("[[w::w(0)]]f(..){..}", [&](const std::vector<Token> tokens) {
+        const Scope loop_args = tokens[12].scope();
+        const Scope loop_body = tokens[16].scope();
 
-          add_loop(tokens[0],
-                   iter_count,
-                   init_value,
-                   iter_incr,
-                   condition_is_trivial,
-                   iteration_is_trivial,
-                   init,
-                   cond,
-                   iter,
-                   loop_body);
-        });
-      }
-      {
-        /* [[gpu::unroll(n)]]. */
-        parser.foreach_match("[[w::w(0)]]f(..){..}", [&](const std::vector<Token> tokens) {
-          const Scope loop_args = tokens[12].scope();
-          const Scope loop_body = tokens[16].scope();
+        Scope init, cond, iter;
+        parse_for_args(loop_args, init, cond, iter);
 
-          Scope init, cond, iter;
-          parse_for_args(loop_args, init, cond, iter);
+        int iter_count = std::stol(tokens[7].str());
 
-          int iter_count = std::stol(tokens[7].str());
-
-          add_loop(tokens[0], iter_count, 0, 0, false, false, init, cond, iter, loop_body);
-        });
-      }
+        process_loop(tokens[0], iter_count, 0, 0, false, false, init, cond, iter, loop_body);
+      });
     } while (parser.apply_mutations());
 
     /* Check for remaining keywords. */
