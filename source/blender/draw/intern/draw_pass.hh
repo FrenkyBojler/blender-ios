@@ -332,7 +332,7 @@ class PassBase {
   /**
    * Record a barrier call to synchronize arbitrary load/store operation between draw calls.
    */
-  void barrier(eGPUBarrier type);
+  void barrier(GPUBarrier type);
 
   /**
    * Bind a shader resource.
@@ -465,7 +465,7 @@ class PassBase {
 
   int push_constant_offset(const char *name);
 
-  void clear(eGPUFrameBufferBits planes, float4 color, float depth, uint8_t stencil);
+  void clear(GPUFrameBufferBits planes, float4 color, float depth, uint8_t stencil);
 
   gpu::Batch *procedural_batch_get(GPUPrimType primitive);
 
@@ -652,7 +652,7 @@ template<class T> inline command::Undetermined &PassBase<T>::create_command(comm
 }
 
 template<class T>
-inline void PassBase<T>::clear(eGPUFrameBufferBits planes,
+inline void PassBase<T>::clear(GPUFrameBufferBits planes,
                                float4 color,
                                float depth,
                                uint8_t stencil)
@@ -1072,7 +1072,7 @@ inline void PassBase<T>::clear_color_depth_stencil(float4 color, float depth, ui
 /** \name Barrier Implementation
  * \{ */
 
-template<class T> inline void PassBase<T>::barrier(eGPUBarrier type)
+template<class T> inline void PassBase<T>::barrier(GPUBarrier type)
 {
   create_command(Type::Barrier).barrier = {type};
 }

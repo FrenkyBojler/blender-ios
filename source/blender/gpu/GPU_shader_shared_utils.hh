@@ -14,7 +14,7 @@
  * IMPORTANT:
  * - Always use `u` suffix for enum values. GLSL do not support implicit cast.
  * - Define all values. This is in order to simplify custom pre-processor code.
- * - (C++ only) Always use `uint32_t` as underlying type (`enum eMyEnum : uint32_t`).
+ * - (C++ only) Always use `uint32_t` as underlying type (`enum MyEnum : uint32_t`).
  * - (C only) do NOT use the enum type inside UBO/SSBO structs and use `uint` instead.
  * - Use float suffix by default for float literals to avoid double promotion in C++.
  * - Pack one float or int after a vec3/ivec3 to fulfill alignment rules.
@@ -28,9 +28,9 @@
  * NOTE: You can use bool type using bool32_t a int boolean type matching the GLSL type.
  */
 
-#ifdef GLSL_CPP_STUBS
-#  pragma once
+#pragma once
 
+#ifdef GLSL_CPP_STUBS
 /* Silence macros when compiling for shaders. */
 #  define BLI_STATIC_ASSERT(cond, msg)
 #  define BLI_STATIC_ASSERT_ALIGN(type_, align_)
