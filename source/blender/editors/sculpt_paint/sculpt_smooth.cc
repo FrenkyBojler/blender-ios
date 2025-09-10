@@ -544,14 +544,13 @@ void calc_relaxed_translations_faces(const Span<float3> vert_positions,
     float3 normal;
     if (is_boundary && neighbors.size() == 2) {
       normal = calc_boundary_normal_corner(vert_positions[verts[i]], vert_positions, neighbors);
+      if (math::is_zero(normal)) {
+        translations[i] = float3(0);
+        continue;
+      }
     }
     else {
       normal = vert_normals[verts[i]];
-    }
-
-    if (math::is_zero(normal)) {
-      translations[i] = float3(0);
-      continue;
     }
 
     const float3 translation = translation_to_plane(
@@ -632,14 +631,13 @@ void calc_relaxed_translations_grids(const SubdivCCG &subdiv_ccg,
         float3 normal;
         if (is_boundary && neighbors.size() == 2) {
           normal = calc_boundary_normal_corner(key, positions, positions[vert], neighbors);
+          if (math::is_zero(normal)) {
+            translations[node_vert] = float3(0);
+            continue;
+          }
         }
         else {
           normal = normals[vert];
-        }
-
-        if (math::is_zero(normal)) {
-          translations[i] = float3(0);
-          continue;
         }
 
         const float3 translation = translation_to_plane(
@@ -703,15 +701,14 @@ void calc_relaxed_translations_bmesh(const Set<BMVert *, 0> &verts,
     float3 normal;
     if (is_boundary && neighbors.size() == 2) {
       normal = calc_boundary_normal_corner(positions[i], neighbors);
+      if (math::is_zero(normal)) {
+        translations[i] = float3(0);
+        i++;
+        continue;
+      }
     }
     else {
       normal = vert->no;
-    }
-
-    if (math::is_zero(normal)) {
-      translations[i] = float3(0);
-      i++;
-      continue;
     }
 
     const float3 translation = translation_to_plane(positions[i], normal, smoothed_position);
