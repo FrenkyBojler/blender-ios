@@ -773,11 +773,7 @@ static void IDP_FreeGroup(IDProperty *prop, const bool do_id_user)
 {
   BLI_assert(prop->type == IDP_GROUP);
 
-  MEM_delete(prop->data.children_map);
-  /* Setting to null helps with error detection in case the #IDProperty is reused and freed later
-   * again. */
-  prop->data.children_map = nullptr;
-
+  MEM_SAFE_DELETE(prop->data.children_map);
   LISTBASE_FOREACH (IDProperty *, loop, &prop->data.group) {
     IDP_FreePropertyContent_ex(loop, do_id_user);
   }
