@@ -186,7 +186,6 @@ if(WITH_BLENDER)
       action_slot
       action_tweak
       add
-      adjust_curves
       aliased
       align_bottom
       align_center
@@ -229,7 +228,6 @@ if(WITH_BLENDER)
       bone_data
       bookmarks
       bordermove
-      brightness_contrast
       brushes_all
       brush_data
       camera_data
@@ -247,7 +245,6 @@ if(WITH_BLENDER)
       collapsemenu
       collection_new
       color
-      color_balance
       color_blue
       color_green
       color_red
@@ -567,10 +564,13 @@ if(WITH_BLENDER)
       mod_array
       mod_bevel
       mod_boolean
+      mod_brightness_contrast
       mod_build
       mod_cast
       mod_cloth
+      mod_color_balance
       mod_curve
+      mod_curves
       mod_dash
       mod_data_transfer
       mod_decim
@@ -617,6 +617,7 @@ if(WITH_BLENDER)
       mod_vertex_weight
       mod_warp
       mod_wave
+      mod_white_balance
       mod_wireframe
       monkey
       mouse_lmb
@@ -927,7 +928,6 @@ if(WITH_BLENDER)
       volume_data
       vpaint_hlt
       warning_large
-      white_balance
       window
       wordwrap_off
       wordwrap_on
