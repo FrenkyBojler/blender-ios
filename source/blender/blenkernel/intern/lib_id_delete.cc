@@ -97,6 +97,8 @@ void BKE_libblock_free_runtime_data(ID *id)
    * by assets are deleted. This means that the regular "delete this ID" flow (aka this code here)
    * also needs to free this data. */
   BLO_readfile_id_runtime_data_free(*id);
+
+  MEM_SAFE_DELETE(id->runtime);
 }
 
 static int id_free(Main *bmain, void *idv, int flag, const bool use_flag_from_idtag)

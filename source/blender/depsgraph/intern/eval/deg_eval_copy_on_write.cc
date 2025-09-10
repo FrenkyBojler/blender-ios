@@ -1022,7 +1022,9 @@ void deg_tag_eval_copy_id(deg::Depsgraph &depsgraph, ID *id_cow, const ID *id_or
   /* This ID is no longer localized, is a self-sustaining copy now. */
   id_cow->tag &= ~ID_TAG_LOCALIZED;
   id_cow->orig_id = (ID *)id_orig;
-  id_cow->runtime.depsgraph = &reinterpret_cast<::Depsgraph &>(depsgraph);
+
+  BKE_libblock_runtime_ensure(*id_cow);
+  id_cow->runtime->depsgraph = &reinterpret_cast<::Depsgraph &>(depsgraph);
 }
 
 bool deg_eval_copy_is_expanded(const ID *id_cow)

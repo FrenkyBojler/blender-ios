@@ -1349,8 +1349,8 @@ BLO_Write_IDBuffer::BLO_Write_IDBuffer(ID &id, const bool is_undo, const bool is
    * when we need to re-read the ID into its original address, this is currently cleared in
    * #direct_link_id_common in `readfile.cc` anyway. */
   temp_id->py_instance = nullptr;
-  /* Clear runtime data struct. */
-  temp_id->runtime = ID_Runtime{};
+  /* Clear runtime data pointer. */
+  temp_id->runtime = nullptr;
 }
 
 BLO_Write_IDBuffer::BLO_Write_IDBuffer(ID &id, BlendWriter *writer)

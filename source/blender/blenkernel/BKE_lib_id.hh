@@ -42,14 +42,51 @@
 #include "DNA_userdef_enums.h"
 
 struct BlendWriter;
+struct Depsgraph;
 struct GHash;
 struct ID;
+struct ID_Readfile_Data;
 struct Library;
 struct ListBase;
 struct Main;
 struct PointerRNA;
 struct PropertyRNA;
 struct bContext;
+
+namespace blender::bke::id {
+
+/** Status used and counters created during id-remapping. */
+struct ID_Runtime_Remap {
+  /** Status during ID remapping. */
+  int status = 0;
+  /** During ID remapping the number of skipped use cases that refcount the data-block. */
+  int skipped_refcounted = 0;
+  /**
+   * During ID remapping the number of direct use cases that could be remapped
+   * (e.g. obdata when in edit mode).
+   */
+  int skipped_direct = 0;
+  /** During ID remapping, the number of indirect use cases that could not be remapped. */
+  int skipped_indirect = 0;
+};
+
+struct ID_Runtime {
+  ID_Runtime_Remap remap = {};
+  /**
+   * The depsgraph that owns this data block. This is only set on data-blocks which are
+   * copied-on-eval by the depsgraph. Additional data-blocks created during depsgraph evaluation
+   * are not owned by any specific depsgraph and thus this pointer is null for those.
+   */
+  struct Depsgraph *depsgraph = nullptr;
+
+  /**
+   * This data is only allocated & used during the readfile process. After that, the memory is
+   * freed and the pointer set to `nullptr`.
+   */
+  struct ID_Readfile_Data *readfile_data = nullptr;
+};
+
+}  // namespace blender::bke::id
 
 /**
  * Get allocation size of a given data-block type and optionally allocation `r_name`.
@@ -89,6 +126,11 @@ void *BKE_libblock_alloc_in_lib(Main *bmain,
  * ID is assumed to be just calloc'ed.
  */
 void BKE_libblock_init_empty(ID *id) ATTR_NONNULL(1);
+
+/**
+ * Ensure that the given ID does have a valid runtime data.
+ */
+void BKE_libblock_runtime_ensure(ID &id);
 
 /**
  * Reset the runtime counters used by ID remapping.
@@ -181,6 +223,9 @@ enum {
    * Assume given `newid` already points to allocated memory for whole data-block
    * (ID + data) - USE WITH CAUTION!
    * Implies LIB_ID_CREATE_NO_MAIN.
+   *
+   * \note The allocateed ID is also expected to have a valid runtime data already created, caller
+   * is also responsible for that.
    */
   LIB_ID_CREATE_NO_ALLOCATE = 1 << 2,
 
@@ -448,17 +493,32 @@ enum {
  * \note These functions do NOT cover embedded IDs. Those are managed by the
  * owning ID, and are typically allocated/freed from the IDType callbacks.
  */
-void BKE_libblock_free_datablock(ID *id, int flag) ATTR_NONNULL();
-void BKE_libblock_free_data(ID *id, bool do_id_user) ATTR_NONNULL();
-void BKE_libblock_free_runtime_data(ID *id) ATTR_NONNULL();
 
 /**
+ * Only free generic Python instance data (ID::py_instance).
+ *
  * In most cases #BKE_id_free_ex handles this, when lower level functions are called directly
  * this function will need to be called too, if Python has access to the data.
  *
  * ID data-blocks such as #Material.nodetree are not stored in #Main.
  */
 void BKE_libblock_free_data_py(ID *id);
+/**
+ * Only free generic runtime data (ID::runtime).
+ *
+ * In most cases #BKE_libblock_free_data handles this, but in rare cases (currently in readfile,
+ * when freeing linked ID placeholders), it is necessary.
+ */
+void BKE_libblock_free_runtime_data(ID *id);
+
+/** Free generic ID data, including the runtime and animation data, but not the python data. */
+void BKE_libblock_free_data(ID *id, bool do_id_user) ATTR_NONNULL();
+
+/**
+ * Free IDtype-specific data (does _not_ free generic ID data, use
+ * #BKE_libblock_free_data for that).
+ */
+void BKE_libblock_free_datablock(ID *id, int flag) ATTR_NONNULL();
 
 /**
  * Complete ID freeing, extended version for corner cases.
@@ -640,6 +700,9 @@ bool BKE_id_copy_is_allowed(const ID *id);
  * In practice, ID copying follows the same behavior as ID creation (see #BKE_libblock_alloc
  * documentation), with one special case: when the special flag #LIB_ID_CREATE_NO_ALLOCATE is
  * specified, the copied ID will have the same library as the source ID.
+ *
+ * \warning When using #LIB_ID_CREATE_NO_ALLOCATE, the caller is responsible to ensure that the
+ * given `new_id_p` points to a clean, ready to be written ID data of the expected size.
  *
  * \param bmain: Main database, may be NULL only if LIB_ID_CREATE_NO_MAIN is specified.
  * \param id: Source data-block.
