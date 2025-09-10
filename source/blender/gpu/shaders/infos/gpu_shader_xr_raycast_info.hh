@@ -13,8 +13,8 @@
 #  include "GPU_shader_shared.hh"
 #endif
 
+#include "GPU_xr_defines.hh"
 #include "gpu_shader_create_info.hh"
-#include "wm_xr_defines.hh"
 
 GPU_SHADER_CREATE_INFO(gpu_shader_xr_raycast)
 DEFINE_VALUE("XR_MAX_RAYCASTS", STRINGIFY(XR_MAX_RAYCASTS))

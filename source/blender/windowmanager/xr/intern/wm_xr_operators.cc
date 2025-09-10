@@ -39,6 +39,7 @@
 
 #include "GPU_batch_presets.hh"
 #include "GPU_matrix.hh"
+#include "GPU_xr_defines.hh"
 
 #include "MEM_guardedalloc.h"
 

@@ -8,8 +8,6 @@
 
 #pragma once
 
-#include "wm_xr_defines.hh"
-
 struct wmWindow;
 struct wmWindowManager;
 struct wmXrData;
