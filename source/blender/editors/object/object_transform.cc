@@ -2395,27 +2395,27 @@ void OBJECT_OT_transform_axis_target(wmOperatorType *ot)
 
 enum eLightAxisLock {
   LIGHT_AXIS_LOCK_NONE = 0,
-  LIGHT_AXIS_LOCK_AZIMUTH = 1,   /* H key - horizontal lock. */
-  LIGHT_AXIS_LOCK_ELEVATION = 2, /* V key - vertical lock. */
-  LIGHT_AXIS_LOCK_DISTANCE = 3,  /* Z key - distance lock. */
+  LIGHT_AXIS_LOCK_AZIMUTH = 1,
+  LIGHT_AXIS_LOCK_ELEVATION = 2,
+  LIGHT_AXIS_LOCK_DISTANCE = 3,
 };
 
 enum eLightOrbitAroundTargetModal {
   LIGHT_ORBIT_AROUND_TARGET_MODAL_CONFIRM = 1,
   LIGHT_ORBIT_AROUND_TARGET_MODAL_CANCEL,
-  LIGHT_ORBIT_AROUND_TARGET_MODAL_AZIMUTH_LOCK,  /* H key - horizontal lock. */
+  LIGHT_ORBIT_AROUND_TARGET_MODAL_AZIMUTH_LOCK,   /* H key - horizontal lock. */
   LIGHT_ORBIT_AROUND_TARGET_MODAL_ELEVATION_LOCK, /* V key - vertical lock. */
   LIGHT_ORBIT_AROUND_TARGET_MODAL_DISTANCE_LOCK,  /* Z key - distance lock. */
   LIGHT_ORBIT_AROUND_TARGET_MODAL_INVERT,         /* I key - 180° rotation around local Y. */
-  LIGHT_ORBIT_AROUND_TARGET_MODAL_SYMMETRY,      /* S key - symmetry around intersection point. */
+  LIGHT_ORBIT_AROUND_TARGET_MODAL_SYMMETRY,       /* S key - symmetry around intersection point. */
 };
 
 struct LightOrbitAroundTargetData {
   ViewContext vc{};
   blender::float2 init_mval{0.0f};
   blender::float2 current_mval{0.0f}; /* Current mouse position when switching modes. */
-  blender::float3 center{0.0f};  /* Pivot point (hit point). */
-  float distance = 0.0f;   /* Distance from light to pivot. */
+  blender::float3 center{0.0f};       /* Pivot point (hit point). */
+  float distance = 0.0f;                   /* Distance from light to pivot. */
   bool has_center = false;
   int init_event = 0;
   eLightAxisLock axis_lock = eLightAxisLock(0); /* Current axis constraint mode. */
@@ -2428,10 +2428,10 @@ struct LightOrbitAroundTargetData {
     blender::float4 orig_quat{0.0f};        /* Quaternion rotation. */
     blender::float3 orig_rot_axis{0.0f};    /* Axis-angle rotation axis. */
     float orig_rot_angle = 0.0f;            /* Axis-angle rotation angle. */
-    float current_azimuth = 0.0f;   /* Current azimuth in spherical coordinates. */
-    float current_elevation = 0.0f; /* Current elevation in spherical coordinates. */
-    float current_distance = 0.0f;  /* Current distance from center. */
-    bool direction_inverted = false; /* Whether light direction is inverted. */
+    float current_azimuth = 0.0f;           /* Current azimuth in spherical coordinates. */
+    float current_elevation = 0.0f;         /* Current elevation in spherical coordinates. */
+    float current_distance = 0.0f;          /* Current distance from center. */
+    bool direction_inverted = false;        /* Whether light direction is inverted. */
   };
   blender::Vector<LightData> lights{};
 };
@@ -2487,9 +2487,7 @@ static void light_orbit_around_target_init_data(bContext *C, wmOperator *op, con
   LightOrbitAroundTargetData *loatd = MEM_new<LightOrbitAroundTargetData>(__func__);
   op->customdata = loatd;
 
-  /* Init context.. */
   loatd->vc = ED_view3d_viewcontext_init(C, CTX_data_depsgraph_pointer(C));
-  
   loatd->init_mval[0] = float(event->mval[0]);
   loatd->init_mval[1] = float(event->mval[1]);
   loatd->current_mval[0] = loatd->init_mval[0];
@@ -2497,19 +2495,17 @@ static void light_orbit_around_target_init_data(bContext *C, wmOperator *op, con
   loatd->init_event = event->type;
   loatd->has_center = false;
   loatd->axis_lock = LIGHT_AXIS_LOCK_NONE;
-  
+
   /* Set initial cursor. */
   light_orbit_around_target_set_cursor(C, loatd);
-  
+
   /* Set initial status text. */
   light_orbit_around_target_update_status(C, op, loatd);
-  
-  /* Get selected light objects, prioritizing active object if it's selected. */
+
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   BKE_view_layer_synced_ensure(scene, view_layer);
-  
-  /* Add active object first if it's a light and selected. */
+
   Object *active_ob = loatd->vc.obact;
   if (active_ob && active_ob->type == OB_LAMP) {
     bool is_active_selected = false;
@@ -2525,8 +2521,7 @@ static void light_orbit_around_target_init_data(bContext *C, wmOperator *op, con
       LightOrbitAroundTargetData::LightData light_data;
       light_data.ob = active_ob;
       copy_v3_v3(light_data.orig_loc, active_ob->loc);
-      
-      /* Store original rotation data in all formats to avoid lossy conversions. */
+
       copy_v3_v3(light_data.orig_rot, active_ob->rot);
       copy_v4_v4(light_data.orig_quat, active_ob->quat);
       copy_v3_v3(light_data.orig_rot_axis, active_ob->rotAxis);
@@ -2535,15 +2530,13 @@ static void light_orbit_around_target_init_data(bContext *C, wmOperator *op, con
       loatd->lights.append(light_data);
     }
   }
-  
-  /* Add remaining selected light objects. */
+
   CTX_DATA_BEGIN (C, Object *, ob, selected_editable_objects) {
     if (ob->type == OB_LAMP && ob != active_ob) {
       LightOrbitAroundTargetData::LightData light_data;
       light_data.ob = ob;
       copy_v3_v3(light_data.orig_loc, ob->loc);
-      
-      /* Store original rotation data in all formats to avoid lossy conversions. */
+
       copy_v3_v3(light_data.orig_rot, ob->rot);
       copy_v4_v4(light_data.orig_quat, ob->quat);
       copy_v3_v3(light_data.orig_rot_axis, ob->rotAxis);
@@ -2553,7 +2546,7 @@ static void light_orbit_around_target_init_data(bContext *C, wmOperator *op, con
     }
   }
   CTX_DATA_END;
-  
+
   /* Find pivot point by casting ray from light along its local Z-axis. */
   loatd->has_center = false;
   
@@ -2577,7 +2570,7 @@ static void light_orbit_around_target_init_data(bContext *C, wmOperator *op, con
     blender::ed::transform::SnapObjectContext *sctx = blender::ed::transform::snap_object_context_create(loatd->vc.scene, 0);
     
     float hit_co[3], hit_no[3];
-    float ray_depth = 1000.0f; /* Cast ray far into the scene. */
+    float ray_depth = BVH_RAYCAST_DIST_MAX; /* Cast ray to maximum distance. */
     
     const bool hit = blender::ed::transform::snap_object_project_ray(
         sctx,
@@ -2625,7 +2618,7 @@ static void light_orbit_around_target_init_data(bContext *C, wmOperator *op, con
     loatd->has_center = true;
     loatd->distance = loatd->vc.rv3d->dist;
   }
-  
+
   /* Initialize current spherical coordinates for each light. */
   for (LightOrbitAroundTargetData::LightData &light : loatd->lights) {
     /* Calculate direction from center to light position. */
@@ -2667,7 +2660,7 @@ void light_orbit_around_target_modal_keymap(wmKeyConfig *keyconf)
 static void light_orbit_around_target_cancel(bContext *C, wmOperator *op)
 {
   LightOrbitAroundTargetData *loatd = static_cast<LightOrbitAroundTargetData *>(op->customdata);
-  
+
   /* Restore original positions/rotations. */
   for (const LightOrbitAroundTargetData::LightData &light : loatd->lights) {
     copy_v3_v3(light.ob->loc, light.orig_loc);
@@ -2697,6 +2690,74 @@ static void light_orbit_around_target_cancel(bContext *C, wmOperator *op)
   MEM_delete(loatd);
 }
 
+static void object_set_rotation_from_matrix(Object *ob, const float mat[3][3])
+{
+  if (ob->rotmode == ROT_MODE_QUAT) {
+    mat3_to_quat(ob->quat, mat);
+  }
+  else if (ob->rotmode == ROT_MODE_AXISANGLE) {
+    mat3_to_axis_angle(ob->rotAxis, &ob->rotAngle, mat);
+  }
+  else {
+    float euler[3];
+    mat3_to_compatible_eulO(euler, ob->rot, ob->rotmode, mat);
+    copy_v3_v3(ob->rot, euler);
+  }
+}
+
+static void light_orbit_direction(float result[3], float azimuth, float elevation)
+{
+  result[0] = cosf(elevation) * sinf(azimuth);
+  result[1] = cosf(elevation) * cosf(azimuth);
+  result[2] = sinf(elevation);
+}
+
+static void light_orbit_update_position(Object *light_ob, 
+                                       const float center[3], 
+                                       float azimuth, 
+                                       float elevation, 
+                                       float distance)
+{
+  float new_dir[3];
+  light_orbit_direction(new_dir, azimuth, elevation);
+  
+  /* Handle negative distances with automatic direction inversion. */
+  float actual_distance = distance;
+  bool should_invert = (actual_distance < 0.0f);
+  if (should_invert) {
+    actual_distance = -actual_distance; /* Use positive distance for positioning. */
+    negate_v3(new_dir); /* Invert direction vector. */
+  }
+  
+  /* Set new position using current distance and direction. */
+  madd_v3_v3v3fl(light_ob->loc, center, new_dir, actual_distance);
+}
+
+static void light_orbit_update_rotation(Object *light_ob, const float center[3])
+{
+  /* Update rotation to point at center. */
+  float target_dir[3];
+  sub_v3_v3v3(target_dir, center, light_ob->loc);
+  normalize_v3(target_dir);
+  
+  /* Convert direction vector to euler angles for light pointing. */
+  /* In Blender, lights point in negative Z direction by default. */
+  /* So we need to orient the light so its -Z axis points toward target. */
+  float up[3] = {0.0f, 0.0f, 1.0f};
+  float right[3];
+  cross_v3_v3v3(right, target_dir, up);
+  normalize_v3(right);
+  cross_v3_v3v3(up, right, target_dir);
+  
+  /* Create rotation matrix and convert to rotation mode. */
+  float rot_mat[3][3];
+  copy_v3_v3(rot_mat[0], right);
+  copy_v3_v3(rot_mat[1], up);
+  negate_v3_v3(rot_mat[2], target_dir); /* -Z points toward target. */
+  
+  object_set_rotation_from_matrix(light_ob, rot_mat);
+}
+
 static wmOperatorStatus light_orbit_around_target_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   light_orbit_around_target_init_data(C, op, event);
@@ -2723,8 +2784,8 @@ static wmOperatorStatus light_orbit_around_target_modal(bContext *C, wmOperator 
       float delta_y = float(event->mval[1]) - loatd->current_mval[1];
       
       /* Convert mouse movement to azimuth and elevation. */
-      float azimuth_delta = delta_x * 0.01f;    /* Horizontal = Azimuth. */
-      float elevation_delta = delta_y * 0.01f;  /* Vertical = Elevation. */
+      float azimuth_delta = delta_x * 0.01f;
+      float elevation_delta = delta_y * 0.01f;
       
       /* Apply axis locking. */
       if (loatd->axis_lock == LIGHT_AXIS_LOCK_AZIMUTH) {
@@ -2744,76 +2805,17 @@ static wmOperatorStatus light_orbit_around_target_modal(bContext *C, wmOperator 
           float distance_delta = delta_y * 0.1f; /* Vertical mouse movement controls distance. */
           light.current_distance += distance_delta;
           /* Allow negative distances for traversing intersection point. */
-          
-          /* Convert current spherical coordinates back to cartesian. */
-          float new_dir[3];
-          new_dir[0] = cosf(light.current_elevation) * sinf(light.current_azimuth);
-          new_dir[1] = cosf(light.current_elevation) * cosf(light.current_azimuth);
-          new_dir[2] = sinf(light.current_elevation);
-          
-          /* Handle automatic direction inversion for negative distances. */
-          float actual_distance = light.current_distance;
-          bool should_invert = (actual_distance < 0.0f);
-          if (should_invert) {
-            actual_distance = -actual_distance; /* Use positive distance for positioning. */
-            negate_v3(new_dir); /* Invert direction vector. */
-          }
-          
-          /* Set new position using updated distance and direction. */
-          madd_v3_v3v3fl(light.ob->loc, loatd->center, new_dir, actual_distance);
         }
         else {
           /* Normal mode: update azimuth and elevation. */
           light.current_azimuth += azimuth_delta;
           light.current_elevation += elevation_delta;
           light.current_elevation = clamp_f(light.current_elevation, -M_PI_2 + 0.001f, M_PI_2 - 0.001f);
-          
-          /* Convert current spherical coordinates back to cartesian. */
-          float new_dir[3];
-          new_dir[0] = cosf(light.current_elevation) * sinf(light.current_azimuth);
-          new_dir[1] = cosf(light.current_elevation) * cosf(light.current_azimuth);
-          new_dir[2] = sinf(light.current_elevation);
-          
-          /* Handle negative distances with automatic direction inversion. */
-          float actual_distance = light.current_distance;
-          bool should_invert = (actual_distance < 0.0f);
-          if (should_invert) {
-            actual_distance = -actual_distance; /* Use positive distance for positioning. */
-            negate_v3(new_dir); /* Invert direction vector. */
-          }
-          
-          /* Set new position using current distance and direction. */
-          madd_v3_v3v3fl(light.ob->loc, loatd->center, new_dir, actual_distance);
         }
         
-        /* Update rotation to point at center. */
-        float target_dir[3];
-        sub_v3_v3v3(target_dir, loatd->center, light.ob->loc);
-        normalize_v3(target_dir);
-        
-        /* Convert direction vector to euler angles for light pointing. */
-        float euler[3];
-        /* In Blender, lights point in negative Z direction by default. */
-        /* So we need to orient the light so its -Z axis points toward target. */
-        float up[3] = {0.0f, 0.0f, 1.0f};
-        float right[3];
-        cross_v3_v3v3(right, target_dir, up);
-        normalize_v3(right);
-        cross_v3_v3v3(up, right, target_dir);
-        
-        /* Create rotation matrix and convert to euler. */
-        float rot_mat[3][3];
-        copy_v3_v3(rot_mat[0], right);
-        copy_v3_v3(rot_mat[1], up);
-        negate_v3_v3(rot_mat[2], target_dir); /* -Z points toward target. */
-        
-        mat3_to_eul(euler, rot_mat);
-        
-        if (light.ob->rotmode == ROT_MODE_QUAT) {
-          eul_to_quat(light.ob->quat, euler);
-        } else {
-          copy_v3_v3(light.ob->rot, euler);
-        }
+        /* Update position and rotation. */
+        light_orbit_update_position(light.ob, loatd->center, light.current_azimuth, light.current_elevation, light.current_distance);
+        light_orbit_update_rotation(light.ob, loatd->center);
         
         DEG_id_tag_update(&light.ob->id, ID_RECALC_TRANSFORM);
         WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, light.ob);
@@ -2845,6 +2847,9 @@ static wmOperatorStatus light_orbit_around_target_modal(bContext *C, wmOperator 
           if (light.ob->rotmode == ROT_MODE_QUAT) {
             rotation_property = "rotation_quaternion";
           }
+          else if (light.ob->rotmode == ROT_MODE_AXISANGLE) {
+            rotation_property = "rotation_axis_angle";
+          }
           PropertyRNA *prop_rot = RNA_struct_find_property(&ptr, rotation_property);
           animrig::autokeyframe_property(C, scene, &ptr, prop_rot, -1, scene->r.cfra, true);
         }
@@ -2853,12 +2858,16 @@ static wmOperatorStatus light_orbit_around_target_modal(bContext *C, wmOperator 
         WM_cursor_set(CTX_wm_window(C), WM_CURSOR_DEFAULT);
 
         ED_workspace_status_text(C, nullptr);
+        
+        /* Free operator data. */
+        MEM_delete(loatd);
+        op->customdata = nullptr;
+        
         return OPERATOR_FINISHED;
       }
         
       case LIGHT_ORBIT_AROUND_TARGET_MODAL_CANCEL:
         light_orbit_around_target_cancel(C, op);
-        ED_workspace_status_text(C, nullptr);
         return OPERATOR_CANCELLED;
       
       case LIGHT_ORBIT_AROUND_TARGET_MODAL_AZIMUTH_LOCK: {
@@ -2925,8 +2934,12 @@ static wmOperatorStatus light_orbit_around_target_modal(bContext *C, wmOperator 
           float current_rot_mat[3][3];
           if (light.ob->rotmode == ROT_MODE_QUAT) {
             quat_to_mat3(current_rot_mat, light.ob->quat);
-          } else {
-            eul_to_mat3(current_rot_mat, light.ob->rot);
+          }
+          else if (light.ob->rotmode == ROT_MODE_AXISANGLE) {
+            axis_angle_to_mat3(current_rot_mat, light.ob->rotAxis, light.ob->rotAngle);
+          }
+          else {
+            eulO_to_mat3(current_rot_mat, light.ob->rot, light.ob->rotmode);
           }
           
           /* Create 180° rotation around Y axis. */
@@ -2941,11 +2954,7 @@ static wmOperatorStatus light_orbit_around_target_modal(bContext *C, wmOperator 
           mul_m3_m3m3(new_rot_mat, current_rot_mat, y_rot_180);
           
           /* Convert back to light's rotation mode. */
-          if (light.ob->rotmode == ROT_MODE_QUAT) {
-            mat3_to_quat(light.ob->quat, new_rot_mat);
-          } else {
-            mat3_to_eul(light.ob->rot, new_rot_mat);
-          }
+          object_set_rotation_from_matrix(light.ob, new_rot_mat);
           
           DEG_id_tag_update(&light.ob->id, ID_RECALC_TRANSFORM);
           WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, light.ob);
@@ -2998,13 +3007,8 @@ static wmOperatorStatus light_orbit_around_target_modal(bContext *C, wmOperator 
           copy_v3_v3(rot_mat[1], up);
           negate_v3_v3(rot_mat[2], target_dir);
           
-          mat3_to_eul(euler, rot_mat);
-          
-          if (light.ob->rotmode == ROT_MODE_QUAT) {
-            eul_to_quat(light.ob->quat, euler);
-          } else {
-            copy_v3_v3(light.ob->rot, euler);
-          }
+          /* Convert back to light's rotation mode. */
+          object_set_rotation_from_matrix(light.ob, rot_mat);
           
           DEG_id_tag_update(&light.ob->id, ID_RECALC_TRANSFORM);
           WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, light.ob);
@@ -3032,13 +3036,11 @@ static bool light_orbit_around_target_poll(bContext *C)
     return false;
   }
   
-  /* Check if any selected object is a light. */
-  CTX_DATA_BEGIN (C, Object *, ob, selected_editable_objects) {
-    if (ob->type == OB_LAMP) {
-      return true;
-    }
+  /* Check if active object is a light. */
+  Object *active_ob = CTX_data_active_object(C);
+  if (active_ob && active_ob->type == OB_LAMP) {
+    return true;
   }
-  CTX_DATA_END;
   
   return false;
 }
@@ -3047,7 +3049,7 @@ void OBJECT_OT_light_orbit_around_target(wmOperatorType *ot)
 {
   /* identifiers. */
   ot->name = "Light Orbit Around Target";
-  ot->description = "Interactively position lights using elevation(vertical) and azimuth(horizontal) around the point where the light hits geometry";
+  ot->description = "Interactively position lights around the point where the light hits geometry";
   ot->idname = "OBJECT_OT_light_orbit_around";
   
   /* API callbacks. */
