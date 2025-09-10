@@ -5230,46 +5230,69 @@ static wmOperatorStatus edbm_poke_face_exec(bContext *C, wmOperator *op)
     std::optional<EditMeshSymmetryHelper> symmetry_helper =
         EditMeshSymmetryHelper::create_if_needed(obedit, BM_FACE);
 
-    char hflag_poke = BM_ELEM_SELECT;
+    char hflag_op_input = BM_ELEM_SELECT;
+
+    char hflag_mirror_only = 0;
 
     if (symmetry_helper) {
-      hflag_poke = BM_ELEM_TAG;
-      EDBM_flag_disable_all(em, hflag_poke);
+      hflag_op_input = BM_ELEM_TAG;
+      EDBM_flag_disable_all(em, hflag_op_input);
+
+      hflag_mirror_only = BM_ELEM_TAG_ALT;
+      EDBM_flag_disable_all(em, hflag_mirror_only);
 
       BMIter f_iter;
       BMFace *f;
       BM_ITER_MESH (f, &f_iter, bm, BM_FACES_OF_MESH) {
         if (BM_elem_flag_test(f, BM_ELEM_SELECT)) {
-          BM_elem_flag_enable(f, hflag_poke);
-          symmetry_helper->set_hflag_on_mirror_faces(f, hflag_poke, true);
+          BM_elem_flag_enable(f, hflag_op_input);
+          symmetry_helper->set_hflag_on_mirror_faces(f, hflag_mirror_only, true);
         }
       }
     }
 
-    BMOperator bmop;
+    /* Operate on original selection and update selection */
+    BMOperator bmop_orig;
     EDBM_op_init(em,
-                 &bmop,
+                 &bmop_orig,
                  op,
                  "poke faces=%hf offset=%f use_relative_offset=%b center_mode=%i",
-                 hflag_poke,
+                 hflag_op_input,
                  offset,
                  use_relative_offset,
                  center_mode);
-    BMO_op_exec(em->bm, &bmop);
-
-    if (hflag_poke != BM_ELEM_SELECT) {
-      EDBM_flag_disable_all(em, hflag_poke);
-    }
+    BMO_op_exec(em->bm, &bmop_orig);
 
     EDBM_flag_disable_all(em, BM_ELEM_SELECT);
-
     BMO_slot_buffer_hflag_enable(
-        em->bm, bmop.slots_out, "verts.out", BM_VERT, BM_ELEM_SELECT, true);
+        em->bm, bmop_orig.slots_out, "verts.out", BM_VERT, BM_ELEM_SELECT, true);
     BMO_slot_buffer_hflag_enable(
-        em->bm, bmop.slots_out, "faces.out", BM_FACE, BM_ELEM_SELECT, true);
+        em->bm, bmop_orig.slots_out, "faces.out", BM_FACE, BM_ELEM_SELECT, true);
 
-    if (!EDBM_op_finish(em, &bmop, op, true)) {
+    if (!EDBM_op_finish(em, &bmop_orig, op, true)) {
       continue;
+    }
+
+    /* Operate on mirrored faces without updating selection */
+    if (hflag_mirror_only != 0) {
+      BMOperator bmop_mirror;
+      EDBM_op_init(em,
+                   &bmop_mirror,
+                   op,
+                   "poke faces=%hf offset=%f use_relative_offset=%b center_mode=%i",
+                   hflag_mirror_only,
+                   offset,
+                   use_relative_offset,
+                   center_mode);
+      BMO_op_exec(em->bm, &bmop_mirror);
+      EDBM_op_finish(em, &bmop_mirror, op, true);
+    }
+
+    if (hflag_op_input != BM_ELEM_SELECT) {
+      EDBM_flag_disable_all(em, hflag_op_input);
+    }
+    if (hflag_mirror_only != 0) {
+      EDBM_flag_disable_all(em, hflag_mirror_only);
     }
 
     EDBMUpdate_Params params{};
