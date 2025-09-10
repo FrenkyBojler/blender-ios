@@ -526,15 +526,15 @@ static void write_constraint_attributes(MutableSpan<ConstraintEvalData> constrai
     switch (num_components) {
       case 1:
         lambda_writers_by_type[constraint_i] = attributes.lookup_or_add_for_write_span(
-            "lambda", AttrDomain::Point, CD_PROP_FLOAT);
+            "lambda", AttrDomain::Point, bke::AttrType::Float);
         break;
       case 2:
         lambda_writers_by_type[constraint_i] = attributes.lookup_or_add_for_write_span(
-            "lambda", AttrDomain::Point, CD_PROP_FLOAT2);
+            "lambda", AttrDomain::Point, bke::AttrType::Float2);
         break;
       case 3:
         lambda_writers_by_type[constraint_i] = attributes.lookup_or_add_for_write_span(
-            "lambda", AttrDomain::Point, CD_PROP_FLOAT3);
+            "lambda", AttrDomain::Point, bke::AttrType::Float3);
         break;
       default:
         BLI_assert_unreachable();

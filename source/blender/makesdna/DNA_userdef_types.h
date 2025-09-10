@@ -8,6 +8,8 @@
 
 #pragma once
 
+#include "BLI_rect.h"
+
 #include "DNA_ID.h"
 #include "DNA_colorband_types.h"
 #include "DNA_listBase.h"
@@ -56,7 +58,7 @@ typedef struct bUserMenuItem_Op {
   char op_idname[64];
   struct IDProperty *prop;
   char op_prop_enum[64];
-  char opcontext; /* #wmOperatorCallContext */
+  char opcontext; /* #blender::wm::OpCallContext */
   char _pad0[7];
 } bUserMenuItem_Op;
 
@@ -194,11 +196,16 @@ typedef struct UserDef_FileSpaceData {
   int flag;           /* FileSelectParams.flag */
   int _pad0;
   uint64_t filter_id; /* FileSelectParams.filter_id */
-
-  /** Info used when creating the file browser in a temporary window. */
-  int temp_win_sizex;
-  int temp_win_sizey;
 } UserDef_FileSpaceData;
+
+typedef struct UserDef_TempWinBounds {
+  rctf file;
+  rctf userpref;
+  rctf image;
+  rctf graph;
+  rctf info;
+  rctf outliner;
+} UserDef_TempWinBounds;
 
 /**
  * Checking experimental members must use the #USER_EXPERIMENTAL_TEST() macro
@@ -216,8 +223,7 @@ typedef struct UserDef_Experimental {
   char use_all_linked_data_direct;
   char use_extensions_debug;
   char use_recompute_usercount_on_save_debug;
-  char write_large_blend_file_blocks;
-  char use_attribute_storage_write;
+  char write_legacy_blend_file_format;
   char SANITIZE_AFTER_HERE;
   /* The following options are automatically sanitized (set to 0)
    * when the release cycle is not alpha. */
@@ -226,9 +232,8 @@ typedef struct UserDef_Experimental {
   char use_sculpt_texture_paint;
   char use_new_volume_nodes;
   char use_shader_node_previews;
-  char use_bundle_and_closure_nodes;
-  char use_socket_structure_type;
-  char _pad[4];
+  char use_geometry_nodes_lists;
+  char _pad[6];
 } UserDef_Experimental;
 
 #define USER_EXPERIMENTAL_TEST(userdef, member) \
@@ -420,7 +425,7 @@ typedef struct UserDef {
 
   /** Index of the extension repo in the Preferences UI. */
   short active_extension_repo;
-  /** Flag for all extensions (#eUserPref_ExtensionFlag).  */
+  /** Flag for all extensions (#eUserPref_ExtensionFlag). */
   char extension_flag;
 
   /* Network settings, used by extensions but not specific to extensions. */
@@ -487,12 +492,16 @@ typedef struct UserDef {
   int gpu_preferred_index;
   uint32_t gpu_preferred_vendor_id;
   uint32_t gpu_preferred_device_id;
-  char _pad16[4];
+
+  /** Max number of parallel shader compilation workers. */
+  short gpu_shader_workers;
+  /** eUserpref_ShaderCompileMethod (OpenGL only). */
+  short shader_compilation_method;
+
+  char _pad16[2];
+
   /** #eGPUBackendType */
   short gpu_backend;
-
-  /** Max number of parallel shader compilation subprocesses. */
-  short max_shader_compilation_subprocesses;
 
   /** Number of samples for FPS display calculations. */
   short playback_fps_samples;
@@ -509,16 +518,17 @@ typedef struct UserDef {
   /** Curve non-linearity parameter. */
   float pressure_softness;
 
-  /** Overall sensitivity of 3D mouse. */
-  float ndof_sensitivity;
-  float ndof_orbit_sensitivity;
-  /** Dead-zone of 3D mouse. */
+  /** 3D mouse: overall translation sensitivity. */
+  float ndof_translation_sensitivity;
+  /** 3D mouse: overall rotation sensitivity. */
+  float ndof_rotation_sensitivity;
+  /** 3D mouse: dead-zone. */
   float ndof_deadzone;
   /** #eNdof_Flag, flags for 3D mouse. */
   int ndof_flag;
-
-  /** #eMultiSample_Type, amount of samples for OpenGL FSA, if zero no FSA. */
-  short ogl_multisamples;
+  /** #eNdof_Navigation_Mode, current navigation mode. */
+  uint8_t ndof_navigation_mode;
+  char _pad17[1];
 
   /** eImageDrawMethod, Method to be used to draw the images
    * (AUTO, GLSL, Textures or DrawPixels) */
@@ -592,6 +602,8 @@ typedef struct UserDef {
 
   char render_display_type;      /* eUserpref_RenderDisplayType */
   char filebrowser_display_type; /* eUserpref_TempSpaceDisplayType */
+  char preferences_display_type; /* eUserpref_TempSpaceDisplayType */
+  char _pad18[7];
 
   short sequencer_proxy_setup; /* eUserpref_SeqProxySetup */
   short _pad1;
@@ -608,6 +620,8 @@ typedef struct UserDef {
   /** The UI for the user preferences. */
   UserDef_SpaceData space_data;
   UserDef_FileSpaceData file_space_data;
+
+  UserDef_TempWinBounds stored_bounds;
 
   UserDef_Experimental experimental;
 
@@ -749,7 +763,7 @@ typedef enum eWalkNavigation_Flag {
 /** #UserDef.uiflag */
 typedef enum eUserpref_UI_Flag {
   USER_NO_MULTITOUCH_GESTURES = (1 << 0),
-  USER_UIFLAG_UNUSED_1 = (1 << 1), /* cleared */
+  USER_REDUCE_MOTION = (1 << 1),
   USER_WHEELZOOMDIR = (1 << 2),
   USER_FILTERFILEEXTS = (1 << 3),
   USER_DRAWVIEWINFO = (1 << 4),
@@ -768,7 +782,7 @@ typedef enum eUserpref_UI_Flag {
   USER_HIDE_DOT = (1 << 16),
   USER_SHOW_GIZMO_NAVIGATE = (1 << 17),
   USER_SHOW_VIEWPORTNAME = (1 << 18),
-  USER_UIFLAG_UNUSED_3 = (1 << 19), /* Cleared. */
+  USER_AREA_CORNER_HANDLE = (1 << 19),
   USER_ZOOM_TO_MOUSEPOS = (1 << 20),
   USER_SHOW_FPS = (1 << 21),
   USER_REGISTER_ALL_USERS = (1 << 22),
@@ -794,7 +808,7 @@ typedef enum eUserpref_UI_Flag {
  * \note don't add new flags here, use 'uiflag' which has flags free.
  */
 typedef enum eUserpref_UI_Flag2 {
-  USER_UIFLAG2_UNUSED_0 = (1 << 0), /* cleared */
+  USER_ALWAYS_SHOW_NUMBER_ARROWS = (1 << 0), /* cleared */
   USER_REGION_OVERLAP = (1 << 1),
   USER_UIFLAG2_UNUSED_2 = (1 << 2),
   USER_UIFLAG2_UNUSED_3 = (1 << 3), /* dirty */
@@ -802,7 +816,7 @@ typedef enum eUserpref_UI_Flag2 {
 
 /** #UserDef.gpu_flag */
 typedef enum eUserpref_GPU_Flag {
-  USER_GPU_FLAG_NO_DEPT_PICK = (1 << 0), /* Unused. To be removed. */
+  USER_GPU_FLAG_UNUSED_0 = (1 << 0), /* Unused. To be removed. */
   USER_GPU_FLAG_NO_EDIT_MODE_SMOOTH_WIRE = (1 << 1),
   USER_GPU_FLAG_OVERLAY_SMOOTH_WIRE = (1 << 2),
   USER_GPU_FLAG_SUBDIVISION_EVALUATION = (1 << 3),
@@ -1010,15 +1024,13 @@ typedef enum eNdof_Flag {
   NDOF_SHOULD_ZOOM = (1 << 4),
   NDOF_SHOULD_ROTATE = (1 << 5),
 
-  /* Orbit navigation modes. */
-
-  NDOF_MODE_ORBIT = (1 << 6),
-
-  /* actually... users probably don't care about what the mode
-   * is called, just that it feels right */
-  /* zoom is up/down if this flag is set (otherwise forward/backward) */
-  NDOF_PAN_YZ_SWAP_AXIS = (1 << 7),
-  NDOF_ZOOM_INVERT = (1 << 8),
+  // NDOF_UNUSED_6 = (1 << 6), /* Dirty. */
+  /**
+   * When set translation results in zoom being up/down otherwise forward/backward
+   * This also swaps Y/Z for rotation.
+   */
+  NDOF_SWAP_YZ_AXIS = (1 << 7),
+  // NDOF_UNUSED_8 = (1 << 8), /* Dirty. */
   NDOF_ROTX_INVERT_AXIS = (1 << 9),
   NDOF_ROTY_INVERT_AXIS = (1 << 10),
   NDOF_ROTZ_INVERT_AXIS = (1 << 11),
@@ -1031,6 +1043,36 @@ typedef enum eNdof_Flag {
   NDOF_ORBIT_CENTER_SELECTED = (1 << 18),
   NDOF_SHOW_GUIDE_ORBIT_CENTER = (1 << 19),
 } eNdof_Flag;
+
+/**
+ * NDOF Navigation Modes.
+ * Each mode describes some style of navigation rather than control a single aspect of navigation.
+ */
+typedef enum eNdof_Navigation_Mode {
+  /**
+   * 3D mouse cap represents objects movement in 3D space.
+   * Pulling the cap will pull the objects closer to the camera.
+   */
+  NDOF_NAVIGATION_MODE_OBJECT = 0,
+  /**
+   * 3D mouse cap controls the movement of the view window
+   * and allows for flying through the scene.
+   *
+   * \note this also inverts navigation for 2D views,
+   * since it's confusing for users when 2D/3D navigation is inverted, see: #144751.
+   */
+  NDOF_NAVIGATION_MODE_FLY = 1,
+  /* TODO: implement "Target Camera Mode" and "Drone Mode" */
+} eNdof_Navigation_Mode;
+
+/**
+ * Some navigation modes make use of "Auto Center" (#NDOF_ORBIT_CENTER_AUTO) and some don't.
+ * Instead of testing against all possibilities use a macro.
+ *
+ * TODO: Add Target Camera Mode when implemented.
+ */
+#define NDOF_IS_ORBIT_AROUND_CENTER_MODE(userdef) \
+  ((userdef)->ndof_navigation_mode == NDOF_NAVIGATION_MODE_OBJECT)
 
 #define NDOF_PIXELS_PER_SECOND 600.0f
 
@@ -1096,9 +1138,14 @@ typedef enum eUserpref_SeqProxySetup {
 } eUserpref_SeqProxySetup;
 
 typedef enum eUserpref_SeqEditorFlags {
-  USER_SEQ_ED_SIMPLE_TWEAKING = (1 << 0),
+  USER_SEQ_ED_UNUSED_0 = (1 << 0), /* Dirty. */
   USER_SEQ_ED_CONNECT_STRIPS_BY_DEFAULT = (1 << 1),
 } eUserpref_SeqEditorFlags;
+
+typedef enum eUserpref_ShaderCompileMethod {
+  USER_SHADER_COMPILE_THREAD = 0,
+  USER_SHADER_COMPILE_SUBPROCESS = 1,
+} eUserpref_ShaderCompileMethod;
 
 /* Locale Ids. Auto will try to get local from OS. Our default is English though. */
 /** #UserDef.language */

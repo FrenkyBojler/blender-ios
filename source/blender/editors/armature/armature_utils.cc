@@ -14,7 +14,7 @@
 #include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_string_utils.hh"
 
 #include "BKE_armature.hh"
@@ -108,6 +108,9 @@ void bone_free(bArmature *arm, EditBone *bone)
 
   if (bone->prop) {
     IDP_FreeProperty(bone->prop);
+  }
+  if (bone->system_properties) {
+    IDP_FreeProperty(bone->system_properties);
   }
 
   /* Clear references from other edit bones. */
@@ -278,7 +281,7 @@ void armature_select_mirrored_ex(bArmature *arm, const int flag)
   /* Select mirrored bones */
   if (arm->flag & ARM_MIRROR_EDIT) {
     LISTBASE_FOREACH (EditBone *, curBone, arm->edbo) {
-      if (blender::animrig::bone_is_visible_editbone(arm, curBone)) {
+      if (blender::animrig::bone_is_visible(arm, curBone)) {
         if (curBone->flag & flag) {
           EditBone *ebone_mirr = ED_armature_ebone_get_mirrored(arm->edbo, curBone);
           if (ebone_mirr) {
@@ -305,7 +308,7 @@ void armature_tag_select_mirrored(bArmature *arm)
   /* Select mirrored bones */
   if (arm->flag & ARM_MIRROR_EDIT) {
     LISTBASE_FOREACH (EditBone *, curBone, arm->edbo) {
-      if (blender::animrig::bone_is_visible_editbone(arm, curBone)) {
+      if (blender::animrig::bone_is_visible(arm, curBone)) {
         if (curBone->flag & (BONE_SELECTED | BONE_ROOTSEL | BONE_TIPSEL)) {
           EditBone *ebone_mirr = ED_armature_ebone_get_mirrored(arm->edbo, curBone);
           if (ebone_mirr && (ebone_mirr->flag & BONE_SELECTED) == 0) {
@@ -344,8 +347,8 @@ void ED_armature_ebone_transform_mirror_update(bArmature *arm, EditBone *ebo, bo
    * eg. from 3d viewport. */
 
   /* no layer check, correct mirror is more important */
-  if (!check_select || (blender::animrig::bone_is_visible_editbone(arm, ebo) &&
-                        (ebo->flag & (BONE_TIPSEL | BONE_ROOTSEL))))
+  if (!check_select ||
+      (blender::animrig::bone_is_visible(arm, ebo) && (ebo->flag & (BONE_TIPSEL | BONE_ROOTSEL))))
   {
     EditBone *eboflip = ED_armature_ebone_get_mirrored(arm->edbo, ebo);
     if (eboflip) {
@@ -456,7 +459,7 @@ static EditBone *make_boneList_recursive(ListBase *edbo,
      * Keep selection logic in sync with ED_armature_edit_sync_selection.
      */
     eBone->parent = parent;
-    STRNCPY(eBone->name, curBone->name);
+    STRNCPY_UTF8(eBone->name, curBone->name);
     eBone->flag = curBone->flag;
     eBone->inherit_scale_mode = curBone->inherit_scale_mode;
     eBone->drawtype = curBone->drawtype;
@@ -522,6 +525,9 @@ static EditBone *make_boneList_recursive(ListBase *edbo,
 
     if (curBone->prop) {
       eBone->prop = IDP_CopyProperty(curBone->prop);
+    }
+    if (curBone->system_properties) {
+      eBone->system_properties = IDP_CopyProperty(curBone->system_properties);
     }
 
     BLI_addtail(edbo, eBone);
@@ -661,11 +667,11 @@ void ED_armature_from_edit(Main *bmain, bArmature *arm)
   arm->act_bone = nullptr;
 
   /* Remove zero sized bones, this gives unstable rest-poses. */
+  constexpr float bone_length_threshold = 0.000001f * 0.000001f;
   for (eBone = static_cast<EditBone *>(arm->edbo->first); eBone; eBone = neBone) {
     float len_sq = len_squared_v3v3(eBone->head, eBone->tail);
     neBone = eBone->next;
-    /* TODO(sergey): How to ensure this is a `constexpr`? */
-    if (len_sq <= square_f(0.000001f)) { /* FLT_EPSILON is too large? */
+    if (len_sq <= bone_length_threshold) { /* FLT_EPSILON is too large? */
       /* Find any bones that refer to this bone */
       LISTBASE_FOREACH (EditBone *, fBone, arm->edbo) {
         if (fBone->parent == eBone) {
@@ -684,7 +690,7 @@ void ED_armature_from_edit(Main *bmain, bArmature *arm)
     newBone = MEM_callocN<Bone>("bone");
     eBone->temp.bone = newBone; /* Associate the real Bones with the EditBones */
 
-    STRNCPY(newBone->name, eBone->name);
+    STRNCPY_UTF8(newBone->name, eBone->name);
     copy_v3_v3(newBone->arm_head, eBone->head);
     copy_v3_v3(newBone->arm_tail, eBone->tail);
     newBone->arm_roll = eBone->roll;
@@ -744,6 +750,9 @@ void ED_armature_from_edit(Main *bmain, bArmature *arm)
     if (eBone->prop) {
       newBone->prop = IDP_CopyProperty(eBone->prop);
     }
+    if (eBone->system_properties) {
+      newBone->system_properties = IDP_CopyProperty(eBone->system_properties);
+    }
   }
 
   /* Fix parenting in a separate pass to ensure ebone->bone connections are valid at this point.
@@ -797,6 +806,9 @@ void ED_armature_edit_free(bArmature *arm)
         if (eBone->prop) {
           IDP_FreeProperty(eBone->prop);
         }
+        if (eBone->system_properties) {
+          IDP_FreeProperty(eBone->system_properties);
+        }
         BLI_freelistN(&eBone->bone_collections);
       }
 
@@ -831,6 +843,9 @@ void ED_armature_ebone_listbase_free(ListBase *lb, const bool do_id_user)
     if (ebone->prop) {
       IDP_FreeProperty_ex(ebone->prop, do_id_user);
     }
+    if (ebone->system_properties) {
+      IDP_FreeProperty_ex(ebone->system_properties, do_id_user);
+    }
 
     BLI_freelistN(&ebone->bone_collections);
 
@@ -849,6 +864,10 @@ void ED_armature_ebone_listbase_copy(ListBase *lb_dst, ListBase *lb_src, const b
     if (ebone_dst->prop) {
       ebone_dst->prop = IDP_CopyProperty_ex(ebone_dst->prop,
                                             do_id_user ? 0 : LIB_ID_CREATE_NO_USER_REFCOUNT);
+    }
+    if (ebone_dst->system_properties) {
+      ebone_dst->system_properties = IDP_CopyProperty_ex(
+          ebone_dst->system_properties, do_id_user ? 0 : LIB_ID_CREATE_NO_USER_REFCOUNT);
     }
     ebone_src->temp.ebone = ebone_dst;
     BLI_addtail(lb_dst, ebone_dst);

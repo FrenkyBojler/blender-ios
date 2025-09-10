@@ -90,16 +90,15 @@ static void get_constraint_data(GeoNodeExecParams params,
     if (!constraints_ptr) {
       continue;
     }
-    const std::optional<Bundle::Item> item = constraints_ptr->lookup(
-        SocketInterfaceKey(info.ui_name));
-    if (!item || item->type != bke::node_socket_type_find_static(SOCK_GEOMETRY)) {
+    const std::optional<bke::GeometrySet> geometry_set = constraints_ptr->lookup<bke::GeometrySet>(
+        info.ui_name);
+    if (!geometry_set) {
       continue;
     }
 
-    const GeometrySet &geometry_set = *static_cast<const GeometrySet *>(item->value);
-    if (geometry_set.has_pointcloud()) {
+    if (geometry_set->has_pointcloud()) {
       const AttributeAccessor attributes =
-          *geometry_set.get_component<PointCloudComponent>()->attributes();
+          *geometry_set->get_component<PointCloudComponent>()->attributes();
 
       IndexMask constraints_mask = IndexRange(attributes.domain_size(AttrDomain::Point));
       constraint_data[i].geometry = geometry_set;
@@ -125,11 +124,11 @@ static void set_constraint_data_output(GeoNodeExecParams params,
     const bke::bNodeSocketType *stype = bke::node_socket_type_find_static(SOCK_GEOMETRY);
 
     if (data.geometry) {
-      constraints.add(SocketInterfaceKey(data.type->ui_name), *stype, &(*data.geometry));
+      constraints.add(data.type->ui_name, *data.geometry);
     }
     else {
       const GeometrySet geometry = {};
-      constraints.add(SocketInterfaceKey(data.type->ui_name), *stype, &geometry);
+      constraints.add(data.type->ui_name, geometry);
     }
   }
 

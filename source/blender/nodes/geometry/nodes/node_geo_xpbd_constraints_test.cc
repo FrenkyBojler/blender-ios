@@ -602,13 +602,13 @@ static SolverTestData simple_solver_data(const Span<ConstraintType> constraint_t
   solver_test.params.inv_delta_time = 1.0f / 0.2f;
   solver_test.params.inv_delta_time_squared = 1.0f / (0.2f * 0.2f);
 
-  solver_test.params.masses = VArray<float>::ForContainer(Array<float>{1.0f, 3.0f, 0.5f});
-  solver_test.params.local_inertia = VArray<float3>::ForContainer(
+  solver_test.params.masses = VArray<float>::from_container(Array<float>{1.0f, 3.0f, 0.5f});
+  solver_test.params.local_inertia = VArray<float3>::from_container(
       Array<float3>{float3(1.0f), float3(1, 2, 1), float3(0.2f, 10.f, 0.5f)});
 
-  solver_test.params.old_positions = VArray<float3>::ForContainer(
+  solver_test.params.old_positions = VArray<float3>::from_container(
       Array<float3>{float3(-1, 0, 2), float3(1, 1, 1), float3(0, 0, -2)});
-  solver_test.params.old_rotations = VArray<math::Quaternion>::ForContainer(
+  solver_test.params.old_rotations = VArray<math::Quaternion>::from_container(
       Array<math::Quaternion>{math::to_quaternion(math::EulerXYZ(0, -10, 0)),
                               math::to_quaternion(math::EulerXYZ(90, 0, 0)),
                               math::to_quaternion(math::EulerXYZ(100, 0, -80))});
@@ -642,8 +642,8 @@ static SolverTestData simple_solver_data(const Span<ConstraintType> constraint_t
     for (const AttributeInfo &info : attribute_info) {
       attributes.add(info.first,
                      bke::AttrDomain::Point,
-                     bke::cpp_type_to_custom_data_type(info.second.type()),
-                     bke::AttributeInitVArray(GVArray::ForSpan(info.second)));
+                     bke::cpp_type_to_attribute_type(info.second.type()),
+                     bke::AttributeInitVArray(GVArray::from_span(info.second)));
     }
 
     solver_test.data.append({});

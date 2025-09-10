@@ -92,18 +92,10 @@ void VKVertexAttributeObject::update_bindings(const VKContext &context, VKBatch 
   const VKShaderInterface &interface = unwrap(context.shader)->interface_get();
   AttributeMask occupied_attributes = 0;
 
-  for (int v = 0; v < GPU_BATCH_INST_VBO_MAX_LEN; v++) {
-    VKVertexBuffer *vbo = batch.instance_buffer_get(v);
-    if (vbo) {
-      update_bindings(
-          vbo->format, vbo, nullptr, vbo->vertex_len, interface, occupied_attributes, true);
-    }
-  }
   for (int v = 0; v < GPU_BATCH_VBO_MAX_LEN; v++) {
     VKVertexBuffer *vbo = batch.vertex_buffer_get(v);
     if (vbo) {
-      update_bindings(
-          vbo->format, vbo, nullptr, vbo->vertex_len, interface, occupied_attributes, false);
+      update_bindings(vbo->format, vbo, nullptr, vbo->vertex_len, interface, occupied_attributes);
     }
   }
 
@@ -116,7 +108,7 @@ void VKVertexAttributeObject::update_bindings(const VKContext &context, VKBatch 
 /* Determine the number of binding location the given attribute uses. */
 static uint32_t to_binding_location_len(const GPUVertAttr &attribute)
 {
-  return ceil_division(attribute.comp_len, 4u);
+  return ceil_division(attribute.type.comp_len(), 4);
 }
 
 /* Determine the number of binding location the given type uses. */
@@ -210,8 +202,7 @@ void VKVertexAttributeObject::update_bindings(VKImmediate &immediate)
                   &immediate_buffer,
                   immediate.vertex_len,
                   interface,
-                  occupied_attributes,
-                  false);
+                  occupied_attributes);
   is_valid = true;
   BLI_assert(interface.enabled_attr_mask_ == occupied_attributes);
 }
@@ -221,8 +212,7 @@ void VKVertexAttributeObject::update_bindings(const GPUVertFormat &vertex_format
                                               VKBufferWithOffset *immediate_vertex_buffer,
                                               const int64_t vertex_len,
                                               const VKShaderInterface &interface,
-                                              AttributeMask &r_occupied_attributes,
-                                              const bool use_instancing)
+                                              AttributeMask &r_occupied_attributes)
 {
   BLI_assert(vertex_buffer || immediate_vertex_buffer);
   BLI_assert(!(vertex_buffer && immediate_vertex_buffer));
@@ -242,10 +232,11 @@ void VKVertexAttributeObject::update_bindings(const GPUVertFormat &vertex_format
   for (uint32_t attribute_index = 0; attribute_index < vertex_format.attr_len; attribute_index++) {
     const GPUVertAttr &attribute = vertex_format.attrs[attribute_index];
     if (vertex_format.deinterleaved) {
-      buffer_offset += ((attribute_index == 0) ? 0 :
-                                                 vertex_format.attrs[attribute_index - 1].size) *
+      buffer_offset += ((attribute_index == 0) ?
+                            0 :
+                            vertex_format.attrs[attribute_index - 1].type.size()) *
                        vertex_len;
-      stride = attribute.size;
+      stride = attribute.type.size();
     }
     else {
       attribute_offset = attribute.offset;
@@ -272,16 +263,13 @@ void VKVertexAttributeObject::update_bindings(const GPUVertFormat &vertex_format
         attribute_description.location = shader_input->location + location_offset;
         attribute_description.offset = attribute_offset + location_offset * sizeof(float4);
         attribute_description.format = to_vk_format(
-            static_cast<GPUVertCompType>(attribute.comp_type),
-            attribute.size,
-            static_cast<GPUVertFetchMode>(attribute.fetch_mode));
+            attribute.type.comp_type(), attribute.type.size(), attribute.type.fetch_mode());
         attributes.append(attribute_description);
 
         VkVertexInputBindingDescription vk_binding_descriptor = {};
         vk_binding_descriptor.binding = binding;
         vk_binding_descriptor.stride = stride;
-        vk_binding_descriptor.inputRate = use_instancing ? VK_VERTEX_INPUT_RATE_INSTANCE :
-                                                           VK_VERTEX_INPUT_RATE_VERTEX;
+        vk_binding_descriptor.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
         bindings.append(vk_binding_descriptor);
         if (vertex_buffer) {
           add_vbo = true;

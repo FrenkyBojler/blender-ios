@@ -9,8 +9,10 @@
 #include "BKE_instances.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
+#include "NOD_geo_bundle.hh"
 #include "NOD_geometry_nodes_bundle.hh"
 #include "NOD_rna_define.hh"
 #include "NOD_xpbd_constraints.hh"
@@ -174,8 +176,8 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiLayoutSetPropSep(layout, true);
-  uiLayoutSetPropDecorate(layout, false);
+  layout->use_property_split_set(true);
+  layout->use_property_decorate_set(false);
   layout->prop(ptr, "solver_method", UI_ITEM_NONE, "", ICON_NONE);
 }
 
@@ -622,16 +624,16 @@ static void get_constraint_data(GeoNodeExecParams params,
     if (!constraints_ptr) {
       continue;
     }
-    const std::optional<Bundle::Item> item = constraints_ptr->lookup(
-        SocketInterfaceKey(info.ui_name));
-    if (!item || item->type != bke::node_socket_type_find_static(SOCK_GEOMETRY)) {
+
+    const std::optional<GeometrySet> geometry_set = constraints_ptr->lookup<bke::GeometrySet>(
+        info.ui_name);
+    if (!geometry_set) {
       continue;
     }
 
-    const GeometrySet &geometry_set = *static_cast<const GeometrySet *>(item->value);
-    if (geometry_set.has_pointcloud()) {
+    if (geometry_set->has_pointcloud()) {
       const AttributeAccessor attributes =
-          *geometry_set.get_component<PointCloudComponent>()->attributes();
+          *geometry_set->get_component<PointCloudComponent>()->attributes();
       const VArray<int> solver_groups = *attributes.lookup_or_default<int>(
           "solver_group", AttrDomain::Point, 0);
 
@@ -658,14 +660,12 @@ static void set_constraint_data_output(GeoNodeExecParams params,
   Bundle &constraints = const_cast<Bundle &>(*constraints_ptr);
 
   for (const ConstraintEvalData &data : constraint_data) {
-    const bke::bNodeSocketType *stype = bke::node_socket_type_find_static(SOCK_GEOMETRY);
-
     if (data.geometry) {
-      constraints.add(SocketInterfaceKey(data.type->ui_name), *stype, &(*data.geometry));
+      constraints.add(data.type->ui_name, *data.geometry);
     }
     else {
       const GeometrySet geometry = {};
-      constraints.add(SocketInterfaceKey(data.type->ui_name), *stype, &geometry);
+      constraints.add(data.type->ui_name, geometry);
     }
   }
 
@@ -723,89 +723,87 @@ static void node_geo_exec(GeoNodeExecParams params)
                                                        bke::GeometryComponent::Type::PointCloud,
                                                        bke::GeometryComponent::Type::Curve,
                                                        bke::GeometryComponent::Type::GreasePencil};
-  geometry_set.modify_geometry_sets([&](GeometrySet &geometry_set) {
-    for (const bke::GeometryComponent::Type component_type : types) {
-      if (geometry_set.has(component_type)) {
-        bke::GeometryComponent &component = geometry_set.get_component_for_write(component_type);
-        std::optional<bke::MutableAttributeAccessor> attributes = component.attributes_for_write();
-        if (!attributes) {
-          continue;
-        }
+  for (const bke::GeometryComponent::Type component_type : types) {
+    if (geometry_set.has(component_type)) {
+      bke::GeometryComponent &component = geometry_set.get_component_for_write(component_type);
+      std::optional<bke::MutableAttributeAccessor> attributes = component.attributes_for_write();
+      if (!attributes) {
+        continue;
+      }
 
-        if (eval_params.debug_recorder) {
-          eval_params.debug_recorder->set_geometry(geometry_set, component_type);
-        }
+      if (eval_params.debug_recorder) {
+        eval_params.debug_recorder->set_geometry(geometry_set, component_type);
+      }
 
-        const int num_points = attributes->domain_size(AttrDomain::Point);
-        ConstraintVariables vars;
-        vars.positions.reinitialize(num_points);
-        vars.rotations.reinitialize(num_points);
-        vars.velocities.reinitialize(num_points);
-        vars.angular_velocities.reinitialize(num_points);
+      const int num_points = attributes->domain_size(AttrDomain::Point);
+      ConstraintVariables vars;
+      vars.positions.reinitialize(num_points);
+      vars.rotations.reinitialize(num_points);
+      vars.velocities.reinitialize(num_points);
+      vars.angular_velocities.reinitialize(num_points);
 
-        const bke::GeometryFieldContext field_context{component, AttrDomain::Point};
-        fn::FieldEvaluator evaluator{field_context, num_points};
-        evaluator.add(mass_field);
-        evaluator.add(inertia_field);
-        evaluator.add(old_position_field);
-        evaluator.add(old_rotation_field);
-        evaluator.add_with_destination(position_field, vars.positions.as_mutable_span());
-        evaluator.add_with_destination(rotation_field, vars.rotations.as_mutable_span());
-        evaluator.add_with_destination(velocity_field, vars.velocities.as_mutable_span());
-        evaluator.add_with_destination(angular_velocity_field,
-                                       vars.angular_velocities.as_mutable_span());
-        evaluator.evaluate();
-        eval_params.masses = evaluator.get_evaluated<float>(0);
-        eval_params.local_inertia = evaluator.get_evaluated<float3>(1);
-        eval_params.old_positions = evaluator.get_evaluated<float3>(2);
-        eval_params.old_rotations = evaluator.get_evaluated<math::Quaternion>(3);
+      const bke::GeometryFieldContext field_context{component, AttrDomain::Point};
+      fn::FieldEvaluator evaluator{field_context, num_points};
+      evaluator.add(mass_field);
+      evaluator.add(inertia_field);
+      evaluator.add(old_position_field);
+      evaluator.add(old_rotation_field);
+      evaluator.add_with_destination(position_field, vars.positions.as_mutable_span());
+      evaluator.add_with_destination(rotation_field, vars.rotations.as_mutable_span());
+      evaluator.add_with_destination(velocity_field, vars.velocities.as_mutable_span());
+      evaluator.add_with_destination(angular_velocity_field,
+                                     vars.angular_velocities.as_mutable_span());
+      evaluator.evaluate();
+      eval_params.masses = evaluator.get_evaluated<float>(0);
+      eval_params.local_inertia = evaluator.get_evaluated<float3>(1);
+      eval_params.old_positions = evaluator.get_evaluated<float3>(2);
+      eval_params.old_rotations = evaluator.get_evaluated<math::Quaternion>(3);
 
-        eval_params.collider_transforms = collider_transforms;
-        /* XXX Transforms of the previous frame are not currently available, these are always the
-         * same as the current frame. Eventually this will allow transfer of velocity from animated
-         * colliders. */
-        eval_params.old_collider_transforms = eval_params.collider_transforms;
+      eval_params.collider_transforms = collider_transforms;
+      /* XXX Transforms of the previous frame are not currently available, these are always the
+       * same as the current frame. Eventually this will allow transfer of velocity from animated
+       * colliders. */
+      eval_params.old_collider_transforms = eval_params.collider_transforms;
 
-        execute_solver_method_on_geometry(solver_method,
-                                          eval_params,
-                                          constraint_data,
-                                          vars,
-                                          gauss_seidel_iterations,
-                                          jacobi_iterations);
+      execute_solver_method_on_geometry(solver_method,
+                                        eval_params,
+                                        constraint_data,
+                                        vars,
+                                        gauss_seidel_iterations,
+                                        jacobi_iterations);
 
-        if (position_output_id) {
-          AttributeWriter<float3> positions_writer = attributes->lookup_or_add_for_write<float3>(
-              *position_output_id, AttrDomain::Point);
-          BLI_assert(vars.positions.size() == num_points);
-          positions_writer.varray.set_all(vars.positions);
-          positions_writer.finish();
-        }
-        if (rotation_output_id) {
-          AttributeWriter<math::Quaternion> rotations_writer =
-              attributes->lookup_or_add_for_write<math::Quaternion>(*rotation_output_id,
-                                                                    AttrDomain::Point);
-          BLI_assert(vars.rotations.size() == num_points);
-          rotations_writer.varray.set_all(vars.rotations);
-          rotations_writer.finish();
-        }
-        if (velocity_output_id) {
-          AttributeWriter<float3> velocities_writer = attributes->lookup_or_add_for_write<float3>(
-              *velocity_output_id, AttrDomain::Point);
-          BLI_assert(vars.velocities.size() == num_points);
-          velocities_writer.varray.set_all(vars.velocities);
-          velocities_writer.finish();
-        }
-        if (angular_velocity_output_id) {
-          AttributeWriter<float3> angular_velocities_writer =
-              attributes->lookup_or_add_for_write<float3>(*angular_velocity_output_id,
-                                                          AttrDomain::Point);
-          BLI_assert(vars.angular_velocities.size() == num_points);
-          angular_velocities_writer.varray.set_all(vars.angular_velocities);
-          angular_velocities_writer.finish();
-        }
+      if (position_output_id) {
+        AttributeWriter<float3> positions_writer = attributes->lookup_or_add_for_write<float3>(
+            *position_output_id, AttrDomain::Point);
+        BLI_assert(vars.positions.size() == num_points);
+        positions_writer.varray.set_all(vars.positions);
+        positions_writer.finish();
+      }
+      if (rotation_output_id) {
+        AttributeWriter<math::Quaternion> rotations_writer =
+            attributes->lookup_or_add_for_write<math::Quaternion>(*rotation_output_id,
+                                                                  AttrDomain::Point);
+        BLI_assert(vars.rotations.size() == num_points);
+        rotations_writer.varray.set_all(vars.rotations);
+        rotations_writer.finish();
+      }
+      if (velocity_output_id) {
+        AttributeWriter<float3> velocities_writer = attributes->lookup_or_add_for_write<float3>(
+            *velocity_output_id, AttrDomain::Point);
+        BLI_assert(vars.velocities.size() == num_points);
+        velocities_writer.varray.set_all(vars.velocities);
+        velocities_writer.finish();
+      }
+      if (angular_velocity_output_id) {
+        AttributeWriter<float3> angular_velocities_writer =
+            attributes->lookup_or_add_for_write<float3>(*angular_velocity_output_id,
+                                                        AttrDomain::Point);
+        BLI_assert(vars.angular_velocities.size() == num_points);
+        angular_velocities_writer.varray.set_all(vars.angular_velocities);
+        angular_velocities_writer.finish();
       }
     }
-  });
+  }
 
   params.set_output("Geometry", geometry_set);
   set_constraint_data_output(params, constraint_data);

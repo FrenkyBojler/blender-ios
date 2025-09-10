@@ -20,6 +20,7 @@
 #include "BLI_listbase.h"
 #include "BLI_math_geom.h"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 
 #include "BLT_translation.hh"
 
@@ -81,9 +82,7 @@ bNode *add_node(const bContext &C, const StringRef idname, const float2 &locatio
 
   node_deselect_all(node_tree);
 
-  const std::string idname_str = idname;
-
-  bNode *node = bke::node_add_node(&C, node_tree, idname_str.c_str());
+  bNode *node = bke::node_add_node(&C, node_tree, idname);
   BLI_assert(node && node->typeinfo);
 
   position_node_based_on_mouse(*node, location);
@@ -390,7 +389,7 @@ void NODE_OT_add_group(wmOperatorType *ot)
   WM_operator_properties_id_lookup(ot, true);
 
   PropertyRNA *prop = RNA_def_boolean(
-      ot->srna, "show_datablock_in_node", true, "Show the datablock selector in the node", "");
+      ot->srna, "show_datablock_in_node", true, "Show the data-block selector in the node", "");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE | PROP_HIDDEN);
 }
 
@@ -428,7 +427,7 @@ static bool add_node_group_asset(const bContext &C,
     BKE_report(&reports, RPT_WARNING, "Could not add node group");
     return false;
   }
-  STRNCPY(group_node->name, BKE_id_name(node_group->id));
+  STRNCPY_UTF8(group_node->name, BKE_id_name(node_group->id));
   bke::node_unique_name(*snode.edittree, *group_node);
 
   /* By default, don't show the data-block selector since it's not usually necessary for assets. */
@@ -477,7 +476,7 @@ static wmOperatorStatus node_add_group_asset_invoke(bContext *C,
   BLI_assert(ot);
   PointerRNA ptr;
   WM_operator_properties_create_ptr(&ptr, ot);
-  WM_operator_name_call_ptr(C, ot, WM_OP_INVOKE_DEFAULT, &ptr, nullptr);
+  WM_operator_name_call_ptr(C, ot, wm::OpCallContext::InvokeDefault, &ptr, nullptr);
   WM_operator_properties_free(&ptr);
 
   return OPERATOR_FINISHED;
@@ -1091,7 +1090,7 @@ static wmOperatorStatus node_add_import_node_exec(bContext *C, wmOperator *op)
     }
 
     if (node) {
-      bNodeSocket &path_socket = node->input_by_identifier("Path");
+      bNodeSocket &path_socket = *node->input_by_identifier("Path");
       BLI_assert(path_socket.type == SOCK_STRING);
       auto *socket_data = static_cast<bNodeSocketValueString *>(path_socket.default_value);
       STRNCPY(socket_data->value, path.c_str());
@@ -1477,11 +1476,44 @@ void NODE_OT_add_color(wmOperatorType *ot)
 /** \name New Node Tree Operator
  * \{ */
 
+static bNodeTree *new_node_tree_impl(bContext *C, StringRef treename, StringRef idname)
+{
+  Main *bmain = CTX_data_main(C);
+  SpaceNode *snode = CTX_wm_space_node(C);
+  PointerRNA ptr;
+  PropertyRNA *prop;
+  bNodeTree *node_tree;
+
+  node_tree = bke::node_tree_add_tree(bmain, treename, idname);
+
+  /* Hook into UI. */
+  UI_context_active_but_prop_get_templateID(C, &ptr, &prop);
+
+  if (prop) {
+    /* #RNA_property_pointer_set increases the user count, fixed here as the editor is the initial
+     * user. */
+    id_us_min(&node_tree->id);
+
+    if (ptr.owner_id) {
+      BKE_id_move_to_same_lib(*bmain, node_tree->id, *ptr.owner_id);
+    }
+
+    PointerRNA idptr = RNA_id_pointer_create(&node_tree->id);
+    RNA_property_pointer_set(&ptr, prop, idptr, nullptr);
+    RNA_property_update(C, &ptr, prop);
+  }
+  else if (snode) {
+    snode->nodetree = node_tree;
+
+    tree_update(C);
+  }
+
+  return node_tree;
+}
+
 static wmOperatorStatus new_node_tree_exec(bContext *C, wmOperator *op)
 {
   SpaceNode *snode = CTX_wm_space_node(C);
-  Main *bmain = CTX_data_main(C);
-  bNodeTree *ntree;
   PointerRNA ptr;
   PropertyRNA *prop;
   const char *idname;
@@ -1513,32 +1545,9 @@ static wmOperatorStatus new_node_tree_exec(bContext *C, wmOperator *op)
     treename = type->ui_name.c_str();
   }
 
-  ntree = bke::node_tree_add_tree(bmain, treename, idname);
-
-  /* Hook into UI. */
-  UI_context_active_but_prop_get_templateID(C, &ptr, &prop);
-
-  if (prop) {
-    /* #RNA_property_pointer_set increases the user count, fixed here as the editor is the initial
-     * user. */
-    id_us_min(&ntree->id);
-
-    if (ptr.owner_id) {
-      BKE_id_move_to_same_lib(*bmain, ntree->id, *ptr.owner_id);
-    }
-
-    PointerRNA idptr = RNA_id_pointer_create(&ntree->id);
-    RNA_property_pointer_set(&ptr, prop, idptr, nullptr);
-    RNA_property_update(C, &ptr, prop);
-  }
-  else if (snode) {
-    snode->nodetree = ntree;
-
-    tree_update(C);
-  }
+  new_node_tree_impl(C, treename, idname);
 
   WM_event_add_notifier(C, NC_NODE | NA_ADDED, nullptr);
-
   return OPERATOR_FINISHED;
 }
 
@@ -1568,6 +1577,44 @@ void NODE_OT_new_node_tree(wmOperatorType *ot)
   prop = RNA_def_enum(ot->srna, "type", rna_enum_dummy_NULL_items, 0, "Tree Type", "");
   RNA_def_enum_funcs(prop, new_node_tree_type_itemf);
   RNA_def_string(ot->srna, "name", "NodeTree", MAX_ID_NAME - 2, "Name", "");
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name New Compositing Node Tree Operator
+ * \{ */
+
+static wmOperatorStatus new_compositing_node_group_exec(bContext *C, wmOperator *op)
+{
+  Main *bmain = CTX_data_main(C);
+
+  char tree_name[MAX_ID_NAME - 2];
+  RNA_string_get(op->ptr, "name", tree_name);
+
+  bNodeTree *ntree = new_node_tree_impl(C, tree_name, "CompositorNodeTree");
+  ED_node_composit_default_init(C, ntree);
+
+  WM_event_add_notifier(C, NC_NODE | NA_ADDED, nullptr);
+  BKE_ntree_update_after_single_tree_change(*bmain, *ntree);
+
+  return OPERATOR_FINISHED;
+}
+
+void NODE_OT_new_compositing_node_group(wmOperatorType *ot)
+{
+  /* identifiers */
+  ot->name = "New Compositing Node Group";
+  ot->idname = "NODE_OT_new_compositing_node_group";
+  ot->description = "Create a new compositing node group and initialize it with default nodes";
+
+  /* api callbacks */
+  ot->exec = new_compositing_node_group_exec;
+
+  /* flags */
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+  RNA_def_string(ot->srna, "name", DATA_("Compositor Nodes"), MAX_ID_NAME - 2, "Name", "");
 }
 
 /** \} */

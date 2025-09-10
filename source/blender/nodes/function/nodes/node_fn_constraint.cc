@@ -18,6 +18,7 @@
 #include "node_function_util.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 namespace blender::nodes::node_fn_constraint_cc {

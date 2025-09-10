@@ -326,7 +326,6 @@ SECTIONS = (
             ("materialx", "A standard for representing materials. Used by USD, Hydra & Blender's shader nodes."),
             ("mesa", "Used for it's software OpenGL implementation."),
             ("openal", "Cross platform audio output."),
-            ("opencollada", "Support for the COLLADA 3D interchange file format."),
             ("opencolorio", "A solution for highly precise, performant, and consistent color management."),
             ("openexr", "EXR image-format support."),
             ("openimagedenoise", "Denoising filters for images rendered with ray tracing. Used by Cycles."),
@@ -935,8 +934,10 @@ def render_output(scene, bounds, filepath):
     scene.render.filepath = filepath
 
     world = bpy.data.worlds.new(name_gen)
-    world.color = 1.0, 1.0, 1.0
-    world.use_nodes = False
+    output = world.node_tree.nodes.new("ShaderNodeOutputWorld")
+    background = world.node_tree.nodes.new("ShaderNodeBackground")
+    world.node_tree.links.new(output.outputs["Surface"], background.outputs["Surface"])
+    background.inputs["Color"].default_value = 1.0, 1.0, 1.0, 1.0
     scene.world = world
 
     # Some space around the edges.
@@ -954,6 +955,7 @@ def render_output(scene, bounds, filepath):
     scene.collection.objects.link(camera)
 
     render = scene.render
+    render.image_settings.media_type = 'IMAGE'
     render.image_settings.file_format = 'JPEG'
     render.image_settings.color_depth = '8'
     render.image_settings.color_mode = 'RGB'
@@ -1095,7 +1097,7 @@ def main():
     VFONT_FROM_STYLE["mono"] = bpy.data.fonts.load(FONT_FILE_MONO)
 
     scene = bpy.context.scene
-    scene.render.engine = 'BLENDER_EEVEE_NEXT'
+    scene.render.engine = 'BLENDER_EEVEE'
 
     # Without this, the whites are gray.
     scene.view_settings.view_transform = "Standard"

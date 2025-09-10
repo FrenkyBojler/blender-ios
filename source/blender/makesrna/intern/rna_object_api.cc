@@ -106,7 +106,7 @@ static void rna_Object_select_set(
     if (select) {
       BKE_reportf(reports,
                   RPT_ERROR,
-                  "Object '%s' can't be selected because it is not in View Layer '%s'!",
+                  "Object '%s' cannot be selected because it is not in View Layer '%s'!",
                   ob->id.name + 2,
                   view_layer->name);
     }
@@ -141,7 +141,7 @@ static void rna_Object_hide_set(
     if (hide) {
       BKE_reportf(reports,
                   RPT_ERROR,
-                  "Object '%s' can't be hidden because it is not in View Layer '%s'!",
+                  "Object '%s' cannot be hidden because it is not in View Layer '%s'!",
                   ob->id.name + 2,
                   view_layer->name);
     }
@@ -458,6 +458,10 @@ static PointerRNA rna_Object_shape_key_add(
   KeyBlock *kb = nullptr;
 
   if ((kb = BKE_object_shapekey_insert(bmain, ob, name, from_mix))) {
+    /* Set the initial blend value. */
+    kb->curval = 1.0f;
+    CLAMP(kb->curval, kb->slidermin, kb->slidermax);
+
     PointerRNA keyptr = RNA_pointer_create_discrete(
         (ID *)BKE_key_from_object(ob), &RNA_ShapeKey, kb);
     WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
@@ -613,9 +617,9 @@ static void rna_Object_ray_cast(Object *ob,
   float direction_unit[3];
   normalize_v3_v3(direction_unit, direction);
 
-  if ((isect_ray_aabb_v3_simple(
-           origin, direction_unit, bounds->min, bounds->max, &distmin, nullptr) &&
-       distmin <= distance))
+  if (isect_ray_aabb_v3_simple(
+          origin, direction_unit, bounds->min, bounds->max, &distmin, nullptr) &&
+      distmin <= distance)
   {
 
     /* No need to managing allocation or freeing of the BVH data.
@@ -1093,16 +1097,16 @@ void RNA_api_object(StructRNA *srna)
   func = RNA_def_function(srna, "shape_key_add", "rna_Object_shape_key_add");
   RNA_def_function_ui_description(func, "Add shape key to this object");
   RNA_def_function_flag(func, FUNC_USE_CONTEXT | FUNC_USE_REPORTS);
-  RNA_def_string(func, "name", "Key", 0, "", "Unique name for the new keyblock"); /* optional */
+  RNA_def_string(func, "name", "Key", 0, "", "Unique name for the new key-block"); /* optional */
   RNA_def_boolean(func, "from_mix", true, "", "Create new shape from existing mix of shapes");
-  parm = RNA_def_pointer(func, "key", "ShapeKey", "", "New shape keyblock");
+  parm = RNA_def_pointer(func, "key", "ShapeKey", "", "New shape key-block");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_RNAPTR);
   RNA_def_function_return(func, parm);
 
   func = RNA_def_function(srna, "shape_key_remove", "rna_Object_shape_key_remove");
   RNA_def_function_ui_description(func, "Remove a Shape Key from this object");
   RNA_def_function_flag(func, FUNC_USE_MAIN | FUNC_USE_REPORTS);
-  parm = RNA_def_pointer(func, "key", "ShapeKey", "", "Keyblock to be removed");
+  parm = RNA_def_pointer(func, "key", "ShapeKey", "", "Key-block to be removed");
   RNA_def_parameter_flags(parm, PROP_NEVER_NULL, PARM_REQUIRED | PARM_RNAPTR);
   RNA_def_parameter_clear_flags(parm, PROP_THICK_WRAP, ParameterFlag(0));
 

@@ -140,7 +140,9 @@ class StateManager {
  public:
   GPUState state;
   GPUStateMutable mutable_state;
-  bool use_bgl = false;
+
+  /* Formats of all image units. */
+  std::array<TextureWriteFormat, GPU_MAX_IMAGE> image_formats;
 
   StateManager();
   virtual ~StateManager() = default;

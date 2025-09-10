@@ -53,6 +53,11 @@
 
 #include "fsmenu.h"
 
+#ifdef __linux__
+#  include "CLG_log.h"
+static CLG_LogRef LOG = {"system.path"};
+#endif
+
 struct FSMenu;
 
 /* -------------------------------------------------------------------- */
@@ -212,8 +217,23 @@ static void fsmenu_add_windows_quick_access(FSMenu *fsmenu,
     char utf_path[FILE_MAXDIR];
     conv_utf_16_to_8(path, utf_path, FILE_MAXDIR);
 
-    /* Skip library folders since they are not currently supported. */
-    if (!BLI_strcasestr(utf_path, ".library-ms")) {
+    /* Despite the above IsFolder check, Windows considers libraries and archives to be folders.
+     * However, as Blender does not support opening them, they must be filtered out. #138863. */
+    const char *ext_folderlike[] = {
+        ".library-ms",
+        ".zip",
+        ".rar",
+        ".7z",
+        ".tar",
+        ".gz",
+        ".bz2",
+        ".zst",
+        ".xz",
+        ".cab",
+        ".iso",
+        nullptr,
+    };
+    if (!BLI_path_extension_check_array(utf_path, ext_folderlike)) {
       /* Add folder to the fsmenu. */
       fsmenu_insert_entry(fsmenu, category, utf_path, NULL, ICON_FILE_FOLDER, flag);
     }
@@ -304,12 +324,8 @@ void fsmenu_read_system(FSMenu *fsmenu, int read_bookmarks)
             break;
         }
 
-        fsmenu_insert_entry(fsmenu,
-                            FS_CATEGORY_SYSTEM,
-                            tmps,
-                            name,
-                            icon,
-                            FSMenuInsert(FS_INSERT_SORTED | FS_INSERT_NO_VALIDATE));
+        fsmenu_insert_entry(
+            fsmenu, FS_CATEGORY_SYSTEM, tmps, name, icon, FSMenuInsert(FS_INSERT_SORTED));
       }
     }
 
@@ -577,7 +593,7 @@ void fsmenu_read_system(FSMenu *fsmenu, int read_bookmarks)
 
       fp = setmntent(MOUNTED, "r");
       if (fp == nullptr) {
-        fprintf(stderr, "could not get a list of mounted file-systems\n");
+        CLOG_WARN(&LOG, "Could not get a list of mounted file-systems");
       }
       else {
 
@@ -621,7 +637,7 @@ void fsmenu_read_system(FSMenu *fsmenu, int read_bookmarks)
 #    undef STRPREFIX_DIR_DELIMIT
 
         if (endmntent(fp) == 0) {
-          fprintf(stderr, "could not close the list of mounted file-systems\n");
+          CLOG_WARN(&LOG, "Could not close the list of mounted file-systems");
         }
       }
       /* Check `gvfs` shares. */
@@ -653,7 +669,7 @@ void fsmenu_read_system(FSMenu *fsmenu, int read_bookmarks)
             SNPRINTF(line, "%s%s", filepath, dirname);
             fsmenu_insert_entry(
                 fsmenu, FS_CATEGORY_SYSTEM, line, label, ICON_NETWORK_DRIVE, FS_INSERT_SORTED);
-            found = 1;
+            found = true;
           }
           BLI_filelist_free(dirs, dirs_num);
         }

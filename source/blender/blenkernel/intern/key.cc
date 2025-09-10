@@ -14,7 +14,6 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_endian_switch.h"
 #include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
@@ -101,13 +100,7 @@ static void shapekey_free_data(ID *id)
 static void shapekey_foreach_id(ID *id, LibraryForeachIDData *data)
 {
   Key *key = reinterpret_cast<Key *>(id);
-  const int flag = BKE_lib_query_foreachid_process_flags_get(data);
-
   BKE_LIB_FOREACHID_PROCESS_ID(data, key->from, IDWALK_CB_LOOPBACK);
-
-  if (flag & IDWALK_DO_DEPRECATED_POINTERS) {
-    BKE_LIB_FOREACHID_PROCESS_ID_NOCHECK(data, key->ipo, IDWALK_CB_USER);
-  }
 }
 
 static ID **shapekey_owner_pointer_get(ID *id, const bool debug_relationship_assert)
@@ -151,33 +144,6 @@ static void shapekey_blend_write(BlendWriter *writer, ID *id, const void *id_add
 #define IPO_BEZTRIPLE 100
 #define IPO_BPOINT 101
 
-static void switch_endian_keyblock(Key *key, KeyBlock *kb)
-{
-  int elemsize = key->elemsize;
-  char *data = static_cast<char *>(kb->data);
-
-  for (int a = 0; a < kb->totelem; a++) {
-    const char *cp = key->elemstr;
-    char *poin = data;
-
-    while (cp[0]) {    /* cp[0] == amount */
-      switch (cp[1]) { /* cp[1] = type */
-        case IPO_FLOAT:
-        case IPO_BPOINT:
-        case IPO_BEZTRIPLE: {
-          int b = cp[0];
-          BLI_endian_switch_float_array((float *)poin, b);
-          poin += sizeof(float) * b;
-          break;
-        }
-      }
-
-      cp += 2;
-    }
-    data += elemsize;
-  }
-}
-
 static void shapekey_blend_read_data(BlendDataReader *reader, ID *id)
 {
   Key *key = (Key *)id;
@@ -188,9 +154,9 @@ static void shapekey_blend_read_data(BlendDataReader *reader, ID *id)
   LISTBASE_FOREACH (KeyBlock *, kb, &key->block) {
     BLO_read_data_address(reader, &kb->data);
 
-    if (BLO_read_requires_endian_switch(reader)) {
-      switch_endian_keyblock(key, kb);
-    }
+    /* NOTE: this is endianness-sensitive. */
+    /* Keyblock data would need specific endian switching depending of the exact type of data it
+     * contain. */
   }
 }
 
@@ -222,6 +188,7 @@ IDTypeInfo IDType_ID_KE = {
     /*foreach_id*/ shapekey_foreach_id,
     /*foreach_cache*/ nullptr,
     /*foreach_path*/ nullptr,
+    /*foreach_working_space_color*/ nullptr,
     /* A bit weird, due to shape-keys not being strictly speaking embedded data... But they also
      * share a lot with those (non linkable, only ever used by one owner ID, etc.). */
     /*owner_pointer_get*/ shapekey_owner_pointer_get,
@@ -1849,14 +1816,14 @@ KeyBlock *BKE_keyblock_add(Key *key, const char *name)
 
   tot = BLI_listbase_count(&key->block);
   if (name) {
-    STRNCPY(kb->name, name);
+    STRNCPY_UTF8(kb->name, name);
   }
   else {
     if (tot == 1) {
       STRNCPY_UTF8(kb->name, DATA_("Basis"));
     }
     else {
-      SNPRINTF(kb->name, DATA_("Key %d"), tot - 1);
+      SNPRINTF_UTF8(kb->name, DATA_("Key %d"), tot - 1);
     }
   }
 

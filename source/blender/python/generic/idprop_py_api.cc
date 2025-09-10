@@ -10,6 +10,8 @@
 
 #include <Python.h>
 
+#include "python_compat.hh" /* IWYU pragma: keep. */
+
 #include "MEM_guardedalloc.h"
 
 #include "BLI_utildefines.h"
@@ -142,7 +144,7 @@ static PyObject *idprop_py_from_idp_idparray(ID *id, IDProperty *prop)
 /* use for both array and group */
 static Py_hash_t BPy_IDGroup_hash(BPy_IDProperty *self)
 {
-  return _Py_HashPointer(self->prop);
+  return Py_HashPointer(self->prop);
 }
 
 static PyObject *BPy_IDGroup_repr(BPy_IDProperty *self)
@@ -1607,7 +1609,6 @@ PyDoc_STRVAR(
     /* Wrap. */
     BPy_IDGroup_View_reversed_doc,
     "Return a reverse iterator over the ID Property keys values or items.");
-
 static PyObject *BPy_IDGroup_View_reversed(BPy_IDGroup_View *self, PyObject * /*ignored*/)
 {
   BPy_IDGroup_View *result = IDGroup_View_New_WithType(self->group, Py_TYPE(self));

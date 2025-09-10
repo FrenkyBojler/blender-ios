@@ -24,7 +24,7 @@
 
 #include "DEG_depsgraph_query.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "BLT_translation.hh"
@@ -154,7 +154,7 @@ static void modify_curves(ModifierData &md,
   }
 
   ImplicitSharingPtrAndData old_positions_data = save_shared_attribute(
-      curves.attributes().lookup("position", CD_PROP_FLOAT3));
+      curves.attributes().lookup("position", bke::AttrType::Float3));
   Span<float3> old_positions = {static_cast<const float3 *>(old_positions_data.data),
                                 curves.points_num()};
 
@@ -270,7 +270,7 @@ static void panel_draw(const bContext *C, Panel *panel)
   PointerRNA ob_ptr;
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, &ob_ptr);
 
-  uiLayoutSetPropSep(layout, true);
+  layout->use_property_split_set(true);
 
   layout->prop(ptr, "object", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   modifier::greasepencil::draw_vertex_group_settings(C, layout, ptr);

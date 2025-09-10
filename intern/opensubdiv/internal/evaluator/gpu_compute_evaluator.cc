@@ -9,7 +9,6 @@
 #include <opensubdiv/far/error.h>
 #include <opensubdiv/far/patchDescriptor.h>
 #include <opensubdiv/far/stencilTable.h>
-#include <opensubdiv/osd/glslPatchShaderSource.h>
 
 #include <cassert>
 #include <cmath>
@@ -49,14 +48,14 @@ using OpenSubdiv::Osd::PatchArrayVector;
 
 namespace blender::opensubdiv {
 
-template<class T> GPUStorageBuf *create_buffer(std::vector<T> const &src, const char *name)
+template<class T> gpu::StorageBuf *create_buffer(std::vector<T> const &src, const char *name)
 {
   if (src.empty()) {
     return nullptr;
   }
 
   const size_t buffer_size = src.size() * sizeof(T);
-  GPUStorageBuf *storage_buffer = GPU_storagebuf_create_ex(
+  gpu::StorageBuf *storage_buffer = GPU_storagebuf_create_ex(
       buffer_size, &src.at(0), GPU_USAGE_STATIC, name);
 
   return storage_buffer;
@@ -89,7 +88,7 @@ GPUStencilTableSSBO::GPUStencilTableSSBO(LimitStencilTable const *limitStencilTa
   }
 }
 
-static void storage_buffer_free(GPUStorageBuf **buffer)
+static void storage_buffer_free(gpu::StorageBuf **buffer)
 {
   if (*buffer) {
     GPU_storagebuf_free(*buffer);
@@ -156,7 +155,8 @@ int GPUComputeEvaluator::GetDispatchSize(int count) const
   return (count + _workGroupSize - 1) / _workGroupSize;
 }
 
-void GPUComputeEvaluator::DispatchCompute(GPUShader *shader, int totalDispatchSize) const
+void GPUComputeEvaluator::DispatchCompute(blender::gpu::Shader *shader,
+                                          int totalDispatchSize) const
 {
   const int dispatchSize = GetDispatchSize(totalDispatchSize);
   int dispatchRX = dispatchSize;
@@ -195,12 +195,12 @@ bool GPUComputeEvaluator::EvalStencils(gpu::VertBuf *srcBuffer,
                                        BufferDescriptor const &duDesc,
                                        gpu::VertBuf *dvBuffer,
                                        BufferDescriptor const &dvDesc,
-                                       GPUStorageBuf *sizesBuffer,
-                                       GPUStorageBuf *offsetsBuffer,
-                                       GPUStorageBuf *indicesBuffer,
-                                       GPUStorageBuf *weightsBuffer,
-                                       GPUStorageBuf *duWeightsBuffer,
-                                       GPUStorageBuf *dvWeightsBuffer,
+                                       gpu::StorageBuf *sizesBuffer,
+                                       gpu::StorageBuf *offsetsBuffer,
+                                       gpu::StorageBuf *indicesBuffer,
+                                       gpu::StorageBuf *weightsBuffer,
+                                       gpu::StorageBuf *duWeightsBuffer,
+                                       gpu::StorageBuf *dvWeightsBuffer,
                                        int start,
                                        int end) const
 {
@@ -267,8 +267,8 @@ bool GPUComputeEvaluator::EvalPatches(gpu::VertBuf *srcBuffer,
                                       int numPatchCoords,
                                       gpu::VertBuf *patchCoordsBuffer,
                                       const PatchArrayVector &patchArrays,
-                                      GPUStorageBuf *patchIndexBuffer,
-                                      GPUStorageBuf *patchParamsBuffer)
+                                      gpu::StorageBuf *patchIndexBuffer,
+                                      gpu::StorageBuf *patchParamsBuffer)
 {
   if (_patchKernel.shader == nullptr) {
     return false;
@@ -327,17 +327,22 @@ GPUComputeEvaluator::_StencilKernel::~_StencilKernel()
     shader = nullptr;
   }
 }
-static GPUShader *compile_eval_stencil_shader(BufferDescriptor const &srcDesc,
-                                              BufferDescriptor const &dstDesc,
-                                              BufferDescriptor const &duDesc,
-                                              BufferDescriptor const &dvDesc,
-                                              int workGroupSize)
+static blender::gpu::Shader *compile_eval_stencil_shader(BufferDescriptor const &srcDesc,
+                                                         BufferDescriptor const &dstDesc,
+                                                         BufferDescriptor const &duDesc,
+                                                         BufferDescriptor const &dvDesc,
+                                                         int workGroupSize)
 {
   using namespace blender::gpu::shader;
   ShaderCreateInfo info("opensubdiv_compute_eval");
   info.local_group_size(workGroupSize, 1, 1);
+
+  /* Ensure the basis code has access to proper backend specification define: it is not guaranteed
+   * that the code provided by OpenSubdiv specifies it. For example, it doesn't for GLSL but it
+   * does for Metal. Additionally, for Metal OpenSubdiv defines OSD_PATCH_BASIS_METAL as 1, so do
+   * the same here to avoid possible warning about value being re-defined. */
   if (GPU_backend_get_type() == GPU_BACKEND_METAL) {
-    info.define("OSD_PATCH_BASIS_METAL");
+    info.define("OSD_PATCH_BASIS_METAL", "1");
   }
   else {
     info.define("OSD_PATCH_BASIS_GLSL");
@@ -386,7 +391,7 @@ static GPUShader *compile_eval_stencil_shader(BufferDescriptor const &srcDesc,
   info.push_constant(Type::int_t, "batchEnd");
 
   info.compute_source("osd_eval_stencils_comp.glsl");
-  GPUShader *shader = GPU_shader_create_from_info(
+  blender::gpu::Shader *shader = GPU_shader_create_from_info(
       reinterpret_cast<const GPUShaderCreateInfo *>(&info));
   return shader;
 }
@@ -429,17 +434,22 @@ GPUComputeEvaluator::_PatchKernel::~_PatchKernel()
   }
 }
 
-static GPUShader *compile_eval_patches_shader(BufferDescriptor const &srcDesc,
-                                              BufferDescriptor const &dstDesc,
-                                              BufferDescriptor const &duDesc,
-                                              BufferDescriptor const &dvDesc,
-                                              int workGroupSize)
+static blender::gpu::Shader *compile_eval_patches_shader(BufferDescriptor const &srcDesc,
+                                                         BufferDescriptor const &dstDesc,
+                                                         BufferDescriptor const &duDesc,
+                                                         BufferDescriptor const &dvDesc,
+                                                         int workGroupSize)
 {
   using namespace blender::gpu::shader;
   ShaderCreateInfo info("opensubdiv_compute_eval");
   info.local_group_size(workGroupSize, 1, 1);
+
+  /* Ensure the basis code has access to proper backend specification define: it is not guaranteed
+   * that the code provided by OpenSubdiv specifies it. For example, it doesn't for GLSL but it
+   * does for Metal. Additionally, for Metal OpenSubdiv defines OSD_PATCH_BASIS_METAL as 1, so do
+   * the same here to avoid possible warning about value being re-defined. */
   if (GPU_backend_get_type() == GPU_BACKEND_METAL) {
-    info.define("OSD_PATCH_BASIS_METAL");
+    info.define("OSD_PATCH_BASIS_METAL", "1");
   }
   else {
     info.define("OSD_PATCH_BASIS_GLSL");
@@ -484,7 +494,7 @@ static GPUShader *compile_eval_patches_shader(BufferDescriptor const &srcDesc,
       SHADER_PATCH_PARAM_BUFFER_BUF_SLOT, Qualifier::read, "OsdPatchParam", "patchParamBuffer[]");
 
   info.compute_source("osd_eval_patches_comp.glsl");
-  GPUShader *shader = GPU_shader_create_from_info(
+  blender::gpu::Shader *shader = GPU_shader_create_from_info(
       reinterpret_cast<const GPUShaderCreateInfo *>(&info));
   return shader;
 }

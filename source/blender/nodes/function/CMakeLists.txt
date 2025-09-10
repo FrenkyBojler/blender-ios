@@ -14,6 +14,7 @@ set(INC
 )
 
 set(INC_SYS
+  ../../../../extern/fast_float
 )
 
 set(SRC
@@ -61,6 +62,7 @@ set(SRC
   nodes/node_fn_separate_transform.cc
   nodes/node_fn_slice_string.cc
   nodes/node_fn_string_length.cc
+  nodes/node_fn_string_to_value.cc
   nodes/node_fn_transform_direction.cc
   nodes/node_fn_transform_point.cc
   nodes/node_fn_transpose_matrix.cc

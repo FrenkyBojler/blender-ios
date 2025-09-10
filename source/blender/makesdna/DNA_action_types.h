@@ -284,8 +284,20 @@ typedef struct bPoseChannel {
 
   struct bPoseChannel *next, *prev;
 
-  /** User-Defined Properties on this PoseChannel. */
+  /**
+   * User-defined custom properties storage on this PoseChannel. Typically Accessed through the
+   * 'dict' syntax from Python.
+   */
   IDProperty *prop;
+
+  /**
+   * System-defined custom properties storage. Used to store data dynamically defined either by
+   * Blender itself (e.g. the GeoNode modifier), or some python script, extension etc.
+   *
+   * Typically accessed through RNA paths (`C.object.my_dynamic_float_property = 33.3`), when
+   * wrapped/defined by RNA.
+   */
+  IDProperty *system_properties;
 
   /** Constraints that act on this PoseChannel. */
   ListBase constraints;
@@ -421,6 +433,8 @@ typedef struct bPoseChannel {
 
   BoneColor color; /* MUST be named the same as in Bone and EditBone structs. */
 
+  void *_pad2;
+
   /** Runtime data (keep last). */
   struct bPoseChannel_Runtime runtime;
 } bPoseChannel;
@@ -490,6 +504,7 @@ typedef enum ePchan_IkFlag {
 /* PoseChannel->drawflag */
 typedef enum ePchan_DrawFlag {
   PCHAN_DRAW_NO_CUSTOM_BONE_SIZE = (1 << 0),
+  PCHAN_DRAW_HIDDEN = (1 << 1),
 } ePchan_DrawFlag;
 
 /* NOTE: It doesn't take custom_scale_xyz into account. */
@@ -765,11 +780,13 @@ typedef struct bAction {
   /** ID-serialization for relinking. */
   ID id;
 
-  struct ActionLayer **layer_array; /* Array of 'layer_array_num' layers. */
+  /** Array of `layer_array_num` layers. */
+  struct ActionLayer **layer_array;
   int layer_array_num;
   int layer_active_index; /* Index into layer_array, -1 means 'no active'. */
 
-  struct ActionSlot **slot_array; /* Array of 'slot_array_num` slots. */
+  /** Array of `slot_array_num` slots. */
+  struct ActionSlot **slot_array;
   int slot_array_num;
   int32_t last_slot_handle;
 
@@ -797,8 +814,6 @@ typedef struct bAction {
 
   /** Legacy F-Curves (FCurve), introduced in Blender 2.5. */
   ListBase curves;
-  /** Legacy Action Channels (bActionChannel) from pre-2.5 animation system. */
-  ListBase chanbase DNA_DEPRECATED;
   /** Legacy Groups of function-curves (bActionGroup), introduced in Blender 2.5. */
   ListBase groups;
 
@@ -900,7 +915,7 @@ typedef enum eDopeSheet_FilterFlag {
   /* datatype-based filtering */
   ADS_FILTER_NOSHAPEKEYS = (1 << 6),
   ADS_FILTER_NOMESH = (1 << 7),
-  /** for animdata on object level, if we only want to concentrate on materials/etc. */
+  /** For animation-data on object level, if we only want to concentrate on materials/etc. */
   ADS_FILTER_NOOBJ = (1 << 8),
   ADS_FILTER_NOLAT = (1 << 9),
   ADS_FILTER_NOCAM = (1 << 10),
@@ -948,6 +963,8 @@ typedef enum eDopeSheet_FilterFlag2 {
 
   /** Include working drivers with variables using their fallback values into Only Show Errors. */
   ADS_FILTER_DRIVER_FALLBACK_AS_ERROR = (1 << 6),
+
+  ADS_FILTER_NOLIGHTPROBE = (1 << 7),
 } eDopeSheet_FilterFlag2;
 
 /* DopeSheet general flags */
@@ -1091,38 +1108,6 @@ typedef enum eTimeline_Cache_Flag {
 } eTimeline_Cache_Flag;
 
 /* ************************************************ */
-/* Legacy Data */
-
-/* WARNING: Action Channels are now deprecated... they were part of the old animation system!
- *        (ONLY USED FOR DO_VERSIONS...)
- *
- * Action Channels belong to Actions. They are linked with an IPO block, and can also own
- * Constraint Channels in certain situations.
- *
- * Action-Channels can only belong to one group at a time, but they still live the Action's
- * list of achans (to preserve backwards compatibility, and also minimize the code
- * that would need to be recoded). Grouped achans are stored at the start of the list, according
- * to the position of the group in the list, and their position within the group.
- */
-typedef struct bActionChannel {
-  struct bActionChannel *next, *prev;
-  /** Action Group this Action Channel belongs to. */
-  bActionGroup *grp;
-
-  /** IPO block this action channel references. */
-  struct Ipo *ipo;
-  /** Constraint Channels (when Action Channel represents an Object or Bone). */
-  ListBase constraintChannels;
-
-  /** Settings accessed via bitmapping. */
-  int flag;
-  /** Channel name. */
-  char name[/*MAX_NAME*/ 64];
-  /** Temporary setting - may be used to indicate group that channel belongs to during syncing. */
-  int temp;
-} bActionChannel;
-
-/* ************************************************ */
 /* Layered Animation data-types. */
 
 /**
@@ -1174,7 +1159,7 @@ typedef struct ActionSlot {
    *
    * \see #AnimData::slot_name
    */
-  char identifier[/*MAX_ID_NAME*/ 66];
+  char identifier[/*MAX_ID_NAME*/ 258];
 
   /**
    * Type of ID-block that this slot is intended for.

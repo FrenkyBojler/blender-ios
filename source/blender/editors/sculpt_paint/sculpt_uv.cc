@@ -39,7 +39,6 @@
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
-#include "RNA_enum_types.hh"
 
 #include "paint_intern.hh"
 #include "uvedit_intern.hh"
@@ -502,7 +501,7 @@ static void uv_sculpt_stroke_apply(bContext *C,
   float zoomx, zoomy;
   ED_space_image_get_zoom(sima, region, &zoomx, &zoomy);
 
-  const float radius = sculptdata->uvsculpt->size / (width * zoomx);
+  const float radius = (sculptdata->uvsculpt->size / 2.0f) / (width * zoomx);
   float aspectRatio = width / float(height);
 
   /* We will compare squares to save some computation */
@@ -860,7 +859,7 @@ static UvSculptData *uv_sculpt_stroke_init(bContext *C, wmOperator *op, const wm
   /* Allocate initial selection for grab tool */
   if (data->tool == UV_SCULPT_BRUSH_TYPE_GRAB) {
     float alpha = data->uvsculpt->strength;
-    float radius = data->uvsculpt->size;
+    float radius = data->uvsculpt->size / 2.0f;
     int width, height;
     ED_space_image_get_size(sima, &width, &height);
     float zoomx, zoomy;

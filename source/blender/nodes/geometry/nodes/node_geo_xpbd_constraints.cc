@@ -171,7 +171,7 @@ static void eval_positions(const ConstraintEvalParams &params,
     residual_writer.finish();
   }
 
-  r_active = VArray<bool>::ForSingle(true, attributes->domain_size(AttrDomain::Point));
+  r_active = VArray<bool>::from_single(true, attributes->domain_size(AttrDomain::Point));
   r_delta_positions = {*attributes->lookup<float3>("delta_position", AttrDomain::Point)};
   r_delta_rotations = {{}};
 }
@@ -461,7 +461,7 @@ static void eval_positions(const ConstraintEvalParams &params,
     residual_writer.finish();
   }
 
-  r_active = VArray<bool>::ForSingle(true, attributes->domain_size(AttrDomain::Point));
+  r_active = VArray<bool>::from_single(true, attributes->domain_size(AttrDomain::Point));
   r_delta_positions = {{}};
   /* Attributes have to be stored separately as w/xyz, combine into a single VArray. */
   auto delta_rotation_fn =
@@ -471,7 +471,7 @@ static void eval_positions(const ConstraintEvalParams &params,
     return float4(delta_rotation_w[index], delta_rotation_xyz[index]);
   };
   r_delta_rotations = {
-      VArray<float4>::ForFunc(attributes->domain_size(AttrDomain::Point), delta_rotation_fn)};
+      VArray<float4>::from_func(attributes->domain_size(AttrDomain::Point), delta_rotation_fn)};
 }
 
 static void linear_solve_elements(const ConstraintEvalParams &params,
@@ -786,7 +786,7 @@ static void eval_positions(const ConstraintEvalParams &params,
     residual_writer.finish();
   }
 
-  r_active = VArray<bool>::ForSingle(true, attributes->domain_size(AttrDomain::Point));
+  r_active = VArray<bool>::from_single(true, attributes->domain_size(AttrDomain::Point));
   r_delta_positions = {*attributes->lookup<float3>("delta_position1", AttrDomain::Point),
                        *attributes->lookup<float3>("delta_position2", AttrDomain::Point)};
   /* Attributes have to be stored separately as w/xyz, combine into a single VArray. */
@@ -797,7 +797,8 @@ static void eval_positions(const ConstraintEvalParams &params,
     return float4(delta_rotation1_w[index], delta_rotation1_xyz[index]);
   };
   r_delta_rotations = {
-      VArray<float4>::ForFunc(attributes->domain_size(AttrDomain::Point), delta_rotation1_fn), {}};
+      VArray<float4>::from_func(attributes->domain_size(AttrDomain::Point), delta_rotation1_fn),
+      {}};
 }
 
 static void linear_solve_elements(const ConstraintEvalParams &params,
@@ -1143,7 +1144,7 @@ static void eval_positions(const ConstraintEvalParams &params,
     residual_writer.finish();
   }
 
-  r_active = VArray<bool>::ForSingle(true, attributes->domain_size(AttrDomain::Point));
+  r_active = VArray<bool>::from_single(true, attributes->domain_size(AttrDomain::Point));
   r_delta_positions = {{}, {}};
   /* Attributes have to be stored separately as w/xyz, combine into a single VArray. */
   auto delta_rotation1_fn =
@@ -1159,8 +1160,8 @@ static void eval_positions(const ConstraintEvalParams &params,
     return float4(delta_rotation2_w[index], delta_rotation2_xyz[index]);
   };
   r_delta_rotations = {
-      VArray<float4>::ForFunc(attributes->domain_size(AttrDomain::Point), delta_rotation1_fn),
-      VArray<float4>::ForFunc(attributes->domain_size(AttrDomain::Point), delta_rotation2_fn)};
+      VArray<float4>::from_func(attributes->domain_size(AttrDomain::Point), delta_rotation1_fn),
+      VArray<float4>::from_func(attributes->domain_size(AttrDomain::Point), delta_rotation2_fn)};
 }
 
 static void linear_solve_elements(const ConstraintEvalParams &params,
@@ -1519,7 +1520,7 @@ static void eval_positions(const ConstraintEvalParams &params,
     return float4(delta_rotation1_w[index], delta_rotation1_xyz[index]);
   };
   r_delta_rotations = {
-      VArray<float4>::ForFunc(attributes->domain_size(AttrDomain::Point), delta_rotation1_fn)};
+      VArray<float4>::from_func(attributes->domain_size(AttrDomain::Point), delta_rotation1_fn)};
 }
 
 template<bool debug_output>

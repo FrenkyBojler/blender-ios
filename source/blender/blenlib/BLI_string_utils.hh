@@ -64,7 +64,7 @@ void BLI_string_replace_char(char *str, char src, char dst) ATTR_NONNULL(1);
  * \note Larger tables should use a hash table.
  */
 bool BLI_string_replace_table_exact(char *string,
-                                    size_t string_len,
+                                    size_t string_maxncpy,
                                     const char *replace_table[][2],
                                     int replace_table_len);
 
@@ -92,9 +92,9 @@ size_t BLI_string_replace_range(
  * Returning the length of "Foo"
  *
  * \param left: Where to return copy of part preceding `delim`.
- * \param nr: Where to return value of numeric suffix`.
- * \param name: String to split`.
- * \param delim: Delimiter character`.
+ * \param nr: Where to return value of numeric suffix.
+ * \param name: String to split.
+ * \param delim: Delimiter character.
  * \return Length of \a left.
  */
 size_t BLI_string_split_name_number(const char *name, char delim, char *r_name_left, int *r_number)
