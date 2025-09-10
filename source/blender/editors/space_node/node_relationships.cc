@@ -533,6 +533,18 @@ static int ensure_geometry_nodes_viewer_has_non_geometry_socket(
   return 0;
 }
 
+static std::string get_viewer_source_name(const bNodeSocket &socket)
+{
+  const bNode &node = socket.owner_node();
+  if (node.is_reroute()) {
+    const bNodeSocket &reroute_input = node.input_socket(0);
+    if (!reroute_input.is_logically_linked()) {
+      return IFACE_(socket.typeinfo->label);
+    }
+    return reroute_input.logically_linked_sockets()[0]->name;
+  }
+  return socket.name;
+}
 /**
  * Find the socket to link to in a viewer node.
  */
@@ -546,18 +558,25 @@ static bNodeSocket *node_link_viewer_get_socket(bNodeTree &ntree,
   }
   /* For the geometry nodes viewer, find the socket with the correct type. */
 
-  auto &storage = *static_cast<NodeGeometryViewer *>(viewer_node.storage);
+  const std::string name = get_viewer_source_name(src_socket);
+
+  int item_index;
   if (src_socket.type == SOCK_GEOMETRY) {
     ensure_geometry_nodes_viewer_starts_with_geometry_socket(ntree, viewer_node);
-    nodes::update_node_declaration_and_sockets(ntree, viewer_node);
-    storage.items[0].flag |= NODE_GEO_VIEWER_ITEM_FLAG_AUTO_REMOVE;
-    return static_cast<bNodeSocket *>(viewer_node.inputs.first);
+    item_index = 0;
   }
-  const int index = ensure_geometry_nodes_viewer_has_non_geometry_socket(
-      ntree, viewer_node, src_socket.typeinfo->type);
-  storage.items[index].flag |= NODE_GEO_VIEWER_ITEM_FLAG_AUTO_REMOVE;
+  else {
+    item_index = ensure_geometry_nodes_viewer_has_non_geometry_socket(
+        ntree, viewer_node, src_socket.typeinfo->type);
+  }
+
+  auto &storage = *static_cast<NodeGeometryViewer *>(viewer_node.storage);
+  NodeGeometryViewerItem &item = storage.items[item_index];
+  nodes::socket_items::set_item_name_and_make_unique<nodes::GeoViewerItemsAccessor>(
+      viewer_node, item, name.c_str());
+  item.flag |= NODE_GEO_VIEWER_ITEM_FLAG_AUTO_REMOVE;
   nodes::update_node_declaration_and_sockets(ntree, viewer_node);
-  return static_cast<bNodeSocket *>(BLI_findlink(&viewer_node.inputs, index));
+  return static_cast<bNodeSocket *>(BLI_findlink(&viewer_node.inputs, item_index));
 }
 
 static bool is_viewer_node(const bNode &node)
