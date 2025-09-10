@@ -705,11 +705,11 @@ class Preprocessor {
 
     Parser parser(str, report_error);
 
-    parser.foreach_match("#w\"", [&](const std::vector<Token> &tokens) {
+    parser.foreach_match("#w_", [&](const std::vector<Token> &tokens) {
       if (tokens[1].str() != "include") {
         return;
       }
-      string dependency_name = tokens[2].scope().str_exclusive();
+      string dependency_name = tokens[2].str_exclusive();
       /* Assert that includes are at the top of the file. */
       if (dependency_name == "gpu_glsl_cpp_stubs.hh") {
         /* Skip GLSL-C++ stubs. They are only for IDE linting. */
@@ -720,7 +720,7 @@ class Preprocessor {
         return;
       }
       metadata.dependencies.emplace_back(dependency_name);
-      parser.erase(tokens[0], tokens[2].scope().end());
+      parser.erase(tokens.front(), tokens.back());
     });
 
     return parser.result_get();
