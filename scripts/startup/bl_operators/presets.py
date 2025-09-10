@@ -175,6 +175,15 @@ class AddPresetBase:
                             # The parents property is shadowed, so it only makes sense to write each property once.
                             # Happens with `OperatorFileListElement` which has two `name` properties.
                             properties_skip = {"rna_type"}
+
+                            # Ugly way to exlude nested properties that have the skip_preset flag
+                            # TODO: Finalize
+                            for sk, sv in value.rna_type.properties.items():
+                                if sk in properties_skip: continue
+                                print(sk, sv)
+                                if sv.is_skip_preset:
+                                    properties_skip.add(sk)
+
                             for sub_value_attr in value.bl_rna.properties.keys():
                                 if sub_value_attr in properties_skip:
                                     continue
