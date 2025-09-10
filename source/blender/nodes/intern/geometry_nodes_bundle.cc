@@ -201,7 +201,7 @@ void Bundle::delete_self()
   MEM_delete(this);
 }
 
-static NodeSocketInterfaceStructureType get_structure_type_for_bundle_signature(
+NodeSocketInterfaceStructureType get_structure_type_for_bundle_signature(
     const bNodeSocket &socket,
     const NodeSocketInterfaceStructureType stored_structure_type,
     const bool allow_auto_structure_type)
@@ -273,12 +273,12 @@ std::optional<BundleSignature> LinkedBundleSignatures::get_merged_signature() co
   for (const Item &src_signature : this->items) {
     for (const BundleSignature::Item &item : src_signature.signature.items) {
       if (!signature.items.add(item)) {
-        const BundleSignature::Item *existing_item = signature.items.lookup_key_ptr_as(item.key);
-        if (item.type->type != existing_item->type->type) {
+        const BundleSignature::Item &existing_item = *signature.items.lookup_key_ptr_as(item.key);
+        if (item.type->type != existing_item.type->type) {
           return std::nullopt;
         }
-        if (existing_item->structure_type != item.structure_type) {
-          const_cast<BundleSignature::Item *>(existing_item)->structure_type =
+        if (existing_item.structure_type != item.structure_type) {
+          const_cast<BundleSignature::Item &>(existing_item).structure_type =
               NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_DYNAMIC;
         }
       }

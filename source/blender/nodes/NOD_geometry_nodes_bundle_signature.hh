@@ -48,12 +48,17 @@ struct LinkedBundleSignatures {
   struct Item {
     BundleSignature signature;
     bool is_type_definition = false;
-    SocketInContext socket;
+    SocketInContext source_socket;
   };
   Vector<Item> items;
   bool has_type_definition() const;
 
   std::optional<BundleSignature> get_merged_signature() const;
 };
+
+NodeSocketInterfaceStructureType get_structure_type_for_bundle_signature(
+    const bNodeSocket &socket,
+    const NodeSocketInterfaceStructureType stored_structure_type,
+    const bool allow_auto_structure_type);
 
 }  // namespace blender::nodes
