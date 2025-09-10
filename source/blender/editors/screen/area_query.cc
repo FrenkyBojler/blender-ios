@@ -24,7 +24,7 @@ bool ED_region_overlap_isect_x(const ARegion *region, const int event_x)
   if (region->v2d.mask.xmin == region->v2d.mask.xmax) {
     return false;
   }
-  return BLI_rctf_isect_x(&region->v2d.tot,
+  return BLI_rctf_isect_x(&region->v2d.cur,
                           UI_view2d_region_to_view_x(&region->v2d, event_x - region->winrct.xmin));
 }
 
@@ -35,7 +35,7 @@ bool ED_region_overlap_isect_y(const ARegion *region, const int event_y)
   if (region->v2d.mask.ymin == region->v2d.mask.ymax) {
     return false;
   }
-  return BLI_rctf_isect_y(&region->v2d.tot,
+  return BLI_rctf_isect_y(&region->v2d.cur,
                           UI_view2d_region_to_view_y(&region->v2d, event_y - region->winrct.ymin));
 }
 
