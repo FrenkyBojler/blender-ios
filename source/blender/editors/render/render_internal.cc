@@ -12,6 +12,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_listbase.h"
+#include "BLI_math_base.hh"
 #include "BLI_rect.h"
 #include "BLI_string_utf8.h"
 #include "BLI_string_utils.hh"
@@ -90,6 +91,8 @@ struct RenderJob : public RenderJobBase {
   ColorManagedViewSettings view_settings;
   ColorManagedDisplaySettings display_settings;
   bool interface_locked;
+  int start_frame;
+  int end_frame;
 };
 
 /* called inside thread! */
@@ -293,6 +296,35 @@ static void screen_render_single_layer_set(
   }
 }
 
+static bool render_operator_has_custom_frame_range(wmOperator *render_operator)
+{
+  return RNA_struct_property_is_set(render_operator->ptr, "start_frame") ||
+         RNA_struct_property_is_set(render_operator->ptr, "end_frame");
+}
+
+static void get_render_operator_frame_range(wmOperator *render_operator,
+                                            const Scene *scene,
+                                            int &start_frame,
+                                            int &end_frame)
+{
+  if (RNA_struct_property_is_set(render_operator->ptr, "start_frame")) {
+    start_frame = RNA_int_get(render_operator->ptr, "start_frame");
+  }
+  else {
+    start_frame = scene->r.sfra;
+  }
+
+  if (RNA_struct_property_is_set(render_operator->ptr, "end_frame")) {
+    end_frame = RNA_int_get(render_operator->ptr, "end_frame");
+  }
+  else {
+    end_frame = scene->r.efra;
+  }
+
+  start_frame = blender::math::min(start_frame, end_frame);
+  end_frame = blender::math::max(start_frame, end_frame);
+}
+
 /* executes blocking render */
 static wmOperatorStatus screen_render_exec(bContext *C, wmOperator *op)
 {
@@ -310,6 +342,11 @@ static wmOperatorStatus screen_render_exec(bContext *C, wmOperator *op)
 
   /* Cannot do render if there is not this function. */
   if (re_type->render == nullptr) {
+    return OPERATOR_CANCELLED;
+  }
+
+  if (!is_animation && render_operator_has_custom_frame_range(op)) {
+    BKE_report(op->reports, RPT_ERROR, "Frame start/end specified in a non-animation render");
     return OPERATOR_CANCELLED;
   }
 
@@ -342,13 +379,15 @@ static wmOperatorStatus screen_render_exec(bContext *C, wmOperator *op)
   RE_SetReports(re, op->reports);
 
   if (is_animation) {
+    int start_frame, end_frame;
+    get_render_operator_frame_range(op, scene, start_frame, end_frame);
     RE_RenderAnim(re,
                   mainp,
                   scene,
                   single_layer,
                   camera_override,
-                  scene->r.sfra,
-                  scene->r.efra,
+                  start_frame,
+                  end_frame,
                   scene->r.frame_step);
   }
   else {
@@ -705,8 +744,8 @@ static void render_startjob(void *rjv, wmJobWorkerStatus *worker_status)
                   rj->scene,
                   rj->single_layer,
                   rj->camera_override,
-                  rj->scene->r.sfra,
-                  rj->scene->r.efra,
+                  rj->start_frame,
+                  rj->end_frame,
                   rj->scene->r.frame_step);
   }
   else {
@@ -980,6 +1019,11 @@ static wmOperatorStatus screen_render_invoke(bContext *C, wmOperator *op, const 
     return OPERATOR_CANCELLED;
   }
 
+  if (!is_animation && render_operator_has_custom_frame_range(op)) {
+    BKE_report(op->reports, RPT_ERROR, "Frame start/end specified in a non-animation render");
+    return OPERATOR_CANCELLED;
+  }
+
   /* custom scene and single layer re-render */
   screen_render_single_layer_set(op, bmain, active_layer, &scene, &single_layer);
 
@@ -1045,6 +1089,8 @@ static wmOperatorStatus screen_render_invoke(bContext *C, wmOperator *op, const 
   rj->orig_layer = 0;
   rj->last_layer = 0;
   rj->area = area;
+
+  get_render_operator_frame_range(op, scene, rj->start_frame, rj->end_frame);
 
   BKE_color_managed_display_settings_copy(&rj->display_settings, &scene->display_settings);
   BKE_color_managed_view_settings_copy(&rj->view_settings, &scene->view_settings);
@@ -1191,6 +1237,30 @@ void RENDER_OT_render(wmOperatorType *ot)
                         MAX_ID_NAME - 2,
                         "Scene",
                         "Scene to render, current scene if not specified");
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+  prop = RNA_def_int(
+      ot->srna,
+      "start_frame",
+      0,
+      INT_MIN,
+      INT_MAX,
+      "Start Frame",
+      "Frame to start rendering animation at. If not specified, the scene start frame will be "
+      "assumed. This should only be specified if doing an animation render",
+      INT_MIN,
+      INT_MAX);
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+  prop = RNA_def_int(
+      ot->srna,
+      "end_frame",
+      0,
+      INT_MIN,
+      INT_MAX,
+      "End Frame",
+      "Frame to end rendering animation at. If not specified, the scene end frame will be "
+      "assumed. This should only be specified if doing an animation render",
+      INT_MIN,
+      INT_MAX);
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
