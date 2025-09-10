@@ -368,7 +368,7 @@ class PrincipledBSDFWrapper(ShaderWrapper):
 
     def metallic_get(self):
         if self.node_principled_bsdf is None:
-            return 0.0
+            return self.material.metallic
         return self.node_principled_bsdf.inputs["Metallic"].default_value
 
     @_set_check
