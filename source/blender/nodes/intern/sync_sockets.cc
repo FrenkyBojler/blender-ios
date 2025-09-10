@@ -445,21 +445,7 @@ static std::string get_bundle_sync_tooltip(const nodes::BundleSignature &old_sig
       }
     }
   }
-  for (const nodes::BundleSignature::Item &new_item : new_signature.items) {
-    if (const nodes::BundleSignature::Item *old_item = old_signature.items.lookup_key_ptr_as(
-            new_item.key))
-    {
-      if (new_item.type->type != old_item->type->type ||
-          new_item.structure_type != old_item->structure_type)
-      {
-        changed_items.append(new_item.key);
-      }
-    }
-    else {
-      added_items.append(new_item.key);
-    }
-  }
-  for (const nodes::BundleSignature ::Item &old_item : old_signature.items) {
+  for (const nodes::BundleSignature::Item &old_item : old_signature.items) {
     if (!new_signature.items.contains_as(old_item.key)) {
       removed_items.append(old_item.key);
     }
@@ -468,16 +454,16 @@ static std::string get_bundle_sync_tooltip(const nodes::BundleSignature &old_sig
   fmt::memory_buffer string_buffer;
   auto buf = fmt::appender(string_buffer);
   if (!added_items.is_empty()) {
-    fmt::format_to(buf, "{}: {}\n", TIP_("Add"), fmt::join(added_items, ", "));
+    fmt::format_to(buf, "\u2022 {}: {}\n", TIP_("Add"), fmt::join(added_items, ", "));
   }
   if (!removed_items.is_empty()) {
-    fmt::format_to(buf, "{}: {}\n", TIP_("Remove"), fmt::join(removed_items, ", "));
+    fmt::format_to(buf, "\u2022 {}: {}\n", TIP_("Remove"), fmt::join(removed_items, ", "));
   }
   if (!changed_items.is_empty()) {
-    fmt::format_to(buf, "{}: {}\n", TIP_("Change"), fmt::join(changed_items, ", "));
+    fmt::format_to(buf, "\u2022 {}: {}\n", TIP_("Change"), fmt::join(changed_items, ", "));
   }
   if (order_changed) {
-    fmt::format_to(buf, "Reorder");
+    fmt::format_to(buf, "\u2022 Reorder");
   }
   fmt::format_to(buf, TIP_("\nUpdate based on linked bundle signature"));
 
