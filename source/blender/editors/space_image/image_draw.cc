@@ -14,7 +14,6 @@
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
-#include "DNA_vec_types.h"
 #include "DNA_view2d_types.h"
 
 #include "BLI_rect.h"
@@ -22,7 +21,6 @@
 #include "BLI_threads.h"
 #include "BLI_utildefines.h"
 
-#include "GPU_vertex_format.hh"
 #include "IMB_colormanagement.hh"
 #include "IMB_imbuf_enums.h"
 #include "IMB_moviecache.hh"
@@ -453,11 +451,13 @@ void draw_image_main_helpers(const bContext *C, ARegion *region)
     draw_render_info(C, sima->iuser.scene, ima, region, zoomx, zoomy);
   }
 
-  ToolSettings *ts = scene->toolsettings;
-  if (ts->uv_flag & UV_FLAG_CUSTOM_REGION) {
-    float zoomx, zoomy;
-    ED_space_image_get_zoom(sima, region, &zoomx, &zoomy);
-    draw_custom_region(region, ts->uv_custom_region);
+  if (sima && sima->mode == SI_MODE_UV) {
+    ToolSettings *ts = scene->toolsettings;
+    if (ts->uv_flag & UV_FLAG_CUSTOM_REGION) {
+      float zoomx, zoomy;
+      ED_space_image_get_zoom(sima, region, &zoomx, &zoomy);
+      draw_image_uv_custom_region(region, ts->uv_custom_region);
+    }
   }
 }
 
@@ -617,9 +617,8 @@ float ED_space_image_increment_snap_value(const int grid_dimensions,
   return grid_steps[0];
 }
 
-void draw_custom_region(ARegion *region, const rctf &custom_region)
+void draw_image_uv_custom_region(ARegion *region, const rctf &custom_region)
 {
-  /* use the same program for everything */
   const uint shdr_pos = GPU_vertformat_attr_add(
       immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
 
@@ -635,12 +634,13 @@ void draw_custom_region(ARegion *region, const rctf &custom_region)
   immUniform4f("color", 1.0f, 0.25f, 0.25f, 1.0f);
   immUniform1f("dash_width", 6.0f);
   immUniform1f("udash_factor", 0.5f);
-  int xmin, ymin, xmax, ymax;
+  rcti region_rect;
 
-  UI_view2d_view_to_region(&region->v2d, custom_region.xmin, custom_region.ymin, &xmin, &ymin);
-  UI_view2d_view_to_region(&region->v2d, custom_region.xmax, custom_region.ymax, &xmax, &ymax);
+  UI_view2d_view_to_region_rcti(&region->v2d, &custom_region, &region_rect);
+  UI_view2d_view_to_region_rcti(&region->v2d, &custom_region, &region_rect);
 
-  imm_draw_box_wire_2d(shdr_pos, xmin, ymin, xmax, ymax);
+  imm_draw_box_wire_2d(
+      shdr_pos, region_rect.xmin, region_rect.ymin, region_rect.xmax, region_rect.ymax);
 
   immUnbindProgram();
 }
