@@ -67,13 +67,10 @@ void RE_engines_exit()
 {
   RenderEngineType *type, *next;
 
-  if (DRW_gpu_context_try_enable()) {
-    /* Clean resources if the DRW context exists.
-     * We need a context bound even when dealing with non context dependent GPU resources,
-     * since GL functions may be null otherwise (See #141233). */
+  if (WM_gpu_is_initialized()) {
+    /* Clean resources if the DRW context exists. */
     DRW_engines_free();
     DRW_module_exit();
-    DRW_gpu_context_disable();
   }
 
   for (type = static_cast<RenderEngineType *>(R_engines.first); type; type = next) {
@@ -111,19 +108,6 @@ RenderEngineType *RE_engines_find(const char *idname)
 bool RE_engine_is_external(const Render *re)
 {
   return (re->engine && re->engine->type && re->engine->type->render);
-}
-
-bool RE_engine_supports_alembic_procedural(const RenderEngineType *render_type, Scene *scene)
-{
-  if ((render_type->flag & RE_USE_ALEMBIC_PROCEDURAL) == 0) {
-    return false;
-  }
-
-  if (BKE_scene_uses_cycles(scene) && !BKE_scene_uses_cycles_experimental_features(scene)) {
-    return false;
-  }
-
-  return true;
 }
 
 /* Create, Free */
@@ -534,8 +518,8 @@ void RE_engine_update_memory_stats(RenderEngine *engine, float mem_used, float m
   Render *re = engine->re;
 
   if (re) {
-    re->i.mem_used = (int)ceilf(mem_used);
-    re->i.mem_peak = (int)ceilf(mem_peak);
+    re->i.mem_used = int(ceilf(mem_used));
+    re->i.mem_peak = int(ceilf(mem_peak));
   }
 }
 
