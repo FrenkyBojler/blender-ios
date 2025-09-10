@@ -153,6 +153,8 @@ struct State {
   bool draw_background = false;
   /** True if the render engine outputs satisfactory depth information to the depth buffer. */
   bool is_render_depth_available = false;
+  /** Whether we should render a vignette over the scene. */
+  bool vignette_enabled = false;
   /** Should text draw in this mode? */
   bool show_text = false;
   bool hide_overlays = false;
@@ -454,6 +456,7 @@ class ShaderModule {
   StaticShader attribute_viewer_curves = shader_clippable("overlay_viewer_attribute_curves");
   StaticShader background_fill = {"overlay_background"};
   StaticShader background_clip_bound = {"overlay_clipbound"};
+  StaticShader background_vignette = {"overlay_background"};
   StaticShader curve_edit_points = shader_clippable("overlay_edit_curves_point");
   StaticShader curve_edit_line = shader_clippable("overlay_edit_particle_strand");
   StaticShader curve_edit_handles = shader_clippable("overlay_edit_curves_handle");

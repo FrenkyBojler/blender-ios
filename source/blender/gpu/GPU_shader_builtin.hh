@@ -91,8 +91,6 @@ enum eGPUBuiltinShader {
   /** Draw sequencer zebra pattern (overexposed regions). */
   GPU_SHADER_SEQUENCER_ZEBRA,
 
-  /** Draw vignette in screen space. */
-  GPU_SHADER_XR_VIGNETTE,
   /** Draw xr raycast as a ruled spline surface. */
   GPU_SHADER_XR_RAYCAST,
 
