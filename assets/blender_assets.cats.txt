@@ -33,6 +33,7 @@ abea2557-f13e-4e21-b4d8-11a1fffd7d57:Brushes/Mesh Sculpt/Simulation:Brushes-Mesh
 a82f0b44-1d89-4ca7-ae21-86296257be99:Brushes/Mesh Texture Paint:Brushes-Mesh Texture Paint
 27cbc8dc-80c8-45d5-863c-7ecc48bccf20:Brushes/Mesh Vertex Paint:Brushes-Mesh Vertex Paint
 77635e98-1a5a-482e-9cb1-ba9ec4bc5b74:Brushes/Mesh Weight Paint:Brushes-Mesh Weight Paint
+650b60a0-0282-4378-9f00-ae69b8c5bdba:Filter:Filter
 f14d3c5d-8223-4e8c-b3b3-cbce81e4b3ee:Hair:Hair
 87cbaad7-ae4e-404c-9b6b-4fe60ecc39dc:Hair/Deformation:Hair-Deformation
 40aedbf9-be4b-4ddb-8eec-8a9cd37d0921:Hair/Generation:Hair-Generation
@@ -41,3 +42,5 @@ c676fe02-8d25-49a1-b672-11aee0918221:Hair/Read:Hair-Read
 9dedc75a-afe5-472a-9e3f-a555a8df3dff:Hair/Utility:Hair-Utility
 63a83f9c-5a95-476a-9bd5-fcb72414ea0b:Hair/Write:Hair-Write
 9e98eca8-e987-44d3-88a1-6633d0a8ad82:Normals:Normals
+af29adb1-51a4-4e85-afad-3d3fbab48b55:Transform:Transform
+7a0ac7b4-43ba-4bdc-a41d-cd772132dec5:Utilities:Utilities
