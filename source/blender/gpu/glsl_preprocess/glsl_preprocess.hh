@@ -777,7 +777,10 @@ class Preprocessor {
 
     auto add_loop = [&](const Token loop_start,
                         const int iter_count,
+                        const int iter_init,
+                        const int iter_incr,
                         const bool condition_is_trivial,
+                        const bool iteration_is_trivial,
                         const Scope init,
                         const Scope cond,
                         const Scope iter,
@@ -823,22 +826,36 @@ class Preprocessor {
       string indent_body = string(body.start().char_number(), ' ');
       string indent_end = string(body.end().char_number(), ' ');
 
+      /* If possible, replaces the index of the loop iteration inside the given string. */
+      auto replace_index = [&](const string &str, int loop_index) {
+        if (iter.is_invalid() || !iteration_is_trivial) {
+          return str;
+        }
+        Parser str_parser(str, report_error);
+        str_parser.foreach_token(Word, [&](const Token tok) {
+          if (tok.str() == iter[0].str()) {
+            str_parser.replace(tok, std::to_string(loop_index));
+          }
+        });
+        return str_parser.result_get();
+      };
+
       parser.insert_after(body.end(), "\n");
-      if (init.is_valid()) {
+      if (init.is_valid() && !iteration_is_trivial) {
         parser.insert_line_number(body.end(), init.start().line_number());
         parser.insert_after(body.end(), indent_init + "{" + init.str() + ";\n");
       }
       else {
         parser.insert_after(body.end(), "{\n");
       }
-      for (int64_t i = 0; i < iter_count; i++) {
+      for (int64_t i = 0, value = iter_init; i < iter_count; i++, value += iter_incr) {
         if (cond.is_valid() && !condition_is_trivial) {
           parser.insert_line_number(body.end(), cond.start().line_number());
           parser.insert_after(body.end(), indent_cond + "if(" + cond.str() + ")\n");
         }
         parser.insert_line_number(body.end(), body.start().line_number());
-        parser.insert_after(body.end(), indent_body + body.str() + "\n");
-        if (iter.is_valid()) {
+        parser.insert_after(body.end(), indent_body + replace_index(body.str(), value) + "\n");
+        if (iter.is_valid() && !iteration_is_trivial) {
           parser.insert_line_number(body.end(), iter.start().line_number());
           parser.insert_after(body.end(), indent_iter + iter.str() + ";\n");
         }
@@ -896,17 +913,21 @@ class Preprocessor {
           /* Iteration statement. */
           const Token iter_var = iter[0];
           const Token iter_type = iter[1];
+          const Token iter_end = iter[1];
+          int iter_incr = 0;
           if (iter_var.str() != var_name.str()) {
             report_error(ERROR_TOK(iter_var), "Non matching loop counter variable.");
             return;
           }
           if (iter_type == Increment) {
+            iter_incr = +1;
             if (cond_type == '>') {
               report_error(ERROR_TOK(for_tok), "Unsupported condition in unrolled loop.");
               return;
             }
           }
           else if (iter_type == Decrement) {
+            iter_incr = -1;
             if (cond_type == '<') {
               report_error(ERROR_TOK(for_tok), "Unsupported condition in unrolled loop.");
               return;
@@ -928,8 +949,18 @@ class Preprocessor {
           }
 
           bool condition_is_trivial = (cond_end == cond.end());
+          bool iteration_is_trivial = (iter_end == iter.end());
 
-          add_loop(tokens[0], iter_count, condition_is_trivial, init, cond, iter, loop_body);
+          add_loop(tokens[0],
+                   iter_count,
+                   init_value,
+                   iter_incr,
+                   condition_is_trivial,
+                   iteration_is_trivial,
+                   init,
+                   cond,
+                   iter,
+                   loop_body);
         });
       }
       {
@@ -943,7 +974,7 @@ class Preprocessor {
 
           int iter_count = std::stol(tokens[7].str());
 
-          add_loop(tokens[0], iter_count, false, init, cond, iter, loop_body);
+          add_loop(tokens[0], iter_count, 0, 0, false, false, init, cond, iter, loop_body);
         });
       }
     } while (parser.apply_mutations());
