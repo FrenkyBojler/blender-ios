@@ -2248,7 +2248,9 @@ static void direct_link_id_common(BlendDataReader *reader,
 {
   if (!BLO_read_data_is_undo(reader)) {
     /* When actually reading a file, we do want to reset/re-generate session UIDS.
-     * In undo case, we want to re-use existing ones. */
+     * In undo case, we want to re-use existing ones in case the old ID still exists and its
+     * address can be reused. Otherwise, #read_libblock will reset that session uid in undo case.
+     */
     id->session_uid = MAIN_ID_SESSION_UID_UNSET;
   }
 
@@ -3173,9 +3175,17 @@ static BHead *read_libblock(FileData *fd,
     }
   }
   else {
-    if (do_partial_undo && id_old != nullptr) {
-      /* For undo, store contents read into id at id_old. */
-      read_libblock_undo_restore_at_old_address(fd, main, id, id_old);
+    if (do_partial_undo) {
+      if (id_old != nullptr) {
+        /* For undo, store contents read into id at id_old. */
+        read_libblock_undo_restore_at_old_address(fd, main, id, id_old);
+      }
+      else {
+        /* If no `id_old` was found, renew the session uid. Keeping it will break depsgraph in some
+         * cases, as it assumes that a same session_uid always matches with to a same orig_id
+         * address (see the retrieval of IDInfo in #add_id_node). Ref. #145848. */
+        BKE_lib_libblock_session_uid_renew(id);
+      }
     }
     if (fd->new_idmap_uid != nullptr) {
       BKE_main_idmap_insert_id(fd->new_idmap_uid, id_target);
