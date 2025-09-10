@@ -3967,6 +3967,7 @@ static void rna_def_mask_modifier(BlenderRNA *brna)
 {
   StructRNA *srna;
   srna = RNA_def_struct(brna, "MaskStripModifier", "StripModifier");
+  RNA_def_struct_ui_icon(srna, ICON_MOD_MASK);
   RNA_def_struct_ui_text(srna, "Mask Modifier", "Mask modifier for sequence strip");
 
   /* Mask properties are part of #rna_def_modifier. */
