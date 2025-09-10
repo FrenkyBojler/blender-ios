@@ -92,6 +92,11 @@ static void brush_copy_data(Main * /*bmain*/,
   brush_dst->curve_size = BKE_curvemapping_copy(brush_src->curve_size);
   brush_dst->curve_strength = BKE_curvemapping_copy(brush_src->curve_strength);
   brush_dst->curve_jitter = BKE_curvemapping_copy(brush_src->curve_jitter);
+  brush_dst->curve_auto_smooth = BKE_curvemapping_copy(brush_src->curve_auto_smooth);
+  brush_dst->curve_spacing = BKE_curvemapping_copy(brush_src->curve_spacing);
+  brush_dst->curve_hardness = BKE_curvemapping_copy(brush_src->curve_hardness);
+  brush_dst->curve_plane_offset = BKE_curvemapping_copy(brush_src->curve_plane_offset);
+  brush_dst->curve_area_radius = BKE_curvemapping_copy(brush_src->curve_area_radius);
 
   if (brush_src->gpencil_settings != nullptr) {
     brush_dst->gpencil_settings = MEM_dupallocN<BrushGpencilSettings>(
@@ -140,6 +145,11 @@ static void brush_free_data(ID *id)
   BKE_curvemapping_free(brush->curve_size);
   BKE_curvemapping_free(brush->curve_strength);
   BKE_curvemapping_free(brush->curve_jitter);
+  BKE_curvemapping_free(brush->curve_auto_smooth);
+  BKE_curvemapping_free(brush->curve_spacing);
+  BKE_curvemapping_free(brush->curve_hardness);
+  BKE_curvemapping_free(brush->curve_plane_offset);
+  BKE_curvemapping_free(brush->curve_area_radius);
 
   if (brush->gpencil_settings != nullptr) {
     BKE_curvemapping_free(brush->gpencil_settings->curve_sensitivity);
@@ -263,6 +273,21 @@ static void brush_blend_write(BlendWriter *writer, ID *id, const void *id_addres
   if (brush->curve_jitter) {
     BKE_curvemapping_blend_write(writer, brush->curve_jitter);
   }
+  if (brush->curve_auto_smooth) {
+    BKE_curvemapping_blend_write(writer, brush->curve_auto_smooth);
+  }
+  if (brush->curve_spacing) {
+    BKE_curvemapping_blend_write(writer, brush->curve_spacing);
+  }
+  if (brush->curve_hardness) {
+    BKE_curvemapping_blend_write(writer, brush->curve_hardness);
+  }
+  if (brush->curve_plane_offset) {
+    BKE_curvemapping_blend_write(writer, brush->curve_plane_offset);
+  }
+  if (brush->curve_area_radius) {
+    BKE_curvemapping_blend_write(writer, brush->curve_area_radius);
+  }
 
   if (brush->gpencil_settings) {
     BLO_write_struct(writer, BrushGpencilSettings, brush->gpencil_settings);
@@ -376,6 +401,46 @@ static void brush_blend_read_data(BlendDataReader *reader, ID *id)
   }
   else {
     brush->curve_jitter = BKE_paint_default_curve();
+  }
+
+  BLO_read_struct(reader, CurveMapping, &brush->curve_auto_smooth);
+  if (brush->curve_auto_smooth) {
+    BKE_curvemapping_blend_read(reader, brush->curve_auto_smooth);
+  }
+  else {
+    brush->curve_auto_smooth = BKE_paint_default_curve();
+  }
+
+  BLO_read_struct(reader, CurveMapping, &brush->curve_spacing);
+  if (brush->curve_spacing) {
+    BKE_curvemapping_blend_read(reader, brush->curve_spacing);
+  }
+  else {
+    brush->curve_spacing = BKE_paint_default_curve();
+  }
+
+  BLO_read_struct(reader, CurveMapping, &brush->curve_hardness);
+  if (brush->curve_hardness) {
+    BKE_curvemapping_blend_read(reader, brush->curve_hardness);
+  }
+  else {
+    brush->curve_hardness = BKE_paint_default_curve();
+  }
+
+  BLO_read_struct(reader, CurveMapping, &brush->curve_plane_offset);
+  if (brush->curve_plane_offset) {
+    BKE_curvemapping_blend_read(reader, brush->curve_plane_offset);
+  }
+  else {
+    brush->curve_plane_offset = BKE_paint_default_curve();
+  }
+
+  BLO_read_struct(reader, CurveMapping, &brush->curve_area_radius);
+  if (brush->curve_area_radius) {
+    BKE_curvemapping_blend_read(reader, brush->curve_area_radius);
+  }
+  else {
+    brush->curve_area_radius = BKE_paint_default_curve();
   }
 
   /* grease pencil */

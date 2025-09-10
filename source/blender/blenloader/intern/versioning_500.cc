@@ -3047,6 +3047,26 @@ void blo_do_versions_500(FileData *fd, Library * /*lib*/, Main *bmain)
     FOREACH_NODETREE_END;
   }
 
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 76)) {
+    LISTBASE_FOREACH (Brush *, brush, &bmain->brushes) {
+      if (brush->curve_auto_smooth == nullptr) {
+        brush->curve_auto_smooth = BKE_paint_default_curve();
+      }
+      if (brush->curve_spacing == nullptr) {
+        brush->curve_spacing = BKE_paint_default_curve();
+      }
+      if (brush->curve_hardness == nullptr) {
+        brush->curve_hardness = BKE_paint_default_curve();
+      }
+      if (brush->curve_plane_offset == nullptr) {
+        brush->curve_plane_offset = BKE_paint_default_curve();
+      }
+      if (brush->curve_area_radius == nullptr) {
+        brush->curve_area_radius = BKE_paint_default_curve();
+      }
+    }
+  }
+
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a MAIN_VERSION_FILE_ATLEAST check.

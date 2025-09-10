@@ -231,6 +231,11 @@ typedef struct Brush {
   struct CurveMapping *curve_size;
   struct CurveMapping *curve_strength;
   struct CurveMapping *curve_jitter;
+  struct CurveMapping *curve_auto_smooth;
+  struct CurveMapping *curve_spacing;
+  struct CurveMapping *curve_hardness;
+  struct CurveMapping *curve_plane_offset;
+  struct CurveMapping *curve_area_radius;
 
   /** Opacity. */
   float alpha;
