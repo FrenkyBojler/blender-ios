@@ -243,6 +243,8 @@ void mesh_calc_edges(Mesh &mesh,
                      const bool select_new_edges,
                      const AttributeFilter &attribute_filter)
 {
+  BLI_assert(std::all_of(mesh.edges().begin(), mesh.edges().end(), [&](const int2 edge) { return edge.x != edge.y; }));
+  
   if (mesh.edges_num == 0 && mesh.corners_num == 0) {
     BLI_assert(BKE_mesh_is_valid(&mesh));
     return;
@@ -430,6 +432,9 @@ void mesh_calc_edges(Mesh &mesh,
       const int old_corner_edges_num = src_to_dst_mask.size();
       back_range_of_new_edges = IndexRange(result_edges_num).drop_front(old_corner_edges_num);
 
+      calc_edges::serialize_and_initialize_deduplicated_edges(
+          edge_maps, edge_offsets, original_edge_maps_prefix, edge_verts);
+
       Array<int> edge_map_to_result_index;
       if (!src_to_dst_mask.is_empty()) {
         array_utils::gather(
@@ -469,10 +474,12 @@ void mesh_calc_edges(Mesh &mesh,
       BLI_assert(original_edge_maps_prefix.total_size() == 0);
       calc_edges::update_edge_indices_in_face_loops(
           faces, corner_verts, edge_maps, parallel_mask, edge_offsets, corner_edges);
+      calc_edges::serialize_and_initialize_deduplicated_edges(
+          edge_maps, edge_offsets, original_edge_maps_prefix, edge_verts);
     }
-    calc_edges::serialize_and_initialize_deduplicated_edges(
-        edge_maps, edge_offsets, original_edge_maps_prefix, edge_verts);
   }
+
+  BLI_assert(std::all_of(edge_verts.begin(), edge_verts.end(), [&](const int2 edge) { return edge.x != edge.y; }));
 
   BLI_assert(!corner_edges.contains(-1));
   BLI_assert(!edge_verts.contains(int2(-1)));
