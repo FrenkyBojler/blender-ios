@@ -1992,32 +1992,6 @@ class SEQUENCER_PT_view_safe_areas_center_cut(SequencerButtonsPanel_Output, Pane
         col.prop(safe_data, "action_center", slider=True)
 
 
-<<<<<<< HEAD
-=======
-class SEQUENCER_PT_modifiers(SequencerButtonsPanel, Panel):
-    bl_label = ""
-    bl_options = {'HIDE_HEADER'}
-    bl_category = "Modifiers"
-
-    def draw(self, context):
-        layout = self.layout
-        layout.use_property_split = True
-
-        strip = context.active_strip
-        if strip.type == 'SOUND':
-            sound = strip.sound
-        else:
-            sound = None
-
-        if sound is None:
-            layout.prop(strip, "use_linear_modifiers", text="Linear Modifiers")
-
-        layout.operator("wm.call_menu", text="Add Modifier", icon='ADD').name = "SEQUENCER_MT_modifier_add"
-
-        layout.template_strip_modifiers()
-
-
->>>>>>> main
 class SEQUENCER_PT_annotation(AnnotationDataPanel, SequencerButtonsPanel_Output, Panel):
     bl_space_type = 'SEQUENCE_EDITOR'
     bl_region_type = 'UI'

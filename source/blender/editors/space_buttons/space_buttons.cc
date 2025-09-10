@@ -189,7 +189,7 @@ void ED_buttons_visible_tabs_menu(bContext *C, uiLayout *layout, void * /*arg*/)
       "show_properties_constraints", "show_properties_data",
       "show_properties_bone",        "show_properties_bone_constraints",
       "show_properties_material",    "show_properties_texture",
-      "show_properties_strip",
+      "show_properties_strip",       "show_properties_strip_modifier",
   };
 
   for (blender::StringRefNull item : filter_items) {
@@ -256,6 +256,7 @@ blender::Vector<eSpaceButtons_Context> ED_buttons_tabs_list(const SpacePropertie
   add_spacer();
 
   add_tab(BCONTEXT_STRIP);
+  add_tab(BCONTEXT_STRIP_MODIFIER);
 
   return tabs;
 }
@@ -301,6 +302,8 @@ static const char *buttons_main_region_context_string(const short mainb)
       return "tool";
     case BCONTEXT_STRIP:
       return "strip";
+    case BCONTEXT_STRIP_MODIFIER:
+      return "strip_modifier";
   }
 
   /* All the cases should be handled. */

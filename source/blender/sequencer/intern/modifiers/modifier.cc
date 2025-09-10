@@ -182,12 +182,6 @@ bool modifier_ui_poll(const bContext *C, PanelType * /*pt*/)
   if (!sequencer_scene) {
     return false;
   }
-  if (const SpaceSeq *sseq = CTX_wm_space_seq(C)) {
-    /* Only show modifiers in the sequencer view types, not the preview. */
-    if (sseq->view == SEQ_VIEW_PREVIEW) {
-      return false;
-    }
-  }
   Strip *active_strip = seq::select_active_get(sequencer_scene);
   return active_strip != nullptr;
 }

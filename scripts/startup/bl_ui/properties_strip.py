@@ -1025,30 +1025,6 @@ class STRIP_PT_adjust_color(StripButtonsPanel, Panel):
         col.prop(strip, "use_float", text="Convert to Float")
 
 
-class STRIP_PT_modifiers(StripButtonsPanel, Panel):
-    bl_label = "Modifiers"
-    bl_options = {'DEFAULT_CLOSED'}
-
-    def draw(self, context):
-        layout = self.layout
-        layout.use_property_split = True
-
-        strip = context.active_strip
-        ed = context.sequencer_scene.sequence_editor
-        if strip.type == 'SOUND':
-            sound = strip.sound
-        else:
-            sound = None
-
-        if sound is None:
-            layout.prop(strip, "use_linear_modifiers", text="Linear Modifiers")
-
-        layout.operator_menu_enum("sequencer.strip_modifier_add", "type")
-        layout.operator("sequencer.strip_modifier_copy")
-
-        layout.template_strip_modifiers()
-
-
 class STRIP_PT_custom_props(StripButtonsPanel, PropertyPanel, Panel):
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
@@ -1082,8 +1058,6 @@ classes = (
 
     STRIP_PT_time,
     STRIP_PT_source,
-
-    STRIP_PT_modifiers,
 
     STRIP_PT_custom_props,
 )

@@ -603,7 +603,8 @@ static bool buttons_context_path(
               BCONTEXT_OUTPUT,
               BCONTEXT_VIEW_LAYER,
               BCONTEXT_WORLD,
-              BCONTEXT_STRIP))
+              BCONTEXT_STRIP,
+              BCONTEXT_STRIP_MODIFIER))
     {
       path->ptr[path->len] = RNA_pointer_create_discrete(nullptr, &RNA_ViewLayer, view_layer);
       path->len++;
@@ -673,6 +674,7 @@ static bool buttons_context_path(
       found = buttons_context_path_pose_bone(path);
       break;
     case BCONTEXT_STRIP:
+    case BCONTEXT_STRIP_MODIFIER:
       found = buttons_context_path_strip(path);
       break;
     default:
@@ -1219,7 +1221,7 @@ static void buttons_panel_context_draw(const bContext *C, Panel *panel)
   SpaceProperties *sbuts = CTX_wm_space_properties(C);
   ButsContextPath *path = static_cast<ButsContextPath *>(sbuts->path);
 
-  if (!path || sbuts->mainb == BCONTEXT_STRIP) {
+  if (!path || sbuts->mainb == BCONTEXT_STRIP || sbuts->mainb == BCONTEXT_STRIP_MODIFIER) {
     return;
   }
 
