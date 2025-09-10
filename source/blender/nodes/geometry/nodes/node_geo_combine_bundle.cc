@@ -95,6 +95,7 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *node_ptr)
   bNode &node = *static_cast<bNode *>(node_ptr->data);
 
   layout->op("node.sockets_sync", "Sync", ICON_FILE_REFRESH);
+  layout->prop(node_ptr, "is_type_definition", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   if (uiLayout *panel = layout->panel(C, "bundle_items", false, TIP_("Bundle Items"))) {
     socket_items::ui::draw_items_list_with_operators<CombineBundleItemsAccessor>(
         C, panel, ntree, node);

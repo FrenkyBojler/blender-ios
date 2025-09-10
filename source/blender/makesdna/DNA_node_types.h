@@ -2286,9 +2286,16 @@ typedef struct NodeClosureOutputItems {
   char _pad[4];
 } NodeClosureOutputItems;
 
+typedef enum NodeClosureFlag {
+  NODE_CLOSURE_FLAG_TYPE_DEFINITION = (1 << 0),
+} NodeClosureFlag;
+
 typedef struct NodeClosureOutput {
   NodeClosureInputItems input_items;
   NodeClosureOutputItems output_items;
+  /** #NodeClosureFlag. */
+  uint8_t flag;
+  char _pad[7];
 } NodeClosureOutput;
 
 typedef struct NodeEvaluateClosureInputItem {
@@ -2311,6 +2318,10 @@ typedef struct NodeEvaluateClosureOutputItem {
   int identifier;
 } NodeEvaluateClosureOutputItem;
 
+typedef enum NodeEvaluateClosureFlag {
+  NODE_EVALUATE_CLOSURE_FLAG_TYPE_DEFINITION = (1 << 0),
+} NodeEvaluateClosureFlag;
+
 typedef struct NodeEvaluateClosureInputItems {
   NodeEvaluateClosureInputItem *items;
   int items_num;
@@ -2330,6 +2341,9 @@ typedef struct NodeEvaluateClosureOutputItems {
 typedef struct NodeEvaluateClosure {
   NodeEvaluateClosureInputItems input_items;
   NodeEvaluateClosureOutputItems output_items;
+  /** #NodeEvaluateClosureFlag. */
+  uint8_t flag;
+  char _pad[7];
 } NodeEvaluateClosure;
 
 typedef struct IndexSwitchItem {
@@ -2455,12 +2469,18 @@ typedef struct NodeCombineBundleItem {
   char _pad[1];
 } NodeCombineBundleItem;
 
+typedef enum NodeCombineBundleFlag {
+  NODE_COMBINE_BUNDLE_FLAG_TYPE_DEFINITION = (1 << 0),
+} NodeCombineBundleFlag;
+
 typedef struct NodeCombineBundle {
   NodeCombineBundleItem *items;
   int items_num;
   int next_identifier;
   int active_index;
-  char _pad[4];
+  /** #NodeCombineBundleFlag. */
+  uint8_t flag;
+  char _pad[3];
 } NodeCombineBundle;
 
 typedef struct NodeSeparateBundleItem {
@@ -2472,12 +2492,18 @@ typedef struct NodeSeparateBundleItem {
   char _pad[1];
 } NodeSeparateBundleItem;
 
+typedef enum NodeSeparateBundleFlag {
+  NODE_SEPARATE_BUNDLE_FLAG_TYPE_DEFINITION = (1 << 0),
+} NodeSeparateBundleFlag;
+
 typedef struct NodeSeparateBundle {
   NodeSeparateBundleItem *items;
   int items_num;
   int next_identifier;
   int active_index;
-  char _pad[4];
+  /** #NodeSeparateBundleFlag. */
+  uint8_t flag;
+  char _pad[3];
 } NodeSeparateBundle;
 
 typedef struct NodeFunctionFormatStringItem {

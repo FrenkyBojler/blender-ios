@@ -119,6 +119,7 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *ptr)
   layout->use_property_decorate_set(false);
 
   layout->op("node.sockets_sync", "Sync", ICON_FILE_REFRESH);
+  layout->prop(ptr, "is_type_definition", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   if (uiLayout *panel = layout->panel(C, "input_items", false, IFACE_("Input Items"))) {
     socket_items::ui::draw_items_list_with_operators<EvaluateClosureInputItemsAccessor>(
