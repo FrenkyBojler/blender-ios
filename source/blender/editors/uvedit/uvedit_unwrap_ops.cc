@@ -1065,8 +1065,9 @@ static ParamHandle *construct_param_handle_subsurfed_multi(const Scene *scene,
     if (offsets.uv == -1) {
       continue;
     }
+    ModifierData *md = static_cast<ModifierData *>(obedit->modifiers.first);
+    SubsurfModifierData *smd_real = (SubsurfModifierData *)md;
 
-    SubsurfModifierData *smd_real = (SubsurfModifierData *)obedit->modifiers.first;
     SubsurfModifierData smd = {{nullptr}};
     smd.levels = smd_real->levels;
     smd.subdivType = smd_real->subdivType;
