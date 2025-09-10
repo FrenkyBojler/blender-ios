@@ -439,7 +439,6 @@ void draw_image_sample_line(SpaceImage *sima)
 
 void draw_image_main_helpers(const bContext *C, ARegion *region)
 {
-  Scene *scene = CTX_data_scene(C);
   SpaceImage *sima = CTX_wm_space_image(C);
   Image *ima = ED_space_image(sima);
 
@@ -451,7 +450,8 @@ void draw_image_main_helpers(const bContext *C, ARegion *region)
     draw_render_info(C, sima->iuser.scene, ima, region, zoomx, zoomy);
   }
 
-  if (sima && sima->mode == SI_MODE_UV) {
+  if (sima->mode == SI_MODE_UV) {
+    Scene *scene = CTX_data_scene(C);
     ToolSettings *ts = scene->toolsettings;
     if (ts->uv_flag & UV_FLAG_CUSTOM_REGION) {
       float zoomx, zoomy;
@@ -636,7 +636,6 @@ void draw_image_uv_custom_region(const ARegion *region, const rctf &custom_regio
   immUniform1f("udash_factor", 0.5f);
   rcti region_rect;
 
-  UI_view2d_view_to_region_rcti(&region->v2d, &custom_region, &region_rect);
   UI_view2d_view_to_region_rcti(&region->v2d, &custom_region, &region_rect);
 
   imm_draw_box_wire_2d(
