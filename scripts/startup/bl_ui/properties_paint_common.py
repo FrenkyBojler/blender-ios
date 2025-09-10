@@ -284,16 +284,21 @@ class UnifiedPaintPanel:
 
         row.prop(prop_owner, prop_name, icon=icon, text=text, slider=slider)
 
-        if pressure_name:
-            row.prop(brush, pressure_name, text="")
-
         if unified_name and not header:
             # NOTE: We don't draw UnifiedPaintSettings in the header to reduce clutter. D5928#136281
             row.prop(ups, unified_name, text="", icon='BRUSHES_ALL')
 
+        if pressure_name:
+            row.prop(brush, pressure_name, text="")
+
         if curve_visibility_name and not header:
-            row.separator()
-            row.prop(paint, curve_visibility_name, text="", icon='DOWNARROW_HLT')
+            is_active = getattr(paint, curve_visibility_name)
+            row.prop(
+                paint,
+                curve_visibility_name,
+                text="",
+                icon='DOWNARROW_HLT' if is_active else 'RIGHTARROW',
+                emboss=False)
         return row
 
     @staticmethod
@@ -556,13 +561,19 @@ class StrokePanel(BrushPanel):
             else:
                 row.prop(brush, "jitter_absolute")
             row.prop(brush, "use_pressure_jitter", toggle=True, text="")
-            row.prop(settings, "show_jitter_curve", icon="RNDCURVE", text="")
-            col.row().prop(brush, "jitter_unit", expand=True)
+            if self.is_popover is False:
+                row.prop(
+                    settings,
+                    "show_jitter_curve",
+                    icon='DOWNARROW_HLT' if settings.show_jitter_curve else 'RIGHTARROW',
+                    text="",
+                    emboss=False)
             # Pen pressure mapping curve for Jitter.
             if settings.show_jitter_curve and self.is_popover is False:
                 col = layout.column()
                 col.active = brush.use_pressure_jitter
-                col.template_curve_mapping(brush, "curve_jitter", brush=True
+                col.template_curve_mapping(brush, "curve_jitter", brush=True)
+            col.row().prop(brush, "jitter_unit", expand=True)
 
         col.separator()
         UnifiedPaintPanel.prop_unified(
