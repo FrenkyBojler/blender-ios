@@ -347,6 +347,16 @@ bool AbstractViewItem::is_selected() const
   return is_selected_;
 }
 
+void AbstractViewItem::set_alert(bool alert)
+{
+  is_alert_ = alert;
+}
+
+bool AbstractViewItem::is_alert() const
+{
+  return is_alert_;
+}
+
 bool AbstractViewItem::is_search_highlight() const
 {
   return is_highlighted_search_;

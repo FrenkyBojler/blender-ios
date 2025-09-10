@@ -200,6 +200,7 @@ class AbstractViewItem {
   /** See #view_item_button() */
   uiButViewItem *view_item_but_ = nullptr;
   bool is_activatable_ = true;
+  bool is_alert_ = false;
   bool is_interactive_ = true;
   bool is_active_ = false;
   bool is_selected_ = false;
@@ -315,6 +316,8 @@ class AbstractViewItem {
    */
   bool is_active() const;
   bool is_selected() const;
+  void set_alert(bool alert);
+  bool is_alert() const;
   /**
    * Should this item be highlighted as matching search result? Only one item should be highlighted
    * this way at a time. Pressing enter will activate it.

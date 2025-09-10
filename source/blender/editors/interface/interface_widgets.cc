@@ -4390,6 +4390,27 @@ static void widget_list_itembut(uiBut *but,
     if (item_but->draw_height > 0) {
       BLI_rcti_resize_y(&draw_rect, zoom * item_but->draw_height);
     }
+    if (view_item.is_alert()) {
+      // TODO: use a proper icon width constant
+      draw_rect.xmin += UI_SCALE_FAC * zoom * 26;
+      /** Stolen from ANIM_channel_draw */
+      uint pos = GPU_vertformat_attr_add(
+          immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
+
+      immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
+
+      /* FIXME: replace hardcoded color here, and check on extents! */
+      immUniformColor3f(1.0f, 0.0f, 0.0f);
+
+      GPU_line_width(UI_SCALE_FAC * zoom * 3.0f);
+
+      immBegin(GPU_PRIM_LINES, 2);
+      immVertex2f(pos, rect->xmin, rect->ymin);
+      immVertex2f(pos, rect->xmin, rect->ymax);
+      immEnd();
+
+      immUnbindProgram();
+    }
   }
 
   uiWidgetBase wtb;
