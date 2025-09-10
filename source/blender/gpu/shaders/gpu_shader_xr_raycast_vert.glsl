@@ -23,10 +23,10 @@ vec3 getControlPoint(int idx)
 void main()
 {
   int sampleIdx = gl_VertexID >> 1;
-  float side = (gl_VertexID & 1 != 0) ? -1.0 : 1.0;
+  float side = ((gl_VertexID & 1) != 0) ? -1.0 : 1.0;
 
   int segmentIdx = sampleIdx / samplesPerSegment;
-  int sampleInSegment = sampleIdx - seg * samplesPerSegment;
+  int sampleInSegment = sampleIdx - segmentIdx * samplesPerSegment;
   float t = float(sampleInSegment) / float(samplesPerSegment - 1);
 
   segmentIdx = clamp(segmentIdx, 0, max(0, controlPointCount - 2));
