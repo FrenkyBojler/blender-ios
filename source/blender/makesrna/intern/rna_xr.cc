@@ -1942,8 +1942,8 @@ static void rna_def_xr_session_settings(BlenderRNA *brna)
   };
 
   static const EnumPropertyItem viewfinder_view_points[] = {
-      {XR_VIEWFINDER_SCENE_CAMERA, "SCENE_CAMERA", 0, "Scene Camera", "Active scene camera"},
-      {XR_VIEWFINDER_HANDHELD, "HANDHELD", 0, "Handheld", "Handheld camera"},
+      {XR_VIEWFINDER_VIEWPOINT_SCENE_CAMERA, "SCENE_CAMERA", 0, "Scene Camera", "Active scene camera"},
+      {XR_VIEWFINDER_VIEWPOINT_HANDHELD, "HANDHELD", 0, "Handheld", "Handheld camera"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
@@ -2082,7 +2082,7 @@ static void rna_def_xr_session_settings(BlenderRNA *brna)
   RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_COLOR);
   RNA_def_property_update(prop, NC_WM | ND_XR_DATA_CHANGED, nullptr);
 
-  prop = RNA_def_property(srna, "use_viewfinder", PROP_BOOLEAN, PROP_NONE);
+  prop = RNA_def_property(srna, "viewfinder_enable", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_ui_text(prop, "Enable Viewfinder", "Enable the Location Scouting Viewfinder");
   RNA_def_property_update(prop, NC_WM | ND_XR_DATA_CHANGED, nullptr);
 

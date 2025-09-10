@@ -116,7 +116,7 @@ class VIEW3D_PT_vr_viewfinder(Panel):
         layout = self.layout
         session_settings = context.window_manager.xr_session_settings
 
-        layout.prop(session_settings, "use_viewfinder", text="")
+        layout.prop(session_settings, "viewfinder_enable", text="")
 
     def draw(self, context):
         layout = self.layout

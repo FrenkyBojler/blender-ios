@@ -534,7 +534,7 @@ static void wm_xr_controller_viewfinder_draw(const XrSessionSettings *settings,
                                              const bContext *C,
                                              ARegion *region)
 {
-  if (!settings->use_viewfinder) {
+  if (!settings->viewfinder_enable) {
     return;
   }
 

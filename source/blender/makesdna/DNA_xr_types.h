@@ -29,7 +29,7 @@ typedef struct XrSessionSettings {
   /** Draw style for controller visualization. */
   char controller_draw_style;
 
-  char use_viewfinder; // TODO: Rename to viewfinder enable
+  char viewfinder_enable;
   char viewfinder_view_point; /* #eXrSessionViewfinderViewPoint */
   float viewfinder_width;
 
@@ -69,8 +69,8 @@ typedef enum eXrSessionControllerDrawStyle {
 } eXrSessionControllerDrawStyle;
 
 typedef enum eXrSessionViewfinderViewPoint {
-  XR_VIEWFINDER_SCENE_CAMERA = 0, // TODO: Add a viewpoint prefix
-  XR_VIEWFINDER_HANDHELD = 1,
+  XR_VIEWFINDER_VIEWPOINT_SCENE_CAMERA = 0,
+  XR_VIEWFINDER_VIEWPOINT_HANDHELD = 1,
 } eXrSessionViewfinderViewPoint;
 
 typedef enum eXrSessionViewfinderMode {

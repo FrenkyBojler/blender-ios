@@ -2082,8 +2082,8 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 51)) {
     LISTBASE_FOREACH (wmWindowManager *, wm, &bmain->wm) {
-      wm->xr.session_settings.use_viewfinder = true;
-      wm->xr.session_settings.viewfinder_view_point = XR_VIEWFINDER_HANDHELD;
+      wm->xr.session_settings.viewfinder_enable = true;
+      wm->xr.session_settings.viewfinder_view_point = XR_VIEWFINDER_VIEWPOINT_HANDHELD;
       wm->xr.session_settings.viewfinder_width = 5.0f;
 
       wm->xr.session_settings.viewfinder_active_mode = XR_VIEWFINDER_MODE_LIVE;
