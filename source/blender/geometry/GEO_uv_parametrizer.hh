@@ -174,6 +174,9 @@ void uv_parametrizer_pack(ParamHandle *handle, const UVPackIsland_Params &params
 
 /** \} */
 
+void uv_parametrizer_unwrap_uniform(ParamHandle *phandle, const ParamSlimOptions *slim, bool use_abf,
+                                    int *r_count_changed,
+                                    int *r_count_failed);
 /* -------------------------------------------------------------------- */
 /** \name Average area for all charts
  * \{ */

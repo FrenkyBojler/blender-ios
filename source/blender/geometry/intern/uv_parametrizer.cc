@@ -458,6 +458,17 @@ static void p_chart_uv_scale(PChart *chart, const float scale)
     v->uv[1] *= scale;
   }
 }
+static void p_chart_uv_scale_nonuniform(PChart *chart, const float scale_x, const float scale_y)
+{
+  if (scale_x == 1.0f && scale_y == 1.0f) {
+    return; /* Identity transform. */
+  }
+
+  for (PVert *v = chart->verts; v; v = v->nextlink) {
+    v->uv[0] *= scale_x;
+    v->uv[1] *= scale_y;
+  }
+}
 
 static void uv_parametrizer_scale_x(ParamHandle *phandle, const float scale_x)
 {
@@ -3855,7 +3866,7 @@ static void p_add_ngon(ParamHandle *handle,
   uint nfilltri = nverts - 2;
   uint(*tris)[3] = static_cast<uint(*)[3]>(
       BLI_memarena_alloc(arena, sizeof(*tris) * size_t(nfilltri)));
-  float(*projverts)[2] = static_cast<float(*)[2]>(
+  float(*projverts)[2] = static_cast<float (*)[2]>(
       BLI_memarena_alloc(arena, sizeof(*projverts) * size_t(nverts)));
 
   /* Calc normal, flipped: to get a positive 2d cross product. */
@@ -4225,6 +4236,56 @@ void uv_parametrizer_pack(ParamHandle *handle, const UVPackIsland_Params &params
   }
 
   uv_parametrizer_scale_x(handle, handle->aspect_y);
+}
+void uv_parametrizer_unwrap_uniform(ParamHandle *phandle, const ParamSlimOptions *slim_options, bool use_abf,
+                                    int *r_count_changed,
+                                    int *r_count_failed)
+{
+  int i;
+
+  if (phandle->ncharts == 0) {
+    return;
+  }
+  float minv[2], maxv[2], trans[2], size[2];
+
+  for (i = 0; i < phandle->ncharts; i++) {
+    PChart *chart = phandle->charts[i];
+
+    /* Store original bounding box midpoint. */
+    p_chart_uv_bbox(chart, minv, maxv);
+    mid_v2_v2v2(chart->origin, minv, maxv);
+    sub_v2_v2v2(size, maxv, minv);
+  }
+  if (slim_options) {
+      uv_parametrizer_slim_solve(phandle, slim_options, r_count_changed, r_count_failed);
+  }
+  else{
+    uv_parametrizer_lscm_begin(phandle, false, use_abf);
+    uv_parametrizer_lscm_solve(phandle, r_count_changed, r_count_failed);
+    uv_parametrizer_lscm_end(phandle);
+  }
+  for (i = 0; i < phandle->ncharts; i++) {
+    PChart *chart = phandle->charts[i];
+
+    p_chart_uv_bbox(chart, minv, maxv);
+    float new_size[2];
+    sub_v2_v2v2(new_size, maxv, minv);
+    float scale = 1.0f;
+    if(size[0] > size[1]){
+      scale = size[0] / new_size[0];
+    }
+    else{
+      scale = size[1] / new_size[1];
+    }
+    
+    p_chart_uv_scale(chart, scale);
+    p_chart_uv_bbox(chart, minv, maxv);
+
+    /* Move back to original midpoint. */
+    mid_v2_v2v2(trans, minv, maxv);
+    sub_v2_v2v2(trans, chart->origin, trans);
+    p_chart_uv_translate(chart, trans);
+  }
 }
 
 void uv_parametrizer_average(ParamHandle *phandle, bool ignore_pinned, bool scale_uv, bool shear)
