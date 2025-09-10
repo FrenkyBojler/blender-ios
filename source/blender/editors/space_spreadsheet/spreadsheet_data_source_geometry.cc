@@ -754,15 +754,14 @@ ClosureSignatureDataSource::ClosureSignatureDataSource(nodes::ClosurePtr closure
 void ClosureSignatureDataSource::foreach_default_column_ids(
     FunctionRef<void(const SpreadsheetColumnID &, bool is_extra)> fn) const
 {
-  const Span<nodes::ClosureSignature::Item> items = in_out_ == SPREADSHEET_CLOSURE_INPUT ?
-                                                        closure_->signature().inputs :
-                                                        closure_->signature().outputs;
-  if (items.is_empty()) {
-    return;
+  Vector<StringRefNull> columns_names;
+  if (in_out_ == SPREADSHEET_CLOSURE_NONE) {
+    columns_names.append("Interface");
   }
+  columns_names.extend({"Identifier", "Type"});
 
-  for (const char *name : {"Identifier", "Type"}) {
-    SpreadsheetColumnID column_id{(char *)name};
+  for (const StringRefNull name : columns_names) {
+    SpreadsheetColumnID column_id{(char *)name.c_str()};
     fn(column_id, false);
   }
 }
@@ -770,31 +769,83 @@ void ClosureSignatureDataSource::foreach_default_column_ids(
 std::unique_ptr<ColumnValues> ClosureSignatureDataSource::get_column_values(
     const SpreadsheetColumnID &column_id) const
 {
-  const Span<nodes::ClosureSignature::Item> items = in_out_ == SPREADSHEET_CLOSURE_INPUT ?
-                                                        closure_->signature().inputs :
-                                                        closure_->signature().outputs;
-  if (STREQ(column_id.name, "Identifier")) {
-    return std::make_unique<ColumnValues>(
-        IFACE_("Identifier"), VArray<std::string>::from_func(items.size(), [items](int64_t index) {
-          return items[index].key;
-        }));
-  }
-  if (STREQ(column_id.name, "Type")) {
-    return std::make_unique<ColumnValues>(
-        IFACE_("Type"), VArray<std::string>::from_func(items.size(), [items](int64_t index) {
-          return items[index].type->label;
-        }));
+  const Span<nodes::ClosureSignature::Item> input_items = closure_->signature().inputs;
+  const Span<nodes::ClosureSignature::Item> output_items = closure_->signature().outputs;
+
+  switch (in_out_) {
+    case SPREADSHEET_CLOSURE_NONE: {
+      const int items_sum = input_items.size() + output_items.size();
+      if (STREQ(column_id.name, "Identifier")) {
+        return std::make_unique<ColumnValues>(
+            IFACE_("Identifier"),
+            VArray<std::string>::from_func(items_sum,
+                                           [input_items, output_items](const int64_t index) {
+                                             if (index < input_items.size()) {
+                                               return input_items[index].key;
+                                             }
+                                             return output_items[index - input_items.size()].key;
+                                           }));
+      }
+      if (STREQ(column_id.name, "Type")) {
+        return std::make_unique<ColumnValues>(
+            IFACE_("Type"),
+            VArray<std::string>::from_func(
+                items_sum, [input_items, output_items](const int64_t index) {
+                  if (index < input_items.size()) {
+                    return input_items[index].type->label;
+                  }
+                  return output_items[index - input_items.size()].type->label;
+                }));
+      }
+      if (STREQ(column_id.name, "Interface")) {
+        return std::make_unique<ColumnValues>(
+            IFACE_("Interface"),
+            VArray<std::string>::from_func(items_sum,
+                                           [inputs_num = input_items.size()](const int64_t index) {
+                                             if (index < inputs_num) {
+                                               return IFACE_("Input");
+                                             }
+                                             return IFACE_("Output");
+                                           }));
+      }
+      break;
+    }
+    case SPREADSHEET_CLOSURE_INPUT:
+    case SPREADSHEET_CLOSURE_OUTPUT: {
+      const Span<nodes::ClosureSignature::Item> items = in_out_ == SPREADSHEET_CLOSURE_INPUT ?
+                                                            input_items :
+                                                            output_items;
+      if (STREQ(column_id.name, "Identifier")) {
+        return std::make_unique<ColumnValues>(
+            IFACE_("Identifier"),
+            VArray<std::string>::from_func(items.size(),
+                                           [items](int64_t index) { return items[index].key; }));
+      }
+      if (STREQ(column_id.name, "Type")) {
+        return std::make_unique<ColumnValues>(
+            IFACE_("Type"), VArray<std::string>::from_func(items.size(), [items](int64_t index) {
+              return items[index].type->label;
+            }));
+      }
+      break;
+    }
   }
   return {};
 }
 
 int ClosureSignatureDataSource::tot_rows() const
 {
-  const Span<nodes::ClosureSignature::Item> items = in_out_ == SPREADSHEET_CLOSURE_INPUT ?
-                                                        closure_->signature().inputs :
-                                                        closure_->signature().outputs;
-
-  return items.size();
+  const int inputs_num = closure_->signature().inputs.size();
+  const int outputs_num = closure_->signature().outputs.size();
+  switch (in_out_) {
+    case SPREADSHEET_CLOSURE_NONE:
+      return inputs_num + outputs_num;
+    case SPREADSHEET_CLOSURE_INPUT:
+      return inputs_num;
+    case SPREADSHEET_CLOSURE_OUTPUT:
+      return outputs_num;
+  }
+  return 0;
 }
 
 SingleValueDataSource::SingleValueDataSource(const GPointer value)
@@ -1046,13 +1097,11 @@ std::unique_ptr<DataSource> data_source_from_geometry(const bContext *C, Object 
   if (ptr.is_type<nodes::ClosurePtr>()) {
     const auto in_out = SpreadsheetClosureInputOutput(
         sspreadsheet->geometry_id.closure_input_output);
-    if (in_out != SPREADSHEET_CLOSURE_NONE) {
-      const nodes::ClosurePtr closure_ptr = display_data.extract<nodes::ClosurePtr>();
-      if (closure_ptr) {
-        return std::make_unique<ClosureSignatureDataSource>(closure_ptr, in_out);
-      }
-      return {};
+    const nodes::ClosurePtr closure_ptr = display_data.extract<nodes::ClosurePtr>();
+    if (closure_ptr) {
+      return std::make_unique<ClosureSignatureDataSource>(closure_ptr, in_out);
     }
+    return {};
   }
   const eSpreadsheetColumnValueType column_type = cpp_type_to_column_type(*ptr.type());
   if (column_type == SPREADSHEET_VALUE_TYPE_UNKNOWN) {
