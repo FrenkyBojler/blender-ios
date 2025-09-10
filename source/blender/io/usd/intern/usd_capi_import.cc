@@ -384,7 +384,7 @@ static void import_endjob(void *customdata)
 
     data->archive->call_material_import_hooks(data->bmain);
 
-    call_import_hooks(data->archive, data->params.worker_status->reports);
+    call_import_hooks(data->archive, data->params, data->params.worker_status->reports);
 
     if (data->is_background_job) {
       /* Blender already returned from the import operator, so we need to store our own extra undo

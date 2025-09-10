@@ -100,6 +100,47 @@ USDHook *USD_find_hook_name(const char idname[])
   return (hook_iter == hook_list().end()) ? nullptr : hook_iter->get();
 }
 
+bool USD_is_hook_valid(const char idname[])
+{
+  if (USD_find_hook_name(idname)) {
+    return true;
+  }
+  return false;
+}
+
+static const EnumPropertyItem default_hook_enum = {0, "INVALID", 0, "Invalid Handle", "Something broke"};
+
+const EnumPropertyItem *USD_build_hook_enum() 
+{
+  EnumPropertyItem *items = nullptr;
+  EnumPropertyItem item_tmp = {0};
+  int items_count = 0;
+
+  /** Ensure there's always a fallback item for invalid handles*/
+  RNA_enum_item_add(&items, &items_count, &default_hook_enum);
+  RNA_enum_item_add_separator(&items, &items_count);
+  
+  USDHookList::const_iterator hook_iter = hook_list().begin();
+  while (hook_iter != hook_list().end()) {
+    USDHook *hook = hook_iter->get();
+    ++hook_iter;
+    item_tmp.identifier = hook->idname;
+    item_tmp.description = hook->description;
+    item_tmp.value = items_count;
+    item_tmp.name = hook->name;
+
+
+    // EnumPropertyItem new_item = {items_count, hook->idname, 0, hook->name, hook->description};
+    RNA_enum_item_add(&items, &items_count, &item_tmp);
+  }
+
+
+
+  RNA_enum_item_end(&items, &items_count);
+
+  return items;
+}
+
 /* Convert PointerRNA to a PyObject*. */
 struct PointerRNAToPython {
 
@@ -364,13 +405,16 @@ static void handle_python_error(USDHook *hook, ReportList *reports)
 class USDHookInvoker {
  private:
   ReportList *reports_;
+  const Vector<USDHookHandle> *handles_;
 
  public:
-  explicit USDHookInvoker(ReportList *reports) : reports_(reports) {}
+  explicit USDHookInvoker(ReportList *reports, const Vector<USDHookHandle> *handles) : reports_(reports) {
+    handles_ = handles;
+  }
   virtual ~USDHookInvoker() = default;
 
   /* Attempt to call the function, if defined by the registered hooks. */
-  void call()
+  void call(bool filter = false)
   {
     if (hook_list().empty()) {
       return;
@@ -393,6 +437,18 @@ class USDHookInvoker {
 
       if (!hook->rna_ext.data) {
         continue;
+      }
+
+      // This feels bad.
+      if (filter == true) {
+       if (
+        std::find_if(handles_->begin(), handles_->end(), [hook](USDHookHandle handle) {
+          return (STREQ(hook->idname, handle.identifier) && (handle.enabled == true));
+        }) == handles_->end()
+        ) 
+       {
+        continue;
+       }
       }
 
       try {
@@ -435,8 +491,8 @@ class OnExportInvoker final : public USDHookInvoker {
   USDSceneExportContext hook_context_;
 
  public:
-  OnExportInvoker(pxr::UsdStageRefPtr stage, Depsgraph *depsgraph, ReportList *reports)
-      : USDHookInvoker(reports), hook_context_(stage, depsgraph)
+  OnExportInvoker(pxr::UsdStageRefPtr stage, Depsgraph *depsgraph, ReportList *reports, const Vector<USDHookHandle> *handles)
+      : USDHookInvoker(reports, handles), hook_context_(stage, depsgraph)
   {
   }
 
@@ -464,7 +520,7 @@ class OnMaterialExportInvoker final : public USDHookInvoker {
                           const pxr::UsdShadeMaterial &usd_material,
                           const USDExportParams &export_params,
                           ReportList *reports)
-      : USDHookInvoker(reports),
+      : USDHookInvoker(reports, &export_params.hook_handles),
         hook_context_(stage, export_params, reports),
         usd_material_(usd_material)
   {
@@ -489,8 +545,8 @@ class OnImportInvoker final : public USDHookInvoker {
   USDSceneImportContext hook_context_;
 
  public:
-  OnImportInvoker(pxr::UsdStageRefPtr stage, const ImportedPrimMap &prim_map, ReportList *reports)
-      : USDHookInvoker(reports), hook_context_(stage, prim_map)
+  OnImportInvoker(pxr::UsdStageRefPtr stage, const ImportedPrimMap &prim_map, ReportList *reports, const Vector<USDHookHandle> *handles)
+      : USDHookInvoker(reports, handles), hook_context_(stage, prim_map)
   {
   }
 
@@ -521,8 +577,9 @@ class MaterialImportPollInvoker final : public USDHookInvoker {
   MaterialImportPollInvoker(pxr::UsdStageRefPtr stage,
                             const pxr::UsdShadeMaterial &usd_material,
                             const USDImportParams &import_params,
-                            ReportList *reports)
-      : USDHookInvoker(reports),
+                            ReportList *reports,
+                            const Vector<USDHookHandle> *handles)
+      : USDHookInvoker(reports, handles),
         hook_context_(stage, import_params, reports),
         usd_material_(usd_material)
   {
@@ -563,7 +620,7 @@ class OnMaterialImportInvoker final : public USDHookInvoker {
                           const pxr::UsdShadeMaterial &usd_material,
                           const USDImportParams &import_params,
                           ReportList *reports)
-      : USDHookInvoker(reports),
+      : USDHookInvoker(reports, &import_params.hook_handles),
         hook_context_(stage, import_params, reports),
         usd_material_(usd_material)
   {
@@ -588,14 +645,17 @@ class OnMaterialImportInvoker final : public USDHookInvoker {
   }
 };
 
-void call_export_hooks(pxr::UsdStageRefPtr stage, Depsgraph *depsgraph, ReportList *reports)
+void call_export_hooks(pxr::UsdStageRefPtr stage, 
+                       const USDExportParams &export_params, 
+                       Depsgraph *depsgraph, 
+                       ReportList *reports)
 {
   if (hook_list().empty()) {
     return;
   }
 
-  OnExportInvoker on_export(stage, depsgraph, reports);
-  on_export.call();
+  OnExportInvoker on_export(stage, depsgraph, reports, &export_params.hook_handles);
+  on_export.call(export_params.filter_hooks);
 }
 
 void call_material_export_hooks(pxr::UsdStageRefPtr stage,
@@ -610,10 +670,10 @@ void call_material_export_hooks(pxr::UsdStageRefPtr stage,
 
   OnMaterialExportInvoker on_material_export(
       stage, material, usd_material, export_params, reports);
-  on_material_export.call();
+  on_material_export.call(export_params.filter_hooks);
 }
 
-void call_import_hooks(USDStageReader *archive, ReportList *reports)
+void call_import_hooks(USDStageReader *archive, const USDImportParams &import_params, ReportList *reports)
 {
   if (hook_list().empty()) {
     return;
@@ -646,8 +706,8 @@ void call_import_hooks(USDStageReader *archive, ReportList *reports)
     prim_map.lookup_or_add_default(path).append(RNA_id_pointer_create(&mat->id));
   });
 
-  OnImportInvoker on_import(archive->stage(), prim_map, reports);
-  on_import.call();
+  OnImportInvoker on_import(archive->stage(), prim_map, reports, &import_params.hook_handles);
+  on_import.call(import_params.filter_hooks);
 }
 
 bool have_material_import_hook(pxr::UsdStageRefPtr stage,
@@ -659,7 +719,7 @@ bool have_material_import_hook(pxr::UsdStageRefPtr stage,
     return false;
   }
 
-  MaterialImportPollInvoker poll(stage, usd_material, import_params, reports);
+  MaterialImportPollInvoker poll(stage, usd_material, import_params, reports, &import_params.hook_handles);
   poll.call();
 
   return poll.result();
@@ -677,7 +737,7 @@ bool call_material_import_hooks(pxr::UsdStageRefPtr stage,
 
   OnMaterialImportInvoker on_material_import(
       stage, material, usd_material, import_params, reports);
-  on_material_import.call();
+  on_material_import.call(import_params.filter_hooks);
   return on_material_import.result();
 }
 

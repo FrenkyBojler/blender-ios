@@ -2653,7 +2653,7 @@ namespace blender::ui {
 
 void template_asset_shelf_popover(
     uiLayout &layout, const bContext &C, StringRefNull asset_shelf_id, StringRef name, int icon);
-
+void template_hook_list(bContext *C, uiLayout *layout, wmOperator *op);
 }
 
 void uiTemplateLightLinkingCollection(uiLayout *layout,

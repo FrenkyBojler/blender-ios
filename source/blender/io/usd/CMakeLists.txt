@@ -61,6 +61,7 @@ set(INC_SYS
 )
 
 set(SRC
+  intern/interface_template_usdhook_tree.cc
   intern/usd_armature_utils.cc
   intern/usd_asset_utils.cc
   intern/usd_attribute_utils.cc

@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include "BLI_vector.hh"
+
 #include <memory>
 
 #include "../common/IO_orientation.hh"
@@ -124,6 +126,13 @@ enum eUSDSceneUnits {
   USD_SCENE_UNITS_YARDS = 6,
 };
 
+struct USDHookHandle {
+  int id_val;
+  bool enabled;
+  char identifier[MAX_ID_NAME];
+  char name[MAX_ID_NAME];
+};
+
 struct USDExportParams {
   bool export_animation = false;
   bool selected_objects_only = false;
@@ -186,6 +195,9 @@ struct USDExportParams {
   /** Communication structure between the wmJob management code and the worker code. Currently used
    * to generate safely reports from the worker thread. */
   wmJobWorkerStatus *worker_status = nullptr;
+
+  bool filter_hooks = false;
+  Vector<USDHookHandle> hook_handles;
 };
 
 struct USDImportParams {
@@ -243,6 +255,9 @@ struct USDImportParams {
    * to generate safely reports from the worker thread.
    */
   wmJobWorkerStatus *worker_status;
+
+  bool filter_hooks = false;
+  Vector<USDHookHandle> hook_handles;
 };
 
 /**
@@ -334,6 +349,8 @@ void USD_register_hook(std::unique_ptr<USDHook> hook);
  */
 void USD_unregister_hook(const USDHook *hook);
 USDHook *USD_find_hook_name(const char idname[]);
+bool USD_is_hook_valid(const char idname[]);
+const EnumPropertyItem *USD_build_hook_enum();
 
 double get_meters_per_unit(const USDExportParams &params);
 

@@ -36,6 +36,9 @@ void ED_operatortypes_io()
 #ifdef WITH_USD
   WM_operatortype_append(WM_OT_usd_import);
   WM_operatortype_append(WM_OT_usd_export);
+  WM_operatortype_append(UI_OT_usd_hook_handle_add);
+  WM_operatortype_append(UI_OT_usd_hook_handle_remove);
+  WM_operatortype_append(UI_OT_usd_hook_handle_move);
   ed::io::usd_file_handler_add();
 #endif
 

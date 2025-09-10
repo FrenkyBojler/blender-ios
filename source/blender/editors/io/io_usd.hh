@@ -12,6 +12,10 @@ struct wmOperatorType;
 
 void WM_OT_usd_export(wmOperatorType *ot);
 void WM_OT_usd_import(wmOperatorType *ot);
+void UI_OT_usd_hook_handle_add(wmOperatorType *ot);
+void UI_OT_usd_hook_handle_remove(wmOperatorType *ot);
+void UI_OT_usd_hook_handle_move(wmOperatorType *ot);
+
 namespace blender::ed::io {
 void usd_file_handler_add();
 }

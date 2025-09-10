@@ -7,14 +7,17 @@
  */
 
 #ifdef WITH_USD
+#  include "DNA_collection_types.h"
 #  include "DNA_modifier_types.h"
 #  include "DNA_space_types.h"
 
+#  include "BKE_collection.hh"
 #  include "BKE_context.hh"
 #  include "BKE_file_handler.hh"
 #  include "BKE_report.hh"
 
 #  include "BLI_path_utils.hh"
+#  include "BLI_string.h"
 #  include "BLI_string_utf8.h"
 
 #  include "BLT_translation.hh"
@@ -27,6 +30,8 @@
 #  include "RNA_access.hh"
 #  include "RNA_define.hh"
 #  include "RNA_enum_types.hh"
+#  include "RNA_prototypes.hh"
+#  include "RNA_path.hh"
 
 #  include "UI_interface.hh"
 #  include "UI_interface_layout.hh"
@@ -46,6 +51,8 @@
 
 #  include <string>
 #  include <utility>
+
+#include <fmt/format.h>
 
 using namespace blender::io::usd;
 
@@ -359,8 +366,20 @@ static wmOperatorStatus wm_usd_export_exec(bContext *C, wmOperator *op)
 
   params.merge_parent_xform = RNA_boolean_get(op->ptr, "merge_parent_xform");
 
+  params.filter_hooks = RNA_boolean_get(op->ptr, "filter_hooks");
+
   params.root_prim_path = RNA_string_get(op->ptr, "root_prim_path");
   process_prim_path(params.root_prim_path);
+
+  // Long-term TODO: This should just be a method.
+  RNA_BEGIN (op->ptr, itemptr, "hooks") {
+    USDHookHandle handle;
+    STRNCPY(handle.identifier, RNA_string_get(&itemptr, "identifier").c_str());
+    STRNCPY(handle.name, RNA_string_get(&itemptr, "name").c_str());
+    handle.enabled = RNA_boolean_get(&itemptr, "enabled");
+    params.hook_handles.append(handle);
+  }
+  RNA_END;
 
   RNA_string_get(op->ptr, "custom_properties_namespace", params.custom_properties_namespace);
   RNA_string_get(op->ptr, "collection", params.collection);
@@ -498,6 +517,69 @@ static void wm_usd_export_draw(bContext *C, wmOperator *op)
     uiLayout *col = &panel->column(false);
     col->prop(ptr, "use_instancing", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
+
+  {
+    PanelLayout panel = layout->panel(C, "USD_export_hooks", true);
+    panel.header->use_property_split_set(false);
+    panel.header->prop(ptr, "filter_hooks", UI_ITEM_NONE, "", ICON_NONE);
+    panel.header->label(IFACE_("Hooks"), ICON_NONE);
+    if (panel.body) {
+      const bool filter_hooks = RNA_boolean_get(ptr, "filter_hooks");
+      panel.body->active_set(filter_hooks);
+
+      using namespace blender;
+      uiLayout *row = &panel.body->row(false);
+      row->prop(ptr, "hooks", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      row->prop(ptr, "hook_index", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+
+      row = &panel.body->row(false);
+      uiLayout *col = &row->column(false);
+
+      blender::ui::template_hook_list(C, col, op);
+
+      col = &row->column(false);
+
+      PointerRNA op_ptr;
+
+      Collection *collection = CTX_data_collection(C);
+      const int from = collection->active_exporter_index;
+
+      op_ptr = col->op("UI_OT_usd_hook_handle_add", "", ICON_ADD, blender::wm::OpCallContext::InvokeDefault, UI_ITEM_NONE);
+      RNA_string_set(&op_ptr, "list_path",  fmt::format("collection.exporters[{}].export_properties.hooks", from).c_str());
+      RNA_string_set(&op_ptr, "index_path", fmt::format("collection.exporters[{}].export_properties.hook_index", from).c_str());
+
+      op_ptr = col->op("UI_OT_usd_hook_handle_remove", "", ICON_REMOVE);
+      RNA_string_set(&op_ptr, "list_path",  fmt::format("collection.exporters[{}].export_properties.hooks", from).c_str());
+      RNA_string_set(&op_ptr, "index_path", fmt::format("collection.exporters[{}].export_properties.hook_index", from).c_str());
+      RNA_int_set(&op_ptr, "index", from);
+
+      op_ptr = col->op("UI_OT_usd_hook_handle_move", "", ICON_TRIA_UP);
+      RNA_string_set(&op_ptr, "list_path",  fmt::format("collection.exporters[{}].export_properties.hooks", from).c_str());
+      RNA_string_set(&op_ptr, "index_path", fmt::format("collection.exporters[{}].export_properties.hook_index", from).c_str());
+      RNA_enum_set(&op_ptr, "type", -1);
+
+      op_ptr = col->op("UI_OT_usd_hook_handle_move", "", ICON_TRIA_DOWN);
+      RNA_string_set(&op_ptr, "list_path",  fmt::format("collection.exporters[{}].export_properties.hooks", from).c_str());
+      RNA_string_set(&op_ptr, "index_path", fmt::format("collection.exporters[{}].export_properties.hook_index", from).c_str());
+      RNA_enum_set(&op_ptr, "type", 1);
+
+      int length = RNA_collection_length(ptr, "hooks");
+      if ((length > 0) && (RNA_int_get(ptr, "hook_index") < length)) {
+        PointerRNA item;
+        PropertyRNA *hooks_prop = RNA_struct_find_property(ptr, "hooks");
+        int index = RNA_int_get(ptr, "hook_index");
+
+        RNA_property_collection_lookup_int(ptr, hooks_prop, index, &item);
+        row = &panel.body->row(false);
+        row->prop(&item, "name", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+        row = &panel.body->row(false);
+        row->prop(&item, "identifier", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+        row = &panel.body->row(false);
+        row->prop(&item, "handle_mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+
+      }
+    }
+  }
 }
 
 static void wm_usd_export_cancel(bContext * /*C*/, wmOperator *op)
@@ -577,6 +659,7 @@ void WM_OT_usd_export(wmOperatorType *ot)
                   "Only export visible objects. Invisible parents of exported objects are "
                   "exported as empty transforms");
 
+  // TODO: I need to detect this somehow.
   prop = RNA_def_string(ot->srna, "collection", nullptr, MAX_ID_NAME - 2, "Collection", nullptr);
   RNA_def_property_flag(prop, PROP_HIDDEN);
 
@@ -831,6 +914,22 @@ void WM_OT_usd_export(wmOperatorType *ot)
                 "Custom value for meters per unit in the USD Stage",
                 0.0001f,
                 1000.0f);
+
+  RNA_def_boolean(ot->srna,
+                  "filter_hooks",
+                  false,
+                  "Filter Hooks",
+                  "Only run the selected USD hooks"
+  );
+
+  prop = RNA_def_collection_runtime(ot->srna,
+                     "hooks",
+                     &RNA_UsdHookHandle,
+                     "Active Hooks",
+                     "List of USD Hook Functions to run after export");
+  RNA_def_property_flag(prop, PROP_EDITABLE);
+
+  RNA_def_int(ot->srna, "hook_index", 0, INT_MIN, INT_MAX, "Hook Index", "", INT_MIN, INT_MAX);
 }
 
 /* ====== USD Import ====== */
@@ -1275,6 +1374,268 @@ void WM_OT_usd_import(wmOperatorType *ot)
       "Scale the scene objects by the USD stage's meters per unit value. "
       "This scaling is applied in addition to the value specified in the Scale option");
 }
+
+/* -------------------------------------------------------------------- */
+/** \name USD Hook Handle Add
+ * \{ */
+
+static const EnumPropertyItem *USDHookHandle_idval_itemf(
+  bContext *C, PointerRNA * /*ptr*/, PropertyRNA * /*prop*/, bool *r_free) 
+{
+  if (C == nullptr) {
+    return rna_enum_dummy_DEFAULT_items;
+  }
+  *r_free = true;
+  // return *default_hook_enum;
+  return USD_build_hook_enum();
+}
+
+static wmOperatorStatus ui_usd_hook_handle_add_exec(bContext *C, wmOperator *op)
+{
+  char list_path[MAX_NAME];
+  RNA_string_get(op->ptr, "list_path", list_path);
+  char index_path[MAX_NAME];
+  RNA_string_get(op->ptr, "index_path", index_path);
+
+  PointerRNA ctx_ptr = RNA_pointer_create_discrete(nullptr, &RNA_Context, (void *)C);
+
+  PointerRNA col_pointer;
+  PropertyRNA *col_prop;
+  RNA_path_resolve_full_maybe_null(&ctx_ptr, list_path, &col_pointer, &col_prop, nullptr);
+
+  if (col_pointer.data == nullptr) {
+    return OPERATOR_CANCELLED;
+  } else {
+    PointerRNA itemptr;
+    RNA_property_collection_add(&col_pointer, col_prop, &itemptr);
+
+    int handle_enum = RNA_enum_get(op->ptr, "type");
+    RNA_enum_set(&itemptr, "handle_mode", handle_enum);
+    RNA_boolean_set(&itemptr, "enabled", true);
+  }
+
+  return OPERATOR_FINISHED;
+}
+
+void UI_OT_usd_hook_handle_add(wmOperatorType *ot)
+{
+  PropertyRNA *prop;
+
+  /* identifiers */
+  ot->name = "USD Hook Handle Add";
+  ot->idname = "UI_OT_usd_hook_handle_add";
+  ot->description =
+      "Generic operator for adding an item to a Collection Property displayed in a Tree List";
+
+  /* callbacks */
+  ot->exec = ui_usd_hook_handle_add_exec;
+  ot->invoke = WM_menu_invoke;
+  ot->poll = WM_operator_winactive;
+
+  /* flags */
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+  RNA_def_string(ot->srna,
+                 "list_path",
+                 nullptr,
+                 MAX_NAME,
+                 "List Path",
+                 "Data path of the list relative tontext");
+
+  RNA_def_string(ot->srna,
+                 "index_path",
+                 nullptr,
+                 MAX_NAME,
+                 "Index Path",
+                 "Data path of the list active index integer relative to context");
+
+  ot->prop = RNA_def_enum(
+      ot->srna, "type", rna_enum_dummy_DEFAULT_items, 0, "Type", "");
+  RNA_def_enum_funcs(ot->prop, USDHookHandle_idval_itemf);
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name USD Hook Handle Remove
+ * \{ */
+
+static wmOperatorStatus ui_usd_hook_handle_remove_exec(bContext *C, wmOperator *op)
+{
+  char list_path[MAX_NAME];
+  RNA_string_get(op->ptr, "list_path", list_path);
+  char index_path[MAX_NAME];
+  RNA_string_get(op->ptr, "index_path", index_path);
+  int index = RNA_int_get(op->ptr, "index");
+
+  PointerRNA ctx_ptr = RNA_pointer_create_discrete(nullptr, &RNA_Context, (void *)C);
+
+  PointerRNA col_pointer;
+  PropertyRNA *col_prop;
+  RNA_path_resolve_full_maybe_null(&ctx_ptr, list_path, &col_pointer, &col_prop, nullptr);
+
+  PointerRNA index_pointer;
+  PropertyRNA *index_prop;
+  RNA_path_resolve_full_maybe_null(&ctx_ptr, index_path, &index_pointer, &index_prop, nullptr);
+
+  if (col_pointer.data == nullptr) {
+    return OPERATOR_CANCELLED;
+  } else {
+    RNA_property_collection_remove(&col_pointer, col_prop, index);
+  }
+
+  RNA_property_int_set(&index_pointer, index_prop, std::max(0, index-1));
+
+  return OPERATOR_FINISHED;
+}
+
+void UI_OT_usd_hook_handle_remove(wmOperatorType *ot)
+{
+  /* identifiers */
+  ot->name = "USD Hook Handle Remove";
+  ot->idname = "UI_OT_usd_hook_handle_remove";
+  ot->description =
+      "Generic operator for adding an item to a Collection Property displayed in a Tree List";
+
+  /* callbacks */
+  ot->exec = ui_usd_hook_handle_remove_exec;
+
+  /* flags */
+  ot->flag = OPTYPE_REGISTER;
+
+  RNA_def_string(ot->srna,
+                 "list_path",
+                 nullptr,
+                 MAX_NAME,
+                 "List Path",
+                 "Data path of the list relative to context");
+
+  RNA_def_string(ot->srna,
+                 "index_path",
+                 nullptr,
+                 MAX_NAME,
+                 "Index Path",
+                 "Data path of the list active index integer relative to context");
+
+  RNA_def_int(ot->srna,
+    "index",
+    0,
+    INT_MIN,
+    INT_MAX,
+    "Index",
+    "The index of the collection property that will be removed.",
+    0,
+    INT_MAX
+  );
+}
+
+/** \} */
+
+
+/* -------------------------------------------------------------------- */
+/** \name Tree List Move
+ * \{ */
+
+enum ListItemMove {
+  KB_MOVE_TOP = -2,
+  KB_MOVE_UP = -1,
+  KB_MOVE_DOWN = 1,
+  KB_MOVE_BOTTOM = 2,
+};
+
+static wmOperatorStatus ui_usd_hook_handle_move_exec(bContext *C, wmOperator *op)
+{
+  char list_path[MAX_NAME];
+  RNA_string_get(op->ptr, "list_path", list_path);
+  char index_path[MAX_NAME];
+  RNA_string_get(op->ptr, "index_path", index_path);
+  
+  PointerRNA ctx_ptr = RNA_pointer_create_discrete(nullptr, &RNA_Context, (void *)C);
+
+  PointerRNA col_pointer;
+  PropertyRNA *col_prop;
+  RNA_path_resolve_full_maybe_null(&ctx_ptr, list_path, &col_pointer, &col_prop, nullptr);
+
+  PointerRNA index_pointer;
+  PropertyRNA *index_prop;
+  RNA_path_resolve_full_maybe_null(&ctx_ptr, index_path, &index_pointer, &index_prop, nullptr);
+
+  if ((col_pointer.data == nullptr) || (index_pointer.data == nullptr)) {
+    return OPERATOR_CANCELLED;
+  }
+
+  int index = RNA_property_int_get(&index_pointer, index_prop);
+
+  const ListItemMove type = ListItemMove(RNA_enum_get(op->ptr, "type"));
+  int new_index = 0;
+  int bottom_index = RNA_property_collection_length(&col_pointer, col_prop) - 1;
+
+  switch (type) {
+    case KB_MOVE_TOP:
+      new_index = 0;
+      break;
+    case KB_MOVE_UP:
+      printf("Moving Up!\n");
+      new_index = max_ii(index - 1, 0);
+      break;
+    case KB_MOVE_BOTTOM:
+      new_index = bottom_index;
+      break;
+    case KB_MOVE_DOWN:
+      printf("Moving Down!\n");
+      new_index = min_ii(index + 1, bottom_index);
+      break;
+  }
+
+  bool result = RNA_property_collection_move(&col_pointer, col_prop, index, new_index);
+  printf(fmt::format("Old Index: {} \n New Index: {} \n", index, new_index).c_str());
+  if (result == false) {
+    return OPERATOR_CANCELLED;
+  }
+
+  RNA_property_int_set(&index_pointer, index_prop, new_index);
+
+  return OPERATOR_FINISHED;
+}
+
+void UI_OT_usd_hook_handle_move(wmOperatorType *ot)
+{
+  static const EnumPropertyItem slot_move[] = {
+      {KB_MOVE_TOP, "TOP", 0, "Top", "Top of the list"},
+      {KB_MOVE_UP, "UP", 0, "Up", ""},
+      {KB_MOVE_DOWN, "DOWN", 0, "Down", ""},
+      {KB_MOVE_BOTTOM, "BOTTOM", 0, "Bottom", "Bottom of the list"},
+      {0, nullptr, 0, nullptr, nullptr}};
+
+  /* identifiers */
+  ot->name = "Move USD Hook Handle";
+  ot->idname = "UI_OT_usd_hook_handle_move";
+  ot->description = "Move selected USD Hook Handle up/down in the list";
+
+  /* API callbacks. */
+  ot->exec = ui_usd_hook_handle_move_exec;
+
+  /* flags */
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+  RNA_def_enum(ot->srna, "type", slot_move, 0, "Type", "");
+  RNA_def_string(ot->srna,
+                 "list_path",
+                 nullptr,
+                 MAX_NAME,
+                 "List Path",
+                 "Data path of the list relative to context");
+
+  RNA_def_string(ot->srna,
+                 "index_path",
+                 nullptr,
+                 MAX_NAME,
+                 "Index Path",
+                 "Data path of the list active index integer relative to context");
+}
+
+
+ /** \} */
 
 namespace blender::ed::io {
 void usd_file_handler_add()
