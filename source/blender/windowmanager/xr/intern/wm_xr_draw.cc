@@ -395,8 +395,8 @@ static uiLayout &uiblock_prepare(uiBlock **block, const bContext *C, ARegion *re
 }
 
 static uiBlock *viewfinder_action_enum_ui_block(const bContext *C,
-                                             ARegion *region,
-                                             const XrSessionSettings *settings)
+                                                ARegion *region,
+                                                const XrSessionSettings *settings)
 {
   /* XR Session settings RNA pointer. */
   PointerRNA ptr = RNA_pointer_create_discrete(nullptr, &RNA_XrSessionSettings, (void *)settings);
@@ -408,8 +408,8 @@ static uiBlock *viewfinder_action_enum_ui_block(const bContext *C,
   uiLayout &row = layout.row(true);
 
   const char *active_action_prop = settings->viewfinder_active_mode == XR_VIEWFINDER_MODE_LIVE ?
-                                    "viewfinder_active_action_live" :
-                                    "viewfinder_active_action_playback";
+                                       "viewfinder_active_action_live" :
+                                       "viewfinder_active_action_playback";
 
   row.prop(&ptr, active_action_prop, UI_ITEM_R_EXPAND | UI_ITEM_R_ICON_ONLY, "", ICON_NONE);
   row.scale_x_set(15.0f); /* TODO: Apparently, the scale gets clamped internally at some point. */

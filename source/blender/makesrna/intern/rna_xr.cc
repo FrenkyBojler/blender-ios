@@ -1942,13 +1942,25 @@ static void rna_def_xr_session_settings(BlenderRNA *brna)
   };
 
   static const EnumPropertyItem viewfinder_hands[] = {
-      {XR_VIEWFINDER_HAND_LEFT, "LEFT", 0, "Left", "Display the viewfinder on the left hand controller"},
-      {XR_VIEWFINDER_HAND_RIGHT, "RIGHT", 0, "Right", "Display the viewfinder on the right hand controller"},
+      {XR_VIEWFINDER_HAND_LEFT,
+       "LEFT",
+       0,
+       "Left",
+       "Display the viewfinder on the left hand controller"},
+      {XR_VIEWFINDER_HAND_RIGHT,
+       "RIGHT",
+       0,
+       "Right",
+       "Display the viewfinder on the right hand controller"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
   static const EnumPropertyItem viewfinder_view_points[] = {
-      {XR_VIEWFINDER_VIEWPOINT_SCENE_CAMERA, "SCENE_CAMERA", 0, "Scene Camera", "Active scene camera"},
+      {XR_VIEWFINDER_VIEWPOINT_SCENE_CAMERA,
+       "SCENE_CAMERA",
+       0,
+       "Scene Camera",
+       "Active scene camera"},
       {XR_VIEWFINDER_VIEWPOINT_HANDHELD, "HANDHELD", 0, "Handheld", "Handheld camera"},
       {0, nullptr, 0, nullptr, nullptr},
   };
@@ -1978,7 +1990,11 @@ static void rna_def_xr_session_settings(BlenderRNA *brna)
        ICON_COMMUNITY,
        "Enable/Disable Depth of Field",
        nullptr},
-      {XR_VIEWFINDER_ACTION_LIVE_FOCUS, "FOCUS", ICON_PIVOT_BOUNDBOX, "Focus Point Control", nullptr},
+      {XR_VIEWFINDER_ACTION_LIVE_FOCUS,
+       "FOCUS",
+       ICON_PIVOT_BOUNDBOX,
+       "Focus Point Control",
+       nullptr},
       {XR_VIEWFINDER_ACTION_LIVE_APERTURE,
        "DOF",
        ICON_PROP_CON,
@@ -1988,7 +2004,11 @@ static void rna_def_xr_session_settings(BlenderRNA *brna)
   };
 
   static const EnumPropertyItem viewfinder_playback_but_states[] = {
-      {XR_VIEWFINDER_ACTION_PB_BROWSE, "BROWSE", ICON_RENDERLAYERS, "Browse captured shots", nullptr},
+      {XR_VIEWFINDER_ACTION_PB_BROWSE,
+       "BROWSE",
+       ICON_RENDERLAYERS,
+       "Browse captured shots",
+       nullptr},
       {XR_VIEWFINDER_ACTION_PB_PREVIEW,
        "PREVIEW",
        ICON_CAMERA_DATA,
