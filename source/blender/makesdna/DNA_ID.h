@@ -143,7 +143,7 @@ typedef struct IDPropertyData {
   ListBase group;
   /**
    * Allows constant time lookup by name of the children in this group. This may be null if the
-   * group is empty.
+   * group is empty. The order may not be exactly the same as in #group.
    */
   IDPropertyGroupChildrenSet *children_map;
   /** NOTE: a `double` is written into two 32bit integers. */
