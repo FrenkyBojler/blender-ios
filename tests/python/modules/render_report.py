@@ -512,10 +512,10 @@ class Report:
             # On Windows, there is a maximum length of 32,767 characters (including the terminating null character)
             # for process command line commands, see:
             # https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-createprocessa
-            if sys.platform == 'win32':
-                command_line_length = len(blender)
-                for suffix in arguments_suffix:
-                    command_line_length += len(suffix) + 1
+            command_line_length = len(blender)
+            for suffix in arguments_suffix:
+                # Add 3 for taking into account spaces and quotation marks potentially added by Python.
+                command_line_length += len(suffix) + 3
 
             # Construct output filepaths and command to run
             for filepath in remaining_filepaths:
@@ -525,25 +525,10 @@ class Report:
                 command_filepath = self._get_render_arguments(arguments_cb, filepath, base_output_filepath)
 
                 # Check if we have surpassed the command line limit.
-                if sys.platform == 'win32':
-                    for cmd in command_filepath:
-                        # Add 3 for taking into account spaces and quotation marks potentially added by Python.
-                        command_line_length += len(cmd) + 3
-                    if command_line_length > 32766:
-                        if len(running_tests) == 0:
-                            print_message('Test {} failed due to surpassing the Windows command line limit.' .
-                                          format(testname),
-                                          'FAILURE', 'FAILED')
-                            for test in self._get_filepath_tests(filepath):
-                                self.postprocess_test(blender, test)
-                                test.error = "CRASH"
-                                test_results.append(test)
-                            remaining_filepaths.pop(0)
-                            command = []
-                        break
-
-                if len(command) == 0:
-                    continue
+                for cmd in command_filepath:
+                    command_line_length += len(cmd) + 3
+                if sys.platform == 'win32' and command_line_length > 32766 and len(running_tests) > 0:
+                    break
 
                 print_message(testname, 'SUCCESS', 'RUN')
                 running_tests.append(filepath)
