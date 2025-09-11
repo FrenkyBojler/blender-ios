@@ -299,6 +299,10 @@ template<typename T> Array<std::byte> compress(const Span<T> src)
   return dst.as_span().take_front(dst_size);
 }
 
+/**
+ * Compress a span, using a prefiltering step that can improve compression speed and ratios for
+ * certain float data types.
+ */
 template<typename T>
 Array<std::byte> filter_compress(const Span<T> src,
                                  Vector<std::byte> &filter_buffer,
