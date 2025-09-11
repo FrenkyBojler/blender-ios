@@ -813,6 +813,15 @@ wmOperatorStatus ED_mesh_shapes_join_objects_exec(bContext *C,
         &active_mesh, active_mesh.key, BKE_keyblock_add(active_mesh.key, nullptr));
   }
 
+  if (mirror) {
+    for (const ObjectInfo &info : compatible_objects) {
+      if (!info.name.endswith(".L") && !info.name.endswith(".R")) {
+        BKE_report(reports, RPT_ERROR, "Selected objects' names must use .L or .R suffix");
+        return OPERATOR_CANCELLED;
+      }
+    }
+  }
+
   int mirror_count = 0;
   int mirror_fail_count = 0;
   int keys_changed = 0;
