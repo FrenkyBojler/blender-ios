@@ -863,67 +863,42 @@ bool GPU_stack_link(GPUMaterial *material,
   return valid;
 }
 
-static bool GPU_stack_link_zone(GPUMaterial *material,
-                                const bNode *bnode,
-                                const char *name,
-                                GPUNodeStack *in,
-                                GPUNodeStack *out,
-                                int zone_index,
-                                bool is_zone_end,
-                                int in_argument_count,
-                                int out_argument_count)
-{
-  GPUNodeGraph *graph = gpu_material_node_graph(material);
-  GPUNode *node;
-  int i;
-
-  node = gpu_node_create(name);
-  node->zone_index = zone_index;
-  node->is_zone_end = is_zone_end;
-
-  if (in) {
-    for (i = 0; !in[i].end; i++) {
-      if (in[i].type != GPU_NONE) {
-        gpu_node_input_socket(material, bnode, node, &in[i], i);
-      }
-    }
-  }
-
-  if (out) {
-    for (i = 0; !out[i].end; i++) {
-      if (out[i].type != GPU_NONE) {
-        gpu_node_output(node, out[i].type, &out[i].link);
-      }
-    }
-  }
-
-  LISTBASE_FOREACH_INDEX (GPUInput *, input, &node->inputs, i) {
-    input->is_zone_io = i >= in_argument_count;
-  }
-  LISTBASE_FOREACH_INDEX (GPUOutput *, output, &node->outputs, i) {
-    output->is_zone_io = i >= out_argument_count;
-  }
-
-  BLI_addtail(&graph->nodes, node);
-
-  return true;
-}
-
 bool GPU_stack_link_repeat_zone_input(GPUMaterial &material,
                                       const bNode &repeat_input_node,
                                       GPUNodeStack *in,
                                       GPUNodeStack *out)
 {
-  const auto &storage = static_cast<const NodeGeometryRepeatInput *>(repeat_input_node.storage);
-  return GPU_stack_link_zone(&material,
-                             &repeat_input_node,
-                             "REPEAT_BEGIN",
-                             in,
-                             out,
-                             storage->output_node_id,
-                             false,
-                             1,
-                             1);
+  GPUNodeGraph *graph = gpu_material_node_graph(&material);
+  const auto &bnode_storage = static_cast<const NodeGeometryRepeatInput *>(
+      repeat_input_node.storage);
+
+  GPUNode *node = gpu_node_create("REPEAT_BEGIN");
+  node->zone_index = bnode_storage->output_node_id;
+  node->is_zone_end = false;
+
+  for (int i = 0; !in[i].end; i++) {
+    if (in[i].type != GPU_NONE) {
+      gpu_node_input_socket(&material, &repeat_input_node, node, &in[i], i);
+    }
+  }
+  for (int i = 0; !out[i].end; i++) {
+    if (out[i].type != GPU_NONE) {
+      gpu_node_output(node, out[i].type, &out[i].link);
+    }
+  }
+  {
+    int i;
+    LISTBASE_FOREACH_INDEX (GPUInput *, input, &node->inputs, i) {
+      /* Skip iterations inputs. */
+      input->is_zone_io = i >= 1;
+    }
+    LISTBASE_FOREACH_INDEX (GPUOutput *, output, &node->outputs, i) {
+      /* Skip iteration output. */
+      output->is_zone_io = i >= 1;
+    }
+  }
+  BLI_addtail(&graph->nodes, node);
+  return true;
 }
 
 bool GPU_stack_link_repeat_zone_output(GPUMaterial &material,
@@ -931,15 +906,32 @@ bool GPU_stack_link_repeat_zone_output(GPUMaterial &material,
                                        GPUNodeStack *in,
                                        GPUNodeStack *out)
 {
-  return GPU_stack_link_zone(&material,
-                             &repeat_output_node,
-                             "REPEAT_END",
-                             in,
-                             out,
-                             repeat_output_node.identifier,
-                             true,
-                             0,
-                             0);
+  GPUNodeGraph *graph = gpu_material_node_graph(&material);
+  GPUNode *node;
+  int i;
+
+  node = gpu_node_create("REPEAT_END");
+  node->zone_index = repeat_output_node.identifier;
+  node->is_zone_end = true;
+
+  for (i = 0; !in[i].end; i++) {
+    if (in[i].type != GPU_NONE) {
+      gpu_node_input_socket(&material, &repeat_output_node, node, &in[i], i);
+    }
+  }
+  for (i = 0; !out[i].end; i++) {
+    if (out[i].type != GPU_NONE) {
+      gpu_node_output(node, out[i].type, &out[i].link);
+    }
+  }
+  LISTBASE_FOREACH (GPUInput *, input, &node->inputs) {
+    input->is_zone_io = true;
+  }
+  LISTBASE_FOREACH (GPUOutput *, output, &node->outputs) {
+    output->is_zone_io = true;
+  }
+  BLI_addtail(&graph->nodes, node);
+  return true;
 }
 
 /* Node Graph */
