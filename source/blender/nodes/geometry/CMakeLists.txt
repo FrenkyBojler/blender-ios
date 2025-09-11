@@ -41,7 +41,6 @@ set(SRC
   nodes/node_geo_closure.cc
   nodes/node_geo_collection_info.cc
   nodes/node_geo_combine_bundle.cc
-  nodes/node_geo_combine_list.cc
   nodes/node_geo_common.cc
   nodes/node_geo_convex_hull.cc
   nodes/node_geo_curve_endpoint_selection.cc
@@ -149,6 +148,7 @@ set(SRC
   nodes/node_geo_interpolate_curves.cc
   nodes/node_geo_is_viewport.cc
   nodes/node_geo_join_geometry.cc
+  nodes/node_geo_join_list.cc
   nodes/node_geo_list_get_item.cc
   nodes/node_geo_list_length.cc
   nodes/node_geo_material_replace.cc
