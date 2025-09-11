@@ -1685,10 +1685,9 @@ static void blend_read(BlendDataReader *reader, ModifierData *md)
 {
   SurfaceDeformModifierData *smd = (SurfaceDeformModifierData *)md;
 
-  BLO_read_struct_array(reader, SDefVert, smd->bind_verts_num, &smd->verts);
-
   if (smd->verts) {
     smd->verts_sharing_info = BLO_read_shared(reader, &smd->verts, [&]() {
+      BLO_read_struct_array(reader, SDefVert, smd->bind_verts_num, &smd->verts);
       for (int i = 0; i < smd->bind_verts_num; i++) {
         BLO_read_struct_array(reader, SDefBind, smd->verts[i].binds_num, &smd->verts[i].binds);
 
