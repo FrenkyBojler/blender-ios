@@ -1955,6 +1955,7 @@ static wmOperatorStatus sequencer_box_cut_exec(bContext *C, wmOperator *op)
   UI_view2d_region_to_view_rctf(v2d, &rectf, &rectf);
 
   const bool remove_gaps = RNA_boolean_get(op->ptr, "remove_gaps");
+  const bool ignore_selection = RNA_boolean_get(op->ptr, "ignore_selection");
   const seq::eSplitMethod method = seq::eSplitMethod(RNA_enum_get(op->ptr, "type"));
   int2 rect_frames = {round_fl_to_int(rectf.xmin), round_fl_to_int(rectf.xmax)};
 
@@ -1964,6 +1965,9 @@ static wmOperatorStatus sequencer_box_cut_exec(bContext *C, wmOperator *op)
   int max_left_offset = INT_MAX;
   for (int axis : {0, 1}) {
     LISTBASE_FOREACH_MUTABLE (Strip *, strip, ed->current_strips()) {
+      if (!ignore_selection && !selected_strips_from_context(C).contains(strip)) {
+        continue;
+      }
       rctf rq;
       strip_rectf(scene, strip, &rq);
       const char *error_msg = nullptr;
@@ -1992,6 +1996,9 @@ static wmOperatorStatus sequencer_box_cut_exec(bContext *C, wmOperator *op)
   }
   /* Remove strips that are in the cut area. */
   LISTBASE_FOREACH (Strip *, strip, ed->current_strips()) {
+    if (!ignore_selection && !selected_strips_from_context(C).contains(strip)) {
+      continue;
+    }
     rctf rq;
     strip_rectf(scene, strip, &rq);
     if (BLI_rctf_isect(&rq, &rectf, nullptr)) {
@@ -2020,6 +2027,9 @@ static wmOperatorStatus sequencer_box_cut_exec(bContext *C, wmOperator *op)
   /* Close gaps. */
   if (remove_gaps) {
     LISTBASE_FOREACH (Strip *, strip, ed->current_strips()) {
+      if (!ignore_selection && !selected_strips_from_context(C).contains(strip)) {
+        continue;
+      }
       const float left_handle = seq::time_left_handle_frame_get(scene, strip);
       int offset = rect_frames[0] - rect_frames[1];
       /* cap offset */
@@ -2046,6 +2056,7 @@ static void sequencer_box_cut_ui(bContext * /*C*/, wmOperator *op)
   layout->use_property_decorate_set(false);
 
   layout->prop(op->ptr, "remove_gaps", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout->prop(op->ptr, "ignore_selection", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 void SEQUENCER_OT_box_cut(wmOperatorType *ot)
@@ -2073,6 +2084,11 @@ void SEQUENCER_OT_box_cut(wmOperatorType *ot)
                seq::SPLIT_SOFT,
                "Type",
                "The type of split operation to perform on strips");
+  RNA_def_boolean(ot->srna,
+                  "ignore_selection",
+                  true,
+                  "Ignore Selection",
+                  "Make cut even if strip is not selected preserving selection state after cut");
   RNA_def_boolean(
       ot->srna, "remove_gaps", true, "Remove Gaps", "Close gaps between cutted strips");
 }
