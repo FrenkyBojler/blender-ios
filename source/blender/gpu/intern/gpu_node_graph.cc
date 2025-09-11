@@ -863,15 +863,15 @@ bool GPU_stack_link(GPUMaterial *material,
   return valid;
 }
 
-bool GPU_stack_link_zone(GPUMaterial *material,
-                         const bNode *bnode,
-                         const char *name,
-                         GPUNodeStack *in,
-                         GPUNodeStack *out,
-                         int zone_index,
-                         bool is_zone_end,
-                         int in_argument_count,
-                         int out_argument_count)
+static bool GPU_stack_link_zone(GPUMaterial *material,
+                                const bNode *bnode,
+                                const char *name,
+                                GPUNodeStack *in,
+                                GPUNodeStack *out,
+                                int zone_index,
+                                bool is_zone_end,
+                                int in_argument_count,
+                                int out_argument_count)
 {
   GPUNodeGraph *graph = gpu_material_node_graph(material);
   GPUNode *node;
@@ -907,6 +907,39 @@ bool GPU_stack_link_zone(GPUMaterial *material,
   BLI_addtail(&graph->nodes, node);
 
   return true;
+}
+
+bool GPU_stack_link_repeat_zone_input(GPUMaterial &material,
+                                      const bNode &repeat_input_node,
+                                      GPUNodeStack *in,
+                                      GPUNodeStack *out)
+{
+  const auto &storage = static_cast<const NodeGeometryRepeatInput *>(repeat_input_node.storage);
+  return GPU_stack_link_zone(&material,
+                             &repeat_input_node,
+                             "REPEAT_BEGIN",
+                             in,
+                             out,
+                             storage->output_node_id,
+                             false,
+                             1,
+                             1);
+}
+
+bool GPU_stack_link_repeat_zone_output(GPUMaterial &material,
+                                       const bNode &repeat_output_node,
+                                       GPUNodeStack *in,
+                                       GPUNodeStack *out)
+{
+  return GPU_stack_link_zone(&material,
+                             &repeat_output_node,
+                             "REPEAT_END",
+                             in,
+                             out,
+                             repeat_output_node.identifier,
+                             true,
+                             0,
+                             0);
 }
 
 /* Node Graph */

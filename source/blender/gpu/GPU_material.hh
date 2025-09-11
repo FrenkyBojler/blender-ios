@@ -370,15 +370,14 @@ struct GPUZoneConstant {
   eGPUType type;
 };
 
-bool GPU_stack_link_zone(GPUMaterial *material,
-                         const bNode *bnode,
-                         const char *name,
-                         GPUNodeStack *in,
-                         GPUNodeStack *out,
-                         int zone_index,
-                         bool is_zone_end,
-                         int in_argument_count,
-                         int out_argument_count);
+bool GPU_stack_link_repeat_zone_input(GPUMaterial &material,
+                                      const bNode &repeat_input_node,
+                                      GPUNodeStack *in,
+                                      GPUNodeStack *out);
+bool GPU_stack_link_repeat_zone_output(GPUMaterial &material,
+                                       const bNode &repeat_output_node,
+                                       GPUNodeStack *in,
+                                       GPUNodeStack *out);
 
 void GPU_material_output_surface(GPUMaterial *material, GPUNodeLink *link);
 void GPU_material_output_volume(GPUMaterial *material, GPUNodeLink *link);

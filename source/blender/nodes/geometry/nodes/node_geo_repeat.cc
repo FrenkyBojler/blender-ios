@@ -120,9 +120,7 @@ static int node_shader_fn(GPUMaterial *mat,
                           GPUNodeStack *in,
                           GPUNodeStack *out)
 {
-  const NodeGeometryRepeatInput &storage = node_storage(*node);
-  return GPU_stack_link_zone(
-      mat, node, "REPEAT_BEGIN", in, out, storage.output_node_id, false, 1, 1);
+  return GPU_stack_link_repeat_zone_input(*mat, *node, in, out);
 }
 
 static void node_label(const bNodeTree * /*ntree*/,
@@ -245,8 +243,7 @@ static int node_shader_fn(GPUMaterial *mat,
                           GPUNodeStack *in,
                           GPUNodeStack *out)
 {
-  const int zone_id = node->identifier;
-  return GPU_stack_link_zone(mat, node, "REPEAT_END", in, out, zone_id, true, 0, 0);
+  return GPU_stack_link_repeat_zone_output(*mat, *node, in, out);
 }
 
 static void node_operators()
