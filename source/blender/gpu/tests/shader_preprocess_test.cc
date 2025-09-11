@@ -81,6 +81,40 @@ static std::string process_test_string(std::string str,
   return result.substr(newline + 1);
 }
 
+static void test_preprocess_include()
+{
+  using namespace shader;
+  using namespace std;
+  {
+    string input = R"(
+#include "a.hh"
+#include "b.glsl"
+#if 0
+#  include "c.hh"
+#else
+#  include "d.hh"
+#endif
+#if !defined(GPU_SHADER)
+#  include "e.hh"
+#endif
+)";
+    string expect =
+        R"(static void test(GPUSource &source, GPUFunctionDictionary *g_functions, GPUPrintFormatMap *g_formats) {
+  source.add_dependency("a.hh");
+  source.add_dependency("b.glsl");
+  source.add_dependency("d.hh");
+  UNUSED_VARS(source, g_functions, g_formats);
+}
+)";
+    string error;
+    shader::metadata::Source metadata;
+    string output = process_test_string(input, error, &metadata);
+    EXPECT_EQ(expect, metadata.serialize("test"));
+    EXPECT_EQ(error, "");
+  }
+}
+GPU_TEST(preprocess_include);
+
 static void test_preprocess_unroll()
 {
   using namespace shader;
@@ -236,6 +270,27 @@ static void test_preprocess_unroll()
     string error;
     string output = process_test_string(input, error);
     EXPECT_EQ(error, "Unsupported condition in unrolled loop.");
+  }
+  {
+    string input = R"(
+[[gpu::unroll_define(2)]] for (int i = 0; i < DEFINE; i++) { a = i; })";
+    string expect = R"(
+
+{
+#if DEFINE > 0
+#line 2
+                                                           { a = 0; }
+#endif
+#if DEFINE > 1
+#line 2
+                                                           { a = 1; }
+#endif
+#line 2
+                                                                    })";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(output, expect);
+    EXPECT_EQ(error, "");
   }
 }
 GPU_TEST(preprocess_unroll);
@@ -1344,8 +1399,13 @@ A
 B
 )";
     Parser parser(input, no_err_report);
+    string expect = R"(
+w#w0
+w)";
+    EXPECT_EQ(parser.data_get().token_types, expect);
+
     Token A = Token::from_position(&parser.data_get(), 1);
-    Token B = Token::from_position(&parser.data_get(), 5);
+    Token B = Token::from_position(&parser.data_get(), 6);
 
     EXPECT_EQ(A.str(), "A");
     EXPECT_EQ(B.str(), "B");

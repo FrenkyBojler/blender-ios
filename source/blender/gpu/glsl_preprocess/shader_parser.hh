@@ -77,34 +77,36 @@ enum TokenType : char {
   Tilde = '~',
   Backslash = '\\',
   /* Keywords */
-  Namespace = 'n',
-  Struct = 's',
-  Class = 'S',
+  Break = 'b',
   Const = 'c',
   Constexpr = 'C',
-  Return = 'r',
-  Switch = 'h',
-  Case = 'H',
-  If = 'i',
-  Else = 'I',
-  For = 'f',
-  While = 'F',
-  Do = 'd',
-  Template = 't',
-  This = 'T',
+  Decrement = 'D',
   Deref = 'D',
-  Static = 'm',
-  PreprocessorNewline = 'N',
+  Do = 'd',
   Equal = 'E',
   NotEqual = 'e',
+  For = 'f',
+  While = 'F',
   GEqual = 'G',
+  Case = 'H',
+  Switch = 'h',
+  Else = 'I',
+  If = 'i',
   LEqual = 'L',
+  Enum = 'M',
+  Static = 'm',
+  Namespace = 'n',
+  PreprocessorNewline = 'N',
+  Continue = 'O',
   Increment = 'P',
-  Decrement = 'D',
+  Return = 'r',
+  Class = 'S',
+  Struct = 's',
+  Template = 't',
+  This = 'T',
+  Using = 'u',
   Private = 'v',
   Public = 'V',
-  Enum = 'M',
-  Using = 'u',
 };
 
 enum class ScopeType : char {
@@ -114,6 +116,9 @@ enum class ScopeType : char {
   Struct = 'S',
   Function = 'F',
   LoopArgs = 'l',
+  LoopBody = 'p',
+  SwitchArg = 'w',
+  SwitchBody = 'W',
   FunctionArgs = 'f',
   FunctionCall = 'c',
   Template = 'T',
@@ -197,7 +202,7 @@ struct ParserData {
       /* When doing whitespace merging, keep knowledge about whether previous char was whitespace.
        * This allows to still split words on spaces. */
       bool prev_was_whitespace = (token_types[0] == NewLine || token_types[0] == Space);
-      bool inside_preprocessor_directive = false;
+      bool inside_preprocessor_directive = token_types[0] == Hash;
       bool next_character_is_escape = false;
       bool inside_string = false;
 
@@ -264,7 +269,7 @@ struct ParserData {
           continue;
         }
         /* If digit is part of word. */
-        if (type == Number && prev == Word) {
+        if (type == Number && prev == Word && !prev_was_whitespace) {
           continue;
         }
         /* If 'x' is part of hex literal. */
@@ -359,6 +364,12 @@ struct ParserData {
           }
           else if (word == "return") {
             c = Return;
+          }
+          else if (word == "break") {
+            c = Break;
+          }
+          else if (word == "continue") {
+            c = Continue;
           }
           else if (word == "case") {
             c = Case;
@@ -541,6 +552,10 @@ struct Token {
     return tok;
   }
 
+  /* Return the first container scope of this token that has the given type.
+   * Returns invalid scope on failure. */
+  Scope first_containing_scope_of_type(const ScopeType type) const;
+
   /* Return start of namespace identifier is the token is part of one. */
   Token namespace_start() const
   {
@@ -619,6 +634,16 @@ struct Token {
   {
     std::string str = this->str_with_whitespace();
     return str.substr(0, str.find_last_not_of(" \n") + 1);
+  }
+
+  /* Return the content without the first and last characters. */
+  std::string str_exclusive() const
+  {
+    std::string str = this->str();
+    if (str.length() < 2) {
+      return "";
+    }
+    return str.substr(1, str.length() - 2);
   }
 
   /* Return the line number this token is found at. Take into account the #line directives. */
@@ -757,6 +782,15 @@ struct Scope {
   bool is_invalid() const
   {
     return !is_valid();
+  }
+
+  bool contains(const Scope sub) const
+  {
+    Scope parent = sub.scope();
+    while (parent.type() != ScopeType::Global && parent != *this) {
+      parent = parent.scope();
+    }
+    return parent == *this;
   }
 
   std::string str() const
@@ -926,11 +960,29 @@ struct Scope {
       callback(matches[0], matches[1], matches[6].scope());
     });
   }
+
+  bool operator==(const Scope &other) const
+  {
+    return this->index == other.index && this->data == other.data;
+  }
+  bool operator!=(const Scope &other) const
+  {
+    return !(*this == other);
+  }
 };
 
 inline Scope Token::scope() const
 {
   return Scope::from_position(data, data->token_scope[index]);
+}
+
+inline Scope Token::first_containing_scope_of_type(const ScopeType type) const
+{
+  Scope scope = this->scope();
+  while (scope.type() != ScopeType::Global && scope.type() != type) {
+    scope = scope.scope();
+  }
+  return scope.type() == type ? scope : Scope::invalid();
 }
 
 inline void ParserData::parse_scopes(report_callback &report_error)
@@ -1008,6 +1060,12 @@ inline void ParserData::parse_scopes(report_callback &report_error)
           else if (keyword == Namespace) {
             enter_scope(ScopeType::Namespace, tok_id);
           }
+          else if (ScopeType(scope_types.back()) == ScopeType::LoopArg) {
+            enter_scope(ScopeType::LoopBody, tok_id);
+          }
+          else if (ScopeType(scope_types.back()) == ScopeType::SwitchArg) {
+            enter_scope(ScopeType::SwitchBody, tok_id);
+          }
           else if (scopes.top().type == ScopeType::Global) {
             enter_scope(ScopeType::Function, tok_id);
           }
@@ -1027,6 +1085,9 @@ inline void ParserData::parse_scopes(report_callback &report_error)
               (tok_id >= 1 && token_types[tok_id - 1] == While))
           {
             enter_scope(ScopeType::LoopArgs, tok_id);
+          }
+          else if (tok_id >= 1 && token_types[tok_id - 1] == Switch) {
+            enter_scope(ScopeType::SwitchArg, tok_id);
           }
           else if (scopes.top().type == ScopeType::Global) {
             enter_scope(ScopeType::FunctionArgs, tok_id);
