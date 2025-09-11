@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include "eevee_defines.hh"
 #include "eevee_lightprobe_shared.hh"
 #include "eevee_uniform_shared.hh"
 

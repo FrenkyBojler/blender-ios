@@ -8,8 +8,10 @@
 
 #  include "draw_object_infos_info.hh"
 #  include "draw_view_info.hh"
+#  include "eevee_light_shared.hh"
 #  include "eevee_lightprobe_shared.hh"
 #  include "eevee_sampling_shared.hh"
+#  include "eevee_shadow_shared.hh"
 #  include "eevee_uniform_shared.hh"
 
 #  define EEVEE_SAMPLING_DATA
@@ -103,6 +105,7 @@ ADDITIONAL_INFO(eevee_volume_probe_data)
 GPU_SHADER_CREATE_END()
 
 GPU_SHADER_CREATE_INFO(eevee_light_data)
+TYPEDEF_SOURCE("eevee_light_shared.hh")
 STORAGE_BUF(LIGHT_CULL_BUF_SLOT, read, LightCullingData, light_cull_buf)
 STORAGE_BUF(LIGHT_BUF_SLOT, read, LightData, light_buf[])
 STORAGE_BUF(LIGHT_ZBIN_BUF_SLOT, read, uint, light_zbin_buf[])
@@ -110,6 +113,7 @@ STORAGE_BUF(LIGHT_TILE_BUF_SLOT, read, uint, light_tile_buf[])
 GPU_SHADER_CREATE_END()
 
 GPU_SHADER_CREATE_INFO(eevee_shadow_data)
+TYPEDEF_SOURCE("eevee_shadow_shared.hh")
 /* SHADOW_READ_ATOMIC macro indicating shadow functions should use `usampler2DArrayAtomic` as
  * the atlas type. */
 DEFINE("SHADOW_READ_ATOMIC")
@@ -119,6 +123,7 @@ SAMPLER(SHADOW_TILEMAPS_TEX_SLOT, usampler2D, shadow_tilemaps_tx)
 GPU_SHADER_CREATE_END()
 
 GPU_SHADER_CREATE_INFO(eevee_shadow_data_non_atomic)
+TYPEDEF_SOURCE("eevee_shadow_shared.hh")
 SAMPLER(SHADOW_ATLAS_TEX_SLOT, usampler2DArray, shadow_atlas_tx)
 SAMPLER(SHADOW_TILEMAPS_TEX_SLOT, usampler2D, shadow_tilemaps_tx)
 GPU_SHADER_CREATE_END()

@@ -13,13 +13,37 @@
 #include "eevee_hizbuffer_shared.hh"
 #include "eevee_raytrace_shared.hh"
 #include "eevee_renderbuffers_shared.hh"
-#include "eevee_shadow_shared.hh"
 #include "eevee_subsurface_shared.hh"
 #include "eevee_volume_shared.hh"
 
 #ifndef GPU_SHADER
 namespace blender::eevee {
 #endif
+
+/* This should be inside "eevee_light_shared.hh" but it would pull a huge header that is not
+ * essential for most shaders. This could be moved back if including "eevee_bxdf_lib.glsl" is used
+ * only for shading shaders. */
+enum LightingType : uint32_t {
+  LIGHT_DIFFUSE = 0u,
+  LIGHT_SPECULAR = 1u,
+  LIGHT_TRANSMISSION = 2u,
+  LIGHT_VOLUME = 3u,
+  /* WORKAROUND: Special value used to tag translucent BSDF with thickness.
+   * Fall back to LIGHT_DIFFUSE. */
+  LIGHT_TRANSLUCENT_WITH_THICKNESS = 4u,
+};
+
+struct ShadowSceneData {
+  /* Number of shadow rays to shoot for each light. */
+  int ray_count;
+  /* Number of shadow samples to take for each shadow ray. */
+  int step_count;
+  /* Bounding radius for a film pixel at 1 unit from the camera. */
+  float film_pixel_radius;
+  /* Global switch for jittered shadows. */
+  bool32_t use_jitter;
+};
+BLI_STATIC_ASSERT_ALIGN(ShadowSceneData, 16)
 
 /* Light Clamping. */
 struct ClampData {

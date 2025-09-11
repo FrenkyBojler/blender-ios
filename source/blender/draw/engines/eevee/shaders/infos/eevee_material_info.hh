@@ -12,6 +12,7 @@
 #  include "draw_view_info.hh"
 
 #  include "eevee_common_info.hh"
+#  include "eevee_shadow_shared.hh"
 #  include "eevee_volume_info.hh"
 
 #  define CURVES_SHADER

@@ -342,18 +342,6 @@ static inline ShadowSamplingTile shadow_sampling_tile_create(ShadowTileData tile
   return tile;
 }
 
-struct ShadowSceneData {
-  /* Number of shadow rays to shoot for each light. */
-  int ray_count;
-  /* Number of shadow samples to take for each shadow ray. */
-  int step_count;
-  /* Bounding radius for a film pixel at 1 unit from the camera. */
-  float film_pixel_radius;
-  /* Global switch for jittered shadows. */
-  bool32_t use_jitter;
-};
-BLI_STATIC_ASSERT_ALIGN(ShadowSceneData, 16)
-
 /** \} */
 
 #ifndef GPU_SHADER

@@ -19,6 +19,7 @@
 #include "eevee_material.hh"
 #include "eevee_shadow_shared.hh"
 #include "eevee_sync.hh"
+#include "eevee_uniform_shared.hh"
 
 namespace blender::eevee {
 
