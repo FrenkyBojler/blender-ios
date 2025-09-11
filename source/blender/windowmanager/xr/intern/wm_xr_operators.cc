@@ -648,8 +648,8 @@ struct XrRaycastData {
   /** Raycast visualization parameters */
   float color[4];
   float raycast_width;
-  int samples_per_segment;
   float destination_size;
+  int sample_count;
 
   blender::gpu::Batch *raycast_model;
 
@@ -717,7 +717,7 @@ static void wm_xr_raycast_draw(const bContext * /*C*/, ARegion * /*region*/, voi
     GPU_batch_uniform_3fv(data->raycast_model, "right_vector", right);
     GPU_batch_uniform_1f(data->raycast_model, "width", data->raycast_width);
     GPU_batch_uniform_1i(data->raycast_model, "control_point_count", data->num_points);
-    GPU_batch_uniform_1i(data->raycast_model, "samples_per_segment", data->samples_per_segment);
+    GPU_batch_uniform_1i(data->raycast_model, "sample_count", data->sample_count);
     GPU_batch_draw(data->raycast_model);
   }
 }
@@ -774,7 +774,7 @@ static void wm_xr_raycast_update(wmOperator *op,
 
   data->from_viewer = RNA_boolean_get(op->ptr, "from_viewer");
   data->raycast_width = RNA_float_get(op->ptr, "raycast_scale") * nav_scale;
-  data->samples_per_segment = RNA_int_get(op->ptr, "samples_per_segment");
+  data->sample_count = RNA_int_get(op->ptr, "sample_count");
   RNA_float_get_array(op->ptr, "axis", axis);
 
   if (data->from_viewer) {
@@ -785,9 +785,8 @@ static void wm_xr_raycast_update(wmOperator *op,
   }
   else {
     if (!xr->runtime->session_state.raycast_model) {
-      uint vertex_len = XR_MAX_RAYCASTS * RNA_int_get(op->ptr, "samples_per_segment");
-      xr->runtime->session_state.raycast_model = GPU_batch_create_procedural(GPU_PRIM_TRI_STRIP,
-                                                                             vertex_len);
+      xr->runtime->session_state.raycast_model = GPU_batch_create_procedural(
+          GPU_PRIM_TRI_STRIP, 2 * data->sample_count);
     }
 
     data->raycast_model = xr->runtime->session_state.raycast_model;
@@ -1783,12 +1782,12 @@ static void WM_OT_xr_navigation_teleport(wmOperatorType *ot)
                 0.0f,
                 FLT_MAX);
   RNA_def_int(ot->srna,
-              "samples_per_segment",
-              6,
+              "sample_count",
+              48,
               2,
               INT_MAX,
-              "Samples Per Segment",
-              "Interpolation samples per raycast segment",
+              "Sample Count",
+              "Number of interpolation samples for the raycast visualization",
               2,
               INT_MAX);
   RNA_def_boolean(

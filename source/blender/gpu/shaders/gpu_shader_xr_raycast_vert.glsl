@@ -25,11 +25,12 @@ void main()
   int sample_idx = gl_VertexID >> 1;
   float side = ((gl_VertexID & 1) != 0) ? -1.0 : 1.0;
 
-  int segment_idx = sample_idx / samples_per_segment;
-  int sample_in_segment = sample_idx - segment_idx * samples_per_segment;
-  float t = float(sample_in_segment) / float(samples_per_segment - 1);
+  /** Interpolate within the range: [0, segment_count] */
+  float sample_value = float(sample_idx) * float(control_point_count - 1) /
+                       float(sample_count - 1);
 
-  segment_idx = clamp(segment_idx, 0, max(0, control_point_count - 2));
+  int segment_idx = int(sample_value);
+  float t = sample_value - float(segment_idx);
 
   vec3 p0 = get_control_point(segment_idx - 1);
   vec3 p1 = get_control_point(segment_idx + 0);
