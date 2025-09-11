@@ -713,6 +713,10 @@ static float paint_space_stroke_spacing(const bContext *C,
 
   /* apply spacing pressure */
   if (stroke->brush->flag & BRUSH_SPACING_PRESSURE) {
+    /* 0 -> 1.5f
+     * .5 -> 1.0f
+     * 1.0 -> .5f
+     */
     spacing = spacing * (1.5f - spacing_pressure);
   }
 
@@ -789,6 +793,7 @@ static float paint_space_stroke_spacing_variable(bContext *C,
                                                  const float pressure_delta,
                                                  const float length)
 {
+  BKE_curvemapping_evaluateF()
   if (BKE_brush_use_size_pressure(stroke->brush)) {
     /* use pressure to modify size. set spacing so that at 100%, the circles
      * are aligned nicely with no overlap. for this the spacing needs to be
