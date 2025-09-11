@@ -157,4 +157,8 @@ STORAGE_BUF(CRYPTOMATTE_BUF_SLOT, read, float2, cryptomatte_object_buf[])
 IMAGE_FREQ(RBUFS_CRYPTOMATTE_SLOT, SFLOAT_32_32_32_32, write, image2D, rp_cryptomatte_img, PASS)
 GPU_SHADER_CREATE_END()
 
+GPU_SHADER_CREATE_INFO(eevee_tests_data)
+TYPEDEF_SOURCE("eevee_defines.hh")
+GPU_SHADER_CREATE_END()
+
 /** \} */
