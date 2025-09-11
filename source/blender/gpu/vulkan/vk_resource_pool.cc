@@ -119,7 +119,6 @@ void VKDiscardPool::destroy_discarded_resources(VKDevice &device, bool force)
     vkDestroyShaderModule(device.vk_handle(), vk_shader_module, nullptr);
   });
 
-
   descriptor_pools_.remove_old(
       current_timeline, [&](std::pair<VkDescriptorPool, VKDescriptorPools *> descriptor_pool) {
         descriptor_pool.second->recycle(descriptor_pool.first);
