@@ -354,7 +354,7 @@ struct BMesh {
   /** Operator API stuff (must be all null or all allocated). */
   struct BLI_mempool *vtoolflagpool, *etoolflagpool, *ftoolflagpool;
 
-  uint use_toolflags : 1;
+  bool use_toolflags;
 
   /** When set ignore, don't use the UV Loop selection flags. */
   bool uv_sync_select_valid;
