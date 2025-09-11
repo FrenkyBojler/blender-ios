@@ -91,7 +91,6 @@ class Background : Overlay {
     }
 
     bg_ps_.state_set(pass_state);
-    bg_ps_.specialize_constant(res.shaders->background_fill.get(), "vignette_enabled", false);
     bg_ps_.shader_set(res.shaders->background_fill.get());
     bg_ps_.bind_ubo(OVERLAY_GLOBALS_SLOT, &res.globals_buf);
     bg_ps_.bind_ubo(DRW_CLIPPING_UBO_SLOT, &res.clip_planes_buf);
@@ -99,6 +98,7 @@ class Background : Overlay {
     bg_ps_.bind_texture("depth_buffer", &res.depth_tx);
     bg_ps_.push_constant("color_override", color_override);
     bg_ps_.push_constant("bg_type", background_type);
+    bg_ps_.push_constant("vignette_enabled", false);
     bg_ps_.draw_procedural(GPU_PRIM_TRIS, 1, 3);
 
     if (state.vignette_enabled) {
@@ -106,15 +106,14 @@ class Background : Overlay {
       bg_vignette_ps_.framebuffer_set(&framebuffer_ref_);
 
       bg_vignette_ps_.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_BLEND_ALPHA);
-      bg_vignette_ps_.specialize_constant(
-          res.shaders->background_vignette.get(), "vignette_enabled", true);
-      bg_vignette_ps_.shader_set(res.shaders->background_vignette.get());
+      bg_vignette_ps_.shader_set(res.shaders->background_fill.get());
       bg_vignette_ps_.bind_ubo(OVERLAY_GLOBALS_SLOT, &res.globals_buf);
       bg_vignette_ps_.bind_ubo(DRW_CLIPPING_UBO_SLOT, &res.clip_planes_buf);
       bg_vignette_ps_.bind_texture("color_buffer", &res.color_render_tx);
       bg_vignette_ps_.bind_texture("depth_buffer", &res.depth_tx);
       bg_vignette_ps_.push_constant("color_override", color_override);
       bg_vignette_ps_.push_constant("bg_type", background_type);
+      bg_vignette_ps_.push_constant("vignette_enabled", true);
       bg_vignette_ps_.push_constant("vignette_aperture", vignette_aperture);
       bg_vignette_ps_.push_constant("vignette_falloff", vignette_falloff);
       bg_vignette_ps_.draw_procedural(GPU_PRIM_TRIS, 1, 3);
