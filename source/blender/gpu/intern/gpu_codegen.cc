@@ -308,66 +308,67 @@ void GPUCodegen::generate_library()
   }
 }
 
+static void source_reference(std::stringstream &eval_ss, GPUInput *input)
+{
+  BLI_assert(ELEM(input->source, GPU_SOURCE_OUTPUT, GPU_SOURCE_ATTR));
+  /* These inputs can have non matching types. Do conversion. */
+  eGPUType to = input->type;
+  eGPUType from = (input->source == GPU_SOURCE_ATTR) ? input->attr->gputype :
+                                                       input->link->output->type;
+  if (from != to) {
+    /* Use defines declared inside codegen_lib (i.e: vec4_from_float). */
+    eval_ss << to << "_from_" << from << "(";
+  }
+
+  if (input->source == GPU_SOURCE_ATTR) {
+    eval_ss << input;
+  }
+  else {
+    eval_ss << input->link->output;
+  }
+
+  if (from != to) {
+    /* Special case that needs luminance coefficients as argument. */
+    if (from == GPU_VEC4 && to == GPU_FLOAT) {
+      float coefficients[3];
+      IMB_colormanagement_get_luminance_coefficients(coefficients);
+      eval_ss << ", " << blender::Span<float>(coefficients, 3);
+    }
+    eval_ss << ")";
+  }
+}
+
 void GPUCodegen::node_serialize(std::stringstream &eval_ss, const GPUNode *node)
 {
-  auto source_reference = [&](GPUInput *input) {
-    BLI_assert(ELEM(input->source, GPU_SOURCE_OUTPUT, GPU_SOURCE_ATTR));
-    /* These inputs can have non matching types. Do conversion. */
-    eGPUType to = input->type;
-    eGPUType from = (input->source == GPU_SOURCE_ATTR) ? input->attr->gputype :
-                                                         input->link->output->type;
-    if (from != to) {
-      /* Use defines declared inside codegen_lib (i.e: vec4_from_float). */
-      eval_ss << to << "_from_" << from << "(";
-    }
-
-    if (input->source == GPU_SOURCE_ATTR) {
-      eval_ss << input;
-    }
-    else {
-      eval_ss << input->link->output;
-    }
-
-    if (from != to) {
-      /* Special case that needs luminance coefficients as argument. */
-      if (from == GPU_VEC4 && to == GPU_FLOAT) {
-        float coefficients[3];
-        IMB_colormanagement_get_luminance_coefficients(coefficients);
-        eval_ss << ", " << blender::Span<float>(coefficients, 3);
-      }
-      eval_ss << ")";
-    }
-  };
-
   /* Declare constants. */
   LISTBASE_FOREACH (GPUInput *, input, &node->inputs) {
-    auto type = [&]() {
-      /* Don't declare zone io variables twice. */
+    /* May be empty to avoid declaring the same variable twice. */
+    std::string optional_type;
+    if (!input->is_duplicate_in_repeat_zone) {
       std::stringstream ss;
-      if (!input->is_duplicate_in_repeat_zone) {
-        ss << input->type;
-      }
-      return ss.str();
-    };
+      ss << input->type;
+      optional_type = ss.str();
+    }
     switch (input->source) {
       case GPU_SOURCE_FUNCTION_CALL:
-        eval_ss << type() << " " << input << "; " << input->function_call << input << ");\n";
+        eval_ss << optional_type << " " << input << "; " << input->function_call << input
+                << ");\n";
         break;
       case GPU_SOURCE_STRUCT:
-        eval_ss << type() << " " << input << " = "
+        eval_ss << optional_type << " " << input << " = "
                 << (input->type == GPU_CLOSURE ? "CLOSURE_DEFAULT" : "TEXTURE_HANDLE_DEFAULT")
                 << ";\n ";
         break;
       case GPU_SOURCE_CONSTANT:
         if (!input->is_duplicate_in_repeat_zone) {
-          eval_ss << type() << " " << input << " = " << (GPUConstant *)input << ";\n";
+          eval_ss << optional_type << " " << input << " = " << (GPUConstant *)input << ";\n";
         }
         break;
       case GPU_SOURCE_OUTPUT:
       case GPU_SOURCE_ATTR:
         if (input->is_repeat_zone_loopback) {
-          eval_ss << type() << " " << input << " = ";
-          source_reference(input);
+          eval_ss << optional_type << " " << input << " = ";
+          source_reference(eval_ss, input);
           eval_ss << ";\n";
         }
         break;
@@ -375,7 +376,7 @@ void GPUCodegen::node_serialize(std::stringstream &eval_ss, const GPUNode *node)
         if (input->is_repeat_zone_loopback &&
             (!input->is_duplicate_in_repeat_zone || !input->link))
         {
-          eval_ss << type() << " zone" << input->id << " = " << input << ";\n";
+          eval_ss << optional_type << " zone" << input->id << " = " << input << ";\n";
         }
         break;
     }
@@ -398,7 +399,7 @@ void GPUCodegen::node_serialize(std::stringstream &eval_ss, const GPUNode *node)
     switch (input->source) {
       case GPU_SOURCE_OUTPUT:
       case GPU_SOURCE_ATTR: {
-        source_reference(input);
+        source_reference(eval_ss, input);
         break;
       }
       default:
