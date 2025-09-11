@@ -663,11 +663,11 @@ static bool do_pose_tag_select_op_exec(blender::MutableSpan<Base *> bases, const
     LISTBASE_FOREACH (bPoseChannel *, pchan, &ob_iter->pose->chanbase) {
       Bone *bone = pchan->bone;
       if ((bone->flag & BONE_UNSELECTABLE) == 0) {
-        const bool is_select = bone->flag & BONE_SELECTED;
+        const bool is_select = pchan->flag & POSE_SELECTED;
         const bool is_inside = bone->flag & BONE_DONE;
         const int sel_op_result = ED_select_op_action_deselected(sel_op, is_select, is_inside);
         if (sel_op_result != -1) {
-          SET_FLAG_FROM_TEST(bone->flag, sel_op_result, BONE_SELECTED);
+          SET_FLAG_FROM_TEST(pchan->flag, sel_op_result, POSE_SELECTED);
           if (sel_op_result == 0) {
             if (arm->act_bone == bone) {
               arm->act_bone = nullptr;

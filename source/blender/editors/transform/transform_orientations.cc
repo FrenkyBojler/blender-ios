@@ -571,33 +571,45 @@ void applyTransformOrientation(const TransformOrientation *ts, float r_mat[3][3]
   copy_m3_m3(r_mat, ts->mat);
 }
 
+static int bone_children_clear_transflag(ListBase *lb)
+{
+  int cleared = 0;
+  LISTBASE_FOREACH (Bone *, bone, lb) {
+    if (bone->flag & BONE_TRANSFORM) {
+      bone->flag &= ~BONE_TRANSFORM;
+      cleared++;
+    }
+    cleared += bone_children_clear_transflag(&bone->childbase);
+  }
+  return cleared;
+}
+
 /* Updates all `BONE_TRANSFORM` flags.
  * Returns total number of bones with `BONE_TRANSFORM`.
  * NOTE: `transform_convert_pose_transflags_update` has a similar logic. */
-static int armature_bone_transflags_update_recursive(bArmature *arm,
-                                                     ListBase *lb,
-                                                     const bool do_it)
+static int armature_bone_transflags_update(bArmature *arm, ListBase /* bPoseChannel */ *lb)
 {
-  bool do_next;
   int total = 0;
 
-  LISTBASE_FOREACH (Bone *, bone, lb) {
-    bone->flag &= ~BONE_TRANSFORM;
-    do_next = do_it;
-    if (do_it) {
-      if (ANIM_bone_in_visible_collection(arm, bone)) {
-        if (bone->flag & BONE_SELECTED) {
-          bone->flag |= BONE_TRANSFORM;
-          total++;
-
-          /* No transform on children if one parent bone is selected. */
-          do_next = false;
-        }
-      }
+  LISTBASE_FOREACH (bPoseChannel *, pchan, lb) {
+    pchan->bone->flag &= ~BONE_TRANSFORM;
+    if (!ANIM_bone_in_visible_collection(arm, pchan->bone)) {
+      continue;
     }
-    total += armature_bone_transflags_update_recursive(arm, &bone->childbase, do_next);
+    if (pchan->flag & POSE_SELECTED) {
+      pchan->bone->flag |= BONE_TRANSFORM;
+      total++;
+    }
   }
 
+  Bone *bone;
+  /* No transform on children if one parent bone is selected. */
+  LISTBASE_FOREACH (bPoseChannel *, pchan, lb) {
+    bone = pchan->bone;
+    if (bone->flag & BONE_TRANSFORM) {
+      total -= bone_children_clear_transflag(&bone->childbase);
+    }
+  }
   return total;
 }
 
@@ -1433,8 +1445,7 @@ int getTransformOrientation_ex(const Scene *scene,
       ok = true;
     }
     else {
-      int transformed_len;
-      transformed_len = armature_bone_transflags_update_recursive(arm, &arm->bonebase, true);
+      const int transformed_len = armature_bone_transflags_update(arm, &ob->pose->chanbase);
       if (transformed_len) {
         /* Use channels to get stats. */
         LISTBASE_FOREACH (bPoseChannel *, pchan, &ob->pose->chanbase) {

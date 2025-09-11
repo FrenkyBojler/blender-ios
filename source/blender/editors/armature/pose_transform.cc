@@ -608,8 +608,9 @@ static void set_pose_keys(Object *ob)
 
   if (ob->pose) {
     LISTBASE_FOREACH (bPoseChannel *, chan, &ob->pose->chanbase) {
-      Bone *bone = chan->bone;
-      if ((bone) && (bone->flag & BONE_SELECTED) && ANIM_bone_in_visible_collection(arm, bone)) {
+      if ((chan->flag & POSE_SELECTED) && chan->bone &&
+          ANIM_bone_in_visible_collection(arm, chan->bone))
+      {
         chan->flag |= POSE_KEY;
       }
       else {

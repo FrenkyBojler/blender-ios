@@ -313,7 +313,7 @@ typedef struct bPoseChannel {
   short agrp_index;
   /** For quick detecting which constraints affect this channel. */
   char constflag;
-  /** This used to store the selectionfalg for serialization but is not longer required since that
+  /** This used to store the selectionflag for serialization but is not longer required since that
    * is now natively stored on the `flag` property. */
   char selectflag DNA_DEPRECATED;
   char drawflag;
