@@ -541,8 +541,12 @@ static GPUOutput *find_first_repeat_zone_loopback_output(GPUNode &node)
 /* Sets id for unique names for all inputs, resources and temp variables. */
 void GPUCodegen::set_unique_ids()
 {
-  blender::Map<int, GPUNode *> repeat_zone_input_nodes;
-  blender::Map<int, GPUNode *> repeat_zone_output_nodes;
+  struct RepeatZoneNodes {
+    GPUNode *input = nullptr;
+    GPUNode *output = nullptr;
+  };
+
+  blender::Map<int, RepeatZoneNodes> repeat_zone_nodes_map;
 
   int id = 1;
   LISTBASE_FOREACH (GPUNode *, node, &graph.nodes) {
@@ -553,56 +557,39 @@ void GPUCodegen::set_unique_ids()
       output->id = id++;
     }
     if (node->repeat_zone_id != -1) {
-      auto &map = node->is_repeat_zone_end ? repeat_zone_output_nodes : repeat_zone_input_nodes;
-      map.add(node->repeat_zone_id, node);
+      RepeatZoneNodes &repeat_zone = repeat_zone_nodes_map.lookup_or_add_default(
+          node->repeat_zone_id);
+      if (node->is_repeat_zone_output) {
+        repeat_zone.output = node;
+      }
+      else {
+        repeat_zone.input = node;
+      }
     }
   }
 
-  /* Assign the same id to inputs and outputs of start and end zones. */
-  for (GPUNode *end : repeat_zone_output_nodes.values()) {
-    GPUInput *end_input = find_first_repeat_zone_loopback_input(*end);
-    GPUOutput *end_output = find_first_repeat_zone_loopback_output(*end);
+  for (const RepeatZoneNodes &repeat_zone : repeat_zone_nodes_map.values()) {
+    /* Shader node inlining should ensure that repeat zones are always complete. */
+    BLI_assert(repeat_zone.input && repeat_zone.output);
 
-    if (!repeat_zone_input_nodes.contains(end->repeat_zone_id)) {
-      /* The zone input is disconnected, skip the call. */
-      end->skip_call = true;
-      for (; end_input; end_input = end_input->next, end_output = end_output->next) {
-        end_output->id = end_input->id;
-        end_output->is_duplicate_in_repeat_zone = true;
-      }
-      continue;
-    }
+    GPUInput *input_node_input = find_first_repeat_zone_loopback_input(*repeat_zone.input);
+    GPUOutput *input_node_output = find_first_repeat_zone_loopback_output(*repeat_zone.input);
+    GPUInput *output_node_input = find_first_repeat_zone_loopback_input(*repeat_zone.output);
+    GPUOutput *output_node_output = find_first_repeat_zone_loopback_output(*repeat_zone.output);
 
-    GPUNode *start = repeat_zone_input_nodes.lookup(end->repeat_zone_id);
-    /* Skip iterations input and iteration output respectively. */
-    GPUInput *start_input = find_first_repeat_zone_loopback_input(*start);
-    GPUOutput *start_output = find_first_repeat_zone_loopback_output(*start);
-
-    for (; start_input; start_input = start_input->next,
-                        start_output = start_output->next,
-                        end_input = end_input->next,
-                        end_output = end_output->next)
+    for (; input_node_input; input_node_input = input_node_input->next,
+                             input_node_output = input_node_output->next,
+                             output_node_input = output_node_input->next,
+                             output_node_output = output_node_output->next)
     {
-      start_output->id = start_input->id;
-      start_output->is_duplicate_in_repeat_zone = true;
-      end_input->id = start_input->id;
-      end_input->is_duplicate_in_repeat_zone = true;
-      end_output->id = start_input->id;
-      end_output->is_duplicate_in_repeat_zone = true;
-    }
-  }
+      const int shared_id = input_node_input->id;
+      input_node_output->id = shared_id;
+      output_node_input->id = shared_id;
+      output_node_output->id = shared_id;
 
-  for (GPUNode *start : repeat_zone_input_nodes.values()) {
-    if (!repeat_zone_output_nodes.contains(start->repeat_zone_id)) {
-      /* The zone output is disconnected, skip the call. */
-      GPUInput *start_input = find_first_repeat_zone_loopback_input(*start);
-      GPUOutput *start_output = find_first_repeat_zone_loopback_output(*start);
-      start->skip_call = true;
-      for (; start_input; start_input = start_input->next, start_output = start_output->next) {
-        start_output->id = start_input->id;
-        start_output->is_duplicate_in_repeat_zone = true;
-      }
-      continue;
+      input_node_output->is_duplicate_in_repeat_zone = true;
+      output_node_input->is_duplicate_in_repeat_zone = true;
+      output_node_output->is_duplicate_in_repeat_zone = true;
     }
   }
 }

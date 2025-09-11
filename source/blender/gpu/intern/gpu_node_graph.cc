@@ -60,7 +60,7 @@ static GPUNode *gpu_node_create(const char *name)
 
   node->name = name;
   node->repeat_zone_id = -1;
-  node->is_repeat_zone_end = false;
+  node->is_repeat_zone_output = false;
   node->skip_call = false;
 
   return node;
@@ -874,7 +874,7 @@ bool GPU_stack_link_repeat_zone_input(GPUMaterial &material,
 
   GPUNode *node = gpu_node_create("REPEAT_BEGIN");
   node->repeat_zone_id = bnode_storage->output_node_id;
-  node->is_repeat_zone_end = false;
+  node->is_repeat_zone_output = false;
 
   for (int i = 0; !in[i].end; i++) {
     if (in[i].type != GPU_NONE) {
@@ -912,7 +912,7 @@ bool GPU_stack_link_repeat_zone_output(GPUMaterial &material,
 
   node = gpu_node_create("REPEAT_END");
   node->repeat_zone_id = repeat_output_node.identifier;
-  node->is_repeat_zone_end = true;
+  node->is_repeat_zone_output = true;
 
   for (i = 0; !in[i].end; i++) {
     if (in[i].type != GPU_NONE) {
