@@ -281,6 +281,11 @@ add_blender_test(
 )
 
 add_blender_test(
+  script_pyapi_bmesh_uv_select
+  --python ${CMAKE_CURRENT_LIST_DIR}/bl_pyapi_bmesh_uv_select.py
+)
+
+add_blender_test(
   script_pyapi_grease_pencil
   --python ${CMAKE_CURRENT_LIST_DIR}/bl_pyapi_grease_pencil.py
 )

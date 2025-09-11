@@ -23,6 +23,7 @@
 #include "bmesh_py_utils.hh" /* own include */
 
 #include "../generic/py_capi_utils.hh"
+#include "../generic/python_compat.hh"
 #include "../generic/python_utildefines.hh"
 
 PyDoc_STRVAR(
@@ -786,6 +787,63 @@ static PyObject *bpy_bm_utils_loop_separate(PyObject * /*self*/, BPy_BMLoop *val
   Py_RETURN_NONE;
 }
 
+PyDoc_STRVAR(
+    /* Wrap. */
+    bpy_bm_utils_uv_select_sync_check_doc,
+    ".. method:: uv_select_sync_check(bm, /, *, skip_uv_select_sync_valid=False)\n"
+    "\n"
+    "   Split an edge, return the newly created data.\n"
+    "\n"
+    "   :arg skip_uv_select_sync_valid: The edge to split.\n"
+    "   :type skip_uv_select_sync_valid: bool\n"
+    "   :return: An error dictionary or None when there are no errors found.\n"
+    "   :rtype: dict[str, int] | None\n");
+static PyObject *bpy_bm_utils_uv_select_sync_check(PyObject * /*self*/,
+                                                   PyObject *args,
+                                                   PyObject *kwds)
+{
+  BPy_BMesh *py_bm;
+  bool skip_uv_select_sync_valid = false;
+
+  static const char *_keywords[] = {"", "skip_uv_select_sync_valid", nullptr};
+  static _PyArg_Parser _parser = {
+      PY_ARG_PARSER_HEAD_COMPAT()
+      "O!" /* `bm` */
+      "|$" /* Optional keyword only arguments. */
+      "O&" /* `skip_uv_select_sync_valid` */
+      ":uv_select_sync_check",
+      _keywords,
+      nullptr,
+  };
+  if (!_PyArg_ParseTupleAndKeywordsFast(
+          args, kwds, &_parser, &BPy_BMesh_Type, &py_bm, PyC_ParseBool, skip_uv_select_sync_valid))
+  {
+    return nullptr;
+  }
+
+  BPY_BM_CHECK_OBJ(py_bm);
+
+  BMesh *bm = py_bm->bm;
+
+  UVSelectValidateInfo info = {};
+  const bool is_valid = BM_mesh_uvselect_check(bm, skip_uv_select_sync_valid, &info);
+  if (is_valid) {
+    Py_RETURN_NONE;
+  }
+
+  PyObject *result = PyDict_New();
+
+#define DICT_ADD_INT_MEMBER(member) \
+  PyDict_SetItemString(result, STRINGIFY(member), PyLong_FromLong(info.member))
+
+  DICT_ADD_INT_MEMBER(count_uv_vert_any_selected_with_vert_unselected);
+  DICT_ADD_INT_MEMBER(count_uv_vert_none_selected_with_vert_selected);
+
+#undef DICT_ADD_INT_MEMBER
+
+  return result;
+}
+
 #ifdef __GNUC__
 #  ifdef __clang__
 #    pragma clang diagnostic push
@@ -843,6 +901,10 @@ static PyMethodDef BPy_BM_utils_methods[] = {
      (PyCFunction)bpy_bm_utils_loop_separate,
      METH_O,
      bpy_bm_utils_loop_separate_doc},
+    {"uv_select_sync_check",
+     (PyCFunction)bpy_bm_utils_uv_select_sync_check,
+     METH_VARARGS | METH_KEYWORDS,
+     bpy_bm_utils_uv_select_sync_check_doc},
     {nullptr, nullptr, 0, nullptr},
 };
 

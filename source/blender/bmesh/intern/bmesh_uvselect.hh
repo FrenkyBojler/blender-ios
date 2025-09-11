@@ -176,3 +176,21 @@ void BM_mesh_uvselect_flush_to_v3d(BMesh *bm);
 void BM_mesh_uvselect_flush_post_subdivide(BMesh *bm, const int cd_loop_uv_offset);
 
 /** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name UV Selection Validation
+ * \{ */
+
+struct UVSelectValidateInfo {
+
+  /* Between UV's and mesh selection. */
+
+  /** When a vertex is unselected none of it's UV's may be selected. */
+  uint count_uv_vert_any_selected_with_vert_unselected = 0;
+  /** When a vertex is selected at least one UV must be selected. */
+  uint count_uv_vert_none_selected_with_vert_selected = 0;
+};
+
+bool BM_mesh_uvselect_check(BMesh *bm, bool skip_uv_sync_select_valid, UVSelectValidateInfo *info);
+
+/** \} */

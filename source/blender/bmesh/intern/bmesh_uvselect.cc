@@ -1755,3 +1755,81 @@ void BM_mesh_uvselect_flush_post_subdivide(BMesh *bm, const int cd_loop_uv_offse
 }
 
 /** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name UV Selection Validation
+ * \{ */
+
+bool BM_mesh_uvselect_check(BMesh *bm,
+                            bool skip_uv_sync_select_valid,
+                            UVSelectValidateInfo *info_p)
+{
+
+  if (skip_uv_sync_select_valid == false) {
+    if (bm->uv_sync_select_valid == false) {
+      return true;
+    }
+  }
+
+  UVSelectValidateInfo _info_fallback = {};
+  UVSelectValidateInfo &info = info_p ? *info_p : _info_fallback;
+
+  bool is_valid = true;
+  {
+    uint &count = info.count_uv_vert_any_selected_with_vert_unselected;
+    BMIter fiter;
+    BMFace *f;
+    BM_ITER_MESH (f, &fiter, bm, BM_FACES_OF_MESH) {
+      if (BM_elem_flag_test(f, BM_ELEM_HIDDEN)) {
+        continue;
+      }
+
+      BMLoop *l_iter, *l_first;
+      l_iter = l_first = BM_FACE_FIRST_LOOP(f);
+      do {
+        if (BM_elem_flag_test(l_iter, BM_ELEM_SELECT_UV)) {
+          if (!BM_elem_flag_test(l_iter->v, BM_ELEM_SELECT)) {
+            count += 1;
+            is_valid = false;
+          }
+        }
+      } while ((l_iter = l_iter->next) != l_first);
+    }
+  }
+
+  {
+    uint &count = info.count_uv_vert_none_selected_with_vert_selected;
+    BMIter viter;
+    BMIter liter;
+
+    BMVert *v;
+    BM_ITER_MESH (v, &viter, bm, BM_VERTS_OF_MESH) {
+      if (BM_elem_flag_test(v, BM_ELEM_HIDDEN)) {
+        continue;
+      }
+      if (!BM_elem_flag_test(v, BM_ELEM_SELECT)) {
+        continue;
+      }
+
+      bool any_loop_selected = false;
+      {
+        BMLoop *l;
+        BM_ITER_ELEM (l, &liter, v, BM_LOOPS_OF_VERT) {
+          if (BM_elem_flag_test(l, BM_ELEM_SELECT_UV)) {
+            any_loop_selected = true;
+            break;
+          }
+        }
+      }
+
+      if (any_loop_selected == false) {
+        count += 1;
+        is_valid = false;
+      }
+    }
+  }
+
+  return is_valid;
+}
+
+/** \} */
