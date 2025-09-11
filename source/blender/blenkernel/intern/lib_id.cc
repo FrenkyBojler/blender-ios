@@ -1564,7 +1564,7 @@ void BKE_libblock_copy_in_lib(Main *bmain,
     new_id->us = 0;
     new_id->tag |= ID_TAG_NOT_ALLOCATED | ID_TAG_NO_MAIN | ID_TAG_NO_USER_REFCOUNT;
     new_id->lib = owner_library ? *owner_library : id->lib;
-    /* TODO: Is this entirel consistent with BKE_libblock_alloc_in_lib, and can we
+    /* TODO: Is this entirely consistent with BKE_libblock_alloc_in_lib, and can we
      * deduplicate the initialization code? */
   }
   else {
