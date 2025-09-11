@@ -60,3 +60,4 @@ void node_socket_get_color(bNodeTree *ntree, bNode *node, bNodeSocket *sock, flo
 void node_socket_set_color(bNodeTree *ntree, bNode *node, bNodeSocket *sock, const float *value);
 void node_socket_get_vector(bNodeTree *ntree, bNode *node, bNodeSocket *sock, float *value);
 void node_socket_set_vector(bNodeTree *ntree, bNode *node, bNodeSocket *sock, const float *value);
+int node_socket_get_int(bNodeTree *ntree, bNode *node, bNodeSocket *sock);

@@ -121,15 +121,8 @@ static int node_shader_fn(GPUMaterial *mat,
                           GPUNodeStack *out)
 {
   const NodeGeometryRepeatInput &storage = node_storage(*node);
-  const bNodeSocket &iterations_socket = node->input_socket(0);
-
-  const int iterations = iterations_socket.default_value_typed<bNodeSocketValueInt>()->value;
-  static float iterations_float;
-  iterations_float = iterations;
-
-  Vector<GPUZoneConstant, 1> constants = {{GPU_constant(&iterations_float), GPU_FLOAT}};
   return GPU_stack_link_zone(
-      mat, node, "REPEAT_BEGIN", in, out, storage.output_node_id, false, 1, 1, constants);
+      mat, node, "REPEAT_BEGIN", in, out, storage.output_node_id, false, 1, 1, {});
 }
 
 static void node_label(const bNodeTree * /*ntree*/,
@@ -246,6 +239,16 @@ static bool node_insert_link(bke::NodeInsertLinkParams &params)
       params.ntree, params.node, params.node, params.link);
 }
 
+static int node_shader_fn(GPUMaterial *mat,
+                          bNode *node,
+                          bNodeExecData * /*execdata*/,
+                          GPUNodeStack *in,
+                          GPUNodeStack *out)
+{
+  const int zone_id = node->identifier;
+  return GPU_stack_link_zone(mat, node, "REPEAT_END", in, out, zone_id, true, 0, 0);
+}
+
 static void node_operators()
 {
   socket_items::ops::make_common_operators<RepeatItemsAccessor>();
@@ -312,6 +315,7 @@ static void node_register()
   ntype.labelfunc = repeat_input_node::node_label;
   ntype.insert_link = node_insert_link;
   ntype.gather_link_search_ops = node_gather_link_searches;
+  ntype.gpu_fn = node_shader_fn;
   ntype.no_muting = true;
   ntype.draw_buttons_ex = node_layout_ex;
   ntype.register_operators = node_operators;

@@ -280,6 +280,12 @@ float node_socket_get_float(bNodeTree *ntree, bNode * /*node*/, bNodeSocket *soc
   return RNA_float_get(&ptr, "default_value");
 }
 
+int node_socket_get_int(bNodeTree *ntree, bNode * /*node*/, bNodeSocket *sock)
+{
+  PointerRNA ptr = RNA_pointer_create_discrete((ID *)ntree, &RNA_NodeSocket, sock);
+  return RNA_int_get(&ptr, "default_value");
+}
+
 void node_socket_set_float(bNodeTree *ntree, bNode * /*node*/, bNodeSocket *sock, float value)
 {
   PointerRNA ptr = RNA_pointer_create_discrete((ID *)ntree, &RNA_NodeSocket, sock);

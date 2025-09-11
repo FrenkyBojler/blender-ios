@@ -408,7 +408,7 @@ void GPUCodegen::node_serialize(std::stringstream &eval_ss, const GPUNode *node)
         break;
     }
     if ((input->next && !input->next->is_zone_io) ||
-        ((GPUOutput *)node->outputs.first) && !((GPUOutput *)node->outputs.first)->is_zone_io)
+        (((GPUOutput *)node->outputs.first) && !((GPUOutput *)node->outputs.first)->is_zone_io))
     {
       eval_ss << ", ";
     }
