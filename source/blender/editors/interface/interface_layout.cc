@@ -259,9 +259,12 @@ struct uiLayoutItemGridFlow : public uiLayout {
   void estimate_impl() override;
 };
 
-struct uiLayoutItemBx : public uiLayout {
+struct uiLayoutItemBx : public LayoutColumn {
   uiBut *roundbox = nullptr;
-  uiLayoutItemBx() : uiLayout(uiItemType::LayoutBox, nullptr) {}
+  uiLayoutItemBx() : LayoutColumn(nullptr)
+  {
+    type_ = uiItemType::LayoutBox;
+  }
 
   void estimate_impl() override;
 };
@@ -274,15 +277,19 @@ struct uiLayoutItemPanelHeader : public uiLayout {
   void estimate_impl() override;
 };
 
-struct uiLayoutItemPanelBody : public uiLayout {
-  uiLayoutItemPanelBody() : uiLayout(uiItemType::LayoutPanelBody, nullptr) {}
-
-  void estimate_impl() override;
+struct uiLayoutItemPanelBody : public LayoutColumn {
+  uiLayoutItemPanelBody() : LayoutColumn(nullptr)
+  {
+    type_ = uiItemType::LayoutPanelBody;
+  }
 };
 
-struct uiLayoutItemSplit : public uiLayout {
+struct uiLayoutItemSplit : public LayoutRow {
   float percentage = 0.0f;
-  uiLayoutItemSplit() : uiLayout(uiItemType::LayoutSplit, nullptr) {}
+  uiLayoutItemSplit() : LayoutRow(nullptr)
+  {
+    type_ = uiItemType::LayoutSplit;
+  }
 
   void estimate_impl() override;
 };
@@ -3534,41 +3541,36 @@ void LayoutInternal::layout_estimate(uiLayout *layout)
 }
 
 /* single-row layout */
-[[nodiscard]] static std::pair<int, int> estimate_row_size(uiLayout *litem, int litem_space)
+void LayoutRow::estimate_impl()
 {
   int itemw, itemh;
   bool min_size_flag = true;
 
-  int w = 0, h = 0;
+  w_ = 0;
+  h_ = 0;
 
-  if (litem->items().is_empty()) {
-    return {0, 0};
+  if (this->items().is_empty()) {
+    return;
   }
 
-  const uiItem *item_last = litem->items().last();
-  for (uiItem *item : litem->items()) {
+  const uiItem *item_last = this->items().last();
+  for (uiItem *item : this->items()) {
     const bool is_item_last = (item == item_last);
     ui_item_size(item, &itemw, &itemh);
 
     min_size_flag = min_size_flag && item->fixed_size();
 
-    w += itemw;
-    h = std::max(itemh, h);
+    w_ += itemw;
+    h_ = std::max(itemh, h_);
 
     if (!is_item_last) {
-      w += litem_space;
+      w_ += space_;
     }
   }
 
   if (min_size_flag) {
-    litem->fixed_size_set(true);
+    this->fixed_size_set(true);
   }
-  return {w, h};
-}
-
-void LayoutRow::estimate_impl()
-{
-  std::tie(w_, h_) = estimate_row_size(this, space_);
 }
 
 static int ui_litem_min_width(int itemw)
@@ -3769,38 +3771,32 @@ static int spaces_after_column_item(const uiLayout *litem,
 }
 
 /* single-column layout */
-[[nodiscard]] static std::pair<int, int> estimate_column_size(uiLayout *litem,
-                                                              bool is_box,
-                                                              int litem_space)
+void LayoutColumn::estimate_impl()
 {
+  const bool is_box = this->type() == uiItemType::LayoutBox;
   int itemw, itemh;
   bool min_size_flag = true;
 
-  int w = 0, h = 0;
+  w_ = 0;
+  h_ = 0;
 
-  for (auto *iter = litem->items().begin(); iter != litem->items().end(); iter++) {
+  for (auto *iter = this->items().begin(); iter != this->items().end(); iter++) {
     uiItem *item = *iter;
     ui_item_size(item, &itemw, &itemh);
 
     min_size_flag = min_size_flag && item->fixed_size();
 
-    w = std::max(w, itemw);
-    h += itemh;
+    w_ = std::max(w_, itemw);
+    h_ += itemh;
 
-    const uiItem *next_item = (item == litem->items().last()) ? nullptr : *(iter + 1);
-    const int spaces_num = spaces_after_column_item(litem, item, next_item, is_box);
-    h += spaces_num * litem_space;
+    const uiItem *next_item = (item == this->items().last()) ? nullptr : *(iter + 1);
+    const int spaces_num = spaces_after_column_item(this, item, next_item, is_box);
+    h_ += spaces_num * space_;
   }
 
   if (min_size_flag) {
-    litem->fixed_size_set(true);
+    this->fixed_size_set(true);
   }
-  return {w, h};
-}
-
-void LayoutColumn::estimate_impl()
-{
-  std::tie(w_, h_) = estimate_column_size(this, false, space_);
 }
 
 static void ui_litem_layout_column(uiLayout *litem, bool is_box, bool is_menu)
@@ -4014,11 +4010,6 @@ static void ui_litem_layout_panel_header(uiLayout *litem)
 }
 
 /* panel body layout */
-void uiLayoutItemPanelBody::estimate_impl()
-{
-  std::tie(w_, h_) = estimate_column_size(this, false, space_);
-}
-
 static void ui_litem_layout_panel_body(uiLayout *litem)
 {
   Panel *panel = litem->root_panel();
@@ -4035,7 +4026,7 @@ void uiLayoutItemBx::estimate_impl()
 {
   const uiStyle *style = this->root()->style;
 
-  std::tie(w_, h_) = estimate_column_size(this, true, space_);
+  LayoutColumn::estimate_impl();
 
   int boxspace = style->boxspace;
   if (this->root()->type == blender::ui::LayoutType::Header) {
@@ -4648,7 +4639,7 @@ static void ui_litem_layout_absolute(uiLayout *litem)
 /* split layout */
 void uiLayoutItemSplit::estimate_impl()
 {
-  std::tie(w_, h_) = estimate_row_size(this, space_);
+  LayoutRow::estimate_impl();
   this->fixed_size_set(false);
 }
 
