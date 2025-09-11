@@ -1265,8 +1265,6 @@ wmOperatorStatus PenToolOperation::modal(bContext *C, wmOperator *op, const wmEv
 
 class CurvesPenToolOperation : public PenToolOperation {
  public:
-  ~CurvesPenToolOperation(){};
-
   Vector<Curves *> all_curves;
 
   float3 project(const float2 &screen_co) const

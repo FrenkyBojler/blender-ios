@@ -48,8 +48,6 @@ class GreasePencilPenToolOperation : public curves::pen_tool::PenToolOperation {
   /* Helper class to project screen space coordinates to 3D. */
   DrawingPlacement placement;
 
-  ~GreasePencilPenToolOperation(){};
-
   float3 project(const float2 &screen_co) const
   {
     return this->placement.project(screen_co);
