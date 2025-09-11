@@ -1295,9 +1295,11 @@ static float area_normal_and_center_get_position_radius(const SculptSession &ss,
     /* Layer brush produces artifacts with normal and area radius */
     if (brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_PLANE && brush.area_radius_factor > 0.0f) {
       test_radius *= brush.area_radius_factor;
-      if (ss.cache && brush.flag2 & BRUSH_AREA_RADIUS_PRESSURE) {
-        test_radius *= ss.cache->pressure;
-      }
+      const float pressure_factor = ss.cache && brush.flag2 & BRUSH_AREA_RADIUS_PRESSURE ?
+                                        BKE_curvemapping_evaluateF(
+                                            brush.curve_area_radius, 0, ss.cache->pressure) :
+                                        1.0f;
+      test_radius *= pressure_factor;
     }
     else {
       test_radius *= brush.normal_radius_factor;
@@ -2992,8 +2994,11 @@ void calc_brush_plane(const Depsgraph &depsgraph,
 
 float brush_plane_offset_get(const Brush &brush, const SculptSession &ss)
 {
-  return brush.flag & BRUSH_OFFSET_PRESSURE ? brush.plane_offset * ss.cache->pressure :
-                                              brush.plane_offset;
+  const float pressure_factor = brush.flag & BRUSH_OFFSET_PRESSURE ?
+                                    BKE_curvemapping_evaluateF(
+                                        brush.curve_plane_offset, 0, ss.cache->pressure) :
+                                    1.0f;
+  return brush.plane_offset * pressure_factor;
 }
 
 }  // namespace blender::ed::sculpt_paint
@@ -3422,13 +3427,12 @@ static void do_brush_action(const Depsgraph &depsgraph,
   if (!ELEM(brush.sculpt_brush_type, SCULPT_BRUSH_TYPE_SMOOTH, SCULPT_BRUSH_TYPE_MASK) &&
       brush.autosmooth_factor > 0)
   {
-    if (brush.flag & BRUSH_INVERSE_SMOOTH_PRESSURE) {
-      brushes::do_smooth_brush(
-          depsgraph, sd, ob, node_mask, brush.autosmooth_factor * (1.0f - ss.cache->pressure));
-    }
-    else {
-      brushes::do_smooth_brush(depsgraph, sd, ob, node_mask, brush.autosmooth_factor);
-    }
+    const float pressure_factor = brush.flag & BRUSH_AUTOSMOOTH_PRESSURE ?
+                                      BKE_curvemapping_evaluateF(
+                                          brush.curve_auto_smooth, 0, ss.cache->pressure) :
+                                      1.0f;
+    brushes::do_smooth_brush(
+        depsgraph, sd, ob, node_mask, brush.autosmooth_factor * pressure_factor);
   }
 
   if (brush_uses_topology_rake(ss, brush)) {
@@ -4291,9 +4295,10 @@ static void cache_paint_invariants_update(StrokeCache &cache, const Brush &brush
 {
   cache.hardness = brush.hardness;
   if (brush.paint_flags & BRUSH_PAINT_HARDNESS_PRESSURE) {
-    cache.hardness *= brush.paint_flags & BRUSH_PAINT_HARDNESS_PRESSURE_INVERT ?
-                          1.0f - cache.pressure :
-                          cache.pressure;
+    const float pressure = brush.paint_flags & BRUSH_PAINT_HARDNESS_PRESSURE_INVERT ?
+                               1.0f - cache.pressure :
+                               cache.pressure;
+    cache.hardness *= BKE_curvemapping_evaluateF(brush.curve_hardness, 0, pressure);
   }
 
   cache.paint_brush.flow = brush.flow;

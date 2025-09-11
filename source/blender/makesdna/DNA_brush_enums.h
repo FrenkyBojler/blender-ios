@@ -327,6 +327,7 @@ typedef enum eAutomasking_flag {
 } eAutomasking_flag;
 
 typedef enum ePaintBrush_flag {
+  /* Maybe move this to a general paint flag instead of keeping it tied to "PaintBrush" */
   BRUSH_PAINT_HARDNESS_PRESSURE = (1 << 0),
   BRUSH_PAINT_HARDNESS_PRESSURE_INVERT = (1 << 1),
   BRUSH_PAINT_FLOW_PRESSURE = (1 << 2),
@@ -377,7 +378,7 @@ typedef enum eBrushFlags {
   BRUSH_USE_GRADIENT = (1 << 21),
   BRUSH_EDGE_TO_EDGE = (1 << 22),
   BRUSH_DRAG_DOT = (1 << 23),
-  BRUSH_INVERSE_SMOOTH_PRESSURE = (1 << 24),
+  BRUSH_AUTOSMOOTH_PRESSURE = (1 << 24),
   BRUSH_FRONTFACE_FALLOFF = (1 << 25),
   BRUSH_PLANE_TRIM = (1 << 26),
   BRUSH_FRONTFACE = (1 << 27),
