@@ -87,20 +87,28 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   const bke::bNodeSocketType *int_type = bke::node_socket_type_find("NodeSocketInt");
   const bke::bNodeSocketType *socket_type_ptr = bke::node_socket_type_find_static(socket_type);
-  for (const int i : IndexRange(count)) {
+
+  /* The grain size is completely arbitrary since we don't know how expensive the closure is.
+   * However since the closure evaluation itself has fairly high overhead, it makes to optimize for
+   * the case where each task has a relatively high cost. */
+  threading::parallel_for(IndexRange(count), 8, [&](const IndexRange range) {
     ClosureEagerEvalParams closure_params;
     closure_params.user_data = params.user_data();
-
-    closure_params.inputs.append({"index", int_type, bke::SocketValueVariant::From(i)});
-
+    closure_params.inputs.append({"index", int_type, bke::SocketValueVariant::From(0)});
     bke::SocketValueVariant value;
-    value.~SocketValueVariant();
     closure_params.outputs.append({"value", socket_type_ptr, &value});
 
-    evaluate_closure_eagerly(*closure, closure_params);
+    for (const int64_t i : range) {
+      BLI_assert(i < std::numeric_limits<int>::max());
+      *static_cast<int *>(
+          const_cast<void *>(closure_params.inputs[0].value.get_single_ptr_raw())) = int(i);
 
-    cpp_type->move_construct(const_cast<void *>(value.get_single_ptr_raw()), values[i]);
-  }
+      value.~SocketValueVariant();
+      evaluate_closure_eagerly(*closure, closure_params);
+
+      cpp_type->move_construct(const_cast<void *>(value.get_single_ptr_raw()), values[i]);
+    }
+  });
 
   ListPtr list = List::create(*cpp_type, std::move(array_data), count);
   params.set_output("List", std::move(list));
