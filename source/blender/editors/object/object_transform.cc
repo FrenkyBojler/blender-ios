@@ -2495,10 +2495,8 @@ static void light_orbit_around_target_init_data(bContext *C, wmOperator *op, con
   op->customdata = loatd;
 
   loatd->vc = ED_view3d_viewcontext_init(C, CTX_data_depsgraph_pointer(C));
-  loatd->init_mval[0] = float(event->mval[0]);
-  loatd->init_mval[1] = float(event->mval[1]);
-  loatd->current_mval[0] = loatd->init_mval[0];
-  loatd->current_mval[1] = loatd->init_mval[1];
+  loatd->init_mval = float2(event->mval);
+  loatd->current_mval = loatd->init_mval;
   loatd->init_event = event->type;
   loatd->has_center = false;
   loatd->axis_lock = LIGHT_AXIS_LOCK_NONE;
@@ -2515,44 +2513,28 @@ static void light_orbit_around_target_init_data(bContext *C, wmOperator *op, con
 
   Object *active_ob = loatd->vc.obact;
   if (active_ob && active_ob->type == OB_LAMP) {
-    bool is_active_selected = false;
     CTX_DATA_BEGIN (C, Object *, ob, selected_editable_objects) {
+      if (ob->type != OB_LAMP) {
+        continue;
+      }
+
+      LightOrbitAroundTargetData::LightData light_data;
+      light_data.ob = ob;
+      light_data.orig_loc = ob->loc;
+      light_data.orig_rot = ob->rot;
+      light_data.orig_quat = ob->quat;
+      light_data.orig_rot_axis = ob->rotAxis;
+      light_data.orig_rot_angle = ob->rotAngle;
+
       if (ob == active_ob) {
-        is_active_selected = true;
-        break;
+        loatd->lights.prepend(light_data);  /* Active light first */
+      }
+      else {
+        loatd->lights.append(light_data);   /* Then the others */
       }
     }
     CTX_DATA_END;
-    
-    if (is_active_selected) {
-      LightOrbitAroundTargetData::LightData light_data;
-      light_data.ob = active_ob;
-      copy_v3_v3(light_data.orig_loc, active_ob->loc);
-
-      copy_v3_v3(light_data.orig_rot, active_ob->rot);
-      copy_v4_v4(light_data.orig_quat, active_ob->quat);
-      copy_v3_v3(light_data.orig_rot_axis, active_ob->rotAxis);
-      light_data.orig_rot_angle = active_ob->rotAngle;
-      
-      loatd->lights.append(light_data);
-    }
   }
-
-  CTX_DATA_BEGIN (C, Object *, ob, selected_editable_objects) {
-    if (ob->type == OB_LAMP && ob != active_ob) {
-      LightOrbitAroundTargetData::LightData light_data;
-      light_data.ob = ob;
-      copy_v3_v3(light_data.orig_loc, ob->loc);
-
-      copy_v3_v3(light_data.orig_rot, ob->rot);
-      copy_v4_v4(light_data.orig_quat, ob->quat);
-      copy_v3_v3(light_data.orig_rot_axis, ob->rotAxis);
-      light_data.orig_rot_angle = ob->rotAngle;
-      
-      loatd->lights.append(light_data);
-    }
-  }
-  CTX_DATA_END;
 
   /* Find pivot point by casting ray from light along its local Z-axis. */
   loatd->has_center = false;
@@ -2561,7 +2543,7 @@ static void light_orbit_around_target_init_data(bContext *C, wmOperator *op, con
     /* Use the first selected light to determine the pivot point. */
     const Object *primary_light = loatd->lights[0].ob;
 
-    float light_normal[3];
+    blender::float3 light_normal;
     copy_v3_v3(light_normal, primary_light->object_to_world().ptr()[2]);
     negate_v3(light_normal);
 
@@ -2697,7 +2679,7 @@ static void light_orbit_around_target_cancel(bContext *C, wmOperator *op)
   MEM_delete(loatd);
 }
 
-static void object_set_rotation_from_matrix(Object *ob, const float mat[3][3])
+static void object_set_rotation_from_matrix(Object *ob, const float mat[3][3], const float orig_rot[3])
 {
   if (ob->rotmode == ROT_MODE_QUAT) {
     mat3_to_quat(ob->quat, mat);
@@ -2707,7 +2689,7 @@ static void object_set_rotation_from_matrix(Object *ob, const float mat[3][3])
   }
   else {
     float euler[3];
-    mat3_to_compatible_eulO(euler, ob->rot, ob->rotmode, mat);
+    mat3_to_compatible_eulO(euler, orig_rot, ob->rotmode, mat);
     copy_v3_v3(ob->rot, euler);
   }
 }
@@ -2740,7 +2722,7 @@ static void light_orbit_update_position(Object *light_ob,
   madd_v3_v3v3fl(light_ob->loc, center, new_dir, actual_distance);
 }
 
-static void light_orbit_update_rotation(Object *light_ob, const float center[3])
+static void light_orbit_update_rotation(Object *light_ob, const float center[3], const float orig_rot[3])
 {
   /* Update rotation to point at center. */
   float target_dir[3];
@@ -2762,7 +2744,7 @@ static void light_orbit_update_rotation(Object *light_ob, const float center[3])
   copy_v3_v3(rot_mat[1], up);
   negate_v3_v3(rot_mat[2], target_dir); /* -Z points toward target. */
   
-  object_set_rotation_from_matrix(light_ob, rot_mat);
+  object_set_rotation_from_matrix(light_ob, rot_mat, orig_rot);
 }
 
 static wmOperatorStatus light_orbit_around_target_invoke(bContext *C, wmOperator *op, const wmEvent *event)
@@ -2822,7 +2804,7 @@ static wmOperatorStatus light_orbit_around_target_modal(bContext *C, wmOperator 
         
         /* Update position and rotation. */
         light_orbit_update_position(light.ob, loatd->center, light.current_azimuth, light.current_elevation, light.current_distance);
-        light_orbit_update_rotation(light.ob, loatd->center);
+        light_orbit_update_rotation(light.ob, loatd->center, light.orig_rot);
         
         DEG_id_tag_update(&light.ob->id, ID_RECALC_TRANSFORM);
         WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, light.ob);
@@ -2961,7 +2943,7 @@ static wmOperatorStatus light_orbit_around_target_modal(bContext *C, wmOperator 
           mul_m3_m3m3(new_rot_mat, current_rot_mat, y_rot_180);
           
           /* Convert back to light's rotation mode. */
-          object_set_rotation_from_matrix(light.ob, new_rot_mat);
+          object_set_rotation_from_matrix(light.ob, new_rot_mat, light.orig_rot);
           
           DEG_id_tag_update(&light.ob->id, ID_RECALC_TRANSFORM);
           WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, light.ob);
@@ -3001,8 +2983,7 @@ static wmOperatorStatus light_orbit_around_target_modal(bContext *C, wmOperator 
           /* Update light orientation to point toward center. */
           float target_dir[3];
           negate_v3_v3(target_dir, new_dir);
-          
-          float euler[3];
+
           float up[3] = {0.0f, 0.0f, 1.0f};
           float right[3];
           cross_v3_v3v3(right, target_dir, up);
@@ -3015,7 +2996,7 @@ static wmOperatorStatus light_orbit_around_target_modal(bContext *C, wmOperator 
           negate_v3_v3(rot_mat[2], target_dir);
           
           /* Convert back to light's rotation mode. */
-          object_set_rotation_from_matrix(light.ob, rot_mat);
+          object_set_rotation_from_matrix(light.ob, rot_mat, light.orig_rot);
           
           DEG_id_tag_update(&light.ob->id, ID_RECALC_TRANSFORM);
           WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, light.ob);
