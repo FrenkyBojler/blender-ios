@@ -1036,40 +1036,23 @@ static wmOperatorStatus edbm_mark_seam_exec(bContext *C, wmOperator *op)
 
   for (Object *obedit : objects) {
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
-
     std::optional<EditMeshSymmetryHelper> symmetry_helper =
         EditMeshSymmetryHelper::create_if_needed(obedit, BM_EDGE);
 
-    char hflag_process = BM_ELEM_SELECT;
-
-    if (symmetry_helper) {
-      hflag_process = BM_ELEM_TAG;
-      EDBM_flag_disable_all(em, hflag_process);
-
-      BMIter iter;
-      BMEdge *e;
-      BM_ITER_MESH (e, &iter, em->bm, BM_EDGES_OF_MESH) {
-        if (BM_elem_flag_test(e, BM_ELEM_SELECT)) {
-          BM_elem_flag_enable(e, hflag_process);
-          symmetry_helper->set_hflag_on_mirror_edges(e, hflag_process, true);
-        }
-      }
-    }
+    char hflag_process = symmetry_helper ?
+                             symmetry_helper->init_symmetry_hflag(em, BM_EDGE, BM_ELEM_SELECT) :
+                             BM_ELEM_SELECT;
 
     BMIter iter;
     BMEdge *eed;
     BM_ITER_MESH (eed, &iter, em->bm, BM_EDGES_OF_MESH) {
-      if (BM_elem_flag_test(eed, BM_ELEM_HIDDEN)) {
-        continue;
-      }
-
-      if (BM_elem_flag_test(eed, hflag_process)) {
+      if (!BM_elem_flag_test(eed, BM_ELEM_HIDDEN) && BM_elem_flag_test(eed, hflag_process)) {
         BM_elem_flag_set(eed, BM_ELEM_SEAM, !clear);
       }
     }
 
-    if (hflag_process != BM_ELEM_SELECT) {
-      EDBM_flag_disable_all(em, hflag_process);
+    if (symmetry_helper) {
+      symmetry_helper->clear_symmetry_hflag(em, BM_EDGE, hflag_process);
     }
   }
   ED_uvedit_live_unwrap(scene, objects);
@@ -2653,13 +2636,14 @@ static wmOperatorStatus edbm_do_smooth_vertex_exec(bContext *C, wmOperator *op)
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   int tot_selected = 0, tot_locked = 0;
+
   const Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
       scene, view_layer, CTX_wm_view3d(C));
   for (Object *obedit : objects) {
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
     BMesh *bm = em->bm;
 
-    if (em->bm->totvertsel == 0) {
+    if (bm->totvertsel == 0) {
       continue;
     }
 
@@ -2697,24 +2681,9 @@ static wmOperatorStatus edbm_do_smooth_vertex_exec(bContext *C, wmOperator *op)
     std::optional<EditMeshSymmetryHelper> symmetry_helper =
         EditMeshSymmetryHelper::create_if_needed(obedit, BM_VERT);
 
-    char hflag_smooth = BM_ELEM_SELECT;
-
-    if (symmetry_helper) {
-      hflag_smooth = BM_ELEM_TAG;
-
-      BMIter v_iter;
-      BMVert *v;
-      BM_ITER_MESH (v, &v_iter, bm, BM_VERTS_OF_MESH) {
-        BM_elem_flag_disable(v, hflag_smooth);
-      }
-
-      BM_ITER_MESH (v, &v_iter, bm, BM_VERTS_OF_MESH) {
-        if (BM_elem_flag_test(v, BM_ELEM_SELECT)) {
-          BM_elem_flag_enable(v, hflag_smooth);
-          symmetry_helper->set_hflag_on_mirror_verts(v, hflag_smooth, true);
-        }
-      }
-    }
+    char hflag_smooth = symmetry_helper ?
+                            symmetry_helper->init_symmetry_hflag(em, BM_VERT, BM_ELEM_SELECT) :
+                            BM_ELEM_SELECT;
 
     for (int i = 0; i < repeat; i++) {
       if (!EDBM_op_callf(
@@ -2736,15 +2705,9 @@ static wmOperatorStatus edbm_do_smooth_vertex_exec(bContext *C, wmOperator *op)
       }
     }
 
-    /* NOTE: redundant calculation could be avoided if the EDBM API could skip calculation. */
     bool calc_normals = false;
-
-    if (hflag_smooth != BM_ELEM_SELECT) {
-      BMIter v_iter;
-      BMVert *v;
-      BM_ITER_MESH (v, &v_iter, bm, BM_VERTS_OF_MESH) {
-        BM_elem_flag_disable(v, hflag_smooth);
-      }
+    if (symmetry_helper) {
+      symmetry_helper->clear_symmetry_hflag(em, BM_VERT, hflag_smooth);
       calc_normals = true;
     }
 

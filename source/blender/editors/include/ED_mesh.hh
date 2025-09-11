@@ -53,6 +53,9 @@ class EditMeshSymmetryHelper {
  public:
   static std::optional<EditMeshSymmetryHelper> create_if_needed(Object *ob, uchar htype);
 
+  char init_symmetry_hflag(BMEditMesh *em, uchar elem_htype, char hflag_select) const;
+  void clear_symmetry_hflag(BMEditMesh *em, uchar elem_htype, char hflag) const;
+
   bool any_mirror_vert_selected(BMVert *v, char hflag) const;
   bool any_mirror_edge_selected(BMEdge *e, char hflag) const;
   bool any_mirror_face_selected(BMFace *f, char hflag) const;

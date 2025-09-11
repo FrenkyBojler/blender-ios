@@ -15,6 +15,7 @@
 #include "BKE_editmesh.hh"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_types.hh"
+
 #include "BLI_kdtree.h"
 #include "BLI_vector.hh"
 
@@ -491,6 +492,79 @@ void EditMeshSymmetryHelper::add_mirror_relationship(BMElem *elem1, BMElem *elem
     default:
       BLI_assert_unreachable();
       break;
+  }
+}
+
+char EditMeshSymmetryHelper::init_symmetry_hflag(BMEditMesh *em,
+                                                 uchar elem_htype,
+                                                 char hflag_select) const
+{
+  char hflag = hflag_select;
+
+  if (mesh_->symmetry != 0) {
+    hflag = BM_ELEM_TAG;
+    EDBM_flag_disable_all(em, hflag);
+
+    BMIter iter;
+
+    if (elem_htype & BM_VERT) {
+      BMVert *v;
+      BM_ITER_MESH (v, &iter, em->bm, BM_VERTS_OF_MESH) {
+        if (BM_elem_flag_test(v, hflag_select)) {
+          BM_elem_flag_enable(v, hflag);
+          this->set_hflag_on_mirror_verts(v, hflag, true);
+        }
+      }
+    }
+    if (elem_htype & BM_EDGE) {
+      BMEdge *e;
+      BM_ITER_MESH (e, &iter, em->bm, BM_EDGES_OF_MESH) {
+        if (BM_elem_flag_test(e, hflag_select)) {
+          BM_elem_flag_enable(e, hflag);
+          this->set_hflag_on_mirror_edges(e, hflag, true);
+        }
+      }
+    }
+    if (elem_htype & BM_FACE) {
+      BMFace *f;
+      BM_ITER_MESH (f, &iter, em->bm, BM_FACES_OF_MESH) {
+        if (BM_elem_flag_test(f, hflag_select)) {
+          BM_elem_flag_enable(f, hflag);
+          this->set_hflag_on_mirror_faces(f, hflag, true);
+        }
+      }
+    }
+  }
+
+  return hflag;
+}
+
+void EditMeshSymmetryHelper::clear_symmetry_hflag(BMEditMesh *em,
+                                                  uchar elem_htype,
+                                                  char hflag) const
+{
+  if (hflag == BM_ELEM_SELECT) {
+    return;
+  }
+
+  BMIter iter;
+  if (elem_htype & BM_VERT) {
+    BMVert *v;
+    BM_ITER_MESH (v, &iter, em->bm, BM_VERTS_OF_MESH) {
+      BM_elem_flag_disable(v, hflag);
+    }
+  }
+  if (elem_htype & BM_EDGE) {
+    BMEdge *e;
+    BM_ITER_MESH (e, &iter, em->bm, BM_EDGES_OF_MESH) {
+      BM_elem_flag_disable(e, hflag);
+    }
+  }
+  if (elem_htype & BM_FACE) {
+    BMFace *f;
+    BM_ITER_MESH (f, &iter, em->bm, BM_FACES_OF_MESH) {
+      BM_elem_flag_disable(f, hflag);
+    }
   }
 }
 
