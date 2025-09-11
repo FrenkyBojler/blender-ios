@@ -102,6 +102,20 @@ struct VKWorkarounds {
   } vertex_formats;
 };
 
+/** 
+ * VMA related data for a memory pool.
+ */
+struct VKMemoryPool {
+    /* NOTE: This attribute needs to be kept alive as it will be read by VMA when allocating inside the pool. */
+    VkExportMemoryAllocateInfoKHR info = {
+        VK_STRUCTURE_TYPE_EXPORT_MEMORY_ALLOCATE_INFO_KHR};
+    VmaPool pool = VK_NULL_HANDLE;
+};
+
+struct VKMemoryPools {
+  VKMemoryPool external_memory = {};
+};
+
 /**
  * Shared resources between contexts that run in the same thread.
  */
@@ -247,13 +261,7 @@ class VKDevice : public NonCopyable {
 
   } functions;
 
-  struct {
-    /* NOTE: This attribute needs to be kept alive as it will be read by VMA when allocating from
-     * `external_memory` pool. */
-    VkExportMemoryAllocateInfoKHR external_memory_info = {
-        VK_STRUCTURE_TYPE_EXPORT_MEMORY_ALLOCATE_INFO_KHR};
-    VmaPool external_memory = VK_NULL_HANDLE;
-  } vma_pools;
+  VKMemoryPools vma_pools;
 
   const char *extension_name_get(int index) const
   {

@@ -89,7 +89,7 @@ void VKDevice::deinit()
   pipelines.write_to_disk();
   pipelines.free_data();
   descriptor_set_layouts_.deinit();
-  vmaDestroyPool(mem_allocator_, vma_pools.external_memory);
+  vmaDestroyPool(mem_allocator_, vma_pools.external_memory.pool);
   vmaDestroyAllocator(mem_allocator_);
   mem_allocator_ = VK_NULL_HANDLE;
 
@@ -322,12 +322,12 @@ void VKDevice::init_memory_allocator()
   vmaFindMemoryTypeIndexForImageInfo(
       mem_allocator_, &image_create_info, &allocation_create_info, &memory_type_index);
 
-  vma_pools.external_memory_info.handleTypes = vk_external_memory_handle_type;
+  vma_pools.external_memory.info.handleTypes = vk_external_memory_handle_type;
   VmaPoolCreateInfo pool_create_info = {};
   pool_create_info.memoryTypeIndex = memory_type_index;
-  pool_create_info.pMemoryAllocateNext = &vma_pools.external_memory_info;
+  pool_create_info.pMemoryAllocateNext = &vma_pools.external_memory.info;
   pool_create_info.priority = 1.0f;
-  vmaCreatePool(mem_allocator_, &pool_create_info, &vma_pools.external_memory);
+  vmaCreatePool(mem_allocator_, &pool_create_info, &vma_pools.external_memory.pool);
 }
 
 void VKDevice::init_dummy_buffer()

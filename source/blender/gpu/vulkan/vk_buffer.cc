@@ -92,7 +92,7 @@ bool VKBuffer::create(size_t size_in_bytes,
 #endif
     /* Dedicated allocation for zero offset. */
     vma_create_info.flags |= VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT;
-    vma_create_info.pool = device.vma_pools.external_memory;
+    vma_create_info.pool = device.vma_pools.external_memory.pool;
   }
 
   const bool use_descriptor_buffer = device.extensions_get().descriptor_buffer;

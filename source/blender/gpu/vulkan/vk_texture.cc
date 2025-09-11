@@ -716,7 +716,7 @@ bool VKTexture::allocate()
 #else
     external_memory_create_info.handleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT;
 #endif
-    allocCreateInfo.pool = device.vma_pools.external_memory;
+    allocCreateInfo.pool = device.vma_pools.external_memory.pool;
   }
   result = vmaCreateImage(device.mem_allocator_get(),
                           &image_info,
