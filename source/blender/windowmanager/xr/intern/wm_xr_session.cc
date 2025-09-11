@@ -632,8 +632,9 @@ void WM_xr_session_state_vignette_update(wmXrSessionState *state)
 {
   wmXrVignetteData *data = state->vignette_data;
 
-  float vignette_intensity = U.xr_navigation.vignette_intensity;
-  float aperture_min = interpf(data->aperture_min, data->aperture_max, vignette_intensity * 0.01f);
+  const float vignette_intensity = U.xr_navigation.vignette_intensity;
+  const float aperture_min = interpf(
+      data->aperture_min, data->aperture_max, vignette_intensity * 0.01f);
   data->aperture_velocity = min_ff(data->aperture_velocity_max,
                                    data->aperture_velocity + data->aperture_velocity_delta);
 

@@ -169,8 +169,8 @@ typedef struct XrNavigation {
   float vignette_intensity;
   float turn_speed;
   float turn_amount;
-  char flag;
-  char _pad0[3];
+  short flag;
+  char _pad0[2];
 } XrNavigation;
 
 typedef struct UserDef_Runtime {
