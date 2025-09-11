@@ -397,23 +397,28 @@ bool ED_pose_deselect_all_multi(bContext *C, int select_mode, const bool ignore_
 
 /* ***************** Selections ********************** */
 
-static void selectconnected_posebonechildren(Object *ob, Bone *bone, int extend)
+static void selectconnected_posebonechildren(Object &ob,
+                                             bPoseChannel &pose_bone,
+                                             const bool extend)
 {
-  /* stop when unconnected child is encountered, or when unselectable bone is encountered */
-  if (!(bone->flag & BONE_CONNECTED) || (bone->flag & BONE_UNSELECTABLE)) {
-    return;
-  }
+  blender::animrig::pose_bone_descendent_depth_iterator(
+      *ob.pose, pose_bone, [extend](bPoseChannel &child) {
+        if (!child.bone) {
+          return false;
+        }
+        /* Stop when unconnected child is encountered, or when unselectable bone is encountered. */
+        if (!(child.bone->flag & BONE_CONNECTED) || (child.bone->flag & BONE_UNSELECTABLE)) {
+          return false;
+        }
 
-  if (extend) {
-    bone->flag &= ~BONE_SELECTED;
-  }
-  else {
-    bone->flag |= BONE_SELECTED;
-  }
-
-  LISTBASE_FOREACH (Bone *, curBone, &bone->childbase) {
-    selectconnected_posebonechildren(ob, curBone, extend);
-  }
+        if (extend) {
+          child.flag &= ~POSE_SELECTED;
+        }
+        else {
+          child.flag |= POSE_SELECTED;
+        }
+        return true;
+      });
 }
 
 /* within active object context */
@@ -422,30 +427,30 @@ static wmOperatorStatus pose_select_connected_invoke(bContext *C,
                                                      wmOperator *op,
                                                      const wmEvent *event)
 {
-  Bone *bone, *curBone, *next = nullptr;
+  bPoseChannel *pchan, *curBone, *next = nullptr;
   const bool extend = RNA_boolean_get(op->ptr, "extend");
 
   view3d_operator_needs_gpu(C);
 
   Base *base = nullptr;
-  bone = ED_armature_pick_bone(C, event->mval, !extend, &base);
+  pchan = ED_armature_pick_pchan(C, event->mval, !extend, &base);
 
-  if (!bone) {
+  if (!pchan) {
     return OPERATOR_CANCELLED;
   }
 
   /* Select parents */
-  for (curBone = bone; curBone; curBone = next) {
+  for (curBone = pchan; curBone; curBone = next) {
     /* ignore bone if cannot be selected */
     if ((curBone->flag & BONE_UNSELECTABLE) == 0) {
       if (extend) {
-        curBone->flag &= ~BONE_SELECTED;
+        curBone->flag &= ~POSE_SELECTED;
       }
       else {
-        curBone->flag |= BONE_SELECTED;
+        curBone->flag |= POSE_SELECTED;
       }
 
-      if (curBone->flag & BONE_CONNECTED) {
+      if (curBone->bone->flag & BONE_CONNECTED) {
         next = curBone->parent;
       }
       else {
@@ -458,9 +463,7 @@ static wmOperatorStatus pose_select_connected_invoke(bContext *C,
   }
 
   /* Select children */
-  LISTBASE_FOREACH (Bone *, curBone, &bone->childbase) {
-    selectconnected_posebonechildren(base->object, curBone, extend);
-  }
+  selectconnected_posebonechildren(*base->object, *pchan, extend);
 
   ED_outliner_select_sync_from_pose_bone_tag(C);
 
@@ -516,7 +519,7 @@ static wmOperatorStatus pose_select_linked_exec(bContext *C, wmOperator * /*op*/
       if (PBONE_SELECTABLE(arm, curBone)) {
         curBone->flag |= POSE_SELECTED;
 
-        if (curBone->flag & BONE_CONNECTED) {
+        if (curBone->bone->flag & BONE_CONNECTED) {
           next = curBone->parent;
         }
         else {
@@ -529,9 +532,7 @@ static wmOperatorStatus pose_select_linked_exec(bContext *C, wmOperator * /*op*/
     }
 
     /* Select children */
-    LISTBASE_FOREACH (Bone *, curBone, &pchan->bone->childbase) {
-      selectconnected_posebonechildren(ob, curBone, false);
-    }
+    selectconnected_posebonechildren(*ob, *pchan, false);
     ED_pose_bone_select_tag_update(ob);
   }
   CTX_DATA_END;
