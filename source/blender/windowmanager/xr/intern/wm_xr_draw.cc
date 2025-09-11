@@ -372,7 +372,10 @@ static blender::gpu::Batch *wm_xr_controller_model_batch_create(GHOST_XrContextH
   return GPU_batch_create_ex(GPU_PRIM_TRIS, vbo, ibo, GPU_BATCH_OWNS_VBO | GPU_BATCH_OWNS_INDEX);
 }
 
-static uiLayout &uiblock_prepare(uiBlock **block, const bContext *C, ARegion *region, blender::ui::EmbossType emboss)
+static uiLayout &uiblock_prepare(uiBlock **block,
+                                 const bContext *C,
+                                 ARegion *region,
+                                 blender::ui::EmbossType emboss)
 {
   const uiStyle *style = UI_style_get_dpi();
   const int viewfinder_width = style->widget.points * 50 * UI_SCALE_FAC;
@@ -399,12 +402,12 @@ static uiBlock *viewfinder_action_label_ui_block(const bContext *C,
                                                  const XrSessionSettings *settings)
 {
   const char *active_action_prop = settings->viewfinder_active_mode == XR_VIEWFINDER_MODE_LIVE ?
-                                   "viewfinder_active_action_live" :
-                                   "viewfinder_active_action_playback";
+                                       "viewfinder_active_action_live" :
+                                       "viewfinder_active_action_playback";
 
   /* XR Session settings RNA pointer. */
   PointerRNA ptr = RNA_pointer_create_discrete(nullptr, &RNA_XrSessionSettings, (void *)settings);
-  PropertyRNA *prop = RNA_struct_find_property(&ptr, active_action_prop);
+  //  PropertyRNA *prop = RNA_struct_find_property(&ptr, active_action_prop);
 
   uiBlock *block = nullptr;
   uiLayout &layout = uiblock_prepare(&block, C, region, blender::ui::EmbossType::None);
