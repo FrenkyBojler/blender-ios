@@ -314,6 +314,8 @@ Array<std::byte> filter_compress(const Span<T> src,
                          src.size(),
                          sizeof(T));
 
+  /* Level 3 gives a good balance of compression performance and ratio, and is also used elsewhere
+   * across Blender for calls to #ZSTD_compress. */
   constexpr int zstd_level = 3;
   compress_buffer.resize(ZSTD_compressBound(src.size_in_bytes()));
   const size_t dst_size = ZSTD_compress(compress_buffer.data(),
