@@ -11,9 +11,9 @@
 #include "BLI_array.hh"
 #include "BLI_kdtree_impl.h"
 #include "BLI_math_base.h"
+#include "BLI_math_vector.h"
 #include "BLI_utildefines.h"
 #include "BLI_vector.hh"
-
 #include <algorithm>
 #include <cstring>
 
@@ -953,7 +953,16 @@ int BLI_kdtree_nd_(calc_duplicates_stable)(const KDTree *tree,
 
   int found = 0;
   const uint nodes_len = tree->nodes_len;
+
+  blender::Array<const KDTreeNode *> index_lookup(tree->max_node_index + 1, nullptr);
+  for (uint i = 0; i < nodes_len; i++) {
+    index_lookup[tree->nodes[i].index] = &tree->nodes[i];
+  }
+
   blender::Array<bool> visited(tree->max_node_index + 1, false);
+
+  blender::Vector<int> cluster;
+  blender::Vector<int> to_visit;
 
   for (uint i = 0; i < nodes_len; i++) {
     const int current_idx = tree->nodes[i].index;
@@ -967,38 +976,30 @@ int BLI_kdtree_nd_(calc_duplicates_stable)(const KDTree *tree,
       continue;
     }
 
-    /* Gather all connected members of a cluster within the distance threshold. */
-    blender::Vector<int> cluster;
-    blender::Vector<int> to_visit;
+    cluster.clear();
+    to_visit.clear();
 
     to_visit.append(current_idx);
     visited[current_idx] = true;
 
+    /* Flood fill cluster using KDTree range search callbacks. */
     while (!to_visit.is_empty()) {
       const int search_idx = to_visit.pop_last();
       cluster.append(search_idx);
 
-      /* Find the node corresponding to search_idx to get its coordinates. */
-      const float *search_co = nullptr;
-      for (uint j = 0; j < nodes_len; j++) {
-        if (tree->nodes[j].index == search_idx) {
-          search_co = tree->nodes[j].co;
-          break;
-        }
-      }
+      const float *search_co = index_lookup[search_idx]->co;
       BLI_assert(search_co != nullptr);
 
-      KDTreeNearest *neighbors = nullptr;
-      int neighbors_found = BLI_kdtree_nd_(range_search)(tree, search_co, &neighbors, range);
-
-      for (int n = 0; n < neighbors_found; n++) {
-        const int neighbor_idx = neighbors[n].index;
+      /* Callback accumulates neighbors within threshold. */
+      auto cb = [&](int neighbor_idx, const float *, float) -> bool {
         if (!visited[neighbor_idx] && duplicates[neighbor_idx] == -1) {
           visited[neighbor_idx] = true;
           to_visit.append(neighbor_idx);
         }
-      }
-      MEM_freeN(neighbors);
+        return true;
+      };
+
+      BLI_kdtree_nd_(range_search_cb_cpp)(tree, search_co, range, cb);
     }
 
     if (cluster.size() <= 1) {
@@ -1006,21 +1007,17 @@ int BLI_kdtree_nd_(calc_duplicates_stable)(const KDTree *tree,
     }
 
     /* Compute centroid of the cluster. */
-    float centroid[3] = {0, 0, 0};
+    float centroid[3] = {0.0f, 0.0f, 0.0f};
     for (int idx : cluster) {
-      for (uint j = 0; j < nodes_len; j++) {
-        if (tree->nodes[j].index == idx) {
-          for (uint d = 0; d < KD_DIMS; d++) {
-            centroid[d] += tree->nodes[j].co[d];
-          }
-          break;
-        }
+      const float *co = index_lookup[idx]->co;
+      for (uint d = 0; d < KD_DIMS; d++) {
+        centroid[d] += co[d];
       }
     }
 
-    const float cluster_size_inv = 1.0f / cluster.size();
+    const float inv_size = 1.0f / (float)cluster.size();
     for (uint d = 0; d < KD_DIMS; d++) {
-      centroid[d] *= cluster_size_inv;
+      centroid[d] *= inv_size;
     }
 
     /* Choose survivor: lowest index in cluster. */
@@ -1031,9 +1028,10 @@ int BLI_kdtree_nd_(calc_duplicates_stable)(const KDTree *tree,
       }
     }
 
+    /* Write centroid for this survivor. */
     copy_vn_vn(r_survivor_cos[survivor_idx], centroid);
 
-    /* Assign cluster mappings. */
+    /* Assign duplicates mapping. */
     duplicates[survivor_idx] = survivor_idx;
     for (int idx : cluster) {
       if (idx != survivor_idx) {
