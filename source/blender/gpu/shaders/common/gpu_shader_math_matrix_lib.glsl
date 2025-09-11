@@ -73,7 +73,7 @@ float4x4 mat4x4_identity()
 /** \} */
 
 /* Metal does not need prototypes. */
-#  ifndef GPU_METAL
+#  if 0
 
 /* -------------------------------------------------------------------- */
 /** \name Matrix Operations
@@ -467,6 +467,211 @@ bool is_uniformly_scaled(float3x3 mat);
 /** \name Implementation
  * \{ */
 
+float4x4 from_location(float3 location)
+{
+  float4x4 ret = float4x4(1.0f);
+  ret[3].xyz = location;
+  return ret;
+}
+
+float2x2 from_scale(float2 scale)
+{
+  float2x2 ret = float2x2(0.0f);
+  ret[0][0] = scale[0];
+  ret[1][1] = scale[1];
+  return ret;
+}
+float3x3 from_scale(float3 scale)
+{
+  float3x3 ret = float3x3(0.0f);
+  ret[0][0] = scale[0];
+  ret[1][1] = scale[1];
+  ret[2][2] = scale[2];
+  return ret;
+}
+float4x4 from_scale(float4 scale)
+{
+  float4x4 ret = float4x4(0.0f);
+  ret[0][0] = scale[0];
+  ret[1][1] = scale[1];
+  ret[2][2] = scale[2];
+  ret[3][3] = scale[3];
+  return ret;
+}
+
+float2x2 from_rotation(Angle rotation)
+{
+  float c = cos(rotation.angle);
+  float s = sin(rotation.angle);
+  return float2x2(c, -s, s, c);
+}
+
+float3x3 from_rotation(EulerXYZ rotation)
+{
+  float ci = cos(rotation.x);
+  float cj = cos(rotation.y);
+  float ch = cos(rotation.z);
+  float si = sin(rotation.x);
+  float sj = sin(rotation.y);
+  float sh = sin(rotation.z);
+  float cc = ci * ch;
+  float cs = ci * sh;
+  float sc = si * ch;
+  float ss = si * sh;
+
+  float3x3 mat;
+  mat[0][0] = cj * ch;
+  mat[1][0] = sj * sc - cs;
+  mat[2][0] = sj * cc + ss;
+
+  mat[0][1] = cj * sh;
+  mat[1][1] = sj * ss + cc;
+  mat[2][1] = sj * cs - sc;
+
+  mat[0][2] = -sj;
+  mat[1][2] = cj * si;
+  mat[2][2] = cj * ci;
+  return mat;
+}
+
+float3x3 from_rotation(Quaternion rotation)
+{
+  /* NOTE: Should be double but support isn't native on most GPUs. */
+  float q0 = M_SQRT2 * float(rotation.x);
+  float q1 = M_SQRT2 * float(rotation.y);
+  float q2 = M_SQRT2 * float(rotation.z);
+  float q3 = M_SQRT2 * float(rotation.w);
+
+  float qda = q0 * q1;
+  float qdb = q0 * q2;
+  float qdc = q0 * q3;
+  float qaa = q1 * q1;
+  float qab = q1 * q2;
+  float qac = q1 * q3;
+  float qbb = q2 * q2;
+  float qbc = q2 * q3;
+  float qcc = q3 * q3;
+
+  float3x3 mat;
+  mat[0][0] = float(1.0f - qbb - qcc);
+  mat[0][1] = float(qdc + qab);
+  mat[0][2] = float(-qdb + qac);
+
+  mat[1][0] = float(-qdc + qab);
+  mat[1][1] = float(1.0f - qaa - qcc);
+  mat[1][2] = float(qda + qbc);
+
+  mat[2][0] = float(qdb + qac);
+  mat[2][1] = float(-qda + qbc);
+  mat[2][2] = float(1.0f - qaa - qbb);
+  return mat;
+}
+
+float3x3 from_rotation(AxisAngle rotation)
+{
+  float angle_sin = sin(rotation.angle);
+  float angle_cos = cos(rotation.angle);
+  float3 axis = rotation.axis;
+
+  float ico = (float(1) - angle_cos);
+  float3 nsi = axis * angle_sin;
+
+  float3 n012 = (axis * axis) * ico;
+  float n_01 = (axis[0] * axis[1]) * ico;
+  float n_02 = (axis[0] * axis[2]) * ico;
+  float n_12 = (axis[1] * axis[2]) * ico;
+
+  float3x3 mat = from_scale(n012 + angle_cos);
+  mat[0][1] = n_01 + nsi[2];
+  mat[0][2] = n_02 - nsi[1];
+  mat[1][0] = n_01 - nsi[2];
+  mat[1][2] = n_12 + nsi[0];
+  mat[2][0] = n_02 + nsi[1];
+  mat[2][1] = n_12 - nsi[0];
+  return mat;
+}
+
+float3x3 from_rot_scale(EulerXYZ rotation, float3 scale)
+{
+  return from_rotation(rotation) * from_scale(scale);
+}
+float3x3 from_rot_scale(Quaternion rotation, float3 scale)
+{
+  return from_rotation(rotation) * from_scale(scale);
+}
+float3x3 from_rot_scale(AxisAngle rotation, float3 scale)
+{
+  return from_rotation(rotation) * from_scale(scale);
+}
+
+float4x4 from_loc_rot(float3 location, EulerXYZ rotation)
+{
+  float4x4 ret = to_float4x4(from_rotation(rotation));
+  ret[3].xyz = location;
+  return ret;
+}
+float4x4 from_loc_rot(float3 location, Quaternion rotation)
+{
+  float4x4 ret = to_float4x4(from_rotation(rotation));
+  ret[3].xyz = location;
+  return ret;
+}
+float4x4 from_loc_rot(float3 location, AxisAngle rotation)
+{
+  float4x4 ret = to_float4x4(from_rotation(rotation));
+  ret[3].xyz = location;
+  return ret;
+}
+
+float4x4 from_loc_rot_scale(float3 location, EulerXYZ rotation, float3 scale)
+{
+  float4x4 ret = to_float4x4(from_rot_scale(rotation, scale));
+  ret[3].xyz = location;
+  return ret;
+}
+float4x4 from_loc_rot_scale(float3 location, Quaternion rotation, float3 scale)
+{
+  float4x4 ret = to_float4x4(from_rot_scale(rotation, scale));
+  ret[3].xyz = location;
+  return ret;
+}
+float4x4 from_loc_rot_scale(float3 location, AxisAngle rotation, float3 scale)
+{
+  float4x4 ret = to_float4x4(from_rot_scale(rotation, scale));
+  ret[3].xyz = location;
+  return ret;
+}
+
+float2x2 from_direction(float2 direction)
+{
+  float cos_angle = direction.x;
+  float sin_angle = direction.y;
+  return float2x2(cos_angle, sin_angle, -sin_angle, cos_angle);
+}
+
+float3x3 from_up_axis(float3 up)
+{
+  /* Duff, Tom, et al. "Building an orthonormal basis, revisited." JCGT 6.1 (2017). */
+  float z_sign = up.z >= 0.0f ? 1.0f : -1.0f;
+  float a = -1.0f / (z_sign + up.z);
+  float b = up.x * up.y * a;
+
+  float3x3 basis;
+  basis[0] = float3(1.0f + z_sign * square(up.x) * a, z_sign * b, -z_sign * up.x);
+  basis[1] = float3(b, z_sign + square(up.y) * a, -up.y);
+  basis[2] = up;
+  return basis;
+}
+
+bool is_negative(float3x3 mat)
+{
+  return determinant(mat) < 0.0f;
+}
+bool is_negative(float4x4 mat)
+{
+  return is_negative(to_float3x3(mat));
+}
+
 float2x2 invert(float2x2 mat)
 {
   return inverse(mat);
@@ -511,6 +716,7 @@ float4 normalize(float4 a)
 }
 #  endif
 
+#  if 0 /* UNUSED */
 float2x2 normalize(float2x2 mat)
 {
   float2x2 ret;
@@ -540,6 +746,7 @@ float3x2 normalize(float3x2 mat)
   ret[2] = normalize(mat[2].xy);
   return ret;
 }
+#  endif
 float3x3 normalize(float3x3 mat)
 {
   float3x3 ret;
@@ -548,6 +755,7 @@ float3x3 normalize(float3x3 mat)
   ret[2] = normalize(mat[2].xyz);
   return ret;
 }
+#  if 0 /* UNUSED */
 float3x4 normalize(float3x4 mat)
 {
   float3x4 ret;
@@ -583,7 +791,9 @@ float4x4 normalize(float4x4 mat)
   ret[3] = normalize(mat[3].xyzw);
   return ret;
 }
+#  endif
 
+#  if 0 /* UNUSED */
 float2x2 normalize_and_get_size(float2x2 mat, out float2 r_size)
 {
   float size_x = 0.0f, size_y = 0.0f;
@@ -865,202 +1075,6 @@ float4x4 scale(float4x4 mat, float3 scale)
   return mat;
 }
 
-float4x4 from_location(float3 location)
-{
-  float4x4 ret = float4x4(1.0f);
-  ret[3].xyz = location;
-  return ret;
-}
-
-float2x2 from_scale(float2 scale)
-{
-  float2x2 ret = float2x2(0.0f);
-  ret[0][0] = scale[0];
-  ret[1][1] = scale[1];
-  return ret;
-}
-float3x3 from_scale(float3 scale)
-{
-  float3x3 ret = float3x3(0.0f);
-  ret[0][0] = scale[0];
-  ret[1][1] = scale[1];
-  ret[2][2] = scale[2];
-  return ret;
-}
-float4x4 from_scale(float4 scale)
-{
-  float4x4 ret = float4x4(0.0f);
-  ret[0][0] = scale[0];
-  ret[1][1] = scale[1];
-  ret[2][2] = scale[2];
-  ret[3][3] = scale[3];
-  return ret;
-}
-
-float2x2 from_rotation(Angle rotation)
-{
-  float c = cos(rotation.angle);
-  float s = sin(rotation.angle);
-  return float2x2(c, -s, s, c);
-}
-
-float3x3 from_rotation(EulerXYZ rotation)
-{
-  float ci = cos(rotation.x);
-  float cj = cos(rotation.y);
-  float ch = cos(rotation.z);
-  float si = sin(rotation.x);
-  float sj = sin(rotation.y);
-  float sh = sin(rotation.z);
-  float cc = ci * ch;
-  float cs = ci * sh;
-  float sc = si * ch;
-  float ss = si * sh;
-
-  float3x3 mat;
-  mat[0][0] = cj * ch;
-  mat[1][0] = sj * sc - cs;
-  mat[2][0] = sj * cc + ss;
-
-  mat[0][1] = cj * sh;
-  mat[1][1] = sj * ss + cc;
-  mat[2][1] = sj * cs - sc;
-
-  mat[0][2] = -sj;
-  mat[1][2] = cj * si;
-  mat[2][2] = cj * ci;
-  return mat;
-}
-
-float3x3 from_rotation(Quaternion rotation)
-{
-  /* NOTE: Should be double but support isn't native on most GPUs. */
-  float q0 = M_SQRT2 * float(rotation.x);
-  float q1 = M_SQRT2 * float(rotation.y);
-  float q2 = M_SQRT2 * float(rotation.z);
-  float q3 = M_SQRT2 * float(rotation.w);
-
-  float qda = q0 * q1;
-  float qdb = q0 * q2;
-  float qdc = q0 * q3;
-  float qaa = q1 * q1;
-  float qab = q1 * q2;
-  float qac = q1 * q3;
-  float qbb = q2 * q2;
-  float qbc = q2 * q3;
-  float qcc = q3 * q3;
-
-  float3x3 mat;
-  mat[0][0] = float(1.0f - qbb - qcc);
-  mat[0][1] = float(qdc + qab);
-  mat[0][2] = float(-qdb + qac);
-
-  mat[1][0] = float(-qdc + qab);
-  mat[1][1] = float(1.0f - qaa - qcc);
-  mat[1][2] = float(qda + qbc);
-
-  mat[2][0] = float(qdb + qac);
-  mat[2][1] = float(-qda + qbc);
-  mat[2][2] = float(1.0f - qaa - qbb);
-  return mat;
-}
-
-float3x3 from_rotation(AxisAngle rotation)
-{
-  float angle_sin = sin(rotation.angle);
-  float angle_cos = cos(rotation.angle);
-  float3 axis = rotation.axis;
-
-  float ico = (float(1) - angle_cos);
-  float3 nsi = axis * angle_sin;
-
-  float3 n012 = (axis * axis) * ico;
-  float n_01 = (axis[0] * axis[1]) * ico;
-  float n_02 = (axis[0] * axis[2]) * ico;
-  float n_12 = (axis[1] * axis[2]) * ico;
-
-  float3x3 mat = from_scale(n012 + angle_cos);
-  mat[0][1] = n_01 + nsi[2];
-  mat[0][2] = n_02 - nsi[1];
-  mat[1][0] = n_01 - nsi[2];
-  mat[1][2] = n_12 + nsi[0];
-  mat[2][0] = n_02 + nsi[1];
-  mat[2][1] = n_12 - nsi[0];
-  return mat;
-}
-
-float3x3 from_rot_scale(EulerXYZ rotation, float3 scale)
-{
-  return from_rotation(rotation) * from_scale(scale);
-}
-float3x3 from_rot_scale(Quaternion rotation, float3 scale)
-{
-  return from_rotation(rotation) * from_scale(scale);
-}
-float3x3 from_rot_scale(AxisAngle rotation, float3 scale)
-{
-  return from_rotation(rotation) * from_scale(scale);
-}
-
-float4x4 from_loc_rot(float3 location, EulerXYZ rotation)
-{
-  float4x4 ret = to_float4x4(from_rotation(rotation));
-  ret[3].xyz = location;
-  return ret;
-}
-float4x4 from_loc_rot(float3 location, Quaternion rotation)
-{
-  float4x4 ret = to_float4x4(from_rotation(rotation));
-  ret[3].xyz = location;
-  return ret;
-}
-float4x4 from_loc_rot(float3 location, AxisAngle rotation)
-{
-  float4x4 ret = to_float4x4(from_rotation(rotation));
-  ret[3].xyz = location;
-  return ret;
-}
-
-float4x4 from_loc_rot_scale(float3 location, EulerXYZ rotation, float3 scale)
-{
-  float4x4 ret = to_float4x4(from_rot_scale(rotation, scale));
-  ret[3].xyz = location;
-  return ret;
-}
-float4x4 from_loc_rot_scale(float3 location, Quaternion rotation, float3 scale)
-{
-  float4x4 ret = to_float4x4(from_rot_scale(rotation, scale));
-  ret[3].xyz = location;
-  return ret;
-}
-float4x4 from_loc_rot_scale(float3 location, AxisAngle rotation, float3 scale)
-{
-  float4x4 ret = to_float4x4(from_rot_scale(rotation, scale));
-  ret[3].xyz = location;
-  return ret;
-}
-
-float2x2 from_direction(float2 direction)
-{
-  float cos_angle = direction.x;
-  float sin_angle = direction.y;
-  return float2x2(cos_angle, sin_angle, -sin_angle, cos_angle);
-}
-
-float3x3 from_up_axis(float3 up)
-{
-  /* Duff, Tom, et al. "Building an orthonormal basis, revisited." JCGT 6.1 (2017). */
-  float z_sign = up.z >= 0.0f ? 1.0f : -1.0f;
-  float a = -1.0f / (z_sign + up.z);
-  float b = up.x * up.y * a;
-
-  float3x3 basis;
-  basis[0] = float3(1.0f + z_sign * square(up.x) * a, z_sign * b, -z_sign * up.x);
-  basis[1] = float3(b, z_sign + square(up.y) * a, -up.y);
-  basis[2] = up;
-  return basis;
-}
-
 void detail_normalized_to_eul2(float3x3 mat, out EulerXYZ eul1, out EulerXYZ eul2)
 {
   float cy = hypot(mat[0][0], mat[0][1]);
@@ -1082,10 +1096,6 @@ void detail_normalized_to_eul2(float3x3 mat, out EulerXYZ eul1, out EulerXYZ eul
   }
 }
 
-EulerXYZ to_euler(float3x3 mat)
-{
-  return to_euler(mat, true);
-}
 EulerXYZ to_euler(float3x3 mat, const bool normalized)
 {
   if (!normalized) {
@@ -1096,13 +1106,17 @@ EulerXYZ to_euler(float3x3 mat, const bool normalized)
   /* Return best, which is just the one with lowest values it in. */
   return (length_manhattan(as_vec3(eul1)) > length_manhattan(as_vec3(eul2))) ? eul2 : eul1;
 }
-EulerXYZ to_euler(float4x4 mat)
+EulerXYZ to_euler(float3x3 mat)
 {
-  return to_euler(to_float3x3(mat));
+  return to_euler(mat, true);
 }
 EulerXYZ to_euler(float4x4 mat, const bool normalized)
 {
   return to_euler(to_float3x3(mat), normalized);
+}
+EulerXYZ to_euler(float4x4 mat)
+{
+  return to_euler(to_float3x3(mat));
 }
 
 Quaternion normalized_to_quat_fast(float3x3 mat)
@@ -1218,6 +1232,7 @@ Quaternion to_quaternion(float4x4 mat, const bool normalized)
 {
   return to_quaternion(to_float3x3(mat), normalized);
 }
+#  endif
 
 float3 to_scale(float3x3 mat)
 {
@@ -1242,6 +1257,7 @@ template float3 to_scale<float3x3, false>(float3x3 mat);
 template float3 to_scale<float4x4, true>(float4x4 mat);
 template float3 to_scale<float4x4, false>(float4x4 mat);
 
+#  if 0 /* UNUSED */
 void to_rot_scale(float3x3 mat, out EulerXYZ r_rotation, out float3 r_scale)
 {
   r_scale = to_scale(mat);
@@ -1315,6 +1331,7 @@ void to_loc_rot_scale(float4x4 mat,
   r_location = mat[3].xyz;
   to_rot_scale(to_float3x3(mat), r_rotation, r_scale, allow_negative_scale);
 }
+#  endif
 
 float3 transform_point(float3x3 mat, float3 point)
 {
@@ -1349,6 +1366,7 @@ float3 project_point(float4x4 mat, float3 point)
   return tmp.xyz / abs(tmp.w);
 }
 
+#  if 0 /* UNUSED */
 float4x4 interpolate_fast(float4x4 a, float4x4 b, float t)
 {
   float3 a_loc, b_loc;
@@ -1362,6 +1380,7 @@ float4x4 interpolate_fast(float4x4 a, float4x4 b, float t)
   Quaternion rotation = interpolate(a_quat, b_quat, t);
   return from_loc_rot_scale(location, rotation, scale);
 }
+#  endif
 
 float4x4 projection_orthographic(
     float left, float right, float bottom, float top, float near_clip, float far_clip)
@@ -1417,6 +1436,7 @@ float4x4 projection_perspective_fov(float angle_left,
   return mat;
 }
 
+#  if 0 /* UNUSED */
 bool is_zero(float3x3 a)
 {
   if (is_zero(a[0])) {
@@ -1440,15 +1460,6 @@ bool is_zero(float4x4 a)
     }
   }
   return false;
-}
-
-bool is_negative(float3x3 mat)
-{
-  return determinant(mat) < 0.0f;
-}
-bool is_negative(float4x4 mat)
-{
-  return is_negative(to_float3x3(mat));
 }
 
 bool is_equal(float2x2 a, float2x2 b, float epsilon)
@@ -1575,6 +1586,8 @@ bool is_unit_scale(float2x2 m)
   }
   return false;
 }
+
+#  endif
 
 /** \} */
 
