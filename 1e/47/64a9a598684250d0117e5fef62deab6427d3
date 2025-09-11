@@ -1,1 +1,2 @@
 Referenced by issue #146086, Regression: OpenSubdiv: GPU Shaders gets recompiled for each evaluation
+Referenced by pull request #146097, Fix #146086: Regression: OpenSubdiv: GPU Shaders gets recompiled for each evaluation
