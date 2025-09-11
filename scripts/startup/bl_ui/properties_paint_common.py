@@ -1181,7 +1181,7 @@ def brush_shared_settings(layout, context, brush, popover=False):
 
     if strength:
         pressure_name = "use_pressure_strength" if strength_pressure else None
-        curve_visibility_name = "show_strenght_curve" if strength_pressure else None
+        curve_visibility_name = "show_strength_curve" if strength_pressure else None
         UnifiedPaintPanel.prop_unified(
             layout,
             context,
@@ -1189,7 +1189,7 @@ def brush_shared_settings(layout, context, brush, popover=False):
             "strength",
             unified_name="use_unified_strength",
             pressure_name=pressure_name,
-            curve_visibility_name="show_strength_curve",
+            curve_visibility_name=curve_visibility_name,
             slider=True,
         )
         if mode in {'PAINT_TEXTURE', 'PAINT_2D', 'SCULPT', 'PAINT_VERTEX', 'PAINT_WEIGHT', 'SCULPT_CURVES'}:
