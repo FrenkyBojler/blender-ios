@@ -365,11 +365,6 @@ bool GPU_stack_link(GPUMaterial *mat,
                     GPUNodeStack *out,
                     ...);
 
-struct GPUZoneConstant {
-  GPUNodeLink *link;
-  eGPUType type;
-};
-
 bool GPU_stack_link_repeat_zone_input(GPUMaterial &material,
                                       const bNode &repeat_input_node,
                                       GPUNodeStack *in,
