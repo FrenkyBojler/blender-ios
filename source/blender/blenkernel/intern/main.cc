@@ -38,6 +38,7 @@
 #include "BKE_main_namemap.hh"
 #include "BKE_report.hh"
 
+#include "IMB_colormanagement.hh"
 #include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
 
@@ -88,6 +89,7 @@ Main::~Main()
 Main *BKE_main_new()
 {
   Main *bmain = MEM_new<Main>(__func__);
+  IMB_colormanagement_working_space_init_default(bmain);
   return bmain;
 }
 
@@ -123,7 +125,6 @@ void BKE_main_clear(Main &bmain)
 
       switch ((eID_Index)a) {
         CASE_ID_INDEX(INDEX_ID_LI);
-        CASE_ID_INDEX(INDEX_ID_IP);
         CASE_ID_INDEX(INDEX_ID_AC);
         CASE_ID_INDEX(INDEX_ID_GD_LEGACY);
         CASE_ID_INDEX(INDEX_ID_NT);
@@ -912,8 +913,6 @@ ListBase *which_libbase(Main *bmain, short type)
       return &(bmain->lights);
     case ID_CA:
       return &(bmain->cameras);
-    case ID_IP:
-      return &(bmain->ipo);
     case ID_KE:
       return &(bmain->shapekeys);
     case ID_WO:
@@ -977,8 +976,6 @@ MainListsArray BKE_main_lists_get(Main &bmain)
   MainListsArray lb{};
   /* Libraries may be accessed from pretty much any other ID. */
   lb[INDEX_ID_LI] = &bmain.libraries;
-
-  lb[INDEX_ID_IP] = &bmain.ipo;
 
   /* Moved here to avoid problems when freeing with animato (aligorith). */
   lb[INDEX_ID_AC] = &bmain.actions;

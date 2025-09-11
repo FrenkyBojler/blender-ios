@@ -274,12 +274,23 @@ void SEQUENCER_OT_select_linked_pick(wmOperatorType *ot);
 void SEQUENCER_OT_select_handles(wmOperatorType *ot);
 void SEQUENCER_OT_select_side(wmOperatorType *ot);
 void SEQUENCER_OT_select_box(wmOperatorType *ot);
+void SEQUENCER_OT_select_lasso(wmOperatorType *ot);
 void SEQUENCER_OT_select_circle(wmOperatorType *ot);
 void SEQUENCER_OT_select_inverse(wmOperatorType *ot);
 void SEQUENCER_OT_select_grouped(wmOperatorType *ot);
 
 bool strip_point_image_isect(const Scene *scene, const Strip *strip, float point_view[2]);
 void sequencer_select_do_updates(const bContext *C, Scene *scene);
+/**
+ * Returns the strip that intersects with the mouse cursor in the timeline, if applicable.
+
+ * This check is more robust than simply comparing the timeline frame and channel, since strips do
+ * not take up the full height of their channels (see #STRIP_OFSBOTTOM, #STRIP_OFSTOP).
+ * Does not consider padded handles.
+ *
+ * \param mval: Mouse cursor location in regionspace
+ * \return `Strip` that intersects with the cursor, or `nullptr` if not found
+ */
 Strip *strip_under_mouse_get(const Scene *scene, const View2D *v2d, const int mval[2]);
 
 /* `sequencer_add.cc` */
