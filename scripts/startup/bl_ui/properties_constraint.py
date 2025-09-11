@@ -984,7 +984,7 @@ class ConstraintButtonsPanel:
         layout.use_property_decorate = True
 
         self.target_template(layout, con, False)
-        layout.prop(con, "utarget_mat", text="Offset with Target Transform")
+        layout.prop(con, "apply_target_transform", text="Offset with Target Transform")
 
         layout.prop(con, "attribute_name", text="Attribute Name")
         layout.prop(con, "data_type", text="Data Type")

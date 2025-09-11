@@ -5737,7 +5737,7 @@ static void attribute_evaluate(bConstraint *con, bConstraintOb *cob, ListBase *t
     }
   }
 
-  if (data->utarget_mat) {
+  if (data->apply_target_transform) {
     mul_m4_m4m4(cob->matrix, ct->tar->object_to_world().ptr(), cob->matrix);
   }
 }

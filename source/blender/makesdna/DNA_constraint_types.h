@@ -566,7 +566,7 @@ typedef struct bTransformCacheConstraint {
 typedef struct bAttributeConstraint {
   struct Object *target;
   int sample_index;
-  char utarget_mat;
+  char apply_target_transform;
   char mix_loc;
   char mix_rot;
   char mix_scl;
