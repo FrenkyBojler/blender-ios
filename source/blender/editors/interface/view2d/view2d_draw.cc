@@ -56,10 +56,11 @@ static int get_divisor(const int distance)
     /* If the division was without loss due to integer cast and the result is 2, return
      * that. Animating on 2s is a very useful thing for animators so the lines should be shown with
      * that distance. */
-    if (result * divisor == distance && result == 2) {
+    const bool has_no_remainder = result * divisor == distance;
+    if (has_no_remainder && result == 2) {
       return divisor;
     }
-    divides_no_remainder[i] = result * divisor == distance;
+    divides_no_remainder[i] = has_no_remainder;
   }
 
   /* If no division results in a 2, take the first to divide cleanly. */
