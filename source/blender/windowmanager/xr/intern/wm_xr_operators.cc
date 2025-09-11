@@ -533,6 +533,11 @@ static void wm_xr_navigation_grab_bimanual_state_update(const wmXrActionData *ac
   }
 }
 
+static void wm_xr_navigation_grab_cancel(bContext * /*C*/, wmOperator *op)
+{
+  wm_xr_grab_uninit(op);
+}
+
 static wmOperatorStatus wm_xr_navigation_grab_modal(bContext *C,
                                                     wmOperator *op,
                                                     const wmEvent *event)
@@ -594,6 +599,7 @@ static void WM_OT_xr_navigation_grab(wmOperatorType *ot)
   /* Callbacks. */
   ot->invoke = wm_xr_navigation_grab_invoke;
   ot->exec = wm_xr_navigation_grab_exec;
+  ot->cancel = wm_xr_navigation_grab_cancel;
   ot->modal = wm_xr_navigation_grab_modal;
   ot->poll = wm_xr_operator_sessionactive;
 
@@ -1006,6 +1012,11 @@ static wmOperatorStatus wm_xr_navigation_fly_exec(bContext * /*C*/, wmOperator *
   return OPERATOR_CANCELLED;
 }
 
+static void wm_xr_navigation_fly_cancel(bContext * /*C*/, wmOperator *op)
+{
+  wm_xr_fly_uninit(op);
+}
+
 static wmOperatorStatus wm_xr_navigation_fly_modal(bContext *C,
                                                    wmOperator *op,
                                                    const wmEvent *event)
@@ -1234,6 +1245,7 @@ static void WM_OT_xr_navigation_fly(wmOperatorType *ot)
   /* Callbacks. */
   ot->invoke = wm_xr_navigation_fly_invoke;
   ot->exec = wm_xr_navigation_fly_exec;
+  ot->cancel = wm_xr_navigation_fly_cancel;
   ot->modal = wm_xr_navigation_fly_modal;
   ot->poll = wm_xr_operator_sessionactive;
 
@@ -1599,6 +1611,11 @@ static wmOperatorStatus wm_xr_navigation_teleport_exec(bContext * /*C*/, wmOpera
   return OPERATOR_CANCELLED;
 }
 
+static void wm_xr_navigation_teleport_cancel(bContext * /*C*/, wmOperator *op)
+{
+  wm_xr_raycast_uninit(op);
+}
+
 static wmOperatorStatus wm_xr_navigation_teleport_modal(bContext *C,
                                                         wmOperator *op,
                                                         const wmEvent *event)
@@ -1694,6 +1711,7 @@ static void WM_OT_xr_navigation_teleport(wmOperatorType *ot)
   /* Callbacks. */
   ot->invoke = wm_xr_navigation_teleport_invoke;
   ot->exec = wm_xr_navigation_teleport_exec;
+  ot->cancel = wm_xr_navigation_teleport_cancel;
   ot->modal = wm_xr_navigation_teleport_modal;
   ot->poll = wm_xr_operator_sessionactive;
 
