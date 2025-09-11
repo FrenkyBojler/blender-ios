@@ -77,9 +77,6 @@ struct wmXrSessionState {
 
   /** The current state and parameters of the vignette that appears while moving. */
   struct wmXrVignetteData *vignette_data;
-
-  /** Cleanup functions for operator data. Called when session is destroyed. */
-  ListBase operator_cleanup_fns;
 };
 
 struct wmXrRuntimeData {
