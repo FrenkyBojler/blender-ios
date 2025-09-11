@@ -2829,31 +2829,27 @@ class USERPREF_PT_studiolight_light_editor(StudioLightPanel, Panel):
 
 # -----------------------------------------------------------------------------
 # Experimental Panels
-class ExtraOptionsPanel:
-    url_prefix = "https://projects.blender.org/"
+def _draw_experimental_items(layout, preferences, items, url_prefix="https://projects.blender.org"):
+    experimental = preferences.experimental
 
-    @staticmethod
-    def draw_items(layout, preferences, items):
-        experimental = preferences.experimental
+    layout.use_property_split = False
+    layout.use_property_decorate = False
 
-        layout.use_property_split = False
-        layout.use_property_decorate = False
+    for prop_keywords, reference in items:
+        split = layout.split(factor=0.66)
+        col = split.split()
+        col.prop(experimental, **prop_keywords)
 
-        for prop_keywords, reference in items:
-            split = layout.split(factor=0.66)
+        if reference:
+            if type(reference) is tuple:
+                url_ext = reference[0]
+                text = reference[1]
+            else:
+                url_ext = reference
+                text = reference
+
             col = split.split()
-            col.prop(experimental, **prop_keywords)
-
-            if reference:
-                if type(reference) is tuple:
-                    url_ext = reference[0]
-                    text = reference[1]
-                else:
-                    url_ext = reference
-                    text = reference
-
-                col = split.split()
-                col.operator("wm.url_open", text=text, icon='URL').url = ExtraOptionsPanel.url_prefix + url_ext
+            col.operator("wm.url_open", text=text, icon='URL').url = url_prefix + url_ext
 
 
 class USERPREF_PT_developer_tools(Panel):
@@ -2867,7 +2863,7 @@ class USERPREF_PT_developer_tools(Panel):
         return context.preferences.view.show_developer_ui
 
     def draw(self, context):
-        ExtraOptionsPanel.draw_items(
+        _draw_experimental_items(
             self.layout,
             context.preferences,
             (
@@ -2890,8 +2886,6 @@ class ExperimentalPanel:
     bl_region_type = 'WINDOW'
     bl_context = "experimental"
 
-    url_prefix = "https://projects.blender.org/"
-
     @classmethod
     def poll(cls, _context):
         return bpy.app.version_cycle == "alpha"
@@ -2905,7 +2899,7 @@ class USERPREF_PT_experimental_virtual_reality(ExperimentalPanel, Panel):
     bl_label = "Virtual Reality"
 
     def draw(self, context):
-        ExtraOptionsPanel.draw_items(
+        _draw_experimental_items(
             self.layout,
             context.preferences,
             (
@@ -2920,7 +2914,7 @@ class USERPREF_PT_experimental_new_features(ExperimentalPanel, Panel):
     bl_label = "New Features"
 
     def draw(self, context):
-        ExtraOptionsPanel.draw_items(
+        _draw_experimental_items(
             self.layout,
             context.preferences,
             (
@@ -2937,7 +2931,7 @@ class USERPREF_PT_experimental_prototypes(ExperimentalPanel, Panel):
     bl_label = "Prototypes"
 
     def draw(self, context):
-        ExtraOptionsPanel.draw_items(
+        _draw_experimental_items(
             self.layout,
             context.preferences,
             (
@@ -2954,7 +2948,7 @@ class USERPREF_PT_experimental_tweaks(ExperimentalPanel, Panel):
     bl_label = "Tweaks"
 
     def draw(self, context):
-        ExtraOptionsPanel.draw_items(
+        _draw_experimental_items(
             self.layout,
             context.preferences,
             (
