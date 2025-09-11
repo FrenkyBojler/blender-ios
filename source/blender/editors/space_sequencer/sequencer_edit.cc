@@ -359,20 +359,11 @@ static Scene *get_sequencer_scene_for_time_sync(const bContext &C)
   return nullptr;
 }
 
-void sync_active_scene_and_time_with_scene_strip(bContext &C)
+const Strip *get_scene_strip_for_time_sync(const Scene *sequence_scene)
 {
-  using namespace blender;
-  Scene *sequence_scene = get_sequencer_scene_for_time_sync(C);
-  if (!sequence_scene) {
-    return;
-  }
-
-  wmWindow *win = CTX_wm_window(&C);
-  Scene *active_scene = WM_window_get_active_scene(win);
-
-  Editing *ed = seq::editing_get(sequence_scene);
+  const Editing *ed = seq::editing_get(sequence_scene);
   if (!ed) {
-    return;
+    return nullptr;
   }
   ListBase *seqbase = seq::active_seqbase_get(ed);
   const ListBase *channels = seq::channels_displayed_get(ed);
@@ -389,20 +380,32 @@ void sync_active_scene_and_time_with_scene_strip(bContext &C)
     return a->channel > b->channel;
   });
   /* Get the top-most scene strip. */
-  const Strip *scene_strip = [&]() -> const Strip * {
-    for (const Strip *strip : strips) {
-      if (strip->type == STRIP_TYPE_SCENE) {
-        return strip;
-      }
+  for (const Strip *strip : strips) {
+    if (strip->type == STRIP_TYPE_SCENE) {
+      return strip;
     }
-    return nullptr;
-  }();
+  }
+  return nullptr;
+}
+
+void sync_active_scene_and_time_with_scene_strip(bContext &C)
+{
+  using namespace blender;
+  Scene *sequence_scene = get_sequencer_scene_for_time_sync(C);
+  if (!sequence_scene) {
+    return;
+  }
+
+  wmWindow *win = CTX_wm_window(&C);
+  const Strip *scene_strip = get_scene_strip_for_time_sync(sequence_scene);
   if (!scene_strip || !scene_strip->scene) {
     /* No scene strip with scene found. Switch to pinned scene. */
     Main *bmain = CTX_data_main(&C);
     WM_window_set_active_scene(bmain, &C, win, sequence_scene);
     return;
   }
+
+  Scene *active_scene = WM_window_get_active_scene(win);
   if (active_scene != scene_strip->scene) {
     /* Sync active scene in window. */
     Main *bmain = CTX_data_main(&C);

@@ -302,6 +302,7 @@ enum ThemeColorID {
   TH_ANIM_ACTIVE,        /* active action */
   TH_ANIM_INACTIVE,      /* no active action */
   TH_ANIM_PREVIEW_RANGE, /* preview range overlay */
+  TH_ANIM_SCENE_STRIP_RANGE,  /* scene strip range overlay */
 
   TH_ICON_SCENE,
   TH_ICON_COLLECTION,

@@ -328,6 +328,8 @@ static void graph_main_region_draw(const bContext *C, ARegion *region)
     ANIM_draw_previewrange(scene, v2d, 0);
   }
 
+  ANIM_draw_scene_strip_range(C, v2d, 0);
+
   /* callback */
   UI_view2d_view_ortho(v2d);
   ED_region_draw_cb_draw(C, region, REGION_DRAW_POST_VIEW);
