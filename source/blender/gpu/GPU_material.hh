@@ -15,6 +15,7 @@
 #include "DNA_listBase.h"
 
 #include "BLI_span.hh"
+
 #include "GPU_shader.hh"  /* for GPUShaderCreateInfo */
 #include "GPU_texture.hh" /* for GPUSamplerState */
 

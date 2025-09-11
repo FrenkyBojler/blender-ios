@@ -19,7 +19,6 @@
 #include "BLI_array.hh"
 #include "BLI_linklist.h"
 #include "BLI_listbase.h"
-#include "BLI_map.hh"
 #include "BLI_math_vector.h"
 #include "BLI_set.hh"
 #include "BLI_threads.h"
@@ -299,7 +298,6 @@ static void ntree_shader_unlink_script_nodes(bNodeTree *ntree)
     }
   }
 }
-
 struct branchIterData {
   bool (*node_filter)(const bNode *node);
   int node_count;

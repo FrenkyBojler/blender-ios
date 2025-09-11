@@ -114,6 +114,24 @@ static void node_init(bNodeTree * /*tree*/, bNode *node)
   node->storage = data;
 }
 
+static int node_shader_fn(GPUMaterial *mat,
+                          bNode *node,
+                          bNodeExecData * /*execdata*/,
+                          GPUNodeStack *in,
+                          GPUNodeStack *out)
+{
+  const NodeGeometryRepeatInput &storage = node_storage(*node);
+  const bNodeSocket &iterations_socket = node->input_socket(0);
+
+  const int iterations = iterations_socket.default_value_typed<bNodeSocketValueInt>()->value;
+  static float iterations_float;
+  iterations_float = iterations;
+
+  Vector<GPUZoneConstant, 1> constants = {{GPU_constant(&iterations_float), GPU_FLOAT}};
+  return GPU_stack_link_zone(
+      mat, node, "REPEAT_BEGIN", in, out, storage.output_node_id, false, 1, 1, constants);
+}
+
 static void node_label(const bNodeTree * /*ntree*/,
                        const bNode * /*node*/,
                        char *label,
@@ -144,6 +162,7 @@ static void node_register()
   ntype.labelfunc = node_label;
   ntype.gather_link_search_ops = nullptr;
   ntype.insert_link = node_insert_link;
+  ntype.gpu_fn = node_shader_fn;
   ntype.no_muting = true;
   ntype.draw_buttons_ex = node_layout_ex;
   blender::bke::node_type_storage(

@@ -256,7 +256,6 @@ set(INC
   ../../nodes/composite/include
   ../../nodes/function/include
   ../../nodes/geometry/include
-  ../../nodes/shader/include
   ../../sequencer
   ../../simulation
   ../../windowmanager
