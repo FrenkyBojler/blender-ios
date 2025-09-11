@@ -49,9 +49,8 @@ void CUDADevice::set_error(const string &error)
   Device::set_error(error);
 
   if (first_error) {
-    fprintf(stderr, "\nRefer to the Cycles GPU rendering documentation for possible solutions:\n");
-    fprintf(stderr,
-            "https://docs.blender.org/manual/en/latest/render/cycles/gpu_rendering.html\n\n");
+    LOG_ERROR << "Refer to the Cycles GPU rendering documentation for possible solutions:\n"
+                 "https://docs.blender.org/manual/en/latest/render/cycles/gpu_rendering.html\n";
     first_error = false;
   }
 }
@@ -147,10 +146,10 @@ bool CUDADevice::support_device(const uint /*kernel_features*/)
   cuDeviceGetAttribute(&major, CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MAJOR, cuDevId);
   cuDeviceGetAttribute(&minor, CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MINOR, cuDevId);
 
-  /* We only support sm_30 and above */
-  if (major < 3) {
+  /* We only support sm_50 and above */
+  if (major < 5) {
     set_error(string_printf(
-        "CUDA backend requires compute capability 3.0 or up, but found %d.%d.", major, minor));
+        "CUDA backend requires compute capability 5.0 or up, but found %d.%d.", major, minor));
     return false;
   }
 
@@ -269,7 +268,7 @@ string CUDADevice::compile_kernel(const string &common_cflags,
 
     /* The driver can JIT-compile PTX generated for older generations, so find the closest one. */
     int ptx_major = major, ptx_minor = minor;
-    while (ptx_major >= 3) {
+    while (ptx_major >= 5) {
       const string ptx = path_get(
           string_printf("lib/%s_compute_%d%d.ptx.zst", name, ptx_major, ptx_minor));
       LOG_INFO << "Testing for pre-compiled kernel " << ptx << ".";
@@ -310,9 +309,9 @@ string CUDADevice::compile_kernel(const string &common_cflags,
 
 #  ifdef _WIN32
   if (!use_adaptive_compilation() && have_precompiled_kernels()) {
-    if (major < 3) {
+    if (major < 5) {
       set_error(
-          string_printf("CUDA backend requires compute capability 3.0 or up, but found %d.%d. "
+          string_printf("CUDA backend requires compute capability 5.0 or up, but found %d.%d. "
                         "Your GPU is not supported.",
                         major,
                         minor));

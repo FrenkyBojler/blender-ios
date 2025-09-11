@@ -154,7 +154,7 @@ struct Profile {
   float *prof_co;
   /** Like prof_co, but for seg power of 2 >= seg. */
   float *prof_co_2;
-  /** Mark a special case so the these parameters aren't reset with others. */
+  /** Mark a special case so these parameters aren't reset with others. */
   bool special_params;
 };
 #define PRO_SQUARE_R 1e4f
@@ -334,7 +334,7 @@ enum AngleKind {
 /** Container for loops representing UV verts which should be merged together in a UV map. */
 using UVVertBucket = Set<BMLoop *>;
 
-/** Mapping of vertex to UV vert buckets (i.e. loops belonging to that key `BMVert`). */
+/** Mapping of vertex to UV vert buckets (i.e. loops belonging to that `BMVert` key). */
 using UVVertMap = Map<BMVert *, Vector<UVVertBucket>>;
 
 /** Bevel parameters and state. */
@@ -814,24 +814,19 @@ static void bevel_merge_uvs(BevelParams *bp, BMesh *bm)
     int uv_data_offset = CustomData_get_n_offset(&bm->ldata, CD_PROP_FLOAT2, i);
     for (Vector<UVVertBucket> &uv_vert_buckets : bp->uv_vert_maps[i].values()) {
       for (UVVertBucket &uv_vert_bucket : uv_vert_buckets) {
-        /* Using face weights instead of mean average because it produces slightly better results,
-         * although this is purely empirical and subjective. */
-        float weight_sum = 0.0f;
+        int num_uv_verts = uv_vert_bucket.size();
+        if (num_uv_verts <= 1) {
+          continue;
+        }
         float uv[2] = {0.0f, 0.0f};
         for (BMLoop *l : uv_vert_bucket) {
           float *luv = BM_ELEM_CD_GET_FLOAT_P(l, uv_data_offset);
-          float weighted_luv[2] = {0.0f, 0.0f};
-          float face_area = BM_face_calc_area(l->f);
-          mul_v2_v2fl(weighted_luv, luv, face_area);
-          add_v2_v2(uv, weighted_luv);
-          weight_sum += face_area;
+          add_v2_v2(uv, luv);
         }
-        if (uv_vert_bucket.size() > 1 && weight_sum > 0.0f) {
-          mul_v2_fl(uv, 1.0f / weight_sum);
-          for (BMLoop *l : uv_vert_bucket) {
-            float *luv = BM_ELEM_CD_GET_FLOAT_P(l, uv_data_offset);
-            copy_v2_v2(luv, uv);
-          }
+        mul_v2_fl(uv, 1.0f / (float)num_uv_verts);
+        for (BMLoop *l : uv_vert_bucket) {
+          float *luv = BM_ELEM_CD_GET_FLOAT_P(l, uv_data_offset);
+          copy_v2_v2(luv, uv);
         }
       }
     }
@@ -2673,6 +2668,12 @@ static void bevel_harden_normals(BevelParams *bp, BMesh *bm)
 
   if (cd_clnors_offset == -1) {
     cd_clnors_offset = CustomData_get_offset_named(&bm->ldata, CD_PROP_INT16_2D, "custom_normal");
+  }
+
+  /* If the custom normals attribute still hasn't been added with the correct type, at least don't
+   * crash. */
+  if (cd_clnors_offset == -1) {
+    return;
   }
 
   BMIter fiter;
@@ -7970,8 +7971,8 @@ void BM_mesh_bevel(BMesh *bm,
       bv = bevel_vert_construct(bm, &bp, v);
       if (!limit_offset && bv) {
         build_boundary(&bp, bv, true);
+        determine_uv_vert_connectivity(&bp, bm, v);
       }
-      determine_uv_vert_connectivity(&bp, bm, v);
     }
   }
 
@@ -7985,6 +7986,7 @@ void BM_mesh_bevel(BMesh *bm,
         bv = find_bevvert(&bp, v);
         if (bv) {
           build_boundary(&bp, bv, true);
+          determine_uv_vert_connectivity(&bp, bm, v);
         }
       }
     }

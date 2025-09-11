@@ -270,6 +270,19 @@ class USERPREF_PT_interface_translation(InterfacePanel, CenterAlignMixIn, Panel)
         col.prop(view, "use_translate_new_dataname", text="New Data")
 
 
+class USERPREF_PT_interface_accessibility(InterfacePanel, CenterAlignMixIn, Panel):
+    bl_label = "Accessibility"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    def draw_centered(self, context, layout):
+        prefs = context.preferences
+        view = prefs.view
+
+        flow = layout.grid_flow(row_major=False, columns=0, even_columns=True, even_rows=False, align=False)
+
+        flow.prop(view, "use_reduce_motion")
+
+
 class USERPREF_PT_interface_editors(InterfacePanel, CenterAlignMixIn, Panel):
     bl_label = "Editors"
 
@@ -280,7 +293,13 @@ class USERPREF_PT_interface_editors(InterfacePanel, CenterAlignMixIn, Panel):
 
         col = layout.column()
         col.prop(system, "use_region_overlap")
+
+        col = layout.column(heading="Show", align=True)
+        col.prop(view, "show_area_handle")
+        col.prop(view, "show_number_arrows", text="Numeric Input Arrows")
         col.prop(view, "show_navigate_ui")
+
+        col = layout.column()
         col.prop(view, "border_width")
         col.prop(view, "color_picker_type")
         col.row().prop(view, "header_align")
@@ -299,6 +318,7 @@ class USERPREF_PT_interface_temporary_windows(InterfacePanel, CenterAlignMixIn, 
         col = layout.column()
         col.prop(view, "render_display_type", text="Render In")
         col.prop(view, "filebrowser_display_type", text="File Browser")
+        col.prop(view, "preferences_display_type", text="Preferences")
 
 
 class USERPREF_PT_interface_statusbar(InterfacePanel, CenterAlignMixIn, Panel):
@@ -543,7 +563,6 @@ class USERPREF_PT_edit_sequence_editor(EditingPanel, CenterAlignMixIn, Panel):
         prefs = context.preferences
         edit = prefs.edit
 
-        layout.prop(edit, "use_sequencer_simplified_tweaking")
         layout.prop(edit, "connect_strips_by_default")
 
 
@@ -948,6 +967,9 @@ class USERPREF_MT_interface_theme_presets(Menu):
         "ThemeBoneColorSet",
         "ThemeClipEditor",
         "ThemeCollectionColor",
+        "ThemeCommon",
+        "ThemeCommonAnim",
+        "ThemeCommonCurves",
         "ThemeConsole",
         "ThemeDopeSheet",
         "ThemeFileBrowser",
@@ -1115,6 +1137,9 @@ class USERPREF_PT_theme_interface_panel(ThemePanel, CenterAlignMixIn, Panel):
         col.prop(ui, "panel_back", text="Background")
         col.prop(ui, "panel_sub_back", text="Sub-Panel")
 
+        col = col.column()
+        col.prop(ui, "panel_active", text="Active")
+
         col = flow.column(align=True)
         col.prop(ui, "panel_title", text="Title")
         col.prop(ui, "panel_text", text="Text")
@@ -1233,6 +1258,7 @@ class USERPREF_PT_theme_interface_gizmos(ThemePanel, CenterAlignMixIn, Panel):
         col.prop(ui, "axis_x", text="Axis X")
         col.prop(ui, "axis_y", text="Y")
         col.prop(ui, "axis_z", text="Z")
+        col.prop(ui, "axis_w", text="W")
 
         col = flow.column()
         col.prop(ui, "gizmo_primary")
@@ -2089,27 +2115,31 @@ class USERPREF_PT_ndof_settings(Panel):
     @staticmethod
     def draw_settings(layout, props, show_3dview_settings=True):
 
-        layout.separator()
+        # Include this setting as it impacts 2D views as well (inverting translation).
+        col = layout.column()
+        col.row().prop(props, "ndof_navigation_mode", text="Navigation Mode")
 
         if show_3dview_settings:
-            col = layout.column()
-            col.row().prop(props, "ndof_navigation_mode", text="Navigation Mode")
             col.prop(props, "ndof_lock_horizon", text="Lock Horizon")
 
             layout.separator()
 
         if show_3dview_settings:
             col = layout.column(heading="Orbit Center")
+            col.active = props.ndof_navigation_mode == 'OBJECT'
             col.prop(props, "ndof_orbit_center_auto")
             colsub = col.column()
+            colsub.active = props.ndof_orbit_center_auto
             colsub.prop(props, "ndof_orbit_center_selected")
-            colsub.enabled = props.ndof_orbit_center_auto
             del colsub
             col.separator()
 
             col = layout.column(heading="Show")
             col.prop(props, "ndof_show_guide_orbit_axis", text="Orbit Axis")
-            col.prop(props, "ndof_show_guide_orbit_center", text="Orbit Center")
+            colsub = col.column()
+            colsub.active = props.ndof_navigation_mode == 'OBJECT'
+            colsub.prop(props, "ndof_show_guide_orbit_center", text="Orbit Center")
+            del colsub
 
         layout.separator()
 
@@ -2463,7 +2493,7 @@ class USERPREF_PT_addons(AddOnPanel, Panel):
         prefs = context.preferences
 
         if self.is_extended():
-            # Rely on the draw function being appended to by the extensions add-on.
+            # Rely on the draw function being extended by the extensions add-on (`bl_pkg`).
             return
 
         layout = self.layout
@@ -2863,8 +2893,7 @@ class USERPREF_PT_experimental_new_features(ExperimentalPanel, Panel):
                  ("blender/blender/projects/10", "Pipeline, Assets & IO Project Page")),
                 ({"property": "use_new_volume_nodes"}, ("blender/blender/issues/103248", "#103248")),
                 ({"property": "use_shader_node_previews"}, ("blender/blender/issues/110353", "#110353")),
-                ({"property": "use_bundle_and_closure_nodes"}, ("blender/blender/issues/134029", "#134029")),
-                ({"property": "use_socket_structure_type"}, ("blender/blender/issues/127106", "#127106")),
+                ({"property": "use_geometry_nodes_lists"}, ("blender/blender/issues/140918", "#140918")),
             ),
         )
 
@@ -2943,6 +2972,7 @@ classes = (
     USERPREF_PT_interface_temporary_windows,
     USERPREF_PT_interface_statusbar,
     USERPREF_PT_interface_translation,
+    USERPREF_PT_interface_accessibility,
     USERPREF_PT_interface_text,
     USERPREF_PT_interface_menus,
     USERPREF_PT_interface_menus_mouse_over,

@@ -86,6 +86,7 @@ static void library_copy_data(Main *bmain,
   }
   library_dst->runtime = MEM_new<LibraryRuntime>(__func__, *library_src->runtime);
   library_dst->runtime->filedata = nullptr;
+  library_dst->runtime->is_filedata_owner = false;
   library_dst->runtime->name_map = nullptr;
 }
 
@@ -157,6 +158,7 @@ IDTypeInfo IDType_ID_LI = {
     /*foreach_id*/ library_foreach_id,
     /*foreach_cache*/ nullptr,
     /*foreach_path*/ library_foreach_path,
+    /*foreach_working_space_color*/ nullptr,
     /*owner_pointer_get*/ nullptr,
 
     /*blend_write*/ library_blend_write_data,
