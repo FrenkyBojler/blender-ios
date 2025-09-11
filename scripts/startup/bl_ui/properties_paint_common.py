@@ -27,7 +27,8 @@ class BrushAssetShelf:
 
     @classmethod
     def poll(cls, context):
-        return (ob := getattr(context, "object", None)) is not None and ob.mode == cls.mode
+        return (ob := getattr(context, "object", None)
+                ) is not None and ob.mode == cls.mode and context.space_data.type == cls.bl_space_type
 
     @classmethod
     def has_tool_with_brush_type(cls, context, brush_type):
