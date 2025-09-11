@@ -460,7 +460,7 @@ static uiBlock *viewfinder_settings_label_ui_block(const bContext *C,
 
 static uiBlock *viewfinder_mode_tabs_ui_block(const bContext *C,
                                               ARegion *region,
-                                              const XrSessionSettings * /*settings*/)
+                                              const XrSessionSettings *settings)
 {
   uiBlock *block = UI_block_begin(C, region, __func__, blender::ui::EmbossType::Emboss);
   UI_block_flag_enable(block, UI_BLOCK_LOOP | UI_BLOCK_KEEP_OPEN | UI_BLOCK_NO_WIN_CLIP);
@@ -470,7 +470,9 @@ static uiBlock *viewfinder_mode_tabs_ui_block(const bContext *C,
 
   uiBut *but = uiDefBut(
       block, ButType::Tab, 0, "Live Camera View", 0, 0, tab_width, UI_UNIT_Y, nullptr, 0, 0, "");
-  UI_but_func_pushed_state_set(but, [](const uiBut &) -> bool { return true; });
+  UI_but_func_pushed_state_set(but, [&settings](const uiBut &) -> bool {
+    return settings->viewfinder_active_mode == XR_VIEWFINDER_MODE_LIVE;
+  });
 
   but = uiDefBut(block,
                  ButType::Tab,
@@ -484,7 +486,9 @@ static uiBlock *viewfinder_mode_tabs_ui_block(const bContext *C,
                  0,
                  0,
                  "");
-  UI_but_func_pushed_state_set(but, [](const uiBut &) -> bool { return false; });
+  UI_but_func_pushed_state_set(but, [&settings](const uiBut &) -> bool {
+    return settings->viewfinder_active_mode == XR_VIEWFINDER_MODE_PLAYBACK;
+  });
 
   UI_block_end(C, block);
 
