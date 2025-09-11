@@ -789,8 +789,8 @@ static float paint_space_stroke_spacing_variable(bContext *C,
                                                  const float pressure_delta,
                                                  const float length)
 {
-  const float max_size_factor = BKE_curvemapping_evaluateF(stroke->brush->curve_size, 0, 1.0f);
   if (BKE_brush_use_size_pressure(stroke->brush)) {
+    const float max_size_factor = BKE_curvemapping_evaluateF(stroke->brush->curve_size, 0, 1.0f);
     /* use pressure to modify size. set spacing so that at 100%, the circles
      * are aligned nicely with no overlap. for this the spacing needs to be
      * the average of the previous and next size. */
@@ -811,7 +811,7 @@ static float paint_space_stroke_spacing_variable(bContext *C,
   }
 
   /* no size pressure */
-  return paint_space_stroke_spacing(C, stroke, max_size_factor, pressure);
+  return paint_space_stroke_spacing(C, stroke, 1.0f, pressure);
 }
 
 /* For brushes with stroke spacing enabled, moves mouse in steps
