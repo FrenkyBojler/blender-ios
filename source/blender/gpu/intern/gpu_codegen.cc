@@ -467,6 +467,7 @@ std::string GPUCodegen::graph_serialize(eGPUNodeTag tree_tag,
   }
 
   std::string str = eval_ss.str();
+  // printf("%s\n", str.c_str());
   BLI_hash_mm2a_add(&hm2a_, reinterpret_cast<const uchar *>(str.c_str()), str.size());
   return str;
 }

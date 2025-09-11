@@ -789,7 +789,8 @@ static void ntree_shader_shader_to_rgba_branches(bNodeTree *ntree)
   }
 }
 
-static void iter_shader_to_rgba_depth_count(bNode *node,
+static void iter_shader_to_rgba_depth_count(bNodeTree &tree,
+                                            bNode *node,
                                             int16_t &max_depth,
                                             int16_t depth_level = 0)
 {
@@ -813,7 +814,19 @@ static void iter_shader_to_rgba_depth_count(bNode *node,
       /* Skip links marked as cyclic. */
       continue;
     }
-    iter_shader_to_rgba_depth_count(link->fromnode, max_depth, depth_level);
+    iter_shader_to_rgba_depth_count(tree, link->fromnode, max_depth, depth_level);
+  }
+
+  /* Zone input nodes are linked to their corresponding zone output nodes, even if there is no
+   * bNodeLink between them. */
+  if (const blender::bke::bNodeZoneType *zone_type = blender::bke::zone_type_by_node_type(
+          node->type_legacy))
+  {
+    if (zone_type->output_type == node->type_legacy) {
+      if (bNode *zone_input_node = zone_type->get_corresponding_input(tree, *node)) {
+        iter_shader_to_rgba_depth_count(tree, zone_input_node, max_depth, depth_level);
+      }
+    }
   }
 }
 
@@ -977,11 +990,11 @@ void ntreeGPUMaterialNodes(bNodeTree *localtree, GPUMaterial *mat)
     node->runtime->tmp_flag = -1;
   }
   if (output != nullptr) {
-    iter_shader_to_rgba_depth_count(output, max_depth);
+    iter_shader_to_rgba_depth_count(*localtree, output, max_depth);
   }
   LISTBASE_FOREACH (bNode *, node, &localtree->nodes) {
     if (node->type_legacy == SH_NODE_OUTPUT_AOV) {
-      iter_shader_to_rgba_depth_count(node, max_depth);
+      iter_shader_to_rgba_depth_count(*localtree, node, max_depth);
     }
   }
   for (int depth = max_depth; depth >= 0; depth--) {

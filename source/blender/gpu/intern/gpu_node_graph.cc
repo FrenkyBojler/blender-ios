@@ -913,6 +913,14 @@ bool GPU_stack_link_repeat_zone_output(GPUMaterial &material,
   node->repeat_zone_id = repeat_output_node.identifier;
   node->is_repeat_zone_output = true;
 
+  // TODO: Remove quadratic complexity.
+  LISTBASE_FOREACH (GPUNode *, other_node, &graph->nodes) {
+    if (other_node->repeat_zone_id == node->repeat_zone_id) {
+      node->zone_input_node = other_node;
+      break;
+    }
+  }
+
   for (i = 0; !in[i].end; i++) {
     if (in[i].type != GPU_NONE) {
       gpu_node_input_socket(&material, &repeat_output_node, node, &in[i], i);
@@ -1012,6 +1020,22 @@ void gpu_node_graph_free(GPUNodeGraph *graph)
 
 /* Prune Unused Nodes */
 
+static void tag_node_and_inputs(GPUNode &node, eGPUNodeTag tag)
+{
+  if (node.tag & tag) {
+    return;
+  }
+  node.tag |= tag;
+  LISTBASE_FOREACH (GPUInput *, input, &node.inputs) {
+    if (input->link) {
+      gpu_nodes_tag(input->link, tag);
+    }
+  }
+  if (node.zone_input_node) {
+    tag_node_and_inputs(*node.zone_input_node, tag);
+  }
+}
+
 void gpu_nodes_tag(GPUNodeLink *link, eGPUNodeTag tag)
 {
   GPUNode *node;
@@ -1019,18 +1043,8 @@ void gpu_nodes_tag(GPUNodeLink *link, eGPUNodeTag tag)
   if (!link || !link->output) {
     return;
   }
-
   node = link->output->node;
-  if (node->tag & tag) {
-    return;
-  }
-
-  node->tag |= tag;
-  LISTBASE_FOREACH (GPUInput *, input, &node->inputs) {
-    if (input->link) {
-      gpu_nodes_tag(input->link, tag);
-    }
-  }
+  tag_node_and_inputs(*node, tag);
 }
 
 void gpu_node_graph_prune_unused(GPUNodeGraph *graph)

@@ -362,6 +362,13 @@ class ShaderNodesInliner {
     const bke::bNodeTreeZone *from_zone = zones->get_zone_by_socket(*link.fromsock);
     const ComputeContext *context = to_socket.context;
     for (const bke::bNodeTreeZone *zone = to_zone; zone != from_zone; zone = zone->parent_zone) {
+      const bNode &zone_output_node = *zone->output_node();
+      if (zone_output_node.is_type("GeometryNodeRepeatOutput")) {
+        if (this->should_preserve_repeat_zone_node(zone_output_node)) {
+          /* Preserved repeat zones are embedded into their outer compute context. */
+          continue;
+        }
+      }
       context = parent_zone_contexts_.lookup(context);
     }
     return context;
@@ -387,16 +394,20 @@ class ShaderNodesInliner {
       return;
     }
     if (node->is_type("GeometryNodeRepeatOutput")) {
-      if (!this->should_preserve_repeat_zone_node(*node)) {
-        this->handle_output_socket__repeat_output(socket);
+      if (this->should_preserve_repeat_zone_node(*node)) {
+        this->handle_output_socket__preserved_repeat_output(socket);
         return;
       }
+      this->handle_output_socket__repeat_output(socket);
+      return;
     }
     if (node->is_type("GeometryNodeRepeatInput")) {
-      if (!this->should_preserve_repeat_zone_node(*node)) {
-        this->handle_output_socket__repeat_input(socket);
+      if (this->should_preserve_repeat_zone_node(*node)) {
+        this->handle_output_socket__preserved_repeat_input(socket);
         return;
       }
+      this->handle_output_socket__repeat_input(socket);
+      return;
     }
     if (node->is_type("NodeClosureOutput")) {
       this->handle_output_socket__closure_output(socket);
@@ -509,8 +520,9 @@ class ShaderNodesInliner {
     if (!zone) {
       return false;
     }
+    const bNode *repeat_zone_input_node = zone->input_node();
     const bNode *repeat_zone_output_node = zone->output_node();
-    if (!repeat_zone_output_node) {
+    if (!repeat_zone_input_node || !repeat_zone_output_node) {
       return false;
     }
     const auto &storage = *static_cast<const NodeGeometryRepeatOutput *>(
@@ -571,6 +583,45 @@ class ShaderNodesInliner {
     const SocketInContext origin_socket = {&last_iteration_context,
                                            &repeat_output_node.input_socket(socket->index())};
     this->forward_value_or_schedule(socket, origin_socket);
+  }
+
+  void handle_output_socket__preserved_repeat_output(const SocketInContext &socket)
+  {
+    const bNodeTree &tree = socket->owner_tree();
+    const NodeInContext repeat_output_node = socket.owner_node();
+    const bke::bNodeTreeZones &zones = *tree.zones();
+    const bke::bNodeTreeZone &zone = *zones.get_zone_by_node(repeat_output_node->identifier);
+    const bNode &repeat_input_node = *zone.input_node();
+
+    const EnsureInputsResult ensured_inputs = this->ensure_node_inputs(socket.owner_node());
+    if (ensured_inputs.has_missing_inputs) {
+      /* The node can only be evaluated if all inputs values are known. */
+      return;
+    }
+    const NodeInContext node = socket.owner_node();
+    bNode &copied_node = this->handle_output_socket__eval_copy_node(node);
+    PreservedZone &preserved_zone = copied_zone_by_zone_output_node_.lookup_or_add_default(
+        repeat_output_node);
+    preserved_zone.output_node = &copied_node;
+    /* Ensure that the repeat input node is created as well. */
+    this->schedule_socket({node.context, &repeat_input_node.output_socket(0)});
+  }
+
+  void handle_output_socket__preserved_repeat_input(const SocketInContext &socket)
+  {
+    const EnsureInputsResult ensured_inputs = this->ensure_node_inputs(socket.owner_node());
+    if (ensured_inputs.has_missing_inputs) {
+      /* The node can only be evaluated if all inputs values are known. */
+      return;
+    }
+    const bNodeTree &tree = socket->owner_tree();
+    const NodeInContext node = socket.owner_node();
+    bNode &copied_node = this->handle_output_socket__eval_copy_node(node);
+    const auto &storage = *static_cast<const NodeGeometryRepeatInput *>(node->storage);
+    const NodeInContext repeat_output_node{node.context, tree.node_by_id(storage.output_node_id)};
+    PreservedZone &preserved_zone = copied_zone_by_zone_output_node_.lookup_or_add_default(
+        repeat_output_node);
+    preserved_zone.input_node = &copied_node;
   }
 
   void add_dynamic_repeat_zone_iterations_error(const bNode &repeat_input_node)
@@ -797,35 +848,47 @@ class ShaderNodesInliner {
   void handle_output_socket__eval(const SocketInContext &socket)
   {
     const NodeInContext node = socket.owner_node();
-    bool has_missing_inputs = false;
-    bool all_inputs_primitive = true;
-    for (const bNodeSocket *input_socket : node->input_sockets()) {
-      if (!input_socket->is_available()) {
-        continue;
-      }
-      const SocketInContext input_socket_ctx = {socket.context, input_socket};
-      const SocketValue *value = value_by_socket_.lookup_ptr(input_socket_ctx);
-      if (!value) {
-        this->schedule_socket(input_socket_ctx);
-        has_missing_inputs = true;
-        continue;
-      }
-      if (!value->to_primitive(*input_socket->typeinfo)) {
-        all_inputs_primitive = false;
-      }
-    }
-    if (has_missing_inputs) {
+    const EnsureInputsResult ensured_inputs = this->ensure_node_inputs(node);
+    if (ensured_inputs.has_missing_inputs) {
       /* The node can only be evaluated if all inputs values are known. */
       return;
     }
     const bke::bNodeType &node_type = *node->typeinfo;
-    if (node_type.build_multi_function && all_inputs_primitive) {
+    if (node_type.build_multi_function && ensured_inputs.all_inputs_primitive) {
       /* Do constant folding. */
       this->handle_output_socket__eval_multi_function(node);
       return;
     }
     /* The node can't be constant-folded. So copy it to the destination tree instead. */
     this->handle_output_socket__eval_copy_node(node);
+  }
+
+  struct EnsureInputsResult {
+    bool has_missing_inputs = false;
+    bool all_inputs_primitive = false;
+  };
+
+  EnsureInputsResult ensure_node_inputs(const NodeInContext &node)
+  {
+    EnsureInputsResult result;
+    result.has_missing_inputs = false;
+    result.all_inputs_primitive = true;
+    for (const bNodeSocket *input_socket : node->input_sockets()) {
+      if (!input_socket->is_available()) {
+        continue;
+      }
+      const SocketInContext input_socket_ctx = {node.context, input_socket};
+      const SocketValue *value = value_by_socket_.lookup_ptr(input_socket_ctx);
+      if (!value) {
+        this->schedule_socket(input_socket_ctx);
+        result.has_missing_inputs = true;
+        continue;
+      }
+      if (!value->to_primitive(*input_socket->typeinfo)) {
+        result.all_inputs_primitive = false;
+      }
+    }
+    return result;
   }
 
   void handle_output_socket__eval_multi_function(const NodeInContext &node)
@@ -876,7 +939,7 @@ class ShaderNodesInliner {
     }
   }
 
-  void handle_output_socket__eval_copy_node(const NodeInContext &node)
+  bNode &handle_output_socket__eval_copy_node(const NodeInContext &node)
   {
     Map<const bNodeSocket *, bNodeSocket *> socket_map;
     /* We generate our own identifier and name here to get unique values without having to scan all
@@ -914,32 +977,7 @@ class ShaderNodesInliner {
       this->store_socket_value(output_socket_ctx,
                                {LinkedSocketValue{&copied_node, &dst_output_socket}});
     }
-    this->remember_copied_zone_node_if_necessary(node, copied_node);
-  }
-
-  void remember_copied_zone_node_if_necessary(const NodeInContext &node, bNode &copied_node)
-  {
-    const bNodeTree &tree = node->owner_tree();
-    const bke::bNodeTreeZones *zones = tree.zones();
-    if (!zones) {
-      return;
-    }
-    const bke::bNodeTreeZone *zone = zones->get_zone_by_node(node->identifier);
-    if (!zone) {
-      return;
-    }
-    if (!ELEM(node->identifier, zone->input_node_id, zone->output_node_id)) {
-      return;
-    }
-    const NodeInContext zone_output_node = {node.context, zone->output_node()};
-    PreservedZone &copied_zone = copied_zone_by_zone_output_node_.lookup_or_add_default(
-        zone_output_node);
-    if (node == zone_output_node) {
-      copied_zone.output_node = &copied_node;
-    }
-    else {
-      copied_zone.input_node = &copied_node;
-    }
+    return copied_node;
   }
 
   /** Converts the given socket value if necessary. */

@@ -77,6 +77,7 @@ struct GPUNode {
   /* Zones. */
   int repeat_zone_id;
   bool is_repeat_zone_output;
+  GPUNode *zone_input_node;
 };
 
 struct GPUNodeLink {
