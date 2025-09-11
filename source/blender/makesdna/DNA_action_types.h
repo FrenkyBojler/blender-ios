@@ -456,7 +456,7 @@ typedef enum ePchan_Flag {
   POSE_BBONE_SHAPE = (1 << 3),
   /* When set and bPoseChan.custom_tx is not a nullptr, the gizmo will be drawn at the location and
      orientation of the custom_tx instead of this bone. */
-  POSE_GIZMO_AT_CUSTOM_TX = (1 << 4),
+  POSE_TRANSFORM_AT_CUSTOM_TX = (1 << 4),
 
   /* IK/Pose solving */
   POSE_CHAIN = (1 << 9),

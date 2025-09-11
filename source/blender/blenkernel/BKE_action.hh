@@ -310,7 +310,7 @@ void BKE_pose_itasc_init(bItasc *itasc);
 bool BKE_pose_channel_in_IK_chain(Object *ob, bPoseChannel *pchan);
 
 /**
- * Get the effective gizmo location, accounting for POSE_GIZMO_AT_CUSTOM_TX.
+ * Get the effective gizmo location, accounting for POSE_TRANSFORM_AT_CUSTOM_TX.
  */
 void BKE_pose_channel_gizmo_location(const bArmature *arm,
                                      const bPoseChannel *pose_bone,
@@ -318,7 +318,7 @@ void BKE_pose_channel_gizmo_location(const bArmature *arm,
 
 /**
  * Get the effective gizmo pose orientation, accounting for
- * POSE_GIZMO_AT_CUSTOM_TX.
+ * POSE_TRANSFORM_AT_CUSTOM_TX.
  */
 void BKE_pose_channel_gizmo_orientation(const bArmature *arm,
                                         const bPoseChannel *pose_bone,

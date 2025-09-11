@@ -1408,7 +1408,7 @@ static bool gizmo_follows_custom_tx(const bArmature *arm, const bPoseChannel *pc
     return false;
   }
 
-  return pchan->flag & POSE_GIZMO_AT_CUSTOM_TX;
+  return pchan->flag & POSE_TRANSFORM_AT_CUSTOM_TX;
 }
 
 void BKE_pose_channel_gizmo_orientation(const bArmature *arm,
