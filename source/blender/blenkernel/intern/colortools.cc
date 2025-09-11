@@ -1051,6 +1051,11 @@ float BKE_curvemap_evaluateF(const CurveMapping *cumap, const CurveMap *cuma, fl
   return (1.0f - fi) * cuma->table[i].y + (fi)*cuma->table[i + 1].y;
 }
 
+float BKE_curvemapping_evaluateF(const CurveMapping *cumap, float value)
+{
+  return BKE_curvemapping_evaluateF(cumap, 0, value);
+}
+
 float BKE_curvemapping_evaluateF(const CurveMapping *cumap, int cur, float value)
 {
   const CurveMap *cuma = cumap->cm + cur;

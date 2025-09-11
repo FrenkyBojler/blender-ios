@@ -82,6 +82,10 @@ void BKE_curvemapping_init(CurveMapping *cumap);
  */
 float BKE_curvemap_evaluateF(const CurveMapping *cumap, const CurveMap *cuma, float value);
 /**
+ * Single curve, with table check, assumes single curve.
+ */
+float BKE_curvemapping_evaluateF(const CurveMapping *cumap, float value);
+/**
  * Single curve, with table check.
  * Works with curve 'cur'.
  */
