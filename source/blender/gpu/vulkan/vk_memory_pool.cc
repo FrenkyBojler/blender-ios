@@ -10,16 +10,16 @@
 
 #include "vk_device.hh"
 
-
 namespace blender::gpu {
 
-void VKMemoryPools::init(VKDevice&device) {
-    init_external_memory_image(device);
-    init_external_memory_pixel_buffer(device);
+void VKMemoryPools::init(VKDevice &device)
+{
+  init_external_memory_image(device);
+  init_external_memory_pixel_buffer(device);
 }
 
-
-void VKMemoryPools::init_external_memory_image(VKDevice&device) {
+void VKMemoryPools::init_external_memory_image(VKDevice &device)
+{
   VkExternalMemoryImageCreateInfo external_image_create_info = {
       VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO,
       nullptr,
@@ -56,24 +56,29 @@ void VKMemoryPools::init_external_memory_image(VKDevice&device) {
   vmaCreatePool(device.mem_allocator_get(), &pool_create_info, &external_memory_image.pool);
 }
 
-void VKMemoryPools::init_external_memory_pixel_buffer(VKDevice&device) {
+void VKMemoryPools::init_external_memory_pixel_buffer(VKDevice &device)
+{
   VkExternalMemoryBufferCreateInfo external_buffer_create_info = {
       VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_BUFFER_CREATE_INFO,
       nullptr,
       vk_external_memory_handle_type()};
   VkBufferCreateInfo buffer_create_info = {VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
-                                         &external_buffer_create_info,
-                                         0,
-                                         1024,
-                                         VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                                         VK_SHARING_MODE_EXCLUSIVE,
-                                         0, nullptr};
+                                           &external_buffer_create_info,
+                                           0,
+                                           1024,
+                                           VK_BUFFER_USAGE_TRANSFER_DST_BIT |
+                                               VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                                           VK_SHARING_MODE_EXCLUSIVE,
+                                           0,
+                                           nullptr};
   VmaAllocationCreateInfo allocation_create_info = {};
   allocation_create_info.flags = VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT;
   allocation_create_info.usage = VMA_MEMORY_USAGE_AUTO;
   uint32_t memory_type_index;
-  vmaFindMemoryTypeIndexForBufferInfo(
-      device.mem_allocator_get(), &buffer_create_info, &allocation_create_info, &memory_type_index);
+  vmaFindMemoryTypeIndexForBufferInfo(device.mem_allocator_get(),
+                                      &buffer_create_info,
+                                      &allocation_create_info,
+                                      &memory_type_index);
 
   external_memory_pixel_buffer.info.handleTypes = vk_external_memory_handle_type();
   VmaPoolCreateInfo pool_create_info = {};
@@ -83,13 +88,15 @@ void VKMemoryPools::init_external_memory_pixel_buffer(VKDevice&device) {
   vmaCreatePool(device.mem_allocator_get(), &pool_create_info, &external_memory_pixel_buffer.pool);
 }
 
-void VKMemoryPools::deinit(VKDevice&device) {
-    external_memory_image.deinit(device);
-    external_memory_pixel_buffer.deinit(device);
+void VKMemoryPools::deinit(VKDevice &device)
+{
+  external_memory_image.deinit(device);
+  external_memory_pixel_buffer.deinit(device);
 }
 
-void VKMemoryPool::deinit(VKDevice&device) {
+void VKMemoryPool::deinit(VKDevice &device)
+{
   vmaDestroyPool(device.mem_allocator_get(), pool);
 }
 
-}
+}  // namespace blender::gpu
