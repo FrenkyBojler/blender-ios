@@ -704,12 +704,12 @@ static void wm_xr_raycast_draw(const bContext * /*C*/, ARegion * /*region*/, voi
     copy_v3_fl3(right, forward[1], -forward[0], 0.0f);
     normalize_v3(right);
 
-    immUniformArray4fv("controlPoints", &data->points[0][0], XR_MAX_RAYCASTS + 1);
+    immUniformArray4fv("control_points", &data->points[0][0], XR_MAX_RAYCASTS + 1);
     immUniform4fv("color", data->color);
-    immUniform3fv("rightVector", right);
+    immUniform3fv("right_vector", right);
     immUniform1f("width", data->raycast_width);
-    immUniform1i("controlPointCount", data->num_points);
-    immUniform1i("samplesPerSegment", data->samples_per_segment);
+    immUniform1i("control_point_count", data->num_points);
+    immUniform1i("samples_per_segment", data->samples_per_segment);
 
     GPU_depth_test(GPU_DEPTH_LESS_EQUAL);
 
