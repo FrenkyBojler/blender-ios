@@ -43,9 +43,9 @@ static std::ostream &operator<<(std::ostream &stream, const GPUInput *input)
   switch (input->source) {
     case GPU_SOURCE_FUNCTION_CALL:
     case GPU_SOURCE_OUTPUT:
-      return stream << (input->is_zone_io ? "zone" : "tmp") << input->id;
+      return stream << (input->is_repeat_zone_loopback ? "zone" : "tmp") << input->id;
     case GPU_SOURCE_CONSTANT:
-      return stream << (input->is_zone_io ? "zone" : "cons") << input->id;
+      return stream << (input->is_repeat_zone_loopback ? "zone" : "cons") << input->id;
     case GPU_SOURCE_UNIFORM:
       return stream << "node_tree.u" << input->id;
     case GPU_SOURCE_ATTR:
@@ -68,7 +68,7 @@ static std::ostream &operator<<(std::ostream &stream, const GPUInput *input)
 
 static std::ostream &operator<<(std::ostream &stream, const GPUOutput *output)
 {
-  return stream << (output->is_zone_io ? "zone" : "tmp") << output->id;
+  return stream << (output->is_repeat_zone_loopback ? "zone" : "tmp") << output->id;
 }
 
 /* Print data constructor (i.e: vec2(1.0f, 1.0f)). */
@@ -344,7 +344,7 @@ void GPUCodegen::node_serialize(std::stringstream &eval_ss, const GPUNode *node)
     auto type = [&]() {
       /* Don't declare zone io variables twice. */
       std::stringstream ss;
-      if (!input->is_duplicate) {
+      if (!input->is_duplicate_in_repeat_zone) {
         ss << input->type;
       }
       return ss.str();
@@ -359,20 +359,22 @@ void GPUCodegen::node_serialize(std::stringstream &eval_ss, const GPUNode *node)
                 << ";\n ";
         break;
       case GPU_SOURCE_CONSTANT:
-        if (!input->is_duplicate) {
+        if (!input->is_duplicate_in_repeat_zone) {
           eval_ss << type() << " " << input << " = " << (GPUConstant *)input << ";\n";
         }
         break;
       case GPU_SOURCE_OUTPUT:
       case GPU_SOURCE_ATTR:
-        if (input->is_zone_io) {
+        if (input->is_repeat_zone_loopback) {
           eval_ss << type() << " " << input << " = ";
           source_reference(input);
           eval_ss << ";\n";
         }
         break;
       default:
-        if (input->is_zone_io && (!input->is_duplicate || !input->link)) {
+        if (input->is_repeat_zone_loopback &&
+            (!input->is_duplicate_in_repeat_zone || !input->link))
+        {
           eval_ss << type() << " zone" << input->id << " = " << input << ";\n";
         }
         break;
@@ -380,7 +382,7 @@ void GPUCodegen::node_serialize(std::stringstream &eval_ss, const GPUNode *node)
   }
   /* Declare temporary variables for node output storage. */
   LISTBASE_FOREACH (GPUOutput *, output, &node->outputs) {
-    if (output->is_zone_io) {
+    if (output->is_repeat_zone_loopback) {
       break;
     }
     eval_ss << output->type << " " << output << ";\n";
@@ -394,7 +396,7 @@ void GPUCodegen::node_serialize(std::stringstream &eval_ss, const GPUNode *node)
   eval_ss << node->name << "(";
   /* Input arguments. */
   LISTBASE_FOREACH (GPUInput *, input, &node->inputs) {
-    if (input->is_zone_io) {
+    if (input->is_repeat_zone_loopback) {
       break;
     }
     switch (input->source) {
@@ -407,19 +409,20 @@ void GPUCodegen::node_serialize(std::stringstream &eval_ss, const GPUNode *node)
         eval_ss << input;
         break;
     }
-    if ((input->next && !input->next->is_zone_io) ||
-        (((GPUOutput *)node->outputs.first) && !((GPUOutput *)node->outputs.first)->is_zone_io))
+    if ((input->next && !input->next->is_repeat_zone_loopback) ||
+        (((GPUOutput *)node->outputs.first) &&
+         !((GPUOutput *)node->outputs.first)->is_repeat_zone_loopback))
     {
       eval_ss << ", ";
     }
   }
   /* Output arguments. */
   LISTBASE_FOREACH (GPUOutput *, output, &node->outputs) {
-    if (output->is_zone_io) {
+    if (output->is_repeat_zone_loopback) {
       break;
     }
     eval_ss << output;
-    if (output->next && !output->next->is_zone_io) {
+    if (output->next && !output->next->is_repeat_zone_loopback) {
       eval_ss << ", ";
     }
   }
@@ -515,11 +518,31 @@ void GPUCodegen::generate_uniform_buffer()
   }
 }
 
+static GPUInput *find_first_repeat_zone_loopback_input(GPUNode &node)
+{
+  LISTBASE_FOREACH (GPUInput *, input, &node.inputs) {
+    if (input->is_repeat_zone_loopback) {
+      return input;
+    }
+  }
+  return nullptr;
+}
+
+static GPUOutput *find_first_repeat_zone_loopback_output(GPUNode &node)
+{
+  LISTBASE_FOREACH (GPUOutput *, output, &node.outputs) {
+    if (output->is_repeat_zone_loopback) {
+      return output;
+    }
+  }
+  return nullptr;
+}
+
 /* Sets id for unique names for all inputs, resources and temp variables. */
 void GPUCodegen::set_unique_ids()
 {
-  blender::Map<int, GPUNode *> zone_starts;
-  blender::Map<int, GPUNode *> zone_ends;
+  blender::Map<int, GPUNode *> repeat_zone_input_nodes;
+  blender::Map<int, GPUNode *> repeat_zone_output_nodes;
 
   int id = 1;
   LISTBASE_FOREACH (GPUNode *, node, &graph.nodes) {
@@ -529,39 +552,31 @@ void GPUCodegen::set_unique_ids()
     LISTBASE_FOREACH (GPUOutput *, output, &node->outputs) {
       output->id = id++;
     }
-    if (node->zone_index != -1) {
-      auto &map = node->is_zone_end ? zone_ends : zone_starts;
-      map.add(node->zone_index, node);
+    if (node->repeat_zone_id != -1) {
+      auto &map = node->is_repeat_zone_end ? repeat_zone_output_nodes : repeat_zone_input_nodes;
+      map.add(node->repeat_zone_id, node);
     }
   }
 
-  auto find_zone_io = [](auto first) {
-    while (first && !first->is_zone_io && first->next) {
-      first = first->next;
-    }
-    return first;
-  };
-
   /* Assign the same id to inputs and outputs of start and end zones. */
-  for (GPUNode *end : zone_ends.values()) {
+  for (GPUNode *end : repeat_zone_output_nodes.values()) {
+    GPUInput *end_input = find_first_repeat_zone_loopback_input(*end);
+    GPUOutput *end_output = find_first_repeat_zone_loopback_output(*end);
 
-    GPUInput *end_input = find_zone_io((GPUInput *)end->inputs.first);
-    GPUOutput *end_output = find_zone_io((GPUOutput *)end->outputs.first);
-
-    if (!zone_starts.contains(end->zone_index)) {
+    if (!repeat_zone_input_nodes.contains(end->repeat_zone_id)) {
       /* The zone input is disconnected, skip the call. */
       end->skip_call = true;
       for (; end_input; end_input = end_input->next, end_output = end_output->next) {
         end_output->id = end_input->id;
-        end_output->is_duplicate = true;
+        end_output->is_duplicate_in_repeat_zone = true;
       }
       continue;
     }
 
-    GPUNode *start = zone_starts.lookup(end->zone_index);
-
-    GPUInput *start_input = find_zone_io((GPUInput *)start->inputs.first);
-    GPUOutput *start_output = find_zone_io((GPUOutput *)start->outputs.first);
+    GPUNode *start = repeat_zone_input_nodes.lookup(end->repeat_zone_id);
+    /* Skip iterations input and iteration output respectively. */
+    GPUInput *start_input = find_first_repeat_zone_loopback_input(*start);
+    GPUOutput *start_output = find_first_repeat_zone_loopback_output(*start);
 
     for (; start_input; start_input = start_input->next,
                         start_output = start_output->next,
@@ -569,23 +584,23 @@ void GPUCodegen::set_unique_ids()
                         end_output = end_output->next)
     {
       start_output->id = start_input->id;
-      start_output->is_duplicate = true;
+      start_output->is_duplicate_in_repeat_zone = true;
       end_input->id = start_input->id;
-      end_input->is_duplicate = true;
+      end_input->is_duplicate_in_repeat_zone = true;
       end_output->id = start_input->id;
-      end_output->is_duplicate = true;
+      end_output->is_duplicate_in_repeat_zone = true;
     }
   }
 
-  for (GPUNode *start : zone_starts.values()) {
-    if (!zone_ends.contains(start->zone_index)) {
+  for (GPUNode *start : repeat_zone_input_nodes.values()) {
+    if (!repeat_zone_output_nodes.contains(start->repeat_zone_id)) {
       /* The zone output is disconnected, skip the call. */
-      GPUInput *start_input = find_zone_io((GPUInput *)start->inputs.first);
-      GPUOutput *start_output = find_zone_io((GPUOutput *)start->outputs.first);
+      GPUInput *start_input = find_first_repeat_zone_loopback_input(*start);
+      GPUOutput *start_output = find_first_repeat_zone_loopback_output(*start);
       start->skip_call = true;
       for (; start_input; start_input = start_input->next, start_output = start_output->next) {
         start_output->id = start_input->id;
-        start_output->is_duplicate = true;
+        start_output->is_duplicate_in_repeat_zone = true;
       }
       continue;
     }

@@ -75,8 +75,8 @@ struct GPUNode {
   ListBase outputs;
 
   /* Zones. */
-  int zone_index;
-  bool is_zone_end;
+  int repeat_zone_id;
+  bool is_repeat_zone_end;
   bool skip_call;
 };
 
@@ -118,8 +118,8 @@ struct GPUOutput {
   int id;            /* unique id as created by code generator */
 
   /* Zones. */
-  bool is_zone_io;
-  bool is_duplicate;
+  bool is_repeat_zone_loopback;
+  bool is_duplicate_in_repeat_zone;
 };
 
 struct GPUInput {
@@ -149,8 +149,8 @@ struct GPUInput {
   };
 
   /* Zones. */
-  bool is_zone_io;
-  bool is_duplicate;
+  bool is_repeat_zone_loopback;
+  bool is_duplicate_in_repeat_zone;
 };
 
 struct GPUNodeGraphOutputLink {

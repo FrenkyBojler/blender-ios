@@ -59,8 +59,8 @@ static GPUNode *gpu_node_create(const char *name)
   GPUNode *node = MEM_callocN<GPUNode>("GPUNode");
 
   node->name = name;
-  node->zone_index = -1;
-  node->is_zone_end = false;
+  node->repeat_zone_id = -1;
+  node->is_repeat_zone_end = false;
   node->skip_call = false;
 
   return node;
@@ -873,8 +873,8 @@ bool GPU_stack_link_repeat_zone_input(GPUMaterial &material,
       repeat_input_node.storage);
 
   GPUNode *node = gpu_node_create("REPEAT_BEGIN");
-  node->zone_index = bnode_storage->output_node_id;
-  node->is_zone_end = false;
+  node->repeat_zone_id = bnode_storage->output_node_id;
+  node->is_repeat_zone_end = false;
 
   for (int i = 0; !in[i].end; i++) {
     if (in[i].type != GPU_NONE) {
@@ -890,11 +890,11 @@ bool GPU_stack_link_repeat_zone_input(GPUMaterial &material,
     int i;
     LISTBASE_FOREACH_INDEX (GPUInput *, input, &node->inputs, i) {
       /* Skip iterations inputs. */
-      input->is_zone_io = i >= 1;
+      input->is_repeat_zone_loopback = i >= 1;
     }
     LISTBASE_FOREACH_INDEX (GPUOutput *, output, &node->outputs, i) {
       /* Skip iteration output. */
-      output->is_zone_io = i >= 1;
+      output->is_repeat_zone_loopback = i >= 1;
     }
   }
   BLI_addtail(&graph->nodes, node);
@@ -911,8 +911,8 @@ bool GPU_stack_link_repeat_zone_output(GPUMaterial &material,
   int i;
 
   node = gpu_node_create("REPEAT_END");
-  node->zone_index = repeat_output_node.identifier;
-  node->is_zone_end = true;
+  node->repeat_zone_id = repeat_output_node.identifier;
+  node->is_repeat_zone_end = true;
 
   for (i = 0; !in[i].end; i++) {
     if (in[i].type != GPU_NONE) {
@@ -925,10 +925,10 @@ bool GPU_stack_link_repeat_zone_output(GPUMaterial &material,
     }
   }
   LISTBASE_FOREACH (GPUInput *, input, &node->inputs) {
-    input->is_zone_io = true;
+    input->is_repeat_zone_loopback = true;
   }
   LISTBASE_FOREACH (GPUOutput *, output, &node->outputs) {
-    output->is_zone_io = true;
+    output->is_repeat_zone_loopback = true;
   }
   BLI_addtail(&graph->nodes, node);
   return true;
