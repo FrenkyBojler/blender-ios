@@ -5550,8 +5550,6 @@ static void attribute_free_data(bConstraint *con)
 static void attribute_id_looper(bConstraint *con, ConstraintIDFunc func, void *userdata)
 {
   bAttributeConstraint *data = static_cast<bAttributeConstraint *>(con->data);
-
-  /* target only */
   func(con, (ID **)&data->target, false, userdata);
 }
 
@@ -5653,7 +5651,7 @@ static void attribute_evaluate(bConstraint *con, bConstraintOb *cob, ListBase *t
   bConstraintTarget *ct = static_cast<bConstraintTarget *>(targets->first);
   const bAttributeConstraint *data = static_cast<bAttributeConstraint *>(con->data);
 
-  /* only evaluate if there is a target */
+  /* Only evaluate if there is a target. */
   if (!VALID_CONS_TARGET(ct)) {
     return;
   }
@@ -5666,18 +5664,23 @@ static void attribute_evaluate(bConstraint *con, bConstraintOb *cob, ListBase *t
     unit_m4(target_mat);
   }
 
-  float loc_a[3], rot_a[3][3], size_a[3];
-  float loc_b[3], rot_b[3][3], size_b[3];
-  mat4_to_loc_rot_size(loc_a, rot_a, size_a, target_mat);
-  mat4_to_loc_rot_size(loc_b, rot_b, size_b, ct->matrix);
+  float prev_location[3];
+  float prev_rotation[3][3];
+  float prev_size[3];
+  mat4_to_loc_rot_size(prev_location, prev_rotation, prev_size, target_mat);
+
+  float next_location[3];
+  float next_rotation[3][3];
+  float next_size[3];
+  mat4_to_loc_rot_size(next_location, next_rotation, next_size, ct->matrix);
 
   switch (data->data_type) {
     case CON_ATTRIBUTE_VECTOR: {
-      loc_rot_size_to_mat4(target_mat, loc_b, rot_a, size_a);
+      loc_rot_size_to_mat4(target_mat, next_location, prev_rotation, prev_size);
       break;
     }
     case CON_ATTRIBUTE_QUATERNION: {
-      loc_rot_size_to_mat4(target_mat, loc_a, rot_b, size_a);
+      loc_rot_size_to_mat4(target_mat, prev_location, next_rotation, prev_size);
       break;
     }
     case CON_ATTRIBUTE_4X4MATRIX: {
@@ -5686,15 +5689,15 @@ static void attribute_evaluate(bConstraint *con, bConstraintOb *cob, ListBase *t
       }
       else {
         if (data->mix_loc) {
-          copy_v3_v3(loc_a, loc_b);
+          copy_v3_v3(prev_location, next_location);
         }
         if (data->mix_rot) {
-          copy_m3_m3(rot_a, rot_b);
+          copy_m3_m3(prev_rotation, next_rotation);
         }
         if (data->mix_scl) {
-          copy_v3_v3(size_a, size_b);
+          copy_v3_v3(prev_size, next_size);
         }
-        loc_rot_size_to_mat4(target_mat, loc_a, rot_a, size_a);
+        loc_rot_size_to_mat4(target_mat, prev_location, prev_rotation, prev_size);
       }
       break;
     }
