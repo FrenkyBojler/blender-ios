@@ -2814,7 +2814,7 @@ static wmOperatorStatus edbm_do_smooth_laplacian_vertex_exec(bContext *C, wmOper
     repeat = 1;
   }
 
-  Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
+  const Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
       scene, view_layer, CTX_wm_view3d(C));
   for (Object *obedit : objects) {
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
