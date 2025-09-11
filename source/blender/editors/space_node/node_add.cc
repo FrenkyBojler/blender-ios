@@ -1678,7 +1678,7 @@ static wmOperatorStatus new_compositor_sequencer_strip_modifier_node_group_exec(
 
   bNodeTree *ntree = new_node_tree_impl(C, tree_name, "CompositorNodeTree");
   initialize_compositor_sequencer_strip_modifier_node_group(C, *ntree);
-  
+
   BKE_ntree_update_after_single_tree_change(*CTX_data_main(C), *ntree);
   WM_event_add_notifier(C, NC_NODE | NA_ADDED, nullptr);
 
