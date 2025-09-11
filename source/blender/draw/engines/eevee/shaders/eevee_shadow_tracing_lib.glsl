@@ -18,7 +18,6 @@ SHADER_LIBRARY_CREATE_INFO(eevee_shadow_data)
 #include "eevee_light_lib.glsl"
 #include "eevee_sampling_lib.glsl"
 #include "eevee_shadow_lib.glsl"
-#include "eevee_utility_tx_lib.glsl"
 #include "gpu_shader_math_base_lib.glsl"
 #include "gpu_shader_math_fast_lib.glsl"
 #include "gpu_shader_math_matrix_lib.glsl"

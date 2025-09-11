@@ -10,10 +10,6 @@
  * BxDF evaluation functions.
  */
 
-#include "gpu_shader_math_base_lib.glsl"
-#include "gpu_shader_math_fast_lib.glsl"
-#include "gpu_shader_utildefines_lib.glsl"
-
 struct BsdfSample {
   packed_float3 direction;
   float pdf;

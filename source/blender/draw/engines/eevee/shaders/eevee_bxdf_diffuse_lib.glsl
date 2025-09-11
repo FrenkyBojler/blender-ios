@@ -5,10 +5,9 @@
 #pragma once
 
 #include "eevee_bxdf_lib.glsl"
-#include "eevee_thickness_lib.glsl"
 #include "gpu_shader_codegen_lib.glsl"
-#include "gpu_shader_math_matrix_lib.glsl"
-#include "gpu_shader_math_vector_lib.glsl"
+#include "gpu_shader_math_base_lib.glsl"
+#include "gpu_shader_utildefines_lib.glsl"
 
 /* -------------------------------------------------------------------- */
 /** \name Diffuse BSDF
