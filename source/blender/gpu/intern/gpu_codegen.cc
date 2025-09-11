@@ -338,36 +338,40 @@ static void source_reference(std::stringstream &eval_ss, GPUInput *input)
   }
 }
 
+static void serialize_optional_type(std::stringstream &eval_ss, GPUInput *input)
+{
+  if (input->is_duplicate_in_repeat_zone) {
+    return;
+  }
+  eval_ss << input->type;
+}
+
 void GPUCodegen::node_serialize(std::stringstream &eval_ss, const GPUNode *node)
 {
   /* Declare constants. */
   LISTBASE_FOREACH (GPUInput *, input, &node->inputs) {
-    /* May be empty to avoid declaring the same variable twice. */
-    std::string optional_type;
-    if (!input->is_duplicate_in_repeat_zone) {
-      std::stringstream ss;
-      ss << input->type;
-      optional_type = ss.str();
-    }
     switch (input->source) {
       case GPU_SOURCE_FUNCTION_CALL:
-        eval_ss << optional_type << " " << input << "; " << input->function_call << input
-                << ");\n";
+        serialize_optional_type(eval_ss, input);
+        eval_ss << " " << input << "; " << input->function_call << input << ");\n";
         break;
       case GPU_SOURCE_STRUCT:
-        eval_ss << optional_type << " " << input << " = "
+        serialize_optional_type(eval_ss, input);
+        eval_ss << " " << input << " = "
                 << (input->type == GPU_CLOSURE ? "CLOSURE_DEFAULT" : "TEXTURE_HANDLE_DEFAULT")
                 << ";\n ";
         break;
       case GPU_SOURCE_CONSTANT:
         if (!input->is_duplicate_in_repeat_zone) {
-          eval_ss << optional_type << " " << input << " = " << (GPUConstant *)input << ";\n";
+          serialize_optional_type(eval_ss, input);
+          eval_ss << " " << input << " = " << (GPUConstant *)input << ";\n";
         }
         break;
       case GPU_SOURCE_OUTPUT:
       case GPU_SOURCE_ATTR:
         if (input->is_repeat_zone_loopback) {
-          eval_ss << optional_type << " " << input << " = ";
+          serialize_optional_type(eval_ss, input);
+          eval_ss << " " << input << " = ";
           source_reference(eval_ss, input);
           eval_ss << ";\n";
         }
@@ -376,7 +380,8 @@ void GPUCodegen::node_serialize(std::stringstream &eval_ss, const GPUNode *node)
         if (input->is_repeat_zone_loopback &&
             (!input->is_duplicate_in_repeat_zone || !input->link))
         {
-          eval_ss << optional_type << " zone" << input->id << " = " << input << ";\n";
+          serialize_optional_type(eval_ss, input);
+          eval_ss << " zone" << input->id << " = " << input << ";\n";
         }
         break;
     }
