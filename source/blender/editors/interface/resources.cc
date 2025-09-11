@@ -803,10 +803,10 @@ const uchar *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
           break;
 
         case TH_DOPESHEET_CHANNELOB:
-          cp = btheme->common.anim.channel_pack;
+          cp = btheme->common.anim.channels;
           break;
         case TH_DOPESHEET_CHANNELSUBOB:
-          cp = btheme->common.anim.channel_pack_sub;
+          cp = btheme->common.anim.channels_sub;
           break;
         case TH_DOPESHEET_IPOLINE:
           cp = ts->ds_ipoline;

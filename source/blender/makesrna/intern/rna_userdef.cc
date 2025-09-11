@@ -2185,14 +2185,14 @@ static void rna_def_userdef_theme_common_anim(BlenderRNA *brna)
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 
   /* Channel properties */
-  prop = RNA_def_property(srna, "channel_pack", PROP_FLOAT, PROP_COLOR_GAMMA);
+  prop = RNA_def_property(srna, "channels", PROP_FLOAT, PROP_COLOR_GAMMA);
   RNA_def_property_array(prop, 4);
-  RNA_def_property_ui_text(prop, "Channel Pack", "");
+  RNA_def_property_ui_text(prop, "Channels", "");
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 
-  prop = RNA_def_property(srna, "channel_pack_sub", PROP_FLOAT, PROP_COLOR_GAMMA);
+  prop = RNA_def_property(srna, "channels_sub", PROP_FLOAT, PROP_COLOR_GAMMA);
   RNA_def_property_array(prop, 4);
-  RNA_def_property_ui_text(prop, "Channel Sub-Pack", "");
+  RNA_def_property_ui_text(prop, "Sub-Channels", "");
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 
   prop = RNA_def_property(srna, "channel_group", PROP_FLOAT, PROP_COLOR_GAMMA);

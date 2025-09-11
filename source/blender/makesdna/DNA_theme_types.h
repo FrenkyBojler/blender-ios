@@ -112,7 +112,7 @@ typedef struct ThemeCommonAnim {
 
   unsigned char time_marker[4], time_marker_selected[4];
 
-  unsigned char channel_pack[4], channel_pack_sub[4];
+  unsigned char channels[4], channels_sub[4];
   unsigned char channel_group[4], channel_group_active[4];
   unsigned char channel[4], channel_selected[4];
 
