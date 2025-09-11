@@ -1007,7 +1007,7 @@ int BLI_kdtree_nd_(calc_duplicates_stable)(const KDTree *tree,
     }
 
     /* Compute centroid of the cluster. */
-    float centroid[3] = {0.0f, 0.0f, 0.0f};
+    float centroid[KD_DIMS] = {0.0f};
     for (int idx : cluster) {
       const float *co = index_lookup[idx]->co;
       for (uint d = 0; d < KD_DIMS; d++) {
