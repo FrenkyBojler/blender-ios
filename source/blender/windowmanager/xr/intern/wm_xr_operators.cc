@@ -704,7 +704,6 @@ static void wm_xr_raycast_draw(const bContext * /*C*/, ARegion * /*region*/, voi
     float forward[3];
     float right[3];
 
-    /** Assume up = { 0, 0, 1 } */
     sub_v3_v3v3(forward, data->points[data->num_points - 1], data->points[0]);
     copy_v3_fl3(right, forward[1], -forward[0], 0.0f);
     normalize_v3(right);

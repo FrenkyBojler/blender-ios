@@ -78,7 +78,7 @@ struct wmXrSessionState {
   /** The current state and parameters of the vignette that appears while moving. */
   struct wmXrVignetteData *vignette_data;
 
-  /** Model used to draw current raycast */
+  /** Model used to draw teleportation raycast. */
   blender::gpu::Batch *raycast_model;
 };
 
