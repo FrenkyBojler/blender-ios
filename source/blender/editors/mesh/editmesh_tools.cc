@@ -2737,15 +2737,16 @@ static wmOperatorStatus edbm_do_smooth_vertex_exec(bContext *C, wmOperator *op)
       }
     }
 
+    bool calc_normals = false;
+
     if (hflag_smooth != BM_ELEM_SELECT) {
       BMIter v_iter;
       BMVert *v;
       BM_ITER_MESH (v, &v_iter, bm, BM_VERTS_OF_MESH) {
         BM_elem_flag_disable(v, hflag_smooth);
       }
+      calc_normals = true;
     }
-
-    const bool calc_normals = (hflag_smooth != BM_ELEM_SELECT);
 
     EDBMUpdate_Params params{};
     params.calc_looptris = true;
