@@ -96,6 +96,10 @@ Strip *special_preview_get()
 void special_preview_set(bContext *C, const int mval[2])
 {
   Scene *scene = CTX_data_sequencer_scene(C);
+  if (!seq::editing_get(scene)) {
+    return;
+  }
+
   ARegion *region = CTX_wm_region(C);
   Strip *strip = strip_under_mouse_get(scene, &region->v2d, mval);
   if (strip != nullptr && strip->type != STRIP_TYPE_SOUND_RAM) {
@@ -1360,7 +1364,7 @@ static void preview_draw_all_image_overlays(const bContext *C,
 {
   ListBase *channels = seq::channels_displayed_get(&editing);
   VectorSet strips = seq::query_rendered_strips(
-      scene, channels, editing.seqbasep, timeline_frame, 0);
+      scene, channels, editing.current_strips(), timeline_frame, 0);
   Strip *active_seq = seq::select_active_get(scene);
   for (Strip *strip : strips) {
     /* TODO(sergey): Avoid having per-strip strip-independent checks. */
