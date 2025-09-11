@@ -570,9 +570,9 @@ class StrokePanel(BrushPanel):
                     emboss=False)
             # Pen pressure mapping curve for Jitter.
             if settings.show_jitter_curve and self.is_popover is False:
-                col = layout.column()
-                col.active = brush.use_pressure_jitter
-                col.template_curve_mapping(brush, "curve_jitter", brush=True)
+                subcol = col.column()
+                subcol.active = brush.use_pressure_jitter
+                subcol.template_curve_mapping(brush, "curve_jitter", brush=True)
             col.row().prop(brush, "jitter_unit", expand=True)
 
         col.separator()
@@ -1171,17 +1171,17 @@ def brush_shared_settings(layout, context, brush, popover=False):
                 slider=True,
             )
         if mode in {'PAINT_TEXTURE', 'PAINT_2D', 'SCULPT', 'PAINT_VERTEX', 'PAINT_WEIGHT', 'SCULPT_CURVES'}:
-            if paint.show_size_curve:
-                col = layout.column()
-                col.active = brush.use_pressure_size
-                col.template_curve_mapping(brush, "curve_size", brush=True)
+            if paint.show_size_curve and not popover:
+                subcol = layout.column()
+                subcol.active = brush.use_pressure_size
+                subcol.template_curve_mapping(brush, "curve_size", brush=True)
         if size_mode:
             layout.row().prop(size_owner, "use_locked_size", expand=True)
             layout.separator()
 
     if strength:
         pressure_name = "use_pressure_strength" if strength_pressure else None
-        curve_visibility_name = "show_strenght_curve" if strength_pressure else None
+        curve_visibility_name = "show_strength_curve" if strength_pressure else None
         UnifiedPaintPanel.prop_unified(
             layout,
             context,
@@ -1189,14 +1189,14 @@ def brush_shared_settings(layout, context, brush, popover=False):
             "strength",
             unified_name="use_unified_strength",
             pressure_name=pressure_name,
-            curve_visibility_name="show_strength_curve",
+            curve_visibility_name=curve_visibility_name,
             slider=True,
         )
         if mode in {'PAINT_TEXTURE', 'PAINT_2D', 'SCULPT', 'PAINT_VERTEX', 'PAINT_WEIGHT', 'SCULPT_CURVES'}:
-            if paint.show_strength_curve:
-                col = layout.column()
-                col.active = brush.use_pressure_strength
-                col.template_curve_mapping(brush, "curve_strength", brush=True)
+            if paint.show_strength_curve and not popover:
+                subcol = layout.column()
+                subcol.active = brush.use_pressure_strength
+                subcol.template_curve_mapping(brush, "curve_strength", brush=True)
         layout.separator()
 
     if direction:
