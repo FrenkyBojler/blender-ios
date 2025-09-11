@@ -287,10 +287,13 @@ const bTheme U_theme_default = {
       .text = RGBA(0xb8b8b8ff),
       .text_selected = RGBA(0xffaf23ff),
     },
+    .scrubbing = {
+      .back = RGBA(0x161616ff),
+    },
     .sidebars = {
       .back = RGBA(0x30303000),
       .tab_back = RGBA(0x18181800),
-    }
+    },
   },
   .common = {
     .anim = {
@@ -447,7 +450,6 @@ const bTheme U_theme_default = {
     .vertex = RGBA(0x000000ff),
     .vertex_select = RGBA(0xff8500ff),
     .vertex_active = RGBA(0xffffffff),
-    .time_scrub_background = RGBA(0x161616ff),
     .vertex_size = 6,
     .outline_width = 1,
     .facedot_size = 4,
@@ -487,7 +489,6 @@ const bTheme U_theme_default = {
     .shade2 = RGBA(0x1d1d1d99),
     .hilite = RGBA(0x60c04044),
     .grid = RGBA(0x161616ff),
-    .time_scrub_background = RGBA(0x1d1d1dff),
     .ds_ipoline = RGBA(0x94e575cc),
     .keyborder = RGBA(0x000000ff),
     .keyborder_select = RGBA(0x000000ff),
@@ -510,7 +511,6 @@ const bTheme U_theme_default = {
     .grid = RGBA(0x2a2a2aff),
     .strip = RGBA(0x0d0d0d80),
     .strip_select = RGBA(0xff8c00ff),
-    .time_scrub_background = RGBA(0x161616ff),
     .keyborder = RGBA(0x000000ff),
     .keyborder_select = RGBA(0x000000ff),
     .vertex_size = 3,
@@ -542,7 +542,6 @@ const bTheme U_theme_default = {
     .bone_pose = RGBA(0x50c8ff50),
     .before_current_frame = RGBA(0xf22e23ff),
     .after_current_frame = RGBA(0x78f244ff),
-    .time_scrub_background = RGBA(0x121212ff),
     .keyborder = RGBA(0x000000ff),
     .keyborder_select = RGBA(0x000000ff),
     .vertex_size = 3,
@@ -730,7 +729,6 @@ const bTheme U_theme_default = {
     .header_text = RGBA(0xeeeeeeff),
     .header_text_hi = RGBA(0xffffffff),
     .grid = RGBA(0x181818ff),
-    .time_scrub_background = RGBA(0x181818ff),
     .vertex_size = 3,
     .outline_width = 1,
     .facedot_size = 4,
