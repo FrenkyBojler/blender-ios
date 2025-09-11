@@ -388,10 +388,6 @@ void GPUCodegen::node_serialize(std::stringstream &eval_ss, const GPUNode *node)
     eval_ss << output->type << " " << output << ";\n";
   }
 
-  if (node->skip_call) {
-    return;
-  }
-
   /* Function call. */
   eval_ss << node->name << "(";
   /* Input arguments. */
