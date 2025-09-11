@@ -801,7 +801,7 @@ static void blend_write(BlendWriter *writer, const ID *id_owner, const ModifierD
                      csmd.bind_coords_sharing_info,
                      [&]() {
                        BLO_write_float3_array(
-                           writer, csmd.bind_coords_num, (float *)csmd.bind_coords);
+                           writer, csmd.bind_coords_num, (const float *)csmd.bind_coords);
                      });
   }
 }
