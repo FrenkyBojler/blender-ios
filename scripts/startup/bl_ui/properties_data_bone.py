@@ -421,6 +421,7 @@ class BONE_PT_display_custom_shape(BoneButtonsPanel, Panel):
             subsub = sub.column()
             subsub.active = bool(pchan and pchan.custom_shape and pchan.custom_shape_transform)
             subsub.prop(pchan, "custom_shape_transform_affects_gizmo")
+            subsub.prop(pchan, "temp_pivot_switch")
             sub.prop(pchan, "use_custom_shape_bone_size")
 
             sub.separator()

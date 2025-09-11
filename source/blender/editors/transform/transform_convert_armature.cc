@@ -398,7 +398,12 @@ static void add_pose_transdata(
 
   const bArmature *arm = static_cast<bArmature *>(ob->data);
   BKE_pose_channel_gizmo_location(arm, pchan, td->center);
-  copy_v3_v3(td_ext->center_no_override, pchan->pose_mat[3]);
+  if (pchan->flag & POSE_TEMP_SWITCH) {
+    copy_v3_v3(td_ext->center_no_override, pchan->pose_mat[3]);
+  }
+  else {
+    copy_v3_v3(td_ext->center_no_override, td->center);
+  }
 
   td->flag = TD_SELECTED;
   if (bone->flag & BONE_HINGE_CHILD_TRANSFORM) {
@@ -704,6 +709,9 @@ static void createTransPose(bContext * /*C*/, TransInfo *t)
     /* Use pose channels to fill trans data. */
     td = tc->data;
     tdx = tc->data_ext;
+    tdx->center_no_override[0] = 0;
+    tdx->center_no_override[1] = 0;
+    tdx->center_no_override[2] = 0;
     LISTBASE_FOREACH (bPoseChannel *, pchan, &ob->pose->chanbase) {
       if (pchan->bone->flag & BONE_TRANSFORM) {
         add_pose_transdata(t, pchan, ob, td++, tdx++);
