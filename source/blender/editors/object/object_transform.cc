@@ -2409,7 +2409,7 @@ static wmOperatorStatus object_transform_axis_target_modal(bContext *C,
           if (!xfd->shadow_target_set) {
             /* Place shadow target at current mouse position */
             const ViewDepths *depths = xfd->depths;
-            if (depths && (uint(event->mval[0]) < depths->w) && (uint(event->mval[1]) < depths->h)) {
+            if (depths && (event->mval[0] < depths->w) && (event->mval[1] < depths->h)) {
               float depth_fl = 1.0f;
               ED_view3d_depth_read_cached(depths, event->mval, 0, &depth_fl);
               if (xfd->prev.is_depth_valid && depth_fl == 1.0f) {
