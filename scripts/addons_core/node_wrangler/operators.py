@@ -817,6 +817,11 @@ class NWMergeNodes(Operator, NWBase):
                         second = 2
                 elif nodes_list == selected_math:
                     add_type = node_type + 'Math'
+                    nodes_are_int = all(nodes[item[0]].outputs[0].type == 'INT' for item in selected_math)
+                    is_not_compare = mode not in ('GREATER_THAN', 'LESS_THAN')
+                    needs_integer_math = nodes_are_int and is_not_compare
+                    if needs_integer_math:
+                        add_type = 'FunctionNodeIntegerMath'
                     add = nodes.new(add_type)
                     add.operation = mode
                     add.hide = do_hide
