@@ -860,7 +860,7 @@ typedef struct {
 typedef struct {
   /* Is HDR enabled for this Window? */
   bool hdr_enabled;
-  /* Is wide gamut enabled for this Windows? */
+  /* Is wide gamut enabled for this Window? */
   bool wide_gamut_enabled;
   /* Scale factor to display SDR content in HDR. */
   float sdr_white_level;
