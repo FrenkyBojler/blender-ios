@@ -514,26 +514,6 @@ void GPUCodegen::generate_uniform_buffer()
   }
 }
 
-static GPUInput *find_first_repeat_zone_loopback_input(GPUNode &node)
-{
-  LISTBASE_FOREACH (GPUInput *, input, &node.inputs) {
-    if (input->is_repeat_zone_loopback) {
-      return input;
-    }
-  }
-  return nullptr;
-}
-
-static GPUOutput *find_first_repeat_zone_loopback_output(GPUNode &node)
-{
-  LISTBASE_FOREACH (GPUOutput *, output, &node.outputs) {
-    if (output->is_repeat_zone_loopback) {
-      return output;
-    }
-  }
-  return nullptr;
-}
-
 /* Sets id for unique names for all inputs, resources and temp variables. */
 void GPUCodegen::set_unique_ids()
 {
@@ -568,10 +548,12 @@ void GPUCodegen::set_unique_ids()
     /* Shader node inlining should ensure that repeat zones are always complete. */
     BLI_assert(repeat_zone.input && repeat_zone.output);
 
-    GPUInput *input_node_input = find_first_repeat_zone_loopback_input(*repeat_zone.input);
-    GPUOutput *input_node_output = find_first_repeat_zone_loopback_output(*repeat_zone.input);
-    GPUInput *output_node_input = find_first_repeat_zone_loopback_input(*repeat_zone.output);
-    GPUOutput *output_node_output = find_first_repeat_zone_loopback_output(*repeat_zone.output);
+    /* Skip iterations input and iteration output respectively. */
+    GPUInput *input_node_input = static_cast<GPUInput *>(repeat_zone.input->inputs.first)->next;
+    GPUOutput *input_node_output =
+        static_cast<GPUOutput *>(repeat_zone.input->outputs.first)->next;
+    GPUInput *output_node_input = static_cast<GPUInput *>(repeat_zone.output->inputs.first);
+    GPUOutput *output_node_output = static_cast<GPUOutput *>(repeat_zone.output->outputs.first);
 
     for (; input_node_input; input_node_input = input_node_input->next,
                              input_node_output = input_node_output->next,
