@@ -320,9 +320,6 @@ static void get_render_operator_frame_range(wmOperator *render_operator,
   else {
     end_frame = scene->r.efra;
   }
-
-  start_frame = blender::math::min(start_frame, end_frame);
-  end_frame = blender::math::max(start_frame, end_frame);
 }
 
 /* executes blocking render */
@@ -347,6 +344,13 @@ static wmOperatorStatus screen_render_exec(bContext *C, wmOperator *op)
 
   if (!is_animation && render_operator_has_custom_frame_range(op)) {
     BKE_report(op->reports, RPT_ERROR, "Frame start/end specified in a non-animation render");
+    return OPERATOR_CANCELLED;
+  }
+
+  int start_frame, end_frame;
+  get_render_operator_frame_range(op, scene, start_frame, end_frame);
+  if (is_animation && start_frame > end_frame) {
+    BKE_report(op->reports, RPT_ERROR, "Start frame is larger than end frame");
     return OPERATOR_CANCELLED;
   }
 
@@ -379,8 +383,6 @@ static wmOperatorStatus screen_render_exec(bContext *C, wmOperator *op)
   RE_SetReports(re, op->reports);
 
   if (is_animation) {
-    int start_frame, end_frame;
-    get_render_operator_frame_range(op, scene, start_frame, end_frame);
     RE_RenderAnim(re,
                   mainp,
                   scene,
@@ -1024,6 +1026,13 @@ static wmOperatorStatus screen_render_invoke(bContext *C, wmOperator *op, const 
     return OPERATOR_CANCELLED;
   }
 
+  int start_frame, end_frame;
+  get_render_operator_frame_range(op, scene, start_frame, end_frame);
+  if (is_animation && start_frame > end_frame) {
+    BKE_report(op->reports, RPT_ERROR, "Start frame is larger than end frame");
+    return OPERATOR_CANCELLED;
+  }
+
   /* custom scene and single layer re-render */
   screen_render_single_layer_set(op, bmain, active_layer, &scene, &single_layer);
 
@@ -1089,8 +1098,8 @@ static wmOperatorStatus screen_render_invoke(bContext *C, wmOperator *op, const 
   rj->orig_layer = 0;
   rj->last_layer = 0;
   rj->area = area;
-
-  get_render_operator_frame_range(op, scene, rj->start_frame, rj->end_frame);
+  rj->start_frame = start_frame;
+  rj->end_frame = end_frame;
 
   BKE_color_managed_display_settings_copy(&rj->display_settings, &scene->display_settings);
   BKE_color_managed_view_settings_copy(&rj->view_settings, &scene->view_settings);
