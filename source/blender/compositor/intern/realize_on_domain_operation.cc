@@ -85,7 +85,7 @@ float2 RealizeOnDomainOperation::compute_corrective_translation()
 
 void RealizeOnDomainOperation::realize_on_domain_gpu(const float3x3 &inverse_transformation)
 {
-  GPUShader *shader = this->context().get_shader(this->get_realization_shader_name());
+  gpu::Shader *shader = this->context().get_shader(this->get_realization_shader_name());
   GPU_shader_bind(shader);
 
   GPU_shader_uniform_mat3_as_mat4(shader, "inverse_transformation", inverse_transformation.ptr());
@@ -98,6 +98,7 @@ void RealizeOnDomainOperation::realize_on_domain_gpu(const float3x3 &inverse_tra
   const bool use_bilinear = ELEM(
       realization_options.interpolation, Interpolation::Bilinear, Interpolation::Bicubic);
   GPU_texture_filter_mode(input, use_bilinear);
+  GPU_texture_anisotropic_filter(input, false);
 
   GPU_texture_extend_mode_x(input,
                             map_extension_mode_to_extend_mode(realization_options.extension_x));
@@ -133,8 +134,9 @@ const char *RealizeOnDomainOperation::get_realization_shader_name()
       case ResultType::Int:
       case ResultType::Int2:
       case ResultType::Bool:
-        /* Not supported. */
       case ResultType::Menu:
+        /* Not supported. */
+      case ResultType::String:
         /* Single only types do not support GPU code path. */
         BLI_assert(Result::is_single_value_only_type(this->get_input().type()));
         BLI_assert_unreachable();
@@ -154,8 +156,9 @@ const char *RealizeOnDomainOperation::get_realization_shader_name()
       case ResultType::Int:
       case ResultType::Int2:
       case ResultType::Bool:
-        /* Not supported. */
       case ResultType::Menu:
+        /* Not supported. */
+      case ResultType::String:
         /* Single only types do not support GPU code path. */
         BLI_assert(Result::is_single_value_only_type(this->get_input().type()));
         BLI_assert_unreachable();

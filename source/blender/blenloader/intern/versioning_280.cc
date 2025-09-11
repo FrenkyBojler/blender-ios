@@ -85,6 +85,7 @@
 #include "BKE_node.hh"
 #include "BKE_node_legacy_types.hh"
 #include "BKE_paint.hh"
+#include "BKE_paint_types.hh"
 #include "BKE_pointcache.h"
 #include "BKE_report.hh"
 #include "BKE_rigidbody.h"
@@ -779,11 +780,11 @@ static void do_version_curvemapping_walker(Main *bmain, void (*callback)(CurveMa
               smd->type);
 
           if (smti) {
-            if (smd->type == seqModifierType_Curves) {
+            if (smd->type == eSeqModifierType_Curves) {
               CurvesModifierData *cmd = (CurvesModifierData *)smd;
               callback(&cmd->curve_mapping);
             }
-            else if (smd->type == seqModifierType_HueCorrect) {
+            else if (smd->type == eSeqModifierType_HueCorrect) {
               HueCorrectModifierData *hcmd = (HueCorrectModifierData *)smd;
               callback(&hcmd->curve_mapping);
             }
@@ -3291,8 +3292,6 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
       if (STR_ELEM(scene->r.engine, "BLENDER_RENDER", "BLENDER_GAME")) {
         STRNCPY_UTF8(scene->r.engine, RE_engine_id_BLENDER_EEVEE);
       }
-
-      scene->r.bake_mode = 0;
     }
 
     LISTBASE_FOREACH (Tex *, tex, &bmain->textures) {
@@ -4657,7 +4656,7 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
     }
 
     LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
-      ob->flag &= ~(OB_FLAG_USE_SIMULATION_CACHE | OB_FLAG_UNUSED_12);
+      ob->flag &= ~(OB_FLAG_USE_SIMULATION_CACHE | OB_FLAG_ACTIVE_CLIPBOARD);
       ob->transflag &= ~(OB_TRANSFORM_ADJUST_ROOT_PARENT_FOR_VIEW_LOCK | OB_TRANSFLAG_UNUSED_1);
       ob->shapeflag &= ~OB_SHAPE_FLAG_UNUSED_1;
     }

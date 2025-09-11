@@ -402,6 +402,7 @@ IDTypeInfo IDType_ID_GR = {
     /*foreach_id*/ collection_foreach_id,
     /*foreach_cache*/ nullptr,
     /*foreach_path*/ nullptr,
+    /*foreach_working_space_color*/ nullptr,
     /*owner_pointer_get*/ collection_owner_pointer_get,
 
     /*blend_write*/ collection_blend_write,
@@ -769,10 +770,11 @@ Collection *BKE_collection_duplicate(Main *bmain,
     /* Unfortunate, but with some types (e.g. meshes), an object is considered in Edit mode if its
      * obdata contains edit mode runtime data. This can be the case of all newly duplicated
      * objects, as even though duplicate code move the object back in Object mode, they are still
-     * using the original obdata ID, leading to them being falsly detected as being in Edit mode,
+     * using the original obdata ID, leading to them being falsely detected as being in Edit mode,
      * and therefore not remapping their obdata to the newly duplicated one.
      * See #139715. */
-    BKE_libblock_relink_to_newid(bmain, &collection_new->id, ID_REMAP_FORCE_OBDATA_IN_EDITMODE);
+    BKE_libblock_relink_to_newid(
+        bmain, &collection_new->id, ID_REMAP_FORCE_OBDATA_IN_EDITMODE | ID_REMAP_SKIP_USER_CLEAR);
 
 #ifndef NDEBUG
     /* Call to `BKE_libblock_relink_to_newid` above is supposed to have cleared all those flags. */

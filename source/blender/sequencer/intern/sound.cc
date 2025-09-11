@@ -40,7 +40,7 @@ namespace blender::seq {
 /* Unlike _update_sound_ functions,
  * these ones take info from audaspace to update sequence length! */
 const SoundModifierWorkerInfo workersSoundModifiers[] = {
-    {seqModifierType_SoundEqualizer, sound_equalizermodifier_recreator}, {0, nullptr}};
+    {eSeqModifierType_SoundEqualizer, sound_equalizermodifier_recreator}, {0, nullptr}};
 
 #ifdef WITH_CONVOLUTION
 static bool sequencer_refresh_sound_length_recursive(Main *bmain, Scene *scene, ListBase *seqbase)
@@ -62,7 +62,8 @@ static bool sequencer_refresh_sound_length_recursive(Main *bmain, Scene *scene, 
       int old = strip->len;
       float fac;
 
-      strip->len = std::max(1, int(round((info.length - strip->sound->offset_time) * FPS)));
+      strip->len = std::max(
+          1, int(round((info.length - strip->sound->offset_time) * scene->frames_per_second())));
       fac = float(strip->len) / float(old);
       old = strip->startofs;
       strip->startofs *= fac;

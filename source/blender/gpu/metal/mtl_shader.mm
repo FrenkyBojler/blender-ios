@@ -379,8 +379,7 @@ bool MTLShader::finalize(const shader::ShaderCreateInfo *info)
             NSNotFound)
         {
           const char *errors_c_str = [[error localizedDescription] UTF8String];
-          const StringRefNull source = (is_compute) ? shd_builder_->glsl_compute_source_ :
-                                                      shd_builder_->glsl_fragment_source_;
+          const StringRefNull source = [source_to_compile UTF8String];
 
           MTLLogParser parser;
           print_log({source}, errors_c_str, to_string(src_stage), true, &parser);
@@ -1568,7 +1567,7 @@ Shader *MTLShaderCompiler::compile_shader(const shader::ShaderCreateInfo &info)
 
 void MTLShaderCompiler::specialize_shader(ShaderSpecialization &specialization)
 {
-  MTLShader *shader = static_cast<MTLShader *>(unwrap(specialization.shader));
+  MTLShader *shader = static_cast<MTLShader *>(specialization.shader);
 
   BLI_assert_msg(shader->is_valid(),
                  "Shader must be finalized before precompiling specializations");
