@@ -687,6 +687,10 @@ static bool paint_smooth_stroke(PaintStroke *stroke,
   return true;
 }
 
+/* TODO: Maybe we should have a "raw" version of this that doesn't take into any size or spacing pressure */
+/**
+ * @param size_pressure evaluated curve pressure, not raw size
+ */
 static float paint_space_stroke_spacing(const bContext *C,
                                         PaintStroke *stroke,
                                         const float size_pressure,
@@ -789,16 +793,17 @@ static float paint_space_stroke_spacing_variable(bContext *C,
                                                  const float pressure_delta,
                                                  const float length)
 {
+  const float max_size_pressure = BKE_curvemapping_evaluateF(stroke->brush->curve_size, 0, 1.0f);
   if (BKE_brush_use_size_pressure(stroke->brush)) {
     /* use pressure to modify size. set spacing so that at 100%, the circles
      * are aligned nicely with no overlap. for this the spacing needs to be
      * the average of the previous and next size. */
-    const float s = paint_space_stroke_spacing(C, stroke, 1.0f, pressure);
+    const float s = paint_space_stroke_spacing(C, stroke, max_size_pressure, pressure);
     const float q = s * pressure_delta / (2.0f * length);
     const float pressure_fac = (1.0f + q) / (1.0f - q);
 
-    const float last_size_pressure = stroke->last_pressure;
-    const float new_size_pressure = stroke->last_pressure * pressure_fac;
+    const float last_size_pressure = BKE_curvemapping_evaluateF(stroke->brush->curve_size, 0, stroke->last_pressure);
+    const float new_size_pressure = BKE_curvemapping_evaluateF(stroke->brush->curve_size, 0, stroke->last_pressure * pressure_fac);
 
     /* average spacing */
     const float last_spacing = paint_space_stroke_spacing(C, stroke, last_size_pressure, pressure);
@@ -808,7 +813,7 @@ static float paint_space_stroke_spacing_variable(bContext *C,
   }
 
   /* no size pressure */
-  return paint_space_stroke_spacing(C, stroke, 1.0f, pressure);
+  return paint_space_stroke_spacing(C, stroke, max_size_pressure , pressure);
 }
 
 /* For brushes with stroke spacing enabled, moves mouse in steps
@@ -853,6 +858,7 @@ static int paint_space_stroke(bContext *C,
 
   float pressure = stroke->last_pressure;
   float pressure_delta = final_pressure - stroke->last_pressure;
+  /* TODO: Check if this needs to be updated too... */
   const float no_pressure_spacing = paint_space_stroke_spacing(C, stroke, 1.0f, 1.0f);
   int count = 0;
   while (length > 0.0f) {
@@ -1355,6 +1361,7 @@ static bool paint_stroke_curve_end(bContext *C, wmOperator *op, PaintStroke *str
 
   Paint *paint = BKE_paint_get_active_from_context(C);
   bke::PaintRuntime *paint_runtime = stroke->paint->runtime;
+  /* TODO: Check if this should be changed... */
   const float spacing = paint_space_stroke_spacing(C, stroke, 1.0f, 1.0f);
   const PaintCurve *pc = br.paint_curve;
 
