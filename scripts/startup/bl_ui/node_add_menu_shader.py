@@ -420,6 +420,12 @@ class NODE_MT_shader_node_all_base(node_add_menu.NodeMenu):
         self.draw_menu(layout, "Group")
         self.draw_menu(layout, "Layout")
 
+        self.repeat_zone(layout, label="Repeat")
+        self.closure_zone(layout, label="Closure")
+        self.node_operator(layout, "NodeEvaluateClosure")
+        self.node_operator(layout, "NodeCombineBundle")
+        self.node_operator(layout, "NodeSeparateBundle")
+
         if self.draw_assets:
             node_add_menu.draw_root_assets(layout)
 
