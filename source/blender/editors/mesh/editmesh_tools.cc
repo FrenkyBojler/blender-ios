@@ -2736,6 +2736,7 @@ static wmOperatorStatus edbm_do_smooth_vertex_exec(bContext *C, wmOperator *op)
       }
     }
 
+    /* NOTE: redundant calculation could be avoided if the EDBM API could skip calculation. */
     bool calc_normals = false;
 
     if (hflag_smooth != BM_ELEM_SELECT) {
