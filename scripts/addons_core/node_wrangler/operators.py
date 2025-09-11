@@ -692,6 +692,7 @@ class NWMergeNodes(Operator, NWBase):
                             ('GEOMETRY', [t[0] for t in geo_combine_operations], selected_geometry),
                             ('RGBA', [t[0] for t in blend_types], selected_mix),
                             ('VALUE', [t[0] for t in operations], selected_math),
+                            ('INT', [t[0] for t in operations], selected_math),
                             ('VECTOR', [], selected_vector),
                             ('BOOLEAN', [], selected_boolean),
                             ('STRING', [], selected_string),
@@ -701,7 +702,8 @@ class NWMergeNodes(Operator, NWBase):
                         # geometry nodes.
                         if tree_type == 'GEOMETRY':
                             if mode == 'MIX':
-                                if output_type == 'VALUE' and type == 'VALUE':
+                                SCALAR_TYPES = ['VALUE', 'INT']
+                                if output_type in SCALAR_TYPES and type in SCALAR_TYPES:
                                     valid_mode = True
                                 elif output_type == 'VECTOR' and type == 'VECTOR':
                                     valid_mode = True
@@ -802,7 +804,13 @@ class NWMergeNodes(Operator, NWBase):
                     first = 6
                     second = 7
                 elif nodes_list == selected_math:
-                    add = nodes.new('ShaderNodeMath')
+                    add_type = 'ShaderNodeMath'
+                    nodes_are_int = all(nodes[item[0]].outputs[0].type == 'INT' for item in selected_math)
+                    is_not_compare = mode not in ('GREATER_THAN', 'LESS_THAN')
+                    needs_integer_math = nodes_are_int and is_not_compare
+                    if needs_integer_math:
+                        add_type = 'FunctionNodeIntegerMath'
+                    add = nodes.new(add_type)
                     add.operation = mode
                     add.hide = do_hide
                     if do_hide:
