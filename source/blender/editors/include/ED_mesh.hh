@@ -65,6 +65,14 @@ class EditMeshSymmetryHelper {
   void apply_on_mirror_edges(BMEdge *e, blender::FunctionRef<void(BMEdge *)> op) const;
   void apply_on_mirror_faces(BMFace *f, blender::FunctionRef<void(BMFace *)> op) const;
 
+  static int pre_op_add_cd_and_tag(BMEditMesh *em,
+                                   const EditMeshSymmetryHelper &helper,
+                                   const char *layer_name);
+
+  static void post_op_deselect_and_free(BMEditMesh *em,
+                                        int cd_loop_offset,
+                                        const char *layer_name);
+
  private:
   EditMeshSymmetryHelper(Object *ob, uchar htype);
 

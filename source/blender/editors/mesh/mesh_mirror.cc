@@ -15,8 +15,8 @@
 #include "BKE_editmesh.hh"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_types.hh"
-
 #include "BLI_kdtree.h"
+#include "BLI_vector.hh"
 
 #include "ED_mesh.hh"
 
@@ -617,4 +617,76 @@ void EditMeshSymmetryHelper::set_hflag_on_mirror_faces(BMFace *f,
   });
 }
 
+int EditMeshSymmetryHelper::pre_op_add_cd_and_tag(BMEditMesh *em,
+                                                  const EditMeshSymmetryHelper &helper,
+                                                  const char *layer_name)
+{
+  BMesh *bm = em->bm;
+  BM_data_layer_add_named(bm, &bm->ldata, CD_PROP_BOOL, layer_name);
+  int cd_loop_offset = CustomData_get_offset(&bm->ldata, CD_PROP_BOOL);
+  if (cd_loop_offset == -1) {
+    return -1;
+  }
+
+  blender::Vector<BMFace *> original_faces;
+  BMIter f_iter;
+  BMFace *f;
+  BM_ITER_MESH (f, &f_iter, bm, BM_FACES_OF_MESH) {
+    if (BM_elem_flag_test(f, BM_ELEM_SELECT)) {
+      original_faces.append(f);
+    }
+  }
+
+  for (BMFace *f_orig : original_faces) {
+    helper.apply_on_mirror_faces(f_orig, [cd_loop_offset](BMFace *f_mirr) {
+      BM_elem_flag_enable(f_mirr, BM_ELEM_SELECT);
+      BMLoop *l_iter, *l_first;
+      l_iter = l_first = BM_FACE_FIRST_LOOP(f_mirr);
+      do {
+        bool *tag = (bool *)BM_ELEM_CD_GET_VOID_P(l_iter, cd_loop_offset);
+        *tag = true;
+      } while ((l_iter = l_iter->next) != l_first);
+    });
+  }
+
+  return cd_loop_offset;
+}
+
+void EditMeshSymmetryHelper::post_op_deselect_and_free(BMEditMesh *em,
+                                                       int cd_loop_offset,
+                                                       const char *layer_name)
+{
+  if (cd_loop_offset == -1) {
+    return;
+  }
+  BMesh *bm = em->bm;
+
+  BMIter f_iter;
+  BMFace *f;
+  BM_ITER_MESH (f, &f_iter, bm, BM_FACES_OF_MESH) {
+    if (BM_elem_flag_test(f, BM_ELEM_SELECT)) {
+      bool is_mirror_face = false;
+      BMLoop *l_iter, *l_first;
+      l_iter = l_first = BM_FACE_FIRST_LOOP(f);
+      do {
+        bool *tag = (bool *)BM_ELEM_CD_GET_VOID_P(l_iter, cd_loop_offset);
+        if (tag && *tag) {
+          is_mirror_face = true;
+          break;
+        }
+      } while ((l_iter = l_iter->next) != l_first);
+
+      if (is_mirror_face) {
+        BM_elem_flag_disable(f, BM_ELEM_SELECT);
+        l_iter = l_first;
+        do {
+          BM_elem_flag_disable(l_iter->v, BM_ELEM_SELECT);
+          BM_elem_flag_disable(l_iter->e, BM_ELEM_SELECT);
+        } while ((l_iter = l_iter->next) != l_first);
+      }
+    }
+  }
+
+  BM_data_layer_free_named(bm, &bm->ldata, layer_name);
+}
 /** \} */
