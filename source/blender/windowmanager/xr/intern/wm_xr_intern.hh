@@ -77,6 +77,9 @@ struct wmXrSessionState {
 
   /** The current state and parameters of the vignette that appears while moving. */
   struct wmXrVignetteData *vignette_data;
+
+  /** Model used to draw current raycast */
+  blender::gpu::Batch *raycast_model;
 };
 
 struct wmXrRuntimeData {

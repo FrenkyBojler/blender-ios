@@ -651,6 +651,8 @@ struct XrRaycastData {
   int samples_per_segment;
   float destination_size;
 
+  blender::gpu::Batch *raycast_model;
+
   void *draw_handle;
 };
 
@@ -694,41 +696,31 @@ static void wm_xr_raycast_draw(const bContext * /*C*/, ARegion * /*region*/, voi
     }
 
     immEnd();
+    immUnbindProgram();
   }
   else {
-    immBindBuiltinProgram(GPU_SHADER_XR_RAYCAST);
+    BLI_assert(data->raycast_model != nullptr);
 
-    float forward[3], right[3];
-
-    sub_v3_v3v3(forward, data->points[data->num_points - 1], data->points[0]);
+    float forward[3];
+    float right[3];
 
     /** Assume up = { 0, 0, 1 } */
+    sub_v3_v3v3(forward, data->points[data->num_points - 1], data->points[0]);
     copy_v3_fl3(right, forward[1], -forward[0], 0.0f);
     normalize_v3(right);
 
-    immUniformArray4fv("control_points", &data->points[0][0], XR_MAX_RAYCASTS + 1);
-    immUniform4fv("color", data->color);
-    immUniform3fv("right_vector", right);
-    immUniform1f("width", data->raycast_width);
-    immUniform1i("control_point_count", data->num_points);
-    immUniform1i("samples_per_segment", data->samples_per_segment);
-
     GPU_depth_test(GPU_DEPTH_LESS_EQUAL);
 
-    /** The number of vertices in the triangle strip is twice the number of
-     *  interpolation samples. */
-    int sampleCount = (data->num_points - 1) * data->samples_per_segment;
-    immBegin(GPU_PRIM_TRI_STRIP, sampleCount * 2);
-
-    /** Vertex data is overwritten in the vertex shader (can be anything). */
-    for (int i = 0; i < sampleCount * 2; ++i) {
-      immVertex3fv(pos, right);
-    }
-
-    immEnd();
+    GPU_batch_program_set_builtin(data->raycast_model, GPU_SHADER_XR_RAYCAST);
+    GPU_batch_uniform_4fv_array(
+        data->raycast_model, "control_points", XR_MAX_RAYCASTS + 1, data->points);
+    GPU_batch_uniform_4fv(data->raycast_model, "color", data->color);
+    GPU_batch_uniform_3fv(data->raycast_model, "right_vector", right);
+    GPU_batch_uniform_1f(data->raycast_model, "width", data->raycast_width);
+    GPU_batch_uniform_1i(data->raycast_model, "control_point_count", data->num_points);
+    GPU_batch_uniform_1i(data->raycast_model, "samples_per_segment", data->samples_per_segment);
+    GPU_batch_draw(data->raycast_model);
   }
-
-  immUnbindProgram();
 }
 
 static void wm_xr_raycast_init(wmOperator *op)
@@ -793,6 +785,14 @@ static void wm_xr_raycast_update(wmOperator *op,
     mul_qt_v3(viewer_rot, axis);
   }
   else {
+    if (!xr->runtime->session_state.raycast_model) {
+      uint vertex_len = XR_MAX_RAYCASTS * RNA_int_get(op->ptr, "samples_per_segment");
+      xr->runtime->session_state.raycast_model = GPU_batch_create_procedural(GPU_PRIM_TRI_STRIP,
+                                                                             vertex_len);
+    }
+
+    data->raycast_model = xr->runtime->session_state.raycast_model;
+
     copy_v3_v3(data->points[0], actiondata->controller_loc);
     mul_qt_v3(actiondata->controller_rot, axis);
   }
