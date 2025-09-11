@@ -234,7 +234,7 @@ void GPU_apply_state();
  */
 void GPU_memory_barrier(GPUBarrier barrier);
 
-GPUFence *GPU_fence_create();
+GPUFence *GPU_fence_create(const char *name);
 void GPU_fence_free(GPUFence *fence);
 void GPU_fence_signal(GPUFence *fence);
 void GPU_fence_wait(GPUFence *fence);
