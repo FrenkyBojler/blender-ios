@@ -834,4 +834,3 @@ float4 attr_load_uniform(float4 attr, const uint attr_hash)
   for (var = 0.0; round(var) < round(count); var += 1.0) {
 
 #define REPEAT_END() }
-
