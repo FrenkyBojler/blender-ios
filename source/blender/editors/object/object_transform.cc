@@ -1957,14 +1957,14 @@ void target_modal_keymap(wmKeyConfig *keyconf)
   {0, nullptr, 0, nullptr, nullptr},
   };
 
-  wmKeyMap *keymap = WM_modalkeymap_find(keyconf, "Light Target Modals");
+  wmKeyMap *keymap = WM_modalkeymap_find(keyconf, "Light Target Modal Map");
 
   /* This function is called for each space-type, only needs to add map once. */
   if (keymap && keymap->modal_items) {
     return;
   }
 
-  keymap = WM_modalkeymap_ensure(keyconf, "Light Target Modals", modal_items);
+  keymap = WM_modalkeymap_ensure(keyconf, "Light Target Modal Map", modal_items);
   /* Assign map to operators. */
   WM_modalkeymap_assign(keymap, "OBJECT_OT_transform_axis_target");
 }
@@ -1997,9 +1997,6 @@ struct XFormAxisData {
     float normal[3];
     bool is_depth_valid;
     bool is_normal_valid;
-    bool ctrl_held;
-    bool alt_held;
-    bool ctrl_alt_held;
   } prev;
 
   Vector<XFormAxisItem> object_data;
@@ -2230,9 +2227,6 @@ static wmOperatorStatus object_transform_axis_target_invoke(bContext *C,
   xfd->prev.depth = 1.0f;
   xfd->prev.is_depth_valid = false;
   xfd->prev.is_normal_valid = false;
-  xfd->prev.ctrl_held = false;
-  xfd->prev.alt_held = false;
-  xfd->prev.ctrl_alt_held = false;
 
   xfd->init_event = WM_userdef_event_type_from_keymap_type(event->type);
   
@@ -2270,7 +2264,7 @@ static wmOperatorStatus object_transform_axis_target_invoke(bContext *C,
     SnapObjectContext *sctx = snap_object_context_create(xfd->vc.scene, 0);
     
     float hit_co[3], hit_no[3];
-    float ray_depth = 1000.0f; /* Cast ray far into the scene */
+    float ray_depth = BVH_RAYCAST_DIST_MAX; /* Cast ray far into the scene */
     
     bool hit = snap_object_project_ray(
         sctx,
@@ -2722,8 +2716,7 @@ void OBJECT_OT_transform_axis_target(wmOperatorType *ot)
 {
   /* identifiers */
   ot->name = "Interactive Light Track to Cursor";
-  ot->description = "Interactively point cameras and lights to a location. \n"
-        "Modifier keys can be used to point lights to object normals, specular reflections, or shadow targets";
+  ot->description = "Interactively point cameras and lights to a location. It can be used to point lights to object normals, specular reflections, or shadow targets";
   ot->idname = "OBJECT_OT_transform_axis_target";
 
   /* API callbacks. */
