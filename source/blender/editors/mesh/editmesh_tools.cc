@@ -2702,10 +2702,13 @@ static wmOperatorStatus edbm_do_smooth_vertex_exec(bContext *C, wmOperator *op)
 
     if (symmetry_helper) {
       hflag_smooth = BM_ELEM_TAG;
-      EDBM_flag_disable_all(em, hflag_smooth);
 
       BMIter v_iter;
       BMVert *v;
+      BM_ITER_MESH (v, &v_iter, bm, BM_VERTS_OF_MESH) {
+        BM_elem_flag_disable(v, hflag_smooth);
+      }
+
       BM_ITER_MESH (v, &v_iter, bm, BM_VERTS_OF_MESH) {
         if (BM_elem_flag_test(v, BM_ELEM_SELECT)) {
           BM_elem_flag_enable(v, hflag_smooth);
