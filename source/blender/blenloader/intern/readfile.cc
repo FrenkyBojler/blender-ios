@@ -2559,6 +2559,7 @@ static ID *create_placeholder(Main *mainvar,
 {
   ListBase *lb = which_libbase(mainvar, idcode);
   ID *ph_id = BKE_libblock_alloc_notest(idcode);
+  BKE_libblock_runtime_ensure(*ph_id);
 
   *((short *)ph_id->name) = idcode;
   BLI_strncpy(ph_id->name + 2, idname, sizeof(ph_id->name) - 2);

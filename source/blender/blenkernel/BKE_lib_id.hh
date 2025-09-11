@@ -95,6 +95,9 @@ size_t BKE_libblock_get_alloc_info(short type, const char **r_name);
 /**
  * Allocates and returns memory of the right size for the specified block type,
  * initialized to zero.
+ *
+ * \note: Typically, caller also needs to immediately call #BKE_libblock_runtime_ensure on the
+ * allocated ID data.
  */
 ID *BKE_libblock_alloc_notest(short type) ATTR_WARN_UNUSED_RESULT;
 /**
@@ -223,9 +226,6 @@ enum {
    * Assume given `newid` already points to allocated memory for whole data-block
    * (ID + data) - USE WITH CAUTION!
    * Implies LIB_ID_CREATE_NO_MAIN.
-   *
-   * \note The allocateed ID is also expected to have a valid runtime data already created, caller
-   * is also responsible for that.
    */
   LIB_ID_CREATE_NO_ALLOCATE = 1 << 2,
 
@@ -490,7 +490,7 @@ enum {
 /**
  * Low-level ID freeing functions.
  *
- * \note These functions do NOT cover embedded IDs. Those are managed by the
+ * \note These `BKE_libblock_free_` functions do NOT cover embedded IDs. Those are managed by the
  * owning ID, and are typically allocated/freed from the IDType callbacks.
  */
 
@@ -700,9 +700,6 @@ bool BKE_id_copy_is_allowed(const ID *id);
  * In practice, ID copying follows the same behavior as ID creation (see #BKE_libblock_alloc
  * documentation), with one special case: when the special flag #LIB_ID_CREATE_NO_ALLOCATE is
  * specified, the copied ID will have the same library as the source ID.
- *
- * \warning When using #LIB_ID_CREATE_NO_ALLOCATE, the caller is responsible to ensure that the
- * given `new_id_p` points to a clean, ready to be written ID data of the expected size.
  *
  * \param bmain: Main database, may be NULL only if LIB_ID_CREATE_NO_MAIN is specified.
  * \param id: Source data-block.

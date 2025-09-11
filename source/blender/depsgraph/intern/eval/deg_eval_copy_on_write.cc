@@ -753,9 +753,14 @@ ID *deg_expand_eval_copy_datablock(const Depsgraph *depsgraph, const IDNode *id_
   DEG_COW_PRINT(
       "Expanding datablock for %s: id_orig=%p id_cow=%p\n", id_orig->name, id_orig, id_cow);
 
-  /* Sanity checks. */
+  /* Sanity checks.
+   *
+   * At this point, `id_cow` is essentially considered as a (partially dirty) allocated buffer. It
+   * is not expected to have any valid sub-data, not even a valid `ID::runtime` pointer.
+   */
   BLI_assert(check_datablock_expanded(id_cow) == false);
   BLI_assert(id_cow->py_instance == nullptr);
+  BLI_assert(id_cow->runtime == nullptr);
 
   /* Copy data from original ID to a copied version. */
   /* TODO(sergey): Avoid doing full ID copy somehow, make Mesh to reference
@@ -866,7 +871,6 @@ ID *deg_update_eval_copy_datablock(const Depsgraph *depsgraph, const IDNode *id_
   RuntimeBackup backup(depsgraph);
   backup.init_from_id(id_cow);
   deg_free_eval_copy_datablock(id_cow);
-  BKE_libblock_runtime_ensure(*id_cow);
   deg_expand_eval_copy_datablock(depsgraph, id_node);
   backup.restore_to_id(id_cow);
   return id_cow;
@@ -1023,8 +1027,6 @@ void deg_tag_eval_copy_id(deg::Depsgraph &depsgraph, ID *id_cow, const ID *id_or
   /* This ID is no longer localized, is a self-sustaining copy now. */
   id_cow->tag &= ~ID_TAG_LOCALIZED;
   id_cow->orig_id = (ID *)id_orig;
-
-  // BKE_libblock_runtime_ensure(*id_cow);
   id_cow->runtime->depsgraph = &reinterpret_cast<::Depsgraph &>(depsgraph);
 }
 

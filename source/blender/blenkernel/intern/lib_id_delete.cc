@@ -71,9 +71,9 @@ void BKE_libblock_free_data(ID *id, const bool do_id_user)
     MEM_freeN(id->library_weak_reference);
   }
 
-  BKE_libblock_free_runtime_data(id);
-
   BKE_animdata_free(id, do_id_user);
+
+  BKE_libblock_free_runtime_data(id);
 }
 
 void BKE_libblock_free_datablock(ID *id, const int /*flag*/)

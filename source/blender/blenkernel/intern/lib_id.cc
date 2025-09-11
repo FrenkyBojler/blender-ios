@@ -1330,7 +1330,6 @@ ID *BKE_libblock_alloc_notest(short type)
   size_t size = BKE_libblock_get_alloc_info(type, &name);
   if (size != 0) {
     ID *id = static_cast<ID *>(MEM_callocN(size, name));
-    BKE_libblock_runtime_ensure(*id);
     return id;
   }
   BLI_assert_msg(0, "Request to allocate unknown data type");
@@ -1348,6 +1347,7 @@ void *BKE_libblock_alloc_in_lib(Main *bmain,
   BLI_assert((flag & LIB_ID_CREATE_NO_MAIN) != 0 || (flag & LIB_ID_CREATE_LOCAL) == 0);
 
   ID *id = BKE_libblock_alloc_notest(type);
+  BKE_libblock_runtime_ensure(*id);
 
   if (id) {
     if ((flag & LIB_ID_CREATE_NO_MAIN) != 0) {
@@ -1555,13 +1555,17 @@ void BKE_libblock_copy_in_lib(Main *bmain,
       ((owner_library && *owner_library) ? (ID_TAG_EXTERN | ID_TAG_INDIRECT) : 0);
 
   if ((flag & LIB_ID_CREATE_NO_ALLOCATE) != 0) {
-    /* `new_id_p` already contains pointer to allocated memory. */
-    /* TODO: do we want to memset(0) whole mem before filling it? */
+    /* `new_id_p` already contains pointer to allocated memory.
+     * Clear and initialize it similar to BKE_libblock_alloc_in_lib. */
+    const size_t size = BKE_libblock_get_alloc_info(GS(id->name), nullptr);
+    memset(new_id, 0, size);
+    BKE_libblock_runtime_ensure(*new_id);
     STRNCPY(new_id->name, id->name);
     new_id->us = 0;
     new_id->tag |= ID_TAG_NOT_ALLOCATED | ID_TAG_NO_MAIN | ID_TAG_NO_USER_REFCOUNT;
     new_id->lib = owner_library ? *owner_library : id->lib;
-    /* TODO: Do we want/need to copy more from ID struct itself? */
+    /* TODO: Is this entirel consistent with BKE_libblock_alloc_in_lib, and can we
+     * deduplicate the initialization code? */
   }
   else {
     new_id = static_cast<ID *>(
