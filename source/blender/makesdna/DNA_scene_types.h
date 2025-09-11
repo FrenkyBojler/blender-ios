@@ -1191,7 +1191,7 @@ typedef struct Paint {
   int symmetry_flags;
   /**
    * Collapsed state of a given pressure curve
-   * See #ePaintCurveVisibilityFlags
+   * See #PaintCurveVisibilityFlags
    */
   int curve_visibility_flags;
   char _pad[4];

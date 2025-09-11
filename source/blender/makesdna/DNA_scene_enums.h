@@ -66,8 +66,8 @@ typedef enum eUnifiedPaintSettingsFlags {
 } eUnifiedPaintSettingsFlags;
 
 /** Paint::curve_visibility_flag*/
-typedef enum ePaintCurveVisibilityFlags {
+typedef enum PaintCurveVisibilityFlags {
   PAINT_CURVE_SHOW_STRENGTH = (1 << 0),
   PAINT_CURVE_SHOW_SIZE = (1 << 1),
   PAINT_CURVE_SHOW_JITTER = (1 << 2),
-} ePaintCurveVisibilityFlags;
+} PaintCurveVisibilityFlags;
