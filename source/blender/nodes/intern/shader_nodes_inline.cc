@@ -337,8 +337,6 @@ class ShaderNodesInliner {
       return;
     }
 
-    /* TODO: Find the correct context for the origin socket. It should work fine without but
-     * results in a larger generated node tree. */
     const ComputeContext *from_context = this->get_link_source_context(*used_link, socket);
     const SocketInContext origin_socket = {from_context, used_link->fromsock};
     if (const auto *value = value_by_socket_.lookup_ptr(origin_socket)) {
