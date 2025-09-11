@@ -17,7 +17,6 @@
 #include "DNA_scene_types.h"
 #include "DNA_windowmanager_types.h"
 
-#include "BLI_ghash.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
@@ -1168,17 +1167,14 @@ static int stitch_process_data(StitchStateContainer *ssc,
       return 0;
     }
 
-    GHash *orig_vert_sel = BLI_ghash_ptr_new("stitch_orig_vert_sel");
+    Vector<BMVert *> orig_vert_sel;
     BMIter vert_iter;
     BMVert *vert;
     BM_ITER_MESH (vert, &vert_iter, bm, BM_VERTS_OF_MESH) {
       if (BM_elem_flag_test(vert, BM_ELEM_SELECT)) {
-        BLI_ghash_insert(orig_vert_sel, vert, POINTER_FROM_INT(1));
+        orig_vert_sel.append(vert);
+        BM_elem_flag_disable(vert, BM_ELEM_SELECT);
       }
-    }
-
-    BM_ITER_MESH (efa, &iter, bm, BM_FACES_OF_MESH) {
-      BM_elem_flag_disable(efa, BM_ELEM_SELECT);
     }
 
     BM_ITER_MESH (efa, &iter, bm, BM_FACES_OF_MESH) {
@@ -1199,17 +1195,10 @@ static int stitch_process_data(StitchStateContainer *ssc,
     options.fill_holes = true;
     options.correct_aspect = true;
     uvedit_unwrap(scene, state->obedit, &options, nullptr, nullptr);
-    BM_ITER_MESH (vert, &vert_iter, bm, BM_VERTS_OF_MESH) {
-      if (BLI_ghash_haskey(orig_vert_sel, vert)) {
-        BM_elem_flag_enable(vert, BM_ELEM_SELECT);
-      }
-      else {
-        BM_elem_flag_disable(vert, BM_ELEM_SELECT);
-      }
+    for( BMVert *vert : orig_vert_sel){
+      BM_elem_flag_enable(vert, BM_ELEM_SELECT);
     }
 
-    BLI_ghash_free(orig_vert_sel, nullptr, nullptr);
-    BM_mesh_select_flush(bm);
     BMUVOffsets offsets = BM_uv_map_offsets_get(bm);
     float uv_area = 0.0f;
     float object_area = 0.0f;
