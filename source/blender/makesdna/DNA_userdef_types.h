@@ -233,8 +233,7 @@ typedef struct UserDef_Experimental {
   char use_new_volume_nodes;
   char use_shader_node_previews;
   char use_geometry_nodes_lists;
-  char use_vse_compositor_strip_modifier;
-  char _pad[5];
+  char _pad[6];
 } UserDef_Experimental;
 
 #define USER_EXPERIMENTAL_TEST(userdef, member) \
