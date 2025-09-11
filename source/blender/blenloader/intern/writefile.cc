@@ -808,19 +808,30 @@ static void writestruct_at_address_nr(WriteData *wd,
     }
   }
 
-  blender::DynamicStackBuffer<16 * 1024> buffer_owner(len_in_bytes, 64);
-  void *buffer = buffer_owner.buffer();
-  memcpy(buffer, data, len_in_bytes);
-
+  /* Get the address identifier that will be written to the file.*/
   const void *address_id = get_address_id(*wd, adr);
 
   const blender::dna::pointers::StructInfo &struct_info = wd->pointers->get_for_struct(struct_nr);
-  for (const int i : blender::IndexRange(nr)) {
-    for (const blender::dna::pointers::PointerInfo &pointer_info : struct_info.pointers) {
-      const int offset = i * struct_info.size + pointer_info.offset;
-      const void **p_ptr = (const void **)POINTER_OFFSET(buffer, offset);
-      const void *address_id = get_address_id(*wd, *p_ptr);
-      *p_ptr = address_id;
+  const bool can_write_raw_runtime_data = struct_info.pointers.is_empty();
+
+  blender::DynamicStackBuffer<16 * 1024> buffer_owner(len_in_bytes, 64);
+  const void *data_to_write;
+  if (can_write_raw_runtime_data) {
+    data_to_write = data;
+  }
+  else {
+    void *buffer = buffer_owner.buffer();
+    data_to_write = buffer;
+    memcpy(buffer, data, len_in_bytes);
+
+    /* Overwrite pointers with their corresponding address identifiers. */
+    for (const int i : blender::IndexRange(nr)) {
+      for (const blender::dna::pointers::PointerInfo &pointer_info : struct_info.pointers) {
+        const int offset = i * struct_info.size + pointer_info.offset;
+        const void **p_ptr = (const void **)POINTER_OFFSET(buffer, offset);
+        const void *address_id = get_address_id(*wd, *p_ptr);
+        *p_ptr = address_id;
+      }
     }
   }
 
@@ -837,11 +848,11 @@ static void writestruct_at_address_nr(WriteData *wd,
 
   if (wd->debug_dst) {
     blender::dna::print_structs_at_address(
-        *wd->sdna, struct_nr, buffer, address_id, nr, *wd->debug_dst);
+        *wd->sdna, struct_nr, data_to_write, address_id, nr, *wd->debug_dst);
   }
 
   write_bhead(wd, bh);
-  mywrite(wd, buffer, size_t(bh.len));
+  mywrite(wd, data_to_write, size_t(bh.len));
 }
 
 static void writestruct_nr(
@@ -1393,12 +1404,6 @@ BLO_Write_IDBuffer::BLO_Write_IDBuffer(ID &id, const bool is_undo, const bool is
   temp_id->py_instance = nullptr;
   /* Clear runtime data struct. */
   temp_id->runtime = ID_Runtime{};
-
-  temp_id->session_uid = 0;
-  temp_id->recalc_up_to_undo_push = 0;
-  temp_id->recalc_after_undo_push = 0;
-  temp_id->runtime.remap = {};
-  temp_id->recalc = 0;
 }
 
 BLO_Write_IDBuffer::BLO_Write_IDBuffer(ID &id, BlendWriter *writer)
@@ -1672,8 +1677,6 @@ static bool write_file_handle(Main *mainvar,
   BHead bhead{};
   bhead.code = BLO_CODE_ENDB;
   write_bhead(wd, bhead);
-
-  mywrite_flush(wd);
 
   return mywrite_end(wd);
 }
