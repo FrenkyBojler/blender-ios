@@ -357,7 +357,6 @@ struct BMesh {
   uint use_toolflags : 1;
 
   /** When set ignore, don't use the UV Loop selection flags. */
-  // uint uv_sync_select_valid : 1;
   bool uv_sync_select_valid;
 
   int toolflag_index;

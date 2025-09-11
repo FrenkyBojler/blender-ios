@@ -121,6 +121,12 @@ PyDoc_STRVAR(
     "Seam for UV unwrapping.\n"
     "\n"
     ":type: bool\n");
+PyDoc_STRVAR(
+    /* Wrap. */
+    bpy_bm_elem_uv_select_doc,
+    "UV selected state of this element.\n"
+    "\n"
+    ":type: bool\n");
 
 static PyObject *bpy_bm_elem_hflag_get(BPy_BMElem *self, void *flag)
 {
@@ -399,6 +405,34 @@ static int bpy_bmesh_select_history_set(BPy_BMesh *self, PyObject *value, void *
   BPY_BM_CHECK_INT(self);
 
   return BPy_BMEditSel_Assign(self, value);
+}
+
+PyDoc_STRVAR(
+    /* Wrap. */
+    bpy_bmesh_uv_select_sync_valid_doc,
+    "When true, the UV selection has been synchronized. "
+    "Setting to False means the UV selection will be ignored. "
+    "While setting to true is supported it is up to the script author to "
+    "ensure a correct selection state before doing so.\n"
+    ":type: "
+    "bool\n");
+static PyObject *bpy_bmesh_uv_select_sync_valid_get(BPy_BMesh *self, void * /*closure*/)
+{
+  BPY_BM_CHECK_OBJ(self);
+
+  return PyBool_FromLong(self->bm->uv_sync_select_valid);
+}
+
+static int bpy_bmesh_uv_select_sync_valid_set(BPy_BMesh *self, PyObject *value, void * /*closure*/)
+{
+  BPY_BM_CHECK_INT(self);
+
+  int param;
+  if ((param = PyC_Long_AsBool(value)) == -1) {
+    return -1;
+  }
+  self->bm->uv_sync_select_valid = param;
+  return 0;
 }
 
 /* Vert
@@ -803,6 +837,12 @@ static PyGetSetDef bpy_bmesh_getseters[] = {
      bpy_bmesh_select_history_doc,
      nullptr},
 
+    {"uv_select_sync_valid",
+     (getter)bpy_bmesh_uv_select_sync_valid_get,
+     (setter)bpy_bmesh_uv_select_sync_valid_set,
+     bpy_bmesh_uv_select_sync_valid_doc,
+     nullptr},
+
     /* readonly checks */
     {"is_wrapped",
      (getter)bpy_bmesh_is_wrapped_get,
@@ -974,6 +1014,11 @@ static PyGetSetDef bpy_bmface_getseters[] = {
      (setter)bpy_bm_elem_hflag_set,
      bpy_bm_elem_tag_doc,
      (void *)BM_ELEM_TAG},
+    {"uv_select",
+     (getter)bpy_bm_elem_hflag_get,
+     (setter)bpy_bm_elem_hflag_set,
+     bpy_bm_elem_uv_select_doc,
+     (void *)BM_ELEM_SELECT_UV},
     {"index",
      (getter)bpy_bm_elem_index_get,
      (setter)bpy_bm_elem_index_set,
@@ -1041,6 +1086,16 @@ static PyGetSetDef bpy_bmloop_getseters[] = {
      (setter)bpy_bm_elem_hflag_set,
      bpy_bm_elem_tag_doc,
      (void *)BM_ELEM_TAG},
+    {"uv_select_vert",
+     (getter)bpy_bm_elem_hflag_get,
+     (setter)bpy_bm_elem_hflag_set,
+     bpy_bm_elem_uv_select_doc,
+     (void *)BM_ELEM_SELECT_UV},
+    {"uv_select_edge",
+     (getter)bpy_bm_elem_hflag_get,
+     (setter)bpy_bm_elem_hflag_set,
+     bpy_bm_elem_uv_select_doc,
+     (void *)BM_ELEM_SELECT_UV_EDGE},
     {"index",
      (getter)bpy_bm_elem_index_get,
      (setter)bpy_bm_elem_index_set,
