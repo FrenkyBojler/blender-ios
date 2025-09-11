@@ -33,10 +33,52 @@ ConversionOperation::ConversionOperation(Context &context,
   this->populate_result(context.create_result(expected_type));
 }
 
+/* Returns true if conversion between the given from and to types is supported. This should be
+ * consistent and up to date with the compositor node tree's validate_link fallback. */
+static bool is_conversion_supported(const ResultType from_type, const ResultType to_type)
+{
+  switch (from_type) {
+    case ResultType::Float:
+    case ResultType::Float2:
+    case ResultType::Float3:
+    case ResultType::Float4:
+    case ResultType::Int:
+    case ResultType::Int2:
+    case ResultType::Color:
+    case ResultType::Bool:
+      switch (to_type) {
+        case ResultType::Float:
+        case ResultType::Float2:
+        case ResultType::Float3:
+        case ResultType::Float4:
+        case ResultType::Int:
+        case ResultType::Int2:
+        case ResultType::Color:
+        case ResultType::Bool:
+          return true;
+        case ResultType::Menu:
+        case ResultType::String:
+          return false;
+      }
+      break;
+    case ResultType::Menu:
+    case ResultType::String:
+      return to_type == from_type;
+  }
+
+  BLI_assert_unreachable();
+  return false;
+}
+
 void ConversionOperation::execute()
 {
   Result &result = this->get_result();
   const Result &input = this->get_input();
+
+  if (!is_conversion_supported(input.type(), result.type())) {
+    result.allocate_invalid();
+    return;
+  }
 
   if (input.is_single_value()) {
     result.allocate_single_value();
@@ -49,7 +91,7 @@ void ConversionOperation::execute()
     const std::string shader_name = fmt::format("compositor_convert_{}_to_{}",
                                                 Result::type_name(this->get_input().type()),
                                                 Result::type_name(this->get_result().type()));
-    GPUShader *shader = this->context().get_shader(shader_name.c_str());
+    gpu::Shader *shader = this->context().get_shader(shader_name.c_str());
     GPU_shader_bind(shader);
 
     if (this->get_input().type() == ResultType::Color &&
@@ -119,6 +161,7 @@ void ConversionOperation::execute_single(const Result &input, Result &output)
   const bke::DataTypeConversions &conversions = bke::get_implicit_type_conversions();
   conversions.convert_to_initialized_n(get_result_single_value(input),
                                        get_result_single_value(output));
+  output.update_single_value_data();
 }
 
 /* Gets the CPU data of the given result as a GSpan. This calls the underlying cpu_data method,

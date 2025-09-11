@@ -45,8 +45,8 @@ class GHOST_IWindow {
   virtual bool getValid() const = 0;
 
   /**
-   * Returns the associated OS object/handle
-   * \return The associated OS object/handle
+   * Returns the associated OS object/handle.
+   * \return The associated OS object/handle.
    */
   virtual void *getOSWindow() const = 0;
 
@@ -94,16 +94,16 @@ class GHOST_IWindow {
 
   /**
    * Set the window decoration style flags.
-   * \param styleFlags: Window decoration style flags.
+   * \param style_flags: Window decoration style flags.
    */
-  virtual void setWindowDecorationStyleFlags(GHOST_TWindowDecorationStyleFlags styleFlags) = 0;
+  virtual void setWindowDecorationStyleFlags(GHOST_TWindowDecorationStyleFlags style_flags) = 0;
 
   /**
    * Set the window decoration style settings.
-   * \param decorationSettings: Window decoration style settings.
+   * \param decoration_settings: Window decoration style settings.
    */
   virtual void setWindowDecorationStyleSettings(
-      GHOST_WindowDecorationStyleSettings decorationSettings) = 0;
+      GHOST_WindowDecorationStyleSettings decoration_settings) = 0;
 
   /**
    * Apply the window decoration style using the current flags and settings.
@@ -164,11 +164,11 @@ class GHOST_IWindow {
   /**
    * Tells if the ongoing drag & drop object can be accepted upon mouse drop
    */
-  virtual void setAcceptDragOperation(bool canAccept) = 0;
+  virtual void setAcceptDragOperation(bool can_accept) = 0;
 
   /**
-   * Returns acceptance of the dropped object
-   * Usually called by the "object dropped" event handling function
+   * Returns acceptance of the dropped object.
+   * Usually called by the "object dropped" event handling function.
    */
   virtual bool canAcceptDragOperation() const = 0;
 
@@ -186,14 +186,14 @@ class GHOST_IWindow {
   virtual GHOST_TSuccess setState(GHOST_TWindowState state) = 0;
 
   /**
-   * Sets the window "modified" status, indicating unsaved changes
-   * \param isUnsavedChanges: Unsaved changes or not.
+   * Sets the window "modified" status, indicating unsaved changes.
+   * \param is_unsaved_changes: Unsaved changes or not.
    * \return Indication of success.
    */
-  virtual GHOST_TSuccess setModifiedState(bool isUnsavedChanges) = 0;
+  virtual GHOST_TSuccess setModifiedState(bool is_unsaved_changes) = 0;
 
   /**
-   * Gets the window "modified" status, indicating unsaved changes
+   * Gets the window "modified" status, indicating unsaved changes.
    * \return True if there are unsaved changes
    */
   virtual bool getModifiedState() = 0;
@@ -206,10 +206,16 @@ class GHOST_IWindow {
   virtual GHOST_TSuccess setOrder(GHOST_TWindowOrder order) = 0;
 
   /**
+   * Acquire the next buffer of the swap chain.
+   * \return A boolean success indicator.
+   */
+  virtual GHOST_TSuccess swapBufferAcquire() = 0;
+
+  /**
    * Swaps front and back buffers of a window.
    * \return A boolean success indicator.
    */
-  virtual GHOST_TSuccess swapBuffers() = 0;
+  virtual GHOST_TSuccess swapBufferRelease() = 0;
 
   /**
    * Sets the swap interval for #swapBuffers.
@@ -220,11 +226,11 @@ class GHOST_IWindow {
 
   /**
    * Gets the current swap interval for #swapBuffers.
-   * \param intervalOut: pointer to location to return swap interval.
+   * \param interval_out: pointer to location to return swap interval.
    * (left untouched if there is an error)
    * \return A boolean success indicator of if swap interval was successfully read.
    */
-  virtual GHOST_TSuccess getSwapInterval(int &intervalOut) = 0;
+  virtual GHOST_TSuccess getSwapInterval(int &interval_out) = 0;
 
   /**
    * Activates the drawing context of this window.
@@ -239,6 +245,7 @@ class GHOST_IWindow {
   virtual unsigned int getDefaultFramebuffer() = 0;
 
 #ifdef WITH_VULKAN_BACKEND
+  /** \copydoc #GHOST_GetVulkanSwapChainFormat */
   virtual GHOST_TSuccess getVulkanSwapChainFormat(
       GHOST_VulkanSwapChainData *r_swap_chain_data) = 0;
 #endif
@@ -257,9 +264,9 @@ class GHOST_IWindow {
 
   /**
    * Changes the window user data.
-   * \param userData: The window user data.
+   * \param user_data: The window user data.
    */
-  virtual void setUserData(const GHOST_TUserDataPtr userData) = 0;
+  virtual void setUserData(const GHOST_TUserDataPtr user_data) = 0;
 
   virtual bool isDialog() const = 0;
 
@@ -274,7 +281,7 @@ class GHOST_IWindow {
   virtual GHOST_TSuccess setProgressBar(float progress) = 0;
 
   /**
-   * Hides the progress bar in the icon
+   * Hides the progress bar in the icon.
    */
   virtual GHOST_TSuccess endProgressBar() = 0;
 
@@ -290,11 +297,15 @@ class GHOST_IWindow {
 
   /**
    * Set the shape of the cursor.
-   * \param cursorShape: The new cursor shape type id.
+   * \param cursor_shape: The new cursor shape type id.
    * \return Indication of success.
    */
-  virtual GHOST_TSuccess setCursorShape(GHOST_TStandardCursor cursorShape) = 0;
+  virtual GHOST_TSuccess setCursorShape(GHOST_TStandardCursor cursor_shape) = 0;
 
+  /**
+   * Gets the cursor grab region, if unset the window is used.
+   * reset when grab is disabled.
+   */
   virtual GHOST_TSuccess getCursorGrabBounds(GHOST_Rect &bounds) const = 0;
 
   virtual void getCursorGrabState(GHOST_TGrabCursorMode &mode,
@@ -302,29 +313,38 @@ class GHOST_IWindow {
                                   GHOST_Rect &bounds,
                                   bool &use_software_cursor) = 0;
 
+  /**
+   * Return true when a software cursor should be used.
+   */
   virtual bool getCursorGrabUseSoftwareDisplay() = 0;
 
   /**
    * Test if the standard cursor shape is supported by current platform.
    * \return Indication of success.
    */
-  virtual GHOST_TSuccess hasCursorShape(GHOST_TStandardCursor cursorShape) = 0;
+  virtual GHOST_TSuccess hasCursorShape(GHOST_TStandardCursor cursor_shape) = 0;
 
   /**
    * Set the shape of the cursor to a custom cursor.
    * \param bitmap: The bitmap data for the cursor.
    * \param mask: The mask data for the cursor.
-   * \param hotX: The X coordinate of the cursor hot-spot.
-   * \param hotY: The Y coordinate of the cursor hot-spot.
+   * \param size: The X,Y size of the cursor in pixels.
+   * \param hot_spot: The X,Y coordinate of the cursor hot-spot.
    * \return Indication of success.
    */
-  virtual GHOST_TSuccess setCustomCursorShape(uint8_t *bitmap,
-                                              uint8_t *mask,
-                                              int sizex,
-                                              int sizey,
-                                              int hotX,
-                                              int hotY,
-                                              bool canInvertColor) = 0;
+  virtual GHOST_TSuccess setCustomCursorShape(const uint8_t *bitmap,
+                                              const uint8_t *mask,
+                                              const int size[2],
+                                              const int hot_spot[2],
+                                              bool can_invert_color) = 0;
+
+  /**
+   * Set the cursor generator.
+   *
+   * \param cursor_generator: An object which generates cursors.
+   * Ownership is transferred to GHOST which is responsible for calling it's free method.
+   */
+  virtual GHOST_TSuccess setCustomCursorGenerator(GHOST_CursorGenerator *cursor_generator) = 0;
 
   virtual GHOST_TSuccess getCursorBitmap(GHOST_CursorBitmapRef *bitmap) = 0;
 
@@ -354,6 +374,9 @@ class GHOST_IWindow {
     return GHOST_kSuccess;
   }
 
+  /**
+   * If this window was opened using native pixel size, return the scaling factor.
+   */
   virtual float getNativePixelSize() = 0;
 
   /**
@@ -361,6 +384,12 @@ class GHOST_IWindow {
    * \return The recommended DPI for this window.
    */
   virtual uint16_t getDPIHint() = 0;
+
+  /**
+   * Returns high dynamic range color information about this window.
+   * \return HDR info.
+   * */
+  virtual GHOST_WindowHDRInfo getHDRInfo() = 0;
 
 #ifdef WITH_INPUT_IME
   /**

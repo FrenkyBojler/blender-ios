@@ -80,7 +80,7 @@ uint *DRW_select_buffer_read(
   /* Make sure that the rect is within the bounds of the viewport.
    * Some GPUs have problems reading pixels off limits. */
   rcti rect_clamp = *rect;
-  if (BLI_rcti_isect(&r, &rect_clamp, &rect_clamp)) {
+  if (BLI_rcti_isect(&r, &rect_clamp, &rect_clamp) && !BLI_rcti_is_empty(&rect_clamp)) {
     SELECTID_Context *select_ctx = DRW_select_engine_context_get();
     RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
 
@@ -413,20 +413,20 @@ bool DRW_select_buffer_elem_get(const uint sel_id,
     if (ranges.face.contains(sel_id)) {
       r_elem = sel_id - ranges.face.start();
       r_elem_type = SCE_SELECT_FACE;
-      r_base_index = select_ctx->objects.first_index_of(ob);
-      return true;
+      r_base_index = select_ctx->objects.first_index_of_try(ob);
+      return r_base_index != -1;
     }
     if (ranges.edge.contains(sel_id)) {
       r_elem = sel_id - ranges.edge.start();
       r_elem_type = SCE_SELECT_EDGE;
-      r_base_index = select_ctx->objects.first_index_of(ob);
-      return true;
+      r_base_index = select_ctx->objects.first_index_of_try(ob);
+      return r_base_index != -1;
     }
     if (ranges.vert.contains(sel_id)) {
       r_elem = sel_id - ranges.vert.start();
       r_elem_type = SCE_SELECT_VERTEX;
-      r_base_index = select_ctx->objects.first_index_of(ob);
-      return true;
+      r_base_index = select_ctx->objects.first_index_of_try(ob);
+      return r_base_index != -1;
     }
   }
   return false;

@@ -163,15 +163,15 @@ void DrawTexture::create_from_buffer(pxr::HdRenderBuffer *buffer)
     return;
   }
 
-  eGPUTextureFormat texture_format;
+  blender::gpu::TextureFormat texture_format;
   eGPUDataFormat data_format;
 
   if (buffer->GetFormat() == pxr::HdFormat::HdFormatFloat16Vec4) {
-    texture_format = GPU_RGBA16F;
+    texture_format = blender::gpu::TextureFormat::SFLOAT_16_16_16_16;
     data_format = GPU_DATA_HALF_FLOAT;
   }
   else {
-    texture_format = GPU_RGBA32F;
+    texture_format = blender::gpu::TextureFormat::SFLOAT_32_32_32_32;
     data_format = GPU_DATA_FLOAT;
   }
 
@@ -198,7 +198,9 @@ void DrawTexture::create_from_buffer(pxr::HdRenderBuffer *buffer)
   buffer->Unmap();
 }
 
-void DrawTexture::draw(GPUShader *shader, const pxr::GfVec4d &viewport, GPUTexture *tex)
+void DrawTexture::draw(gpu::Shader *shader,
+                       const pxr::GfVec4d &viewport,
+                       blender::gpu::Texture *tex)
 {
   if (!tex) {
     tex = texture_;
@@ -215,7 +217,7 @@ void DrawTexture::draw(GPUShader *shader, const pxr::GfVec4d &viewport, GPUTextu
   GPU_matrix_pop();
 }
 
-GPUTexture *DrawTexture::texture() const
+blender::gpu::Texture *DrawTexture::texture() const
 {
   return texture_;
 }
@@ -247,7 +249,7 @@ void ViewportEngine::render()
   render_task_delegate_->unbind();
 
   GPU_framebuffer_bind(view_framebuffer);
-  GPUShader *shader = GPU_shader_get_builtin_shader(GPU_SHADER_3D_IMAGE);
+  gpu::Shader *shader = GPU_shader_get_builtin_shader(GPU_SHADER_3D_IMAGE);
   GPU_shader_bind(shader);
 
   pxr::GfVec4d draw_viewport(view_settings.border[0],

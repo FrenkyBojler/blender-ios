@@ -88,7 +88,7 @@ static void export_startjob(void *customdata, wmJobWorkerStatus *worker_status)
   data->start_time = blender::timeit::Clock::now();
 
   G.is_rendering = true;
-  WM_set_locked_interface(data->wm, true);
+  WM_locked_interface_set(data->wm, true);
   G.is_break = false;
 
   worker_status->progress = 0.0f;
@@ -137,7 +137,7 @@ static void export_startjob(void *customdata, wmJobWorkerStatus *worker_status)
   ABCHierarchyIterator iter(data->bmain, data->depsgraph, abc_archive.get(), data->params);
 
   if (export_animation) {
-    CLOG_INFO(&LOG, 2, "Exporting animation");
+    CLOG_STR_DEBUG(&LOG, "Exporting animation");
 
     /* Writing the animated frames is not 100% of the work, but it's our best guess. */
     const float progress_per_frame = 1.0f / std::max(size_t(1), abc_archive->total_frame_count());
@@ -156,7 +156,7 @@ static void export_startjob(void *customdata, wmJobWorkerStatus *worker_status)
       scene->r.subframe = float(frame - scene->r.cfra);
       BKE_scene_graph_update_for_newframe(data->depsgraph);
 
-      CLOG_INFO(&LOG, 2, "Exporting frame %.2f", frame);
+      CLOG_DEBUG(&LOG, "Exporting frame %.2f", frame);
       ExportSubset export_subset = abc_archive->export_subset_for_frame(frame);
       iter.set_export_subset(export_subset);
       iter.iterate_and_write();
@@ -195,7 +195,7 @@ static void export_endjob(void *customdata)
   }
 
   G.is_rendering = false;
-  WM_set_locked_interface(data->wm, false);
+  WM_locked_interface_set(data->wm, false);
   report_job_duration(data);
 }
 
@@ -232,7 +232,7 @@ bool ABC_export(Scene *scene,
     wmJob *wm_job = WM_jobs_get(job->wm,
                                 CTX_wm_window(C),
                                 scene,
-                                "Alembic Export",
+                                "Exporting Alembic...",
                                 WM_JOB_PROGRESS,
                                 WM_JOB_TYPE_ALEMBIC_EXPORT);
 

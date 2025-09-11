@@ -29,6 +29,8 @@ from bpy.app.translations import (
 
 
 class NodeSetting(PropertyGroup):
+    __slots__ = ()
+
     value: StringProperty(
         name="Value",
         description="Python expression to be evaluated "
@@ -59,8 +61,14 @@ class NodeAddOperator:
 
         # convert mouse position to the View2D for later node placement
         if context.region.type == 'WINDOW':
+            area = context.area
+            horizontal_pad = int(area.width / 10)
+            vertical_pad = int(area.height / 10)
+
+            inspace_x = min(max(horizontal_pad, event.mouse_region_x), area.width - horizontal_pad)
+            inspace_y = min(max(vertical_pad, event.mouse_region_y), area.height - vertical_pad)
             # convert mouse position to the View2D for later node placement
-            space.cursor_location_from_region(event.mouse_region_x, event.mouse_region_y)
+            space.cursor_location_from_region(inspace_x, inspace_y)
         else:
             space.cursor_location = tree.view_center
 
@@ -231,7 +239,7 @@ class NodeAddZoneOperator(NodeAddOperator):
         input_node.location -= Vector(self.offset)
         output_node.location += Vector(self.offset)
 
-        if self.add_default_geometry_link:
+        if tree.type == "GEOMETRY" and self.add_default_geometry_link:
             # Connect geometry sockets by default if available.
             # Get the sockets by their types, because the name is not guaranteed due to i18n.
             from_socket = next(s for s in input_node.outputs if s.type == 'GEOMETRY')
@@ -278,8 +286,8 @@ class NODE_OT_add_closure_zone(NodeAddZoneOperator, Operator):
     bl_label = "Add Closure Zone"
     bl_options = {'REGISTER', 'UNDO'}
 
-    input_node_type = "GeometryNodeClosureInput"
-    output_node_type = "GeometryNodeClosureOutput"
+    input_node_type = "NodeClosureInput"
+    output_node_type = "NodeClosureOutput"
     add_default_geometry_link = False
 
 
@@ -320,6 +328,12 @@ class NODE_OT_tree_path_parent(Operator):
     bl_label = "Parent Node Tree"
     bl_options = {'REGISTER', 'UNDO'}
 
+    parent_tree_index: IntProperty(
+        name="Parent Index",
+        description="Parent index in context path",
+        default=0,
+    )
+
     @classmethod
     def poll(cls, context):
         space = context.space_data
@@ -329,7 +343,9 @@ class NODE_OT_tree_path_parent(Operator):
     def execute(self, context):
         space = context.space_data
 
-        space.path.pop()
+        parent_number_to_pop = len(space.path) - 1 - self.parent_tree_index
+        for _ in range(parent_number_to_pop):
+            space.path.pop()
 
         return {'FINISHED'}
 
@@ -352,15 +368,18 @@ class NODE_OT_interface_item_new(NodeInterfaceOperator, Operator):
     bl_options = {'REGISTER', 'UNDO'}
 
     def get_items(_self, context):
-        snode = context.space_data
-        tree = snode.edit_tree
-        interface = tree.interface
-
         items = [
             ('INPUT', "Input", ""),
             ('OUTPUT', "Output", ""),
             ('PANEL', "Panel", ""),
         ]
+
+        if context is None:
+            return items
+
+        snode = context.space_data
+        tree = snode.edit_tree
+        interface = tree.interface
 
         active_item = interface.active
         # Panels have the extra option to add a toggle.
@@ -488,6 +507,11 @@ class NODE_OT_interface_item_remove(NodeInterfaceOperator, Operator):
             interface.remove(item)
             interface.active_index = min(interface.active_index, len(interface.items_tree) - 1)
 
+            # If the active selection lands on internal toggle socket, move selection to parent instead.
+            new_active = interface.active
+            if isinstance(new_active, bpy.types.NodeTreeInterfaceSocket) and new_active.is_panel_toggle:
+                interface.active_index = new_active.parent.index
+
         return {'FINISHED'}
 
 
@@ -598,7 +622,7 @@ class NODE_OT_interface_item_unlink_panel_toggle(NodeInterfaceOperator, Operator
 
 
 class NODE_OT_viewer_shortcut_set(Operator):
-    """Create a compositor viewer shortcut for the selected node by pressing ctrl+1,2,..9"""
+    """Create a viewer shortcut for the selected node by pressing ctrl+1,2,..9"""
     bl_idname = "node.viewer_shortcut_set"
     bl_label = "Fast Preview"
     bl_options = {'REGISTER', 'UNDO'}
@@ -666,7 +690,7 @@ class NODE_OT_viewer_shortcut_set(Operator):
 
 
 class NODE_OT_viewer_shortcut_get(Operator):
-    """Activate a specific compositor viewer node using 1,2,..,9 keys"""
+    """Toggle a specific viewer node using 1,2,..,9 keys"""
     bl_idname = "node.viewer_shortcut_get"
     bl_label = "Fast Preview"
     bl_options = {'REGISTER', 'UNDO'}
@@ -700,7 +724,7 @@ class NODE_OT_viewer_shortcut_get(Operator):
             return {'CANCELLED'}
 
         with bpy.context.temp_override(node=viewer_node):
-            bpy.ops.node.activate_viewer()
+            bpy.ops.node.toggle_viewer()
 
         return {'FINISHED'}
 
