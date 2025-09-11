@@ -2077,6 +2077,41 @@ static bool get_smoothed_surface_normal(const ViewContext *vc,
   return true;
 }
 
+/**
+ * Perform auto-keying for object rotation changes based on the object's rotation mode.
+ */
+static void autokeyframe_object_rotation(bContext *C, Scene *scene, Object *ob)
+{
+  PointerRNA ptr = RNA_pointer_create_discrete(&ob->id, &RNA_Object, &ob->id);
+  const char *rotation_property = "rotation_euler";
+  switch (ob->rotmode) {
+    case ROT_MODE_QUAT:
+      rotation_property = "rotation_quaternion";
+      break;
+    case ROT_MODE_AXISANGLE:
+      rotation_property = "rotation_axis_angle";
+      break;
+    default:
+      break;
+  }
+  PropertyRNA *prop = RNA_struct_find_property(&ptr, rotation_property);
+  animrig::autokeyframe_property(C, scene, &ptr, prop, -1, scene->r.cfra, true);
+}
+
+/**
+ * Position light along surface normal with given offset distance.
+ * Uses legacy vector functions for consistency with existing codebase.
+ */
+static void position_light_along(const float normal[3],
+                                       const float location_world[3],
+                                       float offset_distance,
+                                       float direction[3],
+                                       float final_normal[3])
+{
+  copy_v3_v3(final_normal, normal);
+  copy_v3_v3(direction, location_world);
+  madd_v3_v3fl(direction, final_normal, offset_distance);
+}
 
 static bool object_is_target_compat(const Object *ob)
 {
@@ -2119,7 +2154,6 @@ static void object_apply_rotation(Object *ob, const float rmat[3][3])
   float loc[3];
   float rmat4[4][4];
   copy_m4_m3(rmat4, rmat);
-
   copy_v3_v3(size, ob->scale);
   copy_v3_v3(loc, ob->loc);
   BKE_object_apply_mat4(ob, rmat4, true, true);
@@ -2250,23 +2284,21 @@ static wmOperatorStatus object_transform_axis_target_invoke(bContext *C,
     negate_v3(light_normal); /* Light points in negative Z direction by default */
     
     /* Use snap system to cast ray from light position */
-    using namespace blender::ed::transform;
-    
-    SnapObjectParams snap_params = {};
+    blender::ed::transform::SnapObjectParams snap_params = {};
     snap_params.snap_target_select = SCE_SNAP_TARGET_ALL;
-    snap_params.edit_mode_type = SNAP_GEOM_FINAL;
-    snap_params.occlusion_test = SNAP_OCCLUSION_NEVER;
+    snap_params.edit_mode_type = blender::ed::transform::SNAP_GEOM_FINAL;
+    snap_params.occlusion_test = blender::ed::transform::SNAP_OCCLUSION_NEVER;
     snap_params.use_backface_culling = false;
     snap_params.keep_on_same_target = false;
     snap_params.face_nearest_steps = 1;
     snap_params.grid_size = 0.0f;
     
-    SnapObjectContext *sctx = snap_object_context_create(xfd->vc.scene, 0);
+    blender::ed::transform::SnapObjectContext *sctx = blender::ed::transform::snap_object_context_create(xfd->vc.scene, 0);
     
     float hit_co[3], hit_no[3];
     float ray_depth = BVH_RAYCAST_DIST_MAX; /* Cast ray far into the scene */
     
-    bool hit = snap_object_project_ray(
+    bool hit = blender::ed::transform::snap_object_project_ray(
         sctx,
         xfd->vc.depsgraph,
         xfd->vc.v3d,
@@ -2277,7 +2309,7 @@ static wmOperatorStatus object_transform_axis_target_invoke(bContext *C,
         hit_co,
         hit_no);
     
-    snap_object_context_destroy(sctx);
+    blender::ed::transform::snap_object_context_destroy(sctx);
     
     if (hit) {
       /* Calculate distance from light to geometry intersection */
@@ -2336,20 +2368,7 @@ static wmOperatorStatus object_transform_axis_target_modal(bContext *C,
         Scene *scene = CTX_data_scene(C);
         /* Perform auto-keying for rotational changes for all objects. */
         for (XFormAxisItem &item : xfd->object_data) {
-          PointerRNA ptr = RNA_pointer_create_discrete(&item.ob->id, &RNA_Object, &item.ob->id);
-          const char *rotation_property = "rotation_euler";
-          switch (item.ob->rotmode) {
-            case ROT_MODE_QUAT:
-              rotation_property = "rotation_quaternion";
-              break;
-            case ROT_MODE_AXISANGLE:
-              rotation_property = "rotation_axis_angle";
-              break;
-            default:
-              break;
-          }
-          PropertyRNA *prop = RNA_struct_find_property(&ptr, rotation_property);
-          animrig::autokeyframe_property(C, scene, &ptr, prop, -1, scene->r.cfra, true);
+          autokeyframe_object_rotation(C, scene, item.ob);
         }
         /* Clear WorkspaceStatus to return to basic state */
         ED_workspace_status_text(C, nullptr);
@@ -2396,9 +2415,9 @@ static wmOperatorStatus object_transform_axis_target_modal(bContext *C,
               if (xfd->prev.is_depth_valid && depth_fl == 1.0f) {
                 depth_fl = xfd->prev.depth;
               }
-              double depth = double(depth_fl);
+              const double depth = double(depth_fl);
               if ((depth > depths->depth_range[0]) && (depth < depths->depth_range[1])) {
-                float target_location[3];
+                blender::float3 target_location;
                 if (ED_view3d_depth_unproject_v3(xfd->vc.region, event->mval, depth, target_location)) {
                   copy_v3_v3(xfd->shadow_target_location, target_location);
                   xfd->shadow_target_set = true;
@@ -2443,7 +2462,7 @@ static wmOperatorStatus object_transform_axis_target_modal(bContext *C,
     if (depths && (uint(event->mval[0]) < depths->w) && (uint(event->mval[1]) < depths->h)) {
       float depth_fl = 1.0f;
       ED_view3d_depth_read_cached(depths, event->mval, 0, &depth_fl);
-      float location_world[3];
+      blender::float3 location_world;
       if (depth_fl == 1.0f) {
         if (xfd->prev.is_depth_valid) {
           depth_fl = xfd->prev.depth;
@@ -2469,7 +2488,7 @@ static wmOperatorStatus object_transform_axis_target_modal(bContext *C,
         if (ED_view3d_depth_unproject_v3(region, event->mval, depth, location_world)) {
           if (xfd->is_light_positioning && xfd->light_mode != LIGHT_TARGET_MODE) {
 
-            float normal[3];
+            blender::float3 normal;
             bool normal_found = false;
             if (get_smoothed_surface_normal(&xfd->vc, depths, event->mval, normal)) {
               normal_found = true;
@@ -2490,67 +2509,48 @@ static wmOperatorStatus object_transform_axis_target_modal(bContext *C,
                 /* The offset distance is consistent throughout the modal execution.
                  * It's calculated once at initialization and only changes with Z-axis adjustment. */
 
-                float final_location[3];
-                float final_normal[3];
+                blender::float3 final_location;
+                blender::float3 final_normal;
+                blender::float3 view_dir;
+                blender::float3 reflected_dir;
+                blender:: float3 direction_to_target;
                 
                 switch (xfd->light_mode) {
                   case LIGHT_TARGET_MODE:
                     /* Target mode: use original rotation behavior (no light positioning) */
                     /* This should not reach here as target mode uses original logic */
-                    copy_v3_v3(final_normal, normal);
-                    copy_v3_v3(final_location, location_world);
-                    madd_v3_v3fl(final_location, final_normal, xfd->light_offset_distance);
-                    break;
-                    
                   case LIGHT_DIFFUSE_MODE:
                     /* Normal mode: position light along surface normal */
-                    copy_v3_v3(final_normal, normal);
-                    copy_v3_v3(final_location, location_world);
-                    madd_v3_v3fl(final_location, final_normal, xfd->light_offset_distance);
+                    position_light_along(normal, location_world, xfd->light_offset_distance, final_location, final_normal);
                     break;
-                    
                   case LIGHT_SPECULAR_MODE:
                     /* Reflection positioning: calculate reflection direction */
                     {
-                      float view_dir[3];
                       float mval[2] = {float(event->mval[0]), float(event->mval[1])};
                       ED_view3d_win_to_vector(xfd->vc.region, mval, view_dir);
                       normalize_v3(view_dir);
-                      
                       /* Calculate reflection direction using Blender's reflect function */
-                      float reflected_dir[3];
                       reflect_v3_v3v3(reflected_dir, view_dir, normal);
                       
-                      copy_v3_v3(final_location, location_world);
-                      madd_v3_v3fl(final_location, reflected_dir, xfd->light_offset_distance);
-                      copy_v3_v3(final_normal, reflected_dir);
+                      position_light_along(reflected_dir, location_world, xfd->light_offset_distance, final_location, final_normal);
                     }
                     break;
-                    
                   case LIGHT_SHADOW_MODE:
                     /* Shadow positioning: position light to cast shadows from target */
                     if (xfd->shadow_target_set) {
-                      float direction_to_target[3];
                       sub_v3_v3v3(direction_to_target, xfd->shadow_target_location, location_world);
                       normalize_v3(direction_to_target);
                       
-                      copy_v3_v3(final_location, xfd->shadow_target_location);
-                      madd_v3_v3fl(final_location, direction_to_target, xfd->light_offset_distance);
-                      copy_v3_v3(final_normal, direction_to_target);
+                      position_light_along(direction_to_target, xfd->shadow_target_location, xfd->light_offset_distance, final_location, final_normal);
                     }
                     else {
                       /* Fallback to normal mode if shadow target not set */
-                      copy_v3_v3(final_normal, normal);
-                      copy_v3_v3(final_location, location_world);
-                      madd_v3_v3fl(final_location, final_normal, xfd->light_offset_distance);
+                      position_light_along(normal, location_world, xfd->light_offset_distance, final_location, final_normal);
                     }
                     break;
-                    
                   default:
                     /* Should not reach here since we filter the modes above */
-                    copy_v3_v3(final_normal, normal);
-                    copy_v3_v3(final_location, location_world);
-                    madd_v3_v3fl(final_location, final_normal, xfd->light_offset_distance);
+                    position_light_along(normal, location_world, xfd->light_offset_distance, final_location, final_normal);
                     break;
                 }
 
@@ -2559,7 +2559,7 @@ static wmOperatorStatus object_transform_axis_target_modal(bContext *C,
                 copy_v3_v3(item.ob->runtime->object_to_world.location(), final_location);
                 
                 /* Orient light toward the target */
-                float target_location[3];
+                blender::float3 target_location;
                 switch (xfd->light_mode) {
                   case LIGHT_SHADOW_MODE:
                     if (xfd->shadow_target_set) {
@@ -2595,7 +2595,7 @@ static wmOperatorStatus object_transform_axis_target_modal(bContext *C,
                   item.xform_dist = xfd->light_offset_distance;
                 }
                 else {
-                  float ob_axis[3];
+                  blender::float3 ob_axis;
                   item.xform_dist = len_v3v3(item.ob->object_to_world().location(),
                                              location_world);
                   normalize_v3_v3(ob_axis, item.ob->object_to_world().ptr()[2]);
@@ -2606,7 +2606,7 @@ static wmOperatorStatus object_transform_axis_target_modal(bContext *C,
                   }
                 }
 
-                float target_normal[3];
+                blender::float3 target_normal;
 
                 if (normal_found) {
                   copy_v3_v3(target_normal, normal);
@@ -2623,7 +2623,7 @@ static wmOperatorStatus object_transform_axis_target_modal(bContext *C,
                 }
 #endif
                 {
-                  float loc[3];
+                  blender::float3 loc;
 
                   copy_v3_v3(loc, location_world);
                   /* For light positioning, use the fixed offset distance to maintain consistency */
@@ -2682,20 +2682,7 @@ static wmOperatorStatus object_transform_axis_target_modal(bContext *C,
     Scene *scene = CTX_data_scene(C);
     /* Perform auto-keying for rotational changes for all objects. */
     for (XFormAxisItem &item : xfd->object_data) {
-      PointerRNA ptr = RNA_pointer_create_discrete(&item.ob->id, &RNA_Object, &item.ob->id);
-      const char *rotation_property = "rotation_euler";
-      switch (item.ob->rotmode) {
-        case ROT_MODE_QUAT:
-          rotation_property = "rotation_quaternion";
-          break;
-        case ROT_MODE_AXISANGLE:
-          rotation_property = "rotation_axis_angle";
-          break;
-        default:
-          break;
-      }
-      PropertyRNA *prop = RNA_struct_find_property(&ptr, rotation_property);
-      animrig::autokeyframe_property(C, scene, &ptr, prop, -1, scene->r.cfra, true);
+      autokeyframe_object_rotation(C, scene, item.ob);
     }
 
     /* Clear WorkspaceStatus to return to basic state */
