@@ -2107,8 +2107,8 @@ void BLO_write_double_array(BlendWriter *writer, const int64_t num, const double
 
 void BLO_write_pointer_array(BlendWriter *writer, const int64_t num, const void *data_ptr)
 {
-  blender::Array<const void *, 32> data(
-      blender::Span{reinterpret_cast<const void *const *>(data_ptr), num});
+  blender::Array<const void *, 32> data = blender::Span<const void *>(
+      reinterpret_cast<const void *const *>(data_ptr), num);
   for (const int64_t i : data.index_range()) {
     data[i] = get_address_id(*writer->wd, data[i]);
   }
