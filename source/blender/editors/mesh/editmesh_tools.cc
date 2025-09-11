@@ -2738,7 +2738,11 @@ static wmOperatorStatus edbm_do_smooth_vertex_exec(bContext *C, wmOperator *op)
     }
 
     if (hflag_smooth != BM_ELEM_SELECT) {
-      EDBM_flag_disable_all(em, hflag_smooth);
+      BMIter v_iter;
+      BMVert *v;
+      BM_ITER_MESH (v, &v_iter, bm, BM_VERTS_OF_MESH) {
+        BM_elem_flag_disable(v, hflag_smooth);
+      }
     }
 
     const bool calc_normals = (hflag_smooth != BM_ELEM_SELECT);
