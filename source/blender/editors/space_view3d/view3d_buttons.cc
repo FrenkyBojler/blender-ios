@@ -120,6 +120,7 @@ struct CurvesDataPanelState {
   float softness;
   float u_scale;
   float fill_opacity;
+  int end_cap;
 };
 
 /* temporary struct for storing transform properties */
@@ -529,6 +530,8 @@ struct CurvesSelectionStatus {
   bool u_scale_equal = true;
   float fill_opacity = 0.0f;
   bool fill_opacity_equal = true;
+  int end_cap = 0;
+  bool end_cap_equal = true;
 
   static CurvesSelectionStatus sum(const CurvesSelectionStatus &a, const CurvesSelectionStatus &b)
   {
@@ -556,6 +559,9 @@ struct CurvesSelectionStatus {
         a.fill_opacity + b.fill_opacity,
         a.fill_opacity_equal && b.fill_opacity_equal &&
             (a.fill_opacity * b.curve_count == b.fill_opacity * a.curve_count),
+        a.end_cap + b.end_cap,
+        a.end_cap_equal && b.end_cap_equal &&
+            (a.end_cap * b.curve_count == b.end_cap * a.curve_count),
     };
   }
 };
@@ -584,6 +590,8 @@ static CurvesSelectionStatus init_curves_selection_status(
       "u_scale", bke::AttrDomain::Curve, 1.0f);
   const VArray<float> fill_opacities = *attributes.lookup_or_default<float>(
       "fill_opacity", bke::AttrDomain::Curve, 1.0f);
+  const VArray<int> end_caps = *attributes.lookup_or_default<int>(
+      "end_cap", bke::AttrDomain::Curve, GP_STROKE_CAP_TYPE_ROUND);
 
   IndexMaskMemory memory;
   const IndexMask selection = retrieve_selected_curves(curves, memory);
@@ -634,10 +642,16 @@ static CurvesSelectionStatus init_curves_selection_status(
           value.u_scale += u_scale;
           value.u_scale_equal = value.u_scale_equal &&
                                 (u_scale * value.curve_count == value.u_scale);
+
           const float fill_opacity = fill_opacities[curve];
           value.fill_opacity += fill_opacity;
           value.fill_opacity_equal = value.fill_opacity_equal &&
                                      (fill_opacity * value.curve_count == value.fill_opacity);
+
+          const float end_cap = end_caps[curve];
+          value.end_cap += end_cap;
+          value.end_cap_equal = value.end_cap_equal &&
+                                (end_cap * value.curve_count == value.end_cap);
         });
         return value;
       },
@@ -2497,6 +2511,25 @@ static void handle_curves_fill_opacity(bContext *C, void *, void *)
       });
 }
 
+static void handle_curves_end_cap(bContext *C, void *, void *)
+{
+  using namespace blender;
+
+  apply_to_active_object(
+      C,
+      [](const CurvesDataPanelState &modified_state,
+         const IndexMask &selection,
+         bke::CurvesGeometry &curves) {
+        bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
+        bke::SpanAttributeWriter<int> end_cap = attributes.lookup_or_add_for_write_span<int>(
+            "end_cap",
+            bke::AttrDomain::Curve,
+            bke::AttributeInitVArray(
+                VArray<int>::from_single(GP_STROKE_CAP_TYPE_ROUND, curves.curves_num())));
+        index_mask::masked_fill(end_cap.span, modified_state.end_cap, selection);
+      });
+}
+
 constexpr std::array<EnumPropertyItem, 5> enum_curve_knot_mode_items{{
     {NURBS_KNOT_MODE_NORMAL, "NORMAL", ICON_NONE, "Normal", ""},
     {NURBS_KNOT_MODE_ENDPOINT, "ENDPOINT", ICON_NONE, "Endpoint", ""},
@@ -2521,6 +2554,33 @@ static void knot_modes_menu(bContext * /*C*/, uiLayout *layout, void *knot_mode_
               UI_UNIT_X * 5,
               UI_UNIT_Y,
               reinterpret_cast<int *>(knot_mode_p),
+              item.value,
+              0.0,
+              "");
+  }
+}
+
+constexpr std::array<EnumPropertyItem, 2> enum_grease_pencil_cap_items{{
+    {GP_STROKE_CAP_TYPE_ROUND, "ROUND", ICON_GP_CAPS_ROUND, "Round", ""},
+    {GP_STROKE_CAP_TYPE_FLAT, "FLAT", ICON_GP_CAPS_FLAT, "Flat", ""},
+}};
+
+static void grease_pencil_cap_menu(bContext * /*C*/, uiLayout *layout, void *cap_type_p)
+{
+  uiBlock *block = layout->block();
+  blender::ui::block_layout_set_current(block, layout);
+  layout->column(false);
+
+  for (const EnumPropertyItem &item : enum_grease_pencil_cap_items) {
+    uiDefButI(block,
+              ButType::ButMenu,
+              0,
+              IFACE_(item.name),
+              0,
+              0,
+              UI_UNIT_X * 5,
+              UI_UNIT_Y,
+              reinterpret_cast<int *>(cap_type_p),
               item.value,
               0.0,
               "");
@@ -2585,6 +2645,7 @@ static void view3d_panel_curve_data(const bContext *C, Panel *panel)
   current.softness = math::safe_divide(status.softness, float(status.curve_count));
   current.u_scale = math::safe_divide(status.u_scale, float(status.curve_count));
   current.fill_opacity = math::safe_divide(status.fill_opacity, float(status.curve_count));
+  current.end_cap = math::safe_divide(status.end_cap, status.curve_count);
 
   modified = current;
 
@@ -2694,6 +2755,21 @@ static void view3d_panel_curve_data(const bContext *C, Panel *panel)
       UI_but_number_step_size_set(but, 1);
       UI_but_number_precision_set(but, 3);
       UI_but_func_set(but, handle_curves_fill_opacity, nullptr, nullptr);
+      return but;
+    });
+
+    add_labeled_field("End Cap", status.end_cap_equal, [&]() {
+      uiBut *but = uiDefMenuBut(block,
+                                grease_pencil_cap_menu,
+                                &modified.end_cap,
+                                enum_grease_pencil_cap_items[modified.end_cap].name,
+                                0,
+                                0,
+                                butw,
+                                buth,
+                                "");
+      UI_but_type_set_menu_from_pulldown(but);
+      UI_but_func_set(but, handle_curves_end_cap, nullptr, nullptr);
       return but;
     });
   }
