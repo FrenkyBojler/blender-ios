@@ -369,8 +369,8 @@ void GPUCodegen::node_serialize(std::stringstream &eval_ss, const GPUNode *node)
           eval_ss << type() << " " << input << " = ";
           source_reference(input);
           eval_ss << ";\n";
-          break;
         }
+        break;
       default:
         if (input->is_zone_io && (!input->is_duplicate || !input->link)) {
           eval_ss << type() << " zone" << input->id << " = " << input << ";\n";

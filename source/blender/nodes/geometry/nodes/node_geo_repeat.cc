@@ -122,7 +122,7 @@ static int node_shader_fn(GPUMaterial *mat,
 {
   const NodeGeometryRepeatInput &storage = node_storage(*node);
   return GPU_stack_link_zone(
-      mat, node, "REPEAT_BEGIN", in, out, storage.output_node_id, false, 1, 1, {});
+      mat, node, "REPEAT_BEGIN", in, out, storage.output_node_id, false, 1, 1);
 }
 
 static void node_label(const bNodeTree * /*ntree*/,
