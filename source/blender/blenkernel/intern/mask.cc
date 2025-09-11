@@ -312,7 +312,8 @@ MaskLayer *BKE_mask_layer_active(Mask *mask)
   return static_cast<MaskLayer *>(BLI_findlink(&mask->masklayers, mask->masklay_act));
 }
 
-MaskLayer *BKE_mask_layer_by_name(struct Mask *mask, const char *layer_name) {
+MaskLayer *BKE_mask_layer_by_name(struct Mask *mask, const char *layer_name)
+{
   LISTBASE_FOREACH (MaskLayer *, mask_layer, &mask->masklayers) {
     if (STREQ(mask_layer->name, layer_name)) {
       return mask_layer;

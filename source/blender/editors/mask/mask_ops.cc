@@ -13,9 +13,9 @@
 #include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
-#include "BLI_utildefines.h"
-#include "BLI_string_utils.hh"
 #include "BLI_string.h"
+#include "BLI_string_utils.hh"
+#include "BLI_utildefines.h"
 
 #include "BKE_context.hh"
 #include "BKE_mask.h"
@@ -2018,7 +2018,7 @@ static wmOperatorStatus mask_move_to_layer_exec(bContext *C, wmOperator *op)
   }
 
   LISTBASE_FOREACH (MaskLayer *, mask_layer, &mask->masklayers) {
-    if (mask_layer == target_mask_layer ) {
+    if (mask_layer == target_mask_layer) {
       continue;
     }
 
