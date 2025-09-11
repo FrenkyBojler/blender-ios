@@ -332,6 +332,31 @@ void VKCommandBufferWrapper::reset_query_pool(VkQueryPool vk_query_pool,
   vkCmdResetQueryPool(vk_command_buffer_, vk_query_pool, first_query, query_count);
 }
 
+void VKCommandBufferWrapper::set_event(VkEvent vk_event)
+{
+  vkCmdSetEvent(vk_command_buffer_, vk_event, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT);
+}
+
+void VKCommandBufferWrapper::reset_event(VkEvent vk_event)
+{
+  vkCmdResetEvent(vk_command_buffer_, vk_event, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT);
+}
+
+void VKCommandBufferWrapper::wait_event(VkEvent vk_event)
+{
+  vkCmdWaitEvents(vk_command_buffer_,
+                  1,
+                  &vk_event,
+                  VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
+                  VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+                  0,
+                  nullptr,
+                  0,
+                  nullptr,
+                  0,
+                  nullptr);
+}
+
 void VKCommandBufferWrapper::begin_debug_utils_label(
     const VkDebugUtilsLabelEXT *vk_debug_utils_label)
 {

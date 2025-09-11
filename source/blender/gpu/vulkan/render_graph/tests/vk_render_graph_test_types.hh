@@ -506,6 +506,10 @@ class CommandBufferLog : public VKCommandBufferInterface {
 
   void begin_debug_utils_label(const VkDebugUtilsLabelEXT * /*vk_debug_utils_label*/) override {}
   void end_debug_utils_label() override {}
+
+  void set_event(VkEvent /*vk_event*/) override {}
+  void reset_event(VkEvent /*vk_event*/) override {}
+  void wait_event(VkEvent /*vk_event*/) override {}
 };
 
 class VKRenderGraphTest : public ::testing::Test {

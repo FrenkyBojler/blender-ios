@@ -142,6 +142,11 @@ class VKCommandBufferInterface {
   virtual void set_vertex_input(
       Span<VkVertexInputBindingDescription2EXT> vertex_binding_descriptions,
       Span<VkVertexInputAttributeDescription2EXT> vertex_attribute_descriptions) = 0;
+
+  virtual void set_event(VkEvent vk_event) = 0;
+  virtual void reset_event(VkEvent vk_event) = 0;
+  virtual void wait_event(VkEvent vk_event) = 0;
+
   /* VK_KHR_dynamic_rendering */
   virtual void begin_rendering(const VkRenderingInfo *p_rendering_info) = 0;
   virtual void end_rendering() = 0;
@@ -273,6 +278,10 @@ class VKCommandBufferWrapper : public VKCommandBufferInterface {
   void reset_query_pool(VkQueryPool, uint32_t first_query, uint32_t query_count) override;
   void begin_rendering(const VkRenderingInfo *p_rendering_info) override;
   void end_rendering() override;
+  void set_event(VkEvent vk_event) override;
+  void reset_event(VkEvent vk_event) override;
+  void wait_event(VkEvent vk_event) override;
+
   void begin_debug_utils_label(const VkDebugUtilsLabelEXT *vk_debug_utils_label) override;
   void end_debug_utils_label() override;
 };

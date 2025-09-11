@@ -40,10 +40,13 @@ enum class VKNodeType {
   END_QUERY,
   END_RENDERING,
   FILL_BUFFER,
+  RESET_EVENT,
   RESET_QUERY_POOL,
+  SET_EVENT,
   SYNCHRONIZATION,
   UPDATE_BUFFER,
   UPDATE_MIPMAPS,
+  WAIT_EVENT,
 };
 
 BLI_INLINE std::ostream &operator<<(std::ostream &os, const VKNodeType node_type)
@@ -120,6 +123,15 @@ BLI_INLINE std::ostream &operator<<(std::ostream &os, const VKNodeType node_type
       break;
     case VKNodeType::UPDATE_MIPMAPS:
       os << "UPDATE_MIPMAPS";
+      break;
+    case VKNodeType::SET_EVENT:
+      os << "SET_EVENT";
+      break;
+    case VKNodeType::RESET_EVENT:
+      os << "RESET_EVENT";
+      break;
+    case VKNodeType::WAIT_EVENT:
+      os << "WAIT_EVENT";
       break;
   }
   return os;

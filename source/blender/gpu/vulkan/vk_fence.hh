@@ -16,7 +16,8 @@ namespace blender::gpu {
 
 class VKFence : public Fence {
  private:
-  TimelineValue timeline_value_;
+  VkEvent vk_event_ = VK_NULL_HANDLE;
+  ~VKFence();
 
  public:
   VKFence(const char *name) : Fence(name) {}

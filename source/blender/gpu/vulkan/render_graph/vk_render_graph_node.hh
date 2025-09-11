@@ -27,10 +27,13 @@
 #include "nodes/vk_end_query_node.hh"
 #include "nodes/vk_end_rendering_node.hh"
 #include "nodes/vk_fill_buffer_node.hh"
+#include "nodes/vk_reset_event_node.hh"
 #include "nodes/vk_reset_query_pool_node.hh"
+#include "nodes/vk_set_event_node.hh"
 #include "nodes/vk_synchronization_node.hh"
 #include "nodes/vk_update_buffer_node.hh"
 #include "nodes/vk_update_mipmaps_node.hh"
+#include "nodes/vk_wait_event_node.hh"
 
 namespace blender::gpu::render_graph {
 
@@ -97,6 +100,9 @@ struct VKRenderGraphNode {
     VKSynchronizationNode::Data synchronization;
     VKUpdateBufferNode::Data update_buffer;
     VKUpdateMipmapsNode::Data update_mipmaps;
+    VKSetEventNode::Data set_event;
+    VKResetEventNode::Data reset_event;
+    VKWaitEventNode::Data wait_event;
     int64_t storage_index = -1;
   };
 
@@ -192,6 +198,12 @@ struct VKRenderGraphNode {
         return VKUpdateBufferNode::pipeline_stage;
       case VKNodeType::UPDATE_MIPMAPS:
         return VKUpdateMipmapsNode::pipeline_stage;
+      case VKNodeType::SET_EVENT:
+        return VKSetEventNode::pipeline_stage;
+      case VKNodeType::RESET_EVENT:
+        return VKResetEventNode::pipeline_stage;
+      case VKNodeType::WAIT_EVENT:
+        return VKWaitEventNode::pipeline_stage;
     }
     BLI_assert_unreachable();
     return VK_PIPELINE_STAGE_NONE;
@@ -245,6 +257,9 @@ struct VKRenderGraphNode {
         BUILD_COMMANDS_STORAGE(
             VKNodeType::COPY_IMAGE_TO_BUFFER, VKCopyImageToBufferNode, copy_image_to_buffer)
         BUILD_COMMANDS_STORAGE(VKNodeType::BLIT_IMAGE, VKBlitImageNode, blit_image)
+        BUILD_COMMANDS(VKNodeType::RESET_EVENT, VKResetEventNode, reset_event)
+        BUILD_COMMANDS(VKNodeType::SET_EVENT, VKSetEventNode, set_event)
+        BUILD_COMMANDS(VKNodeType::WAIT_EVENT, VKWaitEventNode, wait_event)
         BUILD_COMMANDS(VKNodeType::RESET_QUERY_POOL, VKResetQueryPoolNode, reset_query_pool)
         BUILD_COMMANDS(VKNodeType::SYNCHRONIZATION, VKSynchronizationNode, synchronization)
         BUILD_COMMANDS(VKNodeType::UPDATE_MIPMAPS, VKUpdateMipmapsNode, update_mipmaps)
@@ -307,6 +322,9 @@ struct VKRenderGraphNode {
       case VKNodeType::COPY_BUFFER_TO_IMAGE:
       case VKNodeType::BLIT_IMAGE:
       case VKNodeType::RESET_QUERY_POOL:
+      case VKNodeType::RESET_EVENT:
+      case VKNodeType::SET_EVENT:
+      case VKNodeType::WAIT_EVENT:
       case VKNodeType::SYNCHRONIZATION:
       case VKNodeType::UPDATE_MIPMAPS:
         break;
