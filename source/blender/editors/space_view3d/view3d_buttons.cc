@@ -121,6 +121,7 @@ struct CurvesDataPanelState {
   float u_scale;
   float fill_opacity;
   int end_cap;
+  int start_cap;
 };
 
 /* temporary struct for storing transform properties */
@@ -532,6 +533,8 @@ struct CurvesSelectionStatus {
   bool fill_opacity_equal = true;
   int end_cap = 0;
   bool end_cap_equal = true;
+  int start_cap = 0;
+  bool start_cap_equal = true;
 
   static CurvesSelectionStatus sum(const CurvesSelectionStatus &a, const CurvesSelectionStatus &b)
   {
@@ -562,6 +565,9 @@ struct CurvesSelectionStatus {
         a.end_cap + b.end_cap,
         a.end_cap_equal && b.end_cap_equal &&
             (a.end_cap * b.curve_count == b.end_cap * a.curve_count),
+        a.start_cap + b.start_cap,
+        a.start_cap_equal && b.start_cap_equal &&
+            (a.start_cap * b.curve_count == b.start_cap * a.curve_count),
     };
   }
 };
@@ -592,6 +598,8 @@ static CurvesSelectionStatus init_curves_selection_status(
       "fill_opacity", bke::AttrDomain::Curve, 1.0f);
   const VArray<int> end_caps = *attributes.lookup_or_default<int>(
       "end_cap", bke::AttrDomain::Curve, GP_STROKE_CAP_TYPE_ROUND);
+  const VArray<int> start_caps = *attributes.lookup_or_default<int>(
+      "start_cap", bke::AttrDomain::Curve, GP_STROKE_CAP_TYPE_ROUND);
 
   IndexMaskMemory memory;
   const IndexMask selection = retrieve_selected_curves(curves, memory);
@@ -652,6 +660,11 @@ static CurvesSelectionStatus init_curves_selection_status(
           value.end_cap += end_cap;
           value.end_cap_equal = value.end_cap_equal &&
                                 (end_cap * value.curve_count == value.end_cap);
+
+          const float start_cap = start_caps[curve];
+          value.start_cap += start_cap;
+          value.start_cap_equal = value.start_cap_equal &&
+                                  (start_cap * value.curve_count == value.start_cap);
         });
         return value;
       },
@@ -2530,6 +2543,25 @@ static void handle_curves_end_cap(bContext *C, void *, void *)
       });
 }
 
+static void handle_curves_start_cap(bContext *C, void *, void *)
+{
+  using namespace blender;
+
+  apply_to_active_object(
+      C,
+      [](const CurvesDataPanelState &modified_state,
+         const IndexMask &selection,
+         bke::CurvesGeometry &curves) {
+        bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
+        bke::SpanAttributeWriter<int> start_cap = attributes.lookup_or_add_for_write_span<int>(
+            "start_cap",
+            bke::AttrDomain::Curve,
+            bke::AttributeInitVArray(
+                VArray<int>::from_single(GP_STROKE_CAP_TYPE_ROUND, curves.curves_num())));
+        index_mask::masked_fill(start_cap.span, modified_state.start_cap, selection);
+      });
+}
+
 constexpr std::array<EnumPropertyItem, 5> enum_curve_knot_mode_items{{
     {NURBS_KNOT_MODE_NORMAL, "NORMAL", ICON_NONE, "Normal", ""},
     {NURBS_KNOT_MODE_ENDPOINT, "ENDPOINT", ICON_NONE, "Endpoint", ""},
@@ -2646,6 +2678,7 @@ static void view3d_panel_curve_data(const bContext *C, Panel *panel)
   current.u_scale = math::safe_divide(status.u_scale, float(status.curve_count));
   current.fill_opacity = math::safe_divide(status.fill_opacity, float(status.curve_count));
   current.end_cap = math::safe_divide(status.end_cap, status.curve_count);
+  current.start_cap = math::safe_divide(status.start_cap, status.curve_count);
 
   modified = current;
 
@@ -2770,6 +2803,21 @@ static void view3d_panel_curve_data(const bContext *C, Panel *panel)
                                 "");
       UI_but_type_set_menu_from_pulldown(but);
       UI_but_func_set(but, handle_curves_end_cap, nullptr, nullptr);
+      return but;
+    });
+
+    add_labeled_field("Start Cap", status.start_cap_equal, [&]() {
+      uiBut *but = uiDefMenuBut(block,
+                                grease_pencil_cap_menu,
+                                &modified.start_cap,
+                                enum_grease_pencil_cap_items[modified.start_cap].name,
+                                0,
+                                0,
+                                butw,
+                                buth,
+                                "");
+      UI_but_type_set_menu_from_pulldown(but);
+      UI_but_func_set(but, handle_curves_start_cap, nullptr, nullptr);
       return but;
     });
   }
