@@ -47,7 +47,7 @@ static void track_channel_color(MovieTrackingTrack *track, bool default_color, f
   }
   else {
     if (default_color) {
-      UI_GetThemeColor4fv(TH_TRACK_SELECT, color);
+      UI_GetThemeColor4fv(TH_CHANNEL_SELECT, color);
     }
     else {
       UI_GetThemeColor3fv(TH_HEADER, color);

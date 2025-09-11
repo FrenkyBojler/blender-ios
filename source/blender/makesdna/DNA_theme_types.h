@@ -112,8 +112,9 @@ typedef struct ThemeCommonAnim {
 
   unsigned char time_marker[4], time_marker_selected[4];
 
-  unsigned char channel[4], channel_sub[4];
+  unsigned char channel_pack[4], channel_pack_sub[4];
   unsigned char channel_group[4], channel_group_active[4];
+  unsigned char channel[4], channel_selected[4];
 
   /** Key-types. */
   unsigned char keyframe[4], keyframe_extreme[4], keyframe_breakdown[4], keyframe_jitter[4],
@@ -428,8 +429,6 @@ typedef struct ThemeSpace {
   /** NLA - warning color for duplicate instances of tweaking strip. */
   unsigned char nla_tweakdupli[4];
 
-  /** NLA "Track" */
-  unsigned char nla_track[4];
   /** NLA "Transition" strips. */
   unsigned char nla_transition[4], nla_transition_sel[4];
   /** NLA "Meta" strips. */
@@ -451,10 +450,6 @@ typedef struct ThemeSpace {
 
   unsigned char metadatabg[4];
   unsigned char metadatatext[4];
-
-  /** For Movie Clip Editor. */
-  unsigned char track_selected[4];
-
 } ThemeSpace;
 
 /* Viewport Background Gradient Types. */

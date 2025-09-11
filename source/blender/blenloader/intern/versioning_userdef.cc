@@ -356,8 +356,8 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
     FROM_DEFAULT_V4_UCHAR(common.anim.playhead);
     FROM_DEFAULT_V4_UCHAR(common.anim.time_marker);
     FROM_DEFAULT_V4_UCHAR(common.anim.time_marker_selected);
-    FROM_DEFAULT_V4_UCHAR(common.anim.channel);
-    FROM_DEFAULT_V4_UCHAR(common.anim.channel_sub);
+    FROM_DEFAULT_V4_UCHAR(common.anim.channel_pack);
+    FROM_DEFAULT_V4_UCHAR(common.anim.channel_pack_sub);
     FROM_DEFAULT_V4_UCHAR(common.anim.channel_group);
     FROM_DEFAULT_V4_UCHAR(common.anim.channel_group_active);
   }
@@ -376,10 +376,6 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
     FROM_DEFAULT_V4_UCHAR(common.curves.handle_vertex);
     FROM_DEFAULT_V4_UCHAR(common.curves.handle_vertex_select);
     btheme->common.curves.handle_vertex_size = U_theme_default.common.curves.handle_vertex_size;
-  }
-
-  if (!USER_VERSION_ATLEAST(500, 68)) {
-    FROM_DEFAULT_V4_UCHAR(space_clip.track_selected);
   }
 
   if (!USER_VERSION_ATLEAST(500, 69)) {
@@ -401,6 +397,11 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
 
   if (!USER_VERSION_ATLEAST(500, 74)) {
     FROM_DEFAULT_V4_UCHAR(tui.panel_active);
+  }
+
+  if (!USER_VERSION_ATLEAST(500, 100)) {
+    FROM_DEFAULT_V4_UCHAR(common.anim.channel);
+    FROM_DEFAULT_V4_UCHAR(common.anim.channel_selected);
   }
 
   /**

@@ -498,8 +498,11 @@ const uchar *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
         case TH_STRIP_SELECT:
           cp = ts->strip_select;
           break;
-        case TH_TRACK_SELECT:
-          cp = ts->track_selected;
+        case TH_CHANNEL:
+          cp = btheme->common.anim.channel;
+          break;
+        case TH_CHANNEL_SELECT:
+          cp = btheme->common.anim.channel_selected;
           break;
         case TH_KEYTYPE_KEYFRAME:
           cp = btheme->common.anim.keyframe;
@@ -800,10 +803,10 @@ const uchar *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
           break;
 
         case TH_DOPESHEET_CHANNELOB:
-          cp = btheme->common.anim.channel;
+          cp = btheme->common.anim.channel_pack;
           break;
         case TH_DOPESHEET_CHANNELSUBOB:
-          cp = btheme->common.anim.channel_sub;
+          cp = btheme->common.anim.channel_pack_sub;
           break;
         case TH_DOPESHEET_IPOLINE:
           cp = ts->ds_ipoline;
@@ -944,7 +947,7 @@ const uchar *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
           break;
 
         case TH_NLA_TRACK:
-          cp = ts->nla_track;
+          cp = btheme->common.anim.channel;
           break;
         case TH_NLA_TRANSITION:
           cp = ts->nla_transition;

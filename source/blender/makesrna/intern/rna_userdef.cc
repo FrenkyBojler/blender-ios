@@ -2185,16 +2185,14 @@ static void rna_def_userdef_theme_common_anim(BlenderRNA *brna)
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 
   /* Channel properties */
-  prop = RNA_def_property(srna, "channel", PROP_FLOAT, PROP_COLOR_GAMMA);
-  RNA_def_property_float_sdna(prop, nullptr, "channel");
+  prop = RNA_def_property(srna, "channel_pack", PROP_FLOAT, PROP_COLOR_GAMMA);
   RNA_def_property_array(prop, 4);
-  RNA_def_property_ui_text(prop, "Channel", "");
+  RNA_def_property_ui_text(prop, "Channel Pack", "");
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 
-  prop = RNA_def_property(srna, "channel_sub", PROP_FLOAT, PROP_COLOR_GAMMA);
-  RNA_def_property_float_sdna(prop, nullptr, "channel_sub");
+  prop = RNA_def_property(srna, "channel_pack_sub", PROP_FLOAT, PROP_COLOR_GAMMA);
   RNA_def_property_array(prop, 4);
-  RNA_def_property_ui_text(prop, "Sub-channel", "");
+  RNA_def_property_ui_text(prop, "Channel Sub-Pack", "");
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 
   prop = RNA_def_property(srna, "channel_group", PROP_FLOAT, PROP_COLOR_GAMMA);
@@ -2207,6 +2205,16 @@ static void rna_def_userdef_theme_common_anim(BlenderRNA *brna)
   RNA_def_property_float_sdna(prop, nullptr, "channel_group_active");
   RNA_def_property_array(prop, 4);
   RNA_def_property_ui_text(prop, "Active Channel Group", "");
+  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
+
+  prop = RNA_def_property(srna, "channel", PROP_FLOAT, PROP_COLOR_GAMMA);
+  RNA_def_property_array(prop, 4);
+  RNA_def_property_ui_text(prop, "Channel", "");
+  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
+
+  prop = RNA_def_property(srna, "channel_selected", PROP_FLOAT, PROP_COLOR_GAMMA);
+  RNA_def_property_array(prop, 4);
+  RNA_def_property_ui_text(prop, "Selected Channel", "");
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 
   /* Keyframe properties */
@@ -3045,12 +3053,6 @@ static void rna_def_userdef_theme_space_graph(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Scrubbing/Markers Region", "");
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 
-  prop = RNA_def_property(srna, "channels_region", PROP_FLOAT, PROP_COLOR_GAMMA);
-  RNA_def_property_float_sdna(prop, nullptr, "shade2");
-  RNA_def_property_array(prop, 3);
-  RNA_def_property_ui_text(prop, "Channels Region", "");
-  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
-
   rna_def_userdef_theme_spaces_vertex(srna, true, false);
 }
 
@@ -3858,18 +3860,6 @@ static void rna_def_userdef_theme_space_action(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Scrubbing/Markers Region", "");
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 
-  prop = RNA_def_property(srna, "channels", PROP_FLOAT, PROP_COLOR_GAMMA);
-  RNA_def_property_float_sdna(prop, nullptr, "shade2");
-  RNA_def_property_array(prop, 4);
-  RNA_def_property_ui_text(prop, "Channels", "");
-  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
-
-  prop = RNA_def_property(srna, "channels_selected", PROP_FLOAT, PROP_COLOR_GAMMA);
-  RNA_def_property_float_sdna(prop, nullptr, "hilite");
-  RNA_def_property_array(prop, 4);
-  RNA_def_property_ui_text(prop, "Channels Selected", "");
-  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
-
   prop = RNA_def_property(srna, "keyframe_border", PROP_FLOAT, PROP_COLOR_GAMMA);
   RNA_def_property_float_sdna(prop, nullptr, "keyborder");
   RNA_def_property_array(prop, 4);
@@ -3928,13 +3918,6 @@ static void rna_def_userdef_theme_space_nla(BlenderRNA *brna)
   prop = RNA_def_property(srna, "grid", PROP_FLOAT, PROP_COLOR_GAMMA);
   RNA_def_property_array(prop, 3);
   RNA_def_property_ui_text(prop, "Grid", "");
-  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
-
-  prop = RNA_def_property(srna, "nla_track", PROP_FLOAT, PROP_COLOR_GAMMA);
-  RNA_def_property_float_sdna(prop, nullptr, "nla_track");
-  RNA_def_property_array(prop, 3);
-  RNA_def_property_ui_text(prop, "Track", "Nonlinear Animation Track");
-  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_ACTION);
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 
   prop = RNA_def_property(srna, "active_action", PROP_FLOAT, PROP_COLOR_GAMMA);
@@ -4198,12 +4181,6 @@ static void rna_def_userdef_theme_space_clip(BlenderRNA *brna)
   RNA_def_property_float_sdna(prop, nullptr, "metadatatext");
   RNA_def_property_array(prop, 3);
   RNA_def_property_ui_text(prop, "Metadata Text", "");
-  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
-
-  prop = RNA_def_property(srna, "track_selected", PROP_FLOAT, PROP_COLOR_GAMMA);
-  RNA_def_property_float_sdna(prop, nullptr, "track_selected");
-  RNA_def_property_array(prop, 4);
-  RNA_def_property_ui_text(prop, "Selected Tracks", "");
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 }
 
