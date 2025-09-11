@@ -120,7 +120,7 @@ typedef struct ThemeRegionsChannels {
 
 typedef struct ThemeRegionsScrubbing {
   unsigned char back[4];
-  char _pad0[4];
+  unsigned char text[4];
 } ThemeRegionsScrubbing;
 
 typedef struct ThemeRegionsSidebars {

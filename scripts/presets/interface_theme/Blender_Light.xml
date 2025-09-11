@@ -403,6 +403,7 @@
         <scrubbing>
           <ThemeRegionsScrubbing
             back="#808080E6"
+            text="#272727"
             >
           </ThemeRegionsScrubbing>
         </scrubbing>

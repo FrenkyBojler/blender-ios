@@ -326,6 +326,9 @@ const uchar *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
         case TH_TIME_SCRUB_BACKGROUND:
           cp = btheme->regions.scrubbing.back;
           break;
+        case TH_TIME_SCRUB_TEXT:
+          cp = btheme->regions.scrubbing.text;
+          break;
         case TH_TIME_MARKER_LINE:
           cp = btheme->common.anim.time_marker;
           break;

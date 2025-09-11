@@ -289,6 +289,7 @@ const bTheme U_theme_default = {
     },
     .scrubbing = {
       .back = RGBA(0x161616ff),
+      .text = RGBA(0xc3c3c3ff),
     },
     .sidebars = {
       .back = RGBA(0x30303000),
