@@ -251,7 +251,8 @@ class ShaderNodesInliner {
       });
       bNodeSocket *copied_socket = static_cast<bNodeSocket *>(
           BLI_findlink(&copied_node->inputs, socket.socket->index()));
-      this->set_socket_value(*copied_node, *copied_socket, value_by_socket_.lookup(socket));
+      this->set_socket_value(
+          *src_node, *copied_node, *copied_socket, value_by_socket_.lookup(socket));
     }
 
     this->restore_zones_in_output_tree();
@@ -531,8 +532,7 @@ class ShaderNodesInliner {
     if (!iterations_value_opt) {
       /* Number of iterations is not a primitive value. */
       this->store_socket_value_fallback(socket);
-      params_.r_error_messages.append(
-          {repeat_input_node.node, TIP_("Iterations input has to be a constant value")});
+      this->add_dynamic_repeat_zone_iterations_error(*repeat_input_node);
       return;
     }
     const int iterations = std::get<int>(iterations_value_opt->value);
@@ -549,6 +549,12 @@ class ShaderNodesInliner {
     const SocketInContext origin_socket = {&last_iteration_context,
                                            &repeat_output_node.input_socket(socket->index())};
     this->forward_value_or_schedule(socket, origin_socket);
+  }
+
+  void add_dynamic_repeat_zone_iterations_error(const bNode &repeat_input_node)
+  {
+    params_.r_error_messages.append(
+        {&repeat_input_node, TIP_("Iterations input has to be a constant value")});
   }
 
   void handle_output_socket__repeat_input(const SocketInContext &socket)
@@ -873,7 +879,7 @@ class ShaderNodesInliner {
       bNodeSocket &dst_input_socket = *socket_map.lookup(src_input_socket);
       const SocketInContext input_socket_ctx = {node.context, src_input_socket};
       const SocketValue &value = value_by_socket_.lookup(input_socket_ctx);
-      this->set_socket_value(copied_node, dst_input_socket, value);
+      this->set_socket_value(*node, copied_node, dst_input_socket, value);
     }
     for (const bNodeSocket *src_output_socket : node->output_sockets()) {
       if (!src_output_socket->is_available()) {
@@ -956,7 +962,10 @@ class ShaderNodesInliner {
     return SocketValue{FallbackValue{}};
   }
 
-  void set_socket_value(bNode &dst_node, bNodeSocket &dst_socket, const SocketValue &value)
+  void set_socket_value(const bNode &original_node,
+                        bNode &dst_node,
+                        bNodeSocket &dst_socket,
+                        const SocketValue &value)
   {
     if (dst_socket.flag & SOCK_HIDE_VALUE) {
       if (const auto *input_socket_value = std::get_if<InputSocketValue>(&value.value)) {
@@ -985,6 +994,15 @@ class ShaderNodesInliner {
         this->set_primitive_value_on_socket(dst_socket, *primitive_value);
       }
       return;
+    }
+    if (params_.dynamic_repeat_zone_iterations_is_error) {
+      const bool is_iterations_input = dst_node.inputs.first == &dst_socket &&
+                                       dst_node.is_type("GeometryNodeRepeatInput");
+      if (is_iterations_input) {
+        this->add_dynamic_repeat_zone_iterations_error(original_node);
+        this->set_primitive_value_on_socket(dst_socket, PrimitiveSocketValue{0});
+        return;
+      }
     }
     if (std::get_if<InputSocketValue>(&value.value)) {
       /* Cases were the input has a primitive value are handled above. */
