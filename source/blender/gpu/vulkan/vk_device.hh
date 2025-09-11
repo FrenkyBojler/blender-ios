@@ -22,6 +22,7 @@
 #include "vk_debug.hh"
 #include "vk_descriptor_pools.hh"
 #include "vk_descriptor_set_layouts.hh"
+#include "vk_memory_pool.hh"
 #include "vk_pipeline_pool.hh"
 #include "vk_resource_pool.hh"
 #include "vk_samplers.hh"
@@ -100,20 +101,6 @@ struct VKWorkarounds {
      */
     bool r8g8b8 = false;
   } vertex_formats;
-};
-
-/** 
- * VMA related data for a memory pool.
- */
-struct VKMemoryPool {
-    /* NOTE: This attribute needs to be kept alive as it will be read by VMA when allocating inside the pool. */
-    VkExportMemoryAllocateInfoKHR info = {
-        VK_STRUCTURE_TYPE_EXPORT_MEMORY_ALLOCATE_INFO_KHR};
-    VmaPool pool = VK_NULL_HANDLE;
-};
-
-struct VKMemoryPools {
-  VKMemoryPool external_memory = {};
 };
 
 /**
@@ -325,7 +312,7 @@ class VKDevice : public NonCopyable {
     return vk_queue_family_;
   }
 
-  VmaAllocator mem_allocator_get() const
+  inline VmaAllocator mem_allocator_get() const
   {
     return mem_allocator_;
   }
