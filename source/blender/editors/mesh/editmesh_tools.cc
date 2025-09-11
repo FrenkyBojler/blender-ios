@@ -1071,13 +1071,17 @@ static wmOperatorStatus edbm_mark_seam_exec(bContext *C, wmOperator *op)
     if (hflag_process != BM_ELEM_SELECT) {
       EDBM_flag_disable_all(em, hflag_process);
     }
+  }
+  ED_uvedit_live_unwrap(scene, objects);
 
+  for (Object *obedit : objects) {
     EDBMUpdate_Params params{};
     params.calc_looptris = true;
     params.calc_normals = false;
     params.is_destructive = false;
     EDBM_update(static_cast<Mesh *>(obedit->data), &params);
   }
+
   return OPERATOR_FINISHED;
 }
 
