@@ -838,7 +838,7 @@ static int gizmo_3d_foreach_selected(const bContext *C,
 
       /* Use channels to get stats. */
       LISTBASE_FOREACH (bPoseChannel *, pchan, &ob_iter->pose->chanbase) {
-        if (!(pchan->bone->flag & BONE_TRANSFORM)) {
+        if (!(pchan->runtime.flag & POSE_RUNTIME_TRANSFORM)) {
           continue;
         }
         run_coord_with_matrix(pchan->pose_head, use_mat_local, mat_local);

@@ -285,6 +285,17 @@ void VIEW3D_OT_snap_selected_to_grid(wmOperatorType *ot)
 /** \name Snap Selection to Location (Utility)
  * \{ */
 
+static bool pose_bone_flag_test_recursive(const bPoseChannel *bone, int flag)
+{
+  if (bone->flag & flag) {
+    return true;
+  }
+  if (bone->parent) {
+    return pose_bone_flag_test_recursive(bone->parent, flag);
+  }
+  return false;
+}
+
 /**
  * Snaps the selection as a whole (use_offset=true) or each selected object to the given location.
  *
@@ -410,18 +421,18 @@ static bool snap_selected_to_location_rotation(bContext *C,
              */
             (pchan->bone->flag & BONE_CONNECTED) == 0)
         {
-          pchan->bone->flag |= BONE_TRANSFORM;
+          pchan->runtime.flag |= POSE_RUNTIME_TRANSFORM;
         }
         else {
-          pchan->bone->flag &= ~BONE_TRANSFORM;
+          pchan->runtime.flag &= ~POSE_RUNTIME_TRANSFORM;
         }
       }
 
       LISTBASE_FOREACH (bPoseChannel *, pchan, &ob->pose->chanbase) {
-        if ((pchan->bone->flag & BONE_TRANSFORM) &&
+        if ((pchan->runtime.flag & POSE_RUNTIME_TRANSFORM) &&
             /* check that our parents not transformed (if we have one) */
             ((pchan->bone->parent &&
-              BKE_armature_bone_flag_test_recursive(pchan->bone->parent, BONE_TRANSFORM)) == 0))
+              pose_bone_flag_test_recursive(pchan->parent, POSE_RUNTIME_TRANSFORM)) == 0))
         {
           /* Get position in pchan (pose) space. */
           blender::float3 target_loc_pose;
@@ -497,7 +508,7 @@ static bool snap_selected_to_location_rotation(bContext *C,
       }
 
       LISTBASE_FOREACH (bPoseChannel *, pchan, &ob->pose->chanbase) {
-        pchan->bone->flag &= ~BONE_TRANSFORM;
+        pchan->runtime.flag &= ~POSE_RUNTIME_TRANSFORM;
       }
 
       ob->pose->flag |= (POSE_LOCKED | POSE_DO_UNLOCK);
