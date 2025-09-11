@@ -2051,7 +2051,7 @@ void BKE_pose_check_uids_unique_and_report(const bPose *pose)
 void BKE_pose_blend_write(BlendWriter *writer, bPose *pose)
 {
 #ifndef __GNUC__
-  BLI_assert(pose != nullptr && arm != nullptr);
+  BLI_assert(pose != nullptr);
 #endif
 
   /* Write channels */
