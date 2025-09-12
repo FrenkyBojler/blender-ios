@@ -844,14 +844,29 @@ BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::usage_by_menu(
 {
   this->make_available([menu_input_identifier, menu_value](bNode &node) {
     bNodeSocket &socket = *blender::bke::node_find_socket(node, SOCK_IN, menu_input_identifier);
+    const SocketDeclaration &socket_declaration = *socket.runtime->declaration;
+    socket_declaration.make_available(node);
     bNodeSocketValueMenu *value = socket.default_value_typed<bNodeSocketValueMenu>();
     value->value = menu_value;
   });
-  this->usage_inference(
-      [menu_input_identifier, menu_value](
-          const socket_usage_inference::InputSocketUsageParams &params) -> std::optional<bool> {
-        return params.menu_input_may_be(menu_input_identifier, menu_value);
-      });
+  this->usage_inference([menu_input_identifier,
+                         menu_value](const socket_usage_inference::InputSocketUsageParams &params)
+                            -> std::optional<bool> {
+    const bNodeSocket &socket = *blender::bke::node_find_socket(
+        params.node, SOCK_IN, menu_input_identifier);
+    const SocketDeclaration &socket_declaration = *socket.runtime->declaration;
+    const bool menu_might_be = params.menu_input_may_be(menu_input_identifier, menu_value);
+    if (!socket_declaration.usage_inference_fn) {
+      return menu_might_be;
+    }
+
+    const std::optional<bool> is_socket_used = (*socket_declaration.usage_inference_fn)(params);
+    if (!is_socket_used.has_value()) {
+      return menu_might_be;
+    }
+
+    return *is_socket_used && menu_might_be;
+  });
   return *this;
 }
 
