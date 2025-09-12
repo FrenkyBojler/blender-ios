@@ -21,42 +21,52 @@ Owner = Union[ID, PoseBone, Bone, PropertyGroup, Strip, BoneCollection]
 
 ### Checking functions.
 
+
 def is_system_prop(owner: Owner, prop_name: str) -> bool:
-    """Returns True if a property with the given name was registered by an add-on on owner, 
+    """Returns True if a property with the given name was registered by an add-on on owner,
     even if the add-on is no longer active.
     """
     return prop_name in owner.bl_system_properties_get().keys()
+
 
 def is_registered_system_prop(owner: Owner, prop_name: str) -> bool:
     """Returns True if a property with the given name is registered by an active add-on."""
     return is_system_prop(owner, prop_name) and prop_name in owner.bl_rna.properties
 
+
 def is_custom_prop(owner: Owner, prop_name: str) -> bool:
-    """Returns True if a property with the given name is present on the owner 
+    """Returns True if a property with the given name is present on the owner
     as a custom property, and not a system property.
     """
     return prop_name in owner.keys() and not is_system_prop(owner, prop_name)
 
+
 ### Functions to get lists of certain types of property names.
+
 
 def get_all_runtime_prop_names(owner: Owner) -> list[str]:
     return get_custom_prop_names(owner) + get_system_prop_names(owner)
 
+
 def get_custom_prop_names(owner: Owner) -> Iterator[str]:
     return list(owner.keys())
+
 
 def get_system_prop_names(owner: Owner) -> list[str]:
     return list(owner.bl_system_properties_get().keys())
 
+
 ### Copy/Mirror functions.
 
+
 def copy_all_runtime_properties(src: Owner, tgt: Owner, x_mirror=False):
-    """Copy add-on and custom properties from source to target. 
+    """Copy add-on and custom properties from source to target.
     Both should be the same type.
     x_mirror: Flip left/right-sidedness of strings and Object pointers, if found.
     """
     for prop_name in get_all_runtime_prop_names(src):
         copy_runtime_property(src, tgt, prop_name, x_mirror)
+
 
 def copy_runtime_property(src: Owner, tgt: Owner, prop_name: str, x_mirror=False):
     """Copy add-on properties or custom properties.
@@ -74,7 +84,7 @@ def copy_runtime_property(src: Owner, tgt: Owner, prop_name: str, x_mirror=False
             else:
                 copy_single_system_prop(src, tgt, prop_name, x_mirror)
         else:
-            # HACK: If we need to copy add-on properties, but the add-on is not present, 
+            # HACK: If we need to copy add-on properties, but the add-on is not present,
             # we have to write to the system properties, which is API abuse that could
             # lose support any moment, but there is no other way to do this atm.
             # tgt_id.bl_system_properties_get()[prop_name] = src_id.bl_system_properties_get()[prop_name]
@@ -89,17 +99,18 @@ def copy_runtime_property(src: Owner, tgt: Owner, prop_name: str, x_mirror=False
     else:
         raise Exception(f'{src} has no runtime property called "{prop_name}".')
 
-def copy_property_group(
-        src_propgroup: PropertyGroup,
-        tgt_propgroup: PropertyGroup,
-        x_mirror=False
-    ):
+
+def copy_property_group(src_propgroup: PropertyGroup, tgt_propgroup: PropertyGroup, x_mirror=False):
     """
     Copy the values from one PropertyGroup into another of the same type.
     x_mirror: Flip left/right-sidedness of strings and Object pointers, if found.
     """
-    assert isinstance(tgt_propgroup, PropertyGroup) and isinstance(src_propgroup, PropertyGroup), "Source and target must be PropertyGroups."
-    assert tgt_propgroup.__class__ == src_propgroup.__class__, "Source and target must be PropertyGroups of the same type."
+    assert isinstance(tgt_propgroup, PropertyGroup) and isinstance(
+        src_propgroup, PropertyGroup
+    ), "Source and target must be PropertyGroups."
+    assert (
+        tgt_propgroup.__class__ == src_propgroup.__class__
+    ), "Source and target must be PropertyGroups of the same type."
 
     for prop_name in src_propgroup.bl_rna.properties.keys():
         if prop_name in ('rna_type', 'bl_rna'):
@@ -120,16 +131,15 @@ def copy_property_group(
             # PropertyGroups also support custom properties.
             copy_custom_property(src_propgroup, tgt_propgroup, prop_name, x_mirror)
 
-def copy_coll_prop(
-        src_collprop: bpy_prop_collection,
-        tgt_collprop: bpy_prop_collection,
-        x_mirror=False
-    ):
+
+def copy_coll_prop(src_collprop: bpy_prop_collection, tgt_collprop: bpy_prop_collection, x_mirror=False):
     """
     Copy the values from one CollectionProperty into another of the same type.
     x_mirror: Flip left/right-sidedness of strings and Object pointers, if found.
     """
-    assert isinstance(src_collprop, bpy_prop_collection) and isinstance(tgt_collprop, bpy_prop_collection), "Source and target must be CollectionProperties."
+    assert isinstance(src_collprop, bpy_prop_collection) and isinstance(
+        tgt_collprop, bpy_prop_collection
+    ), "Source and target must be CollectionProperties."
     # NOTE: Not sure how to make sure that they are CollectionProperties of the same type.
 
     tgt_collprop.clear()
@@ -137,6 +147,7 @@ def copy_coll_prop(
         assert isinstance(src_pg, PropertyGroup)
         tgt_pg = tgt_collprop.add()
         copy_property_group(src_pg, tgt_pg, x_mirror)
+
 
 def copy_custom_property(src: Owner, tgt: Owner, prop_name: str, new_name="", x_mirror=False) -> "IDPropertyUIManager":
     """Copy a custom property (one that was created via the UI or via Python dictionary syntax)."""
@@ -154,6 +165,7 @@ def copy_custom_property(src: Owner, tgt: Owner, prop_name: str, new_name="", x_
     tgt.property_overridable_library_set(f'["{new_name}"]', src.is_property_overridable_library(f'["{prop_name}"]'))
     return tgt.id_properties_ui(new_name)
 
+
 def copy_single_system_prop(src: Owner, tgt: Owner, prop_name: str, x_mirror=False) -> bool:
     """Attempt to copy a system property from one owner to another, returning success state.
     Will return False for read-only properties, as they cannot be copied.
@@ -169,16 +181,19 @@ def copy_single_system_prop(src: Owner, tgt: Owner, prop_name: str, x_mirror=Fal
         raise Exception(f'Property "{prop_name}" of {src} is not a single property.')
     if x_mirror:
         value = x_mirror_value(value)
-    
+
     setattr(tgt, prop_name, value)
     return True
 
+
 ### Remove/Rename functions.
+
 
 def rename_custom_prop(owner: Owner, from_name: str, to_name: str):
     assert is_custom_prop(owner, from_name), f"Property {from_name} of {owner} is not a Custom Property."
     copy_custom_property(owner, owner, from_name, new_name=to_name, x_mirror=False)
     remove_property(owner, from_name)
+
 
 def remove_property(owner: Owner, prop_name: str):
     """Removes custom properties and unregistered system properties.
@@ -193,7 +208,9 @@ def remove_property(owner: Owner, prop_name: str):
     else:
         raise KeyError(f"{prop_name} not found in {owner.name}")
 
+
 ### X-mirror helper functions.
+
 
 def x_mirror_value(value: str | Object):
     if isinstance(value, str):
@@ -203,11 +220,9 @@ def x_mirror_value(value: str | Object):
     else:
         return value
 
+
 def get_opposite_obj(obj: Object) -> Object:
     """Return the X-mirrored version of a Blender object by name (and library if linked)."""
     flipped_name = flip_name(obj.name)
     lib = obj.library
-    return (
-        bpy.data.objects.get((lib, flipped_name)) if lib else
-        bpy.data.objects.get(flipped_name)
-    ) or obj
+    return (bpy.data.objects.get((lib, flipped_name)) if lib else bpy.data.objects.get(flipped_name)) or obj
