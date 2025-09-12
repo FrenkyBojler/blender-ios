@@ -351,6 +351,16 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
     FROM_DEFAULT_V4_UCHAR(tui.panel_active);
   }
 
+  if (!USER_VERSION_ATLEAST(500, 78)) {
+    FROM_DEFAULT_V4_UCHAR(regions.channels.back);
+    FROM_DEFAULT_V4_UCHAR(regions.channels.text);
+    FROM_DEFAULT_V4_UCHAR(regions.channels.text_selected);
+    FROM_DEFAULT_V4_UCHAR(regions.asset_shelf.back);
+    FROM_DEFAULT_V4_UCHAR(regions.asset_shelf.header_back);
+    FROM_DEFAULT_V4_UCHAR(regions.sidebars.back);
+    FROM_DEFAULT_V4_UCHAR(regions.sidebars.tab_back);
+  }
+
   if (!USER_VERSION_ATLEAST(500, 100)) {
     FROM_DEFAULT_V4_UCHAR(regions.channels.back);
     FROM_DEFAULT_V4_UCHAR(regions.channels.text);
@@ -479,7 +489,7 @@ static void keymap_update_brushes_handle_add_item(
   if (STREQ(kmi->idname, "WM_OT_tool_set_by_id")) {
     IDProperty *idprop = IDP_GetPropertyFromGroup(kmi->properties, "name");
     if (idprop && (idprop->type == IDP_STRING)) {
-      const blender::StringRef prop_val = IDP_String(idprop);
+      const blender::StringRef prop_val = IDP_string_get(idprop);
       if (!prop_val.startswith("builtin_brush.")) {
         return;
       }
@@ -494,7 +504,7 @@ static void keymap_update_brushes_handle_add_item(
   else if (STREQ(kmi->idname, "PAINT_OT_brush_select")) {
     IDProperty *idprop = IDP_GetPropertyFromGroup(kmi->properties, tool_property);
     if (idprop && (idprop->type == IDP_INT)) {
-      const int prop_val = IDP_Int(idprop);
+      const int prop_val = IDP_int_get(idprop);
       if (id_asset_map.contains(prop_val)) {
         asset_id = id_asset_map.lookup(prop_val);
       }
@@ -530,7 +540,7 @@ static void keymap_update_brushes_handle_remove_item(
   if (STREQ(kmi->idname, "PAINT_OT_brush_select")) {
     IDProperty *idprop = IDP_GetPropertyFromGroup(kmi->properties, tool_property);
     if (idprop && (idprop->type == IDP_INT)) {
-      const int prop_val = IDP_Int(idprop);
+      const int prop_val = IDP_int_get(idprop);
       if (id_asset_map.contains(prop_val)) {
         asset_id = id_asset_map.lookup(prop_val);
       }

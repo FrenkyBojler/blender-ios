@@ -416,6 +416,32 @@
         </sidebars>
       </ThemeRegions>
     </regions>
+    <regions>
+      <ThemeRegions>
+        <asset_shelf>
+          <ThemeRegionsAssetShelf
+            back="#999999ff"
+            header_back="#adadadff"
+            >
+          </ThemeRegionsAssetShelf>
+        </asset_shelf>
+        <channels>
+          <ThemeRegionsChannels
+            back="#adadad"
+            text="#050505"
+            text_selected="#ffffff"
+            >
+          </ThemeRegionsChannels>
+        </channels>
+        <sidebars>
+          <ThemeRegionsSidebars
+            back="#b3b3b300"
+            tab_back="#b3b3b300"
+            >
+          </ThemeRegionsSidebars>
+        </sidebars>
+      </ThemeRegions>
+    </regions>
     <common>
       <ThemeCommon>
         <anim>
