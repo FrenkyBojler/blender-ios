@@ -249,6 +249,16 @@ class ImBufSaveTest(ImBufTest):
         # Note: These 2 variations are problematic on MacOS ARM64 (#105006)
         # self.check(src="rgba32", ext="webp", settings={"file_format": "WEBP", "color_mode": "RGB", "quality": 70})
         # self.check(src="rgba32", ext="webp", settings={"file_format": "WEBP", "color_mode": "RGBA", "quality": 70})
+
+    def test_save_iris(self):
+        self.check(src="rgba08", ext="rgb", settings={"file_format": "IRIS", "color_mode": "BW"})
+        self.check(src="rgba08", ext="rgb", settings={"file_format": "IRIS", "color_mode": "RGB"})
+        self.check(src="rgba08", ext="rgb", settings={"file_format": "IRIS", "color_mode": "RGBA"})
+
+        self.check(src="rgba32", ext="rgb", settings={"file_format": "IRIS", "color_mode": "BW"})
+        self.check(src="rgba32", ext="rgb", settings={"file_format": "IRIS", "color_mode": "RGB"})
+        self.check(src="rgba32", ext="rgb", settings={"file_format": "IRIS", "color_mode": "RGBA"})
+
 # autopep8: on
 
 
