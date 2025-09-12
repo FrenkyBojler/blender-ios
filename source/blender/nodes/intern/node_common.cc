@@ -84,7 +84,7 @@ void node_group_label(const bNodeTree * /*ntree*/,
                       int label_maxncpy)
 {
   BLI_strncpy(label,
-              (node->id) ? node->id->name + 2 :
+              (node->id) ? IFACE_(node->id->name + 2) :
                            CTX_IFACE_(BLT_I18NCONTEXT_ID_NODETREE, "Missing Data-Block"),
               label_maxncpy);
 }
