@@ -2427,6 +2427,10 @@ struct LightOrbitAroundTargetData {
   int init_event = 0;
   eLightAxisLock axis_lock = eLightAxisLock(0); /* Current axis constraint mode. */
   
+  /* Navigation support */
+  ViewOpsData *vod = nullptr;
+  bool run_navigation = false;
+  
   struct LightData {
     Object *ob = nullptr;
     blender::float3 orig_loc{0.0f};
@@ -2500,6 +2504,8 @@ static void light_orbit_around_target_init_data(bContext *C, wmOperator *op, con
   loatd->init_event = event->type;
   loatd->has_center = false;
   loatd->axis_lock = LIGHT_AXIS_LOCK_NONE;
+  loatd->vod = nullptr;
+  loatd->run_navigation = false;
 
   /* Set initial cursor. */
   light_orbit_around_target_set_cursor(C, loatd);
@@ -2676,6 +2682,11 @@ static void light_orbit_around_target_cancel(bContext *C, wmOperator *op)
   ED_region_tag_redraw(loatd->vc.region);
   ED_workspace_status_text(C, nullptr);
   
+  /* Free navigation data */
+  if (loatd->vod) {
+    ED_view3d_navigation_free(C, loatd->vod);
+  }
+  
   MEM_delete(loatd);
 }
 
@@ -2759,6 +2770,9 @@ static wmOperatorStatus light_orbit_around_target_invoke(bContext *C, wmOperator
     return OPERATOR_CANCELLED;
   }
   
+  /* Initialize viewport navigation */
+  loatd->vod = ED_view3d_navigation_init(C, nullptr);
+  
   WM_event_add_modal_handler(C, op);
   return OPERATOR_RUNNING_MODAL;
 }
@@ -2766,6 +2780,12 @@ static wmOperatorStatus light_orbit_around_target_invoke(bContext *C, wmOperator
 static wmOperatorStatus light_orbit_around_target_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   LightOrbitAroundTargetData *loatd = static_cast<LightOrbitAroundTargetData *>(op->customdata);
+  
+  /* Handle navigation events */
+  if (loatd->vod && ED_view3d_navigation_do(C, loatd->vod, event, nullptr)) {
+    loatd->run_navigation = true;
+    return OPERATOR_RUNNING_MODAL;
+  }
   
   if (event->type == MOUSEMOVE) {
     if (loatd->has_center) {
