@@ -36,6 +36,7 @@ a82f0b44-1d89-4ca7-ae21-86296257be99:Brushes/Mesh Texture Paint:Brushes-Mesh Tex
 007a2c8d-f113-421b-a39c-8fbc76c4f7fe:Generate:Generate
 a7b80fd1-5de6-4c15-9049-52f25f4376de:Geometry:Geometry
 463e71f0-6db1-41af-bc96-6f875196aac7:Geometry/Operations:Geometry-Operations
+5fa1e91c-e798-4051-8e4d-5d47f76f789b:Geometry/Selection:Geometry-Selection
 f14d3c5d-8223-4e8c-b3b3-cbce81e4b3ee:Hair:Hair
 87cbaad7-ae4e-404c-9b6b-4fe60ecc39dc:Hair/Deformation:Hair-Deformation
 40aedbf9-be4b-4ddb-8eec-8a9cd37d0921:Hair/Generation:Hair-Generation
