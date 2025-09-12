@@ -2009,6 +2009,10 @@ struct XFormAxisData {
   float light_offset_distance;
   float shadow_target_location[3];
   bool shadow_target_set;
+
+  /* Navigation support */
+  ViewOpsData *vod;
+  bool run_navigation;
 };
 
 #ifdef USE_FAKE_DEPTH_INIT
@@ -2130,7 +2134,7 @@ static bool object_is_target_compat(const Object *ob)
   return false;
 }
 
-static void object_transform_axis_target_free_data(wmOperator *op)
+static void object_transform_axis_target_free_data(bContext *C, wmOperator *op)
 {
   XFormAxisData *xfd = static_cast<XFormAxisData *>(op->customdata);
 
@@ -2139,6 +2143,11 @@ static void object_transform_axis_target_free_data(wmOperator *op)
     ED_view3d_depths_free(xfd->depths);
   }
 #endif
+
+  /* Cleanup navigation data */
+  if (xfd->vod) {
+    ED_view3d_navigation_free(C, xfd->vod);
+  }
 
   for (XFormAxisItem &item : xfd->object_data) {
     MEM_freeN(item.obtfm);
@@ -2214,7 +2223,7 @@ static void object_transform_axis_target_cancel(bContext *C, wmOperator *op)
   /* Clear WorkspaceStatus to return to basic state */
   ED_workspace_status_text(C, nullptr);
 
-  object_transform_axis_target_free_data(op);
+  object_transform_axis_target_free_data(C, op);
 }
 
 static wmOperatorStatus object_transform_axis_target_invoke(bContext *C,
@@ -2347,6 +2356,10 @@ static wmOperatorStatus object_transform_axis_target_invoke(bContext *C,
     item.is_z_flip = dot_v3v3(item.rot_mat[2], full_mat3[2]) < 0.0f;
   }
 
+  /* Initialize navigation support */
+  xfd->vod = ED_view3d_navigation_init(C, nullptr);
+  xfd->run_navigation = false;
+
   WM_event_add_modal_handler(C, op);
 
   return OPERATOR_RUNNING_MODAL;
@@ -2361,6 +2374,12 @@ static wmOperatorStatus object_transform_axis_target_modal(bContext *C,
 
   view3d_operator_needs_gpu(C);
 
+  /* Handle navigation events */
+  if (xfd->vod && ED_view3d_navigation_do(C, xfd->vod, event, nullptr)) {
+    xfd->run_navigation = true;
+    return OPERATOR_RUNNING_MODAL;
+  }
+
   /* Handle modal keymap events for light positioning mode changes */
   if (event->type == EVT_MODAL_MAP) {
     switch (event->val) {
@@ -2372,7 +2391,7 @@ static wmOperatorStatus object_transform_axis_target_modal(bContext *C,
         }
         /* Clear WorkspaceStatus to return to basic state */
         ED_workspace_status_text(C, nullptr);
-        object_transform_axis_target_free_data(op);
+        object_transform_axis_target_free_data(C, op);
         return OPERATOR_FINISHED;
       }
       case TGT_MODAL_CANCEL: {
@@ -2455,6 +2474,38 @@ static wmOperatorStatus object_transform_axis_target_modal(bContext *C,
                    xfd->light_mode == LIGHT_SPECULAR_MODE);
     status.opmodal(IFACE_("Shadow"), op->type, TGT_MODAL_SHADOW_ENABLE, 
                    xfd->light_mode == LIGHT_SHADOW_MODE);
+  }
+
+  /* Refresh depth buffer after navigation */
+  if (xfd->run_navigation) {
+    xfd->run_navigation = false;
+    
+    /* Free old depth buffer */
+    if (xfd->depths) {
+      ED_view3d_depths_free(xfd->depths);
+      xfd->depths = nullptr;
+    }
+    
+    /* Create new depth buffer with updated view matrix */
+#ifdef USE_RENDER_OVERRIDE
+    int flag2_prev = xfd->vc.v3d->flag2;
+    xfd->vc.v3d->flag2 |= V3D_HIDE_OVERLAYS;
+#endif
+    
+    ViewDepths *depths = nullptr;
+    ED_view3d_depth_override(
+        xfd->vc.depsgraph, xfd->vc.region, xfd->vc.v3d, nullptr, V3D_DEPTH_NO_GPENCIL, false, &depths);
+    
+#ifdef USE_RENDER_OVERRIDE
+    xfd->vc.v3d->flag2 = flag2_prev;
+#endif
+    
+    if (depths != nullptr) {
+      xfd->depths = depths;
+      /* Clear cached depth and normal data to force recalculation */
+      xfd->prev.is_depth_valid = false;
+      xfd->prev.is_normal_valid = false;
+    }
   }
 
   if (event->type == MOUSEMOVE) {
@@ -2688,7 +2739,7 @@ static wmOperatorStatus object_transform_axis_target_modal(bContext *C,
     /* Clear WorkspaceStatus to return to basic state */
     ED_workspace_status_text(C, nullptr);
 
-    object_transform_axis_target_free_data(op);
+    object_transform_axis_target_free_data(C, op);
     return OPERATOR_FINISHED;
   }
   if (ELEM(event->type, EVT_ESCKEY, RIGHTMOUSE)) {
