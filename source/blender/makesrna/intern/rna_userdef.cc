@@ -67,6 +67,7 @@ const EnumPropertyItem rna_enum_preference_section_items[] = {
     {USER_SECTION_SAVE_LOAD, "SAVE_LOAD", 0, "Save & Load", ""},
     {USER_SECTION_FILE_PATHS, "FILE_PATHS", 0, "File Paths", ""},
     RNA_ENUM_ITEM_SEPR,
+    {USER_SECTION_DEVELOPER_TOOLS, "DEVELOPER_TOOLS", 0, "Developer Tools", ""},
     {USER_SECTION_EXPERIMENTAL, "EXPERIMENTAL", 0, "Experimental", ""},
     {0, nullptr, 0, nullptr, nullptr},
 };
@@ -191,6 +192,7 @@ static const EnumPropertyItem rna_enum_preferences_extension_repo_source_type_it
 #  include "BKE_addon.h"
 #  include "BKE_appdir.hh"
 #  include "BKE_blender.hh"
+#  include "BKE_blender_version.h"
 #  include "BKE_callbacks.hh"
 #  include "BKE_global.hh"
 #  include "BKE_idprop.hh"
@@ -805,8 +807,9 @@ static const EnumPropertyItem *rna_UseDef_active_section_itemf(bContext * /*C*/,
   UserDef *userdef = static_cast<UserDef *>(ptr->data);
 
   const bool use_developer_ui = (userdef->flag & USER_DEVELOPER_UI) != 0;
+  const bool is_alpha = BKE_blender_version_is_alpha();
 
-  if (use_developer_ui) {
+  if (use_developer_ui && is_alpha) {
     *r_free = false;
     return rna_enum_preference_section_items;
   }
@@ -818,6 +821,11 @@ static const EnumPropertyItem *rna_UseDef_active_section_itemf(bContext * /*C*/,
        it++)
   {
     if (it->value == USER_SECTION_EXPERIMENTAL) {
+      if (is_alpha == false) {
+        continue;
+      }
+    }
+    else if (it->value == USER_SECTION_DEVELOPER_TOOLS) {
       if (use_developer_ui == false) {
         continue;
       }
@@ -3824,12 +3832,6 @@ static void rna_def_userdef_theme_space_seq(BlenderRNA *brna)
   RNA_def_property_float_sdna(prop, nullptr, "selected_text");
   RNA_def_property_array(prop, 4);
   RNA_def_property_ui_text(prop, "Selected Text", "Text strip editing selection");
-  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
-
-  prop = RNA_def_property(srna, "active_modifier", PROP_FLOAT, PROP_COLOR_GAMMA);
-  RNA_def_property_float_sdna(prop, nullptr, "active");
-  RNA_def_property_array(prop, 4);
-  RNA_def_property_ui_text(prop, "Active Modifier Outline", "");
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 }
 
