@@ -12,6 +12,7 @@
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
+#include "DNA_sequence_types.h"
 #include "DNA_space_types.h"
 #include "DNA_userdef_types.h"
 #include "DNA_workspace_types.h"
@@ -129,8 +130,10 @@ void ANIM_draw_scene_strip_range(const bContext *C, View2D *v2d, int end_frame_w
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
   immUniformThemeColorShadeAlpha(TH_ANIM_SCENE_STRIP_RANGE, -25, -30);
 
-  const float start_frame = blender::seq::time_start_frame_get(scene_strip);
-  const float end_frame = blender::seq::time_content_end_frame_get(sequencer_scene, scene_strip);
+  const float start_frame = scene_strip->startofs;
+  const float duration = blender::seq::time_right_handle_frame_get(sequencer_scene, scene_strip) -
+                         blender::seq::time_left_handle_frame_get(sequencer_scene, scene_strip);
+  const float end_frame = scene_strip->startofs + duration;
 
   /* Only draw two separate 'curtains' if there's no overlap between them. */
   if (start_frame < end_frame + end_frame_width) {
