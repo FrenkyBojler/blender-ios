@@ -1532,6 +1532,7 @@ static XrRaycastResult wm_xr_navigation_teleport(bContext *C,
     madd_v3_v3fl(origin, segment_direction, -vertical_ofs);
 
     segment_ray_dist = head_height;
+    ob = nullptr;
     wm_xr_raycast(scene,
                   depsgraph,
                   origin,
@@ -1553,6 +1554,7 @@ static XrRaycastResult wm_xr_navigation_teleport(bContext *C,
       madd_v3_v3fl(origin, normal, teleport_ofs);
 
       segment_ray_dist = vertical_ofs;
+      ob = nullptr;
       wm_xr_raycast(scene,
                     depsgraph,
                     origin,
