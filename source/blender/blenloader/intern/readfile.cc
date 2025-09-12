@@ -4444,7 +4444,7 @@ static int expand_cb(LibraryIDLinkCallbackData *cb_data)
   }
 
   /* Do not expand weak links. These are used when the user interface links to scene data,
-   * but we don't want to bring in datablocks along with a scene. */
+   * but we don't want to bring along such datablocks with a workspace. */
   if (cb_data->cb_flag & IDWALK_CB_DIRECT_WEAK_LINK) {
     return IDWALK_RET_NOP;
   }
