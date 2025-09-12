@@ -23,7 +23,7 @@ struct MemFileSharedStorage {
   /**
    * Maps the address id to the sharing info that it is owned by.
    */
-  blender::Map<uint64_t, const blender::ImplicitSharingInfo *> map;
+  blender::Map<uint64_t, const blender::ImplicitSharingInfo *> sharing_info_by_address_id;
   /**
    * Map the address id to the data pointer.
    */

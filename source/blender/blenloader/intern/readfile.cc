@@ -5429,7 +5429,8 @@ blender::ImplicitSharingInfoAndData blo_read_shared_impl(
       if (memfile.shared_storage) {
         /* Check if the data was saved with sharing-info. */
         if (const blender::ImplicitSharingInfo *sharing_info =
-                memfile.shared_storage->map.lookup_default(old_address_id, nullptr))
+                memfile.shared_storage->sharing_info_by_address_id.lookup_default(old_address_id,
+                                                                                  nullptr))
         {
           const void *data = memfile.shared_storage->data_by_address_id.lookup(old_address_id);
           /* Add a new owner of the data that is passed to the caller. */
