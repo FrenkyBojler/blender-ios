@@ -887,7 +887,7 @@ static void writestruct_at_address_nr(WriteData *wd,
     /* Overwrite pointers with their corresponding address identifiers. */
     for (const int i : blender::IndexRange(nr)) {
       for (const blender::dna::pointers::PointerInfo &pointer_info : struct_info.pointers) {
-        const int offset = i * struct_info.size + pointer_info.offset;
+        const int offset = i * struct_info.size_in_bytes + pointer_info.offset;
         const void **p_ptr = reinterpret_cast<const void **>(POINTER_OFFSET(buffer, offset));
         const void *address_id = get_address_id(*wd, *p_ptr);
         *p_ptr = address_id;

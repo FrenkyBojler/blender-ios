@@ -1972,9 +1972,10 @@ PointersInDNA::PointersInDNA(const SDNA &sdna) : sdna_(sdna)
     const SDNA_Struct &sdna_struct = *sdna.structs[struct_i];
     StructInfo &struct_info = structs_[struct_i];
 
-    struct_info.size = 0;
+    struct_info.size_in_bytes = 0;
     for (const int member_i : IndexRange(sdna_struct.members_num)) {
-      struct_info.size += get_member_size_in_bytes(&sdna_, &sdna_struct.members[member_i]);
+      struct_info.size_in_bytes += get_member_size_in_bytes(&sdna_,
+                                                            &sdna_struct.members[member_i]);
     }
 
     this->gather_pointer_members_recursive(sdna_struct, 0, structs_[struct_i]);

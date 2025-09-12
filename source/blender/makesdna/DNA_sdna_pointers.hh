@@ -10,20 +10,31 @@
 
 namespace blender::dna::pointers {
 
+/** Information about a single pointer in a DNA struct. */
 struct PointerInfo {
+  /** Offset in bytes from the start of the struct. */
   int64_t offset;
+  /** Additional information about the pointer which can be useful for debugging. */
   const char *member_type_name = nullptr;
   const char *name = nullptr;
 };
 
+/** All pointers within a DNA struct (including nested structs). */
 struct StructInfo {
+  /** All pointers in that struct. */
   Vector<PointerInfo> pointers;
-  int size = 0;
+  /** Size of the struct in bytes. */
+  int size_in_bytes = 0;
 };
 
+/**
+ * Contains information about where pointers are stored in DNA structs.
+ */
 class PointersInDNA {
  private:
+  /** The SDNA that this class belongs to. */
   const SDNA &sdna_;
+  /** Pointer information about all structs. */
   Vector<StructInfo> structs_;
 
  public:
