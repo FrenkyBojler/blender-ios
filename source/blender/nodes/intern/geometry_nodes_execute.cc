@@ -1072,7 +1072,7 @@ Vector<InferenceValue> get_geometry_nodes_input_inference_values(const bNodeTree
     if (!stype->base_cpp_type || !stype->geometry_nodes_default_value) {
       continue;
     }
-    const IDProperty *property = IDP_GetPropertyFromGroup(properties, io_input.identifier);
+    const IDProperty *property = IDP_GetPropertyFromGroup_null(properties, io_input.identifier);
     if (!property) {
       continue;
     }
