@@ -408,7 +408,7 @@ static void brush_blend_read_data(BlendDataReader *reader, ID *id)
     BKE_curvemapping_blend_read(reader, brush->curve_auto_smooth);
   }
   else {
-    brush->curve_auto_smooth = BKE_paint_default_curve();
+    brush->curve_auto_smooth = BKE_paint_default_negslope_curve();
   }
 
   BLO_read_struct(reader, CurveMapping, &brush->curve_spacing);
@@ -416,7 +416,7 @@ static void brush_blend_read_data(BlendDataReader *reader, ID *id)
     BKE_curvemapping_blend_read(reader, brush->curve_spacing);
   }
   else {
-    brush->curve_spacing = BKE_paint_default_curve();
+    brush->curve_spacing = BKE_paint_default_negslope_curve();
   }
 
   BLO_read_struct(reader, CurveMapping, &brush->curve_hardness);

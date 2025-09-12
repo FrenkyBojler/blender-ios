@@ -709,13 +709,11 @@ static float paint_space_stroke_spacing(const bContext *C,
     size_clamp = max_ff(1.0f, BKE_brush_radius_get(stroke->paint, stroke->brush) * size_pressure);
   }
 
-  float spacing = stroke->brush->spacing;
-
-  /* apply spacing pressure */
-  if (stroke->brush->flag & BRUSH_SPACING_PRESSURE) {
-    /* TODO: The default pressure curve should be a negative slope, not a positive slope */
-    spacing = spacing * (spacing_pressure + 0.5);
-  }
+  const float spacing_factor = stroke->brush->flag & BRUSH_SPACING_PRESSURE ?
+                                   BKE_curvemapping_evaluateF(
+                                       stroke->brush->curve_spacing, 0, spacing_pressure) :
+                                   1.0;
+  float spacing = stroke->brush->spacing * spacing_factor;
 
   if (cloth::is_cloth_deform_brush(brush)) {
     /* The spacing in tools that use the cloth solver should not be affected by the brush radius to
@@ -790,12 +788,11 @@ static float paint_space_stroke_spacing_variable(bContext *C,
                                                  const float pressure_delta,
                                                  const float length)
 {
-  const float spacing_eval = BKE_curvemapping_evaluateF(stroke->brush->curve_spacing, 0, pressure);
   if (BKE_brush_use_size_pressure(stroke->brush)) {
     /* use pressure to modify size. set spacing so that at 100%, the circles
      * are aligned nicely with no overlap. for this the spacing needs to be
      * the average of the previous and next size. */
-    const float s = paint_space_stroke_spacing(C, stroke, 1.0f, spacing_eval);
+    const float s = paint_space_stroke_spacing(C, stroke, 1.0f, pressure);
     const float q = s * pressure_delta / (2.0f * length);
     const float pressure_fac = (1.0f + q) / (1.0f - q);
 
@@ -804,15 +801,15 @@ static float paint_space_stroke_spacing_variable(bContext *C,
 
     /* average spacing */
     const float last_spacing = paint_space_stroke_spacing(
-        C, stroke, last_size_pressure, spacing_eval);
+        C, stroke, last_size_pressure, pressure);
     const float new_spacing = paint_space_stroke_spacing(
-        C, stroke, new_size_pressure, spacing_eval);
+        C, stroke, new_size_pressure, pressure);
 
     return 0.5f * (last_spacing + new_spacing);
   }
 
   /* no size pressure */
-  return paint_space_stroke_spacing(C, stroke, 1.0f, spacing_eval);
+  return paint_space_stroke_spacing(C, stroke, 1.0f, pressure);
 }
 
 /* For brushes with stroke spacing enabled, moves mouse in steps

@@ -652,3 +652,4 @@ int BKE_paint_canvas_uvmap_layer_index_get(const PaintModeSettings *settings, Ob
 void BKE_sculpt_cavity_curves_ensure(Sculpt *sd);
 CurveMapping *BKE_sculpt_default_cavity_curve();
 CurveMapping *BKE_paint_default_curve();
+CurveMapping *BKE_paint_default_negslope_curve();

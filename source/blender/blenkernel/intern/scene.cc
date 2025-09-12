@@ -146,6 +146,15 @@ CurveMapping *BKE_paint_default_curve()
   return cumap;
 }
 
+CurveMapping *BKE_paint_default_negslope_curve()
+{
+  CurveMapping *cumap = BKE_curvemapping_add(1, 0, 0, 1, 1);
+  BKE_curvemap_reset(cumap->cm, &cumap->clipr, CURVE_PRESET_LINE, CURVEMAP_SLOPE_NEGATIVE);
+  BKE_curvemapping_init(cumap);
+
+  return cumap;
+}
+
 static void scene_init_data(ID *id)
 {
   Scene *scene = (Scene *)id;
