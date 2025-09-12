@@ -943,7 +943,7 @@ int BLI_kdtree_nd_(calc_duplicates_stable)(const KDTree *tree,
                                            int *duplicates,
                                            float (*r_survivor_cos)[KD_DIMS])
 {
-  BLI_assert(tree->is_balanced == true);
+  BLI_assert(tree->is_balanced);
 
   if (UNLIKELY(tree->root == KD_NODE_UNSET)) {
     return 0;
@@ -958,87 +958,71 @@ int BLI_kdtree_nd_(calc_duplicates_stable)(const KDTree *tree,
 
   blender::Array<bool> visited(tree->max_node_index + 1, false);
 
-  /* Reused each iteration to reduce reallocations. */
-  blender::Vector<int> cluster;
-  blender::Vector<int> to_visit;
-  cluster.reserve(nodes_len);
-  to_visit.reserve(nodes_len);
-
   int found = 0;
 
   for (uint i = 0; i < nodes_len; i++) {
     const int node_index = tree->nodes[i].index;
 
-    BLI_assert(cluster.is_empty() && to_visit.is_empty());
-
     if (visited[node_index]) {
       continue;
     }
-
     if (duplicates[node_index] != -1) {
       visited[node_index] = true;
       continue;
     }
 
-    to_visit.append_unchecked(node_index);
-    visited[node_index] = true;
+    /* Collect all neighbors of this vertex within range. */
+    blender::Vector<int> cluster;
+    cluster.append(node_index);
 
-    /* Flood fill cluster using KDTree range search callbacks. */
-    while (!to_visit.is_empty()) {
-      const int search_index = to_visit.pop_last();
-      cluster.append_unchecked(search_index);
+    const float *search_co = tree->nodes[index_lookup[node_index]].co;
+    BLI_assert(search_co != nullptr);
 
-      const float *search_co = tree->nodes[index_lookup[search_index]].co;
-      BLI_assert(search_co != nullptr);
+    auto accumulate_neighbors = [&](int neighbor_index, const float *, float) -> bool {
+      if (!visited[neighbor_index] && duplicates[neighbor_index] == -1) {
+        cluster.append(neighbor_index);
+        visited[neighbor_index] = true;
+      }
+      return true;
+    };
 
-      /* Callback accumulates neighbors within threshold. */
-      auto to_visit_accumulate_fn = [&](int neighbor_index, const float *, float) -> bool {
-        if (!visited[neighbor_index] && duplicates[neighbor_index] == -1) {
-          visited[neighbor_index] = true;
-          to_visit.append_unchecked(neighbor_index);
-        }
-        return true;
-      };
+    BLI_kdtree_nd_(range_search_cb_cpp)(tree, search_co, range, accumulate_neighbors);
 
-      BLI_kdtree_nd_(range_search_cb_cpp)(tree, search_co, range, to_visit_accumulate_fn);
+    if (cluster.size() <= 1) {
+      continue;
     }
 
-    if (cluster.size() > 1) {
-      /* Compute centroid of the cluster. */
-      float centroid[KD_DIMS] = {0.0f};
-      for (int node_index : cluster) {
-        const float *co = tree->nodes[index_lookup[node_index]].co;
-        add_vn_vn(centroid, co, KD_DIMS);
-      }
+    /* Compute centroid of the cluster. */
+    float centroid[KD_DIMS] = {0.0f};
+    for (int node_index : cluster) {
+      const float *co = tree->nodes[index_lookup[node_index]].co;
+      add_vn_vn(centroid, co, KD_DIMS);
+    }
 
-      const float inv_size = 1.0f / float(cluster.size());
-      for (uint d = 0; d < KD_DIMS; d++) {
-        centroid[d] *= inv_size;
-      }
+    const float inv_size = 1.0f / float(cluster.size());
+    for (uint d = 0; d < KD_DIMS; d++) {
+      centroid[d] *= inv_size;
+    }
 
-      /* Choose survivor: lowest node index in cluster. */
-      int survivor_index = cluster[0];
-      for (int node_index : cluster) {
-        if (node_index < survivor_index) {
-          survivor_index = node_index;
-        }
-      }
-
-      /* Write centroid for this survivor. */
-      copy_vn_vn(r_survivor_cos[survivor_index], centroid);
-
-      /* Assign duplicates mapping. */
-      duplicates[survivor_index] = survivor_index;
-      for (int node_index : cluster) {
-        if (node_index != survivor_index) {
-          duplicates[node_index] = survivor_index;
-          found++;
-        }
+    /* Choose survivor: lowest node index in cluster. */
+    int survivor_index = cluster[0];
+    for (int node_index : cluster) {
+      if (node_index < survivor_index) {
+        survivor_index = node_index;
       }
     }
 
-    cluster.clear();
-    to_visit.clear();
+    /* Write centroid for this survivor. */
+    copy_vn_vn(r_survivor_cos[survivor_index], centroid);
+
+    /* Assign duplicates mapping. */
+    duplicates[survivor_index] = survivor_index;
+    for (int node_index : cluster) {
+      if (node_index != survivor_index) {
+        duplicates[node_index] = survivor_index;
+        found++;
+      }
+    }
   }
 
   return found;
