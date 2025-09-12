@@ -736,6 +736,13 @@ static float paint_space_stroke_spacing(const bContext *C,
   return max_ff(stroke->zoom_2d, size_clamp * spacing / 50.0f);
 }
 
+static float paint_space_stroke_spacing_no_pressure(const bContext *C, PaintStroke *stroke)
+{
+  /* Unlike many paint pressure curves, spacing assumes that a stroke without pressure (e.g. with
+   * the mouse, or with the setting turned off) represents an input of 0.5, not 1.0. */
+  return paint_space_stroke_spacing(C, stroke, 1.0f, 0.5f);
+}
+
 static float paint_stroke_overlapped_curve(const Brush &br, const float x, const float spacing)
 {
   /* Avoid division by small numbers, can happen
@@ -853,7 +860,7 @@ static int paint_space_stroke(bContext *C,
 
   float pressure = stroke->last_pressure;
   float pressure_delta = final_pressure - stroke->last_pressure;
-  const float no_pressure_spacing = paint_space_stroke_spacing(C, stroke, 1.0f, 1.0f);
+  const float no_pressure_spacing = paint_space_stroke_spacing_no_pressure(C, stroke);
   int count = 0;
   while (length > 0.0f) {
     const float spacing = paint_space_stroke_spacing_variable(
@@ -1355,7 +1362,7 @@ static bool paint_stroke_curve_end(bContext *C, wmOperator *op, PaintStroke *str
 
   Paint *paint = BKE_paint_get_active_from_context(C);
   bke::PaintRuntime *paint_runtime = stroke->paint->runtime;
-  const float spacing = paint_space_stroke_spacing(C, stroke, 1.0f, 1.0f);
+  const float no_pressure_spacing = paint_space_stroke_spacing_no_pressure(C, stroke);
   const PaintCurve *pc = br.paint_curve;
 
   if (!pc) {
@@ -1422,12 +1429,12 @@ static bool paint_stroke_curve_end(bContext *C, wmOperator *op, PaintStroke *str
         if (stroke->stroke_started) {
           paint_brush_stroke_add_step(C, op, stroke, data + 2 * j, 1.0);
           paint_line_strokes_spacing(
-              C, op, stroke, spacing, &length_residue, data + 2 * j, data + 2 * (j + 1));
+              C, op, stroke, no_pressure_spacing, &length_residue, data + 2 * j, data + 2 * (j + 1));
         }
       }
       else {
         paint_line_strokes_spacing(
-            C, op, stroke, spacing, &length_residue, data + 2 * j, data + 2 * (j + 1));
+            C, op, stroke, no_pressure_spacing, &length_residue, data + 2 * j, data + 2 * (j + 1));
       }
     }
   }
