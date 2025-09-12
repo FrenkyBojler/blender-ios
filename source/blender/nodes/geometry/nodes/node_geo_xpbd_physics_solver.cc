@@ -106,6 +106,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .static_items(solver_type_items)
       .default_value(SolverType::ParallelGaussSeidel);
   panel.add_input<decl::Int>("Substeps").default_value(10).min(1);
+  panel.add_input<decl::Int>("Constraint Iterations").default_value(1).min(1);
 }
 
 struct SimPoints {
@@ -3034,7 +3035,8 @@ PROFILE_FUNCTION static void simulate_key_group_global(
     const Span<xpbd::GeometryRef> geometry_refs,
     const xpbd::ConstraintSetCollector &filtered_static_constraint_sets,
     const int substeps,
-    const float sub_delta_time)
+    const float sub_delta_time,
+    const int constraint_iterations)
 {
   ResourceScope &scope = tls.local_resource_scope();
   const int keys_in_group_num = key_group.size();
@@ -3141,7 +3143,10 @@ PROFILE_FUNCTION static void simulate_key_group_global(
             scope, {&filtered_static_constraint_sets, &dynamic_constraint_sets});
 
     /* Actually solve the constraints. */
-    solve_constraints(solver_type, geometry_refs, current_constraint_sets);
+    for ([[maybe_unused]] const int constraint_iter : IndexRange(constraint_iterations)) {
+      solve_constraints(
+          solver_type, geometry_refs, current_constraint_sets, constraint_solver_debug_fn);
+    }
 
     if (sub_delta_time > 0.0f) {
       /* Apply friction by updating current positions before the new velocity is computed. */
@@ -3186,7 +3191,8 @@ PROFILE_FUNCTION static void simulate_curve_local(
     const Span<xpbd::GeometryRef> geometry_refs,
     const xpbd::ConstraintSetCollector &filtered_static_constraint_sets,
     const int substeps,
-    const float sub_delta_time)
+    const float sub_delta_time,
+    const int constraint_iterations)
 {
   const SimPointsKey &key = keys[key_i];
   SimPoints &sim_points = state.sim_points.lookup(key);
@@ -3250,15 +3256,17 @@ PROFILE_FUNCTION static void simulate_curve_local(
 
           xpbd::SolveStrategy solve_strategy{
               get_solve_strategy_type(solver_type), geometry_refs, key_i, points_range};
-          for (xpbd::CurveLocalConstraintSet *constraint_set :
-               filtered_static_constraint_sets.curve_local)
-          {
-            constraint_set->solve_step(solve_strategy, params, curves_range);
+          for ([[maybe_unused]] const int constraint_iter : IndexRange(constraint_iterations)) {
+            for (xpbd::CurveLocalConstraintSet *constraint_set :
+                 filtered_static_constraint_sets.curve_local)
+            {
+              constraint_set->solve_step(solve_strategy, params, curves_range);
+            }
+            for (xpbd::ConstraintSet *constraint_set : dynamic_constraint_sets.general) {
+              constraint_set->solve_step(solve_strategy, params);
+            }
+            solve_strategy.apply();
           }
-          for (xpbd::ConstraintSet *constraint_set : dynamic_constraint_sets.general) {
-            constraint_set->solve_step(solve_strategy, params);
-          }
-          solve_strategy.apply();
 
           if (sub_delta_time > 0.0f) {
             /* Apply friction by updating current positions before the new velocity is computed.*/
@@ -3332,7 +3340,8 @@ PROFILE_FUNCTION static void simulate_key_group(
     const Span<xpbd::GeometryRef> geometry_refs,
     const xpbd::ConstraintSetCollector &static_constraint_sets,
     const int substeps,
-    const float sub_delta_time)
+    const float sub_delta_time,
+    const int constraint_iterations)
 {
   xpbd::ConstraintSetCollector filtered_constraint_sets;
   for (xpbd::ConstraintSet *constraint_set : static_constraint_sets.general) {
@@ -3366,7 +3375,8 @@ PROFILE_FUNCTION static void simulate_key_group(
                          geometry_refs,
                          filtered_constraint_sets,
                          substeps,
-                         sub_delta_time);
+                         sub_delta_time,
+                         constraint_iterations);
   }
   else {
     simulate_key_group_global(key_group,
@@ -3387,7 +3397,8 @@ PROFILE_FUNCTION static void simulate_key_group(
                               geometry_refs,
                               filtered_constraint_sets,
                               substeps,
-                              sub_delta_time);
+                              sub_delta_time,
+                              constraint_iterations);
   }
 }
 
@@ -3395,7 +3406,8 @@ PROFILE_FUNCTION static void update_and_step_xpbd_state(XPBDState &state,
                                                         const WorldBundles &world_bundles,
                                                         const float total_delta_time,
                                                         const SolverType solver_type,
-                                                        const int substeps)
+                                                        const int substeps,
+                                                        const int constraint_iterations)
 {
   ThreadLocalStorage tls;
   ResourceScope &scope = tls.local_resource_scope();
@@ -3567,7 +3579,8 @@ PROFILE_FUNCTION static void update_and_step_xpbd_state(XPBDState &state,
                              geometry_refs,
                              static_constraint_sets,
                              substeps,
-                             sub_delta_time);
+                             sub_delta_time,
+                             constraint_iterations);
         }
       });
 
@@ -3589,6 +3602,8 @@ static void node_geo_exec(GeoNodeExecParams params)
   const SolverType solver_type = params.extract_input<SolverType>("Solver Type");
   const float delta_time = std::max(0.0f, params.extract_input<float>("Delta Time"));
   const int substeps = std::max(1, params.extract_input<int>("Substeps"));
+  const int constraint_iterations = std::max(1,
+                                             params.extract_input<int>("Constraint Iterations"));
 
   if (!world_bundle_ptr) {
     params.set_default_remaining_outputs();
@@ -3624,7 +3639,12 @@ static void node_geo_exec(GeoNodeExecParams params)
   const bool is_resimulating = update_counter < state.update_counter;
   update_counter++;
   if (!is_resimulating) {
-    update_and_step_xpbd_state(state, world_bundles, delta_time, solver_type, substeps);
+    update_and_step_xpbd_state(state,
+                               world_bundles,
+                               delta_time,
+                               solver_type,
+                               substeps,
+                               constraint_iterations);
     state.update_counter = update_counter;
   }
 
