@@ -35,6 +35,7 @@ void main()
   }
 
   float2 lamp_area_size = inst_data.xy;
+  float3 lamp_area_size_3d = inst_data.xyz;
   float lamp_clip_sta = inst_data.z;
   float lamp_clip_end = inst_data.w;
 
@@ -59,8 +60,17 @@ void main()
     /* HACK: use alpha color for spots to pass the area_size. */
     if (inst_color_data < 0.0f) {
       lamp_area_size = float2(-inst_color_data);
+      vpos.xy *= lamp_area_size;
     }
-    vpos.xy *= lamp_area_size;
+    else {
+      /* Use 3D scaling for dome lights and other area lights that set all three components */
+      if (lamp_area_size_3d.z > 0.0f) {
+        vpos *= lamp_area_size_3d;
+      }
+      else {
+        vpos.xy *= lamp_area_size;
+      }
+    }
   }
   else if (flag_test(vclass, VCLASS_LIGHT_SPOT_SHAPE)) {
     lamp_spot_sine = sqrt(1.0f - lamp_spot_cosine * lamp_spot_cosine);

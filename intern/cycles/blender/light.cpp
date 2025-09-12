@@ -76,6 +76,38 @@ void BlenderSync::sync_light(BObjectInfo &b_ob_info, Light *light)
       light->set_light_type(LIGHT_AREA);
       break;
     }
+    case BL::Light::type_DOME: {
+      BL::DomeLight b_dome_light(b_light);
+      light->set_size(b_dome_light.dome_size());
+      light->set_light_type(LIGHT_DOME);
+      
+      printf("DOME_DEBUG: Syncing dome light '%s' with size %.2f\n", 
+             light->name.c_str(), (double)b_dome_light.dome_size());
+
+      /* TODO: HDRI image implementation doesn't work, it only return a simple value (1.0f)
+      /* Set up HDRI image if available */
+      BL::Image b_image = b_dome_light.dome_image();
+      if (b_image) {
+        /* Enable MIS for dome light with image */
+        light->set_use_mis(true);
+        
+        /* Use the user-specified map resolution for image sampling */
+        light->set_map_resolution(b_dome_light.dome_map_resolution());
+        
+        printf("DOME_DEBUG: Dome light has HDRI image - enabling MIS and setting resolution\n");
+        
+        /* TODO: Store image reference for dome light kernel sampling */
+        /* For now, dome lights with images will reuse background light sampling */
+      }
+      else {
+        /* Dome light without image still needs MIS enabled */
+        light->set_use_mis(true);
+      }
+      
+      /* Set a default average radiance for light tree compatibility */
+      light->set_average_radiance(1.0f);
+      break;
+    }
   }
 
   /* Color and strength. */

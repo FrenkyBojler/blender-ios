@@ -92,6 +92,7 @@ NODE_DEFINE(Light)
   type_enum.insert("background", LIGHT_BACKGROUND);
   type_enum.insert("area", LIGHT_AREA);
   type_enum.insert("spot", LIGHT_SPOT);
+  type_enum.insert("dome", LIGHT_DOME);
   SOCKET_ENUM(light_type, "Type", type_enum, LIGHT_POINT);
 
   SOCKET_COLOR(strength, "Strength", one_float3());
@@ -150,14 +151,14 @@ void Light::tag_update(Scene *scene)
 
 bool Light::has_contribution(const Scene *scene, const Object *object)
 {
-  if (strength == zero_float3()) {
-    return false;
-  }
   if (is_portal) {
     return false;
   }
-  if (light_type == LIGHT_BACKGROUND) {
+  if (light_type == LIGHT_BACKGROUND || light_type == LIGHT_DOME) {
     return true;
+  }
+  if (strength == zero_float3()) {
+    return false;
   }
   if (light_type == LIGHT_AREA) {
     if ((get_sizeu() * get_sizev() * get_size() == 0.0f) ||
@@ -219,6 +220,11 @@ float Light::area(const Transform &tfm) const
     /* Sun disk area. */
     const float half_angle = angle / 2.0f;
     return (half_angle > 0.0f) ? M_PI_F * sqr(sinf(half_angle)) : 1.0f;
+  }
+  if (light_type == LIGHT_DOME) {
+    /* Dome area - hemisphere surface area */
+    const float area = 2.0f * M_PI_F * size * size;
+    return (area == 0.0f) ? 1.0f : area;
   }
 
   return 1.0f;
@@ -987,9 +993,12 @@ void LightManager::device_update_background(Device *device,
     }
 
     Light *light = static_cast<Light *>(object->get_geometry());
-    if (light->light_type == LIGHT_BACKGROUND && light->is_enabled) {
+    if ((light->light_type == LIGHT_BACKGROUND || light->light_type == LIGHT_DOME) && light->is_enabled) {
       background_light = light;
       background_mis |= light->use_mis;
+      printf("DOME_DEBUG: Found %s light as background light (enabled=%d, mis=%d)\n",
+             light->light_type == LIGHT_DOME ? "DOME" : "BACKGROUND",
+             light->is_enabled, light->use_mis);
     }
   }
 
@@ -1181,6 +1190,10 @@ void LightManager::device_update_lights(DeviceScene *dscene, Scene *scene)
         num_distant_lights++;
         num_background_lights++;
       }
+      else if (light->light_type == LIGHT_DOME) {
+        num_distant_lights++;
+        num_background_lights++;
+      }
     }
     if (light->is_portal) {
       num_portals++;
@@ -1326,6 +1339,21 @@ void LightManager::device_update_lights(DeviceScene *dscene, Scene *scene)
       if (!(visibility & PATH_RAY_VOLUME_SCATTER)) {
         shader_id |= SHADER_EXCLUDE_SCATTER;
       }
+    }
+    else if (light->light_type == LIGHT_DOME) {
+      /* Dome light setup - similar to background but with inward illumination */
+      shader_id &= ~SHADER_AREA_LIGHT;
+      shader_id |= SHADER_USE_MIS;
+
+      /* Store dome size in spot.radius field (reusing existing field) */
+      klights[light_index].co = co;
+      klights[light_index].spot.radius = light->size;
+      klights[light_index].spot.eval_fac = (light->normalize) ? 
+                                              1.0f / light->area(object->get_tfm()) : 
+                                              1.0f;
+      
+      printf("DOME_DEBUG: Packed dome light to kernel - index=%d, size=%.2f, co=(%.2f,%.2f,%.2f)\n",
+             light_index, (double)light->size, (double)co.x, (double)co.y, (double)co.z);
     }
     else if (light->light_type == LIGHT_AREA) {
       const float light_size = light->size;

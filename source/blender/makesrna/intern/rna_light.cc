@@ -52,6 +52,8 @@ static StructRNA *rna_Light_refine(PointerRNA *ptr)
       return &RNA_SpotLight;
     case LA_AREA:
       return &RNA_AreaLight;
+    case LA_DOME:
+      return &RNA_DomeLight;
     default:
       return &RNA_Light;
   }
@@ -117,6 +119,7 @@ const EnumPropertyItem rna_enum_light_type_items[] = {
     {LA_SUN, "SUN", 0, "Sun", "Constant direction parallel ray light source"},
     {LA_SPOT, "SPOT", 0, "Spot", "Directional cone light source"},
     {LA_AREA, "AREA", 0, "Area", "Directional area light source"},
+    {LA_DOME, "DOME", 0, "Dome", "Dome-shaped area light with HDRI support"},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -291,6 +294,16 @@ static void rna_def_light_energy(StructRNA *srna, const short light_type)
           "Power",
           "The energy this light would emit over its entire area "
           "if it wasn't limited by the spot angle, in units of radiant power (W)");
+      RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_LIGHT);
+      RNA_def_property_update(prop, 0, "rna_Light_draw_update");
+      break;
+    }
+    case LA_DOME: {
+      /* Dome light strength has no unit defined, similar to sun light */
+      prop = RNA_def_property(srna, "energy", PROP_FLOAT, PROP_NONE);
+      RNA_def_property_ui_range(prop, 0.0f, 10.0f, 1, 3);
+      RNA_def_property_ui_text(
+          prop, "Strength", "Dome light strength for environment lighting");
       RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_LIGHT);
       RNA_def_property_update(prop, 0, "rna_Light_draw_update");
       break;
@@ -558,6 +571,59 @@ static void rna_def_sun_light(BlenderRNA *brna)
   rna_def_light_shadow(srna, true);
 }
 
+static void rna_def_dome_light(BlenderRNA *brna)
+{
+  StructRNA *srna;
+  PropertyRNA *prop;
+
+  srna = RNA_def_struct(brna, "DomeLight", "Light");
+  RNA_def_struct_sdna(srna, "Light");
+  RNA_def_struct_ui_text(srna, "Dome Light", "Dome-shaped area light with HDRI support");
+  RNA_def_struct_ui_icon(srna, ICON_LIGHT_AREA);
+
+  prop = RNA_def_property(srna, "dome_size", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, nullptr, "dome_size");
+  RNA_def_property_range(prop, 0.0f, 1000.0f);
+  RNA_def_property_ui_text(prop, "Size", "Size of the dome light");
+  RNA_def_property_update(prop, 0, "rna_Light_update");
+
+  prop = RNA_def_property(srna, "dome_rotation", PROP_FLOAT, PROP_EULER);
+  RNA_def_property_float_sdna(prop, nullptr, "dome_rotation");
+  RNA_def_property_ui_text(prop, "Rotation", "Rotation of the dome HDRI");
+  RNA_def_property_update(prop, 0, "rna_Light_update");
+
+  prop = RNA_def_property(srna, "dome_image", PROP_POINTER, PROP_NONE);
+  RNA_def_property_pointer_sdna(prop, nullptr, "dome_image");
+  RNA_def_property_struct_type(prop, "Image");
+  RNA_def_property_flag(prop, PROP_EDITABLE | PROP_ID_REFCOUNT);
+  RNA_def_property_ui_text(prop, "HDRI Image", "HDRI image for dome lighting");
+  RNA_def_property_update(prop, 0, "rna_Light_update");
+
+  prop = RNA_def_property(srna, "dome_map_resolution", PROP_INT, PROP_NONE);
+  RNA_def_property_int_sdna(prop, nullptr, "dome_map_resolution");
+  RNA_def_property_range(prop, 128, 8192);
+  RNA_def_property_int_default(prop, 1024);
+  RNA_def_property_ui_text(prop, "Map Resolution", "Resolution of the HDRI map for sampling quality");
+  RNA_def_property_update(prop, 0, "rna_Light_update");
+
+  static const EnumPropertyItem dome_projection_items[] = {
+    {LA_DOME_EQUIRECTANGULAR, "EQUIRECTANGULAR", 0, "Equirectangular", "Latitude-longitude projection (most common HDRI format)"},
+    {LA_DOME_MIRRORED_BALL, "MIRRORED_BALL", 0, "Mirrored Ball", "Light probe ball projection"},
+    {LA_DOME_ANGULAR, "ANGULAR", 0, "Angular", "Angular fisheye projection"},
+    {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  prop = RNA_def_property(srna, "dome_projection", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "dome_projection");
+  RNA_def_property_enum_items(prop, dome_projection_items);
+  RNA_def_property_enum_default(prop, LA_DOME_EQUIRECTANGULAR);
+  RNA_def_property_ui_text(prop, "Projection", "Projection type for the HDRI image");
+  RNA_def_property_update(prop, 0, "rna_Light_update");
+
+  rna_def_light_energy(srna, LA_DOME);
+  rna_def_light_shadow(srna, false);
+}
+
 void RNA_def_light(BlenderRNA *brna)
 {
   rna_def_light(brna);
@@ -565,6 +631,7 @@ void RNA_def_light(BlenderRNA *brna)
   rna_def_area_light(brna);
   rna_def_spot_light(brna);
   rna_def_sun_light(brna);
+  rna_def_dome_light(brna);
 }
 
 #endif

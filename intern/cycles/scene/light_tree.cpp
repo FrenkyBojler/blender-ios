@@ -234,6 +234,16 @@ LightTreeEmitter::LightTreeEmitter(Scene *scene,
       measure.bcone.theta_o = 0;
       measure.bcone.theta_e = 0.5f * lamp->get_angle();
     }
+    else if (type == LIGHT_DOME) {
+      /* Set an arbitrary direction for the dome light, similar to background. */
+      measure.bcone.axis = make_float3(0.0f, 0.0f, 1.0f);
+      /* Dome light illuminates inward from all directions. */
+      measure.bcone.theta_o = M_PI_F;
+      measure.bcone.theta_e = 0;
+
+      /* Use average radiance similar to background lights */
+      strength *= lamp->get_average_radiance() * M_PI_F;
+    }
 
     if (lamp->get_shader()) {
       strength *= lamp->get_shader()->emission_estimate;
@@ -305,7 +315,7 @@ LightTree::LightTree(Scene *scene,
       /* Regular lights. */
       Light *light = static_cast<Light *>(object->get_geometry());
       if (light->is_enabled) {
-        if (light->light_type == LIGHT_BACKGROUND || light->light_type == LIGHT_DISTANT) {
+        if (light->light_type == LIGHT_BACKGROUND || light->light_type == LIGHT_DISTANT || light->light_type == LIGHT_DOME) {
           distant_lights_.emplace_back(scene, ~device_light_index, object->index);
         }
         else {

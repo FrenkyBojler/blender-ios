@@ -38,6 +38,7 @@ class Lights : Overlay {
     LightInstanceBuf spot_cone_front_buf = {selection_type_, "spot_cone_front_buf"};
     LightInstanceBuf area_disk_buf = {selection_type_, "area_disk_buf"};
     LightInstanceBuf area_square_buf = {selection_type_, "area_square_buf"};
+    LightInstanceBuf dome_buf = {selection_type_, "dome_buf"};
   } call_buffers_{selection_type_};
 
  public:
@@ -61,6 +62,7 @@ class Lights : Overlay {
     call_buffers_.spot_cone_front_buf.clear();
     call_buffers_.area_disk_buf.clear();
     call_buffers_.area_square_buf.clear();
+    call_buffers_.dome_buf.clear();
   }
 
   void object_sync(Manager & /*manager*/,
@@ -81,6 +83,7 @@ class Lights : Overlay {
     float4x4 &matrix = data.object_to_world;
     float &area_size_x = matrix[0].w;
     float &area_size_y = matrix[1].w;
+    float &area_size_z = matrix[2].w;
     float &spot_cosine = matrix[0].w;
     float &spot_blend = matrix[1].w;
     float &clip_start = matrix[2].w;
@@ -93,8 +96,10 @@ class Lights : Overlay {
      * In EEVEE, Only clip_start is used shadow-mapping.
      * Clip end is computed automatically based on light power.
      * For now, always use the custom distance as clip_end. */
-    clip_end = la.att_dist;
-    clip_start = la.clipsta;
+    if (la.type != LA_DOME) {
+      clip_end = la.att_dist;
+      clip_start = la.clipsta;
+    }
 
     call_buffers_.ground_line_buf.append(float4(matrix.location(), 0.0f), select_id);
 
@@ -145,7 +150,7 @@ class Lights : Overlay {
         }
         break;
       }
-      case LA_AREA:
+      case LA_AREA: {
         const bool uniform_scale = !ELEM(la.area_shape, LA_AREA_RECT, LA_AREA_ELLIPSE);
         LightInstanceBuf &area_buf = ELEM(la.area_shape, LA_AREA_SQUARE, LA_AREA_RECT) ?
                                          call_buffers_.area_square_buf :
@@ -153,6 +158,13 @@ class Lights : Overlay {
         area_size_x = la.area_size;
         area_size_y = uniform_scale ? la.area_size : la.area_sizey;
         area_buf.append(data, select_id);
+        break;
+      }
+      case LA_DOME:
+        area_size_x = area_size_y = area_size_z = la.dome_size;
+        call_buffers_.dome_buf.append(data, select_id);
+        break;
+      default:
         break;
     }
   }
@@ -198,6 +210,7 @@ class Lights : Overlay {
       call_buffers_.spot_buf.end_sync(sub_pass, res.shapes.light_spot_lines.get());
       call_buffers_.area_disk_buf.end_sync(sub_pass, res.shapes.light_area_disk_lines.get());
       call_buffers_.area_square_buf.end_sync(sub_pass, res.shapes.light_area_square_lines.get());
+      call_buffers_.dome_buf.end_sync(sub_pass, res.shapes.light_dome_lines.get());
     }
     {
       PassSimple::Sub &sub_pass = ps_.sub("ground_line");

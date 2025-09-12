@@ -391,6 +391,7 @@ class ShapeCache {
   BatchPtr light_spot_lines;
   BatchPtr light_area_disk_lines;
   BatchPtr light_area_square_lines;
+  BatchPtr light_dome_lines;
   BatchPtr light_spot_volume;
 
   BatchPtr field_force;

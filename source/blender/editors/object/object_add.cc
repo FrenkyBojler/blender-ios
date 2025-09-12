@@ -138,6 +138,7 @@ const EnumPropertyItem rna_enum_light_type_items[] = {
     {LA_SUN, "SUN", ICON_LIGHT_SUN, "Sun", "Constant direction parallel ray light source"},
     {LA_SPOT, "SPOT", ICON_LIGHT_SPOT, "Spot", "Directional cone light source"},
     {LA_AREA, "AREA", ICON_LIGHT_AREA, "Area", "Directional area light source"},
+    {LA_DOME, "DOME", ICON_LIGHT_AREA, "Dome", "Dome-shaped area light with HDRI support"},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -1573,6 +1574,8 @@ static const char *get_light_defname(int type)
       return CTX_DATA_(BLT_I18NCONTEXT_ID_LIGHT, "Spot");
     case LA_AREA:
       return CTX_DATA_(BLT_I18NCONTEXT_ID_LIGHT, "Area");
+    case LA_DOME:
+      return CTX_DATA_(BLT_I18NCONTEXT_ID_LIGHT, "Dome");
     default:
       return CTX_DATA_(BLT_I18NCONTEXT_ID_LIGHT, "Light");
   }
@@ -1599,6 +1602,9 @@ static wmOperatorStatus object_light_add_exec(bContext *C, wmOperator *op)
       break;
     case LA_AREA:
       size *= 4.0f;
+      break;
+    case LA_DOME:
+      size = 1000.0f; /* USD-compatible default for dome lights */
       break;
     default:
       size *= 0.5f;

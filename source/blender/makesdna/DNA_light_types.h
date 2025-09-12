@@ -16,6 +16,7 @@
 #endif
 
 struct AnimData;
+struct Image;
 struct Ipo;
 struct bNodeTree;
 
@@ -86,6 +87,14 @@ typedef struct Light {
   /* Nodes */
   struct bNodeTree *nodetree;
 
+  /* Dome light. */
+  float dome_size;
+  float dome_rotation[3];
+  struct Image *dome_image;
+  int dome_map_resolution;
+  short dome_projection;
+  short _pad3;
+
   /* Deprecated. */
   struct Ipo *ipo DNA_DEPRECATED; /* Old animation system. */
   float energy_deprecated DNA_DEPRECATED;
@@ -111,6 +120,7 @@ enum {
   LA_SPOT = 2,
   // LA_HEMI = 3, /* Deprecated. */
   LA_AREA = 4,
+  LA_DOME = 5,
 };
 
 /** #Light::mode */
@@ -166,4 +176,11 @@ enum {
   // LA_AREA_BOX = 3,  /* Deprecated. */
   LA_AREA_DISK = 4,
   LA_AREA_ELLIPSE = 5,
+};
+
+/** #Light::dome_projection */
+enum {
+  LA_DOME_EQUIRECTANGULAR = 0,
+  LA_DOME_MIRRORED_BALL = 1,
+  LA_DOME_ANGULAR = 2,
 };

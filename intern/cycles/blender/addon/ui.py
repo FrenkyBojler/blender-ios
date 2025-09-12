@@ -1567,6 +1567,19 @@ class CYCLES_LIGHT_PT_light(CyclesButtonsPanel, Panel):
             elif light.shape in {'RECTANGLE', 'ELLIPSE'}:
                 sub.prop(light, "size", text="Size X")
                 sub.prop(light, "size_y", text="Y")
+        elif light.type == 'DOME':
+            col.prop(light, "dome_size", text="Size")
+
+            layout.separator()
+
+            col = layout.column()
+            col.template_ID(light, "dome_image", new="image.new", open="image.open", unlink="image.unlink")
+            col.prop(light, "dome_map_resolution", text="Map Resolution")
+            col.prop(light, "dome_projection", text="Projection")
+
+            col = layout.column()
+            if light.dome_image:
+                col.prop(light, "dome_rotation", text="Rotation")
 
 
 class CYCLES_LIGHT_PT_settings(CyclesButtonsPanel, Panel):
@@ -1587,19 +1600,19 @@ class CYCLES_LIGHT_PT_settings(CyclesButtonsPanel, Panel):
 
         col = layout.column()
 
-        if not (light.type == 'AREA' and clamp.is_portal):
+        if not (light.type in {'AREA', 'DOME'} and clamp.is_portal):
             col.separator()
             sub = col.column()
             sub.prop(clamp, "max_bounces")
 
         sub = col.column(align=True)
-        sub.active = not (light.type == 'AREA' and clamp.is_portal)
+        sub.active = not (light.type in {'AREA', 'DOME'} and clamp.is_portal)
         sub.prop(light, "use_shadow", text="Cast Shadow")
         sub.prop(clamp, "use_multiple_importance_sampling", text="Multiple Importance")
         if use_mnee(context):
             sub.prop(clamp, "is_caustics_light", text="Shadow Caustics")
 
-        if light.type == 'AREA':
+        if light.type in {'AREA', 'DOME'}:
             col.prop(clamp, "is_portal", text="Portal")
 
 
