@@ -1640,6 +1640,11 @@ void blo_do_versions_userdef(UserDef *userdef)
     }
   }
 
+  if (!USER_VERSION_ATLEAST(500, 80)) {
+    /* Force-reset file compression to ON, see #135735. */
+    userdef->flag |= USER_FILECOMPRESS;
+  }
+
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a USER_VERSION_ATLEAST check.
