@@ -383,6 +383,32 @@
         </wcol_tab>
       </ThemeUserInterface>
     </user_interface>
+    <regions>
+      <ThemeRegions>
+        <asset_shelf>
+          <ThemeRegionsAssetShelf
+            back="#999999ff"
+            header_back="#adadadff"
+            >
+          </ThemeRegionsAssetShelf>
+        </asset_shelf>
+        <channels>
+          <ThemeRegionsChannels
+            back="#adadad"
+            text="#050505"
+            text_selected="#ffffff"
+            >
+          </ThemeRegionsChannels>
+        </channels>
+        <sidebars>
+          <ThemeRegionsSidebars
+            back="#b3b3b300"
+            tab_back="#b3b3b300"
+            >
+          </ThemeRegionsSidebars>
+        </sidebars>
+      </ThemeRegions>
+    </regions>
     <common>
       <ThemeCommon>
         <anim>
@@ -502,13 +528,6 @@
         outline_width="1"
         object_origin_size="6"
         >
-        <space_region>
-          <ThemeSpaceRegionGeneric
-            button="#b3b3b300"
-            tab_back="#b3b3b300"
-            >
-          </ThemeSpaceRegionGeneric>
-        </space_region>
         <space>
           <ThemeSpaceGradient
             title="#000000"
@@ -551,22 +570,6 @@
             >
           </ThemeSpaceGeneric>
         </space>
-        <space_list>
-          <ThemeSpaceListGeneric
-            list="#adadad"
-            list_title="#000000"
-            list_text="#050505"
-            list_text_hi="#ffffff"
-            >
-          </ThemeSpaceListGeneric>
-        </space_list>
-        <space_region>
-          <ThemeSpaceRegionGeneric
-            button="#b3b3b300"
-            tab_back="#b3b3b300"
-            >
-          </ThemeSpaceRegionGeneric>
-        </space_region>
       </ThemeGraphEditor>
     </graph_editor>
     <file_browser>
@@ -586,13 +589,6 @@
             >
           </ThemeSpaceGeneric>
         </space>
-        <space_region>
-          <ThemeSpaceRegionGeneric
-            button="#b3b3b300"
-            tab_back="#b3b3b300"
-            >
-          </ThemeSpaceRegionGeneric>
-        </space_region>
       </ThemeFileBrowser>
     </file_browser>
     <nla_editor>
@@ -626,22 +622,6 @@
             >
           </ThemeSpaceGeneric>
         </space>
-        <space_list>
-          <ThemeSpaceListGeneric
-            list="#adadad"
-            list_title="#000000"
-            list_text="#000000"
-            list_text_hi="#ffffff"
-            >
-          </ThemeSpaceListGeneric>
-        </space_list>
-        <space_region>
-          <ThemeSpaceRegionGeneric
-            button="#b3b3b300"
-            tab_back="#b3b3b300"
-            >
-          </ThemeSpaceRegionGeneric>
-        </space_region>
       </ThemeNLAEditor>
     </nla_editor>
     <dopesheet_editor>
@@ -667,22 +647,6 @@
             >
           </ThemeSpaceGeneric>
         </space>
-        <space_list>
-          <ThemeSpaceListGeneric
-            list="#adadad"
-            list_title="#000000"
-            list_text="#000000"
-            list_text_hi="#ffffff"
-            >
-          </ThemeSpaceListGeneric>
-        </space_list>
-        <space_region>
-          <ThemeSpaceRegionGeneric
-            button="#b3b3b300"
-            tab_back="#b3b3b300"
-            >
-          </ThemeSpaceRegionGeneric>
-        </space_region>
       </ThemeDopeSheet>
     </dopesheet_editor>
     <image_editor>
@@ -725,13 +689,6 @@
             >
           </ThemeSpaceGeneric>
         </space>
-        <space_region>
-          <ThemeSpaceRegionGeneric
-            button="#b3b3b300"
-            tab_back="#b3b3b300"
-            >
-          </ThemeSpaceRegionGeneric>
-        </space_region>
       </ThemeImageEditor>
     </image_editor>
     <sequence_editor>
@@ -770,22 +727,6 @@
             >
           </ThemeSpaceGeneric>
         </space>
-        <space_list>
-          <ThemeSpaceListGeneric
-            list="#b3b3b3"
-            list_title="#747474"
-            list_text="#333333"
-            list_text_hi="#747474"
-            >
-          </ThemeSpaceListGeneric>
-        </space_list>
-        <space_region>
-          <ThemeSpaceRegionGeneric
-            button="#b3b3b300"
-            tab_back="#b3b3b300"
-            >
-          </ThemeSpaceRegionGeneric>
-        </space_region>
       </ThemeSequenceEditor>
     </sequence_editor>
     <properties>
@@ -805,13 +746,6 @@
             >
           </ThemeSpaceGeneric>
         </space>
-        <space_region>
-          <ThemeSpaceRegionGeneric
-            button="#303030ff"
-            tab_back="#a6a6a6ff"
-            >
-          </ThemeSpaceRegionGeneric>
-        </space_region>
       </ThemeProperties>
     </properties>
     <text_editor>
@@ -841,13 +775,6 @@
             >
           </ThemeSpaceGeneric>
         </space>
-        <space_region>
-          <ThemeSpaceRegionGeneric
-            button="#b3b3b300"
-            tab_back="#b3b3b300"
-            >
-          </ThemeSpaceRegionGeneric>
-        </space_region>
       </ThemeTextEditor>
     </text_editor>
     <node_editor>
@@ -895,13 +822,6 @@
             >
           </ThemeSpaceGeneric>
         </space>
-        <space_region>
-          <ThemeSpaceRegionGeneric
-            button="#b3b3b300"
-            tab_back="#b3b3b300"
-            >
-          </ThemeSpaceRegionGeneric>
-        </space_region>
       </ThemeNodeEditor>
     </node_editor>
     <outliner>
@@ -970,13 +890,6 @@
             >
           </ThemeSpaceGeneric>
         </space>
-        <space_region>
-          <ThemeSpaceRegionGeneric
-            button="#b3b3b300"
-            tab_back="#b3b3b300"
-            >
-          </ThemeSpaceRegionGeneric>
-        </space_region>
       </ThemePreferences>
     </preferences>
     <console>
@@ -1031,22 +944,6 @@
             >
           </ThemeSpaceGeneric>
         </space>
-        <space_list>
-          <ThemeSpaceListGeneric
-            list="#666666"
-            list_title="#000000"
-            list_text="#000000"
-            list_text_hi="#ffffff"
-            >
-          </ThemeSpaceListGeneric>
-        </space_list>
-        <space_region>
-          <ThemeSpaceRegionGeneric
-            button="#b3b3b300"
-            tab_back="#b3b3b300"
-            >
-          </ThemeSpaceRegionGeneric>
-        </space_region>
       </ThemeClipEditor>
     </clip_editor>
     <topbar>
@@ -1097,22 +994,8 @@
             >
           </ThemeSpaceGeneric>
         </space>
-        <space_region>
-          <ThemeSpaceRegionGeneric
-            button="#b3b3b300"
-            tab_back="#b3b3b300"
-            >
-          </ThemeSpaceRegionGeneric>
-        </space_region>
       </ThemeSpreadsheet>
     </spreadsheet>
-    <asset_shelf>
-      <ThemeAssetShelf
-        header_back="#adadadff"
-        back="#999999ff"
-        >
-      </ThemeAssetShelf>
-    </asset_shelf>
     <bone_color_sets>
       <ThemeBoneColorSet
         normal="#9a0000"
