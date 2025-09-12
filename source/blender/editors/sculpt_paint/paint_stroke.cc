@@ -712,7 +712,7 @@ static float paint_space_stroke_spacing(const bContext *C,
   float spacing = stroke->brush->spacing;
 
   /* apply spacing pressure */
-  if (stroke->brush->flag & BRUSH_SPACING_PRESSURE) {
+  if (stroke->brush->flag & BRUSH_SPACE && stroke->brush->flag & BRUSH_SPACING_PRESSURE) {
     spacing = spacing * (1.5f - spacing_pressure);
   }
 
