@@ -1428,8 +1428,13 @@ static bool paint_stroke_curve_end(bContext *C, wmOperator *op, PaintStroke *str
 
         if (stroke->stroke_started) {
           paint_brush_stroke_add_step(C, op, stroke, data + 2 * j, 1.0);
-          paint_line_strokes_spacing(
-              C, op, stroke, no_pressure_spacing, &length_residue, data + 2 * j, data + 2 * (j + 1));
+          paint_line_strokes_spacing(C,
+                                     op,
+                                     stroke,
+                                     no_pressure_spacing,
+                                     &length_residue,
+                                     data + 2 * j,
+                                     data + 2 * (j + 1));
         }
       }
       else {
