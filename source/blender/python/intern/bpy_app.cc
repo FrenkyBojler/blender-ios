@@ -654,7 +654,7 @@ PyDoc_STRVAR(
     "\n"
     "   Get undo memory usage information.\n"
     "\n"
-    "   :return: 'memory usage by the undo stack in bytes'.\n"
+    "   :return: Memory usage of the undo stack in bytes.\n"
     "   :rtype: int\n");
 
 static PyObject *bpy_app_memory_usage_undo(PyObject * /*self*/, PyObject * /*args*/)
