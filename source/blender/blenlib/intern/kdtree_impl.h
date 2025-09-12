@@ -961,6 +961,8 @@ int BLI_kdtree_nd_(calc_duplicates_stable)(const KDTree *tree,
   /* Reused each iteration to reduce reallocations. */
   blender::Vector<int> cluster;
   blender::Vector<int> to_visit;
+  cluster.reserve(nodes_len);
+  to_visit.reserve(nodes_len);
 
   int found = 0;
 
