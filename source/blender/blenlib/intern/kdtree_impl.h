@@ -954,9 +954,9 @@ int BLI_kdtree_nd_(calc_duplicates_stable)(const KDTree *tree,
   int found = 0;
   const uint nodes_len = tree->nodes_len;
 
-  blender::Array<const KDTreeNode *> index_lookup(tree->max_node_index + 1, nullptr);
+  blender::Array<int> index_lookup(tree->max_node_index + 1, -1);
   for (uint i = 0; i < nodes_len; i++) {
-    index_lookup[tree->nodes[i].index] = &tree->nodes[i];
+    index_lookup[tree->nodes[i].index] = i;
   }
 
   blender::Array<bool> visited(tree->max_node_index + 1, false);
@@ -987,7 +987,7 @@ int BLI_kdtree_nd_(calc_duplicates_stable)(const KDTree *tree,
       const int search_idx = to_visit.pop_last();
       cluster.append(search_idx);
 
-      const float *search_co = index_lookup[search_idx]->co;
+      const float *search_co = tree->nodes[index_lookup[search_idx]].co;
       BLI_assert(search_co != nullptr);
 
       /* Callback accumulates neighbors within threshold. */
@@ -1009,7 +1009,7 @@ int BLI_kdtree_nd_(calc_duplicates_stable)(const KDTree *tree,
     /* Compute centroid of the cluster. */
     float centroid[KD_DIMS] = {0.0f};
     for (int idx : cluster) {
-      const float *co = index_lookup[idx]->co;
+      const float *co = tree->nodes[index_lookup[idx]].co;
       for (uint d = 0; d < KD_DIMS; d++) {
         centroid[d] += co[d];
       }
