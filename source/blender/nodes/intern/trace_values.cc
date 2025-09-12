@@ -219,6 +219,10 @@ static Vector<SocketInContext> find_target_sockets_through_contexts(
         }
         continue;
       }
+      if (node->is_type("GeometryNodeClosureToList")) {
+        //  node->declaration().
+        // TODO
+      }
       if (node->is_type("GeometryNodeSimulationInput")) {
         const ComputeContext &simulation_compute_context =
             compute_context_cache.for_simulation_zone(socket.context, *node);

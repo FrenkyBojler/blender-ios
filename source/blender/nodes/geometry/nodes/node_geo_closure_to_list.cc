@@ -24,8 +24,14 @@ static void node_declare(NodeDeclarationBuilder &b)
       "The number of elements in the list");
 
   if (node != nullptr) {
-    // const eNodeSocketDatatype type = eNodeSocketDatatype(node->custom1);
-    b.add_input<decl::Closure>("Value");
+    const eNodeSocketDatatype type = eNodeSocketDatatype(node->custom1);
+    const bke::bNodeSocketType *value_type = bke::node_socket_type_find_static(type);
+    const bke::bNodeSocketType *int_type = bke::node_socket_type_find("NodeSocketInt");
+
+    auto signature = std::make_unique<ClosureSignature>();
+    signature->inputs.add({"index", int_type});
+    signature->outputs.add({"value", value_type});
+    b.add_input<decl::Closure>("Value").signature(std::move(signature));
   }
 
   if (node != nullptr) {
