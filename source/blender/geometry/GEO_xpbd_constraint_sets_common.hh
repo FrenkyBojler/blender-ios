@@ -272,21 +272,21 @@ class CollisionPlaneConstraintSet : public TemplatedConstraintSet<CollisionPlane
  private:
   int geo_i_;
   Span<int> points_;
-  Span<float3> plane_positions_;
-  Span<float3> plane_normals_;
+  Span<float3> contact_points_on_plane_;
+  Span<float3> separating_axes_;
   Span<float> compliance_terms_;
 
  public:
   CollisionPlaneConstraintSet(const int geo_i,
                               const Span<int> points,
-                              const Span<float3> plane_positions,
-                              const Span<float3> plane_normals,
+                              const Span<float3> contact_points_on_plane,
+                              const Span<float3> separating_axes,
                               const Span<float> compliance_terms)
       : TemplatedConstraintSet<CollisionPlaneConstraintSet>(points.size(), {geo_i}),
         geo_i_(geo_i),
         points_(points),
-        plane_positions_(plane_positions),
-        plane_normals_(plane_normals),
+        contact_points_on_plane_(contact_points_on_plane),
+        separating_axes_(separating_axes),
         compliance_terms_(compliance_terms)
   {
   }
@@ -298,13 +298,12 @@ class CollisionPlaneConstraintSet : public TemplatedConstraintSet<CollisionPlane
   {
     const int point_i = points_[constraint_i];
     const float3 &pos = params.position(geo_i_, point_i);
-    const float3 &plane_pos = plane_positions_[constraint_i];
-    const float3 &plane_normal = plane_normals_[constraint_i];
-    BLI_assert(math::is_unit(plane_normal));
+    const float3 &plane_pos = contact_points_on_plane_[constraint_i];
+    const float3 &axis = separating_axes_[constraint_i];
 
     const float3 diff = pos - plane_pos;
-    const float distance = math::dot(diff, plane_normal);
-    if (distance >= 0.0f) {
+    const float axis_distance = math::dot(diff, axis);
+    if (axis_distance >= 0.0f) {
       return;
     }
     const float inv_m = params.inverse_mass(geo_i_, point_i);
@@ -314,8 +313,8 @@ class CollisionPlaneConstraintSet : public TemplatedConstraintSet<CollisionPlane
     }
 
     const float compliance_term = compliance_terms_[constraint_i];
-    const float lambda = -distance / (inv_m + compliance_term);
-    const float3 offset = lambda * inv_m * plane_normal;
+    const float lambda = -axis_distance / (inv_m + compliance_term);
+    const float3 offset = lambda * inv_m * axis / math::length_squared(axis);
     updater.update_position(geo_i_, point_i, offset);
   }
 

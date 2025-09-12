@@ -9,6 +9,7 @@
 #include "BLI_array_utils.hh"
 #include "BLI_disjoint_set.hh"
 #include "BLI_kdtree.h"
+#include "BLI_math_geom.h"
 #include "BLI_math_matrix.hh"
 #include "BLI_math_rotation.hh"
 #include "BLI_ordered_edge.hh"
@@ -2257,8 +2258,8 @@ gather_distance_based_edge_bending_constraints(ResourceScope &scope,
 
 struct StaticPlaneContacts {
   Vector<int> indices;
-  Vector<float3> plane_positions;
-  Vector<float3> plane_normals;
+  Vector<float3> contact_points_on_plane;
+  Vector<float3> separating_axes;
   Vector<float> static_frictions;
   Vector<float> dynamic_frictions;
   Vector<float> depths;
@@ -2300,8 +2301,8 @@ PROFILE_FUNCTION static void gather_ground_plane_contacts(
       continue;
     }
     r_contacts.indices.append(point_i);
-    r_contacts.plane_positions.append(collider.position);
-    r_contacts.plane_normals.append(plane_normal);
+    r_contacts.contact_points_on_plane.append(position - plane_normal * distance);
+    r_contacts.separating_axes.append(plane_normal);
     const float point_friction = sim_points_frictions[point_i];
     const float friction = math::sqrt(point_friction * collider.friction);
     r_contacts.static_frictions.append(friction);
@@ -2315,6 +2316,7 @@ PROFILE_FUNCTION static void gather_mesh_contacts(const XPBDState &state,
                                                   const SimPoints &sim_points,
                                                   const IndexRange points_range,
                                                   const ExternelMeshColliderData &collider,
+                                                  const float max_search_distance,
                                                   const Span<float> sim_points_frictions,
                                                   const Span<float> sim_points_inverse_masses,
                                                   const float substep_factor,
@@ -2343,34 +2345,89 @@ PROFILE_FUNCTION static void gather_mesh_contacts(const XPBDState &state,
     const float3 &position_self = sim_points.positions[point_i];
     const float3 &position_mesh = math::transform_point(mesh_transform_inv, position_self);
 
-    BVHTreeNearest nearest{};
-    nearest.dist_sq = FLT_MAX;
-    BLI_bvhtree_find_nearest(bvh.tree, position_mesh, &nearest, bvh.nearest_callback, &bvh);
-    if (nearest.index == -1) {
-      continue;
+    if (true) {
+      BVHTreeNearest nearest{};
+      nearest.index = -1;
+      nearest.dist_sq = max_search_distance * max_search_distance;
+      BLI_bvhtree_find_nearest(bvh.tree, position_mesh, &nearest, bvh.nearest_callback, &bvh);
+      if (nearest.index == -1) {
+        continue;
+      }
+      const float3 dir = float3(nearest.co) - position_mesh;
+      const bool is_inside = math::dot(dir, float3(nearest.no)) > 0.0f;
+
+      const float penetration = math::length(dir);
+      const float point_friction = sim_points_frictions[point_i];
+      const float friction = math::sqrt(point_friction * collider.friction);
+
+      const float3 collision_point = math::transform_point(mesh_transform, float3(nearest.co));
+      /* Separating axis to move self out of penetration. Not normalized. */
+      const float3 collision_axis = is_inside ? collision_point - position_self :
+                                                position_self - collision_point;
+      const float3 valid_axis = (math::is_zero(collision_axis, 1e-6f)) ?
+                                    math::transpose(float3x3(mesh_transform_inv)) *
+                                        float3(nearest.no) :
+                                    collision_axis;
+
+      r_contacts.indices.append(point_i);
+      r_contacts.contact_points_on_plane.append(collision_point);
+      r_contacts.separating_axes.append(valid_axis);
+      r_contacts.static_frictions.append(friction);
+      r_contacts.dynamic_frictions.append(friction);
+      r_contacts.depths.append(penetration);
+      r_contacts.compliance_terms.append(
+          std::max(0.0f, compliance_term_factor * collider.compliance));
     }
-    const float3 dir = float3(nearest.co) - position_mesh;
-    const bool is_inside = math::dot(dir, float3(nearest.no)) > 0.0f;
-    if (!is_inside) {
-      continue;
+    else {
+      const Span<float3> mesh_positions = collider.mesh->vert_positions();
+      const Span<int> corner_verts = collider.mesh->corner_verts();
+      const Span<int3> corner_tris = collider.mesh->corner_tris();
+
+      BLI_bvhtree_range_query_cpp(
+          *bvh.tree,
+          position_mesh,
+          max_search_distance,
+          [&](const int index, const float3 & /*co*/, const float /*dist_sq*/) {
+            const int3 &tri = corner_tris[index];
+            const float3 &v0 = mesh_positions[corner_verts[tri[0]]];
+            const float3 &v1 = mesh_positions[corner_verts[tri[1]]];
+            const float3 &v2 = mesh_positions[corner_verts[tri[2]]];
+
+            float3 contact_on_plane_mesh;
+            // const float3 collision_point = math::transform_point(mesh_transform,
+            // float3(nearest.co));
+            closest_on_tri_to_point_v3(contact_on_plane_mesh, position_mesh, v0, v1, v2);
+            float3 normal_mesh;
+            normal_tri_v3(normal_mesh, v0, v1, v2);
+
+            const float3 dir = contact_on_plane_mesh - position_mesh;
+            const bool is_inside = math::dot(dir, normal_mesh) > 0.0f;
+
+            const float3 collision_point = math::transform_point(mesh_transform,
+                                                                 contact_on_plane_mesh);
+            /* Separating axis to move self out of penetration. Not normalized. */
+            const float3 collision_axis = is_inside ? collision_point - position_self :
+                                                      position_self - collision_point;
+            const float3 valid_axis = (math::is_zero(collision_axis, 1e-6f)) ?
+                                          math::transpose(float3x3(mesh_transform_inv)) *
+                                              normal_mesh :
+                                          collision_axis;
+
+            const float penetration = math::length(dir);
+            const float point_friction = sim_points_frictions[point_i];
+            const float friction = math::sqrt(point_friction * collider.friction);
+
+            r_contacts.indices.append(point_i);
+            r_contacts.contact_points_on_plane.append(
+                math::transform_point(mesh_transform, contact_on_plane_mesh));
+            r_contacts.separating_axes.append(valid_axis);
+            r_contacts.static_frictions.append(friction);
+            r_contacts.dynamic_frictions.append(friction);
+            r_contacts.depths.append(penetration);
+            r_contacts.compliance_terms.append(
+                std::max(0.0f, compliance_term_factor * collider.compliance));
+          });
     }
-
-    const float penetration = math::length(dir);
-    const float point_friction = sim_points_frictions[point_i];
-    const float friction = math::sqrt(point_friction * collider.friction);
-
-    const float3 collision_point = math::transform_point(mesh_transform, float3(nearest.co));
-    const float3 collision_normal = math::transpose(float3x3(mesh_transform_inv)) *
-                                    float3(nearest.no);
-
-    r_contacts.indices.append(point_i);
-    r_contacts.plane_positions.append(collision_point);
-    r_contacts.plane_normals.append(collision_normal);
-    r_contacts.static_frictions.append(friction);
-    r_contacts.dynamic_frictions.append(friction);
-    r_contacts.depths.append(penetration);
-    r_contacts.compliance_terms.append(
-        std::max(0.0f, compliance_term_factor * collider.compliance));
   }
 }
 
@@ -2416,6 +2473,15 @@ PROFILE_FUNCTION static void gather_sphere_contacts(const SimPoints &sim_points,
   }
 }
 
+static float get_max_search_distance(const float delta_time)
+{
+  /* TODO needs to be defined somewhere and actually enforced! */
+  /* Slightly more than 200 km/h. */
+  constexpr float max_velocity = 60.0f;
+  const float max_search_distance = 2.0f * max_velocity * delta_time;
+  return max_search_distance;
+}
+
 PROFILE_FUNCTION static Contacts gather_contacts_curve_local(
     const int key_i,
     const IndexRange curves_range,
@@ -2448,6 +2514,7 @@ PROFILE_FUNCTION static Contacts gather_contacts_curve_local(
                          sim_points,
                          points_range,
                          collider,
+                         get_max_search_distance(delta_time),
                          props.frictions,
                          props.inverse_masses,
                          substep_factor,
@@ -2505,6 +2572,7 @@ PROFILE_FUNCTION static Contacts gather_contacts_global(
                              sim_points,
                              IndexRange(sim_points.points_num),
                              collider,
+                             get_max_search_distance(delta_time),
                              props.frictions,
                              props.inverse_masses,
                              substep_factor,
@@ -2562,8 +2630,8 @@ PROFILE_FUNCTION static void generate_collision_constraint_sets(
     r_constraints.general.append(
         &scope.construct<xpbd::CollisionPlaneConstraintSet>(key_i,
                                                             plane_contacts.indices,
-                                                            plane_contacts.plane_positions,
-                                                            plane_contacts.plane_normals,
+                                                            plane_contacts.contact_points_on_plane,
+                                                            plane_contacts.separating_axes,
                                                             plane_contacts.compliance_terms));
   }
   for (auto item : contacts.dynamic_sphere_contacts.items()) {
@@ -2683,13 +2751,18 @@ PROFILE_FUNCTION static void apply_static_plane_contact_friction(
 {
   for (const int contact_i : plane_contacts.indices.index_range()) {
     const int point_i = plane_contacts.indices[contact_i];
-    const float3 &plane_normal = plane_contacts.plane_normals[contact_i];
+    const float3 &axis = plane_contacts.separating_axes[contact_i];
     const float static_friction = plane_contacts.static_frictions[contact_i];
     const float dynamic_friction = plane_contacts.dynamic_frictions[contact_i];
     const float depth = plane_contacts.depths[contact_i];
     const float3 pos_diff = new_positions[point_i] -
                             prev_positions[point_i - prev_positions_offset];
-    const float3 tangential_pos_diff = pos_diff - plane_normal * math::dot(pos_diff, plane_normal);
+    const float axis_distance = math::dot(pos_diff, axis);
+    if (axis_distance >= 0.0f) {
+      continue;
+    }
+    const float3 tangential_pos_diff = pos_diff -
+                                       axis * axis_distance / math::length_squared(axis);
     float3 offset = tangential_pos_diff;
     const float tangential_dist = math::length(tangential_pos_diff);
     if (tangential_dist >= static_friction * depth) {
@@ -3123,29 +3196,31 @@ PROFILE_FUNCTION static void simulate_key_group_global(
       run_per_point_updates(substep_factor, true, false);
     }
 
-    /* Find current collisions and generate constraints to resolve them. */
-    const Contacts contacts = gather_contacts_global(key_group,
-                                                     state,
-                                                     world_info,
-                                                     world_bundles,
-                                                     applied_geometries,
-                                                     keys,
-                                                     sim_points_props,
-                                                     substep_factor,
-                                                     sub_delta_time);
-    xpbd::ConstraintSetCollector dynamic_constraint_sets;
-    generate_collision_constraint_sets(
-        scope, contacts, keys, sub_delta_time, dynamic_constraint_sets);
-
-    /* Combine static and dynamic constraint sets. */
-    const Vector<xpbd::ConstraintSet *> current_constraint_sets =
-        xpbd::ConstraintSetCollector::combine(
-            scope, {&filtered_static_constraint_sets, &dynamic_constraint_sets});
-
-    /* Actually solve the constraints. */
+    Contacts contacts;
     for ([[maybe_unused]] const int constraint_iter : IndexRange(constraint_iterations)) {
-      solve_constraints(
-          solver_type, geometry_refs, current_constraint_sets, constraint_solver_debug_fn);
+      /* Find current collisions and generate constraints to resolve them. */
+      contacts = gather_contacts_global(key_group,
+                                        state,
+                                        world_info,
+                                        world_bundles,
+                                        applied_geometries,
+                                        keys,
+                                        sim_points_props,
+                                        substep_factor,
+                                        sub_delta_time);
+      xpbd::ConstraintSetCollector dynamic_constraint_sets;
+      generate_collision_constraint_sets(
+          scope, contacts, keys, sub_delta_time, dynamic_constraint_sets);
+
+      /* Combine static and dynamic constraint sets. */
+      const Vector<xpbd::ConstraintSet *> current_constraint_sets =
+          xpbd::ConstraintSetCollector::combine(
+              scope, {&filtered_static_constraint_sets, &dynamic_constraint_sets});
+
+      /* Actually solve the constraints. */
+      for ([[maybe_unused]] const int constraint_iter : IndexRange(constraint_iterations)) {
+        solve_constraints(solver_type, geometry_refs, current_constraint_sets);
+      }
     }
 
     if (sub_delta_time > 0.0f) {
@@ -3241,22 +3316,23 @@ PROFILE_FUNCTION static void simulate_curve_local(
               soft_pinned_rotations,
               sub_delta_time);
 
-          const Contacts contacts = gather_contacts_curve_local(key_i,
-                                                                curves_range,
-                                                                points_by_curve,
-                                                                state,
-                                                                world_info,
-                                                                keys,
-                                                                props,
-                                                                substep_factor,
-                                                                sub_delta_time);
-          xpbd::ConstraintSetCollector dynamic_constraint_sets;
-          generate_collision_constraint_sets(
-              scope, contacts, keys, sub_delta_time, dynamic_constraint_sets);
-
-          xpbd::SolveStrategy solve_strategy{
-              get_solve_strategy_type(solver_type), geometry_refs, key_i, points_range};
+          Contacts contacts;
           for ([[maybe_unused]] const int constraint_iter : IndexRange(constraint_iterations)) {
+            contacts = gather_contacts_curve_local(key_i,
+                                                   curves_range,
+                                                   points_by_curve,
+                                                   state,
+                                                   world_info,
+                                                   keys,
+                                                   props,
+                                                   substep_factor,
+                                                   sub_delta_time);
+            xpbd::ConstraintSetCollector dynamic_constraint_sets;
+            generate_collision_constraint_sets(
+                scope, contacts, keys, sub_delta_time, dynamic_constraint_sets);
+
+            xpbd::SolveStrategy solve_strategy{
+                get_solve_strategy_type(solver_type), geometry_refs, key_i, points_range};
             for (xpbd::CurveLocalConstraintSet *constraint_set :
                  filtered_static_constraint_sets.curve_local)
             {
@@ -3639,12 +3715,8 @@ static void node_geo_exec(GeoNodeExecParams params)
   const bool is_resimulating = update_counter < state.update_counter;
   update_counter++;
   if (!is_resimulating) {
-    update_and_step_xpbd_state(state,
-                               world_bundles,
-                               delta_time,
-                               solver_type,
-                               substeps,
-                               constraint_iterations);
+    update_and_step_xpbd_state(
+        state, world_bundles, delta_time, solver_type, substeps, constraint_iterations);
     state.update_counter = update_counter;
   }
 
