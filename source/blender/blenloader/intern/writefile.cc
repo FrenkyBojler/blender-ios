@@ -818,6 +818,8 @@ static void write_bhead(WriteData *wd, const BHead &bhead)
 
 static uint64_t get_next_stable_address_id(WriteData &wd)
 {
+  /* Increment until an unused identifier is found. Collisions are generally expected to be very
+   * rare here. */
   while (!wd.stable_address_ids.used_ids.add(wd.stable_address_ids.next_id_hint)) {
     wd.stable_address_ids.next_id_hint++;
   }
@@ -831,6 +833,7 @@ static uint64_t get_address_id_int(WriteData &wd, const void *address)
   if (address == nullptr) {
     return 0;
   }
+  /* Either reuse an existing identifier or create a new one. */
   return wd.stable_address_ids.pointer_map.lookup_or_add_cb(
       address, [&]() { return get_next_stable_address_id(wd); });
 }
@@ -877,6 +880,7 @@ static void writestruct_at_address_nr(WriteData *wd,
   blender::DynamicStackBuffer<16 * 1024> buffer_owner(len_in_bytes, 64);
   const void *data_to_write;
   if (can_write_raw_runtime_data) {
+    /* The passed in data contains no pointers, so it can be written without an additional copy. */
     data_to_write = data;
   }
   else {
@@ -2167,6 +2171,8 @@ void BLO_write_double_array(BlendWriter *writer, const int64_t num, const double
 
 void BLO_write_pointer_array(BlendWriter *writer, const int64_t num, const void *data_ptr)
 {
+  /* Create a temporary copy of the pointer array, because all pointers need to be remapped to
+   * their stable address ids. */
   blender::Array<const void *, 32> data = blender::Span<const void *>(
       reinterpret_cast<const void *const *>(data_ptr), num);
   for (const int64_t i : data.index_range()) {

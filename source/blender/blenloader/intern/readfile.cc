@@ -628,7 +628,7 @@ struct BlendDataReader {
   FileData *fd;
 
   /**
-   * The key is the old address ID referencing shared data that's written to a file, typically an
+   * The key is the old address id referencing shared data that's written to a file, typically an
    * array. The corresponding value is the shared data at run-time.
    */
   blender::Map<uint64_t, blender::ImplicitSharingInfoAndData> shared_data_by_stored_address;
