@@ -310,6 +310,7 @@ struct wmGizmoProperty {
     wmGizmoPropertyFnSet value_set_fn = nullptr;
     wmGizmoPropertyFnRangeGet range_get_fn = nullptr;
     wmGizmoPropertyFnFree free_fn = nullptr;
+    wmGizmoPropertyFnAutokey autokey_fn = nullptr;
     void *user_data = nullptr;
   } custom_func = {};
 };

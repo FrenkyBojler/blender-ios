@@ -68,6 +68,9 @@ using wmGizmoPropertyFnRangeGet = void (*)(const wmGizmo *,
                                            wmGizmoProperty *,
                                            /* Typically `float[2]`. */
                                            void *range);
+
+using wmGizmoPropertyFnAutokey = void (*)(wmGizmoProperty *);
+
 using wmGizmoPropertyFnFree = void (*)(const wmGizmo *, wmGizmoProperty *);
 
 struct wmGizmoPropertyFnParams {
@@ -75,5 +78,6 @@ struct wmGizmoPropertyFnParams {
   wmGizmoPropertyFnSet value_set_fn;
   wmGizmoPropertyFnRangeGet range_get_fn;
   wmGizmoPropertyFnFree free_fn;
+  wmGizmoPropertyFnAutokey autokey_fn;
   void *user_data;
 };

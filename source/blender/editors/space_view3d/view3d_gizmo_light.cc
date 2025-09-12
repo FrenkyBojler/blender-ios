@@ -21,6 +21,8 @@
 #include "DNA_light_types.h"
 #include "DNA_object_types.h"
 
+#include "ANIM_keyframing.hh"
+
 #include "ED_gizmo_library.hh"
 
 #include "UI_resources.hh"
@@ -71,6 +73,20 @@ static void gizmo_spot_blend_prop_matrix_get(const wmGizmo * /*gz*/,
   matrix[1][1] = 2.0f * CONE_SCALE * t * a;
 }
 
+static void gizmo_spot_blend_prop_autokey(wmGizmoProperty *gz_prop)
+{
+  bContext *C = static_cast<bContext *>(gz_prop->custom_func.user_data);
+  Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  BKE_view_layer_synced_ensure(scene, view_layer);
+  Light *la = static_cast<Light *>(BKE_view_layer_active_object_get(view_layer)->data);
+  PointerRNA light_ptr = RNA_pointer_create_discrete(&la->id, &RNA_Light, la);
+  PropertyRNA *spot_blend_prop = RNA_struct_find_property(&light_ptr, "spot_blend");
+
+  blender::animrig::autokeyframe_property(
+      C, scene, &light_ptr, spot_blend_prop, 0, float(scene->r.cfra), false);
+}
+
 static void gizmo_spot_blend_prop_matrix_set(const wmGizmo * /*gz*/,
                                              wmGizmoProperty *gz_prop,
                                              const void *value_p)
@@ -98,6 +114,20 @@ static void gizmo_spot_blend_prop_matrix_set(const wmGizmo * /*gz*/,
 }
 
 /* Used by spot light and point light. */
+static void gizmo_light_radius_prop_autokey(wmGizmoProperty *gz_prop)
+{
+  bContext *C = static_cast<bContext *>(gz_prop->custom_func.user_data);
+  Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  BKE_view_layer_synced_ensure(scene, view_layer);
+  Light *la = static_cast<Light *>(BKE_view_layer_active_object_get(view_layer)->data);
+  PointerRNA light_ptr = RNA_pointer_create_discrete(&la->id, &RNA_Light, la);
+  PropertyRNA *radius_prop = RNA_struct_find_property(&light_ptr, "shadow_soft_size");
+
+  blender::animrig::autokeyframe_property(
+      C, scene, &light_ptr, radius_prop, 0, float(scene->r.cfra), false);
+}
+
 static void gizmo_light_radius_prop_matrix_get(const wmGizmo * /*gz*/,
                                                wmGizmoProperty *gz_prop,
                                                void *value_p)
@@ -196,6 +226,7 @@ static void WIDGETGROUP_light_spot_setup(const bContext *C, wmGizmoGroup *gzgrou
     params.value_get_fn = gizmo_spot_blend_prop_matrix_get;
     params.value_set_fn = gizmo_spot_blend_prop_matrix_set;
     params.range_get_fn = nullptr;
+    params.autokey_fn = gizmo_spot_blend_prop_autokey;
     params.user_data = (void *)C;
     WM_gizmo_target_property_def_func(gz, "matrix", &params);
   }
@@ -216,6 +247,7 @@ static void WIDGETGROUP_light_spot_setup(const bContext *C, wmGizmoGroup *gzgrou
     params.value_get_fn = gizmo_light_radius_prop_matrix_get;
     params.value_set_fn = gizmo_light_radius_prop_matrix_set;
     params.range_get_fn = nullptr;
+    params.autokey_fn = gizmo_light_radius_prop_autokey;
     params.user_data = (void *)C;
     WM_gizmo_target_property_def_func(gz, "matrix", &params);
   }
@@ -348,6 +380,7 @@ static void WIDGETGROUP_light_point_setup(const bContext *C, wmGizmoGroup *gzgro
   params.value_get_fn = gizmo_light_radius_prop_matrix_get;
   params.value_set_fn = gizmo_light_radius_prop_matrix_set;
   params.range_get_fn = nullptr;
+  params.autokey_fn = gizmo_light_radius_prop_autokey;
   params.user_data = (void *)C;
   WM_gizmo_target_property_def_func(gz, "matrix", &params);
 
@@ -394,13 +427,37 @@ void VIEW3D_GGT_light_point(wmGizmoGroupType *gzgt)
  * \{ */
 
 /* scale callbacks */
+
+static void gizmo_area_light_prop_autokey(wmGizmoProperty *gz_prop)
+{
+  bContext *C = static_cast<bContext *>(gz_prop->custom_func.user_data);
+  Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  BKE_view_layer_synced_ensure(scene, view_layer);
+  Light *la = static_cast<Light *>(BKE_view_layer_active_object_get(view_layer)->data);
+  PointerRNA light_ptr = RNA_pointer_create_discrete(&la->id, &RNA_Light, la);
+
+  PropertyRNA *area_size_prop = RNA_struct_find_property(&light_ptr, "size");
+  blender::animrig::autokeyframe_property(
+      C, scene, &light_ptr, area_size_prop, 0, float(scene->r.cfra), false);
+  if (ELEM(la->area_shape, LA_AREA_RECT, LA_AREA_ELLIPSE)) {
+    area_size_prop = RNA_struct_find_property(&light_ptr, "size_y");
+    blender::animrig::autokeyframe_property(
+        C, scene, &light_ptr, area_size_prop, 0, float(scene->r.cfra), false);
+  }
+}
+
 static void gizmo_area_light_prop_matrix_get(const wmGizmo * /*gz*/,
                                              wmGizmoProperty *gz_prop,
                                              void *value_p)
 {
   BLI_assert(gz_prop->type->array_length == 16);
   float (*matrix)[4] = static_cast<float (*)[4]>(value_p);
-  const Light *la = static_cast<const Light *>(gz_prop->custom_func.user_data);
+  bContext *C = static_cast<bContext *>(gz_prop->custom_func.user_data);
+  Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  BKE_view_layer_synced_ensure(scene, view_layer);
+  Light *la = static_cast<Light *>(BKE_view_layer_active_object_get(view_layer)->data);
 
   matrix[0][0] = la->area_size;
   matrix[1][1] = ELEM(la->area_shape, LA_AREA_RECT, LA_AREA_ELLIPSE) ? la->area_sizey :
@@ -413,7 +470,11 @@ static void gizmo_area_light_prop_matrix_set(const wmGizmo * /*gz*/,
 {
   const float (*matrix)[4] = static_cast<const float (*)[4]>(value_p);
   BLI_assert(gz_prop->type->array_length == 16);
-  Light *la = static_cast<Light *>(gz_prop->custom_func.user_data);
+  bContext *C = static_cast<bContext *>(gz_prop->custom_func.user_data);
+  Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  BKE_view_layer_synced_ensure(scene, view_layer);
+  Light *la = static_cast<Light *>(BKE_view_layer_active_object_get(view_layer)->data);
 
   if (ELEM(la->area_shape, LA_AREA_RECT, LA_AREA_ELLIPSE)) {
     la->area_size = len_v3(matrix[0]);
@@ -498,7 +559,8 @@ static void WIDGETGROUP_light_area_refresh(const bContext *C, wmGizmoGroup *gzgr
   params.value_get_fn = gizmo_area_light_prop_matrix_get;
   params.value_set_fn = gizmo_area_light_prop_matrix_set;
   params.range_get_fn = nullptr;
-  params.user_data = la;
+  params.autokey_fn = gizmo_area_light_prop_autokey;
+  params.user_data = (void *)C;
   WM_gizmo_target_property_def_func(gz, "matrix", &params);
 }
 

@@ -86,6 +86,7 @@ void WM_gizmo_target_property_def_func_ptr(wmGizmo *gz,
   gz_prop->custom_func.value_set_fn = params->value_set_fn;
   gz_prop->custom_func.range_get_fn = params->range_get_fn;
   gz_prop->custom_func.free_fn = params->free_fn;
+  gz_prop->custom_func.autokey_fn = params->autokey_fn;
   gz_prop->custom_func.user_data = params->user_data;
 
   if (gz->type->property_update) {
@@ -312,6 +313,9 @@ void WM_gizmo_target_property_anim_autokey(bContext *C,
     const int index = gz_prop->index == -1 ? 0 : gz_prop->index;
     blender::animrig::autokeyframe_property(
         C, scene, &gz_prop->ptr, gz_prop->prop, index, cfra, false);
+  }
+  else if (gz_prop->custom_func.autokey_fn) {
+    gz_prop->custom_func.autokey_fn(gz_prop);
   }
 }
 
