@@ -1678,6 +1678,7 @@ static void pack_islands_startjob(void *pidv, wmJobWorkerStatus *worker_status)
 
   UVPackIslandsData *pid = static_cast<UVPackIslandsData *>(pidv);
 
+  G.is_break = worker_status->stop;
   pid->pack_island_params.stop = &worker_status->stop;
   pid->pack_island_params.do_update = &worker_status->do_update;
   pid->pack_island_params.progress = &worker_status->progress;
