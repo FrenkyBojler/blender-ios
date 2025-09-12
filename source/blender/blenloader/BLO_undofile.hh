@@ -21,14 +21,13 @@ struct Scene;
 
 struct MemFileSharedStorage {
   /**
-   * Maps the address ID (i.e. not the data pointer directly) to the sharing info that it is owned
-   * by.
+   * Maps the address id to the sharing info that it is owned by.
    */
-  blender::Map<const void *, const blender::ImplicitSharingInfo *> map;
+  blender::Map<uint64_t, const blender::ImplicitSharingInfo *> map;
   /**
-   * Map the address ID (the stable "fake address" written in the blend file) to the data pointer.
+   * Map the address id to the data pointer.
    */
-  blender::Map<const void *, const void *> address_id_to_data;
+  blender::Map<uint64_t, const void *> data_by_address_id;
 
   ~MemFileSharedStorage();
 };

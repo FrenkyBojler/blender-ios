@@ -631,7 +631,7 @@ struct BlendDataReader {
    * The key is the old address ID referencing shared data that's written to a file, typically an
    * array. The corresponding value is the shared data at run-time.
    */
-  blender::Map<const void *, blender::ImplicitSharingInfoAndData> shared_data_by_stored_address;
+  blender::Map<uint64_t, blender::ImplicitSharingInfoAndData> shared_data_by_stored_address;
 };
 
 struct BlendLibReader {
@@ -5421,7 +5421,7 @@ blender::ImplicitSharingInfoAndData blo_read_shared_impl(
     const void **ptr_p,
     const blender::FunctionRef<const blender::ImplicitSharingInfo *()> read_fn)
 {
-  const void *old_address_id = *ptr_p;
+  const uint64_t old_address_id = uint64_t(*ptr_p);
   if (BLO_read_data_is_undo(reader)) {
     if (reader->fd->flags & FD_FLAGS_IS_MEMFILE) {
       UndoReader *undo_reader = reinterpret_cast<UndoReader *>(reader->fd->file);
@@ -5431,7 +5431,7 @@ blender::ImplicitSharingInfoAndData blo_read_shared_impl(
         if (const blender::ImplicitSharingInfo *sharing_info =
                 memfile.shared_storage->map.lookup_default(old_address_id, nullptr))
         {
-          const void *data = memfile.shared_storage->address_id_to_data.lookup(old_address_id);
+          const void *data = memfile.shared_storage->data_by_address_id.lookup(old_address_id);
           /* Add a new owner of the data that is passed to the caller. */
           sharing_info->add_user();
           return {sharing_info, data};
