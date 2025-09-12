@@ -961,6 +961,11 @@ void WorkspaceStatus::item(std::string text, const int icon1, const int icon2)
   ed_workspace_status_text_item(workspace_, std::move(text));
 }
 
+void WorkspaceStatus::separator(float factor)
+{
+  ed_workspace_status_space(workspace_, factor);
+}
+
 void WorkspaceStatus::range(std::string text, const int icon1, const int icon2)
 {
   ed_workspace_status_item(workspace_, {}, icon1);
@@ -2355,7 +2360,7 @@ void region_toggle_hidden(bContext *C, ARegion *region, const bool do_fade)
 
   region->flag ^= RGN_FLAG_HIDDEN;
 
-  if (do_fade && region->overlap) {
+  if (do_fade && region->overlap && !(U.uiflag & USER_REDUCE_MOTION)) {
     /* starts a timer, and in end calls the stuff below itself (region_sblend_invoke()) */
     ED_region_visibility_change_update_animated(C, area, region);
   }
