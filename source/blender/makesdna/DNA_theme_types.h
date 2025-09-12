@@ -121,6 +121,7 @@ typedef struct ThemeRegionsChannels {
 typedef struct ThemeRegionsScrubbing {
   unsigned char back[4];
   unsigned char text[4];
+  unsigned char time_marker[4], time_marker_selected[4];
 } ThemeRegionsScrubbing;
 
 typedef struct ThemeRegionsSidebars {
@@ -138,8 +139,6 @@ typedef struct ThemeRegions {
 typedef struct ThemeCommonAnim {
   unsigned char playhead[4];
   unsigned char preview_range[4];
-
-  unsigned char time_marker[4], time_marker_selected[4];
 
   unsigned char channel[4], channel_sub[4];
   unsigned char channel_group[4], channel_group_active[4];

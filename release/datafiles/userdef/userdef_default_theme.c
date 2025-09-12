@@ -290,6 +290,8 @@ const bTheme U_theme_default = {
     .scrubbing = {
       .back = RGBA(0x161616ff),
       .text = RGBA(0xc3c3c3ff),
+      .time_marker = RGBA(0xffffff4d),
+      .time_marker_selected = RGBA(0xffffffb3),
     },
     .sidebars = {
       .back = RGBA(0x30303000),
@@ -300,8 +302,6 @@ const bTheme U_theme_default = {
     .anim = {
       .playhead = RGBA(0x4772b3ff),
       .preview_range = RGBA(0xa14d0066),
-      .time_marker = RGBA(0xffffff4d),
-      .time_marker_selected = RGBA(0xffffffb3),
       .channel = RGBA(0x194e8080),
       .channel_sub = RGBA(0x0f2c4d80),
       .channel_group = RGBA(0x1a332d37),
