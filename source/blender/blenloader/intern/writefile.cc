@@ -67,6 +67,7 @@
 #include <fcntl.h>
 #include <iomanip>
 #include <sstream>
+#include <xxhash.h>
 
 #ifdef WIN32
 #  include "BLI_winstuff.h"
@@ -449,10 +450,34 @@ struct WriteData {
   } validation_data;
 
   struct {
+    /**
+     * Knows which DNA members are pointers. Those members are overridden when serializing the
+     * .blend file to get more stable pointer identifiers.
+     */
     std::unique_ptr<blender::dna::pointers::PointersInDNA> sdna_pointers;
+    /**
+     * Maps each runtime-pointer to a unique identifier that's written in the .blend file.
+     */
     blender::Map<const void *, uint64_t> pointer_map;
+    /**
+     * Contains all the #pointer_map.values(). This is used to make sure that the same id is never
+     * reused for a different pointer. While this is technically allowed in .blend files (when the
+     * pointers are local data of different objects), we currently don't always know what type a
+     * pointer points to when writing it. So we can't determine if a pointer is local or not.
+     */
     blender::Set<uint64_t> used_ids;
-    int64_t next_id_hint = 1;
+    /**
+     * The next potential stable address id. One still has to check if this id is already used.
+     * This is modified in two cases:
+     * - A new stable address is is needed, in which case this is just incremented.
+     * - A new "section" of the .blend file starts. In this case, this should be reinitialized with
+     *   some hash of an identifier of the next section. This makes sure that if the number of
+     *   pointers in the previous section is modified, the pointers in the new section are not
+     *   affected. A "section" can be anything, but currently a section simply starts when a new
+     *   data-block starts. In the future, an API could be added that allows sections to start
+     *   within a data-block which could isolate stable pointer ids even more.
+     */
+    uint64_t next_id_hint = 1;
   } stable_address_ids;
 
   /**
@@ -651,6 +676,18 @@ static bool mywrite_end(WriteData *wd)
   return err;
 }
 
+static uint64_t get_stable_pointer_hint_for_id(const ID &id)
+{
+  /* Make the stable pointer dependend on the data-block name. This is somewhat arbitrary but the
+   * name is at least something that doesn't really change automatically unexpectedly. */
+  const uint64_t name_hash = XXH3_64bits(id.name, strlen(id.name));
+  if (id.lib) {
+    const uint64_t lib_hash = XXH3_64bits(id.lib->id.name, strlen(id.lib->id.name));
+    return name_hash ^ lib_hash;
+  }
+  return name_hash;
+}
+
 /**
  * Start writing of data related to a single ID.
  *
@@ -663,13 +700,7 @@ static void mywrite_id_begin(WriteData *wd, ID *id)
 
   BLI_assert(wd->validation_data.per_id_addresses_set.is_empty());
 
-  if (id->lib) {
-    wd->stable_address_ids.next_id_hint = blender::get_default_hash(
-        blender::StringRef(id->name), blender::StringRef(id->lib->id.name));
-  }
-  else {
-    wd->stable_address_ids.next_id_hint = blender::get_default_hash(blender::StringRef(id->name));
-  }
+  wd->stable_address_ids.next_id_hint = get_stable_pointer_hint_for_id(*id);
 
   if (wd->use_memfile) {
     wd->mem.current_id_session_uid = id->session_uid;
