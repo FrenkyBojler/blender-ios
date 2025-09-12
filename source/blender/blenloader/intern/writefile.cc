@@ -412,11 +412,6 @@ bool ZstdWriteWrap::write(const void *buf, const size_t buf_len)
 
 struct WriteData {
   const SDNA *sdna;
-  std::unique_ptr<blender::dna::pointers::PointersInDNA> pointers;
-  blender::Map<const void *, uint64_t> stable_address_ids_map;
-  blender::Set<uint64_t> used_stable_address_ids;
-  int64_t next_stable_address_id_hint = 1;
-
   std::ostream *debug_dst = nullptr;
 
   struct {
@@ -453,6 +448,13 @@ struct WriteData {
     blender::Set<const void *> per_id_addresses_set;
   } validation_data;
 
+  struct {
+    std::unique_ptr<blender::dna::pointers::PointersInDNA> sdna_pointers;
+    blender::Map<const void *, uint64_t> pointer_map;
+    blender::Set<uint64_t> used_ids;
+    int64_t next_id_hint = 1;
+  } stable_address_ids;
+
   /**
    * Keeps track of which shared data has been written for the current ID. This is necessary to
    * avoid writing the same data more than once.
@@ -481,7 +483,8 @@ static WriteData *writedata_new(WriteWrap *ww)
   WriteData *wd = MEM_new<WriteData>(__func__);
 
   wd->sdna = DNA_sdna_current_get();
-  wd->pointers = std::make_unique<blender::dna::pointers::PointersInDNA>(*wd->sdna);
+  wd->stable_address_ids.sdna_pointers = std::make_unique<blender::dna::pointers::PointersInDNA>(
+      *wd->sdna);
 
   wd->ww = ww;
 
@@ -661,11 +664,11 @@ static void mywrite_id_begin(WriteData *wd, ID *id)
   BLI_assert(wd->validation_data.per_id_addresses_set.is_empty());
 
   if (id->lib) {
-    wd->next_stable_address_id_hint = blender::get_default_hash(
+    wd->stable_address_ids.next_id_hint = blender::get_default_hash(
         blender::StringRef(id->name), blender::StringRef(id->lib->id.name));
   }
   else {
-    wd->next_stable_address_id_hint = blender::get_default_hash(blender::StringRef(id->name));
+    wd->stable_address_ids.next_id_hint = blender::get_default_hash(blender::StringRef(id->name));
   }
 
   if (wd->use_memfile) {
@@ -784,11 +787,11 @@ static void write_bhead(WriteData *wd, const BHead &bhead)
 
 static uint64_t get_next_stable_address_id(WriteData &wd)
 {
-  while (!wd.used_stable_address_ids.add(wd.next_stable_address_id_hint)) {
-    wd.next_stable_address_id_hint++;
+  while (!wd.stable_address_ids.used_ids.add(wd.stable_address_ids.next_id_hint)) {
+    wd.stable_address_ids.next_id_hint++;
   }
-  const uint64_t stable_id = wd.next_stable_address_id_hint;
-  wd.next_stable_address_id_hint++;
+  const uint64_t stable_id = wd.stable_address_ids.next_id_hint;
+  wd.stable_address_ids.next_id_hint++;
   return stable_id;
 }
 
@@ -797,7 +800,7 @@ static uint64_t get_address_id_int(WriteData &wd, const void *address)
   if (address == nullptr) {
     return 0;
   }
-  return wd.stable_address_ids_map.lookup_or_add_cb(
+  return wd.stable_address_ids.pointer_map.lookup_or_add_cb(
       address, [&]() { return get_next_stable_address_id(wd); });
 }
 
@@ -836,7 +839,8 @@ static void writestruct_at_address_nr(WriteData *wd,
   /* Get the address identifier that will be written to the file.*/
   const void *address_id = get_address_id(*wd, adr);
 
-  const blender::dna::pointers::StructInfo &struct_info = wd->pointers->get_for_struct(struct_nr);
+  const blender::dna::pointers::StructInfo &struct_info =
+      wd->stable_address_ids.sdna_pointers->get_for_struct(struct_nr);
   const bool can_write_raw_runtime_data = struct_info.pointers.is_empty();
 
   blender::DynamicStackBuffer<16 * 1024> buffer_owner(len_in_bytes, 64);
@@ -853,7 +857,7 @@ static void writestruct_at_address_nr(WriteData *wd,
     for (const int i : blender::IndexRange(nr)) {
       for (const blender::dna::pointers::PointerInfo &pointer_info : struct_info.pointers) {
         const int offset = i * struct_info.size + pointer_info.offset;
-        const void **p_ptr = (const void **)POINTER_OFFSET(buffer, offset);
+        const void **p_ptr = reinterpret_cast<const void **>(POINTER_OFFSET(buffer, offset));
         const void *address_id = get_address_id(*wd, *p_ptr);
         *p_ptr = address_id;
       }
