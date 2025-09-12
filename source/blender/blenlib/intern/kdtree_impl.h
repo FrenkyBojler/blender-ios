@@ -958,6 +958,8 @@ int BLI_kdtree_nd_(calc_duplicates_stable)(const KDTree *tree,
 
   blender::Array<bool> visited(tree->max_node_index + 1, false);
 
+  blender::Vector<int> cluster;
+
   int found = 0;
 
   for (uint i = 0; i < nodes_len; i++) {
@@ -971,14 +973,13 @@ int BLI_kdtree_nd_(calc_duplicates_stable)(const KDTree *tree,
       continue;
     }
 
-    /* Collect all neighbors of this vertex within range. */
-    blender::Vector<int> cluster;
+    cluster.clear();
     cluster.append(node_index);
 
     const float *search_co = tree->nodes[index_lookup[node_index]].co;
     BLI_assert(search_co != nullptr);
 
-    auto accumulate_neighbors = [&](int neighbor_index, const float *, float) -> bool {
+    auto accumulate_neighbors_fn = [&](int neighbor_index, const float *, float) -> bool {
       if (!visited[neighbor_index] && duplicates[neighbor_index] == -1) {
         cluster.append(neighbor_index);
         visited[neighbor_index] = true;
@@ -986,7 +987,7 @@ int BLI_kdtree_nd_(calc_duplicates_stable)(const KDTree *tree,
       return true;
     };
 
-    BLI_kdtree_nd_(range_search_cb_cpp)(tree, search_co, range, accumulate_neighbors);
+    BLI_kdtree_nd_(range_search_cb_cpp)(tree, search_co, range, accumulate_neighbors_fn);
 
     if (cluster.size() <= 1) {
       continue;
