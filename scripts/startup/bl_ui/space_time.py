@@ -50,7 +50,7 @@ def playback_controls(layout, context):
         text="Playback",
     )
 
-    icon_keytype = 'KEYTYPE_{:s}_VEC'.format(context.tool_settings.keyframe_type)
+    icon_keytype = 'KEYTYPE_{:s}_VEC'.format(tool_settings.keyframe_type)
     layout.popover(
         panel="TIME_PT_keyframing_settings",
         text_ctxt=i18n_contexts.id_windowmanager,
@@ -62,15 +62,14 @@ def playback_controls(layout, context):
 
     layout.separator_spacer()
 
-    if tool_settings:
-        row = layout.row(align=True)
-        row.prop(tool_settings, "use_keyframe_insert_auto", text="", toggle=True)
-        sub = row.row(align=True)
-        sub.active = tool_settings.use_keyframe_insert_auto
-        sub.popover(
-            panel="TIME_PT_auto_keyframing",
-            text="",
-        )
+    row = layout.row(align=True)
+    row.prop(tool_settings, "use_keyframe_insert_auto", text="", toggle=True)
+    sub = row.row(align=True)
+    sub.active = tool_settings.use_keyframe_insert_auto
+    sub.popover(
+        panel="TIME_PT_auto_keyframing",
+        text="",
+    )
 
     row = layout.row(align=True)
     row.operator("screen.frame_jump", text="", icon='REW').end = False
