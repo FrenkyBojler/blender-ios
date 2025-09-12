@@ -949,7 +949,6 @@ int BLI_kdtree_nd_(calc_duplicates_stable)(const KDTree *tree,
     return 0;
   }
 
-  int found = 0;
   const uint nodes_len = tree->nodes_len;
 
   blender::Array<int> index_lookup(tree->max_node_index + 1);
@@ -962,6 +961,8 @@ int BLI_kdtree_nd_(calc_duplicates_stable)(const KDTree *tree,
   /* Reused each iteration to reduce reallocations. */
   blender::Vector<int> cluster;
   blender::Vector<int> to_visit;
+
+  int found = 0;
 
   for (uint i = 0; i < nodes_len; i++) {
     const int node_index = tree->nodes[i].index;
