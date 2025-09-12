@@ -943,9 +943,7 @@ int BLI_kdtree_nd_(calc_duplicates_stable)(const KDTree *tree,
                                            int *duplicates,
                                            float (*r_survivor_cos)[KD_DIMS])
 {
-#ifndef NDEBUG
   BLI_assert(tree->is_balanced == true);
-#endif
 
   if (UNLIKELY(tree->root == KD_NODE_UNSET)) {
     return 0;
@@ -964,8 +962,6 @@ int BLI_kdtree_nd_(calc_duplicates_stable)(const KDTree *tree,
   /* Reused each iteration to reduce reallocations. */
   blender::Vector<int> cluster;
   blender::Vector<int> to_visit;
-  cluster.reserve(nodes_len);
-  to_visit.reserve(nodes_len);
 
   for (uint i = 0; i < nodes_len; i++) {
     const int node_index = tree->nodes[i].index;
