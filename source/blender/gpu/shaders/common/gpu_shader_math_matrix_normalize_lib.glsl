@@ -5,6 +5,7 @@
 #pragma once
 
 #include "gpu_glsl_cpp_stubs.hh"
+#include "gpu_shader_math_vector_lib.glsl"
 
 /* -------------------------------------------------------------------- */
 /** \name Normalize
@@ -95,6 +96,7 @@ float4x3 normalize(float4x3 mat)
   ret[3] = normalize(mat[3].xyz);
   return ret;
 }
+#endif
 float4x4 normalize(float4x4 mat)
 {
   float4x4 ret;
@@ -104,7 +106,6 @@ float4x4 normalize(float4x4 mat)
   ret[3] = normalize(mat[3].xyzw);
   return ret;
 }
-#endif
 
 /**
  * Normalize each column of the matrix individually.
@@ -148,6 +149,7 @@ float3x2 normalize_and_get_size(float3x2 mat, out float3 r_size)
   r_size = float3(size_x, size_y, size_z);
   return ret;
 }
+#endif
 float3x3 normalize_and_get_size(float3x3 mat, out float3 r_size)
 {
   float size_x = 0.0f, size_y = 0.0f, size_z = 0.0f;
@@ -158,6 +160,7 @@ float3x3 normalize_and_get_size(float3x3 mat, out float3 r_size)
   r_size = float3(size_x, size_y, size_z);
   return ret;
 }
+#if 0 /* Remove unused variants as they are slow down compilation. */
 float3x4 normalize_and_get_size(float3x4 mat, out float3 r_size)
 {
   float size_x = 0.0f, size_y = 0.0f, size_z = 0.0f;
@@ -190,6 +193,7 @@ float4x3 normalize_and_get_size(float4x3 mat, out float4 r_size)
   r_size = float4(size_x, size_y, size_z, size_w);
   return ret;
 }
+#endif
 float4x4 normalize_and_get_size(float4x4 mat, out float4 r_size)
 {
   float size_x = 0.0f, size_y = 0.0f, size_z = 0.0f, size_w = 0.0f;
@@ -201,6 +205,5 @@ float4x4 normalize_and_get_size(float4x4 mat, out float4 r_size)
   r_size = float4(size_x, size_y, size_z, size_w);
   return ret;
 }
-#endif
 
 /** \} */

@@ -4,8 +4,10 @@
 
 #pragma once
 
-#include "gpu_shader_math_matrix_conversion_lib.glsl"
+#include "gpu_shader_math_matrix_construct_lib.glsl"
 #include "gpu_shader_math_quaternion_lib.glsl"
+#include "gpu_shader_math_rotation_conversion_lib.glsl"
+#include "gpu_shader_math_rotation_lib.glsl"
 #include "gpu_shader_math_vector_lib.glsl"
 
 /* -------------------------------------------------------------------- */
