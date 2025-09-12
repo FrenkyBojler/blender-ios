@@ -413,8 +413,10 @@ bool ZstdWriteWrap::write(const void *buf, const size_t buf_len)
 struct WriteData {
   const SDNA *sdna;
   std::unique_ptr<blender::dna::pointers::PointersInDNA> pointers;
-  blender::Map<const void *, uint64_t> pointer_map;
-  int64_t pointer_num = 1;
+  blender::Map<const void *, uint64_t> stable_address_ids_map;
+  blender::Set<uint64_t> used_stable_address_ids;
+  int64_t next_stable_address_id_hint = 1;
+
   std::ostream *debug_dst = nullptr;
 
   struct {
@@ -658,6 +660,14 @@ static void mywrite_id_begin(WriteData *wd, ID *id)
 
   BLI_assert(wd->validation_data.per_id_addresses_set.is_empty());
 
+  if (id->lib) {
+    wd->next_stable_address_id_hint = blender::get_default_hash(
+        blender::StringRef(id->name), blender::StringRef(id->lib->id.name));
+  }
+  else {
+    wd->next_stable_address_id_hint = blender::get_default_hash(blender::StringRef(id->name));
+  }
+
   if (wd->use_memfile) {
     wd->mem.current_id_session_uid = id->session_uid;
 
@@ -772,13 +782,28 @@ static void write_bhead(WriteData *wd, const BHead &bhead)
   mywrite(wd, &bh, sizeof(bh));
 }
 
-static const void *get_address_id(WriteData &wd, const void *address)
+static uint64_t get_next_stable_address_id(WriteData &wd)
+{
+  while (!wd.used_stable_address_ids.add(wd.next_stable_address_id_hint)) {
+    wd.next_stable_address_id_hint++;
+  }
+  const uint64_t stable_id = wd.next_stable_address_id_hint;
+  wd.next_stable_address_id_hint++;
+  return stable_id;
+}
+
+static uint64_t get_address_id_int(WriteData &wd, const void *address)
 {
   if (address == nullptr) {
-    return nullptr;
+    return 0;
   }
-  return (const void *)wd.pointer_map.lookup_or_add_cb(address,
-                                                       [&]() { return ++wd.pointer_num; });
+  return wd.stable_address_ids_map.lookup_or_add_cb(
+      address, [&]() { return get_next_stable_address_id(wd); });
+}
+
+static const void *get_address_id(WriteData &wd, const void *address)
+{
+  return reinterpret_cast<const void *>(get_address_id_int(wd, address));
 }
 
 static void writestruct_at_address_nr(WriteData *wd,
