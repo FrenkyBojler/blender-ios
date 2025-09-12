@@ -65,10 +65,7 @@ struct CurvesApplyOp {
   }
 };
 
-static void curves_apply(const StripScreenQuad & /*quad*/,
-                         StripModifierData *smd,
-                         ImBuf *ibuf,
-                         ImBuf *mask)
+static void curves_apply(StripModifierData *smd, ImBuf *ibuf, ImBuf *mask)
 {
   CurvesModifierData *cmd = (CurvesModifierData *)smd;
 

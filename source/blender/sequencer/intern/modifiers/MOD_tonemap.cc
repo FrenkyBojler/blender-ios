@@ -7,7 +7,6 @@
  */
 
 #include "BLI_array.hh"
-#include "BLI_math_geom.h"
 
 #include "BLT_translation.hh"
 
@@ -189,12 +188,6 @@ static void tonemap_rd_photoreceptor(float4 *scene_linear,
   }
 }
 
-static bool is_point_inside_quad(const StripScreenQuad &quad, int x, int y)
-{
-  float2 pt(x + 0.5f, y + 0.5f);
-  return isect_point_quad_v2(pt, quad.v0, quad.v1, quad.v2, quad.v3);
-}
-
 struct AreaLuminance {
   int64_t pixel_count = 0;
   double sum = 0.0f;
@@ -204,41 +197,30 @@ struct AreaLuminance {
   float max = -FLT_MAX;
 };
 
-static void tonemap_calc_chunk_luminance(const StripScreenQuad &quad,
-                                         const bool all_pixels_inside_quad,
-                                         const int width,
+static void tonemap_calc_chunk_luminance(const int width,
                                          const IndexRange y_range,
                                          const float4 *scene_linear,
                                          AreaLuminance &r_lum)
 {
-  for (const int y : y_range) {
+  for ([[maybe_unused]] const int y : y_range) {
     for (int x = 0; x < width; x++) {
-      if (all_pixels_inside_quad || is_point_inside_quad(quad, x, y)) {
-        float4 pixel = *scene_linear;
-        r_lum.pixel_count++;
-        float L = IMB_colormanagement_get_luminance(pixel);
-        r_lum.sum += L;
-        r_lum.color_sum.x += pixel.x;
-        r_lum.color_sum.y += pixel.y;
-        r_lum.color_sum.z += pixel.z;
-        r_lum.log_sum += logf(math::max(L, 0.0f) + 1e-5f);
-        r_lum.max = math::max(r_lum.max, L);
-        r_lum.min = math::min(r_lum.min, L);
-      }
+      float4 pixel = *scene_linear;
+      r_lum.pixel_count++;
+      float L = IMB_colormanagement_get_luminance(pixel);
+      r_lum.sum += L;
+      r_lum.color_sum.x += pixel.x;
+      r_lum.color_sum.y += pixel.y;
+      r_lum.color_sum.z += pixel.z;
+      r_lum.log_sum += logf(math::max(L, 0.0f) + 1e-5f);
+      r_lum.max = math::max(r_lum.max, L);
+      r_lum.min = math::min(r_lum.min, L);
       scene_linear++;
     }
   }
 }
 
-static AreaLuminance tonemap_calc_input_luminance(const StripScreenQuad &quad, const ImBuf *ibuf)
+static AreaLuminance tonemap_calc_input_luminance(const ImBuf *ibuf)
 {
-  /* Pixels outside the pre-transform strip area are ignored for luminance calculations.
-   * If strip area covers whole image, we can trivially accept all pixels. */
-  const bool all_pixels_inside_quad = is_point_inside_quad(quad, 0, 0) &&
-                                      is_point_inside_quad(quad, ibuf->x - 1, 0) &&
-                                      is_point_inside_quad(quad, 0, ibuf->y - 1) &&
-                                      is_point_inside_quad(quad, ibuf->x - 1, ibuf->y - 1);
-
   AreaLuminance lum;
   lum = threading::parallel_reduce(
       IndexRange(ibuf->y),
@@ -254,15 +236,14 @@ static AreaLuminance tonemap_calc_input_luminance(const StripScreenQuad &quad, c
           float4 *fptr = reinterpret_cast<float4 *>(ibuf->float_buffer.data);
           fptr += y_range.first() * ibuf->x;
           pixels_to_scene_linear_float(ibuf->float_buffer.colorspace, fptr, chunk_size);
-          tonemap_calc_chunk_luminance(quad, all_pixels_inside_quad, ibuf->x, y_range, fptr, lum);
+          tonemap_calc_chunk_luminance(ibuf->x, y_range, fptr, lum);
         }
         else {
           const uchar *bptr = ibuf->byte_buffer.data + y_range.first() * ibuf->x * 4;
           Array<float4> scene_linear(chunk_size);
           pixels_to_scene_linear_byte(
               ibuf->byte_buffer.colorspace, bptr, scene_linear.data(), chunk_size);
-          tonemap_calc_chunk_luminance(
-              quad, all_pixels_inside_quad, ibuf->x, y_range, scene_linear.data(), lum);
+          tonemap_calc_chunk_luminance(ibuf->x, y_range, scene_linear.data(), lum);
         }
         return lum;
       },
@@ -280,14 +261,11 @@ static AreaLuminance tonemap_calc_input_luminance(const StripScreenQuad &quad, c
   return lum;
 }
 
-static void tonemapmodifier_apply(const StripScreenQuad &quad,
-                                  StripModifierData *smd,
-                                  ImBuf *ibuf,
-                                  ImBuf *mask)
+static void tonemapmodifier_apply(StripModifierData *smd, ImBuf *ibuf, ImBuf *mask)
 {
   const SequencerTonemapModifierData *tmmd = (const SequencerTonemapModifierData *)smd;
 
-  AreaLuminance lum = tonemap_calc_input_luminance(quad, ibuf);
+  AreaLuminance lum = tonemap_calc_input_luminance(ibuf);
   if (lum.pixel_count == 0) {
     return; /* Strip is zero size or off-screen. */
   }

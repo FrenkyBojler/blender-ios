@@ -51,9 +51,8 @@ struct StripModifierTypeInfo {
   /* copy data from one modifier to another */
   void (*copy_data)(StripModifierData *smd, StripModifierData *target);
 
-  /* Apply modifier on an image buffer.
-   * quad contains four corners of the (pre-transform) strip rectangle in pixel space. */
-  void (*apply)(const StripScreenQuad &quad, StripModifierData *smd, ImBuf *ibuf, ImBuf *mask);
+  /* Apply modifier on an image buffer. */
+  void (*apply)(StripModifierData *smd, ImBuf *ibuf, ImBuf *mask);
 
   /** Register the panel types for the modifier's UI. */
   void (*panel_register)(ARegionType *region_type);

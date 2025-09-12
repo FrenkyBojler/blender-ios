@@ -11,6 +11,7 @@
 #include "BLI_math_vector_types.hh"
 #include "BLI_vector.hh"
 
+struct Depsgraph;
 struct ImBuf;
 struct LinkNode;
 struct ListBase;
@@ -52,7 +53,12 @@ ImBuf *seq_render_strip(const RenderData *context,
 
 /* Renders Mask into an image suitable for sequencer:
  * RGB channels contain mask intensity; alpha channel is opaque. */
-ImBuf *seq_render_mask(const RenderData *context, Mask *mask, float frame_index, bool make_float);
+ImBuf *seq_render_mask(Depsgraph *depsgraph,
+                       int width,
+                       int height,
+                       const Mask *mask,
+                       float frame_index,
+                       bool make_float);
 void seq_imbuf_assign_spaces(const Scene *scene, ImBuf *ibuf);
 
 StripScreenQuad get_strip_screen_quad(const RenderData *context, const Strip *strip);
