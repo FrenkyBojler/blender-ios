@@ -1113,6 +1113,9 @@ static void scene_blend_write(BlendWriter *writer, ID *id, const void *id_addres
   if (ts->sequencer_tool_settings) {
     BLO_write_struct(writer, SequencerToolSettings, ts->sequencer_tool_settings);
   }
+  if (ts->anim) {
+    BLO_write_struct(writer, AnimToolSettings, ts->anim);
+  }
 
   BKE_paint_blend_write(writer, &ts->imapaint.paint);
 
@@ -1332,6 +1335,7 @@ static void scene_blend_read_data(BlendDataReader *reader, ID *id)
 
     BLO_read_data_address(reader, &sce->toolsettings->paint_mode.canvas_image);
     BLO_read_struct(reader, SequencerToolSettings, &sce->toolsettings->sequencer_tool_settings);
+    BLO_read_struct(reader, AnimToolSettings, &sce->toolsettings->anim);
   }
 
   if (sce->ed) {
@@ -1670,6 +1674,10 @@ ToolSettings *BKE_toolsettings_copy(ToolSettings *toolsettings, const int flag)
   ts->custom_bevel_profile_preset = BKE_curveprofile_copy(ts->custom_bevel_profile_preset);
 
   ts->sequencer_tool_settings = blender::seq::tool_settings_copy(ts->sequencer_tool_settings);
+
+  if (ts->anim) {
+    ts->anim = static_cast<AnimToolSettings *>(MEM_dupallocN(ts->anim));
+  }
   return ts;
 }
 
@@ -1751,6 +1759,10 @@ void BKE_toolsettings_free(ToolSettings *toolsettings)
 
   if (toolsettings->sequencer_tool_settings) {
     blender::seq::tool_settings_free(toolsettings->sequencer_tool_settings);
+  }
+
+  if (toolsettings->anim) {
+    MEM_freeN(toolsettings->anim);
   }
 
   MEM_freeN(toolsettings);
