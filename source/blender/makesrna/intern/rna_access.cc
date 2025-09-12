@@ -73,6 +73,13 @@
 
 static CLG_LogRef LOG = {"rna.access"};
 
+/**
+ * The boolean IDProperty type isn't supported in old versions. In order to keep forward
+ * compatibility for a period of time (until 4.0), save boolean RNA properties as integer
+ * IDProperties.
+ */
+#define USE_INT_IDPROPS_FOR_BOOLEAN_RNA_PROP
+
 /* Init/Exit */
 
 /* NOTE: Initializing this object here is fine for now, as it should not allocate any memory. */
@@ -2576,13 +2583,6 @@ bool RNA_property_boolean_get(PointerRNA *ptr, PropertyRNA *prop)
 
   return value;
 }
-
-/**
- * The boolean IDProperty type isn't supported in old versions. In order to keep forward
- * compatibility for a period of time (until 4.0), save boolean RNA properties as integer
- * IDProperties.
- */
-#define USE_INT_IDPROPS_FOR_BOOLEAN_RNA_PROP
 
 void RNA_property_boolean_set(PointerRNA *ptr, PropertyRNA *prop, bool value)
 {
