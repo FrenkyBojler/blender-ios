@@ -405,7 +405,7 @@ static void marker_color_get(const TimeMarker *marker, uchar *r_text_color, ucha
     UI_GetThemeColor4ubv(TH_TIME_MARKER_LINE_SELECTED, r_line_color);
   }
   else {
-    UI_GetThemeColor4ubv(TH_TIME_SCRUB_TEXT, r_text_color);
+    UI_GetThemeColor4ubv(TH_TIME_MARKER_LINE, r_text_color);
     UI_GetThemeColor4ubv(TH_TIME_MARKER_LINE, r_line_color);
   }
 }
@@ -502,7 +502,7 @@ static void draw_marker(const uiFontStyle *fstyle,
     UI_GetThemeColor4ubv(TH_TIME_MARKER_LINE_SELECTED, marker_color);
   }
   else {
-    UI_GetThemeColor4ubv(TH_TIME_SCRUB_TEXT, marker_color);
+    UI_GetThemeColor4ubv(TH_TIME_MARKER_LINE, marker_color);
   }
 
   UI_icon_draw_ex(xpos - (0.5f * UI_ICON_SIZE) - (0.5f * U.pixelsize),
