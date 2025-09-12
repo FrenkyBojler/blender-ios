@@ -1384,9 +1384,8 @@ static void IDP_WriteArray(const IDProperty *prop, BlendWriter *writer)
      */
     switch (eIDPropertyType(prop->subtype)) {
       case IDP_GROUP: {
-        BLO_write_pointer_array(writer, uint32_t(prop->len), prop->data.pointer);
-
         IDProperty **array = static_cast<IDProperty **>(prop->data.pointer);
+        BLO_write_pointer_array(writer, uint32_t(prop->len), array);
         for (int i = 0; i < prop->len; i++) {
           IDP_BlendWrite(writer, array[i]);
         }

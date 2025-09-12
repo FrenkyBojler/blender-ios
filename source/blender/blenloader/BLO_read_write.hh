@@ -209,7 +209,19 @@ void BLO_write_uint32_array(BlendWriter *writer, int64_t num, const uint32_t *da
 void BLO_write_float_array(BlendWriter *writer, int64_t num, const float *data_ptr);
 void BLO_write_double_array(BlendWriter *writer, int64_t num, const double *data_ptr);
 void BLO_write_float3_array(BlendWriter *writer, int64_t num, const float *data_ptr);
-void BLO_write_pointer_array(BlendWriter *writer, int64_t num, const void *data_ptr);
+void BLO_write_pointer_array(BlendWriter *writer,
+                             int64_t num,
+                             const void *data_ptr,
+                             const int struct_nr);
+template<typename T>
+inline void BLO_write_pointer_array(BlendWriter *writer,
+                                    const int64_t nu,
+                                    const T *const *data_ptr)
+{
+  const int struct_id = blender::dna::sdna_struct_id_get<T>();
+  BLO_write_pointer_array(writer, nu, data_ptr, struct_id);
+}
+
 /**
  * Write a null terminated string.
  */

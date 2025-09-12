@@ -332,7 +332,8 @@ static void write_strip_keyframe_data(BlendWriter *writer,
   BLO_write_struct(writer, ActionStripKeyframeData, &strip_keyframe_data);
 
   auto channelbags = strip_keyframe_data.channelbags();
-  BLO_write_pointer_array(writer, channelbags.size(), channelbags.data());
+  BLO_write_pointer_array(
+      writer, channelbags.size(), channelbags.cast<ActionChannelbag *>().data());
 
   for (animrig::Channelbag *channelbag : channelbags) {
     write_channelbag(writer, *channelbag);
@@ -342,8 +343,9 @@ static void write_strip_keyframe_data(BlendWriter *writer,
 static void write_strip_keyframe_data_array(
     BlendWriter *writer, Span<animrig::StripKeyframeData *> strip_keyframe_data_array)
 {
-  BLO_write_pointer_array(
-      writer, strip_keyframe_data_array.size(), strip_keyframe_data_array.data());
+  BLO_write_pointer_array(writer,
+                          strip_keyframe_data_array.size(),
+                          strip_keyframe_data_array.cast<ActionStripKeyframeData *>().data());
 
   for (animrig::StripKeyframeData *keyframe_data : strip_keyframe_data_array) {
     write_strip_keyframe_data(writer, *keyframe_data);
@@ -352,7 +354,7 @@ static void write_strip_keyframe_data_array(
 
 static void write_strips(BlendWriter *writer, Span<animrig::Strip *> strips)
 {
-  BLO_write_pointer_array(writer, strips.size(), strips.data());
+  BLO_write_pointer_array(writer, strips.size(), strips.cast<ActionStrip *>().data());
 
   for (animrig::Strip *strip : strips) {
     BLO_write_struct(writer, ActionStrip, strip);
@@ -361,7 +363,7 @@ static void write_strips(BlendWriter *writer, Span<animrig::Strip *> strips)
 
 static void write_layers(BlendWriter *writer, Span<animrig::Layer *> layers)
 {
-  BLO_write_pointer_array(writer, layers.size(), layers.data());
+  BLO_write_pointer_array(writer, layers.size(), layers.cast<ActionLayer *>().data());
 
   for (animrig::Layer *layer : layers) {
     BLO_write_struct(writer, ActionLayer, layer);
@@ -371,7 +373,7 @@ static void write_layers(BlendWriter *writer, Span<animrig::Layer *> layers)
 
 static void write_slots(BlendWriter *writer, Span<animrig::Slot *> slots)
 {
-  BLO_write_pointer_array(writer, slots.size(), slots.data());
+  BLO_write_pointer_array(writer, slots.size(), slots.cast<ActionSlot *>().data());
   for (animrig::Slot *slot : slots) {
     /* Make a shallow copy using the C type, so that no new runtime struct is
      * allocated for the copy. */
