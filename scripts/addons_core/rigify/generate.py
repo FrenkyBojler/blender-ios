@@ -291,6 +291,9 @@ class Generator(base_generate.BaseGenerator):
                             tar.data_path = "RIGIFY-" + tar.data_path
 
     def __rename_org_bones(self, obj: ArmatureObject):
+        # Clear any assigned animation, so we don't rename fcurves.
+        obj.animation_data_clear()
+
         # Make a list of the original bones, so we can keep track of them.
         original_bones = [bone.name for bone in obj.data.bones]
 
