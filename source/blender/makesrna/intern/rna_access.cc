@@ -4447,7 +4447,7 @@ PointerRNA RNA_property_pointer_get(PointerRNA *ptr, PropertyRNA *prop)
 
     if (RNA_struct_is_ID(pprop->type)) {
       /* ID PointerRNA should not have ancestors currently. */
-      return RNA_id_pointer_create(IDP_ID_get(idprop));
+      return RNA_id_pointer_create(idprop->type == IDP_GROUP ? nullptr : IDP_ID_get(idprop));
     }
 
     /* for groups, data is idprop itself */
