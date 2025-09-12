@@ -954,7 +954,7 @@ int BLI_kdtree_nd_(calc_duplicates_stable)(const KDTree *tree,
   int found = 0;
   const uint nodes_len = tree->nodes_len;
 
-  blender::Array<int> index_lookup(tree->max_node_index + 1, -1);
+  blender::Array<int> index_lookup(tree->max_node_index + 1);
   for (uint i = 0; i < nodes_len; i++) {
     index_lookup[tree->nodes[i].index] = i;
   }
