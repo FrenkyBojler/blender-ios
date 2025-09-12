@@ -17,10 +17,10 @@
 #include "DNA_lattice_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meta_types.h"
+#include "DNA_pointcloud_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_space_enums.h"
 #include "DNA_windowmanager_types.h"
-#include "DNA_pointcloud_types.h"
 
 #include "BLF_api.hh"
 
