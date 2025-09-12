@@ -1,1 +1,2 @@
 Referenced by pull request #146152, Refactor: Geometry Nodes: use faster IDProperty group lookup instead of custom VectorSet
+Referenced by commit ad27211b77ed4844f22d8b9361c85c158fb43562, Refactor: Geometry Nodes: use faster IDProperty group lookup instead of custom VectorSet
