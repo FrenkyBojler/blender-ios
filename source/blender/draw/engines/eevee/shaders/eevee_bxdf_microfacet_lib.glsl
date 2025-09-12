@@ -14,7 +14,9 @@ SHADER_LIBRARY_CREATE_INFO(eevee_utility_texture)
 #include "gpu_shader_codegen_lib.glsl"
 #include "gpu_shader_math_base_lib.glsl"
 #include "gpu_shader_math_fast_lib.glsl"
+#include "gpu_shader_math_vector_lib.glsl"
 #include "gpu_shader_math_vector_safe_lib.glsl"
+#include "gpu_shader_utildefines_lib.glsl"
 
 /* -------------------------------------------------------------------- */
 /** \name Microfacet GGX distribution

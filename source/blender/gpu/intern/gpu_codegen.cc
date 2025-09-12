@@ -313,11 +313,6 @@ void GPUCodegen::generate_library()
   for (auto &key : source_files) {
     info.dependencies_generated.append_non_duplicates(key);
   }
-
-  for (auto &dep : info.dependencies_generated) {
-    std::cout << "dep " << dep.substr(0, 18) << std::endl;
-  }
-  std::cout << std::endl;
 }
 
 void GPUCodegen::node_serialize(std::stringstream &eval_ss, const GPUNode *node)

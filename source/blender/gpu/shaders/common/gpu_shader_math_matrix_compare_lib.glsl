@@ -133,13 +133,13 @@ bool is_orthonormal(float3x3 mat)
   if (!is_orthogonal(mat)) {
     return false;
   }
-  if (abs(length_squared(mat[0]) - 1.0f) > 1e-5f) {
+  if (abs(dot(mat[0], mat[0]) - 1.0f) > 1e-5f) {
     return false;
   }
-  if (abs(length_squared(mat[1]) - 1.0f) > 1e-5f) {
+  if (abs(dot(mat[1], mat[1]) - 1.0f) > 1e-5f) {
     return false;
   }
-  if (abs(length_squared(mat[2]) - 1.0f) > 1e-5f) {
+  if (abs(dot(mat[2], mat[2]) - 1.0f) > 1e-5f) {
     return false;
   }
   return true;
@@ -161,9 +161,9 @@ bool is_uniformly_scaled(float3x3 mat)
     return false;
   }
   constexpr float eps = 1e-7f;
-  float x = length_squared(mat[0]);
-  float y = length_squared(mat[1]);
-  float z = length_squared(mat[2]);
+  float x = dot(mat[0], mat[0]);
+  float y = dot(mat[1], mat[1]);
+  float z = dot(mat[2], mat[2]);
   return (abs(x - y) < eps) && abs(x - z) < eps;
 }
 /**
