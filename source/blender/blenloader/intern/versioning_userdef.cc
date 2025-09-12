@@ -355,7 +355,7 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
     FROM_DEFAULT_V4_UCHAR(regions.sidebars.tab_back);
   }
 
-  if (!USER_VERSION_ATLEAST(500, 100)) {
+  if (!USER_VERSION_ATLEAST(500, 79)) {
     FROM_DEFAULT_V4_UCHAR(common.anim.channels);
     FROM_DEFAULT_V4_UCHAR(common.anim.channels_sub);
     FROM_DEFAULT_V4_UCHAR(common.anim.channel);
