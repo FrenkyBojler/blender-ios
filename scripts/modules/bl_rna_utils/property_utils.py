@@ -4,7 +4,7 @@
 
 import bpy
 from typing import Union, Iterator
-from bpy.types import ID, PoseBone, Bone, PropertyGroup, Strip, bpy_prop_collection, Object
+from bpy.types import ID, PoseBone, Bone, PropertyGroup, Strip, BoneCollection, bpy_prop_collection, Object
 from bpy.utils import flip_name
 
 """
@@ -17,7 +17,7 @@ Runtime Properties - All properties not shipped with core Blender.
 These functions aim to clarify and/or abstract away these distinctions for common operations like copying/removal.
 """
 
-Owner = Union[ID, PoseBone, Bone, PropertyGroup, Strip]
+Owner = Union[ID, PoseBone, Bone, PropertyGroup, Strip, BoneCollection]
 
 ### Checking functions.
 
@@ -175,21 +175,23 @@ def copy_single_system_prop(src: Owner, tgt: Owner, prop_name: str, x_mirror=Fal
 
 ### Remove/Rename functions.
 
-def rename_custom_prop(owner, from_name, to_name):
+def rename_custom_prop(owner: Owner, from_name: str, to_name: str):
     assert is_custom_prop(owner, from_name), f"Property {from_name} of {owner} is not a Custom Property."
     copy_custom_property(owner, owner, from_name, new_name=to_name, x_mirror=False)
     remove_property(owner, from_name)
 
-def remove_property(obj, prop_name):
-    if is_custom_prop(obj, prop_name):
-        del obj[prop_name]
-    elif is_registered_system_prop(obj, prop_name):
-        obj.property_unset(prop_name)
-    elif is_system_prop(obj, prop_name):
-        disabled_addon_props = obj.bl_system_properties_get()
-        del disabled_addon_props[prop_name]
+def remove_property(owner: Owner, prop_name: str):
+    """Removes custom properties and unregistered system properties.
+    Unsets registered system properties."""
+    if is_custom_prop(owner, prop_name):
+        del owner[prop_name]
+    elif is_registered_system_prop(owner, prop_name):
+        owner.property_unset(prop_name)
+    elif is_system_prop(owner, prop_name):
+        system_props = owner.bl_system_properties_get()
+        del system_props[prop_name]
     else:
-        raise KeyError(f"{prop_name} not found in {obj.name}")
+        raise KeyError(f"{prop_name} not found in {owner.name}")
 
 ### X-mirror helper functions.
 
