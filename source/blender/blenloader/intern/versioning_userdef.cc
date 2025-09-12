@@ -362,16 +362,6 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
   }
 
   if (!USER_VERSION_ATLEAST(500, 100)) {
-    FROM_DEFAULT_V4_UCHAR(regions.channels.back);
-    FROM_DEFAULT_V4_UCHAR(regions.channels.text);
-    FROM_DEFAULT_V4_UCHAR(regions.channels.text_selected);
-    FROM_DEFAULT_V4_UCHAR(regions.asset_shelf.back);
-    FROM_DEFAULT_V4_UCHAR(regions.asset_shelf.header_back);
-    FROM_DEFAULT_V4_UCHAR(regions.sidebars.back);
-    FROM_DEFAULT_V4_UCHAR(regions.sidebars.tab_back);
-  }
-
-  if (!USER_VERSION_ATLEAST(500, 100)) {
     FROM_DEFAULT_V4_UCHAR(regions.scrubbing.back);
     FROM_DEFAULT_V4_UCHAR(regions.scrubbing.text);
   }

@@ -296,21 +296,6 @@ const bTheme U_theme_default = {
       .tab_back = RGBA(0x18181800),
     },
   },
-  .regions = {
-    .asset_shelf = {
-      .back = RGBA(0x303030ff),
-      .header_back = RGBA(0x1d1d1dff),
-    },
-    .channels = {
-      .back = RGBA(0x1d1d1dff),
-      .text = RGBA(0xb8b8b8ff),
-      .text_selected = RGBA(0xffaf23ff),
-    },
-    .sidebars = {
-      .back = RGBA(0x30303000),
-      .tab_back = RGBA(0x18181800),
-    }
-  },
   .common = {
     .anim = {
       .playhead = RGBA(0x4772b3ff),
