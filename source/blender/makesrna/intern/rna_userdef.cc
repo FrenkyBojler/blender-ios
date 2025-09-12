@@ -67,6 +67,7 @@ const EnumPropertyItem rna_enum_preference_section_items[] = {
     {USER_SECTION_SAVE_LOAD, "SAVE_LOAD", 0, "Save & Load", ""},
     {USER_SECTION_FILE_PATHS, "FILE_PATHS", 0, "File Paths", ""},
     RNA_ENUM_ITEM_SEPR,
+    {USER_SECTION_DEVELOPER_TOOLS, "DEVELOPER_TOOLS", 0, "Developer Tools", ""},
     {USER_SECTION_EXPERIMENTAL, "EXPERIMENTAL", 0, "Experimental", ""},
     {0, nullptr, 0, nullptr, nullptr},
 };
@@ -191,6 +192,7 @@ static const EnumPropertyItem rna_enum_preferences_extension_repo_source_type_it
 #  include "BKE_addon.h"
 #  include "BKE_appdir.hh"
 #  include "BKE_blender.hh"
+#  include "BKE_blender_version.h"
 #  include "BKE_callbacks.hh"
 #  include "BKE_global.hh"
 #  include "BKE_idprop.hh"
@@ -805,8 +807,9 @@ static const EnumPropertyItem *rna_UseDef_active_section_itemf(bContext * /*C*/,
   UserDef *userdef = static_cast<UserDef *>(ptr->data);
 
   const bool use_developer_ui = (userdef->flag & USER_DEVELOPER_UI) != 0;
+  const bool is_alpha = BKE_blender_version_is_alpha();
 
-  if (use_developer_ui) {
+  if (use_developer_ui && is_alpha) {
     *r_free = false;
     return rna_enum_preference_section_items;
   }
@@ -818,6 +821,11 @@ static const EnumPropertyItem *rna_UseDef_active_section_itemf(bContext * /*C*/,
        it++)
   {
     if (it->value == USER_SECTION_EXPERIMENTAL) {
+      if (is_alpha == false) {
+        continue;
+      }
+    }
+    else if (it->value == USER_SECTION_DEVELOPER_TOOLS) {
       if (use_developer_ui == false) {
         continue;
       }
@@ -2002,6 +2010,12 @@ static void rna_def_userdef_theme_ui(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "panel_outline", PROP_FLOAT, PROP_COLOR_GAMMA);
   RNA_def_property_ui_text(prop, "Panel Outline", "Color of the outline of top-level panels");
+  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
+
+  prop = RNA_def_property(srna, "panel_active", PROP_FLOAT, PROP_COLOR_GAMMA);
+  RNA_def_property_array(prop, 4);
+  RNA_def_property_ui_text(
+      prop, "Active Panel Outline", "Color of the outline of top-level panels that are active");
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 
   /* Transparent Grid */
@@ -3565,12 +3579,6 @@ static void rna_def_userdef_theme_space_buts(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Search Match", "");
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 
-  prop = RNA_def_property(srna, "active_modifier", PROP_FLOAT, PROP_COLOR_GAMMA);
-  RNA_def_property_float_sdna(prop, nullptr, "active");
-  RNA_def_property_array(prop, 4);
-  RNA_def_property_ui_text(prop, "Active Modifier Outline", "");
-  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
-
   rna_def_userdef_theme_spaces_main(srna);
   rna_def_userdef_theme_spaces_region_main(srna);
 }
@@ -4933,6 +4941,19 @@ static void rna_def_userdef_view(BlenderRNA *brna)
       prop, "Developer Extras", "Display advanced settings and tools for developers");
   RNA_def_property_update(prop, 0, "rna_userdef_update");
 
+  prop = RNA_def_property(srna, "show_area_handle", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "uiflag", USER_AREA_CORNER_HANDLE);
+  RNA_def_property_ui_text(prop, "Corner Handles", "Show visible area maintenance corner handles");
+  RNA_def_property_update(prop, 0, "rna_userdef_gpu_update");
+
+  prop = RNA_def_property(srna, "show_number_arrows", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "uiflag2", USER_ALWAYS_SHOW_NUMBER_ARROWS);
+  RNA_def_property_ui_text(
+      prop,
+      "Show Numeric Input Arrows",
+      "Display arrows in numeric input fields for increasing or decreasing values");
+  RNA_def_property_update(prop, 0, "rna_userdef_update");
+
   prop = RNA_def_property(srna, "show_object_info", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "uiflag", USER_DRAWVIEWINFO);
   RNA_def_property_ui_text(prop,
@@ -5364,6 +5385,13 @@ static void rna_def_userdef_view(BlenderRNA *brna)
       prop, nullptr, "statusbar_flag", STATUSBAR_SHOW_EXTENSIONS_UPDATES);
   RNA_def_property_ui_text(prop, "Extensions Updates", "Show Extensions Update Count");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_INFO, "rna_userdef_update");
+
+  /* Accessibility. */
+  prop = RNA_def_property(srna, "use_reduce_motion", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "uiflag", USER_REDUCE_MOTION);
+  RNA_def_property_ui_text(
+      prop, "Reduce Motion", "Avoid animations and other motion effects in the interface");
+  RNA_def_property_update(prop, 0, "rna_userdef_update");
 }
 
 static void rna_def_userdef_edit(BlenderRNA *brna)
@@ -5733,7 +5761,7 @@ static void rna_def_userdef_edit(BlenderRNA *brna)
   RNA_def_property_boolean_sdna(prop, nullptr, "dupflag", USER_DUP_GPENCIL);
   RNA_def_property_ui_text(prop,
                            "Duplicate Grease Pencil",
-                           "Causes grease pencil data to be duplicated with the object");
+                           "Causes Grease Pencil data to be duplicated with the object");
 
   prop = RNA_def_property(srna, "use_duplicate_curves", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "dupflag", USER_DUP_CURVES);

@@ -399,6 +399,10 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
     FROM_DEFAULT_V4_UCHAR(common.anim.long_key_selected);
   }
 
+  if (!USER_VERSION_ATLEAST(500, 74)) {
+    FROM_DEFAULT_V4_UCHAR(tui.panel_active);
+  }
+
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a USER_VERSION_ATLEAST check.
@@ -512,7 +516,7 @@ static void keymap_update_brushes_handle_add_item(
   if (STREQ(kmi->idname, "WM_OT_tool_set_by_id")) {
     IDProperty *idprop = IDP_GetPropertyFromGroup(kmi->properties, "name");
     if (idprop && (idprop->type == IDP_STRING)) {
-      const blender::StringRef prop_val = IDP_String(idprop);
+      const blender::StringRef prop_val = IDP_string_get(idprop);
       if (!prop_val.startswith("builtin_brush.")) {
         return;
       }
@@ -527,7 +531,7 @@ static void keymap_update_brushes_handle_add_item(
   else if (STREQ(kmi->idname, "PAINT_OT_brush_select")) {
     IDProperty *idprop = IDP_GetPropertyFromGroup(kmi->properties, tool_property);
     if (idprop && (idprop->type == IDP_INT)) {
-      const int prop_val = IDP_Int(idprop);
+      const int prop_val = IDP_int_get(idprop);
       if (id_asset_map.contains(prop_val)) {
         asset_id = id_asset_map.lookup(prop_val);
       }
@@ -563,7 +567,7 @@ static void keymap_update_brushes_handle_remove_item(
   if (STREQ(kmi->idname, "PAINT_OT_brush_select")) {
     IDProperty *idprop = IDP_GetPropertyFromGroup(kmi->properties, tool_property);
     if (idprop && (idprop->type == IDP_INT)) {
-      const int prop_val = IDP_Int(idprop);
+      const int prop_val = IDP_int_get(idprop);
       if (id_asset_map.contains(prop_val)) {
         asset_id = id_asset_map.lookup(prop_val);
       }
@@ -1142,8 +1146,8 @@ void blo_do_versions_userdef(UserDef *userdef)
   }
 
   if (!USER_VERSION_ATLEAST(280, 44)) {
-    userdef->uiflag &= ~(USER_NO_MULTITOUCH_GESTURES | USER_UIFLAG_UNUSED_1);
-    userdef->uiflag2 &= ~USER_UIFLAG2_UNUSED_0;
+    userdef->uiflag &= ~USER_NO_MULTITOUCH_GESTURES;
+    userdef->uiflag2 &= ~USER_ALWAYS_SHOW_NUMBER_ARROWS;
     userdef->gp_settings &= ~GP_PAINT_UNUSED_0;
   }
 
@@ -1278,7 +1282,7 @@ void blo_do_versions_userdef(UserDef *userdef)
       userdef->pixelsize = 1.0f;
     }
     /* Clear old userdef flag for "Camera Parent Lock". */
-    userdef->uiflag &= ~USER_UIFLAG_UNUSED_3;
+    userdef->uiflag &= ~USER_AREA_CORNER_HANDLE;
   }
 
   if (!USER_VERSION_ATLEAST(292, 9)) {
@@ -1664,6 +1668,12 @@ void blo_do_versions_userdef(UserDef *userdef)
 
   if (!USER_VERSION_ATLEAST(500, 59)) {
     userdef->preferences_display_type = USER_TEMP_SPACE_DISPLAY_WINDOW;
+  }
+
+  if (!USER_VERSION_ATLEAST(500, 76)) {
+    if (userdef->stored_bounds.file.xmin == userdef->stored_bounds.file.xmax) {
+      memcpy(&userdef->stored_bounds, &U_default.stored_bounds, sizeof(userdef->stored_bounds));
+    }
   }
 
   /**
