@@ -1,3 +1,4 @@
 Referenced by issue #145305, Crash loading blend file from v1.70x
 Referenced by pull request #145369, Fix #145305: Crash on loading file from 1.7x
 Referenced by commit 47362112a68398c6d18d16ec67dfce10fd960bc8, Fix #145305: Crash on loading file from 1.7x
+Referenced by issue #146153, Duplicating Scene is leading to broken (Asset) Tools
