@@ -184,6 +184,12 @@ typedef struct MovieTrackingTrack {
 
   /* track weight especially for 2D stabilization */
   float weight_stab;
+
+  /** Automatically drop off the weight proportional to the distance in frames to the start and end
+   * of partial tracks. This fade is applied in addition to the explicit fade. */
+  int weight_falloff;
+
+  char _pad2[4];
 } MovieTrackingTrack;
 
 typedef struct MovieTrackingPlaneMarker {
@@ -264,6 +270,8 @@ typedef struct MovieTrackingSettings {
   short default_flag;
   /** Default weight of the track. */
   float default_weight;
+  /** Default distance for the automatic falloff of the weight. */
+  int default_weight_falloff;
 
   /** Flags describes motion type. */
   short motion_flag;
@@ -297,6 +305,8 @@ typedef struct MovieTrackingSettings {
   /* set object scale */
   /** Distance between two bundles used for object scaling. */
   float object_distance;
+
+  char _pad[4];
 } MovieTrackingSettings;
 
 typedef struct MovieTrackingStabilization {

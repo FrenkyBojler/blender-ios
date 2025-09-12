@@ -339,6 +339,7 @@ void BKE_tracking_settings_init(MovieTracking *tracking)
   tracking->settings.default_search_size = 71;
   tracking->settings.default_algorithm_flag |= TRACK_ALGORITHM_FLAG_USE_BRUTE;
   tracking->settings.default_weight = 1.0f;
+  tracking->settings.default_weight_falloff = 10;
   tracking->settings.dist = 1;
   tracking->settings.object_distance = 1;
   tracking->settings.refine_camera_intrinsics = REFINE_NO_INTRINSICS;
@@ -516,6 +517,7 @@ MovieTrackingTrack *BKE_tracking_track_add_empty(MovieTracking *tracking, ListBa
   track->algorithm_flag = settings->default_algorithm_flag;
   track->weight = settings->default_weight;
   track->weight_stab = settings->default_weight;
+  track->weight_falloff = settings->default_weight_falloff;
 
   BLI_addtail(tracks_list, track);
   BKE_tracking_track_unique_name(tracks_list, track);

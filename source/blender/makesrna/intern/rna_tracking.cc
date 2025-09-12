@@ -1133,6 +1133,14 @@ static void rna_def_trackingSettings(BlenderRNA *brna)
   RNA_def_property_range(prop, 0.0f, 1.0f);
   RNA_def_property_ui_text(prop, "Weight", "Influence of newly created track on a final solution");
 
+  prop = RNA_def_property(srna, "default_weight_falloff", PROP_INT, PROP_NONE);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_int_sdna(prop, nullptr, "default_weight_falloff");
+  RNA_def_property_ui_text(
+      prop,
+      "Falloff",
+      "Automatically reduce marker influence near track boundaries (distance in frames).");
+
   /* ** object tracking ** */
 
   /* object distance */
@@ -1738,6 +1746,15 @@ static void rna_def_trackingTrack(BlenderRNA *brna)
   RNA_def_property_float_sdna(prop, nullptr, "weight_stab");
   RNA_def_property_range(prop, 0.0f, 1.0f);
   RNA_def_property_ui_text(prop, "Stab Weight", "Influence of this track on 2D stabilization");
+
+  /* weight_falloff */
+  prop = RNA_def_property(srna, "weight_falloff", PROP_INT, PROP_NONE);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_int_sdna(prop, nullptr, "weight_falloff");
+  RNA_def_property_ui_text(
+      prop,
+      "Falloff",
+      "Automatically reduce marker influence near track boundaries (distance in frames).");
 
   /* offset */
   prop = RNA_def_property(srna, "offset", PROP_FLOAT, PROP_TRANSLATION);

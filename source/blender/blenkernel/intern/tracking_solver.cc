@@ -62,7 +62,12 @@ struct ReconstructProgressData {
 };
 
 /* Create new libmv Tracks structure from blender's tracks list. */
-static libmv_Tracks *libmv_tracks_new(MovieClip *clip, ListBase *tracksbase, int width, int height)
+static libmv_Tracks *libmv_tracks_new(MovieClip *clip,
+                                      ListBase *tracksbase,
+                                      int width,
+                                      int height,
+                                      int clip_start_frame,
+                                      int clip_end_frame)
 {
   int tracknr = 0;
   MovieTrackingTrack *track;
@@ -73,15 +78,64 @@ static libmv_Tracks *libmv_tracks_new(MovieClip *clip, ListBase *tracksbase, int
     const FCurve *weight_fcurve = id_data_find_fcurve(
         &clip->id, track, &RNA_MovieTrackingTrack, "weight", 0, nullptr);
 
-    for (int a = 0; a < track->markersnr; a++) {
+    const int markersnr = track->markersnr;
+    if (markersnr == 0) {
+      track = track->next;
+      tracknr++;
+      continue;
+    }
+
+    /* Backwards prepass to find the frame number of the next disabled marker. */
+    int *next_disabled_frame = static_cast<int *>(
+        MEM_mallocN(sizeof(int) * markersnr, "next_disabled_frame"));
+
+    int next_disabled = INT_MAX;
+    int next_frame = clip_end_frame + 1;
+
+    for (int a = markersnr - 1; a >= 0; a--) {
       MovieTrackingMarker *marker = &track->markers[a];
 
-      if ((marker->flag & MARKER_DISABLED) == 0) {
+      if (marker->flag & MARKER_DISABLED) {
+        next_disabled = marker->framenr;
+      }
+      else {
+        if (next_frame - marker->framenr > 1) {
+          next_disabled = marker->framenr + 1;
+        }
+      }
+      next_disabled_frame[a] = next_disabled;
+      next_frame = marker->framenr;
+    }
+
+    /* The frame of the last disabled marker can be computed on the fly. */
+    int last_disabled = -INT_MAX;
+    int last_frame = clip_start_frame - 1;
+    for (int a = 0; a < markersnr; a++) {
+      MovieTrackingMarker *marker = &track->markers[a];
+
+      if (marker->flag & MARKER_DISABLED) {
+        last_disabled = marker->framenr;
+        last_frame = marker->framenr;
+      }
+      else {
+        if (marker->framenr - last_frame > 1) {
+          last_disabled = marker->framenr - 1;
+        }
+        last_frame = marker->framenr;
+        int dist_left = (last_disabled == -INT_MAX) ? INT_MAX : (marker->framenr - last_disabled);
+        int dist_right = (next_disabled_frame[a] == INT_MAX) ?
+                             INT_MAX :
+                             (next_disabled_frame[a] - marker->framenr);
+        int boundary_dist = min_ii(dist_left, dist_right);
+
         float weight = track->weight;
 
         if (weight_fcurve) {
           int scene_framenr = BKE_movieclip_remap_clip_to_scene_frame(clip, marker->framenr);
           weight = evaluate_fcurve(weight_fcurve, scene_framenr);
+        }
+        if (track->weight_falloff > 0 && boundary_dist < track->weight_falloff) {
+          weight *= (float)boundary_dist / (float)track->weight_falloff;
         }
 
         libmv_tracksInsert(tracks,
@@ -92,6 +146,8 @@ static libmv_Tracks *libmv_tracks_new(MovieClip *clip, ListBase *tracksbase, int
                            weight);
       }
     }
+
+    MEM_freeN(next_disabled_frame);
 
     track = track->next;
     tracknr++;
@@ -374,7 +430,8 @@ MovieReconstructContext *BKE_tracking_reconstruction_context_new(
   context->sfra = sfra;
   context->efra = efra;
 
-  context->tracks = libmv_tracks_new(clip, &tracking_object->tracks, width, height * aspy);
+  context->tracks = libmv_tracks_new(
+      clip, &tracking_object->tracks, width, height * aspy, sfra, efra);
   context->keyframe1 = keyframe1;
   context->keyframe2 = keyframe2;
   context->refine_flags = reconstruct_refine_intrinsics_get_flags(tracking, tracking_object);

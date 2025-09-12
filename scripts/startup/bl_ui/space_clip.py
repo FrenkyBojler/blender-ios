@@ -454,6 +454,7 @@ class CLIP_PT_tracking_settings_extras(CLIP_PT_tracking_panel, Panel):
 
         col = layout.column()
         col.prop(settings, "default_weight")
+        col.prop(settings, "default_weight_falloff")
         col = layout.column(align=True)
         col.prop(settings, "default_correlation_min")
         col.prop(settings, "default_margin")
@@ -764,6 +765,7 @@ class CLIP_PT_track(CLIP_PT_tracking_panel, Panel):
 
         layout.prop(act_track, "weight")
         layout.prop(act_track, "weight_stab")
+        layout.prop(act_track, "weight_falloff")
 
         if act_track.has_bundle:
             label_text = rpt_("Average Error: {:.2f} px").format(act_track.average_error)
