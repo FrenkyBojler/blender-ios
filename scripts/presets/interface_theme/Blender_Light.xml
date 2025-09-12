@@ -424,10 +424,12 @@
           <ThemeCommonAnim
             playhead="#5680c2"
             preview_range="#a14d0066"
-            channel="#2e639924"
-            channel_sub="#7aa4cc24"
+            channels="#2e639924"
+            channels_sub="#7aa4cc24"
             channel_group="#278c0e37"
             channel_group_active="#4eb33555"
+            channel="#999999ff"
+            channels_selected="#60c04044"
             keyframe="#e8e8e8"
             keyframe_selected="#ffbe33"
             keyframe_extreme="#e8b3cc"
@@ -557,7 +559,6 @@
     <graph_editor>
       <ThemeGraphEditor
         grid="#5e5e5e"
-        channels_region="#999999"
         vertex="#000000"
         vertex_select="#ff8500"
         vertex_active="#ffffff"
@@ -599,7 +600,6 @@
     <nla_editor>
       <ThemeNLAEditor
         grid="#5e5e5e"
-        nla_track="#424242"
         active_action="#cc701a66"
         active_action_unset="#9987614d"
         strips="#0c0a0a"
@@ -632,8 +632,6 @@
     <dopesheet_editor>
       <ThemeDopeSheet
         grid="#4d4d4d"
-        channels="#707070ff"
-        channels_selected="#60c04044"
         keyframe_border="#000000ff"
         keyframe_border_selected="#000000ff"
         keyframe_scale_factor="1"
@@ -935,7 +933,6 @@
         path_keyframe_after="#c4c4ff"
         metadatabg="#000000"
         metadatatext="#ffffff"
-        track_selected="#e7f7e74d"
         >
         <space>
           <ThemeSpaceGeneric
