@@ -188,11 +188,11 @@ void OpaquePass::draw(Manager &manager,
   }
 
   if (shadow_pass) {
-    shadow_depth_stencil_tx.ensure_2d(gpu::TextureFormat::SFLOAT_32_DEPTH_UINT_8,
-                                      resolution,
-                                      GPU_TEXTURE_USAGE_SHADER_READ |
-                                          GPU_TEXTURE_USAGE_ATTACHMENT |
-                                          GPU_TEXTURE_USAGE_FORMAT_VIEW);
+    shadow_depth_stencil_tx.ensure_2d(
+        gpu::TextureFormat::SFLOAT_32_DEPTH_UINT_8,
+        resolution,
+        GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_SHADER_WRITE |
+            GPU_TEXTURE_USAGE_ATTACHMENT | GPU_TEXTURE_USAGE_FORMAT_VIEW);
 
     GPU_texture_copy(shadow_depth_stencil_tx, resources.depth_tx);
     clear_fb.ensure(GPU_ATTACHMENT_TEXTURE(shadow_depth_stencil_tx));

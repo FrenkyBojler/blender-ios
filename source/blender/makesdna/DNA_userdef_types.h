@@ -240,7 +240,8 @@ typedef struct UserDef_Experimental {
   char use_sculpt_texture_paint;
   char use_shader_node_previews;
   char use_geometry_nodes_lists;
-  char _pad[5];
+  char use_workbench_raytraced_shadows;
+  char _pad[4];
 } UserDef_Experimental;
 
 #define USER_EXPERIMENTAL_TEST(userdef, member) (((userdef)->experimental).member)

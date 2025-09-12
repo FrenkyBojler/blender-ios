@@ -513,6 +513,13 @@ int GPU_shader_get_ssbo_binding(blender::gpu::Shader *shader, const char *name)
   return ssbo ? ssbo->location : -1;
 }
 
+int GPU_shader_get_tlas_binding(blender::gpu::Shader *shader, const char *name)
+{
+  const ShaderInterface *interface = shader->interface;
+  const ShaderInput *ssbo = interface->tlas_get(name);
+  return ssbo ? ssbo->location : -1;
+}
+
 int GPU_shader_get_uniform_block(blender::gpu::Shader *shader, const char *name)
 {
   const ShaderInterface *interface = shader->interface;

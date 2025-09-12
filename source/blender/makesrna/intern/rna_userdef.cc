@@ -7480,6 +7480,10 @@ static void rna_def_userdef_experimental(BlenderRNA *brna)
   prop = RNA_def_property(srna, "use_geometry_nodes_lists", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_ui_text(prop, "Geometry Nodes Lists", "Enable new list types and nodes");
 
+  prop = RNA_def_property(srna, "use_workbench_raytraced_shadows", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_ui_text(
+      prop, "Workbench Shadows", "Enable raytraced workbench shadows on supported platforms");
+
   prop = RNA_def_property(srna, "use_extensions_debug", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_ui_text(
       prop,

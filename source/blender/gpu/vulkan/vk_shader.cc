@@ -388,6 +388,9 @@ static void print_resource(std::ostream &os,
       os << "buffer _" << res.storagebuf.name.str_no_array() << " { " << res.storagebuf.type_name
          << " " << res.storagebuf.name << "; };";
       break;
+    case ShaderCreateInfo::Resource::BindType::ACCELERATION_STRUCTURE:
+      os << "uniform accelerationStructureEXT " << res.acceleration_structure.name << ";\n";
+      break;
   }
 }
 
@@ -507,6 +510,7 @@ void VKShader::init(const shader::ShaderCreateInfo &info, bool /*is_codegen_only
   interface = vk_interface;
   is_static_shader_ = info.do_static_compilation_;
   is_compute_shader_ = !info.compute_source_.is_empty() || !info.compute_source_generated.empty();
+  use_ray_query_ = bool(info.builtins_ & BuiltinBits::RAY_QUERY);
 }
 
 VKShader::~VKShader()
@@ -533,16 +537,16 @@ void VKShader::build_shader_module(MutableSpan<StringRefNull> sources,
 
   switch (stage) {
     case shaderc_vertex_shader:
-      source_patch = device.glsl_vertex_patch_get();
+      source_patch = device.glsl_vertex_patch_get(use_ray_query_);
       break;
     case shaderc_geometry_shader:
       source_patch = device.glsl_geometry_patch_get();
       break;
     case shaderc_fragment_shader:
-      source_patch = device.glsl_fragment_patch_get();
+      source_patch = device.glsl_fragment_patch_get(use_ray_query_);
       break;
     case shaderc_compute_shader:
-      source_patch = device.glsl_compute_patch_get();
+      source_patch = device.glsl_compute_patch_get(use_ray_query_);
       break;
     default:
       BLI_assert_msg(0, "Only forced ShaderC shader kinds are supported.");

@@ -278,7 +278,7 @@ void ShaderCreateInfo::finalize(const bool recursive)
   }
 
   if (auto_resource_location_) {
-    int images = 0, samplers = 0, ubos = 0, ssbos = 0;
+    int images = 0, samplers = 0, ubos = 0, ssbos = 0, acceleration_structures = 0;
 
     auto set_resource_slot = [&](Resource &res) {
       switch (res.bind_type) {
@@ -293,6 +293,9 @@ void ShaderCreateInfo::finalize(const bool recursive)
           break;
         case Resource::BindType::IMAGE:
           res.slot = images++;
+          break;
+        case Resource::BindType::ACCELERATION_STRUCTURE:
+          res.slot = acceleration_structures++;
           break;
       }
     };
@@ -425,7 +428,7 @@ void ShaderCreateInfo::validate_merge(const ShaderCreateInfo &other_info)
 {
   if (!auto_resource_location_) {
     /* Check same bind-points usage in OGL. */
-    Set<int> images, samplers, ubos, ssbos;
+    Set<int> images, samplers, ubos, ssbos, acceleration_structures;
 
     auto register_resource = [&](const Resource &res) -> bool {
       switch (res.bind_type) {
@@ -437,6 +440,8 @@ void ShaderCreateInfo::validate_merge(const ShaderCreateInfo &other_info)
           return ubos.add(res.slot);
         case Resource::BindType::IMAGE:
           return ssbos.add(res.slot);
+        case Resource::BindType::ACCELERATION_STRUCTURE:
+          return acceleration_structures.add(res.slot);
         default:
           return false;
       }
@@ -456,6 +461,9 @@ void ShaderCreateInfo::validate_merge(const ShaderCreateInfo &other_info)
             break;
           case Resource::BindType::IMAGE:
             std::cout << "Image " << res.image.name;
+            break;
+          case Resource::BindType::ACCELERATION_STRUCTURE:
+            std::cout << "Acceleration Structure " << res.acceleration_structure.name;
             break;
           default:
             std::cout << "Unknown Type";
@@ -715,6 +723,10 @@ bool gpu_shader_create_info_compile_all(const char *name_starts_with_filter)
             case ShaderCreateInfo::Resource::BindType::IMAGE:
               input = interface->texture_get(res.slot);
               name = res.image.name;
+              break;
+            case ShaderCreateInfo::Resource::BindType::ACCELERATION_STRUCTURE:
+              input = interface->acceleration_structure_get(res.slot);
+              name = res.acceleration_structure.name;
               break;
           }
 

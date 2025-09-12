@@ -260,6 +260,8 @@ class GHOST_DeviceVK {
   VkPhysicalDeviceVulkan12Features features_12 = {};
   VkPhysicalDeviceRobustness2FeaturesEXT features_robustness2 = {
       VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ROBUSTNESS_2_FEATURES_EXT};
+  VkPhysicalDeviceAccelerationStructureFeaturesKHR features_acceleration_structure = {
+      VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR};
 
   int users = 0;
 
@@ -283,6 +285,7 @@ class GHOST_DeviceVK {
     features.pNext = &features_11;
     features_11.pNext = &features_12;
     features_12.pNext = &features_robustness2;
+    features_robustness2.pNext = &features_acceleration_structure;
 
     vkGetPhysicalDeviceFeatures2(vk_physical_device, &features);
     init_extensions();
@@ -708,6 +711,24 @@ struct GHOST_InstanceVK {
         VK_TRUE};
     if (device.extensions.is_enabled(VK_EXT_VERTEX_INPUT_DYNAMIC_STATE_EXTENSION_NAME)) {
       feature_struct_ptr.push_back(&vertex_input_dynamic_state);
+    }
+
+    VkPhysicalDeviceAccelerationStructureFeaturesKHR acceleration_structure = {
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR,
+        nullptr,
+        device.features_acceleration_structure.accelerationStructure,
+        VK_FALSE,
+        VK_FALSE,
+        device.features_acceleration_structure.accelerationStructureHostCommands,
+        VK_FALSE};
+    if (device.extensions.is_enabled(VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME)) {
+      feature_struct_ptr.push_back(&acceleration_structure);
+    }
+
+    VkPhysicalDeviceRayQueryFeaturesKHR ray_query = {
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_QUERY_FEATURES_KHR, nullptr, VK_TRUE};
+    if (device.extensions.is_enabled(VK_KHR_RAY_QUERY_EXTENSION_NAME)) {
+      feature_struct_ptr.push_back(&ray_query);
     }
 
     /* Link all registered feature structs. */
@@ -1656,6 +1677,9 @@ GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
     optional_device_extensions.append(VK_EXT_EXTENDED_DYNAMIC_STATE_EXTENSION_NAME);
 #endif
     optional_device_extensions.append(VK_EXT_VERTEX_INPUT_DYNAMIC_STATE_EXTENSION_NAME);
+    optional_device_extensions.append(VK_KHR_RAY_QUERY_EXTENSION_NAME);
+    optional_device_extensions.append(VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME);
+    optional_device_extensions.append(VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME);
 
     if (!instance_vk.select_physical_device(preferred_device_, required_device_extensions)) {
       return GHOST_kFailure;

@@ -27,6 +27,8 @@ void VKDiscardPool::move_data(VKDiscardPool &src_pool, TimelineValue timeline)
   src_pool.pipelines_.update_timeline(timeline);
   src_pool.pipeline_layouts_.update_timeline(timeline);
   src_pool.descriptor_pools_.update_timeline(timeline);
+  src_pool.acceleration_structures_.update_timeline(timeline);
+
   buffer_views_.extend(std::move(src_pool.buffer_views_));
   buffers_.extend(std::move(src_pool.buffers_));
   image_views_.extend(std::move(src_pool.image_views_));
@@ -35,6 +37,7 @@ void VKDiscardPool::move_data(VKDiscardPool &src_pool, TimelineValue timeline)
   pipelines_.extend(std::move(src_pool.pipelines_));
   pipeline_layouts_.extend(std::move(src_pool.pipeline_layouts_));
   descriptor_pools_.extend(std::move(src_pool.descriptor_pools_));
+  acceleration_structures_.extend(std::move(src_pool.acceleration_structures_));
 }
 
 void VKDiscardPool::discard_image(VkImage vk_image, VmaAllocation vma_allocation)
@@ -84,6 +87,13 @@ void VKDiscardPool::discard_descriptor_pool_for_reuse(VkDescriptorPool vk_descri
   descriptor_pools_.append_timeline(timeline_, std::pair(vk_descriptor_pool, descriptor_pools));
 }
 
+void VKDiscardPool::discard_acceleration_structure(
+    VkAccelerationStructureKHR vk_acceleration_structure)
+{
+  std::scoped_lock mutex(mutex_);
+  acceleration_structures_.append_timeline(timeline_, vk_acceleration_structure);
+}
+
 void VKDiscardPool::destroy_discarded_resources(VKDevice &device, TimelineValue current_timeline)
 {
   std::scoped_lock mutex(mutex_);
@@ -121,6 +131,12 @@ void VKDiscardPool::destroy_discarded_resources(VKDevice &device, TimelineValue 
   descriptor_pools_.remove_old(
       current_timeline, [&](std::pair<VkDescriptorPool, VKDescriptorPools *> descriptor_pool) {
         descriptor_pool.second->recycle(descriptor_pool.first);
+      });
+
+  acceleration_structures_.remove_old(
+      current_timeline, [&](VkAccelerationStructureKHR vk_acceleration_structure) {
+        device.functions.vkDestroyAccelerationStructure(
+            device.vk_handle(), vk_acceleration_structure, nullptr);
       });
 }
 

@@ -326,11 +326,13 @@ void ShadowPass::init(const SceneState &scene_state, SceneResources &resources)
   resources.world_buf.shadow_add = 1.0f - resources.world_buf.shadow_mul;
 }
 
-void ShadowPass::sync()
+void ShadowPass::sync(SceneResources &resources)
 {
   if (!enabled_) {
     return;
   }
+  use_raytracing_ = U.experimental.use_workbench_raytraced_shadows && GPU_ray_query_support() &&
+                    GPU_stencil_export_support();
 
 #if DEBUG_SHADOW_VOLUME
   DRWState state = DRW_STATE_WRITE_COLOR | DRW_STATE_BLEND_ADD_FULL;
@@ -341,6 +343,24 @@ void ShadowPass::sync()
   DRWState depth_pass_state = state | DRW_STATE_WRITE_STENCIL_SHADOW_PASS;
   DRWState depth_fail_state = state | DRW_STATE_WRITE_STENCIL_SHADOW_FAIL;
 #endif
+
+  if (use_raytracing_) {
+    // TODO: we should keep and update previous instance, but that requires local state tracking.
+    // For prototyping we recreate the shadow tlas every draw.
+    shadow_as_ = gpu::TopLevelASPtr(GPU_ray_tracing_tlas_alloc("WorkbenchShadowTLAS"));
+    geometries_as_.clear();
+
+    raytrace_ps_.init();
+    raytrace_ps_.state_set(DRW_STATE_DEPTH_ALWAYS | DRW_STATE_STENCIL_ALWAYS |
+                           DRW_STATE_WRITE_STENCIL);
+    raytrace_ps_.shader_set(ShaderCache::get().shadow_raytrace.get());
+    raytrace_ps_.bind_texture("depth_tx", &resources.depth_tx);
+    raytrace_ps_.bind_ubo("pass_data", pass_data_);
+    raytrace_ps_.bind_tlas("shadow_as", shadow_as_.get());
+    raytrace_ps_.draw_procedural(GPU_PRIM_TRIS, 1, 3);
+
+    return;
+  }
 
   pass_ps_.init();
   pass_ps_.state_set(depth_pass_state);
@@ -387,6 +407,21 @@ void ShadowPass::object_sync(SceneState &scene_state,
   }
 
   Object *ob = ob_ref.object;
+  if (use_raytracing_) {
+    // TODO add object to tlas.
+    blender::gpu::Batch *geom = DRW_cache_object_surface_get(ob);
+    // Position is stored in the second vertex buffer, the first contains corner normals.
+    constexpr int position_attr = 1;
+    if (geom != nullptr && geom->elem != nullptr && geom->verts[position_attr] != nullptr) {
+      gpu::BottomLevelASPtr blas(GPU_ray_tracing_blas_alloc(ob->id.name));
+      blas->add_geometry(*geom->elem, *geom->verts[position_attr]);
+      blas->build();
+      shadow_as_->add_instance(*blas.get(), ob->runtime->object_to_world);
+      geometries_as_.append(std::move(blas));
+    }
+    return;
+  }
+
   bool is_manifold;
   blender::gpu::Batch *geom_shadow = DRW_cache_object_edge_detection_get(ob, &is_manifold);
   if (geom_shadow == nullptr) {
@@ -432,6 +467,16 @@ void ShadowPass::draw(Manager &manager,
                       bool force_fail_method)
 {
   if (!enabled_) {
+    return;
+  }
+
+  if (use_raytracing_) {
+    // TODO: should be moved to end sync....
+    shadow_as_->build();
+    fb_.ensure(GPU_ATTACHMENT_TEXTURE(&depth_stencil_tx));
+    fb_.bind();
+    manager.submit(raytrace_ps_, view);
+    geometries_as_.clear();
     return;
   }
 

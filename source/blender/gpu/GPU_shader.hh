@@ -189,6 +189,7 @@ const char *GPU_shader_get_name(blender::gpu::Shader *shader);
 int GPU_shader_get_ubo_binding(blender::gpu::Shader *shader, const char *name);
 int GPU_shader_get_ssbo_binding(blender::gpu::Shader *shader, const char *name);
 int GPU_shader_get_sampler_binding(blender::gpu::Shader *shader, const char *name);
+int GPU_shader_get_tlas_binding(blender::gpu::Shader *shader, const char *name);
 
 /**
  * Returns uniform location.

@@ -31,6 +31,12 @@ class VKIndexBuffer : public IndexBuf {
   {
     return buffer_get().vk_handle();
   }
+
+  inline bool has_device_address() const
+  {
+    return buffer_get().has_device_address();
+  }
+
   inline VkDeviceAddress device_address_get() const
   {
     return buffer_get().device_address_get();
@@ -52,6 +58,11 @@ class VKIndexBuffer : public IndexBuf {
 static inline VKIndexBuffer *unwrap(IndexBuf *index_buffer)
 {
   return static_cast<VKIndexBuffer *>(index_buffer);
+}
+
+static inline VKIndexBuffer &unwrap(IndexBuf &index_buffer)
+{
+  return static_cast<VKIndexBuffer &>(index_buffer);
 }
 
 }  // namespace blender::gpu

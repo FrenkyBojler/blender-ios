@@ -1,0 +1,502 @@
+#include "vk_ray_tracing.hh"
+
+#include "vk_backend.hh"
+#include "vk_context.hh"
+#include "vk_index_buffer.hh"
+#include "vk_memory_layout.hh"
+#include "vk_state_manager.hh"
+#include "vk_vertex_buffer.hh"
+
+#include "CLG_log.h"
+
+static CLG_LogRef LOG = {"blender.gpu"};
+
+namespace blender::gpu {
+
+/* -------------------------------------------------------------------- */
+/** \name Top level acceleration structure
+ * \{ */
+
+VKTopLevelAS::VKTopLevelAS(const char *name) : TopLevelAS(name), max_primitive_count_(0)
+{
+  build_acceleration_structure_info_.dst_acceleration_structure = VK_NULL_HANDLE;
+
+  render_graph::VKBuildAccelerationStructureNode::Data &node_data =
+      build_acceleration_structure_info_.node_data;
+
+  node_data.vk_acceleration_structure_build_geometry_info = {
+      VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR,
+      nullptr,
+      VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR,
+      VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_BUILD_BIT_KHR |
+          VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_UPDATE_BIT_KHR,
+      VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR,
+      VK_NULL_HANDLE,
+      VK_NULL_HANDLE,
+      1,
+      nullptr,
+      nullptr,
+      0};
+}
+
+VKTopLevelAS::~VKTopLevelAS()
+{
+  VKDiscardPool &discard_pool = VKDiscardPool::discard_pool_get();
+  if (vk_acceleration_structure_) {
+    discard_pool.discard_acceleration_structure(vk_acceleration_structure_);
+    vk_acceleration_structure_ = VK_NULL_HANDLE;
+  }
+  if (buffer_.is_allocated()) {
+    buffer_.free();
+  }
+}
+
+std::optional<InstanceID> VKTopLevelAS::add_instance(const BottomLevelAS &blas_,
+                                                     const float4x4 &mat,
+                                                     const uint8_t mask)
+{
+  BLI_assert_msg(vk_acceleration_structure_ == VK_NULL_HANDLE,
+                 "Adding instances to an existing acceleration structure isn't supported. "
+                 "Updating an existing instance of an acceleration structure is supported via the "
+                 "update_instance methods.");
+
+  VKDevice &device = VKBackend::get().device;
+  const VkPhysicalDeviceAccelerationStructurePropertiesKHR &acceleration_structure_properties =
+      device.physical_device_acceleration_structure_properties_get();
+  if (max_primitive_count_ == acceleration_structure_properties.maxInstanceCount) {
+    CLOG_WARN(&LOG,
+              "Cannot add instance to top level acceleration structure as the number of "
+              "instances is larger than the GPU can handle.");
+    return std::nullopt;
+  }
+
+  const VKBottomLevelAS &blas = unwrap(blas_);
+
+  if (blas.vk_device_address() == 0) {
+    CLOG_ERROR(&LOG,
+               "Cannot add blas to top level acceleration structure as the blas "
+               "doesn't have a device address.");
+    return std::nullopt;
+  }
+  InstanceID instance_id = {max_primitive_count_};
+  instances_.append({{{{mat.x.x, mat.y.x, mat.z.x, mat.w.x},
+                       {mat.x.y, mat.y.y, mat.z.y, mat.w.y},
+                       {mat.x.z, mat.y.z, mat.z.z, mat.w.z}}},
+                     0,    /* instanceCustomIndex */
+                     mask, /* mask */
+                     0,    /* instanceShaderBindingTableRecordOffset */
+                     0,    /* flags */
+                     blas.vk_device_address()});
+  max_primitive_count_ += 1;
+  build_acceleration_structure_info_.src_buffers.add(blas.vk_buffer());
+  is_dirty_ = true;
+
+  return instance_id;
+}
+
+bool VKTopLevelAS::update_instance(InstanceID instance_id, const float4x4 &mat, uint8_t mask)
+{
+  BLI_assert(instance_id.id < max_primitive_count_);
+  if (instance_id.id >= max_primitive_count_) {
+    return false;
+  }
+
+  VkAccelerationStructureInstanceKHR &instance = instances_[instance_id.id];
+  instance.transform.matrix[0][0] = mat.x.x;
+  instance.transform.matrix[0][1] = mat.y.x;
+  instance.transform.matrix[0][2] = mat.z.x;
+  instance.transform.matrix[0][3] = mat.w.x;
+  instance.transform.matrix[1][0] = mat.x.y;
+  instance.transform.matrix[1][1] = mat.y.y;
+  instance.transform.matrix[1][2] = mat.z.y;
+  instance.transform.matrix[1][3] = mat.w.y;
+  instance.transform.matrix[2][0] = mat.x.z;
+  instance.transform.matrix[2][1] = mat.y.z;
+  instance.transform.matrix[2][2] = mat.z.z;
+  instance.transform.matrix[2][3] = mat.w.z;
+  instance.mask = mask;
+
+  is_dirty_ = true;
+  return true;
+}
+
+bool VKTopLevelAS::build()
+{
+  VKDevice &device = VKBackend::get().device;
+  const VkPhysicalDeviceAccelerationStructurePropertiesKHR &acceleration_structure_properties =
+      device.physical_device_acceleration_structure_properties_get();
+
+  const bool do_update = vk_acceleration_structure_ != VK_NULL_HANDLE;
+  if (do_update && !is_dirty_) {
+    return true;
+  }
+
+  /* Create the instances buffer and upload the instance data. */
+  VKContext &context = *VKContext::get();
+  size_t instances_buffer_size = instances_.size() * sizeof(VkAccelerationStructureInstanceKHR);
+  if (!instances_buffer_.is_allocated()) {
+    instances_buffer_.create(
+        instances_buffer_size,
+        VK_BUFFER_USAGE_TRANSFER_DST_BIT |
+            VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR |
+            VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
+        VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
+        0,
+        0.8f);
+    debug::object_label(instances_buffer_.vk_handle(), name_get());
+  }
+
+  /* Update the instances buffer. */
+  /* Make a copy of the instances data as the update render graph takes ownership and needs to
+   * be a guarded allocation. */
+  /* TODO: only use udpate_render_graph for buffers < 64Kb. */
+  BLI_assert(instances_buffer_size < 65536);
+  if (instances_buffer_size != 0) {
+    void *copy_of_data = MEM_mallocN(instances_buffer_size, __func__);
+    memcpy(copy_of_data, instances_.data(), instances_buffer_size);
+    instances_buffer_.update_render_graph(context, copy_of_data);
+  }
+
+  render_graph::VKBuildAccelerationStructureNode::Data &node_data =
+      build_acceleration_structure_info_.node_data;
+  VkAccelerationStructureKHR old_acceleration_structure = vk_acceleration_structure_;
+
+  if (!do_update) {
+    /* Initialize the geometry data with the instances. */
+    node_data.vk_acceleration_structure_build_range_infos.append({max_primitive_count_, 0, 0, 0});
+    VkAccelerationStructureGeometryKHR vk_acceleration_structure_geometry = {
+        VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR,
+        nullptr,
+        VK_GEOMETRY_TYPE_INSTANCES_KHR};
+    vk_acceleration_structure_geometry.geometry.instances = {
+        VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_INSTANCES_DATA_KHR,
+        nullptr,
+        VK_FALSE,
+        {instances_buffer_.device_address_get()}};
+    vk_acceleration_structure_geometry.flags = VK_GEOMETRY_OPAQUE_BIT_KHR;
+    node_data.vk_acceleration_structure_geometries.append(vk_acceleration_structure_geometry);
+  }
+  else {
+    node_data.vk_acceleration_structure_build_geometry_info.mode =
+        VK_BUILD_ACCELERATION_STRUCTURE_MODE_UPDATE_KHR;
+    node_data.vk_acceleration_structure_build_geometry_info.srcAccelerationStructure =
+        old_acceleration_structure;
+  }
+
+  VkAccelerationStructureBuildGeometryInfoKHR build_geometry_infos = {
+      VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR,
+      nullptr,
+      VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR,
+      VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_BUILD_BIT_KHR |
+          VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_UPDATE_BIT_KHR,
+      do_update ? VK_BUILD_ACCELERATION_STRUCTURE_MODE_UPDATE_KHR :
+                  VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR,
+      do_update ? old_acceleration_structure : VK_NULL_HANDLE,
+      VK_NULL_HANDLE,
+      1,
+      node_data.vk_acceleration_structure_geometries.data(),
+      nullptr,
+      0};
+
+  /* Determine acceleration structure + scratch space */
+  VkAccelerationStructureBuildSizesInfoKHR vk_acceleration_structure_build_sizes_info = {
+      VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR};
+  device.functions.vkGetAccelerationStructureBuildSizes(
+      device.vk_handle(),
+      VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR,
+      &build_geometry_infos,
+      &max_primitive_count_,
+      &vk_acceleration_structure_build_sizes_info);
+
+  /* Allocate acceleration structure + backing buffer */
+  if (buffer_.is_allocated()) {
+    buffer_.free();
+  }
+  buffer_.create(vk_acceleration_structure_build_sizes_info.accelerationStructureSize,
+                 VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR |
+                     VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
+                 VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
+                 0,
+                 1.0f,
+                 false);
+  BLI_assert(buffer_.is_allocated());
+  debug::object_label(buffer_.vk_handle(), name_get());
+
+  VkAccelerationStructureCreateInfoKHR vk_acceleration_structure_create_info = {
+      VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR,
+      nullptr,
+      0,
+      buffer_.vk_handle(),
+      0,
+      vk_acceleration_structure_build_sizes_info.accelerationStructureSize,
+      VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR,
+      0};
+  device.functions.vkCreateAccelerationStructure(device.vk_handle(),
+                                                 &vk_acceleration_structure_create_info,
+                                                 nullptr,
+                                                 &vk_acceleration_structure_);
+  BLI_assert(vk_acceleration_structure_ != VK_NULL_HANDLE);
+  debug::object_label(vk_acceleration_structure_, name_get());
+
+  BLI_assert((do_update && vk_device_address_ != 0) || (!do_update && vk_device_address_ == 0));
+  vk_device_address_ = 0;
+  VkAccelerationStructureDeviceAddressInfoKHR vk_acceleration_structure_device_address_info = {
+      VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR,
+      nullptr,
+      vk_acceleration_structure_,
+  };
+  vk_device_address_ = device.functions.vkGetAccelerationStructureDeviceAddress(
+      device.vk_handle(), &vk_acceleration_structure_device_address_info);
+  BLI_assert(vk_device_address_ != 0);
+
+  /* Create scratch space for building */
+  /* TODO: Only create when size differs from previous allocation. */
+  VKBuffer device_scratch_space;
+  device_scratch_space.create(
+      align_allocation_size(
+          do_update ? vk_acceleration_structure_build_sizes_info.updateScratchSize :
+                      vk_acceleration_structure_build_sizes_info.buildScratchSize,
+          acceleration_structure_properties.minAccelerationStructureScratchOffsetAlignment),
+      VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
+      VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
+      VmaAllocationCreateFlags(0),
+      1.0,
+      false);
+  BLI_assert(device_scratch_space.is_allocated());
+  BLI_assert(device_scratch_space.device_address_get());
+  debug::object_label(device_scratch_space.vk_handle(), name_get());
+
+  build_geometry_infos.scratchData.deviceAddress = device_scratch_space.device_address_get();
+  node_data.vk_acceleration_structure_build_geometry_info.scratchData.deviceAddress =
+      align_memory_address(
+          device_scratch_space.device_address_get(),
+          acceleration_structure_properties.minAccelerationStructureScratchOffsetAlignment);
+  node_data.vk_acceleration_structure_build_geometry_info.dstAccelerationStructure =
+      vk_acceleration_structure_;
+  build_acceleration_structure_info_.dst_acceleration_structure = buffer_.vk_handle();
+
+  render_graph::VKRenderGraph &render_graph = context.render_graph();
+  render_graph.add_node(build_acceleration_structure_info_);
+  if (old_acceleration_structure) {
+    context.discard_pool.discard_acceleration_structure(old_acceleration_structure);
+  }
+  is_dirty_ = false;
+
+  return true;
+}
+
+bool VKTopLevelAS::bind(int slot)
+{
+  VKContext &context = *VKContext::get();
+  context.state_manager_get().toplevelas_bind(*this, slot);
+  return true;
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Bottom level acceleration structure
+ * \{ */
+
+VKBottomLevelAS::VKBottomLevelAS(const char *name) : BottomLevelAS(name)
+{
+  build_acceleration_structure_info_.dst_acceleration_structure = VK_NULL_HANDLE;
+
+  render_graph::VKBuildAccelerationStructureNode::Data &node_data =
+      build_acceleration_structure_info_.node_data;
+  node_data.vk_acceleration_structure_build_geometry_info = {
+      VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR,
+      nullptr,
+      VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR,
+      VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR,
+      VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR,
+      VK_NULL_HANDLE,
+      VK_NULL_HANDLE,
+      1,
+      nullptr,
+      nullptr,
+      0};
+}
+
+VKBottomLevelAS::~VKBottomLevelAS()
+{
+  VKDiscardPool &discard_pool = VKDiscardPool::discard_pool_get();
+  if (vk_acceleration_structure_) {
+    discard_pool.discard_acceleration_structure(vk_acceleration_structure_);
+    vk_acceleration_structure_ = VK_NULL_HANDLE;
+  }
+  if (buffer_.is_allocated()) {
+    buffer_.free();
+  }
+}
+
+bool VKBottomLevelAS::add_geometry(IndexBuf &index_buffer_, VertBuf &vertex_buffer_)
+{
+  BLI_assert_msg(vk_acceleration_structure_ == VK_NULL_HANDLE,
+                 "Updating an existing acceleration structure isn't implemented.");
+  VKDevice &device = VKBackend::get().device;
+  const VkPhysicalDeviceAccelerationStructurePropertiesKHR &acceleration_structure_properties =
+      device.physical_device_acceleration_structure_properties_get();
+  if (1 > acceleration_structure_properties.maxGeometryCount) {
+    CLOG_WARN(&LOG,
+              "Cannot add geometry to bottom level acceleration structure as the number of "
+              "geometries is larger than the GPU can handle.");
+    return false;
+  }
+
+  VKVertexBuffer &vertex_buffer = unwrap(vertex_buffer_);
+  VKIndexBuffer &index_buffer = unwrap(index_buffer_);
+  index_buffer.ensure_updated();
+  vertex_buffer.ensure_updated();
+
+  if (!vertex_buffer.has_device_address()) {
+    CLOG_ERROR(&LOG,
+               "Cannot add geometry to bottom level acceleration structure as the vertex buffer "
+               "doesn't have a device address. This could be an out of memory issue.");
+    return false;
+  }
+  if (!index_buffer.has_device_address()) {
+    CLOG_ERROR(&LOG,
+               "Cannot add geometry to bottom level acceleration structure as the index buffer "
+               "doesn't have a device address. This could be an out of memory issue.");
+    return false;
+  }
+  const VkFormat vertex_format = vertex_buffer.to_vk_format();
+  if (vertex_format == VK_FORMAT_UNDEFINED) {
+    CLOG_ERROR(&LOG,
+               "Cannot add geometry to bottom level acceleration structure as the format of the "
+               "vertex buffer cannot be determined.");
+    return false;
+  }
+
+  build_acceleration_structure_info_.node_data.vk_acceleration_structure_geometries.append(
+      {VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR,
+       nullptr,
+       VK_GEOMETRY_TYPE_TRIANGLES_KHR,
+       {
+           VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_TRIANGLES_DATA_KHR,
+           nullptr,
+           vertex_format,
+           {vertex_buffer.device_address_get()},
+           vertex_buffer.format.stride,
+           vertex_buffer.vertex_len - 1,
+           index_buffer.vk_index_type(),
+           index_buffer.device_address_get(),
+           0,
+       },
+       VK_GEOMETRY_OPAQUE_BIT_KHR});
+  const uint32_t num_primitives = uint32_t(index_buffer.index_len_get() / 3);
+  build_acceleration_structure_info_.node_data.vk_acceleration_structure_build_range_infos.append(
+      {num_primitives, 0, index_buffer.index_base_get(), 0});
+  max_primitive_count_per_geometry_.append(num_primitives);
+
+  build_acceleration_structure_info_.src_buffers.add(index_buffer.vk_handle());
+  build_acceleration_structure_info_.src_buffers.add(vertex_buffer.vk_handle());
+
+  return true;
+}
+
+bool VKBottomLevelAS::build()
+{
+  BLI_assert(vk_acceleration_structure_ == VK_NULL_HANDLE);
+  VKDevice &device = VKBackend::get().device;
+  const VkPhysicalDeviceAccelerationStructurePropertiesKHR &acceleration_structure_properties =
+      device.physical_device_acceleration_structure_properties_get();
+
+  render_graph::VKBuildAccelerationStructureNode::Data &node_data =
+      build_acceleration_structure_info_.node_data;
+
+  VkAccelerationStructureBuildGeometryInfoKHR build_geometry_infos = {
+      VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR,
+      nullptr,
+      VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR,
+      VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR,
+      VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR,
+      VK_NULL_HANDLE,
+      VK_NULL_HANDLE,
+      1,
+      node_data.vk_acceleration_structure_geometries.data(),
+      nullptr,
+      0};
+
+  /* Determine acceleration structure + scratch space */
+  VkAccelerationStructureBuildSizesInfoKHR vk_acceleration_structure_build_sizes_info = {
+      VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR};
+  device.functions.vkGetAccelerationStructureBuildSizes(
+      device.vk_handle(),
+      VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR,
+      &build_geometry_infos,
+      max_primitive_count_per_geometry_.data(),
+      &vk_acceleration_structure_build_sizes_info);
+
+  /* Allocate acceleration structure + backing buffer */
+  buffer_.create(vk_acceleration_structure_build_sizes_info.accelerationStructureSize,
+                 VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR |
+                     VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
+                 VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
+                 0,
+                 1.0f,
+                 false);
+  BLI_assert(buffer_.is_allocated());
+  debug::object_label(buffer_.vk_handle(), name_get());
+
+  VkAccelerationStructureCreateInfoKHR vk_acceleration_structure_create_info = {
+      VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR,
+      nullptr,
+      0,
+      buffer_.vk_handle(),
+      0,
+      vk_acceleration_structure_build_sizes_info.accelerationStructureSize,
+      VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR,
+      0};
+  device.functions.vkCreateAccelerationStructure(device.vk_handle(),
+                                                 &vk_acceleration_structure_create_info,
+                                                 nullptr,
+                                                 &vk_acceleration_structure_);
+  BLI_assert(vk_acceleration_structure_ != VK_NULL_HANDLE);
+  debug::object_label(vk_acceleration_structure_, name_get());
+
+  BLI_assert(vk_device_address_ == 0);
+  VkAccelerationStructureDeviceAddressInfoKHR vk_acceleration_structure_device_address_info = {
+      VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR,
+      nullptr,
+      vk_acceleration_structure_,
+  };
+  vk_device_address_ = device.functions.vkGetAccelerationStructureDeviceAddress(
+      device.vk_handle(), &vk_acceleration_structure_device_address_info);
+  BLI_assert(vk_device_address_ != 0);
+
+  /* Create scratch space for building */
+  VKBuffer device_scratch_space;
+  device_scratch_space.create(
+      align_allocation_size(
+          vk_acceleration_structure_build_sizes_info.buildScratchSize,
+          acceleration_structure_properties.minAccelerationStructureScratchOffsetAlignment),
+      VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
+      VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
+      0,
+      1.0,
+      false);
+  BLI_assert(device_scratch_space.is_allocated());
+  BLI_assert(device_scratch_space.device_address_get());
+  debug::object_label(device_scratch_space.vk_handle(), name_get());
+
+  build_geometry_infos.scratchData.deviceAddress = device_scratch_space.device_address_get();
+  node_data.vk_acceleration_structure_build_geometry_info.scratchData.deviceAddress =
+      align_memory_address(
+          device_scratch_space.device_address_get(),
+          acceleration_structure_properties.minAccelerationStructureScratchOffsetAlignment);
+  node_data.vk_acceleration_structure_build_geometry_info.dstAccelerationStructure =
+      vk_acceleration_structure_;
+  build_acceleration_structure_info_.dst_acceleration_structure = buffer_.vk_handle();
+
+  VKContext &context = *VKContext::get();
+  render_graph::VKRenderGraph &render_graph = context.render_graph();
+  render_graph.add_node(build_acceleration_structure_info_);
+
+  return true;
+}
+
+/** \} */
+
+}  // namespace blender::gpu

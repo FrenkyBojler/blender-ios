@@ -16,6 +16,7 @@
 #include "workbench_shader_shared.hh"
 
 #include "GPU_capabilities.hh"
+#include "GPU_ray_tracing.hh"
 
 namespace blender::workbench {
 
@@ -104,6 +105,8 @@ class ShaderCache {
   StaticShader smaa_aa_weight = {"workbench_smaa_stage_1"};
   StaticShader smaa_resolve = {"workbench_smaa_stage_2"};
   StaticShader overlay_depth = {"workbench_overlay_depth"};
+
+  StaticShader shadow_raytrace = {"workbench_shadow_raytrace"};
 };
 
 struct Material {
@@ -415,6 +418,7 @@ class ShadowPass {
   } view_ = {};
 
   bool enabled_;
+  bool use_raytracing_;
 
   UniformBuffer<ShadowPassData> pass_data_ = {};
 
@@ -424,6 +428,10 @@ class ShadowPass {
 
   /* In some cases, we know beforehand that we need to use the fail technique */
   PassMain forced_fail_ps_ = {"Shadow.ForcedFail"};
+
+  PassSimple raytrace_ps_ = {"Shadow.RayQuery"};
+  gpu::TopLevelASPtr shadow_as_;
+  Vector<gpu::BottomLevelASPtr> geometries_as_;
 
   /* [PassType][Is Manifold][Is Cap] */
   PassMain::Sub *passes_[PassType::MAX][2][2] = {{{nullptr}}};
@@ -435,7 +443,7 @@ class ShadowPass {
  public:
   void init(const SceneState &scene_state, SceneResources &resources);
   void update();
-  void sync();
+  void sync(SceneResources &resources);
   void object_sync(SceneState &scene_state,
                    ObjectRef &ob_ref,
                    ResourceHandleRange handle,
