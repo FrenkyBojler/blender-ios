@@ -2204,8 +2204,8 @@ void BLO_write_shared(BlendWriter *writer,
       if (memfile.shared_storage == nullptr) {
         memfile.shared_storage = MEM_new<MemFileSharedStorage>(__func__);
       }
-      if (memfile.shared_storage->sharing_info_by_address_id.add(address_id, sharing_info)) {
-        memfile.shared_storage->data_by_address_id.add(address_id, data);
+      if (memfile.shared_storage->sharing_info_by_address_id.add(address_id, {sharing_info, data}))
+      {
         /* The undo-step takes (shared) ownership of the data, which also makes it immutable. */
         sharing_info->add_user();
         /* This size is an estimate, but good enough to count data with many users less. */
