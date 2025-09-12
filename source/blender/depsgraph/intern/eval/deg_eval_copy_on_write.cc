@@ -755,8 +755,9 @@ ID *deg_expand_eval_copy_datablock(const Depsgraph *depsgraph, const IDNode *id_
 
   /* Sanity checks.
    *
-   * At this point, `id_cow` is essentially considered as a (partially dirty) allocated buffer. It
-   * is not expected to have any valid sub-data, not even a valid `ID::runtime` pointer.
+   * At this point, `id_cow` is essentially considered as a (partially dirty) allocated buffer (it
+   * has been freed, but not fully cleared, as a result of calling #deg_free_eval_copy_datablock on
+   * it). It is not expected to have any valid sub-data, not even a valid `ID::runtime` pointer.
    */
   BLI_assert(check_datablock_expanded(id_cow) == false);
   BLI_assert(id_cow->py_instance == nullptr);

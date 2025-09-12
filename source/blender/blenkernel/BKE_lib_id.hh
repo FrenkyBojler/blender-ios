@@ -77,13 +77,13 @@ struct ID_Runtime {
    * copied-on-eval by the depsgraph. Additional data-blocks created during depsgraph evaluation
    * are not owned by any specific depsgraph and thus this pointer is null for those.
    */
-  struct Depsgraph *depsgraph = nullptr;
+  Depsgraph *depsgraph = nullptr;
 
   /**
    * This data is only allocated & used during the readfile process. After that, the memory is
    * freed and the pointer set to `nullptr`.
    */
-  struct ID_Readfile_Data *readfile_data = nullptr;
+  ID_Readfile_Data *readfile_data = nullptr;
 };
 
 }  // namespace blender::bke::id
@@ -132,6 +132,9 @@ void BKE_libblock_init_empty(ID *id) ATTR_NONNULL(1);
 
 /**
  * Ensure that the given ID does have a valid runtime data.
+ *
+ * Low-level API, should not be needed in typical ID usages, where ID::runtime can always be
+ * assumed valid.
  */
 void BKE_libblock_runtime_ensure(ID &id);
 

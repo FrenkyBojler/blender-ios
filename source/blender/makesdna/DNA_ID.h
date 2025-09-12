@@ -477,7 +477,13 @@ typedef struct ID {
 
   /**
    * Allocated runtime data, never written on disk or in undo steps.
-   * _Always_ valid (outside of internal ID management code).
+   *
+   * _Always_ valid for code handling IDs managed by the `BKE_lib_id` API.
+   *
+   * Internal low-level implementation of ID creation/copying/deletion, and code handling IDs
+   * themselves in non-standard ways (mainly the CoW IDs in depsgraph, and some temporary IDs in
+   * readfile) may have to manage this pointer themselves (see also #BKE_libblock_runtime_ensure
+   * and #BKE_libblock_free_runtime_data).
    */
   ID_RuntimeHandle *runtime;
 } ID;
