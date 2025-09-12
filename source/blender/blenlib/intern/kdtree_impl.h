@@ -967,6 +967,8 @@ int BLI_kdtree_nd_(calc_duplicates_stable)(const KDTree *tree,
   for (uint i = 0; i < nodes_len; i++) {
     const int current_idx = tree->nodes[i].index;
 
+    BLI_assert(cluster.is_empty() && to_visit.is_empty());
+
     if (visited[current_idx]) {
       continue;
     }
@@ -975,9 +977,6 @@ int BLI_kdtree_nd_(calc_duplicates_stable)(const KDTree *tree,
       visited[current_idx] = true;
       continue;
     }
-
-    cluster.clear();
-    to_visit.clear();
 
     to_visit.append(current_idx);
     visited[current_idx] = true;
@@ -1002,44 +1001,46 @@ int BLI_kdtree_nd_(calc_duplicates_stable)(const KDTree *tree,
       BLI_kdtree_nd_(range_search_cb_cpp)(tree, search_co, range, cb);
     }
 
-    if (cluster.size() <= 1) {
-      continue;
-    }
+    if (cluster.size() > 1) {
+      /* Compute centroid of the cluster. */
+      float centroid[KD_DIMS] = {0.0f};
+      for (int idx : cluster) {
+        const float *co = tree->nodes[index_lookup[idx]].co;
+        for (uint d = 0; d < KD_DIMS; d++) {
+          centroid[d] += co[d];
+        }
+      }
 
-    /* Compute centroid of the cluster. */
-    float centroid[KD_DIMS] = {0.0f};
-    for (int idx : cluster) {
-      const float *co = tree->nodes[index_lookup[idx]].co;
+      const float inv_size = 1.0f / (float)cluster.size();
       for (uint d = 0; d < KD_DIMS; d++) {
-        centroid[d] += co[d];
+        centroid[d] *= inv_size;
+      }
+
+      /* Choose survivor: lowest index in cluster. */
+      int survivor_idx = cluster[0];
+      for (int idx : cluster) {
+        if (idx < survivor_idx) {
+          survivor_idx = idx;
+        }
+      }
+
+      /* Write centroid for this survivor. */
+      copy_vn_vn(r_survivor_cos[survivor_idx], centroid);
+
+      /* Assign duplicates mapping. */
+      duplicates[survivor_idx] = survivor_idx;
+      for (int idx : cluster) {
+        if (idx != survivor_idx) {
+          duplicates[idx] = survivor_idx;
+          found++;
+        }
       }
     }
 
-    const float inv_size = 1.0f / (float)cluster.size();
-    for (uint d = 0; d < KD_DIMS; d++) {
-      centroid[d] *= inv_size;
-    }
-
-    /* Choose survivor: lowest index in cluster. */
-    int survivor_idx = cluster[0];
-    for (int idx : cluster) {
-      if (idx < survivor_idx) {
-        survivor_idx = idx;
-      }
-    }
-
-    /* Write centroid for this survivor. */
-    copy_vn_vn(r_survivor_cos[survivor_idx], centroid);
-
-    /* Assign duplicates mapping. */
-    duplicates[survivor_idx] = survivor_idx;
-    for (int idx : cluster) {
-      if (idx != survivor_idx) {
-        duplicates[idx] = survivor_idx;
-        found++;
-      }
-    }
+    cluster.clear();
+    to_visit.clear();
   }
+
   return found;
 }
 
