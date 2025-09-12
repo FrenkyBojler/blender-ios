@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-import bpy
+import bpy, random
 
 from typing import Tuple, Optional, Sequence, Any
 
@@ -51,11 +51,76 @@ def poll_trigger_action(_self, action):
 
 
 class ActionSlot(PropertyGroup, ActionSlotBase):
+    def update_ui(self, context):
+        if not self.action:
+            return
+        # Initialize the unique ID the first time an Action is set.
+        self.unique_id
+        # Set the first slot if none are set.
+        if self.action and self.action.slots and not self.action_slot:
+            self.action_slot = self.action.slots[0]
+        self['name'] = self.get_name_transform()
+
     action: PointerProperty(
         name="Action",
         type=Action,
-        description="Action to apply to the rig via constraints"
+        description="Action to apply to the rig via constraints",
+        update=update_ui,
     )
+
+    def slot_name_from_handle(self, curr_value, _is_set) -> str:
+        try:
+            curr_value = int(curr_value)
+        except:
+            return ""
+        action_slot = next((s for s in self.action.slots if s.handle==curr_value), None)
+        if not action_slot:
+            return ""
+        return action_slot.name_display
+
+    def slot_name_to_handle(self, new_value, curr_value, _is_set)  -> str:
+        action_slot = next((s for s in self.action.slots if s.name_display==new_value and s.identifier.startswith("OB")), None)
+        if not action_slot:
+            return ""
+        return str(action_slot.handle)
+
+    action_slot_ui: StringProperty(
+        name="Acion Slot",
+        description="Slot of the Action to use for the Action Constraints",
+        get_transform=slot_name_from_handle,
+        set_transform=slot_name_to_handle,
+        update=update_ui,
+    )
+
+    @property
+    def unique_id(self) -> int:
+        if not self.action and 'unique_id' not in self:
+            return 0
+        if 'unique_id' in self and self['unique_id'] != 0:
+            return self.get('unique_id')
+        else:
+            self['unique_id'] = random.randint(0, 100_000_000)
+        return self['unique_id']
+
+    @property
+    def action_slot(self):
+        return self.action.slots.get("OB"+self.action_slot_ui)
+
+    @action_slot.setter
+    def action_slot(self, slot):
+        if slot:
+            self.action_slot_ui = slot.name_display
+
+    def get_name_transform(self):
+        if self.action:
+            name = self.action.name
+            if self.action_slot and len(self.action.slots) > 1:
+                name += " ➔ " + self.action_slot.name_display
+        else:
+            name = str(self.unique_id)
+        return name
+
+    name: StringProperty(get=get_name_transform)
 
     enabled: BoolProperty(
         name="Enabled",
@@ -135,6 +200,8 @@ class ActionSlot(PropertyGroup, ActionSlotBase):
                     "to the last frame. Rotations are in degrees"
     )
 
+    ### Corrective Action properties
+
     is_corrective: BoolProperty(
         name="Corrective",
         description="Indicate that this is a corrective action. Corrective actions will activate "
@@ -142,44 +209,55 @@ class ActionSlot(PropertyGroup, ActionSlotBase):
                     "are at their End Frame, and Start Frame if either is at Start Frame)"
     )
 
-    trigger_action_a: PointerProperty(
-        name="Trigger A",
-        type=Action,
-        description="Action whose activation will trigger the corrective action",
-        poll=poll_trigger_action
-    )
+    def setup_id_to_str(self, curr_value, _is_set):
+        try:
+            curr_value = int(curr_value)
+        except:
+            return ""
+        action_setups = self.id_data.rigify_action_slots
+        action_setup = next((setup for setup in action_setups if setup.unique_id==curr_value), None)
+        if not action_setup:
+            return ""
+        return action_setup.name
+    def setup_name_to_id(self, new_value, _curr_value, _is_set):
+        action_setups = self.id_data.rigify_action_slots
+        action_setup = next((setup for setup in action_setups if setup.name==new_value), None)
+        if not action_setup:
+            return ""
+        return str(action_setup.unique_id)
 
-    trigger_action_b: PointerProperty(
-        name="Trigger B",
-        description="Action whose activation will trigger the corrective action",
-        type=Action,
-        poll=poll_trigger_action
+    trigger_select_a: StringProperty(
+        name="Trigger A",
+        description="Action Set-up whose activation will trigger this set-up as a corrective",
+        get_transform=setup_id_to_str,
+        set_transform=setup_name_to_id,
     )
+    trigger_select_b: StringProperty(
+        name="Trigger B",
+        description="Action Set-up whose activation will trigger this set-up as a corrective",
+        get_transform=setup_id_to_str,
+        set_transform=setup_name_to_id,
+    )
+    @property
+    def trigger_a(self):
+        action_setups = self.id_data.rigify_action_slots
+        return next((setup for setup in action_setups if setup.name == self.trigger_select_a), None)
+
+    @trigger_a.setter
+    def trigger_a(self, action_setup):
+        self.trigger_select_a = action_setup.name if action_setup else ""
+
+    @property
+    def trigger_b(self):
+        action_setups = self.id_data.rigify_action_slots
+        return next((setup for setup in action_setups if setup.name == self.trigger_select_b), None)
+
+    @trigger_b.setter
+    def trigger_b(self, action_setup):
+        self.trigger_select_b = action_setup.name if action_setup else ""
 
     show_action_a: BoolProperty(name="Show Settings")
     show_action_b: BoolProperty(name="Show Settings")
-
-
-def find_slot_by_action(metarig_data: Armature, action) -> Tuple[Optional[ActionSlot], int]:
-    """Find the ActionSlot in the rig which targets this action."""
-    if not action:
-        return None, -1
-
-    for i, slot in enumerate(get_action_slots(metarig_data)):
-        if slot.action == action:
-            return slot, i
-    else:
-        return None, -1
-
-
-def find_duplicate_slot(metarig_data: Armature, action_slot: ActionSlot) -> Optional[ActionSlot]:
-    """Find a different ActionSlot in the rig which has the same action."""
-
-    for slot in get_action_slots(metarig_data):
-        if slot.action == action_slot.action and slot != action_slot:
-            return slot
-
-    return None
 
 
 # =============================================
@@ -213,11 +291,15 @@ class RIGIFY_OT_jump_to_action_slot(Operator):
     bl_label = "Jump to Action Slot"
     bl_options = {'REGISTER', 'UNDO', 'INTERNAL'}
 
-    to_index: IntProperty()
+    to_unique_id: IntProperty()
 
     def execute(self, context):
         armature_id_store = context.object.data
-        armature_id_store.rigify_active_action_slot = self.to_index
+        for i, action_setup in enumerate(armature_id_store.rigify_action_slots):
+            if action_setup.unique_id == self.to_unique_id:
+                armature_id_store.rigify_active_action_slot = i
+                break
+        self.report({'INFO'}, f'Set active action set-up index to {i}.')
         return {'FINISHED'}
 
 
@@ -238,35 +320,26 @@ class RIGIFY_UL_action_slots(UIList):
 
             # Check if this action is a trigger for the active corrective action
             if active_action.is_corrective and \
-                action_slot.action in [active_action.trigger_action_a,
-                                        active_action.trigger_action_b]:
+                action_slot in [active_action.trigger_a,
+                                active_action.trigger_b]:
                 icon = 'RESTRICT_INSTANCED_OFF'
 
             # Check if the active action is a trigger for this corrective action.
             if action_slot.is_corrective and \
-                active_action.action in [action_slot.trigger_action_a,
-                                            action_slot.trigger_action_b]:
+                active_action in [action_slot.trigger_a,
+                                    action_slot.trigger_b]:
                 icon = 'RESTRICT_INSTANCED_OFF'
 
-            row.prop(action_slot.action, 'name', text="", emboss=False, icon=icon)
+            row.label(text=action_slot.name, icon=icon)
 
             # Highlight various errors
-
-            if find_duplicate_slot(data, action_slot):
-                # Multiple entries for the same action
-                row.alert = True
-                row.label(text="Duplicate", icon='ERROR')
-
-            elif action_slot.is_corrective:
+            if action_slot.is_corrective:
                 text = "Corrective"
                 icon = 'RESTRICT_INSTANCED_OFF'
 
-                for trigger in [action_slot.trigger_action_a,
-                                action_slot.trigger_action_b]:
-                    trigger_slot, trigger_idx = find_slot_by_action(data, trigger)
-
+                for trigger in [action_slot.trigger_a, action_slot.trigger_b]:
                     # No trigger action set, no slot or invalid slot
-                    if not trigger_slot or trigger_slot.is_corrective:
+                    if not trigger or trigger.is_corrective:
                         row.alert = True
                         text = "No Trigger Action"
                         icon = 'ERROR'
@@ -346,10 +419,16 @@ class DATA_PT_rigify_actions(Panel):
 
         active_slot = action_slots[active_idx]
 
-        layout.template_ID(active_slot, 'action', new=RIGIFY_OT_action_create.bl_idname)
-
+        col = layout.column(align=True)
+        col.template_ID(active_slot, 'action', new=RIGIFY_OT_action_create.bl_idname)
         if not active_slot.action:
             return
+        elif len(active_slot.action.slots)==0:
+            layout.alert = True
+            layout.label(text="No slots in this Action.")
+            return
+        else:
+            col.prop_search(active_slot, "action_slot_ui", active_slot.action, 'slots', text="")
 
         layout = layout.column()
         layout.prop(active_slot, 'is_corrective')
@@ -368,7 +447,7 @@ class DATA_PT_rigify_actions(Panel):
         layout.prop(slot, 'frame_end', text="End")
         layout.separator()
 
-        for trigger_prop in ['trigger_action_a', 'trigger_action_b']:
+        for trigger_prop in ['trigger_select_a', 'trigger_select_b']:
             self.draw_ui_trigger(context, slot, trigger_prop)
 
     def draw_ui_trigger(self, context: Context, slot, trigger_prop: str):
@@ -376,18 +455,17 @@ class DATA_PT_rigify_actions(Panel):
         metarig = context.object
         assert isinstance(metarig.data, Armature)
 
-        trigger = getattr(slot, trigger_prop)
+        trigger = getattr(slot, trigger_prop.replace("select_", ""))
         icon = 'ACTION' if trigger else 'ERROR'
 
         row = layout.row()
-        row.prop(slot, trigger_prop, icon=icon)
+        try:
+            active_slot = metarig.data.rigify_action_slots[metarig.data.rigify_active_action_slot]
+        except IndexError:
+            return
+        row.prop_search(active_slot, trigger_prop, metarig.data, 'rigify_action_slots', icon=icon)
 
         if not trigger:
-            return
-
-        trigger_slot, slot_index = find_slot_by_action(metarig.data, trigger)
-
-        if not trigger_slot:
             row = layout.split(factor=0.4)
             row.separator()
             row.alert = True
@@ -401,13 +479,13 @@ class DATA_PT_rigify_actions(Panel):
         row.prop(slot, show_prop_name, icon=icon, text="")
 
         op = row.operator(RIGIFY_OT_jump_to_action_slot.bl_idname, text="", icon='LOOP_FORWARDS')
-        op.to_index = slot_index
+        op.to_unique_id = trigger.unique_id
 
         if show:
             col = layout.column(align=True)
             col.enabled = False
             target_rig = get_rigify_target_rig(metarig.data)
-            self.draw_slot_ui(col, trigger_slot, target_rig)
+            self.draw_slot_ui(col, trigger, target_rig)
             col.separator()
 
     @staticmethod
