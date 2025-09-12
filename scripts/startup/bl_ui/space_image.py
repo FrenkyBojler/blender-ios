@@ -474,7 +474,7 @@ class IMAGE_MT_uvs(Menu):
         layout.operator_context = 'INVOKE_REGION_WIN'
         layout.operator("uv.custom_region_set")
         layout.operator_context = 'EXEC_REGION_WIN'
-        layout.prop(context.tool_settings, "use_custom_region", text="Custom Region", toggle=True)
+        layout.prop(context.tool_settings, "use_uv_custom_region", text="Custom Region", toggle=True)
 
         layout.separator()
 

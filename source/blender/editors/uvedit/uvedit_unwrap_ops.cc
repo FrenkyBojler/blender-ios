@@ -10,7 +10,6 @@
 #include <cstdlib>
 #include <cstring>
 
-#include "BLI_math_vector_types.hh"
 #include "MEM_guardedalloc.h"
 
 #include "DNA_defaults.h"
@@ -76,7 +75,6 @@
 
 #include "uvedit_intern.hh"
 
-using blender::float2;
 using blender::Span;
 using blender::Vector;
 using blender::geometry::ParamHandle;
@@ -1440,7 +1438,7 @@ static void uvedit_pack_islands_multi(const Scene *scene,
                                       const SpaceImage *udim_source_closest,
                                       const bool original_selection,
                                       const bool notify_wm,
-                                      rctf *custom_region,
+                                      const rctf *custom_region,
                                       blender::geometry::UVPackIsland_Params *params)
 {
   blender::Vector<FaceIsland *> island_vector;
@@ -1517,7 +1515,6 @@ static void uvedit_pack_islands_multi(const Scene *scene,
   /* Center of bounding box containing all selected UVs. */
   float selection_center[2];
   mid_v2_v2v2(selection_center, selection_min_co, selection_max_co);
-
   if (original_selection) {
     /* Protect against degenerate source AABB. */
     if ((selection_max_co[0] - selection_min_co[0]) * (selection_max_co[1] - selection_min_co[1]) >
@@ -1531,10 +1528,13 @@ static void uvedit_pack_islands_multi(const Scene *scene,
   }
   else if (custom_region) {
     if (!BLI_rctf_is_empty(custom_region)) {
-      copy_v2_v2(params->udim_base_offset, float2(custom_region->xmin, custom_region->ymin));
-      params->target_extent = custom_region->ymax - custom_region->ymin;
-      params->target_aspect_y = (custom_region->xmax - custom_region->xmin) /
-                                (custom_region->ymax - custom_region->ymin);
+      const blender::float2 custom_region_size = {
+          BLI_rctf_size_x(custom_region),
+          BLI_rctf_size_y(custom_region),
+      };
+      ARRAY_SET_ITEMS(params->udim_base_offset, custom_region->xmin, custom_region->ymin);
+      params->target_extent = custom_region_size.y;
+      params->target_aspect_y = custom_region_size.x / custom_region_size.y;
     }
   }
 
@@ -1756,6 +1756,9 @@ static wmOperatorStatus pack_islands_exec(bContext *C, wmOperator *op)
 
   /* RNA props */
   const int udim_source = RNA_enum_get(op->ptr, "udim_source");
+  if (udim_source == PACK_CUSTOM_REGION && !(ts->uv_flag & UV_FLAG_CUSTOM_REGION)) {
+    return OPERATOR_CANCELLED;
+  }
   if (RNA_struct_property_is_set(op->ptr, "margin")) {
     scene->toolsettings->uvcalc_margin = RNA_float_get(op->ptr, "margin");
   }
@@ -1904,11 +1907,9 @@ static const EnumPropertyItem pinned_islands_method_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-static void uv_pack_islands_ui(bContext *C, wmOperator *op)
+static void uv_pack_islands_ui(bContext * /*C*/, wmOperator *op)
 {
   uiLayout *layout = op->layout;
-  Scene *scene = CTX_data_scene(C);
-  ARegion *region = CTX_wm_region(C);
   layout->use_property_split_set(true);
   layout->use_property_decorate_set(false);
   layout->prop(op->ptr, "shape_method", UI_ITEM_NONE, std::nullopt, ICON_NONE);
@@ -1932,13 +1933,6 @@ static void uv_pack_islands_ui(bContext *C, wmOperator *op)
   }
   layout->prop(op->ptr, "merge_overlap", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   layout->prop(op->ptr, "udim_source", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  const int udim_source = RNA_enum_get(op->ptr, "udim_source");
-  ToolSettings *ts = scene->toolsettings;
-  if (udim_source == PACK_CUSTOM_REGION && !(ts->uv_flag & UV_FLAG_CUSTOM_REGION)) {
-    ts->uv_custom_region = {0.0f, 1.0f, 0.0f, 1.0f};
-    ts->uv_flag |= UV_FLAG_CUSTOM_REGION;
-    ED_region_tag_redraw(region);
-  }
   layout->separator();
 }
 
