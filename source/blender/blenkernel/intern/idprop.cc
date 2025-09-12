@@ -1994,6 +1994,12 @@ const IDProperty *_IDP_assert_type_and_subtype(const IDProperty *prop,
   BLI_assert((prop->type == ty) && (prop->subtype == sub_ty));
   return prop;
 }
+
+const IDProperty *_IDP_assert_type_mask(const IDProperty *prop, const int ty_mask)
+{
+  BLI_assert(1 << int(prop->type) & ty_mask);
+  return prop;
+}
 #endif /* !NDEBUG */
 
 /** \} */

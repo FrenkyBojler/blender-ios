@@ -2550,7 +2550,7 @@ static bool property_boolean_get(PointerRNA *ptr, PropertyRNAOrID &prop_rna_or_i
 {
   if (prop_rna_or_id.idprop) {
 #ifdef USE_INT_IDPROPS_FOR_BOOLEAN_RNA_PROP
-    return IDP_int_get(prop_rna_or_id.idprop);
+    return IDP_int_or_bool_get(prop_rna_or_id.idprop);
 #else
     return IDP_bool_get(prop_rna_or_id.idprop);
 #endif
@@ -2604,7 +2604,7 @@ void RNA_property_boolean_set(PointerRNA *ptr, PropertyRNA *prop, bool value)
 
   if (idprop) {
 #ifdef USE_INT_IDPROPS_FOR_BOOLEAN_RNA_PROP
-    IDP_int_set(idprop, value);
+    IDP_int_or_bool_set(idprop, value);
 #else
     IDP_bool_set(idprop, value);
 #endif

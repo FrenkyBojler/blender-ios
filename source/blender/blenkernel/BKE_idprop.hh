@@ -296,9 +296,12 @@ void IDP_Reset(IDProperty *prop, const IDProperty *reference);
 #ifndef NDEBUG
 const IDProperty *_IDP_assert_type(const IDProperty *prop, char ty);
 const IDProperty *_IDP_assert_type_and_subtype(const IDProperty *prop, char ty, char sub_ty);
+const IDProperty *_IDP_assert_type_mask(const IDProperty *prop, int ty_mask);
+
 #else
 #  define _IDP_assert_type(prop, ty) (prop)
 #  define _IDP_assert_type_and_subtype(prop, ty, sub_ty) (prop)
+#  define _IDP_assert_type_mask(prop, ty_mask) (prop)
 #endif
 
 #define IDP_int_get(prop) (_IDP_assert_type(prop, IDP_INT)->data.val)
@@ -315,6 +318,16 @@ const IDProperty *_IDP_assert_type_and_subtype(const IDProperty *prop, char ty, 
   { \
     IDProperty *prop_ = (prop); \
     BLI_assert(prop_->type == IDP_BOOLEAN); \
+    prop_->data.val = value; \
+  } \
+  ((void)0)
+
+#define IDP_int_or_bool_get(prop) \
+  (_IDP_assert_type_mask(prop, (1 << IDP_INT) | (1 << IDP_BOOLEAN))->data.val)
+#define IDP_int_or_bool_set(prop, value) \
+  { \
+    IDProperty *prop_ = (prop); \
+    BLI_assert(ELEM(prop_->type, IDP_INT, IDP_BOOLEAN)); \
     prop_->data.val = value; \
   } \
   ((void)0)
