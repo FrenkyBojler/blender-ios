@@ -314,6 +314,11 @@ void GPUCodegen::generate_library()
     auto deps = gpu_shader_dependency_get_resolved_source(key.c_str(), {});
     info.dependencies_generated.extend_non_duplicates(deps);
   }
+
+  for (auto &dep : info.dependencies_generated) {
+    std::cout << "dep " << dep.substr(0, 18) << std::endl;
+  }
+  std::cout << std::endl;
 }
 
 void GPUCodegen::node_serialize(std::stringstream &eval_ss, const GPUNode *node)

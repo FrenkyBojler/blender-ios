@@ -7,8 +7,19 @@
  * Comment out for correct compilation error line. */
 #line 9
 
-#include "gpu_shader_math_matrix_lib.glsl"
 #include "gpu_shader_test_lib.glsl"
+
+#include "gpu_shader_math_axis_angle_lib.glsl"
+#include "gpu_shader_math_euler_lib.glsl"
+#include "gpu_shader_math_matrix_construct_lib.glsl"
+#include "gpu_shader_math_matrix_interpolate_lib.glsl"
+#include "gpu_shader_math_matrix_lib.glsl"
+#include "gpu_shader_math_matrix_normalize_lib.glsl"
+#include "gpu_shader_math_matrix_projection_lib.glsl"
+#include "gpu_shader_math_matrix_transform_lib.glsl"
+#include "gpu_shader_math_quaternion_lib.glsl"
+#include "gpu_shader_math_rotation_conversion_lib.glsl"
+#include "gpu_shader_math_rotation_lib.glsl"
 
 #define TEST(a, b) if (true)
 

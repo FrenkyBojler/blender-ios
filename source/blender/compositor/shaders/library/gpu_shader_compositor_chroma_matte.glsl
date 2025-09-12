@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "gpu_shader_common_color_utils.glsl"
-#include "gpu_shader_math_matrix_lib.glsl"
 
 /* Algorithm from the book Video Demystified. Chapter 7. Chroma Keying. */
 void node_composite_chroma_matte(float4 color,

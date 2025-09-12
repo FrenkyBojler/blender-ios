@@ -5,7 +5,7 @@
 #pragma once
 
 #include "eevee_shadow_tilemap_lib.glsl"
-#include "gpu_shader_math_matrix_lib.glsl"
+
 #include "gpu_shader_utildefines_lib.glsl"
 
 #define EEVEE_SHADOW_LIB

@@ -4,7 +4,8 @@
 
 #pragma once
 
-#include "gpu_shader_math_base_lib.glsl"
+#include "gpu_glsl_cpp_stubs.hh"
+#include "gpu_shader_math_constants_lib.glsl"
 
 /* WORKAROUND: to guard against double include in EEVEE. */
 #ifndef GPU_SHADER_MATH_FAST_LIB_GLSL
