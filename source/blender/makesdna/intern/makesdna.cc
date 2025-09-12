@@ -42,6 +42,7 @@
 #include "BLI_system.h"    /* For #BLI_system_backtrace stub. */
 #include "BLI_utildefines.h"
 
+#include "DNA_sdna_type_ids.hh"
 #include "DNA_sdna_types.h"
 #include "dna_utils.h"
 

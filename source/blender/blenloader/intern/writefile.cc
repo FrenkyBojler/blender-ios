@@ -2055,7 +2055,7 @@ void BLO_write_double_array(BlendWriter *writer, const int64_t num, const double
 void BLO_write_pointer_array(BlendWriter *writer,
                              const int64_t num,
                              const void *data_ptr,
-                             const int /*struct_nr*/)
+                             const int /*struct_id*/)
 {
   BLO_write_raw(writer, sizeof(void *) * size_t(num), data_ptr);
 }
@@ -2076,7 +2076,8 @@ void BLO_write_shared(BlendWriter *writer,
                       const void *data,
                       const size_t approximate_size_in_bytes,
                       const blender::ImplicitSharingInfo *sharing_info,
-                      const blender::FunctionRef<void()> write_fn)
+                      const blender::FunctionRef<void()> write_fn,
+                      const int /*struct_id*/)
 {
   if (data == nullptr) {
     return;

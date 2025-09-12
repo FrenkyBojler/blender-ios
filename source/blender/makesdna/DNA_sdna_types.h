@@ -132,12 +132,3 @@ typedef struct SDNA {
   /** Temporary memory currently only used for version patching DNA. */
   struct MemArena *mem_arena;
 } SDNA;
-
-/**
- * The struct index representing type-less bytes buffers.
- *
- * Although code has historically (pre-4.3) be fairly unreliable (logically incorrect, see inline
- * code-comments for #DNA_struct_get_compareflags regarding this), most of read/write blend-file
- * code would assume that the `0` value was raw data, so keep it at this value.
- */
-#define SDNA_RAW_DATA_STRUCT_INDEX 0

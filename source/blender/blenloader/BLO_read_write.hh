@@ -212,7 +212,7 @@ void BLO_write_float3_array(BlendWriter *writer, int64_t num, const float *data_
 void BLO_write_pointer_array(BlendWriter *writer,
                              int64_t num,
                              const void *data_ptr,
-                             const int struct_nr);
+                             const int struct_id);
 template<typename T>
 inline void BLO_write_pointer_array(BlendWriter *writer,
                                     const int64_t nu,
@@ -242,7 +242,25 @@ void BLO_write_shared(BlendWriter *writer,
                       const void *data,
                       size_t approximate_size_in_bytes,
                       const blender::ImplicitSharingInfo *sharing_info,
-                      blender::FunctionRef<void()> write_fn);
+                      blender::FunctionRef<void()> write_fn,
+                      int struct_id);
+
+template<typename T>
+inline void BLO_write_shared(BlendWriter *writer,
+                             const T *data,
+                             size_t approximate_size_in_bytes,
+                             const blender::ImplicitSharingInfo *sharing_info,
+                             blender::FunctionRef<void()> write_fn)
+{
+  int struct_id;
+  if constexpr (blender::is_same_any_v<T, int, float, double, float[3]>) {
+    struct_id = SDNA_RAW_DATA_STRUCT_INDEX;
+  }
+  else {
+    struct_id = blender::dna::sdna_struct_id_get<T>();
+  }
+  BLO_write_shared(writer, data, approximate_size_in_bytes, sharing_info, write_fn, struct_id);
+}
 
 /**
  * Sometimes different data is written depending on whether the file is saved to disk or used for
