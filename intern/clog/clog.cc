@@ -947,6 +947,10 @@ bool CLG_quiet_get()
 void CLG_logref_init(CLG_LogRef *clg_ref)
 {
 #ifdef WITH_CLOG_PTHREADS
+  if (g_ctx == nullptr) {
+    printf("CLG initialization is missed when logging is attempted.\n");
+  }
+
   /* Only runs once when initializing a static type in most cases. */
   pthread_mutex_lock(&g_ctx->types_lock);
 #endif
