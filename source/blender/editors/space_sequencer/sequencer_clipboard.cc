@@ -464,7 +464,7 @@ wmOperatorStatus sequencer_clipboard_paste_exec(bContext *C, wmOperator *op)
     ofs = scene_dst->r.cfra - scene_src->r.cfra;
   }
   else {
-    int min_seq_startdisp = INT_MAX;
+    int min_seq_startdisp = std::numeric_limits<int>::max();
     LISTBASE_FOREACH (Strip *, strip, &scene_src->ed->seqbase) {
       min_seq_startdisp = std::min(seq::time_left_handle_frame_get(scene_src, strip),
                                    min_seq_startdisp);

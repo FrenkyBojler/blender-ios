@@ -48,7 +48,7 @@ int ED_region_generic_tools_region_snap_size(const ARegion *region, int size, in
         (2.0f * column) + margin,
         (2.7f * column) + margin,
     };
-    int best_diff = INT_MAX;
+    int best_diff = std::numeric_limits<int>::max();
     int best_size = size;
     /* Only snap if less than last snap unit. */
     if (size <= snap_units[ARRAY_SIZE(snap_units) - 1]) {
