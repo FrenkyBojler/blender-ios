@@ -52,22 +52,22 @@ static const std::string format_matrix_to_single_line(const float4x4 &matrix)
 
 const std::string format_matrix_to_grid(const float4x4 &matrix)
 {
-  std::array<std::array<std::string, 4>, 4> matrix_elements;
-  std::array<size_t, 4> column_widths = {};
   /* Transpose to be able to print row by row. */
   const float4x4 t_matrix = math::transpose(matrix);
+  std::array<std::array<std::string, 4>, 4> formatted_elements;
+  std::array<size_t, 4> column_widths = {};
   for (const int row_i : IndexRange(4)) {
     for (const int col_i : IndexRange(4)) {
-      matrix_elements[row_i][col_i] = fmt::format("{:.6}", t_matrix[row_i][col_i]);
+      formatted_elements[row_i][col_i] = fmt::format("{:.7}", t_matrix[row_i][col_i]);
       column_widths[col_i] = math::max(column_widths[col_i],
-                                       matrix_elements[row_i][col_i].length());
+                                       formatted_elements[row_i][col_i].length());
     }
   }
 
   std::stringstream ss;
   for (const int row_i : IndexRange(4)) {
     for (const int col_i : IndexRange(4)) {
-      ss << fmt::format("{:>{}}", matrix_elements[row_i][col_i], column_widths[col_i]);
+      ss << fmt::format("{:>{}}", formatted_elements[row_i][col_i], column_widths[col_i]);
       if (col_i < 3) {
         ss << "  ";
       }
