@@ -2009,7 +2009,7 @@ static wmOperatorStatus sequencer_box_cut_exec(bContext *C, wmOperator *op)
       seq::relations_invalidate_cache(scene, strip);
     }
     if (BLI_rctf_isect(&rq, &rectf, nullptr)) {
-      /* check if left and right handle are in the rect */
+      /* Check if left and right handle are in the rect. */
       if (left_handle >= rect_frames[0] && left_handle <= rect_frames[1] &&
           right_handle >= rect_frames[0] && right_handle <= rect_frames[1])
       {
@@ -2037,7 +2037,7 @@ static wmOperatorStatus sequencer_box_cut_exec(bContext *C, wmOperator *op)
       }
       const float left_handle = seq::time_left_handle_frame_get(scene, strip);
       int offset = rect_frames[0] - rect_frames[1];
-      /* cap offset */
+      /* Cap offset. */
       offset = std::max(offset, (max_left_offset - rect_frames[1]));
 
       if (left_handle == rect_frames[1]) {
