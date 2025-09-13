@@ -2001,9 +2001,14 @@ static wmOperatorStatus sequencer_box_cut_exec(bContext *C, wmOperator *op)
     }
     rctf rq;
     strip_rectf(scene, strip, &rq);
+    const float left_handle = seq::time_left_handle_frame_get(scene, strip);
+    const float right_handle = seq::time_right_handle_frame_get(scene, strip);
+    /* Invalidate cache of strips that could be effected by the deletion or transform of the blade
+     * box. These are only strips with a right_handle right of the most left frame of the box. */
+    if (right_handle >= rect_frames[0]) {
+      seq::relations_invalidate_cache(scene, strip);
+    }
     if (BLI_rctf_isect(&rq, &rectf, nullptr)) {
-      const float left_handle = seq::time_left_handle_frame_get(scene, strip);
-      const float right_handle = seq::time_right_handle_frame_get(scene, strip);
       /* check if left and right handle are in the rect */
       if (left_handle >= rect_frames[0] && left_handle <= rect_frames[1] &&
           right_handle >= rect_frames[0] && right_handle <= rect_frames[1])
@@ -2046,6 +2051,7 @@ static wmOperatorStatus sequencer_box_cut_exec(bContext *C, wmOperator *op)
       }
     }
   }
+  WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
   return OPERATOR_FINISHED;
 }
 
