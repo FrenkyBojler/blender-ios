@@ -425,8 +425,7 @@ Strip *edit_strip_split(Main *bmain,
   for (Strip *strip : strips_old) {
     blender::VectorSet<Strip *> connections = connected_strips_get(strip);
     connections.remove_if([&](Strip *connection) {
-      return !(connection->flag & SELECT) ||
-             !seq_edit_split_intersect_check(scene, connection, timeline_frame);
+      return !seq_edit_split_intersect_check(scene, connection, timeline_frame);
     });
     strips.add_multiple(connections.as_span());
   }
