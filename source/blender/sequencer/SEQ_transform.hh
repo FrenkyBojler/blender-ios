@@ -172,6 +172,7 @@ class GapRemover {
   };
 
   Scene *scene;
+  ListBase *channels;
   VectorSet<Strip *> moved_strips;
   Vector<rcti> gap_ranges;
 
@@ -180,11 +181,13 @@ class GapRemover {
   VectorSet<Strip *> right_side_strips;
   VectorSet<Strip *> right_side_handles;
 
-  bool gap_is_valid(const rcti &range);
-  bool can_merge_ranges(const rcti &unified_range, const rcti &range);
-  Vector<rcti> unify_gaps(const Vector<rcti> ranges);
+  bool gap_is_valid(const rcti &range, eWhichStripsCanBeMoved which);
+  bool gap_has_strips_on_both_sides(const rcti &range);
+  bool can_merge_ranges_y(const rcti &range_l, const rcti &range_r);
+  bool can_merge_ranges_x(const rcti &range_l, const rcti &range_r);
+  Vector<rcti> unify_gap_ranges(const Vector<rcti> &ranges);
   bool strip_intersects_range(const Strip *strip, const rcti gap_range);
-  Vector<rcti> expand_or_remove_gaps(Vector<rcti> gap_ranges, eWhichStripsCanBeMoved which);
+  void optimize_gap_ranges(Vector<rcti> &gap_ranges, eWhichStripsCanBeMoved which);
   void query_right_side_strips(const rcti gap_range);
 
  public:
