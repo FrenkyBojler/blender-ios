@@ -10,6 +10,7 @@
 #include "BLF_api.hh"
 
 #include "BLI_color.hh"
+#include "BLI_math_base.h"
 #include "BLI_math_matrix.hh"
 #include "BLI_math_quaternion_types.hh"
 #include "BLI_math_vector_types.hh"
@@ -59,7 +60,7 @@ static const std::string format_matrix_to_grid(const float4x4 &matrix)
   for (const int row_i : IndexRange(4)) {
     for (const int col_i : IndexRange(4)) {
       formatted_elements[row_i][col_i] = fmt::format("{:.6}", t_matrix[row_i][col_i]);
-      column_widths[col_i] = math::max(column_widths[col_i],
+      column_widths[col_i] = std::max(column_widths[col_i],
                                        formatted_elements[row_i][col_i].length());
     }
   }
