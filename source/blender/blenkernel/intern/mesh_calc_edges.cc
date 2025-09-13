@@ -8,7 +8,7 @@
 
 #include <iostream>
 
-#include <stdlib.h> 
+#include <stdlib.h>
 
 #include "BLI_array_utils.hh"
 #include "BLI_math_base.h"
@@ -557,6 +557,11 @@ void mesh_calc_edges(Mesh &mesh,
   calc_edges::clear_hash_tables(edge_maps);
 
   BLI_assert(BKE_mesh_is_valid(&mesh));
+}
+
+void mesh_calc_edges(Mesh &mesh, bool keep_existing_edges, const bool select_new_edges)
+{
+  mesh_calc_edges(mesh, keep_existing_edges, select_new_edges, AttributeFilter::default_filter());
 }
 
 }  // namespace blender::bke

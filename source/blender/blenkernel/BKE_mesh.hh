@@ -13,7 +13,6 @@
 #include "BLI_offset_indices.hh"
 #include "BLI_string_ref.hh"
 
-#include "BKE_attribute_filter.hh"
 #include "BKE_mesh.h"         // IWYU pragma: export
 #include "BKE_mesh_types.hh"  // IWYU pragma: export
 
@@ -22,6 +21,8 @@ namespace blender::bke {
 enum class AttrDomain : int8_t;
 enum class AttrType : int16_t;
 struct AttributeAccessorFunctions;
+
+struct AttributeFilter;
 
 namespace mesh {
 /* -------------------------------------------------------------------- */
@@ -365,6 +366,8 @@ inline int edge_other_vert(const int2 edge, const int vert)
 Mesh *mesh_new_no_attributes(int verts_num, int edges_num, int faces_num, int corners_num);
 
 /** Calculate edges from faces. */
+void mesh_calc_edges(Mesh &mesh, bool keep_existing_edges, bool select_new_edges);
+
 void mesh_calc_edges(Mesh &mesh,
                      bool keep_existing_edges,
                      bool select_new_edges,
