@@ -1,0 +1,1 @@
+Referenced by issue #146232, Python API: GPU module on MacOS/Metal fails to compile if member of struct in typedef and uniform share the same name
