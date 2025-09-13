@@ -33,7 +33,7 @@ static RTCFeatureFlags oneapi_embree_features_from_kernel_features(const uint ke
   if (kernel_features & KERNEL_FEATURE_HAIR_THICK) {
     feature_flags |= RTC_FEATURE_FLAG_ROUND_CATMULL_ROM_CURVE;
   }
-  else if (kernel_features & KERNEL_FEATURE_HAIR) {
+  if (kernel_features & KERNEL_FEATURE_HAIR) {
     feature_flags |= RTC_FEATURE_FLAG_FLAT_CATMULL_ROM_CURVE;
   }
   if (kernel_features & KERNEL_FEATURE_POINTCLOUD) {
@@ -367,8 +367,10 @@ bool oneapi_enqueue_kernel(KernelContext *kernel_context,
       /* Spec says it has no effect if the called kernel doesn't support the below specialization
        * constant but it can still trigger a recompilation, so we set it only if needed. */
       if (device_kernel_has_intersection(device_kernel)) {
-        const RTCFeatureFlags embree_features = oneapi_embree_features_from_kernel_features(
-            kernel_features);
+        const RTCFeatureFlags embree_features = use_hardware_raytracing ?
+                                                    oneapi_embree_features_from_kernel_features(
+                                                        kernel_features) :
+                                                    RTC_FEATURE_FLAG_NONE;
         cgh.set_specialization_constant<ONEAPIKernelContext::oneapi_embree_features>(
             embree_features);
       }
