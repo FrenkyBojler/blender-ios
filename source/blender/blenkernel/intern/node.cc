@@ -4821,7 +4821,7 @@ void node_tree_update_all_users(Main *main, ID *id)
 std::string node_label(const bNodeTree &ntree, const bNode &node)
 {
   if (node.label[0] != '\0') {
-    return IFACE_(node.label);
+    return node.label;
   }
 
   if (node.typeinfo->labelfunc) {

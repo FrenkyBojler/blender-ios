@@ -3068,7 +3068,7 @@ static void node_draw_basis(const bContext &C,
                         nullptr,
                         0,
                         0,
-                        std::nullopt));
+                        std::nullopt);
   node_header_custom_tooltip(node, *but);
 
   if (node.is_muted()) {
@@ -3308,7 +3308,7 @@ static void node_draw_collapsed(const bContext &C,
                         nullptr,
                         0,
                         0,
-                        std::nullopt));
+                        std::nullopt);
   node_header_custom_tooltip(node, *but);
 
   /* Outline. */
