@@ -126,8 +126,9 @@ def ctx_editmode_mesh():
 def ctx_editmode_mesh_extra():
     bpy.ops.wm.read_factory_settings(use_empty=False)
     bpy.ops.object.vertex_group_add()
-    bpy.ops.object.shape_key_add(from_mix=False)
-    bpy.ops.object.shape_key_add(from_mix=True)
+    bpy.ops.object.shape_key_add(from_mix=False)  # Basis Key
+    shape_key = bpy.ops.object.shape_key_add(from_mix=True)
+    shape_key.value = 0.0
     bpy.ops.mesh.uv_texture_add()
     bpy.ops.object.material_slot_add()
     # editmode last!
@@ -405,7 +406,6 @@ operator_pattern_exclude_for_bugs_without_gui = (
     "buttons.clear_filter",  # Null `space->runtime` in background mode.
     "buttons.toggle_pin",  # Technically a bug but doesn't make sense in background mode.
     "gpencil.layer_annotation_remove",  # TODO: looks like this could be fixed.
-    "object.grease_pencil_add",  # reported #136156.
     "outliner.animdata_operation",  # TODO: looks like poll should handle this.
     "outliner.collection_new",  # `space_outliner->runtime` is null.
     "outliner.delete",  # TODO: looks like poll should handle this.

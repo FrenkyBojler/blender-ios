@@ -191,20 +191,15 @@ def __convert_keyframes(armature_uuid, bone_name, channel, keyframes, action_nam
     component_type = gltf2_io_constants.ComponentType.Float
     data_type = gltf2_io_constants.DataType.vec_type_from_num(len(keyframes[0].value))
 
-    output = gltf2_io.Accessor(
-        buffer_view=gltf2_io_binary_data.BinaryData.from_list(values, component_type),
-        byte_offset=None,
-        component_type=component_type,
-        count=len(values) // gltf2_io_constants.DataType.num_elements(data_type),
-        extensions=None,
-        extras=None,
-        max=None,
-        min=None,
-        name=None,
-        normalized=None,
-        sparse=None,
-        type=data_type
-    )
+
+    output = gather_accessor(
+        gltf2_io_binary_data.BinaryData.from_list(values, component_type),
+        component_type,
+        len(values) // gltf2_io_constants.DataType.num_elements(data_type),
+        None,
+        None,
+        data_type,
+        export_settings)
 
     return input, output
 
@@ -212,7 +207,7 @@ def __convert_keyframes(armature_uuid, bone_name, channel, keyframes, action_nam
 def __gather_interpolation(node_channel_is_animated, node_channel_interpolation, keyframes, export_settings):
 
     if len(keyframes) > 2:
-        # keep STEP as STEP, other become the interpolation choosen by the user
+        # keep STEP as STEP, other become the interpolation chosen by the user
         return {
             "STEP": "STEP"
         }.get(node_channel_interpolation, export_settings['gltf_sampling_interpolation_fallback'])

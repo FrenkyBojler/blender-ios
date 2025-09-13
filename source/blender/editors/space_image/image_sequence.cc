@@ -23,11 +23,6 @@
 
 #include "ED_image.hh"
 
-struct ImageFrame {
-  ImageFrame *next, *prev;
-  int framenr;
-};
-
 /**
  * Get a list of frames from the list of image files matching the first file name sequence pattern.
  * The files and directory are read from standard file-select operator properties.
@@ -48,7 +43,7 @@ static void image_sequence_get_frame_ranges(wmOperator *op, ListBase *ranges)
     char head[FILE_MAX], tail[FILE_MAX];
     ushort digits;
     char *filename = RNA_string_get_alloc(&itemptr, "name", nullptr, 0, nullptr);
-    ImageFrame *frame = static_cast<ImageFrame *>(MEM_callocN(sizeof(ImageFrame), "image_frame"));
+    ImageFrame *frame = MEM_callocN<ImageFrame>("image_frame");
 
     /* use the first file in the list as base filename */
     frame->framenr = BLI_path_sequence_decode(
@@ -66,7 +61,7 @@ static void image_sequence_get_frame_ranges(wmOperator *op, ListBase *ranges)
     }
     else {
       /* start a new frame range */
-      range = static_cast<ImageFrameRange *>(MEM_callocN(sizeof(*range), __func__));
+      range = MEM_callocN<ImageFrameRange>(__func__);
       BLI_path_join(range->filepath, sizeof(range->filepath), dir, filename);
       BLI_addtail(ranges, range);
 
@@ -134,6 +129,11 @@ static void image_detect_frame_range(ImageFrameRange *range, const bool detect_u
     range->length = 1;
     range->offset = 0;
   }
+
+  ImageFrame *frame_last = static_cast<ImageFrame *>(range->frames.last);
+  if (frame_last != nullptr) {
+    range->max_framenr = frame_last->framenr;
+  }
 }
 
 ListBase ED_image_filesel_detect_sequences(blender::StringRefNull root_path,
@@ -155,7 +155,6 @@ ListBase ED_image_filesel_detect_sequences(blender::StringRefNull root_path,
     image_sequence_get_frame_ranges(op, &ranges);
     LISTBASE_FOREACH (ImageFrameRange *, range, &ranges) {
       image_detect_frame_range(range, detect_udim);
-      BLI_freelistN(&range->frames);
 
       if (was_relative) {
         BLI_path_rel(range->filepath, root_path.c_str());
@@ -164,7 +163,7 @@ ListBase ED_image_filesel_detect_sequences(blender::StringRefNull root_path,
   }
   /* Filepath property for drag & drop etc. */
   else {
-    ImageFrameRange *range = static_cast<ImageFrameRange *>(MEM_callocN(sizeof(*range), __func__));
+    ImageFrameRange *range = MEM_callocN<ImageFrameRange>(__func__);
     BLI_addtail(&ranges, range);
 
     STRNCPY(range->filepath, filepath);

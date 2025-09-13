@@ -307,10 +307,7 @@ static bool edgetag_test_cb(BMEdge *e, void *user_data_v)
       return BM_ELEM_CD_GET_FLOAT(e, user_data->cd_offset);
 #ifdef WITH_FREESTYLE
     case EDGE_MODE_TAG_FREESTYLE: {
-      BMesh *bm = user_data->bm;
-      FreestyleEdge *fed = static_cast<FreestyleEdge *>(
-          CustomData_bmesh_get(&bm->edata, e->head.data, CD_FREESTYLE_EDGE));
-      return (!fed) ? false : (fed->flag & FREESTYLE_EDGE_MARK) ? true : false;
+      return BM_ELEM_CD_GET_BOOL(e, user_data->cd_offset);
     }
 #endif
   }
@@ -338,15 +335,7 @@ static void edgetag_set_cb(BMEdge *e, bool val, void *user_data_v)
       break;
 #ifdef WITH_FREESTYLE
     case EDGE_MODE_TAG_FREESTYLE: {
-      FreestyleEdge *fed;
-      fed = static_cast<FreestyleEdge *>(
-          CustomData_bmesh_get(&bm->edata, e->head.data, CD_FREESTYLE_EDGE));
-      if (!val) {
-        fed->flag &= ~FREESTYLE_EDGE_MARK;
-      }
-      else {
-        fed->flag |= FREESTYLE_EDGE_MARK;
-      }
+      BM_ELEM_CD_SET_BOOL(e, user_data->cd_offset, val);
       break;
     }
 #endif
@@ -370,8 +359,8 @@ static void edgetag_ensure_cd_flag(Mesh *mesh, const char edge_mode)
       break;
 #ifdef WITH_FREESTYLE
     case EDGE_MODE_TAG_FREESTYLE:
-      if (!CustomData_has_layer(&bm->edata, CD_FREESTYLE_EDGE)) {
-        BM_data_layer_add(bm, &bm->edata, CD_FREESTYLE_EDGE);
+      if (!CustomData_has_layer_named(&bm->edata, CD_PROP_BOOL, "freestyle_edge")) {
+        BM_data_layer_add_named(bm, &bm->edata, CD_PROP_BOOL, "freestyle_edge");
       }
       break;
 #endif
@@ -396,6 +385,7 @@ static void mouse_mesh_shortest_path_edge(
     case EDGE_MODE_TAG_SHARP:
 #ifdef WITH_FREESTYLE
     case EDGE_MODE_TAG_FREESTYLE:
+      cd_offset = CustomData_get_offset_named(&bm->edata, CD_PROP_BOOL, "freestyle_edge");
 #endif
       break;
     case EDGE_MODE_TAG_CREASE:
@@ -626,11 +616,8 @@ static void mouse_mesh_shortest_path_face(Scene * /*scene*/,
     }
     BM_mesh_active_face_set(bm, f_dst_last);
 
-    if (f_dst_last->mat_nr != obedit->actcol - 1) {
-      obedit->actcol = f_dst_last->mat_nr + 1;
-      em->mat_nr = f_dst_last->mat_nr;
-      WM_main_add_notifier(NC_MATERIAL | ND_SHADING_LINKS, nullptr);
-    }
+    blender::ed::object::material_active_index_set(obedit, f_dst_last->mat_nr);
+    em->mat_nr = f_dst_last->mat_nr;
   }
 
   EDBMUpdate_Params params{};
@@ -747,9 +734,10 @@ static wmOperatorStatus edbm_shortest_path_pick_invoke(bContext *C,
     /* TODO(dfelinto): right now we try to find the closest element twice.
      * The ideal is to refactor EDBM_select_pick so it doesn't
      * have to pick the nearest vert/edge/face again. */
-    SelectPick_Params params{};
-    params.sel_op = SEL_OP_ADD;
-    EDBM_select_pick(C, event->mval, &params);
+    const SelectPick_Params params = {
+        /*sel_op*/ SEL_OP_ADD,
+    };
+    EDBM_select_pick(C, event->mval, params);
     return OPERATOR_FINISHED;
   }
 
@@ -832,7 +820,7 @@ void MESH_OT_shortest_path_pick(wmOperatorType *ot)
   ot->idname = "MESH_OT_shortest_path_pick";
   ot->description = "Select shortest path between two selections";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = edbm_shortest_path_pick_invoke;
   ot->exec = edbm_shortest_path_pick_exec;
   ot->poll = ED_operator_editmesh_region_view3d;
@@ -960,7 +948,7 @@ void MESH_OT_shortest_path_select(wmOperatorType *ot)
   ot->idname = "MESH_OT_shortest_path_select";
   ot->description = "Selected shortest path between two vertices/edges/faces";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = edbm_shortest_path_select_exec;
   ot->poll = ED_operator_editmesh;
   ot->poll_property = path_select_poll_property;

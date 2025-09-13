@@ -32,7 +32,7 @@ const EnumPropertyItem rna_enum_curves_handle_type_items[] = {
      "FREE",
      0,
      "Free",
-     "The handle can be moved anywhere, and doesn't influence the point's other handle"},
+     "The handle can be moved anywhere, and does not influence the point's other handle"},
     {BEZIER_HANDLE_AUTO,
      "AUTO",
      0,
@@ -512,6 +512,7 @@ static void rna_def_curves(BlenderRNA *brna)
   prop = RNA_def_property(srna, "surface", PROP_POINTER, PROP_NONE);
   RNA_def_property_struct_type(prop, "Object");
   RNA_def_property_flag(prop, PROP_EDITABLE);
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_pointer_funcs(prop, nullptr, nullptr, nullptr, "rna_Mesh_object_poll");
   RNA_def_property_ui_text(prop, "Surface", "Mesh object that the curves can be attached to");
   RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, nullptr);

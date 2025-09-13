@@ -22,7 +22,7 @@
  * The Write Stencil, Stencil test, Depth test and Blend state options are mutual exclusive
  * therefore they aren't ordered as a bit mask.
  */
-typedef enum {
+typedef enum : uint32_t {
   /** To be used for compute passes. */
   DRW_STATE_NO_DRAW = 0,
   /** Write mask */
@@ -64,6 +64,8 @@ typedef enum {
   DRW_STATE_LOGIC_INVERT = (10 << 11),
   DRW_STATE_BLEND_ALPHA_UNDER_PREMUL = (11 << 11),
 
+  /* See GPU_clip_control_unit_range. */
+  DRW_STATE_CLIP_CONTROL_UNIT_RANGE = (1 << 26),
   DRW_STATE_IN_FRONT_SELECT = (1 << 27),
   DRW_STATE_SHADOW_OFFSET = (1 << 28),
   DRW_STATE_CLIP_PLANES = (1 << 29),

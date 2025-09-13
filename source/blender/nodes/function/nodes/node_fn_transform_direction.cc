@@ -10,10 +10,12 @@ namespace blender::nodes::node_fn_transform_direction_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
+  b.use_custom_socket_order();
+  b.allow_any_socket_order();
   b.is_function_node();
   b.add_input<decl::Vector>("Direction").subtype(PROP_XYZ);
+  b.add_output<decl::Vector>("Direction").subtype(PROP_XYZ).align_with_previous();
   b.add_input<decl::Matrix>("Transform");
-  b.add_output<decl::Vector>("Direction").subtype(PROP_XYZ);
 }
 
 static void node_build_multi_function(NodeMultiFunctionBuilder &builder)
@@ -30,6 +32,8 @@ static void node_register()
   static blender::bke::bNodeType ntype;
   fn_node_type_base(&ntype, "FunctionNodeTransformDirection", FN_NODE_TRANSFORM_DIRECTION);
   ntype.ui_name = "Transform Direction";
+  ntype.ui_description =
+      "Apply a transformation matrix (excluding translation) to the given vector";
   ntype.enum_name_legacy = "TRANSFORM_DIRECTION";
   ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.declare = node_declare;
