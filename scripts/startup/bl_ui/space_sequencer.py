@@ -1212,10 +1212,10 @@ class SEQUENCER_MT_strip(Menu):
             layout.separator()
 
             with operator_context(layout, 'EXEC_REGION_WIN'):
-                props = layout.operator("sequencer.split", text="Split")
+                props = layout.operator("sequencer.split", text="Split", text_ctxt=i18n_contexts.id_sequence)
                 props.type = 'SOFT'
 
-                props = layout.operator("sequencer.split", text="Hold Split")
+                props = layout.operator("sequencer.split", text="Hold Split", text_ctxt=i18n_contexts.id_sequence)
                 props.type = 'HARD'
 
             layout.separator()
@@ -1368,7 +1368,7 @@ class SEQUENCER_MT_context_menu(Menu):
 
         layout.operator_context = 'INVOKE_REGION_WIN'
 
-        layout.operator("sequencer.split", text="Split").type = 'SOFT'
+        layout.operator("sequencer.split", text="Split", text_ctxt=i18n_contexts.id_sequence).type = 'SOFT'
 
         layout.separator()
 
@@ -1546,6 +1546,10 @@ class SEQUENCER_MT_modifier_add(Menu):
     bl_label = "Add Modifier"
     bl_options = {'SEARCH_ON_KEY_PRESS'}
 
+    MODIFIER_TYPES_TO_ICONS = {
+        enum_it.identifier: enum_it.icon
+        for enum_it in bpy.types.StripModifier.bl_rna.properties["type"].enum_items_static
+    }
     MODIFIER_TYPES_TO_LABELS = {
         enum_it.identifier: enum_it.name
         for enum_it in bpy.types.StripModifier.bl_rna.properties["type"].enum_items_static
@@ -1560,7 +1564,7 @@ class SEQUENCER_MT_modifier_add(Menu):
             # Although these are operators, the label actually comes from an (enum) property,
             # so the property's translation context must be used here.
             text_ctxt=cls.MODIFIER_TYPES_I18N_CONTEXT,
-            icon='NONE',
+            icon=cls.MODIFIER_TYPES_TO_ICONS[mod_type],
         ).type = mod_type
 
     def draw(self, context):
@@ -1580,15 +1584,16 @@ class SEQUENCER_MT_modifier_add(Menu):
 
         layout.operator_context = 'INVOKE_REGION_WIN'
 
-        self.operator_modifier_add(layout, 'BRIGHT_CONTRAST')
-        self.operator_modifier_add(layout, 'COLOR_BALANCE')
-        self.operator_modifier_add(layout, 'CURVES')
-        self.operator_modifier_add(layout, 'HUE_CORRECT')
-        self.operator_modifier_add(layout, 'MASK')
-        self.operator_modifier_add(layout, 'TONEMAP')
-        self.operator_modifier_add(layout, 'WHITE_BALANCE')
         if strip.type == 'SOUND':
             self.operator_modifier_add(layout, 'SOUND_EQUALIZER')
+        else:
+            self.operator_modifier_add(layout, 'BRIGHT_CONTRAST')
+            self.operator_modifier_add(layout, 'COLOR_BALANCE')
+            self.operator_modifier_add(layout, 'CURVES')
+            self.operator_modifier_add(layout, 'HUE_CORRECT')
+            self.operator_modifier_add(layout, 'MASK')
+            self.operator_modifier_add(layout, 'TONEMAP')
+            self.operator_modifier_add(layout, 'WHITE_BALANCE')
 
 
 class SequencerButtonsPanel:
