@@ -33,6 +33,7 @@
 #include "RNA_define.hh"
 
 #include "WM_api.hh"
+#include "WM_toolsystem.hh"
 #include "WM_types.hh"
 
 #include "bmesh.hh"
@@ -344,6 +345,35 @@ static void gizmo_preselect_edgering_draw(const bContext *C, wmGizmo *gz)
   }
 }
 
+static int loopcut_tool_preview_cuts_from_toolsettings(const bContext *C)
+{
+  const int default_cuts = 1;
+
+  bToolRef *tref = WM_toolsystem_ref_from_context(C);
+  if (tref == nullptr) {
+    return default_cuts;
+  }
+  wmOperatorType *ot_slide = WM_operatortype_find("MESH_OT_loopcut_slide", false);
+  if (ot_slide == nullptr) {
+    return default_cuts;
+  }
+  PointerRNA tool_props;
+  if (!WM_toolsystem_ref_properties_get_ex(tref, ot_slide->idname, ot_slide->srna, &tool_props)) {
+    return default_cuts;
+  }
+  PropertyRNA *prop_loopcut = RNA_struct_find_property(&tool_props, "MESH_OT_loopcut");
+  if (prop_loopcut == nullptr) {
+    return default_cuts;
+  }
+  PointerRNA loopcut_ptr = RNA_property_pointer_get(&tool_props, prop_loopcut);
+  if (loopcut_ptr.data == nullptr) {
+    return default_cuts;
+  }
+
+  const int cuts = RNA_int_get(&loopcut_ptr, "number_cuts");
+  return cuts;
+}
+
 static int gizmo_preselect_edgering_test_select(bContext *C, wmGizmo *gz, const int mval[2])
 {
   MeshEdgeRingGizmo3D *gz_ring = (MeshEdgeRingGizmo3D *)gz;
@@ -413,7 +443,9 @@ static int gizmo_preselect_edgering_test_select(bContext *C, wmGizmo *gz, const 
       Array<float3> storage;
       const Span<float3> vert_positions = BKE_editmesh_vert_coords_when_deformed(
           vc.depsgraph, em_eval, scene_eval, ob_eval, storage);
-      EDBM_preselect_edgering_update_from_edge(gz_ring->psel, bm, best.eed, 1, vert_positions);
+      const int preview_cuts = loopcut_tool_preview_cuts_from_toolsettings(C);
+      EDBM_preselect_edgering_update_from_edge(
+          gz_ring->psel, bm, best.eed, preview_cuts, vert_positions);
     }
     else {
       EDBM_preselect_edgering_clear(gz_ring->psel);
