@@ -37,7 +37,7 @@ static const std::string format_matrix_to_single_line(const float4x4 &matrix)
   ss << "  ";
   for (const int row_i : IndexRange(4)) {
     const float4 &row = t_matrix[row_i];
-    /* Format Floats with up to 2 decimal. */
+    /* Format floats with up to 2 decimal. */
     ss << fmt::format("[{:.7}, {:.7}, {:.7}, {:.7}]",
                       double_round(row[0], 2),
                       double_round(row[1], 2),
@@ -52,15 +52,37 @@ static const std::string format_matrix_to_single_line(const float4x4 &matrix)
 
 const std::string format_matrix_to_grid(const float4x4 &matrix)
 {
-  auto format_element = [](float value) {
+  auto format_element = [](float value) { return fmt::format("{:.7}", value); };
+  auto format_element3 = [](float value) {
+    const float abs_value = std::abs(value);
+    if (abs_value >= 1e7f) {
+      return fmt::format("{:.3}", value);
+    }
+    else if (abs_value >= 1.0f) {
+      return fmt::format("{:.7}", value);
+    }
+    // else if (abs_value > 1e-4f) {
+    //   return fmt::format("{:.4}", value);
+    //   // return fmt::format("{:.3}", double_round(value, 6));
+    // }
+    // // else if (abs_value < 1e-4f) {
+    // else {
+    //   return fmt::format("{:.3}", value);
+    // }
+    else {
+      return fmt::format("{:.6}", value);
+    }
+  };
+
+  auto format_element2 = [](float value) {
     const float abs_value = std::abs(value);
     if (abs_value >= 1e7f || (abs_value > 0 && abs_value < 1e-4f)) {
-      return fmt::format("{:.3g}", value);
+      return fmt::format("{:.3}", value);
     }
-    if (abs_value > 0 && abs_value < 1.0f) {
-      return fmt::format("{:.6f}", value);
+    else if (abs_value < 1.0f && abs_value > 1e-4f) {
+      return fmt::format("{:.6}", double_round(value, 6));
     }
-    return fmt::format("{:.7g}", value);
+    return fmt::format("{:.7}", value);
   };
 
   std::array<std::array<std::string, 4>, 4> matrix_elements;
@@ -70,6 +92,7 @@ const std::string format_matrix_to_grid(const float4x4 &matrix)
   for (const int row_i : IndexRange(4)) {
     for (const int col_i : IndexRange(4)) {
       matrix_elements[row_i][col_i] = format_element(t_matrix[row_i][col_i]);
+      // matrix_elements[row_i][col_i] = fmt::format("{:.6}", t_matrix[row_i][col_i]);
       column_widths[col_i] = math::max(column_widths[col_i],
                                        matrix_elements[row_i][col_i].length());
     }
