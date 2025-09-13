@@ -1541,21 +1541,19 @@ void file_draw_list(const bContext *C, ARegion *region)
       }
     }
 
-    const char *file_name = (sfile->browse_mode == FILE_BROWSE_MODE_ASSETS) ? IFACE_(file->name) :
-                                                                              file->name;
     /* file_selflag might have been modified by branch above. */
     if ((file_selflag & FILE_SEL_EDITING) == 0) {
       if (layout->text_lines_count == 1) {
         file_draw_string(text_rect.xmin,
                          text_rect.ymax,
-                         file_name,
+                         file->name,
                          BLI_rcti_size_x(&text_rect),
                          BLI_rcti_size_y(&text_rect),
                          align,
                          text_col);
       }
       else {
-        file_draw_string_mulitline_clipped(&text_rect, file_name, align, text_col);
+        file_draw_string_mulitline_clipped(&text_rect, file->name, align, text_col);
       }
     }
 

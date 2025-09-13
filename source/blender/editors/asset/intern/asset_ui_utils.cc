@@ -15,7 +15,6 @@
 #include "BKE_preview_image.hh"
 
 #include "BLI_path_utils.hh"
-#include "BLT_translation.hh"
 
 #include "UI_interface_c.hh"
 #include "UI_interface_icons.hh"
@@ -34,15 +33,13 @@ void asset_tooltip(const asset_system::AssetRepresentation &asset,
                    const bool include_name)
 {
   if (include_name) {
-    UI_tooltip_text_field_add(
-        tip, TIP_(asset.get_name()), {}, UI_TIP_STYLE_HEADER, UI_TIP_LC_MAIN);
+    UI_tooltip_text_field_add(tip, asset.get_name(), {}, UI_TIP_STYLE_HEADER, UI_TIP_LC_MAIN);
     UI_tooltip_text_field_add(tip, {}, {}, UI_TIP_STYLE_SPACER, UI_TIP_LC_NORMAL, false);
   }
 
   const AssetMetaData &meta_data = asset.get_metadata();
   if (meta_data.description) {
-    UI_tooltip_text_field_add(
-        tip, TIP_(meta_data.description), {}, UI_TIP_STYLE_HEADER, UI_TIP_LC_MAIN);
+    UI_tooltip_text_field_add(tip, meta_data.description, {}, UI_TIP_STYLE_HEADER, UI_TIP_LC_MAIN);
   }
 
   switch (asset.owner_asset_library().library_type()) {
