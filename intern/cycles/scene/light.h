@@ -59,6 +59,9 @@ class Light : public Geometry {
 
   NODE_SOCKET_API(int, max_bounces)
 
+  /* Dome light type: spherical (full) or hemisphere */
+  NODE_SOCKET_API(bool, is_dome_hemisphere)
+
   /* Normalize power by the surface area of the light. */
   NODE_SOCKET_API(bool, normalize)
 

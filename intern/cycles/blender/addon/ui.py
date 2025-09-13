@@ -1513,7 +1513,7 @@ class CYCLES_LIGHT_PT_light(CyclesButtonsPanel, Panel):
         light = context.light
 
         if self.bl_space_type == 'PROPERTIES':
-            layout.row().prop(light, "type", expand=True)
+            layout.row().prop(light, "type", text="", expand=False)
             layout.use_property_split = True
         else:
             layout.use_property_split = True
@@ -1574,6 +1574,7 @@ class CYCLES_LIGHT_PT_light(CyclesButtonsPanel, Panel):
 
             col = layout.column()
             col.template_ID(light, "dome_image", new="image.new", open="image.open", unlink="image.unlink")
+            col.prop(light, "dome_type", text="Type")
             col.prop(light, "dome_map_resolution", text="Map Resolution")
             col.prop(light, "dome_projection", text="Projection")
 

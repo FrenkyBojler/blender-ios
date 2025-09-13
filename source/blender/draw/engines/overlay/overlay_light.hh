@@ -39,6 +39,7 @@ class Lights : Overlay {
     LightInstanceBuf area_disk_buf = {selection_type_, "area_disk_buf"};
     LightInstanceBuf area_square_buf = {selection_type_, "area_square_buf"};
     LightInstanceBuf dome_buf = {selection_type_, "dome_buf"};
+    LightInstanceBuf dome_hemisphere_buf = {selection_type_, "dome_hemisphere_buf"};
   } call_buffers_{selection_type_};
 
  public:
@@ -63,6 +64,7 @@ class Lights : Overlay {
     call_buffers_.area_disk_buf.clear();
     call_buffers_.area_square_buf.clear();
     call_buffers_.dome_buf.clear();
+    call_buffers_.dome_hemisphere_buf.clear();
   }
 
   void object_sync(Manager & /*manager*/,
@@ -160,10 +162,14 @@ class Lights : Overlay {
         area_buf.append(data, select_id);
         break;
       }
-      case LA_DOME:
+      case LA_DOME: {
         area_size_x = area_size_y = area_size_z = la.dome_size;
-        call_buffers_.dome_buf.append(data, select_id);
+        LightInstanceBuf &dome_buf = (la.dome_type == LA_DOME_HEMISPHERE) ?
+                                         call_buffers_.dome_hemisphere_buf :
+                                         call_buffers_.dome_buf;
+        dome_buf.append(data, select_id);
         break;
+      }
       default:
         break;
     }
@@ -211,6 +217,7 @@ class Lights : Overlay {
       call_buffers_.area_disk_buf.end_sync(sub_pass, res.shapes.light_area_disk_lines.get());
       call_buffers_.area_square_buf.end_sync(sub_pass, res.shapes.light_area_square_lines.get());
       call_buffers_.dome_buf.end_sync(sub_pass, res.shapes.light_dome_lines.get());
+      call_buffers_.dome_hemisphere_buf.end_sync(sub_pass, res.shapes.light_dome_hemisphere_lines.get());
     }
     {
       PassSimple::Sub &sub_pass = ps_.sub("ground_line");

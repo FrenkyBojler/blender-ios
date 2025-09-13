@@ -93,7 +93,7 @@ typedef struct Light {
   struct Image *dome_image;
   int dome_map_resolution;
   short dome_projection;
-  short _pad3;
+  short dome_type;
 
   /* Deprecated. */
   struct Ipo *ipo DNA_DEPRECATED; /* Old animation system. */
@@ -183,4 +183,10 @@ enum {
   LA_DOME_EQUIRECTANGULAR = 0,
   LA_DOME_MIRRORED_BALL = 1,
   LA_DOME_ANGULAR = 2,
+};
+
+/** #Light::dome_type */
+enum {
+  LA_DOME_SPHERICAL = 0,
+  LA_DOME_HEMISPHERE = 1,
 };

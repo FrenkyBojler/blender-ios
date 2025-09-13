@@ -122,6 +122,8 @@ NODE_DEFINE(Light)
   SOCKET_BOOLEAN(is_portal, "Is Portal", false);
   SOCKET_BOOLEAN(is_enabled, "Is Enabled", true);
 
+  SOCKET_BOOLEAN(is_dome_hemisphere, "Is Dome Hemisphere", false);
+
   SOCKET_BOOLEAN(normalize, "Normalize", true);
 
   return type;
@@ -222,8 +224,10 @@ float Light::area(const Transform &tfm) const
     return (half_angle > 0.0f) ? M_PI_F * sqr(sinf(half_angle)) : 1.0f;
   }
   if (light_type == LIGHT_DOME) {
-    /* Dome area - hemisphere surface area */
-    const float area = 2.0f * M_PI_F * size * size;
+    /* Dome area - full sphere for spherical, hemisphere for hemisphere */
+    const float area = is_dome_hemisphere ? 
+                         2.0f * M_PI_F * size * size :  /* hemisphere surface area */
+                         4.0f * M_PI_F * size * size;   /* full sphere surface area */
     return (area == 0.0f) ? 1.0f : area;
   }
 
@@ -1348,9 +1352,11 @@ void LightManager::device_update_lights(DeviceScene *dscene, Scene *scene)
       /* Store dome size in spot.radius field (reusing existing field) */
       klights[light_index].co = co;
       klights[light_index].spot.radius = light->size;
-      klights[light_index].spot.eval_fac = (light->normalize) ? 
-                                              1.0f / light->area(object->get_tfm()) : 
-                                              1.0f;
+      float eval_fac = (light->normalize) ? 
+                         1.0f / light->area(object->get_tfm()) : 
+                         1.0f;
+      /* Use negative eval_fac to indicate hemisphere (similar to area light ellipse encoding) */
+      klights[light_index].spot.eval_fac = light->get_is_dome_hemisphere() ? -eval_fac : eval_fac;
       
       printf("DOME_DEBUG: Packed dome light to kernel - index=%d, size=%.2f, co=(%.2f,%.2f,%.2f)\n",
              light_index, (double)light->size, (double)co.x, (double)co.y, (double)co.z);

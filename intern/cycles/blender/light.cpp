@@ -81,8 +81,12 @@ void BlenderSync::sync_light(BObjectInfo &b_ob_info, Light *light)
       light->set_size(b_dome_light.dome_size());
       light->set_light_type(LIGHT_DOME);
       
-      printf("DOME_DEBUG: Syncing dome light '%s' with size %.2f\n", 
-             light->name.c_str(), (double)b_dome_light.dome_size());
+      /* Set dome type (spherical or hemisphere) */
+      light->set_is_dome_hemisphere(b_dome_light.dome_type() == 1); /* LA_DOME_HEMISPHERE = 1 */
+      
+      printf("DOME_DEBUG: Syncing dome light '%s' with size %.2f, type: %s\n", 
+             light->name.c_str(), (double)b_dome_light.dome_size(),
+             light->get_is_dome_hemisphere() ? "hemisphere" : "spherical");
 
       /* TODO: HDRI image implementation doesn't work, it only return a simple value (1.0f)
       /* Set up HDRI image if available */

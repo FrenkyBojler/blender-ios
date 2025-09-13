@@ -620,6 +620,19 @@ static void rna_def_dome_light(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Projection", "Projection type for the HDRI image");
   RNA_def_property_update(prop, 0, "rna_Light_update");
 
+  static const EnumPropertyItem dome_type_items[] = {
+    {LA_DOME_SPHERICAL, "SPHERICAL", 0, "Spherical", "Full spherical dome light"},
+    {LA_DOME_HEMISPHERE, "HEMISPHERE", 0, "Hemisphere", "Hemisphere dome light"},
+    {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  prop = RNA_def_property(srna, "dome_type", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "dome_type");
+  RNA_def_property_enum_items(prop, dome_type_items);
+  RNA_def_property_enum_default(prop, LA_DOME_SPHERICAL);
+  RNA_def_property_ui_text(prop, "Type", "Type of dome light geometry");
+  RNA_def_property_update(prop, 0, "rna_Light_update");
+
   rna_def_light_energy(srna, LA_DOME);
   rna_def_light_shadow(srna, false);
 }
