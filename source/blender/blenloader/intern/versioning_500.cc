@@ -3169,7 +3169,7 @@ void blo_do_versions_500(FileData *fd, Library * /*lib*/, Main *bmain)
     FOREACH_NODETREE_END;
   }
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 76)) {
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 81)) {
     LISTBASE_FOREACH (Material *, material, &bmain->materials) {
       do_version_material_remove_use_nodes(bmain, material);
     }
