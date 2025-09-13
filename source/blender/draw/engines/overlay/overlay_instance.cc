@@ -42,6 +42,7 @@ void Instance::init()
   state.is_viewport_image_render = ctx->is_viewport_image_render();
   state.is_image_render = ctx->is_image_render();
   state.is_depth_only_drawing = ctx->is_depth();
+  state.skip_particles = ctx->mode == DRWContext::DEPTH_ACTIVE_OBJECT;
   state.is_material_select = ctx->is_material_select();
   state.draw_background = ctx->options.draw_background;
   state.show_text = false;
@@ -271,7 +272,6 @@ void Resources::update_theme_settings(const DRWContext *ctx, const State &state)
   UI_GetThemeColor4fv(TH_EDGE_SHARP, gb.colors.edge_sharp);
   UI_GetThemeColor4fv(TH_EDGE_CREASE, gb.colors.edge_crease);
   UI_GetThemeColor4fv(TH_EDGE_BEVEL, gb.colors.edge_bweight);
-  UI_GetThemeColor4fv(TH_EDGE_FACESEL, gb.colors.edge_face_select);
   UI_GetThemeColor4fv(TH_FACE, gb.colors.face);
   UI_GetThemeColor4fv(TH_FACE_SELECT, gb.colors.face_select);
   UI_GetThemeColor4fv(TH_FACE_MODE_SELECT, gb.colors.face_mode_select);
@@ -1091,7 +1091,9 @@ bool Instance::object_needs_prepass(const ObjectRef &ob_ref, bool in_paint_mode)
 
   if (in_paint_mode) {
     /* Allow paint overlays to draw with depth equal test. */
-    if (object_is_rendered_transparent(ob_ref.object, state)) {
+    if (object_is_rendered_transparent(ob_ref.object, state) ||
+        object_is_in_front(ob_ref.object, state))
+    {
       return true;
     }
   }

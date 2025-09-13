@@ -145,6 +145,9 @@ struct BlendFileReadReport {
   int resynced_lib_overrides_libraries_count;
   bool do_resynced_lib_overrides_libraries_list;
   LinkNode *resynced_lib_overrides_libraries;
+
+  /** Whether a pre-2.50 blend file was loaded, in which case any animation is lost. */
+  bool pre_animato_file_loaded;
 };
 
 /** Skip reading some data-block types (may want to skip screen data too). */
@@ -375,6 +378,11 @@ enum eBLOLibLinkFlags {
   BLO_LIBLINK_USE_PLACEHOLDERS = 1 << 16,
   /** Force loaded ID to be tagged as #ID_TAG_INDIRECT (used in reload context only). */
   BLO_LIBLINK_FORCE_INDIRECT = 1 << 17,
+  /**
+   * Set the object active when #OB_FLAG_ACTIVE_CLIPBOARD is set.
+   * Used for copy & paste so the active object is preserved.
+   */
+  BLO_LIBLINK_APPEND_SET_OB_ACTIVE_CLIPBOARD = 1 << 18,
   /** Set fake user on appended IDs. */
   BLO_LIBLINK_APPEND_SET_FAKEUSER = 1 << 19,
   /**

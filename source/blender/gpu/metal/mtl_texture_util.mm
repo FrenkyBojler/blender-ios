@@ -34,154 +34,16 @@ namespace blender::gpu {
 
 MTLPixelFormat gpu_texture_format_to_metal(TextureFormat tex_format)
 {
+#define CASE(a, b, c, blender_enum, d, mtl_pixel_enum, f, g, h) \
+  case TextureFormat::blender_enum: \
+    return MTLPixelFormat##mtl_pixel_enum;
+
   switch (tex_format) {
-    /* Texture & Render-Buffer Formats. */
-    case TextureFormat::UINT_8_8_8_8:
-      return MTLPixelFormatRGBA8Uint;
-    case TextureFormat::SINT_8_8_8_8:
-      return MTLPixelFormatRGBA8Sint;
-    case TextureFormat::UNORM_8_8_8_8:
-      return MTLPixelFormatRGBA8Unorm;
-    case TextureFormat::UINT_32_32_32_32:
-      return MTLPixelFormatRGBA32Uint;
-    case TextureFormat::SINT_32_32_32_32:
-      return MTLPixelFormatRGBA32Sint;
-    case TextureFormat::SFLOAT_32_32_32_32:
-      return MTLPixelFormatRGBA32Float;
-    case TextureFormat::UINT_16_16_16_16:
-      return MTLPixelFormatRGBA16Uint;
-    case TextureFormat::SINT_16_16_16_16:
-      return MTLPixelFormatRGBA16Sint;
-    case TextureFormat::SFLOAT_16_16_16_16:
-      return MTLPixelFormatRGBA16Float;
-    case TextureFormat::UNORM_16_16_16_16:
-      return MTLPixelFormatRGBA16Unorm;
-    case TextureFormat::UINT_8_8:
-      return MTLPixelFormatRG8Uint;
-    case TextureFormat::SINT_8_8:
-      return MTLPixelFormatRG8Sint;
-    case TextureFormat::UNORM_8_8:
-      return MTLPixelFormatRG8Unorm;
-    case TextureFormat::UINT_32_32:
-      return MTLPixelFormatRG32Uint;
-    case TextureFormat::SINT_32_32:
-      return MTLPixelFormatRG32Sint;
-    case TextureFormat::SFLOAT_32_32:
-      return MTLPixelFormatRG32Float;
-    case TextureFormat::UINT_16_16:
-      return MTLPixelFormatRG16Uint;
-    case TextureFormat::SINT_16_16:
-      return MTLPixelFormatRG16Sint;
-    case TextureFormat::SFLOAT_16_16:
-      return MTLPixelFormatRG16Float;
-    case TextureFormat::UNORM_16_16:
-      return MTLPixelFormatRG16Unorm;
-    case TextureFormat::UINT_8:
-      return MTLPixelFormatR8Uint;
-    case TextureFormat::SINT_8:
-      return MTLPixelFormatR8Sint;
-    case TextureFormat::UNORM_8:
-      return MTLPixelFormatR8Unorm;
-    case TextureFormat::UINT_32:
-      return MTLPixelFormatR32Uint;
-    case TextureFormat::SINT_32:
-      return MTLPixelFormatR32Sint;
-    case TextureFormat::SFLOAT_32:
-      return MTLPixelFormatR32Float;
-    case TextureFormat::UINT_16:
-      return MTLPixelFormatR16Uint;
-    case TextureFormat::SINT_16:
-      return MTLPixelFormatR16Sint;
-    case TextureFormat::SFLOAT_16:
-      return MTLPixelFormatR16Float;
-    case TextureFormat::UNORM_16:
-      return MTLPixelFormatR16Unorm;
-    /* Special formats texture & render-buffer. */
-    case TextureFormat::UNORM_10_10_10_2:
-      return MTLPixelFormatRGB10A2Unorm;
-    case TextureFormat::UINT_10_10_10_2:
-      return MTLPixelFormatRGB10A2Uint;
-    case TextureFormat::UFLOAT_11_11_10:
-      return MTLPixelFormatRG11B10Float;
-    case TextureFormat::SFLOAT_32_DEPTH_UINT_8:
-      return MTLPixelFormatDepth32Float_Stencil8;
-    case TextureFormat::SRGBA_8_8_8_8:
-      return MTLPixelFormatRGBA8Unorm_sRGB;
-    /* Texture only formats. */
-    case TextureFormat::SFLOAT_16_16_16:
-      /* 48-Bit pixel format are not supported. Emulate using a padded type with alpha. */
-      return MTLPixelFormatRGBA16Float;
-    case TextureFormat::SNORM_16_16_16_16:
-      return MTLPixelFormatRGBA16Snorm;
-    case TextureFormat::SNORM_8_8_8_8:
-      return MTLPixelFormatRGBA8Snorm;
-    case TextureFormat::SFLOAT_32_32_32:
-      /* 96-Bit pixel format are not supported. Emulate using a padded type with alpha. */
-      return MTLPixelFormatRGBA32Float;
-    case TextureFormat::SINT_32_32_32:
-      /* 96-Bit pixel format are not supported. Emulate using a padded type with alpha. */
-      return MTLPixelFormatRGBA32Sint;
-    case TextureFormat::UINT_32_32_32:
-      /* 96-Bit pixel format are not supported. Emulate using a padded type with alpha. */
-      return MTLPixelFormatRGBA32Uint;
-    case TextureFormat::SNORM_16_16_16:
-      /* 48-Bit pixel format are not supported. Emulate using a padded type with alpha. */
-      return MTLPixelFormatRGBA16Snorm;
-    case TextureFormat::SINT_16_16_16:
-      /* 48-Bit pixel format are not supported. Emulate using a padded type with alpha. */
-      return MTLPixelFormatRGBA16Sint;
-    case TextureFormat::UINT_16_16_16:
-      /* 48-Bit pixel format are not supported. Emulate using a padded type with alpha. */
-      return MTLPixelFormatRGBA16Uint;
-    case TextureFormat::UNORM_16_16_16:
-      /* 48-Bit pixel format are not supported. Emulate using a padded type with alpha. */
-      return MTLPixelFormatRGBA16Unorm;
-    case TextureFormat::SNORM_8_8_8:
-      /* 24-Bit pixel format are not supported. Emulate using a padded type with alpha. */
-      return MTLPixelFormatRGBA8Snorm;
-    case TextureFormat::UNORM_8_8_8:
-      /* 24-Bit pixel format are not supported. Emulate using a padded type with alpha. */
-      return MTLPixelFormatRGBA8Unorm;
-    case TextureFormat::SINT_8_8_8:
-      /* 24-Bit pixel format are not supported. Emulate using a padded type with alpha. */
-      return MTLPixelFormatRGBA8Sint;
-    case TextureFormat::UINT_8_8_8:
-      /* 24-Bit pixel format are not supported. Emulate using a padded type with alpha. */
-      return MTLPixelFormatRGBA8Uint;
-    case TextureFormat::SNORM_16_16:
-      return MTLPixelFormatRG16Snorm;
-    case TextureFormat::SNORM_8_8:
-      return MTLPixelFormatRG8Snorm;
-    case TextureFormat::SNORM_16:
-      return MTLPixelFormatR16Snorm;
-    case TextureFormat::SNORM_8:
-      return MTLPixelFormatR8Snorm;
-    /* Special formats, texture only. */
-    case TextureFormat::SRGB_DXT1:
-      return MTLPixelFormatBC1_RGBA_sRGB;
-    case TextureFormat::SRGB_DXT3:
-      return MTLPixelFormatBC2_RGBA_sRGB;
-    case TextureFormat::SRGB_DXT5:
-      return MTLPixelFormatBC3_RGBA_sRGB;
-    case TextureFormat::SNORM_DXT1:
-      return MTLPixelFormatBC1_RGBA;
-    case TextureFormat::SNORM_DXT3:
-      return MTLPixelFormatBC2_RGBA;
-    case TextureFormat::SNORM_DXT5:
-      return MTLPixelFormatBC3_RGBA;
-    case TextureFormat::SRGBA_8_8_8:
-      /* 24-Bit pixel format are not supported. Emulate using a padded type with alpha. */
-      return MTLPixelFormatRGBA8Unorm_sRGB;
-    case TextureFormat::UFLOAT_9_9_9_EXP_5:
-      return MTLPixelFormatRGB9E5Float;
-    /* Depth Formats. */
-    case TextureFormat::SFLOAT_32_DEPTH:
-      return MTLPixelFormatDepth32Float;
-    case TextureFormat::UNORM_16_DEPTH:
-      return MTLPixelFormatDepth16Unorm;
+    GPU_TEXTURE_FORMAT_EXPAND(CASE)
     case TextureFormat::Invalid:
-      BLI_assert_msg(false, "Unrecognised GPU pixel format!\n");
+      break;
   }
+#undef CASE
   BLI_assert_msg(false, "Unrecognised GPU pixel format!\n");
   return MTLPixelFormatRGBA8Unorm;
 }
@@ -527,7 +389,7 @@ id<MTLComputePipelineState> gpu::MTLTexture::texture_update_3d_get_kernel(
 /* TODO(Metal): Data upload routine kernel for texture cube and texture cube array.
  * Currently does not appear to be hit. */
 
-GPUShader *gpu::MTLTexture::depth_2d_update_sh_get(
+gpu::Shader *gpu::MTLTexture::depth_2d_update_sh_get(
     DepthTextureUpdateRoutineSpecialisation specialization)
 {
 
@@ -535,7 +397,7 @@ GPUShader *gpu::MTLTexture::depth_2d_update_sh_get(
   MTLContext *mtl_context = MTLContext::get();
   BLI_assert(mtl_context != nullptr);
 
-  GPUShader **result = mtl_context->get_texture_utils().depth_2d_update_shaders.lookup_ptr(
+  gpu::Shader **result = mtl_context->get_texture_utils().depth_2d_update_shaders.lookup_ptr(
       specialization);
   if (result != nullptr) {
     return *result;
@@ -557,17 +419,17 @@ GPUShader *gpu::MTLTexture::depth_2d_update_sh_get(
       return nullptr;
   }
 
-  GPUShader *shader = GPU_shader_create_from_info_name(depth_2d_info_variant);
+  gpu::Shader *shader = GPU_shader_create_from_info_name(depth_2d_info_variant);
   mtl_context->get_texture_utils().depth_2d_update_shaders.add_new(specialization, shader);
   return shader;
 }
 
-GPUShader *gpu::MTLTexture::fullscreen_blit_sh_get()
+gpu::Shader *gpu::MTLTexture::fullscreen_blit_sh_get()
 {
   MTLContext *mtl_context = MTLContext::get();
   BLI_assert(mtl_context != nullptr);
   if (mtl_context->get_texture_utils().fullscreen_blit_shader == nullptr) {
-    GPUShader *shader = GPU_shader_create_from_info_name("fullscreen_blit");
+    gpu::Shader *shader = GPU_shader_create_from_info_name("fullscreen_blit");
 
     mtl_context->get_texture_utils().fullscreen_blit_shader = shader;
   }
@@ -634,7 +496,7 @@ void gpu::MTLTexture::update_sub_depth_2d(
     GPU_framebuffer_clear_stencil(depth_fb_temp, 0);
   }
 
-  GPUShader *depth_2d_update_sh = depth_2d_update_sh_get(specialization);
+  gpu::Shader *depth_2d_update_sh = depth_2d_update_sh_get(specialization);
   BLI_assert(depth_2d_update_sh != nullptr);
   Batch *quad = GPU_batch_preset_quad();
   GPU_batch_set_shader(quad, depth_2d_update_sh);

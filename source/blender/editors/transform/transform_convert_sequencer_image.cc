@@ -8,6 +8,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "DNA_screen_types.h"
 #include "DNA_sequence_types.h"
 #include "DNA_space_types.h"
 
@@ -288,7 +289,7 @@ static void image_transform_set(TransInfo *t)
       transform->xofs *= t->values_final[0];
       transform->yofs *= t->values_final[1];
 
-      if (t->orient_curr == O_SET) {
+      if (t->orient_curr == O_SET && t->orient_type_mask & (1 << V3D_ORIENT_LOCAL)) {
         if (strip == ed->act_strip) {
           transform->rotation = tdseq->orig_rotation;
         }
@@ -297,14 +298,15 @@ static void image_transform_set(TransInfo *t)
         }
       }
       else {
-        strip->flag = tdseq->orig_flag;
-        if (t->values_final[0] == -1) {
-          strip->flag ^= SEQ_FLIPX;
-        }
-        if (t->values_final[1] == -1) {
-          strip->flag ^= SEQ_FLIPY;
-        }
         transform->rotation = tdseq->orig_rotation;
+      }
+
+      strip->flag = tdseq->orig_flag;
+      if (t->values_final[0] == -1) {
+        strip->flag ^= SEQ_FLIPX;
+      }
+      if (t->values_final[1] == -1) {
+        strip->flag ^= SEQ_FLIPY;
       }
     }
 

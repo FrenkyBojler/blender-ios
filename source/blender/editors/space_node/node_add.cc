@@ -20,6 +20,7 @@
 #include "BLI_listbase.h"
 #include "BLI_math_geom.h"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 
 #include "BLT_translation.hh"
 
@@ -81,9 +82,7 @@ bNode *add_node(const bContext &C, const StringRef idname, const float2 &locatio
 
   node_deselect_all(node_tree);
 
-  const std::string idname_str = idname;
-
-  bNode *node = bke::node_add_node(&C, node_tree, idname_str.c_str());
+  bNode *node = bke::node_add_node(&C, node_tree, idname);
   BLI_assert(node && node->typeinfo);
 
   position_node_based_on_mouse(*node, location);
@@ -390,7 +389,7 @@ void NODE_OT_add_group(wmOperatorType *ot)
   WM_operator_properties_id_lookup(ot, true);
 
   PropertyRNA *prop = RNA_def_boolean(
-      ot->srna, "show_datablock_in_node", true, "Show the datablock selector in the node", "");
+      ot->srna, "show_datablock_in_node", true, "Show the data-block selector in the node", "");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE | PROP_HIDDEN);
 }
 
@@ -428,7 +427,7 @@ static bool add_node_group_asset(const bContext &C,
     BKE_report(&reports, RPT_WARNING, "Could not add node group");
     return false;
   }
-  STRNCPY(group_node->name, BKE_id_name(node_group->id));
+  STRNCPY_UTF8(group_node->name, BKE_id_name(node_group->id));
   bke::node_unique_name(*snode.edittree, *group_node);
 
   /* By default, don't show the data-block selector since it's not usually necessary for assets. */
@@ -1091,7 +1090,7 @@ static wmOperatorStatus node_add_import_node_exec(bContext *C, wmOperator *op)
     }
 
     if (node) {
-      bNodeSocket &path_socket = node->input_by_identifier("Path");
+      bNodeSocket &path_socket = *node->input_by_identifier("Path");
       BLI_assert(path_socket.type == SOCK_STRING);
       auto *socket_data = static_cast<bNodeSocketValueString *>(path_socket.default_value);
       STRNCPY(socket_data->value, path.c_str());

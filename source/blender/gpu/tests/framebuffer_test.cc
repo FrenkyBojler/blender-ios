@@ -286,20 +286,16 @@ static void test_framebuffer_multi_viewport()
   create_info.builtins(BuiltinBits::VIEWPORT_INDEX | BuiltinBits::LAYER);
   create_info.fragment_out(0, Type::int2_t, "out_value");
 
-  GPUShader *shader = GPU_shader_create_from_info(
+  gpu::Shader *shader = GPU_shader_create_from_info(
       reinterpret_cast<GPUShaderCreateInfo *>(&create_info));
 
-  /* TODO(fclem): remove this boilerplate. */
-  GPUVertFormat format{};
-  GPU_vertformat_attr_add(&format, "dummy", VertAttrType::UINT_32);
-  VertBuf *verts = GPU_vertbuf_create_with_format(format);
-  GPU_vertbuf_data_alloc(*verts, 3);
-  Batch *batch = GPU_batch_create_ex(GPU_PRIM_TRIS, verts, nullptr, GPU_BATCH_OWNS_VBO);
+  int tri_count = size.x * size.y * layers;
+
+  Batch *batch = GPU_batch_create_procedural(GPU_PRIM_TRIS, tri_count * 3);
 
   GPU_batch_set_shader(batch, shader);
 
-  int tri_count = size.x * size.y * layers;
-  GPU_batch_draw_advanced(batch, 0, tri_count * 3, 0, 1);
+  GPU_batch_draw(batch);
 
   GPU_batch_discard(batch);
 
@@ -357,7 +353,7 @@ static void test_framebuffer_subpass_input()
   create_info_write.fragment_source("gpu_framebuffer_subpass_input_test.glsl");
   create_info_write.fragment_out(0, Type::int_t, "out_value", DualBlend::NONE, 0);
 
-  GPUShader *shader_write = GPU_shader_create_from_info(
+  gpu::Shader *shader_write = GPU_shader_create_from_info(
       reinterpret_cast<GPUShaderCreateInfo *>(&create_info_write));
 
   ShaderCreateInfo create_info_read("");
@@ -367,15 +363,10 @@ static void test_framebuffer_subpass_input()
   create_info_read.subpass_in(0, Type::int_t, ImageType::Int2D, "in_value", 0);
   create_info_read.fragment_out(1, Type::int_t, "out_value");
 
-  GPUShader *shader_read = GPU_shader_create_from_info(
+  gpu::Shader *shader_read = GPU_shader_create_from_info(
       reinterpret_cast<GPUShaderCreateInfo *>(&create_info_read));
 
-  /* TODO(fclem): remove this boilerplate. */
-  GPUVertFormat format{};
-  GPU_vertformat_attr_add(&format, "dummy", VertAttrType::UINT_32);
-  VertBuf *verts = GPU_vertbuf_create_with_format(format);
-  GPU_vertbuf_data_alloc(*verts, 3);
-  Batch *batch = GPU_batch_create_ex(GPU_PRIM_TRIS, verts, nullptr, GPU_BATCH_OWNS_VBO);
+  Batch *batch = GPU_batch_create_procedural(GPU_PRIM_TRIS, 3);
 
   /* Metal Raster Order Group does not need that. */
   GPU_framebuffer_subpass_transition(

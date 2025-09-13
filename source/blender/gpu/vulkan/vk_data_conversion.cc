@@ -151,8 +151,9 @@ static ConversionType type_of_conversion_float(const TextureFormat host_format,
        * pretends that host data is a float. It is actually raw BCn bits. */
       return ConversionType::PASS_THROUGH;
 
-    case TextureFormat::SFLOAT_32_32_32: /* TextureFormat::SFLOAT_32_32_32
-                                            Not supported by vendors. */
+      /* #TextureFormat::SFLOAT_32_32_32 Not supported by vendors. */
+    case TextureFormat::SFLOAT_32_32_32:
+
     case TextureFormat::UINT_8_8_8_8:
     case TextureFormat::SINT_8_8_8_8:
     case TextureFormat::UINT_16_16_16_16:
@@ -550,8 +551,9 @@ static ConversionType type_of_conversion_uint248(const TextureFormat device_form
     case TextureFormat::SNORM_DXT3:
     case TextureFormat::SNORM_DXT5:
 
-    case TextureFormat::SFLOAT_32_32_32: /* TextureFormat::SFLOAT_32_32_32
-                                            Not supported by vendors. */
+      /* #TextureFormat::SFLOAT_32_32_32 Not supported by vendors. */
+    case TextureFormat::SFLOAT_32_32_32:
+
     case TextureFormat::UINT_8_8_8_8:
     case TextureFormat::SINT_8_8_8_8:
     case TextureFormat::UINT_16_16_16_16:
@@ -677,7 +679,7 @@ static ConversionType reversed(ConversionType type)
   return ConversionType::UNSUPPORTED;
 }
 
-/* \} */
+/** \} */
 
 /* -------------------------------------------------------------------- */
 /** \name Data Conversion
@@ -863,12 +865,12 @@ void convert(DestinationType &dst, const SourceType &src)
 
 static void convert(SRGBA8 &dst, const FLOAT4 &src)
 {
-  dst.value = src.value.encode();
+  dst.value = color::encode(src.value);
 }
 
 static void convert(FLOAT4 &dst, const SRGBA8 &src)
 {
-  dst.value = src.value.decode();
+  dst.value = color::decode(src.value);
 }
 
 static void convert(FLOAT3 &dst, const HALF4 &src)
@@ -943,7 +945,7 @@ static void convert(B10F_G11G_R11F &dst, const FLOAT3 &src)
   dst.value = r << SHIFT_R | g << SHIFT_G | b << SHIFT_B;
 }
 
-/* \} */
+/** \} */
 
 static void convert(UI32 &dst, const Depth32fStencil8 &src)
 {
@@ -1171,6 +1173,6 @@ void convert_device_to_host(void *dst_buffer,
   convert_buffer(dst_buffer, src_buffer, buffer_size, device_format, conversion_type);
 }
 
-/* \} */
+/** \} */
 
 }  // namespace blender::gpu

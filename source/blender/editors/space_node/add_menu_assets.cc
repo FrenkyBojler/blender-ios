@@ -8,7 +8,7 @@
 #include "AS_asset_representation.hh"
 
 #include "BLI_multi_value_map.hh"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 
 #include "DNA_space_types.h"
 
@@ -45,7 +45,7 @@ static asset::AssetItemTree build_catalog_tree(const bContext &C, const bNodeTre
   type_filter.id_types = FILTER_ID_NT;
   auto meta_data_filter = [&](const AssetMetaData &meta_data) {
     const IDProperty *tree_type = BKE_asset_metadata_idprop_find(&meta_data, "type");
-    if (tree_type == nullptr || IDP_Int(tree_type) != node_tree.type) {
+    if (tree_type == nullptr || IDP_int_get(tree_type) != node_tree.type) {
       return false;
     }
     return true;
@@ -277,7 +277,7 @@ static void add_root_catalogs_draw(const bContext *C, Menu *menu)
 MenuType add_catalog_assets_menu_type()
 {
   MenuType type{};
-  STRNCPY(type.idname, "NODE_MT_node_add_catalog_assets");
+  STRNCPY_UTF8(type.idname, "NODE_MT_node_add_catalog_assets");
   type.poll = node_add_menu_poll;
   type.draw = node_add_catalog_assets_draw;
   type.listener = asset::list::asset_reading_region_listen_fn;
@@ -288,7 +288,7 @@ MenuType add_catalog_assets_menu_type()
 MenuType add_unassigned_assets_menu_type()
 {
   MenuType type{};
-  STRNCPY(type.idname, "NODE_MT_node_add_unassigned_assets");
+  STRNCPY_UTF8(type.idname, "NODE_MT_node_add_unassigned_assets");
   type.poll = node_add_menu_poll;
   type.draw = node_add_unassigned_assets_draw;
   type.listener = asset::list::asset_reading_region_listen_fn;
@@ -302,7 +302,7 @@ MenuType add_unassigned_assets_menu_type()
 MenuType add_root_catalogs_menu_type()
 {
   MenuType type{};
-  STRNCPY(type.idname, "NODE_MT_node_add_root_catalogs");
+  STRNCPY_UTF8(type.idname, "NODE_MT_node_add_root_catalogs");
   type.poll = node_add_menu_poll;
   type.draw = add_root_catalogs_draw;
   type.listener = asset::list::asset_reading_region_listen_fn;

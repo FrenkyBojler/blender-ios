@@ -20,6 +20,7 @@
 #include "BLI_listbase.h"
 #include "BLI_math_vector.h"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_time.h"
 #include "BLI_utildefines.h"
 
@@ -281,7 +282,7 @@ void UI_list_panel_unique_str(Panel *panel, char *r_name)
 {
   /* The panel sort-order will be unique for a specific panel type because the instanced
    * panel list is regenerated for every change in the data order / length. */
-  BLI_snprintf(r_name, INSTANCED_PANEL_UNIQUE_STR_SIZE, "%d", panel->sortorder);
+  BLI_snprintf_utf8(r_name, INSTANCED_PANEL_UNIQUE_STR_SIZE, "%d", panel->sortorder);
 }
 
 /**
@@ -1080,7 +1081,7 @@ static void panel_draw_border(const Panel *panel,
   }
 
   float color[4];
-  UI_GetThemeColor4fv(is_active ? TH_SELECT_ACTIVE : TH_PANEL_OUTLINE, color);
+  UI_GetThemeColor4fv(is_active ? TH_PANEL_ACTIVE : TH_PANEL_OUTLINE, color);
   if (color[3] == 0.0f) {
     return; /* No border to draw. */
   }
@@ -1479,7 +1480,8 @@ void UI_panel_category_draw_all(ARegion *region, const char *category_id_active)
     rcti *rct = &pc_dyn->rect;
     const char *category_id = pc_dyn->idname;
     const char *category_id_draw = IFACE_(category_id);
-    const int category_width = BLF_width(fontid, category_id_draw, BLF_DRAW_STR_DUMMY_MAX);
+    const int category_width = round_fl_to_int(
+        BLF_width(fontid, category_id_draw, BLF_DRAW_STR_DUMMY_MAX));
 
     rct->xmin = rct_xmin;
     rct->xmax = rct_xmax;
@@ -1612,9 +1614,9 @@ void UI_panel_category_draw_all(ARegion *region, const char *category_id_active)
     /* Tab titles. */
 
     /* Offset toward the middle of the rect. */
-    const int text_v_ofs = (rct_xmax - rct_xmin) * 0.5f;
+    const int text_v_ofs = round_fl_to_int(float(rct_xmax - rct_xmin) * 0.5f);
     /* Offset down as the font size increases. */
-    const int text_size_offset = int(fstyle_points * UI_SCALE_FAC * 0.35f);
+    const int text_size_offset = round_fl_to_int(fstyle_points * UI_SCALE_FAC * 0.35f);
 
     BLF_position(fontid,
                  is_left ? rct->xmax - text_v_ofs + text_size_offset :
@@ -2421,7 +2423,7 @@ static void ui_panel_category_active_set(ARegion *region, const char *idname, bo
   }
   else {
     pc_act = MEM_callocN<PanelCategoryStack>(__func__);
-    STRNCPY(pc_act->idname, idname);
+    STRNCPY_UTF8(pc_act->idname, idname);
   }
 
   if (fallback) {
@@ -2510,7 +2512,7 @@ void UI_panel_category_add(ARegion *region, const char *name)
   PanelCategoryDyn *pc_dyn = MEM_callocN<PanelCategoryDyn>(__func__);
   BLI_addtail(&region->runtime->panels_category, pc_dyn);
 
-  STRNCPY(pc_dyn->idname, name);
+  STRNCPY_UTF8(pc_dyn->idname, name);
 
   /* 'pc_dyn->rect' must be set on draw. */
 }

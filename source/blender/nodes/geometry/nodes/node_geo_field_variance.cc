@@ -244,6 +244,12 @@ class FieldVarianceInput final : public bke::GeometryFieldInput {
     return attributes.adapt_domain(std::move(g_outputs), source_domain_, context.domain());
   }
 
+  void for_each_field_input_recursive(FunctionRef<void(const FieldInput &)> fn) const final
+  {
+    input_.node().for_each_field_input_recursive(fn);
+    group_index_.node().for_each_field_input_recursive(fn);
+  }
+
   uint64_t hash() const override
   {
     return get_default_hash(input_, group_index_, source_domain_, operation_);
@@ -289,8 +295,12 @@ static void node_geo_exec(GeoNodeExecParams params)
 static void node_rna(StructRNA *srna)
 {
   static EnumPropertyItem items[] = {
-      {CD_PROP_FLOAT, "FLOAT", 0, "Float", "Floating-point value"},
-      {CD_PROP_FLOAT3, "FLOAT_VECTOR", 0, "Vector", "3D vector with floating-point values"},
+      {CD_PROP_FLOAT, "FLOAT", ICON_NODE_SOCKET_FLOAT, "Float", "Floating-point value"},
+      {CD_PROP_FLOAT3,
+       "FLOAT_VECTOR",
+       ICON_NODE_SOCKET_VECTOR,
+       "Vector",
+       "3D vector with floating-point values"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
