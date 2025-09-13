@@ -8,6 +8,8 @@
 
 #include <iostream>
 
+#include <stdlib.h> 
+
 #include "BLI_array_utils.hh"
 #include "BLI_math_base.h"
 #include "BLI_ordered_edge.hh"
@@ -508,26 +510,26 @@ void mesh_calc_edges(Mesh &mesh,
     const size_t elem_size = CustomData_sizeof(eCustomDataType(layer.type));
 
     void *dst_data = MEM_malloc_arrayN(result_edges_num, elem_size, AT);
-    if (layer.type == CD_ORIGINDEX) {
-      const Span src(static_cast<const int *>(src_data), mesh.edges_num);
-      MutableSpan dst(static_cast<int *>(dst_data), result_edges_num);
-      array_utils::gather(src, src_to_dst_mask, dst.take_front(src_to_dst_mask.size()));
-      dst.slice(back_range_of_new_edges).fill(-1);
-    }
-    else {
-      const CPPType *type = custom_data_type_to_cpp_type(eCustomDataType(layer.type));
-      BLI_assert(type != nullptr);
-      const GSpan src(type, src_data, mesh.edges_num);
-      GMutableSpan dst(type, dst_data, result_edges_num);
-      array_utils::gather(src, src_to_dst_mask, dst.take_front(src_to_dst_mask.size()));
-      type->fill_assign_n(type->default_value(),
-                          dst.slice(back_range_of_new_edges).data(),
-                          dst.slice(back_range_of_new_edges).size());
-    }
-
-    if (layer.sharing_info != nullptr) {
+    if (src_data != nullptr) {
+      if (layer.type == CD_ORIGINDEX) {
+        const Span src(static_cast<const int *>(src_data), mesh.edges_num);
+        MutableSpan dst(static_cast<int *>(dst_data), result_edges_num);
+        array_utils::gather(src, src_to_dst_mask, dst.take_front(src_to_dst_mask.size()));
+        dst.slice(back_range_of_new_edges).fill(-1);
+      }
+      else {
+        const CPPType *type = custom_data_type_to_cpp_type(eCustomDataType(layer.type));
+        BLI_assert(type != nullptr);
+        const GSpan src(type, src_data, mesh.edges_num);
+        GMutableSpan dst(type, dst_data, result_edges_num);
+        array_utils::gather(src, src_to_dst_mask, dst.take_front(src_to_dst_mask.size()));
+        type->fill_assign_n(type->default_value(),
+                            dst.slice(back_range_of_new_edges).data(),
+                            dst.slice(back_range_of_new_edges).size());
+      }
       layer.sharing_info->remove_user_and_delete_if_last();
     }
+
     layer.data = dst_data;
     layer.sharing_info = implicit_sharing::info_for_mem_free(dst_data);
   }
