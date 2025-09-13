@@ -1,1 +1,2 @@
 Referenced by issue #146205, keyframing hide_viewport and vertex coords leads to assert-fail
+Referenced by issue #146211, Crash when attaching viewer node in geometry nodes
