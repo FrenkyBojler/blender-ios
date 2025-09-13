@@ -885,8 +885,8 @@ static wmOperatorStatus lattice_add_exec(bContext *C, wmOperator *op)
         ob->scale[2] = dims[2] / lat_rest[2];
 
         copy_v3_v3(ob->loc, center_w);
-        BKE_object_dimensions_set(ob, dims, 0);
-        DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
+        BKE_lattice_resize(lt, max_ii(1, res_u), max_ii(1, res_v), max_ii(1, res_w), ob);
+        DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY | ID_RECALC_TRANSFORM);
         DEG_relations_tag_update(CTX_data_main(C));
       }
     }
