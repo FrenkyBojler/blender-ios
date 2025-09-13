@@ -52,47 +52,13 @@ static const std::string format_matrix_to_single_line(const float4x4 &matrix)
 
 const std::string format_matrix_to_grid(const float4x4 &matrix)
 {
-  auto format_element = [](float value) { return fmt::format("{:.7}", value); };
-  auto format_element3 = [](float value) {
-    const float abs_value = std::abs(value);
-    if (abs_value >= 1e7f) {
-      return fmt::format("{:.3}", value);
-    }
-    else if (abs_value >= 1.0f) {
-      return fmt::format("{:.7}", value);
-    }
-    // else if (abs_value > 1e-4f) {
-    //   return fmt::format("{:.4}", value);
-    //   // return fmt::format("{:.3}", double_round(value, 6));
-    // }
-    // // else if (abs_value < 1e-4f) {
-    // else {
-    //   return fmt::format("{:.3}", value);
-    // }
-    else {
-      return fmt::format("{:.6}", value);
-    }
-  };
-
-  auto format_element2 = [](float value) {
-    const float abs_value = std::abs(value);
-    if (abs_value >= 1e7f || (abs_value > 0 && abs_value < 1e-4f)) {
-      return fmt::format("{:.3}", value);
-    }
-    else if (abs_value < 1.0f && abs_value > 1e-4f) {
-      return fmt::format("{:.6}", double_round(value, 6));
-    }
-    return fmt::format("{:.7}", value);
-  };
-
   std::array<std::array<std::string, 4>, 4> matrix_elements;
   std::array<size_t, 4> column_widths = {};
   /* Transpose to be able to print row by row. */
   const float4x4 t_matrix = math::transpose(matrix);
   for (const int row_i : IndexRange(4)) {
     for (const int col_i : IndexRange(4)) {
-      matrix_elements[row_i][col_i] = format_element(t_matrix[row_i][col_i]);
-      // matrix_elements[row_i][col_i] = fmt::format("{:.6}", t_matrix[row_i][col_i]);
+      matrix_elements[row_i][col_i] = fmt::format("{:.6}", t_matrix[row_i][col_i]);
       column_widths[col_i] = math::max(column_widths[col_i],
                                        matrix_elements[row_i][col_i].length());
     }
