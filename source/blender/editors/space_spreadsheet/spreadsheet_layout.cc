@@ -29,6 +29,25 @@
 
 namespace blender::ed::spreadsheet {
 
+static const std::string format_matrix(const float4x4 &value)
+{
+  const float4x4 t_value = math::transpose(value);
+  std::stringstream ss;
+  ss << "  ";
+  for (const int row_i : IndexRange(4)) {
+    const float4 &row = t_value[row_i];
+    ss << fmt::format("[{:.7}, {:.7}, {:.7}, {:.7}]",
+                      double_round(row[0], 2),
+                      double_round(row[1], 2),
+                      double_round(row[2], 2),
+                      double_round(row[3], 2));
+    if (row_i < 3) {
+      ss << ",  ";
+    }
+  }
+  return ss.str();
+}
+
 class SpreadsheetLayoutDrawer : public SpreadsheetDrawer {
  private:
   const SpreadsheetLayout &spreadsheet_layout_;
@@ -405,30 +424,57 @@ class SpreadsheetLayoutDrawer : public SpreadsheetDrawer {
 
   void draw_float4x4(const CellDrawParams &params, const float4x4 &value) const
   {
+    const std::string value_str = format_matrix(value);
     uiBut *but = uiDefIconTextBut(params.block,
                                   ButType::Label,
                                   0,
                                   ICON_NONE,
-                                  "...",
+                                  value_str,
                                   params.xmin,
                                   params.ymin,
                                   params.width,
                                   params.height,
                                   nullptr,
                                   std::nullopt);
-    /* Center alignment. */
-    UI_but_drawflag_disable(but, UI_BUT_TEXT_LEFT);
-    UI_but_func_tooltip_set(
+    /* Left-align Matrix. */
+    UI_but_drawflag_disable(but, UI_BUT_TEXT_RIGHT);
+    UI_but_drawflag_enable(but, UI_BUT_TEXT_LEFT);
+    UI_but_func_tooltip_custom_set(
         but,
-        [](bContext * /*C*/, void *argN, const StringRef /*tip*/) {
+        [](bContext & /*C*/, uiTooltipData &tip, uiBut * /*but*/, void *argN) {
+          auto format_float = [](float value) {
+            float abs_value = std::abs(value);
+            if (abs_value > 1e7f || abs_value < 1e-4f) {
+              return fmt::format("{:.3}", value);
+            }
+            else if (abs_value < 1 && abs_value > 1e-4f) {
+              return fmt::format("{:.6}", double_round(value, 6));
+            }
+            return fmt::format("{:.7}", value);
+          };
+
+          std::array<std::array<std::string, 4>, 4> formatted_matrix;
+          std::array<size_t, 4> col_widths = {};
           /* Transpose to be able to print row by row. */
           const float4x4 value = math::transpose(*static_cast<const float4x4 *>(argN));
+          for (const int r : IndexRange(4)) {
+            for (const int c : IndexRange(4)) {
+              formatted_matrix[r][c] = format_float(value[r][c]);
+              col_widths[c] = std::max(col_widths[c], formatted_matrix[r][c].length());
+            }
+          }
+
           std::stringstream ss;
-          ss << value[0] << ",\n";
-          ss << value[1] << ",\n";
-          ss << value[2] << ",\n";
-          ss << value[3];
-          return ss.str();
+          for (const int r : IndexRange(4)) {
+            for (const int c : IndexRange(4)) {
+              ss << fmt::format("{:>{}}  ", formatted_matrix[r][C], col_widths[C]);
+            }
+            if (r < 3) {
+              ss << "\n";
+            }
+          }
+
+          UI_tooltip_text_field_add(tip, ss.str(), {}, UI_TIP_STYLE_MONO, UI_TIP_LC_VALUE);
         },
         MEM_dupallocN<float4x4>(__func__, value),
         MEM_freeN);
@@ -476,7 +522,12 @@ float ColumnValues::fit_column_values_width_px(const std::optional<int64_t> &max
       return 2.0f * SPREADSHEET_WIDTH_UNIT;
     }
     case SPREADSHEET_VALUE_TYPE_FLOAT4X4: {
-      return 2.0f * SPREADSHEET_WIDTH_UNIT;
+      return estimate_max_column_width<float4x4>(
+          get_min_width(14 * SPREADSHEET_WIDTH_UNIT),
+          fontid,
+          max_sample_size,
+          data_.typed<float4x4>(),
+          [](const float4x4 &value) { return format_matrix(value); });
     }
     case SPREADSHEET_VALUE_TYPE_INT8: {
       return estimate_max_column_width<int8_t>(
