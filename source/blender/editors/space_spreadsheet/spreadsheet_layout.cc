@@ -50,7 +50,7 @@ static const std::string format_matrix_to_single_line(const float4x4 &matrix)
   return ss.str();
 }
 
-const std::string format_matrix_to_grid(const float4x4 &matrix)
+static const std::string format_matrix_to_grid(const float4x4 &matrix)
 {
   /* Transpose to be able to print row by row. */
   const float4x4 t_matrix = math::transpose(matrix);
@@ -523,7 +523,7 @@ float ColumnValues::fit_column_values_width_px(const std::optional<int64_t> &max
     }
     case SPREADSHEET_VALUE_TYPE_FLOAT4X4: {
       return estimate_max_column_width<float4x4>(
-          get_min_width(14 * SPREADSHEET_WIDTH_UNIT),
+          get_min_width(12 * SPREADSHEET_WIDTH_UNIT),
           fontid,
           max_sample_size,
           data_.typed<float4x4>(),
