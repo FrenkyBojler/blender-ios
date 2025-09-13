@@ -4761,7 +4761,7 @@ void LayoutInternal::init_from_parent(uiLayout *litem, uiLayout *layout, int ali
 
 uiLayout &uiLayout::row(bool align)
 {
-  uiLayout *litem = new LayoutRow(nullptr);
+  uiLayout *litem = MEM_new<LayoutRow>(__func__, nullptr);
   LayoutInternal::init_from_parent(litem, this, align);
 
   litem->space_ = (align) ? 0 : root_->style->buttonspacex;
@@ -4783,7 +4783,7 @@ PanelLayout uiLayout::panel_prop(const bContext *C,
 
   PanelLayout panel_layout{};
   {
-    uiLayoutItemPanelHeader *header_litem = new uiLayoutItemPanelHeader();
+    uiLayoutItemPanelHeader *header_litem = MEM_new<uiLayoutItemPanelHeader>(__func__);
     LayoutInternal::init_from_parent(header_litem, this, false);
 
     header_litem->open_prop_owner = *open_prop_owner;
@@ -4804,7 +4804,7 @@ PanelLayout uiLayout::panel_prop(const bContext *C,
     return panel_layout;
   }
 
-  uiLayoutItemPanelBody *body_litem = new uiLayoutItemPanelBody();
+  uiLayoutItemPanelBody *body_litem = MEM_new<uiLayoutItemPanelBody>(__func__);
   body_litem->space_ = root_->style->templatespace;
   LayoutInternal::init_from_parent(body_litem, this, false);
   blender::ui::block_layout_set_current(this->block(), body_litem);
@@ -4882,7 +4882,7 @@ uiLayout &uiLayout::row(bool align, const StringRef heading)
 
 uiLayout &uiLayout::column(bool align)
 {
-  uiLayout *litem = new LayoutColumn(nullptr);
+  uiLayout *litem = MEM_new<LayoutColumn>(__func__, nullptr);
   LayoutInternal::init_from_parent(litem, this, align);
 
   litem->space_ = (align) ? 0 : root_->style->buttonspacey;
@@ -4901,7 +4901,7 @@ uiLayout &uiLayout::column(bool align, const StringRef heading)
 
 uiLayout &uiLayout::column_flow(int number, bool align)
 {
-  uiLayoutItemFlow *flow = new uiLayoutItemFlow();
+  uiLayoutItemFlow *flow = MEM_new<uiLayoutItemFlow>(__func__);
   LayoutInternal::init_from_parent(flow, this, align);
 
   flow->space_ = (flow->align()) ? 0 : root_->style->columnspace;
@@ -4915,7 +4915,7 @@ uiLayout &uiLayout::column_flow(int number, bool align)
 uiLayout &uiLayout::grid_flow(
     bool row_major, int columns_len, bool even_columns, bool even_rows, bool align)
 {
-  uiLayoutItemGridFlow *flow = new uiLayoutItemGridFlow();
+  uiLayoutItemGridFlow *flow = MEM_new<uiLayoutItemGridFlow>(__func__);
   LayoutInternal::init_from_parent(flow, this, align);
 
   flow->space_ = (flow->align()) ? 0 : root_->style->columnspace;
@@ -4931,7 +4931,7 @@ uiLayout &uiLayout::grid_flow(
 
 static uiLayoutItemBx *ui_layout_box(uiLayout *layout, ButType type)
 {
-  uiLayoutItemBx *box = new uiLayoutItemBx();
+  uiLayoutItemBx *box = MEM_new<uiLayoutItemBx>(__func__);
   LayoutInternal::init_from_parent(box, layout, false);
 
   box->space_ = layout->root()->style->columnspace;
@@ -4959,7 +4959,7 @@ uiLayout &uiLayout::menu_pie()
     }
   }
 
-  uiLayout *litem = new LayoutRadial();
+  uiLayout *litem = MEM_new<LayoutRadial>(__func__);
   LayoutInternal::init_from_parent(litem, this, false);
 
   blender::ui::block_layout_set_current(this->block(), litem);
@@ -5007,7 +5007,7 @@ uiLayout &uiLayout::list_box(uiList *ui_list, PointerRNA *actptr, PropertyRNA *a
 
 uiLayout &uiLayout::absolute(bool align)
 {
-  uiLayout *litem = new LayoutAbsolute();
+  uiLayout *litem = MEM_new<LayoutAbsolute>(__func__);
   LayoutInternal::init_from_parent(litem, this, align);
 
   blender::ui::block_layout_set_current(this->block(), litem);
@@ -5025,7 +5025,7 @@ uiBlock *uiLayout::absolute_block()
 
 uiLayout &uiLayout::overlap()
 {
-  uiLayout *litem = new LayoutOverlap();
+  uiLayout *litem = MEM_new<LayoutOverlap>(__func__);
   LayoutInternal::init_from_parent(litem, this, false);
 
   blender::ui::block_layout_set_current(this->block(), litem);
@@ -5035,7 +5035,7 @@ uiLayout &uiLayout::overlap()
 
 uiLayout &uiLayout::split(float percentage, bool align)
 {
-  uiLayoutItemSplit *split = new uiLayoutItemSplit();
+  uiLayoutItemSplit *split = MEM_new<uiLayoutItemSplit>(__func__);
   LayoutInternal::init_from_parent(split, this, align);
 
   split->space_ = root_->style->columnspace;
@@ -5416,15 +5416,29 @@ static void ui_layout_free(uiLayout *layout)
       uiButtonItem *bitem = static_cast<uiButtonItem *>(item);
 
       bitem->but->layout = nullptr;
-      delete item;
+      MEM_delete(item);
     }
     else {
       uiLayout *litem = static_cast<uiLayout *>(item);
       ui_layout_free(litem);
     }
   }
-
-  delete layout;
+  /* WARNING: Using virtual inheritance extends virtual pointers, a pointer to a `LayoutItemRoot`
+  object will not match to its own `uiLayout` pointer, destroying an object would succesfully
+  destroy the derived type, but MEM_delete needs to explicitly free the most derived pointer since
+  it has no information about the object real layout. */
+  if (layout->type() == uiItemType::LayoutRoot) {
+    MEM_delete(dynamic_cast<LayoutItemRoot *>(layout));
+  }
+  else if (auto row = dynamic_cast<LayoutRow *>(layout)) {
+    MEM_delete(row);
+  }
+  else if (auto col = dynamic_cast<LayoutColumn *>(layout)) {
+    MEM_delete(col);
+  }
+  else {
+    MEM_delete(layout);
+  }
 }
 
 static void ui_layout_add_padding_button(uiLayoutRoot *root)
@@ -5459,8 +5473,8 @@ uiLayout &block_layout(uiBlock *block,
   root->padding = padding;
   root->opcontext = wm::OpCallContext::InvokeRegionWin;
 
-  uiLayout *layout = type == LayoutType::VerticalBar ? new LayoutColumn(root) :
-                                                       new LayoutItemRoot(root);
+  uiLayout *layout = type == LayoutType::VerticalBar ? MEM_new<LayoutColumn>(__func__, root) :
+                                                       MEM_new<LayoutItemRoot>(__func__, root);
 
   /* Only used when 'uiItemInternalFlag::PropSep' is set. */
   layout->use_property_decorate_set(true);
@@ -5508,7 +5522,7 @@ blender::wm::OpCallContext uiLayout::operator_context() const
 
 void LayoutInternal::layout_add_but(uiLayout *layout, uiBut *but)
 {
-  uiButtonItem *bitem = new uiButtonItem();
+  uiButtonItem *bitem = MEM_new<uiButtonItem>(__func__);
   bitem->but = but;
 
   int w, h;
