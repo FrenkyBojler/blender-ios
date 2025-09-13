@@ -150,7 +150,10 @@ class NODE_HT_header(Header):
             layout.separator_spacer()
             row = layout.row()
             row.enabled = not snode.pin
-            row.template_ID(scene, "compositing_node_group", new="node.new_compositing_node_group")
+            if scene.compositing_node_group:
+                row.template_ID(scene, "compositing_node_group", new="node.copy_compositing_node_group")
+            else:
+                row.template_ID(scene, "compositing_node_group", new="node.new_compositing_node_group")
 
         elif snode.tree_type == 'GeometryNodeTree':
             layout.prop(snode, "node_tree_sub_type", text="")

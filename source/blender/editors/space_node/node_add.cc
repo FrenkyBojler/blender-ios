@@ -114,6 +114,39 @@ bNode *add_static_node(const bContext &C, int type, const float2 &location)
   return node;
 }
 
+/**
+ * Hook an existing node tree to a templateID UI button.
+ */
+static void node_templateID_assign(bContext *C, bNodeTree *node_tree)
+{
+  Main *bmain = CTX_data_main(C);
+  SpaceNode *snode = CTX_wm_space_node(C);
+
+  PointerRNA ptr;
+  PropertyRNA *prop;
+
+  UI_context_active_but_prop_get_templateID(C, &ptr, &prop);
+
+  if (prop) {
+    /* #RNA_property_pointer_set increases the user count, fixed here as the editor is the initial
+     * user. */
+    id_us_min(&node_tree->id);
+
+    if (ptr.owner_id) {
+      BKE_id_move_to_same_lib(*bmain, node_tree->id, *ptr.owner_id);
+    }
+
+    PointerRNA idptr = RNA_id_pointer_create(&node_tree->id);
+    RNA_property_pointer_set(&ptr, prop, idptr, nullptr);
+    RNA_property_update(C, &ptr, prop);
+  }
+  else if (snode) {
+    snode->nodetree = node_tree;
+
+    tree_update(C);
+  }
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -1479,34 +1512,9 @@ void NODE_OT_add_color(wmOperatorType *ot)
 static bNodeTree *new_node_tree_impl(bContext *C, StringRef treename, StringRef idname)
 {
   Main *bmain = CTX_data_main(C);
-  SpaceNode *snode = CTX_wm_space_node(C);
-  PointerRNA ptr;
-  PropertyRNA *prop;
-  bNodeTree *node_tree;
 
-  node_tree = bke::node_tree_add_tree(bmain, treename, idname);
-
-  /* Hook into UI. */
-  UI_context_active_but_prop_get_templateID(C, &ptr, &prop);
-
-  if (prop) {
-    /* #RNA_property_pointer_set increases the user count, fixed here as the editor is the initial
-     * user. */
-    id_us_min(&node_tree->id);
-
-    if (ptr.owner_id) {
-      BKE_id_move_to_same_lib(*bmain, node_tree->id, *ptr.owner_id);
-    }
-
-    PointerRNA idptr = RNA_id_pointer_create(&node_tree->id);
-    RNA_property_pointer_set(&ptr, prop, idptr, nullptr);
-    RNA_property_update(C, &ptr, prop);
-  }
-  else if (snode) {
-    snode->nodetree = node_tree;
-
-    tree_update(C);
-  }
+  bNodeTree *node_tree = bke::node_tree_add_tree(bmain, treename, idname);
+  node_templateID_assign(C, node_tree);
 
   return node_tree;
 }
@@ -1615,6 +1623,47 @@ void NODE_OT_new_compositing_node_group(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
   RNA_def_string(ot->srna, "name", DATA_("Compositor Nodes"), MAX_ID_NAME - 2, "Name", "");
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Copy Compositing Node Tree Operator
+ * \{ */
+
+static wmOperatorStatus copy_compositing_node_group_exec(bContext *C, wmOperator *op)
+{
+  Main *bmain = CTX_data_main(C);
+  Scene *scene = CTX_data_scene(C);
+  PointerRNA ptr;
+  PropertyRNA *prop;
+
+  if (scene->compositing_node_group == nullptr) {
+    return OPERATOR_CANCELLED;
+  }
+
+  bNodeTree *node_tree = bke::node_tree_copy_tree(bmain, *scene->compositing_node_group);
+
+  node_templateID_assign(C, node_tree);
+
+  WM_event_add_notifier(C, NC_NODE | NA_ADDED, nullptr);
+  BKE_ntree_update_after_single_tree_change(*bmain, *node_tree);
+
+  return OPERATOR_FINISHED;
+}
+
+void NODE_OT_copy_compositing_node_group(wmOperatorType *ot)
+{
+  /* identifiers */
+  ot->name = "Copy Compositing Node Group";
+  ot->idname = "NODE_OT_copy_compositing_node_group";
+  ot->description = "Copy the currently assigned compositing node tree.";
+
+  /* api callbacks */
+  ot->exec = copy_compositing_node_group_exec;
+
+  /* flags */
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
 /** \} */
