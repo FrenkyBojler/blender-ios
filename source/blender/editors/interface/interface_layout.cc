@@ -3559,6 +3559,7 @@ void LayoutInternal::layout_estimate(uiLayout *layout)
 {
   layout->estimate();
 }
+
 void LayoutInternal::layout_resolve(uiLayout *layout)
 {
   layout->resolve();
@@ -3984,8 +3985,9 @@ void uiLayout::estimate_impl()
 }
 void uiLayout::resolve_impl()
 {
-  /* nothing to do */
+  /* Nothing to do. */
 }
+
 void LayoutItemRoot::resolve_root_radial_impl()
 {
   /* first item is pie menu title, align on center of menu */
@@ -4103,7 +4105,7 @@ void uiLayoutItemBx::resolve_impl()
   }
 
   /* roundbox around the sublayout */
-  uiBut *but = roundbox;
+  uiBut *but = this->roundbox;
   but->rect.xmin = x_;
   but->rect.ymin = y_;
   but->rect.xmax = x_ + w_;
