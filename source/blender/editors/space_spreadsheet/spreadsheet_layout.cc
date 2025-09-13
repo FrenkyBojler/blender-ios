@@ -29,13 +29,15 @@
 
 namespace blender::ed::spreadsheet {
 
-static const std::string format_matrix(const float4x4 &value)
+static const std::string format_matrix_to_single_line(const float4x4 &matrix)
 {
-  const float4x4 t_value = math::transpose(value);
+  /* Transpose to be able to print row by row. */
+  const float4x4 t_matrix = math::transpose(matrix);
   std::stringstream ss;
   ss << "  ";
   for (const int row_i : IndexRange(4)) {
-    const float4 &row = t_value[row_i];
+    const float4 &row = t_matrix[row_i];
+    /* Format Floats with up to 2 decimal. */
     ss << fmt::format("[{:.7}, {:.7}, {:.7}, {:.7}]",
                       double_round(row[0], 2),
                       double_round(row[1], 2),
@@ -43,6 +45,46 @@ static const std::string format_matrix(const float4x4 &value)
                       double_round(row[3], 2));
     if (row_i < 3) {
       ss << ",  ";
+    }
+  }
+  return ss.str();
+}
+
+const std::string format_matrix_to_grid(const float4x4 &matrix)
+{
+  auto format_element = [](float value) {
+    const float abs_value = std::abs(value);
+    if (abs_value >= 1e7f || (abs_value > 0 && abs_value < 1e-4f)) {
+      return fmt::format("{:.3g}", value);
+    }
+    if (abs_value > 0 && abs_value < 1.0f) {
+      return fmt::format("{:.6f}", value);
+    }
+    return fmt::format("{:.7g}", value);
+  };
+
+  std::array<std::array<std::string, 4>, 4> matrix_elements;
+  std::array<size_t, 4> column_widths = {};
+  /* Transpose to be able to print row by row. */
+  const float4x4 t_matrix = math::transpose(matrix);
+  for (const int row_i : IndexRange(4)) {
+    for (const int col_i : IndexRange(4)) {
+      matrix_elements[row_i][col_i] = format_element(t_matrix[row_i][col_i]);
+      column_widths[col_i] = math::max(column_widths[col_i],
+                                       matrix_elements[row_i][col_i].length());
+    }
+  }
+
+  std::stringstream ss;
+  for (const int row_i : IndexRange(4)) {
+    for (const int col_i : IndexRange(4)) {
+      ss << fmt::format("{:>{}}", matrix_elements[row_i][col_i], column_widths[col_i]);
+      if (col_i < 3) {
+        ss << "  ";
+      }
+    }
+    if (row_i < 3) {
+      ss << "\n";
     }
   }
   return ss.str();
@@ -422,14 +464,13 @@ class SpreadsheetLayoutDrawer : public SpreadsheetDrawer {
     }
   }
 
-  void draw_float4x4(const CellDrawParams &params, const float4x4 &value) const
+  void draw_float4x4(const CellDrawParams &params, const float4x4 &matrix) const
   {
-    const std::string value_str = format_matrix(value);
     uiBut *but = uiDefIconTextBut(params.block,
                                   ButType::Label,
                                   0,
                                   ICON_NONE,
-                                  value_str,
+                                  format_matrix_to_single_line(matrix),
                                   params.xmin,
                                   params.ymin,
                                   params.width,
@@ -442,41 +483,11 @@ class SpreadsheetLayoutDrawer : public SpreadsheetDrawer {
     UI_but_func_tooltip_custom_set(
         but,
         [](bContext & /*C*/, uiTooltipData &tip, uiBut * /*but*/, void *argN) {
-          auto format_float = [](float value) {
-            float abs_value = std::abs(value);
-            if (abs_value > 1e7f || abs_value < 1e-4f) {
-              return fmt::format("{:.3}", value);
-            }
-            else if (abs_value < 1 && abs_value > 1e-4f) {
-              return fmt::format("{:.6}", double_round(value, 6));
-            }
-            return fmt::format("{:.7}", value);
-          };
-
-          std::array<std::array<std::string, 4>, 4> formatted_matrix;
-          std::array<size_t, 4> col_widths = {};
-          /* Transpose to be able to print row by row. */
-          const float4x4 value = math::transpose(*static_cast<const float4x4 *>(argN));
-          for (const int r : IndexRange(4)) {
-            for (const int c : IndexRange(4)) {
-              formatted_matrix[r][c] = format_float(value[r][c]);
-              col_widths[c] = std::max(col_widths[c], formatted_matrix[r][c].length());
-            }
-          }
-
-          std::stringstream ss;
-          for (const int r : IndexRange(4)) {
-            for (const int c : IndexRange(4)) {
-              ss << fmt::format("{:>{}}  ", formatted_matrix[r][C], col_widths[C]);
-            }
-            if (r < 3) {
-              ss << "\n";
-            }
-          }
-
-          UI_tooltip_text_field_add(tip, ss.str(), {}, UI_TIP_STYLE_MONO, UI_TIP_LC_VALUE);
+          const float4x4 matrix = *static_cast<const float4x4 *>(argN);
+          UI_tooltip_text_field_add(
+              tip, format_matrix_to_grid(matrix), {}, UI_TIP_STYLE_MONO, UI_TIP_LC_VALUE);
         },
-        MEM_dupallocN<float4x4>(__func__, value),
+        MEM_dupallocN<float4x4>(__func__, matrix),
         MEM_freeN);
   }
 
@@ -527,7 +538,7 @@ float ColumnValues::fit_column_values_width_px(const std::optional<int64_t> &max
           fontid,
           max_sample_size,
           data_.typed<float4x4>(),
-          [](const float4x4 &value) { return format_matrix(value); });
+          [](const float4x4 &value) { return format_matrix_to_single_line(value); });
     }
     case SPREADSHEET_VALUE_TYPE_INT8: {
       return estimate_max_column_width<int8_t>(
