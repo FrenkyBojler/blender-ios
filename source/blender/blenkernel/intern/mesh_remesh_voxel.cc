@@ -122,7 +122,7 @@ static Mesh *remesh_quadriflow(const Mesh *input_mesh,
     corner_verts[loopstart + 3] = qrd.out_faces[loopstart + 3];
   }
 
-  mesh_calc_edges(*mesh, false, false, {});
+  mesh_calc_edges(*mesh, false, false);
 
   MEM_freeN(qrd.out_faces);
   MEM_freeN(qrd.out_verts);
@@ -238,7 +238,7 @@ static Mesh *remesh_voxel_volume_to_mesh(const openvdb::FloatGrid::Ptr level_set
     mesh_corner_verts[loopstart + 2] = tris[i][0];
   }
 
-  mesh_calc_edges(*mesh, false, false, {});
+  mesh_calc_edges(*mesh, false, false);
 
   return mesh;
 }

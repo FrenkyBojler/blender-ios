@@ -1469,7 +1469,7 @@ Mesh *BKE_mball_polygonize(Depsgraph *depsgraph, Scene *scene, Object *ob)
   }
   blender::bke::mesh_vert_normals_assign(*mesh, std::move(process.no));
 
-  blender::bke::mesh_calc_edges(*mesh, false, false, {});
+  blender::bke::mesh_calc_edges(*mesh, false, false);
 
   return mesh;
 }

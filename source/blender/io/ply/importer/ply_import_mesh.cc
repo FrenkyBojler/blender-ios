@@ -135,7 +135,7 @@ Mesh *convert_ply_to_mesh(PlyData &data, const PLYImportParams &params)
   /* It's important to validate the mesh before using it's geometry to calculate derived data. */
   {
     /* Calculate edges from the rest of the mesh (this could be merged with validate). */
-    bke::mesh_calc_edges(*mesh, true, false, {});
+    bke::mesh_calc_edges(*mesh, true, false);
 
     bool verbose_validate = false;
 #ifndef NDEBUG
