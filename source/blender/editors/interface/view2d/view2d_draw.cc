@@ -459,7 +459,7 @@ static void view_to_string__value(
   if (v2d_step >= 1.0f) {
     BLI_snprintf_utf8(r_str, str_maxncpy, "%d", int(v2d_pos));
   }
-  else if (v2d_step >= 0.1f) {
+  else if (v2d_step >= 0.5f) {
     BLI_snprintf_utf8(r_str, str_maxncpy, "%.1f", v2d_pos);
   }
   else if (v2d_step >= 0.01f) {
