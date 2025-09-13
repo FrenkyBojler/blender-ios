@@ -212,11 +212,11 @@ void ED_time_scrub_draw(const ARegion *region,
   numbers_rect.ymin = get_centered_text_y(&scrub_region_rect) - 4 * UI_SCALE_FAC;
   if (discrete_frames) {
     UI_view2d_draw_scale_x__discrete_frames_or_seconds(
-        region, v2d, &numbers_rect, scene, display_seconds, TH_TEXT, base);
+        region, v2d, &numbers_rect, scene, display_seconds, TH_TIME_SCRUB_TEXT, base);
   }
   else {
     UI_view2d_draw_scale_x__frames_or_seconds(
-        region, v2d, &numbers_rect, scene, display_seconds, TH_TEXT, base);
+        region, v2d, &numbers_rect, scene, display_seconds, TH_TIME_SCRUB_TEXT, base);
   }
 
   GPU_matrix_pop_projection();
