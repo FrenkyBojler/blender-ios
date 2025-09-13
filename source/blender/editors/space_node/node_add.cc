@@ -1657,7 +1657,7 @@ void NODE_OT_copy_compositing_node_group(wmOperatorType *ot)
   /* identifiers */
   ot->name = "Copy Compositing Node Group";
   ot->idname = "NODE_OT_copy_compositing_node_group";
-  ot->description = "Copy the currently assigned compositing node tree.";
+  ot->description = "Copy the currently assigned compositing node group.";
 
   /* api callbacks */
   ot->exec = copy_compositing_node_group_exec;
