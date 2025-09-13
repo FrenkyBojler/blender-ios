@@ -8,6 +8,7 @@
 
 #include <cmath>
 #include <cstring>
+#include <limits>
 
 #include "MEM_guardedalloc.h"
 

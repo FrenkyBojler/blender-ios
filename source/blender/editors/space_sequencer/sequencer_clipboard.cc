@@ -10,6 +10,7 @@
 
 #include <algorithm>
 #include <cstring>
+#include <limits>
 
 #include "BLI_math_vector_types.hh"
 #include "BLO_readfile.hh"
