@@ -201,29 +201,26 @@ struct uiButtonItem : public uiItem {
   uiButtonItem() : uiItem(uiItemType::Button) {}
 };
 
-struct LayoutRow : public virtual uiLayout {
+struct LayoutRow : public uiLayout {
   LayoutRow(uiLayoutRoot *root) : uiLayout(uiItemType::LayoutRow, root) {}
 
   void estimate_impl() override;
   void resolve_impl() override;
 };
 
-struct LayoutColumn : public virtual uiLayout {
+struct LayoutColumn : public uiLayout {
   LayoutColumn(uiLayoutRoot *root) : uiLayout(uiItemType::LayoutColumn, root) {}
 
   void estimate_impl() override;
   void resolve_impl() override;
 };
 
-struct LayoutItemRoot : public LayoutColumn, public LayoutRow {
-  LayoutItemRoot(uiLayoutRoot *root)
-      : uiLayout(uiItemType::LayoutRoot, root), LayoutColumn(nullptr), LayoutRow(nullptr)
-  {
-  }
+struct LayoutItemRoot : public uiLayout {
+  LayoutItemRoot(uiLayoutRoot *root) : uiLayout(uiItemType::LayoutRoot, root) {}
 
   void estimate_impl() override{};
   void resolve_impl() override;
-  void resolve_rool_radial_impl();
+  void resolve_root_radial_impl();
 };
 
 struct LayoutOverlap : public uiLayout {
@@ -280,7 +277,10 @@ struct uiLayoutItemGridFlow : public uiLayout {
 
 struct uiLayoutItemBx : public LayoutColumn {
   uiBut *roundbox = nullptr;
-  uiLayoutItemBx() : uiLayout(uiItemType::LayoutBox, nullptr), LayoutColumn(nullptr) {}
+  uiLayoutItemBx() : LayoutColumn(nullptr)
+  {
+    type_ = uiItemType::LayoutBox;
+  }
 
   void estimate_impl() override;
   void resolve_impl() override;
@@ -296,15 +296,19 @@ struct uiLayoutItemPanelHeader : public uiLayout {
 };
 
 struct uiLayoutItemPanelBody : public LayoutColumn {
-  uiLayoutItemPanelBody() : uiLayout(uiItemType::LayoutPanelBody, nullptr), LayoutColumn(nullptr)
+  uiLayoutItemPanelBody() : LayoutColumn(nullptr)
   {
+    type_ = uiItemType::LayoutPanelBody;
   }
   void resolve_impl() override;
 };
 
 struct uiLayoutItemSplit : public LayoutRow {
   float percentage = 0.0f;
-  uiLayoutItemSplit() : uiLayout(uiItemType::LayoutSplit, nullptr), LayoutRow(nullptr) {}
+  uiLayoutItemSplit() : LayoutRow(nullptr)
+  {
+    type_ = uiItemType::LayoutSplit;
+  }
 
   void estimate_impl() override;
   void resolve_impl() override;
@@ -3600,6 +3604,11 @@ static int ui_litem_min_width(int itemw)
 
 void LayoutRow::resolve_impl()
 {
+  this->resolve_row_impl();
+}
+
+void uiLayout::resolve_row_impl()
+{
   if (this->items().is_empty()) {
     return;
   }
@@ -3820,6 +3829,11 @@ void LayoutColumn::estimate_impl()
 
 void LayoutColumn::resolve_impl()
 {
+  this->resolve_column_impl();
+}
+
+void uiLayout::resolve_column_impl()
+{
   const bool is_box = this->type() == uiItemType::LayoutBox;
   const bool is_menu = this->type() == uiItemType::LayoutRoot &&
                        this->root()->type == blender::ui::LayoutType::Menu;
@@ -3972,7 +3986,7 @@ void uiLayout::resolve_impl()
 {
   /* nothing to do */
 }
-void LayoutItemRoot::resolve_rool_radial_impl()
+void LayoutItemRoot::resolve_root_radial_impl()
 {
   /* first item is pie menu title, align on center of menu */
   uiItem *item = this->items().first();
@@ -3992,13 +4006,13 @@ void LayoutItemRoot::resolve_rool_radial_impl()
 void LayoutItemRoot::resolve_impl()
 {
   if (this->root()->type == blender::ui::LayoutType::Header) {
-    LayoutRow::resolve_impl();
+    this->resolve_row_impl();
   }
   else if (this->root()->type == blender::ui::LayoutType::PieMenu) {
-    this->resolve_rool_radial_impl();
+    this->resolve_root_radial_impl();
   }
   else {
-    LayoutColumn::resolve_impl();
+    this->resolve_column_impl();
   }
 }
 
@@ -5337,7 +5351,7 @@ static void ui_item_align(uiLayout *litem, short nr)
       /* pass */
     }
     else if (item->type() == uiItemType::LayoutBox) {
-      uiLayoutItemBx *box = dynamic_cast<uiLayoutItemBx *>(item);
+      uiLayoutItemBx *box = static_cast<uiLayoutItemBx *>(item);
       if (!box->roundbox->alignnr) {
         box->roundbox->alignnr = nr;
       }
@@ -5423,22 +5437,8 @@ static void ui_layout_free(uiLayout *layout)
       ui_layout_free(litem);
     }
   }
-  /* WARNING: Using virtual inheritance extends virtual pointers, a pointer to a `LayoutItemRoot`
-  object will not match to its own `uiLayout` pointer, destroying an object would succesfully
-  destroy the derived type, but MEM_delete needs to explicitly free the most derived pointer since
-  it has no information about the object real layout. */
-  if (layout->type() == uiItemType::LayoutRoot) {
-    MEM_delete(dynamic_cast<LayoutItemRoot *>(layout));
-  }
-  else if (auto row = dynamic_cast<LayoutRow *>(layout)) {
-    MEM_delete(row);
-  }
-  else if (auto col = dynamic_cast<LayoutColumn *>(layout)) {
-    MEM_delete(col);
-  }
-  else {
-    MEM_delete(layout);
-  }
+
+  MEM_delete(layout);
 }
 
 static void ui_layout_add_padding_button(uiLayoutRoot *root)
@@ -5473,8 +5473,9 @@ uiLayout &block_layout(uiBlock *block,
   root->padding = padding;
   root->opcontext = wm::OpCallContext::InvokeRegionWin;
 
-  uiLayout *layout = type == LayoutType::VerticalBar ? MEM_new<LayoutColumn>(__func__, root) :
-                                                       MEM_new<LayoutItemRoot>(__func__, root);
+  uiLayout *layout = type == LayoutType::VerticalBar ?
+                         static_cast<uiLayout *>(MEM_new<LayoutColumn>(__func__, root)) :
+                         MEM_new<LayoutItemRoot>(__func__, root);
 
   /* Only used when 'uiItemInternalFlag::PropSep' is set. */
   layout->use_property_decorate_set(true);

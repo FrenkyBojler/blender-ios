@@ -696,6 +696,8 @@ struct uiLayout : public uiItem, blender::NonCopyable, blender::NonMovable {
   virtual void estimate_impl();
   void resolve();
   virtual void resolve_impl();
+  void resolve_row_impl();
+  void resolve_column_impl();
 };
 
 inline bool uiLayout::active() const
