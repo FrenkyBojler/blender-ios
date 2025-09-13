@@ -6,6 +6,8 @@
  * \ingroup bke
  */
 
+#include <iostream>
+
 #include "BLI_array_utils.hh"
 #include "BLI_math_base.h"
 #include "BLI_ordered_edge.hh"
@@ -256,7 +258,9 @@ void mesh_calc_edges(Mesh &mesh,
                                                                    AttrDomain::Edge);
   if (mesh.corners_num == 0 && !keep_existing_edges) {
     delete_attributes(edge_attributes, mesh.attributes_for_write());
+    /* TODO: Do i need to use customdata api to do this properly?.. */
     mesh.edges_num = 0;
+    mesh.tag_loose_edges_none();
     BLI_assert(BKE_mesh_is_valid(&mesh));
     return;
   }
@@ -315,6 +319,8 @@ void mesh_calc_edges(Mesh &mesh,
 
   printf("original_edge_maps_prefix: %d;\n", int(original_edge_maps_prefix.total_size()));
   printf("edge_offsets: %d;\n", int(edge_offsets.total_size()));
+
+  std::cout << std::endl;
 
   BLI_assert_msg(keep_existing_edges || !no_new_edges,
                  "Mesh must not contain corners at this point");
@@ -384,14 +390,6 @@ void mesh_calc_edges(Mesh &mesh,
 
     if (!no_new_edges) {
       BLI_assert(edge_offsets.data().size() == original_edge_maps_prefix.data().size());
-      Array<int> new_edge_sizes(edge_offsets.data().size());
-      for (const int i : edge_offsets.data().index_range()) {
-        new_edge_sizes[i] = edge_offsets.data()[i] - original_edge_maps_prefix.data()[i];
-      }
-      const OffsetIndices<int> new_edge_offsets(new_edge_sizes.as_span());
-      BLI_assert(result_edges_num ==
-                 original_unique_edge_num +
-                     (edge_offsets.total_size() - original_edge_maps_prefix.total_size()));
 
       /* TODO: Check if all new edges are range. */
       const int new_edges_start = original_unique_edge_num;
