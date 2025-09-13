@@ -243,8 +243,10 @@ void mesh_calc_edges(Mesh &mesh,
                      const bool select_new_edges,
                      const AttributeFilter &attribute_filter)
 {
-  BLI_assert(std::all_of(mesh.edges().begin(), mesh.edges().end(), [&](const int2 edge) { return edge.x != edge.y; }));
-  
+  BLI_assert(std::all_of(mesh.edges().begin(), mesh.edges().end(), [&](const int2 edge) {
+    return edge.x != edge.y;
+  }));
+
   if (mesh.edges_num == 0 && mesh.corners_num == 0) {
     BLI_assert(BKE_mesh_is_valid(&mesh));
     return;
@@ -307,13 +309,13 @@ void mesh_calc_edges(Mesh &mesh,
   }
 
   printf("keep_existing_edges: %d;\n", int(keep_existing_edges));
-  
+
   printf("mesh.corners_num: %d;\n", int(mesh.corners_num));
   printf("mesh.edges_num: %d;\n", int(mesh.edges_num));
-  
+
   printf("original_edge_maps_prefix: %d;\n", int(original_edge_maps_prefix.total_size()));
   printf("edge_offsets: %d;\n", int(edge_offsets.total_size()));
-  
+
   BLI_assert_msg(keep_existing_edges || !no_new_edges,
                  "Mesh must not contain corners at this point");
 
@@ -432,18 +434,12 @@ void mesh_calc_edges(Mesh &mesh,
       const int old_corner_edges_num = src_to_dst_mask.size();
       back_range_of_new_edges = IndexRange(result_edges_num).drop_front(old_corner_edges_num);
 
-      calc_edges::serialize_and_initialize_deduplicated_edges(
-          edge_maps, edge_offsets, original_edge_maps_prefix, edge_verts);
-
       Array<int> edge_map_to_result_index;
       if (!src_to_dst_mask.is_empty()) {
-        array_utils::gather(
-            original_edges, src_to_dst_mask, edge_verts.take_front(old_corner_edges_num));
-
         /* TODO: Check if mask is range. */
         edge_map_to_result_index.reinitialize(result_edges_num);
         edge_map_to_result_index.as_mutable_span().fill(1);
-        src_to_dst_mask.foreach_index([&](const int original_edge_i, const int dst_edge_i) {
+        src_to_dst_mask.foreach_index([&](const int original_edge_i) {
           const OrderedEdge edge = original_edges[original_edge_i];
           const int edge_map = calc_edges::edge_to_hash_map_i(edge, parallel_mask);
           const int edge_index = edge_maps[edge_map].index_of(edge);
@@ -459,14 +455,33 @@ void mesh_calc_edges(Mesh &mesh,
           const int edge_index = edge_maps[edge_map].index_of(edge);
           edge_map_to_result_index[edge_offsets[edge_map][edge_index]] = dst_edge_i;
         });
-      }
 
-      calc_edges::update_edge_indices_in_face_loops(
-          faces, corner_verts, edge_maps, parallel_mask, edge_offsets, corner_edges);
+        array_utils::gather(
+            original_edges, src_to_dst_mask, edge_verts.take_front(old_corner_edges_num));
 
-      if (!src_to_dst_mask.is_empty()) {
+        threading::parallel_for_each(edge_maps, [&](calc_edges::EdgeMap &edge_map) {
+          const int task_index = &edge_map - edge_maps.data();
+          if (edge_offsets[task_index].is_empty()) {
+            return;
+          }
+
+          array_utils::scatter<int2>(
+              edge_map.as_span().cast<int2>(),
+              edge_map_to_result_index.as_span().slice(edge_offsets[task_index]),
+              edge_verts.slice(edge_offsets[task_index]));
+        });
+
+        calc_edges::update_edge_indices_in_face_loops(
+            faces, corner_verts, edge_maps, parallel_mask, edge_offsets, corner_edges);
+
         array_utils::gather(
             edge_map_to_result_index.as_span(), corner_edges.as_span(), corner_edges);
+      }
+      else {
+        calc_edges::update_edge_indices_in_face_loops(
+            faces, corner_verts, edge_maps, parallel_mask, edge_offsets, corner_edges);
+        calc_edges::serialize_and_initialize_deduplicated_edges(
+            edge_maps, edge_offsets, original_edge_maps_prefix, edge_verts);
       }
     }
     else {
@@ -479,7 +494,8 @@ void mesh_calc_edges(Mesh &mesh,
     }
   }
 
-  BLI_assert(std::all_of(edge_verts.begin(), edge_verts.end(), [&](const int2 edge) { return edge.x != edge.y; }));
+  BLI_assert(std::all_of(
+      edge_verts.begin(), edge_verts.end(), [&](const int2 edge) { return edge.x != edge.y; }));
 
   BLI_assert(!corner_edges.contains(-1));
   BLI_assert(!edge_verts.contains(int2(-1)));
