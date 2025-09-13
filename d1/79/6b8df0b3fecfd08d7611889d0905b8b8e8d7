@@ -1,1 +1,2 @@
 Referenced by commit 322415d5b2a, Fix: Build WITH_CYCLES_OSL=OFF failure
+Referenced by issue #146223, optix render mode in OSL cause output image error
