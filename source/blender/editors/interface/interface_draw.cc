@@ -2047,7 +2047,7 @@ void ui_draw_but_CURVEPROFILE(ARegion *region,
   const int edges_len = tot_points - 1;
   if (edges_len > 0) {
     GPU_line_width(1.0f);
-    immUniformColor3ubvAlpha((const uchar *)wcol->item, 255);
+    immUniformColor4ubv(wcol->inner_sel);
     GPU_line_smooth(true);
     immBegin(GPU_PRIM_LINE_STRIP, tot_points);
     for (int i = 0; i < tot_points; i++) {
