@@ -416,8 +416,8 @@ static uiBlock *viewfinder_action_label_ui_block(const bContext *C,
   uiBlock *block = nullptr;
   uiLayout &layout = uiblock_prepare(&block, C, region, blender::ui::EmbossType::None);
 
+  // TODO: Address the small menu down arrow that can be seen on the right side
   layout.prop(&ptr, active_action_prop, UI_ITEM_R_COMPACT | UI_ITEM_R_ICON_NEVER, "", ICON_NONE);
-  layout.scale_x_set(0.8f);
 
   UI_block_end(C, block);
 
@@ -520,7 +520,7 @@ static void wm_xr_controller_viewfinder_draw_ui_widgets(const bContext *C,
     GPU_matrix_scale_1f(0.01f);
 
     uiBlock *block = block_func(fake_C, region, settings);
-    UI_block_draw_vr(fake_C, block); /* Stripped-down VR version of #UI_block_draw. */
+    UI_block_draw_xr(fake_C, block); /* Stripped-down XR version of #UI_block_draw. */
 
     GPU_matrix_pop();
   };
@@ -536,7 +536,7 @@ static void wm_xr_controller_viewfinder_draw_ui_widgets(const bContext *C,
 
   const float action_enum_x = settings->viewfinder_active_mode == XR_VIEWFINDER_MODE_LIVE ?
                                   viewfinder_rect.xmax - 1.65f :
-                                  viewfinder_rect.xmax - 1.25;
+                                  viewfinder_rect.xmax - 1.25f;
   const float action_enum_y = viewfinder_rect.ymin - 0.15f;
 
   draw_block(viewfinder_mode_tabs_ui_block, mode_tabs_x, mode_tabs_y);
@@ -615,7 +615,7 @@ static void wm_xr_controller_viewfinder_draw(const XrSessionSettings *settings,
 
   /* Fixed 16:9 aspect ratio for now. */
   const float viewfinder_height = settings->viewfinder_width * 9.0f / 16.0f;
-  const float viewfinder_vertical_offset = 3.5f; /* Center of the viewfinder square. */
+  const float viewfinder_vertical_offset = 3.5f; /* Center of the viewfinder rectangle. */
 
   rctf viewfinder_rect;
   BLI_rctf_resize(&viewfinder_rect, settings->viewfinder_width, viewfinder_height);

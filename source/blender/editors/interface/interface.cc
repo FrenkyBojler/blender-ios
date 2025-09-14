@@ -2312,7 +2312,7 @@ void UI_block_draw(const bContext *C, uiBlock *block)
   GPU_matrix_pop();
 }
 
-void UI_block_draw_vr(const bContext *C, uiBlock *block)
+void UI_block_draw_xr(const bContext *C, uiBlock *block)
 {
   /* This hacky (temp) function lets us draw in VR 3D space. This is basically a stripped down
    * version of #UI_block_draw without background drawing (which relies on window coordinates),
