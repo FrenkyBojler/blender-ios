@@ -941,7 +941,7 @@ int BLI_kdtree_nd_(calc_duplicates_fast)(const KDTree *tree,
 int BLI_kdtree_nd_(calc_duplicates_stable)(const KDTree *tree,
                                            const float range,
                                            int *duplicates,
-                                           float (*r_survivor_cos)[KD_DIMS])
+                                           float (*r_cluster_center)[KD_DIMS])
 {
   BLI_assert(tree->is_balanced);
 
@@ -1015,7 +1015,7 @@ int BLI_kdtree_nd_(calc_duplicates_stable)(const KDTree *tree,
     }
 
     /* Write centroid for this survivor. */
-    copy_vn_vn(r_survivor_cos[survivor_index], centroid);
+    copy_vn_vn(r_cluster_center[survivor_index], centroid);
 
     /* Assign duplicates mapping. */
     duplicates[survivor_index] = survivor_index;

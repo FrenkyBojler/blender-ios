@@ -71,7 +71,7 @@ int BLI_kdtree_nd_(calc_duplicates_fast)(const KDTree *tree,
 int BLI_kdtree_nd_(calc_duplicates_stable)(const KDTree *tree,
                                            const float range,
                                            int *duplicates,
-                                           float (*r_survivor_cos)[KD_DIMS]);
+                                           float (*r_cluster_center)[KD_DIMS]);
 
 int BLI_kdtree_nd_(deduplicate)(KDTree *tree);
 
