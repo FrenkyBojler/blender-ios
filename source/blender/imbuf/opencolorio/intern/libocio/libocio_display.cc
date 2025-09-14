@@ -58,6 +58,10 @@ LibOCIODisplay::LibOCIODisplay(const int index, const LibOCIOConfig &config) : c
     OCIO_NAMESPACE::ConstColorSpaceRcPtr ocio_display_colorspace = get_display_view_colorspace(
         ocio_config, name_.c_str(), view_name);
 
+    const char *view_description = ocio_display_colorspace ?
+                                       ocio_display_colorspace->getDescription() :
+                                       "";
+
     /* Detect if view is HDR, through encoding of display colorspace. */
     bool view_is_hdr = false;
     if (ocio_display_colorspace) {
@@ -123,7 +127,8 @@ LibOCIODisplay::LibOCIODisplay(const int index, const LibOCIOConfig &config) : c
       }
     }
 
-    views_.append_as(view_index, view_name, view_is_hdr, gamut, transfer_function);
+    views_.append_as(
+        view_index, view_name, view_description, view_is_hdr, gamut, transfer_function);
   }
 
   /* Detect untonemppaed view transform. */

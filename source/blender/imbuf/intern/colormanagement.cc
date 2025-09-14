@@ -3567,7 +3567,7 @@ void IMB_colormanagement_view_items_add(EnumPropertyItem **items,
     item.name = view->name().c_str();
     item.identifier = view->name().c_str();
     item.icon = 0;
-    item.description = "";
+    item.description = view->description().c_str();
 
     RNA_enum_item_add(items, totitem, &item);
   }
