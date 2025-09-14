@@ -300,11 +300,13 @@
 
 #define _DNA_DEFAULTS_UnifiedPaintSettings \
   { \
-    .size = 50, \
+    .size = 100, \
     .input_samples = 1, \
-    .unprojected_radius = 0.29, \
+    .unprojected_size = 0.58, \
     .alpha = 0.5f, \
     .weight = 0.5f, \
+    .color = {0.0f, 0.0f, 0.0f}, \
+    .secondary_color = {1.0f, 1.0f, 1.0f}, \
     .rgb = {0.0f, 0.0f, 0.0f}, \
     .secondary_rgb = {1.0f, 1.0f, 1.0f}, \
     .flag = UNIFIED_PAINT_SIZE | UNIFIED_PAINT_COLOR, \
@@ -348,6 +350,13 @@
  \
     .sharp_min = DEG2RADF(90.0f), \
     .sharp_max = DEG2RADF(180.0f), \
+  }
+
+#define _DNA_DEFAULTS_UvSculpt \
+  { \
+    .size = 100, \
+    .strength = 1.0f, \
+    .curve_preset = BRUSH_CURVE_SMOOTH, \
   }
 
 #define _DNA_DEFAULT_ToolSettings \
@@ -416,6 +425,7 @@
     .gpencil_v2d_align = GP_PROJECT_VIEWSPACE, \
  \
     /* UV painting */ \
+    .uvsculpt = _DNA_DEFAULTS_UvSculpt, \
     .uv_sculpt_settings = 0, \
  \
     /* Placement */ \

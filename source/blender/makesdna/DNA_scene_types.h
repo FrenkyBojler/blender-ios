@@ -155,12 +155,6 @@ typedef enum IMB_Ffmpeg_Codec_ID {
   FFMPEG_CODEC_ID_OPUS = 86076,
 } IMB_Ffmpeg_Codec_ID;
 
-typedef enum eFFMpegVideoHdr {
-  FFM_VIDEO_HDR_NONE = 0,
-  FFM_VIDEO_HDR_REC2100_HLG = 1,
-  FFM_VIDEO_HDR_REC2100_PQ = 2,
-} eFFMpegVideoHdr;
-
 typedef struct FFMpegCodecData {
   int type;
   int codec;       /* Use `codec_id_get()` instead! IMB_Ffmpeg_Codec_ID */
@@ -184,7 +178,7 @@ typedef struct FFMpegCodecData {
   int rc_buffer_size;
   int mux_packet_size;
   int mux_rate;
-  int video_hdr; /* eFFMpegVideoHdr */
+  int _pad;
 
 #ifdef __cplusplus
   IMB_Ffmpeg_Codec_ID codec_id_get() const
@@ -985,6 +979,7 @@ typedef enum eQualityOption {
 typedef enum eHairType {
   SCE_HAIR_SHAPE_STRAND = 0,
   SCE_HAIR_SHAPE_STRIP = 1,
+  SCE_HAIR_SHAPE_CYLINDER = 2,
 } eHairType;
 
 /** #RenderData::motion_blur_position */
@@ -1075,11 +1070,13 @@ typedef struct TimeMarker {
  * values are used
  */
 typedef struct UnifiedPaintSettings {
-  /** Unified radius of brush in pixels. */
+  DNA_DEFINE_CXX_METHODS(UnifiedPaintSettings)
+
+  /** Unified diameter of brush in pixels. */
   int size;
 
-  /** Unified radius of brush in Blender units. */
-  float unprojected_radius;
+  /** Unified diameter of brush in Blender units. */
+  float unprojected_size;
 
   /** Unified strength of brush. */
   float alpha;
@@ -1088,9 +1085,13 @@ typedef struct UnifiedPaintSettings {
   float weight;
 
   /** Unified brush color. */
-  float rgb[3];
+  float color[3];
   /** Unified brush secondary color. */
-  float secondary_rgb[3];
+  float secondary_color[3];
+
+  /* Deprecated sRGB color for forward compatibility. */
+  float rgb[3] DNA_DEPRECATED;
+  float secondary_rgb[3] DNA_DEPRECATED;
 
   /** Unified color jitter settings */
   int color_jitter_flag;
@@ -1152,6 +1153,8 @@ typedef struct ToolSystemBrushBindings {
 
 /** Paint Tool Base. */
 typedef struct Paint {
+  DNA_DEFINE_CXX_METHODS(Paint)
+
   /**
    * The active brush. Possibly null. Possibly stored in a separate #Main data-base and not user-
    * counted.
@@ -1175,10 +1178,6 @@ typedef struct Paint {
   /** Cavity curve. */
   struct CurveMapping *cavity_curve;
 
-  /** WM Paint cursor. */
-  void *paint_cursor;
-  unsigned char paint_cursor_col[4];
-
   /** Enum #ePaintFlags. */
   int flags;
 
@@ -1192,7 +1191,6 @@ typedef struct Paint {
   int symmetry_flags;
 
   float tile_offset[3];
-  char _pad2[4];
   struct UnifiedPaintSettings unified_paint_settings;
 
   PaintRuntimeHandle *runtime;
@@ -1302,6 +1300,8 @@ typedef struct ParticleEditSettings {
 
 /** Sculpt. */
 typedef struct Sculpt {
+  DNA_DEFINE_CXX_METHODS(Sculpt)
+
   Paint paint;
 
   /** For rotating around a pivot point. */
@@ -1401,9 +1401,7 @@ typedef struct GpWeightPaint {
 typedef struct VPaint {
   Paint paint;
   char flag;
-  char _pad[3];
-  /** For mirrored painting. */
-  int radial_symm[3] DNA_DEPRECATED;
+  char _pad[7];
 } VPaint;
 
 /** #VPaint::flag */
@@ -1646,6 +1644,8 @@ enum {
 };
 
 typedef struct ToolSettings {
+  DNA_DEFINE_CXX_METHODS(ToolSettings)
+
   /** Vertex paint. */
   VPaint *vpaint;
   /** Weight paint. */
@@ -1683,6 +1683,8 @@ typedef struct ToolSettings {
   char uv_flag;
   char uv_selectmode;
   char uv_sticky;
+
+  rctf uv_custom_region;
 
   float uvcalc_margin;
 
@@ -2800,6 +2802,7 @@ enum {
    * selection should be used - since not all combinations of options support it.
    */
   UV_FLAG_ISLAND_SELECT = 1 << 2,
+  UV_FLAG_CUSTOM_REGION = 1 << 3,
 };
 
 /** #ToolSettings::uv_selectmode */

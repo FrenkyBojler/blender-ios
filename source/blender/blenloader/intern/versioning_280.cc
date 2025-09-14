@@ -780,11 +780,11 @@ static void do_version_curvemapping_walker(Main *bmain, void (*callback)(CurveMa
               smd->type);
 
           if (smti) {
-            if (smd->type == seqModifierType_Curves) {
+            if (smd->type == eSeqModifierType_Curves) {
               CurvesModifierData *cmd = (CurvesModifierData *)smd;
               callback(&cmd->curve_mapping);
             }
-            else if (smd->type == seqModifierType_HueCorrect) {
+            else if (smd->type == eSeqModifierType_HueCorrect) {
               HueCorrectModifierData *hcmd = (HueCorrectModifierData *)smd;
               callback(&hcmd->curve_mapping);
             }
@@ -3462,7 +3462,7 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
   { \
     IDProperty *_idprop = IDP_GetPropertyFromGroup(_props, #_name); \
     if (_idprop != nullptr) { \
-      const int _value = IDP_Int(_idprop); \
+      const int _value = IDP_int_get(_idprop); \
       if (_value) { \
         scene->eevee.flag |= _flag; \
       } \
@@ -3477,7 +3477,7 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
   { \
     IDProperty *_idprop = IDP_GetPropertyFromGroup(_props, #_name); \
     if (_idprop != nullptr) { \
-      scene->eevee._name = IDP_Int(_idprop); \
+      scene->eevee._name = IDP_int_get(_idprop); \
     } \
   } \
   ((void)0)
@@ -3486,7 +3486,7 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
   { \
     IDProperty *_idprop = IDP_GetPropertyFromGroup(_props, #_name); \
     if (_idprop != nullptr) { \
-      scene->eevee._name = IDP_Float(_idprop); \
+      scene->eevee._name = IDP_float_get(_idprop); \
     } \
   } \
   ((void)0)

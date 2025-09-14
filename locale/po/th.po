@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.0.0 Alpha (b'68abaa12d581')\n"
+"Project-Id-Version: Blender 5.0.0 Alpha (b'29d18c45e4ed')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-08-25 08:31+0000\n"
+"POT-Creation-Date: 2025-09-10 07:24+0000\n"
 "PO-Revision-Date: 2025-07-23 15:06+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Thai <https://translate.blender.org/projects/blender-ui/ui/th/>\n"
@@ -506,6 +506,10 @@ msgid "Face"
 msgstr "ด้าน"
 
 
+msgid "Object"
+msgstr "วัตถุ"
+
+
 msgid "File Path"
 msgstr "ตำแหน่งไฟล์"
 
@@ -532,10 +536,6 @@ msgstr "-Y"
 
 msgid "-Z"
 msgstr "-Z"
-
-
-msgid "Object"
-msgstr "วัตถุ"
 
 
 msgid "None"
@@ -1865,6 +1865,10 @@ msgid "Mask"
 msgstr "หน้ากาก"
 
 
+msgid "Names"
+msgstr "ชื่อ"
+
+
 msgid "Pivot Point"
 msgstr "จุดหมุน"
 
@@ -1879,6 +1883,10 @@ msgstr "แก้ไข"
 
 msgid "Mask Edit"
 msgstr "การแก้ไขหน้ากาก"
+
+
+msgid "Metaball"
+msgstr "เมตาบอล"
 
 
 msgid "Mirror"
@@ -1909,10 +1917,6 @@ msgid "View Regions"
 msgstr "ขอบเขตมุมมอง"
 
 
-msgid "Metaball"
-msgstr "เมตาบอล"
-
-
 msgid "Light"
 msgstr "แสง"
 
@@ -1931,10 +1935,6 @@ msgstr "แทร็ค"
 
 msgid "Hooks"
 msgstr "ตะขอ"
-
-
-msgid "Names"
-msgstr "ชื่อ"
 
 
 msgid "Face Data"
@@ -2264,22 +2264,6 @@ msgstr "ไปยัง"
 
 msgid "RGB Curves"
 msgstr "เส้นโค้ง RGB"
-
-
-msgid "High"
-msgstr "สูง"
-
-
-msgid "High quality"
-msgstr "คุณภาพสูง"
-
-
-msgid "Low"
-msgstr "ต่ำ"
-
-
-msgid "Red Channel"
-msgstr "ช่องสีแดง"
 
 
 msgid "RGB to BW"
@@ -2622,10 +2606,6 @@ msgid "Flat"
 msgstr "ราบแบน"
 
 
-msgid "Join"
-msgstr "เชื่อมโยง"
-
-
 msgctxt "Operator"
 msgid "Add New Layer"
 msgstr "เพิ่มชั้นใหม่"
@@ -2906,6 +2886,14 @@ msgid "Edge Length"
 msgstr "ความยาวของเส้นขอบ"
 
 
+msgid "Low"
+msgstr "ต่ำ"
+
+
+msgid "High"
+msgstr "สูง"
+
+
 msgctxt "ID"
 msgid "Blur"
 msgstr "เบลอ"
@@ -3036,6 +3024,10 @@ msgstr "ปรับย่อขนาด"
 msgctxt "Operator"
 msgid "Mask Filter"
 msgstr "กรองหน้ากาก"
+
+
+msgid "Join"
+msgstr "เชื่อมโยง"
 
 
 msgid "Grab UVs"
@@ -3457,6 +3449,10 @@ msgstr "หนา"
 
 msgid "Translate Interface"
 msgstr "แปลอินเตอร์เฟส"
+
+
+msgid "High quality"
+msgstr "คุณภาพสูง"
 
 
 msgid "View layer name"
@@ -4770,11 +4766,6 @@ msgstr "คอลเลกชันฉาก"
 msgctxt "Brush"
 msgid "Surface"
 msgstr "พื้นผิว"
-
-
-msgctxt "Action"
-msgid "var"
-msgstr "ตัวแปร"
 
 
 msgid "Key %d"
