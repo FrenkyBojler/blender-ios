@@ -1012,13 +1012,10 @@ int BLI_kdtree_nd_(calc_duplicates_stable)(const KDTree *tree,
     copy_vn_vn(r_cluster_center[survivor_index], centroid);
 
     /* Assign duplicates mapping. */
-    duplicates[survivor_index] = survivor_index;
     for (int node_index : cluster) {
-      if (node_index != survivor_index) {
-        duplicates[node_index] = survivor_index;
-        found++;
-      }
+      duplicates[node_index] = survivor_index;
     }
+    found += cluster.size() - 1;
   }
 
   return found;
