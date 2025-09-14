@@ -9,7 +9,7 @@
 #  include "draw_object_infos_info.hh"
 #  include "draw_view_info.hh"
 #  include "eevee_common_info.hh"
-#  include "eevee_shader_shared.hh"
+#  include "eevee_volume_shared.hh"
 #  include "gpu_shader_fullscreen_info.hh"
 
 #  define SPHERE_PROBE
@@ -21,7 +21,7 @@
 
 /* Used for shaders that need the final accumulated volume transmittance and scattering. */
 GPU_SHADER_CREATE_INFO(eevee_volume_lib)
-ADDITIONAL_INFO(eevee_shared)
+TYPEDEF_SOURCE("eevee_defines.hh")
 ADDITIONAL_INFO(eevee_global_ubo)
 ADDITIONAL_INFO(draw_view)
 SAMPLER(VOLUME_SCATTERING_TEX_SLOT, sampler3D, volume_scattering_tx)
@@ -30,7 +30,7 @@ GPU_SHADER_CREATE_END()
 
 GPU_SHADER_CREATE_INFO(eevee_volume_scatter)
 LOCAL_GROUP_SIZE(VOLUME_GROUP_SIZE, VOLUME_GROUP_SIZE, VOLUME_GROUP_SIZE)
-ADDITIONAL_INFO(eevee_shared)
+TYPEDEF_SOURCE("eevee_defines.hh")
 ADDITIONAL_INFO(eevee_global_ubo)
 ADDITIONAL_INFO(draw_resource_id_varying)
 ADDITIONAL_INFO(draw_view)
@@ -42,8 +42,8 @@ ADDITIONAL_INFO(eevee_utility_texture)
 ADDITIONAL_INFO(eevee_volume_properties_data)
 SAMPLER(0, sampler3D, scattering_history_tx)
 SAMPLER(1, sampler3D, extinction_history_tx)
-IMAGE(5, GPU_R11F_G11F_B10F, write, image3D, out_scattering_img)
-IMAGE(6, GPU_R11F_G11F_B10F, write, image3D, out_extinction_img)
+IMAGE(5, UFLOAT_11_11_10, write, image3D, out_scattering_img)
+IMAGE(6, UFLOAT_11_11_10, write, image3D, out_extinction_img)
 COMPUTE_SOURCE("eevee_volume_scatter_comp.glsl")
 DO_STATIC_COMPILATION()
 GPU_SHADER_CREATE_END()
@@ -58,19 +58,19 @@ DO_STATIC_COMPILATION()
 GPU_SHADER_CREATE_END()
 
 GPU_SHADER_CREATE_INFO(eevee_volume_occupancy_convert)
-ADDITIONAL_INFO(eevee_shared)
+TYPEDEF_SOURCE("eevee_defines.hh")
 ADDITIONAL_INFO(eevee_global_ubo)
 ADDITIONAL_INFO(gpu_fullscreen)
 BUILTINS(BuiltinBits::TEXTURE_ATOMIC)
-IMAGE(VOLUME_HIT_DEPTH_SLOT, GPU_R32F, read, image3D, hit_depth_img)
-IMAGE(VOLUME_HIT_COUNT_SLOT, GPU_R32UI, read_write, uimage2D, hit_count_img)
-IMAGE(VOLUME_OCCUPANCY_SLOT, GPU_R32UI, read_write, uimage3DAtomic, occupancy_img)
+IMAGE(VOLUME_HIT_DEPTH_SLOT, SFLOAT_32, read, image3D, hit_depth_img)
+IMAGE(VOLUME_HIT_COUNT_SLOT, UINT_32, read_write, uimage2D, hit_count_img)
+IMAGE(VOLUME_OCCUPANCY_SLOT, UINT_32, read_write, uimage3DAtomic, occupancy_img)
 FRAGMENT_SOURCE("eevee_occupancy_convert_frag.glsl")
 DO_STATIC_COMPILATION()
 GPU_SHADER_CREATE_END()
 
 GPU_SHADER_CREATE_INFO(eevee_volume_integration)
-ADDITIONAL_INFO(eevee_shared)
+TYPEDEF_SOURCE("eevee_defines.hh")
 ADDITIONAL_INFO(eevee_global_ubo)
 ADDITIONAL_INFO(draw_view)
 ADDITIONAL_INFO(eevee_sampling_data)
@@ -80,13 +80,13 @@ LOCAL_GROUP_SIZE(VOLUME_INTEGRATION_GROUP_SIZE, VOLUME_INTEGRATION_GROUP_SIZE, 1
 SAMPLER(0, sampler3D, in_scattering_tx)
 SAMPLER(1, sampler3D, in_extinction_tx)
 /* Outputs. */
-IMAGE(0, GPU_R11F_G11F_B10F, write, image3D, out_scattering_img)
-IMAGE(1, GPU_R11F_G11F_B10F, write, image3D, out_transmittance_img)
+IMAGE(0, UFLOAT_11_11_10, write, image3D, out_scattering_img)
+IMAGE(1, UFLOAT_11_11_10, write, image3D, out_transmittance_img)
 DO_STATIC_COMPILATION()
 GPU_SHADER_CREATE_END()
 
 GPU_SHADER_CREATE_INFO(eevee_volume_resolve)
-ADDITIONAL_INFO(eevee_shared)
+TYPEDEF_SOURCE("eevee_defines.hh")
 ADDITIONAL_INFO(eevee_volume_lib)
 ADDITIONAL_INFO(gpu_fullscreen)
 ADDITIONAL_INFO(eevee_render_pass_out)

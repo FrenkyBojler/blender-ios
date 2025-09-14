@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include "BLI_implicit_sharing.h"
 #include "BLI_utildefines.h"
 
 #include "DNA_defs.h"
@@ -268,9 +269,6 @@ typedef struct SubsurfModifierData {
   /** #eSubsurfBoundarySmooth. */
   short boundary_smooth;
   char _pad[2];
-
-  /* TODO(sergey): Get rid of those with the old CCG subdivision code. */
-  void *emCache, *mCache;
 } SubsurfModifierData;
 
 typedef struct LatticeModifierData {
@@ -1072,20 +1070,26 @@ typedef struct MeshDeformModifierData {
   /* result of static binding */
   /** Influences. */
   MDefInfluence *bindinfluences;
+  const ImplicitSharingInfoHandle *bindinfluences_sharing_info;
   /** Offsets into influences array. */
   int *bindoffsets;
+  const ImplicitSharingInfoHandle *bindoffsets_sharing_info;
   /** Coordinates that cage was bound with. */
   float *bindcagecos;
+  const ImplicitSharingInfoHandle *bindcagecos_sharing_info;
   /** Total vertices in mesh and cage. */
   int verts_num, cage_verts_num;
 
   /* result of dynamic binding */
   /** Grid with dynamic binding cell points. */
   MDefCell *dyngrid;
+  const ImplicitSharingInfoHandle *dyngrid_sharing_info;
   /** Dynamic binding vertex influences. */
   MDefInfluence *dyninfluences;
+  const ImplicitSharingInfoHandle *dyninfluences_sharing_info;
   /** Is this vertex bound or not? */
   int *dynverts;
+  const ImplicitSharingInfoHandle *dynverts_sharing_info;
   /** Size of the dynamic bind grid. */
   int dyngridsize;
   /** Total number of vertex influences. */
@@ -1420,7 +1424,7 @@ typedef enum {
   MOD_SCREW_NORMAL_FLIP = (1 << 0),
   MOD_SCREW_NORMAL_CALC = (1 << 1),
   MOD_SCREW_OBJECT_OFFSET = (1 << 2),
-  /*  MOD_SCREW_OBJECT_ANGLE   = (1 << 4), */
+  // MOD_SCREW_OBJECT_ANGLE = (1 << 4),
   MOD_SCREW_SMOOTH_SHADING = (1 << 5),
   MOD_SCREW_UV_STRETCH_U = (1 << 6),
   MOD_SCREW_UV_STRETCH_V = (1 << 7),
@@ -1972,6 +1976,7 @@ typedef struct CorrectiveSmoothModifierData {
   /* positions set during 'bind' operator
    * use for MOD_CORRECTIVESMOOTH_RESTSOURCE_BIND */
   float (*bind_coords)[3];
+  const ImplicitSharingInfoHandle *bind_coords_sharing_info;
 
   /* NOTE: -1 is used to bind. */
   unsigned int bind_coords_num;
@@ -2101,7 +2106,7 @@ typedef enum {
 typedef enum {
   MOD_MESHCACHE_INTERP_NONE = 0,
   MOD_MESHCACHE_INTERP_LINEAR = 1,
-  /*  MOD_MESHCACHE_INTERP_CARDINAL  = 2, */
+  // MOD_MESHCACHE_INTERP_CARDINAL = 2,
 } MeshCacheModifierInterpolation;
 
 typedef enum {
@@ -2126,6 +2131,7 @@ typedef struct LaplacianDeformModifierData {
   char anchor_grp_name[/*MAX_VGROUP_NAME*/ 64];
   int verts_num, repeat;
   float *vertexco;
+  const ImplicitSharingInfoHandle *vertexco_sharing_info;
   /** Runtime only. */
   void *cache_system;
   /** #LaplacianDeformModifierFlag. */
@@ -2338,7 +2344,7 @@ typedef struct SurfaceDeformModifierData {
   struct Object *target;
   /** Vertex bind data. */
   SDefVert *verts;
-  void *_pad1;
+  const ImplicitSharingInfoHandle *verts_sharing_info;
   float falloff;
   /* Number of vertices on the deformed mesh upon the bind process. */
   unsigned int mesh_verts_num;
@@ -2771,7 +2777,7 @@ typedef enum GreasePencilTintModifierFlag {
 typedef struct GreasePencilSmoothModifierData {
   ModifierData modifier;
   GreasePencilModifierInfluenceData influence;
-  /** `eGreasePencilSmooth_Flag. */
+  /** #eGreasePencilSmooth_Flag. */
   int flag;
   /** Factor of smooth. */
   float factor;
@@ -3193,7 +3199,9 @@ typedef struct GreasePencilLineartModifierData {
   float shadow_camera_far;
 
   float opacity;
-  short thickness;
+  float radius;
+
+  short thickness_legacy; /* Deprecated, use `radius`. */
 
   unsigned char mask_switches; /* #eGreasePencilLineartMaskSwitches */
   unsigned char material_mask_bits;
@@ -3201,7 +3209,7 @@ typedef struct GreasePencilLineartModifierData {
 
   unsigned char shadow_selection;
   unsigned char silhouette_selection;
-  char _pad[1];
+  char _pad[5];
 
   /** `0..1` range for cosine angle */
   float crease_threshold;

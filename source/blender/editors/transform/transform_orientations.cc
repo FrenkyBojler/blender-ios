@@ -27,7 +27,7 @@
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_string_utils.hh"
 #include "BLI_utildefines.h"
 
@@ -516,7 +516,7 @@ TransformOrientation *addMatrixSpace(bContext *C,
     ts = findOrientationName(transform_orientations, name);
   }
   else {
-    STRNCPY(name_unique, name);
+    STRNCPY_UTF8(name_unique, name);
     uniqueOrientationName(transform_orientations, name_unique);
     name = name_unique;
   }
@@ -525,7 +525,7 @@ TransformOrientation *addMatrixSpace(bContext *C,
   if (ts == nullptr) {
     ts = MEM_callocN<TransformOrientation>("UserTransSpace from matrix");
     BLI_addtail(transform_orientations, ts);
-    STRNCPY(ts->name, name);
+    STRNCPY_UTF8(ts->name, name);
   }
 
   /* Copy matrix into transform space. */
@@ -566,7 +566,7 @@ int BIF_countTransformOrientation(const bContext *C)
 void applyTransformOrientation(const TransformOrientation *ts, float r_mat[3][3], char r_name[64])
 {
   if (r_name) {
-    BLI_strncpy(r_name, ts->name, MAX_NAME);
+    BLI_strncpy_utf8(r_name, ts->name, MAX_NAME);
   }
   copy_m3_m3(r_mat, ts->mat);
 }
@@ -792,12 +792,12 @@ short transform_orientation_matrix_get(bContext *C,
     }
   }
 
-  short r_orient_index = calc_orientation_from_type_ex(
+  const short orient_index_result = calc_orientation_from_type_ex(
       scene, t->view_layer, v3d, rv3d, ob, obedit, orient_index, t->around, r_spacemtx);
 
   if (rv3d && (t->options & CTX_PAINT_CURVE)) {
     /* Screen space in the 3d region. */
-    if (r_orient_index == V3D_ORIENT_VIEW) {
+    if (orient_index_result == V3D_ORIENT_VIEW) {
       unit_m3(r_spacemtx);
     }
     else {
@@ -806,7 +806,7 @@ short transform_orientation_matrix_get(bContext *C,
     }
   }
 
-  return r_orient_index;
+  return orient_index_result;
 }
 
 const char *transform_orientations_spacename_get(TransInfo *t, const short orient_type)
@@ -842,7 +842,7 @@ void transform_orientations_current_set(TransInfo *t, const short orient_index)
   const short orientation = t->orient[orient_index].type;
   const char *spacename = transform_orientations_spacename_get(t, orientation);
 
-  STRNCPY(t->spacename, spacename);
+  STRNCPY_UTF8(t->spacename, spacename);
   copy_m3_m3(t->spacemtx, t->orient[orient_index].matrix);
   invert_m3_m3_safe_ortho(t->spacemtx_inv, t->spacemtx);
   t->orient_curr = eTOType(orient_index);
@@ -1371,7 +1371,7 @@ int getTransformOrientation_ex(const Scene *scene,
         zero_v3(fallback_plane);
 
         LISTBASE_FOREACH (EditBone *, ebone, arm->edbo) {
-          if (blender::animrig::bone_is_visible_editbone(arm, ebone)) {
+          if (blender::animrig::bone_is_visible(arm, ebone)) {
             if (ebone->flag & BONE_SELECTED) {
               ED_armature_ebone_to_mat3(ebone, tmat);
               add_v3_v3(r_normal, tmat[2]);

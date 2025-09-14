@@ -128,7 +128,8 @@ void setTransformViewAspect(TransInfo *t, float r_aspect[3])
   }
   else if (t->spacetype == SPACE_SEQ) {
     if (t->options & CTX_CURSOR) {
-      const float2 aspect = seq::image_preview_unit_to_px(t->scene, r_aspect);
+      Scene *scene = CTX_data_sequencer_scene(t->context);
+      const float2 aspect = seq::image_preview_unit_to_px(scene, r_aspect);
       copy_v2_v2(r_aspect, aspect);
     }
   }
@@ -638,9 +639,6 @@ static bool transform_modal_item_poll(const wmOperator *op, int value)
       if (t->spacetype != SPACE_VIEW3D) {
         return false;
       }
-      if ((t->tsnap.mode & ~(SCE_SNAP_TO_INCREMENT | SCE_SNAP_TO_GRID)) == 0) {
-        return false;
-      }
       if (value == TFM_MODAL_ADD_SNAP) {
         if (!(t->tsnap.status & SNAP_TARGET_FOUND)) {
           return false;
@@ -774,6 +772,11 @@ static bool transform_modal_item_poll(const wmOperator *op, int value)
         return false;
       }
       return t->vod != nullptr;
+    case TFM_MODAL_STRIP_CLAMP:
+      if (t->spacetype != SPACE_SEQ) {
+        return false;
+      }
+      break;
   }
   return true;
 }
@@ -830,6 +833,7 @@ wmKeyMap *transform_modal_keymap(wmKeyConfig *keyconf)
       {TFM_MODAL_PRECISION, "PRECISION", 0, "Precision Mode", ""},
       {TFM_MODAL_PASSTHROUGH_NAVIGATE, "PASSTHROUGH_NAVIGATE", 0, "Navigate", ""},
       {TFM_MODAL_NODE_FRAME, "NODE_FRAME", 0, "Attach/Detach Frame", ""},
+      {TFM_MODAL_STRIP_CLAMP, "STRIP_CLAMP_TOGGLE", 0, "Clamp Strips", ""},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
@@ -1097,7 +1101,7 @@ wmOperatorStatus transformEvent(TransInfo *t, wmOperator *op, const wmEvent *eve
       case TFM_MODAL_TRACKBALL:
       case TFM_MODAL_ROTATE_NORMALS:
       case TFM_MODAL_VERT_EDGE_SLIDE:
-        /* Only switch when. */
+        /* Only switch when supported. */
         if (!transform_mode_is_changeable(t->mode)) {
           break;
         }
@@ -1375,6 +1379,10 @@ wmOperatorStatus transformEvent(TransInfo *t, wmOperator *op, const wmEvent *eve
           transform_mode_snap_source_init(t, nullptr);
           t->redraw |= TREDRAW_HARD;
         }
+        break;
+      case TFM_MODAL_STRIP_CLAMP:
+        t->modifiers ^= MOD_STRIP_CLAMP_HOLDS;
+        t->redraw |= TREDRAW_HARD;
         break;
       default:
         break;
@@ -1959,7 +1967,7 @@ bool initTransform(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
 
   /* Needed to translate tweak events to mouse buttons. */
   t->launch_event = event ? WM_userdef_event_type_from_keymap_type(event->type) : -1;
-  t->is_launch_event_drag = event ? (event->val == KM_CLICK_DRAG) : false;
+  t->is_launch_event_drag = event ? (event->val == KM_PRESS_DRAG) : false;
 
   unit_m3(t->spacemtx);
 

@@ -43,7 +43,7 @@
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
 #include "BLI_rand.h"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_task.h"
 #include "BLI_threads.h"
 #include "BLI_utildefines.h"
@@ -399,6 +399,7 @@ IDTypeInfo IDType_ID_PA = {
     /*foreach_id*/ particle_settings_foreach_id,
     /*foreach_cache*/ nullptr,
     /*foreach_path*/ nullptr,
+    /*foreach_working_space_color*/ nullptr,
     /*owner_pointer_get*/ nullptr,
 
     /*blend_write*/ particle_settings_blend_write,
@@ -1722,7 +1723,7 @@ void psys_interpolate_face(Mesh *mesh,
     }
   }
 }
-void psys_interpolate_uvs(const MTFace *tface, int quad, const float w[4], float uvco[2])
+void psys_interpolate_uvs(const MTFace *tface, int quad, const float w[4], float r_uv[2])
 {
   float v10 = tface->uv[0][0];
   float v11 = tface->uv[0][1];
@@ -1736,12 +1737,12 @@ void psys_interpolate_uvs(const MTFace *tface, int quad, const float w[4], float
     v40 = tface->uv[3][0];
     v41 = tface->uv[3][1];
 
-    uvco[0] = w[0] * v10 + w[1] * v20 + w[2] * v30 + w[3] * v40;
-    uvco[1] = w[0] * v11 + w[1] * v21 + w[2] * v31 + w[3] * v41;
+    r_uv[0] = w[0] * v10 + w[1] * v20 + w[2] * v30 + w[3] * v40;
+    r_uv[1] = w[0] * v11 + w[1] * v21 + w[2] * v31 + w[3] * v41;
   }
   else {
-    uvco[0] = w[0] * v10 + w[1] * v20 + w[2] * v30;
-    uvco[1] = w[0] * v11 + w[1] * v21 + w[2] * v31;
+    r_uv[0] = w[0] * v10 + w[1] * v20 + w[2] * v30;
+    r_uv[1] = w[0] * v11 + w[1] * v21 + w[2] * v31;
   }
 }
 
@@ -3942,7 +3943,7 @@ static ModifierData *object_add_or_copy_particle_system(
     psys->part = BKE_particlesettings_add(bmain, DATA_("ParticleSettings"));
   }
   md = BKE_modifier_new(eModifierType_ParticleSystem);
-  STRNCPY(md->name, psys->name);
+  STRNCPY_UTF8(md->name, psys->name);
   BKE_modifier_unique_name(&ob->modifiers, md);
 
   psmd = (ParticleSystemModifierData *)md;

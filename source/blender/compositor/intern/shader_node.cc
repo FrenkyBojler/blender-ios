@@ -66,6 +66,14 @@ static eGPUType gpu_type_from_socket(DSocket socket)
       }
     case SOCK_RGBA:
       return GPU_VEC4;
+    case SOCK_MENU:
+      /* GPUMaterial doesn't support int, so it is passed as a float. */
+      return GPU_FLOAT;
+    case SOCK_STRING:
+      /* Single only types do not support GPU code path. */
+      BLI_assert(Result::is_single_value_only_type(get_node_socket_result_type(socket.bsocket())));
+      BLI_assert_unreachable();
+      return GPU_NONE;
     default:
       /* The GPU material compiler will skip unsupported sockets if GPU_NONE is provided. So this
        * is an appropriate and a valid type for unsupported sockets. */

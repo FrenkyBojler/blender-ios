@@ -18,6 +18,8 @@
 #include "NOD_rna_define.hh"
 #include "NOD_socket_search_link.hh"
 
+#include "GEO_foreach_geometry.hh"
+
 #include "node_geometry_util.hh"
 
 #include <fmt/format.h>
@@ -33,7 +35,8 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_default_layout();
   const bNode *node = b.node_or_null();
 
-  b.add_input<decl::Geometry>("Geometry");
+  b.add_input<decl::Geometry>("Geometry")
+      .description("Geometry to store a new attribute with the given name on");
   b.add_output<decl::Geometry>("Geometry").propagate_all().align_with_previous();
   b.add_input<decl::Bool>("Selection").default_value(true).hide_value().field_on_all();
   b.add_input<decl::String>("Name").is_attribute_name().hide_label();
@@ -97,7 +100,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   }
   if (bke::attribute_name_is_anonymous(name)) {
     params.error_message_add(NodeWarningType::Info,
-                             TIP_("Anonymous attributes can't be created here"));
+                             TIP_("Anonymous attributes cannot be created here"));
     params.set_output("Geometry", std::move(geometry_set));
     return;
   }
@@ -144,7 +147,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     }
   }
   else {
-    geometry_set.modify_geometry_sets([&](GeometrySet &geometry_set) {
+    geometry::foreach_real_geometry(geometry_set, [&](GeometrySet &geometry_set) {
       for (const GeometryComponent::Type type : {GeometryComponent::Type::Mesh,
                                                  GeometryComponent::Type::PointCloud,
                                                  GeometryComponent::Type::Curve,

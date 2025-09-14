@@ -103,7 +103,8 @@ class NODE_MT_category_shader_input(Menu):
                 "Diffuse Depth",
                 "Glossy Depth",
                 "Transparent Depth",
-                "Transmission Depth"
+                "Transmission Depth",
+                "Portal Depth"
             ],
         )
         node_add_menu.add_node_type_with_outputs(
@@ -425,6 +426,11 @@ class NODE_MT_shader_node_add_all(Menu):
         layout.separator()
         layout.menu("NODE_MT_category_shader_group")
         layout.menu("NODE_MT_category_layout")
+        node_add_menu.add_repeat_zone(layout, label="Repeat")
+        node_add_menu.add_closure_zone(layout, label="Closure")
+        node_add_menu.add_node_type(layout, "NodeEvaluateClosure")
+        node_add_menu.add_node_type(layout, "NodeCombineBundle")
+        node_add_menu.add_node_type(layout, "NodeSeparateBundle")
 
         node_add_menu.draw_root_assets(layout)
 
