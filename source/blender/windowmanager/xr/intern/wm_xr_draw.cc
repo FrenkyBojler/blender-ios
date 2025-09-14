@@ -226,7 +226,7 @@ void wm_xr_draw_view(const GHOST_XrDrawViewInfo *draw_view, void *customdata)
   Scene *scene = draw_data->scene;
   Object *camera_ob = scene->camera; /* Active scene camera. */
 
-  float viewfinder_viewmat[4][4], viewfinder_winmat[4][4];
+  float viewfinder_viewmat[4][4] = {};
   switch (settings->viewfinder_view_point) {
     case XR_VIEWFINDER_VIEWPOINT_SCENE_CAMERA: {
       invert_m4_m4(viewfinder_viewmat, camera_ob->object_to_world().ptr());
@@ -235,6 +235,9 @@ void wm_xr_draw_view(const GHOST_XrDrawViewInfo *draw_view, void *customdata)
     case XR_VIEWFINDER_VIEWPOINT_HANDHELD: {
       const wmXrController *viewfinder_controller = get_viewfinder_controller(settings,
                                                                               session_state);
+      if (!viewfinder_controller) {
+        break;
+      }
 
       float handheld_mat[4][4];
       copy_m4_m4(handheld_mat, viewfinder_controller->grip_mat);
@@ -256,6 +259,7 @@ void wm_xr_draw_view(const GHOST_XrDrawViewInfo *draw_view, void *customdata)
       &params, scene->r.xsch, scene->r.ysch, scene->r.xasp, scene->r.yasp);
   BKE_camera_params_compute_matrix(&params);
 
+  float viewfinder_winmat[4][4];
   copy_m4_m4(viewfinder_winmat, params.winmat);
 
   const int viewfinder_display_flag = V3D_OFSDRAW_SHOW_ANNOTATION |
@@ -605,7 +609,7 @@ static void wm_xr_controller_viewfinder_draw(const XrSessionSettings *settings,
   }
 
   const wmXrController *viewfinder_controller = get_viewfinder_controller(settings, state);
-  if (!viewfinder_controller->grip_active) {
+  if (!viewfinder_controller || !viewfinder_controller->grip_active) {
     return;
   }
 
