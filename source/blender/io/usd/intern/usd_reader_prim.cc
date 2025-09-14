@@ -12,6 +12,8 @@
 
 #include "DNA_object_types.h"
 
+#include "BKE_idprop.hh"
+
 #include <pxr/usd/usd/prim.h>
 
 #include "BLI_assert.h"
@@ -47,6 +49,28 @@ void USDPrimReader::set_props(const bool merge_with_parent, const pxr::UsdTimeCo
     /* If the object has data, the data represents the USD prim, so set the prim's custom
      * properties on the data directly. */
     set_id_props_from_prim(static_cast<ID *>(object_->data), prim_, property_import_mode, time);
+  }
+
+  /* Set the 'usd_prim_path' property to the prim path during import*/
+  ID *id_for_path = object_->data ? static_cast<ID *>(object_->data) : &object_->id;
+  pxr::SdfPath prim_path = object_->data ? data_prim_path() : object_prim_path();
+
+  if (!prim_path.IsEmpty()) {
+    IDProperty *idgroup = IDP_EnsureProperties(id_for_path);
+
+    std::string path_str = prim_path.GetString();
+    IDPropertyTemplate val = {0};
+    val.string.str = path_str.c_str();
+    /* length includes null terminator */
+    val.string.len = int(path_str.size()) + 1;
+    val.string.subtype = IDP_STRING_SUB_UTF8;
+
+    IDProperty *prop = IDP_New(IDP_STRING, &val, "usd_prim_path");
+    if (prop) {
+      if (!IDP_AddToGroup(idgroup, prop)) {
+        IDP_FreeProperty(prop);
+      }
+    }
   }
 }
 
