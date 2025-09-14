@@ -989,6 +989,7 @@ int BLI_kdtree_nd_(calc_duplicates_stable)(const KDTree *tree,
       continue;
     }
 
+    BLI_assert(!cluster.as_span().contains(node_index));
     cluster.append(node_index);
 
     /* Compute centroid of the cluster. */
