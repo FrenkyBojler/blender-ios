@@ -457,16 +457,14 @@ ccl_device_inline float3 iridescence_airy_summation(KernelGlobals kg,
 
   /* Perform summation over path order differences (equation 10). */
   Spectrum R = make_spectrum(Rs + R12); /* C0 */
-  SpectrumOrFloat Cm = (Rs - T121) * r123;
-  complex<Spectrum> S = iridescence_lookup_sensitivity(kg, OPD);
-  R += Cm * 2.0f * (accumulator.re * S.re + accumulator.im * S.im);
+  SpectrumOrFloat Cm = (Rs - T121);
 
   /* Truncate after m=3, higher differences have barely any impact. */
-  for (int m = 2; m < 4; m++) {
-    accumulator *= phasor;
+  for (int m = 1; m < 4; m++) {
     Cm *= r123;
-    S = iridescence_lookup_sensitivity(kg, m * OPD);
+    const complex<Spectrum> S = iridescence_lookup_sensitivity(kg, m * OPD);
     R += Cm * 2.0f * (accumulator.re * S.re + accumulator.im * S.im);
+    accumulator *= phasor;
   }
   return R;
 }
