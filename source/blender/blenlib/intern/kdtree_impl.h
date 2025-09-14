@@ -957,7 +957,6 @@ int BLI_kdtree_nd_(calc_duplicates_stable)(const KDTree *tree,
   }
 
   blender::Array<bool> visited(tree->max_node_index + 1, false);
-
   blender::Vector<int> cluster;
 
   int found = 0;
@@ -973,11 +972,11 @@ int BLI_kdtree_nd_(calc_duplicates_stable)(const KDTree *tree,
       continue;
     }
 
-    cluster.clear();
-    cluster.append(node_index);
-
     const float *search_co = tree->nodes[index_lookup[node_index]].co;
     BLI_assert(search_co != nullptr);
+
+    cluster.clear();
+    visited[node_index] = true;
 
     auto accumulate_neighbors_fn = [&](int neighbor_index, const float *, float) -> bool {
       if (!visited[neighbor_index] && duplicates[neighbor_index] == -1) {
@@ -989,12 +988,14 @@ int BLI_kdtree_nd_(calc_duplicates_stable)(const KDTree *tree,
 
     BLI_kdtree_nd_(range_search_cb_cpp)(tree, search_co, range, accumulate_neighbors_fn);
 
-    if (cluster.size() <= 1) {
+    if (cluster.is_empty()) {
       continue;
     }
 
+    cluster.append(node_index);
+
     /* Compute centroid of the cluster. */
-    float centroid[KD_DIMS] = {0.0f};
+    float centroid[KD_DIMS] = {};
     for (int node_index : cluster) {
       const float *co = tree->nodes[index_lookup[node_index]].co;
       add_vn_vn(centroid, co, KD_DIMS);
