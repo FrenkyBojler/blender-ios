@@ -177,7 +177,7 @@ class PREFERENCES_OT_copy_prev(Operator):
         # Fix operator presets that have unwanted filepath properties
         bpy.ops.wm.operator_presets_cleanup()
 
-        # don't loose users work if they open the splash later.
+        # don't lose users work if they open the splash later.
         if bpy.data.is_saved is bpy.data.is_dirty is False:
             bpy.ops.wm.read_homefile()
         else:
