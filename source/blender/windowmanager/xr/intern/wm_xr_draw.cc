@@ -45,10 +45,8 @@
 
 #include "wm_xr_intern.hh"
 
-static GPUOffScreen *g_viewfinder_offscreen;
-
 extern bContext *evil_main_C;
-extern wmWindow *evil_first_main_window;
+static GPUOffScreen *g_viewfinder_offscreen;
 
 void wm_xr_pose_to_mat(const GHOST_XrPose *pose, float r_mat[4][4])
 {
@@ -509,8 +507,9 @@ static void wm_xr_controller_viewfinder_draw_ui_widgets(const bContext *C,
 {
 
   /* Create a fake context to trick the UI drawing code in drawing in places it shouldn't be. */
+  wmWindow *first_main_window = static_cast<wmWindow *>(CTX_wm_manager(C)->windows.first);
   bContext *fake_C = CTX_copy(C);
-  CTX_wm_window_set(fake_C, evil_first_main_window);
+  CTX_wm_window_set(fake_C, first_main_window);
   CTX_wm_region_set(fake_C, region);
 
   using BlockFuncPtr = decltype(&viewfinder_mode_tabs_ui_block);

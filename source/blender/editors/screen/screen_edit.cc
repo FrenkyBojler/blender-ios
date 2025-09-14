@@ -53,8 +53,6 @@
 
 #include "screen_intern.hh" /* own module include */
 
-wmWindow *evil_first_main_window;
-
 /* adds no space data */
 static ScrArea *screen_addarea_ex(ScrAreaMap *area_map,
                                   ScrVert *bottom_left,
@@ -1359,11 +1357,6 @@ void ED_screen_global_areas_refresh(wmWindow *win)
       BKE_screen_area_map_free(&win->global_areas);
     }
     return;
-  }
-
-  /* Keep a hacky handle to the first instanciated main window. */
-  if (!evil_first_main_window) {
-    evil_first_main_window = win;
   }
 
   screen_global_topbar_area_refresh(win, screen);
