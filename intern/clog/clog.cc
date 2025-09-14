@@ -615,6 +615,10 @@ void CLG_log_str(const CLG_LogType *lg,
     clg_ctx_backtrace(lg->ctx);
   }
 
+  if (level == CLG_LEVEL_ERROR) {
+    clg_ctx_error_action(lg->ctx);
+  }
+
   if (level == CLG_LEVEL_FATAL) {
     clg_ctx_fatal_action(lg->ctx);
   }
