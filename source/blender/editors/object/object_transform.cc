@@ -89,6 +89,27 @@
 
 namespace blender::ed::object {
 
+/*
+* Perform auto-keying for object rotation changes based on the object's rotation mode.
+*/
+static void autokeyframe_object_rotation(bContext *C, Scene *scene, Object *ob)
+{
+  PointerRNA ptr = RNA_pointer_create_discrete(&ob->id, &RNA_Object, &ob->id);
+  const char *rotation_property = "rotation_euler";
+  switch (ob->rotmode) {
+    case ROT_MODE_QUAT:
+      rotation_property = "rotation_quaternion";
+      break;
+    case ROT_MODE_AXISANGLE:
+      rotation_property = "rotation_axis_angle";
+      break;
+    default:
+      break;
+  }
+  PropertyRNA *prop = RNA_struct_find_property(&ptr, rotation_property);
+  animrig::autokeyframe_property(C, scene, &ptr, prop, -1, scene->r.cfra, true);
+}
+
 /* -------------------------------------------------------------------- */
 /** \name Clear Transformation Utilities
  * \{ */
@@ -2067,26 +2088,6 @@ static bool object_orient_to_location(Object *ob,
     }
   }
   return false;
-}
-/*
-* Perform auto-keying for object rotation changes based on the object's rotation mode.
-*/
-static void autokeyframe_object_rotation(bContext *C, Scene *scene, Object *ob)
-{
-  PointerRNA ptr = RNA_pointer_create_discrete(&ob->id, &RNA_Object, &ob->id);
-  const char *rotation_property = "rotation_euler";
-  switch (ob->rotmode) {
-    case ROT_MODE_QUAT:
-      rotation_property = "rotation_quaternion";
-      break;
-    case ROT_MODE_AXISANGLE:
-      rotation_property = "rotation_axis_angle";
-      break;
-    default:
-      break;
-  }
-  PropertyRNA *prop = RNA_struct_find_property(&ptr, rotation_property);
-  animrig::autokeyframe_property(C, scene, &ptr, prop, -1, scene->r.cfra, true);
 }
 
 static void object_transform_axis_target_cancel(bContext *C, wmOperator *op)
