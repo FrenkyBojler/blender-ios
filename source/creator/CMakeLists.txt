@@ -1614,7 +1614,7 @@ elseif(APPLE)
     MACOSX_BUNDLE_LONG_VERSION_STRING "${BLENDER_VERSION}.${BLENDER_VERSION_PATCH} ${BLENDER_DATE}"
   )
 
-  # Xcode Archiving support (Testflight, App Store, etc...)
+  # Xcode Archiving support for distributing the application (Testflight, App Store Connect, etc...)
   set_target_properties(blender PROPERTIES
     XCODE_ATTRIBUTE_SKIP_INSTALL "NO"
     XCODE_ATTRIBUTE_INSTALL_PATH "$(LOCAL_APPS_DIR)"
