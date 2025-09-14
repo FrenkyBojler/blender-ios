@@ -2,3 +2,4 @@ Referenced by commit 58e55ef023f, Fix #126293: Crash when moving mouse after ena
 Referenced by issue #126293, Regression: Sculpt: Crash when enabling Dynamic Topology option
 Referenced by issue #126299, Fix #126293: Crash when moving mouse after enabling Dyntopo
 Referenced by pull request #146249, Fix #146233: Dyntopo sample detail size crashes with cursor not on mesh
+Referenced by commit c6a48aecc85628fa6ca32fbe559476f661699ec4, Fix #146233: Dyntopo sample detail size crashes with cursor not on mesh
