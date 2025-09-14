@@ -14,6 +14,7 @@
 #include "BLI_math_vector.h"
 #include "BLI_utildefines.h"
 #include "BLI_vector.hh"
+
 #include <algorithm>
 #include <cstring>
 
