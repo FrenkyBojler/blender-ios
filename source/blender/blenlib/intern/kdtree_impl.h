@@ -1005,12 +1005,7 @@ int BLI_kdtree_nd_(calc_duplicates_stable)(const KDTree *tree,
     }
 
     /* Choose survivor: lowest node index in cluster. */
-    int survivor_index = cluster[0];
-    for (int node_index : cluster) {
-      if (node_index < survivor_index) {
-        survivor_index = node_index;
-      }
-    }
+    const int survivor_index = *std::min_element(cluster.begin(), cluster.end());
 
     /* Write centroid for this survivor. */
     copy_vn_vn(r_cluster_center[survivor_index], centroid);
