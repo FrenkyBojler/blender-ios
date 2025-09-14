@@ -24,15 +24,16 @@ set(LIB
   draco
 )
 
-add_library(extern_draco MODULE "${SRC}")
+add_library(extern_draco SHARED "${SRC}")
 target_include_directories(extern_draco PUBLIC "${INC}")
 target_link_libraries(extern_draco PUBLIC "${LIB}")
 
 blender_source_group(extern_draco "${SRC}")
 
 if (APPLE)
-  # For macOS bundle archives: correct implicit CMake Xcode strip-style property for `MODULE` libraries
+  # On macOS, do not include the built library in Xcode bundle distribution archives (implicit behavior for SHARED libs)
   set_target_properties(extern_draco PROPERTIES
-    XCODE_ATTRIBUTE_STRIP_STYLE "debugging"
+    XCODE_ATTRIBUTE_SKIP_INSTALL "NO"
+    XCODE_ATTRIBUTE_INSTALL_PATH ""
   )
 endif()
