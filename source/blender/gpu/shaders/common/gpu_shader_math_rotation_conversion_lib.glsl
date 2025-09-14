@@ -130,7 +130,8 @@ void normalized_to_eul2(float3x3 mat, out EulerXYZ eul1, out EulerXYZ eul2)
     eul2 = eul1;
   }
 }
-};  // namespace detail
+
+}  // namespace detail
 
 /* -------------------------------------------------------------------- */
 /** \name Quaternion Functions
