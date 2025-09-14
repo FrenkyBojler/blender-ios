@@ -200,16 +200,16 @@ static void build_vertex_junction_caps(BMesh *bm, GHash *junction_map)
 
     float sortN[3] = {0, 0, 0};
 
-    int idx = 0;
-    for (JunctionRing *jr = (JunctionRing *)rings->first; jr; jr = jr->next, idx++) {
-      rc[idx].jr = jr;
+    int index = 0;
+    for (JunctionRing *jr = (JunctionRing *)rings->first; jr; jr = jr->next, index++) {
+      rc[index].jr = jr;
 
-      ring_axis_from_center(jr->verts, jr->segments, vcenter->co, rc[idx].axis);
-      add_v3_v3(sortN, rc[idx].axis);
+      ring_axis_from_center(jr->verts, jr->segments, vcenter->co, rc[index].axis);
+      add_v3_v3(sortN, rc[index].axis);
 
       float d[3];
       sub_v3_v3v3(d, jr->verts[0]->co, vcenter->co);
-      rc[idx].tube_radius = len_v3(d);
+      rc[index].tube_radius = len_v3(d);
     }
 
     if (normalize_v3(sortN) == 0.0f) {
@@ -218,26 +218,26 @@ static void build_vertex_junction_caps(BMesh *bm, GHash *junction_map)
     float T1[3], T2[3];
     frame_from_normal(sortN, T1, T2);
 
-    idx = 0;
-    for (JunctionRing *jr = (JunctionRing *)rings->first; jr; jr = jr->next, idx++) {
+    index = 0;
+    for (JunctionRing *jr = (JunctionRing *)rings->first; jr; jr = jr->next, index++) {
       const int S = jr->segments;
 
-      const float cap_r = rc[idx].tube_radius * cap_scale;
-      rc[idx].cap = make_cap_ring_on_sphere(bm, jr->verts, S, vcenter->co, cap_r);
+      const float cap_r = rc[index].tube_radius * cap_scale;
+      rc[index].cap = make_cap_ring_on_sphere(bm, jr->verts, S, vcenter->co, cap_r);
 
       float p[3];
-      project_plane_v3_v3v3(p, rc[idx].axis, sortN);
+      project_plane_v3_v3v3(p, rc[index].axis, sortN);
       const float u = dot_v3v3(p, T1);
       const float v = dot_v3v3(p, T2);
-      rc[idx].angle = atan2f(v, u);
+      rc[index].angle = atan2f(v, u);
 
       for (int i = 0; i < S; i++) {
         const int ni = (i + 1) % S;
         BMFace *f = BM_face_create_quad_tri(bm,
                                             jr->verts[i],
                                             jr->verts[ni],
-                                            rc[idx].cap[ni],
-                                            rc[idx].cap[i],
+                                            rc[index].cap[ni],
+                                            rc[index].cap[i],
                                             nullptr,
                                             BM_CREATE_NOP);
         if (f) {
