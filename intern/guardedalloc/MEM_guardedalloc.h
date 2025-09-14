@@ -426,9 +426,18 @@ template<typename T> inline void MEM_delete(const T *ptr)
   if (ptr == nullptr) {
     return;
   }
+  const void *complete_ptr = [ptr]() {
+    if constexpr (std::is_polymorphic_v<T>) {
+      /* Pointer to the most derived object. */
+      return dynamic_cast<const void *>(ptr);
+    }
+    else {
+      return static_cast<const void *>(ptr);
+    }
+  }();
   /* C++ allows destruction of `const` objects, so the pointer is allowed to be `const`. */
   ptr->~T();
-  mem_guarded::internal::mem_freeN_ex(const_cast<T *>(ptr),
+  mem_guarded::internal::mem_freeN_ex(const_cast<void *>(complete_ptr),
                                       mem_guarded::internal::AllocationType::NEW_DELETE);
 }
 
