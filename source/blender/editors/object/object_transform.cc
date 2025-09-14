@@ -2021,7 +2021,6 @@ static void object_apply_rotation(Object *ob, const float rmat[3][3])
   float loc[3];
   float rmat4[4][4];
   copy_m4_m3(rmat4, rmat);
-
   copy_v3_v3(size, ob->scale);
   copy_v3_v3(loc, ob->loc);
   BKE_object_apply_mat4(ob, rmat4, true, true);
@@ -2190,10 +2189,10 @@ static wmOperatorStatus object_transform_axis_target_modal(bContext *C,
 
   if (event->type == MOUSEMOVE || is_translate_init) {
     const ViewDepths *depths = xfd->depths;
-    if (depths && (uint(event->mval[0]) < depths->w) && (uint(event->mval[1]) < depths->h)) {
+    if (depths && ((event->mval[0]) < depths->w) && ((event->mval[1]) < depths->h)) {
       float depth_fl = 1.0f;
       ED_view3d_depth_read_cached(depths, event->mval, 0, &depth_fl);
-      float location_world[3];
+      blender::float3 location_world;
       if (depth_fl == 1.0f) {
         if (xfd->prev.is_depth_valid) {
           depth_fl = xfd->prev.depth;
@@ -2219,7 +2218,7 @@ static wmOperatorStatus object_transform_axis_target_modal(bContext *C,
         if (ED_view3d_depth_unproject_v3(region, event->mval, depth, location_world)) {
           if (is_translate) {
 
-            float normal[3];
+            blender::float3 normal;
             bool normal_found = false;
             if (ED_view3d_depth_read_cached_normal(region, depths, event->mval, normal)) {
               normal_found = true;
@@ -2230,7 +2229,7 @@ static wmOperatorStatus object_transform_axis_target_modal(bContext *C,
                 for (int y = -ofs; y <= ofs; y += ofs / 2) {
                   if (x != 0 && y != 0) {
                     const int mval_ofs[2] = {event->mval[0] + x, event->mval[1] + y};
-                    float n[3];
+                    blender::float3 n;
                     if (ED_view3d_depth_read_cached_normal(region, depths, mval_ofs, n)) {
                       add_v3_v3(normal, n);
                     }
@@ -2268,7 +2267,7 @@ static wmOperatorStatus object_transform_axis_target_modal(bContext *C,
               for (const int i : xfd->object_data.index_range()) {
                 XFormAxisItem &item = xfd->object_data[i];
                 if (is_translate_init) {
-                  float ob_axis[3];
+                  blender::float3 ob_axis;
                   item.xform_dist = len_v3v3(item.ob->object_to_world().location(),
                                              location_world);
                   normalize_v3_v3(ob_axis, item.ob->object_to_world().ptr()[2]);
@@ -2279,7 +2278,7 @@ static wmOperatorStatus object_transform_axis_target_modal(bContext *C,
                   }
                 }
 
-                float target_normal[3];
+                blender::float3 target_normal;
 
                 if (normal_found) {
                   copy_v3_v3(target_normal, normal);
@@ -2296,7 +2295,7 @@ static wmOperatorStatus object_transform_axis_target_modal(bContext *C,
                 }
 #endif
                 {
-                  float loc[3];
+                  blender::float3 loc;
 
                   copy_v3_v3(loc, location_world);
                   madd_v3_v3fl(loc, target_normal, item.xform_dist);
@@ -2565,7 +2564,7 @@ static void light_orbit_around_target_init_data(bContext *C, wmOperator *op, con
     
     blender::ed::transform::SnapObjectContext *sctx = blender::ed::transform::snap_object_context_create(loatd->vc.scene, 0);
     
-    float hit_co[3], hit_no[3];
+    blender::float3 hit_co, hit_no;
     float ray_depth = BVH_RAYCAST_DIST_MAX; /* Cast ray to maximum distance. */
     
     const bool hit = blender::ed::transform::snap_object_project_ray(
@@ -2590,7 +2589,7 @@ static void light_orbit_around_target_init_data(bContext *C, wmOperator *op, con
   
   /* Fallback: Try cursor hit point if no light intersection found. */
   if (!loatd->has_center) {
-    float hit_co[3];
+    blender::float3 hit_co;
     if (ED_view3d_autodist(loatd->vc.region, loatd->vc.v3d,
                            event->mval, hit_co, nullptr)) {
       copy_v3_v3(loatd->center, hit_co);
@@ -2618,7 +2617,7 @@ static void light_orbit_around_target_init_data(bContext *C, wmOperator *op, con
   /* Initialize current spherical coordinates for each light. */
   for (LightOrbitAroundTargetData::LightData &light : loatd->lights) {
     /* Calculate direction from center to light position. */
-    float dir[3];
+    blender::float3 dir;
     sub_v3_v3v3(dir, light.orig_loc, loatd->center);
     light.current_distance = normalize_v3(dir);
     
@@ -2702,7 +2701,7 @@ static void object_set_rotation_from_matrix(Object *ob, const float mat[3][3], c
     mat3_to_axis_angle(ob->rotAxis, &ob->rotAngle, mat);
   }
   else {
-    float euler[3];
+    blender::float3 euler;
     mat3_to_compatible_eulO(euler, orig_rot, ob->rotmode, mat);
     copy_v3_v3(ob->rot, euler);
   }
@@ -2721,7 +2720,7 @@ static void light_orbit_update_position(Object *light_ob,
                                        float elevation, 
                                        float distance)
 {
-  float new_dir[3];
+  blender::float3 new_dir;
   light_orbit_direction(new_dir, azimuth, elevation);
   
   /* Handle negative distances with automatic direction inversion. */
@@ -2739,15 +2738,15 @@ static void light_orbit_update_position(Object *light_ob,
 static void light_orbit_update_rotation(Object *light_ob, const float center[3], const float orig_rot[3])
 {
   /* Update rotation to point at center. */
-  float target_dir[3];
+  blender::float3 target_dir;
   sub_v3_v3v3(target_dir, center, light_ob->loc);
   normalize_v3(target_dir);
   
   /* Convert direction vector to euler angles for light pointing. */
   /* In Blender, lights point in negative Z direction by default. */
   /* So we need to orient the light so its -Z axis points toward target. */
-  float up[3] = {0.0f, 0.0f, 1.0f};
-  float right[3];
+  blender::float3 up = {0.0f, 0.0f, 1.0f};
+  blender::float3 right;
   cross_v3_v3v3(right, target_dir, up);
   normalize_v3(right);
   cross_v3_v3v3(up, right, target_dir);
@@ -3002,7 +3001,7 @@ static wmOperatorStatus light_orbit_around_target_modal(bContext *C, wmOperator 
           }
           
           /* Recalculate position and orientation. */
-          float new_dir[3];
+          blender::float3 new_dir;
           new_dir[0] = cosf(light.current_elevation) * sinf(light.current_azimuth);
           new_dir[1] = cosf(light.current_elevation) * cosf(light.current_azimuth);
           new_dir[2] = sinf(light.current_elevation);
@@ -3012,11 +3011,11 @@ static wmOperatorStatus light_orbit_around_target_modal(bContext *C, wmOperator 
           madd_v3_v3v3fl(light.ob->loc, loatd->center, new_dir, actual_distance);
           
           /* Update light orientation to point toward center. */
-          float target_dir[3];
+          blender::float3 target_dir;
           negate_v3_v3(target_dir, new_dir);
 
-          float up[3] = {0.0f, 0.0f, 1.0f};
-          float right[3];
+          blender::float3 up = {0.0f, 0.0f, 1.0f};
+          blender::float3 right;
           cross_v3_v3v3(right, target_dir, up);
           normalize_v3(right);
           cross_v3_v3v3(up, right, target_dir);
