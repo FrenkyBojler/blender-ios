@@ -14,6 +14,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_bitmap.h"
+#include "BLI_string_utf8.h"
 
 #include "BKE_bpath.hh"
 #include "BKE_global.hh"
@@ -33,6 +34,7 @@
 #include "../generic/py_capi_rna.hh"
 #include "../generic/py_capi_utils.hh"
 #include "../generic/python_compat.hh" /* IWYU pragma: keep. */
+#include "../generic/python_utildefines.hh"
 
 #include "RNA_enum_types.hh"
 #include "RNA_prototypes.hh"
@@ -319,11 +321,21 @@ struct IDFilePathMapData {
   ID *id;
   /** The set of file paths for the processed ID. */
   PyObject *id_file_path_set;
+
+  /**
+   * Python callback function for path replacement.
+   *
+   * def the_callback(owner_id: bpy.types.ID, path: str) -> str | None
+   *
+   * If the callback returns a string, the path is replaced with the return
+   * value.
+   */
+  PyObject *replace_path_fn;
 };
 
 static bool foreach_id_file_path_map_callback(BPathForeachPathData *bpath_data,
-                                              char * /*path_dst*/,
-                                              size_t /*path_dst_maxncpy*/,
+                                              char *path_dst,
+                                              const size_t path_dst_maxncpy,
                                               const char *path_src)
 {
   IDFilePathMapData &data = *static_cast<IDFilePathMapData *>(bpath_data->user_data);
@@ -331,12 +343,40 @@ static bool foreach_id_file_path_map_callback(BPathForeachPathData *bpath_data,
 
   BLI_assert(data.id == bpath_data->owner_id);
 
-  if (path_src && *path_src) {
-    PyObject *path = PyC_UnicodeFromBytes(path_src);
-    PySet_Add(id_file_path_set, path);
-    Py_DECREF(path);
+  if (!path_src || !path_src[0]) {
+    return false;
   }
-  return false;
+
+  bool is_path_modified = false;
+  if (data.replace_path_fn) {
+    BLI_assert(path_dst);
+
+    /* Construct the callback function parameters. */
+    PointerRNA id_ptr = RNA_id_pointer_create(data.id);
+    PyObject *args = PyTuple_New(2);
+    PyObject *py_owner_id = pyrna_struct_CreatePyObject(&id_ptr);
+    PyObject *py_path_src = PyUnicode_FromString(path_src);
+    PyTuple_SET_ITEMS(args, py_owner_id, py_path_src);
+
+    /* Call the callback function. */
+    PyObject *result = PyObject_CallObject(data.replace_path_fn, args);
+
+    if (!Py_IsNone(result)) {
+      /* Copy the returned string back into the path. */
+      const char *replacement_path = PyUnicode_AsUTF8(result);
+      BLI_strncpy_utf8(path_dst, replacement_path, path_dst_maxncpy);
+      is_path_modified = true;
+    }
+
+    Py_DECREF(result);
+    Py_DECREF(args);
+  }
+
+  PyObject *path = PyC_UnicodeFromBytes(path_src);
+  PySet_Add(id_file_path_set, path);
+  Py_DECREF(path);
+
+  return is_path_modified;
 }
 
 static void foreach_id_file_path_map(BPathForeachPathData &bpath_data)
@@ -388,19 +428,22 @@ static PyObject *bpy_file_path_map(PyObject *self, PyObject *args, PyObject *kwd
   PyObject *key_types = nullptr;
   PyObject *include_libraries = nullptr;
   BLI_bitmap *key_types_bitmap = nullptr;
+  PyObject *replace_path_fn = nullptr;
 
   PyObject *ret = nullptr;
 
   IDFilePathMapData filepathmap_data{};
   BPathForeachPathData bpath_data{};
 
-  static const char *_keywords[] = {"subset", "key_types", "include_libraries", nullptr};
+  static const char *_keywords[] = {
+      "subset", "key_types", "include_libraries", "replace_path_fn", nullptr};
   static _PyArg_Parser _parser = {
       PY_ARG_PARSER_HEAD_COMPAT()
       "|$" /* Optional keyword only arguments. */
       "O"  /* `subset` */
       "O!" /* `key_types` */
       "O!" /* `include_libraries` */
+      "O!" /* `replace_path_fn` */
       ":file_path_map",
       _keywords,
       nullptr,
@@ -412,7 +455,11 @@ static PyObject *bpy_file_path_map(PyObject *self, PyObject *args, PyObject *kwd
                                         &PySet_Type,
                                         &key_types,
                                         &PyBool_Type,
-                                        &include_libraries))
+                                        &include_libraries,
+                                        &PyFunction_Type,
+                                        &replace_path_fn
+
+                                        ))
   {
     return nullptr;
   }
@@ -432,6 +479,7 @@ static PyObject *bpy_file_path_map(PyObject *self, PyObject *args, PyObject *kwd
   bpath_data.user_data = &filepathmap_data;
 
   filepathmap_data.include_libraries = (include_libraries == Py_True);
+  filepathmap_data.replace_path_fn = replace_path_fn;
 
   if (subset) {
     PyObject *subset_fast = PySequence_Fast(subset, "subset");
@@ -499,6 +547,9 @@ static PyObject *bpy_file_path_map(PyObject *self, PyObject *args, PyObject *kwd
 error:
   if (key_types_bitmap != nullptr) {
     MEM_freeN(key_types_bitmap);
+  }
+  if (replace_path_fn) {
+    Py_DECREF(replace_path_fn);
   }
 
   return ret;
