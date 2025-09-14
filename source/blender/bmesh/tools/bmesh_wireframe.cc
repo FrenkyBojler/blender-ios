@@ -443,7 +443,6 @@ static bool bm_loop_is_radial_boundary(BMLoop *l_first)
   return true;
 }
 
-
 void BM_mesh_wireframe(BMesh *bm,
                        const float offset,
                        const float offset_fac,
