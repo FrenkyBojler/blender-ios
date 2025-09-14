@@ -443,8 +443,6 @@ static bool bm_loop_is_radial_boundary(BMLoop *l_first)
   return true;
 }
 
-/* -------------------------------------------------------------------- */
-/** Main operator **/
 
 void BM_mesh_wireframe(BMesh *bm,
                        const float offset,
@@ -859,10 +857,10 @@ void BM_mesh_wireframe(BMesh *bm,
   if (use_replace) {
 
     if (use_tag) {
-      /* only remove faces which are original and used to make wire,
-       * use 'verts_pos' and 'verts_neg' to avoid a feedback loop. */
+/* only remove faces which are original and used to make wire,
+ * use 'verts_pos' and 'verts_neg' to avoid a feedback loop. */
 
-      /* vertex must be from 'verts_src' */
+/* vertex must be from 'verts_src' */
 #define VERT_DUPE_TEST_ORIG(v) (verts_neg[BM_elem_index_get(v)] != nullptr)
 #define VERT_DUPE_TEST(v) (verts_pos[BM_elem_index_get(v)] != nullptr)
 #define VERT_DUPE_CLEAR(v) \
