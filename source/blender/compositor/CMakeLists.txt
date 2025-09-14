@@ -289,6 +289,7 @@ set(GLSL_SRC
   shaders/library/gpu_shader_compositor_color_to_luminance.glsl
   shaders/library/gpu_shader_compositor_difference_matte.glsl
   shaders/library/gpu_shader_compositor_distance_matte.glsl
+  shaders/library/gpu_shader_compositor_eval.glsl
   shaders/library/gpu_shader_compositor_exposure.glsl
   shaders/library/gpu_shader_compositor_hue_correct.glsl
   shaders/library/gpu_shader_compositor_hue_saturation_value.glsl
@@ -303,6 +304,7 @@ set(GLSL_SRC
   shaders/library/gpu_shader_compositor_posterize.glsl
   shaders/library/gpu_shader_compositor_separate_combine.glsl
   shaders/library/gpu_shader_compositor_set_alpha.glsl
+  shaders/library/gpu_shader_compositor_store.glsl
   shaders/library/gpu_shader_compositor_store_output.glsl
   shaders/library/gpu_shader_compositor_summed_area_table_lib.glsl
   shaders/library/gpu_shader_compositor_texture_utilities.glsl
