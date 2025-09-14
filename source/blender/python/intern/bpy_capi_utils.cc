@@ -65,7 +65,8 @@ void BPy_reports_write_stdout(const ReportList *reports, const char *header)
 bool BPy_errors_to_report_ex(ReportList *reports,
                              const char *error_prefix,
                              const bool use_full,
-                             const bool use_location)
+                             const bool use_location,
+                             const bool suppress_print)
 {
 
   if (!PyErr_Occurred()) {
@@ -94,15 +95,17 @@ bool BPy_errors_to_report_ex(ReportList *reports,
     PyC_FileAndNum(&location_filepath, &location_line_number);
   }
 
-  /* Create a temporary report list so none of the reports are printed (only stored).
-   * In practically all cases printing should be handled by #PyErr_Print since this invokes
-   * `sys.excepthook` as expected. */
   ReportList _reports_buf = {{nullptr}};
   ReportList *reports_orig = reports;
-  if ((reports->flag & RPT_PRINT_HANDLED_BY_OWNER) == 0) {
-    reports = &_reports_buf;
-    BKE_reports_init(reports, reports_orig->flag | RPT_PRINT_HANDLED_BY_OWNER);
-    reports->storelevel = reports_orig->storelevel;
+  if (suppress_print) {
+    /* Create a temporary report list so none of the reports are printed (only stored).
+     * In practically all cases printing should be handled by #PyErr_Print since this invokes
+     * `sys.excepthook` as expected. */
+    if ((reports->flag & RPT_PRINT_HANDLED_BY_OWNER) == 0) {
+      reports = &_reports_buf;
+      BKE_reports_init(reports, reports_orig->flag | RPT_PRINT_HANDLED_BY_OWNER);
+      reports->storelevel = reports_orig->storelevel;
+    }
   }
 
   if (location_filepath) {
@@ -133,5 +136,5 @@ bool BPy_errors_to_report_ex(ReportList *reports,
 
 bool BPy_errors_to_report(ReportList *reports)
 {
-  return BPy_errors_to_report_ex(reports, nullptr, true, true);
+  return BPy_errors_to_report_ex(reports, nullptr, true, true, true);
 }
