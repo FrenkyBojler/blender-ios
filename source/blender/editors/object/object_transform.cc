@@ -88,6 +88,35 @@
 namespace blender::ed::object {
 
 /* -------------------------------------------------------------------- */
+/** \name Precision Mode Utilities
+ * \{ */
+
+/**
+ * Calculate effective mouse position with precision mode support.
+ * Applies precision factor to mouse movement delta from precision toggle position.
+ */
+static void calc_precision_mode_mouse_pos(bool precision_mode,
+                                          float precision_factor,
+                                          const int current_mval[2],
+                                          const int precision_toggle_mval[2],
+                                          int effective_mval[2])
+{
+  if (precision_mode) {
+    /* Apply precision factor to mouse movement delta from when precision was enabled */
+    float delta_x = (current_mval[0] - precision_toggle_mval[0]) * precision_factor;
+    float delta_y = (current_mval[1] - precision_toggle_mval[1]) * precision_factor;
+    effective_mval[0] = int(precision_toggle_mval[0] + delta_x);
+    effective_mval[1] = int(precision_toggle_mval[1] + delta_y);
+  }
+  else {
+    effective_mval[0] = current_mval[0];
+    effective_mval[1] = current_mval[1];
+  }
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
 /** \name Clear Transformation Utilities
  * \{ */
 
@@ -1940,7 +1969,8 @@ enum {
   TGT_MODAL_SPECULAR_DISABLE,
   TGT_MODAL_SHADOW_ENABLE,
   TGT_MODAL_SHADOW_DISABLE,
-
+  TGT_MODAL_PRECISION_ENABLE,
+  TGT_MODAL_PRECISION_DISABLE,
 };
 
 void target_modal_keymap(wmKeyConfig *keyconf)
@@ -1954,6 +1984,8 @@ void target_modal_keymap(wmKeyConfig *keyconf)
   {TGT_MODAL_SPECULAR_DISABLE, "SPECULAR_DISABLE", 0, "Specular Mode (Off)", ""},
   {TGT_MODAL_SHADOW_ENABLE, "SHADOW_ENABLE", 0, "Shadow Mode", "Position light depending on the shadow target"},
   {TGT_MODAL_SHADOW_DISABLE, "SHADOW_DISABLE", 0, "Shadow Mode (Off)", ""},
+  {TGT_MODAL_PRECISION_ENABLE, "PRECISION_ENABLE", 0, "Precision Mode", "Position lights more precisly"},
+  {TGT_MODAL_PRECISION_DISABLE, "PRECISION_DISABLE", 0, "Precision Mode (Off)", ""},
   {0, nullptr, 0, nullptr, nullptr},
   };
 
@@ -2013,6 +2045,11 @@ struct XFormAxisData {
   /* Navigation support */
   ViewOpsData *vod;
   bool run_navigation;
+
+  /* Precision mode support */
+  bool precision_mode;
+  float precision_factor;
+  int precision_toggle_mval[2]; /* Mouse position when precision mode was toggled */
 };
 
 #ifdef USE_FAKE_DEPTH_INIT
@@ -2360,6 +2397,10 @@ static wmOperatorStatus object_transform_axis_target_invoke(bContext *C,
   xfd->vod = ED_view3d_navigation_init(C, nullptr);
   xfd->run_navigation = false;
 
+  /* Initialize precision mode */
+  xfd->precision_mode = false;
+  xfd->precision_factor = 0.1f;
+
   WM_event_add_modal_handler(C, op);
 
   return OPERATOR_RUNNING_MODAL;
@@ -2456,6 +2497,17 @@ static wmOperatorStatus object_transform_axis_target_modal(bContext *C,
         }
         break;
       }
+      case TGT_MODAL_PRECISION_ENABLE: {
+        xfd->precision_mode = true;
+        /* Store current mouse position as the base for precision calculations */
+        xfd->precision_toggle_mval[0] = event->mval[0];
+        xfd->precision_toggle_mval[1] = event->mval[1];
+        break;
+      }
+      case TGT_MODAL_PRECISION_DISABLE: {
+        xfd->precision_mode = false;
+        break;
+      }
       default:
         break;
     }
@@ -2466,6 +2518,9 @@ static wmOperatorStatus object_transform_axis_target_modal(bContext *C,
     WorkspaceStatus status(C);
     status.opmodal(IFACE_("Confirm"), op->type, TGT_MODAL_CONFIRM);
     status.opmodal(IFACE_("Cancel"), op->type, TGT_MODAL_CANCEL);
+    /* Show precision mode status */
+    status.opmodal(IFACE_("Precision"), op->type, TGT_MODAL_PRECISION_ENABLE,
+                   xfd->precision_mode);
 
     /* Show current mode and available mode switches */
     status.opmodal(IFACE_("Diffuse"), op->type, TGT_MODAL_DIFFUSE_ENABLE, 
@@ -2474,6 +2529,7 @@ static wmOperatorStatus object_transform_axis_target_modal(bContext *C,
                    xfd->light_mode == LIGHT_SPECULAR_MODE);
     status.opmodal(IFACE_("Shadow"), op->type, TGT_MODAL_SHADOW_ENABLE, 
                    xfd->light_mode == LIGHT_SHADOW_MODE);
+
   }
 
   /* Refresh depth buffer after navigation */
@@ -2510,9 +2566,18 @@ static wmOperatorStatus object_transform_axis_target_modal(bContext *C,
 
   if (event->type == MOUSEMOVE) {
     const ViewDepths *depths = xfd->depths;
-    if (depths && (uint(event->mval[0]) < depths->w) && (uint(event->mval[1]) < depths->h)) {
+    
+    /* Calculate effective mouse position with precision mode support */
+    int effective_mval[2];
+    calc_precision_mode_mouse_pos(xfd->precision_mode,
+                                  xfd->precision_factor,
+                                  event->mval,
+                                  xfd->precision_toggle_mval,
+                                  effective_mval);
+    
+    if (depths && (uint(effective_mval[0]) < depths->w) && (uint(effective_mval[1]) < depths->h)) {
       float depth_fl = 1.0f;
-      ED_view3d_depth_read_cached(depths, event->mval, 0, &depth_fl);
+      ED_view3d_depth_read_cached(depths, effective_mval, 0, &depth_fl);
       blender::float3 location_world;
       if (depth_fl == 1.0f) {
         if (xfd->prev.is_depth_valid) {
@@ -2536,12 +2601,12 @@ static wmOperatorStatus object_transform_axis_target_modal(bContext *C,
       if ((depth > depths->depth_range[0]) && (depth < depths->depth_range[1])) {
         xfd->prev.depth = depth_fl;
         xfd->prev.is_depth_valid = true;
-        if (ED_view3d_depth_unproject_v3(region, event->mval, depth, location_world)) {
+        if (ED_view3d_depth_unproject_v3(region, effective_mval, depth, location_world)) {
           if (xfd->is_light_positioning && xfd->light_mode != LIGHT_TARGET_MODE) {
 
             blender::float3 normal;
             bool normal_found = false;
-            if (get_smoothed_surface_normal(&xfd->vc, depths, event->mval, normal)) {
+            if (get_smoothed_surface_normal(&xfd->vc, depths, effective_mval, normal)) {
               normal_found = true;
             }
             else if (xfd->prev.is_normal_valid) {
