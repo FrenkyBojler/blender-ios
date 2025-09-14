@@ -58,7 +58,8 @@ class USERPREF_HT_header(Header):
 class USERPREF_PT_navigation_bar(Panel):
     bl_label = "Preferences Navigation"
     bl_space_type = 'PREFERENCES'
-    bl_region_type = 'NAVIGATION_BAR'
+    bl_region_type = 'UI'
+    bl_category = 'Navigation'
     bl_options = {'HIDE_HEADER'}
 
     def draw(self, context):
@@ -963,7 +964,6 @@ class USERPREF_MT_interface_theme_presets(Menu):
     # Prevent untrusted XML files "escaping" from these types.
     preset_xml_secure_types = {
         "Theme",
-        "ThemeAssetShelf",
         "ThemeBoneColorSet",
         "ThemeClipEditor",
         "ThemeCollectionColor",
@@ -983,11 +983,15 @@ class USERPREF_MT_interface_theme_presets(Menu):
         "ThemeOutliner",
         "ThemePreferences",
         "ThemeProperties",
+        "ThemeRegions",
+        "ThemeRegionsAssetShelf",
+        "ThemeRegionsChannels",
+        "ThemeRegionsScrubbing",
+        "ThemeRegionsSidebars",
         "ThemeSequenceEditor",
         "ThemeSpaceGeneric",
         "ThemeSpaceGradient",
         "ThemeSpaceListGeneric",
-        "ThemeSpaceRegionGeneric",
         "ThemeSpreadsheet",
         "ThemeStatusBar",
         "ThemeStripColor",
