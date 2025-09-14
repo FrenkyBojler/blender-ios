@@ -50,12 +50,13 @@ static float3 direction_bisect(const float3 &pos,
   }
   const float3 tan_sum = prev_dir + other_dir;
   const float norm = math::length(tan_sum);
-  if (norm < 0.01f) {
-    const float3 binorm = norm == 0.0f ? math::orthogonal(other_dir) :
-                                         math::cross(other_dir, prev_dir);
-
-    const float3 norm_sum = other_dir - prev_dir;
-    return math::normalize(math::cross(binorm, norm_sum));
+  if (norm < 0.1f) { /* approx. < sin(5.71) degrees */
+    if (norm == 0.0f) {
+      return other_dir;
+    }
+    const float3 binorm = math::cross(other_dir, prev_dir);
+    const float3 normal = other_dir - prev_dir;
+    return math::normalize(math::cross(binorm, normal));
   }
   return tan_sum / norm;
 }
