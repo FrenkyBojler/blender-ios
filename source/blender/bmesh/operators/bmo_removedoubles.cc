@@ -638,7 +638,7 @@ static int *bmesh_find_doubles_by_distance_impl(BMesh *bm,
   }
 
   int *duplicates = MEM_malloc_arrayN<int>(verts_len, __func__);
-  blender::Vector<std::array<float, 3>> survivor_cos(verts_len);
+  blender::Vector<blender::float3> survivor_cos(verts_len);
 
   for (int i = 0; i < verts_len; i++) {
     if (has_keep_vert && BMO_vert_flag_test(bm, verts[i], VERT_KEEP)) {
@@ -661,7 +661,7 @@ static int *bmesh_find_doubles_by_distance_impl(BMesh *bm,
 
   for (int i = 0; i < verts_len; i++) {
     if (duplicates[i] == i) {
-      copy_v3_v3(verts[i]->co, survivor_cos[i].data());
+      copy_v3_v3(verts[i]->co, survivor_cos[i]);
     }
   }
 
