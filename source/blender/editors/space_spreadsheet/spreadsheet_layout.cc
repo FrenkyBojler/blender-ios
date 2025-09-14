@@ -30,27 +30,6 @@
 
 namespace blender::ed::spreadsheet {
 
-static const std::string format_matrix_to_single_line(const float4x4 &matrix)
-{
-  /* Transpose to be able to print row by row. */
-  const float4x4 t_matrix = math::transpose(matrix);
-  std::stringstream ss;
-  ss << "  ";
-  for (const int row_i : IndexRange(4)) {
-    const float4 &row = t_matrix[row_i];
-    /* Format floats with up to 2 decimal. */
-    ss << fmt::format("[{:.7}, {:.7}, {:.7}, {:.7}]",
-                      double_round(row[0], 2),
-                      double_round(row[1], 2),
-                      double_round(row[2], 2),
-                      double_round(row[3], 2));
-    if (row_i < 3) {
-      ss << ",  ";
-    }
-  }
-  return ss.str();
-}
-
 static const std::string format_matrix_to_grid(const float4x4 &matrix)
 {
   /* Transpose to be able to print row by row. */
@@ -460,7 +439,7 @@ class SpreadsheetLayoutDrawer : public SpreadsheetDrawer {
                                   ButType::Label,
                                   0,
                                   ICON_NONE,
-                                  format_matrix_to_single_line(matrix),
+                                  "...",
                                   params.xmin,
                                   params.ymin,
                                   params.width,
@@ -523,12 +502,7 @@ float ColumnValues::fit_column_values_width_px(const std::optional<int64_t> &max
       return 2.0f * SPREADSHEET_WIDTH_UNIT;
     }
     case SPREADSHEET_VALUE_TYPE_FLOAT4X4: {
-      return estimate_max_column_width<float4x4>(
-          get_min_width(12 * SPREADSHEET_WIDTH_UNIT),
-          fontid,
-          max_sample_size,
-          data_.typed<float4x4>(),
-          [](const float4x4 &value) { return format_matrix_to_single_line(value); });
+      return 2.0f * SPREADSHEET_WIDTH_UNIT;
     }
     case SPREADSHEET_VALUE_TYPE_INT8: {
       return estimate_max_column_width<int8_t>(
