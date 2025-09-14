@@ -7,6 +7,7 @@
 #include "BKE_grease_pencil.hh"
 
 #include "GEO_fillet_curves.hh"
+#include "GEO_foreach_geometry.hh"
 
 #include "node_geometry_util.hh"
 
@@ -34,7 +35,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.allow_any_socket_order();
   b.add_input<decl::Geometry>("Curve")
       .supported_type({GeometryComponent::Type::Curve, GeometryComponent::Type::GreasePencil})
-      .description("Curves to generated rounded corners on");
+      .description("Curves to generate rounded corners on");
   b.add_output<decl::Geometry>("Curve").propagate_all().align_with_previous();
   b.add_input<decl::Float>("Radius")
       .min(0.0f)
@@ -142,7 +143,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   const NodeAttributeFilter &attribute_filter = params.get_attribute_filter("Curve");
 
-  geometry_set.modify_geometry_sets([&](GeometrySet &geometry_set) {
+  geometry::foreach_real_geometry(geometry_set, [&](GeometrySet &geometry_set) {
     if (geometry_set.has_curves()) {
       const Curves &curves_id = *geometry_set.get_curves();
       const bke::CurvesGeometry &src_curves = curves_id.geometry.wrap();
