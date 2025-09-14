@@ -95,7 +95,7 @@ namespace blender::ed::object {
  * Calculate effective mouse position with precision mode support.
  * Applies precision factor to mouse movement delta from precision toggle position.
  */
-static void calc_precision_mode_mouse_pos(bool precision_mode,
+static void precision_mode_mouse_pos(bool precision_mode,
                                           float precision_factor,
                                           const int current_mval[2],
                                           const int precision_toggle_mval[2],
@@ -115,6 +115,79 @@ static void calc_precision_mode_mouse_pos(bool precision_mode,
 }
 
 /** \} */
+
+/**
+ * Compute a smoothed surface normal at mouse position using neighboring pixels.
+ * Used by light positioning operators and transform axis target.
+ */
+static bool get_smoothed_surface_normal(const ViewContext *vc,
+                                      const ViewDepths *depths,
+                                      const int mval[2],
+                                      float normal[3])
+{
+  if (!depths) {
+    return false;
+  }
+
+  /* Read normal at cursor position */
+  if (!ED_view3d_depth_read_cached_normal(vc->region, depths, mval, normal)) {
+    return false;
+  }
+
+  /* Apply grid-based smoothing - same algorithm as Ctrl+Alt transform */
+  constexpr int ofs = 2;
+  for (int x = -ofs; x <= ofs; x += ofs / 2) {
+    for (int y = -ofs; y <= ofs; y += ofs / 2) {
+      if (x != 0 && y != 0) {
+        const int mval_ofs[2] = {mval[0] + x, mval[1] + y};
+        float normal_ofs[3];
+        if (ED_view3d_depth_read_cached_normal(vc->region, depths, mval_ofs, normal_ofs)) {
+          add_v3_v3(normal, normal_ofs);
+        }
+      }
+    }
+  }
+
+  normalize_v3(normal);
+  return true;
+}
+
+/**
+ * Perform auto-keying for object rotation changes based on the object's rotation mode.
+ */
+static void autokeyframe_object_rotation(bContext *C, Scene *scene, Object *ob)
+{
+  PointerRNA ptr = RNA_pointer_create_discrete(&ob->id, &RNA_Object, &ob->id);
+  const char *rotation_property = "rotation_euler";
+  switch (ob->rotmode) {
+    case ROT_MODE_QUAT:
+      rotation_property = "rotation_quaternion";
+      break;
+    case ROT_MODE_AXISANGLE:
+      rotation_property = "rotation_axis_angle";
+      break;
+    default:
+      break;
+  }
+  PropertyRNA *prop = RNA_struct_find_property(&ptr, rotation_property);
+  animrig::autokeyframe_property(C, scene, &ptr, prop, -1, scene->r.cfra, true);
+}
+
+/**
+ * Position light along surface normal with given offset distance.
+ * Uses legacy vector functions for consistency with existing codebase.
+ */
+static void position_light_along(const float normal[3],
+                                       const float location_world[3],
+                                       float offset_distance,
+                                       float direction[3],
+                                       float final_normal[3])
+{
+  copy_v3_v3(final_normal, normal);
+  copy_v3_v3(direction, location_world);
+  madd_v3_v3fl(direction, final_normal, offset_distance);
+}
+
 
 /* -------------------------------------------------------------------- */
 /** \name Clear Transformation Utilities
@@ -2018,7 +2091,7 @@ struct XFormAxisData {
   ViewDepths *depths;
   struct {
     float depth;
-    float normal[3];
+    blender::float3 normal;
     bool is_depth_valid;
     bool is_normal_valid;
   } prev;
@@ -2031,7 +2104,7 @@ struct XFormAxisData {
   LightPositioningMode light_mode;
   bool is_light_positioning;
   float light_offset_distance;
-  float shadow_target_location[3];
+  blender::float3 shadow_target_location;
   bool shadow_target_set;
 
   /* Navigation support */
@@ -2073,78 +2146,6 @@ static void object_transform_axis_target_calc_depth_init(XFormAxisData *xfd, con
   }
 }
 #endif /* USE_FAKE_DEPTH_INIT */
-
-/**
- * Compute a smoothed surface normal at mouse position using neighboring pixels.
- * Used by light positioning operators and transform axis target.
- */
-static bool get_smoothed_surface_normal(const ViewContext *vc,
-                                      const ViewDepths *depths,
-                                      const int mval[2],
-                                      float r_normal[3])
-{
-  if (!depths) {
-    return false;
-  }
-  
-  /* Read normal at cursor position */
-  if (!ED_view3d_depth_read_cached_normal(vc->region, depths, mval, r_normal)) {
-    return false;
-  }
-  
-  /* Apply grid-based smoothing - same algorithm as Ctrl+Alt transform */
-  constexpr int ofs = 2;
-  for (int x = -ofs; x <= ofs; x += ofs / 2) {
-    for (int y = -ofs; y <= ofs; y += ofs / 2) {
-      if (x != 0 && y != 0) {
-        const int mval_ofs[2] = {mval[0] + x, mval[1] + y};
-        float normal_ofs[3];
-        if (ED_view3d_depth_read_cached_normal(vc->region, depths, mval_ofs, normal_ofs)) {
-          add_v3_v3(r_normal, normal_ofs);
-        }
-      }
-    }
-  }
-  
-  normalize_v3(r_normal);
-  return true;
-}
-
-/**
- * Perform auto-keying for object rotation changes based on the object's rotation mode.
- */
-static void autokeyframe_object_rotation(bContext *C, Scene *scene, Object *ob)
-{
-  PointerRNA ptr = RNA_pointer_create_discrete(&ob->id, &RNA_Object, &ob->id);
-  const char *rotation_property = "rotation_euler";
-  switch (ob->rotmode) {
-    case ROT_MODE_QUAT:
-      rotation_property = "rotation_quaternion";
-      break;
-    case ROT_MODE_AXISANGLE:
-      rotation_property = "rotation_axis_angle";
-      break;
-    default:
-      break;
-  }
-  PropertyRNA *prop = RNA_struct_find_property(&ptr, rotation_property);
-  animrig::autokeyframe_property(C, scene, &ptr, prop, -1, scene->r.cfra, true);
-}
-
-/**
- * Position light along surface normal with given offset distance.
- * Uses legacy vector functions for consistency with existing codebase.
- */
-static void position_light_along(const float normal[3],
-                                       const float location_world[3],
-                                       float offset_distance,
-                                       float direction[3],
-                                       float final_normal[3])
-{
-  copy_v3_v3(final_normal, normal);
-  copy_v3_v3(direction, location_world);
-  madd_v3_v3fl(direction, final_normal, offset_distance);
-}
 
 static bool object_is_target_compat(const Object *ob)
 {
@@ -2307,6 +2308,14 @@ static wmOperatorStatus object_transform_axis_target_invoke(bContext *C,
   xfd->is_light_positioning = object_is_target_compat(xfd->vc.obact);
   zero_v3(xfd->shadow_target_location);
   xfd->shadow_target_set = false;
+
+  /* Initialize navigation support */
+  xfd->vod = ED_view3d_navigation_init(C, nullptr);
+  xfd->run_navigation = false;
+
+  /* Initialize precision mode */
+  xfd->precision_mode = false;
+  xfd->precision_factor = 0.1f;
   
   /* Calculate initial offset distance from light to geometry intersection */
   float calculated_distance = 0.0f;
@@ -2317,7 +2326,7 @@ static wmOperatorStatus object_transform_axis_target_invoke(bContext *C,
     Object *light = xfd->vc.obact;
     
     /* Get light's normal direction (local Z-axis in world space) */
-    float light_normal[3];
+    blender::float3 light_normal;
     copy_v3_v3(light_normal, light->object_to_world().ptr()[2]);
     negate_v3(light_normal); /* Light points in negative Z direction by default */
     
@@ -2333,7 +2342,7 @@ static wmOperatorStatus object_transform_axis_target_invoke(bContext *C,
     
     blender::ed::transform::SnapObjectContext *sctx = blender::ed::transform::snap_object_context_create(xfd->vc.scene, 0);
     
-    float hit_co[3], hit_no[3];
+    blender::float3 hit_co, hit_no;
     float ray_depth = BVH_RAYCAST_DIST_MAX; /* Cast ray far into the scene */
     
     bool hit = blender::ed::transform::snap_object_project_ray(
@@ -2384,14 +2393,6 @@ static wmOperatorStatus object_transform_axis_target_invoke(bContext *C,
     BKE_object_to_mat3(item.ob, full_mat3);
     item.is_z_flip = dot_v3v3(item.rot_mat[2], full_mat3[2]) < 0.0f;
   }
-
-  /* Initialize navigation support */
-  xfd->vod = ED_view3d_navigation_init(C, nullptr);
-  xfd->run_navigation = false;
-
-  /* Initialize precision mode */
-  xfd->precision_mode = false;
-  xfd->precision_factor = 0.1f;
 
   WM_event_add_modal_handler(C, op);
 
@@ -2561,7 +2562,7 @@ static wmOperatorStatus object_transform_axis_target_modal(bContext *C,
     
     /* Calculate effective mouse position with precision mode support */
     int effective_mval[2];
-    calc_precision_mode_mouse_pos(xfd->precision_mode,
+    precision_mode_mouse_pos(xfd->precision_mode,
                                   xfd->precision_factor,
                                   event->mval,
                                   xfd->precision_toggle_mval,
@@ -2634,7 +2635,7 @@ static wmOperatorStatus object_transform_axis_target_modal(bContext *C,
                   case LIGHT_SPECULAR_MODE:
                     /* Reflection positioning: calculate reflection direction */
                     {
-                      float mval[2] = {float(event->mval[0]), float(event->mval[1])};
+                      blender::float2 mval = {float(event->mval[0]), float(event->mval[1])};
                       ED_view3d_win_to_vector(xfd->vc.region, mval, view_dir);
                       normalize_v3(view_dir);
                       /* Calculate reflection direction using Blender's reflect function */
