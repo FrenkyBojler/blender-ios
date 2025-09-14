@@ -956,7 +956,6 @@ int BLI_kdtree_nd_(calc_duplicates_stable)(const KDTree *tree,
     node_position_to_index[tree->nodes[i].index] = i;
   }
 
-  blender::Array<bool> visited(tree->max_node_index + 1, false);
   blender::Vector<int> cluster;
 
   int found = 0;
@@ -964,11 +963,7 @@ int BLI_kdtree_nd_(calc_duplicates_stable)(const KDTree *tree,
   for (uint i = 0; i < nodes_len; i++) {
     const int node_index = tree->nodes[i].index;
 
-    if (visited[node_index]) {
-      continue;
-    }
     if (duplicates[node_index] != -1) {
-      visited[node_index] = true;
       continue;
     }
 
@@ -976,12 +971,13 @@ int BLI_kdtree_nd_(calc_duplicates_stable)(const KDTree *tree,
     BLI_assert(search_co != nullptr);
 
     cluster.clear();
-    visited[node_index] = true;
+
+    duplicates[node_index] = -2;
 
     auto accumulate_neighbors_fn = [&](int neighbor_index, const float *, float) -> bool {
-      if (!visited[neighbor_index] && duplicates[neighbor_index] == -1) {
+      if (duplicates[neighbor_index] == -1) {
         cluster.append(neighbor_index);
-        visited[neighbor_index] = true;
+        duplicates[neighbor_index] = -2;
       }
       return true;
     };
@@ -989,6 +985,7 @@ int BLI_kdtree_nd_(calc_duplicates_stable)(const KDTree *tree,
     BLI_kdtree_nd_(range_search_cb_cpp)(tree, search_co, range, accumulate_neighbors_fn);
 
     if (cluster.is_empty()) {
+      duplicates[node_index] = -1;
       continue;
     }
 
