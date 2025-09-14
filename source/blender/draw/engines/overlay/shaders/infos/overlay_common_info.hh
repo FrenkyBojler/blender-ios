@@ -8,7 +8,7 @@
 #  pragma once
 #  include "gpu_glsl_cpp_stubs.hh"
 
-#  include "draw_common_shader_shared.hh"
+#  include "overlay_shader_shared.hh"
 #  include "select_shader_shared.hh"
 #endif
 
@@ -17,12 +17,12 @@
 #include "gpu_shader_create_info.hh"
 
 GPU_SHADER_CREATE_INFO(draw_globals)
-TYPEDEF_SOURCE("draw_common_shader_shared.hh")
-UNIFORM_BUF_FREQ(OVERLAY_GLOBALS_SLOT, GlobalsUboStorage, globalsBlock, PASS)
+TYPEDEF_SOURCE("overlay_shader_shared.hh")
+UNIFORM_BUF_FREQ(OVERLAY_GLOBALS_SLOT, UniformData, uniform_buf, PASS)
 GPU_SHADER_CREATE_END()
 
 GPU_SHADER_INTERFACE_INFO(select_id_patch_iface)
-FLAT(UINT, select_id)
+FLAT(uint, select_id)
 GPU_SHADER_INTERFACE_END()
 
 /* Used to patch overlay shaders. */
@@ -34,9 +34,9 @@ VERTEX_OUT(select_id_patch_iface)
 // EARLY_FRAGMENT_TEST(true)
 UNIFORM_BUF(SELECT_DATA, SelectInfoData, select_info_buf)
 /* Select IDs for instanced draw-calls not using #PassMain. */
-STORAGE_BUF(SELECT_ID_IN, READ, uint, in_select_buf[])
+STORAGE_BUF(SELECT_ID_IN, read, uint, in_select_buf[])
 /* Stores the result of the whole selection drawing. Content depends on selection mode. */
-STORAGE_BUF(SELECT_ID_OUT, READ_WRITE, uint, out_select_buf[])
+STORAGE_BUF(SELECT_ID_OUT, read_write, uint, out_select_buf[])
 GPU_SHADER_CREATE_END()
 
 GPU_SHADER_CREATE_INFO(overlay_select)

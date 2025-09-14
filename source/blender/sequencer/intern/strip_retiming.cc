@@ -340,7 +340,7 @@ static SeqRetimingKey *strip_retiming_add_key(Strip *strip, float frame_index)
   float value = strip_retiming_evaluate(strip, frame_index);
 
   SeqRetimingKey *keys = strip->retiming_keys;
-  size_t keys_count = retiming_keys_count(strip);
+  const int keys_count = retiming_keys_count(strip);
   const int new_key_index = start_key - keys + 1;
   BLI_assert(new_key_index >= 0);
   BLI_assert(new_key_index < keys_count);
@@ -1081,7 +1081,7 @@ bool retiming_selection_clear(const Editing *ed)
 {
   bool was_empty = true;
 
-  LISTBASE_FOREACH (Strip *, strip, ed->seqbasep) {
+  LISTBASE_FOREACH (Strip *, strip, ed->current_strips()) {
     for (SeqRetimingKey &key : retiming_keys_get(strip)) {
       was_empty &= (key.flag & SEQ_KEY_SELECTED) == 0;
       key.flag &= ~SEQ_KEY_SELECTED;
@@ -1114,7 +1114,7 @@ blender::Map<SeqRetimingKey *, Strip *> retiming_selection_get(const Editing *ed
   if (!ed) {
     return selection;
   }
-  LISTBASE_FOREACH (Strip *, strip, ed->seqbasep) {
+  LISTBASE_FOREACH (Strip *, strip, ed->current_strips()) {
     for (SeqRetimingKey &key : retiming_keys_get(strip)) {
       if ((key.flag & SEQ_KEY_SELECTED) != 0) {
         selection.add(&key, strip);
@@ -1126,7 +1126,7 @@ blender::Map<SeqRetimingKey *, Strip *> retiming_selection_get(const Editing *ed
 
 bool retiming_selection_contains(const Editing *ed, const SeqRetimingKey *key)
 {
-  LISTBASE_FOREACH (Strip *, strip, ed->seqbasep) {
+  LISTBASE_FOREACH (Strip *, strip, ed->current_strips()) {
     for (const SeqRetimingKey &key_iter : retiming_keys_get(strip)) {
       if ((key_iter.flag & SEQ_KEY_SELECTED) != 0 && &key_iter == key) {
         return true;

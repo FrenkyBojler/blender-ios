@@ -30,7 +30,6 @@ set(SRC_GLSL_VERT
   eevee_display_lightprobe_sphere_vert.glsl
   eevee_display_lightprobe_volume_vert.glsl
   eevee_geom_curves_vert.glsl
-  # eevee_geom_gpencil_vert.glsl # Not yet supported
   eevee_geom_mesh_vert.glsl
   eevee_geom_pointcloud_vert.glsl
   eevee_geom_volume_vert.glsl
@@ -156,7 +155,6 @@ set(SRC_GLSL_COMP
 set(SRC_GLSL_LIB
   eevee_ambient_occlusion_lib.glsl
   eevee_attributes_curves_lib.glsl
-  eevee_attributes_gpencil_lib.glsl
   eevee_attributes_mesh_lib.glsl
   eevee_attributes_pointcloud_lib.glsl
   eevee_attributes_volume_lib.glsl
@@ -194,6 +192,7 @@ set(SRC_GLSL_LIB
   eevee_ray_trace_screen_lib.glsl
   eevee_ray_types_lib.glsl
   eevee_renderpass_lib.glsl
+  eevee_reverse_z_lib.glsl
   eevee_sampling_lib.glsl
   eevee_shadow_lib.glsl
   eevee_shadow_page_ops_lib.glsl

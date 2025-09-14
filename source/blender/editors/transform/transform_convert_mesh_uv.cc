@@ -61,7 +61,6 @@ static void UVsToTransData(const float aspect[2],
   memset(r_td->axismtx, 0, sizeof(r_td->axismtx));
   r_td->axismtx[2][2] = 1.0f;
 
-  r_td->ext = nullptr;
   r_td->val = nullptr;
 
   if (selected) {
@@ -281,8 +280,7 @@ static void createTransUVs(bContext *C, TransInfo *t)
         continue;
       }
 
-      island_center = static_cast<IslandCenter *>(
-          MEM_callocN(sizeof(*island_center) * elementmap->total_islands, __func__));
+      island_center = MEM_calloc_arrayN<IslandCenter>(elementmap->total_islands, __func__);
     }
 
     BM_ITER_MESH (efa, &iter, em->bm, BM_FACES_OF_MESH) {
@@ -335,12 +333,10 @@ static void createTransUVs(bContext *C, TransInfo *t)
     }
 
     tc->data_len = (is_prop_edit) ? count : countsel;
-    tc->data = static_cast<TransData *>(
-        MEM_callocN(tc->data_len * sizeof(TransData), "TransObData(UV Editing)"));
+    tc->data = MEM_calloc_arrayN<TransData>(tc->data_len, "TransObData(UV Editing)");
     /* For each 2d uv coord a 3d vector is allocated, so that they can be
      * treated just as if they were 3d verts. */
-    tc->data_2d = static_cast<TransData2D *>(
-        MEM_callocN(tc->data_len * sizeof(TransData2D), "TransObData2D(UV Editing)"));
+    tc->data_2d = MEM_calloc_arrayN<TransData2D>(tc->data_len, "TransObData2D(UV Editing)");
 
     if (sima->flag & SI_CLIP_UV) {
       t->flag |= T_CLIP_UV;
@@ -350,8 +346,7 @@ static void createTransUVs(bContext *C, TransInfo *t)
     td2d = tc->data_2d;
 
     if (is_prop_connected) {
-      prop_dists = static_cast<float *>(
-          MEM_callocN(em->bm->totloop * sizeof(float), "TransObPropDists(UV Editing)"));
+      prop_dists = MEM_calloc_arrayN<float>(em->bm->totloop, "TransObPropDists(UV Editing)");
 
       uv_set_connectivity_distance(t->settings, em->bm, prop_dists, t->aspect);
     }
@@ -506,24 +501,20 @@ struct UVGroups {
 
     /* Now, count and set the index for the corners being transformed. */
     this->sd_len = 0;
-    TransData *td = tc->data;
-    for (int i = 0; i < tc->data_len; i++, td++) {
-      if (!(td->flag & TD_SELECTED)) {
-        /* The selected ones are sorted at the beginning. */
-        break;
-      }
+    tc->foreach_index_selected([&](const int i) {
+      TransData *td = &tc->data[i];
       this->sd_len++;
 
       BMLoop *l = static_cast<BMLoop *>(td->extra);
       BM_elem_index_set(l, i);
-    }
+    });
     bm->elem_index_dirty |= BM_LOOP;
 
     /* Create the groups. */
     groups_offs_buffer_.reserve(this->sd_len);
     groups_offs_indices_.reserve((this->sd_len / 4) + 2);
 
-    td = tc->data;
+    TransData *td = tc->data;
     for (int i = 0; i < tc->data_len; i++, td++) {
       BMLoop *l_orig = static_cast<BMLoop *>(td->extra);
       if (BM_elem_index_get(l_orig) == -1) {
@@ -843,16 +834,12 @@ Array<TransDataEdgeSlideVert> transform_mesh_uv_edge_slide_data_create(const Tra
 
     /* First we just need to "clean up" the neighboring loops.
      * This way we can identify where a group of sliding edges starts and where it ends. */
-    TransData *td = tc->data;
-    for (int i = 0; i < tc->data_len; i++, td++) {
-      if (!(td->flag & TD_SELECTED)) {
-        /* The selected ones are sorted at the beginning. */
-        break;
-      }
+    tc->foreach_index_selected([&](const int i) {
+      TransData *td = &tc->data[i];
       BMLoop *l = static_cast<BMLoop *>(td->extra);
       BM_elem_index_set(l->prev, -1);
       BM_elem_index_set(l->next, -1);
-    }
+    });
 
     /* Now set the group indexes. */
     for (const int group_index : uv_groups->groups().index_range()) {

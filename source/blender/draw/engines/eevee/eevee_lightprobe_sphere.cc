@@ -23,18 +23,17 @@ void SphereProbeModule::init()
      * there are other light probes in the scene. */
     update_probes_next_sample_ = DEG_id_type_any_exists(instance_.depsgraph, ID_LP);
   }
+  update_probes_this_sample_ = update_probes_next_sample_;
 
   do_display_draw_ = false;
 }
 
 void SphereProbeModule::begin_sync()
 {
-  update_probes_this_sample_ = update_probes_next_sample_;
-
   LightProbeModule &light_probes = instance_.light_probes;
   SphereProbeData &world_data = *static_cast<SphereProbeData *>(&light_probes.world_sphere_);
   {
-    GPUShader *shader = instance_.shaders.static_shader_get(SPHERE_PROBE_REMAP);
+    gpu::Shader *shader = instance_.shaders.static_shader_get(SPHERE_PROBE_REMAP);
 
     PassSimple &pass = remap_ps_;
     pass.init();
@@ -107,7 +106,7 @@ bool SphereProbeModule::ensure_atlas()
    * the resource bindings. */
   eGPUTextureUsage usage = GPU_TEXTURE_USAGE_SHADER_WRITE | GPU_TEXTURE_USAGE_SHADER_READ;
 
-  if (probes_tx_.ensure_2d_array(GPU_RGBA16F,
+  if (probes_tx_.ensure_2d_array(gpu::TextureFormat::SFLOAT_16_16_16_16,
                                  int2(SPHERE_PROBE_ATLAS_RES),
                                  instance_.light_probes.sphere_layer_count(),
                                  usage,
@@ -169,7 +168,7 @@ void SphereProbeModule::end_sync()
 void SphereProbeModule::ensure_cubemap_render_target(int resolution)
 {
   eGPUTextureUsage usage = GPU_TEXTURE_USAGE_ATTACHMENT | GPU_TEXTURE_USAGE_SHADER_READ;
-  cubemap_tx_.ensure_cube(GPU_RGBA16F, resolution, usage);
+  cubemap_tx_.ensure_cube(gpu::TextureFormat::SFLOAT_16_16_16_16, resolution, usage);
   /* TODO(fclem): deallocate it. */
 }
 
@@ -344,7 +343,8 @@ void SphereProbeModule::viewport_draw(View &view, GPUFrameBuffer *view_fb)
 
   viewport_display_ps_.init();
   viewport_display_ps_.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH |
-                                 DRW_STATE_DEPTH_LESS_EQUAL | DRW_STATE_CULL_BACK);
+                                 DRW_STATE_CLIP_CONTROL_UNIT_RANGE |
+                                 instance_.film.depth.test_state | DRW_STATE_CULL_BACK);
   viewport_display_ps_.framebuffer_set(&view_fb);
   viewport_display_ps_.shader_set(instance_.shaders.static_shader_get(DISPLAY_PROBE_SPHERE));
   viewport_display_ps_.bind_resources(*this);

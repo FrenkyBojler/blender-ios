@@ -56,8 +56,6 @@ class GLContext : public Context {
   static bool native_barycentric_support;
   static bool multi_bind_support;
   static bool multi_bind_image_support;
-  static bool multi_draw_indirect_support;
-  static bool shader_draw_parameters_support;
   static bool stencil_texturing_support;
   static bool texture_barrier_support;
   static bool texture_filter_anisotropic_support;

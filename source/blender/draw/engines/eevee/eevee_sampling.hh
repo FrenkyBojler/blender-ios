@@ -10,16 +10,17 @@
 
 #pragma once
 
-#include "BLI_system.h"
 #include "BLI_vector.hh"
 #include "DNA_scene_types.h"
-#include "DRW_render.hh"
 
-#include "eevee_shader_shared.hh"
+#include "eevee_sampling_shared.hh"
+#include "eevee_uniform_shared.hh"
 
 namespace blender::eevee {
 
 class Instance;
+
+using SamplingDataBuf = draw::StorageBuffer<SamplingData>;
 
 class Sampling {
  private:
@@ -63,7 +64,7 @@ class Sampling {
    */
   static constexpr int interactive_mode_threshold = 3;
 
-  SamplingDataBuf data_;
+  SamplingDataBuf data_ = {"SamplingDataBuf"};
 
   ClampData &clamp_data_;
 
@@ -140,6 +141,16 @@ class Sampling {
   uint64_t sample_index() const
   {
     return sample_;
+  }
+
+  bool use_clamp_direct() const
+  {
+    return clamp_data_.surface_direct != 0.0f;
+  }
+
+  bool use_clamp_indirect() const
+  {
+    return clamp_data_.surface_indirect != 0.0f;
   }
 
   /* Return true if we are starting a new motion blur step. We need to run sync again since

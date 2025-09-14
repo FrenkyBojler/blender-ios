@@ -9,6 +9,7 @@
 #pragma once
 
 #include "DNA_ID.h"
+#include "DNA_attribute_types.h"
 #include "DNA_customdata_types.h"
 #include "DNA_listBase.h"
 
@@ -67,6 +68,7 @@ typedef enum HandleType {
   /** The location is constrained to point in the opposite direction as the other handle. */
   BEZIER_HANDLE_ALIGN = 3,
 } HandleType;
+#define BEZIER_HANDLES_NUM 4
 
 /** Method used to calculate a NURBS curve's knot vector. */
 typedef enum KnotsMode {
@@ -94,7 +96,7 @@ typedef enum NormalMode {
  * A reusable data structure for geometry consisting of many curves. All control point data is
  * stored contiguously for better efficiency when there are many curves. Multiple curve types are
  * supported, as described in #CurveType. Data for each curve is accessed by slicing the main
- * #point_data arrays.
+ * point attribute data arrays.
  *
  * The data structure is meant to separate geometry data storage and processing from Blender
  * focused ID data-block handling. The struct can also be embedded to allow reusing it.
@@ -116,16 +118,16 @@ typedef struct CurvesGeometry {
    */
   int *curve_offsets;
 
+  /** Curve and point domain attributes. */
+  struct AttributeStorage attribute_storage;
+
   /**
-   * All attributes stored on control points (#AttrDomain::Point).
-   * This might not contain a layer for positions if there are no points.
+   * Generic attributes are stored in #attribute_storage. This is still used for vertex groups.
    */
   CustomData point_data;
 
-  /**
-   * All attributes stored on curves (#AttrDomain::Curve).
-   */
-  CustomData curve_data;
+  /** Used only for backward compatibility with old files. */
+  CustomData curve_data_legacy;
 
   /**
    * The total number of control points in all curves.
@@ -175,6 +177,11 @@ typedef struct CurvesGeometry {
  * interaction) is embedded in the #CurvesGeometry struct.
  */
 typedef struct Curves {
+#ifdef __cplusplus
+  /** See #ID_Type comment for why this is here. */
+  static constexpr ID_Type id_type = ID_CV;
+#endif
+
   ID id;
   /** Animation data (must be immediately after #id). */
   struct AnimData *adt;

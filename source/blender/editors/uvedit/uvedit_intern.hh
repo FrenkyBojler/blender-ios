@@ -17,6 +17,7 @@ struct BMLoop;
 struct Object;
 struct Scene;
 struct SpaceImage;
+struct ToolSettings;
 struct wmOperatorType;
 struct View2D;
 
@@ -85,15 +86,18 @@ bool uv_find_nearest_face_multi(Scene *scene,
 BMLoop *uv_find_nearest_loop_from_vert(Scene *scene, Object *obedit, BMVert *v, const float co[2]);
 BMLoop *uv_find_nearest_loop_from_edge(Scene *scene, Object *obedit, BMEdge *e, const float co[2]);
 
-bool uvedit_vert_is_edge_select_any_other(const Scene *scene,
-                                          BMLoop *l,
+bool uvedit_vert_is_edge_select_any_other(const ToolSettings *ts,
+                                          const BMLoop *l,
                                           const BMUVOffsets &offsets);
-bool uvedit_vert_is_face_select_any_other(const Scene *scene,
-                                          BMLoop *l,
+bool uvedit_vert_is_face_select_any_other(const ToolSettings *ts,
+                                          const BMLoop *l,
                                           const BMUVOffsets &offsets);
-bool uvedit_vert_is_all_other_faces_selected(const Scene *scene,
-                                             BMLoop *l,
+bool uvedit_vert_is_all_other_faces_selected(const ToolSettings *ts,
+                                             const BMLoop *l,
                                              const BMUVOffsets &offsets);
+bool uvedit_edge_is_face_select_any_other(const ToolSettings *ts,
+                                          const BMLoop *l,
+                                          const BMUVOffsets &offsets);
 
 /* utility tool functions */
 
@@ -113,6 +117,7 @@ void UV_OT_unwrap(wmOperatorType *ot);
 void UV_OT_rip(wmOperatorType *ot);
 void UV_OT_stitch(wmOperatorType *ot);
 void UV_OT_smart_project(wmOperatorType *ot);
+void UV_OT_copy_mirrored_faces(wmOperatorType *ot);
 
 /* uvedit_copy_paste.cc */
 void UV_OT_copy(wmOperatorType *ot);

@@ -22,16 +22,19 @@ PATHS: tuple[tuple[str, tuple[Any, ...], dict[str, str]], ...] = (
     ("build_files/utils/", (), {'MYPYPATH': "modules"}),
     ("doc/manpage/blender.1.py", (), {}),
     ("release/datafiles/", (), {}),
+    ("release/release_notes/", (), {}),
     ("scripts/modules/_bpy_internal/extensions/junction_module.py", (), {}),
     ("scripts/modules/_bpy_internal/extensions/wheel_manager.py", (), {}),
     ("scripts/modules/_bpy_internal/freedesktop.py", (), {}),
     ("source/blender/nodes/intern/discover_nodes.py", (), {}),
     ("tests/python/bl_keymap_validate.py", (), {}),
+    ("tests/python/bl_pyapi_bpy_app_tempdir.py", (), {}),
     ("tests/utils/blender_headless.py", (), {}),
     ("tools/check_blender_release/", (), {}),
     ("tools/check_docs/", (), {}),
     ("tools/check_source/", (), {'MYPYPATH': "modules"}),
     ("tools/check_source/check_unused_defines.py", (), {'MYPYPATH': "../utils_maintenance/modules"}),
+    ("tools/check_source/static_check_size_comments.py", (), {'MYPYPATH': "../utils_maintenance/modules"}),
     ("tools/config/", (), {}),
     ("tools/triage/", (), {}),
     ("tools/utils/", (), {}),
@@ -85,8 +88,6 @@ PATHS_EXCLUDE = set(
         "tools/utils_ide/qtcreator/externaltools/qtc_sort_paths.py",
         "tools/utils_maintenance/blender_menu_search_coverage.py",  # Uses `bpy`.
         "tools/utils_maintenance/blender_update_themes.py",  # Uses `bpy`.
-        "tools/utils_maintenance/trailing_space_clean.py",
-        "tools/utils_maintenance/trailing_space_clean_config.py",
     )
 )
 

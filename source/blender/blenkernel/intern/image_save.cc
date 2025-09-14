@@ -13,7 +13,8 @@
 #include "BLI_index_range.hh"
 #include "BLI_listbase.h"
 #include "BLI_path_utils.hh"
-#include "BLI_string.h"
+#include "BLI_string_ref.hh"
+#include "BLI_string_utf8.h"
 #include "BLI_task.hh"
 #include "BLI_vector.hh"
 
@@ -40,6 +41,10 @@
 
 #include "RE_pipeline.h"
 
+#include "CLG_log.h"
+
+static CLG_LogRef LOG_RENDER = {"render"};
+
 using blender::Vector;
 
 bool BKE_image_save_options_init(ImageSaveOptions *opts,
@@ -58,7 +63,7 @@ bool BKE_image_save_options_init(ImageSaveOptions *opts,
     iuser->scene = scene;
   }
 
-  memset(opts, 0, sizeof(*opts));
+  *opts = ImageSaveOptions{};
 
   opts->bmain = bmain;
   opts->scene = scene;
@@ -100,7 +105,7 @@ bool BKE_image_save_options_init(ImageSaveOptions *opts,
 
     /* Default to saving in the same colorspace as the image setting. */
     if (!opts->save_as_render) {
-      STRNCPY(opts->im_format.linear_colorspace_settings.name, ima_colorspace);
+      STRNCPY_UTF8(opts->im_format.linear_colorspace_settings.name, ima_colorspace);
     }
 
     opts->im_format.color_management = R_IMF_COLOR_MANAGEMENT_FOLLOW_SCENE;
@@ -108,6 +113,17 @@ bool BKE_image_save_options_init(ImageSaveOptions *opts,
     /* Compute filepath, but don't resolve multiview and UDIM which are handled
      * by the image saving code itself. */
     BKE_image_user_file_path_ex(bmain, iuser, ima, opts->filepath, false, false);
+
+    /* For movies, replace extension and add the frame number to avoid writing over the movie file
+     * itself and provide a good default file path. */
+    if (ima->source == IMA_SRC_MOVIE) {
+      char filepath_no_ext[FILE_MAX];
+      STRNCPY(filepath_no_ext, opts->filepath);
+      BLI_path_extension_strip(filepath_no_ext);
+      SNPRINTF(opts->filepath, "%s_%.*d", filepath_no_ext, 4, ibuf->fileframe);
+      BKE_image_path_ext_from_imformat_ensure(
+          opts->filepath, sizeof(opts->filepath), &opts->im_format);
+    }
 
     /* sanitize all settings */
 
@@ -215,7 +231,10 @@ static void image_save_post(ReportList *reports,
                             bool *r_colorspace_changed)
 {
   if (!ok) {
-    BKE_reportf(reports, RPT_ERROR, "Could not write image: %s", strerror(errno));
+    BKE_reportf(reports,
+                RPT_ERROR,
+                "Could not write image: %s",
+                errno ? strerror(errno) : "internal error, see console");
     return;
   }
 
@@ -261,6 +280,24 @@ static void image_save_post(ReportList *reports,
     {
       BKE_color_managed_colorspace_settings_copy(&ima->colorspace_settings,
                                                  &opts->im_format.linear_colorspace_settings);
+      *r_colorspace_changed = true;
+    }
+  }
+  else if (opts->save_as_render) {
+    /* Set the display colorspace that we converted to. */
+    const ColorSpace *colorspace = IMB_colormangement_display_get_color_space(
+        &opts->im_format.display_settings);
+    if (colorspace) {
+      blender::StringRefNull colorspace_name = IMB_colormanagement_colorspace_get_name(colorspace);
+      if (colorspace_name != ima->colorspace_settings.name) {
+        STRNCPY(ima->colorspace_settings.name, colorspace_name.c_str());
+        *r_colorspace_changed = true;
+      }
+    }
+
+    /* View transform is now baked in, so don't apply it a second time for viewing. */
+    if (ima->flag & IMA_VIEW_AS_RENDER) {
+      ima->flag &= ~IMA_VIEW_AS_RENDER;
       *r_colorspace_changed = true;
     }
   }
@@ -331,8 +368,7 @@ static bool image_save_single(ReportList *reports,
 
   /* we need renderresult for exr and rendered multiview */
   rr = BKE_image_acquire_renderresult(opts->scene, ima);
-  const bool is_mono = rr ? BLI_listbase_count_at_most(&rr->views, 2) < 2 :
-                            BLI_listbase_count_at_most(&ima->views, 2) < 2;
+  const bool is_mono = !(rr ? RE_ResultIsMultiView(rr) : BKE_image_is_multiview(ima));
   const bool is_exr_rr = rr && ELEM(imf->imtype, R_IMF_IMTYPE_OPENEXR, R_IMF_IMTYPE_MULTILAYER) &&
                          RE_HasFloatPixels(rr);
   const bool is_multilayer = is_exr_rr && (imf->imtype == R_IMF_IMTYPE_MULTILAYER);
@@ -377,11 +413,35 @@ static bool image_save_single(ReportList *reports,
     BKE_imbuf_stamp_info(rr, ibuf);
   }
 
+  /* Don't write permanently into the render-result. */
+  double rr_ppm_prev[2] = {0, 0};
+
+  if (save_as_render && rr) {
+    /* These could be used in the case of a null `rr`, currently they're not though.
+     * Note that setting zero when there is no `rr` is intentional,
+     * this signifies no valid PPM is set. */
+    double ppm[2] = {0, 0};
+    if (opts->scene) {
+      BKE_scene_ppm_get(&opts->scene->r, ppm);
+    }
+    copy_v2_v2_db(rr_ppm_prev, rr->ppm);
+    copy_v2_v2_db(rr->ppm, ppm);
+  }
+
+  /* From now on, calls to #BKE_image_release_renderresult must restore the PPM beforehand. */
+  auto render_result_restore_ppm = [rr, save_as_render, rr_ppm_prev]() {
+    if (save_as_render && rr) {
+      copy_v2_v2_db(rr->ppm, rr_ppm_prev);
+    }
+  };
+
   /* fancy multiview OpenEXR */
   if (imf->views_format == R_IMF_VIEWS_MULTIVIEW && is_exr_rr) {
     /* save render result */
     ok = BKE_image_render_write_exr(
         reports, rr, opts->filepath, imf, save_as_render, nullptr, layer);
+
+    render_result_restore_ppm();
     BKE_image_release_renderresult(opts->scene, ima, rr);
     image_save_post(reports, ima, ibuf, ok, opts, true, opts->filepath, r_colorspace_changed);
     BKE_image_release_ibuf(ima, ibuf, lock);
@@ -397,6 +457,8 @@ static bool image_save_single(ReportList *reports,
       ok = BKE_imbuf_write_as(colormanaged_ibuf, opts->filepath, imf, save_copy);
       imbuf_save_post(ibuf, colormanaged_ibuf);
     }
+
+    render_result_restore_ppm();
     BKE_image_release_renderresult(opts->scene, ima, rr);
     image_save_post(reports,
                     ima,
@@ -465,6 +527,7 @@ static bool image_save_single(ReportList *reports,
       ok &= ok_view;
     }
 
+    render_result_restore_ppm();
     BKE_image_release_renderresult(opts->scene, ima, rr);
 
     if (is_exr_rr) {
@@ -476,6 +539,8 @@ static bool image_save_single(ReportList *reports,
     if (imf->imtype == R_IMF_IMTYPE_MULTILAYER) {
       ok = BKE_image_render_write_exr(
           reports, rr, opts->filepath, imf, save_as_render, nullptr, layer);
+
+      render_result_restore_ppm();
       BKE_image_release_renderresult(opts->scene, ima, rr);
       image_save_post(reports, ima, ibuf, ok, opts, true, opts->filepath, r_colorspace_changed);
       BKE_image_release_ibuf(ima, ibuf, lock);
@@ -552,10 +617,12 @@ static bool image_save_single(ReportList *reports,
         IMB_freeImBuf(ibuf_stereo[i]);
       }
 
+      render_result_restore_ppm();
       BKE_image_release_renderresult(opts->scene, ima, rr);
     }
   }
   else {
+    render_result_restore_ppm();
     BKE_image_release_renderresult(opts->scene, ima, rr);
     BKE_image_release_ibuf(ima, ibuf, lock);
   }
@@ -967,7 +1034,7 @@ bool BKE_image_render_write_exr(ReportList *reports,
   const int compress = (imf ? imf->exr_codec : 0);
   const int quality = (imf ? imf->quality : 90);
   bool success = IMB_exr_begin_write(
-      exrhandle, filepath, rr->rectx, rr->recty, compress, quality, rr->stamp_data);
+      exrhandle, filepath, rr->rectx, rr->recty, rr->ppm, compress, quality, rr->stamp_data);
   if (success) {
     IMB_exr_write_channels(exrhandle);
   }
@@ -994,9 +1061,7 @@ static void image_render_print_save_message(ReportList *reports,
 {
   if (ok) {
     /* no need to report, just some helpful console info */
-    if (!G.quiet) {
-      printf("Saved: '%s'\n", filepath);
-    }
+    CLOG_INFO_NOCHECK(&LOG_RENDER, "Saved: '%s'", filepath);
   }
   else {
     /* report on error since users will want to know what failed */
@@ -1050,7 +1115,7 @@ bool BKE_image_render_write(ReportList *reports,
                                                &format->linear_colorspace_settings);
   }
 
-  const bool is_mono = BLI_listbase_count_at_most(&rr->views, 2) < 2;
+  const bool is_mono = !RE_ResultIsMultiView(rr);
   const bool is_exr_rr = ELEM(
                              image_format.imtype, R_IMF_IMTYPE_OPENEXR, R_IMF_IMTYPE_MULTILAYER) &&
                          RE_HasFloatPixels(rr);

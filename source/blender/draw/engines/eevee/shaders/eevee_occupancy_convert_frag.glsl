@@ -14,7 +14,7 @@ FRAGMENT_SHADER_CREATE_INFO(eevee_volume_occupancy_convert)
 
 bool is_front_face_hit(float stored_hit_depth)
 {
-  return stored_hit_depth < 0.0;
+  return stored_hit_depth < 0.0f;
 }
 
 void main()
@@ -23,7 +23,7 @@ void main()
   float hit_ordered[VOLUME_HIT_DEPTH_MAX + 1];
   int hit_index[VOLUME_HIT_DEPTH_MAX];
 
-  ivec2 texel = ivec2(gl_FragCoord.xy);
+  int2 texel = int2(gl_FragCoord.xy);
 
   int hit_count = int(imageLoad(hit_count_img, texel).x);
   hit_count = min(hit_count, VOLUME_HIT_DEPTH_MAX);
@@ -33,10 +33,10 @@ void main()
   }
 
   /* Clear the texture for next layer / frame. */
-  imageStore(hit_count_img, texel, uvec4(0));
+  imageStore(hit_count_img, texel, uint4(0));
 
   for (int i = 0; i < hit_count; i++) {
-    hit_depths[i] = imageLoad(hit_depth_img, ivec3(texel, i)).r;
+    hit_depths[i] = imageLoad(hit_depth_img, int3(texel, i)).r;
   }
 
   for (int i = 0; i < hit_count; i++) {
@@ -52,18 +52,18 @@ void main()
 
 #if 0 /* Debug. Need to adjust the qualifier of the texture adjusted. */
   for (int i = 0; i < hit_count; i++) {
-    imageStore(hit_depth_img, ivec3(texel, i), vec4(hit_ordered[i]));
+    imageStore(hit_depth_img, int3(texel, i), float4(hit_ordered[i]));
   }
 #endif
 
   /* Convert to occupancy bits. */
-  OccupancyBits occupancy = occupancy_new();
+  occupancy::Bits occupancy = occupancy::occupancy_new();
   /* True if last interface was a volume entry. */
   /* Initialized to front facing if first hit is a backface to support camera inside the volume. */
   bool last_frontfacing = !is_front_face_hit(hit_ordered[0]);
   /* Add artificial back-facing hit to close volumes we entered but never exited.
    * Fixes issues with non-manifold meshes or things like water planes. */
-  hit_ordered[hit_count] = -1.0;
+  hit_ordered[hit_count] = -1.0f;
   /* Bit index of the last interface. */
   int last_bit = 0;
   for (int i = 0; i <= hit_count; i++) {
@@ -74,8 +74,8 @@ void main()
     }
     last_frontfacing = frontfacing;
 
-    int occupancy_bit_n = occupancy_bit_index_from_depth(abs(hit_ordered[i]),
-                                                         uniform_buf.volumes.tex_size.z);
+    int occupancy_bit_n = occupancy::bit_index_from_depth(abs(hit_ordered[i]),
+                                                          uniform_buf.volumes.tex_size.z);
     if (last_bit == occupancy_bit_n) {
       /* We did not cross a new voxel center. Do nothing. */
       continue;
@@ -85,17 +85,17 @@ void main()
     last_bit = occupancy_bit_n;
 
     if (last_frontfacing == false) {
-      /* OccupancyBits is cleared by default. No need to do anything for empty regions. */
+      /* occupancy::Bits is cleared by default. No need to do anything for empty regions. */
       continue;
     }
-    occupancy = occupancy_set_bits_high(occupancy, bit_start, bit_count);
+    occupancy = occupancy::set_bits_high(occupancy, bit_start, bit_count);
   }
 
   /* Write the occupancy bits */
   for (int i = 0; i < imageSize(occupancy_img).z; i++) {
     if (occupancy.bits[i] != 0u) {
       /* NOTE: Doesn't have to be atomic but we need to blend with other method. */
-      imageAtomicOr(occupancy_img, ivec3(texel, i), occupancy.bits[i]);
+      imageAtomicOr(occupancy_img, int3(texel, i), occupancy.bits[i]);
     }
   }
 }

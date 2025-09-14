@@ -104,7 +104,7 @@ PACKAGES_FOR_LIBS=(
     # `export LD_LIBRARY_PATH=/usr/local/cuda-12.5/lib64${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}`
     # `export PATH=/usr/local/cuda-12.5/bin${PATH:+:${PATH}}`
     # Required by `external_openimagedenoise` (`nvcc` command)
-    cuda-toolkit
+    cuda-toolkit-12-8
 
     # Required by: `external_ispc`.
     zlib-devel
@@ -120,7 +120,7 @@ PACKAGES_FOR_LIBS=(
     yasm
 
     # NOTE(@ideasman42): while `python39` is available, the default Python version is 3.6.
-    # This is used for the `python3-mako` package for e.g.
+    # For example, this is used for the `python3-mako` package
     # So use the "default" system Python since it means it's most compatible with other packages.
     python3
     # Required by: `external_mesa`.
@@ -158,6 +158,7 @@ PACKAGES_FOR_LIBS=(
     libinput-devel
     libevdev-devel
     mesa-libEGL-devel
+    mesa-libgbm-devel
     systemd-devel # for `libudev` (not so obvious!).
     # Required by: `weston --headless` (run-time requirement for off screen rendering).
     mesa-dri-drivers

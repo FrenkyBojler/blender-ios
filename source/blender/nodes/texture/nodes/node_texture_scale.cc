@@ -6,8 +6,10 @@
  * \ingroup texnodes
  */
 
-#include "BKE_node.hh"
 #include "BLI_math_vector.h"
+
+#include "BKE_node.hh"
+
 #include "node_texture_util.hh"
 
 static blender::bke::bNodeSocketTemplate inputs[] = {
@@ -23,20 +25,14 @@ static blender::bke::bNodeSocketTemplate outputs[] = {
 
 static void colorfn(float *out, TexParams *p, bNode * /*node*/, bNodeStack **in, short thread)
 {
-  float scale[3], new_co[3], new_dxt[3], new_dyt[3];
+  float scale[3], new_co[3];
   TexParams np = *p;
 
   np.co = new_co;
-  np.dxt = new_dxt;
-  np.dyt = new_dyt;
 
   tex_input_vec(scale, in[1], p, thread);
 
   mul_v3_v3v3(new_co, p->co, scale);
-  if (p->osatex) {
-    mul_v3_v3v3(new_dxt, p->dxt, scale);
-    mul_v3_v3v3(new_dyt, p->dyt, scale);
-  }
 
   tex_input_rgba(out, in[0], &np, thread);
 }

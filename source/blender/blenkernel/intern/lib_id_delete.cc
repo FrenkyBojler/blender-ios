@@ -52,6 +52,11 @@ void BKE_libblock_free_data(ID *id, const bool do_id_user)
     MEM_freeN(id->properties);
     id->properties = nullptr;
   }
+  if (id->system_properties) {
+    IDP_FreePropertyContent_ex(id->system_properties, do_id_user);
+    MEM_freeN(id->system_properties);
+    id->system_properties = nullptr;
+  }
 
   if (id->override_library) {
     BKE_lib_override_library_free(&id->override_library, do_id_user);
@@ -273,7 +278,7 @@ static size_t id_delete(Main *bmain,
    * of other deleted IDs.
    * This gives tremendous speed-up when deleting a large amount of IDs from a Main
    * containing thousands of these.
-   * This also means that we have to be very careful here, as we by-pass many 'common'
+   * This also means that we have to be very careful here, as we bypass many 'common'
    * processing, hence risking to 'corrupt' at least user counts, if not IDs themselves. */
   bool keep_looping = true;
   while (keep_looping) {

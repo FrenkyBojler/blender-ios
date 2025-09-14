@@ -12,7 +12,7 @@
 
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 
 #include "BLT_translation.hh"
 
@@ -98,7 +98,7 @@ static void edbm_inset_update_header(wmOperator *op, bContext *C)
                                sce->unit,
                                true);
     }
-    SNPRINTF(msg, IFACE_("Thickness: %s, Depth: %s"), flts_str, flts_str + NUM_STR_REP_LEN);
+    SNPRINTF_UTF8(msg, IFACE_("Thickness: %s, Depth: %s"), flts_str, flts_str + NUM_STR_REP_LEN);
     ED_area_status_text(area, msg);
   }
 
@@ -122,8 +122,7 @@ static bool edbm_inset_init(bContext *C, wmOperator *op, const bool is_modal)
     RNA_float_set(op->ptr, "depth", 0.0f);
   }
 
-  op->customdata = opdata = static_cast<InsetData *>(
-      MEM_mallocN(sizeof(InsetData), "inset_operator_data"));
+  op->customdata = opdata = MEM_mallocN<InsetData>("inset_operator_data");
 
   uint objects_used_len = 0;
 
@@ -201,14 +200,13 @@ static void edbm_inset_exit(bContext *C, wmOperator *op)
   ED_workspace_status_text(C, nullptr);
 
   MEM_SAFE_FREE(opdata->ob_store);
-  MEM_SAFE_FREE(op->customdata);
+  MEM_freeN(opdata);
+  op->customdata = nullptr;
 }
 
 static void edbm_inset_cancel(bContext *C, wmOperator *op)
 {
-  InsetData *opdata;
-
-  opdata = static_cast<InsetData *>(op->customdata);
+  InsetData *opdata = static_cast<InsetData *>(op->customdata);
   if (opdata->is_modal) {
     for (uint ob_index = 0; ob_index < opdata->ob_store_len; ob_index++) {
       Object *obedit = opdata->ob_store[ob_index].ob;
@@ -580,7 +578,7 @@ void MESH_OT_inset(wmOperatorType *ot)
   ot->idname = "MESH_OT_inset";
   ot->description = "Inset new faces into selected faces";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = edbm_inset_invoke;
   ot->modal = edbm_inset_modal;
   ot->exec = edbm_inset_exec;
