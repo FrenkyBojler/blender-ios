@@ -43,6 +43,7 @@ LibOCIODisplay::LibOCIODisplay(const int index, const LibOCIOConfig &config) : c
   this->index = index;
 
   name_ = ocio_config->getDisplay(index);
+  description_ = ocio_config->getColorSpace(name_.c_str())->getDescription();
 
   /* Initialize views. */
   const int num_views = ocio_config->getNumViews(name_.c_str());
