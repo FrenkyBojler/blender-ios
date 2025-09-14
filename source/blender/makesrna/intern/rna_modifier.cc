@@ -7143,10 +7143,8 @@ static void rna_def_modifier_wireframe(BlenderRNA *brna)
   RNA_def_property_range(prop, 0, 64);
   RNA_def_property_ui_range(prop, 0, 32, 1, -1);
   RNA_def_property_ui_text(
-    prop, "Resolution",
-    "The number of segments to increase the resolution by");
+      prop, "Resolution", "The number of segments to increase the resolution by");
   RNA_def_property_update(prop, 0, "rna_Modifier_update");
-
 
   prop = RNA_def_property(srna, "vertex_group", PROP_STRING, PROP_NONE);
   RNA_def_property_string_sdna(prop, nullptr, "defgrp_name");

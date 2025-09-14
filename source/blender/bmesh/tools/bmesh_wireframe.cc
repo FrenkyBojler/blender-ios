@@ -14,6 +14,7 @@
 
 #include "bmesh.hh"
 
+#include "BLI_listbase.h"
 #include "BLI_math_geom.h"
 #include "BLI_math_vector.h"
 
@@ -21,6 +22,307 @@
 #include "BKE_deform.hh"
 
 #include "bmesh_wireframe.hh"
+
+struct JunctionRing {
+  struct JunctionRing *next, *prev;
+  BMVert **verts;
+  int segments;
+};
+
+static GHash *junction_map = nullptr;
+
+/* Add a circular vertex ring to the junction map for a given vertex. */
+static void add_ring_to_junction(GHash *junction_map, BMVert *v, BMVert **ring, int segments)
+{
+  ListBase *rings = (ListBase *)BLI_ghash_lookup(junction_map, v);
+  if (rings == nullptr) {
+    rings = (ListBase *)MEM_callocN(sizeof(ListBase), __func__);
+    BLI_ghash_insert(junction_map, v, rings);
+  }
+
+  JunctionRing *jr = (JunctionRing *)MEM_callocN(sizeof(JunctionRing), __func__);
+  jr->verts = ring;
+  jr->segments = segments;
+
+  BLI_addtail(rings, jr);
+}
+
+/* Free all rings stored in a junction list. */
+static void free_junction_list(void *val)
+{
+  ListBase *rings = (ListBase *)val;
+  for (JunctionRing *jr = (JunctionRing *)rings->first; jr;) {
+    JunctionRing *next = jr->next;
+    if (jr->verts) {
+      MEM_freeN(jr->verts);
+    }
+    MEM_freeN(jr);
+    jr = next;
+  }
+  MEM_freeN(rings);
+}
+
+/* Compute average polygon normal vector of a ring around a junction center. */
+static void ring_axis_from_center(BMVert **ring,
+                                  const int segments,
+                                  const float co_center[3],
+                                  float r_axis[3])
+{
+  zero_v3(r_axis);
+  for (int i = 0; i < segments; i++) {
+    const int ni = (i + 1) % segments;
+    float a[3], b[3], n[3];
+    sub_v3_v3v3(a, ring[i]->co, co_center);
+    sub_v3_v3v3(b, ring[ni]->co, co_center);
+    cross_v3_v3v3(n, a, b);
+    add_v3_v3(r_axis, n);
+  }
+  normalize_v3(r_axis);
+}
+
+/* Build two perpendicular tangent vectors from a given normal. */
+static void frame_from_normal(const float n[3], float t1[3], float t2[3])
+{
+  float h[3] = {1.0f, 0.0f, 0.0f};
+  if (fabsf(dot_v3v3(h, n)) > 0.9f) {
+    h[0] = 0.0f;
+    h[1] = 1.0f;
+    h[2] = 0.0f;
+  }
+  cross_v3_v3v3(t1, n, h);
+  normalize_v3(t1);
+  cross_v3_v3v3(t2, n, t1);
+  normalize_v3(t2);
+}
+
+/* Find best cyclic shift to align two rings. */
+static int best_ring_shift(BMVert **ringA,
+                           BMVert **ringB,
+                           const int segments,
+                           const float co_center[3])
+{
+  float(*dirA)[3] = static_cast<float(*)[3]>(MEM_mallocN(sizeof(float[3]) * segments, __func__));
+  float(*dirB)[3] = static_cast<float(*)[3]>(MEM_mallocN(sizeof(float[3]) * segments, __func__));
+
+  for (int i = 0; i < segments; i++) {
+    sub_v3_v3v3(dirA[i], ringA[i]->co, co_center);
+    normalize_v3(dirA[i]);
+    sub_v3_v3v3(dirB[i], ringB[i]->co, co_center);
+    normalize_v3(dirB[i]);
+  }
+
+  int best_k = 0;
+  float best_score = -FLT_MAX;
+  for (int k = 0; k < segments; k++) {
+    float score = 0.0f;
+    for (int i = 0; i < segments; i++) {
+      score += dot_v3v3(dirA[i], dirB[(i + k) % segments]);
+    }
+    if (score > best_score) {
+      best_score = score;
+      best_k = k;
+    }
+  }
+
+  MEM_freeN(dirA);
+  MEM_freeN(dirB);
+  return best_k;
+}
+
+/* Create an inner cap ring of verts on a sphere around the junction center. */
+static BMVert **make_cap_ring_on_sphere(
+    BMesh *bm, BMVert **ring, const int segments, const float co_center[3], const float radius)
+{
+  BMVert **cap = (BMVert **)MEM_mallocN(sizeof(BMVert *) * segments, __func__);
+  for (int i = 0; i < segments; i++) {
+    float d[3];
+    sub_v3_v3v3(d, ring[i]->co, co_center);
+    if (normalize_v3(d) == 0.0f) {
+      copy_v3_v3(d, ring[i]->no);
+    }
+    float p[3];
+    madd_v3_v3v3fl(p, co_center, d, radius);
+    cap[i] = BM_vert_create(bm, p, nullptr, BM_CREATE_NOP);
+  }
+  return cap;
+}
+
+/* Connect two rings into a strip of quads, with a given cyclic shift. */
+static void stitch_rings_with_shift(
+    BMesh *bm, BMVert **ringA, BMVert **ringB, const int segments, const int shiftB)
+{
+  for (int i = 0; i < segments; i++) {
+    const int ni = (i + 1) % segments;
+    const int bi = (i + shiftB) % segments;
+    const int bni = (ni + shiftB) % segments;
+    BMFace *f = BM_face_create_quad_tri(
+        bm, ringA[i], ringA[ni], ringB[bni], ringB[bi], nullptr, BM_CREATE_NOP);
+    if (f) {
+      BM_elem_flag_enable(f, BM_ELEM_TAG);
+    }
+  }
+}
+
+/* Build caps at junction vertices by stitching all attached rings together. */
+static void build_vertex_junction_caps(BMesh *bm, GHash *junction_map)
+{
+  if (!junction_map) {
+    return;
+  }
+
+  const float cap_scale = 1.0f;
+
+  GHashIterator gh_iter;
+  GHASH_ITER (gh_iter, junction_map) {
+    BMVert *vcenter = (BMVert *)BLI_ghashIterator_getKey(&gh_iter);
+    ListBase *rings = (ListBase *)BLI_ghashIterator_getValue(&gh_iter);
+    if (!rings || !rings->first) {
+      continue;
+    }
+
+    int ring_count = 0;
+    for (JunctionRing *jr = (JunctionRing *)rings->first; jr; jr = jr->next) {
+      ring_count++;
+    }
+    if (ring_count == 0) {
+      continue;
+    }
+
+    typedef struct RingCap {
+      JunctionRing *jr;
+      BMVert **cap;
+      float axis[3];
+      float angle;
+      float tube_radius;
+    } RingCap;
+
+    RingCap *rc = (RingCap *)MEM_callocN(sizeof(RingCap) * ring_count, __func__);
+
+    float sortN[3] = {0, 0, 0};
+
+    int idx = 0;
+    for (JunctionRing *jr = (JunctionRing *)rings->first; jr; jr = jr->next, idx++) {
+      rc[idx].jr = jr;
+
+      ring_axis_from_center(jr->verts, jr->segments, vcenter->co, rc[idx].axis);
+      add_v3_v3(sortN, rc[idx].axis);
+
+      float d[3];
+      sub_v3_v3v3(d, jr->verts[0]->co, vcenter->co);
+      rc[idx].tube_radius = len_v3(d);
+    }
+
+    if (normalize_v3(sortN) == 0.0f) {
+      sortN[2] = 1.0f;
+    }
+    float T1[3], T2[3];
+    frame_from_normal(sortN, T1, T2);
+
+    idx = 0;
+    for (JunctionRing *jr = (JunctionRing *)rings->first; jr; jr = jr->next, idx++) {
+      const int S = jr->segments;
+
+      const float cap_r = rc[idx].tube_radius * cap_scale;
+      rc[idx].cap = make_cap_ring_on_sphere(bm, jr->verts, S, vcenter->co, cap_r);
+
+      float p[3];
+      project_plane_v3_v3v3(p, rc[idx].axis, sortN);
+      const float u = dot_v3v3(p, T1);
+      const float v = dot_v3v3(p, T2);
+      rc[idx].angle = atan2f(v, u);
+
+      for (int i = 0; i < S; i++) {
+        const int ni = (i + 1) % S;
+        BMFace *f = BM_face_create_quad_tri(bm,
+                                            jr->verts[i],
+                                            jr->verts[ni],
+                                            rc[idx].cap[ni],
+                                            rc[idx].cap[i],
+                                            nullptr,
+                                            BM_CREATE_NOP);
+        if (f) {
+          BM_elem_flag_enable(f, BM_ELEM_TAG);
+        }
+      }
+    }
+
+    std::sort(
+        rc, rc + ring_count, [](const RingCap &a, const RingCap &b) { return a.angle < b.angle; });
+
+    for (int i = 0; i < ring_count; i++) {
+      const int j = (i + 1) % ring_count;
+      JunctionRing *ria = rc[i].jr;
+      JunctionRing *rib = rc[j].jr;
+
+      const int S = ria->segments;
+
+      const int shiftB = best_ring_shift(rc[i].cap, rc[j].cap, S, vcenter->co);
+
+      stitch_rings_with_shift(bm, rc[i].cap, rc[j].cap, S, shiftB);
+    }
+
+    MEM_freeN(rc);
+  }
+}
+
+/* Build a tube around a single edge, returning the two end rings */
+static void build_tube_for_edge(BMesh *bm,
+                                BMEdge *e,
+                                const float radius,
+                                const int segments,
+                                BMVert ***r_ring1,
+                                BMVert ***r_ring2)
+{
+  BMVert *v1 = e->v1;
+  BMVert *v2 = e->v2;
+
+  float edge_vec[3];
+  sub_v3_v3v3(edge_vec, v2->co, v1->co);
+  normalize_v3(edge_vec);
+
+  float ref_vec[3] = {0.0f, 0.0f, 1.0f};
+  if (fabsf(dot_v3v3(ref_vec, edge_vec)) > 0.99f) {
+    ref_vec[0] = 1.0f;
+    ref_vec[1] = 0.0f;
+    ref_vec[2] = 0.0f;
+  }
+
+  float u_axis[3], v_axis[3];
+  cross_v3_v3v3(u_axis, edge_vec, ref_vec);
+  normalize_v3(u_axis);
+  cross_v3_v3v3(v_axis, u_axis, edge_vec);
+  normalize_v3(v_axis);
+
+  BMVert **ring1 = (BMVert **)MEM_mallocN(sizeof(BMVert *) * segments, __func__);
+  BMVert **ring2 = (BMVert **)MEM_mallocN(sizeof(BMVert *) * segments, __func__);
+
+  const float angle_step = (2.0f * (float)M_PI) / (float)segments;
+
+  for (int i = 0; i < segments; i++) {
+    const float angle = i * angle_step;
+    const float cos_a = cosf(angle);
+    const float sin_a = sinf(angle);
+
+    float offset[3];
+    mul_v3_v3fl(offset, u_axis, cos_a * radius);
+    madd_v3_v3fl(offset, v_axis, sin_a * radius);
+
+    float vco1[3], vco2[3];
+    add_v3_v3v3(vco1, v1->co, offset);
+    add_v3_v3v3(vco2, v2->co, offset);
+
+    ring1[i] = BM_vert_create(bm, vco1, nullptr, BM_CREATE_NOP);
+    ring2[i] = BM_vert_create(bm, vco2, nullptr, BM_CREATE_NOP);
+  }
+
+  for (int i = 0; i < segments; i++) {
+    int ni = (i + 1) % segments;
+    BM_face_create_quad_tri(bm, ring1[i], ring1[ni], ring2[ni], ring2[i], nullptr, BM_CREATE_NOP);
+  }
+
+  *r_ring1 = ring1;
+  *r_ring2 = ring2;
+}
 
 static BMLoop *bm_edge_tag_faceloop(BMEdge *e)
 {
@@ -141,6 +443,9 @@ static bool bm_loop_is_radial_boundary(BMLoop *l_first)
   return true;
 }
 
+/* -------------------------------------------------------------------- */
+/** Main operator **/
+
 void BM_mesh_wireframe(BMesh *bm,
                        const float offset,
                        const float offset_fac,
@@ -156,8 +461,23 @@ void BM_mesh_wireframe(BMesh *bm,
                        const short mat_offset,
                        const int mat_max,
                        /* for operators */
-                       const bool use_tag)
+                       const bool use_tag,
+                       const int segments)
 {
+  if (junction_map == nullptr) {
+    junction_map = BLI_ghash_ptr_new(__func__);
+  }
+
+  const int totedge_orig = bm->totedge;
+  BMEdge **edges_src = MEM_malloc_arrayN<BMEdge *>(totedge_orig, __func__);
+
+  BMIter iter;
+  BMEdge *e;
+  int ei = 0;
+  BM_ITER_MESH (e, &iter, bm, BM_EDGES_OF_MESH) {
+    edges_src[ei++] = e;
+  }
+
   const float ofs_orig = -(((-offset_fac + 1.0f) * 0.5f) * offset);
   const float ofs_new = offset + ofs_orig;
   const float ofs_mid = (ofs_orig + ofs_new) / 2.0f;
@@ -172,9 +492,7 @@ void BM_mesh_wireframe(BMesh *bm,
 
   const int totvert_orig = bm->totvert;
 
-  BMIter iter;
   BMIter itersub;
-
   /* filled only with boundary verts */
   BMVert **verts_src = MEM_malloc_arrayN<BMVert *>(totvert_orig, __func__);
   BMVert **verts_neg = MEM_malloc_arrayN<BMVert *>(totvert_orig, __func__);
@@ -512,6 +830,28 @@ void BM_mesh_wireframe(BMesh *bm,
     MEM_freeN(verts_boundary);
   }
 
+  if (segments > 0) {
+    fprintf(stderr, "building tubes with segments=%d\n", segments);
+
+    for (int iedge = 0; iedge < totedge_orig; iedge++) {
+      BMEdge *e_it = edges_src[iedge];
+      if (!e_it) {
+        continue;
+      }
+      fprintf(stderr,
+              "  [tube] edge (%d -> %d)\n",
+              BM_elem_index_get(e_it->v1),
+              BM_elem_index_get(e_it->v2));
+
+      BMVert **ring1, **ring2;
+      build_tube_for_edge(bm, e_it, offset * 0.5f, segments, &ring1, &ring2);
+      add_ring_to_junction(junction_map, e_it->v1, ring1, segments);
+      add_ring_to_junction(junction_map, e_it->v2, ring2, segments);
+    }
+
+    build_vertex_junction_caps(bm, junction_map);
+  }
+
   if (verts_relfac) {
     MEM_freeN(verts_relfac);
   }
@@ -519,10 +859,10 @@ void BM_mesh_wireframe(BMesh *bm,
   if (use_replace) {
 
     if (use_tag) {
-/* only remove faces which are original and used to make wire,
- * use 'verts_pos' and 'verts_neg' to avoid a feedback loop. */
+      /* only remove faces which are original and used to make wire,
+       * use 'verts_pos' and 'verts_neg' to avoid a feedback loop. */
 
-/* vertex must be from 'verts_src' */
+      /* vertex must be from 'verts_src' */
 #define VERT_DUPE_TEST_ORIG(v) (verts_neg[BM_elem_index_get(v)] != nullptr)
 #define VERT_DUPE_TEST(v) (verts_pos[BM_elem_index_get(v)] != nullptr)
 #define VERT_DUPE_CLEAR(v) \
@@ -579,8 +919,14 @@ void BM_mesh_wireframe(BMesh *bm,
     }
   }
 
+  MEM_freeN(edges_src);
   MEM_freeN(verts_src);
   MEM_freeN(verts_neg);
   MEM_freeN(verts_pos);
   MEM_freeN(verts_loop);
+
+  if (junction_map) {
+    BLI_ghash_free(junction_map, nullptr, free_junction_list);
+    junction_map = nullptr;
+  }
 }

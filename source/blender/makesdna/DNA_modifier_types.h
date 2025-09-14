@@ -2159,8 +2159,8 @@ typedef struct WireframeModifierData {
   /** #WireframeModifierFlag. */
   short flag;
   short mat_ofs;
-  char _pad[2];    
-  short segments;  
+  char _pad[2];
+  short segments;
 } WireframeModifierData;
 
 typedef enum {

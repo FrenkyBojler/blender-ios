@@ -111,7 +111,6 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
 
   layout->prop(ptr, "resolution", UI_ITEM_NONE, IFACE_("Segments"), ICON_NONE);
 
-
   layout->prop(ptr, "thickness", UI_ITEM_NONE, IFACE_("Thickness"), ICON_NONE);
   layout->prop(ptr, "offset", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
