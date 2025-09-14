@@ -446,9 +446,8 @@ class SpreadsheetLayoutDrawer : public SpreadsheetDrawer {
                                   params.height,
                                   nullptr,
                                   std::nullopt);
-    /* Left-align Matrix. */
-    UI_but_drawflag_disable(but, UI_BUT_TEXT_RIGHT);
-    UI_but_drawflag_enable(but, UI_BUT_TEXT_LEFT);
+    /* Center alignment. */
+    UI_but_drawflag_disable(but, UI_BUT_TEXT_LEFT);
     UI_but_func_tooltip_custom_set(
         but,
         [](bContext & /*C*/, uiTooltipData &tip, uiBut * /*but*/, void *argN) {
