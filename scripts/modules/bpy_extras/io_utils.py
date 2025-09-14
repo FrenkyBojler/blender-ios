@@ -42,6 +42,8 @@ def _check_axis_conversion(op):
 
 
 class ExportHelper:
+    """Mixin for file export operators."""
+
     filepath: StringProperty(
         name="File Path",
         description="Filepath used for exporting the file",
@@ -58,8 +60,18 @@ class ExportHelper:
     # subclasses can override with decorator
     # True == use ext, False == no ext, None == do nothing.
     check_extension = True
+    """If not None, enforce the presence or absence of a file extension."""
 
     def invoke(self, context, _event):
+        """
+        Open the file selector.
+
+        If ``self.filepath`` is empty, it will be populated from the current
+        blend file name plus ``self.filename_ext``.
+
+        :return: A set of operator return items, e.g. ``{'RUNNING_MODAL'}``.
+        :rtype: enum set in :ref:`rna_enum_operator_return_items`
+        """
         import os
         if not self.filepath:
             blend_filepath = context.blend_data.filepath
@@ -74,6 +86,15 @@ class ExportHelper:
         return {'RUNNING_MODAL'}
 
     def check(self, _context):
+        """
+        Ensure file extension and axis conversion are correct.
+
+        Modifies the extension of ``self.filepath`` or axis attributes when
+        needed.
+
+        :return: True if filepath or axis values were modified.
+        :rtype: bool
+        """
         import os
         change_ext = False
         change_axis = _check_axis_conversion(self)
@@ -96,6 +117,8 @@ class ExportHelper:
 
 
 class ImportHelper:
+    """Mixin for file import operators."""
+
     filepath: StringProperty(
         name="File Path",
         description="Filepath used for importing the file",
@@ -105,10 +128,23 @@ class ImportHelper:
     )
 
     def invoke(self, context, _event):
+        """
+        Open the file selector.
+
+        :return: A set of operator return items, e.g. ``{'RUNNING_MODAL'}``.
+        :rtype: enum set in :ref:`rna_enum_operator_return_items`
+        """
         context.window_manager.fileselect_add(self)
         return {'RUNNING_MODAL'}
 
     def invoke_popup(self, context, confirm_text=""):
+        """
+        Open a properties dialog if ``self.filepath`` is set, otherwise the
+        file selector.
+
+        :return: A set of operator return items, e.g. ``{'FINISHED'}``.
+        :rtype: enum set in :ref:`rna_enum_operator_return_items`
+        """
         if self.properties.is_property_set("filepath"):
             title = self.filepath
             if len(self.files) > 1:
@@ -127,6 +163,12 @@ class ImportHelper:
         return {'RUNNING_MODAL'}
 
     def check(self, _context):
+        """
+        Validate axis conversion properties.
+
+        :return: True if any axis value was updated.
+        :rtype: bool
+        """
         return _check_axis_conversion(self)
 
 
