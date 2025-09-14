@@ -311,7 +311,18 @@ static void trans_object_base_deps_flag_prepare(const TransInfo *t,
   }
 }
 
-static void set_trans_object_base_deps_flag_cb(ID *id, eDepsObjectComponentType component)
+static void tag_trans_objects_with_geometry_dep_only_fn(ID *id, eDepsObjectComponentType component)
+{
+  /* Here we only handle object IDs. */
+  if (GS(id->name) != ID_OB) {
+    return;
+  }
+  if (component == DEG_OB_COMP_GEOMETRY) {
+    id->tag |= ID_TAG_DOIT;
+  }
+}
+
+static void tag_trans_objects_dep_fn(ID *id, eDepsObjectComponentType component)
 {
   /* Here we only handle object IDs. */
   if (GS(id->name) != ID_OB) {
@@ -330,20 +341,20 @@ static void flush_trans_object_base_deps_flag(const TransInfo *t, Object *object
   }
   object->id.tag |= ID_TAG_DOIT;
 
-  /* When we transform parents without children, we only traverse the GEOMETRY dependent
-   * components. This avoids marking children as not participating in snapping but still marks
-   * objects with modifier dependencies.
-   * Unfortunately, some transform-dependent objects that are not children can also be skipped,
-   * such as Constraints and Rigid Bodies.
-   * See #121378 for details. */
-  eDepsObjectComponentType source_component_type = (t->options & CTX_OBMODE_XFORM_SKIP_CHILDREN) ?
-                                                       DEG_OB_COMP_GEOMETRY :
-                                                       DEG_OB_COMP_TRANSFORM;
-  DEG_foreach_dependent_ID_component(t->depsgraph,
-                                     &object->id,
-                                     source_component_type,
-                                     DEG_FOREACH_COMPONENT_IGNORE_TRANSFORM_SOLVERS,
-                                     set_trans_object_base_deps_flag_cb);
+  DEG_foreach_dependent_ID_component(
+      t->depsgraph,
+      &object->id,
+      DEG_OB_COMP_TRANSFORM,
+      DEG_FOREACH_COMPONENT_IGNORE_TRANSFORM_SOLVERS,
+
+      /* When we transform parents while skipping children, we only traverse the GEOMETRY-dependent
+       * components. This avoids marking children as not participating in snapping but still marks
+       * objects with modifier dependencies.
+       * Unfortunately, some transform-dependent objects that are not children may also be skipped,
+       * such as constrained ones.
+       * See #121378 for details. */
+      (t->options & CTX_OBMODE_XFORM_SKIP_CHILDREN) ? tag_trans_objects_with_geometry_dep_only_fn :
+                                                      tag_trans_objects_dep_fn);
 }
 
 static void trans_object_base_deps_flag_finish(const TransInfo *t,
