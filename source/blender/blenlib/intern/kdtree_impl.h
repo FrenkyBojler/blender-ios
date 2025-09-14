@@ -993,20 +993,22 @@ int BLI_kdtree_nd_(calc_duplicates_stable)(const KDTree *tree,
     BLI_assert(!cluster.as_span().contains(node_index));
     cluster.append(node_index);
 
-    /* Compute centroid of the cluster. */
+    /* Compute centroid and choose survivor in one pass. */
     float centroid[KD_DIMS] = {};
+    int survivor_index = cluster[0];
+
     for (int node_index : cluster) {
       const float *co = tree->nodes[node_position_to_index[node_index]].co;
       add_vn_vn(centroid, co, KD_DIMS);
+      if (node_index < survivor_index) {
+        survivor_index = node_index;
+      }
     }
 
     const float inv_size = 1.0f / float(cluster.size());
     for (uint d = 0; d < KD_DIMS; d++) {
       centroid[d] *= inv_size;
     }
-
-    /* Choose survivor: lowest node index in cluster. */
-    const int survivor_index = *std::min_element(cluster.begin(), cluster.end());
 
     /* Write centroid for this survivor. */
     copy_vn_vn(r_cluster_center[survivor_index], centroid);
