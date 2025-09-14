@@ -3175,7 +3175,7 @@ void blo_do_versions_500(FileData *fd, Library * /*lib*/, Main *bmain)
     }
   }
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 51)) {
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 82)) {
     LISTBASE_FOREACH (wmWindowManager *, wm, &bmain->wm) {
       wm->xr.session_settings.viewfinder_enable = true;
       wm->xr.session_settings.viewfinder_hand = XR_VIEWFINDER_HAND_LEFT;
