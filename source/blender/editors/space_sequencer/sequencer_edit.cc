@@ -2031,14 +2031,15 @@ static wmOperatorStatus sequencer_box_cut_exec(bContext *C, wmOperator *op)
 
   /* Close gaps. */
   if (remove_gaps) {
+    int offset = rect_frames[0] - rect_frames[1];
+    /* Cap offset. */
+    offset = std::max(offset, (max_left_offset - rect_frames[1]));
+
     LISTBASE_FOREACH (Strip *, strip, ed->current_strips()) {
       if (!ignore_selection && !selected_strips_from_context(C).contains(strip)) {
         continue;
       }
       const float left_handle = seq::time_left_handle_frame_get(scene, strip);
-      int offset = rect_frames[0] - rect_frames[1];
-      /* Cap offset. */
-      offset = std::max(offset, (max_left_offset - rect_frames[1]));
 
       if (left_handle == rect_frames[1]) {
         seq::transform_translate_strip(scene, strip, offset);
