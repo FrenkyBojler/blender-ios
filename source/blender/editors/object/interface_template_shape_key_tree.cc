@@ -10,6 +10,7 @@
 
 #include "BKE_context.hh"
 #include "BKE_key.hh"
+#include "BKE_object.hh"
 
 #include "BLI_listbase.h"
 #include "BLT_translation.hh"
@@ -61,7 +62,7 @@ class ShapeKeyDragController : public ui::AbstractViewItemDragController {
   {
   }
 
-  eWM_DragDataType get_drag_type() const override
+  std::optional<eWM_DragDataType> get_drag_type() const override
   {
     return WM_DRAG_SHAPE_KEY;
   }
@@ -72,7 +73,7 @@ class ShapeKeyDragController : public ui::AbstractViewItemDragController {
     *drag_data = drag_key_;
     return drag_data;
   }
-  void on_drag_start() override
+  void on_drag_start(bContext & /*C*/) override
   {
     drag_key_.object->shapenr = drag_key_.index + 1;
   }
@@ -234,6 +235,15 @@ class ShapeKeyItem : public ui::AbstractTreeViewItem {
   StringRef get_rename_string() const override
   {
     return label_;
+  }
+
+  void delete_item(bContext *C) override
+  {
+    Main *bmain = CTX_data_main(C);
+    BKE_object_shapekey_remove(bmain, shape_key_.object, shape_key_.kb);
+    DEG_id_tag_update(&shape_key_.object->id, ID_RECALC_GEOMETRY);
+    WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, nullptr);
+    ED_undo_grouped_push(C, "Delete Shape Key");
   }
 
   void build_context_menu(bContext &C, uiLayout &layout) const override

@@ -1243,6 +1243,9 @@ def _wm_doc_get_id(doc_id, *, do_url=True, url_prefix="", report=None):
                 rna_class = bpy.types.PropertyGroup.bl_rna_get_subclass_py(class_name)
 
             if rna_class is None:
+                rna_class = bpy.types.AddonPreferences.bl_rna_get_subclass_py(class_name)
+
+            if rna_class is None:
                 if report is not None:
                     report({'ERROR'}, rpt_("Type \"{:s}\" cannot be found").format(class_name))
                 return None
@@ -3553,6 +3556,10 @@ class WM_MT_region_toggle_pie(Menu):
                 continue
             # In some cases channels exists but can't be toggled.
             assert hasattr(space_data, attr)
+
+            if space_data.is_property_readonly(attr):
+                continue
+
             # Technically possible these double-up, in practice this should never happen.
             if region_type in region_by_type:
                 print("{:s}: Unexpected double-up of region types {!r}".format(cls.__name__, region_type))

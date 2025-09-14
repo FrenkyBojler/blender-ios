@@ -466,7 +466,7 @@ static void drw_shgroup_bone_custom_solid(const Armatures::DrawContext *ctx,
   Mesh *mesh = BKE_object_get_evaluated_mesh_no_subsurf_unchecked(custom);
   if (mesh != nullptr) {
     drw_shgroup_bone_custom_solid_mesh(ctx,
-                                       *mesh,
+                                       DRW_mesh_get_for_drawing(*mesh),
                                        bone_mat,
                                        bone_color,
                                        hint_color,
@@ -498,7 +498,8 @@ static void drw_shgroup_bone_custom_wire(const Armatures::DrawContext *ctx,
   /* See comments in #drw_shgroup_bone_custom_solid. */
   Mesh *mesh = BKE_object_get_evaluated_mesh_no_subsurf_unchecked(custom);
   if (mesh != nullptr) {
-    drw_shgroup_bone_custom_mesh_wire(ctx, *mesh, bone_mat, color, wire_width, select_id, *custom);
+    drw_shgroup_bone_custom_mesh_wire(
+        ctx, DRW_mesh_get_for_drawing(*mesh), bone_mat, color, wire_width, select_id, *custom);
     return;
   }
 
@@ -1897,7 +1898,7 @@ void Armatures::draw_armature_edit(Armatures::DrawContext *ctx)
        eBone;
        eBone = eBone->next, index += 0x10000)
   {
-    if (!blender::animrig::bone_is_visible_editbone(&arm, eBone)) {
+    if (!blender::animrig::bone_is_visible(&arm, eBone)) {
       continue;
     }
 
@@ -1905,7 +1906,7 @@ void Armatures::draw_armature_edit(Armatures::DrawContext *ctx)
 
     /* catch exception for bone with hidden parent */
     eBone_Flag boneflag = eBone_Flag(eBone->flag);
-    if ((eBone->parent) && !blender::animrig::bone_is_visible_editbone(&arm, eBone->parent)) {
+    if ((eBone->parent) && !blender::animrig::bone_is_visible(&arm, eBone->parent)) {
       boneflag &= ~BONE_CONNECTED;
     }
 
@@ -2022,7 +2023,7 @@ void Armatures::draw_armature_pose(Armatures::DrawContext *ctx)
   for (bPoseChannel *pchan = static_cast<bPoseChannel *>(ob->pose->chanbase.first); pchan;
        pchan = pchan->next, index += 0x10000)
   {
-    if (!blender::animrig::bone_is_visible_pchan(&arm, pchan)) {
+    if (!blender::animrig::bone_is_visible(&arm, pchan)) {
       continue;
     }
 
@@ -2042,7 +2043,7 @@ void Armatures::draw_armature_pose(Armatures::DrawContext *ctx)
     }
 
     eBone_Flag boneflag = eBone_Flag(bone->flag);
-    if (pchan->parent && !blender::animrig::bone_is_visible_pchan(&arm, pchan->parent)) {
+    if (pchan->parent && !blender::animrig::bone_is_visible(&arm, pchan->parent)) {
       /* Avoid drawing connection line to hidden parent. */
       boneflag &= ~BONE_CONNECTED;
     }
