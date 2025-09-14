@@ -123,14 +123,16 @@ bool OSLManager::need_update() const
 
 void OSLManager::device_update_pre(Device *device, Scene *scene)
 {
+  if (scene->shader_manager->use_osl() || !scene->camera->script_name.empty()) {
+    shading_system_init(scene->shader_manager->get_scene_linear_space());
+  }
+
   if (!need_update()) {
     return;
   }
 
   /* set texture system (only on CPU devices, since GPU devices cannot use OIIO) */
   if (scene->shader_manager->use_osl()) {
-    shading_system_init();
-
     /* add special builtin texture types */
     foreach_render_services([](OSLRenderServices *services) {
       services->textures.insert(OSLUStringHash("@ao"), OSLTextureHandle(OSLTextureHandle::AO));
@@ -341,7 +343,7 @@ void OSLManager::texture_system_free()
   }
 }
 
-void OSLManager::shading_system_init()
+void OSLManager::shading_system_init(ShaderManager::SceneLinearSpace colorspace)
 {
   /* No need to do anything if we already have shading systems. */
   if (!ss_map.empty()) {
@@ -351,7 +353,7 @@ void OSLManager::shading_system_init()
   /* create shading system, shared between different renders to reduce memory usage */
   const thread_scoped_lock lock(ss_shared_mutex);
 
-  foreach_osl_device(device_, [this](Device *sub_device, OSLGlobals *) {
+  foreach_osl_device(device_, [this, colorspace](Device *sub_device, OSLGlobals *) {
     const DeviceType device_type = sub_device->info.type;
 
     if (!ss_shared[device_type]) {
@@ -378,6 +380,21 @@ void OSLManager::shading_system_init()
       ss->attribute("commonspace", "world");
       ss->attribute("searchpath:shader", shader_path);
       ss->attribute("greedyjit", 1);
+
+      /* OSL doesn't accept an arbitrary space, so support a few specific spaces. */
+      switch (colorspace) {
+        case ShaderManager::SceneLinearSpace::Rec709:
+          ss->attribute("colorspace", OSL::Strings::Rec709);
+          break;
+        case ShaderManager::SceneLinearSpace::Rec2020:
+          ss->attribute("colorspace", OSL::Strings::HDTV);
+          break;
+        case ShaderManager::SceneLinearSpace::ACEScg:
+          ss->attribute("colorspace", OSL::Strings::ACEScg);
+          break;
+        case ShaderManager::SceneLinearSpace::Unknown:
+          break;
+      }
 
       const char *groupdata_alloc_str = getenv("CYCLES_OSL_GROUPDATA_ALLOC");
       if (groupdata_alloc_str) {
@@ -580,8 +597,6 @@ const char *OSLManager::shader_load_filepath(string filepath)
 
 const char *OSLManager::shader_load_bytecode(const string &hash, const string &bytecode)
 {
-  shading_system_init();
-
   foreach_shading_system(
       [hash, bytecode](OSL::ShadingSystem *ss) { ss->LoadMemoryCompiledShader(hash, bytecode); });
 
@@ -738,7 +753,10 @@ OSLNode *OSLShaderManager::osl_node(ShaderGraph *graph,
     return nullptr;
   }
 
-  /* create query */
+  /* Ensure shading system exists before we try to load a shader. */
+  scene->osl_manager->shading_system_init(scene->shader_manager->get_scene_linear_space());
+
+  /* Load shader code. */
   const char *hash;
 
   if (!filepath.empty()) {
@@ -1526,40 +1544,20 @@ void OSLCompiler::compile(Shader *shader)
 {
   if (shader->is_modified()) {
     ShaderGraph *graph = shader->graph.get();
-    ShaderNode *output = (graph) ? graph->output() : nullptr;
-
-    const bool has_bump = (shader->get_displacement_method() != DISPLACE_TRUE) &&
-                          output->input("Surface")->link && output->input("Displacement")->link;
-
-    /* finalize */
-    shader->graph->finalize(scene, has_bump, shader->get_displacement_method() == DISPLACE_BOTH);
+    const bool has_bump = shader->has_bump;
 
     current_shader = shader;
 
-    shader->has_surface = false;
-    shader->has_surface_transparent = false;
-    shader->has_surface_raytrace = false;
-    shader->has_surface_bssrdf = false;
-    shader->has_bump = has_bump;
-    shader->has_bssrdf_bump = has_bump;
-    shader->has_volume = false;
-    shader->has_displacement = false;
-    shader->has_surface_spatial_varying = false;
-    shader->has_volume_spatial_varying = false;
-    shader->has_volume_attribute_dependency = false;
-
     /* generate surface shader */
-    if (shader->reference_count() && graph && output->input("Surface")->link) {
-      shader->osl_surface_ref = compile_type(shader, shader->graph.get(), SHADER_TYPE_SURFACE);
+    if (shader->reference_count() && shader->has_surface) {
+      shader->osl_surface_ref = compile_type(shader, graph, SHADER_TYPE_SURFACE);
 
       if (has_bump) {
-        shader->osl_surface_bump_ref = compile_type(shader, shader->graph.get(), SHADER_TYPE_BUMP);
+        shader->osl_surface_bump_ref = compile_type(shader, graph, SHADER_TYPE_BUMP);
       }
       else {
         shader->osl_surface_bump_ref = OSL::ShaderGroupRef();
       }
-
-      shader->has_surface = true;
     }
     else {
       shader->osl_surface_ref = OSL::ShaderGroupRef();
@@ -1567,19 +1565,16 @@ void OSLCompiler::compile(Shader *shader)
     }
 
     /* generate volume shader */
-    if (shader->reference_count() && graph && output->input("Volume")->link) {
-      shader->osl_volume_ref = compile_type(shader, shader->graph.get(), SHADER_TYPE_VOLUME);
-      shader->has_volume = true;
+    if (shader->reference_count() && shader->has_volume) {
+      shader->osl_volume_ref = compile_type(shader, graph, SHADER_TYPE_VOLUME);
     }
     else {
       shader->osl_volume_ref = OSL::ShaderGroupRef();
     }
 
     /* generate displacement shader */
-    if (shader->reference_count() && graph && output->input("Displacement")->link) {
-      shader->osl_displacement_ref = compile_type(
-          shader, shader->graph.get(), SHADER_TYPE_DISPLACEMENT);
-      shader->has_displacement = true;
+    if (shader->reference_count() && shader->has_displacement) {
+      shader->osl_displacement_ref = compile_type(shader, graph, SHADER_TYPE_DISPLACEMENT);
     }
     else {
       shader->osl_displacement_ref = OSL::ShaderGroupRef();

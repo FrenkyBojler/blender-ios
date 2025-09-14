@@ -106,7 +106,7 @@ static void rna_Object_select_set(
     if (select) {
       BKE_reportf(reports,
                   RPT_ERROR,
-                  "Object '%s' can't be selected because it is not in View Layer '%s'!",
+                  "Object '%s' cannot be selected because it is not in View Layer '%s'!",
                   ob->id.name + 2,
                   view_layer->name);
     }
@@ -141,7 +141,7 @@ static void rna_Object_hide_set(
     if (hide) {
       BKE_reportf(reports,
                   RPT_ERROR,
-                  "Object '%s' can't be hidden because it is not in View Layer '%s'!",
+                  "Object '%s' cannot be hidden because it is not in View Layer '%s'!",
                   ob->id.name + 2,
                   view_layer->name);
     }
@@ -617,9 +617,9 @@ static void rna_Object_ray_cast(Object *ob,
   float direction_unit[3];
   normalize_v3_v3(direction_unit, direction);
 
-  if ((isect_ray_aabb_v3_simple(
-           origin, direction_unit, bounds->min, bounds->max, &distmin, nullptr) &&
-       distmin <= distance))
+  if (isect_ray_aabb_v3_simple(
+          origin, direction_unit, bounds->min, bounds->max, &distmin, nullptr) &&
+      distmin <= distance)
   {
 
     /* No need to managing allocation or freeing of the BVH data.

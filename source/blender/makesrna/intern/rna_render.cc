@@ -115,7 +115,7 @@ static int engine_get_preview_pixel_size(RenderEngine * /*engine*/, Scene *scene
 
 static void engine_bind_display_space_shader(RenderEngine * /*engine*/, Scene * /*scene*/)
 {
-  GPUShader *shader = GPU_shader_get_builtin_shader(GPU_SHADER_3D_IMAGE);
+  blender::gpu::Shader *shader = GPU_shader_get_builtin_shader(GPU_SHADER_3D_IMAGE);
   GPU_shader_bind(shader);
   /** \note "image" binding slot is 0. */
 }
@@ -1012,12 +1012,6 @@ static void rna_def_render_engine(BlenderRNA *brna)
   RNA_def_property_boolean_sdna(prop, nullptr, "type->flag", RE_USE_STEREO_VIEWPORT);
   RNA_def_property_flag(prop, PROP_REGISTER_OPTIONAL);
   RNA_def_property_ui_text(prop, "Use Stereo Viewport", "Support rendering stereo 3D viewport");
-
-  prop = RNA_def_property(srna, "bl_use_alembic_procedural", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "type->flag", RE_USE_ALEMBIC_PROCEDURAL);
-  RNA_def_property_flag(prop, PROP_REGISTER_OPTIONAL);
-  RNA_def_property_ui_text(
-      prop, "Use Alembic Procedural", "Support loading Alembic data at render time");
 
   prop = RNA_def_property(srna, "bl_use_materialx", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "type->flag", RE_USE_MATERIALX);
