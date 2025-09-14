@@ -10,6 +10,7 @@
 #include "BLF_api.hh"
 
 #include "BLI_color.hh"
+#include "BLI_math_base.h"
 #include "BLI_math_matrix.hh"
 #include "BLI_math_quaternion_types.hh"
 #include "BLI_math_vector_types.hh"
@@ -28,6 +29,27 @@
 #include "BLT_translation.hh"
 
 namespace blender::ed::spreadsheet {
+
+static const std::string format_matrix_to_single_line(const float4x4 &matrix)
+{
+  /* Transpose to be able to print row by row. */
+  const float4x4 t_matrix = math::transpose(matrix);
+  std::stringstream ss;
+  ss << "  ";
+  for (const int row_i : IndexRange(4)) {
+    const float4 &row = t_matrix[row_i];
+    /* Format floats with up to 2 decimal. */
+    ss << fmt::format("[{:.7}, {:.7}, {:.7}, {:.7}]",
+                      double_round(row[0], 2),
+                      double_round(row[1], 2),
+                      double_round(row[2], 2),
+                      double_round(row[3], 2));
+    if (row_i < 3) {
+      ss << ",  ";
+    }
+  }
+  return ss.str();
+}
 
 class SpreadsheetLayoutDrawer : public SpreadsheetDrawer {
  private:
@@ -403,21 +425,22 @@ class SpreadsheetLayoutDrawer : public SpreadsheetDrawer {
     }
   }
 
-  void draw_float4x4(const CellDrawParams &params, const float4x4 &value) const
+  void draw_float4x4(const CellDrawParams &params, const float4x4 &matrix) const
   {
     uiBut *but = uiDefIconTextBut(params.block,
                                   ButType::Label,
                                   0,
                                   ICON_NONE,
-                                  "...",
+                                  format_matrix_to_single_line(matrix),
                                   params.xmin,
                                   params.ymin,
                                   params.width,
                                   params.height,
                                   nullptr,
                                   std::nullopt);
-    /* Center alignment. */
-    UI_but_drawflag_disable(but, UI_BUT_TEXT_LEFT);
+    /* Left-align Matrix. */
+    UI_but_drawflag_disable(but, UI_BUT_TEXT_RIGHT);
+    UI_but_drawflag_enable(but, UI_BUT_TEXT_LEFT);
     UI_but_func_tooltip_set(
         but,
         [](bContext * /*C*/, void *argN, const StringRef /*tip*/) {
@@ -430,7 +453,7 @@ class SpreadsheetLayoutDrawer : public SpreadsheetDrawer {
           ss << value[3];
           return ss.str();
         },
-        MEM_dupallocN<float4x4>(__func__, value),
+        MEM_dupallocN<float4x4>(__func__, matrix),
         MEM_freeN);
   }
 
@@ -476,7 +499,12 @@ float ColumnValues::fit_column_values_width_px(const std::optional<int64_t> &max
       return 2.0f * SPREADSHEET_WIDTH_UNIT;
     }
     case SPREADSHEET_VALUE_TYPE_FLOAT4X4: {
-      return 2.0f * SPREADSHEET_WIDTH_UNIT;
+      return estimate_max_column_width<float4x4>(
+          get_min_width(12 * SPREADSHEET_WIDTH_UNIT),
+          fontid,
+          max_sample_size,
+          data_.typed<float4x4>(),
+          [](const float4x4 &value) { return format_matrix_to_single_line(value); });
     }
     case SPREADSHEET_VALUE_TYPE_INT8: {
       return estimate_max_column_width<int8_t>(
