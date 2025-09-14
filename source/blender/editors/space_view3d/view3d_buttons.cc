@@ -523,18 +523,18 @@ struct CurvesSelectionStatus {
   int resolution_sum = 0;
   int resolution_max = 0;
 
-  float aspect_ratio = 0.0f;
-  bool aspect_ratio_equal = true;
-  float softness = 0.0f;
-  bool softness_equal = true;
-  float u_scale = 0.0f;
-  bool u_scale_equal = true;
-  float fill_opacity = 0.0f;
-  bool fill_opacity_equal = true;
-  int end_cap = 0;
-  bool end_cap_equal = true;
-  int start_cap = 0;
-  bool start_cap_equal = true;
+  float aspect_ratio_sum = 0.0f;
+  float aspect_ratio_max = 0.0f;
+  float softness_sum = 0.0f;
+  float softness_max = 0.0f;
+  float u_scale_sum = 0.0f;
+  float u_scale_max = 0.0f;
+  float fill_opacity_sum = 0.0f;
+  float fill_opacity_max = 0.0f;
+  int end_cap_sum = 0;
+  int end_cap_max = 0;
+  int start_cap_sum = 0;
+  int start_cap_max = 0;
 
   static CurvesSelectionStatus sum(const CurvesSelectionStatus &a, const CurvesSelectionStatus &b)
   {
@@ -550,24 +550,18 @@ struct CurvesSelectionStatus {
         std::max(a.order_max, b.order_max),
         a.resolution_sum + b.resolution_sum,
         std::max(a.resolution_max, b.resolution_max),
-        a.aspect_ratio + b.aspect_ratio,
-        a.aspect_ratio_equal && b.aspect_ratio_equal &&
-            (a.aspect_ratio * b.curve_count == b.aspect_ratio * a.curve_count),
-        a.softness + b.softness,
-        a.softness_equal && b.softness_equal &&
-            (a.softness * b.curve_count == b.softness * a.curve_count),
-        a.u_scale + b.u_scale,
-        a.u_scale_equal && b.u_scale_equal &&
-            (a.u_scale * b.curve_count == b.u_scale * a.curve_count),
-        a.fill_opacity + b.fill_opacity,
-        a.fill_opacity_equal && b.fill_opacity_equal &&
-            (a.fill_opacity * b.curve_count == b.fill_opacity * a.curve_count),
-        a.end_cap + b.end_cap,
-        a.end_cap_equal && b.end_cap_equal &&
-            (a.end_cap * b.curve_count == b.end_cap * a.curve_count),
-        a.start_cap + b.start_cap,
-        a.start_cap_equal && b.start_cap_equal &&
-            (a.start_cap * b.curve_count == b.start_cap * a.curve_count),
+        a.aspect_ratio_sum + b.aspect_ratio_sum,
+        std::max(a.aspect_ratio_max, b.aspect_ratio_max),
+        a.softness_sum + b.softness_sum,
+        std::max(a.softness_max, b.softness_max),
+        a.u_scale_sum + b.u_scale_sum,
+        std::max(a.u_scale_max, b.u_scale_max),
+        a.fill_opacity_sum + b.fill_opacity_sum,
+        std::max(a.fill_opacity_max, b.fill_opacity_max),
+        a.end_cap_sum + b.end_cap_sum,
+        std::max(a.end_cap_max, b.end_cap_max),
+        a.start_cap_sum + b.start_cap_sum,
+        std::max(a.start_cap_max, b.start_cap_max),
     };
   }
 };
@@ -637,34 +631,28 @@ static CurvesSelectionStatus init_curves_selection_status(
           value.resolution_max = std::max(value.resolution_max, res);
 
           const float aspect = aspect_ratios[curve];
-          value.aspect_ratio += aspect;
-          value.aspect_ratio_equal = value.aspect_ratio_equal &&
-                                     (aspect * value.curve_count == value.aspect_ratio);
+          value.aspect_ratio_sum += aspect;
+          value.aspect_ratio_max = std::max(value.aspect_ratio_max, aspect);
 
           const float soft = softnesses[curve];
-          value.softness += soft;
-          value.softness_equal = value.softness_equal &&
-                                 (soft * value.curve_count == value.softness);
+          value.softness_sum += soft;
+          value.softness_max = std::max(value.softness_max, soft);
 
           const float u_scale = u_scales[curve];
-          value.u_scale += u_scale;
-          value.u_scale_equal = value.u_scale_equal &&
-                                (u_scale * value.curve_count == value.u_scale);
+          value.u_scale_sum += u_scale;
+          value.u_scale_max = std::max(value.u_scale_max, u_scale);
 
           const float fill_opacity = fill_opacities[curve];
-          value.fill_opacity += fill_opacity;
-          value.fill_opacity_equal = value.fill_opacity_equal &&
-                                     (fill_opacity * value.curve_count == value.fill_opacity);
+          value.fill_opacity_sum += fill_opacity;
+          value.fill_opacity_max = std::max(value.fill_opacity_max, fill_opacity);
 
-          const float end_cap = end_caps[curve];
-          value.end_cap += end_cap;
-          value.end_cap_equal = value.end_cap_equal &&
-                                (end_cap * value.curve_count == value.end_cap);
+          const int end_cap = end_caps[curve];
+          value.end_cap_sum += end_cap;
+          value.end_cap_max = std::max(value.end_cap_max, end_cap);
 
-          const float start_cap = start_caps[curve];
-          value.start_cap += start_cap;
-          value.start_cap_equal = value.start_cap_equal &&
-                                  (start_cap * value.curve_count == value.start_cap);
+          const int start_cap = start_caps[curve];
+          value.start_cap_sum += start_cap;
+          value.start_cap_max = std::max(value.start_cap_max, start_cap);
         });
         return value;
       },
@@ -2673,12 +2661,12 @@ static void view3d_panel_curve_data(const bContext *C, Panel *panel)
       math::safe_divide(status.nurbs_knot_mode_sum, status.nurbs_count));
   current.order = math::safe_divide(status.order_sum, status.nurbs_count);
   current.resolution = math::safe_divide(status.resolution_sum, status.curve_count);
-  current.aspect_ratio = math::safe_divide(status.aspect_ratio, float(status.curve_count));
-  current.softness = math::safe_divide(status.softness, float(status.curve_count));
-  current.u_scale = math::safe_divide(status.u_scale, float(status.curve_count));
-  current.fill_opacity = math::safe_divide(status.fill_opacity, float(status.curve_count));
-  current.end_cap = math::safe_divide(status.end_cap, status.curve_count);
-  current.start_cap = math::safe_divide(status.start_cap, status.curve_count);
+  current.aspect_ratio = math::safe_divide(status.aspect_ratio_sum, float(status.curve_count));
+  current.softness = math::safe_divide(status.softness_sum, float(status.curve_count));
+  current.u_scale = math::safe_divide(status.u_scale_sum, float(status.curve_count));
+  current.fill_opacity = math::safe_divide(status.fill_opacity_sum, float(status.curve_count));
+  current.end_cap = math::safe_divide(status.end_cap_sum, status.curve_count);
+  current.start_cap = math::safe_divide(status.start_cap_sum, status.curve_count);
 
   modified = current;
 
@@ -2701,6 +2689,10 @@ static void view3d_panel_curve_data(const bContext *C, Panel *panel)
           UI_but_drawflag_enable(but, UI_BUT_INDETERMINATE);
         }
       };
+
+  auto is_equal = [&](const float a, const float b, const float epsilon = 1e-5f) {
+    return math::abs(a - b) <= epsilon;
+  };
 
   const int butw = 10 * UI_UNIT_X;
   const int buth = 20 * UI_SCALE_FAC;
@@ -2755,71 +2747,103 @@ static void view3d_panel_curve_data(const bContext *C, Panel *panel)
   }
 
   if (ob->type == OB_GREASE_PENCIL) {
-    add_labeled_field("Aspect Ratio", status.aspect_ratio_equal, [&]() {
-      uiBut *but = uiDefButF(
-          block, ButType::Num, 0, "", 0, 0, butw, buth, &modified.aspect_ratio, 0.0f, 8.0f, "");
-      UI_but_number_step_size_set(but, 1);
-      UI_but_number_precision_set(but, 3);
-      UI_but_func_set(but, handle_curves_aspect_ratio, nullptr, nullptr);
-      return but;
-    });
+    add_labeled_field(
+        "Aspect Ratio",
+        is_equal(status.aspect_ratio_max * status.curve_count, status.aspect_ratio_sum),
+        [&]() {
+          uiBut *but = uiDefButF(block,
+                                 ButType::Num,
+                                 0,
+                                 "",
+                                 0,
+                                 0,
+                                 butw,
+                                 buth,
+                                 &modified.aspect_ratio,
+                                 0.0f,
+                                 1000.0f,
+                                 "");
+          UI_but_number_step_size_set(but, 1);
+          UI_but_number_precision_set(but, 3);
+          UI_but_func_set(but, handle_curves_aspect_ratio, nullptr, nullptr);
+          return but;
+        });
 
-    add_labeled_field("Softness", status.softness_equal, [&]() {
-      uiBut *but = uiDefButF(
-          block, ButType::Num, 0, "", 0, 0, butw, buth, &modified.softness, 0.0f, 1.0f, "");
-      UI_but_number_step_size_set(but, 1);
-      UI_but_number_precision_set(but, 3);
-      UI_but_func_set(but, handle_curves_softness, nullptr, nullptr);
-      return but;
-    });
+    add_labeled_field(
+        "Softness",
+        is_equal(status.softness_max * status.curve_count, status.softness_sum),
+        [&]() {
+          uiBut *but = uiDefButF(
+              block, ButType::Num, 0, "", 0, 0, butw, buth, &modified.softness, 0.0f, 1.0f, "");
+          UI_but_number_step_size_set(but, 1);
+          UI_but_number_precision_set(but, 3);
+          UI_but_func_set(but, handle_curves_softness, nullptr, nullptr);
+          return but;
+        });
 
-    add_labeled_field("U Scale", status.u_scale_equal, [&]() {
-      uiBut *but = uiDefButF(
-          block, ButType::Num, 0, "", 0, 0, butw, buth, &modified.u_scale, 0.0f, 1000.0f, "");
-      UI_but_number_step_size_set(but, 1);
-      UI_but_number_precision_set(but, 3);
-      UI_but_func_set(but, handle_curves_u_scale, nullptr, nullptr);
-      return but;
-    });
+    add_labeled_field(
+        "U Scale", is_equal(status.u_scale_max * status.curve_count, status.u_scale_sum), [&]() {
+          uiBut *but = uiDefButF(
+              block, ButType::Num, 0, "", 0, 0, butw, buth, &modified.u_scale, 0.0f, 1000.0f, "");
+          UI_but_number_step_size_set(but, 1);
+          UI_but_number_precision_set(but, 3);
+          UI_but_func_set(but, handle_curves_u_scale, nullptr, nullptr);
+          return but;
+        });
 
-    add_labeled_field("Fill Opacity", status.fill_opacity_equal, [&]() {
-      uiBut *but = uiDefButF(
-          block, ButType::Num, 0, "", 0, 0, butw, buth, &modified.fill_opacity, 0.0f, 1.0f, "");
-      UI_but_number_step_size_set(but, 1);
-      UI_but_number_precision_set(but, 3);
-      UI_but_func_set(but, handle_curves_fill_opacity, nullptr, nullptr);
-      return but;
-    });
+    add_labeled_field(
+        "Fill Opacity",
+        is_equal(status.fill_opacity_max * status.curve_count, status.fill_opacity_sum),
+        [&]() {
+          uiBut *but = uiDefButF(block,
+                                 ButType::Num,
+                                 0,
+                                 "",
+                                 0,
+                                 0,
+                                 butw,
+                                 buth,
+                                 &modified.fill_opacity,
+                                 0.0f,
+                                 1.0f,
+                                 "");
+          UI_but_number_step_size_set(but, 1);
+          UI_but_number_precision_set(but, 3);
+          UI_but_func_set(but, handle_curves_fill_opacity, nullptr, nullptr);
+          return but;
+        });
 
-    add_labeled_field("End Cap", status.end_cap_equal, [&]() {
-      uiBut *but = uiDefMenuBut(block,
-                                grease_pencil_cap_menu,
-                                &modified.end_cap,
-                                enum_grease_pencil_cap_items[modified.end_cap].name,
-                                0,
-                                0,
-                                butw,
-                                buth,
-                                "");
-      UI_but_type_set_menu_from_pulldown(but);
-      UI_but_func_set(but, handle_curves_end_cap, nullptr, nullptr);
-      return but;
-    });
+    add_labeled_field(
+        "End Cap", status.end_cap_max * status.curve_count == status.end_cap_sum, [&]() {
+          uiBut *but = uiDefMenuBut(block,
+                                    grease_pencil_cap_menu,
+                                    &modified.end_cap,
+                                    enum_grease_pencil_cap_items[modified.end_cap].name,
+                                    0,
+                                    0,
+                                    butw,
+                                    buth,
+                                    "");
+          UI_but_type_set_menu_from_pulldown(but);
+          UI_but_func_set(but, handle_curves_end_cap, nullptr, nullptr);
+          return but;
+        });
 
-    add_labeled_field("Start Cap", status.start_cap_equal, [&]() {
-      uiBut *but = uiDefMenuBut(block,
-                                grease_pencil_cap_menu,
-                                &modified.start_cap,
-                                enum_grease_pencil_cap_items[modified.start_cap].name,
-                                0,
-                                0,
-                                butw,
-                                buth,
-                                "");
-      UI_but_type_set_menu_from_pulldown(but);
-      UI_but_func_set(but, handle_curves_start_cap, nullptr, nullptr);
-      return but;
-    });
+    add_labeled_field(
+        "Start Cap", status.start_cap_max * status.curve_count == status.start_cap_sum, [&]() {
+          uiBut *but = uiDefMenuBut(block,
+                                    grease_pencil_cap_menu,
+                                    &modified.start_cap,
+                                    enum_grease_pencil_cap_items[modified.start_cap].name,
+                                    0,
+                                    0,
+                                    butw,
+                                    buth,
+                                    "");
+          UI_but_type_set_menu_from_pulldown(but);
+          UI_but_func_set(but, handle_curves_start_cap, nullptr, nullptr);
+          return but;
+        });
   }
 }
 
