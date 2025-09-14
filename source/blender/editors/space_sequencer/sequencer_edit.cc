@@ -2030,6 +2030,8 @@ static wmOperatorStatus sequencer_box_cut_exec(bContext *C, wmOperator *op)
   }
 
   /* Close gaps. */
+  VectorSet<Strip *> strips_translated;
+  VectorSet<Strip *> strips_connected;
   if (remove_gaps) {
     int offset = rect_frames[0] - rect_frames[1];
     /* Cap offset. */
@@ -2049,7 +2051,23 @@ static wmOperatorStatus sequencer_box_cut_exec(bContext *C, wmOperator *op)
                strip->channel >= int(rectf.ymin))
       {
         seq::transform_translate_strip(scene, strip, offset);
+        strips_translated.add(strip);
+        /* Also offset connected strips, this is important for the case that for example audio gets
+         * cut -> cut gets propageded to connected video -> audio on the same channel moves to the
+         * left to close the gap(video not). When not offsetting connected strips in this case the
+         * connected audio and video would not match anymore because the video stays in place and
+         * the audio gets offset. */
+        strips_connected.add_multiple(seq::connected_strips_get(strip));
       }
+    }
+    /* I don't offset and add the connected strips directly in the FOREACH above to the
+     * strips_translated for now because it lead to some bugs. Might investigate this later. */
+    for (Strip *strip : strips_connected) {
+      if (strips_translated.contains(strip)) {
+        continue;
+      }
+      /* TODO: This can lead to strips overlap, handle this in some way. */
+      seq::transform_translate_strip(scene, strip, offset);
     }
   }
   WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
