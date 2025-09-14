@@ -64,7 +64,7 @@ struct GWL_Window;
 
 class GHOST_WindowWayland : public GHOST_Window {
  public:
-  GHOST_TSuccess hasCursorShape(GHOST_TStandardCursor cursorShape) override;
+  GHOST_TSuccess hasCursorShape(GHOST_TStandardCursor cursor_shape) override;
 
   GHOST_WindowWayland(GHOST_SystemWayland *system,
                       const char *title,
@@ -73,7 +73,7 @@ class GHOST_WindowWayland : public GHOST_Window {
                       uint32_t width,
                       uint32_t height,
                       GHOST_TWindowState state,
-                      const GHOST_IWindow *parentWindow,
+                      const GHOST_IWindow *parent_window,
                       GHOST_TDrawingContextType type,
                       const bool is_dialog,
                       const GHOST_ContextParams &context_params,
@@ -85,7 +85,7 @@ class GHOST_WindowWayland : public GHOST_Window {
   /* Ghost API */
 
 #ifdef USE_EVENT_BACKGROUND_THREAD
-  GHOST_TSuccess swapBuffers() override; /* Only for assertion. */
+  GHOST_TSuccess swapBufferRelease() override; /* Only for assertion. */
 #endif
 
   uint16_t getDPIHint() override;

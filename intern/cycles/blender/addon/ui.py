@@ -375,6 +375,7 @@ class CYCLES_RENDER_PT_sampling_path_guiding(CyclesButtonsPanel, Panel):
         cscene = scene.cycles
 
         layout = self.layout
+
         layout.use_property_split = True
         layout.use_property_decorate = False
         layout.active = cscene.use_guiding
@@ -384,6 +385,24 @@ class CYCLES_RENDER_PT_sampling_path_guiding(CyclesButtonsPanel, Panel):
         col = layout.column(align=True)
         col.prop(cscene, "use_surface_guiding", text="Surface")
         col.prop(cscene, "use_volume_guiding", text="Volume", text_ctxt=i18n_contexts.id_id)
+
+        if cscene.use_guiding:
+            # Calculation matches TileManager::compute_render_tile_size and
+            # Session::get_effective_tile_size
+            if cscene.tile_size < 128:
+                tile_size = cscene.tile_size
+            else:
+                tile_size = (cscene.tile_size + 128 - 1) & ~(128 - 1)
+                tile_size = min(tile_size, 8192)
+            tile_area = tile_size ** 2
+
+            render_scale = scene.render.resolution_percentage / 100.0
+            render_size_x = int(scene.render.resolution_x * render_scale)
+            render_size_y = int(scene.render.resolution_y * render_scale)
+            render_area = render_size_x * render_size_y
+
+            if render_area > tile_area and render_size_x <= 8192 and render_size_y <= 8192:
+                layout.label(text="May work poorly with render tiling", icon='INFO')
 
 
 class CYCLES_RENDER_PT_sampling_path_guiding_debug(CyclesDebugButtonsPanel, Panel):
@@ -855,11 +874,7 @@ class CYCLES_RENDER_PT_performance_memory(CyclesButtonsPanel, Panel):
         scene = context.scene
         cscene = scene.cycles
 
-        col = layout.column()
-        col.prop(cscene, "use_auto_tile")
-        sub = col.column()
-        sub.active = cscene.use_auto_tile
-        sub.prop(cscene, "tile_size")
+        layout.prop(cscene, "tile_size")
 
 
 class CYCLES_RENDER_PT_performance_acceleration_structure(CyclesButtonsPanel, Panel):
@@ -1639,7 +1654,7 @@ class CYCLES_LIGHT_PT_beam_shape(CyclesButtonsPanel, Panel):
 
         col = layout.column()
         if light.type == 'SPOT':
-            col.prop(light, "spot_size", text="Spot Size")
+            col.prop(light, "spot_size", text="Angle")
             col.prop(light, "spot_blend", text="Blend", slider=True)
             col.prop(light, "show_cone")
         elif light.type == 'AREA':
@@ -2012,19 +2027,18 @@ class CYCLES_RENDER_PT_bake(CyclesButtonsPanel, Panel):
         scene = context.scene
         cscene = scene.cycles
         cbk = scene.render.bake
-        rd = scene.render
 
-        if rd.use_bake_multires:
+        if cbk.use_multires:
             layout.operator("object.bake_image", icon='RENDER_STILL')
-            layout.prop(rd, "use_bake_multires")
-            layout.prop(rd, "bake_type")
+            layout.prop(cbk, "use_multires")
+            layout.prop(cbk, "type")
 
         else:
             layout.operator("object.bake", icon='RENDER_STILL').type = cscene.bake_type
-            layout.prop(rd, "use_bake_multires")
+            layout.prop(cbk, "use_multires")
             layout.prop(cscene, "bake_type")
 
-        if not rd.use_bake_multires and cscene.bake_type not in {
+        if not scene.render.bake.use_multires and cscene.bake_type not in {
                 "AO", "POSITION", "NORMAL", "UV", "ROUGHNESS", "ENVIRONMENT"}:
             row = layout.row()
             row.prop(cbk, "view_from")
@@ -2042,7 +2056,7 @@ class CYCLES_RENDER_PT_bake_influence(CyclesButtonsPanel, Panel):
         scene = context.scene
         cscene = scene.cycles
         rd = scene.render
-        if rd.use_bake_multires == False and cscene.bake_type in {
+        if scene.render.bake.use_multires == False and cscene.bake_type in {
                 'NORMAL', 'COMBINED', 'DIFFUSE', 'GLOSSY', 'TRANSMISSION'}:
             return True
 
@@ -2097,7 +2111,7 @@ class CYCLES_RENDER_PT_bake_selected_to_active(CyclesButtonsPanel, Panel):
     def poll(cls, context):
         scene = context.scene
         rd = scene.render
-        return rd.use_bake_multires == False
+        return rd.bake.use_multires == False
 
     def draw_header(self, context):
         scene = context.scene
@@ -2142,14 +2156,14 @@ class CYCLES_RENDER_PT_bake_output(CyclesButtonsPanel, Panel):
         layout.use_property_decorate = False  # No animation.
 
         scene = context.scene
-        cscene = scene.cycles
         cbk = scene.render.bake
-        rd = scene.render
 
-        if rd.use_bake_multires:
-            layout.prop(rd, "use_bake_clear", text="Clear Image")
-            if rd.bake_type == 'DISPLACEMENT':
-                layout.prop(rd, "use_bake_lores_mesh")
+        if cbk.use_multires:
+            layout.prop(cbk, "use_clear", text="Clear Image")
+            if cbk.type in {'DISPLACEMENT', 'VECTOR_DISPLACEMENT'}:
+                layout.prop(cbk, "use_lores_mesh")
+            if cbk.type == 'VECTOR_DISPLACEMENT':
+                layout.prop(cbk, "displacement_space", text="Space")
         else:
             layout.prop(cbk, "target")
             if cbk.target == 'IMAGE_TEXTURES':
@@ -2176,22 +2190,14 @@ class CYCLES_RENDER_PT_bake_output_margin(CyclesButtonsPanel, Panel):
         scene = context.scene
         cscene = scene.cycles
         cbk = scene.render.bake
-        rd = scene.render
 
         if (cscene.bake_type == 'NORMAL' and cbk.normal_space == 'TANGENT') or cscene.bake_type == 'UV':
-            if rd.use_bake_multires:
-                layout.prop(rd, "bake_margin", text="Size")
-            else:
-                if cbk.target == 'IMAGE_TEXTURES':
-                    layout.prop(cbk, "margin", text="Size")
+            if cbk.use_multires or cbk.target == 'IMAGE_TEXTURES':
+                layout.prop(cbk, "margin", text="Size")
         else:
-            if rd.use_bake_multires:
-                layout.prop(rd, "bake_margin_type", text="Type")
-                layout.prop(rd, "bake_margin", text="Size")
-            else:
-                if cbk.target == 'IMAGE_TEXTURES':
-                    layout.prop(cbk, "margin_type", text="Type")
-                    layout.prop(cbk, "margin", text="Size")
+            if cbk.use_multires or cbk.target == 'IMAGE_TEXTURES':
+                layout.prop(cbk, "margin_type", text="Type")
+                layout.prop(cbk, "margin", text="Size")
 
 
 class CYCLES_RENDER_PT_debug(CyclesDebugButtonsPanel, Panel):

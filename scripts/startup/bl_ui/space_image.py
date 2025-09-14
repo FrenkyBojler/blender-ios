@@ -39,7 +39,7 @@ from bpy.app.translations import (
 )
 
 
-class ImagePaintPanel:
+class ImagePaintPanel(UnifiedPaintPanel):
     bl_space_type = 'IMAGE_EDITOR'
     bl_region_type = 'UI'
 
@@ -352,7 +352,7 @@ class IMAGE_MT_uvs_mirror(Menu):
     def draw(self, _context):
         layout = self.layout
 
-        layout.operator("mesh.faces_mirror_uv")
+        layout.operator("uv.copy_mirrored_faces")
 
         layout.separator()
 
@@ -470,6 +470,11 @@ class IMAGE_MT_uvs(Menu):
         layout.operator("uv.pack_islands")
         layout.operator_context = 'EXEC_REGION_WIN'
         layout.operator("uv.average_islands_scale")
+        layout.operator("uv.arrange_islands")
+        layout.operator_context = 'INVOKE_REGION_WIN'
+        layout.operator("uv.custom_region_set")
+        layout.operator_context = 'EXEC_REGION_WIN'
+        layout.prop(context.tool_settings, "use_uv_custom_region", text="Custom Region", toggle=True)
 
         layout.separator()
 
@@ -1242,13 +1247,18 @@ class IMAGE_PT_paint_settings(Panel, ImagePaintPanel):
     bl_category = "Tool"
     bl_label = "Brush Settings"
 
+    @classmethod
+    def poll(cls, context):
+        settings = cls.paint_settings(context)
+        return settings and settings.brush is not None
+
     def draw(self, context):
         layout = self.layout
 
         layout.use_property_split = True
         layout.use_property_decorate = False
 
-        settings = context.tool_settings.image_paint
+        settings = self.paint_settings(context)
         brush = settings.brush
 
         if brush:
@@ -1262,13 +1272,18 @@ class IMAGE_PT_paint_settings_advanced(Panel, ImagePaintPanel):
     bl_label = "Advanced"
     bl_ui_units_x = 12
 
+    @classmethod
+    def poll(cls, context):
+        settings = cls.paint_settings(context)
+        return settings and settings.brush is not None
+
     def draw(self, context):
         layout = self.layout
 
         layout.use_property_split = True
         layout.use_property_decorate = False  # No animation.
 
-        settings = context.tool_settings.image_paint
+        settings = self.paint_settings(context)
         brush = settings.brush
         if brush:
             brush_settings_advanced(layout.column(), context, settings, brush, self.is_popover)
