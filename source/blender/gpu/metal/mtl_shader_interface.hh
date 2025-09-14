@@ -126,7 +126,7 @@ struct MTLShaderUniform {
   /* Index of `MTLShaderBufferBlock` this uniform belongs to. */
   uint32_t size_in_bytes;
   uint32_t byte_offset;
-  MTLDataType type;
+  MTLInterfaceDataType type;
   uint32_t array_len;
 };
 
@@ -159,7 +159,7 @@ struct MTLShaderSampler {
 };
 
 /* Utility Functions. */
-MTLVertexFormat mtl_datatype_to_vertex_type(MTLDataType type);
+MTLVertexFormat mtl_datatype_to_vertex_type(MTLInterfaceDataType type);
 
 /**
  * Implementation of Shader interface for Metal Back-end.
@@ -239,7 +239,7 @@ class MTLShaderInterface : public ShaderInterface {
                              uint32_t location,
                              uint32_t size,
                              ShaderStage stage_mask = ShaderStage::ANY);
-  void add_uniform(uint32_t name_offset, MTLDataType type, int array_len = 1);
+  void add_uniform(uint32_t name_offset, MTLInterfaceDataType type, int array_len = 1);
   void add_texture(uint32_t name_offset,
                    uint32_t texture_slot,
                    uint32_t location,
