@@ -2415,6 +2415,8 @@ enum eLightOrbitAroundTargetModal {
   LIGHT_ORBIT_AROUND_TARGET_MODAL_DISTANCE_LOCK,  /* Z key - distance lock. */
   LIGHT_ORBIT_AROUND_TARGET_MODAL_INVERT,         /* I key - 180° rotation around local Y. */
   LIGHT_ORBIT_AROUND_TARGET_MODAL_SYMMETRY,       /* S key - symmetry around intersection point. */
+  LIGHT_ORBIT_AROUND_TARGET_MODAL_PRECISION_ENABLE,  /* Left Shift - enable precision mode. */
+  LIGHT_ORBIT_AROUND_TARGET_MODAL_PRECISION_DISABLE, /* Left Shift release - disable precision mode. */
 };
 
 struct LightOrbitAroundTargetData {
@@ -2426,6 +2428,11 @@ struct LightOrbitAroundTargetData {
   bool has_center = false;
   int init_event = 0;
   eLightAxisLock axis_lock = eLightAxisLock(0); /* Current axis constraint mode. */
+  
+  /* Precision mode support */
+  bool precision_mode = false;
+  float precision_factor = 0.1f;
+  blender::float2 precision_toggle_mval{0.0f}; /* Mouse position when precision mode was toggled */
   
   /* Navigation support */
   ViewOpsData *vod = nullptr;
@@ -2473,6 +2480,8 @@ static void light_orbit_around_target_update_status(bContext *C, wmOperator *op,
   WorkspaceStatus status(C);
   status.opmodal(IFACE_("Cancel"), op->type, LIGHT_ORBIT_AROUND_TARGET_MODAL_CANCEL);
   status.opmodal(IFACE_("Confirm"), op->type, LIGHT_ORBIT_AROUND_TARGET_MODAL_CONFIRM);
+  status.opmodal(IFACE_("Precision Mode"), op->type, LIGHT_ORBIT_AROUND_TARGET_MODAL_PRECISION_ENABLE,
+                 lead->precision_mode);
 
   status.opmodal(IFACE_("Horizontal Lock"), op->type, LIGHT_ORBIT_AROUND_TARGET_MODAL_AZIMUTH_LOCK,
                  lead->axis_lock == LIGHT_AXIS_LOCK_AZIMUTH);
@@ -2645,6 +2654,8 @@ void light_orbit_around_target_modal_keymap(wmKeyConfig *keyconf)
     {LIGHT_ORBIT_AROUND_TARGET_MODAL_DISTANCE_LOCK, "DISTANCE_LOCK", 0, "Distance Lock", ""},
     {LIGHT_ORBIT_AROUND_TARGET_MODAL_INVERT, "INVERT", 0, "Invert Direction", ""},
     {LIGHT_ORBIT_AROUND_TARGET_MODAL_SYMMETRY, "SYMMETRY", 0, "Symmetry", ""},
+    {LIGHT_ORBIT_AROUND_TARGET_MODAL_PRECISION_ENABLE, "PRECISION_ENABLE", 0, "Precision On", ""},
+    {LIGHT_ORBIT_AROUND_TARGET_MODAL_PRECISION_DISABLE, "PRECISION_DISABLE", 0, "Precision Off", ""},
     {0, nullptr, 0, nullptr, nullptr},
   };
 
@@ -2793,8 +2804,12 @@ static wmOperatorStatus light_orbit_around_target_modal(bContext *C, wmOperator 
       float delta_y = float(event->mval[1]) - loatd->current_mval[1];
       
       /* Convert mouse movement to azimuth and elevation. */
-      float azimuth_delta = delta_x * 0.01f;
-      float elevation_delta = delta_y * 0.01f;
+      float sensitivity = 0.01f;
+      if (loatd->precision_mode) {
+        sensitivity *= loatd->precision_factor;
+      }
+      float azimuth_delta = delta_x * sensitivity;
+      float elevation_delta = delta_y * sensitivity;
       
       /* Apply axis locking. */
       if (loatd->axis_lock == LIGHT_AXIS_LOCK_AZIMUTH) {
@@ -2811,7 +2826,11 @@ static wmOperatorStatus light_orbit_around_target_modal(bContext *C, wmOperator 
       for (LightOrbitAroundTargetData::LightData &light : loatd->lights) {
         if (loatd->axis_lock == LIGHT_AXIS_LOCK_DISTANCE) {
           /* Distance mode: only change distance, keep direction. */
-          float distance_delta = delta_y * 0.1f; /* Vertical mouse movement controls distance. */
+          float sensitivity = 0.1f;
+          if (loatd->precision_mode) {
+            sensitivity *= loatd->precision_factor;
+          }
+          float distance_delta = delta_y * sensitivity; /* Vertical mouse movement controls distance. */
           light.current_distance += distance_delta;
           /* Allow negative distances for traversing intersection point. */
         }
@@ -3025,6 +3044,33 @@ static wmOperatorStatus light_orbit_around_target_modal(bContext *C, wmOperator 
         /* Update status text. */
         light_orbit_around_target_update_status(C, op, loatd);
         ED_region_tag_redraw(loatd->vc.region);
+        return OPERATOR_RUNNING_MODAL;
+      }
+      
+      case LIGHT_ORBIT_AROUND_TARGET_MODAL_PRECISION_ENABLE: {
+        /* Enable precision mode. */
+        if (!loatd->precision_mode) {
+          loatd->precision_mode = true;
+          loatd->precision_toggle_mval[0] = float(event->mval[0]);
+          loatd->precision_toggle_mval[1] = float(event->mval[1]);
+          /* Update status text. */
+          light_orbit_around_target_update_status(C, op, loatd);
+          ED_region_tag_redraw(loatd->vc.region);
+        }
+        return OPERATOR_RUNNING_MODAL;
+      }
+      
+      case LIGHT_ORBIT_AROUND_TARGET_MODAL_PRECISION_DISABLE: {
+        /* Disable precision mode. */
+        if (loatd->precision_mode) {
+          loatd->precision_mode = false;
+          /* Update reference point to current mouse position for smooth transition. */
+          loatd->current_mval[0] = float(event->mval[0]);
+          loatd->current_mval[1] = float(event->mval[1]);
+          /* Update status text. */
+          light_orbit_around_target_update_status(C, op, loatd);
+          ED_region_tag_redraw(loatd->vc.region);
+        }
         return OPERATOR_RUNNING_MODAL;
       }
     }
