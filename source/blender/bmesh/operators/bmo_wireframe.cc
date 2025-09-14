@@ -26,6 +26,8 @@ void bmo_wireframe_exec(BMesh *bm, BMOperator *op)
   const bool use_relative_offset = BMO_slot_bool_get(op->slots_in, "use_relative_offset");
   const bool use_crease = BMO_slot_bool_get(op->slots_in, "use_crease");
   const float crease_weight = BMO_slot_float_get(op->slots_in, "crease_weight");
+  int segments = BMO_slot_int_get(op->slots_in, "segments");
+  segments = std::max(0, segments);
 
   BM_mesh_elem_hflag_disable_all(bm, BM_EDGE | BM_FACE, BM_ELEM_TAG, false);
   BMO_slot_buffer_hflag_enable(bm, op->slots_in, "faces", BM_FACE, BM_ELEM_TAG, false);
@@ -45,7 +47,8 @@ void bmo_wireframe_exec(BMesh *bm, BMOperator *op)
                     false,
                     0,
                     MAXMAT,
-                    true);
+                    true,
+                    segments);
 
   BMO_slot_buffer_from_enabled_hflag(bm, op, op->slots_out, "faces.out", BM_FACE, BM_ELEM_TAG);
 }

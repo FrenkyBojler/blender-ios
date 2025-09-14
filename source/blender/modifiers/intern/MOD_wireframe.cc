@@ -85,7 +85,8 @@ static Mesh *WireframeModifier_do(WireframeModifierData *wmd, Object *ob, Mesh *
                     (wmd->flag & MOD_WIREFRAME_INVERT_VGROUP) != 0,
                     wmd->mat_ofs,
                     std::max(ob->totcol - 1, 0),
-                    false);
+                    false,
+                    wmd->segments);
 
   result = BKE_mesh_from_bmesh_for_eval_nomain(bm, nullptr, mesh);
   BM_mesh_free(bm);
@@ -107,6 +108,9 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, &ob_ptr);
 
   layout->use_property_split_set(true);
+
+  layout->prop(ptr, "resolution", UI_ITEM_NONE, IFACE_("Segments"), ICON_NONE);
+
 
   layout->prop(ptr, "thickness", UI_ITEM_NONE, IFACE_("Thickness"), ICON_NONE);
   layout->prop(ptr, "offset", UI_ITEM_NONE, std::nullopt, ICON_NONE);

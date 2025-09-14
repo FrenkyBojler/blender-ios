@@ -32,4 +32,5 @@ void BM_mesh_wireframe(BMesh *bm,
                        bool defgrp_invert,
                        short mat_offset,
                        int mat_max,
-                       bool use_tag);
+                       bool use_tag,
+                       int segments);
