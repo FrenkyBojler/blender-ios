@@ -8,7 +8,7 @@
 
 #include "GEO_mesh_primitive_cuboid.hh"
 
-#include "sculpt_intern.hh"
+#include "sculpt_undo.hh"
 
 #include "testing/testing.h"
 
