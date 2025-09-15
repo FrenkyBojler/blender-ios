@@ -411,23 +411,21 @@ struct PositionUndoStorage : NonMovable {
 
     Array<Array<std::byte>> compressed_indices(nodes.size(), NoInitialization());
     Array<Array<std::byte>> compressed_data(nodes.size(), NoInitialization());
+    struct CompressLocalData {
+      Vector<std::byte> filtered;
+      Vector<std::byte> compressed;
+    };
     threading::isolate_task([&]() {
-      struct LocalData {
-        Vector<std::byte> filter_buffer;
-        Vector<std::byte> compress_buffer;
-      };
-      threading::EnumerableThreadSpecific<LocalData> all_tls;
+      threading::EnumerableThreadSpecific<CompressLocalData> all_tls;
       threading::parallel_for(IndexRange(nodes_num), 1, [&](const IndexRange range) {
-        LocalData &local_data = all_tls.local();
+        CompressLocalData &local_data = all_tls.local();
         for (const int i : range) {
           const Span<int> indices = data->multires_undo ? nodes[i]->grids : nodes[i]->vert_indices;
           const Span<float3> positions = nodes[i]->position;
-          compression::filter_compress(
-              indices, local_data.filter_buffer, local_data.compress_buffer);
-          new (&compressed_indices[i]) Array<std::byte>(local_data.compress_buffer.as_span());
-          compression::filter_compress(
-              positions, local_data.filter_buffer, local_data.compress_buffer);
-          new (&compressed_data[i]) Array<std::byte>(local_data.compress_buffer.as_span());
+          compression::filter_compress(indices, local_data.filtered, local_data.compressed);
+          new (&compressed_indices[i]) Array<std::byte>(local_data.compressed.as_span());
+          compression::filter_compress(positions, local_data.filtered, local_data.compressed);
+          new (&compressed_data[i]) Array<std::byte>(local_data.compressed.as_span());
           nodes[i].reset();
         }
       });

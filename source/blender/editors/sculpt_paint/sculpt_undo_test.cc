@@ -2,6 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BKE_idtype.hh"
 #include "BKE_lib_id.hh"
 
 #include "DNA_mesh_types.h"
@@ -10,14 +11,41 @@
 
 #include "sculpt_undo.hh"
 
+#include "CLG_log.h"
+
 #include "testing/testing.h"
 
 namespace blender::ed::sculpt_paint::undo::tests {
 
-TEST(sculpt_undo, CompressRoundTrip)
+class SculptUndoTest : public testing::Test {
+ public:
+  Mesh *cube_mesh;
+
+  static void SetUpTestSuite()
+  {
+    CLG_init();
+    BKE_idtype_init();
+  }
+
+  static void TearDownTestSuite()
+  {
+    CLG_exit();
+  }
+
+  void SetUp() override
+  {
+    cube_mesh = geometry::create_cuboid_mesh(float3(1, 1, 1), 50, 50, 50);
+  }
+
+  void TearDown() override
+  {
+    BKE_id_free(nullptr, cube_mesh);
+  }
+};
+
+TEST_F(SculptUndoTest, CompressRoundTrip)
 {
-  Mesh *mesh = geometry::create_cuboid_mesh(float3(1, 1, 1), 50, 50, 50);
-  BLI_SCOPED_DEFER([&]() { BKE_id_free(nullptr, mesh); });
+  Mesh *mesh = this->cube_mesh;
 
   Vector<std::byte> buffer;
   Vector<std::byte> compressed;
