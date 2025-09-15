@@ -27,6 +27,7 @@ static void propagate_vert_attributes(Mesh &mesh, const Span<int> new_to_old_ver
   CustomData_realloc(
       &mesh.vert_data, mesh.verts_num, mesh.verts_num + new_to_old_verts_map.size());
   mesh.verts_num += new_to_old_verts_map.size();
+  mesh.attribute_storage.wrap().resize(bke::AttrDomain::Point, mesh.verts_num);
 
   bke::MutableAttributeAccessor attributes = mesh.attributes_for_write();
   for (const StringRef id : attributes.all_ids()) {

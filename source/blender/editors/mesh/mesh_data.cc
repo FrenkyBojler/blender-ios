@@ -13,6 +13,7 @@
 
 #include "BLI_array.hh"
 #include "BLI_math_constants.h"
+#include "BLI_string.h"
 
 #include "BKE_attribute.hh"
 #include "BKE_context.hh"
@@ -174,12 +175,13 @@ static void mesh_uv_reset_mface(const blender::IndexRange face, float2 *uv_map)
   mesh_uv_reset_array(fuv.data(), face.size());
 }
 
-void ED_mesh_uv_loop_reset_ex(Mesh *mesh, const int layernum)
+static void mesh_uv_loop_reset_ex(Mesh *mesh, const StringRef name)
 {
+  using namespace blender;
   if (BMEditMesh *em = mesh->runtime->edit_mesh.get()) {
     /* Collect BMesh UVs */
-    const int cd_loop_uv_offset = CustomData_get_n_offset(
-        &em->bm->ldata, CD_PROP_FLOAT2, layernum);
+    const int cd_loop_uv_offset = CustomData_get_offset_named(
+        &em->bm->ldata, CD_PROP_FLOAT2, name);
 
     BMFace *efa;
     BMIter iter;
@@ -196,14 +198,15 @@ void ED_mesh_uv_loop_reset_ex(Mesh *mesh, const int layernum)
   }
   else {
     /* Collect Mesh UVs */
-    BLI_assert(CustomData_has_layer(&mesh->corner_data, CD_PROP_FLOAT2));
-    float2 *uv_map = static_cast<float2 *>(CustomData_get_layer_n_for_write(
-        &mesh->corner_data, CD_PROP_FLOAT2, layernum, mesh->corners_num));
+    bke::MutableAttributeAccessor attributes = mesh->attributes_for_write();
+    bke::SpanAttributeWriter<float2> uv_map = attributes.lookup_or_add_for_write_span<float2>(
+        name, bke::AttrDomain::Corner);
 
     const blender::OffsetIndices polys = mesh->faces();
     for (const int i : polys.index_range()) {
-      mesh_uv_reset_mface(polys[i], uv_map);
+      mesh_uv_reset_mface(polys[i], uv_map.span.data());
     }
+    uv_map.finish();
   }
 
   DEG_id_tag_update(&mesh->id, 0);
@@ -211,10 +214,7 @@ void ED_mesh_uv_loop_reset_ex(Mesh *mesh, const int layernum)
 
 void ED_mesh_uv_loop_reset(bContext *C, Mesh *mesh)
 {
-  /* could be ldata or pdata */
-  CustomData *ldata = mesh_customdata_get_type(mesh, BM_LOOP, nullptr);
-  const int layernum = CustomData_get_active_layer(ldata, CD_PROP_FLOAT2);
-  ED_mesh_uv_loop_reset_ex(mesh, layernum);
+  mesh_uv_loop_reset_ex(mesh, mesh->active_uv_map_attribute);
 
   WM_event_add_notifier(C, NC_GEOM | ND_DATA, mesh);
 }
@@ -222,6 +222,7 @@ void ED_mesh_uv_loop_reset(bContext *C, Mesh *mesh)
 int ED_mesh_uv_add(
     Mesh *mesh, const char *name, const bool active_set, const bool do_init, ReportList *reports)
 {
+  using namespace blender;
   /* NOTE: keep in sync with #ED_mesh_color_add. */
 
   int layernum_dst;
@@ -255,38 +256,35 @@ int ED_mesh_uv_add(
     }
   }
   else {
-    // TODO_MESH_ATTR
-    layernum_dst = CustomData_number_of_layers(&mesh->corner_data, CD_PROP_FLOAT2);
+    bke::MutableAttributeAccessor attributes = mesh->attributes_for_write();
+    layernum_dst = mesh->uv_map_names().size();
     if (layernum_dst >= MAX_MTFACE) {
       BKE_reportf(reports, RPT_WARNING, "Cannot add more than %i UV maps", MAX_MTFACE);
       return -1;
     }
 
-    if (CustomData_has_layer(&mesh->corner_data, CD_PROP_FLOAT2) && do_init) {
-      CustomData_add_layer_named_with_data(
-          &mesh->corner_data,
-          CD_PROP_FLOAT2,
-          MEM_dupallocN(CustomData_get_layer(&mesh->corner_data, CD_PROP_FLOAT2)),
-          mesh->corners_num,
-          unique_name,
-          nullptr);
+    if (mesh->active_uv_map_attribute && do_init) {
+      const VArray<float2> active_uv_map = *attributes.lookup_or_default<float2>(
+          mesh->active_uv_map_attribute, bke::AttrDomain::Corner, float2(0));
+      attributes.add<float2>(
+          unique_name, bke::AttrDomain::Corner, bke::AttributeInitVArray(active_uv_map));
 
       is_init = true;
     }
     else {
-      CustomData_add_layer_named(
-          &mesh->corner_data, CD_PROP_FLOAT2, CD_SET_DEFAULT, mesh->corners_num, unique_name);
+      attributes.add<float2>(
+          unique_name, bke::AttrDomain::Corner, bke::AttributeInitDefaultValue());
     }
 
     if (active_set || layernum_dst == 0) {
-      // TODO_MESH_ATTR
-      CustomData_set_layer_active(&mesh->corner_data, CD_PROP_FLOAT2, layernum_dst);
+      MEM_SAFE_FREE(mesh->active_uv_map_attribute);
+      mesh->active_uv_map_attribute = BLI_strdup(unique_name.c_str());
     }
   }
 
   /* don't overwrite our copied coords */
   if (!is_init && do_init) {
-    ED_mesh_uv_loop_reset_ex(mesh, layernum_dst);
+    mesh_uv_loop_reset_ex(mesh, unique_name);
   }
 
   DEG_id_tag_update(&mesh->id, 0);
