@@ -96,10 +96,10 @@ namespace blender::ed::object {
  * Applies precision factor to mouse movement delta from precision toggle position.
  */
 static void precision_mode_mouse_pos(bool precision_mode,
-                                          float precision_factor,
-                                          const int current_mval[2],
-                                          const int precision_toggle_mval[2],
-                                          int effective_mval[2])
+                                     float precision_factor,
+                                     const int current_mval[2],
+                                     const int precision_toggle_mval[2],
+                                     int effective_mval[2])
 {
   if (precision_mode) {
     /* Apply precision factor to mouse movement delta from when precision was enabled */
@@ -121,9 +121,9 @@ static void precision_mode_mouse_pos(bool precision_mode,
  * Used by light positioning operators and transform axis target.
  */
 static bool get_smoothed_surface_normal(const ViewContext *vc,
-                                      const ViewDepths *depths,
-                                      const int mval[2],
-                                      float normal[3])
+                                        const ViewDepths *depths,
+                                        const int mval[2],
+                                        float normal[3])
 {
   if (!depths) {
     return false;
@@ -178,16 +178,15 @@ static void autokeyframe_object_rotation(bContext *C, Scene *scene, Object *ob)
  * Uses legacy vector functions for consistency with existing codebase.
  */
 static void position_light_along(const float normal[3],
-                                       const float location_world[3],
-                                       float offset_distance,
-                                       float direction[3],
-                                       float final_normal[3])
+                                 const float location_world[3],
+                                 float offset_distance,
+                                 float direction[3],
+                                 float final_normal[3])
 {
   copy_v3_v3(final_normal, normal);
   copy_v3_v3(direction, location_world);
   madd_v3_v3fl(direction, final_normal, offset_distance);
 }
-
 
 /* -------------------------------------------------------------------- */
 /** \name Clear Transformation Utilities
@@ -2023,7 +2022,7 @@ void OBJECT_OT_origin_set(wmOperatorType *ot)
 
 /* -------------------------------------------------------------------- */
 /** \name Normals Modal Keymap
-* \{ */
+ * \{ */
 
 enum {
   TGT_MODAL_CONFIRM = 1,
@@ -2041,17 +2040,33 @@ enum {
 void target_modal_keymap(wmKeyConfig *keyconf)
 {
   static const EnumPropertyItem modal_items[] = {
-  {TGT_MODAL_CONFIRM, "CONFIRM", 0, "Confirm", ""},
-  {TGT_MODAL_CANCEL, "CANCEL", 0, "Cancel", ""},
-  {TGT_MODAL_DIFFUSE_ENABLE, "DIFFUSE_ENABLE", 0, "Diffuse Mode", "Position light depending on the object's normals"},
-  {TGT_MODAL_DIFFUSE_DISABLE, "DIFFUSE_DISABLE", 0, "Diffuse Mode (Off)", ""},
-  {TGT_MODAL_SPECULAR_ENABLE, "SPECULAR_ENABLE", 0, "Specular Mode", "Position light depending on the specular reflection"},
-  {TGT_MODAL_SPECULAR_DISABLE, "SPECULAR_DISABLE", 0, "Specular Mode (Off)", ""},
-  {TGT_MODAL_SHADOW_ENABLE, "SHADOW_ENABLE", 0, "Shadow Mode", "Position light depending on the shadow target"},
-  {TGT_MODAL_SHADOW_DISABLE, "SHADOW_DISABLE", 0, "Shadow Mode (Off)", ""},
-  {TGT_MODAL_PRECISION_ENABLE, "PRECISION_ENABLE", 0, "Precision Mode", "Position lights more precisly"},
-  {TGT_MODAL_PRECISION_DISABLE, "PRECISION_DISABLE", 0, "Precision Mode (Off)", ""},
-  {0, nullptr, 0, nullptr, nullptr},
+      {TGT_MODAL_CONFIRM, "CONFIRM", 0, "Confirm", ""},
+      {TGT_MODAL_CANCEL, "CANCEL", 0, "Cancel", ""},
+      {TGT_MODAL_DIFFUSE_ENABLE,
+       "DIFFUSE_ENABLE",
+       0,
+       "Diffuse Mode",
+       "Position light depending on the object's normals"},
+      {TGT_MODAL_DIFFUSE_DISABLE, "DIFFUSE_DISABLE", 0, "Diffuse Mode (Off)", ""},
+      {TGT_MODAL_SPECULAR_ENABLE,
+       "SPECULAR_ENABLE",
+       0,
+       "Specular Mode",
+       "Position light depending on the specular reflection"},
+      {TGT_MODAL_SPECULAR_DISABLE, "SPECULAR_DISABLE", 0, "Specular Mode (Off)", ""},
+      {TGT_MODAL_SHADOW_ENABLE,
+       "SHADOW_ENABLE",
+       0,
+       "Shadow Mode",
+       "Position light depending on the shadow target"},
+      {TGT_MODAL_SHADOW_DISABLE, "SHADOW_DISABLE", 0, "Shadow Mode (Off)", ""},
+      {TGT_MODAL_PRECISION_ENABLE,
+       "PRECISION_ENABLE",
+       0,
+       "Precision Mode",
+       "Position lights more precisly"},
+      {TGT_MODAL_PRECISION_DISABLE, "PRECISION_DISABLE", 0, "Precision Mode (Off)", ""},
+      {0, nullptr, 0, nullptr, nullptr},
   };
 
   wmKeyMap *keymap = WM_modalkeymap_find(keyconf, "Light Target Modal Map");
@@ -2067,10 +2082,10 @@ void target_modal_keymap(wmKeyConfig *keyconf)
 }
 /** \} */
 enum LightPositioningMode {
-  LIGHT_TARGET_MODE = 0,     /* Default: Target mode (rotation to cursor) */
-  LIGHT_DIFFUSE_MODE = 1,     /* Position light along surface normal */
+  LIGHT_TARGET_MODE = 0,   /* Default: Target mode (rotation to cursor) */
+  LIGHT_DIFFUSE_MODE = 1,  /* Position light along surface normal */
   LIGHT_SPECULAR_MODE = 2, /* Position light for specular reflection */
-  LIGHT_SHADOW_MODE = 3,     /* Position light for shadow casting */
+  LIGHT_SHADOW_MODE = 3,   /* Position light for shadow casting */
 };
 
 struct XFormAxisItem {
@@ -2099,7 +2114,7 @@ struct XFormAxisData {
   Vector<XFormAxisItem> object_data;
 
   int init_event;
-  
+
   /* Light positioning data */
   LightPositioningMode light_mode;
   bool is_light_positioning;
@@ -2302,7 +2317,7 @@ static wmOperatorStatus object_transform_axis_target_invoke(bContext *C,
   xfd->prev.is_normal_valid = false;
 
   xfd->init_event = WM_userdef_event_type_from_keymap_type(event->type);
-  
+
   /* Initialize light positioning */
   xfd->light_mode = LIGHT_TARGET_MODE;
   xfd->is_light_positioning = object_is_target_compat(xfd->vc.obact);
@@ -2316,20 +2331,20 @@ static wmOperatorStatus object_transform_axis_target_invoke(bContext *C,
   /* Initialize precision mode */
   xfd->precision_mode = false;
   xfd->precision_factor = 0.1f;
-  
+
   /* Calculate initial offset distance from light to geometry intersection */
   float calculated_distance = 0.0f;
   bool distance_calculated = false;
-  
+
   if (xfd->is_light_positioning && object_is_target_compat(xfd->vc.obact)) {
     /* Cast ray from light along its local Z-axis to find geometry intersection */
     Object *light = xfd->vc.obact;
-    
+
     /* Get light's normal direction (local Z-axis in world space) */
     blender::float3 light_normal;
     copy_v3_v3(light_normal, light->object_to_world().ptr()[2]);
     negate_v3(light_normal); /* Light points in negative Z direction by default */
-    
+
     /* Use snap system to cast ray from light position */
     blender::ed::transform::SnapObjectParams snap_params = {};
     snap_params.snap_target_select = SCE_SNAP_TARGET_ALL;
@@ -2339,12 +2354,13 @@ static wmOperatorStatus object_transform_axis_target_invoke(bContext *C,
     snap_params.keep_on_same_target = false;
     snap_params.face_nearest_steps = 1;
     snap_params.grid_size = 0.0f;
-    
-    blender::ed::transform::SnapObjectContext *sctx = blender::ed::transform::snap_object_context_create(xfd->vc.scene, 0);
-    
+
+    blender::ed::transform::SnapObjectContext *sctx =
+        blender::ed::transform::snap_object_context_create(xfd->vc.scene, 0);
+
     blender::float3 hit_co, hit_no;
     float ray_depth = BVH_RAYCAST_DIST_MAX; /* Cast ray far into the scene */
-    
+
     bool hit = blender::ed::transform::snap_object_project_ray(
         sctx,
         xfd->vc.depsgraph,
@@ -2355,9 +2371,9 @@ static wmOperatorStatus object_transform_axis_target_invoke(bContext *C,
         &ray_depth,
         hit_co,
         hit_no);
-    
+
     blender::ed::transform::snap_object_context_destroy(sctx);
-    
+
     if (hit) {
       /* Calculate distance from light to geometry intersection */
       calculated_distance = len_v3v3(light->object_to_world().location(), hit_co);
@@ -2367,7 +2383,7 @@ static wmOperatorStatus object_transform_axis_target_invoke(bContext *C,
       }
     }
   }
-  
+
   /* If we couldn't calculate the real distance, use simple fallback */
   if (!distance_calculated) {
     xfd->light_offset_distance = 5.0f; /* Simple fallback for all cases (Arbritrary value) */
@@ -2471,7 +2487,9 @@ static wmOperatorStatus object_transform_axis_target_modal(bContext *C,
               const double depth = double(depth_fl);
               if ((depth > depths->depth_range[0]) && (depth < depths->depth_range[1])) {
                 blender::float3 target_location;
-                if (ED_view3d_depth_unproject_v3(xfd->vc.region, event->mval, depth, target_location)) {
+                if (ED_view3d_depth_unproject_v3(
+                        xfd->vc.region, event->mval, depth, target_location))
+                {
                   copy_v3_v3(xfd->shadow_target_location, target_location);
                   xfd->shadow_target_set = true;
                 }
@@ -2512,43 +2530,50 @@ static wmOperatorStatus object_transform_axis_target_modal(bContext *C,
     status.opmodal(IFACE_("Confirm"), op->type, TGT_MODAL_CONFIRM);
     status.opmodal(IFACE_("Cancel"), op->type, TGT_MODAL_CANCEL);
     /* Show precision mode status */
-    status.opmodal(IFACE_("Precision"), op->type, TGT_MODAL_PRECISION_ENABLE,
-                   xfd->precision_mode);
+    status.opmodal(IFACE_("Precision"), op->type, TGT_MODAL_PRECISION_ENABLE, xfd->precision_mode);
 
     /* Show current mode and available mode switches */
-    status.opmodal(IFACE_("Diffuse"), op->type, TGT_MODAL_DIFFUSE_ENABLE, 
+    status.opmodal(IFACE_("Diffuse"),
+                   op->type,
+                   TGT_MODAL_DIFFUSE_ENABLE,
                    xfd->light_mode == LIGHT_DIFFUSE_MODE);
-    status.opmodal(IFACE_("Specular"), op->type, TGT_MODAL_SPECULAR_ENABLE,
+    status.opmodal(IFACE_("Specular"),
+                   op->type,
+                   TGT_MODAL_SPECULAR_ENABLE,
                    xfd->light_mode == LIGHT_SPECULAR_MODE);
-    status.opmodal(IFACE_("Shadow"), op->type, TGT_MODAL_SHADOW_ENABLE, 
-                   xfd->light_mode == LIGHT_SHADOW_MODE);
-
+    status.opmodal(
+        IFACE_("Shadow"), op->type, TGT_MODAL_SHADOW_ENABLE, xfd->light_mode == LIGHT_SHADOW_MODE);
   }
 
   /* Refresh depth buffer after navigation */
   if (xfd->run_navigation) {
     xfd->run_navigation = false;
-    
+
     /* Free old depth buffer */
     if (xfd->depths) {
       ED_view3d_depths_free(xfd->depths);
       xfd->depths = nullptr;
     }
-    
+
     /* Create new depth buffer with updated view matrix */
 #ifdef USE_RENDER_OVERRIDE
     int flag2_prev = xfd->vc.v3d->flag2;
     xfd->vc.v3d->flag2 |= V3D_HIDE_OVERLAYS;
 #endif
-    
+
     ViewDepths *depths = nullptr;
-    ED_view3d_depth_override(
-        xfd->vc.depsgraph, xfd->vc.region, xfd->vc.v3d, nullptr, V3D_DEPTH_NO_GPENCIL, false, &depths);
-    
+    ED_view3d_depth_override(xfd->vc.depsgraph,
+                             xfd->vc.region,
+                             xfd->vc.v3d,
+                             nullptr,
+                             V3D_DEPTH_NO_GPENCIL,
+                             false,
+                             &depths);
+
 #ifdef USE_RENDER_OVERRIDE
     xfd->vc.v3d->flag2 = flag2_prev;
 #endif
-    
+
     if (depths != nullptr) {
       xfd->depths = depths;
       /* Clear cached depth and normal data to force recalculation */
@@ -2559,15 +2584,15 @@ static wmOperatorStatus object_transform_axis_target_modal(bContext *C,
 
   if (event->type == MOUSEMOVE) {
     const ViewDepths *depths = xfd->depths;
-    
+
     /* Calculate effective mouse position with precision mode support */
     int effective_mval[2];
     precision_mode_mouse_pos(xfd->precision_mode,
-                                  xfd->precision_factor,
-                                  event->mval,
-                                  xfd->precision_toggle_mval,
-                                  effective_mval);
-    
+                             xfd->precision_factor,
+                             event->mval,
+                             xfd->precision_toggle_mval,
+                             effective_mval);
+
     if (depths && (uint(effective_mval[0]) < depths->w) && (uint(effective_mval[1]) < depths->h)) {
       float depth_fl = 1.0f;
       ED_view3d_depth_read_cached(depths, effective_mval, 0, &depth_fl);
@@ -2608,29 +2633,35 @@ static wmOperatorStatus object_transform_axis_target_modal(bContext *C,
             }
 
             /* Handle special light positioning modes (reflection and shadow) */
-            if (xfd->is_light_positioning && normal_found && 
-                (xfd->light_mode == LIGHT_SPECULAR_MODE || xfd->light_mode == LIGHT_SHADOW_MODE)) {
+            if (xfd->is_light_positioning && normal_found &&
+                (xfd->light_mode == LIGHT_SPECULAR_MODE || xfd->light_mode == LIGHT_SHADOW_MODE))
+            {
               for (XFormAxisItem &item : xfd->object_data) {
                 if (!object_is_target_compat(item.ob)) {
                   continue; /* Skip non-light objects */
                 }
-                
+
                 /* The offset distance is consistent throughout the modal execution.
-                 * It's calculated once at initialization and only changes with Z-axis adjustment. */
+                 * It's calculated once at initialization and only changes with Z-axis adjustment.
+                 */
 
                 blender::float3 final_location;
                 blender::float3 final_normal;
                 blender::float3 view_dir;
                 blender::float3 reflected_dir;
-                blender:: float3 direction_to_target;
-                
+                blender::float3 direction_to_target;
+
                 switch (xfd->light_mode) {
                   case LIGHT_TARGET_MODE:
                     /* Target mode: use original rotation behavior (no light positioning) */
                     /* This should not reach here as target mode uses original logic */
                   case LIGHT_DIFFUSE_MODE:
                     /* Normal mode: position light along surface normal */
-                    position_light_along(normal, location_world, xfd->light_offset_distance, final_location, final_normal);
+                    position_light_along(normal,
+                                         location_world,
+                                         xfd->light_offset_distance,
+                                         final_location,
+                                         final_normal);
                     break;
                   case LIGHT_SPECULAR_MODE:
                     /* Reflection positioning: calculate reflection direction */
@@ -2640,33 +2671,50 @@ static wmOperatorStatus object_transform_axis_target_modal(bContext *C,
                       normalize_v3(view_dir);
                       /* Calculate reflection direction using Blender's reflect function */
                       reflect_v3_v3v3(reflected_dir, view_dir, normal);
-                      
-                      position_light_along(reflected_dir, location_world, xfd->light_offset_distance, final_location, final_normal);
+
+                      position_light_along(reflected_dir,
+                                           location_world,
+                                           xfd->light_offset_distance,
+                                           final_location,
+                                           final_normal);
                     }
                     break;
                   case LIGHT_SHADOW_MODE:
                     /* Shadow positioning: position light to cast shadows from target */
                     if (xfd->shadow_target_set) {
-                      sub_v3_v3v3(direction_to_target, xfd->shadow_target_location, location_world);
+                      sub_v3_v3v3(
+                          direction_to_target, xfd->shadow_target_location, location_world);
                       normalize_v3(direction_to_target);
-                      
-                      position_light_along(direction_to_target, xfd->shadow_target_location, xfd->light_offset_distance, final_location, final_normal);
+
+                      position_light_along(direction_to_target,
+                                           xfd->shadow_target_location,
+                                           xfd->light_offset_distance,
+                                           final_location,
+                                           final_normal);
                     }
                     else {
                       /* Fallback to normal mode if shadow target not set */
-                      position_light_along(normal, location_world, xfd->light_offset_distance, final_location, final_normal);
+                      position_light_along(normal,
+                                           location_world,
+                                           xfd->light_offset_distance,
+                                           final_location,
+                                           final_normal);
                     }
                     break;
                   default:
                     /* Should not reach here since we filter the modes above */
-                    position_light_along(normal, location_world, xfd->light_offset_distance, final_location, final_normal);
+                    position_light_along(normal,
+                                         location_world,
+                                         xfd->light_offset_distance,
+                                         final_location,
+                                         final_normal);
                     break;
                 }
 
                 /* Apply the position and orientation */
                 object_apply_location(item.ob, final_location);
                 copy_v3_v3(item.ob->runtime->object_to_world.location(), final_location);
-                
+
                 /* Orient light toward the target */
                 blender::float3 target_location;
                 switch (xfd->light_mode) {
@@ -2683,12 +2731,13 @@ static wmOperatorStatus object_transform_axis_target_modal(bContext *C,
                     break;
                 }
 
-                object_orient_to_location(item.ob, item.rot_mat, item.rot_mat[2], target_location, item.is_z_flip);
-                
+                object_orient_to_location(
+                    item.ob, item.rot_mat, item.rot_mat[2], target_location, item.is_z_flip);
+
                 DEG_id_tag_update(&item.ob->id, ID_RECALC_TRANSFORM);
                 WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, item.ob);
               }
-              
+
               if (normal_found) {
                 copy_v3_v3(xfd->prev.normal, normal);
                 xfd->prev.is_normal_valid = true;
@@ -2735,9 +2784,12 @@ static wmOperatorStatus object_transform_axis_target_modal(bContext *C,
                   blender::float3 loc;
 
                   copy_v3_v3(loc, location_world);
-                  /* For light positioning, use the fixed offset distance to maintain consistency */
-                  float offset_distance = (xfd->is_light_positioning && object_is_target_compat(item.ob)) ? 
-                                         xfd->light_offset_distance : item.xform_dist;
+                  /* For light positioning, use the fixed offset distance to maintain consistency
+                   */
+                  float offset_distance = (xfd->is_light_positioning &&
+                                           object_is_target_compat(item.ob)) ?
+                                              xfd->light_offset_distance :
+                                              item.xform_dist;
                   madd_v3_v3fl(loc, target_normal, offset_distance);
                   object_apply_location(item.ob, loc);
                   /* so orient behaves as expected */
@@ -2812,7 +2864,9 @@ void OBJECT_OT_transform_axis_target(wmOperatorType *ot)
 {
   /* identifiers */
   ot->name = "Interactive Light Track to Cursor";
-  ot->description = "Interactively point cameras and lights to a location. It can be used to point lights to object normals, specular reflections, or shadow targets";
+  ot->description =
+      "Interactively point cameras and lights to a location. It can be used to point lights to "
+      "object normals, specular reflections, or shadow targets";
   ot->idname = "OBJECT_OT_transform_axis_target";
 
   /* API callbacks. */

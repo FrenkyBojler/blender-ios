@@ -6328,6 +6328,7 @@ def km_bevel_modal_map(_params):
 
     return keymap
 
+
 def km_light_target_modal_map(_params):
     items = []
     keymap = (
@@ -6355,6 +6356,7 @@ def km_light_target_modal_map(_params):
     ])
 
     return keymap
+
 
 def km_view3d_fly_modal(_params):
     items = []
