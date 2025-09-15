@@ -1609,11 +1609,22 @@ static void gl_shaded_color(const uchar *color, int shade)
   immUniformColor3ubv(color_shaded);
 }
 
+static void gl_shaded_color(const uchar *color, int shade, uchar alpha)
+{
+  uchar color_shaded[3];
+  gl_shaded_color_get(color, shade, color_shaded);
+  immUniformColor3ubvAlpha(color_shaded, alpha);
+}
+
 void ui_draw_but_CURVE(ARegion *region, uiBut *but, const uiWidgetColors *wcol, const rcti *rect)
 {
   uiButCurveMapping *but_cumap = (uiButCurveMapping *)but;
   CurveMapping *cumap = (but_cumap->edit_cumap == nullptr) ? (CurveMapping *)but->poin :
                                                              but_cumap->edit_cumap;
+
+  const bool inactive = but->flag & UI_BUT_INACTIVE;
+  const uchar alpha = inactive ? 192 : 255;
+  const float float_alpha = inactive ? 0.75f : 1.0f;
 
   const float clip_size_x = BLI_rctf_size_x(&cumap->curr);
   const float clip_size_y = BLI_rctf_size_y(&cumap->curr);
@@ -1803,8 +1814,8 @@ void ui_draw_but_CURVE(ARegion *region, uiBut *but, const uiWidgetColors *wcol, 
     line_range.ymax = rect->ymin + zoomy * (cmp[CM_TABLE].y - offsy - cuma->ext_out[1]);
   }
 
-  immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
   GPU_blend(GPU_BLEND_ALPHA);
+  immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
   /* Curve filled. */
   immUniformColor4ubv(wcol->item);
