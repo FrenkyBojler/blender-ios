@@ -830,6 +830,7 @@ wmOperatorStatus ED_mesh_shapes_join_objects_exec(bContext *C,
     const std::string name = create_mirrored_name(info.name, mirror);
     if (ensure_keys_exist) {
       KeyBlock *kb = BKE_keyblock_add(active_mesh.key, name.c_str());
+      kb->curval = 1.0f;
       BKE_keyblock_convert_from_mesh(&info.mesh, active_mesh.key, kb);
       any_keys_added = true;
       if (mirror) {
