@@ -114,6 +114,9 @@ void node_bsdf_principled(float4 base_color,
     weight *= max((1.0f - math_reduce_max(sheen_color)), 0.0f);
   }
 
+  /* Default case. */
+  coat_tint.rgb = float3(1.0f);
+#ifdef MAT_CLEARCOAT
   /* Second layer: Coat */
   if (coat_weight > 0.0f) {
     float coat_NV = dot(CN, V);
@@ -137,9 +140,7 @@ void node_bsdf_principled(float4 base_color,
           float3(1.0f), pow(coat_tint.rgb, float3(1.0f / NT)), saturate(coat_weight));
     }
   }
-  else {
-    coat_tint.rgb = float3(1.0f);
-  }
+#endif
 
   /* Emission component.
    * Attenuated by sheen and coat.
@@ -164,6 +165,7 @@ void node_bsdf_principled(float4 base_color,
     weight *= max((1.0f - metallic), 0.0f);
   }
 
+#ifdef MAT_REFRACTION
   /* Transmission component */
   if (transmission_weight > 0.0f) {
     float3 F0 = float3(F0_from_ior(ior)) * reflection_tint;
@@ -192,6 +194,7 @@ void node_bsdf_principled(float4 base_color,
     /* Attenuate lower layers */
     weight *= max((1.0f - transmission_weight), 0.0f);
   }
+#endif
 
   /* Specular component */
   if (true) {
@@ -224,6 +227,7 @@ void node_bsdf_principled(float4 base_color,
     weight *= max((1.0f - math_reduce_max(reflectance)), 0.0f);
   }
 
+#ifdef MAT_SUBSURFACE
   /* Subsurface component */
   if (subsurface_weight > 0.0f) {
     ClosureSubsurface sss_data;
@@ -241,7 +245,9 @@ void node_bsdf_principled(float4 base_color,
     /* Attenuate lower layers */
     weight *= max((1.0f - subsurface_weight), 0.0f);
   }
+#endif
 
+#ifdef MAT_DIFFUSE
   /* Diffuse component */
   if (true) {
     ClosureDiffuse diffuse_data;
@@ -253,6 +259,7 @@ void node_bsdf_principled(float4 base_color,
     diffuse_data.weight = 1.0f;
     closure_eval(diffuse_data);
   }
+#endif
 
   result = Closure(0);
 }
