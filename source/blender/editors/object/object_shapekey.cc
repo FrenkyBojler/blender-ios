@@ -163,42 +163,32 @@ static void object_shape_key_add(bContext *C, Object *ob, const bool from_mix)
 void shape_key_mirror(
     Object *ob, KeyBlock *kb, const bool use_topology, int &totmirr, int &totfail)
 {
-  char *tag_elem = MEM_calloc_arrayN<char>(kb->totelem, "shape_key_mirror");
 
   if (ob->type == OB_MESH) {
-    Mesh *mesh = static_cast<Mesh *>(ob->data);
-    int i1, i2;
-    float *fp1, *fp2;
-    float tvec[3];
-
+    Array<bool> tag_elem(kb->totelem, false);
     ED_mesh_mirror_spatial_table_begin(ob, nullptr, nullptr);
 
-    for (i1 = 0; i1 < mesh->verts_num; i1++) {
-      i2 = mesh_get_x_mirror_vert(ob, nullptr, i1, use_topology);
+    MutableSpan kb_data(static_cast<float3 *>(kb->data), kb->totelem);
+    for (const int i1 : kb_data.index_range()) {
+      const int i2 = mesh_get_x_mirror_vert(ob, nullptr, i1, use_topology);
+      if (i2 == -1) {
+        totfail++;
+        continue;
+      }
+
       if (i2 == i1) {
-        fp1 = ((float *)kb->data) + i1 * 3;
-        fp1[0] = -fp1[0];
-        tag_elem[i1] = 1;
+        kb_data[i1].x = -kb_data[i1].x;
+        tag_elem[i1] = true;
         totmirr++;
       }
       else if (i2 != -1) {
-        if (tag_elem[i1] == 0 && tag_elem[i2] == 0) {
-          fp1 = ((float *)kb->data) + i1 * 3;
-          fp2 = ((float *)kb->data) + i2 * 3;
-
-          copy_v3_v3(tvec, fp1);
-          copy_v3_v3(fp1, fp2);
-          copy_v3_v3(fp2, tvec);
-
-          /* flip x axis */
-          fp1[0] = -fp1[0];
-          fp2[0] = -fp2[0];
+        if (!tag_elem[i1] && !tag_elem[i2]) {
+          std::swap(kb_data[i1], kb_data[i2]);
+          kb_data[i1].x = -kb_data[i1].x;
+          kb_data[i2].x = -kb_data[i2].x;
           totmirr++;
         }
-        tag_elem[i1] = tag_elem[i2] = 1;
-      }
-      else {
-        totfail++;
+        tag_elem[i1] = tag_elem[i2] = true;
       }
     }
 
@@ -248,8 +238,6 @@ void shape_key_mirror(
       }
     }
   }
-
-  MEM_freeN(tag_elem);
 }
 
 static bool object_shape_key_mirror(
