@@ -1439,12 +1439,11 @@ static void customdata_weld(
  *
  * \return r_final_map: Array indicating the new indices of the elements.
  */
-static void merge_customdata_all(const CustomData *source,
-                                 CustomData *dest,
-                                 Span<int> dest_map,
+static void merge_customdata_all(Span<int> dest_map,
                                  Span<int> double_elems,
                                  const int dest_size,
                                  const bool do_mix_data,
+                                 Map<int, Vector<int>> &final_mixes,
                                  Array<int> &r_final_map)
 {
   UNUSED_VARS_NDEBUG(dest_size);
@@ -1468,7 +1467,6 @@ static void merge_customdata_all(const CustomData *source,
   bool finalize_map = false;
   int dest_index = 0;
   for (int i = 0; i < source_size; i++) {
-    const int source_index = i;
     int count = 0;
     while (i < source_size && dest_map[i] == OUT_OF_CONTEXT) {
       r_final_map[i] = dest_index + count;
@@ -1476,7 +1474,6 @@ static void merge_customdata_all(const CustomData *source,
       i++;
     }
     if (count) {
-      CustomData_copy_data(source, dest, source_index, dest_index, count);
       dest_index += count;
     }
     if (i == source_size) {
@@ -1484,15 +1481,9 @@ static void merge_customdata_all(const CustomData *source,
     }
     if (dest_map[i] == i) {
       if (do_mix_data) {
-        const IndexRange grp_buffer_range = groups_offs[i];
-        customdata_weld(source,
-                        dest,
-                        &groups_buffer[grp_buffer_range.start()],
-                        grp_buffer_range.size(),
-                        dest_index);
+        final_mixes.add_new(dest_index, groups_buffer.as_span().slice(groups_offs[i]));
       }
       else {
-        CustomData_copy_data(source, dest, i, dest_index, 1);
       }
       r_final_map[i] = dest_index;
       dest_index++;
@@ -1568,26 +1559,26 @@ static Mesh *create_merged_mesh(const Mesh &mesh,
 
   /* Vertices. */
 
+  // TODO_MESH_ATTR
   Array<int> vert_final_map;
-
-  merge_customdata_all(&mesh.vert_data,
-                       &result->vert_data,
-                       vert_dest_map,
+  Map<int, Vector<int>> vert_mixes;
+  merge_customdata_all(vert_dest_map,
                        weld_mesh.double_verts,
                        result_nverts,
                        do_mix_data,
+                       vert_mixes,
                        vert_final_map);
 
   /* Edges. */
 
+  // TODO_MESH_ATTR
   Array<int> edge_final_map;
-
-  merge_customdata_all(&mesh.edge_data,
-                       &result->edge_data,
-                       weld_mesh.edge_dest_map,
+  Map<int, Vector<int>> edge_mixes;
+  merge_customdata_all(weld_mesh.edge_dest_map,
                        weld_mesh.double_edges,
                        result_nedges,
                        do_mix_data,
+                       edge_mixes,
                        edge_final_map);
 
   for (int2 &edge : dst_edges) {
@@ -1602,14 +1593,16 @@ static Mesh *create_merged_mesh(const Mesh &mesh,
 
   int r_i = 0;
   int loop_cur = 0;
+  Array<int> src_face_by_dst_face;
+  Map<int, Vector<int>> face_mixes;
+  Map<int, Vector<int>> corner_mixes;
   Array<int, 64> group_buffer(weld_mesh.max_face_len);
   for (const int i : src_faces.index_range()) {
     const int loop_start = loop_cur;
     const int poly_ctx = weld_mesh.face_map[i];
     if (poly_ctx == OUT_OF_CONTEXT) {
       int mp_loop_len = src_faces[i].size();
-      CustomData_copy_data(
-          &mesh.corner_data, &result->corner_data, src_faces[i].start(), loop_cur, mp_loop_len);
+      // TODO: Copy face corner data for unaffected faces
       for (; mp_loop_len--; loop_cur++) {
         dst_corner_verts[loop_cur] = vert_final_map[dst_corner_verts[loop_cur]];
         dst_corner_edges[loop_cur] = edge_final_map[dst_corner_edges[loop_cur]];
@@ -1633,6 +1626,7 @@ static Mesh *create_merged_mesh(const Mesh &mesh,
         continue;
       }
       do {
+        // TODO_MESH_ATTR
         customdata_weld(&mesh.corner_data,
                         &result->corner_data,
                         group_buffer.data(),
@@ -1644,7 +1638,8 @@ static Mesh *create_merged_mesh(const Mesh &mesh,
       } while (weld_iter_loop_of_poly_next(iter));
     }
 
-    CustomData_copy_data(&mesh.face_data, &result->face_data, i, r_i, 1);
+    // TODO_MESH_ATTR
+    src_face_by_dst_face[r_i] = i;
     dst_face_offsets[r_i] = loop_start;
     r_i++;
   }
