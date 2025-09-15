@@ -10,7 +10,6 @@
 #include "BLF_api.hh"
 
 #include "BLI_color.hh"
-#include "BLI_math_base.h"
 #include "BLI_math_matrix.hh"
 #include "BLI_math_quaternion_types.hh"
 #include "BLI_math_vector_types.hh"
