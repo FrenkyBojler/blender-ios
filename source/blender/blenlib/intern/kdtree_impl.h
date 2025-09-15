@@ -9,6 +9,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_array.hh"
+#include "BLI_bit_vector.hh"
 #include "BLI_kdtree_impl.h"
 #include "BLI_math_base.h"
 #include "BLI_math_vector.h"
@@ -952,11 +953,12 @@ int BLI_kdtree_nd_(calc_duplicates_stable)(const KDTree *tree,
 
   const uint nodes_len = tree->nodes_len;
 
-  blender::Array<int> node_position_to_index(tree->max_node_index + 1);
+  blender::Array<int> index_lookup(tree->max_node_index + 1);
   for (uint i = 0; i < nodes_len; i++) {
-    node_position_to_index[tree->nodes[i].index] = i;
+    index_lookup[tree->nodes[i].index] = i;
   }
 
+  blender::BitVector<> visited(tree->max_node_index + 1, false);
   blender::Vector<int> cluster;
 
   int found = 0;
@@ -964,21 +966,21 @@ int BLI_kdtree_nd_(calc_duplicates_stable)(const KDTree *tree,
   for (uint i = 0; i < nodes_len; i++) {
     const int node_index = tree->nodes[i].index;
 
-    if (duplicates[node_index] != -1) {
+    if (visited[node_index] || duplicates[node_index] != -1) {
       continue;
     }
 
-    const float *search_co = tree->nodes[node_position_to_index[node_index]].co;
+    const float *search_co = tree->nodes[index_lookup[node_index]].co;
     BLI_assert(search_co != nullptr);
 
-    cluster.clear();
+    BLI_assert(cluster.is_empty());
 
-    duplicates[node_index] = -2;
+    visited[node_index].set(true);
 
     auto accumulate_neighbors_fn = [&](int neighbor_index, const float *, float) -> bool {
-      if (duplicates[neighbor_index] == -1) {
+      if (!visited[neighbor_index] && duplicates[neighbor_index] == -1) {
         cluster.append(neighbor_index);
-        duplicates[neighbor_index] = -2;
+        visited[neighbor_index].set(true);
       }
       return true;
     };
@@ -986,11 +988,9 @@ int BLI_kdtree_nd_(calc_duplicates_stable)(const KDTree *tree,
     BLI_kdtree_nd_(range_search_cb_cpp)(tree, search_co, range, accumulate_neighbors_fn);
 
     if (cluster.is_empty()) {
-      duplicates[node_index] = -1;
       continue;
     }
 
-    BLI_assert(!cluster.as_span().contains(node_index));
     cluster.append(node_index);
 
     /* Compute centroid and choose survivor in one pass. */
@@ -998,7 +998,7 @@ int BLI_kdtree_nd_(calc_duplicates_stable)(const KDTree *tree,
     int survivor_index = cluster[0];
 
     for (int node_index : cluster) {
-      const float *co = tree->nodes[node_position_to_index[node_index]].co;
+      const float *co = tree->nodes[index_lookup[node_index]].co;
       add_vn_vn(centroid, co, KD_DIMS);
       if (node_index < survivor_index) {
         survivor_index = node_index;
@@ -1018,6 +1018,7 @@ int BLI_kdtree_nd_(calc_duplicates_stable)(const KDTree *tree,
       duplicates[node_index] = survivor_index;
     }
     found += cluster.size() - 1;
+    cluster.clear();
   }
 
   return found;
