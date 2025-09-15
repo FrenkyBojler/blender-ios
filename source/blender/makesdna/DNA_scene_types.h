@@ -155,12 +155,6 @@ typedef enum IMB_Ffmpeg_Codec_ID {
   FFMPEG_CODEC_ID_OPUS = 86076,
 } IMB_Ffmpeg_Codec_ID;
 
-typedef enum eFFMpegVideoHdr {
-  FFM_VIDEO_HDR_NONE = 0,
-  FFM_VIDEO_HDR_REC2100_HLG = 1,
-  FFM_VIDEO_HDR_REC2100_PQ = 2,
-} eFFMpegVideoHdr;
-
 typedef struct FFMpegCodecData {
   int type;
   int codec;       /* Use `codec_id_get()` instead! IMB_Ffmpeg_Codec_ID */
@@ -184,7 +178,7 @@ typedef struct FFMpegCodecData {
   int rc_buffer_size;
   int mux_packet_size;
   int mux_rate;
-  int video_hdr; /* eFFMpegVideoHdr */
+  int _pad;
 
 #ifdef __cplusplus
   IMB_Ffmpeg_Codec_ID codec_id_get() const
@@ -1690,6 +1684,8 @@ typedef struct ToolSettings {
   char uv_selectmode;
   char uv_sticky;
 
+  rctf uv_custom_region;
+
   float uvcalc_margin;
 
   int uvcalc_iterations;
@@ -2806,6 +2802,7 @@ enum {
    * selection should be used - since not all combinations of options support it.
    */
   UV_FLAG_ISLAND_SELECT = 1 << 2,
+  UV_FLAG_CUSTOM_REGION = 1 << 3,
 };
 
 /** #ToolSettings::uv_selectmode */

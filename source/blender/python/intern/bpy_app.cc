@@ -22,11 +22,13 @@
 #include "bpy_app_opensubdiv.hh"
 #include "bpy_app_openvdb.hh"
 #include "bpy_app_sdl.hh"
+
 #include "bpy_app_usd.hh"
 
 #include "bpy_app_translations.hh"
 
 #include "bpy_app_handlers.hh"
+#include "bpy_capi_utils.hh"
 #include "bpy_driver.hh"
 
 #include "BPY_extern_python.hh" /* For #BPY_python_app_help_text_fn. */
@@ -46,6 +48,7 @@
 
 #include "UI_interface_icons.hh"
 
+#include "ED_undo.hh"
 #include "MEM_guardedalloc.h"
 
 #include "RNA_enum_types.hh" /* For `rna_enum_wm_job_type_items`. */
@@ -644,6 +647,25 @@ static PyObject *bpy_app_help_text(PyObject * /*self*/, PyObject *args, PyObject
 #    pragma GCC diagnostic ignored "-Wcast-function-type"
 #  endif
 #endif
+PyDoc_STRVAR(
+    /* Wrap. */
+    bpy_app_memory_usage_undo_doc,
+    ".. staticmethod:: memory_usage_undo()\n"
+    "\n"
+    "   Get undo memory usage information.\n"
+    "\n"
+    "   :return: Memory usage of the undo stack in bytes.\n"
+    "   :rtype: int\n");
+
+static PyObject *bpy_app_memory_usage_undo(PyObject * /*self*/, PyObject * /*args*/)
+{
+  size_t total_memory = 0;
+  UndoStack *ustack = ED_undo_stack_get();
+  if (ustack) {
+    total_memory = ED_undosys_total_memory_calc(ustack);
+  }
+  return PyLong_FromSize_t(total_memory);
+}
 
 static PyMethodDef bpy_app_methods[] = {
     {"is_job_running",
@@ -654,6 +676,10 @@ static PyMethodDef bpy_app_methods[] = {
      (PyCFunction)bpy_app_help_text,
      METH_VARARGS | METH_KEYWORDS | METH_STATIC,
      bpy_app_help_text_doc},
+    {"memory_usage_undo",
+     (PyCFunction)bpy_app_memory_usage_undo,
+     METH_NOARGS | METH_STATIC,
+     bpy_app_memory_usage_undo_doc},
     {nullptr, nullptr, 0, nullptr},
 };
 
