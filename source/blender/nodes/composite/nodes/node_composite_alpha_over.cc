@@ -76,9 +76,9 @@ static float4 preprocess_foreground(const float4 &foreground, const bool straigh
 }
 
 /* Computes the Porter and Duff Over compositing operation. */
-static float4 alpha_over(const float factor,
-                         const float4 &background,
+static float4 alpha_over(const float4 &background,
                          const float4 &foreground,
+                         const float factor,
                          const bool straight_alpha)
 {
   const float4 foreground_color = preprocess_foreground(foreground, straight_alpha);
@@ -93,9 +93,9 @@ static float4 alpha_over(const float factor,
  * held out by the foreground. See for reference:
  *
  *   https://benmcewan.com/blog/disjoint-over-and-conjoint-over-explained */
-static float4 alpha_over_disjoint(const float factor,
-                                  const float4 &background,
+static float4 alpha_over_disjoint(const float4 &background,
                                   const float4 &foreground,
+                                  const float factor,
                                   const bool straight_alpha)
 {
   const float4 foreground_color = preprocess_foreground(foreground, straight_alpha);
@@ -118,9 +118,9 @@ static float4 alpha_over_disjoint(const float factor,
  * background if it is more opaque but not necessary completely opaque. See for reference:
  *
  *   https://benmcewan.com/blog/disjoint-over-and-conjoint-over-explained */
-static float4 alpha_over_conjoint(const float factor,
-                                  const float4 &background,
+static float4 alpha_over_conjoint(const float4 &background,
                                   const float4 &foreground,
+                                  const float factor,
                                   const bool straight_alpha)
 {
   const float4 foreground_color = preprocess_foreground(foreground, straight_alpha);
@@ -141,24 +141,24 @@ static float4 alpha_over_conjoint(const float factor,
 
 static void node_build_multi_function(blender::nodes::NodeMultiFunctionBuilder &builder)
 {
-  static auto function = mf::build::SI5_SO<float, float4, float4, MenuValue, bool, float4>(
+  static auto function = mf::build::SI5_SO<float4, float4, float, MenuValue, bool, float4>(
       "Alpha Over",
-      [=](const float factor,
-          const float4 &background,
+      [=](const float4 &background,
           const float4 &foreground,
+          const float factor,
           const MenuValue type,
           const bool straight_alpha) -> float4 {
         switch (CMPNodeAlphaOverOperationType(type.value)) {
           case CMP_NODE_ALPHA_OVER_OPERATION_TYPE_OVER:
-            return alpha_over(factor, background, foreground, straight_alpha);
+            return alpha_over(background, foreground, factor, straight_alpha);
           case CMP_NODE_ALPHA_OVER_OPERATION_TYPE_DISJOINT_OVER:
-            return alpha_over_disjoint(factor, background, foreground, straight_alpha);
+            return alpha_over_disjoint(background, foreground, factor, straight_alpha);
           case CMP_NODE_ALPHA_OVER_OPERATION_TYPE_CONJOINT_OVER:
-            return alpha_over_conjoint(factor, background, foreground, straight_alpha);
+            return alpha_over_conjoint(background, foreground, factor, straight_alpha);
         }
         return background;
       },
-      mf::build::exec_presets::SomeSpanOrSingle<1, 2>());
+      mf::build::exec_presets::SomeSpanOrSingle<0, 1>());
 
   builder.set_matching_fn(function);
 }

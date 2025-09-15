@@ -47,9 +47,9 @@ static int node_gpu_material(GPUMaterial *material,
 
 static void node_build_multi_function(blender::nodes::NodeMultiFunctionBuilder &builder)
 {
-  static auto function = mf::build::SI4_SO<float, float4, bool, bool, float4>(
+  static auto function = mf::build::SI4_SO<float4, float, bool, bool, float4>(
       "Invert Color",
-      [](const float factor, const float4 &color, const bool invert_color, const bool invert_alpha)
+      [](const float4 &color, const float factor, const bool invert_color, const bool invert_alpha)
           -> float4 {
         float4 result = color;
         if (invert_color) {
@@ -60,7 +60,7 @@ static void node_build_multi_function(blender::nodes::NodeMultiFunctionBuilder &
         }
         return math::interpolate(color, result, factor);
       },
-      mf::build::exec_presets::SomeSpanOrSingle<1>());
+      mf::build::exec_presets::SomeSpanOrSingle<0>());
   builder.set_matching_fn(function);
 }
 

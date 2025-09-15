@@ -186,7 +186,7 @@ static int node_gpu_material(GPUMaterial *material,
   if (curve_mapping->tone == CURVE_TONE_FILMLIKE) {
     return GPU_stack_link(material,
                           node,
-                          "curves_film_like",
+                          "curves_film_like_compositor",
                           inputs,
                           outputs,
                           band_texture,
@@ -213,7 +213,7 @@ static int node_gpu_material(GPUMaterial *material,
   {
     return GPU_stack_link(material,
                           node,
-                          "curves_combined_only",
+                          "curves_combined_only_compositor",
                           inputs,
                           outputs,
                           band_texture,
@@ -226,7 +226,7 @@ static int node_gpu_material(GPUMaterial *material,
 
   return GPU_stack_link(material,
                         node,
-                        "curves_combined_rgb",
+                        "curves_combined_rgb_compositor",
                         inputs,
                         outputs,
                         band_texture,
@@ -244,9 +244,9 @@ static void node_build_multi_function(blender::nodes::NodeMultiFunctionBuilder &
   BKE_curvemapping_premultiply(curve_mapping, false);
 
   builder.construct_and_set_matching_fn_cb([=]() {
-    return mf::build::SI4_SO<float, float4, float4, float4, float4>(
+    return mf::build::SI4_SO<float4, float, float4, float4, float4>(
         "RGB Curves",
-        [=](const float factor, const float4 &color, const float4 &black, const float4 &white)
+        [=](const float4 &color, const float factor, const float4 &black, const float4 &white)
             -> float4 {
           float3 black_white_scale;
           BKE_curvemapping_set_black_white_ex(black, white, black_white_scale);
@@ -257,7 +257,7 @@ static void node_build_multi_function(blender::nodes::NodeMultiFunctionBuilder &
           return float4(math::interpolate(color.xyz(), result, math::clamp(factor, 0.0f, 1.0f)),
                         color.w);
         },
-        mf::build::exec_presets::SomeSpanOrSingle<1>());
+        mf::build::exec_presets::SomeSpanOrSingle<0>());
   });
 }
 
