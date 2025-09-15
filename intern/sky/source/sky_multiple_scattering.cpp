@@ -282,7 +282,7 @@ class SkyMultipleScattering {
     const float x = float(TRANSMITTANCE_RES_X - 1) * u;
     const int x1 = int(x);
     const int x2 = min(x1 + 1, TRANSMITTANCE_RES_X - 1);
-    const int y = TRANSMITTANCE_RES_Y - 1;
+    const int y = 0;
     const float fx = x - x1;
     return mix(transmittance_lut[y][x1], transmittance_lut[y][x2], fx);
   }
