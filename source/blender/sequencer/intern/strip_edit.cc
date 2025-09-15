@@ -409,6 +409,7 @@ Strip *edit_strip_split(Main *bmain,
                         Strip *strip,
                         const int timeline_frame,
                         const eSplitMethod method,
+                        const bool ignore_connected,
                         const char **r_error)
 {
   if (!seq_edit_split_intersect_check(scene, strip, timeline_frame)) {
@@ -418,18 +419,15 @@ Strip *edit_strip_split(Main *bmain,
   /* Whole strip effect chain must be duplicated in order to preserve relationships. */
   blender::VectorSet<Strip *> strips;
   strips.add(strip);
-  iterator_set_expand(scene, seqbase, strips, query_strip_effect_chain);
+  printf("ignore_connected %s\n", ignore_connected ? "true" : "false");
+  iterator_set_expand(scene,
+                      seqbase,
+                      strips,
+                      ignore_connected ? query_strip_effect_chain :
+                                         query_strip_connected_and_effect_chain);
 
   /* All connected strips (that are selected and at the cut frame) must also be duplicated. */
   blender::VectorSet<Strip *> strips_old(strips);
-  for (Strip *strip : strips_old) {
-    blender::VectorSet<Strip *> connections = connected_strips_get(strip);
-    connections.remove_if([&](Strip *connection) {
-      return !(connection->flag & SELECT) ||
-             !seq_edit_split_intersect_check(scene, connection, timeline_frame);
-    });
-    strips.add_multiple(connections.as_span());
-  }
 
   /* In case connected strips had effects, duplicate those too: */
   iterator_set_expand(scene, seqbase, strips, query_strip_effect_chain);
