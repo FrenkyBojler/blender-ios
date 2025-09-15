@@ -432,7 +432,7 @@ class SpreadsheetLayoutDrawer : public SpreadsheetDrawer {
     }
   }
 
-  void draw_float4x4(const CellDrawParams &params, const float4x4 &matrix) const
+  void draw_float4x4(const CellDrawParams &params, const float4x4 &value) const
   {
     uiBut *but = uiDefIconTextBut(params.block,
                                   ButType::Label,
@@ -454,7 +454,7 @@ class SpreadsheetLayoutDrawer : public SpreadsheetDrawer {
           UI_tooltip_text_field_add(
               tip, format_matrix_to_grid(matrix), {}, UI_TIP_STYLE_MONO, UI_TIP_LC_VALUE);
         },
-        MEM_dupallocN<float4x4>(__func__, matrix),
+        MEM_dupallocN<float4x4>(__func__, value),
         MEM_freeN);
   }
 
