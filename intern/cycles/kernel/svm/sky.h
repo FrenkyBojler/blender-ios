@@ -87,7 +87,7 @@ ccl_device float3 sky_radiance_nishita(KernelGlobals kg,
       /* sky interpolation */
       const float x = fractf((-direction.y - M_PI_2_F + sun_rotation) / M_2PI_F);
       /* more pixels toward horizon compensation */
-      const float y = safe_sqrtf(dir_elevation / M_PI_2_F);
+      const float y = safe_sqrtf(dir_elevation / M_PI_2_F) * 0.5f + 0.5f;
       xyz = make_float3(kernel_tex_image_interp(kg, texture_id, x, y));
     }
   }
@@ -102,7 +102,7 @@ ccl_device float3 sky_radiance_nishita(KernelGlobals kg,
       fade = sqr(fade) * fade;
       /* interpolation */
       const float x = fractf((-direction.y - M_PI_2_F + sun_rotation) / M_2PI_F);
-      xyz = make_float3(kernel_tex_image_interp(kg, texture_id, x, -0.5)) * fade;
+      xyz = make_float3(kernel_tex_image_interp(kg, texture_id, x, 0.508f)) * fade;
     }
   }
 
@@ -141,7 +141,7 @@ ccl_device_noinline int svm_node_tex_sky(KernelGlobals kg,
   data = read_node_float(kg, &offset);
   nishita_data[2] = data.x;
   nishita_data[3] = data.y;
-  const uint texture_id = __float_as_uint(data.z);
+  const uint texture_id = __float_as_uint(data.w);
 
   /* Compute Sky */
   f = sky_radiance_nishita(kg, dir, path_flag, pixel_bottom, pixel_top, nishita_data, texture_id);
