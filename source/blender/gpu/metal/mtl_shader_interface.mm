@@ -172,7 +172,9 @@ void MTLShaderInterface::add_push_constant_block(uint32_t name_offset)
   push_constant_block_.stage_mask = ShaderStage::ANY;
 }
 
-void MTLShaderInterface::add_uniform(uint32_t name_offset, MTLInterfaceDataType type, int array_len)
+void MTLShaderInterface::add_uniform(uint32_t name_offset,
+                                     MTLInterfaceDataType type,
+                                     int array_len)
 {
   BLI_assert(array_len > 0);
   BLI_assert(total_uniforms_ < MTL_MAX_UNIFORMS_PER_BLOCK);
