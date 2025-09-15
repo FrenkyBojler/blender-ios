@@ -85,7 +85,7 @@
 #include "sculpt_face_set.hh"
 #include "sculpt_intern.hh"
 
-// #define DEBUG_TIME
+#define DEBUG_TIME
 
 #ifdef DEBUG_TIME
 #  include "BLI_timeit.hh"
@@ -288,18 +288,6 @@ struct StepData {
 
 namespace compression {
 
-template<typename T> Array<std::byte> compress(const Span<T> src)
-{
-  Array<std::byte> dst(ZSTD_compressBound(src.size_in_bytes()), NoInitialization());
-  const size_t dst_size = ZSTD_compress(
-      dst.data(), dst.size(), src.data(), src.size_in_bytes(), 12);
-  if (ZSTD_isError(dst_size)) {
-    return {};
-  }
-
-  return dst.as_span().take_front(dst_size);
-}
-
 /**
  * Compress a span, using a prefiltering step that can improve compression speed and ratios for
  * certain float data types.
@@ -329,23 +317,6 @@ Array<std::byte> filter_compress(const Span<T> src,
   }
 
   return compress_buffer.as_span().slice(0, dst_size);
-}
-
-template<typename T> void decompress(const Span<std::byte> src, Vector<T> &dst)
-{
-  const unsigned long long dst_size_in_bytes = ZSTD_getFrameContentSize(src.data(), src.size());
-  if (ELEM(dst_size_in_bytes, ZSTD_CONTENTSIZE_ERROR, ZSTD_CONTENTSIZE_UNKNOWN)) {
-    dst.clear();
-    return;
-  }
-
-  dst.resize(dst_size_in_bytes / sizeof(T));
-  const size_t result = ZSTD_decompress(
-      dst.data(), dst.as_span().size_in_bytes(), src.data(), src.size());
-  if (ZSTD_isError(result)) {
-    dst.clear();
-    return;
-  }
 }
 
 template<typename T>
@@ -425,7 +396,7 @@ struct PositionUndoStorage : NonMovable {
   static void compress_fn(TaskPool * /*pool*/, void *task_data)
   {
 #ifdef DEBUG_TIME
-    SCOPED_TIMER(__func__);
+    SCOPED_TIMER_AVERAGED(__func__);
 #endif
     auto *data = static_cast<PositionUndoStorage *>(task_data);
     MutableSpan<std::unique_ptr<Node>> nodes = data->nodes_to_compress;
@@ -444,7 +415,8 @@ struct PositionUndoStorage : NonMovable {
         for (const int i : range) {
           const Span<int> indices = data->multires_undo ? nodes[i]->grids : nodes[i]->vert_indices;
           const Span<float3> positions = nodes[i]->position;
-          new (&compressed_indices[i]) Array<std::byte>(compression::compress(indices));
+          new (&compressed_indices[i]) Array<std::byte>(compression::filter_compress(
+              indices, local_data.filter_buffer, local_data.compress_buffer));
           new (&compressed_data[i]) Array<std::byte>(compression::filter_compress(
               positions, local_data.filter_buffer, local_data.compress_buffer));
           nodes[i].reset();
@@ -573,7 +545,7 @@ static void restore_position_mesh(Object &object,
                                   const MutableSpan<bool> modified_verts)
 {
 #ifdef DEBUG_TIME
-  SCOPED_TIMER(__func__);
+  SCOPED_TIMER_AVERAGED(__func__);
 #endif
   SculptSession &ss = *object.sculpt;
   Mesh &mesh = *static_cast<Mesh *>(object.data);
@@ -594,7 +566,8 @@ static void restore_position_mesh(Object &object,
   threading::parallel_for(IndexRange(nodes_num), 1, [&](const IndexRange range) {
     LocalData &tls = all_tls.local();
     for (const int i : range) {
-      compression::decompress<int>(undo_data.compressed_indices[i], tls.indices);
+      compression::filter_decompress<int>(
+          undo_data.compressed_indices[i], tls.compress_buffer, tls.indices);
       const int unique_verts_num = undo_data.unique_verts_nums[i];
       const Span<int> verts = tls.indices.as_span().take_front(unique_verts_num);
 
@@ -661,7 +634,8 @@ static void restore_position_grids(const MutableSpan<float3> positions,
   threading::parallel_for(IndexRange(nodes_num), 1, [&](const IndexRange range) {
     LocalData &tls = all_tls.local();
     for (const int i : range) {
-      compression::decompress<int>(undo_data.compressed_indices[i], tls.indices);
+      compression::filter_decompress<int>(
+          undo_data.compressed_indices[i], tls.compress_buffer, tls.indices);
       const Span<int> grids = tls.indices.as_span();
 
       compression::filter_decompress<float3>(
