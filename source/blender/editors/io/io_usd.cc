@@ -1247,8 +1247,8 @@ void WM_OT_usd_import(wmOperatorType *ot)
                   "import_prim_path",
                   true,
                   "Store Prim Path",
-                  "Store the source USD prim path as metadata under the internal 'usd_prim_path' "
-                  "custom property for imported IDs");
+                  "Store the source USD prim path as metadata under the 'usd_prim_path' "
+                  "custom property for imported data-blocks");
 
   RNA_def_boolean(
       ot->srna,
