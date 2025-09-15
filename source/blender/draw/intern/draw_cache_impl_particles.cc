@@ -782,6 +782,7 @@ static void particle_batch_cache_ensure_pos_and_seg(PTCacheEdit *edit,
   uint *col_id = nullptr;
   VectorSet<StringRefNull> uv_map_names = psmd->mesh_final->uv_map_names();
   int num_uv_layers = uv_map_names.size();
+  Vector<StringRef> color_attribute_names;
   int num_col_layers = 0;
   const char *active_uv = psmd->mesh_final->default_uv_map_attribute;
   const char *active_col = psmd->mesh_final->active_color_attribute;
@@ -791,11 +792,12 @@ static void particle_batch_cache_ensure_pos_and_seg(PTCacheEdit *edit,
   MCol **parent_mcol = nullptr;
 
   if (psmd != nullptr) {
-    // TODO_MESH_ATTR
-    if (CustomData_has_layer(&psmd->mesh_final->corner_data, CD_PROP_BYTE_COLOR)) {
-      num_col_layers = CustomData_number_of_layers(&psmd->mesh_final->corner_data,
-                                                   CD_PROP_BYTE_COLOR);
-    }
+    psmd->mesh_final->attributes().foreach_attribute([&](const bke::AttributeIter &iter) {
+      if (iter.domain == bke::AttrDomain::Corner && iter.data_type == bke::AttrType::ColorByte) {
+        color_attribute_names.append(iter.name);
+      }
+    });
+    num_col_layers = color_attribute_names.size();
   }
 
   attr_id.pos = GPU_vertformat_attr_add(&format, "pos", gpu::VertAttrType::SFLOAT_32_32_32);
@@ -804,7 +806,7 @@ static void particle_batch_cache_ensure_pos_and_seg(PTCacheEdit *edit,
 
   if (psmd) {
     uv_id = MEM_malloc_arrayN<uint>(num_uv_layers, "UV attr format");
-    col_id = MEM_malloc_arrayN<uint>(num_col_layers, "Col attr format");
+    col_id = MEM_malloc_arrayN<uint>(color_attribute_names.size(), "Col attr format");
 
     for (int i = 0; i < num_uv_layers; i++) {
 
@@ -821,9 +823,8 @@ static void particle_batch_cache_ensure_pos_and_seg(PTCacheEdit *edit,
     }
 
     for (int i = 0; i < num_col_layers; i++) {
+      const StringRef name = color_attribute_names[i];
       char uuid[32], attr_safe_name[GPU_MAX_SAFE_ATTR_NAME];
-      const StringRef name = CustomData_get_layer_name(
-          &psmd->mesh_final->corner_data, CD_PROP_BYTE_COLOR, i);
       GPU_vertformat_safe_attr_name(name, attr_safe_name, GPU_MAX_SAFE_ATTR_NAME);
 
       SNPRINTF_UTF8(uuid, "a%s", attr_safe_name);
