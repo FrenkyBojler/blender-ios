@@ -215,12 +215,24 @@ struct LayoutColumn : public uiLayout {
   void resolve_impl() override;
 };
 
-struct LayoutItemRoot : public uiLayout {
-  LayoutItemRoot(uiLayoutRoot *root) : uiLayout(uiItemType::LayoutRoot, root) {}
-
+struct LayoutRootRow : public LayoutRow {
+  LayoutRootRow(uiLayoutRoot *root) : LayoutRow(root)
+  {
+    type_ = uiItemType::LayoutRoot;
+  }
+  void estimate_impl() override{};
+};
+struct LayoutRootColumn : public LayoutColumn {
+  LayoutRootColumn(uiLayoutRoot *root) : LayoutColumn(root)
+  {
+    type_ = uiItemType::LayoutRoot;
+  }
+  void estimate_impl() override{};
+};
+struct LayoutRootPieMenu : public uiLayout {
+  LayoutRootPieMenu(uiLayoutRoot *root) : uiLayout(uiItemType::LayoutRoot, root) {}
   void estimate_impl() override{};
   void resolve_impl() override;
-  void resolve_root_radial_impl();
 };
 
 struct LayoutOverlap : public uiLayout {
@@ -3605,11 +3617,6 @@ static int ui_litem_min_width(int itemw)
 
 void LayoutRow::resolve_impl()
 {
-  this->resolve_row_impl();
-}
-
-void uiLayout::resolve_row_impl()
-{
   if (this->items().is_empty()) {
     return;
   }
@@ -3830,11 +3837,6 @@ void LayoutColumn::estimate_impl()
 
 void LayoutColumn::resolve_impl()
 {
-  this->resolve_column_impl();
-}
-
-void uiLayout::resolve_column_impl()
-{
   const bool is_box = this->type() == uiItemType::LayoutBox;
   const bool is_menu = this->type() == uiItemType::LayoutRoot &&
                        this->root()->type == blender::ui::LayoutType::Menu;
@@ -3988,7 +3990,7 @@ void uiLayout::resolve_impl()
   /* Nothing to do. */
 }
 
-void LayoutItemRoot::resolve_root_radial_impl()
+void LayoutRootPieMenu::resolve_impl()
 {
   /* first item is pie menu title, align on center of menu */
   uiItem *item = this->items().first();
@@ -4002,19 +4004,6 @@ void LayoutItemRoot::resolve_root_radial_impl()
 
     ui_item_position(
         item, x - itemw / 2, y + UI_SCALE_FAC * (U.pie_menu_threshold + 9.0f), itemw, itemh);
-  }
-}
-
-void LayoutItemRoot::resolve_impl()
-{
-  if (this->root()->type == blender::ui::LayoutType::Header) {
-    this->resolve_row_impl();
-  }
-  else if (this->root()->type == blender::ui::LayoutType::PieMenu) {
-    this->resolve_root_radial_impl();
-  }
-  else {
-    this->resolve_column_impl();
   }
 }
 
@@ -5475,9 +5464,19 @@ uiLayout &block_layout(uiBlock *block,
   root->padding = padding;
   root->opcontext = wm::OpCallContext::InvokeRegionWin;
 
-  uiLayout *layout = type == LayoutType::VerticalBar ?
-                         static_cast<uiLayout *>(MEM_new<LayoutColumn>(__func__, root)) :
-                         MEM_new<LayoutItemRoot>(__func__, root);
+  uiLayout *layout = [type, root]() -> uiLayout * {
+    switch (type) {
+      case LayoutType::VerticalBar:
+        return MEM_new<LayoutColumn>(__func__, root);
+      case LayoutType::PieMenu:
+        return MEM_new<LayoutRootPieMenu>(__func__, root);
+      case LayoutType::Header:
+        return MEM_new<LayoutRootRow>(__func__, root);
+      default:
+        return MEM_new<LayoutRootColumn>(__func__, root);
+        break;
+    }
+  }();
 
   /* Only used when 'uiItemInternalFlag::PropSep' is set. */
   layout->use_property_decorate_set(true);
