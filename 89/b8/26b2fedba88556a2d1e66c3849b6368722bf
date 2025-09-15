@@ -1,3 +1,4 @@
 Referenced by issue #134485, Cycles: Various material properties do not update in the viewport
 Referenced by issue #139182, Invalid Material Index. Impossible to delete material slot
 Referenced by pull request #143196, Fix #139182: Cannot remove material slot in certain case
+Referenced by issue #146252, 4.5.3 Convert Text to Grease Pencil with Keep Original produce a crash
