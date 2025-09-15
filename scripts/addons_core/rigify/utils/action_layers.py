@@ -257,6 +257,7 @@ class ActionLayer(RigComponent):
             insert_index=0,
             use_eval_time=True,
             action=self.slot.action,
+            action_slot=self.slot.action.slots[0],
             frame_start=self.slot.frame_start,
             frame_end=self.slot.frame_end,
             mix_mode='BEFORE_SPLIT',
