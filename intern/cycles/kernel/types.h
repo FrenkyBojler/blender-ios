@@ -1616,6 +1616,14 @@ struct KernelDistantLight {
   float pad[3];
 };
 
+struct KernelDomeLight {
+  float size;
+  float eval_fac;   /* negative for hemisphere, positive for spherical */
+  int dome_hdr_tex; /* HDR texture handle */
+  int pad;
+  float dome_hdr_strength;
+};
+
 struct KernelLight {
   int type;
   packed_float3 co;
@@ -1629,6 +1637,7 @@ struct KernelLight {
     KernelSpotLight spot;
     KernelAreaLight area;
     KernelDistantLight distant;
+    KernelDomeLight dome;
   };
 };
 static_assert_align(KernelLight, 16);

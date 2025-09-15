@@ -302,8 +302,7 @@ static void rna_def_light_energy(StructRNA *srna, const short light_type)
       /* Dome light strength has no unit defined, similar to sun light */
       prop = RNA_def_property(srna, "energy", PROP_FLOAT, PROP_NONE);
       RNA_def_property_ui_range(prop, 0.0f, 10.0f, 1, 3);
-      RNA_def_property_ui_text(
-          prop, "Strength", "Dome light strength for environment lighting");
+      RNA_def_property_ui_text(prop, "Strength", "Dome light strength for environment lighting");
       RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_LIGHT);
       RNA_def_property_update(prop, 0, "rna_Light_draw_update");
       break;
@@ -599,18 +598,30 @@ static void rna_def_dome_light(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "HDRI Image", "HDRI image for dome lighting");
   RNA_def_property_update(prop, 0, "rna_Light_update");
 
+  prop = RNA_def_property(srna, "dome_hdr_strength", PROP_FLOAT, PROP_FACTOR);
+  RNA_def_property_float_sdna(prop, nullptr, "dome_hdr_strength");
+  RNA_def_property_range(prop, 0.0f, 10.0f);
+  RNA_def_property_float_default(prop, 1.0f);
+  RNA_def_property_ui_text(prop, "HDR Strength", "Intensity multiplier for HDRI image");
+  RNA_def_property_update(prop, 0, "rna_Light_update");
+
   prop = RNA_def_property(srna, "dome_map_resolution", PROP_INT, PROP_NONE);
   RNA_def_property_int_sdna(prop, nullptr, "dome_map_resolution");
   RNA_def_property_range(prop, 128, 8192);
   RNA_def_property_int_default(prop, 1024);
-  RNA_def_property_ui_text(prop, "Map Resolution", "Resolution of the HDRI map for sampling quality");
+  RNA_def_property_ui_text(
+      prop, "Map Resolution", "Resolution of the HDRI map for sampling quality");
   RNA_def_property_update(prop, 0, "rna_Light_update");
 
   static const EnumPropertyItem dome_projection_items[] = {
-    {LA_DOME_EQUIRECTANGULAR, "EQUIRECTANGULAR", 0, "Equirectangular", "Latitude-longitude projection (most common HDRI format)"},
-    {LA_DOME_MIRRORED_BALL, "MIRRORED_BALL", 0, "Mirrored Ball", "Light probe ball projection"},
-    {LA_DOME_ANGULAR, "ANGULAR", 0, "Angular", "Angular fisheye projection"},
-    {0, nullptr, 0, nullptr, nullptr},
+      {LA_DOME_EQUIRECTANGULAR,
+       "EQUIRECTANGULAR",
+       0,
+       "Equirectangular",
+       "Latitude-longitude projection (most common HDRI format)"},
+      {LA_DOME_MIRRORED_BALL, "MIRRORED_BALL", 0, "Mirrored Ball", "Light probe ball projection"},
+      {LA_DOME_ANGULAR, "ANGULAR", 0, "Angular", "Angular fisheye projection"},
+      {0, nullptr, 0, nullptr, nullptr},
   };
 
   prop = RNA_def_property(srna, "dome_projection", PROP_ENUM, PROP_NONE);
@@ -621,9 +632,9 @@ static void rna_def_dome_light(BlenderRNA *brna)
   RNA_def_property_update(prop, 0, "rna_Light_update");
 
   static const EnumPropertyItem dome_type_items[] = {
-    {LA_DOME_SPHERICAL, "SPHERICAL", 0, "Spherical", "Full spherical dome light"},
-    {LA_DOME_HEMISPHERE, "HEMISPHERE", 0, "Hemisphere", "Hemisphere dome light"},
-    {0, nullptr, 0, nullptr, nullptr},
+      {LA_DOME_SPHERICAL, "SPHERICAL", 0, "Spherical", "Full spherical dome light"},
+      {LA_DOME_HEMISPHERE, "HEMISPHERE", 0, "Hemisphere", "Hemisphere dome light"},
+      {0, nullptr, 0, nullptr, nullptr},
   };
 
   prop = RNA_def_property(srna, "dome_type", PROP_ENUM, PROP_NONE);

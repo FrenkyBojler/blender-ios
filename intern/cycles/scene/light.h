@@ -61,6 +61,8 @@ class Light : public Geometry {
 
   /* Dome light type: spherical (full) or hemisphere */
   NODE_SOCKET_API(bool, is_dome_hemisphere)
+  NODE_SOCKET_API(ustring, dome_image)
+  NODE_SOCKET_API(float, dome_hdr_strength)
 
   /* Normalize power by the surface area of the light. */
   NODE_SOCKET_API(bool, normalize)
@@ -80,6 +82,11 @@ class Light : public Geometry {
   void apply_transform(const Transform &tfm, const bool apply_to_motion) override;
   void get_uv_tiles(ustring map, unordered_set<int> &tiles) override;
   PrimitiveType primitive_type() const override;
+
+  /* HDR dome texture management */
+  void update_dome_hdr_texture(Scene *scene);
+  void clear_dome_hdr_texture();
+  ImageHandle dome_hdr_handle;
 
   friend class LightManager;
   friend class LightTree;

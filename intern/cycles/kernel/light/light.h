@@ -12,6 +12,7 @@
 #include "kernel/light/area.h"
 #include "kernel/light/background.h"
 #include "kernel/light/distant.h"
+#include "kernel/light/dome.h"
 #include "kernel/light/point.h"
 #include "kernel/light/spot.h"
 #include "kernel/light/triangle.h"
@@ -129,7 +130,9 @@ ccl_device_inline bool light_sample(KernelGlobals kg,
   ls->v = rand.y;
   ls->group = object_lightgroup(kg, ls->object);
 
-  if (in_volume_segment && (type == LIGHT_DISTANT || type == LIGHT_BACKGROUND || type == LIGHT_DOME)) {
+  if (in_volume_segment &&
+      (type == LIGHT_DISTANT || type == LIGHT_BACKGROUND || type == LIGHT_DOME))
+  {
     /* Distant and dome lights in a volume get a dummy sample, position will not actually
      * be used in that case. Only when sampling from a specific scatter position
      * do we actually need to evaluate these. */
@@ -159,16 +162,19 @@ ccl_device_inline bool light_sample(KernelGlobals kg,
   }
   else if (type == LIGHT_DOME) {
     /* dome light (illuminates inward from all directions) */
-    const float3 D = background_light_sample(kg, P, rand, &ls->pdf);
+    const float3 D = dome_light_sample(kg, P, rand, &ls->pdf);
 
     ls->P = D;
-    ls->Ng = -D;  /* Normal points inward for dome lights */
-    ls->D = D;    /* Light direction points inward */
+    ls->Ng = -D; /* Normal points inward for dome lights */
+    ls->D = D;   /* Light direction points inward */
     ls->t = FLT_MAX;
     ls->eval_fac = 1.0f;
-    
+
     printf("DOME_DEBUG: Sampling dome light - D=(%.2f,%.2f,%.2f), pdf=%.6f\n",
-           (double)D.x, (double)D.y, (double)D.z, (double)ls->pdf);
+           (double)D.x,
+           (double)D.y,
+           (double)D.z,
+           (double)ls->pdf);
   }
   else if (type == LIGHT_SPOT) {
     if (!spot_light_sample<in_volume_segment>(kg, klight, rand, P, N, shader_flags, ls)) {

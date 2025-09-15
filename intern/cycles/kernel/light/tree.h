@@ -275,7 +275,8 @@ ccl_device bool compute_emitter_centroid_and_dir(KernelGlobals kg,
         dir = make_float3(0.0f, 0.0f, -1.0f);
         break;
       default:
-        printf("DOME_DEBUG: Unknown light type in compute_emitter_centroid_and_dir: %d\n", klight->type);
+        printf("DOME_DEBUG: Unknown light type in compute_emitter_centroid_and_dir: %d\n",
+               klight->type);
         return false;
     }
   }

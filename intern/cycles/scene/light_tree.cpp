@@ -315,7 +315,9 @@ LightTree::LightTree(Scene *scene,
       /* Regular lights. */
       Light *light = static_cast<Light *>(object->get_geometry());
       if (light->is_enabled) {
-        if (light->light_type == LIGHT_BACKGROUND || light->light_type == LIGHT_DISTANT || light->light_type == LIGHT_DOME) {
+        if (light->light_type == LIGHT_BACKGROUND || light->light_type == LIGHT_DISTANT ||
+            light->light_type == LIGHT_DOME)
+        {
           distant_lights_.emplace_back(scene, ~device_light_index, object->index);
         }
         else {

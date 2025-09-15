@@ -123,6 +123,8 @@ NODE_DEFINE(Light)
   SOCKET_BOOLEAN(is_enabled, "Is Enabled", true);
 
   SOCKET_BOOLEAN(is_dome_hemisphere, "Is Dome Hemisphere", false);
+  SOCKET_STRING(dome_image, "Dome Image", ustring());
+  SOCKET_FLOAT(dome_hdr_strength, "Dome HDR Strength", 1.0f);
 
   SOCKET_BOOLEAN(normalize, "Normalize", true);
 
@@ -225,13 +227,36 @@ float Light::area(const Transform &tfm) const
   }
   if (light_type == LIGHT_DOME) {
     /* Dome area - full sphere for spherical, hemisphere for hemisphere */
-    const float area = is_dome_hemisphere ? 
-                         2.0f * M_PI_F * size * size :  /* hemisphere surface area */
-                         4.0f * M_PI_F * size * size;   /* full sphere surface area */
+    const float area = is_dome_hemisphere ?
+                           2.0f * M_PI_F * size * size : /* hemisphere surface area */
+                           4.0f * M_PI_F * size * size;  /* full sphere surface area */
     return (area == 0.0f) ? 1.0f : area;
   }
 
   return 1.0f;
+}
+
+void Light::update_dome_hdr_texture(Scene *scene)
+{
+  /* Load dome HDR texture if filename is set */
+  if (!get_dome_image().empty()) {
+    ImageParams params;
+    params.interpolation = INTERPOLATION_LINEAR;
+    params.extension = EXTENSION_REPEAT;
+    params.alpha_type = IMAGE_ALPHA_AUTO;
+    params.colorspace = u_colorspace_raw; /* HDR images should stay in raw color space */
+
+    dome_hdr_handle = scene->image_manager->add_image(get_dome_image().string(), params);
+  }
+  else {
+    /* Clear handle if no filename */
+    dome_hdr_handle = ImageHandle();
+  }
+}
+
+void Light::clear_dome_hdr_texture()
+{
+  dome_hdr_handle = ImageHandle();
 }
 
 /* Light Manager */
@@ -997,12 +1022,12 @@ void LightManager::device_update_background(Device *device,
     }
 
     Light *light = static_cast<Light *>(object->get_geometry());
-    if ((light->light_type == LIGHT_BACKGROUND || light->light_type == LIGHT_DOME) && light->is_enabled) {
+    if (light->light_type == LIGHT_BACKGROUND && light->is_enabled) {
       background_light = light;
       background_mis |= light->use_mis;
-      printf("DOME_DEBUG: Found %s light as background light (enabled=%d, mis=%d)\n",
-             light->light_type == LIGHT_DOME ? "DOME" : "BACKGROUND",
-             light->is_enabled, light->use_mis);
+      printf("DOME_DEBUG: Found BACKGROUND light as background light (enabled=%d, mis=%d)\n",
+             light->is_enabled,
+             light->use_mis);
     }
   }
 
@@ -1103,6 +1128,8 @@ void LightManager::device_update_background(Device *device,
   kbackground->map_res_y = res.y;
 
   vector<float3> pixels;
+
+  /* Use shader evaluation for background lights */
   shade_background_pixels(device, dscene, res.x, res.y, pixels, progress);
 
   if (progress.get_cancel()) {
@@ -1349,17 +1376,33 @@ void LightManager::device_update_lights(DeviceScene *dscene, Scene *scene)
       shader_id &= ~SHADER_AREA_LIGHT;
       shader_id |= SHADER_USE_MIS;
 
-      /* Store dome size in spot.radius field (reusing existing field) */
+      /* Update dome HDR texture */
+      light->update_dome_hdr_texture(scene);
+
+      /* Store dome data in dome-specific fields */
       klights[light_index].co = co;
-      klights[light_index].spot.radius = light->size;
-      float eval_fac = (light->normalize) ? 
-                         1.0f / light->area(object->get_tfm()) : 
-                         1.0f;
+      klights[light_index].dome.size = light->size;
+
+      float eval_fac = (light->normalize) ? 1.0f / light->area(object->get_tfm()) : 1.0f;
       /* Use negative eval_fac to indicate hemisphere (similar to area light ellipse encoding) */
-      klights[light_index].spot.eval_fac = light->get_is_dome_hemisphere() ? -eval_fac : eval_fac;
-      
-      printf("DOME_DEBUG: Packed dome light to kernel - index=%d, size=%.2f, co=(%.2f,%.2f,%.2f)\n",
-             light_index, (double)light->size, (double)co.x, (double)co.y, (double)co.z);
+      klights[light_index].dome.eval_fac = light->get_is_dome_hemisphere() ? -eval_fac : eval_fac;
+
+      /* Set HDR texture handle and intensity */
+      if (light->dome_hdr_handle.empty()) {
+        klights[light_index].dome.dome_hdr_tex = -1; /* No texture */
+      }
+      else {
+        klights[light_index].dome.dome_hdr_tex = light->dome_hdr_handle.svm_slot();
+      }
+      klights[light_index].dome.dome_hdr_strength = light->get_dome_hdr_strength();
+
+      printf(
+          "DOME_DEBUG: Packed dome light to kernel - index=%d, size=%.2f, hdr_tex=%d, "
+          "strength=%.2f\n",
+          light_index,
+          (double)light->size,
+          klights[light_index].dome.dome_hdr_tex,
+          (double)light->get_dome_hdr_strength());
     }
     else if (light->light_type == LIGHT_AREA) {
       const float light_size = light->size;

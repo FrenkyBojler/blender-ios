@@ -1106,14 +1106,18 @@ ShapeCache::ShapeCache()
 
     /* 3 Vertical meridians - full circles at 120° intervals */
     for (const int h : IndexRange(3)) {
-      const float angle = h * 2.0f * math::numbers::pi / 3.0f;  /* 0°, 120°, 240° */
+      const float angle = h * 2.0f * math::numbers::pi / 3.0f; /* 0°, 120°, 240° */
       const float x = cosf(angle);
       const float y = sinf(angle);
 
       /* Draw complete meridian */
       for (const int v : IndexRange(segments_vertical * 2)) {
-        const float elevation1 = (float(v) / float(segments_vertical * 2)) * 2.0f * math::numbers::pi - math::numbers::pi;
-        const float elevation2 = (float(v + 1) / float(segments_vertical * 2)) * 2.0f * math::numbers::pi - math::numbers::pi;
+        const float elevation1 = (float(v) / float(segments_vertical * 2)) * 2.0f *
+                                     math::numbers::pi -
+                                 math::numbers::pi;
+        const float elevation2 = (float(v + 1) / float(segments_vertical * 2)) * 2.0f *
+                                     math::numbers::pi -
+                                 math::numbers::pi;
 
         const float radius1 = cosf(elevation1);
         const float height1 = sinf(elevation1);
@@ -1138,14 +1142,15 @@ ShapeCache::ShapeCache()
 
     /* Horizontal rings at different elevations - reuse spherical but flatten bottom half */
     for (const int v : IndexRange(segments_vertical + 1)) {
-      const float elevation = (float(v) / float(segments_vertical)) * math::numbers::pi - (math::numbers::pi / 2.0f);
+      const float elevation = (float(v) / float(segments_vertical)) * math::numbers::pi -
+                              (math::numbers::pi / 2.0f);
       const float radius = cosf(elevation);
       const float height = sinf(elevation);
-      
+
       /* Flatten bottom half to z=0 (floor) */
       const float final_height = (height < 0.0f) ? 0.0f : height;
 
-      if (radius > 0.05f) {  /* Skip rings that are too small */
+      if (radius > 0.05f) { /* Skip rings that are too small */
         Vector<float2> scaled_ring;
         for (const float2 &point : ring) {
           scaled_ring.append(point * radius);
@@ -1155,20 +1160,22 @@ ShapeCache::ShapeCache()
     }
 
     /* Vertical meridians - reuse spherical but flatten bottom half */
-    for (const int h : IndexRange(segments_horizontal / 2)) {  /* Every other meridian */
+    for (const int h : IndexRange(segments_horizontal / 2)) { /* Every other meridian */
       const float angle = (2.0f * math::numbers::pi * h * 2) / segments_horizontal;
       const float x = cosf(angle);
       const float y = sinf(angle);
 
       for (const int v : IndexRange(segments_vertical)) {
-        const float elevation1 = (float(v) / float(segments_vertical)) * math::numbers::pi - (math::numbers::pi / 2.0f);
-        const float elevation2 = (float(v + 1) / float(segments_vertical)) * math::numbers::pi - (math::numbers::pi / 2.0f);
+        const float elevation1 = (float(v) / float(segments_vertical)) * math::numbers::pi -
+                                 (math::numbers::pi / 2.0f);
+        const float elevation2 = (float(v + 1) / float(segments_vertical)) * math::numbers::pi -
+                                 (math::numbers::pi / 2.0f);
 
         const float radius1 = cosf(elevation1);
         const float height1 = sinf(elevation1);
         const float radius2 = cosf(elevation2);
         const float height2 = sinf(elevation2);
-        
+
         /* Flatten bottom half to z=0 (floor) */
         const float final_height1 = (height1 < 0.0f) ? 0.0f : height1;
         const float final_height2 = (height2 < 0.0f) ? 0.0f : height2;

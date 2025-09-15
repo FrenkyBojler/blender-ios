@@ -217,7 +217,8 @@ class Lights : Overlay {
       call_buffers_.area_disk_buf.end_sync(sub_pass, res.shapes.light_area_disk_lines.get());
       call_buffers_.area_square_buf.end_sync(sub_pass, res.shapes.light_area_square_lines.get());
       call_buffers_.dome_buf.end_sync(sub_pass, res.shapes.light_dome_lines.get());
-      call_buffers_.dome_hemisphere_buf.end_sync(sub_pass, res.shapes.light_dome_hemisphere_lines.get());
+      call_buffers_.dome_hemisphere_buf.end_sync(sub_pass,
+                                                 res.shapes.light_dome_hemisphere_lines.get());
     }
     {
       PassSimple::Sub &sub_pass = ps_.sub("ground_line");

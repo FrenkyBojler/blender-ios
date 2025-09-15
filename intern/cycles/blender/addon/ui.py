@@ -1580,6 +1580,7 @@ class CYCLES_LIGHT_PT_light(CyclesButtonsPanel, Panel):
 
             col = layout.column()
             if light.dome_image:
+                col.prop(light, "dome_hdr_strength", text="Strength")
                 col.prop(light, "dome_rotation", text="Rotation")
 
 

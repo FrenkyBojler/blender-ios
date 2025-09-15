@@ -33,7 +33,7 @@ typedef struct Light {
 
   /* Type and flags. */
   short type, flag;
-  int mode;
+  int mode, _pad2;
 
   /* Color, temperature and energy. */
   float r, g, b;
@@ -55,6 +55,16 @@ typedef struct Light {
   float area_sizey;
   float area_sizez;
   float area_spread;
+
+  /* Dome light. */
+  float dome_size;
+  float dome_rotation[3];
+  int _pad3;
+  struct Image *dome_image;
+  int dome_map_resolution;
+  float dome_hdr_strength;
+  short dome_projection;
+  short dome_type;
 
   /* Sun light. */
   float sun_angle;
@@ -82,23 +92,16 @@ typedef struct Light {
   float shadow_jitter_overblur;
 
   /* Preview */
+  int _pad4;
   struct PreviewImage *preview;
 
   /* Nodes */
   struct bNodeTree *nodetree;
 
-  /* Dome light. */
-  float dome_size;
-  float dome_rotation[3];
-  struct Image *dome_image;
-  int dome_map_resolution;
-  short dome_projection;
-  short dome_type;
-
   /* Deprecated. */
   struct Ipo *ipo DNA_DEPRECATED; /* Old animation system. */
   float energy_deprecated DNA_DEPRECATED;
-  float _pad2;
+  int _pad5;
 } Light;
 
 /* **************** LIGHT ********************* */

@@ -7,6 +7,7 @@
 #include "kernel/integrator/surface_shader.h"
 
 #include "kernel/light/distribution.h"
+#include "kernel/light/dome.h"
 #include "kernel/light/light.h"
 #include "kernel/types.h"
 
@@ -15,6 +16,7 @@
 #endif
 
 #include "kernel/geom/shader_data.h"
+#include "kernel/util/colorspace.h"
 
 #include "kernel/sample/mis.h"
 
@@ -83,8 +85,21 @@ light_sample_shader_eval(KernelGlobals kg,
 
   if (ls->type != LIGHT_TRIANGLE) {
     const ccl_global KernelLight *klight = &kernel_data_fetch(lights, ls->prim);
-    eval *= rgb_to_spectrum(
-        make_float3(klight->strength[0], klight->strength[1], klight->strength[2]));
+    const float3 strength = make_float3(
+        klight->strength[0], klight->strength[1], klight->strength[2]);
+
+    /* Apply HDR texture multiplication for dome lights */
+    if (ls->type == LIGHT_DOME) {
+      const float3 hdr_multiplier = dome_light_hdr_eval(kg, klight, ls->D);
+      /* Physically correct HDR application: scale strength by HDR luminance, apply HDR color */
+      const float hdr_luminance = linear_rgb_to_gray(kg, hdr_multiplier);
+      const float3 hdr_color = (hdr_luminance > 1e-8f) ? hdr_multiplier / hdr_luminance :
+                                                         make_float3(1.0f, 1.0f, 1.0f);
+      eval *= rgb_to_spectrum(strength * hdr_luminance * hdr_color);
+    }
+    else {
+      eval *= rgb_to_spectrum(strength);
+    }
   }
 
   return eval;

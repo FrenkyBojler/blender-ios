@@ -8,8 +8,10 @@
 
 #include "IMB_colormanagement.hh"
 
+#include "blender/image.h"
 #include "blender/sync.h"
 #include "blender/util.h"
+#include "scene/colorspace.h"
 #include "scene/object.h"
 
 CCL_NAMESPACE_BEGIN
@@ -80,34 +82,84 @@ void BlenderSync::sync_light(BObjectInfo &b_ob_info, Light *light)
       BL::DomeLight b_dome_light(b_light);
       light->set_size(b_dome_light.dome_size());
       light->set_light_type(LIGHT_DOME);
-      
+
       /* Set dome type (spherical or hemisphere) */
       light->set_is_dome_hemisphere(b_dome_light.dome_type() == 1); /* LA_DOME_HEMISPHERE = 1 */
-      
-      printf("DOME_DEBUG: Syncing dome light '%s' with size %.2f, type: %s\n", 
-             light->name.c_str(), (double)b_dome_light.dome_size(),
+
+      printf("DOME_DEBUG: Syncing dome light '%s' with size %.2f, type: %s\n",
+             light->name.c_str(),
+             (double)b_dome_light.dome_size(),
              light->get_is_dome_hemisphere() ? "hemisphere" : "spherical");
 
-      /* TODO: HDRI image implementation doesn't work, it only return a simple value (1.0f)
-      /* Set up HDRI image if available */
+      /* Set up HDRI image if available - focus on safe image handling during live updates */
       BL::Image b_image = b_dome_light.dome_image();
       if (b_image) {
-        /* Enable MIS for dome light with image */
-        light->set_use_mis(true);
-        
-        /* Use the user-specified map resolution for image sampling */
-        light->set_map_resolution(b_dome_light.dome_map_resolution());
-        
-        printf("DOME_DEBUG: Dome light has HDRI image - enabling MIS and setting resolution\n");
-        
-        /* TODO: Store image reference for dome light kernel sampling */
-        /* For now, dome lights with images will reuse background light sampling */
+        /* Get image filepath like other lights do */
+        string image_filename = b_image.filepath();
+        if (image_filename.empty() && b_image.packed_file()) {
+          /* Handle packed images by using a unique identifier */
+          image_filename = b_image.name();
+        }
+
+        if (!image_filename.empty()) {
+          light->set_dome_image(ustring(image_filename));
+          light->set_dome_hdr_strength(b_dome_light.dome_hdr_strength());
+
+          printf("DOME_DEBUG: Found HDR image '%s' with strength %.2f\n",
+                 image_filename.c_str(),
+                 (double)b_dome_light.dome_hdr_strength());
+
+          /* The key fix: Only reload HDR texture if the image actually changed
+           * This prevents crashes during live property updates */
+          ustring current_image = light->get_dome_image();
+          if (current_image != ustring(image_filename) || light->dome_hdr_handle.empty()) {
+            printf("DOME_DEBUG: Image changed or not loaded, reloading HDR texture\n");
+
+            /* Clear old HDR texture handle before loading new one to prevent crashes */
+            light->clear_dome_hdr_texture();
+
+            /* Load HDR texture using BlenderImageLoader */
+            ImageParams params;
+            params.interpolation = INTERPOLATION_LINEAR;
+            params.extension = EXTENSION_REPEAT;
+            params.alpha_type = IMAGE_ALPHA_AUTO;
+            params.colorspace =
+                u_colorspace_raw; /* HDR images are already in linear space, no transform needed */
+
+            /* Create a default ImageUser for now */
+            ImageUser image_user = {nullptr};
+
+            light->dome_hdr_handle = scene->image_manager->add_image(
+                make_unique<BlenderImageLoader>(static_cast<::Image *>(b_image.ptr.data),
+                                                &image_user,
+                                                0, /* frame */
+                                                0, /* tile */
+                                                b_engine.is_preview()),
+                params);
+          }
+          else {
+            printf("DOME_DEBUG: Image unchanged, keeping existing HDR texture\n");
+          }
+
+          /* Enable MIS for dome light with image */
+          light->set_use_mis(true);
+
+          /* Use the user-specified map resolution for image sampling */
+          light->set_map_resolution(b_dome_light.dome_map_resolution());
+        }
       }
       else {
+        /* Clear dome image and intensity */
+        light->set_dome_image(ustring());
+        light->set_dome_hdr_strength(1.0f);
+        light->clear_dome_hdr_texture();
+
         /* Dome light without image still needs MIS enabled */
         light->set_use_mis(true);
+
+        printf("DOME_DEBUG: No HDR image set\n");
       }
-      
+
       /* Set a default average radiance for light tree compatibility */
       light->set_average_radiance(1.0f);
       break;
