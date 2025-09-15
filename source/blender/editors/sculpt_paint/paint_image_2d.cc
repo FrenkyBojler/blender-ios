@@ -726,7 +726,8 @@ static void brush_painter_2d_refresh_cache(ImagePaintState *s,
   Brush *brush = painter->brush;
   BrushPainterCache *cache = &tile->cache;
   /* Adding 4 pixels of padding for brush anti-aliasing. */
-  const int diameter = std::max(1, int(size * 2)) + 4;
+  const int padding = brush->sampling_flag & BRUSH_PAINT_ANTIALIASING ? 4 : 0;
+  const int diameter = std::max(1, int(size * 2)) + padding;
 
   bool do_random = false;
   bool do_partial_update = false;
