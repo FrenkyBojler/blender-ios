@@ -3,6 +3,8 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 import bpy
+import rna_prop_ui
+
 from bpy.types import (
     Header,
     Menu,
@@ -63,16 +65,17 @@ class NODE_HT_header(Header):
                 ob_type = ob.type
 
                 NODE_MT_editor_menus.draw_collapsible(context, layout)
-
-                if snode_id:
-                    row = layout.row()
-                    row.prop(snode_id, "use_nodes")
-
-                layout.separator_spacer()
-
                 types_that_support_material = {
                     'MESH', 'CURVE', 'SURFACE', 'FONT', 'META', 'GPENCIL', 'VOLUME', 'CURVES', 'POINTCLOUD',
                 }
+
+                if snode_id:
+                    row = layout.row()
+                    if ob_type not in types_that_support_material:
+                        row.prop(snode_id, "use_nodes")
+
+                layout.separator_spacer()
+
                 # disable material slot buttons when pinned, cannot find correct slot within id_from (#36589)
                 # disable also when the selected object does not support materials
                 has_material_slots = not snode.pin and ob_type in types_that_support_material
@@ -790,6 +793,15 @@ class NODE_PT_active_node_properties(Panel):
         layout.template_node_inputs(node)
 
 
+class NODE_PT_active_node_custom_properties(rna_prop_ui.PropertyPanel, Panel):
+    bl_space_type = 'NODE_EDITOR'
+    bl_region_type = 'UI'
+    bl_category = "Node"
+
+    _context_path = "active_node"
+    _property_type = bpy.types.Node
+
+
 class NODE_PT_texture_mapping(Panel):
     bl_space_type = 'NODE_EDITOR'
     bl_region_type = 'UI'
@@ -1227,6 +1239,7 @@ classes = (
     NODE_PT_annotation,
     NODE_PT_overlay,
     NODE_PT_active_node_properties,
+    NODE_PT_active_node_custom_properties,
     NODE_PT_gizmo_display,
     NODE_AST_compositor,
 

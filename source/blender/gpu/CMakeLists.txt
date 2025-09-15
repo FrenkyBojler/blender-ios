@@ -235,6 +235,7 @@ set(VULKAN_SRC
   vulkan/vk_immediate.cc
   vulkan/vk_index_buffer.cc
   vulkan/vk_memory_layout.cc
+  vulkan/vk_memory_pool.cc
   vulkan/vk_pipeline_pool.cc
   vulkan/vk_pixel_buffer.cc
   vulkan/vk_push_constants.cc
@@ -284,6 +285,7 @@ set(VULKAN_SRC
   vulkan/vk_index_buffer.hh
   vulkan/vk_memory.hh
   vulkan/vk_memory_layout.hh
+  vulkan/vk_memory_pool.hh
   vulkan/vk_pipeline_pool.hh
   vulkan/vk_pixel_buffer.hh
   vulkan/vk_push_constants.hh
@@ -772,6 +774,13 @@ target_link_libraries(bf_gpu PUBLIC
 
 if(WITH_OPENGL_BACKEND AND CMAKE_SYSTEM_NAME STREQUAL "Linux")
   target_link_libraries(bf_gpu PUBLIC rt)
+endif()
+
+# If `execinfo.h` exists on a *BSD system then also link in `libexecinfo`.
+# Needed for `backtrace` / `backtrace_symbols` (GNU extensions)
+# brought in by `blenlib/intern/system.cc`.
+if(HAVE_EXECINFO_H AND CMAKE_SYSTEM_NAME MATCHES "FreeBSD|NetBSD|OpenBSD|DragonFly")
+  target_link_libraries(bf_gpu PUBLIC execinfo)
 endif()
 
 if(WITH_OPENSUBDIV)
