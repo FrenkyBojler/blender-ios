@@ -1312,7 +1312,7 @@ static void WM_OT_xr_navigation_fly(wmOperatorType *ot)
                 "Turn Speed Factor",
                 "Ratio between the min and max turn speed",
                 0.0f,
-                360.0f);
+                1.0f);
   RNA_def_float(ot->srna,
                 "fly_speed_factor",
                 1.0 / 3.0f,
@@ -1321,7 +1321,7 @@ static void WM_OT_xr_navigation_fly(wmOperatorType *ot)
                 "Fly Speed Factor",
                 "Ratio between the min and max fly speed",
                 0.0f,
-                1000.0f);
+                1.0f);
   RNA_def_float_vector(ot->srna,
                        "speed_interpolation0",
                        2,
