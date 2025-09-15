@@ -15,7 +15,6 @@ VKCommandBufferWrapper::VKCommandBufferWrapper(VkCommandBuffer vk_command_buffer
                                                const VKExtensions &extensions)
     : vk_command_buffer_(vk_command_buffer)
 {
-  use_dynamic_rendering = extensions.dynamic_rendering;
   use_dynamic_rendering_local_read = extensions.dynamic_rendering_local_read;
 }
 
@@ -264,16 +263,6 @@ void VKCommandBufferWrapper::set_viewport(const Vector<VkViewport> viewports)
 void VKCommandBufferWrapper::set_scissor(const Vector<VkRect2D> scissors)
 {
   vkCmdSetScissor(vk_command_buffer_, 0, scissors.size(), scissors.data());
-}
-
-void VKCommandBufferWrapper::begin_render_pass(const VkRenderPassBeginInfo *render_pass_begin_info)
-{
-  vkCmdBeginRenderPass(vk_command_buffer_, render_pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
-}
-
-void VKCommandBufferWrapper::end_render_pass()
-{
-  vkCmdEndRenderPass(vk_command_buffer_);
 }
 
 void VKCommandBufferWrapper::begin_rendering(const VkRenderingInfo *p_rendering_info)

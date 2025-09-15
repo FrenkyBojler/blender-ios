@@ -170,7 +170,7 @@ static wmOperatorStatus simulate_to_frame_invoke(bContext *C,
   wmJob *wm_job = WM_jobs_get(wm,
                               CTX_wm_window(C),
                               CTX_data_scene(C),
-                              "Calculate Simulation",
+                              "Calculating simulation...",
                               WM_JOB_PROGRESS,
                               WM_JOB_TYPE_CALCULATE_SIMULATION_NODES);
 
@@ -578,7 +578,7 @@ static wmOperatorStatus start_bake_job(bContext *C,
   wmJob *wm_job = WM_jobs_get(job->wm,
                               CTX_wm_window(C),
                               job->scene,
-                              "Bake Nodes",
+                              "Baking nodes...",
                               WM_JOB_PROGRESS,
                               WM_JOB_TYPE_BAKE_GEOMETRY_NODES);
 
@@ -961,7 +961,7 @@ static Vector<NodeBakeRequest> bake_single_node_gather_bake_request(bContext *C,
     if (!request.path) {
       BKE_report(op->reports,
                  RPT_INFO,
-                 "Can't determine bake location on disk. Falling back to packed bake.");
+                 "Cannot determine bake location on disk. Falling back to packed bake.");
     }
   }
 

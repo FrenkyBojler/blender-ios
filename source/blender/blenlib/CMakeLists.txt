@@ -22,6 +22,7 @@ set(INC_SYS
 set(SRC
   intern/BLI_assert.cc
   intern/BLI_color.cc
+  intern/BLI_colorspace.cc
   intern/BLI_dial_2d.cc
   intern/BLI_dynstr.cc
   intern/BLI_filelist.cc
@@ -53,6 +54,7 @@ set(SRC
   intern/bitmap_draw_2d.cc
   intern/boxpack_2d.cc
   intern/cache_mutex.cc
+  intern/compression.cc
   intern/compute_context.cc
   intern/convexhull_2d.cc
   intern/cpp_type.cc
@@ -203,9 +205,11 @@ set(SRC
   BLI_cache_mutex.hh
   BLI_color.hh
   BLI_color_mix.hh
+  BLI_colorspace.hh
   BLI_compiler_attrs.h
   BLI_compiler_compat.h
   BLI_compiler_typecheck.h
+  BLI_compression.hh
   BLI_compute_context.hh
   BLI_concurrent_map.hh
   BLI_console.h
@@ -528,6 +532,7 @@ if(WITH_GTESTS)
     tests/BLI_bounds_test.cc
     tests/BLI_build_config_test.cc
     tests/BLI_color_test.cc
+    tests/BLI_compression_test.cc
     tests/BLI_convexhull_2d_test.cc
     tests/BLI_cpp_type_test.cc
     tests/BLI_csv_parse_test.cc

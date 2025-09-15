@@ -1529,7 +1529,7 @@ void ui_draw_but_UNITVEC(uiBut *but,
   SimpleLightingData simple_lighting_data;
   copy_v4_fl4(simple_lighting_data.l_color, diffuse[0], diffuse[1], diffuse[2], 1.0f);
   copy_v3_v3(simple_lighting_data.light, light);
-  GPUUniformBuf *ubo = GPU_uniformbuf_create_ex(
+  blender::gpu::UniformBuf *ubo = GPU_uniformbuf_create_ex(
       sizeof(SimpleLightingData), &simple_lighting_data, __func__);
 
   GPU_batch_program_set_builtin(sphere, GPU_SHADER_SIMPLE_LIGHTING);
@@ -1616,11 +1616,22 @@ static void gl_shaded_color(const uchar *color, int shade)
   immUniformColor3ubv(color_shaded);
 }
 
+static void gl_shaded_color(const uchar *color, int shade, uchar alpha)
+{
+  uchar color_shaded[3];
+  gl_shaded_color_get(color, shade, color_shaded);
+  immUniformColor3ubvAlpha(color_shaded, alpha);
+}
+
 void ui_draw_but_CURVE(ARegion *region, uiBut *but, const uiWidgetColors *wcol, const rcti *rect)
 {
   uiButCurveMapping *but_cumap = (uiButCurveMapping *)but;
   CurveMapping *cumap = (but_cumap->edit_cumap == nullptr) ? (CurveMapping *)but->poin :
                                                              but_cumap->edit_cumap;
+
+  const bool inactive = but->flag & UI_BUT_INACTIVE;
+  const uchar alpha = inactive ? 192 : 255;
+  const float float_alpha = inactive ? 0.75f : 1.0f;
 
   const float clip_size_x = BLI_rctf_size_x(&cumap->curr);
   const float clip_size_y = BLI_rctf_size_y(&cumap->curr);
@@ -1668,7 +1679,9 @@ void ui_draw_but_CURVE(ARegion *region, uiBut *but, const uiWidgetColors *wcol, 
     grid.xmax = grid.xmin + zoomx;
     grid.ymin = rect->ymin + zoomy * (-offsy);
     grid.ymax = grid.ymin + zoomy;
-    ui_draw_gradient(&grid, col, UI_GRAD_H, 1.0f);
+
+    const ColorManagedDisplay *display = ui_block_cm_display_get(but->block);
+    ui_draw_gradient(&grid, col, UI_GRAD_H, 1.0f, display);
   }
 
   GPU_line_width(1.0f);
@@ -1680,20 +1693,19 @@ void ui_draw_but_CURVE(ARegion *region, uiBut *but, const uiWidgetColors *wcol, 
   /* backdrop */
   float color_backdrop[4] = {0, 0, 0, 1};
 
+  GPU_blend(GPU_BLEND_ALPHA);
   if (but_cumap->gradient_type == UI_GRAD_H) {
     /* grid, hsv uses different grid */
-    GPU_blend(GPU_BLEND_ALPHA);
     ARRAY_SET_ITEMS(color_backdrop, 0, 0, 0, 48.0 / 255.0);
     immUniformColor4fv(color_backdrop);
     ui_draw_but_curve_grid(pos, rect, zoomx, zoomy, offsx, offsy, 0.1666666f);
-    GPU_blend(GPU_BLEND_NONE);
   }
   else {
     if (cumap->flag & CUMA_DO_CLIP) {
       gl_shaded_color_get_fl(wcol->inner, -20, color_backdrop);
-      immUniformColor3fv(color_backdrop);
+      immUniformColor3fvAlpha(color_backdrop, float_alpha);
       immRectf(pos, rect->xmin, rect->ymin, rect->xmax, rect->ymax);
-      immUniformColor3ubv(wcol->inner);
+      immUniformColor3ubvAlpha(wcol->inner, alpha);
       immRectf(pos,
                rect->xmin + zoomx * (cumap->clipr.xmin - offsx),
                rect->ymin + zoomy * (cumap->clipr.ymin - offsy),
@@ -1702,18 +1714,18 @@ void ui_draw_but_CURVE(ARegion *region, uiBut *but, const uiWidgetColors *wcol, 
     }
     else {
       rgb_uchar_to_float(color_backdrop, wcol->inner);
-      immUniformColor3fv(color_backdrop);
+      immUniformColor3fvAlpha(color_backdrop, float_alpha);
       immRectf(pos, rect->xmin, rect->ymin, rect->xmax, rect->ymax);
     }
 
     /* grid, every 0.25 step */
-    gl_shaded_color(wcol->inner, -16);
+    gl_shaded_color(wcol->inner, -16, alpha);
     ui_draw_but_curve_grid(pos, rect, zoomx, zoomy, offsx, offsy, 0.25f);
     /* grid, every 1.0 step */
-    gl_shaded_color(wcol->inner, -24);
+    gl_shaded_color(wcol->inner, -24, alpha);
     ui_draw_but_curve_grid(pos, rect, zoomx, zoomy, offsx, offsy, 1.0f);
     /* axes */
-    gl_shaded_color(wcol->inner, -50);
+    gl_shaded_color(wcol->inner, -50, alpha);
     immBegin(GPU_PRIM_LINES, 4);
     immVertex2f(pos, rect->xmin, rect->ymin + zoomy * (-offsy));
     immVertex2f(pos, rect->xmax, rect->ymin + zoomy * (-offsy));
@@ -1721,6 +1733,7 @@ void ui_draw_but_CURVE(ARegion *region, uiBut *but, const uiWidgetColors *wcol, 
     immVertex2f(pos, rect->xmin + zoomx * (-offsx), rect->ymax);
     immEnd();
   }
+  GPU_blend(GPU_BLEND_NONE);
 
   /* cfra option */
   /* XXX 2.48 */
@@ -1798,11 +1811,12 @@ void ui_draw_but_CURVE(ARegion *region, uiBut *but, const uiWidgetColors *wcol, 
     line_range.ymax = rect->ymin + zoomy * (cmp[CM_TABLE].y - offsy - cuma->ext_out[1]);
   }
 
-  immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
   GPU_blend(GPU_BLEND_ALPHA);
+  immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
   /* Curve filled. */
-  immUniformColor3ubvAlpha(wcol->item, 128);
+  uchar filled_alpha = inactive ? 64 : 128;
+  immUniformColor3ubvAlpha(wcol->item, filled_alpha);
   immBegin(GPU_PRIM_TRI_STRIP, (CM_TABLE * 2 + 2) + 4);
   immVertex2f(pos, line_range.xmin, rect->ymin);
   immVertex2f(pos, line_range.xmin, line_range.ymin);
@@ -1818,7 +1832,7 @@ void ui_draw_but_CURVE(ARegion *region, uiBut *but, const uiWidgetColors *wcol, 
 
   /* Curve line. */
   GPU_line_width(1.0f);
-  immUniformColor3ubvAlpha(wcol->item, 255);
+  immUniformColor3ubvAlpha(wcol->item, alpha);
   GPU_line_smooth(true);
   immBegin(GPU_PRIM_LINE_STRIP, (CM_TABLE + 1) + 2);
   immVertex2f(pos, line_range.xmin, line_range.ymin);
@@ -1849,6 +1863,10 @@ void ui_draw_but_CURVE(ARegion *region, uiBut *but, const uiWidgetColors *wcol, 
   float color_vert[4], color_vert_select[4];
   UI_GetThemeColor4fv(TH_TEXT_HI, color_vert);
   UI_GetThemeColor4fv(TH_TEXT, color_vert_select);
+  if (inactive) {
+    color_vert[3] *= float_alpha;
+    color_vert_select[3] *= float_alpha;
+  }
   if (len_squared_v3v3(color_vert, color_vert_select) < 0.1f) {
     interp_v3_v3v3(color_vert, color_vert_select, color_backdrop, 0.75f);
   }
@@ -2098,7 +2116,10 @@ void ui_draw_but_CURVEPROFILE(ARegion *region,
   pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
   const uint col = GPU_vertformat_attr_add(
       format, "color", blender::gpu::VertAttrType::SFLOAT_32_32_32_32);
-  immBindBuiltinProgram(GPU_SHADER_3D_FLAT_COLOR);
+  const uint size = GPU_vertformat_attr_add(format, "size", blender::gpu::VertAttrType::SFLOAT_32);
+  immBindBuiltinProgram(GPU_SHADER_3D_POINT_VARYING_SIZE_VARYING_COLOR);
+
+  GPU_program_point_size(true);
 
   /* Calculate vertex colors based on text theme. */
   float color_vert[4], color_vert_select[4], color_sample[4];
@@ -2116,15 +2137,18 @@ void ui_draw_but_CURVEPROFILE(ARegion *region,
     swap_v3_v3(color_vert, color_vert_select);
   }
 
+  float point_size;
+
   /* Draw the control points. */
   GPU_line_smooth(false);
   if (path_len > 0) {
     GPU_blend(GPU_BLEND_NONE);
-    GPU_point_size(max_ff(3.0f, min_ff(UI_SCALE_FAC / but->block->aspect * 5.0f, 5.0f)));
+    point_size = max_ff(3.0f, min_ff(UI_SCALE_FAC / but->block->aspect * 5.0f, 5.0f));
     immBegin(GPU_PRIM_POINTS, path_len);
     for (int i = 0; i < path_len; i++) {
       fx = rect->xmin + zoomx * (pts[i].x - offsx);
       fy = rect->ymin + zoomy * (pts[i].y - offsy);
+      immAttr1f(size, point_size);
       immAttr4fv(col, (pts[i].flag & PROF_SELECT) ? color_vert_select : color_vert);
       immVertex2f(pos, fx, fy);
     }
@@ -2135,15 +2159,15 @@ void ui_draw_but_CURVEPROFILE(ARegion *region,
   if (selected_free_points > 0) {
     GPU_line_smooth(false);
     GPU_blend(GPU_BLEND_NONE);
-    GPU_point_size(max_ff(2.0f, min_ff(UI_SCALE_FAC / but->block->aspect * 4.0f, 4.0f)));
+    point_size = max_ff(2.0f, min_ff(UI_SCALE_FAC / but->block->aspect * 4.0f, 4.0f));
     immBegin(GPU_PRIM_POINTS, selected_free_points * 2);
     for (int i = 0; i < path_len; i++) {
       if (point_draw_handles(&pts[i])) {
         fx = rect->xmin + zoomx * (pts[i].h1_loc[0] - offsx);
         fy = rect->ymin + zoomy * (pts[i].h1_loc[1] - offsy);
+        immAttr1f(size, point_size);
         immAttr4fv(col, (pts[i].flag & PROF_H1_SELECT) ? color_vert_select : color_vert);
         immVertex2f(pos, fx, fy);
-
         fx = rect->xmin + zoomx * (pts[i].h2_loc[0] - offsx);
         fy = rect->ymin + zoomy * (pts[i].h2_loc[1] - offsy);
         immAttr4fv(col, (pts[i].flag & PROF_H2_SELECT) ? color_vert_select : color_vert);
@@ -2157,11 +2181,12 @@ void ui_draw_but_CURVEPROFILE(ARegion *region,
   pts = profile->segments;
   const int segments_len = uint(profile->segments_len);
   if (segments_len > 0 && pts) {
-    GPU_point_size(max_ff(2.0f, min_ff(UI_SCALE_FAC / but->block->aspect * 3.0f, 3.0f)));
+    point_size = max_ff(2.0f, min_ff(UI_SCALE_FAC / but->block->aspect * 3.0f, 3.0f));
     immBegin(GPU_PRIM_POINTS, segments_len);
     for (int i = 0; i < segments_len; i++) {
       fx = rect->xmin + zoomx * (pts[i].x - offsx);
       fy = rect->ymin + zoomy * (pts[i].y - offsy);
+      immAttr1f(size, point_size);
       immAttr4fv(col, color_sample);
       immVertex2f(pos, fx, fy);
     }

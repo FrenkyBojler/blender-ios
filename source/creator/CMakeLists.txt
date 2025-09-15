@@ -20,6 +20,7 @@ set(LIB
   PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
   PRIVATE bf::render
+  PRIVATE bf::sequencer
   PRIVATE bf::windowmanager
   PRIVATE bf::dependencies::optional::opencolorio
 )
@@ -1672,7 +1673,7 @@ elseif(APPLE)
 
   if(WITH_VULKAN_BACKEND)
     install(
-      FILES ${VULKAN_LIBRARY} ${MOLTENVK_LIBRARY}
+      FILES ${VULKAN_LIBRARY}
       DESTINATION ${TARGETDIR_LIB}
     )
   endif()

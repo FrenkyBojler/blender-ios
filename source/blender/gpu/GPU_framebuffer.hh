@@ -31,13 +31,13 @@ namespace blender::gpu {
 class Texture;
 }
 
-enum eGPUFrameBufferBits {
+enum GPUFrameBufferBits {
   GPU_COLOR_BIT = (1 << 0),
   GPU_DEPTH_BIT = (1 << 1),
   GPU_STENCIL_BIT = (1 << 2),
 };
 
-ENUM_OPERATORS(eGPUFrameBufferBits, GPU_STENCIL_BIT)
+ENUM_OPERATORS(GPUFrameBufferBits, GPU_STENCIL_BIT)
 
 /* Guaranteed by the spec and is never greater than 16 on any hardware or implementation. */
 constexpr static int GPU_MAX_VIEWPORTS = 16;
@@ -98,7 +98,7 @@ void GPU_framebuffer_free(GPUFrameBuffer *fb);
 /** \name Binding
  * \{ */
 
-enum eGPUBackBuffer {
+enum GPUBackBuffer {
   /** Default framebuffer of a window. Always available. */
   GPU_BACKBUFFER_LEFT = 0,
   /** Right buffer of a window. Only available if window was created using stereo-view. */
@@ -109,7 +109,7 @@ enum eGPUBackBuffer {
  * Binds the active context's window frame-buffer.
  * Note that `GPU_BACKBUFFER_RIGHT` is only available if the window was created using stereo-view.
  */
-void GPU_backbuffer_bind(eGPUBackBuffer back_buffer_type);
+void GPU_backbuffer_bind(GPUBackBuffer back_buffer_type);
 
 /**
  * Binds a #GPUFrameBuffer making it the active framebuffer for all geometry rendering.
@@ -134,8 +134,8 @@ void GPU_framebuffer_restore();
  * \{ */
 
 struct GPULoadStore {
-  eGPULoadOp load_action;
-  eGPUStoreOp store_action;
+  GPULoadOp load_action;
+  GPUStoreOp store_action;
   float clear_value[4];
 };
 
@@ -380,7 +380,7 @@ void GPU_framebuffer_default_size(GPUFrameBuffer *fb, int width, int height);
  * \{ */
 
 /**
- * Set a the viewport offset and size.
+ * Set the viewport offset and size.
  * These are reset to the original dimensions explicitly (using `GPU_framebuffer_viewport_reset()`)
  * or when binding the frame-buffer after modifying its attachments.
  *
@@ -432,7 +432,7 @@ void GPU_framebuffer_viewport_reset(GPUFrameBuffer *fb);
  * \note Viewport and scissor regions affect this command but are not efficient nor recommended.
  */
 void GPU_framebuffer_clear(GPUFrameBuffer *fb,
-                           eGPUFrameBufferBits buffers,
+                           GPUFrameBufferBits buffers,
                            const float clear_col[4],
                            float clear_depth,
                            unsigned int clear_stencil);
@@ -592,7 +592,7 @@ void GPU_framebuffer_read_color(GPUFrameBuffer *fb,
                                 void *r_data);
 
 /**
- * Read a the color of the window screen as it is currently displayed (so the previously rendered
+ * Read the color of the window screen as it is currently displayed (so the previously rendered
  * back-buffer).
  * DEPRECATED: This isn't even working correctly on some implementation.
  * TODO: Emulate this by doing some slow texture copy on the backend side or try to read the areas
@@ -613,7 +613,7 @@ void GPU_framebuffer_blit(GPUFrameBuffer *fb_read,
                           int read_slot,
                           GPUFrameBuffer *fb_write,
                           int write_slot,
-                          eGPUFrameBufferBits blit_buffers);
+                          GPUFrameBufferBits blit_buffers);
 
 /** \} */
 
@@ -665,7 +665,7 @@ void GPU_offscreen_bind(GPUOffScreen *offscreen, bool save);
 void GPU_offscreen_unbind(GPUOffScreen *offscreen, bool restore);
 
 /**
- * Read the whole color texture of the a #GPUOffScreen.
+ * Read the whole color texture of the #GPUOffScreen.
  * The pixel data will be converted to \a data_format but it needs to be compatible with the
  * attachment type.
  * IMPORTANT: \a r_data must be big enough for all pixels in \a data_format.
