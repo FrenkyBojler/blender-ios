@@ -58,9 +58,19 @@ LibOCIODisplay::LibOCIODisplay(const int index, const LibOCIOConfig &config) : c
     OCIO_NAMESPACE::ConstColorSpaceRcPtr ocio_display_colorspace = get_display_view_colorspace(
         ocio_config, name_.c_str(), view_name);
 
-    const char *view_description = ocio_display_colorspace ?
-                                       ocio_display_colorspace->getDescription() :
-                                       "";
+    const char *view_description = nullptr;
+    const char *view_transform_name = ocio_config->getDisplayViewTransformName(name_.c_str(),
+                                                                               view_name);
+    if (view_transform_name) {
+      const OCIO_NAMESPACE::ConstViewTransformRcPtr view_transform = ocio_config->getViewTransform(
+          view_transform_name);
+      if (view_transform) {
+        view_description = view_transform->getDescription();
+      }
+    }
+    if (view_description == nullptr) {
+      view_description = "";
+    }
 
     /* Detect if view is HDR, through encoding of display colorspace. */
     bool view_is_hdr = false;
