@@ -28,7 +28,7 @@ typedef struct XrSessionSettings {
   char draw_flags;
   /** Draw style for controller visualization. */
   char controller_draw_style;
-  char controller_dominant_hand;          /* #eXrSessionDominantHand */
+  char controller_dominant_hand; /* #eXrSessionDominantHand */
 
   char viewfinder_enable;
   char _pad2;

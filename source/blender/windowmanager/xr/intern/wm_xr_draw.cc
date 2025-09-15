@@ -237,7 +237,7 @@ void wm_xr_draw_view(const GHOST_XrDrawViewInfo *draw_view, void *customdata)
         break;
       }
 
-      /* Note: View offsets can be configured using the Scene Camera Shift X/Y and other settings. */
+      /* Note: View offsets can be configured using the Scene Camera Shift X/Y settings. */
       float viewfinder_mat[4][4];
       copy_m4_m4(viewfinder_mat, viewfinder_controller->grip_mat);
       rotate_m4(viewfinder_mat, 'X', -M_PI_2);
@@ -258,16 +258,21 @@ void wm_xr_draw_view(const GHOST_XrDrawViewInfo *draw_view, void *customdata)
 
       /* Note: unsafe, relies on the VR add-on to be loaded. */
       PropertyRNA *landmarks_prop = RNA_struct_find_property(&scene_ptr, "vr_landmarks");
-      PropertyRNA *landmark_idx_prop = RNA_struct_find_property(&scene_ptr, "vr_landmarks_selected");
+      PropertyRNA *landmark_idx_prop = RNA_struct_find_property(&scene_ptr,
+                                                                "vr_landmarks_selected");
       const int landmark_idx = RNA_property_int_get(&scene_ptr, landmark_idx_prop);
 
       /* Hack: Doing some hardcore RNA introspection to obtain the values back. */
       PointerRNA current_landmark;
-      RNA_property_collection_lookup_int(&scene_ptr, landmarks_prop, landmark_idx, &current_landmark);
+      RNA_property_collection_lookup_int(
+          &scene_ptr, landmarks_prop, landmark_idx, &current_landmark);
 
-      PropertyRNA *lm_vf_pos_prop = RNA_struct_find_property(&current_landmark, "base_pose_location");
-      PropertyRNA *lm_vf_quat_prop = RNA_struct_find_property(&current_landmark, "viewfinder_quat");
-      PropertyRNA *lm_vf_lens_prop = RNA_struct_find_property(&current_landmark, "viewfinder_lens");
+      PropertyRNA *lm_vf_pos_prop = RNA_struct_find_property(&current_landmark,
+                                                             "base_pose_location");
+      PropertyRNA *lm_vf_quat_prop = RNA_struct_find_property(&current_landmark,
+                                                              "viewfinder_quat");
+      PropertyRNA *lm_vf_lens_prop = RNA_struct_find_property(&current_landmark,
+                                                              "viewfinder_lens");
       float landmark_viewfinder_pos[3];
       float landmark_viewfinder_quat[4];
       RNA_property_float_get_array(&current_landmark, lm_vf_pos_prop, landmark_viewfinder_pos);

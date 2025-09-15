@@ -2494,9 +2494,7 @@ static void rna_def_xr_session_state(BlenderRNA *brna)
       prop, "rna_XrSessionState_viewfinder_location_get", nullptr, nullptr);
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
   RNA_def_property_ui_text(
-      prop,
-      "Viewfinder Location",
-      "Last known location of the viewfinder in world space");
+      prop, "Viewfinder Location", "Last known location of the viewfinder in world space");
 
   prop = RNA_def_property(srna, "viewfinder_rotation", PROP_FLOAT, PROP_QUATERNION);
   RNA_def_property_array(prop, 4);
@@ -2504,9 +2502,7 @@ static void rna_def_xr_session_state(BlenderRNA *brna)
       prop, "rna_XrSessionState_viewfinder_rotation_get", nullptr, nullptr);
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
   RNA_def_property_ui_text(
-      prop,
-      "Viewfinder Rotation",
-      "Last known rotation of the viewfinder in world space");
+      prop, "Viewfinder Rotation", "Last known rotation of the viewfinder in world space");
 
   prop = RNA_def_property(srna, "navigation_location", PROP_FLOAT, PROP_TRANSLATION);
   RNA_def_property_array(prop, 3);
