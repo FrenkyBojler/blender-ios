@@ -97,6 +97,7 @@ static bool is_bad_AMD_driver(const char *version_cstr)
   Vector<int> version;
 
   if (parse_version(version_str, " 00.00.00.00 ", version) ||
+      parse_version(version_str, " 00.00.000000 ", version) ||
       parse_version(version_str, " 00.00.00 ", version) ||
       parse_version(version_str, " 00.00.0 ", version) ||
       parse_version(version_str, " 00.0.00 ", version) ||
@@ -123,10 +124,10 @@ void GLBackend::platform_init()
   const char *vendor = (const char *)glGetString(GL_VENDOR);
   const char *renderer = (const char *)glGetString(GL_RENDERER);
   const char *version = (const char *)glGetString(GL_VERSION);
-  eGPUDeviceType device = GPU_DEVICE_ANY;
-  eGPUOSType os = GPU_OS_ANY;
-  eGPUDriverType driver = GPU_DRIVER_ANY;
-  eGPUSupportLevel support_level = GPU_SUPPORT_LEVEL_SUPPORTED;
+  GPUDeviceType device = GPU_DEVICE_ANY;
+  GPUOSType os = GPU_OS_ANY;
+  GPUDriverType driver = GPU_DRIVER_ANY;
+  GPUSupportLevel support_level = GPU_SUPPORT_LEVEL_SUPPORTED;
 
 #ifdef _WIN32
   os = GPU_OS_WIN;
