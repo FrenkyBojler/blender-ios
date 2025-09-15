@@ -228,7 +228,7 @@ BLI_INLINE int32_t pack_rotation_aspect_hardness(float rot, float asp, float sof
   int32_t packed = 0;
   /* Aspect uses 9 bits */
   float asp_normalized = (asp > 1.0f) ? (1.0f / asp) : asp;
-  /* Use the default when the value is outside of the valid range. */
+  /* Use the default aspect ratio of 1 when the value is outside of the valid range. */
   if (asp_normalized <= 0.0f) {
     asp_normalized = 1.0f;
   }
