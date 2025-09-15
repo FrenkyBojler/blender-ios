@@ -648,10 +648,12 @@ static CurvesSelectionStatus init_grease_pencil_selection_status(
   IndexMaskMemory memory;
   const IndexMask selection = retrieve_selected_curves(curves, memory);
 
-  return threading::parallel_reduce(
+  CurvesSelectionStatus status;
+
+  status = threading::parallel_reduce(
       curves.curves_range(),
       512,
-      CurvesSelectionStatus(),
+      status,
       [&](const IndexRange range, const CurvesSelectionStatus &acc) {
         CurvesSelectionStatus value = acc;
 
@@ -659,23 +661,83 @@ static CurvesSelectionStatus init_grease_pencil_selection_status(
           const float aspect = aspect_ratios[curve];
           value.aspect_ratio_sum += aspect;
           value.aspect_ratio_max = std::max(value.aspect_ratio_max, aspect);
+        });
+        return value;
+      },
+      CurvesSelectionStatus::sum);
 
+  status = threading::parallel_reduce(
+      curves.curves_range(),
+      512,
+      status,
+      [&](const IndexRange range, const CurvesSelectionStatus &acc) {
+        CurvesSelectionStatus value = acc;
+
+        selection.slice_content(range).foreach_index([&](const int curve) {
           const float soft = softnesses[curve];
           value.softness_sum += soft;
           value.softness_max = std::max(value.softness_max, soft);
+        });
+        return value;
+      },
+      CurvesSelectionStatus::sum);
 
+  status = threading::parallel_reduce(
+      curves.curves_range(),
+      512,
+      status,
+      [&](const IndexRange range, const CurvesSelectionStatus &acc) {
+        CurvesSelectionStatus value = acc;
+
+        selection.slice_content(range).foreach_index([&](const int curve) {
           const float u_scale = u_scales[curve];
           value.u_scale_sum += u_scale;
           value.u_scale_max = std::max(value.u_scale_max, u_scale);
+        });
+        return value;
+      },
+      CurvesSelectionStatus::sum);
 
+  status = threading::parallel_reduce(
+      curves.curves_range(),
+      512,
+      status,
+      [&](const IndexRange range, const CurvesSelectionStatus &acc) {
+        CurvesSelectionStatus value = acc;
+
+        selection.slice_content(range).foreach_index([&](const int curve) {
           const float fill_opacity = fill_opacities[curve];
           value.fill_opacity_sum += fill_opacity;
           value.fill_opacity_max = std::max(value.fill_opacity_max, fill_opacity);
+        });
+        return value;
+      },
+      CurvesSelectionStatus::sum);
 
+  status = threading::parallel_reduce(
+      curves.curves_range(),
+      512,
+      status,
+      [&](const IndexRange range, const CurvesSelectionStatus &acc) {
+        CurvesSelectionStatus value = acc;
+
+        selection.slice_content(range).foreach_index([&](const int curve) {
           const int end_cap = end_caps[curve];
           value.end_cap_sum += end_cap;
           value.end_cap_max = std::max(value.end_cap_max, end_cap);
+        });
+        return value;
+      },
+      CurvesSelectionStatus::sum);
 
+  status = threading::parallel_reduce(
+      curves.curves_range(),
+      512,
+      status,
+      [&](const IndexRange range, const CurvesSelectionStatus &acc) {
+        CurvesSelectionStatus value = acc;
+
+        selection.slice_content(range).foreach_index([&](const int curve) {
           const int start_cap = start_caps[curve];
           value.start_cap_sum += start_cap;
           value.start_cap_max = std::max(value.start_cap_max, start_cap);
@@ -683,6 +745,8 @@ static CurvesSelectionStatus init_grease_pencil_selection_status(
         return value;
       },
       CurvesSelectionStatus::sum);
+
+  return status;
 }
 
 /* is used for both read and write... */
