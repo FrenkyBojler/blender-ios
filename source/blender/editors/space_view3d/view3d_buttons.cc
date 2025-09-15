@@ -631,120 +631,157 @@ static CurvesSelectionStatus init_grease_pencil_selection_status(
     return CurvesSelectionStatus();
   }
 
-  const bke::AttributeAccessor attributes = curves.attributes();
-  const VArray<float> aspect_ratios = *attributes.lookup_or_default<float>(
-      "aspect_ratio", bke::AttrDomain::Curve, 1.0f);
-  const VArray<float> softnesses = *attributes.lookup_or_default<float>(
-      "softness", bke::AttrDomain::Curve, 0.0f);
-  const VArray<float> u_scales = *attributes.lookup_or_default<float>(
-      "u_scale", bke::AttrDomain::Curve, 1.0f);
-  const VArray<float> fill_opacities = *attributes.lookup_or_default<float>(
-      "fill_opacity", bke::AttrDomain::Curve, 1.0f);
-  const VArray<int> end_caps = *attributes.lookup_or_default<int>(
-      "end_cap", bke::AttrDomain::Curve, GP_STROKE_CAP_TYPE_ROUND);
-  const VArray<int> start_caps = *attributes.lookup_or_default<int>(
-      "start_cap", bke::AttrDomain::Curve, GP_STROKE_CAP_TYPE_ROUND);
-
   IndexMaskMemory memory;
   const IndexMask selection = retrieve_selected_curves(curves, memory);
+  const bke::AttributeAccessor attributes = curves.attributes();
 
   CurvesSelectionStatus status;
 
-  status = threading::parallel_reduce(
-      curves.curves_range(),
-      512,
-      status,
-      [&](const IndexRange range, const CurvesSelectionStatus &acc) {
-        CurvesSelectionStatus value = acc;
+  if (const VArray<float> aspect_ratios = *attributes.lookup<float>("aspect_ratio",
+                                                                    bke::AttrDomain::Curve))
+  {
+    status = threading::parallel_reduce(
+        curves.curves_range(),
+        512,
+        status,
+        [&](const IndexRange range, const CurvesSelectionStatus &acc) {
+          CurvesSelectionStatus value = acc;
 
-        selection.slice_content(range).foreach_index([&](const int curve) {
-          const float aspect = aspect_ratios[curve];
-          value.aspect_ratio_sum += aspect;
-          value.aspect_ratio_max = std::max(value.aspect_ratio_max, aspect);
-        });
-        return value;
-      },
-      CurvesSelectionStatus::sum);
+          selection.slice_content(range).foreach_index([&](const int curve) {
+            const float aspect = aspect_ratios[curve];
+            value.aspect_ratio_sum += aspect;
+            value.aspect_ratio_max = std::max(value.aspect_ratio_max, aspect);
+          });
+          return value;
+        },
+        CurvesSelectionStatus::sum);
+  }
+  else {
+    const float default_value = 1.0f;
+    status.aspect_ratio_sum += default_value * selection.size();
+    status.aspect_ratio_max = std::max(status.aspect_ratio_max, default_value);
+  }
 
-  status = threading::parallel_reduce(
-      curves.curves_range(),
-      512,
-      status,
-      [&](const IndexRange range, const CurvesSelectionStatus &acc) {
-        CurvesSelectionStatus value = acc;
+  if (const VArray<float> softnesses = *attributes.lookup<float>("softness",
+                                                                 bke::AttrDomain::Curve))
+  {
+    status = threading::parallel_reduce(
+        curves.curves_range(),
+        512,
+        status,
+        [&](const IndexRange range, const CurvesSelectionStatus &acc) {
+          CurvesSelectionStatus value = acc;
 
-        selection.slice_content(range).foreach_index([&](const int curve) {
-          const float soft = softnesses[curve];
-          value.softness_sum += soft;
-          value.softness_max = std::max(value.softness_max, soft);
-        });
-        return value;
-      },
-      CurvesSelectionStatus::sum);
+          selection.slice_content(range).foreach_index([&](const int curve) {
+            const float soft = softnesses[curve];
+            value.softness_sum += soft;
+            value.softness_max = std::max(value.softness_max, soft);
+          });
+          return value;
+        },
+        CurvesSelectionStatus::sum);
+  }
+  else {
+    const float default_value = 0.0f;
+    status.softness_sum += default_value * selection.size();
+    status.softness_max = std::max(status.softness_max, default_value);
+  }
 
-  status = threading::parallel_reduce(
-      curves.curves_range(),
-      512,
-      status,
-      [&](const IndexRange range, const CurvesSelectionStatus &acc) {
-        CurvesSelectionStatus value = acc;
+  if (const VArray<float> u_scales = *attributes.lookup<float>("u_scale", bke::AttrDomain::Curve))
+  {
+    status = threading::parallel_reduce(
+        curves.curves_range(),
+        512,
+        status,
+        [&](const IndexRange range, const CurvesSelectionStatus &acc) {
+          CurvesSelectionStatus value = acc;
 
-        selection.slice_content(range).foreach_index([&](const int curve) {
-          const float u_scale = u_scales[curve];
-          value.u_scale_sum += u_scale;
-          value.u_scale_max = std::max(value.u_scale_max, u_scale);
-        });
-        return value;
-      },
-      CurvesSelectionStatus::sum);
+          selection.slice_content(range).foreach_index([&](const int curve) {
+            const float u_scale = u_scales[curve];
+            value.u_scale_sum += u_scale;
+            value.u_scale_max = std::max(value.u_scale_max, u_scale);
+          });
+          return value;
+        },
+        CurvesSelectionStatus::sum);
+  }
+  else {
+    const float default_value = 1.0f;
+    status.u_scale_sum += default_value * selection.size();
+    status.u_scale_max = std::max(status.u_scale_max, default_value);
+  }
 
-  status = threading::parallel_reduce(
-      curves.curves_range(),
-      512,
-      status,
-      [&](const IndexRange range, const CurvesSelectionStatus &acc) {
-        CurvesSelectionStatus value = acc;
+  if (const VArray<float> fill_opacities = *attributes.lookup<float>("fill_opacity",
+                                                                     bke::AttrDomain::Curve))
+  {
+    status = threading::parallel_reduce(
+        curves.curves_range(),
+        512,
+        status,
+        [&](const IndexRange range, const CurvesSelectionStatus &acc) {
+          CurvesSelectionStatus value = acc;
 
-        selection.slice_content(range).foreach_index([&](const int curve) {
-          const float fill_opacity = fill_opacities[curve];
-          value.fill_opacity_sum += fill_opacity;
-          value.fill_opacity_max = std::max(value.fill_opacity_max, fill_opacity);
-        });
-        return value;
-      },
-      CurvesSelectionStatus::sum);
+          selection.slice_content(range).foreach_index([&](const int curve) {
+            const float fill_opacity = fill_opacities[curve];
+            value.fill_opacity_sum += fill_opacity;
+            value.fill_opacity_max = std::max(value.fill_opacity_max, fill_opacity);
+          });
+          return value;
+        },
+        CurvesSelectionStatus::sum);
+  }
+  else {
+    const float default_value = 1.0f;
+    status.fill_opacity_sum += default_value * selection.size();
+    status.fill_opacity_max = std::max(status.fill_opacity_max, default_value);
+  }
 
-  status = threading::parallel_reduce(
-      curves.curves_range(),
-      512,
-      status,
-      [&](const IndexRange range, const CurvesSelectionStatus &acc) {
-        CurvesSelectionStatus value = acc;
+  if (const VArray<int> end_caps = *attributes.lookup<int>("end_cap", bke::AttrDomain::Curve)) {
+    status = threading::parallel_reduce(
+        curves.curves_range(),
+        512,
+        status,
+        [&](const IndexRange range, const CurvesSelectionStatus &acc) {
+          CurvesSelectionStatus value = acc;
 
-        selection.slice_content(range).foreach_index([&](const int curve) {
-          const int end_cap = end_caps[curve];
-          value.end_cap_sum += end_cap;
-          value.end_cap_max = std::max(value.end_cap_max, end_cap);
-        });
-        return value;
-      },
-      CurvesSelectionStatus::sum);
+          selection.slice_content(range).foreach_index([&](const int curve) {
+            const int end_cap = end_caps[curve];
+            value.end_cap_sum += end_cap;
+            value.end_cap_max = std::max(value.end_cap_max, end_cap);
+          });
+          return value;
+        },
+        CurvesSelectionStatus::sum);
+  }
+  else {
+    const int default_value = GP_STROKE_CAP_TYPE_ROUND;
+    status.end_cap_sum += default_value * selection.size();
+    status.end_cap_max = std::max(status.end_cap_max, default_value);
+  }
 
-  status = threading::parallel_reduce(
-      curves.curves_range(),
-      512,
-      status,
-      [&](const IndexRange range, const CurvesSelectionStatus &acc) {
-        CurvesSelectionStatus value = acc;
+  if (const VArray<int> start_caps = *attributes.lookup<int>("start_cap", bke::AttrDomain::Curve))
+  {
+    status = threading::parallel_reduce(
+        curves.curves_range(),
+        512,
+        status,
+        [&](const IndexRange range, const CurvesSelectionStatus &acc) {
+          CurvesSelectionStatus value = acc;
 
-        selection.slice_content(range).foreach_index([&](const int curve) {
-          const int start_cap = start_caps[curve];
-          value.start_cap_sum += start_cap;
-          value.start_cap_max = std::max(value.start_cap_max, start_cap);
-        });
-        return value;
-      },
-      CurvesSelectionStatus::sum);
+          selection.slice_content(range).foreach_index([&](const int curve) {
+            const int start_cap = start_caps[curve];
+            value.start_cap_sum += start_cap;
+            value.start_cap_max = std::max(value.start_cap_max, start_cap);
+          });
+          return value;
+        },
+        CurvesSelectionStatus::sum);
+  }
+  else {
+    const int default_value = GP_STROKE_CAP_TYPE_ROUND;
+    status.start_cap_sum += default_value * selection.size();
+    status.start_cap_max = std::max(status.start_cap_max, default_value);
+  }
 
   return status;
 }
