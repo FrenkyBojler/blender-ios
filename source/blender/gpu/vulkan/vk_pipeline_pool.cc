@@ -281,7 +281,7 @@ VkPipeline VKPipelinePool::get_or_create_graphics_pipeline(VKGraphicsInfo &graph
                                                                VK_FRONT_FACE_COUNTER_CLOCKWISE :
                                                                VK_FRONT_FACE_CLOCKWISE;
   vk_pipeline_rasterization_state_create_info_.cullMode = to_vk_cull_mode_flags(
-      static_cast<eGPUFaceCullTest>(graphics_info.state.culling_test));
+      static_cast<GPUFaceCullTest>(graphics_info.state.culling_test));
   if (graphics_info.state.shadow_bias) {
     vk_pipeline_rasterization_state_create_info_.depthBiasEnable = VK_TRUE;
     vk_pipeline_rasterization_state_create_info_.depthBiasSlopeFactor = 2.0f;
@@ -570,7 +570,7 @@ VkPipeline VKPipelinePool::get_or_create_graphics_pipeline(VKGraphicsInfo &graph
   vk_pipeline_rendering_create_info_.stencilAttachmentFormat =
       graphics_info.fragment_out.stencil_attachment_format;
   vk_pipeline_rendering_create_info_.colorAttachmentCount =
-      graphics_info.fragment_out.color_attachment_formats.size();
+      graphics_info.fragment_out.color_attachment_size;
   vk_pipeline_rendering_create_info_.pColorAttachmentFormats =
       graphics_info.fragment_out.color_attachment_formats.data();
 
@@ -809,6 +809,6 @@ void VKPipelinePool::write_to_disk()
 #endif
 }
 
-/* \} */
+/** \} */
 
 }  // namespace blender::gpu
