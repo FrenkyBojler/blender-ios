@@ -85,7 +85,7 @@
 #include "sculpt_face_set.hh"
 #include "sculpt_intern.hh"
 
-#define DEBUG_TIME
+// #define DEBUG_TIME
 
 #ifdef DEBUG_TIME
 #  include "BLI_timeit.hh"
