@@ -26,17 +26,10 @@ namespace blender::nodes::node_composite_invert_cc {
 static void cmp_node_invert_declare(NodeDeclarationBuilder &b)
 {
   b.is_function_node();
-  b.add_input<decl::Float>("Fac")
-      .default_value(1.0f)
-      .min(0.0f)
-      .max(1.0f)
-      .subtype(PROP_FACTOR)
-      .compositor_domain_priority(1);
-  b.add_input<decl::Color>("Color")
-      .default_value({1.0f, 1.0f, 1.0f, 1.0f})
-      .compositor_domain_priority(0);
-  b.add_input<decl::Bool>("Invert Color").default_value(true).compositor_domain_priority(2);
-  b.add_input<decl::Bool>("Invert Alpha").default_value(false).compositor_domain_priority(3);
+  b.add_input<decl::Color>("Color").default_value({1.0f, 1.0f, 1.0f, 1.0f});
+  b.add_input<decl::Float>("Fac").default_value(1.0f).min(0.0f).max(1.0f).subtype(PROP_FACTOR);
+  b.add_input<decl::Bool>("Invert Color").default_value(true);
+  b.add_input<decl::Bool>("Invert Alpha").default_value(false);
 
   b.add_output<decl::Color>("Color");
 }
