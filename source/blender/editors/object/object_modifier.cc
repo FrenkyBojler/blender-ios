@@ -28,6 +28,7 @@
 
 #include "BLI_array_utils.hh"
 #include "BLI_bitmap.h"
+#include "BLI_implicit_sharing.hh"
 #include "BLI_listbase.h"
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
@@ -1373,7 +1374,7 @@ bool modifier_copy(
   ModifierData *nmd = BKE_modifier_new(md->type);
   BKE_modifier_copydata(md, nmd);
   BLI_insertlinkafter(&ob->modifiers, md, nmd);
-  STRNCPY(nmd->name, md->name);
+  STRNCPY_UTF8(nmd->name, md->name);
   BKE_modifier_unique_name(&ob->modifiers, nmd);
   BKE_modifiers_persistent_uid_init(*ob, *nmd);
   BKE_object_modifier_set_active(ob, nmd);
@@ -2769,7 +2770,7 @@ static void skin_armature_bone_create(Object *skin_ob,
     copy_v3_v3(bone->head, positions[parent_v]);
     copy_v3_v3(bone->tail, positions[v]);
     bone->rad_head = bone->rad_tail = 0.25;
-    SNPRINTF(bone->name, "Bone.%.2d", endx);
+    SNPRINTF_UTF8(bone->name, "Bone.%.2d", endx);
 
     /* add bDeformGroup */
     bDeformGroup *dg = BKE_object_defgroup_add_name(skin_ob, bone->name);
@@ -2941,7 +2942,7 @@ static wmOperatorStatus correctivesmooth_bind_exec(bContext *C, wmOperator *op)
 
   const bool is_bind = (csmd->bind_coords != nullptr);
 
-  MEM_SAFE_FREE(csmd->bind_coords);
+  implicit_sharing::free_shared_data(&csmd->bind_coords, &csmd->bind_coords_sharing_info);
   MEM_SAFE_FREE(csmd->delta_cache.deltas);
 
   if (is_bind) {
@@ -3005,6 +3006,7 @@ static bool meshdeform_poll(bContext *C)
 
 static wmOperatorStatus meshdeform_bind_exec(bContext *C, wmOperator *op)
 {
+  using namespace blender;
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   Object *ob = context_active_object(C);
   MeshDeformModifierData *mmd = (MeshDeformModifierData *)edit_modifier_property_get(
@@ -3015,12 +3017,12 @@ static wmOperatorStatus meshdeform_bind_exec(bContext *C, wmOperator *op)
   }
 
   if (mmd->bindcagecos != nullptr) {
-    MEM_SAFE_FREE(mmd->bindcagecos);
-    MEM_SAFE_FREE(mmd->dyngrid);
-    MEM_SAFE_FREE(mmd->dyninfluences);
-    MEM_SAFE_FREE(mmd->bindinfluences);
-    MEM_SAFE_FREE(mmd->bindoffsets);
-    MEM_SAFE_FREE(mmd->dynverts);
+    implicit_sharing::free_shared_data(&mmd->bindcagecos, &mmd->bindcagecos_sharing_info);
+    implicit_sharing::free_shared_data(&mmd->dyngrid, &mmd->dyngrid_sharing_info);
+    implicit_sharing::free_shared_data(&mmd->dyninfluences, &mmd->dyninfluences_sharing_info);
+    implicit_sharing::free_shared_data(&mmd->bindinfluences, &mmd->bindinfluences_sharing_info);
+    implicit_sharing::free_shared_data(&mmd->bindoffsets, &mmd->bindoffsets_sharing_info);
+    implicit_sharing::free_shared_data(&mmd->dynverts, &mmd->dynverts_sharing_info);
     MEM_SAFE_FREE(mmd->bindweights); /* Deprecated */
     MEM_SAFE_FREE(mmd->bindcos);     /* Deprecated */
     mmd->verts_num = 0;
@@ -3283,7 +3285,7 @@ static wmOperatorStatus ocean_bake_exec(bContext *C, wmOperator *op)
   wmJob *wm_job = WM_jobs_get(CTX_wm_manager(C),
                               CTX_wm_window(C),
                               scene,
-                              "Ocean Simulation",
+                              "Simulating ocean...",
                               WM_JOB_PROGRESS,
                               WM_JOB_TYPE_OBJECT_SIM_OCEAN);
   OceanBakeJob *oj = MEM_callocN<OceanBakeJob>("ocean bake job");
@@ -3367,10 +3369,13 @@ static wmOperatorStatus laplaciandeform_bind_exec(bContext *C, wmOperator *op)
    * happening for binding or not. So we copy all the required data here. */
   lmd->verts_num = lmd_eval->verts_num;
   if (lmd_eval->vertexco == nullptr) {
-    MEM_SAFE_FREE(lmd->vertexco);
+    implicit_sharing::free_shared_data(&lmd->vertexco, &lmd->vertexco_sharing_info);
   }
   else {
-    lmd->vertexco = static_cast<float *>(MEM_dupallocN(lmd_eval->vertexco));
+    implicit_sharing::copy_shared_pointer(lmd_eval->vertexco,
+                                          lmd_eval->vertexco_sharing_info,
+                                          &lmd->vertexco,
+                                          &lmd->vertexco_sharing_info);
   }
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
@@ -3505,10 +3510,10 @@ static wmOperatorStatus geometry_nodes_input_attribute_toggle_exec(bContext *C, 
   }
 
   if (use_attribute->type == IDP_INT) {
-    IDP_Int(use_attribute) = !IDP_Int(use_attribute);
+    IDP_int_set(use_attribute, !IDP_int_get(use_attribute));
   }
   else if (use_attribute->type == IDP_BOOLEAN) {
-    IDP_Bool(use_attribute) = !IDP_Bool(use_attribute);
+    IDP_bool_set(use_attribute, !IDP_bool_get(use_attribute));
   }
   else {
     return OPERATOR_CANCELLED;

@@ -20,6 +20,7 @@ struct GlyphCacheBLF;
 struct ListBase;
 struct ResultBLF;
 struct rcti;
+struct rctf;
 enum class BLFWrapMode;
 
 /**
@@ -39,11 +40,11 @@ enum class BLFWrapMode;
 #define BLF_SUBPIXEL_AA
 
 /** Maximum number of opened FT_Face objects managed by cache. 0 is default of 2. */
-#define BLF_CACHE_MAX_FACES 4
+#define BLF_CACHE_MAX_FACES 8
 /** Maximum number of opened FT_Size objects managed by cache. 0 is default of 4 */
-#define BLF_CACHE_MAX_SIZES 8
+#define BLF_CACHE_MAX_SIZES 16
 /** Maximum number of bytes to use for cached data nodes. 0 is default of 200,000. */
-#define BLF_CACHE_BYTES 400000
+#define BLF_CACHE_BYTES 0x100000
 
 /**
  * Offset from icon id to Unicode Supplementary Private Use Area-B,
@@ -100,6 +101,9 @@ bool blf_font_size(FontBLF *font, float size);
 void blf_font_draw(FontBLF *font, const char *str, size_t str_len, ResultBLF *r_info);
 void blf_font_draw__wrap(FontBLF *font, const char *str, size_t str_len, ResultBLF *r_info);
 
+/**
+ * \param outline_alpha: Alpha value between 0 and 1.
+ */
 void blf_draw_svg_icon(FontBLF *font,
                        uint icon_id,
                        float x,
@@ -153,6 +157,7 @@ int blf_font_height_max(FontBLF *font);
 int blf_font_width_max(FontBLF *font);
 int blf_font_descender(FontBLF *font);
 int blf_font_ascender(FontBLF *font);
+bool blf_font_bounds_max(FontBLF *font, rctf *r_bounds);
 
 char *blf_display_name(FontBLF *font);
 
@@ -202,12 +207,14 @@ GlyphBLF *blf_glyph_ensure_icon(
 
 /**
  * Convert a character's outlines into curves.
+ * \return success if the character was found and converted.
  */
-float blf_character_to_curves(FontBLF *font,
-                              unsigned int unicode,
-                              ListBase *nurbsbase,
-                              const float scale,
-                              bool use_fallback);
+bool blf_character_to_curves(FontBLF *font,
+                             unsigned int unicode,
+                             ListBase *nurbsbase,
+                             const float scale,
+                             bool use_fallback,
+                             float *r_advance);
 
 void blf_glyph_draw(FontBLF *font, GlyphCacheBLF *gc, GlyphBLF *g, int x, int y);
 

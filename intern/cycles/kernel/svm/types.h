@@ -22,6 +22,7 @@ CCL_NAMESPACE_BEGIN
 enum ShaderNodeType {
 #define SHADER_NODE_TYPE(name) name,
 #include "node_types_template.h"
+
   NODE_NUM
 };
 
@@ -101,6 +102,7 @@ enum NodeLightPath {
   NODE_LP_ray_glossy,
   NODE_LP_ray_transparent,
   NODE_LP_ray_transmission,
+  NODE_LP_ray_portal,
 };
 
 enum NodeLightFalloff {
@@ -471,6 +473,8 @@ enum ClosureType {
   NBUILTIN_CLOSURES
 };
 
+static_assert(NBUILTIN_CLOSURES < 256, "Too many Closure types (need to change SVM packing)");
+
 /* watch this, being lazy with memory usage */
 #define CLOSURE_IS_BSDF(type) (type != CLOSURE_NONE_ID && type <= CLOSURE_BSDF_TRANSPARENT_ID)
 #define CLOSURE_IS_BSDF_DIFFUSE(type) \
@@ -516,5 +520,6 @@ enum ClosureType {
 #define CLOSURE_WEIGHT_CUTOFF 1e-5f
 /* Treat closure as singular if the squared roughness is below this threshold. */
 #define BSDF_ROUGHNESS_SQ_THRESH 2e-10f
+#define THINFILM_THICKNESS_CUTOFF 0.1f
 
 CCL_NAMESPACE_END

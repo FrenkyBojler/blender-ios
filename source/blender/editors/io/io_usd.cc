@@ -15,7 +15,7 @@
 #  include "BKE_report.hh"
 
 #  include "BLI_path_utils.hh"
-#  include "BLI_string.h"
+#  include "BLI_string_utf8.h"
 
 #  include "BLT_translation.hh"
 
@@ -753,7 +753,7 @@ void WM_OT_usd_export(wmOperatorType *ot)
   RNA_def_boolean(
       ot->srna,
       "allow_unicode",
-      false,
+      true,
       "Allow Unicode",
       "Preserve UTF-8 encoded characters when writing USD prim and property names "
       "(requires software utilizing USD 24.03 or greater when opening the resulting files)");
@@ -886,6 +886,7 @@ static wmOperatorStatus wm_usd_import_exec(bContext *C, wmOperator *op)
   params.is_sequence = false;
   params.sequence_len = 1;
   params.offset = 0;
+  params.relative_path = RNA_boolean_get(op->ptr, "relative_path");
 
   params.import_visible_only = RNA_boolean_get(op->ptr, "import_visible_only");
   params.import_defined_only = RNA_boolean_get(op->ptr, "import_defined_only");
@@ -1280,11 +1281,11 @@ namespace blender::ed::io {
 void usd_file_handler_add()
 {
   auto fh = std::make_unique<blender::bke::FileHandlerType>();
-  STRNCPY(fh->idname, "IO_FH_usd");
-  STRNCPY(fh->import_operator, "WM_OT_usd_import");
-  STRNCPY(fh->export_operator, "WM_OT_usd_export");
-  STRNCPY(fh->label, "Universal Scene Description");
-  STRNCPY(fh->file_extensions_str, ".usd;.usda;.usdc;.usdz");
+  STRNCPY_UTF8(fh->idname, "IO_FH_usd");
+  STRNCPY_UTF8(fh->import_operator, "WM_OT_usd_import");
+  STRNCPY_UTF8(fh->export_operator, "WM_OT_usd_export");
+  STRNCPY_UTF8(fh->label, "Universal Scene Description");
+  STRNCPY_UTF8(fh->file_extensions_str, ".usd;.usda;.usdc;.usdz");
   fh->poll_drop = poll_file_object_drop;
   bke::file_handler_add(std::move(fh));
 }

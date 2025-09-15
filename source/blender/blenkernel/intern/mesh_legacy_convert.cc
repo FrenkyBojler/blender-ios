@@ -25,8 +25,10 @@
 #include "BLI_math_vector_types.hh"
 #include "BLI_memarena.h"
 #include "BLI_multi_value_map.hh"
+#include "BLI_ordered_edge.hh"
 #include "BLI_polyfill_2d.h"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_task.hh"
 #include "BLI_utildefines.h"
 
@@ -689,7 +691,7 @@ static void add_mface_layers(Mesh &mesh, CustomData *fdata_legacy, CustomData *l
 static void mesh_ensure_tessellation_customdata(Mesh *mesh)
 {
   if (UNLIKELY((mesh->totface_legacy != 0) && (mesh->faces_num == 0))) {
-    /* Pass, otherwise this function  clears 'mface' before
+    /* Pass, otherwise this function clears 'mface' before
      * versioning 'mface -> mpoly' code kicks in #30583.
      *
      * Callers could also check but safer to do here - campbell */
@@ -2308,7 +2310,7 @@ static ModifierData *create_auto_smooth_modifier(
     const float angle)
 {
   auto *md = reinterpret_cast<NodesModifierData *>(BKE_modifier_new(eModifierType_Nodes));
-  STRNCPY(md->modifier.name, DATA_("Auto Smooth"));
+  STRNCPY_UTF8(md->modifier.name, DATA_("Auto Smooth"));
   BKE_modifier_unique_name(&object.modifiers, &md->modifier);
   md->node_group = get_node_group(object.id.lib);
   id_us_plus(&md->node_group->id);

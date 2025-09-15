@@ -16,6 +16,7 @@
 #include "BKE_screen.hh"
 
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 
 #include "BLT_translation.hh"
 
@@ -80,7 +81,7 @@ struct DrawGroupInputsContext {
   const bContext &C;
   bNodeTree *tree;
   geo_log::GeoTreeLog *tree_log;
-  nodes::PropertiesVectorSet properties;
+  IDProperty *properties;
   PointerRNA *properties_ptr;
   PointerRNA *bmain_ptr;
   Array<nodes::socket_usage_inference::SocketUsage> input_usages;
@@ -248,8 +249,6 @@ static void add_layer_name_search_button(DrawGroupInputsContext &ctx,
                                  ctx.properties_ptr,
                                  rna_path,
                                  0,
-                                 0.0f,
-                                 0.0f,
                                  StringRef(socket.description));
   UI_but_placeholder_set(but, "Layer");
   layout->label("", ICON_BLANK1);
@@ -368,8 +367,6 @@ static void add_attribute_search_button(DrawGroupInputsContext &ctx,
                                  ctx.properties_ptr,
                                  rna_path_attribute_name,
                                  0,
-                                 0.0f,
-                                 0.0f,
                                  StringRef(socket.description));
 
   const Object *object = ed::object::context_object(&ctx.C);
@@ -475,7 +472,7 @@ static void draw_property_for_socket(DrawGroupInputsContext &ctx,
 {
   const StringRefNull identifier = socket.identifier;
   /* The property should be created in #MOD_nodes_update_interface with the correct type. */
-  IDProperty *property = ctx.properties.lookup_key_default_as(identifier, nullptr);
+  IDProperty *property = IDP_GetPropertyFromGroup_null(ctx.properties, identifier);
 
   /* IDProperties can be removed with python, so there could be a situation where
    * there isn't a property for a socket or it doesn't have the correct type. */
@@ -511,7 +508,7 @@ static void draw_property_for_socket(DrawGroupInputsContext &ctx,
     const StringRef prefix_to_remove = *parent_name;
     int pos = name.find(prefix_to_remove);
     if (pos == 0 && name != prefix_to_remove) {
-      /* Needs to trim remainig space characters if any. Use the `trim()` from `StringRefNull`
+      /* Needs to trim remaining space characters if any. Use the `trim()` from `StringRefNull`
        * because std::string doesn't have a built-in `trim()` yet. If the property name is the
        * same as parent panel's name then keep the name, otherwise the name would be an empty
        * string which messes up the UI. */
@@ -670,7 +667,7 @@ static void draw_interface_panel_content(DrawGroupInputsContext &ctx,
         const StringRef panel_name = sub_interface_panel.name;
         if (toggle_socket && !(toggle_socket->flag & NODE_INTERFACE_SOCKET_HIDE_IN_MODIFIER)) {
           const StringRefNull identifier = toggle_socket->identifier;
-          IDProperty *property = ctx.properties.lookup_key_default_as(identifier, nullptr);
+          IDProperty *property = IDP_GetPropertyFromGroup_null(ctx.properties, identifier);
           /* IDProperties can be removed with python, so there could be a situation where
            * there isn't a property for a socket or it doesn't have the correct type. */
           if (property == nullptr || !nodes::id_property_type_matches_socket(
@@ -682,7 +679,7 @@ static void draw_interface_panel_content(DrawGroupInputsContext &ctx,
           BLI_str_escape(socket_id_esc, identifier.c_str(), sizeof(socket_id_esc));
 
           char rna_path[sizeof(socket_id_esc) + 4];
-          SNPRINTF(rna_path, "[\"%s\"]", socket_id_esc);
+          SNPRINTF_UTF8(rna_path, "[\"%s\"]", socket_id_esc);
 
           panel_layout = layout->panel_prop_with_bool_header(&ctx.C,
                                                              &open_property.ptr,
@@ -808,7 +805,7 @@ static void draw_property_for_output_socket(DrawGroupInputsContext &ctx,
 
 static void draw_output_attributes_panel(DrawGroupInputsContext &ctx, uiLayout *layout)
 {
-  if (ctx.tree != nullptr && !ctx.properties.is_empty()) {
+  if (ctx.tree != nullptr && !ctx.properties) {
     for (const bNodeTreeInterfaceSocket *socket : ctx.tree->interface_outputs()) {
       const bke::bNodeSocketType *typeinfo = socket->socket_typeinfo();
       const eNodeSocketDatatype type = typeinfo ? typeinfo->type : SOCK_CUSTOM;
@@ -925,7 +922,7 @@ void draw_geometry_nodes_modifier_ui(const bContext &C, PointerRNA *modifier_ptr
   DrawGroupInputsContext ctx{C,
                              nmd.node_group,
                              get_root_tree_log(nmd),
-                             nodes::build_properties_vector_set(nmd.settings.properties),
+                             nmd.settings.properties,
                              modifier_ptr,
                              &bmain_ptr};
 
@@ -939,8 +936,8 @@ void draw_geometry_nodes_modifier_ui(const bContext &C, PointerRNA *modifier_ptr
     SocketSearchData data{};
     ModifierSearchData &modifier_search_data = data.search_data.emplace<ModifierSearchData>();
     modifier_search_data.object_session_uid = object.id.session_uid;
-    STRNCPY(modifier_search_data.modifier_name, nmd.modifier.name);
-    STRNCPY(data.socket_identifier, io_socket.identifier);
+    STRNCPY_UTF8(modifier_search_data.modifier_name, nmd.modifier.name);
+    STRNCPY_UTF8(data.socket_identifier, io_socket.identifier);
     data.is_output = io_socket.flag & NODE_INTERFACE_SOCKET_OUTPUT;
     return data;
   };
@@ -1002,8 +999,7 @@ void draw_geometry_nodes_operator_redo_ui(const bContext &C,
   Main &bmain = *CTX_data_main(&C);
   PointerRNA bmain_ptr = RNA_main_pointer_create(&bmain);
 
-  DrawGroupInputsContext ctx{
-      C, &tree, tree_log, nodes::build_properties_vector_set(op.properties), op.ptr, &bmain_ptr};
+  DrawGroupInputsContext ctx{C, &tree, tree_log, op.properties, op.ptr, &bmain_ptr};
   ctx.panel_open_property_fn = [&](const bNodeTreeInterfacePanel &io_panel) -> PanelOpenProperty {
     Panel *root_panel = layout.root_panel();
     LayoutPanelState *state = BKE_panel_layout_panel_state_ensure(
@@ -1019,7 +1015,7 @@ void draw_geometry_nodes_operator_redo_ui(const bContext &C,
     operator_search_data.info.tree = &tree;
     operator_search_data.info.tree_log = tree_log;
     operator_search_data.info.properties = op.properties;
-    STRNCPY(data.socket_identifier, io_socket.identifier);
+    STRNCPY_UTF8(data.socket_identifier, io_socket.identifier);
     data.is_output = io_socket.flag & NODE_INTERFACE_SOCKET_OUTPUT;
     return data;
   };

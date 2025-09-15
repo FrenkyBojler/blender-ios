@@ -20,6 +20,7 @@
 #include "BLI_listbase.h"
 #include "BLI_ordered_edge.hh"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_task.hh"
 #include "BLI_vector_set.hh"
 
@@ -435,7 +436,7 @@ static void import_blend_shape_full_weights(const FbxElementMapping &mapping,
         }
       }
 
-      STRNCPY(kb->vgroup, kb->name);
+      STRNCPY_UTF8(kb->vgroup, kb->name);
     }
   }
 }
@@ -523,7 +524,15 @@ void import_meshes(Main &bmain,
 
     /* Create objects that use this mesh. */
     for (const ufbx_node *node : fmesh->instances) {
-      Object *obj = BKE_object_add_only_object(&bmain, OB_MESH, get_fbx_name(node->name));
+      std::string name;
+      if (node->is_geometry_transform_helper) {
+        /* Name geometry transform adjustment helpers with parent name and _GeomAdjust suffix. */
+        name = get_fbx_name(node->parent->name) + std::string("_GeomAdjust");
+      }
+      else {
+        name = get_fbx_name(node->name);
+      }
+      Object *obj = BKE_object_add_only_object(&bmain, OB_MESH, name.c_str());
       obj->data = mesh_main;
       if (!node->visible) {
         obj->visibility_flag |= OB_HIDE_VIEWPORT;
@@ -561,7 +570,7 @@ void import_meshes(Main &bmain,
           /* Add armature modifier. */
           if (arm_obj != nullptr) {
             ModifierData *md = BKE_modifier_new(eModifierType_Armature);
-            STRNCPY(md->name, BKE_id_name(arm_obj->id));
+            STRNCPY_UTF8(md->name, BKE_id_name(arm_obj->id));
             BLI_addtail(&obj->modifiers, md);
             BKE_modifiers_persistent_uid_init(*obj, *md);
             ArmatureModifierData *ad = reinterpret_cast<ArmatureModifierData *>(md);

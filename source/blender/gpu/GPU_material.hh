@@ -24,8 +24,8 @@ struct GPUNodeStack;
 struct GPUPass;
 namespace blender::gpu {
 class Texture;
-}
-struct GPUUniformBuf;
+class UniformBuf;
+}  // namespace blender::gpu
 struct Image;
 struct ImageUser;
 struct ListBase;
@@ -95,8 +95,18 @@ using GPUCodegenCallbackFn = void (*)(void *thunk,
  */
 using GPUMaterialPassReplacementCallbackFn = GPUPass *(*)(void *thunk, GPUMaterial *mat);
 
+struct GPUMaterialFromNodeTreeResult {
+  GPUMaterial *material = nullptr;
+
+  struct Error {
+    const bNode *node;
+    std::string message;
+  };
+  blender::Vector<Error> errors;
+};
+
 /** WARNING: gpumaterials thread safety must be ensured by the caller. */
-GPUMaterial *GPU_material_from_nodetree(
+GPUMaterialFromNodeTreeResult GPU_material_from_nodetree(
     Material *ma,
     bNodeTree *ntree,
     ListBase *gpumaterials,
@@ -126,7 +136,7 @@ void GPU_materials_free(Main *bmain);
 
 GPUPass *GPU_material_get_pass(GPUMaterial *material);
 /** Return the most optimal shader configuration for the given material. */
-GPUShader *GPU_material_get_shader(GPUMaterial *material);
+blender::gpu::Shader *GPU_material_get_shader(GPUMaterial *material);
 
 const char *GPU_material_get_name(GPUMaterial *material);
 
@@ -146,7 +156,7 @@ eGPUMaterialOptimizationStatus GPU_material_optimization_status(GPUMaterial *mat
 
 uint64_t GPU_material_compilation_timestamp(GPUMaterial *mat);
 
-GPUUniformBuf *GPU_material_uniform_buffer_get(GPUMaterial *material);
+blender::gpu::UniformBuf *GPU_material_uniform_buffer_get(GPUMaterial *material);
 /**
  * Create dynamic UBO from parameters
  *
@@ -227,6 +237,10 @@ struct GPUMaterialAttribute {
    * If true, the attribute is the length of hair particles and curves.
    */
   bool is_hair_length;
+  /**
+   * If true, the attribute is the intercept of hair particles and curves.
+   */
+  bool is_hair_intercept;
 };
 
 struct GPUMaterialTexture {
@@ -306,6 +320,7 @@ GPUNodeLink *GPU_attribute_default_color(GPUMaterial *mat);
  * Add a GPU attribute that refers to the approximate length of curves/hairs.
  */
 GPUNodeLink *GPU_attribute_hair_length(GPUMaterial *mat);
+GPUNodeLink *GPU_attribute_hair_intercept(GPUMaterial *mat);
 GPUNodeLink *GPU_attribute_with_default(GPUMaterial *mat,
                                         eCustomDataType type,
                                         const char *name,

@@ -203,7 +203,7 @@ void BKE_color_managed_view_settings_init_render(
  * Initialize view settings which are best suitable for viewing non-render images.
  * For example,s movie clips while tracking.
  */
-void BKE_color_managed_view_settings_init_default(
+void BKE_color_managed_view_settings_init_untonemapped(
     ColorManagedViewSettings *view_settings, const ColorManagedDisplaySettings *display_settings);
 
 void BKE_color_managed_view_settings_copy(ColorManagedViewSettings *new_settings,
@@ -219,7 +219,7 @@ void BKE_color_managed_view_settings_copy_keep_curve_mapping(
 void BKE_color_managed_view_settings_free(ColorManagedViewSettings *settings);
 
 void BKE_color_managed_view_settings_blend_write(BlendWriter *writer,
-                                                 ColorManagedViewSettings *settings);
+                                                 const ColorManagedViewSettings *settings);
 void BKE_color_managed_view_settings_blend_read_data(BlendDataReader *reader,
                                                      ColorManagedViewSettings *settings);
 

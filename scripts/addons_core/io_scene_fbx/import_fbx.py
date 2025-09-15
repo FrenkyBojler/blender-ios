@@ -2009,6 +2009,7 @@ def blen_read_shapes(fbx_tmpl, fbx_data, objects, me, scene):
         if me.shape_keys is None:
             objects[0].shape_key_add(name="Basis", from_mix=False)
         kb = objects[0].shape_key_add(name=elem_name_utf8, from_mix=False)
+        kb.value = 0.0
         me.shape_keys.use_relative = True  # Should already be set as such.
 
         # Only need to set the shape key co if there are any non-zero dvcos.
@@ -2049,6 +2050,10 @@ def blen_read_material(fbx_tmpl, fbx_obj, settings):
 
     elem_name_utf8 = elem_name_ensure_class(fbx_obj, b'Material')
 
+    if settings.mtl_name_collision_mode == "REFERENCE_EXISTING":
+        if (ma := bpy.data.materials.get(elem_name_utf8)):
+            return ma
+
     nodal_material_wrap_map = settings.nodal_material_wrap_map
     ma = bpy.data.materials.new(name=elem_name_utf8)
 
@@ -2059,7 +2064,7 @@ def blen_read_material(fbx_tmpl, fbx_obj, settings):
                  elem_find_first(fbx_tmpl, b'Properties70', fbx_elem_nil))
     fbx_props_no_template = (fbx_props[0], fbx_elem_nil)
 
-    ma_wrap = node_shader_utils.PrincipledBSDFWrapper(ma, is_readonly=False, use_nodes=True)
+    ma_wrap = node_shader_utils.PrincipledBSDFWrapper(ma, is_readonly=False)
     ma_wrap.base_color = elem_props_get_color_rgb(fbx_props, b'DiffuseColor', const_color_white)
     # No specular color in Principled BSDF shader, assumed to be either white or take some tint from diffuse one...
     # TODO: add way to handle tint option (guesstimate from spec color + intensity...)?
@@ -3042,7 +3047,8 @@ def load(operator, context, filepath="",
          primary_bone_axis='Y',
          secondary_bone_axis='X',
          use_prepost_rot=True,
-         colors_type='SRGB'):
+         colors_type='SRGB',
+         mtl_name_collision_mode="MAKE_UNIQUE"):
 
     global fbx_elem_nil
     fbx_elem_nil = FBXElem('', (), (), ())
@@ -3181,7 +3187,7 @@ def load(operator, context, filepath="",
         use_custom_props, use_custom_props_enum_as_string,
         nodal_material_wrap_map, image_cache,
         ignore_leaf_bones, force_connect_children, automatic_bone_orientation, bone_correction_matrix,
-        use_prepost_rot, colors_type,
+        use_prepost_rot, colors_type, mtl_name_collision_mode,
     )
 
     # #### And now, the "real" data.
