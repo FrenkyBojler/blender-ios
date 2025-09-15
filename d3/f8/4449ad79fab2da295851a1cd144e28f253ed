@@ -12,3 +12,4 @@ Referenced by commit 9ea9d3b7777798b0b4af0ca03176999ec28e4305, Fix #142087: Use 
 Referenced by issue #143333, Regression: Custom bone shapes does not include the subdivision surface modifier
 Referenced by issue #143450, Bevel & Join Geometry crash
 Referenced by issue #143708, Broken Normals when realizing Instances with Geometry Nodes that have an Object with WeightedNormal Modifier (and mirrored)
+Referenced by issue #146273, Geometry Nodes - Normal Transfer Breaks when used in conjuntion with Armature and Posing
