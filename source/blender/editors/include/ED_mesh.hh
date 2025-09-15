@@ -512,14 +512,17 @@ void ED_mesh_faces_remove(Mesh *mesh, ReportList *reports, int count);
 
 void ED_mesh_geometry_clear(Mesh *mesh);
 
-blender::bke::AttributeWriter<bool> ED_mesh_uv_map_vert_select_layer_ensure(Mesh *mesh,
-                                                                            int uv_index);
-blender::bke::AttributeWriter<bool> ED_mesh_uv_map_edge_select_layer_ensure(Mesh *mesh,
-                                                                            int uv_index);
-blender::bke::AttributeWriter<bool> ED_mesh_uv_map_pin_layer_ensure(Mesh *mesh, int uv_index);
-blender::VArray<bool> ED_mesh_uv_map_vert_select_layer_get(const Mesh *mesh, int uv_index);
-blender::VArray<bool> ED_mesh_uv_map_edge_select_layer_get(const Mesh *mesh, int uv_index);
-blender::VArray<bool> ED_mesh_uv_map_pin_layer_get(const Mesh *mesh, int uv_index);
+blender::bke::AttributeWriter<bool> ED_mesh_uv_map_vert_select_layer_ensure(
+    Mesh *mesh, blender::StringRef name);
+blender::bke::AttributeWriter<bool> ED_mesh_uv_map_edge_select_layer_ensure(
+    Mesh *mesh, blender::StringRef name);
+blender::bke::AttributeWriter<bool> ED_mesh_uv_map_pin_layer_ensure(Mesh *mesh,
+                                                                    blender::StringRef name);
+blender::VArray<bool> ED_mesh_uv_map_vert_select_layer_get(const Mesh *mesh,
+                                                           blender::StringRef name);
+blender::VArray<bool> ED_mesh_uv_map_edge_select_layer_get(const Mesh *mesh,
+                                                           blender::StringRef name);
+blender::VArray<bool> ED_mesh_uv_map_pin_layer_get(const Mesh *mesh, blender::StringRef name);
 
 void ED_mesh_uv_ensure(Mesh *mesh, const char *name);
 int ED_mesh_uv_add(
