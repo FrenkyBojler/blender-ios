@@ -58,6 +58,7 @@ short tool_settings_snap_mode_get(Scene *scene);
 int tool_settings_snap_distance_get(Scene *scene);
 eSeqOverlapMode tool_settings_overlap_mode_get(Scene *scene);
 int tool_settings_pivot_point_get(Scene *scene);
+eWhichStripsCanBeMoved tool_settings_gap_removal_mode_get(Scene *scene);
 SequencerToolSettings *tool_settings_copy(SequencerToolSettings *tool_settings);
 Editing *editing_get(const Scene *scene);
 Editing *editing_ensure(Scene *scene);

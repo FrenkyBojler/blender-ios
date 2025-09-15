@@ -1621,6 +1621,8 @@ typedef struct SequencerToolSettings {
    */
   int snap_distance;
   int pivot_point;
+  /** #eWhichStripsCanBeMoved. */
+  int gap_removal_mode;
 } SequencerToolSettings;
 
 typedef enum eSeqOverlapMode {
@@ -1628,6 +1630,13 @@ typedef enum eSeqOverlapMode {
   SEQ_OVERLAP_OVERWRITE,
   SEQ_OVERLAP_SHUFFLE,
 } eSeqOverlapMode;
+
+typedef enum eWhichStripsCanBeMoved {
+  SEQ_GAPS_MOVE_ABOVE,
+  SEQ_GAPS_MOVE_BELOW,
+  SEQ_GAPS_MOVE_ABOVE_AND_BELOW,
+  SEQ_GAPS_MOVE_IN_RANGE,
+} eWhichStripsCanBeMoved;
 
 /** \} */
 

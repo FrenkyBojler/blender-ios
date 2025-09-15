@@ -187,7 +187,7 @@ class SEQUENCER_HT_header(Header):
         if st.view_type in {'SEQUENCER', 'SEQUENCER_PREVIEW'}:
             row = layout.row(align=True)
             row.prop(sequencer_tool_settings, "overlap_mode", text="")
-
+            row.prop(sequencer_tool_settings, "gap_removal_mode")
         row = layout.row(align=True)
         row.prop(tool_settings, "use_snap_sequencer", text="")
         sub = row.row(align=True)

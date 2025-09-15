@@ -420,6 +420,12 @@ int tool_settings_pivot_point_get(Scene *scene)
   return tool_settings->pivot_point;
 }
 
+eWhichStripsCanBeMoved tool_settings_gap_removal_mode_get(Scene *scene)
+{
+  const SequencerToolSettings *tool_settings = tool_settings_ensure(scene);
+  return eWhichStripsCanBeMoved(tool_settings->gap_removal_mode);
+}
+
 ListBase *active_seqbase_get(const Editing *ed)
 {
   if (ed == nullptr) {

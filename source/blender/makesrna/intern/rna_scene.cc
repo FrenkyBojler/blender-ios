@@ -4296,6 +4296,23 @@ static void rna_def_sequencer_tool_settings(BlenderRNA *brna)
       {0, nullptr, 0, nullptr, nullptr},
 
   };
+
+  static const EnumPropertyItem gap_removal_modes[] = {
+      {SEQ_GAPS_MOVE_ABOVE, "ABOVE", 0, "ABOVE", "Move strips above gap range"},
+      {SEQ_GAPS_MOVE_BELOW, "BELOW", 0, "Below", "Move strips below gap range"},
+      {SEQ_GAPS_MOVE_ABOVE_AND_BELOW,
+       "ABOVE_AND_BELOW",
+       0,
+       "Above and Below",
+       "Move strips above and below gap range"},
+      {SEQ_GAPS_MOVE_IN_RANGE,
+       "IN_RANGE",
+       0,
+       "In Range",
+       "Move strips only in channels where gaps were created"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
   srna = RNA_def_struct(brna, "SequencerToolSettings", nullptr);
   RNA_def_struct_path_func(srna, "rna_SequencerToolSettings_path");
   RNA_def_struct_ui_text(srna, "Sequencer Tool Settings", "");
@@ -4376,6 +4393,10 @@ static void rna_def_sequencer_tool_settings(BlenderRNA *brna)
   RNA_def_property_enum_items(prop, pivot_points);
   RNA_def_property_ui_text(prop, "Pivot Point", "Rotation or scaling pivot point");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_SEQUENCER, nullptr);
+
+  prop = RNA_def_property(srna, "gap_removal_mode", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, gap_removal_modes);
+  RNA_def_property_ui_text(prop, "Gap Removal Mode", "How to remove gaps");
 }
 
 static void rna_def_curve_paint_settings(BlenderRNA *brna)

@@ -824,7 +824,7 @@ bool GapRemover::strip_intersects_range(const Strip *strip, const rcti gap_range
          BLI_rcti_inside_rcti(&strip_range, &gap_range);
 }
 
-bool GapRemover::gap_is_valid(const rcti &range, eWhichStripsCanBeMoved which)
+bool GapRemover::gap_is_valid(const rcti &range)
 {
   int range_size_x = BLI_rcti_size_x(&range);
 
@@ -842,10 +842,11 @@ bool GapRemover::gap_is_valid(const rcti &range, eWhichStripsCanBeMoved which)
       range_size_x -= BLI_rcti_size_x(&range_isect);
     }
 
-    if (which == MOVE_ABOVE && strip->channel < range.ymin) {
+    eWhichStripsCanBeMoved which = tool_settings_gap_removal_mode_get(scene);
+    if (which == SEQ_GAPS_MOVE_ABOVE && strip->channel < range.ymin) {
       continue;
     }
-    if (which == MOVE_BELOW && strip->channel > range.ymax) {
+    if (which == SEQ_GAPS_MOVE_BELOW && strip->channel > range.ymax) {
       continue;
     }
 
@@ -882,14 +883,15 @@ bool GapRemover::gap_has_strips_on_both_sides(const rcti &range)
 }
 
 /* Make gaps as large as possible in Y axis and shrink the gap in X axis to fit between strips. */
-void GapRemover::optimize_gap_ranges(Vector<rcti> &gap_ranges, eWhichStripsCanBeMoved which)
+void GapRemover::optimize_gap_ranges(Vector<rcti> &gap_ranges)
 {
   for (rcti &range : gap_ranges) {
     rcti above = {range.xmin, range.xmax, range.ymax + 1, std::numeric_limits<int>::max()};
     rcti below = {range.xmin, range.xmax, 0, range.ymin - 1};
 
-    const bool move_above = which == MOVE_ABOVE || which == MOVE_ABOVE_AND_BELOW;
-    const bool move_below = which == MOVE_BELOW || which == MOVE_ABOVE_AND_BELOW;
+    eWhichStripsCanBeMoved which = tool_settings_gap_removal_mode_get(scene);
+    const bool move_above = which == SEQ_GAPS_MOVE_ABOVE || which == SEQ_GAPS_MOVE_ABOVE_AND_BELOW;
+    const bool move_below = which == SEQ_GAPS_MOVE_BELOW || which == SEQ_GAPS_MOVE_ABOVE_AND_BELOW;
 
     /* Start by assuming, that gap is infinite in Y direction; */
     range.ymax = std::numeric_limits<int>::max();
@@ -950,14 +952,13 @@ void GapRemover::query_right_side_strips(const rcti gap_range)
 
 void GapRemover::remove_gaps()
 {
-  const eWhichStripsCanBeMoved which = MOVE_ABOVE; /* XXX user selectable. */
+  eWhichStripsCanBeMoved which = tool_settings_gap_removal_mode_get(scene);
 
   Vector<rcti> final_gap_ranges = gap_ranges;
-  if (which != MOVE_IN_RANGE) {
+  if (which != SEQ_GAPS_MOVE_IN_RANGE) {
     final_gap_ranges = this->unify_gap_ranges(final_gap_ranges);
-    final_gap_ranges.remove_if(
-        [&](const rcti &range) { return !this->gap_is_valid(range, which); });
-    this->optimize_gap_ranges(final_gap_ranges, which);
+    final_gap_ranges.remove_if([&](const rcti &range) { return !this->gap_is_valid(range); });
+    this->optimize_gap_ranges(final_gap_ranges);
     /* Final validation after the final range size is known. */
     final_gap_ranges.remove_if([&](const rcti &range) {
       return !BLI_rcti_is_valid(&range) || !this->gap_has_strips_on_both_sides(range);
@@ -970,11 +971,17 @@ void GapRemover::remove_gaps()
 
     for (Strip *strip : right_side_strips) {
       transform_translate_strip(scene, strip, -offset);
+      relations_invalidate_cache(scene, strip);
     }
     for (Strip *strip : right_side_handles) {
       const int right_handle_frame = time_right_handle_frame_get(scene, strip);
       time_right_handle_frame_set(scene, strip, right_handle_frame - offset);
+      relations_invalidate_cache(scene, strip);
     }
+  }
+
+  if (final_gap_ranges.is_empty()) {
+    return;
   }
 
   /* Offset playhead. */
@@ -994,13 +1001,16 @@ GapRemover::GapRemover(Scene *scene, VectorSet<Strip *> moved_strips)
   Editing *ed = editing_get(scene);
   BLI_assert(ed != nullptr);
   channels = channels_displayed_get(ed);
+
   /* Only remove gaps for select strip types. With this content, intentions are predictable. */
-  // if (which != MOVE_IN_RANGE) {
-  moved_strips.remove_if([](Strip *strip) {
-    return !ELEM(
-        strip->type, STRIP_TYPE_MOVIE, STRIP_TYPE_IMAGE, STRIP_TYPE_SCENE, STRIP_TYPE_META);
-  });
-  //}
+  eWhichStripsCanBeMoved which = tool_settings_gap_removal_mode_get(scene);
+
+  if (which != SEQ_GAPS_MOVE_IN_RANGE) {
+    moved_strips.remove_if([](Strip *strip) {
+      return !ELEM(
+          strip->type, STRIP_TYPE_MOVIE, STRIP_TYPE_IMAGE, STRIP_TYPE_SCENE, STRIP_TYPE_META);
+    });
+  }
 
   for (Strip *strip : moved_strips) {
     gap_ranges.append({time_left_handle_frame_get(scene, strip),

@@ -164,13 +164,6 @@ blender::float3x3 image_transform_matrix_get(const Scene *scene, const Strip *st
 
 class GapRemover {
  public:
-  enum eWhichStripsCanBeMoved {
-    MOVE_ABOVE,
-    MOVE_BELOW,
-    MOVE_ABOVE_AND_BELOW,
-    MOVE_IN_RANGE,
-  };
-
   Scene *scene;
   ListBase *channels;
   VectorSet<Strip *> moved_strips;
@@ -181,13 +174,13 @@ class GapRemover {
   VectorSet<Strip *> right_side_strips;
   VectorSet<Strip *> right_side_handles;
 
-  bool gap_is_valid(const rcti &range, eWhichStripsCanBeMoved which);
+  bool gap_is_valid(const rcti &range);
   bool gap_has_strips_on_both_sides(const rcti &range);
   bool can_merge_ranges_y(const rcti &range_l, const rcti &range_r);
   bool can_merge_ranges_x(const rcti &range_l, const rcti &range_r);
   Vector<rcti> unify_gap_ranges(const Vector<rcti> &ranges);
   bool strip_intersects_range(const Strip *strip, const rcti gap_range);
-  void optimize_gap_ranges(Vector<rcti> &gap_ranges, eWhichStripsCanBeMoved which);
+  void optimize_gap_ranges(Vector<rcti> &gap_ranges);
   void query_right_side_strips(const rcti gap_range);
 
  public:
