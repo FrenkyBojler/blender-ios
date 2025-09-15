@@ -345,8 +345,8 @@ class VKDevice : public NonCopyable {
     return is_initialized_;
   }
 
-  eGPUDeviceType device_type() const;
-  eGPUDriverType driver_type() const;
+  GPUDeviceType device_type() const;
+  GPUDriverType driver_type() const;
   std::string vendor_name() const;
   std::string driver_version() const;
 
@@ -367,11 +367,11 @@ class VKDevice : public NonCopyable {
     return extensions_;
   }
 
-  const char *glsl_vertex_patch_get() const;
-  const char *glsl_geometry_patch_get() const;
-  const char *glsl_fragment_patch_get() const;
-  const char *glsl_compute_patch_get() const;
-  void init_glsl_patch();
+  std::string glsl_vertex_patch_get() const;
+  std::string glsl_geometry_patch_get() const;
+  std::string glsl_fragment_patch_get() const;
+  std::string glsl_compute_patch_get() const;
+  shader::GeneratedSource extensions_define(StringRefNull stage_define) const;
 
   /* -------------------------------------------------------------------- */
   /** \name Render graph
