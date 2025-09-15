@@ -2818,7 +2818,7 @@ static void view3d_panel_curve_data(const bContext *C, Panel *panel)
         }
       };
 
-  auto is_equal = [&](const float a, const float b, const float epsilon = 1e-5f) {
+  auto is_equal = [&](const float a, const float b, const float epsilon = 1e-4f) {
     return math::abs(a - b) <= epsilon;
   };
 
