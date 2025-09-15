@@ -418,6 +418,28 @@ bool WM_xr_session_state_viewer_pose_rotation_get(const wmXrData *xr, float r_ro
   return true;
 }
 
+bool WM_xr_session_state_viewfinder_location_get(const wmXrData *xr, float r_location[3])
+{
+  if (!WM_xr_session_is_ready(xr) || !xr->runtime->session_state.is_view_data_set) {
+    zero_v3(r_location);
+    return false;
+  }
+
+  copy_v3_v3(r_location, xr->runtime->session_state.viewfinder_position);
+  return true;
+}
+
+bool WM_xr_session_state_viewfinder_rotation_get(const wmXrData *xr, float r_rotation[4])
+{
+  if (!WM_xr_session_is_ready(xr) || !xr->runtime->session_state.is_view_data_set) {
+    unit_qt(r_rotation);
+    return false;
+  }
+
+  copy_v4_v4(r_rotation, xr->runtime->session_state.viewfinder_orientation_quat);
+  return true;
+}
+
 bool WM_xr_session_state_viewer_pose_matrix_info_get(const wmXrData *xr,
                                                      float r_viewmat[4][4],
                                                      float *r_focal_len)

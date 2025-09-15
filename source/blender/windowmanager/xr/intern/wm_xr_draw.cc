@@ -11,7 +11,9 @@
  */
 
 #include <cstring>
+#include <fmt/format.h>
 
+#include "DNA_camera_types.h"
 #include "DNA_userdef_types.h"
 
 #include "BLI_listbase.h"
@@ -225,34 +227,75 @@ void wm_xr_draw_view(const GHOST_XrDrawViewInfo *draw_view, void *customdata)
   Object *camera_ob = scene->camera; /* Active scene camera. */
 
   float viewfinder_viewmat[4][4] = {};
-  switch (settings->viewfinder_view_point) {
-    case XR_VIEWFINDER_VIEWPOINT_SCENE_CAMERA: {
-      invert_m4_m4(viewfinder_viewmat, camera_ob->object_to_world().ptr());
-      break;
-    }
-    case XR_VIEWFINDER_VIEWPOINT_HANDHELD: {
+  float current_landmark_vf_lens = 0.0f;
+  switch (settings->viewfinder_active_mode) {
+    case XR_VIEWFINDER_MODE_LIVE: {
       const wmXrController *viewfinder_controller = get_viewfinder_controller(settings,
                                                                               session_state);
       if (!viewfinder_controller) {
         break;
       }
 
-      float handheld_mat[4][4];
-      copy_m4_m4(handheld_mat, viewfinder_controller->grip_mat);
-      rotate_m4(
-          handheld_mat, 'X', -M_PI_2); /* Same rotation used to place the viewfinder window. */
-      translate_m4(handheld_mat, -2.5f, 0.0f, 1.2f); /* Hardcoded offset for now. */
+      /* Note: View offsets can be configured using the Scene Camera Shift X/Y and other settings. */
+      float viewfinder_mat[4][4];
+      copy_m4_m4(viewfinder_mat, viewfinder_controller->grip_mat);
+      rotate_m4(viewfinder_mat, 'X', -M_PI_2);
 
-      invert_m4_m4(viewfinder_viewmat, handheld_mat);
+      invert_m4_m4(viewfinder_viewmat, viewfinder_mat);
+
+      /* Store the last known position/rotation in the XR session state for landmark capture.
+       * Note: We really shouldn't mutate runtime data from a drawing function, but this is by
+       *       far the simplest way to do it. */
+      mat4_to_loc_quat(session_state->viewfinder_position,
+                       session_state->viewfinder_orientation_quat,
+                       viewfinder_mat);
+
+      break;
+    }
+    case XR_VIEWFINDER_MODE_PLAYBACK: {
+      PointerRNA scene_ptr = RNA_id_pointer_create(&scene->id);
+
+      /* Note: unsafe, relies on the VR add-on to be loaded. */
+      PropertyRNA *landmarks_prop = RNA_struct_find_property(&scene_ptr, "vr_landmarks");
+      PropertyRNA *landmark_idx_prop = RNA_struct_find_property(&scene_ptr, "vr_landmarks_selected");
+      const int landmark_idx = RNA_property_int_get(&scene_ptr, landmark_idx_prop);
+
+      /* Hack: Doing some hardcore RNA introspection to obtain the values back. */
+      PointerRNA current_landmark;
+      RNA_property_collection_lookup_int(&scene_ptr, landmarks_prop, landmark_idx, &current_landmark);
+
+      PropertyRNA *lm_vf_pos_prop = RNA_struct_find_property(&current_landmark, "base_pose_location");
+      PropertyRNA *lm_vf_quat_prop = RNA_struct_find_property(&current_landmark, "viewfinder_quat");
+      PropertyRNA *lm_vf_lens_prop = RNA_struct_find_property(&current_landmark, "viewfinder_lens");
+      float landmark_viewfinder_pos[3];
+      float landmark_viewfinder_quat[4];
+      RNA_property_float_get_array(&current_landmark, lm_vf_pos_prop, landmark_viewfinder_pos);
+      RNA_property_float_get_array(&current_landmark, lm_vf_quat_prop, landmark_viewfinder_quat);
+      current_landmark_vf_lens = RNA_property_float_get(&current_landmark, lm_vf_lens_prop);
+
+      GHOST_XrPose viewfinder_pose;
+      copy_v3_v3(viewfinder_pose.position, landmark_viewfinder_pos);
+      copy_qt_qt(viewfinder_pose.orientation_quat, landmark_viewfinder_quat);
+
+      wm_xr_pose_to_imat(&viewfinder_pose, viewfinder_viewmat);
       break;
     }
     default:
       BLI_assert_unreachable();
+      break;
   }
 
   CameraParams params;
   BKE_camera_params_init(&params);
   BKE_camera_params_from_object(&params, camera_ob);
+
+  /* In Playback mode, override the lens with the value stored in the landmark.
+   * Note: Only the lens is restored, tweaking the Shift X/Y and other Camera settings between
+   *       captures will cause inconsistencies. */
+  if (settings->viewfinder_active_mode == XR_VIEWFINDER_MODE_PLAYBACK) {
+    params.lens = current_landmark_vf_lens;
+  }
+
   BKE_camera_params_compute_viewplane(
       &params, scene->r.xsch, scene->r.ysch, scene->r.xasp, scene->r.yasp);
   BKE_camera_params_compute_matrix(&params);
@@ -450,13 +493,38 @@ static uiBlock *viewfinder_action_enum_ui_block(const bContext *C,
 
 static uiBlock *viewfinder_settings_label_ui_block(const bContext *C,
                                                    ARegion *region,
-                                                   const XrSessionSettings * /*settings*/)
+                                                   const XrSessionSettings *settings)
 {
 
   uiBlock *block = nullptr;
   uiLayout &layout = uiblock_prepare(&block, C, region, blender::ui::EmbossType::Emboss);
 
-  layout.label("1 / 20    40mm   f 2.8", ICON_NONE); /* Using horrible manual spaces for now. */
+  Scene *scene = CTX_data_scene(C);
+  Object *cam_ob = scene->camera;
+  const Camera *cam = static_cast<const Camera *>(cam_ob->data);
+
+  PointerRNA scene_ptr = RNA_id_pointer_create(&scene->id);
+
+  /* Note: unsafe, relies on the VR add-on to be loaded. */
+  PropertyRNA *landmark_len_prop = RNA_struct_find_property(&scene_ptr, "vr_landmarks");
+  PropertyRNA *landmark_idx_prop = RNA_struct_find_property(&scene_ptr, "vr_landmarks_selected");
+  const int landmark_len = RNA_property_collection_length(&scene_ptr, landmark_len_prop);
+  const int landmark_idx = RNA_property_int_get(&scene_ptr, landmark_idx_prop);
+
+  std::string settings_label;
+  switch (settings->viewfinder_active_mode) {
+    case XR_VIEWFINDER_MODE_LIVE:
+      settings_label = fmt::format("{}mm   f {:.1f}", cam->lens, cam->dof.aperture_fstop);
+      break;
+    case XR_VIEWFINDER_MODE_PLAYBACK:
+      settings_label = fmt::format("{} / {}", landmark_idx + 1, landmark_len);
+      break;
+    default:
+      BLI_assert_unreachable();
+      return nullptr;
+  }
+
+  layout.label(settings_label.c_str(), ICON_NONE);
 
   UI_block_end(C, block);
 
@@ -527,7 +595,9 @@ static void wm_xr_controller_viewfinder_draw_ui_widgets(const bContext *C,
   const float mode_tabs_x = viewfinder_rect.xmin - 0.15f;
   const float mode_tabs_y = viewfinder_rect.ymax + 0.45f;
 
-  const float settings_label_x = viewfinder_rect.xmax - 2.3f;
+  const float settings_label_x = settings->viewfinder_active_mode == XR_VIEWFINDER_MODE_LIVE ?
+                                     viewfinder_rect.xmax - 1.35f :
+                                     viewfinder_rect.xmax - 0.55f;
   const float settings_label_y = viewfinder_rect.ymax + 0.47f;
 
   const float action_label_x = viewfinder_rect.xmin - 0.1f;

@@ -31,7 +31,7 @@ typedef struct XrSessionSettings {
 
   char viewfinder_enable;
   char viewfinder_hand;       /* #eXrSessionViewfinderHand */
-  char viewfinder_view_point; /* #eXrSessionViewfinderViewPoint */
+  char _pad2;
 
   /** Active/Selected Viewfinder button/mode, different paradigm as the rest of the Blender UI. */
   char viewfinder_active_mode;            /* #eXrSessionViewfinderMode */
@@ -72,11 +72,6 @@ typedef enum eXrSessionViewfinderHand {
   XR_VIEWFINDER_HAND_LEFT = 0,
   XR_VIEWFINDER_HAND_RIGHT = 1,
 } eXrSessionViewfinderHand;
-
-typedef enum eXrSessionViewfinderViewPoint {
-  XR_VIEWFINDER_VIEWPOINT_SCENE_CAMERA = 0,
-  XR_VIEWFINDER_VIEWPOINT_HANDHELD = 1,
-} eXrSessionViewfinderViewPoint;
 
 typedef enum eXrSessionViewfinderMode {
   XR_VIEWFINDER_MODE_LIVE = 0,

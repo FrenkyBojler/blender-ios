@@ -36,6 +36,9 @@ struct wmXrSessionState {
   float viewer_mat_base[4][4];
   float focal_len;
 
+  float viewfinder_position[3];
+  float viewfinder_orientation_quat[4];
+
   /** Copy of XrSessionSettings.base_pose_ data to detect changes that need
    * resetting to base pose. */
   char prev_base_pose_type; /* #eXRSessionBasePoseType. */

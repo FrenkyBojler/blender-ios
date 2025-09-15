@@ -126,7 +126,6 @@ class VIEW3D_PT_vr_viewfinder(Panel):
 
         layout.prop(session_settings, "viewfinder_hand", text="Hand", expand=True)
         layout.prop(session_settings, "viewfinder_width", text="View Width")
-        layout.prop(session_settings, "viewfinder_view_point", text ="Viewpoint")
 
 
 # Landmarks.
