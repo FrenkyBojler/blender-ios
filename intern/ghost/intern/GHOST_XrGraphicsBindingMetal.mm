@@ -45,7 +45,8 @@ static MTLPixelFormat ghost_format_to_mtl_format(GHOST_TXrSwapchainFormat ghost_
   return format;
 }
 
-static blender::gpu::TextureFormat ghost_format_to_gpu_format(GHOST_TXrSwapchainFormat ghost_format)
+static blender::gpu::TextureFormat ghost_format_to_gpu_format(
+    GHOST_TXrSwapchainFormat ghost_format)
 {
   using namespace blender::gpu;
 

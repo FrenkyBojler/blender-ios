@@ -21,7 +21,7 @@
 @class MTLTexture;
 @class NSView;
 
-class GHOST_ContextMTL: public GHOST_Context {
+class GHOST_ContextMTL : public GHOST_Context {
   friend class GHOST_XrGraphicsBindingMetal;
 
  public:
