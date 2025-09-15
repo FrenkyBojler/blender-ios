@@ -673,42 +673,28 @@ void ShaderModule::material_create_info_amend(GPUMaterial *gpumat, GPUCodegenOut
     info.additional_info("eevee_cryptomatte_out");
   }
 
-  int32_t closure_data_slots = 0;
   if (GPU_material_flag_get(gpumat, GPU_MATFLAG_DIFFUSE)) {
     info.define("MAT_DIFFUSE");
-    if (GPU_material_flag_get(gpumat, GPU_MATFLAG_TRANSLUCENT) &&
-        !GPU_material_flag_get(gpumat, GPU_MATFLAG_COAT))
-    {
-      /* Special case to allow translucent with diffuse without noise.
-       * Revert back to noise if clear coat is present. */
-      closure_data_slots |= (1 << 2);
-    }
-    else {
-      closure_data_slots |= (1 << 0);
-    }
   }
   if (GPU_material_flag_get(gpumat, GPU_MATFLAG_SUBSURFACE)) {
     info.define("MAT_SUBSURFACE");
-    closure_data_slots |= (1 << 0);
   }
   if (GPU_material_flag_get(gpumat, GPU_MATFLAG_REFRACT)) {
     info.define("MAT_REFRACTION");
-    closure_data_slots |= (1 << 0);
   }
   if (GPU_material_flag_get(gpumat, GPU_MATFLAG_TRANSLUCENT)) {
     info.define("MAT_TRANSLUCENT");
-    closure_data_slots |= (1 << 0);
   }
   if (GPU_material_flag_get(gpumat, GPU_MATFLAG_GLOSSY)) {
     info.define("MAT_REFLECTION");
-    closure_data_slots |= (1 << 1);
   }
   if (GPU_material_flag_get(gpumat, GPU_MATFLAG_COAT)) {
     info.define("MAT_CLEARCOAT");
-    closure_data_slots |= (1 << 2);
   }
 
-  int32_t closure_bin_count = count_bits_i(closure_data_slots);
+  eClosureBits closure_bits = shader_closure_bits_from_flag(gpumat);
+
+  int32_t closure_bin_count = to_gbuffer_bin_count(closure_bits);
   switch (closure_bin_count) {
     /* These need to be separated since the strings need to be static. */
     case 0:
@@ -907,13 +893,6 @@ void ShaderModule::material_create_info_amend(GPUMaterial *gpumat, GPUCodegenOut
              << attr_load.str();
   }
 
-  /* TODO(fclem): This should become part of the dependency system. */
-  std::string deps_concat;
-  for (const StringRefNull &str : info.dependencies_generated) {
-    deps_concat += str;
-  }
-  info.dependencies_generated = {};
-
   {
     const bool use_vertex_displacement = !codegen.displacement.empty() &&
                                          (displacement_type != MAT_DISPLACEMENT_BUMP) &&
@@ -924,9 +903,10 @@ void ShaderModule::material_create_info_amend(GPUMaterial *gpumat, GPUCodegenOut
     vert_gen << ((use_vertex_displacement) ? codegen.displacement : "return float3(0);\n");
     vert_gen << "}\n\n";
 
-    info.generated_sources.append({"eevee_nodetree_vert_lib.glsl",
-                                   {"eevee_nodetree_lib.glsl"},
-                                   deps_concat + vert_gen.str()});
+    Vector<StringRefNull> dependencies = {"eevee_nodetree_lib.glsl"};
+    dependencies.extend(info.dependencies_generated);
+
+    info.generated_sources.append({"eevee_nodetree_vert_lib.glsl", dependencies, vert_gen.str()});
   }
 
   if (pipeline_type != MAT_PIPE_VOLUME_OCCUPANCY) {
@@ -987,9 +967,10 @@ void ShaderModule::material_create_info_amend(GPUMaterial *gpumat, GPUCodegenOut
     frag_gen << (!codegen.volume.empty() ? codegen.volume : "return Closure(0);\n");
     frag_gen << "}\n\n";
 
-    info.generated_sources.append({"eevee_nodetree_frag_lib.glsl",
-                                   {"eevee_nodetree_lib.glsl"},
-                                   deps_concat + frag_gen.str()});
+    Vector<StringRefNull> dependencies = {"eevee_nodetree_lib.glsl"};
+    dependencies.extend(info.dependencies_generated);
+
+    info.generated_sources.append({"eevee_nodetree_frag_lib.glsl", dependencies, frag_gen.str()});
   }
 
   int reserved_attr_slots = 0;
