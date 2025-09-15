@@ -285,7 +285,8 @@ struct StepData {
     applied_ = false;
   }
 };
-namespace zstd {
+
+namespace compression {
 
 template<typename T> Array<std::byte> compress(const Span<T> src)
 {
@@ -370,7 +371,7 @@ void filter_decompress(const Span<std::byte> src, Vector<std::byte> &buffer, Vec
                            sizeof(T));
 }
 
-}  // namespace zstd
+}  // namespace compression
 
 struct PositionUndoStorage : NonMovable {
   Vector<std::unique_ptr<Node>> nodes_to_compress;
@@ -443,8 +444,8 @@ struct PositionUndoStorage : NonMovable {
         for (const int i : range) {
           const Span<int> indices = data->multires_undo ? nodes[i]->grids : nodes[i]->vert_indices;
           const Span<float3> positions = nodes[i]->position;
-          new (&compressed_indices[i]) Array<std::byte>(zstd::compress(indices));
-          new (&compressed_data[i]) Array<std::byte>(zstd::filter_compress(
+          new (&compressed_indices[i]) Array<std::byte>(compression::compress(indices));
+          new (&compressed_data[i]) Array<std::byte>(compression::filter_compress(
               positions, local_data.filter_buffer, local_data.compress_buffer));
           nodes[i].reset();
         }
@@ -593,11 +594,11 @@ static void restore_position_mesh(Object &object,
   threading::parallel_for(IndexRange(nodes_num), 1, [&](const IndexRange range) {
     LocalData &tls = all_tls.local();
     for (const int i : range) {
-      zstd::decompress<int>(undo_data.compressed_indices[i], tls.indices);
+      compression::decompress<int>(undo_data.compressed_indices[i], tls.indices);
       const int unique_verts_num = undo_data.unique_verts_nums[i];
       const Span<int> verts = tls.indices.as_span().take_front(unique_verts_num);
 
-      zstd::filter_decompress<float3>(
+      compression::filter_decompress<float3>(
           undo_data.compressed_positions[i], tls.compress_buffer, tls.positions);
       MutableSpan undo_positions = tls.positions.as_mutable_span();
 
@@ -637,7 +638,7 @@ static void restore_position_mesh(Object &object,
 
       modified_verts.fill_indices(verts, true);
 
-      undo_data.compressed_positions[i] = zstd::filter_compress<float3>(
+      undo_data.compressed_positions[i] = compression::filter_compress<float3>(
           undo_positions, tls.compress_buffer, tls.filter_buffer);
     }
   });
@@ -660,10 +661,10 @@ static void restore_position_grids(const MutableSpan<float3> positions,
   threading::parallel_for(IndexRange(nodes_num), 1, [&](const IndexRange range) {
     LocalData &tls = all_tls.local();
     for (const int i : range) {
-      zstd::decompress<int>(undo_data.compressed_indices[i], tls.indices);
+      compression::decompress<int>(undo_data.compressed_indices[i], tls.indices);
       const Span<int> grids = tls.indices.as_span();
 
-      zstd::filter_decompress<float3>(
+      compression::filter_decompress<float3>(
           undo_data.compressed_positions[i], tls.compress_buffer, tls.positions);
       MutableSpan node_positions = tls.positions.as_mutable_span();
 
@@ -677,7 +678,7 @@ static void restore_position_grids(const MutableSpan<float3> positions,
 
       modified_grids.fill_indices(grids, true);
 
-      undo_data.compressed_positions[i] = zstd::filter_compress<float3>(
+      undo_data.compressed_positions[i] = compression::filter_compress<float3>(
           node_positions, tls.compress_buffer, tls.filter_buffer);
     }
   });

@@ -829,6 +829,25 @@ std::optional<Span<float>> orig_mask_data_lookup_mesh(const Object &object,
 std::optional<Span<float>> orig_mask_data_lookup_grids(const Object &object,
                                                        const bke::pbvh::GridsNode &node);
 
+namespace compression {
+
+template<typename T> Array<std::byte> compress(const Span<T> src);
+
+/**
+ * Compress a span, using a prefiltering step that can improve compression speed and ratios for
+ * certain float data types.
+ */
+template<typename T>
+Array<std::byte> filter_compress(const Span<T> src,
+                                 Vector<std::byte> &filter_buffer,
+                                 Vector<std::byte> &compress_buffer);
+
+template<typename T> void decompress(const Span<std::byte> src, Vector<T> &dst);
+template<typename T>
+void filter_decompress(const Span<std::byte> src, Vector<std::byte> &buffer, Vector<T> &dst);
+
+}  // namespace compression
+
 inline bool brush_type_is_paint(const int tool)
 {
   return ELEM(tool, SCULPT_BRUSH_TYPE_PAINT, SCULPT_BRUSH_TYPE_SMEAR);
