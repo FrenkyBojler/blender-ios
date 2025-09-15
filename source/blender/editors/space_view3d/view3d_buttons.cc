@@ -581,20 +581,6 @@ static CurvesSelectionStatus init_curves_selection_status(
   const VArray<int8_t> orders = curves.nurbs_orders();
   const VArray<int> resolution = curves.resolution();
 
-  const bke::AttributeAccessor attributes = curves.attributes();
-  const VArray<float> aspect_ratios = *attributes.lookup_or_default<float>(
-      "aspect_ratio", bke::AttrDomain::Curve, 1.0f);
-  const VArray<float> softnesses = *attributes.lookup_or_default<float>(
-      "softness", bke::AttrDomain::Curve, 0.0f);
-  const VArray<float> u_scales = *attributes.lookup_or_default<float>(
-      "u_scale", bke::AttrDomain::Curve, 1.0f);
-  const VArray<float> fill_opacities = *attributes.lookup_or_default<float>(
-      "fill_opacity", bke::AttrDomain::Curve, 1.0f);
-  const VArray<int> end_caps = *attributes.lookup_or_default<int>(
-      "end_cap", bke::AttrDomain::Curve, GP_STROKE_CAP_TYPE_ROUND);
-  const VArray<int> start_caps = *attributes.lookup_or_default<int>(
-      "start_cap", bke::AttrDomain::Curve, GP_STROKE_CAP_TYPE_ROUND);
-
   IndexMaskMemory memory;
   const IndexMask selection = retrieve_selected_curves(curves, memory);
 
@@ -629,7 +615,47 @@ static CurvesSelectionStatus init_curves_selection_status(
           const int res = resolution[curve];
           value.resolution_sum += res;
           value.resolution_max = std::max(value.resolution_max, res);
+        });
+        return value;
+      },
+      CurvesSelectionStatus::sum);
+}
 
+static CurvesSelectionStatus init_grease_pencil_selection_status(
+    const blender::bke::CurvesGeometry &curves)
+{
+  using namespace blender;
+  using namespace ed::curves;
+
+  if (curves.is_empty()) {
+    return CurvesSelectionStatus();
+  }
+
+  const bke::AttributeAccessor attributes = curves.attributes();
+  const VArray<float> aspect_ratios = *attributes.lookup_or_default<float>(
+      "aspect_ratio", bke::AttrDomain::Curve, 1.0f);
+  const VArray<float> softnesses = *attributes.lookup_or_default<float>(
+      "softness", bke::AttrDomain::Curve, 0.0f);
+  const VArray<float> u_scales = *attributes.lookup_or_default<float>(
+      "u_scale", bke::AttrDomain::Curve, 1.0f);
+  const VArray<float> fill_opacities = *attributes.lookup_or_default<float>(
+      "fill_opacity", bke::AttrDomain::Curve, 1.0f);
+  const VArray<int> end_caps = *attributes.lookup_or_default<int>(
+      "end_cap", bke::AttrDomain::Curve, GP_STROKE_CAP_TYPE_ROUND);
+  const VArray<int> start_caps = *attributes.lookup_or_default<int>(
+      "start_cap", bke::AttrDomain::Curve, GP_STROKE_CAP_TYPE_ROUND);
+
+  IndexMaskMemory memory;
+  const IndexMask selection = retrieve_selected_curves(curves, memory);
+
+  return threading::parallel_reduce(
+      curves.curves_range(),
+      512,
+      CurvesSelectionStatus(),
+      [&](const IndexRange range, const CurvesSelectionStatus &acc) {
+        CurvesSelectionStatus value = acc;
+
+        selection.slice_content(range).foreach_index([&](const int curve) {
           const float aspect = aspect_ratios[curve];
           value.aspect_ratio_sum += aspect;
           value.aspect_ratio_max = std::max(value.aspect_ratio_max, aspect);
@@ -2633,8 +2659,9 @@ static void view3d_panel_curve_data(const bContext *C, Panel *panel)
         [&](const IndexRange range, const CurvesSelectionStatus &acc) {
           CurvesSelectionStatus value = acc;
           for (const int drawing : range) {
-            value = CurvesSelectionStatus::sum(
-                value, init_curves_selection_status(drawings[drawing].drawing.strokes()));
+            const bke::CurvesGeometry curves = drawings[drawing].drawing.strokes();
+            value = CurvesSelectionStatus::sum(value, init_curves_selection_status(curves));
+            value = CurvesSelectionStatus::sum(value, init_grease_pencil_selection_status(curves));
           }
           return value;
         },
