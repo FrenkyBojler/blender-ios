@@ -187,7 +187,7 @@ struct ThemeColors {
   float4 empty;
   float4 vert; /* "vertex" is reserved keyword in MSL. */
   float4 vert_select;
-  float4 vert_pinned;
+  float4 vert_mask;
   float4 vert_unreferenced;
   float4 vert_missing_data;
   float4 edit_mesh_active;

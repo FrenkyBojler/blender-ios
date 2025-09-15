@@ -313,9 +313,6 @@ enum {
   /* Beware to not go over 1 << 7 (it's a byte flag). */
 };
 
-enum{
-  VFLAG_VERT_PINNED = 1<<2 
-};
 
 /** \} */
 

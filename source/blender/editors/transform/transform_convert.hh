@@ -327,7 +327,7 @@ void transform_convert_mesh_connectivity_distance(BMesh *bm,
                                                   const float mtx[3][3],
                                                   float *dists,
                                                   int *index,
-                                                  const int pinned_offset = -1);
+                                                  const int mask_offset = -1);
 void transform_convert_mesh_mirrordata_calc(BMEditMesh *em,
                                             bool use_select,
                                             bool use_topology,

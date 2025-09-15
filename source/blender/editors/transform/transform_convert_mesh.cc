@@ -941,13 +941,13 @@ static bool bmesh_test_dist_add(BMVert *v0,
                                 float *dists, /* Optionally track original index. */
                                 int *index,
                                 const float mtx[3][3],
-                                const int pinned_offset)
+                                const int mask_offset)
 {
   if ((BM_elem_flag_test(v0, BM_ELEM_SELECT) == 0) && (BM_elem_flag_test(v0, BM_ELEM_HIDDEN) == 0))
   {
     const int i0 = BM_elem_index_get(v0);
     const int i1 = BM_elem_index_get(v1);
-    if (pinned_offset != -1 && BM_ELEM_CD_GET_BOOL(v0, pinned_offset)) {
+    if (mask_offset != -1 && BM_ELEM_CD_GET_FLOAT(v0, mask_offset) >= 0.9999f) {
       return false;
     }
     BLI_assert(dists[i1] != FLT_MAX);
@@ -1015,7 +1015,7 @@ void transform_convert_mesh_connectivity_distance(BMesh *bm,
                                                   const float mtx[3][3],
                                                   float *dists,
                                                   int *index,
-                                                  const int pinned_offset)
+                                                  const int mask_offset)
 {
   BLI_LINKSTACK_DECLARE(queue, BMEdge *);
 
@@ -1098,7 +1098,7 @@ void transform_convert_mesh_connectivity_distance(BMesh *bm,
           std::swap(v1, v2);
         }
 
-        if (bmesh_test_dist_add(v2, v1, nullptr, dists, index, mtx, pinned_offset)) {
+        if (bmesh_test_dist_add(v2, v1, nullptr, dists, index, mtx, mask_offset)) {
           /* Add adjacent edges to the queue if:
            * - Adjacent edge is loose
            * - Edge itself is loose
@@ -1137,7 +1137,7 @@ void transform_convert_mesh_connectivity_distance(BMesh *bm,
             BMVert *v_other = l_other->v;
             BLI_assert(!ELEM(v_other, v1, v2));
 
-            if (bmesh_test_dist_add(v_other, v1, v2, dists, index, mtx, pinned_offset)) {
+            if (bmesh_test_dist_add(v_other, v1, v2, dists, index, mtx, mask_offset)) {
               /* Add adjacent edges to the queue, if they are ready to propagate across/along.
                * Always propagate along loose edges, and for other edges only propagate across
                * if both vertices have a known distances. */
@@ -1506,6 +1506,7 @@ static void createTransEditVerts(bContext * /*C*/, TransInfo *t)
     float mtx[3][3], smtx[3][3];
     int a;
     const int prop_mode = (t->flag & T_PROP_EDIT) ? (t->flag & T_PROP_EDIT_ALL) : 0;
+    const int mask_offset = CustomData_get_offset_named(&bm->vdata, CD_PROP_FLOAT, ".sculpt_mask");
 
     TransIslandData island_data = {nullptr};
     TransMirrorData mirror_data = {nullptr};
@@ -1587,8 +1588,8 @@ static void createTransEditVerts(bContext * /*C*/, TransInfo *t)
       if (is_island_center) {
         dists_index = MEM_malloc_arrayN<int>(bm->totvert, __func__);
       }
-    const int pinned_offset = CustomData_get_offset_named(&bm->vdata, CD_PROP_BOOL, "V_PINNED");
-    transform_convert_mesh_connectivity_distance(em->bm, mtx, dists, dists_index, pinned_offset);
+    const int mask_offset = CustomData_get_offset_named(&bm->vdata, CD_PROP_FLOAT, ".sculpt_mask");
+    transform_convert_mesh_connectivity_distance(em->bm, mtx, dists, dists_index, mask_offset);
     }
 
     /* Create TransDataMirror. */
@@ -1664,6 +1665,10 @@ static void createTransEditVerts(bContext * /*C*/, TransInfo *t)
         /* Do not use the island center in case we are using islands
          * only to get axis for snap/rotate to normal... */
         VertsToTransData(t, tob, tx, em, eve, &island_data, island_index);
+        if (mask_offset != -1) {
+        const float mask_val = BM_ELEM_CD_GET_FLOAT(eve, mask_offset);
+        tob->factor *= (1.0f - mask_val);
+}
         if (tx) {
           tx++;
         }

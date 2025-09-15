@@ -89,13 +89,6 @@ static void mesh_render_data_vert_flag(const MeshRenderData &mr,
   if (BM_elem_flag_test(eve, BM_ELEM_SELECT)) {
     eattr.e_flag |= VFLAG_VERT_SELECTED;
   }
-  const int pin_offset = CustomData_get_offset_named(&mr.bm->vdata, CD_PROP_BOOL, "V_PINNED");
-  if (pin_offset != -1) {
-    bool is_pinned = BM_ELEM_CD_GET_BOOL(eve, pin_offset);
-    if (is_pinned) {
-      eattr.e_flag |= VFLAG_VERT_PINNED;
-    }
-  }
   /* Use half a byte for value range */
   if (mr.vert_crease_ofs != -1) {
     float crease = BM_ELEM_CD_GET_FLOAT(eve, mr.vert_crease_ofs);

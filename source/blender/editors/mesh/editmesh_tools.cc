@@ -85,10 +85,11 @@ using blender::Vector;
  * Pin Vertices Operator
  */
 
-static wmOperatorStatus pin_verts_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus mesh_mask_verts_exec(bContext *C, wmOperator *op)
 {
-  const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
+  const Scene *scene = CTX_data_scene(C);
+  const float factor = RNA_float_get(op->ptr, "factor");
   bool changed = false;
 
   const Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
@@ -101,109 +102,18 @@ static wmOperatorStatus pin_verts_exec(bContext *C, wmOperator *op)
     }
     BMesh *bm = em->bm;
 
-    if (bm->totvertsel == 0) {
-      continue;
-    }
-
-    BM_mesh_elem_index_ensure(bm, BM_VERT);
-    BM_data_layer_ensure_named(bm, &bm->vdata, CD_PROP_BOOL, "V_PINNED");
-
-    const int offset = CustomData_get_offset_named(&bm->vdata, CD_PROP_BOOL, "V_PINNED");
+    BM_data_layer_ensure_named(bm, &bm->vdata, CD_PROP_FLOAT, ".sculpt_mask");
+    const int offset = CustomData_get_offset_named(&bm->vdata, CD_PROP_FLOAT, ".sculpt_mask");
     if (offset == -1) {
-      printf("ERROR: Could not get V_PINNED offset!\n");
       continue;
     }
 
     BMIter iter;
     BMVert *v;
-    
     BM_ITER_MESH (v, &iter, bm, BM_VERTS_OF_MESH) {
       if (BM_elem_flag_test(v, BM_ELEM_SELECT)) {
-        BM_ELEM_CD_SET_BOOL(v, offset, true);
+        BM_ELEM_CD_SET_FLOAT(v, offset, factor);
         changed = true;
-      }
-    }
-
-    EDBMUpdate_Params params{};
-    params.calc_looptris = true;
-    params.calc_normals = false;
-    params.is_destructive = true;
-    EDBM_update(static_cast<Mesh *>(obedit->data), &params);
-  }
-
-  if (!changed) {
-    BKE_report(op->reports, RPT_WARNING, "No vertices selected");
-    return OPERATOR_CANCELLED;
-  }
-
-  ToolSettings *ts = CTX_data_tool_settings(C);
-  ts->proportional_edit |= (PROP_EDIT_CONNECTED);
-
-  WM_event_add_notifier(C,NC_SCENE | ND_TOOLSETTINGS, nullptr);
-  BKE_report(op->reports, RPT_INFO, "Pinned vertices; 'Connected Only' mode enabled");
-  return OPERATOR_FINISHED;
-}
-
-void MESH_OT_pin_verts(wmOperatorType *ot)
-{
-  /* identifiers */
-  ot->name = "Pin Selected Vertices";
-  ot->description = "Pin selected vertices for proportional editing";
-  ot->idname = "MESH_OT_pin_verts";
-
-  /* API callbacks */
-  ot->exec = pin_verts_exec;
-  ot->poll = ED_operator_editmesh;; 
-
-  /* flags */
-  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
-}
-
-/*
- * Unpin All Vertices Operator
- */
-
-static wmOperatorStatus unpin_verts_exec(bContext *C, wmOperator *op)
-{
-  const Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
-  bool changed = false;
-
-  const Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(C));
-
-  for (Object *obedit : objects) {
-    BMEditMesh *em = BKE_editmesh_from_object(obedit);
-    if (em == nullptr) {
-      continue;
-    }
-    BMesh *bm = em->bm;
-
-    const int cd_pin_offset = CustomData_get_offset_named(&bm->vdata, CD_PROP_BOOL, "V_PINNED");
-    if (cd_pin_offset == -1) {
-      continue; 
-    }
-
-    BMVert *v;
-    BMIter iter;
-
-    if (bm->totvertsel > 0) {
-      BM_ITER_MESH(v, &iter, bm, BM_VERTS_OF_MESH) {
-        if (BM_elem_flag_test(v, BM_ELEM_SELECT)) {
-          bool is_pinned = BM_ELEM_CD_GET_BOOL(v, cd_pin_offset);
-          if (is_pinned) {
-            BM_ELEM_CD_SET_BOOL(v, cd_pin_offset, false);
-            changed = true;
-          }
-        }
-      }
-    } else {
-      BM_ITER_MESH(v, &iter, bm, BM_VERTS_OF_MESH) {
-        bool is_pinned = BM_ELEM_CD_GET_BOOL(v, cd_pin_offset);
-        if (is_pinned) {
-          BM_ELEM_CD_SET_BOOL(v, cd_pin_offset, false);
-          changed = true;
-        }
       }
     }
 
@@ -217,29 +127,92 @@ static wmOperatorStatus unpin_verts_exec(bContext *C, wmOperator *op)
   }
 
   if (changed) {
-    BKE_report(op->reports, RPT_INFO, "Unpinned vertices");
-  } else {
-    BKE_report(op->reports, RPT_WARNING, "No pinned vertices found");
+    BKE_report(op->reports, RPT_INFO, "Masked vertices");
+    return OPERATOR_FINISHED;
   }
-
-  return OPERATOR_FINISHED;
+  else {
+    BKE_report(op->reports, RPT_WARNING, "No vertices selected");
+    return OPERATOR_CANCELLED;
+  }
 }
 
-void MESH_OT_unpin_all_verts(wmOperatorType *ot)
+void MESH_OT_mask_verts(wmOperatorType *ot)
 {
-  /* identifiers */
-  ot->name = "Unpin All Vertices";
-  ot->description = "Unpin all vertices for proportional editing";
-  ot->idname = "MESH_OT_unpin_all_verts";
+   /* identifiers */
+  ot->name = "Mask Vertices";
+  ot->description = "Apply mask values to selected vertices";
+  ot->idname = "MESH_OT_mask_verts";
 
   /* API callbacks */
-  ot->exec = unpin_verts_exec;
-  ot->poll = ED_operator_editmesh;;
+  ot->exec = mesh_mask_verts_exec;
+  ot->poll = ED_operator_editmesh;
+
+  /* flags */
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+  RNA_def_float(ot->srna, "factor", 1.0f, 0.0f, 1.0f,
+                "Factor", "Mask strength", 0.0f, 1.0f);
+}
+
+static wmOperatorStatus mesh_clear_mask_exec(bContext *C, wmOperator *op)
+{
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  const Scene *scene = CTX_data_scene(C);
+  bool changed = false;
+
+  const Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
+      scene, view_layer, CTX_wm_view3d(C));
+
+  for (Object *obedit : objects) {
+    BMEditMesh *em = BKE_editmesh_from_object(obedit);
+    if (em == nullptr) {
+      continue;
+    }
+    BMesh *bm = em->bm;
+
+    const int offset = CustomData_get_offset_named(&bm->vdata, CD_PROP_FLOAT, ".sculpt_mask");
+    if (offset == -1) {
+      continue;
+    }
+
+    BMIter iter;
+    BMVert *v;
+    BM_ITER_MESH (v, &iter, bm, BM_VERTS_OF_MESH) {
+      BM_ELEM_CD_SET_FLOAT(v, offset, 0.0f);
+    }
+
+    changed = true;
+    EDBMUpdate_Params params{};
+    params.calc_looptris = true;
+    params.calc_normals = false;
+    params.is_destructive = true;
+    EDBM_update(static_cast<Mesh *>(obedit->data), &params);
+  }
+
+  if (changed) {
+    BKE_report(op->reports, RPT_INFO, "Cleared vertex masks");
+    return OPERATOR_FINISHED;
+  }
+  else {
+    BKE_report(op->reports, RPT_WARNING, "No mask layer found");
+    return OPERATOR_CANCELLED;
+  }
+}
+
+void MESH_OT_clear_mask(wmOperatorType *ot)
+{
+   /* identifiers */
+  ot->name = "Clear Mask";
+  ot->description = "Clear mask values from all vertices";
+  ot->idname = "MESH_OT_clear_mask";
+
+  /* API callbacks */
+  ot->exec = mesh_clear_mask_exec;
+  ot->poll = ED_operator_editmesh;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
-
 
 /* -------------------------------------------------------------------- */
 /** \name Subdivide Operator
