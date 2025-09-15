@@ -2,6 +2,7 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
+import bpy
 from typing import Optional, List, Dict, Tuple, TYPE_CHECKING
 from bpy.types import Action, Mesh, Armature
 from bpy.types import ActionSlot as BlenderActionSlot
@@ -418,7 +419,28 @@ class ActionLayerBuilder(GeneratorPlugin, BoneUtilityMixin, MechanismUtilityMixi
     def rig_bones(self):
         if self.layers:
             self.child_meshes = [
-                verify_mesh_obj(child)
-                for child in self.generator.obj.children_recursive
-                if child.type == 'MESH'
+                verify_mesh_obj(child) for child in self.generator.obj.children_recursive if child.type == 'MESH'
             ]
+
+
+@bpy.app.handlers.persistent
+def versioning_5_0(_):
+    for obj in bpy.data.objects:
+        if obj.type != 'ARMATURE' or obj.library:
+            # We only care about armatures, which are local to this file.
+            continue
+        for action_setup in obj.data.rigify_action_slots:
+            if not action_setup.action:
+                continue
+            action_setup.action_slot = action_setup.action.slots[0]
+            sys_props = action_setup.bl_system_properties_get()
+            for prop_name in ('trigger_action_a', 'trigger_action_b'):
+                if prop_name in sys_props:
+                    trigger_action = sys_props.get(prop_name, None)
+                    if not trigger_action:
+                        continue
+                    trigger_action_setup = next(
+                        (setup for setup in obj.data.rigify_action_slots if setup.action == trigger_action)
+                    )
+                    setattr(action_setup, prop_name.replace("_action", ""), trigger_action_setup)
+                    del sys_props[prop_name]
