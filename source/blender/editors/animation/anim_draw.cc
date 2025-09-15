@@ -110,6 +110,12 @@ void ANIM_draw_previewrange(const Scene *scene, View2D *v2d, int end_frame_width
 
 void ANIM_draw_scene_strip_range(const bContext *C, View2D *v2d, int end_frame_width)
 {
+  SpaceAction *space_action = CTX_wm_space_action(C);
+  if (!space_action || (space_action->overlays.flag & ADS_OVERLAY_SHOW_OVERLAYS) == 0 ||
+      (space_action->overlays.flag & ADS_SHOW_SCENE_STRIP_FRAME_RANGE) == 0)
+  {
+    return;
+  }
   WorkSpace *workspace = CTX_wm_workspace(C);
   const Scene *sequencer_scene = workspace->sequencer_scene;
   if (!workspace || !sequencer_scene) {
