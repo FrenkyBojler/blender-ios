@@ -12,7 +12,6 @@
 #include "BLI_bit_vector.hh"
 #include "BLI_kdtree_impl.h"
 #include "BLI_math_base.h"
-#include "BLI_math_vector.h"
 #include "BLI_utildefines.h"
 #include "BLI_vector.hh"
 
@@ -68,6 +67,20 @@ struct KDTree {
 /* -------------------------------------------------------------------- */
 /** \name Local Math API
  * \{ */
+
+static void add_vn_vn(float v0[KD_DIMS], const float v1[KD_DIMS])
+{
+  for (uint j = 0; j < KD_DIMS; j++) {
+    v0[j] += v1[j];
+  }
+}
+
+static void div_vn_fl(float v[KD_DIMS], const float f)
+{
+  for (uint j = 0; j < KD_DIMS; j++) {
+    v[j] /= f;
+  }
+}
 
 static void copy_vn_vn(float v0[KD_DIMS], const float v1[KD_DIMS])
 {
@@ -975,12 +988,12 @@ int BLI_kdtree_nd_(calc_duplicates_stable)(const KDTree *tree,
 
     BLI_assert(cluster.is_empty());
 
-    visited[node_index].set(true);
+    visited[node_index].set();
 
     auto accumulate_neighbors_fn = [&](int neighbor_index, const float *, float) -> bool {
       if (!visited[neighbor_index] && duplicates[neighbor_index] == -1) {
         cluster.append(neighbor_index);
-        visited[neighbor_index].set(true);
+        visited[neighbor_index].set();
       }
       return true;
     };
@@ -999,17 +1012,13 @@ int BLI_kdtree_nd_(calc_duplicates_stable)(const KDTree *tree,
 
     for (int node_index : cluster) {
       const float *co = tree->nodes[index_lookup[node_index]].co;
-      add_vn_vn(centroid, co, KD_DIMS);
+      add_vn_vn(centroid, co);
       if (node_index < survivor_index) {
         survivor_index = node_index;
       }
     }
 
-    const float inv_size = 1.0f / float(cluster.size());
-    for (uint d = 0; d < KD_DIMS; d++) {
-      centroid[d] *= inv_size;
-    }
-
+    div_vn_fl(centroid, float(cluster.size()));
     /* Write centroid for this survivor. */
     copy_vn_vn(r_cluster_center[survivor_index], centroid);
 
