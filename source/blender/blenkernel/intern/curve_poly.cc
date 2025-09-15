@@ -35,12 +35,12 @@ static float3 direction_bisect(const float3 &pos,
                                float3 &other_dir,
                                bool &is_equal)
 {
-  const float epsilon = 1.0e-35f; /* Threshold used for math::normalize */
+  const float epsilon = 1.0e-35f; /* Threshold used in math::normalize */
   const bool prev_equal = is_equal;
 
   const float3 next_delta = next - pos;
-  const float norm_delta = math::length(next_delta);
-  is_equal = norm_delta < epsilon;
+  const float next_norm = math::length(next_delta);
+  is_equal = next_norm < epsilon;
   if (UNLIKELY(is_equal)) {
     /* Return the direction relative the 'previous' point. If 'prev_equal' is true, this
      * will return the direction of the last non-zero segment.
@@ -49,7 +49,7 @@ static float3 direction_bisect(const float3 &pos,
   }
 
   const float3 prev_dir = other_dir;
-  other_dir = next_delta / norm_delta;
+  other_dir = next_delta / next_norm;
   if (UNLIKELY(prev_equal)) {
     /* Return the direction of the next segment as previous direction is not an adjacent segment!
      */
@@ -61,6 +61,9 @@ static float3 direction_bisect(const float3 &pos,
     if (norm < epsilon) {
       return other_dir;
     }
+    /* Compute using the cross product as catastrophic cancellation occur in `tangent`
+     * when the sum approach 0 generating significant errors, see #146332.
+     */
     const float3 binormal = math::cross(other_dir, prev_dir);
     const float3 normal = other_dir - prev_dir;
     return math::normalize(math::cross(binormal, normal));
