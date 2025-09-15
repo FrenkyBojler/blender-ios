@@ -114,8 +114,6 @@ void node_bsdf_principled(float4 base_color,
     weight *= max((1.0f - math_reduce_max(sheen_color)), 0.0f);
   }
 
-  /* Default case. */
-  coat_tint.rgb = float3(1.0f);
 #ifdef MAT_CLEARCOAT
   /* Second layer: Coat */
   if (coat_weight > 0.0f) {
@@ -140,6 +138,11 @@ void node_bsdf_principled(float4 base_color,
           float3(1.0f), pow(coat_tint.rgb, float3(1.0f / NT)), saturate(coat_weight));
     }
   }
+  else {
+    coat_tint.rgb = float3(1.0f);
+  }
+#else
+  coat_tint.rgb = float3(1.0f);
 #endif
 
   /* Emission component.
