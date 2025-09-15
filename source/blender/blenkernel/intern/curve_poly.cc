@@ -15,11 +15,14 @@ namespace blender::bke::curves::poly {
 
 static bool delta_dir(const float3 &pos, const float3 &next, float3 &r_delta_dir)
 {
-  const float epsilon = 1e-6f;
-  if (UNLIKELY(pos == next)) {
+  const float epsilon = 1.0e-35f;
+
+  const float3 delta = next - pos;
+  const float norm = math::length(delta);
+  if (UNLIKELY(norm < epsilon)) {
     return false;
   }
-  r_delta_dir = math::normalize(next - pos);
+  r_delta_dir = delta / norm;
   return true;
 }
 
@@ -32,33 +35,37 @@ static float3 direction_bisect(const float3 &pos,
                                float3 &other_dir,
                                bool &is_equal)
 {
-  const float epsilon = 1e-6f;
+  const float epsilon = 1.0e-35f; /* Threshold used for math::normalize */
   const bool prev_equal = is_equal;
-  is_equal = pos == next;
+
+  const float3 next_delta = next - pos;
+  const float norm_delta = math::length(next_delta);
+  is_equal = norm_delta < epsilon;
   if (UNLIKELY(is_equal)) {
-    /* Return the direction relative the 'previous' point. If 'prev_equal' is true this is not
-     * the direction from previous point (it would be from the previous 'non-zero' segment).
+    /* Return the direction relative the 'previous' point. If 'prev_equal' is true, this
+     * will return the direction of the last non-zero segment.
      */
     return other_dir;
   }
 
   const float3 prev_dir = other_dir;
-  other_dir = math::normalize(next - pos);
+  other_dir = next_delta / norm_delta;
   if (UNLIKELY(prev_equal)) {
-    /* Return direction to next point as previous direction is not from the adjacent point! */
+    /* Return the direction of the next segment as previous direction is not an adjacent segment!
+     */
     return other_dir;
   }
-  const float3 tan_sum = prev_dir + other_dir;
-  const float norm = math::length(tan_sum);
-  if (norm < 0.1f) { /* approx. < sin(5.71) degrees */
-    if (norm == 0.0f) {
+  const float3 tangent = prev_dir + other_dir;
+  const float norm = math::length(tangent);
+  if (norm < 0.1f) { /* Approx. < sin(5.71°) */
+    if (norm < epsilon) {
       return other_dir;
     }
-    const float3 binorm = math::cross(other_dir, prev_dir);
+    const float3 binormal = math::cross(other_dir, prev_dir);
     const float3 normal = other_dir - prev_dir;
-    return math::normalize(math::cross(binorm, normal));
+    return math::normalize(math::cross(binormal, normal));
   }
-  return tan_sum / norm;
+  return tangent / norm;
 }
 
 void calculate_tangents(const Span<float3> positions,
