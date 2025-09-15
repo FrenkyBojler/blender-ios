@@ -1083,10 +1083,7 @@ static bool modifier_apply_obdata(ReportList *reports,
     Mesh *mesh = static_cast<Mesh *>(ob->data);
     MultiresModifierData *mmd = find_multires_modifier_before(scene, md_eval);
 
-    if (mesh->key && mti->type != ModifierTypeType::NonGeometrical) {
-      BKE_report(reports, RPT_ERROR, "Modifier cannot be applied to a mesh with shape keys");
-      return false;
-    }
+    const bool had_shape_keys = bool(mesh->key);
 
     /* Multires: ensure that recent sculpting is applied */
     if (md_eval->type == eModifierType_Multires) {
@@ -1125,6 +1122,10 @@ static bool modifier_apply_obdata(ReportList *reports,
 
       /* Remove strings referring to attributes if they no longer exist. */
       bke::mesh_remove_invalid_attribute_strings(*mesh);
+
+      if (had_shape_keys && !mesh->key) {
+        BKE_report(reports, RPT_WARNING, "Applying modifier removed mesh shape keys");
+      }
 
       if (md_eval->type == eModifierType_Multires) {
         multires_customdata_delete(mesh);
