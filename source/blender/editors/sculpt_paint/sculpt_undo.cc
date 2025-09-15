@@ -293,9 +293,9 @@ namespace compression {
  * certain float data types.
  */
 template<typename T>
-Array<std::byte> filter_compress(const Span<T> src,
-                                 Vector<std::byte> &filter_buffer,
-                                 Vector<std::byte> &compress_buffer)
+void filter_compress(const Span<T> src,
+                     Vector<std::byte> &filter_buffer,
+                     Vector<std::byte> &compress_buffer)
 {
   filter_buffer.resize(src.size_in_bytes());
   filter_transpose_delta(reinterpret_cast<const uint8_t *>(src.data()),
@@ -313,10 +313,11 @@ Array<std::byte> filter_compress(const Span<T> src,
                                         filter_buffer.size(),
                                         zstd_level);
   if (ZSTD_isError(dst_size)) {
-    return {};
+    compress_buffer.clear();
+    return;
   }
 
-  return compress_buffer.as_span().slice(0, dst_size);
+  compress_buffer.resize(dst_size);
 }
 
 template<typename T>
@@ -341,6 +342,12 @@ void filter_decompress(const Span<std::byte> src, Vector<std::byte> &buffer, Vec
                            dst.size(),
                            sizeof(T));
 }
+
+template void filter_compress<float3>(Span<float3>, Vector<std::byte> &, Vector<std::byte> &);
+template void filter_compress<int>(Span<int>, Vector<std::byte> &, Vector<std::byte> &);
+
+template void filter_decompress<float3>(Span<std::byte>, Vector<std::byte> &, Vector<float3> &);
+template void filter_decompress<int>(Span<std::byte>, Vector<std::byte> &, Vector<int> &);
 
 }  // namespace compression
 
@@ -415,10 +422,12 @@ struct PositionUndoStorage : NonMovable {
         for (const int i : range) {
           const Span<int> indices = data->multires_undo ? nodes[i]->grids : nodes[i]->vert_indices;
           const Span<float3> positions = nodes[i]->position;
-          new (&compressed_indices[i]) Array<std::byte>(compression::filter_compress(
-              indices, local_data.filter_buffer, local_data.compress_buffer));
-          new (&compressed_data[i]) Array<std::byte>(compression::filter_compress(
-              positions, local_data.filter_buffer, local_data.compress_buffer));
+          compression::filter_compress(
+              indices, local_data.filter_buffer, local_data.compress_buffer);
+          new (&compressed_indices[i]) Array<std::byte>(local_data.compress_buffer.as_span());
+          compression::filter_compress(
+              positions, local_data.filter_buffer, local_data.compress_buffer);
+          new (&compressed_data[i]) Array<std::byte>(local_data.compress_buffer.as_span());
           nodes[i].reset();
         }
       });
@@ -611,8 +620,8 @@ static void restore_position_mesh(Object &object,
 
       modified_verts.fill_indices(verts, true);
 
-      undo_data.compressed_positions[i] = compression::filter_compress<float3>(
-          undo_positions, tls.compress_buffer, tls.filter_buffer);
+      compression::filter_compress<float3>(undo_positions, tls.filter_buffer, tls.compress_buffer);
+      undo_data.compressed_positions[i] = tls.compress_buffer.as_span();
     }
   });
 }
@@ -652,8 +661,8 @@ static void restore_position_grids(const MutableSpan<float3> positions,
 
       modified_grids.fill_indices(grids, true);
 
-      undo_data.compressed_positions[i] = compression::filter_compress<float3>(
-          node_positions, tls.compress_buffer, tls.filter_buffer);
+      compression::filter_compress<float3>(node_positions, tls.filter_buffer, tls.compress_buffer);
+      undo_data.compressed_positions[i] = tls.compress_buffer.as_span();
     }
   });
 }

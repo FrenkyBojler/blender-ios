@@ -829,22 +829,22 @@ std::optional<Span<float>> orig_mask_data_lookup_mesh(const Object &object,
 std::optional<Span<float>> orig_mask_data_lookup_grids(const Object &object,
                                                        const bke::pbvh::GridsNode &node);
 
-namespace compression {
+namespace undo::compression {
 
 /**
  * Compress a span with ZSTD, using a prefiltering step that can improve compression speed and
  * ratios for certain data.
  */
 template<typename T>
-Array<std::byte> filter_compress(const Span<T> src,
-                                 Vector<std::byte> &filter_buffer,
-                                 Vector<std::byte> &compress_buffer);
+void filter_compress(const Span<T> src,
+                     Vector<std::byte> &filter_buffer,
+                     Vector<std::byte> &compress_buffer);
 
 /** Decompress data compressed with #filter_compress. */
 template<typename T>
 void filter_decompress(const Span<std::byte> src, Vector<std::byte> &buffer, Vector<T> &dst);
 
-}  // namespace compression
+}  // namespace undo::compression
 
 inline bool brush_type_is_paint(const int tool)
 {
