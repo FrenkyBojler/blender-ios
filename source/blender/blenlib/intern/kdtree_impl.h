@@ -1026,7 +1026,7 @@ int BLI_kdtree_nd_(calc_duplicates_stable)(const KDTree *tree,
     for (int node_index : cluster) {
       duplicates[node_index] = survivor_index;
     }
-    found += cluster.size() - 1;
+    found += static_cast<int>(cluster.size() - 1);
     cluster.clear();
   }
 
