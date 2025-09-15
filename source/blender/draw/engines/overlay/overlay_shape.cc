@@ -1086,35 +1086,34 @@ ShapeCache::ShapeCache()
   /* light dome lines - spherical */
   {
     constexpr int segments_horizontal = 16;
-    constexpr int segments_vertical = 8;
+    constexpr int segments_vertical = 16;
     const Vector<float2> ring = ring_vertices(1.0f, segments_horizontal);
 
     Vector<Vertex> verts;
 
-    /* Horizontal rings at different elevations - full sphere */
-    for (const int v : IndexRange(segments_vertical + 1)) {
-      const float elevation = (float(v) / float(segments_vertical)) * math::numbers::pi - (math::numbers::pi / 2.0f);
+    /* 3 Horizontal rings: equator, upper, and lower */
+    const float ring_elevations[] = {-math::numbers::pi / 4.0f, 0.0f, math::numbers::pi / 4.0f};
+    for (const float elevation : ring_elevations) {
       const float radius = cosf(elevation);
       const float height = sinf(elevation);
 
-      if (radius > 0.05f) {  /* Skip rings that are too small */
-        Vector<float2> scaled_ring;
-        for (const float2 &point : ring) {
-          scaled_ring.append(point * radius);
-        }
-        append_line_loop(verts, scaled_ring, height, VCLASS_LIGHT_AREA_SHAPE);
+      Vector<float2> scaled_ring;
+      for (const float2 &point : ring) {
+        scaled_ring.append(point * radius);
       }
+      append_line_loop(verts, scaled_ring, height, VCLASS_LIGHT_AREA_SHAPE);
     }
 
-    /* Vertical meridians */
-    for (const int h : IndexRange(segments_horizontal / 2)) {  /* Every other meridian */
-      const float angle = (2.0f * math::numbers::pi * h * 2) / segments_horizontal;
+    /* 3 Vertical meridians - full circles at 120° intervals */
+    for (const int h : IndexRange(3)) {
+      const float angle = h * 2.0f * math::numbers::pi / 3.0f;  /* 0°, 120°, 240° */
       const float x = cosf(angle);
       const float y = sinf(angle);
 
-      for (const int v : IndexRange(segments_vertical)) {
-        const float elevation1 = (float(v) / float(segments_vertical)) * math::numbers::pi - (math::numbers::pi / 2.0f);
-        const float elevation2 = (float(v + 1) / float(segments_vertical)) * math::numbers::pi - (math::numbers::pi / 2.0f);
+      /* Draw complete meridian */
+      for (const int v : IndexRange(segments_vertical * 2)) {
+        const float elevation1 = (float(v) / float(segments_vertical * 2)) * 2.0f * math::numbers::pi - math::numbers::pi;
+        const float elevation2 = (float(v + 1) / float(segments_vertical * 2)) * 2.0f * math::numbers::pi - math::numbers::pi;
 
         const float radius1 = cosf(elevation1);
         const float height1 = sinf(elevation1);
