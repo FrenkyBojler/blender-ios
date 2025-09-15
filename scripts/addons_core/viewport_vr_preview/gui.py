@@ -93,6 +93,7 @@ class VIEW3D_PT_vr_session_view(Panel):
 
         col = layout.column(align=True)
         col.prop(session_settings, "controller_draw_style", text="Controller Style")
+        col.prop(session_settings, "controller_dominant_hand", text="Dominant Hand")
 
         col = layout.column(align=True)
         col.prop(session_settings, "clip_start", text="Clip Start")
@@ -124,7 +125,6 @@ class VIEW3D_PT_vr_viewfinder(Panel):
 
         layout.use_property_split = True
 
-        layout.prop(session_settings, "viewfinder_hand", text="Hand", expand=True)
         layout.prop(session_settings, "viewfinder_width", text="View Width")
 
 

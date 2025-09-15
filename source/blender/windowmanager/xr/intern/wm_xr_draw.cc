@@ -94,12 +94,13 @@ static wmXrController *get_viewfinder_controller(const XrSessionSettings *settin
 {
   const char *subaction_path;
 
-  switch (settings->viewfinder_hand) {
-    case XR_VIEWFINDER_HAND_LEFT:
-      subaction_path = "/user/hand/left";
-      break;
-    case XR_VIEWFINDER_HAND_RIGHT:
+  switch (settings->controller_dominant_hand) {
+    /* Place the Viewfinder on the non-dominant hand (invert left/right). */
+    case XR_CONTROLLER_DHAND_LEFT:
       subaction_path = "/user/hand/right";
+      break;
+    case XR_CONTROLLER_DHAND_RIGHT:
+      subaction_path = "/user/hand/left";
       break;
     default:
       BLI_assert_unreachable();
@@ -307,6 +308,7 @@ void wm_xr_draw_view(const GHOST_XrDrawViewInfo *draw_view, void *customdata)
                                       V3D_OFSDRAW_OVERRIDE_SCENE_SETTINGS |
                                       V3D_OFSDRAW_SHOW_GRIDFLOOR | V3D_OFSDRAW_SHOW_SELECTION;
 
+  // TODO: Somehow pass camera DoF settings to Workbench
   ED_view3d_draw_offscreen_simple(draw_data->depsgraph,
                                   draw_data->scene,
                                   &settings->shading,
