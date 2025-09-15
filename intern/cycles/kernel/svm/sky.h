@@ -57,30 +57,29 @@ ccl_device float3 sky_radiance_nishita(KernelGlobals kg,
   const float dir_elevation = M_PI_2_F - direction.x;
 
   /* If the ray is inside the sun disc, render it, otherwise render the sky.
-    * Alternatively, ignore the sun if we're evaluating the background texture. */
-  if (sun_disc && sun_dir_angle < half_angular &&
-      dir_elevation > earth_intersection_angle &&
+   * Alternatively, ignore the sun if we're evaluating the background texture. */
+  if (sun_disc && sun_dir_angle < half_angular && dir_elevation > earth_intersection_angle &&
       !((path_flag & PATH_RAY_IMPORTANCE_BAKE) && kernel_data.background.use_sun_guiding))
   {
     /* sun interpolation */
     const float y = ((dir_elevation - sun_elevation) / angular_diameter) + 0.5f;
     /* limb darkening, coefficient is 0.6f */
-    const float limb_darkening = (1.0f - 0.6f * (1.0f - sqrtf(1.0f - sqr(sun_dir_angle /
-                                                                          half_angular))));
+    const float limb_darkening = (1.0f -
+                                  0.6f * (1.0f - sqrtf(1.0f - sqr(sun_dir_angle / half_angular))));
     xyz = mix(pixel_bottom, pixel_top, y) * sun_intensity * limb_darkening;
   }
 
   /* sky */
-  const float x = fractf((-direction.y - M_PI_2_F + sun_rotation) / M_2PI_F);
+  const float x = fractf((-direction.y - M_PI_2_F + sun_rotation) * M_1_2PI_F);
   if (dir.z > 0.0f) {
     /* sky interpolation */
     /* more pixels toward horizon compensation */
-    const float y = safe_sqrtf(dir_elevation / M_PI_2_F) * 0.5f + 0.5f;
+    const float y = safe_sqrtf(dir_elevation * M_2_PI_F) * 0.5f + 0.5f;
     xyz += make_float3(kernel_tex_image_interp(kg, texture_id, x, y));
   }
   /* ground */
   else if (type == NODE_SKY_MULTIPLE_SCATTERING) {
-    const float y = -safe_sqrtf(-dir_elevation / M_PI_2_F) * 0.5f + 0.5f;
+    const float y = -safe_sqrtf(-dir_elevation * M_2_PI_F) * 0.5f + 0.5f;
     xyz += make_float3(kernel_tex_image_interp(kg, texture_id, x, y));
   }
   else if (dir.z >= -0.4f) {
@@ -131,8 +130,9 @@ ccl_device_noinline int svm_node_tex_sky(KernelGlobals kg,
   const uint texture_id = __float_as_uint(data.w);
 
   /* Compute Sky */
-  f = sky_radiance_nishita(kg, type, dir, path_flag, pixel_bottom, pixel_top, nishita_data, texture_id);
- 
+  f = sky_radiance_nishita(
+      kg, type, dir, path_flag, pixel_bottom, pixel_top, nishita_data, texture_id);
+
   stack_store_float3(stack, out_offset, f);
   return offset;
 }
