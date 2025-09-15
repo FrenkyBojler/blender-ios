@@ -152,7 +152,6 @@ struct VKGraphicsInfo {
 #else
       if (depth_attachment_format != other.depth_attachment_format ||
           stencil_attachment_format != other.stencil_attachment_format ||
-          vk_render_pass != other.vk_render_pass ||
           color_attachment_formats.size() != other.color_attachment_formats.size())
       {
         return false;
@@ -241,7 +240,7 @@ struct VKGraphicsInfo {
  * some platforms where the driver isn't been updated and doesn't implement this extension. In
  * that case shader modules should still be used.
  *
- * TODO: GPUMaterials (or any other large shader) should be unloaded when the GPUShader is
+ * TODO: GPUMaterials (or any other large shader) should be unloaded when the gpu::Shader is
  * destroyed. Exact details what the best approach is unclear as support for EEVEE is still
  * lacking.
  */

@@ -13,8 +13,8 @@
 
 #include "BLF_api.hh"
 
+#include "BLI_math_color.h"
 #include "BLI_math_vector.h"
-#include "BLI_rect.h"
 #include "BLI_string.h"
 
 #include "BLT_translation.hh"
@@ -25,7 +25,6 @@
 #include "DNA_grease_pencil_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_sequence_types.h"
-#include "DNA_space_types.h"
 
 #include "RNA_access.hh"
 #include "RNA_prototypes.hh"
@@ -51,9 +50,13 @@
 
 #include "WM_api.hh"
 
+#include "CLG_log.h"
+
 #include "interface_intern.hh"
 
 #include <fmt/format.h>
+
+static CLG_LogRef LOG = {"ui.icon"};
 
 struct IconImage {
   int w;
@@ -229,7 +232,7 @@ static void vicon_rgb_red_draw(
 {
   const float color[4] = {0.5f, 0.0f, 0.0f, 1.0f * alpha};
   vicon_rgb_color_draw(x, y, w, h, color, 0.25f * alpha);
-  const char *text = TIP_("R");
+  const char *text = CTX_IFACE_(BLT_I18NCONTEXT_COLOR, "R");
   vicon_rgb_text_draw(x, y, w, h, text, mono_rgba);
 }
 
@@ -238,7 +241,7 @@ static void vicon_rgb_green_draw(
 {
   const float color[4] = {0.0f, 0.4f, 0.0f, 1.0f * alpha};
   vicon_rgb_color_draw(x, y, w, h, color, 0.2f * alpha);
-  const char *text = TIP_("G");
+  const char *text = CTX_IFACE_(BLT_I18NCONTEXT_COLOR, "G");
   vicon_rgb_text_draw(x, y, w, h, text, mono_rgba);
 }
 
@@ -247,7 +250,7 @@ static void vicon_rgb_blue_draw(
 {
   const float color[4] = {0.0f, 0.0f, 1.0f, 1.0f * alpha};
   vicon_rgb_color_draw(x, y, w, h, color, 0.3f * alpha);
-  const char *text = TIP_("B");
+  const char *text = CTX_IFACE_(BLT_I18NCONTEXT_COLOR, "B");
   vicon_rgb_text_draw(x, y, w, h, text, mono_rgba);
 }
 
@@ -1161,7 +1164,7 @@ static void icon_create_rect(PreviewImage *prv_img, enum eIconSizes size)
 
   if (!prv_img) {
     if (G.debug & G_DEBUG) {
-      printf("%s, error: requested preview image does not exist", __func__);
+      CLOG_WARN(&LOG, "%s, error: requested preview image does not exist", __func__);
     }
   }
   else if (!prv_img->rect[size]) {
@@ -1335,7 +1338,7 @@ static void icon_set_image(const bContext *C,
 {
   if (!prv_img) {
     if (G.debug & G_DEBUG) {
-      printf("%s: no preview image for this ID: %s\n", __func__, id->name);
+      CLOG_WARN(&LOG, "%s: no preview image for this ID: %s", __func__, id->name);
     }
     return;
   }
@@ -1672,7 +1675,7 @@ static void icon_draw_size(float x,
 
   if (icon == nullptr) {
     if (G.debug & G_DEBUG) {
-      printf("%s: Internal error, no icon for icon ID: %d\n", __func__, icon_id);
+      CLOG_WARN(&LOG, "%s: Internal error, no icon for icon ID: %d", __func__, icon_id);
     }
     icon_id = ICON_NOT_FOUND;
     icon = BKE_icon_get(icon_id);
@@ -2117,7 +2120,6 @@ int UI_icon_from_idcode(const int idcode)
 
     /* No icons for these ID-types. */
     case ID_LI:
-    case ID_IP:
     case ID_SCR:
     case ID_WM:
       break;

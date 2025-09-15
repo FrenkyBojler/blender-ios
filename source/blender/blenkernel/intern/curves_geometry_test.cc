@@ -85,6 +85,34 @@ TEST(curves_geometry, TypeCount)
   EXPECT_EQ(counts[CURVE_TYPE_NURBS], 3);
 }
 
+TEST(curves_geometry, CyclicOffsets)
+{
+  CurvesGeometry curves = create_basic_curves(100, 10);
+  {
+    EXPECT_FALSE(curves.has_cyclic_curve());
+  }
+  {
+    curves.cyclic_for_write().fill(true);
+    curves.tag_topology_changed();
+    EXPECT_TRUE(curves.has_cyclic_curve());
+  }
+  {
+    curves.cyclic_for_write().fill(false);
+    curves.tag_topology_changed();
+    EXPECT_FALSE(curves.has_cyclic_curve());
+  }
+  {
+    curves.attributes_for_write().remove("cyclic");
+    EXPECT_FALSE(curves.has_cyclic_curve());
+  }
+  {
+    curves.cyclic_for_write().copy_from(
+        {false, true, false, true, false, false, false, false, true, false});
+    curves.tag_topology_changed();
+    EXPECT_TRUE(curves.has_cyclic_curve());
+  }
+}
+
 TEST(curves_geometry, CatmullRomEvaluation)
 {
   CurvesGeometry curves(4, 1);
@@ -558,8 +586,7 @@ TEST(curves_geometry, BasisCacheNonUniformDeg2)
 
   std::array<float, 48> expected_data;
   MutableSpan<float> expectation = MutableSpan<float>(expected_data);
-  fn_Ni2_span0(expectation.slice(0, 3), 0.0f);
-  for (int i = 1; i < 4; i++) {
+  for (int i = 0; i < 3; i++) {
     const float du = i / 3.0f;
     const int step = i * 3;
     fn_Ni2_span0(expectation.slice(step, 3), du);
@@ -568,6 +595,7 @@ TEST(curves_geometry, BasisCacheNonUniformDeg2)
     fn_Ni2_span3(expectation.slice(step + 27, 3), 3.0f + du);
     fn_Ni2_span4(expectation.slice(step + 36, 3), 4.0f + du);
   }
+  fn_Ni2_span4(expectation.slice(45, 3), 5.0f);
 
   /* Test */
   const int evaluated_num = curves::nurbs::calculate_evaluated_num(

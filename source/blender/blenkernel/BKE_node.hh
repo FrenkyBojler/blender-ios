@@ -13,6 +13,7 @@
 #include "BLI_compiler_compat.h"
 #include "BLI_span.hh"
 
+#include "BKE_node_socket_value_fwd.hh"
 #include "BKE_volume_enums.hh"
 
 /* for FOREACH_NODETREE_BEGIN */
@@ -123,7 +124,7 @@ using NodeDeclareDynamicFunction = void (*)(const bNodeTree &tree,
                                             const bNode &node,
                                             blender::nodes::NodeDeclarationBuilder &builder);
 using SocketGetCPPValueFunction = void (*)(const void *socket_value, void *r_value);
-using SocketGetGeometryNodesCPPValueFunction = void (*)(const void *socket_value, void *r_value);
+using SocketGetGeometryNodesCPPValueFunction = SocketValueVariant (*)(const void *socket_value);
 
 /* Adds socket link operations that are specific to this node type. */
 using NodeGatherSocketLinkOperationsFunction =
@@ -204,12 +205,10 @@ struct bNodeSocketType {
   const blender::CPPType *base_cpp_type = nullptr;
   /* Get the value of this socket in a generic way. */
   SocketGetCPPValueFunction get_base_cpp_value = nullptr;
-  /* Get geometry nodes cpp type. */
-  const blender::CPPType *geometry_nodes_cpp_type = nullptr;
   /* Get geometry nodes cpp value. */
   SocketGetGeometryNodesCPPValueFunction get_geometry_nodes_cpp_value = nullptr;
   /* Default value for this socket type. */
-  const void *geometry_nodes_default_cpp_value = nullptr;
+  const SocketValueVariant *geometry_nodes_default_value = nullptr;
 };
 
 using NodeInitExecFunction = void *(*)(bNodeExecContext *context,
@@ -593,8 +592,6 @@ bNodeTree **node_tree_ptr_from_id(ID *id);
  */
 bNodeTree *node_tree_from_id(ID *id);
 
-void node_tree_free_local_tree(bNodeTree *ntree);
-
 /**
  * Check recursively if a node tree contains another.
  */
@@ -679,7 +676,10 @@ void node_remove_socket(bNodeTree &ntree, bNode &node, bNodeSocket &sock);
 void node_modify_socket_type_static(
     bNodeTree *ntree, bNode *node, bNodeSocket *sock, int type, int subtype);
 
-bNode *node_add_node(const bContext *C, bNodeTree &ntree, StringRef idname);
+bNode *node_add_node(const bContext *C,
+                     bNodeTree &ntree,
+                     StringRef idname,
+                     std::optional<int> unique_identifier = std::nullopt);
 bNode *node_add_static_node(const bContext *C, bNodeTree &ntree, int type);
 
 /**
@@ -1136,6 +1136,8 @@ StringRefNull node_socket_label(const bNodeSocket &sock);
  * It is used when grouping sockets under panels, to avoid redundancy in the label.
  */
 std::optional<StringRefNull> node_socket_short_label(const bNodeSocket &sock);
+
+NodeColorTag node_color_tag(const bNode &node);
 
 /**
  * Initialize a new node type struct with default values and callbacks.

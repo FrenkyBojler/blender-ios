@@ -169,6 +169,7 @@ static Vector<path_templates::Error> compute_image_path(const StringRefNull dire
                                                         const ImageFormatData &format,
                                                         const Scene &scene,
                                                         const bNode &node,
+                                                        const bool is_animation_render,
                                                         char *r_image_path)
 {
   char base_path[FILE_MAX] = "";
@@ -188,7 +189,7 @@ static Vector<path_templates::Error> compute_image_path(const StringRefNull dire
                                       frame_number,
                                       &format,
                                       scene.r.scemode & R_EXTENSION,
-                                      true,
+                                      is_animation_render,
                                       BKE_scene_multiview_view_suffix_get(&scene.r, view));
 }
 
@@ -238,8 +239,16 @@ static void output_path_layout(uiLayout *layout,
 {
 
   char image_path[FILE_MAX];
-  const Vector<path_templates::Error> path_errors = compute_image_path(
-      directory, file_name, file_name_suffix, view, scene.r.cfra, format, scene, node, image_path);
+  const Vector<path_templates::Error> path_errors = compute_image_path(directory,
+                                                                       file_name,
+                                                                       file_name_suffix,
+                                                                       view,
+                                                                       scene.r.cfra,
+                                                                       format,
+                                                                       scene,
+                                                                       node,
+                                                                       false,
+                                                                       image_path);
 
   if (path_errors.is_empty()) {
     layout->label(image_path, ICON_FILE_IMAGE);
@@ -574,16 +583,12 @@ class FileOutputOperation : public NodeOperation {
         file_output.add_pass(pass_name, view_name, "XY", buffer);
         break;
       case ResultType::Int2:
-        file_output.add_pass(pass_name, view_name, "XY", buffer);
-        break;
       case ResultType::Int:
-        file_output.add_pass(pass_name, view_name, "V", buffer);
-        break;
       case ResultType::Bool:
-        file_output.add_pass(pass_name, view_name, "V", buffer);
-        break;
       case ResultType::Menu:
-        file_output.add_pass(pass_name, view_name, "V", buffer);
+      case ResultType::String:
+        /* Not supported. */
+        BLI_assert_unreachable();
         break;
     }
   }
@@ -608,26 +613,14 @@ class FileOutputOperation : public NodeOperation {
         single_value.type()->fill_assign_n(single_value.get(), buffer, length);
         return buffer;
       }
-      case ResultType::Int: {
-        const float value = float(result.get_single_value<int32_t>());
-        CPPType::get<float>().fill_assign_n(&value, buffer, length);
-        return buffer;
-      }
-      case ResultType::Int2: {
-        const float2 value = float2(result.get_single_value<int2>());
-        CPPType::get<float2>().fill_assign_n(&value, buffer, length);
-        return buffer;
-      }
-      case ResultType::Bool: {
-        const float value = float(result.get_single_value<bool>());
-        CPPType::get<float>().fill_assign_n(&value, buffer, length);
-        return buffer;
-      }
-      case ResultType::Menu: {
-        const float value = float(result.get_single_value<int32_t>());
-        CPPType::get<float>().fill_assign_n(&value, buffer, length);
-        return buffer;
-      }
+      case ResultType::Int:
+      case ResultType::Int2:
+      case ResultType::Bool:
+      case ResultType::Menu:
+      case ResultType::String:
+        /* Not supported. */
+        BLI_assert_unreachable();
+        return nullptr;
     }
 
     BLI_assert_unreachable();
@@ -675,6 +668,7 @@ class FileOutputOperation : public NodeOperation {
       case ResultType::Int:
       case ResultType::Bool:
       case ResultType::Menu:
+      case ResultType::String:
         /* Not supported. */
         BLI_assert_unreachable();
         break;
@@ -744,6 +738,7 @@ class FileOutputOperation : public NodeOperation {
         format,
         this->context().get_scene(),
         this->bnode(),
+        this->is_animation_render(),
         r_image_path);
 
     if (!path_errors.is_empty()) {
@@ -796,6 +791,14 @@ class FileOutputOperation : public NodeOperation {
      * this will result in clipping but is more expected for the user. */
     domain.transformation.location() = float2(0.0f);
     return domain;
+  }
+
+  bool is_animation_render()
+  {
+    if (!this->context().render_context()) {
+      return false;
+    }
+    return this->context().render_context()->is_animation_render;
   }
 };
 
