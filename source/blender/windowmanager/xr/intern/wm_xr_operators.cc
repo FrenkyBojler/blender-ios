@@ -1990,6 +1990,61 @@ static void WM_OT_xr_navigation_swap_hands(wmOperatorType *ot)
   ot->invoke = wm_xr_navigation_swap_hands_invoke;
   ot->exec = wm_xr_navigation_swap_hands_exec;
   ot->modal = wm_xr_navigation_swap_hands_modal;
+}
+
+/** \} */
+
+/** \name XR Viewfinder
+ * \{ */
+
+static wmOperatorStatus wm_xr_viewfinder_cycle_action_exec(bContext *C, wmOperator * /*op*/)
+{
+  wmWindowManager *wm = CTX_wm_manager(C);
+  XrSessionSettings *settings = &wm->xr.session_settings;
+
+  char *active_action_prop = settings->viewfinder_active_mode == XR_VIEWFINDER_MODE_LIVE ?
+                                 &settings->viewfinder_active_action_live :
+                                 &settings->viewfinder_active_action_playback;
+  // TODO: make dynamic
+  const int enum_length = settings->viewfinder_active_mode == XR_VIEWFINDER_MODE_LIVE ? 4 : 3;
+
+  *active_action_prop = (*active_action_prop + 1) % enum_length;
+
+  return OPERATOR_FINISHED;
+}
+
+static void WM_OT_xr_viewfinder_cycle_action(wmOperatorType *ot)
+{
+  /* Identifiers. */
+  ot->name = "XR Viewfinder Cycle Action";
+  ot->idname = "WM_OT_xr_viewfinder_cycle_action";
+  ot->description = "Cycle the active viewfinder action for the current mode";
+
+  /* Callbacks. */
+  //  ot->invoke = wm_xr_viewfinder_cycle_action_invoke;
+  ot->exec = wm_xr_viewfinder_cycle_action_exec;
+  ot->poll = wm_xr_operator_sessionactive;
+}
+
+static wmOperatorStatus wm_xr_viewfinder_cycle_mode_exec(bContext *C, wmOperator * /*op*/)
+{
+  wmWindowManager *wm = CTX_wm_manager(C);
+  XrSessionSettings *settings = &wm->xr.session_settings;
+
+  settings->viewfinder_active_mode = (settings->viewfinder_active_mode + 1) % 2;
+
+  return OPERATOR_FINISHED;
+}
+
+static void WM_OT_xr_viewfinder_cycle_mode(wmOperatorType *ot)
+{
+  /* Identifiers. */
+  ot->name = "XR Viewfinder Cycle Mode";
+  ot->idname = "WM_OT_xr_viewfinder_cycle_mode";
+  ot->description = "Cycle the active viewfinder mode";
+
+  /* Callbacks. */
+  ot->exec = wm_xr_viewfinder_cycle_mode_exec;
   ot->poll = wm_xr_operator_sessionactive;
 }
 
@@ -2007,6 +2062,8 @@ void wm_xr_operatortypes_register()
   WM_operatortype_append(WM_OT_xr_navigation_teleport);
   WM_operatortype_append(WM_OT_xr_navigation_reset);
   WM_operatortype_append(WM_OT_xr_navigation_swap_hands);
+  WM_operatortype_append(WM_OT_xr_viewfinder_cycle_action);
+  WM_operatortype_append(WM_OT_xr_viewfinder_cycle_mode);
 }
 
 /** \} */

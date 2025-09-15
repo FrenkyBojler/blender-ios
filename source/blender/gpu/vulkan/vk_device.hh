@@ -22,6 +22,7 @@
 #include "vk_debug.hh"
 #include "vk_descriptor_pools.hh"
 #include "vk_descriptor_set_layouts.hh"
+#include "vk_memory_pool.hh"
 #include "vk_pipeline_pool.hh"
 #include "vk_resource_pool.hh"
 #include "vk_samplers.hh"
@@ -106,24 +107,11 @@ struct VKWorkarounds {
  * Shared resources between contexts that run in the same thread.
  */
 class VKThreadData : public NonCopyable, NonMovable {
-  /**
-   * The number of resource pools is aligned to the number of frames
-   * in flight used by GHOST. Therefore, this constant *must* always
-   * match GHOST_ContextVK's GHOST_FRAMES_IN_FLIGHT.
-   */
-  static constexpr uint32_t resource_pools_count = 5;
-
  public:
   /** Thread ID this instance belongs to. */
   pthread_t thread_id;
-  /**
-   * Index of the active resource pool. Is in sync with the active swap-chain image or cycled when
-   * rendering.
-   *
-   * NOTE: Initialized to `UINT32_MAX` to detect first change.
-   */
-  uint32_t resource_pool_index = UINT32_MAX;
-  std::array<VKResourcePool, resource_pools_count> resource_pools;
+  VKDescriptorPools descriptor_pools;
+  VKDescriptorSetTracker descriptor_set;
 
   /**
    * The current rendering depth.
@@ -136,28 +124,6 @@ class VKThreadData : public NonCopyable, NonMovable {
   int32_t rendering_depth = 0;
 
   VKThreadData(VKDevice &device, pthread_t thread_id);
-
-  /**
-   * Get the active resource pool.
-   */
-  VKResourcePool &resource_pool_get()
-  {
-    if (resource_pool_index >= resource_pools.size()) {
-      return resource_pools[0];
-    }
-    return resource_pools[resource_pool_index];
-  }
-
-  /** Activate the next resource pool. */
-  void resource_pool_next()
-  {
-    if (resource_pool_index == UINT32_MAX) {
-      resource_pool_index = 1;
-    }
-    else {
-      resource_pool_index = (resource_pool_index + 1) % resource_pools_count;
-    }
-  }
 };
 
 class VKDevice : public NonCopyable {
@@ -216,6 +182,8 @@ class VKDevice : public NonCopyable {
   VkPhysicalDeviceDriverProperties vk_physical_device_driver_properties_ = {};
   VkPhysicalDeviceIDProperties vk_physical_device_id_properties_ = {};
   VkPhysicalDeviceMemoryProperties vk_physical_device_memory_properties_ = {};
+  VkPhysicalDeviceMaintenance4Properties vk_physical_device_maintenance4_properties_ = {
+      VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MAINTENANCE_4_PROPERTIES};
   VkPhysicalDeviceDescriptorBufferPropertiesEXT vk_physical_device_descriptor_buffer_properties_ =
       {};
   /** Features support. */
@@ -280,13 +248,7 @@ class VKDevice : public NonCopyable {
 
   } functions;
 
-  struct {
-    /* NOTE: This attribute needs to be kept alive as it will be read by VMA when allocating from
-     * `external_memory` pool. */
-    VkExportMemoryAllocateInfoKHR external_memory_info = {
-        VK_STRUCTURE_TYPE_EXPORT_MEMORY_ALLOCATE_INFO_KHR};
-    VmaPool external_memory = VK_NULL_HANDLE;
-  } vma_pools;
+  VKMemoryPools vma_pools;
 
   const char *extension_name_get(int index) const
   {
@@ -301,6 +263,12 @@ class VKDevice : public NonCopyable {
   const VkPhysicalDeviceProperties &physical_device_properties_get() const
   {
     return vk_physical_device_properties_;
+  }
+
+  inline const VkPhysicalDeviceMaintenance4Properties &
+  physical_device_maintenance4_properties_get() const
+  {
+    return vk_physical_device_maintenance4_properties_;
   }
 
   const VkPhysicalDeviceIDProperties &physical_device_id_properties_get() const
@@ -344,7 +312,7 @@ class VKDevice : public NonCopyable {
     return vk_queue_family_;
   }
 
-  VmaAllocator mem_allocator_get() const
+  inline VmaAllocator mem_allocator_get() const
   {
     return mem_allocator_;
   }
@@ -483,9 +451,12 @@ class VKDevice : public NonCopyable {
 
   Shader *vk_backbuffer_blit_sh_get()
   {
-    if (vk_backbuffer_blit_sh_ == nullptr) {
-      vk_backbuffer_blit_sh_ = GPU_shader_create_from_info_name("vk_backbuffer_blit");
-    }
+    /* See display_as_extended_srgb in libocio_display_processor.cc for details on this choice. */
+#if defined(_WIN32) || defined(__APPLE__)
+    vk_backbuffer_blit_sh_ = GPU_shader_create_from_info_name("vk_backbuffer_blit");
+#else
+    vk_backbuffer_blit_sh_ = GPU_shader_create_from_info_name("vk_backbuffer_blit_gamma22");
+#endif
     return vk_backbuffer_blit_sh_;
   }
 

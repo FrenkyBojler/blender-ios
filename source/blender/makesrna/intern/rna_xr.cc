@@ -1020,6 +1020,28 @@ static void rna_XrSessionState_viewer_pose_rotation_get(PointerRNA *ptr, float *
 #  endif
 }
 
+static void rna_XrSessionState_viewfinder_location_get(PointerRNA *ptr, float *r_values)
+{
+#  ifdef WITH_XR_OPENXR
+  const wmXrData *xr = rna_XrSession_wm_xr_data_get(ptr);
+  WM_xr_session_state_viewfinder_location_get(xr, r_values);
+#  else
+  UNUSED_VARS(ptr);
+  zero_v3(r_values);
+#  endif
+}
+
+static void rna_XrSessionState_viewfinder_rotation_get(PointerRNA *ptr, float *r_values)
+{
+#  ifdef WITH_XR_OPENXR
+  const wmXrData *xr = rna_XrSession_wm_xr_data_get(ptr);
+  WM_xr_session_state_viewfinder_rotation_get(xr, r_values);
+#  else
+  UNUSED_VARS(ptr);
+  unit_qt(r_values);
+#  endif
+}
+
 static void rna_XrSessionState_nav_location_get(PointerRNA *ptr, float *r_values)
 {
 #  ifdef WITH_XR_OPENXR
@@ -1941,6 +1963,55 @@ static void rna_def_xr_session_settings(BlenderRNA *brna)
       {0, nullptr, 0, nullptr, nullptr},
   };
 
+  static const EnumPropertyItem viewfinder_hands[] = {
+      {XR_VIEWFINDER_HAND_LEFT,
+       "LEFT",
+       0,
+       "Left",
+       "Display the viewfinder on the left hand controller"},
+      {XR_VIEWFINDER_HAND_RIGHT,
+       "RIGHT",
+       0,
+       "Right",
+       "Display the viewfinder on the right hand controller"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  static const EnumPropertyItem viewfinder_modes[] = {
+      {XR_VIEWFINDER_MODE_LIVE,
+       "LIVE",
+       ICON_RECORD_ON,
+       "Live Mode",
+       "Capture a shot using the viewfinder"},
+      {XR_VIEWFINDER_MODE_PLAYBACK,
+       "PLAYBACK",
+       ICON_IMAGE_DATA,
+       "Playback Mode",
+       "Preview and playback captured shots in the viewfinder"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  static const EnumPropertyItem viewfinder_live_but_states[] = {
+      {XR_VIEWFINDER_ACTION_LIVE_LENS, "LENS", ICON_VIEW_ZOOM, "Lens/Zoom", nullptr},
+      {XR_VIEWFINDER_ACTION_LIVE_DOF, "DOF", ICON_COMMUNITY, "Depth of Field", nullptr},
+      {XR_VIEWFINDER_ACTION_LIVE_FOCUS, "FOCUS", ICON_PIVOT_BOUNDBOX, "Focus Point", nullptr},
+      {XR_VIEWFINDER_ACTION_LIVE_APERTURE, "APERTURE", ICON_PROP_CON, "Aperture", nullptr},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  static const EnumPropertyItem viewfinder_playback_but_states[] = {
+      {XR_VIEWFINDER_ACTION_PB_BROWSE,
+       "BROWSE",
+       ICON_RENDERLAYERS,
+       "Browse captured shots",
+       nullptr},
+      {XR_VIEWFINDER_ACTION_PB_PREVIEW,
+       "PREVIEW",
+       ICON_CAMERA_DATA,
+       "Preview selected shot in space"},
+      {XR_VIEWFINDER_ACTION_PB_DELETE, "DELETE", ICON_TRASH, "Delete selected shot"},
+      {0, nullptr, 0, nullptr, nullptr}};
+
   srna = RNA_def_struct(brna, "XrSessionSettings", nullptr);
   RNA_def_struct_ui_text(srna, "XR Session Settings", "");
 
@@ -2031,6 +2102,40 @@ static void rna_def_xr_session_settings(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop, "Controller Draw Style", "Style to use when drawing VR controllers");
   RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_COLOR);
+  RNA_def_property_update(prop, NC_WM | ND_XR_DATA_CHANGED, nullptr);
+
+  prop = RNA_def_property(srna, "viewfinder_enable", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_ui_text(prop, "Enable Viewfinder", "Enable the Location Scouting Viewfinder");
+  RNA_def_property_update(prop, NC_WM | ND_XR_DATA_CHANGED, nullptr);
+
+  prop = RNA_def_property(srna, "viewfinder_hand", PROP_ENUM, PROP_NONE);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_enum_items(prop, viewfinder_hands);
+  RNA_def_property_ui_text(
+      prop, "Viewfinder Hand", "Hand on which to display the viewfinder (left/right)");
+  RNA_def_property_update(prop, NC_WM | ND_XR_DATA_CHANGED, nullptr);
+
+  prop = RNA_def_property(srna, "viewfinder_width", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_ui_text(prop, "Viewfinder Width", "Width of the viewfinder");
+  RNA_def_property_update(prop, NC_WM | ND_XR_DATA_CHANGED, nullptr);
+
+  prop = RNA_def_property(srna, "viewfinder_active_mode", PROP_ENUM, PROP_NONE);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_enum_items(prop, viewfinder_modes);
+  RNA_def_property_ui_text(prop, "Viewfinder Mode", "Active viewfinder mode, live or playback");
+  RNA_def_property_update(prop, NC_WM | ND_XR_DATA_CHANGED, nullptr);
+
+  prop = RNA_def_property(srna, "viewfinder_active_action_live", PROP_ENUM, PROP_NONE);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_enum_items(prop, viewfinder_live_but_states);
+  RNA_def_property_ui_text(prop, "Viewfinder Live Button", "Active viewfinder live button state");
+  RNA_def_property_update(prop, NC_WM | ND_XR_DATA_CHANGED, nullptr);
+
+  prop = RNA_def_property(srna, "viewfinder_active_action_playback", PROP_ENUM, PROP_NONE);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_enum_items(prop, viewfinder_playback_but_states);
+  RNA_def_property_ui_text(
+      prop, "Viewfinder Playback Button", "Active viewfinder playback button state");
   RNA_def_property_update(prop, NC_WM | ND_XR_DATA_CHANGED, nullptr);
 
   prop = RNA_def_property(srna, "clip_start", PROP_FLOAT, PROP_DISTANCE);
@@ -2387,6 +2492,22 @@ static void rna_def_xr_session_state(BlenderRNA *brna)
       prop,
       "Viewer Pose Rotation",
       "Last known rotation of the viewer pose (center between the eyes) in world space");
+
+  prop = RNA_def_property(srna, "viewfinder_location", PROP_FLOAT, PROP_TRANSLATION);
+  RNA_def_property_array(prop, 3);
+  RNA_def_property_float_funcs(
+      prop, "rna_XrSessionState_viewfinder_location_get", nullptr, nullptr);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_ui_text(
+      prop, "Viewfinder Location", "Last known location of the viewfinder in world space");
+
+  prop = RNA_def_property(srna, "viewfinder_rotation", PROP_FLOAT, PROP_QUATERNION);
+  RNA_def_property_array(prop, 4);
+  RNA_def_property_float_funcs(
+      prop, "rna_XrSessionState_viewfinder_rotation_get", nullptr, nullptr);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_ui_text(
+      prop, "Viewfinder Rotation", "Last known rotation of the viewfinder in world space");
 
   prop = RNA_def_property(srna, "navigation_location", PROP_FLOAT, PROP_TRANSLATION);
   RNA_def_property_array(prop, 3);

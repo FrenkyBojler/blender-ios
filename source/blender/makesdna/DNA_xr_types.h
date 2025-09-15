@@ -28,7 +28,17 @@ typedef struct XrSessionSettings {
   char draw_flags;
   /** Draw style for controller visualization. */
   char controller_draw_style;
-  char _pad2[2];
+
+  char viewfinder_enable;
+  char viewfinder_hand; /* #eXrSessionViewfinderHand */
+  char _pad2;
+
+  /** Active/Selected Viewfinder button/mode, different paradigm as the rest of the Blender UI. */
+  char viewfinder_active_mode;            /* #eXrSessionViewfinderMode */
+  char viewfinder_active_action_live;     /* #eXrViewfinderLiveButtonState */
+  char viewfinder_active_action_playback; /* #eXrViewfinderPlaybackButtonState */
+
+  float viewfinder_width;
 
   /** Clipping distance. */
   float clip_start, clip_end;
@@ -61,6 +71,29 @@ typedef enum eXrSessionControllerDrawStyle {
   XR_CONTROLLER_DRAW_DARK_RAY = 2,
   XR_CONTROLLER_DRAW_LIGHT_RAY = 3,
 } eXrSessionControllerDrawStyle;
+
+typedef enum eXrSessionViewfinderHand {
+  XR_VIEWFINDER_HAND_LEFT = 0,
+  XR_VIEWFINDER_HAND_RIGHT = 1,
+} eXrSessionViewfinderHand;
+
+typedef enum eXrSessionViewfinderMode {
+  XR_VIEWFINDER_MODE_LIVE = 0,
+  XR_VIEWFINDER_MODE_PLAYBACK = 1
+} eXrSessionViewfinderMode;
+
+typedef enum eXrViewfinderLiveAction {
+  XR_VIEWFINDER_ACTION_LIVE_LENS = 0,
+  XR_VIEWFINDER_ACTION_LIVE_DOF = 1,
+  XR_VIEWFINDER_ACTION_LIVE_FOCUS = 2,
+  XR_VIEWFINDER_ACTION_LIVE_APERTURE = 3
+} eXrViewfinderLiveAction;
+
+typedef enum eXrViewfinderPlaybackAction {
+  XR_VIEWFINDER_ACTION_PB_BROWSE = 0,
+  XR_VIEWFINDER_ACTION_PB_PREVIEW = 1,
+  XR_VIEWFINDER_ACTION_PB_DELETE = 2
+} eXrViewfinderPlaybackAction;
 
 /** XR action type. Enum values match those in GHOST_XrActionType enum for consistency. */
 typedef enum eXrActionType {

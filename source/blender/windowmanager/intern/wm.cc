@@ -59,6 +59,8 @@
 
 #include "BLO_read_write.hh"
 
+bContext *evil_main_C;
+
 /* ****************************************************** */
 
 static void window_manager_free_data(ID *id)
@@ -242,6 +244,7 @@ IDTypeInfo IDType_ID_WM = {
     /*foreach_id*/ window_manager_foreach_id,
     /*foreach_cache*/ nullptr,
     /*foreach_path*/ nullptr,
+    /*foreach_working_space_color*/ nullptr,
     /*owner_pointer_get*/ nullptr,
 
     /*blend_write*/ window_manager_blend_write,
@@ -583,6 +586,8 @@ void wm_close_and_free(bContext *C, wmWindowManager *wm)
 
 void WM_main(bContext *C)
 {
+  evil_main_C = C;
+
   /* Single refresh before handling events.
    * This ensures we don't run operators before the depsgraph has been evaluated. */
   wm_event_do_refresh_wm_and_depsgraph(C);

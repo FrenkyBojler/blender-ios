@@ -771,9 +771,13 @@ static void foreach_obref_in_scene(DRWContext &draw_ctx,
   eEvaluationMode eval_mode = DEG_get_mode(depsgraph);
   View3D *v3d = draw_ctx.v3d;
 
+#if 0 /* Temporary disabled until we can fix all the issues that it causes. */
   /* EEVEE is not supported for now. */
   const bool engines_support_handle_ranges = (v3d && v3d->shading.type <= OB_SOLID) ||
                                              BKE_scene_uses_blender_workbench(draw_ctx.scene);
+#else
+  const bool engines_support_handle_ranges = false;
+#endif
 
   DEGObjectIterSettings deg_iter_settings = {nullptr};
   deg_iter_settings.depsgraph = depsgraph;
@@ -1210,7 +1214,7 @@ static void drw_callbacks_post_scene(DRWContext &draw_ctx)
       if ((v3d->flag2 & V3D_XR_SHOW_CONTROLLERS) != 0) {
         ARegionType *art = WM_xr_surface_controller_region_type_get();
         if (art) {
-          ED_region_surface_draw_cb_draw(art, REGION_DRAW_POST_VIEW);
+          ED_region_surface_draw_cb_draw(region, art, REGION_DRAW_POST_VIEW);
         }
       }
       if ((v3d->flag2 & V3D_XR_SHOW_CUSTOM_OVERLAYS) != 0) {
@@ -1218,7 +1222,7 @@ static void drw_callbacks_post_scene(DRWContext &draw_ctx)
         if (st) {
           ARegionType *art = BKE_regiontype_from_id(st, RGN_TYPE_XR);
           if (art) {
-            ED_region_surface_draw_cb_draw(art, REGION_DRAW_POST_VIEW);
+            ED_region_surface_draw_cb_draw(region, art, REGION_DRAW_POST_VIEW);
           }
         }
       }
@@ -1284,7 +1288,7 @@ static void drw_callbacks_post_scene(DRWContext &draw_ctx)
         if ((v3d->flag2 & V3D_XR_SHOW_CONTROLLERS) != 0) {
           ARegionType *art = WM_xr_surface_controller_region_type_get();
           if (art) {
-            ED_region_surface_draw_cb_draw(art, REGION_DRAW_POST_VIEW);
+            ED_region_surface_draw_cb_draw(region, art, REGION_DRAW_POST_VIEW);
           }
         }
         if ((v3d->flag2 & V3D_XR_SHOW_CUSTOM_OVERLAYS) != 0) {
@@ -1292,7 +1296,7 @@ static void drw_callbacks_post_scene(DRWContext &draw_ctx)
           if (st) {
             ARegionType *art = BKE_regiontype_from_id(st, RGN_TYPE_XR);
             if (art) {
-              ED_region_surface_draw_cb_draw(art, REGION_DRAW_POST_VIEW);
+              ED_region_surface_draw_cb_draw(region, art, REGION_DRAW_POST_VIEW);
             }
           }
         }
@@ -1919,11 +1923,13 @@ void DRW_draw_select_loop(Depsgraph *depsgraph,
        * as pose-bones have their own selection restriction flag. */
       const bool use_pose_exception = (draw_ctx.object_pose != nullptr);
 
-      const int object_type_exclude_select = (v3d->object_type_exclude_viewport |
-                                              v3d->object_type_exclude_select);
+      const int object_type_exclude_select = v3d->object_type_exclude_select;
       bool filter_exclude = false;
 
       auto should_draw_object = [&](Object &ob) {
+        if (!BKE_object_is_visible_in_viewport(v3d, &ob)) {
+          return false;
+        }
         if (use_pose_exception && (ob.mode & OB_MODE_POSE)) {
           if ((ob.base_flag & BASE_ENABLED_AND_VISIBLE_IN_DEFAULT_VIEWPORT) == 0) {
             return false;

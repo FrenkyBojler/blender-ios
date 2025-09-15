@@ -172,6 +172,16 @@ class VRLandmark(PropertyGroup):
         min=0.000001,
         update=vr_landmark_base_scale_update,
     )
+    viewfinder_quat: bpy.props.FloatVectorProperty(
+        name="Viewfinder Quaternion",
+        size=4,
+        subtype='QUATERNION',
+        default=(1, 0, 0, 0)
+    )
+    viewfinder_lens: bpy.props.FloatProperty(
+        name="Viewfinder Lens",
+        default=50
+    )
 
     @staticmethod
     def get_selected_landmark(context):
