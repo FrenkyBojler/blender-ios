@@ -52,6 +52,11 @@ void USDPrimReader::set_props(const bool merge_with_parent, const pxr::UsdTimeCo
   }
 
   /* Set the 'usd_prim_path' property to the prim path during import*/
+  /* Optionally store the source prim path on imported IDs. */
+  if (!import_params_.import_prim_path) {
+    return;
+  }
+
   ID *id_for_path = object_->data ? static_cast<ID *>(object_->data) : &object_->id;
   pxr::SdfPath prim_path = object_->data ? data_prim_path() : object_prim_path();
 

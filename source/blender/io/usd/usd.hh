@@ -238,6 +238,10 @@ struct USDImportParams {
   char import_textures_dir[/*FILE_MAXDIR*/ 768];
   eUSDTexNameCollisionMode tex_name_collision_mode;
   eUSDPropertyImportMode property_import_mode;
+  /* When true, store the source USD prim path on imported IDs as an
+   * internal 'usd_prim_path' ID property. Defaults to true when params are
+   * value-initialized (existing behavior). */
+  bool import_prim_path;
 
   /**
    * Communication structure between the wmJob management code and the worker code. Currently used

@@ -929,6 +929,8 @@ static wmOperatorStatus wm_usd_import_exec(bContext *C, wmOperator *op)
   params.property_import_mode = eUSDPropertyImportMode(
       RNA_enum_get(op->ptr, "property_import_mode"));
 
+  params.import_prim_path = RNA_boolean_get(op->ptr, "import_prim_path");
+
   params.prim_path_mask = RNA_string_get(op->ptr, "prim_path_mask");
 
   RNA_string_get(op->ptr, "import_textures_dir", params.import_textures_dir);
@@ -975,6 +977,7 @@ static void wm_usd_import_draw(bContext *C, wmOperator *op)
     col->prop(ptr, "scale", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     col->prop(ptr, "light_intensity_scale", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     col->prop(ptr, "property_import_mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    col->prop(ptr, "import_prim_path", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 
   if (uiLayout *panel = layout->panel(C, "USD_import_types", false, IFACE_("Object Types"))) {
@@ -1239,6 +1242,13 @@ void WM_OT_usd_import(wmOperatorType *ot)
                USD_ATTR_IMPORT_ALL,
                "Custom Properties",
                "Behavior when importing USD attributes as Blender custom properties");
+
+  RNA_def_boolean(ot->srna,
+                  "import_prim_path",
+                  true,
+                  "Store Prim Path",
+                  "Store the source USD prim path as metadata under the internal 'usd_prim_path' "
+                  "custom property for imported IDs");
 
   RNA_def_boolean(
       ot->srna,
