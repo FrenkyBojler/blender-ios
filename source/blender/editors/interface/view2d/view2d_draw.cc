@@ -11,6 +11,7 @@
 #include <cmath>
 #include <cstring>
 
+#include "DNA_defaults.h"
 #include "DNA_scene_types.h"
 #include "DNA_userdef_types.h"
 
@@ -530,6 +531,11 @@ void UI_view2d_draw_lines_x__discrete_frames_or_seconds(const View2D *v2d,
                                                         bool display_seconds,
                                                         bool display_minor_lines)
 {
+  if (scene == nullptr) {
+    /* If we don't have a scene available (e.g. VSE), pick what we defined as default for framerate
+     * to show *something*. */
+    scene = DNA_struct_default_get(Scene);
+  }
   /* Rounding fractional framerates for drawing. */
   const int fps = round_db_to_int(scene->frames_per_second());
   if (display_seconds) {
