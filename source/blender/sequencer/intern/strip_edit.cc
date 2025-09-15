@@ -419,7 +419,6 @@ Strip *edit_strip_split(Main *bmain,
   /* Whole strip effect chain must be duplicated in order to preserve relationships. */
   blender::VectorSet<Strip *> strips;
   strips.add(strip);
-  printf("ignore_connected %s\n", ignore_connected ? "true" : "false");
   iterator_set_expand(scene,
                       seqbase,
                       strips,
