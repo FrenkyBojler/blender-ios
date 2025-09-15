@@ -15,7 +15,7 @@ namespace blender::bke::curves::poly {
 
 static bool delta_dir(const float3 &pos, const float3 &next, float3 &r_delta_dir)
 {
-  const float epsilon = 1.0e-35f;
+  const float epsilon = 1.0e-9f;
 
   const float3 delta = next - pos;
   const float norm = math::length(delta);
@@ -35,7 +35,7 @@ static float3 direction_bisect(const float3 &pos,
                                float3 &other_dir,
                                bool &is_equal)
 {
-  const float epsilon = 1.0e-35f; /* Threshold used in math::normalize */
+  const float epsilon = 1.0e-9f;
   const bool prev_equal = is_equal;
 
   const float3 next_delta = next - pos;
@@ -58,7 +58,7 @@ static float3 direction_bisect(const float3 &pos,
   const float3 tangent = prev_dir + other_dir;
   const float norm = math::length(tangent);
   if (norm < 0.1f) { /* Approx. < sin(5.71°) */
-    if (norm < epsilon) {
+    if (norm < 1e-6) { /* Approx. < sin(1e-6) */
       return other_dir;
     }
     /* Compute using the cross product as catastrophic cancellation occur in `tangent`
