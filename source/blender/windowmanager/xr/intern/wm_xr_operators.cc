@@ -1997,7 +1997,7 @@ static void WM_OT_xr_navigation_swap_hands(wmOperatorType *ot)
 /** \name XR Viewfinder
  * \{ */
 
-static wmOperatorStatus wm_xr_viewfinder_cycle_action_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus wm_xr_viewfinder_cycle_action_exec(bContext *C, wmOperator *op)
 {
   wmWindowManager *wm = CTX_wm_manager(C);
   XrSessionSettings *settings = &wm->xr.session_settings;
@@ -2008,7 +2008,9 @@ static wmOperatorStatus wm_xr_viewfinder_cycle_action_exec(bContext *C, wmOperat
   // TODO: make dynamic
   const int enum_length = settings->viewfinder_active_mode == XR_VIEWFINDER_MODE_LIVE ? 4 : 3;
 
-  *active_action_prop = (*active_action_prop + 1) % enum_length;
+  const bool cycle_left = RNA_boolean_get(op->ptr, "cycle_left");
+  const int incr = cycle_left ? -1 : 1;
+  *active_action_prop = (*active_action_prop + incr) % enum_length;
 
   return OPERATOR_FINISHED;
 }
@@ -2021,9 +2023,10 @@ static void WM_OT_xr_viewfinder_cycle_action(wmOperatorType *ot)
   ot->description = "Cycle the active viewfinder action for the current mode";
 
   /* Callbacks. */
-  //  ot->invoke = wm_xr_viewfinder_cycle_action_invoke;
   ot->exec = wm_xr_viewfinder_cycle_action_exec;
   ot->poll = wm_xr_operator_sessionactive;
+
+  RNA_def_boolean(ot->srna, "cycle_left", true, "Cycle Left", "");
 }
 
 static wmOperatorStatus wm_xr_viewfinder_cycle_mode_exec(bContext *C, wmOperator * /*op*/)

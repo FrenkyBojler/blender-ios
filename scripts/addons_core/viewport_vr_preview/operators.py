@@ -98,40 +98,6 @@ class VIEW3D_OT_vr_landmark_from_session(Operator):
         return {'FINISHED'}
 
 
-class VIEW3D_OT_vr_landmark_from_viewfinder(Operator):
-    bl_idname = "view3d.vr_landmark_from_viewfinder"
-    bl_label = "Add VR Landmark from Viewfinder"
-    bl_description = "Add VR landmark from the viewerfinder pose of the running VR session to the list and select it"
-    bl_options = {'UNDO', 'REGISTER'}
-
-    @classmethod
-    def poll(cls, context):
-        session_is_running = bpy.types.XrSessionState.is_running(context)
-        viewfinder_enable = context.window_manager.xr_session_settings.viewfinder_enable
-
-        return session_is_running and viewfinder_enable
-
-    def execute(self, context):
-        scene = context.scene
-        landmarks = scene.vr_landmarks
-
-        lm = landmarks.add()
-        lm.type = "CUSTOM"
-        lm.name = "Viewfinder Landmark"
-        scene.vr_landmarks_selected = len(landmarks) - 1
-
-        wm = context.window_manager
-        loc = wm.xr_session_state.viewfinder_location
-        rot = wm.xr_session_state.viewfinder_rotation
-
-        lm.base_pose_location = loc  # Used as viewfinder position
-        lm.base_pose_angle = rot.to_euler()[2]  # Only filled in for Landmark Viewport Feedback to work
-        lm.viewfinder_quat = rot
-        lm.viewfinder_lens = scene.camera.data.lens
-
-        return {'FINISHED'}
-
-
 class VIEW3D_OT_vr_camera_landmark_from_session(Operator):
     bl_idname = "view3d.vr_camera_landmark_from_session"
     bl_label = "Add Camera and VR Landmark from Session"
@@ -309,15 +275,49 @@ class VIEW3D_OT_vr_landmark_activate(Operator):
         return {'FINISHED'}
 
 # Viewfinder.
-class VIEW3D_OT_vr_viewfinder_action(Operator):
-    bl_idname = "view3d.vr_viewfinder_action"
+class VIEW3D_OT_vr_viewfinder_capture_landmark(Operator):
+    bl_idname = "view3d.vr_viewfinder_capture_landmark"
+    bl_label = "Capture VR Landmark from Viewfinder"
+    bl_description = "Capture VR landmark from the Viewerfinder pose of the running VR session to the list and select it"
+    bl_options = {'UNDO', 'REGISTER'}
+
+    @classmethod
+    def poll(cls, context):
+        session_is_running = bpy.types.XrSessionState.is_running(context)
+        viewfinder_enable = context.window_manager.xr_session_settings.viewfinder_enable
+
+        return session_is_running and viewfinder_enable
+
+    def execute(self, context):
+        scene = context.scene
+        landmarks = scene.vr_landmarks
+
+        lm = landmarks.add()
+        lm.type = "CUSTOM"
+        lm.name = "Viewfinder Landmark"
+        scene.vr_landmarks_selected = len(landmarks) - 1
+
+        wm = context.window_manager
+        loc = wm.xr_session_state.viewfinder_location
+        rot = wm.xr_session_state.viewfinder_rotation
+
+        lm.base_pose_location = loc  # Used as viewfinder position
+        lm.base_pose_angle = rot.to_euler()[2]  # Only filled in for Landmark Viewport Feedback to work
+        lm.viewfinder_quat = rot
+        lm.viewfinder_lens = scene.camera.data.lens
+
+        return {'FINISHED'}
+
+
+class VIEW3D_OT_vr_viewfinder_apply_action(Operator):
+    bl_idname = "view3d.vr_viewfinder_apply_action"
     bl_label = "Viewfinder Action"
     bl_description = "Apply the currently selected Viewfinder action (Zoom Control/Playback selection for now)"
     bl_options = {'REGISTER'}
 
-    # Differentiate between action A and B (two possible buttons)
-    action_a: bpy.props.BoolProperty(
-        name="Is Action A",
+    # Differentiate between an up and down action(two possible buttons)
+    action_up: bpy.props.BoolProperty(
+        name="Is Up Action",
         options={'HIDDEN'},
     )
 
@@ -338,7 +338,7 @@ class VIEW3D_OT_vr_viewfinder_action(Operator):
             camera = context.scene.camera
 
             change_rate = 3
-            change = change_rate if self.action_a else -change_rate
+            change = change_rate if self.action_up else -change_rate
 
             camera.data.lens = camera.data.lens + change
             return {'FINISHED'}
@@ -348,7 +348,7 @@ class VIEW3D_OT_vr_viewfinder_action(Operator):
             scene = context.scene
             landmarks = scene.vr_landmarks
 
-            incr = 1 if self.action_a else -1
+            incr = 1 if self.action_down else -1
             scene.vr_landmarks_selected = (scene.vr_landmarks_selected + incr) % len(landmarks)
 
             return {'FINISHED'}
@@ -602,8 +602,8 @@ classes = (
     VIEW3D_OT_cursor_to_vr_landmark,
     VIEW3D_OT_update_vr_landmark,
 
-    VIEW3D_OT_vr_landmark_from_viewfinder,
-    VIEW3D_OT_vr_viewfinder_action,
+    VIEW3D_OT_vr_viewfinder_capture_landmark,
+    VIEW3D_OT_vr_viewfinder_apply_action,
 
     VIEW3D_GT_vr_camera_cone,
     VIEW3D_GT_vr_controller_grip,

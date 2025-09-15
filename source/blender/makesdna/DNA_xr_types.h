@@ -28,9 +28,9 @@ typedef struct XrSessionSettings {
   char draw_flags;
   /** Draw style for controller visualization. */
   char controller_draw_style;
+  char controller_dominant_hand; /* #eXrSessionDominantHand */
 
   char viewfinder_enable;
-  char viewfinder_hand; /* #eXrSessionViewfinderHand */
   char _pad2;
 
   /** Active/Selected Viewfinder button/mode, different paradigm as the rest of the Blender UI. */
@@ -72,10 +72,10 @@ typedef enum eXrSessionControllerDrawStyle {
   XR_CONTROLLER_DRAW_LIGHT_RAY = 3,
 } eXrSessionControllerDrawStyle;
 
-typedef enum eXrSessionViewfinderHand {
-  XR_VIEWFINDER_HAND_LEFT = 0,
-  XR_VIEWFINDER_HAND_RIGHT = 1,
-} eXrSessionViewfinderHand;
+typedef enum eXrSessionControllerDominantHand {
+  XR_CONTROLLER_DHAND_LEFT = 0,
+  XR_CONTROLLER_DHAND_RIGHT = 1
+} eXrSessionControllerDominantHand;
 
 typedef enum eXrSessionViewfinderMode {
   XR_VIEWFINDER_MODE_LIVE = 0,

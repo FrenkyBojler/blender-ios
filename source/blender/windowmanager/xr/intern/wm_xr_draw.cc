@@ -95,12 +95,13 @@ static wmXrController *get_viewfinder_controller(const XrSessionSettings *settin
 {
   const char *subaction_path;
 
-  switch (settings->viewfinder_hand) {
-    case XR_VIEWFINDER_HAND_LEFT:
-      subaction_path = "/user/hand/left";
-      break;
-    case XR_VIEWFINDER_HAND_RIGHT:
+  switch (settings->controller_dominant_hand) {
+    /* Place the Viewfinder on the non-dominant hand (invert left/right). */
+    case XR_CONTROLLER_DHAND_LEFT:
       subaction_path = "/user/hand/right";
+      break;
+    case XR_CONTROLLER_DHAND_RIGHT:
+      subaction_path = "/user/hand/left";
       break;
     default:
       BLI_assert_unreachable();
@@ -237,8 +238,7 @@ void wm_xr_draw_view(const GHOST_XrDrawViewInfo *draw_view, void *customdata)
         break;
       }
 
-      /* Note: View offsets can be configured using the Scene Camera Shift X/Y and other settings.
-       */
+      /* Note: View offsets can be configured using the Scene Camera Shift X/Y settings. */
       float viewfinder_mat[4][4];
       copy_m4_m4(viewfinder_mat, viewfinder_controller->grip_mat);
       rotate_m4(viewfinder_mat, 'X', -M_PI_2);
