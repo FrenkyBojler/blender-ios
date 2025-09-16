@@ -561,13 +561,27 @@ void PathTraceWorkGPU::enqueue_path_iteration(DeviceKernel kernel, const int num
     case DEVICE_KERNEL_INTEGRATOR_SHADE_SURFACE:
     case DEVICE_KERNEL_INTEGRATOR_SHADE_SURFACE_RAYTRACE:
     case DEVICE_KERNEL_INTEGRATOR_SHADE_SURFACE_MNEE:
-    case DEVICE_KERNEL_INTEGRATOR_SHADE_VOLUME:
     case DEVICE_KERNEL_INTEGRATOR_SHADE_DEDICATED_LIGHT: {
       /* Shading kernels with integrator state and render buffer. */
       const DeviceKernelArguments args(
           &d_path_index, &buffers_->buffer.device_pointer, &work_size);
 
       queue_->enqueue(kernel, work_size, args);
+      break;
+    }
+    case DEVICE_KERNEL_INTEGRATOR_SHADE_VOLUME:
+    case DEVICE_KERNEL_INTEGRATOR_SHADE_VOLUME_RAY_MARCHING: {
+      /* Shading kernels with integrator state and render buffer.
+       * Switch between ray marching and unbiased host side so kernel doesn't
+       * have to be concerned with it. */
+      const DeviceKernelArguments args(
+          &d_path_index, &buffers_->buffer.device_pointer, &work_size);
+      if (device_scene_->data.integrator.volume_ray_marching) {
+        queue_->enqueue(DEVICE_KERNEL_INTEGRATOR_SHADE_VOLUME_RAY_MARCHING, work_size, args);
+      }
+      else {
+        queue_->enqueue(DEVICE_KERNEL_INTEGRATOR_SHADE_VOLUME, work_size, args);
+      }
       break;
     }
 
@@ -1272,6 +1286,7 @@ bool PathTraceWorkGPU::kernel_creates_shadow_paths(DeviceKernel kernel)
           kernel == DEVICE_KERNEL_INTEGRATOR_SHADE_SURFACE_RAYTRACE ||
           kernel == DEVICE_KERNEL_INTEGRATOR_SHADE_SURFACE_MNEE ||
           kernel == DEVICE_KERNEL_INTEGRATOR_SHADE_VOLUME ||
+          kernel == DEVICE_KERNEL_INTEGRATOR_SHADE_VOLUME_RAY_MARCHING ||
           kernel == DEVICE_KERNEL_INTEGRATOR_SHADE_DEDICATED_LIGHT);
 }
 
