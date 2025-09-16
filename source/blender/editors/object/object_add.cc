@@ -807,7 +807,7 @@ static std::optional<blender::Bounds<blender::float3>> collect_targets_and_bound
 
 static wmOperatorStatus lattice_add_exec(bContext *C, wmOperator *op)
 {
-
+  Object *ob_active = CTX_data_active_object(C);
   ushort local_view_bits;
   bool enter_editmode;
   float loc[3], rot[3];
@@ -891,22 +891,57 @@ static wmOperatorStatus lattice_add_exec(bContext *C, wmOperator *op)
       }
     }
     else {
-      /* Aligns lattice to a bounding box fit for multiple selected objects. */
-      float3 sel_min = bounds_opt->min;
-      float3 sel_max = bounds_opt->max;
+      /* Aligns lattice to active object’s rotation,
+       * sized to world bounding box of all selected objects.
+       */
+      Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+      Object *ob_active_eval = (Object *)DEG_get_evaluated_id(depsgraph, &ob_active->id);
+
+      float M[4][4];
+      BKE_object_to_mat4(ob_active_eval, M);
+
+      float R_raw[3][3], R[3][3], q[4];
+      copy_m3_m4(R_raw, M);
+      normalize_m3_m3(R, R_raw);
+      mat3_to_quat(q, R);
+
+      float sel_min[3], sel_max[3];
+      copy_v3_v3(sel_min, bounds_opt->min);
+      copy_v3_v3(sel_max, bounds_opt->max);
 
       for (int i = 0; i < 3; i++) {
         sel_min[i] -= offset;
         sel_max[i] += offset;
       }
 
-      float center[3], size[3];
-      mid_v3_v3v3(center, sel_min, sel_max);
-      sub_v3_v3v3(size, sel_max, sel_min);
+      float center_w[3], size_w[3];
+      mid_v3_v3v3(center_w, sel_min, sel_max);
+      sub_v3_v3v3(size_w, sel_max, sel_min);
 
-      copy_v3_v3(ob->loc, center);
-      BKE_object_dimensions_set(ob, size, 0);
-      DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
+      float s[3];
+      s[0] = len_v3((float[3]){M[0][0], M[1][0], M[2][0]});
+      s[1] = len_v3((float[3]){M[0][1], M[1][1], M[2][1]});
+      s[2] = len_v3((float[3]){M[0][2], M[1][2], M[2][2]});
+
+      float dims[3] = {
+          size_w[0] * s[0],
+          size_w[1] * s[1],
+          size_w[2] * s[2],
+      };
+
+      const float lat_rest[3] = {1.0f, 1.0f, 1.0f};
+
+      ob->rotmode = ROT_MODE_QUAT;
+      copy_qt_qt(ob->quat, q);
+
+      ob->scale[0] = dims[0] / lat_rest[0];
+      ob->scale[1] = dims[1] / lat_rest[1];
+      ob->scale[2] = dims[2] / lat_rest[2];
+
+      copy_v3_v3(ob->loc, center_w);
+      BKE_lattice_resize(lt, max_ii(1, res_u), max_ii(1, res_v), max_ii(1, res_w), ob);
+      DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY | ID_RECALC_TRANSFORM);
+      DEG_relations_tag_update(CTX_data_main(C));
     }
   }
   else {
