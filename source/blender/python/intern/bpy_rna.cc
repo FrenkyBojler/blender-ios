@@ -9835,6 +9835,10 @@ static int bpy_class_call(bContext *C, PointerRNA *ptr, FunctionRNA *func, Param
 
     /* Also print in the console for Python. */
     PyErr_Print();
+    CLOG_ERROR(BPY_LOG_RNA,
+               "Python script error in %.200s#%.200s",
+               RNA_struct_identifier(ptr->type),
+               RNA_function_identifier(func));
   }
 
   bpy_context_clear(C, &gilstate);
