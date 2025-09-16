@@ -67,7 +67,7 @@ typedef struct CacheFile {
   ID id;
   struct AnimData *adt;
 
-  void *_pad3;
+  void *_pad4;
 
   /** Paths of the objects inside of the archive referenced by this CacheFile. */
   ListBase object_paths;

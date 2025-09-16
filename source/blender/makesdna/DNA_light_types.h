@@ -88,6 +88,7 @@ typedef struct Light {
   /* Deprecated. */
   float energy_deprecated DNA_DEPRECATED;
   float _pad2;
+  void *_pad3;
 } Light;
 
 /* **************** LIGHT ********************* */

@@ -223,8 +223,6 @@ typedef struct Curve {
 
   struct CurveProfile *bevel_profile;
 
-  void *_pad3;
-
   float texspace_location[3];
   float texspace_size[3];
 

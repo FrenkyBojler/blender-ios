@@ -132,6 +132,8 @@ typedef struct Camera {
   struct ListBase bg_images;
 
   /* Stereo settings */
+
+  void *_pad4;
   struct CameraStereoSettings stereo;
 
   /** Runtime data (keep last). */

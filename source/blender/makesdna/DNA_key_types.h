@@ -58,7 +58,6 @@ typedef struct KeyBlock {
   /** Ranges, for RNA and UI only to clamp 'curval'. */
   float slidermin;
   float slidermax;
-
 } KeyBlock;
 
 typedef struct Key {
@@ -109,6 +108,8 @@ typedef struct Key {
    * current free UID for key-blocks.
    */
   int uidgen;
+
+  void *_pad3;
 } Key;
 
 /* **************** KEY ********************* */

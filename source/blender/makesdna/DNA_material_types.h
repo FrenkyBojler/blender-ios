@@ -231,6 +231,7 @@ typedef struct Material {
   float inflate_bounds;
 
   char _pad3[4];
+  void *_pad4;
 
   /**
    * Cached slots for texture painting, must be refreshed via
