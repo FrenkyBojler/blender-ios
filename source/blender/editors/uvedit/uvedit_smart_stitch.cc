@@ -196,6 +196,8 @@ struct StitchStateContainer {
   StitchState **states;
 
   int active_object_index;
+
+  bool match_target;
 };
 
 struct PreviewPosition {
@@ -1167,83 +1169,81 @@ static int stitch_process_data(StitchStateContainer *ssc,
       return 0;
     }
 
-    Vector<BMVert *> orig_vert_sel;
-    BMIter vert_iter;
-    BMVert *vert;
-    BM_ITER_MESH (vert, &vert_iter, bm, BM_VERTS_OF_MESH) {
-      if (BM_elem_flag_test(vert, BM_ELEM_SELECT)) {
-        orig_vert_sel.append(vert);
-        BM_elem_flag_disable(vert, BM_ELEM_SELECT);
+    if (ssc->match_target) {
+      Vector<BMVert *> orig_vert_sel;
+      BMIter vert_iter;
+      BMVert *vert;
+      BM_ITER_MESH (vert, &vert_iter, bm, BM_VERTS_OF_MESH) {
+        if (BM_elem_flag_test(vert, BM_ELEM_SELECT)) {
+          orig_vert_sel.append(vert);
+          BM_elem_flag_disable(vert, BM_ELEM_SELECT);
+        }
       }
-    }
 
-    BM_ITER_MESH (efa, &iter, bm, BM_FACES_OF_MESH) {
-      UvElement *element = BM_uv_element_get(state->element_map, BM_FACE_FIRST_LOOP(efa));
-
-      if (element && element->island != ssc->static_island &&
-          island_stitch_data[element->island].addedForPreview)
-      {
-        BM_elem_flag_enable(efa, BM_ELEM_SELECT);
+      BM_ITER_MESH (efa, &iter, bm, BM_FACES_OF_MESH) {
+        UvElement *element = BM_uv_element_get(state->element_map, BM_FACE_FIRST_LOOP(efa));
+        if (element && element->island != ssc->static_island &&
+            island_stitch_data[element->island].addedForPreview)
+        {
+          BM_elem_flag_enable(efa, BM_ELEM_SELECT);
+        }
       }
-    }
 
-    UnwrapOptions options{};
-    options.topology_from_uvs = false;
-    options.only_selected_faces = true;
-    options.only_selected_uvs = false;
-    options.use_abf = true;
-    options.fill_holes = true;
-    options.correct_aspect = true;
-    uvedit_unwrap(scene, state->obedit, &options, nullptr, nullptr);
-    for( BMVert *vert : orig_vert_sel){
-      BM_elem_flag_enable(vert, BM_ELEM_SELECT);
-    }
+      UnwrapOptions options{};
+      options.topology_from_uvs = false;
+      options.only_selected_faces = true;
+      options.only_selected_uvs = false;
+      options.use_abf = true;
+      options.fill_holes = true;
+      options.correct_aspect = true;
+      uvedit_unwrap(scene, state->obedit, &options, nullptr, nullptr);
+      for (BMVert *vert : orig_vert_sel) {
+        BM_elem_flag_enable(vert, BM_ELEM_SELECT);
+      }
 
-    BMUVOffsets offsets = BM_uv_map_offsets_get(bm);
-    float uv_area = 0.0f;
-    float object_area = 0.0f;
-    for (int i = 0; i < state->element_map->total_islands; i++) {
-      UvElement *element = state->element_map->storage + state->element_map->island_indices[i];
-      blender::Set<BMFace *> visited_faces;
-      if (element && element->island == ssc->static_island &&
-          island_stitch_data[element->island].stitchableCandidate)
-      {
-        for (int j = 0; j < state->element_map->island_total_uvs[i]; j++) {
-          if (!visited_faces.contains(element[j].l->f)) {
-            uv_area += BM_face_calc_area_uv(element[j].l->f, offsets.uv);
-            object_area += BM_face_calc_area(element[j].l->f);
-            visited_faces.add(element[j].l->f);
+      BMUVOffsets offsets = BM_uv_map_offsets_get(bm);
+      float uv_area = 0.0f;
+      float object_area = 0.0f;
+      for (int i = 0; i < state->element_map->total_islands; i++) {
+        UvElement *element = state->element_map->storage + state->element_map->island_indices[i];
+        blender::Set<BMFace *> visited_faces;
+        if (element && element->island == ssc->static_island &&
+            island_stitch_data[element->island].stitchableCandidate)
+        {
+          for (int j = 0; j < state->element_map->island_total_uvs[i]; j++) {
+            if (!visited_faces.contains(element[j].l->f)) {
+              uv_area += BM_face_calc_area_uv(element[j].l->f, offsets.uv);
+              object_area += BM_face_calc_area(element[j].l->f);
+              visited_faces.add(element[j].l->f);
+            }
           }
         }
       }
-    }
-    float density = sqrt((uv_area) / object_area);
+      float density = sqrt((uv_area) / object_area);
 
-    printf("density %f", density);
-
-    for (int i = 0; i < state->element_map->total_islands; i++) {
-      UvElement *element = state->element_map->storage + state->element_map->island_indices[i];
-      uv_area = 0.0f;
-      object_area = 0.0f;
-      blender::Set<BMFace *> visited_faces;
-      if (element && element->island != ssc->static_island &&
-          island_stitch_data[element->island].stitchableCandidate)
-      {
-        for (int j = 0; j < state->element_map->island_total_uvs[i]; j++) {
-          if (!visited_faces.contains(element[j].l->f)) {
-            uv_area += BM_face_calc_area_uv(element[j].l->f, offsets.uv);
-            object_area += BM_face_calc_area(element[j].l->f);
-            visited_faces.add(element[j].l->f);
+      for (int i = 0; i < state->element_map->total_islands; i++) {
+        UvElement *element = state->element_map->storage + state->element_map->island_indices[i];
+        uv_area = 0.0f;
+        object_area = 0.0f;
+        blender::Set<BMFace *> visited_faces;
+        if (element && element->island != ssc->static_island &&
+            island_stitch_data[element->island].stitchableCandidate)
+        {
+          for (int j = 0; j < state->element_map->island_total_uvs[i]; j++) {
+            if (!visited_faces.contains(element[j].l->f)) {
+              uv_area += BM_face_calc_area_uv(element[j].l->f, offsets.uv);
+              object_area += BM_face_calc_area(element[j].l->f);
+              visited_faces.add(element[j].l->f);
+            }
           }
-        }
-        float island_density = sqrt((uv_area) / object_area);
+          float island_density = sqrt((uv_area) / object_area);
 
-        printf("density %f", island_density);
-        float scale = density / island_density;
-        for (int j = 0; j < state->element_map->island_total_uvs[i]; j++) {
-          float *luv = BM_ELEM_CD_GET_FLOAT_P(element[j].l, offsets.uv);
-          luv[0] = (luv[0] * scale);
-          luv[1] = (luv[1] * scale);
+          float scale = density / island_density;
+          for (int j = 0; j < state->element_map->island_total_uvs[i]; j++) {
+            float *luv = BM_ELEM_CD_GET_FLOAT_P(element[j].l, offsets.uv);
+            luv[0] = (luv[0] * scale);
+            luv[1] = (luv[1] * scale);
+          }
         }
       }
     }
@@ -2293,7 +2293,7 @@ static int stitch_init_all(bContext *C, wmOperator *op)
   ssc->clear_seams = RNA_boolean_get(op->ptr, "clear_seams");
   ssc->active_object_index = RNA_int_get(op->ptr, "active_object_index");
   ssc->static_island = 0;
-
+  ssc->match_target = RNA_boolean_get(op->ptr, "match_target");
   if (RNA_struct_property_is_set(op->ptr, "mode")) {
     ssc->mode = RNA_enum_get(op->ptr, "mode");
   }
@@ -2825,6 +2825,11 @@ void UV_OT_stitch(wmOperatorType *ot)
                   "midpoint_snap",
                   false,
                   "Snap at Midpoint",
+                  "UVs are stitched at midpoint instead of at static island");
+  RNA_def_boolean(ot->srna,
+                  "match_target",
+                  false,
+                  "Match Target",
                   "UVs are stitched at midpoint instead of at static island");
   RNA_def_boolean(ot->srna, "clear_seams", true, "Clear Seams", "Clear seams of stitched edges");
   RNA_def_enum(ot->srna,
