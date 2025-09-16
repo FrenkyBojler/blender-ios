@@ -647,6 +647,9 @@ void blender::bke::library::pack_linked_id_hierarchy(Main &bmain, ID &root_id)
           }
           return IDWALK_RET_NOP;
         }
+        if (referenced_id->newid && ID_IS_PACKED(referenced_id->newid)) {
+          return IDWALK_RET_NOP;
+        }
         if (GS(referenced_id->name) == ID_KE) {
           /* Shape keys cannot be directly linked, from linking code PoV they behave as embedded
            * data (i.e. their owning data is responsible to handle them). */
