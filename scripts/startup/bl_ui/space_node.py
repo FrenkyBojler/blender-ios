@@ -968,6 +968,19 @@ class NODE_MT_node_tree_interface_context_menu(Menu):
             layout.operator("node.interface_item_unlink_panel_toggle")
 
 
+class NODE_MT_node_tree_interface_new_item(Menu):
+    bl_label = "New Item"
+
+    def draw(self, context):
+        layout = self.layout
+        layout.operator_enum("node.interface_item_new", "item_type")
+
+        active_item = context.space_data.edit_tree.interface.active
+
+        if active_item.item_type == 'PANEL':
+            layout.operator("node.interface_item_new_panel_toggle", text="Panel Toggle")
+
+
 class NODE_PT_node_tree_interface(Panel):
     bl_space_type = 'NODE_EDITOR'
     bl_region_type = 'UI'
@@ -999,7 +1012,7 @@ class NODE_PT_node_tree_interface(Panel):
 
         ops_col = split.column(align=True)
         ops_col.enabled = tree.library is None
-        ops_col.operator_menu_enum("node.interface_item_new", "item_type", icon='ADD', text="")
+        ops_col.menu("NODE_MT_node_tree_interface_new_item", icon='ADD', text="")
         ops_col.operator("node.interface_item_remove", icon='REMOVE', text="")
         ops_col.separator()
         ops_col.menu("NODE_MT_node_tree_interface_context_menu", icon='DOWNARROW_HLT', text="")
@@ -1226,6 +1239,7 @@ classes = (
     NODE_PT_geometry_node_tool_options,
     NODE_PT_node_color_presets,
     NODE_PT_node_tree_properties,
+    NODE_MT_node_tree_interface_new_item,
     NODE_MT_node_tree_interface_context_menu,
     NODE_PT_node_tree_interface,
     NODE_PT_node_tree_interface_panel_toggle,
