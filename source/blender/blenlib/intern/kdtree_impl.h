@@ -1010,11 +1010,11 @@ int BLI_kdtree_nd_(calc_duplicates_stable)(const KDTree *tree,
     float centroid[KD_DIMS] = {};
     int survivor_index = cluster[0];
 
-    for (int node_index : cluster) {
-      const float *co = tree->nodes[index_lookup[node_index]].co;
+    for (int cluster_index : cluster) {
+      const float *co = tree->nodes[index_lookup[cluster_index]].co;
       add_vn_vn(centroid, co);
-      if (node_index < survivor_index) {
-        survivor_index = node_index;
+      if (cluster_index < survivor_index) {
+        survivor_index = cluster_index;
       }
     }
 
@@ -1023,8 +1023,8 @@ int BLI_kdtree_nd_(calc_duplicates_stable)(const KDTree *tree,
     copy_vn_vn(r_cluster_center[survivor_index], centroid);
 
     /* Assign duplicates mapping. */
-    for (int node_index : cluster) {
-      duplicates[node_index] = survivor_index;
+    for (int cluster_index : cluster) {
+      duplicates[cluster_index] = survivor_index;
     }
     found += static_cast<int>(cluster.size() - 1);
     cluster.clear();
