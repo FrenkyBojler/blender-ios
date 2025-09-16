@@ -57,7 +57,7 @@ static float3 direction_bisect(const float3 &pos,
   }
   const float3 tangent = prev_dir + other_dir;
   const float norm = math::length(tangent);
-  if (norm < 0.1f) { /* Approx. < sin(5.71°) */
+  if (norm < 0.1f) {   /* Approx. < sin(5.71°) */
     if (norm < 1e-6) { /* Approx. < sin(1e-6) */
       return other_dir;
     }
