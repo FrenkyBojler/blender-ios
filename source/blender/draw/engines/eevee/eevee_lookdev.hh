@@ -123,6 +123,8 @@ class LookdevModule {
 
   bool enabled_;
 
+  bool use_viewspace_lighting_ = false;
+
   static constexpr int num_spheres = 2;
 
   /**
@@ -182,6 +184,11 @@ class LookdevModule {
                               const SphereProbeAtlasCoord &atlas_coord,
                               StorageBuffer<SphereProbeHarmonic, true> &in_volume_probe,
                               UniformBuffer<LightData> &in_sunlight);
+
+  void rotate_world_probe_data(Texture &dst_sphere_probe,
+                               const SphereProbeAtlasCoord &atlas_coord,
+                               StorageBuffer<SphereProbeHarmonic, true> &dst_volume_probe,
+                               UniformBuffer<LightData> &dst_sunlight);
 
  private:
   void sync_pass(PassSimple &pass,

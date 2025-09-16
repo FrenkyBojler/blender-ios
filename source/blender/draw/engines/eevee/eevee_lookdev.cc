@@ -228,6 +228,8 @@ void LookdevModule::init(const rcti *visible_rect)
     dummy_aov_color_tx_.ensure_2d_array(
         gpu::TextureFormat::SFLOAT_16_16_16_16, extent_dummy, 1, usage);
     dummy_aov_value_tx_.ensure_2d_array(gpu::TextureFormat::SFLOAT_16, extent_dummy, 1, usage);
+
+    use_viewspace_lighting_ = (inst_.v3d->flag & V3D_SHADING_WORLD_ORIENTATION) == 0;
   }
 }
 
@@ -422,6 +424,59 @@ void LookdevModule::store_world_probe_data(
   pass.bind_ssbo("out_sh", world_volume_probe_);
   pass.bind_ssbo("in_sun", in_sunlight);
   pass.bind_ssbo("out_sun", world_sunlight_);
+  int3 dispatch_size = int3(
+      int2(math::divide_ceil(int2(write_coord_mip0.extent), int2(SPHERE_PROBE_REMAP_GROUP_SIZE))),
+      1);
+  pass.dispatch(dispatch_size);
+
+  inst_.manager->submit(pass);
+}
+
+/* TODO(fclem): Call this as soon as possible inside the frame drawing and tag world probe volume
+ * to update. Volume probe update is the only thing that needs to be triggered to make sure the SH
+ * are copied to all volume probes. Sphere probes are already updated by this function. */
+void LookdevModule::rotate_world_probe_data(
+    Texture &dst_sphere_probe,
+    const SphereProbeAtlasCoord &atlas_coord,
+    StorageBuffer<SphereProbeHarmonic, true> &dst_volume_probe,
+    UniformBuffer<LightData> &dst_sunlight)
+{
+  SphereProbeUvArea read_coord = atlas_coord.as_sampling_coord();
+  SphereProbePixelArea write_coord_mip0 = atlas_coord.as_write_coord(0);
+  SphereProbePixelArea write_coord_mip1 = atlas_coord.as_write_coord(1);
+  SphereProbePixelArea write_coord_mip2 = atlas_coord.as_write_coord(2);
+  SphereProbePixelArea write_coord_mip3 = atlas_coord.as_write_coord(3);
+  SphereProbePixelArea write_coord_mip4 = atlas_coord.as_write_coord(4);
+
+  float4x4 rotation;
+  if (use_viewspace_lighting_) {
+    /* TODO copy camera matrix */
+  }
+  else {
+    float rotation_z = 0.0f; /* TODO */
+    rotation = from_rotation<float4x4>(AxisAngle(AxisSigned::Z_POS, rotation_z));
+  }
+
+  PassSimple pass = {__func__};
+  pass.init();
+  pass.shader_set(inst_.shaders.static_shader_get(LOOKDEV_COPY_WORLD));
+  pass.push_constant("read_coord_packed", reinterpret_cast<int4 *>(&read_coord));
+  pass.push_constant("write_coord_mip0_packed", reinterpret_cast<int4 *>(&write_coord_mip0));
+  pass.push_constant("write_coord_mip1_packed", reinterpret_cast<int4 *>(&write_coord_mip1));
+  pass.push_constant("write_coord_mip2_packed", reinterpret_cast<int4 *>(&write_coord_mip2));
+  pass.push_constant("write_coord_mip3_packed", reinterpret_cast<int4 *>(&write_coord_mip3));
+  pass.push_constant("write_coord_mip4_packed", reinterpret_cast<int4 *>(&write_coord_mip4));
+  pass.push_constant("lookdev_rotation", rotation);
+  pass.bind_texture("in_sphere_tx", &world_sphere_probe_);
+  pass.bind_image("out_sphere_mip0", dst_sphere_probe.mip_view(0));
+  pass.bind_image("out_sphere_mip1", dst_sphere_probe.mip_view(1));
+  pass.bind_image("out_sphere_mip2", dst_sphere_probe.mip_view(2));
+  pass.bind_image("out_sphere_mip3", dst_sphere_probe.mip_view(3));
+  pass.bind_image("out_sphere_mip4", dst_sphere_probe.mip_view(4));
+  pass.bind_ssbo("in_sh", world_volume_probe_);
+  pass.bind_ssbo("out_sh", dst_volume_probe);
+  pass.bind_ssbo("in_sun", world_sunlight_);
+  pass.bind_ssbo("out_sun", dst_sunlight);
   int3 dispatch_size = int3(
       int2(math::divide_ceil(int2(write_coord_mip0.extent), int2(SPHERE_PROBE_REMAP_GROUP_SIZE))),
       1);
