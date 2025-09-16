@@ -21,7 +21,10 @@ from bl_ui.space_toolsystem_common import (
 from bl_ui.properties_paint_common import (
     BrushAssetShelf,
 )
-from bpy.app.translations import pgettext_tip as tip_
+from bpy.app.translations import (
+    pgettext_iface as iface_,
+    pgettext_tip as tip_,
+)
 
 
 def kmi_to_string_or_none(kmi):
@@ -1335,6 +1338,21 @@ class _defs_edit_curves:
             draw_settings=curve_draw,
         )
 
+    @ToolDef.from_fn
+    def pen():
+        def draw_settings(context, layout, tool):
+            props = tool.operator_properties("curves.pen")
+            layout.prop(props, "radius")
+        return dict(
+            idname="builtin.pen",
+            label="Pen",
+            cursor='CROSSHAIR',
+            icon="ops.curve.pen",
+            widget=None,
+            keymap=(),
+            draw_settings=draw_settings,
+        )
+
 
 class _defs_edit_text:
 
@@ -2085,7 +2103,7 @@ class _defs_weight_paint:
                 weight = context.tool_settings.weight_paint.brush.weight
             else:
                 return
-            layout.label(text="Weight: {:.3f}".format(weight))
+            layout.label(text=iface_("Weight: {:.3f}").format(weight), translate=False)
         return dict(
             idname="builtin.sample_weight",
             label="Sample Weight",
@@ -2906,11 +2924,6 @@ class _defs_grease_pencil_sculpt:
         )
 
 
-class _defs_gpencil_weight:
-    # No mode specific tools currently (only general ones).
-    pass
-
-
 class _defs_grease_pencil_weight:
     @ToolDef.from_fn
     def blur():
@@ -3126,6 +3139,28 @@ class _defs_node_edit:
             options={'KEYMAP_FALLBACK'},
         )
 
+    @ToolDef.from_fn
+    def links_mute():
+        return dict(
+            idname="builtin.links_mute",
+            label="Mute Links",
+            icon="ops.node.links_mute",
+            widget=None,
+            keymap="Node Tool: Mute Links",
+            options={'KEYMAP_FALLBACK'},
+        )
+
+    @ToolDef.from_fn
+    def add_reroute():
+        return dict(
+            idname="builtin.add_reroute",
+            label="Add Reroute",
+            icon="ops.node.add_reroute",
+            widget=None,
+            keymap="Node Tool: Add Reroute",
+            options={'KEYMAP_FALLBACK'},
+        )
+
 
 class _defs_sequencer_generic:
 
@@ -3270,6 +3305,86 @@ class _defs_sequencer_select:
             widget=None,
             keymap="Preview Tool: Select Box",
             draw_settings=draw_settings,
+        )
+
+    @ToolDef.from_fn
+    def lasso_timeline():
+        def draw_settings(_context, layout, tool):
+            props = tool.operator_properties("sequencer.select_lasso")
+            row = layout.row()
+            row.use_property_split = False
+            row.prop(props, "mode", text="", expand=True, icon_only=True)
+        return dict(
+            idname="sequencer.select_lasso",
+            label="Select Lasso",
+            icon="ops.generic.select_lasso",
+            widget=None,
+            keymap="Sequencer Tool: Select Lasso",
+            draw_settings=draw_settings,
+        )
+
+    @ToolDef.from_fn
+    def lasso_preview():
+        def draw_settings(_context, layout, tool):
+            props = tool.operator_properties("sequencer.select_lasso")
+            row = layout.row()
+            row.use_property_split = False
+            row.prop(props, "mode", text="", expand=True, icon_only=True)
+        return dict(
+            idname="sequencer.select_lasso",
+            label="Select Lasso",
+            icon="ops.generic.select_lasso",
+            widget=None,
+            keymap="Preview Tool: Select Lasso",
+            draw_settings=draw_settings,
+        )
+
+    @ToolDef.from_fn
+    def circle_timeline():
+        def draw_settings(_context, layout, tool):
+            props = tool.operator_properties("sequencer.select_circle")
+            row = layout.row()
+            row.use_property_split = False
+            row.prop(props, "mode", text="", expand=True, icon_only=True)
+            layout.prop(props, "radius")
+
+        def draw_cursor(_context, tool, xy):
+            from gpu_extras.presets import draw_circle_2d
+            props = tool.operator_properties("sequencer.select_circle")
+            radius = props.radius
+            draw_circle_2d(xy, (1.0,) * 4, radius, segments=32)
+        return dict(
+            idname="sequencer.select_circle",
+            label="Select Circle",
+            icon="ops.generic.select_circle",
+            widget=None,
+            keymap="Sequencer Tool: Select Circle",
+            draw_settings=draw_settings,
+            draw_cursor=draw_cursor,
+        )
+
+    @ToolDef.from_fn
+    def circle_preview():
+        def draw_settings(_context, layout, tool):
+            props = tool.operator_properties("sequencer.select_circle")
+            row = layout.row()
+            row.use_property_split = False
+            row.prop(props, "mode", text="", expand=True, icon_only=True)
+            layout.prop(props, "radius")
+
+        def draw_cursor(_context, tool, xy):
+            from gpu_extras.presets import draw_circle_2d
+            props = tool.operator_properties("sequencer.select_circle")
+            radius = props.radius
+            draw_circle_2d(xy, (1.0,) * 4, radius, segments=32)
+        return dict(
+            idname="sequencer.select_circle",
+            label="Select Circle",
+            icon="ops.generic.select_circle",
+            widget=None,
+            keymap="Preview Tool: Select Circle",
+            draw_settings=draw_settings,
+            draw_cursor=draw_cursor,
         )
 
 
@@ -3471,6 +3586,8 @@ class NODE_PT_tools_active(ToolSelectPanelHelper, Panel):
             *_tools_annotate,
             None,
             _defs_node_edit.links_cut,
+            _defs_node_edit.links_mute,
+            _defs_node_edit.add_reroute,
         ],
     }
 
@@ -3674,6 +3791,7 @@ class VIEW3D_PT_tools_active(ToolSelectPanelHelper, Panel):
             *_tools_default,
             None,
             _defs_edit_curves.draw,
+            _defs_edit_curves.pen,
             None,
             _defs_edit_curve.curve_radius,
             _defs_edit_curve.tilt,
@@ -3958,6 +4076,8 @@ class SEQUENCER_PT_tools_active(ToolSelectPanelHelper, Panel):
             (
                 _defs_sequencer_select.select_preview,
                 _defs_sequencer_select.box_preview,
+                _defs_sequencer_select.lasso_preview,
+                _defs_sequencer_select.circle_preview,
             ),
             _defs_sequencer_generic.cursor,
             None,
@@ -3970,7 +4090,11 @@ class SEQUENCER_PT_tools_active(ToolSelectPanelHelper, Panel):
             *_tools_annotate,
         ],
         'SEQUENCER': [
-            _defs_sequencer_select.box_timeline,
+            (
+                _defs_sequencer_select.box_timeline,
+                _defs_sequencer_select.lasso_timeline,
+                _defs_sequencer_select.circle_timeline,
+            ),
             _defs_sequencer_generic.blade,
             _defs_sequencer_generic.slip
         ],
