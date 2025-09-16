@@ -978,7 +978,7 @@ void knot_refine(int8_t order,
                  MutableSpan<float> dst_knots);
 
 /*
- * Computes the new weights, control points, and knot vector from the given knot inserts during
+ * Computes the new weights, control points, and knot vector from the given knot insertions during
  * knot refinement of a rational NURBS.
  */
 void knot_refine_rational(int8_t order,
@@ -993,7 +993,7 @@ void knot_refine_rational(int8_t order,
                           MutableSpan<float> dst_weights);
 
 /*
- * Computes the new attribute values from the given knot inserts during knot refinement.
+ * Computes the new attribute values from the given knot insertions during knot refinement.
  */
 template<typename T>
 void knot_refine_attribute(int8_t order,
@@ -1215,7 +1215,7 @@ void knot_refine_attribute(const int8_t order,
                            const Span<float> src_knots,
                            const Span<T> src_attrib,
                            const Span<float> dst_knots,
-                           MutableSpan<T> dst_attrib)
+                           MutableSpan<T> dst_attr)
 {
   BLI_assert(knot_inserts.size() > 0);
   /* Undefined behavior when lower span interval does not match knot inserts. */
@@ -1226,10 +1226,10 @@ void knot_refine_attribute(const int8_t order,
   span_b++;
 
   for (int j = 0; j <= span_a - degree; j++) {
-    dst_attrib[j] = src_attrib[j];
+    dst_attr[j] = src_attrib[j];
   }
   for (int j = span_b - 1; j < src_attrib.size(); j++) {
-    dst_attrib[j + r] = src_attrib[j];
+    dst_attr[j + r] = src_attrib[j];
   }
 
   int i = span_b + degree - 1;
@@ -1237,22 +1237,22 @@ void knot_refine_attribute(const int8_t order,
   for (int j = r - 1; j >= 0; j--) {
 
     while (knot_inserts[j] <= src_knots[i] && i > span_a) {
-      dst_attrib[k - order] = src_attrib[i - order];
+      dst_attr[k - order] = src_attrib[i - order];
       k--;
       i--;
     }
 
-    dst_attrib[k - order] = dst_attrib[k - degree];
+    dst_attr[k - order] = dst_attr[k - degree];
     for (int m = 1; m < order; m++) {
       const int index = k - degree + m;
-      float alfa = dst_knots[k + m] - knot_inserts[j];
-      if (alfa == 0.0f) {
-        dst_attrib[index - 1] = dst_attrib[index];
+      float alpha = dst_knots[k + m] - knot_inserts[j];
+      if (alpha == 0.0f) {
+        dst_attr[index - 1] = dst_attr[index];
       }
       else {
-        alfa = alfa / (dst_knots[k + m] - src_knots[i - degree + m]);
-        dst_attrib[index - 1] = bke::attribute_math::mix2(
-            alfa, dst_attrib[index], dst_attrib[index - 1]);
+        alpha = alpha / (dst_knots[k + m] - src_knots[i - degree + m]);
+        dst_attr[index - 1] = bke::attribute_math::mix2(
+            alpha, dst_attr[index], dst_attr[index - 1]);
       }
     }
     k--;

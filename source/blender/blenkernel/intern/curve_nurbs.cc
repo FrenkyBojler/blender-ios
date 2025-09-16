@@ -474,17 +474,17 @@ void knot_refine_rational(const int8_t order,
     dst_weights[k - order] = dst_weights[k - degree];
     for (int m = 1; m < order; m++) {
       const int index = k - degree + m;
-      float alfa = dst_knots[k + m] - knot_inserts[j];
-      if (alfa == 0.0f) {
+      float alpha = dst_knots[k + m] - knot_inserts[j];
+      if (alpha == 0.0f) {
         dst_points[index - 1] = dst_points[index];
         dst_weights[index - 1] = dst_weights[index];
       }
       else {
-        alfa = alfa / (dst_knots[k + m] - src_knots[i - degree + m]);
+        alpha = alpha / (dst_knots[k + m] - src_knots[i - degree + m]);
         dst_points[index - 1] = bke::attribute_math::mix2(
-            alfa, dst_points[index], dst_points[index - 1]);
+            alpha, dst_points[index], dst_points[index - 1]);
         dst_weights[index - 1] = bke::attribute_math::mix2(
-            alfa, dst_weights[index], dst_weights[index - 1]);
+            alpha, dst_weights[index], dst_weights[index - 1]);
       }
     }
     dst_knots[k] = knot_inserts[j];
@@ -492,7 +492,7 @@ void knot_refine_rational(const int8_t order,
   }
 
   /* Remove weight contribution. */
-  for (int i = 0; i < dst_points.size(); i++) {
+  for (const int i : dst_points.index_range()) {
     dst_points[i] = dst_points[i] * 1.0f / dst_weights[i];
   }
 }
