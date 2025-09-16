@@ -400,7 +400,7 @@ typedef struct View3D {
 
   /** Runtime evaluation data (keep last). */
   View3D_Runtime runtime;
-  
+
   char _pad_final[8];
 } View3D;
 

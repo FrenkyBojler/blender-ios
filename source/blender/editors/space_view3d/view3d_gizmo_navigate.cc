@@ -163,7 +163,7 @@ static NavigateGizmoInfo g_navigate_params[GZ_INDEX_TOTAL] = {
 static bool WIDGETGROUP_navigate_poll(const bContext *C, wmGizmoGroupType * /*gzgt*/)
 {
   View3D *v3d = CTX_wm_view3d(C);
-  
+
   /* Check if silhouette should be shown based on gizmo flag and active mesh object */
   bool show_silhouette = false;
   if (!(v3d->gizmo_flag & V3D_GIZMO_HIDE_SILHOUETTE)) {
@@ -173,12 +173,13 @@ static bool WIDGETGROUP_navigate_poll(const bContext *C, wmGizmoGroupType * /*gz
     Object *active_ob = BKE_view_layer_active_object_get(view_layer);
     show_silhouette = (active_ob && active_ob->type == OB_MESH);
   }
-  
-  /* Allow the widget group if either navigation gizmos are enabled OR silhouette should be shown */
+
+  /* Allow the widget group if either navigation gizmos are enabled OR silhouette should be shown
+   */
   bool show_navigate = (((U.uiflag & USER_SHOW_GIZMO_NAVIGATE) != 0) ||
                         (U.mini_axis_type == USER_MINI_AXIS_TYPE_GIZMO)) &&
                        !(v3d->gizmo_flag & (V3D_GIZMO_HIDE | V3D_GIZMO_HIDE_NAVIGATE));
-  
+
   return show_navigate || show_silhouette;
 }
 
@@ -194,7 +195,7 @@ static void WIDGETGROUP_navigate_setup(const bContext *C, wmGizmoGroup *gzgroup)
     const NavigateGizmoInfo *info = &g_navigate_params[i];
     navgroup->gz_array[i] = WM_gizmo_new(info->gizmo, gzgroup, nullptr);
     wmGizmo *gz = navgroup->gz_array[i];
-    
+
     if (i == GZ_INDEX_SILHOUETTE) {
       /* Silhouette gizmo is visual only, no interaction */
       gz->flag |= WM_GIZMO_DRAW_MODAL;
@@ -205,7 +206,7 @@ static void WIDGETGROUP_navigate_setup(const bContext *C, wmGizmoGroup *gzgroup)
     }
     else {
       gz->flag |= WM_GIZMO_MOVE_CURSOR | WM_GIZMO_DRAW_MODAL;
-      
+
       if (i == GZ_INDEX_ROTATE) {
         gz->color[3] = 0.0f;
         copy_v3_fl(gz->color_hi, 0.5f);
@@ -326,7 +327,7 @@ static void WIDGETGROUP_navigate_draw_prepare(const bContext *C, wmGizmoGroup *g
   for (int i = 0; i < 3; i++) {
     copy_v3_v3(navgroup->gz_array[GZ_INDEX_ROTATE]->matrix_offset[i], rv3d->viewmat[i]);
   }
-  
+
   /* Copy view rotation to silhouette gizmo for synchronization */
   for (int i = 0; i < 3; i++) {
     copy_v3_v3(navgroup->gz_array[GZ_INDEX_SILHOUETTE]->matrix_offset[i], rv3d->viewmat[i]);
@@ -349,24 +350,28 @@ static void WIDGETGROUP_navigate_draw_prepare(const bContext *C, wmGizmoGroup *g
     ViewLayer *view_layer = CTX_data_view_layer(C);
     BKE_view_layer_synced_ensure(scene, view_layer);
     Object *active_ob = BKE_view_layer_active_object_get(view_layer);
-    
+
     wmGizmo *gz = navgroup->gz_array[GZ_INDEX_SILHOUETTE];
-    
+
     /* Show silhouette gizmo based on gizmo flag and active mesh object */
-    bool show_silhouette = !(v3d->gizmo_flag & V3D_GIZMO_HIDE_SILHOUETTE) && (active_ob && active_ob->type == OB_MESH);
-    
+    bool show_silhouette = !(v3d->gizmo_flag & V3D_GIZMO_HIDE_SILHOUETTE) &&
+                           (active_ob && active_ob->type == OB_MESH);
+
     if (show_silhouette) {
       /* Apply scale from RNA property (convert diameter to radius) */
       gz->scale_basis = v3d->gizmo_silhouette_scale / 2.0f;
-      
+
       const float base_offset = gz->scale_basis * UI_SCALE_FAC;
-      float pos_x = rect_visible->xmin + base_offset + (v3d->gizmo_silhouette_pos_x * UI_SCALE_FAC);
-      float pos_y = rect_visible->ymin + base_offset + (v3d->gizmo_silhouette_pos_y * UI_SCALE_FAC);
-      
+      float pos_x = rect_visible->xmin + base_offset +
+                    (v3d->gizmo_silhouette_pos_x * UI_SCALE_FAC);
+      float pos_y = rect_visible->ymin + base_offset +
+                    (v3d->gizmo_silhouette_pos_y * UI_SCALE_FAC);
+
       gz->matrix_basis[3][0] = roundf(pos_x);
       gz->matrix_basis[3][1] = roundf(pos_y);
       WM_gizmo_set_flag(gz, WM_GIZMO_HIDDEN, false);
-    } else {
+    }
+    else {
       WM_gizmo_set_flag(gz, WM_GIZMO_HIDDEN, true);
     }
     return;
@@ -465,25 +470,29 @@ static void WIDGETGROUP_navigate_draw_prepare(const bContext *C, wmGizmoGroup *g
     ViewLayer *view_layer = CTX_data_view_layer(C);
     BKE_view_layer_synced_ensure(scene, view_layer);
     Object *active_ob = BKE_view_layer_active_object_get(view_layer);
-    
+
     gz = navgroup->gz_array[GZ_INDEX_SILHOUETTE];
-    
+
     /* Show silhouette gizmo based on gizmo flag and active mesh object */
-    bool show_silhouette = !(v3d->gizmo_flag & V3D_GIZMO_HIDE_SILHOUETTE) && (active_ob && active_ob->type == OB_MESH);
-    
+    bool show_silhouette = !(v3d->gizmo_flag & V3D_GIZMO_HIDE_SILHOUETTE) &&
+                           (active_ob && active_ob->type == OB_MESH);
+
     if (show_silhouette) {
       /* Apply scale from RNA property (convert diameter to radius) */
       gz->scale_basis = v3d->gizmo_silhouette_scale / 2.0f;
-      
+
       const float base_offset = gz->scale_basis * UI_SCALE_FAC;
-      float pos_x = rect_visible->xmin + base_offset + (v3d->gizmo_silhouette_pos_x * UI_SCALE_FAC);
-      float pos_y = rect_visible->ymin + base_offset + (v3d->gizmo_silhouette_pos_y * UI_SCALE_FAC);
-      
+      float pos_x = rect_visible->xmin + base_offset +
+                    (v3d->gizmo_silhouette_pos_x * UI_SCALE_FAC);
+      float pos_y = rect_visible->ymin + base_offset +
+                    (v3d->gizmo_silhouette_pos_y * UI_SCALE_FAC);
+
       gz->matrix_basis[3][0] = roundf(pos_x);
       gz->matrix_basis[3][1] = roundf(pos_y);
-      
+
       WM_gizmo_set_flag(gz, WM_GIZMO_HIDDEN, false);
-    } else {
+    }
+    else {
       WM_gizmo_set_flag(gz, WM_GIZMO_HIDDEN, true);
     }
   }

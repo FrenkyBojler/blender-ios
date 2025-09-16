@@ -385,22 +385,21 @@ void VIEW3D_GT_navigate_rotate(wmGizmoType *gzt)
 static void gizmo_silhouette_draw(const bContext *C, wmGizmo *gz)
 {
   const Scene *scene = CTX_data_scene(C);
-  
+
   /* Get active object */
   ViewLayer *view_layer = CTX_data_view_layer(C);
   BKE_view_layer_synced_ensure(scene, view_layer);
   Object *active_ob = BKE_view_layer_active_object_get(view_layer);
-  
+
   if (!active_ob || active_ob->type != OB_MESH) {
     return;
   }
-  
-  
+
   const Mesh *mesh = static_cast<const Mesh *>(active_ob->data);
   if (!mesh || mesh->verts_num == 0) {
     return;
   }
-  
+
   /* Calculate screen position using same method as rotate gizmo */
   float matrix_screen[4][4];
   float matrix_unit[4][4];
@@ -409,47 +408,49 @@ static void gizmo_silhouette_draw(const bContext *C, wmGizmo *gz)
   WM_GizmoMatrixParams params{};
   params.matrix_offset = matrix_unit;
   WM_gizmo_calc_matrix_final_params(gz, &params, matrix_screen);
-  
+
   GPU_matrix_push();
   GPU_matrix_mul(matrix_screen);
-  
+
   /* Apply view rotation like the navigation gizmo does - BEFORE scaling */
   GPU_matrix_mul(gz->matrix_offset);
-  
+
   /* Handle perspective vs orthographic projection like rotate gizmo */
   bool use_project_matrix = (gz->scale_final >= -GPU_MATRIX_ORTHO_CLIP_NEAR_DEFAULT);
   if (use_project_matrix) {
     GPU_matrix_push_projection();
     GPU_matrix_ortho_set_z(-gz->scale_final, gz->scale_final);
   }
-  
+
   /* Save current GPU state */
   const bool depth_test_enabled = GPU_depth_test_get();
   const GPUFaceCullTest cull_test = GPU_face_culling_get();
-  
+
   /* Draw silhouette as solid black with no depth testing or face culling */
-  GPU_depth_test(GPU_DEPTH_ALWAYS);  /* Always pass depth test */
-  GPU_face_culling(GPU_CULL_NONE);   /* Show both front and back faces */
+  GPU_depth_test(GPU_DEPTH_ALWAYS); /* Always pass depth test */
+  GPU_face_culling(GPU_CULL_NONE);  /* Show both front and back faces */
   GPU_blend(GPU_BLEND_ALPHA);
-  
+
   GPUVertFormat *format = immVertexFormat();
-  const uint pos_id = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32_32);
-  
+  const uint pos_id = GPU_vertformat_attr_add(
+      format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32_32);
+
   /* Set black color for silhouette */
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
   immUniformColor4f(0.0f, 0.0f, 0.0f, 1.0f);
-  
+
   /* Get mesh data */
   const blender::Span<blender::float3> vert_positions = mesh->vert_positions();
   const blender::Span<blender::int3> corner_tris = mesh->corner_tris();
   const blender::Span<int> corner_verts = mesh->corner_verts();
-  
+
   if (vert_positions.is_empty() || corner_tris.is_empty()) {
     immUnbindProgram();
     /* Restore GPU state */
     if (depth_test_enabled) {
       GPU_depth_test(GPU_DEPTH_LESS_EQUAL);
-    } else {
+    }
+    else {
       GPU_depth_test(GPU_DEPTH_NONE);
     }
     GPU_face_culling(cull_test);
@@ -461,7 +462,7 @@ static void gizmo_silhouette_draw(const bContext *C, wmGizmo *gz)
   /* Calculate bounding box to normalize mesh */
   blender::float3 bb_min(FLT_MAX);
   blender::float3 bb_max(-FLT_MAX);
-  
+
   for (const blender::float3 &co : vert_positions) {
     bb_min.x = std::min(bb_min.x, co.x);
     bb_min.y = std::min(bb_min.y, co.y);
@@ -470,46 +471,47 @@ static void gizmo_silhouette_draw(const bContext *C, wmGizmo *gz)
     bb_max.y = std::max(bb_max.y, co.y);
     bb_max.z = std::max(bb_max.z, co.z);
   }
-  
+
   blender::float3 bb_center = (bb_min + bb_max) * 0.5f;
   blender::float3 bb_size = bb_max - bb_min;
   float max_dimension = blender::math::max(bb_size.x, blender::math::max(bb_size.y, bb_size.z));
-  
+
   /* Calculate final scale that keeps silhouette within safe bounds */
   /* Base scale fits mesh to unit cube, then apply gizmo scale with safe limit */
   float base_mesh_scale = (max_dimension > 0.0f) ? (1.0f / max_dimension) : 1.0f;
   float gizmo_scale = gz->scale_final * 0.03f;
   float final_scale = base_mesh_scale * gizmo_scale;
-  
+
   /* Clamp final scale to prevent clipping - keep within safe projection bounds */
   final_scale = std::min(final_scale, 0.8f);
-  
+
   /* Draw triangulated mesh faces */
   immBegin(GPU_PRIM_TRIS, corner_tris.size() * 3);
-  
+
   for (const blender::int3 &tri : corner_tris) {
     for (int i = 0; i < 3; i++) {
       const int vert_index = corner_verts[tri[i]];
       const blender::float3 &co = vert_positions[vert_index];
-      
+
       /* Center and normalize the vertex with final scale */
       blender::float3 normalized_co = (co - bb_center) * final_scale;
       immVertex3f(pos_id, normalized_co.x, normalized_co.y, normalized_co.z);
     }
   }
-  
+
   immEnd();
   immUnbindProgram();
-  
+
   /* Restore projection matrix if we used it */
   if (use_project_matrix) {
     GPU_matrix_pop_projection();
   }
-  
+
   /* Restore GPU state */
   if (depth_test_enabled) {
     GPU_depth_test(GPU_DEPTH_LESS_EQUAL);
-  } else {
+  }
+  else {
     GPU_depth_test(GPU_DEPTH_NONE);
   }
   GPU_face_culling(cull_test);
@@ -532,7 +534,7 @@ static bool gizmo_silhouette_screen_bounds_get(bContext *C, wmGizmo *gz, rcti *r
 {
   const ScrArea *area = CTX_wm_area(C);
   const float size = gz->scale_final;
-  
+
   r_bounding_box->xmin = gz->matrix_basis[3][0] + area->totrct.xmin - size * 0.5f;
   r_bounding_box->ymin = gz->matrix_basis[3][1] + area->totrct.ymin - size * 0.5f;
   r_bounding_box->xmax = r_bounding_box->xmin + size;
