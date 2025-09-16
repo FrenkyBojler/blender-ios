@@ -220,6 +220,8 @@ void VIEW3D_GT_navigate_rotate(wmGizmoType *gzt);
 
 void VIEW3D_GGT_placement(wmGizmoGroupType *gzgt);
 
+void VIEW3D_GT_silhouette(wmGizmoType *gzt);
+
 /* workaround for trivial but noticeable camera bug caused by imprecision
  * between view border calculation in 2D/3D space, workaround for bug #28037.
  * without this define we get the old behavior which is to try and align them

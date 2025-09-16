@@ -10,6 +10,10 @@
 #include "BLI_utildefines.h"
 
 #include "BKE_context.hh"
+#include "BKE_layer.hh"
+
+#include "DNA_object_types.h"
+#include "DNA_scene_types.h"
 
 #include "ED_gizmo_library.hh"
 #include "ED_screen.hh"
@@ -60,7 +64,9 @@ enum {
   GZ_INDEX_CAMERA_LOCK = 7,
   GZ_INDEX_CAMERA_UNLOCK = 8,
 
-  GZ_INDEX_TOTAL = 9,
+  GZ_INDEX_SILHOUETTE = 9,
+
+  GZ_INDEX_TOTAL = 10,
 };
 
 struct NavigateGizmoInfo {
@@ -146,18 +152,31 @@ static NavigateGizmoInfo g_navigate_params[GZ_INDEX_TOTAL] = {
         ICON_VIEW_UNLOCKED,
         navigate_context_toggle_camera_lock_init,
     },
+    {
+        nullptr,
+        "VIEW3D_GT_silhouette",
+        ICON_NONE,
+        nullptr,
+    },
 };
 
 static bool WIDGETGROUP_navigate_poll(const bContext *C, wmGizmoGroupType * /*gzgt*/)
 {
   View3D *v3d = CTX_wm_view3d(C);
-  if ((((U.uiflag & USER_SHOW_GIZMO_NAVIGATE) == 0) &&
-       (U.mini_axis_type != USER_MINI_AXIS_TYPE_GIZMO)) ||
-      (v3d->gizmo_flag & (V3D_GIZMO_HIDE | V3D_GIZMO_HIDE_NAVIGATE)))
-  {
-    return false;
-  }
-  return true;
+  
+  /* Check if silhouette should be shown (independent of navigation gizmo settings) */
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  BKE_view_layer_synced_ensure(scene, view_layer);
+  Object *active_ob = BKE_view_layer_active_object_get(view_layer);
+  bool show_silhouette = (active_ob && active_ob->type == OB_MESH);
+  
+  /* Allow the widget group if either navigation gizmos are enabled OR silhouette should be shown */
+  bool show_navigate = (((U.uiflag & USER_SHOW_GIZMO_NAVIGATE) != 0) ||
+                        (U.mini_axis_type == USER_MINI_AXIS_TYPE_GIZMO)) &&
+                       !(v3d->gizmo_flag & (V3D_GIZMO_HIDE | V3D_GIZMO_HIDE_NAVIGATE));
+  
+  return show_navigate || show_silhouette;
 }
 
 static void WIDGETGROUP_navigate_setup(const bContext *C, wmGizmoGroup *gzgroup)
@@ -171,35 +190,49 @@ static void WIDGETGROUP_navigate_setup(const bContext *C, wmGizmoGroup *gzgroup)
     const NavigateGizmoInfo *info = &g_navigate_params[i];
     navgroup->gz_array[i] = WM_gizmo_new(info->gizmo, gzgroup, nullptr);
     wmGizmo *gz = navgroup->gz_array[i];
-    gz->flag |= WM_GIZMO_MOVE_CURSOR | WM_GIZMO_DRAW_MODAL;
-
-    if (i == GZ_INDEX_ROTATE) {
+    
+    if (i == GZ_INDEX_SILHOUETTE) {
+      /* Silhouette gizmo is visual only, no interaction */
+      gz->flag |= WM_GIZMO_DRAW_MODAL;
       gz->color[3] = 0.0f;
-      copy_v3_fl(gz->color_hi, 0.5f);
-      gz->color_hi[3] = 0.5f;
+      copy_v3_fl(gz->color_hi, 0.0f);
+      gz->color_hi[3] = 0.0f;
+      gz->scale_basis = 80.0f / 2.0f;  /* 80px silhouette size */
+      printf("[DEBUG] Silhouette: Gizmo created with scale_basis=%.1f\n", gz->scale_basis);
     }
     else {
-      uchar icon_color[3];
-      UI_GetThemeColor3ubv(TH_TEXT, icon_color);
-      int color_tint, color_tint_hi;
-      if (icon_color[0] > 128) {
-        color_tint = -40;
-        color_tint_hi = 60;
-        gz->color[3] = 0.5f;
+      gz->flag |= WM_GIZMO_MOVE_CURSOR | WM_GIZMO_DRAW_MODAL;
+      
+      if (i == GZ_INDEX_ROTATE) {
+        gz->color[3] = 0.0f;
+        copy_v3_fl(gz->color_hi, 0.5f);
         gz->color_hi[3] = 0.5f;
       }
       else {
-        color_tint = 60;
-        color_tint_hi = 60;
-        gz->color[3] = 0.5f;
-        gz->color_hi[3] = 0.75f;
+        uchar icon_color[3];
+        UI_GetThemeColor3ubv(TH_TEXT, icon_color);
+        int color_tint, color_tint_hi;
+        if (icon_color[0] > 128) {
+          color_tint = -40;
+          color_tint_hi = 60;
+          gz->color[3] = 0.5f;
+          gz->color_hi[3] = 0.5f;
+        }
+        else {
+          color_tint = 60;
+          color_tint_hi = 60;
+          gz->color[3] = 0.5f;
+          gz->color_hi[3] = 0.75f;
+        }
+        UI_GetThemeColorShade3fv(TH_HEADER, color_tint, gz->color);
+        UI_GetThemeColorShade3fv(TH_HEADER, color_tint_hi, gz->color_hi);
       }
-      UI_GetThemeColorShade3fv(TH_HEADER, color_tint, gz->color);
-      UI_GetThemeColorShade3fv(TH_HEADER, color_tint_hi, gz->color_hi);
     }
 
     /* may be overwritten later */
-    gz->scale_basis = GIZMO_MINI_SIZE / 2.0f;
+    if (i != GZ_INDEX_SILHOUETTE) {
+      gz->scale_basis = GIZMO_MINI_SIZE / 2.0f;
+    }
     if (info->icon != ICON_NONE) {
       PropertyRNA *prop = RNA_struct_find_property(gz->ptr, "icon");
       RNA_property_enum_set(gz->ptr, prop, info->icon);
@@ -207,14 +240,16 @@ static void WIDGETGROUP_navigate_setup(const bContext *C, wmGizmoGroup *gzgroup)
           gz->ptr, "draw_options", ED_GIZMO_BUTTON_SHOW_OUTLINE | ED_GIZMO_BUTTON_SHOW_BACKDROP);
     }
 
-    wmOperatorType *ot = WM_operatortype_find(info->opname, true);
+    if (info->opname != nullptr) {
+      wmOperatorType *ot = WM_operatortype_find(info->opname, true);
 #ifndef WITH_PYTHON
-    if (ot != nullptr)
+      if (ot != nullptr)
 #endif
-    {
-      PointerRNA *ptr = WM_gizmo_operator_set(gz, 0, ot, nullptr);
-      if (info->op_prop_fn != nullptr) {
-        info->op_prop_fn(ptr);
+      {
+        PointerRNA *ptr = WM_gizmo_operator_set(gz, 0, ot, nullptr);
+        if (info->op_prop_fn != nullptr) {
+          info->op_prop_fn(ptr);
+        }
       }
     }
   }
@@ -287,6 +322,11 @@ static void WIDGETGROUP_navigate_draw_prepare(const bContext *C, wmGizmoGroup *g
 
   for (int i = 0; i < 3; i++) {
     copy_v3_v3(navgroup->gz_array[GZ_INDEX_ROTATE]->matrix_offset[i], rv3d->viewmat[i]);
+  }
+  
+  /* Copy view rotation to silhouette gizmo for synchronization */
+  for (int i = 0; i < 3; i++) {
+    copy_v3_v3(navgroup->gz_array[GZ_INDEX_SILHOUETTE]->matrix_offset[i], rv3d->viewmat[i]);
   }
 
   const rcti *rect_visible = ED_region_visible_rect(region);
@@ -388,6 +428,31 @@ static void WIDGETGROUP_navigate_draw_prepare(const bContext *C, wmGizmoGroup *g
       gz->matrix_basis[3][0] = roundf(co[0]);
       gz->matrix_basis[3][1] = roundf(co[1] - (icon_offset_mini * icon_mini_slot++));
       WM_gizmo_set_flag(gz, WM_GIZMO_HIDDEN, false);
+    }
+  }
+
+  /* Position silhouette gizmo in bottom-left corner when there's an active mesh object */
+  {
+    const Scene *scene = CTX_data_scene(C);
+    ViewLayer *view_layer = CTX_data_view_layer(C);
+    BKE_view_layer_synced_ensure(scene, view_layer);
+    Object *active_ob = BKE_view_layer_active_object_get(view_layer);
+    
+    gz = navgroup->gz_array[GZ_INDEX_SILHOUETTE];
+    
+    if (active_ob && active_ob->type == OB_MESH) {
+      printf("[DEBUG] Silhouette: Active mesh object found: %s\n", active_ob->id.name);
+      /* Position in bottom-left corner with more spacing from bottom */
+      const float silhouette_offset_x = (80.0f / 2.0f + 10.0f) * UI_SCALE_FAC;
+      const float silhouette_offset_y = (80.0f / 2.0f + 100.0f) * UI_SCALE_FAC;  /* More spacing from bottom */
+      gz->matrix_basis[3][0] = roundf(rect_visible->xmin + silhouette_offset_x);
+      gz->matrix_basis[3][1] = roundf(rect_visible->ymin + silhouette_offset_y);
+      printf("[DEBUG] Silhouette: Positioning at x=%.1f, y=%.1f\n", gz->matrix_basis[3][0], gz->matrix_basis[3][1]);
+      WM_gizmo_set_flag(gz, WM_GIZMO_HIDDEN, false);
+      printf("[DEBUG] Silhouette: Gizmo made visible\n");
+    } else {
+      printf("[DEBUG] Silhouette: No active mesh object, hiding gizmo\n");
+      WM_gizmo_set_flag(gz, WM_GIZMO_HIDDEN, true);
     }
   }
 }

@@ -22,6 +22,13 @@
 #include "BLI_sort_utils.h"
 
 #include "BKE_context.hh"
+#include "BKE_layer.hh"
+#include "BKE_mesh.hh"
+#include "BKE_object.hh"
+
+#include "DNA_mesh_types.h"
+#include "DNA_object_types.h"
+#include "DNA_scene_types.h"
 
 #include "GPU_immediate.hh"
 #include "GPU_matrix.hh"
@@ -370,3 +377,162 @@ void VIEW3D_GT_navigate_rotate(wmGizmoType *gzt)
 
   gzt->struct_size = sizeof(wmGizmo);
 }
+
+/* -------------------------------------------------------------------- */
+/** \name Silhouette Gizmo
+ * \{ */
+
+static void gizmo_silhouette_draw(const bContext *C, wmGizmo *gz)
+{
+  const Scene *scene = CTX_data_scene(C);
+  
+  /* Get active object */
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  BKE_view_layer_synced_ensure(scene, view_layer);
+  Object *active_ob = BKE_view_layer_active_object_get(view_layer);
+  
+  if (!active_ob || active_ob->type != OB_MESH) {
+    return;
+  }
+  
+  
+  const Mesh *mesh = static_cast<const Mesh *>(active_ob->data);
+  if (!mesh || mesh->verts_num == 0) {
+    return;
+  }
+  
+  /* Calculate screen position */
+  float matrix_screen[4][4];
+  WM_gizmo_calc_matrix_final(gz, matrix_screen);
+  
+  GPU_matrix_push();
+  GPU_matrix_mul(matrix_screen);
+  
+  /* Apply view rotation like the navigation gizmo does - BEFORE scaling */
+  GPU_matrix_mul(gz->matrix_offset);
+  
+  /* Scale to fit within small gizmo bounds - much smaller than normal scale */
+  const float scale_factor = gz->scale_final * 0.015f;  /* Very small scale for silhouette */
+  GPU_matrix_scale_1f(scale_factor);
+  
+  /* Save current GPU state */
+  const bool depth_test_enabled = GPU_depth_test_get();
+  const GPUFaceCullTest cull_test = GPU_face_culling_get();
+  
+  /* Draw silhouette as solid black with no depth testing or face culling */
+  GPU_depth_test(GPU_DEPTH_ALWAYS);  /* Always pass depth test */
+  GPU_face_culling(GPU_CULL_NONE);   /* Show both front and back faces */
+  GPU_blend(GPU_BLEND_ALPHA);
+  
+  GPUVertFormat *format = immVertexFormat();
+  const uint pos_id = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32_32);
+  
+  /* Set black color for silhouette */
+  immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
+  immUniformColor4f(0.0f, 0.0f, 0.0f, 1.0f);
+  
+  /* Get mesh data */
+  const blender::Span<blender::float3> vert_positions = mesh->vert_positions();
+  const blender::Span<blender::int3> corner_tris = mesh->corner_tris();
+  const blender::Span<int> corner_verts = mesh->corner_verts();
+  
+  if (vert_positions.is_empty() || corner_tris.is_empty()) {
+    immUnbindProgram();
+    /* Restore GPU state */
+    if (depth_test_enabled) {
+      GPU_depth_test(GPU_DEPTH_LESS_EQUAL);
+    } else {
+      GPU_depth_test(GPU_DEPTH_NONE);
+    }
+    GPU_face_culling(cull_test);
+    GPU_blend(GPU_BLEND_NONE);
+    GPU_matrix_pop();
+    return;
+  }
+
+  /* Calculate bounding box to normalize mesh */
+  blender::float3 bb_min(FLT_MAX);
+  blender::float3 bb_max(-FLT_MAX);
+  
+  for (const blender::float3 &co : vert_positions) {
+    bb_min.x = std::min(bb_min.x, co.x);
+    bb_min.y = std::min(bb_min.y, co.y);
+    bb_min.z = std::min(bb_min.z, co.z);
+    bb_max.x = std::max(bb_max.x, co.x);
+    bb_max.y = std::max(bb_max.y, co.y);
+    bb_max.z = std::max(bb_max.z, co.z);
+  }
+  
+  blender::float3 bb_center = (bb_min + bb_max) * 0.5f;
+  blender::float3 bb_size = bb_max - bb_min;
+  float max_dimension = blender::math::max(bb_size.x, blender::math::max(bb_size.y, bb_size.z));
+  
+  /* Normalize scale to fit in gizmo - scale down to fit within unit bounds */
+  float mesh_scale = (max_dimension > 0.0f) ? (0.8f / max_dimension) : 1.0f;
+  
+  /* Draw triangulated mesh faces */
+  immBegin(GPU_PRIM_TRIS, corner_tris.size() * 3);
+  
+  for (const blender::int3 &tri : corner_tris) {
+    for (int i = 0; i < 3; i++) {
+      const int vert_index = corner_verts[tri[i]];
+      const blender::float3 &co = vert_positions[vert_index];
+      
+      /* Center and normalize the vertex */
+      blender::float3 normalized_co = (co - bb_center) * mesh_scale;
+      immVertex3f(pos_id, normalized_co.x, normalized_co.y, normalized_co.z);
+    }
+  }
+  
+  immEnd();
+  immUnbindProgram();
+  
+  /* Restore GPU state */
+  if (depth_test_enabled) {
+    GPU_depth_test(GPU_DEPTH_LESS_EQUAL);
+  } else {
+    GPU_depth_test(GPU_DEPTH_NONE);
+  }
+  GPU_face_culling(cull_test);
+  GPU_blend(GPU_BLEND_NONE);
+  GPU_matrix_pop();
+}
+
+static int gizmo_silhouette_test_select(bContext * /*C*/, wmGizmo * /*gz*/, const int /*mval*/[2])
+{
+  /* Silhouette gizmo is not interactive */
+  return -1;
+}
+
+static int gizmo_silhouette_cursor_get(wmGizmo * /*gz*/)
+{
+  return WM_CURSOR_DEFAULT;
+}
+
+static bool gizmo_silhouette_screen_bounds_get(bContext *C, wmGizmo *gz, rcti *r_bounding_box)
+{
+  const ScrArea *area = CTX_wm_area(C);
+  const float size = gz->scale_final;
+  
+  r_bounding_box->xmin = gz->matrix_basis[3][0] + area->totrct.xmin - size * 0.5f;
+  r_bounding_box->ymin = gz->matrix_basis[3][1] + area->totrct.ymin - size * 0.5f;
+  r_bounding_box->xmax = r_bounding_box->xmin + size;
+  r_bounding_box->ymax = r_bounding_box->ymin + size;
+  return true;
+}
+
+void VIEW3D_GT_silhouette(wmGizmoType *gzt)
+{
+  /* identifiers */
+  gzt->idname = "VIEW3D_GT_silhouette";
+
+  /* API callbacks. */
+  gzt->draw = gizmo_silhouette_draw;
+  gzt->test_select = gizmo_silhouette_test_select;
+  gzt->cursor_get = gizmo_silhouette_cursor_get;
+  gzt->screen_bounds_get = gizmo_silhouette_screen_bounds_get;
+
+  gzt->struct_size = sizeof(wmGizmo);
+}
+
+/** \} */
