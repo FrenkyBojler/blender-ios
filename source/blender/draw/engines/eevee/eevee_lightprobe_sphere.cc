@@ -239,6 +239,7 @@ void SphereProbeModule::remap_to_octahedral_projection(const SphereProbeAtlasCoo
     instance_.manager->submit(convolve_ps_);
   }
 
+  /* This is only true for the world probe. */
   if (extract_spherical_harmonics) {
     instance_.manager->submit(sum_sh_ps_);
     instance_.manager->submit(sum_sun_ps_);

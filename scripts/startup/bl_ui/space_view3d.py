@@ -6638,6 +6638,8 @@ class VIEW3D_PT_shading_lighting(Panel):
                 if engine == 'BLENDER_WORKBENCH':
                     row.prop(shading, "use_studiolight_view_rotation", text="", icon='WORLD', toggle=True)
                     row = row.row()
+                else:
+                    row.prop(shading, "use_world_space_lighting", text="", icon='WORLD', toggle=True)
                 row.prop(shading, "studiolight_rotate_z", text="Rotation")
 
                 col.prop(shading, "studiolight_intensity")

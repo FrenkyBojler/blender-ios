@@ -394,8 +394,12 @@ void LookdevModule::store_world_probe_data(
   SphereProbePixelArea write_coord_mip3 = atlas_coord.as_write_coord(3);
   SphereProbePixelArea write_coord_mip4 = atlas_coord.as_write_coord(4);
 
-  world_sphere_probe_.ensure_2d_array(
-      gpu::TextureFormat::SPHERE_PROBE_FORMAT, in_sphere_probe.size().xy(), 1);
+  world_sphere_probe_.ensure_2d_array(gpu::TextureFormat::SPHERE_PROBE_FORMAT,
+                                      in_sphere_probe.size().xy(),
+                                      1,
+                                      GPU_TEXTURE_USAGE_GENERAL,
+                                      nullptr,
+                                      5);
   world_sphere_probe_.ensure_mip_views();
 
   PassSimple pass = {__func__};
@@ -414,6 +418,10 @@ void LookdevModule::store_world_probe_data(
   pass.bind_image("out_sphere_mip2", world_sphere_probe_.mip_view(2));
   pass.bind_image("out_sphere_mip3", world_sphere_probe_.mip_view(3));
   pass.bind_image("out_sphere_mip4", world_sphere_probe_.mip_view(4));
+  pass.bind_ssbo("in_sh", in_volume_probe);
+  pass.bind_ssbo("out_sh", world_volume_probe_);
+  pass.bind_ssbo("in_sun", in_sunlight);
+  pass.bind_ssbo("out_sun", world_sunlight_);
   int3 dispatch_size = int3(
       int2(math::divide_ceil(int2(write_coord_mip0.extent), int2(SPHERE_PROBE_REMAP_GROUP_SIZE))),
       1);

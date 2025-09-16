@@ -8,6 +8,7 @@
 
 #  include "draw_view_info.hh"
 #  include "eevee_common_info.hh"
+#  include "eevee_light_shared.hh"
 #  include "eevee_lightprobe_shared.hh"
 
 #  define SPHERE_PROBE
@@ -38,6 +39,7 @@ GPU_SHADER_CREATE_END()
 GPU_SHADER_CREATE_INFO(eevee_lookdev_copy_world)
 LOCAL_GROUP_SIZE(SPHERE_PROBE_REMAP_GROUP_SIZE, SPHERE_PROBE_REMAP_GROUP_SIZE)
 TYPEDEF_SOURCE("eevee_lightprobe_shared.hh")
+TYPEDEF_SOURCE("eevee_light_shared.hh")
 PUSH_CONSTANT(int4, read_coord_packed)
 PUSH_CONSTANT(int4, write_coord_mip0_packed)
 PUSH_CONSTANT(int4, write_coord_mip1_packed)

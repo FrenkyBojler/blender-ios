@@ -21,6 +21,10 @@
 
 #include "DRW_gpu_wrapper.hh"
 
+#include "eevee_light_shared.hh"
+#include "eevee_lightprobe.hh"
+#include "eevee_lightprobe_shared.hh"
+
 #include "draw_pass.hh"
 
 struct bNode;
@@ -110,6 +114,8 @@ class LookdevWorld {
 /** \name Lookdev
  *
  * \{ */
+
+using namespace draw;
 
 class LookdevModule {
  private:
