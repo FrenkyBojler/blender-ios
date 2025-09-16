@@ -27,7 +27,9 @@
 @class MTLCommandQueue;
 @class MTLRenderPipelineState;
 
-struct gpu::FrameBuffer;
+namespace blender::gpu {
+class FrameBuffer;
+}  // namespace blender::gpu
 
 /* Texture Update system structs. */
 struct TextureUpdateRoutineSpecialisation {

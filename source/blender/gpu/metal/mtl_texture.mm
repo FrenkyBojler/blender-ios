@@ -1377,7 +1377,7 @@ void gpu::MTLTexture::clear(eGPUDataFormat data_format, const void *data)
   if (do_render_pass_clear) {
     /* Create clear frame-buffer for fast clear. */
     gpu::FrameBuffer *prev_fb = GPU_framebuffer_active_get();
-    FrameBuffer *fb = unwrap(this->get_blit_framebuffer(-1, 0));
+    FrameBuffer *fb = this->get_blit_framebuffer(-1, 0);
     fb->bind(true);
     fb->clear_attachment(this->attachment_type(0), data_format, data);
     GPU_framebuffer_bind(prev_fb);
