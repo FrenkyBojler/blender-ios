@@ -1176,8 +1176,10 @@ static int stitch_process_data(StitchStateContainer *ssc,
       BM_ITER_MESH (vert, &vert_iter, bm, BM_VERTS_OF_MESH) {
         if (BM_elem_flag_test(vert, BM_ELEM_SELECT)) {
           orig_vert_sel.append(vert);
-          BM_elem_flag_disable(vert, BM_ELEM_SELECT);
         }
+      }
+      BM_ITER_MESH (efa, &iter, bm, BM_FACES_OF_MESH) {
+        BM_elem_flag_disable(efa, BM_ELEM_SELECT);
       }
 
       BM_ITER_MESH (efa, &iter, bm, BM_FACES_OF_MESH) {
@@ -1200,7 +1202,6 @@ static int stitch_process_data(StitchStateContainer *ssc,
       for (BMVert *vert : orig_vert_sel) {
         BM_elem_flag_enable(vert, BM_ELEM_SELECT);
       }
-
       BMUVOffsets offsets = BM_uv_map_offsets_get(bm);
       float uv_area = 0.0f;
       float object_area = 0.0f;
