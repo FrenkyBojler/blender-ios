@@ -364,17 +364,17 @@ static std::pair<int, int> compute_knot_insertions(const int8_t order,
 
 static void subdivide_nurbs_curve(const int8_t order,
                                   const Span<float> src_knots,
-                                  const Span<float3> src_points,
+                                  const Span<float3> src_positions,
                                   const Span<float> src_weights,
                                   const std::pair<int, int> span_range,
                                   const Span<float> knot_inserts,
                                   MutableSpan<float> dst_knots,
-                                  MutableSpan<float3> dst_points,
+                                  MutableSpan<float3> dst_positions,
                                   MutableSpan<float> dst_weights)
 {
   if (knot_inserts.size() == 0) {
     array_utils::copy(src_knots, dst_knots);
-    array_utils::copy(src_points, dst_points);
+    array_utils::copy(src_positions, dst_positions);
     array_utils::copy(src_weights, dst_weights);
   }
   else if (src_weights.size() > 0) {
@@ -383,10 +383,10 @@ static void subdivide_nurbs_curve(const int8_t order,
                                              span_range.second,
                                              knot_inserts,
                                              src_knots,
-                                             src_points,
+                                             src_positions,
                                              src_weights,
                                              dst_knots,
-                                             dst_points,
+                                             dst_positions,
                                              dst_weights);
   }
   else {
@@ -397,9 +397,9 @@ static void subdivide_nurbs_curve(const int8_t order,
                                                       span_range.second,
                                                       knot_inserts,
                                                       src_knots,
-                                                      src_points,
+                                                      src_positions,
                                                       dst_knots,
-                                                      dst_points);
+                                                      dst_positions);
   }
 }
 
@@ -425,13 +425,13 @@ bke::CurvesGeometry subdivide_curves(const bke::CurvesGeometry &src_curves,
   IndexMask reduced_selection;
   if (has_nurbs) {
     reduced_selection = IndexMask::from_predicate(
-        selection, GrainSize(1024), reduced_selection_mem, [&](const int64_t curve_index) {
+        selection, GrainSize(1024), reduced_selection_mem, [&](const int64_t curve_i) {
           /* TODO: Support Cyclic Custom NURBS as well... */
-          return !cyclic[curve_index] && bke::curves::nurbs::check_valid_num_and_order(
-                                             src_points_by_curve[curve_index].size(),
-                                             src_order[curve_index],
-                                             cyclic[curve_index],
-                                             KnotsMode(src_knot_mode[curve_index]));
+          return !cyclic[curve_i] &&
+                 bke::curves::nurbs::check_valid_num_and_order(src_points_by_curve[curve_i].size(),
+                                                               src_order[curve_i],
+                                                               cyclic[curve_i],
+                                                               KnotsMode(src_knot_mode[curve_i]));
         });
   }
   const IndexMask &subdiv_mask = has_nurbs ? reduced_selection : selection;
@@ -565,16 +565,16 @@ bke::CurvesGeometry subdivide_curves(const bke::CurvesGeometry &src_curves,
 
     selection.foreach_segment(
         GrainSize(512), [&](const IndexMaskSegment segment, const int64_t mask_offset) {
-          for (const int curve_index : segment) {
-            const IndexRange src_points = src_points_by_curve[curve_index];
-            const IndexRange dst_points = dst_points_by_curve[curve_index];
+          for (const int curve_i : segment) {
+            const IndexRange src_points = src_points_by_curve[curve_i];
+            const IndexRange dst_points = dst_points_by_curve[curve_i];
 
-            const bool is_cyclic = cyclic[curve_index];
-            const int8_t order = src_order[curve_index];
-            const KnotsMode mode = KnotsMode(src_knot_mode[curve_index]);
+            const bool is_cyclic = cyclic[curve_i];
+            const int8_t order = src_order[curve_i];
+            const KnotsMode mode = KnotsMode(src_knot_mode[curve_i]);
 
-            const IndexRange src_segments = bke::curves::per_curve_point_offsets_range(
-                src_points, curve_index);
+            const IndexRange src_segments = bke::curves::per_curve_point_offsets_range(src_points,
+                                                                                       curve_i);
             const Span<int> all_point_offsets = all_point_offset_data.as_span().slice(
                 src_segments);
 
@@ -585,7 +585,7 @@ bke::CurvesGeometry subdivide_curves(const bke::CurvesGeometry &src_curves,
                                                  src_points.size(),
                                                  order,
                                                  is_cyclic,
-                                                 src_custom_knots_by_curve[curve_index],
+                                                 src_custom_knots_by_curve[curve_i],
                                                  src_custom_knots,
                                                  knots[mask_offset]);
 
@@ -610,7 +610,7 @@ bke::CurvesGeometry subdivide_curves(const bke::CurvesGeometry &src_curves,
                                   src_weight_span,
                                   span_ranges[mask_offset],
                                   knot_inserts[mask_offset],
-                                  dst_custom_knots.slice(dst_custom_knots_by_curve[curve_index]),
+                                  dst_custom_knots.slice(dst_custom_knots_by_curve[curve_i]),
                                   dst_positions.slice(dst_points),
                                   dst_weight_span);
           }
@@ -634,18 +634,18 @@ bke::CurvesGeometry subdivide_curves(const bke::CurvesGeometry &src_curves,
         using T = decltype(dummy);
         const Span<T> src_typed = src.typed<T>();
         MutableSpan<T> dst_typed = dst.typed<T>();
-        selection.foreach_index(
-            GrainSize(512), [&](const int64_t curve_index, const int64_t mask_offset) {
-              bke::curves::nurbs::knot_refine_attribute<T>(
-                  src_order[curve_index],
-                  span_ranges[mask_offset].first,
-                  span_ranges[mask_offset].second,
-                  knot_inserts[mask_offset],
-                  knots[mask_offset],
-                  src_typed,
-                  dst_custom_knots.slice(dst_custom_knots_by_curve[curve_index]),
-                  dst_typed);
-            });
+        selection.foreach_index(GrainSize(512),
+                                [&](const int64_t curve_i, const int64_t mask_offset) {
+                                  bke::curves::nurbs::knot_refine_attribute<T>(
+                                      src_order[curve_i],
+                                      span_ranges[mask_offset].first,
+                                      span_ranges[mask_offset].second,
+                                      knot_inserts[mask_offset],
+                                      knots[mask_offset],
+                                      src_typed,
+                                      dst_custom_knots.slice(dst_custom_knots_by_curve[curve_i]),
+                                      dst_typed);
+                                });
       });
     }
   };
