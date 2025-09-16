@@ -54,6 +54,11 @@ static void update_curve_mask(CurveMaskCache *curve_mask_cache,
 {
   BLI_assert(curve_mask_cache->curve_mask != nullptr);
   int offset = int(floorf(diameter / 2.0f));
+  /* TODO: This isn't correct, the below should read
+   * float clamped_radius = max_ff(radius, 0.5f)
+   * to account for the fact that the diameter of the brush can be 1 as of 5.0.
+   * However, this leads to a much worse user experience when using a "pixel" brush of size 1. With
+   * full support for non-circular brush tips, this can be corrected. */
   int clamped_radius = max_ff(radius, 1.0);
 
   ushort *m = curve_mask_cache->curve_mask;
