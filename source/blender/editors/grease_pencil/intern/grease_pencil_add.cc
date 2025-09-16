@@ -26,104 +26,78 @@ struct ColorTemplate {
   const char *name;
   float line[4];
   float fill[4];
-  bool show_stroke;
-  bool show_fill;
 };
 
 static const ColorTemplate gp_stroke_material_black = {
     N_("Black"),
     {0.0f, 0.0f, 0.0f, 1.0f},
-    {0.0f, 0.0f, 0.0f, 0.0f},
-    true,
-    false,
+    {0.0f, 0.0f, 0.0f, 1.0f},
 };
 
 static const ColorTemplate gp_stroke_material_white = {
     N_("White"),
     {1.0f, 1.0f, 1.0f, 1.0f},
-    {0.0f, 0.0f, 0.0f, 0.0f},
-    true,
-    false,
+    {1.0f, 1.0f, 1.0f, 1.0f},
 };
 
 static const ColorTemplate gp_stroke_material_red = {
     N_("Red"),
     {1.0f, 0.0f, 0.0f, 1.0f},
-    {0.0f, 0.0f, 0.0f, 0.0f},
-    true,
-    false,
+    {1.0f, 0.0f, 0.0f, 1.0f},
 };
 
 static const ColorTemplate gp_stroke_material_green = {
     N_("Green"),
     {0.0f, 1.0f, 0.0f, 1.0f},
-    {0.0f, 0.0f, 0.0f, 0.0f},
-    true,
-    false,
+    {0.0f, 1.0f, 0.0f, 1.0f},
 };
 
 static const ColorTemplate gp_stroke_material_blue = {
     N_("Blue"),
     {0.0f, 0.0f, 1.0f, 1.0f},
-    {0.0f, 0.0f, 0.0f, 0.0f},
-    true,
-    false,
+    {0.0f, 0.0f, 1.0f, 1.0f},
 };
 
 static const ColorTemplate gp_fill_material_grey = {
     N_("Grey"),
-    {0.358f, 0.358f, 0.358f, 1.0f},
     {0.5f, 0.5f, 0.5f, 1.0f},
-    false,
-    true,
+    {0.5f, 0.5f, 0.5f, 1.0f},
 };
 
 static const ColorTemplate gp_monkey_material_black = {
     N_("Black"),
     {0.0f, 0.0f, 0.0f, 1.0f},
-    {0.0f, 0.0f, 0.0f, 0.0f},
-    true,
-    false,
+    {0.0f, 0.0f, 0.0f, 1.0f},
 };
 
 static const ColorTemplate gp_monkey_material_skin = {
     N_("Skin"),
-    {0.733f, 0.569f, 0.361f, 1.0f},
     {0.745f, 0.502f, 0.278f, 1.0f},
-    false,
-    true,
+    {0.745f, 0.502f, 0.278f, 1.0f},
 };
 
 static const ColorTemplate gp_monkey_material_skin_light = {
     N_("Skin_light"),
     {0.914f, 0.827f, 0.635f, 1.0f},
-    {0.913f, 0.828f, 0.637f, 0.0f},
-    true,
-    false,
+    {0.914f, 0.827f, 0.635f, 1.0f},
 };
 
 static const ColorTemplate gp_monkey_material_skin_shadow = {
     N_("Skin_shadow"),
     {0.322f, 0.29f, 0.224f, 0.5f},
     {0.32f, 0.29f, 0.223f, 0.3f},
-    true,
-    false,
 };
 
 static const ColorTemplate gp_monkey_material_eyes = {
     N_("Eyes"),
-    {0.553f, 0.39f, 0.266f, 0.0f},
     {0.847f, 0.723f, 0.599f, 1.0f},
-    false,
-    true,
+    {0.847f, 0.723f, 0.599f, 1.0f},
 };
 
 static const ColorTemplate gp_monkey_material_pupils = {
     N_("Pupils"),
-    {0.0f, 0.0f, 0.0f, 0.0f},
     {0.0f, 0.0f, 0.0f, 1.0f},
-    false,
-    true,
+    {0.0f, 0.0f, 0.0f, 1.0f},
 };
 
 static std::array<float3, 175> stroke_positions({
@@ -1120,9 +1094,6 @@ static int add_material_from_template(Main &bmain, Object &ob, const ColorTempla
 
   copy_v4_v4(ma->gp_style->fill_rgba, pct.fill);
   srgb_to_linearrgb_v4(ma->gp_style->fill_rgba, ma->gp_style->fill_rgba);
-
-  SET_FLAG_FROM_TEST(ma->gp_style->flag, pct.show_stroke, GP_MATERIAL_STROKE_SHOW);
-  SET_FLAG_FROM_TEST(ma->gp_style->flag, pct.show_fill, GP_MATERIAL_FILL_SHOW);
 
   return index;
 }
