@@ -14,7 +14,6 @@
 
 struct AnimData;
 struct BoundBox;
-struct Ipo;
 struct Material;
 
 typedef struct MetaElem {
@@ -60,8 +59,6 @@ typedef struct MetaBall {
   ListBase elems;
   /** Not saved in files, note we use pointer for editmode check. */
   ListBase *editelems;
-  /** Old animation system, deprecated for 2.5. */
-  struct Ipo *ipo DNA_DEPRECATED;
 
   /* material of the mother ball will define the material used of all others */
   struct Material **mat;

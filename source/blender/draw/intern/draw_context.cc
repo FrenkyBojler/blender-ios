@@ -771,9 +771,13 @@ static void foreach_obref_in_scene(DRWContext &draw_ctx,
   eEvaluationMode eval_mode = DEG_get_mode(depsgraph);
   View3D *v3d = draw_ctx.v3d;
 
+#if 0 /* Temporary disabled until we can fix all the issues that it causes. */
   /* EEVEE is not supported for now. */
   const bool engines_support_handle_ranges = (v3d && v3d->shading.type <= OB_SOLID) ||
                                              BKE_scene_uses_blender_workbench(draw_ctx.scene);
+#else
+  const bool engines_support_handle_ranges = false;
+#endif
 
   DEGObjectIterSettings deg_iter_settings = {nullptr};
   deg_iter_settings.depsgraph = depsgraph;
@@ -1766,7 +1770,7 @@ void DRW_custom_pipeline_end(DRWContext &draw_ctx)
    * resources as the main thread (viewport) may lead to data
    * races and undefined behavior on certain drivers. Using
    * GPU_finish to sync seems to fix the issue. (see #62997) */
-  eGPUBackendType type = GPU_backend_get_type();
+  GPUBackendType type = GPU_backend_get_type();
   if (type == GPU_BACKEND_OPENGL) {
     GPU_finish();
   }
