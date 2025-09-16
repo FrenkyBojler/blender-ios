@@ -640,7 +640,11 @@ static int *bmesh_find_doubles_by_distance_impl(BMesh *bm,
   int *duplicates = MEM_malloc_arrayN<int>(verts_len, __func__);
   blender::Vector<blender::float3> survivor_cos(verts_len);
 
+  KDTree_3d *tree = BLI_kdtree_3d_new(verts_len);
+
   for (int i = 0; i < verts_len; i++) {
+    BLI_kdtree_3d_insert(tree, i, verts[i]->co);
+
     if (has_keep_vert && BMO_vert_flag_test(bm, verts[i], VERT_KEEP)) {
       duplicates[i] = i;
     }
@@ -649,10 +653,6 @@ static int *bmesh_find_doubles_by_distance_impl(BMesh *bm,
     }
   }
 
-  KDTree_3d *tree = BLI_kdtree_3d_new(verts_len);
-  for (int i = 0; i < verts_len; i++) {
-    BLI_kdtree_3d_insert(tree, i, verts[i]->co);
-  }
   BLI_kdtree_3d_balance(tree);
 
   const int found = BLI_kdtree_3d_calc_duplicates_stable(
