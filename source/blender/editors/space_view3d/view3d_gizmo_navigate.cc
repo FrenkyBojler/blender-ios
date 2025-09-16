@@ -184,6 +184,7 @@ static bool WIDGETGROUP_navigate_poll(const bContext *C, wmGizmoGroupType * /*gz
 
 static void WIDGETGROUP_navigate_setup(const bContext *C, wmGizmoGroup *gzgroup)
 {
+  View3D *v3d = CTX_wm_view3d(C);
   NavigateWidgetGroup *navgroup = MEM_callocN<NavigateWidgetGroup>(__func__);
 
   wmOperatorType *ot_view_axis = WM_operatortype_find("VIEW3D_OT_view_axis", true);
@@ -200,7 +201,7 @@ static void WIDGETGROUP_navigate_setup(const bContext *C, wmGizmoGroup *gzgroup)
       gz->color[3] = 0.0f;
       copy_v3_fl(gz->color_hi, 0.0f);
       gz->color_hi[3] = 0.0f;
-      gz->scale_basis = 80.0f / 2.0f;  /* Fixed 80px silhouette size */
+      gz->scale_basis = v3d->gizmo_silhouette_scale / 2.0f;
     }
     else {
       gz->flag |= WM_GIZMO_MOVE_CURSOR | WM_GIZMO_DRAW_MODAL;
