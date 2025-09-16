@@ -968,7 +968,7 @@ int BLI_kdtree_nd_(calc_duplicates_stable)(const KDTree *tree,
 
   blender::Array<int> index_lookup(tree->max_node_index + 1);
   for (uint i = 0; i < nodes_len; i++) {
-    index_lookup[tree->nodes[i].index] = i;
+    index_lookup[tree->nodes[i].index] = int(i);
   }
 
   blender::BitVector<> visited(tree->max_node_index + 1, false);
@@ -1010,11 +1010,11 @@ int BLI_kdtree_nd_(calc_duplicates_stable)(const KDTree *tree,
     float centroid[KD_DIMS] = {};
     int survivor_index = cluster[0];
 
-    for (int cluster_index : cluster) {
-      const float *co = tree->nodes[index_lookup[cluster_index]].co;
+    for (int cluster_node_index : cluster) {
+      const float *co = tree->nodes[index_lookup[cluster_node_index]].co;
       add_vn_vn(centroid, co);
-      if (cluster_index < survivor_index) {
-        survivor_index = cluster_index;
+      if (cluster_node_index < survivor_index) {
+        survivor_index = cluster_node_index;
       }
     }
 
@@ -1023,10 +1023,10 @@ int BLI_kdtree_nd_(calc_duplicates_stable)(const KDTree *tree,
     copy_vn_vn(r_cluster_center[survivor_index], centroid);
 
     /* Assign duplicates mapping. */
-    for (int cluster_index : cluster) {
-      duplicates[cluster_index] = survivor_index;
+    for (int cluster_node_index : cluster) {
+      duplicates[cluster_node_index] = survivor_index;
     }
-    found += static_cast<int>(cluster.size() - 1);
+    found += int(cluster.size()) - 1;
     cluster.clear();
   }
 
