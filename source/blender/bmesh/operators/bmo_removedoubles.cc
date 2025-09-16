@@ -624,7 +624,7 @@ void bmo_collapse_uvs_exec(BMesh *bm, BMOperator *op)
  * Compared to 'BLI_kdtree_3d_calc_duplicates_fast', this version is slower
  * because it performs stable clustering and centroid computation to
  * ensure consistent survivor selection.
- * Aprroximately 1.1-1.5x slower performance on extremely large meshes
+ * Approximately 1.1-1.5x slower performance on extremely large meshes
  * depending on topology and density.
  * 
  * \return a `verts_len` aligned array of indices.
