@@ -56,6 +56,8 @@ KERNEL_DATA_ARRAY(KernelLightDistribution, light_distribution)
 KERNEL_DATA_ARRAY(KernelLight, lights)
 KERNEL_DATA_ARRAY(float2, light_background_marginal_cdf)
 KERNEL_DATA_ARRAY(float2, light_background_conditional_cdf)
+KERNEL_DATA_ARRAY(float2, light_dome_marginal_cdf)
+KERNEL_DATA_ARRAY(float2, light_dome_conditional_cdf)
 
 /* light tree */
 KERNEL_DATA_ARRAY(KernelLightTreeNode, light_tree_nodes)

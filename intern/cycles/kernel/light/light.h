@@ -162,7 +162,7 @@ ccl_device_inline bool light_sample(KernelGlobals kg,
   }
   else if (type == LIGHT_DOME) {
     /* dome light (illuminates inward from all directions) */
-    const float3 D = dome_light_sample(kg, P, rand, &ls->pdf);
+    const float3 D = dome_light_sample(kg, klight, rand, &ls->pdf);
 
     ls->P = D;
     ls->Ng = -D; /* Normal points inward for dome lights */

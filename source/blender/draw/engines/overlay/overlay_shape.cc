@@ -1135,53 +1135,49 @@ ShapeCache::ShapeCache()
   /* light dome lines - hemisphere */
   {
     constexpr int segments_horizontal = 16;
-    constexpr int segments_vertical = 8;
+    constexpr int segments_vertical = 16;
     const Vector<float2> ring = ring_vertices(1.0f, segments_horizontal);
 
     Vector<Vertex> verts;
 
-    /* Horizontal rings at different elevations - reuse spherical but flatten bottom half */
-    for (const int v : IndexRange(segments_vertical + 1)) {
-      const float elevation = (float(v) / float(segments_vertical)) * math::numbers::pi -
-                              (math::numbers::pi / 2.0f);
+    /* 4 Horizontal rings: equator, middle, upper, and top + base ring */
+    const float ring_elevations[] = {0.0f, math::numbers::pi / 6.0f, math::numbers::pi / 3.0f, math::numbers::pi / 2.0f};
+    for (const float elevation : ring_elevations) {
       const float radius = cosf(elevation);
       const float height = sinf(elevation);
 
-      /* Flatten bottom half to z=0 (floor) */
-      const float final_height = (height < 0.0f) ? 0.0f : height;
-
-      if (radius > 0.05f) { /* Skip rings that are too small */
-        Vector<float2> scaled_ring;
-        for (const float2 &point : ring) {
-          scaled_ring.append(point * radius);
-        }
-        append_line_loop(verts, scaled_ring, final_height, VCLASS_LIGHT_AREA_SHAPE);
+      Vector<float2> scaled_ring;
+      for (const float2 &point : ring) {
+        scaled_ring.append(point * radius);
       }
+      append_line_loop(verts, scaled_ring, height, VCLASS_LIGHT_AREA_SHAPE);
     }
+    
+    /* Additional ring in the middle of the flat base (at z=0, radius=0.5) */
+    Vector<float2> base_middle_ring;
+    for (const float2 &point : ring) {
+      base_middle_ring.append(point * 0.5f);
+    }
+    append_line_loop(verts, base_middle_ring, 0.0f, VCLASS_LIGHT_AREA_SHAPE);
 
-    /* Vertical meridians - reuse spherical but flatten bottom half */
-    for (const int h : IndexRange(segments_horizontal / 2)) { /* Every other meridian */
-      const float angle = (2.0f * math::numbers::pi * h * 2) / segments_horizontal;
+    /* 6 Vertical meridians - hemisphere at 60° intervals */
+    for (const int h : IndexRange(6)) {
+      const float angle = h * 2.0f * math::numbers::pi / 6.0f; /* 0°, 60°, 120°, 180°, 240°, 300° */
       const float x = cosf(angle);
       const float y = sinf(angle);
 
-      for (const int v : IndexRange(segments_vertical)) {
-        const float elevation1 = (float(v) / float(segments_vertical)) * math::numbers::pi -
-                                 (math::numbers::pi / 2.0f);
-        const float elevation2 = (float(v + 1) / float(segments_vertical)) * math::numbers::pi -
-                                 (math::numbers::pi / 2.0f);
+      /* Draw hemisphere meridian - from equator to top */
+      for (const int v : IndexRange(segments_vertical / 2)) {
+        const float elevation1 = (float(v) / float(segments_vertical / 2)) * math::numbers::pi / 2.0f;
+        const float elevation2 = (float(v + 1) / float(segments_vertical / 2)) * math::numbers::pi / 2.0f;
 
         const float radius1 = cosf(elevation1);
         const float height1 = sinf(elevation1);
         const float radius2 = cosf(elevation2);
         const float height2 = sinf(elevation2);
 
-        /* Flatten bottom half to z=0 (floor) */
-        const float final_height1 = (height1 < 0.0f) ? 0.0f : height1;
-        const float final_height2 = (height2 < 0.0f) ? 0.0f : height2;
-
-        verts.append({{x * radius1, y * radius1, final_height1}, VCLASS_LIGHT_AREA_SHAPE});
-        verts.append({{x * radius2, y * radius2, final_height2}, VCLASS_LIGHT_AREA_SHAPE});
+        verts.append({{x * radius1, y * radius1, height1}, VCLASS_LIGHT_AREA_SHAPE});
+        verts.append({{x * radius2, y * radius2, height2}, VCLASS_LIGHT_AREA_SHAPE});
       }
     }
 
