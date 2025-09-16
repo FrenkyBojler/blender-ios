@@ -891,54 +891,74 @@ static wmOperatorStatus lattice_add_exec(bContext *C, wmOperator *op)
       }
     }
     else {
-      /* Aligns lattice to active object’s rotation,
-       * sized to world bounding box of all selected objects.
+      /* Align lattice to active object’s rotation,
+       * sized to oriented bounding box of all selected objects.
        */
       Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
       Object *ob_active_eval = (Object *)DEG_get_evaluated_id(depsgraph, &ob_active->id);
 
-      float M[4][4];
-      BKE_object_to_mat4(ob_active_eval, M);
+      float M_act[4][4];
+      BKE_object_to_mat4(ob_active_eval, M_act);
 
       float R_raw[3][3], R[3][3], q[4];
-      copy_m3_m4(R_raw, M);
+      copy_m3_m4(R_raw, M_act);
       normalize_m3_m3(R, R_raw);
       mat3_to_quat(q, R);
 
-      float sel_min[3], sel_max[3];
-      copy_v3_v3(sel_min, bounds_opt->min);
-      copy_v3_v3(sel_max, bounds_opt->max);
+      float invR[3][3];
+      invert_m3_m3(invR, R);
 
+      Bounds<float3> local_bounds;
+      local_bounds.min = float3(FLT_MAX);
+      local_bounds.max = float3(-FLT_MAX);
+
+      for (Object *tob : targets) {
+        Object *tob_eval = (Object *)DEG_get_evaluated_id(depsgraph, &tob->id);
+        if (!tob_eval || !DEG_object_transform_is_evaluated(*tob_eval)) {
+          continue;
+        }
+
+        if (std::optional<Bounds<float3>> ob_bounds = BKE_object_boundbox_get(tob_eval)) {
+          float M[4][4];
+          BKE_object_to_mat4(tob_eval, M);
+          std::array<float3, 8> corners = bounds::corners(*ob_bounds);
+
+          for (float3 &corner : corners) {
+            mul_m4_v3(M, corner);
+            mul_m3_v3(invR, corner);
+            local_bounds.min = math::min(local_bounds.min, corner);
+            local_bounds.max = math::max(local_bounds.max, corner);
+          }
+        }
+      }
+
+      float sel_min[3], sel_max[3];
+      copy_v3_v3(sel_min, local_bounds.min);
+      copy_v3_v3(sel_max, local_bounds.max);
       for (int i = 0; i < 3; i++) {
         sel_min[i] -= offset;
         sel_max[i] += offset;
       }
 
-      float center_w[3], size_w[3];
-      mid_v3_v3v3(center_w, sel_min, sel_max);
-      sub_v3_v3v3(size_w, sel_max, sel_min);
+      float center_l[3], size_l[3];
+      mid_v3_v3v3(center_l, sel_min, sel_max);
+      sub_v3_v3v3(size_l, sel_max, sel_min);
 
-      float s[3];
-      s[0] = len_v3((float[3]){M[0][0], M[1][0], M[2][0]});
-      s[1] = len_v3((float[3]){M[0][1], M[1][1], M[2][1]});
-      s[2] = len_v3((float[3]){M[0][2], M[1][2], M[2][2]});
-
-      float dims[3] = {
-          size_w[0] * s[0],
-          size_w[1] * s[1],
-          size_w[2] * s[2],
-      };
-
-      const float lat_rest[3] = {1.0f, 1.0f, 1.0f};
+      float center_w[3];
+      copy_v3_v3(center_w, center_l);
+      mul_m3_v3(R, center_w);
 
       ob->rotmode = ROT_MODE_QUAT;
       copy_qt_qt(ob->quat, q);
 
-      ob->scale[0] = dims[0] / lat_rest[0];
-      ob->scale[1] = dims[1] / lat_rest[1];
-      ob->scale[2] = dims[2] / lat_rest[2];
+      ob->loc[0] = center_w[0];
+      ob->loc[1] = center_w[1];
+      ob->loc[2] = center_w[2];
 
-      copy_v3_v3(ob->loc, center_w);
+      ob->scale[0] = size_l[0];
+      ob->scale[1] = size_l[1];
+      ob->scale[2] = size_l[2];
+
       BKE_lattice_resize(lt, max_ii(1, res_u), max_ii(1, res_v), max_ii(1, res_w), ob);
       DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY | ID_RECALC_TRANSFORM);
       DEG_relations_tag_update(CTX_data_main(C));
