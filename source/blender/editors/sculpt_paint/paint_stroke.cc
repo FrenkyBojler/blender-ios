@@ -704,9 +704,9 @@ static float paint_space_stroke_spacing(const bContext *C,
         stroke->vc, *paint, brush, last_object_space_position, size_factor);
   }
   else {
-    /* brushes can have a minimum size of 1.0 but with pressure it can be smaller than a pixel
+    /* brushes can have a minimum radius of 0.5 but with pressure it can be smaller than a pixel
      * causing very high step sizes, hanging blender #32381. */
-    size_clamp = max_ff(1.0f, BKE_brush_radius_get(stroke->paint, stroke->brush) * size_factor);
+    size_clamp = max_ff(0.5f, BKE_brush_radius_get(stroke->paint, stroke->brush) * size_factor);
   }
 
   float spacing = stroke->brush->spacing;
@@ -733,7 +733,11 @@ static float paint_space_stroke_spacing(const bContext *C,
      * see #129853. */
     return max_ff(FLT_EPSILON, size_clamp * spacing / 50.0f);
   }
-  return max_ff(stroke->zoom_2d, size_clamp * spacing / 50.0f);
+  /* Having a high zoom value should not cause the spacing to update less frequently, as this can
+   * cause the brush to feel unresponsive. */
+  const int clamped_zoom = min_ff(stroke->zoom_2d, 1.0f);
+  /* Update once per pixel at most */
+  return max_ff(clamped_zoom, size_clamp * spacing / 50.0f);
 }
 
 static float paint_space_stroke_spacing_no_pressure(const bContext *C, PaintStroke *stroke)
