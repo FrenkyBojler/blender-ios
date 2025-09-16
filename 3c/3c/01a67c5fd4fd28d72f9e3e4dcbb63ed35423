@@ -1,1 +1,2 @@
 Referenced by issue #144483, Use-after-free crash when splitting View3D with opened Asset Shelf
+Referenced by issue #146333, Error On Calling "show_region_asset_shelf" With Shortcut
