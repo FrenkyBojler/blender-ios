@@ -84,7 +84,7 @@ static int get_divisor(const int distance)
  */
 static int calculate_grid_step(const int base, const float pixel_width, const float view_width)
 {
-  if (IS_EQF(view_width, 0.0f) || base == 0) {
+  if (IS_EQF(view_width, 0.0f) || IS_EQF(pixel_width, 0.0f) || base == 0) {
     return 1;
   }
   const float pixels_per_view_unit = pixel_width / view_width;
