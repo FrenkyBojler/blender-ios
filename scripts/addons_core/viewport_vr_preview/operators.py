@@ -335,12 +335,37 @@ class VIEW3D_OT_vr_viewfinder_apply_action(Operator):
 
         if viewfinder_mode == "LIVE":
             # View Zoom Control
+            LENS_FOCALS = [
+                18,
+                20,
+                24,
+                28,
+                35,
+                50,
+                70,
+                85,
+                100,
+                135,
+                200,
+                300
+            ]
             camera = context.scene.camera
+            current_focal = camera.data.lens
 
-            change_rate = 3
-            change = change_rate if self.action_up else -change_rate
+            # Find the nearest lens focal length index
+            diff_list = [abs(focal - current_focal) for focal in LENS_FOCALS]
+            cur_index = diff_list.index(min(diff_list))
 
-            camera.data.lens = camera.data.lens + change
+            if self.action_up:
+                # Zoom in
+                new_index = min(cur_index + 1, len(LENS_FOCALS) - 1)
+            else:
+                # Zoom out
+                new_index = max(cur_index - 1, 0)
+
+            # Apply the new focal length
+            camera.data.lens = LENS_FOCALS[new_index]
+
             return {'FINISHED'}
 
         if viewfinder_mode == "PLAYBACK":
@@ -348,7 +373,7 @@ class VIEW3D_OT_vr_viewfinder_apply_action(Operator):
             scene = context.scene
             landmarks = scene.vr_landmarks
 
-            incr = 1 if self.action_down else -1
+            incr = 1 if self.action_up else -1
             scene.vr_landmarks_selected = (scene.vr_landmarks_selected + incr) % len(landmarks)
 
             return {'FINISHED'}
