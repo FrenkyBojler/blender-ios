@@ -9830,10 +9830,7 @@ static int bpy_class_call(bContext *C, PointerRNA *ptr, FunctionRNA *func, Param
     }
 
     if (reports) {
-      const int flag_orig = reports->flag;
-      reports->flag |= RPT_PRINT;
-      BPy_errors_to_report_ex(reports, nullptr, true, true, false);
-      reports->flag = flag_orig;
+      BPy_errors_to_report(reports);
     }
 
     /* Also print in the console for Python. */

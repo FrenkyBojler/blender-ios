@@ -31,8 +31,7 @@ void BPy_reports_write_stdout(const struct ReportList *reports, const char *head
 bool BPy_errors_to_report_ex(struct ReportList *reports,
                              const char *error_prefix,
                              bool use_full,
-                             bool use_location,
-                             bool suppress_print);
+                             bool use_location);
 /**
  * \param reports: Any errors will be added to the report list.
  *
