@@ -211,6 +211,10 @@ static void blo_update_defaults_screen(bScreen *screen,
       v3d->gizmo_silhouette_scale = 80.0f;
       v3d->gizmo_silhouette_pos_x = 0.0f;
       v3d->gizmo_silhouette_pos_y = 40.0f;
+      v3d->gizmo_silhouette_color[0] = 0.0f;
+      v3d->gizmo_silhouette_color[1] = 0.0f;
+      v3d->gizmo_silhouette_color[2] = 0.0f;
+      v3d->gizmo_silhouette_color[3] = 1.0f;
       /* Remove dither pattern in wireframe mode. */
       v3d->shading.xray_alpha_wire = 0.0f;
       v3d->clip_start = 0.01f;

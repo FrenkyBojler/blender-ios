@@ -376,6 +376,7 @@ typedef struct View3D {
   float gizmo_silhouette_scale;
   float gizmo_silhouette_pos_x;
   float gizmo_silhouette_pos_y;
+  float gizmo_silhouette_color[4];
 
   char _pad_gpd[4];
 

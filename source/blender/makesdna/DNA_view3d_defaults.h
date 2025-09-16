@@ -115,6 +115,7 @@
     .gizmo_silhouette_scale = 80.0f, \
     .gizmo_silhouette_pos_x = 0.0f, \
     .gizmo_silhouette_pos_y = 40.0f, \
+    .gizmo_silhouette_color = {0.0f, 0.0f, 0.0f, 1.0f}, \
   }
 
 /** \} */

@@ -6925,8 +6925,10 @@ class VIEW3D_PT_gizmo_display(Panel):
         # Silhouette settings - only show when silhouette is enabled
         if view.gizmo_show_silhouette:
             colsub.prop(view, "gizmo_silhouette_scale", text="Scale")
-            colsub.prop(view, "gizmo_silhouette_pos_x", text="Position X")
-            colsub.prop(view, "gizmo_silhouette_pos_y", text="Position Y")
+            row = colsub.row(align=True)
+            row.prop(view, "gizmo_silhouette_pos_x", text="X")
+            row.prop(view, "gizmo_silhouette_pos_y", text="Y")
+            colsub.prop(view, "gizmo_silhouette_color", text="")
 
         layout.separator()
 

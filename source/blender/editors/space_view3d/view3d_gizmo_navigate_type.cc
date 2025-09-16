@@ -435,9 +435,10 @@ static void gizmo_silhouette_draw(const bContext *C, wmGizmo *gz)
   const uint pos_id = GPU_vertformat_attr_add(
       format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32_32);
 
-  /* Set black color for silhouette */
+  /* Get silhouette color from view3d settings */
+  const View3D *v3d = CTX_wm_view3d(C);
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
-  immUniformColor4f(0.0f, 0.0f, 0.0f, 1.0f);
+  immUniformColor4fv(v3d->gizmo_silhouette_color);
 
   /* Get mesh data */
   const blender::Span<blender::float3> vert_positions = mesh->vert_positions();
