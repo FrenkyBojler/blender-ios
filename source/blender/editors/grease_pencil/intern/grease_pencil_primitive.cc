@@ -137,7 +137,6 @@ struct PrimitiveToolOperation {
   std::optional<ColorGeometry4f> vertex_color;
   std::optional<ColorGeometry4f> fill_color;
   int material_index;
-  bool use_fill;
   bool on_back;
   float softness;
   float fill_opacity;
@@ -634,7 +633,7 @@ static void grease_pencil_primitive_init_curves(PrimitiveToolOperation &ptd)
     }
   }
 
-  if (ptd.use_fill && (ptd.fill_opacity < 1.0f || attributes.contains("fill_opacity"))) {
+  if (ptd.fill_opacity < 1.0f || attributes.contains("fill_opacity")) {
     if (bke::SpanAttributeWriter<float> fill_opacities =
             attributes.lookup_or_add_for_write_span<float>(
                 "fill_opacity",
@@ -815,7 +814,6 @@ static wmOperatorStatus grease_pencil_primitive_invoke(bContext *C,
   Material *material = BKE_grease_pencil_object_material_ensure_from_brush(
       CTX_data_main(C), vc.obact, ptd.brush);
   ptd.material_index = BKE_object_material_index_get(vc.obact, material);
-  ptd.use_fill = (material->gp_style->flag & GP_MATERIAL_FILL_SHOW) != 0;
 
   const bool use_vertex_color = (vc.scene->toolsettings->gp_paint->mode ==
                                  GPPAINT_FLAG_USE_VERTEXCOLOR);
