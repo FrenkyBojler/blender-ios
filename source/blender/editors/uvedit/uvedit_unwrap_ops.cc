@@ -1678,7 +1678,6 @@ static void pack_islands_startjob(void *pidv, wmJobWorkerStatus *worker_status)
 
   UVPackIslandsData *pid = static_cast<UVPackIslandsData *>(pidv);
 
-  G.is_break = worker_status->stop;
   pid->pack_island_params.stop = &worker_status->stop;
   pid->pack_island_params.do_update = &worker_status->do_update;
   pid->pack_island_params.progress = &worker_status->progress;
@@ -1790,6 +1789,9 @@ static wmOperatorStatus pack_islands_exec(bContext *C, wmOperator *op)
     pack_island_params.setUDIMOffsetFromSpaceImage(sima);
   }
 
+  /* Needed even when jobs aren't used, see: #146195. */
+  G.is_break = false;
+
   if (pid->use_job) {
     /* Setup job. */
     if (pid->wm->op_undo_depth == 0) {
@@ -1806,7 +1808,6 @@ static wmOperatorStatus pack_islands_exec(bContext *C, wmOperator *op)
     WM_jobs_callbacks(wm_job, pack_islands_startjob, nullptr, nullptr, pack_islands_endjob);
 
     WM_cursor_wait(true);
-    G.is_break = false;
     WM_jobs_start(CTX_wm_manager(C), wm_job);
     return OPERATOR_FINISHED;
   }
