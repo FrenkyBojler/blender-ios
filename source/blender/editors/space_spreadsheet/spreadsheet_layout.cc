@@ -43,19 +43,20 @@ static const std::string format_matrix_to_grid(const float4x4 &matrix)
     }
   }
 
-  std::stringstream ss;
+  fmt::memory_buffer buf;
   for (const int row_i : IndexRange(4)) {
     for (const int col_i : IndexRange(4)) {
-      ss << fmt::format("{:>{}}", formatted_elements[row_i][col_i], column_widths[col_i]);
+      fmt::format_to(
+          fmt::appender(buf), "{:>{}}", formatted_elements[row_i][col_i], column_widths[col_i]);
       if (col_i < 3) {
-        ss << "  ";
+        fmt::format_to(fmt::appender(buf), "  ");
       }
     }
     if (row_i < 3) {
-      ss << "\n";
+      fmt::format_to(fmt::appender(buf), "\n");
     }
   }
-  return ss.str();
+  return fmt::to_string(buf);
 }
 
 class SpreadsheetLayoutDrawer : public SpreadsheetDrawer {
