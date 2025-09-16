@@ -2428,7 +2428,6 @@ class GlareOperation : public NodeOperation {
         return this->get_input("Color Kernel");
     }
 
-    BLI_assert_unreachable();
     return this->get_input("Float Kernel");
   }
 
