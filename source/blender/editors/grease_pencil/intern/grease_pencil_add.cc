@@ -1103,6 +1103,8 @@ static bke::CurvesGeometry create_drawing_data(const Span<float3> positions,
                                                const Span<float> opacities,
                                                const Span<int> offsets,
                                                const Span<int> materials,
+                                               const Span<bool> show_strokes,
+                                               const Span<bool> show_fills,
                                                const float4x4 &matrix)
 {
   using namespace blender::bke;
@@ -1135,11 +1137,22 @@ static bke::CurvesGeometry create_drawing_data(const Span<float3> positions,
       "material_index", AttrDomain::Curve);
   stroke_materials.span.copy_from(materials);
 
+  SpanAttributeWriter<bool> is_strokes = attributes.lookup_or_add_for_write_span<bool>(
+      "is_stroke", AttrDomain::Curve);
+  is_strokes.span.copy_from(show_strokes);
+
+  SpanAttributeWriter<bool> is_fills = attributes.lookup_or_add_for_write_span<bool>(
+      "is_fill", AttrDomain::Curve);
+  is_fills.span.copy_from(show_fills);
+
   point_radii.finish();
   point_opacities.finish();
 
   stroke_cyclic.finish();
   stroke_materials.finish();
+
+  is_strokes.finish();
+  is_fills.finish();
 
   return curves;
 }
@@ -1178,8 +1191,14 @@ void create_stroke(Main &bmain, Object &object, const float4x4 &matrix, const in
   Drawing &drawing_lines = *grease_pencil.insert_frame(layer_lines, frame_number);
   grease_pencil.insert_frame(layer_color, frame_number);
 
-  drawing_lines.strokes_for_write() = create_drawing_data(
-      stroke_positions, stroke_radii, stroke_opacities, {0, 175}, {material_index}, matrix);
+  drawing_lines.strokes_for_write() = create_drawing_data(stroke_positions,
+                                                          stroke_radii,
+                                                          stroke_opacities,
+                                                          {0, 175},
+                                                          {material_index},
+                                                          {true},
+                                                          {false},
+                                                          matrix);
   drawing_lines.tag_topology_changed();
 }
 
@@ -1231,6 +1250,42 @@ void create_suzanne(Main &bmain, Object &object, const float4x4 &matrix, const i
       color_skin_shadow,
   });
 
+  const std::array<bool, 15> monkey_line_strokes({true,
+                                                  true,
+                                                  true,
+                                                  true,
+                                                  true,
+                                                  true,
+                                                  true,
+                                                  true,
+                                                  true,
+                                                  false,
+                                                  false,
+                                                  true,
+                                                  true,
+                                                  true,
+                                                  true});
+  const std::array<bool, 15> monkey_line_fills({false,
+                                                false,
+                                                false,
+                                                false,
+                                                false,
+                                                false,
+                                                false,
+                                                false,
+                                                false,
+                                                true,
+                                                true,
+                                                false,
+                                                false,
+                                                false,
+                                                false});
+
+  const std::array<bool, 13> monkey_fill_strokes(
+      {false, true, true, true, true, true, true, true, false, true, false, true, true});
+  const std::array<bool, 13> monkey_fill_fills(
+      {true, false, false, false, false, false, false, false, true, false, true, false, false});
+
   Layer &layer_fills = grease_pencil.add_layer(DATA_("Fills"));
   Layer &layer_lines = grease_pencil.add_layer(DATA_("Lines"));
   grease_pencil.set_active_layer(&layer_lines);
@@ -1243,12 +1298,16 @@ void create_suzanne(Main &bmain, Object &object, const float4x4 &matrix, const i
                                                           monkey_line_opacities,
                                                           monkey_line_offsets,
                                                           monkey_line_materials,
+                                                          monkey_line_strokes,
+                                                          monkey_line_fills,
                                                           matrix);
   drawing_fills.strokes_for_write() = create_drawing_data(monkey_fill_positions,
                                                           monkey_fill_radii,
                                                           monkey_fill_opacities,
                                                           monkey_fill_offsets,
                                                           monkey_fill_materials,
+                                                          monkey_fill_strokes,
+                                                          monkey_fill_fills,
                                                           matrix);
   drawing_lines.tag_topology_changed();
   drawing_fills.tag_topology_changed();
