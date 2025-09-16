@@ -736,7 +736,7 @@ static float paint_space_stroke_spacing(const bContext *C,
   /* Having a high zoom value should not cause the spacing to update less frequently, as this can
    * cause the brush to feel unresponsive. */
   const int clamped_zoom = min_ff(stroke->zoom_2d, 1.0f);
-  /* Update once per pixel at most */
+  /* Update once per pixel at most. */
   return max_ff(clamped_zoom, size_clamp * spacing / 50.0f);
 }
 
