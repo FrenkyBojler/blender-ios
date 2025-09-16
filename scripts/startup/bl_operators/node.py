@@ -403,7 +403,7 @@ class NODE_OT_swap_node(NodeSwapOperator, Operator):
                     if socket.name != self.visible_output:
                         socket.hide = True
             
-            with temporary_unframe(old_node):
+            with temporary_unframe((old_node,)):
                 new_node.location = old_node.location
                 new_node.select = True
 
@@ -648,7 +648,7 @@ class NODE_OT_swap_zone(ZoneOperator, NodeSwapOperator, Operator):
                 for node in zone_pair:
                     tree.nodes.remove(node)
             else:
-                with temporary_unframe(old_node):
+                with temporary_unframe((old_node,)):
                     input_node.location = old_node.location
                     output_node.location = old_node.location
 
