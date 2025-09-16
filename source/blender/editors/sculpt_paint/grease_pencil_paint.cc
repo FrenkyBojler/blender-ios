@@ -292,11 +292,11 @@ struct PaintOperationExecutor {
     use_vertex_color_ = brush_using_vertex_color(scene_->toolsettings->gp_paint, brush_);
     if (use_vertex_color_) {
       ColorGeometry4f vertex_color;
-      srgb_to_linearrgb_v3_v3(vertex_color, brush_->color);
+      copy_v3_v3(vertex_color, brush_->color);
       vertex_color.a = settings_->vertex_factor;
 
       ColorGeometry4f fill_color;
-      srgb_to_linearrgb_v3_v3(fill_color, brush_->secondary_color);
+      copy_v3_v3(fill_color, brush_->secondary_color);
       fill_color.a = settings_->vertex_factor;
 
       if (ELEM(settings_->vertex_mode, GPPAINT_MODE_STROKE, GPPAINT_MODE_BOTH)) {

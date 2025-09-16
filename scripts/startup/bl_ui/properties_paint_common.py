@@ -1670,12 +1670,12 @@ def brush_basic_grease_pencil_paint_settings(layout, context, brush, props, *, c
         "builtin.polyline",
     }
 
-    grease_pencil_brush_type = brush.gpencil_tool
+    grease_pencil_brush_type = brush.gpencil_brush_type
 
     if grease_pencil_brush_type in {'DRAW', 'ERASE', 'TINT'} or is_primitive_tool:
         size = "size"
         if brush.use_locked_size == 'SCENE' and (grease_pencil_brush_type == 'DRAW' or is_primitive_tool):
-            size = "unprojected_radius"
+            size = "unprojected_size"
         row = layout.row(align=True)
         row.prop(brush, size, slider=True, text="Size")
         row.prop(brush, "use_pressure_size", text="")
@@ -1692,7 +1692,7 @@ def brush_basic_grease_pencil_paint_settings(layout, context, brush, props, *, c
             col = layout.column()
             col.template_curve_mapping(gp_settings, "curve_strength", brush=True)
 
-    if grease_pencil_tool in {'DRAW'} or is_primitive_tool:
+    if grease_pencil_brush_type in {'DRAW'} or is_primitive_tool:
         row = layout.row(align=True)
         if compact:
             row.prop(brush.gpencil_settings, "stroke_mode", expand=True, icon_only=True)

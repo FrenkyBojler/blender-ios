@@ -821,11 +821,11 @@ static wmOperatorStatus grease_pencil_primitive_invoke(bContext *C,
                                  GPPAINT_FLAG_USE_VERTEXCOLOR);
   if (use_vertex_color) {
     ColorGeometry4f vertex_color;
-    srgb_to_linearrgb_v3_v3(vertex_color, ptd.brush->color);
+    copy_v3_v3(vertex_color, ptd.brush->color);
     vertex_color.a = ptd.settings->vertex_factor;
 
     ColorGeometry4f fill_color;
-    srgb_to_linearrgb_v3_v3(fill_color, ptd.brush->secondary_color);
+    copy_v3_v3(fill_color, ptd.brush->secondary_color);
     fill_color.a = ptd.settings->vertex_factor;
 
     ptd.vertex_color = ELEM(ptd.settings->vertex_mode, GPPAINT_MODE_STROKE, GPPAINT_MODE_BOTH) ?
