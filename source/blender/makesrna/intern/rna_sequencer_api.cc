@@ -100,7 +100,7 @@ static Strip *rna_Strip_split(ID *id,
   ListBase *seqbase = blender::seq::get_seqbase_by_strip(scene, strip);
 
   const char *error_msg = nullptr;
-  Strip *r_seq = blender::seq::edit_strip_split(bmain,
+  Strip *strip_split = blender::seq::edit_strip_split(bmain,
                                                 scene,
                                                 seqbase,
                                                 strip,
@@ -118,7 +118,7 @@ static Strip *rna_Strip_split(ID *id,
 
   WM_main_add_notifier(NC_SCENE | ND_SEQUENCER, scene);
 
-  return r_seq;
+  return strip_split;
 }
 
 static Strip *rna_Strip_parent_meta(ID *id, Strip *strip_self)
