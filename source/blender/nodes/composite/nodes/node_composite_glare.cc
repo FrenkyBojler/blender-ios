@@ -224,12 +224,12 @@ static void cmp_node_glare_declare(NodeDeclarationBuilder &b)
       .default_value(KernelDataType::Float)
       .static_items(kernel_data_type_items)
       .usage_by_menu("Type", CMP_NODE_GLARE_KERNEL);
-  glare_panel.add_input<decl::Float>("Float Kernel", "Float Kernel")
+  glare_panel.add_input<decl::Float>("Kernel", "Float Kernel")
       .hide_value()
       .structure_type(StructureType::Dynamic)
       .usage_by_menu("Kernel Data Type", int(KernelDataType::Float))
       .compositor_realization_mode(CompositorInputRealizationMode::Transforms);
-  glare_panel.add_input<decl::Color>("Color Kernel", "Color Kernel")
+  glare_panel.add_input<decl::Color>("Kernel", "Color Kernel")
       .hide_value()
       .structure_type(StructureType::Dynamic)
       .usage_by_menu("Kernel Data Type", int(KernelDataType::Color))
@@ -618,7 +618,7 @@ class GlareOperation : public NodeOperation {
       case CMP_NODE_GLARE_SUN_BEAMS:
         return this->execute_sun_beams(highlights_result);
       case CMP_NODE_GLARE_KERNEL:
-        return this->execute_custom_kernel(highlights_result);
+        return this->execute_kernel(highlights_result);
     }
 
     return this->execute_simple_star(highlights_result);
@@ -2398,25 +2398,25 @@ class GlareOperation : public NodeOperation {
    * Kernel.
    * ---------- */
 
-  Result execute_custom_kernel(const Result &highlights)
+  Result execute_kernel(const Result &highlights)
   {
     const Result &kernel = this->get_kernel_input();
-    Result custom_kernel_result = this->context().create_result(ResultType::Color);
+    Result kernel_result = this->context().create_result(ResultType::Color);
 
     if (kernel.is_single_value()) {
-      custom_kernel_result.allocate_texture(highlights.domain());
+      kernel_result.allocate_texture(highlights.domain());
       if (this->context().use_gpu()) {
-        GPU_texture_copy(custom_kernel_result, highlights);
+        GPU_texture_copy(kernel_result, highlights);
       }
       else {
-        parallel_for(custom_kernel_result.domain().size, [&](const int2 texel) {
-          custom_kernel_result.store_pixel(texel, highlights.load_pixel<float4>(texel));
+        parallel_for(kernel_result.domain().size, [&](const int2 texel) {
+          kernel_result.store_pixel(texel, highlights.load_pixel<float4>(texel));
         });
       }
-      return custom_kernel_result;
+      return kernel_result;
     }
-    convolve(this->context(), highlights, kernel, custom_kernel_result, true);
-    return custom_kernel_result;
+    convolve(this->context(), highlights, kernel, kernel_result, true);
+    return kernel_result;
   }
 
   const Result &get_kernel_input()
