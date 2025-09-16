@@ -423,10 +423,6 @@ static void gizmo_silhouette_draw(const bContext *C, wmGizmo *gz)
     GPU_matrix_ortho_set_z(-gz->scale_final, gz->scale_final);
   }
   
-  /* Scale to fit within small gizmo bounds - much smaller than normal scale */
-  const float scale_factor = gz->scale_final * 0.03f;  /* Very small scale for silhouette */
-  GPU_matrix_scale_1f(scale_factor);
-  
   /* Save current GPU state */
   const bool depth_test_enabled = GPU_depth_test_get();
   const GPUFaceCullTest cull_test = GPU_face_culling_get();
@@ -479,8 +475,14 @@ static void gizmo_silhouette_draw(const bContext *C, wmGizmo *gz)
   blender::float3 bb_size = bb_max - bb_min;
   float max_dimension = blender::math::max(bb_size.x, blender::math::max(bb_size.y, bb_size.z));
   
-  /* Normalize scale to fit in gizmo - scale down to fit within unit bounds */
-  float mesh_scale = (max_dimension > 0.0f) ? (0.8f / max_dimension) : 1.0f;
+  /* Calculate final scale that keeps silhouette within safe bounds */
+  /* Base scale fits mesh to unit cube, then apply gizmo scale with safe limit */
+  float base_mesh_scale = (max_dimension > 0.0f) ? (1.0f / max_dimension) : 1.0f;
+  float gizmo_scale = gz->scale_final * 0.03f;
+  float final_scale = base_mesh_scale * gizmo_scale;
+  
+  /* Clamp final scale to prevent clipping - keep within safe projection bounds */
+  final_scale = std::min(final_scale, 0.8f);
   
   /* Draw triangulated mesh faces */
   immBegin(GPU_PRIM_TRIS, corner_tris.size() * 3);
@@ -490,8 +492,8 @@ static void gizmo_silhouette_draw(const bContext *C, wmGizmo *gz)
       const int vert_index = corner_verts[tri[i]];
       const blender::float3 &co = vert_positions[vert_index];
       
-      /* Center and normalize the vertex */
-      blender::float3 normalized_co = (co - bb_center) * mesh_scale;
+      /* Center and normalize the vertex with final scale */
+      blender::float3 normalized_co = (co - bb_center) * final_scale;
       immVertex3f(pos_id, normalized_co.x, normalized_co.y, normalized_co.z);
     }
   }
