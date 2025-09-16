@@ -49,76 +49,76 @@ def sculpt_mode_toolbar():
 
     yield e.shift.space()
     yield e.one()
-    t.assertEqual(window.workspace.tools.from_space_view3d_mode('SCULPT').idname, 'builtin.brush')
+    t.assertEqual(window.workspace.tools.from_space_view3d_mode('SCULPT').idname, "builtin.brush")
 
     yield e.shift.space()
     yield e.two()
-    t.assertEqual(window.workspace.tools.from_space_view3d_mode('SCULPT').idname, 'builtin_brush.paint')
+    t.assertEqual(window.workspace.tools.from_space_view3d_mode('SCULPT').idname, "builtin_brush.paint")
 
     yield e.shift.space()
     yield e.three()
-    t.assertEqual(window.workspace.tools.from_space_view3d_mode('SCULPT').idname, 'builtin_brush.mask')
+    t.assertEqual(window.workspace.tools.from_space_view3d_mode('SCULPT').idname, "builtin_brush.mask")
 
     yield e.shift.space()
     yield e.four()
-    t.assertEqual(window.workspace.tools.from_space_view3d_mode('SCULPT').idname, 'builtin_brush.draw_face_sets')
+    t.assertEqual(window.workspace.tools.from_space_view3d_mode('SCULPT').idname, "builtin_brush.draw_face_sets")
 
     yield e.shift.space()
     yield e.b()
-    t.assertEqual(window.workspace.tools.from_space_view3d_mode('SCULPT').idname, 'builtin.box_mask')
+    t.assertEqual(window.workspace.tools.from_space_view3d_mode('SCULPT').idname, "builtin.box_mask")
 
     yield e.shift.space()
     yield e.eight()
-    t.assertEqual(window.workspace.tools.from_space_view3d_mode('SCULPT').idname, 'builtin.box_hide')
+    t.assertEqual(window.workspace.tools.from_space_view3d_mode('SCULPT').idname, "builtin.box_hide")
 
     yield e.shift.space()
     yield e.shift.two()
-    t.assertEqual(window.workspace.tools.from_space_view3d_mode('SCULPT').idname, 'builtin.box_face_set')
+    t.assertEqual(window.workspace.tools.from_space_view3d_mode('SCULPT').idname, "builtin.box_face_set")
 
     yield e.shift.space()
     yield e.shift.six()
-    t.assertEqual(window.workspace.tools.from_space_view3d_mode('SCULPT').idname, 'builtin.box_trim')
+    t.assertEqual(window.workspace.tools.from_space_view3d_mode('SCULPT').idname, "builtin.box_trim")
 
     yield e.shift.space()
     yield e.shift.zero()
-    t.assertEqual(window.workspace.tools.from_space_view3d_mode('SCULPT').idname, 'builtin.line_project')
+    t.assertEqual(window.workspace.tools.from_space_view3d_mode('SCULPT').idname, "builtin.line_project")
 
     yield e.shift.space()
     yield e.ctrl.one()
-    t.assertEqual(window.workspace.tools.from_space_view3d_mode('SCULPT').idname, 'builtin.mesh_filter')
+    t.assertEqual(window.workspace.tools.from_space_view3d_mode('SCULPT').idname, "builtin.mesh_filter")
 
     yield e.shift.space()
     yield e.ctrl.two()
-    t.assertEqual(window.workspace.tools.from_space_view3d_mode('SCULPT').idname, 'builtin.cloth_filter')
+    t.assertEqual(window.workspace.tools.from_space_view3d_mode('SCULPT').idname, "builtin.cloth_filter")
 
     yield e.shift.space()
     yield e.ctrl.three()
-    t.assertEqual(window.workspace.tools.from_space_view3d_mode('SCULPT').idname, 'builtin.color_filter')
+    t.assertEqual(window.workspace.tools.from_space_view3d_mode('SCULPT').idname, "builtin.color_filter")
 
     yield e.shift.space()
     yield e.ctrl.w()
-    t.assertEqual(window.workspace.tools.from_space_view3d_mode('SCULPT').idname, 'builtin.face_set_edit')
+    t.assertEqual(window.workspace.tools.from_space_view3d_mode('SCULPT').idname, "builtin.face_set_edit")
 
     yield e.shift.space()
     yield e.ctrl.four()
-    t.assertEqual(window.workspace.tools.from_space_view3d_mode('SCULPT').idname, 'builtin.mask_by_color')
+    t.assertEqual(window.workspace.tools.from_space_view3d_mode('SCULPT').idname, "builtin.mask_by_color")
 
     yield e.shift.space()
     yield e.ctrl.five()
-    t.assertEqual(window.workspace.tools.from_space_view3d_mode('SCULPT').idname, 'builtin.move')
+    t.assertEqual(window.workspace.tools.from_space_view3d_mode('SCULPT').idname, "builtin.move")
 
     yield e.shift.space()
     yield e.ctrl.six()
-    t.assertEqual(window.workspace.tools.from_space_view3d_mode('SCULPT').idname, 'builtin.rotate')
+    t.assertEqual(window.workspace.tools.from_space_view3d_mode('SCULPT').idname, "builtin.rotate")
 
     yield e.shift.space()
     yield e.ctrl.seven()
-    t.assertEqual(window.workspace.tools.from_space_view3d_mode('SCULPT').idname, 'builtin.scale')
+    t.assertEqual(window.workspace.tools.from_space_view3d_mode('SCULPT').idname, "builtin.scale")
 
     yield e.shift.space()
     yield e.t()
-    t.assertEqual(window.workspace.tools.from_space_view3d_mode('SCULPT').idname, 'builtin.transform')
+    t.assertEqual(window.workspace.tools.from_space_view3d_mode('SCULPT').idname, "builtin.transform")
 
     yield e.shift.space()
     yield e.d()
-    t.assertEqual(window.workspace.tools.from_space_view3d_mode('SCULPT').idname, 'builtin.annotate')
+    t.assertEqual(window.workspace.tools.from_space_view3d_mode('SCULPT').idname, "builtin.annotate")
