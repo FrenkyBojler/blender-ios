@@ -188,10 +188,10 @@ void MTLBackend::platform_init(MTLContext *ctx)
     return;
   }
 
-  eGPUDeviceType device = GPU_DEVICE_UNKNOWN;
-  eGPUOSType os = GPU_OS_MAC;
-  eGPUDriverType driver = GPU_DRIVER_ANY;
-  eGPUSupportLevel support_level = GPU_SUPPORT_LEVEL_SUPPORTED;
+  GPUDeviceType device = GPU_DEVICE_UNKNOWN;
+  GPUOSType os = GPU_OS_MAC;
+  GPUDriverType driver = GPU_DRIVER_ANY;
+  GPUSupportLevel support_level = GPU_SUPPORT_LEVEL_SUPPORTED;
 
   BLI_assert(ctx);
   id<MTLDevice> mtl_device = ctx->device;
@@ -520,7 +520,6 @@ void MTLBackend::capabilities_init(MTLContext *ctx)
 
   /* Feature support */
   GCaps.mem_stats_support = false;
-  GCaps.shader_draw_parameters_support = true;
   GCaps.hdr_viewport_support = true;
 
   GCaps.geometry_shader_support = false;
@@ -551,7 +550,6 @@ void MTLBackend::capabilities_init(MTLContext *ctx)
   GCaps.max_work_group_size[2] = max_threads_per_threadgroup_per_dim;
 
   GCaps.stencil_export_support = true;
-  GCaps.clip_control_support = true;
 
   /* OPENGL Related workarounds -- none needed for Metal. */
   GCaps.extensions_len = 0;

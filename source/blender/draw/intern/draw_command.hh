@@ -54,8 +54,6 @@ struct RecordingState {
   bool inverted_view = false;
   DRWState pipeline_state = DRW_STATE_NO_DRAW;
   int clip_plane_count = 0;
-  /** Used for gl_BaseInstance workaround. */
-  gpu::StorageBuf *resource_id_buf = nullptr;
   /** Used for pass simple resource ID. Starts at 1 as 0 is the identity handle. */
   int instance_offset = 1;
 
@@ -144,7 +142,7 @@ struct ShaderBind {
 };
 
 struct FramebufferBind {
-  GPUFrameBuffer **framebuffer;
+  gpu::FrameBuffer **framebuffer;
 
   void execute() const;
   std::string serialize() const;
@@ -443,14 +441,14 @@ struct DispatchIndirect {
 };
 
 struct Barrier {
-  eGPUBarrier type;
+  GPUBarrier type;
 
   void execute() const;
   std::string serialize() const;
 };
 
 struct Clear {
-  uint8_t clear_channels; /* #eGPUFrameBufferBits. But want to save some bits. */
+  uint8_t clear_channels; /* #GPUFrameBufferBits. But want to save some bits. */
   uint8_t stencil;
   float depth;
   float4 color;
