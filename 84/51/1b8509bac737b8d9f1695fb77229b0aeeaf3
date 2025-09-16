@@ -1,1 +1,2 @@
 Referenced by commit 8d985f38dec24adab20ffe274c80fafeb2903f03, Fix broken build.
+Referenced by commit ba81f03c41efed79d4783845cacccf2ad70e0d15, Fix: Geometry Nodes: assert with a boolean input after recent refactor
