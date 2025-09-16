@@ -152,6 +152,15 @@ class LookdevModule {
   Sphere spheres_[num_spheres];
   PassSimple display_ps_ = {"Lookdev.Display"};
 
+  /**
+   * Copy of non-rotated world probe values when using the "view space" light overlay option.
+   * These probes are then rotated to match the view direction.
+   * This is faster than trying to recompute all these values for each frame.
+   */
+  Texture world_sphere_probe_ = {"world_sphere_probe_"};
+  StorageBuffer<SphereProbeHarmonic, true> world_volume_probe_ = {"world_volume_probe_"};
+  UniformBuffer<LightData> world_sunlight_ = {"world_sunlight_"};
+
  public:
   LookdevModule(Instance &inst);
   ~LookdevModule();
@@ -162,6 +171,11 @@ class LookdevModule {
   void draw(View &view);
 
   void display();
+
+  void store_world_probe_data(Texture &in_sphere_probe,
+                              const SphereProbeAtlasCoord &atlas_coord,
+                              StorageBuffer<SphereProbeHarmonic, true> &in_volume_probe,
+                              UniformBuffer<LightData> &in_sunlight);
 
  private:
   void sync_pass(PassSimple &pass,
