@@ -37,7 +37,13 @@ static const std::string format_matrix_to_grid(const float4x4 &matrix)
   std::array<size_t, 4> column_widths = {};
   for (const int row_i : IndexRange(4)) {
     for (const int col_i : IndexRange(4)) {
-      formatted_elements[row_i][col_i] = fmt::format("{:.6}", t_matrix[row_i][col_i]);
+      const float value = t_matrix[row_i][col_i];
+      if (math::abs(value) < 1e-4f) {
+        formatted_elements[row_i][col_i] = fmt::format("{:.3}", value);
+      }
+      else {
+        formatted_elements[row_i][col_i] = fmt::format("{:.6}", value);
+      }
       column_widths[col_i] = std::max(column_widths[col_i],
                                        formatted_elements[row_i][col_i].length());
     }
