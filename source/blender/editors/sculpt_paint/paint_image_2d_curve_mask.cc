@@ -54,7 +54,7 @@ static void update_curve_mask(CurveMaskCache *curve_mask_cache,
 {
   BLI_assert(curve_mask_cache->curve_mask != nullptr);
   int offset = int(floorf(diameter / 2.0f));
-  int clamped_radius = max_ff(radius, 1.0);
+  float clamped_radius = max_ff(radius, 0.5f);
 
   ushort *m = curve_mask_cache->curve_mask;
 
@@ -67,6 +67,33 @@ static void update_curve_mask(CurveMaskCache *curve_mask_cache,
   bpos[1] = cursor_position[1] - floorf(cursor_position[1]) + offset;
 
   float weight_factor = 65535.0f / float(aa_samples * aa_samples);
+
+  if (aa_samples == 1) {
+    for (int y = 0; y < diameter; y++) {
+      for (int x = 0; x < diameter; x++, m++) {
+        float pixel_xy[2];
+        pixel_xy[0] = float(x) + aa_offset;
+        pixel_xy[1] = float(y) + aa_offset;
+        sub_v2_v2(pixel_xy, bpos);
+        if (int(radius * 2) % 2 == 0) {
+          pixel_xy[0] = floorf(pixel_xy[0]) + 0.5f;
+          pixel_xy[1] = floorf(pixel_xy[1]) + 0.5f;
+        }
+        else {
+          pixel_xy[0] = floorf(pixel_xy[0] + 0.5f);
+          pixel_xy[1] = floorf(pixel_xy[1] + 0.5f);
+        }
+
+        const float len = len_v2(pixel_xy);
+
+        const int sample_index = min_ii((len / clamped_radius) * CurveSamplesBaseLen,
+                                        CurveSamplesLen - 1);
+        const float sample_weight = curve_mask_cache->sampled_curve[sample_index];
+        *m = ushort(sample_weight * weight_factor);
+      }
+    }
+    return;
+  }
 
   for (int y = 0; y < diameter; y++) {
     for (int x = 0; x < diameter; x++, m++) {
