@@ -56,7 +56,7 @@ static const EnumPropertyItem type_items[] = {
     {CMP_NODE_GLARE_FOG_GLOW, "FOG_GLOW", 0, "Fog Glow", ""},
     {CMP_NODE_GLARE_SIMPLE_STAR, "SIMPLE_STAR", 0, "Simple Star", ""},
     {CMP_NODE_GLARE_SUN_BEAMS, "SUN_BEAMS", 0, "Sun Beams", ""},
-    {CMP_NODE_GLARE_CUSTOM_KERNEL, "CUSTOM_KERNEL", 0, "Custom Kernel", ""},
+    {CMP_NODE_GLARE_KERNEL, "KERNEL", 0, "Kernel", ""},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -223,16 +223,16 @@ static void cmp_node_glare_declare(NodeDeclarationBuilder &b)
   glare_panel.add_input<decl::Menu>("Kernel Data Type")
       .default_value(KernelDataType::Float)
       .static_items(kernel_data_type_items)
-      .usage_by_menu("Type", CMP_NODE_GLARE_CUSTOM_KERNEL);
+      .usage_by_menu("Type", CMP_NODE_GLARE_KERNEL);
   glare_panel.add_input<decl::Float>("Float Kernel", "Float Kernel")
       .hide_value()
       .structure_type(StructureType::Dynamic)
-      .usage_by_menu("Type", CMP_NODE_GLARE_CUSTOM_KERNEL)
+      .usage_by_menu("Kernel Data Type", int(KernelDataType::Float))
       .compositor_realization_mode(CompositorInputRealizationMode::Transforms);
   glare_panel.add_input<decl::Color>("Color Kernel", "Color Kernel")
       .hide_value()
       .structure_type(StructureType::Dynamic)
-      .usage_by_menu("Type", CMP_NODE_GLARE_CUSTOM_KERNEL)
+      .usage_by_menu("Kernel Data Type", int(KernelDataType::Color))
       .compositor_realization_mode(CompositorInputRealizationMode::Transforms);
 }
 
@@ -268,7 +268,7 @@ static void gather_link_searches(GatherLinkSearchOpParams &params)
   params.add_item(IFACE_("Ghost"), SocketSearchOp{CMP_NODE_GLARE_GHOST});
   params.add_item(IFACE_("Bloom"), SocketSearchOp{CMP_NODE_GLARE_BLOOM});
   params.add_item(IFACE_("Sun Beams"), SocketSearchOp{CMP_NODE_GLARE_SUN_BEAMS});
-  params.add_item(IFACE_("Custom Kernel"), SocketSearchOp{CMP_NODE_GLARE_CUSTOM_KERNEL});
+  params.add_item(IFACE_("Kernel"), SocketSearchOp{CMP_NODE_GLARE_KERNEL});
 }
 
 using namespace blender::compositor;
@@ -617,7 +617,7 @@ class GlareOperation : public NodeOperation {
         return this->execute_bloom(highlights_result);
       case CMP_NODE_GLARE_SUN_BEAMS:
         return this->execute_sun_beams(highlights_result);
-      case CMP_NODE_GLARE_CUSTOM_KERNEL:
+      case CMP_NODE_GLARE_KERNEL:
         return this->execute_custom_kernel(highlights_result);
     }
 
@@ -2395,13 +2395,13 @@ class GlareOperation : public NodeOperation {
   }
 
   /* ----------
-   * Custom Kernel.
+   * Kernel.
    * ---------- */
 
   Result execute_custom_kernel(const Result &highlights)
   {
     const Result &kernel = this->get_kernel_input();
-    Result custom_kernel_result = context().create_result(ResultType::Color);
+    Result custom_kernel_result = this->context().create_result(ResultType::Color);
 
     if (kernel.is_single_value()) {
       custom_kernel_result.allocate_texture(highlights.domain());
