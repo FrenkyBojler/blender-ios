@@ -6919,6 +6919,14 @@ class VIEW3D_PT_gizmo_display(Panel):
         colsub.prop(view, "show_gizmo_tool", text="Active Tools")
         colsub.prop(view, "show_gizmo_modifier", text="Active Modifier")
         colsub.prop(view, "show_gizmo_context", text="Active Object")
+        #colsub.label(text="Silhouette")
+        colsub.prop(view, "gizmo_show_silhouette", text="Silhouette")
+
+        # Silhouette settings - only show when silhouette is enabled
+        if view.gizmo_show_silhouette:
+            colsub.prop(view, "gizmo_silhouette_scale", text="Scale")
+            colsub.prop(view, "gizmo_silhouette_pos_x", text="Position X")
+            colsub.prop(view, "gizmo_silhouette_pos_y", text="Position Y")
 
         layout.separator()
 

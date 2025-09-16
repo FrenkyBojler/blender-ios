@@ -352,8 +352,6 @@ typedef struct View3D {
   float clip_start, clip_end;
   float ofs[3] DNA_DEPRECATED;
 
-  char _pad[1];
-
   /** Transform gizmo info. */
   /** #V3D_GIZMO_SHOW_* */
   char gizmo_flag;
@@ -363,6 +361,7 @@ typedef struct View3D {
   char gizmo_show_empty;
   char gizmo_show_light;
   char gizmo_show_camera;
+  char gizmo_show_silhouette;
 
   char gridflag;
 
@@ -372,6 +371,13 @@ typedef struct View3D {
 
   /** Actually only used to define the opacity of the grease pencil vertex in edit mode. */
   float vertex_opacity;
+
+  /** Silhouette gizmo float properties. */
+  float gizmo_silhouette_scale;
+  float gizmo_silhouette_pos_x;
+  float gizmo_silhouette_pos_y;
+
+  char _pad_gpd[4];
 
   /* XXX deprecated? */
   /** Grease-Pencil Data (annotation layers). */
@@ -394,6 +400,8 @@ typedef struct View3D {
 
   /** Runtime evaluation data (keep last). */
   View3D_Runtime runtime;
+  
+  char _pad_final[8];
 } View3D;
 
 /** #View3D::stereo3d_flag */
@@ -740,6 +748,7 @@ enum {
   V3D_GIZMO_HIDE_CONTEXT = (1 << 2),
   V3D_GIZMO_HIDE_TOOL = (1 << 3),
   V3D_GIZMO_HIDE_MODIFIER = (1 << 4),
+  V3D_GIZMO_HIDE_SILHOUETTE = (1 << 5),
 };
 
 /** #View3d.gizmo_show_object */

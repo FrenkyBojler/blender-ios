@@ -206,6 +206,10 @@ static void blo_update_defaults_screen(bScreen *screen,
       /* grease pencil settings */
       v3d->vertex_opacity = 1.0f;
       v3d->gp_flag |= V3D_GP_SHOW_EDIT_LINES;
+      /* silhouette gizmo settings */
+      v3d->gizmo_silhouette_scale = 80.0f;
+      v3d->gizmo_silhouette_pos_x = 0.0f;
+      v3d->gizmo_silhouette_pos_y = 40.0f;
       /* Remove dither pattern in wireframe mode. */
       v3d->shading.xray_alpha_wire = 0.0f;
       v3d->clip_start = 0.01f;

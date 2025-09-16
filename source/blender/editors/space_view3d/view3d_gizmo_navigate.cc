@@ -164,12 +164,13 @@ static bool WIDGETGROUP_navigate_poll(const bContext *C, wmGizmoGroupType * /*gz
 {
   View3D *v3d = CTX_wm_view3d(C);
   
-  /* Check if silhouette should be shown (independent of navigation gizmo settings) */
+  /* Check if silhouette should be shown based on active mesh object */
+  bool show_silhouette = false;
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   BKE_view_layer_synced_ensure(scene, view_layer);
   Object *active_ob = BKE_view_layer_active_object_get(view_layer);
-  bool show_silhouette = (active_ob && active_ob->type == OB_MESH);
+  show_silhouette = (active_ob && active_ob->type == OB_MESH);
   
   /* Allow the widget group if either navigation gizmos are enabled OR silhouette should be shown */
   bool show_navigate = (((U.uiflag & USER_SHOW_GIZMO_NAVIGATE) != 0) ||
@@ -197,8 +198,7 @@ static void WIDGETGROUP_navigate_setup(const bContext *C, wmGizmoGroup *gzgroup)
       gz->color[3] = 0.0f;
       copy_v3_fl(gz->color_hi, 0.0f);
       gz->color_hi[3] = 0.0f;
-      gz->scale_basis = 80.0f / 2.0f;  /* 80px silhouette size */
-      printf("[DEBUG] Silhouette: Gizmo created with scale_basis=%.1f\n", gz->scale_basis);
+      gz->scale_basis = 80.0f / 2.0f;  /* Fixed 80px silhouette size */
     }
     else {
       gz->flag |= WM_GIZMO_MOVE_CURSOR | WM_GIZMO_DRAW_MODAL;
@@ -341,6 +341,26 @@ static void WIDGETGROUP_navigate_draw_prepare(const bContext *C, wmGizmoGroup *g
       (navgroup->state.rv3d.cameralock == (v3d->flag2 & V3D_LOCK_CAMERA)) &&
       (navgroup->state.rv3d.viewlock == RV3D_LOCK_FLAGS(rv3d)))
   {
+    /* Always update silhouette gizmo position regardless of state cache */
+    const Scene *scene = CTX_data_scene(C);
+    ViewLayer *view_layer = CTX_data_view_layer(C);
+    BKE_view_layer_synced_ensure(scene, view_layer);
+    Object *active_ob = BKE_view_layer_active_object_get(view_layer);
+    
+    if (active_ob && active_ob->type == OB_MESH) {
+      wmGizmo *gz = navgroup->gz_array[GZ_INDEX_SILHOUETTE];
+      
+      /* Apply scale from RNA property (convert diameter to radius) */
+      gz->scale_basis = v3d->gizmo_silhouette_scale / 2.0f;
+      
+      const float base_offset = gz->scale_basis * UI_SCALE_FAC;
+      float pos_x = rect_visible->xmin + base_offset + (v3d->gizmo_silhouette_pos_x * UI_SCALE_FAC);
+      float pos_y = rect_visible->ymin + base_offset + (v3d->gizmo_silhouette_pos_y * UI_SCALE_FAC);
+      
+      gz->matrix_basis[3][0] = roundf(pos_x);
+      gz->matrix_basis[3][1] = roundf(pos_y);
+      WM_gizmo_set_flag(gz, WM_GIZMO_HIDDEN, false);
+    }
     return;
   }
 
@@ -431,7 +451,7 @@ static void WIDGETGROUP_navigate_draw_prepare(const bContext *C, wmGizmoGroup *g
     }
   }
 
-  /* Position silhouette gizmo in bottom-left corner when there's an active mesh object */
+  /* Position silhouette gizmo at fixed location */
   {
     const Scene *scene = CTX_data_scene(C);
     ViewLayer *view_layer = CTX_data_view_layer(C);
@@ -440,18 +460,22 @@ static void WIDGETGROUP_navigate_draw_prepare(const bContext *C, wmGizmoGroup *g
     
     gz = navgroup->gz_array[GZ_INDEX_SILHOUETTE];
     
-    if (active_ob && active_ob->type == OB_MESH) {
-      printf("[DEBUG] Silhouette: Active mesh object found: %s\n", active_ob->id.name);
-      /* Position in bottom-left corner with more spacing from bottom */
-      const float silhouette_offset_x = (80.0f / 2.0f + 10.0f) * UI_SCALE_FAC;
-      const float silhouette_offset_y = (80.0f / 2.0f + 100.0f) * UI_SCALE_FAC;  /* More spacing from bottom */
-      gz->matrix_basis[3][0] = roundf(rect_visible->xmin + silhouette_offset_x);
-      gz->matrix_basis[3][1] = roundf(rect_visible->ymin + silhouette_offset_y);
-      printf("[DEBUG] Silhouette: Positioning at x=%.1f, y=%.1f\n", gz->matrix_basis[3][0], gz->matrix_basis[3][1]);
+    /* Show silhouette gizmo only when there's an active mesh object */
+    bool show_silhouette = (active_ob && active_ob->type == OB_MESH);
+    
+    if (show_silhouette) {
+      /* Apply scale from RNA property (convert diameter to radius) */
+      gz->scale_basis = v3d->gizmo_silhouette_scale / 2.0f;
+      
+      const float base_offset = gz->scale_basis * UI_SCALE_FAC;
+      float pos_x = rect_visible->xmin + base_offset + (v3d->gizmo_silhouette_pos_x * UI_SCALE_FAC);
+      float pos_y = rect_visible->ymin + base_offset + (v3d->gizmo_silhouette_pos_y * UI_SCALE_FAC);
+      
+      gz->matrix_basis[3][0] = roundf(pos_x);
+      gz->matrix_basis[3][1] = roundf(pos_y);
+      
       WM_gizmo_set_flag(gz, WM_GIZMO_HIDDEN, false);
-      printf("[DEBUG] Silhouette: Gizmo made visible\n");
     } else {
-      printf("[DEBUG] Silhouette: No active mesh object, hiding gizmo\n");
       WM_gizmo_set_flag(gz, WM_GIZMO_HIDDEN, true);
     }
   }

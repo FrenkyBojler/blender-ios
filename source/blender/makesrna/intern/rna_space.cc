@@ -5408,6 +5408,33 @@ static void rna_def_space_view3d(BlenderRNA *brna)
                            "(depends on limits display)");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
 
+  /* Silhouette Gizmo. */
+  prop = RNA_def_property(srna, "gizmo_show_silhouette", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "gizmo_flag", V3D_GIZMO_HIDE_SILHOUETTE);
+  RNA_def_property_ui_text(prop, "Show Silhouette", "Display silhouette gizmo in viewport");
+  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
+
+  prop = RNA_def_property(srna, "gizmo_silhouette_scale", PROP_FLOAT, PROP_FACTOR);
+  RNA_def_property_float_sdna(prop, nullptr, "gizmo_silhouette_scale");
+  RNA_def_property_range(prop, 0.0f, 500.0f);
+  RNA_def_property_ui_range(prop, 0.1f, 500.0f, 0.1f, 1);
+  RNA_def_property_ui_text(prop, "Silhouette Scale", "Scale of the silhouette gizmo");
+  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
+
+  prop = RNA_def_property(srna, "gizmo_silhouette_pos_x", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, nullptr, "gizmo_silhouette_pos_x");
+  RNA_def_property_range(prop, 0.0f, 1024.0f);
+  RNA_def_property_ui_range(prop, 0.0f, 1024.0f, 1.0f, 1);
+  RNA_def_property_ui_text(prop, "Silhouette Position X", "Horizontal position of the silhouette gizmo");
+  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
+
+  prop = RNA_def_property(srna, "gizmo_silhouette_pos_y", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, nullptr, "gizmo_silhouette_pos_y");
+  RNA_def_property_range(prop, 0.0f, 1024.0f);
+  RNA_def_property_ui_range(prop, 0.0f, 1024.0f, 1.0f, 1);
+  RNA_def_property_ui_text(prop, "Silhouette Position Y", "Vertical position of the silhouette gizmo");
+  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
+
   prop = RNA_def_property(srna, "use_local_camera", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_negative_sdna(prop, nullptr, "scenelock", 1);
   RNA_def_property_boolean_funcs(prop, nullptr, "rna_SpaceView3D_use_local_camera_set");
