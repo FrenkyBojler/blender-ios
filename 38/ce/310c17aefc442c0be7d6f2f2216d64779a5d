@@ -3,3 +3,4 @@ Referenced by issue #138291, Python API: 3D cursor draws behind triangles drawn 
 Referenced by issue #145028, Regression: 3D cursor misaligned with axes in certain viewport rotations
 Referenced by pull request #145927, Fix #145028: Regression: 3D cursor misaligned with axes
 Referenced by commit 51b5ae24f549d3e3d2d9702cd11ab4ae8211c292, Fix #145028: Regression: 3D cursor misaligned with axes
+Referenced by issue #146349, 3D cursor does not snap to locations behind viewport
