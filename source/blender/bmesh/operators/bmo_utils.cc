@@ -20,6 +20,7 @@
 
 #include "BKE_attribute.h"
 #include "BKE_customdata.hh"
+#include "BKE_mesh_types.hh"
 
 #include "bmesh.hh"
 
@@ -588,6 +589,8 @@ static void bmo_get_loop_color_ref(BMesh *bm,
   CustomData_reset(&me_query.face_data);
   me_query.corner_data = bm->ldata;
   *((short *)me_query.id.name) = ID_ME;
+  /* Avoid accessing nullptr access of MeshRuntime later on in #get_domains(), see #146350. */
+  me_query.runtime = new blender::bke::MeshRuntime();
 
   AttributeOwner owner = AttributeOwner::from_id(&me_query.id);
   CustomDataLayer *layer = BKE_attribute_from_index(
