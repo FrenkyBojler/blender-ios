@@ -2872,8 +2872,14 @@ TreeElementIcon tree_element_get_icon(TreeStoreElem *tselem, TreeElement *te)
         const PointerRNA &ptr = te_rna_struct->get_pointer_rna();
 
         if (RNA_struct_is_ID(ptr.type)) {
-          data.drag_id = static_cast<ID *>(ptr.data);
-          data.icon = RNA_struct_ui_icon(ptr.type);
+          ID *id = static_cast<ID *>(ptr.data);
+          data.drag_id = id;
+          if (id && GS(id->name) == ID_LI && id_cast<Library *>(id)->flag & LIBRARY_FLAG_IS_ARCHIVE) {
+            data.icon = ICON_PACKAGE;
+          }
+          else {
+            data.icon = RNA_struct_ui_icon(ptr.type);
+          }
         }
         else {
           data.icon = RNA_struct_ui_icon(ptr.type);
