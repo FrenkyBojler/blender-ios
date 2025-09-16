@@ -401,9 +401,14 @@ static void gizmo_silhouette_draw(const bContext *C, wmGizmo *gz)
     return;
   }
   
-  /* Calculate screen position */
+  /* Calculate screen position using same method as rotate gizmo */
   float matrix_screen[4][4];
-  WM_gizmo_calc_matrix_final(gz, matrix_screen);
+  float matrix_unit[4][4];
+  unit_m4(matrix_unit);
+
+  WM_GizmoMatrixParams params{};
+  params.matrix_offset = matrix_unit;
+  WM_gizmo_calc_matrix_final_params(gz, &params, matrix_screen);
   
   GPU_matrix_push();
   GPU_matrix_mul(matrix_screen);
@@ -411,8 +416,15 @@ static void gizmo_silhouette_draw(const bContext *C, wmGizmo *gz)
   /* Apply view rotation like the navigation gizmo does - BEFORE scaling */
   GPU_matrix_mul(gz->matrix_offset);
   
+  /* Handle perspective vs orthographic projection like rotate gizmo */
+  bool use_project_matrix = (gz->scale_final >= -GPU_MATRIX_ORTHO_CLIP_NEAR_DEFAULT);
+  if (use_project_matrix) {
+    GPU_matrix_push_projection();
+    GPU_matrix_ortho_set_z(-gz->scale_final, gz->scale_final);
+  }
+  
   /* Scale to fit within small gizmo bounds - much smaller than normal scale */
-  const float scale_factor = gz->scale_final * 0.015f;  /* Very small scale for silhouette */
+  const float scale_factor = gz->scale_final * 0.03f;  /* Very small scale for silhouette */
   GPU_matrix_scale_1f(scale_factor);
   
   /* Save current GPU state */
@@ -486,6 +498,11 @@ static void gizmo_silhouette_draw(const bContext *C, wmGizmo *gz)
   
   immEnd();
   immUnbindProgram();
+  
+  /* Restore projection matrix if we used it */
+  if (use_project_matrix) {
+    GPU_matrix_pop_projection();
+  }
   
   /* Restore GPU state */
   if (depth_test_enabled) {
