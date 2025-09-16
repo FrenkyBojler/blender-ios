@@ -111,6 +111,7 @@
     .gp_flag = V3D_GP_SHOW_EDIT_LINES, \
  \
     /* Silhouette gizmo settings. */ \
+    .gizmo_flag = V3D_GIZMO_HIDE_SILHOUETTE, \
     .gizmo_silhouette_scale = 80.0f, \
     .gizmo_silhouette_pos_x = 0.0f, \
     .gizmo_silhouette_pos_y = 40.0f, \

@@ -207,6 +207,7 @@ static void blo_update_defaults_screen(bScreen *screen,
       v3d->vertex_opacity = 1.0f;
       v3d->gp_flag |= V3D_GP_SHOW_EDIT_LINES;
       /* silhouette gizmo settings */
+      v3d->gizmo_flag |= V3D_GIZMO_HIDE_SILHOUETTE;
       v3d->gizmo_silhouette_scale = 80.0f;
       v3d->gizmo_silhouette_pos_x = 0.0f;
       v3d->gizmo_silhouette_pos_y = 40.0f;
@@ -344,6 +345,8 @@ void BLO_update_defaults_workspace(WorkSpace *workspace, const char *app_templat
                 v3d->shading.flag &= ~V3D_SHADING_CAVITY;
                 copy_v3_fl(v3d->shading.single_color, 1.0f);
                 STRNCPY(v3d->shading.matcap, "basic_1");
+                /* Enable silhouette gizmo for sculpting workspace */
+                v3d->gizmo_flag &= ~V3D_GIZMO_HIDE_SILHOUETTE;
               }
             }
           }

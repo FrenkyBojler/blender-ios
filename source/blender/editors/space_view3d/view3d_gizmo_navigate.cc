@@ -164,13 +164,15 @@ static bool WIDGETGROUP_navigate_poll(const bContext *C, wmGizmoGroupType * /*gz
 {
   View3D *v3d = CTX_wm_view3d(C);
   
-  /* Check if silhouette should be shown based on active mesh object */
+  /* Check if silhouette should be shown based on gizmo flag and active mesh object */
   bool show_silhouette = false;
-  const Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
-  BKE_view_layer_synced_ensure(scene, view_layer);
-  Object *active_ob = BKE_view_layer_active_object_get(view_layer);
-  show_silhouette = (active_ob && active_ob->type == OB_MESH);
+  if (!(v3d->gizmo_flag & V3D_GIZMO_HIDE_SILHOUETTE)) {
+    const Scene *scene = CTX_data_scene(C);
+    ViewLayer *view_layer = CTX_data_view_layer(C);
+    BKE_view_layer_synced_ensure(scene, view_layer);
+    Object *active_ob = BKE_view_layer_active_object_get(view_layer);
+    show_silhouette = (active_ob && active_ob->type == OB_MESH);
+  }
   
   /* Allow the widget group if either navigation gizmos are enabled OR silhouette should be shown */
   bool show_navigate = (((U.uiflag & USER_SHOW_GIZMO_NAVIGATE) != 0) ||
@@ -341,15 +343,18 @@ static void WIDGETGROUP_navigate_draw_prepare(const bContext *C, wmGizmoGroup *g
       (navgroup->state.rv3d.cameralock == (v3d->flag2 & V3D_LOCK_CAMERA)) &&
       (navgroup->state.rv3d.viewlock == RV3D_LOCK_FLAGS(rv3d)))
   {
-    /* Always update silhouette gizmo position regardless of state cache */
+    /* Always update silhouette gizmo position and visibility regardless of state cache */
     const Scene *scene = CTX_data_scene(C);
     ViewLayer *view_layer = CTX_data_view_layer(C);
     BKE_view_layer_synced_ensure(scene, view_layer);
     Object *active_ob = BKE_view_layer_active_object_get(view_layer);
     
-    if (active_ob && active_ob->type == OB_MESH) {
-      wmGizmo *gz = navgroup->gz_array[GZ_INDEX_SILHOUETTE];
-      
+    wmGizmo *gz = navgroup->gz_array[GZ_INDEX_SILHOUETTE];
+    
+    /* Show silhouette gizmo based on gizmo flag and active mesh object */
+    bool show_silhouette = !(v3d->gizmo_flag & V3D_GIZMO_HIDE_SILHOUETTE) && (active_ob && active_ob->type == OB_MESH);
+    
+    if (show_silhouette) {
       /* Apply scale from RNA property (convert diameter to radius) */
       gz->scale_basis = v3d->gizmo_silhouette_scale / 2.0f;
       
@@ -360,6 +365,8 @@ static void WIDGETGROUP_navigate_draw_prepare(const bContext *C, wmGizmoGroup *g
       gz->matrix_basis[3][0] = roundf(pos_x);
       gz->matrix_basis[3][1] = roundf(pos_y);
       WM_gizmo_set_flag(gz, WM_GIZMO_HIDDEN, false);
+    } else {
+      WM_gizmo_set_flag(gz, WM_GIZMO_HIDDEN, true);
     }
     return;
   }
@@ -460,8 +467,8 @@ static void WIDGETGROUP_navigate_draw_prepare(const bContext *C, wmGizmoGroup *g
     
     gz = navgroup->gz_array[GZ_INDEX_SILHOUETTE];
     
-    /* Show silhouette gizmo only when there's an active mesh object */
-    bool show_silhouette = (active_ob && active_ob->type == OB_MESH);
+    /* Show silhouette gizmo based on gizmo flag and active mesh object */
+    bool show_silhouette = !(v3d->gizmo_flag & V3D_GIZMO_HIDE_SILHOUETTE) && (active_ob && active_ob->type == OB_MESH);
     
     if (show_silhouette) {
       /* Apply scale from RNA property (convert diameter to radius) */

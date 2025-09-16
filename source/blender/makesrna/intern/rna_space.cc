@@ -5410,7 +5410,7 @@ static void rna_def_space_view3d(BlenderRNA *brna)
 
   /* Silhouette Gizmo. */
   prop = RNA_def_property(srna, "gizmo_show_silhouette", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "gizmo_flag", V3D_GIZMO_HIDE_SILHOUETTE);
+  RNA_def_property_boolean_negative_sdna(prop, nullptr, "gizmo_flag", V3D_GIZMO_HIDE_SILHOUETTE);
   RNA_def_property_ui_text(prop, "Show Silhouette", "Display silhouette gizmo in viewport");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
 
