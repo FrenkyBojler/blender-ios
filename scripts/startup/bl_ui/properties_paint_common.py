@@ -1692,23 +1692,22 @@ def brush_basic_grease_pencil_paint_settings(layout, context, brush, props, *, c
             col = layout.column()
             col.template_curve_mapping(gp_settings, "curve_strength", brush=True)
 
-    if grease_pencil_brush_type in {'DRAW'} or is_primitive_tool:
-        row = layout.row(align=True)
-        if compact:
-            row.prop(brush.gpencil_settings, "stroke_mode", expand=True, icon_only=True)
-        else:
-            row.prop(brush.gpencil_settings, "stroke_mode", expand=True)
-
-        row = layout.row(align=True)
-        if compact:
-            row.prop(gp_settings, "caps_type", text="", expand=True)
-        else:
-            row.prop(gp_settings, "caps_type", text="Caps Type")
+    if props:
+        layout.prop(props, "subdivision")
 
     # Brush details
     if is_primitive_tool:
-        if props:
-            layout.prop(props, "subdivision")
+        row = layout.row(align=True)
+        if context.region.type == 'TOOL_HEADER':
+            row.prop(brush.gpencil_settings, "stroke_mode", expand=True, icon_only=True)
+        else:
+            row.prop(brush.gpencil_settings, "stroke_mode")
+
+        row = layout.row(align=True)
+        if context.region.type == 'TOOL_HEADER':
+            row.prop(gp_settings, "caps_type", text="", expand=True)
+        else:
+            row.prop(gp_settings, "caps_type", text="Caps Type")
 
         row = layout.row(align=True)
         settings = context.tool_settings.gpencil_sculpt
@@ -1727,6 +1726,12 @@ def brush_basic_grease_pencil_paint_settings(layout, context, brush, props, *, c
                 # Pressure curve.
                 layout.template_curve_mapping(settings, "thickness_primitive_curve", brush=True)
     elif grease_pencil_brush_type == 'DRAW':
+        row = layout.row(align=True)
+        if compact:
+            row.prop(brush.gpencil_settings, "stroke_mode", expand=True, icon_only=True)
+        else:
+            row.prop(brush.gpencil_settings, "stroke_mode")
+
         row = layout.row(align=True)
         if compact:
             row.prop(gp_settings, "caps_type", text="", expand=True)
