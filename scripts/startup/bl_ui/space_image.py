@@ -144,7 +144,7 @@ class IMAGE_MT_view_zoom(Menu):
 class IMAGE_MT_select(Menu):
     bl_label = "Select"
 
-    def draw(self, context):
+    def draw(self, _context):
         layout = self.layout
 
         layout.operator("uv.select_all", text="All").action = 'SELECT'
@@ -173,10 +173,6 @@ class IMAGE_MT_select(Menu):
         layout.operator("uv.select_pinned", text="Select Pinned")
         layout.operator("uv.select_split")
         layout.operator("uv.select_overlap")
-
-        layout.separator()
-
-        layout.prop(context.tool_settings, "use_uv_select_sync", text="Sync with Viewport")
 
 
 class IMAGE_MT_select_linked(Menu):
@@ -865,6 +861,8 @@ class IMAGE_HT_header(Header):
 
         # UV editing.
         if show_uvedit:
+            layout.prop(tool_settings, "use_uv_select_sync", text="")
+
             if tool_settings.use_uv_select_sync:
                 layout.template_edit_mode_selection()
             else:
