@@ -2,3 +2,4 @@ Referenced by issue #146255, Frame numbers visibility in graph editor
 Referenced by issue #146266, Grease pencil: Cannot draw in copied scene
 Referenced by pull request #146300, Fix #146288: Crash displaying frames without a scene
 Referenced by issue #146288, Crash when open old video edit workspace
+Referenced by commit b474325aa19bbc27e3297b9604b485f3f06ca569, Fix #146288: Crash displaying frames without a scene
