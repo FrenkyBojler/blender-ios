@@ -365,15 +365,19 @@ static const EnumPropertyItem rna_enum_asset_import_method_items[] = {
      "Follow Preferences",
      "Use the import method set in the Preferences for this asset library, don't override it "
      "for this Asset Browser"},
-    {FILE_ASSET_IMPORT_LINK, "LINK", 0, "Link", "Import the assets as linked data-block"},
+    {FILE_ASSET_IMPORT_LINK,
+     "LINK",
+     ICON_LINK_BLEND,
+     "Link",
+     "Import the assets as linked data-block"},
     {FILE_ASSET_IMPORT_APPEND,
      "APPEND",
-     0,
+     ICON_APPEND_BLEND,
      "Append",
      "Import the asset as copied data-block, with no link to the original asset data-block"},
     {FILE_ASSET_IMPORT_APPEND_REUSE,
      "APPEND_REUSE",
-     0,
+     ICON_APPEND_BLEND,
      "Append (Reuse Data)",
      "Import the asset as copied data-block while avoiding multiple copies of nested, "
      "typically heavy data. For example the textures of a material asset, or the mesh of an "
@@ -381,7 +385,7 @@ static const EnumPropertyItem rna_enum_asset_import_method_items[] = {
      "the asset share the data instead"},
     {FILE_ASSET_IMPORT_PACK,
      "PACK",
-     0,
+     ICON_PACKAGE,
      "Pack",
      "Import the asset as linked data-block, and pack it in the current file (ensures that it "
      "remains unchanged in case the library data is modified, is not available anymore, etc.)"},
