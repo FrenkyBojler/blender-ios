@@ -411,6 +411,9 @@ static Library *add_archive_library(Main &bmain, Library &reference_library)
   Library *archive_library = static_cast<Library *>(
       BKE_id_new(&bmain, ID_LI, BKE_id_name(reference_library.id)));
 
+  /* Like in #direct_link_library. */
+  id_us_ensure_real(&archive_library->id);
+
   archive_library->archive_parent_library = &reference_library;
   constexpr uint16_t copy_flag = ~LIBRARY_FLAG_IS_ARCHIVE;
   archive_library->flag = (reference_library.flag & copy_flag) | LIBRARY_FLAG_IS_ARCHIVE;
