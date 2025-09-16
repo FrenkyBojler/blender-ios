@@ -37,6 +37,24 @@ operation_nodes = {
 }
 
 
+# A context manager for temporarily unparenting nodes from their frames
+# This gets rid of issues with framed nodes using relative coordinates
+class temporary_unframe:
+    def __init__(self, nodes):
+        self.parent_dict = {}
+        for node in nodes:
+            if node.parent is not None:
+                self.parent_dict[node] = node.parent
+            node.parent = None
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, _type, _value, _traceback):
+        for node, parent in self.parent_dict.items():
+            node.parent = parent
+
+
 def cast_value(source, target):
     source_type = source.type
     target_type = target.type
@@ -384,8 +402,10 @@ class NODE_OT_swap_node(NodeSwapOperator, Operator):
                 for socket in new_node.outputs:
                     if socket.name != self.visible_output:
                         socket.hide = True
-            new_node.location = old_node.location
-            new_node.select = True
+            
+            with temporary_unframe(old_node):
+                new_node.location = old_node.location
+                new_node.select = True
 
             zone_pair = self.get_zone_pair(tree, old_node)
 
@@ -393,7 +413,9 @@ class NODE_OT_swap_node(NodeSwapOperator, Operator):
                 input_node, output_node = zone_pair
 
                 if input_node.select and output_node.select:
-                    new_node.location = (input_node.location + output_node.location) / 2
+                    with temporary_unframe((input_node, output_node)):
+                        new_node.location = (input_node.location + output_node.location) / 2
+                        new_node.select = True
 
                 self.transfer_input_values(input_node, new_node)
 
@@ -607,8 +629,9 @@ class NODE_OT_swap_zone(ZoneOperator, NodeSwapOperator, Operator):
             if zone_pair is not None:
                 old_input_node, old_output_node = zone_pair
 
-                input_node.location = old_input_node.location
-                output_node.location = old_output_node.location
+                with temporary_unframe((old_input_node, old_output_node)):
+                    input_node.location = old_input_node.location
+                    output_node.location = old_output_node.location
 
                 self.transfer_node_properties(old_input_node, input_node)
                 self.transfer_node_properties(old_output_node, output_node)
@@ -625,11 +648,12 @@ class NODE_OT_swap_zone(ZoneOperator, NodeSwapOperator, Operator):
                 for node in zone_pair:
                     tree.nodes.remove(node)
             else:
-                input_node.location = old_node.location
-                output_node.location = old_node.location
+                with temporary_unframe(old_node):
+                    input_node.location = old_node.location
+                    output_node.location = old_node.location
 
-                input_node.location -= Vector(self.offset)
-                output_node.location += Vector(self.offset)
+                    input_node.location -= Vector(self.offset)
+                    output_node.location += Vector(self.offset)
 
                 self.transfer_node_properties(old_node, input_node)
                 self.transfer_node_properties(old_node, output_node)
