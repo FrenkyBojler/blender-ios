@@ -2301,12 +2301,6 @@ static void convert_grease_pencil_material_stroke_fill_toggle_to_attributes(Main
 {
   using namespace blender;
   using namespace bke::greasepencil;
-  LISTBASE_FOREACH (Material *, material, &bmain.materials) {
-    if (material->gp_style) {
-      material->gp_style->flag |= GP_MATERIAL_STROKE_SHOW;
-      material->gp_style->flag |= GP_MATERIAL_FILL_SHOW;
-    }
-  }
   /* TODO: We ignore cases where Grease Pencil data is reused in different objects. Handle the case
    * properly where different objects overwrite the material (at object level!) for a specific
    * Grease Pencil data-block. */
@@ -2321,6 +2315,12 @@ static void convert_grease_pencil_material_stroke_fill_toggle_to_attributes(Main
       }
       Drawing &drawing = reinterpret_cast<GreasePencilDrawing *>(base)->wrap();
       convert_grease_pencil_drawing_material_stroke_fill_toggle_to_attributes(object, drawing);
+    }
+  }
+  LISTBASE_FOREACH (Material *, material, &bmain.materials) {
+    if (material->gp_style) {
+      material->gp_style->flag |= GP_MATERIAL_STROKE_SHOW;
+      material->gp_style->flag |= GP_MATERIAL_FILL_SHOW;
     }
   }
 }
