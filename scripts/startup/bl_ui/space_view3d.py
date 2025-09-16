@@ -8381,6 +8381,11 @@ class VIEW3D_MT_greasepencil_edit_context_menu(Menu):
 
             col.separator()
 
+            # Set stroke mode
+            col.operator_menu_enum("grease_pencil.set_stroke_mode", "mode", text="Set Stroke Mode")
+
+            col.separator()
+
             # Deform Operators
             col.operator("transform.tosphere", text="To Sphere")
             col.operator("transform.shear", text="Shear")
