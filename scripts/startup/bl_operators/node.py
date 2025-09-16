@@ -240,6 +240,9 @@ class NodeSwapOperator(NodeOperator):
         'use_alpha',
         'use_clamp',
         'use_custom_color',
+        "operation",
+        "domain",
+        "data_type",
     )
 
     @classmethod
