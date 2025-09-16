@@ -1,2 +1,3 @@
 Referenced by issue #121025, Edge slide its not picking the right reference edge
 Referenced by issue #121003, OPTIX_ERROR_INVALID_VALUE
+Referenced by issue #146350, Crash when using "reverse colors"
