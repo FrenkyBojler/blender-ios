@@ -626,7 +626,7 @@ void bmo_collapse_uvs_exec(BMesh *bm, BMOperator *op)
  * ensure consistent survivor selection.
  * Approximately 1.1-1.5x slower performance on extremely large meshes
  * depending on topology and density.
- * 
+ *
  * \return a `verts_len` aligned array of indices.
  * Index values:
  * - `-1`: Not a duplicate, others may use as a target.
