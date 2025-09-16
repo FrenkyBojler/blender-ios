@@ -31,21 +31,22 @@ namespace blender::ed::spreadsheet {
 
 static const std::string format_matrix_to_grid(const float4x4 &matrix)
 {
+  auto format_element = [](float value) {
+    if (math::abs(value) < 1e-4f) {
+      return fmt::format("{:.3}", value);
+    }
+    return fmt::format("{:.6}", value);
+  };
+
   /* Transpose to be able to print row by row. */
   const float4x4 t_matrix = math::transpose(matrix);
   std::array<std::array<std::string, 4>, 4> formatted_elements;
   std::array<size_t, 4> column_widths = {};
   for (const int row_i : IndexRange(4)) {
     for (const int col_i : IndexRange(4)) {
-      const float value = t_matrix[row_i][col_i];
-      if (math::abs(value) < 1e-4f) {
-        formatted_elements[row_i][col_i] = fmt::format("{:.3}", value);
-      }
-      else {
-        formatted_elements[row_i][col_i] = fmt::format("{:.6}", value);
-      }
+      formatted_elements[row_i][col_i] = format_element(t_matrix[row_i][col_i]);
       column_widths[col_i] = std::max(column_widths[col_i],
-                                       formatted_elements[row_i][col_i].length());
+                                      formatted_elements[row_i][col_i].length());
     }
   }
 
