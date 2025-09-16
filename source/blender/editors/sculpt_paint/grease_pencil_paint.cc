@@ -1234,7 +1234,6 @@ void PaintOperation::on_stroke_begin(const bContext &C, const InputSample &start
   Material *material = BKE_grease_pencil_object_material_ensure_from_brush(
       CTX_data_main(&C), object, brush);
   const int material_index = BKE_object_material_index_get(object, material);
-  // const bool use_fill = (material->gp_style->flag & GP_MATERIAL_FILL_SHOW) != 0;
 
   frame_number_ = scene->r.cfra;
   drawing_ = grease_pencil->get_editable_drawing_at(layer, frame_number_);
