@@ -210,6 +210,20 @@ class NodeAddOperator(NodeOperator):
 
 
 class NodeSwapOperator(NodeOperator):
+    properties_to_pass = (
+        'color', 
+        'hide', 
+        'label', 
+        'mute', 
+        'parent',
+        'show_options', 
+        'show_preview',
+        'show_texture',
+        'use_alpha',
+        'use_clamp',
+        'use_custom_color',
+    )
+
     @classmethod
     def poll(cls, context):
         if (context.area is None) or (context.area.type != "NODE_EDITOR"):
@@ -220,6 +234,17 @@ class NodeSwapOperator(NodeOperator):
             return False
 
         return True
+    
+    def transfer_node_properties(self, old_node, new_node):
+        for attr in self.properties_to_pass:
+            if (attr in self.settings):
+                return
+
+            if hasattr(old_node, attr) and hasattr(new_node, attr):
+                try:
+                    setattr(new_node, attr, getattr(old_node, attr))
+                except ValueError:
+                    pass
 
     def transfer_input_values(self, old_node, new_node):
         if (old_node.bl_idname in operation_nodes) and (new_node.bl_idname in operation_nodes):
@@ -353,6 +378,8 @@ class NODE_OT_swap_node(NodeSwapOperator, Operator):
                 continue
 
             new_node = self.create_node(context, self.type)
+            self.transfer_node_properties(old_node, new_node)
+
             if self.visible_output:
                 for socket in new_node.outputs:
                     if socket.name != self.visible_output:
@@ -583,6 +610,9 @@ class NODE_OT_swap_zone(ZoneOperator, NodeSwapOperator, Operator):
                 input_node.location = old_input_node.location
                 output_node.location = old_output_node.location
 
+                self.transfer_node_properties(old_input_node, input_node)
+                self.transfer_node_properties(old_output_node, output_node)
+
                 self.transfer_input_values(old_input_node, input_node)
                 self.transfer_input_values(old_output_node, output_node)
 
@@ -600,6 +630,9 @@ class NODE_OT_swap_zone(ZoneOperator, NodeSwapOperator, Operator):
 
                 input_node.location -= Vector(self.offset)
                 output_node.location += Vector(self.offset)
+
+                self.transfer_node_properties(old_node, input_node)
+                self.transfer_node_properties(old_node, output_node)
 
                 self.transfer_input_values(old_node, input_node)
 
