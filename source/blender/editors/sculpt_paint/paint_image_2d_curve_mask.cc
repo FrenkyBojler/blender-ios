@@ -72,7 +72,7 @@ static void update_curve_mask(CurveMaskCache *curve_mask_cache,
     /* When AA is disabled, snap the cursor to either the corners or centers of the pixels,
      * depending on if the diameter is even or odd, respectively.*/
 
-    if (int(radius * 2) % 2 == 0) {
+    if (int(clamped_radius * 2) % 2 == 0) {
       bpos[0] = roundf(bpos[0]);
       bpos[1] = roundf(bpos[1]);
     }
