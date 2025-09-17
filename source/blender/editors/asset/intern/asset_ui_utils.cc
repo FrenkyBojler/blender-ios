@@ -6,26 +6,26 @@
  * \ingroup edasset
  */
 
-#include <string>
 #include <algorithm>
+#include <string>
 
 #include "AS_asset_library.hh"
 #include "AS_asset_representation.hh"
 
+#include "BKE_context.hh"
 #include "BKE_preferences.h"
 #include "BKE_preview_image.hh"
-#include "BKE_context.hh"
 
-#include "DNA_asset_types.h"
 #include "DNA_ID.h"
+#include "DNA_asset_types.h"
 #include "DNA_listbase.h"
 #include "DNA_space_enums.h"
 
 #include "BKE_idprop.hh"
 
+#include "BLI_listbase.h"
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
-#include "BLI_listbase.h"
 #include "BLI_string_utils.hh"
 #include "MEM_guardedalloc.h"
 
@@ -36,7 +36,6 @@
 #include "DNA_userdef_types.h"
 
 #include "RNA_access.hh"
-
 
 #include "RNA_prototypes.hh"
 #include "WM_api.hh"
@@ -51,7 +50,7 @@ namespace blender::ed::asset {
  * Helper function to clean up operator properties and template resources.
  */
 static void cleanup_operator_resources(IDProperty *search_properties,
-                                      PointerRNA *op_props_ptr_template)
+                                       PointerRNA *op_props_ptr_template)
 {
   if (search_properties) {
     IDP_FreeProperty(search_properties);
@@ -73,44 +72,48 @@ static std::string normalize_asset_path(const std::string &path)
   std::replace(normalized.begin(), normalized.end(), '\\', '/');
   return normalized;
 }
-static bool compare_brush_asset_properties(const IDProperty *search_props, const IDProperty *kmi_props)
+static bool compare_brush_asset_properties(const IDProperty *search_props,
+                                           const IDProperty *kmi_props)
 {
-  if (!search_props || !kmi_props || 
-      search_props->type != IDP_GROUP || kmi_props->type != IDP_GROUP) {
+  if (!search_props || !kmi_props || search_props->type != IDP_GROUP ||
+      kmi_props->type != IDP_GROUP)
+  {
     return false;
   }
-  
+
   // Compare relative_asset_identifier (most important)
-  const IDProperty *search_id = IDP_GetPropertyFromGroup(search_props, "relative_asset_identifier");
+  const IDProperty *search_id = IDP_GetPropertyFromGroup(search_props,
+                                                         "relative_asset_identifier");
   const IDProperty *kmi_id = IDP_GetPropertyFromGroup(kmi_props, "relative_asset_identifier");
-  
+
   if (!search_id || !kmi_id) {
     return false;
   }
-  
+
   // Normalize and compare paths
   if (search_id->type == IDP_STRING && kmi_id->type == IDP_STRING) {
     const char *search_str = static_cast<const char *>(search_id->data.pointer);
     const char *kmi_str = static_cast<const char *>(kmi_id->data.pointer);
-    
+
     if (search_str && kmi_str) {
       return normalize_asset_path(search_str) == normalize_asset_path(kmi_str);
     }
   }
-  
+
   // Fallback to direct comparison
   if (!IDP_EqualsProperties_ex(search_id, kmi_id, true)) {
     return false;
   }
-  
+
   // Compare asset_library_identifier - treat empty string as equivalent to missing
-  const IDProperty *search_lib_id = IDP_GetPropertyFromGroup(search_props, "asset_library_identifier");
+  const IDProperty *search_lib_id = IDP_GetPropertyFromGroup(search_props,
+                                                             "asset_library_identifier");
   const IDProperty *kmi_lib_id = IDP_GetPropertyFromGroup(kmi_props, "asset_library_identifier");
-  
+
   if (search_lib_id && kmi_lib_id) {
     return IDP_EqualsProperties_ex(search_lib_id, kmi_lib_id, true);
   }
-  
+
   // If only one has library identifier, check if it's empty
   if (search_lib_id || kmi_lib_id) {
     const IDProperty *existing_prop = search_lib_id ? search_lib_id : kmi_lib_id;
@@ -119,7 +122,7 @@ static bool compare_brush_asset_properties(const IDProperty *search_props, const
       return !str_val || strlen(str_val) == 0;
     }
   }
-  
+
   return true;
 }
 /**
@@ -132,7 +135,8 @@ static IDProperty *create_operator_properties(const AssetWeakReference &weak_ref
   /* Create a new property group with the correct name. */
   IDProperty *search_properties = IDP_New(IDP_GROUP, nullptr, "wmOpItemProp");
   /* Associate the operator's RNA type with this new group. */
-  PointerRNA search_op_props_ptr = RNA_pointer_create_discrete(nullptr, op_props_type, search_properties);
+  PointerRNA search_op_props_ptr = RNA_pointer_create_discrete(
+      nullptr, op_props_type, search_properties);
   /* Handle different operator types with specific property requirements */
   if (STREQ(op_name, "WM_OT_tool_set_by_id")) {
     /* For tool operators, use the asset name as the tool identifier */
@@ -157,7 +161,8 @@ static IDProperty *create_operator_properties(const AssetWeakReference &weak_ref
     RNA_string_set(&search_op_props_ptr, "relative_asset_identifier", normalized_path.c_str());
     /* Always set asset_library_identifier for consistent property matching */
     if (weak_ref.asset_library_type == ASSET_LIBRARY_CUSTOM && weak_ref.asset_library_identifier) {
-      RNA_string_set(&search_op_props_ptr, "asset_library_identifier", weak_ref.asset_library_identifier);
+      RNA_string_set(
+          &search_op_props_ptr, "asset_library_identifier", weak_ref.asset_library_identifier);
     }
     else {
       /* For essentials library or keymap matching, use empty string as identifier */
@@ -169,14 +174,14 @@ static IDProperty *create_operator_properties(const AssetWeakReference &weak_ref
 /**
  * Search for brush operator in keymap using custom property comparison.
  */
-static std::string search_keymap_for_brush_operator(wmWindowManager *wm, 
-                                                   const char *op_name, 
-                                                   IDProperty *search_properties)
+static std::string search_keymap_for_brush_operator(wmWindowManager *wm,
+                                                    const char *op_name,
+                                                    IDProperty *search_properties)
 {
   LISTBASE_FOREACH (wmKeyMap *, keymap, &wm->runtime->userconf->keymaps) {
     LISTBASE_FOREACH (wmKeyMapItem *, kmi, &keymap->items) {
       if (STREQ(kmi->idname, op_name) && kmi->ptr && kmi->ptr->data) {
-        if (compare_brush_asset_properties(search_properties, (IDProperty*)kmi->ptr->data)) {
+        if (compare_brush_asset_properties(search_properties, (IDProperty *)kmi->ptr->data)) {
           std::optional<std::string> hotkey_opt = WM_keymap_item_to_string(kmi, false);
           if (hotkey_opt.has_value()) {
             return hotkey_opt.value();
@@ -197,8 +202,8 @@ static IDProperty *create_fallback_operator_properties(const AssetWeakReference 
 {
   /* Create fallback properties with system library type */
   AssetWeakReference fallback_ref = weak_ref;
-  fallback_ref.asset_library_type = ASSET_LIBRARY_ESSENTIALS; // Use system library type
-  
+  fallback_ref.asset_library_type = ASSET_LIBRARY_ESSENTIALS;  // Use system library type
+
   return create_operator_properties(fallback_ref, op_props_type, op_name);
 }
 /**
@@ -213,11 +218,11 @@ static std::string find_hotkey_for_operator(const bContext *C,
   PointerRNA *op_props_ptr_template = nullptr;
   IDProperty *properties_template = nullptr;
   WM_operator_properties_alloc(&op_props_ptr_template, &properties_template, op_name);
-  
+
   if (!op_props_ptr_template) {
     return "";
   }
-  
+
   StructRNA *op_props_type = op_props_ptr_template->type;
   /* Create properties for keymap search */
   IDProperty *search_properties = create_operator_properties(weak_ref, op_props_type, op_name);
@@ -231,13 +236,14 @@ static std::string find_hotkey_for_operator(const bContext *C,
         cleanup_operator_resources(search_properties, op_props_ptr_template);
         return result;
       }
-      
+
       // Fallback: Try with system library type for better compatibility
       if (weak_ref.asset_library_type != ASSET_LIBRARY_ESSENTIALS) {
-        IDProperty *fallback_properties = create_fallback_operator_properties(weak_ref, op_props_type, op_name);
+        IDProperty *fallback_properties = create_fallback_operator_properties(
+            weak_ref, op_props_type, op_name);
         result = search_keymap_for_brush_operator(wm, op_name, fallback_properties);
         IDP_FreeProperty(fallback_properties);
-        
+
         if (!result.empty()) {
           cleanup_operator_resources(search_properties, op_props_ptr_template);
           return result;
@@ -249,7 +255,7 @@ static std::string find_hotkey_for_operator(const bContext *C,
     /* Use standard search for other operators */
     std::optional<std::string> hotkey = WM_key_event_operator_string(
         C, op_name, blender::wm::OpCallContext::InvokeDefault, search_properties, is_strict);
-    
+
     cleanup_operator_resources(search_properties, op_props_ptr_template);
     return hotkey.value_or("");
   }
@@ -259,12 +265,12 @@ static std::string find_hotkey_for_operator(const bContext *C,
 /**
  * Search for hotkeys in specific keymap contexts.
  */
-static std::string find_hotkey_in_context(const bContext *C, 
+static std::string find_hotkey_in_context(const bContext *C,
                                           const char *op_name,
                                           const AssetWeakReference &weak_ref,
                                           const char *keymap_name)
 {
-  
+
   wmWindowManager *wm = CTX_wm_manager(C);
   if (!wm) {
     return "";
@@ -272,9 +278,10 @@ static std::string find_hotkey_in_context(const bContext *C,
   /* First try to find the keymap in default configuration */
   wmKeyMap *default_keymap = nullptr;
   if (wm->runtime->defaultconf) {
-    default_keymap = WM_keymap_list_find(&wm->runtime->defaultconf->keymaps, keymap_name, SPACE_EMPTY, RGN_TYPE_WINDOW);
+    default_keymap = WM_keymap_list_find(
+        &wm->runtime->defaultconf->keymaps, keymap_name, SPACE_EMPTY, RGN_TYPE_WINDOW);
   }
-  
+
   /* Get the active keymap (includes user modifications) */
   wmKeyMap *keymap = WM_keymap_active(wm, default_keymap);
   if (!keymap) {
@@ -288,32 +295,36 @@ static std::string find_hotkey_in_context(const bContext *C,
   PointerRNA *op_props_ptr_template = nullptr;
   IDProperty *properties_template = nullptr;
   WM_operator_properties_alloc(&op_props_ptr_template, &properties_template, op_name);
-  
+
   if (!op_props_ptr_template) {
     return "";
   }
-  
+
   /* Create search properties */
-  IDProperty *search_properties = create_operator_properties(weak_ref, op_props_ptr_template->type, op_name);
-  
+  IDProperty *search_properties = create_operator_properties(
+      weak_ref, op_props_ptr_template->type, op_name);
+
   std::string result = "";
-  
-  /* Use standard search for all operators - this uses the same logic as WM_key_event_operator_from_keymap */
+
+  /* Use standard search for all operators - this uses the same logic as
+   * WM_key_event_operator_from_keymap */
   wmKeyMapItem *kmi = WM_key_event_operator_from_keymap(
       keymap, op_name, search_properties, EVT_TYPE_MASK_ALL, 0);
-  
+
   if (kmi) {
     std::optional<std::string> hotkey_opt = WM_keymap_item_to_string(kmi, false);
     if (hotkey_opt.has_value()) {
       result = hotkey_opt.value();
     }
   }
-  
+
   /* If standard search failed for BRUSH_OT_asset_activate, try custom comparison as fallback */
   if (result.empty() && STREQ(op_name, "BRUSH_OT_asset_activate")) {
     LISTBASE_FOREACH (wmKeyMapItem *, kmi_fallback, &keymap->items) {
       if (STREQ(kmi_fallback->idname, op_name) && kmi_fallback->ptr && kmi_fallback->ptr->data) {
-        if (compare_brush_asset_properties(search_properties, (IDProperty*)kmi_fallback->ptr->data)) {
+        if (compare_brush_asset_properties(search_properties,
+                                           (IDProperty *)kmi_fallback->ptr->data))
+        {
           std::optional<std::string> hotkey_opt = WM_keymap_item_to_string(kmi_fallback, false);
           if (hotkey_opt.has_value()) {
             result = hotkey_opt.value();
@@ -323,11 +334,10 @@ static std::string find_hotkey_in_context(const bContext *C,
       }
     }
   }
-  
-  
+
   /* Clean up */
   cleanup_operator_resources(search_properties, op_props_ptr_template);
-  
+
   return result;
 }
 /**
@@ -337,24 +347,19 @@ static std::string find_alternative_hotkeys(const bContext *C, const AssetWeakRe
 {
   /* Try PAINT_OT_brush_select operator */
   std::string hotkey = find_hotkey_for_operator(C, "PAINT_OT_brush_select", weak_ref, false);
-  
+
   if (!hotkey.empty()) {
     return hotkey;
   }
   /* Try WM_OT_tool_set_by_id operator */
   hotkey = find_hotkey_for_operator(C, "WM_OT_tool_set_by_id", weak_ref, false);
-  
+
   if (!hotkey.empty()) {
     return hotkey;
   }
   /* Try searching in specific sculpting contexts */
-  const char *sculpt_keymaps[] = {
-    "Sculpt",
-    "3D View", 
-    "Window",
-    nullptr
-  };
-  
+  const char *sculpt_keymaps[] = {"Sculpt", "3D View", "Window", nullptr};
+
   for (int i = 0; sculpt_keymaps[i]; i++) {
     hotkey = find_hotkey_in_context(C, "WM_OT_tool_set_by_id", weak_ref, sculpt_keymaps[i]);
     if (!hotkey.empty()) {
@@ -366,13 +371,15 @@ static std::string find_alternative_hotkeys(const bContext *C, const AssetWeakRe
   const size_t dot_pos = asset_name.find_last_of('.');
   if (dot_pos != std::string::npos) {
     const std::string brush_name = asset_name.substr(0, dot_pos);
-    
+
     /* Create a modified weak reference with just the brush name */
     AssetWeakReference name_ref;
     name_ref.asset_library_type = weak_ref.asset_library_type;
-    name_ref.asset_library_identifier = weak_ref.asset_library_identifier ? BLI_strdup(weak_ref.asset_library_identifier) : nullptr;
+    name_ref.asset_library_identifier = weak_ref.asset_library_identifier ?
+                                            BLI_strdup(weak_ref.asset_library_identifier) :
+                                            nullptr;
     name_ref.relative_asset_identifier = BLI_strdup(brush_name.c_str());
-    
+
     /* Try tool operator with brush name in different contexts */
     for (int i = 0; sculpt_keymaps[i]; i++) {
       hotkey = find_hotkey_in_context(C, "WM_OT_tool_set_by_id", name_ref, sculpt_keymaps[i]);
@@ -381,7 +388,7 @@ static std::string find_alternative_hotkeys(const bContext *C, const AssetWeakRe
       }
     }
   }
-  
+
   return "";
 }
 /**
@@ -396,35 +403,35 @@ static std::string get_brush_asset_hotkey(const bContext *C,
     return "";
   }
   const AssetWeakReference weak_ref = asset.make_weak_reference();
-  
+
   /* Try primary operator with strict search */
   std::string hotkey = find_hotkey_for_operator(C, "BRUSH_OT_asset_activate", weak_ref, true);
-  
+
   if (!hotkey.empty()) {
     return hotkey;
   }
   /* Fallback to non-strict search */
   hotkey = find_hotkey_for_operator(C, "BRUSH_OT_asset_activate", weak_ref, false);
-  
+
   if (!hotkey.empty()) {
     return hotkey;
   }
   /* For custom library assets (like user brushes), also search in Sculpt keymap */
   if (weak_ref.asset_library_type == ASSET_LIBRARY_CUSTOM) {
     hotkey = find_hotkey_in_context(C, "BRUSH_OT_asset_activate", weak_ref, "Sculpt");
-    
+
     if (!hotkey.empty()) {
       return hotkey;
     }
   }
   /* Try alternative operators */
   hotkey = find_alternative_hotkeys(C, weak_ref);
-  
+
   return hotkey;
 }
 
 void asset_tooltip(const bContext *C,
-                    const asset_system::AssetRepresentation &asset,
+                   const asset_system::AssetRepresentation &asset,
                    uiTooltipData &tip,
                    const bool include_name)
 {
@@ -432,19 +439,24 @@ void asset_tooltip(const bContext *C,
     UI_tooltip_text_field_add(tip, asset.get_name(), {}, UI_TIP_STYLE_HEADER, UI_TIP_LC_MAIN);
 
     UI_tooltip_text_field_add(tip, {}, {}, UI_TIP_STYLE_SPACER, UI_TIP_LC_NORMAL, false);
-        /* Add hotkey information immediately after name for brush assets */
+    /* Add hotkey information immediately after name for brush assets */
     if (C && asset.get_id_type() == ID_BR) {
       const std::string hotkey = get_brush_asset_hotkey(C, asset);
       if (!hotkey.empty()) {
-        UI_tooltip_multicolor_text_field_add(
-    tip, "Shortcut: ", hotkey.c_str(), UI_TIP_STYLE_NORMAL, UI_TIP_LC_VALUE, UI_TIP_LC_ACTIVE, true);
+        UI_tooltip_multicolor_text_field_add(tip,
+                                             "Shortcut: ",
+                                             hotkey.c_str(),
+                                             UI_TIP_STYLE_NORMAL,
+                                             UI_TIP_LC_VALUE,
+                                             UI_TIP_LC_ACTIVE,
+                                             true);
       }
       else {
         UI_tooltip_text_field_add(
             tip, "No Shortcut Assigned", {}, UI_TIP_STYLE_NORMAL, UI_TIP_LC_VALUE, false);
       }
     }
-    
+
     UI_tooltip_text_field_add(tip, {}, {}, UI_TIP_STYLE_SPACER, UI_TIP_LC_NORMAL, false);
   }
 

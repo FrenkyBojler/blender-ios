@@ -467,14 +467,15 @@ static bool keymap_item_update_tweak_event(wmKeyMapItem *kmi, void * /*user_data
   return false;
 }
 
-	/**
+/**
  * Determine correct library type based on asset path.
  * Returns ASSET_LIBRARY_ESSENTIALS for essentials brushes, ASSET_LIBRARY_CUSTOM otherwise.
  */
 static int determine_asset_library_type(const blender::StringRef asset_prefix)
 {
-  if (asset_prefix.startswith("brushes/") && 
-      asset_prefix.find("essentials") != blender::StringRef::not_found) {
+  if (asset_prefix.startswith("brushes/") &&
+      asset_prefix.find("essentials") != blender::StringRef::not_found)
+  {
     return ASSET_LIBRARY_ESSENTIALS;
   }
   return ASSET_LIBRARY_CUSTOM;
@@ -522,9 +523,8 @@ static void keymap_update_brushes_handle_add_item(
     STRNCPY(kmi->idname, "BRUSH_OT_asset_activate");
     /* Determine correct library type based on asset path */
     int library_type = determine_asset_library_type(asset_prefix);
-    IDP_AddToGroup(
-        kmi->properties,
-	      blender::bke::idprop::create("asset_library_type", library_type).release());
+    IDP_AddToGroup(kmi->properties,
+                   blender::bke::idprop::create("asset_library_type", library_type).release());
     IDP_AddToGroup(kmi->properties,
                    blender::bke::idprop::create("relative_asset_identifier", full_path).release());
   }
@@ -560,9 +560,8 @@ static void keymap_update_brushes_handle_remove_item(
     STRNCPY(kmi->idname, "BRUSH_OT_asset_activate");
     /* Determine correct library type based on asset path */
     int library_type = determine_asset_library_type(asset_prefix);
-    IDP_AddToGroup(
-        kmi->properties,
-	      blender::bke::idprop::create("asset_library_type", library_type).release());
+    IDP_AddToGroup(kmi->properties,
+                   blender::bke::idprop::create("asset_library_type", library_type).release());
     IDP_AddToGroup(kmi->properties,
                    blender::bke::idprop::create("relative_asset_identifier", full_path).release());
   }

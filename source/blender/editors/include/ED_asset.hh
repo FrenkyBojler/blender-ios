@@ -33,7 +33,7 @@ struct uiTooltipData;
 namespace blender::ed::asset {
 
 void asset_tooltip(const bContext *C,
-                    const asset_system::AssetRepresentation &asset,
+                   const asset_system::AssetRepresentation &asset,
                    uiTooltipData &tip,
                    bool include_name = true);
 
