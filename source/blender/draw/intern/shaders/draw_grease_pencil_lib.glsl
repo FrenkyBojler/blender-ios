@@ -14,6 +14,7 @@ SHADER_LIBRARY_CREATE_INFO(draw_gpencil)
 
 #include "gpu_shader_math_constants_lib.glsl"
 #include "gpu_shader_math_matrix_transform_lib.glsl"
+#include "gpu_shader_math_vector_lib.glsl"
 #include "gpu_shader_math_vector_safe_lib.glsl"
 #include "gpu_shader_utildefines_lib.glsl"
 
