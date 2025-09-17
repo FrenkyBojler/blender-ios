@@ -291,14 +291,27 @@ struct PaintOperationExecutor {
     use_settings_random_ = (settings_->flag & GP_BRUSH_GROUP_RANDOM) != 0;
     use_vertex_color_ = brush_using_vertex_color(scene_->toolsettings->gp_paint, brush_);
     if (use_vertex_color_) {
-      ColorGeometry4f color_base;
-      copy_v3_v3(color_base, brush_->color);
-      color_base.a = settings_->vertex_factor;
-      if (ELEM(settings_->vertex_mode, GPPAINT_MODE_STROKE, GPPAINT_MODE_BOTH)) {
-        vertex_color_ = color_base;
+      if (settings_->vertex_mode == GPPAINT_MODE_SPLIT) {
+        ColorGeometry4f main_color;
+        ColorGeometry4f secondary_color;
+        copy_v3_v3(main_color, brush_->color);
+        copy_v3_v3(secondary_color, brush_->secondary_color);
+        main_color.a = settings_->vertex_factor;
+        secondary_color.a = settings_->vertex_factor;
+
+        vertex_color_ = main_color;
+        fill_color_ = secondary_color;
       }
-      if (ELEM(settings_->vertex_mode, GPPAINT_MODE_FILL, GPPAINT_MODE_BOTH)) {
-        fill_color_ = color_base;
+      else {
+        ColorGeometry4f color_base;
+        copy_v3_v3(color_base, brush_->color);
+        color_base.a = settings_->vertex_factor;
+        if (ELEM(settings_->vertex_mode, GPPAINT_MODE_STROKE, GPPAINT_MODE_BOTH)) {
+          vertex_color_ = color_base;
+        }
+        if (ELEM(settings_->vertex_mode, GPPAINT_MODE_FILL, GPPAINT_MODE_BOTH)) {
+          fill_color_ = color_base;
+        }
       }
     }
     softness_ = 1.0f - settings_->hardness;

@@ -641,6 +641,8 @@ class _draw_tool_settings_context_mode:
         if grease_pencil_tool == 'TINT':
             row.separator(factor=0.4)
             row.prop_with_popover(brush, "color", text="", panel="TOPBAR_PT_grease_pencil_vertex_color")
+            if brush.gpencil_settings.vertex_mode == "SPLIT":
+                row.prop_with_popover(brush, "secondary_color", text="", panel="TOPBAR_PT_grease_pencil_vertex_color")
 
         from bl_ui.properties_paint_common import (
             brush_basic_grease_pencil_paint_settings,

@@ -659,25 +659,49 @@ static bke::CurvesGeometry boundary_to_curves(const Scene &scene,
   const bool use_vertex_color = ed::sculpt_paint::greasepencil::brush_using_vertex_color(
       scene.toolsettings->gp_paint, &brush);
   if (use_vertex_color) {
-    ColorGeometry4f vertex_color;
-    copy_v3_v3(vertex_color, brush.color);
-    vertex_color.a = brush.gpencil_settings->vertex_factor;
+    if (brush.gpencil_settings->vertex_mode == GPPAINT_MODE_SPLIT) {
+      ColorGeometry4f main_color;
+      ColorGeometry4f secondary_color;
+      copy_v3_v3(main_color, brush.color);
+      copy_v3_v3(secondary_color, brush.secondary_color);
+      main_color.a = brush.gpencil_settings->vertex_factor;
+      secondary_color.a = brush.gpencil_settings->vertex_factor;
 
-    if (ELEM(brush.gpencil_settings->vertex_mode, GPPAINT_MODE_FILL, GPPAINT_MODE_BOTH)) {
       skip_curve_attributes.add("fill_color");
       bke::SpanAttributeWriter<ColorGeometry4f> fill_colors =
           attributes.lookup_or_add_for_write_span<ColorGeometry4f>("fill_color",
                                                                    bke::AttrDomain::Curve);
-      fill_colors.span.fill(vertex_color);
+      fill_colors.span.fill(secondary_color);
       fill_colors.finish();
-    }
-    if (ELEM(brush.gpencil_settings->vertex_mode, GPPAINT_MODE_STROKE, GPPAINT_MODE_BOTH)) {
+
       skip_point_attributes.add("vertex_color");
       bke::SpanAttributeWriter<ColorGeometry4f> vertex_colors =
           attributes.lookup_or_add_for_write_span<ColorGeometry4f>("vertex_color",
                                                                    bke::AttrDomain::Point);
-      vertex_colors.span.fill(vertex_color);
+      vertex_colors.span.fill(main_color);
       vertex_colors.finish();
+    }
+    else {
+      ColorGeometry4f vertex_color;
+      copy_v3_v3(vertex_color, brush.color);
+      vertex_color.a = brush.gpencil_settings->vertex_factor;
+
+      if (ELEM(brush.gpencil_settings->vertex_mode, GPPAINT_MODE_FILL, GPPAINT_MODE_BOTH)) {
+        skip_curve_attributes.add("fill_color");
+        bke::SpanAttributeWriter<ColorGeometry4f> fill_colors =
+            attributes.lookup_or_add_for_write_span<ColorGeometry4f>("fill_color",
+                                                                     bke::AttrDomain::Curve);
+        fill_colors.span.fill(vertex_color);
+        fill_colors.finish();
+      }
+      if (ELEM(brush.gpencil_settings->vertex_mode, GPPAINT_MODE_STROKE, GPPAINT_MODE_BOTH)) {
+        skip_point_attributes.add("vertex_color");
+        bke::SpanAttributeWriter<ColorGeometry4f> vertex_colors =
+            attributes.lookup_or_add_for_write_span<ColorGeometry4f>("vertex_color",
+                                                                     bke::AttrDomain::Point);
+        vertex_colors.span.fill(vertex_color);
+        vertex_colors.finish();
+      }
     }
   }
 

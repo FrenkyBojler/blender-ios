@@ -43,7 +43,8 @@ class TintOperation : public GreasePencilStrokeOperation {
   float strength_;
   bool temp_eraser_;
   bool active_layer_only_;
-  ColorGeometry4f color_;
+  ColorGeometry4f main_color_;
+  ColorGeometry4f secondary_color_;
   Vector<MutableDrawingInfo> drawings_;
   Array<Array<float2>> screen_positions_per_drawing_;
 
@@ -60,6 +61,7 @@ class TintOperation : public GreasePencilStrokeOperation {
                     MutableSpan<bool> touched_strokes);
   void tint_fills(const bke::CurvesGeometry &strokes,
                   const OffsetIndices<int> points_by_curve,
+                  const Brush *brush,
                   const Span<float2> screen_space_positions,
                   const float2 mouse_position,
                   const float fill_strength,
@@ -88,11 +90,10 @@ void TintOperation::on_stroke_begin(const bContext &C, const InputSample & /*sta
   strength_ = brush->alpha;
   active_layer_only_ = ((brush->gpencil_settings->flag & GP_BRUSH_ACTIVE_LAYER_ONLY) != 0);
 
-  float4 color_linear;
-  color_linear[3] = 1.0f;
-  copy_v3_v3(color_linear, BKE_brush_color_get(paint, brush));
-
-  color_ = ColorGeometry4f(color_linear);
+  main_color_.a = 1.0f;
+  secondary_color_.a = 1.0f;
+  copy_v3_v3(main_color_, BKE_brush_color_get(paint, brush));
+  copy_v3_v3(secondary_color_, BKE_brush_secondary_color_get(paint, brush));
 
   Object *obact = CTX_data_active_object(&C);
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(obact->data);
@@ -176,7 +177,7 @@ void TintOperation::tint_strokes(const bke::CurvesGeometry &strokes,
             float4 premultiplied;
             straight_to_premul_v4_v4(premultiplied, vertex_colors[point]);
             float4 rgba = float4(
-                math::interpolate(float3(premultiplied), float3(color_), influence),
+                math::interpolate(float3(premultiplied), float3(main_color_), influence),
                 vertex_colors[point][3]);
             rgba[3] = rgba[3] * (1.0f - influence) + influence;
             premul_to_straight_v4_v4(vertex_colors[point], rgba);
@@ -193,6 +194,7 @@ void TintOperation::tint_strokes(const bke::CurvesGeometry &strokes,
 
 void TintOperation::tint_fills(const bke::CurvesGeometry &strokes,
                                const OffsetIndices<int> points_by_curve,
+                               const Brush *brush,
                                const Span<float2> screen_space_positions,
                                const float2 mouse_position,
                                const float fill_strength,
@@ -229,10 +231,15 @@ void TintOperation::tint_fills(const bke::CurvesGeometry &strokes,
         alpha = math::max(alpha, 0.0f);
       }
       else {
+        const ColorGeometry4f &fill_color = brush->gpencil_settings->vertex_mode ==
+                                                    GPPAINT_MODE_SPLIT ?
+                                                secondary_color_ :
+                                                main_color_;
+
         float4 premultiplied;
         straight_to_premul_v4_v4(premultiplied, fill_colors[curve]);
         float4 rgba = float4(
-            math::interpolate(float3(premultiplied), float3(color_), fill_strength),
+            math::interpolate(float3(premultiplied), float3(fill_color), fill_strength),
             fill_colors[curve][3]);
         rgba[3] = rgba[3] * (1.0f - fill_strength) + fill_strength;
         premul_to_straight_v4_v4(fill_colors[curve], rgba);
@@ -274,10 +281,14 @@ void TintOperation::execute_tint(const bContext &C, const InputSample &extension
   strength = math::clamp(strength, 0.0f, 1.0f);
   fill_strength = math::clamp(fill_strength, 0.0f, 1.0f);
 
-  const bool tint_strokes = ELEM(
-      brush->gpencil_settings->vertex_mode, GPPAINT_MODE_STROKE, GPPAINT_MODE_BOTH);
-  const bool tint_fills = ELEM(
-      brush->gpencil_settings->vertex_mode, GPPAINT_MODE_FILL, GPPAINT_MODE_BOTH);
+  const bool tint_strokes = ELEM(brush->gpencil_settings->vertex_mode,
+                                 GPPAINT_MODE_STROKE,
+                                 GPPAINT_MODE_BOTH,
+                                 GPPAINT_MODE_SPLIT);
+  const bool tint_fills = ELEM(brush->gpencil_settings->vertex_mode,
+                               GPPAINT_MODE_FILL,
+                               GPPAINT_MODE_BOTH,
+                               GPPAINT_MODE_SPLIT);
 
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(obact->data);
 
@@ -308,6 +319,7 @@ void TintOperation::execute_tint(const bContext &C, const InputSample &extension
     if (tint_fills && !fill_colors.is_empty()) {
       this->tint_fills(strokes,
                        points_by_curve,
+                       brush,
                        screen_space_positions,
                        mouse_position,
                        fill_strength,

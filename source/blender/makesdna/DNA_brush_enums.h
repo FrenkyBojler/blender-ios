@@ -284,6 +284,8 @@ typedef enum eGp_Vertex_Mode {
   GPPAINT_MODE_FILL = 1,
   /* Affect to both. */
   GPPAINT_MODE_BOTH = 2,
+  /* Affect to both, main color for strokes, second color for fills. */
+  GPPAINT_MODE_SPLIT = 3,
 } eGp_Vertex_Mode;
 
 /* sculpt_flag */

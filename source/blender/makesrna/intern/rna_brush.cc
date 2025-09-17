@@ -1281,9 +1281,18 @@ static void rna_def_gpencil_options(BlenderRNA *brna)
 
   /* modes */
   static const EnumPropertyItem gppaint_mode_types_items[] = {
-      {GPPAINT_MODE_STROKE, "STROKE", 0, "Stroke", "Vertex Color affects to Stroke only"},
-      {GPPAINT_MODE_FILL, "FILL", 0, "Fill", "Vertex Color affects to Fill only"},
-      {GPPAINT_MODE_BOTH, "BOTH", 0, "Stroke & Fill", "Vertex Color affects to Stroke and Fill"},
+      {GPPAINT_MODE_STROKE, "STROKE", 0, "Stroke", "Main Vertex Color affects the Stroke only"},
+      {GPPAINT_MODE_FILL, "FILL", 0, "Fill", "Main Vertex Color affects the Fill only"},
+      {GPPAINT_MODE_BOTH,
+       "BOTH",
+       0,
+       "Stroke & Fill",
+       "Main Vertex Color affects the Stroke and Fill"},
+      {GPPAINT_MODE_SPLIT,
+       "SPLIT",
+       0,
+       "Stroke & Fill Split",
+       "Main Vertex Color affects the Stroke, Secondary Vertex Color affects the Fill"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 

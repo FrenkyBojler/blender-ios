@@ -808,15 +808,28 @@ static wmOperatorStatus grease_pencil_primitive_invoke(bContext *C,
   const bool use_vertex_color = (vc.scene->toolsettings->gp_paint->mode ==
                                  GPPAINT_FLAG_USE_VERTEXCOLOR);
   if (use_vertex_color) {
-    ColorGeometry4f color_base;
-    copy_v3_v3(color_base, ptd.brush->color);
-    color_base.a = ptd.settings->vertex_factor;
-    ptd.vertex_color = ELEM(ptd.settings->vertex_mode, GPPAINT_MODE_STROKE, GPPAINT_MODE_BOTH) ?
+    if (ptd.settings->vertex_mode == GPPAINT_MODE_SPLIT) {
+      ColorGeometry4f main_color;
+      ColorGeometry4f secondary_color;
+      copy_v3_v3(main_color, ptd.brush->color);
+      copy_v3_v3(secondary_color, ptd.brush->secondary_color);
+      main_color.a = ptd.settings->vertex_factor;
+      secondary_color.a = ptd.settings->vertex_factor;
+
+      ptd.vertex_color = std::make_optional(main_color);
+      ptd.fill_color = std::make_optional(secondary_color);
+    }
+    else {
+      ColorGeometry4f color_base;
+      copy_v3_v3(color_base, ptd.brush->color);
+      color_base.a = ptd.settings->vertex_factor;
+      ptd.vertex_color = ELEM(ptd.settings->vertex_mode, GPPAINT_MODE_STROKE, GPPAINT_MODE_BOTH) ?
+                             std::make_optional(color_base) :
+                             std::nullopt;
+      ptd.fill_color = ELEM(ptd.settings->vertex_mode, GPPAINT_MODE_FILL, GPPAINT_MODE_BOTH) ?
                            std::make_optional(color_base) :
                            std::nullopt;
-    ptd.fill_color = ELEM(ptd.settings->vertex_mode, GPPAINT_MODE_FILL, GPPAINT_MODE_BOTH) ?
-                         std::make_optional(color_base) :
-                         std::nullopt;
+    }
   }
   else {
     ptd.vertex_color = std::nullopt;
