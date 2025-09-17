@@ -753,15 +753,22 @@ void OBJECT_OT_add(wmOperatorType *ot)
 /** \name Lattice Deform Operator
  * \{ */
 
-static std::optional<blender::Bounds<blender::float3>> collect_targets_and_bounds(
-    bContext *C, blender::Vector<Object *> &r_targets)
+static std::optional<Bounds<float3>> collect_targets_and_bounds(
+    bContext *C, 
+    Vector<Object *> &r_targets, 
+    const float R[3][3]) 
 {
   ViewLayer *view_layer = CTX_data_view_layer(C);
   View3D *v3d = CTX_wm_view3d(C);
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
 
-  Bounds<float3> world_bounds;
+  Bounds<float3> local_bounds;
+  local_bounds.min = float3(FLT_MAX);
+  local_bounds.max = float3(-FLT_MAX);
   bool any = false;
+
+  float invR[3][3];
+  invert_m3_m3(invR, R);
 
   LISTBASE_FOREACH (Base *, base, &view_layer->object_bases) {
     if (!BASE_SELECTED_EDITABLE(v3d, base) || !object_can_have_lattice_modifier(base->object)) {
@@ -769,37 +776,26 @@ static std::optional<blender::Bounds<blender::float3>> collect_targets_and_bound
     }
 
     r_targets.append(base->object);
-
     Object *ob_eval = (Object *)DEG_get_evaluated_id(depsgraph, &base->object->id);
     if (ob_eval && DEG_object_transform_is_evaluated(*ob_eval)) {
       if (std::optional<Bounds<float3>> ob_bounds = BKE_object_boundbox_get(ob_eval)) {
-        const float(*object_to_world)[4] = ob_eval->object_to_world().ptr();
-
+        const float (*M)[4] = ob_eval->object_to_world().ptr();
         /* Generate all 8 corners of the bounding box. */
         std::array<float3, 8> corners = bounds::corners(*ob_bounds);
 
-        /* Transform each corner to world space and update bounds. */
         for (float3 &corner : corners) {
-          mul_m4_v3(object_to_world, corner);
-          world_bounds.min = math::min(world_bounds.min, corner);
-          world_bounds.max = math::max(world_bounds.max, corner);
+          mul_m4_v3(M, corner);    
+          mul_m3_v3(invR, corner);
+          local_bounds.min = math::min(local_bounds.min, corner);
+          local_bounds.max = math::max(local_bounds.max, corner);
         }
       }
-      else {
-        /* Fallback if no bounding box available. */
-        BKE_object_minmax(ob_eval, world_bounds.min, world_bounds.max);
-      }
     }
-    else {
-      /* Fallback to original object if evaluation fails or is incomplete. */
-      BKE_object_minmax(base->object, world_bounds.min, world_bounds.max);
-    }
-
     any = true;
   }
 
   if (any) {
-    return world_bounds;
+    return local_bounds;
   }
   return std::nullopt;
 }
@@ -820,8 +816,18 @@ static wmOperatorStatus lattice_add_exec(bContext *C, wmOperator *op)
   const int res_v = RNA_int_get(op->ptr, "resolution_v");
   const int res_w = RNA_int_get(op->ptr, "resolution_w");
 
+  float R_active[3][3];
+  if (ob_active) {
+    float R_raw[3][3];
+    copy_m3_m4(R_raw, ob_active->object_to_world().ptr());
+    normalize_m3_m3(R_active, R_raw);
+  }
+  else {
+    unit_m3(R_active);
+  }
+
   Vector<Object *> targets;
-  std::optional<Bounds<float3>> bounds_opt = collect_targets_and_bounds(C, targets);
+  std::optional<Bounds<float3>> bounds_opt = collect_targets_and_bounds(C, targets, R_active);
 
   if (targets.is_empty()) {
     RNA_boolean_set(op->ptr, "fit_to_selected", false);
