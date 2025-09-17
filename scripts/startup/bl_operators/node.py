@@ -264,7 +264,7 @@ class NodeSwapOperator(NodeOperator):
             if hasattr(old_node, attr) and hasattr(new_node, attr):
                 try:
                     setattr(new_node, attr, getattr(old_node, attr))
-                except ValueError:
+                except (TypeError, ValueError):
                     pass
 
     def transfer_input_values(self, old_node, new_node):
