@@ -1035,11 +1035,11 @@ void OBJECT_OT_lattice_add_to_selected(wmOperatorType *ot)
   prop = RNA_def_float(ot->srna,
                        "offset",
                        0.0f,
-                       -FLT_MAX,
+                       0.0f,
                        FLT_MAX,
                        "Offset",
                        "Add offset to lattice dimensions",
-                       -10.0f,
+                       0.0f,
                        10.0f);
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 
