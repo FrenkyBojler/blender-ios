@@ -447,10 +447,10 @@ tObject *Instance::object_sync_do(Object *ob, ResourceHandleRange res_handle)
                             ((layer.base.flag & GP_LAYER_TREE_NODE_USE_LIGHTS) != 0) &&
                             (ob->dtx & OB_USE_GPENCIL_LIGHTS);
 
-    GPUUniformBuf *lights_ubo = (use_lights) ? this->global_light_pool->ubo :
-                                               this->shadeless_light_pool->ubo;
+    gpu::UniformBuf *lights_ubo = (use_lights) ? this->global_light_pool->ubo :
+                                                 this->shadeless_light_pool->ubo;
 
-    GPUUniformBuf *ubo_mat;
+    gpu::UniformBuf *ubo_mat;
     gpencil_material_resources_get(matpool, 0, nullptr, nullptr, &ubo_mat);
 
     pass.bind_ubo("gp_lights", lights_ubo);
@@ -502,7 +502,7 @@ tObject *Instance::object_sync_do(Object *ob, ResourceHandleRange res_handle)
         return;
       }
 
-      GPUUniformBuf *new_ubo_mat;
+      gpu::UniformBuf *new_ubo_mat;
       gpu::Texture *new_tex_fill = nullptr;
       gpu::Texture *new_tex_stroke = nullptr;
       gpencil_material_resources_get(
@@ -738,7 +738,7 @@ void Instance::draw_object(View &view, tObject *ob)
 
   GPU_debug_group_begin("GPencil Object");
 
-  GPUFrameBuffer *fb_object = (ob->vfx.first) ? this->object_fb : this->gpencil_fb;
+  gpu::FrameBuffer *fb_object = (ob->vfx.first) ? this->object_fb : this->gpencil_fb;
 
   GPU_framebuffer_bind(fb_object);
   GPU_framebuffer_clear_depth_stencil(fb_object, ob->is_drawmode3d ? 1.0f : 0.0f, 0x00);

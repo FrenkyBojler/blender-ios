@@ -12,7 +12,6 @@ from bpy.types import (
 from bl_ui.properties_paint_common import (
     UnifiedPaintPanel,
     brush_basic_texpaint_settings,
-    brush_basic_gpencil_weight_settings,
     brush_basic_grease_pencil_weight_settings,
     brush_basic_grease_pencil_vertex_settings,
     BrushAssetShelf,
@@ -265,7 +264,7 @@ class _draw_tool_settings_context_mode:
         size = "size"
         size_owner = ups if ups.use_unified_size else brush
         if size_owner.use_locked_size == 'SCENE':
-            size = "unprojected_radius"
+            size = "unprojected_size"
 
         UnifiedPaintPanel.prop_unified(
             layout,
@@ -274,7 +273,7 @@ class _draw_tool_settings_context_mode:
             size,
             pressure_name="use_pressure_size",
             unified_name="use_unified_size",
-            text="Radius",
+            text="Size",
             slider=True,
             header=True,
         )
@@ -365,7 +364,7 @@ class _draw_tool_settings_context_mode:
             pressure_name="use_pressure_size",
             unified_name="use_unified_size",
             slider=True,
-            text="Radius",
+            text="Size",
             header=True,
         )
         UnifiedPaintPanel.prop_unified(
@@ -399,7 +398,7 @@ class _draw_tool_settings_context_mode:
         size = "size"
         size_owner = ups if ups.use_unified_size else brush
         if size_owner.use_locked_size == 'SCENE':
-            size = "unprojected_radius"
+            size = "unprojected_size"
 
         UnifiedPaintPanel.prop_unified(
             layout,
@@ -408,7 +407,7 @@ class _draw_tool_settings_context_mode:
             size,
             pressure_name="use_pressure_size",
             unified_name="use_unified_size",
-            text="Radius",
+            text="Size",
             slider=True,
             header=True,
         )
@@ -432,24 +431,6 @@ class _draw_tool_settings_context_mode:
 
         # Brush falloff
         layout.popover("VIEW3D_PT_tools_brush_falloff")
-
-        return True
-
-    @staticmethod
-    def WEIGHT_GPENCIL(context, layout, tool):
-        if (tool is None) or (not tool.use_brushes):
-            return False
-
-        tool_settings = context.tool_settings
-        paint = tool_settings.gpencil_weight_paint
-        brush = paint.brush
-
-        BrushAssetShelf.draw_popup_selector(layout, context, brush)
-
-        brush_basic_gpencil_weight_settings(layout, context, brush, compact=True)
-
-        layout.popover("VIEW3D_PT_tools_grease_pencil_weight_options", text="Options")
-        layout.popover("VIEW3D_PT_tools_grease_pencil_brush_weight_falloff", text="Falloff")
 
         return True
 
@@ -552,7 +533,7 @@ class _draw_tool_settings_context_mode:
             "size",
             unified_name="use_unified_size",
             pressure_name="use_pressure_size",
-            text="Radius",
+            text="Size",
             slider=True,
             header=True,
         )
@@ -1500,23 +1481,7 @@ class VIEW3D_MT_view(Menu):
 
         layout.separator()
 
-        layout.operator(
-            "render.opengl",
-            text="Viewport Render Image",
-            icon='RENDER_STILL',
-        )
-        layout.operator(
-            "render.opengl",
-            text="Viewport Render Animation",
-            icon='RENDER_ANIMATION',
-        ).animation = True
-        props = layout.operator(
-            "render.opengl",
-            text="Viewport Render Keyframes",
-        )
-        props.animation = True
-        props.render_keyed_only = True
-
+        layout.menu("VIEW3D_MT_view_render")
         layout.separator()
 
         layout.menu("INFO_MT_area")
@@ -1672,6 +1637,31 @@ class VIEW3D_MT_view_regions(Menu):
         layout.separator()
 
         layout.operator("view3d.clear_render_border")
+
+
+class VIEW3D_MT_view_render(Menu):
+    bl_label = "Render Preview"
+
+    def draw(self, _context):
+        layout = self.layout
+        layout.operator(
+            "render.opengl",
+            text="Render Viewport Image",
+            icon='RENDER_STILL',
+        )
+        layout.operator(
+            "render.opengl",
+            text="Render Viewport Animation",
+            icon='RENDER_ANIMATION',
+        ).animation = True
+
+        layout.separator()
+        props = layout.operator(
+            "render.opengl",
+            text="Render Viewport Keyframes",
+        )
+        props.animation = True
+        props.render_keyed_only = True
 
 
 # ********** Select menus, suffix from context.mode **********
@@ -3049,11 +3039,11 @@ class VIEW3D_MT_object_context_menu(Menu):
             if light.type == 'SPOT':
                 layout.separator()
 
-                props = layout.operator("wm.context_modal_mouse", text="Adjust Spot Light Size")
+                props = layout.operator("wm.context_modal_mouse", text="Adjust Spot Light Beam Angle")
                 props.data_path_iter = "selected_editable_objects"
                 props.data_path_item = "data.spot_size"
                 props.input_scale = 0.01
-                props.header_text = rpt_("Spot Size: %.2f")
+                props.header_text = rpt_("Beam Angle: %.2f")
 
                 props = layout.operator("wm.context_modal_mouse", text="Adjust Spot Light Blend")
                 props.data_path_iter = "selected_editable_objects"
@@ -5875,7 +5865,7 @@ class VIEW3D_MT_edit_curves_add(Menu):
     def draw(self, _context):
         layout = self.layout
 
-        layout.operator("curves.add_bezier", text="Bezier", icon='CURVE_BEZCURVE')
+        layout.operator("curves.add_bezier", text="Bézier", icon='CURVE_BEZCURVE')
         layout.operator("curves.add_circle", text="Circle", icon='CURVE_BEZCIRCLE')
 
 
@@ -7138,7 +7128,7 @@ class VIEW3D_PT_overlay_viewer_node(Panel):
         subrow.prop(overlay, "viewer_attribute_opacity", text="Color Opacity")
 
         row = col.row(align=True)
-        row.active = view.show_viewer
+        row.active = view.show_viewer and overlay.show_text
         row.prop(overlay, "show_viewer_text", text="Attribute Text")
 
 
@@ -8476,7 +8466,7 @@ class VIEW3D_PT_greasepencil_draw_context_menu(Panel):
                 row.prop(brush, "use_pressure_size", text="", icon='STYLUS_PRESSURE')
             else:
                 row = layout.row(align=True)
-                row.prop(brush, "unprojected_radius", text="Size", slider=True)
+                row.prop(brush, "unprojected_size", text="Size", slider=True)
                 row.prop(brush, "use_pressure_size", text="", icon='STYLUS_PRESSURE')
         if brush.gpencil_brush_type == 'ERASE':
             row = layout.row(align=True)
@@ -8570,7 +8560,7 @@ class VIEW3D_PT_greasepencil_vertex_paint_context_menu(Panel):
         row.prop(brush, "use_pressure_size", text="", icon='STYLUS_PRESSURE')
 
         if brush.gpencil_vertex_brush_type in {'DRAW', 'BLUR', 'SMEAR'}:
-            ups = tool_settings.unified_paint_settings
+            ups = settings.unified_paint_settings
             strength_owner = ups if ups.use_unified_strength else brush
             row = layout.row(align=True)
             row.prop(strength_owner, "strength", text="")
@@ -8802,7 +8792,7 @@ class VIEW3D_PT_sculpt_automasking(Panel):
             col.prop(sculpt, "use_automasking_custom_cavity_curve", text="Custom Curve")
 
             if sculpt.use_automasking_custom_cavity_curve:
-                col.template_curve_mapping(sculpt, "automasking_cavity_curve")
+                col.template_curve_mapping(sculpt, "automasking_cavity_curve", brush=True)
 
         col.separator()
 
@@ -8848,7 +8838,7 @@ class VIEW3D_PT_sculpt_context_menu(Panel):
         size = "size"
         size_owner = ups if ups.use_unified_size else brush
         if size_owner.use_locked_size == 'SCENE':
-            size = "unprojected_radius"
+            size = "unprojected_size"
 
         UnifiedPaintPanel.prop_unified(
             layout,
@@ -8857,7 +8847,7 @@ class VIEW3D_PT_sculpt_context_menu(Panel):
             size,
             unified_name="use_unified_size",
             pressure_name="use_pressure_size",
-            text="Radius",
+            text="Size",
             slider=True,
         )
         UnifiedPaintPanel.prop_unified(
@@ -9004,7 +8994,11 @@ class VIEW3D_PT_curves_sculpt_parameter_falloff(Panel):
         settings = UnifiedPaintPanel.paint_settings(context)
         brush = settings.brush
 
-        layout.template_curve_mapping(brush.curves_sculpt_settings, "curve_parameter_falloff")
+        layout.template_curve_mapping(
+            brush.curves_sculpt_settings,
+            "curve_parameter_falloff",
+            brush=True,
+            use_negative_slope=True)
         row = layout.row(align=True)
         row.operator("brush.sculpt_curves_falloff_preset", icon='SMOOTHCURVE', text="").shape = 'SMOOTH'
         row.operator("brush.sculpt_curves_falloff_preset", icon='SPHERECURVE', text="").shape = 'ROUND'
@@ -9134,6 +9128,7 @@ classes = (
     VIEW3D_MT_view_align_selected,
     VIEW3D_MT_view_viewpoint,
     VIEW3D_MT_view_regions,
+    VIEW3D_MT_view_render,
     VIEW3D_MT_select_object,
     VIEW3D_MT_select_object_more_less,
     VIEW3D_MT_select_pose,

@@ -57,10 +57,9 @@ function(add_blender_test testname)
   )
 endfunction()
 
-function(add_blender_test_io testname)
-  # Remove `--debug-exit-on-error` since errors
-  # are printed on e.g. meshes with invalid data. But
-  # we do want to test those in import tests.
+function(add_blender_test_allow_error testname)
+  # Remove `--debug-exit-on-error` since errors are printed on e.g. meshes with
+  # invalid data or failed image loading, but sometimes we want to test those.
   set(EXE_PARAMS ${TEST_BLENDER_EXE_PARAMS})
   list(REMOVE_ITEM EXE_PARAMS --debug-exit-on-error)
   add_blender_test_impl(
@@ -262,6 +261,11 @@ add_blender_test(
 )
 
 add_blender_test(
+  script_pyapi_prop
+  --python ${CMAKE_CURRENT_LIST_DIR}/bl_pyapi_prop.py
+)
+
+add_blender_test(
   script_pyapi_prop_array
   --python ${CMAKE_CURRENT_LIST_DIR}/bl_pyapi_prop_array.py
 )
@@ -418,6 +422,13 @@ endif()
 add_blender_test(
   geometry_attributes
   --python ${CMAKE_CURRENT_LIST_DIR}/bl_geometry_attributes.py
+)
+
+add_blender_test(
+  geonode_file_reporting
+  --python ${CMAKE_CURRENT_LIST_DIR}/bl_geonode_file_reporting.py
+  --
+  --testdir "${TEST_SRC_DIR}/io_tests"
 )
 
 # ------------------------------------------------------------------------------
@@ -658,6 +669,7 @@ if((WITH_CYCLES OR WITH_GPU_RENDER_TESTS) AND TEST_SRC_DIR_EXISTS)
   set(render_tests
     attributes
     camera
+    colorspace
     bsdf
     hair
     image_colorspace
@@ -669,6 +681,7 @@ if((WITH_CYCLES OR WITH_GPU_RENDER_TESTS) AND TEST_SRC_DIR_EXISTS)
     light_group
     light_linking
     mesh
+    node_inlining
     pointcloud
     principled_bsdf
     shader
@@ -852,7 +865,7 @@ if((WITH_CYCLES OR WITH_GPU_RENDER_TESTS) AND TEST_SRC_DIR_EXISTS)
           workbench_vulkan_${render_test}
           ${CMAKE_CURRENT_LIST_DIR}/workbench_render_tests.py
           --testdir "${TEST_SRC_DIR}/render/${render_test}"
-          --outdir "${TEST_OUT_DIR}/workbench/vulkan"
+          --outdir "${TEST_OUT_DIR}/workbench_vulkan"
           --gpu-backend vulkan
           ${_gpu_render_tests_arguments}
         )
@@ -1179,7 +1192,7 @@ if(WITH_USD AND TEST_SRC_DIR_EXISTS)
 endif()
 
 if(TEST_SRC_DIR_EXISTS)
-  add_blender_test_io(
+  add_blender_test_allow_error(
     io_fbx_import
     --python ${CMAKE_CURRENT_LIST_DIR}/io_fbx_import_test.py
     --
@@ -1189,7 +1202,7 @@ if(TEST_SRC_DIR_EXISTS)
 endif()
 
 if(WITH_IO_WAVEFRONT_OBJ AND TEST_SRC_DIR_EXISTS)
-  add_blender_test_io(
+  add_blender_test_allow_error(
     io_obj_import
     --python ${CMAKE_CURRENT_LIST_DIR}/io_obj_import_test.py
     --
@@ -1199,7 +1212,7 @@ if(WITH_IO_WAVEFRONT_OBJ AND TEST_SRC_DIR_EXISTS)
 endif()
 
 if(WITH_IO_PLY AND TEST_SRC_DIR_EXISTS)
-  add_blender_test_io(
+  add_blender_test_allow_error(
     io_ply_import
     --python ${CMAKE_CURRENT_LIST_DIR}/io_ply_import_test.py
     --
@@ -1209,7 +1222,7 @@ if(WITH_IO_PLY AND TEST_SRC_DIR_EXISTS)
 endif()
 
 if(WITH_IO_STL AND TEST_SRC_DIR_EXISTS)
-  add_blender_test_io(
+  add_blender_test_allow_error(
     io_stl_import
     --python ${CMAKE_CURRENT_LIST_DIR}/io_stl_import_test.py
     --
@@ -1252,7 +1265,7 @@ if(TEST_SRC_DIR_EXISTS AND TEST_OPENIMAGEIO_TOOL_EXISTS)
     -optional_formats "${OPTIONAL_FORMATS}"
   )
 
-  add_blender_test(
+  add_blender_test_allow_error(
     imbuf_load
     --python ${CMAKE_CURRENT_LIST_DIR}/bl_imbuf_load.py
     --
@@ -1366,11 +1379,7 @@ if(WITH_UI_TESTS)
   # list explicitly so changes bisecting/updated are sure to re-run CMake.
   set(_ui_tests
     test_sculpt.asset_shelf_brush_selection
-    test_workspace.sanity_check_general
-    test_workspace.sanity_check_2d_animation
-    test_workspace.sanity_check_sculpting
-    test_workspace.sanity_check_vfx
-    test_workspace.sanity_check_video_editing
+    test_tools.sculpt_mode_toolbar
     test_undo.compositor_make_group
     test_undo.text_editor_edit_mode_mix
     test_undo.text_editor_simple
@@ -1388,6 +1397,11 @@ if(WITH_UI_TESTS)
     test_undo.view3d_simple
     test_undo.view3d_texture_paint_complex
     test_undo.view3d_texture_paint_simple
+    test_workspace.sanity_check_general
+    test_workspace.sanity_check_2d_animation
+    test_workspace.sanity_check_sculpting
+    test_workspace.sanity_check_vfx
+    test_workspace.sanity_check_video_editing
   )
   foreach(ui_test ${_ui_tests})
     add_blender_test_ui(

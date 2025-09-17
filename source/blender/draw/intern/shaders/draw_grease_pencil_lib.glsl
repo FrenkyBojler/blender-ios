@@ -11,7 +11,10 @@ SHADER_LIBRARY_CREATE_INFO(draw_gpencil)
 #include "draw_model_lib.glsl"
 #include "draw_object_infos_lib.glsl"
 #include "draw_view_lib.glsl"
-#include "gpu_shader_math_matrix_lib.glsl"
+
+#include "gpu_shader_math_constants_lib.glsl"
+#include "gpu_shader_math_matrix_transform_lib.glsl"
+#include "gpu_shader_math_vector_safe_lib.glsl"
 #include "gpu_shader_utildefines_lib.glsl"
 
 #ifndef DRW_GPENCIL_INFO
@@ -50,6 +53,27 @@ float gpencil_stroke_round_cap_mask(
   }
 }
 #endif
+
+struct PointData {
+  bool cyclical;
+  int mat, stroke_id, point_id, packed_data;
+};
+
+PointData decode_ma(int4 ma)
+{
+  PointData data;
+
+  data.mat = ma.x;
+  data.stroke_id = ma.y;
+  /* Take the absolute because the sign is for cyclical. */
+  data.point_id = abs(ma.z);
+  /* Aspect, UV Rotation and Hardness. */
+  data.packed_data = ma.w;
+  /* Cyclical is stored in the sign of the point index. */
+  data.cyclical = ma.z < 0;
+
+  return data;
+}
 
 float2 gpencil_decode_aspect(int packed_data)
 {
@@ -166,11 +190,6 @@ float4 gpencil_vertex(float4 viewport_res,
 #  define thickness2 pos2.w
 #  define strength1 uv1.w
 #  define strength2 uv2.w
-/* Packed! need to be decoded. */
-#  define hardness1 ma1.w
-#  define hardness2 ma2.w
-#  define uvrot1 ma1.w
-#  define aspect1 ma1.w
 
   float4 out_ndc;
 
@@ -178,8 +197,32 @@ float4 gpencil_vertex(float4 viewport_res,
     bool is_dot = flag_test(material_flags, GP_STROKE_ALIGNMENT);
     bool is_squares = !flag_test(material_flags, GP_STROKE_DOTS);
 
+    bool is_first = (ma.x == -1);
+    bool is_last = (ma3.x == -1);
+    bool is_single = is_first && (ma2.x == -1);
+
+    PointData point_data1 = decode_ma(ma1);
+    PointData point_data2 = decode_ma(ma2);
+
+    /* Join the first and last point if the curve is cyclical. */
+    if (point_data1.cyclical && !is_single) {
+      if (is_first) {
+        /* The first point will have the index of the last point. */
+        PointData point_data = decode_ma(ma);
+        int last_stroke_id = point_data.stroke_id;
+        ma = floatBitsToInt(texelFetch(gp_pos_tx, (last_stroke_id - 2) * 3 + 1));
+        pos = texelFetch(gp_pos_tx, (last_stroke_id - 2) * 3 + 0);
+      }
+
+      if (is_last) {
+        int first_stroke_id = point_data1.stroke_id;
+        ma3 = floatBitsToInt(texelFetch(gp_pos_tx, (first_stroke_id + 2) * 3 + 1));
+        pos3 = texelFetch(gp_pos_tx, (first_stroke_id + 2) * 3 + 0);
+      }
+    }
+
     /* Special Case. Stroke with single vert are rendered as dots. Do not discard them. */
-    if (!is_dot && ma.x == -1 && ma2.x == -1) {
+    if (!is_dot && is_single) {
       is_dot = true;
       is_squares = false;
     }
@@ -240,13 +283,14 @@ float4 gpencil_vertex(float4 viewport_res,
     float clamped_thickness = max(0.0f, thickness);
 
     out_uv = float2(x, y) * 0.5f + 0.5f;
-    out_hardness = gpencil_decode_hardness(use_curr ? hardness1 : hardness2);
+    out_hardness = gpencil_decode_hardness(use_curr ? point_data1.packed_data :
+                                                      point_data2.packed_data);
 
     if (is_dot) {
       uint alignment_mode = material_flags & GP_STROKE_ALIGNMENT;
 
       /* For one point strokes use object alignment. */
-      if (alignment_mode == GP_STROKE_ALIGNMENT_STROKE && ma.x == -1 && ma2.x == -1) {
+      if (alignment_mode == GP_STROKE_ALIGNMENT_STROKE && is_single) {
         alignment_mode = GP_STROKE_ALIGNMENT_OBJECT;
       }
 
@@ -265,7 +309,7 @@ float4 gpencil_vertex(float4 viewport_res,
       }
 
       /* Rotation: Encoded as Cos + Sin sign. */
-      float uv_rot = gpencil_decode_uvrot(uvrot1);
+      float uv_rot = gpencil_decode_uvrot(point_data1.packed_data);
       float rot_sin = sqrt(max(0.0f, 1.0f - uv_rot * uv_rot)) * sign(uv_rot);
       float rot_cos = abs(uv_rot);
       /* TODO(@fclem): Optimize these 2 matrix multiply into one by only having one rotation angle
@@ -276,7 +320,7 @@ float4 gpencil_vertex(float4 viewport_res,
       /* Rotate 90 degrees counter-clockwise. */
       float2 y_axis = float2(-x_axis.y, x_axis.x);
 
-      out_aspect = gpencil_decode_aspect(aspect1);
+      out_aspect = gpencil_decode_aspect(point_data1.packed_data);
 
       x *= out_aspect.x;
       y *= out_aspect.y;
@@ -356,10 +400,6 @@ float4 gpencil_vertex(float4 viewport_res,
 #  undef thickness2
 #  undef strength1
 #  undef strength2
-#  undef hardness1
-#  undef hardness2
-#  undef uvrot1
-#  undef aspect1
 
   return out_ndc;
 }
