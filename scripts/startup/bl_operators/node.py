@@ -154,7 +154,13 @@ class NodeOperator:
         except RuntimeError as ex:
             self.report({'ERROR'}, str(ex))
             return None
+        
+        node.select = True
+        tree.nodes.active = node
+        node.location = space.cursor_location
+        return node
 
+    def apply_node_settings(self, node):
         for setting in self.settings:
             # XXX catch exceptions here?
             value = eval(setting.value)
@@ -174,10 +180,6 @@ class NodeOperator:
                     rpt_("Node has no attribute {:s}").format(setting.name))
                 print(str(ex))
                 # Continue despite invalid attribute
-
-        node.select = True
-        tree.nodes.active = node
-        node.location = space.cursor_location
         return node
 
 
@@ -381,6 +383,7 @@ class NODE_OT_add_node(NodeAddOperator, Operator):
         if self.properties.is_property_set("type"):
             self.deselect_nodes(context)
             if node := self.create_node(context, self.type):
+                self.apply_node_settings(node)
                 if self.visible_output:
                     for socket in node.outputs:
                         if socket.name != self.visible_output:
@@ -428,6 +431,7 @@ class NODE_OT_swap_node(NodeSwapOperator, Operator):
                 continue
 
             new_node = self.create_node(context, self.type)
+            self.apply_node_settings(new_node)
             self.transfer_node_properties(old_node, new_node)
 
             if self.visible_output:
@@ -479,6 +483,7 @@ class NODE_OT_add_empty_group(NodeAddOperator, bpy.types.Operator):
         group = self.create_empty_group(tree.bl_idname)
         self.deselect_nodes(context)
         node = self.create_node(context, node_tree_group_type[tree.bl_idname])
+        self.apply_node_settings(node)
         node.node_tree = group
         return {"FINISHED"}
 
@@ -564,6 +569,10 @@ class NodeAddZoneOperator(ZoneOperator, NodeAddOperator):
         self.deselect_nodes(context)
         input_node = self.create_node(context, self.input_node_type)
         output_node = self.create_node(context, self.output_node_type)
+
+        self.apply_node_settings(input_node)
+        self.apply_node_settings(output_node)
+
         if input_node is None or output_node is None:
             return {'CANCELLED'}
 
@@ -649,6 +658,9 @@ class NODE_OT_swap_zone(ZoneOperator, NodeSwapOperator, Operator):
 
             input_node = self.create_node(context, self.input_node_type)
             output_node = self.create_node(context, self.output_node_type)
+            
+            self.apply_node_settings(input_node)
+            self.apply_node_settings(output_node)
 
             if input_node is None or output_node is None:
                 return {'CANCELLED'}
