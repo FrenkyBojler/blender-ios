@@ -293,40 +293,69 @@ class NodeSwapOperator(NodeOperator):
 
     @staticmethod
     def transfer_links(tree, old_node, new_node, is_input):
+        both_math_nodes = (old_node.bl_idname in operation_nodes) and (new_node.bl_idname in operation_nodes)
+
         if is_input:
-            for input in old_node.inputs:
-                links = sorted(input.links, key=lambda link: link.multi_input_sort_id)
-
-                for link in links:
-                    try:
-                        new_socket = new_node.inputs[input.name]
-
-                        if new_socket.hide or not new_socket.enabled:
-                            continue
-
-                        tree.links.new(link.from_socket, new_socket)
-                    except KeyError:
-                        pass
-
-        else:
-            for output in old_node.outputs:
-                for link in output.links:
-                    try:
-                        new_socket = new_node.outputs[output.name]
-
-                        if new_socket.hide or not new_socket.enabled:
-                            continue
-
-                        new_link = tree.links.new(new_socket, link.to_socket)
-
+            if both_math_nodes:
+                for i, input in enumerate(old_node.inputs):
+                    for link in input.links:
                         try:
-                            if link.to_socket.is_multi_input:
-                                new_link.swap_multi_input_sort_id(link)
-                        except AttributeError:
+                            new_socket = new_node.inputs[i]
+
+                            if new_socket.hide or not new_socket.enabled:
+                                continue
+
+                            tree.links.new(link.from_socket, new_socket)
+                        except IndexError:
+                            pass
+            else:
+                for input in old_node.inputs:
+                    links = sorted(input.links, key=lambda link: link.multi_input_sort_id)
+
+                    for link in links:
+                        try:
+                            new_socket = new_node.inputs[input.name]
+
+                            if new_socket.hide or not new_socket.enabled:
+                                continue
+
+                            tree.links.new(link.from_socket, new_socket)
+                        except KeyError:
                             pass
 
-                    except KeyError:
-                        pass
+        else:
+            if both_math_nodes:
+                for i, output in enumerate(old_node.outputs):
+                    for link in output.links:
+                        try:
+                            new_socket = new_node.outputs[i]
+
+                            if new_socket.hide or not new_socket.enabled:
+                                continue
+
+                            new_link = tree.links.new(new_socket, link.to_socket)
+                        except IndexError:
+                            pass
+
+            else:
+                for output in old_node.outputs:
+                    for link in output.links:
+                        try:
+                            new_socket = new_node.outputs[output.name]
+
+                            if new_socket.hide or not new_socket.enabled:
+                                continue
+
+                            new_link = tree.links.new(new_socket, link.to_socket)
+
+                            try:
+                                if link.to_socket.is_multi_input:
+                                    new_link.swap_multi_input_sort_id(link)
+                            except AttributeError:
+                                pass
+
+                        except KeyError:
+                            pass
 
 
 # Simple basic operator for adding a node.
