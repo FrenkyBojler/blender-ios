@@ -430,6 +430,10 @@ class NODE_OT_swap_node(NodeSwapOperator, Operator):
             if tree.nodes.get(old_node.name) is None:
                 continue
 
+            if old_node.bl_idname == self.type:
+                self.apply_node_settings(old_node)
+                continue
+
             new_node = self.create_node(context, self.type)
             self.apply_node_settings(new_node)
             self.transfer_node_properties(old_node, new_node)
@@ -668,6 +672,18 @@ class NODE_OT_swap_zone(ZoneOperator, NodeSwapOperator, Operator):
             if tree.nodes.get(old_node.name) is None:
                 continue
 
+            zone_pair = self.get_zone_pair(tree, old_node)
+
+            if (old_node.bl_idname in {self.input_node_type, self.output_node_type}):
+                if zone_pair is not None:
+                    old_input_node, old_output_node = zone_pair
+                    self.apply_node_settings(old_input_node)
+                    self.apply_node_settings(old_output_node)
+                else:
+                    self.apply_node_settings(old_node)
+
+                continue
+
             input_node = self.create_node(context, self.input_node_type)
             output_node = self.create_node(context, self.output_node_type)
             
@@ -679,8 +695,6 @@ class NODE_OT_swap_zone(ZoneOperator, NodeSwapOperator, Operator):
 
             # Simulation input must be paired with the output.
             input_node.pair_with_output(output_node)
-
-            zone_pair = self.get_zone_pair(tree, old_node)
 
             if zone_pair is not None:
                 old_input_node, old_output_node = zone_pair
