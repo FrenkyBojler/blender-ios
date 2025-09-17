@@ -94,6 +94,7 @@
 struct uiTooltipFormat {
   uiTooltipStyle style;
   uiTooltipColorID color_id;
+  uiTooltipColorID second_color_id;
 };
 
 struct uiTooltipField {
@@ -134,6 +135,27 @@ void UI_tooltip_text_field_add(uiTooltipData &data,
   uiTooltipField field{};
   field.format.style = style;
   field.format.color_id = color_id;
+  field.text = std::move(text);
+  field.text_suffix = std::move(suffix);
+  data.fields.append(std::move(field));
+}
+
+	void UI_tooltip_multicolor_text_field_add(uiTooltipData &data,
+                                          std::string text,
+                                          std::string suffix,
+                                          const uiTooltipStyle style,
+                                          const uiTooltipColorID text_color_id,
+                                          const uiTooltipColorID text_second_color_id,
+                                          const bool is_pad)
+{
+  if (is_pad) {
+    /* Add a spacer field before this one. */
+    UI_tooltip_text_field_add(data, {}, {}, UI_TIP_STYLE_SPACER, UI_TIP_LC_NORMAL, false);
+  }
+  uiTooltipField field{};
+  field.format.style = style;
+  field.format.color_id = text_color_id;
+  field.format.second_color_id = text_second_color_id;
   field.text = std::move(text);
   field.text_suffix = std::move(suffix);
   data.fields.append(std::move(field));
@@ -355,8 +377,25 @@ static void ui_tooltip_region_draw_cb(const bContext * /*C*/, ARegion *region)
       UI_fontstyle_set(&data->fstyle);
       UI_fontstyle_draw(
           &data->fstyle, &bbox, field->text.c_str(), field->text.size(), drawcol, &fs_params);
+      
+      /* Offset to the end of the last line and draw suffix with different color. */
+      if (!field->text_suffix.empty()) {
+        const float xofs = field->geom.x_pos;
+        const float yofs = data->lineh * (field->geom.lines - 1);
+        bbox.xmin += xofs;
+        bbox.ymax -= yofs;
+        rgb_float_to_uchar(drawcol, tip_colors[int(field->format.second_color_id)]);
+        UI_fontstyle_draw(&data->fstyle,
+                          &bbox,
+                            field->text_suffix.c_str(),
+                            field->text_suffix.size(),
+                            drawcol,
+                            &fs_params);
+          /* Undo offset. */
+          bbox.xmin -= xofs;
+          bbox.ymax += yofs;
+        }
     }
-
     bbox.ymax -= data->lineh * field->geom.lines;
   }
 

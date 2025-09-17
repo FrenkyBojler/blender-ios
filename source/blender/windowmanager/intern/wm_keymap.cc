@@ -16,6 +16,7 @@
 #include "DNA_userdef_types.h"
 #include "DNA_windowmanager_types.h"
 #include "DNA_workspace_types.h"
+#include "DNA_object_enums.h"
 
 #include "CLG_log.h"
 #include "MEM_guardedalloc.h"
@@ -1335,6 +1336,15 @@ static wmKeyMapItem *wm_keymap_item_find_in_keymap(wmKeyMap *keymap,
                           properties, static_cast<const IDProperty *>(kmi->ptr->data), is_strict))
       {
         kmi_match = true;
+      }
+	      /* Второй способ: проверяем system_properties */
+      else if (kmi->ptr && kmi->ptr->data) {
+        IDProperty *kmi_props = static_cast<IDProperty *>(kmi->ptr->data);
+        IDProperty *system_props = IDP_GetPropertyFromGroup(kmi_props, "system_properties");
+        
+        if (system_props && IDP_EqualsProperties_ex(properties, system_props, is_strict)) {
+          kmi_match = true;
+        }
       }
       /* Debug only, helps spotting mismatches between menu entries and shortcuts! */
       else if (G.debug & G_DEBUG_WM) {

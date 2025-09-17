@@ -364,13 +364,13 @@ static void file_draw_tooltip_custom_func(bContext & /*C*/,
   }
 }
 
-static void file_draw_asset_tooltip_custom_func(bContext & /*C*/,
+static void file_draw_asset_tooltip_custom_func(bContext &C,
                                                 uiTooltipData &tip,
                                                 uiBut * /*but*/,
                                                 void *argN)
 {
   const auto *asset = static_cast<blender::asset_system::AssetRepresentation *>(argN);
-  blender::ed::asset::asset_tooltip(*asset, tip);
+  blender::ed::asset::asset_tooltip(&C, *asset, tip);
 }
 
 static void draw_tile_background(const rcti *draw_rect, int colorid, int shade)

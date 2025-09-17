@@ -1938,6 +1938,20 @@ void UI_tooltip_text_field_add(uiTooltipData &data,
                                const bool is_pad = false);
 
 /**
+ * \param text: Allocated text (transfer ownership to `data`) or null.
+ * \param suffix: Allocated text (transfer ownership to `data`) or null.
+ * \param text_color_id: Color for the main text.
+ * \param text_second_color_id: Color for the second part of the text on the line.
+ */
+void UI_tooltip_multicolor_text_field_add(uiTooltipData &data,
+                                          std::string text,
+                                          std::string suffix,
+                                          const uiTooltipStyle style,
+                                          const uiTooltipColorID text_color_id,
+                                          const uiTooltipColorID text_second_color_id,
+                                          const bool is_pad = false);
+
+/**
  * \param image: Image buffer (duplicated, ownership is *not* transferred to `data`).
  * \param image_size: Display size for the image (pixels without UI scale applied).
  */
