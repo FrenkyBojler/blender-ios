@@ -773,8 +773,7 @@ static std::optional<blender::Bounds<blender::float3>> collect_targets_and_bound
     Object *ob_eval = (Object *)DEG_get_evaluated_id(depsgraph, &base->object->id);
     if (ob_eval && DEG_object_transform_is_evaluated(*ob_eval)) {
       if (std::optional<Bounds<float3>> ob_bounds = BKE_object_boundbox_get(ob_eval)) {
-        float object_to_world[4][4];
-        BKE_object_to_mat4(ob_eval, object_to_world);
+        const float(*object_to_world)[4] = ob_eval->object_to_world().ptr();
 
         /* Generate all 8 corners of the bounding box. */
         std::array<float3, 8> corners = bounds::corners(*ob_bounds);
@@ -851,19 +850,23 @@ static wmOperatorStatus lattice_add_exec(bContext *C, wmOperator *op)
       }
 
       if (have_local_bb) {
+        /* Calculate the center and size of the local bounding box. */
         float center_l[3], size_l[3];
         mid_v3_v3v3(center_l, min_l, max_l);
         sub_v3_v3v3(size_l, max_l, min_l);
 
+        /* Get the target's world matrix and transform the local center to world space. */
         float M[4][4], center_w[3];
         BKE_object_to_mat4(tob_eval, M);
         mul_v3_m4v3(center_w, M, center_l);
 
+        /* Extract and normalize rotation matrix, then convert to quaternion. */
         float R_raw[3][3], R[3][3], q[4];
         copy_m3_m4(R_raw, M);
         normalize_m3_m3(R, R_raw);
         mat3_to_quat(q, R);
 
+        /* Calculate scale factors from transformation matrix. */
         float s[3];
         s[0] = len_v3((float[3]){M[0][0], M[1][0], M[2][0]});
         s[1] = len_v3((float[3]){M[0][1], M[1][1], M[2][1]});
@@ -875,16 +878,16 @@ static wmOperatorStatus lattice_add_exec(bContext *C, wmOperator *op)
             size_l[2] * s[2] + offset,
         };
 
-        const float lat_rest[3] = {1.0f, 1.0f, 1.0f};
-
+        /* Apply the calculated transform to the new lattice object. */
         ob->rotmode = ROT_MODE_QUAT;
         copy_qt_qt(ob->quat, q);
 
-        ob->scale[0] = dims[0] / lat_rest[0];
-        ob->scale[1] = dims[1] / lat_rest[1];
-        ob->scale[2] = dims[2] / lat_rest[2];
+        ob->scale[0] = dims[0];
+        ob->scale[1] = dims[1];
+        ob->scale[2] = dims[2];
 
         copy_v3_v3(ob->loc, center_w);
+        /* Resize lattice with the new object transformation.*/
         BKE_lattice_resize(lt, max_ii(1, res_u), max_ii(1, res_v), max_ii(1, res_w), ob);
         DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY | ID_RECALC_TRANSFORM);
         DEG_relations_tag_update(CTX_data_main(C));
@@ -894,37 +897,28 @@ static wmOperatorStatus lattice_add_exec(bContext *C, wmOperator *op)
       /* Align lattice to active object’s rotation,
        * sized to oriented bounding box of all selected objects.
        */
-      Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-      Object *ob_active_eval = (Object *)DEG_get_evaluated_id(depsgraph, &ob_active->id);
 
-      float M_act[4][4];
-      BKE_object_to_mat4(ob_active_eval, M_act);
-
+      /* Get the rotation of the active object.*/
       float R_raw[3][3], R[3][3], q[4];
-      copy_m3_m4(R_raw, M_act);
+      copy_m3_m4(R_raw, ob_active->object_to_world().ptr());
       normalize_m3_m3(R, R_raw);
       mat3_to_quat(q, R);
 
+      /* Inverse rotation transforms all targets into active objects local space. */
       float invR[3][3];
       invert_m3_m3(invR, R);
 
+      /* Initialize a bounding box to be expanded. */
       Bounds<float3> local_bounds;
       local_bounds.min = float3(FLT_MAX);
       local_bounds.max = float3(-FLT_MAX);
 
+      /* Iterate through all target objects to calculate a combined bounding box. */
       for (Object *tob : targets) {
-        Object *tob_eval = (Object *)DEG_get_evaluated_id(depsgraph, &tob->id);
-        if (!tob_eval || !DEG_object_transform_is_evaluated(*tob_eval)) {
-          continue;
-        }
-
-        if (std::optional<Bounds<float3>> ob_bounds = BKE_object_boundbox_get(tob_eval)) {
-          float M[4][4];
-          BKE_object_to_mat4(tob_eval, M);
+        if (std::optional<Bounds<float3>> ob_bounds = BKE_object_boundbox_get(tob)) {
           std::array<float3, 8> corners = bounds::corners(*ob_bounds);
-
           for (float3 &corner : corners) {
-            mul_m4_v3(M, corner);
+            mul_m4_v3(tob->object_to_world().ptr(), corner);
             mul_m3_v3(invR, corner);
             local_bounds.min = math::min(local_bounds.min, corner);
             local_bounds.max = math::max(local_bounds.max, corner);
@@ -932,6 +926,7 @@ static wmOperatorStatus lattice_add_exec(bContext *C, wmOperator *op)
         }
       }
 
+      /* Apply offset to the calculated bounds. */
       float sel_min[3], sel_max[3];
       copy_v3_v3(sel_min, local_bounds.min);
       copy_v3_v3(sel_max, local_bounds.max);
@@ -940,32 +935,31 @@ static wmOperatorStatus lattice_add_exec(bContext *C, wmOperator *op)
         sel_max[i] += offset;
       }
 
+      /* Calculate the center and size of this combined bounding box. */
       float center_l[3], size_l[3];
       mid_v3_v3v3(center_l, sel_min, sel_max);
       sub_v3_v3v3(size_l, sel_max, sel_min);
 
+      /* Transform the local center back into world space for the final location. */
       float center_w[3];
       copy_v3_v3(center_w, center_l);
       mul_m3_v3(R, center_w);
 
+      /* Apply the calculated transform to the new lattice object.*/
       ob->rotmode = ROT_MODE_QUAT;
       copy_qt_qt(ob->quat, q);
 
-      ob->loc[0] = center_w[0];
-      ob->loc[1] = center_w[1];
-      ob->loc[2] = center_w[2];
+      copy_v3_v3(ob->loc, center_w);
+      copy_v3_v3(ob->scale, size_l);
 
-      ob->scale[0] = size_l[0];
-      ob->scale[1] = size_l[1];
-      ob->scale[2] = size_l[2];
-
+      /* Resize lattice with the new object transformation. */
       BKE_lattice_resize(lt, max_ii(1, res_u), max_ii(1, res_v), max_ii(1, res_w), ob);
       DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY | ID_RECALC_TRANSFORM);
       DEG_relations_tag_update(CTX_data_main(C));
     }
   }
   else {
-    /*  Fallback when fit to selected is off. */
+    /* Fallback when fit to selected is off. */
     copy_v3_fl(ob->scale, RNA_float_get(op->ptr, "radius"));
     DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
   }
