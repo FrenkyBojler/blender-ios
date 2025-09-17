@@ -169,7 +169,16 @@ void get_compositor_group_input_extra_info(blender::nodes::NodeExtraInfoParams &
         blender::nodes::NodeExtraInfoRow row;
         row.text = IFACE_("Wrong Image Input Type");
         row.icon = ICON_ERROR;
-        row.tooltip = TIP_("Node group's main Image input should be of type color");
+        row.tooltip = TIP_("Node group's main Image input should be of type Color");
+        parameters.rows.append(std::move(row));
+      }
+    }
+    else if (StringRef(input->name) == "Mask") {
+      if (input->type != SOCK_RGBA) {
+        blender::nodes::NodeExtraInfoRow row;
+        row.text = IFACE_("Wrong Mask Input Type");
+        row.icon = ICON_ERROR;
+        row.tooltip = TIP_("Node group's Mask input should be of type Color");
         parameters.rows.append(std::move(row));
       }
     }
@@ -181,7 +190,8 @@ void get_compositor_group_input_extra_info(blender::nodes::NodeExtraInfoParams &
       row.text = IFACE_("Unsupported Inputs");
       row.icon = ICON_WARNING_LARGE;
       row.tooltip = TIP_(
-          "Only a main Image input is supported, the rest are unsupported and will return zero");
+          "Only a main Image and Mask inputs are supported, the rest are unsupported and will "
+          "return zero");
       parameters.rows.append(std::move(row));
       added_warning_for_unsupported_inputs = true;
     }

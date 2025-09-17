@@ -1629,6 +1629,8 @@ static void initialize_compositor_sequencer_node_group(const bContext *C, bNodeT
   ntree.tree_interface.add_socket(
       DATA_("Image"), "", "NodeSocketColor", NODE_INTERFACE_SOCKET_INPUT, nullptr);
   ntree.tree_interface.add_socket(
+      DATA_("Mask"), "", "NodeSocketColor", NODE_INTERFACE_SOCKET_INPUT, nullptr);
+  ntree.tree_interface.add_socket(
       DATA_("Image"), "", "NodeSocketColor", NODE_INTERFACE_SOCKET_OUTPUT, nullptr);
 
   bNode *output_node = blender::bke::node_add_node(C, ntree, "NodeGroupOutput");
@@ -1693,8 +1695,12 @@ void NODE_OT_new_compositor_sequencer_node_groupm(wmOperatorType *operator_type)
 
   operator_type->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
-  RNA_def_string(
-      operator_type->srna, "name", DATA_("Compositor Nodes"), MAX_ID_NAME - 2, "Name", "");
+  RNA_def_string(operator_type->srna,
+                 "name",
+                 DATA_("Sequencer Compositor Nodes"),
+                 MAX_ID_NAME - 2,
+                 "Name",
+                 "");
 }
 
 /** \} */

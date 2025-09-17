@@ -41,15 +41,18 @@ class CompositorContext : public compositor::Context {
   const SequencerCompositorModifierData *modifier_data_;
 
   ImBuf *image_buffer_;
+  ImBuf *mask_buffer_;
 
  public:
   CompositorContext(const RenderData &render_data,
                     const SequencerCompositorModifierData *modifier_data,
-                    ImBuf *image_buffer)
+                    ImBuf *image_buffer,
+                    ImBuf *mask_buffer)
       : compositor::Context(),
         render_data_(render_data),
         modifier_data_(modifier_data),
-        image_buffer_(image_buffer)
+        image_buffer_(image_buffer),
+        mask_buffer_(mask_buffer)
   {
   }
 
@@ -105,12 +108,16 @@ class CompositorContext : public compositor::Context {
                                const char *pass_name) override
   {
     compositor::Result result = this->create_result(compositor::ResultType::Color);
-    if (StringRef(pass_name) != "Image") {
-      return result;
+
+    if (StringRef(pass_name) == "Image") {
+      result.wrap_external(image_buffer_->float_buffer.data,
+                           int2(image_buffer_->x, image_buffer_->y));
+    }
+    else if (StringRef(pass_name) == "Mask" && mask_buffer_) {
+      result.wrap_external(mask_buffer_->float_buffer.data,
+                           int2(mask_buffer_->x, mask_buffer_->y));
     }
 
-    result.wrap_external(image_buffer_->float_buffer.data,
-                         int2(image_buffer_->x, image_buffer_->y));
     return result;
   }
 
@@ -129,6 +136,10 @@ static void compositor_modifier_init_data(StripModifierData *strip_modifier_data
 
 static bool ensure_linear_float_buffer(ImBuf *ibuf)
 {
+  if (!ibuf) {
+    return false;
+  }
+
   /* Already have scene linear float pixels, nothing to do. */
   if (ibuf->float_buffer.data &&
       IMB_colormanagement_space_is_scene_linear(ibuf->float_buffer.colorspace))
@@ -159,7 +170,7 @@ static void compositor_modifier_apply(const RenderData *render_data,
                                       const StripScreenQuad & /*quad*/,
                                       StripModifierData *strip_modifier_data,
                                       ImBuf *image_buffer,
-                                      ImBuf * /*mask*/)
+                                      ImBuf *mask)
 {
   const SequencerCompositorModifierData *modifier_data =
       reinterpret_cast<SequencerCompositorModifierData *>(strip_modifier_data);
@@ -167,10 +178,11 @@ static void compositor_modifier_apply(const RenderData *render_data,
     return;
   }
 
+  ensure_linear_float_buffer(mask);
   const bool was_float_linear = ensure_linear_float_buffer(image_buffer);
   const bool was_byte = image_buffer->float_buffer.data == nullptr;
 
-  CompositorContext context(*render_data, modifier_data, image_buffer);
+  CompositorContext context(*render_data, modifier_data, image_buffer, mask);
   compositor::Evaluator evaluator(context);
   evaluator.evaluate();
 
