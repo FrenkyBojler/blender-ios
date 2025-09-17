@@ -36,6 +36,11 @@ math_nodes = {
     "FunctionNodeBitMath",
 }
 
+switch_nodes = {
+    "GeometryNodeMenuSwitch",
+    "GeometryNodeIndexSwitch",
+}
+
 
 # A context manager for temporarily unparenting nodes from their frames
 # This gets rid of issues with framed nodes using relative coordinates
@@ -358,6 +363,45 @@ class NodeSwapOperator(NodeOperator):
 
                         except KeyError:
                             pass
+            
+    @staticmethod
+    def get_switch_items(node):
+        switch_type = node.bl_idname
+        
+        if switch_type == "GeometryNodeMenuSwitch":
+            return node.enum_definition.enum_items
+        elif switch_type == "GeometryNodeIndexSwitch":
+            return node.index_switch_items
+
+    def transfer_switch_data(self, old_node, new_node):
+        old_switch_items = self.get_switch_items(old_node)
+        new_switch_items = self.get_switch_items(new_node)
+
+        new_switch_items.clear()
+
+        if new_node.bl_idname == "GeometryNodeMenuSwitch":
+            for i, old_item in enumerate(old_switch_items):
+                # Change the menu item names to numerical indices
+                # This makes it so that later functions that match by socket name work on the switches
+                if hasattr(old_item, "name"):
+                    old_item.name = str(i)
+
+                new_switch_items.new(str(i))
+                
+            if (old_switch_value := old_node.inputs[0].default_value) != '':
+                new_node.inputs[0].default_value = str(old_switch_value)
+
+        elif new_node.bl_idname == "GeometryNodeIndexSwitch":
+            for i, old_item in enumerate(old_switch_items):
+                # Change the menu item names to numerical indices
+                # This makes it so that later functions that match by socket name work on the switches
+                if hasattr(old_item, "name"):
+                    old_item.name = str(i)
+
+                new_switch_items.new()
+
+            if (old_switch_value := old_node.inputs[0].default_value) != '':
+                new_node.inputs[0].default_value = int(old_switch_value)
 
 
 # Simple basic operator for adding a node.
@@ -465,6 +509,9 @@ class NODE_OT_swap_node(NodeSwapOperator, Operator):
                 for node in zone_pair:
                     tree.nodes.remove(node)
             else:
+                if (old_node.bl_idname in switch_nodes) and (new_node.bl_idname in switch_nodes):
+                    self.transfer_switch_data(old_node, new_node)
+
                 self.transfer_input_values(old_node, new_node)
 
                 self.transfer_links(tree, old_node, new_node, is_input=True)
