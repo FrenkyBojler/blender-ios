@@ -94,7 +94,7 @@
 struct uiTooltipFormat {
   uiTooltipStyle style;
   uiTooltipColorID color_id;
-  uiTooltipColorID second_color_id;
+  uiTooltipColorID suffix_color_id;
 };
 
 struct uiTooltipField {
@@ -145,7 +145,7 @@ void UI_tooltip_text_field_add(uiTooltipData &data,
                                           std::string suffix,
                                           const uiTooltipStyle style,
                                           const uiTooltipColorID text_color_id,
-                                          const uiTooltipColorID text_second_color_id,
+                                          const uiTooltipColorID text_suffix_color_id,
                                           const bool is_pad)
 {
   if (is_pad) {

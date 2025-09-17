@@ -1948,7 +1948,7 @@ void UI_tooltip_multicolor_text_field_add(uiTooltipData &data,
                                           std::string suffix,
                                           const uiTooltipStyle style,
                                           const uiTooltipColorID text_color_id,
-                                          const uiTooltipColorID text_second_color_id,
+                                          const uiTooltipColorID text_suffix_color_id,
                                           const bool is_pad = false);
 
 /**
