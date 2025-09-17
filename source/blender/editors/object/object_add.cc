@@ -1002,8 +1002,7 @@ void OBJECT_OT_lattice_add_to_selected(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
   /* properties */
-  PropertyRNA *prop = RNA_def_enum(ot->srna, "type", rna_enum_object_type_items, 0, "Type", "");
-  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_ID);
+  PropertyRNA *prop;
 
   prop = RNA_def_boolean(ot->srna,
                          "fit_to_selected",
