@@ -5,6 +5,7 @@
 #include "DNA_modifier_types.h"
 
 #include "BKE_attribute.hh"
+#include "BKE_customdata.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_mesh.hh"
 #include "BKE_subdiv.hh"
@@ -49,6 +50,9 @@ static void node_declare(NodeDeclarationBuilder &b)
       .description(
           "Place vertices at the surface that would be produced with infinite "
           "levels of subdivision (smoothest possible shape)");
+  b.add_input<decl::Bool>("Use Custom Normals")
+      .default_value(false)
+      .description("Interpolates existing custom normals to resulting mesh");
   b.add_input<decl::Menu>("UV Smooth")
       .static_items(rna_enum_subdivision_uv_smooth_items)
       .default_value(SUBSURF_UV_SMOOTH_PRESERVE_BOUNDARIES)
@@ -104,7 +108,8 @@ static Mesh *mesh_subsurf_calc(const Mesh *mesh,
                                const Field<float> &edge_crease_field,
                                const int boundary_smooth,
                                const int uv_smooth,
-                               const bool use_limit_surface)
+                               const bool use_limit_surface,
+                               const bool use_custom_normals)
 {
   const bke::MeshFieldContext point_context{*mesh, AttrDomain::Point};
   FieldEvaluator point_evaluator(point_context, mesh->verts_num);
@@ -130,6 +135,26 @@ static Mesh *mesh_subsurf_calc(const Mesh *mesh,
     write_vert_creases(*mesh_copy, vert_creases);
     write_edge_creases(*mesh_copy, edge_creases);
     mesh = mesh_copy;
+  }
+
+  /* If the �gUse custom normals�h checkbox is selected and
+   * the mesh contains custom normals data,
+   * the custom normals data will be applied to the CD_NORMAL layer of the input mesh. */
+  const bool has_custom_norms = use_custom_normals &&
+                                BKE_mesh_has_custom_loop_normals(const_cast<Mesh *>(mesh));
+  bool added_input_corner_normals = false;
+  if (has_custom_norms) {
+    if (mesh_copy == nullptr) {
+      mesh_copy = BKE_mesh_copy_for_eval(*mesh);
+      mesh = mesh_copy;
+    }
+    void *data = CustomData_add_layer(
+        &mesh_copy->corner_data, CD_NORMAL, CD_CONSTRUCT, mesh_copy->corners_num);
+    if (data != nullptr) {
+      memcpy(
+          data, mesh_copy->corner_normals().data(), mesh_copy->corner_normals().size_in_bytes());
+      added_input_corner_normals = true;
+    }
   }
 
   bke::subdiv::ToMeshSettings mesh_settings;
@@ -162,6 +187,17 @@ static Mesh *mesh_subsurf_calc(const Mesh *mesh,
     result->attributes_for_write().remove("crease_edge");
   }
 
+  if (has_custom_norms) {
+    /* Convert the CD_NORMAL included in the result to a custom loop normal layer,
+     * then delete the CD_NORMAL. */
+    bke::mesh_set_custom_normals_normalized(
+        *result,
+        {static_cast<float3 *>(
+             CustomData_get_layer_for_write(&result->corner_data, CD_NORMAL, result->corners_num)),
+         result->corners_num});
+    CustomData_free_layers(&result->corner_data, CD_NORMAL);
+  }
+
   if (mesh_copy) {
     BKE_id_free(nullptr, mesh_copy);
   }
@@ -184,6 +220,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   const int boundary_smooth = params.get_input<eSubsurfBoundarySmooth>("Boundary Smooth");
   const int level = std::max(params.extract_input<int>("Level"), 0);
   const bool use_limit_surface = params.extract_input<bool>("Limit Surface");
+  const bool use_custom_normals = params.extract_input<bool>("Use Custom Normals");
   if (level == 0) {
     params.set_output("Mesh", std::move(geometry_set));
     return;
@@ -197,8 +234,13 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   geometry::foreach_real_geometry(geometry_set, [&](GeometrySet &geometry_set) {
     if (const Mesh *mesh = geometry_set.get_mesh()) {
-      geometry_set.replace_mesh(mesh_subsurf_calc(
-          mesh, level, vert_crease, edge_crease, boundary_smooth, uv_smooth, use_limit_surface));
+      geometry_set.replace_mesh(mesh_subsurf_calc(mesh,level,
+                                                  vert_crease,
+                                                  edge_crease,
+                                                  boundary_smooth,
+                                                  uv_smooth,
+                                                  use_limit_surface,
+                                                  use_custom_normals));
     }
   });
 #else
