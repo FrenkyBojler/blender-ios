@@ -28,7 +28,7 @@ from bpy.app.translations import (
 )
 
 
-operation_nodes = {
+math_nodes = {
     "ShaderNodeMath",
     "ShaderNodeVectorMath",
     "FunctionNodeIntegerMath",
@@ -268,7 +268,7 @@ class NodeSwapOperator(NodeOperator):
                     pass
 
     def transfer_input_values(self, old_node, new_node):
-        if (old_node.bl_idname in operation_nodes) and (new_node.bl_idname in operation_nodes):
+        if (old_node.bl_idname in math_nodes) and (new_node.bl_idname in math_nodes):
             for source_input, target_input in zip(old_node.inputs, new_node.inputs):
 
                 new_value = cast_value(source=source_input, target=target_input)
@@ -293,7 +293,7 @@ class NodeSwapOperator(NodeOperator):
 
     @staticmethod
     def transfer_links(tree, old_node, new_node, is_input):
-        both_math_nodes = (old_node.bl_idname in operation_nodes) and (new_node.bl_idname in operation_nodes)
+        both_math_nodes = (old_node.bl_idname in math_nodes) and (new_node.bl_idname in math_nodes)
 
         if is_input:
             if both_math_nodes:
