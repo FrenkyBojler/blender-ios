@@ -153,7 +153,7 @@ class NODE_HT_header(Header):
                 row = layout.row()
                 row.enabled = not snode.pin
                 row.template_ID(scene, "compositing_node_group", new="node.new_compositing_node_group")
-            elif snode.node_tree_sub_type == 'SEQUENCER_STRIP_MODIFIER':
+            elif snode.node_tree_sub_type == 'SEQUENCER':
                 row = layout.row()
                 sequencer_scene = context.workspace.sequencer_scene
                 sequencer_editor = sequencer_scene.sequence_editor if sequencer_scene else None
@@ -164,10 +164,10 @@ class NODE_HT_header(Header):
                     row.template_ID(
                         active_modifier,
                         "node_group",
-                        new="node.new_compositor_sequencer_strip_modifier_node_group")
+                        new="node.new_compositor_sequencer_node_group")
                 else:
                     row.enabled = False
-                    row.template_ID(snode, "node_tree", new="node.new_compositor_sequencer_strip_modifier_node_group")
+                    row.template_ID(snode, "node_tree", new="node.new_compositor_sequencer_node_group")
 
         elif snode.tree_type == 'GeometryNodeTree':
             layout.prop(snode, "node_tree_sub_type", text="")

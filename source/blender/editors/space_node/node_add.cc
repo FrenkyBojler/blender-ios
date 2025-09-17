@@ -1618,11 +1618,10 @@ void NODE_OT_new_compositing_node_group(wmOperatorType *ot)
 }
 
 /* -------------------------------------------------------------------- */
-/** \name New Compositor Sequencer Strip Modifier Node Group Operator
+/** \name New Compositor Sequencer Node Group Operator
  * \{ */
 
-static void initialize_compositor_sequencer_strip_modifier_node_group(const bContext *C,
-                                                                      bNodeTree &ntree)
+static void initialize_compositor_sequencer_node_group(const bContext *C, bNodeTree &ntree)
 {
   BLI_assert(ntree.type == NTREE_COMPOSIT);
   BLI_assert(BLI_listbase_count(&ntree.nodes) == 0);
@@ -1670,14 +1669,13 @@ static void initialize_compositor_sequencer_strip_modifier_node_group(const bCon
   BKE_ntree_update_after_single_tree_change(*CTX_data_main(C), ntree);
 }
 
-static wmOperatorStatus new_compositor_sequencer_strip_modifier_node_group_exec(bContext *C,
-                                                                                wmOperator *op)
+static wmOperatorStatus new_compositor_sequencer_node_group_exec(bContext *C, wmOperator *op)
 {
   char tree_name[MAX_ID_NAME - 2];
   RNA_string_get(op->ptr, "name", tree_name);
 
   bNodeTree *ntree = new_node_tree_impl(C, tree_name, "CompositorNodeTree");
-  initialize_compositor_sequencer_strip_modifier_node_group(C, *ntree);
+  initialize_compositor_sequencer_node_group(C, *ntree);
 
   BKE_ntree_update_after_single_tree_change(*CTX_data_main(C), *ntree);
   WM_event_add_notifier(C, NC_NODE | NA_ADDED, nullptr);
@@ -1685,18 +1683,18 @@ static wmOperatorStatus new_compositor_sequencer_strip_modifier_node_group_exec(
   return OPERATOR_FINISHED;
 }
 
-void NODE_OT_new_compositor_sequencer_strip_modifier_node_group(wmOperatorType *operator_type)
+void NODE_OT_new_compositor_sequencer_node_groupm(wmOperatorType *operator_type)
 {
-  operator_type->name = "New Compositor Sequencer Strip Modifier Node Group";
-  operator_type->idname = "NODE_OT_new_compositor_sequencer_strip_modifier_node_group";
-  operator_type->description = "Create a new compositor node group for a sequencer strip modifier";
+  operator_type->name = "New Compositor Sequencer Node Group";
+  operator_type->idname = "NODE_OT_new_compositor_sequencer_node_group";
+  operator_type->description = "Create a new compositor node group for sequencer";
 
-  operator_type->exec = new_compositor_sequencer_strip_modifier_node_group_exec;
+  operator_type->exec = new_compositor_sequencer_node_group_exec;
 
   operator_type->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
   RNA_def_string(
-      operator_type->srna, "name", DATA_("Sequencer Strip Modifier"), MAX_ID_NAME - 2, "Name", "");
+      operator_type->srna, "name", DATA_("Compositor Nodes"), MAX_ID_NAME - 2, "Name", "");
 }
 
 /** \} */

@@ -42,7 +42,7 @@ static void composite_get_from_context(const bContext *C,
 {
   using namespace blender;
   const SpaceNode *snode = CTX_wm_space_node(C);
-  if (snode->node_tree_sub_type == SNODE_COMPOSITOR_SEQUENCER_STRIP_MODIFIER) {
+  if (snode->node_tree_sub_type == SNODE_COMPOSITOR_SEQUENCER) {
     Scene *sequencer_scene = CTX_data_sequencer_scene(C);
     if (!sequencer_scene) {
       *r_ntree = nullptr;

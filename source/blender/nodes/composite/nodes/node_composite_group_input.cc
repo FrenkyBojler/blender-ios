@@ -157,7 +157,7 @@ void get_compositor_group_input_extra_info(blender::nodes::NodeExtraInfoParams &
     return;
   }
 
-  if (space_node->node_tree_sub_type != SNODE_COMPOSITOR_SEQUENCER_STRIP_MODIFIER) {
+  if (space_node->node_tree_sub_type != SNODE_COMPOSITOR_SEQUENCER) {
     return;
   }
 

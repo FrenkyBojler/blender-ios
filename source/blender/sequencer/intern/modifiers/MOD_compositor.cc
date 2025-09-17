@@ -198,7 +198,7 @@ static void compositor_modifier_panel_draw(const bContext *C, Panel *panel)
                C,
                ptr,
                "node_group",
-               "NODE_OT_new_compositor_sequencer_strip_modifier_node_group",
+               "NODE_OT_new_compositor_sequencer_node_group",
                nullptr,
                nullptr);
 
