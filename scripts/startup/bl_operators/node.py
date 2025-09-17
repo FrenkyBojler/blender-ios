@@ -159,7 +159,7 @@ class NodeOperator:
         except RuntimeError as ex:
             self.report({'ERROR'}, str(ex))
             return None
-        
+
         node.select = True
         tree.nodes.active = node
         node.location = space.cursor_location
@@ -236,12 +236,12 @@ class NodeAddOperator(NodeOperator):
 
 class NodeSwapOperator(NodeOperator):
     properties_to_pass = (
-        'color', 
-        'hide', 
-        'label', 
-        'mute', 
+        'color',
+        'hide',
+        'label',
+        'mute',
         'parent',
-        'show_options', 
+        'show_options',
         'show_preview',
         'show_texture',
         'use_alpha',
@@ -262,7 +262,7 @@ class NodeSwapOperator(NodeOperator):
             return False
 
         return True
-    
+
     def transfer_node_properties(self, old_node, new_node):
         for attr in self.properties_to_pass:
             if (attr in self.settings):
@@ -363,11 +363,11 @@ class NodeSwapOperator(NodeOperator):
 
                         except KeyError:
                             pass
-            
+
     @staticmethod
     def get_switch_items(node):
         switch_type = node.bl_idname
-        
+
         if switch_type == "GeometryNodeMenuSwitch":
             return node.enum_definition.enum_items
         elif switch_type == "GeometryNodeIndexSwitch":
@@ -387,7 +387,7 @@ class NodeSwapOperator(NodeOperator):
                     old_item.name = str(i)
 
                 new_switch_items.new(str(i))
-                
+
             if (old_switch_value := old_node.inputs[0].default_value) != '':
                 new_node.inputs[0].default_value = str(old_switch_value)
 
@@ -486,7 +486,7 @@ class NODE_OT_swap_node(NodeSwapOperator, Operator):
                 for socket in new_node.outputs:
                     if socket.name != self.visible_output:
                         socket.hide = True
-            
+
             with temporary_unframe((old_node,)):
                 new_node.location = old_node.location
                 new_node.select = True
@@ -733,7 +733,7 @@ class NODE_OT_swap_zone(ZoneOperator, NodeSwapOperator, Operator):
 
             input_node = self.create_node(context, self.input_node_type)
             output_node = self.create_node(context, self.output_node_type)
-            
+
             self.apply_node_settings(input_node)
             self.apply_node_settings(output_node)
 
