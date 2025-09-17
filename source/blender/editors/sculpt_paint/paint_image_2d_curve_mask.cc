@@ -69,30 +69,17 @@ static void update_curve_mask(CurveMaskCache *curve_mask_cache,
   float weight_factor = 65535.0f / float(aa_samples * aa_samples);
 
   if (aa_samples == 1) {
-    for (int y = 0; y < diameter; y++) {
-      for (int x = 0; x < diameter; x++, m++) {
-        float pixel_xy[2];
-        pixel_xy[0] = float(x) + aa_offset;
-        pixel_xy[1] = float(y) + aa_offset;
-        sub_v2_v2(pixel_xy, bpos);
-        if (int(radius * 2) % 2 == 0) {
-          pixel_xy[0] = floorf(pixel_xy[0]) + 0.5f;
-          pixel_xy[1] = floorf(pixel_xy[1]) + 0.5f;
-        }
-        else {
-          pixel_xy[0] = floorf(pixel_xy[0] + 0.5f);
-          pixel_xy[1] = floorf(pixel_xy[1] + 0.5f);
-        }
+    /* When AA is disabled, snap the cursor to either the corners or centers of the pixels,
+     * depending on if the diameter is even or odd, respectively.*/
 
-        const float len = len_v2(pixel_xy);
-
-        const int sample_index = min_ii((len / clamped_radius) * CurveSamplesBaseLen,
-                                        CurveSamplesLen - 1);
-        const float sample_weight = curve_mask_cache->sampled_curve[sample_index];
-        *m = ushort(sample_weight * weight_factor);
-      }
+    if (int(radius * 2) % 2 == 0) {
+      bpos[0] = roundf(bpos[0]);
+      bpos[1] = roundf(bpos[1]);
     }
-    return;
+    else {
+      bpos[0] = floorf(bpos[0]) + 0.5f;
+      bpos[1] = floorf(bpos[1]) + 0.5f;
+    }
   }
 
   for (int y = 0; y < diameter; y++) {
