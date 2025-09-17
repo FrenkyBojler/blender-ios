@@ -526,7 +526,7 @@ see https://www.gnu.org/licenses/.
 /* Define to 1 if you have the `vsnprintf' function and it works properly. */
 /* #undef HAVE_VSNPRINTF */
 
-/* Define to 1 for Window/64 */
+/* Define to 1 for Windos/64 */
 #define HOST_DOS64 1
 
 /* Assembler local label prefix */
