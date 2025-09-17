@@ -169,6 +169,8 @@ struct StitchState {
   uint *tris_per_island;
   /* preview data */
   StitchPreviewer *stitch_preview;
+
+  BMesh *bm_orig;
 };
 
 /* Stitch state container. */
@@ -291,6 +293,7 @@ static void stitch_update_header(StitchStateContainer *ssc, bContext *C)
   status.item_bool(IFACE_("Snap"), ssc->snap_islands, ICON_EVENT_S);
   status.item_bool(IFACE_("Midpoints"), ssc->midpoints, ICON_EVENT_M);
   status.item_bool(IFACE_("Limit"), ssc->use_limit, ICON_EVENT_L);
+  status.item_bool(IFACE_("Match Target"), ssc->match_target, ICON_EVENT_T);
   if (ssc->use_limit) {
     status.item(fmt::format("{} ({:.2f})", IFACE_("Limit Distance"), ssc->limit_dist),
                 ICON_EVENT_ALT,
@@ -1170,24 +1173,19 @@ static int stitch_process_data(StitchStateContainer *ssc,
     }
 
     if (ssc->match_target) {
-      Vector<BMVert *> orig_vert_sel;
-      BMIter vert_iter;
-      BMVert *vert;
-      BM_ITER_MESH (vert, &vert_iter, bm, BM_VERTS_OF_MESH) {
-        if (BM_elem_flag_test(vert, BM_ELEM_SELECT)) {
-          orig_vert_sel.append(vert);
+      Vector<BMFace *> orig_face_sel;
+      BM_ITER_MESH (efa, &iter, bm, BM_FACES_OF_MESH) {
+        if (BM_elem_flag_test(efa, BM_ELEM_SELECT)) {
+          orig_face_sel.append(efa);
         }
-      }
-      BM_ITER_MESH (efa, &iter, bm, BM_FACES_OF_MESH) {
-        BM_elem_flag_disable(efa, BM_ELEM_SELECT);
-      }
-
-      BM_ITER_MESH (efa, &iter, bm, BM_FACES_OF_MESH) {
         UvElement *element = BM_uv_element_get(state->element_map, BM_FACE_FIRST_LOOP(efa));
         if (element && element->island != ssc->static_island &&
             island_stitch_data[element->island].addedForPreview)
         {
           BM_elem_flag_enable(efa, BM_ELEM_SELECT);
+        }
+        else {
+          BM_elem_flag_disable(efa, BM_ELEM_SELECT);
         }
       }
 
@@ -1199,8 +1197,8 @@ static int stitch_process_data(StitchStateContainer *ssc,
       options.fill_holes = true;
       options.correct_aspect = true;
       uvedit_unwrap(scene, state->obedit, &options, nullptr, nullptr);
-      for (BMVert *vert : orig_vert_sel) {
-        BM_elem_flag_enable(vert, BM_ELEM_SELECT);
+      for (BMFace *face : orig_face_sel) {
+        BM_elem_flag_enable(face, BM_ELEM_SELECT);
       }
       BMUVOffsets offsets = BM_uv_map_offsets_get(bm);
       float uv_area = 0.0f;
@@ -1706,7 +1704,17 @@ static void stitch_set_selection_mode(StitchState *state, const char from_stitch
   }
   MEM_freeN(old_selection_stack);
 }
-
+static void stitch_restore_original_bmesh(StitchState *state)
+{
+  BM_mesh_free(state->em->bm);
+  state->em->bm = BM_mesh_copy(state->bm_orig);
+}
+static void stitch_restore_original_bmesh_all(StitchStateContainer *ssc)
+{
+  for (uint ob_index = 0; ob_index < ssc->objects_len; ob_index++) {
+    stitch_restore_original_bmesh(ssc->states[ob_index]);
+  }
+}
 static void stitch_switch_selection_mode_all(StitchStateContainer *ssc)
 {
   for (uint ob_index = 0; ob_index < ssc->objects_len; ob_index++) {
@@ -1936,6 +1944,7 @@ static StitchState *stitch_init(bContext *C,
   /* initialize state */
   state->obedit = obedit;
   state->em = em;
+  state->bm_orig = BM_mesh_copy(em->bm);
 
   /* Workaround for sync-select & face-select mode which implies all selected faces are detached,
    * for stitch this isn't useful behavior, see #86924. */
@@ -2459,7 +2468,7 @@ static void stitch_exit(bContext *C, wmOperator *op, int finished)
     RNA_enum_set(op->ptr, "mode", ssc->mode);
     RNA_enum_set(op->ptr, "stored_mode", ssc->mode);
     RNA_int_set(op->ptr, "active_object_index", ssc->active_object_index);
-
+    RNA_boolean_set(op->ptr, "match_target", ssc->match_target);
     RNA_int_set(op->ptr, "static_island", ssc->static_island);
 
     int *objs_selection_count = nullptr;
@@ -2684,10 +2693,17 @@ static wmOperatorStatus stitch_modal(bContext *C, wmOperator *op, const wmEvent 
 
           /* active_state is the original active state */
           if (active_state != new_active_state) {
+            if (ssc->match_target) {
+              stitch_restore_original_bmesh(active_state);
+            }
+
             if (!stitch_process_data(ssc, active_state, scene, false)) {
               stitch_cancel(C, op);
               return OPERATOR_CANCELLED;
             }
+          }
+          if (ssc->match_target) {
+            stitch_restore_original_bmesh(new_active_state);
           }
 
           if (!stitch_process_data(ssc, new_active_state, scene, false)) {
@@ -2744,13 +2760,29 @@ static wmOperatorStatus stitch_modal(bContext *C, wmOperator *op, const wmEvent 
     case EVT_TABKEY:
       if (event->val == KM_PRESS) {
         stitch_switch_selection_mode_all(ssc);
-
+        if (ssc->match_target) {
+          stitch_restore_original_bmesh_all(ssc);
+        }
         if (!stitch_process_data_all(ssc, scene, false)) {
           stitch_cancel(C, op);
           return OPERATOR_CANCELLED;
         }
       }
       break;
+
+    case EVT_TKEY:
+      if (event->val == KM_PRESS) {
+        ssc->match_target = !ssc->match_target;
+        stitch_restore_original_bmesh(active_state);
+        if (!stitch_process_data(ssc, active_state, scene, false)) {
+          stitch_cancel(C, op);
+          return OPERATOR_CANCELLED;
+        }
+        break;
+      }
+      else {
+        return OPERATOR_RUNNING_MODAL;
+      }
 
     default:
       return OPERATOR_RUNNING_MODAL;
