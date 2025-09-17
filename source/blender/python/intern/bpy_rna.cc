@@ -115,7 +115,7 @@ static const char *BPy_PropertyPointerRNA_capsule_identifier = "BPy_PropertyPoin
 
 /** Factory function that allocates and initializes a BPy_FunctionRNA
  *  wrapping the given FunctionRNA and PointerRNA. */
-static PyObject *pyrna_func_CreatePyObject_alloc(const PointerRNA *ptr, FunctionRNA *func);
+static PyObject *pyrna_func_CreatePyObject(const PointerRNA *ptr, FunctionRNA *func);
 
 static PyObject *pyrna_struct_CreatePyObject_from_type(const PointerRNA *ptr,
                                                        PyTypeObject *tp,
@@ -4546,7 +4546,7 @@ static PyObject *pyrna_struct_getattro(BPy_StructRNA *self, PyObject *pyname)
   /* RNA function only if callback is declared (no optional functions). */
   else if ((func = RNA_struct_find_function(self->ptr->type, name)) && RNA_function_defined(func))
   {
-    ret = pyrna_func_CreatePyObject_alloc(&self->ptr.value(), func);
+    ret = pyrna_func_CreatePyObject(&self->ptr.value(), func);
   }
   else if (self->ptr->type == &RNA_Context) {
     bContext *C = static_cast<bContext *>(self->ptr->data);
@@ -4923,7 +4923,7 @@ static PyObject *pyrna_prop_collection_getattro(BPy_PropertyRNA *self, PyObject 
       }
       if ((func = RNA_struct_find_function(r_ptr.type, name))) {
         PyObject *self_collection = pyrna_struct_CreatePyObject(&r_ptr);
-        ret = pyrna_func_CreatePyObject_alloc(
+        ret = pyrna_func_CreatePyObject(
             &(reinterpret_cast<BPy_DummyPointerRNA *>(self_collection))->ptr.value(), func);
         Py_DECREF(self_collection);
 
@@ -6754,8 +6754,7 @@ static PyObject *pyrna_func_vectorcall(BPy_FunctionRNA *self,
 
       if (err != 0) {
         PyErr_Clear(); /* Re-raise. */
-        // pyrna_func_error_prefix(self, parm, kw_arg ? -1 : i, error_prefix,
-        // sizeof(error_prefix));
+        pyrna_func_error_prefix(self, parm, kw_arg ? -1 : i, error_prefix, sizeof(error_prefix));
         pyrna_py_to_prop(&funcptr, parm, iter.data, item, error_prefix);
 
         break;
@@ -7955,7 +7954,7 @@ PyTypeObject pyrna_func_Type = {
     /*tp_vectorcall*/ nullptr,
 };
 
-static PyObject *pyrna_func_CreatePyObject_alloc(const PointerRNA *ptr, FunctionRNA *func)
+static PyObject *pyrna_func_CreatePyObject(const PointerRNA *ptr, FunctionRNA *func)
 {
   PyObject *self = pyrna_func_Type.tp_alloc(&pyrna_func_Type, 0);
   BPy_FunctionRNA *pyfunc = reinterpret_cast<BPy_FunctionRNA *>(self);
@@ -8047,7 +8046,7 @@ static void pyrna_subtype_set_rna(PyObject *newclass, StructRNA *srna)
           (flag & FUNC_REGISTER) == false) /* Is not for registration. */
       {
         /* We may want to set the type of this later. */
-        PyObject *func_py = pyrna_func_CreatePyObject_alloc(&func_ptr, func);
+        PyObject *func_py = pyrna_func_CreatePyObject(&func_ptr, func);
         PyObject_SetAttrString(newclass, RNA_function_identifier(func), func_py);
         Py_DECREF(func_py);
       }
