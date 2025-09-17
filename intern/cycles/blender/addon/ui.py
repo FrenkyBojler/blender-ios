@@ -1582,6 +1582,11 @@ class CYCLES_LIGHT_PT_light(CyclesButtonsPanel, Panel):
             if light.dome_image:
                 col.prop(light, "dome_hdr_strength", text="Strength")
                 col.prop(light, "dome_rotation", text="Rotation")
+                col.prop(light, "dome_hdr_gamma", text="Gamma")
+                
+                sub = col.column(align=True)
+                sub.prop(light, "dome_hdr_flip_u", text="Flip U")
+                sub.prop(light, "dome_hdr_flip_v", text="Flip V")
 
 
 class CYCLES_LIGHT_PT_settings(CyclesButtonsPanel, Panel):

@@ -46,10 +46,13 @@
     .area_spread = DEG2RADF(180.0f), \
     .dome_size = 1000.0f, \
     .dome_rotation = {0.0f, 0.0f, 0.0f}, \
+    .dome_hdr_gamma = 1.0f, \
     .dome_image = NULL, \
     .dome_hdr_strength = 1.0f, \
     .dome_map_resolution = 1024, \
     .dome_projection = 0, \
+    .dome_hdr_flip_u = 0, \
+    .dome_hdr_flip_v = 0, \
   }
 
 /** \} */

@@ -59,12 +59,16 @@ typedef struct Light {
   /* Dome light. */
   float dome_size;
   float dome_rotation[3];
-  int _pad3;
+  float dome_hdr_gamma;
   struct Image *dome_image;
   int dome_map_resolution;
   float dome_hdr_strength;
   short dome_projection;
   short dome_type;
+  char dome_hdr_flip_u;
+  char dome_hdr_flip_v;
+  char _pad3[2];
+  int _pad3b;
 
   /* Sun light. */
   float sun_angle;

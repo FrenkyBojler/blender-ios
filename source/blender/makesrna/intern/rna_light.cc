@@ -605,6 +605,25 @@ static void rna_def_dome_light(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "HDR Strength", "Intensity multiplier for HDRI image");
   RNA_def_property_update(prop, 0, "rna_Light_update");
 
+  prop = RNA_def_property(srna, "dome_hdr_gamma", PROP_FLOAT, PROP_FACTOR);
+  RNA_def_property_float_sdna(prop, nullptr, "dome_hdr_gamma");
+  RNA_def_property_range(prop, 0.1f, 10.0f);
+  RNA_def_property_float_default(prop, 1.0f);
+  RNA_def_property_ui_text(prop, "HDR Gamma", "Gamma correction for HDRI image");
+  RNA_def_property_update(prop, 0, "rna_Light_update");
+
+  prop = RNA_def_property(srna, "dome_hdr_flip_u", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "dome_hdr_flip_u", 1);
+  RNA_def_property_boolean_default(prop, false);
+  RNA_def_property_ui_text(prop, "Flip U", "Flip HDRI image horizontally (U axis)");
+  RNA_def_property_update(prop, 0, "rna_Light_update");
+
+  prop = RNA_def_property(srna, "dome_hdr_flip_v", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "dome_hdr_flip_v", 1);
+  RNA_def_property_boolean_default(prop, false);
+  RNA_def_property_ui_text(prop, "Flip V", "Flip HDRI image vertically (V axis)");
+  RNA_def_property_update(prop, 0, "rna_Light_update");
+
   prop = RNA_def_property(srna, "dome_map_resolution", PROP_INT, PROP_NONE);
   RNA_def_property_int_sdna(prop, nullptr, "dome_map_resolution");
   RNA_def_property_range(prop, 128, 8192);

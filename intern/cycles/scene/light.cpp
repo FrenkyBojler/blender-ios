@@ -125,6 +125,10 @@ NODE_DEFINE(Light)
   SOCKET_BOOLEAN(is_dome_hemisphere, "Is Dome Hemisphere", false);
   SOCKET_STRING(dome_image, "Dome Image", ustring());
   SOCKET_FLOAT(dome_hdr_strength, "Dome HDR Strength", 1.0f);
+  SOCKET_POINT(dome_rotation, "Dome Rotation", zero_float3());
+  SOCKET_FLOAT(dome_hdr_gamma, "Dome HDR Gamma", 1.0f);
+  SOCKET_BOOLEAN(dome_hdr_flip_u, "Dome HDR Flip U", false);
+  SOCKET_BOOLEAN(dome_hdr_flip_v, "Dome HDR Flip V", false);
 
   SOCKET_BOOLEAN(normalize, "Normalize", true);
 
@@ -1396,13 +1400,30 @@ void LightManager::device_update_lights(DeviceScene *dscene, Scene *scene)
       }
       klights[light_index].dome.dome_hdr_strength = light->get_dome_hdr_strength();
 
+      /* Combine object rotation with dome HDR rotation for final transform */
+      float3 final_rotation = light->get_dome_rotation();
+      
+      /* Apply object transform rotation to the dome rotation */
+      const Transform &tfm = object->get_tfm();
+      /* For now, just use the dome rotation directly - object transform is handled separately */
+      klights[light_index].dome.dome_rotation = final_rotation;
+
+      /* Set dome HDR gamma, flip U and flip V properties */
+      klights[light_index].dome.dome_hdr_gamma = light->get_dome_hdr_gamma();
+      klights[light_index].dome.dome_hdr_flip_u = light->get_dome_hdr_flip_u() ? 1 : 0;
+      klights[light_index].dome.dome_hdr_flip_v = light->get_dome_hdr_flip_v() ? 1 : 0;
+
       printf(
           "DOME_DEBUG: Packed dome light to kernel - index=%d, size=%.2f, hdr_tex=%d, "
-          "strength=%.2f\n",
+          "strength=%.2f, rotation=(%.3f,%.3f,%.3f), gamma=%.3f, flip_u=%d, flip_v=%d\n",
           light_index,
           (double)light->size,
           klights[light_index].dome.dome_hdr_tex,
-          (double)light->get_dome_hdr_strength());
+          (double)light->get_dome_hdr_strength(),
+          (double)final_rotation.x, (double)final_rotation.y, (double)final_rotation.z,
+          (double)light->get_dome_hdr_gamma(),
+          klights[light_index].dome.dome_hdr_flip_u,
+          klights[light_index].dome.dome_hdr_flip_v);
     }
     else if (light->light_type == LIGHT_AREA) {
       const float light_size = light->size;

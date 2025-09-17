@@ -63,6 +63,10 @@ class Light : public Geometry {
   NODE_SOCKET_API(bool, is_dome_hemisphere)
   NODE_SOCKET_API(ustring, dome_image)
   NODE_SOCKET_API(float, dome_hdr_strength)
+  NODE_SOCKET_API(float3, dome_rotation)
+  NODE_SOCKET_API(float, dome_hdr_gamma)
+  NODE_SOCKET_API(bool, dome_hdr_flip_u)
+  NODE_SOCKET_API(bool, dome_hdr_flip_v)
 
   /* Normalize power by the surface area of the light. */
   NODE_SOCKET_API(bool, normalize)

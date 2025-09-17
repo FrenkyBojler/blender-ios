@@ -160,6 +160,24 @@ void BlenderSync::sync_light(BObjectInfo &b_ob_info, Light *light)
         printf("DOME_DEBUG: No HDR image set\n");
       }
 
+      /* Set dome HDR rotation (combined with object rotation) */
+      float3 dome_rotation = get_float3(b_dome_light.dome_rotation());
+      light->set_dome_rotation(dome_rotation);
+      
+      /* Set dome HDR gamma correction */
+      float dome_gamma = b_dome_light.dome_hdr_gamma();
+      light->set_dome_hdr_gamma(dome_gamma);
+      
+      /* Set dome HDR U/V flipping options */
+      bool dome_flip_u = b_dome_light.dome_hdr_flip_u();
+      bool dome_flip_v = b_dome_light.dome_hdr_flip_v();
+      light->set_dome_hdr_flip_u(dome_flip_u);
+      light->set_dome_hdr_flip_v(dome_flip_v);
+      
+      printf("DOME_DEBUG: Dome rotation=(%.3f,%.3f,%.3f), gamma=%.3f, flip_u=%d, flip_v=%d\n",
+             (double)dome_rotation.x, (double)dome_rotation.y, (double)dome_rotation.z,
+             (double)dome_gamma, dome_flip_u, dome_flip_v);
+
       /* Set a default average radiance for light tree compatibility */
       light->set_average_radiance(1.0f);
       break;
