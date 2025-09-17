@@ -2767,25 +2767,30 @@ static void UI_OT_view_item_rename(wmOperatorType *ot)
   ot->flag = OPTYPE_INTERNAL;
 }
 
-static wmOperatorStatus ui_view_item_select_invoke(bContext *C,
-                                                   wmOperator *op,
-                                                   const wmEvent *event)
+static wmOperatorStatus view_item_click_select(bContext &C,
+                                               AbstractViewItem *clicked_item,
+                                               const AbstractView &view,
+                                               const bool extend,
+                                               const bool range_select,
+                                               bool wait_to_deselect_others)
 {
-  ARegion &region = *CTX_wm_region(C);
+  wmOperatorStatus ret_value = OPERATOR_FINISHED;
 
-  AbstractViewItem *clicked_item = UI_region_views_find_item_at(region, event->xy);
-  if (clicked_item == nullptr) {
-    return OPERATOR_CANCELLED;
+  if (extend || range_select) {
+    wait_to_deselect_others = false;
   }
 
-  AbstractView &view = clicked_item->get_view();
-  const bool is_multiselect = view.is_multiselect_supported();
-  const bool extend = RNA_boolean_get(op->ptr, "extend") && is_multiselect;
-  const bool range_select = RNA_boolean_get(op->ptr, "range_select") && is_multiselect;
+  if (clicked_item && wait_to_deselect_others) {
+    ret_value = OPERATOR_RUNNING_MODAL;
+  }
+  else {
+    const AbstractView *view = get_view_focused(&C);
+    view->foreach_view_item([](AbstractViewItem &item) { item.set_selected(false); });
+  }
 
-  if (!extend) {
-    /* Keep previous selection for extend selection, see: !138979. */
-    view.foreach_view_item([](AbstractViewItem &item) { item.set_selected(false); });
+  if (clicked_item == nullptr) {
+    /* Only clear selection (if needed). */
+    return ret_value;
   }
 
   if (range_select) {
@@ -2801,13 +2806,52 @@ static wmOperatorStatus ui_view_item_select_invoke(bContext *C,
         item.set_selected(true);
       }
     });
-    ED_region_tag_redraw(&region);
-    return OPERATOR_FINISHED;
+    return ret_value;
   }
 
-  clicked_item->activate(*C);
+  const bool already_selected = clicked_item->is_selected();
+  if (!already_selected) {
+    clicked_item->activate(C);
+  }
 
-  return OPERATOR_FINISHED;
+  return ret_value;
+}
+
+static wmOperatorStatus ui_view_item_select_exec(bContext *C, wmOperator *op)
+{
+  ARegion &region = *CTX_wm_region(C);
+
+  /* Mouse coordinates in window space. */
+  int window_xy[2];
+  {
+    /* Mouse coordinates in region space. */
+    int region_xy[2];
+    region_xy[0] = RNA_int_get(op->ptr, "mouse_x");
+    region_xy[1] = RNA_int_get(op->ptr, "mouse_y");
+    ui_region_to_window(&region, region_xy[0], region_xy[1], &window_xy[0], &window_xy[1]);
+  }
+
+  AbstractView *view = UI_region_view_find_at(&region, window_xy, 0);
+  /* The poll uses #get_view_focused(C) (it has to use the window event state coordinates). Check
+   * that that matches the given coordinates. */
+  BLI_assert(view == get_view_focused(C));
+  if (!view) {
+    return OPERATOR_CANCELLED;
+  }
+
+  const bool is_multiselect = view->is_multiselect_supported();
+  const bool extend = RNA_boolean_get(op->ptr, "extend") && is_multiselect;
+  const bool range_select = RNA_boolean_get(op->ptr, "range_select") && is_multiselect;
+  const bool wait_to_deselect_others = RNA_boolean_get(op->ptr, "wait_to_deselect_others");
+
+  AbstractViewItem *clicked_item = UI_region_views_find_item_at(region, window_xy);
+
+  const wmOperatorStatus status = view_item_click_select(
+      *C, clicked_item, *view, extend, range_select, wait_to_deselect_others);
+
+  ED_region_tag_redraw(&region);
+
+  return status;
 }
 
 static void UI_OT_view_item_select(wmOperatorType *ot)
@@ -2816,11 +2860,14 @@ static void UI_OT_view_item_select(wmOperatorType *ot)
   ot->idname = "UI_OT_view_item_select";
   ot->description = "Activate selected view item";
 
-  ot->invoke = ui_view_item_select_invoke;
+  ot->exec = ui_view_item_select_exec;
+  ot->invoke = WM_generic_select_invoke;
+  ot->modal = WM_generic_select_modal;
   ot->poll = ui_view_focused_poll;
 
   ot->flag = OPTYPE_INTERNAL;
 
+  WM_operator_properties_generic_select(ot);
   PropertyRNA *prop = RNA_def_boolean(ot->srna, "extend", false, "extend", "Extend Selection");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
   prop = RNA_def_boolean(ot->srna,
