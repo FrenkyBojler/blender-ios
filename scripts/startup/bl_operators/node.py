@@ -477,6 +477,12 @@ class NODE_OT_add_empty_group(NodeAddOperator, bpy.types.Operator):
     bl_description = "Add a group node with an empty group"
     bl_options = {'REGISTER', 'UNDO'}
 
+    # Override inherited method from NodeOperator
+    # Return None so that bl_description is used
+    @classmethod
+    def description(cls, _context, properties):
+        ...
+
     def execute(self, context):
         from nodeitems_builtins import node_tree_group_type
         tree = context.space_data.edit_tree
@@ -506,6 +512,12 @@ class NODE_OT_swap_empty_group(NodeSwapOperator, bpy.types.Operator):
     bl_label = "Swap Empty Group"
     bl_description = "Replace active node with an empty group"
     bl_options = {'REGISTER', 'UNDO'}
+
+    # Override inherited method from NodeOperator
+    # Return None so that bl_description is used
+    @classmethod
+    def description(cls, _context, properties):
+        ...
 
     def execute(self, context):
         from nodeitems_builtins import node_tree_group_type
