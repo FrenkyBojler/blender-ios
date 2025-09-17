@@ -88,6 +88,7 @@ struct MeshRenderData {
   int bweight_ofs;
   int freestyle_edge_ofs;
   int freestyle_face_ofs;
+  int mask_ofs;
   /** Mesh */
   const Mesh *mesh;
   Span<float3> vert_positions;
@@ -221,7 +222,8 @@ struct EditLoopData {
   /* This is used for both vertex and edge creases. The edge crease value is stored in the bottom 4
    * bits, while the vertex crease is stored in the upper 4 bits. */
   uchar crease;
-  uchar bweight;
+  /*I'm using this for both masked vertices and bevel weights now*/
+  uchar bweight; 
 };
 
 void mesh_render_data_face_flag(const MeshRenderData &mr,

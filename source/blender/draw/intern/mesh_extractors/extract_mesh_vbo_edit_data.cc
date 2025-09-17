@@ -63,13 +63,12 @@ static void mesh_render_data_edge_flag(const MeshRenderData &mr,
       eattr.crease = uchar(ceil(crease * 15.0f));
     }
   }
-  /* Use a byte for value range */
-  if (mr.bweight_ofs != -1) {
-    float bweight = BM_ELEM_CD_GET_FLOAT(eed, mr.bweight_ofs);
-    if (bweight > 0) {
-      eattr.bweight = uchar(bweight * 255.0f);
+    if (mr.bweight_ofs != -1) {
+      float bweight = BM_ELEM_CD_GET_FLOAT(eed, mr.bweight_ofs);
+      bweight = std::clamp(bweight, 0.0f, 1.0f);
+      eattr.bweight |= (uchar(ceil(bweight * 15.0f)) << 4); 
     }
-  }
+
 #ifdef WITH_FREESTYLE
   if (mr.freestyle_edge_ofs != -1) {
     if (BM_ELEM_CD_GET_BOOL(eed, mr.freestyle_edge_ofs)) {
@@ -95,6 +94,12 @@ static void mesh_render_data_vert_flag(const MeshRenderData &mr,
     if (crease > 0) {
       eattr.crease |= uchar(ceil(crease * 15.0f)) << 4;
     }
+  }
+  /* Vertex mask: store in lower 4 bits of bweight. */
+  if (mr.mask_ofs != -1) {
+    float mask_val = BM_ELEM_CD_GET_FLOAT(eve, mr.mask_ofs);
+    mask_val = std::clamp(mask_val, 0.0f, 1.0f);
+    eattr.bweight |= uchar(mask_val * 15.0f);  // lower nibble
   }
 }
 

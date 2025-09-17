@@ -41,8 +41,11 @@ float4 EDIT_MESH_edge_vertex_color(uint vertex_flag)
   return color;
 }
 
-float4 EDIT_MESH_vertex_color(uint vertex_flag, float vertex_crease)
+float4 EDIT_MESH_vertex_color(uint vertex_flag, float vertex_crease, float mask_val)
 {
+  if (mask_val > 0.0) {
+    return float4(1.0, 0.0, 0.0, mask_val); 
+  }
 
   if ((vertex_flag & VERT_ACTIVE) != 0u) {
     return float4(theme.colors.edit_mesh_active.xyz, 1.0f);

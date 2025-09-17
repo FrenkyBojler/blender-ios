@@ -51,7 +51,9 @@ void main()
 
 #if defined(VERT)
   vertex_crease = float(m_data.z >> 4) / 15.0f;
-  final_color = EDIT_MESH_vertex_color(m_data.y, vertex_crease);
+  float mask_val = float(m_data.w & 0xF) / 15.0f;
+  final_color = EDIT_MESH_vertex_color(m_data.y, vertex_crease, mask_val);
+
   gl_PointSize = theme.sizes.vert * ((vertex_crease > 0.0f) ? 3.0f : 2.0f);
   /* Make selected and active vertex always on top. */
   if ((data.x & VERT_SELECTED) != 0u) {
@@ -73,7 +75,7 @@ void main()
 #  endif
 
   float edge_crease = float(m_data.z & 0xFu) / 15.0f;
-  float bweight = float(m_data.w) / 255.0f;
+  float mask_val = float(m_data.w & 0xF) / 15.0;
   final_color_outer = EDIT_MESH_edge_color_outer(m_data.y, m_data.x, edge_crease, bweight);
 
   if (final_color_outer.a > 0.0f) {

@@ -591,6 +591,9 @@ MeshRenderData mesh_render_data_create(Object &object,
     mr.edge_crease_ofs = CustomData_get_offset_named(&mr.bm->edata, CD_PROP_FLOAT, "crease_edge");
     mr.bweight_ofs = CustomData_get_offset_named(
         &mr.bm->edata, CD_PROP_FLOAT, "bevel_weight_edge");
+    mr.mask_ofs = CustomData_get_offset_named(&mr.bm->vdata,
+                                          CD_PROP_FLOAT,
+                                          ".sculpt_mask");
 #ifdef WITH_FREESTYLE
     mr.freestyle_edge_ofs = CustomData_get_offset_named(
         &mr.bm->edata, CD_PROP_BOOL, "freestyle_edge");
