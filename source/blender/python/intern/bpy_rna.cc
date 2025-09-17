@@ -6595,12 +6595,13 @@ static void pyrna_func_error_prefix(BPy_FunctionRNA *self,
   }
 }
 
-static PyObject *pyrna_func_vectorcall(BPy_FunctionRNA *self,
+static PyObject *pyrna_func_vectorcall(PyObject *callable,
                                        PyObject *const *args,
                                        size_t nargsf,
                                        PyObject *kwnames)
 {
   /* NOTE: both BPy_StructRNA and BPy_PropertyRNA can be used here. */
+  BPy_FunctionRNA *self = reinterpret_cast<BPy_FunctionRNA *>(callable);
   PointerRNA *self_ptr = &self->ptr.value();
   FunctionRNA *self_func = self->func;
 
@@ -7961,7 +7962,7 @@ static PyObject *pyrna_func_CreatePyObject(const PointerRNA *ptr, FunctionRNA *f
   if (pyfunc) {
     pyfunc->func = func;
     pyfunc->ptr = *ptr;
-    pyfunc->vectorcall = (vectorcallfunc)pyrna_func_vectorcall;
+    pyfunc->vectorcall = pyrna_func_vectorcall;
   }
 
   if (!pyfunc) {
