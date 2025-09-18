@@ -161,10 +161,25 @@ struct SampleColorData {
   short launch_event;
   float initcolor[3];
   bool sample_palette;
+
+  float accum_col[3] = {};
+  int accum_tot = 0;
 };
 
 static void paint_set_color(bContext *C, SampleColorData *data, const float rgb_f[3])
 {
+  add_v3_v3(data->accum_col, rgb_f);
+  data->accum_tot++;
+
+  /* Calculate average. */
+  float accum_col[3];
+  if (data->accum_tot > 1) {
+    mul_v3_v3fl(accum_col, data->accum_col, 1.0f / float(data->accum_tot));
+  }
+  else {
+    copy_v3_v3(accum_col, data->accum_col);
+  }
+
   Paint *paint = BKE_paint_get_active_from_context(C);
   Brush *br = BKE_paint_brush(paint);
   if (data->sample_palette) {
@@ -179,10 +194,10 @@ static void paint_set_color(bContext *C, SampleColorData *data, const float rgb_
     color = BKE_palette_color_add(palette);
     palette->active_color = BLI_listbase_count(&palette->colors) - 1;
 
-    BKE_palette_color_set(color, rgb_f);
+    BKE_palette_color_set(color, accum_col);
   }
 
-  BKE_brush_color_set(paint, br, rgb_f);
+  BKE_brush_color_set(paint, br, accum_col);
 }
 
 static void paint_sample_color(
