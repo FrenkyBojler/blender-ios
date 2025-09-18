@@ -21,6 +21,7 @@
 #include "BLI_polyfill_2d.h"
 #include "BLI_polyfill_2d_beautify.h"
 #include "BLI_rand.h"
+#include "BLI_bounds.hh"
 
 #ifdef WITH_UV_SLIM
 #  include "slim_matrix_transfer.h"
@@ -160,7 +161,8 @@ struct PChart {
 
   float origin[2];
 
-  float orig_origin[2], minv[2], maxv[2], trans[2], size[2];
+  Bounds<float2> orig_bounds;
+
   LinearSolver *context;
   float *abf_alpha;
   PVert *pin1;
@@ -3060,8 +3062,7 @@ static void p_chart_lscm_begin(PChart *chart, bool live, bool abf)
   bool select = false;
   bool deselect = false;
   int npins = 0;
-  p_chart_uv_bbox(chart, chart->minv, chart->maxv);
-  mid_v2_v2v2(chart->orig_origin, chart->minv, chart->maxv);
+  p_chart_uv_bbox(chart, chart->orig_bounds.min, chart->orig_bounds.max);
   /* Give vertices matrix indices, count pins and check selections. */
   for (PVert *v = chart->verts; v; v = v->nextlink) {
     if (v->flag & PVERT_PIN) {
@@ -4241,27 +4242,18 @@ void uv_parametrizer_unwrap_uniform(ParamHandle *phandle,
     return;
   }
 
-  float trans[2], size[2];
+  float trans[2], minv[2], maxv[2], new_size[2];
   for (i = 0; i < phandle->ncharts; i++) {
     PChart *chart = phandle->charts[i];
-    sub_v2_v2v2(size, chart->maxv, chart->minv);
-    p_chart_uv_bbox(chart, chart->minv, chart->maxv);
-    float new_size[2];
-    sub_v2_v2v2(new_size, chart->maxv, chart->minv);
-    float scale = 1.0f;
-    if (size[0] > size[1]) {
-      scale = size[0] / new_size[0];
-    }
-    else {
-      scale = size[1] / new_size[1];
-    }
-
+    p_chart_uv_bbox(chart, minv, maxv);
+    sub_v2_v2v2(new_size, maxv, minv);
+    float2 size = chart->orig_bounds.size();
+    float scale = (size.x > size.y) ? (size.x / new_size[0]) : (size.y / new_size[1]);
     p_chart_uv_scale(chart, scale);
-    p_chart_uv_bbox(chart, chart->minv, chart->maxv);
+    p_chart_uv_bbox(chart, minv, maxv);
 
-    /* Move back to original midpoint. */
-    mid_v2_v2v2(trans, chart->minv, chart->maxv);
-    sub_v2_v2v2(trans, chart->orig_origin, trans);
+    mid_v2_v2v2(trans, minv, maxv);
+    sub_v2_v2v2(trans, chart->orig_bounds.center(), trans);
     p_chart_uv_translate(chart, trans);
   }
 }
@@ -5138,8 +5130,7 @@ static void slim_convert_blender(ParamHandle *phandle, slim::MatrixTransfer *mt)
 
   for (int i = 0; i < phandle->ncharts; i++) {
     PChart *chart = phandle->charts[i];
-    p_chart_uv_bbox(chart, chart->minv, chart->maxv);
-    mid_v2_v2v2(chart->orig_origin, chart->minv, chart->maxv);
+  p_chart_uv_bbox(chart, chart->orig_bounds.min, chart->orig_bounds.max);
     slim::MatrixTransferChart *mt_chart = &mt->charts[i];
 
     p_chart_correct_degenerate_triangles(chart, SLIM_CORR_MIN_AREA, SLIM_CORR_MIN_ANGLE);
