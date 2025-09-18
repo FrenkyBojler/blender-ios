@@ -1573,20 +1573,17 @@ class CYCLES_LIGHT_PT_light(CyclesButtonsPanel, Panel):
             layout.separator()
 
             col = layout.column()
-            col.template_ID(light, "dome_image", new="image.new", open="image.open", unlink="image.unlink")
             col.prop(light, "dome_type", text="Type")
-            col.prop(light, "dome_map_resolution", text="Map Resolution")
-            col.prop(light, "dome_projection", text="Projection")
-
-            col = layout.column()
+            col.template_ID(light, "dome_image", new="image.new", open="image.open", unlink="image.unlink")
             if light.dome_image:
                 col.prop(light, "dome_hdr_strength", text="Strength")
-                col.prop(light, "dome_rotation", text="Rotation")
                 col.prop(light, "dome_hdr_gamma", text="Gamma")
-                
-                sub = col.column(align=True)
-                sub.prop(light, "dome_hdr_flip_u", text="Flip U")
-                sub.prop(light, "dome_hdr_flip_v", text="Flip V")
+            col.prop(light, "dome_map_resolution", text="Map Resolution")
+            col.prop(light, "dome_projection", text="Projection")
+            col.prop(light, "dome_rotation", text="Rotation")
+            sub = col.column(align=True)
+            sub.prop(light, "dome_hdr_flip_u", text="Flip U")
+            sub.prop(light, "dome_hdr_flip_v", text="Flip V")
 
 
 class CYCLES_LIGHT_PT_settings(CyclesButtonsPanel, Panel):

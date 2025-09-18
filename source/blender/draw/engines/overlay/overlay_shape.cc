@@ -1141,7 +1141,8 @@ ShapeCache::ShapeCache()
     Vector<Vertex> verts;
 
     /* 4 Horizontal rings: equator, middle, upper, and top + base ring */
-    const float ring_elevations[] = {0.0f, math::numbers::pi / 6.0f, math::numbers::pi / 3.0f, math::numbers::pi / 2.0f};
+    const float ring_elevations[] = {
+        0.0f, math::numbers::pi / 6.0f, math::numbers::pi / 3.0f, math::numbers::pi / 2.0f};
     for (const float elevation : ring_elevations) {
       const float radius = cosf(elevation);
       const float height = sinf(elevation);
@@ -1152,7 +1153,7 @@ ShapeCache::ShapeCache()
       }
       append_line_loop(verts, scaled_ring, height, VCLASS_LIGHT_AREA_SHAPE);
     }
-    
+
     /* Additional ring in the middle of the flat base (at z=0, radius=0.5) */
     Vector<float2> base_middle_ring;
     for (const float2 &point : ring) {
@@ -1162,14 +1163,17 @@ ShapeCache::ShapeCache()
 
     /* 6 Vertical meridians - hemisphere at 60° intervals */
     for (const int h : IndexRange(6)) {
-      const float angle = h * 2.0f * math::numbers::pi / 6.0f; /* 0°, 60°, 120°, 180°, 240°, 300° */
+      const float angle = h * 2.0f * math::numbers::pi /
+                          6.0f; /* 0°, 60°, 120°, 180°, 240°, 300° */
       const float x = cosf(angle);
       const float y = sinf(angle);
 
       /* Draw hemisphere meridian - from equator to top */
       for (const int v : IndexRange(segments_vertical / 2)) {
-        const float elevation1 = (float(v) / float(segments_vertical / 2)) * math::numbers::pi / 2.0f;
-        const float elevation2 = (float(v + 1) / float(segments_vertical / 2)) * math::numbers::pi / 2.0f;
+        const float elevation1 = (float(v) / float(segments_vertical / 2)) * math::numbers::pi /
+                                 2.0f;
+        const float elevation2 = (float(v + 1) / float(segments_vertical / 2)) *
+                                 math::numbers::pi / 2.0f;
 
         const float radius1 = cosf(elevation1);
         const float height1 = sinf(elevation1);
@@ -1183,6 +1187,105 @@ ShapeCache::ShapeCache()
 
     light_dome_hemisphere_lines = BatchPtr(
         GPU_batch_create_ex(GPU_PRIM_LINES, vbo_from_vector(verts), nullptr, GPU_BATCH_OWNS_VBO));
+  }
+  /* light dome solid - spherical */
+  {
+    Vector<VertShaded> verts;
+
+    /* Create sphere with VCLASS_LIGHT_AREA_SHAPE for proper scaling */
+    constexpr int lat_res = 24;
+    constexpr int lon_res = 32;
+    const Vector<float2> latitude_ring = ring_vertices(1.0f, lat_res);
+    const Vector<float2> longitude_half_ring = ring_vertices(1.0f, lon_res, true);
+
+    for (const int i : latitude_ring.index_range()) {
+      const float2 lat_pt = latitude_ring[i];
+      const float2 next_lat_pt = latitude_ring[(i + 1) % latitude_ring.size()];
+      for (const int j : IndexRange(longitude_half_ring.size() - 1)) {
+        const float2 lon_pt = longitude_half_ring[j];
+        const float2 next_lon_pt = longitude_half_ring[j + 1];
+        if (j != 0) { /* Pole */
+          /* Create vertices with VCLASS_LIGHT_AREA_SHAPE, matching exact order from
+           * sphere_lat_lon_vert */
+          float3 v1 = {
+              next_lon_pt.y * next_lat_pt.x, next_lon_pt.x, next_lon_pt.y * next_lat_pt.y};
+          float3 v2 = {lon_pt.y * next_lat_pt.x, lon_pt.x, lon_pt.y * next_lat_pt.y};
+          float3 v3 = {lon_pt.y * lat_pt.x, lon_pt.x, lon_pt.y * lat_pt.y};
+          verts.append({v1, VCLASS_LIGHT_AREA_SHAPE, v1});
+          verts.append({v2, VCLASS_LIGHT_AREA_SHAPE, v2});
+          verts.append({v3, VCLASS_LIGHT_AREA_SHAPE, v3});
+        }
+        if (j != longitude_half_ring.index_range().last(1)) { /* Pole */
+          float3 v1 = {next_lon_pt.y * lat_pt.x, next_lon_pt.x, next_lon_pt.y * lat_pt.y};
+          float3 v2 = {
+              next_lon_pt.y * next_lat_pt.x, next_lon_pt.x, next_lon_pt.y * next_lat_pt.y};
+          float3 v3 = {lon_pt.y * lat_pt.x, lon_pt.x, lon_pt.y * lat_pt.y};
+          verts.append({v1, VCLASS_LIGHT_AREA_SHAPE, v1});
+          verts.append({v2, VCLASS_LIGHT_AREA_SHAPE, v2});
+          verts.append({v3, VCLASS_LIGHT_AREA_SHAPE, v3});
+        }
+      }
+    }
+
+    light_dome_solid = BatchPtr(
+        GPU_batch_create_ex(GPU_PRIM_TRIS, vbo_from_vector(verts), nullptr, GPU_BATCH_OWNS_VBO));
+  }
+  /* light dome solid - hemisphere */
+  {
+    constexpr int segments_horizontal = 16;
+    constexpr int segments_vertical = 8;
+    const Vector<float2> ring = ring_vertices(1.0f, segments_horizontal);
+
+    Vector<VertShaded> verts;
+
+    /* Generate hemisphere triangles */
+    for (int v = 0; v < segments_vertical; v++) {
+      const float elevation1 = (math::numbers::pi / 2.0f) * v / segments_vertical;
+      const float elevation2 = (math::numbers::pi / 2.0f) * (v + 1) / segments_vertical;
+
+      const float radius1 = cosf(elevation1);
+      const float height1 = sinf(elevation1);
+      const float radius2 = cosf(elevation2);
+      const float height2 = sinf(elevation2);
+
+      for (int h = 0; h < segments_horizontal; h++) {
+        const int h_next = (h + 1) % segments_horizontal;
+
+        const float x1 = ring[h].x * radius1;
+        const float y1 = ring[h].y * radius1;
+        const float x2 = ring[h_next].x * radius1;
+        const float y2 = ring[h_next].y * radius1;
+
+        const float x3 = ring[h].x * radius2;
+        const float y3 = ring[h].y * radius2;
+        const float x4 = ring[h_next].x * radius2;
+        const float y4 = ring[h_next].y * radius2;
+
+        /* Triangle 1 */
+        verts.append({{x1, y1, height1}, VCLASS_LIGHT_AREA_SHAPE, {x1, y1, height1}});
+        verts.append({{x3, y3, height2}, VCLASS_LIGHT_AREA_SHAPE, {x3, y3, height2}});
+        verts.append({{x2, y2, height1}, VCLASS_LIGHT_AREA_SHAPE, {x2, y2, height1}});
+
+        /* Triangle 2 */
+        verts.append({{x2, y2, height1}, VCLASS_LIGHT_AREA_SHAPE, {x2, y2, height1}});
+        verts.append({{x3, y3, height2}, VCLASS_LIGHT_AREA_SHAPE, {x3, y3, height2}});
+        verts.append({{x4, y4, height2}, VCLASS_LIGHT_AREA_SHAPE, {x4, y4, height2}});
+      }
+    }
+
+    /* Add base disk for hemisphere */
+    for (int h = 0; h < segments_horizontal; h++) {
+      const int h_next = (h + 1) % segments_horizontal;
+
+      /* Base triangle from center */
+      verts.append({{0.0f, 0.0f, 0.0f}, VCLASS_LIGHT_AREA_SHAPE, {0.0f, 0.0f, -1.0f}});
+      verts.append({{ring[h].x, ring[h].y, 0.0f}, VCLASS_LIGHT_AREA_SHAPE, {0.0f, 0.0f, -1.0f}});
+      verts.append(
+          {{ring[h_next].x, ring[h_next].y, 0.0f}, VCLASS_LIGHT_AREA_SHAPE, {0.0f, 0.0f, -1.0f}});
+    }
+
+    light_dome_hemisphere_solid = BatchPtr(
+        GPU_batch_create_ex(GPU_PRIM_TRIS, vbo_from_vector(verts), nullptr, GPU_BATCH_OWNS_VBO));
   }
   /* field_force */
   {

@@ -269,14 +269,11 @@ ccl_device bool compute_emitter_centroid_and_dir(KernelGlobals kg,
         dir = centroid;
         break;
       case LIGHT_DOME:
-        printf("DOME_DEBUG: Setting dome light centroid and direction in light tree\n");
         /* Arbitrary centroid and direction for dome lights, similar to background. */
         centroid = make_float3(0.0f, 0.0f, 1.0f);
         dir = make_float3(0.0f, 0.0f, -1.0f);
         break;
       default:
-        printf("DOME_DEBUG: Unknown light type in compute_emitter_centroid_and_dir: %d\n",
-               klight->type);
         return false;
     }
   }
@@ -489,12 +486,10 @@ ccl_device void light_tree_emitter_importance(KernelGlobals kg,
             centroid, bcone.theta_e, t, cos_theta_u, distance, point_to_centroid, theta_d);
         break;
       case LIGHT_DOME:
-        printf("DOME_DEBUG: Light tree sampling dome light\n");
         is_visible = background_light_tree_parameters<in_volume_segment>(
             centroid, t, cos_theta_u, distance, point_to_centroid, theta_d);
         break;
       default:
-        printf("DOME_DEBUG: Unknown light type in light tree: %d\n", klight->type);
         return;
     }
   }

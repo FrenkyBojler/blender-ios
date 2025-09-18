@@ -170,11 +170,6 @@ ccl_device_inline bool light_sample(KernelGlobals kg,
     ls->t = FLT_MAX;
     ls->eval_fac = 1.0f;
 
-    printf("DOME_DEBUG: Sampling dome light - D=(%.2f,%.2f,%.2f), pdf=%.6f\n",
-           (double)D.x,
-           (double)D.y,
-           (double)D.z,
-           (double)ls->pdf);
   }
   else if (type == LIGHT_SPOT) {
     if (!spot_light_sample<in_volume_segment>(kg, klight, rand, P, N, shader_flags, ls)) {

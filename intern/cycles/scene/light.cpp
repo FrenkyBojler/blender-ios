@@ -1029,9 +1029,6 @@ void LightManager::device_update_background(Device *device,
     if (light->light_type == LIGHT_BACKGROUND && light->is_enabled) {
       background_light = light;
       background_mis |= light->use_mis;
-      printf("DOME_DEBUG: Found BACKGROUND light as background light (enabled=%d, mis=%d)\n",
-             light->is_enabled,
-             light->use_mis);
     }
   }
 
@@ -1402,7 +1399,7 @@ void LightManager::device_update_lights(DeviceScene *dscene, Scene *scene)
 
       /* Combine object rotation with dome HDR rotation for final transform */
       float3 final_rotation = light->get_dome_rotation();
-      
+
       /* Apply object transform rotation to the dome rotation */
       const Transform &tfm = object->get_tfm();
       /* For now, just use the dome rotation directly - object transform is handled separately */
@@ -1413,17 +1410,6 @@ void LightManager::device_update_lights(DeviceScene *dscene, Scene *scene)
       klights[light_index].dome.dome_hdr_flip_u = light->get_dome_hdr_flip_u() ? 1 : 0;
       klights[light_index].dome.dome_hdr_flip_v = light->get_dome_hdr_flip_v() ? 1 : 0;
 
-      printf(
-          "DOME_DEBUG: Packed dome light to kernel - index=%d, size=%.2f, hdr_tex=%d, "
-          "strength=%.2f, rotation=(%.3f,%.3f,%.3f), gamma=%.3f, flip_u=%d, flip_v=%d\n",
-          light_index,
-          (double)light->size,
-          klights[light_index].dome.dome_hdr_tex,
-          (double)light->get_dome_hdr_strength(),
-          (double)final_rotation.x, (double)final_rotation.y, (double)final_rotation.z,
-          (double)light->get_dome_hdr_gamma(),
-          klights[light_index].dome.dome_hdr_flip_u,
-          klights[light_index].dome.dome_hdr_flip_v);
     }
     else if (light->light_type == LIGHT_AREA) {
       const float light_size = light->size;

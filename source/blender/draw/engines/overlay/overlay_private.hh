@@ -393,6 +393,8 @@ class ShapeCache {
   BatchPtr light_area_square_lines;
   BatchPtr light_dome_lines;
   BatchPtr light_dome_hemisphere_lines;
+  BatchPtr light_dome_solid;
+  BatchPtr light_dome_hemisphere_solid;
   BatchPtr light_spot_volume;
 
   BatchPtr field_force;
@@ -471,6 +473,7 @@ class ShaderModule {
   StaticShader legacy_curve_edit_points = shader_clippable("overlay_edit_curve_point");
   StaticShader legacy_curve_edit_wires = shader_clippable("overlay_edit_curve_wire");
   StaticShader light_spot_cone = shader_clippable("overlay_extra_spot_cone");
+  StaticShader light_dome_hdr = shader_clippable("overlay_dome_hdr");
   StaticShader mesh_analysis = shader_clippable("overlay_edit_mesh_analysis");
   StaticShader mesh_edit_depth = shader_clippable("overlay_edit_mesh_depth");
   StaticShader mesh_edit_edge = shader_clippable("overlay_edit_mesh_edge");
@@ -729,6 +732,7 @@ struct Resources : public select::SelectMap {
     shaders->legacy_curve_edit_points.ensure_compile_async();
     shaders->legacy_curve_edit_wires.ensure_compile_async();
     shaders->light_spot_cone.ensure_compile_async();
+    shaders->light_dome_hdr.ensure_compile_async();
     shaders->mesh_analysis.ensure_compile_async();
     shaders->mesh_edit_depth.ensure_compile_async();
     shaders->mesh_edit_edge.ensure_compile_async();
@@ -1056,6 +1060,11 @@ template<typename InstanceDataT> struct ShapeInstanceBuf : private select::Selec
   {
     this->select_append(select_id);
     data_buf.append(data);
+  }
+
+  size_t instance_count() const
+  {
+    return data_buf.size();
   }
 
   void end_sync(PassSimple::Sub &pass, gpu::Batch *shape)

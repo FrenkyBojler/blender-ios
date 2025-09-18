@@ -8,9 +8,17 @@
 
 #pragma once
 
+#include <cstdio>
+
 #include "DNA_light_types.h"
+#include "DNA_image_types.h"
 
 #include "BLI_math_matrix.h"
+
+#include "BKE_image.hh"
+
+#include "GPU_texture.hh"
+#include "GPU_state.hh"
 
 #include "overlay_base.hh"
 
@@ -24,6 +32,24 @@ class Lights : Overlay {
   const SelectionType selection_type_;
 
   PassSimple ps_ = {"Lights"};
+
+  struct DomeHDRLight {
+    ExtraInstanceData data;
+    select::ID select_id;
+    gpu::Texture *hdr_texture;
+    bool is_hemisphere;
+
+    DomeHDRLight(const ExtraInstanceData &data_,
+                 select::ID select_id_,
+                 gpu::Texture *hdr_texture_,
+                 bool is_hemisphere_)
+        : data(data_),
+          select_id(select_id_),
+          hdr_texture(hdr_texture_),
+          is_hemisphere(is_hemisphere_)
+    {
+    }
+  };
 
   struct CallBuffers {
     const SelectionType selection_type_;
@@ -40,7 +66,14 @@ class Lights : Overlay {
     LightInstanceBuf area_square_buf = {selection_type_, "area_square_buf"};
     LightInstanceBuf dome_buf = {selection_type_, "dome_buf"};
     LightInstanceBuf dome_hemisphere_buf = {selection_type_, "dome_hemisphere_buf"};
+    LightInstanceBuf dome_solid_buf = {selection_type_, "dome_solid_buf"};
+    LightInstanceBuf dome_hemisphere_solid_buf = {selection_type_,
+                                                  "dome_hemisphere_solid_buf"};
+    LightInstanceBuf dome_hdr_buf = {selection_type_, "dome_hdr_buf"};
   } call_buffers_{selection_type_};
+
+  /* Individual dome lights with HDR textures */
+  Vector<DomeHDRLight> dome_hdr_lights_;
 
  public:
   Lights(const SelectionType selection_type) : selection_type_(selection_type){};
@@ -65,6 +98,12 @@ class Lights : Overlay {
     call_buffers_.area_square_buf.clear();
     call_buffers_.dome_buf.clear();
     call_buffers_.dome_hemisphere_buf.clear();
+    call_buffers_.dome_solid_buf.clear();
+    call_buffers_.dome_hemisphere_solid_buf.clear();
+    call_buffers_.dome_hdr_buf.clear();
+
+    /* Clear individual dome HDR lights */
+    dome_hdr_lights_.clear();
   }
 
   void object_sync(Manager & /*manager*/,
@@ -163,11 +202,49 @@ class Lights : Overlay {
         break;
       }
       case LA_DOME: {
+        /* Use the actual dome_size for both wireframe and shader */
         area_size_x = area_size_y = area_size_z = la.dome_size;
-        LightInstanceBuf &dome_buf = (la.dome_type == LA_DOME_HEMISPHERE) ?
-                                         call_buffers_.dome_hemisphere_buf :
-                                         call_buffers_.dome_buf;
-        dome_buf.append(data, select_id);
+
+        /* Check if dome has HDR image */
+        const bool has_hdr_image = (la.dome_image != nullptr);
+        gpu::Texture *hdr_texture = nullptr;
+        
+        /* Load HDR texture if available */
+        if (has_hdr_image && la.dome_image) {
+          /* Create an ImageUser for the image */
+          ImageUser iuser = {};
+          iuser.framenr = 1; /* Default frame */
+          
+          /* Get GPU texture from the image */
+          hdr_texture = BKE_image_get_gpu_texture(la.dome_image, &iuser);
+        }
+
+        /* Set dome-specific fields in the standard data structure */
+        float3 dome_rotation = float3(
+            la.dome_rotation[0], la.dome_rotation[1], la.dome_rotation[2]);
+        data.dome_rotation = dome_rotation;
+        data.has_hdr = (hdr_texture != nullptr);
+        data.flip_u = la.dome_hdr_flip_u;
+        data.flip_v = la.dome_hdr_flip_v;
+
+        /* Show both wireframe and solid using same standard system */
+        LightInstanceBuf &dome_wireframe_buf = (la.dome_type == LA_DOME_HEMISPHERE) ?
+                                                   call_buffers_.dome_hemisphere_buf :
+                                                   call_buffers_.dome_buf;
+        dome_wireframe_buf.append(data, select_id);
+
+        /* Store HDR texture reference if available for binding later */
+        if (hdr_texture) {
+          const bool is_hemisphere = (la.dome_type == LA_DOME_HEMISPHERE);
+          dome_hdr_lights_.append(DomeHDRLight(data, select_id, hdr_texture, is_hemisphere));
+        }
+        else {
+          /* Only show dome lights without HDR in the debug pass */
+          LightInstanceBuf &dome_solid_buf = (la.dome_type == LA_DOME_HEMISPHERE) ?
+                                                 call_buffers_.dome_hemisphere_solid_buf :
+                                                 call_buffers_.dome_solid_buf;
+          dome_solid_buf.append(data, select_id);
+        }
         break;
       }
       default:
@@ -219,6 +296,59 @@ class Lights : Overlay {
       call_buffers_.dome_buf.end_sync(sub_pass, res.shapes.light_dome_lines.get());
       call_buffers_.dome_hemisphere_buf.end_sync(sub_pass,
                                                  res.shapes.light_dome_hemisphere_lines.get());
+    }
+    {
+      /* Render dome lights without HDR textures (debug pattern) */
+      PassSimple::Sub &sub_pass_debug = ps_.sub("dome_hdr_debug");
+      sub_pass_debug.state_set(pass_state | DRW_STATE_BLEND_ALPHA, state.clipping_plane_count);
+      sub_pass_debug.shader_set(res.shaders->light_dome_hdr.get());
+      
+      /* These will show the debug pattern since no texture is bound */
+      call_buffers_.dome_solid_buf.end_sync(sub_pass_debug, res.shapes.light_dome_solid.get());
+      call_buffers_.dome_hemisphere_solid_buf.end_sync(
+          sub_pass_debug, res.shapes.light_dome_hemisphere_solid.get());
+      
+      /* Render dome lights with HDR textures individually */
+      if (!dome_hdr_lights_.is_empty()) {
+        /* For now, render all dome lights with HDR in a single pass */
+        /* This avoids creating temporary buffers for each light */
+        PassSimple::Sub &sub_pass = ps_.sub("dome_hdr_all");
+        sub_pass.state_set(pass_state | DRW_STATE_BLEND_ALPHA, state.clipping_plane_count);
+        sub_pass.shader_set(res.shaders->light_dome_hdr.get());
+        
+        /* Add all dome lights with HDR to the buffer */
+        /* Note: This means all dome lights will use the same texture (the last one bound) */
+        /* For proper multi-texture support, we'd need texture arrays or multiple draw calls */
+        gpu::Texture *last_texture = nullptr;
+        bool has_hemisphere = false;
+        bool has_full = false;
+        
+        for (const DomeHDRLight &dome_light : dome_hdr_lights_) {
+          call_buffers_.dome_hdr_buf.append(dome_light.data, dome_light.select_id);
+          last_texture = dome_light.hdr_texture;
+          if (dome_light.is_hemisphere) {
+            has_hemisphere = true;
+          } else {
+            has_full = true;
+          }
+        }
+        
+        /* Bind the last texture if we have one */
+        if (last_texture) {
+          GPUSamplerState sampler_state = GPUSamplerState::default_sampler();
+          sampler_state.filtering = GPU_SAMPLER_FILTERING_LINEAR;
+          sampler_state.extend_x = GPU_SAMPLER_EXTEND_MODE_REPEAT;
+          sampler_state.extend_yz = GPU_SAMPLER_EXTEND_MODE_REPEAT;
+          sub_pass.bind_texture(0, last_texture, sampler_state);
+        }
+        
+        /* Render with appropriate geometry */
+        /* For now, if we have mixed types, render with full sphere */
+        gpu::Batch *dome_shape = (has_hemisphere && !has_full) ?
+                                  res.shapes.light_dome_hemisphere_solid.get() :
+                                  res.shapes.light_dome_solid.get();
+        call_buffers_.dome_hdr_buf.end_sync(sub_pass, dome_shape);
+      }
     }
     {
       PassSimple::Sub &sub_pass = ps_.sub("ground_line");

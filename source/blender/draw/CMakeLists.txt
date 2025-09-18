@@ -672,6 +672,8 @@ set(GLSL_SRC
   engines/overlay/shaders/overlay_extra_vert.glsl
   engines/overlay/shaders/overlay_extra_wire_frag.glsl
   engines/overlay/shaders/overlay_extra_wire_vert.glsl
+  engines/overlay/shaders/overlay_dome_hdr_vert.glsl
+  engines/overlay/shaders/overlay_dome_hdr_frag.glsl
   engines/overlay/shaders/overlay_facing_frag.glsl
   engines/overlay/shaders/overlay_facing_vert.glsl
   engines/overlay/shaders/overlay_grid_background_frag.glsl

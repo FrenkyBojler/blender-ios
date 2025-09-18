@@ -51,6 +51,33 @@ GPU_SHADER_CREATE_END()
 
 OVERLAY_INFO_CLIP_VARIATION(overlay_extra_spot_cone)
 
+GPU_SHADER_INTERFACE_INFO(overlay_dome_hdr_iface)
+NO_PERSPECTIVE(float2, edge_pos)
+FLAT(float2, edge_start)
+FLAT(float4, final_color)
+SMOOTH(float2, uv_coords)
+FLAT(float, has_hdr)
+GPU_SHADER_INTERFACE_END()
+
+GPU_SHADER_CREATE_INFO(overlay_dome_hdr)
+DO_STATIC_COMPILATION()
+TYPEDEF_SOURCE("overlay_shader_shared.hh")
+VERTEX_IN(0, float3, pos)
+VERTEX_IN(1, float2, uv)
+VERTEX_IN(2, int, vclass)
+VERTEX_OUT(overlay_dome_hdr_iface)
+FRAGMENT_OUT(0, float4, frag_color)
+FRAGMENT_OUT(1, float4, line_output)
+VERTEX_SOURCE("overlay_dome_hdr_vert.glsl")
+FRAGMENT_SOURCE("overlay_dome_hdr_frag.glsl")
+SAMPLER(0, sampler2D, hdr_texture)
+ADDITIONAL_INFO(draw_view)
+ADDITIONAL_INFO(draw_globals)
+STORAGE_BUF(0, read, ExtraInstanceData, data_buf[])
+GPU_SHADER_CREATE_END()
+
+OVERLAY_INFO_VARIATIONS(overlay_dome_hdr)
+
 /** \} */
 
 /* -------------------------------------------------------------------- */

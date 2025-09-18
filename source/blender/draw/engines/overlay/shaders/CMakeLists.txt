@@ -73,6 +73,7 @@ set(SRC_GLSL_VERT
   overlay_extra_point_vert.glsl
   overlay_extra_vert.glsl
   overlay_extra_wire_vert.glsl
+  overlay_dome_hdr_vert.glsl
   overlay_facing_vert.glsl
   overlay_grid_vert.glsl
   overlay_image_vert.glsl
@@ -123,6 +124,7 @@ set(SRC_GLSL_FRAG
   overlay_extra_frag.glsl
   overlay_extra_loose_point_frag.glsl
   overlay_extra_wire_frag.glsl
+  overlay_dome_hdr_frag.glsl
   overlay_facing_frag.glsl
   overlay_grid_background_frag.glsl
   overlay_grid_frag.glsl

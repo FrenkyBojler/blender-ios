@@ -324,6 +324,13 @@ BLI_STATIC_ASSERT_ALIGN(UniformData, 16)
 struct ExtraInstanceData {
   float4 color_;
   float4x4 object_to_world;
+  /* Dome light specific fields */
+  float3 dome_rotation; /* Dome rotation in radians (X, Y, Z) */
+  float dome_size;      /* Dome size */
+  bool32_t has_hdr;     /* HDR flag: true = has HDR, false = no HDR */
+  bool32_t flip_u;      /* UV flip horizontally */
+  bool32_t flip_v;      /* UV flip vertically */
+  int _pad[1];          /* Padding for 16-byte alignment */
 
 #if !defined(GPU_SHADER)
   ExtraInstanceData(const float4x4 &object_to_world, const float4 &color, float draw_size)
@@ -331,6 +338,13 @@ struct ExtraInstanceData {
     this->color_ = color;
     this->object_to_world = object_to_world;
     this->object_to_world[3][3] = draw_size;
+    /* Initialize dome fields to defaults */
+    this->dome_rotation = float3(0.0f, 0.0f, 0.0f);
+    this->dome_size = 1.0f;
+    this->has_hdr = false;
+    this->flip_u = false;
+    this->flip_v = false;
+    this->_pad[0] = 0;
   };
 
   ExtraInstanceData with_color(const float4 &color) const
@@ -354,10 +368,35 @@ struct ExtraInstanceData {
     this->object_to_world[1][3] = angle_min_z;
     this->object_to_world[2][3] = angle_max_x;
     this->object_to_world[3][3] = angle_max_z;
+    /* Initialize dome fields to defaults */
+    this->dome_rotation = float3(0.0f, 0.0f, 0.0f);
+    this->dome_size = 1.0f;
+    this->has_hdr = false;
+    this->flip_u = false;
+    this->flip_v = false;
+    this->_pad[0] = 0;
+  };
+
+  /* Constructor for dome lights */
+  ExtraInstanceData(const float4x4 &object_to_world,
+                    const float4 &color,
+                    float dome_size,
+                    const float3 &dome_rotation,
+                    bool has_hdr)
+  {
+    this->color_ = color;
+    this->object_to_world = object_to_world;
+    this->dome_rotation = dome_rotation;
+    this->dome_size = dome_size;
+    this->has_hdr = has_hdr;
+    this->flip_u = false;
+    this->flip_v = false;
+    this->_pad[0] = 0;
   };
 #endif
 };
 BLI_STATIC_ASSERT_ALIGN(ExtraInstanceData, 16)
+
 
 struct VertexData {
   float4 pos_;

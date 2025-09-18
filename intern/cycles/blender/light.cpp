@@ -86,10 +86,6 @@ void BlenderSync::sync_light(BObjectInfo &b_ob_info, Light *light)
       /* Set dome type (spherical or hemisphere) */
       light->set_is_dome_hemisphere(b_dome_light.dome_type() == 1); /* LA_DOME_HEMISPHERE = 1 */
 
-      printf("DOME_DEBUG: Syncing dome light '%s' with size %.2f, type: %s\n",
-             light->name.c_str(),
-             (double)b_dome_light.dome_size(),
-             light->get_is_dome_hemisphere() ? "hemisphere" : "spherical");
 
       /* Set up HDRI image if available - focus on safe image handling during live updates */
       BL::Image b_image = b_dome_light.dome_image();
@@ -105,15 +101,11 @@ void BlenderSync::sync_light(BObjectInfo &b_ob_info, Light *light)
           light->set_dome_image(ustring(image_filename));
           light->set_dome_hdr_strength(b_dome_light.dome_hdr_strength());
 
-          printf("DOME_DEBUG: Found HDR image '%s' with strength %.2f\n",
-                 image_filename.c_str(),
-                 (double)b_dome_light.dome_hdr_strength());
 
           /* The key fix: Only reload HDR texture if the image actually changed
            * This prevents crashes during live property updates */
           ustring current_image = light->get_dome_image();
           if (current_image != ustring(image_filename) || light->dome_hdr_handle.empty()) {
-            printf("DOME_DEBUG: Image changed or not loaded, reloading HDR texture\n");
 
             /* Clear old HDR texture handle before loading new one to prevent crashes */
             light->clear_dome_hdr_texture();
@@ -138,7 +130,6 @@ void BlenderSync::sync_light(BObjectInfo &b_ob_info, Light *light)
                 params);
           }
           else {
-            printf("DOME_DEBUG: Image unchanged, keeping existing HDR texture\n");
           }
 
           /* Enable MIS for dome light with image */
@@ -157,26 +148,22 @@ void BlenderSync::sync_light(BObjectInfo &b_ob_info, Light *light)
         /* Dome light without image still needs MIS enabled */
         light->set_use_mis(true);
 
-        printf("DOME_DEBUG: No HDR image set\n");
       }
 
       /* Set dome HDR rotation (combined with object rotation) */
       float3 dome_rotation = get_float3(b_dome_light.dome_rotation());
       light->set_dome_rotation(dome_rotation);
-      
+
       /* Set dome HDR gamma correction */
       float dome_gamma = b_dome_light.dome_hdr_gamma();
       light->set_dome_hdr_gamma(dome_gamma);
-      
+
       /* Set dome HDR U/V flipping options */
       bool dome_flip_u = b_dome_light.dome_hdr_flip_u();
       bool dome_flip_v = b_dome_light.dome_hdr_flip_v();
       light->set_dome_hdr_flip_u(dome_flip_u);
       light->set_dome_hdr_flip_v(dome_flip_v);
-      
-      printf("DOME_DEBUG: Dome rotation=(%.3f,%.3f,%.3f), gamma=%.3f, flip_u=%d, flip_v=%d\n",
-             (double)dome_rotation.x, (double)dome_rotation.y, (double)dome_rotation.z,
-             (double)dome_gamma, dome_flip_u, dome_flip_v);
+
 
       /* Set a default average radiance for light tree compatibility */
       light->set_average_radiance(1.0f);

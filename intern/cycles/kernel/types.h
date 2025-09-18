@@ -1622,8 +1622,8 @@ struct KernelDomeLight {
   int dome_hdr_tex; /* HDR texture handle */
   int pad;
   float dome_hdr_strength;
-  int map_res_x;    /* HDR texture resolution X for importance sampling */
-  int map_res_y;    /* HDR texture resolution Y for importance sampling */
+  int map_res_x;        /* HDR texture resolution X for importance sampling */
+  int map_res_y;        /* HDR texture resolution Y for importance sampling */
   float3 dome_rotation; /* Euler rotation for HDR texture (combined with object rotation) */
   float dome_hdr_gamma; /* Gamma correction for HDR texture */
   int dome_hdr_flip_u;  /* Flip U coordinates horizontally (boolean as int) */
