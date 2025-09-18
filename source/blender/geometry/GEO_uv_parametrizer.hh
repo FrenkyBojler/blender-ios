@@ -125,6 +125,7 @@ struct ParamSlimOptions {
 
 void uv_parametrizer_slim_solve(ParamHandle *phandle,
                                 const ParamSlimOptions *slim_options,
+                                const bool uniform_bounds,
                                 int *count_changed,
                                 int *count_failed);
 
@@ -149,7 +150,10 @@ bool uv_parametrizer_is_slim(const ParamHandle *phandle);
  *
  * \{ */
 
-void uv_parametrizer_lscm_begin(ParamHandle *handle, bool live, bool abf);
+void uv_parametrizer_lscm_begin(ParamHandle *handle,
+                                bool live,
+                                bool abf,
+                                const bool uniform_bounds);
 void uv_parametrizer_lscm_solve(ParamHandle *handle, int *count_changed, int *count_failed);
 void uv_parametrizer_lscm_end(ParamHandle *handle);
 
@@ -174,9 +178,7 @@ void uv_parametrizer_pack(ParamHandle *handle, const UVPackIsland_Params &params
 
 /** \} */
 
-void uv_parametrizer_unwrap_uniform(ParamHandle *phandle, const ParamSlimOptions *slim, bool use_abf,
-                                    int *r_count_changed,
-                                    int *r_count_failed);
+void uv_parametrizer_unwrap_uniform(ParamHandle *phandle);
 /* -------------------------------------------------------------------- */
 /** \name Average area for all charts
  * \{ */

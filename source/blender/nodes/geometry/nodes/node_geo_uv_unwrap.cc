@@ -127,7 +127,7 @@ static VArray<float3> construct_uv_gvarray(const Mesh &mesh,
   geometry::uv_parametrizer_construct_end(handle, fill_holes, false, nullptr);
 
   geometry::uv_parametrizer_lscm_begin(
-      handle, false, method == GEO_NODE_UV_UNWRAP_METHOD_ANGLE_BASED);
+      handle, false, method == GEO_NODE_UV_UNWRAP_METHOD_ANGLE_BASED, false);
   geometry::uv_parametrizer_lscm_solve(handle, nullptr, nullptr);
   geometry::uv_parametrizer_lscm_end(handle);
   geometry::uv_parametrizer_average(handle, true, false, false);

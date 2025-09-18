@@ -2144,7 +2144,7 @@ void ED_uvedit_live_unwrap_begin(Scene *scene, Object *obedit, wmWindow *win_mod
     }
   }
   else {
-    blender::geometry::uv_parametrizer_lscm_begin(handle, true, options.use_abf);
+    blender::geometry::uv_parametrizer_lscm_begin(handle, true, options.use_abf, false);
   }
 
   /* Create or increase size of g_live_unwrap.handles array */
@@ -2722,16 +2722,17 @@ static void uvedit_unwrap(const Scene *scene,
   }
 
   if (options->use_slim) {
-    uv_parametrizer_slim_solve(handle, &options->slim, r_count_changed, r_count_failed);
+    uv_parametrizer_slim_solve(
+        handle, &options->slim, options->uniform_bounding_box, r_count_changed, r_count_failed);
   }
   else {
-    blender::geometry::uv_parametrizer_lscm_begin(handle, false, options->use_abf);
+    blender::geometry::uv_parametrizer_lscm_begin(
+        handle, false, options->use_abf, options->uniform_bounding_box);
     blender::geometry::uv_parametrizer_lscm_solve(handle, r_count_changed, r_count_failed);
     blender::geometry::uv_parametrizer_lscm_end(handle);
   }
   if (options->uniform_bounding_box) {
-    blender::geometry::uv_parametrizer_unwrap_uniform(
-        handle, nullptr, options->use_abf, r_count_changed, r_count_failed);
+    blender::geometry::uv_parametrizer_unwrap_uniform(handle);
   }
   else {
     blender::geometry::uv_parametrizer_average(handle, true, false, false);

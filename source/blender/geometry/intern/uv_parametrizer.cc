@@ -12,6 +12,7 @@
 #include "GEO_uv_parametrizer.hh"
 
 #include "BLI_array.hh"
+#include "BLI_bounds.hh"
 #include "BLI_convexhull_2d.hh"
 #include "BLI_ghash.h"
 #include "BLI_math_geom.h"
@@ -21,7 +22,6 @@
 #include "BLI_polyfill_2d.h"
 #include "BLI_polyfill_2d_beautify.h"
 #include "BLI_rand.h"
-#include "BLI_bounds.hh"
 
 #ifdef WITH_UV_SLIM
 #  include "slim_matrix_transfer.h"
@@ -3055,14 +3055,16 @@ static void p_chart_extrema_verts(PChart *chart, PVert **pin1, PVert **pin2)
   p_chart_pin_positions(chart, pin1, pin2);
 }
 
-static void p_chart_lscm_begin(PChart *chart, bool live, bool abf)
+static void p_chart_lscm_begin(PChart *chart, bool live, bool abf, const bool use_uniform_bounds)
 {
   BLI_assert(chart->context == nullptr);
 
   bool select = false;
   bool deselect = false;
   int npins = 0;
-  p_chart_uv_bbox(chart, chart->orig_bounds.min, chart->orig_bounds.max);
+  if (use_uniform_bounds) {
+    p_chart_uv_bbox(chart, chart->orig_bounds.min, chart->orig_bounds.max);
+  }
   /* Give vertices matrix indices, count pins and check selections. */
   for (PVert *v = chart->verts; v; v = v->nextlink) {
     if (v->flag & PVERT_PIN) {
@@ -4070,7 +4072,10 @@ void uv_parametrizer_construct_end(ParamHandle *phandle,
   phandle->state = PHANDLE_STATE_CONSTRUCTED;
 }
 
-void uv_parametrizer_lscm_begin(ParamHandle *phandle, bool live, bool abf)
+void uv_parametrizer_lscm_begin(ParamHandle *phandle,
+                                bool live,
+                                bool abf,
+                                const bool use_uniform_bounds)
 {
   BLI_assert(phandle->state == PHANDLE_STATE_CONSTRUCTED);
   phandle->state = PHANDLE_STATE_LSCM;
@@ -4079,14 +4084,13 @@ void uv_parametrizer_lscm_begin(ParamHandle *phandle, bool live, bool abf)
     for (PFace *f = phandle->charts[i]->faces; f; f = f->nextlink) {
       p_face_backup_uvs(f);
     }
-    p_chart_lscm_begin(phandle->charts[i], live, abf);
+    p_chart_lscm_begin(phandle->charts[i], live, abf, use_uniform_bounds);
   }
 }
 
 void uv_parametrizer_lscm_solve(ParamHandle *phandle, int *count_changed, int *count_failed)
 {
   BLI_assert(phandle->state == PHANDLE_STATE_LSCM);
-  float minv[2], maxv[2], trans[2], size[2];
 
   for (int i = 0; i < phandle->ncharts; i++) {
 
@@ -4230,11 +4234,7 @@ void uv_parametrizer_pack(ParamHandle *handle, const UVPackIsland_Params &params
 
   uv_parametrizer_scale_x(handle, handle->aspect_y);
 }
-void uv_parametrizer_unwrap_uniform(ParamHandle *phandle,
-                                    const ParamSlimOptions *slim_options,
-                                    bool use_abf,
-                                    int *r_count_changed,
-                                    int *r_count_failed)
+void uv_parametrizer_unwrap_uniform(ParamHandle *phandle)
 {
   int i;
 
@@ -5121,7 +5121,9 @@ static void slim_transfer_faces(const PChart *chart, slim::MatrixTransferChart *
 /**
  * Conversion Function to build matrix for SLIM Parametrization.
  */
-static void slim_convert_blender(ParamHandle *phandle, slim::MatrixTransfer *mt)
+static void slim_convert_blender(ParamHandle *phandle,
+                                 slim::MatrixTransfer *mt,
+                                 const bool use_uniform_bounds)
 {
   static const float SLIM_CORR_MIN_AREA = 1.0e-8;
   static const float SLIM_CORR_MIN_ANGLE = DEG2RADF(1.0f);
@@ -5130,7 +5132,9 @@ static void slim_convert_blender(ParamHandle *phandle, slim::MatrixTransfer *mt)
 
   for (int i = 0; i < phandle->ncharts; i++) {
     PChart *chart = phandle->charts[i];
-  p_chart_uv_bbox(chart, chart->orig_bounds.min, chart->orig_bounds.max);
+    if (use_uniform_bounds) {
+      p_chart_uv_bbox(chart, chart->orig_bounds.min, chart->orig_bounds.max);
+    }
     slim::MatrixTransferChart *mt_chart = &mt->charts[i];
 
     p_chart_correct_degenerate_triangles(chart, SLIM_CORR_MIN_AREA, SLIM_CORR_MIN_ANGLE);
@@ -5162,11 +5166,13 @@ static void slim_convert_blender(ParamHandle *phandle, slim::MatrixTransfer *mt)
   }
 }
 
-static void slim_transfer_data_to_slim(ParamHandle *phandle, const ParamSlimOptions *slim_options)
+static void slim_transfer_data_to_slim(ParamHandle *phandle,
+                                       const ParamSlimOptions *slim_options,
+                                       const bool use_uniform_bounds)
 {
   slim::MatrixTransfer *mt = slim_matrix_transfer(slim_options);
 
-  slim_convert_blender(phandle, mt);
+  slim_convert_blender(phandle, mt, use_uniform_bounds);
   phandle->slim_mt = mt;
 }
 
@@ -5287,11 +5293,12 @@ static void slim_get_pinned_vertex_data(ParamHandle *phandle,
 
 void uv_parametrizer_slim_solve(ParamHandle *phandle,
                                 const ParamSlimOptions *slim_options,
+                                bool use_uniform_bounds,
                                 int *count_changed,
                                 int *count_failed)
 {
 #ifdef WITH_UV_SLIM
-  slim_transfer_data_to_slim(phandle, slim_options);
+  slim_transfer_data_to_slim(phandle, slim_options, use_uniform_bounds);
   slim::MatrixTransfer *mt = phandle->slim_mt;
 
   mt->parametrize();
@@ -5308,7 +5315,7 @@ void uv_parametrizer_slim_solve(ParamHandle *phandle,
 void uv_parametrizer_slim_live_begin(ParamHandle *phandle, const ParamSlimOptions *slim_options)
 {
 #ifdef WITH_UV_SLIM
-  slim_transfer_data_to_slim(phandle, slim_options);
+  slim_transfer_data_to_slim(phandle, slim_options, false);
   slim::MatrixTransfer *mt = phandle->slim_mt;
 
   for (int i = 0; i < phandle->ncharts; i++) {
