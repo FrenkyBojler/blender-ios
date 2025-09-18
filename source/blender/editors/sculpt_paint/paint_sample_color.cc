@@ -156,21 +156,14 @@ static int imapaint_pick_face(ViewContext *vc,
   return 1;
 }
 
-static void paint_sample_color(
-    bContext *C, ARegion *region, int x, int y, bool texpaint_proj, bool use_palette)
+static void paint_set_color(bContext *C, const float rgb_f[3], const bool use_palette)
 {
-  using namespace blender;
-  Scene *scene = CTX_data_scene(C);
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   Paint *paint = BKE_paint_get_active_from_context(C);
-  Palette *palette = BKE_paint_palette(paint);
-  PaletteColor *color = nullptr;
-  Brush *br = BKE_paint_brush(BKE_paint_get_active_from_context(C));
-
-  CLAMP(x, 0, region->winx);
-  CLAMP(y, 0, region->winy);
-
+  Brush *br = BKE_paint_brush(paint);
   if (use_palette) {
+    Palette *palette = BKE_paint_palette(paint);
+    PaletteColor *color = nullptr;
+
     if (!palette) {
       palette = BKE_palette_add(CTX_data_main(C), "Palette");
       BKE_paint_palette_set(paint, palette);
@@ -178,7 +171,22 @@ static void paint_sample_color(
 
     color = BKE_palette_color_add(palette);
     palette->active_color = BLI_listbase_count(&palette->colors) - 1;
+
+    BKE_palette_color_set(color, rgb_f);
   }
+
+  BKE_brush_color_set(paint, br, rgb_f);
+}
+
+static void paint_sample_color(
+    bContext *C, ARegion *region, int x, int y, bool texpaint_proj, bool use_palette)
+{
+  using namespace blender;
+  Scene *scene = CTX_data_scene(C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+
+  CLAMP(x, 0, region->winx);
+  CLAMP(y, 0, region->winy);
 
   SpaceImage *sima = CTX_wm_space_image(C);
   const View3D *v3d = CTX_wm_view3d(C);
@@ -259,12 +267,8 @@ static void paint_sample_color(
                                     imbuf::interpolate_bilinear_wrap_fl(ibuf, u, v);
                 rgba_f = math::clamp(rgba_f, 0.0f, 1.0f);
                 straight_to_premul_v4(rgba_f);
-                if (use_palette) {
-                  BKE_palette_color_set(color, rgba_f);
-                }
-                else {
-                  BKE_brush_color_set(paint, br, rgba_f);
-                }
+
+                paint_set_color(C, rgba_f, use_palette);
               }
               else {
                 uchar4 rgba = interp == SHD_INTERP_CLOSEST ?
@@ -278,12 +282,7 @@ static void paint_sample_color(
                                                                     ibuf->byte_buffer.colorspace);
                 }
 
-                if (use_palette) {
-                  BKE_palette_color_set(color, rgba_f);
-                }
-                else {
-                  BKE_brush_color_set(paint, br, rgba_f);
-                }
+                paint_set_color(C, rgba_f, use_palette);
               }
               BKE_image_release_ibuf(image, ibuf, nullptr);
               return;
@@ -301,12 +300,7 @@ static void paint_sample_color(
     float rgba_f[3];
     bool is_data;
     if (ED_space_image_color_sample(sima, region, blender::int2(x, y), rgba_f, &is_data)) {
-      if (use_palette) {
-        BKE_palette_color_set(color, rgba_f);
-      }
-      else {
-        BKE_brush_color_set(paint, br, rgba_f);
-      }
+      paint_set_color(C, rgba_f, use_palette);
       return;
     }
   }
@@ -324,12 +318,7 @@ static void paint_sample_color(
         scene->display_settings.display_device);
     IMB_colormanagement_display_to_scene_linear_v3(rgb_fl, display);
 
-    if (use_palette) {
-      BKE_palette_color_set(color, rgb_fl);
-    }
-    else {
-      BKE_brush_color_set(paint, br, rgb_fl);
-    }
+    paint_set_color(C, rgb_fl, use_palette);
   }
 }
 
