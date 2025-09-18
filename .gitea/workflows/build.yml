@@ -1,0 +1,93 @@
+name: Build Blender
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  update-code:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v3
+      - name: Update submodules or fetch deps
+        run: |
+          echo "Updating code..."
+          # make update
+
+  compile-code:
+    needs: update-code
+    runs-on: ubuntu-latest
+    steps:
+      - name: Compile Blender
+        run: |
+          echo "Compiling Blender..."
+          # make
+
+  compile-gpu:
+    needs: compile-code
+    runs-on: ubuntu-latest
+    steps:
+      - name: Compile Blender with GPU kernels
+        run: |
+          echo "Compiling Blender with GPU kernels..."
+          # make
+
+  compile-install:
+    needs: [compile-code, compile-gpu]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Compile Blender with installation
+        run: |
+          echo "Compiling Blender with installation..."
+          # make install
+
+  test-code:
+    needs: compile-install
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run unit tests
+        run: |
+          echo "Running tests..."
+          # make test
+      - name: Collect test results
+        run: |
+          echo "Test results summary:"
+          echo "✅ Unit tests passed:   42"
+          echo "❌ Unit tests failed:   2"
+          echo "⚠️ Integration skipped: 1"
+
+  sign-code-binaries:
+    needs: test-code
+    runs-on: ubuntu-latest
+    steps:
+      - name: Sign binaries
+        run: |
+          echo "Signing binaries..."
+
+  package-code-binaries:
+    needs: sign-code-binaries
+    runs-on: ubuntu-latest
+    steps:
+      - name: Package binaries
+        run: |
+          echo "Packaging binaries..."
+
+  deliver-code-binaries:
+    needs: package-code-binaries
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deliver binaries
+        run: |
+          echo "Delivering binaries..."
+		  
+  deliver-test-results:
+    needs: test-code
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deliver binaries
+        run: |
+          echo "Delivering test results..."
+		  
