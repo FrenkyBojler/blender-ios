@@ -25,6 +25,11 @@ static void node_shader_init_refraction(bNodeTree * /*ntree*/, bNode *node)
   node->custom1 = SHD_GLOSSY_BECKMANN;
 }
 
+static bool socket_value_might_be_tinted(const GPUNodeStack &sock)
+{
+  return sock.link || (sock.vec[0] != sock.vec[1]) || (sock.vec[1] != sock.vec[2]);
+}
+
 static int node_shader_gpu_bsdf_refraction(GPUMaterial *mat,
                                            bNode *node,
                                            bNodeExecData * /*execdata*/,
@@ -36,6 +41,9 @@ static int node_shader_gpu_bsdf_refraction(GPUMaterial *mat,
   }
 
   GPU_material_flag_set(mat, GPU_MATFLAG_REFRACT);
+  if (socket_value_might_be_tinted(in[0])) {
+    GPU_material_flag_set(mat, GPU_MATFLAG_REFRACTION_MAYBE_COLORED);
+  }
 
   return GPU_stack_link(mat, node, "node_bsdf_refraction", in, out);
 }

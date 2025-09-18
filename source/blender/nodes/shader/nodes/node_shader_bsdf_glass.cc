@@ -51,6 +51,11 @@ static void node_shader_init_glass(bNodeTree * /*ntree*/, bNode *node)
   node->custom1 = SHD_GLOSSY_MULTI_GGX;
 }
 
+static bool socket_value_might_be_tinted(const GPUNodeStack &sock)
+{
+  return sock.link || (sock.vec[0] != sock.vec[1]) || (sock.vec[1] != sock.vec[2]);
+}
+
 static int node_shader_gpu_bsdf_glass(GPUMaterial *mat,
                                       bNode *node,
                                       bNodeExecData * /*execdata*/,
@@ -62,6 +67,11 @@ static int node_shader_gpu_bsdf_glass(GPUMaterial *mat,
   }
 
   GPU_material_flag_set(mat, GPU_MATFLAG_GLOSSY | GPU_MATFLAG_REFRACT);
+
+  if (socket_value_might_be_tinted(in[0])) {
+    GPU_material_flag_set(
+        mat, GPU_MATFLAG_REFLECTION_MAYBE_COLORED | GPU_MATFLAG_REFRACTION_MAYBE_COLORED);
+  }
 
   float use_multi_scatter = (node->custom1 == SHD_GLOSSY_MULTI_GGX) ? 1.0f : 0.0f;
 
