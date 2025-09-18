@@ -881,9 +881,10 @@ static wmOperatorStatus lattice_add_to_selected_exec(bContext *C, wmOperator *op
     copy_v3_v3(ob_lattice->loc, center_world);
     copy_v3_v3(ob_lattice->scale, size_local);
 
+    /* Prevent invalid or zero lattice size, fallback to 1.0f. */
     for (int i = 0; i < 3; i++) {
-      if (!isfinite(ob_lattice->scale[i]) || ob_lattice->scale[i] <= 0.0f) {
-        ob_lattice->scale[i] = 1.0f;
+      if (!isfinite(size_local[i]) || size_local[i] <= FLT_EPSILON) {
+        size_local[i] = 1.0f;
       }
     }
   }
@@ -1020,6 +1021,7 @@ void OBJECT_OT_lattice_add_to_selected(wmOperatorType *ot)
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
   add_generic_props(ot, true);
 }
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
