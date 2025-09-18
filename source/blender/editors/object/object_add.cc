@@ -800,6 +800,15 @@ static std::optional<Bounds<float3>> collect_targets_and_bounds(bContext *C,
   return std::nullopt;
 }
 
+static void sanitize_scale(float scale[3])
+{
+  for (int i = 0; i < 3; i++) {
+    if (!isfinite(scale[i]) || scale[i] <= 0.0f) {
+      scale[i] = 1.0f;
+    }
+  }
+}
+
 static wmOperatorStatus lattice_add_exec(bContext *C, wmOperator *op)
 {
   Object *active_object = CTX_data_active_object(C);
@@ -890,6 +899,7 @@ static wmOperatorStatus lattice_add_exec(bContext *C, wmOperator *op)
       float center_local[3], size_local[3];
       mid_v3_v3v3(center_local, sel_min, sel_max);
       sub_v3_v3v3(size_local, sel_max, sel_min);
+      sanitize_scale(size_local);
 
       /* Transform the local center back into world space for the final location. */
       float center_world[3];
@@ -926,6 +936,7 @@ static wmOperatorStatus lattice_add_exec(bContext *C, wmOperator *op)
       float center_world[3], size_world[3];
       mid_v3_v3v3(center_world, sel_min, sel_max);
       sub_v3_v3v3(size_world, sel_max, sel_min);
+      sanitize_scale(size_world);
 
       copy_v3_v3(ob_lattice->loc, center_world);
       copy_v3_v3(ob_lattice->scale, size_world);
