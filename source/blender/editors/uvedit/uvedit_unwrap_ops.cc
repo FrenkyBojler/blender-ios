@@ -2709,20 +2709,6 @@ static void uvedit_unwrap(const Scene *scene,
   if (!CustomData_has_layer(&em->bm->ldata, CD_PROP_FLOAT2)) {
     return;
   }
-  uvedit_unwrap_islands(scene, obedit, em, options, r_count_changed, r_count_failed);
-}
-
-class UVIsland {
- public:
-  float cent[2], min[2], max[2];
-};
-static void uvedit_unwrap_islands(const Scene *scene,
-                                  Object *obedit,
-                                  BMEditMesh *em,
-                                  const UnwrapOptions *options,
-                                  int *r_count_changed,
-                                  int *r_count_failed)
-{
 
   bool use_subsurf;
   modifier_unwrap_state(obedit, options, &use_subsurf);
@@ -2743,11 +2729,11 @@ static void uvedit_unwrap_islands(const Scene *scene,
     blender::geometry::uv_parametrizer_lscm_solve(handle, r_count_changed, r_count_failed);
     blender::geometry::uv_parametrizer_lscm_end(handle);
   }
-  if(options->uniform_bounding_box){
+  if (options->uniform_bounding_box) {
     blender::geometry::uv_parametrizer_unwrap_uniform(
         handle, nullptr, options->use_abf, r_count_changed, r_count_failed);
   }
-  else{
+  else {
     blender::geometry::uv_parametrizer_average(handle, true, false, false);
   }
 
@@ -2886,10 +2872,9 @@ static wmOperatorStatus unwrap_exec(bContext *C, wmOperator *op)
       RNA_enum_get(op->ptr, "margin_method"));
   pack_island_params.margin = RNA_float_get(op->ptr, "margin");
 
-  if(!options.uniform_bounding_box){
+  if (!options.uniform_bounding_box) {
     uvedit_pack_islands_multi(scene, objects, nullptr, nullptr, false, true, &pack_island_params);
   }
-  
 
   if (count_failed == 0 && count_changed == 0) {
     BKE_report(op->reports,
