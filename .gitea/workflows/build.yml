@@ -7,7 +7,7 @@ on:
   pull_request:
 
 jobs:
-  update-code:
+  update_code:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout source
@@ -17,8 +17,8 @@ jobs:
           echo "Updating code..."
           # make update
 
-  compile-code:
-    needs: update-code
+  compile_code:
+    needs: update_code
     runs-on: ubuntu-latest
     steps:
       - name: Compile Blender
@@ -26,8 +26,8 @@ jobs:
           echo "Compiling Blender..."
           # make
 
-  compile-gpu:
-    needs: compile-code
+  compile_gpu:
+    needs: compile_code
     runs-on: ubuntu-latest
     steps:
       - name: Compile Blender with GPU kernels
@@ -35,8 +35,8 @@ jobs:
           echo "Compiling Blender with GPU kernels..."
           # make
 
-  compile-install:
-    needs: [compile-code, compile-gpu]
+  compile_install:
+    needs: [compile_code, compile_gpu]
     runs-on: ubuntu-latest
     steps:
       - name: Compile Blender with installation
@@ -44,8 +44,8 @@ jobs:
           echo "Compiling Blender with installation..."
           # make install
 
-  test-code:
-    needs: compile-install
+  test_code:
+    needs: compile_install
     runs-on: ubuntu-latest
     steps:
       - name: Run unit tests
@@ -59,34 +59,34 @@ jobs:
           echo "❌ Unit tests failed:   2"
           echo "⚠️ Integration skipped: 1"
 
-  sign-code-binaries:
-    needs: test-code
+  sign_code_binaries:
+    needs: test_code
     runs-on: ubuntu-latest
     steps:
       - name: Sign binaries
         run: |
           echo "Signing binaries..."
 
-  package-code-binaries:
-    needs: sign-code-binaries
+  package_code_binaries:
+    needs: sign_code_binaries
     runs-on: ubuntu-latest
     steps:
       - name: Package binaries
         run: |
           echo "Packaging binaries..."
 
-  deliver-code-binaries:
-    needs: package-code-binaries
+  deliver_code_binaries:
+    needs: package_code_binaries
     runs-on: ubuntu-latest
     steps:
       - name: Deliver binaries
         run: |
           echo "Delivering binaries..."
 
-  deliver-test-results:
-    needs: test-code
+  deliver_test_results:
+    needs: test_code
     runs-on: ubuntu-latest
     steps:
-      - name: Deliver binaries
+      - name: Deliver test results
         run: |
           echo "Delivering test results..."
