@@ -80,6 +80,10 @@ enum eGPUMaterialFlag {
   GPU_MATFLAG_AOV = (1 << 19),
 
   GPU_MATFLAG_BARYCENTRIC = (1 << 20),
+  /* Signals that these specific closures might *not* be colorless.
+   * If this flag is not set, all closures are ensured to not be tinted. */
+  GPU_MATFLAG_REFLECTION_MAYBE_COLORED = (1 << 21),
+  GPU_MATFLAG_REFRACTION_MAYBE_COLORED = (1 << 22),
 
   /* Tells the render engine the material was just compiled or updated. */
   GPU_MATFLAG_UPDATED = (1 << 29),

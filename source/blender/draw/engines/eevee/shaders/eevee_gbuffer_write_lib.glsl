@@ -214,10 +214,12 @@ struct Packer {
       case 2u:
         data.closure[0] = this->closures[0].data0;
         data.closure[1] = this->closures[1].data0;
+#  ifndef GBUFFER_SIMPLE_CLOSURE_LAYOUT
         data.closure[2] = this->closures[0].data1;
         data.closure[3] = this->closures[1].data1;
         set_flag_from_test(used_layers, this->closures[0].use_data1(), CLOSURE_DATA_2);
         set_flag_from_test(used_layers, this->closures[1].use_data1(), CLOSURE_DATA_3);
+#  endif
         break;
 #endif
 #if GBUFFER_LAYER_MAX > 2
