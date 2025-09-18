@@ -381,7 +381,7 @@ Mesh *create_cuboid_mesh(const float3 &size,
   calculate_positions(config, positions);
   offset_indices::fill_constant_group_size(4, 0, mesh->face_offsets_for_write());
   calculate_corner_verts(config, corner_verts);
-  bke::mesh_calc_edges(*mesh, false, false, {});
+  bke::mesh_calc_edges(*mesh, false, false);
 
   if (uv_id) {
     calculate_uvs(config, mesh, *uv_id);

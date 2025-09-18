@@ -328,7 +328,7 @@ bool USDMeshReader::read_faces(Mesh *mesh) const
     BKE_mesh_validate(mesh, false, false);
   }
 
-  bke::mesh_calc_edges(*mesh, false, false, {});
+  bke::mesh_calc_edges(*mesh, false, false);
 
   /* It's possible that the number of faces, indices, and verts remain the same but the topology
    * itself is different. Until finer-grained topology detection can be implemented, always tag the

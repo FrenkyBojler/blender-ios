@@ -1828,7 +1828,7 @@ static Mesh *meshgl_to_mesh(MeshGL &mgl,
 #  ifdef DEBUG_TIME
     timeit::ScopedTimer timer_e("calculating edges");
 #  endif
-    bke::mesh_calc_edges(*mesh, false, false, {});
+    bke::mesh_calc_edges(*mesh, false, false);
   }
 
   /* Set the vertex positions, using implicit sharing to avoid copying any data. */

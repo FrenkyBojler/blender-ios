@@ -799,7 +799,7 @@ static Mesh *imesh_to_mesh(meshintersect::IMesh *im, MeshesToIMeshInfo &mim)
   }
   dst_material_indices.finish();
 
-  bke::mesh_calc_edges(*result, false, false, {});
+  bke::mesh_calc_edges(*result, false, false);
   merge_edge_customdata_layers(result, mim);
 
   /* Now that the MEdges are populated, we can copy over the required attributes and custom layers.
