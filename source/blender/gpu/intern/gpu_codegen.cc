@@ -82,7 +82,7 @@ static std::ostream &operator<<(std::ostream &stream, const GPUOutput *output)
 /* Print data constructor (i.e: vec2(1.0f, 1.0f)). */
 static std::ostream &operator<<(std::ostream &stream, const Span<float> &span)
 {
-  stream << (eGPUType)span.size() << "(";
+  stream << (GPUType)span.size() << "(";
   /* Use uint representation to allow exact same bit pattern even if NaN. This is
    * because we can pass UINTs as floats for constants. */
   const Span<uint32_t> uint_span = span.cast<uint32_t>();
@@ -170,6 +170,8 @@ void GPUCodegen::generate_attribs()
   /* Input declaration, loading / assignment to interface and geometry shader passthrough. */
   std::stringstream load_ss;
 
+  /* Index of the attribute as ordered in graph.attributes. */
+  int attr_n = 0;
   int slot = 15;
   LISTBASE_FOREACH (GPUMaterialAttribute *, attr, &graph.attributes) {
     if (slot == -1) {
@@ -182,12 +184,13 @@ void GPUCodegen::generate_attribs()
     StringRefNull attr_name = info.name_buffer.attr_names[slot];
     StringRefNull var_name = info.name_buffer.var_names[slot];
 
-    eGPUType input_type, iface_type;
+    GPUType input_type, iface_type;
 
     load_ss << "var_attrs." << var_name;
-    if (attr->is_hair_length) {
+    if (attr->is_hair_length || attr->is_hair_intercept) {
       iface_type = input_type = GPU_FLOAT;
-      load_ss << " = attr_load_" << input_type << "(" << attr_name << ");\n";
+      load_ss << " = attr_load_" << input_type << "(domain, " << attr_name << ", " << attr_n
+              << ");\n";
     }
     else {
       switch (attr->type) {
@@ -195,18 +198,20 @@ void GPUCodegen::generate_attribs()
           /* Need vec4 to detect usage of default attribute. */
           input_type = GPU_VEC4;
           iface_type = GPU_VEC3;
-          load_ss << " = attr_load_orco(" << attr_name << ");\n";
+          load_ss << " = attr_load_orco(domain, " << attr_name << ", " << attr_n << ");\n";
           break;
         case CD_TANGENT:
           iface_type = input_type = GPU_VEC4;
-          load_ss << " = attr_load_tangent(" << attr_name << ");\n";
+          load_ss << " = attr_load_tangent(domain, " << attr_name << ", " << attr_n << ");\n";
           break;
         default:
           iface_type = input_type = GPU_VEC4;
-          load_ss << " = attr_load_" << input_type << "(" << attr_name << ");\n";
+          load_ss << " = attr_load_" << input_type << "(domain, " << attr_name << ", " << attr_n
+                  << ");\n";
           break;
       }
     }
+    attr_n++;
 
     info.vertex_in(slot--, to_type(input_type), attr_name);
     iface.smooth(to_type(iface_type), var_name);
@@ -289,7 +294,7 @@ void GPUCodegen::generate_library()
   GPUCodegenCreateInfo &info = *create_info;
 
   void *value;
-  Vector<std::string> source_files;
+  Vector<StringRefNull> source_files;
 
   /* Iterate over libraries. We need to keep this struct intact in case it is required for the
    * optimization pass. The first pass just collects the keys from the GSET, given items in a GSET
@@ -306,8 +311,7 @@ void GPUCodegen::generate_library()
 
   std::sort(source_files.begin(), source_files.end());
   for (auto &key : source_files) {
-    auto deps = gpu_shader_dependency_get_resolved_source(key.c_str(), {});
-    info.dependencies_generated.extend_non_duplicates(deps);
+    info.dependencies_generated.append_non_duplicates(key);
   }
 }
 
@@ -342,9 +346,9 @@ void GPUCodegen::node_serialize(std::stringstream &eval_ss, const GPUNode *node)
       case GPU_SOURCE_OUTPUT:
       case GPU_SOURCE_ATTR: {
         /* These inputs can have non matching types. Do conversion. */
-        eGPUType to = input->type;
-        eGPUType from = (input->source == GPU_SOURCE_ATTR) ? input->attr->gputype :
-                                                             input->link->output->type;
+        GPUType to = input->type;
+        GPUType from = (input->source == GPU_SOURCE_ATTR) ? input->attr->gputype :
+                                                            input->link->output->type;
         if (from != to) {
           /* Use defines declared inside codegen_lib (i.e: vec4_from_float). */
           eval_ss << to << "_from_" << from << "(";
@@ -388,7 +392,7 @@ void GPUCodegen::node_serialize(std::stringstream &eval_ss, const GPUNode *node)
   nodes_total_++;
 }
 
-std::string GPUCodegen::graph_serialize(eGPUNodeTag tree_tag,
+std::string GPUCodegen::graph_serialize(GPUNodeTag tree_tag,
                                         GPUNodeLink *output_link,
                                         const char *output_default)
 {
@@ -425,7 +429,7 @@ std::string GPUCodegen::graph_serialize(eGPUNodeTag tree_tag,
   return str;
 }
 
-std::string GPUCodegen::graph_serialize(eGPUNodeTag tree_tag)
+std::string GPUCodegen::graph_serialize(GPUNodeTag tree_tag)
 {
   std::stringstream eval_ss;
   LISTBASE_FOREACH (GPUNode *, node, &graph.nodes) {

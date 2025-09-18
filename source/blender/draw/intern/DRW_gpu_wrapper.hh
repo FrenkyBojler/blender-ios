@@ -303,7 +303,7 @@ template<
     /* bool device_only = false */>
 class UniformBuffer : public T, public detail::UniformCommon<T, 1, false> {
  public:
-  UniformBuffer(const char *name = nullptr) : detail::UniformCommon<T, 1, false>(name)
+  UniformBuffer(const char *name = nullptr) : T{}, detail::UniformCommon<T, 1, false>(name)
   {
     /* TODO(@fclem): How could we map this? */
     this->data_ = static_cast<T *>(this);
@@ -496,7 +496,7 @@ template<
     bool device_only = false>
 class StorageBuffer : public T, public detail::StorageCommon<T, 1, device_only> {
  public:
-  StorageBuffer(const char *name = nullptr) : detail::StorageCommon<T, 1, device_only>(name)
+  StorageBuffer(const char *name = nullptr) : T{}, detail::StorageCommon<T, 1, device_only>(name)
   {
     /* TODO(@fclem): How could we map this? */
     this->data_ = static_cast<T *>(this);
@@ -1201,7 +1201,7 @@ static inline gpu::Texture **as_texture(Image **img)
 
 class Framebuffer : NonCopyable {
  private:
-  GPUFrameBuffer *fb_ = nullptr;
+  gpu::FrameBuffer *fb_ = nullptr;
   const char *name_;
 
  public:
@@ -1262,12 +1262,12 @@ class Framebuffer : NonCopyable {
     return *this;
   }
 
-  operator GPUFrameBuffer *() const
+  operator gpu::FrameBuffer *() const
   {
     return fb_;
   }
 
-  GPUFrameBuffer **operator&()
+  gpu::FrameBuffer **operator&()
   {
     return &fb_;
   }

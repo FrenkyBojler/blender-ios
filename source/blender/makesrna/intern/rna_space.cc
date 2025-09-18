@@ -9,6 +9,7 @@
 #include <cstdlib>
 #include <cstring>
 
+#include "BLI_math_constants.h"
 #include "BLI_string_ref.hh"
 #include "BLT_translation.hh"
 
@@ -695,10 +696,10 @@ static StructRNA *rna_Space_refine(PointerRNA *ptr)
   return &RNA_Space;
 }
 
-static ScrArea *rna_area_from_space(PointerRNA *ptr)
+static ScrArea *rna_area_from_space(const PointerRNA *ptr)
 {
-  bScreen *screen = (bScreen *)ptr->owner_id;
-  SpaceLink *link = (SpaceLink *)ptr->data;
+  bScreen *screen = reinterpret_cast<bScreen *>(ptr->owner_id);
+  SpaceLink *link = static_cast<SpaceLink *>(ptr->data);
   return BKE_screen_find_area_from_space(screen, link);
 }
 
@@ -768,7 +769,7 @@ static void rna_Space_bool_from_region_flag_update_by_type(bContext *C,
   if (region) {
     if (region_flag == RGN_FLAG_HIDDEN) {
       /* Only support animation when the area is in the current context. */
-      if (region->overlap && (area == CTX_wm_area(C))) {
+      if (region->overlap && (area == CTX_wm_area(C)) && !(U.uiflag & USER_REDUCE_MOTION)) {
         ED_region_visibility_change_update_animated(C, area, region);
       }
       else {
@@ -931,6 +932,27 @@ static void rna_Space_show_region_asset_shelf_set(PointerRNA *ptr, bool value)
 {
   rna_Space_bool_from_region_flag_set_by_type(ptr, RGN_TYPE_ASSET_SHELF, RGN_FLAG_HIDDEN, !value);
 }
+static int rna_Space_show_region_asset_shelf_editable(const PointerRNA *ptr, const char **r_info)
+{
+  ScrArea *area = rna_area_from_space(ptr);
+  ARegion *region = BKE_area_find_region_type(area, RGN_TYPE_ASSET_SHELF);
+
+  if (!region) {
+    return 0;
+  }
+
+  if (region->flag & RGN_FLAG_POLL_FAILED) {
+    if (r_info) {
+      *r_info = N_(
+          "The asset shelf is not available in the current context (try changing the active mode "
+          "or tool)");
+    }
+    return 0;
+  }
+
+  return PROP_EDITABLE;
+}
+
 static void rna_Space_show_region_asset_shelf_update(bContext *C, PointerRNA *ptr)
 {
   rna_Space_bool_from_region_flag_update_by_type(C, ptr, RGN_TYPE_ASSET_SHELF, RGN_FLAG_HIDDEN);
@@ -2272,159 +2294,10 @@ static void rna_ConsoleLine_current_character_set(PointerRNA *ptr, const int ind
 
 /* Space Dope-sheet */
 
-static void rna_SpaceDopeSheetEditor_action_set(PointerRNA *ptr,
-                                                PointerRNA value,
-                                                ReportList * /*reports*/)
-{
-  SpaceAction *saction = (SpaceAction *)(ptr->data);
-  bAction *act = (bAction *)value.data;
-
-  if ((act == nullptr) || (act->idroot == 0)) {
-    /* just set if we're clearing the action or if the action is "amorphous" still */
-    saction->action = act;
-  }
-  else {
-    /* action to set must strictly meet the mode criteria... */
-    if (saction->mode == SACTCONT_ACTION) {
-      /* currently, this is "object-level" only, until we have some way of specifying this */
-      if (act->idroot == ID_OB) {
-        saction->action = act;
-      }
-      else {
-        printf(
-            "ERROR: cannot assign Action '%s' to Action Editor, as action is not object-level "
-            "animation\n",
-            act->id.name + 2);
-      }
-    }
-    else if (saction->mode == SACTCONT_SHAPEKEY) {
-      /* As the name says, "shape-key level" only. */
-      if (act->idroot == ID_KE) {
-        saction->action = act;
-      }
-      else {
-        printf(
-            "ERROR: cannot assign Action '%s' to Shape Key Editor, as action doesn't animate "
-            "Shape Keys\n",
-            act->id.name + 2);
-      }
-    }
-    else {
-      printf(
-          "ACK: who's trying to set an action while not in a mode displaying a single Action "
-          "only?\n");
-    }
-  }
-}
-
-static void rna_SpaceDopeSheetEditor_action_update(bContext *C, PointerRNA *ptr)
-{
-  SpaceAction *saction = (SpaceAction *)(ptr->data);
-  const Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
-  Main *bmain = CTX_data_main(C);
-
-  BKE_view_layer_synced_ensure(scene, view_layer);
-  Object *obact = BKE_view_layer_active_object_get(view_layer);
-  if (obact == nullptr) {
-    return;
-  }
-
-  AnimData *adt = nullptr;
-  ID *id = nullptr;
-  switch (saction->mode) {
-    case SACTCONT_ACTION:
-      /* TODO: context selector could help decide this with more control? */
-      adt = BKE_animdata_ensure_id(&obact->id);
-      id = &obact->id;
-      break;
-    case SACTCONT_SHAPEKEY: {
-      Key *key = BKE_key_from_object(obact);
-      if (key == nullptr) {
-        return;
-      }
-      adt = BKE_animdata_ensure_id(&key->id);
-      id = &key->id;
-      break;
-    }
-    case SACTCONT_GPENCIL:
-    case SACTCONT_DOPESHEET:
-    case SACTCONT_MASK:
-    case SACTCONT_CACHEFILE:
-    case SACTCONT_TIMELINE:
-      return;
-  }
-
-  if (adt == nullptr) {
-    /* No animdata was added, so the depsgraph also doesn't need tagging. */
-    return;
-  }
-
-  /* Don't do anything if old and new actions are the same... */
-  if (adt->action == saction->action) {
-    return;
-  }
-
-  /* Exit editmode first - we cannot change actions while in tweak-mode. */
-  BKE_nla_tweakmode_exit({*id, *adt});
-
-  /* To prevent data loss (i.e. if users flip between actions using the Browse menu),
-   * stash this action if nothing else uses it.
-   *
-   * EXCEPTION:
-   * This callback runs when unlinking actions. In that case, we don't want to
-   * stash the action, as the user is signaling that they want to detach it.
-   * This can be reviewed again later,
-   * but it could get annoying if we keep these instead.
-   */
-  if (adt->action != nullptr && adt->action->id.us <= 0 && saction->action != nullptr) {
-    /* XXX: Things here get dodgy if this action is only partially completed,
-     *      and the user then uses the browse menu to get back to this action,
-     *      assigning it as the active action (i.e. the stash strip gets out of sync)
-     */
-    BKE_nla_action_stash({*id, *adt}, ID_IS_OVERRIDE_LIBRARY(id));
-  }
-
-  BKE_animdata_set_action(nullptr, id, saction->action);
-
-  DEG_id_tag_update(&obact->id, ID_RECALC_ANIMATION | ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY);
-
-  /* Update relations as well, so new time source dependency is added. */
-  DEG_relations_tag_update(bmain);
-}
-
 static void rna_SpaceDopeSheetEditor_mode_update(bContext *C, PointerRNA *ptr)
 {
   SpaceAction *saction = (SpaceAction *)(ptr->data);
   ScrArea *area = CTX_wm_area(C);
-  const Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
-  BKE_view_layer_synced_ensure(scene, view_layer);
-  Object *obact = BKE_view_layer_active_object_get(view_layer);
-
-  /* special exceptions for ShapeKey Editor mode */
-  if (saction->mode == SACTCONT_SHAPEKEY) {
-    Key *key = BKE_key_from_object(obact);
-
-    /* 1) update the action stored for the editor */
-    if (key) {
-      saction->action = (key->adt) ? key->adt->action : nullptr;
-    }
-    else {
-      saction->action = nullptr;
-    }
-  }
-  /* make sure action stored is valid */
-  else if (saction->mode == SACTCONT_ACTION) {
-    /* 1) update the action stored for the editor */
-    /* TODO: context selector could help decide this with more control? */
-    if (obact) {
-      saction->action = (obact->adt) ? obact->adt->action : nullptr;
-    }
-    else {
-      saction->action = nullptr;
-    }
-  }
 
   /* Collapse (and show) summary channel and hide channel list for timeline */
   if (saction->mode == SACTCONT_TIMELINE) {
@@ -2680,8 +2553,8 @@ static void rna_SpaceNodeEditor_node_tree_set(PointerRNA *ptr,
   ED_node_tree_start(region, snode, (bNodeTree *)value.data, nullptr, nullptr);
 }
 
-static bool rna_SpaceNodeEditor_geometry_nodes_tool_tree_poll(PointerRNA * /*ptr*/,
-                                                              const PointerRNA value)
+static bool rna_SpaceNodeEditor_selected_node_group_poll(PointerRNA * /*ptr*/,
+                                                         const PointerRNA value)
 {
   const bNodeTree &ntree = *static_cast<const bNodeTree *>(value.data);
   if (ntree.type != NTREE_GEOMETRY) {
@@ -2698,7 +2571,7 @@ static bool rna_SpaceNodeEditor_geometry_nodes_tool_tree_poll(PointerRNA * /*ptr
 
 static bool space_node_node_geometry_nodes_poll(const SpaceNode &snode, const bNodeTree &ntree)
 {
-  switch (SpaceNodeGeometryNodesType(snode.geometry_nodes_type)) {
+  switch (SpaceNodeGeometryNodesType(snode.node_tree_sub_type)) {
     case SNODE_GEOMETRY_MODIFIER:
       if (!ntree.geometry_node_asset_traits) {
         return false;
@@ -2741,12 +2614,12 @@ static void rna_SpaceNodeEditor_node_tree_update(const bContext *C, PointerRNA *
   blender::ed::space_node::tree_update(C);
 }
 
-static void rna_SpaceNodeEditor_geometry_nodes_type_update(Main * /*main*/,
-                                                           Scene * /*scene*/,
-                                                           PointerRNA *ptr)
+static void rna_SpaceNodeEditor_node_tree_sub_type_update(Main * /*main*/,
+                                                          Scene * /*scene*/,
+                                                          PointerRNA *ptr)
 {
   SpaceNode *snode = static_cast<SpaceNode *>(ptr->data);
-  if (snode->geometry_nodes_type == SNODE_GEOMETRY_TOOL) {
+  if (snode->node_tree_sub_type == SNODE_GEOMETRY_TOOL) {
     snode->flag &= ~SNODE_PIN;
   }
 }
@@ -2995,6 +2868,16 @@ static const EnumPropertyItem *rna_FileSelectParams_display_type_itemf(bContext 
 
   *r_free = false;
   return fileselectparams_display_type_items;
+}
+
+static int rna_FileSelectParams_display_type_default(PointerRNA *ptr, PropertyRNA *prop)
+{
+  if (RNA_struct_is_a(ptr->type, &RNA_FileAssetSelectParams)) {
+    return FILE_IMGDISPLAY;
+  }
+
+  EnumPropertyRNA *eprop = reinterpret_cast<EnumPropertyRNA *>(prop);
+  return eprop->defaultvalue;
 }
 
 static const EnumPropertyItem *rna_FileSelectParams_recursion_level_itemf(bContext * /*C*/,
@@ -3299,9 +3182,9 @@ static void rna_FileBrowser_FSMenu_begin(CollectionPropertyIterator *iter, FSMen
 static PointerRNA rna_FileBrowser_FSMenu_get(CollectionPropertyIterator *iter)
 {
   ListBaseIterator *internal = &iter->internal.listbase;
-  PointerRNA r_ptr = RNA_pointer_create_with_parent(
+  PointerRNA ptr_result = RNA_pointer_create_with_parent(
       iter->parent, &RNA_FileBrowserFSMenuEntry, internal->link);
-  return r_ptr;
+  return ptr_result;
 }
 
 static void rna_FileBrowser_FSMenu_end(CollectionPropertyIterator * /*iter*/) {}
@@ -3820,7 +3703,18 @@ static void rna_def_space_generic_show_region_toggles(StructRNA *srna, int regio
   }
   if (region_type_mask & ((1 << RGN_TYPE_ASSET_SHELF) | (1 << RGN_TYPE_ASSET_SHELF_HEADER))) {
     region_type_mask &= ~((1 << RGN_TYPE_ASSET_SHELF) | (1 << RGN_TYPE_ASSET_SHELF_HEADER));
-    DEF_SHOW_REGION_PROPERTY(show_region_asset_shelf, "Asset Shelf", "");
+
+    prop = RNA_def_property(srna, "show_region_asset_shelf", PROP_BOOLEAN, PROP_NONE);
+    RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
+    RNA_def_property_boolean_funcs(
+        prop, "rna_Space_show_region_asset_shelf_get", "rna_Space_show_region_asset_shelf_set");
+    RNA_def_property_editable_func(prop, "rna_Space_show_region_asset_shelf_editable");
+    RNA_def_property_ui_text(
+        prop,
+        "Asset Shelf",
+        "Display a region with assets that may currently be relevant (such as "
+        "brushes in paint modes, or poses in Pose Mode)");
+    RNA_def_property_update(prop, 0, "rna_Space_show_region_asset_shelf_update");
   }
   BLI_assert(region_type_mask == 0);
 }
@@ -6720,19 +6614,6 @@ static void rna_def_space_dopesheet(BlenderRNA *brna)
                                             (1 << RGN_TYPE_FOOTER) | (1 << RGN_TYPE_UI) |
                                                 (1 << RGN_TYPE_HUD) | (1 << RGN_TYPE_CHANNELS));
 
-  /* data */
-  prop = RNA_def_property(srna, "action", PROP_POINTER, PROP_NONE);
-  RNA_def_property_flag(prop, PROP_EDITABLE);
-  RNA_def_property_pointer_funcs(prop,
-                                 nullptr,
-                                 "rna_SpaceDopeSheetEditor_action_set",
-                                 nullptr,
-                                 "rna_Action_actedit_assign_poll");
-  RNA_def_property_ui_text(prop, "Action", "Action displayed and edited in this space");
-  RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
-  RNA_def_property_update(
-      prop, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, "rna_SpaceDopeSheetEditor_action_update");
-
   /* mode (hidden in the UI, see 'ui_mode') */
   prop = RNA_def_property(srna, "mode", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_sdna(prop, nullptr, "mode");
@@ -7306,6 +7187,7 @@ static void rna_def_fileselect_params(BlenderRNA *brna)
   RNA_def_property_enum_sdna(prop, nullptr, "display");
   RNA_def_property_enum_items(prop, fileselectparams_display_type_items);
   RNA_def_property_enum_funcs(prop, nullptr, nullptr, "rna_FileSelectParams_display_type_itemf");
+  RNA_def_property_enum_default_func(prop, "rna_FileSelectParams_display_type_default");
   RNA_def_property_ui_text(prop, "Display Mode", "Display mode for the file list");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_FILE_PARAMS, nullptr);
 
@@ -7826,6 +7708,8 @@ static void rna_def_space_userpref(BlenderRNA *brna)
   RNA_def_struct_sdna(srna, "SpaceUserPref");
   RNA_def_struct_ui_text(srna, "Space Preferences", "Blender preferences space data");
 
+  rna_def_space_generic_show_region_toggles(srna, (1 << RGN_TYPE_UI));
+
   prop = RNA_def_property(srna, "filter_type", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_sdna(prop, nullptr, "filter_type");
   RNA_def_property_enum_items(prop, filter_type_items);
@@ -8007,12 +7891,12 @@ static void rna_def_space_node(BlenderRNA *brna)
   static const EnumPropertyItem geometry_nodes_type_items[] = {
       {SNODE_GEOMETRY_MODIFIER,
        "MODIFIER",
-       0,
+       ICON_MODIFIER_DATA,
        "Modifier",
        "Edit node group from active object's active modifier"},
       {SNODE_GEOMETRY_TOOL,
        "TOOL",
-       0,
+       ICON_TOOL_SETTINGS,
        "Tool",
        "Edit any geometry node group for use as an operator"},
       {0, nullptr, 0, nullptr, nullptr},
@@ -8069,13 +7953,13 @@ static void rna_def_space_node(BlenderRNA *brna)
   RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_ID);
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_NODE, nullptr);
 
-  prop = RNA_def_property(srna, "geometry_nodes_type", PROP_ENUM, PROP_NONE);
-  RNA_def_property_enum_sdna(prop, nullptr, "geometry_nodes_type");
+  prop = RNA_def_property(srna, "node_tree_sub_type", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "node_tree_sub_type");
   RNA_def_property_enum_items(prop, geometry_nodes_type_items);
-  RNA_def_property_ui_text(prop, "Geometry Nodes Type", "");
+  RNA_def_property_ui_text(prop, "Node Tree Sub-Type", "");
   RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_ID);
   RNA_def_property_update(
-      prop, NC_SPACE | ND_SPACE_NODE, "rna_SpaceNodeEditor_geometry_nodes_type_update");
+      prop, NC_SPACE | ND_SPACE_NODE, "rna_SpaceNodeEditor_node_tree_sub_type_update");
 
   prop = RNA_def_property(srna, "id", PROP_POINTER, PROP_NONE);
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
@@ -8124,11 +8008,11 @@ static void rna_def_space_node(BlenderRNA *brna)
   RNA_def_property_update(
       prop, NC_SPACE | ND_SPACE_NODE_VIEW, "rna_SpaceNodeEditor_show_backdrop_update");
 
-  prop = RNA_def_property(srna, "geometry_nodes_tool_tree", PROP_POINTER, PROP_NONE);
+  prop = RNA_def_property(srna, "selected_node_group", PROP_POINTER, PROP_NONE);
   RNA_def_property_pointer_funcs(
-      prop, nullptr, nullptr, nullptr, "rna_SpaceNodeEditor_geometry_nodes_tool_tree_poll");
+      prop, nullptr, nullptr, nullptr, "rna_SpaceNodeEditor_selected_node_group_poll");
   RNA_def_property_flag(prop, PROP_EDITABLE | PROP_CONTEXT_UPDATE);
-  RNA_def_property_ui_text(prop, "Node Tool Tree", "Node group to edit as node tool");
+  RNA_def_property_ui_text(prop, "Selected Node Group", "Node group to edit");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_NODE, "rna_SpaceNodeEditor_node_tree_update");
 
   prop = RNA_def_property(srna, "show_annotation", PROP_BOOLEAN, PROP_NONE);
