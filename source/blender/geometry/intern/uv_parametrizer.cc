@@ -3062,7 +3062,6 @@ static void p_chart_lscm_begin(PChart *chart, bool live, bool abf)
   int npins = 0;
   p_chart_uv_bbox(chart, chart->minv, chart->maxv);
   mid_v2_v2v2(chart->orig_origin, chart->minv, chart->maxv);
-  sub_v2_v2v2(chart->size, chart->maxv, chart->minv);
   /* Give vertices matrix indices, count pins and check selections. */
   for (PVert *v = chart->verts; v; v = v->nextlink) {
     if (v->flag & PVERT_PIN) {
@@ -4242,19 +4241,19 @@ void uv_parametrizer_unwrap_uniform(ParamHandle *phandle,
     return;
   }
 
-  float trans[2];
+  float trans[2], size[2];
   for (i = 0; i < phandle->ncharts; i++) {
     PChart *chart = phandle->charts[i];
-
+    sub_v2_v2v2(size, chart->maxv, chart->minv);
     p_chart_uv_bbox(chart, chart->minv, chart->maxv);
     float new_size[2];
     sub_v2_v2v2(new_size, chart->maxv, chart->minv);
     float scale = 1.0f;
-    if (chart->size[0] > chart->size[1]) {
-      scale = chart->size[0] / new_size[0];
+    if (size[0] > size[1]) {
+      scale = size[0] / new_size[0];
     }
     else {
-      scale = chart->size[1] / new_size[1];
+      scale = size[1] / new_size[1];
     }
 
     p_chart_uv_scale(chart, scale);
@@ -5141,7 +5140,6 @@ static void slim_convert_blender(ParamHandle *phandle, slim::MatrixTransfer *mt)
     PChart *chart = phandle->charts[i];
     p_chart_uv_bbox(chart, chart->minv, chart->maxv);
     mid_v2_v2v2(chart->orig_origin, chart->minv, chart->maxv);
-    sub_v2_v2v2(chart->size, chart->maxv, chart->minv);
     slim::MatrixTransferChart *mt_chart = &mt->charts[i];
 
     p_chart_correct_degenerate_triangles(chart, SLIM_CORR_MIN_AREA, SLIM_CORR_MIN_ANGLE);
