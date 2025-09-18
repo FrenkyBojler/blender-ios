@@ -172,14 +172,20 @@ void relations_invalidate_scene_strips(const Main *bmain, const Scene *scene_tar
   }
 }
 
+void relations_invalidate_compositor_modifiers(Scene *scene, const bNodeTree *node_tree)
+{
+  if (!scene->ed) {
+  }
+
+  for (Strip *strip : lookup_strips_by_compositor_node_group(editing_get(scene), node_tree)) {
+    relations_invalidate_cache(scene, strip);
+  }
+}
+
 void relations_invalidate_compositor_modifiers(const Main *bmain, const bNodeTree *node_tree)
 {
   LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-    if (scene->ed != nullptr) {
-      for (Strip *strip : lookup_strips_by_compositor_node_group(editing_get(scene), node_tree)) {
-        relations_invalidate_cache(scene, strip);
-      }
-    }
+    relations_invalidate_compositor_modifiers(scene, node_tree);
   }
 }
 
