@@ -768,7 +768,7 @@ static std::optional<Bounds<float3>> collect_targets_and_bounds(bContext *C,
   bool any = false;
 
   float inverse_rotation_matrix[3][3];
-  invert_m3_m3(inverse_rotation_matrix, rotation_matrix);
+  invert_m3_m3_safe_ortho(inverse_rotation_matrix, rotation_matrix);
 
   LISTBASE_FOREACH (Base *, base, &view_layer->object_bases) {
     if (!BASE_SELECTED_EDITABLE(v3d, base) || !object_can_have_lattice_modifier(base->object)) {
@@ -857,7 +857,7 @@ static wmOperatorStatus lattice_add_exec(bContext *C, wmOperator *op)
 
       /* Inverse rotation transforms all targets into active objects local space. */
       float inverse_rotation_matrix[3][3];
-      invert_m3_m3(inverse_rotation_matrix, normalized_rotation_matrix);
+      invert_m3_m3_safe_ortho(inverse_rotation_matrix, normalized_rotation_matrix);
 
       /* Initialize a bounding box to be expanded. */
       Bounds<float3> local_bounds;
@@ -972,13 +972,15 @@ static bool object_add_poll_property(const bContext *C, wmOperator *op, const Pr
   UNUSED_VARS(C);
   const char *prop_id = RNA_property_identifier(prop);
 
-  if (STREQ(prop_id, "radius")) {
-    if (RNA_boolean_get(op->ptr, "fit_to_selected")) {
+  if (RNA_boolean_get(op->ptr, "fit_to_selected")) {
+    if (STREQ(prop_id, "radius") || STREQ(prop_id, "align") || STREQ(prop_id, "location") ||
+        STREQ(prop_id, "rotation"))
+    {
       return false;
     }
   }
-  else if (STREQ(prop_id, "margin")) {
-    if (!RNA_boolean_get(op->ptr, "fit_to_selected")) {
+  else {
+    if (STREQ(prop_id, "margin")) {
       return false;
     }
   }
