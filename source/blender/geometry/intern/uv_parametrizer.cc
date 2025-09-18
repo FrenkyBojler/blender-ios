@@ -3860,7 +3860,7 @@ static void p_add_ngon(ParamHandle *handle,
   uint nfilltri = nverts - 2;
   uint(*tris)[3] = static_cast<uint(*)[3]>(
       BLI_memarena_alloc(arena, sizeof(*tris) * size_t(nfilltri)));
-  float (*projverts)[2] = static_cast<float (*)[2]>(
+  float(*projverts)[2] = static_cast<float(*)[2]>(
       BLI_memarena_alloc(arena, sizeof(*projverts) * size_t(nverts)));
 
   /* Calc normal, flipped: to get a positive 2d cross product. */
@@ -4093,12 +4093,12 @@ void uv_parametrizer_lscm_solve(ParamHandle *phandle, int *count_changed, int *c
   BLI_assert(phandle->state == PHANDLE_STATE_LSCM);
 
   for (int i = 0; i < phandle->ncharts; i++) {
-
     PChart *chart = phandle->charts[i];
 
     if (!chart->context) {
       continue;
     }
+
     const bool result = p_chart_lscm_solve(phandle, chart);
 
     if (result && !chart->has_pins) {

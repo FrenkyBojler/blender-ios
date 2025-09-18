@@ -44,7 +44,6 @@
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
 #include "BKE_mesh.hh"
-#include "BKE_mesh_mapping.hh"
 #include "BKE_object_types.hh"
 #include "BKE_report.hh"
 #include "BKE_screen.hh"
@@ -4222,7 +4221,7 @@ static wmOperatorStatus cube_project_exec(bContext *C, wmOperator *op)
     }
 
     float bounds[2][3];
-    float (*bounds_buf)[3] = nullptr;
+    float(*bounds_buf)[3] = nullptr;
 
     if (!RNA_property_is_set(op->ptr, prop_cube_size)) {
       bounds_buf = bounds;
