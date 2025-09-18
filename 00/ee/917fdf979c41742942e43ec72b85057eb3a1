@@ -1,2 +1,3 @@
 Referenced by pull request #137440, Compositor: Fix crash in Movie Distortion node with extreme distortions
 Referenced by commit 2dff457a7c33a5806a11e3fab6315c36d0da754d, Fix: Compositor: Crash in Movie Distortion node with extreme distortions
+Referenced by issue #146246, Compositor: Undistort followed by Distort does not return original clip
