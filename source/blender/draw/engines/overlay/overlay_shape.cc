@@ -1188,41 +1188,52 @@ ShapeCache::ShapeCache()
     light_dome_hemisphere_lines = BatchPtr(
         GPU_batch_create_ex(GPU_PRIM_LINES, vbo_from_vector(verts), nullptr, GPU_BATCH_OWNS_VBO));
   }
-  /* light dome solid - spherical */
+  /* light dome solid - spherical with proper UV mapping for equirectangular textures */
   {
-    Vector<VertShaded> verts;
+    Vector<VertShadedUV> verts;
 
-    /* Create sphere with VCLASS_LIGHT_AREA_SHAPE for proper scaling */
-    constexpr int lat_res = 24;
-    constexpr int lon_res = 32;
-    const Vector<float2> latitude_ring = ring_vertices(1.0f, lat_res);
-    const Vector<float2> longitude_half_ring = ring_vertices(1.0f, lon_res, true);
+    /* Create UV-mapped sphere for equirectangular projection
+     * Using higher resolution for better texture mapping */
+    constexpr int segments_u = 32; /* Longitude segments */
+    constexpr int segments_v = 16; /* Latitude segments */
 
-    for (const int i : latitude_ring.index_range()) {
-      const float2 lat_pt = latitude_ring[i];
-      const float2 next_lat_pt = latitude_ring[(i + 1) % latitude_ring.size()];
-      for (const int j : IndexRange(longitude_half_ring.size() - 1)) {
-        const float2 lon_pt = longitude_half_ring[j];
-        const float2 next_lon_pt = longitude_half_ring[j + 1];
-        if (j != 0) { /* Pole */
-          /* Create vertices with VCLASS_LIGHT_AREA_SHAPE, matching exact order from
-           * sphere_lat_lon_vert */
-          float3 v1 = {
-              next_lon_pt.y * next_lat_pt.x, next_lon_pt.x, next_lon_pt.y * next_lat_pt.y};
-          float3 v2 = {lon_pt.y * next_lat_pt.x, lon_pt.x, lon_pt.y * next_lat_pt.y};
-          float3 v3 = {lon_pt.y * lat_pt.x, lon_pt.x, lon_pt.y * lat_pt.y};
-          verts.append({v1, VCLASS_LIGHT_AREA_SHAPE, v1});
-          verts.append({v2, VCLASS_LIGHT_AREA_SHAPE, v2});
-          verts.append({v3, VCLASS_LIGHT_AREA_SHAPE, v3});
+    /* Generate sphere with proper equirectangular UV mapping */
+    for (int v = 0; v < segments_v; v++) {
+      for (int u = 0; u < segments_u; u++) {
+        /* Calculate UV coordinates for equirectangular mapping (2:1 aspect ratio) */
+        float u1 = float(u) / float(segments_u);
+        float u2 = float(u + 1) / float(segments_u);
+        float v1 = float(v) / float(segments_v);
+        float v2 = float(v + 1) / float(segments_v);
+
+        /* Convert UV to spherical coordinates */
+        /* U maps to azimuth (theta): 0 to 2*PI */
+        /* V maps to elevation (phi): 0 to PI */
+        float theta1 = u1 * 2.0f * float(M_PI);
+        float theta2 = u2 * 2.0f * float(M_PI);
+        float phi1 = v1 * float(M_PI);
+        float phi2 = v2 * float(M_PI);
+
+        /* Convert spherical to Cartesian coordinates */
+        /* Standard sphere: X = sin(phi)*cos(theta), Y = sin(phi)*sin(theta), Z = cos(phi) */
+        float3 p1 = {sinf(phi1) * cosf(theta1), sinf(phi1) * sinf(theta1), cosf(phi1)};
+        float3 p2 = {sinf(phi1) * cosf(theta2), sinf(phi1) * sinf(theta2), cosf(phi1)};
+        float3 p3 = {sinf(phi2) * cosf(theta1), sinf(phi2) * sinf(theta1), cosf(phi2)};
+        float3 p4 = {sinf(phi2) * cosf(theta2), sinf(phi2) * sinf(theta2), cosf(phi2)};
+
+        /* Skip degenerate triangles at poles */
+        if (v > 0) {
+          /* Upper triangle */
+          verts.append({p1, float2(u1, v1), VCLASS_LIGHT_AREA_SHAPE});
+          verts.append({p2, float2(u2, v1), VCLASS_LIGHT_AREA_SHAPE});
+          verts.append({p3, float2(u1, v2), VCLASS_LIGHT_AREA_SHAPE});
         }
-        if (j != longitude_half_ring.index_range().last(1)) { /* Pole */
-          float3 v1 = {next_lon_pt.y * lat_pt.x, next_lon_pt.x, next_lon_pt.y * lat_pt.y};
-          float3 v2 = {
-              next_lon_pt.y * next_lat_pt.x, next_lon_pt.x, next_lon_pt.y * next_lat_pt.y};
-          float3 v3 = {lon_pt.y * lat_pt.x, lon_pt.x, lon_pt.y * lat_pt.y};
-          verts.append({v1, VCLASS_LIGHT_AREA_SHAPE, v1});
-          verts.append({v2, VCLASS_LIGHT_AREA_SHAPE, v2});
-          verts.append({v3, VCLASS_LIGHT_AREA_SHAPE, v3});
+
+        if (v < segments_v - 1) {
+          /* Lower triangle */
+          verts.append({p2, float2(u2, v1), VCLASS_LIGHT_AREA_SHAPE});
+          verts.append({p4, float2(u2, v2), VCLASS_LIGHT_AREA_SHAPE});
+          verts.append({p3, float2(u1, v2), VCLASS_LIGHT_AREA_SHAPE});
         }
       }
     }

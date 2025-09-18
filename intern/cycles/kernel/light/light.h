@@ -169,7 +169,6 @@ ccl_device_inline bool light_sample(KernelGlobals kg,
     ls->D = D;   /* Light direction points inward */
     ls->t = FLT_MAX;
     ls->eval_fac = 1.0f;
-
   }
   else if (type == LIGHT_SPOT) {
     if (!spot_light_sample<in_volume_segment>(kg, klight, rand, P, N, shader_flags, ls)) {

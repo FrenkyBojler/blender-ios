@@ -70,7 +70,6 @@ ccl_device_inline float3 dome_light_hdr_eval(KernelGlobals kg,
   /* Use kernel_tex_image_interp directly for efficiency */
   const float4 hdr_color = kernel_tex_image_interp(kg, tex_id, uv_clamped.x, uv_clamped.y);
 
-
   /* Apply gamma correction to HDR color */
   const float gamma = klight->dome.dome_hdr_gamma;
   float3 corrected_color = make_float3(hdr_color.x, hdr_color.y, hdr_color.z);
@@ -85,7 +84,6 @@ ccl_device_inline float3 dome_light_hdr_eval(KernelGlobals kg,
   /* Apply HDR intensity multiplier and return RGB */
   const float intensity = klight->dome.dome_hdr_strength;
   const float3 result = corrected_color * intensity;
-
 
   return result;
 }

@@ -86,7 +86,6 @@ void BlenderSync::sync_light(BObjectInfo &b_ob_info, Light *light)
       /* Set dome type (spherical or hemisphere) */
       light->set_is_dome_hemisphere(b_dome_light.dome_type() == 1); /* LA_DOME_HEMISPHERE = 1 */
 
-
       /* Set up HDRI image if available - focus on safe image handling during live updates */
       BL::Image b_image = b_dome_light.dome_image();
       if (b_image) {
@@ -100,7 +99,6 @@ void BlenderSync::sync_light(BObjectInfo &b_ob_info, Light *light)
         if (!image_filename.empty()) {
           light->set_dome_image(ustring(image_filename));
           light->set_dome_hdr_strength(b_dome_light.dome_hdr_strength());
-
 
           /* The key fix: Only reload HDR texture if the image actually changed
            * This prevents crashes during live property updates */
@@ -147,7 +145,6 @@ void BlenderSync::sync_light(BObjectInfo &b_ob_info, Light *light)
 
         /* Dome light without image still needs MIS enabled */
         light->set_use_mis(true);
-
       }
 
       /* Set dome HDR rotation (combined with object rotation) */
@@ -163,7 +160,6 @@ void BlenderSync::sync_light(BObjectInfo &b_ob_info, Light *light)
       bool dome_flip_v = b_dome_light.dome_hdr_flip_v();
       light->set_dome_hdr_flip_u(dome_flip_u);
       light->set_dome_hdr_flip_v(dome_flip_v);
-
 
       /* Set a default average radiance for light tree compatibility */
       light->set_average_radiance(1.0f);

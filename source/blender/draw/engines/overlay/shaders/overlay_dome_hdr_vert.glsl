@@ -20,50 +20,58 @@ float3 apply_dome_rotation(float3 direction, float3 rotation)
 {
   /* Apply Euler rotations in ZYX order (yaw, pitch, roll) - same as Cycles */
   float cos_x = cos(rotation.x), sin_x = sin(rotation.x);
-  float cos_y = cos(rotation.y), sin_y = sin(rotation.y);  
+  float cos_y = cos(rotation.y), sin_y = sin(rotation.y);
   float cos_z = cos(rotation.z), sin_z = sin(rotation.z);
-  
+
   /* Rotation matrix multiplication: R = Rz * Ry * Rx */
-  float3x3 rot_matrix = float3x3(
-    cos_z * cos_y, cos_z * sin_y * sin_x - sin_z * cos_x, cos_z * sin_y * cos_x + sin_z * sin_x,
-    sin_z * cos_y, sin_z * sin_y * sin_x + cos_z * cos_x, sin_z * sin_y * cos_x - cos_z * sin_x,
-    -sin_y,        cos_y * sin_x,                         cos_y * cos_x
-  );
-  
+  float3x3 rot_matrix = float3x3(cos_z * cos_y,
+                                 cos_z * sin_y * sin_x - sin_z * cos_x,
+                                 cos_z * sin_y * cos_x + sin_z * sin_x,
+                                 sin_z * cos_y,
+                                 sin_z * sin_y * sin_x + cos_z * cos_x,
+                                 sin_z * sin_y * cos_x - cos_z * sin_x,
+                                 -sin_y,
+                                 cos_y * sin_x,
+                                 cos_y * cos_x);
+
   return rot_matrix * direction;
 }
 
 /* Convert 3D position to equirectangular UV coordinates for HDR projection */
-float2 dome_position_to_uv(float3 world_pos, float4x4 object_to_world_matrix, float3 dome_rotation, bool flip_u, bool flip_v)
+float2 dome_position_to_uv(float3 world_pos,
+                           float4x4 object_to_world_matrix,
+                           float3 dome_rotation,
+                           bool flip_u,
+                           bool flip_v)
 {
   /* Get the inverse transformation matrix to transform from world to object space */
   float4x4 world_to_object = inverse(object_to_world_matrix);
-  
+
   /* Transform world position to object space (dome local space) */
   float3 local_pos = (world_to_object * float4(world_pos, 1.0f)).xyz;
-  
+
   /* Get direction vector in object space (normalized) */
   float3 dir = normalize(local_pos);
-  
+
   /* Apply dome rotation (same logic as Cycles) */
   float3 rotated_dir = apply_dome_rotation(dir, dome_rotation);
-  
+
   /* Convert to spherical coordinates */
-  float theta = atan(rotated_dir.y, rotated_dir.x); /* Azimuth: -PI to PI */
+  float theta = atan(rotated_dir.y, rotated_dir.x);  /* Azimuth: -PI to PI */
   float phi = acos(clamp(rotated_dir.z, -1.0, 1.0)); /* Polar: 0 to PI */
-  
+
   /* Convert to UV coordinates [0,1] */
   float u = (theta + float(M_PI)) / float(M_2PI); /* Map -PI..PI to 0..1 */
-  float v = (phi / float(M_PI)); /* Map 0..PI to 0..1 */
-  
+  float v = (phi / float(M_PI));                  /* Map 0..PI to 0..1 */
+
   /* Apply UV flipping if enabled */
   if (flip_u) {
-    u = 1.0f - u;  /* flip_u flips left-right (horizontally) */
+    u = 1.0f - u; /* flip_u flips left-right (horizontally) */
   }
   if (flip_v) {
-    v = 1.0f - v;  /* flip_v flips top-bottom (vertically) */
+    v = 1.0f - v; /* flip_v flips top-bottom (vertically) */
   }
-  
+
   return float2(u, v);
 }
 
@@ -74,7 +82,7 @@ void main()
   /* Use standard ExtraInstanceData system like overlay_extra_vert.glsl */
   float4x4 inst_obmat = data_buf[gl_InstanceID].object_to_world;
   float4x4 input_mat = inst_obmat;
-  
+
   /* Extract data packed inside the unused float4x4 members (same as overlay_extra_vert.glsl) */
   float4 inst_data = float4(input_mat[0][3], input_mat[1][3], input_mat[2][3], input_mat[3][3]);
   float4 color = data_buf[gl_InstanceID].color_;
@@ -107,7 +115,7 @@ void main()
       vpos.xy *= lamp_area_size;
     }
   }
-  
+
   /* Extract dome data from the additional fields */
   float4 dome_rotation_and_size = data_buf[gl_InstanceID].dome_rotation;
   float3 dome_rotation = dome_rotation_and_size.xyz;
@@ -116,47 +124,40 @@ void main()
   bool32_t dome_hdr_flag = data_buf[gl_InstanceID].has_hdr;
   bool32_t flip_u_flag = data_buf[gl_InstanceID].flip_u;
   bool32_t flip_v_flag = data_buf[gl_InstanceID].flip_v;
-  
+
   /* Convert bool32_t to actual boolean for GLSL */
   bool flip_u = (flip_u_flag != 0);
   bool flip_v = (flip_v_flag != 0);
 
   /* Transform to world space */
   float3 world_pos = (obmat * float4(vpos, 1.0f)).xyz;
-  
-  /* Calculate UV coordinates for equirectangular projection */
-  /* Use the original vertex position on the sphere (before scaling) */
-  float3 dir = normalize(pos);
-  
-  /* Apply dome rotation if needed */
-  if (dome_rotation.x != 0.0f || dome_rotation.y != 0.0f || dome_rotation.z != 0.0f) {
-    dir = apply_dome_rotation(dir, dome_rotation);
+
+  /* Use UV coordinates from mesh - already properly mapped for equirectangular textures */
+  /* Apply rotation offset to U coordinate to rotate the HDR texture */
+  float dome_u = uv.x;
+  float dome_v = 1.0f - uv.y; /* Flip V to match equirectangular convention (0=top, 1=bottom) */
+
+  /* Apply rotation by offsetting U coordinate */
+  if (dome_rotation.z != 0.0f) {
+    /* Z rotation rotates the environment around vertical axis */
+    float rotation_offset = dome_rotation.z / (2.0f * float(M_PI));
+    dome_u = fract(dome_u - rotation_offset);
   }
-  
-  /* Equirectangular projection - standard mapping */
-  float theta = atan(dir.y, dir.x); /* Azimuth angle: -PI to PI */
-  float phi = acos(clamp(dir.z, -1.0f, 1.0f)); /* Polar angle: 0 to PI */
-  
-  /* Standard equirectangular UV mapping */
-  /* U: convert theta from [-PI, PI] to [0, 1] */
-  float dome_u = (theta + float(M_PI)) / float(M_2PI);
-  /* V: convert phi from [0, PI] to [0, 1] where 0 is north pole (top) */
-  float dome_v = 1 - (phi / float(M_PI)); /* hdr was flip by default so we flip it back to point upward */
-  
+
   /* Apply UV flipping if enabled */
   if (flip_u) {
-    dome_u = 1.0f - dome_u;  /* flip_u flips left-right (horizontally) */
+    dome_u = 1.0f - dome_u; /* flip_u flips left-right (horizontally) */
   }
   if (flip_v) {
-    dome_v = 1.0f - dome_v;  /* flip_v flips top-bottom (vertically) */
+    dome_v = 1.0f - dome_v; /* flip_v flips top-bottom (vertically) */
   }
-  
+
   uv_coords = float2(dome_u, dome_v);
-  
+
   /* Pass HDR flag and parameters to fragment shader */
   has_hdr = dome_hdr_flag ? 1.0f : 0.0f;
-  hdr_params = dome_hdr_params_data.xyz;  /* strength, gamma, exposure */
-  light_color = dome_light_color_data;    /* r, g, b, energy */
+  hdr_params = dome_hdr_params_data.xyz; /* strength, gamma, exposure */
+  light_color = dome_light_color_data;   /* r, g, b, energy */
 
   gl_Position = drw_point_world_to_homogenous(world_pos);
 

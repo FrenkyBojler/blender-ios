@@ -1409,7 +1409,6 @@ void LightManager::device_update_lights(DeviceScene *dscene, Scene *scene)
       klights[light_index].dome.dome_hdr_gamma = light->get_dome_hdr_gamma();
       klights[light_index].dome.dome_hdr_flip_u = light->get_dome_hdr_flip_u() ? 1 : 0;
       klights[light_index].dome.dome_hdr_flip_v = light->get_dome_hdr_flip_v() ? 1 : 0;
-
     }
     else if (light->light_type == LIGHT_AREA) {
       const float light_size = light->size;

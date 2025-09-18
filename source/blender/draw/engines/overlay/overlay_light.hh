@@ -10,15 +10,15 @@
 
 #include <cstdio>
 
-#include "DNA_light_types.h"
 #include "DNA_image_types.h"
+#include "DNA_light_types.h"
 
 #include "BLI_math_matrix.h"
 
 #include "BKE_image.hh"
 
-#include "GPU_texture.hh"
 #include "GPU_state.hh"
+#include "GPU_texture.hh"
 
 #include "overlay_base.hh"
 
@@ -67,8 +67,7 @@ class Lights : Overlay {
     LightInstanceBuf dome_buf = {selection_type_, "dome_buf"};
     LightInstanceBuf dome_hemisphere_buf = {selection_type_, "dome_hemisphere_buf"};
     LightInstanceBuf dome_solid_buf = {selection_type_, "dome_solid_buf"};
-    LightInstanceBuf dome_hemisphere_solid_buf = {selection_type_,
-                                                  "dome_hemisphere_solid_buf"};
+    LightInstanceBuf dome_hemisphere_solid_buf = {selection_type_, "dome_hemisphere_solid_buf"};
     LightInstanceBuf dome_hdr_buf = {selection_type_, "dome_hdr_buf"};
   } call_buffers_{selection_type_};
 
@@ -208,13 +207,13 @@ class Lights : Overlay {
         /* Check if dome has HDR image */
         const bool has_hdr_image = (la.dome_image != nullptr);
         gpu::Texture *hdr_texture = nullptr;
-        
+
         /* Load HDR texture if available */
         if (has_hdr_image && la.dome_image) {
           /* Create an ImageUser for the image */
           ImageUser iuser = {};
           iuser.framenr = 1; /* Default frame */
-          
+
           /* Get GPU texture from the image */
           hdr_texture = BKE_image_get_gpu_texture(la.dome_image, &iuser);
         }
@@ -303,12 +302,12 @@ class Lights : Overlay {
       PassSimple::Sub &sub_pass_debug = ps_.sub("dome_hdr_debug");
       sub_pass_debug.state_set(pass_state | DRW_STATE_BLEND_ALPHA, state.clipping_plane_count);
       sub_pass_debug.shader_set(res.shaders->light_dome_hdr.get());
-      
+
       /* These will show the debug pattern since no texture is bound */
       call_buffers_.dome_solid_buf.end_sync(sub_pass_debug, res.shapes.light_dome_solid.get());
       call_buffers_.dome_hemisphere_solid_buf.end_sync(
           sub_pass_debug, res.shapes.light_dome_hemisphere_solid.get());
-      
+
       /* Render dome lights with HDR textures individually */
       if (!dome_hdr_lights_.is_empty()) {
         /* For now, render all dome lights with HDR in a single pass */
@@ -316,24 +315,25 @@ class Lights : Overlay {
         PassSimple::Sub &sub_pass = ps_.sub("dome_hdr_all");
         sub_pass.state_set(pass_state | DRW_STATE_BLEND_ALPHA, state.clipping_plane_count);
         sub_pass.shader_set(res.shaders->light_dome_hdr.get());
-        
+
         /* Add all dome lights with HDR to the buffer */
         /* Note: This means all dome lights will use the same texture (the last one bound) */
         /* For proper multi-texture support, we'd need texture arrays or multiple draw calls */
         gpu::Texture *last_texture = nullptr;
         bool has_hemisphere = false;
         bool has_full = false;
-        
+
         for (const DomeHDRLight &dome_light : dome_hdr_lights_) {
           call_buffers_.dome_hdr_buf.append(dome_light.data, dome_light.select_id);
           last_texture = dome_light.hdr_texture;
           if (dome_light.is_hemisphere) {
             has_hemisphere = true;
-          } else {
+          }
+          else {
             has_full = true;
           }
         }
-        
+
         /* Bind the last texture if we have one */
         if (last_texture) {
           GPUSamplerState sampler_state = GPUSamplerState::default_sampler();
@@ -342,12 +342,12 @@ class Lights : Overlay {
           sampler_state.extend_yz = GPU_SAMPLER_EXTEND_MODE_REPEAT;
           sub_pass.bind_texture(0, last_texture, sampler_state);
         }
-        
+
         /* Render with appropriate geometry */
         /* For now, if we have mixed types, render with full sphere */
         gpu::Batch *dome_shape = (has_hemisphere && !has_full) ?
-                                  res.shapes.light_dome_hemisphere_solid.get() :
-                                  res.shapes.light_dome_solid.get();
+                                     res.shapes.light_dome_hemisphere_solid.get() :
+                                     res.shapes.light_dome_solid.get();
         call_buffers_.dome_hdr_buf.end_sync(sub_pass, dome_shape);
       }
     }

@@ -310,6 +310,14 @@ struct VertShaded {
   GPU_VERTEX_FORMAT_FUNC(VertShaded, pos, vclass, nor);
 };
 
+struct VertShadedUV {
+  float3 pos;
+  float2 uv;
+  VertexClass vclass;
+
+  GPU_VERTEX_FORMAT_FUNC(VertShadedUV, pos, uv, vclass);
+};
+
 /* TODO(fclem): Might be good to remove for simplicity. */
 struct VertexTriple {
   float2 pos0;
