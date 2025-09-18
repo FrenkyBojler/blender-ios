@@ -2628,8 +2628,8 @@ class VIEW3D_MT_lattice_add(Menu):
         layout = self.layout
         layout.operator_context = 'INVOKE_REGION_WIN'
 
-        layout.operator("object.add", text="Lattice", icon="OUTLINER_OB_LATTICE").type = "LATTICE"
-        layout.operator("object.lattice_add_to_selected", text="Lattice Deform Selected", icon="OUTLINER_OB_LATTICE")
+        layout.operator("object.add", text="Lattice", icon='OUTLINER_OB_LATTICE').type = 'LATTICE'
+        layout.operator("object.lattice_add_to_selected", text="Lattice Deform Selected", icon='OUTLINER_OB_LATTICE')
 
 
 class VIEW3D_MT_empty_add(Menu):

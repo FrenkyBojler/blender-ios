@@ -750,13 +750,15 @@ void OBJECT_OT_add(wmOperatorType *ot)
   add_generic_props(ot, true);
 }
 
+
 /* -------------------------------------------------------------------- */
-/** \name Lattice Deform Operator
+
+/** \name Add Lattice Deformation to Selected Operator
+
  * \{ */
 
-static std::optional<Bounds<float3>> collect_targets_and_bounds(bContext *C,
-                                                                Vector<Object *> &r_targets,
-                                                                const float rotation_matrix[3][3])
+static std::optional<Bounds<float3>> lattice_add_to_selected_collect_targets_and_calc_bounds(
+    bContext *C, const float orientation_matrix[3][3], Vector<Object *> &r_targets)
 {
   ViewLayer *view_layer = CTX_data_view_layer(C);
   View3D *v3d = CTX_wm_view3d(C);
@@ -765,10 +767,10 @@ static std::optional<Bounds<float3>> collect_targets_and_bounds(bContext *C,
   Bounds<float3> local_bounds;
   local_bounds.min = float3(FLT_MAX);
   local_bounds.max = float3(-FLT_MAX);
-  bool any = false;
+  bool has_bounds = false;
 
-  float inverse_rotation_matrix[3][3];
-  invert_m3_m3_safe_ortho(inverse_rotation_matrix, rotation_matrix);
+  float inverse_orientation_matrix[3][3];
+  invert_m3_m3_safe_ortho(inverse_orientation_matrix, orientation_matrix);
 
   LISTBASE_FOREACH (Base *, base, &view_layer->object_bases) {
     if (!BASE_SELECTED_EDITABLE(v3d, base) || !object_can_have_lattice_modifier(base->object)) {
@@ -776,42 +778,34 @@ static std::optional<Bounds<float3>> collect_targets_and_bounds(bContext *C,
     }
 
     r_targets.append(base->object);
-    Object *object_eval = (Object *)DEG_get_evaluated_id(depsgraph, &base->object->id);
+    const Object *object_eval = DEG_get_evaluated(depsgraph, base->object);
     if (object_eval && DEG_object_transform_is_evaluated(*object_eval)) {
       if (std::optional<Bounds<float3>> object_bounds = BKE_object_boundbox_get(object_eval)) {
         const float(*object_to_world_matrix)[4] = object_eval->object_to_world().ptr();
         /* Generate all 8 corners of the bounding box. */
         std::array<float3, 8> corners = bounds::corners(*object_bounds);
-
         for (float3 &corner : corners) {
           mul_m4_v3(object_to_world_matrix, corner);
-          mul_m3_v3(inverse_rotation_matrix, corner);
+          mul_m3_v3(inverse_orientation_matrix, corner);
           local_bounds.min = math::min(local_bounds.min, corner);
           local_bounds.max = math::max(local_bounds.max, corner);
         }
       }
     }
-    any = true;
+    has_bounds = true;
   }
 
-  if (any) {
+  if (has_bounds) {
     return local_bounds;
   }
   return std::nullopt;
 }
 
-static void sanitize_scale(float scale[3])
+static wmOperatorStatus lattice_add_to_selected_exec(bContext *C, wmOperator *op)
 {
-  for (int i = 0; i < 3; i++) {
-    if (!isfinite(scale[i]) || scale[i] <= 0.0f) {
-      scale[i] = 1.0f;
-    }
-  }
-}
-
-static wmOperatorStatus lattice_add_exec(bContext *C, wmOperator *op)
-{
-  Object *active_object = CTX_data_active_object(C);
+  Main *bmain = CTX_data_main(C);
+  Scene *scene = CTX_data_scene(C);
+  Object *ob_active = CTX_data_active_object(C);
   ushort local_view_bits;
   bool enter_editmode;
   float location[3], rotation_euler[3];
@@ -819,77 +813,45 @@ static wmOperatorStatus lattice_add_exec(bContext *C, wmOperator *op)
   add_generic_get_opts(
       C, op, 'Z', location, rotation_euler, nullptr, &enter_editmode, &local_view_bits, nullptr);
 
-  const bool fit_to_selected = RNA_boolean_get(op->ptr, "fit_to_selected");
   const float margin = RNA_float_get(op->ptr, "margin");
   const bool add_modifiers = RNA_boolean_get(op->ptr, "add_modifiers");
   const int resolution_u = RNA_int_get(op->ptr, "resolution_u");
   const int resolution_v = RNA_int_get(op->ptr, "resolution_v");
   const int resolution_w = RNA_int_get(op->ptr, "resolution_w");
 
-  float active_rotation_matrix[3][3];
-  if (active_object) {
-    float raw_rotation_matrix[3][3];
-    copy_m3_m4(raw_rotation_matrix, active_object->object_to_world().ptr());
-    normalize_m3_m3(active_rotation_matrix, raw_rotation_matrix);
+  float ob_active_orientation[3][3];
+  if (ob_active) {
+    copy_m3_m4(ob_active_orientation, ob_active->object_to_world().ptr());
+    normalize_m3(ob_active_orientation);
   }
   else {
-    unit_m3(active_rotation_matrix);
+    unit_m3(ob_active_orientation);
   }
 
   Vector<Object *> targets;
-  std::optional<Bounds<float3>> bounds_opt = collect_targets_and_bounds(
-      C, targets, active_rotation_matrix);
+  std::optional<Bounds<float3>> bounds_opt =
+      lattice_add_to_selected_collect_targets_and_calc_bounds(C, ob_active_orientation, targets);
 
-  if (targets.is_empty()) {
+  /* Disable fit to selected when there are no valid targets
+   * (either nothing is selected or meshes with no geometry). */
+  if (targets.is_empty() || !bounds_opt.has_value()) {
     RNA_boolean_set(op->ptr, "fit_to_selected", false);
   }
+  const bool fit_to_selected = RNA_boolean_get(op->ptr, "fit_to_selected");
 
   Object *ob_lattice = add_type(
       C, OB_LATTICE, nullptr, location, rotation_euler, enter_editmode, local_view_bits);
   Lattice *lt = (Lattice *)ob_lattice->data;
 
-  BKE_lattice_resize(
-      lt, max_ii(1, resolution_u), max_ii(1, resolution_v), max_ii(1, resolution_w), nullptr);
-  DEG_id_tag_update(&ob_lattice->id, ID_RECALC_GEOMETRY | ID_RECALC_TRANSFORM);
-
   if (fit_to_selected && bounds_opt.has_value()) {
-    if (active_object) {
+    if (ob_active) {
       /* Active object exists, align lattice to its orientation,
-       * size to oriented bounding box of all selected objects.
-       */
-
-      /* Get the rotation of the active object.*/
-      float raw_rotation_matrix[3][3], normalized_rotation_matrix[3][3], quat[4];
-      copy_m3_m4(raw_rotation_matrix, active_object->object_to_world().ptr());
-      normalize_m3_m3(normalized_rotation_matrix, raw_rotation_matrix);
-      mat3_to_quat(quat, normalized_rotation_matrix);
-
-      /* Inverse rotation transforms all targets into active objects local space. */
-      float inverse_rotation_matrix[3][3];
-      invert_m3_m3_safe_ortho(inverse_rotation_matrix, normalized_rotation_matrix);
-
-      /* Initialize a bounding box to be expanded. */
-      Bounds<float3> local_bounds;
-      local_bounds.min = float3(FLT_MAX);
-      local_bounds.max = float3(-FLT_MAX);
-
-      /* Iterate through all target objects to calculate a combined bounding box. */
-      for (Object *ob : targets) {
-        if (std::optional<Bounds<float3>> object_bounds = BKE_object_boundbox_get(ob)) {
-          std::array<float3, 8> corners = bounds::corners(*object_bounds);
-          for (float3 &corner : corners) {
-            mul_m4_v3(ob->object_to_world().ptr(), corner);
-            mul_m3_v3(inverse_rotation_matrix, corner);
-            local_bounds.min = math::min(local_bounds.min, corner);
-            local_bounds.max = math::max(local_bounds.max, corner);
-          }
-        }
-      }
+       * size to oriented bounding box of all selected objects. */
 
       /* Apply margin to the calculated bounds. */
       float sel_min[3], sel_max[3];
-      copy_v3_v3(sel_min, local_bounds.min);
-      copy_v3_v3(sel_max, local_bounds.max);
+      copy_v3_v3(sel_min, bounds_opt->min);
+      copy_v3_v3(sel_max, bounds_opt->max);
       for (int i = 0; i < 3; i++) {
         sel_min[i] -= margin;
         sel_max[i] += margin;
@@ -899,27 +861,17 @@ static wmOperatorStatus lattice_add_exec(bContext *C, wmOperator *op)
       float center_local[3], size_local[3];
       mid_v3_v3v3(center_local, sel_min, sel_max);
       sub_v3_v3v3(size_local, sel_max, sel_min);
-      sanitize_scale(size_local);
 
       /* Transform the local center back into world space for the final location. */
       float center_world[3];
       copy_v3_v3(center_world, center_local);
-      mul_m3_v3(normalized_rotation_matrix, center_world);
+      mul_m3_v3(ob_active_orientation, center_world);
 
       /* Apply the calculated transform to the new lattice object. */
-      ob_lattice->rotmode = ROT_MODE_QUAT;
-      copy_qt_qt(ob_lattice->quat, quat);
+      BKE_object_mat3_to_rot(ob_lattice, ob_active_orientation, false);
 
       copy_v3_v3(ob_lattice->loc, center_world);
       copy_v3_v3(ob_lattice->scale, size_local);
-
-      BKE_lattice_resize(lt,
-                         max_ii(1, resolution_u),
-                         max_ii(1, resolution_v),
-                         max_ii(1, resolution_w),
-                         ob_lattice);
-      DEG_id_tag_update(&ob_lattice->id, ID_RECALC_GEOMETRY | ID_RECALC_TRANSFORM);
-      DEG_relations_tag_update(CTX_data_main(C));
     }
     else {
       /* No active object, axis-aligned lattice sized to world-space bounds. */
@@ -936,57 +888,56 @@ static wmOperatorStatus lattice_add_exec(bContext *C, wmOperator *op)
       float center_world[3], size_world[3];
       mid_v3_v3v3(center_world, sel_min, sel_max);
       sub_v3_v3v3(size_world, sel_max, sel_min);
-      sanitize_scale(size_world);
 
       copy_v3_v3(ob_lattice->loc, center_world);
       copy_v3_v3(ob_lattice->scale, size_world);
+    }
 
-      BKE_lattice_resize(lt,
-                         max_ii(1, resolution_u),
-                         max_ii(1, resolution_v),
-                         max_ii(1, resolution_w),
-                         ob_lattice);
-      DEG_id_tag_update(&ob_lattice->id, ID_RECALC_GEOMETRY | ID_RECALC_TRANSFORM);
-      DEG_relations_tag_update(CTX_data_main(C));
+    /* It's possible the scale contains zero or degenerate values. */
+    for (int i = 0; i < 3; i++) {
+      if (!isfinite(ob_lattice->scale[i]) || ob_lattice->scale[i] <= 0.0f) {
+        ob_lattice->scale[i] = 1.0f;
+      }
     }
   }
   else {
     /* Fallback when fit to selected is off. */
     copy_v3_fl(ob_lattice->scale, RNA_float_get(op->ptr, "radius"));
-    DEG_id_tag_update(&ob_lattice->id, ID_RECALC_TRANSFORM);
   }
 
   if (add_modifiers) {
     for (Object *ob : targets) {
-      if (ob == ob_lattice) {
-        continue;
-      }
-      if (!object_can_have_lattice_modifier(ob)) {
+      BLI_assert(ob != ob_lattice);
+      BLI_assert(object_can_have_lattice_modifier(ob));
+
+      LatticeModifierData *lmd = (LatticeModifierData *)modifier_add(
+          op->reports, bmain, scene, ob, nullptr, eModifierType_Lattice);
+      if (UNLIKELY(lmd == nullptr)) {
         continue;
       }
 
-      LatticeModifierData *lattice_modifier = (LatticeModifierData *)modifier_add(
-          op->reports, CTX_data_main(C), CTX_data_scene(C), ob, nullptr, eModifierType_Lattice);
-
-      lattice_modifier->object = ob_lattice;
+      lmd->object = ob_lattice;
       DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
       WM_main_add_notifier(NC_OBJECT | ND_MODIFIER, ob);
     }
   }
 
-  DEG_id_tag_update(&ob_lattice->id, ID_RECALC_TRANSFORM);
+  BKE_lattice_resize(
+      lt, max_ii(1, resolution_u), max_ii(1, resolution_v), max_ii(1, resolution_w), ob_lattice);
+  DEG_id_tag_update(&ob_lattice->id, ID_RECALC_GEOMETRY | ID_RECALC_TRANSFORM);
+  DEG_relations_tag_update(CTX_data_main(C));
   return OPERATOR_FINISHED;
 }
 
-static bool object_add_poll_property(const bContext *C, wmOperator *op, const PropertyRNA *prop)
+static bool object_add_to_selected_poll_property(const bContext *C,
+                                                 wmOperator *op,
+                                                 const PropertyRNA *prop)
 {
   UNUSED_VARS(C);
   const char *prop_id = RNA_property_identifier(prop);
 
   if (RNA_boolean_get(op->ptr, "fit_to_selected")) {
-    if (STREQ(prop_id, "radius") || STREQ(prop_id, "align") || STREQ(prop_id, "location") ||
-        STREQ(prop_id, "rotation"))
-    {
+    if (STR_ELEM(prop_id, "radius", "align", "location", "rotation")) {
       return false;
     }
   }
@@ -1006,9 +957,9 @@ void OBJECT_OT_lattice_add_to_selected(wmOperatorType *ot)
   ot->idname = "OBJECT_OT_lattice_add_to_selected";
 
   /* API callbacks. */
-  ot->exec = lattice_add_exec;
+  ot->exec = lattice_add_to_selected_exec;
   ot->poll = ED_operator_objectmode;
-  ot->poll_property = object_add_poll_property;
+  ot->poll_property = object_add_to_selected_poll_property;
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
@@ -1061,7 +1012,6 @@ void OBJECT_OT_lattice_add_to_selected(wmOperatorType *ot)
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
   add_generic_props(ot, true);
 }
-
 /** \} */
 
 /* -------------------------------------------------------------------- */
