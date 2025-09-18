@@ -4098,7 +4098,6 @@ void uv_parametrizer_lscm_solve(ParamHandle *phandle, int *count_changed, int *c
     if (!chart->context) {
       continue;
     }
-
     const bool result = p_chart_lscm_solve(phandle, chart);
 
     if (result && !chart->has_pins) {
@@ -4113,6 +4112,7 @@ void uv_parametrizer_lscm_solve(ParamHandle *phandle, int *count_changed, int *c
       p_chart_lscm_end(chart);
     }
 
+    
     if (result) {
       if (count_changed != nullptr) {
         *count_changed += 1;
