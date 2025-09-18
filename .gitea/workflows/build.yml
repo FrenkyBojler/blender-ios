@@ -82,7 +82,7 @@ jobs:
       - name: Deliver binaries
         run: |
           echo "Delivering binaries..."
-		  
+
   deliver-test-results:
     needs: test-code
     runs-on: ubuntu-latest
@@ -90,4 +90,3 @@ jobs:
       - name: Deliver binaries
         run: |
           echo "Delivering test results..."
-		  
