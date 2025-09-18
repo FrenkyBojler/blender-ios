@@ -750,19 +750,6 @@ static void rna_uiTemplateCacheFileVelocity(uiLayout *layout,
   uiTemplateCacheFileVelocity(layout, &fileptr);
 }
 
-static void rna_uiTemplateCacheFileProcedural(uiLayout *layout,
-                                              bContext *C,
-                                              PointerRNA *ptr,
-                                              const char *propname)
-{
-  PointerRNA fileptr;
-  if (!uiTemplateCacheFilePointer(ptr, propname, &fileptr)) {
-    return;
-  }
-
-  uiTemplateCacheFileProcedural(layout, C, &fileptr);
-}
-
 static void rna_uiTemplateCacheFileTimeSettings(uiLayout *layout,
                                                 PointerRNA *ptr,
                                                 const char *propname)
@@ -1240,7 +1227,7 @@ void RNA_api_ui_layout(StructRNA *srna)
   func = RNA_def_function(srna, "panel", "rna_uiLayoutPanel");
   RNA_def_function_ui_description(
       func,
-      "Creates a collapsable panel. Whether it is open or closed is stored in the region using "
+      "Creates a collapsible panel. Whether it is open or closed is stored in the region using "
       "the given idname. This can only be used when the panel has the full width of the panel "
       "region available to it. So it can't be used in e.g. in a box or columns.");
   RNA_def_function_flag(func, FUNC_USE_CONTEXT | FUNC_USE_REPORTS);
@@ -1790,6 +1777,10 @@ void RNA_api_ui_layout(StructRNA *srna)
   RNA_def_function_flag(func, FUNC_USE_CONTEXT);
   RNA_def_function_ui_description(func, "Generates the UI layout for the modifier stack");
 
+  func = RNA_def_function(srna, "template_strip_modifiers", "uiTemplateStripModifiers");
+  RNA_def_function_flag(func, FUNC_USE_CONTEXT);
+  RNA_def_function_ui_description(func, "Generates the UI layout for the strip modifier stack");
+
   func = RNA_def_function(srna, "template_collection_exporters", "uiTemplateCollectionExporters");
   RNA_def_function_flag(func, FUNC_USE_CONTEXT);
   RNA_def_function_ui_description(func, "Generates the UI layout for collection exporters");
@@ -2198,12 +2189,6 @@ void RNA_api_ui_layout(StructRNA *srna)
 
   func = RNA_def_function(srna, "template_cache_file_velocity", "rna_uiTemplateCacheFileVelocity");
   RNA_def_function_ui_description(func, "Show cache files velocity properties");
-  api_ui_item_rna_common(func);
-
-  func = RNA_def_function(
-      srna, "template_cache_file_procedural", "rna_uiTemplateCacheFileProcedural");
-  RNA_def_function_ui_description(func, "Show cache files render procedural properties");
-  RNA_def_function_flag(func, FUNC_USE_CONTEXT);
   api_ui_item_rna_common(func);
 
   func = RNA_def_function(
