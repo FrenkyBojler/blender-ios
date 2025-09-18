@@ -35,7 +35,7 @@ class TOPBAR_HT_upper_bar(Header):
         if not screen.show_fullscreen:
             layout.template_ID_tabs(window, "workspace", new="workspace.add", menu="TOPBAR_MT_workspace_menu")
         else:
-            layout.operator("screen.back_to_previous", icon='SCREEN_BACK', text="Back to Previous")
+            layout.operator("screen.back_to_previous", icon='BACK')
 
     def draw_right(self, context):
         layout = self.layout

@@ -6222,7 +6222,7 @@ static wmOperatorStatus fullscreen_back_exec(bContext *C, wmOperator *op)
 static void SCREEN_OT_back_to_previous(wmOperatorType *ot)
 {
   /* identifiers */
-  ot->name = "Back to Previous Screen";
+  ot->name = "Restore Areas";
   ot->description = "Revert back to the original screen layout, before fullscreen area overlay";
   ot->idname = "SCREEN_OT_back_to_previous";
 

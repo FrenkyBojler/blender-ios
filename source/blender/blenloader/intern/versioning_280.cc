@@ -144,7 +144,7 @@ static void do_version_workspaces_create_from_screens(Main *bmain)
     }
 
     if (screen_parent) {
-      /* Full-screen with "Back to Previous" option, don't create
+      /* Full-screen with "Restore Areas" option, don't create
        * a new workspace, add layout workspace containing parent. */
       workspace = static_cast<WorkSpace *>(
           BLI_findstring(&bmain->workspaces, screen_parent->id.name + 2, offsetof(ID, name) + 2));

@@ -1908,7 +1908,7 @@ ScrArea *ED_screen_temp_space_open(
         LISTBASE_FOREACH (ScrArea *, screen_area, &ctx_screen->areabase) {
           if (screen_area->full && screen_area->spacetype == space_type) {
             /* Return the existing area instead of recreating an area on top, which would make the
-             * "Back to Previous" button seem ineffective. */
+             * "Restore Areas" button seem ineffective. */
             return screen_area;
           }
         }
