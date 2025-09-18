@@ -46,7 +46,10 @@ ExternalProject_Add(external_hiprt
       ${PATCH_DIR}/hiprt_motion_blur_fix.diff &&
     ${PATCH_CMD} -p 1 -d
       ${BUILD_DIR}/hiprt/src/external_hiprt <
-      ${PATCH_DIR}/hiprt_disable_rdna4_rt.diff
+      ${PATCH_DIR}/hiprt_disable_rdna4_rt.diff &&
+	${PATCH_CMD} -p 1 -d
+      ${BUILD_DIR}/hiprt/src/external_hiprt <
+      ${PATCH_DIR}/hiprt_rdna2_performance.diff
 
   CMAKE_ARGS
     -DCMAKE_INSTALL_PREFIX=${LIBDIR}/hiprt

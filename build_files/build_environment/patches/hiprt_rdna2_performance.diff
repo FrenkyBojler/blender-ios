@@ -1,0 +1,82 @@
+diff --git a/hiprt/impl/hiprt_device_impl.h b/hiprt/impl/hiprt_device_impl.h
+index 7f04afa..77e4bba 100644
+--- a/hiprt/impl/hiprt_device_impl.h
++++ b/hiprt/impl/hiprt_device_impl.h
+@@ -35,7 +35,7 @@
+ #include <hiprt/impl/Triangle.h>
+ #include <hiprt/hiprt_device.h>
+ 
+-#if HIPRT_RTIP >= 20
++#if HIPRT_RTIP >= 11
+ extern "C" __device__ float __ocml_native_recip_f32( float );
+ #endif
+ 
+@@ -76,7 +76,7 @@ enum
+ 
+ HIPRT_DEVICE HIPRT_INLINE float3 rcp( const float3 a )
+ {
+-#if defined( __USE_HWI__ )
++#if HIPRT_RTIP >= 11
+ 	return float3{ __ocml_native_recip_f32( a.x ), __ocml_native_recip_f32( a.y ), __ocml_native_recip_f32( a.z ) };
+ #else
+ 	return 1.0f / a;
+@@ -255,12 +255,12 @@ class TraversalBase
+ 		: m_ray( ray ), m_stack( stack ), m_payload( payload ), m_rayType( rayType ), m_nodeIndex( RootIndex ), m_hint( hint )
+ 	{
+ 		if ( funcTable != nullptr ) m_tableHeader = *reinterpret_cast<hiprtFuncTableHeader*>( funcTable );
+-#if HIPRT_RTIP >= 20
++#if HIPRT_RTIP >= 11
+ 		packDescriptor( static_cast<uint32_t>( hint ), Rtip >= 31 );
+ #endif
+ 	}
+ 
+-#if HIPRT_RTIP >= 20
++#if HIPRT_RTIP >= 11
+ 	HIPRT_DEVICE void packDescriptor( uint32_t boxSortHeuristic = 0u, bool compressed = false );
+ #endif
+ 
+@@ -303,7 +303,7 @@ class TraversalBase
+ 	hiprtTraversalHint	 m_hint			= hiprtTraversalHintDefault;
+ };
+ 
+-#if HIPRT_RTIP >= 20
++#if HIPRT_RTIP >= 11
+ template <typename Stack, hiprtTraversalType TraversalType>
+ HIPRT_DEVICE void TraversalBase<Stack, TraversalType>::packDescriptor( uint32_t boxSortHeuristic, bool compressed )
+ {
+@@ -338,7 +338,7 @@ template <typename Stack, hiprtTraversalType TraversalType>
+ HIPRT_DEVICE bool TraversalBase<Stack, TraversalType>::testInternalNode(
+ 	const hiprtRay& ray, [[maybe_unused]] const float3& invD, BoxNode* nodes, uint32_t& nodeIndex )
+ {
+-#if HIPRT_RTIP < 20
++#if HIPRT_RTIP < 11
+ 	BoxNode node = nodes[getNodeAddr( nodeIndex )];
+ 	float2	s0	 = node.m_box0.intersect( ray.origin, invD, ray.maxT );
+ 	float2	s1	 = node.m_box1.intersect( ray.origin, invD, ray.maxT );
+@@ -569,7 +569,7 @@ HIPRT_DEVICE bool TraversalBase<Stack, TraversalType>::testTriangle(
+ 	const TriangleNode& node = nodes[leafAddr];
+ 	if ( node.getPrimIndex( 0 ) == node.getPrimIndex( 1 ) && leafType == TriangleType + 1 ) return false;
+ 	bool hasHit = false;
+-#if HIPRT_RTIP < 20
++#if HIPRT_RTIP < 11
+ 	hasHit =
+ 		node.m_triPair.fetchTriangle( leafType & 1 ).intersect( ray, hit.uv, hit.t, node.m_flags >> ( ( leafType & 1 ) * 8 ) );
+ 	if ( hasHit )
+@@ -691,7 +691,7 @@ class GeomTraversal : public TraversalBase<Stack, TraversalType>
+ 	using TraversalBase<Stack, TraversalType>::m_nodeIndex;
+ 	using TraversalBase<Stack, TraversalType>::m_triangleMask;
+ 	using TraversalBase<Stack, TraversalType>::m_rayType;
+-#if HIPRT_RTIP >= 20
++#if HIPRT_RTIP >= 11
+ 	using TraversalBase<Stack, TraversalType>::m_descriptor;
+ #endif
+ 
+@@ -875,7 +875,7 @@ class SceneTraversal : public TraversalBase<Stack, TraversalType>
+ 	using TraversalBase<Stack, TraversalType>::m_triangleMask;
+ 	using TraversalBase<Stack, TraversalType>::m_rayType;
+ 	using TraversalBase<Stack, TraversalType>::m_hint;
+-#if HIPRT_RTIP >= 20
++#if HIPRT_RTIP >= 11
+ 	using TraversalBase<Stack, TraversalType>::m_descriptor;
+ #endif
+ 
