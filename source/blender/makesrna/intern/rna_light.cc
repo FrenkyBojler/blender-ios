@@ -302,7 +302,7 @@ static void rna_def_light_energy(StructRNA *srna, const short light_type)
       /* Dome light strength has no unit defined, similar to sun light */
       prop = RNA_def_property(srna, "energy", PROP_FLOAT, PROP_NONE);
       RNA_def_property_ui_range(prop, 0.0f, 10.0f, 1, 3);
-      RNA_def_property_ui_text(prop, "Strength", "Dome light strength for environment lighting");
+      RNA_def_property_ui_text(prop, "Intensity", "Dome light strength for environment lighting");
       RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_LIGHT);
       RNA_def_property_update(prop, 0, "rna_Light_draw_update");
       break;
