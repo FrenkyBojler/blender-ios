@@ -8623,7 +8623,7 @@ def km_sequencer_tool_blade(_params):
                  ("use_cursor_position", True),
                  ("ignore_selection", True),
              ]}),
-            ("sequencer.split", {"type": 'LEFTMOUSE', "value": 'PRESS', "ctrl": True},
+            ("sequencer.split", {"type": 'LEFTMOUSE', "value": 'PRESS', "alt": True},
              {"properties": [
                  ("type", 'SOFT'),
                  ("side", 'NO_CHANGE'),
