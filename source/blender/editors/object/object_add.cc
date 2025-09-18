@@ -954,23 +954,10 @@ static wmOperatorStatus lattice_add_exec(bContext *C, wmOperator *op)
         continue;
       }
 
-      /* Removes existing lattice modifiers */
-      LISTBASE_FOREACH_MUTABLE (ModifierData *, md, &ob->modifiers) {
-        if (md->type == eModifierType_Lattice) {
-          LatticeModifierData *lattice_md = (LatticeModifierData *)md;
-          if (lattice_md->object == nullptr || lattice_md->object->type == OB_LATTICE) {
-            BKE_modifier_remove_from_list(ob, md);
-            MEM_freeN(md);
-          }
-        }
-      }
+      LatticeModifierData *lattice_modifier = (LatticeModifierData *)modifier_add(
+          op->reports, CTX_data_main(C), CTX_data_scene(C), ob, nullptr, eModifierType_Lattice);
 
-      ModifierData *md = BKE_modifier_new(eModifierType_Lattice);
-      BLI_addtail(&ob->modifiers, md);
-      ((LatticeModifierData *)md)->object = ob_lattice;
-
-      BKE_modifiers_persistent_uid_init(*ob, *md);
-
+      lattice_modifier->object = ob_lattice;
       DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
       WM_main_add_notifier(NC_OBJECT | ND_MODIFIER, ob);
     }
