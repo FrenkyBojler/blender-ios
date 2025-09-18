@@ -954,6 +954,17 @@ static wmOperatorStatus lattice_add_exec(bContext *C, wmOperator *op)
         continue;
       }
 
+      /* Removes existing lattice modifiers */
+      LISTBASE_FOREACH_MUTABLE (ModifierData *, md, &ob->modifiers) {
+        if (md->type == eModifierType_Lattice) {
+          LatticeModifierData *lattice_md = (LatticeModifierData *)md;
+          if (lattice_md->object == nullptr || lattice_md->object->type == OB_LATTICE) {
+            BKE_modifier_remove_from_list(ob, md);
+            MEM_freeN(md);
+          }
+        }
+      }
+
       ModifierData *md = BKE_modifier_new(eModifierType_Lattice);
       BLI_addtail(&ob->modifiers, md);
       ((LatticeModifierData *)md)->object = ob_lattice;
