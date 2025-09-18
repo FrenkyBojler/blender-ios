@@ -54,7 +54,7 @@ float2 dome_position_to_uv(float3 world_pos, float4x4 object_to_world_matrix, fl
   
   /* Convert to UV coordinates [0,1] */
   float u = (theta + float(M_PI)) / float(M_2PI); /* Map -PI..PI to 0..1 */
-  float v = phi / float(M_PI); /* Map 0..PI to 0..1 */
+  float v = (phi / float(M_PI)); /* Map 0..PI to 0..1 */
   
   /* Apply UV flipping if enabled */
   if (flip_u) {
@@ -109,10 +109,16 @@ void main()
   }
   
   /* Extract dome data from the additional fields */
-  float3 dome_rotation = data_buf[gl_InstanceID].dome_rotation;
+  float4 dome_rotation_and_size = data_buf[gl_InstanceID].dome_rotation;
+  float3 dome_rotation = dome_rotation_and_size.xyz;
+  float4 dome_hdr_params_data = data_buf[gl_InstanceID].dome_hdr_params;
   bool32_t dome_hdr_flag = data_buf[gl_InstanceID].has_hdr;
-  bool32_t flip_u = data_buf[gl_InstanceID].flip_u;
-  bool32_t flip_v = data_buf[gl_InstanceID].flip_v;
+  bool32_t flip_u_flag = data_buf[gl_InstanceID].flip_u;
+  bool32_t flip_v_flag = data_buf[gl_InstanceID].flip_v;
+  
+  /* Convert bool32_t to actual boolean for GLSL */
+  bool flip_u = (flip_u_flag != 0);
+  bool flip_v = (flip_v_flag != 0);
 
   /* Transform to world space */
   float3 world_pos = (obmat * float4(vpos, 1.0f)).xyz;
@@ -126,16 +132,15 @@ void main()
     dir = apply_dome_rotation(dir, dome_rotation);
   }
   
-  /* Equirectangular projection (lat-long mapping) for Blender coordinate system */
-  /* In Blender: X=depth, Y=width, Z=height */
-  /* theta: angle around Z axis (longitude) - using Y/X for horizontal rotation */
-  /* phi: angle from Z axis (latitude) - using Z for vertical */
-  float theta = atan(dir.y, dir.x); /* -PI to PI */
-  float phi = acos(clamp(dir.z, -1.0f, 1.0f)); /* 0 to PI */
+  /* Equirectangular projection - standard mapping */
+  float theta = atan(dir.y, dir.x); /* Azimuth angle: -PI to PI */
+  float phi = acos(clamp(dir.z, -1.0f, 1.0f)); /* Polar angle: 0 to PI */
   
-  /* Map to UV coordinates [0,1] */
-  float dome_u = (theta / float(M_2PI)) + 0.5f;
-  float dome_v = phi / float(M_PI);
+  /* Standard equirectangular UV mapping */
+  /* U: convert theta from [-PI, PI] to [0, 1] */
+  float dome_u = (theta + float(M_PI)) / float(M_2PI);
+  /* V: convert phi from [0, PI] to [0, 1] where 0 is north pole (top) */
+  float dome_v = 1 - (phi / float(M_PI)); /* hdr was flip by default so we flip it back to point upward */
   
   /* Apply UV flipping if enabled */
   if (flip_u) {
@@ -147,8 +152,9 @@ void main()
   
   uv_coords = float2(dome_u, dome_v);
   
-  /* Pass HDR flag to fragment shader */
+  /* Pass HDR flag and parameters to fragment shader */
   has_hdr = dome_hdr_flag ? 1.0f : 0.0f;
+  hdr_params = dome_hdr_params_data.xyz;  /* strength, gamma, exposure */
 
   gl_Position = drw_point_world_to_homogenous(world_pos);
 

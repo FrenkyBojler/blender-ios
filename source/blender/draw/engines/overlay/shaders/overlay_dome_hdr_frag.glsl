@@ -13,36 +13,40 @@ void main()
 {
   float4 hdr_color;
   
-  /* Check if HDR texture is available */
-  if (has_hdr > 0.5f) {
-    /* Sample the HDR texture using the calculated UV coordinates */
-    hdr_color = texture(hdr_texture, uv_coords);
+  /* Sample the HDR texture using the calculated UV coordinates */
+  hdr_color = texture(hdr_texture, uv_coords);
+  
+  /* Check if we have valid HDR data (not black) */
+  float hdr_luminance = dot(hdr_color.rgb, float3(0.299f, 0.587f, 0.114f));
+  
+  /* Use the texture if it has content, otherwise show debug pattern */
+  if (hdr_luminance > 0.001f || has_hdr > 0.0f) {
+    /* Extract HDR parameters: strength, gamma, exposure */
+    float hdr_strength = hdr_params.x;
+    float hdr_gamma = hdr_params.y;
+    float light_exposure = hdr_params.z;
     
-    /* Advanced HDR tone mapping for better visualization */
-    /* Reinhard tone mapping with exposure control */
-    float exposure = 1.5f; /* Slightly increase exposure for better visibility */
-    float3 mapped_color = hdr_color.rgb * exposure;
+    /* Apply strength (intensity multiplier) */
+    float3 strengthened_color = hdr_color.rgb * hdr_strength;
+    
+    /* Apply exposure adjustment */
+    float3 exposed_color = strengthened_color * pow(2.0f, light_exposure);
     
     /* Enhanced Reinhard tone mapping for HDR */
-    mapped_color = mapped_color / (float3(1.0f) + mapped_color);
+    float3 mapped_color = exposed_color / (float3(1.0f) + exposed_color);
     
-    /* Apply gamma correction for display */
-    float gamma = 2.2f;
-    mapped_color = pow(mapped_color, float3(1.0f / gamma));
-    
-    /* Enhance contrast slightly for better visibility in viewport */
-    mapped_color = mapped_color * 1.1f - 0.05f;
-    mapped_color = clamp(mapped_color, 0.0f, 1.0f);
+    /* Apply gamma correction */
+    float3 gamma_corrected = pow(mapped_color, float3(1.0f / hdr_gamma));
     
     /* Mix with wireframe color for selection feedback */
-    float3 final_rgb = mapped_color;
+    float3 final_rgb = gamma_corrected;
     if (final_color.r > 0.9f && final_color.g < 0.6f && final_color.b < 0.6f) {
       /* Object is selected (reddish wireframe) - add subtle red tint */
-      final_rgb = mix(mapped_color, final_color.rgb, 0.1f);
+      final_rgb = mix(gamma_corrected, final_color.rgb, 0.1f);
     }
     
-    /* Set final color with proper alpha blending for overlay */
-    frag_color = float4(final_rgb, final_color.a * 0.85f);
+    /* Set final color without transparency */
+    frag_color = float4(final_rgb, 1.0f);
   }
   else {
     /* Enhanced debug pattern when no HDR texture is available */
@@ -53,14 +57,9 @@ void main()
     float3 uv_debug_color = mix(color1, color2, checker);
     
     /* Add gradient overlay for depth perception */
-    uv_debug_color *= 0.5f + 0.5f * (uv_coords.y);
-    
-    /* Add animated pulse to indicate it's a placeholder */
-    /* Note: We don't have time uniform, so using UV-based animation */
-    float pulse = 0.8f + 0.2f * sin(uv_coords.x * 10.0f + uv_coords.y * 10.0f);
-    uv_debug_color *= pulse;
-    
-    frag_color = float4(uv_debug_color, final_color.a * 0.9f);
+    uv_debug_color *= 0.05f + 0.05f * (uv_coords.y);
+
+    frag_color = float4(uv_debug_color, 1.0f);
   }
   
   /* No line output for solid dome rendering */

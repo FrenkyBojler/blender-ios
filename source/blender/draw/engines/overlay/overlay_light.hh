@@ -220,12 +220,12 @@ class Lights : Overlay {
         }
 
         /* Set dome-specific fields in the standard data structure */
-        float3 dome_rotation = float3(
-            la.dome_rotation[0], la.dome_rotation[1], la.dome_rotation[2]);
-        data.dome_rotation = dome_rotation;
-        data.has_hdr = (hdr_texture != nullptr);
-        data.flip_u = la.dome_hdr_flip_u;
-        data.flip_v = la.dome_hdr_flip_v;
+        data.dome_rotation = float4(
+            la.dome_rotation[0], la.dome_rotation[1], la.dome_rotation[2], la.dome_size);
+        data.dome_hdr_params = float4(la.dome_hdr_strength, la.dome_hdr_gamma, la.exposure, 0.0f);
+        data.has_hdr = (hdr_texture != nullptr) ? 1 : 0;
+        data.flip_u = la.dome_hdr_flip_u ? 1 : 0;  // Convert char to bool32_t
+        data.flip_v = la.dome_hdr_flip_v ? 1 : 0;  // Convert char to bool32_t
 
         /* Show both wireframe and solid using same standard system */
         LightInstanceBuf &dome_wireframe_buf = (la.dome_type == LA_DOME_HEMISPHERE) ?

@@ -325,8 +325,8 @@ struct ExtraInstanceData {
   float4 color_;
   float4x4 object_to_world;
   /* Dome light specific fields */
-  float3 dome_rotation; /* Dome rotation in radians (X, Y, Z) */
-  float dome_size;      /* Dome size */
+  float4 dome_rotation; /* Dome rotation in radians (X, Y, Z) + size in w */
+  float4 dome_hdr_params; /* HDR parameters: strength, gamma, exposure, _pad */
   bool32_t has_hdr;     /* HDR flag: true = has HDR, false = no HDR */
   bool32_t flip_u;      /* UV flip horizontally */
   bool32_t flip_v;      /* UV flip vertically */
@@ -339,8 +339,8 @@ struct ExtraInstanceData {
     this->object_to_world = object_to_world;
     this->object_to_world[3][3] = draw_size;
     /* Initialize dome fields to defaults */
-    this->dome_rotation = float3(0.0f, 0.0f, 0.0f);
-    this->dome_size = 1.0f;
+    this->dome_rotation = float4(0.0f, 0.0f, 0.0f, 1.0f);
+    this->dome_hdr_params = float4(1.0f, 2.2f, 0.0f, 0.0f); /* strength, gamma, exposure, pad */
     this->has_hdr = false;
     this->flip_u = false;
     this->flip_v = false;
@@ -369,8 +369,8 @@ struct ExtraInstanceData {
     this->object_to_world[2][3] = angle_max_x;
     this->object_to_world[3][3] = angle_max_z;
     /* Initialize dome fields to defaults */
-    this->dome_rotation = float3(0.0f, 0.0f, 0.0f);
-    this->dome_size = 1.0f;
+    this->dome_rotation = float4(0.0f, 0.0f, 0.0f, 1.0f);
+    this->dome_hdr_params = float4(1.0f, 2.2f, 0.0f, 0.0f); /* strength, gamma, exposure, pad */
     this->has_hdr = false;
     this->flip_u = false;
     this->flip_v = false;
@@ -381,13 +381,13 @@ struct ExtraInstanceData {
   ExtraInstanceData(const float4x4 &object_to_world,
                     const float4 &color,
                     float dome_size,
-                    const float3 &dome_rotation,
+                    const float3 &dome_rotation_,
                     bool has_hdr)
   {
     this->color_ = color;
     this->object_to_world = object_to_world;
-    this->dome_rotation = dome_rotation;
-    this->dome_size = dome_size;
+    this->dome_rotation = float4(dome_rotation_.x, dome_rotation_.y, dome_rotation_.z, dome_size);
+    this->dome_hdr_params = float4(1.0f, 2.2f, 0.0f, 0.0f); /* strength, gamma, exposure, pad */
     this->has_hdr = has_hdr;
     this->flip_u = false;
     this->flip_v = false;
