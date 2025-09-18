@@ -816,27 +816,19 @@ static wmOperatorStatus lattice_add_to_selected_exec(bContext *C, wmOperator *op
   const int resolution_v = RNA_int_get(op->ptr, "resolution_v");
   const int resolution_w = RNA_int_get(op->ptr, "resolution_w");
 
-  /* Cache the initial orientation of the active object.
-   *  On the first run, extract the active object's world rotation,
-   *   convert it to a quaternion, and store it in the operator's hidden RNA property.
-   *  On redo, simply reuse the cached quaternion so the lattice keeps the same
-   *   orientation.
-   */
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+
   float quat[4];
-  if (RNA_struct_property_is_set(op->ptr, "initial_orientation")) {
-    RNA_float_get_array(op->ptr, "initial_orientation", quat);
+  if (ob_active) {
+    const Object *ob_eval = DEG_get_evaluated(depsgraph, ob_active);
+
+    float rotation_matrix[3][3];
+    copy_m3_m4(rotation_matrix, ob_eval->object_to_world().ptr());
+    normalize_m3(rotation_matrix);
+    mat3_to_quat(quat, rotation_matrix);
   }
   else {
-    if (ob_active) {
-      float rotation_matrix[3][3];
-      copy_m3_m4(rotation_matrix, ob_active->object_to_world().ptr());
-      normalize_m3(rotation_matrix);
-      mat3_to_quat(quat, rotation_matrix);
-    }
-    else {
-      unit_qt(quat);
-    }
-    RNA_float_set_array(op->ptr, "initial_orientation", quat);
+    unit_qt(quat);
   }
 
   Vector<Object *> targets;
