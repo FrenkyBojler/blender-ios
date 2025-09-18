@@ -125,7 +125,7 @@ struct ParamSlimOptions {
 
 void uv_parametrizer_slim_solve(ParamHandle *phandle,
                                 const ParamSlimOptions *slim_options,
-                                const bool uniform_bounds,
+                                const bool uniform_bounding_box,
                                 int *count_changed,
                                 int *count_failed);
 
@@ -153,7 +153,7 @@ bool uv_parametrizer_is_slim(const ParamHandle *phandle);
 void uv_parametrizer_lscm_begin(ParamHandle *handle,
                                 bool live,
                                 bool abf,
-                                const bool uniform_bounds);
+                                const bool uniform_bounding_box);
 void uv_parametrizer_lscm_solve(ParamHandle *handle, int *count_changed, int *count_failed);
 void uv_parametrizer_lscm_end(ParamHandle *handle);
 

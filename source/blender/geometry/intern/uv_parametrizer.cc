@@ -3055,14 +3055,14 @@ static void p_chart_extrema_verts(PChart *chart, PVert **pin1, PVert **pin2)
   p_chart_pin_positions(chart, pin1, pin2);
 }
 
-static void p_chart_lscm_begin(PChart *chart, bool live, bool abf, const bool uniform_bounds)
+static void p_chart_lscm_begin(PChart *chart, bool live, bool abf, const bool uniform_bounding_box)
 {
   BLI_assert(chart->context == nullptr);
 
   bool select = false;
   bool deselect = false;
   int npins = 0;
-  if (uniform_bounds) {
+  if (uniform_bounding_box) {
     p_chart_uv_bbox(chart, chart->orig_bounds.min, chart->orig_bounds.max);
   }
   /* Give vertices matrix indices, count pins and check selections. */
@@ -4075,7 +4075,7 @@ void uv_parametrizer_construct_end(ParamHandle *phandle,
 void uv_parametrizer_lscm_begin(ParamHandle *phandle,
                                 bool live,
                                 bool abf,
-                                const bool uniform_bounds)
+                                const bool uniform_bounding_box)
 {
   BLI_assert(phandle->state == PHANDLE_STATE_CONSTRUCTED);
   phandle->state = PHANDLE_STATE_LSCM;
@@ -4084,7 +4084,7 @@ void uv_parametrizer_lscm_begin(ParamHandle *phandle,
     for (PFace *f = phandle->charts[i]->faces; f; f = f->nextlink) {
       p_face_backup_uvs(f);
     }
-    p_chart_lscm_begin(phandle->charts[i], live, abf, uniform_bounds);
+    p_chart_lscm_begin(phandle->charts[i], live, abf, uniform_bounding_box);
   }
 }
 
@@ -5123,7 +5123,7 @@ static void slim_transfer_faces(const PChart *chart, slim::MatrixTransferChart *
  */
 static void slim_convert_blender(ParamHandle *phandle,
                                  slim::MatrixTransfer *mt,
-                                 const bool uniform_bounds)
+                                 const bool uniform_bounding_box)
 {
   static const float SLIM_CORR_MIN_AREA = 1.0e-8;
   static const float SLIM_CORR_MIN_ANGLE = DEG2RADF(1.0f);
@@ -5132,7 +5132,7 @@ static void slim_convert_blender(ParamHandle *phandle,
 
   for (int i = 0; i < phandle->ncharts; i++) {
     PChart *chart = phandle->charts[i];
-    if (uniform_bounds) {
+    if (uniform_bounding_box) {
       p_chart_uv_bbox(chart, chart->orig_bounds.min, chart->orig_bounds.max);
     }
     slim::MatrixTransferChart *mt_chart = &mt->charts[i];
@@ -5168,11 +5168,11 @@ static void slim_convert_blender(ParamHandle *phandle,
 
 static void slim_transfer_data_to_slim(ParamHandle *phandle,
                                        const ParamSlimOptions *slim_options,
-                                       const bool uniform_bounds)
+                                       const bool uniform_bounding_box)
 {
   slim::MatrixTransfer *mt = slim_matrix_transfer(slim_options);
 
-  slim_convert_blender(phandle, mt, uniform_bounds);
+  slim_convert_blender(phandle, mt, uniform_bounding_box);
   phandle->slim_mt = mt;
 }
 
@@ -5293,12 +5293,12 @@ static void slim_get_pinned_vertex_data(ParamHandle *phandle,
 
 void uv_parametrizer_slim_solve(ParamHandle *phandle,
                                 const ParamSlimOptions *slim_options,
-                                bool uniform_bounds,
+                                bool uniform_bounding_box,
                                 int *count_changed,
                                 int *count_failed)
 {
 #ifdef WITH_UV_SLIM
-  slim_transfer_data_to_slim(phandle, slim_options, uniform_bounds);
+  slim_transfer_data_to_slim(phandle, slim_options, uniform_bounding_box);
   slim::MatrixTransfer *mt = phandle->slim_mt;
 
   mt->parametrize();
