@@ -1812,7 +1812,7 @@ UVSyncSelectFromView3D *UVSyncSelectFromView3D::create_if_needed(const ToolSetti
     return nullptr;
   }
 
-  return MEM_new<UVSyncSelectFromView3D>(__func__, ts, bm);
+  return MEM_new<UVSyncSelectFromView3D>(__func__, bm, ts.uv_sticky);
 }
 
 void UVSyncSelectFromView3D::apply()
@@ -1820,37 +1820,17 @@ void UVSyncSelectFromView3D::apply()
   const int cd_loop_uv_offset = CustomData_get_active_layer(&bm.ldata, CD_PROP_FLOAT2);
   BLI_assert(cd_loop_uv_offset != -1);
 
-  /* TODO(@ideasman42): select picking is slow because it does flushing too.
-   * This is useful as a way to validate the API however this should be replaces by flushing. */
-
-  /* FIXME(@ideasman42): There are flushing issues with de-selecting edges.
-   * Possibly there are other flushing that needs work. */
-
-  const bool shared = toolsettings.uv_sticky == SI_STICKY_LOC;
+  const bool shared = uv_sticky == SI_STICKY_LOC;
   const BMUVSelectPickParams uv_pick_params = {
       /*cd_loop_uv_offset*/ cd_loop_uv_offset,
       /*shared*/ shared,
   };
 
-  for (BMVert *v : bm_verts_deselect_) {
-    BM_vert_uvselect_set_pick(&bm, v, false, uv_pick_params);
-  }
-  for (BMEdge *e : bm_edges_deselect_) {
-    BM_edge_uvselect_set_pick(&bm, e, false, uv_pick_params);
-  }
-  for (BMFace *f : bm_faces_deselect_) {
-    BM_face_uvselect_set_pick(&bm, f, false, uv_pick_params);
-  }
+  BM_mesh_uvselect_set_elem_from_v3d(
+      &bm, false, uv_pick_params, bm_verts_deselect_, bm_edges_deselect_, bm_faces_deselect_);
 
-  for (BMVert *v : bm_verts_select_) {
-    BM_vert_uvselect_set_pick(&bm, v, true, uv_pick_params);
-  }
-  for (BMEdge *e : bm_edges_select_) {
-    BM_edge_uvselect_set_pick(&bm, e, true, uv_pick_params);
-  }
-  for (BMFace *f : bm_faces_select_) {
-    BM_face_uvselect_set_pick(&bm, f, true, uv_pick_params);
-  }
+  BM_mesh_uvselect_set_elem_from_v3d(
+      &bm, true, uv_pick_params, bm_verts_select_, bm_edges_select_, bm_faces_select_);
 }
 
 /* Select. */

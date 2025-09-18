@@ -6,6 +6,8 @@
 
 #include "bmesh_class.hh"
 
+#include "BLI_vector_list.hh"
+
 /** \file
  * \ingroup bmesh
  *
@@ -58,6 +60,22 @@ void BM_loop_edge_uvselect_set_noflush(BMesh *bm, BMLoop *l, bool select);
 void BM_loop_edge_uvselect_set(BMesh *bm, BMLoop *l, bool select);
 void BM_loop_vert_uvselect_set_noflush(BMesh *bm, BMLoop *l, bool select);
 
+/**
+ * Call this function when selecting mesh elements in the viewport and
+ * the relationship with UV's is lost.
+ *
+ * By convention place this immediately after selection flushing.
+ *
+ * \return True if UV select is cleared (a change was made).
+ */
+bool BM_mesh_uvselect_clear(BMesh *bm);
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name UV Selection Functions (Shared)
+ * \{ */
+
 void BM_loop_vert_uvselect_set_shared(BMesh *bm,
                                       BMLoop *l,
                                       bool select,
@@ -68,15 +86,12 @@ void BM_loop_edge_uvselect_set_shared(BMesh *bm,
                                       const int cd_loop_uv_offset);
 void BM_face_uvselect_set_shared(BMesh *bm, BMFace *f, bool select, const int cd_loop_uv_offset);
 
-/**
- * Call this function when selecting mesh elements in the viewport and
- * the relationship with UV's is lost.
- *
- * By convention place this immediately after selection flushing.
- *
- * \return True if UV select is cleared (a change was made).
- */
-bool BM_mesh_uvselect_clear(BMesh *bm);
+void BM_mesh_uvselect_set_elem_shared(BMesh *bm,
+                                      bool select,
+                                      const int cd_loop_uv_offset,
+                                      const blender::Span<BMLoop *> loop_verts,
+                                      const blender::Span<BMLoop *> loop_edges,
+                                      const blender::Span<BMFace *> faces);
 
 /** \} */
 
@@ -107,6 +122,19 @@ void BM_face_uvselect_set_pick(BMesh *bm,
                                bool select,
                                const BMUVSelectPickParams &params);
 
+void BM_mesh_uvselect_set_elem_from_v3d(BMesh *bm,
+                                        bool select,
+                                        const BMUVSelectPickParams &params,
+                                        const blender::VectorList<BMVert *> &verts,
+                                        const blender::VectorList<BMEdge *> &edges,
+                                        const blender::VectorList<BMFace *> &faces);
+void BM_mesh_uvselect_set_elem_from_v3d(BMesh *bm,
+                                        bool select,
+                                        const BMUVSelectPickParams &params,
+                                        const blender::Span<BMVert *> verts,
+                                        const blender::Span<BMEdge *> edges,
+                                        const blender::Span<BMFace *> faces);
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -129,6 +157,14 @@ void BM_mesh_uvselect_flush_from_faces(BMesh *bm, bool flush_down);
 void BM_mesh_uvselect_flush_from_faces_only_select(BMesh *bm);
 void BM_mesh_uvselect_flush_from_faces_only_deselect(BMesh *bm);
 void BM_mesh_uvselect_flush_mode(BMesh *bm);
+/**
+ * Mode independent UV selection/de-selection flush.
+ *
+ * \param select: When true, flush the selection state to de-selected elements,
+ * otherwise perform the opposite, flushing de-selection.
+ */
+void BM_mesh_uvselect_flush(BMesh *bm, bool select);
+
 /**
  * Select elements based on the selection mode.
  * (flushes the selection *up* based on the mode).
@@ -181,16 +217,83 @@ void BM_mesh_uvselect_flush_post_subdivide(BMesh *bm, const int cd_loop_uv_offse
 /** \name UV Selection Validation
  * \{ */
 
-struct UVSelectValidateInfo {
-
-  /* Between UV's and mesh selection. */
-
+/** Between UV's and mesh selection. */
+struct UVSelectValidateInfo_Sync {
   /** When a vertex is unselected none of it's UV's may be selected. */
   uint count_uv_vert_any_selected_with_vert_unselected = 0;
   /** When a vertex is selected at least one UV must be selected. */
   uint count_uv_vert_none_selected_with_vert_selected = 0;
+
+  /** When a edge is unselected none of it's UV's may be selected. */
+  uint count_uv_edge_any_selected_with_edge_unselected = 0;
+  /** When a edge is selected at least one UV must be selected. */
+  uint count_uv_edge_none_selected_with_edge_selected = 0;
 };
 
-bool BM_mesh_uvselect_check(BMesh *bm, bool skip_uv_sync_select_valid, UVSelectValidateInfo *info);
+/** Flushing between elements. */
+struct UVSelectValidateInfo_Flush {
+  /** Edges are selected without selected vertices. */
+  uint count_uv_edge_selected_with_any_verts_unselected = 0;
+  /** Edges are unselected with all selected vertices. */
+  uint count_uv_edge_unselected_with_all_verts_selected = 0;
+
+  /** Faces are selected without selected vertices. */
+  uint count_uv_face_selected_with_any_verts_unselected = 0;
+  /** Faces  are unselected with all selected vertices. */
+  uint count_uv_face_unselected_with_all_verts_selected = 0;
+
+  /** Faces are selected without selected edges. */
+  uint count_uv_face_selected_with_any_edges_unselected = 0;
+  /** Faces  are unselected with all selected edges. */
+  uint count_uv_face_unselected_with_all_edges_selected = 0;
+};
+
+/** Flush & contiguous. */
+struct UVSelectValidateInfo_Contiguous {
+  /** When a vertices connected UV's are co-located without matching selection. */
+  uint count_uv_vert_non_contiguous_selected = 0;
+  /** When a edges connected UV's are co-located without matching selection. */
+  uint count_uv_edge_non_contiguous_selected = 0;
+};
+
+struct UVSelectValidateInfo_FlushAndContiguous {
+  /** A vertex is selected in edge/face modes without being part of a selected edge/face. */
+  uint count_uv_vert_isolated_in_edge_or_face_mode = 0;
+  /** A vertex is selected in face modes without being part of a selected face. */
+  uint count_uv_vert_isolated_in_face_mode = 0;
+  /** An edge is selected in face modes without being part of a selected face. */
+  uint count_uv_edge_isolated_in_face_mode = 0;
+};
+
+struct UVSelectValidateInfo {
+  UVSelectValidateInfo_Sync sync;
+
+  /* These are optional. */
+
+  UVSelectValidateInfo_Flush flush;
+  UVSelectValidateInfo_Contiguous contiguous;
+  UVSelectValidateInfo_FlushAndContiguous flush_contiguous;
+};
+
+/**
+ * \param cd_loop_uv_offset: The UV custom-data layer to check.
+ * Ignored when -1 (UV checks wont be used).
+ *
+ * \param check_sync: When true, check the selection is synchronized
+ * between the UV and mesh selection. This should practically always be true,
+ * as it doesn't make sense to check the UV selection if valid otherwise,
+ * unless the UV selection is being set and has not yet been synchronized.
+ * \param check_flush: When true, check the selection is flushed based on #BMesh::selectmode.
+ * \param check_contiguous: When true, check that UV selection is contiguous.
+ * Note that this is not considered an *error* since users may cause this to happen and
+ * tools are expected to work properly, however some operations are expected to maintain
+ * a contiguous selection. This check is included to ensure those operations are working.
+ */
+bool BM_mesh_uvselect_check(BMesh *bm,
+                            int cd_loop_uv_offset,
+                            bool check_sync,
+                            bool check_flush,
+                            bool check_contiguous,
+                            UVSelectValidateInfo *info);
 
 /** \} */

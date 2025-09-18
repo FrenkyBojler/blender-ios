@@ -853,7 +853,21 @@ static void *undomesh_from_editmesh(UndoMesh *um,
   }
 
   /* Uncomment for troubleshooting. */
-  // BM_mesh_validate(em->bm);
+  if (false) {
+    BM_mesh_validate(em->bm);
+  }
+
+  /* Ensure UV's are in a valid state. */
+  if (true && em->bm->uv_sync_select_valid) {
+    const int cd_loop_uv_offset = CustomData_get_offset(&em->bm->ldata, CD_PROP_FLOAT2);
+    bool check_flush = true;
+    /* This should check the sticky mode too (currently the scene isn't available). */
+    bool check_contiguous = (cd_loop_uv_offset != -1);
+    UVSelectValidateInfo info;
+    bool is_valid = BM_mesh_uvselect_check(
+        em->bm, cd_loop_uv_offset, true, check_flush, check_contiguous, &info);
+    BLI_assert(is_valid);
+  }
 
   CustomData_MeshMasks cd_mask_extra{};
   cd_mask_extra.vmask = CD_MASK_SHAPE_KEYINDEX;

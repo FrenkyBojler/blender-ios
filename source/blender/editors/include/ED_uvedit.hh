@@ -90,7 +90,7 @@ namespace blender::ed::uv {
 
 class UVSyncSelectFromView3D : NonCopyable {
 
-  const ToolSettings &toolsettings;
+  char uv_sticky;
   BMesh &bm;
 
   blender::VectorList<BMVert *> bm_verts_select_;
@@ -102,7 +102,7 @@ class UVSyncSelectFromView3D : NonCopyable {
   blender::VectorList<BMFace *> bm_faces_deselect_;
 
  public:
-  UVSyncSelectFromView3D(const ToolSettings &ts, BMesh &bm) : toolsettings(ts), bm(bm) {}
+  UVSyncSelectFromView3D(BMesh &bm, char uv_sticky) : uv_sticky(uv_sticky), bm(bm) {}
   UVSyncSelectFromView3D(const UVSyncSelectFromView3D &) = delete;
 
   static UVSyncSelectFromView3D *create_if_needed(const ToolSettings &ts, BMesh &bm);
