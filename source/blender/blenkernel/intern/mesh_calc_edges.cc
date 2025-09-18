@@ -222,9 +222,6 @@ void mesh_calc_edges(Mesh &mesh,
                      const bool select_new_edges,
                      const AttributeFilter &attribute_filter)
 {
-  BLI_assert(std::all_of(mesh.edges().begin(), mesh.edges().end(), [&](const int2 edge) {
-    return edge.x != edge.y;
-  }));
 
   if (mesh.edges_num == 0 && mesh.corners_num == 0) {
     BLI_assert(BKE_mesh_is_valid(&mesh));
@@ -238,6 +235,10 @@ void mesh_calc_edges(Mesh &mesh,
     BLI_assert(BKE_mesh_is_valid(&mesh));
     return;
   }
+
+  BLI_assert(std::all_of(mesh.edges().begin(), mesh.edges().end(), [&](const int2 edge) {
+    return edge.x != edge.y;
+  }));
 
   /* Parallelization is achieved by having multiple hash tables for different subsets of edges.
    * Each edge is assigned to one of the hash maps based on the lower bits of a hash value. */
@@ -278,16 +279,13 @@ void mesh_calc_edges(Mesh &mesh,
   const Span<int> corner_verts = mesh.corner_verts();
   if (keep_existing_edges && original_edges_are_distinct && no_new_edges) {
     /* We need a way to say from caller side if we should generate corner edge attribute even in
-     * that case. */
+     * that case. TODO: make this optional. */
     calc_edges::update_edge_indices_in_face_loops(
         faces, corner_verts, edge_maps, parallel_mask, edge_offsets, corner_edges);
     BLI_assert(!corner_edges.contains(-1));
     BLI_assert(BKE_mesh_is_valid(&mesh));
     return;
   }
-
-  BLI_assert_msg(keep_existing_edges || !no_new_edges,
-                 "Mesh must not contain corners at this point");
 
   const int result_edges_num = edge_offsets.total_size();
 
@@ -382,7 +380,6 @@ void mesh_calc_edges(Mesh &mesh,
         edge_verts.drop_front(original_unique_edge_num));
   }
   else {
-    /* TODO: && has_any_filtred_edge_attribute. */
     if (mesh.edges_num != 0) {
       const IndexMask original_corner_edges = IndexMask::from_predicate(
           IndexRange(mesh.edges_num), GrainSize(2048), memory, [&](const int edge_i) {
@@ -466,7 +463,7 @@ void mesh_calc_edges(Mesh &mesh,
   BLI_assert(back_range_of_new_edges.one_after_last() == result_edges_num);
 
   Vector<std::string> attributes_to_drop;
-  /* TODO: Need all_pass on #attribute_filter to know is this loop can be skiped. */
+  /* TODO: Need ::all_pass() on #attribute_filter to know is this loop can be skipped. */
   mesh.attributes().foreach_attribute([&](const AttributeIter &attribute) {
     if (attribute.data_type == AttrType::String) {
       return;
