@@ -22,6 +22,7 @@
 #include "vk_debug.hh"
 #include "vk_descriptor_pools.hh"
 #include "vk_descriptor_set_layouts.hh"
+#include "vk_memory_pool.hh"
 #include "vk_pipeline_pool.hh"
 #include "vk_resource_pool.hh"
 #include "vk_samplers.hh"
@@ -181,6 +182,8 @@ class VKDevice : public NonCopyable {
   VkPhysicalDeviceDriverProperties vk_physical_device_driver_properties_ = {};
   VkPhysicalDeviceIDProperties vk_physical_device_id_properties_ = {};
   VkPhysicalDeviceMemoryProperties vk_physical_device_memory_properties_ = {};
+  VkPhysicalDeviceMaintenance4Properties vk_physical_device_maintenance4_properties_ = {
+      VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MAINTENANCE_4_PROPERTIES};
   VkPhysicalDeviceDescriptorBufferPropertiesEXT vk_physical_device_descriptor_buffer_properties_ =
       {};
   /** Features support. */
@@ -245,13 +248,7 @@ class VKDevice : public NonCopyable {
 
   } functions;
 
-  struct {
-    /* NOTE: This attribute needs to be kept alive as it will be read by VMA when allocating from
-     * `external_memory` pool. */
-    VkExportMemoryAllocateInfoKHR external_memory_info = {
-        VK_STRUCTURE_TYPE_EXPORT_MEMORY_ALLOCATE_INFO_KHR};
-    VmaPool external_memory = VK_NULL_HANDLE;
-  } vma_pools;
+  VKMemoryPools vma_pools;
 
   const char *extension_name_get(int index) const
   {
@@ -266,6 +263,12 @@ class VKDevice : public NonCopyable {
   const VkPhysicalDeviceProperties &physical_device_properties_get() const
   {
     return vk_physical_device_properties_;
+  }
+
+  inline const VkPhysicalDeviceMaintenance4Properties &
+  physical_device_maintenance4_properties_get() const
+  {
+    return vk_physical_device_maintenance4_properties_;
   }
 
   const VkPhysicalDeviceIDProperties &physical_device_id_properties_get() const
@@ -309,7 +312,7 @@ class VKDevice : public NonCopyable {
     return vk_queue_family_;
   }
 
-  VmaAllocator mem_allocator_get() const
+  inline VmaAllocator mem_allocator_get() const
   {
     return mem_allocator_;
   }
@@ -342,8 +345,8 @@ class VKDevice : public NonCopyable {
     return is_initialized_;
   }
 
-  eGPUDeviceType device_type() const;
-  eGPUDriverType driver_type() const;
+  GPUDeviceType device_type() const;
+  GPUDriverType driver_type() const;
   std::string vendor_name() const;
   std::string driver_version() const;
 
@@ -364,11 +367,11 @@ class VKDevice : public NonCopyable {
     return extensions_;
   }
 
-  const char *glsl_vertex_patch_get() const;
-  const char *glsl_geometry_patch_get() const;
-  const char *glsl_fragment_patch_get() const;
-  const char *glsl_compute_patch_get() const;
-  void init_glsl_patch();
+  std::string glsl_vertex_patch_get() const;
+  std::string glsl_geometry_patch_get() const;
+  std::string glsl_fragment_patch_get() const;
+  std::string glsl_compute_patch_get() const;
+  shader::GeneratedSource extensions_define(StringRefNull stage_define) const;
 
   /* -------------------------------------------------------------------- */
   /** \name Render graph
@@ -449,7 +452,12 @@ class VKDevice : public NonCopyable {
   Shader *vk_backbuffer_blit_sh_get()
   {
     if (vk_backbuffer_blit_sh_ == nullptr) {
+/* See display_as_extended_srgb in libocio_display_processor.cc for details on this choice. */
+#if defined(_WIN32) || defined(__APPLE__)
       vk_backbuffer_blit_sh_ = GPU_shader_create_from_info_name("vk_backbuffer_blit");
+#else
+      vk_backbuffer_blit_sh_ = GPU_shader_create_from_info_name("vk_backbuffer_blit_gamma22");
+#endif
     }
     return vk_backbuffer_blit_sh_;
   }
