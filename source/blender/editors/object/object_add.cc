@@ -751,9 +751,7 @@ void OBJECT_OT_add(wmOperatorType *ot)
 }
 
 /* -------------------------------------------------------------------- */
-
 /** \name Add Lattice Deformation to Selected Operator
-
  * \{ */
 
 static std::optional<Bounds<float3>> lattice_add_to_selected_collect_targets_and_calc_bounds(
