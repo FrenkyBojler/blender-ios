@@ -48,7 +48,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Vector>("Position").implicit_field(NODE_DEFAULT_INPUT_POSITION_FIELD);
   b.add_input<decl::Menu>("Interpolation")
       .static_items(interpolation_mode_items)
-      .default_value(int(InterpolationMode::TriLinear))
+      .default_value(InterpolationMode::TriLinear)
       .description("How to interpolate the values between neighboring voxels");
 
   b.add_output(data_type, "Value").dependent_field({1});
@@ -279,6 +279,7 @@ static void node_register()
 
   geo_node_type_base(&ntype, "GeometryNodeSampleGrid", GEO_NODE_SAMPLE_GRID);
   ntype.ui_name = "Sample Grid";
+  ntype.ui_description = "Retrieve values from the specified volume grid";
   ntype.enum_name_legacy = "SAMPLE_GRID";
   ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.initfunc = node_init;

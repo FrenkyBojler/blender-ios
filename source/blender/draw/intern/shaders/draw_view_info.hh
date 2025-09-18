@@ -6,7 +6,7 @@
 
 #ifdef GPU_SHADER
 #  pragma once
-#  include "gpu_glsl_cpp_stubs.hh"
+#  include "gpu_shader_compat.hh"
 
 #  include "draw_command_shared.hh"
 #  include "draw_shader_shared.hh"
@@ -46,20 +46,6 @@ GPU_SHADER_CREATE_END()
 GPU_SHADER_CREATE_INFO(draw_resource_with_custom_id)
 DEFINE("WITH_CUSTOM_IDS")
 STORAGE_BUF(DRW_RESOURCE_ID_SLOT, read, uint2, resource_id_buf[])
-GPU_SHADER_CREATE_END()
-
-/**
- * Workaround the lack of gl_BaseInstance by binding the resource_id_buf as vertex buf.
- */
-GPU_SHADER_CREATE_INFO(draw_resource_id_fallback)
-DEFINE("RESOURCE_ID_FALLBACK")
-VERTEX_IN(15, uint, in_resource_id)
-GPU_SHADER_CREATE_END()
-
-GPU_SHADER_CREATE_INFO(draw_resource_with_custom_id_fallback)
-DEFINE("RESOURCE_ID_FALLBACK")
-DEFINE("WITH_CUSTOM_IDS")
-VERTEX_IN(15, uint2, in_resource_id)
 GPU_SHADER_CREATE_END()
 
 /** \} */

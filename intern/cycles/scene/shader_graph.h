@@ -56,6 +56,7 @@ enum ShaderNodeSpecialType {
   SHADER_SPECIAL_TYPE_OUTPUT,
   SHADER_SPECIAL_TYPE_BUMP,
   SHADER_SPECIAL_TYPE_OUTPUT_AOV,
+  SHADER_SPECIAL_TYPE_LIGHT_PATH,
 };
 
 /* Input
@@ -299,7 +300,7 @@ class ShaderNodeIDAndBoolComparator {
   bool operator()(const std::pair<ShaderNode *, bool> p1,
                   const std::pair<ShaderNode *, bool> p2) const
   {
-    return p1.first->id < p2.first->id || p1.second < p2.second;
+    return p1.first->id < p2.first->id || (p1.first->id == p2.first->id && p1.second < p2.second);
   }
 };
 

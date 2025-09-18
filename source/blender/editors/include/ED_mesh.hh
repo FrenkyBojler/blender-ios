@@ -219,8 +219,13 @@ void EDBM_project_snap_verts(
 
 /* `editmesh_automerge.cc` */
 
-void EDBM_automerge(Object *obedit, bool update, char hflag, float dist);
-void EDBM_automerge_and_split(
+/** \return true if a change is made. */
+bool EDBM_automerge(Object *obedit, bool update, char hflag, float dist);
+/** \return true if a change is made. */
+bool EDBM_automerge_connected(Object *obedit, bool update, char hflag, float dist);
+
+/** \return true if a change is made. */
+bool EDBM_automerge_and_split(
     Object *obedit, bool split_edges, bool split_faces, bool update, char hflag, float dist);
 
 /* `editmesh_undo.cc` */
@@ -521,10 +526,6 @@ int ED_mesh_uv_add(
     Mesh *mesh, const char *name, bool active_set, bool do_init, ReportList *reports);
 
 void ED_mesh_uv_loop_reset(bContext *C, Mesh *mesh);
-/**
- * Without a #bContext, called when UV-editing.
- */
-void ED_mesh_uv_loop_reset_ex(Mesh *mesh, int layernum);
 bool ED_mesh_color_ensure(Mesh *mesh, const char *name);
 int ED_mesh_color_add(
     Mesh *mesh, const char *name, bool active_set, bool do_init, ReportList *reports);

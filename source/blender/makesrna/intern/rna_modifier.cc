@@ -1814,7 +1814,8 @@ static void rna_CorrectiveSmoothModifier_rest_source_update(Main *bmain,
   CorrectiveSmoothModifierData *csmd = (CorrectiveSmoothModifierData *)ptr->data;
 
   if (csmd->rest_source != MOD_CORRECTIVESMOOTH_RESTSOURCE_BIND) {
-    MEM_SAFE_FREE(csmd->bind_coords);
+    blender::implicit_sharing::free_shared_data(&csmd->bind_coords,
+                                                &csmd->bind_coords_sharing_info);
     csmd->bind_coords_num = 0;
   }
 
@@ -9047,10 +9048,10 @@ static void rna_def_modifier_grease_pencil_lineart(BlenderRNA *brna)
   RNA_def_property_range(prop, 0.0f, 0.5f);
   RNA_def_property_update(prop, NC_SCENE, "rna_Modifier_update");
 
-  prop = RNA_def_property(srna, "thickness", PROP_INT, PROP_NONE);
-  RNA_def_property_ui_text(prop, "Thickness", "The thickness for the generated strokes");
-  RNA_def_property_ui_range(prop, 1, 100, 1, 1);
-  RNA_def_property_range(prop, 1, 200);
+  prop = RNA_def_property(srna, "radius", PROP_FLOAT, PROP_FACTOR);
+  RNA_def_property_ui_text(prop, "Radius", "The radius for the generated strokes");
+  RNA_def_property_ui_range(prop, 0.0f, 0.25f, 0.01f, 2);
+  RNA_def_property_range(prop, 0.0f, 1.0f);
   RNA_def_property_update(prop, 0, "rna_Modifier_update");
 
   prop = RNA_def_property(srna, "opacity", PROP_FLOAT, PROP_FACTOR);

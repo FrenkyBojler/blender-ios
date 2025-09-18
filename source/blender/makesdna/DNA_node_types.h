@@ -501,6 +501,11 @@ typedef struct bNode {
    */
   IDProperty *prop;
 
+  /**
+   * System-defined properties, used e.g. to store data for custom node types.
+   */
+  IDProperty *system_properties;
+
   /** Parent node (for frame nodes). */
   struct bNode *parent;
 
@@ -794,7 +799,7 @@ typedef struct bNodeTree {
   /** Precision used by the GPU execution of the compositor tree. */
   int precision DNA_DEPRECATED;
 
-  /** #blender::bke::NodeGroupColorTag. */
+  /** #blender::bke::NodeColorTag. */
   int color_tag;
 
   /**
@@ -1182,7 +1187,7 @@ typedef struct NodeBlurData {
   float fac DNA_DEPRECATED;
   float percentx DNA_DEPRECATED;
   float percenty DNA_DEPRECATED;
-  short filtertype;
+  short filtertype DNA_DEPRECATED;
   char bokeh DNA_DEPRECATED;
   char gamma DNA_DEPRECATED;
 } NodeBlurData;
@@ -1207,7 +1212,7 @@ typedef struct NodeBilateralBlurData {
 
 typedef struct NodeKuwaharaData {
   short size DNA_DEPRECATED;
-  short variation;
+  short variation DNA_DEPRECATED;
   int uniformity DNA_DEPRECATED;
   float sharpness DNA_DEPRECATED;
   float eccentricity DNA_DEPRECATED;
@@ -1234,32 +1239,61 @@ typedef struct NodeImageFile {
   int sfra, efra;
 } NodeImageFile;
 
-/**
- * XXX: first struct fields should match #NodeImageFile to ensure forward compatibility.
- */
-typedef struct NodeImageMultiFile {
-  char base_path[/*FILE_MAX*/ 1024];
-  ImageFormatData format;
-  /** XXX old frame rand values from NodeImageFile for forward compatibility. */
-  int sfra DNA_DEPRECATED, efra DNA_DEPRECATED;
-  /** Selected input in details view list. */
-  int active_input;
+typedef struct NodeCompositorFileOutputItem {
+  /* The unique identifier of the item used to construct the socket identifier. */
+  int identifier;
+  /* The type of socket for the item, which is limited to the types listed in the
+   * FileOutputItemsAccessor::supports_socket_type. */
+  int16_t socket_type;
+  /* The number of dimensions in the vector socket if the socket type is vector, otherwise, it is
+   * unused, */
+  char vector_socket_dimensions;
+  /* If true and the node is saving individual files, the format an save_as_render members of this
+   * struct will be used, otherwise, the members of the NodeCompositorFileOutput struct will be
+   * used for all items. */
+  char override_node_format;
+  /* Apply the render part of the display transform when saving non-linear images. Unused if
+   * override_node_format is false or the node is saving multi-layer images. */
   char save_as_render;
-  char _pad[3];
-} NodeImageMultiFile;
+  char _pad[7];
+  /* The unique name of the item. It is used as the file name when saving individual files and used
+   * as the layer name when saving multi-layer images. */
+  char *name;
+  /* The image format to use when saving individual images and override_node_format is true. */
+  ImageFormatData format;
+} NodeCompositorFileOutputItem;
+
+typedef struct NodeCompositorFileOutput {
+  char directory[/*FILE_MAX*/ 1024];
+  /* The base name of the file. Can be nullptr. */
+  char *file_name;
+  /* The image format to use when saving the images. */
+  ImageFormatData format;
+  /* The file output images. They can represent individual images or layers depending on whether
+   * multi-layer images are being saved. */
+  NodeCompositorFileOutputItem *items;
+  /* The number of file output items. */
+  int items_count;
+  /* The currently active file output item. */
+  int active_item_index;
+  /* Apply the render part of the display transform when saving non-linear images. */
+  char save_as_render;
+  char _pad[7];
+} NodeCompositorFileOutput;
+
 typedef struct NodeImageMultiFileSocket {
   /* single layer file output */
   short use_render_format DNA_DEPRECATED;
   /** Use overall node image format. */
-  short use_node_format;
-  char save_as_render;
+  short use_node_format DNA_DEPRECATED;
+  char save_as_render DNA_DEPRECATED;
   char _pad1[3];
-  char path[/*FILE_MAX*/ 1024];
-  ImageFormatData format;
+  char path[/*FILE_MAX*/ 1024] DNA_DEPRECATED;
+  ImageFormatData format DNA_DEPRECATED;
 
   /* Multi-layer output. */
   /** Subtract 2 because '.' and channel char are appended. */
-  char layer[/*EXR_TOT_MAXNAME - 2*/ 62];
+  char layer[/*EXR_TOT_MAXNAME - 2*/ 62] DNA_DEPRECATED;
   char _pad2[2];
 } NodeImageMultiFileSocket;
 
@@ -1271,8 +1305,8 @@ typedef struct NodeChroma {
   float fstrength DNA_DEPRECATED;
   float falpha DNA_DEPRECATED;
   float key[4] DNA_DEPRECATED;
-  short algorithm;
-  short channel;
+  short algorithm DNA_DEPRECATED;
+  short channel DNA_DEPRECATED;
 } NodeChroma;
 
 typedef struct NodeTwoXYs {
@@ -1322,8 +1356,8 @@ typedef struct NodeScriptDict {
 
 /** glare node. */
 typedef struct NodeGlare {
-  char type;
-  char quality;
+  char type DNA_DEPRECATED;
+  char quality DNA_DEPRECATED;
   char iter DNA_DEPRECATED;
   char angle DNA_DEPRECATED;
   char _pad0;
@@ -1354,7 +1388,7 @@ typedef struct NodeTonemap {
   float m DNA_DEPRECATED;
   float a DNA_DEPRECATED;
   float c DNA_DEPRECATED;
-  int type;
+  int type DNA_DEPRECATED;
 } NodeTonemap;
 
 /* Lens Distortion node. */
@@ -1363,7 +1397,7 @@ typedef struct NodeLensDist {
   short proj DNA_DEPRECATED;
   short fit DNA_DEPRECATED;
   char _pad[2];
-  int distortion_type;
+  int distortion_type DNA_DEPRECATED;
 } NodeLensDist;
 
 typedef struct NodeColorBalance {
@@ -1387,7 +1421,7 @@ typedef struct NodeColorBalance {
 } NodeColorBalance;
 
 typedef struct NodeColorspill {
-  short limchan;
+  short limchan DNA_DEPRECATED;
   short unspill DNA_DEPRECATED;
   float limscale DNA_DEPRECATED;
   float uspillr DNA_DEPRECATED;
@@ -1400,6 +1434,11 @@ typedef struct NodeConvertColorSpace {
   char to_color_space[64];
 } NodeConvertColorSpace;
 
+typedef struct NodeConvertToDisplay {
+  ColorManagedDisplaySettings display_settings;
+  ColorManagedViewSettings view_settings;
+} NodeConvertToDisplay;
+
 typedef struct NodeDilateErode {
   char falloff;
 } NodeDilateErode;
@@ -1410,7 +1449,7 @@ typedef struct NodeMask {
 } NodeMask;
 
 typedef struct NodeSetAlpha {
-  char mode;
+  char mode DNA_DEPRECATED;
 } NodeSetAlpha;
 
 typedef struct NodeTexBase {
@@ -1427,7 +1466,7 @@ typedef struct NodeTexSky {
   float sun_rotation;
   float altitude;
   float air_density;
-  float dust_density;
+  float aerosol_density;
   float ozone_density;
   char sun_disc;
   char _pad[11];
@@ -1557,7 +1596,7 @@ typedef struct NodeKeyingData {
   float clip_white DNA_DEPRECATED;
   int dilate_distance DNA_DEPRECATED;
   int feather_distance DNA_DEPRECATED;
-  int feather_falloff;
+  int feather_falloff DNA_DEPRECATED;
   int blur_pre DNA_DEPRECATED;
   int blur_post DNA_DEPRECATED;
 } NodeKeyingData;
@@ -1568,47 +1607,47 @@ typedef struct NodeTrackPosData {
 } NodeTrackPosData;
 
 typedef struct NodeTransformData {
-  short interpolation;
-  char extension_x;
-  char extension_y;
+  short interpolation DNA_DEPRECATED;
+  char extension_x DNA_DEPRECATED;
+  char extension_y DNA_DEPRECATED;
 } NodeTransformData;
 
 typedef struct NodeTranslateData {
   char wrap_axis DNA_DEPRECATED;
   char relative DNA_DEPRECATED;
-  short extension_x;
-  short extension_y;
-  short interpolation;
+  short extension_x DNA_DEPRECATED;
+  short extension_y DNA_DEPRECATED;
+  short interpolation DNA_DEPRECATED;
 } NodeTranslateData;
 
 typedef struct NodeRotateData {
-  short interpolation;
-  char extension_x;
-  char extension_y;
+  short interpolation DNA_DEPRECATED;
+  char extension_x DNA_DEPRECATED;
+  char extension_y DNA_DEPRECATED;
 } NodeRotateData;
 
 typedef struct NodeScaleData {
-  short interpolation;
-  char extension_x;
-  char extension_y;
+  short interpolation DNA_DEPRECATED;
+  char extension_x DNA_DEPRECATED;
+  char extension_y DNA_DEPRECATED;
 } NodeScaleData;
 
 typedef struct NodeCornerPinData {
-  short interpolation;
-  char extension_x;
-  char extension_y;
+  short interpolation DNA_DEPRECATED;
+  char extension_x DNA_DEPRECATED;
+  char extension_y DNA_DEPRECATED;
 } NodeCornerPinData;
 
 typedef struct NodeDisplaceData {
-  short interpolation;
-  char extension_x;
-  char extension_y;
+  short interpolation DNA_DEPRECATED;
+  char extension_x DNA_DEPRECATED;
+  char extension_y DNA_DEPRECATED;
 } NodeDisplaceData;
 
 typedef struct NodeMapUVData {
-  short interpolation;
-  char extension_x;
-  char extension_y;
+  short interpolation DNA_DEPRECATED;
+  char extension_x DNA_DEPRECATED;
+  char extension_y DNA_DEPRECATED;
 } NodeMapUVData;
 
 typedef struct NodePlaneTrackDeformData {
@@ -1709,8 +1748,8 @@ typedef struct NodeCryptomatte {
 
 typedef struct NodeDenoise {
   char hdr DNA_DEPRECATED;
-  char prefilter;
-  char quality;
+  char prefilter DNA_DEPRECATED;
+  char quality DNA_DEPRECATED;
   char _pad[1];
 } NodeDenoise;
 
@@ -2638,7 +2677,7 @@ enum {
 };
 
 /* sky texture */
-enum { SHD_SKY_NISHITA = 0 };
+enum { SHD_SKY_SINGLE_SCATTERING = 0, SHD_SKY_MULTIPLE_SCATTERING = 1 };
 
 /* environment texture */
 enum {
@@ -2943,8 +2982,8 @@ typedef enum CMPNodeAlphaConvertMode {
 
 /** Distance Matte Node. Stored in #NodeChroma.channel. */
 typedef enum CMPNodeDistanceMatteColorSpace {
-  CMP_NODE_DISTANCE_MATTE_COLOR_SPACE_RGBA = 1,
-  CMP_NODE_DISTANCE_MATTE_COLOR_SPACE_YCCA = 2,
+  CMP_NODE_DISTANCE_MATTE_COLOR_SPACE_RGBA = 0,
+  CMP_NODE_DISTANCE_MATTE_COLOR_SPACE_YCCA = 1,
 } CMPNodeDistanceMatteColorSpace;
 
 /** Color Spill Node. Stored in `custom2`. */
@@ -3083,10 +3122,10 @@ typedef enum CMPNodeCryptomatteSource {
 
 /* Channel Matte node, stored in custom1. */
 typedef enum CMPNodeChannelMatteColorSpace {
-  CMP_NODE_CHANNEL_MATTE_CS_RGB = 1,
-  CMP_NODE_CHANNEL_MATTE_CS_HSV = 2,
-  CMP_NODE_CHANNEL_MATTE_CS_YUV = 3,
-  CMP_NODE_CHANNEL_MATTE_CS_YCC = 4,
+  CMP_NODE_CHANNEL_MATTE_CS_RGB = 0,
+  CMP_NODE_CHANNEL_MATTE_CS_HSV = 1,
+  CMP_NODE_CHANNEL_MATTE_CS_YUV = 2,
+  CMP_NODE_CHANNEL_MATTE_CS_YCC = 3,
 } CMPNodeChannelMatteColorSpace;
 
 /* NodeLensDist.distortion_type. */
