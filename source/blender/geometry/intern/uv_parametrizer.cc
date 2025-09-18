@@ -3055,14 +3055,14 @@ static void p_chart_extrema_verts(PChart *chart, PVert **pin1, PVert **pin2)
   p_chart_pin_positions(chart, pin1, pin2);
 }
 
-static void p_chart_lscm_begin(PChart *chart, bool live, bool abf, const bool use_uniform_bounds)
+static void p_chart_lscm_begin(PChart *chart, bool live, bool abf, const bool uniform_bounds)
 {
   BLI_assert(chart->context == nullptr);
 
   bool select = false;
   bool deselect = false;
   int npins = 0;
-  if (use_uniform_bounds) {
+  if (uniform_bounds) {
     p_chart_uv_bbox(chart, chart->orig_bounds.min, chart->orig_bounds.max);
   }
   /* Give vertices matrix indices, count pins and check selections. */
@@ -4075,7 +4075,7 @@ void uv_parametrizer_construct_end(ParamHandle *phandle,
 void uv_parametrizer_lscm_begin(ParamHandle *phandle,
                                 bool live,
                                 bool abf,
-                                const bool use_uniform_bounds)
+                                const bool uniform_bounds)
 {
   BLI_assert(phandle->state == PHANDLE_STATE_CONSTRUCTED);
   phandle->state = PHANDLE_STATE_LSCM;
@@ -4084,7 +4084,7 @@ void uv_parametrizer_lscm_begin(ParamHandle *phandle,
     for (PFace *f = phandle->charts[i]->faces; f; f = f->nextlink) {
       p_face_backup_uvs(f);
     }
-    p_chart_lscm_begin(phandle->charts[i], live, abf, use_uniform_bounds);
+    p_chart_lscm_begin(phandle->charts[i], live, abf, uniform_bounds);
   }
 }
 
@@ -4247,8 +4247,8 @@ void uv_parametrizer_unwrap_uniform(ParamHandle *phandle)
     PChart *chart = phandle->charts[i];
     p_chart_uv_bbox(chart, minv, maxv);
     sub_v2_v2v2(new_size, maxv, minv);
-    float2 size = chart->orig_bounds.size();
-    float scale = (size.x > size.y) ? (size.x / new_size[0]) : (size.y / new_size[1]);
+    int axis = (chart->orig_bounds.size().x > chart->orig_bounds.size().y) ? 0 : 1;
+    float scale = chart->orig_bounds.size()[axis] / std::max(new_size[0], new_size[1]);
     p_chart_uv_scale(chart, scale);
     p_chart_uv_bbox(chart, minv, maxv);
 
@@ -5123,7 +5123,7 @@ static void slim_transfer_faces(const PChart *chart, slim::MatrixTransferChart *
  */
 static void slim_convert_blender(ParamHandle *phandle,
                                  slim::MatrixTransfer *mt,
-                                 const bool use_uniform_bounds)
+                                 const bool uniform_bounds)
 {
   static const float SLIM_CORR_MIN_AREA = 1.0e-8;
   static const float SLIM_CORR_MIN_ANGLE = DEG2RADF(1.0f);
@@ -5132,7 +5132,7 @@ static void slim_convert_blender(ParamHandle *phandle,
 
   for (int i = 0; i < phandle->ncharts; i++) {
     PChart *chart = phandle->charts[i];
-    if (use_uniform_bounds) {
+    if (uniform_bounds) {
       p_chart_uv_bbox(chart, chart->orig_bounds.min, chart->orig_bounds.max);
     }
     slim::MatrixTransferChart *mt_chart = &mt->charts[i];
@@ -5168,11 +5168,11 @@ static void slim_convert_blender(ParamHandle *phandle,
 
 static void slim_transfer_data_to_slim(ParamHandle *phandle,
                                        const ParamSlimOptions *slim_options,
-                                       const bool use_uniform_bounds)
+                                       const bool uniform_bounds)
 {
   slim::MatrixTransfer *mt = slim_matrix_transfer(slim_options);
 
-  slim_convert_blender(phandle, mt, use_uniform_bounds);
+  slim_convert_blender(phandle, mt, uniform_bounds);
   phandle->slim_mt = mt;
 }
 
@@ -5293,12 +5293,12 @@ static void slim_get_pinned_vertex_data(ParamHandle *phandle,
 
 void uv_parametrizer_slim_solve(ParamHandle *phandle,
                                 const ParamSlimOptions *slim_options,
-                                bool use_uniform_bounds,
+                                bool uniform_bounds,
                                 int *count_changed,
                                 int *count_failed)
 {
 #ifdef WITH_UV_SLIM
-  slim_transfer_data_to_slim(phandle, slim_options, use_uniform_bounds);
+  slim_transfer_data_to_slim(phandle, slim_options, uniform_bounds);
   slim::MatrixTransfer *mt = phandle->slim_mt;
 
   mt->parametrize();
