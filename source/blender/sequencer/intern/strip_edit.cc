@@ -445,6 +445,10 @@ Strip *edit_strip_split(Main *bmain,
     BLI_remlink(seqbase, strip_iter);
     BLI_addtail(&left_strips, strip_iter);
 
+    if (ignore_connected) {
+      seq::disconnect(strip_iter);
+    }
+
     /* Duplicate curves from backup, so they can be renamed along with split strips. */
     animation_duplicate_backup_to_scene(scene, strip_iter, &animation_backup);
   }
