@@ -4112,7 +4112,6 @@ void uv_parametrizer_lscm_solve(ParamHandle *phandle, int *count_changed, int *c
       p_chart_lscm_end(chart);
     }
 
-    
     if (result) {
       if (count_changed != nullptr) {
         *count_changed += 1;

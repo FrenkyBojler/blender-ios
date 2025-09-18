@@ -2908,7 +2908,7 @@ static wmOperatorStatus unwrap_exec(bContext *C, wmOperator *op)
 
   if (!options.uniform_bounding_box) {
     uvedit_pack_islands_multi(
-      scene, objects, nullptr, nullptr, false, true, nullptr, &pack_island_params);
+        scene, objects, nullptr, nullptr, false, true, nullptr, &pack_island_params);
   }
 
   if (count_failed == 0 && count_changed == 0) {
