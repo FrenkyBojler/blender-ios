@@ -1018,7 +1018,7 @@ void OBJECT_OT_lattice_add_to_selected(wmOperatorType *ot)
                              -1.0f,
                              1.0f);
   RNA_def_property_subtype(prop, PROP_QUATERNION);
-  RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE | PROP_HIDDEN);
   add_generic_props(ot, true);
 }
 
