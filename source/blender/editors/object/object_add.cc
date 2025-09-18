@@ -750,7 +750,6 @@ void OBJECT_OT_add(wmOperatorType *ot)
   add_generic_props(ot, true);
 }
 
-
 /* -------------------------------------------------------------------- */
 
 /** \name Add Lattice Deformation to Selected Operator
@@ -819,18 +818,35 @@ static wmOperatorStatus lattice_add_to_selected_exec(bContext *C, wmOperator *op
   const int resolution_v = RNA_int_get(op->ptr, "resolution_v");
   const int resolution_w = RNA_int_get(op->ptr, "resolution_w");
 
-  float ob_active_orientation[3][3];
-  if (ob_active) {
-    copy_m3_m4(ob_active_orientation, ob_active->object_to_world().ptr());
-    normalize_m3(ob_active_orientation);
+  /* Cache the initial orientation of the active object.
+   *  On the first run, extract the active object's world rotation,
+   *   convert it to a quaternion, and store it in the operator's hidden RNA property.
+   *  On redo, simply reuse the cached quaternion so the lattice keeps the same
+   *   orientation.
+   */
+  float quat[4];
+  if (RNA_struct_property_is_set(op->ptr, "initial_orientation")) {
+    RNA_float_get_array(op->ptr, "initial_orientation", quat);
   }
   else {
-    unit_m3(ob_active_orientation);
+    if (ob_active) {
+      float rotation_matrix[3][3];
+      copy_m3_m4(rotation_matrix, ob_active->object_to_world().ptr());
+      normalize_m3(rotation_matrix);
+      mat3_to_quat(quat, rotation_matrix);
+    }
+    else {
+      unit_qt(quat);
+    }
+    RNA_float_set_array(op->ptr, "initial_orientation", quat);
   }
 
   Vector<Object *> targets;
+  float orientation_matrix[3][3];
+  quat_to_mat3(orientation_matrix, quat);
+
   std::optional<Bounds<float3>> bounds_opt =
-      lattice_add_to_selected_collect_targets_and_calc_bounds(C, ob_active_orientation, targets);
+      lattice_add_to_selected_collect_targets_and_calc_bounds(C, orientation_matrix, targets);
 
   /* Disable fit to selected when there are no valid targets
    * (either nothing is selected or meshes with no geometry). */
@@ -842,58 +858,31 @@ static wmOperatorStatus lattice_add_to_selected_exec(bContext *C, wmOperator *op
   Object *ob_lattice = add_type(
       C, OB_LATTICE, nullptr, location, rotation_euler, enter_editmode, local_view_bits);
   Lattice *lt = (Lattice *)ob_lattice->data;
+  ob_lattice->rotmode = ROT_MODE_QUAT;
+  copy_qt_qt(ob_lattice->quat, quat);
 
   if (fit_to_selected && bounds_opt.has_value()) {
-    if (ob_active) {
-      /* Active object exists, align lattice to its orientation,
-       * size to oriented bounding box of all selected objects. */
-
-      /* Apply margin to the calculated bounds. */
-      float sel_min[3], sel_max[3];
-      copy_v3_v3(sel_min, bounds_opt->min);
-      copy_v3_v3(sel_max, bounds_opt->max);
-      for (int i = 0; i < 3; i++) {
-        sel_min[i] -= margin;
-        sel_max[i] += margin;
-      }
-
-      /* Calculate the center and size of this combined bounding box. */
-      float center_local[3], size_local[3];
-      mid_v3_v3v3(center_local, sel_min, sel_max);
-      sub_v3_v3v3(size_local, sel_max, sel_min);
-
-      /* Transform the local center back into world space for the final location. */
-      float center_world[3];
-      copy_v3_v3(center_world, center_local);
-      mul_m3_v3(ob_active_orientation, center_world);
-
-      /* Apply the calculated transform to the new lattice object. */
-      BKE_object_mat3_to_rot(ob_lattice, ob_active_orientation, false);
-
-      copy_v3_v3(ob_lattice->loc, center_world);
-      copy_v3_v3(ob_lattice->scale, size_local);
-    }
-    else {
-      /* No active object, axis-aligned lattice sized to world-space bounds. */
-      Bounds<float3> world_bounds = *bounds_opt;
-
-      float sel_min[3], sel_max[3];
-      copy_v3_v3(sel_min, world_bounds.min);
-      copy_v3_v3(sel_max, world_bounds.max);
-      for (int i = 0; i < 3; i++) {
-        sel_min[i] -= margin;
-        sel_max[i] += margin;
-      }
-
-      float center_world[3], size_world[3];
-      mid_v3_v3v3(center_world, sel_min, sel_max);
-      sub_v3_v3v3(size_world, sel_max, sel_min);
-
-      copy_v3_v3(ob_lattice->loc, center_world);
-      copy_v3_v3(ob_lattice->scale, size_world);
+    float sel_min[3], sel_max[3];
+    copy_v3_v3(sel_min, bounds_opt->min);
+    copy_v3_v3(sel_max, bounds_opt->max);
+    for (int i = 0; i < 3; i++) {
+      sel_min[i] -= margin;
+      sel_max[i] += margin;
     }
 
-    /* It's possible the scale contains zero or degenerate values. */
+    /* Calculate the center and size of this combined bounding box. */
+    float center_local[3], size_local[3];
+    mid_v3_v3v3(center_local, sel_min, sel_max);
+    sub_v3_v3v3(size_local, sel_max, sel_min);
+
+    /* Apply cached rotation to move the lattice center into world space. */
+    float center_world[3];
+    copy_v3_v3(center_world, center_local);
+    mul_qt_v3(quat, center_world);
+
+    copy_v3_v3(ob_lattice->loc, center_world);
+    copy_v3_v3(ob_lattice->scale, size_local);
+
     for (int i = 0; i < 3; i++) {
       if (!isfinite(ob_lattice->scale[i]) || ob_lattice->scale[i] <= 0.0f) {
         ob_lattice->scale[i] = 1.0f;
@@ -903,6 +892,10 @@ static wmOperatorStatus lattice_add_to_selected_exec(bContext *C, wmOperator *op
   else {
     /* Fallback when fit to selected is off. */
     copy_v3_fl(ob_lattice->scale, RNA_float_get(op->ptr, "radius"));
+
+    /* Apply user specified Euler rotation instead of cached quat. */
+    ob_lattice->rotmode = ROT_MODE_EUL;
+    copy_v3_v3(ob_lattice->rot, rotation_euler);
   }
 
   if (add_modifiers) {
@@ -928,6 +921,11 @@ static wmOperatorStatus lattice_add_to_selected_exec(bContext *C, wmOperator *op
   DEG_relations_tag_update(CTX_data_main(C));
   return OPERATOR_FINISHED;
 }
+
+/*  Shows only relevant redo properties.
+ *  If fit_to_selected is true, hide radius, align, location and rotation.
+ *  If not, hide margin.
+ */
 
 static bool object_add_to_selected_poll_property(const bContext *C,
                                                  wmOperator *op,
@@ -1009,6 +1007,18 @@ void OBJECT_OT_lattice_add_to_selected(wmOperatorType *ot)
 
   prop = RNA_def_int(
       ot->srna, "resolution_w", 2, 1, 64, "W", "Lattice resolution in W direction", 1, 64);
+
+  prop = RNA_def_float_array(ot->srna,
+                             "initial_orientation",
+                             4,
+                             nullptr,
+                             -1.0f,
+                             1.0f,
+                             "Initial Orientation",
+                             "Cached quaternion orientation",
+                             -1.0f,
+                             1.0f);
+  RNA_def_property_subtype(prop, PROP_QUATERNION);
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
   add_generic_props(ot, true);
 }
