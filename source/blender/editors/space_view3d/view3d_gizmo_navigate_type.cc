@@ -23,8 +23,16 @@
 
 #include "BKE_context.hh"
 #include "BKE_layer.hh"
+#include "BKE_lib_id.hh"
+#include "BKE_main.hh"
 #include "BKE_mesh.hh"
 #include "BKE_object.hh"
+#include "BKE_paint.hh"
+
+#include "DEG_depsgraph.hh"
+#include "DEG_depsgraph_query.hh"
+
+#include "bmesh.hh"
 
 #include "DNA_mesh_types.h"
 #include "DNA_object_types.h"
@@ -385,6 +393,7 @@ void VIEW3D_GT_navigate_rotate(wmGizmoType *gzt)
 static void gizmo_silhouette_draw(const bContext *C, wmGizmo *gz)
 {
   const Scene *scene = CTX_data_scene(C);
+  const Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
 
   /* Get active object */
   ViewLayer *view_layer = CTX_data_view_layer(C);
@@ -395,8 +404,71 @@ static void gizmo_silhouette_draw(const bContext *C, wmGizmo *gz)
     return;
   }
 
-  const Mesh *mesh = static_cast<const Mesh *>(active_ob->data);
+  const Mesh *mesh = nullptr;
+  Mesh *evaluated_mesh = nullptr;
+  blender::Span<blender::float3> vert_positions;
+  blender::Span<blender::int3> corner_tris;
+  blender::Span<int> corner_verts;
+  bool mesh_needs_free = false;
+
+  /* Check if object has a sculpt session with dynamic topology active */
+  SculptSession *sculpt_session = active_ob->sculpt;
+  const bool has_dyntopo = sculpt_session && sculpt_session->bm &&
+                           (active_ob->mode & OB_MODE_SCULPT);
+
+  if (has_dyntopo) {
+    /* For dyntopo, use BMesh data directly */
+    BMesh *bm = sculpt_session->bm;
+    if (!bm || bm->totvert == 0 || bm->totface == 0) {
+      return;
+    }
+
+    /* Convert BMesh to temporary mesh for display */
+    evaluated_mesh = BKE_mesh_new_nomain(bm->totvert, 0, bm->totface, bm->totloop);
+    mesh_needs_free = true;
+
+    BMeshToMeshParams convert_params{};
+    convert_params.calc_object_remap = false;
+    BM_mesh_bm_to_me(CTX_data_main(C), bm, evaluated_mesh, &convert_params);
+
+    mesh = evaluated_mesh;
+  }
+  else {
+    /* For regular mesh, get evaluated object first, then its mesh with viewport modifiers applied */
+    Object *active_ob_eval = reinterpret_cast<Object *>(
+        const_cast<ID *>(DEG_get_evaluated_id(depsgraph, &active_ob->id)));
+    if (active_ob_eval && active_ob_eval->type == OB_MESH) {
+      /* Get mesh from evaluated object - this includes viewport subdivision levels */
+      const Mesh *mesh_eval_from_ob = BKE_object_get_evaluated_mesh(active_ob_eval);
+      if (mesh_eval_from_ob && mesh_eval_from_ob->verts_num > 0) {
+        mesh = mesh_eval_from_ob;
+        /* No need to free - this mesh is owned by the evaluation system */
+        mesh_needs_free = false;
+      }
+      else {
+        /* Fallback: create evaluated mesh explicitly */
+        evaluated_mesh = BKE_mesh_new_from_object(
+            const_cast<Depsgraph *>(depsgraph), active_ob, true, false, true);
+        if (evaluated_mesh) {
+          mesh = evaluated_mesh;
+          mesh_needs_free = true;
+        }
+        else {
+          /* Final fallback to original mesh */
+          mesh = static_cast<const Mesh *>(active_ob->data);
+        }
+      }
+    }
+    else {
+      /* Fallback to original mesh if evaluation fails */
+      mesh = static_cast<const Mesh *>(active_ob->data);
+    }
+  }
+
   if (!mesh || mesh->verts_num == 0) {
+    if (mesh_needs_free && evaluated_mesh) {
+      BKE_id_free(nullptr, evaluated_mesh);
+    }
     return;
   }
 
@@ -441,9 +513,9 @@ static void gizmo_silhouette_draw(const bContext *C, wmGizmo *gz)
   immUniformColor4fv(v3d->gizmo_silhouette_color);
 
   /* Get mesh data */
-  const blender::Span<blender::float3> vert_positions = mesh->vert_positions();
-  const blender::Span<blender::int3> corner_tris = mesh->corner_tris();
-  const blender::Span<int> corner_verts = mesh->corner_verts();
+  vert_positions = mesh->vert_positions();
+  corner_tris = mesh->corner_tris();
+  corner_verts = mesh->corner_verts();
 
   if (vert_positions.is_empty() || corner_tris.is_empty()) {
     immUnbindProgram();
@@ -457,6 +529,9 @@ static void gizmo_silhouette_draw(const bContext *C, wmGizmo *gz)
     GPU_face_culling(cull_test);
     GPU_blend(GPU_BLEND_NONE);
     GPU_matrix_pop();
+    if (mesh_needs_free && evaluated_mesh) {
+      BKE_id_free(nullptr, evaluated_mesh);
+    }
     return;
   }
 
@@ -518,6 +593,11 @@ static void gizmo_silhouette_draw(const bContext *C, wmGizmo *gz)
   GPU_face_culling(cull_test);
   GPU_blend(GPU_BLEND_NONE);
   GPU_matrix_pop();
+
+  /* Free evaluated mesh if we created it */
+  if (mesh_needs_free && evaluated_mesh) {
+    BKE_id_free(nullptr, evaluated_mesh);
+  }
 }
 
 static int gizmo_silhouette_test_select(bContext * /*C*/, wmGizmo * /*gz*/, const int /*mval*/[2])
