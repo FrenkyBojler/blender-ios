@@ -58,6 +58,7 @@ FLAT(float4, final_color)
 SMOOTH(float2, uv_coords)
 FLAT(float, has_hdr)
 FLAT(float3, hdr_params)  /* strength, gamma, exposure */
+FLAT(float4, light_color) /* r, g, b, energy */
 GPU_SHADER_INTERFACE_END()
 
 GPU_SHADER_CREATE_INFO(overlay_dome_hdr)

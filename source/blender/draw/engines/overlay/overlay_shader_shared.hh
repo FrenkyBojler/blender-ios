@@ -327,6 +327,7 @@ struct ExtraInstanceData {
   /* Dome light specific fields */
   float4 dome_rotation; /* Dome rotation in radians (X, Y, Z) + size in w */
   float4 dome_hdr_params; /* HDR parameters: strength, gamma, exposure, _pad */
+  float4 dome_light_color; /* Light color: r, g, b, energy */
   bool32_t has_hdr;     /* HDR flag: true = has HDR, false = no HDR */
   bool32_t flip_u;      /* UV flip horizontally */
   bool32_t flip_v;      /* UV flip vertically */
@@ -341,6 +342,7 @@ struct ExtraInstanceData {
     /* Initialize dome fields to defaults */
     this->dome_rotation = float4(0.0f, 0.0f, 0.0f, 1.0f);
     this->dome_hdr_params = float4(1.0f, 2.2f, 0.0f, 0.0f); /* strength, gamma, exposure, pad */
+    this->dome_light_color = float4(1.0f, 1.0f, 1.0f, 1.0f); /* white light by default */
     this->has_hdr = false;
     this->flip_u = false;
     this->flip_v = false;
@@ -371,6 +373,7 @@ struct ExtraInstanceData {
     /* Initialize dome fields to defaults */
     this->dome_rotation = float4(0.0f, 0.0f, 0.0f, 1.0f);
     this->dome_hdr_params = float4(1.0f, 2.2f, 0.0f, 0.0f); /* strength, gamma, exposure, pad */
+    this->dome_light_color = float4(1.0f, 1.0f, 1.0f, 1.0f); /* white light by default */
     this->has_hdr = false;
     this->flip_u = false;
     this->flip_v = false;
@@ -388,6 +391,7 @@ struct ExtraInstanceData {
     this->object_to_world = object_to_world;
     this->dome_rotation = float4(dome_rotation_.x, dome_rotation_.y, dome_rotation_.z, dome_size);
     this->dome_hdr_params = float4(1.0f, 2.2f, 0.0f, 0.0f); /* strength, gamma, exposure, pad */
+    this->dome_light_color = float4(1.0f, 1.0f, 1.0f, 1.0f); /* white light by default */
     this->has_hdr = has_hdr;
     this->flip_u = false;
     this->flip_v = false;

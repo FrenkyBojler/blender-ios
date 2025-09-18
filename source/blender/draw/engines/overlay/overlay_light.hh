@@ -223,6 +223,7 @@ class Lights : Overlay {
         data.dome_rotation = float4(
             la.dome_rotation[0], la.dome_rotation[1], la.dome_rotation[2], la.dome_size);
         data.dome_hdr_params = float4(la.dome_hdr_strength, la.dome_hdr_gamma, la.exposure, 0.0f);
+        data.dome_light_color = float4(light_color[0], light_color[1], light_color[2], la.energy);
         data.has_hdr = (hdr_texture != nullptr) ? 1 : 0;
         data.flip_u = la.dome_hdr_flip_u ? 1 : 0;  // Convert char to bool32_t
         data.flip_v = la.dome_hdr_flip_v ? 1 : 0;  // Convert char to bool32_t

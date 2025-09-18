@@ -112,6 +112,7 @@ void main()
   float4 dome_rotation_and_size = data_buf[gl_InstanceID].dome_rotation;
   float3 dome_rotation = dome_rotation_and_size.xyz;
   float4 dome_hdr_params_data = data_buf[gl_InstanceID].dome_hdr_params;
+  float4 dome_light_color_data = data_buf[gl_InstanceID].dome_light_color;
   bool32_t dome_hdr_flag = data_buf[gl_InstanceID].has_hdr;
   bool32_t flip_u_flag = data_buf[gl_InstanceID].flip_u;
   bool32_t flip_v_flag = data_buf[gl_InstanceID].flip_v;
@@ -155,6 +156,7 @@ void main()
   /* Pass HDR flag and parameters to fragment shader */
   has_hdr = dome_hdr_flag ? 1.0f : 0.0f;
   hdr_params = dome_hdr_params_data.xyz;  /* strength, gamma, exposure */
+  light_color = dome_light_color_data;    /* r, g, b, energy */
 
   gl_Position = drw_point_world_to_homogenous(world_pos);
 

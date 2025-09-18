@@ -1538,7 +1538,7 @@ class CYCLES_LIGHT_PT_light(CyclesButtonsPanel, Panel):
             sub.prop(light, "temperature", text="")
             row.prop_decorator(light, "temperature")
 
-        if light.use_temperature:
+        if light.use_temperature or (light.type == 'DOME' and light.dome_image):
             col.prop(light, "color", text="Tint")
         else:
             col.prop(light, "color", text="Color")

@@ -26,8 +26,15 @@ void main()
     float hdr_gamma = hdr_params.y;
     float light_exposure = hdr_params.z;
     
-    /* Apply strength (intensity multiplier) */
-    float3 strengthened_color = hdr_color.rgb * hdr_strength;
+    /* Extract light color and energy */
+    float3 lamp_color = light_color.rgb;
+    float lamp_energy = light_color.a;
+    
+    /* Apply light color tint to the HDR texture */
+    float3 color_tinted = hdr_color.rgb * lamp_color;
+    
+    /* Apply strength (intensity multiplier) and energy */
+    float3 strengthened_color = color_tinted * hdr_strength * lamp_energy;
     
     /* Apply exposure adjustment */
     float3 exposed_color = strengthened_color * pow(2.0f, light_exposure);
