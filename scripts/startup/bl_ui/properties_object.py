@@ -81,7 +81,6 @@ class OBJECT_PT_transform(ObjectButtonsPanel, Panel):
         row.prop(ob, "scale")
         row.use_property_decorate = False
         row.prop(ob, "lock_scale", text="", emboss=False, icon='DECORATE_UNLOCKED')
-        col.prop_textbox(bpy.data.screens["Layout"].areas[1].spaces[0], "filter_text", "search_filter")
 
 
 class OBJECT_PT_delta_transform(ObjectButtonsPanel, Panel):
