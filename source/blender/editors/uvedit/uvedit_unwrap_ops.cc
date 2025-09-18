@@ -2698,6 +2698,20 @@ static void uv_map_clip_correct(const Scene *scene,
 /** \name UV Unwrap Operator
  * \{ */
 
+/* Assumes UV Map exists, doesn't run update functions. */
+static void uvedit_unwrap(const Scene *scene,
+                          Object *obedit,
+                          const UnwrapOptions *options,
+                          int *r_count_changed,
+                          int *r_count_failed)
+{
+  BMEditMesh *em = BKE_editmesh_from_object(obedit);
+  if (!CustomData_has_layer(&em->bm->ldata, CD_PROP_FLOAT2)) {
+    return;
+  }
+  uvedit_unwrap_islands(scene, obedit, em, options, r_count_changed, r_count_failed);
+}
+
 class UVIsland {
  public:
   float cent[2], min[2], max[2];
@@ -2739,20 +2753,6 @@ static void uvedit_unwrap_islands(const Scene *scene,
 
   blender::geometry::uv_parametrizer_flush(handle);
   delete (handle);
-}
-
-/* Assumes UV Map exists, doesn't run update functions. */
-static void uvedit_unwrap(const Scene *scene,
-                          Object *obedit,
-                          const UnwrapOptions *options,
-                          int *r_count_changed,
-                          int *r_count_failed)
-{
-  BMEditMesh *em = BKE_editmesh_from_object(obedit);
-  if (!CustomData_has_layer(&em->bm->ldata, CD_PROP_FLOAT2)) {
-    return;
-  }
-  uvedit_unwrap_islands(scene, obedit, em, options, r_count_changed, r_count_failed);
 }
 
 static void uvedit_unwrap_multi(const Scene *scene,
