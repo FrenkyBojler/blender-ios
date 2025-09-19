@@ -854,6 +854,12 @@ bool BPY_context_member_get(bContext *C, const char *member, bContextDataResult 
 
 std::optional<std::string> BPY_python_current_file_and_line(void)
 {
+  /* Early return if Python is not yet initialized. This may be called during early 
+   * initialization from context logging, and we make an exception for this function. */
+  if (!Py_IsInitialized()) {
+    return std::nullopt;
+  }
+
   PyGILState_STATE gilstate;
   const bool use_gil = !PyC_IsInterpreterActive();
   std::optional<std::string> result = std::nullopt;

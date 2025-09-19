@@ -357,14 +357,8 @@ static void CTX_member_log_access(bContext *C,
                                   const char *member,
                                   const bContextDataResult &result)
 {
-  /* Safety check: Context can be null when called from certain code paths,
-   * such as when CTX_data_pointer_verify is called with a null context.
-   * This prevents segmentation faults when accessing context members. */
-  if (!C) {
-    return;
-  }
-
-  bool should_log = CLOG_CHECK(BKE_LOG_CONTEXT, CLG_LEVEL_TRACE) || CTX_member_logging_get(C);
+  bool should_log = CLOG_CHECK(BKE_LOG_CONTEXT, CLG_LEVEL_TRACE) ||
+                    (C && CTX_member_logging_get(C));
 
   if (!should_log) {
     return;
@@ -376,7 +370,7 @@ static void CTX_member_log_access(bContext *C,
 #ifdef WITH_PYTHON
   /* Get current Python location if available and Python is properly initialized. */
   std::optional<std::string> python_location;
-  if (CTX_py_init_get(C)) {
+  if (C && CTX_py_init_get(C)) {
     python_location = BPY_python_current_file_and_line();
   }
   const char *location = python_location ? python_location->c_str() : "unknown:0";
@@ -389,7 +383,7 @@ static void CTX_member_log_access(bContext *C,
   if (CLOG_CHECK(BKE_LOG_CONTEXT, CLG_LEVEL_TRACE)) {
     CLOG_TRACE(BKE_LOG_CONTEXT, format, location, member, value_desc);
   }
-  else if (CTX_member_logging_get(C)) {
+  else if (C && CTX_member_logging_get(C)) {
     /* Force output at TRACE level even if not enabled via command line. */
     CLOG_AT_LEVEL_NOCHECK(BKE_LOG_CONTEXT, CLG_LEVEL_TRACE, format, location, member, value_desc);
   }
