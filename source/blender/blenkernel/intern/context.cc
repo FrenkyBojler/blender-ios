@@ -403,7 +403,6 @@ static void *ctx_wm_python_context_get(const bContext *C,
     bContextDataResult result{};
     if (BPY_context_member_get((bContext *)C, member, &result)) {
       found_member = true;
-      log_result = result; /* Store result for logging */
 
       if (result.ptr.data) {
         if (RNA_struct_is_a(result.ptr.type, member_type)) {
@@ -417,6 +416,9 @@ static void *ctx_wm_python_context_get(const bContext *C,
                     RNA_struct_identifier(member_type));
         }
       }
+
+      /* Log context member access directly without storing a copy */
+      CTX_member_log_access((bContext *)C, member, result);
     }
   }
 #else
@@ -425,15 +427,15 @@ static void *ctx_wm_python_context_get(const bContext *C,
 
   /* If no member was found, use fallback and create a simple result for logging */
   if (!found_member) {
-    log_result.ptr.data = fall_through;
-    log_result.ptr.type = const_cast<StructRNA *>(member_type); /* Use the expected RNA type */
-    log_result.type = CTX_DATA_TYPE_POINTER;
+    bContextDataResult fallback_result{};
+    fallback_result.ptr.data = fall_through;
+    fallback_result.ptr.type = const_cast<StructRNA *>(
+        member_type); /* Use the expected RNA type */
+    fallback_result.type = CTX_DATA_TYPE_POINTER;
     return_data = fall_through;
-  }
 
-  /* Log context member access if we're in a temp_override - capture all access attempts */
-  if (CTX_py_dict_get(C)) {
-    CTX_member_log_access((bContext *)C, member, log_result);
+    /* Log fallback context member access */
+    CTX_member_log_access((bContext *)C, member, fallback_result);
   }
 
   /* Don't allow UI context access from non-main threads */
