@@ -140,6 +140,8 @@ struct BPyContextTempOverride {
 
   /** Bypass Python overrides set when calling an operator from Python. */
   bContext_PyState py_state;
+  /** Flag to enable logging for this temp_override instance. */
+  bool use_logging;
   /**
    * This dictionary is used to store members that don't have special handling,
    * see: #bpy_context_temp_override_extract_known_args,
@@ -291,6 +293,11 @@ static PyObject *bpy_rna_context_temp_override_enter(BPyContextTempOverride *sel
 
   /* Set flag to indicate we're in a temp override */
   CTX_temp_override_set(C, true);
+  
+  /* Set logging flag if requested */
+  if (self->use_logging) {
+    CTX_temp_override_logging_set(C, true);
+  }
 
   /* It's crucial to call #CTX_py_state_pop if this function fails with an error. */
   CTX_py_state_push(C, &self->py_state, self->py_state_context_dict);
@@ -353,7 +360,8 @@ static PyObject *bpy_rna_context_temp_override_enter(BPyContextTempOverride *sel
     CTX_wm_region_set(C, self->ctx_temp.region);
   }
 
-  Py_RETURN_NONE;
+  Py_INCREF(self);
+  return (PyObject *)self;
 }
 
 static PyObject *bpy_rna_context_temp_override_exit(BPyContextTempOverride *self,
@@ -510,9 +518,42 @@ static PyObject *bpy_rna_context_temp_override_exit(BPyContextTempOverride *self
   /* Clear the temp override flag before restoring Python state */
   CTX_temp_override_set(C, false);
   
+  /* Clear logging flag if it was set */
+  if (self->use_logging) {
+    CTX_temp_override_logging_set(C, false);
+  }
+  
   CTX_py_state_pop(C, &self->py_state);
 
   Py_RETURN_NONE;
+}
+
+/* Getter/setter for use_logging property */
+static PyObject *bpy_rna_context_temp_override_use_logging_get(BPyContextTempOverride *self, void * /*closure*/)
+{
+  return PyBool_FromLong(self->use_logging);
+}
+
+static int bpy_rna_context_temp_override_use_logging_set(BPyContextTempOverride *self, PyObject *value, void * /*closure*/)
+{
+  if (value == nullptr) {
+    PyErr_SetString(PyExc_TypeError, "cannot delete use_logging");
+    return -1;
+  }
+  
+  int result = PyObject_IsTrue(value);
+  if (result == -1) {
+    return -1;
+  }
+  
+  self->use_logging = result;
+  
+  /* Update the C-level logging flag */
+  if (self->context) {
+    CTX_temp_override_logging_set(self->context, result);
+  }
+  
+  return 0;
 }
 
 #ifdef __GNUC__
@@ -528,6 +569,15 @@ static PyObject *bpy_rna_context_temp_override_exit(BPyContextTempOverride *self
 static PyMethodDef bpy_rna_context_temp_override_methods[] = {
     {"__enter__", (PyCFunction)bpy_rna_context_temp_override_enter, METH_NOARGS},
     {"__exit__", (PyCFunction)bpy_rna_context_temp_override_exit, METH_VARARGS},
+    {nullptr},
+};
+
+static PyGetSetDef bpy_rna_context_temp_override_getset[] = {
+    {"use_logging", 
+     (getter)bpy_rna_context_temp_override_use_logging_get,
+     (setter)bpy_rna_context_temp_override_use_logging_set,
+     "Enable logging for temp_override context manager",
+     nullptr},
     {nullptr},
 };
 
@@ -569,7 +619,7 @@ static PyTypeObject BPyContextTempOverride_Type = {
     /*tp_iternext*/ nullptr,
     /*tp_methods*/ bpy_rna_context_temp_override_methods,
     /*tp_members*/ nullptr,
-    /*tp_getset*/ nullptr,
+    /*tp_getset*/ bpy_rna_context_temp_override_getset,
     /*tp_base*/ nullptr,
     /*tp_dict*/ nullptr,
     /*tp_descr_get*/ nullptr,

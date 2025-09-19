@@ -7,6 +7,7 @@
  */
 
 #include <cstddef>
+#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <set>
@@ -103,6 +104,8 @@ struct bContext {
     void *py_context_orig;
     /** True if currently in a temp_override context manager. */
     bool temp_override_active;
+    /** True if logging is enabled for temp_override (can be set programmatically). */
+    bool temp_override_logging_enabled;
     /** Set of context members accessed during temp_override. */
     std::set<std::string> *temp_override_accessed_members;
   } data;
@@ -1612,13 +1615,21 @@ void CTX_temp_override_add_accessed_member(bContext *C, const char *member)
 void CTX_temp_override_set(bContext *C, bool enable)
 {
   if (enable && !C->data.temp_override_active) {
-    /* Starting temp_override - create the tracking set */
-    C->data.temp_override_accessed_members = new std::set<std::string>();
+    /* Starting temp_override - create the tracking set if either programmatic logging is enabled
+     * or the command line logger is active */
+    bool should_log = C->data.temp_override_logging_enabled ||
+                      CLOG_CHECK(BKE_LOG_TEMP_OVERRIDE, CLG_LEVEL_INFO);
+    if (should_log) {
+      C->data.temp_override_accessed_members = new std::set<std::string>();
+    }
   }
   else if (!enable && C->data.temp_override_active) {
-    /* Ending temp_override - print summary and cleanup */
-    if (C->data.temp_override_accessed_members && 
-        !C->data.temp_override_accessed_members->empty()) {
+    /* Ending temp_override - print summary if logging was active and we have members */
+    bool should_log = C->data.temp_override_logging_enabled ||
+                      CLOG_CHECK(BKE_LOG_TEMP_OVERRIDE, CLG_LEVEL_INFO);
+    if (should_log && C->data.temp_override_accessed_members &&
+        !C->data.temp_override_accessed_members->empty())
+    {
 
       /* Build the summary string */
       std::string summary = "temp_override accessed contextmembers: {";
@@ -1631,16 +1642,41 @@ void CTX_temp_override_set(bContext *C, bool enable)
       }
       summary += "}";
 
-      CLOG_INFO(BKE_LOG_TEMP_OVERRIDE, "%s", summary.c_str());
+      /* Use CLOG if the logger is active, otherwise use printf when programmatic flag is set */
+      if (CLOG_CHECK(BKE_LOG_TEMP_OVERRIDE, CLG_LEVEL_INFO)) {
+        CLOG_INFO(BKE_LOG_TEMP_OVERRIDE, "%s", summary.c_str());
+      }
+      else if (C->data.temp_override_logging_enabled) {
+        printf("temp_override | %s\n", summary.c_str());
+      }
     }
     delete C->data.temp_override_accessed_members;
     C->data.temp_override_accessed_members = nullptr;
   }
-  
+
   C->data.temp_override_active = enable;
 }
 
 bool CTX_temp_override_get(const bContext *C)
 {
   return C->data.temp_override_active;
+}
+
+void CTX_temp_override_logging_set(bContext *C, bool enable)
+{
+  bool was_enabled = C->data.temp_override_logging_enabled;
+  C->data.temp_override_logging_enabled = enable;
+
+  /* If we're enabling logging and we're currently in a temp_override,
+   * create the tracking set if it doesn't exist */
+  if (enable && !was_enabled && C->data.temp_override_active &&
+      !C->data.temp_override_accessed_members)
+  {
+    C->data.temp_override_accessed_members = new std::set<std::string>();
+  }
+}
+
+bool CTX_temp_override_logging_get(const bContext *C)
+{
+  return C->data.temp_override_logging_enabled;
 }
