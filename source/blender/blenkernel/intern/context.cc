@@ -101,7 +101,7 @@ struct bContext {
      * (keep this to check if the copy needs freeing).
      */
     void *py_context_orig;
-    /** True if logging is enabled for temp_override (can be set programmatically). */
+    /** True if logging is enabled for context members (can be set programmatically). */
     bool log_access;
   } data;
 };
@@ -347,9 +347,9 @@ static std::optional<std::string> CTX_result_brief_repr(const bContextDataResult
 }
 
 /* Simple logging for context data results */
-static void CTX_temp_override_log_access(bContext *C,
-                                         const char *member,
-                                         const bContextDataResult &result)
+static void CTX_member_log_access(bContext *C,
+                                  const char *member,
+                                  const bContextDataResult &result)
 {
   if (!CTX_py_dict_get(C)) {
     return;
@@ -427,7 +427,7 @@ static void *ctx_wm_python_context_get(const bContext *C,
 
   /* Log context member access if we're in a temp_override - capture all access attempts */
   if (CTX_py_dict_get(C)) {
-    CTX_temp_override_log_access((bContext *)C, member, log_result);
+    CTX_member_log_access((bContext *)C, member, log_result);
   }
 
   /* Don't allow UI context access from non-main threads */
@@ -454,7 +454,7 @@ static eContextResult ctx_data_get(bContext *C, const char *member, bContextData
   if (CTX_py_dict_get(C)) {
     if (BPY_context_member_get(C, member, result)) {
       /* Log the Python context result if we're in a temp_override */
-      CTX_temp_override_log_access(C, member, *result);
+      CTX_member_log_access(C, member, *result);
       return CTX_RESULT_OK;
     }
   }
@@ -530,7 +530,7 @@ static eContextResult ctx_data_get(bContext *C, const char *member, bContextData
 
   /* Log context result if we're in a temp_override and we got a successful result */
   if (CTX_py_dict_get(C) && final_result == CTX_RESULT_OK) {
-    CTX_temp_override_log_access(C, member, *result);
+    CTX_member_log_access(C, member, *result);
   }
 
   return final_result;
