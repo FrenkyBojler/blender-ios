@@ -1632,7 +1632,7 @@ void CTX_temp_override_set(bContext *C, bool enable)
     {
 
       /* Build the summary string */
-      std::string summary = "temp_override accessed contextmembers: {";
+      std::string summary = "accessed context members: {";
       bool first = true;
       for (const std::string &member : *C->data.temp_override_accessed_members) {
         if (!first)
