@@ -11,9 +11,6 @@
 #include <cstdlib>
 #include <cstring>
 
-#include "BLI_set.hh"
-#include "BLI_string.h"
-
 #include "MEM_guardedalloc.h"
 
 #include "DNA_collection_types.h"
@@ -28,6 +25,8 @@
 #include "DEG_depsgraph.hh"
 
 #include "BLI_listbase.h"
+#include "BLI_set.hh"
+#include "BLI_string.h"
 #include "BLI_threads.h"
 #include "BLI_utildefines.h"
 
