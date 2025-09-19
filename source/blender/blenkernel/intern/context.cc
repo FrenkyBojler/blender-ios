@@ -313,12 +313,38 @@ static void CTX_temp_override_log_access(bContext *C,
   const char *value_desc = "None";
   std::string value_desc_storage;  // Storage for dynamic strings
 
-  /* Simple type identification */
+  /* PyRNA-style formatting */
   switch (result.type) {
     case CTX_DATA_TYPE_POINTER:
       type_name = "pointer";
       if (result.ptr.data) {
-        value_desc_storage = std::string("<") + member + ">";
+        const char *rna_type_name = result.ptr.type ? RNA_struct_identifier(result.ptr.type) : "Unknown";
+        
+        /* Try to get the name property if it exists */
+        std::string obj_name;
+        if (result.ptr.type) {
+          PropertyRNA *name_prop = RNA_struct_name_property(result.ptr.type);
+          if (name_prop) {
+            char name_buf[256];
+            PointerRNA ptr_copy = result.ptr;  /* Make a non-const copy */
+            char *name = RNA_property_string_get_alloc(&ptr_copy, name_prop, name_buf, sizeof(name_buf), nullptr);
+            if (name && name[0] != '\0') {
+              obj_name = name;
+              if (name != name_buf) {
+                MEM_freeN(name);
+              }
+            }
+          }
+        }
+        
+        /* Format like PyRNA: <bpy_struct, Type("name") at 0xAddress> or <bpy_struct, Type at 0xAddress> */
+        if (!obj_name.empty()) {
+          value_desc_storage = std::string("<bpy_struct, ") + rna_type_name + "(\"" + obj_name + "\") at 0x" + 
+                              std::to_string(reinterpret_cast<uintptr_t>(result.ptr.data)) + ">";
+        } else {
+          value_desc_storage = std::string("<bpy_struct, ") + rna_type_name + " at 0x" + 
+                              std::to_string(reinterpret_cast<uintptr_t>(result.ptr.data)) + ">";
+        }
         value_desc = value_desc_storage.c_str();
       } else {
         value_desc = "None";
@@ -326,19 +352,42 @@ static void CTX_temp_override_log_access(bContext *C,
       break;
     case CTX_DATA_TYPE_COLLECTION:
       type_name = "collection";
-      value_desc = "<list>";
+      if (!result.list.is_empty()) {
+        value_desc_storage = std::string("[") + member + " collection with " + 
+                            std::to_string(result.list.size()) + " items]";
+        value_desc = value_desc_storage.c_str();
+      } else {
+        value_desc_storage = std::string("[") + member + " collection (empty)]";
+        value_desc = value_desc_storage.c_str();
+      }
       break;
     case CTX_DATA_TYPE_STRING:
       type_name = "string";
-      value_desc = !result.str.is_empty() ? "<string>" : "None";
+      if (!result.str.is_empty()) {
+        value_desc_storage = std::string("\"") + std::string(result.str.c_str()) + "\"";
+        value_desc = value_desc_storage.c_str();
+      } else {
+        value_desc = "\"\"";
+      }
       break;
     case CTX_DATA_TYPE_INT64:
       type_name = "int64";
-      value_desc = result.int_value.has_value() ? "<int>" : "None";
+      if (result.int_value.has_value()) {
+        value_desc_storage = std::to_string(result.int_value.value());
+        value_desc = value_desc_storage.c_str();
+      } else {
+        value_desc = "None";
+      }
       break;
     case CTX_DATA_TYPE_PROPERTY:
       type_name = "property";
-      value_desc = result.prop ? "<property>" : "None";
+      if (result.prop) {
+        const char *prop_name = RNA_property_identifier(result.prop);
+        value_desc_storage = std::string("<RNA Property: ") + (prop_name ? prop_name : "unknown") + ">";
+        value_desc = value_desc_storage.c_str();
+      } else {
+        value_desc = "None";
+      }
       break;
   }
 
@@ -395,6 +444,7 @@ static void *ctx_wm_python_context_get(const bContext *C,
   /* If no member was found, use fallback and create a simple result for logging */
   if (!found_member) {
     log_result.ptr.data = fall_through;
+    log_result.ptr.type = const_cast<StructRNA *>(member_type);  /* Use the expected RNA type */
     log_result.type = CTX_DATA_TYPE_POINTER;
     return_data = fall_through;
   }
