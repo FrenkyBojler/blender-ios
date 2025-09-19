@@ -455,7 +455,7 @@ static eContextResult ctx_data_get(bContext *C, const char *member, bContextData
 
   *result = {};
 
-  /* Note: We'll log access when we have actual results. */
+  /* NOTE: We'll log access when we have actual results. */
 
 #ifdef WITH_PYTHON
   if (CTX_py_dict_get(C)) {
