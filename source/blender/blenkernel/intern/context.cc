@@ -357,7 +357,10 @@ static void CTX_member_log_access(bContext *C,
                                   const char *member,
                                   const bContextDataResult &result)
 {
-  if (!CTX_py_dict_get(C)) {
+  /* Safety check: Context can be null when called from certain code paths,
+   * such as when CTX_data_pointer_verify is called with a null context.
+   * This prevents segmentation faults when accessing context members. */
+  if (!C) {
     return;
   }
 
@@ -371,8 +374,11 @@ static void CTX_member_log_access(bContext *C,
   const char *value_desc = value_repr.c_str();
 
 #ifdef WITH_PYTHON
-  /* Get current Python location if available. */
-  std::optional<std::string> python_location = BPY_python_current_file_and_line();
+  /* Get current Python location if available and Python is properly initialized. */
+  std::optional<std::string> python_location;
+  if (CTX_py_init_get(C)) {
+    python_location = BPY_python_current_file_and_line();
+  }
   const char *location = python_location ? python_location->c_str() : "unknown:0";
 #else
   const char *location = "unknown:0";
