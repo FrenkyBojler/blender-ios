@@ -293,7 +293,7 @@ static PyObject *bpy_rna_context_temp_override_enter(BPyContextTempOverride *sel
 
   /* Set flag to indicate we're in a temp override */
   CTX_temp_override_set(C, true);
-  
+
   /* Set logging flag if requested */
   if (self->use_logging) {
     CTX_temp_override_logging_set(C, true);
@@ -514,45 +514,48 @@ static PyObject *bpy_rna_context_temp_override_exit(BPyContextTempOverride *self
   if (context_dict_test && (context_dict_test != self->py_state_context_dict)) {
     Py_DECREF(context_dict_test);
   }
-  
+
   /* Clear the temp override flag before restoring Python state */
   CTX_temp_override_set(C, false);
-  
+
   /* Clear logging flag if it was set */
   if (self->use_logging) {
     CTX_temp_override_logging_set(C, false);
   }
-  
+
   CTX_py_state_pop(C, &self->py_state);
 
   Py_RETURN_NONE;
 }
 
 /* Getter/setter for use_logging property */
-static PyObject *bpy_rna_context_temp_override_use_logging_get(BPyContextTempOverride *self, void * /*closure*/)
+static PyObject *bpy_rna_context_temp_override_use_logging_get(BPyContextTempOverride *self,
+                                                               void * /*closure*/)
 {
   return PyBool_FromLong(self->use_logging);
 }
 
-static int bpy_rna_context_temp_override_use_logging_set(BPyContextTempOverride *self, PyObject *value, void * /*closure*/)
+static int bpy_rna_context_temp_override_use_logging_set(BPyContextTempOverride *self,
+                                                         PyObject *value,
+                                                         void * /*closure*/)
 {
   if (value == nullptr) {
     PyErr_SetString(PyExc_TypeError, "cannot delete use_logging");
     return -1;
   }
-  
+
   int result = PyObject_IsTrue(value);
   if (result == -1) {
     return -1;
   }
-  
+
   self->use_logging = result;
-  
+
   /* Update the C-level logging flag */
   if (self->context) {
     CTX_temp_override_logging_set(self->context, result);
   }
-  
+
   return 0;
 }
 
@@ -573,7 +576,7 @@ static PyMethodDef bpy_rna_context_temp_override_methods[] = {
 };
 
 static PyGetSetDef bpy_rna_context_temp_override_getset[] = {
-    {"use_logging", 
+    {"use_logging",
      (getter)bpy_rna_context_temp_override_use_logging_get,
      (setter)bpy_rna_context_temp_override_use_logging_set,
      "Enable logging for temp_override context manager",

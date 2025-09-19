@@ -785,7 +785,7 @@ bool BPY_context_member_get(bContext *C, const char *member, bContextDataResult 
   /* Log context member access if we're in a temp_override and logging is enabled */
   if (CTX_temp_override_get(C)) {
     CTX_temp_override_add_accessed_member(C, member);
-    /* Show individual access logs if either programmatic logging is enabled 
+    /* Show individual access logs if either programmatic logging is enabled
      * or the command line debug level is active */
     if (CTX_temp_override_logging_get(C) || CLOG_CHECK(BKE_LOG_TEMP_OVERRIDE, CLG_LEVEL_DEBUG)) {
       CLOG_DEBUG(BKE_LOG_TEMP_OVERRIDE, "accessing context member '%s'", member);
