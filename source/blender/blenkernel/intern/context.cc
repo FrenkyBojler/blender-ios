@@ -344,8 +344,8 @@ static std::string ctx_result_brief_repr(const bContextDataResult &result)
         return "\"\"";
       }
   }
-  BLI_assert_unreachable();
   /* Unhandled context type. Update if new types are added. */
+  BLI_assert_unreachable();
   return "<UNKNOWN>";
 }
 
