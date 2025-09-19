@@ -109,7 +109,7 @@ struct bContext {
     /** True if logging is enabled for temp_override (can be set programmatically). */
     bool temp_override_logging_enabled;
     /** Set of context members accessed during temp_override. */
-    blender::Set<std::string> *temp_override_accessed_members;
+    blender::Set<std::string> temp_override_accessed_members;
   } data;
 };
 
@@ -117,15 +117,14 @@ struct bContext {
 
 bContext *CTX_create()
 {
-  bContext *C = MEM_callocN<bContext>(__func__);
+  bContext *C = MEM_new<bContext>(__func__);
 
   return C;
 }
 
 bContext *CTX_copy(const bContext *C)
 {
-  bContext *newC = MEM_callocN<bContext>(__func__);
-  *newC = *C;
+  bContext *newC = MEM_new<bContext>(__func__, *C);
 
   memset(&newC->wm.operator_poll_msg_dyn_params, 0, sizeof(newC->wm.operator_poll_msg_dyn_params));
 
@@ -137,10 +136,8 @@ void CTX_free(bContext *C)
   /* This may contain a dynamically allocated message, free. */
   CTX_wm_operator_poll_msg_clear(C);
 
-  /* Clean up temp_override tracking set if it exists */
-  MEM_SAFE_DELETE(C->data.temp_override_accessed_members);
-
-  MEM_freeN(C);
+  /* Clean up is handled by the destructor */
+  MEM_delete(C);
 }
 
 /* store */
@@ -303,8 +300,8 @@ struct bContextDataResult {
 
 static void CTX_temp_override_add_accessed_member(bContext *C, const char *member)
 {
-  if (C->data.temp_override_active && C->data.temp_override_accessed_members) {
-    C->data.temp_override_accessed_members->add(std::string(member));
+  if (C->data.temp_override_active) {
+    C->data.temp_override_accessed_members.add(std::string(member));
   }
 }
 
@@ -1732,20 +1729,18 @@ static void CTX_temp_override_output_summary(bContext *C, const std::string &sum
 void CTX_temp_override_set(bContext *C, bool enable)
 {
   if (enable && !C->data.temp_override_active) {
-    /* Starting temp_override - create the tracking set if logging is enabled */
+    /* Starting temp_override - clear the tracking set if logging is enabled */
     if (CTX_temp_override_should_log(C)) {
-      C->data.temp_override_accessed_members = MEM_new<blender::Set<std::string>>(__func__);
+      C->data.temp_override_accessed_members.clear();
     }
   }
   else if (!enable && C->data.temp_override_active) {
     /* Ending temp_override - print summary if logging was active and we have members */
-    if (CTX_temp_override_should_log(C) && C->data.temp_override_accessed_members &&
-        !C->data.temp_override_accessed_members->is_empty())
-    {
+    if (CTX_temp_override_should_log(C) && !C->data.temp_override_accessed_members.is_empty()) {
       /* Build the summary string */
       std::string summary = "accessed context members: {";
       bool first = true;
-      for (const std::string &member : *C->data.temp_override_accessed_members) {
+      for (const std::string &member : C->data.temp_override_accessed_members) {
         if (!first) {
           summary += ", ";
         }
@@ -1756,7 +1751,7 @@ void CTX_temp_override_set(bContext *C, bool enable)
 
       CTX_temp_override_output_summary(C, summary);
     }
-    MEM_SAFE_DELETE(C->data.temp_override_accessed_members);
+    C->data.temp_override_accessed_members.clear();
   }
 
   C->data.temp_override_active = enable;
@@ -1773,11 +1768,9 @@ void CTX_temp_override_logging_set(bContext *C, bool enable)
   C->data.temp_override_logging_enabled = enable;
 
   /* If we're enabling logging and we're currently in a temp_override,
-   * create the tracking set if it doesn't exist */
-  if (enable && !was_enabled && C->data.temp_override_active &&
-      !C->data.temp_override_accessed_members)
-  {
-    C->data.temp_override_accessed_members = MEM_new<blender::Set<std::string>>(__func__);
+   * clear the tracking set to start fresh */
+  if (enable && !was_enabled && C->data.temp_override_active) {
+    C->data.temp_override_accessed_members.clear();
   }
 }
 
