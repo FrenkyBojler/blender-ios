@@ -107,6 +107,17 @@ inactive_colorspaces: [Luminance Compensation Rec.2020]
 
 display_colorspaces:
   - !<ColorSpace>
+    name: Linear CIE-XYZ D65
+    aliases: [lin_ciexyzd65_scene, cie_xyz_d65, CIE-XYZ-D65, XYZ, Linear CIE-XYZ I-D65]
+    family: Chromaticity
+    equalitygroup:
+    bitdepth: 32f
+    description: |
+      1931 CIE XYZ with adapted illuminant D65 white point
+    isdata: false
+    encoding: display-linear
+
+  - !<ColorSpace>
     name: sRGB
     aliases: [srgb_rec709_display, srgb_rec709_scene, sRGB 2.2, sRGB I-D65, srgb_display, sRGB - Display, g22_rec709, Utility - Gamma 2.2 - Rec.709 - Texture, Utility - sRGB - Texture, sRGB - Texture, srgb_tx, srgb_texture, Input - Generic - sRGB - Texture, "sRGB Display: 2.2 Gamma - Rec.709"]
     family: Display
@@ -245,13 +256,13 @@ display_colorspaces:
         - !<FileTransform> {src: pbrNeutral.cube, interpolation: tetrahedral}
         - !<ColorSpaceTransform> {src: Linear Rec.709, dst: sRGB}
 
+default_view_transform: Standard
+
 view_transforms:
   - !<ViewTransform>
     name: Standard
     description: Apply only the display's standard transform without additional mappings
-    from_scene_reference: !<GroupTransform>
-      children:
-        - !<ColorSpaceTransform> {src: reference, dst: cie_xyz_d65_interchange}
+    from_scene_reference: !<FileTransform> {src: xyz_E_to_D65.spimtx, interpolation: linear}
 
   - !<ViewTransform>
     name: Filmic sRGB
@@ -411,17 +422,6 @@ colorspaces:
     description: |
       1931 CIE XYZ standard with assumed illuminant E white point
     isdata: false
-
-  - !<ColorSpace>
-    name: Linear CIE-XYZ D65
-    aliases: [lin_ciexyzd65_scene, cie_xyz_d65, CIE-XYZ-D65, XYZ, Linear CIE-XYZ I-D65]
-    family: Chromaticity
-    equalitygroup:
-    bitdepth: 32f
-    description: |
-      1931 CIE XYZ with adapted illuminant D65 white point
-    isdata: false
-    from_scene_reference: !<FileTransform> {src: xyz_E_to_D65.spimtx, interpolation: linear}
 
   - !<ColorSpace>
     name: Linear Rec.709
