@@ -860,23 +860,19 @@ std::optional<std::string> BPY_python_current_file_and_line(void)
     gilstate = PyGILState_Ensure();
   }
 
-  PyFrameObject *frame = PyEval_GetFrame();
+  const char *filename = nullptr;
+  int lineno = -1;
+  PyC_FileAndNum_Safe(&filename, &lineno);
 
-  if (frame) {
-    PyCodeObject *code = PyFrame_GetCode(frame);
-    if (code) {
-      const char *filename = PyUnicode_AsUTF8(code->co_filename);
-      if (filename) {
-        int lineno = PyFrame_GetLineNumber(frame);
-        char buf[512];
-        BLI_snprintf(buf, sizeof(buf), "%s:%d", filename, lineno);
-        if (use_gil) {
-          PyGILState_Release(gilstate);
-        }
-        return std::string(buf);
-      }
+  if (filename) {
+    if (use_gil) {
+      PyGILState_Release(gilstate);
     }
+    char buf[512];
+    BLI_snprintf(buf, sizeof(buf), "%s:%d", filename, lineno);
+    return std::string(buf);
   }
+
   if (use_gil) {
     PyGILState_Release(gilstate);
   }
