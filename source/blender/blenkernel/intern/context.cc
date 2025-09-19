@@ -293,68 +293,68 @@ struct bContextDataResult {
   ContextDataType type;
 };
 
-#ifdef WITH_PYTHON
-/* Helper function to get Python file and line info */
-static void CTX_get_python_location(std::string &location_info)
-{
-  /* For now, just return a generic location string.
-   * More detailed location tracking would require refactoring to avoid
-   * Python dependencies in blenkernel. */
-  location_info = "Python script";
-}
-
-/* Helper to create a brief value description */
-static std::string CTX_get_value_description(void *ptr, const char *member)
-{
-  if (!ptr) {
-    return "None";
-  }
-
-  /* Just indicate presence for any non-null value */
-  return std::string("<") + member + ">";
-}
-#endif
-
-/* Enhanced logging function that logs individual accesses with details */
-static void CTX_temp_override_log_detailed_access(bContext *C, const char *member, void *value)
+/* Simple logging for context data results */
+static void CTX_temp_override_log_access(bContext *C,
+                                         const char *member,
+                                         const bContextDataResult &result)
 {
   if (!CTX_temp_override_get(C)) {
     return;
   }
 
-  /* Log at TRACE level or when python logging is enabled */
-  bool should_log = CLOG_CHECK(BKE_LOG_TEMP_OVERRIDE, CLG_LEVEL_TRACE) || 
+  bool should_log = CLOG_CHECK(BKE_LOG_TEMP_OVERRIDE, CLG_LEVEL_TRACE) ||
                     CTX_temp_override_logging_get(C);
 
   if (!should_log) {
     return;
   }
 
-  std::string location_info = "unknown";
-  std::string value_desc = "None";
+  const char *type_name = "unknown";
+  const char *value_desc = "None";
+  std::string value_desc_storage;  // Storage for dynamic strings
 
-#ifdef WITH_PYTHON
-  CTX_get_python_location(location_info);
-  value_desc = CTX_get_value_description(value, member);
-#else
-  value_desc = value ? "<value>" : "None";
-#endif
+  /* Simple type identification */
+  switch (result.type) {
+    case CTX_DATA_TYPE_POINTER:
+      type_name = "pointer";
+      if (result.ptr.data) {
+        value_desc_storage = std::string("<") + member + ">";
+        value_desc = value_desc_storage.c_str();
+      } else {
+        value_desc = "None";
+      }
+      break;
+    case CTX_DATA_TYPE_COLLECTION:
+      type_name = "collection";
+      value_desc = "<list>";
+      break;
+    case CTX_DATA_TYPE_STRING:
+      type_name = "string";
+      value_desc = !result.str.is_empty() ? "<string>" : "None";
+      break;
+    case CTX_DATA_TYPE_INT64:
+      type_name = "int64";
+      value_desc = result.int_value.has_value() ? "<int>" : "None";
+      break;
+    case CTX_DATA_TYPE_PROPERTY:
+      type_name = "property";
+      value_desc = result.prop ? "<property>" : "None";
+      break;
+  }
 
   /* Use TRACE level when available, otherwise force output when Python logging is enabled */
   if (CLOG_CHECK(BKE_LOG_TEMP_OVERRIDE, CLG_LEVEL_TRACE)) {
-    CLOG_TRACE(BKE_LOG_TEMP_OVERRIDE,
-               "location:%s | member:%s | value:%s",
-               location_info.c_str(),
-               member,
-               value_desc.c_str());
+    CLOG_TRACE(
+        BKE_LOG_TEMP_OVERRIDE, "member:%s | type:%s | value:%s", member, type_name, value_desc);
   }
   else if (CTX_temp_override_logging_get(C)) {
     /* Force output at TRACE level even if not enabled via command line */
-    CLOG_AT_LEVEL_NOCHECK(BKE_LOG_TEMP_OVERRIDE, CLG_LEVEL_TRACE,
-                          "location:%s | member:%s | value:%s",
-                          location_info.c_str(),
+    CLOG_AT_LEVEL_NOCHECK(BKE_LOG_TEMP_OVERRIDE,
+                          CLG_LEVEL_TRACE,
+                          "member:%s | type:%s | value:%s",
                           member,
-                          value_desc.c_str());
+                          type_name,
+                          value_desc);
   }
 }
 
@@ -367,12 +367,13 @@ static void *ctx_wm_python_context_get(const bContext *C,
   if (UNLIKELY(C && CTX_py_dict_get(C))) {
     bContextDataResult result{};
     if (BPY_context_member_get((bContext *)C, member, &result)) {
+      /* Log context member access if we're in a temp_override */
+      if (CTX_temp_override_get(C)) {
+        CTX_temp_override_log_access((bContext *)C, member, result);
+      }
+
       if (result.ptr.data) {
         if (RNA_struct_is_a(result.ptr.type, member_type)) {
-          /* Log context member access if we're in a temp_override */
-          if (CTX_temp_override_get(C)) {
-            CTX_temp_override_log_detailed_access((bContext *)C, member, result.ptr.data);
-          }
           return result.ptr.data;
         }
         else {
@@ -391,7 +392,10 @@ static void *ctx_wm_python_context_get(const bContext *C,
 
   /* Log context member access if we're in a temp_override */
   if (CTX_temp_override_get(C)) {
-    CTX_temp_override_log_detailed_access((bContext *)C, member, fall_through);
+    bContextDataResult simple_result{};
+    simple_result.ptr.data = fall_through;
+    simple_result.type = CTX_DATA_TYPE_POINTER;
+    CTX_temp_override_log_access((bContext *)C, member, simple_result);
   }
 
   /* Don't allow UI context access from non-main threads */
@@ -412,16 +416,15 @@ static eContextResult ctx_data_get(bContext *C, const char *member, bContextData
 
   *result = {};
 
-  /* Log context member access if we're in a temp_override */
-  if (CTX_temp_override_get(C)) {
-    /* Log detailed access - we'll log again with the actual value if we get one,
-     * but this ensures we don't miss any accesses */
-    CTX_temp_override_log_detailed_access(C, member, nullptr);
-  }
+  /* Note: We'll log access when we have actual results */
 
 #ifdef WITH_PYTHON
   if (CTX_py_dict_get(C)) {
     if (BPY_context_member_get(C, member, result)) {
+      /* Log the Python context result if we're in a temp_override */
+      if (CTX_temp_override_get(C)) {
+        CTX_temp_override_log_access(C, member, *result);
+      }
       return CTX_RESULT_OK;
     }
   }
@@ -493,7 +496,14 @@ static eContextResult ctx_data_get(bContext *C, const char *member, bContextData
 
   C->data.recursion = recursion;
 
-  return eContextResult(done);
+  eContextResult final_result = eContextResult(done);
+
+  /* Log context result if we're in a temp_override and we got a successful result */
+  if (CTX_temp_override_get(C) && final_result == CTX_RESULT_OK) {
+    CTX_temp_override_log_access(C, member, *result);
+  }
+
+  return final_result;
 }
 
 static void *ctx_data_pointer_get(const bContext *C, const char *member)
