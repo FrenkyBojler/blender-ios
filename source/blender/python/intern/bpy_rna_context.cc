@@ -545,12 +545,7 @@ static PyObject *bpy_rna_context_temp_override_logging_set(BPyContextTempOverrid
 
   self->ctx_temp.use_logging = enable;
 
-  /* This function may be called during early initialization, in which case
-   * `self->context` might be null. If `self->context` is null do an early return
-   * because there is no context information to log. */
-  if (self->context) {
-    bpy_rna_context_logging_set(self->context, enable);
-  }
+  bpy_rna_context_logging_set(self->context, enable);
 
   Py_RETURN_NONE;
 }
