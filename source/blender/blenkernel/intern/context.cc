@@ -540,7 +540,7 @@ static eContextResult ctx_data_get(bContext *C, const char *member, bContextData
     CTX_member_log_access(C, member, *result);
   }
 
-return final_result;
+  return final_result;
 }
 
 static void *ctx_data_pointer_get(const bContext *C, const char *member)
