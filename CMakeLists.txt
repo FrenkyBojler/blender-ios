@@ -417,6 +417,13 @@ Build with external audaspace library installed on the system \
 mark_as_advanced(WITH_AUDASPACE)
 mark_as_advanced(WITH_SYSTEM_AUDASPACE)
 
+if(WITH_AUDASPACE AND NOT WITH_SYSTEM_AUDASPACE)
+  option(WITH_RUBBERBAND "\
+  Build with Rubber Band for audio time-stretching and pitch-scaling (used by Audaspace)" 
+    OFF
+  )
+endif()
+
 set_and_warn_dependency(WITH_AUDASPACE WITH_SYSTEM_AUDASPACE OFF)
 
 if(WITH_GHOST_X11)
@@ -1179,7 +1186,12 @@ if(WIN32)
 
   option(WITH_WINDOWS_BUNDLE_CRT "Bundle the C runtime for install free distribution." ON)
   mark_as_advanced(WITH_WINDOWS_BUNDLE_CRT)
-
+  if(WITH_WINDOWS_BUNDLE_CRT AND 
+     CMAKE_VERSION VERSION_LESS "4.2.0" AND 
+     MSVC_VERSION GREATER_EQUAL 1950)
+    message(WARNING "VS2026 not supported on this CMAKE version: WITH_WINDOWS_BUNDLE_CRT will be disabled")
+    set(WITH_WINDOWS_BUNDLE_CRT OFF)
+  endif()
   option(WITH_WINDOWS_EXTERNAL_MANIFEST "Use external manifest files" OFF)
   mark_as_advanced(WITH_WINDOWS_EXTERNAL_MANIFEST)
 
