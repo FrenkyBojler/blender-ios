@@ -39,10 +39,10 @@
 #include "BKE_screen.hh"
 #include "BKE_sound.h"
 
-#include "WM_api.hh"
 #include "../windowmanager/wm_event_system.hh"
 #include "BKE_wm_runtime.hh"
 #include "BKE_workspace.hh"
+#include "WM_api.hh"
 
 #include "RE_engine.h"
 
@@ -324,7 +324,7 @@ static std::string CTX_get_value_description(void *ptr, const char *member)
   if (!ptr) {
     return "None";
   }
-  
+
   /* For common context members, provide meaningful descriptions */
   if (STREQ(member, "object")) {
     Object *ob = static_cast<Object *>(ptr);
@@ -355,61 +355,68 @@ static void CTX_temp_override_log_detailed_access(bContext *C, const char *membe
   if (!CTX_temp_override_get(C)) {
     return;
   }
-  
+
   /* Determine logging levels and user preferences */
   bool is_trace_level = CLOG_CHECK(BKE_LOG_TEMP_OVERRIDE, CLG_LEVEL_TRACE);
   bool is_debug_level = CLOG_CHECK(BKE_LOG_TEMP_OVERRIDE, CLG_LEVEL_DEBUG);
   bool python_logging_enabled = CTX_temp_override_logging_get(C);
-  
+
   /* Only log if any form of logging is enabled */
   if (!is_trace_level && !is_debug_level && !python_logging_enabled) {
     return;
   }
-  
+
   std::string location_info = "unknown";
   std::string value_desc = "None";
-  
+
 #ifdef WITH_PYTHON
   CTX_get_python_location(location_info);
   value_desc = CTX_get_value_description(value, member);
 #else
   value_desc = value ? "<value>" : "None";
 #endif
-  
+
   /* Create a unique key for this log entry */
   std::string log_key = location_info + "|" + std::string(member) + "|" + value_desc;
-  
+
   /* Track logged entries to avoid duplicates at DEBUG level (but not TRACE) */
   static blender::Set<std::string> logged_entries;
-  
+
   bool should_log_at_debug = true;
-  
+
   /* At DEBUG level (not TRACE), check for duplicates */
   if ((is_debug_level || python_logging_enabled) && !is_trace_level) {
     if (logged_entries.contains(log_key)) {
-      should_log_at_debug = false;  /* Skip duplicate at DEBUG level */
-    } else {
-      logged_entries.add(log_key);  /* Remember this entry */
+      should_log_at_debug = false; /* Skip duplicate at DEBUG level */
+    }
+    else {
+      logged_entries.add(log_key); /* Remember this entry */
     }
   }
-  
+
   /* Log the detailed access information */
   if (is_trace_level) {
     /* At TRACE level, log everything including duplicates */
-    CLOG_TRACE(BKE_LOG_TEMP_OVERRIDE, 
+    CLOG_TRACE(BKE_LOG_TEMP_OVERRIDE,
                "location:%s | member:%s | value:%s",
-               location_info.c_str(), member, value_desc.c_str());
+               location_info.c_str(),
+               member,
+               value_desc.c_str());
   }
   else if (is_debug_level && should_log_at_debug) {
     /* At DEBUG level, only log unique entries via CLOG */
-    CLOG_DEBUG(BKE_LOG_TEMP_OVERRIDE, 
+    CLOG_DEBUG(BKE_LOG_TEMP_OVERRIDE,
                "location:%s | member:%s | value:%s",
-               location_info.c_str(), member, value_desc.c_str());
+               location_info.c_str(),
+               member,
+               value_desc.c_str());
   }
   else if (python_logging_enabled && should_log_at_debug && !is_debug_level) {
     /* Python-enabled logging (when CLOG is not at DEBUG/TRACE level) */
     printf("temp_override | location:%s | member:%s | value:%s\n",
-           location_info.c_str(), member, value_desc.c_str());
+           location_info.c_str(),
+           member,
+           value_desc.c_str());
   }
 }
 
@@ -473,7 +480,7 @@ static eContextResult ctx_data_get(bContext *C, const char *member, bContextData
   if (CTX_temp_override_get(C)) {
     /* Add to simple member set for backward compatibility */
     CTX_temp_override_add_accessed_member(C, member);
-    
+
     /* For ctx_data_get, we don't know the result yet, so log with unknown value */
     CTX_temp_override_log_detailed_access(C, member, nullptr);
   }

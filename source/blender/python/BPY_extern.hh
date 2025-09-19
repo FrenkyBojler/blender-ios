@@ -95,8 +95,6 @@ void BPY_driver_reset();
                                     ChannelDriver *driver_orig,
                                     const AnimationEvalContext *anim_eval_context);
 
-
-
 /**
  * Acquire the global-interpreter-lock (GIL) and wrap `Py_DECREF`.
  * as there are some cases when this needs to be called outside the Python API code.
