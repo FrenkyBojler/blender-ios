@@ -292,8 +292,7 @@ struct bContextDataResult {
 };
 
 /* Create a brief string representation of a context data result */
-static std::optional<std::string> CTX_result_brief_repr(const bContextDataResult &result,
-                                                        const char *member = nullptr)
+static std::optional<std::string> CTX_result_brief_repr(const bContextDataResult &result)
 {
   switch (result.type) {
     case CTX_DATA_TYPE_POINTER:
@@ -330,12 +329,9 @@ static std::optional<std::string> CTX_result_brief_repr(const bContextDataResult
 
     case CTX_DATA_TYPE_COLLECTION:
       if (!result.list.is_empty()) {
-        std::string collection_name = member ? member : "collection";
-        return std::string("[") + collection_name + " collection with " +
-               std::to_string(result.list.size()) + " items]";
+        return std::string("[collection with ") + std::to_string(result.list.size()) + " items]";
       } else {
-        std::string collection_name = member ? member : "collection";
-        return std::string("[") + collection_name + " collection (empty)]";
+        return std::string("[collection (empty)]");
       }
 
     case CTX_DATA_TYPE_STRING:
@@ -365,7 +361,7 @@ static void CTX_temp_override_log_access(bContext *C,
     return;
   }
 
-  std::optional<std::string> value_repr = CTX_result_brief_repr(result, member);
+  std::optional<std::string> value_repr = CTX_result_brief_repr(result);
   const char *value_desc = value_repr ? value_repr->c_str() : "None";
 
 #ifdef WITH_PYTHON
