@@ -3560,8 +3560,11 @@ static void read_drag_and_drop_data_fn(GWL_Seat *const seat,
       wl_display_roundtrip(system->wl_display_get());
     }
     else {
-      if (event_type == GHOST_kEventDraggingDropDone) {
+      if (event_type == GHOST_kEventDraggingEntered) {
         dnd_events(seat, GHOST_kEventDraggingEntered, event_ms);
+      }
+      else {
+        dnd_events(seat, GHOST_kEventDraggingExited, event_ms);
       }
       CLOG_DEBUG(LOG, "read_drop_data, unhandled!");
     }
