@@ -568,7 +568,9 @@ static PyObject *bpy_rna_context_temp_override_logging_set(BPyContextTempOverrid
 static PyMethodDef bpy_rna_context_temp_override_methods[] = {
     {"__enter__", (PyCFunction)bpy_rna_context_temp_override_enter, METH_NOARGS},
     {"__exit__", (PyCFunction)bpy_rna_context_temp_override_exit, METH_VARARGS},
-    {"logging_set", (PyCFunction)bpy_rna_context_temp_override_logging_set, METH_VARARGS | METH_KEYWORDS},
+    {"logging_set",
+     (PyCFunction)bpy_rna_context_temp_override_logging_set,
+     METH_VARARGS | METH_KEYWORDS},
     {nullptr},
 };
 
