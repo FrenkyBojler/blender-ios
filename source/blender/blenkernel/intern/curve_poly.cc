@@ -57,8 +57,8 @@ static float3 direction_bisect(const float3 &pos,
   }
   const float3 tangent = prev_dir + other_dir;
   const float norm = math::length(tangent);
-  if (norm < 0.1f) {   /* Approx. < sin(5.71°) */
-    if (norm < 1e-6) { /* Approx. < sin(1e-6) */
+  if (norm < 0.3472319f) { /* Approximates angle between segments < 20°) */
+    if (norm < 2e-7) {     /* Approximately < sin(1e-5) */
       return other_dir;
     }
     /* Compute using the cross product as catastrophic cancellation occur in `tangent`
