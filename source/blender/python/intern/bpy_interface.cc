@@ -854,27 +854,6 @@ bool BPY_context_member_get(bContext *C, const char *member, bContextDataResult 
   return done;
 }
 
-const char *BPY_get_current_location()
-{
-  static char location_buffer[256];
-  const char *filename = nullptr;
-  int lineno = -1;
-
-  PyC_FileAndNum_Safe(&filename, &lineno);
-
-  if (filename && lineno != -1) {
-    const char *basename = strrchr(filename, '/');
-    basename = basename ? basename + 1 : filename;
-    snprintf(location_buffer, sizeof(location_buffer), "%s:%d", basename, lineno);
-  }
-  else {
-    strncpy(location_buffer, "Python script", sizeof(location_buffer) - 1);
-    location_buffer[sizeof(location_buffer) - 1] = '\0';
-  }
-
-  return location_buffer;
-}
-
 #ifdef WITH_PYTHON_MODULE
 /* TODO: reloading the module isn't functional at the moment. */
 

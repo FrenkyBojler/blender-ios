@@ -137,11 +137,6 @@ void BPY_free_srna_pytype(StructRNA *srna);
  */
 [[nodiscard]] bool BPY_string_is_keyword(const char *str);
 
-/**
- * Get current Python stack location.
- */
-const char *BPY_get_current_location();
-
 /* `bpy_rna_callback.cc` */
 
 void BPY_callback_screen_free(ARegionType *art);

@@ -309,9 +309,10 @@ static void CTX_temp_override_add_accessed_member(bContext *C, const char *membe
 /* Helper function to get Python file and line info */
 static void CTX_get_python_location(std::string &location_info)
 {
-  /* Get Python stack information using the BPY API */
-  const char *location = BPY_get_current_location();
-  location_info = location;
+  /* For now, just return a generic location string.
+   * More detailed location tracking would require refactoring to avoid
+   * Python dependencies in blenkernel. */
+  location_info = "Python script";
 }
 
 /* Helper to create a brief value description */
