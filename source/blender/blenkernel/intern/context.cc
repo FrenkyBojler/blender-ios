@@ -298,8 +298,8 @@ static std::optional<std::string> CTX_result_brief_repr(const bContextDataResult
   switch (result.type) {
     case CTX_DATA_TYPE_POINTER:
       if (result.ptr.data) {
-        const char *rna_type_name = result.ptr.type ? RNA_struct_identifier(result.ptr.type) : "Unknown";
-        
+        const char *rna_type_name = result.ptr.type ? RNA_struct_identifier(result.ptr.type) :
+                                                      "Unknown";
         /* Try to get the name property if it exists */
         std::string obj_name;
         if (result.ptr.type) {
@@ -316,7 +316,6 @@ static std::optional<std::string> CTX_result_brief_repr(const bContextDataResult
             }
           }
         }
-        
         /* Format like PyRNA: <bpy_struct, Type("name") at 0xAddress> or <bpy_struct, Type at 0xAddress> */
         if (!obj_name.empty()) {
           return std::string("<bpy_struct, ") + rna_type_name + "(\"" + obj_name + "\") at 0x" +
@@ -328,7 +327,7 @@ static std::optional<std::string> CTX_result_brief_repr(const bContextDataResult
       } else {
         return std::string("None");
       }
-      break;
+      // break;  // unreachable
     case CTX_DATA_TYPE_COLLECTION:
       if (!result.list.is_empty()) {
         std::string collection_name = member ? member : "collection";
@@ -338,32 +337,17 @@ static std::optional<std::string> CTX_result_brief_repr(const bContextDataResult
         std::string collection_name = member ? member : "collection";
         return std::string("[") + collection_name + " collection (empty)]";
       }
-      break;
+      // break;  // unreachable
     case CTX_DATA_TYPE_STRING:
       if (!result.str.is_empty()) {
         return std::string("\"") + std::string(result.str.c_str()) + "\"";
       } else {
         return std::string("\"\"");
       }
-      break;
-    case CTX_DATA_TYPE_INT64:
-      if (result.int_value.has_value()) {
-        return std::to_string(result.int_value.value());
-      } else {
-        return std::string("None");
-      }
-      break;
-    case CTX_DATA_TYPE_PROPERTY:
-      if (result.prop) {
-        const char *prop_name = RNA_property_identifier(result.prop);
-        return std::string("<RNA Property: ") + (prop_name ? prop_name : "unknown") + ">";
-      } else {
-        return std::string("None");
-      }
-      break;
+      // break;  // unreachable
+      // default:  // empty default removed
   }
-
-  return std::nullopt; /* Unknown type */
+  return std::nullopt; /* Unknown or unhandled type */
 }
 
 /* Simple logging for context data results */
