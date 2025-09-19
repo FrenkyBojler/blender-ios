@@ -232,7 +232,7 @@ void BPY_text_free_code(Text *text)
       gilstate = PyGILState_Ensure();
     }
 
-    Py_DECREF(static_cast<PyObject *>(text->compiled));
+  Py_DECREF((PyObject *)text->compiled);
     text->compiled = nullptr;
 
     if (use_gil) {
@@ -262,7 +262,7 @@ bContext *BPY_context_get()
 
 void BPY_context_set(bContext *C)
 {
-  bpy_context_module->ptr->data = static_cast<void *>(C);
+  bpy_context_module->ptr->data = (void *)C;
 }
 
 #ifdef WITH_FLUID
@@ -279,7 +279,7 @@ extern "C" PyObject *AUD_initPython();
 /* Defined in `cycles` module. */
 static PyObject *CCL_initPython()
 {
-  return static_cast<PyObject *>(CCL_python_module_init());
+  return (PyObject *)CCL_python_module_init();
 }
 #endif
 
@@ -454,7 +454,7 @@ void BPY_python_start(bContext *C, int argc, const char **argv)
 
     /* While `sys.argv` is set, we don't want Python to interpret it. */
     config.parse_argv = 0;
-    status = PyConfig_SetBytesArgv(&config, argc, const_cast<char *const *>(argv));
+  status = PyConfig_SetBytesArgv(&config, argc, (char *const *)argv);
     pystatus_exit_on_error(status);
 
     /* Needed for Python's initialization for portable Python installations.
@@ -714,15 +714,15 @@ void BPY_python_backtrace(FILE *fp)
 void BPY_DECREF(void *pyob_ptr)
 {
   const PyGILState_STATE gilstate = PyGILState_Ensure();
-  Py_DECREF(static_cast<PyObject *>(pyob_ptr));
+  Py_DECREF((PyObject *)pyob_ptr);
   PyGILState_Release(gilstate);
 }
 
 void BPY_DECREF_RNA_INVALIDATE(void *pyob_ptr)
 {
   const PyGILState_STATE gilstate = PyGILState_Ensure();
-  const bool do_invalidate = (Py_REFCNT(static_cast<PyObject *>(pyob_ptr)) > 1);
-  Py_DECREF(static_cast<PyObject *>(pyob_ptr));
+  const bool do_invalidate = (Py_REFCNT((PyObject *)pyob_ptr) > 1);
+  Py_DECREF((PyObject *)pyob_ptr);
   if (do_invalidate) {
     pyrna_invalidate(static_cast<BPy_DummyPointerRNA *>(pyob_ptr));
   }
@@ -797,7 +797,7 @@ bool BPY_context_member_get(bContext *C, const char *member, bContextDataResult 
   PointerRNA *ptr = nullptr;
   bool done = false;
 
-  pyctx = static_cast<PyObject *>(CTX_py_dict_get(C));
+  pyctx = (PyObject *)CTX_py_dict_get(C);
   item = PyDict_GetItemString(pyctx, member);
 
   if (item == nullptr) {
