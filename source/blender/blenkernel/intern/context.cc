@@ -292,7 +292,7 @@ struct bContextDataResult {
   ContextDataType type;
 };
 
-/* Create a brief string representation of a context data result. */
+/** Create a brief string representation of a context data result. */
 static std::string ctx_result_brief_repr(const bContextDataResult &result)
 {
   switch (result.type) {
@@ -365,7 +365,7 @@ static void ctx_member_log_access(const bContext *C,
   const char *value_desc = value_repr.c_str();
 
 #ifdef WITH_PYTHON
-  /** Get current Python location if available and Python is properly initialized. */
+  /* Get current Python location if available and Python is properly initialized. */
   std::optional<std::string> python_location;
   if (C && CTX_py_init_get(C)) {
     python_location = BPY_python_current_file_and_line();
@@ -375,13 +375,13 @@ static void ctx_member_log_access(const bContext *C,
   const char *location = "unknown:0";
 #endif
 
-  /** Use TRACE level when available, otherwise force output when Python logging is enabled. */
+  /* Use TRACE level when available, otherwise force output when Python logging is enabled. */
   const char *format = "%s: %s=%s";
   if (CLOG_CHECK(BKE_LOG_CONTEXT, CLG_LEVEL_TRACE)) {
     CLOG_TRACE(BKE_LOG_CONTEXT, format, location, member, value_desc);
   }
   else if (C && CTX_member_logging_get(C)) {
-    /** Force output at TRACE level even if not enabled via command line. */
+    /* Force output at TRACE level even if not enabled via command line. */
     CLOG_AT_LEVEL_NOCHECK(BKE_LOG_CONTEXT, CLG_LEVEL_TRACE, format, location, member, value_desc);
   }
 }

@@ -529,7 +529,6 @@ static PyObject *bpy_rna_context_temp_override_exit(BPyContextTempOverride *self
   Py_RETURN_NONE;
 }
 
-/* New extensible logging methods */
 static PyObject *bpy_rna_context_temp_override_logging_set(BPyContextTempOverride *self,
                                                            PyObject *args,
                                                            PyObject *kwds)
