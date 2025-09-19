@@ -122,7 +122,7 @@ static StructRNA *rna_USDHook_register(Main *bmain,
   return srna;
 }
 
-bool rna_HookHandle_is_valid_get(PointerRNA *ptr)
+bool rna_HookDescriptor_is_valid_get(PointerRNA *ptr)
 {
   return USD_is_hook_valid(RNA_string_get(ptr, "identifier").c_str());
 }
@@ -130,7 +130,7 @@ bool rna_HookHandle_is_valid_get(PointerRNA *ptr)
 static const EnumPropertyItem default_hook_enum = {
     0, "INVALID", 0, "Invalid Handle", "Something broke"};
 
-static const EnumPropertyItem *rna_USDHookHandle_idval_itemf(bContext *C,
+static const EnumPropertyItem *rna_USDHookDescriptor_idval_itemf(bContext *C,
                                                              PointerRNA * /*ptr*/,
                                                              PropertyRNA * /*prop*/,
                                                              bool *r_free)
@@ -143,7 +143,7 @@ static const EnumPropertyItem *rna_USDHookHandle_idval_itemf(bContext *C,
   return USD_build_hook_enum();
 }
 
-static void rna_USDHookHandle_idval_set(PointerRNA *ptr, int value)
+static void rna_USDHookDescriptor_idval_set(PointerRNA *ptr, int value)
 {
   const char *identifier;
   const EnumPropertyItem *items = USD_build_hook_enum();
@@ -153,7 +153,7 @@ static void rna_USDHookHandle_idval_set(PointerRNA *ptr, int value)
   printf(" ! \n");
 
   if (is_valid == true) {
-    USDHookHandle *handle = static_cast<USDHookHandle *>(ptr->data);
+    USDHookDescriptor *handle = static_cast<USDHookDescriptor *>(ptr->data);
     handle->id_val = value;
     RNA_string_set(ptr, "identifier", identifier);
 
@@ -163,15 +163,15 @@ static void rna_USDHookHandle_idval_set(PointerRNA *ptr, int value)
   }
 }
 
-static void rna_USDHookHandle_identifier_get(PointerRNA *ptr, char *value)
+static void rna_USDHookDescriptor_identifier_get(PointerRNA *ptr, char *value)
 {
-  USDHookHandle *handle = static_cast<USDHookHandle *>(ptr->data);
+  USDHookDescriptor *handle = static_cast<USDHookDescriptor *>(ptr->data);
   strcpy(value, handle->identifier);
 }
 
-static void rna_USDHookHandle_name_get(PointerRNA *ptr, char *value)
+static void rna_USDHookDescriptor_name_get(PointerRNA *ptr, char *value)
 {
-  USDHookHandle *handle = static_cast<USDHookHandle *>(ptr->data);
+  USDHookDescriptor *handle = static_cast<USDHookDescriptor *>(ptr->data);
   strcpy(value, handle->name);
 }
 #else
@@ -209,25 +209,25 @@ static void rna_def_usd_hook(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Description", "A short description of the USD hook");
 }
 
-static void rna_def_usd_hook_handle(BlenderRNA *brna)
+static void rna_def_usd_hook_descriptor(BlenderRNA *brna)
 {
   StructRNA *srna;
   PropertyRNA *prop;
 
-  srna = RNA_def_struct(brna, "UsdHookHandle", "PropertyGroup");
-  RNA_def_struct_sdna(srna, "UsdHookHandle");
+  srna = RNA_def_struct(brna, "UsdHookDescriptor", "PropertyGroup");
+  RNA_def_struct_sdna(srna, "UsdHookDescriptor");
   RNA_def_struct_ui_text(
       srna, "Operator Hook Handle", "A serializable handle representing a runtime hook");
 
   prop = RNA_def_property(srna, "name", PROP_STRING, PROP_NONE);
   RNA_def_property_string_sdna(prop, nullptr, "name");
-  RNA_def_property_string_funcs(prop, "rna_USDHookHandle_name_get", nullptr, nullptr);
+  RNA_def_property_string_funcs(prop, "rna_USDHookDescriptor_name_get", nullptr, nullptr);
   RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE | PROP_IDPROPERTY | PROP_HIDDEN);
   RNA_def_property_ui_text(prop, "Hook Name", "Hook Name");
 
   prop = RNA_def_property(srna, "identifier", PROP_STRING, PROP_NONE);
   RNA_def_property_string_sdna(prop, nullptr, "identifier");
-  RNA_def_property_string_funcs(prop, "rna_USDHookHandle_identifier_get", nullptr, nullptr);
+  RNA_def_property_string_funcs(prop, "rna_USDHookDescriptor_identifier_get", nullptr, nullptr);
   RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE | PROP_IDPROPERTY);
   RNA_def_property_ui_text(prop, "Hook Identifier", "Hook Identifier");
 
@@ -239,13 +239,13 @@ static void rna_def_usd_hook_handle(BlenderRNA *brna)
   prop = RNA_def_property(srna, "valid", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE | PROP_IDPROPERTY | PROP_HIDDEN);
   RNA_def_property_ui_text(prop, "Valid", "This hook is valid");
-  RNA_def_property_boolean_funcs(prop, "rna_HookHandle_is_valid_get", nullptr);
+  RNA_def_property_boolean_funcs(prop, "rna_HookDescriptor_is_valid_get", nullptr);
 
   prop = RNA_def_property(srna, "handle_mode", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_items(prop, rna_enum_dummy_DEFAULT_items);
   RNA_def_property_enum_sdna(prop, nullptr, "id_val");
   RNA_def_property_enum_funcs(
-      prop, nullptr, "rna_USDHookHandle_idval_set", "rna_USDHookHandle_idval_itemf");
+      prop, nullptr, "rna_USDHookDescriptor_idval_set", "rna_USDHookDescriptor_idval_itemf");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_PRESET);
   RNA_def_property_ui_text(prop, "Subtype", "Subtype of the default value");
@@ -257,7 +257,7 @@ static void rna_def_usd_hook_handle(BlenderRNA *brna)
 void RNA_def_usd(BlenderRNA *brna)
 {
   rna_def_usd_hook(brna);
-  rna_def_usd_hook_handle(brna);
+  rna_def_usd_hook_descriptor(brna);
 }
 
 #endif

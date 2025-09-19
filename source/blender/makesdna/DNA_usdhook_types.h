@@ -8,10 +8,10 @@
 
 #pragma once
 
-typedef struct UsdHookHandle {
+typedef struct UsdHookDescriptor {
   int id_val;
   char name[256];
   char identifier[256];
   bool enabled;
   bool valid;
-} UsdHookHandle;
+} UsdHookDescriptor;

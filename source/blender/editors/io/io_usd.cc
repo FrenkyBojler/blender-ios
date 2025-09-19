@@ -374,11 +374,11 @@ static wmOperatorStatus wm_usd_export_exec(bContext *C, wmOperator *op)
 
   // Long-term TODO: This should just be a method.
   RNA_BEGIN (op->ptr, itemptr, "hooks") {
-    USDHookHandle handle;
+    USDHookDescriptor handle;
     STRNCPY(handle.identifier, RNA_string_get(&itemptr, "identifier").c_str());
     STRNCPY(handle.name, RNA_string_get(&itemptr, "name").c_str());
     handle.enabled = RNA_boolean_get(&itemptr, "enabled");
-    params.hook_handles.append(handle);
+    params.hook_descriptors.append(handle);
   }
   RNA_END;
 
@@ -559,7 +559,7 @@ static void wm_usd_export_draw(bContext *C, wmOperator *op)
             fmt::format("collection.exporters[{}].export_properties.hook_index", from).c_str());
       }
 
-      op_ptr = col->op("UI_OT_usd_hook_handle_add",
+      op_ptr = col->op("UI_OT_usd_hook_descriptor_add",
                        "",
                        ICON_ADD,
                        blender::wm::OpCallContext::InvokeDefault,
@@ -567,17 +567,17 @@ static void wm_usd_export_draw(bContext *C, wmOperator *op)
       RNA_string_set(&op_ptr, "list_path", base_path);
       RNA_string_set(&op_ptr, "index_path", index_path);
 
-      op_ptr = col->op("UI_OT_usd_hook_handle_remove", "", ICON_REMOVE);
+      op_ptr = col->op("UI_OT_usd_hook_descriptor_remove", "", ICON_REMOVE);
       RNA_string_set(&op_ptr, "list_path", base_path);
       RNA_string_set(&op_ptr, "index_path", index_path);
       RNA_int_set(&op_ptr, "index", from);
 
-      op_ptr = col->op("UI_OT_usd_hook_handle_move", "", ICON_TRIA_UP);
+      op_ptr = col->op("UI_OT_usd_hook_descriptor_move", "", ICON_TRIA_UP);
       RNA_string_set(&op_ptr, "list_path", base_path);
       RNA_string_set(&op_ptr, "index_path", index_path);
       RNA_enum_set(&op_ptr, "type", -1);
 
-      op_ptr = col->op("UI_OT_usd_hook_handle_move", "", ICON_TRIA_DOWN);
+      op_ptr = col->op("UI_OT_usd_hook_descriptor_move", "", ICON_TRIA_DOWN);
       RNA_string_set(&op_ptr, "list_path", base_path);
       RNA_string_set(&op_ptr, "index_path", index_path);
       RNA_enum_set(&op_ptr, "type", 1);
@@ -938,7 +938,7 @@ void WM_OT_usd_export(wmOperatorType *ot)
 
   prop = RNA_def_collection_runtime(ot->srna,
                                     "hooks",
-                                    &RNA_UsdHookHandle,
+                                    &RNA_UsdHookDescriptor,
                                     "Active Hooks",
                                     "List of USD Hook Functions to run after export");
   RNA_def_property_flag(prop, PROP_EDITABLE);
@@ -1394,7 +1394,7 @@ void WM_OT_usd_import(wmOperatorType *ot)
 /** \name USD Hook Handle Add
  * \{ */
 
-static const EnumPropertyItem *USDHookHandle_idval_itemf(bContext *C,
+static const EnumPropertyItem *USDHookDescriptor_idval_itemf(bContext *C,
                                                          PointerRNA * /*ptr*/,
                                                          PropertyRNA * /*prop*/,
                                                          bool *r_free)
@@ -1407,7 +1407,7 @@ static const EnumPropertyItem *USDHookHandle_idval_itemf(bContext *C,
   return USD_build_hook_enum();
 }
 
-static wmOperatorStatus ui_usd_hook_handle_add_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus ui_usd_hook_descriptor_add_exec(bContext *C, wmOperator *op)
 {
   char list_path[MAX_NAME];
   RNA_string_get(op->ptr, "list_path", list_path);
@@ -1435,18 +1435,18 @@ static wmOperatorStatus ui_usd_hook_handle_add_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-void UI_OT_usd_hook_handle_add(wmOperatorType *ot)
+void UI_OT_usd_hook_descriptor_add(wmOperatorType *ot)
 {
   PropertyRNA *prop;
 
   /* identifiers */
   ot->name = "USD Hook Handle Add";
-  ot->idname = "UI_OT_usd_hook_handle_add";
+  ot->idname = "UI_OT_usd_hook_descriptor_add";
   ot->description =
       "Generic operator for adding an item to a Collection Property displayed in a Tree List";
 
   /* callbacks */
-  ot->exec = ui_usd_hook_handle_add_exec;
+  ot->exec = ui_usd_hook_descriptor_add_exec;
   ot->invoke = WM_menu_invoke;
   ot->poll = WM_operator_winactive;
 
@@ -1468,7 +1468,7 @@ void UI_OT_usd_hook_handle_add(wmOperatorType *ot)
                  "Data path of the list active index integer relative to context");
 
   ot->prop = RNA_def_enum(ot->srna, "type", rna_enum_dummy_DEFAULT_items, 0, "Type", "");
-  RNA_def_enum_funcs(ot->prop, USDHookHandle_idval_itemf);
+  RNA_def_enum_funcs(ot->prop, USDHookDescriptor_idval_itemf);
 }
 
 /** \} */
@@ -1477,7 +1477,7 @@ void UI_OT_usd_hook_handle_add(wmOperatorType *ot)
 /** \name USD Hook Handle Remove
  * \{ */
 
-static wmOperatorStatus ui_usd_hook_handle_remove_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus ui_usd_hook_descriptor_remove_exec(bContext *C, wmOperator *op)
 {
   char list_path[MAX_NAME];
   RNA_string_get(op->ptr, "list_path", list_path);
@@ -1507,16 +1507,16 @@ static wmOperatorStatus ui_usd_hook_handle_remove_exec(bContext *C, wmOperator *
   return OPERATOR_FINISHED;
 }
 
-void UI_OT_usd_hook_handle_remove(wmOperatorType *ot)
+void UI_OT_usd_hook_descriptor_remove(wmOperatorType *ot)
 {
   /* identifiers */
   ot->name = "USD Hook Handle Remove";
-  ot->idname = "UI_OT_usd_hook_handle_remove";
+  ot->idname = "UI_OT_usd_hook_descriptor_remove";
   ot->description =
       "Generic operator for adding an item to a Collection Property displayed in a Tree List";
 
   /* callbacks */
-  ot->exec = ui_usd_hook_handle_remove_exec;
+  ot->exec = ui_usd_hook_descriptor_remove_exec;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER;
@@ -1559,7 +1559,7 @@ enum ListItemMove {
   KB_MOVE_BOTTOM = 2,
 };
 
-static wmOperatorStatus ui_usd_hook_handle_move_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus ui_usd_hook_descriptor_move_exec(bContext *C, wmOperator *op)
 {
   char list_path[MAX_NAME];
   RNA_string_get(op->ptr, "list_path", list_path);
@@ -1614,7 +1614,7 @@ static wmOperatorStatus ui_usd_hook_handle_move_exec(bContext *C, wmOperator *op
   return OPERATOR_FINISHED;
 }
 
-void UI_OT_usd_hook_handle_move(wmOperatorType *ot)
+void UI_OT_usd_hook_descriptor_move(wmOperatorType *ot)
 {
   static const EnumPropertyItem slot_move[] = {
       {KB_MOVE_TOP, "TOP", 0, "Top", "Top of the list"},
@@ -1625,11 +1625,11 @@ void UI_OT_usd_hook_handle_move(wmOperatorType *ot)
 
   /* identifiers */
   ot->name = "Move USD Hook Handle";
-  ot->idname = "UI_OT_usd_hook_handle_move";
+  ot->idname = "UI_OT_usd_hook_descriptor_move";
   ot->description = "Move selected USD Hook Handle up/down in the list";
 
   /* API callbacks. */
-  ot->exec = ui_usd_hook_handle_move_exec;
+  ot->exec = ui_usd_hook_descriptor_move_exec;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;

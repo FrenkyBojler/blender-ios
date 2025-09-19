@@ -403,10 +403,10 @@ static void handle_python_error(USDHook *hook, ReportList *reports)
 class USDHookInvoker {
  private:
   ReportList *reports_;
-  const Vector<USDHookHandle> *handles_;
+  const Vector<USDHookDescriptor> *handles_;
 
  public:
-  explicit USDHookInvoker(ReportList *reports, const Vector<USDHookHandle> *handles)
+  explicit USDHookInvoker(ReportList *reports, const Vector<USDHookDescriptor> *handles)
       : reports_(reports)
   {
     handles_ = handles;
@@ -441,7 +441,7 @@ class USDHookInvoker {
 
       // This feels bad.
       if (filter == true) {
-        if (std::find_if(handles_->begin(), handles_->end(), [hook](USDHookHandle handle) {
+        if (std::find_if(handles_->begin(), handles_->end(), [hook](USDHookDescriptor handle) {
               return (STREQ(hook->idname, handle.identifier) && (handle.enabled == true));
             }) == handles_->end())
         {
@@ -492,7 +492,7 @@ class OnExportInvoker final : public USDHookInvoker {
   OnExportInvoker(pxr::UsdStageRefPtr stage,
                   Depsgraph *depsgraph,
                   ReportList *reports,
-                  const Vector<USDHookHandle> *handles)
+                  const Vector<USDHookDescriptor> *handles)
       : USDHookInvoker(reports, handles), hook_context_(stage, depsgraph)
   {
   }
@@ -521,7 +521,7 @@ class OnMaterialExportInvoker final : public USDHookInvoker {
                           const pxr::UsdShadeMaterial &usd_material,
                           const USDExportParams &export_params,
                           ReportList *reports)
-      : USDHookInvoker(reports, &export_params.hook_handles),
+      : USDHookInvoker(reports, &export_params.hook_descriptors),
         hook_context_(stage, export_params, reports),
         usd_material_(usd_material)
   {
@@ -549,7 +549,7 @@ class OnImportInvoker final : public USDHookInvoker {
   OnImportInvoker(pxr::UsdStageRefPtr stage,
                   const ImportedPrimMap &prim_map,
                   ReportList *reports,
-                  const Vector<USDHookHandle> *handles)
+                  const Vector<USDHookDescriptor> *handles)
       : USDHookInvoker(reports, handles), hook_context_(stage, prim_map)
   {
   }
@@ -582,7 +582,7 @@ class MaterialImportPollInvoker final : public USDHookInvoker {
                             const pxr::UsdShadeMaterial &usd_material,
                             const USDImportParams &import_params,
                             ReportList *reports,
-                            const Vector<USDHookHandle> *handles)
+                            const Vector<USDHookDescriptor> *handles)
       : USDHookInvoker(reports, handles),
         hook_context_(stage, import_params, reports),
         usd_material_(usd_material)
@@ -624,7 +624,7 @@ class OnMaterialImportInvoker final : public USDHookInvoker {
                           const pxr::UsdShadeMaterial &usd_material,
                           const USDImportParams &import_params,
                           ReportList *reports)
-      : USDHookInvoker(reports, &import_params.hook_handles),
+      : USDHookInvoker(reports, &import_params.hook_descriptors),
         hook_context_(stage, import_params, reports),
         usd_material_(usd_material)
   {
@@ -658,7 +658,7 @@ void call_export_hooks(pxr::UsdStageRefPtr stage,
     return;
   }
 
-  OnExportInvoker on_export(stage, depsgraph, reports, &export_params.hook_handles);
+  OnExportInvoker on_export(stage, depsgraph, reports, &export_params.hook_descriptors);
   on_export.call(export_params.filter_hooks);
 }
 
@@ -712,7 +712,7 @@ void call_import_hooks(USDStageReader *archive,
     prim_map.lookup_or_add_default(path).append(RNA_id_pointer_create(&mat->id));
   });
 
-  OnImportInvoker on_import(archive->stage(), prim_map, reports, &import_params.hook_handles);
+  OnImportInvoker on_import(archive->stage(), prim_map, reports, &import_params.hook_descriptors);
   on_import.call(import_params.filter_hooks);
 }
 
@@ -726,7 +726,7 @@ bool have_material_import_hook(pxr::UsdStageRefPtr stage,
   }
 
   MaterialImportPollInvoker poll(
-      stage, usd_material, import_params, reports, &import_params.hook_handles);
+      stage, usd_material, import_params, reports, &import_params.hook_descriptors);
   poll.call();
 
   return poll.result();

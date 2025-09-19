@@ -126,7 +126,7 @@ enum eUSDSceneUnits {
   USD_SCENE_UNITS_YARDS = 6,
 };
 
-struct USDHookHandle {
+struct USDHookDescriptor {
   int id_val;
   bool enabled;
   char identifier[MAX_ID_NAME];
@@ -197,7 +197,7 @@ struct USDExportParams {
   wmJobWorkerStatus *worker_status = nullptr;
 
   bool filter_hooks = false;
-  Vector<USDHookHandle> hook_handles;
+  Vector<USDHookDescriptor> hook_descriptors;
 };
 
 struct USDImportParams {
@@ -258,7 +258,7 @@ struct USDImportParams {
   wmJobWorkerStatus *worker_status;
 
   bool filter_hooks = false;
-  Vector<USDHookHandle> hook_handles;
+  Vector<USDHookDescriptor> hook_descriptors;
 };
 
 /**
