@@ -856,6 +856,7 @@ std::optional<std::string> BPY_python_current_file_and_line(void)
 {
   PyGILState_STATE gilstate;
   const bool use_gil = !PyC_IsInterpreterActive();
+  std::optional<std::string> result = std::nullopt;
   if (use_gil) {
     gilstate = PyGILState_Ensure();
   }
@@ -865,16 +866,13 @@ std::optional<std::string> BPY_python_current_file_and_line(void)
   PyC_FileAndNum_Safe(&filename, &lineno);
 
   if (filename) {
-    if (use_gil) {
-      PyGILState_Release(gilstate);
-    }
-    return std::string(filename) + ":" + std::to_string(lineno);
+    result = std::string(filename) + ":" + std::to_string(lineno);
   }
 
   if (use_gil) {
     PyGILState_Release(gilstate);
   }
-  return std::nullopt;
+  return result;
 }
 
 #ifdef WITH_PYTHON_MODULE
