@@ -16,6 +16,7 @@
 #ifdef WITH_PYTHON_MODULE
 #  include "pylifecycle.h" /* For `Py_Version`. */
 #endif
+#include "../generic/py_capi_utils.hh"
 #include "../generic/python_compat.hh" /* IWYU pragma: keep. */
 
 #include "CLG_log.h"
@@ -853,147 +854,25 @@ bool BPY_context_member_get(bContext *C, const char *member, bContextDataResult 
   return done;
 }
 
-/* Helper function to extract operator name from a Python object */
-static const char *extract_operator_name_from_py_object(PyObject *obj,
-                                                        const char *attr_name,
-                                                        char *buffer,
-                                                        size_t buffer_size)
-{
-  if (!obj || !PyObject_HasAttrString(obj, attr_name)) {
-    return nullptr;
-  }
-
-  PyObject *attr = PyObject_GetAttrString(obj, attr_name);
-  if (!attr) {
-    return nullptr;
-  }
-
-  const char *name = nullptr;
-  if (strcmp(attr_name, "idname_py") == 0 && PyCallable_Check(attr)) {
-    /* Handle idname_py() function call */
-    PyObject *idname = PyObject_CallObject(attr, nullptr);
-    if (idname && PyUnicode_Check(idname)) {
-      const char *temp_name = PyUnicode_AsUTF8(idname);
-      if (temp_name) {
-        strncpy(buffer, temp_name, buffer_size - 1);
-        buffer[buffer_size - 1] = '\0';
-        name = buffer;
-      }
-    }
-    Py_XDECREF(idname);
-  }
-  else if (PyUnicode_Check(attr)) {
-    /* Handle direct string attribute */
-    const char *temp_name = PyUnicode_AsUTF8(attr);
-    if (temp_name) {
-      strncpy(buffer, temp_name, buffer_size - 1);
-      buffer[buffer_size - 1] = '\0';
-      name = buffer;
-    }
-  }
-
-  Py_DECREF(attr);
-  return name;
-}
-
-/* Helper function to find operator info in a Python frame */
-static const char *find_operator_in_frame(PyFrameObject *frame,
-                                          const char *filename,
-                                          const char *funcname,
-                                          char *op_buffer,
-                                          size_t buffer_size)
-{
-  PyObject *locals = PyFrame_GetLocals(frame);
-  if (!locals) {
-    return nullptr;
-  }
-
-  PyObject *self = PyDict_GetItemString(locals, "self");
-  if (!self) {
-    return nullptr;
-  }
-
-  /* Check for ops.py __call__ method */
-  if (strstr(filename, "ops.py") && strcmp(funcname, "__call__") == 0) {
-    return extract_operator_name_from_py_object(self, "idname_py", op_buffer, buffer_size);
-  }
-
-  /* Check for operator method (execute, invoke, poll) outside ops.py */
-  if ((strcmp(funcname, "execute") == 0 || strcmp(funcname, "invoke") == 0 ||
-       strcmp(funcname, "poll") == 0) &&
-      !strstr(filename, "ops.py"))
-  {
-    return extract_operator_name_from_py_object(self, "bl_idname", op_buffer, buffer_size);
-  }
-
-  return nullptr;
-}
-
 const char *BPY_get_current_location()
 {
-  static char location_buffer[512];
-  static char op_buffer[256];
-  location_buffer[0] = '\0';
+  static char location_buffer[256];
+  const char *filename = nullptr;
+  int lineno = -1;
 
-  PyGILState_STATE gilstate;
-  const bool use_gil = !PyC_IsInterpreterActive();
-  if (use_gil) {
-    gilstate = PyGILState_Ensure();
+  PyC_FileAndNum_Safe(&filename, &lineno);
+
+  if (filename && lineno != -1) {
+    const char *basename = strrchr(filename, '/');
+    basename = basename ? basename + 1 : filename;
+    snprintf(location_buffer, sizeof(location_buffer), "%s:%d", basename, lineno);
+  }
+  else {
+    strncpy(location_buffer, "Python script", sizeof(location_buffer) - 1);
+    location_buffer[sizeof(location_buffer) - 1] = '\0';
   }
 
-  PyFrameObject *frame = PyEval_GetFrame();
-  const char *operator_info = nullptr;
-
-  /* Walk up the stack to look for operator calls */
-  PyFrameObject *current_frame = frame;
-  for (int depth = 0; current_frame && !operator_info && depth < 20; depth++) {
-    PyCodeObject *code = PyFrame_GetCode(current_frame);
-    if (code) {
-      const char *filename = PyUnicode_AsUTF8(code->co_filename);
-      const char *funcname = PyUnicode_AsUTF8(code->co_name);
-
-      if (filename && funcname) {
-        operator_info = find_operator_in_frame(
-            current_frame, filename, funcname, op_buffer, sizeof(op_buffer));
-        if (operator_info) {
-          break;
-        }
-      }
-    }
-    current_frame = PyFrame_GetBack(current_frame);
-  }
-
-  /* Format the location string */
-  if (frame) {
-    PyCodeObject *code = PyFrame_GetCode(frame);
-    if (code) {
-      const char *filename = PyUnicode_AsUTF8(code->co_filename);
-      int lineno = PyFrame_GetLineNumber(frame);
-
-      if (filename) {
-        const char *basename = strrchr(filename, '/');
-        basename = basename ? basename + 1 : filename;
-
-        if (operator_info) {
-          snprintf(location_buffer,
-                   sizeof(location_buffer),
-                   "%s:%d [op:%s]",
-                   basename,
-                   lineno,
-                   operator_info);
-        }
-        else {
-          snprintf(location_buffer, sizeof(location_buffer), "%s:%d", basename, lineno);
-        }
-      }
-    }
-  }
-
-  if (use_gil) {
-    PyGILState_Release(gilstate);
-  }
-
-  return location_buffer[0] ? location_buffer : "Python script";
+  return location_buffer;
 }
 
 #ifdef WITH_PYTHON_MODULE

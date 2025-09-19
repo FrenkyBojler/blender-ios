@@ -321,27 +321,8 @@ static std::string CTX_get_value_description(void *ptr, const char *member)
     return "None";
   }
 
-  /* For common context members, provide meaningful descriptions */
-  if (STREQ(member, "object")) {
-    Object *ob = static_cast<Object *>(ptr);
-    return std::string("Object(") + (ob->id.name + 2) + ")";
-  }
-  else if (STREQ(member, "scene")) {
-    Scene *scene = static_cast<Scene *>(ptr);
-    return std::string("Scene(") + (scene->id.name + 2) + ")";
-  }
-  else if (STREQ(member, "area")) {
-    ScrArea *area = static_cast<ScrArea *>(ptr);
-    return std::string("Area(type=") + std::to_string(area->spacetype) + ")";
-  }
-  else if (STREQ(member, "region")) {
-    ARegion *region = static_cast<ARegion *>(ptr);
-    return std::string("Region(type=") + std::to_string(region->regiontype) + ")";
-  }
-  else {
-    /* For other types, just indicate presence */
-    return std::string("<") + member + ">";
-  }
+  /* Just indicate presence for any non-null value */
+  return std::string("<") + member + ">";
 }
 #endif
 
