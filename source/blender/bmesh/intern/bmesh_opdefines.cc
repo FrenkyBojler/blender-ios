@@ -623,6 +623,7 @@ static BMOpDefine bmo_weld_verts_def = {
     {
         /* Maps welded vertices to verts they should weld to. */
         {"targetmap", BMO_OP_SLOT_MAPPING, {eBMOpSlotSubType_Elem(BMO_OP_SLOT_SUBTYPE_MAP_ELEM)}},
+        {"use_centroid", BMO_OP_SLOT_BOOL},
         {{'\0'}},
     },
     /*slot_types_out*/

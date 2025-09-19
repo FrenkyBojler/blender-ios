@@ -187,6 +187,7 @@ void bmo_weld_verts_exec(BMesh *bm, BMOperator *op)
   BMLoop *l;
   BMFace *f;
   BMOpSlot *slot_targetmap = BMO_slot_get(op->slots_in, "targetmap");
+  const bool use_centroid = BMO_slot_bool_get(op->slots_in, "use_centroid");
 
   /* Maintain selection history. */
   const bool has_selected = !BLI_listbase_is_empty(&bm->selected);
@@ -195,6 +196,52 @@ void bmo_weld_verts_exec(BMesh *bm, BMOperator *op)
   if (use_targetmap_all) {
     /* Map deleted to keep elem. */
     targetmap_all = BLI_ghash_ptr_new(__func__);
+  }
+
+  if (use_centroid) {
+    GHash *clusters = BLI_ghash_ptr_new(__func__);
+
+    /* Group vertices by their survivor. */
+    BM_ITER_MESH (v, &iter, bm, BM_VERTS_OF_MESH) {
+      BMVert *survivor_vert = static_cast<BMVert *>(BMO_slot_map_elem_get(slot_targetmap, v));
+      if (survivor_vert && survivor_vert != v) {
+        blender::Vector<BMVert *> *cluster = static_cast<blender::Vector<BMVert *> *>(
+            BLI_ghash_lookup(clusters, survivor_vert));
+        if (!cluster) {
+          cluster = MEM_new<blender::Vector<BMVert *>>(__func__);
+          BLI_ghash_insert(clusters, survivor_vert, cluster);
+        }
+        cluster->append(v);
+      }
+    }
+
+    /* Compute centroid for each survivor. */
+    GHashIterator gh_iter;
+    GHASH_ITER (gh_iter, clusters) {
+      BMVert *survivor = static_cast<BMVert *>(BLI_ghashIterator_getKey(&gh_iter));
+      blender::Vector<BMVert *> *cluster = static_cast<blender::Vector<BMVert *> *>(
+          BLI_ghashIterator_getValue(&gh_iter));
+
+      float centroid[3] = {};
+      int count = 1; /* include survivor. */
+      add_v3_v3(centroid, survivor->co);
+
+      for (BMVert *dup_vert : *cluster) {
+        add_v3_v3(centroid, dup_vert->co);
+        count++;
+      }
+
+      mul_v3_fl(centroid, 1.0f / (float)count);
+      copy_v3_v3(survivor->co, centroid);
+    }
+
+    /* Free temporary cluster storage. */
+    GHASH_ITER (gh_iter, clusters) {
+      blender::Vector<BMVert *> *cluster = static_cast<blender::Vector<BMVert *> *>(
+          BLI_ghashIterator_getValue(&gh_iter));
+      MEM_delete(cluster);
+    }
+    BLI_ghash_free(clusters, nullptr, nullptr);
   }
 
   /* mark merge verts for deletion */
