@@ -127,7 +127,7 @@ enum eUSDSceneUnits {
 };
 
 struct USDHookDescriptor {
-  int id_val;
+  int hookid;
   bool enabled;
   char identifier[MAX_ID_NAME];
   char name[MAX_ID_NAME];

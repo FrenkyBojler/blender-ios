@@ -130,7 +130,7 @@ bool rna_HookDescriptor_is_valid_get(PointerRNA *ptr)
 static const EnumPropertyItem default_hook_enum = {
     0, "INVALID", 0, "Invalid Handle", "Something broke"};
 
-static const EnumPropertyItem *rna_USDHookDescriptor_idval_itemf(bContext *C,
+static const EnumPropertyItem *rna_USDHookDescriptor_hookid_itemf(bContext *C,
                                                              PointerRNA * /*ptr*/,
                                                              PropertyRNA * /*prop*/,
                                                              bool *r_free)
@@ -143,24 +143,28 @@ static const EnumPropertyItem *rna_USDHookDescriptor_idval_itemf(bContext *C,
   return USD_build_hook_enum();
 }
 
-static void rna_USDHookDescriptor_idval_set(PointerRNA *ptr, int value)
+static void rna_USDHookDescriptor_hookid_set(PointerRNA *ptr, int value)
 {
+  UsdHookDescriptor *hd = static_cast<UsdHookDescriptor *>(ptr->data);
   const char *identifier;
   const EnumPropertyItem *items = USD_build_hook_enum();
   bool is_valid = RNA_enum_identifier(items, value, &identifier);
 
-  printf(identifier);
-  printf(" ! \n");
-
   if (is_valid == true) {
     USDHookDescriptor *handle = static_cast<USDHookDescriptor *>(ptr->data);
-    handle->id_val = value;
+    handle->hookid = value;
     RNA_string_set(ptr, "identifier", identifier);
 
     const char *name;
     RNA_enum_name(items, value, &name);
     RNA_string_set(ptr, "name", name);
   }
+
+  /* Needed because we're calling USD_build_hook_enum() directly,
+   * without passing around an r_free pointer so that some other function
+   * can do this for us.
+   */
+  MEM_freeN(items);
 }
 
 static void rna_USDHookDescriptor_identifier_get(PointerRNA *ptr, char *value)
@@ -217,7 +221,7 @@ static void rna_def_usd_hook_descriptor(BlenderRNA *brna)
   srna = RNA_def_struct(brna, "UsdHookDescriptor", "PropertyGroup");
   RNA_def_struct_sdna(srna, "UsdHookDescriptor");
   RNA_def_struct_ui_text(
-      srna, "Operator Hook Handle", "A serializable handle representing a runtime hook");
+      srna, "USD Hook Descriptor", "A serializable descriptor representing a runtime hook");
 
   prop = RNA_def_property(srna, "name", PROP_STRING, PROP_NONE);
   RNA_def_property_string_sdna(prop, nullptr, "name");
@@ -241,14 +245,14 @@ static void rna_def_usd_hook_descriptor(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Valid", "This hook is valid");
   RNA_def_property_boolean_funcs(prop, "rna_HookDescriptor_is_valid_get", nullptr);
 
-  prop = RNA_def_property(srna, "handle_mode", PROP_ENUM, PROP_NONE);
+  prop = RNA_def_property(srna, "hookid", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_items(prop, rna_enum_dummy_DEFAULT_items);
-  RNA_def_property_enum_sdna(prop, nullptr, "id_val");
+  RNA_def_property_enum_sdna(prop, nullptr, "hookid");
   RNA_def_property_enum_funcs(
-      prop, nullptr, "rna_USDHookDescriptor_idval_set", "rna_USDHookDescriptor_idval_itemf");
+      prop, nullptr, "rna_USDHookDescriptor_hookid_set", "rna_USDHookDescriptor_hookid_itemf");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_PRESET);
-  RNA_def_property_ui_text(prop, "Subtype", "Subtype of the default value");
+  RNA_def_property_ui_text(prop, "Hook ID", "Enumerated ID of the USD hook matched to this descriptor");
   RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_UNIT);
 }
 

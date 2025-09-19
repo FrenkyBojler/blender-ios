@@ -9,7 +9,7 @@
 #pragma once
 
 typedef struct UsdHookDescriptor {
-  int id_val;
+  int hookid;
   char name[256];
   char identifier[256];
   bool enabled;

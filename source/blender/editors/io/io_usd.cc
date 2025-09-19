@@ -374,11 +374,11 @@ static wmOperatorStatus wm_usd_export_exec(bContext *C, wmOperator *op)
 
   // Long-term TODO: This should just be a method.
   RNA_BEGIN (op->ptr, itemptr, "hooks") {
-    USDHookDescriptor handle;
-    STRNCPY(handle.identifier, RNA_string_get(&itemptr, "identifier").c_str());
-    STRNCPY(handle.name, RNA_string_get(&itemptr, "name").c_str());
-    handle.enabled = RNA_boolean_get(&itemptr, "enabled");
-    params.hook_descriptors.append(handle);
+    USDHookDescriptor descriptor;
+    STRNCPY(descriptor.identifier, RNA_string_get(&itemptr, "identifier").c_str());
+    STRNCPY(descriptor.name, RNA_string_get(&itemptr, "name").c_str());
+    descriptor.enabled = RNA_boolean_get(&itemptr, "enabled");
+    params.hook_descriptors.append(descriptor);
   }
   RNA_END;
 
@@ -594,7 +594,7 @@ static void wm_usd_export_draw(bContext *C, wmOperator *op)
         row = &panel.body->row(false);
         row->prop(&item, "identifier", UI_ITEM_NONE, std::nullopt, ICON_NONE);
         row = &panel.body->row(false);
-        row->prop(&item, "handle_mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+        row->prop(&item, "hookid", UI_ITEM_NONE, std::nullopt, ICON_NONE);
       }
     }
   }
@@ -677,7 +677,6 @@ void WM_OT_usd_export(wmOperatorType *ot)
                   "Only export visible objects. Invisible parents of exported objects are "
                   "exported as empty transforms");
 
-  // TODO: I need to detect this somehow.
   prop = RNA_def_string(ot->srna, "collection", nullptr, MAX_ID_NAME - 2, "Collection", nullptr);
   RNA_def_property_flag(prop, PROP_HIDDEN);
 
@@ -1391,10 +1390,10 @@ void WM_OT_usd_import(wmOperatorType *ot)
 }
 
 /* -------------------------------------------------------------------- */
-/** \name USD Hook Handle Add
+/** \name Add USD Hook Descriptor
  * \{ */
 
-static const EnumPropertyItem *USDHookDescriptor_idval_itemf(bContext *C,
+static const EnumPropertyItem *USDHookDescriptor_hookid_itemf(bContext *C,
                                                          PointerRNA * /*ptr*/,
                                                          PropertyRNA * /*prop*/,
                                                          bool *r_free)
@@ -1403,7 +1402,6 @@ static const EnumPropertyItem *USDHookDescriptor_idval_itemf(bContext *C,
     return rna_enum_dummy_DEFAULT_items;
   }
   *r_free = true;
-  // return *default_hook_enum;
   return USD_build_hook_enum();
 }
 
@@ -1424,11 +1422,11 @@ static wmOperatorStatus ui_usd_hook_descriptor_add_exec(bContext *C, wmOperator 
     return OPERATOR_CANCELLED;
   }
   else {
-    PointerRNA itemptr;
+    PointerRNA itemptr{};
     RNA_property_collection_add(&col_pointer, col_prop, &itemptr);
 
-    int handle_enum = RNA_enum_get(op->ptr, "type");
-    RNA_enum_set(&itemptr, "handle_mode", handle_enum);
+    int handle_enum = RNA_enum_get(op->ptr, "hookid");
+    RNA_enum_set(&itemptr, "hookid", handle_enum);
     RNA_boolean_set(&itemptr, "enabled", true);
   }
 
@@ -1437,13 +1435,11 @@ static wmOperatorStatus ui_usd_hook_descriptor_add_exec(bContext *C, wmOperator 
 
 void UI_OT_usd_hook_descriptor_add(wmOperatorType *ot)
 {
-  PropertyRNA *prop;
-
   /* identifiers */
-  ot->name = "USD Hook Handle Add";
+  ot->name = "Add USD Hook Descriptor";
   ot->idname = "UI_OT_usd_hook_descriptor_add";
   ot->description =
-      "Generic operator for adding an item to a Collection Property displayed in a Tree List";
+      "Adds a USD Hook Descriptor to the active exporter's filter list";
 
   /* callbacks */
   ot->exec = ui_usd_hook_descriptor_add_exec;
@@ -1458,7 +1454,7 @@ void UI_OT_usd_hook_descriptor_add(wmOperatorType *ot)
                  nullptr,
                  MAX_NAME,
                  "List Path",
-                 "Data path of the list relative tontext");
+                 "Data path of the list relative to context");
 
   RNA_def_string(ot->srna,
                  "index_path",
@@ -1467,14 +1463,14 @@ void UI_OT_usd_hook_descriptor_add(wmOperatorType *ot)
                  "Index Path",
                  "Data path of the list active index integer relative to context");
 
-  ot->prop = RNA_def_enum(ot->srna, "type", rna_enum_dummy_DEFAULT_items, 0, "Type", "");
-  RNA_def_enum_funcs(ot->prop, USDHookDescriptor_idval_itemf);
+  ot->prop = RNA_def_enum(ot->srna, "hookid", rna_enum_dummy_DEFAULT_items, 0, "Hook ID", "");
+  RNA_def_enum_funcs(ot->prop, USDHookDescriptor_hookid_itemf);
 }
 
 /** \} */
 
 /* -------------------------------------------------------------------- */
-/** \name USD Hook Handle Remove
+/** \name Remove USD Hook Descriptor 
  * \{ */
 
 static wmOperatorStatus ui_usd_hook_descriptor_remove_exec(bContext *C, wmOperator *op)
@@ -1510,10 +1506,10 @@ static wmOperatorStatus ui_usd_hook_descriptor_remove_exec(bContext *C, wmOperat
 void UI_OT_usd_hook_descriptor_remove(wmOperatorType *ot)
 {
   /* identifiers */
-  ot->name = "USD Hook Handle Remove";
+  ot->name = "Remove USD Hook Descriptor";
   ot->idname = "UI_OT_usd_hook_descriptor_remove";
   ot->description =
-      "Generic operator for adding an item to a Collection Property displayed in a Tree List";
+      "Removes the active USD Hook Descriptor from the active exporter's filter list";
 
   /* callbacks */
   ot->exec = ui_usd_hook_descriptor_remove_exec;
@@ -1591,20 +1587,17 @@ static wmOperatorStatus ui_usd_hook_descriptor_move_exec(bContext *C, wmOperator
       new_index = 0;
       break;
     case KB_MOVE_UP:
-      printf("Moving Up!\n");
       new_index = max_ii(index - 1, 0);
       break;
     case KB_MOVE_BOTTOM:
       new_index = bottom_index;
       break;
     case KB_MOVE_DOWN:
-      printf("Moving Down!\n");
       new_index = min_ii(index + 1, bottom_index);
       break;
   }
 
   bool result = RNA_property_collection_move(&col_pointer, col_prop, index, new_index);
-  printf(fmt::format("Old Index: {} \n New Index: {} \n", index, new_index).c_str());
   if (result == false) {
     return OPERATOR_CANCELLED;
   }
@@ -1624,9 +1617,9 @@ void UI_OT_usd_hook_descriptor_move(wmOperatorType *ot)
       {0, nullptr, 0, nullptr, nullptr}};
 
   /* identifiers */
-  ot->name = "Move USD Hook Handle";
+  ot->name = "Move USD Hook Descriptor";
   ot->idname = "UI_OT_usd_hook_descriptor_move";
-  ot->description = "Move selected USD Hook Handle up/down in the list";
+  ot->description = "Moves selected USD Hook Descriptor in the active exporter's filter list";
 
   /* API callbacks. */
   ot->exec = ui_usd_hook_descriptor_move_exec;
@@ -1647,7 +1640,7 @@ void UI_OT_usd_hook_descriptor_move(wmOperatorType *ot)
                  nullptr,
                  MAX_NAME,
                  "Index Path",
-                 "Data path of the list active index integer relative to context");
+                 "Data path of the list's active index relative to context");
 }
 
 /** \} */

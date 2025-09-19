@@ -122,7 +122,7 @@ class UsdHookProxyItem : public ui::AbstractTreeViewItem {
   // {
   //   PropertyRNA *prop = RNA_struct_find_property(&hook_proxy_.data, "identifier");
   //   RNA_property_string_set(&hook_proxy_.data, prop, new_name.c_str());
-  //   ED_undo_push(const_cast<bContext *>(&C), "Rename USD Hook Handle");
+  //   ED_undo_push(const_cast<bContext *>(&C), "Rename USD Hook Descriptor");
   //   return true;
   // }
 

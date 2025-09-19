@@ -109,7 +109,7 @@ bool USD_is_hook_valid(const char idname[])
 }
 
 static const EnumPropertyItem default_hook_enum = {
-    0, "INVALID", 0, "Invalid Handle", "Something broke"};
+    0, "INVALID", 0, "Invalid Hook", "A USD hook associated with this descriptor cannot be found"};
 
 const EnumPropertyItem *USD_build_hook_enum()
 {
@@ -117,7 +117,7 @@ const EnumPropertyItem *USD_build_hook_enum()
   EnumPropertyItem item_tmp = {0};
   int items_count = 0;
 
-  /** Ensure there's always a fallback item for invalid handles*/
+  /** Ensure there's always a fallback item for invalid descriptors*/
   RNA_enum_item_add(&items, &items_count, &default_hook_enum);
   RNA_enum_item_add_separator(&items, &items_count);
 
@@ -130,7 +130,6 @@ const EnumPropertyItem *USD_build_hook_enum()
     item_tmp.value = items_count;
     item_tmp.name = hook->name;
 
-    // EnumPropertyItem new_item = {items_count, hook->idname, 0, hook->name, hook->description};
     RNA_enum_item_add(&items, &items_count, &item_tmp);
   }
 
@@ -403,13 +402,13 @@ static void handle_python_error(USDHook *hook, ReportList *reports)
 class USDHookInvoker {
  private:
   ReportList *reports_;
-  const Vector<USDHookDescriptor> *handles_;
+  const Vector<USDHookDescriptor> *descriptors_;
 
  public:
-  explicit USDHookInvoker(ReportList *reports, const Vector<USDHookDescriptor> *handles)
+  explicit USDHookInvoker(ReportList *reports, const Vector<USDHookDescriptor> *descriptors)
       : reports_(reports)
   {
-    handles_ = handles;
+    descriptors_ = descriptors;
   }
   virtual ~USDHookInvoker() = default;
 
@@ -441,9 +440,9 @@ class USDHookInvoker {
 
       // This feels bad.
       if (filter == true) {
-        if (std::find_if(handles_->begin(), handles_->end(), [hook](USDHookDescriptor handle) {
-              return (STREQ(hook->idname, handle.identifier) && (handle.enabled == true));
-            }) == handles_->end())
+        if (std::find_if(descriptors_->begin(), descriptors_->end(), [hook](USDHookDescriptor descriptor) {
+              return (STREQ(hook->idname, descriptor.identifier) && (descriptor.enabled == true));
+            }) == descriptors_->end())
         {
           continue;
         }
@@ -492,8 +491,8 @@ class OnExportInvoker final : public USDHookInvoker {
   OnExportInvoker(pxr::UsdStageRefPtr stage,
                   Depsgraph *depsgraph,
                   ReportList *reports,
-                  const Vector<USDHookDescriptor> *handles)
-      : USDHookInvoker(reports, handles), hook_context_(stage, depsgraph)
+                  const Vector<USDHookDescriptor> *descriptors)
+      : USDHookInvoker(reports, descriptors), hook_context_(stage, depsgraph)
   {
   }
 
@@ -549,8 +548,8 @@ class OnImportInvoker final : public USDHookInvoker {
   OnImportInvoker(pxr::UsdStageRefPtr stage,
                   const ImportedPrimMap &prim_map,
                   ReportList *reports,
-                  const Vector<USDHookDescriptor> *handles)
-      : USDHookInvoker(reports, handles), hook_context_(stage, prim_map)
+                  const Vector<USDHookDescriptor> *descriptors)
+      : USDHookInvoker(reports, descriptors), hook_context_(stage, prim_map)
   {
   }
 
@@ -582,8 +581,8 @@ class MaterialImportPollInvoker final : public USDHookInvoker {
                             const pxr::UsdShadeMaterial &usd_material,
                             const USDImportParams &import_params,
                             ReportList *reports,
-                            const Vector<USDHookDescriptor> *handles)
-      : USDHookInvoker(reports, handles),
+                            const Vector<USDHookDescriptor> *descriptors)
+      : USDHookInvoker(reports, descriptors),
         hook_context_(stage, import_params, reports),
         usd_material_(usd_material)
   {
