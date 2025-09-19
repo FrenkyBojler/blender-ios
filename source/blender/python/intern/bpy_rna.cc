@@ -6595,6 +6595,11 @@ static void pyrna_func_error_prefix(BPy_FunctionRNA *self,
   }
 }
 
+/**
+ * Vectorcall implementation for BPy_FunctionRNA instances.
+ *
+ * Required by PEP 590 to support tp_vectorcall_offset.
+ */
 static PyObject *pyrna_func_vectorcall(PyObject *callable,
                                        PyObject *const *args,
                                        size_t nargsf,

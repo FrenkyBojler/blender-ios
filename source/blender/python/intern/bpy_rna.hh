@@ -190,7 +190,7 @@ struct BPy_FunctionRNA {
 
   std::optional<PointerRNA> ptr;
   FunctionRNA *func;
-  vectorcallfunc vectorcall;
+  vectorcallfunc vectorcall; /* Instance call only: required by Python C-API (PEP 590). */
 };
 
 [[nodiscard]] StructRNA *srna_from_self(PyObject *self, const char *error_prefix);
