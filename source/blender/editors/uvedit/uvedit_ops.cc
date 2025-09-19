@@ -21,6 +21,7 @@
 #include "DNA_space_types.h"
 
 #include "BLI_bounds.hh"
+#include "BLI_bounds.hh"
 #include "BLI_kdtree.h"
 #include "BLI_math_base.hh"
 #include "BLI_math_geom.h"
