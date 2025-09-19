@@ -369,13 +369,40 @@ static void CTX_temp_override_log_detailed_access(bContext *C, const char *membe
     value_desc = value ? "<value>" : "None";
 #endif
     
+    /* Create a unique key for this log entry */
+    std::string log_key = location_info + "|" + std::string(member) + "|" + value_desc;
+    
+    /* Track logged entries to avoid duplicates at DEBUG level */
+    static blender::Set<std::string> logged_entries;
+    
+    bool should_log_at_debug = true;
+    bool is_trace_level = CLOG_CHECK(BKE_LOG_TEMP_OVERRIDE, CLG_LEVEL_TRACE);
+    bool is_debug_level = CLOG_CHECK(BKE_LOG_TEMP_OVERRIDE, CLG_LEVEL_DEBUG);
+    
+    /* At DEBUG level, check if we've already logged this exact entry */
+    if (is_debug_level && !is_trace_level) {
+      if (logged_entries.contains(log_key)) {
+        should_log_at_debug = false;  /* Skip duplicate at DEBUG level */
+      } else {
+        logged_entries.add(log_key);  /* Remember this entry */
+      }
+    }
+    
     /* Log the detailed access information */
-    if (CLOG_CHECK(BKE_LOG_TEMP_OVERRIDE, CLG_LEVEL_DEBUG)) {
+    if (is_trace_level) {
+      /* At TRACE level, log everything including duplicates */
+      CLOG_TRACE(BKE_LOG_TEMP_OVERRIDE, 
+                 "location:%s | member:%s | value:%s",
+                 location_info.c_str(), member, value_desc.c_str());
+    }
+    else if (is_debug_level && should_log_at_debug) {
+      /* At DEBUG level, only log unique entries */
       CLOG_DEBUG(BKE_LOG_TEMP_OVERRIDE, 
                  "location:%s | member:%s | value:%s",
                  location_info.c_str(), member, value_desc.c_str());
     }
     else if (CTX_temp_override_logging_get(C)) {
+      /* Fallback for non-CLOG logging */
       printf("temp_override | location:%s | member:%s | value:%s\n",
              location_info.c_str(), member, value_desc.c_str());
     }
