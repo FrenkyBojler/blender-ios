@@ -56,7 +56,7 @@ roles:
 
 displays:
   sRGB:
-    - !<View> {name: Standard, view_transform: No-Op, display_colorspace: sRGB}
+    - !<View> {name: Standard, view_transform: Standard, display_colorspace: sRGB}
     - !<View> {name: ACES 2.0, view_transform: ACES 2.0 Rec.1886, display_colorspace: sRGB}
     - !<View> {name: Khronos PBR Neutral, view_transform: Khronos PBR Neutral sRGB, display_colorspace: sRGB}
     - !<View> {name: AgX, view_transform: AgX Base Rec.1886, display_colorspace: sRGB}
@@ -65,25 +65,25 @@ displays:
     - !<View> {name: False Color, view_transform: AgX False Color Rec.709, display_colorspace: sRGB}
     - !<View> {name: Raw, colorspace: Non-Color}
   Display P3:
-    - !<View> {name: Standard, view_transform: No-Op, display_colorspace: Display P3}
+    - !<View> {name: Standard, view_transform: Standard, display_colorspace: Display P3}
     - !<View> {name: ACES 2.0, view_transform: ACES 2.0 Display P3, display_colorspace: Display P3}
     - !<View> {name: AgX, view_transform: AgX Base Display P3, display_colorspace: Display P3}
     - !<View> {name: False Color, view_transform: AgX False Color Rec.709, display_colorspace: Display P3}
     - !<View> {name: Raw, colorspace: Non-Color}
   Rec.1886:
-    - !<View> {name: Standard, view_transform: No-Op, display_colorspace: Rec.1886}
+    - !<View> {name: Standard, view_transform: Standard, display_colorspace: Rec.1886}
     - !<View> {name: ACES 2.0, view_transform: ACES 2.0 Rec.1886, display_colorspace: Rec.1886}
     - !<View> {name: AgX, view_transform: AgX Base Rec.1886, display_colorspace: Rec.1886}
     - !<View> {name: False Color, view_transform: AgX False Color Rec.709, display_colorspace: Rec.1886}
     - !<View> {name: Raw, colorspace: Non-Color}
   Rec.2020:
-    - !<View> {name: Standard, view_transform: No-Op, display_colorspace: Rec.2020}
+    - !<View> {name: Standard, view_transform: Standard, display_colorspace: Rec.2020}
     - !<View> {name: ACES 2.0, view_transform: ACES 2.0 Display P3, display_colorspace: Rec.2020}
     - !<View> {name: AgX, view_transform: AgX Base Rec.2020, display_colorspace: Rec.2020}
     - !<View> {name: False Color, view_transform: AgX False Color Rec.709, display_colorspace: Rec.2020}
     - !<View> {name: Raw, colorspace: Non-Color}
   Rec.2100-PQ:
-    - !<View> {name: Standard, view_transform: No-Op, display_colorspace: Rec.2100-PQ}
+    - !<View> {name: Standard, view_transform: Standard, display_colorspace: Rec.2100-PQ}
     - !<View> {name: ACES 2.0 - HDR 500 nits, view_transform: ACES 2.0 Rec.2100-PQ - HDR 500 nits, display_colorspace: Rec.2100-PQ}
     - !<View> {name: ACES 2.0 - HDR 1000 nits, view_transform: ACES 2.0 Rec.2100-PQ - HDR 1000 nits, display_colorspace: Rec.2100-PQ}
     - !<View> {name: ACES 2.0 - HDR 2000 nits, view_transform: ACES 2.0 Rec.2100-PQ - HDR 2000 nits, display_colorspace: Rec.2100-PQ}
@@ -94,7 +94,7 @@ displays:
     - !<View> {name: False Color, view_transform: AgX False Color Rec.709, display_colorspace: Rec.2100-PQ}
     - !<View> {name: Raw, colorspace: Non-Color}
   Rec.2100-HLG:
-    - !<View> {name: Standard, view_transform: No-Op, display_colorspace: Rec.2100-HLG}
+    - !<View> {name: Standard, view_transform: Standard, display_colorspace: Rec.2100-HLG}
     - !<View> {name: ACES 2.0 - HDR 1000 nits, view_transform: ACES 2.0 Rec.2100-PQ - HDR 1000 nits, display_colorspace: Rec.2100-HLG}
     - !<View> {name: ACES 2.0 - SDR, view_transform: ACES 2.0 Rec.1886, display_colorspace: Rec.2100-HLG}
     - !<View> {name: AgX - HDR 1000 nits, view_transform: AgX Rec.2100-HLG - HDR 1000 nits (P3 D65), display_colorspace: Rec.2100-HLG}
@@ -247,8 +247,8 @@ display_colorspaces:
 
 view_transforms:
   - !<ViewTransform>
-    name: No-Op
-    description: A No-Operation View Transform
+    name: Standard
+    description: Apply only the display's standard transform without additional mappings
     from_scene_reference: !<GroupTransform>
       children:
         - !<ColorSpaceTransform> {src: reference, dst: cie_xyz_d65_interchange}
