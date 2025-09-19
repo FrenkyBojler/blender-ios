@@ -308,9 +308,9 @@ static PyObject *bpy_rna_context_temp_override_enter(BPyContextTempOverride *sel
   Main *bmain = CTX_data_main(C);
 
   /* Store original logging state and set new state if requested */
-  self->original_logging_state = CTX_temp_override_logging_get(C);
+  self->original_logging_state = CTX_member_logging_get(C);
   if (self->use_logging) {
-    CTX_temp_override_logging_set(C, true);
+    CTX_member_logging_set(C, true);
   }
 
   /* It's crucial to call #CTX_py_state_pop if this function fails with an error. */
@@ -341,7 +341,7 @@ static PyObject *bpy_rna_context_temp_override_enter(BPyContextTempOverride *sel
 
   if (!bpy_rna_context_temp_override_enter_ok_or_error(self, bmain, win, screen, area, region)) {
     /* Restore original logging state on error */
-    CTX_temp_override_logging_set(C, self->original_logging_state);
+    CTX_member_logging_set(C, self->original_logging_state);
     CTX_py_state_pop(C, &self->py_state);
     return nullptr;
   }
@@ -375,7 +375,7 @@ static PyObject *bpy_rna_context_temp_override_enter(BPyContextTempOverride *sel
     CTX_wm_region_set(C, self->ctx_temp.region);
   }
 
-  Py_IncRef((PyObject *)self);
+  Py_INCREF(self);
   return (PyObject *)self;
 }
 
@@ -531,7 +531,7 @@ static PyObject *bpy_rna_context_temp_override_exit(BPyContextTempOverride *self
   }
 
   /* Restore original logging state instead of just setting to false */
-  CTX_temp_override_logging_set(C, self->original_logging_state);
+  CTX_member_logging_set(C, self->original_logging_state);
 
   CTX_py_state_pop(C, &self->py_state);
 
@@ -564,7 +564,7 @@ static int bpy_rna_context_temp_override_use_logging_set(BPyContextTempOverride 
   /* Update the C-level logging flag immediately.
    * The original_logging_state will ensure proper restoration on exit. */
   if (self->context) {
-    CTX_temp_override_logging_set(self->context, result);
+    CTX_member_logging_set(self->context, result);
   }
 
   return 0;

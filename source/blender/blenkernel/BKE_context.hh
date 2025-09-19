@@ -475,9 +475,9 @@ Depsgraph *CTX_data_depsgraph_on_load(const bContext *C);
 /**
  * Enable or disable logging for temp_override context manager.
  */
-void CTX_temp_override_logging_set(bContext *C, bool enable);
+void CTX_member_logging_set(bContext *C, bool enable);
 
 /**
  * Check if logging is enabled for temp_override context manager.
  */
-bool CTX_temp_override_logging_get(const bContext *C);
+bool CTX_member_logging_get(const bContext *C);

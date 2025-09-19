@@ -351,7 +351,7 @@ static void CTX_temp_override_log_access(bContext *C,
   }
 
   bool should_log = CLOG_CHECK(BKE_LOG_TEMP_OVERRIDE, CLG_LEVEL_TRACE) ||
-                    CTX_temp_override_logging_get(C);
+                    CTX_member_logging_get(C);
 
   if (!should_log) {
     return;
@@ -373,7 +373,7 @@ static void CTX_temp_override_log_access(bContext *C,
   if (CLOG_CHECK(BKE_LOG_TEMP_OVERRIDE, CLG_LEVEL_TRACE)) {
     CLOG_TRACE(BKE_LOG_TEMP_OVERRIDE, format, location, member, value_desc);
   }
-  else if (CTX_temp_override_logging_get(C)) {
+  else if (CTX_member_logging_get(C)) {
     /* Force output at TRACE level even if not enabled via command line */
     CLOG_AT_LEVEL_NOCHECK(
         BKE_LOG_TEMP_OVERRIDE, CLG_LEVEL_TRACE, format, location, member, value_desc);
@@ -1719,12 +1719,12 @@ Depsgraph *CTX_data_depsgraph_on_load(const bContext *C)
   return BKE_scene_get_depsgraph(scene, view_layer);
 }
 
-void CTX_temp_override_logging_set(bContext *C, bool enable)
+void CTX_member_logging_set(bContext *C, bool enable)
 {
   C->data.temp_override_logging_enabled = enable;
 }
 
-bool CTX_temp_override_logging_get(const bContext *C)
+bool CTX_member_logging_get(const bContext *C)
 {
   return C->data.temp_override_logging_enabled;
 }
