@@ -336,7 +336,7 @@ static std::string CTX_result_brief_repr(const bContextDataResult &result)
       }
 
     case CTX_DATA_TYPE_COLLECTION:
-      return fmt::format("[{} items]", result.list.size());
+      return fmt::format("[{} item(s)]", result.list.size());
 
     case CTX_DATA_TYPE_STRING:
       if (!result.str.is_empty()) {
