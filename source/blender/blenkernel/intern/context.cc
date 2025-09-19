@@ -294,7 +294,7 @@ struct bContextDataResult {
 };
 
 /* Create a brief string representation of a context data result */
-static std::optional<std::string> CTX_result_brief_repr(const bContextDataResult &result)
+static std::string CTX_result_brief_repr(const bContextDataResult &result)
 {
   switch (result.type) {
     case CTX_DATA_TYPE_POINTER:
@@ -347,7 +347,9 @@ static std::optional<std::string> CTX_result_brief_repr(const bContextDataResult
       }
   }
   BLI_assert_unreachable();
-  return std::nullopt; /* Unknown or unhandled type */
+  /* If this line is reached, it indicates an unhandled context type. Update the code to handle new
+   * types. */
+  return "<UNKNOWN>";
 }
 
 /* Simple logging for context data results */
