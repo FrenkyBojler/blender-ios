@@ -528,38 +528,6 @@ static PyObject *bpy_rna_context_temp_override_exit(BPyContextTempOverride *self
   Py_RETURN_NONE;
 }
 
-/* Getter/setter for use_logging property */
-static PyObject *bpy_rna_context_temp_override_use_logging_get(BPyContextTempOverride *self,
-                                                               void * /*closure*/)
-{
-  return PyBool_FromLong(self->ctx_temp.use_logging);
-}
-
-static int bpy_rna_context_temp_override_use_logging_set(BPyContextTempOverride *self,
-                                                         PyObject *value,
-                                                         void * /*closure*/)
-{
-  if (value == nullptr) {
-    PyErr_SetString(PyExc_TypeError, "cannot delete use_logging");
-    return -1;
-  }
-
-  int result = PyObject_IsTrue(value);
-  if (result == -1) {
-    return -1;
-  }
-
-  self->ctx_temp.use_logging = result;
-
-  /* Update the C-level logging flag immediately.
-   * The ctx_temp.use_logging flag ensures proper restoration of the logging state on exit. */
-  if (self->context) {
-    bpy_rna_context_logging_set(self->context, result);
-  }
-
-  return 0;
-}
-
 /* New extensible logging methods */
 static PyObject *bpy_rna_context_temp_override_logging_set(BPyContextTempOverride *self,
                                                            PyObject *args,
@@ -583,29 +551,6 @@ static PyObject *bpy_rna_context_temp_override_logging_set(BPyContextTempOverrid
   Py_RETURN_NONE;
 }
 
-static PyObject *bpy_rna_context_temp_override_logging_get(BPyContextTempOverride *self,
-                                                           PyObject * /*args*/)
-{
-  PyObject *config = PyDict_New();
-  if (!config) {
-    return nullptr;
-  }
-
-  PyObject *enable = PyBool_FromLong(self->ctx_temp.use_logging);
-
-  if (!enable) {
-    Py_XDECREF(enable);
-    Py_DECREF(config);
-    return nullptr;
-  }
-
-  PyDict_SetItemString(config, "enable", enable);
-
-  Py_DECREF(enable);
-
-  return config;
-}
-
 #ifdef __GNUC__
 #  ifdef __clang__
 #    pragma clang diagnostic push
@@ -620,16 +565,6 @@ static PyMethodDef bpy_rna_context_temp_override_methods[] = {
     {"__enter__", (PyCFunction)bpy_rna_context_temp_override_enter, METH_NOARGS},
     {"__exit__", (PyCFunction)bpy_rna_context_temp_override_exit, METH_VARARGS},
     {"logging_set", (PyCFunction)bpy_rna_context_temp_override_logging_set, METH_VARARGS | METH_KEYWORDS},
-    {"logging_get", (PyCFunction)bpy_rna_context_temp_override_logging_get, METH_NOARGS},
-    {nullptr},
-};
-
-static PyGetSetDef bpy_rna_context_temp_override_getset[] = {
-    {"use_logging",
-     (getter)bpy_rna_context_temp_override_use_logging_get,
-     (setter)bpy_rna_context_temp_override_use_logging_set,
-     "Enable logging for temp_override context manager",
-     nullptr},
     {nullptr},
 };
 
@@ -671,7 +606,7 @@ static PyTypeObject BPyContextTempOverride_Type = {
     /*tp_iternext*/ nullptr,
     /*tp_methods*/ bpy_rna_context_temp_override_methods,
     /*tp_members*/ nullptr,
-    /*tp_getset*/ bpy_rna_context_temp_override_getset,
+    /*tp_getset*/ nullptr,
     /*tp_base*/ nullptr,
     /*tp_dict*/ nullptr,
     /*tp_descr_get*/ nullptr,
