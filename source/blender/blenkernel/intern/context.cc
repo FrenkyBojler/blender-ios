@@ -319,29 +319,27 @@ static std::optional<std::string> CTX_result_brief_repr(const bContextDataResult
         /* Format like PyRNA: <bpy_struct, Type("name") at 0xAddress> or <bpy_struct, Type at
          * 0xAddress> */
         if (!obj_name.empty()) {
-          return fmt::format("<{}(\"{}\") at 0x{:x}>",
-                             rna_type_name,
-                             obj_name,
-                             reinterpret_cast<uintptr_t>(result.ptr.data));
+          return std::string("<") + rna_type_name + "(\"" + obj_name + "\") at 0x" +
+                 std::to_string(reinterpret_cast<uintptr_t>(result.ptr.data)) + ">";
         }
         else {
-          return fmt::format(
-              "<{} at 0x{:x}>", rna_type_name, reinterpret_cast<uintptr_t>(result.ptr.data));
+          return std::string("<") + rna_type_name + " at 0x" +
+                 std::to_string(reinterpret_cast<uintptr_t>(result.ptr.data)) + ">";
         }
       }
       else {
-        return "None";
+        return std::string("None");
       }
 
     case CTX_DATA_TYPE_COLLECTION:
-      return fmt::format("[{} items]", result.list.size());
+      return std::string("[") + std::to_string(result.list.size()) + " items]";
 
     case CTX_DATA_TYPE_STRING:
       if (!result.str.is_empty()) {
-        return fmt::format("\"{}\"", result.str);
+        return std::string("\"") + result.str + "\"";
       }
       else {
-        return fmt::format("\"\"");
+        return std::string("\"\"");
       }
   }
   BLI_assert_unreachable();
