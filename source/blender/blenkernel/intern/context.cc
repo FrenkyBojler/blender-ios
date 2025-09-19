@@ -391,16 +391,28 @@ static void CTX_temp_override_log_access(bContext *C,
       break;
   }
 
+#ifdef WITH_PYTHON
+  /* Get current Python location with operator information if available */
+  const char *location = BPY_get_current_location();
+#else
+  const char *location = "unknown:0";
+#endif
+
   /* Use TRACE level when available, otherwise force output when Python logging is enabled */
   if (CLOG_CHECK(BKE_LOG_TEMP_OVERRIDE, CLG_LEVEL_TRACE)) {
-    CLOG_TRACE(
-        BKE_LOG_TEMP_OVERRIDE, "member:%s | type:%s | value:%s", member, type_name, value_desc);
+    CLOG_TRACE(BKE_LOG_TEMP_OVERRIDE,
+               "[%s] member:%s | type:%s | value:%s",
+               location,
+               member,
+               type_name,
+               value_desc);
   }
   else if (CTX_temp_override_logging_get(C)) {
     /* Force output at TRACE level even if not enabled via command line */
     CLOG_AT_LEVEL_NOCHECK(BKE_LOG_TEMP_OVERRIDE,
                           CLG_LEVEL_TRACE,
-                          "member:%s | type:%s | value:%s",
+                          "[%s] member:%s | type:%s | value:%s",
+                          location,
                           member,
                           type_name,
                           value_desc);

@@ -137,6 +137,12 @@ void BPY_free_srna_pytype(StructRNA *srna);
  */
 [[nodiscard]] bool BPY_string_is_keyword(const char *str);
 
+/**
+ * Get current Python stack location with operator information if available.
+ * Returns a string like "filename.py:123" or "filename.py:123 [op:mesh.primitive_cube_add]"
+ */
+const char *BPY_get_current_location();
+
 /* `bpy_rna_callback.cc` */
 
 void BPY_callback_screen_free(ARegionType *art);
