@@ -294,7 +294,7 @@ struct bContextDataResult {
 };
 
 /* Create a brief string representation of a context data result */
-static std::string CTX_result_brief_repr(const bContextDataResult.&result)
+static std::string CTX_result_brief_repr(const bContextDataResult &result)
 {
   switch (result.type) {
     case CTX_DATA_TYPE_POINTER:
