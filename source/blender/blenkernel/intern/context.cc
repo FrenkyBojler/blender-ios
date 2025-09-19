@@ -25,7 +25,6 @@
 #include "DEG_depsgraph.hh"
 
 #include "BLI_listbase.h"
-#include "BLI_set.hh"
 #include "BLI_string.h"
 #include "BLI_threads.h"
 #include "BLI_utildefines.h"
@@ -40,8 +39,6 @@
 #include "BKE_sound.h"
 #include "BKE_wm_runtime.hh"
 #include "BKE_workspace.hh"
-
-#include "WM_api.hh"
 
 #include "RE_engine.h"
 

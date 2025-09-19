@@ -16,7 +16,6 @@
 #ifdef WITH_PYTHON_MODULE
 #  include "pylifecycle.h" /* For `Py_Version`. */
 #endif
-#include "../generic/py_capi_utils.hh"
 #include "../generic/python_compat.hh" /* IWYU pragma: keep. */
 
 #include "CLG_log.h"
@@ -74,9 +73,6 @@
 CLG_LOGREF_DECLARE_GLOBAL(BPY_LOG_CONTEXT, "bpy.context");
 CLG_LOGREF_DECLARE_GLOBAL(BPY_LOG_INTERFACE, "bpy.interface");
 CLG_LOGREF_DECLARE_GLOBAL(BPY_LOG_RNA, "bpy.rna");
-
-/* External reference to temp_override logger from context.cc */
-extern CLG_LogRef *BKE_LOG_TEMP_OVERRIDE;
 
 /* For internal use, when starting and ending Python scripts. */
 
