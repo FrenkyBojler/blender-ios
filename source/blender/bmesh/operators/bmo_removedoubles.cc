@@ -621,12 +621,6 @@ void bmo_collapse_uvs_exec(BMesh *bm, BMOperator *op)
 }
 
 /**
- * Compared to 'BLI_kdtree_3d_calc_duplicates_fast', this version is slower
- * because it performs stable clustering and centroid computation to
- * ensure consistent survivor selection.
- * Approximately 1.1-1.5x slower performance on extremely large meshes
- * depending on topology and density.
- *
  * \return a `verts_len` aligned array of indices.
  * Index values:
  * - `-1`: Not a duplicate, others may use as a target.
@@ -644,13 +638,12 @@ static int *bmesh_find_doubles_by_distance_impl(BMesh *bm,
   }
 
   int *duplicates = MEM_malloc_arrayN<int>(verts_len, __func__);
+  bool found_duplicates = false;
   blender::Vector<blender::float3> survivor_cos(verts_len);
 
   KDTree_3d *tree = BLI_kdtree_3d_new(verts_len);
-
   for (int i = 0; i < verts_len; i++) {
     BLI_kdtree_3d_insert(tree, i, verts[i]->co);
-
     if (has_keep_vert && BMO_vert_flag_test(bm, verts[i], VERT_KEEP)) {
       duplicates[i] = i;
     }
@@ -660,20 +653,20 @@ static int *bmesh_find_doubles_by_distance_impl(BMesh *bm,
   }
 
   BLI_kdtree_3d_balance(tree);
-
-  const int found = BLI_kdtree_3d_calc_duplicates_stable(
-      tree, dist, duplicates, (float(*)[3])survivor_cos.data());
+  found_duplicates = BLI_kdtree_3d_calc_duplicates_stable(
+                         tree, dist, duplicates, (float(*)[3])survivor_cos.data()) != 0;
 
   BLI_kdtree_3d_free(tree);
 
-  if (found == 0) {
+  if (!found_duplicates) {
     MEM_freeN(duplicates);
-    return nullptr;
+    duplicates = nullptr;
   }
-
-  for (int i = 0; i < verts_len; i++) {
-    if (duplicates[i] == i) {
-      copy_v3_v3(verts[i]->co, survivor_cos[i]);
+  else {
+    for (int i = 0; i < verts_len; i++) {
+      if (duplicates[i] == i) {
+        copy_v3_v3(verts[i]->co, survivor_cos[i]);
+      }
     }
   }
 

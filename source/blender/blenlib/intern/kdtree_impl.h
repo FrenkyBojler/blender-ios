@@ -949,6 +949,7 @@ int BLI_kdtree_nd_(calc_duplicates_fast)(const KDTree *tree,
 }
 
 /** \} */
+
 /* -------------------------------------------------------------------- */
 /** \name BLI_kdtree_3d_calc_duplicates_stable
  * \{ */
@@ -959,39 +960,37 @@ int BLI_kdtree_nd_(calc_duplicates_stable)(const KDTree *tree,
                                            float (*r_cluster_center)[KD_DIMS])
 {
   BLI_assert(tree->is_balanced);
-
   if (UNLIKELY(tree->root == KD_NODE_UNSET)) {
     return 0;
   }
 
   const uint nodes_len = tree->nodes_len;
-
-  blender::Array<int> index_lookup(tree->max_node_index + 1);
+  blender::Array<int> index_to_node_index(tree->max_node_index + 1);
   for (uint i = 0; i < nodes_len; i++) {
-    index_lookup[tree->nodes[i].index] = int(i);
+    index_to_node_index[tree->nodes[i].index] = int(i);
   }
 
   blender::BitVector<> visited(tree->max_node_index + 1, false);
+  /* Could be inline, declare here to avoid re-allocation. */
   blender::Vector<int> cluster;
 
   int found = 0;
 
   for (uint i = 0; i < nodes_len; i++) {
     const int node_index = tree->nodes[i].index;
-
-    if (visited[node_index] || duplicates[node_index] != -1) {
+    if ((duplicates[node_index] != -1) || visited[node_index]) {
       continue;
     }
 
-    const float *search_co = tree->nodes[index_lookup[node_index]].co;
+    const float *search_co = tree->nodes[index_to_node_index[node_index]].co;
     BLI_assert(search_co != nullptr);
-
     BLI_assert(cluster.is_empty());
 
     visited[node_index].set();
-
-    auto accumulate_neighbors_fn = [&](int neighbor_index, const float *, float) -> bool {
-      if (!visited[neighbor_index] && duplicates[neighbor_index] == -1) {
+    auto accumulate_neighbors_fn = [&duplicates, &visited, &cluster](int neighbor_index,
+                                                                     const float * /*co*/,
+                                                                     float /*dist_sq*/) -> bool {
+      if ((duplicates[neighbor_index] == -1) && !visited[neighbor_index]) {
         cluster.append(neighbor_index);
         visited[neighbor_index].set();
       }
@@ -999,30 +998,23 @@ int BLI_kdtree_nd_(calc_duplicates_stable)(const KDTree *tree,
     };
 
     BLI_kdtree_nd_(range_search_cb_cpp)(tree, search_co, range, accumulate_neighbors_fn);
-
     if (cluster.is_empty()) {
       continue;
     }
-
     cluster.append(node_index);
 
     /* Compute centroid and choose survivor in one pass. */
     float centroid[KD_DIMS] = {};
-    int survivor_index = cluster[0];
+    int survivor_index = node_index; /* Same as `cluster[0]`. */
 
     for (int cluster_node_index : cluster) {
-      const float *co = tree->nodes[index_lookup[cluster_node_index]].co;
-      add_vn_vn(centroid, co);
-      if (cluster_node_index < survivor_index) {
-        survivor_index = cluster_node_index;
-      }
+      add_vn_vn(centroid, tree->nodes[index_to_node_index[cluster_node_index]].co);
+      survivor_index = std::min(cluster_node_index, survivor_index);
     }
 
     div_vn_fl(centroid, float(cluster.size()));
-    /* Write centroid for this survivor. */
     copy_vn_vn(r_cluster_center[survivor_index], centroid);
 
-    /* Assign duplicates mapping. */
     for (int cluster_node_index : cluster) {
       duplicates[cluster_node_index] = survivor_index;
     }
