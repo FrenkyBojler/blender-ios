@@ -102,7 +102,7 @@ struct bContext {
      */
     void *py_context_orig;
     /** True if logging is enabled for temp_override (can be set programmatically). */
-    bool temp_override_logging_enabled;
+    bool log_access;
   } data;
 };
 
@@ -1724,10 +1724,10 @@ Depsgraph *CTX_data_depsgraph_on_load(const bContext *C)
 
 void CTX_member_logging_set(bContext *C, bool enable)
 {
-  C->data.temp_override_logging_enabled = enable;
+  C->data.log_access = enable;
 }
 
 bool CTX_member_logging_get(const bContext *C)
 {
-  return C->data.temp_override_logging_enabled;
+  return C->data.log_access;
 }
