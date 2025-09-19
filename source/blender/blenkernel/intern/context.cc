@@ -317,10 +317,10 @@ static std::optional<std::string> CTX_result_brief_repr(const bContextDataResult
         }
         /* Format like PyRNA: <bpy_struct, Type("name") at 0xAddress> or <bpy_struct, Type at 0xAddress> */
         if (!obj_name.empty()) {
-          return std::string("<bpy_struct, ") + rna_type_name + "(\"" + obj_name + "\") at 0x" +
+          return std::string("<") + rna_type_name + "(\"" + obj_name + "\") at 0x" +
                  std::to_string(reinterpret_cast<uintptr_t>(result.ptr.data)) + ">";
         } else {
-          return std::string("<bpy_struct, ") + rna_type_name + " at 0x" +
+          return std::string("<") + rna_type_name + " at 0x" +
                  std::to_string(reinterpret_cast<uintptr_t>(result.ptr.data)) + ">";
         }
       } else {
@@ -328,15 +328,11 @@ static std::optional<std::string> CTX_result_brief_repr(const bContextDataResult
       }
 
     case CTX_DATA_TYPE_COLLECTION:
-      if (!result.list.is_empty()) {
-        return std::string("[collection with ") + std::to_string(result.list.size()) + " items]";
-      } else {
-        return std::string("[collection (empty)]");
-      }
+      return std::string("[") + std::to_string(result.list.size()) + " items]";
 
     case CTX_DATA_TYPE_STRING:
       if (!result.str.is_empty()) {
-        return std::string("\"") + std::string(result.str.c_str()) + "\"";
+        return std::string("\"") + result.str + "\"";
       } else {
         return std::string("\"\"");
       }
@@ -373,7 +369,7 @@ static void CTX_temp_override_log_access(bContext *C,
 #endif
 
   /* Use TRACE level when available, otherwise force output when Python logging is enabled */
-  const char *format = "[%s] : %s = %s";
+  const char *format = "%s: %s=%s";
   if (CLOG_CHECK(BKE_LOG_TEMP_OVERRIDE, CLG_LEVEL_TRACE)) {
     CLOG_TRACE(BKE_LOG_TEMP_OVERRIDE, format, location, member, value_desc);
   }
