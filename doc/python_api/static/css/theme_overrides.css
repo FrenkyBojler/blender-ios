@@ -15,6 +15,12 @@ body {
 	--color-api-name: #e87d0d;
 }
 
+/* Increase the width of main navigation region. */
+
+.sidebar-container {
+	width: 18em;
+}
+
 /* Increase the width of "On this page" region. */
 .main > .toc-drawer {
 	width: auto;
