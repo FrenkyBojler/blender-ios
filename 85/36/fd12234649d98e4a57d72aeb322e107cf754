@@ -1,2 +1,3 @@
 Referenced by pull request #145744, Fix #145733: Multires undo doesn't work
 Referenced by commit 6e75d59c7f4f531620168697700d03761818d732, Fix #145733: Multires undo doesn't work
+Referenced by issue #146466, Subdivision Surface Modifier Causes Mesh to Over-Smooth on Undo in Sculpt Mode
