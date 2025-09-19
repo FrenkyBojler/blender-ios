@@ -293,7 +293,7 @@ struct bContextDataResult {
   ContextDataType type;
 };
 
-/* Create a brief string representation of a context data result */
+/* Create a brief string representation of a context data result. */
 static std::string CTX_result_brief_repr(const bContextDataResult &result)
 {
   switch (result.type) {
@@ -318,8 +318,7 @@ static std::string CTX_result_brief_repr(const bContextDataResult &result)
             }
           }
         }
-        /* Format like PyRNA: <bpy_struct, Type("name") at 0xAddress> or <bpy_struct, Type at
-         * 0xAddress> */
+        /* Format like PyRNA: '<Type("name") at 0xAddress>' or '<Type at 0xAddress>'. */
         if (!member_name.empty()) {
           return fmt::format("<{}(\"{}\") at 0x{:x}>",
                              rna_type_name,
@@ -347,8 +346,7 @@ static std::string CTX_result_brief_repr(const bContextDataResult &result)
       }
   }
   BLI_assert_unreachable();
-  /* If this line is reached, it indicates an unhandled context type. Update the code to handle new
-   * types. */
+  /* Unhandled context type. Update if new types are added. */
   return "<UNKNOWN>";
 }
 
@@ -433,11 +431,11 @@ static void *ctx_wm_python_context_get(const bContext *C,
     fallback_result.type = CTX_DATA_TYPE_POINTER;
     return_data = fall_through;
 
-    /* Log fallback context member access */
+    /* Log fallback context member access. */
     CTX_member_log_access((bContext *)C, member, fallback_result);
   }
 
-  /* Don't allow UI context access from non-main threads */
+  /* Don't allow UI context access from non-main threads. */
   if (!BLI_thread_is_main()) {
     return nullptr;
   }
@@ -467,7 +465,7 @@ static eContextResult ctx_data_get(bContext *C, const char *member, bContextData
   }
 #endif
 
-  /* don't allow UI context access from non-main threads */
+  /* Don't allow UI context access from non-main threads. */
   if (!BLI_thread_is_main()) {
     return CTX_RESULT_MEMBER_NOT_FOUND;
   }
