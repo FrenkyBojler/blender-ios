@@ -294,7 +294,7 @@ struct bContextDataResult {
 };
 
 /* Create a brief string representation of a context data result. */
-static std::string CTX_result_brief_repr(const bContextDataResult &result)
+static std::string ctx_result_brief_repr(const bContextDataResult &result)
 {
   switch (result.type) {
     case CTX_DATA_TYPE_POINTER:
@@ -351,7 +351,7 @@ static std::string CTX_result_brief_repr(const bContextDataResult &result)
 }
 
 /* Simple logging for context data results. */
-static void CTX_member_log_access(bContext *C,
+static void ctx_member_log_access(bContext *C,
                                   const char *member,
                                   const bContextDataResult &result)
 {
@@ -362,7 +362,7 @@ static void CTX_member_log_access(bContext *C,
     return;
   }
 
-  std::string value_repr = CTX_result_brief_repr(result);
+  std::string value_repr = ctx_result_brief_repr(result);
   const char *value_desc = value_repr.c_str();
 
 #ifdef WITH_PYTHON
@@ -415,7 +415,7 @@ static void *ctx_wm_python_context_get(const bContext *C,
       }
 
       /* Log context member access directly without storing a copy. */
-      CTX_member_log_access((bContext *)C, member, result);
+      ctx_member_log_access((bContext *)C, member, result);
     }
   }
 #else
@@ -432,7 +432,7 @@ static void *ctx_wm_python_context_get(const bContext *C,
     return_data = fall_through;
 
     /* Log fallback context member access. */
-    CTX_member_log_access((bContext *)C, member, fallback_result);
+    ctx_member_log_access((bContext *)C, member, fallback_result);
   }
 
   /* Don't allow UI context access from non-main threads. */
@@ -459,7 +459,7 @@ static eContextResult ctx_data_get(bContext *C, const char *member, bContextData
   if (CTX_py_dict_get(C)) {
     if (BPY_context_member_get(C, member, result)) {
       /* Log the Python context result if we're in a temp_override. */
-      CTX_member_log_access(C, member, *result);
+      ctx_member_log_access(C, member, *result);
       return CTX_RESULT_OK;
     }
   }
@@ -535,7 +535,7 @@ static eContextResult ctx_data_get(bContext *C, const char *member, bContextData
 
   /* Log context result if we're in a temp_override and we got a successful or no-data result. */
   if (ELEM(final_result, CTX_RESULT_OK, CTX_RESULT_NO_DATA)) {
-    CTX_member_log_access(C, member, *result);
+    ctx_member_log_access(C, member, *result);
   }
 
   return final_result;
