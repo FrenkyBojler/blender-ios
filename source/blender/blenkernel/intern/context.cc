@@ -112,14 +112,15 @@ struct bContext {
 
 bContext *CTX_create()
 {
-  bContext *C = MEM_new<bContext>(__func__);
+  bContext *C = MEM_callocN<bContext>(__func__);
 
   return C;
 }
 
 bContext *CTX_copy(const bContext *C)
 {
-  bContext *newC = MEM_new<bContext>(__func__, *C);
+  bContext *newC = MEM_callocN<bContext>(__func__);
+  *newC = *C;
 
   memset(&newC->wm.operator_poll_msg_dyn_params, 0, sizeof(newC->wm.operator_poll_msg_dyn_params));
 
@@ -131,8 +132,7 @@ void CTX_free(bContext *C)
   /* This may contain a dynamically allocated message, free. */
   CTX_wm_operator_poll_msg_clear(C);
 
-  /* Clean up is handled by the destructor */
-  MEM_delete(C);
+  MEM_freeN(C);
 }
 
 /* store */
