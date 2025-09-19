@@ -124,8 +124,6 @@ struct ContextStore {
 
   /** User's desired logging state for this temp_override instance (can be changed at runtime). */
   bool use_logging;
-  /** Original logging state when this temp_override started (immutable, used for restoration). */
-  bool original_logging_state;
 };
 
 struct BPyContextTempOverride {
@@ -147,7 +145,7 @@ struct BPyContextTempOverride {
   bContext_PyState py_state;
 
   /**
-   * Logging state management for nested temp_override contexts.
+   * Logging state management for nested temp_override contexts (Python-level logging).
    *
    * Two flags are used to ensure correct restoration in nested scenarios:
    * - `use_logging`: What the USER wants for this specific temp_override instance
@@ -308,8 +306,7 @@ static PyObject *bpy_rna_context_temp_override_enter(BPyContextTempOverride *sel
   bContext *C = self->context;
   Main *bmain = CTX_data_main(C);
 
-  /* Store original logging state and set new state if requested */
-  self->ctx_init.original_logging_state = CTX_member_logging_get(C);
+  /* Removed original_logging_state as it is no longer needed. */
   if (self->ctx_temp.use_logging) {
     CTX_member_logging_set(C, true);
   }
@@ -341,8 +338,7 @@ static PyObject *bpy_rna_context_temp_override_enter(BPyContextTempOverride *sel
   }
 
   if (!bpy_rna_context_temp_override_enter_ok_or_error(self, bmain, win, screen, area, region)) {
-    /* Restore original logging state on error */
-    CTX_member_logging_set(C, self->ctx_init.original_logging_state);
+    /* Removed original_logging_state restoration as it is no longer needed. */
     CTX_py_state_pop(C, &self->py_state);
     return nullptr;
   }
@@ -531,8 +527,8 @@ static PyObject *bpy_rna_context_temp_override_exit(BPyContextTempOverride *self
     Py_DECREF(context_dict_test);
   }
 
-  /* Restore original logging state instead of just setting to false */
-  CTX_member_logging_set(C, self->ctx_init.original_logging_state);
+  /* Restore logging state using ctx_init.use_logging instead of original_logging_state. */
+  CTX_member_logging_set(C, self->ctx_init.use_logging);
 
   CTX_py_state_pop(C, &self->py_state);
 
