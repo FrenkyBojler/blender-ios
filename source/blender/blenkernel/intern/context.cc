@@ -327,7 +327,7 @@ static std::optional<std::string> CTX_result_brief_repr(const bContextDataResult
       } else {
         return std::string("None");
       }
-      // break;  // unreachable
+
     case CTX_DATA_TYPE_COLLECTION:
       if (!result.list.is_empty()) {
         std::string collection_name = member ? member : "collection";
@@ -337,15 +337,13 @@ static std::optional<std::string> CTX_result_brief_repr(const bContextDataResult
         std::string collection_name = member ? member : "collection";
         return std::string("[") + collection_name + " collection (empty)]";
       }
-      // break;  // unreachable
+
     case CTX_DATA_TYPE_STRING:
       if (!result.str.is_empty()) {
         return std::string("\"") + std::string(result.str.c_str()) + "\"";
       } else {
         return std::string("\"\"");
       }
-      // break;  // unreachable
-      // default:  // empty default removed
   }
   return std::nullopt; /* Unknown or unhandled type */
 }
