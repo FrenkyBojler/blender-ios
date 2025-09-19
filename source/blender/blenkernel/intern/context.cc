@@ -47,6 +47,9 @@
 
 #include "CLG_log.h"
 
+/* Logging. */
+CLG_LOGREF_DECLARE_GLOBAL(BKE_LOG_TEMP_OVERRIDE, "temp_override");
+
 #ifdef WITH_PYTHON
 #  include "BPY_extern.hh"
 #endif
@@ -1616,14 +1619,19 @@ void CTX_temp_override_set(bContext *C, bool enable)
     /* Ending temp_override - print summary and cleanup */
     if (C->data.temp_override_accessed_members && 
         !C->data.temp_override_accessed_members->empty()) {
-      printf("temp_override accessed members: {");
+
+      /* Build the summary string */
+      std::string summary = "temp_override accessed contextmembers: {";
       bool first = true;
       for (const std::string &member : *C->data.temp_override_accessed_members) {
-        if (!first) printf(", ");
-        printf("%s", member.c_str());
+        if (!first)
+          summary += ", ";
+        summary += member;
         first = false;
       }
-      printf("}\n");
+      summary += "}";
+
+      CLOG_INFO(BKE_LOG_TEMP_OVERRIDE, "%s", summary.c_str());
     }
     delete C->data.temp_override_accessed_members;
     C->data.temp_override_accessed_members = nullptr;

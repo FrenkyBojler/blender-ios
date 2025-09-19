@@ -74,6 +74,9 @@ CLG_LOGREF_DECLARE_GLOBAL(BPY_LOG_CONTEXT, "bpy.context");
 CLG_LOGREF_DECLARE_GLOBAL(BPY_LOG_INTERFACE, "bpy.interface");
 CLG_LOGREF_DECLARE_GLOBAL(BPY_LOG_RNA, "bpy.rna");
 
+/* External reference to temp_override logger from context.cc */
+extern struct CLG_LogRef *BKE_LOG_TEMP_OVERRIDE;
+
 /* For internal use, when starting and ending Python scripts. */
 
 /* In case a Python script triggers another Python call,
@@ -782,7 +785,7 @@ bool BPY_context_member_get(bContext *C, const char *member, bContextDataResult 
   /* Log context member access if we're in a temp_override */
   if (CTX_temp_override_get(C)) {
     CTX_temp_override_add_accessed_member(C, member);
-    printf("temp_override: accessing context member '%s'\n", member);
+    CLOG_DEBUG(BKE_LOG_TEMP_OVERRIDE, "accessing context member '%s'", member);
   }
 
   PyObject *pyctx;
