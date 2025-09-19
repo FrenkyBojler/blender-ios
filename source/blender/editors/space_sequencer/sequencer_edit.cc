@@ -1951,7 +1951,7 @@ void SEQUENCER_OT_split(wmOperatorType *ot)
       "ignore_connected",
       false,
       "Ignore Connected",
-      "Don't propagete split to connected strips");
+      "Don't propagate split to connected strips");
 }
 
 /** \} */
