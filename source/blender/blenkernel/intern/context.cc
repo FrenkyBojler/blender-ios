@@ -48,7 +48,7 @@
 #include "CLG_log.h"
 
 /* Logging. */
-CLG_LOGREF_DECLARE_GLOBAL(BKE_LOG_TEMP_OVERRIDE, "temp_override");
+CLG_LOGREF_DECLARE_GLOBAL(BKE_LOG_CONTEXT, "context");
 
 #ifdef WITH_PYTHON
 #  include "BPY_extern.hh"
@@ -305,8 +305,9 @@ static std::optional<std::string> CTX_result_brief_repr(const bContextDataResult
           PropertyRNA *name_prop = RNA_struct_name_property(result.ptr.type);
           if (name_prop) {
             char name_buf[256];
-            PointerRNA ptr_copy = result.ptr;  /* Make a non-const copy */
-            char *name = RNA_property_string_get_alloc(&ptr_copy, name_prop, name_buf, sizeof(name_buf), nullptr);
+            PointerRNA ptr_copy = result.ptr; /* Make a non-const copy */
+            char *name = RNA_property_string_get_alloc(
+                &ptr_copy, name_prop, name_buf, sizeof(name_buf), nullptr);
             if (name && name[0] != '\0') {
               obj_name = name;
               if (name != name_buf) {
@@ -315,15 +316,18 @@ static std::optional<std::string> CTX_result_brief_repr(const bContextDataResult
             }
           }
         }
-        /* Format like PyRNA: <bpy_struct, Type("name") at 0xAddress> or <bpy_struct, Type at 0xAddress> */
+        /* Format like PyRNA: <bpy_struct, Type("name") at 0xAddress> or <bpy_struct, Type at
+         * 0xAddress> */
         if (!obj_name.empty()) {
           return std::string("<") + rna_type_name + "(\"" + obj_name + "\") at 0x" +
                  std::to_string(reinterpret_cast<uintptr_t>(result.ptr.data)) + ">";
-        } else {
+        }
+        else {
           return std::string("<") + rna_type_name + " at 0x" +
                  std::to_string(reinterpret_cast<uintptr_t>(result.ptr.data)) + ">";
         }
-      } else {
+      }
+      else {
         return std::string("None");
       }
 
@@ -333,7 +337,8 @@ static std::optional<std::string> CTX_result_brief_repr(const bContextDataResult
     case CTX_DATA_TYPE_STRING:
       if (!result.str.is_empty()) {
         return std::string("\"") + result.str + "\"";
-      } else {
+      }
+      else {
         return std::string("\"\"");
       }
   }
@@ -350,8 +355,7 @@ static void CTX_temp_override_log_access(bContext *C,
     return;
   }
 
-  bool should_log = CLOG_CHECK(BKE_LOG_TEMP_OVERRIDE, CLG_LEVEL_TRACE) ||
-                    CTX_member_logging_get(C);
+  bool should_log = CLOG_CHECK(BKE_LOG_CONTEXT, CLG_LEVEL_TRACE) || CTX_member_logging_get(C);
 
   if (!should_log) {
     return;
@@ -370,13 +374,12 @@ static void CTX_temp_override_log_access(bContext *C,
 
   /* Use TRACE level when available, otherwise force output when Python logging is enabled */
   const char *format = "%s: %s=%s";
-  if (CLOG_CHECK(BKE_LOG_TEMP_OVERRIDE, CLG_LEVEL_TRACE)) {
-    CLOG_TRACE(BKE_LOG_TEMP_OVERRIDE, format, location, member, value_desc);
+  if (CLOG_CHECK(BKE_LOG_CONTEXT, CLG_LEVEL_TRACE)) {
+    CLOG_TRACE(BKE_LOG_CONTEXT, format, location, member, value_desc);
   }
   else if (CTX_member_logging_get(C)) {
     /* Force output at TRACE level even if not enabled via command line */
-    CLOG_AT_LEVEL_NOCHECK(
-        BKE_LOG_TEMP_OVERRIDE, CLG_LEVEL_TRACE, format, location, member, value_desc);
+    CLOG_AT_LEVEL_NOCHECK(BKE_LOG_CONTEXT, CLG_LEVEL_TRACE, format, location, member, value_desc);
   }
 }
 
@@ -417,7 +420,7 @@ static void *ctx_wm_python_context_get(const bContext *C,
   /* If no member was found, use fallback and create a simple result for logging */
   if (!found_member) {
     log_result.ptr.data = fall_through;
-    log_result.ptr.type = const_cast<StructRNA *>(member_type);  /* Use the expected RNA type */
+    log_result.ptr.type = const_cast<StructRNA *>(member_type); /* Use the expected RNA type */
     log_result.type = CTX_DATA_TYPE_POINTER;
     return_data = fall_through;
   }
