@@ -289,6 +289,9 @@ static PyObject *bpy_rna_context_temp_override_enter(BPyContextTempOverride *sel
   bContext *C = self->context;
   Main *bmain = CTX_data_main(C);
 
+  /* Set flag to indicate we're in a temp override */
+  CTX_temp_override_set(C, true);
+
   /* It's crucial to call #CTX_py_state_pop if this function fails with an error. */
   CTX_py_state_push(C, &self->py_state, self->py_state_context_dict);
 
@@ -316,6 +319,7 @@ static PyObject *bpy_rna_context_temp_override_enter(BPyContextTempOverride *sel
   }
 
   if (!bpy_rna_context_temp_override_enter_ok_or_error(self, bmain, win, screen, area, region)) {
+    CTX_temp_override_set(C, false);
     CTX_py_state_pop(C, &self->py_state);
     return nullptr;
   }
@@ -502,6 +506,10 @@ static PyObject *bpy_rna_context_temp_override_exit(BPyContextTempOverride *self
   if (context_dict_test && (context_dict_test != self->py_state_context_dict)) {
     Py_DECREF(context_dict_test);
   }
+  
+  /* Clear the temp override flag before restoring Python state */
+  CTX_temp_override_set(C, false);
+  
   CTX_py_state_pop(C, &self->py_state);
 
   Py_RETURN_NONE;

@@ -471,3 +471,13 @@ Depsgraph *CTX_data_ensure_evaluated_depsgraph(const bContext *C);
  * Only used by handful of operators which are run on file load.
  */
 Depsgraph *CTX_data_depsgraph_on_load(const bContext *C);
+
+/**
+ * Set flag indicating that context is in a temp_override state.
+ */
+void CTX_temp_override_set(bContext *C, bool enable);
+
+/**
+ * Check if context is currently in a temp_override state.
+ */
+bool CTX_temp_override_get(const bContext *C);

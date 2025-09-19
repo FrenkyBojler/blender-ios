@@ -96,6 +96,8 @@ struct bContext {
      * (keep this to check if the copy needs freeing).
      */
     void *py_context_orig;
+    /** True if currently in a temp_override context manager. */
+    bool temp_override_active;
   } data;
 };
 
@@ -1588,4 +1590,14 @@ Depsgraph *CTX_data_depsgraph_on_load(const bContext *C)
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   return BKE_scene_get_depsgraph(scene, view_layer);
+}
+
+void CTX_temp_override_set(bContext *C, bool enable)
+{
+  C->data.temp_override_active = enable;
+}
+
+bool CTX_temp_override_get(const bContext *C)
+{
+  return C->data.temp_override_active;
 }
