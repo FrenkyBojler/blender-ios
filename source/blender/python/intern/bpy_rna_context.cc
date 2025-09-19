@@ -292,7 +292,7 @@ static PyObject *bpy_rna_context_temp_override_enter(BPyContextTempOverride *sel
   bContext *C = self->context;
   Main *bmain = CTX_data_main(C);
 
-  /* Removed original_logging_state as it is no longer needed. */
+  /* Enable logging for this temporary override context if the user has requested it. */
   if (self->ctx_temp.use_logging) {
     CTX_member_logging_set(C, true);
   }
@@ -324,7 +324,6 @@ static PyObject *bpy_rna_context_temp_override_enter(BPyContextTempOverride *sel
   }
 
   if (!bpy_rna_context_temp_override_enter_ok_or_error(self, bmain, win, screen, area, region)) {
-    /* Removed original_logging_state restoration as it is no longer needed. */
     CTX_py_state_pop(C, &self->py_state);
     return nullptr;
   }
@@ -513,7 +512,7 @@ static PyObject *bpy_rna_context_temp_override_exit(BPyContextTempOverride *self
     Py_DECREF(context_dict_test);
   }
 
-  /* Restore logging state using ctx_init.use_logging instead of original_logging_state. */
+  /* Restore logging state based on the user's preference stored in ctx_init.use_logging. */
   CTX_member_logging_set(C, self->ctx_init.use_logging);
 
   CTX_py_state_pop(C, &self->py_state);
@@ -545,7 +544,7 @@ static int bpy_rna_context_temp_override_use_logging_set(BPyContextTempOverride 
   self->ctx_temp.use_logging = result;
 
   /* Update the C-level logging flag immediately.
-   * The original_logging_state will ensure proper restoration on exit. */
+   * The ctx_temp.use_logging flag ensures proper restoration of the logging state on exit. */
   if (self->context) {
     CTX_member_logging_set(self->context, result);
   }
