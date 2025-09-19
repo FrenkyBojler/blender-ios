@@ -825,6 +825,10 @@ static PyObject *bpy_context_temp_override(PyObject *self, PyObject *args, PyObj
 
 /** \} */
 
+/* -------------------------------------------------------------------- */
+/** \name Public Type Definition
+ * \{ */
+
 #ifdef __GNUC__
 #  ifdef __clang__
 #    pragma clang diagnostic push
