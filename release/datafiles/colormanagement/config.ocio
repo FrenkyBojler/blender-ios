@@ -214,6 +214,37 @@ display_colorspaces:
         - !<FileTransform> {src: AgX_Base_sRGB.cube, interpolation: tetrahedral}
         - !<ColorSpaceTransform> {src: Rec.1886, dst: sRGB}
 
+  - !<ColorSpace>
+    name: ACES 2.0 sRGB
+    family: Legacy
+    equalitygroup:
+    bitdepth: 32f
+    description: |
+       ACES 2 Output Transform for 100 nit SDR Rec709
+    encoding: sdr-video
+    isdata: false
+    from_display_reference: !<GroupTransform>
+      children:
+        - !<ColorSpaceTransform> {src: cie_xyz_d65_interchange, dst: ACES2065-1}
+        - !<BuiltinTransform> {style: ACES-OUTPUT - ACES2065-1_to_CIE-XYZ-D65 - SDR-100nit-REC709_2.0}
+        - !<BuiltinTransform> {style: DISPLAY - CIE-XYZ-D65_to_sRGB}
+
+  - !<ColorSpace>
+    name: Khronos PBR Neutral sRGB
+    family: Legacy
+    equalitygroup:
+    bitdepth: 32f
+    description: |
+      Khronos PBR Neutral Image Encoding for sRGB Display
+    encoding: sdr-video
+    isdata: false
+    from_display_reference: !<GroupTransform>
+      children:
+        - !<ColorSpaceTransform> {src: cie_xyz_d65_interchange, dst: Linear Rec.709}
+        - !<AllocationTransform> {allocation: lg2, vars: [-9, 10]}
+        - !<FileTransform> {src: pbrNeutral.cube, interpolation: tetrahedral}
+        - !<ColorSpaceTransform> {src: Linear Rec.709, dst: sRGB}
+
 view_transforms:
   - !<ViewTransform>
     name: No-Op
