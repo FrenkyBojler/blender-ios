@@ -868,9 +868,7 @@ std::optional<std::string> BPY_python_current_file_and_line(void)
     if (use_gil) {
       PyGILState_Release(gilstate);
     }
-    char buf[512];
-    BLI_snprintf(buf, sizeof(buf), "%s:%d", filename, lineno);
-    return std::string(buf);
+    return std::string(filename) + ":" + std::to_string(lineno);
   }
 
   if (use_gil) {
