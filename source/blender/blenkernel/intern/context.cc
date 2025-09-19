@@ -537,7 +537,7 @@ static eContextResult ctx_data_get(bContext *C, const char *member, bContextData
   eContextResult final_result = eContextResult(done);
 
   /* Log context result if we're in a temp_override and we got a successful or no-data result */
-  if (final_result == CTX_RESULT_OK || final_result == CTX_RESULT_NO_DATA) {
+  if (ELEM(final_result, CTX_RESULT_OK, CTX_RESULT_NO_DATA)) {
     CTX_member_log_access(C, member, *result);
   }
 
