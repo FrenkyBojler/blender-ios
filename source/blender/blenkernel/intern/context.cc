@@ -363,18 +363,20 @@ static void *ctx_wm_python_context_get(const bContext *C,
                                        const StructRNA *member_type,
                                        void *fall_through)
 {
+  bContextDataResult log_result{};
+  void *return_data = nullptr;
+  bool found_member = false;
+
 #ifdef WITH_PYTHON
   if (UNLIKELY(C && CTX_py_dict_get(C))) {
     bContextDataResult result{};
     if (BPY_context_member_get((bContext *)C, member, &result)) {
-      /* Log context member access if we're in a temp_override */
-      if (CTX_temp_override_get(C)) {
-        CTX_temp_override_log_access((bContext *)C, member, result);
-      }
+      found_member = true;
+      log_result = result; /* Store result for logging */
 
       if (result.ptr.data) {
         if (RNA_struct_is_a(result.ptr.type, member_type)) {
-          return result.ptr.data;
+          return_data = result.ptr.data;
         }
         else {
           CLOG_WARN(&LOG,
@@ -390,12 +392,16 @@ static void *ctx_wm_python_context_get(const bContext *C,
   UNUSED_VARS(C, member, member_type);
 #endif
 
-  /* Log context member access if we're in a temp_override */
+  /* If no member was found, use fallback and create a simple result for logging */
+  if (!found_member) {
+    log_result.ptr.data = fall_through;
+    log_result.type = CTX_DATA_TYPE_POINTER;
+    return_data = fall_through;
+  }
+
+  /* Log context member access if we're in a temp_override - capture all access attempts */
   if (CTX_temp_override_get(C)) {
-    bContextDataResult simple_result{};
-    simple_result.ptr.data = fall_through;
-    simple_result.type = CTX_DATA_TYPE_POINTER;
-    CTX_temp_override_log_access((bContext *)C, member, simple_result);
+    CTX_temp_override_log_access((bContext *)C, member, log_result);
   }
 
   /* Don't allow UI context access from non-main threads */
@@ -403,7 +409,7 @@ static void *ctx_wm_python_context_get(const bContext *C,
     return nullptr;
   }
 
-  return fall_through;
+  return return_data;
 }
 
 static eContextResult ctx_data_get(bContext *C, const char *member, bContextDataResult *result)
