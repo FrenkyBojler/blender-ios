@@ -307,9 +307,6 @@ static PyObject *bpy_rna_context_temp_override_enter(BPyContextTempOverride *sel
   bContext *C = self->context;
   Main *bmain = CTX_data_main(C);
 
-  /* Set flag to indicate we're in a temp override */
-  CTX_temp_override_set(C, true);
-
   /* Store original logging state and set new state if requested */
   self->original_logging_state = CTX_temp_override_logging_get(C);
   if (self->use_logging) {
@@ -343,7 +340,6 @@ static PyObject *bpy_rna_context_temp_override_enter(BPyContextTempOverride *sel
   }
 
   if (!bpy_rna_context_temp_override_enter_ok_or_error(self, bmain, win, screen, area, region)) {
-    CTX_temp_override_set(C, false);
     /* Restore original logging state on error */
     CTX_temp_override_logging_set(C, self->original_logging_state);
     CTX_py_state_pop(C, &self->py_state);
@@ -533,9 +529,6 @@ static PyObject *bpy_rna_context_temp_override_exit(BPyContextTempOverride *self
   if (context_dict_test && (context_dict_test != self->py_state_context_dict)) {
     Py_DECREF(context_dict_test);
   }
-
-  /* Clear the temp override flag before restoring Python state */
-  CTX_temp_override_set(C, false);
 
   /* Restore original logging state instead of just setting to false */
   CTX_temp_override_logging_set(C, self->original_logging_state);

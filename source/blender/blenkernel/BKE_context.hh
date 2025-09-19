@@ -473,16 +473,6 @@ Depsgraph *CTX_data_ensure_evaluated_depsgraph(const bContext *C);
 Depsgraph *CTX_data_depsgraph_on_load(const bContext *C);
 
 /**
- * Set flag indicating that context is in a temp_override state.
- */
-void CTX_temp_override_set(bContext *C, bool enable);
-
-/**
- * Check if context is currently in a temp_override state.
- */
-bool CTX_temp_override_get(const bContext *C);
-
-/**
  * Enable or disable logging for temp_override context manager.
  */
 void CTX_temp_override_logging_set(bContext *C, bool enable);

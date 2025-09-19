@@ -101,8 +101,6 @@ struct bContext {
      * (keep this to check if the copy needs freeing).
      */
     void *py_context_orig;
-    /** True if currently in a temp_override context manager. */
-    bool temp_override_active;
     /** True if logging is enabled for temp_override (can be set programmatically). */
     bool temp_override_logging_enabled;
   } data;
@@ -298,7 +296,7 @@ static void CTX_temp_override_log_access(bContext *C,
                                          const char *member,
                                          const bContextDataResult &result)
 {
-  if (!CTX_temp_override_get(C)) {
+  if (!CTX_py_dict_get(C)) {
     return;
   }
 
@@ -462,7 +460,7 @@ static void *ctx_wm_python_context_get(const bContext *C,
   }
 
   /* Log context member access if we're in a temp_override - capture all access attempts */
-  if (CTX_temp_override_get(C)) {
+  if (CTX_py_dict_get(C)) {
     CTX_temp_override_log_access((bContext *)C, member, log_result);
   }
 
@@ -490,7 +488,7 @@ static eContextResult ctx_data_get(bContext *C, const char *member, bContextData
   if (CTX_py_dict_get(C)) {
     if (BPY_context_member_get(C, member, result)) {
       /* Log the Python context result if we're in a temp_override */
-      if (CTX_temp_override_get(C)) {
+      if (CTX_py_dict_get(C)) {
         CTX_temp_override_log_access(C, member, *result);
       }
       return CTX_RESULT_OK;
@@ -567,7 +565,7 @@ static eContextResult ctx_data_get(bContext *C, const char *member, bContextData
   eContextResult final_result = eContextResult(done);
 
   /* Log context result if we're in a temp_override and we got a successful result */
-  if (CTX_temp_override_get(C) && final_result == CTX_RESULT_OK) {
+  if (CTX_py_dict_get(C) && final_result == CTX_RESULT_OK) {
     CTX_temp_override_log_access(C, member, *result);
   }
 
@@ -1758,16 +1756,6 @@ Depsgraph *CTX_data_depsgraph_on_load(const bContext *C)
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   return BKE_scene_get_depsgraph(scene, view_layer);
-}
-
-void CTX_temp_override_set(bContext *C, bool enable)
-{
-  C->data.temp_override_active = enable;
-}
-
-bool CTX_temp_override_get(const bContext *C)
-{
-  return C->data.temp_override_active;
 }
 
 void CTX_temp_override_logging_set(bContext *C, bool enable)
