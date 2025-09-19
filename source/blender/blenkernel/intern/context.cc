@@ -38,10 +38,9 @@
 #include "BKE_scene.hh"
 #include "BKE_screen.hh"
 #include "BKE_sound.h"
-
-#include "../windowmanager/wm_event_system.hh"
 #include "BKE_wm_runtime.hh"
 #include "BKE_workspace.hh"
+
 #include "WM_api.hh"
 
 #include "RE_engine.h"
