@@ -106,6 +106,21 @@ static bool wm_check_region_exists(const bScreen *screen,
   return false;
 }
 
+/**
+ * Helper function to configure context logging with extensible options.
+ * This allows for future expansion with additional logging features like stack traces.
+ */
+static void bpy_rna_context_logging_set(bContext *C, bool enable, bool show_stack_trace = false)
+{
+  CTX_member_logging_set(C, enable);
+  
+  /* Future extension point for additional logging options:
+   * if (show_stack_trace) {
+   *   // Enable stack trace logging
+   * }
+   */
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -124,6 +139,9 @@ struct ContextStore {
 
   /** User's desired logging state for this temp_override instance (can be changed at runtime). */
   bool use_logging;
+  
+  /** Extended logging options for future features like stack traces. */
+  bool show_stack_traces;
 };
 
 struct BPyContextTempOverride {
@@ -294,7 +312,7 @@ static PyObject *bpy_rna_context_temp_override_enter(BPyContextTempOverride *sel
 
   /* Enable logging for this temporary override context if the user has requested it. */
   if (self->ctx_temp.use_logging) {
-    CTX_member_logging_set(C, true);
+    bpy_rna_context_logging_set(C, true, self->ctx_temp.show_stack_traces);
   }
 
   /* It's crucial to call #CTX_py_state_pop if this function fails with an error. */
@@ -513,7 +531,7 @@ static PyObject *bpy_rna_context_temp_override_exit(BPyContextTempOverride *self
   }
 
   /* Restore logging state based on the user's preference stored in ctx_init.use_logging. */
-  CTX_member_logging_set(C, self->ctx_init.use_logging);
+  bpy_rna_context_logging_set(C, self->ctx_init.use_logging);
 
   CTX_py_state_pop(C, &self->py_state);
 
@@ -546,10 +564,63 @@ static int bpy_rna_context_temp_override_use_logging_set(BPyContextTempOverride 
   /* Update the C-level logging flag immediately.
    * The ctx_temp.use_logging flag ensures proper restoration of the logging state on exit. */
   if (self->context) {
-    CTX_member_logging_set(self->context, result);
+    bpy_rna_context_logging_set(self->context, result, self->ctx_temp.show_stack_traces);
   }
 
   return 0;
+}
+
+/* New extensible logging methods */
+static PyObject *bpy_rna_context_temp_override_logging_set(BPyContextTempOverride *self,
+                                                           PyObject *args,
+                                                           PyObject *kwds)
+{
+  int enable = 1;
+  int show_stack_traces = 0;
+  
+  static const char *kwlist[] = {"enable", "show_stack_traces", nullptr};
+  
+  if (!PyArg_ParseTupleAndKeywords(args, kwds, "|pp", (char **)kwlist, 
+                                   &enable, &show_stack_traces)) {
+    return nullptr;
+  }
+  
+  self->ctx_temp.use_logging = enable;
+  self->ctx_temp.show_stack_traces = show_stack_traces;
+  
+  /* Update the C-level logging flag immediately. */
+  if (self->context) {
+    bpy_rna_context_logging_set(self->context, enable, show_stack_traces);
+  }
+  
+  Py_RETURN_NONE;
+}
+
+static PyObject *bpy_rna_context_temp_override_logging_get(BPyContextTempOverride *self,
+                                                           PyObject * /*args*/)
+{
+  PyObject *config = PyDict_New();
+  if (!config) {
+    return nullptr;
+  }
+  
+  PyObject *enable = PyBool_FromLong(self->ctx_temp.use_logging);
+  PyObject *stack_traces = PyBool_FromLong(self->ctx_temp.show_stack_traces);
+  
+  if (!enable || !stack_traces) {
+    Py_XDECREF(enable);
+    Py_XDECREF(stack_traces);
+    Py_DECREF(config);
+    return nullptr;
+  }
+  
+  PyDict_SetItemString(config, "enable", enable);
+  PyDict_SetItemString(config, "show_stack_traces", stack_traces);
+  
+  Py_DECREF(enable);
+  Py_DECREF(stack_traces);
+  
+  return config;
 }
 
 #ifdef __GNUC__
@@ -565,6 +636,8 @@ static int bpy_rna_context_temp_override_use_logging_set(BPyContextTempOverride 
 static PyMethodDef bpy_rna_context_temp_override_methods[] = {
     {"__enter__", (PyCFunction)bpy_rna_context_temp_override_enter, METH_NOARGS},
     {"__exit__", (PyCFunction)bpy_rna_context_temp_override_exit, METH_VARARGS},
+    {"logging_set", (PyCFunction)bpy_rna_context_temp_override_logging_set, METH_VARARGS | METH_KEYWORDS},
+    {"logging_get", (PyCFunction)bpy_rna_context_temp_override_logging_get, METH_NOARGS},
     {nullptr},
 };
 
@@ -792,7 +865,7 @@ static PyObject *bpy_context_temp_override(PyObject *self, PyObject *args, PyObj
     }
   }
 
-  ContextStore ctx_temp = {nullptr};
+  ContextStore ctx_temp = {};
   if (params.window.ptr != nullptr) {
     ctx_temp.win = static_cast<wmWindow *>(params.window.ptr->data);
     ctx_temp.win_is_set = true;
