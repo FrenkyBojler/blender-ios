@@ -356,13 +356,12 @@ static void CTX_temp_override_log_detailed_access(bContext *C, const char *membe
     return;
   }
 
-  /* Determine logging levels and user preferences */
+  /* Only log detailed access at TRACE level */
   bool is_trace_level = CLOG_CHECK(BKE_LOG_TEMP_OVERRIDE, CLG_LEVEL_TRACE);
-  bool is_debug_level = CLOG_CHECK(BKE_LOG_TEMP_OVERRIDE, CLG_LEVEL_DEBUG);
   bool python_logging_enabled = CTX_temp_override_logging_get(C);
 
-  /* Only log if any form of logging is enabled */
-  if (!is_trace_level && !is_debug_level && !python_logging_enabled) {
+  /* Early exit if no detailed logging is enabled */
+  if (!is_trace_level && !python_logging_enabled) {
     return;
   }
 
@@ -376,48 +375,12 @@ static void CTX_temp_override_log_detailed_access(bContext *C, const char *membe
   value_desc = value ? "<value>" : "None";
 #endif
 
-  /* Create a unique key for this log entry */
-  std::string log_key = location_info + "|" + std::string(member) + "|" + value_desc;
-
-  /* Track logged entries to avoid duplicates at DEBUG level (but not TRACE) */
-  static blender::Set<std::string> logged_entries;
-
-  bool should_log_at_debug = true;
-
-  /* At DEBUG level (not TRACE), check for duplicates */
-  if ((is_debug_level || python_logging_enabled) && !is_trace_level) {
-    if (logged_entries.contains(log_key)) {
-      should_log_at_debug = false; /* Skip duplicate at DEBUG level */
-    }
-    else {
-      logged_entries.add(log_key); /* Remember this entry */
-    }
-  }
-
-  /* Log the detailed access information */
-  if (is_trace_level) {
-    /* At TRACE level, log everything including duplicates */
-    CLOG_TRACE(BKE_LOG_TEMP_OVERRIDE,
-               "location:%s | member:%s | value:%s",
-               location_info.c_str(),
-               member,
-               value_desc.c_str());
-  }
-  else if (is_debug_level && should_log_at_debug) {
-    /* At DEBUG level, only log unique entries via CLOG */
-    CLOG_DEBUG(BKE_LOG_TEMP_OVERRIDE,
-               "location:%s | member:%s | value:%s",
-               location_info.c_str(),
-               member,
-               value_desc.c_str());
-  }
-  else if (python_logging_enabled && should_log_at_debug && !is_debug_level) {
-    /* Python-enabled logging (when CLOG is not at DEBUG/TRACE level) */
-    printf("temp_override | location:%s | member:%s | value:%s\n",
-           location_info.c_str(),
-           member,
-           value_desc.c_str());
-  }
+  /* Log all detailed accesses at TRACE level or when python logging is enabled */
+  CLOG_TRACE(BKE_LOG_TEMP_OVERRIDE,
+             "location:%s | member:%s | value:%s",
+             location_info.c_str(),
+             member,
+             value_desc.c_str());
 }
 
 static void *ctx_wm_python_context_get(const bContext *C,
@@ -481,7 +444,8 @@ static eContextResult ctx_data_get(bContext *C, const char *member, bContextData
     /* Add to simple member set for backward compatibility */
     CTX_temp_override_add_accessed_member(C, member);
 
-    /* For ctx_data_get, we don't know the result yet, so log with unknown value */
+    /* Log detailed access - we'll log again with the actual value if we get one,
+     * but this ensures we don't miss any accesses */
     CTX_temp_override_log_detailed_access(C, member, nullptr);
   }
 
@@ -1748,43 +1712,50 @@ Depsgraph *CTX_data_depsgraph_on_load(const bContext *C)
   return BKE_scene_get_depsgraph(scene, view_layer);
 }
 
+/* Helper to check if logging should be active */
+static bool CTX_temp_override_should_log(bContext *C)
+{
+  return C->data.temp_override_logging_enabled ||
+         CLOG_CHECK(BKE_LOG_TEMP_OVERRIDE, CLG_LEVEL_INFO);
+}
+
+/* Helper to output summary log */
+static void CTX_temp_override_output_summary(bContext *C, const std::string &summary)
+{
+  if (CLOG_CHECK(BKE_LOG_TEMP_OVERRIDE, CLG_LEVEL_INFO)) {
+    CLOG_INFO(BKE_LOG_TEMP_OVERRIDE, "%s", summary.c_str());
+  }
+  else if (C->data.temp_override_logging_enabled) {
+    printf("temp_override | %s\n", summary.c_str());
+  }
+}
+
 void CTX_temp_override_set(bContext *C, bool enable)
 {
   if (enable && !C->data.temp_override_active) {
-    /* Starting temp_override - create the tracking set if either programmatic logging is enabled
-     * or the command line logger is active */
-    bool should_log = C->data.temp_override_logging_enabled ||
-                      CLOG_CHECK(BKE_LOG_TEMP_OVERRIDE, CLG_LEVEL_INFO);
-    if (should_log) {
+    /* Starting temp_override - create the tracking set if logging is enabled */
+    if (CTX_temp_override_should_log(C)) {
       C->data.temp_override_accessed_members = MEM_new<blender::Set<std::string>>(__func__);
     }
   }
   else if (!enable && C->data.temp_override_active) {
     /* Ending temp_override - print summary if logging was active and we have members */
-    bool should_log = C->data.temp_override_logging_enabled ||
-                      CLOG_CHECK(BKE_LOG_TEMP_OVERRIDE, CLG_LEVEL_INFO);
-    if (should_log && C->data.temp_override_accessed_members &&
+    if (CTX_temp_override_should_log(C) && C->data.temp_override_accessed_members &&
         !C->data.temp_override_accessed_members->is_empty())
     {
-
       /* Build the summary string */
       std::string summary = "accessed context members: {";
       bool first = true;
       for (const std::string &member : *C->data.temp_override_accessed_members) {
-        if (!first)
+        if (!first) {
           summary += ", ";
+        }
         summary += member;
         first = false;
       }
       summary += "}";
 
-      /* Use CLOG if the logger is active, otherwise use printf when programmatic flag is set */
-      if (CLOG_CHECK(BKE_LOG_TEMP_OVERRIDE, CLG_LEVEL_INFO)) {
-        CLOG_INFO(BKE_LOG_TEMP_OVERRIDE, "%s", summary.c_str());
-      }
-      else if (C->data.temp_override_logging_enabled) {
-        printf("temp_override | %s\n", summary.c_str());
-      }
+      CTX_temp_override_output_summary(C, summary);
     }
     MEM_SAFE_DELETE(C->data.temp_override_accessed_members);
   }
