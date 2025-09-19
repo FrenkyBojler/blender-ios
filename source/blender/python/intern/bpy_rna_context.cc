@@ -375,7 +375,7 @@ static PyObject *bpy_rna_context_temp_override_enter(BPyContextTempOverride *sel
     CTX_wm_region_set(C, self->ctx_temp.region);
   }
 
-  Py_INCREF(self);
+  Py_IncRef((PyObject *)self);
   return (PyObject *)self;
 }
 
