@@ -458,9 +458,7 @@ static eContextResult ctx_data_get(bContext *C, const char *member, bContextData
   if (CTX_py_dict_get(C)) {
     if (BPY_context_member_get(C, member, result)) {
       /* Log the Python context result if we're in a temp_override */
-      if (CTX_py_dict_get(C)) {
-        CTX_temp_override_log_access(C, member, *result);
-      }
+      CTX_temp_override_log_access(C, member, *result);
       return CTX_RESULT_OK;
     }
   }
