@@ -232,7 +232,7 @@ void BPY_text_free_code(Text *text)
       gilstate = PyGILState_Ensure();
     }
 
-  Py_DECREF((PyObject *)text->compiled);
+    Py_DECREF((PyObject *)text->compiled);
     text->compiled = nullptr;
 
     if (use_gil) {
@@ -454,7 +454,7 @@ void BPY_python_start(bContext *C, int argc, const char **argv)
 
     /* While `sys.argv` is set, we don't want Python to interpret it. */
     config.parse_argv = 0;
-  status = PyConfig_SetBytesArgv(&config, argc, (char *const *)argv);
+    status = PyConfig_SetBytesArgv(&config, argc, (char *const *)argv);
     pystatus_exit_on_error(status);
 
     /* Needed for Python's initialization for portable Python installations.
