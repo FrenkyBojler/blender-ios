@@ -356,56 +356,60 @@ static void CTX_temp_override_log_detailed_access(bContext *C, const char *membe
     return;
   }
   
-  /* Only log if detailed logging is enabled */
-  if (CTX_temp_override_logging_get(C) || CLOG_CHECK(BKE_LOG_TEMP_OVERRIDE, CLG_LEVEL_DEBUG)) {
-    
-    std::string location_info = "unknown";
-    std::string value_desc = "None";
-    
+  /* Determine logging levels and user preferences */
+  bool is_trace_level = CLOG_CHECK(BKE_LOG_TEMP_OVERRIDE, CLG_LEVEL_TRACE);
+  bool is_debug_level = CLOG_CHECK(BKE_LOG_TEMP_OVERRIDE, CLG_LEVEL_DEBUG);
+  bool python_logging_enabled = CTX_temp_override_logging_get(C);
+  
+  /* Only log if any form of logging is enabled */
+  if (!is_trace_level && !is_debug_level && !python_logging_enabled) {
+    return;
+  }
+  
+  std::string location_info = "unknown";
+  std::string value_desc = "None";
+  
 #ifdef WITH_PYTHON
-    CTX_get_python_location(location_info);
-    value_desc = CTX_get_value_description(value, member);
+  CTX_get_python_location(location_info);
+  value_desc = CTX_get_value_description(value, member);
 #else
-    value_desc = value ? "<value>" : "None";
+  value_desc = value ? "<value>" : "None";
 #endif
-    
-    /* Create a unique key for this log entry */
-    std::string log_key = location_info + "|" + std::string(member) + "|" + value_desc;
-    
-    /* Track logged entries to avoid duplicates at DEBUG level */
-    static blender::Set<std::string> logged_entries;
-    
-    bool should_log_at_debug = true;
-    bool is_trace_level = CLOG_CHECK(BKE_LOG_TEMP_OVERRIDE, CLG_LEVEL_TRACE);
-    bool is_debug_level = CLOG_CHECK(BKE_LOG_TEMP_OVERRIDE, CLG_LEVEL_DEBUG);
-    
-    /* At DEBUG level, check if we've already logged this exact entry */
-    if (is_debug_level && !is_trace_level) {
-      if (logged_entries.contains(log_key)) {
-        should_log_at_debug = false;  /* Skip duplicate at DEBUG level */
-      } else {
-        logged_entries.add(log_key);  /* Remember this entry */
-      }
+  
+  /* Create a unique key for this log entry */
+  std::string log_key = location_info + "|" + std::string(member) + "|" + value_desc;
+  
+  /* Track logged entries to avoid duplicates at DEBUG level (but not TRACE) */
+  static blender::Set<std::string> logged_entries;
+  
+  bool should_log_at_debug = true;
+  
+  /* At DEBUG level (not TRACE), check for duplicates */
+  if ((is_debug_level || python_logging_enabled) && !is_trace_level) {
+    if (logged_entries.contains(log_key)) {
+      should_log_at_debug = false;  /* Skip duplicate at DEBUG level */
+    } else {
+      logged_entries.add(log_key);  /* Remember this entry */
     }
-    
-    /* Log the detailed access information */
-    if (is_trace_level) {
-      /* At TRACE level, log everything including duplicates */
-      CLOG_TRACE(BKE_LOG_TEMP_OVERRIDE, 
-                 "location:%s | member:%s | value:%s",
-                 location_info.c_str(), member, value_desc.c_str());
-    }
-    else if (is_debug_level && should_log_at_debug) {
-      /* At DEBUG level, only log unique entries */
-      CLOG_DEBUG(BKE_LOG_TEMP_OVERRIDE, 
-                 "location:%s | member:%s | value:%s",
-                 location_info.c_str(), member, value_desc.c_str());
-    }
-    else if (CTX_temp_override_logging_get(C)) {
-      /* Fallback for non-CLOG logging */
-      printf("temp_override | location:%s | member:%s | value:%s\n",
-             location_info.c_str(), member, value_desc.c_str());
-    }
+  }
+  
+  /* Log the detailed access information */
+  if (is_trace_level) {
+    /* At TRACE level, log everything including duplicates */
+    CLOG_TRACE(BKE_LOG_TEMP_OVERRIDE, 
+               "location:%s | member:%s | value:%s",
+               location_info.c_str(), member, value_desc.c_str());
+  }
+  else if (is_debug_level && should_log_at_debug) {
+    /* At DEBUG level, only log unique entries via CLOG */
+    CLOG_DEBUG(BKE_LOG_TEMP_OVERRIDE, 
+               "location:%s | member:%s | value:%s",
+               location_info.c_str(), member, value_desc.c_str());
+  }
+  else if (python_logging_enabled && should_log_at_debug && !is_debug_level) {
+    /* Python-enabled logging (when CLOG is not at DEBUG/TRACE level) */
+    printf("temp_override | location:%s | member:%s | value:%s\n",
+           location_info.c_str(), member, value_desc.c_str());
   }
 }
 
