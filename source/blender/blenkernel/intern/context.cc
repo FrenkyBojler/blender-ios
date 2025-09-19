@@ -300,7 +300,7 @@ static std::optional<std::string> CTX_result_brief_repr(const bContextDataResult
         const char *rna_type_name = result.ptr.type ? RNA_struct_identifier(result.ptr.type) :
                                                       "Unknown";
         /* Try to get the name property if it exists */
-        std::string obj_name;
+        std::string member_name;
         if (result.ptr.type) {
           PropertyRNA *name_prop = RNA_struct_name_property(result.ptr.type);
           if (name_prop) {
@@ -309,7 +309,7 @@ static std::optional<std::string> CTX_result_brief_repr(const bContextDataResult
             char *name = RNA_property_string_get_alloc(
                 &ptr_copy, name_prop, name_buf, sizeof(name_buf), nullptr);
             if (name && name[0] != '\0') {
-              obj_name = name;
+              member_name = name;
               if (name != name_buf) {
                 MEM_freeN(name);
               }
@@ -318,8 +318,8 @@ static std::optional<std::string> CTX_result_brief_repr(const bContextDataResult
         }
         /* Format like PyRNA: <bpy_struct, Type("name") at 0xAddress> or <bpy_struct, Type at
          * 0xAddress> */
-        if (!obj_name.empty()) {
-          return std::string("<") + rna_type_name + "(\"" + obj_name + "\") at 0x" +
+        if (!member_name.empty()) {
+          return std::string("<") + rna_type_name + "(\"" + member_name + "\") at 0x" +
                  std::to_string(reinterpret_cast<uintptr_t>(result.ptr.data)) + ">";
         }
         else {
