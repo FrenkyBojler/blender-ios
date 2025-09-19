@@ -53,7 +53,7 @@
 /* Logging. */
 CLG_LOGREF_DECLARE_GLOBAL(BKE_LOG_TEMP_OVERRIDE, "temp_override");
 
-static CLG_LogRef LOG = {"bke.context"};
+static CLG_LogRef LOG = {"context"};
 
 #ifdef WITH_PYTHON
 #  include "BPY_extern.hh"
