@@ -140,8 +140,24 @@ struct BPyContextTempOverride {
 
   /** Bypass Python overrides set when calling an operator from Python. */
   bContext_PyState py_state;
-  /** Flag to enable logging for this temp_override instance. */
+
+  /**
+   * Logging state management for nested temp_override contexts.
+   *
+   * Two flags are used to ensure correct restoration in nested scenarios:
+   * - `use_logging`: What the USER wants for this specific temp_override instance
+   * - `original_logging_state`: What we must RESTORE when this temp_override exits
+   *
+   * This separation ensures that:
+   * 1. Users can change logging mid-execution via the `use_logging` property
+   * 2. Nested temp_override contexts don't interfere with each other
+   * 3. The original state is always correctly restored regardless of user changes
+   */
+
+  /** User's desired logging state for this temp_override instance (can be changed at runtime). */
   bool use_logging;
+  /** Original logging state when this temp_override started (immutable, used for restoration). */
+  bool original_logging_state;
   /**
    * This dictionary is used to store members that don't have special handling,
    * see: #bpy_context_temp_override_extract_known_args,
@@ -294,7 +310,8 @@ static PyObject *bpy_rna_context_temp_override_enter(BPyContextTempOverride *sel
   /* Set flag to indicate we're in a temp override */
   CTX_temp_override_set(C, true);
 
-  /* Set logging flag if requested */
+  /* Store original logging state and set new state if requested */
+  self->original_logging_state = CTX_temp_override_logging_get(C);
   if (self->use_logging) {
     CTX_temp_override_logging_set(C, true);
   }
@@ -327,6 +344,8 @@ static PyObject *bpy_rna_context_temp_override_enter(BPyContextTempOverride *sel
 
   if (!bpy_rna_context_temp_override_enter_ok_or_error(self, bmain, win, screen, area, region)) {
     CTX_temp_override_set(C, false);
+    /* Restore original logging state on error */
+    CTX_temp_override_logging_set(C, self->original_logging_state);
     CTX_py_state_pop(C, &self->py_state);
     return nullptr;
   }
@@ -518,10 +537,8 @@ static PyObject *bpy_rna_context_temp_override_exit(BPyContextTempOverride *self
   /* Clear the temp override flag before restoring Python state */
   CTX_temp_override_set(C, false);
 
-  /* Clear logging flag if it was set */
-  if (self->use_logging) {
-    CTX_temp_override_logging_set(C, false);
-  }
+  /* Restore original logging state instead of just setting to false */
+  CTX_temp_override_logging_set(C, self->original_logging_state);
 
   CTX_py_state_pop(C, &self->py_state);
 
@@ -551,7 +568,8 @@ static int bpy_rna_context_temp_override_use_logging_set(BPyContextTempOverride 
 
   self->use_logging = result;
 
-  /* Update the C-level logging flag */
+  /* Update the C-level logging flag immediately.
+   * The original_logging_state will ensure proper restoration on exit. */
   if (self->context) {
     CTX_temp_override_logging_set(self->context, result);
   }
