@@ -1127,7 +1127,7 @@ static void rna_def_node_interface_socket(BlenderRNA *brna)
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_NodeTreeInterfaceItem_update");
 
   prop = RNA_def_property(srna, "socket_type", PROP_ENUM, PROP_NONE);
-  RNA_def_property_enum_items(prop, rna_enum_dummy_DEFAULT_items);
+  RNA_def_property_enum_items(prop, rna_enum_node_socket_type_items);
   RNA_def_property_enum_funcs(prop,
                               "rna_NodeTreeInterfaceSocket_socket_type_get",
                               "rna_NodeTreeInterfaceSocket_socket_type_set",
