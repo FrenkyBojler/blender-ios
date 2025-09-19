@@ -12,6 +12,7 @@
 
 #include <Python.h>
 #include <frameobject.h>
+#include <optional>
 
 #ifdef WITH_PYTHON_MODULE
 #  include "pylifecycle.h" /* For `Py_Version`. */
@@ -21,6 +22,7 @@
 #include "CLG_log.h"
 
 #include "BLI_path_utils.hh"
+#include "BLI_string.h"
 #include "BLI_string_utf8.h"
 #include "BLI_threads.h"
 #include "BLI_utildefines.h"
@@ -850,11 +852,8 @@ bool BPY_context_member_get(bContext *C, const char *member, bContextDataResult 
   return done;
 }
 
-const char *BPY_get_current_location()
+std::optional<std::string> BPY_python_current_file_and_line(void)
 {
-  static char location_buffer[512];
-  location_buffer[0] = '\0';
-  
   PyGILState_STATE gilstate;
   const bool use_gil = !PyC_IsInterpreterActive();
   if (use_gil) {
@@ -863,24 +862,25 @@ const char *BPY_get_current_location()
 
   PyFrameObject *frame = PyEval_GetFrame();
 
-  /* Format the location string */
   if (frame) {
     PyCodeObject *code = PyFrame_GetCode(frame);
     if (code) {
       const char *filename = PyUnicode_AsUTF8(code->co_filename);
       if (filename) {
         int lineno = PyFrame_GetLineNumber(frame);
-
-        snprintf(location_buffer, sizeof(location_buffer), "%s:%d", filename, lineno);
+        char buf[512];
+        BLI_snprintf(buf, sizeof(buf), "%s:%d", filename, lineno);
+        if (use_gil) {
+          PyGILState_Release(gilstate);
+        }
+        return std::string(buf);
       }
     }
   }
-  
   if (use_gil) {
     PyGILState_Release(gilstate);
   }
-  
-  return location_buffer[0] ? location_buffer : "Python script";
+  return std::nullopt;
 }
 
 #ifdef WITH_PYTHON_MODULE

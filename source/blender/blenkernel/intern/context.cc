@@ -386,8 +386,9 @@ static void CTX_temp_override_log_access(bContext *C,
   const char *value_desc = value_repr ? value_repr->c_str() : "None";
 
 #ifdef WITH_PYTHON
-  /* Get current Python location with operator information if available */
-  const char *location = BPY_get_current_location();
+  /* Get current Python location if available */
+  std::optional<std::string> python_location = BPY_python_current_file_and_line();
+  const char *location = python_location ? python_location->c_str() : "unknown:0";
 #else
   const char *location = "unknown:0";
 #endif
