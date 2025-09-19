@@ -2606,6 +2606,7 @@ class GlareOperation : public NodeOperation {
       case CMP_NODE_GLARE_STREAKS:
       case CMP_NODE_GLARE_GHOST:
       case CMP_NODE_GLARE_SUN_BEAMS:
+      case CMP_NODE_GLARE_KERNEL:
         return 1.0f;
     }
 
