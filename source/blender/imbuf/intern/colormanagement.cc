@@ -1171,9 +1171,6 @@ void IMB_colormanagement_check_file_config(Main *bmain)
   if (bmain->filepath[0] != '\0' && is_missing_opencolorio_config) {
     bmain->colorspace.is_missing_opencolorio_config = true;
   }
-  if (bmain->filepath[0] != '\0' && is_missing_opencolorio_config) {
-    bmain->colorspace.is_missing_opencolorio_config = true;
-  }
 }
 
 void IMB_colormanagement_validate_settings(const ColorManagedDisplaySettings *display_settings,
