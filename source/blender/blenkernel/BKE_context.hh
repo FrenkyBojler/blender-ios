@@ -275,6 +275,13 @@ enum class ContextDataType : uint8_t {
   Int64,
 };
 
+/* Backward compatibility constants. */
+#define CTX_DATA_TYPE_POINTER ContextDataType::Pointer
+#define CTX_DATA_TYPE_COLLECTION ContextDataType::Collection
+#define CTX_DATA_TYPE_PROPERTY ContextDataType::Property
+#define CTX_DATA_TYPE_STRING ContextDataType::String
+#define CTX_DATA_TYPE_INT64 ContextDataType::Int64
+
 PointerRNA CTX_data_pointer_get(const bContext *C, const char *member);
 PointerRNA CTX_data_pointer_get_type(const bContext *C, const char *member, StructRNA *type);
 PointerRNA CTX_data_pointer_get_type_silent(const bContext *C,

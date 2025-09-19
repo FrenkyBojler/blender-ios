@@ -296,7 +296,7 @@ struct bContextDataResult {
 static std::string ctx_result_brief_repr(const bContextDataResult &result)
 {
   switch (result.type) {
-    case CTX_DATA_TYPE_POINTER:
+    case ContextDataType::Pointer:
       if (result.ptr.data) {
         const char *rna_type_name = result.ptr.type ? RNA_struct_identifier(result.ptr.type) :
                                                       "Unknown";
@@ -333,15 +333,39 @@ static std::string ctx_result_brief_repr(const bContextDataResult &result)
         return "None";
       }
 
-    case CTX_DATA_TYPE_COLLECTION:
+    case ContextDataType::Collection:
       return fmt::format("[{} item(s)]", result.list.size());
 
-    case CTX_DATA_TYPE_STRING:
+    case ContextDataType::String:
       if (!result.str.is_empty()) {
         return "\"" + result.str + "\"";
       }
       else {
         return "\"\"";
+      }
+
+    case ContextDataType::Property:
+      if (result.prop && result.ptr.data) {
+        const char *prop_name = RNA_property_identifier(result.prop);
+        const char *rna_type_name = result.ptr.type ? RNA_struct_identifier(result.ptr.type) :
+                                                      "Unknown";
+        if (result.index >= 0) {
+          return fmt::format("<Property({}.{}[{}])>", rna_type_name, prop_name, result.index);
+        }
+        else {
+          return fmt::format("<Property({}.{})>", rna_type_name, prop_name);
+        }
+      }
+      else {
+        return "<Property(None)>";
+      }
+
+    case ContextDataType::Int64:
+      if (result.int_value.has_value()) {
+        return std::to_string(result.int_value.value());
+      }
+      else {
+        return "None";
       }
   }
   /* Unhandled context type. Update if new types are added. */
@@ -427,7 +451,7 @@ static void *ctx_wm_python_context_get(const bContext *C,
     fallback_result.ptr.data = fall_through;
     fallback_result.ptr.type = const_cast<StructRNA *>(
         member_type); /* Use the expected RNA type */
-    fallback_result.type = CTX_DATA_TYPE_POINTER;
+    fallback_result.type = ContextDataType::Pointer;
     return_data = fall_through;
 
     /* Log fallback context member access. */
