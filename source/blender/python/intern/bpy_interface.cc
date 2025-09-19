@@ -781,6 +781,7 @@ bool BPY_context_member_get(bContext *C, const char *member, bContextDataResult 
 
   /* Log context member access if we're in a temp_override */
   if (CTX_temp_override_get(C)) {
+    CTX_temp_override_add_accessed_member(C, member);
     printf("temp_override: accessing context member '%s'\n", member);
   }
 
@@ -845,6 +846,10 @@ bool BPY_context_member_get(bContext *C, const char *member, bContextDataResult 
     }
   }
   else {
+    /* Only track successful context member access for temp_override */
+    if (CTX_temp_override_get(C)) {
+      CTX_temp_override_add_accessed_member(C, member);
+    }
     CLOG_DEBUG(BPY_LOG_CONTEXT, "'%s' found", member);
   }
 

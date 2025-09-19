@@ -9,6 +9,8 @@
 #include <cstddef>
 #include <cstdlib>
 #include <cstring>
+#include <set>
+#include <string>
 
 #include "MEM_guardedalloc.h"
 
@@ -98,6 +100,8 @@ struct bContext {
     void *py_context_orig;
     /** True if currently in a temp_override context manager. */
     bool temp_override_active;
+    /** Set of context members accessed during temp_override. */
+    std::set<std::string> *temp_override_accessed_members;
   } data;
 };
 
@@ -124,6 +128,9 @@ void CTX_free(bContext *C)
 {
   /* This may contain a dynamically allocated message, free. */
   CTX_wm_operator_poll_msg_clear(C);
+
+  /* Clean up temp_override tracking set if it exists */
+  delete C->data.temp_override_accessed_members;
 
   MEM_freeN(C);
 }
@@ -1592,8 +1599,36 @@ Depsgraph *CTX_data_depsgraph_on_load(const bContext *C)
   return BKE_scene_get_depsgraph(scene, view_layer);
 }
 
+void CTX_temp_override_add_accessed_member(bContext *C, const char *member)
+{
+  if (C->data.temp_override_active && C->data.temp_override_accessed_members) {
+    C->data.temp_override_accessed_members->insert(std::string(member));
+  }
+}
+
 void CTX_temp_override_set(bContext *C, bool enable)
 {
+  if (enable && !C->data.temp_override_active) {
+    /* Starting temp_override - create the tracking set */
+    C->data.temp_override_accessed_members = new std::set<std::string>();
+  }
+  else if (!enable && C->data.temp_override_active) {
+    /* Ending temp_override - print summary and cleanup */
+    if (C->data.temp_override_accessed_members && 
+        !C->data.temp_override_accessed_members->empty()) {
+      printf("temp_override accessed members: {");
+      bool first = true;
+      for (const std::string &member : *C->data.temp_override_accessed_members) {
+        if (!first) printf(", ");
+        printf("%s", member.c_str());
+        first = false;
+      }
+      printf("}\n");
+    }
+    delete C->data.temp_override_accessed_members;
+    C->data.temp_override_accessed_members = nullptr;
+  }
+  
   C->data.temp_override_active = enable;
 }
 
