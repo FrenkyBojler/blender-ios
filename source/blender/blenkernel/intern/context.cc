@@ -350,7 +350,7 @@ static std::string ctx_result_brief_repr(const bContextDataResult &result)
 }
 
 /** Simple logging for context data results. */
-static void ctx_member_log_access(bContext *C,
+static void ctx_member_log_access(const bContext *C,
                                   const char *member,
                                   const bContextDataResult &result)
 {
@@ -414,7 +414,7 @@ static void *ctx_wm_python_context_get(const bContext *C,
       }
 
       /* Log context member access directly without storing a copy. */
-      ctx_member_log_access((bContext *)C, member, result);
+      ctx_member_log_access(C, member, result);
     }
   }
 #else
@@ -431,7 +431,7 @@ static void *ctx_wm_python_context_get(const bContext *C,
     return_data = fall_through;
 
     /* Log fallback context member access. */
-    ctx_member_log_access((bContext *)C, member, fallback_result);
+    ctx_member_log_access(C, member, fallback_result);
   }
 
   /* Don't allow UI context access from non-main threads. */
