@@ -545,7 +545,9 @@ static PyObject *bpy_rna_context_temp_override_logging_set(BPyContextTempOverrid
 
   self->ctx_temp.use_logging = enable;
 
-  /* Update the C-level logging flag immediately. */
+  /* This function may be called during early initialization, in which case
+   * `self->context` might be null. If `self->context` is null do an early return
+   * because there is no context information to log. */
   if (self->context) {
     bpy_rna_context_logging_set(self->context, enable);
   }
@@ -822,10 +824,6 @@ static PyObject *bpy_context_temp_override(PyObject *self, PyObject *args, PyObj
 }
 
 /** \} */
-
-/* -------------------------------------------------------------------- */
-/** \name Public Type Definition
- * \{ */
 
 #ifdef __GNUC__
 #  ifdef __clang__
