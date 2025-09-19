@@ -11,6 +11,8 @@
 #include <cstdlib>
 #include <cstring>
 
+#include <fmt/format.h>
+
 #include "MEM_guardedalloc.h"
 
 #include "DNA_collection_types.h"
@@ -319,27 +321,29 @@ static std::optional<std::string> CTX_result_brief_repr(const bContextDataResult
         /* Format like PyRNA: <bpy_struct, Type("name") at 0xAddress> or <bpy_struct, Type at
          * 0xAddress> */
         if (!member_name.empty()) {
-          return std::string("<") + rna_type_name + "(\"" + member_name + "\") at 0x" +
-                 std::to_string(reinterpret_cast<uintptr_t>(result.ptr.data)) + ">";
+          return fmt::format("<{}(\"{}\") at 0x{:x}>",
+                             rna_type_name,
+                             member_name,
+                             reinterpret_cast<uintptr_t>(result.ptr.data));
         }
         else {
-          return std::string("<") + rna_type_name + " at 0x" +
-                 std::to_string(reinterpret_cast<uintptr_t>(result.ptr.data)) + ">";
+          return fmt::format(
+              "<{} at 0x{:x}>", rna_type_name, reinterpret_cast<uintptr_t>(result.ptr.data));
         }
       }
       else {
-        return std::string("None");
+        return "None";
       }
 
     case CTX_DATA_TYPE_COLLECTION:
-      return std::string("[") + std::to_string(result.list.size()) + " items]";
+      return fmt::format("[{} items]", result.list.size());
 
     case CTX_DATA_TYPE_STRING:
       if (!result.str.is_empty()) {
-        return std::string("\"") + result.str + "\"";
+        return fmt::format("\"{}\"", result.str);
       }
       else {
-        return std::string("\"\"");
+        return fmt::format("\"\"");
       }
   }
   BLI_assert_unreachable();
