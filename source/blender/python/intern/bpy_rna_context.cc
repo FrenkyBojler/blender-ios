@@ -23,6 +23,7 @@
 
 #include "bpy_rna_context.hh"
 
+#include "../generic/py_capi_utils.hh"
 #include "../generic/python_compat.hh" /* IWYU pragma: keep. */
 
 #include "RNA_access.hh"
@@ -533,11 +534,12 @@ static PyObject *bpy_rna_context_temp_override_logging_set(BPyContextTempOverrid
                                                            PyObject *args,
                                                            PyObject *kwds)
 {
-  int enable = 1;
+  bool enable = true;
 
-  static const char *kwlist[] = {"enable", nullptr};
+  static const char *kwlist[] = {"", nullptr};
 
-  if (!PyArg_ParseTupleAndKeywords(args, kwds, "|p", (char **)kwlist, &enable)) {
+  if (!PyArg_ParseTupleAndKeywords(args, kwds, "O&", (char **)kwlist, PyC_ParseBool, &enable)) {
+
     return nullptr;
   }
 
