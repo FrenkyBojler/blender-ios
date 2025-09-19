@@ -1725,7 +1725,7 @@ static void CTX_temp_override_output_summary(bContext *C, const std::string &sum
     CLOG_INFO(BKE_LOG_TEMP_OVERRIDE, "%s", summary.c_str());
   }
   else if (C->data.temp_override_logging_enabled) {
-    printf("temp_override | %s\n", summary.c_str());
+    CLOG_INFO_NOCHECK(BKE_LOG_TEMP_OVERRIDE, "%s", summary.c_str());
   }
 }
 
