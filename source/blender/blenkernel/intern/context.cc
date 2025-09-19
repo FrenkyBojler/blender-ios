@@ -532,12 +532,12 @@ static eContextResult ctx_data_get(bContext *C, const char *member, bContextData
 
   eContextResult final_result = eContextResult(done);
 
-  /* Log context result if we're in a temp_override and we got a successful result */
-  if (CTX_py_dict_get(C) && final_result == CTX_RESULT_OK) {
+  /* Log context result if we're in a temp_override and we got a successful or no-data result */
+  if (final_result == CTX_RESULT_OK || final_result == CTX_RESULT_NO_DATA) {
     CTX_member_log_access(C, member, *result);
   }
 
-  return final_result;
+return final_result;
 }
 
 static void *ctx_data_pointer_get(const bContext *C, const char *member)
