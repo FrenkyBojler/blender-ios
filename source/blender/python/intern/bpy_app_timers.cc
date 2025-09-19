@@ -19,7 +19,7 @@
 static double handle_returned_value(PyObject *function, PyObject *ret)
 {
   if (ret == nullptr) {
-    PyErr_PrintEx(0);
+    PyErr_Print();
     return -1;
   }
 
@@ -128,7 +128,7 @@ PyDoc_STRVAR(
 static PyObject *bpy_app_timers_unregister(PyObject * /*self*/, PyObject *function)
 {
   if (!BLI_timer_unregister(intptr_t(function))) {
-    PyErr_SetString(PyExc_ValueError, "Error: function is not registered");
+    PyErr_SetString(PyExc_ValueError, "function is not registered");
     return nullptr;
   }
   Py_RETURN_NONE;
