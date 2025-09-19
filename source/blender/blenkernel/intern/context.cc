@@ -291,30 +291,12 @@ struct bContextDataResult {
   ContextDataType type;
 };
 
-/* Simple logging for context data results */
-static void CTX_temp_override_log_access(bContext *C,
-                                         const char *member,
-                                         const bContextDataResult &result)
+/* Create a brief string representation of a context data result */
+static std::optional<std::string> CTX_result_brief_repr(const bContextDataResult &result,
+                                                        const char *member = nullptr)
 {
-  if (!CTX_py_dict_get(C)) {
-    return;
-  }
-
-  bool should_log = CLOG_CHECK(BKE_LOG_TEMP_OVERRIDE, CLG_LEVEL_TRACE) ||
-                    CTX_temp_override_logging_get(C);
-
-  if (!should_log) {
-    return;
-  }
-
-  const char *type_name = "unknown";
-  const char *value_desc = "None";
-  std::string value_desc_storage;  // Storage for dynamic strings
-
-  /* PyRNA-style formatting */
   switch (result.type) {
     case CTX_DATA_TYPE_POINTER:
-      type_name = "pointer";
       if (result.ptr.data) {
         const char *rna_type_name = result.ptr.type ? RNA_struct_identifier(result.ptr.type) : "Unknown";
         
@@ -337,57 +319,71 @@ static void CTX_temp_override_log_access(bContext *C,
         
         /* Format like PyRNA: <bpy_struct, Type("name") at 0xAddress> or <bpy_struct, Type at 0xAddress> */
         if (!obj_name.empty()) {
-          value_desc_storage = std::string("<bpy_struct, ") + rna_type_name + "(\"" + obj_name + "\") at 0x" + 
-                              std::to_string(reinterpret_cast<uintptr_t>(result.ptr.data)) + ">";
+          return std::string("<bpy_struct, ") + rna_type_name + "(\"" + obj_name + "\") at 0x" +
+                 std::to_string(reinterpret_cast<uintptr_t>(result.ptr.data)) + ">";
         } else {
-          value_desc_storage = std::string("<bpy_struct, ") + rna_type_name + " at 0x" + 
-                              std::to_string(reinterpret_cast<uintptr_t>(result.ptr.data)) + ">";
+          return std::string("<bpy_struct, ") + rna_type_name + " at 0x" +
+                 std::to_string(reinterpret_cast<uintptr_t>(result.ptr.data)) + ">";
         }
-        value_desc = value_desc_storage.c_str();
       } else {
-        value_desc = "None";
+        return std::string("None");
       }
       break;
     case CTX_DATA_TYPE_COLLECTION:
-      type_name = "collection";
       if (!result.list.is_empty()) {
-        value_desc_storage = std::string("[") + member + " collection with " + 
-                            std::to_string(result.list.size()) + " items]";
-        value_desc = value_desc_storage.c_str();
+        std::string collection_name = member ? member : "collection";
+        return std::string("[") + collection_name + " collection with " +
+               std::to_string(result.list.size()) + " items]";
       } else {
-        value_desc_storage = std::string("[") + member + " collection (empty)]";
-        value_desc = value_desc_storage.c_str();
+        std::string collection_name = member ? member : "collection";
+        return std::string("[") + collection_name + " collection (empty)]";
       }
       break;
     case CTX_DATA_TYPE_STRING:
-      type_name = "string";
       if (!result.str.is_empty()) {
-        value_desc_storage = std::string("\"") + std::string(result.str.c_str()) + "\"";
-        value_desc = value_desc_storage.c_str();
+        return std::string("\"") + std::string(result.str.c_str()) + "\"";
       } else {
-        value_desc = "\"\"";
+        return std::string("\"\"");
       }
       break;
     case CTX_DATA_TYPE_INT64:
-      type_name = "int64";
       if (result.int_value.has_value()) {
-        value_desc_storage = std::to_string(result.int_value.value());
-        value_desc = value_desc_storage.c_str();
+        return std::to_string(result.int_value.value());
       } else {
-        value_desc = "None";
+        return std::string("None");
       }
       break;
     case CTX_DATA_TYPE_PROPERTY:
-      type_name = "property";
       if (result.prop) {
         const char *prop_name = RNA_property_identifier(result.prop);
-        value_desc_storage = std::string("<RNA Property: ") + (prop_name ? prop_name : "unknown") + ">";
-        value_desc = value_desc_storage.c_str();
+        return std::string("<RNA Property: ") + (prop_name ? prop_name : "unknown") + ">";
       } else {
-        value_desc = "None";
+        return std::string("None");
       }
       break;
   }
+
+  return std::nullopt; /* Unknown type */
+}
+
+/* Simple logging for context data results */
+static void CTX_temp_override_log_access(bContext *C,
+                                         const char *member,
+                                         const bContextDataResult &result)
+{
+  if (!CTX_py_dict_get(C)) {
+    return;
+  }
+
+  bool should_log = CLOG_CHECK(BKE_LOG_TEMP_OVERRIDE, CLG_LEVEL_TRACE) ||
+                    CTX_temp_override_logging_get(C);
+
+  if (!should_log) {
+    return;
+  }
+
+  std::optional<std::string> value_repr = CTX_result_brief_repr(result, member);
+  const char *value_desc = value_repr ? value_repr->c_str() : "None";
 
 #ifdef WITH_PYTHON
   /* Get current Python location with operator information if available */
@@ -397,23 +393,14 @@ static void CTX_temp_override_log_access(bContext *C,
 #endif
 
   /* Use TRACE level when available, otherwise force output when Python logging is enabled */
+  const char *format = "[%s] : %s = %s";
   if (CLOG_CHECK(BKE_LOG_TEMP_OVERRIDE, CLG_LEVEL_TRACE)) {
-    CLOG_TRACE(BKE_LOG_TEMP_OVERRIDE,
-               "[%s] member:%s | type:%s | value:%s",
-               location,
-               member,
-               type_name,
-               value_desc);
+    CLOG_TRACE(BKE_LOG_TEMP_OVERRIDE, format, location, member, value_desc);
   }
   else if (CTX_temp_override_logging_get(C)) {
     /* Force output at TRACE level even if not enabled via command line */
-    CLOG_AT_LEVEL_NOCHECK(BKE_LOG_TEMP_OVERRIDE,
-                          CLG_LEVEL_TRACE,
-                          "[%s] member:%s | type:%s | value:%s",
-                          location,
-                          member,
-                          type_name,
-                          value_desc);
+    CLOG_AT_LEVEL_NOCHECK(
+        BKE_LOG_TEMP_OVERRIDE, CLG_LEVEL_TRACE, format, location, member, value_desc);
   }
 }
 
