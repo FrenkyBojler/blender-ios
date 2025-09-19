@@ -17,8 +17,10 @@
 #include "DRW_render.hh"
 
 #include "eevee_lut.hh"
+#include "eevee_material.hh"
 #include "eevee_raytrace.hh"
 #include "eevee_subsurface.hh"
+#include "eevee_uniform_shared.hh"
 
 struct Camera;
 
@@ -396,7 +398,7 @@ class DeferredPipeline {
     return max_ii(opaque_layer_.normal_layer_count(), refraction_layer_.normal_layer_count());
   }
 
-  void debug_draw(draw::View &view, GPUFrameBuffer *combined_fb);
+  void debug_draw(draw::View &view, gpu::FrameBuffer *combined_fb);
 
   bool is_empty() const
   {
