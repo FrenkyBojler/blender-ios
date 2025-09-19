@@ -951,13 +951,13 @@ int BLI_kdtree_nd_(calc_duplicates_fast)(const KDTree *tree,
 /** \} */
 
 /* -------------------------------------------------------------------- */
-/** \name BLI_kdtree_3d_calc_duplicates_stable
+/** \name BLI_kdtree_3d_calc_duplicates_and_center
  * \{ */
 
-int BLI_kdtree_nd_(calc_duplicates_stable)(const KDTree *tree,
-                                           const float range,
-                                           int *duplicates,
-                                           float (*r_cluster_center)[KD_DIMS])
+int BLI_kdtree_nd_(calc_duplicates_and_center)(const KDTree *tree,
+                                               const float range,
+                                               int *duplicates,
+                                               float (*r_cluster_center)[KD_DIMS])
 {
   BLI_assert(tree->is_balanced);
   if (UNLIKELY(tree->root == KD_NODE_UNSET)) {

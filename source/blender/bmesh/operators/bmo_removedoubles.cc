@@ -653,7 +653,7 @@ static int *bmesh_find_doubles_by_distance_impl(BMesh *bm,
   }
 
   BLI_kdtree_3d_balance(tree);
-  found_duplicates = BLI_kdtree_3d_calc_duplicates_stable(
+  found_duplicates = BLI_kdtree_3d_calc_duplicates_and_center(
                          tree, dist, duplicates, (float(*)[3])survivor_cos.data()) != 0;
 
   BLI_kdtree_3d_free(tree);

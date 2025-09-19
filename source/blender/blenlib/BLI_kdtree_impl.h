@@ -75,10 +75,10 @@ int BLI_kdtree_nd_(calc_duplicates_fast)(const KDTree *tree,
  *
  * \note ~1.1x-1.5x slower than `calc_duplicates_fast` depending on the distribution of points.
  */
-int BLI_kdtree_nd_(calc_duplicates_stable)(const KDTree *tree,
-                                           const float range,
-                                           int *duplicates,
-                                           float (*r_cluster_center)[KD_DIMS]);
+int BLI_kdtree_nd_(calc_duplicates_and_center)(const KDTree *tree,
+                                               const float range,
+                                               int *duplicates,
+                                               float (*r_cluster_center)[KD_DIMS]);
 
 int BLI_kdtree_nd_(deduplicate)(KDTree *tree);
 
