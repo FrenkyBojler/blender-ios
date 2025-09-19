@@ -345,6 +345,7 @@ static std::optional<std::string> CTX_result_brief_repr(const bContextDataResult
         return std::string("\"\"");
       }
   }
+  BLI_assert_unreachable();
   return std::nullopt; /* Unknown or unhandled type */
 }
 
