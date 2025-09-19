@@ -137,7 +137,7 @@ void CTX_free(bContext *C)
   CTX_wm_operator_poll_msg_clear(C);
 
   /* Clean up temp_override tracking set if it exists */
-  delete C->data.temp_override_accessed_members;
+  MEM_SAFE_DELETE(C->data.temp_override_accessed_members);
 
   MEM_freeN(C);
 }
@@ -1621,7 +1621,7 @@ void CTX_temp_override_set(bContext *C, bool enable)
     bool should_log = C->data.temp_override_logging_enabled ||
                       CLOG_CHECK(BKE_LOG_TEMP_OVERRIDE, CLG_LEVEL_INFO);
     if (should_log) {
-      C->data.temp_override_accessed_members = new blender::Set<std::string>();
+      C->data.temp_override_accessed_members = MEM_new<blender::Set<std::string>>(__func__);
     }
   }
   else if (!enable && C->data.temp_override_active) {
@@ -1651,8 +1651,7 @@ void CTX_temp_override_set(bContext *C, bool enable)
         printf("temp_override | %s\n", summary.c_str());
       }
     }
-    delete C->data.temp_override_accessed_members;
-    C->data.temp_override_accessed_members = nullptr;
+    MEM_SAFE_DELETE(C->data.temp_override_accessed_members);
   }
 
   C->data.temp_override_active = enable;
@@ -1673,7 +1672,7 @@ void CTX_temp_override_logging_set(bContext *C, bool enable)
   if (enable && !was_enabled && C->data.temp_override_active &&
       !C->data.temp_override_accessed_members)
   {
-    C->data.temp_override_accessed_members = new blender::Set<std::string>();
+    C->data.temp_override_accessed_members = MEM_new<blender::Set<std::string>>(__func__);
   }
 }
 
