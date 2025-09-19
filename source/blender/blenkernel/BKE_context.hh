@@ -483,11 +483,6 @@ void CTX_temp_override_set(bContext *C, bool enable);
 bool CTX_temp_override_get(const bContext *C);
 
 /**
- * Track a context member access during temp_override.
- */
-void CTX_temp_override_add_accessed_member(bContext *C, const char *member);
-
-/**
  * Enable or disable logging for temp_override context manager.
  */
 void CTX_temp_override_logging_set(bContext *C, bool enable);

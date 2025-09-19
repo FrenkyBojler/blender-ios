@@ -286,6 +286,13 @@ void CTX_py_state_pop(bContext *C, bContext_PyState *pystate)
   C->data.py_context_orig = pystate->py_context_orig;
 }
 
+static void CTX_temp_override_add_accessed_member(bContext *C, const char *member)
+{
+  if (C->data.temp_override_active && C->data.temp_override_accessed_members) {
+    C->data.temp_override_accessed_members->add(std::string(member));
+  }
+}
+
 /* data context utility functions */
 
 struct bContextDataResult {
@@ -304,6 +311,16 @@ static void *ctx_wm_python_context_get(const bContext *C,
                                        const StructRNA *member_type,
                                        void *fall_through)
 {
+  /* Log context member access if we're in a temp_override and logging is enabled */
+  if (CTX_temp_override_get(C)) {
+    CTX_temp_override_add_accessed_member((bContext *)C, member);
+    /* Show individual access logs if either programmatic logging is enabled
+     * or the command line debug level is active */
+    if (CTX_temp_override_logging_get(C) || CLOG_CHECK(BKE_LOG_TEMP_OVERRIDE, CLG_LEVEL_DEBUG)) {
+      CLOG_DEBUG(BKE_LOG_TEMP_OVERRIDE, "accessing context member '%s'", member);
+    }
+  }
+
 #ifdef WITH_PYTHON
   if (UNLIKELY(C && CTX_py_dict_get(C))) {
     bContextDataResult result{};
@@ -342,6 +359,17 @@ static eContextResult ctx_data_get(bContext *C, const char *member, bContextData
   int ret = 0;
 
   *result = {};
+
+  /* Log context member access if we're in a temp_override and logging is enabled */
+  if (CTX_temp_override_get(C)) {
+    CTX_temp_override_add_accessed_member(C, member);
+    /* Show individual access logs if either programmatic logging is enabled
+     * or the command line debug level is active */
+    if (CTX_temp_override_logging_get(C) || CLOG_CHECK(BKE_LOG_TEMP_OVERRIDE, CLG_LEVEL_DEBUG)) {
+      CLOG_DEBUG(BKE_LOG_TEMP_OVERRIDE, "accessing context member '%s'", member);
+    }
+  }
+
 #ifdef WITH_PYTHON
   if (CTX_py_dict_get(C)) {
     if (BPY_context_member_get(C, member, result)) {
@@ -1603,13 +1631,6 @@ Depsgraph *CTX_data_depsgraph_on_load(const bContext *C)
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   return BKE_scene_get_depsgraph(scene, view_layer);
-}
-
-void CTX_temp_override_add_accessed_member(bContext *C, const char *member)
-{
-  if (C->data.temp_override_active && C->data.temp_override_accessed_members) {
-    C->data.temp_override_accessed_members->add(std::string(member));
-  }
 }
 
 void CTX_temp_override_set(bContext *C, bool enable)
