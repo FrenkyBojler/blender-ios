@@ -108,8 +108,6 @@ struct bContext {
     bool temp_override_active;
     /** True if logging is enabled for temp_override (can be set programmatically). */
     bool temp_override_logging_enabled;
-    /** Set of context members accessed during temp_override. */
-    blender::Set<std::string> temp_override_accessed_members;
   } data;
 };
 
@@ -298,13 +296,6 @@ struct bContextDataResult {
   ContextDataType type;
 };
 
-static void CTX_temp_override_add_accessed_member(bContext *C, const char *member)
-{
-  if (C->data.temp_override_active) {
-    C->data.temp_override_accessed_members.add(std::string(member));
-  }
-}
-
 #ifdef WITH_PYTHON
 /* Helper function to get Python file and line info */
 static void CTX_get_python_location(std::string &location_info)
@@ -334,12 +325,11 @@ static void CTX_temp_override_log_detailed_access(bContext *C, const char *membe
     return;
   }
 
-  /* Only log detailed access at TRACE level */
-  bool is_trace_level = CLOG_CHECK(BKE_LOG_TEMP_OVERRIDE, CLG_LEVEL_TRACE);
-  bool python_logging_enabled = CTX_temp_override_logging_get(C);
+  /* Log at TRACE level or when python logging is enabled */
+  bool should_log = CLOG_CHECK(BKE_LOG_TEMP_OVERRIDE, CLG_LEVEL_TRACE) || 
+                    CTX_temp_override_logging_get(C);
 
-  /* Early exit if no detailed logging is enabled */
-  if (!is_trace_level && !python_logging_enabled) {
+  if (!should_log) {
     return;
   }
 
@@ -353,12 +343,22 @@ static void CTX_temp_override_log_detailed_access(bContext *C, const char *membe
   value_desc = value ? "<value>" : "None";
 #endif
 
-  /* Log all detailed accesses at TRACE level or when python logging is enabled */
-  CLOG_TRACE(BKE_LOG_TEMP_OVERRIDE,
-             "location:%s | member:%s | value:%s",
-             location_info.c_str(),
-             member,
-             value_desc.c_str());
+  /* Use TRACE level when available, otherwise force output when Python logging is enabled */
+  if (CLOG_CHECK(BKE_LOG_TEMP_OVERRIDE, CLG_LEVEL_TRACE)) {
+    CLOG_TRACE(BKE_LOG_TEMP_OVERRIDE,
+               "location:%s | member:%s | value:%s",
+               location_info.c_str(),
+               member,
+               value_desc.c_str());
+  }
+  else if (CTX_temp_override_logging_get(C)) {
+    /* Force output at TRACE level even if not enabled via command line */
+    CLOG_AT_LEVEL_NOCHECK(BKE_LOG_TEMP_OVERRIDE, CLG_LEVEL_TRACE,
+                          "location:%s | member:%s | value:%s",
+                          location_info.c_str(),
+                          member,
+                          value_desc.c_str());
+  }
 }
 
 static void *ctx_wm_python_context_get(const bContext *C,
@@ -374,7 +374,6 @@ static void *ctx_wm_python_context_get(const bContext *C,
         if (RNA_struct_is_a(result.ptr.type, member_type)) {
           /* Log context member access if we're in a temp_override */
           if (CTX_temp_override_get(C)) {
-            CTX_temp_override_add_accessed_member((bContext *)C, member);
             CTX_temp_override_log_detailed_access((bContext *)C, member, result.ptr.data);
           }
           return result.ptr.data;
@@ -395,7 +394,6 @@ static void *ctx_wm_python_context_get(const bContext *C,
 
   /* Log context member access if we're in a temp_override */
   if (CTX_temp_override_get(C)) {
-    CTX_temp_override_add_accessed_member((bContext *)C, member);
     CTX_temp_override_log_detailed_access((bContext *)C, member, fall_through);
   }
 
@@ -419,9 +417,6 @@ static eContextResult ctx_data_get(bContext *C, const char *member, bContextData
 
   /* Log context member access if we're in a temp_override */
   if (CTX_temp_override_get(C)) {
-    /* Add to simple member set for backward compatibility */
-    CTX_temp_override_add_accessed_member(C, member);
-
     /* Log detailed access - we'll log again with the actual value if we get one,
      * but this ensures we don't miss any accesses */
     CTX_temp_override_log_detailed_access(C, member, nullptr);
@@ -1690,52 +1685,8 @@ Depsgraph *CTX_data_depsgraph_on_load(const bContext *C)
   return BKE_scene_get_depsgraph(scene, view_layer);
 }
 
-/* Helper to check if logging should be active */
-static bool CTX_temp_override_should_log(bContext *C)
-{
-  return C->data.temp_override_logging_enabled ||
-         CLOG_CHECK(BKE_LOG_TEMP_OVERRIDE, CLG_LEVEL_INFO);
-}
-
-/* Helper to output summary log */
-static void CTX_temp_override_output_summary(bContext *C, const std::string &summary)
-{
-  if (CLOG_CHECK(BKE_LOG_TEMP_OVERRIDE, CLG_LEVEL_INFO)) {
-    CLOG_INFO(BKE_LOG_TEMP_OVERRIDE, "%s", summary.c_str());
-  }
-  else if (C->data.temp_override_logging_enabled) {
-    CLOG_INFO_NOCHECK(BKE_LOG_TEMP_OVERRIDE, "%s", summary.c_str());
-  }
-}
-
 void CTX_temp_override_set(bContext *C, bool enable)
 {
-  if (enable && !C->data.temp_override_active) {
-    /* Starting temp_override - clear the tracking set if logging is enabled */
-    if (CTX_temp_override_should_log(C)) {
-      C->data.temp_override_accessed_members.clear();
-    }
-  }
-  else if (!enable && C->data.temp_override_active) {
-    /* Ending temp_override - print summary if logging was active and we have members */
-    if (CTX_temp_override_should_log(C) && !C->data.temp_override_accessed_members.is_empty()) {
-      /* Build the summary string */
-      std::string summary = "accessed context members: {";
-      bool first = true;
-      for (const std::string &member : C->data.temp_override_accessed_members) {
-        if (!first) {
-          summary += ", ";
-        }
-        summary += member;
-        first = false;
-      }
-      summary += "}";
-
-      CTX_temp_override_output_summary(C, summary);
-    }
-    C->data.temp_override_accessed_members.clear();
-  }
-
   C->data.temp_override_active = enable;
 }
 
@@ -1746,14 +1697,7 @@ bool CTX_temp_override_get(const bContext *C)
 
 void CTX_temp_override_logging_set(bContext *C, bool enable)
 {
-  bool was_enabled = C->data.temp_override_logging_enabled;
   C->data.temp_override_logging_enabled = enable;
-
-  /* If we're enabling logging and we're currently in a temp_override,
-   * clear the tracking set to start fresh */
-  if (enable && !was_enabled && C->data.temp_override_active) {
-    C->data.temp_override_accessed_members.clear();
-  }
 }
 
 bool CTX_temp_override_logging_get(const bContext *C)
