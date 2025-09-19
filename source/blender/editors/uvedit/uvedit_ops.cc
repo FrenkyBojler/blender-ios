@@ -21,7 +21,6 @@
 #include "DNA_space_types.h"
 
 #include "BLI_bounds.hh"
-#include "BLI_bounds.hh"
 #include "BLI_kdtree.h"
 #include "BLI_math_base.hh"
 #include "BLI_math_geom.h"
@@ -983,12 +982,17 @@ static void UV_OT_align(wmOperatorType *ot)
                "Method of calculating the alignment position");
 }
 
-enum eUVTexelLock {
-  UV_LOCK_X,
-  UV_LOCK_Y,
-  UV_LOCK_NONE,
+enum class UVTexelLock {
+  X = 0,
+  Y = 1,
+  None = 2,
 };
-
+enum class UVTexelUnit {
+  Inch = 0,
+  Centimeter = 1,
+  Meter = 2,
+  Foot = 3,
+};
 static wmOperatorStatus uv_apply_texel_density_exec(bContext *C, wmOperator *op)
 {
   Scene *scene = CTX_data_scene(C);
@@ -997,7 +1001,7 @@ static wmOperatorStatus uv_apply_texel_density_exec(bContext *C, wmOperator *op)
   ViewLayer *view_layer = CTX_data_view_layer(C);
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
       scene, view_layer, nullptr);
-  eUVTexelLock lock = (eUVTexelLock)RNA_enum_get(op->ptr, "lock");
+  UVTexelLock lock = (UVTexelLock)RNA_enum_get(op->ptr, "lock");
   bool selected_faces = RNA_boolean_get(op->ptr, "use_selected_faces");
   bool custom_density = RNA_boolean_get(op->ptr, "use_custom_density");
 
@@ -1018,6 +1022,16 @@ static wmOperatorStatus uv_apply_texel_density_exec(bContext *C, wmOperator *op)
   }
   if (custom_density) {
     density = RNA_float_get(op->ptr, "density");
+    UVTexelUnit unit = (UVTexelUnit)RNA_enum_get(op->ptr, "unit");
+    if (unit == UVTexelUnit::Inch) {
+      density /= 0.0254;
+    }
+    else if (unit == UVTexelUnit::Centimeter) {
+      density /= 0.01;
+    }
+    else if (unit == UVTexelUnit::Foot) {
+      density /= 0.3048;
+    }
   }
   else {
     float uv_area = 0.0f;
@@ -1075,15 +1089,15 @@ static wmOperatorStatus uv_apply_texel_density_exec(bContext *C, wmOperator *op)
                              scene->unit.scale_length;
 
       float scale = density / island_density;
-      if (ELEM(lock, UV_LOCK_X, UV_LOCK_Y)) {
+      if (ELEM(lock, UVTexelLock::X, UVTexelLock::Y)) {
         scale *= scale;
       }
       for (int j = 0; j < element_map->island_total_uvs[i]; j++) {
         float *luv = BM_ELEM_CD_GET_FLOAT_P(element[j].l, offsets.uv);
-        if (ELEM(lock, UV_LOCK_Y, UV_LOCK_NONE)) {
+        if (ELEM(lock, UVTexelLock::Y, UVTexelLock::None)) {
           luv[0] = (luv[0] - (min[0] + cent[0])) * scale + (min[0] + cent[0]);
         }
-        if (ELEM(lock, UV_LOCK_X, UV_LOCK_NONE)) {
+        if (ELEM(lock, UVTexelLock::X, UVTexelLock::None)) {
           luv[1] = (luv[1] - (min[1] + cent[1])) * scale + (min[1] + cent[1]);
         }
         changed = true;
@@ -1113,6 +1127,7 @@ static void uv_apply_texel_density_draw(bContext * /*C*/, wmOperator *op)
   col->separator();
   if (RNA_boolean_get(op->ptr, "use_custom_density")) {
     col->prop(&ptr, "density", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    col->prop(&ptr, "unit", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
   else {
     col->prop(&ptr, "use_selected_faces", UI_ITEM_NONE, std::nullopt, ICON_NONE);
@@ -1131,9 +1146,20 @@ static void UV_OT_apply_texel_density(wmOperatorType *ot)
 {
   PropertyRNA *prop;
   static const EnumPropertyItem lock_items[] = {
-      {UV_LOCK_Y, "LOCK_Y", 0, "Y Axis", "Lock scaling on the Y axis"},
-      {UV_LOCK_X, "LOCK_X", 0, "X Axis", "Lock scaling on the X axis"},
-      {UV_LOCK_NONE, "LOCK_NONE", 0, "None", "Lock scaling on none of the axis"},
+      {int(UVTexelLock::Y), "LOCK_Y", 0, "Y Axis", "Lock scaling on the Y axis"},
+      {int(UVTexelLock::X), "LOCK_X", 0, "X Axis", "Lock scaling on the X axis"},
+      {int(UVTexelLock::None), "LOCK_NONE", 0, "None", "Lock scaling on none of the axis"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+  static const EnumPropertyItem unit_items[] = {
+      {int(UVTexelUnit::Inch), "UNIT_INCH", 0, "Pixel/Inch", "Pixel per inch"},
+      {int(UVTexelUnit::Centimeter),
+       "UNIT_CENTIMETER",
+       0,
+       "Pixel/Centimeter",
+       "Pixel per Centimeter"},
+      {int(UVTexelUnit::Meter), "UNIT_METER", 0, "Pixel/Meter", "Pixel per meter"},
+      {int(UVTexelUnit::Foot), "UNIT_FOOT", 0, "Pixel/Foot", "Pixel per foot"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
@@ -1162,13 +1188,16 @@ static void UV_OT_apply_texel_density(wmOperatorType *ot)
                 0.0f,
                 FLT_MAX);
 
+  RNA_def_enum(
+      ot->srna, "unit", unit_items, int(UVTexelUnit::Meter), "Lock Axis", "Lock axis scaling");
   RNA_def_boolean(ot->srna,
                   "use_selected_faces",
                   false,
                   "Selected Faces",
                   "Only use selected faces on the active object");
 
-  RNA_def_enum(ot->srna, "lock", lock_items, UV_LOCK_NONE, "Lock Axis", "Lock axis scaling");
+  RNA_def_enum(
+      ot->srna, "lock", lock_items, int(UVTexelLock::None), "Lock Axis", "Lock axis scaling");
   RNA_def_boolean(
       ot->srna, "use_custom_resolution", false, "Custom Resolution", "Custom Texture Resolution");
   prop = RNA_def_int(ot->srna, "width", 1024, 1, INT_MAX, "Width", "Image width", 1, 16384);
