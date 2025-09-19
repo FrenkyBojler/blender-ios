@@ -853,6 +853,120 @@ bool BPY_context_member_get(bContext *C, const char *member, bContextDataResult 
   return done;
 }
 
+const char *BPY_get_current_location()
+{
+  static char location_buffer[512];
+  location_buffer[0] = '\0';
+  
+  PyGILState_STATE gilstate;
+  const bool use_gil = !PyC_IsInterpreterActive();
+  if (use_gil) {
+    gilstate = PyGILState_Ensure();
+  }
+
+  /* Get the current Python stack frame information */
+  PyFrameObject *frame = PyEval_GetFrame();
+  const char *operator_info = nullptr;
+  
+  /* Walk up the stack to look for operator calls */
+  PyFrameObject *current_frame = frame;
+  int depth = 0;
+  while (current_frame && !operator_info && depth < 20) {
+    PyCodeObject *code = PyFrame_GetCode(current_frame);
+    if (code) {
+      const char *filename = PyUnicode_AsUTF8(code->co_filename);
+      const char *funcname = PyUnicode_AsUTF8(code->co_name);
+      
+      /* Look for operator-related patterns */
+      if (filename && funcname) {
+        /* Check if this is inside ops.py - specifically the __call__ method */
+        if (strstr(filename, "ops.py") && strcmp(funcname, "__call__") == 0) {
+          /* Try to get operator info from local variables */
+          PyObject *locals = PyFrame_GetLocals(current_frame);
+          if (locals) {
+            PyObject *self = PyDict_GetItemString(locals, "self");
+            if (self && PyObject_HasAttrString(self, "idname_py")) {
+              PyObject *idname_func = PyObject_GetAttrString(self, "idname_py");
+              if (idname_func && PyCallable_Check(idname_func)) {
+                PyObject *idname = PyObject_CallObject(idname_func, nullptr);
+                if (idname && PyUnicode_Check(idname)) {
+                  operator_info = PyUnicode_AsUTF8(idname);
+                  if (operator_info) {
+                    /* Store operator name in a static buffer */
+                    static char op_buffer[256];
+                    strncpy(op_buffer, operator_info, sizeof(op_buffer) - 1);
+                    op_buffer[sizeof(op_buffer) - 1] = '\0';
+                    operator_info = op_buffer;
+                  }
+                }
+                if (idname) Py_DECREF(idname);
+              }
+              if (idname_func) Py_DECREF(idname_func);
+            }
+          }
+          break;  /* Found the operator call frame */
+        }
+        
+        /* Also look for execute, invoke, poll methods in operator classes */
+        if ((strcmp(funcname, "execute") == 0 || strcmp(funcname, "invoke") == 0 || 
+             strcmp(funcname, "poll") == 0) && !strstr(filename, "ops.py")) {
+          PyObject *locals = PyFrame_GetLocals(current_frame);
+          if (locals) {
+            PyObject *self = PyDict_GetItemString(locals, "self");
+            if (self && PyObject_HasAttrString(self, "bl_idname")) {
+              PyObject *idname = PyObject_GetAttrString(self, "bl_idname");
+              if (idname && PyUnicode_Check(idname)) {
+                operator_info = PyUnicode_AsUTF8(idname);
+                if (operator_info) {
+                  /* Store operator name in a static buffer */
+                  static char op_buffer2[256];
+                  strncpy(op_buffer2, operator_info, sizeof(op_buffer2) - 1);
+                  op_buffer2[sizeof(op_buffer2) - 1] = '\0';
+                  operator_info = op_buffer2;
+                }
+              }
+              if (idname) Py_DECREF(idname);
+            }
+          }
+          break;
+        }
+      }
+    }
+    current_frame = PyFrame_GetBack(current_frame);
+    depth++;
+  }
+  
+  if (frame) {
+    PyCodeObject *code = PyFrame_GetCode(frame);
+    if (code) {
+      const char *filename = PyUnicode_AsUTF8(code->co_filename);
+      int lineno = PyFrame_GetLineNumber(frame);
+      
+      if (filename) {
+        /* Extract just the filename from the full path */
+        const char *basename = strrchr(filename, '/');
+        if (basename) {
+          basename++; /* Skip the '/' */
+        } else {
+          basename = filename;
+        }
+        
+        if (operator_info) {
+          snprintf(location_buffer, sizeof(location_buffer), "%s:%d [op:%s]", basename, lineno, operator_info);
+        } else {
+          snprintf(location_buffer, sizeof(location_buffer), "%s:%d", basename, lineno);
+        }
+      }
+    }
+  }
+  
+  if (use_gil) {
+    PyGILState_Release(gilstate);
+  }
+  
+  return location_buffer[0] ? location_buffer : "Python script";
+}
+
 #ifdef WITH_PYTHON_MODULE
 /* TODO: reloading the module isn't functional at the moment. */
 

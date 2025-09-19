@@ -1359,8 +1359,14 @@ static wmOperatorStatus wm_operator_exec(bContext *C,
       wm->op_undo_depth++;
     }
 
+    /* Track current operator for enhanced logging */
+    // CTX_temp_override_set_current_operator(C, op->type->idname);
+
     retval = op->type->exec(C, op);
     OPERATOR_RETVAL_CHECK(retval);
+
+    /* Clear operator tracking */
+    // CTX_temp_override_clear_current_operator(C);
 
     if (op->type->flag & OPTYPE_UNDO && CTX_wm_manager(C) == wm) {
       wm->op_undo_depth--;

@@ -38,6 +38,9 @@
 #include "BKE_scene.hh"
 #include "BKE_screen.hh"
 #include "BKE_sound.h"
+
+#include "WM_api.hh"
+#include "../windowmanager/wm_event_system.hh"
 #include "BKE_wm_runtime.hh"
 #include "BKE_workspace.hh"
 
@@ -51,13 +54,13 @@
 /* Logging. */
 CLG_LOGREF_DECLARE_GLOBAL(BKE_LOG_TEMP_OVERRIDE, "temp_override");
 
+static CLG_LogRef LOG = {"bke.context"};
+
 #ifdef WITH_PYTHON
 #  include "BPY_extern.hh"
 #endif
 
 using blender::Vector;
-
-static CLG_LogRef LOG = {"context"};
 
 /* struct */
 
@@ -286,13 +289,6 @@ void CTX_py_state_pop(bContext *C, bContext_PyState *pystate)
   C->data.py_context_orig = pystate->py_context_orig;
 }
 
-static void CTX_temp_override_add_accessed_member(bContext *C, const char *member)
-{
-  if (C->data.temp_override_active && C->data.temp_override_accessed_members) {
-    C->data.temp_override_accessed_members->add(std::string(member));
-  }
-}
-
 /* data context utility functions */
 
 struct bContextDataResult {
@@ -306,35 +302,111 @@ struct bContextDataResult {
   ContextDataType type;
 };
 
+static void CTX_temp_override_add_accessed_member(bContext *C, const char *member)
+{
+  if (C->data.temp_override_active && C->data.temp_override_accessed_members) {
+    C->data.temp_override_accessed_members->add(std::string(member));
+  }
+}
+
+#ifdef WITH_PYTHON
+/* Helper function to get Python file and line info */
+static void CTX_get_python_location(std::string &location_info)
+{
+  /* Get Python stack information using the BPY API */
+  const char *location = BPY_get_current_location();
+  location_info = location;
+}
+
+/* Helper to create a brief value description */
+static std::string CTX_get_value_description(void *ptr, const char *member)
+{
+  if (!ptr) {
+    return "None";
+  }
+  
+  /* For common context members, provide meaningful descriptions */
+  if (STREQ(member, "object")) {
+    Object *ob = static_cast<Object *>(ptr);
+    return std::string("Object(") + (ob->id.name + 2) + ")";
+  }
+  else if (STREQ(member, "scene")) {
+    Scene *scene = static_cast<Scene *>(ptr);
+    return std::string("Scene(") + (scene->id.name + 2) + ")";
+  }
+  else if (STREQ(member, "area")) {
+    ScrArea *area = static_cast<ScrArea *>(ptr);
+    return std::string("Area(type=") + std::to_string(area->spacetype) + ")";
+  }
+  else if (STREQ(member, "region")) {
+    ARegion *region = static_cast<ARegion *>(ptr);
+    return std::string("Region(type=") + std::to_string(region->regiontype) + ")";
+  }
+  else {
+    /* For other types, just indicate presence */
+    return std::string("<") + member + ">";
+  }
+}
+#endif
+
+/* Enhanced logging function that logs individual accesses with details */
+static void CTX_temp_override_log_detailed_access(bContext *C, const char *member, void *value)
+{
+  if (!CTX_temp_override_get(C)) {
+    return;
+  }
+  
+  /* Only log if detailed logging is enabled */
+  if (CTX_temp_override_logging_get(C) || CLOG_CHECK(BKE_LOG_TEMP_OVERRIDE, CLG_LEVEL_DEBUG)) {
+    
+    std::string location_info = "unknown";
+    std::string value_desc = "None";
+    
+#ifdef WITH_PYTHON
+    CTX_get_python_location(location_info);
+    value_desc = CTX_get_value_description(value, member);
+#else
+    value_desc = value ? "<value>" : "None";
+#endif
+    
+    /* Log the detailed access information */
+    if (CLOG_CHECK(BKE_LOG_TEMP_OVERRIDE, CLG_LEVEL_DEBUG)) {
+      CLOG_DEBUG(BKE_LOG_TEMP_OVERRIDE, 
+                 "location:%s | member:%s | value:%s",
+                 location_info.c_str(), member, value_desc.c_str());
+    }
+    else if (CTX_temp_override_logging_get(C)) {
+      printf("temp_override | location:%s | member:%s | value:%s\n",
+             location_info.c_str(), member, value_desc.c_str());
+    }
+  }
+}
+
 static void *ctx_wm_python_context_get(const bContext *C,
                                        const char *member,
                                        const StructRNA *member_type,
                                        void *fall_through)
 {
-  /* Log context member access if we're in a temp_override and logging is enabled */
-  if (CTX_temp_override_get(C)) {
-    CTX_temp_override_add_accessed_member((bContext *)C, member);
-    /* Show individual access logs if either programmatic logging is enabled
-     * or the command line debug level is active */
-    if (CTX_temp_override_logging_get(C) || CLOG_CHECK(BKE_LOG_TEMP_OVERRIDE, CLG_LEVEL_DEBUG)) {
-      CLOG_DEBUG(BKE_LOG_TEMP_OVERRIDE, "accessing context member '%s'", member);
-    }
-  }
-
 #ifdef WITH_PYTHON
   if (UNLIKELY(C && CTX_py_dict_get(C))) {
     bContextDataResult result{};
     if (BPY_context_member_get((bContext *)C, member, &result)) {
       if (result.ptr.data) {
         if (RNA_struct_is_a(result.ptr.type, member_type)) {
+          /* Log context member access if we're in a temp_override */
+          if (CTX_temp_override_get(C)) {
+            CTX_temp_override_add_accessed_member((bContext *)C, member);
+            CTX_temp_override_log_detailed_access((bContext *)C, member, result.ptr.data);
+          }
           return result.ptr.data;
         }
-
-        CLOG_WARN(&LOG,
-                  "PyContext '%s' is a '%s', expected a '%s'",
-                  member,
-                  RNA_struct_identifier(result.ptr.type),
-                  RNA_struct_identifier(member_type));
+        else {
+          CLOG_WARN(&LOG,
+                    "PyContext '%s' is a '%s', expected a '%s'",
+                    member,
+                    RNA_struct_identifier(result.ptr.type),
+                    RNA_struct_identifier(member_type));
+        }
       }
     }
   }
@@ -342,7 +414,13 @@ static void *ctx_wm_python_context_get(const bContext *C,
   UNUSED_VARS(C, member, member_type);
 #endif
 
-  /* don't allow UI context access from non-main threads */
+  /* Log context member access if we're in a temp_override */
+  if (CTX_temp_override_get(C)) {
+    CTX_temp_override_add_accessed_member((bContext *)C, member);
+    CTX_temp_override_log_detailed_access((bContext *)C, member, fall_through);
+  }
+
+  /* Don't allow UI context access from non-main threads */
   if (!BLI_thread_is_main()) {
     return nullptr;
   }
@@ -360,14 +438,13 @@ static eContextResult ctx_data_get(bContext *C, const char *member, bContextData
 
   *result = {};
 
-  /* Log context member access if we're in a temp_override and logging is enabled */
+  /* Log context member access if we're in a temp_override */
   if (CTX_temp_override_get(C)) {
+    /* Add to simple member set for backward compatibility */
     CTX_temp_override_add_accessed_member(C, member);
-    /* Show individual access logs if either programmatic logging is enabled
-     * or the command line debug level is active */
-    if (CTX_temp_override_logging_get(C) || CLOG_CHECK(BKE_LOG_TEMP_OVERRIDE, CLG_LEVEL_DEBUG)) {
-      CLOG_DEBUG(BKE_LOG_TEMP_OVERRIDE, "accessing context member '%s'", member);
-    }
+    
+    /* For ctx_data_get, we don't know the result yet, so log with unknown value */
+    CTX_temp_override_log_detailed_access(C, member, nullptr);
   }
 
 #ifdef WITH_PYTHON

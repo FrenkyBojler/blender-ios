@@ -95,6 +95,8 @@ void BPY_driver_reset();
                                     ChannelDriver *driver_orig,
                                     const AnimationEvalContext *anim_eval_context);
 
+
+
 /**
  * Acquire the global-interpreter-lock (GIL) and wrap `Py_DECREF`.
  * as there are some cases when this needs to be called outside the Python API code.
@@ -136,6 +138,12 @@ void BPY_free_srna_pytype(StructRNA *srna);
  * Avoids duplicating keyword list.
  */
 [[nodiscard]] bool BPY_string_is_keyword(const char *str);
+
+/**
+ * Get current Python stack location with operator information if available.
+ * Returns a string like "filename.py:123" or "filename.py:123 [op:mesh.primitive_cube_add]"
+ */
+const char *BPY_get_current_location();
 
 /* `bpy_rna_callback.cc` */
 
