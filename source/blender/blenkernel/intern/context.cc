@@ -394,7 +394,6 @@ static void *ctx_wm_python_context_get(const bContext *C,
                                        const StructRNA *member_type,
                                        void *fall_through)
 {
-  bContextDataResult log_result{};
   void *return_data = nullptr;
   bool found_member = false;
 
