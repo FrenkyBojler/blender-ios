@@ -367,8 +367,8 @@ static void CTX_member_log_access(bContext *C,
     return;
   }
 
-  std::optional<std::string> value_repr = CTX_result_brief_repr(result);
-  const char *value_desc = value_repr ? value_repr->c_str() : "None";
+  std::string value_repr = CTX_result_brief_repr(result);
+  const char *value_desc = value_repr.c_str();
 
 #ifdef WITH_PYTHON
   /* Get current Python location if available. */
