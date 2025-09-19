@@ -1576,12 +1576,7 @@ def pyrna2sphinx(basepath):
             if not base_id:
                 base_id = _BPY_STRUCT_FAKE
 
-        if base_id:
-            title = "{:s}({:s})".format(struct_id, base_id)
-        else:
-            title = struct_id
-
-        fw(title_string(title, "="))
+        fw(title_string(struct_id, "="))
 
         fw(".. currentmodule:: {:s}\n\n".format(struct_module_name))
 
