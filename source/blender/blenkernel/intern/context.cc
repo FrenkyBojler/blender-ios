@@ -338,10 +338,10 @@ static std::string ctx_result_brief_repr(const bContextDataResult &result)
 
     case CTX_DATA_TYPE_STRING:
       if (!result.str.is_empty()) {
-        return fmt::format("\"{}\"", result.str);
+        return "\"" + result.str + "\"";
       }
       else {
-        return fmt::format("\"\"");
+        return "\"\"";
       }
   }
   BLI_assert_unreachable();
