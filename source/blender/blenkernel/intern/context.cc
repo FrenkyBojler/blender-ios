@@ -10,8 +10,9 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include <set>
-#include <string>
+
+#include "BLI_set.hh"
+#include "BLI_string.h"
 
 #include "MEM_guardedalloc.h"
 
@@ -107,7 +108,7 @@ struct bContext {
     /** True if logging is enabled for temp_override (can be set programmatically). */
     bool temp_override_logging_enabled;
     /** Set of context members accessed during temp_override. */
-    std::set<std::string> *temp_override_accessed_members;
+    blender::Set<std::string> *temp_override_accessed_members;
   } data;
 };
 
@@ -1608,7 +1609,7 @@ Depsgraph *CTX_data_depsgraph_on_load(const bContext *C)
 void CTX_temp_override_add_accessed_member(bContext *C, const char *member)
 {
   if (C->data.temp_override_active && C->data.temp_override_accessed_members) {
-    C->data.temp_override_accessed_members->insert(std::string(member));
+    C->data.temp_override_accessed_members->add(std::string(member));
   }
 }
 
@@ -1620,7 +1621,7 @@ void CTX_temp_override_set(bContext *C, bool enable)
     bool should_log = C->data.temp_override_logging_enabled ||
                       CLOG_CHECK(BKE_LOG_TEMP_OVERRIDE, CLG_LEVEL_INFO);
     if (should_log) {
-      C->data.temp_override_accessed_members = new std::set<std::string>();
+      C->data.temp_override_accessed_members = new blender::Set<std::string>();
     }
   }
   else if (!enable && C->data.temp_override_active) {
@@ -1628,7 +1629,7 @@ void CTX_temp_override_set(bContext *C, bool enable)
     bool should_log = C->data.temp_override_logging_enabled ||
                       CLOG_CHECK(BKE_LOG_TEMP_OVERRIDE, CLG_LEVEL_INFO);
     if (should_log && C->data.temp_override_accessed_members &&
-        !C->data.temp_override_accessed_members->empty())
+        !C->data.temp_override_accessed_members->is_empty())
     {
 
       /* Build the summary string */
@@ -1672,7 +1673,7 @@ void CTX_temp_override_logging_set(bContext *C, bool enable)
   if (enable && !was_enabled && C->data.temp_override_active &&
       !C->data.temp_override_accessed_members)
   {
-    C->data.temp_override_accessed_members = new std::set<std::string>();
+    C->data.temp_override_accessed_members = new blender::Set<std::string>();
   }
 }
 
