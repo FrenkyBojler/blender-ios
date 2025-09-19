@@ -143,20 +143,6 @@ struct BPyContextTempOverride {
 
   /** Bypass Python overrides set when calling an operator from Python. */
   bContext_PyState py_state;
-
-  /**
-   * Logging state management for nested temp_override contexts (Python-level logging).
-   *
-   * Two flags are used to ensure correct restoration in nested scenarios:
-   * - `use_logging`: What the USER wants for this specific temp_override instance
-   * - `original_logging_state`: What we must RESTORE when this temp_override exits
-   *
-   * This separation ensures that:
-   * 1. Users can change logging mid-execution via the `use_logging` property
-   * 2. Nested temp_override contexts don't interfere with each other
-   * 3. The original state is always correctly restored regardless of user changes
-   */
-
   /**
    * This dictionary is used to store members that don't have special handling,
    * see: #bpy_context_temp_override_extract_known_args,
