@@ -785,7 +785,7 @@ static PyObject *bpy_context_temp_override(PyObject *self, PyObject *args, PyObj
     }
   }
 
-  ContextStore ctx_temp = {};
+  ContextStore ctx_temp = {nullptr};
   if (params.window.ptr != nullptr) {
     ctx_temp.win = static_cast<wmWindow *>(params.window.ptr->data);
     ctx_temp.win_is_set = true;
