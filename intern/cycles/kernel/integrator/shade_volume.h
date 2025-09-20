@@ -2865,6 +2865,7 @@ ccl_device_inline void integrator_shade_volume_setup(KernelGlobals kg,
 }
 #endif
 
+template<DeviceKernel volume_kernel>
 ccl_device_inline void integrator_next_kernel_after_shade_volume(
     KernelGlobals kg,
     const IntegratorState state,
@@ -2874,21 +2875,18 @@ ccl_device_inline void integrator_next_kernel_after_shade_volume(
 {
   if (event == VOLUME_PATH_MISSED) {
     /* End path. */
-    integrator_path_terminate(kg, state, render_buffer, DEVICE_KERNEL_INTEGRATOR_SHADE_VOLUME);
+    integrator_path_terminate(kg, state, render_buffer, volume_kernel);
     return;
   }
 
   if (event == VOLUME_PATH_ATTENUATED) {
     /* Continue to background, light or surface. */
-    integrator_intersect_next_kernel_after_volume<DEVICE_KERNEL_INTEGRATOR_SHADE_VOLUME>(
-        kg, state, isect, render_buffer);
+    integrator_intersect_next_kernel_after_volume<volume_kernel>(kg, state, isect, render_buffer);
     return;
   }
 
 #ifdef __SHADOW_LINKING__
-  if (shadow_linking_schedule_intersection_kernel<DEVICE_KERNEL_INTEGRATOR_SHADE_VOLUME>(kg,
-                                                                                         state))
-  {
+  if (shadow_linking_schedule_intersection_kernel<volume_kernel>(kg, state)) {
     return;
   }
 #endif /* __SHADOW_LINKING__ */
@@ -2896,8 +2894,7 @@ ccl_device_inline void integrator_next_kernel_after_shade_volume(
   kernel_assert(event == VOLUME_PATH_SCATTERED);
 
   /* Queue intersect_closest kernel. */
-  integrator_path_next(
-      state, DEVICE_KERNEL_INTEGRATOR_SHADE_VOLUME, DEVICE_KERNEL_INTEGRATOR_INTERSECT_CLOSEST);
+  integrator_path_next(state, volume_kernel, DEVICE_KERNEL_INTEGRATOR_INTERSECT_CLOSEST);
 }
 
 ccl_device void integrator_shade_volume(KernelGlobals kg,
@@ -2910,7 +2907,8 @@ ccl_device void integrator_shade_volume(KernelGlobals kg,
   integrator_shade_volume_setup(kg, state, &ray, &isect);
 
   const VolumeIntegrateEvent event = volume_integrate(kg, state, &ray, render_buffer);
-  integrator_next_kernel_after_shade_volume(kg, state, render_buffer, &isect, event);
+  integrator_next_kernel_after_shade_volume<DEVICE_KERNEL_INTEGRATOR_SHADE_VOLUME>(
+      kg, state, render_buffer, &isect, event);
 
 #endif /* __VOLUME__ */
 }
@@ -2925,7 +2923,8 @@ ccl_device void integrator_shade_volume_ray_marching(KernelGlobals kg,
   integrator_shade_volume_setup(kg, state, &ray, &isect);
 
   const VolumeIntegrateEvent event = volume_integrate_ray_marching(kg, state, &ray, render_buffer);
-  integrator_next_kernel_after_shade_volume(kg, state, render_buffer, &isect, event);
+  integrator_next_kernel_after_shade_volume<DEVICE_KERNEL_INTEGRATOR_SHADE_VOLUME_RAY_MARCHING>(
+      kg, state, render_buffer, &isect, event);
 
 #endif /* __VOLUME__ */
 }

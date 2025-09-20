@@ -74,13 +74,10 @@ ccl_device void integrator_megakernel(KernelGlobals kg,
           integrator_shade_surface(kg, state, render_buffer);
           break;
         case DEVICE_KERNEL_INTEGRATOR_SHADE_VOLUME:
+          integrator_shade_volume(kg, state, render_buffer);
+          break;
         case DEVICE_KERNEL_INTEGRATOR_SHADE_VOLUME_RAY_MARCHING:
-          if (kernel_data.integrator.volume_ray_marching) {
-            integrator_shade_volume_ray_marching(kg, state, render_buffer);
-          }
-          else {
-            integrator_shade_volume(kg, state, render_buffer);
-          }
+          integrator_shade_volume_ray_marching(kg, state, render_buffer);
           break;
         case DEVICE_KERNEL_INTEGRATOR_SHADE_SURFACE_RAYTRACE:
           integrator_shade_surface_raytrace(kg, state, render_buffer);
