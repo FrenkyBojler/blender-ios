@@ -291,7 +291,7 @@ view_transforms:
     name: AgX Base Rec.1886
     family: AgX
     description: |
-      AgX Base Image Encoding for Rec.1886 Display
+      AgX Base Image Encoding for sRGB and Rec.1886 Display
     from_scene_reference: !<GroupTransform>
       children:
         - !<ColorSpaceTransform> {src: Linear CIE-XYZ E, dst: Linear FilmLight E-Gamut}
