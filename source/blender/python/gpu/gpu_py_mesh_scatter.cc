@@ -129,8 +129,7 @@ static void mesh_scatter_orphans_flush(void)
  * - creates the specialized compute shader with specialization constants set to those offsets
  *
  * Returns nullptr on failure (e.g. no GPU context). */
-static MeshScatterResources *mesh_scatter_resources_get_or_create(Mesh *mesh,
-                                                                  int normals_domain_int)
+static MeshScatterResources *mesh_scatter_resources_get_or_create(Mesh *mesh)
 {
   if (!mesh) {
     return nullptr;
@@ -213,7 +212,7 @@ static MeshScatterResources *mesh_scatter_resources_get_or_create(Mesh *mesh,
     GPU_storagebuf_update(res.ssbo_transform_mat, transform_mat);
   }
 
-  res.normals_domain = normals_domain_int;
+  res.normals_domain = mesh->normals_domain() == blender::bke::MeshNormalDomain::Face ? 1 : 0;
 
   /* Create shader with specialization constants baked to mesh offsets. */
   using namespace blender::gpu::shader;
@@ -497,14 +496,8 @@ static PyObject *pygpu_mesh_scatter(PyObject * /*self*/, PyObject *args, PyObjec
     return nullptr;
   }
 
-  /* Determine normals_domain automatically from evaluated mesh. */
-  const int normals_domain_int = (mesh_eval->normals_domain() ==
-                                  blender::bke::MeshNormalDomain::Face) ?
-                                     1 :
-                                     0;
-
   /* Build / obtain the compute shader + mesh topology SSBO. */
-  MeshScatterResources *res = mesh_scatter_resources_get_or_create(mesh_orig, normals_domain_int);
+  MeshScatterResources *res = mesh_scatter_resources_get_or_create(mesh_eval);
   if (!res || !res->shader) {
     PyErr_SetString(PyExc_RuntimeError, "Scatter compute shader not available for mesh");
     return nullptr;
