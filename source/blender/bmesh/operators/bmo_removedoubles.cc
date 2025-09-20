@@ -205,12 +205,11 @@ void bmo_weld_verts_exec(BMesh *bm, BMOperator *op)
     BM_ITER_MESH (v, &iter, bm, BM_VERTS_OF_MESH) {
       BMVert *survivor_vert = static_cast<BMVert *>(BMO_slot_map_elem_get(slot_targetmap, v));
       if (survivor_vert && survivor_vert != v) {
-        blender::Vector<BMVert *> *cluster = static_cast<blender::Vector<BMVert *> *>(
-            BLI_ghash_lookup(clusters, survivor_vert));
-        if (!cluster) {
-          cluster = MEM_new<blender::Vector<BMVert *>>(__func__);
-          BLI_ghash_insert(clusters, survivor_vert, cluster);
+        void **cluster_p;
+        if (!BLI_ghash_ensure_p(clusters, survivor_vert, &cluster_p)) {
+          *cluster_p = MEM_new<blender::Vector<BMVert *>>(__func__);
         }
+        blender::Vector<BMVert *> *cluster = static_cast<blender::Vector<BMVert *> *>(*cluster_p);
         cluster->append(v);
       }
     }
@@ -222,9 +221,9 @@ void bmo_weld_verts_exec(BMesh *bm, BMOperator *op)
       blender::Vector<BMVert *> *cluster = static_cast<blender::Vector<BMVert *> *>(
           BLI_ghashIterator_getValue(&gh_iter));
 
-      float centroid[3] = {};
-      int count = 1; /* include survivor. */
-      add_v3_v3(centroid, survivor->co);
+      float centroid[3];
+      copy_v3_v3(centroid, survivor->co);
+      int count = 1;  /* include survivor. */
 
       for (BMVert *dup_vert : *cluster) {
         add_v3_v3(centroid, dup_vert->co);
