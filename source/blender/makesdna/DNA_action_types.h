@@ -989,8 +989,8 @@ typedef struct SpaceAction_Runtime {
 } SpaceAction_Runtime;
 
 typedef enum SpaceActionOverlays_Flag {
-  ADS_OVERLAY_SHOW_OVERLAYS = 0,
-  ADS_SHOW_SCENE_STRIP_FRAME_RANGE = 1
+  ADS_OVERLAY_SHOW_OVERLAYS = (1 << 0),
+  ADS_SHOW_SCENE_STRIP_FRAME_RANGE = (1 << 1)
 } SpaceActionOverlays_Flag;
 
 typedef struct SpaceActionOverlays {

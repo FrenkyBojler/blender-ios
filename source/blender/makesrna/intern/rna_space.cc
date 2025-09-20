@@ -2525,6 +2525,11 @@ static void rna_SpaceSequenceEditor_zoom_percentage_set(PointerRNA *ptr, const f
   ED_region_tag_redraw(region);
 }
 
+static PointerRNA rna_SpaceDopeSheet_overlay_get(PointerRNA *ptr)
+{
+  return RNA_pointer_create_with_parent(*ptr, &RNA_SpaceDopeSheetOverlay, ptr->data);
+}
+
 static std::optional<std::string> rna_SpaceDopeSheetOverlay_path(const PointerRNA *ptr)
 {
   std::optional<std::string> editor_path = BKE_screen_path_from_screen_to_space(ptr);
@@ -6612,20 +6617,20 @@ static void rna_def_space_dopesheet_overlays(BlenderRNA *brna)
   StructRNA *srna;
   PropertyRNA *prop;
 
-  srna = RNA_def_struct(brna, "DopeSheetOverlay", nullptr);
+  srna = RNA_def_struct(brna, "SpaceDopeSheetOverlay", nullptr);
   RNA_def_struct_sdna(srna, "SpaceAction");
   RNA_def_struct_nested(brna, srna, "SpaceDopeSheetEditor");
   RNA_def_struct_path_func(srna, "rna_SpaceDopeSheetOverlay_path");
   RNA_def_struct_ui_text(srna, "Overlay Settings", "");
 
   prop = RNA_def_property(srna, "show_overlays", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "flag", ADS_OVERLAY_SHOW_OVERLAYS);
+  RNA_def_property_boolean_sdna(prop, nullptr, "overlays.flag", ADS_OVERLAY_SHOW_OVERLAYS);
   RNA_def_property_boolean_default(prop, true);
   RNA_def_property_ui_text(prop, "Show Overlays", "Display overlays");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_NODE, nullptr);
 
   prop = RNA_def_property(srna, "show_scene_strip_range", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "flag", ADS_SHOW_SCENE_STRIP_FRAME_RANGE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "overlays.flag", ADS_SHOW_SCENE_STRIP_FRAME_RANGE);
   RNA_def_property_ui_text(prop,
                            "Show Scene Strip Range",
                            "When using scene time synchronization in the sequence editor, display "
@@ -6773,7 +6778,8 @@ static void rna_def_space_dopesheet(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "overlays", PROP_POINTER, PROP_NONE);
   RNA_def_property_flag(prop, PROP_NEVER_NULL);
-  RNA_def_property_struct_type(prop, "DopeSheetOverlay");
+  RNA_def_property_struct_type(prop, "SpaceDopeSheetOverlay");
+  RNA_def_property_pointer_funcs(prop, "rna_SpaceDopeSheet_overlay_get", nullptr, nullptr, nullptr);
   RNA_def_property_ui_text(prop, "Overlay Settings", "Settings for display of overlays");
 
   rna_def_space_dopesheet_overlays(brna);
