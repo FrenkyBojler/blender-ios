@@ -446,33 +446,6 @@ static PyObject *pygpu_mesh_scatter(PyObject * /*self*/, PyObject *args, PyObjec
     return nullptr;
   }
 
-  if (mesh_orig->is_using_gpu_deform == 0) {
-    /* Set this flag to extract the mesh with float4 */
-    mesh_orig->is_using_gpu_deform = 1;
-
-    /* Request geometry rebuild for that object so the draw/cache system will
-     * populate VBOs (doesn't block; handled by the draw subsystem on next frame). */
-    DEG_id_tag_update(&ob_orig->id, ID_RECALC_GEOMETRY);
-    BKE_scene_graph_update_tagged(depsgraph, DEG_get_bmain(depsgraph));
-
-    /* Redraw everything so next frame will run cache_populate (if applicable). */
-    WM_main_add_notifier(NC_WINDOW, nullptr);
-
-    /* Return None for this frame; caller (modal operator) will call again next frame. */
-    Py_RETURN_NONE;
-  }
-
-  /* Used to say the the object is being deformed
-   * (BKE_object_is_deform_modified) and to clear
-   * tilemap shadows to avoid artifacts (Object bounds are not updated,
-   * then we clear tilemaps to force shadow tilemap update) */
-  mesh_eval->is_running_gpu_deform = 1;
-
-  /* If we already requested and cache still not ready, return None (try again next frame). */
-  if (!(mesh_eval && mesh_eval->runtime && mesh_eval->runtime->batch_cache)) {
-    Py_RETURN_NONE;
-  }
-
   /* Confirm VBOs exist before proceeding; if missing, keep retrying. */
   using namespace blender::draw;
   MeshBatchCache *cache = static_cast<MeshBatchCache *>(mesh_eval->runtime->batch_cache);
@@ -495,6 +468,39 @@ static PyObject *pygpu_mesh_scatter(PyObject * /*self*/, PyObject *args, PyObjec
     PyErr_SetString(PyExc_RuntimeError, "Required VBOs not present in cache");
     return nullptr;
   }
+
+  const GPUVertFormat *format = GPU_vertbuf_get_format(vbo_pos);
+  int pos_id = GPU_vertformat_attr_id_get(format, "pos");
+  const GPUVertAttr *attr = &format->attrs[pos_id];
+  blender::gpu::VertAttrType type = attr->type.format;
+
+  using blender::gpu::VertAttrType;
+  if (type == VertAttrType::SFLOAT_32_32_32_32) {
+    mesh_orig->is_using_gpu_deform = 0;
+  }
+  else if (type == VertAttrType::SFLOAT_32_32_32) {
+    /* Set this flag to extract the mesh with float4 on next frame */
+    mesh_orig->is_using_gpu_deform = 1;
+  }
+
+  if (mesh_orig->is_using_gpu_deform == 1) {
+    /* Request geometry rebuild for that object so the draw/cache system will
+     * populate VBOs (doesn't block; handled by the draw subsystem on next frame). */
+    DEG_id_tag_update(&ob_orig->id, ID_RECALC_GEOMETRY);
+    BKE_scene_graph_update_tagged(depsgraph, DEG_get_bmain(depsgraph));
+
+    /* Redraw everything so next frame will run cache_populate (if applicable). */
+    WM_main_add_notifier(NC_WINDOW, nullptr);
+
+    /* Return None for this frame; caller (modal operator) will call again next frame. */
+    Py_RETURN_NONE;
+  }
+
+  /* Used to say the the object is being deformed
+   * (BKE_object_is_deform_modified) and to clear
+   * tilemap shadows to avoid artifacts (Object bounds are not updated,
+   * then we clear tilemaps to force shadow tilemap update) */
+  mesh_eval->is_running_gpu_deform = 1;
 
   /* Build / obtain the compute shader + mesh topology SSBO. */
   MeshScatterResources *res = mesh_scatter_resources_get_or_create(mesh_eval);
