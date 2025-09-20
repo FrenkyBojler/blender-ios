@@ -39,7 +39,7 @@ struct Depsgraph;
  *  - recomputes packed corner normals.
  *
  * Python signature:
- *   scatter_positions_to_corners(obj, ssbo_positions, *, normals_domain='AUTO')
+ *   scatter_positions_to_corners(obj, ssbo_positions)
  *
  * Requirements and notes:
  *  - `obj` must be convertible to a Blender `Object *` owning mesh data with a ready batch cache.
