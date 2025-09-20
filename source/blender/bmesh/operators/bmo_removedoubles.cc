@@ -223,7 +223,7 @@ void bmo_weld_verts_exec(BMesh *bm, BMOperator *op)
 
       float centroid[3];
       copy_v3_v3(centroid, survivor->co);
-      int count = 1;  /* include survivor. */
+      int count = 1; /* include survivor. */
 
       for (BMVert *dup_vert : *cluster) {
         add_v3_v3(centroid, dup_vert->co);
