@@ -17,6 +17,7 @@
 #include "BLI_string_utils.hh"
 
 #include "DNA_key_types.h"
+#include "DNA_node_types.h"
 #include "DNA_windowmanager_enums.h"
 #include "ED_curves.hh"
 #include "ED_grease_pencil.hh"
@@ -744,7 +745,7 @@ static wmOperatorStatus run_node_group_exec(bContext *C, wmOperator *op)
   const bool objects_as_instances = active_object->mode == OB_MODE_OBJECT &&
                                     node_tree->geometry_node_asset_traits &&
                                     (node_tree->geometry_node_asset_traits->flag &
-                                     GEO_NODE_ASSET_WAIT_FOR_CURSOR) != 0;
+                                     GEO_NODE_ASSET_OBJECTS_AS_INSTANCES) != 0;
 
   bke::OperatorComputeContext compute_context;
   Set<ComputeContextHash> socket_log_contexts;
