@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later
  *
  * Minimal wrapper to run the "scatter positions -> corners + normals" compute shader
- * from Python. Inspired from BL_ArmatureObject::DoGpuSkinning (pass 2).
+ * from Python.
  */
 
 #include <Python.h>
@@ -150,7 +150,7 @@ static MeshScatterResources *mesh_scatter_resources_get_or_create(Mesh *mesh)
 
   MeshScatterResources res;
 
-  /* Build topology packed ints the same way as InitStaticSkinningBuffers. */
+  /* Build topology packed ints. */
   const auto face_offsets = mesh->face_offsets();
   const auto corner_to_face = mesh->corner_to_face_map();
   const auto corner_verts_span = mesh->corner_verts();
@@ -545,7 +545,7 @@ PyDoc_STRVAR(pygpu_mesh_scatter_free_doc,
              ".. function:: scatter_free_for_mesh(obj)\n"
              "\n"
              "   Free GPU resources (shader + SSBOs) associated with the mesh owned by `obj`.\n"
-             "   Also resets `mesh.is_using_skinning` and `mesh.is_running_skinning` to 0.\n"
+             "   Also resets `mesh.is_using_gpu_deform` and `mesh.is_running_gpu_deform` to 0.\n"
              "   `obj` may be an evaluated object or an original object (bpy.types.Object).\n");
 
 static PyObject *pygpu_mesh_scatter_free(PyObject * /*self*/, PyObject *args, PyObject *kwds)
@@ -597,7 +597,7 @@ static PyObject *pygpu_mesh_scatter_free(PyObject * /*self*/, PyObject *args, Py
 
   /* Reset flags (safe to do from Python thread since callers use this from UI thread). */
   mesh_orig->is_using_gpu_deform = 0;
-  /* mesh->is_running_skinning flag is only on evaluated mesh (ob_eval->runtime->data_eval)
+  /* mesh->is_running_gpu_deform flag is only on evaluated mesh (ob_eval->runtime->data_eval)
    * so we don't reset it here. It will be reset next time the object is evaluated. */
 
   /* Free GPU resources associated with this mesh (thread-safe internally). */

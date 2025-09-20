@@ -851,7 +851,7 @@ void ShadowModule::end_sync()
    * Root cause: GPU deform changes mesh geometry on GPU but CPU-side object bounds
    * remain based on the rest pose. EEVEE's shadow system uses these incorrect bounds
    * to calculate directional shadow clip ranges (tilemaps_clip), leading to shadow
-   * artifacts for skinned meshes.
+   * artifacts for gpu deformed meshes.
    *
    * Solution: Clear tilemaps_clip data when GPU deform objects are detected,
    * forcing EEVEE to recalculate clip ranges with current frame data. This ensures

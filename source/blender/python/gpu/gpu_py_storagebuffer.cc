@@ -5,7 +5,7 @@
 /** \file
  * \ingroup bpygpu
  *
- * Storage buffer Python binding (modèle inspiré de gpu_py_uniformbuffer.cc).
+ * Storage buffer Python binding (model from gpu_py_uniformbuffer.cc).
  *
  * - Use `bpygpu_` for local API.
  * - Use `BPyGPU` for public API.
@@ -16,7 +16,7 @@
 #include "BLI_string_utf8.h"
 
 #include "GPU_context.hh"
-#include "GPU_storage_buffer.hh" /* Hypothétique : adapte si le nom diffère */
+#include "GPU_storage_buffer.hh"
 
 #include "../generic/python_compat.hh" /* IWYU pragma: keep. */
 
