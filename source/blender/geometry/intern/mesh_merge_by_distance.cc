@@ -7,7 +7,6 @@
 
 #include "BKE_attribute_math.hh"
 #include "BLI_array.hh"
-#include "BLI_array_utils.hh"
 #include "BLI_bit_vector.hh"
 #include "BLI_index_mask.hh"
 #include "BLI_kdtree.h"
@@ -1371,17 +1370,15 @@ static void merge_customdata_all(Span<int> dest_map,
   bool finalize_map = false;
   int dest_index = 0;
   for (int i = 0; i < source_size; i++) {
-    const int source_index = i;
     int count = 0;
     while (i < source_size && dest_map[i] == OUT_OF_CONTEXT) {
       r_final_map[i] = dest_index + count;
+      final_mixes.add_new(dest_index, Span{i});
+      dest_index++;
       count++;
       i++;
     }
-    if (count) {
-      final_mixes.add_new(dest_index, Span{source_index});
-      dest_index += count;
-    }
+
     if (i == source_size) {
       break;
     }
