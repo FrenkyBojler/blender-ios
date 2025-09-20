@@ -4778,13 +4778,22 @@ static bool modifiers_has_animation_check(const Object *ob)
 
 int BKE_object_is_deform_modified(Scene *scene, Object *ob)
 {
+  int flag = 0;
+
+  /* For GPU deform (on evaluated Object/Mesh) */
+  if (ob->type == OB_MESH) {
+    Mesh *me_eval = (Mesh *)ob->data;
+    if (me_eval && me_eval->is_running_gpu_deform) {
+      flag |= eModifierMode_Realtime;
+    }
+  }
+
   /* Always test on original object since evaluated object may no longer
    * have shape keys or modifiers that were used to evaluate it. */
   ob = DEG_get_original(ob);
 
   ModifierData *md;
   VirtualModifierData virtual_modifier_data;
-  int flag = 0;
   const bool is_modifier_animated = modifiers_has_animation_check(ob);
 
   if (BKE_key_from_object(ob)) {

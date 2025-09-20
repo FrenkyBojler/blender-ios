@@ -175,6 +175,9 @@ typedef struct Mesh {
   /** The color attribute used by default (i.e. for rendering) if no name is given explicitly. */
   char *default_color_attribute;
 
+  /** Flags used to detect if the mesh is using GPU deformation */
+  int is_using_gpu_deform, is_running_gpu_deform;
+
   /**
    * The UV map currently selected in the list and edited by a user.
    * Currently only used for file reading/writing (see #AttributeStorage).

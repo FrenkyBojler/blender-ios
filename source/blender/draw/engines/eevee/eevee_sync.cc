@@ -97,6 +97,15 @@ void SyncModule::sync_mesh(Object *ob, ObjectHandle &ob_handle, const ObjectRef 
     return;
   }
 
+  /* Shadows artifacts GPU deform fix */
+  if (ob->type == OB_MESH) {
+    Mesh *me_eval = (Mesh *)ob->data;
+    if (me_eval->is_running_gpu_deform) {
+      // Clear to avoid shadow artifacts.
+      inst_.shadows.mark_gpu_deform_clear_needed();
+    }
+  }
+
   ResourceHandleRange res_handle = inst_.manager->unique_handle(ob_ref);
 
   bool has_motion = inst_.velocity.step_object_sync(
