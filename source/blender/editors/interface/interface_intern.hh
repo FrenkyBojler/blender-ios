@@ -508,6 +508,7 @@ struct ColorPicker {
    * colorspace as the rgb slider for a clear correspondence.
    */
   float hsv_slider[3];
+  float hsv_linear_slider[3];
 
   /*
    * RGB in color picker used for number sliders, when the space is not scene linear.
