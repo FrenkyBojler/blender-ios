@@ -779,10 +779,10 @@ static wmOperatorStatus run_node_group_exec(bContext *C, wmOperator *op)
   }
 
   auto instances = std::make_unique<bke::Instances>();
+  instances->resize(objects.size());
   instances->transforms_for_write().copy_from(orig_object_transforms);
 
   {
-    instances->resize(objects.size());
     Set<void *> unique_data;
     MutableSpan<int> handles = instances->reference_handles_for_write();
     for (const int i : objects.index_range()) {
