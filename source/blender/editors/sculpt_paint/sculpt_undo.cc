@@ -421,11 +421,10 @@ struct PositionUndoStorage : NonMovable {
         CompressLocalData &local_data = all_tls.local();
         for (const int i : range) {
           const Span<int> indices = data->multires_undo ? nodes[i]->grids : nodes[i]->vert_indices;
-          Span<float3> positions = nodes[i]->position;
+          const Span<float3> positions = !nodes[i]->orig_position.is_empty() ?
+                                             nodes[i]->orig_position :
+                                             nodes[i]->position;
           compression::filter_compress(indices, local_data.filtered, local_data.compressed);
-          if (!nodes[i]->orig_position.is_empty()) {
-            positions = nodes[i]->orig_position;
-          }
           new (&compressed_indices[i]) Array<std::byte>(local_data.compressed.as_span());
           compression::filter_compress(positions, local_data.filtered, local_data.compressed);
           new (&compressed_data[i]) Array<std::byte>(local_data.compressed.as_span());
@@ -2045,7 +2044,7 @@ void push_end_ex(Object &ob, const bool use_nested_undo)
    * just one positions array that has a different semantic meaning depending on whether there are
    * deform modifiers. */
 
-  if (step_data->type == Type::Position && !use_multires_undo(*step_data, *ob.sculpt)) {
+  if (step_data->type == Type::Position) {
     step_data->position_step_storage = std::make_unique<PositionUndoStorage>(*step_data);
   }
   else {
