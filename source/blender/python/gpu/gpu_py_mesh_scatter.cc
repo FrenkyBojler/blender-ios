@@ -426,6 +426,11 @@ static PyObject *pygpu_mesh_scatter(PyObject * /*self*/, PyObject *args, PyObjec
     return nullptr;
   }
 
+  if (ob_eval->modifiers.first) {
+    PyErr_SetString(PyExc_ValueError, "Objects with modifiers are not supported");
+    return nullptr;
+  }
+
   if (ob_eval->type != OB_MESH) {
     PyErr_SetString(PyExc_TypeError, "Object does not own a mesh");
     return nullptr;
