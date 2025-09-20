@@ -187,6 +187,7 @@ void bmo_weld_verts_exec(BMesh *bm, BMOperator *op)
   BMLoop *l;
   BMFace *f;
   BMOpSlot *slot_targetmap = BMO_slot_get(op->slots_in, "targetmap");
+  const bool use_centroid = BMO_slot_bool_get(op->slots_in, "use_centroid");
 
   /* Maintain selection history. */
   const bool has_selected = !BLI_listbase_is_empty(&bm->selected);
@@ -195,6 +196,51 @@ void bmo_weld_verts_exec(BMesh *bm, BMOperator *op)
   if (use_targetmap_all) {
     /* Map deleted to keep elem. */
     targetmap_all = BLI_ghash_ptr_new(__func__);
+  }
+
+  if (use_centroid) {
+    GHash *clusters = BLI_ghash_ptr_new(__func__);
+
+    /* Group vertices by their survivor. */
+    BM_ITER_MESH (v, &iter, bm, BM_VERTS_OF_MESH) {
+      BMVert *v_dst = static_cast<BMVert *>(BMO_slot_map_elem_get(slot_targetmap, v));
+      if (v_dst && v_dst != v) {
+        void **cluster_p;
+        if (!BLI_ghash_ensure_p(clusters, v_dst, &cluster_p)) {
+          *cluster_p = MEM_new<blender::Vector<BMVert *>>(__func__);
+        }
+        blender::Vector<BMVert *> *cluster = static_cast<blender::Vector<BMVert *> *>(*cluster_p);
+        cluster->append(v);
+      }
+    }
+
+    /* Compute centroid for each survivor. */
+    GHashIterator gh_iter;
+    GHASH_ITER (gh_iter, clusters) {
+      BMVert *v_dst = static_cast<BMVert *>(BLI_ghashIterator_getKey(&gh_iter));
+      blender::Vector<BMVert *> *cluster = static_cast<blender::Vector<BMVert *> *>(
+          BLI_ghashIterator_getValue(&gh_iter));
+
+      float centroid[3];
+      copy_v3_v3(centroid, v_dst->co);
+      int count = 1; /* Include `v_dst`. */
+
+      for (BMVert *v_duplicate : *cluster) {
+        add_v3_v3(centroid, v_duplicate->co);
+        count++;
+      }
+
+      mul_v3_fl(centroid, 1.0f / float(count));
+      copy_v3_v3(v_dst->co, centroid);
+    }
+
+    /* Free temporary cluster storage. */
+    GHASH_ITER (gh_iter, clusters) {
+      blender::Vector<BMVert *> *cluster = static_cast<blender::Vector<BMVert *> *>(
+          BLI_ghashIterator_getValue(&gh_iter));
+      MEM_delete(cluster);
+    }
+    BLI_ghash_free(clusters, nullptr, nullptr);
   }
 
   /* mark merge verts for deletion */
@@ -648,7 +694,48 @@ static int *bmesh_find_doubles_by_distance_impl(BMesh *bm,
   }
 
   BLI_kdtree_3d_balance(tree);
-  found_duplicates = BLI_kdtree_3d_calc_duplicates_fast(tree, dist, false, duplicates) != 0;
+
+  /* Given a cluster of duplicates, pick the index to keep. */
+  auto deduplicate_target_calc_fn = [&verts](const int *cluster, const int cluster_num) -> int {
+    if (cluster_num == 2) {
+      /* Special case, no use in calculating centroid.
+       * Use the lowest index for stability. */
+      return (cluster[0] < cluster[1]) ? 0 : 1;
+    }
+    BLI_assert(cluster_num > 2);
+
+    blender::float3 centroid{0.0f};
+    for (int i = 0; i < cluster_num; i++) {
+      centroid += blender::float3(verts[cluster[i]]->co);
+    }
+    centroid /= float(cluster_num);
+
+    /* Now pick the most "central" index (with lowest index as a tie breaker). */
+    const int cluster_end = cluster_num - 1;
+    /* Assign `i_best` from the last index as this is the index where the search originated
+     * so it's most likely to be the best. */
+    int i_best = cluster_end;
+    float dist_sq_best = len_squared_v3v3(centroid, verts[cluster[i_best]]->co);
+    for (int i = 0; i < cluster_end; i++) {
+      const float dist_sq_test = len_squared_v3v3(centroid, verts[cluster[i]]->co);
+
+      if (dist_sq_test > dist_sq_best) {
+        continue;
+      }
+      if (dist_sq_test == dist_sq_best) {
+        if (cluster[i] > cluster[i_best]) {
+          continue;
+        }
+      }
+      i_best = i;
+      dist_sq_best = dist_sq_test;
+    }
+    return i_best;
+  };
+
+  found_duplicates = BLI_kdtree_3d_calc_duplicates_cb_cpp(
+                         tree, dist, duplicates, deduplicate_target_calc_fn) != 0;
+
   BLI_kdtree_3d_free(tree);
 
   if (!found_duplicates) {
