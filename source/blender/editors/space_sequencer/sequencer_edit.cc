@@ -1950,6 +1950,8 @@ static wmOperatorStatus sequencer_box_cut_exec(bContext *C, wmOperator *op)
   Scene *scene = CTX_data_sequencer_scene(C);
   Editing *ed = seq::editing_get(scene);
 
+  scene->r.use_preview_frame = 0;
+
   View2D *v2d = UI_view2d_fromcontext(C);
   rctf rectf;
   WM_operator_properties_border_to_rctf(op, &rectf);
@@ -2085,6 +2087,23 @@ static void sequencer_box_cut_ui(bContext * /*C*/, wmOperator *op)
   layout->prop(op->ptr, "ignore_selection", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
+wmOperatorStatus sequencer_box_cut_modal(bContext *C, wmOperator *op, const wmEvent *event)
+{
+  Scene *scene = CTX_data_sequencer_scene(C);
+
+  View2D *v2d = UI_view2d_fromcontext(C);
+  int mouse_frame = UI_view2d_region_to_view_x(v2d, event->mval[0]);
+  scene->r.use_preview_frame = 1;
+  scene->r.vse_preview_frame = mouse_frame;
+
+  WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
+  wmOperatorStatus gesture_return = WM_gesture_box_modal(C, op, event);
+  if (OPERATOR_CANCELLED == gesture_return) {
+    scene->r.use_preview_frame = 0;
+  }
+  return gesture_return;
+}
+
 void SEQUENCER_OT_box_cut(wmOperatorType *ot)
 {
   /* Identifiers. */
@@ -2095,7 +2114,7 @@ void SEQUENCER_OT_box_cut(wmOperatorType *ot)
   /* API callbacks. */
   ot->invoke = WM_gesture_box_invoke;
   ot->exec = sequencer_box_cut_exec;
-  ot->modal = WM_gesture_box_modal;
+  ot->modal = sequencer_box_cut_modal;
   ot->poll = sequencer_edit_poll;
   ot->ui = sequencer_box_cut_ui;
 

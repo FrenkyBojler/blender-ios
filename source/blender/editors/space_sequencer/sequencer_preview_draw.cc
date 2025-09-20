@@ -966,6 +966,10 @@ static void update_cpu_scopes(const SpaceSeq &space_sequencer,
 
 static bool sequencer_draw_get_transform_preview(const SpaceSeq &sseq, const Scene &scene)
 {
+  if (scene.r.use_preview_frame == 1){
+    return true;
+  }
+
   Strip *last_seq = seq::select_active_get(&scene);
   if (last_seq == nullptr) {
     return false;
@@ -982,6 +986,11 @@ static int sequencer_draw_get_transform_preview_frame(const Scene *scene)
   /* #sequencer_draw_get_transform_preview must already have been called. */
   BLI_assert(last_seq != nullptr);
   int preview_frame;
+
+  if (scene->r.use_preview_frame == 1) {
+    preview_frame = scene->r.vse_preview_frame;
+    return preview_frame;
+  }
 
   if (last_seq->flag & SEQ_RIGHTSEL) {
     preview_frame = seq::time_right_handle_frame_get(scene, last_seq) - 1;
