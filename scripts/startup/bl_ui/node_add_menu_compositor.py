@@ -155,7 +155,7 @@ class NODE_MT_compositor_node_filter_base(node_add_menu.NodeMenu):
                 "Soften", "Box Sharpen", "Diamond Sharpen", "Laplace", "Sobel", "Prewitt", "Kirsch", "Shadow"])
         self.node_operator_with_searchable_enum_socket(
             context, layout, "CompositorNodeGlare", "Type", [
-                "Bloom", "Ghosts", "Streaks", "Fog Glow", "Simple Star", "Sun Beams"])
+                "Bloom", "Ghosts", "Streaks", "Fog Glow", "Simple Star", "Sun Beams", "Kernel"])
         self.node_operator(layout, "CompositorNodeKuwahara")
         self.node_operator(layout, "CompositorNodePixelate")
         self.node_operator(layout, "CompositorNodePosterize")
