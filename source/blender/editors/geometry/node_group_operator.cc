@@ -9,17 +9,13 @@
 #include "BKE_instances.hh"
 #include "BLI_array_utils.hh"
 #include "BLI_index_mask.hh"
-#include "BLI_index_range.hh"
 #include "BLI_listbase.h"
-#include "BLI_math_matrix.h"
 #include "BLI_math_matrix.hh"
-#include "BLI_math_matrix_types.hh"
 #include "BLI_path_utils.hh"
 #include "BLI_rect.h"
 #include "BLI_string_utf8.h"
-
 #include "BLI_string_utils.hh"
-#include "DNA_ID.h"
+
 #include "DNA_key_types.h"
 #include "DNA_windowmanager_enums.h"
 #include "ED_curves.hh"
@@ -94,7 +90,6 @@
 #include "geometry_intern.hh"
 
 #include <fmt/format.h>
-#include <iostream>
 #include <memory>
 
 namespace geo_log = blender::nodes::geo_eval_log;
