@@ -773,16 +773,20 @@ static wmOperatorStatus run_node_group_exec(bContext *C, wmOperator *op)
   call_data.eval_log = eval_log.log.get();
   call_data.socket_log_contexts = &socket_log_contexts;
 
+  Array<float4x4> orig_object_transforms(objects.size());
+  for (const int i : orig_object_transforms.index_range()) {
+    orig_object_transforms[i] = objects[i]->object_to_world();
+  }
+
   auto instances = std::make_unique<bke::Instances>();
+  instances->transforms_for_write().copy_from(orig_object_transforms);
+
   {
     instances->resize(objects.size());
-    MutableSpan<int> handles = instances->reference_handles_for_write();
-    MutableSpan<float4x4> transforms = instances->transforms_for_write();
-
     Set<void *> unique_data;
+    MutableSpan<int> handles = instances->reference_handles_for_write();
     for (const int i : objects.index_range()) {
       Object &object = *objects[i];
-      transforms[i] = object.object_to_world();
       if (unique_data.add(object.data)) {
         bke::GeometrySet geometry_orig = get_original_geometry_eval_copy(
             *depsgraph_active, object, operator_eval_data, orig_mesh_states);
@@ -810,7 +814,7 @@ static wmOperatorStatus run_node_group_exec(bContext *C, wmOperator *op)
 
   for (const int i : IndexRange(std::min(objects.size(), handles.size()))) {
     Object &object = *objects[i];
-    if (!math::is_identity(transforms[i])) {
+    if (!math::is_equal(transforms[i], orig_object_transforms[i], 1e-6f)) {
       BKE_object_apply_mat4(&object, transforms[i].ptr(), false, false);
       DEG_id_tag_update(&object.id, ID_RECALC_TRANSFORM);
     }
