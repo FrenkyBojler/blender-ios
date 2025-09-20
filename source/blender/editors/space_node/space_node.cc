@@ -8,6 +8,7 @@
 
 #include "AS_asset_representation.hh"
 
+#include "BKE_node_socket_value.hh"
 #include "BLI_listbase.h"
 #include "BLI_math_vector.h"
 #include "BLI_stack.hh"
@@ -323,7 +324,7 @@ std::optional<nodes::FoundNestedNodeID> find_nested_node_id_in_root(
 
 std::optional<ObjectAndModifier> get_modifier_for_node_editor(const SpaceNode &snode)
 {
-  if (snode.geometry_nodes_type != SNODE_GEOMETRY_MODIFIER) {
+  if (snode.node_tree_sub_type != SNODE_GEOMETRY_MODIFIER) {
     return std::nullopt;
   }
   if (snode.id == nullptr) {
@@ -475,18 +476,24 @@ static std::optional<const ComputeContext *> compute_context_for_tree_path(
 static const ComputeContext *get_node_editor_root_compute_context(
     const SpaceNode &snode, bke::ComputeContextCache &compute_context_cache)
 {
-  switch (SpaceNodeGeometryNodesType(snode.geometry_nodes_type)) {
-    case SNODE_GEOMETRY_MODIFIER: {
-      std::optional<ed::space_node::ObjectAndModifier> object_and_modifier =
-          ed::space_node::get_modifier_for_node_editor(snode);
-      if (!object_and_modifier) {
-        return nullptr;
+  if (snode.nodetree->type == NTREE_GEOMETRY) {
+    switch (SpaceNodeGeometryNodesType(snode.node_tree_sub_type)) {
+      case SNODE_GEOMETRY_MODIFIER: {
+        std::optional<ed::space_node::ObjectAndModifier> object_and_modifier =
+            ed::space_node::get_modifier_for_node_editor(snode);
+        if (!object_and_modifier) {
+          return nullptr;
+        }
+        return &compute_context_cache.for_modifier(nullptr, *object_and_modifier->nmd);
       }
-      return &compute_context_cache.for_modifier(nullptr, *object_and_modifier->nmd);
+      case SNODE_GEOMETRY_TOOL: {
+        return &compute_context_cache.for_operator(nullptr);
+      }
     }
-    case SNODE_GEOMETRY_TOOL: {
-      return &compute_context_cache.for_operator(nullptr);
-    }
+    return nullptr;
+  }
+  if (snode.nodetree->type == NTREE_SHADER) {
+    return &compute_context_cache.for_shader(nullptr, snode.nodetree);
   }
   return nullptr;
 }
@@ -497,7 +504,7 @@ static const ComputeContext *get_node_editor_root_compute_context(
   if (!snode.edittree) {
     return nullptr;
   }
-  if (snode.edittree->type != NTREE_GEOMETRY) {
+  if (!ELEM(snode.edittree->type, NTREE_GEOMETRY, NTREE_SHADER)) {
     return nullptr;
   }
   const ComputeContext *root_context = get_node_editor_root_compute_context(snode,
@@ -983,7 +990,7 @@ static bool node_group_drop_poll(bContext *C, wmDrag *drag, const wmEvent * /*ev
     }
     const AssetMetaData *metadata = &asset_data->asset->get_metadata();
     const IDProperty *tree_type = BKE_asset_metadata_idprop_find(metadata, "type");
-    if (!tree_type || IDP_Int(tree_type) != snode->edittree->type) {
+    if (!tree_type || IDP_int_get(tree_type) != snode->edittree->type) {
       return false;
     }
   }
@@ -1425,7 +1432,7 @@ static int /*eContextResult*/ node_context(const bContext *C,
         }
       }
     }
-    CTX_data_type_set(result, CTX_DATA_TYPE_COLLECTION);
+    CTX_data_type_set(result, ContextDataType::Collection);
     return CTX_RESULT_OK;
   }
   if (CTX_data_equals(member, "active_node")) {
@@ -1434,7 +1441,7 @@ static int /*eContextResult*/ node_context(const bContext *C,
       CTX_data_pointer_set(result, &snode->edittree->id, &RNA_Node, node);
     }
 
-    CTX_data_type_set(result, CTX_DATA_TYPE_POINTER);
+    CTX_data_type_set(result, ContextDataType::Pointer);
     return CTX_RESULT_OK;
   }
   if (CTX_data_equals(member, "node_previews")) {
@@ -1445,7 +1452,7 @@ static int /*eContextResult*/ node_context(const bContext *C,
                            &snode->nodetree->runtime->previews);
     }
 
-    CTX_data_type_set(result, CTX_DATA_TYPE_POINTER);
+    CTX_data_type_set(result, ContextDataType::Pointer);
     return CTX_RESULT_OK;
   }
   if (CTX_data_equals(member, "material")) {
@@ -1515,9 +1522,9 @@ static void node_id_remap(ID *old_id, ID *new_id, SpaceNode *snode)
   }
   else if (GS(old_id->name) == ID_NT) {
 
-    if (snode->geometry_nodes_tool_tree) {
-      if (&snode->geometry_nodes_tool_tree->id == old_id) {
-        snode->geometry_nodes_tool_tree = reinterpret_cast<bNodeTree *>(new_id);
+    if (snode->selected_node_group) {
+      if (&snode->selected_node_group->id == old_id) {
+        snode->selected_node_group = reinterpret_cast<bNodeTree *>(new_id);
       }
     }
 
@@ -1618,7 +1625,7 @@ static void node_foreach_id(SpaceLink *space_link, LibraryForeachIDData *data)
   }
 
   BKE_LIB_FOREACHID_PROCESS_IDSUPER(
-      data, snode->geometry_nodes_tool_tree, IDWALK_CB_USER_ONE | IDWALK_CB_DIRECT_WEAK_LINK);
+      data, snode->selected_node_group, IDWALK_CB_USER_ONE | IDWALK_CB_DIRECT_WEAK_LINK);
 
   /* Both `snode->id` and `snode->nodetree` have been remapped now, so their data can be
    * accessed. */
