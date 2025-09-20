@@ -424,7 +424,7 @@ void bpy_app_generic_callback(Main * /*main*/,
         PySys_WriteStderr("Error in bpy.app.handlers.%s[%d]:\n",
                           app_cb_info_fields[POINTER_AS_INT(arg)].name,
                           int(pos));
-        PyErr_Print();
+        PyErr_PrintEx(0);
       }
       else {
         Py_DECREF(ret);

@@ -19,7 +19,7 @@
 static double handle_returned_value(PyObject *function, PyObject *ret)
 {
   if (ret == nullptr) {
-    PyErr_Print();
+    PyErr_PrintEx(0);
     return -1;
   }
 
