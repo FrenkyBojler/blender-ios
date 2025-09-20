@@ -6,14 +6,21 @@
  * \ingroup edcurves
  */
 
+#include "BKE_instances.hh"
 #include "BLI_array_utils.hh"
 #include "BLI_index_mask.hh"
+#include "BLI_index_range.hh"
 #include "BLI_listbase.h"
+#include "BLI_math_matrix.h"
+#include "BLI_math_matrix.hh"
+#include "BLI_math_matrix_types.hh"
 #include "BLI_path_utils.hh"
 #include "BLI_rect.h"
 #include "BLI_string_utf8.h"
 
+#include "DNA_ID.h"
 #include "DNA_key_types.h"
+#include "DNA_windowmanager_enums.h"
 #include "ED_curves.hh"
 #include "ED_grease_pencil.hh"
 #include "ED_object.hh"
@@ -85,6 +92,7 @@
 #include "geometry_intern.hh"
 
 #include <fmt/format.h>
+#include <memory>
 
 namespace geo_log = blender::nodes::geo_eval_log;
 
@@ -637,13 +645,9 @@ static Vector<Object *> gather_supported_objects(const bContext &C,
                                                  const eObjectMode mode)
 {
   Vector<Object *> objects;
-  Set<const ID *> unique_object_data;
 
   auto handle_object = [&](Object *object) {
     if (object->mode != mode) {
-      return;
-    }
-    if (!unique_object_data.add(static_cast<const ID *>(object->data))) {
       return;
     }
     if (!object_has_editable_data(bmain, *object)) {
@@ -749,40 +753,76 @@ static wmOperatorStatus run_node_group_exec(bContext *C, wmOperator *op)
   const RegionView3D *rv3d = CTX_wm_region_view3d(C);
   Vector<MeshState> orig_mesh_states;
 
-  for (Object *object : objects) {
-    nodes::GeoNodesOperatorData operator_eval_data{};
-    operator_eval_data.mode = mode;
-    operator_eval_data.depsgraphs = &depsgraphs;
-    operator_eval_data.self_object_orig = object;
-    operator_eval_data.scene_orig = scene;
-    RNA_int_get_array(op->ptr, "mouse_position", operator_eval_data.mouse_position);
-    RNA_int_get_array(op->ptr, "region_size", operator_eval_data.region_size);
-    RNA_float_get_array(op->ptr, "cursor_position", operator_eval_data.cursor_position);
-    RNA_float_get_array(op->ptr, "cursor_rotation", &operator_eval_data.cursor_rotation.w);
-    RNA_float_get_array(
-        op->ptr, "viewport_projection_matrix", operator_eval_data.viewport_winmat.base_ptr());
-    RNA_float_get_array(
-        op->ptr, "viewport_view_matrix", operator_eval_data.viewport_viewmat.base_ptr());
-    operator_eval_data.viewport_is_perspective = RNA_boolean_get(op->ptr,
-                                                                 "viewport_is_perspective");
+  nodes::GeoNodesOperatorData operator_eval_data{};
+  operator_eval_data.mode = mode;
+  operator_eval_data.depsgraphs = &depsgraphs;
+  operator_eval_data.self_object_orig = active_object;
+  operator_eval_data.scene_orig = scene;
+  RNA_int_get_array(op->ptr, "mouse_position", operator_eval_data.mouse_position);
+  RNA_int_get_array(op->ptr, "region_size", operator_eval_data.region_size);
+  RNA_float_get_array(op->ptr, "cursor_position", operator_eval_data.cursor_position);
+  RNA_float_get_array(op->ptr, "cursor_rotation", &operator_eval_data.cursor_rotation.w);
+  RNA_float_get_array(
+      op->ptr, "viewport_projection_matrix", operator_eval_data.viewport_winmat.base_ptr());
+  RNA_float_get_array(
+      op->ptr, "viewport_view_matrix", operator_eval_data.viewport_viewmat.base_ptr());
+  operator_eval_data.viewport_is_perspective = RNA_boolean_get(op->ptr, "viewport_is_perspective");
 
-    nodes::GeoNodesCallData call_data{};
-    call_data.operator_data = &operator_eval_data;
-    call_data.eval_log = eval_log.log.get();
-    if (object == active_object) {
-      /* Only log values from the active object. */
-      call_data.socket_log_contexts = &socket_log_contexts;
+  nodes::GeoNodesCallData call_data{};
+  call_data.operator_data = &operator_eval_data;
+  call_data.eval_log = eval_log.log.get();
+  call_data.socket_log_contexts = &socket_log_contexts;
+
+  auto instances = std::make_unique<bke::Instances>();
+  {
+    instances->resize(objects.size());
+    MutableSpan<int> handles = instances->reference_handles_for_write();
+    MutableSpan<float4x4> transforms = instances->transforms_for_write();
+
+    Set<void *> unique_data;
+    for (const int i : objects.index_range()) {
+      Object &object = *objects[i];
+      transforms[i] = object.object_to_world();
+      if (unique_data.add(object.data)) {
+        bke::GeometrySet geometry_orig = get_original_geometry_eval_copy(
+            *depsgraph_active, object, operator_eval_data, orig_mesh_states);
+        handles[i] = instances->add_new_reference(
+            bke::InstanceReference(std::move(geometry_orig)));
+      }
     }
+  }
 
-    bke::GeometrySet geometry_orig = get_original_geometry_eval_copy(
-        *depsgraph_active, *object, operator_eval_data, orig_mesh_states);
+  bke::GeometrySet new_geometry = nodes::execute_geometry_nodes_on_geometry(
+      *node_tree,
+      properties,
+      compute_context,
+      call_data,
+      bke::GeometrySet::from_instances(instances.release()));
 
-    bke::GeometrySet new_geometry = nodes::execute_geometry_nodes_on_geometry(
-        *node_tree, properties, compute_context, call_data, std::move(geometry_orig));
+  bke::Instances *new_instances = new_geometry.get_instances_for_write();
+  if (!new_instances) {
+    return OPERATOR_CANCELLED;
+  }
 
+  const Span<bke::InstanceReference> references = new_instances->references();
+  const Span<int> handles = new_instances->reference_handles();
+  const Span<float4x4> transforms = new_instances->transforms();
+
+  for (const int i : IndexRange(std::min(objects.size(), handles.size()))) {
+    Object &object = *objects[i];
+    if (!math::is_identity(transforms[i])) {
+      BKE_object_apply_mat4(&object, transforms[i].ptr(), false, false);
+      DEG_id_tag_update(&object.id, ID_RECALC_TRANSFORM);
+    }
+    bke::GeometrySet new_object_geometry;
+    references[handles[i]].to_geometry_set(new_object_geometry);
     store_result_geometry(
-        *C, *op, *depsgraph_active, *bmain, *scene, *object, rv3d, std::move(new_geometry));
-    WM_event_add_notifier(C, NC_GEOM | ND_DATA, object->data);
+        *C, *op, *depsgraph_active, *bmain, *scene, object, rv3d, std::move(new_object_geometry));
+  }
+
+  for (const int i : objects.index_range()) {
+    Object &object = *objects[i];
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, object.data);
   }
 
   geo_log::GeoTreeLog &tree_log = eval_log.log->get_tree_log(compute_context.hash());
