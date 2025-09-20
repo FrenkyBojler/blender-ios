@@ -741,6 +741,11 @@ static wmOperatorStatus run_node_group_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
+  const bool objects_as_instances = active_object->mode == OB_MODE_OBJECT &&
+                                    node_tree->geometry_node_asset_traits &&
+                                    (node_tree->geometry_node_asset_traits->flag &
+                                     GEO_NODE_ASSET_WAIT_FOR_CURSOR) != 0;
+
   bke::OperatorComputeContext compute_context;
   Set<ComputeContextHash> socket_log_contexts;
   GeoOperatorLog &eval_log = get_static_eval_log();
@@ -755,7 +760,7 @@ static wmOperatorStatus run_node_group_exec(bContext *C, wmOperator *op)
   nodes::GeoNodesOperatorData operator_eval_data{};
   operator_eval_data.mode = mode;
   operator_eval_data.depsgraphs = &depsgraphs;
-  operator_eval_data.self_object_orig = active_object;
+  operator_eval_data.self_object_orig = nullptr;
   operator_eval_data.scene_orig = scene;
   RNA_int_get_array(op->ptr, "mouse_position", operator_eval_data.mouse_position);
   RNA_int_get_array(op->ptr, "region_size", operator_eval_data.region_size);
@@ -770,138 +775,165 @@ static wmOperatorStatus run_node_group_exec(bContext *C, wmOperator *op)
   nodes::GeoNodesCallData call_data{};
   call_data.operator_data = &operator_eval_data;
   call_data.eval_log = eval_log.log.get();
-  call_data.socket_log_contexts = &socket_log_contexts;
 
-  auto instances = std::make_unique<bke::Instances>();
-  instances->resize(objects.size());
+  if (objects_as_instances) {
+    operator_eval_data.self_object_orig = active_object;
+    call_data.socket_log_contexts = &socket_log_contexts;
 
-  {
-    Set<void *> unique_data;
-    MutableSpan<float4x4> transforms = instances->transforms_for_write();
-    MutableSpan<int> handles = instances->reference_handles_for_write();
-    for (const int i : objects.index_range()) {
-      Object &object = *objects[i];
-      transforms[i] = object.object_to_world();
-      if (unique_data.add(object.data)) {
-        bke::GeometrySet geometry_orig = get_original_geometry_eval_copy(
-            *depsgraph_active, object, operator_eval_data, orig_mesh_states);
-        geometry_orig.name = BKE_id_name(object.id);
-        handles[i] = instances->add_new_reference(std::move(geometry_orig));
+    auto instances = std::make_unique<bke::Instances>();
+    instances->resize(objects.size());
+
+    {
+      Set<void *> unique_data;
+      MutableSpan<float4x4> transforms = instances->transforms_for_write();
+      MutableSpan<int> handles = instances->reference_handles_for_write();
+      for (const int i : objects.index_range()) {
+        Object &object = *objects[i];
+        transforms[i] = object.object_to_world();
+        if (unique_data.add(object.data)) {
+          bke::GeometrySet geometry_orig = get_original_geometry_eval_copy(
+              *depsgraph_active, object, operator_eval_data, orig_mesh_states);
+          geometry_orig.name = BKE_id_name(object.id);
+          handles[i] = instances->add_new_reference(std::move(geometry_orig));
+        }
       }
     }
-  }
 
-  bke::GeometrySet new_geometry = nodes::execute_geometry_nodes_on_geometry(
-      *node_tree,
-      properties,
-      compute_context,
-      call_data,
-      bke::GeometrySet::from_instances(instances.release()));
+    bke::GeometrySet new_geometry = nodes::execute_geometry_nodes_on_geometry(
+        *node_tree,
+        properties,
+        compute_context,
+        call_data,
+        bke::GeometrySet::from_instances(instances.release()));
 
-  bke::Instances *new_instances = new_geometry.get_instances_for_write();
-  if (!new_instances) {
-    return OPERATOR_CANCELLED;
-  }
-
-  Map<std::string, std::pair<float4x4, bke::GeometrySet>> instance_by_name;
-  {
-    const Span<bke::InstanceReference> references = new_instances->references();
-    const Span<int> handles = new_instances->reference_handles();
-    const Span<float4x4> transforms = new_instances->transforms();
-    instance_by_name.reserve(new_instances->instances_num());
-    for (const int i : handles.index_range()) {
-      /* In the future we shouldn't need to run "to_geometry_set"; we could keep top-level
-       * collection instances as empty objects. For now, the empty geometry sets from these cases
-       * will create empty objects that don't instance anything, but that's at least better than
-       * losing all the data. */
-      bke::GeometrySet geometry;
-      references[handles[i]].to_geometry_set(geometry);
-      std::string unique_name = BLI_uniquename_cb(
-          [&](const StringRef name) { return instance_by_name.contains(name); },
-          '.',
-          geometry.name);
-      instance_by_name.add(std::move(unique_name), {transforms[i], std::move(geometry)});
-    }
-  }
-
-  Set<ID *> objects_to_delete;
-  for (Object *object : objects) {
-    std::optional data = instance_by_name.pop_try_as(BKE_id_name(object->id));
-    if (!data) {
-      objects_to_delete.add_new(&object->id);
-      continue;
+    bke::Instances *new_instances = new_geometry.get_instances_for_write();
+    if (!new_instances) {
+      return OPERATOR_CANCELLED;
     }
 
-    const float4x4 &transform = data->first;
-    bke::GeometrySet &new_geometry = data->second;
-    if (!math::is_equal(transform, object->object_to_world(), 1e-6f)) {
-      BKE_object_apply_mat4(object, transform.ptr(), false, false);
-      DEG_id_tag_update(&object->id, ID_RECALC_TRANSFORM);
+    Map<std::string, std::pair<float4x4, bke::GeometrySet>> instance_by_name;
+    {
+      const Span<bke::InstanceReference> references = new_instances->references();
+      const Span<int> handles = new_instances->reference_handles();
+      const Span<float4x4> transforms = new_instances->transforms();
+      instance_by_name.reserve(new_instances->instances_num());
+      for (const int i : handles.index_range()) {
+        /* In the future we shouldn't need to run "to_geometry_set"; we could keep top-level
+         * collection instances as empty objects. For now, the empty geometry sets from these cases
+         * will create empty objects that don't instance anything, but that's at least better than
+         * losing all the data. */
+        bke::GeometrySet geometry;
+        references[handles[i]].to_geometry_set(geometry);
+        std::string unique_name = BLI_uniquename_cb(
+            [&](const StringRef name) { return instance_by_name.contains(name); },
+            '.',
+            geometry.name);
+        instance_by_name.add(std::move(unique_name), {transforms[i], std::move(geometry)});
+      }
     }
 
-    store_result_geometry(
-        *C, *op, *depsgraph_active, *bmain, *scene, *object, rv3d, std::move(new_geometry));
-
-    WM_event_add_notifier(C, NC_GEOM | ND_DATA, object->data);
-  }
-
-  BKE_id_multi_delete(bmain, objects_to_delete);
-
-  if (!instance_by_name.is_empty()) {
-    Set<Object *> new_objects;
-    new_objects.reserve(instance_by_name.size());
-    for (const auto &[name, data] : instance_by_name.items()) {
-      const float4x4 &transform = data.first;
-      bke::GeometrySet &new_geometry = data.second;
-
-      ObjectType object_type = OB_EMPTY;
-      ID *object_data = nullptr;
-      if (new_geometry.has_mesh()) {
-        object_type = OB_MESH;
-        object_data = &BKE_id_new<Mesh>(bmain, name.c_str())->id;
+    Set<ID *> objects_to_delete;
+    for (Object *object : objects) {
+      std::optional data = instance_by_name.pop_try_as(BKE_id_name(object->id));
+      if (!data) {
+        objects_to_delete.add_new(&object->id);
+        continue;
       }
-      else if (new_geometry.has_pointcloud()) {
-        object_type = OB_POINTCLOUD;
-        object_data = &BKE_id_new<PointCloud>(bmain, name.c_str())->id;
-      }
-      else if (new_geometry.has_curves()) {
-        object_type = OB_CURVES;
-        object_data = &BKE_id_new<Curves>(bmain, name.c_str())->id;
-      }
-      else if (new_geometry.has_grease_pencil()) {
-        object_type = OB_GREASE_PENCIL;
-        object_data = &BKE_id_new<GreasePencil>(bmain, name.c_str())->id;
-      }
-      Object *new_object = BKE_object_add_only_object(bmain, object_type, name.c_str());
-      new_object->data = object_data;
-      id_us_plus(object_data);
 
-      new_objects.add(new_object);
-
-      BKE_object_apply_mat4(new_object, transform.ptr(), false, false);
+      const float4x4 &transform = data->first;
+      bke::GeometrySet &new_geometry = data->second;
+      if (!math::is_equal(transform, object->object_to_world(), 1e-6f)) {
+        BKE_object_apply_mat4(object, transform.ptr(), false, false);
+        DEG_id_tag_update(&object->id, ID_RECALC_TRANSFORM);
+      }
 
       store_result_geometry(
-          *C, *op, *depsgraph_active, *bmain, *scene, *new_object, rv3d, std::move(new_geometry));
+          *C, *op, *depsgraph_active, *bmain, *scene, *object, rv3d, std::move(new_geometry));
+
+      WM_event_add_notifier(C, NC_GEOM | ND_DATA, object->data);
     }
 
-    Collection *collection = BKE_layer_collection_get_active(view_layer)->collection;
-    for (Object *new_object : new_objects) {
-      BKE_collection_viewlayer_object_add(bmain, view_layer, collection, new_object);
+    BKE_id_multi_delete(bmain, objects_to_delete);
+
+    if (!instance_by_name.is_empty()) {
+      Set<Object *> new_objects;
+      new_objects.reserve(instance_by_name.size());
+      for (const auto &[name, data] : instance_by_name.items()) {
+        const float4x4 &transform = data.first;
+        bke::GeometrySet &new_geometry = data.second;
+
+        ObjectType object_type = OB_EMPTY;
+        ID *object_data = nullptr;
+        if (new_geometry.has_mesh()) {
+          object_type = OB_MESH;
+          object_data = &BKE_id_new<Mesh>(bmain, name.c_str())->id;
+        }
+        else if (new_geometry.has_pointcloud()) {
+          object_type = OB_POINTCLOUD;
+          object_data = &BKE_id_new<PointCloud>(bmain, name.c_str())->id;
+        }
+        else if (new_geometry.has_curves()) {
+          object_type = OB_CURVES;
+          object_data = &BKE_id_new<Curves>(bmain, name.c_str())->id;
+        }
+        else if (new_geometry.has_grease_pencil()) {
+          object_type = OB_GREASE_PENCIL;
+          object_data = &BKE_id_new<GreasePencil>(bmain, name.c_str())->id;
+        }
+        Object *new_object = BKE_object_add_only_object(bmain, object_type, name.c_str());
+        new_object->data = object_data;
+        id_us_plus(object_data);
+
+        new_objects.add(new_object);
+
+        BKE_object_apply_mat4(new_object, transform.ptr(), false, false);
+
+        store_result_geometry(*C,
+                              *op,
+                              *depsgraph_active,
+                              *bmain,
+                              *scene,
+                              *new_object,
+                              rv3d,
+                              std::move(new_geometry));
+      }
+
+      Collection *collection = BKE_layer_collection_get_active(view_layer)->collection;
+      for (Object *new_object : new_objects) {
+        BKE_collection_viewlayer_object_add(bmain, view_layer, collection, new_object);
+      }
+
+      BKE_view_layer_synced_ensure(scene, view_layer);
+      for (Object *new_object : new_objects) {
+        Base *base = BKE_view_layer_base_find(view_layer, new_object);
+        base->flag |= BASE_SELECTED;
+        WM_event_add_notifier(C, NC_GEOM | ND_DATA, new_object->data);
+      }
+
+      DEG_relations_tag_update(bmain);
+
+      WM_event_add_notifier(C, NC_SCENE | ND_LAYER_CONTENT, scene);
+      DEG_id_tag_update(&scene->id, ID_RECALC_BASE_FLAGS);
+
+      ED_outliner_select_sync_from_object_tag(C);
     }
+  }
+  else {
+    for (Object *object : objects) {
+      operator_eval_data.self_object_orig = object;
+      /* Only log values from the active object. */
+      call_data.socket_log_contexts = object == active_object ? &socket_log_contexts : nullptr;
 
-    BKE_view_layer_synced_ensure(scene, view_layer);
-    for (Object *new_object : new_objects) {
-      Base *base = BKE_view_layer_base_find(view_layer, new_object);
-      base->flag |= BASE_SELECTED;
-      WM_event_add_notifier(C, NC_GEOM | ND_DATA, new_object->data);
+      bke::GeometrySet geometry_orig = get_original_geometry_eval_copy(
+          *depsgraph_active, *object, operator_eval_data, orig_mesh_states);
+
+      bke::GeometrySet new_geometry = nodes::execute_geometry_nodes_on_geometry(
+          *node_tree, properties, compute_context, call_data, std::move(geometry_orig));
+
+      store_result_geometry(
+          *C, *op, *depsgraph_active, *bmain, *scene, *object, rv3d, std::move(new_geometry));
+      WM_event_add_notifier(C, NC_GEOM | ND_DATA, object->data);
     }
-
-    DEG_relations_tag_update(bmain);
-
-    WM_event_add_notifier(C, NC_SCENE | ND_LAYER_CONTENT, scene);
-    DEG_id_tag_update(&scene->id, ID_RECALC_BASE_FLAGS);
-
-    ED_outliner_select_sync_from_object_tag(C);
   }
 
   geo_log::GeoTreeLog &tree_log = eval_log.log->get_tree_log(compute_context.hash());

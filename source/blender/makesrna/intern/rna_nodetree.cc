@@ -2280,6 +2280,15 @@ static void rna_GeometryNodeTree_use_wait_for_click_set(PointerRNA *ptr, bool va
   geometry_node_asset_trait_flag_set(ptr, GEO_NODE_ASSET_WAIT_FOR_CURSOR, value);
 }
 
+static bool rna_GeometryNodeTree_objects_as_instances_get(PointerRNA *ptr)
+{
+  return geometry_node_asset_trait_flag_get(ptr, GEO_NODE_ASSET_OBJECTS_AS_INSTANCES);
+}
+static void rna_GeometryNodeTree_objects_as_instances_set(PointerRNA *ptr, bool value)
+{
+  geometry_node_asset_trait_flag_set(ptr, GEO_NODE_ASSET_OBJECTS_AS_INSTANCES, value);
+}
+
 static bool rna_GeometryNodeTree_is_type_grease_pencil_get(PointerRNA *ptr)
 {
   return geometry_node_asset_trait_flag_get(ptr, GEO_NODE_ASSET_GREASE_PENCIL);
@@ -9413,12 +9422,17 @@ static void rna_def_geometry_nodetree(BlenderRNA *brna)
                                  "rna_GeometryNodeTree_use_wait_for_click_set");
   RNA_def_property_update(prop, NC_NODE | ND_DISPLAY, "rna_NodeTree_update_asset");
 
-  prop = RNA_def_property(srna, "process_individual_objects", PROP_BOOLEAN, PROP_NONE);
+  prop = RNA_def_property(srna, "use_objects_as_instances", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
-  RNA_def_property_ui_text(prop, "TODO", "");
+  RNA_def_property_ui_text(
+      prop,
+      "Objects as Instances",
+      "Pass all selected objects together as instances to the node group. Objects are mapped to "
+      "instances via geometry name, and can be added or removed via equivalent changes to "
+      "instances");
   RNA_def_property_boolean_funcs(prop,
-                                 "rna_GeometryNodeTree_use_wait_for_click_get",
-                                 "rna_GeometryNodeTree_use_wait_for_click_set");
+                                 "rna_GeometryNodeTree_objects_as_instances_get",
+                                 "rna_GeometryNodeTree_objects_as_instances_set");
   RNA_def_property_update(prop, NC_NODE | ND_DISPLAY, "rna_NodeTree_update_asset");
 
   prop = RNA_def_property(srna, "is_type_grease_pencil", PROP_BOOLEAN, PROP_NONE);
