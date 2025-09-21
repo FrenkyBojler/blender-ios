@@ -9,6 +9,7 @@
 #include <functional>
 #include <vector>
 
+#include "BLI_vector.hh"
 #include "GEO_uv_parametrizer.hh"
 
 #include "BLI_array.hh"
@@ -1226,6 +1227,65 @@ static void p_chart_boundaries(PChart *chart, PEdge **r_outer)
   for (e = chart->edges; e; e = e->nextlink) {
     e->flag &= ~PEDGE_DONE;
   }
+}
+
+static bool uv_edges_match(PEdge *e1, PEdge *e2)
+{
+  return (equals_v2v2(e1->orig_uv, e2->orig_uv) &&
+          equals_v2v2(e1->next->orig_uv, e2->next->orig_uv)) ||
+         (equals_v2v2(e1->orig_uv, e2->next->orig_uv) &&
+          equals_v2v2(e1->next->orig_uv, e2->orig_uv));
+}
+
+/**
+ * Get bounding boxes for each individual disconnected island within a pChart.
+ */
+static Vector<blender::Bounds<blender::float2>> p_chart_get_island_bboxes(PChart *chart)
+{
+  Vector<blender::Bounds<blender::float2>> island_bboxes;
+  if (!chart) {
+    return island_bboxes;
+  }
+
+  /* Traverse each unprocessed face */
+  for (PFace *start_face = chart->faces; start_face; start_face = start_face->nextlink) {
+    if (start_face->flag & PFACE_DONE) {
+      continue;
+    }
+
+    blender::Bounds<blender::float2> bounds;
+    INIT_MINMAX2(bounds.min, bounds.max);
+
+    Vector<PFace *> face_stack;
+    face_stack.append(start_face);
+    start_face->flag |= PFACE_DONE;
+
+    while (!face_stack.is_empty()) {
+      PEdge *e = face_stack.pop_last()->edge;
+
+      for (int i = 0; i < 3; i++) {
+        minmax_v2v2_v2(bounds.min, bounds.max, e->orig_uv);
+
+        if (e->pair && !(e->pair->face->flag & PFACE_DONE)) {
+          if (uv_edges_match(e, e->pair)) {
+            e->pair->face->flag |= PFACE_DONE;
+            face_stack.append(e->pair->face);
+          }
+        }
+
+        e = e->next;
+      }
+    }
+
+    island_bboxes.append(bounds);
+  }
+
+  /* Clear flags after processing */
+  for (PFace *f = chart->faces; f; f = f->nextlink) {
+    f->flag &= ~PFACE_DONE;
+  }
+
+  return island_bboxes;
 }
 
 static float p_edge_boundary_angle(PEdge *e)
@@ -3063,7 +3123,21 @@ static void p_chart_lscm_begin(PChart *chart, bool live, bool abf, const bool un
   bool deselect = false;
   int npins = 0;
   if (uniform_bounding_box) {
-    p_chart_uv_bbox(chart, chart->orig_bounds.min, chart->orig_bounds.max);
+    Vector<blender::Bounds<blender::float2>> island_bboxes = p_chart_get_island_bboxes(chart);
+    if (!island_bboxes.is_empty()) {
+
+      for (blender::Bounds<blender::float2> bbox : island_bboxes) {
+        if (chart->orig_bounds.is_empty()) {
+          chart->orig_bounds = bbox;
+        }
+        else {
+          float2 max_size;
+          max_size[0] = max_ff(chart->orig_bounds.size()[0], bbox.size()[0]);
+          max_size[1] = max_ff(chart->orig_bounds.size()[1], bbox.size()[1]);
+          chart->orig_bounds.resize(max_size);
+        }
+      }
+    }
   }
   /* Give vertices matrix indices, count pins and check selections. */
   for (PVert *v = chart->verts; v; v = v->nextlink) {
@@ -5132,7 +5206,18 @@ static void slim_convert_blender(ParamHandle *phandle,
   for (int i = 0; i < phandle->ncharts; i++) {
     PChart *chart = phandle->charts[i];
     if (uniform_bounding_box) {
-      p_chart_uv_bbox(chart, chart->orig_bounds.min, chart->orig_bounds.max);
+      Vector<blender::Bounds<blender::float2>> island_bboxes = p_chart_get_island_bboxes(chart);
+      for (blender::Bounds<blender::float2> bbox : island_bboxes) {
+        if (chart->orig_bounds.is_empty()) {
+          chart->orig_bounds = bbox;
+        }
+        else {
+          float2 max_size;
+          max_size[0] = max_ff(chart->orig_bounds.size()[0], bbox.size()[0]);
+          max_size[1] = max_ff(chart->orig_bounds.size()[1], bbox.size()[1]);
+          chart->orig_bounds.resize(max_size);
+        }
+      }
     }
     slim::MatrixTransferChart *mt_chart = &mt->charts[i];
 
@@ -5307,7 +5392,7 @@ void uv_parametrizer_slim_solve(ParamHandle *phandle,
 #else
   *count_changed = 0;
   *count_failed = 0;
-  UNUSED_VARS(phandle, slim_options, count_changed, count_failed);
+  UNUSED_VARS(phandle, slim_options, uniform_bounding_box, count_changed, count_failed);
 #endif /* !WITH_UV_SLIM */
 }
 
