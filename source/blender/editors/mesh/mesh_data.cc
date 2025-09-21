@@ -150,7 +150,7 @@ static void mesh_uv_reset_array(float **fuv, const int len)
   }
 }
 
-static void mesh_uv_reset_bmface(BMFace *f, const int cd_loop_uv_offset)
+static void reset_uvs_bmesh(BMFace *f, const int cd_loop_uv_offset)
 {
   Array<float *, BM_DEFAULT_NGON_STACK_SIZE> fuv(f->len);
   BMIter liter;
@@ -164,47 +164,41 @@ static void mesh_uv_reset_bmface(BMFace *f, const int cd_loop_uv_offset)
   mesh_uv_reset_array(fuv.data(), f->len);
 }
 
-static void mesh_uv_reset_mface(const blender::IndexRange face, float2 *uv_map)
+static void reset_uvs_mesh(const blender::IndexRange face, MutableSpan<float2> uv_map)
 {
   Array<float *, BM_DEFAULT_NGON_STACK_SIZE> fuv(face.size());
 
   for (int i = 0; i < face.size(); i++) {
-    fuv[i] = uv_map[face[i]];
+    fuv[i] = &uv_map[face[i]].x;
   }
 
   mesh_uv_reset_array(fuv.data(), face.size());
 }
 
-static void mesh_uv_loop_reset_ex(Mesh *mesh, const StringRef name)
+static void reset_uv_map(Mesh *mesh, const StringRef name)
 {
   using namespace blender;
   if (BMEditMesh *em = mesh->runtime->edit_mesh.get()) {
-    /* Collect BMesh UVs */
     const int cd_loop_uv_offset = CustomData_get_offset_named(
         &em->bm->ldata, CD_PROP_FLOAT2, name);
+    BLI_assert(cd_loop_uv_offset >= 0);
 
     BMFace *efa;
     BMIter iter;
-
-    BLI_assert(cd_loop_uv_offset >= 0);
-
     BM_ITER_MESH (efa, &iter, em->bm, BM_FACES_OF_MESH) {
       if (!BM_elem_flag_test(efa, BM_ELEM_SELECT)) {
         continue;
       }
-
-      mesh_uv_reset_bmface(efa, cd_loop_uv_offset);
+      reset_uvs_bmesh(efa, cd_loop_uv_offset);
     }
   }
   else {
-    /* Collect Mesh UVs */
+    const OffsetIndices faces = mesh->faces();
     bke::MutableAttributeAccessor attributes = mesh->attributes_for_write();
-    bke::SpanAttributeWriter<float2> uv_map = attributes.lookup_or_add_for_write_span<float2>(
-        name, bke::AttrDomain::Corner);
-
-    const blender::OffsetIndices polys = mesh->faces();
-    for (const int i : polys.index_range()) {
-      mesh_uv_reset_mface(polys[i], uv_map.span.data());
+    bke::SpanAttributeWriter uv_map = attributes.lookup_for_write_span<float2>(name);
+    BLI_assert(uv_map.domain == bke::AttrDomain::Corner);
+    for (const int i : faces.index_range()) {
+      reset_uvs_mesh(faces[i], uv_map.span);
     }
     uv_map.finish();
   }
@@ -214,7 +208,7 @@ static void mesh_uv_loop_reset_ex(Mesh *mesh, const StringRef name)
 
 void ED_mesh_uv_loop_reset(bContext *C, Mesh *mesh)
 {
-  mesh_uv_loop_reset_ex(mesh, mesh->active_uv_map_attribute);
+  reset_uv_map(mesh, mesh->active_uv_map_attribute);
 
   WM_event_add_notifier(C, NC_GEOM | ND_DATA, mesh);
 }
@@ -284,7 +278,7 @@ int ED_mesh_uv_add(
 
   /* don't overwrite our copied coords */
   if (!is_init && do_init) {
-    mesh_uv_loop_reset_ex(mesh, unique_name);
+    reset_uv_map(mesh, unique_name);
   }
 
   DEG_id_tag_update(&mesh->id, 0);
