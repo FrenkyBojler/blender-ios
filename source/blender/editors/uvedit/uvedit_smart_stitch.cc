@@ -17,9 +17,11 @@
 #include "DNA_scene_types.h"
 #include "DNA_windowmanager_types.h"
 
+#include "BLI_array.hh"
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
+#include "BLI_math_vector_types.hh"
 
 #include "BLT_translation.hh"
 
@@ -170,7 +172,8 @@ struct StitchState {
   /* preview data */
   StitchPreviewer *stitch_preview;
 
-  BMesh *bm_orig;
+  /* original UV coordinates */
+  blender::Array<blender::float2> orig_uv_coords;
 };
 
 /* Stitch state container. */
@@ -644,7 +647,7 @@ static void state_delete(StitchState *state)
     if (state->edge_hash) {
       BLI_ghash_free(state->edge_hash, nullptr, nullptr);
     }
-    MEM_freeN(state);
+    MEM_delete(state);
   }
 }
 
@@ -1172,6 +1175,37 @@ static int stitch_process_data(StitchStateContainer *ssc,
       return 0;
     }
 
+    BM_ITER_MESH (efa, &iter, bm, BM_FACES_OF_MESH) {
+      /* just to test if face was added for processing.
+       * uvs of unselected vertices will return null */
+      UvElement *element = BM_uv_element_get(state->element_map, BM_FACE_FIRST_LOOP(efa));
+      if (element) {
+        int numoftris = efa->len - 2;
+
+        /* if this is the static_island on the active object */
+        if (element->island == ssc->static_island) {
+          BMLoop *fl = BM_FACE_FIRST_LOOP(efa);
+          float *fuv = BM_ELEM_CD_GET_FLOAT_P(fl, cd_loop_uv_offset);
+
+          BM_ITER_ELEM_INDEX (l, &liter, efa, BM_LOOPS_OF_FACE, i) {
+            if (i < numoftris) {
+              /* using next since the first uv is already accounted for */
+              BMLoop *lnext = l->next;
+              float *luvnext = BM_ELEM_CD_GET_FLOAT_P(lnext->next, cd_loop_uv_offset);
+              luv = BM_ELEM_CD_GET_FLOAT_P(lnext, cd_loop_uv_offset);
+
+              memcpy(preview->static_tris + buffer_index, fuv, sizeof(float[2]));
+              memcpy(preview->static_tris + buffer_index + 2, luv, sizeof(float[2]));
+              memcpy(preview->static_tris + buffer_index + 4, luvnext, sizeof(float[2]));
+              buffer_index += 6;
+            }
+            else {
+              break;
+            }
+          }
+        }
+      }
+    }
     if (ssc->match_target) {
       Vector<BMFace *> orig_face_sel;
       BM_ITER_MESH (efa, &iter, bm, BM_FACES_OF_MESH) {
@@ -1246,14 +1280,12 @@ static int stitch_process_data(StitchStateContainer *ssc,
         }
       }
     }
-    /* copy data from UVs to the preview display buffers */
     BM_ITER_MESH (efa, &iter, bm, BM_FACES_OF_MESH) {
       /* just to test if face was added for processing.
        * uvs of unselected vertices will return null */
       UvElement *element = BM_uv_element_get(state->element_map, BM_FACE_FIRST_LOOP(efa));
 
       if (element) {
-        int numoftris = efa->len - 2;
         int index = BM_elem_index_get(efa);
         int face_preview_pos = preview_position[index].data_position;
         if (face_preview_pos != STITCH_NO_PREVIEW) {
@@ -1261,29 +1293,6 @@ static int stitch_process_data(StitchStateContainer *ssc,
           BM_ITER_ELEM_INDEX (l, &liter, efa, BM_LOOPS_OF_FACE, i) {
             luv = BM_ELEM_CD_GET_FLOAT_P(l, cd_loop_uv_offset);
             copy_v2_v2(preview->preview_polys + face_preview_pos + i * 2, luv);
-          }
-        }
-
-        /* if this is the static_island on the active object */
-        if (element->island == ssc->static_island) {
-          BMLoop *fl = BM_FACE_FIRST_LOOP(efa);
-          float *fuv = BM_ELEM_CD_GET_FLOAT_P(fl, cd_loop_uv_offset);
-
-          BM_ITER_ELEM_INDEX (l, &liter, efa, BM_LOOPS_OF_FACE, i) {
-            if (i < numoftris) {
-              /* using next since the first uv is already accounted for */
-              BMLoop *lnext = l->next;
-              float *luvnext = BM_ELEM_CD_GET_FLOAT_P(lnext->next, cd_loop_uv_offset);
-              luv = BM_ELEM_CD_GET_FLOAT_P(lnext, cd_loop_uv_offset);
-
-              memcpy(preview->static_tris + buffer_index, fuv, sizeof(float[2]));
-              memcpy(preview->static_tris + buffer_index + 2, luv, sizeof(float[2]));
-              memcpy(preview->static_tris + buffer_index + 4, luvnext, sizeof(float[2]));
-              buffer_index += 6;
-            }
-            else {
-              break;
-            }
           }
         }
       }
@@ -1704,15 +1713,21 @@ static void stitch_set_selection_mode(StitchState *state, const char from_stitch
   }
   MEM_freeN(old_selection_stack);
 }
-static void stitch_restore_original_bmesh(StitchState *state)
+
+static void stitch_restore_original_uvs(StitchState *state)
 {
-  BM_mesh_free(state->em->bm);
-  state->em->bm = BM_mesh_copy(state->bm_orig);
+  BMUVOffsets offsets = BM_uv_map_offsets_get(state->em->bm);
+  for (int i = 0; i < state->element_map->total_uvs; i++) {
+    UvElement *element = &state->element_map->storage[i];
+    float *luv = BM_ELEM_CD_GET_FLOAT_P(element->l, offsets.uv);
+    luv[0] = state->orig_uv_coords[i].x;
+    luv[1] = state->orig_uv_coords[i].y;
+  }
 }
-static void stitch_restore_original_bmesh_all(StitchStateContainer *ssc)
+static void stitch_restore_original_uvs_all(StitchStateContainer *ssc)
 {
   for (uint ob_index = 0; ob_index < ssc->objects_len; ob_index++) {
-    stitch_restore_original_bmesh(ssc->states[ob_index]);
+    stitch_restore_original_uvs(ssc->states[ob_index]);
   }
 }
 static void stitch_switch_selection_mode_all(StitchStateContainer *ssc)
@@ -1939,12 +1954,11 @@ static StitchState *stitch_init(bContext *C,
   BMEditMesh *em = BKE_editmesh_from_object(obedit);
   const BMUVOffsets offsets = BM_uv_map_offsets_get(em->bm);
 
-  state = MEM_callocN<StitchState>("stitch state obj");
+  state = MEM_new<StitchState>("stitch state obj");
 
   /* initialize state */
   state->obedit = obedit;
   state->em = em;
-  state->bm_orig = BM_mesh_copy(em->bm);
 
   /* Workaround for sync-select & face-select mode which implies all selected faces are detached,
    * for stitch this isn't useful behavior, see #86924. */
@@ -1956,6 +1970,14 @@ static StitchState *stitch_init(bContext *C,
   if (!state->element_map) {
     state_delete(state);
     return nullptr;
+  }
+
+  /* Store original UV coordinates */
+  state->orig_uv_coords = blender::Array<blender::float2>(state->element_map->total_uvs);
+  for (int i = 0; i < state->element_map->total_uvs; i++) {
+    UvElement *element = &state->element_map->storage[i];
+    float *luv = BM_ELEM_CD_GET_FLOAT_P(element->l, offsets.uv);
+    state->orig_uv_coords[i] = blender::float2(luv[0], luv[1]);
   }
 
   state->aspect = ED_uvedit_get_aspect_y(obedit);
@@ -2676,6 +2698,9 @@ static wmOperatorStatus stitch_modal(bContext *C, wmOperator *op, const wmEvent 
     case EVT_LKEY:
       if (event->val == KM_PRESS) {
         ssc->use_limit = !ssc->use_limit;
+        if (ssc->match_target) {
+          stitch_restore_original_uvs(active_state);
+        }
         if (!stitch_process_data(ssc, active_state, scene, false)) {
           stitch_cancel(C, op);
           return OPERATOR_CANCELLED;
@@ -2694,7 +2719,7 @@ static wmOperatorStatus stitch_modal(bContext *C, wmOperator *op, const wmEvent 
           /* active_state is the original active state */
           if (active_state != new_active_state) {
             if (ssc->match_target) {
-              stitch_restore_original_bmesh(active_state);
+              stitch_restore_original_uvs(active_state);
             }
 
             if (!stitch_process_data(ssc, active_state, scene, false)) {
@@ -2703,7 +2728,7 @@ static wmOperatorStatus stitch_modal(bContext *C, wmOperator *op, const wmEvent 
             }
           }
           if (ssc->match_target) {
-            stitch_restore_original_bmesh(new_active_state);
+            stitch_restore_original_uvs(new_active_state);
           }
 
           if (!stitch_process_data(ssc, new_active_state, scene, false)) {
@@ -2718,6 +2743,9 @@ static wmOperatorStatus stitch_modal(bContext *C, wmOperator *op, const wmEvent 
     case EVT_MKEY:
       if (event->val == KM_PRESS) {
         ssc->midpoints = !ssc->midpoints;
+        if (ssc->match_target) {
+          stitch_restore_original_uvs(active_state);
+        }
         if (!stitch_process_data(ssc, active_state, scene, false)) {
           stitch_cancel(C, op);
           return OPERATOR_CANCELLED;
@@ -2746,6 +2774,9 @@ static wmOperatorStatus stitch_modal(bContext *C, wmOperator *op, const wmEvent 
     case EVT_SKEY:
       if (event->val == KM_PRESS) {
         ssc->snap_islands = !ssc->snap_islands;
+        if (ssc->match_target) {
+          stitch_restore_original_uvs(active_state);
+        }
         if (!stitch_process_data(ssc, active_state, scene, false)) {
           stitch_cancel(C, op);
           return OPERATOR_CANCELLED;
@@ -2761,7 +2792,7 @@ static wmOperatorStatus stitch_modal(bContext *C, wmOperator *op, const wmEvent 
       if (event->val == KM_PRESS) {
         stitch_switch_selection_mode_all(ssc);
         if (ssc->match_target) {
-          stitch_restore_original_bmesh_all(ssc);
+          stitch_restore_original_uvs_all(ssc);
         }
         if (!stitch_process_data_all(ssc, scene, false)) {
           stitch_cancel(C, op);
@@ -2773,7 +2804,7 @@ static wmOperatorStatus stitch_modal(bContext *C, wmOperator *op, const wmEvent 
     case EVT_TKEY:
       if (event->val == KM_PRESS) {
         ssc->match_target = !ssc->match_target;
-        stitch_restore_original_bmesh(active_state);
+        stitch_restore_original_uvs(active_state);
         if (!stitch_process_data(ssc, active_state, scene, false)) {
           stitch_cancel(C, op);
           return OPERATOR_CANCELLED;
