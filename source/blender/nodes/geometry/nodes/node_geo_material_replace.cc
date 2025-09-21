@@ -4,9 +4,12 @@
 
 #include "node_geometry_util.hh"
 
+#include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
 
 #include "GEO_foreach_geometry.hh"
+
+#include "DEG_depsgraph_query.hh"
 
 #include "BKE_grease_pencil.hh"
 
@@ -28,8 +31,22 @@ static void replace_materials(MutableSpan<Material *> materials,
                               Material *src_material,
                               Material *dst_material)
 {
+  if (src_material == nullptr) {
+    for (const int i : materials.index_range()) {
+      if (materials[i] == src_material) {
+        materials[i] = dst_material;
+      }
+    }
+    return;
+  }
+
+  const ID *src_original_material = DEG_get_original_id(&src_material->id);
   for (const int i : materials.index_range()) {
-    if (materials[i] == src_material) {
+    if (materials[i] == nullptr) {
+      continue;
+    }
+    const ID *id = DEG_get_original_id(&materials[i]->id);
+    if (id == src_original_material) {
       materials[i] = dst_material;
     }
   }
