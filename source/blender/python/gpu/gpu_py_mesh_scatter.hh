@@ -53,7 +53,7 @@ PyObject *pygpu_mesh_scatter(PyObject * self,
  *
  * Returns a borrowed reference to the module object on success, or nullptr on failure.
  */
-PyObject *bpygpu_mesh_init(void) ATTR_WARN_UNUSED_RESULT;
+PyObject *bpygpu_mesh_init() ATTR_WARN_UNUSED_RESULT;
 
 /* Free resources for mesh (called from draw code). */
 void bpygpu_mesh_scatter_free_for_mesh(Mesh *mesh);

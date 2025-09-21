@@ -111,7 +111,7 @@ void bpygpu_mesh_scatter_free_for_mesh(Mesh *mesh)
 
 /* Call this from module shutdown (or periodically when a GPU context is active)
  * to flush any deferred frees. */
-static void mesh_scatter_orphans_flush(void)
+static void mesh_scatter_orphans_flush()
 {
   if (!GPU_context_active_get()) {
     return;
@@ -370,11 +370,17 @@ void main() {
 }
 
 /* Free all cached mesh scatter resources (shader + ssbo) */
-static void mesh_scatter_resources_free_all(void)
+static void mesh_scatter_resources_free_all()
 {
   std::lock_guard<std::mutex> lock(g_mesh_scatter_resources_mutex);
   /* free map entries as before */
   for (auto &kv : g_mesh_scatter_resources) {
+    /* Reset mesh flag so mesh state is consistent after resource free. */
+    const Mesh *mesh_key = kv.first;
+    if (mesh_key) {
+      Mesh *mesh_mut = const_cast<Mesh *>(mesh_key);
+      mesh_mut->is_using_gpu_deform = 0;
+    }
     MeshScatterResources &r = kv.second;
     if (r.shader) {
       GPU_shader_free(r.shader);
