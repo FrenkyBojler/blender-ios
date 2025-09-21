@@ -203,6 +203,7 @@ class VIEW3D_PT_vr_actionmaps(Panel):
         col.prop(scene, "vr_actions_enable_reverb_g2", text="HP Reverb G2")
         col.prop(scene, "vr_actions_enable_vive_cosmos", text="HTC Vive Cosmos")
         col.prop(scene, "vr_actions_enable_vive_focus", text="HTC Vive Focus")
+        col.prop(scene, "vr_actions_enable_vive_tracker", text="HTC Vive Trackers")
         col.prop(scene, "vr_actions_enable_huawei", text="Huawei")
 
 

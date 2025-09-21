@@ -18,6 +18,7 @@ import os.path
 # Default action maps.
 class VRDefaultActionmaps(Enum):
     DEFAULT = "blender_default"
+    TRACKER = "blender_default_tracker"
     GAMEPAD = "blender_default_gamepad"
 
 
@@ -55,6 +56,7 @@ class VRDefaultActionbindings(Enum):
     VIVE = "vive"
     VIVE_COSMOS = "vive_cosmos"
     VIVE_FOCUS = "vive_focus"
+    VIVE_TRACKER = "vive_tracker"
     WMR = "wmr"
 
 
@@ -68,6 +70,7 @@ class VRDefaultActionprofiles(Enum):
     VIVE = "/interaction_profiles/htc/vive_controller"
     VIVE_COSMOS = "/interaction_profiles/htc/vive_cosmos_controller"
     VIVE_FOCUS = "/interaction_profiles/htc/vive_focus3_controller"
+    VIVE_TRACKER = "/interaction_profiles/htc/vive_tracker_htcx"
     WMR = "/interaction_profiles/microsoft/motion_controller"
 
 
@@ -1198,6 +1201,46 @@ def vr_defaults_create_default(session_state):
                                               "/output/haptic"])
 
 
+def vr_defaults_create_default_trackers(session_state):
+    am = vr_defaults_actionmap_add(session_state,
+                                   VRDefaultActionmaps.TRACKER.value)
+    if not am:
+        return
+
+    ami = vr_defaults_pose_action_add(am,
+                                      VRDefaultActions.CONTROLLER_GRIP.value,
+                                      ["/user/vive_tracker_htcx/role/left_foot",
+                                       "/user/vive_tracker_htcx/role/right_foot",
+                                       "/user/vive_tracker_htcx/role/left_shoulder",
+                                       "/user/vive_tracker_htcx/role/right_shoulder",
+                                       "/user/vive_tracker_htcx/role/left_elbow",
+                                       "/user/vive_tracker_htcx/role/right_elbow",
+                                       "/user/vive_tracker_htcx/role/left_knee",
+                                       "/user/vive_tracker_htcx/role/right_knee",
+                                       "/user/vive_tracker_htcx/role/waist",
+                                       "/user/vive_tracker_htcx/role/chest",
+                                       ],
+                                      True,
+                                      True)
+    if ami:
+        vr_defaults_pose_actionbinding_add(ami,
+                                           VRDefaultActionbindings.VIVE_TRACKER.value,
+                                           VRDefaultActionprofiles.VIVE_TRACKER.value,
+                                           ["/input/grip/pose",
+                                            "/input/grip/pose",
+                                            "/input/grip/pose",
+                                            "/input/grip/pose",
+                                            "/input/grip/pose",
+                                            "/input/grip/pose",
+                                            "/input/grip/pose",
+                                            "/input/grip/pose",
+                                            "/input/grip/pose",
+                                            "/input/grip/pose",
+                                            ],
+                                           (0, 0, 0),
+                                           (0, 0, 0))
+
+
 def vr_defaults_create_default_gamepad(session_state):
     am = vr_defaults_actionmap_add(session_state,
                                    VRDefaultActionmaps.GAMEPAD.value)
@@ -1492,6 +1535,7 @@ def vr_ensure_default_actionmaps(session_state):
     if not os.path.exists(filepath):
         # Create and save default action maps.
         vr_defaults_create_default(session_state)
+        vr_defaults_create_default_trackers(session_state)
         vr_defaults_create_default_gamepad(session_state)
 
         action_map.vr_save_actionmaps(session_state, filepath, sort=False)
