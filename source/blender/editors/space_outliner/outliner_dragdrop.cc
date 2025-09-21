@@ -215,6 +215,7 @@ static TreeElement *outliner_drop_insert_collection_find(bContext *C,
                                                          TreeElementInsertType *r_insert_type)
 {
   TreeElement *te = outliner_drop_insert_find(C, xy, r_insert_type);
+  SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
   if (!te) {
     return nullptr;
   }
@@ -226,8 +227,14 @@ static TreeElement *outliner_drop_insert_collection_find(bContext *C,
   }
   Collection *collection = outliner_collection_from_tree_element(collection_te);
 
-  if (collection_te != te) {
+  if (space_outliner->sort_method != SO_SORT_CUSTOM) {
     *r_insert_type = TE_INSERT_INTO;
+  }
+
+  if (collection_te != te) {
+    if (space_outliner->sort_method != SO_SORT_CUSTOM) {
+      *r_insert_type = TE_INSERT_INTO;
+    }
   }
 
   /* We can't insert before/after master collection. */
@@ -235,7 +242,7 @@ static TreeElement *outliner_drop_insert_collection_find(bContext *C,
     *r_insert_type = TE_INSERT_INTO;
   }
 
-  return collection_te;
+  return te;
 }
 
 static int outliner_get_insert_index(TreeElement *drag_te,
@@ -408,7 +415,14 @@ static void parent_drop_set_parents(bContext *C,
 static wmOperatorStatus parent_drop_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   TreeElement *te = outliner_drop_find(C, event);
+  SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
   TreeStoreElem *tselem = te ? TREESTORE(te) : nullptr;
+  TreeElementInsertType insert_type = TE_INSERT_INTO;
+
+  if (space_outliner->sort_method != SO_SORT_CUSTOM || space_outliner->outlinevis != SO_VIEW_LAYER)
+  {
+    insert_type = TE_INSERT_INTO;
+  }
 
   if (!(te && (te->idcode == ID_OB) && (tselem->type == TSE_SOME_ID))) {
     return OPERATOR_CANCELLED;
@@ -1121,17 +1135,25 @@ static Collection *collection_parent_from_ID(ID *id)
 
   return nullptr;
 }
-
 static bool collection_drop_init(bContext *C, wmDrag *drag, const int xy[2], CollectionDrop *data)
 {
-  /* Get collection to drop into. */
   TreeElementInsertType insert_type;
-  TreeElement *te = outliner_drop_insert_collection_find(C, xy, &insert_type);
-  if (!te) {
+  TreeElement *te_hovered = outliner_drop_insert_collection_find(C, xy, &insert_type);
+  TreeElement *collection_te = outliner_data_from_tree_element_and_parents(is_collection_element,
+                                                                           te_hovered);
+  if (!te_hovered) {
     return false;
   }
 
-  Collection *to_collection = outliner_collection_from_tree_element(te);
+  if (!collection_te) {
+    return false;
+  }
+
+  Collection *to_collection = outliner_collection_from_tree_element(collection_te);
+  if (!to_collection) {
+    return false;
+  }
+
   if (!ID_IS_EDITABLE(to_collection) || ID_IS_OVERRIDE_LIBRARY(to_collection)) {
     if (insert_type == TE_INSERT_INTO) {
       return false;
@@ -1153,26 +1175,24 @@ static bool collection_drop_init(bContext *C, wmDrag *drag, const int xy[2], Col
     return false;
   }
 
-  /* Get collection to drag out of. */
-  ID *parent = drag_id->from_parent;
-  Collection *from_collection = collection_parent_from_ID(parent);
-
-  /* Currently this should not be allowed, cannot edit items in an override of a Collection. */
-  if (from_collection != nullptr && ID_IS_OVERRIDE_LIBRARY(from_collection)) {
-    return false;
+  if (GS(id->name) == ID_OB) {
+    SpaceOutliner *so = CTX_wm_space_outliner(C);
+    if (so->sort_method != SO_SORT_CUSTOM) {
+      insert_type = TE_INSERT_INTO;
+    }
   }
-
-  /* Get collections. */
-  if (GS(id->name) == ID_GR) {
+  else {
     if (id == &to_collection->id) {
       return false;
     }
   }
-  else {
-    insert_type = TE_INSERT_INTO;
+
+  ID *parent = drag_id->from_parent;
+  Collection *from_collection = collection_parent_from_ID(parent);
+  if (from_collection && ID_IS_OVERRIDE_LIBRARY(from_collection)) {
+    return false;
   }
 
-  /* Currently this should not be allowed, cannot edit items in an override of a Collection. */
   if (ID_IS_OVERRIDE_LIBRARY(to_collection) &&
       !ELEM(insert_type, TE_INSERT_AFTER, TE_INSERT_BEFORE))
   {
@@ -1181,9 +1201,8 @@ static bool collection_drop_init(bContext *C, wmDrag *drag, const int xy[2], Col
 
   data->from = from_collection;
   data->to = to_collection;
-  data->te = te;
+  data->te = te_hovered;
   data->insert_type = insert_type;
-
   return true;
 }
 
@@ -1243,42 +1262,65 @@ static std::string collection_drop_tooltip(bContext *C,
       }
     }
 
-    /* Tooltips when not moving directly into another collection i.e. mouse on border of
-     * collections. Later we will decide which tooltip to return. */
-    const bool tooltip_link = (is_link && !same_level);
-    const char *tooltip_before = tooltip_link ? TIP_("Link before collection") :
-                                                TIP_("Move before collection");
-    const char *tooltip_between = tooltip_link ? TIP_("Link between collections") :
-                                                 TIP_("Move between collections");
-    const char *tooltip_after = tooltip_link ? TIP_("Link after collection") :
-                                               TIP_("Move after collection");
-
     TreeElement *te = data.te;
+    TreeStoreElem *tselem = TREESTORE(te);
+
+    const bool target_is_object_row = is_object_element(te);
+    const bool target_is_collection_row = outliner_is_collection_tree_element(te);
+
+    wmDragID *drag_id = (wmDragID *)drag->ids.first;
+    const bool dragging_object = drag_id && (GS(drag_id->id->name) == ID_OB);
+
+    const bool tooltip_link = (is_link && !same_level);
+
+    const char *tooltip_before = tooltip_link ?
+                                     (target_is_object_row ? TIP_("Link before object") :
+                                                             TIP_("Link before collection")) :
+                                     (target_is_object_row ? TIP_("Move before object") :
+                                                             TIP_("Move before collection"));
+
+    const char *tooltip_between = tooltip_link ?
+                                      (target_is_object_row ? TIP_("Link between objects") :
+                                                              TIP_("Link between collections")) :
+                                      (target_is_object_row ? TIP_("Move between objects") :
+                                                              TIP_("Move between collections"));
+
+    const char *tooltip_after = tooltip_link ?
+                                    (target_is_object_row ? TIP_("Link after object") :
+                                                            TIP_("Link after collection")) :
+                                    (target_is_object_row ? TIP_("Move after object") :
+                                                            TIP_("Move after collection"));
+
     switch (data.insert_type) {
       case TE_INSERT_BEFORE:
-        if (te->prev && outliner_is_collection_tree_element(te->prev)) {
+        if (te->prev && (target_is_object_row ? is_object_element(te->prev) :
+                                                outliner_is_collection_tree_element(te->prev)))
+        {
           return tooltip_between;
         }
         return tooltip_before;
+
       case TE_INSERT_AFTER:
-        if (te->next && outliner_is_collection_tree_element(te->next)) {
+        if (te->next && (target_is_object_row ? is_object_element(te->next) :
+                                                outliner_is_collection_tree_element(te->next)))
+        {
           return tooltip_between;
         }
         return tooltip_after;
+
       case TE_INSERT_INTO: {
         if (is_link) {
-          return TIP_("Link inside collection");
+          return target_is_object_row ? TIP_("Link to collection") :
+                                        TIP_("Link inside collection");
         }
 
-        /* Check the type of the drag IDs to avoid the incorrect "Shift to parent"
-         * for collections. Checking the type of the first ID works fine here since
-         * all drag IDs are the same type. */
-        wmDragID *drag_id = (wmDragID *)drag->ids.first;
-        const bool is_object = (GS(drag_id->id->name) == ID_OB);
-        if (is_object) {
-          return TIP_("Move inside collection (Ctrl to link, Shift to parent)");
+        if (dragging_object) {
+          return target_is_object_row ?
+                     TIP_("Move to collection (Ctrl to link, Shift to parent)") :
+                     TIP_("Move inside collection (Ctrl to link, Shift to parent)");
         }
-        return TIP_("Move inside collection (Ctrl to link)");
+        return target_is_object_row ? TIP_("Move to collection (Ctrl to link)") :
+                                      TIP_("Move inside collection (Ctrl to link)");
       }
     }
   }
@@ -1304,18 +1346,24 @@ static wmOperatorStatus collection_drop_invoke(bContext *C,
     return OPERATOR_CANCELLED;
   }
 
-  /* Before/after insert handling. */
+  wmDragID *first_id = (wmDragID *)drag->ids.first;
+  const bool dragging_object = first_id && (GS(first_id->id->name) == ID_OB);
+  const bool dragging_collection = first_id && (GS(first_id->id->name) == ID_GR);
+
   Collection *relative = nullptr;
   bool relative_after = false;
 
-  if (ELEM(data.insert_type, TE_INSERT_BEFORE, TE_INSERT_AFTER)) {
+  if (ELEM(data.insert_type, TE_INSERT_BEFORE, TE_INSERT_AFTER) && dragging_collection) {
     SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
 
     relative = data.to;
     relative_after = (data.insert_type == TE_INSERT_AFTER);
 
     TreeElement *parent_te = outliner_find_parent_element(&space_outliner->tree, nullptr, data.te);
-    data.to = (parent_te) ? outliner_collection_from_tree_element(parent_te) : nullptr;
+    data.to = parent_te ? outliner_collection_from_tree_element(parent_te) : nullptr;
+    if (!data.to) {
+      return OPERATOR_CANCELLED;
+    }
   }
 
   if (!data.to) {
@@ -1327,38 +1375,71 @@ static wmOperatorStatus collection_drop_invoke(bContext *C,
   }
 
   LISTBASE_FOREACH (wmDragID *, drag_id, &drag->ids) {
-    /* Ctrl enables linking, so we don't need a from collection then. */
-    Collection *from = (event->modifier & KM_CTRL) ?
-                           nullptr :
-                           collection_parent_from_ID(drag_id->from_parent);
-
     if (GS(drag_id->id->name) == ID_OB) {
-      /* Move/link object into collection. */
       Object *object = (Object *)drag_id->id;
+
+      const bool link_only = (event->modifier & KM_CTRL);
+      Collection *from = link_only ? nullptr : collection_parent_from_ID(drag_id->from_parent);
 
       if (from) {
         BKE_collection_object_move(bmain, scene, data.to, from, object);
       }
-      else {
+      else if (!BKE_collection_has_object(data.to, object)) {
         BKE_collection_object_add(bmain, data.to, object);
+      }
+
+      SpaceOutliner *so = CTX_wm_space_outliner(C);
+      if (so->sort_method == SO_SORT_CUSTOM &&
+          ELEM(data.insert_type, TE_INSERT_BEFORE, TE_INSERT_AFTER))
+      {
+        Object *relative_ob = nullptr;
+        TreeStoreElem *drop_tselem = TREESTORE(data.te);
+        if (drop_tselem && drop_tselem->type == TSE_SOME_ID && data.te->idcode == ID_OB) {
+          relative_ob = (Object *)drop_tselem->id;
+        }
+
+        CollectionObject *cob = BKE_collection_object_find_in(data.to, object);
+        if (cob) {
+          BLI_remlink(&data.to->gobject, cob);
+
+          if (relative_ob) {
+            CollectionObject *rel = BKE_collection_object_find_in(data.to, relative_ob);
+            if (rel && rel != cob) {
+              if (data.insert_type == TE_INSERT_BEFORE) {
+                BLI_insertlinkbefore(&data.to->gobject, rel, cob);
+              }
+              else {
+                BLI_insertlinkafter(&data.to->gobject, rel, cob);
+              }
+            }
+            else {
+              BLI_addtail(&data.to->gobject, cob);
+            }
+          }
+          else {
+            (data.insert_type == TE_INSERT_BEFORE) ? BLI_addhead(&data.to->gobject, cob) :
+                                                     BLI_addtail(&data.to->gobject, cob);
+          }
+
+          BKE_collection_object_sort_resync(data.to);
+        }
       }
     }
     else if (GS(drag_id->id->name) == ID_GR) {
-      /* Move/link collection into collection. */
+      Collection *from = collection_parent_from_ID(drag_id->from_parent);
       Collection *collection = (Collection *)drag_id->id;
 
       if (collection != from) {
         BKE_collection_move(bmain, data.to, from, relative, relative_after, collection);
       }
     }
-
-    if (from) {
-      DEG_id_tag_update(&from->id,
-                        ID_RECALC_SYNC_TO_EVAL | ID_RECALC_GEOMETRY | ID_RECALC_HIERARCHY);
-    }
   }
 
-  /* Update dependency graph. */
+  /* Update dependency graph and UI. */
+  SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
+  if (space_outliner->sort_method == SO_SORT_CUSTOM) {
+    BKE_collection_object_sort_resync(data.to);
+  }
   DEG_id_tag_update(&data.to->id, ID_RECALC_SYNC_TO_EVAL | ID_RECALC_HIERARCHY);
   DEG_relations_tag_update(bmain);
   WM_event_add_notifier(C, NC_SCENE | ND_LAYER, scene);

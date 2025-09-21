@@ -214,7 +214,7 @@ typedef struct SpaceOutliner {
   short lib_override_view_mode;
   short storeflag;
   char search_flags;
-  char _pad[6];
+  char _pad[2];
 
   /** Selection syncing flag (#WM_OUTLINER_SYNC_SELECT_FROM_OBJECT and similar flags). */
   char sync_select_dirty;
@@ -223,7 +223,8 @@ typedef struct SpaceOutliner {
   char filter_state;
   char show_restrict_flags;
   short filter_id_type;
-
+  short sort_method;
+  char _pad1[2];
   SpaceOutliner_Runtime *runtime;
 } SpaceOutliner;
 

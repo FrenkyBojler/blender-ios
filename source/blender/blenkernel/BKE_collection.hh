@@ -252,6 +252,10 @@ bool BKE_collection_object_replace(Main *bmain,
 void BKE_collection_object_move(
     Main *bmain, Scene *scene, Collection *collection_dst, Collection *collection_src, Object *ob);
 
+struct CollectionObject;
+CollectionObject *BKE_collection_object_find_in(struct Collection *collection, struct Object *ob);
+void BKE_collection_object_sort_resync(struct Collection *collection);
+
 /**
  * Remove object from all collections of scene
  */

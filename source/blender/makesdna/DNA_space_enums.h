@@ -148,6 +148,12 @@ typedef enum eSpaceOutliner_Flag {
   SO_MODE_COLUMN = (1 << 6),
 } eSpaceOutliner_Flag;
 
+typedef enum eSpaceOutliner_Sort_Types {
+  SO_SORT_CUSTOM = 0,
+  SO_SORT_ALPHA = 1,
+  SO_SORT_TYPE = 2,
+} eSpaceOutliner_Sort_Types;
+
 /** #SpaceOutliner.filter */
 typedef enum eSpaceOutliner_Filter {
   SO_FILTER_SEARCH = (1 << 0), /* Run-time flag. */

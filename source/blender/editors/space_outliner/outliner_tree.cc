@@ -444,6 +444,37 @@ struct tTreeSort {
   short idcode;
 };
 
+static int treesort_custom(const void *v1, const void *v2)
+{
+  const tTreeSort *x1 = static_cast<const tTreeSort *>(v1);
+  const tTreeSort *x2 = static_cast<const tTreeSort *>(v2);
+
+  if (x1->idcode != ID_OB || x2->idcode != ID_OB) {
+    return BLI_strcasecmp_natural(x1->name, x2->name);
+  }
+
+  Collection *col = (Collection *)x1->te->parent->directdata;
+  if (col == nullptr) {
+    return BLI_strcasecmp_natural(x1->name, x2->name);
+  }
+
+  Object *ob1 = (Object *)TREESTORE(x1->te)->id;
+  Object *ob2 = (Object *)TREESTORE(x2->te)->id;
+
+  CollectionObject *cob1 = BKE_collection_object_find_in(col, ob1);
+  CollectionObject *cob2 = BKE_collection_object_find_in(col, ob2);
+
+  const int a = cob1 ? cob1->sort_index : 0;
+  const int b = cob2 ? cob2->sort_index : 0;
+
+  if (a < b)
+    return -1;
+  if (a > b)
+    return 1;
+
+  return BLI_strcasecmp_natural(x1->name, x2->name);
+}
+
 /* alphabetical comparator, trying to put objects first */
 static int treesort_alpha_ob(const void *v1, const void *v2)
 {
@@ -621,6 +652,41 @@ static void outliner_sort(ListBase *lb)
 
   LISTBASE_FOREACH (TreeElement *, te_iter, lb) {
     outliner_sort(&te_iter->subtree);
+  }
+}
+
+static void outliner_sort_custom(ListBase *lb)
+{
+  int totelem = BLI_listbase_count(lb);
+  if (totelem <= 1) {
+    return;
+  }
+
+  tTreeSort *tear = MEM_malloc_arrayN<tTreeSort>(totelem, "tree sort array custom");
+  tTreeSort *tp = tear;
+
+  LISTBASE_FOREACH (TreeElement *, te, lb) {
+    TreeStoreElem *tselem = TREESTORE(te);
+    tp->te = te;
+    tp->id = tselem->id;
+    tp->name = te->name;
+    tp->idcode = te->idcode;
+    tp++;
+  }
+
+  qsort(tear, totelem, sizeof(tTreeSort), treesort_custom);
+
+  BLI_listbase_clear(lb);
+  tp = tear;
+  while (totelem--) {
+    BLI_addtail(lb, tp->te);
+    tp++;
+  }
+
+  MEM_freeN(tear);
+
+  LISTBASE_FOREACH (TreeElement *, te_iter, lb) {
+    outliner_sort_custom(&te_iter->subtree);
   }
 }
 
@@ -1196,14 +1262,27 @@ void outliner_build_tree(Main *mainvar,
   TreeSourceData source_data{*mainvar, *workspace, *scene, *view_layer};
   space_outliner->tree = space_outliner->runtime->tree_display->build_tree(source_data);
 
-  if ((space_outliner->flag & SO_SKIP_SORT_ALPHA) == 0) {
-    outliner_sort(&space_outliner->tree);
+  switch (space_outliner->sort_method) {
+    case SO_SORT_ALPHA:
+      outliner_sort(&space_outliner->tree);
+      break;
+
+    case SO_SORT_CUSTOM: {
+      LISTBASE_FOREACH (Collection *, collection, &mainvar->collections) {
+        BKE_collection_object_sort_resync(collection);
+      }
+    }
+      outliner_sort_custom(&space_outliner->tree);
+      break;
+
+    case SO_SORT_TYPE:
+      // Will do this later
+      break;
   }
-  else if ((space_outliner->filter & SO_FILTER_NO_CHILDREN) == 0) {
-    /* We group the children that are in the collection before the ones that are not.
-     * This way we can try to draw them in a different style altogether.
-     * We also have to respect the original order of the elements in case alphabetical
-     * sorting is not enabled. This keep object data and modifiers before its children. */
+
+  if ((space_outliner->sort_method == SO_SORT_ALPHA) &&
+      ((space_outliner->filter & SO_FILTER_NO_CHILDREN) == 0))
+  {
     outliner_collections_children_sort(&space_outliner->tree);
   }
 

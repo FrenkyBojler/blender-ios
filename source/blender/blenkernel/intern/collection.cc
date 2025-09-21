@@ -1405,6 +1405,27 @@ Collection *BKE_collection_parent_editable_find_recursive(const ViewLayer *view_
   return nullptr;
 }
 
+CollectionObject *BKE_collection_object_find_in(Collection *collection, Object *ob)
+{
+  if (ELEM(nullptr, collection, ob)) {
+    return nullptr;
+  }
+  LISTBASE_FOREACH (CollectionObject *, cob, &collection->gobject) {
+    if (cob->ob == ob) {
+      return cob;
+    }
+  }
+  return nullptr;
+}
+
+void BKE_collection_object_sort_resync(Collection *collection)
+{
+  int i = 0;
+  LISTBASE_FOREACH (CollectionObject *, cob, &collection->gobject) {
+    cob->sort_index = i++;
+  }
+}
+
 static bool collection_object_add(Main *bmain,
                                   Collection *collection,
                                   Object *ob,
@@ -1432,6 +1453,8 @@ static bool collection_object_add(Main *bmain,
   if (light_linking) {
     cob->light_linking = *light_linking;
   }
+  cob->sort_index = BLI_listbase_count(&collection->gobject);
+
   *cob_p = cob;
   BLI_addtail(&collection->gobject, cob);
   BKE_collection_object_cache_free(bmain, collection, id_create_flag);

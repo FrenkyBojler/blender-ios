@@ -4001,6 +4001,17 @@ static void rna_def_space_outliner(BlenderRNA *brna)
       {0, nullptr, 0, nullptr, nullptr},
   };
 
+  static const EnumPropertyItem rna_enum_space_outliner_sort_method_items[] = {
+      {SO_SORT_CUSTOM, "CUSTOM", 0, "Free", "Manual drag and drop order"},
+      {SO_SORT_ALPHA, "ALPHA", 0, "Alphabetical", "Sort alphabetically"},
+      {SO_SORT_TYPE,
+       "TYPE",
+       0,
+       "By Type",
+       "Group by type"},  // Will add sort by creation order too
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
   static const EnumPropertyItem lib_override_view_mode[] = {
       {SO_LIB_OVERRIDE_VIEW_PROPERTIES,
        "PROPERTIES",
@@ -4060,9 +4071,9 @@ static void rna_def_space_outliner(BlenderRNA *brna)
       prop, "Complete Matches Only", "Only use complete matches of search string");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_OUTLINER, nullptr);
 
-  prop = RNA_def_property(srna, "use_sort_alpha", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_negative_sdna(prop, nullptr, "flag", SO_SKIP_SORT_ALPHA);
-  RNA_def_property_ui_text(prop, "Sort Alphabetically", "");
+  prop = RNA_def_property(srna, "sort_method", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, rna_enum_space_outliner_sort_method_items);
+  RNA_def_property_ui_text(prop, "Sort Method", "Sorting method for Outliner elements");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_OUTLINER, nullptr);
 
   prop = RNA_def_property(srna, "use_sync_select", PROP_BOOLEAN, PROP_NONE);

@@ -60,7 +60,7 @@ typedef struct CollectionObject {
   struct Object *ob;
 
   CollectionLightLinking light_linking;
-  int _pad;
+  int sort_index;
 } CollectionObject;
 
 typedef struct CollectionChild {
