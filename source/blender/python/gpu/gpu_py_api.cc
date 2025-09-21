@@ -20,6 +20,7 @@
 #include "gpu_py_capabilities.hh"
 #include "gpu_py_compute.hh"
 #include "gpu_py_matrix.hh"
+#include "gpu_py_mesh_scatter.hh"
 #include "gpu_py_platform.hh"
 #include "gpu_py_select.hh"
 #include "gpu_py_state.hh"
@@ -27,9 +28,6 @@
 
 #include "gpu_py_api.hh" /* Own include. */
 
-#include "gpu_py_mesh_scatter.hh"
-
-extern "C" void bpygpu_mesh_scatter_shaders_free_all(void);
 static void pygpu_module_free(void *m)
 {
   (void)m;

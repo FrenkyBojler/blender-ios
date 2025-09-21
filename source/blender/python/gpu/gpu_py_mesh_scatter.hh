@@ -15,17 +15,11 @@
 
 #pragma once
 
-#include <Python.h>
-
 #include "BLI_compiler_attrs.h"
 
-#include "gpu_py_storagebuffer.hh"
-#include "gpu_py_vertex_buffer.hh"
-
 /* Forward declarations of Blender types used by the implementation. */
-struct Object;
 struct Mesh;
-struct Depsgraph;
+typedef struct _object PyObject;
 
 /* -------------------------------------------------------------------- */
 /** \name Python API
@@ -49,9 +43,9 @@ struct Depsgraph;
  *  - The function binds destination VBOs as SSBOs and dispatches the compute shader,
  *    then performs the required memory barriers.
  */
-extern PyObject *pygpu_mesh_scatter(PyObject * self,
-                                    PyObject *args,
-                                    PyObject *kwds);
+PyObject *pygpu_mesh_scatter(PyObject * self,
+                             PyObject *args,
+                             PyObject *kwds);
 
 /**
  * Initialize the `gpu.mesh` submodule and add the scatter function.
@@ -59,6 +53,11 @@ extern PyObject *pygpu_mesh_scatter(PyObject * self,
  *
  * Returns a borrowed reference to the module object on success, or nullptr on failure.
  */
-extern PyObject *bpygpu_mesh_init(void) ATTR_WARN_UNUSED_RESULT;
+PyObject *bpygpu_mesh_init(void) ATTR_WARN_UNUSED_RESULT;
+
+/* Free resources for mesh (called from draw code). */
+void bpygpu_mesh_scatter_free_for_mesh(const Mesh *mesh);
+/* Free all scatter resources at python exit if not already done */
+void bpygpu_mesh_scatter_shaders_free_all();
 
 /** \} */

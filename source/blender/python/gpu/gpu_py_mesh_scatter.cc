@@ -8,6 +8,8 @@
 #include <unordered_map>
 #include <mutex>
 
+#include "gpu_py_mesh_scatter.hh"
+
 #include "BKE_idtype.hh"
 #include "BKE_mesh.hh"
 #include "BKE_scene.hh"
@@ -63,7 +65,7 @@ static std::mutex g_mesh_scatter_resources_mutex;
 /* Free resources for a single mesh (safe to call from other translation units).
  * If no GPU context is active the resource is moved to a pending orphan list
  * and freed later (module cleanup or when a context becomes available). */
-extern "C" void bpygpu_mesh_scatter_free_for_mesh(const Mesh *mesh)
+void bpygpu_mesh_scatter_free_for_mesh(const Mesh *mesh)
 {
   if (mesh == nullptr) {
     return;
@@ -392,7 +394,7 @@ static void mesh_scatter_resources_free_all(void)
 }
 
 /* Expose C symbol for module cleanup (used from gpu module free). */
-extern "C" void bpygpu_mesh_scatter_shaders_free_all(void)
+void bpygpu_mesh_scatter_shaders_free_all()
 {
   mesh_scatter_resources_free_all();
 }
