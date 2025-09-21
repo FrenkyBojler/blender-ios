@@ -488,7 +488,9 @@ static void pack_linked_id(Main &bmain,
     auto existing_id_process = [&deep_hashes, &id_remapper](ID *linked_id, ID *packed_id) {
       BLI_assert(packed_id);
       BLI_assert(ID_IS_PACKED(packed_id));
-      BLI_assert(packed_id->lib->archive_parent_library == linked_id->lib);
+      /* Note: linked_id and packed_id may have the same deep hash while still coming from
+       * different original libraries. This easily happens copying an asset file such that each
+       * asset exists twice. */
       BLI_assert(packed_id->deep_hash == deep_hashes.hashes.lookup(linked_id));
       UNUSED_VARS_NDEBUG(deep_hashes);
 
