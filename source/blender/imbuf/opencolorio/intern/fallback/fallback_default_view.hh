@@ -20,14 +20,24 @@ class FallbackDefaultView : public View {
     return "Standard";
   }
 
+  StringRefNull description() const override
+  {
+    return "";
+  }
+
   bool is_hdr() const override
   {
     return false;
   }
 
-  bool is_wide_gamut() const override
+  Gamut gamut() const override
   {
-    return false;
+    return Gamut::Rec709;
+  }
+
+  TransferFunction transfer_function() const override
+  {
+    return TransferFunction::sRGB;
   }
 };
 

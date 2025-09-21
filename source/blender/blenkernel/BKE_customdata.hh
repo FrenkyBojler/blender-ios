@@ -130,15 +130,15 @@ bool CustomData_has_interp(const CustomData *data);
 bool CustomData_bmesh_has_free(const CustomData *data);
 
 /**
- * Copies the "value" (e.g. `mloopuv` UV or `mloopcol` colors) from one block to
+ * Copies the "value" (e.g. `uv_map` UV or `mloopcol` colors) from one block to
  * another, while not overwriting anything else (e.g. flags).  probably only
- * implemented for `mloopuv/mloopcol`, for now.
+ * implemented for `uv_map/mloopcol`, for now.
  */
 void CustomData_data_copy_value(eCustomDataType type, const void *source, void *dest);
 void CustomData_data_set_default_value(eCustomDataType type, void *elem);
 
 /**
- * Mixes the "value" (e.g. `mloopuv` UV or `mloopcol` colors) from one block into
+ * Mixes the "value" (e.g. `uv_map` UV or `mloopcol` colors) from one block into
  * another, while not overwriting anything else (e.g. flags).
  */
 void CustomData_data_mix_value(
@@ -342,8 +342,6 @@ void CustomData_copy_data_layer(const CustomData *source,
                                 int src_index,
                                 int dst_index,
                                 int count);
-void CustomData_copy_data_named(
-    const CustomData *source, CustomData *dest, int source_index, int dest_index, int count);
 void CustomData_copy_elements(eCustomDataType type,
                               void *src_data_ofs,
                               void *dst_data_ofs,

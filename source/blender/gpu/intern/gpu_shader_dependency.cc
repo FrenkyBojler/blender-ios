@@ -61,7 +61,6 @@ struct GPUSource {
   shader::BuiltinBits builtins = shader::BuiltinBits::NONE;
   /* True if this file content is supposed to be generated at runtime. */
   bool generated = false;
-  int d[sizeof(shader::ShaderCreateInfo::dependencies_generated)];
 
   /* NOTE: The next few functions are needed to keep isolation of the preprocessor.
    * Eventually, this should be revisited and the preprocessor should output
@@ -133,7 +132,7 @@ struct GPUSource {
     return FUNCTION_QUAL_IN;
   }
 
-  eGPUType convert_type(shader::metadata::Type type)
+  GPUType convert_type(shader::metadata::Type type)
   {
     using namespace blender::gpu::shader;
     switch (type) {
@@ -493,18 +492,6 @@ void gpu_shader_dependency_init()
     }
   }
 #endif
-
-  if (GCaps.line_directive_workaround) {
-    for (auto *value : g_sources->values()) {
-      value->patched_source = value->source;
-      value->source = value->patched_source.c_str();
-      size_t start_pos = 0;
-      while ((start_pos = value->patched_source.find("#line ", start_pos)) != std::string::npos) {
-        value->patched_source[start_pos] = '/';
-        value->patched_source[start_pos + 1] = '/';
-      }
-    }
-  }
 }
 
 void gpu_shader_dependency_exit()

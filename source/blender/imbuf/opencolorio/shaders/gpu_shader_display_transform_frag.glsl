@@ -224,7 +224,7 @@ float4 OCIO_ProcessColor(float4 col, float4 col_overlay)
     /* This sign/abs is used to preserve negative values for extended sRGB. */
     col.rgb = sign(col.rgb) * pow(abs(col.rgb), float3(parameters.exponent * 2.2));
 
-    if (parameters.use_hdr) {
+    if (parameters.use_hdr_display) {
       /* When using extended color-space, interpolate towards clamped color to improve display of
        * alpha-blended overlays. */
       col = mix(col, clamp(col, 0.0, 1.0), col_overlay.a);
@@ -238,7 +238,7 @@ float4 OCIO_ProcessColor(float4 col, float4 col_overlay)
   }
 
   if (parameters.dither > 0.0) {
-    uint2 texel = get_pixel_coord(image_texture, texCoord_interp.st);
+    uint2 texel = get_pixel_coord(image_texture, texCoord_interp.xy);
     col = apply_dither(col, texel);
   }
 #endif
@@ -250,8 +250,8 @@ float4 OCIO_ProcessColor(float4 col, float4 col_overlay)
 
 void main()
 {
-  float4 col = texture(image_texture, texCoord_interp.st);
-  float4 col_overlay = texture(overlay_texture, texCoord_interp.st);
+  float4 col = texture(image_texture, texCoord_interp.xy);
+  float4 col_overlay = texture(overlay_texture, texCoord_interp.xy);
 
   fragColor = OCIO_ProcessColor(col, col_overlay);
 }

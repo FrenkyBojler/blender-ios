@@ -192,7 +192,7 @@ DRWContext::~DRWContext()
   g_context = nullptr;
 }
 
-GPUFrameBuffer *DRWContext::default_framebuffer()
+blender::gpu::FrameBuffer *DRWContext::default_framebuffer()
 {
   return view_data_active->dfbl.default_fb;
 }
@@ -733,29 +733,6 @@ struct InstancesKey {
     return hash_value;
   }
 
-  bool operator<(const InstancesKey &k) const
-  {
-    if (hash_value != k.hash_value) {
-      return hash_value < k.hash_value;
-    }
-    if (object != k.object) {
-      return object < k.object;
-    }
-    if (ob_data != k.ob_data) {
-      return ob_data < k.ob_data;
-    }
-    if (flags != k.flags) {
-      return flags < k.flags;
-    }
-    if (preview_base_geometry != k.preview_base_geometry) {
-      return preview_base_geometry < k.preview_base_geometry;
-    }
-    if (preview_instance_index != k.preview_instance_index) {
-      return preview_instance_index < k.preview_instance_index;
-    }
-    return false;
-  }
-
   bool operator==(const InstancesKey &k) const
   {
     if (hash_value != k.hash_value) {
@@ -794,9 +771,13 @@ static void foreach_obref_in_scene(DRWContext &draw_ctx,
   eEvaluationMode eval_mode = DEG_get_mode(depsgraph);
   View3D *v3d = draw_ctx.v3d;
 
+#if 0 /* Temporary disabled until we can fix all the issues that it causes. */
   /* EEVEE is not supported for now. */
   const bool engines_support_handle_ranges = (v3d && v3d->shading.type <= OB_SOLID) ||
                                              BKE_scene_uses_blender_workbench(draw_ctx.scene);
+#else
+  const bool engines_support_handle_ranges = false;
+#endif
 
   DEGObjectIterSettings deg_iter_settings = {nullptr};
   deg_iter_settings.depsgraph = depsgraph;
@@ -816,7 +797,9 @@ static void foreach_obref_in_scene(DRWContext &draw_ctx,
     bool ob_visible = visibility & (OB_VISIBLE_SELF | OB_VISIBLE_PARTICLES);
 
     if (ob_visible && should_draw_object_cb(*ob)) {
-      ObjectRef ob_ref(ob);
+      /* NOTE: object_duplilist_preview is still handled by DEG_OBJECT_ITER,
+       * dupli_parent and dupli_object_current won't be null for these. */
+      ObjectRef ob_ref(ob, data_.dupli_parent, data_.dupli_object_current);
       draw_object_cb(ob_ref);
     }
 
@@ -1787,7 +1770,7 @@ void DRW_custom_pipeline_end(DRWContext &draw_ctx)
    * resources as the main thread (viewport) may lead to data
    * races and undefined behavior on certain drivers. Using
    * GPU_finish to sync seems to fix the issue. (see #62997) */
-  eGPUBackendType type = GPU_backend_get_type();
+  GPUBackendType type = GPU_backend_get_type();
   if (type == GPU_BACKEND_OPENGL) {
     GPU_finish();
   }
@@ -1814,7 +1797,7 @@ void DRW_render_set_time(RenderEngine *engine, Depsgraph *depsgraph, int frame, 
 }
 
 static struct DRWSelectBuffer {
-  GPUFrameBuffer *framebuffer_depth_only;
+  blender::gpu::FrameBuffer *framebuffer_depth_only;
   blender::gpu::Texture *texture_depth;
 } g_select_buffer = {nullptr};
 
@@ -1940,11 +1923,13 @@ void DRW_draw_select_loop(Depsgraph *depsgraph,
        * as pose-bones have their own selection restriction flag. */
       const bool use_pose_exception = (draw_ctx.object_pose != nullptr);
 
-      const int object_type_exclude_select = (v3d->object_type_exclude_viewport |
-                                              v3d->object_type_exclude_select);
+      const int object_type_exclude_select = v3d->object_type_exclude_select;
       bool filter_exclude = false;
 
       auto should_draw_object = [&](Object &ob) {
+        if (!BKE_object_is_visible_in_viewport(v3d, &ob)) {
+          return false;
+        }
         if (use_pose_exception && (ob.mode & OB_MODE_POSE)) {
           if ((ob.base_flag & BASE_ENABLED_AND_VISIBLE_IN_DEFAULT_VIEWPORT) == 0) {
             return false;
@@ -2054,7 +2039,7 @@ void DRW_draw_depth_loop(Depsgraph *depsgraph,
 
   /* Setup frame-buffer. */
   blender::gpu::Texture *depth_tx = GPU_viewport_depth_texture(viewport);
-  GPUFrameBuffer *depth_fb = nullptr;
+  blender::gpu::FrameBuffer *depth_fb = nullptr;
   GPU_framebuffer_ensure_config(&depth_fb,
                                 {
                                     GPU_ATTACHMENT_TEXTURE(depth_tx),

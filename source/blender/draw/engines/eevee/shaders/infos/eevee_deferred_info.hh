@@ -4,10 +4,11 @@
 
 #ifdef GPU_SHADER
 #  pragma once
-#  include "gpu_glsl_cpp_stubs.hh"
+#  include "gpu_shader_compat.hh"
 
 #  include "draw_view_info.hh"
 #  include "eevee_common_info.hh"
+#  include "eevee_debug_shared.hh"
 #  include "gpu_shader_fullscreen_info.hh"
 #endif
 
@@ -38,7 +39,7 @@ FRAGMENT_SOURCE("eevee_deferred_thickness_amend_frag.glsl")
 ADDITIONAL_INFO(draw_view)
 ADDITIONAL_INFO(gpu_fullscreen)
 ADDITIONAL_INFO(eevee_sampling_data)
-ADDITIONAL_INFO(eevee_shared)
+TYPEDEF_SOURCE("eevee_defines.hh")
 ADDITIONAL_INFO(eevee_light_data)
 ADDITIONAL_INFO(eevee_shadow_data)
 ADDITIONAL_INFO(eevee_hiz_data)
@@ -48,7 +49,7 @@ GPU_SHADER_CREATE_END()
 
 GPU_SHADER_CREATE_INFO(eevee_deferred_tile_classify)
 FRAGMENT_SOURCE("eevee_deferred_tile_classify_frag.glsl")
-ADDITIONAL_INFO(eevee_shared)
+TYPEDEF_SOURCE("eevee_defines.hh")
 ADDITIONAL_INFO(gpu_fullscreen)
 SUBPASS_IN(1, uint, Uint2DArray, in_gbuffer_header, DEFERRED_GBUFFER_ROG_ID)
 TYPEDEF_SOURCE("draw_shader_shared.hh")
@@ -76,7 +77,7 @@ SPECIALIZATION_CONSTANT(int, render_pass_shadow_id, -1)
 DEFINE("SPECIALIZED_SHADOW_PARAMS")
 SPECIALIZATION_CONSTANT(int, shadow_ray_count, 1)
 SPECIALIZATION_CONSTANT(int, shadow_ray_step_count, 6)
-ADDITIONAL_INFO(eevee_shared)
+TYPEDEF_SOURCE("eevee_defines.hh")
 ADDITIONAL_INFO(eevee_gbuffer_data)
 ADDITIONAL_INFO(eevee_utility_texture)
 ADDITIONAL_INFO(eevee_sampling_data)
@@ -120,7 +121,7 @@ SAMPLER(6, sampler2D, indirect_radiance_2_tx)
 SAMPLER(7, sampler2D, indirect_radiance_3_tx)
 IMAGE(5, SFLOAT_16_16_16_16, read_write, image2D, radiance_feedback_img)
 FRAGMENT_OUT(0, float4, out_combined)
-ADDITIONAL_INFO(eevee_shared)
+TYPEDEF_SOURCE("eevee_defines.hh")
 ADDITIONAL_INFO(eevee_gbuffer_data)
 ADDITIONAL_INFO(eevee_render_pass_out)
 ADDITIONAL_INFO(gpu_fullscreen)
@@ -135,13 +136,22 @@ SPECIALIZATION_CONSTANT(bool, use_split_radiance, true)
 DO_STATIC_COMPILATION()
 GPU_SHADER_CREATE_END()
 
+GPU_SHADER_CREATE_INFO(eevee_deferred_aov_clear)
+/* Early fragment test is needed to avoid processing fragments without correct GBuffer data. */
+EARLY_FRAGMENT_TEST(true)
+ADDITIONAL_INFO(eevee_render_pass_out)
+ADDITIONAL_INFO(gpu_fullscreen)
+FRAGMENT_SOURCE("eevee_deferred_aov_clear_frag.glsl")
+DO_STATIC_COMPILATION()
+GPU_SHADER_CREATE_END()
+
 GPU_SHADER_CREATE_INFO(eevee_deferred_capture_eval)
 /* Early fragment test is needed to avoid processing fragments without correct GBuffer data. */
 EARLY_FRAGMENT_TEST(true)
 /* Inputs. */
 FRAGMENT_OUT(0, float4, out_radiance)
 DEFINE_VALUE("LIGHT_CLOSURE_EVAL_COUNT", "1")
-ADDITIONAL_INFO(eevee_shared)
+TYPEDEF_SOURCE("eevee_defines.hh")
 ADDITIONAL_INFO(eevee_gbuffer_data)
 ADDITIONAL_INFO(eevee_utility_texture)
 ADDITIONAL_INFO(eevee_sampling_data)
@@ -163,7 +173,7 @@ EARLY_FRAGMENT_TEST(true)
 FRAGMENT_OUT(0, float4, out_radiance)
 DEFINE("SPHERE_PROBE")
 DEFINE_VALUE("LIGHT_CLOSURE_EVAL_COUNT", "1")
-ADDITIONAL_INFO(eevee_shared)
+TYPEDEF_SOURCE("eevee_defines.hh")
 ADDITIONAL_INFO(eevee_gbuffer_data)
 ADDITIONAL_INFO(eevee_utility_texture)
 ADDITIONAL_INFO(eevee_sampling_data)
@@ -191,10 +201,11 @@ DO_STATIC_COMPILATION()
 FRAGMENT_OUT_DUAL(0, float4, out_color_add, SRC_0)
 FRAGMENT_OUT_DUAL(0, float4, out_color_mul, SRC_1)
 PUSH_CONSTANT(int, debug_mode)
+TYPEDEF_SOURCE("eevee_debug_shared.hh")
 FRAGMENT_SOURCE("eevee_debug_gbuffer_frag.glsl")
 ADDITIONAL_INFO(draw_view)
 ADDITIONAL_INFO(gpu_fullscreen)
-ADDITIONAL_INFO(eevee_shared)
+TYPEDEF_SOURCE("eevee_defines.hh")
 ADDITIONAL_INFO(eevee_gbuffer_data)
 GPU_SHADER_CREATE_END()
 
