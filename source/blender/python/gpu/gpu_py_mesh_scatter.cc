@@ -32,6 +32,8 @@
 
 #include "../windowmanager/WM_api.hh"
 
+#include "../mathutils/mathutils.hh"
+
 #include "../generic/python_compat.hh" /* IWYU pragma: keep. */
 #include "../intern/bpy_rna.hh"        /* pyrna_id_FromPyObject */
 #include "gpu_py.hh"
@@ -367,28 +369,37 @@ extern "C" void bpygpu_mesh_scatter_shaders_free_all(void)
   mesh_scatter_resources_free_all();
 }
 
-PyDoc_STRVAR(pygpu_mesh_scatter_doc,
-             ".. function:: scatter_positions_to_corners(obj, ssbo_positions)\n"
-             "\n"
-             "   Scatter per-vertex positions (from user SSBO) to per-corner VBOs and recompute\n"
-             "   packed normals using the internal compute shader. The mesh VBOs (positions and\n"
-             "   normals) will be updated and ready for rendering.\n\n"
-             "   `obj` must be an evaluated bpy.types.Object owning a mesh. `ssbo_positions`\n"
-             "   must be a gpu.types.GPUStorageBuf containing vec4 per vertex.\n"
-             "   The compute shader will read a 4x4 transform matrix from `transform_mat` (binding 3).\n");
+PyDoc_STRVAR(
+    pygpu_mesh_scatter_doc,
+    ".. function:: scatter_positions_to_corners(obj, ssbo_positions, transform=None)\n"
+    "\n"
+    "   Scatter per-vertex positions (from user SSBO) to per-corner VBOs and recompute\n"
+    "   packed normals using the internal compute shader. The mesh VBOs (positions and\n"
+    "   normals) will be updated and ready for rendering.\n\n"
+    "   `obj` must be an evaluated bpy.types.Object owning a mesh. `ssbo_positions`\n"
+    "   must be a gpu.types.GPUStorageBuf containing vec4 per vertex.\n\n"
+    "   Optional argument `transform` may be provided to apply a 4x4 transform when\n"
+    "   scattering positions. Accepted values:\n"
+    "     - a `mathutils.Matrix` (4x4) — the matrix is copied as-is from the mathutils\n"
+    "       object (internal mathutils layout).\n"
+    "     - a flat sequence of 16 floats — the sequence must be provided in column-major\n"
+    "       order (suitable for GLSL `mat4`).\n\n"
+    "   If you need a different memory layout, transpose the matrix in Python before\n"
+    "   calling (for example: `[m[row][col] for col in range(4) for row in range(4)]`).\n");
 
 static PyObject *pygpu_mesh_scatter(PyObject * /*self*/, PyObject *args, PyObject *kwds)
 {
   PyObject *py_obj = nullptr;
   BPyGPUStorageBuf *py_ssbo = nullptr;
+  PyObject *py_transform = nullptr;
 
-  static const char *_keywords[] = {"obj", "ssbo", nullptr};
+  static const char *_keywords[] = {"obj", "ssbo", "transform", nullptr};
   if (!PyArg_ParseTupleAndKeywords(args,
-                                   kwds,
-                                   "OO:scatter_positions_to_corners",
+                                   kwds, "OO|O:scatter_positions_to_corners",
                                    (char **)_keywords,
                                    &py_obj,
-                                   &py_ssbo))
+                                   &py_ssbo,
+                                   &py_transform))
   {
     return nullptr;
   }
@@ -512,6 +523,56 @@ static PyObject *pygpu_mesh_scatter(PyObject * /*self*/, PyObject *args, PyObjec
   if (!res || !res->shader) {
     PyErr_SetString(PyExc_RuntimeError, "Scatter compute shader not available for mesh");
     return nullptr;
+  }
+
+  /* Optional transform matrix (post-matrix). Accepts None, a mathutils.Matrix,
+   * or a flat sequence of 16 numbers. */
+  if (py_transform != nullptr && py_transform != Py_None) {
+    /* Prefer mathutils.Matrix via C-API. */
+    if (MatrixObject_Check(py_transform)) {
+      MatrixObject *mat = (MatrixObject *)py_transform;
+      if (BaseMath_ReadCallback((BaseMathObject *)mat) == -1) {
+        PyErr_SetString(PyExc_TypeError, "Invalid mathutils.Matrix");
+        return nullptr;
+      }
+      if ((mat->row_num != mat->col_num) || !ELEM(mat->row_num, 4)) {
+        PyErr_SetString(PyExc_ValueError, "Expected 4x4 matrix");
+        return nullptr;
+      }
+      if (!res->ssbo_transform_mat) {
+        res->ssbo_transform_mat = GPU_storagebuf_create(sizeof(float) * 16);
+      }
+      GPU_storagebuf_update(res->ssbo_transform_mat, mat->matrix);
+    }
+    else {
+      /* Fallback: accept any flat sequence of 16 numbers (column-major expected). */
+      if (!PySequence_Check(py_transform) || PySequence_Size(py_transform) != 16) {
+        PyErr_SetString(PyExc_TypeError,
+                        "transform must be a mathutils.Matrix or a sequence of 16 numbers");
+        return nullptr;
+      }
+
+      float transform_mat[16];
+      for (int i = 0; i < 16; i++) {
+        PyObject *item = PySequence_GetItem(py_transform, i); /* new ref */
+        if (!item) {
+          PyErr_SetString(PyExc_TypeError, "Failed to read transform sequence");
+          return nullptr;
+        }
+        double val = PyFloat_AsDouble(item);
+        Py_DECREF(item);
+        if (PyErr_Occurred()) {
+          PyErr_SetString(PyExc_TypeError, "transform elements must be numbers");
+          return nullptr;
+        }
+        transform_mat[i] = (float)val;
+      }
+
+      if (!res->ssbo_transform_mat) {
+        res->ssbo_transform_mat = GPU_storagebuf_create(sizeof(float) * 16);
+      }
+      GPU_storagebuf_update(res->ssbo_transform_mat, transform_mat);
+    }
   }
 
   /* Specialization constants are used instead of push constants for performances. It is
