@@ -135,6 +135,7 @@ def osl_param_ensure_property(ccam, param):
 
     ui = ccam.id_properties_ui(name)
     ui.clear()
+    ui.update(default=tuple(default) if len(default) > 1 else default[0])
 
     # Determine subtype (limited unit support for now)
     if param.type.vecsemantics == param.type.vecsemantics.COLOR:
