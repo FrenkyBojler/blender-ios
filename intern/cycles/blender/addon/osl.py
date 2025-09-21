@@ -153,6 +153,21 @@ def osl_param_ensure_property(ccam, param):
         ui.update(subtype='TIME_ABSOLUTE')
     elif metadata.get('slider'):
         ui.update(subtype='FACTOR')
+    elif datatype is int and metadata.get('widget') == 'mapper':
+        options = metadata.get('options', "")
+        options = options.split("|")
+        option_items = []
+        for option in options:
+            if ":" not in option:
+                continue
+            item, index = option.split(":")
+            # Ensure that the index can be converted to an integer
+            try:
+                int(index)
+            except ValueError:
+                continue
+            option_items.append((str(index), bpy.path.display_name(item), ""))
+        ui.update(items=option_items)
 
     # Map OSL metadata to Blender names
     option_map = {
