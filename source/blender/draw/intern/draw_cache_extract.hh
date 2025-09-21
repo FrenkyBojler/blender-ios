@@ -318,7 +318,8 @@ struct MeshBatchCache {
    * Only valid after `DRW_mesh_batch_cache_create_requested` has been called. */
   float tot_area, tot_uv_area;
 
-  const Mesh *mesh_owner = nullptr;
+  /* The original mesh this cache is for (for freeing some resources associated to this mesh). */
+  Mesh *mesh_owner = nullptr;
 };
 
 #define MBC_EDITUV \

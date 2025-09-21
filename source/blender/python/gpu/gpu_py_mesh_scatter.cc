@@ -65,11 +65,16 @@ static std::mutex g_mesh_scatter_resources_mutex;
 /* Free resources for a single mesh (safe to call from other translation units).
  * If no GPU context is active the resource is moved to a pending orphan list
  * and freed later (module cleanup or when a context becomes available). */
-void bpygpu_mesh_scatter_free_for_mesh(const Mesh *mesh)
+void bpygpu_mesh_scatter_free_for_mesh(Mesh *mesh)
 {
   if (mesh == nullptr) {
     return;
   }
+
+  /* Reset flags (safe to do from Python thread since callers use this from UI thread). */
+  mesh->is_using_gpu_deform = 0;
+  /* mesh->is_running_gpu_deform flag is only on evaluated mesh (ob_eval->runtime->data_eval)
+   * so we don't reset it here. It will be reset next time the object is evaluated. */
 
   /* Take ownership of the resource entry if present. */
   {
@@ -77,14 +82,12 @@ void bpygpu_mesh_scatter_free_for_mesh(const Mesh *mesh)
     auto it = g_mesh_scatter_resources.find(mesh);
     if (it == g_mesh_scatter_resources.end()) {
       /* Nothing to free. */
-      g_mesh_scatter_resources.erase(mesh);
       return;
     }
 
     /* Move resource out of the map so the map no longer contains a dangling entry. */
     MeshScatterResources res = std::move(it->second);
-
-    /* Clean small helper maps/flags. */
+    /* Erase the map entry using the iterator. */
     g_mesh_scatter_resources.erase(it);
 
     if (GPU_context_active_get()) {
@@ -713,11 +716,6 @@ static PyObject *pygpu_mesh_scatter_free(PyObject * /*self*/, PyObject *args, Py
     PyErr_SetString(PyExc_RuntimeError, "Object mesh data not available");
     return nullptr;
   }
-
-  /* Reset flags (safe to do from Python thread since callers use this from UI thread). */
-  mesh_orig->is_using_gpu_deform = 0;
-  /* mesh->is_running_gpu_deform flag is only on evaluated mesh (ob_eval->runtime->data_eval)
-   * so we don't reset it here. It will be reset next time the object is evaluated. */
 
   /* Free GPU resources associated with this mesh (thread-safe internally). */
   bpygpu_mesh_scatter_free_for_mesh(mesh_orig);
