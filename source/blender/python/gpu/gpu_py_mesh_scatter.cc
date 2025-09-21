@@ -809,6 +809,16 @@ static PyObject *pygpu_mesh_scatter(PyObject * /*self*/, PyObject *args, PyObjec
     mesh_orig->is_using_gpu_deform = 1;
   }
 
+  /* If the object is already tagged for geometry rebuild and the VBO format
+   * indicates the draw/cache is already to float4, free scatter resources and
+   * retry later. Do this before arming the rollback or marking mesh_eval. */
+  if ((ob_orig->id.recalc & ID_RECALC_GEOMETRY) != 0 &&
+      type == blender::gpu::VertAttrType::SFLOAT_32_32_32_32)
+  {
+    bpygpu_mesh_scatter_free_for_mesh(mesh_orig);
+    Py_RETURN_NONE;
+  }
+
   if (mesh_orig->is_using_gpu_deform == 1) {
     DEG_id_tag_update(&ob_orig->id, ID_RECALC_GEOMETRY);
     BKE_scene_graph_update_tagged(depsgraph, DEG_get_bmain(depsgraph));
