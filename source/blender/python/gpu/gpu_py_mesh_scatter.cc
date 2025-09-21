@@ -498,6 +498,11 @@ static PyObject *pygpu_mesh_scatter(PyObject * /*self*/, PyObject *args, PyObjec
   Mesh *mesh_orig = static_cast<Mesh *>(ob_orig->data);
   Mesh *mesh_eval = static_cast<Mesh *>(ob_eval->data);
 
+  /* Reject running in other Mode than OB_MODE_OBJECT */
+  if (ob_orig->mode != OB_MODE_OBJECT) {
+    Py_RETURN_NONE;
+  }
+
   if (!mesh_eval || !mesh_eval->runtime || !mesh_eval->runtime->batch_cache) {
     PyErr_SetString(PyExc_RuntimeError, "Mesh batch cache not available");
     return nullptr;
