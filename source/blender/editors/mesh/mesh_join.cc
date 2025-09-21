@@ -469,6 +469,10 @@ wmOperatorStatus join_objects_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
+  dst_mesh->attribute_storage.wrap().resize(bke::AttrDomain::Point, vert_ranges.total_size());
+  dst_mesh->attribute_storage.wrap().resize(bke::AttrDomain::Edge, edge_ranges.total_size());
+  dst_mesh->attribute_storage.wrap().resize(bke::AttrDomain::Face, face_ranges.total_size());
+  dst_mesh->attribute_storage.wrap().resize(bke::AttrDomain::Corner, corner_ranges.total_size());
   CustomData_realloc(&dst_mesh->vert_data, dst_mesh->verts_num, vert_ranges.total_size());
   CustomData_realloc(&dst_mesh->edge_data, dst_mesh->edges_num, edge_ranges.total_size());
   CustomData_realloc(&dst_mesh->face_data, dst_mesh->faces_num, face_ranges.total_size());
