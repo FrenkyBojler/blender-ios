@@ -299,6 +299,10 @@ TreeElement *AbstractTreeDisplay::add_element(ListBase *lb,
     te->abstract_element->display_ = this;
   }
 
+  if (type == TSE_SOME_ID && owner_id) {
+    te->idcode = GS(owner_id->name);
+  }
+
   if (ELEM(type, TSE_STRIP, TSE_STRIP_DATA, TSE_STRIP_DUP)) {
     /* pass */
   }
@@ -478,40 +482,9 @@ static int treesort_custom(const void *v1, const void *v2)
 /* alphabetical comparator, trying to put objects first */
 static int treesort_alpha_ob(const void *v1, const void *v2)
 {
-  const tTreeSort *x1 = static_cast<const tTreeSort *>(v1);
-  const tTreeSort *x2 = static_cast<const tTreeSort *>(v2);
-
-  /* first put objects last (hierarchy) */
-  int comp = (x1->idcode == ID_OB);
-  if (x2->idcode == ID_OB) {
-    comp += 2;
-  }
-
-  if (comp == 1) {
-    return 1;
-  }
-  if (comp == 2) {
-    return -1;
-  }
-  if (comp == 3) {
-    /* Among objects first come the ones in the collection, followed by the ones not on it.
-     * This way we can have the dashed lines in a separate style connecting the former. */
-    if ((x1->te->flag & TE_CHILD_NOT_IN_COLLECTION) != (x2->te->flag & TE_CHILD_NOT_IN_COLLECTION))
-    {
-      return (x1->te->flag & TE_CHILD_NOT_IN_COLLECTION) ? 1 : -1;
-    }
-
-    comp = BLI_strcasecmp_natural(x1->name, x2->name);
-
-    if (comp > 0) {
-      return 1;
-    }
-    if (comp < 0) {
-      return -1;
-    }
-    return 0;
-  }
-  return 0;
+  const tTreeSort *a = (const tTreeSort *)v1;
+  const tTreeSort *b = (const tTreeSort *)v2;
+  return BLI_strcasecmp_natural(a->name, b->name);
 }
 
 /* Move children that are not in the collection to the end of the list. */
@@ -596,45 +569,43 @@ static void outliner_sort(ListBase *lb)
   TreeStoreElem *last_tselem = TREESTORE(last_te);
 
   /* Sorting rules; only object lists, ID lists, or deform-groups. */
+  const short last_idcode = last_te->idcode;
   if (ELEM(last_tselem->type, TSE_DEFGROUP, TSE_ID_BASE) ||
-      ((last_tselem->type == TSE_SOME_ID) && (last_te->idcode == ID_OB)))
+      ((last_tselem->type == TSE_SOME_ID) && (last_idcode == ID_OB)))
   {
-    int totelem = BLI_listbase_count(lb);
-
+    const int totelem = BLI_listbase_count(lb);
     if (totelem > 1) {
       tTreeSort *tear = MEM_malloc_arrayN<tTreeSort>(totelem, "tree sort array");
       tTreeSort *tp = tear;
-      int skip = 0;
 
       LISTBASE_FOREACH (TreeElement *, te, lb) {
         TreeStoreElem *tselem = TREESTORE(te);
         tp->te = te;
+        tp->id = tselem->id;
         tp->name = te->name;
-        tp->idcode = te->idcode;
 
+        short idcode = te->idcode;
         if (!ELEM(tselem->type, TSE_SOME_ID, TSE_DEFGROUP)) {
           tp->idcode = 0; /* Don't sort this. */
         }
         if (ELEM(tselem->type, TSE_ID_BASE, TSE_DEFGROUP)) {
           tp->idcode = 1; /* Do sort this. */
         }
-
-        tp->id = tselem->id;
+        tp->idcode = idcode;
         tp++;
       }
 
-      /* just sort alphabetically */
       if (tear->idcode == 1) {
         qsort(tear, totelem, sizeof(tTreeSort), treesort_alpha);
       }
       else {
-        /* keep beginning of list */
-        for (tp = tear, skip = 0; skip < totelem; skip++, tp++) {
+        /* Keep any non sortable prefix, sort the rest as objects. */
+        int skip = 0;
+        for (tp = tear; skip < totelem; skip++, tp++) {
           if (tp->idcode) {
             break;
           }
         }
-
         if (skip < totelem) {
           qsort(tear + skip, totelem - skip, sizeof(tTreeSort), treesort_alpha_ob);
         }
@@ -642,9 +613,8 @@ static void outliner_sort(ListBase *lb)
 
       BLI_listbase_clear(lb);
       tp = tear;
-      while (totelem--) {
+      for (int i = 0; i < totelem; i++, tp++) {
         BLI_addtail(lb, tp->te);
-        tp++;
       }
       MEM_freeN(tear);
     }
@@ -768,7 +738,7 @@ static void outliner_sort_type(ListBase *lb)
   }
 }
 
-static void outliner_collections_children_sort(ListBase *lb)
+[[maybe_unused]] static void outliner_collections_children_sort(ListBase *lb)
 {
   TreeElement *last_te = static_cast<TreeElement *>(lb->last);
   if (last_te == nullptr) {
@@ -1356,12 +1326,6 @@ void outliner_build_tree(Main *mainvar,
     case SO_SORT_TYPE:
       outliner_sort_type(&space_outliner->tree);
       break;
-  }
-
-  if ((space_outliner->sort_method == SO_SORT_ALPHA) &&
-      ((space_outliner->filter & SO_FILTER_NO_CHILDREN) == 0))
-  {
-    outliner_collections_children_sort(&space_outliner->tree);
   }
 
   outliner_filter_tree(space_outliner, scene, view_layer);
