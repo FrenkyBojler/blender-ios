@@ -52,6 +52,11 @@ SAMPLER(HIZ_TEX_SLOT, sampler2D, hiz_tx)
 ADDITIONAL_INFO(eevee_global_ubo)
 GPU_SHADER_CREATE_END()
 
+GPU_SHADER_CREATE_INFO(eevee_hiz_back_data)
+SAMPLER(HIZ_BACK_TEX_SLOT, sampler2D, hiz_back_tx)
+ADDITIONAL_INFO(eevee_global_ubo)
+GPU_SHADER_CREATE_END()
+
 GPU_SHADER_CREATE_INFO(eevee_sampling_data)
 DEFINE("EEVEE_SAMPLING_DATA")
 TYPEDEF_SOURCE("eevee_defines.hh")

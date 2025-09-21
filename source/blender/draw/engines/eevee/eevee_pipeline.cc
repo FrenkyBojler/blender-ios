@@ -496,6 +496,7 @@ void DeferredLayerBase::gbuffer_pass_sync(Instance &inst)
   gbuffer_ps_.bind_resources(inst.uniform_data);
   gbuffer_ps_.bind_resources(inst.sampling);
   gbuffer_ps_.bind_resources(inst.hiz_buffer.front);
+  gbuffer_ps_.bind_texture(HIZ_BACK_TEX_SLOT, &inst.hiz_buffer.back.ref_tx_);
   gbuffer_ps_.bind_resources(inst.cryptomatte);
 
   /* Bind light resources for the NPR materials that gets rendered first.

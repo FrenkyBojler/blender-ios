@@ -241,6 +241,7 @@ struct GlobalData {
   uchar ray_type;
   /** Is hair. */
   bool is_strand;
+  float hiz_depth_behind;
 };
 
 GlobalData g_data;

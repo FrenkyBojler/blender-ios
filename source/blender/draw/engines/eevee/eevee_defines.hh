@@ -237,6 +237,8 @@
 /* Currently only used by ray-tracing, but might become used by forward too. */
 #define PLANAR_PROBE_DEPTH_TEX_SLOT 10
 #define PLANAR_PROBE_RADIANCE_TEX_SLOT 11
+/* BADBAD */
+#define HIZ_BACK_TEX_SLOT 12
 /* Reserved slots info */
 #define MATERIAL_TEXTURE_RESERVED_SLOT_FIRST RBUFS_UTILITY_TEX_SLOT
 #define MATERIAL_TEXTURE_RESERVED_SLOT_LAST_NO_EVAL HIZ_TEX_SLOT

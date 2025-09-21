@@ -86,6 +86,13 @@ void init_globals()
   g_data.barycentric_dists = float3(0.0f);
 
 #ifdef GPU_FRAGMENT_SHADER
+#  ifdef MAT_DEFERRED
+  int2 texel = int2(gl_FragCoord.xy);
+  float depth = texelFetch(hiz_tx, texel, 0).r;
+  float depth_behind = texelFetch(hiz_back_tx, texel, 0).r;
+  g_data.hiz_depth_behind = abs(drw_point_screen_to_world(float3(0.0f, 0.0f, depth)).z -
+                                drw_point_screen_to_world(float3(0.0f, 0.0f, depth_behind)).z);
+#  endif
   g_data.N = (FrontFacing) ? g_data.N : -g_data.N;
   g_data.Ni = (FrontFacing) ? g_data.Ni : -g_data.Ni;
   g_data.Ng = safe_normalize(cross(gpu_dfdx(g_data.P), gpu_dfdy(g_data.P)));

@@ -33,7 +33,7 @@ void node_light_path(out float is_camera_ray,
   transmission_depth = (is_transmission_ray == 1.0f) ? glossy_depth : 0.0f;
   ray_length = g_data.ray_length;
   /* Not supported. */
-  transparent_depth = 0.0f;
+  transparent_depth = g_data.hiz_depth_behind;
   is_volume_scatter_ray = 0.0f;
   path_depth = 0.0f;
 }

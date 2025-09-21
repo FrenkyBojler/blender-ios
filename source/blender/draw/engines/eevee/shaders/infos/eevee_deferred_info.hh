@@ -114,7 +114,7 @@ GPU_SHADER_CREATE_INFO(eevee_deferred_combine)
 EARLY_FRAGMENT_TEST(true)
 /* Inputs. */
 SAMPLER(2, usampler2D, direct_radiance_1_tx)
-SAMPLER(3, usampler2D, direct_radiance_2_tx)
+SAMPLER(8, usampler2D, direct_radiance_2_tx)
 SAMPLER(4, usampler2D, direct_radiance_3_tx)
 SAMPLER(5, sampler2D, indirect_radiance_1_tx)
 SAMPLER(6, sampler2D, indirect_radiance_2_tx)

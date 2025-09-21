@@ -18,7 +18,7 @@ struct HiZData {
   /** Scale factor to remove HiZBuffer padding. */
   float2 uv_scale;
 
-  float2 _pad0;
+  int2 render_extent;
 };
 BLI_STATIC_ASSERT_ALIGN(HiZData, 16)
 
