@@ -815,26 +815,23 @@ class TestBlendLibDataLibrariesLoadPack(TestBlendLibDataLibrariesLoad):
                           self.do_libload, filepath=output_lib_path, link=True, pack=True, create_liboverrides=True)
         self.do_libload(filepath=output_lib_path, link=True, pack=True, create_liboverrides=False)
 
-        # Two copies, the original linked, and the packed linked ones.
-        self.assertEqual(len(bpy.data.meshes), 2)
-        self.assertEqual(len(bpy.data.objects), 2)  # This code does no instantiation.
-        self.assertEqual(len(bpy.data.collections), 2)
+        self.assertEqual(len(bpy.data.meshes), 1)
+        self.assertEqual(len(bpy.data.objects), 1)  # This code does no instantiation.
+        self.assertEqual(len(bpy.data.collections), 1)
+        # One archive library for the packed data-blocks and the reference library.
+        self.assertEqual(len(bpy.data.libraries), 2)
 
-        self.assertEqual(bpy.data.meshes[0].name, bpy.data.meshes[1].name)
-        self.assertEqual(bpy.data.objects[0].name, bpy.data.objects[1].name)
-        self.assertEqual(bpy.data.collections[0].name, bpy.data.collections[1].name)
-
-        # Link, so all data should have remained linked.
-        self.assertIsNotNone(bpy.data.meshes[0].library)
-        self.assertEqual(bpy.data.meshes[0].library, bpy.data.objects[0].library)
-        self.assertEqual(bpy.data.meshes[0].library, bpy.data.collections[0].library)
-
-        # Packed Linked should be owned by archive library.
-        self.assertNotEqual(bpy.data.meshes[1].library, bpy.data.meshes[0].library)
-        self.assertIsNotNone(bpy.data.meshes[1].library)
-        self.assertTrue(bpy.data.meshes[1].library.is_archive)
-        self.assertEqual(bpy.data.meshes[1].library, bpy.data.objects[1].library)
-        self.assertEqual(bpy.data.meshes[1].library, bpy.data.collections[1].library)
+        # Packed dat should be owned by archive library.
+        packed_mesh = bpy.data.meshes[0]
+        packed_object = bpy.data.objects[0]
+        packed_collection = bpy.data.collections[0]
+        link_library = bpy.data.libraries[0]
+        archive_library = bpy.data.libraries[1]
+        self.assertEqual(packed_mesh.library, archive_library)
+        self.assertEqual(packed_object.library, archive_library)
+        self.assertEqual(packed_collection.library, archive_library)
+        self.assertTrue(archive_library.is_archive)
+        self.assertFalse(link_library.is_archive)
 
 
 class TestBlendLibDataLibrariesLoadLibOverride(TestBlendLibDataLibrariesLoad):
