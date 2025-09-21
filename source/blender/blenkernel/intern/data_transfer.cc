@@ -689,6 +689,7 @@ static bool data_transfer_layersmapping_cdlayers(ListBase *r_map,
   void *data_dst = nullptr;
 
   if (CustomData_layertype_is_singleton(cddata_type)) {
+    BLI_assert_unreachable();
     const void *data_src = CustomData_get_layer(&cd_src, cddata_type);
     if (!data_src) {
       if (use_delete) {
