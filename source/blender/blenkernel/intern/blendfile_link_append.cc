@@ -956,6 +956,20 @@ void BKE_blendfile_link_pack(BlendfileLinkAppendContext *lapp_context, ReportLis
 {
   Main *bmain = lapp_context->params->bmain;
 
+  /* Delete newly linked data-blocks after they have been packed. */
+  blender::Vector<ID *> linked_ids_to_delete;
+  {
+    ID *id;
+    FOREACH_MAIN_ID_BEGIN (bmain, id) {
+      if (ID_IS_LINKED(id) && !ID_IS_PACKED(id)) {
+        if (!(id->tag & ID_TAG_PRE_EXISTING)) {
+          linked_ids_to_delete.append(id);
+        }
+      }
+    }
+    FOREACH_MAIN_ID_END;
+  }
+
   for (BlendfileLinkAppendContextItem &item : lapp_context->items) {
     ID *id = item.new_id;
     BLI_assert(ID_IS_LINKED(id));
@@ -970,6 +984,12 @@ void BKE_blendfile_link_pack(BlendfileLinkAppendContext *lapp_context, ReportLis
     }
   }
   BKE_main_id_newptr_and_tag_clear(bmain);
+
+  BKE_main_id_tag_all(bmain, ID_TAG_DOIT, false);
+  for (ID *id : linked_ids_to_delete) {
+    id->tag |= ID_TAG_DOIT;
+  }
+  BKE_id_multi_tagged_delete(bmain);
 }
 
 /** \} */
