@@ -85,6 +85,7 @@ namespace math = blender::math;
  * \{ */
 
 static std::unique_ptr<ocio::Config> g_config = nullptr;
+static bool g_config_is_custom = false;
 static blender::VectorSet<blender::StringRefNull> g_all_view_names;
 
 #define DISPLAY_BUFFER_CHANNELS 4
@@ -616,6 +617,12 @@ static void colormanage_free_config()
 
 void colormanagement_init()
 {
+  /* Handle Blender specific override. */
+  const char *blender_ocio_env = BLI_getenv("BLENDER_OCIO");
+  if (blender_ocio_env) {
+    BLI_setenv("OCIO", blender_ocio_env);
+  }
+
   /* First try config from environment variable. */
   const char *ocio_env = BLI_getenv("OCIO");
 
@@ -625,7 +632,10 @@ void colormanagement_init()
       CLOG_INFO_NOCHECK(&LOG, "Using %s as a configuration file", ocio_env);
       const bool ok = colormanage_load_config(*g_config);
 
-      if (!ok) {
+      if (ok) {
+        g_config_is_custom = true;
+      }
+      else {
         CLOG_ERROR(&LOG, "Failed to load config from environment");
         colormanage_free_config();
       }
@@ -644,7 +654,6 @@ void colormanagement_init()
 
       if (g_config != nullptr) {
         const bool ok = colormanage_load_config(*g_config);
-
         if (!ok) {
           CLOG_ERROR(&LOG, "Failed to load bundled config");
           colormanage_free_config();
@@ -771,14 +780,6 @@ void IMB_colormanagement_display_settings_from_ctx(
   }
 }
 
-static const ColorSpace *get_display_colorspace(
-    const ColorManagedViewSettings *view_settings,
-    const ColorManagedDisplaySettings *display_settings)
-{
-  return g_config->get_display_view_color_space(display_settings->display_device,
-                                                view_settings->view_transform);
-}
-
 static const ColorSpace *get_untonemapped_display_colorspace(
     const ColorManagedDisplaySettings *display_settings)
 {
@@ -820,13 +821,14 @@ static std::shared_ptr<const ocio::CPUProcessor> get_display_buffer_processor(
   return g_config->get_display_cpu_processor(display_parameters);
 }
 
-void IMB_colormanagement_init_untonemapped_view_settings(
-    ColorManagedViewSettings *view_settings, const ColorManagedDisplaySettings *display_settings)
+static const ocio::View *imb_get_untonemapped_view(
+    const ColorManagedDisplaySettings *display_settings)
 {
   const ocio::Display *display = g_config->get_display_by_name(display_settings->display_device);
   if (!display) {
-    return;
+    return nullptr;
   }
+
   /* Try to guess what the untonemapped view is. */
   const ocio::View *default_view = display->get_untonemapped_view();
   /* If that fails, we fall back to the default view transform of the display
@@ -834,6 +836,15 @@ void IMB_colormanagement_init_untonemapped_view_settings(
   if (default_view == nullptr) {
     default_view = display->get_default_view();
   }
+
+  return default_view;
+}
+
+void IMB_colormanagement_init_untonemapped_view_settings(
+    ColorManagedViewSettings *view_settings, const ColorManagedDisplaySettings *display_settings)
+{
+  /* Try to guess what the untonemapped view is. */
+  const ocio::View *default_view = imb_get_untonemapped_view(display_settings);
   if (default_view != nullptr) {
     STRNCPY_UTF8(view_settings->view_transform, default_view->name().c_str());
   }
@@ -967,6 +978,17 @@ static StringRefNull colormanage_find_matching_view_name(const ocio::Display *di
     const ocio::View *view = display->get_view_by_index(view_index);
     if (view->name().startswith(view_name) || view_name.startswith(view->name())) {
       return view->name();
+    }
+  }
+
+  const int64_t separator_offset = view_name.find(" - ");
+  if (separator_offset != -1) {
+    const StringRef view_short_name = view_name.substr(0, separator_offset);
+    for (const int view_index : blender::IndexRange(display->get_num_views())) {
+      const ocio::View *view = display->get_view_by_index(view_index);
+      if (view->name().startswith(view_short_name)) {
+        return view->name();
+      }
     }
   }
 
@@ -1157,9 +1179,9 @@ void IMB_colormanagement_check_file_config(Main *bmain)
   /* Inform users about mismatch, but not for new files. Linked datablocks are also ignored,
    * as we are not overwriting them on blend file save which is the main purpose of this
    * warning. */
-  bmain->colorspace.is_missing_opencolorio_config = (bmain->filepath[0] == '\0') ?
-                                                        false :
-                                                        is_missing_opencolorio_config;
+  if (bmain->filepath[0] != '\0' && is_missing_opencolorio_config) {
+    bmain->colorspace.is_missing_opencolorio_config = true;
+  }
 }
 
 void IMB_colormanagement_validate_settings(const ColorManagedDisplaySettings *display_settings,
@@ -1796,12 +1818,13 @@ static bool is_colorspace_same_as_display(const ColorSpace *colorspace,
     return false;
   }
 
-  const ColorSpace *display_colorspace = get_display_colorspace(view_settings, display_settings);
-  if (display_colorspace == colorspace) {
-    return true;
+  const ColorSpace *display_colorspace = get_untonemapped_display_colorspace(display_settings);
+  if (display_colorspace != colorspace) {
+    return false;
   }
 
-  return false;
+  const ocio::View *default_view = imb_get_untonemapped_view(display_settings);
+  return default_view && default_view->name() == view_settings->view_transform;
 }
 
 bool IMB_colormanagement_display_processor_needed(
@@ -2908,7 +2931,7 @@ bool IMB_colormanagement_display_is_wide_gamut(const ColorManagedDisplaySettings
 
 int IMB_colormanagement_view_get_id_by_name(const char *name)
 {
-  return g_all_view_names.index_of(name);
+  return g_all_view_names.index_of_try(name);
 }
 
 const char *IMB_colormanagement_view_get_name_by_id(const int index)
@@ -3112,8 +3135,10 @@ const char *IMB_colormanagement_working_space_get_indexed_name(int index)
 
 void IMB_colormanagement_working_space_items_add(EnumPropertyItem **items, int *totitem)
 {
-  const ColorSpace *scene_linear = g_config->get_color_space(OCIO_ROLE_SCENE_LINEAR);
+  const ColorSpace *scene_linear = g_config->get_color_space(global_role_scene_linear_default);
 
+  /* Keep this in sync with known color spaces in
+   * imb_colormanagement_working_space_set_from_matrix. */
   blender::Vector<const ColorSpace *> working_spaces = {
       IMB_colormanagement_space_from_interop_id("lin_rec709_scene"),
       IMB_colormanagement_space_from_interop_id("lin_rec2020_scene"),
@@ -3164,12 +3189,15 @@ bool IMB_colormanagement_working_space_set_from_name(const char *name)
   STRNCPY(global_role_scene_linear, name);
   g_config->set_scene_linear_role(name);
 
+  global_color_picking_state.cpu_processor_from.reset();
+  global_color_picking_state.cpu_processor_to.reset();
   colormanage_update_matrices();
+
   return true;
 }
 
-bool IMB_colormanagement_working_space_set_from_matrix(
-    const char *name, const blender::float3x3 &scene_linear_to_xyz)
+static bool imb_colormanagement_working_space_set_from_matrix(
+    Main *bmain, const char *name, const blender::float3x3 &scene_linear_to_xyz)
 {
   StringRefNull interop_id;
 
@@ -3178,17 +3206,15 @@ bool IMB_colormanagement_working_space_set_from_matrix(
                               global_scene_linear_to_xyz_default,
                               imb_working_space_compare_threshold))
   {
+    /* Update scene linear name in case it is different for this config. */
+    STRNCPY(bmain->colorspace.scene_linear_name, global_role_scene_linear_default);
     return IMB_colormanagement_working_space_set_from_name(global_role_scene_linear_default);
   }
 
-  /* Check if we match a common known working space, that hopefully exists in the config. */
+  /* Check if we match a known working space made available in
+   * IMB_colormanagement_working_space_items_add, that hopefully exists in the config. */
   if (blender::math::is_equal(
-          scene_linear_to_xyz, ocio::ACES_TO_XYZ, imb_working_space_compare_threshold))
-  {
-    interop_id = "lin_ap0_scene";
-  }
-  else if (blender::math::is_equal(
-               scene_linear_to_xyz, ocio::ACESCG_TO_XYZ, imb_working_space_compare_threshold))
+          scene_linear_to_xyz, ocio::ACESCG_TO_XYZ, imb_working_space_compare_threshold))
   {
     interop_id = "lin_ap1_scene";
   }
@@ -3205,13 +3231,27 @@ bool IMB_colormanagement_working_space_set_from_matrix(
     interop_id = "lin_rec2020_scene";
   }
 
-  const ColorSpace *colorspace = g_config->get_color_space_by_interop_id(interop_id);
-  if (colorspace) {
-    return IMB_colormanagement_working_space_set_from_name(colorspace->name().c_str());
+  if (!interop_id.is_empty()) {
+    const ColorSpace *colorspace = g_config->get_color_space_by_interop_id(interop_id);
+    if (colorspace) {
+      /* Update scene linear name in case it is different for this config. */
+      STRNCPY(bmain->colorspace.scene_linear_name, colorspace->name().c_str());
+      return IMB_colormanagement_working_space_set_from_name(colorspace->name().c_str());
+    }
   }
 
-  CLOG_ERROR(
-      &LOG, "Unknown scene linear working space '%s'. Missing OpenColorIO configuration?", name);
+  /* We couldn't find a matching colorspace, set to the default and inform users.
+   * We could try to preserve the original scene linear space, but that would require
+   * editing the config at runtime to add it. Not trying to do that for now. */
+  STRNCPY(bmain->colorspace.scene_linear_name, global_role_scene_linear_default);
+  bmain->colorspace.scene_linear_to_xyz = global_scene_linear_to_xyz_default;
+
+  if (bmain->filepath[0] != '\0') {
+    CLOG_ERROR(
+        &LOG, "Unknown scene linear working space '%s'. Missing OpenColorIO configuration?", name);
+    bmain->colorspace.is_missing_opencolorio_config = true;
+  }
+
   return IMB_colormanagement_working_space_set_from_name(global_role_scene_linear_default);
 }
 
@@ -3230,8 +3270,8 @@ void IMB_colormanagement_working_space_check(Main *bmain,
   const blender::float3x3 current_scene_linear_to_xyz = blender::colorspace::scene_linear_to_xyz;
 
   /* Change the working space to the one from the blend file. */
-  const bool working_space_changed = IMB_colormanagement_working_space_set_from_matrix(
-      bmain->colorspace.scene_linear_name, bmain->colorspace.scene_linear_to_xyz);
+  const bool working_space_changed = imb_colormanagement_working_space_set_from_matrix(
+      bmain, bmain->colorspace.scene_linear_name, bmain->colorspace.scene_linear_to_xyz);
   if (!working_space_changed) {
     return;
   }
@@ -3464,10 +3504,19 @@ void IMB_colormanagement_working_space_convert(Main *bmain, const Main *referenc
   bmain->colorspace.scene_linear_to_xyz = reference_bmain->colorspace.scene_linear_to_xyz;
 }
 
-void IMB_colormanagement_working_space_init(Main *bmain)
+void IMB_colormanagement_working_space_init_default(Main *bmain)
 {
   STRNCPY(bmain->colorspace.scene_linear_name, global_role_scene_linear_default);
   bmain->colorspace.scene_linear_to_xyz = global_scene_linear_to_xyz_default;
+}
+
+void IMB_colormanagement_working_space_init_startup(Main *bmain)
+{
+  /* If using the default config, keep the one saved in the startup blend.
+   * If using the non-default OCIO config, assume we want the working space from that config. */
+  if (blender::math::is_zero(bmain->colorspace.scene_linear_to_xyz) || g_config_is_custom) {
+    IMB_colormanagement_working_space_init_default(bmain);
+  }
 }
 
 /** \} */
@@ -3507,7 +3556,7 @@ void IMB_colormanagement_display_items_add(EnumPropertyItem **items, int *totite
       item.name = display->ui_name().c_str();
       item.identifier = display->name().c_str();
       item.icon = 0;
-      item.description = "";
+      item.description = display->description().c_str();
 
       RNA_enum_item_add(items, totitem, &item);
     }
@@ -3532,7 +3581,7 @@ void IMB_colormanagement_view_items_add(EnumPropertyItem **items,
     item.name = view->name().c_str();
     item.identifier = view->name().c_str();
     item.icon = 0;
-    item.description = "";
+    item.description = view->description().c_str();
 
     RNA_enum_item_add(items, totitem, &item);
   }
@@ -3556,7 +3605,7 @@ void IMB_colormanagement_look_items_add(EnumPropertyItem **items,
     item.name = look->ui_name().c_str();
     item.identifier = look->name().c_str();
     item.icon = 0;
-    item.description = "";
+    item.description = look->description().c_str();
 
     RNA_enum_item_add(items, totitem, &item);
   }
@@ -3949,7 +3998,7 @@ ColormanageProcessor *IMB_colormanagement_display_processor_new(
     applied_view_settings = &untonemapped_view_settings;
   }
 
-  display_colorspace = get_display_colorspace(applied_view_settings, display_settings);
+  display_colorspace = get_untonemapped_display_colorspace(display_settings);
   if (display_colorspace) {
     cm_processor->is_data_result = display_colorspace->is_data();
   }
