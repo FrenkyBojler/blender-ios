@@ -136,9 +136,21 @@ def osl_param_ensure_property(ccam, param):
     ui = ccam.id_properties_ui(name)
     ui.clear()
 
-    # Determine subtype (no unit support for now)
+    # Determine subtype (limited unit support for now)
     if param.type.vecsemantics == param.type.vecsemantics.COLOR:
         ui.update(subtype='COLOR')
+    elif param.type.vecsemantics == param.type.vecsemantics.POINT:
+        ui.update(subtype='TRANSLATION')
+    elif param.type.vecsemantics == param.type.vecsemantics.NORMAL:
+        ui.update(subtype='DIRECTION')
+    elif datatype is str and metadata.get('widget') == 'filename':
+        ui.update(subtype='FILE_PATH')
+    elif datatype is float and metadata.get('unit') == 'radians':
+        ui.update(subtype='ANGLE')
+    elif datatype is float and metadata.get('unit') == 'm':
+        ui.update(subtype='DISTANCE')
+    elif datatype is float and metadata.get('unit') in ('s', 'sec'):
+        ui.update(subtype='TIME_ABSOLUTE')
     elif metadata.get('slider'):
         ui.update(subtype='FACTOR')
 
