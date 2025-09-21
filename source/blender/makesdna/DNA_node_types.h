@@ -1307,8 +1307,8 @@ typedef struct NodeChroma {
   float fstrength DNA_DEPRECATED;
   float falpha DNA_DEPRECATED;
   float key[4] DNA_DEPRECATED;
-  short algorithm;
-  short channel;
+  short algorithm DNA_DEPRECATED;
+  short channel DNA_DEPRECATED;
 } NodeChroma;
 
 typedef struct NodeTwoXYs {
@@ -1423,7 +1423,7 @@ typedef struct NodeColorBalance {
 } NodeColorBalance;
 
 typedef struct NodeColorspill {
-  short limchan;
+  short limchan DNA_DEPRECATED;
   short unspill DNA_DEPRECATED;
   float limscale DNA_DEPRECATED;
   float uspillr DNA_DEPRECATED;
@@ -1451,7 +1451,7 @@ typedef struct NodeMask {
 } NodeMask;
 
 typedef struct NodeSetAlpha {
-  char mode;
+  char mode DNA_DEPRECATED;
 } NodeSetAlpha;
 
 typedef struct NodeTexBase {
@@ -1462,16 +1462,19 @@ typedef struct NodeTexBase {
 typedef struct NodeTexSky {
   NodeTexBase base;
   int sky_model;
+  float sun_direction[3];
+  float turbidity;
+  float ground_albedo;
   float sun_size;
   float sun_intensity;
   float sun_elevation;
   float sun_rotation;
   float altitude;
   float air_density;
-  float dust_density;
+  float aerosol_density;
   float ozone_density;
   char sun_disc;
-  char _pad[11];
+  char _pad[7];
 } NodeTexSky;
 
 typedef struct NodeTexImage {
@@ -2679,7 +2682,12 @@ enum {
 };
 
 /* sky texture */
-enum { SHD_SKY_NISHITA = 0 };
+enum {
+  SHD_SKY_PREETHAM = 0,
+  SHD_SKY_HOSEK = 1,
+  SHD_SKY_SINGLE_SCATTERING = 2,
+  SHD_SKY_MULTIPLE_SCATTERING = 3,
+};
 
 /* environment texture */
 enum {
@@ -2984,8 +2992,8 @@ typedef enum CMPNodeAlphaConvertMode {
 
 /** Distance Matte Node. Stored in #NodeChroma.channel. */
 typedef enum CMPNodeDistanceMatteColorSpace {
-  CMP_NODE_DISTANCE_MATTE_COLOR_SPACE_RGBA = 1,
-  CMP_NODE_DISTANCE_MATTE_COLOR_SPACE_YCCA = 2,
+  CMP_NODE_DISTANCE_MATTE_COLOR_SPACE_RGBA = 0,
+  CMP_NODE_DISTANCE_MATTE_COLOR_SPACE_YCCA = 1,
 } CMPNodeDistanceMatteColorSpace;
 
 /** Color Spill Node. Stored in `custom2`. */
@@ -3065,6 +3073,7 @@ typedef enum CMPNodeGlareType {
   CMP_NODE_GLARE_GHOST = 3,
   CMP_NODE_GLARE_BLOOM = 4,
   CMP_NODE_GLARE_SUN_BEAMS = 5,
+  CMP_NODE_GLARE_KERNEL = 6,
 } CMPNodeGlareType;
 
 /* Kuwahara Node. Stored in variation */
@@ -3124,10 +3133,10 @@ typedef enum CMPNodeCryptomatteSource {
 
 /* Channel Matte node, stored in custom1. */
 typedef enum CMPNodeChannelMatteColorSpace {
-  CMP_NODE_CHANNEL_MATTE_CS_RGB = 1,
-  CMP_NODE_CHANNEL_MATTE_CS_HSV = 2,
-  CMP_NODE_CHANNEL_MATTE_CS_YUV = 3,
-  CMP_NODE_CHANNEL_MATTE_CS_YCC = 4,
+  CMP_NODE_CHANNEL_MATTE_CS_RGB = 0,
+  CMP_NODE_CHANNEL_MATTE_CS_HSV = 1,
+  CMP_NODE_CHANNEL_MATTE_CS_YUV = 2,
+  CMP_NODE_CHANNEL_MATTE_CS_YCC = 3,
 } CMPNodeChannelMatteColorSpace;
 
 /* NodeLensDist.distortion_type. */

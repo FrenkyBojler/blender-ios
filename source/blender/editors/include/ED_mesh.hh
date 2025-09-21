@@ -136,8 +136,13 @@ void EDBM_select_less(BMEditMesh *em, bool use_face_step);
 void EDBM_selectmode_flush_ex(BMEditMesh *em, short selectmode);
 void EDBM_selectmode_flush(BMEditMesh *em);
 
-void EDBM_deselect_flush(BMEditMesh *em);
-void EDBM_select_flush(BMEditMesh *em);
+/**
+ * Mode independent selection/de-selection flush.
+ *
+ * \param select: When true, flush the selection state to de-selected elements,
+ * otherwise perform the opposite, flushing de-selection.
+ */
+void EDBM_select_flush(BMEditMesh *em, bool select);
 
 bool EDBM_vert_color_check(BMEditMesh *em);
 
@@ -526,10 +531,6 @@ int ED_mesh_uv_add(
     Mesh *mesh, const char *name, bool active_set, bool do_init, ReportList *reports);
 
 void ED_mesh_uv_loop_reset(bContext *C, Mesh *mesh);
-/**
- * Without a #bContext, called when UV-editing.
- */
-void ED_mesh_uv_loop_reset_ex(Mesh *mesh, int layernum);
 bool ED_mesh_color_ensure(Mesh *mesh, const char *name);
 int ED_mesh_color_add(
     Mesh *mesh, const char *name, bool active_set, bool do_init, ReportList *reports);
