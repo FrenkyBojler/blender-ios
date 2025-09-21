@@ -5,6 +5,7 @@
 #include "node_geometry_util.hh"
 
 #include "DNA_curves_types.h"
+#include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_pointcloud_types.h"
 #include "DNA_volume_types.h"
@@ -12,6 +13,8 @@
 #include "BKE_curves.hh"
 #include "BKE_grease_pencil.hh"
 #include "BKE_material.hh"
+
+#include "DEG_depsgraph_query.hh"
 
 #include "GEO_foreach_geometry.hh"
 
@@ -57,7 +60,22 @@ static void assign_material_to_id_geometry(ID *id,
   int new_index = -1;
   const int orig_materials_num = *BKE_id_material_len_p(id);
   if (Material **materials = *BKE_id_material_array_p(id)) {
-    new_index = Span(materials, orig_materials_num).first_index_try(material);
+    const Span<Material *> geometry_materials = Span(materials, orig_materials_num);
+    new_index = geometry_materials.first_index_try(material);
+    if (!geometry_materials.is_empty() && new_index == -1 && material != nullptr) {
+      const ID *original_material = DEG_get_original_id(&material->id);
+      for (const int index : geometry_materials.index_range()) {
+        if (geometry_materials[index] == nullptr) {
+          continue;
+        }
+        const ID *geometry_material_id = DEG_get_original_id(&geometry_materials[index]->id);
+        if (geometry_material_id != original_material) {
+          continue;
+        }
+        new_index = index;
+        break;
+      }
+    }
   }
 
   if (new_index == -1) {
