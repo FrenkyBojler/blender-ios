@@ -948,7 +948,8 @@ void CLG_logref_init(CLG_LogRef *clg_ref)
 {
 #ifdef WITH_CLOG_PTHREADS
   if (g_ctx == nullptr) {
-    printf("CLG initialization is missed when logging is attempted.\n");
+    fprintf(stderr, "CLG logging used without initialization, aborting.\n");
+    abort();
   }
 
   /* Only runs once when initializing a static type in most cases. */
