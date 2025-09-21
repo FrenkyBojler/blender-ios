@@ -17,10 +17,12 @@
 
 #include "DNA_ID.h"
 #include "DNA_mesh_types.h"
+#include "DNA_scene_types.h"
 
 #include "../draw/intern/draw_cache_extract.hh"
 #include "../gpu/intern/gpu_shader_create_info.hh"
 
+#include "GPU_capabilities.hh"
 #include "GPU_context.hh"
 #include "GPU_compute.hh"
 #include "GPU_shader.hh"
@@ -50,6 +52,7 @@ struct MeshScatterResources {
   int vert_to_face_offsets_offset = 0;
   int vert_to_face_offset = 0;
   int normals_domain = 0;
+  int normals_hq = 0;
 };
 
 /* Orphans to free later when GPU context is available. */
@@ -131,7 +134,7 @@ static void mesh_scatter_orphans_flush(void)
  * - creates the specialized compute shader with specialization constants set to those offsets
  *
  * Returns nullptr on failure (e.g. no GPU context). */
-static MeshScatterResources *mesh_scatter_resources_get_or_create(Mesh *mesh)
+static MeshScatterResources *mesh_scatter_resources_get_or_create(Mesh *mesh, Scene *scene)
 {
   if (!mesh) {
     return nullptr;
@@ -215,6 +218,7 @@ static MeshScatterResources *mesh_scatter_resources_get_or_create(Mesh *mesh)
   }
 
   res.normals_domain = mesh->normals_domain() == blender::bke::MeshNormalDomain::Face ? 1 : 0;
+  res.normals_hq = int(bool(scene->r.perf_flag & SCE_PERF_HQ_NORMALS) || GPU_use_hq_normals_workaround());
 
   /* Create shader with specialization constants baked to mesh offsets. */
   using namespace blender::gpu::shader;
@@ -236,6 +240,7 @@ static MeshScatterResources *mesh_scatter_resources_get_or_create(Mesh *mesh)
       Type::int_t, "vert_to_face_offsets_offset", res.vert_to_face_offsets_offset);
   info.specialization_constant(Type::int_t, "vert_to_face_offset", res.vert_to_face_offset);
   info.specialization_constant(Type::int_t, "normals_domain", res.normals_domain);
+  info.specialization_constant(Type::int_t, "normals_hq", res.normals_hq);
 
   info.compute_source_generated = R"GLSL(
 // Utility accessors
@@ -244,6 +249,20 @@ int corner_to_face(int i) { return topo[corner_to_face_offset + i]; }
 int corner_verts(int i) { return topo[corner_verts_offset + i]; }
 int vert_to_face_offsets(int i) { return topo[vert_to_face_offsets_offset + i]; }
 int vert_to_face(int i) { return topo[vert_to_face_offset + i]; }
+
+// helpers SNORM16 packing
+int pack_i16_trunc(float x) {
+  const int max_i16 = 32767;
+  const int min_i16 = -32768;
+  float s = x * float(max_i16);
+  int q = int(round(s));
+  return clamp(q, min_i16, max_i16);
+}
+uint pack_i16_pair(float a, float b) {
+  uint lo = uint(pack_i16_trunc(a)) & 0xFFFFu;
+  uint hi = (uint(pack_i16_trunc(b)) & 0xFFFFu) << 16;
+  return lo | hi;
+}
 
 // 10_10_10_2 packing utility
 int pack_i10_trunc(float x) {
@@ -311,7 +330,16 @@ void main() {
   }
 
   vec3 n_world = transform_normal(n_obj, transform_mat[0]);
-  normals[c] = pack_norm(normalize(n_world));
+  if (normals_hq == 0) {
+    /* existing 10_10_10_2 packing, 1 uint per corner */
+    normals[c] = pack_norm(n_world);
+  }
+  else {
+    /* SNORM16x4 packing: write 2 uints per corner (x,y) then (z,0) */
+    int base = int(c) * 2;
+    normals[base + 0] = pack_i16_pair(n_world.x, n_world.y);
+    normals[base + 1] = pack_i16_pair(n_world.z, 0.0);
+  }
 }
 )GLSL";
 
@@ -519,7 +547,8 @@ static PyObject *pygpu_mesh_scatter(PyObject * /*self*/, PyObject *args, PyObjec
   mesh_eval->is_running_gpu_deform = 1;
 
   /* Build / obtain the compute shader + mesh topology SSBO. */
-  MeshScatterResources *res = mesh_scatter_resources_get_or_create(mesh_eval);
+  Scene *scene = DEG_get_input_scene(depsgraph);
+  MeshScatterResources *res = mesh_scatter_resources_get_or_create(mesh_eval, scene);
   if (!res || !res->shader) {
     PyErr_SetString(PyExc_RuntimeError, "Scatter compute shader not available for mesh");
     return nullptr;
