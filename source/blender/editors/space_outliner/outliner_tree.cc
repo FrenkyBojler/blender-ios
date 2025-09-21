@@ -690,6 +690,84 @@ static void outliner_sort_custom(ListBase *lb)
   }
 }
 
+static int treesort_type_ob(const void *v1, const void *v2)
+{
+  const tTreeSort *x1 = static_cast<const tTreeSort *>(v1);
+  const tTreeSort *x2 = static_cast<const tTreeSort *>(v2);
+
+  /* Keep non objects before objects. */
+  const bool a_is_ob = (x1->idcode == ID_OB);
+  const bool b_is_ob = (x2->idcode == ID_OB);
+  if (a_is_ob != b_is_ob) {
+    return a_is_ob ? 1 : -1;
+  }
+
+  /* If neither are objects, preserve existing order. */
+  if (!a_is_ob) {
+    return 0;
+  }
+
+  const bool a_not_in = (x1->te->flag & TE_CHILD_NOT_IN_COLLECTION) != 0;
+  const bool b_not_in = (x2->te->flag & TE_CHILD_NOT_IN_COLLECTION) != 0;
+  if (a_not_in != b_not_in) {
+    return a_not_in ? 1 : -1;
+  }
+
+  /* Group by object type. */
+  const Object *ob1 = reinterpret_cast<const Object *>(x1->id);
+  const Object *ob2 = reinterpret_cast<const Object *>(x2->id);
+  if (ob1->type < ob2->type) {
+    return -1;
+  }
+  if (ob1->type > ob2->type) {
+    return 1;
+  }
+
+  return BLI_strcasecmp_natural(x1->name, x2->name);
+}
+
+static void outliner_sort_type(ListBase *lb)
+{
+  TreeElement *last_te = static_cast<TreeElement *>(lb->last);
+  if (last_te == nullptr) {
+    return;
+  }
+  TreeStoreElem *last_tselem = TREESTORE(last_te);
+
+  if ((last_tselem->type == TSE_SOME_ID) && (last_te->idcode == ID_OB)) {
+    const int totelem = BLI_listbase_count(lb);
+    if (totelem > 1) {
+      tTreeSort *tear = MEM_malloc_arrayN<tTreeSort>(totelem, "tree sort array (type)");
+      tTreeSort *tp = tear;
+
+      LISTBASE_FOREACH (TreeElement *, te, lb) {
+        TreeStoreElem *tselem = TREESTORE(te);
+        tp->te = te;
+        tp->id = tselem->id;
+        tp->name = te->name;
+        tp->idcode = te->idcode;
+        tp++;
+      }
+
+      qsort(tear, totelem, sizeof(tTreeSort), treesort_type_ob);
+
+      /* Rebuild list in the newly sorted order. */
+      BLI_listbase_clear(lb);
+      tp = tear;
+      for (int i = 0; i < totelem; i++, tp++) {
+        BLI_addtail(lb, tp->te);
+      }
+
+      MEM_freeN(tear);
+    }
+  }
+
+  /* Recurse into children. */
+  LISTBASE_FOREACH (TreeElement *, te, lb) {
+    outliner_sort_type(&te->subtree);
+  }
+}
+
 static void outliner_collections_children_sort(ListBase *lb)
 {
   TreeElement *last_te = static_cast<TreeElement *>(lb->last);
@@ -1276,7 +1354,7 @@ void outliner_build_tree(Main *mainvar,
       break;
 
     case SO_SORT_TYPE:
-      // Will do this later
+      outliner_sort_type(&space_outliner->tree);
       break;
   }
 
