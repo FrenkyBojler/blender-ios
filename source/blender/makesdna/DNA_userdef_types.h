@@ -208,8 +208,8 @@ typedef struct UserDef_TempWinBounds {
 } UserDef_TempWinBounds;
 
 /**
- * Checking experimental members must use the #USER_EXPERIMENTAL_TEST() macro
- * unless the #USER_DEVELOPER_UI is known to be enabled.
+ * Checking experimental members must use either the #USER_EXPERIMENTAL_TEST() macro
+ * or the #USER_DEVELOPER_TOOL_TEST() macro.
  */
 typedef struct UserDef_Experimental {
   /* Debug options, always available. */
@@ -236,7 +236,9 @@ typedef struct UserDef_Experimental {
   char _pad[6];
 } UserDef_Experimental;
 
-#define USER_EXPERIMENTAL_TEST(userdef, member) \
+#define USER_EXPERIMENTAL_TEST(userdef, member) (((userdef)->experimental).member)
+
+#define USER_DEVELOPER_TOOL_TEST(userdef, member) \
   (((userdef)->flag & USER_DEVELOPER_UI) && ((userdef)->experimental).member)
 
 /**
@@ -500,7 +502,7 @@ typedef struct UserDef {
 
   char _pad16[2];
 
-  /** #eGPUBackendType */
+  /** #GPUBackendType */
   short gpu_backend;
 
   /** Number of samples for FPS display calculations. */
@@ -659,6 +661,7 @@ typedef enum eUserPref_Section {
   USER_SECTION_FILE_PATHS = 15,
   USER_SECTION_EXPERIMENTAL = 16,
   USER_SECTION_EXTENSIONS = 17,
+  USER_SECTION_DEVELOPER_TOOLS = 18,
 } eUserPref_Section;
 
 /** #UserDef_SpaceData.flag (State of the user preferences UI). */
@@ -763,7 +766,7 @@ typedef enum eWalkNavigation_Flag {
 /** #UserDef.uiflag */
 typedef enum eUserpref_UI_Flag {
   USER_NO_MULTITOUCH_GESTURES = (1 << 0),
-  USER_UIFLAG_UNUSED_1 = (1 << 1), /* cleared */
+  USER_REDUCE_MOTION = (1 << 1),
   USER_WHEELZOOMDIR = (1 << 2),
   USER_FILTERFILEEXTS = (1 << 3),
   USER_DRAWVIEWINFO = (1 << 4),
@@ -808,7 +811,7 @@ typedef enum eUserpref_UI_Flag {
  * \note don't add new flags here, use 'uiflag' which has flags free.
  */
 typedef enum eUserpref_UI_Flag2 {
-  USER_UIFLAG2_UNUSED_0 = (1 << 0), /* cleared */
+  USER_ALWAYS_SHOW_NUMBER_ARROWS = (1 << 0), /* cleared */
   USER_REGION_OVERLAP = (1 << 1),
   USER_UIFLAG2_UNUSED_2 = (1 << 2),
   USER_UIFLAG2_UNUSED_3 = (1 << 3), /* dirty */
@@ -824,7 +827,7 @@ typedef enum eUserpref_GPU_Flag {
 } eUserpref_GPU_Flag;
 
 /** #UserDef.gpu_backend
- * NOTE: Keep in sync with eGPUBackendType. */
+ * NOTE: Keep in sync with GPUBackendType. */
 enum eUserPref_GPUBackendType {
   USER_GPU_BACKEND_OPENGL = 1 << 0,
   USER_GPU_BACKEND_METAL = 1 << 1,

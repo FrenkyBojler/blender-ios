@@ -1481,23 +1481,7 @@ class VIEW3D_MT_view(Menu):
 
         layout.separator()
 
-        layout.operator(
-            "render.opengl",
-            text="Viewport Render Image",
-            icon='RENDER_STILL',
-        )
-        layout.operator(
-            "render.opengl",
-            text="Viewport Render Animation",
-            icon='RENDER_ANIMATION',
-        ).animation = True
-        props = layout.operator(
-            "render.opengl",
-            text="Viewport Render Keyframes",
-        )
-        props.animation = True
-        props.render_keyed_only = True
-
+        layout.menu("VIEW3D_MT_view_render")
         layout.separator()
 
         layout.menu("INFO_MT_area")
@@ -1653,6 +1637,31 @@ class VIEW3D_MT_view_regions(Menu):
         layout.separator()
 
         layout.operator("view3d.clear_render_border")
+
+
+class VIEW3D_MT_view_render(Menu):
+    bl_label = "Render Preview"
+
+    def draw(self, _context):
+        layout = self.layout
+        layout.operator(
+            "render.opengl",
+            text="Render Viewport Image",
+            icon='RENDER_STILL',
+        )
+        layout.operator(
+            "render.opengl",
+            text="Render Viewport Animation",
+            icon='RENDER_ANIMATION',
+        ).animation = True
+
+        layout.separator()
+        props = layout.operator(
+            "render.opengl",
+            text="Render Viewport Keyframes",
+        )
+        props.animation = True
+        props.render_keyed_only = True
 
 
 # ********** Select menus, suffix from context.mode **********
@@ -2609,6 +2618,20 @@ class VIEW3D_MT_grease_pencil_add(Menu):
         layout.operator("object.grease_pencil_add", text="Object Line Art", icon='OBJECT_DATA').type = 'LINEART_OBJECT'
 
 
+class VIEW3D_MT_lattice_add(Menu):
+    bl_idname = "VIEW3D_MT_lattice_add"
+    bl_label = "Lattice"
+    bl_translation_context = i18n_contexts.operator_default
+    bl_options = {'SEARCH_ON_KEY_PRESS'}
+
+    def draw(self, _context):
+        layout = self.layout
+        layout.operator_context = 'INVOKE_REGION_WIN'
+
+        layout.operator("object.add", text="Lattice", icon='OUTLINER_OB_LATTICE').type = 'LATTICE'
+        layout.operator("object.lattice_add_to_selected", text="Lattice Deform Selected", icon='OUTLINER_OB_LATTICE')
+
+
 class VIEW3D_MT_empty_add(Menu):
     bl_idname = "VIEW3D_MT_empty_add"
     bl_label = "Empty"
@@ -2667,7 +2690,7 @@ class VIEW3D_MT_add(Menu):
         else:
             layout.operator("object.armature_add", text="Armature", icon='OUTLINER_OB_ARMATURE')
 
-        layout.operator("object.add", text="Lattice", icon='OUTLINER_OB_LATTICE').type = 'LATTICE'
+        layout.menu("VIEW3D_MT_lattice_add", icon='OUTLINER_OB_LATTICE')
 
         layout.separator()
 
@@ -8783,7 +8806,7 @@ class VIEW3D_PT_sculpt_automasking(Panel):
             col.prop(sculpt, "use_automasking_custom_cavity_curve", text="Custom Curve")
 
             if sculpt.use_automasking_custom_cavity_curve:
-                col.template_curve_mapping(sculpt, "automasking_cavity_curve")
+                col.template_curve_mapping(sculpt, "automasking_cavity_curve", brush=True)
 
         col.separator()
 
@@ -8985,7 +9008,11 @@ class VIEW3D_PT_curves_sculpt_parameter_falloff(Panel):
         settings = UnifiedPaintPanel.paint_settings(context)
         brush = settings.brush
 
-        layout.template_curve_mapping(brush.curves_sculpt_settings, "curve_parameter_falloff")
+        layout.template_curve_mapping(
+            brush.curves_sculpt_settings,
+            "curve_parameter_falloff",
+            brush=True,
+            use_negative_slope=True)
         row = layout.row(align=True)
         row.operator("brush.sculpt_curves_falloff_preset", icon='SMOOTHCURVE', text="").shape = 'SMOOTH'
         row.operator("brush.sculpt_curves_falloff_preset", icon='SPHERECURVE', text="").shape = 'ROUND'
@@ -9115,6 +9142,7 @@ classes = (
     VIEW3D_MT_view_align_selected,
     VIEW3D_MT_view_viewpoint,
     VIEW3D_MT_view_regions,
+    VIEW3D_MT_view_render,
     VIEW3D_MT_select_object,
     VIEW3D_MT_select_object_more_less,
     VIEW3D_MT_select_pose,
@@ -9152,6 +9180,7 @@ classes = (
     VIEW3D_MT_camera_add,
     VIEW3D_MT_volume_add,
     VIEW3D_MT_grease_pencil_add,
+    VIEW3D_MT_lattice_add,
     VIEW3D_MT_empty_add,
     VIEW3D_MT_add,
     VIEW3D_MT_image_add,

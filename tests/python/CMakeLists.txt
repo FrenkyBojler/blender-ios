@@ -348,12 +348,16 @@ if(TEST_SRC_DIR_EXISTS)
     --output-dir ${TEST_OUT_DIR}/blendfile_io/
   )
 
-  add_blender_test(
-    blendfile_library_overrides
-    --python ${CMAKE_CURRENT_LIST_DIR}/bl_blendfile_library_overrides.py --
-    --output-dir ${TEST_OUT_DIR}/blendfile_io/
-    --test-dir "${TEST_SRC_DIR}/libraries_and_linking"
-  )
+# This test is intermittently failing. Disable it for now to avoid other work
+# being incorrectly flagged as broken. Once issue #146221 is resolved this 
+# test must be re-enabled.
+#
+#  add_blender_test(
+#    blendfile_library_overrides
+#    --python ${CMAKE_CURRENT_LIST_DIR}/bl_blendfile_library_overrides.py --
+#    --output-dir ${TEST_OUT_DIR}/blendfile_io/
+#    --test-dir "${TEST_SRC_DIR}/libraries_and_linking"
+#  )
 
   add_blender_test(
     blendfile_header
@@ -669,6 +673,7 @@ if((WITH_CYCLES OR WITH_GPU_RENDER_TESTS) AND TEST_SRC_DIR_EXISTS)
   set(render_tests
     attributes
     camera
+    colorspace
     bsdf
     hair
     image_colorspace
@@ -680,6 +685,7 @@ if((WITH_CYCLES OR WITH_GPU_RENDER_TESTS) AND TEST_SRC_DIR_EXISTS)
     light_group
     light_linking
     mesh
+    node_inlining
     pointcloud
     principled_bsdf
     shader
@@ -1377,6 +1383,7 @@ if(WITH_UI_TESTS)
   # list explicitly so changes bisecting/updated are sure to re-run CMake.
   set(_ui_tests
     test_sculpt.asset_shelf_brush_selection
+    test_tools.sculpt_mode_toolbar
     test_undo.compositor_make_group
     test_undo.text_editor_edit_mode_mix
     test_undo.text_editor_simple

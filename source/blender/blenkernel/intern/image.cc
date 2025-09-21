@@ -1527,6 +1527,10 @@ void BKE_image_packfiles_from_mem(ReportList *reports,
     imapf->view = 0;
     imapf->tile_number = 1001;
     STRNCPY(imapf->filepath, ima->filepath);
+
+    /* The image should not be marked as "generated" since image data was provided. */
+    ImageTile *base_tile = BKE_image_get_tile(ima, 0);
+    base_tile->gen_flag &= ~IMA_GEN_TILE;
   }
 }
 
@@ -2866,7 +2870,7 @@ static void image_walk_id_all_users(
     }
     case ID_MA: {
       Material *ma = (Material *)id;
-      if (ma->nodetree && ma->use_nodes && !skip_nested_nodes) {
+      if (ma->nodetree && !skip_nested_nodes) {
         image_walk_ntree_all_users(ma->nodetree, &ma->id, customdata, callback);
       }
       image_walk_gpu_materials(id, &ma->gpumaterial, customdata, callback);
