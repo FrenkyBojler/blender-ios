@@ -896,7 +896,7 @@ static bool uv_rip_object(Scene *scene, Object *obedit, const float co[2], const
       BM_mesh_uvselect_flush_from_loop_verts(bm);
     }
     else {
-      uvedit_deselect_flush(scene, bm);
+      uvedit_select_flush(scene, bm, false);
     }
   }
   return changed;
