@@ -22,6 +22,7 @@
 #include "BLI_utildefines.h"
 
 #include "BKE_attribute.hh"
+#include "BKE_attribute_legacy_convert.hh"
 #include "BKE_customdata.hh"
 #include "BKE_data_transfer.h"
 #include "BKE_deform.hh"
@@ -842,6 +843,48 @@ static bool data_transfer_layersmapping_cdlayers(ListBase *r_map,
   return true;
 }
 
+static bool add_named_transfer_item(ListBase *r_map,
+                                    int mix_mode,
+                                    float mix_factor,
+                                    const float *mix_weights,
+                                    const blender::bke::AttributeStorage &src_attributes,
+                                    blender::bke::AttributeStorage &dst_attributes,
+                                    const blender::StringRef name,
+                                    const blender::bke::AttrDomain domain,
+                                    const blender::bke::AttrType type,
+                                    const int src_domain_size,
+                                    const int dst_domain_size)
+{
+  using namespace blender;
+  const CPPType &cpp_type = bke::attribute_type_to_cpp_type(type);
+  bke::Attribute *dst_attr = dst_attributes.lookup(name);
+  if (!dst_attr) {
+    dst_attr = &dst_attributes.add(
+        name,
+        domain,
+        type,
+        bke::Attribute::ArrayData::from_default_value(cpp_type, dst_domain_size));
+  }
+  if (dst_attr->storage_type() != bke::AttrStorageType::Array || dst_attr->domain() != domain ||
+      dst_attr->data_type() != type)
+  {
+    return false;
+  }
+  data_transfer_layersmapping_add_item_cd(
+      r_map,
+      *bke::attr_type_to_custom_data_type(type),
+      mix_mode,
+      mix_factor,
+      mix_weights,
+      bke::get_span_attribute(src_attributes, domain, cpp_type, name, src_domain_size)
+          .value_or({})
+          .data(),
+      std::get<bke::Attribute::ArrayData>(dst_attr->data()).data,
+      nullptr,
+      nullptr);
+  return true;
+}
+
 static bool data_transfer_layersmapping_generate(ListBase *r_map,
                                                  Object *ob_src,
                                                  Object *ob_dst,
@@ -863,11 +906,13 @@ static bool data_transfer_layersmapping_generate(ListBase *r_map,
   const bke::AttributeStorage &src_attributes = me_src->attribute_storage.wrap();
   bke::AttributeStorage &dst_attributes = me_dst->attribute_storage.wrap();
 
-  cd_datatransfer_interp interp = nullptr;
-  void *interp_data = nullptr;
+  const cd_datatransfer_interp interp = nullptr;
+  void *const interp_data = nullptr;
 
   if (elem_type == ME_VERT) {
     const bke::AttrDomain domain = bke::AttrDomain::Point;
+    const int src_domain_size = me_src->verts_num;
+    const int dst_domain_size = me_dst->verts_num;
     if (!(cddata_type & CD_FAKE)) {
       // TODO_MESH_ATTR
       if (!data_transfer_layersmapping_cdlayers(r_map,
@@ -906,199 +951,95 @@ static bool data_transfer_layersmapping_generate(ListBase *r_map,
                                                  tolayers);
     }
     if (r_map && cddata_type == CD_FAKE_BWEIGHT) {
-      const StringRef name = "bevel_weight_vert";
-      const bke::AttrType type = bke::AttrType::Float;
-      const CPPType &cpp_type = bke::attribute_type_to_cpp_type(type);
-      bke::Attribute *dst_attr = dst_attributes.lookup(name);
-      if (!dst_attr) {
-        dst_attr = &dst_attributes.add(
-            name,
-            domain,
-            type,
-            bke::Attribute::ArrayData::from_default_value(cpp_type, me_dst->verts_num));
-      }
-      if (dst_attr->storage_type() != bke::AttrStorageType::Array ||
-          dst_attr->domain() != domain || dst_attr->data_type() != type)
-      {
-        return false;
-      }
-      data_transfer_layersmapping_add_item_cd(
-          r_map,
-          CD_PROP_FLOAT,
-          mix_mode,
-          mix_factor,
-          mix_weights,
-          bke::get_span_attribute(src_attributes, domain, cpp_type, name, me_src->verts_num)
-              .value_or({})
-              .data(),
-          std::get<bke::Attribute::ArrayData>(dst_attr->data()).data,
-          interp,
-          interp_data);
-      return true;
+      return add_named_transfer_item(r_map,
+                                     mix_mode,
+                                     mix_factor,
+                                     mix_weights,
+                                     src_attributes,
+                                     dst_attributes,
+                                     "bevel_weight_vert",
+                                     domain,
+                                     bke::AttrType::Float,
+                                     src_domain_size,
+                                     dst_domain_size);
     }
   }
   else if (elem_type == ME_EDGE) {
     const bke::AttrDomain domain = bke::AttrDomain::Edge;
+    const int src_domain_size = me_src->edges_num;
+    const int dst_domain_size = me_dst->edges_num;
     if (r_map && cddata_type == CD_FAKE_SEAM) {
-      const StringRef name = "uv_seam";
-      const bke::AttrType type = bke::AttrType::Bool;
-      const CPPType &cpp_type = bke::attribute_type_to_cpp_type(type);
-      bke::Attribute *dst_attr = dst_attributes.lookup(name);
-      if (!dst_attr) {
-        dst_attr = &dst_attributes.add(
-            name,
-            domain,
-            type,
-            bke::Attribute::ArrayData::from_default_value(cpp_type, me_dst->edges_num));
-      }
-      if (dst_attr->storage_type() != bke::AttrStorageType::Array ||
-          dst_attr->domain() != domain || dst_attr->data_type() != type)
-      {
-        return false;
-      }
-      data_transfer_layersmapping_add_item_cd(
-          r_map,
-          CD_PROP_BOOL,
-          mix_mode,
-          mix_factor,
-          mix_weights,
-          bke::get_span_attribute(src_attributes, domain, cpp_type, name, me_src->edges_num)
-              .value_or({})
-              .data(),
-          std::get<bke::Attribute::ArrayData>(dst_attr->data()).data,
-          interp,
-          interp_data);
-      return true;
+      return add_named_transfer_item(r_map,
+                                     mix_mode,
+                                     mix_factor,
+                                     mix_weights,
+                                     src_attributes,
+                                     dst_attributes,
+                                     "uv_seam",
+                                     domain,
+                                     bke::AttrType::Bool,
+                                     src_domain_size,
+                                     dst_domain_size);
     }
     if (r_map && cddata_type == CD_FAKE_SHARP) {
-      const StringRef name = "sharp_edge";
-      const bke::AttrType type = bke::AttrType::Bool;
-      const CPPType &cpp_type = bke::attribute_type_to_cpp_type(type);
-      bke::Attribute *dst_attr = dst_attributes.lookup(name);
-      if (!dst_attr) {
-        dst_attr = &dst_attributes.add(
-            name,
-            domain,
-            type,
-            bke::Attribute::ArrayData::from_default_value(cpp_type, me_dst->edges_num));
-      }
-      if (dst_attr->storage_type() != bke::AttrStorageType::Array ||
-          dst_attr->domain() != domain || dst_attr->data_type() != type)
-      {
-        return false;
-      }
-      data_transfer_layersmapping_add_item_cd(
-          r_map,
-          CD_PROP_BOOL,
-          mix_mode,
-          mix_factor,
-          mix_weights,
-          bke::get_span_attribute(src_attributes, domain, cpp_type, name, me_src->edges_num)
-              .value_or({})
-              .data(),
-          std::get<bke::Attribute::ArrayData>(dst_attr->data()).data,
-          interp,
-          interp_data);
-      return true;
+      return add_named_transfer_item(r_map,
+                                     mix_mode,
+                                     mix_factor,
+                                     mix_weights,
+                                     src_attributes,
+                                     dst_attributes,
+                                     "sharp_edge",
+                                     domain,
+                                     bke::AttrType::Bool,
+                                     src_domain_size,
+                                     dst_domain_size);
     }
     if (r_map && cddata_type == CD_FAKE_BWEIGHT) {
-      const StringRef name = "bevel_weight_edge";
-      const bke::AttrType type = bke::AttrType::Bool;
-      const CPPType &cpp_type = bke::attribute_type_to_cpp_type(type);
-      bke::Attribute *dst_attr = dst_attributes.lookup(name);
-      if (!dst_attr) {
-        dst_attr = &dst_attributes.add(
-            name,
-            domain,
-            type,
-            bke::Attribute::ArrayData::from_default_value(cpp_type, me_dst->edges_num));
-      }
-      if (dst_attr->storage_type() != bke::AttrStorageType::Array ||
-          dst_attr->domain() != domain || dst_attr->data_type() != type)
-      {
-        return false;
-      }
-      data_transfer_layersmapping_add_item_cd(
-          r_map,
-          CD_PROP_FLOAT,
-          mix_mode,
-          mix_factor,
-          mix_weights,
-          bke::get_span_attribute(src_attributes, domain, cpp_type, name, me_src->edges_num)
-              .value_or({})
-              .data(),
-          std::get<bke::Attribute::ArrayData>(dst_attr->data()).data,
-          interp,
-          interp_data);
-      return true;
+      return add_named_transfer_item(r_map,
+                                     mix_mode,
+                                     mix_factor,
+                                     mix_weights,
+                                     src_attributes,
+                                     dst_attributes,
+                                     "bevel_weight_edge",
+                                     domain,
+                                     bke::AttrType::Bool,
+                                     src_domain_size,
+                                     dst_domain_size);
     }
     if (r_map && cddata_type == CD_FAKE_CREASE) {
-      const StringRef name = "crease_edge";
-      const bke::AttrType type = bke::AttrType::Float;
-      const CPPType &cpp_type = bke::attribute_type_to_cpp_type(type);
-      bke::Attribute *dst_attr = dst_attributes.lookup(name);
-      if (!dst_attr) {
-        dst_attr = &dst_attributes.add(
-            name,
-            domain,
-            type,
-            bke::Attribute::ArrayData::from_default_value(cpp_type, me_dst->edges_num));
-      }
-      if (dst_attr->storage_type() != bke::AttrStorageType::Array ||
-          dst_attr->domain() != domain || dst_attr->data_type() != type)
-      {
-        return false;
-      }
-      data_transfer_layersmapping_add_item_cd(
-          r_map,
-          CD_PROP_FLOAT,
-          mix_mode,
-          mix_factor,
-          mix_weights,
-          bke::get_span_attribute(src_attributes, domain, cpp_type, name, me_src->edges_num)
-              .value_or({})
-              .data(),
-          std::get<bke::Attribute::ArrayData>(dst_attr->data()).data,
-          interp,
-          interp_data);
-      return true;
+      return add_named_transfer_item(r_map,
+                                     mix_mode,
+                                     mix_factor,
+                                     mix_weights,
+                                     src_attributes,
+                                     dst_attributes,
+                                     "crease_edge",
+                                     domain,
+                                     bke::AttrType::Float,
+                                     src_domain_size,
+                                     dst_domain_size);
     }
     if (r_map && cddata_type == CD_FAKE_FREESTYLE_EDGE) {
-      const StringRef name = "freestyle_edge";
-      const bke::AttrType type = bke::AttrType::Bool;
-      const CPPType &cpp_type = bke::attribute_type_to_cpp_type(type);
-      bke::Attribute *dst_attr = dst_attributes.lookup(name);
-      if (!dst_attr) {
-        dst_attr = &dst_attributes.add(
-            name,
-            domain,
-            type,
-            bke::Attribute::ArrayData::from_default_value(cpp_type, me_dst->edges_num));
-      }
-      if (dst_attr->storage_type() != bke::AttrStorageType::Array ||
-          dst_attr->domain() != domain || dst_attr->data_type() != type)
-      {
-        return false;
-      }
-      data_transfer_layersmapping_add_item_cd(
-          r_map,
-          CD_PROP_BOOL,
-          mix_mode,
-          mix_factor,
-          mix_weights,
-          bke::get_span_attribute(src_attributes, domain, cpp_type, name, me_src->edges_num)
-              .value_or({})
-              .data(),
-          std::get<bke::Attribute::ArrayData>(dst_attr->data()).data,
-          interp,
-          interp_data);
-      return true;
+      return add_named_transfer_item(r_map,
+                                     mix_mode,
+                                     mix_factor,
+                                     mix_weights,
+                                     src_attributes,
+                                     dst_attributes,
+                                     "freestyle_edge",
+                                     domain,
+                                     bke::AttrType::Bool,
+                                     src_domain_size,
+                                     dst_domain_size);
     }
 
     return false;
   }
   else if (elem_type == ME_LOOP) {
     const bke::AttrDomain domain = bke::AttrDomain::Corner;
+    const int src_domain_size = me_src->corners_num;
+    const int dst_domain_size = me_dst->corners_num;
     if (cddata_type == CD_FAKE_UV) {
       cddata_type = CD_PROP_FLOAT2;
     }
@@ -1156,67 +1097,33 @@ static bool data_transfer_layersmapping_generate(ListBase *r_map,
   }
   else if (elem_type == ME_POLY) {
     const bke::AttrDomain domain = bke::AttrDomain::Face;
+    const int src_domain_size = me_src->faces_num;
+    const int dst_domain_size = me_dst->faces_num;
     if (r_map && cddata_type == CD_FAKE_SHARP) {
-      const StringRef name = "sharp_face";
-      const bke::AttrType type = bke::AttrType::Bool;
-      const CPPType &cpp_type = bke::attribute_type_to_cpp_type(type);
-      bke::Attribute *dst_attr = dst_attributes.lookup(name);
-      if (!dst_attr) {
-        dst_attr = &dst_attributes.add(
-            name,
-            domain,
-            type,
-            bke::Attribute::ArrayData::from_default_value(cpp_type, me_dst->faces_num));
-      }
-      if (dst_attr->storage_type() != bke::AttrStorageType::Array ||
-          dst_attr->domain() != domain || dst_attr->data_type() != type)
-      {
-        return false;
-      }
-      data_transfer_layersmapping_add_item_cd(
-          r_map,
-          CD_PROP_BOOL,
-          mix_mode,
-          mix_factor,
-          mix_weights,
-          bke::get_span_attribute(src_attributes, domain, cpp_type, name, me_src->faces_num)
-              .value_or({})
-              .data(),
-          std::get<bke::Attribute::ArrayData>(dst_attr->data()).data,
-          interp,
-          interp_data);
-      return true;
+      return add_named_transfer_item(r_map,
+                                     mix_mode,
+                                     mix_factor,
+                                     mix_weights,
+                                     src_attributes,
+                                     dst_attributes,
+                                     "sharp_face",
+                                     domain,
+                                     bke::AttrType::Bool,
+                                     src_domain_size,
+                                     dst_domain_size);
     }
     if (r_map && cddata_type == CD_FAKE_FREESTYLE_FACE) {
-      const StringRef name = "freestyle_face";
-      const bke::AttrType type = bke::AttrType::Bool;
-      const CPPType &cpp_type = bke::attribute_type_to_cpp_type(type);
-      bke::Attribute *dst_attr = dst_attributes.lookup(name);
-      if (!dst_attr) {
-        dst_attr = &dst_attributes.add(
-            name,
-            domain,
-            type,
-            bke::Attribute::ArrayData::from_default_value(cpp_type, me_dst->faces_num));
-      }
-      if (dst_attr->storage_type() != bke::AttrStorageType::Array ||
-          dst_attr->domain() != domain || dst_attr->data_type() != type)
-      {
-        return false;
-      }
-      data_transfer_layersmapping_add_item_cd(
-          r_map,
-          CD_PROP_BOOL,
-          mix_mode,
-          mix_factor,
-          mix_weights,
-          bke::get_span_attribute(src_attributes, domain, cpp_type, name, me_src->faces_num)
-              .value_or({})
-              .data(),
-          std::get<bke::Attribute::ArrayData>(dst_attr->data()).data,
-          interp,
-          interp_data);
-      return true;
+      return add_named_transfer_item(r_map,
+                                     mix_mode,
+                                     mix_factor,
+                                     mix_weights,
+                                     src_attributes,
+                                     dst_attributes,
+                                     "freestyle_face",
+                                     domain,
+                                     bke::AttrType::Bool,
+                                     src_domain_size,
+                                     dst_domain_size);
     }
 
     return false;
