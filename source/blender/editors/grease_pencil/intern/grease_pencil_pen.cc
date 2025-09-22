@@ -201,14 +201,12 @@ class GreasePencilPenToolOperation : public curves::pen_tool::PenToolOperation {
      * duplicate the previous key. */
     const bool use_duplicate_previous_key = true;
     for (bke::greasepencil::Layer *layer : grease_pencil->layers_for_write()) {
-      if (layer->is_editable() &&
-          ed::greasepencil::ensure_active_keyframe(*this->vc.scene,
-                                                   *grease_pencil,
-                                                   *layer,
-                                                   use_duplicate_previous_key,
-                                                   inserted_keyframe))
-      {
-        inserted_keyframe = true;
+      if (layer->is_editable()) {
+        ed::greasepencil::ensure_active_keyframe(*this->vc.scene,
+                                                 *grease_pencil,
+                                                 *layer,
+                                                 use_duplicate_previous_key,
+                                                 inserted_keyframe);
       }
     }
 
