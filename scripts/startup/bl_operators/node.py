@@ -305,7 +305,7 @@ class NodeSwapOperator(NodeOperator):
         if is_input:
             if both_math_nodes:
                 for i, input in enumerate(old_node.inputs):
-                    for link in input.links:
+                    for link in input.links[:]:
                         try:
                             new_socket = new_node.inputs[i]
 
@@ -333,7 +333,7 @@ class NodeSwapOperator(NodeOperator):
         else:
             if both_math_nodes:
                 for i, output in enumerate(old_node.outputs):
-                    for link in output.links:
+                    for link in output.links[:]:
                         try:
                             new_socket = new_node.outputs[i]
 
@@ -346,7 +346,7 @@ class NodeSwapOperator(NodeOperator):
 
             else:
                 for output in old_node.outputs:
-                    for link in output.links:
+                    for link in output.links[:]:
                         try:
                             new_socket = new_node.outputs[output.name]
 
@@ -380,7 +380,7 @@ class NodeSwapOperator(NodeOperator):
         new_switch_items.clear()
 
         if new_node.bl_idname == "GeometryNodeMenuSwitch":
-            for i, old_item in enumerate(old_switch_items):
+            for i, old_item in enumerate(old_switch_items[:]):
                 # Change the menu item names to numerical indices
                 # This makes it so that later functions that match by socket name work on the switches
                 if hasattr(old_item, "name"):
@@ -392,7 +392,7 @@ class NodeSwapOperator(NodeOperator):
                 new_node.inputs[0].default_value = str(old_switch_value)
 
         elif new_node.bl_idname == "GeometryNodeIndexSwitch":
-            for i, old_item in enumerate(old_switch_items):
+            for i, old_item in enumerate(old_switch_items[:]):
                 # Change the menu item names to numerical indices
                 # This makes it so that later functions that match by socket name work on the switches
                 if hasattr(old_item, "name"):
