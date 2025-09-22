@@ -161,19 +161,19 @@ static void add_hdr_mastering_display_metadata(AVCodecParameters *codecpar,
     /* PQ uses heuristic based on view transform name. In the future this could become
      * a user control, but this solves the common cases. */
     blender::StringRefNull view_name = imf->view_settings.view_transform;
-    if (view_name.find("HDR 500 nits")) {
+    if (view_name.find("HDR 500 nits") != blender::StringRef::not_found) {
       max_luminance = 500;
     }
-    else if (view_name.find("HDR 1000 nits")) {
+    else if (view_name.find("HDR 1000 nits") != blender::StringRef::not_found) {
       max_luminance = 1000;
     }
-    else if (view_name.find("HDR 2000 nits")) {
+    else if (view_name.find("HDR 2000 nits") != blender::StringRef::not_found) {
       max_luminance = 2000;
     }
-    else if (view_name.find("HDR 4000 nits")) {
+    else if (view_name.find("HDR 4000 nits") != blender::StringRef::not_found) {
       max_luminance = 4000;
     }
-    else if (view_name.find("HDR 10000 nits")) {
+    else if (view_name.find("HDR 10000 nits") != blender::StringRef::not_found) {
       max_luminance = 10000;
     }
   }
@@ -837,7 +837,7 @@ static void set_colorspace_options(AVCodecContext *c, blender::StringRefNull int
     c->color_trc = AVCOL_TRC_BT709;
     c->colorspace = AVCOL_SPC_BT709;
   }
-  else if (interop_id == "srgb_p3d65_display" || interop_id == "srgbx_p3d65_display") {
+  else if (ELEM(interop_id, "srgb_p3d65_display", "srgbx_p3d65_display")) {
     c->color_primaries = AVCOL_PRI_SMPTE432;
     /* This should be AVCOL_TRC_IEC61966_2_1, but Quicktime refuses to open the file.
      * And we're currently also writing srgb_rec709_display the same way. */
