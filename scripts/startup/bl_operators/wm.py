@@ -131,20 +131,40 @@ rna_module_prop = StringProperty(
 )
 
 
+def context_path_is_readonly(context, data_path):
+    """
+    Check if the last property in data_path is read-only.
+    """
+
+    base_path, prop_attr, _ = context_path_decompose(data_path)
+    value_base = context_path_validate(context, base_path)
+
+    if hasattr(value_base, "is_property_readonly"):
+        return value_base.is_property_readonly(prop_attr)
+    return None
+
+
 def context_path_validate(context, data_path):
+    """
+    Safely resolve a context data_path like 'space_data.foo'.
+
+    Returns:
+        value: the resolved attribute value, or Ellipsis if invalid.
+    """
+    if not data_path:
+        return Ellipsis
+
     try:
-        value = eval("context.{:s}".format(data_path)) if data_path else Ellipsis
+        return eval("context.{:s}".format(data_path))
     except AttributeError as ex:
         if str(ex).startswith("'NoneType'"):
             # One of the items in the rna path is None, just ignore this
-            value = Ellipsis
+            return Ellipsis
         else:
             # Print invalid path, but don't show error to the users and fully
             # break the UI if the operator is bound to an event like left click.
             print("context_path_validate error: context.{:s} not found (invalid keymap entry?)".format(data_path))
-            value = Ellipsis
-
-    return value
+            return Ellipsis
 
 
 def context_path_to_rna_property(context, data_path):
@@ -256,6 +276,26 @@ def operator_path_is_undo(context, data_path):
     return operator_value_is_undo(value)
 
 
+def operator_path_assign_poll(operator, context, data_path):
+    """
+    Check if a context data path is valid and assignable for the operator.
+
+    Returns None if the path is valid, or the operator status flag the operator should fail with.
+    For read-only properties this will report a error to the user too.
+    """
+
+    if context_path_validate(context, data_path) is Ellipsis:
+        return {'PASS_THROUGH'}
+
+    if context_path_is_readonly(context, data_path):
+        base_path, prop_attr, _ = context_path_decompose(data_path)
+        value_base = context_path_validate(context, base_path)
+        operator.report({'ERROR'}, rpt_("Property '{:s}' cannot be edited").format(value_base.rna_type.properties[prop_attr].name))
+        return {'CANCELLED'}
+
+    return None
+
+
 def operator_path_undo_return(context, data_path):
     return {'FINISHED'} if operator_path_is_undo(context, data_path) else {'CANCELLED'}
 
@@ -266,8 +306,10 @@ def operator_value_undo_return(value):
 
 def execute_context_assign(self, context):
     data_path = self.data_path
-    if context_path_validate(context, data_path) is Ellipsis:
-        return {'PASS_THROUGH'}
+
+
+    if failure_retval := operator_path_assign_poll(self, context, data_path):
+        return failure_retval
 
     if getattr(self, "relative", False):
         exec("context.{:s} += self.value".format(data_path))
@@ -337,8 +379,8 @@ class WM_OT_context_scale_float(Operator):
 
     def execute(self, context):
         data_path = self.data_path
-        if context_path_validate(context, data_path) is Ellipsis:
-            return {'PASS_THROUGH'}
+        if failure_retval := operator_path_assign_poll(self, context, data_path):
+            return failure_retval
 
         value = self.value
 
@@ -375,8 +417,8 @@ class WM_OT_context_scale_int(Operator):
 
     def execute(self, context):
         data_path = self.data_path
-        if context_path_validate(context, data_path) is Ellipsis:
-            return {'PASS_THROUGH'}
+        if failure_retval := operator_path_assign_poll(self, context, data_path):
+            return failure_retval
 
         value = self.value
 
@@ -479,8 +521,8 @@ class WM_OT_context_set_value(Operator):
 
     def execute(self, context):
         data_path = self.data_path
-        if context_path_validate(context, data_path) is Ellipsis:
-            return {'PASS_THROUGH'}
+        if failure_retval := operator_path_assign_poll(self, context, data_path):
+            return failure_retval
         exec("context.{:s} = {:s}".format(data_path, self.value))
         return operator_path_undo_return(context, data_path)
 
@@ -511,8 +553,14 @@ class WM_OT_context_toggle(Operator):
             from importlib import import_module
             base = import_module(self.module)
 
-        if context_path_validate(base, data_path) is Ellipsis:
+        if context_path_validate(context, data_path) is Ellipsis:
             return {'PASS_THROUGH'}
+
+        if context_path_is_readonly(context, data_path):
+            base_path, prop_attr, _ = context_path_decompose(data_path)
+            value_base = context_path_validate(context, base_path)
+            self.report({'ERROR'}, rpt_("Property '{:s}' cannot be edited").format(value_base.rna_type.properties[prop_attr].name))
+            return {'CANCELLED'}
 
         exec("base.{:s} = not (base.{:s})".format(data_path, data_path))
 
@@ -545,8 +593,8 @@ class WM_OT_context_toggle_enum(Operator):
     def execute(self, context):
         data_path = self.data_path
 
-        if context_path_validate(context, data_path) is Ellipsis:
-            return {'PASS_THROUGH'}
+        if failure_retval := operator_path_assign_poll(self, context, data_path):
+            return failure_retval
 
         # failing silently is not ideal, but we don't want errors for shortcut
         # keys that some values that are only available in a particular context
@@ -583,9 +631,9 @@ class WM_OT_context_cycle_int(Operator):
 
     def execute(self, context):
         data_path = self.data_path
-        value = context_path_validate(context, data_path)
-        if value is Ellipsis:
-            return {'PASS_THROUGH'}
+
+        if failure_retval := operator_path_assign_poll(self, context, data_path):
+            return failure_retval
 
         if self.reverse:
             value -= 1
@@ -623,11 +671,11 @@ class WM_OT_context_cycle_enum(Operator):
 
     def execute(self, context):
         data_path = self.data_path
-        value = context_path_validate(context, data_path)
-        if value is Ellipsis:
-            return {'PASS_THROUGH'}
 
-        orig_value = value
+        if failure_retval := operator_path_assign_poll(self, context, data_path):
+            return failure_retval
+
+        orig_value = context_path_validate(context, data_path)
 
         rna_prop = context_path_to_rna_property(context, data_path)
         if type(rna_prop) != bpy.types.EnumProperty:
@@ -672,9 +720,9 @@ class WM_OT_context_cycle_array(Operator):
 
     def execute(self, context):
         data_path = self.data_path
-        value = context_path_validate(context, data_path)
-        if value is Ellipsis:
-            return {'PASS_THROUGH'}
+
+        if failure_retval := operator_path_assign_poll(self, context, data_path):
+            return failure_retval
 
         def cycle(array):
             if self.reverse:
@@ -702,10 +750,9 @@ class WM_OT_context_menu_enum(Operator):
 
     def execute(self, context):
         data_path = self.data_path
-        value = context_path_validate(context, data_path)
 
-        if value is Ellipsis:
-            return {'PASS_THROUGH'}
+        if failure_retval := operator_path_assign_poll(self, context, data_path):
+            return failure_retval
 
         base_path, prop_attr, _ = context_path_decompose(data_path)
         value_base = context_path_validate(context, base_path)
@@ -735,10 +782,9 @@ class WM_OT_context_pie_enum(Operator):
     def invoke(self, context, event):
         wm = context.window_manager
         data_path = self.data_path
-        value = context_path_validate(context, data_path)
 
-        if value is Ellipsis:
-            return {'PASS_THROUGH'}
+        if failure_retval := operator_path_assign_poll(self, context, data_path):
+            return failure_retval
 
         base_path, prop_attr, _ = context_path_decompose(data_path)
         value_base = context_path_validate(context, base_path)
