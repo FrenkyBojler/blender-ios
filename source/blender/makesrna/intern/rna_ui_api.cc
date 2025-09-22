@@ -152,6 +152,9 @@ static void rna_uiItemR(uiLayout *layout,
   }
 
   layout->prop(ptr, prop, index, 0, flag, text, icon, placeholder_str);
+  if (!RNA_property_editable(ptr, prop)) {
+    layout->enabled_set(false);
+  }
 }
 
 static void rna_uiItemR_with_popover(uiLayout *layout,

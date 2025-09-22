@@ -1643,6 +1643,7 @@ static void v3d_object_dimension_buts(bContext *C, uiLayout *layout, View3D *v3d
       UI_but_unit_type_set(but, PROP_UNIT_LENGTH);
       if (!is_editable) {
         UI_but_disable(but, "Cannot edit this property from a linked data-block");
+        layout->enabled_set(false);
       }
     }
     UI_block_align_end(block);
