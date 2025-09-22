@@ -290,7 +290,12 @@ def operator_path_assign_poll(operator, context, data_path):
     if context_path_is_readonly(context, data_path):
         base_path, prop_attr, _ = context_path_decompose(data_path)
         value_base = context_path_validate(context, base_path)
-        operator.report({'ERROR'}, rpt_("Property '{:s}' cannot be edited").format(value_base.rna_type.properties[prop_attr].name))
+        operator.report(
+            {'ERROR'},
+            rpt_("Property '{:s}' cannot be edited in this context").format(
+                value_base.rna_type.properties[prop_attr].name
+            )
+        )
         return {'CANCELLED'}
 
     return None
@@ -306,8 +311,6 @@ def operator_value_undo_return(value):
 
 def execute_context_assign(self, context):
     data_path = self.data_path
-
-
     if failure_retval := operator_path_assign_poll(self, context, data_path):
         return failure_retval
 
@@ -553,14 +556,8 @@ class WM_OT_context_toggle(Operator):
             from importlib import import_module
             base = import_module(self.module)
 
-        if context_path_validate(context, data_path) is Ellipsis:
-            return {'PASS_THROUGH'}
-
-        if context_path_is_readonly(context, data_path):
-            base_path, prop_attr, _ = context_path_decompose(data_path)
-            value_base = context_path_validate(context, base_path)
-            self.report({'ERROR'}, rpt_("Property '{:s}' cannot be edited").format(value_base.rna_type.properties[prop_attr].name))
-            return {'CANCELLED'}
+        if failure_retval := operator_path_assign_poll(self, context, data_path):
+            return failure_retval
 
         exec("base.{:s} = not (base.{:s})".format(data_path, data_path))
 
