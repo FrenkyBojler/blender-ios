@@ -428,7 +428,12 @@ template<typename T> inline void MEM_delete(const T *ptr)
   }
   const void *complete_ptr = [ptr]() {
     if constexpr (std::is_polymorphic_v<T>) {
-      /* Pointer to the most derived object. */
+      /* Polymorphic objects lifetime can be managed with pointers to they most derived
+       * type or with pointers to any of its ancestor type in its hierarchy tree which defines an
+       * virtual destructor, however ancestor pointers may differ in a offset from the same derived
+       * object. For freeing the correct memory allocated with #MEM_new, whe need to ensure that
+       * the given pointer is equal to the pointer to the most derived object, which can be
+       * obtained with `dynamic_cast<void *>(ptr)`. */
       return dynamic_cast<const void *>(ptr);
     }
     else {
