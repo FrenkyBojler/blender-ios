@@ -2058,7 +2058,7 @@ static int bm_loop_normal_mark_indiv(BMesh *bm, BLI_bitmap *loops, const bool do
   const bool sel_verts = (bm->selectmode & SCE_SELECT_VERTEX) != 0;
   const bool sel_edges = (bm->selectmode & SCE_SELECT_EDGE) != 0;
   const bool sel_faces = (bm->selectmode & SCE_SELECT_FACE) != 0;
-  const bool use_sel_face_history = sel_faces && (sel_edges || sel_verts);
+  const bool use_sel_face_history = sel_faces && (sel_edges || sel_verts) && (bm->totfacesel != 0);
 
   BM_mesh_elem_index_ensure(bm, BM_LOOP);
 
