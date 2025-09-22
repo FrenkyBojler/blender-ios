@@ -20,12 +20,13 @@ static EnumPropertyItem method_items[] = {
     {int(Method::Mikktspace),
      "MIKKTSPACE",
      0,
-     "Mikktspace",
-     "Calculation consistent with tangents used elsewhere in Blender"},
+     "Exact",
+     "Calculation using the MikkTSpace library, consistent with tangents used elsewhere in "
+     "Blender"},
     {int(Method::Smoothed),
      "SMOOTHED",
      0,
-     "Smoothed",
+     "Fast",
      "Significantly faster method that approximates tangents interpolated across face corners "
      "with matching UVs. For a value actually tangential to the surface, use the cross product "
      "with the normal."},
@@ -35,7 +36,7 @@ static EnumPropertyItem method_items[] = {
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Menu>("Method").static_items(method_items);
-  b.add_input<decl::Vector>("UV").dimensions(2).hide_value().supports_field();
+  b.add_input<decl::Vector>("UV").dimensions(2).subtype(PROP_XYZ).supports_field();
   b.add_output<decl::Vector>("Tangent").field_source_reference_all();
 }
 
