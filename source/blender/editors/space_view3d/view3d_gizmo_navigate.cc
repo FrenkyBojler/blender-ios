@@ -284,7 +284,6 @@ static void WIDGETGROUP_navigate_draw_prepare(const bContext *C, wmGizmoGroup *g
   ARegion *region = CTX_wm_region(C);
   const RegionView3D *rv3d = static_cast<const RegionView3D *>(region->regiondata);
   const View3D *v3d = CTX_wm_view3d(C);
-  const bool has_camera = v3d->camera != nullptr;
 
   for (int i = 0; i < 3; i++) {
     copy_v3_v3(navgroup->gz_array[GZ_INDEX_ROTATE]->matrix_offset[i], rv3d->viewmat[i]);
@@ -298,7 +297,7 @@ static void WIDGETGROUP_navigate_draw_prepare(const bContext *C, wmGizmoGroup *g
   if ((navgroup->state.rect_visible.xmax == rect_visible->xmax) &&
       (navgroup->state.rect_visible.ymax == rect_visible->ymax) &&
       (navgroup->state.rv3d.is_persp == rv3d->is_persp) &&
-      (navgroup->state.rv3d.is_camera == ((rv3d->persp == RV3D_CAMOB) && has_camera)) &&
+      (navgroup->state.rv3d.is_camera == (rv3d->persp == RV3D_CAMOB)) &&
       (navgroup->state.rv3d.cameralock == (v3d->flag2 & V3D_LOCK_CAMERA)) &&
       (navgroup->state.rv3d.viewlock == RV3D_LOCK_FLAGS(rv3d)))
   {
@@ -307,7 +306,7 @@ static void WIDGETGROUP_navigate_draw_prepare(const bContext *C, wmGizmoGroup *g
 
   navgroup->state.rect_visible = *rect_visible;
   navgroup->state.rv3d.is_persp = rv3d->is_persp;
-  navgroup->state.rv3d.is_camera = (rv3d->persp == RV3D_CAMOB) && has_camera;
+  navgroup->state.rv3d.is_camera = (rv3d->persp == RV3D_CAMOB);
   navgroup->state.rv3d.viewlock = RV3D_LOCK_FLAGS(rv3d);
   navgroup->state.rv3d.cameralock = v3d->flag2 & V3D_LOCK_CAMERA;
 
