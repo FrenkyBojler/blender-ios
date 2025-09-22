@@ -344,16 +344,6 @@ struct GPUSource {
                   const GPUSourceDictionary &dict,
                   const GPUSource &from) const
   {
-    /* Check if this file was already included. */
-    for (const StringRefNull &source_content : result) {
-      /* Yes, compare pointer instead of string for speed.
-       * Each source is guaranteed to be unique and non-moving during the building process. */
-      if (source_content.c_str() == this->source.c_str()) {
-        /* Already included. */
-        return;
-      }
-    }
-
 #define CLOG_FILE_INCLUDE(_from, _include) \
   if ((from).filename.c_str() != (_include).filename.c_str()) { \
     const char *from_filename = (_from).filename.c_str(); \
@@ -368,6 +358,17 @@ struct GPUSource {
               min_uu(15, include_size / 1000), \
               15 - min_uu(15, include_size / 1000)); \
   }
+
+    /* Check if this file was already included. */
+    for (const StringRefNull &source_content : result) {
+      /* Yes, compare pointer instead of string for speed.
+       * Each source is guaranteed to be unique and non-moving during the building process. */
+      if (source_content.c_str() == this->source.c_str()) {
+        /* Already included. */
+        CLOG_FILE_INCLUDE(from, *this);
+        return;
+      }
+    }
 
     if (!bool(this->builtins & shader::BuiltinBits::RUNTIME_GENERATED)) {
       for (const auto &dependency : this->dependencies) {
