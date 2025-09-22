@@ -585,7 +585,6 @@ void bsdf_lut(float3 F0,
   float transmission_factor;
 
   const float f0 = f0_from_ior(ior);
-  const float real_F0 = F0_from_f0(f0);
 
   if (ior > 1.0f) {
     /* Gradually increase `f90` from 0 to 1 when IOR is in the range of [1.0f, 1.33f], to avoid
@@ -593,14 +592,14 @@ void bsdf_lut(float3 F0,
     if (all(equal(F90, float3(1.0f)))) {
       F90 = float3(saturate(2.33f / 0.33f * f0));
     }
-    float3 coords = lut_coords_btdf(cos_theta, roughness, f0);
-    float4 bsdf = utility_tx_sample_bsdf_lut(utility_tx, coords.xy, coords.z);
+    const float3 coords = lut_coords_btdf(cos_theta, roughness, f0);
+    const float4 bsdf = utility_tx_sample_bsdf_lut(utility_tx, coords.xy, coords.z);
     split_sum = brdf_lut(cos_theta, roughness);
     transmission_factor = bsdf.a;
   }
   else {
-    float3 coords = lut_coords_bsdf(cos_theta, roughness, ior);
-    float3 bsdf = utility_tx_sample_bsdf_lut(utility_tx, coords.xy, coords.z).rgb;
+    const float3 coords = lut_coords_bsdf(cos_theta, roughness, ior);
+    const float3 bsdf = utility_tx_sample_bsdf_lut(utility_tx, coords.xy, coords.z).rgb;
     split_sum = bsdf.rg;
     transmission_factor = bsdf.b;
   }
@@ -609,11 +608,12 @@ void bsdf_lut(float3 F0,
   transmittance = (float3(1.0f) - F0) * transmission_factor * transmission_tint;
 
   if (do_multiscatter) {
-    float Ess = real_F0 * split_sum.x + split_sum.y + (1.0f - real_F0) * transmission_factor;
-    float Ems = 1.0f - Ess;
+    const float real_F0 = F0_from_f0(f0);
+    const float Ess = real_F0 * split_sum.x + split_sum.y + (1.0f - real_F0) * transmission_factor;
+    const float Ems = 1.0f - Ess;
     /* Assume that the transmissive tint makes up most of the overall color if it's not zero. */
-    float3 Favg = all(equal(transmission_tint, float3(0.0f))) ? F0 + (F90 - F0) / 21.0f :
-                                                                transmission_tint;
+    const float3 Favg = all(equal(transmission_tint, float3(0.0f))) ? F0 + (F90 - F0) / 21.0f :
+                                                                      transmission_tint;
 
     float3 scale = 1.0f / (1.0f - Ems * Favg);
     reflectance *= scale;
