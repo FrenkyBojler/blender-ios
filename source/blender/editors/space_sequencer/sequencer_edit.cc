@@ -2087,7 +2087,7 @@ static void sequencer_box_cut_ui(bContext * /*C*/, wmOperator *op)
   layout->prop(op->ptr, "ignore_selection", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
-wmOperatorStatus sequencer_box_cut_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus sequencer_box_cut_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   Scene *scene = CTX_data_sequencer_scene(C);
 
