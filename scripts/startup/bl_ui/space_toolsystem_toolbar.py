@@ -21,7 +21,10 @@ from bl_ui.space_toolsystem_common import (
 from bl_ui.properties_paint_common import (
     BrushAssetShelf,
 )
-from bpy.app.translations import pgettext_tip as tip_
+from bpy.app.translations import (
+    pgettext_iface as iface_,
+    pgettext_tip as tip_,
+)
 
 
 def kmi_to_string_or_none(kmi):
@@ -2100,7 +2103,7 @@ class _defs_weight_paint:
                 weight = context.tool_settings.weight_paint.brush.weight
             else:
                 return
-            layout.label(text="Weight: {:.3f}".format(weight))
+            layout.label(text=iface_("Weight: {:.3f}").format(weight), translate=False)
         return dict(
             idname="builtin.sample_weight",
             label="Sample Weight",
@@ -2921,11 +2924,6 @@ class _defs_grease_pencil_sculpt:
         )
 
 
-class _defs_gpencil_weight:
-    # No mode specific tools currently (only general ones).
-    pass
-
-
 class _defs_grease_pencil_weight:
     @ToolDef.from_fn
     def blur():
@@ -3138,6 +3136,28 @@ class _defs_node_edit:
             icon="ops.node.links_cut",
             widget=None,
             keymap="Node Tool: Links Cut",
+            options={'KEYMAP_FALLBACK'},
+        )
+
+    @ToolDef.from_fn
+    def links_mute():
+        return dict(
+            idname="builtin.links_mute",
+            label="Mute Links",
+            icon="ops.node.links_mute",
+            widget=None,
+            keymap="Node Tool: Mute Links",
+            options={'KEYMAP_FALLBACK'},
+        )
+
+    @ToolDef.from_fn
+    def add_reroute():
+        return dict(
+            idname="builtin.add_reroute",
+            label="Add Reroute",
+            icon="ops.node.add_reroute",
+            widget=None,
+            keymap="Node Tool: Add Reroute",
             options={'KEYMAP_FALLBACK'},
         )
 
@@ -3566,6 +3586,8 @@ class NODE_PT_tools_active(ToolSelectPanelHelper, Panel):
             *_tools_annotate,
             None,
             _defs_node_edit.links_cut,
+            _defs_node_edit.links_mute,
+            _defs_node_edit.add_reroute,
         ],
     }
 
