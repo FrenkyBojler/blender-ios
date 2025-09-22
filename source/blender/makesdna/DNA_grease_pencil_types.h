@@ -463,8 +463,6 @@ typedef struct GreasePencil {
   /* Root group of the layer tree. */
   GreasePencilLayerTreeGroup *root_group_ptr;
 
-  void *_pad5;
-
   /** Used only for backward compatibility with old files. */
   CustomData layers_data_legacy;
 

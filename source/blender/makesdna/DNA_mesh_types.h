@@ -248,7 +248,6 @@ typedef struct Mesh {
    * free the data if they are passed to functions that expect run-time data.
    */
   MeshRuntimeHandle *runtime;
-  void *_pad2;
 #ifdef __cplusplus
   /**
    * Array of vertex positions. Edges and face corners are defined by indices into this array.
