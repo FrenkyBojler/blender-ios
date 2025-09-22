@@ -81,10 +81,10 @@ ccl_device_inline bool film_get_scale_and_scale_exposure(
   }
 
   if (kfilm_convert->pass_use_filter) {
-    *scale = 1.0f / sample_count;
+    *scale = kfilm_convert->scale / sample_count;
   }
   else {
-    *scale = 1.0f;
+    *scale = kfilm_convert->scale;
   }
 
   if (kfilm_convert->pass_use_exposure) {
