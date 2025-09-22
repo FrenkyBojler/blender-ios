@@ -157,12 +157,23 @@ gpu::VertBufPtr extract_positions(const MeshRenderData &mr)
   gpu::VertBufPtr vbo = gpu::VertBufPtr(GPU_vertbuf_create_with_format(format));
   GPU_vertbuf_data_alloc(*vbo, mr.corners_num + mr.loose_indices_num);
 
-  MutableSpan vbo_data = vbo->data<float3>();
-  if (mr.extract_type == MeshExtractType::Mesh) {
-    extract_positions_mesh(mr, vbo_data);
+  if (use_gpu_deform) {
+    MutableSpan vbo_data = vbo->data<float4>();
+    if (mr.extract_type == MeshExtractType::Mesh) {
+      extract_positions_mesh_float4(mr, vbo_data);
+    }
+    else {
+      extract_positions_bm_float4(mr, vbo_data);
+    }
   }
   else {
-    extract_positions_bm(mr, vbo_data);
+    MutableSpan vbo_data = vbo->data<float3>();
+    if (mr.extract_type == MeshExtractType::Mesh) {
+      extract_positions_mesh(mr, vbo_data);
+    }
+    else {
+      extract_positions_bm(mr, vbo_data);
+    }
   }
 
   return vbo;
