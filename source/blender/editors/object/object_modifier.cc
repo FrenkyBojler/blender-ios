@@ -2345,10 +2345,16 @@ static wmOperatorStatus modifier_set_active_invoke(bContext *C,
   return retval;
 }
 
-bool set_modifier_active_poll(bContext *C)
+static bool modifier_set_active_poll(bContext *C)
 {
-  PointerRNA ptr = CTX_data_pointer_get_type(C, "modifier", &RNA_Modifier);
-  return ptr.data != nullptr;
+  /* Only make this operator work in the Modifiers tab of the Properties editor.
+   * Otherwise it may eat up too many mouse click events. */
+  SpaceProperties *space_properties = CTX_wm_space_properties(C);
+  if (!(space_properties && space_properties->mainb == BCONTEXT_MODIFIER)) {
+    return false;
+  }
+
+  return ED_operator_object_active_only(C);
 }
 
 void OBJECT_OT_modifier_set_active(wmOperatorType *ot)
@@ -2359,7 +2365,7 @@ void OBJECT_OT_modifier_set_active(wmOperatorType *ot)
 
   ot->invoke = modifier_set_active_invoke;
   ot->exec = modifier_set_active_exec;
-  ot->poll = set_modifier_active_poll;
+  ot->poll = modifier_set_active_poll;
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_INTERNAL;
   edit_modifier_properties(ot);
@@ -3516,10 +3522,10 @@ static wmOperatorStatus geometry_nodes_input_attribute_toggle_exec(bContext *C, 
   }
 
   if (use_attribute->type == IDP_INT) {
-    IDP_Int(use_attribute) = !IDP_Int(use_attribute);
+    IDP_int_set(use_attribute, !IDP_int_get(use_attribute));
   }
   else if (use_attribute->type == IDP_BOOLEAN) {
-    IDP_Bool(use_attribute) = !IDP_Bool(use_attribute);
+    IDP_bool_set(use_attribute, !IDP_bool_get(use_attribute));
   }
   else {
     return OPERATOR_CANCELLED;
