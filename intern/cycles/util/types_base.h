@@ -77,7 +77,7 @@ CCL_NAMESPACE_END
 #endif
 
 #if defined __METAL_PRINTF__
-#  define print_float(label, a) metal::os_log_default.log_info(label ": %.8f", a)
+#  define print_float(label, a) metal::os_log_default.log_debug(label ": %.8f", a)
 #else
 ccl_device_inline void print_float(const ccl_private char *label, const float a)
 {
