@@ -4985,9 +4985,21 @@ static void def_sh_tex(BlenderRNA * /*brna*/, StructRNA *srna)
 static void def_sh_tex_sky(BlenderRNA *brna, StructRNA *srna)
 {
   static const EnumPropertyItem prop_sky_type[] = {
-      {SHD_SKY_NISHITA, "NISHITA", 0, "Nishita", "Nishita 1993 improved"},
+      {SHD_SKY_SINGLE_SCATTERING,
+       "SINGLE_SCATTERING",
+       0,
+       "Single Scattering",
+       "Single scattering sky model"},
+      {SHD_SKY_MULTIPLE_SCATTERING,
+       "MULTIPLE_SCATTERING",
+       0,
+       "Multiple Scattering",
+       "Multiple scattering sky model (more accurate)"},
+      {SHD_SKY_PREETHAM, "PREETHAM", 0, "Preetham", "Preetham 1999 (Legacy)"},
+      {SHD_SKY_HOSEK, "HOSEK_WILKIE", 0, "Hosek / Wilkie", "Hosek / Wilkie 2012 (Legacy)"},
       {0, nullptr, 0, nullptr, nullptr},
   };
+  static float default_dir[3] = {0.0f, 0.0f, 1.0f};
 
   PropertyRNA *prop;
 
@@ -5000,6 +5012,7 @@ static void def_sh_tex_sky(BlenderRNA *brna, StructRNA *srna)
   RNA_def_property_ui_text(prop, "Sky Type", "Which sky model should be used");
   RNA_def_property_update(prop, 0, "rna_ShaderNode_socket_update");
 
+  /* Nishita parameters. */
   prop = RNA_def_property(srna, "sun_disc", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_ui_text(prop, "Sun Disc", "Include the sun itself in the output");
   RNA_def_property_boolean_sdna(prop, nullptr, "sun_disc", 1);
@@ -5013,7 +5026,7 @@ static void def_sh_tex_sky(BlenderRNA *brna, StructRNA *srna)
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 
   prop = RNA_def_property(srna, "sun_intensity", PROP_FLOAT, PROP_NONE);
-  RNA_def_property_ui_text(prop, "Sun Intensity", "Strength of sun");
+  RNA_def_property_ui_text(prop, "Sun Intensity", "Strength of Sun");
   RNA_def_property_range(prop, 0.0f, 1000.0f);
   RNA_def_property_float_default(prop, 1.0f);
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
@@ -5030,43 +5043,55 @@ static void def_sh_tex_sky(BlenderRNA *brna, StructRNA *srna)
 
   prop = RNA_def_property(srna, "altitude", PROP_FLOAT, PROP_DISTANCE);
   RNA_def_property_ui_text(prop, "Altitude", "Height from sea level");
-  RNA_def_property_range(prop, 0.0f, 60000.0f);
-  RNA_def_property_ui_range(prop, 0.0f, 60000.0f, 10, 1);
-  RNA_def_property_float_default(prop, 0.0f);
+  RNA_def_property_range(prop, 0.0f, 100000.0f);
+  RNA_def_property_ui_range(prop, 0.0f, 100000.0f, 10, 1);
+  RNA_def_property_float_default(prop, 100.0f);
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 
-  prop = RNA_def_property(srna, "air_density", PROP_FLOAT, PROP_FACTOR);
+  prop = RNA_def_property(srna, "air_density", PROP_FLOAT, PROP_NONE);
   RNA_def_property_ui_text(prop,
                            "Air",
                            "Density of air molecules.\n"
-                           "\u2022 0 - No air.\n"
-                           "\u2022 1 - Clear day atmosphere.\n"
-                           "\u2022 2 - Highly polluted day");
-  RNA_def_property_range(prop, 0.0f, 10.0f);
+                           "0 means no air, 1 means urban city air");
+  RNA_def_property_range(prop, 0.0f, 1000.0f);
   RNA_def_property_float_default(prop, 1.0f);
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 
-  prop = RNA_def_property(srna, "dust_density", PROP_FLOAT, PROP_FACTOR);
+  prop = RNA_def_property(srna, "aerosol_density", PROP_FLOAT, PROP_NONE);
   RNA_def_property_ui_text(prop,
-                           "Dust",
-                           "Density of dust molecules and water droplets.\n"
-                           "\u2022 0 - No dust.\n"
-                           "\u2022 1 - Clear day atmosphere.\n"
-                           "\u2022 5 - City like atmosphere.\n"
-                           "\u2022 10 - Hazy day");
-  RNA_def_property_range(prop, 0.0f, 10.0f);
+                           "Aerosols",
+                           "Density of dust, pollution and water droplets.\n"
+                           "0 means no aerosols, 1 means urban city aerosols");
+  RNA_def_property_range(prop, 0.0f, 1000.0f);
   RNA_def_property_float_default(prop, 1.0f);
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 
-  prop = RNA_def_property(srna, "ozone_density", PROP_FLOAT, PROP_FACTOR);
+  prop = RNA_def_property(srna, "ozone_density", PROP_FLOAT, PROP_NONE);
   RNA_def_property_ui_text(prop,
                            "Ozone",
                            "Density of ozone layer.\n"
-                           "\u2022 0 - No ozone.\n"
-                           "\u2022 1 - Clear day atmosphere.\n"
-                           "\u2022 2 - City like atmosphere");
-  RNA_def_property_range(prop, 0.0f, 10.0f);
+                           "0 means no ozone, 1 means urban city ozone");
+  RNA_def_property_range(prop, 0.0f, 1000.0f);
   RNA_def_property_float_default(prop, 1.0f);
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+
+  /* Legacy parameters. */
+  prop = RNA_def_property(srna, "sun_direction", PROP_FLOAT, PROP_DIRECTION);
+  RNA_def_property_ui_text(prop, "Sun Direction", "Direction from where the sun is shining");
+  RNA_def_property_array(prop, 3);
+  RNA_def_property_float_array_default(prop, default_dir);
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+
+  prop = RNA_def_property(srna, "turbidity", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_range(prop, 1.0f, 10.0f);
+  RNA_def_property_ui_range(prop, 1.0f, 10.0f, 10, 3);
+  RNA_def_property_ui_text(prop, "Turbidity", "Atmospheric turbidity");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+
+  prop = RNA_def_property(srna, "ground_albedo", PROP_FLOAT, PROP_FACTOR);
+  RNA_def_property_range(prop, 0.0f, 1.0f);
+  RNA_def_property_ui_text(
+      prop, "Ground Albedo", "Ground color that is subtly reflected in the sky");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 }
 
@@ -6548,17 +6573,6 @@ static void def_cmp_huecorrect(BlenderRNA * /*brna*/, StructRNA *srna)
   RNA_def_property_pointer_sdna(prop, nullptr, "storage");
   RNA_def_property_struct_type(prop, "CurveMapping");
   RNA_def_property_ui_text(prop, "Mapping", "");
-  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
-}
-
-static void def_cmp_ycc(BlenderRNA * /*brna*/, StructRNA *srna)
-{
-  PropertyRNA *prop;
-
-  prop = RNA_def_property(srna, "mode", PROP_ENUM, PROP_NONE);
-  RNA_def_property_enum_sdna(prop, nullptr, "custom1");
-  RNA_def_property_enum_items(prop, node_ycc_items);
-  RNA_def_property_ui_text(prop, "Mode", "");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 }
 
@@ -9632,11 +9646,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("CompositorNode", "CompositorNodeColorMatte");
   define("CompositorNode", "CompositorNodeColorSpill");
   define("CompositorNode", "CompositorNodeConvolve");
-  define("CompositorNode", "CompositorNodeCombHSVA");
   define("CompositorNode", "CompositorNodeCombineColor", def_cmp_combsep_color);
-  define("CompositorNode", "CompositorNodeCombRGBA");
-  define("CompositorNode", "CompositorNodeCombYCCA", def_cmp_ycc);
-  define("CompositorNode", "CompositorNodeCombYUVA");
   define("CompositorNode", "CompositorNodeConvertColorSpace", def_cmp_convert_color_space);
   define("CompositorNode", "CompositorNodeConvertToDisplay", def_cmp_convert_to_display);
   define("CompositorNode", "CompositorNodeCornerPin");
@@ -9692,10 +9702,6 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("CompositorNode", "CompositorNodeScale");
   define("CompositorNode", "CompositorNodeSceneTime");
   define("CompositorNode", "CompositorNodeSeparateColor", def_cmp_combsep_color);
-  define("CompositorNode", "CompositorNodeSepHSVA");
-  define("CompositorNode", "CompositorNodeSepRGBA");
-  define("CompositorNode", "CompositorNodeSepYCCA", def_cmp_ycc);
-  define("CompositorNode", "CompositorNodeSepYUVA");
   define("CompositorNode", "CompositorNodeSetAlpha");
   define("CompositorNode", "CompositorNodeSplit");
   define("CompositorNode", "CompositorNodeStabilize", def_cmp_stabilize2d);

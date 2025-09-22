@@ -1460,16 +1460,19 @@ typedef struct NodeTexBase {
 typedef struct NodeTexSky {
   NodeTexBase base;
   int sky_model;
+  float sun_direction[3];
+  float turbidity;
+  float ground_albedo;
   float sun_size;
   float sun_intensity;
   float sun_elevation;
   float sun_rotation;
   float altitude;
   float air_density;
-  float dust_density;
+  float aerosol_density;
   float ozone_density;
   char sun_disc;
-  char _pad[11];
+  char _pad[7];
 } NodeTexSky;
 
 typedef struct NodeTexImage {
@@ -2677,7 +2680,12 @@ enum {
 };
 
 /* sky texture */
-enum { SHD_SKY_NISHITA = 0 };
+enum {
+  SHD_SKY_PREETHAM = 0,
+  SHD_SKY_HOSEK = 1,
+  SHD_SKY_SINGLE_SCATTERING = 2,
+  SHD_SKY_MULTIPLE_SCATTERING = 3,
+};
 
 /* environment texture */
 enum {
@@ -3063,6 +3071,7 @@ typedef enum CMPNodeGlareType {
   CMP_NODE_GLARE_GHOST = 3,
   CMP_NODE_GLARE_BLOOM = 4,
   CMP_NODE_GLARE_SUN_BEAMS = 5,
+  CMP_NODE_GLARE_KERNEL = 6,
 } CMPNodeGlareType;
 
 /* Kuwahara Node. Stored in variation */
