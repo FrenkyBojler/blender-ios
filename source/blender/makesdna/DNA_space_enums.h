@@ -873,7 +873,7 @@ typedef enum eSpaceNode_ShaderFrom {
   SNODE_SHADER_LINESTYLE = 2,
 } eSpaceNode_ShaderFrom;
 
-/** #SpaceNode.geometry_nodes_type */
+/** #SpaceNode.nodes_type */
 typedef enum SpaceNodeGeometryNodesType {
   SNODE_GEOMETRY_MODIFIER = 0,
   SNODE_GEOMETRY_TOOL = 1,
@@ -1025,6 +1025,7 @@ typedef enum eSpreadsheetColumnValueType {
   SPREADSHEET_VALUE_TYPE_INT32_2D = 10,
   SPREADSHEET_VALUE_TYPE_QUATERNION = 11,
   SPREADSHEET_VALUE_TYPE_FLOAT4X4 = 12,
+  SPREADSHEET_VALUE_TYPE_BUNDLE_ITEM = 13,
 } eSpreadsheetColumnValueType;
 
 typedef enum eSpreadsheetColumnFlag {

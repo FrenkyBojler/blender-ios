@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.0.0 Alpha (b'066280446c16')\n"
+"Project-Id-Version: Blender 5.0.0 Alpha (b'fb3904ce45c6')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-08-18 09:16+0000\n"
+"POT-Creation-Date: 2025-09-22 08:45+0000\n"
 "PO-Revision-Date: 2025-07-23 14:52+0000\n"
 "Last-Translator: Lisa <blendergirl@tutanota.com>\n"
 "Language-Team: Dutch <https://translate.blender.org/projects/blender-ui/ui/nl/>\n"
@@ -609,8 +609,8 @@ msgid "Layer"
 msgstr "Laag"
 
 
-msgid "Array"
-msgstr "Reeks"
+msgid "Object"
+msgstr "Object"
 
 
 msgid "File Path"
@@ -637,10 +637,6 @@ msgid "-Y"
 msgstr "-Y"
 
 
-msgid "Object"
-msgstr "Object"
-
-
 msgid "None"
 msgstr "Geen"
 
@@ -663,6 +659,10 @@ msgstr "Extern"
 
 msgid "Target"
 msgstr "Doel"
+
+
+msgid "Normals"
+msgstr "Normalen"
 
 
 msgid "Split Materials"
@@ -1091,12 +1091,20 @@ msgid "Stickiness"
 msgstr "Kleverigheid"
 
 
+msgid "Display"
+msgstr "Weergave"
+
+
 msgid "Curve"
 msgstr "Kromme"
 
 
 msgid "Exposure"
 msgstr "Belichting"
+
+
+msgid "View"
+msgstr "Weergave"
 
 
 msgid "Temperature"
@@ -1274,10 +1282,6 @@ msgstr "Splits"
 
 msgid "Plane"
 msgstr "Vlak"
-
-
-msgid "View"
-msgstr "Weergave"
 
 
 msgid "Segments"
@@ -2147,10 +2151,6 @@ msgid "Underline Position"
 msgstr "Positie Onderstreping"
 
 
-msgid "Normals"
-msgstr "Normalen"
-
-
 msgid "Active Texture"
 msgstr "Actieve Textuur"
 
@@ -2325,10 +2325,6 @@ msgstr "Globale Z"
 
 msgid "Simple"
 msgstr "Simpel"
-
-
-msgid "Display"
-msgstr "Weergave"
 
 
 msgid "Distribution"
@@ -2702,68 +2698,68 @@ msgid "Mask"
 msgstr "Mask"
 
 
-msgid "Names"
-msgstr "Namen"
-
-
 msgid "Show/Hide"
 msgstr "Toon/Verberg"
-
-
-msgid "Local View"
-msgstr "Lokale Scherm"
-
-
-msgid "Clear Transform"
-msgstr "Maak Transformatie Leeg"
-
-
-msgid "Mirror"
-msgstr "Spiegel"
-
-
-msgid "Hooks"
-msgstr "Haken"
-
-
-msgid "Select Similar"
-msgstr "Selecteer Vergelijkbaar"
-
-
-msgid "Convert"
-msgstr "Converteer"
-
-
-msgid "Quick Effects"
-msgstr "Snelle Effecten"
-
-
-msgid "Navigation"
-msgstr "Navigatie"
-
-
-msgid "Rigid Body"
-msgstr "Star Lichaam"
-
-
-msgid "Relations"
-msgstr "Relaties"
-
-
-msgid "Add Image"
-msgstr "Voeg Afbeelding Toe"
-
-
-msgid "Light"
-msgstr "Licht"
 
 
 msgid "Text"
 msgstr "Tekst"
 
 
+msgid "Names"
+msgstr "Namen"
+
+
+msgid "Mirror"
+msgstr "Spiegel"
+
+
+msgid "Local View"
+msgstr "Lokale Scherm"
+
+
+msgid "Navigation"
+msgstr "Navigatie"
+
+
+msgid "Select Similar"
+msgstr "Selecteer Vergelijkbaar"
+
+
 msgid "Select Linked"
 msgstr "Selecteer Aaneengesloten"
+
+
+msgid "Light"
+msgstr "Licht"
+
+
+msgid "Add Image"
+msgstr "Voeg Afbeelding Toe"
+
+
+msgid "Relations"
+msgstr "Relaties"
+
+
+msgid "Rigid Body"
+msgstr "Star Lichaam"
+
+
+msgid "Quick Effects"
+msgstr "Snelle Effecten"
+
+
+msgid "Convert"
+msgstr "Converteer"
+
+
+msgid "Hooks"
+msgstr "Haken"
+
+
+msgid "Clear Transform"
+msgstr "Maak Transformatie Leeg"
 
 
 msgctxt "MovieClip"
@@ -2905,6 +2901,10 @@ msgstr "Gegevens Overdracht"
 
 msgid "Time Offset"
 msgstr "Tijdsverschuiving"
+
+
+msgid "Array"
+msgstr "Reeks"
 
 
 msgid "Build"
@@ -3106,41 +3106,12 @@ msgid "Denoise"
 msgstr "Ruisonderdrukking"
 
 
-msgid "Feather"
-msgstr "Veer"
-
-
 msgid "Distance Key"
 msgstr "Afstand Sleutel"
 
 
-msgid "Buffer Edge Mode"
-msgstr "Buffer Rand Modus"
-
-
-msgid "Keep In"
-msgstr "Blijf Binnen"
-
-
 msgid "Hue Correct"
 msgstr "Hue Corrigeren"
-
-
-msgctxt "Curve"
-msgid "Feather Falloff"
-msgstr "Veer Afvlakking"
-
-
-msgid "Red Channel"
-msgstr "Rode Kanaal"
-
-
-msgid "Green Channel"
-msgstr "Groene Kanaal"
-
-
-msgid "Blue Channel"
-msgstr "Blauwe Kanaal"
 
 
 msgid "Render Layers"
@@ -3957,6 +3928,10 @@ msgid "Duplicate"
 msgstr "Dupliceren"
 
 
+msgid "Toggle Selection"
+msgstr "Selectie Aan/Uit"
+
+
 msgctxt "Operator"
 msgid "Dissolve Vertices"
 msgstr "Los Punten Op"
@@ -3990,10 +3965,6 @@ msgstr "Buig"
 
 msgid "Edge Slide"
 msgstr "Glij over Rand"
-
-
-msgid "Toggle Selection"
-msgstr "Selectie Aan/Uit"
 
 
 msgctxt "Operator"
@@ -4351,10 +4322,6 @@ msgid "Duplicate Strokes"
 msgstr "Dupliceer Strepen"
 
 
-msgid "Join"
-msgstr "Samenvoegen"
-
-
 msgctxt "Operator"
 msgid "Add New Layer"
 msgstr "Voeg Nieuwe Laag Toe"
@@ -4569,6 +4536,10 @@ msgstr "Maak Sleutelvorm Leeg"
 msgctxt "Operator"
 msgid "Insert Shape Key"
 msgstr "Voeg Sleutelvorm Toe"
+
+
+msgid "Feather"
+msgstr "Veer"
 
 
 msgctxt "Operator"
@@ -5718,6 +5689,10 @@ msgid "Random"
 msgstr "Willekeurig"
 
 
+msgid "Join"
+msgstr "Samenvoegen"
+
+
 msgid "Replace Selection"
 msgstr "Vervang Selectie"
 
@@ -6377,6 +6352,10 @@ msgid "Custom Distance"
 msgstr "Aangepaste Afstand"
 
 
+msgid "Shape Key"
+msgstr "Sleutelvorm"
+
+
 msgctxt "Operator"
 msgid "Annotate"
 msgstr "Annotatie"
@@ -6695,10 +6674,6 @@ msgstr "Toon Annotaties"
 
 msgid "Shadow Color"
 msgstr "Schaduwkleur"
-
-
-msgid "Shape Key"
-msgstr "Sleutelvorm"
 
 
 msgid "Where the annotation comes from"
@@ -8440,11 +8415,6 @@ msgid "Surface"
 msgstr "Oppervlak"
 
 
-msgctxt "Action"
-msgid "var"
-msgstr "var"
-
-
 msgid "%i frames found!"
 msgstr "%i frames gevonden!"
 
@@ -8576,6 +8546,10 @@ msgstr "Reset Alles naar Standaardwaarden"
 msgctxt "Operator"
 msgid "Copy All to Selected"
 msgstr "Kopieer Alles naar Geselecteerd"
+
+
+msgid "Value:"
+msgstr "Waarde:"
 
 
 msgid "OK"
@@ -8911,10 +8885,6 @@ msgid "File not found '%s'"
 msgstr "Bestand niet gevonden '%s'"
 
 
-msgid "Warning!"
-msgstr "Waarschuwing!"
-
-
 msgid "Active Keyframe"
 msgstr "Actieve Sleutelframe"
 
@@ -8945,10 +8915,6 @@ msgstr "Video's"
 
 msgid "Movies"
 msgstr "Films"
-
-
-msgid "Value:"
-msgstr "Waarde:"
 
 
 msgid "It cannot be left blank"

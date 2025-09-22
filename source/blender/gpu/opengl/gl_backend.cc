@@ -97,6 +97,7 @@ static bool is_bad_AMD_driver(const char *version_cstr)
   Vector<int> version;
 
   if (parse_version(version_str, " 00.00.00.00 ", version) ||
+      parse_version(version_str, " 00.00.000000 ", version) ||
       parse_version(version_str, " 00.00.00 ", version) ||
       parse_version(version_str, " 00.00.0 ", version) ||
       parse_version(version_str, " 00.0.00 ", version) ||
@@ -123,10 +124,10 @@ void GLBackend::platform_init()
   const char *vendor = (const char *)glGetString(GL_VENDOR);
   const char *renderer = (const char *)glGetString(GL_RENDERER);
   const char *version = (const char *)glGetString(GL_VERSION);
-  eGPUDeviceType device = GPU_DEVICE_ANY;
-  eGPUOSType os = GPU_OS_ANY;
-  eGPUDriverType driver = GPU_DRIVER_ANY;
-  eGPUSupportLevel support_level = GPU_SUPPORT_LEVEL_SUPPORTED;
+  GPUDeviceType device = GPU_DEVICE_ANY;
+  GPUOSType os = GPU_OS_ANY;
+  GPUDriverType driver = GPU_DRIVER_ANY;
+  GPUSupportLevel support_level = GPU_SUPPORT_LEVEL_SUPPORTED;
 
 #ifdef _WIN32
   os = GPU_OS_WIN;
@@ -382,8 +383,6 @@ static void detect_workarounds()
     printf("    version: %s\n\n", version);
     GCaps.depth_blitting_workaround = true;
     GCaps.stencil_clasify_buffer_workaround = true;
-    GCaps.node_link_instancing_workaround = true;
-    GCaps.line_directive_workaround = true;
     GLContext::debug_layer_workaround = true;
     /* Turn off Blender features. */
     GCaps.hdr_viewport_support = false;
@@ -423,7 +422,6 @@ static void detect_workarounds()
      *   Radeon R5 Graphics;
      * And others... */
     GLContext::unused_fb_slot_workaround = true;
-    GCaps.broken_amd_driver = true;
   }
   /* We have issues with this specific renderer. (see #74024) */
   if (GPU_type_matches(GPU_DEVICE_ATI, GPU_OS_UNIX, GPU_DRIVER_OPENSOURCE) &&
@@ -431,13 +429,6 @@ static void detect_workarounds()
        strstr(renderer, "AMD TAHITI")))
   {
     GLContext::unused_fb_slot_workaround = true;
-    GCaps.broken_amd_driver = true;
-  }
-  /* Fix slowdown on this particular driver. (see #77641) */
-  if (GPU_type_matches(GPU_DEVICE_ATI, GPU_OS_UNIX, GPU_DRIVER_OPENSOURCE) &&
-      strstr(version, "Mesa 19.3.4"))
-  {
-    GCaps.broken_amd_driver = true;
   }
   /* See #82856: AMD drivers since 20.11 running on a polaris architecture doesn't support the
    * `GL_INT_2_10_10_10_REV` data type correctly. This data type is used to pack normals and flags.
@@ -455,15 +446,6 @@ static void detect_workarounds()
 
     if (match_renderer(renderer, matches)) {
       GCaps.use_hq_normals_workaround = true;
-    }
-  }
-  /* See #132968: Legacy AMD drivers do not accept a hash after the line number and results into
-   * undefined behavior. Users have reported that the issue can go away after doing a clean
-   * install of the driver.
-   */
-  if (GPU_type_matches(GPU_DEVICE_ATI, GPU_OS_ANY, GPU_DRIVER_OFFICIAL)) {
-    if (is_bad_AMD_driver(version)) {
-      GCaps.line_directive_workaround = true;
     }
   }
 
@@ -535,12 +517,6 @@ static void detect_workarounds()
    * `internal format of texture N is not supported`. */
   if (GPU_type_matches(GPU_DEVICE_INTEL, GPU_OS_WIN, GPU_DRIVER_OFFICIAL)) {
     GLContext::multi_bind_image_support = false;
-  }
-
-  /* #134509 Intel ARC GPU have a driver bug that break the display of batched node-links.
-   * Disabling batching fixes the issue. */
-  if (GPU_type_matches(GPU_DEVICE_INTEL, GPU_OS_ANY, GPU_DRIVER_OFFICIAL)) {
-    GCaps.node_link_instancing_workaround = true;
   }
 
   /* Metal-related Workarounds. */

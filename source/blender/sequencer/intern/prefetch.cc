@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <cstdlib>
 #include <cstring>
+#include <limits>
 
 #include "MEM_guardedalloc.h"
 
@@ -207,8 +208,8 @@ static AnimationEvalContext seq_prefetch_anim_eval_context(PrefetchJob *pfjob)
 void seq_prefetch_get_time_range(Scene *scene, int *r_start, int *r_end)
 {
   /* When there is no prefetch job, return "impossible" negative values. */
-  *r_start = INT_MIN;
-  *r_end = INT_MIN;
+  *r_start = std::numeric_limits<int>::min();
+  *r_end = std::numeric_limits<int>::min();
 
   PrefetchJob *pfjob = seq_prefetch_job_get(scene);
   if (pfjob == nullptr) {
@@ -372,10 +373,10 @@ static void seq_prefetch_update_active_seqbase(PrefetchJob *pfjob)
 
   if (ms_orig != nullptr) {
     Strip *meta_eval = original_strip_get(ms_orig->parent_strip, pfjob->scene_eval);
-    active_seqbase_set(ed_eval, &meta_eval->seqbase);
+    ed_eval->current_meta_strip = meta_eval;
   }
   else {
-    active_seqbase_set(ed_eval, &ed_eval->seqbase);
+    ed_eval->current_meta_strip = nullptr;
   }
 }
 
@@ -419,8 +420,7 @@ static bool strip_is_cached(PrefetchJob *pfjob, Strip *strip, bool can_have_fina
   }
 
   if (can_have_final_image) {
-    ibuf = final_image_cache_get(
-        pfjob->context.scene, pfjob->seqbasep, cfra, pfjob->context.view_id, 0);
+    ibuf = final_image_cache_get(pfjob->context.scene, cfra, pfjob->context.view_id, 0);
     if (ibuf != nullptr) {
       IMB_freeImBuf(ibuf);
       return true;
@@ -585,7 +585,6 @@ static PrefetchJob *seq_prefetch_start_ex(const RenderData *context, float cfra)
 
     pfjob->bmain_eval = BKE_main_new();
     pfjob->scene = context->scene;
-    pfjob->seqbasep = context->scene->ed->current_strips();
     seq_prefetch_init_depsgraph(pfjob);
   }
   pfjob->bmain = context->bmain;
