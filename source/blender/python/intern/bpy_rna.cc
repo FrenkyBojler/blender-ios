@@ -6687,7 +6687,6 @@ static PyObject *pyrna_func_vectorcall(PyObject *callable,
   for (i = 0; iter.valid && err == 0; RNA_parameter_list_next(&iter)) {
     parm = iter.parm;
     flag_parameter = RNA_parameter_flag(parm);
-    const char *nn = RNA_property_identifier(parm);
     /* Only useful for single argument returns, we'll need another list loop for multiple. */
     if (flag_parameter & PARM_OUTPUT) {
       ret_len++;
@@ -6779,8 +6778,6 @@ static PyObject *pyrna_func_vectorcall(PyObject *callable,
    * otherwise can skip important messages and confuse with args).
    */
   if (UNLIKELY(err == 0 && kwnames && (pykw_len > kw_tot))) {
-    PyObject *key;
-
     DynStr *bad_args = BLI_dynstr_new();
     DynStr *good_args = BLI_dynstr_new();
 
