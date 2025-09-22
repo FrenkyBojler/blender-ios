@@ -4004,11 +4004,8 @@ static void rna_def_space_outliner(BlenderRNA *brna)
   static const EnumPropertyItem rna_enum_space_outliner_sort_method_items[] = {
       {SO_SORT_CUSTOM, "CUSTOM", 0, "Free", "Manual drag and drop order"},
       {SO_SORT_ALPHA, "ALPHA", 0, "Alphabetical", "Sort alphabetically"},
-      {SO_SORT_TYPE,
-       "TYPE",
-       0,
-       "By Type",
-       "Group by type"},  // Will add sort by creation order too
+      {SO_SORT_TYPE, "TYPE", 0, "By Type", "Group by type"},
+      {SO_SORT_CREATION, "CREATION_ORDER", 0, "Creation Order", "Sort by creation order"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
