@@ -415,14 +415,7 @@ static void parent_drop_set_parents(bContext *C,
 static wmOperatorStatus parent_drop_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   TreeElement *te = outliner_drop_find(C, event);
-  SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
   TreeStoreElem *tselem = te ? TREESTORE(te) : nullptr;
-  TreeElementInsertType insert_type = TE_INSERT_INTO;
-
-  if (space_outliner->sort_method != SO_SORT_CUSTOM || space_outliner->outlinevis != SO_VIEW_LAYER)
-  {
-    insert_type = TE_INSERT_INTO;
-  }
 
   if (!(te && (te->idcode == ID_OB) && (tselem->type == TSE_SOME_ID))) {
     return OPERATOR_CANCELLED;
@@ -1263,10 +1256,7 @@ static std::string collection_drop_tooltip(bContext *C,
     }
 
     TreeElement *te = data.te;
-    TreeStoreElem *tselem = TREESTORE(te);
-
     const bool target_is_object_row = is_object_element(te);
-    const bool target_is_collection_row = outliner_is_collection_tree_element(te);
 
     wmDragID *drag_id = (wmDragID *)drag->ids.first;
     const bool dragging_object = drag_id && (GS(drag_id->id->name) == ID_OB);
@@ -1347,7 +1337,6 @@ static wmOperatorStatus collection_drop_invoke(bContext *C,
   }
 
   wmDragID *first_id = (wmDragID *)drag->ids.first;
-  const bool dragging_object = first_id && (GS(first_id->id->name) == ID_OB);
   const bool dragging_collection = first_id && (GS(first_id->id->name) == ID_GR);
 
   Collection *relative = nullptr;
