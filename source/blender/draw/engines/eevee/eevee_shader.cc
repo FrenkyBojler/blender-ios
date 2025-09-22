@@ -694,6 +694,12 @@ void ShaderModule::material_create_info_amend(GPUMaterial *gpumat, GPUCodegenOut
   if (GPU_material_flag_get(gpumat, GPU_MATFLAG_COAT)) {
     info.define("MAT_CLEARCOAT");
   }
+  if (GPU_material_flag_get(gpumat, GPU_MATFLAG_REFLECTION_MAYBE_COLORED) == false) {
+    info.define("MAT_REFLECTION_COLORLESS");
+  }
+  if (GPU_material_flag_get(gpumat, GPU_MATFLAG_REFRACTION_MAYBE_COLORED) == false) {
+    info.define("MAT_REFRACTION_COLORLESS");
+  }
 
   const eClosureBits closure_bits = shader_closure_bits_from_flag(gpumat);
 

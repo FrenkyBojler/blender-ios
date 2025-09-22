@@ -296,37 +296,16 @@ static void node_shader_init_principled(bNodeTree * /*ntree*/, bNode *node)
   node->custom2 = SHD_SUBSURFACE_RANDOM_WALK;
 }
 
-static bool socket_not_zero(const GPUNodeStack &sock)
+static bool might_have_tinted_specular(const GPUNodeStack &base_color,
+                                       const GPUNodeStack &metallic,
+                                       const GPUNodeStack &specular_tint)
 {
-  return sock.link || (clamp_f(sock.vec[0], 0.0f, 1.0f) > 1e-5f);
-}
-
-static bool socket_not_one(const GPUNodeStack &sock)
-{
-  return sock.link || (clamp_f(sock.vec[0], 0.0f, 1.0f) < 1.0f - 1e-5f);
-}
-
-static bool socket_is_one(const GPUNodeStack &sock)
-{
-  return !sock.link && (clamp_f(sock.vec[0], 0.0f, 1.0f) > 0.9999f);
-}
-
-static bool socket_value_might_be_tinted(const GPUNodeStack &sock)
-{
-  return sock.link || (sock.vec[0] != sock.vec[1]) || (sock.vec[1] != sock.vec[2]);
-}
-
-static bool might_have_tinted_specular(GPUNodeStack base_color,
-                                       GPUNodeStack metallic,
-                                       GPUNodeStack specular_tint)
-{
-  bool base_is_tinted = socket_value_might_be_tinted(base_color);
-  if (socket_is_one(metallic)) {
+  if (metallic.socket_is_one()) {
     /* Metals might have colored specular. */
-    return base_is_tinted;
+    return base_color.might_be_tinted() || specular_tint.might_be_tinted();
   }
   /* Dielectrics get colored if tint is used. */
-  return base_is_tinted && socket_not_zero(specular_tint);
+  return specular_tint.might_be_tinted();
 }
 
 static int node_shader_gpu_bsdf_principled(GPUMaterial *mat,
@@ -354,14 +333,14 @@ static int node_shader_gpu_bsdf_principled(GPUMaterial *mat,
   }
 #endif
 
-  bool use_diffuse = socket_not_zero(in[SOCK_SHEEN_WEIGHT_ID]) ||
-                     (socket_not_one(in[SOCK_METALLIC_ID]) &&
-                      socket_not_one(in[SOCK_TRANSMISSION_WEIGHT_ID]));
-  bool use_subsurf = socket_not_zero(in[SOCK_SUBSURFACE_WEIGHT_ID]) && use_diffuse;
-  bool use_refract = socket_not_one(in[SOCK_METALLIC_ID]) &&
-                     socket_not_zero(in[SOCK_TRANSMISSION_WEIGHT_ID]);
-  bool use_transparency = socket_not_one(in[SOCK_ALPHA_ID]);
-  bool use_coat = socket_not_zero(in[SOCK_COAT_WEIGHT_ID]);
+  bool use_diffuse = in[SOCK_SHEEN_WEIGHT_ID].socket_not_zero() ||
+                     (in[SOCK_METALLIC_ID].socket_not_one() &&
+                      in[SOCK_TRANSMISSION_WEIGHT_ID].socket_not_one());
+  bool use_subsurf = in[SOCK_SUBSURFACE_WEIGHT_ID].socket_not_zero() && use_diffuse;
+  bool use_refract = in[SOCK_METALLIC_ID].socket_not_one() &&
+                     in[SOCK_TRANSMISSION_WEIGHT_ID].socket_not_zero();
+  bool use_transparency = in[SOCK_ALPHA_ID].socket_not_one();
+  bool use_coat = in[SOCK_COAT_WEIGHT_ID].socket_not_zero();
 
   eGPUMaterialFlag flag = GPU_MATFLAG_GLOSSY;
   if (use_diffuse) {
@@ -385,10 +364,10 @@ static int node_shader_gpu_bsdf_principled(GPUMaterial *mat,
   {
     flag |= GPU_MATFLAG_REFLECTION_MAYBE_COLORED;
   }
-  if (use_refract && socket_value_might_be_tinted(in[SOCK_BASE_COLOR_ID])) {
+  if (use_refract && in[SOCK_BASE_COLOR_ID].might_be_tinted()) {
     flag |= GPU_MATFLAG_REFRACTION_MAYBE_COLORED;
   }
-  if (use_coat && socket_value_might_be_tinted(in[SOCK_COAT_TINT_ID])) {
+  if (use_coat && in[SOCK_COAT_TINT_ID].might_be_tinted()) {
     flag |= GPU_MATFLAG_REFLECTION_MAYBE_COLORED;
   }
 

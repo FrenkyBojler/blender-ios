@@ -10,6 +10,7 @@
 
 #include <string>
 
+#include "BLI_math_base.h"
 #include "BLI_set.hh"
 
 #include "DNA_customdata_types.h" /* for eCustomDataType */
@@ -299,6 +300,28 @@ struct GPUNodeStack {
   bool hasoutput;
   short sockettype;
   bool end;
+
+  /* Return true if the socket might contain a polychromatic value.
+   * This is a conservative heuristic that allows for optimization. */
+  bool might_be_tinted() const
+  {
+    return this->link || (this->vec[0] != this->vec[1]) || (this->vec[1] != this->vec[2]);
+  }
+
+  bool socket_not_zero() const
+  {
+    return this->link || (clamp_f(this->vec[0], 0.0f, 1.0f) > 1e-5f);
+  }
+
+  bool socket_not_one() const
+  {
+    return this->link || (clamp_f(this->vec[0], 0.0f, 1.0f) < 1.0f - 1e-5f);
+  }
+
+  bool socket_is_one() const
+  {
+    return !this->link && (clamp_f(this->vec[0], 0.0f, 1.0f) > 0.9999f);
+  }
 };
 
 struct GPUGraphOutput {
