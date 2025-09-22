@@ -950,6 +950,7 @@ void ShaderModule::material_create_info_amend(GPUMaterial *gpumat, GPUCodegenOut
 
     Vector<StringRefNull> dependencies = {};
     if (use_vertex_displacement) {
+      dependencies.append("eevee_geom_types_lib.glsl");
       dependencies.append("eevee_nodetree_lib.glsl");
       dependencies.extend(codegen.displacement.dependencies);
     }
@@ -962,6 +963,7 @@ void ShaderModule::material_create_info_amend(GPUMaterial *gpumat, GPUCodegenOut
     if (use_ao_node) {
       dependencies.append("eevee_ambient_occlusion_lib.glsl");
     }
+    dependencies.append("eevee_geom_types_lib.glsl");
     dependencies.append("eevee_nodetree_lib.glsl");
 
     for (const auto &graph : codegen.material_functions) {
