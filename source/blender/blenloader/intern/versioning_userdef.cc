@@ -302,8 +302,6 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
 
   if (!USER_VERSION_ATLEAST(500, 56)) {
     FROM_DEFAULT_V4_UCHAR(common.anim.playhead);
-    FROM_DEFAULT_V4_UCHAR(common.anim.time_marker);
-    FROM_DEFAULT_V4_UCHAR(common.anim.time_marker_selected);
     FROM_DEFAULT_V4_UCHAR(common.anim.channel_group);
     FROM_DEFAULT_V4_UCHAR(common.anim.channel_group_active);
   }
@@ -363,6 +361,13 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
   }
 
   if (!USER_VERSION_ATLEAST(500, 80)) {
+    FROM_DEFAULT_V4_UCHAR(regions.scrubbing.back);
+    FROM_DEFAULT_V4_UCHAR(regions.scrubbing.text);
+    FROM_DEFAULT_V4_UCHAR(regions.scrubbing.time_marker);
+    FROM_DEFAULT_V4_UCHAR(regions.scrubbing.time_marker_selected);
+  }
+
+  if (!USER_VERSION_ATLEAST(500, 86)) {
     FROM_DEFAULT_V4_UCHAR(common.anim.scene_strip_range);
   }
 
