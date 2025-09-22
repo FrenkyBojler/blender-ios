@@ -131,9 +131,9 @@ static const EnumPropertyItem default_hook_enum = {
     0, "INVALID", 0, "Invalid Handle", "Something broke"};
 
 static const EnumPropertyItem *rna_USDHookDescriptor_hookid_itemf(bContext *C,
-                                                             PointerRNA * /*ptr*/,
-                                                             PropertyRNA * /*prop*/,
-                                                             bool *r_free)
+                                                                  PointerRNA * /*ptr*/,
+                                                                  PropertyRNA * /*prop*/,
+                                                                  bool *r_free)
 {
   if (C == nullptr) {
     return rna_enum_dummy_DEFAULT_items;
@@ -252,7 +252,8 @@ static void rna_def_usd_hook_descriptor(BlenderRNA *brna)
       prop, nullptr, "rna_USDHookDescriptor_hookid_set", "rna_USDHookDescriptor_hookid_itemf");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_PRESET);
-  RNA_def_property_ui_text(prop, "Hook ID", "Enumerated ID of the USD hook matched to this descriptor");
+  RNA_def_property_ui_text(
+      prop, "Hook ID", "Enumerated ID of the USD hook matched to this descriptor");
   RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_UNIT);
 }
 

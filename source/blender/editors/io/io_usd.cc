@@ -1394,9 +1394,9 @@ void WM_OT_usd_import(wmOperatorType *ot)
  * \{ */
 
 static const EnumPropertyItem *USDHookDescriptor_hookid_itemf(bContext *C,
-                                                         PointerRNA * /*ptr*/,
-                                                         PropertyRNA * /*prop*/,
-                                                         bool *r_free)
+                                                              PointerRNA * /*ptr*/,
+                                                              PropertyRNA * /*prop*/,
+                                                              bool *r_free)
 {
   if (C == nullptr) {
     return rna_enum_dummy_DEFAULT_items;
@@ -1438,8 +1438,7 @@ void UI_OT_usd_hook_descriptor_add(wmOperatorType *ot)
   /* identifiers */
   ot->name = "Add USD Hook Descriptor";
   ot->idname = "UI_OT_usd_hook_descriptor_add";
-  ot->description =
-      "Adds a USD Hook Descriptor to the active exporter's filter list";
+  ot->description = "Adds a USD Hook Descriptor to the active exporter's filter list";
 
   /* callbacks */
   ot->exec = ui_usd_hook_descriptor_add_exec;
@@ -1470,7 +1469,7 @@ void UI_OT_usd_hook_descriptor_add(wmOperatorType *ot)
 /** \} */
 
 /* -------------------------------------------------------------------- */
-/** \name Remove USD Hook Descriptor 
+/** \name Remove USD Hook Descriptor
  * \{ */
 
 static wmOperatorStatus ui_usd_hook_descriptor_remove_exec(bContext *C, wmOperator *op)

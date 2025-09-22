@@ -440,9 +440,11 @@ class USDHookInvoker {
 
       // This feels bad.
       if (filter == true) {
-        if (std::find_if(descriptors_->begin(), descriptors_->end(), [hook](USDHookDescriptor descriptor) {
-              return (STREQ(hook->idname, descriptor.identifier) && (descriptor.enabled == true));
-            }) == descriptors_->end())
+        if (std::find_if(
+                descriptors_->begin(), descriptors_->end(), [hook](USDHookDescriptor descriptor) {
+                  return (STREQ(hook->idname, descriptor.identifier) &&
+                          (descriptor.enabled == true));
+                }) == descriptors_->end())
         {
           continue;
         }
