@@ -653,11 +653,14 @@ void ShaderModule::material_create_info_amend(GPUMaterial *gpumat, GPUCodegenOut
     }
   }
 
+  bool use_ao_node = false;
+
   if (GPU_material_flag_get(gpumat, GPU_MATFLAG_AO) &&
       ELEM(pipeline_type, MAT_PIPE_FORWARD, MAT_PIPE_DEFERRED) &&
       geometry_type_has_surface(geometry_type))
   {
     info.define("MAT_AMBIENT_OCCLUSION");
+    use_ao_node = true;
   }
 
   if (GPU_material_flag_get(gpumat, GPU_MATFLAG_TRANSPARENT)) {
@@ -955,7 +958,11 @@ void ShaderModule::material_create_info_amend(GPUMaterial *gpumat, GPUCodegenOut
   }
 
   if (pipeline_type != MAT_PIPE_VOLUME_OCCUPANCY) {
-    Vector<StringRefNull> dependencies = {"eevee_nodetree_lib.glsl"};
+    Vector<StringRefNull> dependencies;
+    if (use_ao_node) {
+      dependencies.append("eevee_ambient_occlusion_lib.glsl");
+    }
+    dependencies.append("eevee_nodetree_lib.glsl");
 
     for (const auto &graph : codegen.material_functions) {
       frag_gen << graph.serialized;
