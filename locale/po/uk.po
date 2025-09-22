@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.0.0 Alpha (b'29d18c45e4ed')\n"
+"Project-Id-Version: Blender 5.0.0 Alpha (b'fb3904ce45c6')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-09-10 07:24+0000\n"
+"POT-Creation-Date: 2025-09-22 08:45+0000\n"
 "PO-Revision-Date: 2025-07-23 15:08+0000\n"
 "Last-Translator: Bartosz <gang65@poczta.onet.pl>\n"
 "Language-Team: Ukrainian <https://translate.blender.org/projects/blender-ui/ui/uk/>\n"
@@ -1509,14 +1509,6 @@ msgstr "Шар"
 
 msgid "Name of the Attribute"
 msgstr "Назва атрибута"
-
-
-msgid "Array"
-msgstr "Масив"
-
-
-msgid "Single"
-msgstr "Один"
 
 
 msgid "Bool Attribute"
@@ -5226,8 +5218,8 @@ msgid "Color management specific to display device"
 msgstr "Керування кольором для пристроїв відображення"
 
 
-msgid "Display Device"
-msgstr "Пристрій показу"
+msgid "Display"
+msgstr "Показати"
 
 
 msgid "Input color space settings"
@@ -5298,8 +5290,8 @@ msgid "Use RGB curved for pre-display transformation"
 msgstr "Вжити криві RGB для трансформації перед-показу"
 
 
-msgid "View Transform"
-msgstr "Трансформа Огляду"
+msgid "View"
+msgstr "Огляд"
 
 
 msgid "View used when converting image to a display space"
@@ -7950,10 +7942,6 @@ msgstr "Площина"
 
 msgid "Plane for projected stroke"
 msgstr "Площина для проєктованого штриха"
-
-
-msgid "View"
-msgstr "Огляд"
 
 
 msgid "Detect Corners"
@@ -20141,10 +20129,6 @@ msgid "Display Color"
 msgstr "Колір Показу"
 
 
-msgid "Display"
-msgstr "Показати"
-
-
 msgid "Percentage of particles to display in 3D view"
 msgstr "Відсоток частинок для показу у 3D-вікні"
 
@@ -26411,8 +26395,60 @@ msgid "Material slot name"
 msgstr "Назва гнізда матеріалу"
 
 
+msgid "Toggle Bone Options"
+msgstr "Перемкнути параметри кісток"
+
+
+msgid "Enable Bone Options"
+msgstr "Увімкнути параметри кісток"
+
+
+msgid "Disable Bone Options"
+msgstr "Відключити параметри кісток"
+
+
+msgid "Mesh Select Mode"
+msgstr "Режим Вибору Сіті"
+
+
+msgid "Face Data"
+msgstr "Дані граней"
+
+
+msgid "Select by Face Strength"
+msgstr "Вибрати за Силою Грані"
+
+
+msgid "Set Face Strength"
+msgstr "Задати Силу Грані"
+
+
+msgid "Clean Up"
+msgstr "Вичищення"
+
+
+msgid "Merge"
+msgstr "Об'єднання"
+
+
 msgid "Show/Hide"
 msgstr "Показати/приховати"
+
+
+msgid "Special Characters"
+msgstr "Спеціальні символи"
+
+
+msgid "Kerning"
+msgstr "Кернінг"
+
+
+msgid "Text"
+msgstr "Текст"
+
+
+msgid "Metaball"
+msgstr "Метакуля"
 
 
 msgid "Names"
@@ -26421,10 +26457,6 @@ msgstr "Назви"
 
 msgid "Bone Roll"
 msgstr "Прокручення Кістки"
-
-
-msgid "Clean Up"
-msgstr "Вичищення"
 
 
 msgid "Pivot Point"
@@ -26453,10 +26485,6 @@ msgstr "Редагування Наборів Граней"
 
 msgid "Vertex Group Locks"
 msgstr "Блокування Груп Вершин"
-
-
-msgid "Metaball"
-msgstr "Метакуля"
 
 
 msgid "Mirror"
@@ -26585,50 +26613,6 @@ msgstr "У проміжках"
 
 msgid "Propagate"
 msgstr "Поширити"
-
-
-msgid "Toggle Bone Options"
-msgstr "Перемкнути параметри кісток"
-
-
-msgid "Enable Bone Options"
-msgstr "Увімкнути параметри кісток"
-
-
-msgid "Disable Bone Options"
-msgstr "Відключити параметри кісток"
-
-
-msgid "Mesh Select Mode"
-msgstr "Режим Вибору Сіті"
-
-
-msgid "Face Data"
-msgstr "Дані граней"
-
-
-msgid "Select by Face Strength"
-msgstr "Вибрати за Силою Грані"
-
-
-msgid "Set Face Strength"
-msgstr "Задати Силу Грані"
-
-
-msgid "Merge"
-msgstr "Об'єднання"
-
-
-msgid "Special Characters"
-msgstr "Спеціальні символи"
-
-
-msgid "Kerning"
-msgstr "Кернінг"
-
-
-msgid "Text"
-msgstr "Текст"
 
 
 msgid "Basic"
@@ -26966,6 +26950,11 @@ msgstr "Спеціальне Пензля"
 msgctxt "Operator"
 msgid "Parent"
 msgstr "Приріднення"
+
+
+msgctxt "Operator"
+msgid "Lattice"
+msgstr "Решітка"
 
 
 msgid "Clone Layer"
@@ -27558,6 +27547,10 @@ msgstr "Зсув ключкадрів"
 
 msgid "Texture Mapping"
 msgstr "Розкладання текстури"
+
+
+msgid "Array"
+msgstr "Масив"
 
 
 msgid "Create copies of the shape with offsets"
@@ -33013,10 +33006,6 @@ msgid "Opacity of the image"
 msgstr "Непрозорість зображення"
 
 
-msgid "Markers"
-msgstr "Мітки"
-
-
 msgid "Collection of markers in track"
 msgstr "Колекція міток доріжки"
 
@@ -33941,56 +33930,12 @@ msgid "Channel Key"
 msgstr "Ключ каналу"
 
 
-msgid "YCbCr"
-msgstr "YCbCr"
-
-
-msgid "Limit by this channel's value"
-msgstr "Обмежити значеннями цього каналу"
-
-
-msgid "Algorithm"
-msgstr "Алгоритм"
-
-
-msgid "Algorithm to use to limit channel"
-msgstr "Алгоритм обмеження каналу"
-
-
-msgid "Limit by single channel"
-msgstr "Обмежити одним каналом"
-
-
-msgid "Limit by maximum of other channels"
-msgstr "Лімітувати за максимумом інших каналів"
-
-
-msgid "Channel used to determine matte"
-msgstr "Канал, який визначає маску"
-
-
 msgid "Chroma Key"
 msgstr "Ключ колірності"
 
 
 msgid "Color Balance"
 msgstr "Колірний баланс"
-
-
-msgid "Correction Formula"
-msgstr "Формула корекції"
-
-
-msgid "Lift/Gamma/Gain"
-msgstr "Темні/середні/світлі"
-
-
-msgid "Offset/Power/Slope (ASC-CDL)"
-msgstr "Зсув/потужність/cхил (ASC-CDL)"
-
-
-msgid "ASC-CDL standard color correction"
-msgstr "Колірна корекція за стандартом ASC-CDL"
 
 
 msgid "Color Correction"
@@ -34005,36 +33950,8 @@ msgid "Color Spill"
 msgstr "Розтікання кольору"
 
 
-msgid "Red spill suppression"
-msgstr "Задавлення розтікання червоного"
-
-
-msgid "Green spill suppression"
-msgstr "Задавлення розтікання зеленого"
-
-
-msgid "Blue spill suppression"
-msgstr "Задавлення розтікання синього"
-
-
-msgid "Limit by red"
-msgstr "Лімітувати за червоним"
-
-
-msgid "Limit by green"
-msgstr "Лімітувати за зеленим"
-
-
-msgid "Limit by blue"
-msgstr "Лімітувати за синім"
-
-
-msgid "Simple limit algorithm"
-msgstr "Простий алгоритм лімітування"
-
-
-msgid "Average limit algorithm"
-msgstr "Усереднений алгоритм лімітування"
+msgid "YCbCr"
+msgstr "YCbCr"
 
 
 msgid "ITU 601"
@@ -34221,52 +34138,8 @@ msgid "Distance Key"
 msgstr "Ключ відстані"
 
 
-msgid "RGB color space"
-msgstr "Колірний простір RGB"
-
-
-msgid "YCbCr suppression"
-msgstr "Задавлення YCbCr"
-
-
 msgid "Double Edge Mask"
 msgstr "Двомежова маска"
-
-
-msgid "Buffer Edge Mode"
-msgstr "Режим Буферного Краю"
-
-
-msgid "Bleed Out"
-msgstr "З просоченням"
-
-
-msgid "Allow mask pixels to bleed along edges"
-msgstr "Дозволити просочування пікселів маски по краях"
-
-
-msgid "Keep In"
-msgstr "Утримувати всередині"
-
-
-msgid "Restrict mask pixels from touching edges"
-msgstr "Обмежити дотикання пікселів маски та ребер"
-
-
-msgid "Inner Edge Mode"
-msgstr "Режим Краю Зсередини"
-
-
-msgid "All pixels on inner mask edge are considered during mask calculation"
-msgstr "При розрахунку маски враховувати всі пікселі на краю внутрішньої маски"
-
-
-msgid "Adjacent Only"
-msgstr "Лише прилеглі"
-
-
-msgid "Only inner mask pixels adjacent to outer mask pixels are considered during mask calculation"
-msgstr "При розрахунку маски враховувати лише пікселі внутрішньої маски, прилеглі до пікселів зовнішньої маски"
 
 
 msgid "Ellipse Mask"
@@ -34337,26 +34210,6 @@ msgid "Alpha Convert"
 msgstr "Конвертація альфа"
 
 
-msgid "Conversion between premultiplied alpha and key alpha"
-msgstr "Перетворення між альфа-каналом з  передмноженням та ключовим альфа-каналом"
-
-
-msgid "To Premultiplied"
-msgstr "У Передмножене"
-
-
-msgid "Convert straight to premultiplied"
-msgstr "Конвертувати пряме у передмножене"
-
-
-msgid "To Straight"
-msgstr "У Пряме"
-
-
-msgid "Convert premultiplied to straight"
-msgstr "Конвертувати передмножене у пряме"
-
-
 msgid "RGB to BW"
 msgstr "RGB в BW"
 
@@ -34375,18 +34228,6 @@ msgstr "Оберт"
 
 msgid "Set Alpha"
 msgstr "Задання альфа"
-
-
-msgid "Apply Mask"
-msgstr "Застосувати Маску"
-
-
-msgid "Multiply the input image's RGBA channels by the alpha input value"
-msgstr "Помножити канали RGBA увідного зображення на увідне значення альфа"
-
-
-msgid "Replace Alpha"
-msgstr "Замінити Альфа"
 
 
 msgid "Stabilize 2D"
@@ -35570,10 +35411,6 @@ msgid "Height from sea level"
 msgstr "Висота над рівнем моря"
 
 
-msgid "Dust"
-msgstr "Пил"
-
-
 msgid "Ozone"
 msgstr "Озон"
 
@@ -35584,14 +35421,6 @@ msgstr "Тип неба"
 
 msgid "Which sky model should be used"
 msgstr "Яка модель неба повинна використовуватися"
-
-
-msgid "Nishita"
-msgstr "Нішіта"
-
-
-msgid "Nishita 1993 improved"
-msgstr "Нішіта 1993 покращено"
 
 
 msgid "Sun Disc"
@@ -35612,10 +35441,6 @@ msgstr "Кут до сонця від горизонту"
 
 msgid "Sun Intensity"
 msgstr "Інтенсивність Сонця"
-
-
-msgid "Strength of sun"
-msgstr "Сила сонця"
 
 
 msgid "Sun Rotation"
@@ -36016,6 +35841,10 @@ msgstr "Для текстур на основі вузлів: який вузо�
 
 msgid "Value to Normal"
 msgstr "Значення в нормаль"
+
+
+msgid "Single"
+msgstr "Один"
 
 
 msgid "Node Inputs"
@@ -62178,10 +62007,6 @@ msgid "New Objects"
 msgstr "Нові Об'єкти"
 
 
-msgid "Debugging"
-msgstr "Зневаджування"
-
-
 msgid "New Features"
 msgstr "Нові Функціональності"
 
@@ -62296,10 +62121,6 @@ msgstr "Набори кольорів кісток"
 
 msgid "Theme Space"
 msgstr "Тема простору"
-
-
-msgid "Theme Space List"
-msgstr "Тема списку просторів"
 
 
 msgid "Collection Colors"
@@ -68864,6 +68685,10 @@ msgid "Individual Origins"
 msgstr "Індивідуальні опорні точки"
 
 
+msgid "Markers"
+msgstr "Мітки"
+
+
 msgid "Effect name"
 msgstr "Назва ефекту"
 
@@ -72232,6 +72057,18 @@ msgid "Color balance parameters for a sequence strip and its modifiers"
 msgstr "Параметри балансу кольорів для смужки послідовності та її модифікаторів"
 
 
+msgid "Lift/Gamma/Gain"
+msgstr "Темні/середні/світлі"
+
+
+msgid "Offset/Power/Slope (ASC-CDL)"
+msgstr "Зсув/потужність/cхил (ASC-CDL)"
+
+
+msgid "ASC-CDL standard color correction"
+msgstr "Колірна корекція за стандартом ASC-CDL"
+
+
 msgid "Color balance gain (highlights)"
 msgstr "Підсилення балансу кольорів (світле)"
 
@@ -73132,14 +72969,6 @@ msgid "Settings for space"
 msgstr "Параметри простору"
 
 
-msgid "Settings for space list"
-msgstr "Параметри списку просторів"
-
-
-msgid "Scrubbing/Markers Region"
-msgstr "Регіон Міток/Шкряботіння"
-
-
 msgid "Theme Collection Color"
 msgstr "Колір Колекції з Теми"
 
@@ -73248,14 +73077,6 @@ msgid "Color of preview range overlay"
 msgstr "Колір накладки діапазону передогляду"
 
 
-msgid "Marker Line"
-msgstr "Лінія Мітки"
-
-
-msgid "Marker Line Selected"
-msgstr "Лінія Мітки Вибрано"
-
-
 msgid "Align Handle"
 msgstr "Вирівняний Держак"
 
@@ -73322,10 +73143,6 @@ msgstr "Тема Аркуша експозицій"
 
 msgid "Theme settings for the Dope Sheet"
 msgstr "Параметри теми Аркуша експозицій"
-
-
-msgid "Channels Selected"
-msgstr "Канали вибрані"
 
 
 msgid "Interpolation Line"
@@ -73478,10 +73295,6 @@ msgstr "Тема для редактора графіків"
 
 msgid "Theme settings for the graph editor"
 msgstr "Параметри теми для редактора графіків"
-
-
-msgid "Channels Region"
-msgstr "Область каналів"
 
 
 msgid "Vertex Select"
@@ -73692,10 +73505,6 @@ msgid "Selected Meta Strip (for grouping related strips)"
 msgstr "Вибрана Мета Смужка (для групування смужок)"
 
 
-msgid "Nonlinear Animation Track"
-msgstr "Стежка Нелінійної Анімації"
-
-
 msgid "Sound Strips"
 msgstr "Звукові смужки"
 
@@ -73884,16 +73693,16 @@ msgid "Search Match"
 msgstr "Пошук Відповідностей"
 
 
+msgid "Selected Text"
+msgstr "Вибраний текст"
+
+
 msgid "Theme Sequence Editor"
 msgstr "Тема редактора відеоряду"
 
 
 msgid "Theme settings for the Sequence Editor"
 msgstr "Параметри теми для редактора відеоряду"
-
-
-msgid "Active Modifier Outline"
-msgstr "Активний Модифікатор Контур"
 
 
 msgid "Audio Strip"
@@ -73912,10 +73721,6 @@ msgid "Selected Strips"
 msgstr "Вибрані Смужки"
 
 
-msgid "Selected Text"
-msgstr "Вибраний текст"
-
-
 msgid "Theme Space Settings"
 msgstr "Параметри теми простору"
 
@@ -73930,30 +73735,6 @@ msgstr "Підсвітка Тексту Заголовка"
 
 msgid "Text Highlight"
 msgstr "Підсвітка Тексту"
-
-
-msgid "Theme Space List Settings"
-msgstr "Устави Списку Простору Теми"
-
-
-msgid "Source List"
-msgstr "Список джерел"
-
-
-msgid "Source List Text"
-msgstr "Текст списку"
-
-
-msgid "Source List Text Highlight"
-msgstr "Підсвітка тексту списку"
-
-
-msgid "Source List Title"
-msgstr "Заголовок списку"
-
-
-msgid "Region Background"
-msgstr "Фон Регіону"
 
 
 msgid "Theme Status Bar"
@@ -79713,6 +79494,10 @@ msgid "Cleanup"
 msgstr "Вичищення"
 
 
+msgid "Source List"
+msgstr "Список джерел"
+
+
 msgctxt "Operator"
 msgid "Back"
 msgstr "Взад"
@@ -80287,11 +80072,6 @@ msgstr "Освіжити Все"
 
 
 msgctxt "Operator"
-msgid "Sequence Render Animation"
-msgstr "Рендер Анімації Послідовності"
-
-
-msgctxt "Operator"
 msgid "Toggle Sequencer/Preview"
 msgstr "Перемкнути Секвенсер/Передогляд"
 
@@ -80409,11 +80189,6 @@ msgstr "Задати Діапазон Передогляду для Смужок
 msgctxt "Operator"
 msgid "Fit Preview in Window"
 msgstr "Підігнати Передогляд під Вікно"
-
-
-msgctxt "Operator"
-msgid "Sequence Render Image"
-msgstr "Рендер Зображення Послідовності"
 
 
 msgctxt "Operator"
@@ -80569,11 +80344,6 @@ msgstr "Кліп"
 msgctxt "Operator"
 msgid "Move/Extend from Current Frame"
 msgstr "Перемістити/Розширити з Поточного Кадру"
-
-
-msgctxt "Operator"
-msgid "Hold Split"
-msgstr "Тримати Розділ"
 
 
 msgctxt "Operator"
@@ -81233,16 +81003,6 @@ msgstr "Курсор до Активного"
 msgctxt "Operator"
 msgid "Perspective/Orthographic"
 msgstr "Перспектива/Ортогонально"
-
-
-msgctxt "Operator"
-msgid "Viewport Render Image"
-msgstr "Рендер Оглядвікна Зображення"
-
-
-msgctxt "Operator"
-msgid "Viewport Render Keyframes"
-msgstr "Рендер Оглядвікна Ключкадри"
 
 
 msgctxt "Operator"
@@ -82063,11 +81823,6 @@ msgstr "Проєктувати з Огляду (Межі)"
 
 
 msgctxt "Operator"
-msgid "Viewport Render Animation"
-msgstr "Рендер Оглядвікна Анімація"
-
-
-msgctxt "Operator"
 msgid "Roll Left"
 msgstr "Прокручення Вліво"
 
@@ -82105,11 +81860,6 @@ msgstr "Наступний Блок"
 msgctxt "Operator"
 msgid "Armature"
 msgstr "Арматура"
-
-
-msgctxt "Operator"
-msgid "Lattice"
-msgstr "Решітка"
 
 
 msgctxt "Operator"
@@ -84975,12 +84725,12 @@ msgid "No mesh data to join"
 msgstr "Немає даних сіті для сполучення"
 
 
-msgid "No additional selected meshes with equal vertex count to join"
-msgstr "Немає іншої виділеної сіті з такою ж кількістю вершин для сполучення"
-
-
 msgid "Joining results in %d vertices, limit is %ld"
 msgstr "Результат сполучення - %d вершин, межа - %ld"
+
+
+msgid "No additional selected meshes with equal vertex count to join"
+msgstr "Немає іншої виділеної сіті з такою ж кількістю вершин для сполучення"
 
 
 msgid "SoundTrack"
