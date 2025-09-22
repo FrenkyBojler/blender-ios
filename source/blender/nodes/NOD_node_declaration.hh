@@ -189,10 +189,6 @@ struct CustomSocketDrawParams {
   bNodeSocket &socket;
   PointerRNA node_ptr;
   PointerRNA socket_ptr;
-
-  /** The draw function can indicate that it doesn't want to use custom drawing after all and that
-   * normal socket drawing should be used instead. */
-  bool r_use_standard_drawing = false;
 };
 
 using CustomSocketDrawFn = std::function<void(CustomSocketDrawParams &params)>;
