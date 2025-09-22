@@ -3020,11 +3020,11 @@ static float ui_get_but_step_unit(uiBut *but, float step_default)
   return float(step_final);
 }
 
-std::string ui_but_textbox_string_get(uiButTextBox *textbox)
+static std::string ui_but_textbox_string_get(uiButTextBox *textbox)
 {
   BLI_assert(textbox->rnaprop);
-  BLI_assert(RNA_property_type(but->rnaprop) == PROP_STRING);
-  return RNA_property_string_get(&but->rnapoin, but->rnaprop);
+  BLI_assert((RNA_property_type(textbox->rnaprop) == PROP_STRING));
+  return RNA_property_string_get(&textbox->rnapoin, textbox->rnaprop);
 }
 
 void ui_but_string_get_ex(uiBut *but,
@@ -4127,7 +4127,7 @@ static void ui_but_update_ex(uiBut *but, const bool validate)
 
     case ButType::TextBox:
       if (!but->editstr) {
-        but->drawstr = ui_but_textbox_string_get(but);
+        but->drawstr = ui_but_textbox_string_get(static_cast<uiButTextBox *>(but));
       }
       break;
     case ButType::Text:
