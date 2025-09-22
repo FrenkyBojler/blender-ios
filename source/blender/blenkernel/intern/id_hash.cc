@@ -8,6 +8,7 @@
 #include <xxhash.h>
 
 #include "BKE_id_hash.hh"
+#include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
 #include "BKE_library.hh"
 #include "BKE_main.hh"
@@ -103,7 +104,7 @@ static std::optional<XXH128_hash_t> get_source_file_hash(const ID &id, DeepHashE
     }
   }
 
-  if (stat.st_mtime != id.runtime.src_blend_modifification_time) {
+  if (stat.st_mtime != id.runtime->src_blend_modifification_time) {
     r_errors.updated_files.add_as(path);
     return std::nullopt;
   }
