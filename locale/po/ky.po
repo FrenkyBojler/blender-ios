@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.0.0 Alpha (b'68abaa12d581')\n"
+"Project-Id-Version: Blender 5.0.0 Alpha (b'fb3904ce45c6')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-08-25 08:31+0000\n"
+"POT-Creation-Date: 2025-09-22 08:45+0000\n"
 "PO-Revision-Date: 2025-07-23 15:20+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Kyrgyz <https://translate.blender.org/projects/blender-ui/ui/ky/>\n"
@@ -176,8 +176,8 @@ msgid "Layer"
 msgstr "Кат"
 
 
-msgid "Array"
-msgstr "Массив"
+msgid "Object"
+msgstr "Объект"
 
 
 msgid "Margin"
@@ -206,10 +206,6 @@ msgstr "-Y"
 
 msgid "-Z"
 msgstr "-Z"
-
-
-msgid "Object"
-msgstr "Объект"
 
 
 msgid "None"
@@ -438,6 +434,10 @@ msgid "Use Curves"
 msgstr "Ийрилерди колдонуу"
 
 
+msgid "View"
+msgstr "Көрүнүш"
+
+
 msgid "Mix"
 msgstr "Аралаш"
 
@@ -561,10 +561,6 @@ msgstr "Метод"
 
 msgid "Plane"
 msgstr "Тегиздик"
-
-
-msgid "View"
-msgstr "Көрүнүш"
 
 
 msgid "Render"
@@ -1290,16 +1286,16 @@ msgid "Mask"
 msgstr "Маска"
 
 
+msgid "Text"
+msgstr "Текст"
+
+
 msgid "Mirror"
 msgstr "Чагылтуу"
 
 
 msgid "Apply"
 msgstr "Колдонуу"
-
-
-msgid "Text"
-msgstr "Текст"
 
 
 msgctxt "MovieClip"
@@ -1396,6 +1392,11 @@ msgid "Help"
 msgstr "Жардам"
 
 
+msgctxt "Operator"
+msgid "Lattice"
+msgstr "Решётка"
+
+
 msgid "Smooth"
 msgstr "Тегиз"
 
@@ -1406,6 +1407,10 @@ msgstr "Активдүү элемент"
 
 msgid "Ellipsoid"
 msgstr "Эллипсоид"
+
+
+msgid "Array"
+msgstr "Массив"
 
 
 msgid "Build"
@@ -1516,22 +1521,6 @@ msgid "To"
 msgstr "Кимге"
 
 
-msgid "Shadow"
-msgstr "Көлөкө"
-
-
-msgid "Red Channel"
-msgstr "Кызыл каналы"
-
-
-msgid "Green Channel"
-msgstr "Жашыл каналы"
-
-
-msgid "Blue Channel"
-msgstr "Көк каналы"
-
-
 msgid "Render Layers"
 msgstr "Визуалдаштыруу каттары"
 
@@ -1574,6 +1563,10 @@ msgstr "Z-огу"
 
 msgid "Active Node"
 msgstr "Активдүү түйүн"
+
+
+msgid "Shadow"
+msgstr "Көлөкө"
 
 
 msgctxt "Operator"
@@ -3328,11 +3321,6 @@ msgstr "Эсептөө"
 
 
 msgctxt "Operator"
-msgid "Lattice"
-msgstr "Решётка"
-
-
-msgctxt "Operator"
 msgid "Quick Edit"
 msgstr "Тез оңдоо"
 
@@ -3352,6 +3340,10 @@ msgstr "Бет"
 
 msgid "%s: %s"
 msgstr "%s: %s"
+
+
+msgid "Value:"
+msgstr "Мааниси:"
 
 
 msgid "Hex"
@@ -3601,10 +3593,6 @@ msgstr "Файлга жол"
 
 msgid "File name"
 msgstr "Файл аты"
-
-
-msgid "Value:"
-msgstr "Мааниси:"
 
 
 msgid "<No ID>"

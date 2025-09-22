@@ -4589,7 +4589,7 @@ static PyObject *pyrna_struct_getattro(BPy_StructRNA *self, PyObject *pyname)
       int newindex;
       blender::StringRef newstr;
       std::optional<int64_t> newint;
-      short newtype;
+      ContextDataType newtype;
 
       /* An empty string is used to implement #CTX_data_dir_get,
        * without this check `getattr(context, "")` succeeds. */
@@ -4605,7 +4605,7 @@ static PyObject *pyrna_struct_getattro(BPy_StructRNA *self, PyObject *pyname)
 
       if (done == CTX_RESULT_OK) {
         switch (newtype) {
-          case CTX_DATA_TYPE_POINTER:
+          case ContextDataType::Pointer:
             if (newptr.data == nullptr) {
               ret = Py_None;
               Py_INCREF(ret);
@@ -4614,7 +4614,7 @@ static PyObject *pyrna_struct_getattro(BPy_StructRNA *self, PyObject *pyname)
               ret = pyrna_struct_CreatePyObject(&newptr);
             }
             break;
-          case CTX_DATA_TYPE_STRING: {
+          case ContextDataType::String: {
             if (newstr.is_empty()) {
               ret = Py_None;
               Py_INCREF(ret);
@@ -4624,7 +4624,7 @@ static PyObject *pyrna_struct_getattro(BPy_StructRNA *self, PyObject *pyname)
             }
             break;
           }
-          case CTX_DATA_TYPE_INT64: {
+          case ContextDataType::Int64: {
             if (!newint.has_value()) {
               ret = Py_None;
               Py_INCREF(ret);
@@ -4634,14 +4634,14 @@ static PyObject *pyrna_struct_getattro(BPy_StructRNA *self, PyObject *pyname)
             }
             break;
           }
-          case CTX_DATA_TYPE_COLLECTION: {
+          case ContextDataType::Collection: {
             ret = PyList_New(0);
             for (PointerRNA &ptr : newlb) {
               PyList_APPEND(ret, pyrna_struct_CreatePyObject(&ptr));
             }
             break;
           }
-          case CTX_DATA_TYPE_PROPERTY: {
+          case ContextDataType::Property: {
             if (newprop != nullptr) {
               /* Create pointer to parent ID, and path from ID to property. */
               PointerRNA idptr;
@@ -4875,7 +4875,7 @@ static int pyrna_struct_setattro(BPy_StructRNA *self, PyObject *pyname, PyObject
     int newindex;
     blender::StringRef newstr;
     std::optional<int64_t> newint;
-    short newtype;
+    ContextDataType newtype;
 
     const eContextResult done = eContextResult(
         CTX_data_get(C, name, &newptr, &newlb, &newprop, &newindex, &newstr, &newint, &newtype));
@@ -9015,14 +9015,12 @@ static int deferred_register_prop(StructRNA *srna, PyObject *key, PyObject *item
    * are for sure types, save some time with error */
   PyObject *py_func = static_cast<PyObject *>(((BPy_PropDeferred *)item)->fn);
   PyObject *py_kw = ((BPy_PropDeferred *)item)->kw;
-  PyObject *py_srna_cobject, *py_ret;
 
   /* Show the function name in errors to help give context. */
   BLI_assert(PyCFunction_CheckExact(py_func));
   PyMethodDef *py_func_method_def = ((PyCFunctionObject *)py_func)->m_ml;
   const char *func_name = py_func_method_def->ml_name;
 
-  PyObject *args_fake;
   const char *key_str = PyUnicode_AsUTF8(key);
 
   if (*key_str == '_') {
@@ -9034,13 +9032,6 @@ static int deferred_register_prop(StructRNA *srna, PyObject *key, PyObject *item
                  func_name);
     return -1;
   }
-  py_srna_cobject = PyCapsule_New(srna, nullptr, nullptr);
-
-  /* Not 100% nice :/, modifies the dict passed, should be ok. */
-  PyDict_SetItem(py_kw, bpy_intern_str_attr, key);
-
-  args_fake = PyTuple_New(1);
-  PyTuple_SET_ITEM(args_fake, 0, py_srna_cobject);
 
   PyObject *type = PyDict_GetItemString(py_kw, "type");
   StructRNA *type_srna = srna_from_self(type, "");
@@ -9064,7 +9055,15 @@ static int deferred_register_prop(StructRNA *srna, PyObject *key, PyObject *item
     }
   }
 
-  py_ret = PyObject_Call(py_func, args_fake, py_kw);
+  PyObject *py_srna_cobject = PyCapsule_New(srna, nullptr, nullptr);
+
+  /* Not 100% nice :/, modifies the dict passed, should be ok. */
+  PyDict_SetItem(py_kw, bpy_intern_str_attr, key);
+
+  PyObject *args_fake = PyTuple_New(1);
+  PyTuple_SET_ITEM(args_fake, 0, py_srna_cobject);
+
+  PyObject *py_ret = PyObject_Call(py_func, args_fake, py_kw);
 
   if (py_ret) {
     Py_DECREF(py_ret);
@@ -9836,6 +9835,13 @@ static int bpy_class_call(bContext *C, PointerRNA *ptr, FunctionRNA *func, Param
 
     /* Also print in the console for Python. */
     PyErr_Print();
+    /* Print a small line at ERROR level so that tests that rely on --debug-exit-on-error can
+     * fail. This assumes that the majority of the information is already seen in the console via
+     * PyErr_Print and should not be duplicated */
+    CLOG_ERROR(BPY_LOG_RNA,
+               "Python script error in %.200s.%.200s",
+               RNA_struct_identifier(ptr->type),
+               RNA_function_identifier(func));
   }
 
   bpy_context_clear(C, &gilstate);
