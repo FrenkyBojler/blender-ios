@@ -4,10 +4,12 @@
 
 #include "node_geometry_util.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "BKE_attribute.hh"
+#include "BKE_attribute_legacy_convert.hh"
+
 #include "BLI_sort.hh"
 #include "NOD_rna_define.hh"
 #include "RNA_enum_types.hh"
@@ -25,8 +27,8 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
-  uiItemR(layout, ptr, "domain", UI_ITEM_NONE, "", ICON_NONE);
+  layout->prop(ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
+  layout->prop(ptr, "domain", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
@@ -41,7 +43,8 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   const GeometrySet geometry_set = params.extract_input<GeometrySet>("Geometry");
   const int sample_index = params.extract_input<int>("Index");
-  const eCustomDataType data_type = eCustomDataType(node.custom1);
+  const std::optional<bke::AttrType> attr_type = bke::custom_data_type_to_attr_type(
+      eCustomDataType(node.custom1));
   const AttrDomain domain = AttrDomain(node.custom2);
 
   if (geometry_set.is_empty()) {
@@ -68,7 +71,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   std::vector<AttributeIter> sort_attributes;
 
   attributes.foreach_attribute([&](const AttributeIter &iter) {
-    if (iter.domain == domain && iter.data_type == data_type && iter.name[0] != '.') {
+    if (iter.domain == domain && iter.data_type == attr_type && iter.name[0] != '.') {
       sort_attributes.push_back(iter);
     }
   });
