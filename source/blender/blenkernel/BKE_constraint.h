@@ -41,8 +41,10 @@ typedef struct bConstraintOb {
 
   /** type of owner. */
   short type;
-  /** rotation order for constraint owner (as defined in #eEulerRotationOrders in
-   * BLI_math_rotation.h) */
+  /**
+   * Rotation order for constraint owner
+   * (as defined in #eEulerRotationOrders in BLI_math_rotation.h).
+   */
   short rotOrder;
 } bConstraintOb;
 
@@ -240,11 +242,10 @@ struct bConstraint *BKE_constraint_add_for_pose(struct Object *ob,
                                                 const char *name,
                                                 short type);
 
-bool BKE_constraint_remove_ex(ListBase *list, struct Object *ob, struct bConstraint *con);
 /**
  * Remove the specified constraint from the given constraint stack.
  */
-bool BKE_constraint_remove(ListBase *list, struct bConstraint *con);
+bool BKE_constraint_remove_ex(ListBase *list, struct Object *ob, struct bConstraint *con);
 
 /**
  * Apply the specified constraint in the given constraint stack.

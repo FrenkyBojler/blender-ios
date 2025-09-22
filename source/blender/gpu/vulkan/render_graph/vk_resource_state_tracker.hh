@@ -13,7 +13,7 @@
  * - Image layouts: The layout of pixels of an image on the GPU depends on the command being
  *   executed. A certain `vkCmd*` requires the image to be in a certain layout. Using incorrect
  *   layouts could lead to rendering artifacts.
- * - Resource ownership: Resources that are externally managed (swap chain or external) uses a
+ * - Resource ownership: Resources that are externally managed (swap-chain or external) uses a
  *   different workflow as its state can be altered externally and needs to be reset.
  * - Read/Write access masks: To generate correct and performing pipeline barriers the src/dst
  *   access masks needs to be accurate and precise. When creating pipeline barriers the resource
@@ -22,9 +22,8 @@
 
 #pragma once
 
-#include <mutex>
-
 #include "BLI_map.hh"
+#include "BLI_mutex.hh"
 #include "BLI_vector.hh"
 
 #include "vk_common.hh"
@@ -133,10 +132,10 @@ class VKResourceStateTracker {
     /**
      * State tracking to ensure correct pipeline barriers and command creation.
      */
-    VKResourceBarrierState barrier_state;
+    VKResourceBarrierState barrier_state = {};
 
 #ifndef NDEBUG
-    const char *name;
+    const char *name = nullptr;
 #endif
 
     /**
@@ -173,7 +172,7 @@ class VKResourceStateTracker {
    * - Allowing test cases to do testing without setting up a device instance which requires ghost.
    * - Device instance isn't accessible in test cases.
    */
-  std::mutex mutex;
+  Mutex mutex;
 
   /**
    * Register a buffer resource.
@@ -257,8 +256,9 @@ class VKResourceStateTracker {
     return resources_.lookup(resource_handle).type;
   }
 
-  bool use_dynamic_rendering = true;
   bool use_dynamic_rendering_local_read = true;
+
+  void debug_print() const;
 
  private:
   /**

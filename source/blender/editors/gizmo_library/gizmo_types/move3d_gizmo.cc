@@ -19,6 +19,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_math_matrix.h"
+#include "BLI_math_vector.h"
 #include "BLI_math_vector_types.hh"
 
 #include "BKE_context.hh"
@@ -60,10 +61,10 @@ static void gizmo_move_matrix_basis_get(const wmGizmo *gz, float r_matrix[4][4])
   add_v3_v3(r_matrix[3], move->prop_co);
 }
 
-static int gizmo_move_modal(bContext *C,
-                            wmGizmo *gz,
-                            const wmEvent *event,
-                            eWM_GizmoFlagTweak tweak_flag);
+static wmOperatorStatus gizmo_move_modal(bContext *C,
+                                         wmGizmo *gz,
+                                         const wmEvent *event,
+                                         eWM_GizmoFlagTweak tweak_flag);
 
 struct MoveInteraction {
   struct {
@@ -99,7 +100,7 @@ static void move_geom_draw(const wmGizmo *gz,
 
   GPUVertFormat *format = immVertexFormat();
   /* NOTE(Metal): Prefer using 3D coordinates with 3D shader, even if rendering 2D gizmo's. */
-  uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
+  uint pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32_32);
 
   immBindBuiltinProgram(filled ? GPU_SHADER_3D_UNIFORM_COLOR :
                                  GPU_SHADER_3D_POLYLINE_UNIFORM_COLOR);
@@ -107,7 +108,7 @@ static void move_geom_draw(const wmGizmo *gz,
   float viewport[4];
   GPU_viewport_size_get_f(viewport);
   immUniform2fv("viewportSize", &viewport[2]);
-  immUniform1f("lineWidth", gz->line_width * U.pixelsize);
+  immUniform1f("lineWidth", (gz->line_width * U.pixelsize) + WM_gizmo_select_bias(select));
 
   immUniformColor4fv(color);
 
@@ -232,10 +233,10 @@ static void gizmo_move_draw(const bContext *C, wmGizmo *gz)
   GPU_blend(GPU_BLEND_NONE);
 }
 
-static int gizmo_move_modal(bContext *C,
-                            wmGizmo *gz,
-                            const wmEvent *event,
-                            eWM_GizmoFlagTweak tweak_flag)
+static wmOperatorStatus gizmo_move_modal(bContext *C,
+                                         wmGizmo *gz,
+                                         const wmEvent *event,
+                                         eWM_GizmoFlagTweak tweak_flag)
 {
   using namespace blender::ed;
   MoveInteraction *inter = static_cast<MoveInteraction *>(gz->interaction_data);
@@ -351,12 +352,11 @@ static void gizmo_move_exit(bContext *C, wmGizmo *gz, const bool cancel)
   }
 }
 
-static int gizmo_move_invoke(bContext *C, wmGizmo *gz, const wmEvent *event)
+static wmOperatorStatus gizmo_move_invoke(bContext *C, wmGizmo *gz, const wmEvent *event)
 {
   const bool use_snap = RNA_boolean_get(gz->ptr, "use_snap");
 
-  MoveInteraction *inter = static_cast<MoveInteraction *>(
-      MEM_callocN(sizeof(MoveInteraction), __func__));
+  MoveInteraction *inter = MEM_callocN<MoveInteraction>(__func__);
   inter->init.mval[0] = event->mval[0];
   inter->init.mval[1] = event->mval[1];
 
@@ -437,7 +437,7 @@ static void GIZMO_GT_move_3d(wmGizmoType *gzt)
   /* identifiers */
   gzt->idname = "GIZMO_GT_move_3d";
 
-  /* api callbacks */
+  /* API callbacks. */
   gzt->draw = gizmo_move_draw;
   gzt->draw_select = gizmo_move_draw_select;
   gzt->test_select = gizmo_move_test_select;

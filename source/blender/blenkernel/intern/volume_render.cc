@@ -102,7 +102,7 @@ static void create_texture_to_object_matrix(const openvdb::Mat4d &grid_transform
   memcpy(index_to_object, openvdb::Mat4s(grid_transform).asPointer(), sizeof(index_to_object));
 
   float texture_to_index[4][4];
-  const openvdb::Vec3f loc = bbox.min().asVec3s();
+  const openvdb::Vec3f loc = bbox.min().asVec3s() - openvdb::Vec3s(0.5f);
   const openvdb::Vec3f size = bbox.dim().asVec3s();
   size_to_mat4(texture_to_index, size.asV());
   copy_v3_v3(texture_to_index[3], loc.asV());
@@ -138,8 +138,7 @@ bool BKE_volume_grid_dense_floats(const Volume *volume,
   const int64_t num_voxels = int64_t(resolution[0]) * int64_t(resolution[1]) *
                              int64_t(resolution[2]);
   const int channels = blender::bke::volume_grid::get_channels_num(grid_type);
-  const int elem_size = sizeof(float) * channels;
-  float *voxels = static_cast<float *>(MEM_malloc_arrayN(num_voxels, elem_size, __func__));
+  float *voxels = MEM_malloc_arrayN<float>(size_t(channels) * size_t(num_voxels), __func__);
   if (voxels == nullptr) {
     return false;
   }

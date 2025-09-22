@@ -21,6 +21,8 @@
 #include "BLI_task.h"
 
 #include "BKE_attribute.h"
+#include "BKE_attribute.hh"
+#include "BKE_attribute_legacy_convert.hh"
 #include "BKE_customdata.hh"
 #include "BKE_multires.hh"
 
@@ -62,7 +64,7 @@ static void bm_data_interp_from_elem(CustomData *data_layer,
       src[1] = ele_src_2->head.data;
       w[0] = 1.0f - fac;
       w[1] = fac;
-      CustomData_bmesh_interp(data_layer, src, w, nullptr, 2, ele_dst->head.data);
+      CustomData_bmesh_interp(data_layer, src, w, 2, ele_dst->head.data);
     }
   }
 }
@@ -131,7 +133,7 @@ void BM_data_interp_face_vert_edge(BMesh *bm,
     src[0] = l_v1->head.data;
     src[1] = l_v2->head.data;
 
-    CustomData_bmesh_interp(&bm->ldata, src, w, nullptr, 2, l_v->head.data);
+    CustomData_bmesh_interp(&bm->ldata, src, w, 2, l_v->head.data);
   } while ((l_iter = l_iter->radial_next) != e->l);
 }
 
@@ -155,9 +157,9 @@ void BM_face_interp_from_face_ex(BMesh *bm,
   do {
     mul_v2_m3v3(co, axis_mat, l_iter->v->co);
     interp_weights_poly_v2(w, cos_2d, f_src->len, co);
-    CustomData_bmesh_interp(&bm->ldata, blocks_l, w, nullptr, f_src->len, l_iter->head.data);
+    CustomData_bmesh_interp(&bm->ldata, blocks_l, w, f_src->len, l_iter->head.data);
     if (do_vertex) {
-      CustomData_bmesh_interp(&bm->vdata, blocks_v, w, nullptr, f_src->len, l_iter->v->head.data);
+      CustomData_bmesh_interp(&bm->vdata, blocks_v, w, f_src->len, l_iter->v->head.data);
     }
   } while ((l_iter = l_iter->next) != l_first);
 }
@@ -725,9 +727,9 @@ void BM_loop_interp_from_face(
 
   /* interpolate */
   interp_weights_poly_v2(w, cos_2d, f_src->len, co);
-  CustomData_bmesh_interp(&bm->ldata, blocks, w, nullptr, f_src->len, l_dst->head.data);
+  CustomData_bmesh_interp(&bm->ldata, blocks, w, f_src->len, l_dst->head.data);
   if (do_vertex) {
-    CustomData_bmesh_interp(&bm->vdata, vblocks, w, nullptr, f_src->len, l_dst->v->head.data);
+    CustomData_bmesh_interp(&bm->vdata, vblocks, w, f_src->len, l_dst->v->head.data);
   }
 
   if (do_multires) {
@@ -760,7 +762,7 @@ void BM_vert_interp_from_face(BMesh *bm, BMVert *v_dst, const BMFace *f_src)
 
   /* interpolate */
   interp_weights_poly_v2(w, cos_2d, f_src->len, co);
-  CustomData_bmesh_interp(&bm->vdata, blocks, w, nullptr, f_src->len, v_dst->head.data);
+  CustomData_bmesh_interp(&bm->vdata, blocks, w, f_src->len, v_dst->head.data);
 }
 
 static void update_data_blocks(BMesh *bm, CustomData *olddata, CustomData *data)
@@ -876,7 +878,7 @@ void BM_data_layer_ensure_named(BMesh *bm, CustomData *data, int type, const Str
   }
 }
 
-void BM_uv_map_ensure_select_and_pin_attrs(BMesh *bm)
+void BM_uv_map_attr_select_and_pin_ensure(BMesh *bm)
 {
   const int nr_uv_layers = CustomData_number_of_layers(&bm->ldata, CD_PROP_FLOAT2);
   for (int l = 0; l < nr_uv_layers; l++) {
@@ -903,25 +905,39 @@ void BM_uv_map_ensure_select_and_pin_attrs(BMesh *bm)
   }
 }
 
-void BM_uv_map_ensure_vert_select_attr(BMesh *bm, const StringRef uv_map_name)
+void BM_uv_map_attr_vert_select_ensure(BMesh *bm, const StringRef uv_map_name)
 {
   char name[MAX_CUSTOMDATA_LAYER_NAME];
   BM_data_layer_ensure_named(
       bm, &bm->ldata, CD_PROP_BOOL, BKE_uv_map_vert_select_name_get(uv_map_name, name));
 }
 
-void BM_uv_map_ensure_edge_select_attr(BMesh *bm, const StringRef uv_map_name)
+void BM_uv_map_attr_edge_select_ensure(BMesh *bm, const StringRef uv_map_name)
 {
   char name[MAX_CUSTOMDATA_LAYER_NAME];
   BM_data_layer_ensure_named(
       bm, &bm->ldata, CD_PROP_BOOL, BKE_uv_map_edge_select_name_get(uv_map_name, name));
 }
 
-void BM_uv_map_ensure_pin_attr(BMesh *bm, const StringRef uv_map_name)
+void BM_uv_map_attr_pin_ensure(BMesh *bm, const StringRef uv_map_name)
 {
   char name[MAX_CUSTOMDATA_LAYER_NAME];
   BM_data_layer_ensure_named(
       bm, &bm->ldata, CD_PROP_BOOL, BKE_uv_map_pin_name_get(uv_map_name, name));
+}
+
+bool BM_uv_map_attr_vert_select_exists(const BMesh *bm, const StringRef uv_map_name)
+{
+  char name[MAX_CUSTOMDATA_LAYER_NAME];
+  return (CustomData_get_named_layer_index(
+              &bm->ldata, CD_PROP_BOOL, BKE_uv_map_vert_select_name_get(uv_map_name, name)) != -1);
+}
+
+bool BM_uv_map_attr_pin_exists(const BMesh *bm, const StringRef uv_map_name)
+{
+  char name[MAX_CUSTOMDATA_LAYER_NAME];
+  return (CustomData_get_named_layer_index(
+              &bm->ldata, CD_PROP_BOOL, BKE_uv_map_pin_name_get(uv_map_name, name)) != -1);
 }
 
 void BM_data_layer_free(BMesh *bm, CustomData *data, int type)
@@ -1051,6 +1067,40 @@ void BM_elem_float_data_set(CustomData *cd, void *element, int type, const float
   if (f) {
     *f = val;
   }
+}
+
+BMDataLayerLookup BM_data_layer_lookup(const BMesh &bm, const blender::StringRef name)
+{
+  using namespace blender;
+  for (const CustomDataLayer &layer : Span(bm.vdata.layers, bm.vdata.totlayer)) {
+    if (layer.name == name) {
+      return {layer.offset,
+              bke::AttrDomain::Point,
+              *bke::custom_data_type_to_attr_type(eCustomDataType(layer.type))};
+    }
+  }
+  for (const CustomDataLayer &layer : Span(bm.edata.layers, bm.edata.totlayer)) {
+    if (layer.name == name) {
+      return {layer.offset,
+              bke::AttrDomain::Edge,
+              *bke::custom_data_type_to_attr_type(eCustomDataType(layer.type))};
+    }
+  }
+  for (const CustomDataLayer &layer : Span(bm.pdata.layers, bm.pdata.totlayer)) {
+    if (layer.name == name) {
+      return {layer.offset,
+              bke::AttrDomain::Face,
+              *bke::custom_data_type_to_attr_type(eCustomDataType(layer.type))};
+    }
+  }
+  for (const CustomDataLayer &layer : Span(bm.ldata.layers, bm.ldata.totlayer)) {
+    if (layer.name == name) {
+      return {layer.offset,
+              bke::AttrDomain::Corner,
+              *bke::custom_data_type_to_attr_type(eCustomDataType(layer.type))};
+    }
+  }
+  return {};
 }
 
 /* -------------------------------------------------------------------- */
@@ -1230,7 +1280,7 @@ static void bm_vert_loop_groups_data_layer_merge__single(BMesh *bm,
   data_weights = lf->data_weights;
 
   CustomData_bmesh_interp_n(
-      &bm->ldata, (const void **)lf->data, data_weights, nullptr, lf->data_len, data_tmp, layer_n);
+      &bm->ldata, (const void **)lf->data, data_weights, lf->data_len, data_tmp, layer_n);
 
   for (i = 0; i < lf->data_len; i++) {
     CustomData_copy_elements(eCustomDataType(type), data_tmp, lf->data[i], 1);
@@ -1264,7 +1314,7 @@ static void bm_vert_loop_groups_data_layer_merge_weights__single(
   }
 
   CustomData_bmesh_interp_n(
-      &bm->ldata, (const void **)lf->data, data_weights, nullptr, lf->data_len, data_tmp, layer_n);
+      &bm->ldata, (const void **)lf->data, data_weights, lf->data_len, data_tmp, layer_n);
 
   for (i = 0; i < lf->data_len; i++) {
     CustomData_copy_elements(eCustomDataType(type), data_tmp, lf->data[i], 1);

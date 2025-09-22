@@ -3,6 +3,8 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 import bpy
+import rna_prop_ui
+
 from bpy.types import (
     Header,
     Menu,
@@ -12,6 +14,7 @@ from bpy.app.translations import (
     pgettext_iface as iface_,
     contexts as i18n_contexts,
 )
+from bl_ui import anim
 from bl_ui.utils import PresetPanel
 from bl_ui.properties_grease_pencil_common import (
     AnnotationDataPanel,
@@ -20,9 +23,9 @@ from bl_ui.space_toolsystem_common import (
     ToolActivePanelHelper,
 )
 from bl_ui.properties_material import (
-    EEVEE_NEXT_MATERIAL_PT_settings,
-    EEVEE_NEXT_MATERIAL_PT_settings_surface,
-    EEVEE_NEXT_MATERIAL_PT_settings_volume,
+    EEVEE_MATERIAL_PT_settings,
+    EEVEE_MATERIAL_PT_settings_surface,
+    EEVEE_MATERIAL_PT_settings_volume,
     MATERIAL_PT_viewport,
 )
 from bl_ui.properties_world import (
@@ -62,16 +65,17 @@ class NODE_HT_header(Header):
                 ob_type = ob.type
 
                 NODE_MT_editor_menus.draw_collapsible(context, layout)
-
-                if snode_id:
-                    row = layout.row()
-                    row.prop(snode_id, "use_nodes")
-
-                layout.separator_spacer()
-
                 types_that_support_material = {
                     'MESH', 'CURVE', 'SURFACE', 'FONT', 'META', 'GPENCIL', 'VOLUME', 'CURVES', 'POINTCLOUD',
                 }
+
+                if snode_id:
+                    row = layout.row()
+                    if ob_type not in types_that_support_material:
+                        row.prop(snode_id, "use_nodes")
+
+                layout.separator_spacer()
+
                 # disable material slot buttons when pinned, cannot find correct slot within id_from (#36589)
                 # disable also when the selected object does not support materials
                 has_material_slots = not snode.pin and ob_type in types_that_support_material
@@ -98,8 +102,6 @@ class NODE_HT_header(Header):
 
                 if snode_id:
                     row = layout.row()
-                    row.prop(snode_id, "use_nodes")
-
                     if world and world.use_eevee_finite_volume:
                         row.operator("world.convert_volume_to_mesh", emboss=False, icon='WORLD', text="Convert Volume")
 
@@ -146,15 +148,17 @@ class NODE_HT_header(Header):
 
             NODE_MT_editor_menus.draw_collapsible(context, layout)
 
-            if snode_id:
-                layout.prop(snode_id, "use_nodes")
+            layout.separator_spacer()
+            row = layout.row()
+            row.enabled = not snode.pin
+            row.template_ID(scene, "compositing_node_group", new="node.new_compositing_node_group")
 
         elif snode.tree_type == 'GeometryNodeTree':
-            layout.prop(snode, "geometry_nodes_type", text="")
+            layout.prop(snode, "node_tree_sub_type", text="")
             NODE_MT_editor_menus.draw_collapsible(context, layout)
             layout.separator_spacer()
 
-            if snode.geometry_nodes_type == 'MODIFIER':
+            if snode.node_tree_sub_type == 'MODIFIER':
                 ob = context.object
 
                 row = layout.row()
@@ -171,7 +175,7 @@ class NODE_HT_header(Header):
                     else:
                         row.template_ID(snode, "node_tree", new="node.new_geometry_nodes_modifier")
             else:
-                layout.template_ID(snode, "geometry_nodes_tool_tree", new="node.new_geometry_node_group_tool")
+                layout.template_ID(snode, "selected_node_group", new="node.new_geometry_node_group_tool")
                 if snode.node_tree:
                     layout.popover(panel="NODE_PT_geometry_node_tool_object_types", text="Types")
                     layout.popover(panel="NODE_PT_geometry_node_tool_mode", text="Modes")
@@ -186,36 +190,68 @@ class NODE_HT_header(Header):
             layout.template_ID(snode, "node_tree", new="node.new_node_tree")
 
         # Put pin next to ID block
-        if not is_compositor and display_pin:
+        if display_pin:
             layout.prop(snode, "pin", text="", emboss=False)
 
         layout.separator_spacer()
 
-        # Put pin on the right for Compositing
-        if is_compositor:
-            layout.prop(snode, "pin", text="", emboss=False)
-
         if len(snode.path) > 1:
-            layout.operator("node.tree_path_parent", text="", icon='FILE_PARENT')
+            op = layout.operator("node.tree_path_parent", text="", icon='FILE_PARENT')
+            op.parent_tree_index = len(snode.path) - 2
 
         # Backdrop
         if is_compositor:
             row = layout.row(align=True)
             row.prop(snode, "show_backdrop", toggle=True)
+            row.active = snode.node_tree is not None
             sub = row.row(align=True)
             sub.active = snode.show_backdrop
             sub.prop(snode, "backdrop_channels", icon_only=True, text="")
 
+            # Gizmo toggle and popover.
+            row = layout.row(align=True)
+            row.prop(snode, "show_gizmo", icon='GIZMO', text="")
+            row.active = snode.node_tree is not None
+            sub = row.row(align=True)
+            sub.active = snode.show_gizmo and row.active
+            sub.popover(panel="NODE_PT_gizmo_display", text="")
+
         # Snap
         row = layout.row(align=True)
         row.prop(tool_settings, "use_snap_node", text="")
+        row.active = snode.node_tree is not None
 
         # Overlay toggle & popover
         row = layout.row(align=True)
         row.prop(overlay, "show_overlays", icon='OVERLAY', text="")
         sub = row.row(align=True)
-        sub.active = overlay.show_overlays
+        row.active = snode.node_tree is not None
+        sub.active = overlay.show_overlays and row.active
         sub.popover(panel="NODE_PT_overlay", text="")
+
+
+class NODE_PT_gizmo_display(Panel):
+    bl_space_type = 'NODE_EDITOR'
+    bl_region_type = 'HEADER'
+    bl_label = 'Gizmos'
+    bl_ui_units_x = 8
+
+    def draw(self, context):
+        layout = self.layout
+        snode = context.space_data
+        is_compositor = snode.tree_type == 'CompositorNodeTree'
+
+        if not is_compositor:
+            return
+
+        col = layout.column()
+        col.label(text="Viewport Gizmos")
+        col.separator()
+
+        col.active = snode.show_gizmo
+        colsub = col.column()
+        colsub.active = snode.node_tree is not None and col.active
+        colsub.prop(snode, "show_gizmo_active_node", text="Active Node")
 
 
 class NODE_MT_editor_menus(Menu):
@@ -463,9 +499,9 @@ class NODE_PT_geometry_node_tool_object_types(Panel):
         types = [
             ("is_type_mesh", "Mesh", 'MESH_DATA'),
             ("is_type_curve", "Hair Curves", 'CURVES_DATA'),
+            ("is_type_grease_pencil", "Grease Pencil", 'OUTLINER_OB_GREASEPENCIL'),
+            ("is_type_pointcloud", "Point Cloud", 'POINTCLOUD_DATA'),
         ]
-        if context.preferences.experimental.use_new_point_cloud_type:
-            types.append(("is_type_point_cloud", "Point Cloud", 'POINTCLOUD_DATA'))
 
         col = layout.column()
         col.active = group.is_tool
@@ -499,6 +535,11 @@ class NODE_PT_geometry_node_tool_mode(Panel):
             row = col.row(align=True)
             row.label(text=name, icon=icon)
             row.prop(group, prop, text="")
+
+        if group.is_type_grease_pencil:
+            row = col.row(align=True)
+            row.label(text="Draw Mode", icon='GREASEPENCIL')
+            row.prop(group, "is_mode_paint", text="")
 
 
 class NODE_PT_geometry_node_tool_options(Panel):
@@ -752,6 +793,15 @@ class NODE_PT_active_node_properties(Panel):
         layout.template_node_inputs(node)
 
 
+class NODE_PT_active_node_custom_properties(rna_prop_ui.PropertyPanel, Panel):
+    bl_space_type = 'NODE_EDITOR'
+    bl_region_type = 'UI'
+    bl_category = "Node"
+
+    _context_path = "active_node"
+    _property_type = bpy.types.Node
+
+
 class NODE_PT_texture_mapping(Panel):
     bl_space_type = 'NODE_EDITOR'
     bl_region_type = 'UI'
@@ -904,10 +954,18 @@ class NODE_PT_overlay(Panel):
 class NODE_MT_node_tree_interface_context_menu(Menu):
     bl_label = "Node Tree Interface Specials"
 
-    def draw(self, _context):
+    def draw(self, context):
         layout = self.layout
+        snode = context.space_data
+        tree = snode.edit_tree
+        active_item = tree.interface.active
 
         layout.operator("node.interface_item_duplicate", icon='DUPLICATE')
+        layout.separator()
+        if active_item.item_type == 'SOCKET':
+            layout.operator("node.interface_item_make_panel_toggle")
+        elif active_item.item_type == 'PANEL':
+            layout.operator("node.interface_item_unlink_panel_toggle")
 
 
 class NODE_PT_node_tree_interface(Panel):
@@ -940,6 +998,7 @@ class NODE_PT_node_tree_interface(Panel):
         split.template_node_tree_interface(tree.interface)
 
         ops_col = split.column(align=True)
+        ops_col.enabled = tree.library is None
         ops_col.operator_menu_enum("node.interface_item_new", "item_type", icon='ADD', text="")
         ops_col.operator("node.interface_item_remove", icon='REMOVE', text="")
         ops_col.separator()
@@ -976,6 +1035,49 @@ class NODE_PT_node_tree_interface(Panel):
                 layout.prop(active_item, "default_closed", text="Closed by Default")
 
             layout.use_property_split = False
+
+
+class NODE_PT_node_tree_interface_panel_toggle(Panel):
+    bl_space_type = 'NODE_EDITOR'
+    bl_region_type = 'UI'
+    bl_category = "Group"
+    bl_parent_id = "NODE_PT_node_tree_interface"
+    bl_label = "Panel Toggle"
+
+    @classmethod
+    def poll(cls, context):
+        snode = context.space_data
+        if snode is None:
+            return False
+        tree = snode.edit_tree
+        if tree is None:
+            return False
+        active_item = tree.interface.active
+        if not active_item or active_item.item_type != 'PANEL':
+            return False
+        if not active_item.interface_items:
+            return False
+        first_item = active_item.interface_items[0]
+        return getattr(first_item, "is_panel_toggle", False)
+
+    def draw(self, context):
+        layout = self.layout
+        snode = context.space_data
+        tree = snode.edit_tree
+
+        active_item = tree.interface.active
+        panel_toggle_item = active_item.interface_items[0]
+
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+
+        layout.prop(panel_toggle_item, "default_value", text="Default")
+
+        col = layout.column()
+        col.prop(panel_toggle_item, "hide_in_modifier")
+        col.prop(panel_toggle_item, "force_non_field")
+
+        layout.use_property_split = False
 
 
 class NODE_PT_node_tree_properties(Panel):
@@ -1027,6 +1129,37 @@ class NODE_PT_node_tree_properties(Panel):
                 col.prop(group, "is_tool")
 
 
+class NODE_PT_node_tree_animation(Panel):
+    bl_space_type = 'NODE_EDITOR'
+    bl_region_type = 'UI'
+    bl_category = "Group"
+    bl_label = "Animation"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    @classmethod
+    def poll(cls, context):
+        snode = context.space_data
+        if snode is None:
+            return False
+        group = snode.edit_tree
+        if group is None:
+            return False
+        if group.is_embedded_data:
+            return False
+        return True
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+
+        snode = context.space_data
+        group = snode.edit_tree
+
+        col = layout.column(align=True)
+        anim.draw_action_and_slot_selector_for_id(col, group)
+
+
 # Grease Pencil properties
 class NODE_PT_annotation(AnnotationDataPanel, Panel):
     bl_space_type = 'NODE_EDITOR'
@@ -1061,6 +1194,20 @@ def node_panel(cls):
     return node_cls
 
 
+class NODE_AST_compositor(bpy.types.AssetShelf):
+    bl_space_type = 'NODE_EDITOR'
+    bl_region_type = 'UI'
+
+    @classmethod
+    def poll(cls, context):
+        return context.space_data.tree_type == 'CompositorNodeTree'
+
+    @classmethod
+    def asset_poll(cls, asset):
+        compositing_type = bpy.types.NodeTree.bl_rna.properties["type"].enum_items["COMPOSITING"]
+        return asset.id_type == 'NODETREE' and asset.metadata.get("type") == compositing_type.value
+
+
 classes = (
     NODE_HT_header,
     NODE_MT_editor_menus,
@@ -1081,6 +1228,8 @@ classes = (
     NODE_PT_node_tree_properties,
     NODE_MT_node_tree_interface_context_menu,
     NODE_PT_node_tree_interface,
+    NODE_PT_node_tree_interface_panel_toggle,
+    NODE_PT_node_tree_animation,
     NODE_PT_active_node_generic,
     NODE_PT_active_node_color,
     NODE_PT_texture_mapping,
@@ -1090,10 +1239,13 @@ classes = (
     NODE_PT_annotation,
     NODE_PT_overlay,
     NODE_PT_active_node_properties,
+    NODE_PT_active_node_custom_properties,
+    NODE_PT_gizmo_display,
+    NODE_AST_compositor,
 
-    node_panel(EEVEE_NEXT_MATERIAL_PT_settings),
-    node_panel(EEVEE_NEXT_MATERIAL_PT_settings_surface),
-    node_panel(EEVEE_NEXT_MATERIAL_PT_settings_volume),
+    node_panel(EEVEE_MATERIAL_PT_settings),
+    node_panel(EEVEE_MATERIAL_PT_settings_surface),
+    node_panel(EEVEE_MATERIAL_PT_settings_volume),
     node_panel(MATERIAL_PT_viewport),
     node_panel(WORLD_PT_viewport_display),
     node_panel(DATA_PT_light),

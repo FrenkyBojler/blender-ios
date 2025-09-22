@@ -9,6 +9,7 @@
 #include <cstdlib>
 
 #include "DNA_listBase.h"
+
 #include "MEM_guardedalloc.h"
 
 #include "BLI_ghash.h"
@@ -48,7 +49,7 @@ struct ScanFillIsect {
 #  define EFLAG_CLEAR(eed, val) \
     { \
       CHECK_TYPE(eed, ScanFillEdge *); \
-      (eed)->user_flag = (eed)->user_flag & ~(uint)val; \
+      (eed)->user_flag = (eed)->user_flag & ~uint(val); \
     } \
     (void)0
 #endif
@@ -63,7 +64,7 @@ struct ScanFillIsect {
 #  define VFLAG_CLEAR(eve, val) \
     { \
       CHECK_TYPE(eve, ScanFillVert *); \
-      (eve)->user_flags = (eve)->user_flag & ~(uint)val; \
+      (eve)->user_flags = (eve)->user_flag & ~uint(val); \
     } \
     (void)0
 #endif
@@ -93,7 +94,7 @@ static ListBase *edge_isect_ls_ensure(GHash *isect_hash, ScanFillEdge *eed)
   void **val_p;
 
   if (!BLI_ghash_ensure_p(isect_hash, eed, &val_p)) {
-    *val_p = MEM_cnew<ListBase>(__func__);
+    *val_p = MEM_callocN<ListBase>(__func__);
   }
 
   return static_cast<ListBase *>(*val_p);
@@ -104,7 +105,7 @@ static ListBase *edge_isect_ls_add(GHash *isect_hash, ScanFillEdge *eed, ScanFil
   ListBase *e_ls;
   LinkData *isect_link;
   e_ls = edge_isect_ls_ensure(isect_hash, eed);
-  isect_link = MEM_cnew<LinkData>(__func__);
+  isect_link = MEM_callocN<LinkData>(__func__);
   isect_link->data = isect;
   EFLAG_SET(eed, E_ISISECT);
   BLI_addtail(e_ls, isect_link);
@@ -191,7 +192,7 @@ static bool scanfill_preprocess_self_isect(ScanFillContext *sf_ctx,
               isect_hash = BLI_ghash_ptr_new(__func__);
             }
 
-            isect = static_cast<ScanFillIsect *>(MEM_mallocN(sizeof(ScanFillIsect), __func__));
+            isect = MEM_mallocN<ScanFillIsect>(__func__);
 
             BLI_addtail(&isect_lb, isect);
 
@@ -367,7 +368,7 @@ bool BLI_scanfill_calc_self_isect(ScanFillContext *sf_ctx,
     return false;
   }
 
-  PolyInfo *poly_info = MEM_cnew_array<PolyInfo>(poly_num, __func__);
+  PolyInfo *poly_info = MEM_calloc_arrayN<PolyInfo>(poly_num, __func__);
 
   /* get the polygon span */
   if (sf_ctx->poly_nr == 0) {

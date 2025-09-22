@@ -4,7 +4,7 @@
 
 #include "node_shader_util.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 namespace blender::nodes::node_shader_bsdf_metallic_cc {
@@ -59,8 +59,8 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_shader_buts_metallic(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "distribution", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
-  uiItemR(layout, ptr, "fresnel_type", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
+  layout->prop(ptr, "distribution", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
+  layout->prop(ptr, "fresnel_type", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
 }
 
 static void node_shader_init_metallic(bNodeTree * /*ntree*/, bNode *node)
@@ -80,6 +80,9 @@ static int node_shader_gpu_bsdf_metallic(GPUMaterial *mat,
   }
 
   GPU_material_flag_set(mat, GPU_MATFLAG_GLOSSY);
+  if (in[0].might_be_tinted()) {
+    GPU_material_flag_set(mat, GPU_MATFLAG_REFLECTION_MAYBE_COLORED);
+  }
 
   float use_multi_scatter = (node->custom1 == SHD_GLOSSY_MULTI_GGX) ? 1.0f : 0.0f;
   float use_complex_ior = (node->custom2 == SHD_PHYSICAL_CONDUCTOR) ? 1.0f : 0.0f;

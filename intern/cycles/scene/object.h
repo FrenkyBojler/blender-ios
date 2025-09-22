@@ -77,6 +77,10 @@ class Object : public Node {
   /* Set during device update. */
   bool intersects_volume;
 
+  /* Specifies the position of the object in scene->objects and
+   * in the device vectors. Gets set in device_update. */
+  int index;
+
   Object();
   ~Object() override;
 
@@ -108,9 +112,6 @@ class Object : public Node {
   /* Returns the index that is used in the kernel for this object. */
   int get_device_index() const;
 
-  /* Compute step size from attributes, shaders, transforms. */
-  float compute_volume_step_size() const;
-
   /* Check whether this object can be used as light-emissive. */
   bool usable_as_light() const;
 
@@ -120,10 +121,6 @@ class Object : public Node {
   bool has_shadow_linking() const;
 
  protected:
-  /* Specifies the position of the object in scene->objects and
-   * in the device vectors. Gets set in device_update. */
-  int index;
-
   /* Reference to the attribute map with object attributes,
    * or 0 if none. Set in update_svm_attributes. */
   size_t attr_map_offset;

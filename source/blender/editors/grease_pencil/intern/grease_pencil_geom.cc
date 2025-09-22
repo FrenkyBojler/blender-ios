@@ -103,8 +103,8 @@ Array<float2> polyline_fit_curve(Span<float2> points,
   corner_mask.to_indices(indices.as_mutable_span());
   uint *indicies_ptr = corner_mask.is_empty() ? nullptr : reinterpret_cast<uint *>(indices.data());
 
-  float *r_cubic_array;
-  uint r_cubic_array_len;
+  float *cubic_array;
+  uint cubic_array_len;
   int error = curve_fit_cubic_to_points_fl(*points.data(),
                                            points.size(),
                                            2,
@@ -112,8 +112,8 @@ Array<float2> polyline_fit_curve(Span<float2> points,
                                            CURVE_FIT_CALC_HIGH_QUALIY,
                                            indicies_ptr,
                                            indices.size(),
-                                           &r_cubic_array,
-                                           &r_cubic_array_len,
+                                           &cubic_array,
+                                           &cubic_array_len,
                                            nullptr,
                                            nullptr,
                                            nullptr);
@@ -123,15 +123,14 @@ Array<float2> polyline_fit_curve(Span<float2> points,
     return {};
   }
 
-  if (r_cubic_array == nullptr) {
+  if (cubic_array == nullptr) {
     return {};
   }
 
-  Span<float2> r_cubic_array_span(reinterpret_cast<float2 *>(r_cubic_array),
-                                  r_cubic_array_len * 3);
-  Array<float2> curve_positions(r_cubic_array_span);
+  Span<float2> cubic_array_span(reinterpret_cast<float2 *>(cubic_array), cubic_array_len * 3);
+  Array<float2> curve_positions(cubic_array_span);
   /* Free the c-style array. */
-  free(r_cubic_array);
+  free(cubic_array);
   return curve_positions;
 }
 
@@ -148,8 +147,8 @@ IndexMask polyline_detect_corners(Span<float2> points,
   if (points.size() == 1) {
     return IndexMask::from_indices<int>({0}, memory);
   }
-  uint *r_corners;
-  uint r_corner_len;
+  uint *corners;
+  uint corners_len;
   const int error = curve_fit_corners_detect_fl(*points.data(),
                                                 points.size(),
                                                 float2::type_length,
@@ -157,22 +156,22 @@ IndexMask polyline_detect_corners(Span<float2> points,
                                                 radius_max,
                                                 samples_max,
                                                 angle_threshold,
-                                                &r_corners,
-                                                &r_corner_len);
+                                                &corners,
+                                                &corners_len);
   if (error != 0) {
     /* Error occurred, return. */
     return IndexMask();
   }
 
-  if (r_corners == nullptr) {
+  if (corners == nullptr) {
     return IndexMask();
   }
 
   BLI_assert(samples_max < std::numeric_limits<int>::max());
-  Span<int> indices(reinterpret_cast<int *>(r_corners), r_corner_len);
+  Span<int> indices(reinterpret_cast<int *>(corners), corners_len);
   const IndexMask corner_mask = IndexMask::from_indices<int>(indices, memory);
   /* Free the c-style array. */
-  free(r_corners);
+  free(corners);
   return corner_mask;
 }
 
@@ -208,12 +207,13 @@ int curve_merge_by_distance(const IndexRange points,
   return duplicate_count;
 }
 
-/* NOTE: The code here is an adapted version of #blender::geometry::point_merge_by_distance. */
 blender::bke::CurvesGeometry curves_merge_by_distance(const bke::CurvesGeometry &src_curves,
                                                       const float merge_distance,
                                                       const IndexMask &selection,
                                                       const bke::AttributeFilter &attribute_filter)
 {
+  /* NOTE: The code here is an adapted version of #blender::geometry::point_merge_by_distance. */
+
   const int src_point_size = src_curves.points_num();
   if (src_point_size == 0) {
     return {};
@@ -340,6 +340,10 @@ blender::bke::CurvesGeometry curves_merge_by_distance(const bke::CurvesGeometry 
     });
   });
 
+  if (dst_curves.nurbs_has_custom_knots()) {
+    bke::curves::nurbs::update_custom_knot_modes(
+        dst_curves.curves_range(), NURBS_KNOT_MODE_NORMAL, NURBS_KNOT_MODE_NORMAL, dst_curves);
+  }
   return dst_curves;
 }
 
@@ -438,6 +442,32 @@ bke::CurvesGeometry curves_merge_endpoints_by_distance(
 
   return geometry::curves_merge_endpoints(
       src_curves, connect_to_curve, flip_direction, attribute_filter);
+}
+
+/* Generate a full circle around a point. */
+static void generate_circle_from_point(const float3 &pt,
+                                       const float radius,
+                                       const int corner_subdivisions,
+                                       const int src_point_index,
+                                       Vector<float3> &r_perimeter,
+                                       Vector<int> &r_src_indices)
+{
+  /* Number of points is 2^(n+2) on a full circle (n=corner_subdivisions). */
+  BLI_assert(corner_subdivisions >= 0);
+  const int num_points = 1 << (corner_subdivisions + 2);
+  const float delta_angle = 2 * M_PI / float(num_points);
+  const float delta_cos = math::cos(delta_angle);
+  const float delta_sin = math::sin(delta_angle);
+
+  float3 vec = float3(radius, 0, 0);
+  for ([[maybe_unused]] const int i : IndexRange(num_points)) {
+    r_perimeter.append(pt + vec);
+    r_src_indices.append(src_point_index);
+
+    const float x = delta_cos * vec.x - delta_sin * vec.y;
+    const float y = delta_sin * vec.x + delta_cos * vec.y;
+    vec = float3(x, y, 0.0f);
+  }
 }
 
 /* Generate points in an counter-clockwise arc between two directions. */
@@ -583,7 +613,20 @@ static void generate_stroke_perimeter(const Span<float3> all_positions,
 {
   const Span<float3> positions = all_positions.slice(points);
   const int point_num = points.size();
-  if (point_num < 2) {
+  if (point_num == 0) {
+    return;
+  }
+  if (point_num == 1) {
+    /* Generate a circle for a single point. */
+    const int perimeter_start = r_perimeter.size();
+    const int point = points.first();
+    const float radius = std::max(all_radii[point] + outline_offset, 0.0f);
+    generate_circle_from_point(
+        positions.first(), radius, corner_subdivisions, point, r_perimeter, r_point_indices);
+    const int perimeter_count = r_perimeter.size() - perimeter_start;
+    if (perimeter_count > 0) {
+      r_point_counts.append(perimeter_count);
+    }
     return;
   }
 
@@ -707,14 +750,11 @@ bke::CurvesGeometry create_curves_outline(const bke::greasepencil::Drawing &draw
       "material_index", bke::AttrDomain::Curve, 0);
 
   /* Transform positions and radii. */
-  const float scale = math::average(math::to_scale(transform));
   Array<float3> transformed_positions(src_positions.size());
+  math::transform_points(src_positions, transform, transformed_positions);
+
   Array<float> transformed_radii(src_radii.size());
-  threading::parallel_for(transformed_positions.index_range(), 4096, [&](const IndexRange range) {
-    for (const int i : range) {
-      transformed_positions[i] = math::transform_point(transform, src_positions[i]);
-    }
-  });
+  const float scale = math::average(math::to_scale(transform));
   threading::parallel_for(transformed_radii.index_range(), 4096, [&](const IndexRange range) {
     for (const int i : range) {
       transformed_radii[i] = src_radii[i] * scale;
@@ -750,9 +790,8 @@ bke::CurvesGeometry create_curves_outline(const bke::greasepencil::Drawing &draw
                               data.point_indices);
 
     /* Transform perimeter positions back into object space. */
-    for (float3 &pos : data.positions.as_mutable_span().drop_front(prev_point_num)) {
-      pos = math::transform_point(transform_inv, pos);
-    }
+    math::transform_points(transform_inv,
+                           data.positions.as_mutable_span().drop_front(prev_point_num));
 
     data.curve_indices.append_n_times(curve_i, data.point_counts.size() - prev_curve_num);
   });

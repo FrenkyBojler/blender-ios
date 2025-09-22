@@ -216,7 +216,7 @@ static void rna_KeyBlock_normals_vert_calc(ID *id,
     return;
   }
 
-  *normals = static_cast<float *>(MEM_mallocN(sizeof(**normals) * size_t(*normals_num), __func__));
+  *normals = MEM_malloc_arrayN<float>(size_t(*normals_num), __func__);
 
   BKE_keyblock_mesh_calc_normals(data, mesh, (float(*)[3])(*normals), nullptr, nullptr);
 }
@@ -246,7 +246,7 @@ static void rna_KeyBlock_normals_poly_calc(ID *id,
     return;
   }
 
-  *normals = static_cast<float *>(MEM_mallocN(sizeof(**normals) * size_t(*normals_num), __func__));
+  *normals = MEM_malloc_arrayN<float>(size_t(*normals_num), __func__);
 
   BKE_keyblock_mesh_calc_normals(data, mesh, nullptr, (float(*)[3])(*normals), nullptr);
 }
@@ -276,7 +276,7 @@ static void rna_KeyBlock_normals_loop_calc(ID *id,
     return;
   }
 
-  *normals = static_cast<float *>(MEM_mallocN(sizeof(**normals) * size_t(*normals_num), __func__));
+  *normals = MEM_malloc_arrayN<float>(size_t(*normals_num), __func__);
 
   BKE_keyblock_mesh_calc_normals(data, mesh, nullptr, nullptr, (float(*)[3])(*normals));
 }
@@ -532,8 +532,8 @@ static void rna_ShapeKey_data_begin_mixed(
 {
   int point_count = rna_ShapeKey_curve_find_index(key, kb->totelem);
 
-  ShapeKeyCurvePoint *points = static_cast<ShapeKeyCurvePoint *>(
-      MEM_malloc_arrayN(point_count, sizeof(ShapeKeyCurvePoint), __func__));
+  ShapeKeyCurvePoint *points = MEM_malloc_arrayN<ShapeKeyCurvePoint>(size_t(point_count),
+                                                                     __func__);
 
   char *databuf = static_cast<char *>(kb->data);
   int items_left = point_count;
@@ -964,6 +964,7 @@ static void rna_def_keyblock(BlenderRNA *brna)
   prop = RNA_def_property(srna, "value", PROP_FLOAT, PROP_FACTOR);
   RNA_def_property_float_sdna(prop, nullptr, "curval");
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
+  RNA_def_property_float_default(prop, 1.0f);
   RNA_def_property_float_funcs(
       prop, nullptr, "rna_ShapeKey_value_set", "rna_ShapeKey_value_range");
   RNA_def_property_ui_range(prop, -10.0f, 10.0f, 10, 3);

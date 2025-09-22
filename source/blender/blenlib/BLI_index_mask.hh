@@ -2,6 +2,10 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+/** \file
+ * \ingroup bli
+ */
+
 #pragma once
 
 #include <array>
@@ -342,8 +346,8 @@ class IndexMask : private IndexMaskData {
   int64_t operator[](const RawMaskIterator &it) const;
 
   /**
-   * Get a new mask that contains a consecutive subset of this mask. Takes O(log n) time and but
-   * can reuse the memory from the source mask.
+   * Get a new mask that contains a consecutive subset of this mask. Takes O(log n) time
+   * but can reuse the memory from the source mask.
    */
   IndexMask slice(IndexRange range) const;
   IndexMask slice(int64_t start, int64_t size) const;
@@ -592,7 +596,7 @@ int64_t consolidate_index_mask_segments(MutableSpan<IndexMaskSegment> segments,
                                         IndexMaskMemory &memory);
 
 /**
- * Adds index mask segments to the the vector for the given range. Ranges shorter than
+ * Adds index mask segments to the vector for the given range. Ranges shorter than
  * #max_segment_size fit into a single segment. Larger ranges are split into multiple segments.
  */
 template<int64_t N>
