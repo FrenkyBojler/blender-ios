@@ -315,6 +315,7 @@ class NODE_MT_compositor_node_vector_base(node_add_menu.NodeMenu):
         ops = props.settings.add()
         ops.name = "data_type"
         ops.value = "'VECTOR'"
+        self.node_operator(layout, "ShaderNodeRadialTiling")
         self.node_operator(layout, "ShaderNodeVectorCurve")
         self.node_operator_with_searchable_enum(context, layout, "ShaderNodeVectorMath", "operation")
         self.node_operator(layout, "ShaderNodeVectorRotate")

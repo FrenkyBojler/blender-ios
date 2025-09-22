@@ -375,6 +375,7 @@ class NODE_MT_shader_node_vector_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "ShaderNodeMapping")
         self.node_operator(layout, "ShaderNodeNormal")
         self.node_operator(layout, "ShaderNodeNormalMap")
+        self.node_operator(layout, "ShaderNodeRadialTiling")
         self.node_operator(layout, "ShaderNodeVectorCurve")
         self.node_operator(layout, "ShaderNodeVectorDisplacement")
         self.node_operator(layout, "ShaderNodeVectorRotate")
