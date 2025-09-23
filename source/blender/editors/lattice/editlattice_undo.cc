@@ -252,14 +252,13 @@ static void lattice_undosys_step_decode(
     DEG_id_tag_update(&lt->id, ID_RECALC_GEOMETRY);
 
     Lattice *editlt = lt->editlatt->latt;
-
     /* Reset override counts so size updates don't restore pre undo values. */
-    lt->opntsu = 0;
-    lt->opntsv = 0;
-    lt->opntsw = 0;
+    lt->opntsu = lt->opntsv = lt->opntsw = 0;
 
     /* Keep the ID counts in sync with the edit copy restored by undo. */
-    if (lt->pntsu != editlt->pntsu || lt->pntsv != editlt->pntsv || lt->pntsw != editlt->pntsw) {
+    if ((lt->pntsu != editlt->pntsu) || (lt->pntsv != editlt->pntsv) ||
+        (lt->pntsw != editlt->pntsw))
+    {
       BKE_lattice_resize(lt, editlt->pntsu, editlt->pntsv, editlt->pntsw, obedit);
     }
   }
