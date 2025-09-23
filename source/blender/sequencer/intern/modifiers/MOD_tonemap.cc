@@ -22,6 +22,7 @@
 
 #include "RNA_access.hh"
 
+#include "SEQ_render.hh"
 #include "modifier.hh"
 #include "render.hh"
 

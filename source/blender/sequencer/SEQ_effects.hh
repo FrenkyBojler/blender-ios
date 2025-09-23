@@ -9,6 +9,8 @@
 #include "BLI_math_vector_types.hh"
 #include "BLI_vector.hh"
 
+#include "SEQ_render.hh"
+
 /** \file
  * \ingroup sequencer
  */
@@ -58,6 +60,7 @@ struct EffectHandle {
 
   /* execute the effect */
   ImBuf *(*execute)(const RenderData *context,
+                    SeqRenderState *state,
                     Strip *strip,
                     float timeline_frame,
                     float fac,
