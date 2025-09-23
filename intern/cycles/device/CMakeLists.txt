@@ -220,7 +220,7 @@ if(WITH_CYCLES_DEVICE_ONEAPI)
   else()
     message(WARNING
       "The installed SYCL version does not support unmap_external_linear_memory. "
-      "Upgrade to oneAPI >= 2025.2 or DPC++ >= 6.2.")
+      "Upgrade to oneAPI >= 2025.3 or DPC++ >= 6.2 to support Vulkan-oneAPI interoperability.")
   endif()
   unset(CMAKE_REQUIRED_INCLUDES)
   unset(CMAKE_REQUIRED_LIBRARIES)

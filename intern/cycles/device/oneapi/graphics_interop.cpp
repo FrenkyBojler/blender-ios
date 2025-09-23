@@ -42,11 +42,13 @@ void OneapiDeviceGraphicsInterop::set_buffer(GraphicsInteropBuffer &interop_buff
   if (!interop_buffer.has_new_handle()) {
     return;
   }
+
   free();
 
   if (interop_buffer.get_type() != GraphicsInteropDevice::VULKAN) {
     /* SYCL only supports interop with Vulkan and D3D. */
-    LOG_ERROR << "OneAPI interop set_buffer called for invalid graphics API";
+    LOG_ERROR
+        << "oneAPI interop set_buffer called for invalid graphics API. Only Vulkan is supported.";
     return;
   }
 
@@ -85,8 +87,22 @@ void OneapiDeviceGraphicsInterop::set_buffer(GraphicsInteropBuffer &interop_buff
   buffer_size_ = interop_buffer.get_size();
 
   /* Like the CUDA/HIP backend, we map the buffer persistently. */
-  sycl_memory_ptr_ = sycl::ext::oneapi::experimental::map_external_linear_memory(
-      sycl_external_memory_, 0, buffer_size_, *sycl_queue);
+  try {
+    sycl_memory_ptr_ = sycl::ext::oneapi::experimental::map_external_linear_memory(
+        sycl_external_memory_, 0, buffer_size_, *sycl_queue);
+  }
+  catch (sycl::exception &e) {
+    sycl::ext::oneapi::experimental::release_external_memory(sycl_external_memory_, *sycl_queue);
+    sycl_external_memory_ = {};
+    buffer_size_ = 0;
+    /* Only need to close Windows handle, as file descriptor is owned by compute API. */
+#  ifdef _WIN32
+    CloseHandle(HANDLE(vulkan_windows_handle_));
+    vulkan_windows_handle_ = nullptr;
+#  endif
+    LOG_ERROR << "Error importing Vulkan memory: " << e.what();
+    return;
+  }
 }
 
 device_ptr OneapiDeviceGraphicsInterop::map()

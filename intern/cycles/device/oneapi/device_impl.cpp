@@ -957,8 +957,8 @@ bool OneapiDevice::should_use_graphics_interop(const GraphicsInteropDevice &inte
     return false;
   }
 
-  /* This extension is in the namespace "sycl::ext::intel", but also available on non-Intel GPUs.
-   */
+  /* This extension is in the namespace "sycl::ext::intel",
+   * but also available on non-Intel GPUs. */
   sycl::detail::uuid_type uuid = device.get_info<sycl::ext::intel::info::device::uuid>();
   const bool found = (uuid.size() == interop_device.uuid.size() &&
                       memcmp(uuid.data(), interop_device.uuid.data(), uuid.size()) == 0);
