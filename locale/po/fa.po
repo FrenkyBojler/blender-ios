@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.0.0 Alpha (b'29d18c45e4ed')\n"
+"Project-Id-Version: Blender 5.0.0 Alpha (b'fb3904ce45c6')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-09-10 07:24+0000\n"
+"POT-Creation-Date: 2025-09-22 08:45+0000\n"
 "PO-Revision-Date: 2025-07-23 15:03+0000\n"
 "Last-Translator: Nooby Noober <iamanoobynoober@gmail.com>\n"
 "Language-Team: Persian <https://translate.blender.org/projects/blender-ui/ui/fa/>\n"
@@ -1039,10 +1039,6 @@ msgid "Layer"
 msgstr "ﻪﯾﻻ﻿"
 
 
-msgid "Single"
-msgstr "ﯽﮑﺗ"
-
-
 msgid "Object"
 msgstr "ﺊﺷ"
 
@@ -1532,6 +1528,10 @@ msgid "Gamma"
 msgstr "ﺎﻣﺎﮔ"
 
 
+msgid "View"
+msgstr "ﺶﯾﺎﻤﻧ"
+
+
 msgid "Color mapping settings"
 msgstr "ﯽﮕﻧﺭ ﺖﺷﺎﮕﻧ ﺕﺎﻤﯿﻈﻨﺗ"
 
@@ -1938,10 +1938,6 @@ msgstr "ﺎﻤﻧ ﻥﺎﮑﻣ"
 
 msgid "Plane"
 msgstr "ﻪﺤﻔﺻ"
-
-
-msgid "View"
-msgstr "ﺶﯾﺎﻤﻧ"
 
 
 msgid "Render"
@@ -2953,6 +2949,10 @@ msgid "Mix"
 msgstr "ﻁﻮﻠﺨﻣ"
 
 
+msgid "Text"
+msgstr "ﻦﺘﻣ"
+
+
 msgid "Pivot Point"
 msgstr "ﺶﺧﺮﭼ ﻪﻄﻘﻧ"
 
@@ -2975,10 +2975,6 @@ msgstr "ﻝﺎﻤﻋﺍ"
 
 msgid "Convert"
 msgstr "ﻞﯾﺪﺒﺗ"
-
-
-msgid "Text"
-msgstr "ﻦﺘﻣ"
 
 
 msgid "Key"
@@ -3440,6 +3436,10 @@ msgstr "ﻩﺮﮔ ﯽﺟﻭﺮﺧ"
 
 msgid "Value to Normal"
 msgstr "ﯼﺩﺎﻋ ﺖﻟﺎﺣ ﻪﺑ ﺭﺍﺪﻘﻣ"
+
+
+msgid "Single"
+msgstr "ﯽﮑﺗ"
 
 
 msgid "Linked"
