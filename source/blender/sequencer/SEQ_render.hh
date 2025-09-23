@@ -8,14 +8,12 @@
  * \ingroup sequencer
  */
 
-#include "BLI_set.hh"
 #include "DNA_space_enums.h"
 
 struct Depsgraph;
 struct GPUOffScreen;
 struct GPUViewport;
 struct ImBuf;
-struct LinkNode;
 struct ListBase;
 struct Main;
 struct Scene;
@@ -23,12 +21,6 @@ struct Strip;
 struct StripElem;
 
 namespace blender::seq {
-
-/* Mutable state while rendering one sequencer frame. */
-struct SeqRenderState {
-  LinkNode *scene_parents = nullptr;
-  Set<Strip *> strips_rendering_seqbase;
-};
 
 enum eTaskId {
   SEQ_TASK_MAIN_RENDER,

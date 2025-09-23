@@ -9,17 +9,24 @@
  */
 
 #include "BLI_math_vector_types.hh"
+#include "BLI_set.hh"
 #include "BLI_vector.hh"
 
 struct ImBuf;
+struct LinkNode;
 struct ListBase;
 struct Mask;
 struct Scene;
 struct RenderData;
-struct SeqRenderState;
 struct Strip;
 
 namespace blender::seq {
+
+/* Mutable state while rendering one sequencer frame. */
+struct SeqRenderState {
+  LinkNode *scene_parents = nullptr;
+  Set<Strip *> strips_rendering_seqbase;
+};
 
 /* Strip corner coordinates in screen pixel space. Note that they might not be
  * axis aligned when rotation is present. */
