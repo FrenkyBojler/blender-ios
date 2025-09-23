@@ -1034,6 +1034,9 @@ static ShaderNode *add_node(Scene *scene,
     BL::ShaderNodeTexSky b_sky_node(b_node);
     SkyTextureNode *sky = graph->create_node<SkyTextureNode>();
     sky->set_sky_type((NodeSkyType)b_sky_node.sky_type());
+    sky->set_sun_direction(normalize(get_float3(b_sky_node.sun_direction())));
+    sky->set_turbidity(b_sky_node.turbidity());
+    sky->set_ground_albedo(b_sky_node.ground_albedo());
     sky->set_sun_disc(b_sky_node.sun_disc());
     sky->set_sun_size(b_sky_node.sun_size());
     sky->set_sun_intensity(b_sky_node.sun_intensity());
@@ -1076,6 +1079,12 @@ static ShaderNode *add_node(Scene *scene,
     nmap->set_space((NodeNormalMapSpace)b_normal_map_node.space());
     nmap->set_attribute(ustring(b_normal_map_node.uv_map()));
     node = nmap;
+  }
+  else if (b_node.is_a(&RNA_ShaderNodeRadialTiling)) {
+    BL::ShaderNodeRadialTiling b_radial_tiling_node(b_node);
+    RadialTilingNode *radial_tiling = graph->create_node<RadialTilingNode>();
+    radial_tiling->set_use_normalize(b_radial_tiling_node.normalize());
+    node = radial_tiling;
   }
   else if (b_node.is_a(&RNA_ShaderNodeTangent)) {
     BL::ShaderNodeTangent b_tangent_node(b_node);
