@@ -147,8 +147,7 @@ PoseBackup *BKE_pose_backup_create_selected_bones(blender::Span<Object *> object
   pose_backup->is_bone_selection_relevant = !selected_bones.is_empty();
 
   for (Object *ob : objects) {
-    const bArmature *armature = static_cast<const bArmature *>(ob->data);
-    const BoneNameSet selected_bone_names = BKE_armature_find_selected_bone_names(armature);
+    const BoneNameSet selected_bone_names = BKE_pose_channel_find_selected_names(ob);
     pose_backup_create(ob, const_cast<bAction *>(action), selected_bone_names, *pose_backup);
   }
 
