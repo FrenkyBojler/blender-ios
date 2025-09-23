@@ -52,7 +52,6 @@
 #include "SEQ_modifier.hh"
 #include "SEQ_offscreen.hh"
 #include "SEQ_preview_cache.hh"
-#include "SEQ_relations.hh"
 #include "SEQ_retiming.hh"
 #include "SEQ_sequencer.hh"
 #include "SEQ_time.hh"
@@ -319,21 +318,6 @@ static void sequencer_listener(const wmSpaceTypeListenerParams *params)
     case NC_GPENCIL:
       if (wmn->data & ND_GPENCIL_EDITMODE) {
         ED_area_tag_redraw(area);
-      }
-      break;
-    case NC_NODE:
-      switch (wmn->action) {
-        case NA_EDITED: {
-          const bNodeTree *node_tree = reinterpret_cast<const bNodeTree *>(wmn->reference);
-          if (node_tree->type == NTREE_COMPOSIT) {
-            const WorkSpace *workspace = WM_window_get_active_workspace(params->window);
-            Scene *scene = workspace->sequencer_scene;
-            if (scene) {
-              seq::relations_invalidate_compositor_modifiers(scene, node_tree);
-            }
-          }
-          break;
-        }
       }
       break;
   }

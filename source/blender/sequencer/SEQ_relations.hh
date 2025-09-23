@@ -57,7 +57,6 @@ void relations_invalidate_scene_strips(const Main *bmain, const Scene *scene_tar
 /**
  * Invalidates the cache for all strips that uses the given node tree as a compositor modifier.
  */
-void relations_invalidate_compositor_modifiers(Scene *scene, const bNodeTree *node_tree);
 void relations_invalidate_compositor_modifiers(const Main *bmain, const bNodeTree *node_tree);
 
 void relations_invalidate_movieclip_strips(Main *bmain, MovieClip *clip_target);
