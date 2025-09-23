@@ -27,10 +27,11 @@ except ImportError:
 
 BLOCKLIST_VULKAN = [
     # Blocked due behavior differences. mix(0.05, INF, 0.0) will result a NaN in Vulkan, but INF in OpenGL.
-    # The INF is part of the EXR image. 
+    # The INF is part of the EXR image.
     "image_log.blend",
     "image_log_osl.blend",
 ]
+
 
 def setup():
     import bpy
