@@ -8,15 +8,15 @@
 
 #include <algorithm>
 
-#include "BKE_idprop.hh"
-#include "BLI_listbase.h"
-#include "BLI_utildefines.h"
-
 /* allow readfile to use deprecated functionality */
 #define DNA_DEPRECATED_ALLOW
 
 /* Define macros in `DNA_genfile.h`. */
 #define DNA_GENFILE_VERSIONING_MACROS
+
+#include "BKE_idprop.hh"
+#include "BLI_listbase.h"
+#include "BLI_utildefines.h"
 
 #include "DNA_anim_types.h"
 #include "DNA_brush_types.h"
@@ -1143,7 +1143,7 @@ static bool strip_colorbalance_update_cb(Strip *strip, void * /*user_data*/)
 
   if (data && data->color_balance_legacy) {
     StripModifierData *smd = blender::seq::modifier_new(
-        strip, nullptr, seqModifierType_ColorBalance);
+        strip, nullptr, eSeqModifierType_ColorBalance);
     ColorBalanceModifierData *cbmd = (ColorBalanceModifierData *)smd;
 
     cbmd->color_balance = *data->color_balance_legacy;

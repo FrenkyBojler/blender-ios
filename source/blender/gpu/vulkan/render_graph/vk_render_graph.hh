@@ -43,7 +43,7 @@
 
 #include "BKE_global.hh"
 
-#include "BLI_color.hh"
+#include "BLI_color_types.hh"
 #include "BLI_map.hh"
 #include "BLI_utility_mixins.hh"
 #include "BLI_vector.hh"
@@ -57,7 +57,6 @@
 #include "vk_command_builder.hh"
 #include "vk_render_graph_links.hh"
 #include "vk_resource_state_tracker.hh"
-#include "vk_resource_tracker.hh"
 
 namespace blender::gpu::render_graph {
 class VKScheduler;
@@ -123,8 +122,6 @@ class VKRenderGraph : public NonCopyable {
   } debug_;
 
  public:
-  VKSubmissionID submission_id;
-
   /**
    * Construct a new render graph instance.
    *

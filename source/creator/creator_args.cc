@@ -883,7 +883,9 @@ static void print_help(bArgs *ba, bool all)
       "  $BLENDER_CUSTOM_SPLASH_BANNER Full path to an image to overlay on the splash screen.\n");
 
   if (defs.with_opencolorio) {
-    PRINT("  $OCIO                      Path to override the OpenColorIO configuration file.\n");
+    PRINT(
+        "  $BLENDER_OCIO              Path to override the OpenColorIO configuration file.\n"
+        "                             If not set, the $OCIO environment variable is used.\n");
   }
   if (defs.win32 || all) {
     PRINT("  $TEMP                      Store temporary files here (MS-Windows).\n");
@@ -1585,7 +1587,7 @@ static int arg_handle_gpu_backend_set(int argc, const char **argv, void * /*data
   const char *backends_supported[3] = {nullptr};
   int backends_supported_num = 0;
 
-  eGPUBackendType gpu_backend = GPU_BACKEND_NONE;
+  GPUBackendType gpu_backend = GPU_BACKEND_NONE;
 
   /* NOLINTBEGIN: bugprone-assignment-in-if-condition */
   if (false) {
@@ -1929,6 +1931,8 @@ static int arg_handle_register_extension(int argc, const char **argv, void *data
     main_arg_deferred_setup(arg_handle_register_extension, argc, argv, data);
     return argc - 1;
   }
+#  else
+  UNUSED_VARS(argv, data);
 #  endif
   arg_handle_extension_registration(true, false);
   return argc - 1;
@@ -1947,6 +1951,8 @@ static int arg_handle_register_extension_all(int argc, const char **argv, void *
     main_arg_deferred_setup(arg_handle_register_extension_all, argc, argv, data);
     return argc - 1;
   }
+#  else
+  UNUSED_VARS(argv, data);
 #  endif
   arg_handle_extension_registration(true, true);
   return argc - 1;
@@ -1965,6 +1971,8 @@ static int arg_handle_unregister_extension(int argc, const char **argv, void *da
     main_arg_deferred_setup(arg_handle_unregister_extension, argc, argv, data);
     return argc - 1;
   }
+#  else
+  UNUSED_VARS(argc, argv, data);
 #  endif
   arg_handle_extension_registration(false, false);
   return 0;
@@ -1983,6 +1991,8 @@ static int arg_handle_unregister_extension_all(int argc, const char **argv, void
     main_arg_deferred_setup(arg_handle_unregister_extension_all, argc, argv, data);
     return argc - 1;
   }
+#  else
+  UNUSED_VARS(argc, argv, data);
 #  endif
   arg_handle_extension_registration(false, true);
   return 0;

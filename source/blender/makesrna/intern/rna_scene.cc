@@ -4224,6 +4224,12 @@ static void rna_def_tool_settings(BlenderRNA *brna)
       prop, "UV Local View", "Display only faces with the currently displayed image assigned");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_IMAGE, nullptr);
 
+  prop = RNA_def_property(srna, "use_uv_custom_region", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "uv_flag", UV_FLAG_CUSTOM_REGION);
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+  RNA_def_property_ui_text(prop, "UV Custom Region", "Custom defined region");
+  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_IMAGE, nullptr);
+
   /* Mesh */
   prop = RNA_def_property(srna, "mesh_select_mode", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_bitset_array_sdna(prop, nullptr, "selectmode", 1 << 0, 3);
@@ -6896,7 +6902,7 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
        0,
        "Balanced",
        "Balanced between performance and quality"},
-      {SCE_COMPOSITOR_DENOISE_FAST, "FAST", 0, "Fast", "High perfomance"},
+      {SCE_COMPOSITOR_DENOISE_FAST, "FAST", 0, "Fast", "High performance"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
@@ -7370,14 +7376,14 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Font Size", "Size of the font used when rendering stamp text");
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
 
-  prop = RNA_def_property(srna, "stamp_foreground", PROP_FLOAT, PROP_COLOR);
+  prop = RNA_def_property(srna, "stamp_foreground", PROP_FLOAT, PROP_COLOR_GAMMA);
   RNA_def_property_float_sdna(prop, nullptr, "fg_stamp");
   RNA_def_property_array(prop, 4);
   RNA_def_property_range(prop, 0.0, 1.0);
   RNA_def_property_ui_text(prop, "Text Color", "Color to use for stamp text");
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
 
-  prop = RNA_def_property(srna, "stamp_background", PROP_FLOAT, PROP_COLOR);
+  prop = RNA_def_property(srna, "stamp_background", PROP_FLOAT, PROP_COLOR_GAMMA);
   RNA_def_property_float_sdna(prop, nullptr, "bg_stamp");
   RNA_def_property_array(prop, 4);
   RNA_def_property_range(prop, 0.0, 1.0);

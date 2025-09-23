@@ -624,6 +624,7 @@ class NODE_MT_category_GEO_TEXT(Menu):
         node_add_menu.add_node_type(layout, "FunctionNodeFindInString")
         node_add_menu.add_node_type(layout, "FunctionNodeStringLength")
         node_add_menu.add_node_type(layout, "GeometryNodeStringToCurves")
+        node_add_menu.add_node_type(layout, "FunctionNodeStringToValue")
         node_add_menu.add_node_type(layout, "FunctionNodeValueToString")
         layout.separator()
         node_add_menu.add_node_type(layout, "FunctionNodeInputSpecialCharacters")
@@ -817,6 +818,7 @@ class NODE_MT_category_GEO_VECTOR(Menu):
 
     def draw(self, context):
         layout = self.layout
+        node_add_menu.add_node_type(layout, "ShaderNodeRadialTiling")
         node_add_menu.add_node_type(layout, "ShaderNodeVectorCurve")
         node_add_menu.add_node_type_with_searchable_enum(context, layout, "ShaderNodeVectorMath", "operation")
         node_add_menu.add_node_type(layout, "ShaderNodeVectorRotate")

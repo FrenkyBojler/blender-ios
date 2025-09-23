@@ -112,6 +112,8 @@
 #include "SEQ_sequencer.hh"
 #include "SEQ_utils.hh"
 
+#include "IMB_colormanagement.hh"
+
 #include "readfile.hh"
 #include "versioning_common.hh"
 
@@ -444,6 +446,7 @@ void blo_split_main(Main *bmain)
     libmain->has_forward_compatibility_issues = !MAIN_VERSION_FILE_OLDER_OR_EQUAL(
         libmain, BLENDER_FILE_VERSION, BLENDER_FILE_SUBVERSION);
     libmain->is_asset_edit_file = (lib->runtime->tag & LIBRARY_IS_ASSET_EDIT_FILE) != 0;
+    libmain->colorspace = lib->runtime->colorspace;
     bmain->split_mains->add_new(libmain);
     libmain->split_mains = bmain->split_mains;
     lib->runtime->temp_index = i;
@@ -464,7 +467,7 @@ void blo_split_main(Main *bmain)
   MEM_freeN(lib_main_array);
 }
 
-static void read_file_version(FileData *fd, Main *main)
+static void read_file_version_and_colorspace(FileData *fd, Main *main)
 {
   BHead *bhead;
 
@@ -485,6 +488,9 @@ static void read_file_version(FileData *fd, Main *main)
         main->has_forward_compatibility_issues = !MAIN_VERSION_FILE_OLDER_OR_EQUAL(
             main, BLENDER_FILE_VERSION, BLENDER_FILE_SUBVERSION);
         main->is_asset_edit_file = (fg->fileflags & G_FILE_ASSET_EDIT_FILE) != 0;
+        STRNCPY(main->colorspace.scene_linear_name, fg->colorspace_scene_linear_name);
+        main->colorspace.scene_linear_to_xyz = blender::float3x3(
+            fg->colorspace_scene_linear_to_xyz);
         MEM_freeN(fg);
       }
       else if (bhead->code == BLO_CODE_ENDB) {
@@ -497,6 +503,7 @@ static void read_file_version(FileData *fd, Main *main)
     main->curlib->runtime->subversionfile = main->subversionfile;
     SET_FLAG_FROM_TEST(
         main->curlib->runtime->tag, main->is_asset_edit_file, LIBRARY_IS_ASSET_EDIT_FILE);
+    main->curlib->runtime->colorspace = main->colorspace;
   }
 }
 
@@ -588,7 +595,7 @@ static Main *blo_find_main(FileData *fd, const char *filepath, const char *relab
 
   m->curlib = lib;
 
-  read_file_version(fd, m);
+  read_file_version_and_colorspace(fd, m);
 
   if (G.debug & G_DEBUG) {
     CLOG_DEBUG(&LOG, "Added new lib %s", filepath);
@@ -2184,29 +2191,29 @@ static int direct_link_id_restore_recalc(const FileData *fd,
 
 static void readfile_id_runtime_data_ensure(ID &id)
 {
-  if (id.runtime.readfile_data) {
+  if (id.runtime->readfile_data) {
     return;
   }
-  id.runtime.readfile_data = MEM_callocN<ID_Readfile_Data>(__func__);
+  id.runtime->readfile_data = MEM_callocN<ID_Readfile_Data>(__func__);
 }
 
 ID_Readfile_Data::Tags BLO_readfile_id_runtime_tags(ID &id)
 {
-  if (!id.runtime.readfile_data) {
+  if (!id.runtime->readfile_data) {
     return ID_Readfile_Data::Tags{};
   }
-  return id.runtime.readfile_data->tags;
+  return id.runtime->readfile_data->tags;
 }
 
 ID_Readfile_Data::Tags &BLO_readfile_id_runtime_tags_for_write(ID &id)
 {
   readfile_id_runtime_data_ensure(id);
-  return id.runtime.readfile_data->tags;
+  return id.runtime->readfile_data->tags;
 }
 
 void BLO_readfile_id_runtime_data_free(ID &id)
 {
-  MEM_SAFE_FREE(id.runtime.readfile_data);
+  MEM_SAFE_FREE(id.runtime->readfile_data);
 }
 
 void BLO_readfile_id_runtime_data_free_all(Main &bmain)
@@ -2239,6 +2246,9 @@ static void direct_link_id_common(BlendDataReader *reader,
                                   const int id_tag,
                                   const ID_Readfile_Data::Tags id_read_tags)
 {
+  BLI_assert(id->runtime == nullptr);
+  BKE_libblock_runtime_ensure(*id);
+
   if (!BLO_read_data_is_undo(reader)) {
     /* When actually reading a file, we do want to reset/re-generate session UIDS.
      * In undo case, we want to re-use existing ones. */
@@ -2264,13 +2274,8 @@ static void direct_link_id_common(BlendDataReader *reader,
     id->tag = id_tag;
   }
 
-  if (!BLO_read_data_is_undo(reader)) {
-    /* Reset the runtime data, as there were versions of Blender that did not do
-     * this before writing to disk. */
-    id->runtime = ID_Runtime{};
-  }
   readfile_id_runtime_data_ensure(*id);
-  id->runtime.readfile_data->tags = id_read_tags;
+  id->runtime->readfile_data->tags = id_read_tags;
 
   if ((id_tag & ID_TAG_TEMP_MAIN) == 0) {
     BKE_lib_libblock_session_uid_ensure(id);
@@ -2554,6 +2559,7 @@ static ID *create_placeholder(Main *mainvar,
 {
   ListBase *lb = which_libbase(mainvar, idcode);
   ID *ph_id = BKE_libblock_alloc_notest(idcode);
+  BKE_libblock_runtime_ensure(*ph_id);
 
   *((short *)ph_id->name) = idcode;
   BLI_strncpy(ph_id->name + 2, idname, sizeof(ph_id->name) - 2);
@@ -3227,6 +3233,10 @@ static BHead *read_global(BlendFileData *bfd, FileData *fd, BHead *bhead)
   bfd->main->build_commit_timestamp = fg->build_commit_timestamp;
   STRNCPY(bfd->main->build_hash, fg->build_hash);
   bfd->main->is_asset_edit_file = (fg->fileflags & G_FILE_ASSET_EDIT_FILE) != 0;
+
+  STRNCPY(bfd->main->colorspace.scene_linear_name, fg->colorspace_scene_linear_name);
+  bfd->main->colorspace.scene_linear_to_xyz = blender::float3x3(
+      fg->colorspace_scene_linear_to_xyz);
 
   bfd->fileflags = fg->fileflags;
   bfd->globalf = fg->globalf;
@@ -4004,6 +4014,7 @@ BlendFileData *blo_read_file_internal(FileData *fd, const char *filepath)
                                       mainvar->curlib->runtime->filedata :
                                       fd,
                                   mainvar);
+        IMB_colormanagement_working_space_convert(mainvar, bfd->main);
       }
       blo_join_main(bfd->main);
 
@@ -4431,6 +4442,12 @@ static int expand_cb(LibraryIDLinkCallbackData *cb_data)
     return IDWALK_RET_NOP;
   }
 
+  /* Do not expand weak links. These are used when the user interface links to scene data,
+   * but we don't want to bring along such datablocks with a workspace. */
+  if (cb_data->cb_flag & IDWALK_CB_DIRECT_WEAK_LINK) {
+    return IDWALK_RET_NOP;
+  }
+
   /* Explicitly requested to be ignored during readfile processing. Means the read_data code
    * already handled this pointer. Typically, the 'owner_id' pointer of an embedded ID. */
   if (cb_data->cb_flag & IDWALK_CB_READFILE_IGNORE) {
@@ -4597,7 +4614,7 @@ static Main *library_link_begin(Main *mainvar,
 
   /* needed for do_version */
   mainl->versionfile = short(fd->fileversion);
-  read_file_version(fd, mainl);
+  read_file_version_and_colorspace(fd, mainl);
   read_file_bhead_idname_map_create(fd);
 
   return mainl;
@@ -4646,6 +4663,7 @@ static void split_main_newid(Main *mainptr, Main *main_newid)
   main_newid->subversionfile = mainptr->subversionfile;
   STRNCPY(main_newid->filepath, mainptr->filepath);
   main_newid->curlib = mainptr->curlib;
+  main_newid->colorspace = mainptr->colorspace;
 
   MainListsArray lbarray = BKE_main_lists_get(*mainptr);
   MainListsArray lbarray_newid = BKE_main_lists_get(*main_newid);
@@ -4728,6 +4746,7 @@ static void library_link_end(Main *mainl, FileData **fd, const int flag, ReportL
                                   main_newid->curlib->runtime->filedata :
                                   *fd,
                               main_newid);
+    IMB_colormanagement_working_space_convert(main_newid, mainvar);
 
     add_main_to_main(mainlib, main_newid);
 
@@ -4933,15 +4952,19 @@ static void read_library_linked_ids(FileData *basefd, FileData *fd, Main *mainva
         /* Transfer the readfile data from the placeholder to the real ID, but
          * only if the real ID has no readfile data yet. The same realid may be
          * referred to by multiple placeholders. */
-        if (realid && !realid->runtime.readfile_data) {
-          realid->runtime.readfile_data = id->runtime.readfile_data;
-          id->runtime.readfile_data = nullptr;
+        if (realid && !realid->runtime->readfile_data) {
+          realid->runtime->readfile_data = id->runtime->readfile_data;
+          id->runtime->readfile_data = nullptr;
         }
 
-        /* The 'readfile' runtime data needs to be freed here, as this ID placeholder does not go
-         * through versioning (the usual place where this data is freed). Since `id` is not a real
-         * ID, this shouldn't follow any pointers to embedded IDs. */
-        BLO_readfile_id_runtime_data_free(*id);
+        /* Ensure that the runtime pointer, and its 'readfile' sub-data, are properly freed, as
+         * this ID placeholder does not go through versioning (the usual place where this data is
+         * freed). Since `id` is not a real ID, this shouldn't follow any pointers to embedded IDs.
+         *
+         * WARNING! This placeholder ID is only an ID struct, with a very small subset of regular
+         * ID common data actually valid and needing to be freed. Therefore, calling
+         * #BKE_libblock_free_data on it would not work. */
+        BKE_libblock_free_runtime_data(id);
 
         MEM_freeN(id);
       }
@@ -5037,7 +5060,7 @@ static FileData *read_library_file_data(FileData *basefd, Main *bmain, Main *lib
     lib_bmain->versionfile = fd->fileversion;
 
     /* subversion */
-    read_file_version(fd, lib_bmain);
+    read_file_version_and_colorspace(fd, lib_bmain);
     read_file_bhead_idname_map_create(fd);
   }
   else {
@@ -5047,6 +5070,7 @@ static FileData *read_library_file_data(FileData *basefd, Main *bmain, Main *lib
     /* Set lib version to current main one... Makes assert later happy. */
     lib_bmain->versionfile = lib_bmain->curlib->runtime->versionfile = bmain->versionfile;
     lib_bmain->subversionfile = lib_bmain->curlib->runtime->subversionfile = bmain->subversionfile;
+    lib_bmain->colorspace = lib_bmain->curlib->runtime->colorspace = bmain->colorspace;
   }
 
   if (fd == nullptr) {
