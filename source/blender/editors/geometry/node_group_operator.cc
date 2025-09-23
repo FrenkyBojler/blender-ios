@@ -646,9 +646,6 @@ static Vector<Object *> gather_supported_objects(const bContext &C,
   Vector<Object *> objects;
 
   auto handle_object = [&](Object *object) {
-    if (object->mode != mode) {
-      return;
-    }
     if (!object_has_editable_data(bmain, *object)) {
       return;
     }
