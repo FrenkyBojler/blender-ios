@@ -966,7 +966,8 @@ void CLG_logref_register(CLG_LogRef *clg_ref)
   clg_all_identifiers().insert(clg_ref->identifier);
 }
 
-void CLG_logref_list_all(void (*callback)(const char *identifier, void *user_data), void *user_data)
+void CLG_logref_list_all(void (*callback)(const char *identifier, void *user_data),
+                         void *user_data)
 {
   std::scoped_lock lock(clg_mutex);
   for (const char *identifier : clg_all_identifiers()) {
