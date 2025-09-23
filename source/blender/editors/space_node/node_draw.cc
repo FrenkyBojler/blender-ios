@@ -1718,6 +1718,10 @@ static void node_draw_node_group_indicator(const SpaceNode &snode,
   const float offset = 2.4f * UI_SCALE_FAC;
   const float outline_width = U.pixelsize;
 
+  const float shadow_width = 0.25f * U.widget_unit;
+  const float shadow_alpha = 0.1f;
+  UI_draw_roundbox_corner_set(UI_CNR_BOTTOM_LEFT | UI_CNR_BOTTOM_RIGHT);
+
   /* Start with the last copy. */
   {
     const rctf rect_group_copy = {
@@ -1727,17 +1731,13 @@ static void node_draw_node_group_indicator(const SpaceNode &snode,
         rect.ymin - offset - outline_width,
     };
 
-    /* Draw a shadow behind all copies. */
-    const float shadow_width = 0.4f * U.widget_unit;
-    const float shadow_alpha = 0.2f;
-    UI_draw_roundbox_corner_set(UI_CNR_BOTTOM_LEFT | UI_CNR_BOTTOM_RIGHT);
     ui_draw_dropshadow(
         &rect_group_copy, radius, shadow_width, snode.runtime->aspect, shadow_alpha);
 
     /* Use the node (or header) color but slightly transparent. */
     float color_copy[4];
     copy_v4_v4(color_copy, color);
-    color_copy[3] *= 0.45f;
+    color_copy[3] *= 0.15f;
     UI_draw_roundbox_4fv(&rect_group_copy, true, radius * 0.66f, color_copy);
   }
 
@@ -1750,9 +1750,12 @@ static void node_draw_node_group_indicator(const SpaceNode &snode,
         rect.ymin,
     };
 
+    ui_draw_dropshadow(
+        &rect_group_copy, radius, shadow_width, snode.runtime->aspect, shadow_alpha);
+
     float color_copy[4];
     copy_v4_v4(color_copy, color);
-    color_copy[3] *= 0.85f;
+    color_copy[3] *= 0.45f;
     UI_draw_roundbox_4fv(&rect_group_copy, true, radius * 0.66f, color_copy);
   }
 }
