@@ -1,11 +1,11 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.0.0 Alpha (b'29d18c45e4ed')\n"
+"Project-Id-Version: Blender 5.0.0 Alpha (b'fb3904ce45c6')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-09-10 07:24+0000\n"
-"PO-Revision-Date: 2025-07-23 14:59+0000\n"
-"Last-Translator: Ye Gui <ziweidao@foxmail.com>\n"
+"POT-Creation-Date: 2025-09-22 08:45+0000\n"
+"PO-Revision-Date: 2025-09-16 01:46+0000\n"
+"Last-Translator: Satoshi Yamasaki <yamyam@yo.rim.or.jp>\n"
 "Language-Team: Japanese <https://translate.blender.org/projects/blender-ui/ui/ja/>\n"
 "Language: ja\n"
 "MIME-Version: 1.0\n"
@@ -1044,6 +1044,14 @@ msgid "A number that identifies which sub-set of the Action is considered to be 
 msgstr "アクションのどの部分をこのデータブロック用とみなすのかを識別する番号"
 
 
+msgid "Tweak Mode Action Slot Storage"
+msgstr "調整モードアクションスロットストレージ"
+
+
+msgid "Storage to temporarily hold the main action slot while in tweak mode"
+msgstr "調整モード中，一時的にメインアクションスロットを保持しておくストレージ"
+
+
 msgid "Slots"
 msgstr "スロット"
 
@@ -1054,6 +1062,10 @@ msgstr "このアニメーションデータブロック用のスロットのリ
 
 msgid "Tweak Mode Action Storage"
 msgstr "調整モードアクションストレージ"
+
+
+msgid "Storage to temporarily hold the main action while in tweak mode"
+msgstr "調整モード中，一時的にメインアクションを保持しておくストレージ"
 
 
 msgid "Drivers"
@@ -2035,6 +2047,14 @@ msgid "Default size of the asset preview thumbnails in pixels"
 msgstr "アセットのプレビューサムネイルのデフォルトサイズ（ピクセル）"
 
 
+msgid "Drag Operator"
+msgstr "ドラッグオペレーター"
+
+
+msgid "Operator to call when dragging an item with asset reference properties"
+msgstr "アセット参照プロパティでアイテムをドラッグする時に呼び出すオペレーター"
+
+
 msgid "ID Name"
 msgstr "ID名"
 
@@ -2077,10 +2097,6 @@ msgstr "シェルフの有効なカタログを，ローカルアセットシェ
 
 msgid "Space Type"
 msgstr "スペースタイプ"
-
-
-msgid "The space where the asset shelf is going to be used in"
-msgstr "アセットシェルフが中で使用される予定のスペース"
 
 
 msgid "Preview Size"
@@ -2333,12 +2349,13 @@ msgid "Name of the Attribute"
 msgstr "属性の名前"
 
 
-msgid "Array"
-msgstr "配列"
+msgctxt "Amount"
+msgid "Storage Type"
+msgstr "ストレージタイプ"
 
 
-msgid "Single"
-msgstr "シングル"
+msgid "Method used to store the data"
+msgstr "データを格納するのに使用する方法"
 
 
 msgid "Bool Attribute"
@@ -2529,6 +2546,14 @@ msgstr "ケージオブジェクト"
 
 msgid "Object to use as cage instead of calculating the cage from the active object with cage extrusion"
 msgstr "ケージとして使用するオブジェクト．アクティブオブジェクトからケージを押し出して計算する代わり"
+
+
+msgid "Displacement Space"
+msgstr "ディスプレイスメント空間"
+
+
+msgid "Choose displacement space for baking"
+msgstr "ベイクするディスプレイスメント空間を選択します"
 
 
 msgid "Object"
@@ -7376,8 +7401,8 @@ msgid "Color management specific to display device"
 msgstr "表示デバイス特有の色管理"
 
 
-msgid "Display Device"
-msgstr "表示デバイス"
+msgid "Display"
+msgstr "表示"
 
 
 msgid "Input color space settings"
@@ -7582,8 +7607,8 @@ msgid "Perform chromatic adaption from a different white point"
 msgstr "別の白色点で色順応を実行します"
 
 
-msgid "View Transform"
-msgstr "ビュー変換"
+msgid "View"
+msgstr "ビュー"
 
 
 msgid "View used when converting image to a display space"
@@ -10550,10 +10575,6 @@ msgstr "表面のタンジェント"
 
 msgid "Draw in the surface plane"
 msgstr "表面の平面にドローします"
-
-
-msgid "View"
-msgstr "ビュー"
 
 
 msgid "Draw in a plane aligned to the viewport"
@@ -21046,14 +21067,6 @@ msgstr ""
 "フレームの代わりにカスタムフレームを使用するかどうか"
 
 
-msgid "Prefetch Cache Size"
-msgstr "プリフェッチキャッシュサイズ"
-
-
-msgid "Memory usage limit in megabytes for the Cycles Procedural cache, if the data does not fit within the limit, rendering is aborted"
-msgstr "Cycles プロシージャルキャッシュ用の最大メモリ使用量（MB）．データが収まらない場合，レンダリングを中止します"
-
-
 msgid "Value by which to enlarge or shrink the object with respect to the world's origin (only applicable through a Transform Cache constraint)"
 msgstr ""
 "ワールド原点に対してオブジェクトを拡大または縮小する値\n"
@@ -21062,22 +21075,6 @@ msgstr ""
 
 msgid "Up"
 msgstr "上"
-
-
-msgid "Use Prefetch"
-msgstr "プリフェッチを使用"
-
-
-msgid "When enabled, the Cycles Procedural will preload animation data for faster updates"
-msgstr "有効時，Cycles プロシージャルがアニメーションデータをプリロードすることで更新を高速化します"
-
-
-msgid "Use Render Engine Procedural"
-msgstr "レンダーエンジンプロシージャルを使用"
-
-
-msgid "Display boxes in the viewport as placeholders for the objects, Cycles will use a procedural to load the objects during viewport rendering in experimental mode, other render engines will also receive a placeholder and should take care of loading the Alembic data themselves if possible"
-msgstr "仮オブジェクトとしてビューポートに箱を表示し，Cycles が実験的モードでのビューポートレンダリング中，プロシージャルを使用してそのオブジェクトを読み込みます．他のレンダーエンジンも同様に配置の予約を受け取り，可能な場合，Alembic データの読み込みを考慮します"
 
 
 msgid "Velocity Attribute"
@@ -26941,10 +26938,6 @@ msgstr "十字"
 msgctxt "ParticleSettings"
 msgid "Axis"
 msgstr "座標軸"
-
-
-msgid "Display"
-msgstr "表示"
 
 
 msgid "Percentage of particles to display in 3D view"
@@ -34846,8 +34839,60 @@ msgid "Editor menu containing buttons"
 msgstr "ボタンを含むエディターメニュー"
 
 
+msgid "Toggle Bone Options"
+msgstr "ボーンオプションを切り替え"
+
+
+msgid "Enable Bone Options"
+msgstr "ボーンオプションを有効化"
+
+
+msgid "Disable Bone Options"
+msgstr "ボーンオプションを無効化"
+
+
+msgid "Mesh Select Mode"
+msgstr "メッシュ選択モード"
+
+
+msgid "Face Data"
+msgstr "面データ"
+
+
+msgid "Select by Face Strength"
+msgstr "面の強さで選択"
+
+
+msgid "Set Face Strength"
+msgstr "面の強さを設定"
+
+
+msgid "Clean Up"
+msgstr "クリーンアップ"
+
+
+msgid "Merge"
+msgstr "マージ"
+
+
 msgid "Show/Hide"
 msgstr "表示/隠す"
+
+
+msgid "Special Characters"
+msgstr "特殊文字"
+
+
+msgid "Kerning"
+msgstr "カーニング"
+
+
+msgid "Text"
+msgstr "テキスト"
+
+
+msgid "Metaball"
+msgstr "メタボール"
 
 
 msgid "Names"
@@ -34856,10 +34901,6 @@ msgstr "名前"
 
 msgid "Bone Roll"
 msgstr "ボーンロール"
-
-
-msgid "Clean Up"
-msgstr "クリーンアップ"
 
 
 msgid "Pivot Point"
@@ -34888,10 +34929,6 @@ msgstr "面セット編集"
 
 msgid "Vertex Group Locks"
 msgstr "頂点グループのロック"
-
-
-msgid "Metaball"
-msgstr "メタボール"
 
 
 msgid "Mirror"
@@ -35032,50 +35069,6 @@ msgstr "伝播"
 
 msgid "Bone Collections"
 msgstr "ボーンコレクション"
-
-
-msgid "Toggle Bone Options"
-msgstr "ボーンオプションを切り替え"
-
-
-msgid "Enable Bone Options"
-msgstr "ボーンオプションを有効化"
-
-
-msgid "Disable Bone Options"
-msgstr "ボーンオプションを無効化"
-
-
-msgid "Mesh Select Mode"
-msgstr "メッシュ選択モード"
-
-
-msgid "Face Data"
-msgstr "面データ"
-
-
-msgid "Select by Face Strength"
-msgstr "面の強さで選択"
-
-
-msgid "Set Face Strength"
-msgstr "面の強さを設定"
-
-
-msgid "Merge"
-msgstr "マージ"
-
-
-msgid "Special Characters"
-msgstr "特殊文字"
-
-
-msgid "Kerning"
-msgstr "カーニング"
-
-
-msgid "Text"
-msgstr "テキスト"
 
 
 msgid "Keyframe Insert Pie"
@@ -35704,6 +35697,11 @@ msgstr "ペアレント"
 msgctxt "Operator"
 msgid "Empty"
 msgstr "エンプティ"
+
+
+msgctxt "Operator"
+msgid "Lattice"
+msgstr "ラティス"
 
 
 msgctxt "Constraint"
@@ -36515,6 +36513,10 @@ msgstr "テクスチャマッピング"
 
 msgid "Change stroke UV texture values"
 msgstr "ストロークの UV テクスチャ値を変更します"
+
+
+msgid "Array"
+msgstr "配列"
 
 
 msgid "Create copies of the shape with offsets"
@@ -43784,10 +43786,6 @@ msgid "Opacity of the image"
 msgstr "画像の不透過度"
 
 
-msgid "Markers"
-msgstr "マーカー"
-
-
 msgid "Collection of markers in track"
 msgstr "トラックのマーカーの集合"
 
@@ -44927,64 +44925,6 @@ msgid "Create matte based on differences in color channels"
 msgstr "カラーチャンネルの違いを元にマットを生成します"
 
 
-msgid "RGB (Red, Green, Blue) color space"
-msgstr "RGB（赤，緑，青）の色空間"
-
-
-msgid "HSV (Hue, Saturation, Value) color space"
-msgstr "HSV（色相，彩度，明度）の色空間"
-
-
-msgid "YUV"
-msgstr "YUV"
-
-
-msgid "YUV (Y - luma, U V - chroma) color space"
-msgstr "YUV（Y - 輝度，U・V - クロマ）の色空間"
-
-
-msgid "YCbCr"
-msgstr "YCbCr"
-
-
-msgid "YCbCr (Y - luma, Cb - blue-difference chroma, Cr - red-difference chroma) color space"
-msgstr "YCbCr（Y - 輝度，Cb - 青の色差，Cr - 赤の色差）の色空間"
-
-
-msgctxt "Color"
-msgid "Limit Channel"
-msgstr "チャンネルで制限"
-
-
-msgid "Limit by this channel's value"
-msgstr "このチャンネルの値で制限します"
-
-
-msgid "Algorithm"
-msgstr "アルゴリズム"
-
-
-msgid "Algorithm to use to limit channel"
-msgstr "チャンネルを制限するのに使うアルゴリズム"
-
-
-msgid "Limit by single channel"
-msgstr "単一のチャンネルで制限します"
-
-
-msgid "Limit by maximum of other channels"
-msgstr "他のチャンネルの最大値で制限します"
-
-
-msgctxt "Color"
-msgid "Channel"
-msgstr "チャンネル"
-
-
-msgid "Channel used to determine matte"
-msgstr "マットを決めるチャンネル"
-
-
 msgid "Chroma Key"
 msgstr "クロマキー"
 
@@ -44999,26 +44939,6 @@ msgstr "カラーバランス"
 
 msgid "Adjust color and values"
 msgstr "色と値を調整します"
-
-
-msgid "Correction Formula"
-msgstr "補正式"
-
-
-msgid "Lift/Gamma/Gain"
-msgstr "リフト/ガンマ/ゲイン"
-
-
-msgid "Offset/Power/Slope (ASC-CDL)"
-msgstr "オフセット/パワー/スロープ (ASC-CDL)"
-
-
-msgid "ASC-CDL standard color correction"
-msgstr "ASC-CDL標準色補正"
-
-
-msgid "Chromatic adaption from a different white point"
-msgstr "違うホワイトポイントからの色順応"
 
 
 msgid "Input White Point"
@@ -45057,50 +44977,6 @@ msgid "Remove colors from a blue or green screen, by reducing one RGB channel co
 msgstr "特定の RGB チャンネルを他のチャンネルと比べて小さくすることで，グリーンやブルースクリーンからの色かぶりを除去します"
 
 
-msgid "Red spill suppression"
-msgstr "赤のスピルを抑制します"
-
-
-msgid "Green spill suppression"
-msgstr "緑のスピルを抑制します"
-
-
-msgid "Blue spill suppression"
-msgstr "青のスピルを抑制します"
-
-
-msgid "Limit by red"
-msgstr "赤で制限します"
-
-
-msgid "Limit by green"
-msgstr "緑で制限します"
-
-
-msgid "Limit by blue"
-msgstr "青で制限します"
-
-
-msgid "Simple limit algorithm"
-msgstr "シンプルな制限アルゴリズム"
-
-
-msgid "Average limit algorithm"
-msgstr "平均制限アルゴリズム"
-
-
-msgid "ITU 601"
-msgstr "ITU 601"
-
-
-msgid "ITU 709"
-msgstr "ITU 709"
-
-
-msgid "JPEG"
-msgstr "JPEG"
-
-
 msgid "Combine Color"
 msgstr "カラー合成"
 
@@ -45125,8 +45001,16 @@ msgid "Use HSL (Hue, Saturation, Lightness) color processing"
 msgstr "HSL（色相，彩度，輝度）による色の処理を使用します"
 
 
+msgid "YCbCr"
+msgstr "YCbCr"
+
+
 msgid "Use YCbCr (Y - luma, Cb - blue-difference chroma, Cr - red-difference chroma) color processing"
 msgstr "YCbCr（Y - 輝度，Cb - 青の色差，Cr - 赤の色差）による色の処理を使用します"
+
+
+msgid "YUV"
+msgstr "YUV"
 
 
 msgid "Use YUV (Y - luma, U V - chroma) color processing"
@@ -45135,6 +45019,18 @@ msgstr "YUV（Y - 輝度，U・V - 色差）による色の処理を使用しま
 
 msgid "Color space used for YCbCrA processing"
 msgstr "YCbCrA 処理で使用される色空間"
+
+
+msgid "ITU 601"
+msgstr "ITU 601"
+
+
+msgid "ITU 709"
+msgstr "ITU 709"
+
+
+msgid "JPEG"
+msgstr "JPEG"
 
 
 msgid "Convert Colorspace"
@@ -45427,56 +45323,12 @@ msgid "Create matte based on 3D distance between colors"
 msgstr "各カラー間の3D距離を元にマットを生成します"
 
 
-msgid "RGB color space"
-msgstr "RGB 色空間"
-
-
-msgid "YCbCr suppression"
-msgstr "YCbCr で抑制します"
-
-
 msgid "Double Edge Mask"
 msgstr "ダブルエッジマスク"
 
 
 msgid "Create a gradient between two masks"
 msgstr "二つのマスク間でグラデーションを作成します"
-
-
-msgid "Buffer Edge Mode"
-msgstr "外部境界モード"
-
-
-msgid "Bleed Out"
-msgstr "ブリードアウト"
-
-
-msgid "Allow mask pixels to bleed along edges"
-msgstr "マスクピクセルを境界にそってぼかします"
-
-
-msgid "Keep In"
-msgstr "内部のみ"
-
-
-msgid "Restrict mask pixels from touching edges"
-msgstr "境界に触れているマスクピクセルのみに限定します"
-
-
-msgid "Inner Edge Mode"
-msgstr "内部境界モード"
-
-
-msgid "All pixels on inner mask edge are considered during mask calculation"
-msgstr "マスク計算中，内部マスク境界上のピクセルがすべて考慮されます"
-
-
-msgid "Adjacent Only"
-msgstr "隣接のみ"
-
-
-msgid "Only inner mask pixels adjacent to outer mask pixels are considered during mask calculation"
-msgstr "マスク計算中，外部マスクピクセルに隣接する内部マスクピクセルのみ考慮されます"
 
 
 msgid "Ellipse Mask"
@@ -45699,26 +45551,6 @@ msgid "Convert to and from premultiplied (associated) alpha"
 msgstr "プリマルチプライ（結合）アルファと相互変換します"
 
 
-msgid "Conversion between premultiplied alpha and key alpha"
-msgstr "プリマルチプライアルファとキーアルファを変換"
-
-
-msgid "To Premultiplied"
-msgstr "プリマルチプライへ"
-
-
-msgid "Convert straight to premultiplied"
-msgstr "ストレートアルファから乗算済みアルファに変換します"
-
-
-msgid "To Straight"
-msgstr "ストレートアルファへ"
-
-
-msgid "Convert premultiplied to straight"
-msgstr "乗算済みアルファからストレートアルファに変換します"
-
-
 msgid "A color picker"
 msgstr "カラーピッカー"
 
@@ -45837,22 +45669,6 @@ msgstr "アルファ設定"
 
 msgid "Add an alpha channel to an image"
 msgstr "画像にアルファチャンネルを追加します"
-
-
-msgid "Apply Mask"
-msgstr "マスクを適用"
-
-
-msgid "Multiply the input image's RGBA channels by the alpha input value"
-msgstr "入力画像の RGBA チャンネルとアルファ入力値を乗算します"
-
-
-msgid "Replace Alpha"
-msgstr "アルファを置換"
-
-
-msgid "Replace the input image's alpha channel by the alpha input value"
-msgstr "入力画像のアルファチャンネルをアルファ入力値で置き換えます"
 
 
 msgid "Combine two images for side-by-side display. Typically used in combination with a Viewer node"
@@ -50692,18 +50508,6 @@ msgid "Air"
 msgstr "空気抵抗"
 
 
-msgid ""
-"Density of air molecules.\n"
-"• 0 - No air.\n"
-"• 1 - Clear day atmosphere.\n"
-"• 2 - Highly polluted day"
-msgstr ""
-"空気分子の密度.\n"
-"• 0 - 空気なし.\n"
-"• 1 - 晴れた日の空気.\n"
-"• 2 - 汚染度の高い日"
-
-
 msgid "Altitude"
 msgstr "標高"
 
@@ -50712,38 +50516,8 @@ msgid "Height from sea level"
 msgstr "海面からの高さ"
 
 
-msgid "Dust"
-msgstr "ちり"
-
-
-msgid ""
-"Density of dust molecules and water droplets.\n"
-"• 0 - No dust.\n"
-"• 1 - Clear day atmosphere.\n"
-"• 5 - City like atmosphere.\n"
-"• 10 - Hazy day"
-msgstr ""
-"ほこりの分子と水滴の密度.\n"
-"• 0 - ほこりなし.\n"
-"• 1 - 晴れた日の空気.\n"
-"• 5 - 都会の空気.\n"
-"• 10 - かすみがかった日"
-
-
 msgid "Ozone"
 msgstr "オゾン"
-
-
-msgid ""
-"Density of ozone layer.\n"
-"• 0 - No ozone.\n"
-"• 1 - Clear day atmosphere.\n"
-"• 2 - City like atmosphere"
-msgstr ""
-"オゾン層の密度.\n"
-"• 0 - オゾンなし.\n"
-"• 1 - 晴れた日の空気.\n"
-"• 2 - 都会の空気"
 
 
 msgid "Sky Type"
@@ -50752,14 +50526,6 @@ msgstr "大気タイプ"
 
 msgid "Which sky model should be used"
 msgstr "どのスカイモデルを使用するか"
-
-
-msgid "Nishita"
-msgstr "Nishita"
-
-
-msgid "Nishita 1993 improved"
-msgstr "改良 Nishita 1993"
 
 
 msgid "Sun Disc"
@@ -50779,10 +50545,6 @@ msgstr "水平線からの太陽の角度"
 
 
 msgid "Sun Intensity"
-msgstr "太陽光の強さ"
-
-
-msgid "Strength of sun"
 msgstr "太陽光の強さ"
 
 
@@ -50976,10 +50738,6 @@ msgstr "リングの波テクスチャを使用します"
 
 msgid "White Noise Texture"
 msgstr "ホワイトノイズテクスチャ"
-
-
-msgid "Return a random value or color based on an input seed"
-msgstr "入力シードを元にランダム値または色を返します"
 
 
 msgid "UV Along Stroke"
@@ -51450,6 +51208,10 @@ msgstr "フィールドを要求するソケット"
 
 msgid "Socket expects a grid"
 msgstr "グリッドを要求するソケット"
+
+
+msgid "Single"
+msgstr "シングル"
 
 
 msgid "Socket expects a single value"
@@ -90657,20 +90419,20 @@ msgid "glTF Material Variants"
 msgstr "glTFマテリアルバリアント"
 
 
-msgid "Active Tool"
-msgstr "アクティブツール"
-
-
-msgid "View Lock"
-msgstr "ビューのロック"
-
-
 msgid "glTF"
 msgstr "glTF"
 
 
 msgid "glTF Animations"
 msgstr "glTFアニメーション"
+
+
+msgid "Active Tool"
+msgstr "アクティブツール"
+
+
+msgid "View Lock"
+msgstr "ビューのロック"
 
 
 msgid "Selectability & Visibility"
@@ -90811,10 +90573,6 @@ msgstr "フィット"
 
 msgid "Override Layers"
 msgstr "レイヤーをオーバーライド"
-
-
-msgid "Render Procedural"
-msgstr "レンダープロシージャル"
 
 
 msgid "Bone Constraints"
@@ -91740,6 +91498,10 @@ msgid "Blade"
 msgstr "ブレード"
 
 
+msgid "Shift underlying strip content without affecting handles"
+msgstr "ストリップの内容をハンドルの影響なしでずらします"
+
+
 msgid "Physical light sources"
 msgstr "物理的光源"
 
@@ -91808,10 +91570,6 @@ msgstr "複製でコピーするデータ"
 
 msgid "New Objects"
 msgstr "新規オブジェクト:"
-
-
-msgid "Debugging"
-msgstr "デバッグ"
 
 
 msgid "New Features"
@@ -91965,10 +91723,6 @@ msgstr "ボーン カラーセット"
 
 msgid "Theme Space"
 msgstr "スペースのテーマ"
-
-
-msgid "Theme Space List"
-msgstr "スペースリストのテーマ"
 
 
 msgid "Collection Colors"
@@ -98220,14 +97974,6 @@ msgid "Use different seed values (and hence noise patterns) at different frames"
 msgstr "フレーム毎に違うシード値（つまり違うノイズパターン）を使用します"
 
 
-msgid "Use Tiling"
-msgstr "タイルを使用"
-
-
-msgid "Render high resolution images in tiles to reduce memory usage, using the specified tile size. Tiles are cached to disk while rendering to save memory"
-msgstr "メモリ使用量を減らすため，自動的に高解像度の画像を指定のタイルサイズでレンダリングします．レンダリング中はタイルをディスクにキャッシュし，メモリを節約します"
-
-
 msgid "Allow objects to be culled based on the camera frustum"
 msgstr "オブジェクトがカメラ錐体を元にカリングされるようにします"
 
@@ -102900,6 +102646,10 @@ msgid "Snap to strip hold offsets"
 msgstr "オフセットを維持してストリップにスナップします"
 
 
+msgid "Markers"
+msgstr "マーカー"
+
+
 msgid "Snap to markers"
 msgstr "マーカーにスナップします"
 
@@ -106934,6 +106684,11 @@ msgid "Color Mix Strip"
 msgstr "カラーミックスストリップ"
 
 
+msgctxt "Color"
+msgid "Value"
+msgstr "明度"
+
+
 msgid "Color Strip"
 msgstr "カラーストリップ"
 
@@ -107484,6 +107239,18 @@ msgstr ""
 
 msgid "Correction Method"
 msgstr "補正の方法"
+
+
+msgid "Lift/Gamma/Gain"
+msgstr "リフト/ガンマ/ゲイン"
+
+
+msgid "Offset/Power/Slope (ASC-CDL)"
+msgstr "オフセット/パワー/スロープ (ASC-CDL)"
+
+
+msgid "ASC-CDL standard color correction"
+msgstr "ASC-CDL標準色補正"
 
 
 msgid "Color balance gain (highlights)"
@@ -108474,10 +108241,6 @@ msgid "User interface styling and color settings"
 msgstr "ユーザーインターフェイスのスタイルとカラーの設定"
 
 
-msgid "Settings for asset shelf"
-msgstr "アセットシェルフ用設定"
-
-
 msgid "Clip Editor"
 msgstr "クリップエディター"
 
@@ -108492,22 +108255,6 @@ msgstr "テーマ名"
 
 msgid "Active Theme Area"
 msgstr "アクティブなテーマ領域"
-
-
-msgid "Theme Asset Shelf Color"
-msgstr "テーマアセットシェルフカラー"
-
-
-msgid "Theme settings for asset shelves"
-msgstr "アセットシェルフ用のテーマ設定"
-
-
-msgid "Main Region Background"
-msgstr "メイン領域の背景"
-
-
-msgid "Header Background"
-msgstr "ヘッダー背景"
 
 
 msgid "Theme Bone Color Set"
@@ -108634,14 +108381,6 @@ msgid "Settings for space"
 msgstr "スペース用のテーマ設定"
 
 
-msgid "Settings for space list"
-msgstr "スペースリスト用のテーマ設定"
-
-
-msgid "Scrubbing/Markers Region"
-msgstr "スクラブ/マーカー領域"
-
-
 msgid "Theme Collection Color"
 msgstr "コレクションカラーのテーマ"
 
@@ -108660,10 +108399,6 @@ msgstr "チャンネルグループ"
 
 msgid "Active Channel Group"
 msgstr "アクティブなチャンネルグループ"
-
-
-msgid "Sub-channel"
-msgstr "サブチャンネル"
 
 
 msgid "Breakdown Keyframe"
@@ -108770,14 +108505,6 @@ msgid "Color of preview range overlay"
 msgstr "プレビュー範囲のオーバーレイの色"
 
 
-msgid "Marker Line"
-msgstr "マーカーライン"
-
-
-msgid "Marker Line Selected"
-msgstr "選択中のマーカーライン"
-
-
 msgid "Align Handle"
 msgstr "整列ハンドル"
 
@@ -108844,10 +108571,6 @@ msgstr "ドープシートのテーマ"
 
 msgid "Theme settings for the Dope Sheet"
 msgstr "ドープシート用のテーマ設定"
-
-
-msgid "Channels Selected"
-msgstr "選択中のチャンネル"
 
 
 msgid "Interpolation Line"
@@ -109020,10 +108743,6 @@ msgstr "グラフエディターのテーマ"
 
 msgid "Theme settings for the graph editor"
 msgstr "グラフエディター用のテーマ設定"
-
-
-msgid "Channels Region"
-msgstr "チャンネル領域"
 
 
 msgid "Vertex Select"
@@ -109246,10 +108965,6 @@ msgid "Selected Meta Strip (for grouping related strips)"
 msgstr "選択メタストリップ（関連するストリップのグループ化用）"
 
 
-msgid "Nonlinear Animation Track"
-msgstr "ノンリニアアニメーショントラック"
-
-
 msgid "Sound Strips"
 msgstr "音声ストリップ"
 
@@ -109466,16 +109181,24 @@ msgid "Search Match"
 msgstr "検索がマッチ"
 
 
+msgid "Theme settings for asset shelves"
+msgstr "アセットシェルフ用のテーマ設定"
+
+
+msgid "Header Background"
+msgstr "ヘッダー背景"
+
+
+msgid "Selected Text"
+msgstr "選択したテキスト"
+
+
 msgid "Theme Sequence Editor"
 msgstr "シーケンスエディターのテーマ"
 
 
 msgid "Theme settings for the Sequence Editor"
 msgstr "シーケンスエディター用のテーマ設定"
-
-
-msgid "Active Modifier Outline"
-msgstr "アクティブモディファイアー輪郭"
 
 
 msgid "Audio Strip"
@@ -109492,10 +109215,6 @@ msgstr "背景をプレビュー"
 
 msgid "Selected Strips"
 msgstr "選択ストリップ"
-
-
-msgid "Selected Text"
-msgstr "選択したテキスト"
 
 
 msgid "Text strip editing selection"
@@ -109528,30 +109247,6 @@ msgstr "ヘッダーテキストのハイライト"
 
 msgid "Text Highlight"
 msgstr "テキストのハイライト"
-
-
-msgid "Theme Space List Settings"
-msgstr "スペース一覧設定のテーマ"
-
-
-msgid "Source List"
-msgstr "ソースリスト"
-
-
-msgid "Source List Text"
-msgstr "ソースリストテキスト"
-
-
-msgid "Source List Text Highlight"
-msgstr "ソースリストテキストのハイライト"
-
-
-msgid "Source List Title"
-msgstr "ソースリストタイトル"
-
-
-msgid "Region Background"
-msgstr "領域背景"
 
 
 msgid "Theme Spreadsheet"
@@ -116314,6 +116009,11 @@ msgstr "シーケンサーツール：ブレード（予備）"
 
 
 msgctxt "WindowManager"
+msgid "Sequencer Tool: Slip (fallback)"
+msgstr "シーケンサーツール：スリップ（予備）"
+
+
+msgctxt "WindowManager"
 msgid "Preview"
 msgstr "プレビュー"
 
@@ -116931,22 +116631,6 @@ msgid "Legacy Add-on"
 msgstr "旧アドオン"
 
 
-msgid "Do you want to install the following {:s}?"
-msgstr "下記 {:s} をインストールしますか？"
-
-
-msgid "Name: {:s}"
-msgstr "名前: {:s}"
-
-
-msgid "Repository: {:s}"
-msgstr "リポジトリ: {:s}"
-
-
-msgid "Size: {:s}"
-msgstr "サイズ: {:s}"
-
-
 msgid "The dropped extension comes from an unknown repository."
 msgstr "ドロップされたエクステンションは未知のリポジトリの物です."
 
@@ -117104,6 +116788,10 @@ msgid "Theme \"{:s}\" is already installed!"
 msgstr "テーマ「{:s}」はインストール済です！"
 
 
+msgid "Name: {:s}"
+msgstr "名前: {:s}"
+
+
 msgid "URL: {:s}"
 msgstr "URL: {:s}"
 
@@ -117118,6 +116806,18 @@ msgstr "相対パスからインストールできません"
 
 msgid "Unable to install a directory"
 msgstr "ディレクトリをインストールできません"
+
+
+msgid "Do you want to install the following {:s}?"
+msgstr "下記 {:s} をインストールしますか？"
+
+
+msgid "Repository: {:s}"
+msgstr "リポジトリ: {:s}"
+
+
+msgid "Size: {:s}"
+msgstr "サイズ: {:s}"
 
 
 msgid "Age: {:s}"
@@ -118262,10 +117962,6 @@ msgid "{} does not seem to be part of a sequence"
 msgstr "「{}」は連番画像の一部ではないようです"
 
 
-msgid "Ignored {}, "
-msgstr "「{}」を無視， "
-
-
 msgid "Deleted {} nodes"
 msgstr "{}個のノードを削除しました"
 
@@ -118314,16 +118010,16 @@ msgid "This node has no inputs to swap"
 msgstr "このノードに交換する入力がありません"
 
 
+msgid "Ignored {}"
+msgstr "「{}」を無視しました"
+
+
 msgid "This node has no input connections to swap"
 msgstr "このノードに交換するリンク中の入力がありません"
 
 
 msgid "Ignored {} (not of the same type as {})"
 msgstr "{} を無視（{} と同じタイプではありません）"
-
-
-msgid "Ignored {}"
-msgstr "「{}」を無視しました"
 
 
 msgid "Some connections have been lost due to differing numbers of output sockets"
@@ -119256,12 +118952,12 @@ msgid "(Unassigned)"
 msgstr "(未割り当て)"
 
 
-msgid "{:s} (unavailable)"
-msgstr "{:s}（利用不可）"
-
-
 msgid "{:s} (Global)"
 msgstr "{:s}（グローバル）"
+
+
+msgid "{:s} (unavailable)"
+msgstr "{:s}（利用不可）"
 
 
 msgctxt "Operator"
@@ -122933,6 +122629,10 @@ msgid "Clear Recent Items"
 msgstr "最近のアイテムをクリア"
 
 
+msgid "Source List"
+msgstr "ソースリスト"
+
+
 msgctxt "Operator"
 msgid "Back"
 msgstr "後"
@@ -123904,11 +123604,6 @@ msgstr "すべて更新"
 
 
 msgctxt "Operator"
-msgid "Sequence Render Animation"
-msgstr "シーケンス動画をレンダリング"
-
-
-msgctxt "Operator"
 msgid "Toggle Sequencer/Preview"
 msgstr "シーケンサー/プレビューを切り替え"
 
@@ -124052,11 +123747,6 @@ msgstr "ウィンドウにプレビューを合わせる"
 
 msgid "Auto Zoom"
 msgstr "自動ズーム"
-
-
-msgctxt "Operator"
-msgid "Sequence Render Image"
-msgstr "シーケンス画像をレンダリング"
 
 
 msgctxt "Operator"
@@ -124299,7 +123989,7 @@ msgid "Remove Gaps (All)"
 msgstr "ギャップを削除（すべて）"
 
 
-msgctxt "Operator"
+msgctxt "Sequence"
 msgid "Hold Split"
 msgstr "分割（維持）"
 
@@ -124480,11 +124170,6 @@ msgid "File: {:s}"
 msgstr "ファイル: {:s}"
 
 
-msgctxt "WindowManager"
-msgid "Keying"
-msgstr "キーイング"
-
-
 msgctxt "Operator"
 msgid "Move Marker"
 msgstr "マーカーを移動"
@@ -124547,6 +124232,11 @@ msgid "Only Active Keying Set"
 msgstr "アクティブキーイングセットのみ"
 
 
+msgctxt "WindowManager"
+msgid "Keying"
+msgstr "キーイング"
+
+
 msgid "Layered Recording"
 msgstr "レイヤーレコーディング"
 
@@ -124557,10 +124247,6 @@ msgstr "ツールバーグループが見つかりません"
 
 msgid "Taper Start"
 msgstr "テーパー開始"
-
-
-msgid "Weight: {:.3f}"
-msgstr "ウェイト：{:.3f}"
 
 
 msgid "Style Start"
@@ -124641,6 +124327,10 @@ msgstr "円柱をインタラクティブに追加します"
 
 msgid "Add sphere to mesh interactively"
 msgstr "球をインタラクティブに追加します"
+
+
+msgid "Weight: {:.3f}"
+msgstr "ウェイト：{:.3f}"
 
 
 msgctxt "Operator"
@@ -125399,16 +125089,6 @@ msgstr "カーソル → アクティブ"
 msgctxt "Operator"
 msgid "Perspective/Orthographic"
 msgstr "透視投影/平行投影"
-
-
-msgctxt "Operator"
-msgid "Viewport Render Image"
-msgstr "ビューで画像をレンダリング"
-
-
-msgctxt "Operator"
-msgid "Viewport Render Keyframes"
-msgstr "ビューでキーフレームをレンダリング"
 
 
 msgctxt "Operator"
@@ -126601,11 +126281,6 @@ msgstr "最後のストロークを表示"
 
 
 msgctxt "Operator"
-msgid "Viewport Render Animation"
-msgstr "ビューで動画をレンダリング"
-
-
-msgctxt "Operator"
 msgid "Roll Left"
 msgstr "左にロール"
 
@@ -126643,11 +126318,6 @@ msgstr "次のブロック"
 msgctxt "Operator"
 msgid "Armature"
 msgstr "アーマチュア"
-
-
-msgctxt "Operator"
-msgid "Lattice"
-msgstr "ラティス"
 
 
 msgctxt "Operator"
@@ -131050,14 +130720,6 @@ msgid "Autocomplete"
 msgstr "オートコンプリート"
 
 
-msgid "R"
-msgstr "R"
-
-
-msgid "G"
-msgstr "G"
-
-
 msgid "OS"
 msgstr "[OS]"
 
@@ -131149,11 +130811,6 @@ msgstr "HSV(色相/彩度/明度)"
 
 msgid "Lightness"
 msgstr "輝度"
-
-
-msgctxt "Color"
-msgid "Value"
-msgstr "明度"
 
 
 msgid "Redo"
@@ -131280,18 +130937,6 @@ msgstr "「{}」を「{}」の下に移動"
 
 msgid "Manual Scale"
 msgstr "手動スケール"
-
-
-msgid "Only Alembic Procedurals supported"
-msgstr "Alembic プロシージャルのみ対応"
-
-
-msgid "The Cycles Alembic Procedural is only available with the experimental feature set"
-msgstr "Cycles Alembic プロシージャルは実験的機能有効時のみ利用可能です"
-
-
-msgid "The active render engine does not have an Alembic Procedural"
-msgstr "このアクティブレンダーエンジンには Alembic プロシージャルはありません"
 
 
 msgid "Sort By:"
@@ -132472,6 +132117,10 @@ msgid "No mesh data to join"
 msgstr "統合するメッシュデータがありません"
 
 
+msgid "Joining results in %d vertices, limit is %ld"
+msgstr "%d 個の頂点を統合しました(%ld 個の制限中)"
+
+
 msgid "No source mesh objects selected"
 msgstr "ソースメッシュオブジェクトが選択されていません"
 
@@ -132482,10 +132131,6 @@ msgstr "統合するのに同じ頂点数のメッシュが追加選択されて
 
 msgid "No name matches between selected objects and shape keys"
 msgstr "選択中のオブジェクトとシェイプキーで名前が一致しません"
-
-
-msgid "Joining results in %d vertices, limit is %ld"
-msgstr "%d 個の頂点を統合しました(%ld 個の制限中)"
 
 
 msgid "Updated %d shape key(s)"
@@ -141584,18 +141229,6 @@ msgid "Bright"
 msgstr "輝度"
 
 
-msgid "Color Space:"
-msgstr "色空間:"
-
-
-msgid "Key Channel:"
-msgstr "キーチャンネル:"
-
-
-msgid "Limiting Channel:"
-msgstr "限定チャンネル:"
-
-
 msgid "Channel values lower than this minimum are keyed"
 msgstr "値がこの最小値より下のチャンネルをキーにします"
 
@@ -141634,10 +141267,6 @@ msgstr "色とキーカラーの彩度がこのしきい値より小さい場合
 
 msgid "If the difference in value between the color and key color is less than this threshold, it is keyed"
 msgstr "色とキーカラーの明度がこのしきい値より小さい場合，キーになります"
-
-
-msgid "Despill Channel:"
-msgstr "スピル除去チャンネル:"
 
 
 msgid "Limit Strength"
@@ -141984,14 +141613,6 @@ msgid "If the distance between the color and the key color in the given color sp
 msgstr ""
 "与えられた色空間で，その色とキーカラーの間の距離がしきい値未満\n"
 "であれば部分的にキーになり，そうでなければキーにはなりません"
-
-
-msgid "Inner Edge:"
-msgstr "内部境界:"
-
-
-msgid "Buffer Edge:"
-msgstr "外部境界:"
 
 
 msgid "Inner Mask"
@@ -143500,10 +143121,6 @@ msgid "The middle value in each group when all values are sorted from lowest to 
 msgstr "各グループですべての値を小さい方から順に並べた時の中央値"
 
 
-msgid "The values the mininum and maximum will be calculated from"
-msgstr "最小値と最大値を計算する元の値"
-
-
 msgid "The lowest value in each group"
 msgstr "各グループの最小値"
 
@@ -143534,14 +143151,6 @@ msgstr "メインジオメトリ"
 
 msgid "Generated Geometry"
 msgstr "生成ジオメトリ"
-
-
-msgid "For Each Element  Main"
-msgstr "要素繰り返し　メイン"
-
-
-msgid "For Each Element  Generated"
-msgstr "要素繰り返し　生成"
 
 
 msgid "Each output field has to correspond to a geometry that is above it"
@@ -145649,10 +145258,6 @@ msgid "Strength of the light source"
 msgstr "光源の強さ"
 
 
-msgid "Color input on which invertion will be applied"
-msgstr "カラー入力が反転して適用されます"
-
-
 msgid "Facing"
 msgstr "前方向"
 
@@ -146055,10 +145660,6 @@ msgstr "入力ベクトルを回転する角度"
 
 msgid "The amount of rotation on each axis, around the X, Y, then Z axes in that order"
 msgstr "各軸の回転量．XYZ 順に軸の周りを回転"
-
-
-msgid "Vector, point, or normal which will be used for convertion between spaces"
-msgstr "座標系の変換に使用するベクトルまたはポイント，法線（ノーマル）"
 
 
 msgid "No mesh in active object"
