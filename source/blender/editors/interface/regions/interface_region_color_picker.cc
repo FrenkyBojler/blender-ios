@@ -656,58 +656,20 @@ static void ui_block_colorpicker(const bContext * /*C*/,
   }
 
   /* mode */
-  int yco = 0;
-  UI_block_align_begin(block);
-
-  auto colorspace_tip_func = [](bContext & /*C*/, uiTooltipData &tip, uiBut *but, void *space) {
-    UI_tooltip_text_field_add(tip, but->tip, {}, UI_TIP_STYLE_HEADER, UI_TIP_LC_NORMAL, false);
-    UI_tooltip_text_field_add(tip,
-                              IFACE_("Color Space: ") +
-                                  std::string(static_cast<const char *>(space)),
-                              {},
-                              UI_TIP_STYLE_NORMAL,
-                              UI_TIP_LC_ACTIVE,
-                              false);
-  };
-
-  bt = uiDefButC(block,
-                 ButType::Row,
-                 0,
-                 IFACE_("RGB"),
-                 0,
-                 yco -= 1.5f * UI_UNIT_Y,
-                 picker_width * 0.5,
-                 UI_UNIT_Y,
-                 &g_color_picker_type,
-                 0.0,
-                 float(PICKER_TYPE_RGB),
-                 TIP_("RGB values"));
-  UI_but_flag_disable(bt, UI_BUT_UNDO);
-  UI_but_drawflag_disable(bt, UI_BUT_TEXT_LEFT);
-  UI_but_func_set(bt, ui_colorpicker_update_type_space_cb, bt, from_but);
-  bt->custom_data = cpicker;
-
-  bt = uiDefButC(block,
-                 ButType::Row,
-                 0,
-                 IFACE_("HSV"),
-                 picker_width * 0.5,
-                 yco,
-                 picker_width * 0.5,
-                 UI_UNIT_Y,
-                 &g_color_picker_type,
-                 0.0,
-                 float(PICKER_TYPE_HSV),
-                 (U.color_picker_type == USER_CP_CIRCLE_HSL) ? TIP_("Hue, Saturation, Lightness") :
-                                                               TIP_("Hue, Saturation, Value"));
-  UI_but_flag_disable(bt, UI_BUT_UNDO);
-  UI_but_drawflag_disable(bt, UI_BUT_TEXT_LEFT);
-  UI_but_func_set(bt, ui_colorpicker_update_type_space_cb, bt, from_but);
-  bt->custom_data = cpicker;
-
-  UI_block_align_end(block);
+  int yco = -0.5f * UI_UNIT_Y;
 
   if (!block->is_color_gamma_picker) {
+    auto colorspace_tip_func = [](bContext & /*C*/, uiTooltipData &tip, uiBut *but, void *space) {
+      UI_tooltip_text_field_add(tip, but->tip, {}, UI_TIP_STYLE_HEADER, UI_TIP_LC_NORMAL, false);
+      UI_tooltip_text_field_add(tip,
+                                IFACE_("Color Space: ") +
+                                    std::string(static_cast<const char *>(space)),
+                                {},
+                                UI_TIP_STYLE_NORMAL,
+                                UI_TIP_LC_ACTIVE,
+                                false);
+    };
+
     UI_block_align_begin(block);
 
     bt = uiDefButC(block,
@@ -715,7 +677,7 @@ static void ui_block_colorpicker(const bContext * /*C*/,
                    0,
                    IFACE_("Linear"),
                    0,
-                   yco -= 1.2f * UI_UNIT_Y,
+                   yco -= UI_UNIT_Y,
                    picker_width * 0.5,
                    UI_UNIT_Y,
                    &g_color_picker_space,
@@ -756,9 +718,50 @@ static void ui_block_colorpicker(const bContext * /*C*/,
     bt->custom_data = cpicker;
 
     UI_block_align_end(block);
+
+    yco -= 0.5f * UI_UNIT_X;
   }
 
-  const int slider_yco = yco - 1.5f * UI_UNIT_Y;
+  UI_block_align_begin(block);
+
+  bt = uiDefButC(block,
+                 ButType::Row,
+                 0,
+                 IFACE_("RGB"),
+                 0,
+                 yco -= UI_UNIT_Y,
+                 picker_width * 0.5,
+                 UI_UNIT_Y,
+                 &g_color_picker_type,
+                 0.0,
+                 float(PICKER_TYPE_RGB),
+                 TIP_("RGB values"));
+  UI_but_flag_disable(bt, UI_BUT_UNDO);
+  UI_but_drawflag_disable(bt, UI_BUT_TEXT_LEFT);
+  UI_but_func_set(bt, ui_colorpicker_update_type_space_cb, bt, from_but);
+  bt->custom_data = cpicker;
+
+  bt = uiDefButC(block,
+                 ButType::Row,
+                 0,
+                 IFACE_("HSV"),
+                 picker_width * 0.5,
+                 yco,
+                 picker_width * 0.5,
+                 UI_UNIT_Y,
+                 &g_color_picker_type,
+                 0.0,
+                 float(PICKER_TYPE_HSV),
+                 (U.color_picker_type == USER_CP_CIRCLE_HSL) ? TIP_("Hue, Saturation, Lightness") :
+                                                               TIP_("Hue, Saturation, Value"));
+  UI_but_flag_disable(bt, UI_BUT_UNDO);
+  UI_but_drawflag_disable(bt, UI_BUT_TEXT_LEFT);
+  UI_but_func_set(bt, ui_colorpicker_update_type_space_cb, bt, from_but);
+  bt->custom_data = cpicker;
+
+  UI_block_align_end(block);
+
+  const int slider_yco = yco - 1.1f * UI_UNIT_Y;
 
   /* NOTE: don't disable UI_BUT_UNDO for RGBA values, since these don't add undo steps. */
 
