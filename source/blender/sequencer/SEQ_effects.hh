@@ -16,11 +16,11 @@
 struct ImBuf;
 struct Scene;
 struct Strip;
-struct SeqRenderState;
 struct TextVars;
 
 namespace blender::seq {
 
+struct SeqRenderState;
 struct RenderData;
 
 enum class StripEarlyOut {
