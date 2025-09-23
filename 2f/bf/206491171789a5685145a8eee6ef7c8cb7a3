@@ -2,3 +2,4 @@ Referenced by commit 95886fdfe25, Refactor: Use new context string support for n
 Referenced by issue #122330, Breaking Asset System Changes for 5.0
 Referenced by issue #122331, Refactor: Use new context string support for node asset menus
 Referenced by issue #111463, Outliner assert when deleting an override on a mesh
+Referenced by commit bafb63a654aa39d483a9adeeadf42ef1da7f7cd6, Assets/BPY: Remove unused catalog path RNA/BPY type
