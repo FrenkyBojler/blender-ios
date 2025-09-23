@@ -792,7 +792,6 @@ void SEQUENCER_OT_scene_strip_add_new(wmOperatorType *ot)
 
 /* -------------------------------------------------------------------- */
 /** \name Add Scene Strip From Scene Asset
- *
  * \{ */
 
 /**
