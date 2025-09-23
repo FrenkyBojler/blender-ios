@@ -75,6 +75,7 @@
  * \{ */
 
 constexpr float UI_CIRCLE_RADIUS_PX = 3.0f;
+constexpr int UI_SAMPLE_DISTANCE = 15;
 
 /* compute uv coordinates of mouse in face */
 static blender::float2 imapaint_pick_uv(const Mesh *mesh_eval,
@@ -174,6 +175,7 @@ struct SampleColorData {
   int accum_tot = 0;
 
   blender::Vector<blender::int2> sampled_screen_points;
+  blender::int2 mouse_xy;
 
   ARegion *region;
   /* For drawing preview loop. */
@@ -218,7 +220,7 @@ static void paint_set_color(bContext *C,
   BKE_brush_color_set(paint, br, accum_col);
 }
 
-static void paint_sample_color(
+static void paint_sample_color_single(
     bContext *C, ARegion *region, SampleColorData *data, int x, int y, bool texpaint_proj)
 {
   using namespace blender;
@@ -364,6 +366,34 @@ static void paint_sample_color(
   }
 }
 
+static void paint_sample_color(bContext *C, SampleColorData *data, bool texpaint_proj)
+{
+  using namespace blender;
+  const int2 mouse_xy = data->mouse_xy;
+
+  if (data->sampled_screen_points.is_empty()) {
+    paint_sample_color_single(C, data->region, data, mouse_xy.x, mouse_xy.y, texpaint_proj);
+    return;
+  }
+
+  const int2 last_xy = data->sampled_screen_points.last();
+  const float sample_distance = math::distance(last_xy, mouse_xy);
+
+  if (sample_distance < UI_SAMPLE_DISTANCE) {
+    return;
+  }
+
+  /* Sample points in a line to maintain point density. */
+  const int sample_num = sample_distance / UI_SAMPLE_DISTANCE;
+  for (const int i : IndexRange(sample_num)) {
+    /* Skip t equals zero because the last point ready exists. */
+    const float t = (i + 1) / float(sample_num);
+    const int2 xy = math::interpolate(last_xy, mouse_xy, t);
+
+    paint_sample_color_single(C, data->region, data, xy.x, xy.y, texpaint_proj);
+  }
+}
+
 static void sample_color_update_header(SampleColorData *data, bContext *C)
 {
   char msg[UI_MAX_DRAW_STR];
@@ -400,7 +430,8 @@ static wmOperatorStatus sample_color_exec(bContext *C, wmOperator *op)
                                   !RNA_boolean_get(op->ptr, "merged");
 
   data->sample_palette = use_palette;
-  paint_sample_color(C, data->region, data, location[0], location[1], use_sample_texture);
+  data->mouse_xy = blender::int2(location);
+  paint_sample_color(C, data, use_sample_texture);
 
   if (show_cursor) {
     paint->flags |= PAINT_SHOW_BRUSH;
@@ -488,12 +519,13 @@ static wmOperatorStatus sample_color_invoke(bContext *C, wmOperator *op, const w
   WM_redraw_windows(C);
 
   RNA_int_set_array(op->ptr, "location", event->mval);
+  data->mouse_xy = blender::int2(event->mval);
 
   PaintMode mode = BKE_paintmode_get_active_from_context(C);
   const bool use_sample_texture = (mode == PaintMode::Texture3D) &&
                                   !RNA_boolean_get(op->ptr, "merged");
 
-  paint_sample_color(C, data->region, data, event->mval[0], event->mval[1], use_sample_texture);
+  paint_sample_color(C, data, use_sample_texture);
   WM_cursor_modal_set(win, WM_CURSOR_EYEDROPPER);
 
   WM_event_add_notifier(C, NC_BRUSH | NA_EDITED, brush);
@@ -536,9 +568,9 @@ static wmOperatorStatus sample_color_modal(bContext *C, wmOperator *op, const wm
   switch (event->type) {
     case MOUSEMOVE: {
       RNA_int_set_array(op->ptr, "location", event->mval);
+      data->mouse_xy = blender::int2(event->mval);
       data->sample_palette = false;
-      paint_sample_color(
-          C, data->region, data, event->mval[0], event->mval[1], use_sample_texture);
+      paint_sample_color(C, data, use_sample_texture);
       WM_event_add_notifier(C, NC_BRUSH | NA_EDITED, brush);
       break;
     }
@@ -546,13 +578,13 @@ static wmOperatorStatus sample_color_modal(bContext *C, wmOperator *op, const wm
     case LEFTMOUSE:
       if (event->val == KM_PRESS) {
         RNA_int_set_array(op->ptr, "location", event->mval);
+        data->mouse_xy = blender::int2(event->mval);
         if (!data->sample_palette) {
           sample_color_update_header(data, C);
           BKE_report(op->reports, RPT_INFO, "Sampling color for palette");
         }
         data->sample_palette = true;
-        paint_sample_color(
-            C, data->region, data, event->mval[0], event->mval[1], use_sample_texture);
+        paint_sample_color(C, data, use_sample_texture);
         WM_event_add_notifier(C, NC_BRUSH | NA_EDITED, brush);
       }
       break;
