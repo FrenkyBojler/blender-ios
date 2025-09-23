@@ -738,10 +738,10 @@ static wmOperatorStatus run_node_group_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  const bool objects_as_instances = active_object->mode == OB_MODE_OBJECT &&
-                                    node_tree->geometry_node_asset_traits &&
-                                    (node_tree->geometry_node_asset_traits->flag &
-                                     GEO_NODE_ASSET_OBJECTS_AS_INSTANCES) != 0;
+  const bool objects_as_instances =
+      active_object->mode == OB_MODE_OBJECT && node_tree->geometry_node_asset_traits &&
+      node_tree->geometry_node_asset_traits->geometry_node_tool_execution_mode ==
+          GEO_NODE_TOOL_EXEC_INSTANCES;
 
   bke::OperatorComputeContext compute_context;
   Set<ComputeContextHash> socket_log_contexts;

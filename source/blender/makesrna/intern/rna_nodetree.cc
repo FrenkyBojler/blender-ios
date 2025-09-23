@@ -2276,13 +2276,21 @@ static void rna_GeometryNodeTree_use_wait_for_click_set(PointerRNA *ptr, bool va
   geometry_node_asset_trait_flag_set(ptr, GEO_NODE_ASSET_WAIT_FOR_CURSOR, value);
 }
 
-static bool rna_GeometryNodeTree_objects_as_instances_get(PointerRNA *ptr)
+static int rna_GeometryNodeTree_tool_execution_mode_get(PointerRNA *ptr)
 {
-  return geometry_node_asset_trait_flag_get(ptr, GEO_NODE_ASSET_OBJECTS_AS_INSTANCES);
+  const bNodeTree *ntree = ptr->data_as<bNodeTree>();
+  if (!ntree->geometry_node_asset_traits) {
+    return 0;
+  }
+  return ntree->geometry_node_asset_traits->geometry_node_tool_execution_mode;
 }
-static void rna_GeometryNodeTree_objects_as_instances_set(PointerRNA *ptr, bool value)
+static void rna_GeometryNodeTree_tool_execution_mode_set(PointerRNA *ptr, int value)
 {
-  geometry_node_asset_trait_flag_set(ptr, GEO_NODE_ASSET_OBJECTS_AS_INSTANCES, value);
+  bNodeTree *ntree = ptr->data_as<bNodeTree>();
+  if (!ntree->geometry_node_asset_traits) {
+    ntree->geometry_node_asset_traits = MEM_callocN<GeometryNodeAssetTraits>(__func__);
+  }
+  ntree->geometry_node_asset_traits->geometry_node_tool_execution_mode = value;
 }
 
 static bool rna_GeometryNodeTree_is_type_grease_pencil_get(PointerRNA *ptr)
@@ -9538,18 +9546,31 @@ static void rna_def_geometry_nodetree(BlenderRNA *brna)
                                  "rna_GeometryNodeTree_use_wait_for_click_set");
   RNA_def_property_update(prop, NC_NODE | ND_DISPLAY, "rna_NodeTree_update_asset");
 
-  prop = RNA_def_property(srna, "use_objects_as_instances", PROP_BOOLEAN, PROP_NONE);
+  static const EnumPropertyItem tool_execution_mode_items[] = {
+      {GEO_NODE_TOOL_EXEC_SEPARATE,
+       "SEPARATE",
+       ICON_NONE,
+       "Separate",
+       "Process each object's geometry separately with its own execution of the node tree"},
+      {GEO_NODE_TOOL_EXEC_INSTANCES,
+       "INSTANCES",
+       ICON_NONE,
+       "Instances",
+       "Pass all selected objects together as instances to the node group. Objects are mapped to "
+       "instances via geometry name, and can be added or removed via equivalent changes to "
+       "instances"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  prop = RNA_def_property(srna, "tool_execution_mode", PROP_ENUM, PROP_NONE);
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
-  RNA_def_property_ui_text(
-      prop,
-      "Objects as Instances",
-      "Pass all selected objects together as instances to the node group. Objects are mapped to "
-      "instances via geometry name, and can be added or removed via equivalent changes to "
-      "instances");
-  RNA_def_property_boolean_funcs(prop,
-                                 "rna_GeometryNodeTree_objects_as_instances_get",
-                                 "rna_GeometryNodeTree_objects_as_instances_set");
-  RNA_def_property_update(prop, NC_NODE | ND_DISPLAY, "rna_NodeTree_update_asset");
+  RNA_def_property_enum_funcs(prop,
+                              "rna_GeometryNodeTree_tool_execution_mode_get",
+                              "rna_GeometryNodeTree_tool_execution_mode_set",
+                              nullptr);
+  RNA_def_property_enum_items(prop, tool_execution_mode_items);
+  RNA_def_property_ui_text(prop, "Execution Mode", "");
+  RNA_def_property_update(prop, NC_NODE | ND_DISPLAY, "rna_NodeTree_update");
 
   prop = RNA_def_property(srna, "is_type_grease_pencil", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);

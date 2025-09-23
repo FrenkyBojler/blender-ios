@@ -554,8 +554,8 @@ class NODE_PT_geometry_node_tool_options(Panel):
         snode = context.space_data
         group = snode.node_tree
 
+        layout.prop(group, "tool_execution_mode", text="")
         layout.prop(group, "use_wait_for_click")
-        layout.prop(group, "use_objects_as_instances")
 
 
 class NODE_PT_node_color_presets(PresetPanel, Panel):

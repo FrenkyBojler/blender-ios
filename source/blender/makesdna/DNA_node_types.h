@@ -1052,8 +1052,17 @@ typedef struct bNodeSocketValueMenu {
 } bNodeSocketValueMenu;
 
 typedef struct GeometryNodeAssetTraits {
+  /* #GeometryNodeToolExecutionMode. */
+  int8_t geometry_node_tool_execution_mode;
+  char _pad[7];
+  /* #GeometryNodeAssetTraitFlag. */
   int flag;
 } GeometryNodeAssetTraits;
+
+typedef enum GeometryNodeToolExecutionMode {
+  GEO_NODE_TOOL_EXEC_SEPARATE = 0,
+  GEO_NODE_TOOL_EXEC_INSTANCES = 1,
+} GeometryNodeToolExecutionMode;
 
 typedef enum GeometryNodeAssetTraitFlag {
   GEO_NODE_ASSET_TOOL = (1 << 0),
@@ -1068,7 +1077,6 @@ typedef enum GeometryNodeAssetTraitFlag {
   GEO_NODE_ASSET_GREASE_PENCIL = (1 << 9),
   /* Only used by Grease Pencil for now. */
   GEO_NODE_ASSET_PAINT = (1 << 10),
-  GEO_NODE_ASSET_OBJECTS_AS_INSTANCES = (1 << 11),
 } GeometryNodeAssetTraitFlag;
 ENUM_OPERATORS(GeometryNodeAssetTraitFlag, GEO_NODE_ASSET_PAINT);
 
