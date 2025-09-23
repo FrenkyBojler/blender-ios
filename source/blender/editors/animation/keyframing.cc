@@ -174,7 +174,11 @@ static bool modify_key_op_poll(bContext *C)
 
 static wmOperatorStatus insert_key_with_keyingset(bContext *C, wmOperator *op, KeyingSet *ks)
 {
-  Scene *scene = CTX_data_scene(C);
+  const bool is_sequencer = CTX_wm_space_seq(C) != nullptr;
+  Scene *scene = is_sequencer ? CTX_data_sequencer_scene(C) : CTX_data_scene(C);
+  if (!scene) {
+    return false;
+  }
   Object *obedit = CTX_data_edit_object(C);
   bool ob_edit_mode = false;
 
@@ -412,7 +416,11 @@ static wmOperatorStatus insert_key_exec(bContext *C, wmOperator *op)
 {
   ANIM_deselect_keys_in_animation_editors(C);
 
-  Scene *scene = CTX_data_scene(C);
+  const bool is_sequencer = CTX_wm_space_seq(C) != nullptr;
+  Scene *scene = is_sequencer ? CTX_data_sequencer_scene(C) : CTX_data_scene(C);
+  if (!scene) {
+    return false;
+  }
   /* Use the active keying set if there is one. */
   const int type = RNA_enum_get(op->ptr, "type");
   KeyingSet *ks = ANIM_keyingset_get_from_enum_type(scene, type);
@@ -461,7 +469,11 @@ static wmOperatorStatus keyframe_insert_with_keyingset_exec(bContext *C, wmOpera
 {
   ANIM_deselect_keys_in_animation_editors(C);
 
-  Scene *scene = CTX_data_scene(C);
+  const bool is_sequencer = CTX_wm_space_seq(C) != nullptr;
+  Scene *scene = is_sequencer ? CTX_data_sequencer_scene(C) : CTX_data_scene(C);
+  if (!scene) {
+    return false;
+  }
   KeyingSet *ks = keyingset_get_from_op_with_error(op, op->type->prop, scene);
   if (ks == nullptr) {
     return OPERATOR_CANCELLED;
@@ -503,7 +515,11 @@ static wmOperatorStatus insert_key_menu_invoke(bContext *C,
                                                wmOperator *op,
                                                const wmEvent * /*event*/)
 {
-  Scene *scene = CTX_data_scene(C);
+  const bool is_sequencer = CTX_wm_space_seq(C) != nullptr;
+  Scene *scene = is_sequencer ? CTX_data_sequencer_scene(C) : CTX_data_scene(C);
+  if (!scene) {
+    return false;
+  }
 
   /* When there is an active keying set and no request to prompt, keyframe immediately. */
   if ((scene->active_keyingset != 0) && !RNA_boolean_get(op->ptr, "always_prompt")) {
@@ -592,7 +608,11 @@ void ANIM_OT_keyframe_insert_menu(wmOperatorType *ot)
 
 static wmOperatorStatus delete_key_exec(bContext *C, wmOperator *op)
 {
-  Scene *scene = CTX_data_scene(C);
+  const bool is_sequencer = CTX_wm_space_seq(C) != nullptr;
+  Scene *scene = is_sequencer ? CTX_data_sequencer_scene(C) : CTX_data_scene(C);
+  if (!scene) {
+    return false;
+  }
   KeyingSet *ks = keyingset_get_from_op_with_error(op, op->type->prop, scene);
   if (ks == nullptr) {
     return OPERATOR_CANCELLED;
@@ -603,7 +623,11 @@ static wmOperatorStatus delete_key_exec(bContext *C, wmOperator *op)
 
 static wmOperatorStatus delete_key_using_keying_set(bContext *C, wmOperator *op, KeyingSet *ks)
 {
-  Scene *scene = CTX_data_scene(C);
+  const bool is_sequencer = CTX_wm_space_seq(C) != nullptr;
+  Scene *scene = is_sequencer ? CTX_data_sequencer_scene(C) : CTX_data_scene(C);
+  if (!scene) {
+    return false;
+  }
   float cfra = BKE_scene_frame_get(scene);
   int num_channels;
   const bool confirm = op->flag & OP_IS_INVOKE;
@@ -1274,7 +1298,11 @@ static wmOperatorStatus insert_key_button_exec(bContext *C, wmOperator *op)
 {
   using namespace blender::animrig;
   Main *bmain = CTX_data_main(C);
-  Scene *scene = CTX_data_scene(C);
+  const bool is_sequencer = CTX_wm_space_seq(C) != nullptr;
+  Scene *scene = is_sequencer ? CTX_data_sequencer_scene(C) : CTX_data_scene(C);
+  if (!scene) {
+    return false;
+  }
   ToolSettings *ts = scene->toolsettings;
   PointerRNA ptr = {};
   PropertyRNA *prop = nullptr;
@@ -1430,7 +1458,11 @@ void ANIM_OT_keyframe_insert_button(wmOperatorType *ot)
 
 static wmOperatorStatus delete_key_button_exec(bContext *C, wmOperator *op)
 {
-  Scene *scene = CTX_data_scene(C);
+  const bool is_sequencer = CTX_wm_space_seq(C) != nullptr;
+  Scene *scene = is_sequencer ? CTX_data_sequencer_scene(C) : CTX_data_scene(C);
+  if (!scene) {
+    return false;
+  }
   PointerRNA ptr = {};
   PropertyRNA *prop = nullptr;
   Main *bmain = CTX_data_main(C);
