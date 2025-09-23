@@ -952,29 +952,23 @@ struct CLG_CStrCmp {
   }
 };
 
-static std::mutex &clg_identifiers_mutex()
-{
-  static std::mutex mutex;
-  return mutex;
-}
-
 static std::set<const char *, CLG_CStrCmp> &clg_all_identifiers()
 {
-  /* Inside function for correct initialization order. */
   static std::set<const char *, CLG_CStrCmp> identifiers;
   return identifiers;
 }
 
+static std::mutex clg_mutex;
+
 void CLG_logref_register(CLG_LogRef *clg_ref)
 {
-  std::scoped_lock lock(clg_identifiers_mutex());
+  std::scoped_lock lock(clg_mutex);
   clg_all_identifiers().insert(clg_ref->identifier);
 }
 
-extern "C" void CLG_logref_list_all(void (*callback)(const char *identifier, void *user_data), void *user_data)
+void CLG_logref_list_all(void (*callback)(const char *identifier, void *user_data), void *user_data)
 {
-  std::scoped_lock lock(clg_identifiers_mutex());
-
+  std::scoped_lock lock(clg_mutex);
   for (const char *identifier : clg_all_identifiers()) {
     callback(identifier, user_data);
   }
