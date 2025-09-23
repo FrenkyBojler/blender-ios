@@ -121,7 +121,7 @@ static void node_init(const bContext *C, PointerRNA *node_pointer)
   Scene *scene = CTX_data_scene(C);
   if (scene) {
     const RenderData *render_data = &scene->r;
-    BLI_strncpy(data->directory, render_data->pic, FILE_MAX);
+    STRNCPY(data->directory, render_data->pic);
   }
 }
 
@@ -174,7 +174,7 @@ static Vector<path_templates::Error> compute_image_path(const StringRefNull dire
                                                         char *r_image_path)
 {
   char base_path[FILE_MAX] = "";
-  BLI_strncpy(base_path, directory.c_str(), FILE_MAX);
+  STRNCPY(base_path, directory.c_str());
   const std::string full_file_name = file_name + file_name_suffix;
   BLI_path_append(base_path, FILE_MAX, full_file_name.c_str());
 
@@ -867,7 +867,7 @@ void FileOutputItemsAccessor::blend_read_data_item(BlendDataReader *reader, Item
 std::string FileOutputItemsAccessor::validate_name(const StringRef name)
 {
   char file_name[FILE_MAX] = "";
-  BLI_strncpy(file_name, name.data(), FILE_MAX);
+  STRNCPY(file_name, name.data());
   BLI_path_make_safe_filename(file_name);
   return file_name;
 }
