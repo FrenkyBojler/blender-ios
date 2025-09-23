@@ -93,7 +93,7 @@ def get_context_modifier(context):
 
 def edit_geometry_nodes_modifier_poll(context):
     modifier = get_context_modifier(context)
-    if modifier is None:
+    if not modifier:
         return False
     return modifier.id_data.is_editable
 
