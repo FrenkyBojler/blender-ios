@@ -714,7 +714,6 @@ using I16 = ComponentValue<int16_t>;
 using I32 = ComponentValue<int32_t>;
 using F16 = ComponentValue<uint16_t>;
 using F32 = ComponentValue<float>;
-using SRGBA8 = PixelValue<ColorSceneLinearByteEncoded4b<eAlpha::Premultiplied>>;
 using FLOAT3 = PixelValue<float3>;
 using FLOAT4 = PixelValue<ColorSceneLinear4f<eAlpha::Premultiplied>>;
 /* NOTE: Vulkan stores R11_G11_B10 in reverse component order. */
@@ -855,16 +854,6 @@ void convert(DestinationType &dst, const SourceType &src)
                 std::is_same<SourceType, I16>() || std::is_same<SourceType, I32>());
   static_assert(!std::is_same<DestinationType, SourceType>());
   dst.value = src.value;
-}
-
-static void convert(SRGBA8 &dst, const FLOAT4 &src)
-{
-  dst.value = color::encode(src.value);
-}
-
-static void convert(FLOAT4 &dst, const SRGBA8 &src)
-{
-  dst.value = color::decode(src.value);
 }
 
 static void convert(FLOAT3 &dst, const HALF4 &src)
