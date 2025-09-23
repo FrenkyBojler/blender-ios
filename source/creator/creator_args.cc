@@ -1327,6 +1327,8 @@ static const char arg_handle_list_clog_args_doc[] =
 static int arg_handle_list_clog_args(int /*argc*/, const char ** /*argv*/, void * /*data*/)
 {
   CLG_logref_list_all(list_all_clog_identifiers_callback, nullptr);
+  /* Perform global cleanup before exiting early. */
+  BKE_blender_atexit();
   exit(0);
   return 0;
 }
