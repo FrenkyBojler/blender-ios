@@ -285,13 +285,13 @@ void VIEW3D_OT_snap_selected_to_grid(wmOperatorType *ot)
 /** \name Snap Selection to Location (Utility)
  * \{ */
 
-static bool pose_bone_flag_test_recursive(const bPoseChannel *bone, int flag)
+static bool pose_bone_flag_test_recursive(const bPoseChannel *pose_bone, int flag)
 {
-  if (bone->flag & flag) {
+  if (pose_bone->flag & flag) {
     return true;
   }
-  if (bone->parent) {
-    return pose_bone_flag_test_recursive(bone->parent, flag);
+  if (pose_bone->parent) {
+    return pose_bone_flag_test_recursive(pose_bone->parent, flag);
   }
   return false;
 }

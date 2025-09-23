@@ -1450,10 +1450,10 @@ static void recalcData_pose(TransInfo *t)
 /** \name Special After Transform Pose
  * \{ */
 
-static void bone_children_clear_transflag(bPose &pose,
-                                          bPoseChannel &pose_bone,
-                                          const int mode,
-                                          const short around)
+static void pose_channel_children_clear_transflag(bPose &pose,
+                                                  bPoseChannel &pose_bone,
+                                                  const int mode,
+                                                  const short around)
 {
   blender::animrig::pose_bone_descendent_iterator(pose, pose_bone, [&](bPoseChannel &child) {
     if (&pose_bone == &child) {
@@ -1461,15 +1461,15 @@ static void bone_children_clear_transflag(bPose &pose,
     }
     Bone *bone = child.bone;
     if ((bone->flag & BONE_HINGE) && (bone->flag & BONE_CONNECTED)) {
-      child.runtime.flag |= POSE_RUNTIME_HINGE_CHILD_TRANSFORM;
+      pose_bone.runtime.flag |= POSE_RUNTIME_HINGE_CHILD_TRANSFORM;
     }
     else if ((pose_bone.runtime.flag & POSE_RUNTIME_TRANSFORM) &&
              ELEM(mode, TFM_ROTATION, TFM_TRACKBALL) && (around == V3D_AROUND_LOCAL_ORIGINS))
     {
-      child.runtime.flag |= POSE_RUNTIME_TRANSFORM_CHILD;
+      pose_bone.runtime.flag |= POSE_RUNTIME_TRANSFORM_CHILD;
     }
     else {
-      child.runtime.flag &= ~POSE_RUNTIME_TRANSFORM;
+      pose_bone.runtime.flag &= ~POSE_RUNTIME_TRANSFORM;
     }
   });
 }
@@ -1500,7 +1500,7 @@ void transform_convert_pose_transflags_update(Object *ob, const int mode, const 
   if (!ELEM(mode, TFM_BONESIZE, TFM_BONE_ENVELOPE_DIST)) {
     LISTBASE_FOREACH (bPoseChannel *, pchan, &ob->pose->chanbase) {
       if (pchan->runtime.flag & POSE_RUNTIME_TRANSFORM) {
-        bone_children_clear_transflag(*ob->pose, *pchan, mode, around);
+        pose_channel_children_clear_transflag(*ob->pose, *pchan, mode, around);
       }
     }
   }
