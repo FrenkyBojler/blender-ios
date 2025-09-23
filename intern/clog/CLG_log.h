@@ -128,7 +128,7 @@ extern "C" {
 
 /**
  * List all registered CLOG identifiers via callback.
- * Thread-safe. Used by --list-all-clog-args command line option.
+ * Used by --log-print-all-categories command line option.
  */
 void CLG_logref_list_all(void (*callback)(const char *identifier, void *user_data), void *user_data);
 

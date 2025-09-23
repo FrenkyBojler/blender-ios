@@ -732,7 +732,7 @@ static void print_help(bArgs *ba, bool all)
   BLI_args_print_arg_doc(ba, "--log-show-source");
   BLI_args_print_arg_doc(ba, "--log-show-backtrace");
   BLI_args_print_arg_doc(ba, "--log-file");
-  BLI_args_print_arg_doc(ba, "--list-all-clog-args");
+  BLI_args_print_arg_doc(ba, "--log-print-all-categories");
 
   PRINT("\n");
   PRINT("Debug Options:\n");
@@ -1318,13 +1318,12 @@ static void list_all_clog_identifiers_callback(const char *identifier, void * /*
   printf("%s\n", identifier);
 }
 
-static const char arg_handle_list_clog_args_doc[] =
+static const char arg_handle_list_clog_cats_doc[] =
     "\n"
-    "\tList all available CLOG identifiers and exit.\n"
+    "\tList all available logging categories and exit.\n"
     "\n"
-    "\tThis shows all CLOG identifiers that have been registered during static initialization.\n"
-    "\tUseful for determining valid values for the --log argument.";
-static int arg_handle_list_clog_args(int /*argc*/, const char ** /*argv*/, void * /*data*/)
+    "\tUse these categories with --log <category> for targeted logging.\n";
+static int arg_handle_list_clog_cats(int /*argc*/, const char ** /*argv*/, void * /*data*/)
 {
   CLG_logref_list_all(list_all_clog_identifiers_callback, nullptr);
   /* Perform global cleanup before exiting early. */
@@ -2868,7 +2867,7 @@ void main_args_setup(bContext *C, bArgs *ba, bool all)
   BLI_args_add(ba, nullptr, "--log-show-backtrace", CB(arg_handle_log_show_backtrace_set), ba);
   BLI_args_add(ba, nullptr, "--log-show-memory", CB(arg_handle_log_show_memory_set), ba);
   BLI_args_add(ba, nullptr, "--log-file", CB(arg_handle_log_file_set), ba);
-  BLI_args_add(ba, nullptr, "--list-all-clog-args", CB(arg_handle_list_clog_args), nullptr);
+  BLI_args_add(ba, nullptr, "--log-print-all-categories", CB(arg_handle_list_clog_cats), nullptr);
 
   /* GPU backend selection should be part of #ARG_PASS_ENVIRONMENT for correct GPU context
    * selection for animation player. */
