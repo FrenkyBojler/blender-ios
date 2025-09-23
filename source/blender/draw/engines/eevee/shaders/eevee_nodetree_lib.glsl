@@ -5,7 +5,7 @@
 #pragma once
 
 #include "gpu_shader_math_vector_reduce_lib.glsl"
-#include "infos/eevee_common_info.hh"
+#include "infos/eevee_common_infos.hh"
 
 SHADER_LIBRARY_CREATE_INFO(eevee_global_ubo)
 SHADER_LIBRARY_CREATE_INFO(eevee_utility_texture)
