@@ -1640,7 +1640,7 @@ void blo_do_versions_userdef(UserDef *userdef)
     }
   }
 
-  if (!USER_VERSION_ATLEAST(500, 80)) {
+  if (!USER_VERSION_ATLEAST(500, 86)) {
     /* Force-reset file compression to ON, see #135735. */
     userdef->flag |= USER_FILECOMPRESS;
   }
