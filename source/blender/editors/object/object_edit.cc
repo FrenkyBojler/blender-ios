@@ -842,11 +842,12 @@ bool editmode_enter_ex(Main *bmain, Scene *scene, Object *ob, int flag)
   ob->mode = OB_MODE_EDIT;
 
   if (ob->type == OB_MESH) {
+    const ToolSettings *ts = scene->toolsettings;
     ok = true;
 
     const bool use_key_index = mesh_needs_keyindex(bmain, static_cast<const Mesh *>(ob->data));
 
-    EDBM_mesh_make(ob, scene->toolsettings->selectmode, use_key_index);
+    EDBM_mesh_make(ob, ts->selectmode, ts->uv_sticky, use_key_index);
 
     BMEditMesh *em = BKE_editmesh_from_object(ob);
     if (LIKELY(em)) {

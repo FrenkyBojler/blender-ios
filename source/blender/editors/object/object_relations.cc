@@ -112,6 +112,7 @@ static wmOperatorStatus vertex_parent_set_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
+  const ToolSettings *ts = scene->toolsettings;
   View3D *v3d = CTX_wm_view3d(C);
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
@@ -128,7 +129,7 @@ static wmOperatorStatus vertex_parent_set_exec(bContext *C, wmOperator *op)
     Mesh *mesh = static_cast<Mesh *>(obedit->data);
 
     EDBM_mesh_load(bmain, obedit);
-    EDBM_mesh_make(obedit, scene->toolsettings->selectmode, true);
+    EDBM_mesh_make(obedit, ts->selectmode, ts->uv_sticky, true);
 
     DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
 

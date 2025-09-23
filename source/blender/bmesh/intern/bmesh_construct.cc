@@ -667,6 +667,7 @@ BMesh *BM_mesh_copy(BMesh *bm_old)
   /* Copy various settings. */
   bm_new->shapenr = bm_old->shapenr;
   bm_new->selectmode = bm_old->selectmode;
+  bm_new->uv_select_sticky = bm_old->uv_select_sticky;
 
   return bm_new;
 }

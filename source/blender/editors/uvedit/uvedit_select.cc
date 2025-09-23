@@ -5777,6 +5777,19 @@ void ED_uvedit_sticky_selectmode_update(bContext *C)
 {
   Scene *scene = CTX_data_scene(C);
   ToolSettings *ts = scene->toolsettings;
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  BKE_view_layer_synced_ensure(scene, view_layer);
+  Object *obact = BKE_view_layer_active_object_get(view_layer);
+
+  if (obact && (obact->type == OB_MESH) && (obact->mode & OB_MODE_EDIT)) {
+    FOREACH_OBJECT_IN_EDIT_MODE_BEGIN (scene, view_layer, nullptr, ob_iter) {
+      if (BMEditMesh *em = BKE_editmesh_from_object(ob_iter)) {
+        em->bm->uv_select_sticky = ts->uv_sticky;
+      }
+    }
+    FOREACH_OBJECT_IN_EDIT_MODE_END;
+  }
+
   if ((ts->uv_flag & UV_FLAG_SYNC_SELECT) == 0) {
     return;
   }
@@ -5785,7 +5798,6 @@ void ED_uvedit_sticky_selectmode_update(bContext *C)
     return;
   }
 
-  ViewLayer *view_layer = CTX_data_view_layer(C);
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(

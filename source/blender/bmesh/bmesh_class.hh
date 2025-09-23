@@ -375,6 +375,11 @@ struct BMesh {
    */
   short selectmode;
 
+  /**
+   * A copy of scene UV sticky selection mode, see: #ToolSettings::uv_sticky.
+   */
+  char uv_select_sticky;
+
   /** 1-based index of the shape key's #Key::block this #BMesh came from. */
   int shapenr;
 

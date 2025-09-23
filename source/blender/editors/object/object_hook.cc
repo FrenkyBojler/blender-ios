@@ -332,10 +332,11 @@ static bool object_hook_index_array(Main *bmain,
 
   switch (obedit->type) {
     case OB_MESH: {
+      const ToolSettings *ts = scene->toolsettings;
       Mesh *mesh = static_cast<Mesh *>(obedit->data);
 
       EDBM_mesh_load(bmain, obedit);
-      EDBM_mesh_make(obedit, scene->toolsettings->selectmode, true);
+      EDBM_mesh_make(obedit, ts->selectmode, ts->uv_sticky, true);
 
       DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
 

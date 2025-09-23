@@ -151,6 +151,7 @@ struct UndoMesh {
   Mesh *mesh;
   int selectmode;
   char uv_selectmode;
+  char uv_select_sticky;
 
   /**
    * The active shape key associated with this mesh.
@@ -1075,6 +1076,7 @@ static bool mesh_undosys_step_encode(bContext *C, Main *bmain, UndoStep *us_p)
     em->needs_flush_to_id = 1;
     us->step.data_size += elem->data.undo_size;
     elem->data.uv_selectmode = ts->uv_selectmode;
+    elem->data.uv_select_sticky = ts->uv_sticky;
 
 #ifdef USE_ARRAY_STORE
     /** As this is only data storage it is safe to set the session ID here. */
@@ -1139,6 +1141,7 @@ static void mesh_undosys_step_decode(
 
   scene->toolsettings->selectmode = us->elems[0].data.selectmode;
   scene->toolsettings->uv_selectmode = us->elems[0].data.uv_selectmode;
+  scene->toolsettings->uv_sticky = us->elems[0].data.uv_select_sticky;
 
   bmain->is_memfile_undo_flush_needed = true;
 

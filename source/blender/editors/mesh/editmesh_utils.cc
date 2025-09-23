@@ -279,15 +279,19 @@ static int object_shapenr_basis_index_ensured(const Object *ob)
   return ob->shapenr;
 }
 
-void EDBM_mesh_make(Object *ob, const int select_mode, const bool add_key_index)
+void EDBM_mesh_make(Object *ob,
+                    const int select_mode,
+                    const char uv_select_sticky,
+                    const bool add_key_index)
 {
   Mesh *mesh = static_cast<Mesh *>(ob->data);
-  EDBM_mesh_make_from_mesh(ob, mesh, select_mode, add_key_index);
+  EDBM_mesh_make_from_mesh(ob, mesh, select_mode, uv_select_sticky, add_key_index);
 }
 
 void EDBM_mesh_make_from_mesh(Object *ob,
                               Mesh *src_mesh,
                               const int select_mode,
+                              const char uv_select_sticky,
                               const bool add_key_index)
 {
   Mesh *mesh = static_cast<Mesh *>(ob->data);
@@ -304,12 +308,15 @@ void EDBM_mesh_make_from_mesh(Object *ob,
     mesh->runtime->edit_mesh.reset();
   }
 
+  bm->selectmode = select_mode;
+  bm->uv_select_sticky = uv_select_sticky;
+
   /* Executing operators re-tessellates,
    * so we can avoid doing here but at some point it may need to be added back. */
   mesh->runtime->edit_mesh = std::make_shared<BMEditMesh>();
   mesh->runtime->edit_mesh->bm = bm;
 
-  mesh->runtime->edit_mesh->selectmode = mesh->runtime->edit_mesh->bm->selectmode = select_mode;
+  mesh->runtime->edit_mesh->selectmode = select_mode;
   mesh->runtime->edit_mesh->mat_nr = (ob->actcol > 0) ? ob->actcol - 1 : 0;
 
   /* we need to flush selection because the mode may have changed from when last in editmode */
