@@ -805,30 +805,12 @@ static Scene *sequencer_add_scene_asset(const bContext &C,
 {
   Main &bmain = *CTX_data_main(&C);
   Scene *scene_asset = reinterpret_cast<Scene *>(
-      asset::asset_local_id_ensure_imported(bmain, asset));
+      asset::asset_local_id_ensure_imported(bmain, asset, ASSET_IMPORT_APPEND));
 
   if (asset.is_local_id()) {
     /* Local scene that needs to be duplicated. */
     Scene *scene_copy = BKE_scene_duplicate(&bmain, scene_asset, SCE_COPY_FULL);
     return scene_copy;
-  }
-
-  switch (asset.get_import_method().value_or(ASSET_IMPORT_APPEND_REUSE)) {
-    case ASSET_IMPORT_LINK:
-      /* Force it to be append it. */
-      BKE_lib_id_make_local(&bmain,
-                            &scene_asset->id,
-                            LIB_ID_MAKELOCAL_FORCE_COPY | LIB_ID_MAKELOCAL_INDIRECT |
-                                LIB_ID_MAKELOCAL_ASSET_DATA_CLEAR);
-      if (scene_asset->id.newid) {
-        ID *newid = scene_asset->id.newid;
-        scene_asset->id.newid = nullptr;
-        scene_asset = reinterpret_cast<Scene *>(newid);
-      }
-      break;
-    case ASSET_IMPORT_APPEND:
-    case ASSET_IMPORT_APPEND_REUSE:
-      break;
   }
   return scene_asset;
 }
