@@ -3045,6 +3045,7 @@ void main_args_setup(bContext *C, bArgs *ba, bool all)
                CB_EX(arg_handle_debug_mode_generic_set, depsgraph_time),
                (void *)G_DEBUG_DEPSGRAPH_TIME);
   BLI_args_add(ba,
+
                nullptr,
                "--debug-depsgraph-no-threads",
                CB_EX(arg_handle_debug_mode_generic_set, depsgraph_no_threads),
