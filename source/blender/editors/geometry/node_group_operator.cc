@@ -822,10 +822,9 @@ static wmOperatorStatus run_node_group_exec(bContext *C, wmOperator *op)
          * losing all the data. */
         bke::GeometrySet geometry;
         references[handles[i]].to_geometry_set(geometry);
+        const StringRef name = geometry.name.empty() ? geometry.name : DATA_("Object");
         std::string unique_name = BLI_uniquename_cb(
-            [&](const StringRef name) { return instance_by_name.contains(name); },
-            '.',
-            geometry.name);
+            [&](const StringRef name) { return instance_by_name.contains(name); }, '.', name);
         instance_by_name.add(std::move(unique_name), {transforms[i], std::move(geometry)});
       }
     }
