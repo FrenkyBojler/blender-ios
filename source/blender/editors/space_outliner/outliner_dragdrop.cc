@@ -1428,6 +1428,8 @@ static wmOperatorStatus collection_drop_invoke(bContext *C,
   SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
   if (space_outliner->sort_method == SO_SORT_CUSTOM) {
     BKE_collection_object_sort_resync(data.to);
+    /* Ensure ViewLayer bases and base index reflect the new order. */
+    BKE_main_collection_sync(bmain);
   }
   DEG_id_tag_update(&data.to->id, ID_RECALC_SYNC_TO_EVAL | ID_RECALC_HIERARCHY);
   DEG_relations_tag_update(bmain);
