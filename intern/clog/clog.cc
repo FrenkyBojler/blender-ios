@@ -14,6 +14,8 @@
 #include <cstring>
 
 #include <mutex>
+#include <set>
+#include <string>
 
 /* Disable for small single threaded programs
  * to avoid having to link with pthreads. */
@@ -943,6 +945,31 @@ bool CLG_quiet_get()
  *
  * Use to avoid look-ups each time.
  * \{ */
+
+static std::set<std::string> &clg_all_identifiers()
+{
+  /* Inside function for correct initialization order. */
+  static std::set<std::string> identifiers;
+  return identifiers;
+}
+
+void CLG_logref_register(CLG_LogRef *clg_ref)
+{
+  static std::mutex mutex;
+  std::scoped_lock lock(mutex);
+
+  clg_all_identifiers().insert(std::string(clg_ref->identifier));
+}
+
+extern "C" void CLG_logref_list_all(void (*callback)(const char *identifier, void *user_data), void *user_data)
+{
+  static std::mutex mutex;
+  std::scoped_lock lock(mutex);
+
+  for (const std::string &identifier : clg_all_identifiers()) {
+    callback(identifier.c_str(), user_data);
+  }
+}
 
 void CLG_logref_init(CLG_LogRef *clg_ref)
 {
