@@ -349,7 +349,7 @@ if(TEST_SRC_DIR_EXISTS)
   )
 
 # This test is intermittently failing. Disable it for now to avoid other work
-# being incorrectly flagged as broken. Once issue #146221 is resolved this 
+# being incorrectly flagged as broken. Once issue #146221 is resolved this
 # test must be re-enabled.
 #
 #  add_blender_test(
@@ -407,6 +407,11 @@ if(TEST_SRC_DIR_EXISTS)
     --python ${TEST_PYTHON_DIR}/curves_extrude.py
     --
     --run-all-tests
+  )
+
+  add_blender_test(
+    mesh_join
+    --python ${TEST_PYTHON_DIR}/mesh_join.py
   )
 
   add_blender_test(
