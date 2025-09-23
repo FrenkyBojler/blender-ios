@@ -630,11 +630,10 @@ static void replace_inputs_evaluated_data_blocks(
 
 static bool object_has_editable_data(const Main &bmain, const Object &object)
 {
-  if (!ELEM(object.type, OB_CURVES, OB_POINTCLOUD, OB_MESH, OB_GREASE_PENCIL)) {
-    return false;
-  }
-  if (!BKE_id_is_editable(&bmain, static_cast<const ID *>(object.data))) {
-    return false;
+  if (object.data) {
+    if (!BKE_id_is_editable(&bmain, static_cast<const ID *>(object.data))) {
+      return false;
+    }
   }
   return true;
 }
@@ -782,18 +781,19 @@ static wmOperatorStatus run_node_group_exec(bContext *C, wmOperator *op)
     instances->resize(objects.size());
 
     {
-      Set<void *> unique_data;
+      Map<void *, int> object_data_to_reference;
       MutableSpan<float4x4> transforms = instances->transforms_for_write();
       MutableSpan<int> handles = instances->reference_handles_for_write();
       for (const int i : objects.index_range()) {
         Object &object = *objects[i];
         transforms[i] = object.object_to_world();
-        if (unique_data.add(object.data)) {
+        const int reference_index = object_data_to_reference.lookup_or_add_cb(object.data, [&]() {
           bke::GeometrySet geometry_orig = get_original_geometry_eval_copy(
               *depsgraph_active, object, operator_eval_data, orig_mesh_states);
           geometry_orig.name = BKE_id_name(object.id);
-          handles[i] = instances->add_new_reference(std::move(geometry_orig));
-        }
+          return instances->add_new_reference(std::move(geometry_orig));
+        });
+        handles[i] = reference_index;
       }
     }
 
