@@ -184,7 +184,7 @@ static float speed_effect_interpolation_ratio_get(Scene *scene,
 }
 
 static ImBuf *do_speed_effect(const RenderData *context,
-                              SeqRenderState * state,
+                              SeqRenderState *state,
                               Strip *strip,
                               float timeline_frame,
                               float fac,

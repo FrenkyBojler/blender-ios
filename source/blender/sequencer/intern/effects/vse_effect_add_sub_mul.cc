@@ -47,7 +47,7 @@ struct AddEffectOp {
 };
 
 static ImBuf *do_add_effect(const RenderData *context,
-                            SeqRenderState */*state*/,
+                            SeqRenderState * /*state*/,
                             Strip * /*seq*/,
                             float /*timeline_frame*/,
                             float fac,
