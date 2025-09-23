@@ -398,7 +398,7 @@ static void add_pose_transdata(
 
   const bArmature *arm = static_cast<bArmature *>(ob->data);
   BKE_pose_channel_gizmo_location(arm, pchan, td->center);
-  if (pchan->flag & POSE_TEMP_SWITCH) {
+  if (pchan->flag & POSE_TRANSFORM_AROUND_CUSTOM_TX) {
     copy_v3_v3(td_ext->center_no_override, pchan->pose_mat[3]);
   }
   else {

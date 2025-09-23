@@ -457,7 +457,11 @@ typedef enum ePchan_Flag {
   /* When set and bPoseChan.custom_tx is not a nullptr, the gizmo will be drawn at the location and
      orientation of the custom_tx instead of this bone. */
   POSE_TRANSFORM_AT_CUSTOM_TX = (1 << 4),
-  POSE_TEMP_SWITCH = (1 << 5),
+  /* When set, transformations will modify the bone as if it was a child of the
+     bPoseChan.custom_tx. The flag only has an effect when `POSE_TRANSFORM_AT_CUSTOM_TX` and
+     `custom_tx` are set. This can be useful for rigs where the deformation is coming from
+     blendshapes in addition to the armature. */
+  POSE_TRANSFORM_AROUND_CUSTOM_TX = (1 << 5),
   /* IK/Pose solving */
   POSE_CHAIN = (1 << 9),
   POSE_DONE = (1 << 10),

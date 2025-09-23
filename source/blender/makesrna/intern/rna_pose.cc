@@ -1178,9 +1178,13 @@ static void rna_def_pose_channel(BlenderRNA *brna)
                            "orientation of the Custom Shape Transform bone");
   RNA_def_property_update(prop, NC_OBJECT | ND_POSE, "rna_Pose_update");
 
-  prop = RNA_def_property(srna, "temp_pivot_switch", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "flag", POSE_TEMP_SWITCH);
-  RNA_def_property_ui_text(prop, "Temp Switch", "When enabled, foo");
+  prop = RNA_def_property(srna, "custom_shape_transform_use_pivot", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", POSE_TRANSFORM_AROUND_CUSTOM_TX);
+  RNA_def_property_ui_text(
+      prop,
+      "Use As Pivot",
+      "When enabled, transformations will move the bone as if it was a child of the Custom Shape "
+      "Transform bone. This can be useful when combining shapekey and armature deformations.");
   RNA_def_property_update(prop, NC_OBJECT | ND_POSE, "rna_Pose_update");
 
   prop = RNA_def_property(srna, "use_custom_shape_bone_size", PROP_BOOLEAN, PROP_NONE);
