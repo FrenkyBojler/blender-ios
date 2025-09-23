@@ -795,7 +795,7 @@ void SEQUENCER_OT_scene_strip_add_new(wmOperatorType *ot)
 
 /**
  * Make sure the scene is always unique and ready to edit.
- * If it was local it should be duplicated. If linked it should be appended.
+ * If it was local it should be duplicated. If external it should be appended.
  */
 static Scene *sequencer_add_scene_asset(const bContext &C,
                                         const asset_system::AssetRepresentation &asset,

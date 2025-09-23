@@ -20,7 +20,7 @@ namespace blender::ed::asset {
 
 ID *asset_local_id_ensure_imported(Main &bmain,
                                    const asset_system::AssetRepresentation &asset,
-                                   std::optional<eAssetImportMethod> import_method)
+                                   const std::optional<eAssetImportMethod> import_method)
 {
   if (ID *local_id = asset.local_id()) {
     return local_id;
@@ -31,11 +31,15 @@ ID *asset_local_id_ensure_imported(Main &bmain,
     return nullptr;
   }
 
-  std::optional<eAssetImportMethod> param_method = import_method;
-  std::optional<eAssetImportMethod> asset_method = asset.get_import_method();
-
-  eAssetImportMethod method = param_method.value_or(
-      asset_method.value_or(ASSET_IMPORT_APPEND_REUSE));
+  const eAssetImportMethod method = [&]() {
+    if (import_method) {
+      return *import_method;
+    }
+    if (std::optional asset_method = asset.get_import_method()) {
+      return *asset_method;
+    }
+    return ASSET_IMPORT_APPEND_REUSE;
+  }();
 
   switch (method) {
     case ASSET_IMPORT_LINK:
