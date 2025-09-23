@@ -1534,7 +1534,7 @@ static void do_version_file_output_node(bNode &node)
   char directory[FILE_MAX] = "";
   char file_name[FILE_MAX] = "";
   BLI_path_split_dir_file(data->directory, directory, FILE_MAX, file_name, FILE_MAX);
-  BLI_strncpy(data->directory, directory, FILE_MAX);
+  STRNCPY(data->directory, directory);
   data->file_name = BLI_strdup_null(file_name);
 
   data->items_count = BLI_listbase_count(&node.inputs);
@@ -2253,6 +2253,34 @@ static void do_version_double_edge_mask_options_to_inputs(bNodeTree &ntree, bNod
       node.custom1);
 }
 
+static void version_dynamic_viewer_node_items(bNodeTree &ntree)
+{
+  LISTBASE_FOREACH (bNode *, node, &ntree.nodes) {
+    if (node->type_legacy != GEO_NODE_VIEWER) {
+      continue;
+    }
+    NodeGeometryViewer *storage = static_cast<NodeGeometryViewer *>(node->storage);
+    const int input_sockets_num = BLI_listbase_count(&node->inputs);
+    if (input_sockets_num == storage->items_num + 1) {
+      /* Make versioning idempotent. */
+      continue;
+    }
+    storage->items_num = 2;
+    storage->items = MEM_calloc_arrayN<NodeGeometryViewerItem>(2, __func__);
+    NodeGeometryViewerItem &geometry_item = storage->items[0];
+    geometry_item.name = BLI_strdup("Geometry");
+    geometry_item.socket_type = SOCK_GEOMETRY;
+    geometry_item.identifier = 0;
+    NodeGeometryViewerItem &value_item = storage->items[1];
+    value_item.name = BLI_strdup("Value");
+    value_item.socket_type = blender::bke::custom_data_type_to_socket_type(
+                                 eCustomDataType(storage->data_type_legacy))
+                                 .value_or(SOCK_FLOAT);
+    value_item.identifier = 1;
+    storage->next_identifier = 2;
+  }
+}
+
 void do_versions_after_linking_500(FileData *fd, Main *bmain)
 {
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 9)) {
@@ -2590,21 +2618,6 @@ void blo_do_versions_500(FileData *fd, Library * /*lib*/, Main *bmain)
         LISTBASE_FOREACH_MUTABLE (bNode *, node, &node_tree->nodes) {
           if (node->type_legacy == CMP_NODE_NORMAL) {
             do_version_normal_node_dot_product(node_tree, node);
-          }
-        }
-      }
-    }
-    FOREACH_NODETREE_END;
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 23)) {
-    /* Change default Sky Texture to Nishita (after removal of old sky models) */
-    FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
-      if (ntree->type == NTREE_SHADER) {
-        LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
-          if (node->type_legacy == SH_NODE_TEX_SKY && node->storage) {
-            NodeTexSky *tex = (NodeTexSky *)node->storage;
-            tex->sky_model = 0;
           }
         }
       }
@@ -3335,6 +3348,57 @@ void blo_do_versions_500(FileData *fd, Library * /*lib*/, Main *bmain)
           do_version_double_edge_mask_options_to_inputs(*node_tree, *node);
         }
       }
+    }
+    FOREACH_NODETREE_END;
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 84)) {
+    /* Add sidebar to the preferences editor. */
+    LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
+      LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+        LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
+          if (sl->spacetype == SPACE_USERPREF) {
+            ListBase *regionbase = (sl == area->spacedata.first) ? &area->regionbase :
+                                                                   &sl->regionbase;
+            ARegion *new_sidebar = do_versions_add_region_if_not_found(
+                regionbase, RGN_TYPE_UI, "sidebar for preferences", RGN_TYPE_HEADER);
+            if (new_sidebar != nullptr) {
+              new_sidebar->alignment = RGN_ALIGN_LEFT;
+              new_sidebar->flag &= ~RGN_FLAG_HIDDEN;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  if (MAIN_VERSION_FILE_ATLEAST(bmain, 500, 23) && !MAIN_VERSION_FILE_ATLEAST(bmain, 500, 85)) {
+    /* Old sky textures were temporarily removed and restored. */
+    /* Change default Sky Texture to Nishita (after removal of old sky models) */
+    FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
+      if (ntree->type == NTREE_SHADER) {
+        LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
+          if (node->type_legacy == SH_NODE_TEX_SKY && node->storage) {
+            NodeTexSky *tex = (NodeTexSky *)node->storage;
+            if (tex->sky_model == 0) {
+              tex->sky_model = SHD_SKY_SINGLE_SCATTERING;
+            }
+            if (tex->sky_model == 1) {
+              tex->sky_model = SHD_SKY_MULTIPLE_SCATTERING;
+            }
+          }
+        }
+      }
+    }
+    FOREACH_NODETREE_END;
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 86)) {
+    FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
+      if (ntree->type != NTREE_GEOMETRY) {
+        continue;
+      }
+      version_dynamic_viewer_node_items(*ntree);
     }
     FOREACH_NODETREE_END;
   }
