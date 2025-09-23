@@ -115,12 +115,23 @@ void CLG_type_filter_exclude(const char *type_match, int type_match_len);
 void CLG_level_set(CLG_Level level);
 
 void CLG_logref_init(CLG_LogRef *clg_ref);
-void CLG_logref_register(CLG_LogRef *clg_ref);
 
 #ifdef __cplusplus
+/**
+ * Register a log reference identifier for later enumeration.
+ * Called automatically by CLG_LogRef constructor during static initialization.
+ */
+void CLG_logref_register(CLG_LogRef *clg_ref);
+
 extern "C" {
 #endif
+
+/**
+ * List all registered CLOG identifiers via callback.
+ * Thread-safe. Used by --list-all-clog-args command line option.
+ */
 void CLG_logref_list_all(void (*callback)(const char *identifier, void *user_data), void *user_data);
+
 #ifdef __cplusplus
 }
 #endif
