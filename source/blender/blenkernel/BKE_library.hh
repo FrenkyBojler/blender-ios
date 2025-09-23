@@ -87,6 +87,11 @@ Library *search_filepath_abs(ListBase *libraries, blender::StringRef filepath_ab
  */
 void pack_linked_id_hierarchy(Main &bmain, ID &root_id);
 
+/**
+ * Cleanup references to removed/deleted archive libraries in their archive parent.
+ */
+void main_cleanup_parent_archives(Main &bmain);
+
 };  // namespace blender::bke::library
 
 /** #LibraryRuntime.tag */

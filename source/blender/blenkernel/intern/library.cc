@@ -103,6 +103,7 @@ static void library_copy_data(Main *bmain,
 static void library_foreach_id(ID *id, LibraryForeachIDData *data)
 {
   Library *lib = (Library *)id;
+  const LibraryForeachIDFlag foreach_flag = BKE_lib_query_foreachid_process_flags_get(data);
   BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, lib->runtime->parent, IDWALK_CB_NEVER_SELF);
 
   if (lib->flag & LIBRARY_FLAG_IS_ARCHIVE) {
@@ -111,11 +112,27 @@ static void library_foreach_id(ID *id, LibraryForeachIDData *data)
       BKE_LIB_FOREACHID_PROCESS_ID(
           data, lib->archive_parent_library, IDWALK_CB_NEVER_SELF | IDWALK_CB_NEVER_NULL);
     }
+
+    /* Archive libraries should never 'own' other archives. */
+    BLI_assert(lib->runtime->archived_libraries.is_empty());
+    if (foreach_flag & IDWALK_DO_INTERNAL_RUNTIME_POINTERS) {
+      for (Library *&lib_p : lib->runtime->archived_libraries) {
+        BKE_LIB_FOREACHID_PROCESS_ID(
+            data, lib_p, IDWALK_CB_NEVER_SELF | IDWALK_CB_INTERNAL | IDWALK_CB_LOOPBACK);
+      }
+    }
   }
   else {
     /* Regular libraries should never have an archive parent. */
     BLI_assert(!lib->archive_parent_library);
     BKE_LIB_FOREACHID_PROCESS_ID(data, lib->archive_parent_library, IDWALK_CB_NEVER_SELF);
+
+    if (foreach_flag & IDWALK_DO_INTERNAL_RUNTIME_POINTERS) {
+      for (Library *&lib_p : lib->runtime->archived_libraries) {
+        BKE_LIB_FOREACHID_PROCESS_ID(
+            data, lib_p, IDWALK_CB_NEVER_SELF | IDWALK_CB_INTERNAL | IDWALK_CB_LOOPBACK);
+      }
+    }
   }
 }
 
@@ -668,4 +685,31 @@ void blender::bke::library::pack_linked_id_hierarchy(Main &bmain, ID &root_id)
       IDWALK_READONLY | IDWALK_RECURSE);
 
   pack_linked_ids(bmain, ids_to_pack);
+}
+
+void blender::bke::library::main_cleanup_parent_archives(Main &bmain)
+{
+  LISTBASE_FOREACH (Library *, lib, &bmain.libraries) {
+    if (lib->flag & LIBRARY_FLAG_IS_ARCHIVE) {
+      BLI_assert(!lib->runtime || lib->runtime->archived_libraries.is_empty());
+    }
+    else {
+      int i_read_curr = 0;
+      int i_insert_curr = 0;
+      for (; i_read_curr < lib->runtime->archived_libraries.size(); i_read_curr++) {
+        if (!lib->runtime->archived_libraries[i_read_curr]) {
+          continue;
+        }
+        if (i_insert_curr < i_read_curr) {
+          lib->runtime->archived_libraries[i_insert_curr] =
+              lib->runtime->archived_libraries[i_read_curr];
+        }
+        i_insert_curr++;
+      }
+      BLI_assert(i_insert_curr <= i_read_curr);
+      if (i_insert_curr < i_read_curr) {
+        lib->runtime->archived_libraries.resize(i_insert_curr);
+      }
+    }
+  }
 }
