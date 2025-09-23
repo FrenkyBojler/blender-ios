@@ -6391,6 +6391,15 @@ static void rna_def_scene_image_format_data(BlenderRNA *brna)
   RNA_def_property_enum_funcs(prop, nullptr, nullptr, "rna_ImageFormatSettings_exr_codec_itemf");
   RNA_def_property_ui_text(prop, "Codec", "Compression codec settings for OpenEXR");
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
+
+  prop = RNA_def_property(srna, "use_exr_multipart", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "exr_flag", R_IMF_EXR_FLAG_MULTIPART);
+  RNA_def_property_ui_text(
+      prop,
+      "Multi-Part",
+      "Write each pass separately for more efficient file loading. This may be disabled for "
+      "compatibility with applications that do not support multi-part OpenEXR files.");
+  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
 #  endif
 
 #  ifdef WITH_IMAGE_OPENJPEG

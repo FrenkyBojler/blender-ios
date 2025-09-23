@@ -23,7 +23,7 @@
 struct StampData;
 struct ExrHandle;
 
-ExrHandle *IMB_exr_get_handle();
+ExrHandle *IMB_exr_get_handle(bool write_multipart = false);
 
 /**
  * Add multiple channels to EXR file.
