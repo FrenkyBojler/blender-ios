@@ -952,34 +952,38 @@ bool OneapiDevice::should_use_graphics_interop(const GraphicsInteropDevice &inte
     return false;
   }
 
-  const sycl::device &device = reinterpret_cast<sycl::queue *>(device_queue_)->get_device();
-  if (!device.has(sycl::aspect::ext_oneapi_external_memory_import)) {
-    return false;
-  }
-
-  /* This extension is in the namespace "sycl::ext::intel",
-   * but also available on non-Intel GPUs. */
-  sycl::detail::uuid_type uuid = device.get_info<sycl::ext::intel::info::device::uuid>();
-  const bool found = (uuid.size() == interop_device.uuid.size() &&
-                      memcmp(uuid.data(), interop_device.uuid.data(), uuid.size()) == 0);
-
-  if (log) {
-    if (found) {
-      LOG_INFO << "Graphics interop: found matching Vulkan device for oneAPI";
-    }
-    else {
-      LOG_INFO << "Graphics interop: no matching Vulkan device for oneAPI";
+  try {
+    const sycl::device &device = reinterpret_cast<sycl::queue *>(device_queue_)->get_device();
+    if (!device.has(sycl::aspect::ext_oneapi_external_memory_import)) {
+      return false;
     }
 
-    LOG_INFO << "Graphics Interop: oneAPI UUID " << string_hex(uuid.data(), uuid.size())
-             << ", Vulkan UUID "
-             << string_hex(interop_device.uuid.data(), interop_device.uuid.size());
-  }
+    /* This extension is in the namespace "sycl::ext::intel",
+     * but also available on non-Intel GPUs. */
+    sycl::detail::uuid_type uuid = device.get_info<sycl::ext::intel::info::device::uuid>();
+    const bool found = (uuid.size() == interop_device.uuid.size() &&
+                        memcmp(uuid.data(), interop_device.uuid.data(), uuid.size()) == 0);
 
-  return found;
-#  else
-  return false;
+    if (log) {
+      if (found) {
+        LOG_INFO << "Graphics interop: found matching Vulkan device for oneAPI";
+      }
+      else {
+        LOG_INFO << "Graphics interop: no matching Vulkan device for oneAPI";
+      }
+
+      LOG_INFO << "Graphics Interop: oneAPI UUID " << string_hex(uuid.data(), uuid.size())
+               << ", Vulkan UUID "
+               << string_hex(interop_device.uuid.data(), interop_device.uuid.size());
+    }
+
+    return found;
+  }
+  catch (sycl::exception &e) {
+    LOG_ERROR << "Could not release external Vulkan memory: " << e.what();
+  }
 #  endif
+  return false;
 }
 
 void *OneapiDevice::usm_aligned_alloc_host(const size_t memory_size, const size_t alignment)

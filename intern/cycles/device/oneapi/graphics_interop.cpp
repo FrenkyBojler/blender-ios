@@ -92,7 +92,12 @@ void OneapiDeviceGraphicsInterop::set_buffer(GraphicsInteropBuffer &interop_buff
         sycl_external_memory_, 0, buffer_size_, *sycl_queue);
   }
   catch (sycl::exception &e) {
-    sycl::ext::oneapi::experimental::release_external_memory(sycl_external_memory_, *sycl_queue);
+    try {
+      sycl::ext::oneapi::experimental::release_external_memory(sycl_external_memory_, *sycl_queue);
+    }
+    catch (sycl::exception &e) {
+      LOG_ERROR << "Could not release external Vulkan memory: " << e.what();
+    }
     sycl_external_memory_ = {};
     buffer_size_ = 0;
     /* Only need to close Windows handle, as file descriptor is owned by compute API. */
@@ -100,7 +105,7 @@ void OneapiDeviceGraphicsInterop::set_buffer(GraphicsInteropBuffer &interop_buff
     CloseHandle(HANDLE(vulkan_windows_handle_));
     vulkan_windows_handle_ = nullptr;
 #  endif
-    LOG_ERROR << "Error importing Vulkan memory: " << e.what();
+    LOG_ERROR << "Error mapping external Vulkan memory: " << e.what();
     return;
   }
 }
@@ -108,9 +113,15 @@ void OneapiDeviceGraphicsInterop::set_buffer(GraphicsInteropBuffer &interop_buff
 device_ptr OneapiDeviceGraphicsInterop::map()
 {
   if (sycl_memory_ptr_ && need_zero_) {
-    /* We do not wait on the returned event here, as CUDA also uses "cuMemsetD8Async". */
-    sycl::queue *sycl_queue = reinterpret_cast<sycl::queue *>(device_->sycl_queue());
-    sycl_queue->memset(sycl_memory_ptr_, 0, buffer_size_);
+    try {
+      /* We do not wait on the returned event here, as CUDA also uses "cuMemsetD8Async". */
+      sycl::queue *sycl_queue = reinterpret_cast<sycl::queue *>(device_->sycl_queue());
+      sycl_queue->memset(sycl_memory_ptr_, 0, buffer_size_);
+    }
+    catch (sycl::exception &e) {
+      LOG_ERROR << "Error clearing external Vulkan memory: " << e.what();
+      return device_ptr(0);
+    }
     need_zero_ = false;
   }
 
@@ -123,8 +134,19 @@ void OneapiDeviceGraphicsInterop::free()
 {
   if (sycl_external_memory_.raw_handle) {
     sycl::queue *sycl_queue = reinterpret_cast<sycl::queue *>(device_->sycl_queue());
-    sycl::ext::oneapi::experimental::unmap_external_linear_memory(sycl_memory_ptr_, *sycl_queue);
-    sycl::ext::oneapi::experimental::release_external_memory(sycl_external_memory_, *sycl_queue);
+    try {
+      sycl::ext::oneapi::experimental::unmap_external_linear_memory(sycl_memory_ptr_, *sycl_queue);
+    }
+    catch (sycl::exception &e) {
+      LOG_ERROR << "Could not unmap external Vulkan memory: " << e.what();
+    }
+    try {
+      sycl::ext::oneapi::experimental::release_external_memory(sycl_external_memory_, *sycl_queue);
+    }
+    catch (sycl::exception &e) {
+      LOG_ERROR << "Could not release external Vulkan memory: " << e.what();
+    }
+    sycl_memory_ptr_ = {};
     sycl_external_memory_ = {};
   }
 
