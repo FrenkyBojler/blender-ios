@@ -845,7 +845,7 @@ static int gizmo_3d_foreach_selected(const bContext *C,
         }
 
         float pchan_pivot[3];
-        BKE_pose_channel_gizmo_location(arm, pchan, pchan_pivot);
+        BKE_pose_channel_transform_location(arm, pchan, pchan_pivot);
         run_coord_with_matrix(pchan_pivot, use_mat_local, mat_local);
         totsel++;
 

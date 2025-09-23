@@ -397,7 +397,7 @@ static void add_pose_transdata(
   float cmat[3][3], tmat[3][3];
 
   const bArmature *arm = static_cast<bArmature *>(ob->data);
-  BKE_pose_channel_gizmo_location(arm, pchan, td->center);
+  BKE_pose_channel_transform_location(arm, pchan, td->center);
   if (pchan->flag & POSE_TRANSFORM_AROUND_CUSTOM_TX) {
     copy_v3_v3(td_ext->center_no_override, pchan->pose_mat[3]);
   }
@@ -504,7 +504,7 @@ static void add_pose_transdata(
   }
 
   /* For `axismtx` we use the bone's own transform. */
-  BKE_pose_channel_gizmo_orientation(arm, pchan, pmat);
+  BKE_pose_channel_transform_orientation(arm, pchan, pmat);
   mul_m3_m3m3(td->axismtx, omat, pmat);
   normalize_m3(td->axismtx);
 

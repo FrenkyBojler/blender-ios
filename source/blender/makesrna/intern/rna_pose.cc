@@ -1170,8 +1170,7 @@ static void rna_def_pose_channel(BlenderRNA *brna)
   RNA_def_property_ui_range(prop, -FLT_MAX, FLT_MAX, 100, RNA_TRANSLATION_PREC_DEFAULT);
   RNA_def_property_update(prop, NC_OBJECT | ND_POSE, "rna_Pose_update");
 
-  prop = RNA_def_property(
-      srna, "use_custom_shape_transform_affects_gizmo", PROP_BOOLEAN, PROP_NONE);
+  prop = RNA_def_property(srna, "use_transform_at_custom_shape", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", POSE_TRANSFORM_AT_CUSTOM_TX);
   RNA_def_property_ui_text(prop,
                            "Affect Gizmo",
@@ -1179,7 +1178,7 @@ static void rna_def_pose_channel(BlenderRNA *brna)
                            "orientation of the Custom Shape Transform bone");
   RNA_def_property_update(prop, NC_OBJECT | ND_POSE, "rna_Pose_update");
 
-  prop = RNA_def_property(srna, "use_custom_shape_transform_use_pivot", PROP_BOOLEAN, PROP_NONE);
+  prop = RNA_def_property(srna, "use_transform_around_custom_shape", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", POSE_TRANSFORM_AROUND_CUSTOM_TX);
   RNA_def_property_ui_text(
       prop,

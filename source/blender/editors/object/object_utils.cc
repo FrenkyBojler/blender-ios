@@ -127,7 +127,7 @@ bool calc_active_center_for_posemode(Object *ob, const bool select_only, float r
   bPoseChannel *pchan = BKE_pose_channel_active_if_bonecoll_visible(ob);
   if (pchan && (!select_only || (pchan->bone->flag & BONE_SELECTED))) {
     const bArmature *arm = static_cast<bArmature *>(ob->data);
-    BKE_pose_channel_gizmo_location(arm, pchan, r_center);
+    BKE_pose_channel_transform_location(arm, pchan, r_center);
     return true;
   }
   return false;

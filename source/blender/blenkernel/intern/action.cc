@@ -1411,9 +1411,9 @@ static bool gizmo_follows_custom_tx(const bArmature *arm, const bPoseChannel *pc
   return pchan->flag & POSE_TRANSFORM_AT_CUSTOM_TX;
 }
 
-void BKE_pose_channel_gizmo_orientation(const bArmature *arm,
-                                        const bPoseChannel *pose_bone,
-                                        float r_pose_orientation[3][3])
+void BKE_pose_channel_transform_orientation(const bArmature *arm,
+                                            const bPoseChannel *pose_bone,
+                                            float r_pose_orientation[3][3])
 {
   if (!gizmo_follows_custom_tx(arm, pose_bone)) {
     copy_m3_m4(r_pose_orientation, pose_bone->pose_mat);
@@ -1426,9 +1426,9 @@ void BKE_pose_channel_gizmo_orientation(const bArmature *arm,
   copy_m3_m4(r_pose_orientation, custom_tx_bone->pose_mat);
 }
 
-void BKE_pose_channel_gizmo_location(const bArmature *arm,
-                                     const bPoseChannel *pose_bone,
-                                     float r_pose_space_pivot[3])
+void BKE_pose_channel_transform_location(const bArmature *arm,
+                                         const bPoseChannel *pose_bone,
+                                         float r_pose_space_pivot[3])
 {
   if (!gizmo_follows_custom_tx(arm, pose_bone)) {
     copy_v3_v3(r_pose_space_pivot, pose_bone->pose_mat[3]);

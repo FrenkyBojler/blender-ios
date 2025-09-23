@@ -420,8 +420,8 @@ class BONE_PT_display_custom_shape(BoneButtonsPanel, Panel):
             sub.prop_search(pchan, "custom_shape_transform", ob.pose, "bones", text="Override Transform")
             subsub = sub.column()
             subsub.active = bool(pchan and pchan.custom_shape and pchan.custom_shape_transform)
-            subsub.prop(pchan, "use_custom_shape_transform_affects_gizmo")
-            subsub.prop(pchan, "use_custom_shape_transform_use_pivot")
+            subsub.prop(pchan, "use_transform_at_custom_shape")
+            subsub.prop(pchan, "use_transform_around_custom_shape")
             sub.prop(pchan, "use_custom_shape_bone_size")
 
             sub.separator()

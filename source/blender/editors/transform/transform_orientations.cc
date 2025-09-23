@@ -1430,7 +1430,7 @@ int getTransformOrientation_ex(const Scene *scene,
 
     if (activeOnly && (pchan = BKE_pose_channel_active_if_bonecoll_visible(ob))) {
       float pose_mat[3][3];
-      BKE_pose_channel_gizmo_orientation(arm, pchan, pose_mat);
+      BKE_pose_channel_transform_orientation(arm, pchan, pose_mat);
 
       add_v3_v3(r_normal, pose_mat[2]);
       add_v3_v3(r_plane, pose_mat[1]);
@@ -1444,7 +1444,7 @@ int getTransformOrientation_ex(const Scene *scene,
         LISTBASE_FOREACH (bPoseChannel *, pchan, &ob->pose->chanbase) {
           if (pchan->bone && pchan->bone->flag & BONE_TRANSFORM) {
             float pose_mat[3][3];
-            BKE_pose_channel_gizmo_orientation(arm, pchan, pose_mat);
+            BKE_pose_channel_transform_orientation(arm, pchan, pose_mat);
 
             add_v3_v3(r_normal, pose_mat[2]);
             add_v3_v3(r_plane, pose_mat[1]);
