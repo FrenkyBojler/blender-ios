@@ -74,6 +74,8 @@
 /** \name Sample Color Operator
  * \{ */
 
+constexpr float UI_CIRCLE_RADIUS_PX = 3.0f;
+
 /* compute uv coordinates of mouse in face */
 static blender::float2 imapaint_pick_uv(const Mesh *mesh_eval,
                                         Scene *scene,
@@ -412,33 +414,45 @@ static wmOperatorStatus sample_color_exec(bContext *C, wmOperator *op)
 static void draw_ui(SampleColorData &data)
 {
   using namespace blender;
+  uint pos = GPU_vertformat_attr_add(
+      immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
+  immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
-  GPUVertFormat *format3d = immVertexFormat();
-  const uint pos3d = GPU_vertformat_attr_add(
-      format3d, "pos", blender::gpu::VertAttrType::SFLOAT_32_32_32);
-  const uint col3d = GPU_vertformat_attr_add(
-      format3d, "color", blender::gpu::VertAttrType::SFLOAT_32_32_32_32);
-  const uint siz3d = GPU_vertformat_attr_add(
-      format3d, "size", blender::gpu::VertAttrType::SFLOAT_32);
-  immBindBuiltinProgram(GPU_SHADER_3D_POINT_VARYING_SIZE_VARYING_COLOR);
+  immUniformColor4ub(255, 255, 255, 128);
 
-  GPU_program_point_size(true);
-  immBegin(GPU_PRIM_POINTS, data.sampled_screen_points.size());
+  GPU_line_smooth(true);
+  GPU_blend(GPU_BLEND_ALPHA);
 
   for (const int point : data.sampled_screen_points.index_range()) {
-    const int2 pos = data.sampled_screen_points[point];
-    const float3 world_pos = float3(pos.x, pos.y, 0.0f);
-    const ColorGeometry4f color = ColorGeometry4f(0.5f, 0.5f, 0.5f, 0.5f);
-    const float size = 10.0f;
-
-    immAttr4f(col3d, color[0], color[1], color[2], color[3]);
-    immAttr1f(siz3d, size * 2.0f);
-    immVertex3fv(pos3d, world_pos);
+    const int2 xy = data.sampled_screen_points[point];
+    imm_draw_circle_wire_2d(pos, float(xy.x), float(xy.y), UI_CIRCLE_RADIUS_PX, 20);
   }
 
-  immEnd();
+  if (data.sampled_screen_points.size() >= 2) {
+    const int num_lines = data.sampled_screen_points.size() - 1;
+
+    immBegin(GPU_PRIM_LINES, num_lines * 2);
+
+    for (const int point : IndexRange(num_lines)) {
+      const float2 xy1 = float2(data.sampled_screen_points[point]);
+      const float2 xy2 = float2(data.sampled_screen_points[point + 1]);
+
+      const float2 dir = math::normalize(xy2 - xy1);
+
+      const float2 line_xy1 = xy1 + dir * UI_CIRCLE_RADIUS_PX;
+      const float2 line_xy2 = xy2 - dir * UI_CIRCLE_RADIUS_PX;
+
+      immVertex2f(pos, line_xy1.x, line_xy1.y);
+      immVertex2f(pos, line_xy2.x, line_xy2.y);
+    }
+
+    immEnd();
+  }
+
+  GPU_blend(GPU_BLEND_NONE);
+  GPU_line_smooth(false);
+
   immUnbindProgram();
-  GPU_program_point_size(false);
 }
 
 static void sample_color_draw(const bContext * /*C*/, ARegion * /*region*/, void *arg)
