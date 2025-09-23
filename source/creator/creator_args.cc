@@ -1326,7 +1326,6 @@ static const char arg_handle_list_clog_cats_doc[] =
 static int arg_handle_list_clog_cats(int /*argc*/, const char ** /*argv*/, void * /*data*/)
 {
   CLG_logref_list_all(list_all_clog_identifiers_callback, nullptr);
-  /* Perform global cleanup before exiting early. */
   BKE_blender_atexit();
   exit(0);
   return 0;
@@ -3046,7 +3045,6 @@ void main_args_setup(bContext *C, bArgs *ba, bool all)
                CB_EX(arg_handle_debug_mode_generic_set, depsgraph_time),
                (void *)G_DEBUG_DEPSGRAPH_TIME);
   BLI_args_add(ba,
-
                nullptr,
                "--debug-depsgraph-no-threads",
                CB_EX(arg_handle_debug_mode_generic_set, depsgraph_no_threads),
