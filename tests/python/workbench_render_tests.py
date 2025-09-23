@@ -96,7 +96,7 @@ def main():
     parser = create_argparse()
     args = parser.parse_args()
 
-    blocklits = []
+    blocklist = []
     if args.gpu_backend == "vulkan":
         blocklist += BLOCKLIST_VULKAN
 
