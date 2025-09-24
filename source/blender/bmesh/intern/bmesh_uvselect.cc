@@ -1062,7 +1062,7 @@ void BM_mesh_uvselect_flush_mode_only_select(BMesh *bm)
   }
 }
 
-void BM_mesh_uvselect_flush(BMesh *bm, const bool select)
+void BM_mesh_uvselect_flush_from_verts(BMesh *bm, const bool select)
 {
   if (select) {
     BM_mesh_uvselect_flush_from_loop_verts_only_select(bm);

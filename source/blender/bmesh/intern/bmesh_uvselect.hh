@@ -158,12 +158,12 @@ void BM_mesh_uvselect_flush_from_faces_only_select(BMesh *bm);
 void BM_mesh_uvselect_flush_from_faces_only_deselect(BMesh *bm);
 void BM_mesh_uvselect_flush_mode(BMesh *bm);
 /**
- * Mode independent UV selection/de-selection flush.
+ * Mode independent UV selection/de-selection flush from UV vertices.
  *
  * \param select: When true, flush the selection state to de-selected elements,
  * otherwise perform the opposite, flushing de-selection.
  */
-void BM_mesh_uvselect_flush(BMesh *bm, bool select);
+void BM_mesh_uvselect_flush_from_verts(BMesh *bm, bool select);
 
 /**
  * Select elements based on the selection mode.
