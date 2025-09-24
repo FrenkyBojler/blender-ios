@@ -50,6 +50,9 @@ class FileOutputTest(unittest.TestCase):
 
         ref_input = oiio.ImageInput.open(ref_img_path)
         out_input = oiio.ImageInput.open(out_img_path)
+
+        # We'll compare all subimages, so that every pass in multilayer, multiview
+        # and multipart EXR files is checked.
         ref_subimages = ref_input.spec().get_int_attribute("oiio:subimages", 1)
         out_subimages = out_input.spec().get_int_attribute("oiio:subimages", 1)
         if ref_subimages != out_subimages:
