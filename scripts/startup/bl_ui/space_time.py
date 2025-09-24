@@ -42,7 +42,7 @@ def playback_controls(layout, context):
     is_sequencer = st.type == 'SEQUENCE_EDITOR' and st.view_type == 'SEQUENCER'
 
     scene = context.scene if not is_sequencer else context.sequencer_scene
-    tool_settings = context.tool_settings
+    tool_settings = scene.tool_settings if scene else None
     screen = context.screen
 
     if scene:
@@ -64,14 +64,15 @@ def playback_controls(layout, context):
 
     layout.separator_spacer()
 
-    row = layout.row(align=True)
-    row.prop(tool_settings, "use_keyframe_insert_auto", text="", toggle=True)
-    sub = row.row(align=True)
-    sub.active = tool_settings.use_keyframe_insert_auto
-    sub.popover(
-        panel="TIME_PT_auto_keyframing",
-        text="",
-    )
+    if tool_settings:
+        row = layout.row(align=True)
+        row.prop(tool_settings, "use_keyframe_insert_auto", text="", toggle=True)
+        sub = row.row(align=True)
+        sub.active = tool_settings.use_keyframe_insert_auto
+        sub.popover(
+            panel="TIME_PT_auto_keyframing",
+            text="",
+        )
 
     row = layout.row(align=True)
     row.operator("screen.frame_jump", text="", icon='REW').end = False
