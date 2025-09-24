@@ -74,7 +74,7 @@ static const float AEROSOL_BACKGROUND_DENSITY = 2e6f;
 static const float AEROSOL_HEIGHT_SCALE = 0.73f;
 /* Spectral to XYZ space conversion matrix. */
 static const float3 SPECTRAL_XYZ[4] = {
-    make_float3(53.386917738564668023f, 22.981337506691024754f, 0.0f),
+    make_float3(53.386917738564668023f, 22.981337506691024754f, -0.0000003663162907346f),
     make_float3(43.904844466369358263f, 71.347795700053393866f, 0.102506867965741307f),
     make_float3(1.6137278251608962005f, 18.422960591455485011f, 31.742921188390805758f),
     make_float3(20.762668673810577145f, 2.3614213523314368527f, 110.48009643252140334f),
@@ -240,6 +240,8 @@ class SkyMultipleScattering {
 
   inline float4 lookup_multiscattering(float cos_theta, float normalized_height, float d) const
   {
+    /* Avoid division by 0. */
+    d = fmax(d, EARTH_RADIUS + 1e-5f);
     /* Solid angle subtended by the planet from a point at d distance from the planet center. */
     const float omega = M_2PI_F * (1.0f - sqrtf(1.0f - sqr(EARTH_RADIUS / d)));
     const float4 T_to_ground = lookup_transmittance_at_ground(cos_theta);
