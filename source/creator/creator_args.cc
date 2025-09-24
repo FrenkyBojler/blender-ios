@@ -1320,9 +1320,8 @@ static void list_all_clog_identifiers_callback(const char *identifier, void * /*
 
 static const char arg_handle_list_clog_cats_doc[] =
     "\n"
-    "\tList all available logging categories and exit.\n"
-    "\n"
-    "\tUse these categories with --log <category> for targeted logging.\n";
+    "\tList all available logging categories for --log, and exit.\n";
+
 static int arg_handle_list_clog_cats(int /*argc*/, const char ** /*argv*/, void * /*data*/)
 {
   CLG_logref_list_all(list_all_clog_identifiers_callback, nullptr);
