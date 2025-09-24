@@ -9,6 +9,7 @@
 #include <cstddef>
 #include <cstdlib>
 #include <cstring>
+#include <unordered_set>
 
 #include <fmt/format.h>
 
@@ -103,6 +104,10 @@ struct bContext {
     void *py_context_orig;
     /** True if logging is enabled for context members (can be set programmatically). */
     bool log_access;
+    /** True if deduplication is enabled for context member logging. */
+    bool log_deduplicate;
+    /** Set of seen log entries for deduplication. */
+    std::unordered_set<std::string> *seen_log_entries;
   } data;
 };
 
@@ -111,6 +116,7 @@ struct bContext {
 bContext *CTX_create()
 {
   bContext *C = MEM_callocN<bContext>(__func__);
+  C->data.seen_log_entries = nullptr;
 
   return C;
 }
@@ -122,6 +128,9 @@ bContext *CTX_copy(const bContext *C)
 
   memset(&newC->wm.operator_poll_msg_dyn_params, 0, sizeof(newC->wm.operator_poll_msg_dyn_params));
 
+  /* Don't copy the seen_log_entries set - start fresh for the new context */
+  newC->data.seen_log_entries = nullptr;
+
   return newC;
 }
 
@@ -129,6 +138,11 @@ void CTX_free(bContext *C)
 {
   /* This may contain a dynamically allocated message, free. */
   CTX_wm_operator_poll_msg_clear(C);
+
+  /* Clean up seen_log_entries if allocated. */
+  if (C->data.seen_log_entries) {
+    delete C->data.seen_log_entries;
+  }
 
   MEM_freeN(C);
 }
@@ -397,6 +411,26 @@ static void ctx_member_log_access(const bContext *C,
 #else
   const char *location = "unknown:0";
 #endif
+
+  /* Check for deduplication if enabled. */
+  if (C && C->data.log_deduplicate) {
+    /* Create a unique key for this log entry. */
+    std::string log_key = fmt::format("{}:{}={}", location, member, value_desc);
+
+    /* Initialize the set if not already done. */
+    if (!C->data.seen_log_entries) {
+      const_cast<bContext *>(C)->data.seen_log_entries = new std::unordered_set<std::string>();
+    }
+
+    /* Check if we've already logged this entry. */
+    auto &seen_entries = *C->data.seen_log_entries;
+    if (seen_entries.find(log_key) != seen_entries.end()) {
+      return; /* Skip duplicate entry. */
+    }
+
+    /* Mark this entry as seen. */
+    seen_entries.insert(log_key);
+  }
 
   /* Use TRACE level when available, otherwise force output when Python logging is enabled. */
   const char *format = "%s: %s=%s";
@@ -1749,9 +1783,15 @@ Depsgraph *CTX_data_depsgraph_on_load(const bContext *C)
   return BKE_scene_get_depsgraph(scene, view_layer);
 }
 
-void CTX_member_logging_set(bContext *C, bool enable)
+void CTX_member_logging_set(bContext *C, bool enable, bool deduplicate)
 {
   C->data.log_access = enable;
+  C->data.log_deduplicate = deduplicate;
+
+  /* Clear existing seen entries when settings change. */
+  if (C->data.seen_log_entries) {
+    C->data.seen_log_entries->clear();
+  }
 }
 
 bool CTX_member_logging_get(const bContext *C)
