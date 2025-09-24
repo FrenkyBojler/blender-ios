@@ -457,8 +457,13 @@ static int treesort_custom(const void *v1, const void *v2)
     return BLI_strcasecmp_natural(x1->name, x2->name);
   }
 
-  Collection *col = (Collection *)x1->te->parent->directdata;
-  if (col == nullptr) {
+  TreeElement *parent = x1->te->parent;
+  if (!parent) {
+    return BLI_strcasecmp_natural(x1->name, x2->name);
+  }
+
+  Collection *col = outliner_collection_from_tree_element(parent);
+  if (!col) {
     return BLI_strcasecmp_natural(x1->name, x2->name);
   }
 
@@ -468,14 +473,13 @@ static int treesort_custom(const void *v1, const void *v2)
   CollectionObject *cob1 = BKE_collection_object_find_in(col, ob1);
   CollectionObject *cob2 = BKE_collection_object_find_in(col, ob2);
 
-  const int a = cob1 ? cob1->sort_index : 0;
-  const int b = cob2 ? cob2->sort_index : 0;
+  const int a = cob1 ? cob1->sort_index : INT_MAX;
+  const int b = cob2 ? cob2->sort_index : INT_MAX;
 
   if (a < b)
     return -1;
   if (a > b)
     return 1;
-
   return BLI_strcasecmp_natural(x1->name, x2->name);
 }
 
