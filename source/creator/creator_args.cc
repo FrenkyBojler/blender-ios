@@ -1327,7 +1327,7 @@ static int arg_handle_list_clog_cats(int /*argc*/, const char ** /*argv*/, void 
 {
   CLG_logref_list_all(list_all_clog_identifiers_callback, nullptr);
   BKE_blender_atexit();
-  exit(0);
+  exit(EXIT_SUCCESS);
   return 0;
 }
 
