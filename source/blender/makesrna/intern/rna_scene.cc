@@ -8853,7 +8853,13 @@ void RNA_def_scene(BlenderRNA *brna)
   RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
   RNA_def_property_ui_text(prop, "Use Nodes", "Enable the compositing node group.");
   RNA_def_property_boolean_funcs(prop, "rna_Scene_use_nodes_get", "rna_Scene_use_nodes_set");
-  RNA_def_property_deprecated(prop, "Unused", 500, 600);
+  RNA_def_property_deprecated(
+      prop,
+      "Unused but kept for compatibility reasons. Setting the property "
+      "has no effect, and getting it always returns True. Use #scene.render.use_compositing to "
+      "turn compositing to enable or disable compositing.",
+      500,
+      600);
 
   /* Sequencer */
   prop = RNA_def_property(srna, "sequence_editor", PROP_POINTER, PROP_NONE);
