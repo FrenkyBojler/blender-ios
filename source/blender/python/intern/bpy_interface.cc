@@ -75,6 +75,30 @@
 CLG_LOGREF_DECLARE_GLOBAL(BPY_LOG_INTERFACE, "bpy.interface");
 CLG_LOGREF_DECLARE_GLOBAL(BPY_LOG_RNA, "bpy.rna");
 
+extern CLG_LogRef *BKE_LOG_CONTEXT;
+
+/* Helper function for logging context member access errors with both CLI and Python support */
+static void bpy_context_log_member_error(const bContext *C,
+                                         const char *member,
+                                         const char *message)
+{
+  const bool use_logging = CLOG_CHECK(BKE_LOG_CONTEXT, CLG_LEVEL_INFO) ||
+                           (C && CTX_member_logging_get(C));
+  if (!use_logging) {
+    return;
+  }
+
+  std::optional<std::string> python_location = BPY_python_current_file_and_line();
+  const char *location = python_location ? python_location->c_str() : "unknown:0";
+
+  if (CLOG_CHECK(BKE_LOG_CONTEXT, CLG_LEVEL_INFO)) {
+    CLOG_INFO(BKE_LOG_CONTEXT, "%s: %s", location, message);
+  }
+  else if (C && CTX_member_logging_get(C)) {
+    CLOG_AT_LEVEL_NOCHECK(BKE_LOG_CONTEXT, CLG_LEVEL_INFO, "%s: %s", location, message);
+  }
+}
+
 /* For internal use, when starting and ending Python scripts. */
 
 /* In case a Python script triggers another Python call,
@@ -820,6 +844,11 @@ bool BPY_context_member_get(bContext *C, const char *member, bContextDataResult 
           CTX_data_list_add_ptr(result, ptr);
         }
         else {
+          /* Log invalid list item type */
+          std::string message = std::string("'") + member +
+                                "' list item not a valid type in sequence type '" +
+                                Py_TYPE(list_item)->tp_name + "'";
+          bpy_context_log_member_error(C, member, message.c_str());
         }
       }
       Py_DECREF(seq_fast);
@@ -828,6 +857,13 @@ bool BPY_context_member_get(bContext *C, const char *member, bContextDataResult 
     }
   }
 
+  if (done == false) {
+    if (item) {
+      /* Log invalid member type */
+      std::string message = std::string("'") + member + "' not a valid type";
+      bpy_context_log_member_error(C, member, message.c_str());
+    }
+  }
 
   if (use_gil) {
     PyGILState_Release(gilstate);
