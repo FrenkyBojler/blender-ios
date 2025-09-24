@@ -886,7 +886,7 @@ static wmOperatorStatus run_node_group_exec(bContext *C, wmOperator *op)
               const int type = *data ? BKE_object_obdata_to_type(*data) : OB_EMPTY;
               Object *new_object = BKE_object_add_only_object(bmain, type, name.c_str());
               new_object->data = *data;
-              id_us_plus(*data);
+              /* The new object data seems to already have a user, don't assign one here. */
               new_objects.append(new_object);
               BKE_object_apply_mat4(new_object, transforms[instance_index].ptr(), false, false);
               store_result_geometry(*C,
