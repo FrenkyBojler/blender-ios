@@ -438,6 +438,7 @@ class NODE_OT_add_node(NodeAddOperator, Operator):
 
 
 class NODE_OT_swap_node(NodeSwapOperator, Operator):
+    """Replace the selected nodes with the specified type"""
     bl_idname = "node.swap_node"
     bl_label = "Swap Node"
     bl_options = {"REGISTER", "UNDO"}
