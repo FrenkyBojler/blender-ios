@@ -3,10 +3,10 @@
  * SPDX-License-Identifier: Apache-2.0 */
 
 /* The following files are always to be kept as exact copies of each other:
- * radial_tiling_shared.hh
- * node_radial_tiling_shared.h
- * radial_tiling_shared.h
- * gpu_shader_material_radial_tiling_shared.glsl */
+ * radial_tiling_exact_copy.hh
+ * node_radial_tiling_exact_copy.h
+ * radial_tiling_exact_copy.h
+ * gpu_shader_material_radial_tiling_exact_copy.glsl */
 
 /* The SVM implementation is used as the base shared version because multiple math function
  * identifiers are already used as macros in the SVM code, making a code adaption into an SVM
@@ -114,7 +114,7 @@
  * The ratio z/w is expressed as z_R_w, which is an abbreviation of z_Ratio_y. */
 
 #ifdef ADAPT_TO_GEOMETRY_NODES
-ccl_device float4
+static ccl_device float4
 calculate_out_variables_full_roundness_irregular_circular(bool calculate_r_gon_parameter_field,
                                                           bool normalize_r_gon_parameter,
                                                           float r_gon_sides,
@@ -317,13 +317,14 @@ calculate_out_variables_full_roundness_irregular_circular(bool calculate_r_gon_p
 }
 #endif
 
-ccl_device float4 calculate_out_variables_irregular_circular(bool calculate_r_gon_parameter_field,
-                                                             bool calculate_max_unit_parameter,
-                                                             bool normalize_r_gon_parameter,
-                                                             float r_gon_sides,
-                                                             float r_gon_roundness,
-                                                             float2 coord,
-                                                             float l_coord)
+static ccl_device float4
+calculate_out_variables_irregular_circular(bool calculate_r_gon_parameter_field,
+                                           bool calculate_max_unit_parameter,
+                                           bool normalize_r_gon_parameter,
+                                           float r_gon_sides,
+                                           float r_gon_roundness,
+                                           float2 coord,
+                                           float l_coord)
 {
 #ifdef ADAPT_TO_SVM
   /* Silence compiler warnings. */
