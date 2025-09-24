@@ -173,13 +173,7 @@ static void paint_set_color(bContext *C, SampleColorData *data, const blender::f
   data->num_samples++;
 
   /* Calculate average. */
-  blender::float3 average_color;
-  if (data->num_samples > 1) {
-    mul_v3_v3fl(average_color, data->accum_color, 1.0f / float(data->num_samples));
-  }
-  else {
-    copy_v3_v3(average_color, data->accum_color);
-  }
+  const blender::float3 average_color = data->accum_color / float(data->num_samples);
 
   Paint *paint = BKE_paint_get_active_from_context(C);
   Brush *br = BKE_paint_brush(paint);
@@ -408,7 +402,7 @@ static wmOperatorStatus sample_color_invoke(bContext *C, wmOperator *op, const w
   op->customdata = data;
   paint->flags &= ~PAINT_SHOW_BRUSH;
 
-  data->accum_color = float3(0.0f);
+  data->accum_color = blender::float3(0.0f);
   data->num_samples = 0;
 
   sample_color_update_header(data, C);
