@@ -87,6 +87,7 @@ class NODE_MT_category_compositor_color(Menu):
         node_add_menu.add_node_type(layout, "ShaderNodeBlackbody")
         node_add_menu.add_node_type(layout, "ShaderNodeValToRGB")
         node_add_menu.add_node_type(layout, "CompositorNodeConvertColorSpace")
+        node_add_menu.add_node_type(layout, "CompositorNodeConvertToDisplay")
         node_add_menu.add_node_type(layout, "CompositorNodeSetAlpha")
         layout.separator()
         node_add_menu.add_node_type(layout, "CompositorNodeInvert")
@@ -151,7 +152,7 @@ class NODE_MT_category_compositor_filter(Menu):
                 "Soften", "Box Sharpen", "Diamond Sharpen", "Laplace", "Sobel", "Prewitt", "Kirsch", "Shadow"])
         node_add_menu.add_node_type_with_searchable_enum_socket(
             context, layout, "CompositorNodeGlare", "Type", [
-                "Bloom", "Ghosts", "Streaks", "Fog Glow", "Simple Star", "Sun Beams"])
+                "Bloom", "Ghosts", "Streaks", "Fog Glow", "Simple Star", "Sun Beams", "Kernel"])
         node_add_menu.add_node_type(layout, "CompositorNodeKuwahara")
         node_add_menu.add_node_type(layout, "CompositorNodePixelate")
         node_add_menu.add_node_type(layout, "CompositorNodePosterize")
@@ -320,6 +321,7 @@ class NODE_MT_category_compositor_vector(Menu):
         ops = props.settings.add()
         ops.name = "data_type"
         ops.value = "'VECTOR'"
+        node_add_menu.add_node_type(layout, "ShaderNodeRadialTiling")
         node_add_menu.add_node_type(layout, "ShaderNodeVectorCurve")
         node_add_menu.add_node_type_with_searchable_enum(context, layout, "ShaderNodeVectorMath", "operation")
         node_add_menu.add_node_type(layout, "ShaderNodeVectorRotate")
