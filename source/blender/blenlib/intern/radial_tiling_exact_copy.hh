@@ -59,7 +59,6 @@
 #    define M_PI_F M_PI
 #    define M_2PI_F M_2PI
 #    define ccl_device
-#    define static
 
 #    define false 0
 #    define true 1
@@ -88,7 +87,6 @@
 #      define M_PI_F M_PI
 #      define M_2PI_F M_TAU
 #      define ccl_device
-#      define static
 #    endif
 #  endif
 #endif
@@ -98,9 +96,11 @@
  * they can be used. To reduce the complexity on the GPU kernel while also keeping all rendering
  * implementations the same, they are only enabled in the geometry nodes implementation. */
 #ifdef ADAPT_TO_GEOMETRY_NODES
-#  define ONLY_CHECK_IN_GEOMETRY_NODES_IMPLEMENTATION(X) (X)
+#  define CHECK_ONLY_IN_GEOMETRY_NODES_IMPLEMENTATION(X) (X)
+#  define STATIC_ONLY_IN_GEOMETRY_NODES_IMPLEMENTATION static
 #else
-#  define ONLY_CHECK_IN_GEOMETRY_NODES_IMPLEMENTATION(X) true
+#  define CHECK_ONLY_IN_GEOMETRY_NODES_IMPLEMENTATION(X) true
+#  define STATIC_ONLY_IN_GEOMETRY_NODES_IMPLEMENTATION
 #endif
 
 /* Naming convention for the Radial Tiling node code:
@@ -319,7 +319,7 @@ calculate_out_variables_full_roundness_irregular_circular(bool calculate_r_gon_p
 }
 #endif
 
-static ccl_device float4
+STATIC_ONLY_IN_GEOMETRY_NODES_IMPLEMENTATION ccl_device float4
 calculate_out_variables_irregular_circular(bool calculate_r_gon_parameter_field,
                                            bool calculate_max_unit_parameter,
                                            bool normalize_r_gon_parameter,
@@ -406,7 +406,7 @@ calculate_out_variables_irregular_circular(bool calculate_r_gon_parameter_field,
         float spline_start_outer_last_bevel_start = (float(1.0) - effective_roundness) *
                                                     x_axis_A_outer_last_bevel_start;
 
-        if (ONLY_CHECK_IN_GEOMETRY_NODES_IMPLEMENTATION(calculate_r_gon_parameter_field)) {
+        if (CHECK_ONLY_IN_GEOMETRY_NODES_IMPLEMENTATION(calculate_r_gon_parameter_field)) {
           r_gon_parameter = l_angle_bisector * tanf(fabsf(segment_divider_A_angle_bisector -
                                                           segment_divider_A_coord));
           if (segment_divider_A_coord < segment_divider_A_angle_bisector) {
@@ -429,7 +429,7 @@ calculate_out_variables_irregular_circular(bool calculate_r_gon_parameter_field,
         float spline_start_A_bevel_start = (float(1.0) - r_gon_roundness) *
                                            segment_divider_A_bevel_start;
 
-        if (ONLY_CHECK_IN_GEOMETRY_NODES_IMPLEMENTATION(calculate_r_gon_parameter_field)) {
+        if (CHECK_ONLY_IN_GEOMETRY_NODES_IMPLEMENTATION(calculate_r_gon_parameter_field)) {
           r_gon_parameter = l_angle_bisector * tanf(fabsf(segment_divider_A_angle_bisector -
                                                           segment_divider_A_coord));
           if (segment_divider_A_coord < segment_divider_A_angle_bisector) {
@@ -446,7 +446,7 @@ calculate_out_variables_irregular_circular(bool calculate_r_gon_parameter_field,
         }
       }
 
-      if (ONLY_CHECK_IN_GEOMETRY_NODES_IMPLEMENTATION(calculate_r_gon_parameter_field)) {
+      if (CHECK_ONLY_IN_GEOMETRY_NODES_IMPLEMENTATION(calculate_r_gon_parameter_field)) {
         r_gon_parameter = l_angle_bisector *
                           tanf(fabsf(segment_divider_A_angle_bisector - segment_divider_A_coord));
         if (segment_divider_A_coord < segment_divider_A_angle_bisector) {
@@ -489,7 +489,7 @@ calculate_out_variables_irregular_circular(bool calculate_r_gon_parameter_field,
           }
         }
       }
-      if (ONLY_CHECK_IN_GEOMETRY_NODES_IMPLEMENTATION(calculate_max_unit_parameter)) {
+      if (CHECK_ONLY_IN_GEOMETRY_NODES_IMPLEMENTATION(calculate_max_unit_parameter)) {
         max_unit_parameter = tanf(bevel_start_A_angle_bisector) + spline_start_A_bevel_start +
                              r_gon_roundness * segment_divider_A_bevel_start;
       }
@@ -524,7 +524,7 @@ calculate_out_variables_irregular_circular(bool calculate_r_gon_parameter_field,
       float spline_start_A_bevel_start = (float(1.0) - r_gon_roundness) *
                                          segment_divider_A_bevel_start;
 
-      if (ONLY_CHECK_IN_GEOMETRY_NODES_IMPLEMENTATION(calculate_r_gon_parameter_field)) {
+      if (CHECK_ONLY_IN_GEOMETRY_NODES_IMPLEMENTATION(calculate_r_gon_parameter_field)) {
         float coord_A_bevel_start = segment_divider_A_bevel_start -
                                     fabsf(nearest_segment_divider_SA_coord);
         r_gon_parameter = l_coord * sinf(bevel_start_A_angle_bisector);
@@ -562,7 +562,7 @@ calculate_out_variables_irregular_circular(bool calculate_r_gon_parameter_field,
                                  coord_A_bevel_start / segment_divider_A_bevel_start);
         }
       }
-      if (ONLY_CHECK_IN_GEOMETRY_NODES_IMPLEMENTATION(calculate_max_unit_parameter)) {
+      if (CHECK_ONLY_IN_GEOMETRY_NODES_IMPLEMENTATION(calculate_max_unit_parameter)) {
         max_unit_parameter = tanf(bevel_start_A_angle_bisector) + spline_start_A_bevel_start +
                              r_gon_roundness * segment_divider_A_bevel_start;
       }
@@ -597,7 +597,7 @@ calculate_out_variables_irregular_circular(bool calculate_r_gon_parameter_field,
       float spline_start_A_bevel_start = (float(1.0) - r_gon_roundness) *
                                          inner_last_bevel_start_A_x_axis;
 
-      if (ONLY_CHECK_IN_GEOMETRY_NODES_IMPLEMENTATION(calculate_r_gon_parameter_field)) {
+      if (CHECK_ONLY_IN_GEOMETRY_NODES_IMPLEMENTATION(calculate_r_gon_parameter_field)) {
         r_gon_parameter = l_angle_bisector_R_l_last_angle_bisector * l_last_angle_bisector *
                           tanf(fabsf(last_angle_bisector_A_x_axis - segment_divider_A_coord));
         if (segment_divider_A_coord < last_angle_bisector_A_x_axis) {
@@ -613,7 +613,7 @@ calculate_out_variables_irregular_circular(bool calculate_r_gon_parameter_field,
           r_gon_parameter /= normalize_based_on_l_l_angle_bisector;
         }
       }
-      if (ONLY_CHECK_IN_GEOMETRY_NODES_IMPLEMENTATION(calculate_max_unit_parameter)) {
+      if (CHECK_ONLY_IN_GEOMETRY_NODES_IMPLEMENTATION(calculate_max_unit_parameter)) {
         max_unit_parameter = tanf(inner_last_bevel_start_A_last_angle_bisector) +
                              l_angle_bisector_R_l_last_angle_bisector *
                                  (spline_start_A_bevel_start *
@@ -663,7 +663,7 @@ calculate_out_variables_irregular_circular(bool calculate_r_gon_parameter_field,
         float spline_start_A_bevel_start = (float(1.0) - r_gon_roundness) *
                                            inner_last_bevel_start_A_x_axis;
 
-        if (ONLY_CHECK_IN_GEOMETRY_NODES_IMPLEMENTATION(calculate_r_gon_parameter_field)) {
+        if (CHECK_ONLY_IN_GEOMETRY_NODES_IMPLEMENTATION(calculate_r_gon_parameter_field)) {
           float coord_A_bevel_start = inner_last_bevel_start_A_x_axis -
                                       fabsf(nearest_segment_divider_MSA_coord);
           r_gon_parameter = l_angle_bisector_R_l_last_angle_bisector * l_coord *
@@ -709,7 +709,7 @@ calculate_out_variables_irregular_circular(bool calculate_r_gon_parameter_field,
                                    coord_A_bevel_start / inner_last_bevel_start_A_x_axis);
           }
         }
-        if (ONLY_CHECK_IN_GEOMETRY_NODES_IMPLEMENTATION(calculate_max_unit_parameter)) {
+        if (CHECK_ONLY_IN_GEOMETRY_NODES_IMPLEMENTATION(calculate_max_unit_parameter)) {
           max_unit_parameter = tanf(inner_last_bevel_start_A_last_angle_bisector) +
                                l_angle_bisector_R_l_last_angle_bisector *
                                    (spline_start_A_bevel_start *
@@ -729,7 +729,7 @@ calculate_out_variables_irregular_circular(bool calculate_r_gon_parameter_field,
         float spline_start_outer_last_bevel_start = (float(1.0) - effective_roundness) *
                                                     x_axis_A_outer_last_bevel_start;
 
-        if (ONLY_CHECK_IN_GEOMETRY_NODES_IMPLEMENTATION(calculate_r_gon_parameter_field)) {
+        if (CHECK_ONLY_IN_GEOMETRY_NODES_IMPLEMENTATION(calculate_r_gon_parameter_field)) {
           float coord_A_bevel_start = x_axis_A_outer_last_bevel_start -
                                       fabsf(nearest_segment_divider_MSA_coord);
           r_gon_parameter = l_coord * sinf(outer_last_bevel_start_A_angle_bisector);
@@ -772,7 +772,7 @@ calculate_out_variables_irregular_circular(bool calculate_r_gon_parameter_field,
                                    coord_A_bevel_start / x_axis_A_outer_last_bevel_start);
           }
         }
-        if (ONLY_CHECK_IN_GEOMETRY_NODES_IMPLEMENTATION(calculate_max_unit_parameter)) {
+        if (CHECK_ONLY_IN_GEOMETRY_NODES_IMPLEMENTATION(calculate_max_unit_parameter)) {
           float bevel_start_A_angle_bisector = segment_divider_A_angle_bisector -
                                                segment_divider_A_bevel_start;
           float spline_start_A_bevel_start = (float(1.0) - r_gon_roundness) *
@@ -824,7 +824,7 @@ ccl_device float4 calculate_out_variables(bool calculate_r_gon_parameter_field,
       l_angle_bisector = l_coord *
                          cosf(segment_divider_A_angle_bisector - segment_divider_A_coord);
 
-      if (ONLY_CHECK_IN_GEOMETRY_NODES_IMPLEMENTATION(calculate_r_gon_parameter_field)) {
+      if (CHECK_ONLY_IN_GEOMETRY_NODES_IMPLEMENTATION(calculate_r_gon_parameter_field)) {
         r_gon_parameter = l_angle_bisector *
                           tanf(fabsf(segment_divider_A_angle_bisector - segment_divider_A_coord));
         if (segment_divider_A_coord < segment_divider_A_angle_bisector) {
@@ -834,7 +834,7 @@ ccl_device float4 calculate_out_variables(bool calculate_r_gon_parameter_field,
           r_gon_parameter /= l_angle_bisector * tanf(segment_divider_A_angle_bisector);
         }
       }
-      if (ONLY_CHECK_IN_GEOMETRY_NODES_IMPLEMENTATION(calculate_max_unit_parameter)) {
+      if (CHECK_ONLY_IN_GEOMETRY_NODES_IMPLEMENTATION(calculate_max_unit_parameter)) {
         max_unit_parameter = (r_gon_sides != float(2.0)) ? tanf(segment_divider_A_angle_bisector) :
                                                            float(0.0);
       }
@@ -848,7 +848,7 @@ ccl_device float4 calculate_out_variables(bool calculate_r_gon_parameter_field,
       /* Regular rounded part. */
 
       float r_gon_parameter = float(0.0);
-      if (ONLY_CHECK_IN_GEOMETRY_NODES_IMPLEMENTATION(calculate_r_gon_parameter_field)) {
+      if (CHECK_ONLY_IN_GEOMETRY_NODES_IMPLEMENTATION(calculate_r_gon_parameter_field)) {
         r_gon_parameter = fabsf(segment_divider_A_angle_bisector - segment_divider_A_coord);
         if (segment_divider_A_coord < segment_divider_A_angle_bisector) {
           r_gon_parameter *= -float(1.0);
@@ -898,7 +898,7 @@ ccl_device float4 calculate_out_variables(bool calculate_r_gon_parameter_field,
         float spline_start_A_bevel_start = (float(1.0) - r_gon_roundness) *
                                            segment_divider_A_bevel_start;
 
-        if (ONLY_CHECK_IN_GEOMETRY_NODES_IMPLEMENTATION(calculate_r_gon_parameter_field)) {
+        if (CHECK_ONLY_IN_GEOMETRY_NODES_IMPLEMENTATION(calculate_r_gon_parameter_field)) {
           float coord_A_bevel_start = segment_divider_A_bevel_start -
                                       fabsf(nearest_segment_divider_SA_coord);
           r_gon_parameter = l_coord * sinf(bevel_start_A_angle_bisector);
@@ -936,7 +936,7 @@ ccl_device float4 calculate_out_variables(bool calculate_r_gon_parameter_field,
                                    coord_A_bevel_start / segment_divider_A_bevel_start);
           }
         }
-        if (ONLY_CHECK_IN_GEOMETRY_NODES_IMPLEMENTATION(calculate_max_unit_parameter)) {
+        if (CHECK_ONLY_IN_GEOMETRY_NODES_IMPLEMENTATION(calculate_max_unit_parameter)) {
           max_unit_parameter = tanf(bevel_start_A_angle_bisector) + spline_start_A_bevel_start +
                                r_gon_roundness * segment_divider_A_bevel_start;
         }
@@ -959,7 +959,7 @@ ccl_device float4 calculate_out_variables(bool calculate_r_gon_parameter_field,
         float spline_start_A_bevel_start = (float(1.0) - r_gon_roundness) *
                                            segment_divider_A_bevel_start;
 
-        if (ONLY_CHECK_IN_GEOMETRY_NODES_IMPLEMENTATION(calculate_r_gon_parameter_field)) {
+        if (CHECK_ONLY_IN_GEOMETRY_NODES_IMPLEMENTATION(calculate_r_gon_parameter_field)) {
           r_gon_parameter = l_angle_bisector * tanf(fabsf(segment_divider_A_angle_bisector -
                                                           segment_divider_A_coord));
           if (segment_divider_A_coord < segment_divider_A_angle_bisector) {
@@ -974,7 +974,7 @@ ccl_device float4 calculate_out_variables(bool calculate_r_gon_parameter_field,
             r_gon_parameter /= normalize_based_on_l_angle_bisector;
           }
         }
-        if (ONLY_CHECK_IN_GEOMETRY_NODES_IMPLEMENTATION(calculate_max_unit_parameter)) {
+        if (CHECK_ONLY_IN_GEOMETRY_NODES_IMPLEMENTATION(calculate_max_unit_parameter)) {
           max_unit_parameter = tanf(bevel_start_A_angle_bisector) + spline_start_A_bevel_start +
                                r_gon_roundness * segment_divider_A_bevel_start;
         }
@@ -1008,7 +1008,7 @@ ccl_device float4 calculate_out_variables(bool calculate_r_gon_parameter_field,
 
         l_angle_bisector = l_coord *
                            cosf(segment_divider_A_angle_bisector - segment_divider_A_coord);
-        if (ONLY_CHECK_IN_GEOMETRY_NODES_IMPLEMENTATION(calculate_r_gon_parameter_field)) {
+        if (CHECK_ONLY_IN_GEOMETRY_NODES_IMPLEMENTATION(calculate_r_gon_parameter_field)) {
           r_gon_parameter = l_angle_bisector * tanf(fabsf(segment_divider_A_angle_bisector -
                                                           segment_divider_A_coord));
           if (segment_divider_A_coord < segment_divider_A_angle_bisector) {
@@ -1018,7 +1018,7 @@ ccl_device float4 calculate_out_variables(bool calculate_r_gon_parameter_field,
             r_gon_parameter /= l_angle_bisector * tanf(segment_divider_A_angle_bisector);
           }
         }
-        if (ONLY_CHECK_IN_GEOMETRY_NODES_IMPLEMENTATION(calculate_max_unit_parameter)) {
+        if (CHECK_ONLY_IN_GEOMETRY_NODES_IMPLEMENTATION(calculate_max_unit_parameter)) {
           max_unit_parameter = tanf(segment_divider_A_angle_bisector);
         }
         out_variables = make_float4(l_angle_bisector,
@@ -1041,7 +1041,7 @@ ccl_device float4 calculate_out_variables(bool calculate_r_gon_parameter_field,
 
         l_angle_bisector = l_angle_bisector_R_l_last_angle_bisector * l_last_angle_bisector;
 
-        if (ONLY_CHECK_IN_GEOMETRY_NODES_IMPLEMENTATION(calculate_r_gon_parameter_field)) {
+        if (CHECK_ONLY_IN_GEOMETRY_NODES_IMPLEMENTATION(calculate_r_gon_parameter_field)) {
           r_gon_parameter = l_angle_bisector_R_l_last_angle_bisector * l_last_angle_bisector *
                             tanf(fabsf(last_angle_bisector_A_x_axis - segment_divider_A_coord));
           if (segment_divider_A_coord < last_angle_bisector_A_x_axis) {
@@ -1052,7 +1052,7 @@ ccl_device float4 calculate_out_variables(bool calculate_r_gon_parameter_field,
                                tanf(last_angle_bisector_A_x_axis);
           }
         }
-        if (ONLY_CHECK_IN_GEOMETRY_NODES_IMPLEMENTATION(calculate_max_unit_parameter)) {
+        if (CHECK_ONLY_IN_GEOMETRY_NODES_IMPLEMENTATION(calculate_max_unit_parameter)) {
           max_unit_parameter = tanf(last_angle_bisector_A_x_axis);
         }
         out_variables = make_float4(l_angle_bisector,
@@ -1147,7 +1147,6 @@ ccl_device float calculate_out_segment_id(float r_gon_sides, float2 coord)
 #    undef M_PI_F
 #    undef M_2PI_F
 #    undef ccl_device
-#    undef static
 
 #    undef false
 #    undef true
@@ -1176,9 +1175,9 @@ ccl_device float calculate_out_segment_id(float r_gon_sides, float2 coord)
 #      undef M_PI_F
 #      undef M_2PI_F
 #      undef ccl_device
-#      undef static
 #    endif
 #  endif
 #endif
 
-#undef ONLY_CHECK_IN_GEOMETRY_NODES_IMPLEMENTATION
+#undef CHECK_ONLY_IN_GEOMETRY_NODES_IMPLEMENTATION
+#undef STATIC_ONLY_IN_GEOMETRY_NODES_IMPLEMENTATION
