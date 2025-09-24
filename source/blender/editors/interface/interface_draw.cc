@@ -1609,13 +1609,6 @@ static void gl_shaded_color(const uchar *color, int shade)
   immUniformColor3ubv(color_shaded);
 }
 
-static void gl_shaded_color(const uchar *color, int shade, uchar alpha)
-{
-  uchar color_shaded[3];
-  gl_shaded_color_get(color, shade, color_shaded);
-  immUniformColor3ubvAlpha(color_shaded, alpha);
-}
-
 void ui_draw_but_CURVE(ARegion *region, uiBut *but, const uiWidgetColors *wcol, const rcti *rect)
 {
   uiButCurveMapping *but_cumap = (uiButCurveMapping *)but;
