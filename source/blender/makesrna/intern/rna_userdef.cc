@@ -2618,8 +2618,7 @@ static void rna_def_userdef_theme_spaces_gradient(StructRNA *srna)
 }
 
 static void rna_def_userdef_theme_spaces_vertex(StructRNA *srna,
-                                                const bool has_vertex_active,
-                                                const bool has_vertex_attributes)
+                                                const bool has_vertex_active)
 {
   PropertyRNA *prop;
 
@@ -2644,18 +2643,6 @@ static void rna_def_userdef_theme_spaces_vertex(StructRNA *srna,
   RNA_def_property_range(prop, 1, 32);
   RNA_def_property_ui_text(prop, "Vertex Size", "");
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
-
-  if (has_vertex_attributes) {
-    prop = RNA_def_property(srna, "vertex_bevel", PROP_FLOAT, PROP_COLOR_GAMMA);
-    RNA_def_property_array(prop, 3);
-    RNA_def_property_ui_text(prop, "Vertex Bevel", "");
-    RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
-
-    prop = RNA_def_property(srna, "vertex_unreferenced", PROP_FLOAT, PROP_COLOR_GAMMA);
-    RNA_def_property_array(prop, 3);
-    RNA_def_property_ui_text(prop, "Vertex Group Unreferenced", "");
-    RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
-  }
 }
 
 static void rna_def_userdef_theme_spaces_edge(StructRNA *srna)
@@ -2686,11 +2673,6 @@ static void rna_def_userdef_theme_spaces_edge(StructRNA *srna)
   RNA_def_property_array(prop, 3);
   RNA_def_property_ui_text(prop, "Edge Crease", "");
   RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_WINDOWMANAGER);
-  RNA_def_property_update(prop, 0, "rna_userdef_gpu_update");
-
-  prop = RNA_def_property(srna, "edge_bevel", PROP_FLOAT, PROP_COLOR_GAMMA);
-  RNA_def_property_array(prop, 3);
-  RNA_def_property_ui_text(prop, "Edge Bevel", "");
   RNA_def_property_update(prop, 0, "rna_userdef_gpu_update");
 
   prop = RNA_def_property(srna, "freestyle_edge_mark", PROP_FLOAT, PROP_COLOR_GAMMA);
@@ -2883,9 +2865,14 @@ static void rna_def_userdef_theme_space_view3d(BlenderRNA *brna)
 
   /* Mesh Object specific */
 
-  rna_def_userdef_theme_spaces_vertex(srna, false, true);
+  rna_def_userdef_theme_spaces_vertex(srna, false);
   rna_def_userdef_theme_spaces_edge(srna);
   rna_def_userdef_theme_spaces_face(srna, true, true);
+
+  prop = RNA_def_property(srna, "bevel", PROP_FLOAT, PROP_COLOR_GAMMA);
+  RNA_def_property_array(prop, 3);
+  RNA_def_property_ui_text(prop, "Bevel", "");
+  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 
   prop = RNA_def_property(srna, "extra_edge_len", PROP_FLOAT, PROP_COLOR_GAMMA);
   RNA_def_property_array(prop, 3);
@@ -2927,6 +2914,11 @@ static void rna_def_userdef_theme_space_view3d(BlenderRNA *brna)
   RNA_def_property_array(prop, 3);
   RNA_def_property_ui_text(prop, "Custom Normal", "");
   RNA_def_property_update(prop, 0, "rna_userdef_update");
+
+  prop = RNA_def_property(srna, "vertex_unreferenced", PROP_FLOAT, PROP_COLOR_GAMMA);
+  RNA_def_property_array(prop, 3);
+  RNA_def_property_ui_text(prop, "Vertex Group Unreferenced", "");
+  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 
   /* Curve Object specific */
 
@@ -3068,7 +3060,7 @@ static void rna_def_userdef_theme_space_graph(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Grid", "");
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 
-  rna_def_userdef_theme_spaces_vertex(srna, true, false);
+  rna_def_userdef_theme_spaces_vertex(srna, true);
 }
 
 static void rna_def_userdef_theme_space_file(BlenderRNA *brna)
@@ -3605,7 +3597,7 @@ static void rna_def_userdef_theme_space_image(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Grid", "");
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 
-  rna_def_userdef_theme_spaces_vertex(srna, false, false);
+  rna_def_userdef_theme_spaces_vertex(srna, false);
   rna_def_userdef_theme_spaces_face(srna, false, false);
 
   prop = RNA_def_property(srna, "editmesh_active", PROP_FLOAT, PROP_COLOR_GAMMA);

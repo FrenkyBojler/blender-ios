@@ -372,8 +372,7 @@ enum ThemeColorID {
   TH_METADATA_BG,
   TH_METADATA_TEXT,
 
-  TH_EDGE_BEVEL,
-  TH_VERTEX_BEVEL,
+  TH_BEVEL,
 };
 
 /* Specific defines per space should have higher define values. */

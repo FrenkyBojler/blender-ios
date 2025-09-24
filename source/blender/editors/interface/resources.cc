@@ -382,9 +382,6 @@ const uchar *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
         case TH_VERTEX_ACTIVE:
           cp = ts->vertex_active;
           break;
-        case TH_VERTEX_BEVEL:
-          cp = ts->vertex_bevel;
-          break;
         case TH_VERTEX_UNREFERENCED:
           cp = ts->vertex_unreferenced;
           break;
@@ -408,9 +405,6 @@ const uchar *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
           break;
         case TH_EDGE_MODE_SELECT:
           cp = ts->edge_mode_select;
-          break;
-        case TH_EDGE_BEVEL:
-          cp = btheme->space_view3d.edge_bevel;
           break;
         case TH_EDGE_CREASE:
           cp = btheme->space_view3d.edge_crease;
@@ -447,6 +441,9 @@ const uchar *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
           break;
         case TH_FACEDOT_SIZE:
           cp = &ts->facedot_size;
+          break;
+        case TH_BEVEL:
+          cp = btheme->space_view3d.bevel;
           break;
         case TH_DRAWEXTRA_EDGELEN:
           cp = ts->extra_edge_len;
