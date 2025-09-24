@@ -16,6 +16,8 @@
 
 #include "BKE_context.hh"
 #include "BKE_editmesh.hh"
+#include "BLI_math_vector.h"
+#include "DEG_depsgraph.hh"
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
@@ -95,14 +97,14 @@ static wmOperatorStatus add_primitive_plane_exec(bContext *C, wmOperator *op)
   MakePrimitiveData creation_data;
   Object *obedit;
   BMEditMesh *em;
-  float loc[3], rot[3];
+  float loc[3], rot[3], scale[3];
   bool enter_editmode;
   ushort local_view_bits;
   const bool calc_uvs = RNA_boolean_get(op->ptr, "calc_uvs");
 
   WM_operator_view3d_unit_defaults(C, op);
   blender::ed::object::add_generic_get_opts(
-      C, op, 'Z', loc, rot, nullptr, &enter_editmode, &local_view_bits, nullptr);
+      C, op, 'Z', loc, rot, scale, &enter_editmode, &local_view_bits, nullptr);
   obedit = make_prim_init(C,
                           CTX_DATA_(BLT_I18NCONTEXT_ID_MESH, "Plane"),
                           loc,
@@ -132,8 +134,11 @@ static wmOperatorStatus add_primitive_plane_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  make_prim_finish(C, obedit, &creation_data, enter_editmode);
+  copy_v3_v3(obedit->scale, scale);
+  DEG_id_tag_update(&obedit->id, ID_RECALC_TRANSFORM);
+  WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, obedit);
 
+  make_prim_finish(C, obedit, &creation_data, enter_editmode);
   return OPERATOR_FINISHED;
 }
 
