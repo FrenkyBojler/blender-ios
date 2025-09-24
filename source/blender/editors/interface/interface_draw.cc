@@ -1595,20 +1595,6 @@ static void ui_draw_but_curve_grid(const uint pos,
   immEnd();
 }
 
-static void gl_shaded_color_get(const uchar color[3], int shade, uchar r_color[3])
-{
-  r_color[0] = color[0] - shade > 0 ? color[0] - shade : 0;
-  r_color[1] = color[1] - shade > 0 ? color[1] - shade : 0;
-  r_color[2] = color[2] - shade > 0 ? color[2] - shade : 0;
-}
-
-static void gl_shaded_color(const uchar *color, int shade)
-{
-  uchar color_shaded[3];
-  gl_shaded_color_get(color, shade, color_shaded);
-  immUniformColor3ubv(color_shaded);
-}
-
 void ui_draw_but_CURVE(ARegion *region, uiBut *but, const uiWidgetColors *wcol, const rcti *rect)
 {
   uiButCurveMapping *but_cumap = (uiButCurveMapping *)but;
@@ -2082,7 +2068,7 @@ void ui_draw_but_CURVEPROFILE(ARegion *region,
   /* Draw the lines to the handles from the points. */
   if (selected_free_points > 0) {
     GPU_line_width(1.0f);
-    gl_shaded_color((uchar *)wcol->inner, -24);
+    immUniformColor4ubv(wcol->inner_sel);
     GPU_line_smooth(true);
     immBegin(GPU_PRIM_LINES, selected_free_points * 4);
     float ptx, pty;
@@ -2116,9 +2102,10 @@ void ui_draw_but_CURVEPROFILE(ARegion *region,
 
   GPU_program_point_size(true);
 
-  float color_point[4], color_point_select[4], color_sample[4];
+  float color_point[4], color_point_select[4], color_point_outline[4], color_sample[4];
   rgba_uchar_to_float(color_point, wcol->text);
   rgba_uchar_to_float(color_point_select, wcol->text_sel);
+  rgba_uchar_to_float(color_point_outline, wcol->inner_sel);
   color_sample[0] = float(wcol->item[0]) / 255.0f;
   color_sample[1] = float(wcol->item[1]) / 255.0f;
   color_sample[2] = float(wcol->item[2]) / 255.0f;
@@ -2138,10 +2125,13 @@ void ui_draw_but_CURVEPROFILE(ARegion *region,
       fx = rect->xmin + zoomx * (pts[i].x - offsx);
       fy = rect->ymin + zoomy * (pts[i].y - offsy);
       const float size_factor = (pts[i].flag & PROF_SELECT) ? 1.5f : 1.0f;
+
+      /* First the point the back, slightly larger so it makes an outline. */
+      immAttr4fv(col, color_point_outline);
       immAttr1f(size, point_size * size_factor * 1.4f);
-      immAttr4fv(col, (pts[i].flag & PROF_SELECT) ? color_point : color_point_select);
       immVertex2f(pos, fx, fy);
 
+      /* The point in front. */
       immAttr1f(size, point_size * size_factor);
       immAttr4fv(col, (pts[i].flag & PROF_SELECT) ? color_point_select : color_point);
       immVertex2f(pos, fx, fy);
