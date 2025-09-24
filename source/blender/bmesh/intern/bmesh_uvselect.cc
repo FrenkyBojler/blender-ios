@@ -2241,20 +2241,20 @@ static bool bm_mesh_uvselect_check_viewport_sync(BMesh *bm, UVSelectValidateInfo
       if (!BM_elem_flag_test(e, BM_ELEM_SELECT)) {
         continue;
       }
-
-      bool any_loop_selected = false;
-      if (e->l) {
-        BMLoop *l_iter = e->l;
-        do {
-          if (BM_elem_flag_test(l_iter->f, BM_ELEM_HIDDEN)) {
-            continue;
-          }
-          if (BM_elem_flag_test(l_iter, BM_ELEM_SELECT_UV_EDGE)) {
-            any_loop_selected = true;
-            break;
-          }
-        } while ((l_iter = l_iter->next) != e->l);
+      if (e->l == nullptr) {
+        continue;
       }
+      bool any_loop_selected = false;
+      BMLoop *l_iter = e->l;
+      do {
+        if (BM_elem_flag_test(l_iter->f, BM_ELEM_HIDDEN)) {
+          continue;
+        }
+        if (BM_elem_flag_test(l_iter, BM_ELEM_SELECT_UV_EDGE)) {
+          any_loop_selected = true;
+          break;
+        }
+      } while ((l_iter = l_iter->radial_next) != e->l);
       if (any_loop_selected == false) {
         INCF(error_count);
       }
