@@ -118,7 +118,8 @@ struct CLogContext {
 
 static CLG_LogRef **CLG_all_refs()
 {
-  /* Inside a function for correct static initialization order. */
+  /* Inside a function for correct static initialization order, otherwise
+   * all_refs might get null initialized only after logrefs are registered.*/
   static CLG_LogRef *all_refs = nullptr;
   return &all_refs;
 }
