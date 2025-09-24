@@ -87,8 +87,12 @@ class USERPREF_MT_editor_menus(Menu):
 class USERPREF_MT_view(Menu):
     bl_label = "View"
 
-    def draw(self, _context):
+    def draw(self, context):
         layout = self.layout
+        view = context.space_data
+
+        layout.prop(view, "show_region_ui")
+        layout.separator()
 
         layout.menu("INFO_MT_area")
 
@@ -2835,7 +2839,7 @@ class USERPREF_PT_studiolight_light_editor(StudioLightPanel, Panel):
 # Experimental Panels
 
 # Also used for "Developer Tools" which are stored in `preferences.experimental` too.
-def _draw_experimental_items(layout, preferences, items, url_prefix="https://projects.blender.org"):
+def _draw_experimental_items(layout, preferences, items, url_prefix="https://projects.blender.org/"):
     experimental = preferences.experimental
 
     layout.use_property_split = False

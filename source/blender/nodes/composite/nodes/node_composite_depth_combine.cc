@@ -29,11 +29,11 @@ static void cmp_node_zcombine_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Color>("A")
       .default_value({1.0f, 1.0f, 1.0f, 1.0f})
       .structure_type(StructureType::Dynamic);
+  b.add_input<decl::Float>("Depth A").default_value(1.0f).min(0.0f).max(10000.0f).structure_type(
+      StructureType::Dynamic);
   b.add_input<decl::Color>("B")
       .default_value({1.0f, 1.0f, 1.0f, 1.0f})
       .structure_type(StructureType::Dynamic);
-  b.add_input<decl::Float>("Depth A").default_value(1.0f).min(0.0f).max(10000.0f).structure_type(
-      StructureType::Dynamic);
   b.add_input<decl::Float>("Depth B").default_value(1.0f).min(0.0f).max(10000.0f).structure_type(
       StructureType::Dynamic);
   b.add_input<decl::Bool>("Use Alpha")
