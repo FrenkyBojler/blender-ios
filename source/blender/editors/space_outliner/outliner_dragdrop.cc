@@ -1121,16 +1121,18 @@ static Collection *collection_parent_from_ID(ID *id)
 }
 static bool collection_drop_init(bContext *C, wmDrag *drag, const int xy[2], CollectionDrop *data)
 {
+  /* Get collection to drop into. */
   TreeElementInsertType insert_type;
   TreeElement *te_hovered = outliner_drop_insert_collection_find(C, xy, &insert_type);
+  if (!te_hovered) {
+    return false;
+  }
   TreeElement *collection_te = outliner_data_from_tree_element_and_parents(is_collection_element,
                                                                            te_hovered);
-  Collection *to_collection = outliner_collection_from_tree_element(collection_te);
-
   if (!collection_te) {
     return false;
   }
-
+  Collection *to_collection = outliner_collection_from_tree_element(collection_te);
   if (!to_collection) {
     return false;
   }

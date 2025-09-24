@@ -481,14 +481,6 @@ static int treesort_custom(const void *v1, const void *v2)
   return BLI_strcasecmp_natural(x1->name, x2->name);
 }
 
-/* alphabetical comparator, trying to put objects first */
-static int treesort_alpha_ob(const void *v1, const void *v2)
-{
-  const tTreeSort *a = (const tTreeSort *)v1;
-  const tTreeSort *b = (const tTreeSort *)v2;
-  return BLI_strcasecmp_natural(a->name, b->name);
-}
-
 /* Move children that are not in the collection to the end of the list. */
 static int treesort_child_not_in_collection(const void *v1, const void *v2)
 {
@@ -609,7 +601,7 @@ static void outliner_sort(ListBase *lb)
           }
         }
         if (skip < totelem) {
-          qsort(tear + skip, totelem - skip, sizeof(tTreeSort), treesort_alpha_ob);
+          qsort(tear + skip, totelem - skip, sizeof(tTreeSort), treesort_alpha);
         }
       }
 
