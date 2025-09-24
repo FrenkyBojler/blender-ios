@@ -2774,23 +2774,23 @@ static wmOperatorStatus view_item_click_select(bContext &C,
                                                const bool range_select,
                                                bool wait_to_deselect_others)
 {
-  wmOperatorStatus ret_value = OPERATOR_FINISHED;
+  const bool already_selected = clicked_item && clicked_item->is_selected();
 
   if (extend || range_select) {
     wait_to_deselect_others = false;
   }
 
-  if (clicked_item && wait_to_deselect_others) {
-    ret_value = OPERATOR_RUNNING_MODAL;
+  if (clicked_item && already_selected && wait_to_deselect_others) {
+    return OPERATOR_RUNNING_MODAL;
   }
-  else {
-    const AbstractView *view = get_view_focused(&C);
-    view->foreach_view_item([](AbstractViewItem &item) { item.set_selected(false); });
+
+  if (!extend) {
+    view.foreach_view_item([](AbstractViewItem &item) { item.set_selected(false); });
   }
 
   if (clicked_item == nullptr) {
     /* Only clear selection (if needed). */
-    return ret_value;
+    return OPERATOR_FINISHED;
   }
 
   if (range_select) {
@@ -2806,15 +2806,12 @@ static wmOperatorStatus view_item_click_select(bContext &C,
         item.set_selected(true);
       }
     });
-    return ret_value;
+    return OPERATOR_FINISHED;
   }
 
-  const bool already_selected = clicked_item->is_selected();
-  if (!already_selected) {
-    clicked_item->activate(C);
-  }
+  clicked_item->activate(C);
 
-  return ret_value;
+  return OPERATOR_FINISHED;
 }
 
 static wmOperatorStatus ui_view_item_select_exec(bContext *C, wmOperator *op)
