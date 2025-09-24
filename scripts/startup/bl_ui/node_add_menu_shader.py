@@ -389,6 +389,19 @@ class NODE_MT_shader_node_script_base(node_add_menu.NodeMenu):
         self.draw_assets_for_catalog(layout, self.bl_label)
 
 
+class NODE_MT_shader_node_utilities_base(node_add_menu.NodeMenu):
+    bl_label = "Utilities"
+
+    def draw(self, context):
+        layout = self.layout
+
+        self.repeat_zone(layout, label="Repeat")
+        layout.separator()
+        self.closure_zone(layout, label="Closure")
+        self.node_operator(layout, "NodeEvaluateClosure")
+        self.node_operator(layout, "NodeCombineBundle")
+        self.node_operator(layout, "NodeSeparateBundle")
+
 class NODE_MT_shader_node_all_base(node_add_menu.NodeMenu):
     bl_label = ""
     menu_path = "Root"
@@ -407,17 +420,12 @@ class NODE_MT_shader_node_all_base(node_add_menu.NodeMenu):
         self.draw_menu(layout, "Shader")
         self.draw_menu(layout, "Texture")
         self.draw_menu(layout, "Vector")
+        self.draw_menu(layout, "Utilities")
         layout.separator()
         self.draw_menu(layout, "Script")
         layout.separator()
         self.draw_menu(layout, "Group")
         self.draw_menu(layout, "Layout")
-
-        self.repeat_zone(layout, label="Repeat")
-        self.closure_zone(layout, label="Closure")
-        self.node_operator(layout, "NodeEvaluateClosure")
-        self.node_operator(layout, "NodeCombineBundle")
-        self.node_operator(layout, "NodeSeparateBundle")
 
         self.draw_root_assets(layout)
 
@@ -432,6 +440,7 @@ add_menus = {
     "NODE_MT_category_shader_texture": NODE_MT_shader_node_texture_base,
     "NODE_MT_category_shader_vector": NODE_MT_shader_node_vector_base,
     "NODE_MT_category_shader_script": NODE_MT_shader_node_script_base,
+    "NODE_MT_category_shader_utilities": NODE_MT_shader_node_utilities_base,
     "NODE_MT_shader_node_add_all": NODE_MT_shader_node_all_base,
 }
 add_menus = node_add_menu.generate_menus(
@@ -451,6 +460,7 @@ swap_menus = {
     "NODE_MT_shader_node_texture_swap": NODE_MT_shader_node_texture_base,
     "NODE_MT_shader_node_vector_swap": NODE_MT_shader_node_vector_base,
     "NODE_MT_shader_node_script_swap": NODE_MT_shader_node_script_base,
+    "NODE_MT_shader_node_utilities_swap": NODE_MT_shader_node_utilities_base,
     "NODE_MT_shader_node_swap_all": NODE_MT_shader_node_all_base,
 }
 swap_menus = node_add_menu.generate_menus(
