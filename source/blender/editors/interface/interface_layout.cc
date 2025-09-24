@@ -203,6 +203,7 @@ struct uiButtonItem : public uiItem {
 
 struct LayoutRow : public uiLayout {
   LayoutRow(uiLayoutRoot *root) : uiLayout(uiItemType::LayoutRow, root) {}
+  LayoutRow(uiItemType type, uiLayoutRoot *root) : uiLayout(type, root) {}
 
   void estimate_impl() override;
   void resolve_impl() override;
@@ -210,28 +211,14 @@ struct LayoutRow : public uiLayout {
 
 struct LayoutColumn : public uiLayout {
   LayoutColumn(uiLayoutRoot *root) : uiLayout(uiItemType::LayoutColumn, root) {}
+  LayoutColumn(uiItemType type, uiLayoutRoot *root) : uiLayout(type, root) {}
 
   void estimate_impl() override;
   void resolve_impl() override;
 };
 
-struct LayoutRootRow : public LayoutRow {
-  LayoutRootRow(uiLayoutRoot *root) : LayoutRow(root)
-  {
-    type_ = uiItemType::LayoutRoot;
-  }
-  void estimate_impl() override{};
-};
-struct LayoutRootColumn : public LayoutColumn {
-  LayoutRootColumn(uiLayoutRoot *root) : LayoutColumn(root)
-  {
-    type_ = uiItemType::LayoutRoot;
-  }
-  void estimate_impl() override{};
-};
 struct LayoutRootPieMenu : public uiLayout {
   LayoutRootPieMenu(uiLayoutRoot *root) : uiLayout(uiItemType::LayoutRoot, root) {}
-  void estimate_impl() override{};
   void resolve_impl() override;
 };
 
@@ -289,10 +276,7 @@ struct uiLayoutItemGridFlow : public uiLayout {
 
 struct uiLayoutItemBx : public LayoutColumn {
   uiBut *roundbox = nullptr;
-  uiLayoutItemBx() : LayoutColumn(nullptr)
-  {
-    type_ = uiItemType::LayoutBox;
-  }
+  uiLayoutItemBx() : LayoutColumn(uiItemType::LayoutBox, nullptr) {}
 
   void estimate_impl() override;
   void resolve_impl() override;
@@ -308,19 +292,13 @@ struct uiLayoutItemPanelHeader : public uiLayout {
 };
 
 struct uiLayoutItemPanelBody : public LayoutColumn {
-  uiLayoutItemPanelBody() : LayoutColumn(nullptr)
-  {
-    type_ = uiItemType::LayoutPanelBody;
-  }
+  uiLayoutItemPanelBody() : LayoutColumn(uiItemType::LayoutPanelBody, nullptr) {}
   void resolve_impl() override;
 };
 
 struct uiLayoutItemSplit : public LayoutRow {
   float percentage = 0.0f;
-  uiLayoutItemSplit() : LayoutRow(nullptr)
-  {
-    type_ = uiItemType::LayoutSplit;
-  }
+  uiLayoutItemSplit() : LayoutRow(uiItemType::LayoutSplit, nullptr) {}
 
   void estimate_impl() override;
   void resolve_impl() override;
@@ -3580,6 +3558,9 @@ void LayoutInternal::layout_resolve(uiLayout *layout)
 /* single-row layout */
 void LayoutRow::estimate_impl()
 {
+  if (this->type() == uiItemType::LayoutRoot) {
+    return;
+  }
   int itemw, itemh;
   bool min_size_flag = true;
 
@@ -3807,8 +3788,11 @@ static int spaces_after_column_item(const uiLayout *litem,
 }
 
 /* single-column layout */
-void LayoutColumn::estimate_impl()
+void LayoutColumn ::estimate_impl()
 {
+  if (this->type() == uiItemType::LayoutRoot) {
+    return;
+  }
   const bool is_box = this->type() == uiItemType::LayoutBox;
   int itemw, itemh;
   bool min_size_flag = true;
@@ -5471,9 +5455,9 @@ uiLayout &block_layout(uiBlock *block,
       case LayoutType::PieMenu:
         return MEM_new<LayoutRootPieMenu>(__func__, root);
       case LayoutType::Header:
-        return MEM_new<LayoutRootRow>(__func__, root);
+        return MEM_new<LayoutRow>(__func__, uiItemType::LayoutRoot, root);
       default:
-        return MEM_new<LayoutRootColumn>(__func__, root);
+        return MEM_new<LayoutColumn>(__func__, uiItemType::LayoutRoot, root);
         break;
     }
   }();
