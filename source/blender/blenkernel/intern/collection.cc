@@ -1446,9 +1446,6 @@ static bool collection_object_add(Main *bmain,
     cob->light_linking = *light_linking;
   }
 
-  /* Set sort_index to current size so the new object appears last under SO_SORT_CUSTOM. */
-  cob->sort_index = BLI_listbase_count(&collection->gobject);
-
   *cob_p = cob;
   BLI_addtail(&collection->gobject, cob);
   BKE_collection_object_cache_free(bmain, collection, id_create_flag);
