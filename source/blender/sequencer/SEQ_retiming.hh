@@ -77,4 +77,21 @@ bool retiming_selection_contains(const Editing *ed, const SeqRetimingKey *key);
 bool retiming_selection_has_whole_transition(const Editing *ed, SeqRetimingKey *key);
 bool retiming_data_is_editable(const Strip *strip);
 
+/** Returns key, that should move with right handle. */
+SeqRetimingKey *retiming_right_linked_freeze_frame_get(const Scene *scene, const Strip *strip);
+/** Returns key, that should move with left handle. */
+SeqRetimingKey *retiming_left_linked_freeze_frame_get(const Scene *scene, const Strip *strip);
+/** Offsets all key from `key_start` included.
+ * Note, that the offset is clamped individually for each key. */
+void retiming_offset_keys_from(const Scene *scene,
+                               Strip *strip,
+                               SeqRetimingKey *key_start,
+                               const int offset);
+/* Offsets all key from 0 to `key_end` included.
+ * Note, that the offset is clamped individually for each key. */
+void retiming_offset_keys_to(const Scene *scene,
+                             Strip *strip,
+                             SeqRetimingKey *key_end,
+                             const int offset);
+
 }  // namespace blender::seq

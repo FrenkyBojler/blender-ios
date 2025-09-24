@@ -685,6 +685,8 @@ typedef enum eSeqRetimingKeyFlag {
   SEQ_FREEZE_FRAME_IN = (1 << 2),
   SEQ_FREEZE_FRAME_OUT = (1 << 3),
   SEQ_KEY_SELECTED = (1 << 4),
+  SEQ_KEY_LINKED_TO_RIGHT_HANDLE = (1 << 5),
+  SEQ_KEY_LINKED_TO_LEFT_HANDLE = (1 << 6),
 } eSeqRetimingKeyFlag;
 
 /** #StripRuntime::flag */

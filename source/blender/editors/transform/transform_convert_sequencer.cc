@@ -26,6 +26,7 @@
 #include "SEQ_effects.hh"
 #include "SEQ_iterator.hh"
 #include "SEQ_relations.hh"
+#include "SEQ_retiming.hh"
 #include "SEQ_sequencer.hh"
 #include "SEQ_time.hh"
 #include "SEQ_transform.hh"
@@ -505,6 +506,12 @@ static void create_trans_seq_clamp_data(TransInfo *t, const Scene *scene)
 
     /* If any strips start out with hold offsets visible, disable handle clamping on init. */
     if ((strip->startofs < 0 || strip->endofs < 0) && !seq::transform_single_image_check(strip)) {
+      t->modifiers &= ~MOD_STRIP_CLAMP_HOLDS;
+    }
+    if (left_sel && seq::retiming_left_linked_freeze_frame_get(scene, strip) != nullptr) {
+      t->modifiers &= ~MOD_STRIP_CLAMP_HOLDS;
+    }
+    if (right_sel && seq::retiming_right_linked_freeze_frame_get(scene, strip) != nullptr) {
       t->modifiers &= ~MOD_STRIP_CLAMP_HOLDS;
     }
 

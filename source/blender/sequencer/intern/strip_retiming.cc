@@ -406,11 +406,15 @@ static void strip_retiming_cleanup_freeze_frame(SeqRetimingKey *key)
     SeqRetimingKey *next_key = key + 1;
     key->flag &= ~SEQ_FREEZE_FRAME_IN;
     next_key->flag &= ~SEQ_FREEZE_FRAME_OUT;
+    next_key->flag &= ~SEQ_KEY_LINKED_TO_LEFT_HANDLE;
+    next_key->flag &= ~SEQ_KEY_LINKED_TO_RIGHT_HANDLE;
   }
   if ((key->flag & SEQ_FREEZE_FRAME_OUT) != 0) {
     SeqRetimingKey *previous_key = key - 1;
     key->flag &= ~SEQ_FREEZE_FRAME_OUT;
     previous_key->flag &= ~SEQ_FREEZE_FRAME_IN;
+    previous_key->flag &= ~SEQ_KEY_LINKED_TO_LEFT_HANDLE;
+    previous_key->flag &= ~SEQ_KEY_LINKED_TO_RIGHT_HANDLE;
   }
 }
 
@@ -1156,6 +1160,83 @@ bool retiming_selection_has_whole_transition(const Editing *ed, SeqRetimingKey *
     }
   }
   return false;
+}
+
+SeqRetimingKey *retiming_right_linked_freeze_frame_get(const Scene *scene, const Strip *strip)
+{
+  for (SeqRetimingKey &key : retiming_keys_get(strip)) {
+    if ((key.flag & SEQ_KEY_LINKED_TO_RIGHT_HANDLE) != 0) {
+      SeqRetimingKey *freeze_start = &key - 1;
+      if (time_right_handle_frame_get(scene, strip) >
+          retiming_key_timeline_frame_get(scene, strip, freeze_start))
+      {
+        return &key;
+      }
+    }
+  }
+  return nullptr;
+}
+
+SeqRetimingKey *retiming_left_linked_freeze_frame_get(const Scene *scene, const Strip *strip)
+{
+  for (SeqRetimingKey &key : retiming_keys_get(strip)) {
+    if ((key.flag & SEQ_KEY_LINKED_TO_LEFT_HANDLE) != 0) {
+      SeqRetimingKey *freeze_end = &key + 1;
+      if (time_left_handle_frame_get(scene, strip) <
+          retiming_key_timeline_frame_get(scene, strip, freeze_end))
+      {
+        return &key;
+      }
+    }
+  }
+  return nullptr;
+}
+
+void retiming_offset_keys_from(const Scene *scene,
+                               Strip *strip,
+                               SeqRetimingKey *key_start,
+                               const int offset)
+{
+  const int key_index = retiming_key_index_get(strip, key_start);
+  const int index_max = retiming_keys_count(strip) - 1;
+
+  if (offset > 0) {
+    for (int i = index_max; i >= key_index; i--) {
+      SeqRetimingKey *key = &retiming_keys_get(strip)[i];
+      const int key_frame = retiming_key_timeline_frame_get(scene, strip, key);
+      retiming_key_timeline_frame_set(scene, strip, key, key_frame + offset);
+    }
+  }
+  if (offset < 0) {
+    for (int i = key_index; i <= index_max; i++) {
+      SeqRetimingKey *key = &retiming_keys_get(strip)[i];
+      const int key_frame = retiming_key_timeline_frame_get(scene, strip, key);
+      retiming_key_timeline_frame_set(scene, strip, key, key_frame + offset);
+    }
+  }
+}
+
+void retiming_offset_keys_to(const Scene *scene,
+                             Strip *strip,
+                             SeqRetimingKey *key_end,
+                             const int offset)
+{
+  const int index_max = retiming_key_index_get(strip, key_end);
+
+  if (offset > 0) {
+    for (int i = index_max; i >= 0; i--) {
+      SeqRetimingKey *key = &retiming_keys_get(strip)[i];
+      const int key_frame = retiming_key_timeline_frame_get(scene, strip, key);
+      retiming_key_timeline_frame_set(scene, strip, key, key_frame + offset);
+    }
+  }
+  if (offset < 0) {
+    for (int i = 0; i <= index_max; i++) {
+      SeqRetimingKey *key = &retiming_keys_get(strip)[i];
+      const int key_frame = retiming_key_timeline_frame_get(scene, strip, key);
+      retiming_key_timeline_frame_set(scene, strip, key, key_frame + offset);
+    }
+  }
 }
 
 }  // namespace blender::seq

@@ -497,6 +497,16 @@ int time_right_handle_frame_get(const Scene *scene, const Strip *strip)
   return time_content_end_frame_get(scene, strip) - strip->endofs;
 }
 
+static void offset_left_linked_freeze_key(const Scene *scene, Strip *strip, int timeline_frame)
+{
+  SeqRetimingKey *linked_freeze = retiming_left_linked_freeze_frame_get(scene, strip);
+  if (linked_freeze != nullptr) {
+    const int linked_freeze_frame = retiming_key_timeline_frame_get(scene, strip, linked_freeze);
+    const int offset = timeline_frame - linked_freeze_frame;
+    retiming_offset_keys_to(scene, strip, linked_freeze, offset);
+  }
+}
+
 void time_left_handle_frame_set(const Scene *scene, Strip *strip, int timeline_frame)
 {
   const float right_handle_orig_frame = time_right_handle_frame_get(scene, strip);
@@ -506,6 +516,9 @@ void time_left_handle_frame_set(const Scene *scene, Strip *strip, int timeline_f
   }
 
   float offset = timeline_frame - time_start_frame_get(strip);
+  offset_left_linked_freeze_key(scene, strip, timeline_frame);
+  /* Recalculate offset after retiming was adjusted, because strip start was likely moved. */
+  offset = timeline_frame - time_start_frame_get(strip);
 
   if (transform_single_image_check(strip)) {
     /* This strip has only 1 frame of content that is always stretched to the whole strip length.
@@ -524,6 +537,19 @@ void time_left_handle_frame_set(const Scene *scene, Strip *strip, int timeline_f
   time_update_meta_strip_range(scene, lookup_meta_by_strip(scene->ed, strip));
 }
 
+static void offset_right_linked_freeze_key(const Scene *scene, Strip *strip, int timeline_frame)
+{
+  SeqRetimingKey *linked_freeze = retiming_right_linked_freeze_frame_get(scene, strip);
+
+  if (linked_freeze == nullptr) {
+    return;
+  }
+
+  const int linked_freeze_frame = retiming_key_timeline_frame_get(scene, strip, linked_freeze);
+  const int offset = timeline_frame - linked_freeze_frame;
+  retiming_offset_keys_from(scene, strip, linked_freeze, offset);
+}
+
 void time_right_handle_frame_set(const Scene *scene, Strip *strip, int timeline_frame)
 {
   const float left_handle_orig_frame = time_left_handle_frame_get(scene, strip);
@@ -531,6 +557,8 @@ void time_right_handle_frame_set(const Scene *scene, Strip *strip, int timeline_
   if (timeline_frame <= left_handle_orig_frame) {
     timeline_frame = left_handle_orig_frame + 1;
   }
+
+  offset_right_linked_freeze_key(scene, strip, timeline_frame);
 
   strip->endofs = time_content_end_frame_get(scene, strip) - timeline_frame;
   strip->enddisp = timeline_frame; /* Only to make files usable in older versions. */

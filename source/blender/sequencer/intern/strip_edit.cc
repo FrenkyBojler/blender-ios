@@ -32,6 +32,7 @@
 #include "SEQ_iterator.hh"
 #include "SEQ_relations.hh"
 #include "SEQ_render.hh"
+#include "SEQ_retiming.hh"
 #include "SEQ_sequencer.hh"
 #include "SEQ_time.hh"
 #include "SEQ_transform.hh"
@@ -256,59 +257,23 @@ bool edit_move_strip_to_meta(Scene *scene,
   return true;
 }
 
-static void seq_split_set_right_hold_offset(Main *bmain,
-                                            Scene *scene,
-                                            Strip *strip,
-                                            int timeline_frame)
+static void seq_split_set_right_hold_offset(Scene *scene, Strip *strip, int timeline_frame)
 {
-  const float content_start = time_start_frame_get(strip);
-  const float content_end = time_content_end_frame_get(scene, strip);
-
-  /* Adjust within range of extended still-frames before strip. */
-  if (timeline_frame < content_start) {
-    const float offset = content_start + 1 - timeline_frame;
-    strip->start -= offset;
-    strip->startofs += offset;
-  }
-  /* Adjust within range of strip contents. */
-  else if ((timeline_frame >= content_start) && (timeline_frame <= content_end)) {
-    strip->endofs = 0;
-    const float scene_fps = float(scene->r.frs_sec) / float(scene->r.frs_sec_base);
-    const float speed_factor = time_media_playback_rate_factor_get(strip, scene_fps);
-    strip->anim_endofs += round_fl_to_int((content_end - timeline_frame) * speed_factor);
-  }
-
-  /* Needed only to set `strip->len`. */
-  add_reload_new_file(bmain, scene, strip, false);
-  time_right_handle_frame_set(scene, strip, timeline_frame);
+  retiming_data_ensure(strip);
+  SeqRetimingKey *freeze_start = seq::retiming_add_key(scene, strip, timeline_frame);
+  SeqRetimingKey *freeze_end = retiming_add_freeze_frame(scene, strip, freeze_start, 1);
+  freeze_end->flag |= SEQ_KEY_LINKED_TO_RIGHT_HANDLE;
 }
 
-static void seq_split_set_left_hold_offset(Main *bmain,
-                                           Scene *scene,
-                                           Strip *strip,
-                                           int timeline_frame)
+static void seq_split_set_left_hold_offset(Scene *scene, Strip *strip, int timeline_frame)
 {
-  const float content_start = time_start_frame_get(strip);
-  const float content_end = time_content_end_frame_get(scene, strip);
-
-  /* Adjust within range of strip contents. */
-  if ((timeline_frame >= content_start) && (timeline_frame <= content_end)) {
-    const float scene_fps = float(scene->r.frs_sec) / float(scene->r.frs_sec_base);
-    const float speed_factor = time_media_playback_rate_factor_get(strip, scene_fps);
-    strip->anim_startofs += round_fl_to_int((timeline_frame - content_start) * speed_factor);
-    strip->start = timeline_frame;
-    strip->startofs = 0;
-  }
-  /* Adjust within range of extended still-frames after strip. */
-  else if (timeline_frame > content_end) {
-    const float offset = timeline_frame - content_end + 1;
-    strip->start += offset;
-    strip->endofs += offset;
-  }
-
-  /* Needed only to set `strip->len`. */
-  add_reload_new_file(bmain, scene, strip, false);
-  time_left_handle_frame_set(scene, strip, timeline_frame);
+  retiming_data_ensure(strip);
+  SeqRetimingKey *freeze_start = seq::retiming_add_key(scene, strip, timeline_frame);
+  /* Offset keys, so that freeze frame shows previewed image befor splitting. Also so that speed of
+   * right side strips is 100%. */
+  retiming_key_timeline_frame_set(scene, strip, freeze_start, timeline_frame - 1);
+  SeqRetimingKey *freeze_end = retiming_add_freeze_frame(scene, strip, freeze_start, 1);
+  (freeze_end - 1)->flag |= SEQ_KEY_LINKED_TO_LEFT_HANDLE;
 }
 
 static bool seq_edit_split_intersect_check(const Scene *scene,
@@ -319,33 +284,24 @@ static bool seq_edit_split_intersect_check(const Scene *scene,
          timeline_frame < time_right_handle_frame_get(scene, strip);
 }
 
-static void seq_edit_split_handle_strip_offsets(Main *bmain,
-                                                Scene *scene,
+static void seq_edit_split_handle_strip_offsets(Scene *scene,
                                                 Strip *left_strip,
                                                 Strip *right_strip,
                                                 const int timeline_frame,
                                                 const eSplitMethod method)
 {
   if (seq_edit_split_intersect_check(scene, right_strip, timeline_frame)) {
-    switch (method) {
-      case SPLIT_SOFT:
-        time_left_handle_frame_set(scene, right_strip, timeline_frame);
-        break;
-      case SPLIT_HARD:
-        seq_split_set_left_hold_offset(bmain, scene, right_strip, timeline_frame);
-        break;
+    if (method == SPLIT_HARD) {
+      seq_split_set_left_hold_offset(scene, right_strip, timeline_frame);
     }
+    time_left_handle_frame_set(scene, right_strip, timeline_frame);
   }
 
   if (seq_edit_split_intersect_check(scene, left_strip, timeline_frame)) {
-    switch (method) {
-      case SPLIT_SOFT:
-        time_right_handle_frame_set(scene, left_strip, timeline_frame);
-        break;
-      case SPLIT_HARD:
-        seq_split_set_right_hold_offset(bmain, scene, left_strip, timeline_frame);
-        break;
+    if (method == SPLIT_HARD) {
+      seq_split_set_right_hold_offset(scene, left_strip, timeline_frame);
     }
+    time_right_handle_frame_set(scene, left_strip, timeline_frame);
   }
 }
 
@@ -380,6 +336,16 @@ static bool seq_edit_split_operation_permitted_check(const Scene *scene,
     ListBase *channels = channels_displayed_get(editing_get(scene));
     if (transform_is_locked(channels, strip)) {
       *r_error = "Strip is locked.";
+      return false;
+    }
+    if (timeline_frame == time_content_end_frame_get(scene, strip) - 1) {
+      *r_error = "Can not hard split last frame of content.";
+      return false;
+    }
+    SeqRetimingKey *key = retiming_find_segment_start_key(
+        strip, give_frame_index(scene, strip, timeline_frame));
+    if (key && ((key->flag & SEQ_SPEED_TRANSITION_IN) != 0 || (key->flag & SEQ_FREEZE_FRAME_IN) != 0)) {
+      *r_error = "Can not hard split inside of speed transition or freeze frame.";
       return false;
     }
     if (!strip->is_effect()) {
@@ -485,8 +451,7 @@ Strip *edit_strip_split(Main *bmain,
       return_strip = right_strip;
     }
 
-    seq_edit_split_handle_strip_offsets(
-        bmain, scene, left_strip, right_strip, timeline_frame, method);
+    seq_edit_split_handle_strip_offsets(scene, left_strip, right_strip, timeline_frame, method);
     left_strip = left_strip->next;
     right_strip = right_strip->next;
   }
