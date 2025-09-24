@@ -227,18 +227,9 @@ static TreeElement *outliner_drop_insert_collection_find(bContext *C,
   }
   Collection *collection = outliner_collection_from_tree_element(collection_te);
 
-  if (space_outliner->sort_method != SO_SORT_CUSTOM) {
-    *r_insert_type = TE_INSERT_INTO;
-  }
-
-  if (collection_te != te) {
-    if (space_outliner->sort_method != SO_SORT_CUSTOM) {
-      *r_insert_type = TE_INSERT_INTO;
-    }
-  }
-
-  /* We can't insert before/after master collection. */
-  if (collection->flag & COLLECTION_IS_MASTER) {
+  /* In non-custom modes or for the Master collection, only allow dropping INTO.
+   * Otherwise let outliner_drop_insert_find() decide BEFORE/AFTER vs INTO. */
+  if (space_outliner->sort_method != SO_SORT_CUSTOM || (collection->flag & COLLECTION_IS_MASTER)) {
     *r_insert_type = TE_INSERT_INTO;
   }
 
@@ -1134,15 +1125,12 @@ static bool collection_drop_init(bContext *C, wmDrag *drag, const int xy[2], Col
   TreeElement *te_hovered = outliner_drop_insert_collection_find(C, xy, &insert_type);
   TreeElement *collection_te = outliner_data_from_tree_element_and_parents(is_collection_element,
                                                                            te_hovered);
-  if (!te_hovered) {
-    return false;
-  }
+  Collection *to_collection = outliner_collection_from_tree_element(collection_te);
 
   if (!collection_te) {
     return false;
   }
 
-  Collection *to_collection = outliner_collection_from_tree_element(collection_te);
   if (!to_collection) {
     return false;
   }
@@ -1168,6 +1156,8 @@ static bool collection_drop_init(bContext *C, wmDrag *drag, const int xy[2], Col
     return false;
   }
 
+  /* If dragging an object and custom sort is off, only allow dropping INTO the collection.
+   * If dragging a collection, block dropping it onto itself. */
   if (GS(id->name) == ID_OB) {
     SpaceOutliner *so = CTX_wm_space_outliner(C);
     if (so->sort_method != SO_SORT_CUSTOM) {
@@ -1180,12 +1170,16 @@ static bool collection_drop_init(bContext *C, wmDrag *drag, const int xy[2], Col
     }
   }
 
+  /* Get the item's current parent collection. If it's a override collection (not editable),
+   * don't allow the drop. */
   ID *parent = drag_id->from_parent;
   Collection *from_collection = collection_parent_from_ID(parent);
   if (from_collection && ID_IS_OVERRIDE_LIBRARY(from_collection)) {
     return false;
   }
 
+  /* If the drop target collection is a library override, only allow pure reordering
+   * (BEFORE/AFTER). Block INTO drops that would change membership. */
   if (ID_IS_OVERRIDE_LIBRARY(to_collection) &&
       !ELEM(insert_type, TE_INSERT_AFTER, TE_INSERT_BEFORE))
   {
@@ -1256,13 +1250,14 @@ static std::string collection_drop_tooltip(bContext *C,
     }
 
     TreeElement *te = data.te;
-    const bool target_is_object_row = is_object_element(te);
 
+    const bool target_is_object_row = is_object_element(te);
     wmDragID *drag_id = (wmDragID *)drag->ids.first;
     const bool dragging_object = drag_id && (GS(drag_id->id->name) == ID_OB);
-
     const bool tooltip_link = (is_link && !same_level);
 
+    /* Tooltips now adapt to the hovered row. Whether
+     object or collection, and switch wording between Link and Move accordingly. */
     const char *tooltip_before = tooltip_link ?
                                      (target_is_object_row ? TIP_("Link before object") :
                                                              TIP_("Link before collection")) :
@@ -1281,6 +1276,7 @@ static std::string collection_drop_tooltip(bContext *C,
                                     (target_is_object_row ? TIP_("Move after object") :
                                                             TIP_("Move after collection"));
 
+    /* Choose the tooltip text based on where the drop will go. */
     switch (data.insert_type) {
       case TE_INSERT_BEFORE:
         if (te->prev && (target_is_object_row ? is_object_element(te->prev) :
@@ -1349,7 +1345,7 @@ static wmOperatorStatus collection_drop_invoke(bContext *C,
     relative_after = (data.insert_type == TE_INSERT_AFTER);
 
     TreeElement *parent_te = outliner_find_parent_element(&space_outliner->tree, nullptr, data.te);
-    data.to = parent_te ? outliner_collection_from_tree_element(parent_te) : nullptr;
+    data.to = (parent_te) ? outliner_collection_from_tree_element(parent_te) : nullptr;
     if (!data.to) {
       return OPERATOR_CANCELLED;
     }
@@ -1363,6 +1359,14 @@ static wmOperatorStatus collection_drop_invoke(bContext *C,
     TREESTORE(data.te)->flag &= ~TSE_CLOSED;
   }
 
+  /*  For each dragged item:
+   *  If it's an OBJECT (ID_OB),
+   *      Hold Ctrl to add it to the target and keep it in its current collection. Otherwise move
+   * it. In custom sort, when dropping BEFORE/AFTER, place it before/after the hovered row and
+   *       update the order. Don't add it again if it's already in the target.
+   * If it's a COLLECTION (ID_GR),
+   *      Move it under the target collection. If dropping BEFORE/AFTER another collection, place
+   *       it before/after that collection. */
   LISTBASE_FOREACH (wmDragID *, drag_id, &drag->ids) {
     if (GS(drag_id->id->name) == ID_OB) {
       Object *object = (Object *)drag_id->id;
@@ -1409,8 +1413,6 @@ static wmOperatorStatus collection_drop_invoke(bContext *C,
             (data.insert_type == TE_INSERT_BEFORE) ? BLI_addhead(&data.to->gobject, cob) :
                                                      BLI_addtail(&data.to->gobject, cob);
           }
-
-          BKE_collection_object_sort_resync(data.to);
         }
       }
     }
@@ -1427,7 +1429,6 @@ static wmOperatorStatus collection_drop_invoke(bContext *C,
   /* Update dependency graph and UI. */
   SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
   if (space_outliner->sort_method == SO_SORT_CUSTOM) {
-    BKE_collection_object_sort_resync(data.to);
     /* Ensure ViewLayer bases and base index reflect the new order. */
     BKE_main_collection_sync(bmain);
   }

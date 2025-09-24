@@ -299,10 +299,6 @@ TreeElement *AbstractTreeDisplay::add_element(ListBase *lb,
     te->abstract_element->display_ = this;
   }
 
-  if (type == TSE_SOME_ID && owner_id) {
-    te->idcode = GS(owner_id->name);
-  }
-
   if (ELEM(type, TSE_STRIP, TSE_STRIP_DATA, TSE_STRIP_DUP)) {
     /* pass */
   }
@@ -448,6 +444,8 @@ struct tTreeSort {
   short idcode;
 };
 
+/* If both items are objects in the same parent collection, sort by
+ * their CollectionObject.sort_index. Otherwise fall back to natural name order. */
 static int treesort_custom(const void *v1, const void *v2)
 {
   const tTreeSort *x1 = static_cast<const tTreeSort *>(v1);
@@ -629,6 +627,8 @@ static void outliner_sort(ListBase *lb)
   }
 }
 
+/* Sort current list by custom order (collection defined object order via sort_index. Otherwise by
+ * natural name), then recurse into all children. */
 static void outliner_sort_custom(ListBase *lb)
 {
   int totelem = BLI_listbase_count(lb);
@@ -664,6 +664,8 @@ static void outliner_sort_custom(ListBase *lb)
   }
 }
 
+/* Comparator for type sort. Keep non-objects before object. For objects, place members of the
+ * collection before "not in collection”, then group by object type, then by natural name. */
 static int treesort_type_ob(const void *v1, const void *v2)
 {
   const tTreeSort *x1 = static_cast<const tTreeSort *>(v1);
@@ -700,6 +702,8 @@ static int treesort_type_ob(const void *v1, const void *v2)
   return BLI_strcasecmp_natural(x1->name, x2->name);
 }
 
+/* Apply type sorting to object lists at this level using treesort_type_ob, then recurse into
+ * subtrees. */
 static void outliner_sort_type(ListBase *lb)
 {
   TreeElement *last_te = static_cast<TreeElement *>(lb->last);
@@ -742,6 +746,8 @@ static void outliner_sort_type(ListBase *lb)
   }
 }
 
+/* Sort objects so those actually in the collection come before children not in the collection,
+ * then recurse. Used to visually separate dashed “not in collection” links. */
 [[maybe_unused]] static void outliner_collections_children_sort(ListBase *lb)
 {
   TreeElement *last_te = static_cast<TreeElement *>(lb->last);
@@ -784,6 +790,8 @@ static void outliner_sort_type(ListBase *lb)
   }
 }
 
+/* Comparator for creation sort. For objects, compare by session_uid.
+ * Otherwise fall back to natural name ordering. */
 static int treesort_creation(const void *v1, const void *v2)
 {
   const tTreeSort *x1 = static_cast<const tTreeSort *>(v1);
@@ -809,6 +817,8 @@ static int treesort_creation(const void *v1, const void *v2)
   return BLI_strcasecmp_natural(x1->name, x2->name);
 }
 
+/* Apply creation sorting to object lists (by session_uid, oldest first) at this level,
+ * then recurse into subtrees. */
 static void outliner_sort_creation(ListBase *lb)
 {
   TreeElement *last_te = static_cast<TreeElement *>(lb->last);
@@ -1384,11 +1394,7 @@ void outliner_build_tree(Main *mainvar,
       outliner_sort(&space_outliner->tree);
       break;
 
-    case SO_SORT_CUSTOM: {
-      LISTBASE_FOREACH (Collection *, collection, &mainvar->collections) {
-        BKE_collection_object_sort_resync(collection);
-      }
-    }
+    case SO_SORT_CUSTOM:
       outliner_sort_custom(&space_outliner->tree);
       break;
 

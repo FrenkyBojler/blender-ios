@@ -1418,14 +1418,6 @@ CollectionObject *BKE_collection_object_find_in(Collection *collection, Object *
   return nullptr;
 }
 
-void BKE_collection_object_sort_resync(Collection *collection)
-{
-  int i = 0;
-  LISTBASE_FOREACH (CollectionObject *, cob, &collection->gobject) {
-    cob->sort_index = i++;
-  }
-}
-
 static bool collection_object_add(Main *bmain,
                                   Collection *collection,
                                   Object *ob,
@@ -1453,6 +1445,8 @@ static bool collection_object_add(Main *bmain,
   if (light_linking) {
     cob->light_linking = *light_linking;
   }
+
+  /* Set sort_index to current size so the new object appears last under SO_SORT_CUSTOM. */
   cob->sort_index = BLI_listbase_count(&collection->gobject);
 
   *cob_p = cob;
