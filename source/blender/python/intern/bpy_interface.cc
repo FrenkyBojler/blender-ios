@@ -72,7 +72,6 @@
 
 /* Logging types to use anywhere in the Python modules. */
 
-CLG_LOGREF_DECLARE_GLOBAL(BPY_LOG_CONTEXT, "bpy.context");
 CLG_LOGREF_DECLARE_GLOBAL(BPY_LOG_INTERFACE, "bpy.interface");
 CLG_LOGREF_DECLARE_GLOBAL(BPY_LOG_RNA, "bpy.rna");
 
@@ -821,10 +820,6 @@ bool BPY_context_member_get(bContext *C, const char *member, bContextDataResult 
           CTX_data_list_add_ptr(result, ptr);
         }
         else {
-          CLOG_INFO(BPY_LOG_CONTEXT,
-                    "'%s' list item not a valid type in sequence type '%s'",
-                    member,
-                    Py_TYPE(item)->tp_name);
         }
       }
       Py_DECREF(seq_fast);
@@ -833,17 +828,6 @@ bool BPY_context_member_get(bContext *C, const char *member, bContextDataResult 
     }
   }
 
-  if (done == false) {
-    if (item) {
-      CLOG_INFO(BPY_LOG_CONTEXT, "'%s' not a valid type", member);
-    }
-    else {
-      CLOG_INFO(BPY_LOG_CONTEXT, "'%s' not found", member);
-    }
-  }
-  else {
-    CLOG_DEBUG(BPY_LOG_CONTEXT, "'%s' found", member);
-  }
 
   if (use_gil) {
     PyGILState_Release(gilstate);
