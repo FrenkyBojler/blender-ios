@@ -172,7 +172,6 @@ static void paint_set_color(bContext *C, SampleColorData *data, const blender::f
   data->accum_color += rgb_f;
   data->num_samples++;
 
-  /* Calculate average. */
   const blender::float3 average_color = data->accum_color / float(data->num_samples);
 
   Paint *paint = BKE_paint_get_active_from_context(C);
