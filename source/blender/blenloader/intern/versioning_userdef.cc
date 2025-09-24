@@ -367,7 +367,7 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
     FROM_DEFAULT_V4_UCHAR(regions.scrubbing.time_marker_selected);
   }
 
-  if (!USER_VERSION_ATLEAST(500, 82)) {
+  if (!USER_VERSION_ATLEAST(500, 90)) {
     FROM_DEFAULT_V4_UCHAR(tui.wcol_curve.text);
     FROM_DEFAULT_V4_UCHAR(tui.wcol_curve.text_sel);
     FROM_DEFAULT_V4_UCHAR(tui.wcol_curve.item);
