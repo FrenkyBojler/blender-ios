@@ -195,9 +195,22 @@ struct FileData {
   void *storage_handle = nullptr;
 };
 
-/***/
+/**
+ * Split a single main into a vector of Mains, each containing only IDs from a given library.
+ *
+ * The vector is accessible in all of the split mains through the shared pointer
+ * #Main::split_mains.
+ *
+ * The first Main of the vector is the same as the given `main`, and contains local IDs.
+ *
+ * If `do_split_packed_ids` is `false`, packed linked IDs remain in the local (first) main as well.
+ */
+void blo_split_main(Main *bmain, bool do_split_packed_ids = true);
+/**
+ * Join the set of split mains (found in given `main` #Main::split_mains vector shared pointer)
+ * back into that 'main' main.
+ */
 void blo_join_main(Main *bmain);
-void blo_split_main(Main *bmain);
 
 BlendFileData *blo_read_file_internal(FileData *fd, const char *filepath) ATTR_NONNULL(1, 2);
 

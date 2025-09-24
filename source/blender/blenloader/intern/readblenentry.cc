@@ -393,8 +393,10 @@ BlendFileData *BLO_read_from_memfile(Main *oldmain,
     /* Build old ID map for all old IDs. */
     blo_make_old_idmap_from_main(fd, oldmain);
 
-    /* Separate linked data from old main. */
-    blo_split_main(oldmain);
+    /* Separate linked data from old main.
+     * WARNING: Do not split out packed IDs here, as these are handled similarly as local IDs in
+     * undo context. */
+    blo_split_main(oldmain, false);
     fd->old_bmain = oldmain;
 
     /* Removed packed data from this trick - it's internal data that needs saves. */

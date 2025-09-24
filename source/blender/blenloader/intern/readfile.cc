@@ -390,17 +390,17 @@ void blo_join_main(Main *bmain)
   bmain->split_mains.reset();
 }
 
-static void split_libdata(ListBase *lb_src, Main **lib_main_array, const uint lib_main_array_len)
+static void split_libdata(ListBase *lb_src,
+                          blender::Vector<Main *> &lib_main_array,
+                          const bool do_split_packed_ids)
 {
   for (ID *id = static_cast<ID *>(lb_src->first), *idnext; id; id = idnext) {
     idnext = static_cast<ID *>(id->next);
 
-    if (id->lib) {
-      if ((uint(id->lib->runtime->temp_index) < lib_main_array_len) &&
-          /* this check should never fail, just in case 'id->lib' is a dangling pointer. */
-          (lib_main_array[id->lib->runtime->temp_index]->curlib == id->lib))
-      {
+    if (id->lib && (do_split_packed_ids || (id->lib->flag & LIBRARY_FLAG_IS_ARCHIVE) == 0)) {
+      if (uint(id->lib->runtime->temp_index) < lib_main_array.size()) {
         Main *mainvar = lib_main_array[id->lib->runtime->temp_index];
+        BLI_assert(mainvar->curlib == id->lib);
         ListBase *lb_dst = which_libbase(mainvar, GS(id->name));
         BLI_remlink(lb_src, id);
         BLI_addtail(lb_dst, id);
@@ -412,7 +412,7 @@ static void split_libdata(ListBase *lb_src, Main **lib_main_array, const uint li
   }
 }
 
-void blo_split_main(Main *bmain)
+void blo_split_main(Main *bmain, const bool do_split_packed_ids)
 {
   BLI_assert(!bmain->split_mains);
   bmain->split_mains = std::make_shared<blender::VectorSet<Main *>>();
@@ -432,13 +432,15 @@ void blo_split_main(Main *bmain)
   BKE_main_namemap_clear(*bmain);
 
   /* (Library.temp_index -> Main), lookup table */
-  const uint lib_main_array_len = BLI_listbase_count(&bmain->libraries);
-  Main **lib_main_array = MEM_malloc_arrayN<Main *>(lib_main_array_len, __func__);
+  blender::Vector<Main *> lib_main_array;
 
   int i = 0;
   for (Library *lib = static_cast<Library *>(bmain->libraries.first); lib;
        lib = static_cast<Library *>(lib->id.next), i++)
   {
+    if (!do_split_packed_ids && (lib->flag & LIBRARY_FLAG_IS_ARCHIVE) != 0) {
+      continue;
+    }
     Main *libmain = BKE_main_new();
     libmain->curlib = lib;
     libmain->versionfile = lib->runtime->versionfile;
@@ -450,7 +452,7 @@ void blo_split_main(Main *bmain)
     bmain->split_mains->add_new(libmain);
     libmain->split_mains = bmain->split_mains;
     lib->runtime->temp_index = i;
-    lib_main_array[i] = libmain;
+    lib_main_array.append(libmain);
   }
 
   MainListsArray lbarray = BKE_main_lists_get(*bmain);
@@ -461,10 +463,8 @@ void blo_split_main(Main *bmain)
       /* No ID_LI data-block should ever be linked anyway, but just in case, better be explicit. */
       continue;
     }
-    split_libdata(lbarray[i], lib_main_array, lib_main_array_len);
+    split_libdata(lbarray[i], lib_main_array, do_split_packed_ids);
   }
-
-  MEM_freeN(lib_main_array);
 }
 
 static void read_file_version_and_colorspace(FileData *fd, Main *main)
@@ -2687,6 +2687,82 @@ static BHead *read_data_into_datamap(FileData *fd,
   return bhead;
 }
 
+/* Add a Main (and optionally create a matching Library ID), for the given filepath.
+ *
+ * - If `lib` is `nullptr`, create a new Library ID, otherwise only create a new Main for the given
+ * library.
+ * - `reference_lib` is the 'archive parent' of an archive (packed) library, can be null and will
+ * be ignored otherwise. */
+static Main *blo_add_main_for_library(FileData *fd,
+                                      Library *lib,
+                                      Library *reference_lib,
+                                      const char *lib_filepath,
+                                      char (&filepath_abs)[FILE_MAX],
+                                      const bool is_packed_library)
+{
+  Main *bmain = BKE_main_new();
+  fd->bmain->split_mains->add_new(bmain);
+  bmain->split_mains = fd->bmain->split_mains;
+
+  if (!lib) {
+    /* Add library data-block itself to 'main' Main, since libraries are **never** linked data.
+     * Fixes bug where you could end with all ID_LI data-blocks having the same name... */
+    Library *lib = BKE_id_new<Library>(fd->bmain,
+                                       reference_lib ? BKE_id_name(reference_lib->id) :
+                                                       BLI_path_basename(lib_filepath));
+
+    /* Important, consistency with main ID reading code from read_libblock(). */
+    lib->id.us = ID_FAKE_USERS(lib);
+
+    /* Matches direct_link_library(). */
+    id_us_ensure_real(&lib->id);
+
+    STRNCPY(lib->filepath, lib_filepath);
+    STRNCPY(lib->runtime->filepath_abs, filepath_abs);
+
+    if (is_packed_library) {
+      /* FIXME: This logic is very similar to the code in BKE_library dealing with archived
+       * libraries (e.g. #add_archive_library). Might be good to try to factorize it. */
+      lib->archive_parent_library = reference_lib;
+      constexpr uint16_t copy_flag = ~LIBRARY_FLAG_IS_ARCHIVE;
+      lib->flag = (reference_lib->flag & copy_flag) | LIBRARY_FLAG_IS_ARCHIVE;
+
+      lib->runtime->parent = reference_lib->runtime->parent;
+      /* Only copy a subset of the reference library tags. E.g. an archive library should never be
+       * considered as writable, so never copy #LIBRARY_ASSET_FILE_WRITABLE. This may need further
+       * tweaking still. */
+      constexpr uint16_t copy_tag = (LIBRARY_TAG_RESYNC_REQUIRED | LIBRARY_ASSET_EDITABLE |
+                                     LIBRARY_IS_ASSET_EDIT_FILE);
+      lib->runtime->tag = reference_lib->runtime->tag & copy_tag;
+
+      /* The filedata of a packed archive library should always be the one of the blendfile which
+       * defines the library ID and packs its linked IDs. */
+      lib->runtime->filedata = fd;
+      lib->runtime->is_filedata_owner = false;
+
+      reference_lib->runtime->archived_libraries.append(lib);
+    }
+  }
+  else {
+    if (is_packed_library) {
+      BLI_assert(lib->flag & LIBRARY_FLAG_IS_ARCHIVE);
+      BLI_assert(lib->archive_parent_library == reference_lib);
+      BLI_assert(reference_lib->runtime->archived_libraries.contains(lib));
+
+      BLI_assert(lib->runtime->filedata == nullptr);
+      lib->runtime->filedata = fd;
+      lib->runtime->is_filedata_owner = false;
+    }
+    else {
+      /* Should never happen currently. */
+      BLI_assert_unreachable();
+    }
+  }
+
+  bmain->curlib = lib;
+  return bmain;
+}
+
 /* Verify if the datablock and all associated data is identical. */
 static bool read_libblock_is_identical(FileData *fd, BHead *bhead)
 {
@@ -2806,19 +2882,12 @@ static bool read_libblock_undo_restore_library(FileData *fd,
    * modified should not be an issue currently. */
   for (Main *libmain : fd->old_bmain->split_mains->as_span().drop_front(1)) {
     if (&libmain->curlib->id == id_old) {
+      BLI_assert(libmain->curlib);
+      BLI_assert((libmain->curlib->flag & LIBRARY_FLAG_IS_ARCHIVE) == 0);
       CLOG_DEBUG(&LOG_UNDO,
                  "    compare with %s -> match (existing libpath: %s)",
-                 libmain->curlib ? libmain->curlib->id.name : "<none>",
-                 libmain->curlib ? libmain->curlib->runtime->filepath_abs : "<none>");
-
-      /* The packed IDs are later read again. So they shouldn't be kept in libmain here. */
-      for (ListBase *lb_array : BKE_main_lists_get(*libmain)) {
-        LISTBASE_FOREACH_MUTABLE (ID *, id, lb_array) {
-          if (ID_IS_PACKED(id)) {
-            BLI_remlink(lb_array, id);
-          }
-        }
-      }
+                 libmain->curlib->id.name,
+                 libmain->curlib->runtime->filepath_abs);
 
       /* In case of a library, we need to re-add its main to fd->bmain->split_mains,
        * because if we have later a missing ID_LINK_PLACEHOLDER,
@@ -2934,6 +3003,26 @@ static void read_libblock_undo_restore_identical(
      * data-blocks too. */
     ob->mode &= ~OB_MODE_EDIT;
   }
+  if (GS(id_old->name) == ID_LI) {
+    Library *lib = reinterpret_cast<Library *>(id_old);
+    if (lib->flag & LIBRARY_FLAG_IS_ARCHIVE) {
+      BLI_assert(lib->runtime->filedata == nullptr);
+      BLI_assert(lib->archive_parent_library);
+      /* The 'normal' parent of this archive library should already have been moved into the new
+       * Main. */
+      BLI_assert(BKE_main_idmap_lookup_uid(fd->new_idmap_uid,
+                                           lib->archive_parent_library->id.session_uid) ==
+                 &lib->archive_parent_library->id);
+      /* The archive library ID has been moved in the new Main, but not its own old split main, as
+       * these packed IDs should be handled like local ones in undo case. So a new split libmain
+       * needs to be created to contains its packed IDs. */
+      blo_add_main_for_library(
+          fd, lib, lib->archive_parent_library, lib->filepath, lib->runtime->filepath_abs, true);
+    }
+    else {
+      BLI_assert_unreachable();
+    }
+  }
 }
 
 /* For undo, store changed datablock at old address. */
@@ -3005,8 +3094,13 @@ static bool read_libblock_undo_restore(
                    nullptr;
 
   if (bhead->code == ID_LI) {
-    /* Restore library datablock, if possible. */
-    if (read_libblock_undo_restore_library(fd, id, id_old, bhead)) {
+    /* Restore library datablock, if possible.
+     *
+     * Never handle archive libraries and their packed IDs as normal ones. These are local data,
+     * and need to be fully handled like local IDs. */
+    if (id_old && (reinterpret_cast<Library *>(id_old)->flag & LIBRARY_FLAG_IS_ARCHIVE) == 0 &&
+        read_libblock_undo_restore_library(fd, id, id_old, bhead))
+    {
       return true;
     }
   }
@@ -3969,6 +4063,14 @@ BlendFileData *blo_read_file_internal(FileData *fd, const char *filepath)
      * of its items. */
     blender::Vector<Main *> old_main_split_mains = {old_main->split_mains->as_span()};
     for (Main *libmain : old_main_split_mains.as_span().drop_front(1)) {
+      BLI_assert(libmain->curlib);
+      if (libmain->curlib->flag & LIBRARY_FLAG_IS_ARCHIVE) {
+        /* Never move archived libraries and their content, these are 'local' data in undo context,
+         * so all packed linked IDs should have been handled like local ones undo-wise, and if
+         * packed libraries remain unused at this point, then they are indeed fully unused/removed
+         * from the new main. */
+        continue;
+      }
       read_undo_move_libmain_data(fd, libmain, nullptr);
     }
   }
@@ -4109,7 +4211,9 @@ BlendFileData *blo_read_file_internal(FileData *fd, const char *filepath)
     }
 
     LISTBASE_FOREACH_MUTABLE (Library *, lib, &bfd->main->libraries) {
-      /* Now we can clear this runtime library filedata, it is not needed anymore. */
+      /* Now we can clear this runtime library filedata, it is not needed anymore.
+       *
+       * NOTE: This is also important to do for archive libraries. */
       library_filedata_release(lib);
       /* If no data-blocks were read from a library (should only happen when all references to a
        * library's data are `ID_FLAG_INDIRECT_WEAK_LINK`), its versionfile will still be zero and
@@ -4413,57 +4517,6 @@ struct BlendExpander {
   BLOExpandDoitCallback callback;
 };
 
-static Main *blo_add_main_for_library(FileData *fd,
-                                      Library *reference_lib,
-                                      const char *lib_filepath,
-                                      char (&filepath_abs)[FILE_MAX],
-                                      const bool is_packed_library)
-{
-  Main *bmain = BKE_main_new();
-  fd->bmain->split_mains->add_new(bmain);
-  bmain->split_mains = fd->bmain->split_mains;
-
-  /* Add library data-block itself to 'main' Main, since libraries are **never** linked data.
-   * Fixes bug where you could end with all ID_LI data-blocks having the same name... */
-  Library *lib = BKE_id_new<Library>(
-      fd->bmain, reference_lib ? BKE_id_name(reference_lib->id) : BLI_path_basename(lib_filepath));
-
-  /* Important, consistency with main ID reading code from read_libblock(). */
-  lib->id.us = ID_FAKE_USERS(lib);
-
-  /* Matches direct_link_library(). */
-  id_us_ensure_real(&lib->id);
-
-  STRNCPY(lib->filepath, lib_filepath);
-  STRNCPY(lib->runtime->filepath_abs, filepath_abs);
-
-  if (is_packed_library) {
-    /* FIXME: This logic is very similar to the code in BKE_library dealing with archived libraries
-     * (e.g. #add_archive_library). Might be good to try to factorize it. */
-    lib->archive_parent_library = reference_lib;
-    constexpr uint16_t copy_flag = ~LIBRARY_FLAG_IS_ARCHIVE;
-    lib->flag = (reference_lib->flag & copy_flag) | LIBRARY_FLAG_IS_ARCHIVE;
-
-    lib->runtime->parent = reference_lib->runtime->parent;
-    /* Only copy a subset of the reference library tags. E.g. an archive library should never be
-     * considered as writable, so never copy #LIBRARY_ASSET_FILE_WRITABLE. This may need further
-     * tweaking still. */
-    constexpr uint16_t copy_tag = (LIBRARY_TAG_RESYNC_REQUIRED | LIBRARY_ASSET_EDITABLE |
-                                   LIBRARY_IS_ASSET_EDIT_FILE);
-    lib->runtime->tag = reference_lib->runtime->tag & copy_tag;
-
-    /* The filedata of a packed archive library should always be the one of the blendfile which
-     * defines the library ID and packs its linked IDs. */
-    lib->runtime->filedata = fd;
-    lib->runtime->is_filedata_owner = false;
-
-    reference_lib->runtime->archived_libraries.append(lib);
-  }
-
-  bmain->curlib = lib;
-  return bmain;
-}
-
 /* Find the existing Main matching the given blendfile library filepath, or create a new one (with
  * the matching Library ID) if needed.
  *
@@ -4540,7 +4593,7 @@ static Main *blo_find_main_for_library_and_idname(FileData *fd,
       /* An archive library requires an existing parent library, create an empty, 'virtual' one if
        * needed. */
       Main *reference_bmain = blo_add_main_for_library(
-          fd, nullptr, lib_filepath, filepath_abs, false);
+          fd, nullptr, nullptr, lib_filepath, filepath_abs, false);
       parent_lib = reference_bmain->curlib;
       CLOG_DEBUG(&LOG,
                  "Added new parent library '%s' for file path '%s'",
@@ -4550,7 +4603,8 @@ static Main *blo_find_main_for_library_and_idname(FileData *fd,
   }
   BLI_assert(parent_lib || !is_packed_id);
 
-  Main *bmain = blo_add_main_for_library(fd, parent_lib, lib_filepath, filepath_abs, is_packed_id);
+  Main *bmain = blo_add_main_for_library(
+      fd, nullptr, parent_lib, lib_filepath, filepath_abs, is_packed_id);
 
   read_file_version_and_colorspace(fd, bmain);
 
@@ -5448,6 +5502,13 @@ static void read_libraries(FileData *basefd)
      * this list gets longer as more indirectly library blends are found. */
     for (int i = 1; i < bmain->split_mains->size(); i++) {
       Main *libmain = (*bmain->split_mains)[i];
+      BLI_assert(libmain->curlib);
+      /* Always skip archived libraries here, these should _never_ need to be processed here, as
+       * their data is local data from a blendfile perspective. */
+      if (libmain->curlib->flag & LIBRARY_FLAG_IS_ARCHIVE) {
+        BLI_assert(!has_linked_ids_to_read(libmain));
+        continue;
+      }
       /* Does this library have any more linked data-blocks we need to read? */
       if (has_linked_ids_to_read(libmain)) {
         CLOG_DEBUG(&LOG,
@@ -5486,6 +5547,11 @@ static void read_libraries(FileData *basefd)
 
   Main *main_newid = BKE_main_new();
   for (Main *libmain : bmain->split_mains->as_span().drop_front(1)) {
+    /* Always skip archived libraries here, these should _never_ need to be processed here, as
+     * their data is local data from a blendfile perspective. */
+    if (libmain->curlib->flag & LIBRARY_FLAG_IS_ARCHIVE) {
+      continue;
+    }
     /* Do versioning for newly added linked data-blocks. If no data-blocks
      * were read from a library versionfile will still be zero and we can
      * skip it. */
