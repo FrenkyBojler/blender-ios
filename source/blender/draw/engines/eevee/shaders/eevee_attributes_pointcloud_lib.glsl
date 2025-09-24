@@ -17,9 +17,10 @@ SHADER_LIBRARY_CREATE_INFO(draw_pointcloud)
 #include "draw_model_lib.glsl"
 #include "draw_object_infos_lib.glsl"
 #include "draw_pointcloud_lib.glsl"
-#include "eevee_nodetree_lib.glsl"
+#include "eevee_geom_types_lib.glsl"
 #include "gpu_shader_codegen_lib.glsl"
-#include "gpu_shader_math_matrix_lib.glsl"
+
+#include "gpu_shader_math_matrix_transform_lib.glsl"
 #include "gpu_shader_math_vector_lib.glsl"
 
 /* -------------------------------------------------------------------- */

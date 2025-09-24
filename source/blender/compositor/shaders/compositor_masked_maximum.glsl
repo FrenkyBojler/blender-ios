@@ -4,6 +4,7 @@
 
 #include "gpu_shader_compositor_texture_utilities.glsl"
 #include "gpu_shader_math_base_lib.glsl"
+#include "gpu_shader_math_constants_lib.glsl"
 #include "gpu_shader_math_vector_lib.glsl"
 #include "gpu_shader_utildefines_lib.glsl"
 
