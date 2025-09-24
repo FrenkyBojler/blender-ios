@@ -876,12 +876,30 @@ class VIEW3D_PT_tools_weight_gradient(Panel, View3DPaintPanel):
 
             col = layout.column(align=True)
             row = col.row(align=True)
-            row.operator("brush.curve_preset", icon='SMOOTHCURVE', text="").shape = 'SMOOTH'
-            row.operator("brush.curve_preset", icon='SPHERECURVE', text="").shape = 'ROUND'
-            row.operator("brush.curve_preset", icon='ROOTCURVE', text="").shape = 'ROOT'
-            row.operator("brush.curve_preset", icon='SHARPCURVE', text="").shape = 'SHARP'
-            row.operator("brush.curve_preset", icon='LINCURVE', text="").shape = 'LINE'
-            row.operator("brush.curve_preset", icon='NOCURVE', text="").shape = 'MAX'
+            operator = row.operator("brush.curve_preset", icon='SMOOTHCURVE', text="")
+            operator.shape = 'SMOOTH'
+            operator.field = 'DISTANCE_FALLOFF'
+            operator.slope = 'NEGATIVE'
+            operator = row.operator("brush.curve_preset", icon='SPHERECURVE', text="")
+            operator.shape = 'ROUND'
+            operator.field = 'DISTANCE_FALLOFF'
+            operator.slope = 'NEGATIVE'
+            operator = row.operator("brush.curve_preset", icon='ROOTCURVE', text="")
+            operator.shape = 'ROOT'
+            operator.field = 'DISTANCE_FALLOFF'
+            operator.slope = 'NEGATIVE'
+            operator = row.operator("brush.curve_preset", icon='SHARPCURVE', text="")
+            operator.shape = 'SHARP'
+            operator.field = 'DISTANCE_FALLOFF'
+            operator.slope = 'NEGATIVE'
+            operator = row.operator("brush.curve_preset", icon='LINCURVE', text="")
+            operator.shape = 'LINE'
+            operator.field = 'DISTANCE_FALLOFF'
+            operator.slope = 'NEGATIVE'
+            operator = row.operator("brush.curve_preset", icon='NOCURVE', text="")
+            operator.shape = 'MAX'
+            operator.field = 'DISTANCE_FALLOFF'
+            operator.slope = 'NEGATIVE'
 
 
 # TODO, move to space_view3d.py

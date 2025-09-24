@@ -39,7 +39,7 @@ void BKE_curvemapping_set_black_white(CurveMapping *cumap,
                                       const float black[3],
                                       const float white[3]);
 
-enum {
+enum eCurveMappingSlopeType {
   CURVEMAP_SLOPE_NEGATIVE = 0,
   CURVEMAP_SLOPE_POSITIVE = 1,
   CURVEMAP_SLOPE_POS_NEG = 2,

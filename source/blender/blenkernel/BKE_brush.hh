@@ -10,6 +10,8 @@
  * General operations for brushes.
  */
 
+#include "BKE_colortools.hh"
+
 #include <optional>
 
 #include "BLI_span.hh"
@@ -102,6 +104,18 @@ void BKE_brush_randomize_texture_coords(Paint *paint, bool mask);
  * Library Operations
  */
 void BKE_brush_curve_preset(Brush *b, eCurveMappingPreset preset);
+
+enum class BrushCurveField : int8_t {
+  DistanceFalloff = 0,
+  Size = 1,
+  Strength = 2,
+  Jitter = 3,
+};
+void BKE_brush_curve_preset(Brush &brush,
+                            BrushCurveField field,
+                            eCurveMappingPreset preset,
+                            eCurveMappingSlopeType slope);
+void BKE_brush_curve_preset(Brush &brush, BrushCurveField field, eCurveMappingPreset preset);
 
 /**
  * Combine the brush strength based on the distances and brush settings with the existing factors.

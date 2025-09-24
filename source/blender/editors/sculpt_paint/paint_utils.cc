@@ -188,7 +188,10 @@ static wmOperatorStatus brush_curve_preset_exec(bContext *C, wmOperator *op)
   if (br) {
     Scene *scene = CTX_data_scene(C);
     ViewLayer *view_layer = CTX_data_view_layer(C);
-    BKE_brush_curve_preset(br, eCurveMappingPreset(RNA_enum_get(op->ptr, "shape")));
+    BKE_brush_curve_preset(*br,
+                           BrushCurveField(RNA_enum_get(op->ptr, "field")),
+                           eCurveMappingPreset(RNA_enum_get(op->ptr, "shape")),
+                           eCurveMappingSlopeType(RNA_enum_get(op->ptr, "slope")));
     BKE_paint_invalidate_cursor_overlay(scene, view_layer, br->curve);
   }
 
@@ -212,6 +215,20 @@ static const EnumPropertyItem prop_shape_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
+static const EnumPropertyItem prop_field_items[] = {
+    {int8_t(BrushCurveField::DistanceFalloff), "DISTANCE_FALLOFF", 0, "distance_falloff", ""},
+    {int8_t(BrushCurveField::Size), "SIZE", 0, "size", ""},
+    {int8_t(BrushCurveField::Strength), "STRENGTH", 0, "strength", ""},
+    {int8_t(BrushCurveField::Jitter), "JITTER", 0, "jitter", ""},
+    {0, nullptr, 0, nullptr, nullptr},
+};
+
+static const EnumPropertyItem prop_slope_items[] = {
+    {CURVEMAP_SLOPE_NEGATIVE, "NEGATIVE", 0, "NEGATIVE", ""},
+    {CURVEMAP_SLOPE_POSITIVE, "POSITIVE", 0, "POSITIVE", ""},
+    {0, nullptr, 0, nullptr, nullptr},
+};
+
 void BRUSH_OT_curve_preset(wmOperatorType *ot)
 {
   ot->name = "Preset";
@@ -225,6 +242,9 @@ void BRUSH_OT_curve_preset(wmOperatorType *ot)
   prop = RNA_def_enum(ot->srna, "shape", prop_shape_items, CURVE_PRESET_SMOOTH, "Mode", "");
   RNA_def_property_translation_context(prop,
                                        BLT_I18NCONTEXT_ID_CURVE_LEGACY); /* Abusing id_curve :/ */
+  prop = RNA_def_enum(
+      ot->srna, "field", prop_field_items, int8_t(BrushCurveField::DistanceFalloff), "Field", "");
+  prop = RNA_def_enum(ot->srna, "slope", prop_slope_items, CURVEMAP_SLOPE_POSITIVE, "Slope", "");
 }
 
 static bool brush_sculpt_curves_falloff_preset_poll(bContext *C)

@@ -891,6 +891,37 @@ void BKE_brush_curve_preset(Brush *b, eCurveMappingPreset preset)
   BKE_brush_tag_unsaved_changes(b);
 }
 
+static CurveMapping *find_curve_mapping(const Brush &brush, const BrushCurveField field)
+{
+  switch (field) {
+    case BrushCurveField::DistanceFalloff:
+      return brush.curve;
+    case BrushCurveField::Size:
+      return brush.curve_size;
+    case BrushCurveField::Strength:
+      return brush.curve_strength;
+    case BrushCurveField::Jitter:
+      return brush.curve_jitter;
+  }
+  BLI_assert_unreachable();
+  return nullptr;
+}
+
+void BKE_brush_curve_preset(Brush &brush,
+                            const BrushCurveField field,
+                            const eCurveMappingPreset preset,
+                            const eCurveMappingSlopeType slope)
+{
+  CurveMapping *cumap = find_curve_mapping(brush, field);
+  cumap->flag &= ~CUMA_EXTEND_EXTRAPOLATE;
+  cumap->preset = preset;
+
+  CurveMap *cuma = cumap->cm;
+  BKE_curvemap_reset(cuma, &cumap->clipr, cumap->preset, slope);
+  BKE_curvemapping_changed(cumap, false);
+  BKE_brush_tag_unsaved_changes(&brush);
+}
+
 const MTex *BKE_brush_mask_texture_get(const Brush *brush, const eObjectMode object_mode)
 {
   if (object_mode == OB_MODE_SCULPT) {
