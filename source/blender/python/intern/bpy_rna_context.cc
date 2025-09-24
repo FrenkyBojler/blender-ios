@@ -110,9 +110,9 @@ static bool wm_check_region_exists(const bScreen *screen,
 /**
  * Helper function to configure context logging with extensible options.
  */
-static void bpy_rna_context_logging_set(bContext *C, bool enable, bool deduplicate = false)
+static void bpy_rna_context_logging_set(bContext *C, bool enable, bool deduplicate = false, bool hide_missing = false)
 {
-  CTX_member_logging_set(C, enable, deduplicate);
+  CTX_member_logging_set(C, enable, deduplicate, hide_missing);
 }
 
 /** \} */
@@ -534,25 +534,28 @@ static PyObject *bpy_rna_context_temp_override_logging_set(BPyContextTempOverrid
 {
   bool enable = true;
   bool deduplicate = false;
+  bool hide_missing = false;
 
-  static const char *kwlist[] = {"", "deduplicate", nullptr};
+  static const char *kwlist[] = {"", "deduplicate", "hide_missing", nullptr};
 
+  /* Single '|' marks start of optional arguments; use one '|' then multiple optional specifiers. */
   if (!PyArg_ParseTupleAndKeywords(args,
                                    kwds,
-                                   "O&|O&",
+                                   "O&|O&O&",
                                    (char **)kwlist,
                                    PyC_ParseBool,
                                    &enable,
                                    PyC_ParseBool,
-                                   &deduplicate))
+                                   &deduplicate,
+                                   PyC_ParseBool,
+                                   &hide_missing))
   {
-
     return nullptr;
   }
 
   self->ctx_temp.use_logging = enable;
 
-  bpy_rna_context_logging_set(self->context, enable, deduplicate);
+  bpy_rna_context_logging_set(self->context, enable, deduplicate, hide_missing);
 
   Py_RETURN_NONE;
 }

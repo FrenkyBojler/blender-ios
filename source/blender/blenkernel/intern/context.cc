@@ -106,6 +106,8 @@ struct bContext {
     bool log_access;
     /** True if deduplication is enabled for context member logging. */
     bool log_deduplicate;
+    /** True if missing/None values should be hidden from logging. */
+    bool log_hide_missing;
     /** Set of seen log entries for deduplication. */
     std::unordered_set<std::string> *seen_log_entries;
   } data;
@@ -117,6 +119,7 @@ bContext *CTX_create()
 {
   bContext *C = MEM_callocN<bContext>(__func__);
   C->data.seen_log_entries = nullptr;
+  C->data.log_hide_missing = false;
 
   return C;
 }
@@ -130,6 +133,7 @@ bContext *CTX_copy(const bContext *C)
 
   /* Don't copy the seen_log_entries set - start fresh for the new context */
   newC->data.seen_log_entries = nullptr;
+  newC->data.log_hide_missing = C->data.log_hide_missing;
 
   return newC;
 }
@@ -400,6 +404,34 @@ static void ctx_member_log_access(const bContext *C,
 
   std::string value_repr = ctx_result_brief_repr(result);
   const char *value_desc = value_repr.c_str();
+
+  /* If hiding missing values is enabled and the result represents None/missing, skip logging. */
+  if (C && C->data.log_hide_missing) {
+    bool is_missing = false;
+    switch (result.type) {
+      case CTX_DATA_TYPE_POINTER:
+        if (result.ptr.data == nullptr) {
+          is_missing = true;
+        }
+        break;
+      case CTX_DATA_TYPE_COLLECTION:
+        if (result.list.is_empty()) {
+          is_missing = true;
+        }
+        break;
+      case CTX_DATA_TYPE_STRING:
+        if (result.str.is_empty()) {
+          is_missing = true;
+        }
+        break;
+      default:
+        break;
+    }
+
+    if (is_missing) {
+      return;
+    }
+  }
 
 #ifdef WITH_PYTHON
   /* Get current Python location if available and Python is properly initialized. */
@@ -1783,10 +1815,11 @@ Depsgraph *CTX_data_depsgraph_on_load(const bContext *C)
   return BKE_scene_get_depsgraph(scene, view_layer);
 }
 
-void CTX_member_logging_set(bContext *C, bool enable, bool deduplicate)
+void CTX_member_logging_set(bContext *C, bool enable, bool deduplicate, bool hide_missing)
 {
   C->data.log_access = enable;
   C->data.log_deduplicate = deduplicate;
+  C->data.log_hide_missing = hide_missing;
 
   /* Clear existing seen entries when settings change. */
   if (C->data.seen_log_entries) {
