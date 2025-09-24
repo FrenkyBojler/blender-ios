@@ -732,7 +732,7 @@ static void print_help(bArgs *ba, bool all)
   BLI_args_print_arg_doc(ba, "--log-show-source");
   BLI_args_print_arg_doc(ba, "--log-show-backtrace");
   BLI_args_print_arg_doc(ba, "--log-file");
-  BLI_args_print_arg_doc(ba, "--log-print-all-categories");
+  BLI_args_print_arg_doc(ba, "--log-print-categories");
 
   PRINT("\n");
   PRINT("Debug Options:\n");
@@ -2884,7 +2884,7 @@ void main_args_setup(bContext *C, bArgs *ba, bool all)
    * Also and commands that exit after usage. */
   BLI_args_pass_set(ba, ARG_PASS_SETTINGS);
   BLI_args_add(ba, "-h", "--help", CB(arg_handle_print_help), ba);
-  BLI_args_add(ba, nullptr, "--log-print-all-categories", CB(arg_handle_list_clog_cats), nullptr);
+  BLI_args_add(ba, nullptr, "--log-print-categories", CB(arg_handle_list_clog_cats), nullptr);
 
   /* MS-Windows only. */
   BLI_args_add(ba, "/?", nullptr, CB_EX(arg_handle_print_help, win32), ba);
