@@ -303,7 +303,6 @@ typedef struct ThemeSpace {
   unsigned char header_title[4];
   unsigned char header_text[4];
   unsigned char header_text_hi[4];
-  char _pad2[4];
 
   /* button/tool regions */
   unsigned char shade1[4];
@@ -350,7 +349,7 @@ typedef struct ThemeSpace {
   unsigned char vertex_size, edge_width, outline_width, obcenter_dia, facedot_size;
   unsigned char noodle_curving;
   unsigned char grid_levels;
-  char _pad5[2];
+  char _pad2[2];
   float dash_alpha;
 
   /* Syntax for text-window and nodes. */
