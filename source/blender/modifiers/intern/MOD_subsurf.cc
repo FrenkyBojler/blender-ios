@@ -341,9 +341,6 @@ static void panel_draw(const bContext *C, Panel *panel)
   PointerRNA ob_ptr;
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, &ob_ptr);
 
-  /* Only test for adaptive subdivision if built with cycles. */
-  const bool show_adaptive_options = get_show_adaptive_options(C, panel);
-
   layout->prop(ptr, "subdivision_type", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
 
   layout->use_property_split_set(true);
@@ -377,7 +374,7 @@ static void panel_draw(const bContext *C, Panel *panel)
     }
   }
 
-  if (show_adaptive_options) {
+  if (get_show_adaptive_options(C, panel)) {
     PanelLayout adaptive_panel = layout->panel_prop_with_bool_header(
         C,
         ptr,
