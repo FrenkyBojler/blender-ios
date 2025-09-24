@@ -2707,9 +2707,9 @@ static Main *blo_add_main_for_library(FileData *fd,
   if (!lib) {
     /* Add library data-block itself to 'main' Main, since libraries are **never** linked data.
      * Fixes bug where you could end with all ID_LI data-blocks having the same name... */
-    Library *lib = BKE_id_new<Library>(fd->bmain,
-                                       reference_lib ? BKE_id_name(reference_lib->id) :
-                                                       BLI_path_basename(lib_filepath));
+    lib = BKE_id_new<Library>(fd->bmain,
+                              reference_lib ? BKE_id_name(reference_lib->id) :
+                                              BLI_path_basename(lib_filepath));
 
     /* Important, consistency with main ID reading code from read_libblock(). */
     lib->id.us = ID_FAKE_USERS(lib);
@@ -3015,7 +3015,7 @@ static void read_libblock_undo_restore_identical(
                  &lib->archive_parent_library->id);
       /* The archive library ID has been moved in the new Main, but not its own old split main, as
        * these packed IDs should be handled like local ones in undo case. So a new split libmain
-       * needs to be created to contains its packed IDs. */
+       * needs to be created to contain its packed IDs. */
       blo_add_main_for_library(
           fd, lib, lib->archive_parent_library, lib->filepath, lib->runtime->filepath_abs, true);
     }
