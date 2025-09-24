@@ -597,6 +597,7 @@ wmOperatorStatus join_objects_exec(bContext *C, wmOperator *op);
 
 wmOperatorStatus ED_mesh_shapes_join_objects_exec(bContext *C,
                                                   bool ensure_keys_exist,
+                                                  bool mirror,
                                                   ReportList *reports);
 
 /* Mirror lookup API. */
