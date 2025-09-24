@@ -319,7 +319,6 @@ typedef struct ThemeSpace {
   unsigned char active[4], transform[4];
   unsigned char vertex[4], vertex_select[4], vertex_active[4], vertex_unreferenced[4];
   unsigned char edge[4], edge_select[4], edge_mode_select[4];
-  unsigned char edge_seam[4], edge_sharp[4], edge_crease[4];
   /** Solid faces. */
   unsigned char face[4], face_select[4], face_mode_select[4], face_retopology[4];
   unsigned char face_back[4], face_front[4];
@@ -335,7 +334,7 @@ typedef struct ThemeSpace {
   unsigned char time_gp_keyframe[4];
 
   /** Geometry attributes. */
-  unsigned char bevel[4], freestyle[4];
+  unsigned char bevel[4], seam[4], sharp[4], crease[4], freestyle[4];
 
   unsigned char nurb_uline[4], nurb_vline[4];
   unsigned char act_spline[4], nurb_sel_uline[4], nurb_sel_vline[4];

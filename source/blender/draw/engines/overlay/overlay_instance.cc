@@ -268,9 +268,9 @@ void Resources::update_theme_settings(const DRWContext *ctx, const State &state)
   UI_GetThemeColor4fv(TH_GP_VERTEX, gb.colors.gpencil_vertex);
   UI_GetThemeColor4fv(TH_GP_VERTEX_SELECT, gb.colors.gpencil_vertex_select);
 
-  UI_GetThemeColor4fv(TH_EDGE_SEAM, gb.colors.edge_seam);
-  UI_GetThemeColor4fv(TH_EDGE_SHARP, gb.colors.edge_sharp);
-  UI_GetThemeColor4fv(TH_EDGE_CREASE, gb.colors.edge_crease);
+  UI_GetThemeColor4fv(TH_SEAM, gb.colors.edge_seam);
+  UI_GetThemeColor4fv(TH_SHARP, gb.colors.edge_sharp);
+  UI_GetThemeColor4fv(TH_CREASE, gb.colors.edge_crease);
   UI_GetThemeColor4fv(TH_BEVEL, gb.colors.edge_bweight);
   UI_GetThemeColor4fv(TH_FACE, gb.colors.face);
   UI_GetThemeColor4fv(TH_FACE_SELECT, gb.colors.face_select);

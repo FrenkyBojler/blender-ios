@@ -1552,9 +1552,9 @@ static void svg_replace_color_attributes(std::string &svg,
       {"blender_tool_white", tool_white},
       {"blender_tool_red", tool_red},
       {"blender_bevel_weight", nullptr, TH_BEVEL},
-      {"blender_mesh_crease", nullptr, TH_EDGE_CREASE},
-      {"blender_edge_seam", nullptr, TH_EDGE_SEAM},
-      {"blender_edge_sharp", nullptr, TH_EDGE_SHARP},
+      {"blender_mesh_crease", nullptr, TH_CREASE},
+      {"blender_edge_seam", nullptr, TH_SEAM},
+      {"blender_edge_sharp", nullptr, TH_SHARP},
   };
 
   for (const ColorItem &item : items) {

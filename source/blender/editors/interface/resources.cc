@@ -406,15 +406,6 @@ const uchar *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
         case TH_EDGE_MODE_SELECT:
           cp = ts->edge_mode_select;
           break;
-        case TH_EDGE_CREASE:
-          cp = btheme->space_view3d.edge_crease;
-          break;
-        case TH_EDGE_SEAM:
-          cp = btheme->space_view3d.edge_seam;
-          break;
-        case TH_EDGE_SHARP:
-          cp = btheme->space_view3d.edge_sharp;
-          break;
         case TH_EDITMESH_ACTIVE:
           cp = ts->editmesh_active;
           break;
@@ -445,6 +436,15 @@ const uchar *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
 
         case TH_BEVEL:
           cp = btheme->space_view3d.bevel;
+          break;
+        case TH_CREASE:
+          cp = btheme->space_view3d.crease;
+          break;
+        case TH_SEAM:
+          cp = btheme->space_view3d.seam;
+          break;
+        case TH_SHARP:
+          cp = btheme->space_view3d.sharp;
           break;
         case TH_FREESTYLE:
           cp = btheme->space_view3d.freestyle;
