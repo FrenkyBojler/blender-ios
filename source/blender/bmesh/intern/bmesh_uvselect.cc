@@ -1657,7 +1657,7 @@ void BM_mesh_uvselect_flush_to_v3d(BMesh *bm)
       } while ((l_iter = l_iter->next) != l_first);
     }
 
-    BM_mesh_select_flush(bm, true);
+    BM_mesh_select_flush_from_verts(bm, true);
   }
   else if (bm->selectmode & SCE_SELECT_EDGE) {
     BMIter iter;
