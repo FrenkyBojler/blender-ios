@@ -1,1 +1,2 @@
 Referenced by issue #142285, 3D cursor placement ignores objects, which have their selection restricted
+Referenced by pull request #146706, Fix #142285: 3D cursor placement ignores unselectable objects
