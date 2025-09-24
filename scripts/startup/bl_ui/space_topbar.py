@@ -260,7 +260,7 @@ class TOPBAR_MT_file_new(Menu):
             props.app_template = ""
 
         for d in paths:
-            # Use a different icon per template.
+            # Set icon per template.
             if d == "2D_Animation":
                 icon = 'GREASEPENCIL'
             elif d == "Sculpting":
@@ -268,7 +268,7 @@ class TOPBAR_MT_file_new(Menu):
             elif d == "Storyboarding":
                 icon = 'RENDER_ANIMATION'
             elif d == "VFX":
-                icon = 'NODE_COMPOSITING'
+                icon = 'TRACKER'
             elif d == "Video_Editing":
                 icon = 'SEQUENCE'
             props = layout.operator("wm.read_homefile", text=bpy.path.display_name(iface_(d)), icon=icon)

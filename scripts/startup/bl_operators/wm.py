@@ -3414,7 +3414,7 @@ class WM_MT_splash(Menu):
 
         # Templates
         col1 = split.column()
-        col1.label(text="Create")
+        col1.label(text="New File")
 
         bpy.types.TOPBAR_MT_file_new.draw_ex(col1, context, use_splash=True)
 
@@ -3436,7 +3436,7 @@ class WM_MT_splash(Menu):
             col2.operator("wm.url_open", text="User Communities", icon='URL').url = "https://www.blender.org/community/"
             col2.operator("wm.url_open_preset", text="Blender Website", icon='URL').type = 'BLENDER'
 
-        layout.separator()
+        layout.separator(type='LINE')
 
         split = layout.split()
 
