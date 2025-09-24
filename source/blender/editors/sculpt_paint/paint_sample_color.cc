@@ -20,6 +20,7 @@
 #include "BLI_math_color.h"
 #include "BLI_math_matrix.hh"
 #include "BLI_math_vector.hh"
+#include "BLI_math_vector_types.hh"
 #include "BLI_rect.h"
 #include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
@@ -162,22 +163,22 @@ struct SampleColorData {
   float initcolor[3];
   bool sample_palette;
 
-  float accum_col[3] = {};
+  blender::float3 accum_color;
   int accum_tot = 0;
 };
 
-static void paint_set_color(bContext *C, SampleColorData *data, const float rgb_f[3])
+static void paint_set_color(bContext *C, SampleColorData *data, const blender::float3 &rgb_f)
 {
-  add_v3_v3(data->accum_col, rgb_f);
+  data->accum_color += rgb_f;
   data->accum_tot++;
 
   /* Calculate average. */
-  float accum_col[3];
+  blender::float3 average_color;
   if (data->accum_tot > 1) {
-    mul_v3_v3fl(accum_col, data->accum_col, 1.0f / float(data->accum_tot));
+    mul_v3_v3fl(average_color, data->accum_color, 1.0f / float(data->accum_tot));
   }
   else {
-    copy_v3_v3(accum_col, data->accum_col);
+    copy_v3_v3(average_color, data->accum_color);
   }
 
   Paint *paint = BKE_paint_get_active_from_context(C);
@@ -194,10 +195,10 @@ static void paint_set_color(bContext *C, SampleColorData *data, const float rgb_
     color = BKE_palette_color_add(palette);
     palette->active_color = BLI_listbase_count(&palette->colors) - 1;
 
-    BKE_palette_color_set(color, accum_col);
+    BKE_palette_color_set(color, average_color);
   }
 
-  BKE_brush_color_set(paint, br, accum_col);
+  BKE_brush_color_set(paint, br, average_color);
 }
 
 static void paint_sample_color(
@@ -290,7 +291,7 @@ static void paint_sample_color(
                 rgba_f = math::clamp(rgba_f, 0.0f, 1.0f);
                 straight_to_premul_v4(rgba_f);
 
-                paint_set_color(C, data, rgba_f);
+                paint_set_color(C, data, float3(rgba_f));
               }
               else {
                 uchar4 rgba = interp == SHD_INTERP_CLOSEST ?
