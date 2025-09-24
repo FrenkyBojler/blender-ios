@@ -1377,7 +1377,14 @@ void BM_mesh_uvselect_flush_mode_update(BMesh *bm,
     }
   }
 
-  /* Rely on the selection mode switching to have de-selected isolated verts/edges,
+  /*
+   * FIXME: the following statement is *not* true,
+   * since an edge may be "isolated" in UV space but attached to a face in 3D space.
+   * These cases will need to be handled.
+   *
+   * --- snip ---
+   *
+   * Rely on the selection mode switching to have de-selected isolated verts/edges,
    * simply de-select elements where the underlying mesh is not selected.
    *
    * An alternative solution would be to apply the same flushing logic here,
@@ -2109,7 +2116,7 @@ void BM_mesh_uvselect_flush_to_v3d(BMesh *bm)
 /* Asserting can be useful to inspect the values while debugging. */
 #if 0 /* Useful when debugging. */
 #  define MAYBE_ASSERT BLI_assert(0)
-#elif 0 /* Can also be useful. */
+#elif 1 /* Can also be useful. */
 #  define MAYBE_ASSERT printf(AT "\n")
 #else
 #  define MAYBE_ASSERT
@@ -2589,6 +2596,9 @@ static bool bm_mesh_uvselect_check_flush_and_contiguous(
   }
   return is_valid;
 }
+
+#undef INCF
+#undef MAYBE_ASSERT
 
 bool BM_mesh_uvselect_check(BMesh *bm,
                             const int cd_loop_uv_offset,
