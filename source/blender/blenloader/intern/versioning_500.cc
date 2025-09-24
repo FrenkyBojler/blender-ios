@@ -2387,32 +2387,34 @@ static void do_version_bokeh_blur_pixel_size(bNodeTree &node_tree, bNode &node)
     }
   }
 
-  bNode *multiply_node = blender::bke::node_add_node(nullptr, node_tree, "ShaderNodeMath");
-  multiply_node->parent = node.parent;
-  multiply_node->location[0] = node.location[0] - node.width - 20.0f;
-  multiply_node->location[1] = node.location[1];
-  multiply_node->custom1 = NODE_MATH_MULTIPLY;
+  bNode &multiply_node = version_node_add_empty(node_tree, "ShaderNodeMath");
+  multiply_node.parent = node.parent;
+  multiply_node.location[0] = node.location[0] - node.width - 20.0f;
+  multiply_node.location[1] = node.location[1];
+  multiply_node.custom1 = NODE_MATH_MULTIPLY;
 
-  bNodeSocket *multiply_a_input = blender::bke::node_find_socket(*multiply_node, SOCK_IN, "Value");
-  bNodeSocket *multiply_b_input = blender::bke::node_find_socket(
-      *multiply_node, SOCK_IN, "Value_001");
-  bNodeSocket *multiply_output = blender::bke::node_find_socket(*multiply_node, SOCK_OUT, "Value");
+  bNodeSocket &multiply_a_input = version_node_add_socket(
+      node_tree, multiply_node, SOCK_IN, "NodeSocketFloat", "Value");
+  bNodeSocket &multiply_b_input = version_node_add_socket(
+      node_tree, multiply_node, SOCK_IN, "NodeSocketFloat", "Value_001");
+  bNodeSocket &multiply_output = version_node_add_socket(
+      node_tree, multiply_node, SOCK_OUT, "NodeSocketFloat", "Value");
 
-  multiply_a_input->default_value_typed<bNodeSocketValueFloat>()->value =
+  multiply_a_input.default_value_typed<bNodeSocketValueFloat>()->value =
       size_input->default_value_typed<bNodeSocketValueFloat>()->value;
   if (size_link) {
     version_node_add_link(
-        node_tree, *size_link->fromnode, *size_link->fromsock, *multiply_node, *multiply_a_input);
+        node_tree, *size_link->fromnode, *size_link->fromsock, multiply_node, multiply_a_input);
     blender::bke::node_remove_link(&node_tree, *size_link);
   }
 
-  version_node_add_link(node_tree, *multiply_node, *multiply_output, node, *size_input);
+  version_node_add_link(node_tree, multiply_node, multiply_output, node, *size_input);
 
   bNode *relative_to_pixel_node = blender::bke::node_add_node(
       nullptr, node_tree, "CompositorNodeRelativeToPixel");
   relative_to_pixel_node->parent = node.parent;
-  relative_to_pixel_node->location[0] = multiply_node->location[0] - multiply_node->width - 20.0f;
-  relative_to_pixel_node->location[1] = multiply_node->location[1];
+  relative_to_pixel_node->location[0] = multiply_node.location[0] - multiply_node.width - 20.0f;
+  relative_to_pixel_node->location[1] = multiply_node.location[1];
   relative_to_pixel_node->custom1 = CMP_NODE_RELATIVE_TO_PIXEL_DATA_TYPE_FLOAT;
   relative_to_pixel_node->custom2 = CMP_NODE_RELATIVE_TO_PIXEL_REFERENCE_DIMENSION_GREATER;
 
@@ -2426,8 +2428,8 @@ static void do_version_bokeh_blur_pixel_size(bNodeTree &node_tree, bNode &node)
   version_node_add_link(node_tree,
                         *relative_to_pixel_node,
                         *relative_to_pixel_value_output,
-                        *multiply_node,
-                        *multiply_b_input);
+                        multiply_node,
+                        multiply_b_input);
 
   relative_to_pixel_value_input->default_value_typed<bNodeSocketValueFloat>()->value = 0.01f;
   if (image_link) {
