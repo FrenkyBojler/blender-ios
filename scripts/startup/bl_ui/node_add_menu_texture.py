@@ -115,8 +115,7 @@ class NODE_MT_texture_node_all_base(node_add_menu.NodeMenu):
         self.draw_menu(layout, "Group")
         self.draw_menu(layout, "Layout")
 
-        if self.draw_assets:
-            node_add_menu.draw_root_assets(layout)
+        self.draw_root_assets(layout)
 
 
 add_menus = {

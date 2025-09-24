@@ -22,8 +22,8 @@ class NODE_MT_gn_attribute_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "GeometryNodeCaptureAttribute")
         self.node_operator(layout, "GeometryNodeRemoveAttribute")
         self.node_operator(layout, "GeometryNodeStoreNamedAttribute", search_weight=1.0)
-        if self.draw_assets:
-            node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
+
+        self.draw_assets_for_catalog(layout, self.bl_label)
 
 
 class NODE_MT_gn_utilities_color_base(node_add_menu.NodeMenu):
@@ -40,8 +40,8 @@ class NODE_MT_gn_utilities_color_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "FunctionNodeCombineColor")
         self.color_mix_node(context, layout)
         self.node_operator(layout, "FunctionNodeSeparateColor")
-        if self.draw_assets:
-            node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
+
+        self.draw_assets_for_catalog(layout, self.menu_path)
 
 
 class NODE_MT_gn_curve_base(node_add_menu.NodeMenu):
@@ -56,8 +56,8 @@ class NODE_MT_gn_curve_base(node_add_menu.NodeMenu):
         self.draw_menu(layout, path="Curve/Operations")
         self.draw_menu(layout, path="Curve/Primitives")
         self.draw_menu(layout, path="Curve/Topology")
-        if self.draw_assets:
-            node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
+
+        self.draw_assets_for_catalog(layout, self.bl_label)
 
 
 class NODE_MT_gn_curve_read_base(node_add_menu.NodeMenu):
@@ -76,8 +76,8 @@ class NODE_MT_gn_curve_read_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "GeometryNodeSplineLength")
         self.node_operator(layout, "GeometryNodeSplineParameter")
         self.node_operator(layout, "GeometryNodeInputSplineResolution")
-        if self.draw_assets:
-            node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
+
+        self.draw_assets_for_catalog(layout, self.menu_path)
 
 
 class NODE_MT_gn_curve_sample_base(node_add_menu.NodeMenu):
@@ -87,8 +87,8 @@ class NODE_MT_gn_curve_sample_base(node_add_menu.NodeMenu):
     def draw(self, _context):
         layout = self.layout
         self.node_operator(layout, "GeometryNodeSampleCurve")
-        if self.draw_assets:
-            node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
+
+        self.draw_assets_for_catalog(layout, self.menu_path)
 
 
 class NODE_MT_gn_curve_write_base(node_add_menu.NodeMenu):
@@ -105,8 +105,8 @@ class NODE_MT_gn_curve_write_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "GeometryNodeSetSplineCyclic")
         self.node_operator(layout, "GeometryNodeSetSplineResolution")
         self.node_operator(layout, "GeometryNodeCurveSplineType")
-        if self.draw_assets:
-            node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
+
+        self.draw_assets_for_catalog(layout, self.menu_path)
 
 
 class NODE_MT_gn_curve_operations_base(node_add_menu.NodeMenu):
@@ -126,8 +126,8 @@ class NODE_MT_gn_curve_operations_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "GeometryNodeReverseCurve")
         self.node_operator(layout, "GeometryNodeSubdivideCurve")
         self.node_operator(layout, "GeometryNodeTrimCurve")
-        if self.draw_assets:
-            node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
+
+        self.draw_assets_for_catalog(layout, self.menu_path)
 
 
 class NODE_MT_gn_curve_primitives_base(node_add_menu.NodeMenu):
@@ -145,8 +145,7 @@ class NODE_MT_gn_curve_primitives_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "GeometryNodeCurvePrimitiveQuadrilateral")
         self.node_operator(layout, "GeometryNodeCurveStar")
 
-        if self.draw_assets:
-            node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
+        self.draw_assets_for_catalog(layout, self.menu_path)
 
 
 class NODE_MT_gn_curve_topology_base(node_add_menu.NodeMenu):
@@ -159,8 +158,7 @@ class NODE_MT_gn_curve_topology_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "GeometryNodeOffsetPointInCurve")
         self.node_operator(layout, "GeometryNodePointsOfCurve")
 
-        if self.draw_assets:
-            node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
+        self.draw_assets_for_catalog(layout, self.menu_path)
 
 
 class NODE_MT_gn_grease_pencil_read_base(node_add_menu.NodeMenu):
@@ -170,8 +168,8 @@ class NODE_MT_gn_grease_pencil_read_base(node_add_menu.NodeMenu):
     def draw(self, _context):
         layout = self.layout
         self.node_operator(layout, "GeometryNodeInputNamedLayerSelection")
-        if self.draw_assets:
-            node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
+
+        self.draw_assets_for_catalog(layout, self.menu_path)
 
 
 class NODE_MT_gn_grease_pencil_write_base(node_add_menu.NodeMenu):
@@ -184,8 +182,7 @@ class NODE_MT_gn_grease_pencil_write_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "GeometryNodeSetGreasePencilDepth")
         self.node_operator(layout, "GeometryNodeSetGreasePencilSoftness")
 
-        if self.draw_assets:
-            node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
+        self.draw_assets_for_catalog(layout, self.menu_path)
 
 
 class NODE_MT_gn_grease_pencil_operations_base(node_add_menu.NodeMenu):
@@ -197,8 +194,7 @@ class NODE_MT_gn_grease_pencil_operations_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "GeometryNodeGreasePencilToCurves")
         self.node_operator(layout, "GeometryNodeMergeLayers")
 
-        if self.draw_assets:
-            node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
+        self.draw_assets_for_catalog(layout, self.menu_path)
 
 
 class NODE_MT_gn_grease_pencil_base(node_add_menu.NodeMenu):
@@ -210,8 +206,8 @@ class NODE_MT_gn_grease_pencil_base(node_add_menu.NodeMenu):
         self.draw_menu(layout, path="Grease Pencil/Write")
         layout.separator()
         self.draw_menu(layout, path="Grease Pencil/Operations")
-        if self.draw_assets:
-            node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
+
+        self.draw_assets_for_catalog(layout, self.bl_label)
 
 
 class NODE_MT_gn_geometry_base(node_add_menu.NodeMenu):
@@ -227,8 +223,8 @@ class NODE_MT_gn_geometry_base(node_add_menu.NodeMenu):
         layout.separator()
         self.node_operator(layout, "GeometryNodeGeometryToInstance")
         self.node_operator(layout, "GeometryNodeJoinGeometry", search_weight=1.0)
-        if self.draw_assets:
-            node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
+
+        self.draw_assets_for_catalog(layout, self.bl_label)
 
 
 class NODE_MT_gn_geometry_read_base(node_add_menu.NodeMenu):
@@ -247,8 +243,7 @@ class NODE_MT_gn_geometry_read_base(node_add_menu.NodeMenu):
             self.node_operator(layout, "GeometryNodeToolSelection")
             self.node_operator(layout, "GeometryNodeToolActiveElement")
 
-        if self.draw_assets:
-            node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
+        self.draw_assets_for_catalog(layout, self.menu_path)
 
 
 class NODE_MT_gn_geometry_write_base(node_add_menu.NodeMenu):
@@ -263,8 +258,7 @@ class NODE_MT_gn_geometry_write_base(node_add_menu.NodeMenu):
         if context.space_data.node_tree_sub_type == 'TOOL':
             self.node_operator(layout, "GeometryNodeToolSetSelection")
 
-        if self.draw_assets:
-            node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
+        self.draw_assets_for_catalog(layout, self.menu_path)
 
 
 class NODE_MT_gn_geometry_operations_base(node_add_menu.NodeMenu):
@@ -286,8 +280,7 @@ class NODE_MT_gn_geometry_operations_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "GeometryNodeSeparateGeometry")
         self.node_operator(layout, "GeometryNodeSplitToInstances")
 
-        if self.draw_assets:
-            node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
+        self.draw_assets_for_catalog(layout, self.menu_path)
 
 
 class NODE_MT_gn_geometry_sample_base(node_add_menu.NodeMenu):
@@ -302,8 +295,7 @@ class NODE_MT_gn_geometry_sample_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "GeometryNodeSampleIndex")
         self.node_operator(layout, "GeometryNodeSampleNearest")
 
-        if self.draw_assets:
-            node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
+        self.draw_assets_for_catalog(layout, self.menu_path)
 
 
 class NODE_MT_gn_input_base(node_add_menu.NodeMenu):
@@ -317,8 +309,8 @@ class NODE_MT_gn_input_base(node_add_menu.NodeMenu):
         self.draw_menu(layout, path="Input/Group")
         self.draw_menu(layout, path="Input/Import")
         self.draw_menu(layout, path="Input/Scene")
-        if self.draw_assets:
-            node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
+
+        self.draw_assets_for_catalog(layout, self.bl_label)
 
 
 class NODE_MT_gn_input_constant_base(node_add_menu.NodeMenu):
@@ -340,8 +332,7 @@ class NODE_MT_gn_input_constant_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "ShaderNodeValue")
         self.node_operator(layout, "FunctionNodeInputVector")
 
-        if self.draw_assets:
-            node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
+        self.draw_assets_for_catalog(layout, self.menu_path)
 
 
 class NODE_MT_gn_input_group_base(node_add_menu.NodeMenu):
@@ -352,8 +343,7 @@ class NODE_MT_gn_input_group_base(node_add_menu.NodeMenu):
         layout = self.layout
         self.node_operator(layout, "NodeGroupInput")
 
-        if self.draw_assets:
-            node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
+        self.draw_assets_for_catalog(layout, self.menu_path)
 
 
 class NODE_MT_gn_input_scene_base(node_add_menu.NodeMenu):
@@ -398,8 +388,7 @@ class NODE_MT_gn_input_scene_base(node_add_menu.NodeMenu):
                 ["Projection", "View", "Is Orthographic"],
             )
 
-        if self.draw_assets:
-            node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
+        self.draw_assets_for_catalog(layout, self.menu_path)
 
 
 class NODE_MT_gn_input_gizmo_base(node_add_menu.NodeMenu):
@@ -412,8 +401,7 @@ class NODE_MT_gn_input_gizmo_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "GeometryNodeGizmoLinear")
         self.node_operator(layout, "GeometryNodeGizmoTransform")
 
-        if self.draw_assets:
-            node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
+        self.draw_assets_for_catalog(layout, self.menu_path)
 
 
 class NODE_MT_gn_instance_base(node_add_menu.NodeMenu):
@@ -434,8 +422,8 @@ class NODE_MT_gn_instance_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "GeometryNodeInstanceTransform")
         self.node_operator(layout, "GeometryNodeInputInstanceRotation")
         self.node_operator(layout, "GeometryNodeInputInstanceScale")
-        if self.draw_assets:
-            node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
+
+        self.draw_assets_for_catalog(layout, self.bl_label)
 
 
 class NODE_MT_gn_material_base(node_add_menu.NodeMenu):
@@ -450,8 +438,8 @@ class NODE_MT_gn_material_base(node_add_menu.NodeMenu):
         layout.separator()
         self.node_operator(layout, "GeometryNodeSetMaterial", search_weight=1.0)
         self.node_operator(layout, "GeometryNodeSetMaterialIndex")
-        if self.draw_assets:
-            node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
+
+        self.draw_assets_for_catalog(layout, self.bl_label)
 
 
 class NODE_MT_gn_mesh_base(node_add_menu.NodeMenu):
@@ -467,8 +455,8 @@ class NODE_MT_gn_mesh_base(node_add_menu.NodeMenu):
         self.draw_menu(layout, path="Mesh/Primitives")
         self.draw_menu(layout, path="Mesh/Topology")
         self.draw_menu(layout, path="Mesh/UV")
-        if self.draw_assets:
-            node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
+
+        self.draw_assets_for_catalog(layout, self.bl_label)
 
 
 class NODE_MT_gn_mesh_read_base(node_add_menu.NodeMenu):
@@ -493,8 +481,7 @@ class NODE_MT_gn_mesh_read_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "GeometryNodeInputShortestEdgePaths")
         self.node_operator(layout, "GeometryNodeInputMeshVertexNeighbors")
 
-        if self.draw_assets:
-            node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
+        self.draw_assets_for_catalog(layout, self.menu_path)
 
 
 class NODE_MT_gn_mesh_sample_base(node_add_menu.NodeMenu):
@@ -506,8 +493,7 @@ class NODE_MT_gn_mesh_sample_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "GeometryNodeSampleNearestSurface")
         self.node_operator(layout, "GeometryNodeSampleUVSurface")
 
-        if self.draw_assets:
-            node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
+        self.draw_assets_for_catalog(layout, self.menu_path)
 
 
 class NODE_MT_gn_mesh_write_base(node_add_menu.NodeMenu):
@@ -521,8 +507,7 @@ class NODE_MT_gn_mesh_write_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "GeometryNodeSetMeshNormal")
         self.node_operator(layout, "GeometryNodeSetShadeSmooth")
 
-        if self.draw_assets:
-            node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
+        self.draw_assets_for_catalog(layout, self.menu_path)
 
 
 class NODE_MT_gn_mesh_operations_base(node_add_menu.NodeMenu):
@@ -550,8 +535,7 @@ class NODE_MT_gn_mesh_operations_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "GeometryNodeSubdivisionSurface")
         self.node_operator(layout, "GeometryNodeTriangulate")
 
-        if self.draw_assets:
-            node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
+        self.draw_assets_for_catalog(layout, self.menu_path)
 
 
 class NODE_MT_gn_mesh_primitives_base(node_add_menu.NodeMenu):
@@ -569,8 +553,7 @@ class NODE_MT_gn_mesh_primitives_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "GeometryNodeMeshLine")
         self.node_operator(layout, "GeometryNodeMeshUVSphere")
 
-        if self.draw_assets:
-            node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
+        self.draw_assets_for_catalog(layout, self.menu_path)
 
 
 class NODE_MT_gn_input_import_base(node_add_menu.NodeMenu):
@@ -586,8 +569,7 @@ class NODE_MT_gn_input_import_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "GeometryNodeImportText", label="Text (.txt)")
         self.node_operator(layout, "GeometryNodeImportVDB", label="OpenVDB (.vdb)")
 
-        if self.draw_assets:
-            node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
+        self.draw_assets_for_catalog(layout, self.menu_path)
 
 
 class NODE_MT_gn_mesh_topology_base(node_add_menu.NodeMenu):
@@ -605,8 +587,7 @@ class NODE_MT_gn_mesh_topology_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "GeometryNodeOffsetCornerInFace")
         self.node_operator(layout, "GeometryNodeVertexOfCorner")
 
-        if self.draw_assets:
-            node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
+        self.draw_assets_for_catalog(layout, self.menu_path)
 
 
 class NODE_MT_gn_output_base(node_add_menu.NodeMenu):
@@ -617,8 +598,8 @@ class NODE_MT_gn_output_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "NodeGroupOutput")
         self.node_operator(layout, "GeometryNodeViewer")
         self.node_operator_with_searchable_enum(context, layout, "GeometryNodeWarning", "warning_type")
-        if self.draw_assets:
-            node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
+
+        self.draw_assets_for_catalog(layout, self.bl_label)
 
 
 class NODE_MT_gn_point_base(node_add_menu.NodeMenu):
@@ -639,8 +620,8 @@ class NODE_MT_gn_point_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "GeometryNodePointsToVolume")
         layout.separator()
         self.node_operator(layout, "GeometryNodeSetPointRadius")
-        if self.draw_assets:
-            node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
+
+        self.draw_assets_for_catalog(layout, self.bl_label)
 
 
 class NODE_MT_gn_simulation_base(node_add_menu.NodeMenu):
@@ -649,8 +630,8 @@ class NODE_MT_gn_simulation_base(node_add_menu.NodeMenu):
     def draw(self, _context):
         layout = self.layout
         self.simulation_zone(layout, label="Simulation")
-        if self.draw_assets:
-            node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
+
+        self.draw_assets_for_catalog(layout, self.bl_label)
 
 
 class NODE_MT_gn_utilities_text_base(node_add_menu.NodeMenu):
@@ -673,8 +654,7 @@ class NODE_MT_gn_utilities_text_base(node_add_menu.NodeMenu):
         layout.separator()
         self.node_operator(layout, "FunctionNodeInputSpecialCharacters")
 
-        if self.draw_assets:
-            node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
+        self.draw_assets_for_catalog(layout, self.menu_path)
 
 
 class NODE_MT_gn_texture_base(node_add_menu.NodeMenu):
@@ -692,8 +672,8 @@ class NODE_MT_gn_texture_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "ShaderNodeTexVoronoi")
         self.node_operator(layout, "ShaderNodeTexWave")
         self.node_operator(layout, "ShaderNodeTexWhiteNoise")
-        if self.draw_assets:
-            node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
+
+        self.draw_assets_for_catalog(layout, self.bl_label)
 
 
 class NODE_MT_gn_utilities_base(node_add_menu.NodeMenu):
@@ -721,8 +701,8 @@ class NODE_MT_gn_utilities_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "FunctionNodeRandomValue")
         self.repeat_zone(layout, label="Repeat")
         self.node_operator(layout, "GeometryNodeSwitch")
-        if self.draw_assets:
-            node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
+
+        self.draw_assets_for_catalog(layout, self.bl_label)
 
 
 class NODE_MT_gn_utilities_deprecated_base(node_add_menu.NodeMenu):
@@ -734,8 +714,7 @@ class NODE_MT_gn_utilities_deprecated_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "FunctionNodeAlignEulerToVector")
         self.node_operator(layout, "FunctionNodeRotateEuler")
 
-        if self.draw_assets:
-            node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
+        self.draw_assets_for_catalog(layout, self.menu_path)
 
 
 class NODE_MT_gn_utilities_field_base(node_add_menu.NodeMenu):
@@ -751,8 +730,7 @@ class NODE_MT_gn_utilities_field_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "GeometryNodeFieldMinAndMax")
         self.node_operator(layout, "GeometryNodeFieldVariance")
 
-        if self.draw_assets:
-            node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
+        self.draw_assets_for_catalog(layout, self.menu_path)
 
 
 class NODE_MT_gn_utilities_rotation_base(node_add_menu.NodeMenu):
@@ -773,8 +751,7 @@ class NODE_MT_gn_utilities_rotation_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "FunctionNodeRotationToQuaternion")
         self.node_operator(layout, "FunctionNodeQuaternionToRotation")
 
-        if self.draw_assets:
-            node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
+        self.draw_assets_for_catalog(layout, self.menu_path)
 
 
 class NODE_MT_gn_utilities_matrix_base(node_add_menu.NodeMenu):
@@ -795,8 +772,7 @@ class NODE_MT_gn_utilities_matrix_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "FunctionNodeTransformPoint")
         self.node_operator(layout, "FunctionNodeTransposeMatrix")
 
-        if self.draw_assets:
-            node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
+        self.draw_assets_for_catalog(layout, self.menu_path)
 
 
 class NODE_MT_category_utilities_bundle_base(node_add_menu.NodeMenu):
@@ -808,8 +784,7 @@ class NODE_MT_category_utilities_bundle_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "NodeCombineBundle")
         self.node_operator(layout, "NodeSeparateBundle")
 
-        if self.draw_assets:
-            node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
+        self.draw_assets_for_catalog(layout, self.menu_path)
 
 
 class NODE_MT_category_utilities_closure_base(node_add_menu.NodeMenu):
@@ -821,8 +796,7 @@ class NODE_MT_category_utilities_closure_base(node_add_menu.NodeMenu):
         self.closure_zone(layout, label="Closure")
         self.node_operator(layout, "NodeEvaluateClosure")
 
-        if self.draw_assets:
-            node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
+        self.draw_assets_for_catalog(layout, self.menu_path)
 
 
 class NODE_MT_gn_utilities_list_base(node_add_menu.NodeMenu):
@@ -835,8 +809,7 @@ class NODE_MT_gn_utilities_list_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "GeometryNodeListGetItem")
         self.node_operator(layout, "GeometryNodeListLength")
 
-        if self.draw_assets:
-            node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
+        self.draw_assets_for_catalog(layout, self.menu_path)
 
 
 class NODE_MT_gn_utilities_math_base(node_add_menu.NodeMenu):
@@ -859,8 +832,7 @@ class NODE_MT_gn_utilities_math_base(node_add_menu.NodeMenu):
         self.node_operator_with_searchable_enum(context, layout, "ShaderNodeMath", "operation")
         self.node_operator(layout, "ShaderNodeMix")
 
-        if self.draw_assets:
-            node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
+        self.draw_assets_for_catalog(layout, self.menu_path)
 
 
 class NODE_MT_gn_mesh_uv_base(node_add_menu.NodeMenu):
@@ -872,8 +844,7 @@ class NODE_MT_gn_mesh_uv_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "GeometryNodeUVPackIslands")
         self.node_operator(layout, "GeometryNodeUVUnwrap")
 
-        if self.draw_assets:
-            node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
+        self.draw_assets_for_catalog(layout, self.menu_path)
 
 
 class NODE_MT_gn_utilities_vector_base(node_add_menu.NodeMenu):
@@ -894,8 +865,7 @@ class NODE_MT_gn_utilities_vector_base(node_add_menu.NodeMenu):
         ops.value = "'VECTOR'"
         self.node_operator(layout, "ShaderNodeSeparateXYZ")
 
-        if self.draw_assets:
-            node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
+        self.draw_assets_for_catalog(layout, self.menu_path)
 
 
 class NODE_MT_gn_volume_base(node_add_menu.NodeMenu):
@@ -911,8 +881,8 @@ class NODE_MT_gn_volume_base(node_add_menu.NodeMenu):
             layout.separator()
         self.draw_menu(layout, path="Volume/Operations")
         self.draw_menu(layout, path="Volume/Primitives")
-        if self.draw_assets:
-            node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
+
+        self.draw_assets_for_catalog(layout, self.bl_label)
 
 
 class NODE_MT_gn_volume_read_base(node_add_menu.NodeMenu):
@@ -924,8 +894,7 @@ class NODE_MT_gn_volume_read_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "GeometryNodeGetNamedGrid")
         self.node_operator(layout, "GeometryNodeGridInfo")
 
-        if self.draw_assets:
-            node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
+        self.draw_assets_for_catalog(layout, self.menu_path)
 
 
 class NODE_MT_gn_volume_write_base(node_add_menu.NodeMenu):
@@ -936,8 +905,7 @@ class NODE_MT_gn_volume_write_base(node_add_menu.NodeMenu):
         layout = self.layout
         self.node_operator(layout, "GeometryNodeStoreNamedGrid")
 
-        if self.draw_assets:
-            node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
+        self.draw_assets_for_catalog(layout, self.menu_path)
 
 
 class NODE_MT_gn_volume_sample_base(node_add_menu.NodeMenu):
@@ -949,8 +917,7 @@ class NODE_MT_gn_volume_sample_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "GeometryNodeSampleGrid")
         self.node_operator(layout, "GeometryNodeSampleGridIndex")
 
-        if self.draw_assets:
-            node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
+        self.draw_assets_for_catalog(layout, self.menu_path)
 
 
 class NODE_MT_gn_volume_operations_base(node_add_menu.NodeMenu):
@@ -964,8 +931,7 @@ class NODE_MT_gn_volume_operations_base(node_add_menu.NodeMenu):
             self.node_operator(layout, "GeometryNodeGridToMesh")
             self.node_operator(layout, "GeometryNodeSDFGridBoolean")
 
-        if self.draw_assets:
-            node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
+        self.draw_assets_for_catalog(layout, self.menu_path)
 
 
 class NODE_MT_gn_volume_primitives_base(node_add_menu.NodeMenu):
@@ -976,8 +942,7 @@ class NODE_MT_gn_volume_primitives_base(node_add_menu.NodeMenu):
         layout = self.layout
         self.node_operator(layout, "GeometryNodeVolumeCube")
 
-        if self.draw_assets:
-            node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
+        self.draw_assets_for_catalog(layout, self.menu_path)
 
 
 class NODE_MT_gn_all_base(node_add_menu.NodeMenu):
@@ -1011,8 +976,7 @@ class NODE_MT_gn_all_base(node_add_menu.NodeMenu):
         self.draw_menu(layout, "Group")
         self.draw_menu(layout, "Layout")
 
-        if self.draw_assets:
-            node_add_menu.draw_root_assets(layout)
+        self.draw_root_assets(layout)
 
 
 add_menus = {

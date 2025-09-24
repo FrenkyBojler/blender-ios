@@ -105,14 +105,6 @@ def add_closure_zone(layout, label):
     return props
 
 
-def draw_assets_for_catalog(layout, catalog_path):
-    layout.template_node_asset_menu_items(catalog_path=catalog_path)
-
-
-def draw_root_assets(layout):
-    layout.menu_contents("NODE_MT_node_add_root_catalogs")
-
-
 class NodeMenu(Menu):
     """A baseclass defining the shared methods for AddNodeMenu and SwapNodeMenu"""
     draw_assets: bool
@@ -122,6 +114,7 @@ class NodeMenu(Menu):
     zone_operator_id: str
     new_empty_group_operator_id: str
 
+    root_asset_menu: str
     pathing_dict: dict[str, str]
 
     @classmethod
@@ -390,6 +383,11 @@ class NodeMenu(Menu):
 
         return props
 
+    @classmethod
+    def draw_root_assets(cls, layout):
+        if cls.draw_assets:
+            layout.menu_contents(cls.root_asset_menu)
+
 
 class AddNodeMenu(NodeMenu):
     draw_assets = True
@@ -399,14 +397,28 @@ class AddNodeMenu(NodeMenu):
     zone_operator_id = "node.add_zone"
     new_empty_group_operator_id = "node.add_empty_group"
 
+    root_asset_menu = "NODE_MT_node_add_root_catalogs"
+
+    @classmethod
+    def draw_assets_for_catalog(cls, layout, catalog_path):
+        if cls.draw_assets:
+            layout.template_node_asset_menu_items(catalog_path=catalog_path, operator="ADD")
+
 
 class SwapNodeMenu(NodeMenu):
-    draw_assets = False
+    draw_assets = True
     # NOTE: Swap operators don't have a `use_transform` property, so defining it here has no effect
 
     main_operator_id = "node.swap_node"
     zone_operator_id = "node.swap_zone"
     new_empty_group_operator_id = "node.swap_empty_group"
+
+    root_asset_menu = "NODE_MT_node_swap_root_catalogs"
+
+    @classmethod
+    def draw_assets_for_catalog(cls, layout, catalog_path):
+        if cls.draw_assets:
+            layout.template_node_asset_menu_items(catalog_path=catalog_path, operator="SWAP")
 
 
 class NODE_MT_group_base(NodeMenu):
@@ -415,8 +427,8 @@ class NODE_MT_group_base(NodeMenu):
     def draw(self, context):
         layout = self.layout
         self.draw_group_menu(context, layout)
-        if self.draw_assets:
-            node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
+        
+        self.draw_assets_for_catalog(layout, self.bl_label)
 
 
 class NODE_MT_layout_base(NodeMenu):
@@ -427,8 +439,7 @@ class NODE_MT_layout_base(NodeMenu):
         self.node_operator(layout, "NodeFrame", search_weight=-1)
         self.node_operator(layout, "NodeReroute")
 
-        if self.draw_assets:
-            node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
+        self.draw_assets_for_catalog(layout, self.bl_label)
 
 
 add_base_pathing_dict = {

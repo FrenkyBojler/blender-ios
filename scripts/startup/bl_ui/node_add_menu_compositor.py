@@ -28,8 +28,7 @@ class NODE_MT_compositor_node_input_base(node_add_menu.NodeMenu):
         layout.separator()
         self.draw_menu(layout, path="Input/Scene")
 
-        if self.draw_assets:
-            node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
+        self.draw_assets_for_catalog(layout, self.bl_label)
 
 
 class NODE_MT_compositor_node_input_constant_base(node_add_menu.NodeMenu):
@@ -42,8 +41,7 @@ class NODE_MT_compositor_node_input_constant_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "ShaderNodeValue")
         self.node_operator(layout, "CompositorNodeNormal")
 
-        if self.draw_assets:
-            node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
+        self.draw_assets_for_catalog(layout, self.menu_path)
 
 
 class NODE_MT_compositor_node_input_scene_base(node_add_menu.NodeMenu):
@@ -56,8 +54,7 @@ class NODE_MT_compositor_node_input_scene_base(node_add_menu.NodeMenu):
         self.node_operator_with_outputs(context, layout, "CompositorNodeSceneTime", ["Frame", "Seconds"])
         self.node_operator(layout, "CompositorNodeTime")
 
-        if self.draw_assets:
-            node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
+        self.draw_assets_for_catalog(layout, self.menu_path)
 
 
 class NODE_MT_compositor_node_output_base(node_add_menu.NodeMenu):
@@ -71,8 +68,7 @@ class NODE_MT_compositor_node_output_base(node_add_menu.NodeMenu):
         layout.separator()
         self.node_operator(layout, "CompositorNodeOutputFile")
 
-        if self.draw_assets:
-            node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
+        self.draw_assets_for_catalog(layout, self.bl_label)
 
 
 class NODE_MT_compositor_node_color_base(node_add_menu.NodeMenu):
@@ -94,8 +90,7 @@ class NODE_MT_compositor_node_color_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "CompositorNodeInvert")
         self.node_operator(layout, "CompositorNodeRGBToBW")
 
-        if self.draw_assets:
-            node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
+        self.draw_assets_for_catalog(layout, self.bl_label)
 
 
 class NODE_MT_compositor_node_color_adjust_base(node_add_menu.NodeMenu):
@@ -114,8 +109,7 @@ class NODE_MT_compositor_node_color_adjust_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "CompositorNodeCurveRGB")
         self.node_operator(layout, "CompositorNodeTonemap")
 
-        if self.draw_assets:
-            node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
+        self.draw_assets_for_catalog(layout, self.menu_path)
 
 
 class NODE_MT_compositor_node_color_mix_base(node_add_menu.NodeMenu):
@@ -131,8 +125,8 @@ class NODE_MT_compositor_node_color_mix_base(node_add_menu.NodeMenu):
         layout.separator()
         self.node_operator(layout, "CompositorNodeZcombine")
         self.color_mix_node(context, layout)
-        if self.draw_assets:
-            node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
+
+        self.draw_assets_for_catalog(layout, self.menu_path)
 
 
 class NODE_MT_compositor_node_filter_base(node_add_menu.NodeMenu):
@@ -160,8 +154,7 @@ class NODE_MT_compositor_node_filter_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "CompositorNodePixelate")
         self.node_operator(layout, "CompositorNodePosterize")
 
-        if self.draw_assets:
-            node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
+        self.draw_assets_for_catalog(layout, self.bl_label)
 
 
 class NODE_MT_compositor_node_filter_blur_base(node_add_menu.NodeMenu):
@@ -177,8 +170,7 @@ class NODE_MT_compositor_node_filter_blur_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "CompositorNodeDBlur")
         self.node_operator(layout, "CompositorNodeVecBlur")
 
-        if self.draw_assets:
-            node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
+        self.draw_assets_for_catalog(layout, self.menu_path)
 
 
 class NODE_MT_compositor_node_keying_base(node_add_menu.NodeMenu):
@@ -196,8 +188,7 @@ class NODE_MT_compositor_node_keying_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "CompositorNodeKeyingScreen")
         self.node_operator(layout, "CompositorNodeLumaMatte")
 
-        if self.draw_assets:
-            node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
+        self.draw_assets_for_catalog(layout, self.bl_label)
 
 
 class NODE_MT_compositor_node_mask_base(node_add_menu.NodeMenu):
@@ -214,8 +205,7 @@ class NODE_MT_compositor_node_mask_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "CompositorNodeDoubleEdgeMask")
         self.node_operator(layout, "CompositorNodeIDMask")
 
-        if self.draw_assets:
-            node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
+        self.draw_assets_for_catalog(layout, self.bl_label)
 
 
 class NODE_MT_compositor_node_tracking_base(node_add_menu.NodeMenu):
@@ -228,8 +218,7 @@ class NODE_MT_compositor_node_tracking_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "CompositorNodeStabilize")
         self.node_operator(layout, "CompositorNodeTrackPos")
 
-        if self.draw_assets:
-            node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
+        self.draw_assets_for_catalog(layout, self.bl_label)
 
 
 class NODE_MT_compositor_node_transform_base(node_add_menu.NodeMenu):
@@ -252,8 +241,7 @@ class NODE_MT_compositor_node_transform_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "CompositorNodeLensdist")
         self.node_operator(layout, "CompositorNodeMovieDistortion")
 
-        if self.draw_assets:
-            node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
+        self.draw_assets_for_catalog(layout, self.bl_label)
 
 
 class NODE_MT_compositor_node_texture_base(node_add_menu.NodeMenu):
@@ -272,8 +260,7 @@ class NODE_MT_compositor_node_texture_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "ShaderNodeTexWave")
         self.node_operator(layout, "ShaderNodeTexWhiteNoise")
 
-        if self.draw_assets:
-            node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
+        self.draw_assets_for_catalog(layout, self.bl_label)
 
 
 class NODE_MT_compositor_node_utilities_base(node_add_menu.NodeMenu):
@@ -299,8 +286,7 @@ class NODE_MT_compositor_node_utilities_base(node_add_menu.NodeMenu):
         layout.separator()
         self.node_operator(layout, "CompositorNodeRelativeToPixel")
 
-        if self.draw_assets:
-            node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
+        self.draw_assets_for_catalog(layout, self.bl_label)
 
 
 class NODE_MT_compositor_node_vector_base(node_add_menu.NodeMenu):
@@ -320,8 +306,7 @@ class NODE_MT_compositor_node_vector_base(node_add_menu.NodeMenu):
         self.node_operator_with_searchable_enum(context, layout, "ShaderNodeVectorMath", "operation")
         self.node_operator(layout, "ShaderNodeVectorRotate")
 
-        if self.draw_assets:
-            node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
+        self.draw_assets_for_catalog(layout, self.bl_label)
 
 
 class NODE_MT_compositor_node_all_base(node_add_menu.NodeMenu):
@@ -353,8 +338,7 @@ class NODE_MT_compositor_node_all_base(node_add_menu.NodeMenu):
         self.draw_menu(layout, "Group")
         self.draw_menu(layout, "Layout")
 
-        if self.draw_assets:
-            node_add_menu.draw_root_assets(layout)
+        self.draw_root_assets(layout)
 
 
 add_menus = {
