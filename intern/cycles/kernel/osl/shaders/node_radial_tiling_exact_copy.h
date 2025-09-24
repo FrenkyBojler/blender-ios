@@ -59,6 +59,7 @@
 #    define M_PI_F M_PI
 #    define M_2PI_F M_2PI
 #    define ccl_device
+#    define static
 
 #    define false 0
 #    define true 1
@@ -87,6 +88,7 @@
 #      define M_PI_F M_PI
 #      define M_2PI_F M_TAU
 #      define ccl_device
+#      define static
 #    endif
 #  endif
 #endif
@@ -1145,6 +1147,7 @@ ccl_device float calculate_out_segment_id(float r_gon_sides, float2 coord)
 #    undef M_PI_F
 #    undef M_2PI_F
 #    undef ccl_device
+#    undef static
 
 #    undef false
 #    undef true
@@ -1173,6 +1176,7 @@ ccl_device float calculate_out_segment_id(float r_gon_sides, float2 coord)
 #      undef M_PI_F
 #      undef M_2PI_F
 #      undef ccl_device
+#      undef static
 #    endif
 #  endif
 #endif
