@@ -68,8 +68,8 @@ float gpencil_stroke_segment_mask(
   bool both_round = miter_limit.x == MITER_LIMIT_TYPE_ROUND &&
                     miter_limit.y == MITER_LIMIT_TYPE_ROUND;
 
-  bool is_start = p0 == p1;
-  bool is_end = p2 == p3;
+  bool is_start = distance_squared(p0, p1) < 1e-6;
+  bool is_end = distance_squared(p2, p3) < 1e-6;
   bool both_ends = is_start && is_end;
 
   float radius = thickness * 0.5f;
@@ -90,7 +90,6 @@ float gpencil_stroke_segment_mask(
     return gpencil_stroke_hardess_mask(dist, hardfac);
   }
 
-  float2 pos0 = gl_FragCoord.xy - p0;
   float2 line0 = p1 - p0;
   float2 tan0 = orthogonal(line0);
   float len_sq0 = length_squared(line0);
