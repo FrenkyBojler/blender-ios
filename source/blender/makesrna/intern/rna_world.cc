@@ -264,7 +264,7 @@ void RNA_def_world(BlenderRNA *brna)
   RNA_def_property_boolean_funcs(prop, "rna_World_use_nodes_get", "rna_World_use_nodes_set");
   RNA_def_property_deprecated(prop,
                               "Unused but kept for compatibility reasons. Setting the property "
-                              "has no effect, and getting it always returns True",
+                              "has no effect, and getting it always returns True.",
                               500,
                               600);
 
