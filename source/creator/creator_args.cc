@@ -2866,7 +2866,6 @@ void main_args_setup(bContext *C, bArgs *ba, bool all)
   BLI_args_add(ba, nullptr, "--log-show-backtrace", CB(arg_handle_log_show_backtrace_set), ba);
   BLI_args_add(ba, nullptr, "--log-show-memory", CB(arg_handle_log_show_memory_set), ba);
   BLI_args_add(ba, nullptr, "--log-file", CB(arg_handle_log_file_set), ba);
-  BLI_args_add(ba, nullptr, "--log-print-all-categories", CB(arg_handle_list_clog_cats), nullptr);
 
   /* GPU backend selection should be part of #ARG_PASS_ENVIRONMENT for correct GPU context
    * selection for animation player. */
@@ -2886,6 +2885,8 @@ void main_args_setup(bContext *C, bArgs *ba, bool all)
    * Also and commands that exit after usage. */
   BLI_args_pass_set(ba, ARG_PASS_SETTINGS);
   BLI_args_add(ba, "-h", "--help", CB(arg_handle_print_help), ba);
+  BLI_args_add(ba, nullptr, "--log-print-all-categories", CB(arg_handle_list_clog_cats), nullptr);
+
   /* MS-Windows only. */
   BLI_args_add(ba, "/?", nullptr, CB_EX(arg_handle_print_help, win32), ba);
 
