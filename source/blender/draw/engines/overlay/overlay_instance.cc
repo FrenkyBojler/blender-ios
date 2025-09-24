@@ -281,7 +281,7 @@ void Resources::update_theme_settings(const DRWContext *ctx, const State &state)
   UI_GetThemeColor4fv(TH_NORMAL, gb.colors.normal);
   UI_GetThemeColor4fv(TH_VNORMAL, gb.colors.vnormal);
   UI_GetThemeColor4fv(TH_LNORMAL, gb.colors.lnormal);
-  UI_GetThemeColor4fv(TH_FACE_DOT, gb.colors.facedot);
+  UI_GetThemeColor4fv(TH_FACE_SELECT, gb.colors.facedot), gb.colors.facedot[3] = 1.0f;
   UI_GetThemeColor4fv(TH_SKIN_ROOT, gb.colors.skinroot);
   UI_GetThemeColor4fv(TH_BACK, gb.colors.background);
   UI_GetThemeColor4fv(TH_BACK_GRAD, gb.colors.background_gradient);
@@ -1091,7 +1091,9 @@ bool Instance::object_needs_prepass(const ObjectRef &ob_ref, bool in_paint_mode)
 
   if (in_paint_mode) {
     /* Allow paint overlays to draw with depth equal test. */
-    if (object_is_rendered_transparent(ob_ref.object, state)) {
+    if (object_is_rendered_transparent(ob_ref.object, state) ||
+        object_is_in_front(ob_ref.object, state))
+    {
       return true;
     }
   }
