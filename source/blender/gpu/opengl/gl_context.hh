@@ -26,14 +26,29 @@ namespace gpu {
 class GLVaoCache;
 
 class GLSharedOrphanLists {
- public:
-  /** Mutex for the below structures. */
-  std::mutex lists_mutex;
-  /** Buffers and textures are shared across context. Any context can free them. */
-  Vector<GLuint> textures;
-  Vector<GLuint> buffers;
+  class OrphanList {
+    /** Mutex for the below structures. */
+    std::mutex mutex_;
+    /** Buffers and textures are shared across context. Any context can free them. */
+    Vector<GLuint> handles_;
+
+    ~GLSharedOrphanLists()
+    {
+      BLI_assert(handles_.empty());
+    }
+
+   public:
+    void clear(std::function<void(GLuint, GLuint *)> free_fn);
+    void append(GLuint handle);
+  };
 
  public:
+  /** Shaders, Buffers and textures are shared across context. */
+  OrphanList textures;
+  OrphanList buffers;
+  OrphanList shaders;
+  OrphanList programs;
+
   void orphans_clear();
 };
 

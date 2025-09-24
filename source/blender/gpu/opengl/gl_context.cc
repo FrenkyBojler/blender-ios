@@ -191,21 +191,32 @@ void GLContext::finish()
  * In this case we delay the deletion until the context is bound again.
  * \{ */
 
+void GLSharedOrphanLists::OrphanList::clear(std::function<void(GLuint, GLuint *)> free_fn)
+{
+  std::scoped_lock lock(mutex_);
+  if (!handles_.is_empty()) {
+    free_fn(uint(handles_.size()), handles_.data());
+    handles_.clear();
+  }
+};
+
 void GLSharedOrphanLists::orphans_clear()
 {
   /* Check if any context is active on this thread! */
   BLI_assert(GLContext::get());
 
-  lists_mutex.lock();
-  if (!buffers.is_empty()) {
-    glDeleteBuffers(uint(buffers.size()), buffers.data());
-    buffers.clear();
-  }
-  if (!textures.is_empty()) {
-    glDeleteTextures(uint(textures.size()), textures.data());
-    textures.clear();
-  }
-  lists_mutex.unlock();
+  buffers.clear(glDeleteBuffers);
+  textures.clear(glDeleteTextures);
+  shaders.clear([](GLuint size, GLuint *handles) {
+    for (uint i = 0; i < size; i++) {
+      glDeleteShader(handles[i]);
+    }
+  });
+  programs.clear([](GLuint size, GLuint *handles) {
+    for (uint i = 0; i < size; i++) {
+      glDeleteProgram(handles[i]);
+    }
+  });
 };
 
 void GLContext::orphans_clear()
