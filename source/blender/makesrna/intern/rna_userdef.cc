@@ -2617,8 +2617,7 @@ static void rna_def_userdef_theme_spaces_gradient(StructRNA *srna)
   RNA_def_property_ui_text(prop, "Theme Space", "Settings for space");
 }
 
-static void rna_def_userdef_theme_spaces_vertex(StructRNA *srna,
-                                                const bool has_vertex_active)
+static void rna_def_userdef_theme_spaces_vertex(StructRNA *srna, const bool has_vertex_active)
 {
   PropertyRNA *prop;
 
