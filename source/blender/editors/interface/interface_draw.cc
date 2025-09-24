@@ -1616,8 +1616,8 @@ void ui_draw_but_CURVE(ARegion *region, uiBut *but, const uiWidgetColors *wcol, 
                                                              but_cumap->edit_cumap;
 
   const bool inactive = but->flag & UI_BUT_INACTIVE;
-  const uchar alpha = inactive ? 192 : 255;
-  const float float_alpha = inactive ? 0.75f : 1.0f;
+  const float fade_factor_float = inactive ? 0.33f : 1.0f;
+  const uchar fade_factor_uchar = inactive ? 3 : 1;
 
   const float clip_size_x = BLI_rctf_size_x(&cumap->curr);
   const float clip_size_y = BLI_rctf_size_y(&cumap->curr);
@@ -1688,7 +1688,7 @@ void ui_draw_but_CURVE(ARegion *region, uiBut *but, const uiWidgetColors *wcol, 
   }
   else {
     /* Draw backdrop. */
-    immUniformColor4ubv(wcol->inner);
+    immUniformColor3ubvAlpha(wcol->inner, (wcol->inner[3] / fade_factor_uchar));
     immRectf(pos, rect->xmin, rect->ymin, rect->xmax, rect->ymax);
 
     /* Draw an outline around the clipped limits. */
@@ -1696,7 +1696,7 @@ void ui_draw_but_CURVE(ARegion *region, uiBut *but, const uiWidgetColors *wcol, 
       format = immVertexFormat();
       pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
 
-      immUniformColor3ubv(wcol->item);
+      immUniformColor3ubvAlpha(wcol->item, (wcol->item[3] / fade_factor_uchar));
       GPU_line_width(2.0f);
       imm_draw_box_wire_2d(pos,
                            rect->xmin + zoomx * (cumap->clipr.xmin - offsx),
@@ -1707,10 +1707,10 @@ void ui_draw_but_CURVE(ARegion *region, uiBut *but, const uiWidgetColors *wcol, 
     }
 
     /* grid, every 0.25 step */
-    immUniformColor3ubvAlpha(wcol->outline_sel, 64);
+    immUniformColor3ubvAlpha(wcol->outline_sel, 64 / fade_factor_uchar);
     ui_draw_but_curve_grid(pos, rect, zoomx, zoomy, offsx, offsy, 0.25f);
     /* grid, every 1.0 step */
-    immUniformColor3ubvAlpha(wcol->outline_sel, 92);
+    immUniformColor3ubvAlpha(wcol->outline_sel, 92 / fade_factor_uchar);
     ui_draw_but_curve_grid(pos, rect, zoomx, zoomy, offsx, offsy, 1.0f);
     /* axes */
     uchar col_axis_x[3], col_axis_y[3];
@@ -1718,13 +1718,13 @@ void ui_draw_but_CURVE(ARegion *region, uiBut *but, const uiWidgetColors *wcol, 
     UI_GetThemeColor3ubv(TH_AXIS_Y, col_axis_y);
 
     immBegin(GPU_PRIM_LINES, 2);
-    immUniformColor3ubvAlpha(col_axis_x, 128);
+    immUniformColor3ubvAlpha(col_axis_x, 128 / fade_factor_uchar);
     immVertex2f(pos, rect->xmin, rect->ymin + zoomy * (-offsy));
     immVertex2f(pos, rect->xmax, rect->ymin + zoomy * (-offsy));
     immEnd();
 
     immBegin(GPU_PRIM_LINES, 2);
-    immUniformColor3ubvAlpha(col_axis_y, 128);
+    immUniformColor3ubvAlpha(col_axis_y, 128 / fade_factor_uchar);
     immVertex2f(pos, rect->xmin + zoomx * (-offsx), rect->ymin);
     immVertex2f(pos, rect->xmin + zoomx * (-offsx), rect->ymax);
     immEnd();
@@ -1811,7 +1811,7 @@ void ui_draw_but_CURVE(ARegion *region, uiBut *but, const uiWidgetColors *wcol, 
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
   /* Curve filled. */
-  immUniformColor4ubv(wcol->item);
+  immUniformColor3ubvAlpha(wcol->item, wcol->item[3] / fade_factor_uchar);
   immBegin(GPU_PRIM_TRI_STRIP, (CM_TABLE * 2 + 2) + 4);
   immVertex2f(pos, line_range.xmin, rect->ymin);
   immVertex2f(pos, line_range.xmin, line_range.ymin);
@@ -1827,7 +1827,7 @@ void ui_draw_but_CURVE(ARegion *region, uiBut *but, const uiWidgetColors *wcol, 
 
   /* Curve line. */
   GPU_line_width(1.0f);
-  immUniformColor4ubv(wcol->inner_sel);
+  immUniformColor3ubvAlpha(wcol->inner_sel, wcol->inner_sel[3] / fade_factor_uchar);
   GPU_line_smooth(true);
   immBegin(GPU_PRIM_LINE_STRIP, (CM_TABLE + 1) + 2);
   immVertex2f(pos, line_range.xmin, line_range.ymin);
@@ -1854,32 +1854,38 @@ void ui_draw_but_CURVE(ARegion *region, uiBut *but, const uiWidgetColors *wcol, 
 
   GPU_program_point_size(true);
 
-  float color_vert[4], color_vert_select[4];
-  rgba_uchar_to_float(color_vert, wcol->text);
-  rgba_uchar_to_float(color_vert_select, wcol->text_sel);
+  float color_point[4], color_point_select[4], color_point_outline[4];
+  rgba_uchar_to_float(color_point, wcol->text);
+  rgba_uchar_to_float(color_point_select, wcol->text_sel);
+  rgba_uchar_to_float(color_point_outline, wcol->inner_sel);
+  color_point[3] = fade_factor_float;
+  color_point_select[3] = fade_factor_float;
+  color_point_outline[3] *= fade_factor_float;
 
   cmp = cuma->curve;
   const float point_size = max_ff(U.pixelsize * 2.0f,
                                   min_ff(UI_SCALE_FAC / but->block->aspect * 4.0f, 20.0f));
   /* Draw points twice, one in the back as outline and the front one. */
+  GPU_blend(GPU_BLEND_ALPHA);
   immBegin(GPU_PRIM_POINTS, (cuma->totpoint * 2));
   for (int a = 0; a < cuma->totpoint; a++) {
     const float fx = rect->xmin + zoomx * (cmp[a].x - offsx);
     const float fy = rect->ymin + zoomy * (cmp[a].y - offsy);
     const float size_factor = (cmp[a].flag & CUMA_SELECT) ? 1.5f : 1.0f;
 
-    /* First the point the back, slightly larger. */
-    immAttr4fv(col, (cmp[a].flag & CUMA_SELECT) ? color_vert : color_vert_select);
+    /* First the point the back, slightly larger so it makes an outline. */
+    immAttr4fv(col, color_point_outline);
     immAttr1f(size, point_size * size_factor * 1.4f);
     immVertex2f(pos, fx, fy);
 
     /* The point in front. */
-    immAttr4fv(col, (cmp[a].flag & CUMA_SELECT) ? color_vert_select : color_vert);
+    immAttr4fv(col, (cmp[a].flag & CUMA_SELECT) ? color_point_select : color_point);
     immAttr1f(size, point_size * size_factor);
     immVertex2f(pos, fx, fy);
   }
   immEnd();
   immUnbindProgram();
+  GPU_blend(GPU_BLEND_NONE);
 
   /* Restore scissor-test. */
   GPU_scissor(scissor[0], scissor[1], scissor[2], scissor[3]);
@@ -2110,9 +2116,9 @@ void ui_draw_but_CURVEPROFILE(ARegion *region,
 
   GPU_program_point_size(true);
 
-  float color_vert[4], color_vert_select[4], color_sample[4];
-  rgba_uchar_to_float(color_vert, wcol->text);
-  rgba_uchar_to_float(color_vert_select, wcol->text_sel);
+  float color_point[4], color_point_select[4], color_sample[4];
+  rgba_uchar_to_float(color_point, wcol->text);
+  rgba_uchar_to_float(color_point_select, wcol->text_sel);
   color_sample[0] = float(wcol->item[0]) / 255.0f;
   color_sample[1] = float(wcol->item[1]) / 255.0f;
   color_sample[2] = float(wcol->item[2]) / 255.0f;
@@ -2133,11 +2139,11 @@ void ui_draw_but_CURVEPROFILE(ARegion *region,
       fy = rect->ymin + zoomy * (pts[i].y - offsy);
       const float size_factor = (pts[i].flag & PROF_SELECT) ? 1.5f : 1.0f;
       immAttr1f(size, point_size * size_factor * 1.4f);
-      immAttr4fv(col, (pts[i].flag & PROF_SELECT) ? color_vert : color_vert_select);
+      immAttr4fv(col, (pts[i].flag & PROF_SELECT) ? color_point : color_point_select);
       immVertex2f(pos, fx, fy);
 
       immAttr1f(size, point_size * size_factor);
-      immAttr4fv(col, (pts[i].flag & PROF_SELECT) ? color_vert_select : color_vert);
+      immAttr4fv(col, (pts[i].flag & PROF_SELECT) ? color_point_select : color_point);
       immVertex2f(pos, fx, fy);
     }
     immEnd();
@@ -2155,11 +2161,11 @@ void ui_draw_but_CURVEPROFILE(ARegion *region,
         fx = rect->xmin + zoomx * (pts[i].h1_loc[0] - offsx);
         fy = rect->ymin + zoomy * (pts[i].h1_loc[1] - offsy);
         immAttr1f(size, point_size);
-        immAttr4fv(col, (pts[i].flag & PROF_H1_SELECT) ? color_vert_select : color_vert);
+        immAttr4fv(col, (pts[i].flag & PROF_H1_SELECT) ? color_point_select : color_point);
         immVertex2f(pos, fx, fy);
         fx = rect->xmin + zoomx * (pts[i].h2_loc[0] - offsx);
         fy = rect->ymin + zoomy * (pts[i].h2_loc[1] - offsy);
-        immAttr4fv(col, (pts[i].flag & PROF_H2_SELECT) ? color_vert_select : color_vert);
+        immAttr4fv(col, (pts[i].flag & PROF_H2_SELECT) ? color_point_select : color_point);
         immVertex2f(pos, fx, fy);
       }
     }
