@@ -2814,24 +2814,31 @@ static wmOperatorStatus view_item_click_select(bContext &C,
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus ui_view_item_select_exec(bContext *C, wmOperator *op)
+static std::pair<AbstractView *, AbstractViewItem *> select_operator_view_and_item_find_xy(
+    const ARegion &region, const wmOperator &op)
 {
-  ARegion &region = *CTX_wm_region(C);
-
   /* Mouse coordinates in window space. */
   int window_xy[2];
   {
     /* Mouse coordinates in region space. */
     int region_xy[2];
-    region_xy[0] = RNA_int_get(op->ptr, "mouse_x");
-    region_xy[1] = RNA_int_get(op->ptr, "mouse_y");
+    region_xy[0] = RNA_int_get(op.ptr, "mouse_x");
+    region_xy[1] = RNA_int_get(op.ptr, "mouse_y");
     ui_region_to_window(&region, region_xy[0], region_xy[1], &window_xy[0], &window_xy[1]);
   }
 
   AbstractView *view = UI_region_view_find_at(&region, window_xy, 0);
-  /* The poll uses #get_view_focused(C) (it has to use the window event state coordinates). Check
-   * that that matches the given coordinates. */
-  BLI_assert(view == get_view_focused(C));
+  AbstractViewItem *item = UI_region_views_find_item_at(region, window_xy);
+  BLI_assert(!item || &item->get_view() == view);
+
+  return std::make_pair(view, item);
+}
+
+static wmOperatorStatus ui_view_item_select_exec(bContext *C, wmOperator *op)
+{
+  ARegion &region = *CTX_wm_region(C);
+  auto [view, clicked_item] = select_operator_view_and_item_find_xy(region, *op);
+
   if (!view) {
     return OPERATOR_CANCELLED;
   }
@@ -2841,14 +2848,27 @@ static wmOperatorStatus ui_view_item_select_exec(bContext *C, wmOperator *op)
   const bool range_select = RNA_boolean_get(op->ptr, "range_select") && is_multiselect;
   const bool wait_to_deselect_others = RNA_boolean_get(op->ptr, "wait_to_deselect_others");
 
-  AbstractViewItem *clicked_item = UI_region_views_find_item_at(region, window_xy);
-
   const wmOperatorStatus status = view_item_click_select(
       *C, clicked_item, *view, extend, range_select, wait_to_deselect_others);
 
   ED_region_tag_redraw(&region);
 
   return status;
+}
+
+static wmOperatorStatus ui_view_item_select_invoke(bContext *C,
+                                                   wmOperator *op,
+                                                   const wmEvent *event)
+{
+  const ARegion &region = *CTX_wm_region(C);
+  const AbstractViewItem *clicked_item = UI_region_views_find_item_at(region, event->xy);
+
+  /* Wait with selecting to see if there's a click or drag event, if requested by the view item. */
+  if (clicked_item && clicked_item->is_select_on_click()) {
+    RNA_boolean_set(op->ptr, "select_on_click", true);
+  }
+
+  return WM_generic_select_invoke(C, op, event);
 }
 
 static void UI_OT_view_item_select(wmOperatorType *ot)
@@ -2858,7 +2878,7 @@ static void UI_OT_view_item_select(wmOperatorType *ot)
   ot->description = "Activate selected view item";
 
   ot->exec = ui_view_item_select_exec;
-  ot->invoke = WM_generic_select_invoke;
+  ot->invoke = ui_view_item_select_invoke;
   ot->modal = WM_generic_select_modal;
   ot->poll = ui_view_focused_poll;
 

@@ -216,6 +216,8 @@ class AbstractViewItem {
    * children currently.
    */
   bool is_always_collapsible_ = false;
+  /** See #select_on_click(). */
+  bool select_on_click_ = false;
   /** See #always_reactivate_on_click(). */
   bool reactivate_on_click_ = false;
   /** See #activate_for_context_menu_set(). */
@@ -312,6 +314,10 @@ class AbstractViewItem {
   bool is_interactive() const;
 
   void disable_activatable();
+  /** Do not select or activate the item on mouse press. Instead, only select on mouse release, if
+   * the item isn't dragged instead. */
+  void select_on_click();
+  bool is_select_on_click() const;
   /** Call #on_activate() on every click on the item, even when the item was active before. */
   void always_reactivate_on_click();
   /** Call #on_activate() when spawning a context menu. Otherwise the item will only be highlighted

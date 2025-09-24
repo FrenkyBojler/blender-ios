@@ -512,6 +512,14 @@ void WM_operator_properties_generic_select(wmOperatorType *ot)
       ot->srna, "wait_to_deselect_others", false, "Wait to Deselect Others", "");
   RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 
+  prop = RNA_def_boolean(ot->srna,
+                         "select_on_click",
+                         false,
+                         "Act on Click",
+                         "Instead of selecting on mouse press, wait to see if there's drag event. "
+                         "Otherwise select on mouse release");
+  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
+
   RNA_def_int(ot->srna, "mouse_x", 0, INT_MIN, INT_MAX, "Mouse X", "", INT_MIN, INT_MAX);
   RNA_def_int(ot->srna, "mouse_y", 0, INT_MIN, INT_MAX, "Mouse Y", "", INT_MIN, INT_MAX);
 }
