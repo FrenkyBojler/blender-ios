@@ -122,23 +122,60 @@ void BM_face_uvselect_set_pick(BMesh *bm,
                                bool select,
                                const BMUVSelectPickParams &params);
 
-void BM_mesh_uvselect_set_elem_from_v3d(BMesh *bm,
-                                        bool select,
-                                        const BMUVSelectPickParams &params,
-                                        const blender::VectorList<BMVert *> &verts,
-                                        const blender::VectorList<BMEdge *> &edges,
-                                        const blender::VectorList<BMFace *> &faces);
+/**
+ * Select/deselect elements in the viewport,
+ * then integrate the selection with the UV selection,
+ * without clearing an re-initializing the synchronized state.
+ * (likely to re-select islands bounds from a user-perspective).
+ */
 void BM_mesh_uvselect_set_elem_from_v3d(BMesh *bm,
                                         bool select,
                                         const BMUVSelectPickParams &params,
                                         const blender::Span<BMVert *> verts,
                                         const blender::Span<BMEdge *> edges,
                                         const blender::Span<BMFace *> faces);
+/** \copydoc #BM_mesh_uvselect_set_elem_from_v3d. */
+void BM_mesh_uvselect_set_elem_from_v3d_with_vector_list(
+    BMesh *bm,
+    bool select,
+    const BMUVSelectPickParams &params,
+    const blender::VectorList<BMVert *> &verts,
+    const blender::VectorList<BMEdge *> &edges,
+    const blender::VectorList<BMFace *> &faces);
 
 /** \} */
 
 /* -------------------------------------------------------------------- */
-/** \name UV Selection Flushing
+/** \name UV Selection Flushing (Only Select/De-Select)
+ *
+ * \note In most cases flushing assuming selection has already been flushed down.
+ *
+ * This means:
+ * - A selected edge must have both UV vertices selected.
+ * - A selected faces has all it's edges & vertices selected.
+ *
+ * It's often useful to call #BM_mesh_uvselect_flush_shared_only_select
+ * after using these non-UV-coordinate aware flushing functions.
+ * \{ */
+
+void BM_mesh_uvselect_flush_from_loop_verts_only_select(BMesh *bm);
+void BM_mesh_uvselect_flush_from_loop_verts_only_deselect(BMesh *bm);
+void BM_mesh_uvselect_flush_from_loop_edges_only_select(BMesh *bm);
+void BM_mesh_uvselect_flush_from_loop_edges_only_deselect(BMesh *bm);
+void BM_mesh_uvselect_flush_from_faces_only_select(BMesh *bm);
+void BM_mesh_uvselect_flush_from_faces_only_deselect(BMesh *bm);
+
+/**
+ * A useful utility so simple selection operations can be performed on edges/faces,
+ * afterwards this can be used to select UV's that are connected.
+ * This avoids having to use more involved UV connectivity aware logic inline.
+ */
+void BM_mesh_uvselect_flush_shared_only_select(BMesh *bm, const int cd_loop_uv_offset);
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name UV Selection Flushing (Between Elements)
  *
  * \note In most cases flushing assuming selection has already been flushed down.
  *
@@ -147,23 +184,28 @@ void BM_mesh_uvselect_set_elem_from_v3d(BMesh *bm,
  * - A selected faces has all it's edges & vertices selected.
  * \{ */
 
+/** \note The caller may need to run #BM_mesh_uvselect_flush_shared_only_select. */
 void BM_mesh_uvselect_flush_from_loop_verts(BMesh *bm);
-void BM_mesh_uvselect_flush_from_loop_verts_only_select(BMesh *bm);
-void BM_mesh_uvselect_flush_from_loop_verts_only_deselect(BMesh *bm);
-void BM_mesh_uvselect_flush_from_loop_edges_only_select(BMesh *bm);
-void BM_mesh_uvselect_flush_from_loop_edges_only_deselect(BMesh *bm);
+/** \note The caller may need to run #BM_mesh_uvselect_flush_shared_only_select. */
 void BM_mesh_uvselect_flush_from_loop_edges(BMesh *bm, bool flush_down);
+/** \note The caller may need to run #BM_mesh_uvselect_flush_shared_only_select. */
 void BM_mesh_uvselect_flush_from_faces(BMesh *bm, bool flush_down);
-void BM_mesh_uvselect_flush_from_faces_only_select(BMesh *bm);
-void BM_mesh_uvselect_flush_from_faces_only_deselect(BMesh *bm);
-void BM_mesh_uvselect_flush_mode(BMesh *bm);
+
 /**
  * Mode independent UV selection/de-selection flush from UV vertices.
  *
  * \param select: When true, flush the selection state to de-selected elements,
  * otherwise perform the opposite, flushing de-selection.
  */
-void BM_mesh_uvselect_flush_from_verts(BMesh *bm, bool select);
+void BM_mesh_uvselect_flush_from_loop_verts(BMesh *bm, bool select);
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name UV Selection Flushing (Selection Mode Aware)
+ * \{ */
+
+void BM_mesh_uvselect_flush_mode(BMesh *bm);
 
 /**
  * Select elements based on the selection mode.
@@ -172,9 +214,10 @@ void BM_mesh_uvselect_flush_from_verts(BMesh *bm, bool select);
  * - With vertex selection mode enabled: flush up to edges and faces.
  * - With edge selection mode enabled: flush to faces.
  * - With *only* face selection mode enabled: do nothing.
+ *
+ * \note An "only deselect" version function could be added, it's not needed at the moment.a
  */
 void BM_mesh_uvselect_flush_mode_only_select(BMesh *bm);
-void BM_mesh_uvselect_flush_shared(BMesh *bm, int cd_loop_uv_offset);
 
 /**
  * When the select mode changes, update to ensure the selection is valid.
@@ -188,18 +231,6 @@ void BM_mesh_uvselect_flush_mode_update(BMesh *bm,
                                         const int cd_loop_uv_offset);
 
 /**
- * From 3D viewport to UV selection.
- */
-void BM_mesh_uvselect_flush_from_v3d_sticky_location(BMesh *bm, const int cd_loop_uv_offset);
-void BM_mesh_uvselect_flush_from_v3d_sticky_disabled(BMesh *bm);
-void BM_mesh_uvselect_flush_from_v3d_sticky_vertex(BMesh *bm);
-
-/**
- * From the UV selection to the 3D viewport.
- */
-void BM_mesh_uvselect_flush_to_v3d(BMesh *bm);
-
-/**
  * A specialized flushing that fills in selection information after subdividing.
  *
  * It's important this runs:
@@ -210,6 +241,24 @@ void BM_mesh_uvselect_flush_to_v3d(BMesh *bm);
  * new geometry is created by splitting existing geometry.
  */
 void BM_mesh_uvselect_flush_post_subdivide(BMesh *bm, const int cd_loop_uv_offset);
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name UV Selection Flushing (Viewport)
+ * \{ */
+
+/**
+ * From 3D viewport to UV selection.
+ */
+void BM_mesh_uvselect_flush_from_v3d_sticky_location(BMesh *bm, const int cd_loop_uv_offset);
+void BM_mesh_uvselect_flush_from_v3d_sticky_disabled(BMesh *bm);
+void BM_mesh_uvselect_flush_from_v3d_sticky_vertex(BMesh *bm);
+
+/**
+ * From the UV selection to the 3D viewport.
+ */
+void BM_mesh_uvselect_flush_to_v3d(BMesh *bm);
 
 /** \} */
 
@@ -276,6 +325,18 @@ struct UVSelectValidateInfo {
 };
 
 /**
+ * Check the UV selection is valid, mainly for debugging & testing purposes.
+ *
+ * The primary check which should remain valid at all times is: `check_sync`,
+ * if there is ever a selected vertex without any selected UV's or a selected
+ * UV without it's vertex being selected (and similar kinds of issues),
+ * then the selection is out-of-sync, which Blender should *never* allow.
+ *
+ * While Blender should not crash in these cases,
+ * tools may not operate on the resulting selection properly.
+ *
+ * The other checks may be desired or not although this depends more on the situation.
+ *
  * \param cd_loop_uv_offset: The UV custom-data layer to check.
  * Ignored when -1 (UV checks wont be used).
  *

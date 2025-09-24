@@ -354,7 +354,7 @@ void ED_uvedit_select_sync_flush(const ToolSettings *ts, BMesh *bm, const bool s
       BM_mesh_uvselect_flush_mode(bm);
       if (ts->uv_sticky == SI_STICKY_LOC) {
         const int cd_loop_uv_offset = CustomData_get_offset(&bm->ldata, CD_PROP_FLOAT2);
-        BM_mesh_uvselect_flush_shared(bm, cd_loop_uv_offset);
+        BM_mesh_uvselect_flush_shared_only_select(bm, cd_loop_uv_offset);
       }
       BM_mesh_uvselect_flush_to_v3d(bm);
     }
@@ -1826,10 +1826,10 @@ void UVSyncSelectFromView3D::apply()
       /*shared*/ shared,
   };
 
-  BM_mesh_uvselect_set_elem_from_v3d(
+  BM_mesh_uvselect_set_elem_from_v3d_with_vector_list(
       &bm_, false, uv_pick_params, bm_verts_deselect_, bm_edges_deselect_, bm_faces_deselect_);
 
-  BM_mesh_uvselect_set_elem_from_v3d(
+  BM_mesh_uvselect_set_elem_from_v3d_with_vector_list(
       &bm_, true, uv_pick_params, bm_verts_select_, bm_edges_select_, bm_faces_select_);
 }
 
@@ -3123,11 +3123,11 @@ static void uv_select_invert(const Scene *scene, BMEditMesh *em)
 
       if (ts->uv_sticky == SI_STICKY_LOC) {
         const BMUVOffsets offsets = BM_uv_map_offsets_get(bm);
-        BM_mesh_uvselect_flush_shared(bm, offsets.uv);
+        BM_mesh_uvselect_flush_shared_only_select(bm, offsets.uv);
       }
     }
 
-    /* NOTE: no need to run: #BM_mesh_uvselect_flush_shared
+    /* NOTE: no need to run: #BM_mesh_uvselect_flush_shared_only_select
      * because inverting doesn't change the sticky state. */
     BM_mesh_uvselect_flush_to_v3d(bm);
     return;
