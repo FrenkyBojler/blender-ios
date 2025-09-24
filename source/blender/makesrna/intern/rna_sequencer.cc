@@ -543,46 +543,6 @@ static void rna_Strip_frame_offset_end_set(PointerRNA *ptr, float value)
   strip->endofs = value;
 }
 
-static void rna_Strip_anim_startofs_final_set(PointerRNA *ptr, int value)
-{
-  Strip *strip = (Strip *)ptr->data;
-  Scene *scene = (Scene *)ptr->owner_id;
-
-  strip->anim_startofs = std::min(value, strip->len + strip->anim_startofs);
-
-  blender::seq::add_reload_new_file(G.main, scene, strip, false);
-  do_strip_frame_change_update(scene, strip);
-}
-
-static void rna_Strip_anim_endofs_final_set(PointerRNA *ptr, int value)
-{
-  Strip *strip = (Strip *)ptr->data;
-  Scene *scene = (Scene *)ptr->owner_id;
-
-  strip->anim_endofs = std::min(value, strip->len + strip->anim_endofs);
-
-  blender::seq::add_reload_new_file(G.main, scene, strip, false);
-  do_strip_frame_change_update(scene, strip);
-}
-
-static void rna_Strip_anim_endofs_final_range(
-    PointerRNA *ptr, int *min, int *max, int * /*softmin*/, int * /*softmax*/)
-{
-  Strip *strip = (Strip *)ptr->data;
-
-  *min = 0;
-  *max = strip->len + strip->anim_endofs - strip->startofs - strip->endofs - 1;
-}
-
-static void rna_Strip_anim_startofs_final_range(
-    PointerRNA *ptr, int *min, int *max, int * /*softmin*/, int * /*softmax*/)
-{
-  Strip *strip = (Strip *)ptr->data;
-
-  *min = 0;
-  *max = strip->len + strip->anim_startofs - strip->startofs - strip->endofs - 1;
-}
-
 static void rna_Strip_frame_offset_start_range(
     PointerRNA *ptr, float *min, float *max, float * /*softmin*/, float * /*softmax*/)
 {
@@ -2769,33 +2729,6 @@ static void rna_def_proxy(StructRNA *srna)
   RNA_def_property_ui_text(prop, "Proxy", "");
 }
 
-static void rna_def_input(StructRNA *srna)
-{
-  PropertyRNA *prop;
-
-  prop = RNA_def_property(srna, "animation_offset_start", PROP_INT, PROP_UNSIGNED);
-  RNA_def_property_int_sdna(prop, nullptr, "anim_startofs");
-  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
-  RNA_def_property_int_funcs(prop,
-                             nullptr,
-                             "rna_Strip_anim_startofs_final_set",
-                             "rna_Strip_anim_startofs_final_range"); /* overlap tests */
-  RNA_def_property_ui_text(prop, "Animation Start Offset", "Animation start offset (trim start)");
-  RNA_def_property_update(
-      prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_preprocessed_update");
-
-  prop = RNA_def_property(srna, "animation_offset_end", PROP_INT, PROP_UNSIGNED);
-  RNA_def_property_int_sdna(prop, nullptr, "anim_endofs");
-  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
-  RNA_def_property_int_funcs(prop,
-                             nullptr,
-                             "rna_Strip_anim_endofs_final_set",
-                             "rna_Strip_anim_endofs_final_range"); /* overlap tests */
-  RNA_def_property_ui_text(prop, "Animation End Offset", "Animation end offset (trim end)");
-  RNA_def_property_update(
-      prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_preprocessed_update");
-}
-
 static void rna_def_effect_inputs(StructRNA *srna, int count)
 {
   PropertyRNA *prop;
@@ -2911,7 +2844,6 @@ static void rna_def_image(BlenderRNA *brna)
 
   rna_def_filter_video(srna);
   rna_def_proxy(srna);
-  rna_def_input(srna);
   rna_def_color_management(srna);
 }
 
@@ -2956,7 +2888,6 @@ static void rna_def_meta(BlenderRNA *brna)
 
   rna_def_filter_video(srna);
   rna_def_proxy(srna);
-  rna_def_input(srna);
 }
 
 static void rna_def_audio_options(StructRNA *srna)
@@ -3018,7 +2949,6 @@ static void rna_def_scene(BlenderRNA *brna)
   rna_def_audio_options(srna);
   rna_def_filter_video(srna);
   rna_def_proxy(srna);
-  rna_def_input(srna);
   rna_def_movie_types(srna);
 }
 
@@ -3105,7 +3035,6 @@ static void rna_def_movie(BlenderRNA *brna)
 
   rna_def_filter_video(srna);
   rna_def_proxy(srna);
-  rna_def_input(srna);
   rna_def_color_management(srna);
   rna_def_movie_types(srna);
 }
@@ -3136,7 +3065,6 @@ static void rna_def_movieclip(BlenderRNA *brna)
   RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_raw_update");
 
   rna_def_filter_video(srna);
-  rna_def_input(srna);
   rna_def_movie_types(srna);
 }
 
@@ -3155,7 +3083,6 @@ static void rna_def_mask(BlenderRNA *brna)
   RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_raw_update");
 
   rna_def_filter_video(srna);
-  rna_def_input(srna);
 }
 
 static void rna_def_sound(BlenderRNA *brna)
@@ -3204,7 +3131,6 @@ static void rna_def_sound(BlenderRNA *brna)
   RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, nullptr);
 
   rna_def_retiming_keys(srna);
-  rna_def_input(srna);
 }
 
 static void rna_def_effect(BlenderRNA *brna)
@@ -3231,8 +3157,6 @@ static void rna_def_multicam(StructRNA *srna)
   RNA_def_property_range(prop, 0, blender::seq::MAX_CHANNELS - 1);
   RNA_def_property_ui_text(prop, "Multicam Source Channel", "");
   RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_raw_update");
-
-  rna_def_input(srna);
 }
 
 static void rna_def_wipe(StructRNA *srna)
@@ -3713,7 +3637,7 @@ static EffectInfo def_effects[] = {
     {"AdjustmentStrip",
      "Adjustment Layer Strip",
      "Sequence strip to perform filter adjustments to layers below",
-     rna_def_input,
+     nullptr,
      0},
     {"AlphaOverStrip", "Alpha Over Strip", "Alpha Over Strip", nullptr, 2},
     {"AlphaUnderStrip", "Alpha Under Strip", "Alpha Under Strip", nullptr, 2},

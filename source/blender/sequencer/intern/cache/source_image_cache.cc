@@ -98,9 +98,6 @@ static float give_cache_frame_index(const Scene *scene, const Strip *strip, floa
      * for others use integer index for better cache hit rates. */
     frame_index = std::trunc(frame_index);
   }
-  if (strip->type == STRIP_TYPE_MOVIE) {
-    frame_index += strip->anim_startofs;
-  }
   return frame_index;
 }
 

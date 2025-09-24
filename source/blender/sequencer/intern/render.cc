@@ -246,7 +246,7 @@ StripElem *render_give_stripelem(const Scene *scene, const Strip *strip, int tim
       return nullptr;
     }
 
-    se += frame_index + strip->anim_startofs;
+    se += frame_index;
   }
   return se;
 }
@@ -1035,8 +1035,7 @@ static ImBuf *seq_render_movie_strip_custom_file_proxy(const RenderData *context
     }
   }
 
-  int frameno = round_fl_to_int(give_frame_index(context->scene, strip, timeline_frame)) +
-                strip->anim_startofs;
+  int frameno = round_fl_to_int(give_frame_index(context->scene, strip, timeline_frame));
   return MOV_decode_frame(proxy->anim, frameno, IMB_TC_NONE, IMB_PROXY_NONE);
 }
 
@@ -1072,10 +1071,8 @@ static ImBuf *seq_render_movie_strip_view(const RenderData *context,
       ibuf = seq_render_movie_strip_custom_file_proxy(context, strip, timeline_frame);
     }
     else {
-      ibuf = MOV_decode_frame(sanim->anim,
-                              frame_index + strip->anim_startofs,
-                              seq_render_movie_strip_timecode_get(strip),
-                              psize);
+      ibuf = MOV_decode_frame(
+          sanim->anim, frame_index, seq_render_movie_strip_timecode_get(strip), psize);
     }
 
     if (ibuf != nullptr) {
@@ -1085,10 +1082,8 @@ static ImBuf *seq_render_movie_strip_view(const RenderData *context,
 
   /* Fetching for requested proxy size failed, try fetching the original instead. */
   if (ibuf == nullptr) {
-    ibuf = MOV_decode_frame(sanim->anim,
-                            frame_index + strip->anim_startofs,
-                            seq_render_movie_strip_timecode_get(strip),
-                            IMB_PROXY_NONE);
+    ibuf = MOV_decode_frame(
+        sanim->anim, frame_index, seq_render_movie_strip_timecode_get(strip), IMB_PROXY_NONE);
   }
   if (ibuf == nullptr) {
     return nullptr;
@@ -1214,8 +1209,7 @@ static ImBuf *seq_render_movieclip_strip(const RenderData *context,
     return nullptr;
   }
 
-  BKE_movieclip_user_set_frame(&user,
-                               frame_index + strip->anim_startofs + strip->clip->start_frame);
+  BKE_movieclip_user_set_frame(&user, frame_index + strip->clip->start_frame);
 
   user.render_size = MCLIP_PROXY_RENDER_SIZE_FULL;
   switch (psize) {
@@ -1414,7 +1408,7 @@ static ImBuf *seq_render_scene_strip(const RenderData *context,
   }
 
   scene = strip->scene;
-  frame = double(scene->r.sfra) + double(frame_index) + double(strip->anim_startofs);
+  frame = double(scene->r.sfra) + double(frame_index);
 
 #if 0 /* UNUSED */
   have_seq = (scene->r.scemode & R_DOSEQ) && scene->ed && scene->ed->seqbase.first;

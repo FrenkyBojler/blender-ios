@@ -529,7 +529,7 @@ static void draw_seq_waveform_overlay(TimelineDrawContext *timeline_ctx,
   float prev_y_mid = y_zero;
   for (int i = 0; i < pixels_to_draw; i++) {
     float timeline_frame = sample_start_frame + i * frames_per_pixel;
-    float frame_index = seq::give_frame_index(scene, strip, timeline_frame) + strip->anim_startofs;
+    float frame_index = seq::give_frame_index(scene, strip, timeline_frame);
     float sample = frame_index * samples_per_frame;
     int sample_index = round_fl_to_int(sample);
 

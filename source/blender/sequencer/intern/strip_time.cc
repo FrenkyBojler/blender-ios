@@ -140,7 +140,7 @@ static void strip_update_sound_bounds_recursive_impl(const Scene *scene,
                                    strip->scene_sound,
                                    strip->start + startofs,
                                    strip->start + strip->len - endofs,
-                                   startofs + strip->anim_startofs,
+                                   startofs,
                                    offset_time);
       }
     }
@@ -173,8 +173,8 @@ void time_update_meta_strip_range(const Scene *scene, Strip *strip_meta)
     max = max_ii(time_right_handle_frame_get(scene, strip), max);
   }
 
-  strip_meta->start = min + strip_meta->anim_startofs;
-  strip_meta->len = max - strip_meta->anim_endofs - strip_meta->start;
+  strip_meta->start = min;
+  strip_meta->len = max - strip_meta->start;
 
   /* Functions `SEQ_time_*_handle_frame_set()` can not be used here, because they are clamped, so
    * change must be done at once. */
@@ -215,7 +215,7 @@ void strip_time_effect_range_set(const Scene *scene, Strip *strip)
   }
 
   /* Values unusable for effects, these should be always 0. */
-  strip->startofs = strip->endofs = strip->anim_startofs = strip->anim_endofs = 0;
+  strip->startofs = strip->endofs = 0;
   strip->start = strip->startdisp;
   strip->len = strip->enddisp - strip->startdisp;
 }

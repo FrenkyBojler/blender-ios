@@ -260,9 +260,6 @@ typedef struct Strip {
   /** Struct pointer for effect settings. */
   void *effectdata;
 
-  /** Frame offset from start/end of video file content to be ignored and invisible to the VSE. */
-  int anim_startofs, anim_endofs;
-
   int blend_mode; /* StripBlendMode */
   float blend_opacity;
 

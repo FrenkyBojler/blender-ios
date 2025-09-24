@@ -560,8 +560,6 @@ void add_reload_new_file(Main *bmain, Scene *scene, Strip *strip, const bool loc
       size_t olen = MEM_allocN_len(strip->data->stripdata) / sizeof(StripElem);
 
       strip->len = olen;
-      strip->len -= strip->anim_startofs;
-      strip->len -= strip->anim_endofs;
       strip->len = std::max(strip->len, 0);
       break;
     }
@@ -641,8 +639,6 @@ void add_reload_new_file(Main *bmain, Scene *scene, Strip *strip, const bool loc
           IMB_Timecode_Type(strip->data->proxy ? IMB_Timecode_Type(strip->data->proxy->tc) :
                                                  IMB_TC_RECORD_RUN));
 
-      strip->len -= strip->anim_startofs;
-      strip->len -= strip->anim_endofs;
       strip->len = std::max(strip->len, 0);
       break;
     }
@@ -653,8 +649,6 @@ void add_reload_new_file(Main *bmain, Scene *scene, Strip *strip, const bool loc
 
       strip->len = BKE_movieclip_get_duration(strip->clip);
 
-      strip->len -= strip->anim_startofs;
-      strip->len -= strip->anim_endofs;
       strip->len = std::max(strip->len, 0);
       break;
     case STRIP_TYPE_MASK:
@@ -662,8 +656,6 @@ void add_reload_new_file(Main *bmain, Scene *scene, Strip *strip, const bool loc
         return;
       }
       strip->len = BKE_mask_get_duration(strip->mask);
-      strip->len -= strip->anim_startofs;
-      strip->len -= strip->anim_endofs;
       strip->len = std::max(strip->len, 0);
       break;
     case STRIP_TYPE_SOUND_RAM:
@@ -673,8 +665,6 @@ void add_reload_new_file(Main *bmain, Scene *scene, Strip *strip, const bool loc
       }
       strip->len = ceil(double(BKE_sound_get_length(bmain, strip->sound)) *
                         scene->frames_per_second());
-      strip->len -= strip->anim_startofs;
-      strip->len -= strip->anim_endofs;
       strip->len = std::max(strip->len, 0);
 #else
       UNUSED_VARS(bmain);
@@ -683,8 +673,6 @@ void add_reload_new_file(Main *bmain, Scene *scene, Strip *strip, const bool loc
       break;
     case STRIP_TYPE_SCENE: {
       strip->len = (strip->scene) ? strip->scene->r.efra - strip->scene->r.sfra + 1 : 0;
-      strip->len -= strip->anim_startofs;
-      strip->len -= strip->anim_endofs;
       strip->len = std::max(strip->len, 0);
       break;
     }

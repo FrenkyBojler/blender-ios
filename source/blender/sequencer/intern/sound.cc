@@ -110,7 +110,7 @@ void sound_update_bounds(Scene *scene, Strip *strip)
   if (strip->type == STRIP_TYPE_SCENE) {
     if (strip->scene && strip->scene_sound) {
       /* We have to take into account start frame of the sequence's scene! */
-      int startofs = strip->startofs + strip->anim_startofs + strip->scene->r.sfra;
+      int startofs = strip->startofs + strip->scene->r.sfra;
 
       BKE_sound_move_scene_sound(scene,
                                  strip->scene_sound,

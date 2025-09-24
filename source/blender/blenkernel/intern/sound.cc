@@ -901,7 +901,7 @@ void *BKE_sound_scene_add_scene_sound_defaults(Scene *scene, Strip *sequence)
       sequence,
       blender::seq::time_left_handle_frame_get(scene, sequence),
       blender::seq::time_right_handle_frame_get(scene, sequence),
-      sequence->startofs + sequence->anim_startofs);
+      sequence->startofs);
 }
 
 void *BKE_sound_add_scene_sound(
@@ -936,7 +936,7 @@ void *BKE_sound_add_scene_sound_defaults(Scene *scene, Strip *sequence)
                                    sequence,
                                    blender::seq::time_left_handle_frame_get(scene, sequence),
                                    blender::seq::time_right_handle_frame_get(scene, sequence),
-                                   sequence->startofs + sequence->anim_startofs);
+                                   sequence->startofs);
 }
 
 void BKE_sound_remove_scene_sound(Scene *scene, void *handle)
@@ -979,7 +979,7 @@ void BKE_sound_move_scene_sound_defaults(Scene *scene, Strip *sequence)
                                sequence->scene_sound,
                                blender::seq::time_left_handle_frame_get(scene, sequence),
                                blender::seq::time_right_handle_frame_get(scene, sequence),
-                               sequence->startofs + sequence->anim_startofs,
+                               sequence->startofs,
                                offset_time);
   }
 }

@@ -512,9 +512,6 @@ ImBuf *thumbnail_cache_get(const bContext *C,
 
   const std::string key = get_path_from_strip(scene, strip, timeline_frame);
   int frame_index = give_frame_index(scene, strip, timeline_frame);
-  if (strip->type == STRIP_TYPE_MOVIE) {
-    frame_index += strip->anim_startofs;
-  }
 
   ImBuf *res = nullptr;
   {

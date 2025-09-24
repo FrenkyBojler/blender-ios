@@ -3110,9 +3110,6 @@ static wmOperatorStatus sequencer_change_path_exec(bContext *C, wmOperator *op)
       strip->flag &= ~SEQ_SINGLE_FRAME_CONTENT;
     }
 
-    /* Reset these else we won't see all the images. */
-    strip->anim_startofs = strip->anim_endofs = 0;
-
     /* Correct start/end frames so we don't move.
      * Important not to set strip->len = len; allow the function to handle it. */
     seq::add_reload_new_file(bmain, scene, strip, true);

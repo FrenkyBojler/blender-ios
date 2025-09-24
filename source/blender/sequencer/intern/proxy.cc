@@ -216,8 +216,7 @@ ImBuf *seq_proxy_fetch(const RenderData *context, Strip *strip, int timeline_fra
   }
 
   if (proxy->storage & SEQ_STORAGE_PROXY_CUSTOM_FILE) {
-    int frameno = round_fl_to_int(give_frame_index(context->scene, strip, timeline_frame)) +
-                  strip->anim_startofs;
+    int frameno = round_fl_to_int(give_frame_index(context->scene, strip, timeline_frame));
     if (proxy->anim == nullptr) {
       if (seq_proxy_get_filepath(
               context->scene, strip, timeline_frame, psize, filepath, context->view_id) == 0)
