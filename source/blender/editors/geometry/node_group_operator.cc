@@ -672,6 +672,25 @@ static Vector<Object *> gather_supported_objects(const bContext &C,
   return objects;
 }
 
+static ID *add_id_for_geometry_type(Main *bmain,
+                                    const bke::GeometrySet &geometry,
+                                    const StringRefNull name)
+{
+  if (geometry.has_mesh()) {
+    return &BKE_id_new<Mesh>(bmain, name.c_str())->id;
+  }
+  if (geometry.has_pointcloud()) {
+    return &BKE_id_new<PointCloud>(bmain, name.c_str())->id;
+  }
+  if (geometry.has_curves()) {
+    return &BKE_id_new<Curves>(bmain, name.c_str())->id;
+  }
+  if (geometry.has_grease_pencil()) {
+    return &BKE_id_new<GreasePencil>(bmain, name.c_str())->id;
+  }
+  return nullptr;
+}
+
 static wmOperatorStatus run_node_group_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
@@ -797,102 +816,94 @@ static wmOperatorStatus run_node_group_exec(bContext *C, wmOperator *op)
       }
     }
 
-    bke::GeometrySet new_geometry = nodes::execute_geometry_nodes_on_geometry(
+    bke::GeometrySet result_geometry = nodes::execute_geometry_nodes_on_geometry(
         *node_tree,
         properties,
         compute_context,
         call_data,
         bke::GeometrySet::from_instances(instances.release()));
 
-    bke::Instances *new_instances = new_geometry.get_instances_for_write();
+    bke::Instances *new_instances = result_geometry.get_instances_for_write();
     if (!new_instances) {
       return OPERATOR_CANCELLED;
     }
 
-    Map<std::string, std::pair<float4x4, bke::GeometrySet>> instance_by_name;
-    {
-      const Span<bke::InstanceReference> references = new_instances->references();
-      const Span<int> handles = new_instances->reference_handles();
-      const Span<float4x4> transforms = new_instances->transforms();
-      instance_by_name.reserve(new_instances->instances_num());
-      for (const int i : handles.index_range()) {
-        /* In the future we shouldn't need to run "to_geometry_set"; we could keep top-level
-         * collection instances as empty objects. For now, the empty geometry sets from these cases
-         * will create empty objects that don't instance anything, but that's at least better than
-         * losing all the data. */
-        bke::GeometrySet geometry;
-        references[handles[i]].to_geometry_set(geometry);
-        const StringRef name = geometry.name.empty() ? DATA_("Object") : geometry.name;
-        std::string unique_name = BLI_uniquename_cb(
-            [&](const StringRef name) { return instance_by_name.contains(name); }, '.', name);
-        instance_by_name.add(std::move(unique_name), {transforms[i], std::move(geometry)});
-      }
+    Map<std::string, int> instance_names;
+    instance_names.reserve(new_instances->instances_num());
+    const Span<int> handles = new_instances->reference_handles();
+    const Span<bke::InstanceReference> references = new_instances->references();
+    for (const int i : handles.index_range()) {
+      const StringRef reference_name = references[handles[i]].name();
+      const StringRef name = reference_name.is_empty() ? DATA_("Object") : reference_name;
+      instance_names.add_new(
+          BLI_uniquename_cb(
+              [&](const StringRef name) { return instance_names.contains(name); }, '.', name),
+          i);
     }
+
+    const Span<float4x4> transforms = new_instances->transforms();
 
     Set<ID *> objects_to_delete;
     for (Object *object : objects) {
-      std::optional data = instance_by_name.pop_try_as(BKE_id_name(object->id));
-      if (!data) {
+      const std::optional<int> instance_index = instance_names.pop_try_as(BKE_id_name(object->id));
+      if (!instance_index) {
         objects_to_delete.add_new(&object->id);
         continue;
       }
 
-      const float4x4 &transform = data->first;
-      bke::GeometrySet &new_geometry = data->second;
+      const float4x4 &transform = transforms[*instance_index];
       if (!math::is_equal(transform, object->object_to_world(), 1e-6f)) {
         BKE_object_apply_mat4(object, transform.ptr(), false, false);
         DEG_id_tag_update(&object->id, ID_RECALC_TRANSFORM);
       }
 
+      bke::GeometrySet geometry;
+      references[handles[*instance_index]].to_geometry_set(geometry);
       store_result_geometry(
-          *C, *op, *depsgraph_active, *bmain, *scene, *object, rv3d, std::move(new_geometry));
+          *C, *op, *depsgraph_active, *bmain, *scene, *object, rv3d, std::move(geometry));
 
       WM_event_add_notifier(C, NC_GEOM | ND_DATA, object->data);
     }
 
     BKE_id_multi_delete(bmain, objects_to_delete);
 
-    if (!instance_by_name.is_empty()) {
-      Set<Object *> new_objects;
-      new_objects.reserve(instance_by_name.size());
-      for (const auto &[name, data] : instance_by_name.items()) {
-        const float4x4 &transform = data.first;
-        bke::GeometrySet &new_geometry = data.second;
+    if (!instance_names.is_empty()) {
+      Vector<Object *> new_objects;
+      new_objects.reserve(instance_names.size());
+      Map<int, ID *> reference_index_to_new_object_data;
+      for (const auto &item : instance_names.items()) {
+        const StringRefNull name = item.key;
+        const int instance_index = item.value;
+        reference_index_to_new_object_data.add_or_modify(
+            handles[instance_index],
+            [&](ID **data) {
+              bke::GeometrySet geometry;
+              references[handles[instance_index]].to_geometry_set(geometry);
 
-        ObjectType object_type = OB_EMPTY;
-        ID *object_data = nullptr;
-        if (new_geometry.has_mesh()) {
-          object_type = OB_MESH;
-          object_data = &BKE_id_new<Mesh>(bmain, name.c_str())->id;
-        }
-        else if (new_geometry.has_pointcloud()) {
-          object_type = OB_POINTCLOUD;
-          object_data = &BKE_id_new<PointCloud>(bmain, name.c_str())->id;
-        }
-        else if (new_geometry.has_curves()) {
-          object_type = OB_CURVES;
-          object_data = &BKE_id_new<Curves>(bmain, name.c_str())->id;
-        }
-        else if (new_geometry.has_grease_pencil()) {
-          object_type = OB_GREASE_PENCIL;
-          object_data = &BKE_id_new<GreasePencil>(bmain, name.c_str())->id;
-        }
-        Object *new_object = BKE_object_add_only_object(bmain, object_type, name.c_str());
-        new_object->data = object_data;
-        id_us_plus(object_data);
-
-        new_objects.add(new_object);
-
-        BKE_object_apply_mat4(new_object, transform.ptr(), false, false);
-
-        store_result_geometry(*C,
-                              *op,
-                              *depsgraph_active,
-                              *bmain,
-                              *scene,
-                              *new_object,
-                              rv3d,
-                              std::move(new_geometry));
+              *data = add_id_for_geometry_type(bmain, geometry, name);
+              const int type = *data ? BKE_object_obdata_to_type(*data) : OB_EMPTY;
+              Object *new_object = BKE_object_add_only_object(bmain, type, name.c_str());
+              new_object->data = *data;
+              id_us_plus(*data);
+              new_objects.append(new_object);
+              BKE_object_apply_mat4(new_object, transforms[instance_index].ptr(), false, false);
+              store_result_geometry(*C,
+                                    *op,
+                                    *depsgraph_active,
+                                    *bmain,
+                                    *scene,
+                                    *new_object,
+                                    rv3d,
+                                    std::move(geometry));
+            },
+            [&](ID **data) {
+              const int type = *data ? BKE_object_obdata_to_type(*data) : OB_EMPTY;
+              Object *new_object = BKE_object_add_only_object(bmain, type, name.c_str());
+              new_object->data = *data;
+              id_us_plus(*data);
+              new_objects.append(new_object);
+              BKE_object_apply_mat4(new_object, transforms[instance_index].ptr(), false, false);
+            });
       }
 
       Collection *collection = BKE_layer_collection_get_active(view_layer)->collection;
