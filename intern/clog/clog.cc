@@ -79,8 +79,6 @@ struct CLG_IDFilter {
 struct CLogContext {
   /** Single linked list of types. */
   CLG_LogType *types;
-  /** Single linked list of references. */
-  CLG_LogRef *refs;
 #ifdef WITH_CLOG_PTHREADS
   pthread_mutex_t types_lock;
 #endif
@@ -111,6 +109,19 @@ struct CLogContext {
     void (*backtrace_fn)(void *file_handle);
   } callbacks;
 };
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Global LogRef Single Linked List
+ * \{ */
+
+static CLG_LogRef **CLG_all_refs()
+{
+  /* Inside a function for correct static initialization order. */
+  static CLG_LogRef *all_refs = nullptr;
+  return &all_refs;
+}
 
 /** \} */
 
@@ -828,10 +839,8 @@ static void CLG_ctx_free(CLogContext *ctx)
     MEM_freeN(item);
   }
 
-  while (ctx->refs != nullptr) {
-    CLG_LogRef *item = ctx->refs;
-    ctx->refs = item->next;
-    item->type = nullptr;
+  for (CLG_LogRef *ref = *CLG_all_refs(); ref; ref = ref->next) {
+    ref->type = nullptr;
   }
 
   for (uint i = 0; i < 2; i++) {
@@ -945,32 +954,28 @@ bool CLG_quiet_get()
  * Use to avoid look-ups each time.
  * \{ */
 
-struct CLG_CStrCmp {
-  bool operator()(const char *a, const char *b) const
-  {
-    return std::strcmp(a, b) < 0;
-  }
-};
-
-static std::set<const char *, CLG_CStrCmp> &clg_all_identifiers()
-{
-  static std::set<const char *, CLG_CStrCmp> identifiers;
-  return identifiers;
-}
-
-static std::mutex clg_mutex;
-
 void CLG_logref_register(CLG_LogRef *clg_ref)
 {
-  std::scoped_lock lock(clg_mutex);
-  clg_all_identifiers().insert(clg_ref->identifier);
+  /* Add to global list of refs, both for setting the type to null on CLG_exit()
+   * and so CLG_logref_list_all can be used to print all categories. */
+  static std::mutex mutex;
+  std::scoped_lock lock(mutex);
+  CLG_LogRef **all_refs = CLG_all_refs();
+  clg_ref->next = *all_refs;
+  *all_refs = clg_ref;
 }
 
 void CLG_logref_list_all(void (*callback)(const char *identifier, void *user_data),
                          void *user_data)
 {
-  std::scoped_lock lock(clg_mutex);
-  for (const char *identifier : clg_all_identifiers()) {
+  /* Generate sorted list of unique identifiers. */
+  auto cmp = [](const char *a, const char *b) { return std::strcmp(a, b) < 0; };
+  std::set<const char *, decltype(cmp)> identifiers(cmp);
+  for (CLG_LogRef *ref = *CLG_all_refs(); ref; ref = ref->next) {
+    identifiers.insert(ref->identifier);
+  }
+
+  for (const char *identifier : identifiers) {
     callback(identifier, user_data);
   }
 }
@@ -982,10 +987,6 @@ void CLG_logref_init(CLG_LogRef *clg_ref)
   pthread_mutex_lock(&g_ctx->types_lock);
 #endif
   if (clg_ref->type == nullptr) {
-    /* Add to the refs list so we can nullptr the pointers to 'type' when CLG_exit() is called. */
-    clg_ref->next = g_ctx->refs;
-    g_ctx->refs = clg_ref;
-
     CLG_LogType *clg_ty = clg_ctx_type_find_by_name(g_ctx, clg_ref->identifier);
     if (clg_ty == nullptr) {
       clg_ty = clg_ctx_type_register(g_ctx, clg_ref->identifier);
