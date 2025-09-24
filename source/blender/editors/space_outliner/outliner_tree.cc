@@ -512,6 +512,70 @@ static int treesort_alpha(const void *v1, const void *v2)
   return 0;
 }
 
+/* Comparator for type sort. Keep non-objects before object. For objects, place members of the
+ * collection before "not in collection”, then group by object type, then by natural name. */
+static int treesort_type_ob(const void *v1, const void *v2)
+{
+  const tTreeSort *x1 = static_cast<const tTreeSort *>(v1);
+  const tTreeSort *x2 = static_cast<const tTreeSort *>(v2);
+
+  /* Keep non objects before objects. */
+  const bool a_is_ob = (x1->idcode == ID_OB);
+  const bool b_is_ob = (x2->idcode == ID_OB);
+  if (a_is_ob != b_is_ob) {
+    return a_is_ob ? 1 : -1;
+  }
+
+  /* If neither are objects, preserve existing order. */
+  if (!a_is_ob) {
+    return 0;
+  }
+
+  const bool a_not_in = (x1->te->flag & TE_CHILD_NOT_IN_COLLECTION) != 0;
+  const bool b_not_in = (x2->te->flag & TE_CHILD_NOT_IN_COLLECTION) != 0;
+  if (a_not_in != b_not_in) {
+    return a_not_in ? 1 : -1;
+  }
+
+  /* Group by object type. */
+  const Object *ob1 = reinterpret_cast<const Object *>(x1->id);
+  const Object *ob2 = reinterpret_cast<const Object *>(x2->id);
+  if (ob1->type < ob2->type) {
+    return -1;
+  }
+  if (ob1->type > ob2->type) {
+    return 1;
+  }
+
+  return BLI_strcasecmp_natural(x1->name, x2->name);
+}
+
+/* Comparator for creation sort. */
+static int treesort_creation(const void *v1, const void *v2)
+{
+  const tTreeSort *x1 = static_cast<const tTreeSort *>(v1);
+  const tTreeSort *x2 = static_cast<const tTreeSort *>(v2);
+
+  if ((x1->idcode != ID_OB) || (x2->idcode != ID_OB)) {
+    return BLI_strcasecmp_natural(x1->name, x2->name);
+  }
+
+  const Object *ob1 = reinterpret_cast<const Object *>(x1->id);
+  const Object *ob2 = reinterpret_cast<const Object *>(x2->id);
+
+  const uint64_t a = ob1->id.session_uid;
+  const uint64_t b = ob2->id.session_uid;
+
+  if (a < b) {
+    return -1;
+  }
+  if (a > b) {
+    return 1;
+  }
+
+  return BLI_strcasecmp_natural(x1->name, x2->name);
+}
+
 /* this is nice option for later? doesn't look too useful... */
 #if 0
 static int treesort_obtype_alpha(const void *v1, const void *v2)
@@ -619,8 +683,7 @@ static void outliner_sort(ListBase *lb)
   }
 }
 
-/* Sort current list by custom order (collection defined object order via sort_index. Otherwise by
- * natural name), then recurse into all children. */
+/* Sort current list by custom order. */
 static void outliner_sort_custom(ListBase *lb)
 {
   int totelem = BLI_listbase_count(lb);
@@ -656,46 +719,7 @@ static void outliner_sort_custom(ListBase *lb)
   }
 }
 
-/* Comparator for type sort. Keep non-objects before object. For objects, place members of the
- * collection before "not in collection”, then group by object type, then by natural name. */
-static int treesort_type_ob(const void *v1, const void *v2)
-{
-  const tTreeSort *x1 = static_cast<const tTreeSort *>(v1);
-  const tTreeSort *x2 = static_cast<const tTreeSort *>(v2);
-
-  /* Keep non objects before objects. */
-  const bool a_is_ob = (x1->idcode == ID_OB);
-  const bool b_is_ob = (x2->idcode == ID_OB);
-  if (a_is_ob != b_is_ob) {
-    return a_is_ob ? 1 : -1;
-  }
-
-  /* If neither are objects, preserve existing order. */
-  if (!a_is_ob) {
-    return 0;
-  }
-
-  const bool a_not_in = (x1->te->flag & TE_CHILD_NOT_IN_COLLECTION) != 0;
-  const bool b_not_in = (x2->te->flag & TE_CHILD_NOT_IN_COLLECTION) != 0;
-  if (a_not_in != b_not_in) {
-    return a_not_in ? 1 : -1;
-  }
-
-  /* Group by object type. */
-  const Object *ob1 = reinterpret_cast<const Object *>(x1->id);
-  const Object *ob2 = reinterpret_cast<const Object *>(x2->id);
-  if (ob1->type < ob2->type) {
-    return -1;
-  }
-  if (ob1->type > ob2->type) {
-    return 1;
-  }
-
-  return BLI_strcasecmp_natural(x1->name, x2->name);
-}
-
-/* Apply type sorting to object lists at this level using treesort_type_ob, then recurse into
- * subtrees. */
+/* Apply type sorting to object lists. */
 static void outliner_sort_type(ListBase *lb)
 {
   TreeElement *last_te = static_cast<TreeElement *>(lb->last);
@@ -721,7 +745,6 @@ static void outliner_sort_type(ListBase *lb)
 
       qsort(tear, totelem, sizeof(tTreeSort), treesort_type_ob);
 
-      /* Rebuild list in the newly sorted order. */
       BLI_listbase_clear(lb);
       tp = tear;
       for (int i = 0; i < totelem; i++, tp++) {
@@ -732,9 +755,49 @@ static void outliner_sort_type(ListBase *lb)
     }
   }
 
-  /* Recurse into children. */
   LISTBASE_FOREACH (TreeElement *, te, lb) {
     outliner_sort_type(&te->subtree);
+  }
+}
+
+/* Apply creation sorting to object lists. */
+static void outliner_sort_creation(ListBase *lb)
+{
+  TreeElement *last_te = static_cast<TreeElement *>(lb->last);
+  if (last_te == nullptr) {
+    return;
+  }
+
+  TreeStoreElem *last_tselem = TREESTORE(last_te);
+
+  if ((last_tselem->type == TSE_SOME_ID) && (last_te->idcode == ID_OB)) {
+    const int totelem = BLI_listbase_count(lb);
+    if (totelem > 1) {
+      tTreeSort *tear = MEM_malloc_arrayN<tTreeSort>(totelem, "tree sort array (creation)");
+      tTreeSort *tp = tear;
+
+      LISTBASE_FOREACH (TreeElement *, te, lb) {
+        TreeStoreElem *tselem = TREESTORE(te);
+        tp->te = te;
+        tp->id = tselem->id;
+        tp->name = te->name;
+        tp->idcode = te->idcode;
+        tp++;
+      }
+
+      qsort(tear, totelem, sizeof(tTreeSort), treesort_creation);
+
+      BLI_listbase_clear(lb);
+      tp = tear;
+      for (int i = 0; i < totelem; i++, tp++) {
+        BLI_addtail(lb, tp->te);
+      }
+      MEM_freeN(tear);
+    }
+  }
+
+  LISTBASE_FOREACH (TreeElement *, te_iter, lb) {
+    outliner_sort_creation(&te_iter->subtree);
   }
 }
 
@@ -779,75 +842,6 @@ static void outliner_sort_type(ListBase *lb)
 
   LISTBASE_FOREACH (TreeElement *, te_iter, lb) {
     outliner_collections_children_sort(&te_iter->subtree);
-  }
-}
-
-/* Comparator for creation sort. For objects, compare by session_uid.
- * Otherwise fall back to natural name ordering. */
-static int treesort_creation(const void *v1, const void *v2)
-{
-  const tTreeSort *x1 = static_cast<const tTreeSort *>(v1);
-  const tTreeSort *x2 = static_cast<const tTreeSort *>(v2);
-
-  if ((x1->idcode != ID_OB) || (x2->idcode != ID_OB)) {
-    return BLI_strcasecmp_natural(x1->name, x2->name);
-  }
-
-  const Object *ob1 = reinterpret_cast<const Object *>(x1->id);
-  const Object *ob2 = reinterpret_cast<const Object *>(x2->id);
-
-  const uint64_t a = ob1->id.session_uid;
-  const uint64_t b = ob2->id.session_uid;
-
-  if (a < b) {
-    return -1;
-  }
-  if (a > b) {
-    return 1;
-  }
-
-  return BLI_strcasecmp_natural(x1->name, x2->name);
-}
-
-/* Apply creation sorting to object lists (by session_uid, oldest first) at this level,
- * then recurse into subtrees. */
-static void outliner_sort_creation(ListBase *lb)
-{
-  TreeElement *last_te = static_cast<TreeElement *>(lb->last);
-  if (last_te == nullptr) {
-    return;
-  }
-
-  TreeStoreElem *last_tselem = TREESTORE(last_te);
-
-  if ((last_tselem->type == TSE_SOME_ID) && (last_te->idcode == ID_OB)) {
-    const int totelem = BLI_listbase_count(lb);
-    if (totelem > 1) {
-      tTreeSort *tear = MEM_malloc_arrayN<tTreeSort>(totelem, "tree sort array (creation)");
-      tTreeSort *tp = tear;
-
-      LISTBASE_FOREACH (TreeElement *, te, lb) {
-        TreeStoreElem *tselem = TREESTORE(te);
-        tp->te = te;
-        tp->id = tselem->id;
-        tp->name = te->name;
-        tp->idcode = te->idcode;
-        tp++;
-      }
-
-      qsort(tear, totelem, sizeof(tTreeSort), treesort_creation);
-
-      BLI_listbase_clear(lb);
-      tp = tear;
-      for (int i = 0; i < totelem; i++, tp++) {
-        BLI_addtail(lb, tp->te);
-      }
-      MEM_freeN(tear);
-    }
-  }
-
-  LISTBASE_FOREACH (TreeElement *, te_iter, lb) {
-    outliner_sort_creation(&te_iter->subtree);
   }
 }
 
