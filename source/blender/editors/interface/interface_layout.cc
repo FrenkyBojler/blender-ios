@@ -3788,7 +3788,7 @@ static int spaces_after_column_item(const uiLayout *litem,
 }
 
 /* single-column layout */
-void LayoutColumn ::estimate_impl()
+void LayoutColumn::estimate_impl()
 {
   if (this->type() == uiItemType::LayoutRoot) {
     return;
