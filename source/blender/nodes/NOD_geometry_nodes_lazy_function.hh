@@ -205,10 +205,13 @@ struct GeoNodesOperatorData {
   float4x4 viewport_viewmat;
   bool viewport_is_perspective;
 
+  GeometryNodeToolExecutionMode exec_mode;
+
   int active_point_index = -1;
   int active_edge_index = -1;
   int active_face_index = -1;
   int active_layer_index = -1;
+  int active_object_instance_index = -1;
 };
 
 struct GeoNodesCallData {

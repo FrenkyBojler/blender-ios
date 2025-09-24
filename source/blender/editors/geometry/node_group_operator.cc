@@ -793,7 +793,9 @@ static wmOperatorStatus run_node_group_exec(bContext *C, wmOperator *op)
   call_data.eval_log = eval_log.log.get();
 
   if (objects_as_instances) {
+    operator_eval_data.exec_mode = GEO_NODE_TOOL_EXEC_INSTANCES;
     operator_eval_data.self_object_orig = active_object;
+    operator_eval_data.active_object_instance_index = objects.first_index_of(active_object);
     call_data.socket_log_contexts = &socket_log_contexts;
 
     auto instances = std::make_unique<bke::Instances>();
@@ -927,6 +929,7 @@ static wmOperatorStatus run_node_group_exec(bContext *C, wmOperator *op)
     }
   }
   else {
+    operator_eval_data.exec_mode = GEO_NODE_TOOL_EXEC_SEPARATE;
     for (Object *object : objects) {
       operator_eval_data.self_object_orig = object;
       /* Only log values from the active object. */

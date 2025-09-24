@@ -44,6 +44,21 @@ static void node_exec(GeoNodeExecParams params)
   const GeoNodesOperatorData *operator_data = params.user_data()->call_data->operator_data;
   const AttrDomain domain = static_cast<AttrDomain>(params.node().custom1);
 
+  if (domain == AttrDomain::Instance && operator_data->exec_mode != GEO_NODE_TOOL_EXEC_INSTANCES) {
+    params.error_message_add(
+        NodeWarningType::Error,
+        "The \"Instance\" domain is only available for the \"Instances\" tool execution mode");
+    params.set_default_remaining_outputs();
+    return;
+  }
+  if (domain != AttrDomain::Instance && operator_data->exec_mode == GEO_NODE_TOOL_EXEC_INSTANCES) {
+    params.error_message_add(
+        NodeWarningType::Error,
+        "Only the \"Instance\" is available for the \"Instances\" tool execution mode");
+    params.set_default_remaining_outputs();
+    return;
+  }
+
   /* Active Point, Edge, and Face are only supported in Edit Mode. */
   if (operator_data->mode != OB_MODE_EDIT &&
       ELEM(domain, AttrDomain::Point, AttrDomain::Edge, AttrDomain::Face))
@@ -69,6 +84,10 @@ static void node_exec(GeoNodeExecParams params)
       params.set_output("Exists", operator_data->active_layer_index >= 0);
       params.set_output("Index", std::max(0, operator_data->active_layer_index));
       break;
+    case AttrDomain::Instance:
+      params.set_output("Exists", operator_data->active_object_instance_index >= 0);
+      params.set_output("Index", std::max(0, operator_data->active_object_instance_index));
+      break;
     default:
       params.set_default_remaining_outputs();
       BLI_assert_unreachable();
@@ -83,6 +102,12 @@ static void node_rna(StructRNA *srna)
       {int(AttrDomain::Edge), "EDGE", 0, "Edge", ""},
       {int(AttrDomain::Face), "FACE", 0, "Face", ""},
       {int(AttrDomain::Layer), "LAYER", 0, "Layer", ""},
+      {int(AttrDomain::Instance),
+       "Instance",
+       0,
+       "Instance Object",
+       "The index of the active object in the input instances for the \"Instances\" tool "
+       "execution mode"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
