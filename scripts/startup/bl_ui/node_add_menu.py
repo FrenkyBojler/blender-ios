@@ -402,7 +402,7 @@ class AddNodeMenu(NodeMenu):
     @classmethod
     def draw_assets_for_catalog(cls, layout, catalog_path):
         if cls.draw_assets:
-            layout.template_node_asset_menu_items(catalog_path=catalog_path, operator="ADD")
+            layout.template_node_asset_menu_items(catalog_path=catalog_path, operator='ADD')
 
 
 class SwapNodeMenu(NodeMenu):
@@ -418,7 +418,7 @@ class SwapNodeMenu(NodeMenu):
     @classmethod
     def draw_assets_for_catalog(cls, layout, catalog_path):
         if cls.draw_assets:
-            layout.template_node_asset_menu_items(catalog_path=catalog_path, operator="SWAP")
+            layout.template_node_asset_menu_items(catalog_path=catalog_path, operator='SWAP')
 
 
 class NODE_MT_group_base(NodeMenu):
