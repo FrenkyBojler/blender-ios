@@ -190,8 +190,9 @@ static void paint_set_color(bContext *C, SampleColorData *data, const blender::f
 
     BKE_palette_color_set(color, average_color);
   }
-
-  BKE_brush_color_set(paint, br, average_color);
+  else {
+    BKE_brush_color_set(paint, br, average_color);
+  }
 }
 
 static void paint_sample_color(
