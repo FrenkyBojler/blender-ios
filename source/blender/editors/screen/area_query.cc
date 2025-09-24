@@ -98,8 +98,8 @@ bool ED_region_overlap_isect_x_with_margin(const ARegion *region,
     return false;
   }
   int region_x = event_x - region->winrct.xmin;
-  return ((region->v2d.tot.xmin <= UI_view2d_region_to_view_x(&region->v2d, region_x + margin)) &&
-          (region->v2d.tot.xmax >= UI_view2d_region_to_view_x(&region->v2d, region_x - margin)));
+  return ((region->v2d.cur.xmin <= UI_view2d_region_to_view_x(&region->v2d, region_x + margin)) &&
+          (region->v2d.cur.xmax >= UI_view2d_region_to_view_x(&region->v2d, region_x - margin)));
 }
 
 bool ED_region_overlap_isect_y_with_margin(const ARegion *region,
@@ -112,8 +112,8 @@ bool ED_region_overlap_isect_y_with_margin(const ARegion *region,
     return false;
   }
   int region_y = event_y - region->winrct.ymin;
-  return ((region->v2d.tot.ymin <= UI_view2d_region_to_view_y(&region->v2d, region_y + margin)) &&
-          (region->v2d.tot.ymax >= UI_view2d_region_to_view_y(&region->v2d, region_y - margin)));
+  return ((region->v2d.cur.ymin <= UI_view2d_region_to_view_y(&region->v2d, region_y + margin)) &&
+          (region->v2d.cur.ymax >= UI_view2d_region_to_view_y(&region->v2d, region_y - margin)));
 }
 
 bool ED_region_overlap_isect_xy_with_margin(const ARegion *region,
