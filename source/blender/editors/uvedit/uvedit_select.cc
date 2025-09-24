@@ -1817,20 +1817,20 @@ UVSyncSelectFromView3D *UVSyncSelectFromView3D::create_if_needed(const ToolSetti
 
 void UVSyncSelectFromView3D::apply()
 {
-  const int cd_loop_uv_offset = CustomData_get_active_layer(&bm.ldata, CD_PROP_FLOAT2);
+  const int cd_loop_uv_offset = CustomData_get_active_layer(&bm_.ldata, CD_PROP_FLOAT2);
   BLI_assert(cd_loop_uv_offset != -1);
 
-  const bool shared = uv_sticky == SI_STICKY_LOC;
+  const bool shared = uv_sticky_ == SI_STICKY_LOC;
   const BMUVSelectPickParams uv_pick_params = {
       /*cd_loop_uv_offset*/ cd_loop_uv_offset,
       /*shared*/ shared,
   };
 
   BM_mesh_uvselect_set_elem_from_v3d(
-      &bm, false, uv_pick_params, bm_verts_deselect_, bm_edges_deselect_, bm_faces_deselect_);
+      &bm_, false, uv_pick_params, bm_verts_deselect_, bm_edges_deselect_, bm_faces_deselect_);
 
   BM_mesh_uvselect_set_elem_from_v3d(
-      &bm, true, uv_pick_params, bm_verts_select_, bm_edges_select_, bm_faces_select_);
+      &bm_, true, uv_pick_params, bm_verts_select_, bm_edges_select_, bm_faces_select_);
 }
 
 /* Select. */

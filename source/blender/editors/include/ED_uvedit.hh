@@ -88,10 +88,23 @@ bool ED_uvedit_test(Object *obedit);
 
 namespace blender::ed::uv {
 
+/**
+ * Abstract away the details of syncing selection form the mesh (viewport)
+ * to a UV state which is "synchronized".
+ *
+ * Where practical (see note below) this is a preferred alternative to clearing the
+ * UV selection state and re-initializing it from the mesh, because there may be be UV's
+ * selected on one UV island and not another, even though the vertices are shared.
+ * Flushing and re-initializing will set both, loosing the users selection.
+ *
+ * Note that what is considered practical is open to interpretation,
+ * picking individual elements and basic selection actions should be supported.
+ * Selection actions such as random or by vertex group... isn't so practical.
+ */
 class UVSyncSelectFromView3D : NonCopyable {
-
-  char uv_sticky;
-  BMesh &bm;
+ private:
+  char uv_sticky_;
+  BMesh &bm_;
 
   blender::VectorList<BMVert *> bm_verts_select_;
   blender::VectorList<BMEdge *> bm_edges_select_;
@@ -102,7 +115,7 @@ class UVSyncSelectFromView3D : NonCopyable {
   blender::VectorList<BMFace *> bm_faces_deselect_;
 
  public:
-  UVSyncSelectFromView3D(BMesh &bm, char uv_sticky) : uv_sticky(uv_sticky), bm(bm) {}
+  UVSyncSelectFromView3D(BMesh &bm, char uv_sticky) : uv_sticky_(uv_sticky), bm_(bm) {}
   UVSyncSelectFromView3D(const UVSyncSelectFromView3D &) = delete;
 
   static UVSyncSelectFromView3D *create_if_needed(const ToolSettings &ts, BMesh &bm);
