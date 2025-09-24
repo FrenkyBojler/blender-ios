@@ -315,9 +315,14 @@ void SKY_single_scattering_precompute_texture(float *pixels,
       float *pixel_row = pixels + (y * width * stride);
 
       for (int x = 0; x < half_width; x++) {
-        float3 xyz;
         float longitude = longitude_step * x - M_PI_F;
         float3 dir = geographical_to_direction(latitude, longitude);
+        float3 dir_horizon = geographical_to_direction(0.0f, longitude);
+        float spectrum[NUM_WAVELENGTHS];
+        single_scattering(
+            dir_horizon, sun_dir, cam_pos, air_density, aerosol_density, ozone_density, spectrum);
+        float3 xyz_horizon = spec_to_xyz(spectrum);
+        float3 xyz;
         if (y > half_height) {
           float spectrum[NUM_WAVELENGTHS];
           single_scattering(
@@ -326,17 +331,8 @@ void SKY_single_scattering_precompute_texture(float *pixels,
         }
         else {
           if (dir.z < 0.4f) {
-            float3 dir_horizon = geographical_to_direction(0.0f, longitude);
-            float spectrum[NUM_WAVELENGTHS];
-            single_scattering(dir_horizon,
-                              sun_dir,
-                              cam_pos,
-                              air_density,
-                              aerosol_density,
-                              ozone_density,
-                              spectrum);
             float fade = 1.0f - dir.z * 2.5f;
-            xyz = spec_to_xyz(spectrum) * powf(fade, 3.0f);
+            xyz = xyz_horizon * sqr(fade) * fade;
           }
           else {
             xyz = make_float3(0.0f, 0.0f, 0.0f);
