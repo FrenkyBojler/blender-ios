@@ -333,10 +333,9 @@ typedef struct ThemeSpace {
   unsigned char strip[4], strip_select[4];
   unsigned char before_current_frame[4], after_current_frame[4];
   unsigned char time_gp_keyframe[4];
-  unsigned char freestyle_edge_mark[4], freestyle_face_mark[4];
 
   /** Geometry attributes. */
-  unsigned char bevel[4];
+  unsigned char bevel[4], freestyle[4];
 
   unsigned char nurb_uline[4], nurb_vline[4];
   unsigned char act_spline[4], nurb_sel_uline[4], nurb_sel_vline[4];

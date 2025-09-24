@@ -287,8 +287,7 @@ enum ThemeColorID {
 
   TH_UV_SHADOW,
 
-  TH_FREESTYLE_EDGE_MARK,
-  TH_FREESTYLE_FACE_MARK,
+  TH_FREESTYLE,
 
   TH_MATCH,            /* highlight color for search matches */
   TH_SELECT_HIGHLIGHT, /* highlight color for selected outliner item */

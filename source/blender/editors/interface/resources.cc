@@ -442,9 +442,14 @@ const uchar *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
         case TH_FACEDOT_SIZE:
           cp = &ts->facedot_size;
           break;
+
         case TH_BEVEL:
           cp = btheme->space_view3d.bevel;
           break;
+        case TH_FREESTYLE:
+          cp = btheme->space_view3d.freestyle;
+          break;
+
         case TH_DRAWEXTRA_EDGELEN:
           cp = ts->extra_edge_len;
           break;
@@ -596,13 +601,6 @@ const uchar *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
           break;
         case TH_HANDLE_SEL_AUTOCLAMP:
           cp = btheme->common.curves.handle_sel_auto_clamped;
-          break;
-
-        case TH_FREESTYLE_EDGE_MARK:
-          cp = ts->freestyle_edge_mark;
-          break;
-        case TH_FREESTYLE_FACE_MARK:
-          cp = ts->freestyle_face_mark;
           break;
 
         case TH_SYNTAX_B:
