@@ -164,18 +164,18 @@ struct SampleColorData {
   bool sample_palette;
 
   blender::float3 accum_color;
-  int accum_tot = 0;
+  int num_samples;
 };
 
 static void paint_set_color(bContext *C, SampleColorData *data, const blender::float3 &rgb_f)
 {
   data->accum_color += rgb_f;
-  data->accum_tot++;
+  data->num_samples++;
 
   /* Calculate average. */
   blender::float3 average_color;
-  if (data->accum_tot > 1) {
-    mul_v3_v3fl(average_color, data->accum_color, 1.0f / float(data->accum_tot));
+  if (data->num_samples > 1) {
+    mul_v3_v3fl(average_color, data->accum_color, 1.0f / float(data->num_samples));
   }
   else {
     copy_v3_v3(average_color, data->accum_color);
@@ -407,6 +407,9 @@ static wmOperatorStatus sample_color_invoke(bContext *C, wmOperator *op, const w
   data->sample_palette = false;
   op->customdata = data;
   paint->flags &= ~PAINT_SHOW_BRUSH;
+
+  data->accum_color = float3(0.0f);
+  data->num_samples = 0;
 
   sample_color_update_header(data, C);
 
