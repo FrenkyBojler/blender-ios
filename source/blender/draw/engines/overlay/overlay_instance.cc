@@ -299,7 +299,7 @@ void Resources::update_theme_settings(const DRWContext *ctx, const State &state)
       gb.colors.edit_mesh_middle.w);
 
 #ifdef WITH_FREESTYLE
-  UI_GetThemeColor4fv(TH_FREESTYLE, gb.colors.edge_freestyle);
+  UI_GetThemeColor4fv(TH_FREESTYLE, gb.colors.edge_freestyle), gb.colors.edge_freestyle[3] = 1.0f;
   UI_GetThemeColor4fv(TH_FREESTYLE, gb.colors.face_freestyle);
 #else
   gb.colors.edge_freestyle = float4(0.0f);
