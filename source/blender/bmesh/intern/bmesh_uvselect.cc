@@ -1379,61 +1379,61 @@ void BM_mesh_uvselect_flush_mode_update(BMesh *bm,
     }
   }
 
+  if (do_flush_deselect_down == false) {
+    return;
+  }
+
   /* Perform two passes:
    *
    * - De-select all elements where the underlying elements are not selected.
    * - De select any isolated elements.
    *
-   *   NOTE: As the mesh will have already had it's isolated elements de-selected,{
+   *   NOTE: As the mesh will have already had it's isolated elements de-selected,
    *   it may seem like this pass shouldn't be needed in UV space,
    *   however a vert/edge may be isolated in UV space while being connected to a
    *   selected edge/face in 3D space.
    */
-  if (do_flush_deselect_down) {
-    /* First pass: match underlying mesh. */
-    BMIter iter;
-    BMFace *f;
-    BM_ITER_MESH (f, &iter, bm, BM_FACES_OF_MESH) {
-      if (BM_elem_flag_test(f, BM_ELEM_HIDDEN)) {
-        continue;
-      }
 
-      BMLoop *l_iter, *l_first;
-      l_iter = l_first = BM_FACE_FIRST_LOOP(f);
-      bool select_face = true;
-      do {
-        if (BM_elem_flag_test(l_iter, BM_ELEM_SELECT_UV)) {
-          if (!BM_elem_flag_test(l_iter->v, BM_ELEM_SELECT)) {
-            BM_elem_flag_disable(l_iter, BM_ELEM_SELECT_UV);
-          }
+  /* First pass: match underlying mesh. */
+  BMIter iter;
+  BMFace *f;
+  BM_ITER_MESH (f, &iter, bm, BM_FACES_OF_MESH) {
+    if (BM_elem_flag_test(f, BM_ELEM_HIDDEN)) {
+      continue;
+    }
+
+    BMLoop *l_iter, *l_first;
+    l_iter = l_first = BM_FACE_FIRST_LOOP(f);
+    bool select_face = true;
+    do {
+      if (BM_elem_flag_test(l_iter, BM_ELEM_SELECT_UV)) {
+        if (!BM_elem_flag_test(l_iter->v, BM_ELEM_SELECT)) {
+          BM_elem_flag_disable(l_iter, BM_ELEM_SELECT_UV);
         }
-        if (BM_elem_flag_test(l_iter, BM_ELEM_SELECT_UV_EDGE)) {
-          if (!BM_elem_flag_test(l_iter->e, BM_ELEM_SELECT)) {
-            BM_elem_flag_disable(l_iter, BM_ELEM_SELECT_UV_EDGE);
-            select_face = false;
-          }
-        }
-        else {
+      }
+      if (BM_elem_flag_test(l_iter, BM_ELEM_SELECT_UV_EDGE)) {
+        if (!BM_elem_flag_test(l_iter->e, BM_ELEM_SELECT)) {
+          BM_elem_flag_disable(l_iter, BM_ELEM_SELECT_UV_EDGE);
           select_face = false;
         }
-      } while ((l_iter = l_iter->next) != l_first);
-
-      if (select_face == false) {
-        BM_elem_flag_disable(f, BM_ELEM_SELECT_UV);
       }
-    }
+      else {
+        select_face = false;
+      }
+    } while ((l_iter = l_iter->next) != l_first);
 
-    /* Second Pass:
-     * Ensure isolated elements are not selected (can happen with disconnected islands).
-     * Note that it's quite unlikely UV's are unset with a UV selection,
-     * check all the same as this pass is mainly a cleanup operation that isn't essential. */
-    if (cd_loop_uv_offset != -1) {
-      const bool shared = true;
-      const bool check_verts = (bm->totvertsel != 0);
-      const bool check_edges = (bm->totedgesel != 0);
-      bm_mesh_uvselect_flush_mode_down_deselect_only(
-          bm, selectmode_new, cd_loop_uv_offset, shared, check_verts, check_edges);
+    if (select_face == false) {
+      BM_elem_flag_disable(f, BM_ELEM_SELECT_UV);
     }
+  }
+
+  /* Second Pass: Ensure isolated elements are not selected. */
+  if (cd_loop_uv_offset != -1) {
+    const bool shared = true;
+    const bool check_verts = (bm->totvertsel != 0);
+    const bool check_edges = (bm->totedgesel != 0);
+    bm_mesh_uvselect_flush_mode_down_deselect_only(
+        bm, selectmode_new, cd_loop_uv_offset, shared, check_verts, check_edges);
   }
 }
 
