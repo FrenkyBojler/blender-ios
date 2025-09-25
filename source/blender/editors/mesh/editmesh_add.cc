@@ -517,7 +517,6 @@ static wmOperatorStatus add_primitive_grid_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-
   copy_v3_v3(obedit->scale, scale);
   DEG_id_tag_update(&obedit->id, ID_RECALC_TRANSFORM);
   WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, obedit);
