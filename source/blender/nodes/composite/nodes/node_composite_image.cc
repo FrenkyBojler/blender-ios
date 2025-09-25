@@ -546,7 +546,7 @@ class ImageOperation : public NodeOperation {
 
   int get_frame()
   {
-    if (this->node()->input_by_identifier("Frame").is_directly_linked()) {
+    if (this->node()->input_by_identifier("Frame")->is_directly_linked()) {
       return this->get_input("Frame").get_single_value_default(this->context().get_frame_number());
     }
 
