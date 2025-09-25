@@ -242,7 +242,6 @@ class TOPBAR_MT_file_new(Menu):
         # Limit number of templates in splash screen, spill over into more menu.
         paths = TOPBAR_MT_file_new.app_template_paths()
         splash_limit = 6
-        icon = 'FILE_NEW'
 
         if use_splash:
             show_more = len(paths) > (splash_limit - 1)
@@ -256,10 +255,11 @@ class TOPBAR_MT_file_new(Menu):
 
         # Draw application templates.
         if not use_more:
-            props = layout.operator("wm.read_homefile", text="General", icon=icon)
+            props = layout.operator("wm.read_homefile", text="General", icon='FILE_NEW')
             props.app_template = ""
 
         for d in paths:
+            icon = 'FILE_NEW'
             # Set icon per template.
             if d == "2D_Animation":
                 icon = 'GREASEPENCIL'
@@ -277,7 +277,7 @@ class TOPBAR_MT_file_new(Menu):
         layout.operator_context = 'EXEC_DEFAULT'
 
         if show_more:
-            layout.menu("TOPBAR_MT_templates_more", text="...")
+            layout.menu("TOPBAR_MT_templates_more", text="More...")
 
     def draw(self, context):
         TOPBAR_MT_file_new.draw_ex(self.layout, context)
