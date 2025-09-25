@@ -5,3 +5,4 @@ Referenced by issue #121410, Blender crashing upon opening or during edit of fil
 Referenced by issue #111770, Tool 'builtin_brush.Grab/Relax/Pinch' not found for space 'IMAGE_EDITOR'
 Referenced by pull request #146702, Fix: Use Laplacian as default relax method for UV sculpting
 Referenced by commit eec8d8108822072ce41e8481e53b70bbd68d5e9e, Fix: Use Laplacian as default relax method for UV sculpting
+Referenced by issue #146639, Crash using UV Grab, Relax or Pinch with attached model
