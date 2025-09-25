@@ -299,6 +299,11 @@ class NODE_MT_shader_node_color_base(node_add_menu.NodeMenu):
     def draw(self, context):
         layout = self.layout
 
+        self.draw_menu(layout, "Color/Mix")
+        layout.separator()
+        self.node_operator(layout, "ShaderNodeBlackbody")
+        self.node_operator(layout, "ShaderNodeWavelength")
+        self.node_operator(layout, "ShaderNodeValToRGB")
         self.node_operator(layout, "ShaderNodeBrightContrast")
         self.node_operator(layout, "ShaderNodeGamma")
         self.node_operator(layout, "ShaderNodeHueSaturation")
@@ -306,31 +311,9 @@ class NODE_MT_shader_node_color_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "ShaderNodeLightFalloff")
         self.color_mix_node(context, layout)
         self.node_operator(layout, "ShaderNodeRGBCurve")
-
-        self.draw_assets_for_catalog(layout, self.bl_label)
-
-
-class NODE_MT_shader_node_converter_base(node_add_menu.NodeMenu):
-    bl_label = "Converter"
-
-    def draw(self, context):
-        layout = self.layout
-
-        self.node_operator(layout, "ShaderNodeBlackbody")
-        self.node_operator(layout, "ShaderNodeClamp")
-        self.node_operator(layout, "ShaderNodeValToRGB")
-        self.node_operator(layout, "ShaderNodeCombineColor")
-        self.node_operator(layout, "ShaderNodeCombineXYZ")
-        self.node_operator(layout, "ShaderNodeFloatCurve")
-        self.node_operator(layout, "ShaderNodeMapRange")
-        self.node_operator_with_searchable_enum(context, layout, "ShaderNodeMath", "operation")
-        self.node_operator(layout, "ShaderNodeMix")
+        layout.separator()
         self.node_operator(layout, "ShaderNodeRGBToBW")
-        self.node_operator(layout, "ShaderNodeSeparateColor")
-        self.node_operator(layout, "ShaderNodeSeparateXYZ")
-        self.node_operator(layout, "ShaderNodeShaderToRGB", poll=object_eevee_shader_nodes_poll(context))
-        self.node_operator_with_searchable_enum(context, layout, "ShaderNodeVectorMath", "operation")
-        self.node_operator(layout, "ShaderNodeWavelength")
+        self.node_operator(layout, "ShaderNodeShaderToRGB", poll=object_eevee_shader_nodes_poll(context)) # Color
 
         self.draw_assets_for_catalog(layout, self.bl_label)
 
@@ -360,10 +343,14 @@ class NODE_MT_shader_node_texture_base(node_add_menu.NodeMenu):
 
 class NODE_MT_shader_node_vector_base(node_add_menu.NodeMenu):
     bl_label = "Vector"
+    menu_path = "Utilities/Vector"
 
     def draw(self, _context):
         layout = self.layout
 
+        self.node_operator(layout, "ShaderNodeCombineXYZ")
+        self.node_operator(layout, "ShaderNodeSeparateXYZ")
+        layout.separator()
         self.node_operator(layout, "ShaderNodeBump")
         self.node_operator(layout, "ShaderNodeDisplacement")
         self.node_operator(layout, "ShaderNodeMapping")
@@ -374,8 +361,9 @@ class NODE_MT_shader_node_vector_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "ShaderNodeVectorDisplacement")
         self.node_operator(layout, "ShaderNodeVectorRotate")
         self.node_operator(layout, "ShaderNodeVectorTransform")
+        self.node_operator_with_searchable_enum(context, layout, "ShaderNodeVectorMath", "operation")
 
-        self.draw_assets_for_catalog(layout, self.bl_label)
+        self.draw_assets_for_catalog(layout, self.menu_path)
 
 
 class NODE_MT_shader_node_script_base(node_add_menu.NodeMenu):
@@ -395,6 +383,14 @@ class NODE_MT_shader_node_utilities_base(node_add_menu.NodeMenu):
     def draw(self, context):
         layout = self.layout
 
+        self.draw_menu(layout, "Utilities/Vector")
+        layout.separator()
+        self.node_operator(layout, "ShaderNodeMapRange")
+        self.node_operator_with_searchable_enum(context, layout, "ShaderNodeMath", "operation")
+        self.node_operator(layout, "ShaderNodeMix")
+        self.node_operator(layout, "ShaderNodeClamp")
+        self.node_operator(layout, "ShaderNodeFloatCurve")
+        layout.separator()
         self.repeat_zone(layout, label="Repeat")
         layout.separator()
         self.closure_zone(layout, label="Closure")
@@ -402,6 +398,17 @@ class NODE_MT_shader_node_utilities_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "NodeCombineBundle")
         self.node_operator(layout, "NodeSeparateBundle")
 
+        self.draw_assets_for_catalog(layout, self.bl_label)
+
+class NODE_MT_shader_node_color_mix_base(node_add_menu.NodeMenu):
+    bl_label = "Mix"
+    menu_path = "Color/Mix"
+
+    def draw(self, _context):
+        layout = self.layout
+        self.node_operator(layout, "ShaderNodeCombineColor")
+        self.node_operator(layout, "ShaderNodeSeparateColor")
+        self.draw_assets_for_catalog(layout, self.bl_label)
 
 class NODE_MT_shader_node_all_base(node_add_menu.NodeMenu):
     bl_label = ""
@@ -417,18 +424,17 @@ class NODE_MT_shader_node_all_base(node_add_menu.NodeMenu):
         self.draw_menu(layout, "Output")
         layout.separator()
         self.draw_menu(layout, "Color")
-        self.draw_menu(layout, "Converter")
         self.draw_menu(layout, "Shader")
         self.draw_menu(layout, "Texture")
-        self.draw_menu(layout, "Vector")
         self.draw_menu(layout, "Utilities")
         layout.separator()
         self.draw_menu(layout, "Script")
         layout.separator()
+        self.draw_root_assets(layout)
+        layout.separator()
         self.draw_menu(layout, "Group")
         self.draw_menu(layout, "Layout")
 
-        self.draw_root_assets(layout)
 
 
 add_menus = {
@@ -436,7 +442,7 @@ add_menus = {
     "NODE_MT_category_shader_input": NODE_MT_shader_node_input_base,
     "NODE_MT_category_shader_output": NODE_MT_shader_node_output_base,
     "NODE_MT_category_shader_color": NODE_MT_shader_node_color_base,
-    "NODE_MT_category_shader_converter": NODE_MT_shader_node_converter_base,
+    "NODE_MT_shader_node_color_mix": NODE_MT_shader_node_color_mix_base,
     "NODE_MT_category_shader_shader": NODE_MT_shader_node_shader_base,
     "NODE_MT_category_shader_texture": NODE_MT_shader_node_texture_base,
     "NODE_MT_category_shader_vector": NODE_MT_shader_node_vector_base,
@@ -456,7 +462,7 @@ swap_menus = {
     "NODE_MT_shader_node_input_swap": NODE_MT_shader_node_input_base,
     "NODE_MT_shader_node_output_swap": NODE_MT_shader_node_output_base,
     "NODE_MT_shader_node_color_swap": NODE_MT_shader_node_color_base,
-    "NODE_MT_shader_node_converter_swap": NODE_MT_shader_node_converter_base,
+    "NODE_MT_shader_node_color_mix_swap": NODE_MT_shader_node_color_mix_base,
     "NODE_MT_shader_node_shader_swap": NODE_MT_shader_node_shader_base,
     "NODE_MT_shader_node_texture_swap": NODE_MT_shader_node_texture_base,
     "NODE_MT_shader_node_vector_swap": NODE_MT_shader_node_vector_base,
