@@ -280,12 +280,7 @@ void BM_loop_vert_uvselect_set_noflush(BMesh *bm, BMLoop *l, bool select)
 
   /* NOTE: don't do any flushing here as it's too expensive to walk over connected geometry.
    * These can be handled in separate operations. */
-  if (select) {
-    BM_elem_flag_enable(l, BM_ELEM_SELECT_UV);
-  }
-  else {
-    BM_elem_flag_disable(l, BM_ELEM_SELECT_UV);
-  }
+  BM_elem_flag_set(l, BM_ELEM_SELECT_UV, select);
 }
 
 void BM_loop_edge_uvselect_set_noflush(BMesh *bm, BMLoop *l, bool select)
@@ -300,12 +295,7 @@ void BM_loop_edge_uvselect_set_noflush(BMesh *bm, BMLoop *l, bool select)
 
   /* NOTE: don't do any flushing here as it's too expensive to walk over connected geometry.
    * These can be handled in separate operations. */
-  if (select) {
-    BM_elem_flag_enable(l, BM_ELEM_SELECT_UV_EDGE);
-  }
-  else {
-    BM_elem_flag_disable(l, BM_ELEM_SELECT_UV_EDGE);
-  }
+  BM_elem_flag_set(l, BM_ELEM_SELECT_UV_EDGE, select);
 }
 
 void BM_loop_edge_uvselect_set(BMesh *bm, BMLoop *l, bool select)
@@ -328,12 +318,7 @@ void BM_face_uvselect_set_noflush(BMesh *bm, BMFace *f, bool select)
 
   /* NOTE: don't do any flushing here as it's too expensive to walk over connected geometry.
    * These can be handled in separate operations. */
-  if (select) {
-    BM_elem_flag_enable(f, BM_ELEM_SELECT_UV);
-  }
-  else {
-    BM_elem_flag_disable(f, BM_ELEM_SELECT_UV);
-  }
+  BM_elem_flag_set(f, BM_ELEM_SELECT_UV, select);
 }
 
 void BM_face_uvselect_set(BMesh *bm, BMFace *f, bool select)
@@ -1585,11 +1570,9 @@ static void bm_mesh_uvselect_flush_from_v3d_sticky_vertex_for_face_mode(BMesh *b
       l_iter = l_first = BM_FACE_FIRST_LOOP(f);
       do {
         BM_elem_flag_enable(l_iter, BM_ELEM_SELECT_UV);
-
         BM_elem_flag_enable(l_iter, BM_ELEM_SELECT_UV_EDGE);
 
       } while ((l_iter = l_iter->next) != l_first);
-
       BM_elem_flag_enable(f, BM_ELEM_SELECT_UV);
     }
   }
@@ -1630,32 +1613,19 @@ static void bm_mesh_uvselect_flush_from_v3d_sticky_location_for_edge_mode(
     bool e_prev_select = BM_elem_flag_test(l_iter->prev->e, BM_ELEM_SELECT);
     do {
       const bool e_iter_select = BM_elem_flag_test(l_iter->e, BM_ELEM_SELECT);
-      if (e_iter_select) {
-        BM_elem_flag_enable(l_iter, BM_ELEM_SELECT_UV_EDGE);
-      }
-      else {
-        BM_elem_flag_disable(l_iter, BM_ELEM_SELECT_UV_EDGE);
-      }
+      const bool v_iter_select = (BM_elem_flag_test(l_iter->v, BM_ELEM_SELECT) &&
+                                  ((e_prev_select || e_iter_select) ||
+                                   /* This is a more expensive check, order last. */
+                                   BM_loop_vert_uvselect_check_other_edge(
+                                       l_iter, BM_ELEM_SELECT, cd_loop_uv_offset)));
 
-      if (BM_elem_flag_test(l_iter->v, BM_ELEM_SELECT) &&
-          ((e_prev_select || e_iter_select) ||
-           /* This is a more expensive check, order last. */
-           BM_loop_vert_uvselect_check_other_edge(l_iter, BM_ELEM_SELECT, cd_loop_uv_offset)))
-      {
-        BM_elem_flag_enable(l_iter, BM_ELEM_SELECT_UV);
-      }
-      else {
-        BM_elem_flag_disable(l_iter, BM_ELEM_SELECT_UV);
-      }
+      BM_elem_flag_set(l_iter, BM_ELEM_SELECT_UV, v_iter_select);
+      BM_elem_flag_set(l_iter, BM_ELEM_SELECT_UV_EDGE, e_iter_select);
       e_prev_select = e_iter_select;
     } while ((l_iter = l_iter->next) != l_first);
 
-    if (BM_elem_flag_test(f, BM_ELEM_SELECT)) {
-      BM_elem_flag_enable(f, BM_ELEM_SELECT_UV);
-    }
-    else {
-      BM_elem_flag_disable(f, BM_ELEM_SELECT_UV);
-    }
+    const bool f_select = BM_elem_flag_test(f, BM_ELEM_SELECT);
+    BM_elem_flag_set(f, BM_ELEM_SELECT_UV, f_select);
   }
   bm->uv_sync_select_valid = true;
 }
@@ -1684,23 +1654,15 @@ static void bm_mesh_uvselect_flush_from_v3d_sticky_location_for_face_mode(
       BMLoop *l_iter, *l_first;
       l_iter = l_first = BM_FACE_FIRST_LOOP(f);
       do {
-        if (BM_elem_flag_test(l_iter->v, BM_ELEM_SELECT) &&
-            BM_loop_vert_uvselect_check_other_face(l_iter, BM_ELEM_SELECT, cd_loop_uv_offset))
-        {
-          BM_elem_flag_enable(l_iter, BM_ELEM_SELECT_UV);
-        }
-        else {
-          BM_elem_flag_disable(l_iter, BM_ELEM_SELECT_UV);
-        }
+        const bool v_iter_select = (BM_elem_flag_test(l_iter->v, BM_ELEM_SELECT) &&
+                                    BM_loop_vert_uvselect_check_other_face(
+                                        l_iter, BM_ELEM_SELECT, cd_loop_uv_offset));
+        const bool e_iter_select = (BM_elem_flag_test(l_iter->e, BM_ELEM_SELECT) &&
+                                    BM_loop_edge_uvselect_check_other_face(
+                                        l_iter, BM_ELEM_SELECT, cd_loop_uv_offset));
 
-        if (BM_elem_flag_test(l_iter->e, BM_ELEM_SELECT) &&
-            BM_loop_edge_uvselect_check_other_face(l_iter, BM_ELEM_SELECT, cd_loop_uv_offset))
-        {
-          BM_elem_flag_enable(l_iter, BM_ELEM_SELECT_UV_EDGE);
-        }
-        else {
-          BM_elem_flag_disable(l_iter, BM_ELEM_SELECT_UV_EDGE);
-        }
+        BM_elem_flag_set(l_iter, BM_ELEM_SELECT_UV, v_iter_select);
+        BM_elem_flag_set(l_iter, BM_ELEM_SELECT_UV_EDGE, e_iter_select);
       } while ((l_iter = l_iter->next) != l_first);
       BM_elem_flag_disable(f, BM_ELEM_SELECT_UV);
     }
