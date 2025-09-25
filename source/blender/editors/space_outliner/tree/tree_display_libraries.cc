@@ -158,7 +158,7 @@ TreeElement *TreeDisplayLibraries::add_library_contents(Main &mainvar, ListBase 
         }
 
         for (ID *id : List<ID>(lbarray[a])) {
-          if (library_id_filter_poll(lib, id)) {
+          if (id->lib == lib) {
             add_element(&ten->subtree, id, nullptr, ten, TSE_SOME_ID, 0);
           }
         }
