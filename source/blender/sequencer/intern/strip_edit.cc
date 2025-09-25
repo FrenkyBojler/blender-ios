@@ -344,7 +344,9 @@ static bool seq_edit_split_operation_permitted_check(const Scene *scene,
     }
     SeqRetimingKey *key = retiming_find_segment_start_key(
         strip, give_frame_index(scene, strip, timeline_frame));
-    if (key && ((key->flag & SEQ_SPEED_TRANSITION_IN) != 0 || (key->flag & SEQ_FREEZE_FRAME_IN) != 0)) {
+    if (key &&
+        ((key->flag & SEQ_SPEED_TRANSITION_IN) != 0 || (key->flag & SEQ_FREEZE_FRAME_IN) != 0))
+    {
       *r_error = "Can not hard split inside of speed transition or freeze frame.";
       return false;
     }
