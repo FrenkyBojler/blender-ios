@@ -215,7 +215,8 @@ struct Surfel {
   bool32_t double_sided;
   /** Surface receiver light set for light linking. */
   uint receiver_light_set;
-  int _pad0;
+  /** List index this surfel is in. */
+  int list_id;
   int _pad1;
   /** Surface radiance: Emission + Direct Lighting. */
   SurfelRadiance radiance_direct;
@@ -281,7 +282,7 @@ struct SurfelListInfoData {
   /** Maximum number of list. Is equal to `ray_grid_size.x * ray_grid_size.y`. */
   int list_max;
 
-  int _pad0;
+  int list_prefix_sum;
 };
 BLI_STATIC_ASSERT_ALIGN(SurfelListInfoData, 16)
 

@@ -3,14 +3,11 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /**
- * Takes scene surfel representation and build list of surfels aligning in a given direction.
+ * Sort a buffer of surfel list by distance along a direction.
+ * The resulting surfel lists are then the equivalent of a series of ray cast in the same
+ * direction. The fact that the surfels are sorted gives proper occlusion.
  *
- * The lists head are allocated to fit the surfel granularity.
- *
- * Due to alignment the link and list head are split into several int arrays to avoid too much
- * memory waste.
- *
- * Dispatch 1 thread per surfel.
+ * Dispatched as 1 thread per surfel.
  */
 
 #include "infos/eevee_lightprobe_volume_infos.hh"
@@ -29,10 +26,10 @@ void main()
   float ray_distance;
   int list_index = surfel_list_index_get(
       list_info_buf.ray_grid_size, surfel_buf[surfel_index].position, ray_distance);
+
+  atomicAdd(list_counter_buf[list_index], 1);
   /* Do separate assignment to avoid reference to buffer in arguments which is tricky to cross
    * compile. */
   surfel_buf[surfel_index].ray_distance = ray_distance;
-  /* NOTE: We only need to init the `list_start_buf` to -1 for the whole list to be valid since
-   * every surfel will load its `next` value from the list head. */
-  surfel_buf[surfel_index].next = atomicExchange(list_start_buf[list_index], surfel_index);
+  surfel_buf[surfel_index].list = list_index;
 }
