@@ -1782,7 +1782,7 @@ static void node_draw_node_group_indicator(const SpaceNode &snode,
 
     /* Bottom-most lines. */
     /* Draw the lines three times, each with slightly less wide, for a fade effect. */
-    immUniformColor3ubvAlpha(color_line, 30);
+    immUniformColor3ubvAlpha(color_line, 40);
     immVertex2f(pos, rect.xmin + offset * 6, rect.ymin - offset * 2 - outline_width);
     immVertex2f(pos, rect.xmax - offset * 6, rect.ymin - offset * 2 - outline_width);
     immVertex2f(pos, rect.xmin + offset * 6 + padding, rect.ymin - offset * 2 - outline_width);
@@ -1793,7 +1793,7 @@ static void node_draw_node_group_indicator(const SpaceNode &snode,
 
     /* Middle lines. */
     immBegin(GPU_PRIM_LINES, 6);
-    immUniformColor3ubvAlpha(color_line, 60);
+    immUniformColor3ubvAlpha(color_line, 50);
     immVertex2f(pos, rect.xmin + offset * 4, rect.ymin - offset - outline_width);
     immVertex2f(pos, rect.xmax - offset * 4, rect.ymin - offset - outline_width);
     immVertex2f(pos, rect.xmin + offset * 4 + padding, rect.ymin - offset - outline_width);
