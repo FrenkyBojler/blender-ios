@@ -8629,7 +8629,7 @@ def km_sequencer_tool_blade(_params):
                  ("side", 'NO_CHANGE'),
                  ("use_cursor_position", True),
                  ("ignore_selection", True),
-                 ("ignore_connected", True),
+                 ("ignore_connections", True),
              ]}),
         ]},
     )

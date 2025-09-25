@@ -94,7 +94,7 @@ static Strip *rna_Strip_split(ID *id,
                               ReportList *reports,
                               int frame,
                               int split_method,
-                              bool ignore_connected)
+                              bool ignore_connections)
 {
   Scene *scene = (Scene *)id;
   ListBase *seqbase = blender::seq::get_seqbase_by_strip(scene, strip);
@@ -106,7 +106,7 @@ static Strip *rna_Strip_split(ID *id,
                                                 strip,
                                                 frame,
                                                 blender::seq::eSplitMethod(split_method),
-                                                ignore_connected,
+                                                ignore_connections,
                                                 &error_msg);
   if (error_msg != nullptr) {
     BKE_report(reports, RPT_ERROR, error_msg);
@@ -766,7 +766,7 @@ void RNA_api_strip(StructRNA *srna)
   parm = RNA_def_enum(func, "split_method", strip_split_method_items, 0, "", "");
   RNA_def_parameter_flags(parm, PROP_NEVER_NULL, PARM_REQUIRED);
   parm = RNA_def_boolean(
-      func, "ignore_connected", false, "", "Don't propagate split to connected strips");
+      func, "ignore_connections", false, "", "Don't propagate split to connected strips");
   /* Return type. */
   parm = RNA_def_pointer(func, "sequence", "Strip", "", "Right side Strip");
   RNA_def_function_return(func, parm);
