@@ -104,6 +104,9 @@ struct IslandStitchData {
   char stitchableCandidate;
   /* if edge rotation is used, flag so that vertex rotation is not used */
   bool use_edge_rotation;
+  /* boundary seam checking */
+  bool all_boundaries_are_seams;
+  bool has_boundary;
 };
 
 /* just for averaging UVs */
@@ -195,6 +198,9 @@ struct StitchStateContainer {
   StitchState **states;
 
   int active_object_index;
+
+  bool ignore_seam_boundary;
+  bool only_selected_uvs;
 };
 
 struct PreviewPosition {
@@ -744,6 +750,17 @@ static void determine_uv_stitchability(const int cd_loop_uv_offset,
   UvElement *element_iter = BM_uv_element_get_head(state->element_map, element);
   for (; element_iter; element_iter = element_iter->next) {
     if (element_iter->separate) {
+      /* Skip if target island has all boundary seams */
+      if (ssc->ignore_seam_boundary) {
+        if ((island_stitch_data[element_iter->island].has_boundary &&
+             island_stitch_data[element_iter->island].all_boundaries_are_seams) ||
+            (island_stitch_data[element->island].has_boundary &&
+             island_stitch_data[element->island].all_boundaries_are_seams))
+        {
+          continue;
+        }
+      }
+
       if (stitch_check_uvs_stitchable(cd_loop_uv_offset, element, element_iter, ssc)) {
         island_stitch_data[element_iter->island].stitchableCandidate = 1;
         island_stitch_data[element->island].stitchableCandidate = 1;
@@ -760,8 +777,16 @@ static void determine_uv_edge_stitchability(const int cd_loop_uv_offset,
                                             IslandStitchData *island_stitch_data)
 {
   UvEdge *edge_iter = edge->first;
-
   for (; edge_iter; edge_iter = edge_iter->next) {
+    if (ssc->ignore_seam_boundary) {
+      if ((island_stitch_data[edge->element->island].has_boundary &&
+           island_stitch_data[edge->element->island].all_boundaries_are_seams) ||
+          (island_stitch_data[edge_iter->element->island].has_boundary &&
+           island_stitch_data[edge_iter->element->island].all_boundaries_are_seams))
+      {
+        continue;
+      }
+    }
     if (stitch_check_edges_stitchable(cd_loop_uv_offset, edge, edge_iter, ssc, state)) {
       island_stitch_data[edge_iter->element->island].stitchableCandidate = 1;
       island_stitch_data[edge->element->island].stitchableCandidate = 1;
@@ -994,6 +1019,32 @@ static int stitch_process_data(StitchStateContainer *ssc,
   /****************************************
    * First determine stitchability of uvs *
    ****************************************/
+  if (ssc->ignore_seam_boundary) {
+    for (int i = 0; i < state->element_map->total_islands; i++) {
+      island_stitch_data[i].all_boundaries_are_seams = true;
+      island_stitch_data[i].has_boundary = false;
+    }
+
+    for (int edge_idx = 0; edge_idx < state->total_separate_edges; edge_idx++) {
+      UvEdge *edge = &state->edges[edge_idx];
+
+      if (edge->flag & STITCH_BOUNDARY) {
+        int island1 = state->uvs[edge->uv1]->island;
+        int island2 = state->uvs[edge->uv2]->island;
+
+        island_stitch_data[island1].has_boundary = true;
+        if (island1 != island2) {
+          island_stitch_data[island2].has_boundary = true;
+        }
+        if (!BM_elem_flag_test(edge->element->l->e, BM_ELEM_SEAM)) {
+          island_stitch_data[island1].all_boundaries_are_seams = false;
+          if (island1 != island2) {
+            island_stitch_data[island2].all_boundaries_are_seams = false;
+          }
+        }
+      }
+    }
+  }
 
   for (i = 0; i < state->selection_size; i++) {
     if (ssc->mode == STITCH_VERT) {
@@ -1859,7 +1910,8 @@ static StitchState *stitch_init(bContext *C,
    * for stitch this isn't useful behavior, see #86924. */
   const int selectmode_orig = scene->toolsettings->selectmode;
   scene->toolsettings->selectmode = SCE_SELECT_VERTEX;
-  state->element_map = BM_uv_element_map_create(state->em->bm, scene, false, true, true, true);
+  state->element_map = BM_uv_element_map_create(
+      state->em->bm, scene, ssc->only_selected_uvs, true, true, true);
   scene->toolsettings->selectmode = selectmode_orig;
 
   if (!state->element_map) {
@@ -1917,6 +1969,11 @@ static StitchState *stitch_init(bContext *C,
     }
 
     BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
+      if (ssc->only_selected_uvs) {
+        if (!uvedit_uv_select_test(scene, l, offsets)) {
+          continue;
+        }
+      }
       UvElement *element = BM_uv_element_get(state->element_map, l);
       int itmp1 = element - state->element_map->storage;
       int itmp2 = BM_uv_element_get(state->element_map, l->next) - state->element_map->storage;
@@ -2212,7 +2269,7 @@ static int stitch_init_all(bContext *C, wmOperator *op)
   ssc->clear_seams = RNA_boolean_get(op->ptr, "clear_seams");
   ssc->active_object_index = RNA_int_get(op->ptr, "active_object_index");
   ssc->static_island = 0;
-
+  ssc->ignore_seam_boundary = true;
   if (RNA_struct_property_is_set(op->ptr, "mode")) {
     ssc->mode = RNA_enum_get(op->ptr, "mode");
   }
