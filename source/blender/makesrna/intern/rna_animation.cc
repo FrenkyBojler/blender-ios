@@ -136,11 +136,6 @@ static void rna_AnimData_dependency_update(Main *bmain, Scene *scene, PointerRNA
   rna_AnimData_update(bmain, scene, ptr);
 }
 
-static std::optional<std::string> rna_AnimToolSettings_path(const PointerRNA * /*ptr*/)
-{
-  return "tool_settings.anim";
-}
-
 void rna_generic_action_slot_handle_override_diff(Main *bmain,
                                                   RNAPropertyOverrideDiffContext &rnadiff_ctx,
                                                   const bAction *action_a,
@@ -1819,42 +1814,11 @@ static void rna_def_animdata(BlenderRNA *brna)
   RNA_api_animdata(srna);
 }
 
-static void rna_def_anim_global(BlenderRNA *brna)
-{
-  StructRNA *srna;
-  PropertyRNA *prop;
-
-  srna = RNA_def_struct(brna, "Animation", nullptr);
-  RNA_def_struct_sdna(srna, "AnimToolSettings");
-  RNA_def_struct_path_func(srna, "rna_AnimToolSettings_path");
-  RNA_def_struct_ui_text(srna, "Animation", "Global animation properties for the scene");
-  RNA_def_struct_clear_flag(srna, STRUCT_UNDO);
-
-  /* Global Settings */
-  prop = RNA_def_property(srna, "mirror_object", PROP_POINTER, PROP_NONE);
-  RNA_def_property_flag(prop, PROP_EDITABLE);
-  RNA_def_property_pointer_funcs(prop, nullptr, nullptr, nullptr, nullptr);
-  RNA_def_property_ui_text(prop,
-                           "Mirror Object",
-                           "Object to mirror over. Leave empty and name a bone to always mirror "
-                           "over that bone of the active armature");
-
-  prop = RNA_def_property(srna, "mirror_bone", PROP_STRING, PROP_NONE);
-  RNA_def_struct_name_property(srna, prop);
-  RNA_def_property_ui_text(prop, "Mirror Bone", "Bone to use for the mirroring");
-
-  prop = RNA_def_property(srna, "relative_object", PROP_POINTER, PROP_NONE);
-  RNA_def_property_flag(prop, PROP_EDITABLE);
-  RNA_def_property_pointer_funcs(prop, nullptr, nullptr, nullptr, nullptr);
-  RNA_def_property_ui_text(prop, "Relative Object", "Object to which matrices are made relative");
-}
-
 /* --- */
 
 void RNA_def_animation(BlenderRNA *brna)
 {
   rna_def_animdata(brna);
-  rna_def_anim_global(brna);
 
   rna_def_keyingset(brna);
   rna_def_keyingset_path(brna);

@@ -1634,19 +1634,6 @@ typedef enum eSeqOverlapMode {
 /** \} */
 
 /* -------------------------------------------------------------------- */
-/** \name Animation
- * \{ */
-
-/** Global transform. */
-typedef struct AnimToolSettings {
-  struct Object *mirror_object;
-  char mirror_bone[64];
-  struct Object *relative_object;
-} AnimToolSettings;
-
-/** \} */
-
-/* -------------------------------------------------------------------- */
 /** \name Tool Settings
  * \{ */
 
@@ -1871,8 +1858,6 @@ typedef struct ToolSettings {
   struct CurveProfile *custom_bevel_profile_preset;
 
   struct SequencerToolSettings *sequencer_tool_settings;
-
-  struct AnimToolSettings *anim;
 
   short snap_mode_tools; /* If SCE_SNAP_TO_NONE, use #ToolSettings::snap_mode. #eSnapMode. */
   char plane_axis;       /* X, Y or Z. */

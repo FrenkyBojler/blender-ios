@@ -95,7 +95,7 @@ class VIEW3D_PT_copy_global_transform_mirror(GlobalTransformPanelMixin, Panel):
     def draw(self, context: Context) -> None:
         layout = self.layout
         scene = context.scene
-        layout.prop(scene.tool_settings.anim, "mirror_object", text="Object")
+        layout.prop(scene.global_transform, "mirror_object", text="Object")
 
         mirror_ob = scene.global_transform.mirror_object
         if mirror_ob is None:
@@ -112,7 +112,7 @@ class VIEW3D_PT_copy_global_transform_mirror(GlobalTransformPanelMixin, Panel):
         assert armature_ob and armature_ob.type == 'ARMATURE'
 
         layout.prop_search(
-            scene.tool_settings.anim,
+            scene.global_transform,
             "mirror_bone",
             armature_ob.data,
             "edit_bones" if armature_ob.mode == 'EDIT' else "bones",
@@ -136,7 +136,7 @@ class VIEW3D_PT_copy_global_transform_relative(GlobalTransformPanelMixin, Panel)
         copy_paste_sub = layout.column(align=False)
         has_relative_ob = bool(get_relative_ob(context))
         copy_paste_sub.label(text="Work Relative to some Object")
-        copy_paste_sub.prop(scene.tool_settings.anim, 'relative_object', text="Object")
+        copy_paste_sub.prop(scene.global_transform, 'relative_object', text="Object")
         if not scene.global_transform.relative_object:
             copy_paste_sub.label(text="Using Active Scene Camera")
 
