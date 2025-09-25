@@ -9,9 +9,11 @@
 namespace blender::nodes::node_geo_join_bundle {
 static void node_declare(NodeDeclarationBuilder &b)
 {
+  b.use_custom_socket_order();
+  b.allow_any_socket_order();
   b.add_input<decl::Bundle>("Bundle").multi_input().description(
       "Bundles to join together on the top level for each bundle.");
-  b.add_output<decl::Bundle>("Bundle");
+  b.add_output<decl::Bundle>("Bundle").align_with_previous();
 }
 static void node_geo_exec(GeoNodeExecParams params)
 {
