@@ -1336,6 +1336,7 @@ BLO_Write_IDBuffer::BLO_Write_IDBuffer(ID &id, const bool is_undo, const bool is
   }
   temp_id->us = 0;
   temp_id->icon_id = 0;
+  temp_id->runtime = nullptr;
   /* Those listbase data change every time we add/remove an ID, and also often when
    * renaming one (due to re-sorting). This avoids generating a lot of false 'is changed'
    * detections between undo steps. */
@@ -1349,8 +1350,6 @@ BLO_Write_IDBuffer::BLO_Write_IDBuffer(ID &id, const bool is_undo, const bool is
    * when we need to re-read the ID into its original address, this is currently cleared in
    * #direct_link_id_common in `readfile.cc` anyway. */
   temp_id->py_instance = nullptr;
-  /* Clear runtime data struct. */
-  temp_id->runtime = ID_Runtime{};
 }
 
 BLO_Write_IDBuffer::BLO_Write_IDBuffer(ID &id, BlendWriter *writer)
@@ -1373,6 +1372,12 @@ static int write_id_direct_linked_data_process_cb(LibraryIDLinkCallbackData *cb_
   BLI_assert((cb_flag & IDWALK_CB_INDIRECT_USAGE) == 0);
 
   if (self_id->tag & ID_TAG_RUNTIME) {
+    return IDWALK_RET_NOP;
+  }
+
+  if (cb_flag & IDWALK_CB_WRITEFILE_IGNORE) {
+    /* Do not consider these ID usages (typically, from the Outliner e.g.) as making the ID
+     * directly linked. */
     return IDWALK_RET_NOP;
   }
 

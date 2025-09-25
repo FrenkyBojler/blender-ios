@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.0.0 Alpha (b'29d18c45e4ed')\n"
+"Project-Id-Version: Blender 5.0.0 Alpha (b'fb3904ce45c6')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-09-10 07:24+0000\n"
+"POT-Creation-Date: 2025-09-22 08:45+0000\n"
 "PO-Revision-Date: 2025-07-23 15:10+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Serbian <https://translate.blender.org/projects/blender-ui/ui/sr/>\n"
@@ -685,10 +685,6 @@ msgstr "Крива"
 
 msgid "Layer"
 msgstr "Слој"
-
-
-msgid "Array"
-msgstr "Низ"
 
 
 msgid "Cage Object"
@@ -1945,8 +1941,8 @@ msgid "Kill collided particles"
 msgstr "Уби честице при судару"
 
 
-msgid "Display Device"
-msgstr "Прикажи криве"
+msgid "Display"
+msgstr "Приказ"
 
 
 msgid "Input Color Space"
@@ -1973,8 +1969,8 @@ msgid "Use Curves"
 msgstr "Користи криве"
 
 
-msgid "View Transform"
-msgstr "Трансформација погледа"
+msgid "View"
+msgstr "Поглед"
 
 
 msgid "Temperature"
@@ -3009,10 +3005,6 @@ msgstr "Метода"
 
 msgid "Plane"
 msgstr "Плоча"
-
-
-msgid "View"
-msgstr "Поглед"
 
 
 msgid "Radius"
@@ -6718,10 +6710,6 @@ msgid "Amount of damping"
 msgstr "Вредност влажења"
 
 
-msgid "Display"
-msgstr "Приказ"
-
-
 msgid "Percentage of particles to display in 3D view"
 msgstr "Поставља крај распона у коме ће се приказивати 3Д објекти (у перспективи)"
 
@@ -8509,8 +8497,36 @@ msgid "Material slot name"
 msgstr "Назив слота материјала"
 
 
+msgid "Toggle Bone Options"
+msgstr "Мање/више информација"
+
+
+msgid "Enable Bone Options"
+msgstr "Омогући опције костију"
+
+
+msgid "Disable Bone Options"
+msgstr "Онемогући опције костију"
+
+
+msgid "Mesh Select Mode"
+msgstr "Мод избора мреже"
+
+
+msgid "Merge"
+msgstr "Сједини"
+
+
 msgid "Show/Hide"
 msgstr "Прикажи/сакриј"
+
+
+msgid "Special Characters"
+msgstr "Специјални знаци"
+
+
+msgid "Metaball"
+msgstr "Мета лопта"
 
 
 msgid "Names"
@@ -8523,10 +8539,6 @@ msgstr "Ролна костију"
 
 msgid "Snap"
 msgstr "Лепљење"
-
-
-msgid "Metaball"
-msgstr "Мета лопта"
 
 
 msgid "Mirror"
@@ -8591,30 +8603,6 @@ msgstr "У међувремену"
 
 msgid "Propagate"
 msgstr "Пренеси"
-
-
-msgid "Toggle Bone Options"
-msgstr "Мање/више информација"
-
-
-msgid "Enable Bone Options"
-msgstr "Омогући опције костију"
-
-
-msgid "Disable Bone Options"
-msgstr "Онемогући опције костију"
-
-
-msgid "Mesh Select Mode"
-msgstr "Мод избора мреже"
-
-
-msgid "Merge"
-msgstr "Сједини"
-
-
-msgid "Special Characters"
-msgstr "Специјални знаци"
 
 
 msgid "Basic"
@@ -8811,6 +8799,11 @@ msgstr "Поставке"
 msgctxt "Operator"
 msgid "Parent"
 msgstr "Родитељ"
+
+
+msgctxt "Operator"
+msgid "Lattice"
+msgstr "Кавез"
 
 
 msgid "Clone Layer"
@@ -9035,6 +9028,10 @@ msgstr "Временски помак"
 
 msgid "Texture Mapping"
 msgstr "Мапирање текстуре"
+
+
+msgid "Array"
+msgstr "Низ"
 
 
 msgid "Bevel"
@@ -10308,10 +10305,6 @@ msgid "Opacity of the image"
 msgstr "Провидност слике"
 
 
-msgid "Markers"
-msgstr "Маркери"
-
-
 msgid "Collection of markers in track"
 msgstr "Лпчелцока маркера у трагу"
 
@@ -10556,16 +10549,8 @@ msgid "Channel Key"
 msgstr "Кључ канала"
 
 
-msgid "Algorithm"
-msgstr "Алгоритам"
-
-
 msgid "Color Balance"
 msgstr "Баланс боје"
-
-
-msgid "Correction Formula"
-msgstr "Формула исправке"
 
 
 msgid "Color Correction"
@@ -10654,10 +10639,6 @@ msgstr "Кључ разлике"
 
 msgid "Distance Key"
 msgstr "Кључ раздаљине"
-
-
-msgid "Keep In"
-msgstr "Задржи у"
 
 
 msgid "Ellipse Mask"
@@ -20919,6 +20900,10 @@ msgid "Individual Origins"
 msgstr "Индивидуални центри"
 
 
+msgid "Markers"
+msgstr "Маркери"
+
+
 msgid "Gray Scale"
 msgstr "Сиви тонови"
 
@@ -21887,10 +21872,6 @@ msgid "Settings for space"
 msgstr "Подешавања формата слика"
 
 
-msgid "Settings for space list"
-msgstr "Подешавања коришћена за течности."
-
-
 msgid "Channel Group"
 msgstr "Група канала"
 
@@ -21905,10 +21886,6 @@ msgstr "Тема конзоле"
 
 msgid "Theme settings for the Console"
 msgstr "Подешавање теме конзоле"
-
-
-msgid "Channels Selected"
-msgstr "Изабрани канали"
 
 
 msgid "Keyframe Border"
@@ -21957,10 +21934,6 @@ msgstr "Светлина сенке"
 
 msgid "Theme Background Color"
 msgstr "Боја позадине теме"
-
-
-msgid "Channels Region"
-msgstr "Регион канала"
 
 
 msgid "Vertex Select"
@@ -22071,6 +22044,10 @@ msgid "Theme Properties"
 msgstr "Особине теме"
 
 
+msgid "Selected Text"
+msgstr "Изабрани текст"
+
+
 msgid "Theme Sequence Editor"
 msgstr "Тема уређивача секвенци"
 
@@ -22087,10 +22064,6 @@ msgid "Preview Background"
 msgstr "Позадина прегледа"
 
 
-msgid "Selected Text"
-msgstr "Изабрани текст"
-
-
 msgid "Window Background"
 msgstr "Позадина прозора"
 
@@ -22101,26 +22074,6 @@ msgstr "Текст истакнутог наслова"
 
 msgid "Text Highlight"
 msgstr "Истакнут текст"
-
-
-msgid "Theme Space List Settings"
-msgstr "Запамти корисничке поставке"
-
-
-msgid "Source List"
-msgstr "Изворна листа"
-
-
-msgid "Source List Text"
-msgstr "Текст изворне листе"
-
-
-msgid "Source List Title"
-msgstr "Наслов изворне листе"
-
-
-msgid "Region Background"
-msgstr "Позадина региона"
 
 
 msgid "Widget Style"
@@ -23290,6 +23243,10 @@ msgid "Slide"
 msgstr "Клизај"
 
 
+msgid "Source List"
+msgstr "Изворна листа"
+
+
 msgctxt "Operator"
 msgid "Back"
 msgstr "Од позади"
@@ -23918,11 +23875,6 @@ msgstr "Пројектуј из погледа"
 msgctxt "Operator"
 msgid "Non Manifold"
 msgstr "Неповезани"
-
-
-msgctxt "Operator"
-msgid "Lattice"
-msgstr "Кавез"
 
 
 msgctxt "Operator"
