@@ -137,7 +137,9 @@ struct VKBoundPipelines {
  * guardedalloc.
  */
 void vk_pipeline_data_copy(VKPipelineData &dst, const VKPipelineData &src);
-static inline void vk_pipeline_data_copy(VKPipelineDataGraphics &dst, const VKPipelineDataGraphics &src){
+static inline void vk_pipeline_data_copy(VKPipelineDataGraphics &dst,
+                                         const VKPipelineDataGraphics &src)
+{
   vk_pipeline_data_copy(dst.pipeline_data, src.pipeline_data);
 }
 
@@ -174,7 +176,8 @@ void vk_pipeline_data_build_commands(VKCommandBufferInterface &command_buffer,
  * Free localized data created by `vk_pipeline_data_copy`.
  */
 void vk_pipeline_data_free(VKPipelineData &data);
-static inline void vk_pipeline_data_free(VKPipelineDataGraphics &data) {
+static inline void vk_pipeline_data_free(VKPipelineDataGraphics &data)
+{
   vk_pipeline_data_free(data.pipeline_data);
 }
 
