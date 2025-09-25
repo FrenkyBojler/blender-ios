@@ -340,7 +340,7 @@ void AbstractViewItem::disable_activatable()
   is_activatable_ = false;
 }
 
-void AbstractViewItem::select_on_click()
+void AbstractViewItem::select_on_click_set()
 {
   select_on_click_ = true;
 }

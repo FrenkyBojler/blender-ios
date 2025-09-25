@@ -515,7 +515,7 @@ void WM_operator_properties_generic_select(wmOperatorType *ot)
   /* Force the selection to act on mouse click, not press. Necessary for some cases, but isn't used
    * much.  */
   prop = RNA_def_boolean(ot->srna,
-                         "select_on_click",
+                         "use_select_on_click",
                          false,
                          "Act on Click",
                          "Instead of selecting on mouse press, wait to see if there's drag event. "

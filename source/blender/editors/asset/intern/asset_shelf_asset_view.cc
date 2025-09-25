@@ -125,10 +125,10 @@ void AssetView::build_items()
       item.disable_asset_drag();
     }
     if (!shelf_.type->drag_operator.empty()) {
-      /* For now always select items on click instead of press when there's a drag operator set.
-       * Important for pose library blending. Maybe we want to make this an explicit option of the
-       * asset shelf instead. */
-      item.select_on_click();
+      /* For now always select/activate items on click instead of press when there's a drag
+       * operator set. Important for pose library blending. Maybe we want to make this an explicit
+       * option of the asset shelf instead. */
+      item.select_on_click_set();
     }
     /* Make sure every click calls the #bl_activate_operator. We might want to add a flag to
      * enable/disable this. Or we only call #bl_activate_operator when an item becomes active, and

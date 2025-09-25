@@ -2865,7 +2865,7 @@ static wmOperatorStatus ui_view_item_select_invoke(bContext *C,
 
   /* Wait with selecting to see if there's a click or drag event, if requested by the view item. */
   if (clicked_item && clicked_item->is_select_on_click()) {
-    RNA_boolean_set(op->ptr, "select_on_click", true);
+    RNA_boolean_set(op->ptr, "use_select_on_click", true);
   }
 
   return WM_generic_select_invoke(C, op, event);

@@ -977,7 +977,7 @@ wmOperatorStatus WM_generic_select_modal(bContext *C, wmOperator *op, const wmEv
 {
   PropertyRNA *wait_to_deselect_prop = RNA_struct_find_property(op->ptr,
                                                                 "wait_to_deselect_others");
-  const bool select_on_click = RNA_struct_property_is_set(op->ptr, "select_on_click");
+  const bool use_select_on_click = RNA_struct_property_is_set(op->ptr, "use_select_on_click");
   const short init_event_type = short(POINTER_AS_INT(op->customdata));
 
   /* Get settings from RNA properties for operator. */
@@ -986,7 +986,7 @@ wmOperatorStatus WM_generic_select_modal(bContext *C, wmOperator *op, const wmEv
   if (init_event_type == 0) {
     op->customdata = POINTER_FROM_INT(int(event->type));
 
-    if (select_on_click) {
+    if (use_select_on_click) {
       /* Don't do any selection yet. Wait to see if there's a drag or click (release) event. */
       WM_event_add_modal_handler(C, op);
       return OPERATOR_RUNNING_MODAL | OPERATOR_PASS_THROUGH;
