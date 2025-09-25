@@ -595,18 +595,41 @@ Vector<BundleSignature> gather_linked_origin_bundle_signatures(
     const bNodeSocket &bundle_socket,
     bke::ComputeContextCache &compute_context_cache)
 {
-  const Vector<SocketInContext> origin_sockets = find_origin_sockets_through_contexts(
+  Vector<BundleSignature> signatures;
+  find_origin_sockets_through_contexts(
       {bundle_socket_context, &bundle_socket},
       compute_context_cache,
-      [](const SocketInContext &socket) {
-        return socket->is_output() && socket->owner_node().is_type("NodeCombineBundle");
+      [&](const SocketInContext &socket) {
+        const NodeInContext &node = socket.owner_node();
+        if (socket->is_output()) {
+          if (node->is_type("NodeCombineBundle")) {
+            signatures.append(BundleSignature::from_combine_bundle_node(*node));
+            return true;
+          }
+          if (node->is_type("NodeJoinBundle")) {
+            const SocketInContext input_socket = node.input_socket(0);
+            BundleSignature join_signature;
+            for (const bNodeLink *link : input_socket->directly_linked_links()) {
+              if (!link->is_used()) {
+                continue;
+              }
+              const bNodeSocket *socket_from = link->fromsock;
+              const Vector<BundleSignature> vec_bundle_signatures =
+                  gather_linked_origin_bundle_signatures(
+                      node.context, *socket_from, compute_context_cache);
+              for (const BundleSignature &signature : vec_bundle_signatures) {
+                for (const BundleSignature::Item &item : signature.items) {
+                  join_signature.items.add(item);
+                }
+              }
+            }
+            signatures.append(join_signature);
+            return true;
+          }
+        }
+        return false;
       },
       true);
-  Vector<BundleSignature> signatures;
-  for (const SocketInContext &origin_socket : origin_sockets) {
-    const NodeInContext &origin_node = origin_socket.owner_node();
-    signatures.append(BundleSignature::from_combine_bundle_node(*origin_node.node));
-  }
   return signatures;
 }
 
