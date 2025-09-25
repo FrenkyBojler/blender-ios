@@ -337,8 +337,7 @@ void BlenderSync::sync_integrator(BL::ViewLayer &b_view_layer,
   PointerRNA cscene = RNA_pointer_get(&b_scene.ptr, "cycles");
 
   /* No adaptive subdivision for baking, mesh needs to match Blender exactly. */
-  use_adaptive_subdivision = (get_enum(cscene, "feature_set") != 0) && !b_bake_target;
-  use_experimental_procedural = (get_enum(cscene, "feature_set") != 0);
+  use_adaptive_subdivision = !b_bake_target;
 
   Integrator *integrator = scene->integrator;
 
@@ -711,6 +710,7 @@ static bool get_known_pass_type(BL::RenderPass &b_pass, PassType &type, PassMode
 
   MAP_PASS("AdaptiveAuxBuffer", PASS_ADAPTIVE_AUX_BUFFER, false);
   MAP_PASS("Debug Sample Count", PASS_SAMPLE_COUNT, false);
+  MAP_PASS("Render Time", PASS_RENDER_TIME, false);
 
   MAP_PASS("Guiding Color", PASS_GUIDING_COLOR, false);
   MAP_PASS("Guiding Probability", PASS_GUIDING_PROBABILITY, false);
@@ -934,9 +934,6 @@ SessionParams BlenderSync::get_session_params(BL::RenderEngine &b_engine,
      * not needed for viewport render. */
     params.temp_dir = b_engine.temporary_directory();
   }
-
-  /* feature set */
-  params.experimental = (get_enum(cscene, "feature_set") != 0);
 
   /* Headless and background rendering. */
   params.headless = BlenderSession::headless;
