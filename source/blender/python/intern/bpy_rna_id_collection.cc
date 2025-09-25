@@ -546,6 +546,7 @@ const EnumPropertyItem rna_enum_file_path_foreach_flag_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
+/** Wrapper for MEM_SAFE_FREE() as deallocator for std::unique_ptr. */
 struct MEM_freeN_destructor {
   void operator()(void *pointer) const noexcept
   {
@@ -553,6 +554,7 @@ struct MEM_freeN_destructor {
   }
 };
 
+/** Python reference count decrementor for smart pointers. */
 struct PythonDecRef {
   void operator()(PyObject *py_object) const noexcept
   {
@@ -560,6 +562,7 @@ struct PythonDecRef {
   }
 };
 
+/** Unique pointer that decrements the reference count when going out of scope. */
 using PyObjectUniquePtr = std::unique_ptr<PyObject, PythonDecRef>;
 
 static bool foreach_id_file_path_foreach_callback(BPathForeachPathData *bpath_data,
