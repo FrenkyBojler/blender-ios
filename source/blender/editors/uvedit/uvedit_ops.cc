@@ -1745,6 +1745,127 @@ static bool bm_face_is_all_uv_sel(BMFace *f, bool select_test, const BMUVOffsets
   return true;
 }
 
+static bool uv_mesh_hide_sync_select(const ToolSettings *ts, Object *ob, BMEditMesh *em, bool swap)
+{
+  const bool select_to_hide = !swap;
+  BMesh *bm = em->bm;
+  bool changed = false;
+
+  if (bm->uv_sync_select_valid == false || ED_uvedit_sync_uvselect_ignore(ts)) {
+    /* Simple case, no need to synchronize UV's, forward to mesh hide. */
+    changed = EDBM_mesh_hide(em, swap);
+  }
+  else {
+    /* For vertices & edges hiding faces immediately causes a feedback loop,
+     * where hiding doesn't work predictably as values are being both read and written to.
+     * Perform two passes, use tagging. */
+
+    /* Vertex and edge modes use almost the same logic. */
+    if (em->selectmode & (SCE_SELECT_VERTEX | SCE_SELECT_EDGE)) {
+      BMIter iter;
+      BM_mesh_elem_hflag_disable_all(bm, BM_FACE, BM_ELEM_TAG, false);
+
+      if (em->selectmode & SCE_SELECT_VERTEX) {
+        BMFace *f;
+        BM_ITER_MESH (f, &iter, em->bm, BM_FACES_OF_MESH) {
+          if (BM_elem_flag_test(f, BM_ELEM_HIDDEN)) {
+            continue;
+          }
+          BMLoop *l_iter, *l_first;
+          l_iter = l_first = BM_FACE_FIRST_LOOP(f);
+          do {
+            if ((BM_elem_flag_test_bool(l_iter->v, BM_ELEM_SELECT) == select_to_hide) &&
+                (BM_elem_flag_test_bool(l_iter, BM_ELEM_SELECT_UV) == select_to_hide))
+            {
+              BM_elem_flag_enable(l_iter->f, BM_ELEM_TAG);
+              changed = true;
+              break;
+            }
+          } while ((l_iter = l_iter->next) != l_first);
+        }
+      }
+      else {
+        BLI_assert(em->selectmode & SCE_SELECT_EDGE);
+        BMFace *f;
+        BM_ITER_MESH (f, &iter, em->bm, BM_FACES_OF_MESH) {
+          if (BM_elem_flag_test(f, BM_ELEM_HIDDEN)) {
+            continue;
+          }
+          BMLoop *l_iter, *l_first;
+          l_iter = l_first = BM_FACE_FIRST_LOOP(f);
+          do {
+            if ((BM_elem_flag_test_bool(l_iter->e, BM_ELEM_SELECT) == select_to_hide) &&
+                (BM_elem_flag_test_bool(l_iter, BM_ELEM_SELECT_UV_EDGE) == select_to_hide))
+            {
+              BM_elem_flag_enable(l_iter->f, BM_ELEM_TAG);
+              changed = true;
+              break;
+            }
+          } while ((l_iter = l_iter->next) != l_first);
+        }
+      }
+
+      if (changed) {
+        BMFace *f;
+        BM_ITER_MESH (f, &iter, em->bm, BM_FACES_OF_MESH) {
+          if (BM_elem_flag_test(f, BM_ELEM_TAG)) {
+            BM_elem_hide_set(bm, f, true);
+          }
+        }
+        if (swap) {
+          /* Without re-selecting, the faces vertices are de-selected when hiding adjacent faces.
+           *
+           * TODO(@ideasman42): consider a more elegant solution of ensuring
+           * faces at the boundaries don't get their vertices de-selected.
+           * This is low-priority as it's no a bottleneck. */
+          BM_ITER_MESH (f, &iter, em->bm, BM_FACES_OF_MESH) {
+            if (!BM_elem_flag_test(f, BM_ELEM_TAG)) {
+              BM_face_select_set(bm, f, true);
+            }
+          }
+        }
+      }
+    }
+    else {
+      BLI_assert(em->selectmode & SCE_SELECT_FACE);
+      BMIter iter;
+      BMFace *f;
+      BM_ITER_MESH (f, &iter, em->bm, BM_FACES_OF_MESH) {
+        if (BM_elem_flag_test(f, BM_ELEM_HIDDEN)) {
+          continue;
+        }
+        if (BM_elem_flag_test_bool(f, BM_ELEM_SELECT_UV) == select_to_hide) {
+          BM_elem_hide_set(bm, f, true);
+          changed = true;
+        }
+      }
+    }
+
+    if (changed) {
+      if (swap) {
+        EDBM_selectmode_flush(em);
+      }
+      else {
+        EDBM_flag_disable_all(em, BM_ELEM_SELECT);
+      }
+      /* Clearing is OK even when hiding unselected
+       * as the remaining geometry is entirely selected. */
+      EDBM_uvselect_clear(em);
+    }
+  }
+
+  if (changed) {
+    Mesh *mesh = static_cast<Mesh *>(ob->data);
+    EDBMUpdate_Params params = {0};
+    params.calc_looptris = true;
+    params.calc_normals = false;
+    params.is_destructive = false;
+    EDBM_update(mesh, &params);
+  }
+
+  return changed;
+}
+
 static wmOperatorStatus uv_hide_exec(bContext *C, wmOperator *op)
 {
   ViewLayer *view_layer = CTX_data_view_layer(C);
@@ -1775,14 +1896,7 @@ static wmOperatorStatus uv_hide_exec(bContext *C, wmOperator *op)
     const BMUVOffsets offsets = BM_uv_map_offsets_get(em->bm);
 
     if (ts->uv_flag & UV_FLAG_SYNC_SELECT) {
-      if (EDBM_mesh_hide(em, swap)) {
-        Mesh *mesh = static_cast<Mesh *>(ob->data);
-        EDBMUpdate_Params params = {0};
-        params.calc_looptris = true;
-        params.calc_normals = false;
-        params.is_destructive = false;
-        EDBM_update(mesh, &params);
-      }
+      uv_mesh_hide_sync_select(ts, ob, em, swap);
       continue;
     }
 
