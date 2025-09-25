@@ -2494,7 +2494,7 @@ static void do_version_mix_node_mix_mode(bNodeTree &node_tree, bNode &node)
   bNode *set_alpha_node = blender::bke::node_add_node(
       nullptr, node_tree, "CompositorNodeSetAlpha");
   set_alpha_node->parent = node.parent;
-  set_alpha_node->location[0] = node.location[0] + node.width - 20.0f;
+  set_alpha_node->location[0] = node.location[0] + node.width + 20.0f;
   set_alpha_node->location[1] = node.location[1];
 
   bNodeSocket *set_alpha_image_input = blender::bke::node_find_socket(
