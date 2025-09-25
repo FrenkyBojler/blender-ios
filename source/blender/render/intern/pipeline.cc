@@ -912,15 +912,18 @@ void RE_InitState(Render *re,
       }
     }
   }
-  else {
-
+  else if (re->result != nullptr &&
+           (re->result->rectx != rd->xsch || re->result->recty != rd->ysch))
+  {
     /* make empty render result, so display callbacks can initialize */
     render_result_free(re->result);
-    re->result = MEM_callocN<RenderResult>("new render result");
-    re->result->rectx = re->rectx;
-    re->result->recty = re->recty;
-    BKE_scene_ppm_get(&re->r, re->result->ppm);
-    render_result_view_new(re->result, "");
+    re->result = nullptr;
+
+    // re->result = MEM_callocN<RenderResult>("new render result");
+    // re->result->rectx = re->rectx;
+    // re->result->recty = re->recty;
+    // BKE_scene_ppm_get(&re->r, re->result->ppm);
+    // render_result_view_new(re->result, "");
   }
 
   BLI_rw_mutex_unlock(&re->resultmutex);
@@ -1137,7 +1140,7 @@ static void do_render_engine(Render *re)
   RE_engine_render(re, false);
 
   /* when border render, check if we have to insert it in black */
-  render_result_uncrop(re);
+  // render_result_uncrop(re);
 }
 
 /* Render scene into render result, within a compositor node tree.
@@ -2063,6 +2066,14 @@ void RE_RenderFrame(Render *re,
     /* Reduce GPU memory usage so renderer has more space. */
     RE_FreeGPUTextureCaches();
 
+    if (re->result) {
+      BLI_rw_mutex_lock(&re->resultmutex, THREAD_LOCK_WRITE);
+      rcti tmp = rcti{0, re->result->rectx, 0, re->result->recty};
+      re->display_init(re->result);
+      re->display_update(re->result, &tmp);
+      BLI_rw_mutex_unlock(&re->resultmutex);
+    }
+
     render_init_depsgraph(re);
 
     do_render_full_pipeline(re);
@@ -2790,7 +2801,7 @@ bool RE_ReadRenderResult(Scene *scene, Scene *scenode)
   success = render_result_exr_file_cache_read(re);
   BLI_rw_mutex_unlock(&re->resultmutex);
 
-  render_result_uncrop(re);
+  // render_result_uncrop(re);
 
   return success;
 }

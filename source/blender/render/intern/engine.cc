@@ -387,6 +387,8 @@ void RE_engine_update_result(RenderEngine *engine, RenderResult *result)
 
   if (result) {
     re_ensure_passes_allocated_thread_safe(re);
+    result->tilerect = re->disprect;
+    print_rcti("result->tilerect", &result->tilerect);
     render_result_merge(re->result, result);
     result->renlay = static_cast<RenderLayer *>(
         result->layers.first); /* weak, draws first layer always */
@@ -443,6 +445,7 @@ void RE_engine_end_result(
   if (!cancel || merge_results) {
     if (!(re->test_break() && (re->r.scemode & R_BUTS_PREVIEW))) {
       re_ensure_passes_allocated_thread_safe(re);
+      result->tilerect = re->disprect;
       render_result_merge(re->result, result);
     }
 
@@ -607,10 +610,10 @@ void RE_engine_get_camera_model_matrix(RenderEngine *engine,
    * leaving stereo to be handled by the engine. */
   Render *re = engine->re;
   if (use_spherical_stereo || re == nullptr) {
-    BKE_camera_multiview_model_matrix(nullptr, camera, nullptr, (float(*)[4])r_modelmat);
+    BKE_camera_multiview_model_matrix(nullptr, camera, nullptr, (float (*)[4])r_modelmat);
   }
   else {
-    BKE_camera_multiview_model_matrix(&re->r, camera, re->viewname, (float(*)[4])r_modelmat);
+    BKE_camera_multiview_model_matrix(&re->r, camera, re->viewname, (float (*)[4])r_modelmat);
   }
 }
 
@@ -1027,7 +1030,8 @@ bool RE_engine_render(Render *re, bool do_all)
   /* Create render result. Do this before acquiring lock, to avoid lock
    * inversion as this calls python to get the render passes, while python UI
    * code can also hold a lock on the render result. */
-  const bool create_new_result = (re->result == nullptr || !(re->r.scemode & R_BUTS_PREVIEW));
+  const bool create_new_result = (re->result ==
+                                  nullptr);  // || !(re->r.scemode & R_BUTS_PREVIEW));
   RenderResult *new_result = (create_new_result) ? engine_render_create_result(re) : nullptr;
 
   BLI_rw_mutex_lock(&re->resultmutex, THREAD_LOCK_WRITE);

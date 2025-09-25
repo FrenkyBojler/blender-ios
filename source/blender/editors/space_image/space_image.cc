@@ -13,6 +13,9 @@
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
+#include "GPU_immediate.hh"
+#include "GPU_matrix.hh"
+#include "GPU_state.hh"
 #include "MEM_guardedalloc.h"
 
 #include "BLI_listbase.h"
@@ -56,6 +59,8 @@
 #include "DRW_engine.hh"
 
 #include "image_intern.hh"
+
+#include "BIF_glutil.hh"
 
 /**************************** common state *****************************/
 
@@ -654,6 +659,11 @@ static void image_main_region_draw(const bContext *C, ARegion *region)
                                    sima->overlay.flag & SI_OVERLAY_DRAW_RENDER_REGION &&
                                    ELEM(sima->mode, SI_MODE_MASK, SI_MODE_VIEW));
 
+  const bool show_render_border = ((sima->overlay.flag & SI_OVERLAY_SHOW_OVERLAYS &&
+                                    ELEM(sima->mode, SI_MODE_MASK, SI_MODE_VIEW)) &&
+                                   (scene->r.border.xmin != 0 || scene->r.border.xmax != 1 ||
+                                    scene->r.border.ymin != 0 || scene->r.border.ymax != 1));
+
   /* XXX not supported yet, disabling for now */
   scene->r.scemode &= ~R_COMP_CROP;
 
@@ -673,6 +683,40 @@ static void image_main_region_draw(const bContext *C, ARegion *region)
   DRW_draw_view(C);
   if (show_viewer) {
     BLI_thread_unlock(LOCK_DRAW_IMAGE);
+  }
+
+  if (show_render_border) {
+    int render_size_x, render_size_y;
+    BKE_render_resolution(&scene->r, true, &render_size_x, &render_size_y);
+
+    float zoomx, zoomy;
+    ED_space_image_get_zoom(sima, region, &zoomx, &zoomy);
+
+    int width, height;
+    ED_space_image_get_size(sima, &width, &height);
+
+    rcti render_region = {int((scene->r.border.xmin * width)),
+                          int((scene->r.border.xmax * width)),
+                          int((scene->r.border.ymin * height)),
+                          int((scene->r.border.ymax * height))};
+
+    int x, y = 0;
+    UI_view2d_view_to_region(&region->v2d, 0.0f, 0.0f, &x, &y);
+
+    GPU_matrix_push();
+    GPU_matrix_translate_2f(x, y);
+    GPU_matrix_scale_2f(zoomx, zoomy);
+
+    uint pos = GPU_vertformat_attr_add(
+        immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
+
+    immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
+    immUniformThemeColor(TH_TEXT_HI);
+    GPU_line_width(1.0f);
+    immDrawBorderCorners(pos, &render_region, zoomx, zoomy);
+
+    immUnbindProgram();
+    GPU_matrix_pop();
   }
 
   if (show_render_region) {
@@ -719,7 +763,6 @@ static void image_main_region_draw(const bContext *C, ARegion *region)
   }
 
   if (show_text_info) {
-
     int render_size_x, render_size_y;
     BKE_render_resolution(&scene->r, true, &render_size_x, &render_size_y);
 
