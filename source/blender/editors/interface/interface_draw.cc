@@ -1851,22 +1851,33 @@ void ui_draw_but_CURVE(ARegion *region, uiBut *but, const uiWidgetColors *wcol, 
   cmp = cuma->curve;
   const float point_size = max_ff(U.pixelsize * 2.0f,
                                   min_ff(UI_SCALE_FAC / but->block->aspect * 4.0f, 20.0f));
-  /* Draw points twice, one in the back as outline and the front one. */
   GPU_blend(GPU_BLEND_ALPHA);
-  immBegin(GPU_PRIM_POINTS, (cuma->totpoint * 2));
+
+  /* Curve widgets using a gradient background (such as Hue Correct), draw
+   * an additional point in the back, forming an outline so they stand out. */
+  if (but_cumap->gradient_type == UI_GRAD_H) {
+    immBegin(GPU_PRIM_POINTS, cuma->totpoint);
+    for (int a = 0; a < cuma->totpoint; a++) {
+      const float fx = rect->xmin + zoomx * (cmp[a].x - offsx);
+      const float fy = rect->ymin + zoomy * (cmp[a].y - offsy);
+      const float size_factor = (cmp[a].flag & CUMA_SELECT) ? 1.4f : 1.2f;
+
+      /* First the point the back, slightly larger so it makes an outline. */
+      immAttr4fv(col, color_point_outline);
+      immAttr1f(size, point_size * size_factor);
+      immVertex2f(pos, fx, fy);
+    }
+    immEnd();
+  }
+
+  immBegin(GPU_PRIM_POINTS, cuma->totpoint);
   for (int a = 0; a < cuma->totpoint; a++) {
     const float fx = rect->xmin + zoomx * (cmp[a].x - offsx);
     const float fy = rect->ymin + zoomy * (cmp[a].y - offsy);
-    const float size_factor = (cmp[a].flag & CUMA_SELECT) ? 1.5f : 1.0f;
-
-    /* First the point the back, slightly larger so it makes an outline. */
-    immAttr4fv(col, color_point_outline);
-    immAttr1f(size, point_size * size_factor * 1.4f);
-    immVertex2f(pos, fx, fy);
 
     /* The point in front. */
     immAttr4fv(col, (cmp[a].flag & CUMA_SELECT) ? color_point_select : color_point);
-    immAttr1f(size, point_size * size_factor);
+    immAttr1f(size, point_size);
     immVertex2f(pos, fx, fy);
   }
   immEnd();
@@ -2120,18 +2131,12 @@ void ui_draw_but_CURVEPROFILE(ARegion *region,
     point_size = max_ff(U.pixelsize * 2.0f,
                         min_ff(UI_SCALE_FAC / but->block->aspect * 4.0f, 20.0f));
 
-    immBegin(GPU_PRIM_POINTS, (path_len * 2));
+    immBegin(GPU_PRIM_POINTS, path_len);
     for (int i = 0; i < path_len; i++) {
       fx = rect->xmin + zoomx * (pts[i].x - offsx);
       fy = rect->ymin + zoomy * (pts[i].y - offsy);
       const float size_factor = (pts[i].flag & PROF_SELECT) ? 1.5f : 1.0f;
 
-      /* First the point the back, slightly larger so it makes an outline. */
-      immAttr4fv(col, color_point_outline);
-      immAttr1f(size, point_size * size_factor * 1.4f);
-      immVertex2f(pos, fx, fy);
-
-      /* The point in front. */
       immAttr1f(size, point_size * size_factor);
       immAttr4fv(col, (pts[i].flag & PROF_SELECT) ? color_point_select : color_point);
       immVertex2f(pos, fx, fy);
