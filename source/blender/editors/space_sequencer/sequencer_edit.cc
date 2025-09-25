@@ -1744,7 +1744,7 @@ static wmOperatorStatus sequencer_split_exec(bContext *C, wmOperator *op)
   const seq::eSplitMethod method = seq::eSplitMethod(RNA_enum_get(op->ptr, "type"));
   const int split_side = sequence_split_side_for_exec_get(op);
   const bool ignore_selection = RNA_boolean_get(op->ptr, "ignore_selection");
-  const bool ignore_connected = RNA_boolean_get(op->ptr, "ignore_connected");
+  const bool ignore_connections = RNA_boolean_get(op->ptr, "ignore_connections");
 
   seq::prefetch_stop(scene);
 
@@ -1761,7 +1761,7 @@ static wmOperatorStatus sequencer_split_exec(bContext *C, wmOperator *op)
                                 strip,
                                 split_frame,
                                 method,
-                                ignore_connected,
+                                ignore_connections,
                                 &error_msg) != nullptr)
       {
         changed = true;
@@ -1877,7 +1877,7 @@ static void sequencer_split_ui(bContext * /*C*/, wmOperator *op)
 
   layout->separator();
 
-  layout->prop(op->ptr, "ignore_connected", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout->prop(op->ptr, "ignore_connections", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 void SEQUENCER_OT_split(wmOperatorType *ot)
@@ -1948,7 +1948,7 @@ void SEQUENCER_OT_split(wmOperatorType *ot)
 
   RNA_def_boolean(
       ot->srna,
-      "ignore_connected",
+      "ignore_connections",
       false,
       "Ignore Connected",
       "Don't propagate split to connected strips");
