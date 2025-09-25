@@ -642,6 +642,7 @@ void ED_mask_draw_region(
     Depsgraph *depsgraph,
     Mask *mask_,
     ARegion *region,
+    const bool show_overlays,
     const char draw_flag,
     const char draw_type,
     const eMaskOverlayMode overlay_mode,
@@ -703,7 +704,7 @@ void ED_mask_draw_region(
     yofs = ((width - height) / -2.0f) * zoomy;
   }
 
-  if (draw_flag & MASK_DRAWFLAG_OVERLAY) {
+  if (show_overlays && draw_flag & MASK_DRAWFLAG_OVERLAY) {
     float buf_col[4] = {1.0f, 0.0f, 0.0f, 0.0f};
     const float *buffer = mask_rasterize(mask_eval, width, height);
 
@@ -727,12 +728,30 @@ void ED_mask_draw_region(
     if (overlay_mode == MASK_OVERLAY_COMBINED) {
       const float blend_col[4] = {0.0f, 0.0f, 0.0f, blend_factor};
 
-      immDrawPixelsTexTiled(
-          &state, 0.0f, 0.0f, width, height, GPU_R16F, false, buffer, 1.0f, 1.0f, blend_col);
+      immDrawPixelsTexTiled(&state,
+                            0.0f,
+                            0.0f,
+                            width,
+                            height,
+                            blender::gpu::TextureFormat::SFLOAT_16,
+                            false,
+                            buffer,
+                            1.0f,
+                            1.0f,
+                            blend_col);
     }
     else {
-      immDrawPixelsTexTiled(
-          &state, 0.0f, 0.0f, width, height, GPU_R16F, false, buffer, 1.0f, 1.0f, nullptr);
+      immDrawPixelsTexTiled(&state,
+                            0.0f,
+                            0.0f,
+                            width,
+                            height,
+                            blender::gpu::TextureFormat::SFLOAT_16,
+                            false,
+                            buffer,
+                            1.0f,
+                            1.0f,
+                            nullptr);
     }
     GPU_matrix_pop();
 
@@ -758,7 +777,7 @@ void ED_mask_draw_region(
   }
 
   /* draw! */
-  if (draw_flag & MASK_DRAWFLAG_SPLINE) {
+  if (show_overlays && draw_flag & MASK_DRAWFLAG_SPLINE) {
     draw_mask_layers(C, mask_eval, draw_type, width, height);
   }
 

@@ -78,12 +78,12 @@ void ABCGenericMeshWriter::create_alembic_objects(const HierarchyContext *contex
   }
 
   if (is_subd_) {
-    CLOG_INFO(&LOG, 2, "exporting OSubD %s", args_.abc_path.c_str());
+    CLOG_DEBUG(&LOG, "exporting OSubD %s", args_.abc_path.c_str());
     abc_subdiv_ = OSubD(args_.abc_parent, args_.abc_name, timesample_index_);
     abc_subdiv_schema_ = abc_subdiv_.getSchema();
   }
   else {
-    CLOG_INFO(&LOG, 2, "exporting OPolyMesh %s", args_.abc_path.c_str());
+    CLOG_DEBUG(&LOG, "exporting OPolyMesh %s", args_.abc_path.c_str());
     abc_poly_mesh_ = OPolyMesh(args_.abc_parent, args_.abc_name, timesample_index_);
     abc_poly_mesh_schema_ = abc_poly_mesh_.getSchema();
 
@@ -126,10 +126,7 @@ bool ABCGenericMeshWriter::export_as_subdivision_surface(Object *ob_eval) const
 
 bool ABCGenericMeshWriter::is_supported(const HierarchyContext *context) const
 {
-  if (args_.export_params->visible_objects_only) {
-    return context->is_object_visible(args_.export_params->evaluation_mode);
-  }
-  return true;
+  return context->is_object_visible(args_.export_params->evaluation_mode);
 }
 
 void ABCGenericMeshWriter::do_write(HierarchyContext &context)

@@ -20,6 +20,7 @@
 #include "BLI_listbase.h"
 #include "BLI_math_geom.h"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 
 #include "BLT_translation.hh"
 
@@ -81,9 +82,7 @@ bNode *add_node(const bContext &C, const StringRef idname, const float2 &locatio
 
   node_deselect_all(node_tree);
 
-  const std::string idname_str = idname;
-
-  bNode *node = bke::node_add_node(&C, node_tree, idname_str.c_str());
+  bNode *node = bke::node_add_node(&C, node_tree, idname);
   BLI_assert(node && node->typeinfo);
 
   position_node_based_on_mouse(*node, location);
@@ -180,7 +179,10 @@ static wmOperatorStatus add_reroute_exec(bContext *C, wmOperator *op)
    * Further deduplication using the second map means we only have one cut per link. */
   Map<bNodeSocket *, RerouteCutsForSocket> cuts_per_socket;
 
+  int intersection_count = 0;
+
   LISTBASE_FOREACH (bNodeLink *, link, &ntree.links) {
+
     if (node_link_is_hidden_or_dimmed(region.v2d, *link)) {
       continue;
     }
@@ -191,12 +193,17 @@ static wmOperatorStatus add_reroute_exec(bContext *C, wmOperator *op)
     RerouteCutsForSocket &from_cuts = cuts_per_socket.lookup_or_add_default(link->fromsock);
     from_cuts.from_node = link->fromnode;
     from_cuts.links.add(link, *cut);
+    intersection_count++;
   }
 
   for (const auto item : cuts_per_socket.items()) {
     const Map<bNodeLink *, float2> &cuts = item.value.links;
 
     bNode *reroute = bke::node_add_static_node(C, ntree, NODE_REROUTE);
+
+    if (intersection_count == 1) {
+      bke::node_set_active(ntree, *reroute);
+    }
 
     bke::node_add_link(ntree,
                        *item.value.from_node,
@@ -354,6 +361,27 @@ static bool node_add_group_poll(bContext *C)
   return true;
 }
 
+static bool node_swap_group_poll(bContext *C)
+{
+  if (!ED_operator_node_editable(C)) {
+    return false;
+  }
+  const SpaceNode *snode = CTX_wm_space_node(C);
+  if (snode->edittree->type == NTREE_CUSTOM) {
+    CTX_wm_operator_poll_msg_set(
+        C, "Adding node groups isn't supported for custom (Python defined) node trees");
+    return false;
+  }
+  Vector<PointerRNA> selected_nodes;
+  selected_nodes = CTX_data_collection_get(C, "selected_nodes");
+
+  if (selected_nodes.size() <= 0) {
+    CTX_wm_operator_poll_msg_set(C, "No nodes selected.");
+    return false;
+  }
+  return true;
+}
+
 static wmOperatorStatus node_add_group_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   ARegion *region = CTX_wm_region(C);
@@ -390,7 +418,7 @@ void NODE_OT_add_group(wmOperatorType *ot)
   WM_operator_properties_id_lookup(ot, true);
 
   PropertyRNA *prop = RNA_def_boolean(
-      ot->srna, "show_datablock_in_node", true, "Show the datablock selector in the node", "");
+      ot->srna, "show_datablock_in_node", true, "Show the data-block selector in the node", "");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE | PROP_HIDDEN);
 }
 
@@ -428,7 +456,7 @@ static bool add_node_group_asset(const bContext &C,
     BKE_report(&reports, RPT_WARNING, "Could not add node group");
     return false;
   }
-  STRNCPY(group_node->name, BKE_id_name(node_group->id));
+  STRNCPY_UTF8(group_node->name, BKE_id_name(node_group->id));
   bke::node_unique_name(*snode.edittree, *group_node);
 
   /* By default, don't show the data-block selector since it's not usually necessary for assets. */
@@ -477,8 +505,80 @@ static wmOperatorStatus node_add_group_asset_invoke(bContext *C,
   BLI_assert(ot);
   PointerRNA ptr;
   WM_operator_properties_create_ptr(&ptr, ot);
-  WM_operator_name_call_ptr(C, ot, WM_OP_INVOKE_DEFAULT, &ptr, nullptr);
+  WM_operator_name_call_ptr(C, ot, wm::OpCallContext::InvokeDefault, &ptr, nullptr);
   WM_operator_properties_free(&ptr);
+
+  return OPERATOR_FINISHED;
+}
+
+static wmOperatorStatus node_swap_group_asset_invoke(bContext *C,
+                                                     wmOperator *op,
+                                                     const wmEvent *event)
+{
+  ARegion &region = *CTX_wm_region(C);
+  Main &bmain = *CTX_data_main(C);
+  SpaceNode &snode = *CTX_wm_space_node(C);
+  bNodeTree &ntree = *snode.edittree;
+
+  const asset_system::AssetRepresentation *asset =
+      asset::operator_asset_reference_props_get_asset_from_all_library(*C, *op->ptr, op->reports);
+  if (!asset) {
+    return OPERATOR_CANCELLED;
+  }
+  bNodeTree *node_group = reinterpret_cast<bNodeTree *>(
+      asset::asset_local_id_ensure_imported(bmain, *asset));
+
+  /* Convert mouse coordinates to v2d space. */
+  UI_view2d_region_to_view(&region.v2d,
+                           event->mval[0],
+                           event->mval[1],
+                           &snode.runtime->cursor[0],
+                           &snode.runtime->cursor[1]);
+
+  snode.runtime->cursor /= UI_SCALE_FAC;
+
+  const StringRef node_idname = node_group_idname(C);
+  if (node_idname[0] == '\0') {
+    BKE_report(op->reports, RPT_WARNING, "Could not determine type of group node");
+    return OPERATOR_CANCELLED;
+  }
+  wmOperatorType *ot = WM_operatortype_find("NODE_OT_swap_node", true);
+  BLI_assert(ot);
+  PointerRNA ptr;
+  PointerRNA itemptr;
+  WM_operator_properties_create_ptr(&ptr, ot);
+  RNA_string_set(&ptr, "type", node_idname.data());
+
+  /* Assign node group via operator.settings. This needs to be done here so that NODE_OT_swap_node
+   * can preserve matching links */
+  /* Assigning it in the for-loop along with the other node group properties causes the links to
+   * not be preserved*/
+  RNA_collection_add(&ptr, "settings", &itemptr);
+  RNA_string_set(&itemptr, "name", "node_tree");
+
+  std::string setting_value = "bpy.data.node_groups[\"" +
+                              std::string(BKE_id_name(node_group->id)) + "\"]";
+  RNA_string_set(&itemptr, "value", setting_value.c_str());
+
+  WM_operator_name_call_ptr(C, ot, wm::OpCallContext::InvokeDefault, &ptr, nullptr);
+  WM_operator_properties_free(&ptr);
+
+  for (bNode *group_node : get_selected_nodes(ntree)) {
+    STRNCPY_UTF8(group_node->name, BKE_id_name(node_group->id));
+    bke::node_unique_name(*snode.edittree, *group_node);
+
+    /* By default, don't show the data-block selector since it's not usually necessary for assets.
+     */
+    group_node->flag &= ~NODE_OPTIONS;
+    group_node->width = node_group->default_group_node_width;
+
+    id_us_plus(group_node->id);
+    BKE_ntree_update_tag_node_property(&ntree, group_node);
+  }
+
+  BKE_main_ensure_invariants(bmain);
+  WM_event_add_notifier(C, NC_NODE | NA_ADDED, nullptr);
+  DEG_relations_tag_update(&bmain);
 
   return OPERATOR_FINISHED;
 }
@@ -507,6 +607,21 @@ void NODE_OT_add_group_asset(wmOperatorType *ot)
 
   ot->invoke = node_add_group_asset_invoke;
   ot->poll = node_add_group_poll;
+  ot->get_description = node_add_group_asset_get_description;
+
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_INTERNAL;
+
+  asset::operator_asset_reference_props_register(*ot->srna);
+}
+
+void NODE_OT_swap_group_asset(wmOperatorType *ot)
+{
+  ot->name = "Swap Node Group Asset";
+  ot->description = "Swap selected nodes with the specified node group asset";
+  ot->idname = "NODE_OT_swap_group_asset";
+
+  ot->invoke = node_swap_group_asset_invoke;
+  ot->poll = node_swap_group_poll;
   ot->get_description = node_add_group_asset_get_description;
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_INTERNAL;
@@ -1091,7 +1206,7 @@ static wmOperatorStatus node_add_import_node_exec(bContext *C, wmOperator *op)
     }
 
     if (node) {
-      bNodeSocket &path_socket = node->input_by_identifier("Path");
+      bNodeSocket &path_socket = *node->input_by_identifier("Path");
       BLI_assert(path_socket.type == SOCK_STRING);
       auto *socket_data = static_cast<bNodeSocketValueString *>(path_socket.default_value);
       STRNCPY(socket_data->value, path.c_str());

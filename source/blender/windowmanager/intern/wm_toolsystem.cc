@@ -24,6 +24,7 @@
 
 #include "BLI_listbase.h"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 #include "DNA_ID.h"
@@ -43,6 +44,7 @@
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
 #include "BKE_paint.hh"
+#include "BKE_paint_types.hh"
 #include "BKE_workspace.hh"
 
 #include "RNA_access.hh"
@@ -298,7 +300,7 @@ bool WM_toolsystem_activate_brush_and_tool(bContext *C, Paint *paint, Brush *bru
   const bToolRef *active_tool = toolsystem_active_tool_from_context_or_view3d(C);
   const PaintMode paint_mode = BKE_paintmode_get_active_from_context(C);
 
-  if (!BKE_paint_brush_poll(paint, brush)) {
+  if (!BKE_paint_can_use_brush(paint, brush)) {
     /* Avoid switching tool when brush isn't valid for this mode anyway. */
     return false;
   }
@@ -391,18 +393,18 @@ static void toolsystem_brush_activate_from_toolref_for_object_paint(Main *bmain,
           return *brush_ref->brush_asset_reference;
         }
         /* No remembered brush found for this type, use a default for the type. */
-        return BKE_paint_brush_type_default_reference(eObjectMode(paint->runtime.ob_mode),
+        return BKE_paint_brush_type_default_reference(paint->runtime->paint_mode,
                                                       tref_rt->brush_type);
       }();
 
       if (brush_asset_reference) {
-        BKE_paint_brush_set(bmain, paint, &*brush_asset_reference);
+        BKE_paint_brush_set(bmain, paint, *brush_asset_reference);
       }
     }
     /* Re-activate the main brush, regardless of the brush type. */
     else {
       if (paint->tool_brush_bindings.main_brush_asset_reference) {
-        BKE_paint_brush_set(bmain, paint, paint->tool_brush_bindings.main_brush_asset_reference);
+        BKE_paint_brush_set(bmain, paint, *paint->tool_brush_bindings.main_brush_asset_reference);
         toolsystem_main_brush_binding_update_from_active(paint);
       }
       else {
@@ -411,12 +413,11 @@ static void toolsystem_brush_activate_from_toolref_for_object_paint(Main *bmain,
           if (paint->tool_brush_bindings.main_brush_asset_reference) {
             return *paint->tool_brush_bindings.main_brush_asset_reference;
           }
-          return BKE_paint_brush_type_default_reference(eObjectMode(paint->runtime.ob_mode),
-                                                        std::nullopt);
+          return BKE_paint_brush_type_default_reference(paint->runtime->paint_mode, std::nullopt);
         }();
 
         if (main_brush_asset_reference) {
-          BKE_paint_brush_set(bmain, paint, &*main_brush_asset_reference);
+          BKE_paint_brush_set(bmain, paint, *main_brush_asset_reference);
           toolsystem_main_brush_binding_update_from_active(paint);
         }
       }
@@ -509,7 +510,7 @@ static void toolsystem_ref_link(Main *bmain, WorkSpace *workspace, bToolRef *tre
     if (gzgt != nullptr) {
       if ((gzgt->flag & WM_GIZMOGROUPTYPE_TOOL_INIT) == 0) {
         if (!WM_gizmo_group_type_ensure_ptr(gzgt)) {
-          /* Even if the group-type was has been linked, it's possible the space types
+          /* Even if the group-type has been linked, it's possible the space types
            * were not previously using it. (happens with multiple windows). */
           wmGizmoMapType *gzmap_type = WM_gizmomaptype_ensure(&gzgt->gzmap_params);
           WM_gizmoconfig_update_tag_group_type_init(gzmap_type, gzgt);
@@ -517,7 +518,7 @@ static void toolsystem_ref_link(Main *bmain, WorkSpace *workspace, bToolRef *tre
       }
     }
     else {
-      CLOG_WARN(WM_LOG_TOOLS, "'%s' widget not found", idname);
+      CLOG_WARN(WM_LOG_TOOL_GIZMO, "'%s' widget not found", idname);
     }
   }
 
@@ -617,7 +618,7 @@ void WM_toolsystem_ref_set_from_runtime(bContext *C,
     toolsystem_unlink_ref(C, workspace, tref);
   }
 
-  STRNCPY(tref->idname, idname);
+  STRNCPY_UTF8(tref->idname, idname);
 
   /* This immediate request supersedes any unhandled pending requests. */
   tref->idname_pending[0] = '\0';
@@ -697,8 +698,8 @@ void WM_toolsystem_ref_sync_from_context(Main *bmain, WorkSpace *workspace, bToo
         const int i = RNA_enum_from_value(items, ts->particle.brushtype);
         const EnumPropertyItem *item = &items[i];
         if (!STREQ(tref_rt->data_block, item->identifier)) {
-          STRNCPY(tref_rt->data_block, item->identifier);
-          SNPRINTF(tref->idname, "builtin_brush.%s", item->name);
+          STRNCPY_UTF8(tref_rt->data_block, item->identifier);
+          SNPRINTF_UTF8(tref->idname, "builtin_brush.%s", item->name);
         }
       }
     }
@@ -726,7 +727,7 @@ static bool toolsystem_key_ensure_check(const bToolKey *tkey)
     case SPACE_VIEW3D:
       return true;
     case SPACE_IMAGE:
-      if (ELEM(tkey->mode, SI_MODE_PAINT, SI_MODE_UV, SI_MODE_VIEW)) {
+      if (ELEM(tkey->mode, SI_MODE_PAINT, SI_MODE_UV, SI_MODE_VIEW, SI_MODE_MASK)) {
         return true;
       }
       break;
@@ -976,7 +977,7 @@ bToolRef *WM_toolsystem_ref_set_by_id_ex(
   RNA_enum_set(&op_props, "space_type", tkey->space_type);
   RNA_boolean_set(&op_props, "cycle", cycle);
 
-  WM_operator_name_call_ptr(C, ot, WM_OP_EXEC_DEFAULT, &op_props, nullptr);
+  WM_operator_name_call_ptr(C, ot, blender::wm::OpCallContext::ExecDefault, &op_props, nullptr);
   WM_operator_properties_free(&op_props);
 
   bToolRef *tref = WM_toolsystem_ref_find(workspace, tkey);
@@ -1034,7 +1035,7 @@ static void toolsystem_ref_set_by_brush_type(bContext *C, const char *brush_type
 
   RNA_enum_set(&op_props, "space_type", tkey.space_type);
 
-  WM_operator_name_call_ptr(C, ot, WM_OP_EXEC_DEFAULT, &op_props, nullptr);
+  WM_operator_name_call_ptr(C, ot, blender::wm::OpCallContext::ExecDefault, &op_props, nullptr);
   WM_operator_properties_free(&op_props);
 
   bToolRef *tref = WM_toolsystem_ref_find(workspace, &tkey);
@@ -1078,7 +1079,7 @@ static void toolsystem_ref_set_by_id_pending(Main *bmain,
     }
   }
 
-  STRNCPY(tref->idname_pending, idname_pending);
+  STRNCPY_UTF8(tref->idname_pending, idname_pending);
 
   /* If there would be a convenient way to know which screens used which work-spaces,
    * that could be used here. */
@@ -1138,6 +1139,8 @@ static const char *toolsystem_default_tool(const bToolKey *tkey)
           return "builtin.brush";
         case SI_MODE_VIEW:
           return "builtin.sample";
+        case SI_MODE_MASK:
+          return "builtin.select_box";
       }
       break;
     case SPACE_NODE: {
@@ -1164,7 +1167,7 @@ static bToolRef *toolsystem_reinit_ensure_toolref(bContext *C,
     if (default_tool == nullptr) {
       default_tool = toolsystem_default_tool(tkey);
     }
-    STRNCPY(tref->idname, default_tool);
+    STRNCPY_UTF8(tref->idname, default_tool);
   }
   toolsystem_reinit_with_toolref(C, workspace, tref);
   return tref;
@@ -1269,7 +1272,7 @@ static IDProperty *idprops_ensure_named_group(IDProperty *group, const char *idn
   IDProperty *prop = IDP_GetPropertyFromGroup(group, idname);
   if ((prop == nullptr) || (prop->type != IDP_GROUP)) {
     prop = blender::bke::idprop::create_group(__func__).release();
-    STRNCPY(prop->name, idname);
+    STRNCPY_UTF8(prop->name, idname);
     IDP_ReplaceInGroup_ex(group, prop, nullptr, 0);
   }
   return prop;

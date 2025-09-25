@@ -25,6 +25,7 @@
 #include "UI_resources.hh"
 
 #include "RNA_prototypes.hh"
+#include "RNA_types.hh"
 
 #include "BLI_math_matrix_types.hh"
 #include "BLI_span.hh"
@@ -223,4 +224,5 @@ ModifierTypeInfo modifierType_VolumeToMesh = {
     /*blend_write*/ nullptr,
     /*blend_read*/ nullptr,
     /*foreach_cache*/ nullptr,
+    /*foreach_working_space_color*/ nullptr,
 };

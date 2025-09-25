@@ -316,7 +316,7 @@ static int rna_ID_name_editable(const PointerRNA *ptr, const char **r_info)
   }
   else if (!BKE_id_is_in_global_main(id)) {
     if (r_info) {
-      *r_info = N_("Datablocks not in global Main data-base cannot be renamed");
+      *r_info = N_("Data-blocks not in global Main data-base cannot be renamed");
     }
     return 0;
   }
@@ -382,7 +382,7 @@ short RNA_type_to_ID_code(const StructRNA *type)
   if (base_type == &RNA_Curve) {
     return ID_CU_LEGACY;
   }
-  if (base_type == &RNA_GreasePencil) {
+  if (base_type == &RNA_Annotation) {
     return ID_GD_LEGACY;
   }
   if (base_type == &RNA_GreasePencilv3) {
@@ -503,7 +503,7 @@ StructRNA *ID_code_to_RNA_type(short idcode)
     case ID_CU_LEGACY:
       return &RNA_Curve;
     case ID_GD_LEGACY:
-      return &RNA_GreasePencil;
+      return &RNA_Annotation;
     case ID_GP:
       return &RNA_GreasePencilv3;
     case ID_GR:
@@ -568,10 +568,6 @@ StructRNA *ID_code_to_RNA_type(short idcode)
       return &RNA_World;
     case ID_WS:
       return &RNA_WorkSpace;
-
-    /* deprecated */
-    case ID_IP:
-      break;
   }
 
   return &RNA_ID;
@@ -1156,7 +1152,7 @@ static void rna_IDPArray_begin(CollectionPropertyIterator *iter, PointerRNA *ptr
 {
   IDProperty *prop = (IDProperty *)ptr->data;
   rna_iterator_array_begin(
-      iter, ptr, IDP_IDPArray(prop), sizeof(IDProperty), prop->len, 0, nullptr);
+      iter, ptr, IDP_property_array_get(prop), sizeof(IDProperty), prop->len, 0, nullptr);
 }
 
 static int rna_IDPArray_length(PointerRNA *ptr)
@@ -1844,9 +1840,8 @@ static void rna_def_ID_override_library_property_operation(BlenderRNA *brna)
                       "What override operation is performed");
   RNA_def_property_clear_flag(prop, PROP_EDITABLE); /* For now. */
 
-  prop = RNA_def_enum(
+  prop = RNA_def_enum_flag(
       srna, "flag", override_library_property_flag_items, 0, "Flags", "Status flags");
-  RNA_def_property_flag(prop, PROP_ENUM_FLAG);
   RNA_def_property_clear_flag(prop, PROP_EDITABLE); /* For now. */
 
   prop = RNA_def_string(srna,
@@ -2183,7 +2178,7 @@ static void rna_def_ID_override_library(BlenderRNA *brna)
                   "",
                   "Enforce restoring the dependency hierarchy between data-blocks to match the "
                   "one from the reference linked hierarchy (WARNING: if some ID pointers have "
-                  "been purposedly overridden, these will be reset to their default value)");
+                  "been purposely overridden, these will be reset to their default value)");
   RNA_def_boolean(
       func,
       "do_whole_hierarchy",
@@ -2212,19 +2207,19 @@ static void rna_def_ID(BlenderRNA *brna)
        "NEVER",
        0,
        "Never Rename",
-       "Never rename an exisitng ID whose name would conflict, the currently renamed ID will get "
+       "Never rename an existing ID whose name would conflict, the currently renamed ID will get "
        "a numeric suffix appended to its new name"},
       {int(IDNewNameMode::RenameExistingAlways),
        "ALWAYS",
        0,
        "Always Rename",
-       "Always rename an exisitng ID whose name would conflict, ensuring that the currently "
+       "Always rename an existing ID whose name would conflict, ensuring that the currently "
        "renamed ID will get requested name"},
       {int(IDNewNameMode::RenameExistingSameRoot),
        "SAME_ROOT",
        0,
        "Rename If Same Root",
-       "Only rename an exisitng ID whose name would conflict if its name root (everything besides "
+       "Only rename an existing ID whose name would conflict if its name root (everything besides "
        "the numerical suffix) is the same as the existing name of the currently renamed ID"},
       {0, nullptr, 0, nullptr, nullptr},
   };
@@ -2250,7 +2245,7 @@ static void rna_def_ID(BlenderRNA *brna)
        "RENAMED_COLLISION_ADJUSTED",
        0,
        "Renamed With Collision",
-       "The ID was renamed with adjustement of the requested name, to avoid a name collision"},
+       "The ID was renamed with adjustment of the requested name, to avoid a name collision"},
       {int(IDNewNameResult::Action::RENAMED_COLLISION_FORCED),
        "RENAMED_COLLISION_FORCED",
        0,
@@ -2282,7 +2277,7 @@ static void rna_def_ID(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "name_full", PROP_STRING, PROP_NONE);
   RNA_def_property_ui_text(
-      prop, "Full Name", "Unique data-block ID name, including library one is any");
+      prop, "Full Name", "Unique data-block ID name, including library one if any");
   RNA_def_property_string_funcs(prop, "rna_ID_name_full_get", "rna_ID_name_full_length", nullptr);
   RNA_def_property_string_maxlength(prop, MAX_ID_FULL_NAME);
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
@@ -2374,7 +2369,7 @@ static void rna_def_ID(BlenderRNA *brna)
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
   RNA_def_property_ui_text(prop,
                            "Editable",
-                           "This data-block is editable in the user interface. Linked datablocks "
+                           "This data-block is editable in the user interface. Linked data-blocks "
                            "are not editable, except if they were loaded as editable assets.");
 
   prop = RNA_def_property(srna, "tag", PROP_BOOLEAN, PROP_NONE);
@@ -2551,7 +2546,7 @@ static void rna_def_ID(BlenderRNA *brna)
   func = RNA_def_function(srna, "make_local", "rna_ID_make_local");
   RNA_def_function_ui_description(
       func,
-      "Make this datablock local, return local one "
+      "Make this data-block local, return local one "
       "(may be a copy of the original, in case it is also indirectly used)");
   RNA_def_function_flag(func, FUNC_USE_MAIN);
   parm = RNA_def_boolean(func, "clear_proxy", true, "", "Deprecated, has no effect");
@@ -2669,8 +2664,8 @@ static void rna_def_library(BlenderRNA *brna)
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
   RNA_def_property_ui_text(prop,
                            "Editable",
-                           "Datablocks in this library are editable despite being linked. Used by "
-                           "brush assets and their dependencies.");
+                           "Data-blocks in this library are editable despite being linked. "
+                           "Used by brush assets and their dependencies.");
 
   func = RNA_def_function(srna, "reload", "rna_Library_reload");
   RNA_def_function_flag(func, FUNC_USE_REPORTS | FUNC_USE_CONTEXT);

@@ -9,7 +9,7 @@
 #include <cstdlib>
 
 #include "BLI_math_vector.h"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 
 #include "BKE_unit.hh"
 
@@ -64,25 +64,26 @@ static void applyBakeTime(TransInfo *t)
     outputNumInput(&(t->num), c, t->scene->unit);
 
     if (time >= 0.0f) {
-      SNPRINTF(str, IFACE_("Time: +%s %s"), c, t->proptext);
+      SNPRINTF_UTF8(str, IFACE_("Time: +%s %s"), c, t->proptext);
     }
     else {
-      SNPRINTF(str, IFACE_("Time: %s %s"), c, t->proptext);
+      SNPRINTF_UTF8(str, IFACE_("Time: %s %s"), c, t->proptext);
     }
   }
   else {
     /* Default header print. */
     if (time >= 0.0f) {
-      SNPRINTF(str, IFACE_("Time: +%.3f %s"), time, t->proptext);
+      SNPRINTF_UTF8(str, IFACE_("Time: +%.3f %s"), time, t->proptext);
     }
     else {
-      SNPRINTF(str, IFACE_("Time: %.3f %s"), time, t->proptext);
+      SNPRINTF_UTF8(str, IFACE_("Time: %.3f %s"), time, t->proptext);
     }
   }
 
   FOREACH_TRANS_DATA_CONTAINER (t, tc) {
     TransData *td = tc->data;
-    for (i = 0; i < tc->data_len; i++, td++) {
+    TransDataExtension *td_ext = tc->data_ext;
+    for (i = 0; i < tc->data_len; i++, td++, td_ext++) {
       if (td->flag & TD_SKIP) {
         continue;
       }
@@ -98,11 +99,11 @@ static void applyBakeTime(TransInfo *t)
       }
 
       *dst = ival + time * td->factor;
-      if (td->ext->scale && *dst < *td->ext->scale) {
-        *dst = *td->ext->scale;
+      if (td_ext->scale && *dst < *td_ext->scale) {
+        *dst = *td_ext->scale;
       }
-      if (td->ext->quat && *dst > *td->ext->quat) {
-        *dst = *td->ext->quat;
+      if (td_ext->quat && *dst > *td_ext->quat) {
+        *dst = *td_ext->quat;
       }
     }
   }

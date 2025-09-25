@@ -13,7 +13,8 @@
 #include "BLI_index_range.hh"
 #include "BLI_listbase.h"
 #include "BLI_path_utils.hh"
-#include "BLI_string.h"
+#include "BLI_string_ref.hh"
+#include "BLI_string_utf8.h"
 #include "BLI_task.hh"
 #include "BLI_vector.hh"
 
@@ -40,6 +41,10 @@
 
 #include "RE_pipeline.h"
 
+#include "CLG_log.h"
+
+static CLG_LogRef LOG_RENDER = {"render"};
+
 using blender::Vector;
 
 bool BKE_image_save_options_init(ImageSaveOptions *opts,
@@ -64,7 +69,7 @@ bool BKE_image_save_options_init(ImageSaveOptions *opts,
   opts->scene = scene;
   opts->save_as_render = ima->source == IMA_SRC_VIEWER || save_as_render;
 
-  BKE_image_format_init(&opts->im_format, false);
+  BKE_image_format_init(&opts->im_format);
 
   void *lock;
   ImBuf *ibuf = BKE_image_acquire_ibuf(ima, iuser, &lock);
@@ -100,7 +105,7 @@ bool BKE_image_save_options_init(ImageSaveOptions *opts,
 
     /* Default to saving in the same colorspace as the image setting. */
     if (!opts->save_as_render) {
-      STRNCPY(opts->im_format.linear_colorspace_settings.name, ima_colorspace);
+      STRNCPY_UTF8(opts->im_format.linear_colorspace_settings.name, ima_colorspace);
     }
 
     opts->im_format.color_management = R_IMF_COLOR_MANAGEMENT_FOLLOW_SCENE;
@@ -277,6 +282,24 @@ static void image_save_post(ReportList *reports,
                                                  &opts->im_format.linear_colorspace_settings);
       *r_colorspace_changed = true;
     }
+  }
+  else if (opts->save_as_render) {
+    /* Set the display colorspace that we converted to. */
+    const ColorSpace *colorspace = IMB_colormangement_display_get_color_space(
+        &opts->im_format.view_settings, &opts->im_format.display_settings);
+    if (colorspace) {
+      blender::StringRefNull colorspace_name = IMB_colormanagement_colorspace_get_name(colorspace);
+      if (colorspace_name != ima->colorspace_settings.name) {
+        STRNCPY(ima->colorspace_settings.name, colorspace_name.c_str());
+      }
+    }
+
+    /* View transform is now baked in, so don't apply it a second time for viewing. */
+    if (ima->flag & IMA_VIEW_AS_RENDER) {
+      ima->flag &= ~IMA_VIEW_AS_RENDER;
+    }
+
+    *r_colorspace_changed = true;
   }
 }
 
@@ -666,6 +689,7 @@ bool BKE_image_save(
 
   if (colorspace_changed) {
     BKE_image_signal(bmain, ima, nullptr, IMA_SIGNAL_COLORMANAGE);
+    BKE_image_partial_update_mark_full_update(ima);
   }
 
   return ok;
@@ -1038,9 +1062,7 @@ static void image_render_print_save_message(ReportList *reports,
 {
   if (ok) {
     /* no need to report, just some helpful console info */
-    if (!G.quiet) {
-      printf("Saved: '%s'\n", filepath);
-    }
+    CLOG_INFO_NOCHECK(&LOG_RENDER, "Saved: '%s'", filepath);
   }
   else {
     /* report on error since users will want to know what failed */

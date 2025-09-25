@@ -99,7 +99,7 @@ void Film::init_aovs(const Set<std::string> &passes_used_by_viewport_compositor)
 
 float *Film::read_aov(ViewLayerAOV *aov)
 {
-  GPUTexture *pass_tx = this->get_aov_texture(aov);
+  gpu::Texture *pass_tx = this->get_aov_texture(aov);
 
   if (pass_tx == nullptr) {
     return nullptr;
@@ -110,7 +110,7 @@ float *Film::read_aov(ViewLayerAOV *aov)
   return (float *)GPU_texture_read(pass_tx, GPU_DATA_FLOAT, 0);
 }
 
-GPUTexture *Film::get_aov_texture(ViewLayerAOV *aov)
+gpu::Texture *Film::get_aov_texture(ViewLayerAOV *aov)
 {
   bool is_value = (aov->type == AOV_TYPE_VALUE);
   Texture &accum_tx = is_value ? value_accum_tx_ : color_accum_tx_;
@@ -206,7 +206,7 @@ static eViewLayerEEVEEPassType enabled_passes(const ViewLayer *view_layer)
                      (view_layer->passflag & SCE_PASS_##name_legacy) != 0, \
                      EEVEE_RENDER_PASS_##name_eevee);
 
-  ENABLE_FROM_LEGACY(Z, Z)
+  ENABLE_FROM_LEGACY(DEPTH, DEPTH)
   ENABLE_FROM_LEGACY(MIST, MIST)
   ENABLE_FROM_LEGACY(NORMAL, NORMAL)
   ENABLE_FROM_LEGACY(POSITION, POSITION)
@@ -281,8 +281,7 @@ void Film::init(const int2 &extent, const rcti *output_rect)
     }
   }
 
-  this->depth = GPU_clip_control_support() ? DepthState{0.0f, DRW_STATE_DEPTH_GREATER_EQUAL} :
-                                             DepthState{1.0f, DRW_STATE_DEPTH_LESS_EQUAL};
+  this->depth = DepthState{0.0f, DRW_STATE_DEPTH_GREATER_EQUAL};
 
   /* Compute the passes needed by the viewport compositor. */
   Set<std::string> passes_used_by_viewport_compositor;
@@ -306,7 +305,7 @@ void Film::init(const int2 &extent, const rcti *output_rect)
       if (inst_.overlays_enabled() || inst_.gpencil_engine_enabled()) {
         /* Overlays and Grease Pencil needs the depth for correct compositing.
          * Using the render pass ensure we store the center depth. */
-        enabled_passes |= EEVEE_RENDER_PASS_Z;
+        enabled_passes |= EEVEE_RENDER_PASS_DEPTH;
       }
 
       if (assign_if_different(enabled_passes_, enabled_passes)) {
@@ -384,7 +383,8 @@ void Film::init(const int2 &extent, const rcti *output_rect)
       data_.background_opacity = inst_.v3d->shading.studiolight_background;
     }
 
-    const eViewLayerEEVEEPassType data_passes = EEVEE_RENDER_PASS_Z | EEVEE_RENDER_PASS_NORMAL |
+    const eViewLayerEEVEEPassType data_passes = EEVEE_RENDER_PASS_DEPTH |
+                                                EEVEE_RENDER_PASS_NORMAL |
                                                 EEVEE_RENDER_PASS_POSITION |
                                                 EEVEE_RENDER_PASS_VECTOR;
     const eViewLayerEEVEEPassType color_passes_1 = EEVEE_RENDER_PASS_DIFFUSE_LIGHT |
@@ -422,7 +422,7 @@ void Film::init(const int2 &extent, const rcti *output_rect)
     /* Combined is in a separate buffer. */
     data_.combined_id = (enabled_passes_ & EEVEE_RENDER_PASS_COMBINED) ? 0 : -1;
     /* Depth is in a separate buffer. */
-    data_.depth_id = (enabled_passes_ & EEVEE_RENDER_PASS_Z) ? 0 : -1;
+    data_.depth_id = (enabled_passes_ & EEVEE_RENDER_PASS_DEPTH) ? 0 : -1;
 
     data_.color_len = 0;
     data_.value_len = 0;
@@ -493,11 +493,11 @@ void Film::init(const int2 &extent, const rcti *output_rect)
                              data_.extent :
                              int2(1);
 
-    eGPUTextureFormat color_format = GPU_RGBA16F;
-    eGPUTextureFormat float_format = GPU_R16F;
-    eGPUTextureFormat weight_format = GPU_R32F;
-    eGPUTextureFormat depth_format = GPU_R32F;
-    eGPUTextureFormat cryptomatte_format = GPU_RGBA32F;
+    gpu::TextureFormat color_format = gpu::TextureFormat::SFLOAT_16_16_16_16;
+    gpu::TextureFormat float_format = gpu::TextureFormat::SFLOAT_16;
+    gpu::TextureFormat weight_format = gpu::TextureFormat::SFLOAT_32;
+    gpu::TextureFormat depth_format = gpu::TextureFormat::SFLOAT_32;
+    gpu::TextureFormat cryptomatte_format = gpu::TextureFormat::SFLOAT_32_32_32_32;
 
     int reset = 0;
     reset += depth_tx_.ensure_2d(depth_format, data_.extent);
@@ -549,7 +549,7 @@ void Film::sync()
 
   /* TODO(fclem): Shader variation for panoramic & scaled resolution. */
 
-  GPUShader *sh = inst_.shaders.static_shader_get(shader);
+  gpu::Shader *sh = inst_.shaders.static_shader_get(shader);
   accumulate_ps_.init();
   init_pass(accumulate_ps_, sh);
   /* Sync with rendering passes. */
@@ -585,7 +585,7 @@ void Film::sync()
   }
 }
 
-void Film::init_pass(PassSimple &pass, GPUShader *sh)
+void Film::init_pass(PassSimple &pass, gpu::Shader *sh)
 {
   GPUSamplerState filter = {GPU_SAMPLER_FILTERING_LINEAR};
   RenderBuffers &rbuffers = inst_.render_buffers;
@@ -832,7 +832,7 @@ void Film::update_sample_table()
   }
 }
 
-void Film::accumulate(View &view, GPUTexture *combined_final_tx)
+void Film::accumulate(View &view, gpu::Texture *combined_final_tx)
 {
   if (inst_.is_viewport()) {
     DefaultFramebufferList *dfbl = inst_.draw_ctx->viewport_framebuffer_list_get();
@@ -897,7 +897,7 @@ void Film::cryptomatte_sort()
 
 float *Film::read_pass(eViewLayerEEVEEPassType pass_type, int layer_offset)
 {
-  GPUTexture *pass_tx = this->get_pass_texture(pass_type, layer_offset);
+  gpu::Texture *pass_tx = this->get_pass_texture(pass_type, layer_offset);
 
   GPU_memory_barrier(GPU_BARRIER_TEXTURE_UPDATE);
 
@@ -914,7 +914,7 @@ float *Film::read_pass(eViewLayerEEVEEPassType pass_type, int layer_offset)
   return result;
 }
 
-GPUTexture *Film::get_pass_texture(eViewLayerEEVEEPassType pass_type, int layer_offset)
+gpu::Texture *Film::get_pass_texture(eViewLayerEEVEEPassType pass_type, int layer_offset)
 {
   ePassStorageType storage_type = pass_storage_type(pass_type);
   const bool is_value = storage_type == PASS_STORAGE_VALUE;
@@ -922,7 +922,7 @@ GPUTexture *Film::get_pass_texture(eViewLayerEEVEEPassType pass_type, int layer_
 
   Texture &accum_tx = (pass_type == EEVEE_RENDER_PASS_COMBINED) ?
                           combined_tx_.current() :
-                      (pass_type == EEVEE_RENDER_PASS_Z) ?
+                      (pass_type == EEVEE_RENDER_PASS_DEPTH) ?
                           depth_tx_ :
                           (is_cryptomatte ? cryptomatte_tx_ :
                                             (is_value ? value_accum_tx_ : color_accum_tx_));
@@ -943,7 +943,7 @@ static eShaderType get_write_pass_shader_type(eViewLayerEEVEEPassType pass_type)
   switch (pass_type) {
     case EEVEE_RENDER_PASS_COMBINED:
       return FILM_PASS_CONVERT_COMBINED;
-    case EEVEE_RENDER_PASS_Z:
+    case EEVEE_RENDER_PASS_DEPTH:
       return FILM_PASS_CONVERT_DEPTH;
     default:
       break;
@@ -995,7 +995,7 @@ void Film::write_viewport_compositor_passes()
 
     Vector<std::string> pass_names = Film::pass_to_render_pass_names(pass_type, inst_.view_layer);
     for (const int64_t pass_offset : IndexRange(pass_names.size())) {
-      GPUTexture *pass_texture = this->get_pass_texture(pass_type, pass_offset);
+      gpu::Texture *pass_texture = this->get_pass_texture(pass_type, pass_offset);
       if (!pass_texture) {
         continue;
       }
@@ -1027,7 +1027,7 @@ void Film::write_viewport_compositor_passes()
     if ((aov->flag & AOV_CONFLICT) != 0) {
       continue;
     }
-    GPUTexture *pass_texture = this->get_aov_texture(aov);
+    gpu::Texture *pass_texture = this->get_aov_texture(aov);
     if (!pass_texture) {
       continue;
     }

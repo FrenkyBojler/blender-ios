@@ -188,12 +188,21 @@ bool ED_uvedit_select_island_check(const ToolSettings *ts)
   if ((ts->uv_flag & UV_FLAG_ISLAND_SELECT) == 0) {
     return false;
   }
-  if (ts->uv_flag & UV_FLAG_SYNC_SELECT) {
-    if (ts->selectmode & (SCE_SELECT_VERTEX | SCE_SELECT_EDGE)) {
-      /* Not currently supported. */
-      return false;
+
+  /* NOTE: when "strict" only return true when it's possible to select an island in isolation.
+   * At the moment none of the callers require this however it may be necessary to ignore the
+   * "island" selection option for some operations in the future.
+   * This could be exposed as an argument. */
+  const bool strict = false;
+
+  if (strict) {
+    if (ts->uv_flag & UV_FLAG_SYNC_SELECT) {
+      if (ts->selectmode & (SCE_SELECT_VERTEX | SCE_SELECT_EDGE)) {
+        return false;
+      }
     }
   }
+
   return true;
 }
 
@@ -203,14 +212,14 @@ void ED_uvedit_select_sync_flush(const ToolSettings *ts, BMesh *bm, const bool s
   if (ts->uv_flag & UV_FLAG_SYNC_SELECT) {
     if (ts->selectmode != SCE_SELECT_FACE) {
       if (select == false) {
-        BM_mesh_deselect_flush(bm);
+        BM_mesh_select_flush_from_verts(bm, false);
       }
       else {
         if (ts->selectmode & SCE_SELECT_VERTEX) {
-          BM_mesh_select_flush(bm);
+          BM_mesh_select_flush_from_verts(bm, true);
         }
         else {
-          /* Use instead of #BM_mesh_select_flush so selecting edges doesn't
+          /* Use instead of #BM_mesh_select_flush_from_verts so selecting edges doesn't
            * flush vertex to face selection, see: #117320. */
           BM_mesh_select_mode_flush(bm);
         }
@@ -1395,55 +1404,47 @@ void ED_uvedit_selectmode_flush(const Scene *scene, BMesh *bm)
 /** \name UV Flush selection (up/down)
  * \{ */
 
-void uvedit_select_flush(const Scene *scene, BMesh *bm)
+void uvedit_select_flush_from_verts(const Scene *scene, BMesh *bm, const bool select)
 {
-  /* Careful when using this in face select mode.
-   * For face selections with sticky mode enabled, this can create invalid selection states. */
   const ToolSettings *ts = scene->toolsettings;
   BLI_assert((ts->uv_flag & UV_FLAG_SYNC_SELECT) == 0);
   UNUSED_VARS_NDEBUG(ts);
-
   uvedit_select_prepare_custom_data(scene, bm);
   const BMUVOffsets offsets = BM_uv_map_offsets_get(bm);
 
-  BMFace *efa;
-  BMLoop *l;
-  BMIter iter, liter;
-  BM_ITER_MESH (efa, &iter, bm, BM_FACES_OF_MESH) {
-    if (!uvedit_face_visible_test(scene, efa)) {
-      continue;
-    }
-    BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
-      if (BM_ELEM_CD_GET_BOOL(l, offsets.select_vert) &&
-          BM_ELEM_CD_GET_BOOL(l->next, offsets.select_vert))
-      {
-        BM_ELEM_CD_SET_BOOL(l, offsets.select_edge, true);
+  if (select) {
+    /* Careful when using this in face select mode.
+     * For face selections with sticky mode enabled, this can create invalid selection states. */
+    BMFace *efa;
+    BMLoop *l;
+    BMIter iter, liter;
+    BM_ITER_MESH (efa, &iter, bm, BM_FACES_OF_MESH) {
+      if (!uvedit_face_visible_test(scene, efa)) {
+        continue;
+      }
+      BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
+        if (BM_ELEM_CD_GET_BOOL(l, offsets.select_vert) &&
+            BM_ELEM_CD_GET_BOOL(l->next, offsets.select_vert))
+        {
+          BM_ELEM_CD_SET_BOOL(l, offsets.select_edge, true);
+        }
       }
     }
   }
-}
-
-void uvedit_deselect_flush(const Scene *scene, BMesh *bm)
-{
-  const ToolSettings *ts = scene->toolsettings;
-  BLI_assert((ts->uv_flag & UV_FLAG_SYNC_SELECT) == 0);
-  UNUSED_VARS_NDEBUG(ts);
-
-  uvedit_select_prepare_custom_data(scene, bm);
-  const BMUVOffsets offsets = BM_uv_map_offsets_get(bm);
-
-  BMFace *efa;
-  BMLoop *l;
-  BMIter iter, liter;
-  BM_ITER_MESH (efa, &iter, bm, BM_FACES_OF_MESH) {
-    if (!uvedit_face_visible_test(scene, efa)) {
-      continue;
-    }
-    BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
-      if (!BM_ELEM_CD_GET_BOOL(l, offsets.select_vert) ||
-          !BM_ELEM_CD_GET_BOOL(l->next, offsets.select_vert))
-      {
-        BM_ELEM_CD_SET_BOOL(l, offsets.select_edge, false);
+  else {
+    BMFace *efa;
+    BMLoop *l;
+    BMIter iter, liter;
+    BM_ITER_MESH (efa, &iter, bm, BM_FACES_OF_MESH) {
+      if (!uvedit_face_visible_test(scene, efa)) {
+        continue;
+      }
+      BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
+        if (!BM_ELEM_CD_GET_BOOL(l, offsets.select_vert) ||
+            !BM_ELEM_CD_GET_BOOL(l->next, offsets.select_vert))
+        {
+          BM_ELEM_CD_SET_BOOL(l, offsets.select_edge, false);
+        }
       }
     }
   }
@@ -2084,19 +2085,51 @@ static void uv_select_linked_multi(Scene *scene,
   } \
   (void)0
 
-    BM_ITER_MESH_INDEX (efa, &iter, bm, BM_FACES_OF_MESH, a) {
-      if (!flag[a]) {
-        if (!extend && !deselect && !toggle) {
+    /* When sync-select is enabled in vertex or edge selection modes,
+     * selecting an islands faces may select vertices or edges on other UV islands.
+     * In this case it's important perform selection in two passes,
+     * otherwise the final vertex/edge selection around UV island boundaries
+     * will contain a mixed selection depending on the order of faces. */
+    const bool needs_multi_pass = uv_sync_select &&
+                                  (scene->toolsettings->selectmode &
+                                   (SCE_SELECT_VERTEX | SCE_SELECT_EDGE)) &&
+                                  (deselect == false);
+    const bool deselect_elem = !extend && !deselect && !toggle;
+
+    if (needs_multi_pass == false) {
+      BM_ITER_MESH_INDEX (efa, &iter, bm, BM_FACES_OF_MESH, a) {
+        if (!flag[a]) {
+          if (deselect_elem) {
+            SET_SELECTION(false);
+          }
+          continue;
+        }
+        if (deselect) {
           SET_SELECTION(false);
         }
-        continue;
+        else {
+          SET_SELECTION(true);
+        }
       }
-
-      if (!deselect) {
+    }
+    else {
+      /* The same as the previous block, just use multiple passes.
+       * It just so happens that multi-pass is only needed when selecting (deselect==false). */
+      BLI_assert(deselect == false);
+      /* Pass 1 (de-select). */
+      if (deselect_elem) {
+        BM_ITER_MESH_INDEX (efa, &iter, bm, BM_FACES_OF_MESH, a) {
+          if (!flag[a]) {
+            SET_SELECTION(false);
+          }
+        }
+      }
+      /* Pass 2 (select). */
+      BM_ITER_MESH_INDEX (efa, &iter, bm, BM_FACES_OF_MESH, a) {
+        if (!flag[a]) {
+          continue;
+        }
         SET_SELECTION(true);
-      }
-      else {
-        SET_SELECTION(false);
       }
     }
 
@@ -2108,7 +2141,7 @@ static void uv_select_linked_multi(Scene *scene,
 
     if (uv_sync_select) {
       if (deselect) {
-        BM_mesh_deselect_flush(bm);
+        BM_mesh_select_flush_from_verts(bm, false);
       }
       else {
         if (!select_faces) {
@@ -2296,12 +2329,7 @@ static wmOperatorStatus uv_select_more_less(bContext *C, const bool select)
         /* Select tagged loops. */
         uv_select_flush_from_tag_loop(scene, obedit, select);
         /* Set/unset edge flags based on selected verts. */
-        if (select) {
-          uvedit_select_flush(scene, bm);
-        }
-        else {
-          uvedit_deselect_flush(scene, bm);
-        }
+        uvedit_select_flush_from_verts(scene, bm, select);
       }
       DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_SELECT);
       WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
@@ -2477,7 +2505,7 @@ static void uv_select_invert(const Scene *scene, BMEditMesh *em)
     uv_select_flush_from_loop_edge_flag(scene, bm);
   }
   else {
-    uvedit_select_flush(scene, bm);
+    uvedit_select_flush_from_verts(scene, bm, true);
   }
 }
 
@@ -2953,10 +2981,10 @@ static wmOperatorStatus uv_mouse_select_loop_generic_multi(bContext *C,
 
   if (ts->uv_flag & UV_FLAG_SYNC_SELECT) {
     if (flush == 1) {
-      BM_mesh_select_flush(bm);
+      BM_mesh_select_flush_from_verts(bm, true);
     }
     else if (flush == -1) {
-      BM_mesh_deselect_flush(bm);
+      BM_mesh_select_flush_from_verts(bm, false);
     }
   }
   else {
@@ -5035,10 +5063,10 @@ static wmOperatorStatus uv_select_similar_vert_exec(bContext *C, wmOperator *op)
     }
     if (changed) {
       if (ts->uv_flag & UV_FLAG_SYNC_SELECT) {
-        BM_mesh_select_flush(bm);
+        BM_mesh_select_flush_from_verts(bm, true);
       }
       else {
-        uvedit_select_flush(scene, bm);
+        uvedit_select_flush_from_verts(scene, bm, true);
       }
       uv_select_tag_update_for_object(depsgraph, ts, ob);
     }
@@ -5152,10 +5180,10 @@ static wmOperatorStatus uv_select_similar_edge_exec(bContext *C, wmOperator *op)
     }
     if (changed) {
       if (ts->uv_flag & UV_FLAG_SYNC_SELECT) {
-        BM_mesh_select_flush(bm);
+        BM_mesh_select_flush_from_verts(bm, true);
       }
       else {
-        uvedit_select_flush(scene, bm);
+        uvedit_select_flush_from_verts(scene, bm, true);
       }
       uv_select_tag_update_for_object(depsgraph, ts, ob);
     }
@@ -5259,10 +5287,10 @@ static wmOperatorStatus uv_select_similar_face_exec(bContext *C, wmOperator *op)
     }
     if (changed) {
       if (ts->uv_flag & UV_FLAG_SYNC_SELECT) {
-        BM_mesh_select_flush(bm);
+        BM_mesh_select_flush_from_verts(bm, true);
       }
       else {
-        uvedit_select_flush(scene, bm);
+        uvedit_select_flush_from_verts(scene, bm, true);
       }
       uv_select_tag_update_for_object(depsgraph, ts, ob);
     }
@@ -5362,10 +5390,10 @@ static wmOperatorStatus uv_select_similar_island_exec(bContext *C, wmOperator *o
 
     if (changed) {
       if (ts->uv_flag & UV_FLAG_SYNC_SELECT) {
-        BM_mesh_select_flush(bm);
+        BM_mesh_select_flush_from_verts(bm, true);
       }
       else {
-        uvedit_select_flush(scene, bm);
+        uvedit_select_flush_from_verts(scene, bm, true);
       }
       uv_select_tag_update_for_object(depsgraph, ts, obedit);
     }
@@ -5414,14 +5442,18 @@ static wmOperatorStatus uv_select_similar_exec(bContext *C, wmOperator *op)
 
 static EnumPropertyItem uv_select_similar_type_items[] = {
     {UV_SSIM_PIN, "PIN", 0, "Pinned", ""},
-    {UV_SSIM_LENGTH_UV, "LENGTH", 0, "Length", ""},
-    {UV_SSIM_LENGTH_3D, "LENGTH_3D", 0, "Length 3D", ""},
-    {UV_SSIM_AREA_UV, "AREA", 0, "Area", ""},
-    {UV_SSIM_AREA_3D, "AREA_3D", 0, "Area 3D", ""},
+    {UV_SSIM_LENGTH_UV, "LENGTH", 0, "Length", "Edge length in UV space"},
+    {UV_SSIM_LENGTH_3D, "LENGTH_3D", 0, "Length 3D", "Length of edge in 3D space"},
+    {UV_SSIM_AREA_UV, "AREA", 0, "Area", "Face area in UV space"},
+    {UV_SSIM_AREA_3D, "AREA_3D", 0, "Area 3D", "Area of face in 3D space"},
     {UV_SSIM_MATERIAL, "MATERIAL", 0, "Material", ""},
     {UV_SSIM_OBJECT, "OBJECT", 0, "Object", ""},
     {UV_SSIM_SIDES, "SIDES", 0, "Polygon Sides", ""},
-    {UV_SSIM_WINDING, "WINDING", 0, "Winding", ""},
+    {UV_SSIM_WINDING,
+     "WINDING",
+     0,
+     "Winding",
+     "Face direction defined by (clockwise or anti-clockwise winding (facing up or facing down)"},
     {UV_SSIM_FACE, "FACE", 0, "Amount of Faces in Island", ""},
     {0}};
 
@@ -5826,6 +5858,40 @@ void UV_OT_select_mode(wmOperatorType *ot)
   ot->prop = prop = RNA_def_enum(
       ot->srna, "type", rna_enum_mesh_select_mode_uv_items, 0, "Type", "");
   RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
+}
+
+static wmOperatorStatus uv_custom_region_set_exec(bContext *C, wmOperator *op)
+{
+  const Scene *scene = CTX_data_scene(C);
+  const ARegion *region = CTX_wm_region(C);
+  ToolSettings *ts = scene->toolsettings;
+
+  WM_operator_properties_border_to_rctf(op, &ts->uv_custom_region);
+  UI_view2d_region_to_view_rctf(&region->v2d, &ts->uv_custom_region, &ts->uv_custom_region);
+  ts->uv_flag |= UV_FLAG_CUSTOM_REGION;
+
+  return OPERATOR_FINISHED;
+}
+
+void UV_OT_custom_region_set(wmOperatorType *ot)
+{
+  /* identifiers */
+  ot->name = "Set User Region";
+  ot->description = "Set the boundaries of the user region";
+  ot->idname = "UV_OT_custom_region_set";
+
+  /* API callbacks. */
+  ot->invoke = WM_gesture_box_invoke;
+  ot->exec = uv_custom_region_set_exec;
+  ot->modal = WM_gesture_box_modal;
+  ot->poll = ED_operator_uvedit_space_image;
+  ot->cancel = WM_gesture_box_cancel;
+
+  /* flags */
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+  /* properties */
+  WM_operator_properties_gesture_box(ot);
 }
 
 /** \} */

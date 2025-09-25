@@ -5,8 +5,10 @@
 #include "NOD_node_declaration.hh"
 #include "NOD_socket_declarations.hh"
 #include "NOD_socket_declarations_geometry.hh"
+#include "NOD_socket_usage_inference.hh"
 
 #include "BLI_assert.h"
+#include "BLI_listbase.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_geometry_fields.hh"
@@ -328,6 +330,9 @@ static bool socket_type_to_static_decl_type(const eNodeSocketDatatype socket_typ
       return true;
     case SOCK_RGBA:
       fn(TypeTag<decl::Color>());
+      return true;
+    case SOCK_SHADER:
+      fn(TypeTag<decl::Shader>());
       return true;
     case SOCK_BOOLEAN:
       fn(TypeTag<decl::Bool>());
@@ -773,6 +778,131 @@ BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::custom_draw(CustomSo
   return *this;
 }
 
+BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::usage_inference(
+    InputSocketUsageInferenceFn fn)
+{
+  decl_base_->usage_inference_fn = std::make_unique<InputSocketUsageInferenceFn>(std::move(fn));
+  return *this;
+}
+
+static const bNodeSocket &find_single_menu_input(const bNode &node)
+{
+#ifndef NDEBUG
+  int menu_input_count = 0;
+  /* Topology cache may not be available here and this function may be called while doing tree
+   * modifications. */
+  LISTBASE_FOREACH (bNodeSocket *, socket, &node.inputs) {
+    if (socket->type == SOCK_MENU) {
+      menu_input_count++;
+    }
+  }
+  BLI_assert(menu_input_count == 1);
+#endif
+
+  LISTBASE_FOREACH (bNodeSocket *, socket, &node.inputs) {
+    if (!socket->is_available()) {
+      continue;
+    }
+    if (socket->type != SOCK_MENU) {
+      continue;
+    }
+    return *socket;
+  }
+  BLI_assert_unreachable();
+  return node.input_socket(0);
+}
+
+BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::usage_by_single_menu(
+    const int menu_value)
+{
+  this->make_available([menu_value](bNode &node) {
+    bNodeSocket &socket = const_cast<bNodeSocket &>(find_single_menu_input(node));
+    bNodeSocketValueMenu *value = socket.default_value_typed<bNodeSocketValueMenu>();
+    value->value = menu_value;
+  });
+  this->usage_inference([menu_value](const socket_usage_inference::InputSocketUsageParams &params)
+                            -> std::optional<bool> {
+    const bNodeSocket &socket = find_single_menu_input(params.node);
+    if (const std::optional<bool> any_output_used = params.any_output_is_used()) {
+      if (!*any_output_used) {
+        /* If no output is used, none of the inputs is used either. */
+        return false;
+      }
+    }
+    else {
+      /* It's not known if any output is used yet. This function will be called again once new
+       * information about output usages is available. */
+      return std::nullopt;
+    }
+    return params.menu_input_may_be(socket.identifier, menu_value);
+  });
+  return *this;
+}
+
+BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::usage_by_menu(
+    const StringRef menu_input_identifier, const int menu_value)
+{
+  Array<int> menu_values = {menu_value};
+  this->usage_by_menu(menu_input_identifier, menu_values);
+  return *this;
+}
+
+BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::usage_by_menu(
+    const StringRef menu_input_identifier, const Array<int> menu_values)
+{
+  this->make_available([menu_input_identifier, menu_values](bNode &node) {
+    bNodeSocket &menu_socket = *blender::bke::node_find_socket(
+        node, SOCK_IN, menu_input_identifier);
+    const SocketDeclaration &socket_declaration = *menu_socket.runtime->declaration;
+    socket_declaration.make_available(node);
+    bNodeSocketValueMenu *value = menu_socket.default_value_typed<bNodeSocketValueMenu>();
+    value->value = menu_values[0];
+  });
+  this->usage_inference(
+      [menu_input_identifier, menu_values](
+          const socket_usage_inference::InputSocketUsageParams &params) -> std::optional<bool> {
+        if (const std::optional<bool> any_output_used = params.any_output_is_used()) {
+          if (!*any_output_used) {
+            /* If no output is used, none of the inputs is used either. */
+            return false;
+          }
+        }
+        else {
+          /* It's not known if any output is used yet. This function will be called again once new
+           * information about output usages is available. */
+          return std::nullopt;
+        }
+
+        /* Check if the menu might be any of the given values. */
+        bool menu_might_be_any_value = false;
+        for (const int menu_value : menu_values) {
+          menu_might_be_any_value = params.menu_input_may_be(menu_input_identifier, menu_value);
+          if (menu_might_be_any_value) {
+            break;
+          }
+        }
+
+        const bNodeSocket &menu_socket = *blender::bke::node_find_socket(
+            params.node, SOCK_IN, menu_input_identifier);
+        const SocketDeclaration &menu_socket_declaration = *menu_socket.runtime->declaration;
+        if (!menu_socket_declaration.usage_inference_fn) {
+          return menu_might_be_any_value;
+        }
+
+        /* If the menu socket has a usage inference function, check if it might be used. */
+        const std::optional<bool> menu_might_be_used =
+            (*menu_socket_declaration.usage_inference_fn)(params);
+        if (!menu_might_be_used.has_value()) {
+          return menu_might_be_any_value;
+        }
+
+        /* The input is only used if the menu might be any of the values and the menu itself is
+         * used. */
+        return *menu_might_be_used && menu_might_be_any_value;
+      });
+  return *this;
+}
+
 BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::align_with_previous(const bool value)
 {
   decl_base_->align_with_previous_socket = value;
@@ -905,7 +1035,7 @@ namespace implicit_field_inputs {
 static void position(const bNode & /*node*/, void *r_value)
 {
   bke::SocketValueVariant::ConstructIn(r_value,
-                                       bke::AttributeFieldInput::Create<float3>("position"));
+                                       bke::AttributeFieldInput::from<float3>("position"));
 }
 
 static void normal(const bNode & /*node*/, void *r_value)
@@ -929,19 +1059,19 @@ static void id_or_index(const bNode & /*node*/, void *r_value)
 static void instance_transform(const bNode & /*node*/, void *r_value)
 {
   bke::SocketValueVariant::ConstructIn(
-      r_value, bke::AttributeFieldInput::Create<float4x4>("instance_transform"));
+      r_value, bke::AttributeFieldInput::from<float4x4>("instance_transform"));
 }
 
 static void handle_left(const bNode & /*node*/, void *r_value)
 {
   bke::SocketValueVariant::ConstructIn(r_value,
-                                       bke::AttributeFieldInput::Create<float3>("handle_left"));
+                                       bke::AttributeFieldInput::from<float3>("handle_left"));
 }
 
 static void handle_right(const bNode & /*node*/, void *r_value)
 {
   bke::SocketValueVariant::ConstructIn(r_value,
-                                       bke::AttributeFieldInput::Create<float3>("handle_right"));
+                                       bke::AttributeFieldInput::from<float3>("handle_right"));
 }
 
 }  // namespace implicit_field_inputs
