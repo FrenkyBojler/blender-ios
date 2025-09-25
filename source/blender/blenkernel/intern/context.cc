@@ -409,17 +409,17 @@ static void ctx_member_log_access(const bContext *C,
   if (C && C->data.log_hide_missing) {
     bool is_missing = false;
     switch (result.type) {
-      case CTX_DATA_TYPE_POINTER:
+      case ContextDataType::Pointer:
         if (result.ptr.data == nullptr) {
           is_missing = true;
         }
         break;
-      case CTX_DATA_TYPE_COLLECTION:
+      case ContextDataType::Collection:
         if (result.list.is_empty()) {
           is_missing = true;
         }
         break;
-      case CTX_DATA_TYPE_STRING:
+      case ContextDataType::String:
         if (result.str.is_empty()) {
           is_missing = true;
         }
