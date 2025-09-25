@@ -11,7 +11,11 @@
 /** \file
  * \ingroup bmesh
  *
- * Manage UV sync-select,
+ * Overview
+ * ========
+ *
+ * The `BM_uvselect_*` API deals with synchronizing selection
+ * between UV's and selected vertices edges & faces,
  * where a selected vertex in the 3D viewport may only have some of it's
  * UV vertices selected in the UV editor.
  *
@@ -19,6 +23,10 @@
  *
  * \note See #78393 a user-level overview of this functionality.
  * This describes the motivation to synchronize selection between UV's and the mesh.
+ *
+ * \note A short-hand term for vertex/edge/face selection used
+ * in this file is View3D abbreviated to `v3d`, since this is the section
+ * manipulated in the viewport, e.g. #BM_mesh_uvselect_flush_to_v3d.
  *
  * \note This is quite involved, as a last resort the UV selection can always be cleared
  * and re-set from the mesh (v3d) selection, however it's good to keep UV selection
@@ -28,12 +36,29 @@
  * =====
  *
  * - Flushing up:
- *   Flushing from [verts -> edges/faces], [edges -> faces].
+ *   Flushing the selection from [verts -> edges/faces], [edges -> faces].
  * - Flushing down:
- *   Flushing from [faces -> verts/edges], [edges -> verts].
+ *   Flushing the selection from [faces -> verts/edges], [edges -> verts].
  *
  * - Isolated vertex or edge selection:
  *   When a vertex or edge is selected without being connected to a selected face.
+ *
+ * UV Selection Flags
+ * ==================
+ *
+ * - UV selection uses:
+ *   - #BM_ELEM_SELECT_UV & #BM_ELEM_SELECT_UV_EDGE for #BMLoop
+ *     to define selected vertices & edges.
+ *   - #BM_ELEM_SELECT_UV for #BMFace.
+ *
+ * Hidden Flags
+ * ============
+ *
+ * Unlike viewport selection there is no requirement for hidden elements not to be selected.
+ * Therefor, UV selection checks must check the underlying geometry is not hidden.
+ * In practice this means hidden faces must be assumed unselected,
+ * since UV's are part of the faces (there is no such thing as a hidden face-corner)
+ * and any hidden edge or vertex causes connected faces to be hidden.
  *
  * Flushing
  * ========

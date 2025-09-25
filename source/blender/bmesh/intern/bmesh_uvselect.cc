@@ -4,41 +4,6 @@
 
 /** \file
  * \ingroup bmesh
- *
- * Overview
- * ========
- *
- * The `BM_uvselect_*` API deals with synchronizing selection
- * between UV's and selected vertices edges & faces.
- *
- * \note A short-hand term for vertex/edge/face selection used
- * in this file is View3D abbreviated to `v3d`, since this is the section
- * manipulated in the viewport, e.g. #BM_mesh_uvselect_flush_to_v3d.
- *
- * UV Selection Flags
- * ==================
- *
- * - UV selection uses:
- *   - #BM_ELEM_SELECT_UV & #BM_ELEM_SELECT_UV_EDGE for #BMLoop
- *     to define selected vertices & edges.
- *   - #BM_ELEM_SELECT_UV for #BMFace.
- *
- * Valid State
- * -----------
- *
- * - When vertex is selected in the viewport at least one of the UV's must be selected.
- *
- * Hidden Flags
- * ------------
- *
- * Unlike viewport selection there is no requirement for hidden elements not to be selected.
- * Therefor, UV selection checks must check the underlying geometry is not hidden.
- * In practice this means hidden faces must be assumed unselected,
- * since UV's are part of the faces (there is no such thing as a hidden face-corner)
- * and any hidden edge or vertex causes connected faces to be hidden.
- *
- * TODO:
- * - Document when a UV face is unselected when the underlying face is selected.
  */
 
 #include "MEM_guardedalloc.h"
