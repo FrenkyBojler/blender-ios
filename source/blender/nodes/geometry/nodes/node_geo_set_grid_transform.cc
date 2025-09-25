@@ -61,9 +61,8 @@ static void node_geo_exec(GeoNodeExecParams params)
     bke::volume_grid::set_transform_matrix(grid_data, transform);
   }
   catch (const openvdb::ArithmeticError & /*error*/) {
-    params.error_message_add(
-        NodeWarningType::Error,
-        TIP_("Unable to set grid transform as it must be invertible (non-zero scale)."));
+    params.error_message_add(NodeWarningType::Error,
+                             TIP_("Unable to set grid transform as it must be invertible."));
   }
 
   params.set_output("Grid", std::move(grid));
