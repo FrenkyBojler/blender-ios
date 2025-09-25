@@ -18,9 +18,8 @@ namespace blender::gpu::render_graph {
  * Information stored inside the render graph node. See `VKRenderGraphNode`.
  */
 struct VKDrawData {
-  VKPipelineData pipeline_data;
+  VKPipelineDataGraphics pipeline_data;
   VKVertexBufferBindings vertex_buffers;
-  VKViewportData viewport_data;
   uint32_t vertex_count;
   uint32_t instance_count;
   uint32_t first_vertex;
@@ -73,10 +72,12 @@ class VKDrawNode : public VKNodeInfo<VKNodeType::DRAW,
                       Data &data,
                       VKBoundPipelines &r_bound_pipelines) override
   {
-    vk_pipeline_viewport_set_commands(
-        command_buffer, data.viewport_data, r_bound_pipelines.graphics.viewport_state);
+    vk_pipeline_dynamic_graphics_build_commands(command_buffer,
+                                                data.pipeline_data.viewport_data,
+                                                data.pipeline_data.line_width,
+                                                r_bound_pipelines);
     vk_pipeline_data_build_commands(command_buffer,
-                                    data.pipeline_data,
+                                    data.pipeline_data.pipeline_data,
                                     r_bound_pipelines.graphics.pipeline,
                                     VK_PIPELINE_BIND_POINT_GRAPHICS,
                                     VK_SHADER_STAGE_ALL_GRAPHICS);
