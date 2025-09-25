@@ -178,7 +178,7 @@ static wmOperatorStatus add_primitive_cube_exec(bContext *C, wmOperator *op)
                           CTX_DATA_(BLT_I18NCONTEXT_ID_MESH, "Cube"),
                           loc,
                           rot,
-                          scale,
+                          nullptr,
                           local_view_bits,
                           &creation_data);
 
@@ -200,6 +200,9 @@ static wmOperatorStatus add_primitive_cube_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
+  copy_v3_v3(obedit->scale, scale);
+  DEG_id_tag_update(&obedit->id, ID_RECALC_TRANSFORM);
+  WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, obedit);
   /* BMESH_TODO make plane side this: M_SQRT2 - plane (diameter of 1.41 makes it unit size) */
   make_prim_finish(C, obedit, &creation_data, enter_editmode);
 
