@@ -150,9 +150,6 @@ class NODE_MT_compositor_node_filter_base(node_add_menu.NodeMenu):
         self.node_operator_with_searchable_enum_socket(
             context, layout, "CompositorNodeGlare", "Type", [
                 "Bloom", "Ghosts", "Streaks", "Fog Glow", "Simple Star", "Sun Beams", "Kernel"])
-        self.node_operator(layout, "CompositorNodeKuwahara")
-        self.node_operator(layout, "CompositorNodePixelate")
-        self.node_operator(layout, "CompositorNodePosterize")
 
         self.draw_assets_for_catalog(layout, self.bl_label)
 
@@ -268,6 +265,8 @@ class NODE_MT_compositor_node_utilities_base(node_add_menu.NodeMenu):
 
     def draw(self, context):
         layout = self.layout
+        self.draw_menu(layout, path="Utilities/Vector")
+        layout.separator()
         self.node_operator(layout, "ShaderNodeMapRange")
         self.node_operator_with_searchable_enum(context, layout, "ShaderNodeMath", "operation")
         self.node_operator(layout, "ShaderNodeMix")
@@ -291,6 +290,7 @@ class NODE_MT_compositor_node_utilities_base(node_add_menu.NodeMenu):
 
 class NODE_MT_compositor_node_vector_base(node_add_menu.NodeMenu):
     bl_label = "Vector"
+    menu_path = "Utilities/Vector"
 
     def draw(self, context):
         layout = self.layout
@@ -306,8 +306,18 @@ class NODE_MT_compositor_node_vector_base(node_add_menu.NodeMenu):
         self.node_operator_with_searchable_enum(context, layout, "ShaderNodeVectorMath", "operation")
         self.node_operator(layout, "ShaderNodeVectorRotate")
 
-        self.draw_assets_for_catalog(layout, self.bl_label)
+        self.draw_assets_for_catalog(layout, self.menu_path)
 
+class NODE_MT_compositor_node_creative_base(node_add_menu.NodeMenu):
+    bl_label = "Creative"
+
+    def draw(self, _context):
+        layout = self.layout
+        self.node_operator(layout, "CompositorNodeKuwahara")
+        self.node_operator(layout, "CompositorNodePixelate")
+        self.node_operator(layout, "CompositorNodePosterize")
+
+        self.draw_assets_for_catalog(layout, self.bl_label)
 
 class NODE_MT_compositor_node_all_base(node_add_menu.NodeMenu):
     bl_label = ""
@@ -324,6 +334,7 @@ class NODE_MT_compositor_node_all_base(node_add_menu.NodeMenu):
         layout.separator()
         self.draw_menu(layout, "Color")
         self.draw_menu(layout, "Filter")
+        self.draw_menu(layout, "Creative")
         layout.separator()
         self.draw_menu(layout, "Keying")
         self.draw_menu(layout, "Mask")
@@ -333,13 +344,11 @@ class NODE_MT_compositor_node_all_base(node_add_menu.NodeMenu):
         self.draw_menu(layout, "Texture")
         self.draw_menu(layout, "Transform")
         self.draw_menu(layout, "Utilities")
-        self.draw_menu(layout, "Vector")
+        layout.separator()
+        self.draw_root_assets(layout)
         layout.separator()
         self.draw_menu(layout, "Group")
         self.draw_menu(layout, "Layout")
-
-        self.draw_root_assets(layout)
-
 
 add_menus = {
     # menu bl_idname: baseclass
@@ -352,6 +361,7 @@ add_menus = {
     "NODE_MT_category_compositor_color_mix": NODE_MT_compositor_node_color_mix_base,
     "NODE_MT_category_compositor_filter": NODE_MT_compositor_node_filter_base,
     "NODE_MT_category_compositor_filter_blur": NODE_MT_compositor_node_filter_blur_base,
+    "NODE_MT_category_compositor_creative": NODE_MT_compositor_node_creative_base,
     "NODE_MT_category_compositor_texture": NODE_MT_compositor_node_texture_base,
     "NODE_MT_category_compositor_keying": NODE_MT_compositor_node_keying_base,
     "NODE_MT_category_compositor_mask": NODE_MT_compositor_node_mask_base,
@@ -379,6 +389,7 @@ swap_menus = {
     "NODE_MT_compositor_node_color_mix_swap": NODE_MT_compositor_node_color_mix_base,
     "NODE_MT_compositor_node_filter_swap": NODE_MT_compositor_node_filter_base,
     "NODE_MT_compositor_node_filter_blur_swap": NODE_MT_compositor_node_filter_blur_base,
+    "NODE_MT_category_compositor_creative_swap": NODE_MT_compositor_node_creative_base,
     "NODE_MT_compositor_node_texture_swap": NODE_MT_compositor_node_texture_base,
     "NODE_MT_compositor_node_keying_swap": NODE_MT_compositor_node_keying_base,
     "NODE_MT_compositor_node_mask_swap": NODE_MT_compositor_node_mask_base,
