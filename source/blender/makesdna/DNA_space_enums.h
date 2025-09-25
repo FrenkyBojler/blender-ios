@@ -873,7 +873,7 @@ typedef enum eSpaceNode_ShaderFrom {
   SNODE_SHADER_LINESTYLE = 2,
 } eSpaceNode_ShaderFrom;
 
-/** #SpaceNode.geometry_nodes_type */
+/** #SpaceNode.nodes_type */
 typedef enum SpaceNodeGeometryNodesType {
   SNODE_GEOMETRY_MODIFIER = 0,
   SNODE_GEOMETRY_TOOL = 1,
@@ -905,6 +905,12 @@ typedef enum eConsoleLine_Type {
 /* -------------------------------------------------------------------- */
 /** \name Motion Tracking
  * \{ */
+
+/** #SpaceClipOverlay.flag */
+typedef enum eSpaceClipOverlay_Flag {
+  SC_SHOW_OVERLAYS = (1 << 0),
+  SC_SHOW_CURSOR = (1 << 1),
+} eSpaceClipOverlay_Flag;
 
 /** #SpaceClip.flag */
 typedef enum eSpaceClip_Flag {
@@ -1025,6 +1031,7 @@ typedef enum eSpreadsheetColumnValueType {
   SPREADSHEET_VALUE_TYPE_INT32_2D = 10,
   SPREADSHEET_VALUE_TYPE_QUATERNION = 11,
   SPREADSHEET_VALUE_TYPE_FLOAT4X4 = 12,
+  SPREADSHEET_VALUE_TYPE_BUNDLE_ITEM = 13,
 } eSpreadsheetColumnValueType;
 
 typedef enum eSpreadsheetColumnFlag {

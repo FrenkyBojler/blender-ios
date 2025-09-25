@@ -376,10 +376,10 @@ class SocketTooltipBuilder {
       return;
     }
     if (!enum_item->description.empty()) {
-      this->add_text_field(enum_item->description, UI_TIP_LC_VALUE);
+      this->add_text_field(TIP_(enum_item->description), UI_TIP_LC_VALUE);
       this->add_space();
     }
-    this->build_tooltip_value_and_type_oneline(enum_item->name, TIP_("Menu"));
+    this->build_tooltip_value_and_type_oneline(TIP_(enum_item->name), TIP_("Menu"));
   }
 
   void build_tooltip_value_int(const int value)
@@ -416,7 +416,6 @@ class SocketTooltipBuilder {
     this->build_tooltip_value_and_type_oneline(value_str, TIP_("Float Color"));
     this->add_space();
 
-    this->add_text_field_mono(TIP_("Display:"), UI_TIP_LC_NORMAL);
     bool is_gamma = false;
     const ColorManagedDisplay *display = nullptr;
     if (but_) {

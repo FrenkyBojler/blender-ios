@@ -309,30 +309,6 @@ void GPU_shader_batch_specializations_cancel(SpecializationBatchHandle &handle);
  * All of this section is deprecated and should be ported to use the API described above.
  * \{ */
 
-blender::gpu::Shader *GPU_shader_create(std::optional<blender::StringRefNull> vertcode,
-                                        std::optional<blender::StringRefNull> fragcode,
-                                        std::optional<blender::StringRefNull> geomcode,
-                                        std::optional<blender::StringRefNull> libcode,
-                                        std::optional<blender::StringRefNull> defines,
-                                        blender::StringRefNull shname);
-blender::gpu::Shader *GPU_shader_create_compute(std::optional<blender::StringRefNull> computecode,
-                                                std::optional<blender::StringRefNull> libcode,
-                                                std::optional<blender::StringRefNull> defines,
-                                                blender::StringRefNull shname);
-blender::gpu::Shader *GPU_shader_create_from_python(std::optional<blender::StringRefNull> vertcode,
-                                                    std::optional<blender::StringRefNull> fragcode,
-                                                    std::optional<blender::StringRefNull> geomcode,
-                                                    std::optional<blender::StringRefNull> libcode,
-                                                    std::optional<blender::StringRefNull> defines,
-                                                    std::optional<blender::StringRefNull> name);
-blender::gpu::Shader *GPU_shader_create_ex(std::optional<blender::StringRefNull> vertcode,
-                                           std::optional<blender::StringRefNull> fragcode,
-                                           std::optional<blender::StringRefNull> geomcode,
-                                           std::optional<blender::StringRefNull> computecode,
-                                           std::optional<blender::StringRefNull> libcode,
-                                           std::optional<blender::StringRefNull> defines,
-                                           blender::StringRefNull shname);
-
 /**
  * Shader cache warming.
  * For each shader, rendering APIs perform a two-step compilation:
@@ -358,7 +334,7 @@ blender::gpu::Shader *GPU_shader_create_ex(std::optional<blender::StringRefNull>
  * prime compilations.
  *
  * Shaders do not necessarily have to be similar in functionality to be used as a parent, so long
- * as the #GPUVertFormt and #GPUFrameBuffer which they are used with remain the same.
+ * as the #GPUVertFormat and #gpu::FrameBuffer which they are used with remain the same.
  * Other bindings such as textures, uniforms and UBOs are all assigned independently as dynamic
  * state.
  *
@@ -431,9 +407,6 @@ enum GPUUniformBlockBuiltin {
 
   GPU_NUM_UNIFORM_BLOCKS, /* Special value, denotes number of builtin uniforms block. */
 };
-
-/** DEPRECATED: Use hard-coded buffer location instead. */
-int GPU_shader_get_builtin_block(blender::gpu::Shader *shader, int builtin);
 
 /** DEPRECATED: Kept only because of Python GPU API. */
 int GPU_shader_get_uniform_block(blender::gpu::Shader *shader, const char *name);
