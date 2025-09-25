@@ -2942,7 +2942,10 @@ static void node_draw_basis(const bContext &C,
     float color_header[4];
 
     /* Muted nodes get a mix of the background with the node color. */
-    if (node.is_muted()) {
+    if (node_undefined_or_unsupported(ntree, node)) {
+      UI_GetThemeColorShade4fv(TH_REDALERT, -20, color_header);
+    }
+    else if (node.is_muted()) {
       UI_GetThemeColorBlend4f(TH_BACK, color_id, 0.1f, color_header);
     }
     else {
@@ -3162,7 +3165,7 @@ static void node_draw_basis(const bContext &C,
   {
     /* Use warning color to indicate undefined types. */
     if (node_undefined_or_unsupported(ntree, node)) {
-      UI_GetThemeColorBlend4f(TH_REDALERT, TH_NODE, 0.4f, color);
+      UI_GetThemeColorShade4fv(TH_REDALERT, -40, color);
     }
     /* Muted nodes get a mix of the background with the node color. */
     else if (node.is_muted()) {
@@ -3216,7 +3219,12 @@ static void node_draw_basis(const bContext &C,
         rct.ymax,
     };
     float color_header[4];
-    UI_GetThemeColorShade4fv(color_id, 20, color_header);
+    if (node_undefined_or_unsupported(ntree, node)) {
+      UI_GetThemeColorShade4fv(TH_REDALERT, -40, color_header);
+    }
+    else {
+      UI_GetThemeColorShade4fv(color_id, 20, color_header);
+    }
     UI_draw_roundbox_corner_set(UI_CNR_TOP_LEFT | UI_CNR_TOP_RIGHT);
     UI_draw_roundbox_4fv(&rect_header, false, BASIS_RAD, color_header);
 
@@ -3224,11 +3232,16 @@ static void node_draw_basis(const bContext &C,
     const rctf rect_body = {
         rct.xmin - 0,
         rct.xmax + 0,
-        rct.ymin - outline_width,
+        rct.ymin,
         rct.ymax - (NODE_DY + outline_width),
     };
     float color_body[4];
-    UI_GetThemeColorShade4fv(TH_NODE, 20, color_body);
+    if (node_undefined_or_unsupported(ntree, node)) {
+      UI_GetThemeColorShade4fv(TH_REDALERT, -40, color_body);
+    }
+    else {
+      UI_GetThemeColorShade4fv(color_id, 20, color_body);
+    }
     UI_draw_roundbox_corner_set(UI_CNR_BOTTOM_LEFT | UI_CNR_BOTTOM_RIGHT);
     UI_draw_roundbox_4fv(&rect_body, false, BASIS_RAD, color_body);
 
@@ -3308,7 +3321,7 @@ static void node_draw_collapsed(const bContext &C,
   {
     if (node_undefined_or_unsupported(ntree, node)) {
       /* Use warning color to indicate undefined types. */
-      UI_GetThemeColorBlend4f(TH_REDALERT, TH_NODE, 0.4f, color);
+      UI_GetThemeColorBlendShade4fv(TH_REDALERT, color_id, 0.1f, -40, color);
     }
     else if (node.is_muted()) {
       /* Muted nodes get a mix of the background with the node color. */
