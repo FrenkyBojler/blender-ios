@@ -5547,11 +5547,6 @@ static void read_libraries(FileData *basefd)
 
   Main *main_newid = BKE_main_new();
   for (Main *libmain : bmain->split_mains->as_span().drop_front(1)) {
-    /* Always skip archived libraries here, these should _never_ need to be processed here, as
-     * their data is local data from a blendfile perspective. */
-    if (libmain->curlib->flag & LIBRARY_FLAG_IS_ARCHIVE) {
-      continue;
-    }
     /* Do versioning for newly added linked data-blocks. If no data-blocks
      * were read from a library versionfile will still be zero and we can
      * skip it. */
