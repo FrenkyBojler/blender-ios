@@ -158,6 +158,7 @@ static int imapaint_pick_face(ViewContext *vc,
 }
 
 struct SampleColorData {
+  ARegion *region;
   bool show_cursor;
   short launch_event;
   float initcolor[3];
@@ -196,14 +197,14 @@ static void paint_set_color(bContext *C, SampleColorData *data, const blender::f
   }
 }
 
-static void paint_sample_color(bContext *C, ARegion *region, SampleColorData *data, int x, int y)
+static void paint_sample_color(bContext *C, SampleColorData *data, int x, int y)
 {
   using namespace blender;
   Scene *scene = CTX_data_scene(C);
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
 
-  CLAMP(x, 0, region->winx);
-  CLAMP(y, 0, region->winy);
+  CLAMP(x, 0, data->region->winx);
+  CLAMP(y, 0, data->region->winy);
 
   SpaceImage *sima = CTX_wm_space_image(C);
   const View3D *v3d = CTX_wm_view3d(C);
@@ -316,7 +317,7 @@ static void paint_sample_color(bContext *C, ARegion *region, SampleColorData *da
      * Linear Scene Reference Space. */
     float rgba_f[3];
     bool is_data;
-    if (ED_space_image_color_sample(sima, region, blender::int2(x, y), rgba_f, &is_data)) {
+    if (ED_space_image_color_sample(sima, data->region, blender::int2(x, y), rgba_f, &is_data)) {
       paint_set_color(C, data, rgba_f);
       return;
     }
@@ -325,10 +326,11 @@ static void paint_sample_color(bContext *C, ARegion *region, SampleColorData *da
   /* No sample found; sample directly from the GPU front buffer. */
   {
     float rgb_fl[3];
-    WM_window_pixels_read_sample(C,
-                                 CTX_wm_window(C),
-                                 blender::int2(x + region->winrct.xmin, y + region->winrct.ymin),
-                                 rgb_fl);
+    WM_window_pixels_read_sample(
+        C,
+        CTX_wm_window(C),
+        blender::int2(x + data->region->winrct.xmin, y + data->region->winrct.ymin),
+        rgb_fl);
 
     /* The sampled color is in display colorspace, convert to scene linear. */
     const ColorManagedDisplay *display = IMB_colormanagement_display_get_named(
@@ -371,7 +373,7 @@ static wmOperatorStatus sample_color_exec(bContext *C, wmOperator *op)
 
   RNA_int_get_array(op->ptr, "location", location);
   data->sample_palette = RNA_boolean_get(op->ptr, "palette");
-  paint_sample_color(C, region, data, location[0], location[1]);
+  paint_sample_color(C, data, location[0], location[1]);
 
   if (show_cursor) {
     paint->flags |= PAINT_SHOW_BRUSH;
@@ -390,6 +392,7 @@ static wmOperatorStatus sample_color_invoke(bContext *C, wmOperator *op, const w
   ARegion *region = CTX_wm_region(C);
   wmWindow *win = CTX_wm_window(C);
 
+  data->region = region;
   data->launch_event = WM_userdef_event_type_from_keymap_type(event->type);
   data->show_cursor = ((paint->flags & PAINT_SHOW_BRUSH) != 0);
   copy_v3_v3(data->initcolor, BKE_brush_color_get(paint, brush));
@@ -413,7 +416,7 @@ static wmOperatorStatus sample_color_invoke(bContext *C, wmOperator *op, const w
 
   RNA_int_set_array(op->ptr, "location", event->mval);
 
-  paint_sample_color(C, region, data, event->mval[0], event->mval[1]);
+  paint_sample_color(C, data, event->mval[0], event->mval[1]);
   WM_cursor_modal_set(win, WM_CURSOR_EYEDROPPER);
 
   WM_event_add_notifier(C, NC_BRUSH | NA_EDITED, brush);
@@ -446,24 +449,22 @@ static wmOperatorStatus sample_color_modal(bContext *C, wmOperator *op, const wm
 
   switch (event->type) {
     case MOUSEMOVE: {
-      ARegion *region = CTX_wm_region(C);
       RNA_int_set_array(op->ptr, "location", event->mval);
       data->sample_palette = false;
-      paint_sample_color(C, region, data, event->mval[0], event->mval[1]);
+      paint_sample_color(C, data, event->mval[0], event->mval[1]);
       WM_event_add_notifier(C, NC_BRUSH | NA_EDITED, brush);
       break;
     }
 
     case LEFTMOUSE:
       if (event->val == KM_PRESS) {
-        ARegion *region = CTX_wm_region(C);
         RNA_int_set_array(op->ptr, "location", event->mval);
         if (!data->sample_palette) {
           sample_color_update_header(data, C);
           BKE_report(op->reports, RPT_INFO, "Sampling color for palette");
         }
         data->sample_palette = true;
-        paint_sample_color(C, region, data, event->mval[0], event->mval[1]);
+        paint_sample_color(C, data, event->mval[0], event->mval[1]);
         WM_event_add_notifier(C, NC_BRUSH | NA_EDITED, brush);
       }
       break;
