@@ -333,7 +333,7 @@ static wmOperatorStatus add_primitive_cylinder_exec(bContext *C, wmOperator *op)
                           CTX_DATA_(BLT_I18NCONTEXT_ID_MESH, "Cylinder"),
                           loc,
                           rot,
-                          scale,
+                          nullptr,
                           local_view_bits,
                           &creation_data);
   em = BKE_editmesh_from_object(obedit);
@@ -360,6 +360,9 @@ static wmOperatorStatus add_primitive_cylinder_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
+  copy_v3_v3(obedit->scale, scale);
+  DEG_id_tag_update(&obedit->id, ID_RECALC_TRANSFORM);
+  WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, obedit);
   make_prim_finish(C, obedit, &creation_data, enter_editmode);
 
   return OPERATOR_FINISHED;
@@ -410,7 +413,7 @@ static wmOperatorStatus add_primitive_cone_exec(bContext *C, wmOperator *op)
                           CTX_DATA_(BLT_I18NCONTEXT_ID_MESH, "Cone"),
                           loc,
                           rot,
-                          scale,
+                          nullptr,
                           local_view_bits,
                           &creation_data);
   em = BKE_editmesh_from_object(obedit);
@@ -437,6 +440,9 @@ static wmOperatorStatus add_primitive_cone_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
+  copy_v3_v3(obedit->scale, scale);
+  DEG_id_tag_update(&obedit->id, ID_RECALC_TRANSFORM);
+  WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, obedit);
   make_prim_finish(C, obedit, &creation_data, enter_editmode);
 
   return OPERATOR_FINISHED;
@@ -634,7 +640,7 @@ static wmOperatorStatus add_primitive_uvsphere_exec(bContext *C, wmOperator *op)
                           CTX_DATA_(BLT_I18NCONTEXT_ID_MESH, "Sphere"),
                           loc,
                           rot,
-                          scale,
+                          nullptr,
                           local_view_bits,
                           &creation_data);
   em = BKE_editmesh_from_object(obedit);
@@ -658,6 +664,9 @@ static wmOperatorStatus add_primitive_uvsphere_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
+  copy_v3_v3(obedit->scale, scale);
+  DEG_id_tag_update(&obedit->id, ID_RECALC_TRANSFORM);
+  WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, obedit);
   make_prim_finish(C, obedit, &creation_data, enter_editmode);
 
   return OPERATOR_FINISHED;
@@ -705,7 +714,7 @@ static wmOperatorStatus add_primitive_icosphere_exec(bContext *C, wmOperator *op
                           CTX_DATA_(BLT_I18NCONTEXT_ID_MESH, "Icosphere"),
                           loc,
                           rot,
-                          scale,
+                          nullptr,
                           local_view_bits,
                           &creation_data);
   em = BKE_editmesh_from_object(obedit);
@@ -728,6 +737,9 @@ static wmOperatorStatus add_primitive_icosphere_exec(bContext *C, wmOperator *op
     return OPERATOR_CANCELLED;
   }
 
+  copy_v3_v3(obedit->scale, scale);
+  DEG_id_tag_update(&obedit->id, ID_RECALC_TRANSFORM);
+  WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, obedit);
   make_prim_finish(C, obedit, &creation_data, enter_editmode);
 
   return OPERATOR_FINISHED;
