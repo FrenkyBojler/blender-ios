@@ -427,7 +427,7 @@ class NODE_MT_group_base(NodeMenu):
     def draw(self, context):
         layout = self.layout
         self.draw_group_menu(context, layout)
-        
+
         self.draw_assets_for_catalog(layout, self.bl_label)
 
 
