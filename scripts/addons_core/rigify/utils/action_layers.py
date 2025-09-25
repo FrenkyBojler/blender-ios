@@ -4,7 +4,7 @@
 
 import bpy
 from typing import Optional, List, Dict, Tuple, TYPE_CHECKING
-from bpy.types import Action, Mesh, Armature
+from bpy.types import Action, Mesh, Armature, ActionChannelbag
 from bpy.types import ActionSlot as BlenderActionSlot
 
 from bl_math import clamp
@@ -52,7 +52,10 @@ class ActionSlotBase:
         """Return a list of bone names that have keyframes in the Action of this Slot."""
         keyed_bones = []
 
-        for fc in self.action.fcurves:
+        if not self.channelbag:
+            return []
+
+        for fc in self.channelbag.fcurves:
             # Extracting bone name from fcurve data path
             if fc.data_path.startswith('pose.bones["'):
                 bone_name = fc.data_path[12:].split('"]')[0]
@@ -61,6 +64,12 @@ class ActionSlotBase:
                     keyed_bones.append(bone_name)
 
         return keyed_bones
+
+    @property
+    def channelbag(self) -> ActionChannelbag | None:
+        if not (self.action and self.action_slot):
+            return
+        return self.action.layers[0].strips[0].channelbag(self.action_slot)
 
     @property
     def do_symmetry(self) -> bool:
@@ -432,7 +441,9 @@ def versioning_5_0(_):
         for action_setup in obj.data.rigify_action_slots:
             if not action_setup.action:
                 continue
-            action_setup.action_slot = action_setup.action.slots[0]
+            action_setup.action_slot = next(
+                (s for s in action_setup.action.slots if s.target_id_type in ('UNSPECIFIED', 'OBJECT')), None
+            )
             sys_props = action_setup.bl_system_properties_get()
             for prop_name in ('trigger_action_a', 'trigger_action_b'):
                 if prop_name in sys_props:
