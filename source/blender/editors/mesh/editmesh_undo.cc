@@ -854,7 +854,7 @@ static void *undomesh_from_editmesh(UndoMesh *um,
 
   /* Uncomment for troubleshooting. */
   if (false) {
-    BM_mesh_validate(em->bm);
+    BM_mesh_is_valid(em->bm);
   }
 
   /* Ensure UV's are in a valid state. */

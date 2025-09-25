@@ -71,7 +71,10 @@ class CLIP_PT_clip_display(Panel):
         clip = sc.clip
         if clip:
             col = layout.column()
-            col.prop(clip, "display_aspect", text="Display Aspect Ratio")
+            col.use_property_split = True
+            col.use_property_decorate = False
+            col.separator()
+            col.prop(clip, "display_aspect", text="Aspect Ratio")
 
 
 class CLIP_HT_header(Header):
@@ -90,6 +93,9 @@ class CLIP_HT_header(Header):
         row = layout.row()
         if sc.view == 'CLIP':
             row.template_ID(sc, "clip", open="clip.open")
+
+            row = layout.row()
+            row.prop(sc, "pivot_point", text="", icon_only=True)
         else:
             row = layout.row(align=True)
             props = row.operator("clip.refine_markers", text="", icon='TRACKING_REFINE_BACKWARDS')
@@ -133,8 +139,6 @@ class CLIP_HT_header(Header):
                 if r.is_valid and sc.view == 'CLIP':
                     layout.label(text=rpt_("Solve error: {:.2f} px").format(r.average_error), translate=False)
 
-                row = layout.row()
-                row.prop(sc, "pivot_point", text="", icon_only=True)
                 row = layout.row(align=True)
                 icon = 'LOCKED' if sc.lock_selection else 'UNLOCKED'
                 row.operator("clip.lock_selection_toggle", icon=icon, text="", depress=sc.lock_selection)
@@ -183,9 +187,9 @@ class CLIP_HT_header(Header):
         row = layout.row()
         row.template_ID(sc, "clip", open="clip.open")
 
-        layout.separator_spacer()
-
         if clip:
+            row = layout.row()
+            row.template_ID(sc, "mask", new="mask.new")
 
             layout.prop(sc, "pivot_point", text="", icon_only=True)
 
@@ -201,12 +205,14 @@ class CLIP_HT_header(Header):
                 panel="CLIP_PT_proportional_edit",
             )
 
-            row = layout.row()
-            row.template_ID(sc, "mask", new="mask.new")
+            layout.separator_spacer()
+
             row = layout.row(align=True)
             icon = 'LOCKED' if sc.lock_selection else 'UNLOCKED'
             row.operator("clip.lock_selection_toggle", icon=icon, text="", depress=sc.lock_selection)
             row.popover(panel="CLIP_PT_display")
+        else:
+            layout.separator_spacer()
 
     def draw(self, context):
         layout = self.layout
