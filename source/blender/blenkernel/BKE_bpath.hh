@@ -23,7 +23,11 @@ struct ReportList;
 /** \name Core `foreach_path` API.
  * \{ */
 
-/** Flags controlling the behavior of the generic BPath API. */
+/** Flags controlling the behavior of the generic BPath API.
+ *
+ * Note: these are referred to by `rna_enum_file_path_foreach_flag_items`, so make sure that any
+ * new enum items are added there too.
+ */
 enum eBPathForeachFlag {
   /**
    * Ensures the `absolute_base_path` member of #BPathForeachPathData is initialized properly with
