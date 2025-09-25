@@ -17,6 +17,28 @@
 #include "bmesh_structure.hh"
 
 /* -------------------------------------------------------------------- */
+/** \name Internal Utilities
+ * \{ */
+
+static void bm_mesh_uvselect_disable_all(BMesh *bm)
+{
+  /* In practically all cases it's best to check #BM_ELEM_HIDDEN
+   * In this case the intent is to re-generate the selection, so clear all. */
+  BMIter iter;
+  BMFace *f;
+  BM_ITER_MESH (f, &iter, bm, BM_FACES_OF_MESH) {
+    BMLoop *l_iter, *l_first;
+    l_iter = l_first = BM_FACE_FIRST_LOOP(f);
+    do {
+      BM_elem_flag_disable(l_iter, BM_ELEM_SELECT_UV | BM_ELEM_SELECT_UV_EDGE);
+    } while ((l_iter = l_iter->next) != l_first);
+    BM_elem_flag_disable(f, BM_ELEM_SELECT_UV);
+  }
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
 /** \name UV Selection Functions (low level)
  * \{ */
 
@@ -1485,6 +1507,8 @@ void BM_mesh_uvselect_flush_post_subdivide(BMesh *bm, const int cd_loop_uv_offse
 /** \name UV Selection Flushing (Viewport)
  * \{ */
 
+/* Sticky Vertex. */
+
 static void bm_mesh_uvselect_flush_from_v3d_sticky_vertex_for_vert_mode(BMesh *bm)
 {
   BMIter iter;
@@ -1495,31 +1519,15 @@ static void bm_mesh_uvselect_flush_from_v3d_sticky_vertex_for_vert_mode(BMesh *b
     if (BM_elem_flag_test(f, BM_ELEM_HIDDEN)) {
       continue;
     }
-
     BMLoop *l_iter, *l_first;
     l_iter = l_first = BM_FACE_FIRST_LOOP(f);
     do {
-      if (BM_elem_flag_test(l_iter->v, BM_ELEM_SELECT)) {
-        BM_elem_flag_enable(l_iter, BM_ELEM_SELECT_UV);
-      }
-      else {
-        BM_elem_flag_disable(l_iter, BM_ELEM_SELECT_UV);
-      }
-
-      if (BM_elem_flag_test(l_iter->e, BM_ELEM_SELECT)) {
-        BM_elem_flag_enable(l_iter, BM_ELEM_SELECT_UV_EDGE);
-      }
-      else {
-        BM_elem_flag_disable(l_iter, BM_ELEM_SELECT_UV_EDGE);
-      }
+      const bool v_select = BM_elem_flag_test(l_iter->v, BM_ELEM_SELECT);
+      const bool e_select = BM_elem_flag_test(l_iter->e, BM_ELEM_SELECT);
+      BM_elem_flag_set(l_iter, BM_ELEM_SELECT_UV, v_select);
+      BM_elem_flag_set(l_iter, BM_ELEM_SELECT_UV_EDGE, e_select);
     } while ((l_iter = l_iter->next) != l_first);
-
-    if (BM_elem_flag_test(f, BM_ELEM_SELECT)) {
-      BM_elem_flag_enable(f, BM_ELEM_SELECT_UV);
-    }
-    else {
-      BM_elem_flag_disable(f, BM_ELEM_SELECT_UV);
-    }
+    BM_elem_flag_set(f, BM_ELEM_SELECT_UV, BM_elem_flag_test(f, BM_ELEM_SELECT));
   }
   bm->uv_sync_select_valid = true;
 }
@@ -1531,18 +1539,7 @@ static void bm_mesh_uvselect_flush_from_v3d_sticky_vertex_for_edge_mode(BMesh *b
 
   /* Clearing all makes the the following logic simpler as
    * since we only need to select UV's connected to selected edges. */
-  BM_ITER_MESH (f, &iter, bm, BM_FACES_OF_MESH) {
-    if (BM_elem_flag_test(f, BM_ELEM_HIDDEN)) {
-      continue;
-    }
-
-    BMLoop *l_iter, *l_first;
-    l_iter = l_first = BM_FACE_FIRST_LOOP(f);
-    do {
-      BM_elem_flag_disable(l_iter, BM_ELEM_SELECT_UV | BM_ELEM_SELECT_UV_EDGE);
-    } while ((l_iter = l_iter->next) != l_first);
-    BM_elem_flag_disable(f, BM_ELEM_SELECT_UV);
-  }
+  bm_mesh_uvselect_disable_all(bm);
 
   BM_ITER_MESH (f, &iter, bm, BM_FACES_OF_MESH) {
     if (BM_elem_flag_test(f, BM_ELEM_HIDDEN)) {
@@ -1554,7 +1551,6 @@ static void bm_mesh_uvselect_flush_from_v3d_sticky_vertex_for_edge_mode(BMesh *b
     do {
       if (BM_elem_flag_test(l_iter->e, BM_ELEM_SELECT)) {
         BM_elem_flag_enable(l_iter, BM_ELEM_SELECT_UV_EDGE);
-
         for (BMLoop *l_edge_vert : {l_iter, l_iter->next}) {
           if (!BM_elem_flag_test(l_edge_vert, BM_ELEM_SELECT_UV)) {
             BM_elem_flag_enable(l_edge_vert, BM_ELEM_SELECT_UV);
@@ -1577,18 +1573,7 @@ static void bm_mesh_uvselect_flush_from_v3d_sticky_vertex_for_face_mode(BMesh *b
 
   /* Clearing all makes the the following logic simpler as
    * since we only need to select UV's connected to selected edges. */
-  BM_ITER_MESH (f, &iter, bm, BM_FACES_OF_MESH) {
-    if (BM_elem_flag_test(f, BM_ELEM_HIDDEN)) {
-      continue;
-    }
-
-    BMLoop *l_iter, *l_first;
-    l_iter = l_first = BM_FACE_FIRST_LOOP(f);
-    do {
-      BM_elem_flag_disable(l_iter, BM_ELEM_SELECT_UV | BM_ELEM_SELECT_UV_EDGE);
-    } while ((l_iter = l_iter->next) != l_first);
-    BM_elem_flag_disable(f, BM_ELEM_SELECT_UV);
-  }
+  bm_mesh_uvselect_disable_all(bm);
 
   BM_ITER_MESH (f, &iter, bm, BM_FACES_OF_MESH) {
     if (BM_elem_flag_test(f, BM_ELEM_HIDDEN)) {
@@ -1610,6 +1595,8 @@ static void bm_mesh_uvselect_flush_from_v3d_sticky_vertex_for_face_mode(BMesh *b
   }
   bm->uv_sync_select_valid = true;
 }
+
+/* Sticky Location. */
 
 static void bm_mesh_uvselect_flush_from_v3d_sticky_location_for_vert_mode(
     BMesh *bm, const int /*cd_loop_uv_offset*/)
@@ -1721,6 +1708,8 @@ static void bm_mesh_uvselect_flush_from_v3d_sticky_location_for_face_mode(
   bm->uv_sync_select_valid = true;
 }
 
+/* Public API. */
+
 void BM_mesh_uvselect_flush_from_v3d_sticky_location(BMesh *bm, const int cd_loop_uv_offset)
 {
   if (bm->selectmode & SCE_SELECT_VERTEX) {
@@ -1738,17 +1727,9 @@ void BM_mesh_uvselect_flush_from_v3d_sticky_location(BMesh *bm, const int cd_loo
 
 void BM_mesh_uvselect_flush_from_v3d_sticky_disabled(BMesh *bm)
 {
-  /* TODO: sticky disabled logic. */
-
-  if (bm->selectmode & SCE_SELECT_VERTEX) {
-    bm_mesh_uvselect_flush_from_v3d_sticky_vertex_for_vert_mode(bm);
-  }
-  else if (bm->selectmode & SCE_SELECT_EDGE) {
-    bm_mesh_uvselect_flush_from_v3d_sticky_vertex_for_edge_mode(bm);
-  }
-  else { /* `SCE_SELECT_FACE` */
-    bm_mesh_uvselect_flush_from_v3d_sticky_vertex_for_face_mode(bm);
-  }
+  /* The mode is ignored when sticky selection is disabled,
+   * Always use the selection from the mesh. */
+  bm_mesh_uvselect_flush_from_v3d_sticky_vertex_for_vert_mode(bm);
   BLI_assert(bm->uv_sync_select_valid);
 }
 
