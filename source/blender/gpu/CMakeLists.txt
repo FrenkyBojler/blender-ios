@@ -755,7 +755,7 @@ set(MSL_SRC
 )
 
 set(VULKAN_BACKEND_GLSL_SRC
-  vulkan/shaders/vk_backbuffer_blit_info.hh
+  vulkan/shaders/vk_backbuffer_blit_infos.hh
 
   vulkan/shaders/vk_backbuffer_blit_comp.glsl
 )
