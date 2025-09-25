@@ -148,69 +148,71 @@ static std::optional<std::string> rna_PointCache_path(const PointerRNA *ptr)
     return std::nullopt;
   }
 
-  if (ob != nullptr) {
-    ModifierData *md;
-    for (md = static_cast<ModifierData *>(ob->modifiers.first); md; md = md->next) {
-      const ModifierTypeInfo *mti = BKE_modifier_get_info(ModifierType(md->type));
-
-      if (!(mti->flags & eModifierTypeFlag_UsesPointCache)) {
-        continue;
-      }
-
-      char name_esc[sizeof(md->name) * 2];
-      BLI_str_escape(name_esc, md->name, sizeof(name_esc));
-
-      switch (md->type) {
-        case eModifierType_ParticleSystem: {
-          ParticleSystemModifierData *psmd = (ParticleSystemModifierData *)md;
-          if (psmd->psys->pointcache == cache) {
-            return fmt::format("modifiers[\"{}\"].particle_system.point_cache", name_esc);
-          }
-          break;
-        }
-        case eModifierType_DynamicPaint: {
-          DynamicPaintModifierData *pmd = (DynamicPaintModifierData *)md;
-          if (pmd->canvas) {
-            DynamicPaintSurface *surface = static_cast<DynamicPaintSurface *>(
-                pmd->canvas->surfaces.first);
-            for (; surface; surface = surface->next) {
-              if (surface->pointcache == cache) {
-                char name_surface_esc[sizeof(surface->name) * 2];
-                BLI_str_escape(name_surface_esc, surface->name, sizeof(name_surface_esc));
-                return fmt::format(
-                    "modifiers[\"{}\"].canvas_settings.canvas_surfaces[\"{}\"].point_cache",
-                    name_esc,
-                    name_surface_esc);
-              }
-            }
-          }
-          break;
-        }
-        case eModifierType_Cloth: {
-          ClothModifierData *clmd = (ClothModifierData *)md;
-          if (clmd->point_cache == cache) {
-            return fmt::format("modifiers[\"{}\"].point_cache", name_esc);
-          }
-          break;
-        }
-        case eModifierType_Softbody: {
-          SoftBody *sb = ob->soft;
-          if (sb && sb->shared->pointcache == cache) {
-            return fmt::format("modifiers[\"{}\"].point_cache", name_esc);
-          }
-          break;
-        }
-        default: {
-          return fmt::format("modifiers[\"{}\"].point_cache", name_esc);
-        }
-      }
-    }
-  }
-
   /* Scene rigid body. */
   if (scene != nullptr && scene->rigidbody_world->shared != nullptr) {
     if (scene->rigidbody_world->shared->pointcache == cache) {
       return "rigidbody_world.point_cache";
+    }
+  }
+
+  if (!ob) {
+    return std::nullopt;
+  }
+
+  ModifierData *md;
+  for (md = static_cast<ModifierData *>(ob->modifiers.first); md; md = md->next) {
+    const ModifierTypeInfo *mti = BKE_modifier_get_info(ModifierType(md->type));
+
+    if (!(mti->flags & eModifierTypeFlag_UsesPointCache)) {
+      continue;
+    }
+
+    char name_esc[sizeof(md->name) * 2];
+    BLI_str_escape(name_esc, md->name, sizeof(name_esc));
+
+    switch (md->type) {
+      case eModifierType_ParticleSystem: {
+        ParticleSystemModifierData *psmd = (ParticleSystemModifierData *)md;
+        if (psmd->psys->pointcache == cache) {
+          return fmt::format("modifiers[\"{}\"].particle_system.point_cache", name_esc);
+        }
+        break;
+      }
+      case eModifierType_DynamicPaint: {
+        DynamicPaintModifierData *pmd = (DynamicPaintModifierData *)md;
+        if (pmd->canvas) {
+          DynamicPaintSurface *surface = static_cast<DynamicPaintSurface *>(
+              pmd->canvas->surfaces.first);
+          for (; surface; surface = surface->next) {
+            if (surface->pointcache == cache) {
+              char name_surface_esc[sizeof(surface->name) * 2];
+              BLI_str_escape(name_surface_esc, surface->name, sizeof(name_surface_esc));
+              return fmt::format(
+                  "modifiers[\"{}\"].canvas_settings.canvas_surfaces[\"{}\"].point_cache",
+                  name_esc,
+                  name_surface_esc);
+            }
+          }
+        }
+        break;
+      }
+      case eModifierType_Cloth: {
+        ClothModifierData *clmd = (ClothModifierData *)md;
+        if (clmd->point_cache == cache) {
+          return fmt::format("modifiers[\"{}\"].point_cache", name_esc);
+        }
+        break;
+      }
+      case eModifierType_Softbody: {
+        SoftBody *sb = ob->soft;
+        if (sb && sb->shared->pointcache == cache) {
+          return fmt::format("modifiers[\"{}\"].point_cache", name_esc);
+        }
+        break;
+      }
+      default: {
+        return fmt::format("modifiers[\"{}\"].point_cache", name_esc);
+      }
     }
   }
 
