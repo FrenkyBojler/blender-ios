@@ -77,8 +77,6 @@
 #include "WM_types.hh"
 #include "wm_event_system.hh"
 
-#include "UI_view2d.hh"
-
 #ifdef WITH_INPUT_IME
 #  include "wm_window.hh"
 #endif
@@ -3145,8 +3143,7 @@ static blender::Vector<blender::StringRef> ui_but_textbox_wrap_lines(const ARegi
 {
   rcti rect;
   ui_but_to_pixelrect(&rect, region, textbox->block, textbox);
-  const int text_padding = round_fl_to_int((UI_TEXT_MARGIN_X * U.widget_unit) /
-                                           textbox->block->aspect);
+  const int text_padding = but_text_padding(textbox);
   uiFontStyle fstyle = UI_style_get()->widget;
   ui_fontscale(&fstyle.points, textbox->block->aspect);
   UI_fontstyle_set(&fstyle);
@@ -5166,7 +5163,7 @@ static int ui_do_but_TEX(
     int my = event->xy[1];
     ui_window_to_block(data->region, but->block, &mx, &my);
     /* Activate textbox scrollbar. */
-    if (but->rect.xmax - V2D_SCROLL_WIDTH < mx && my > but->rect.ymin + UI_UNIT_Y * (0.75f)) {
+    if (but->rect.xmax - but_text_padding(but) < mx && my > but->rect.ymin + UI_UNIT_Y * (0.75f)) {
       button_activate_state(C, but, BUTTON_STATE_NUM_EDITING);
       return WM_UI_HANDLER_BREAK;
     }

@@ -2031,8 +2031,7 @@ static void widget_draw_textbox(const uiFontStyle *fstyle,
                                 rcti *rect)
 {
   const rcti srcr_rect = *rect;
-  const int text_padding = round_fl_to_int((UI_TEXT_MARGIN_X * U.widget_unit) /
-                                           but->block->aspect);
+  const int text_padding = but_text_padding(but);
   rect->xmax -= text_padding;
   BLI_assert(but->type == ButType::TextBox);
 

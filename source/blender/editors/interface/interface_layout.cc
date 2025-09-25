@@ -39,7 +39,6 @@
 #include "RNA_prototypes.hh"
 
 #include "UI_interface_layout.hh"
-#include "UI_view2d.hh"
 
 #include "ED_id_management.hh"
 
@@ -2739,18 +2738,23 @@ void uiLayout::prop_textbox(PointerRNA *ptr,
   uiLayout &row = overlap.row(true);
   row.row(true).alignment_set(blender::ui::LayoutAlign::Expand);
 
-  float line_heigth = UI_UNIT_Y;
+  const float line_heigth = UI_UNIT_Y;
   row.row(true);
+  constexpr int minimun_visible_lines = 3;
   const int visible_lines = std::max(
-      RNA_int_get(visible_lines_ptr, visible_lines_propname.c_str()), 3);
+      RNA_int_get(visible_lines_ptr, visible_lines_propname.c_str()), minimun_visible_lines);
+  /** Ensure minumun value is set. */
+  RNA_int_set(visible_lines_ptr, visible_lines_propname.c_str(), visible_lines);
 
+  int w, h;
+  ui_item_rna_size(block->curlayout, "", ICON_NONE, ptr, prop, -1, false, false, &w, &h);
   uiBut *but = uiDefButR_prop(block,
                               ButType::TextBox,
                               0,
                               RNA_property_ui_name(prop),
                               0,
                               0,
-                              25,
+                              w,
                               line_heigth * visible_lines,
                               ptr,
                               prop,
@@ -2760,7 +2764,6 @@ void uiLayout::prop_textbox(PointerRNA *ptr,
                               std::nullopt);
   uiButTextBox *textbox = static_cast<uiButTextBox *>(but);
   textbox->visible_lines = visible_lines;
-  /* Clamp scroll, resizing the region could add/remove wrapped lines. */
 
   auto &grip_row = overlap.row(true);
   grip_row.alignment_set(blender::ui::LayoutAlign::Right);
@@ -2778,8 +2781,6 @@ void uiLayout::prop_textbox(PointerRNA *ptr,
            0.0,
            0.0,
            "");
-
-  RNA_int_set(visible_lines_ptr, visible_lines_propname.c_str(), visible_lines);
   but = uiDefIconButR(block,
                       ButType::Grip,
                       0,

@@ -1284,7 +1284,8 @@ bool ui_but_rna_equals_ex(const uiBut *but,
                           int index);
 uiBut *ui_but_find_old(uiBlock *block_old, const uiBut *but_new);
 uiBut *ui_but_find_new(uiBlock *block_new, const uiBut *but_old);
-
+/** Scaled text padding within the but widged box. */
+int but_text_padding(const uiBut *but);
 #ifdef WITH_INPUT_IME
 void ui_but_ime_reposition(uiBut *but, int x, int y, bool complete);
 const wmIMEData *ui_but_ime_data_get(uiBut *but);

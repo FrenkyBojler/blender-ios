@@ -3440,6 +3440,7 @@ bool ui_but_string_set(bContext *C, uiBut *but, const char *str)
     else {
       BLI_strncpy(but->poin, str, but->hardmax);
     }
+
     return true;
   }
   else if (ui_but_anim_expression_set(but, str)) {
@@ -7128,4 +7129,9 @@ void UI_exit()
 void UI_interface_tag_script_reload()
 {
   ui_interface_tag_script_reload_queries();
+}
+
+int but_text_padding(const uiBut *but)
+{
+  return round_fl_to_int((UI_TEXT_MARGIN_X * U.widget_unit) / but->block->aspect);
 }
