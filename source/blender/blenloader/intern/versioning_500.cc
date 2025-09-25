@@ -3625,6 +3625,29 @@ void blo_do_versions_500(FileData *fd, Library * /*lib*/, Main *bmain)
     }
   }
 
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 90)) {
+    FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
+      node_tree->tree_interface.foreach_item([](bNodeTreeInterfaceItem &item) {
+        if (item.item_type != NODE_INTERFACE_SOCKET) {
+          return true;
+        }
+        auto &socket_item = reinterpret_cast<bNodeTreeInterfaceSocket &>(item);
+
+        if (!(socket_item.flag & NODE_INTERFACE_SOCKET_INPUT)) {
+          return true;
+        }
+
+        if (socket_item.flag & NODE_INTERFACE_SOCKET_MENU_EXPANDED) {
+          return true;
+        }
+
+        socket_item.flag |= NODE_INTERFACE_SOCKET_REQUIRES_LABEL;
+        return true;
+      });
+    }
+    FOREACH_NODETREE_END;
+  }
+
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a MAIN_VERSION_FILE_ATLEAST check.

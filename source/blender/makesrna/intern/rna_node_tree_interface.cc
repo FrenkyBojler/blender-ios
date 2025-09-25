@@ -1150,6 +1150,12 @@ static void rna_def_node_interface_socket(BlenderRNA *brna)
       prop, "Hide Value", "Hide the socket input value even when the socket is not connected");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_NodeTreeInterfaceItem_update");
 
+  prop = RNA_def_property(srna, "requires_label", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", NODE_INTERFACE_SOCKET_REQUIRES_LABEL);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_ui_text(prop, "Requires Label", "Always draw label for socket");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_NodeTreeInterfaceItem_update");
+
   prop = RNA_def_property(srna, "hide_in_modifier", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", NODE_INTERFACE_SOCKET_HIDE_IN_MODIFIER);
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);

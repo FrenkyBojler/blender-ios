@@ -1250,7 +1250,11 @@ static void std_node_socket_draw(
         else {
           if (const auto *menu_decl = dynamic_cast<const nodes::decl::Menu *>(socket_decl)) {
             if (menu_decl->is_expanded) {
-              layout->prop(ptr, "default_value", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+              uiLayout *row = &layout->split(0.4f, false);
+              if (!label.is_empty()) {
+                row->label(label, ICON_NONE);
+              }
+              row->prop(ptr, "default_value", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
               break;
             }
           }
@@ -1409,6 +1413,10 @@ static void std_node_socket_interface_draw(ID *id,
     uiLayout *sub = &col->column(false);
     sub->active_set(interface_socket->default_input == NODE_DEFAULT_INPUT_VALUE);
     sub->prop(&ptr, "hide_value", DEFAULT_FLAGS, std::nullopt, ICON_NONE);
+  }
+  {
+    uiLayout *sub = &col->column(false);
+    sub->prop(&ptr, "requires_label", DEFAULT_FLAGS, std::nullopt, ICON_NONE);
   }
 
   if (interface_socket->flag & NODE_INTERFACE_SOCKET_INPUT && node_tree->type == NTREE_GEOMETRY) {
