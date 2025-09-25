@@ -911,12 +911,8 @@ static StructRNA *rna_Strip_refine(PointerRNA *ptr)
       return &RNA_WipeStrip;
     case STRIP_TYPE_GLOW:
       return &RNA_GlowStrip;
-    case STRIP_TYPE_TRANSFORM:
-      return &RNA_TransformStrip;
     case STRIP_TYPE_COLOR:
       return &RNA_ColorStrip;
-    case STRIP_TYPE_SPEED:
-      return &RNA_SpeedControlStrip;
     case STRIP_TYPE_GAUSSIAN_BLUR:
       return &RNA_GaussianBlurStrip;
     case STRIP_TYPE_TEXT:
@@ -2248,9 +2244,7 @@ static void rna_def_strip(BlenderRNA *brna)
       {STRIP_TYPE_MUL, "MULTIPLY", 0, "Multiply", ""},
       {STRIP_TYPE_WIPE, "WIPE", 0, "Wipe", ""},
       {STRIP_TYPE_GLOW, "GLOW", 0, "Glow", ""},
-      {STRIP_TYPE_TRANSFORM, "TRANSFORM", 0, "Transform", ""},
       {STRIP_TYPE_COLOR, "COLOR", 0, "Color", ""},
-      {STRIP_TYPE_SPEED, "SPEED", 0, "Speed", ""},
       {STRIP_TYPE_MULTICAM, "MULTICAM", 0, "Multicam Selector", ""},
       {STRIP_TYPE_ADJUSTMENT, "ADJUSTMENT", 0, "Adjustment Layer", ""},
       {STRIP_TYPE_GAUSSIAN_BLUR, "GAUSSIAN_BLUR", 0, "Gaussian Blur", ""},
@@ -3328,74 +3322,6 @@ static void rna_def_glow(StructRNA *srna)
   RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_raw_update");
 }
 
-static void rna_def_transform(StructRNA *srna)
-{
-  PropertyRNA *prop;
-
-  static const EnumPropertyItem interpolation_items[] = {
-      {0, "NONE", 0, "None", "No interpolation"},
-      {1, "BILINEAR", 0, "Bilinear", "Bilinear interpolation"},
-      {2, "BICUBIC", 0, "Bicubic", "Bicubic interpolation"},
-      {0, nullptr, 0, nullptr, nullptr},
-  };
-
-  static const EnumPropertyItem translation_unit_items[] = {
-      {0, "PIXELS", 0, "Pixels", ""},
-      {1, "PERCENT", 0, "Percent", ""},
-      {0, nullptr, 0, nullptr, nullptr},
-  };
-
-  RNA_def_struct_sdna_from(srna, "TransformVars", "effectdata");
-
-  prop = RNA_def_property(srna, "scale_start_x", PROP_FLOAT, PROP_UNSIGNED);
-  RNA_def_property_float_sdna(prop, nullptr, "ScalexIni");
-  RNA_def_property_ui_text(prop, "Scale X", "Amount to scale the input in the X axis");
-  RNA_def_property_ui_range(prop, 0, 10, 3, 6);
-  RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_raw_update");
-
-  prop = RNA_def_property(srna, "scale_start_y", PROP_FLOAT, PROP_UNSIGNED);
-  RNA_def_property_float_sdna(prop, nullptr, "ScaleyIni");
-  RNA_def_property_ui_text(prop, "Scale Y", "Amount to scale the input in the Y axis");
-  RNA_def_property_ui_range(prop, 0, 10, 3, 6);
-  RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_raw_update");
-
-  prop = RNA_def_property(srna, "use_uniform_scale", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "uniform_scale", 0);
-  RNA_def_property_ui_text(prop, "Uniform Scale", "Scale uniformly, preserving aspect ratio");
-  RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_raw_update");
-
-  prop = RNA_def_property(srna, "translate_start_x", PROP_FLOAT, PROP_NONE);
-  RNA_def_property_float_sdna(prop, nullptr, "xIni");
-  RNA_def_property_ui_text(prop, "Translate X", "Amount to move the input on the X axis");
-  RNA_def_property_ui_range(prop, -4000.0f, 4000.0f, 3, 6);
-  RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_raw_update");
-
-  prop = RNA_def_property(srna, "translate_start_y", PROP_FLOAT, PROP_NONE);
-  RNA_def_property_float_sdna(prop, nullptr, "yIni");
-  RNA_def_property_ui_text(prop, "Translate Y", "Amount to move the input on the Y axis");
-  RNA_def_property_ui_range(prop, -4000.0f, 4000.0f, 3, 6);
-  RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_raw_update");
-
-  prop = RNA_def_property(srna, "rotation_start", PROP_FLOAT, PROP_NONE);
-  RNA_def_property_float_sdna(prop, nullptr, "rotIni");
-  RNA_def_property_ui_text(prop, "Rotation", "Degrees to rotate the input");
-  RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_raw_update");
-
-  prop = RNA_def_property(srna, "translation_unit", PROP_ENUM, PROP_NONE);
-  RNA_def_property_enum_sdna(prop, nullptr, "percent");
-  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE); /* not meant to be animated */
-  RNA_def_property_enum_items(prop, translation_unit_items);
-  RNA_def_property_ui_text(prop, "Translation Unit", "Unit of measure to translate the input");
-  RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_raw_update");
-
-  prop = RNA_def_property(srna, "interpolation", PROP_ENUM, PROP_NONE);
-  RNA_def_property_enum_items(prop, interpolation_items);
-  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE); /* not meant to be animated */
-  RNA_def_property_ui_text(
-      prop, "Interpolation", "Method to determine how missing pixels are created");
-  RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_raw_update");
-}
-
 static void rna_def_solid_color(StructRNA *srna)
 {
   PropertyRNA *prop;
@@ -3405,63 +3331,6 @@ static void rna_def_solid_color(StructRNA *srna)
   prop = RNA_def_property(srna, "color", PROP_FLOAT, PROP_COLOR_GAMMA);
   RNA_def_property_float_sdna(prop, nullptr, "col");
   RNA_def_property_ui_text(prop, "Color", "Effect Strip color");
-  RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_raw_update");
-}
-
-static void rna_def_speed_control(StructRNA *srna)
-{
-  PropertyRNA *prop;
-
-  RNA_def_struct_sdna_from(srna, "SpeedControlVars", "effectdata");
-
-  static const EnumPropertyItem speed_control_items[] = {
-      {SEQ_SPEED_STRETCH,
-       "STRETCH",
-       0,
-       "Stretch",
-       "Adjust input playback speed, so its duration fits strip length"},
-      {SEQ_SPEED_MULTIPLY, "MULTIPLY", 0, "Multiply", "Multiply with the speed factor"},
-      {SEQ_SPEED_FRAME_NUMBER,
-       "FRAME_NUMBER",
-       0,
-       "Frame Number",
-       "Frame number of the input strip"},
-      {SEQ_SPEED_LENGTH, "LENGTH", 0, "Length", "Percentage of the input strip length"},
-      {0, nullptr, 0, nullptr, nullptr},
-  };
-
-  prop = RNA_def_property(srna, "speed_control", PROP_ENUM, PROP_NONE);
-  RNA_def_property_enum_sdna(prop, nullptr, "speed_control_type");
-  RNA_def_property_enum_items(prop, speed_control_items);
-  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
-  RNA_def_property_ui_text(prop, "Speed Control", "Speed control method");
-  RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_raw_update");
-
-  prop = RNA_def_property(srna, "speed_factor", PROP_FLOAT, PROP_NONE);
-  RNA_def_property_float_sdna(prop, nullptr, "speed_fader");
-  RNA_def_property_ui_text(
-      prop,
-      "Multiply Factor",
-      "Multiply the current speed of the strip with this number or remap current frame "
-      "to this frame");
-  RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_raw_update");
-
-  prop = RNA_def_property(srna, "speed_frame_number", PROP_FLOAT, PROP_NONE);
-  RNA_def_property_float_sdna(prop, nullptr, "speed_fader_frame_number");
-  RNA_def_property_ui_text(prop, "Frame Number", "Frame number of input strip");
-  RNA_def_property_ui_range(prop, 0.0, MAXFRAME, 1.0, -1);
-  RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_raw_update");
-
-  prop = RNA_def_property(srna, "speed_length", PROP_FLOAT, PROP_PERCENTAGE);
-  RNA_def_property_float_sdna(prop, nullptr, "speed_fader_length");
-  RNA_def_property_ui_text(prop, "Length", "Percentage of input strip length");
-  RNA_def_property_ui_range(prop, 0.0, 100.0, 1, -1);
-  RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_raw_update");
-
-  prop = RNA_def_property(srna, "use_frame_interpolate", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "flags", SEQ_SPEED_USE_INTERPOLATION);
-  RNA_def_property_ui_text(
-      prop, "Frame Interpolation", "Do crossfade blending between current and next frame");
   RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_raw_update");
 }
 
@@ -3731,17 +3600,7 @@ static EffectInfo def_effects[] = {
      rna_def_multicam,
      0},
     {"MultiplyStrip", "Multiply Strip", "Multiply Strip", nullptr, 2},
-    {"SpeedControlStrip",
-     "SpeedControl Strip",
-     "Sequence strip to control the speed of other strips",
-     rna_def_speed_control,
-     1},
     {"SubtractStrip", "Subtract Strip", "Subtract Strip", nullptr, 2},
-    {"TransformStrip",
-     "Transform Strip",
-     "Sequence strip applying affine transformations to other strips",
-     rna_def_transform,
-     1},
     {"WipeStrip", "Wipe Strip", "Sequence strip creating a wipe transition", rna_def_wipe, 2},
     {"GaussianBlurStrip",
      "Gaussian Blur Strip",

@@ -422,78 +422,6 @@ static void move_vertex_group_names_to_object_data(Main *bmain)
   }
 }
 
-static void do_versions_sequencer_speed_effect_recursive(Scene *scene, const ListBase *seqbase)
-{
-  /* Old SpeedControlVars->flags. */
-#define STRIP_SPEED_INTEGRATE (1 << 0)
-#define STRIP_SPEED_COMPRESS_IPO_Y (1 << 2)
-
-  LISTBASE_FOREACH (Strip *, strip, seqbase) {
-    if (strip->type == STRIP_TYPE_SPEED) {
-      SpeedControlVars *v = (SpeedControlVars *)strip->effectdata;
-      const char *substr = nullptr;
-      float globalSpeed_legacy = v->globalSpeed_legacy;
-      if (strip->flag & SEQ_USE_EFFECT_DEFAULT_FADE) {
-        if (globalSpeed_legacy == 1.0f) {
-          v->speed_control_type = SEQ_SPEED_STRETCH;
-        }
-        else {
-          v->speed_control_type = SEQ_SPEED_MULTIPLY;
-          v->speed_fader = globalSpeed_legacy *
-                           (float(strip->input1->len) /
-                            max_ff(float(blender::seq::time_right_handle_frame_get(scene,
-                                                                                   strip->input1) -
-                                         strip->input1->start),
-                                   1.0f));
-        }
-      }
-      else if (v->flags & STRIP_SPEED_INTEGRATE) {
-        v->speed_control_type = SEQ_SPEED_MULTIPLY;
-        v->speed_fader = strip->speed_fader_legacy * globalSpeed_legacy;
-      }
-      else if (v->flags & STRIP_SPEED_COMPRESS_IPO_Y) {
-        globalSpeed_legacy *= 100.0f;
-        v->speed_control_type = SEQ_SPEED_LENGTH;
-        v->speed_fader_length = strip->speed_fader_legacy * globalSpeed_legacy;
-        substr = "speed_length";
-      }
-      else {
-        v->speed_control_type = SEQ_SPEED_FRAME_NUMBER;
-        v->speed_fader_frame_number = int(strip->speed_fader_legacy * globalSpeed_legacy);
-        substr = "speed_frame_number";
-      }
-
-      v->flags &= ~(STRIP_SPEED_INTEGRATE | STRIP_SPEED_COMPRESS_IPO_Y);
-
-      if (substr || globalSpeed_legacy != 1.0f) {
-        FCurve *fcu = id_data_find_fcurve(
-            &scene->id, strip, &RNA_Strip, "speed_factor", 0, nullptr);
-        if (fcu) {
-          if (globalSpeed_legacy != 1.0f) {
-            for (int i = 0; i < fcu->totvert; i++) {
-              BezTriple *bezt = &fcu->bezt[i];
-              bezt->vec[0][1] *= globalSpeed_legacy;
-              bezt->vec[1][1] *= globalSpeed_legacy;
-              bezt->vec[2][1] *= globalSpeed_legacy;
-            }
-          }
-          if (substr) {
-            char *new_path = BLI_string_replaceN(fcu->rna_path, "speed_factor", substr);
-            MEM_freeN(fcu->rna_path);
-            fcu->rna_path = new_path;
-          }
-        }
-      }
-    }
-    else if (strip->type == STRIP_TYPE_META) {
-      do_versions_sequencer_speed_effect_recursive(scene, &strip->seqbase);
-    }
-  }
-
-#undef STRIP_SPEED_INTEGRATE
-#undef STRIP_SPEED_COMPRESS_IPO_Y
-}
-
 static bool do_versions_sequencer_color_tags(Strip *strip, void * /*user_data*/)
 {
   strip->color_tag = STRIP_COLOR_NONE;
@@ -1111,14 +1039,6 @@ void do_versions_after_linking_300(FileData * /*fd*/, Main *bmain)
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 300, 11)) {
     move_vertex_group_names_to_object_data(bmain);
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 300, 13)) {
-    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-      if (scene->ed != nullptr) {
-        do_versions_sequencer_speed_effect_recursive(scene, &scene->ed->seqbase);
-      }
-    }
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 300, 25)) {

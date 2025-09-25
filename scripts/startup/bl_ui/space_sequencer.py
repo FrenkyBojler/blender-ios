@@ -685,8 +685,7 @@ class SEQUENCER_MT_change(Menu):
         layout.operator_context = 'INVOKE_DEFAULT'
         if strip and strip.type in {
             'CROSS', 'ADD', 'SUBTRACT', 'ALPHA_OVER', 'ALPHA_UNDER',
-            'GAMMA_CROSS', 'MULTIPLY', 'WIPE', 'GLOW',
-            'TRANSFORM', 'SPEED', 'MULTICAM', 'ADJUSTMENT',
+            'GAMMA_CROSS', 'MULTIPLY', 'WIPE', 'GLOW', 'MULTICAM', 'ADJUSTMENT',
             'GAUSSIAN_BLUR',
         }:
             layout.menu("SEQUENCER_MT_strip_effect_change")
@@ -845,8 +844,6 @@ class SEQUENCER_MT_add_effect(Menu):
         layout.separator()
 
         col = layout.column()
-        col.operator("sequencer.effect_strip_add", text="Transform").type = 'TRANSFORM'
-        col.operator("sequencer.effect_strip_add", text="Speed Control").type = 'SPEED'
         col.operator("sequencer.effect_strip_add", text="Glow").type = 'GLOW'
         col.operator("sequencer.effect_strip_add", text="Gaussian Blur").type = 'GAUSSIAN_BLUR'
         col.enabled = nonsound == 1
@@ -1085,8 +1082,6 @@ class SEQUENCER_MT_strip_effect_change(Menu):
         layout.separator()
 
         col = layout.column()
-        col.operator("sequencer.change_effect_type", text="Transform").type = 'TRANSFORM'
-        col.operator("sequencer.change_effect_type", text="Speed Control").type = 'SPEED'
         col.operator("sequencer.change_effect_type", text="Glow").type = 'GLOW'
         col.operator("sequencer.change_effect_type", text="Gaussian Blur").type = 'GAUSSIAN_BLUR'
         col.enabled = strip.input_count == 1
@@ -1218,8 +1213,7 @@ class SEQUENCER_MT_strip(Menu):
 
                 if strip_type in {
                         'CROSS', 'ADD', 'SUBTRACT', 'ALPHA_OVER', 'ALPHA_UNDER',
-                        'GAMMA_CROSS', 'MULTIPLY', 'WIPE', 'GLOW',
-                        'TRANSFORM', 'SPEED', 'MULTICAM', 'ADJUSTMENT',
+                        'GAMMA_CROSS', 'MULTIPLY', 'WIPE', 'GLOW', 'MULTICAM', 'ADJUSTMENT',
                         'GAUSSIAN_BLUR',
                 }:
                     layout.separator()
@@ -1402,8 +1396,7 @@ class SEQUENCER_MT_context_menu(Menu):
 
             if strip_type in {
                     'CROSS', 'ADD', 'SUBTRACT', 'ALPHA_OVER', 'ALPHA_UNDER',
-                    'GAMMA_CROSS', 'MULTIPLY', 'WIPE', 'GLOW',
-                    'TRANSFORM', 'SPEED', 'MULTICAM', 'ADJUSTMENT',
+                    'GAMMA_CROSS', 'MULTIPLY', 'WIPE', 'GLOW', 'MULTICAM', 'ADJUSTMENT',
                     'GAUSSIAN_BLUR',
             }:
                 layout.separator()
@@ -1651,8 +1644,7 @@ class SEQUENCER_PT_strip(SequencerButtonsPanel, Panel):
 
         if strip_type in {
                 'ADD', 'SUBTRACT', 'ALPHA_OVER', 'ALPHA_UNDER', 'MULTIPLY',
-                'GLOW', 'TRANSFORM', 'SPEED', 'MULTICAM',
-                'GAUSSIAN_BLUR', 'COLORMIX',
+                'GLOW', 'MULTICAM', 'GAUSSIAN_BLUR', 'COLORMIX',
         }:
             icon_header = 'SHADERFX'
         elif strip_type in {
@@ -1744,8 +1736,7 @@ class SEQUENCER_PT_effect(SequencerButtonsPanel, Panel):
         return strip.type in {
             'ADD', 'SUBTRACT', 'ALPHA_OVER', 'ALPHA_UNDER',
             'CROSS', 'GAMMA_CROSS', 'MULTIPLY',
-            'WIPE', 'GLOW', 'TRANSFORM', 'COLOR', 'SPEED',
-            'MULTICAM', 'GAUSSIAN_BLUR', 'TEXT', 'COLORMIX',
+            'WIPE', 'GLOW', 'COLOR', 'MULTICAM', 'GAUSSIAN_BLUR', 'TEXT', 'COLORMIX',
         }
 
     def draw(self, context):
@@ -1792,45 +1783,6 @@ class SEQUENCER_PT_effect(SequencerButtonsPanel, Panel):
             flow.prop(strip, "blur_radius")
             flow.prop(strip, "quality", slider=True)
             flow.prop(strip, "use_only_boost")
-
-        elif strip_type == 'SPEED':
-            col = layout.column(align=True)
-            col.prop(strip, "speed_control", text="Speed Control")
-            if strip.speed_control == 'MULTIPLY':
-                col.prop(strip, "speed_factor", text=" ")
-            elif strip.speed_control == 'LENGTH':
-                col.prop(strip, "speed_length", text=" ")
-            elif strip.speed_control == 'FRAME_NUMBER':
-                col.prop(strip, "speed_frame_number", text=" ")
-
-            row = layout.row(align=True)
-            row.enabled = strip.speed_control != 'STRETCH'
-            row = layout.row(align=True, heading="Interpolation")
-            row.prop(strip, "use_frame_interpolate", text="")
-
-        elif strip_type == 'TRANSFORM':
-            col = layout.column()
-
-            col.prop(strip, "interpolation")
-            col.prop(strip, "translation_unit")
-            col = layout.column(align=True)
-            col.prop(strip, "translate_start_x", text="Position X")
-            col.prop(strip, "translate_start_y", text="Y")
-
-            col.separator()
-
-            colsub = col.column(align=True)
-            colsub.prop(strip, "use_uniform_scale")
-            if strip.use_uniform_scale:
-                colsub = col.column(align=True)
-                colsub.prop(strip, "scale_start_x", text="Scale")
-            else:
-                col.prop(strip, "scale_start_x", text="Scale X")
-                col.prop(strip, "scale_start_y", text="Y")
-
-            col.separator()
-
-            col.prop(strip, "rotation_start", text="Rotation")
 
         elif strip_type == 'MULTICAM':
             col = layout.column(align=True)
@@ -2623,8 +2575,7 @@ class SEQUENCER_PT_adjust_video(SequencerButtonsPanel, Panel):
             'MOVIE', 'IMAGE', 'SCENE', 'MOVIECLIP', 'MASK',
             'META', 'ADD', 'SUBTRACT', 'ALPHA_OVER',
             'ALPHA_UNDER', 'CROSS', 'GAMMA_CROSS', 'MULTIPLY',
-            'WIPE', 'GLOW', 'TRANSFORM', 'COLOR',
-            'MULTICAM', 'SPEED', 'ADJUSTMENT', 'COLORMIX',
+            'WIPE', 'GLOW', 'COLOR', 'MULTICAM', 'ADJUSTMENT', 'COLORMIX',
         }
 
     def draw(self, context):
@@ -2660,8 +2611,7 @@ class SEQUENCER_PT_adjust_color(SequencerButtonsPanel, Panel):
             'MOVIE', 'IMAGE', 'SCENE', 'MOVIECLIP', 'MASK',
             'META', 'ADD', 'SUBTRACT', 'ALPHA_OVER',
             'ALPHA_UNDER', 'CROSS', 'GAMMA_CROSS', 'MULTIPLY',
-            'WIPE', 'GLOW', 'TRANSFORM', 'COLOR',
-            'MULTICAM', 'SPEED', 'ADJUSTMENT', 'COLORMIX',
+            'WIPE', 'GLOW', 'COLOR', 'MULTICAM', 'ADJUSTMENT', 'COLORMIX',
         }
 
     def draw(self, context):

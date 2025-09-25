@@ -412,43 +412,10 @@ typedef struct GlowVars {
   int bNoComp;
 } GlowVars;
 
-typedef struct TransformVars {
-  float ScalexIni;
-  float ScaleyIni;
-  float xIni;
-  float yIni;
-  float rotIni;
-  int percent;
-  int interpolation;
-  /** Preserve aspect/ratio when scaling. */
-  int uniform_scale;
-} TransformVars;
-
 typedef struct SolidColorVars {
   float col[3];
   char _pad[4];
 } SolidColorVars;
-
-typedef struct SpeedControlVars {
-  float *frameMap;
-  /** Replaced by `speed_fader_*` fields in 3.0. */
-  float globalSpeed_legacy DNA_DEPRECATED;
-  int flags; /* eEffectSpeedControlFlags */
-
-  int speed_control_type; /* eEffectSpeedControlType */
-
-  float speed_fader;
-  float speed_fader_length;
-  float speed_fader_frame_number;
-} SpeedControlVars;
-
-/** #SpeedControlVars.speed_control_type */
-typedef enum eEffectSpeedControlType {
-  SEQ_SPEED_STRETCH = 0,
-  SEQ_SPEED_MULTIPLY = 1,
-  SEQ_SPEED_LENGTH = 2,
-  SEQ_SPEED_FRAME_NUMBER = 3,
-} eEffectSpeedControlType;
 
 typedef struct GaussianBlurVars {
   float size_x;
@@ -668,14 +635,6 @@ typedef enum eEditingProxyStorageMode {
   SEQ_EDIT_PROXY_DIR_STORAGE = 1,
 } eEditingProxyStorageMode;
 
-/** #SpeedControlVars::flags */
-typedef enum eEffectSpeedControlFlags {
-  SEQ_SPEED_UNUSED_2 = 1 << 0, /* Cleared. */
-  SEQ_SPEED_UNUSED_1 = 1 << 1, /* Cleared. */
-  SEQ_SPEED_UNUSED_3 = 1 << 2, /* Cleared. */
-  SEQ_SPEED_USE_INTERPOLATION = 1 << 3,
-} eEffectSpeedControlFlags;
-
 #define STRIP_NAME_MAXSTR 64
 
 /** #SeqRetimingKey::flag */
@@ -817,12 +776,12 @@ typedef enum StripType {
   STRIP_TYPE_MUL = 14,
   /* Removed (behavior was the same as alpha-over), only used when reading old files. */
   STRIP_TYPE_OVERDROP_REMOVED = 15,
-  /* STRIP_TYPE_PLUGIN = 24, */ /* Removed */
+  /* STRIP_TYPE_PLUGIN = 24, */ /* Removed. */
   STRIP_TYPE_WIPE = 25,
   STRIP_TYPE_GLOW = 26,
-  STRIP_TYPE_TRANSFORM = 27,
+  /* STRIP_TYPE_TRANSFORM = 27, */ /* Removed. */
   STRIP_TYPE_COLOR = 28,
-  STRIP_TYPE_SPEED = 29,
+  /* STRIP_TYPE_SPEED = 29, */ /* Removed. */
   STRIP_TYPE_MULTICAM = 30,
   STRIP_TYPE_ADJUSTMENT = 31,
   STRIP_TYPE_GAUSSIAN_BLUR = 40,

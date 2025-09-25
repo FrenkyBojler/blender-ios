@@ -365,8 +365,6 @@ static void color3ubv_from_seq(const Scene *curscene,
       break;
 
     /* Effects. */
-    case STRIP_TYPE_TRANSFORM:
-    case STRIP_TYPE_SPEED:
     case STRIP_TYPE_ADD:
     case STRIP_TYPE_SUB:
     case STRIP_TYPE_MUL:
@@ -406,12 +404,6 @@ static void color3ubv_from_seq(const Scene *curscene,
       }
       else if (strip->type == STRIP_TYPE_ADJUSTMENT) {
         rgb_byte_set_hue_float_offset(r_col, 0.89);
-      }
-      else if (strip->type == STRIP_TYPE_SPEED) {
-        rgb_byte_set_hue_float_offset(r_col, 0.72);
-      }
-      else if (strip->type == STRIP_TYPE_TRANSFORM) {
-        rgb_byte_set_hue_float_offset(r_col, 0.75);
       }
       else if (strip->type == STRIP_TYPE_MULTICAM) {
         rgb_byte_set_hue_float_offset(r_col, 0.85);

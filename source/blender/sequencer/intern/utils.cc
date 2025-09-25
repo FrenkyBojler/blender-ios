@@ -146,16 +146,12 @@ const char *get_default_stripname_by_type(int type)
       return CTX_DATA_(BLT_I18NCONTEXT_ID_SEQUENCE, "Wipe");
     case STRIP_TYPE_GLOW:
       return CTX_DATA_(BLT_I18NCONTEXT_ID_SEQUENCE, "Glow");
-    case STRIP_TYPE_TRANSFORM:
-      return CTX_DATA_(BLT_I18NCONTEXT_ID_SEQUENCE, "Transform");
     case STRIP_TYPE_COLOR:
       return CTX_DATA_(BLT_I18NCONTEXT_ID_SEQUENCE, "Color");
     case STRIP_TYPE_MULTICAM:
       return CTX_DATA_(BLT_I18NCONTEXT_ID_SEQUENCE, "Multicam");
     case STRIP_TYPE_ADJUSTMENT:
       return CTX_DATA_(BLT_I18NCONTEXT_ID_SEQUENCE, "Adjustment");
-    case STRIP_TYPE_SPEED:
-      return CTX_DATA_(BLT_I18NCONTEXT_ID_SEQUENCE, "Speed");
     case STRIP_TYPE_GAUSSIAN_BLUR:
       return CTX_DATA_(BLT_I18NCONTEXT_ID_SEQUENCE, "Gaussian Blur");
     case STRIP_TYPE_TEXT:

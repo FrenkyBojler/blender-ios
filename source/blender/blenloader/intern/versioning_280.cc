@@ -3024,10 +3024,6 @@ static void do_versions_seq_set_cache_defaults(Editing *ed)
 static bool strip_update_flags_cb(Strip *strip, void * /*user_data*/)
 {
   strip->flag &= ~((1 << 6) | (1 << 18) | (1 << 19) | (1 << 21));
-  if (strip->type == STRIP_TYPE_SPEED) {
-    SpeedControlVars *s = (SpeedControlVars *)strip->effectdata;
-    s->flags &= ~SEQ_SPEED_UNUSED_1;
-  }
   return true;
 }
 

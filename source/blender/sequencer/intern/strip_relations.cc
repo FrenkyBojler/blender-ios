@@ -145,10 +145,6 @@ void relations_invalidate_cache_raw(Scene *scene, Strip *strip)
 
 void relations_invalidate_cache(Scene *scene, Strip *strip)
 {
-  if (strip->effectdata && strip->type == STRIP_TYPE_SPEED) {
-    strip_effect_speed_rebuild_map(scene, strip);
-  }
-
   media_presence_invalidate_strip(scene, strip);
 
   invalidate_final_cache_strip_range(scene, strip);
@@ -214,9 +210,6 @@ void relations_free_imbuf(Scene *scene, ListBase *seqbase, bool for_render)
     if (strip->data) {
       if (strip->type == STRIP_TYPE_MOVIE) {
         relations_strip_free_anim(strip);
-      }
-      if (strip->type == STRIP_TYPE_SPEED) {
-        strip_effect_speed_rebuild_map(scene, strip);
       }
     }
     if (strip->type == STRIP_TYPE_META) {
