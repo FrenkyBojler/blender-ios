@@ -10,15 +10,19 @@ __all__ = (
 )
 # TODO: remove before committing to main.
 '''
-env UBSAN_OPTIONS=print_stacktrace=1 ASAN_OPTIONS=check_initialization_order=0:leak_check_at_exit=0 bash -c 'while true; do inotifywait -e close_write tests/python/bl_pyapi_bmesh_uv_select.py; tput clear && ./blender.bin --background --python tests/python/bl_pyapi_bmesh.py -- --verbose; done'
+env UBSAN_OPTIONS=print_stacktrace=1 ASAN_OPTIONS=check_initialization_order=0:leak_check_at_exit=0 bash -c 'while true; do inotifywait -e close_write tests/python/bl_pyapi_bmesh.py; tput clear && ./blender.bin --background --python tests/python/bl_pyapi_bmesh.py -- --verbose; done'
 '''
 
 import bmesh
 import unittest
 
 
+# ------------------------------------------------------------------------------
+# Internal Utilities
+
 def save_to_blend_file_for_testing(bm):
     """
+    Useful for inspecting test data.
     """
     import bpy
     from bpy import context
@@ -40,6 +44,9 @@ def save_to_blend_file_for_testing(bm):
     bpy.ops.wm.save_as_mainfile(filepath="bl_pyapi_bmesh.blend")
 
 
+# ------------------------------------------------------------------------------
+# Basic Tests
+
 class TestBMeshBasic(unittest.TestCase):
 
     def test_create_uvsphere(self):
@@ -58,6 +65,9 @@ class TestBMeshBasic(unittest.TestCase):
         bm.free()
 
 
+# ------------------------------------------------------------------------------
+# UV Selection
+
 def uv_select_check_or_empty(
         bm,
         sync=False,
@@ -74,7 +84,7 @@ def uv_select_check_or_empty(
 
 def uv_select_check_non_zero(
         bm,
-        sync=True,
+        sync=False,
         flush=False,
         contiguous=False,
 ):
@@ -176,11 +186,7 @@ class TestBMeshUVSelectSimple(unittest.TestCase):
 
         bm.uv_select_sync_valid = True
         self.assertTrue(
-            uv_select_check_or_empty(
-                bm,
-                sync=True).get(
-                "count_uv_vert_any_selected_with_vert_unselected",
-                0),
+            uv_select_check_or_empty(bm, sync=True).get("count_uv_vert_any_selected_with_vert_unselected", 0),
             48)
 
         bm.free()
@@ -217,6 +223,7 @@ class TestBMeshUVSelectSimple(unittest.TestCase):
         from mathutils import Vector
         bm = bmesh.new()
         bmesh.ops.create_grid(bm, x_segments=3, y_segments=3, size=1.0)
+        # Needed for methods that act on UV select.
         bm.uv_select_sync_valid = True
 
         self.assertEqual((len(bm.verts), len(bm.edges), len(bm.faces)), (16, 24, 9))
@@ -239,7 +246,7 @@ class TestBMeshUVSelectSimple(unittest.TestCase):
         self.assertEqual(bm_loop_select_count_vert_edge_face(bm), ((4, 0, 0), (0, 0, 0)))
         # Check.
         self.assertEqual(
-            uv_select_check_non_zero(bm, flush=True),
+            uv_select_check_non_zero(bm, sync=True, flush=True),
             {
                 "count_uv_vert_any_selected_with_vert_unselected": 4,
             },
@@ -249,11 +256,10 @@ class TestBMeshUVSelectSimple(unittest.TestCase):
         bm.uv_select_sync_to_mesh()
         self.assertEqual(bm_loop_select_count_vert_edge_face(bm), ((4, 4, 1), (4, 4, 1)))
         self.assertEqual(
-            uv_select_check_non_zero(bm, flush=True, contiguous=True),
+            uv_select_check_non_zero(bm, sync=True, flush=True, contiguous=True),
             # Not actually an error as the UV's have intentionally been selected in isolation.
             {
-                "count_uv_edge_none_selected_with_edge_selected": 2,
-                "count_uv_vert_non_contiguous_selected": 5,
+                'count_uv_vert_non_contiguous_selected': 5,
             },
         )
 
@@ -264,8 +270,8 @@ class TestBMeshUVSelectSimple(unittest.TestCase):
         bm.uv_select_flush(False)
         bm.uv_select_sync_to_mesh()
         self.assertEqual(bm_loop_select_count_vert_edge_face(bm), ((0, 0, 0), (0, 0, 0)))
-        self.assertEqual(uv_select_check_non_zero(bm, flush=True), {})
-        self.assertEqual(uv_select_check_non_zero(bm, flush=True, contiguous=True), {})
+        self.assertEqual(uv_select_check_non_zero(bm, sync=True, flush=True), {})
+        self.assertEqual(uv_select_check_non_zero(bm, sync=True, flush=True, contiguous=True), {})
 
         # Select a single faces UV's bottom left hand corner (as well as adjacent UV's).
         for f in faces:
@@ -278,22 +284,26 @@ class TestBMeshUVSelectSimple(unittest.TestCase):
         bm.uv_select_flush(True)
         bm.uv_select_sync_to_mesh()
         self.assertEqual(bm_loop_select_count_vert_edge_face(bm), ((9, 6, 1), (4, 4, 1)))
-        self.assertEqual(uv_select_check_non_zero(bm, flush=True, contiguous=True), {})
+        self.assertEqual(uv_select_check_non_zero(bm, sync=True, flush=True, contiguous=True), {})
 
         # Ensure flushing de-selection does nothing when there is nothing to do.
         bm.uv_select_flush(False)
         bm.uv_select_sync_to_mesh()
         self.assertEqual(bm_loop_select_count_vert_edge_face(bm), ((9, 6, 1), (4, 4, 1)))
-        self.assertEqual(uv_select_check_non_zero(bm, flush=True), {})
+        self.assertEqual(uv_select_check_non_zero(bm, sync=True, flush=True), {})
 
         self.assertTrue(bm.uv_select_sync_valid)
-
-        save_to_blend_file_for_testing(bm)
 
         bm.free()
 
     def test_uv_select_sync_from_mesh(self):
-        pass
+        from mathutils import Vector
+        bm = bmesh.new()
+        bmesh.ops.create_grid(bm, x_segments=4, y_segments=4, size=2.0)
+        # Needed for methods that act on UV select.
+        bm.uv_select_sync_valid = True
+
+        # save_to_blend_file_for_testing(bm)
 
     def test_uv_select_sync_to_mesh(self):
         pass
