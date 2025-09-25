@@ -1718,7 +1718,7 @@ static void node_draw_node_group_indicator(const SpaceNode &snode,
   /* How far it extends down and narrows. */
   const float offset = 2.8f * UI_SCALE_FAC;
   const float outline_width = U.pixelsize;
-  const float alpha_selected = is_selected ? .33f : 0.0f;
+  const float alpha_selected = is_selected ? .33f : .0f;
   const float shadow_width = 0.25f * U.widget_unit;
   const float shadow_alpha = 0.15f;
 
@@ -1729,8 +1729,8 @@ static void node_draw_node_group_indicator(const SpaceNode &snode,
     const rctf rect_group_copy = {
         rect.xmin + offset * 4,
         rect.xmax - offset * 4,
-        rect.ymin - offset * 2 - outline_width,
-        rect.ymin - offset - outline_width,
+        rect.ymin - offset * 2,
+        rect.ymin - offset,
     };
 
     ui_draw_dropshadow(
@@ -1748,7 +1748,7 @@ static void node_draw_node_group_indicator(const SpaceNode &snode,
     const rctf rect_group_copy = {
         rect.xmin + offset * 2,
         rect.xmax - offset * 2,
-        rect.ymin - offset - outline_width,
+        rect.ymin - offset,
         rect.ymin,
     };
 
@@ -1783,23 +1783,23 @@ static void node_draw_node_group_indicator(const SpaceNode &snode,
     /* Bottom-most lines. */
     /* Draw the lines three times, each with slightly less wide, for a fade effect. */
     immUniformColor3ubvAlpha(color_line, 40);
-    immVertex2f(pos, rect.xmin + offset * 6, rect.ymin - offset * 2 - outline_width);
-    immVertex2f(pos, rect.xmax - offset * 6, rect.ymin - offset * 2 - outline_width);
-    immVertex2f(pos, rect.xmin + offset * 6 + padding, rect.ymin - offset * 2 - outline_width);
-    immVertex2f(pos, rect.xmax - offset * 6 - padding, rect.ymin - offset * 2 - outline_width);
-    immVertex2f(pos, rect.xmin + offset * 6 + padding * 2, rect.ymin - offset * 2 - outline_width);
-    immVertex2f(pos, rect.xmax - offset * 6 - padding * 2, rect.ymin - offset * 2 - outline_width);
+    immVertex2f(pos, rect.xmin + offset * 6, rect.ymin - offset * 2);
+    immVertex2f(pos, rect.xmax - offset * 6, rect.ymin - offset * 2);
+    immVertex2f(pos, rect.xmin + offset * 6 + padding, rect.ymin - offset * 2);
+    immVertex2f(pos, rect.xmax - offset * 6 - padding, rect.ymin - offset * 2);
+    immVertex2f(pos, rect.xmin + offset * 6 + padding * 2, rect.ymin - offset * 2);
+    immVertex2f(pos, rect.xmax - offset * 6 - padding * 2, rect.ymin - offset * 2);
     immEnd();
 
     /* Middle lines. */
     immBegin(GPU_PRIM_LINES, 6);
     immUniformColor3ubvAlpha(color_line, 50);
-    immVertex2f(pos, rect.xmin + offset * 4, rect.ymin - offset - outline_width);
-    immVertex2f(pos, rect.xmax - offset * 4, rect.ymin - offset - outline_width);
-    immVertex2f(pos, rect.xmin + offset * 4 + padding, rect.ymin - offset - outline_width);
-    immVertex2f(pos, rect.xmax - offset * 4 - padding, rect.ymin - offset - outline_width);
-    immVertex2f(pos, rect.xmin + offset * 4 + padding * 2, rect.ymin - offset - outline_width);
-    immVertex2f(pos, rect.xmax - offset * 4 - padding * 2, rect.ymin - offset - outline_width);
+    immVertex2f(pos, rect.xmin + offset * 4, rect.ymin - offset);
+    immVertex2f(pos, rect.xmax - offset * 4, rect.ymin - offset);
+    immVertex2f(pos, rect.xmin + offset * 4 + padding, rect.ymin - offset);
+    immVertex2f(pos, rect.xmax - offset * 4 - padding, rect.ymin - offset);
+    immVertex2f(pos, rect.xmin + offset * 4 + padding * 2, rect.ymin - offset);
+    immVertex2f(pos, rect.xmax - offset * 4 - padding * 2, rect.ymin - offset);
     immEnd();
 
     GPU_blend(GPU_BLEND_NONE);
@@ -3240,7 +3240,7 @@ static void node_draw_basis(const bContext &C,
       UI_GetThemeColorShade4fv(TH_REDALERT, -40, color_body);
     }
     else {
-      UI_GetThemeColorShade4fv(color_id, 20, color_body);
+      UI_GetThemeColorShade4fv(TH_NODE, 20, color_body);
     }
     UI_draw_roundbox_corner_set(UI_CNR_BOTTOM_LEFT | UI_CNR_BOTTOM_RIGHT);
     UI_draw_roundbox_4fv(&rect_body, false, BASIS_RAD, color_body);
