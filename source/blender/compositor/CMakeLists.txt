@@ -167,6 +167,68 @@ set(LIB
 )
 
 set(GLSL_SRC
+  shaders/infos/compositor_alpha_crop_infos.hh
+  shaders/infos/compositor_bilateral_blur_infos.hh
+  shaders/infos/compositor_bokeh_blur_infos.hh
+  shaders/infos/compositor_bokeh_blur_variable_size_infos.hh
+  shaders/infos/compositor_bokeh_image_infos.hh
+  shaders/infos/compositor_box_mask_infos.hh
+  shaders/infos/compositor_compute_preview_infos.hh
+  shaders/infos/compositor_convert_infos.hh
+  shaders/infos/compositor_cryptomatte_infos.hh
+  shaders/infos/compositor_defocus_infos.hh
+  shaders/infos/compositor_deriche_gaussian_blur_infos.hh
+  shaders/infos/compositor_despeckle_infos.hh
+  shaders/infos/compositor_directional_blur_infos.hh
+  shaders/infos/compositor_displace_infos.hh
+  shaders/infos/compositor_double_edge_mask_infos.hh
+  shaders/infos/compositor_edge_filter_infos.hh
+  shaders/infos/compositor_ellipse_mask_infos.hh
+  shaders/infos/compositor_filter_infos.hh
+  shaders/infos/compositor_flip_infos.hh
+  shaders/infos/compositor_gamma_correct_infos.hh
+  shaders/infos/compositor_glare_infos.hh
+  shaders/infos/compositor_id_mask_infos.hh
+  shaders/infos/compositor_image_coordinates_infos.hh
+  shaders/infos/compositor_image_crop_infos.hh
+  shaders/infos/compositor_inpaint_infos.hh
+  shaders/infos/compositor_jump_flooding_infos.hh
+  shaders/infos/compositor_keying_infos.hh
+  shaders/infos/compositor_keying_screen_infos.hh
+  shaders/infos/compositor_kuwahara_infos.hh
+  shaders/infos/compositor_lens_distortion_infos.hh
+  shaders/infos/compositor_map_uv_infos.hh
+  shaders/infos/compositor_morphological_blur_infos.hh
+  shaders/infos/compositor_morphological_distance_feather_infos.hh
+  shaders/infos/compositor_morphological_distance_infos.hh
+  shaders/infos/compositor_morphological_distance_threshold_infos.hh
+  shaders/infos/compositor_morphological_step_infos.hh
+  shaders/infos/compositor_motion_blur_infos.hh
+  shaders/infos/compositor_movie_distortion_infos.hh
+  shaders/infos/compositor_normalize_infos.hh
+  shaders/infos/compositor_pad_infos.hh
+  shaders/infos/compositor_parallel_reduction_infos.hh
+  shaders/infos/compositor_pixelate_infos.hh
+  shaders/infos/compositor_plane_deform_infos.hh
+  shaders/infos/compositor_premultiply_alpha_infos.hh
+  shaders/infos/compositor_read_input_infos.hh
+  shaders/infos/compositor_realize_on_domain_infos.hh
+  shaders/infos/compositor_sample_pixel_infos.hh
+  shaders/infos/compositor_scale_variable_infos.hh
+  shaders/infos/compositor_smaa_infos.hh
+  shaders/infos/compositor_split_infos.hh
+  shaders/infos/compositor_summed_area_table_infos.hh
+  shaders/infos/compositor_symmetric_blur_infos.hh
+  shaders/infos/compositor_symmetric_blur_variable_size_infos.hh
+  shaders/infos/compositor_symmetric_separable_blur_infos.hh
+  shaders/infos/compositor_symmetric_separable_blur_variable_size_infos.hh
+  shaders/infos/compositor_tone_map_photoreceptor_infos.hh
+  shaders/infos/compositor_tone_map_simple_infos.hh
+  shaders/infos/compositor_translate_wrapped_infos.hh
+  shaders/infos/compositor_van_vliet_gaussian_blur_infos.hh
+  shaders/infos/compositor_write_output_infos.hh
+  shaders/infos/compositor_z_combine_infos.hh
+
   shaders/compositor_alpha_crop.glsl
   shaders/compositor_bilateral_blur.glsl
   shaders/compositor_bokeh_blur.glsl
