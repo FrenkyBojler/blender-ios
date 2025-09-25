@@ -1483,12 +1483,12 @@ class VIEW3D_MT_view(Menu):
 
         layout.operator(
             "render.opengl",
-            text="Render Preview Still",
+            text="Render Viewport Preview",
             icon='RENDER_STILL',
         )
         layout.operator(
             "render.opengl",
-            text="Render Preview Playblast",
+            text="Render Playblast",
             icon='RENDER_ANIMATION',
         ).animation = True
 
