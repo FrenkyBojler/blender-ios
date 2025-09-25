@@ -1475,10 +1475,12 @@ void BM_mesh_uvselect_flush_post_subdivide(BMesh *bm, const int cd_loop_uv_offse
     BMIter iter;
     BMFace *f;
     BM_ITER_MESH (f, &iter, bm, BM_FACES_OF_MESH) {
+      if (BM_elem_flag_test(f, BM_ELEM_HIDDEN)) {
+        continue;
+      }
       if (BM_elem_flag_test(f, BM_ELEM_SELECT_UV)) {
         continue;
       }
-      /* Check if "shared" edges/ */
       BMLoop *l_iter, *l_first;
 
       /* Setting these values first. */
