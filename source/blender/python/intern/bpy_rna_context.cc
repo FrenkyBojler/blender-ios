@@ -109,6 +109,11 @@ static bool wm_check_region_exists(const bScreen *screen,
 
 /**
  * Helper function to configure context logging with extensible options.
+ *
+ * \param C: The context to configure.
+ * \param enable: Whether to enable logging.
+ * \param deduplicate: Whether to deduplicate log entries.
+ * \param hide_missing: Whether to hide missing/None values from logging.
  */
 static void bpy_rna_context_logging_set(bContext *C, bool enable, bool deduplicate = false, bool hide_missing = false)
 {
@@ -538,7 +543,8 @@ static PyObject *bpy_rna_context_temp_override_logging_set(BPyContextTempOverrid
 
   static const char *kwlist[] = {"", "deduplicate", "hide_missing", nullptr};
 
-  /* Single '|' marks start of optional arguments; use one '|' then multiple optional specifiers. */
+  /* Parse arguments: required bool, optional deduplicate bool, optional hide_missing bool.
+   * Format string "O&|O&O&": O& = bool converter, | = start of optional args. */
   if (!PyArg_ParseTupleAndKeywords(args,
                                    kwds,
                                    "O&|O&O&",
