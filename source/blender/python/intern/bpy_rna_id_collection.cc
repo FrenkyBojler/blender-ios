@@ -525,15 +525,14 @@ struct IDFilePathForeachData {
   bool seen_error;
 };
 
-/** Wraps eBPathForeachFlag from BKE_path.hh. */
+/**
+ * Wraps eBPathForeachFlag from BKE_path.hh.
+ *
+ * No "tooltip" is set, because these are never shown in any documentation, UI, etc.
+ */
 const EnumPropertyItem rna_enum_file_path_foreach_flag_items[] = {
-    {BKE_BPATH_FOREACH_PATH_ABSOLUTE,
-     "ABSOLUTE",
-     0,
-     "Absolute",
-     "Ensures the `absolute_base_path` member of BPathForeachPathData is initialized properly "
-     "with the path of the current .blend file. This can be used by the callbacks to convert "
-     "relative paths to absolute ones."},
+    /* BKE_BPATH_FOREACH_PATH_ABSOLUTE is not included here, as its only use is to initialize a
+     * field in BPathForeachPathData that is not used by the callback. */
     {BKE_BPATH_FOREACH_PATH_SKIP_LINKED,
      "SKIP_LINKED",
      0,
@@ -654,7 +653,7 @@ PyDoc_STRVAR(
     /* Wrap. */
     bpy_file_path_foreach_doc,
     ".. method:: file_path_foreach(visit_path_fn, *, subset=None, visit_types=None, "
-    "flags=None)\n"
+    "flags={'SKIP_PACKED', 'SKIP_WEAK_REFERENCES'})\n"
     "\n"
     "   Call `visit_path_fn` for the file paths used by all ID data-blocks in current "
     "``bpy.data``.\n"
@@ -672,8 +671,26 @@ PyDoc_STRVAR(
     "   :arg visit_types: When given, only visit data-blocks of of these types. Ignored if "
     "``subset`` is also given.\n"
     "   :type visit_types: set[str]\n"
-    "   :arg flags: Set of flags that influence which data-blocks are visited.\n"
-    "   :type flags: set[str]\n");
+    "   :type flags: set[str]\n"
+    "   :arg flags: Set of flags that influence which data-blocks are visited:\n"
+    "\n"
+    "               ``'SKIP_LINKED'``\n"
+    "                   Skip paths of linked IDs\n"
+    "               ``'SKIP_PACKED'``\n"
+    "                   Skip paths when their matching data is packed\n"
+    "               ``'RESOLVE_TOKEN'``\n"
+    "                   Resolve tokens within a virtual filepath to a single, concrete, filepath\n"
+    "               ``'SKIP_WEAK_REFERENCES'``\n"
+    "                   Skip weak reference paths. Those paths are typically 'nice to have' extra "
+    "information, but are not used as actual source of data by the current .blend file\n"
+    "               ``'SKIP_MULTIFILE'``\n"
+    "                   Skip paths where a single dir is used with an array of files, eg. "
+    "sequence strip images or point-caches. In this case only use the first file path is "
+    "processed. This is needed for "
+    "directory manipulation callbacks which might otherwise modify the same directory multiple "
+    "times\n"
+    "               ``'RELOAD_EDITED'``\n"
+    "                   Reload data when the path is edited\n");
 // TODO: document the flags.
 static PyObject *bpy_file_path_foreach(PyObject *self, PyObject *args, PyObject *kwds)
 {
