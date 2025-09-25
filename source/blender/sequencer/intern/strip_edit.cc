@@ -409,7 +409,7 @@ Strip *edit_strip_split(Main *bmain,
                         Strip *strip,
                         const int timeline_frame,
                         const eSplitMethod method,
-                        const bool ignore_connected,
+                        const bool ignore_connections,
                         const char **r_error)
 {
   if (!seq_edit_split_intersect_check(scene, strip, timeline_frame)) {
@@ -422,7 +422,7 @@ Strip *edit_strip_split(Main *bmain,
   iterator_set_expand(scene,
                       seqbase,
                       strips,
-                      ignore_connected ? query_strip_effect_chain :
+                      ignore_connections ? query_strip_effect_chain :
                                          query_strip_connected_and_effect_chain);
 
   /* All connected strips (that are selected and at the cut frame) must also be duplicated. */
@@ -445,7 +445,7 @@ Strip *edit_strip_split(Main *bmain,
     BLI_remlink(seqbase, strip_iter);
     BLI_addtail(&left_strips, strip_iter);
 
-    if (ignore_connected) {
+    if (ignore_connections) {
       seq::disconnect(strip_iter);
     }
 
