@@ -533,40 +533,16 @@ struct IDFilePathForeachData {
 const EnumPropertyItem rna_enum_file_path_foreach_flag_items[] = {
     /* BKE_BPATH_FOREACH_PATH_ABSOLUTE is not included here, as its only use is to initialize a
      * field in BPathForeachPathData that is not used by the callback. */
-    {BKE_BPATH_FOREACH_PATH_SKIP_LINKED,
-     "SKIP_LINKED",
-     0,
-     "Skip Linked",
-     "Skip paths of linked IDs"},
-    {BKE_BPATH_FOREACH_PATH_SKIP_PACKED,
-     "SKIP_PACKED",
-     0,
-     "Skip Packed",
-     "Skip paths when their matching data is packed"},
-    {BKE_BPATH_FOREACH_PATH_RESOLVE_TOKEN,
-     "RESOLVE_TOKEN",
-     0,
-     "Resolve Token",
-     "Resolve tokens within a virtual filepath to a single, concrete, filepath"},
+    {BKE_BPATH_FOREACH_PATH_SKIP_LINKED, "SKIP_LINKED", 0, "Skip Linked"},
+    {BKE_BPATH_FOREACH_PATH_SKIP_PACKED, "SKIP_PACKED", 0, "Skip Packed"},
+    {BKE_BPATH_FOREACH_PATH_RESOLVE_TOKEN, "RESOLVE_TOKEN", 0, "Resolve Token"},
     {BKE_BPATH_TRAVERSE_SKIP_WEAK_REFERENCES,
      "SKIP_WEAK_REFERENCES",
      0,
      "Skip Weak References",
-     "Skip weak reference paths. Those paths are typically 'nice to have' extra information, but "
-     "are not used as actual source of data by the current .blend file"},
-    {BKE_BPATH_FOREACH_PATH_SKIP_MULTIFILE,
-     "SKIP_MULTIFILE",
-     0,
-     "Skip Multifile",
-     "Skip paths where a single dir is used with an array of files, eg. sequence strip images or "
-     "point-caches. In this case only use the first file path is processed. This is needed for "
-     "directory manipulation callbacks which might otherwise modify the same directory multiple "
-     "times"},
-    {BKE_BPATH_FOREACH_PATH_RELOAD_EDITED,
-     "RELOAD_EDITED",
-     0,
-     "Reload Edited",
-     "Reload data when the path is edited"},
+     ""},
+    {BKE_BPATH_FOREACH_PATH_SKIP_MULTIFILE, "SKIP_MULTIFILE", 0, "Skip Multifile", ""},
+    {BKE_BPATH_FOREACH_PATH_RELOAD_EDITED, "RELOAD_EDITED", 0, "Reload Edited", ""},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
