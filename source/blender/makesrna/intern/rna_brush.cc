@@ -552,6 +552,12 @@ static bool rna_BrushCapabilitiesSculpt_has_strength_pressure_get(PointerRNA *pt
   return blender::bke::brush::supports_strength_pressure(*br);
 }
 
+static bool rna_BrushCapabilitiesSculpt_has_size_pressure_get(PointerRNA *ptr)
+{
+  const Brush *br = static_cast<const Brush *>(ptr->data);
+  return blender::bke::brush::supports_size_pressure(*br);
+}
+
 static bool rna_BrushCapabilitiesSculpt_has_direction_get(PointerRNA *ptr)
 {
   const Brush *br = static_cast<const Brush *>(ptr->data);
@@ -1169,6 +1175,7 @@ static void rna_def_sculpt_capabilities(BlenderRNA *brna)
   SCULPT_BRUSH_CAPABILITY(has_smooth_stroke, "Has Smooth Stroke");
   SCULPT_BRUSH_CAPABILITY(has_space_attenuation, "Has Space Attenuation");
   SCULPT_BRUSH_CAPABILITY(has_strength_pressure, "Has Strength Pressure");
+  SCULPT_BRUSH_CAPABILITY(has_strength_pressure, "Has Size Pressure");
   SCULPT_BRUSH_CAPABILITY(has_direction, "Has Direction");
   SCULPT_BRUSH_CAPABILITY(has_gravity, "Has Gravity");
   SCULPT_BRUSH_CAPABILITY(has_tilt, "Has Tilt");
