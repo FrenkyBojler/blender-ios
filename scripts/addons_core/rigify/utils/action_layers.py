@@ -2,6 +2,7 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
+from __future__ import annotations
 import bpy
 from typing import Optional, List, Dict, Tuple, TYPE_CHECKING
 from bpy.types import Action, Mesh, Armature, ActionChannelbag
@@ -41,8 +42,8 @@ class ActionSlotBase:
     trans_min: float
     trans_max: float
     is_corrective: bool
-    trigger_a: Optional['ActionSlotBase']
-    trigger_b: Optional['ActionSlotBase']
+    trigger_a: Optional[ActionSlotBase]
+    trigger_b: Optional[ActionSlotBase]
 
     ############################################
     # Action Constraint Setup
@@ -377,21 +378,21 @@ class ActionLayerBuilder(GeneratorPlugin, BoneUtilityMixin, MechanismUtilityMixi
     def sort_action_setups(action_setups: list[ActionSlotBase]):
         indices = {action_setup.unique_id: i for i, action_setup in enumerate(action_setups)}
 
-        def action_order(action_setup: ActionSlotBase) -> int:
+        def action_key(action_setup: ActionSlotBase) -> int:
             return indices.get(action_setup.unique_id, -1)
 
-        def action_setup_order(action_setup: ActionSlotBase) -> float:
+        def action_setup_key(action_setup: ActionSlotBase) -> float:
             # Ensure corrective actions are added AFTER their triggers.
             if action_setup.is_corrective:
                 return max(
-                    action_order(action_setup),
-                    action_order(action_setup.trigger_a) + 0.5,
-                    action_order(action_setup.trigger_b) + 0.5,
+                    action_key(action_setup),
+                    action_key(action_setup.trigger_a) + 0.5,
+                    action_key(action_setup.trigger_b) + 0.5,
                 )
             else:
-                return action_order(action_setup)
+                return action_key(action_setup)
 
-        return sorted(action_setups, key=action_setup_order)
+        return sorted(action_setups, key=action_setup_key)
 
     def spawn_slot_layers(self, act_slot):
         name = act_slot.name
@@ -434,6 +435,7 @@ class ActionLayerBuilder(GeneratorPlugin, BoneUtilityMixin, MechanismUtilityMixi
 
 @bpy.app.handlers.persistent
 def versioning_5_0(_):
+    """This is a load_post handler, registered in the top-most level __init__.py."""
     for obj in bpy.data.objects:
         if obj.type != 'ARMATURE' or obj.library:
             # We only care about armatures, which are local to this file.
@@ -446,12 +448,11 @@ def versioning_5_0(_):
             )
             sys_props = action_setup.bl_system_properties_get()
             for prop_name in ('trigger_action_a', 'trigger_action_b'):
-                if prop_name in sys_props:
-                    trigger_action = sys_props.get(prop_name, None)
-                    if not trigger_action:
-                        continue
-                    trigger_action_setup = next(
-                        (setup for setup in obj.data.rigify_action_slots if setup.action == trigger_action)
-                    )
-                    setattr(action_setup, prop_name.replace("_action", ""), trigger_action_setup)
-                    del sys_props[prop_name]
+                trigger_action = sys_props.get(prop_name, None)
+                if not trigger_action:
+                    continue
+                trigger_action_setup = next(
+                    (setup for setup in obj.data.rigify_action_slots if setup.action == trigger_action)
+                )
+                setattr(action_setup, prop_name.replace("_action", ""), trigger_action_setup)
+                del sys_props[prop_name]
