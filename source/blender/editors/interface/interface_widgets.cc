@@ -3604,7 +3604,9 @@ static void widget_numbut_draw(const uiBut *but,
   }
 
   /* decoration */
-  if ((state->but_flag & UI_HOVER) && !state->is_text_input) {
+  if (((state->but_flag & UI_HOVER) || (U.uiflag2 & USER_ALWAYS_SHOW_NUMBER_ARROWS)) &&
+      !state->is_text_input)
+  {
     uiWidgetColors wcol_zone;
     uiWidgetBase wtb_zone;
     rcti rect_zone;
@@ -3617,6 +3619,9 @@ static void widget_numbut_draw(const uiBut *but,
 
     wcol_zone = *wcol;
     copy_v3_v3_uchar(wcol_zone.item, wcol->text);
+    if (!(state->but_flag & UI_HOVER)) {
+      wcol_zone.item[3] = 180;
+    }
     if (state->but_drawflag & UI_BUT_HOVER_LEFT) {
       widget_active_color(&wcol_zone);
     }
@@ -3637,6 +3642,9 @@ static void widget_numbut_draw(const uiBut *but,
 
     wcol_zone = *wcol;
     copy_v3_v3_uchar(wcol_zone.item, wcol->text);
+    if (!(state->but_flag & UI_HOVER)) {
+      wcol_zone.item[3] = 180;
+    }
     if (state->but_drawflag & UI_BUT_HOVER_RIGHT) {
       widget_active_color(&wcol_zone);
     }
@@ -3656,7 +3664,9 @@ static void widget_numbut_draw(const uiBut *but,
 
     wcol_zone = *wcol;
     copy_v3_v3_uchar(wcol_zone.item, wcol->text);
-    if (!(state->but_drawflag & (UI_BUT_HOVER_LEFT | UI_BUT_HOVER_RIGHT))) {
+    if ((state->but_flag & UI_HOVER) &&
+        !(state->but_drawflag & (UI_BUT_HOVER_LEFT | UI_BUT_HOVER_RIGHT)))
+    {
       widget_active_color(&wcol_zone);
     }
 
@@ -5262,11 +5272,11 @@ void ui_draw_but(const bContext *C, ARegion *region, uiStyle *style, uiBut *but,
         break;
 
       case ButType::Curve:
-        ui_draw_but_CURVE(region, but, &tui->wcol_regular, rect);
+        ui_draw_but_CURVE(region, but, &tui->wcol_curve, rect);
         break;
 
       case ButType::CurveProfile:
-        ui_draw_but_CURVEPROFILE(region, but, &tui->wcol_regular, rect);
+        ui_draw_but_CURVEPROFILE(region, but, &tui->wcol_curve, rect);
         break;
 
       case ButType::Progress:

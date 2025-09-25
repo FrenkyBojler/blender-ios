@@ -24,7 +24,7 @@ class Background : Overlay {
   PassSimple bg_ps_ = {"Background"};
   PassSimple bg_vignette_ps_ = {"Background Vignette"};
 
-  GPUFrameBuffer *framebuffer_ref_ = nullptr;
+  gpu::FrameBuffer *framebuffer_ref_ = nullptr;
 
  public:
   void begin_sync(Resources &res, const State &state) final

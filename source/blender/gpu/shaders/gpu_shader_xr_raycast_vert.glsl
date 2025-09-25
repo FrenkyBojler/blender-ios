@@ -2,7 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "infos/gpu_shader_xr_raycast_info.hh"
+#include "infos/gpu_shader_xr_raycast_infos.hh"
 
 VERTEX_SHADER_CREATE_INFO(gpu_shader_xr_raycast)
 

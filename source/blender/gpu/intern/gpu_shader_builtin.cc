@@ -24,7 +24,7 @@ struct BuiltinShader : blender::gpu::StaticShader {
 /* Cache of built-in shaders (each is created on first use). */
 static BuiltinShader *builtin_shaders[GPU_SHADER_CFG_LEN][GPU_SHADER_BUILTIN_LEN] = {{nullptr}};
 
-static const char *builtin_shader_create_info_name(eGPUBuiltinShader shader)
+static const char *builtin_shader_create_info_name(GPUBuiltinShader shader)
 {
   switch (shader) {
     case GPU_SHADER_TEXT:
@@ -127,7 +127,7 @@ static const char *builtin_shader_create_info_name(eGPUBuiltinShader shader)
   }
 }
 
-static const char *builtin_shader_create_info_name_clipped(eGPUBuiltinShader shader)
+static const char *builtin_shader_create_info_name_clipped(GPUBuiltinShader shader)
 {
   switch (shader) {
     case GPU_SHADER_3D_UNIFORM_COLOR:
@@ -150,8 +150,8 @@ static const char *builtin_shader_create_info_name_clipped(eGPUBuiltinShader sha
   }
 }
 
-blender::gpu::Shader *GPU_shader_get_builtin_shader_with_config(eGPUBuiltinShader shader,
-                                                                eGPUShaderConfig sh_cfg)
+blender::gpu::Shader *GPU_shader_get_builtin_shader_with_config(GPUBuiltinShader shader,
+                                                                GPUShaderConfig sh_cfg)
 {
   BLI_assert(shader < GPU_SHADER_BUILTIN_LEN);
 
@@ -203,7 +203,7 @@ blender::gpu::Shader *GPU_shader_get_builtin_shader_with_config(eGPUBuiltinShade
   return (*sh_p)->get();
 }
 
-static void gpu_shader_warm_builtin_shader_async(eGPUBuiltinShader shader, eGPUShaderConfig sh_cfg)
+static void gpu_shader_warm_builtin_shader_async(GPUBuiltinShader shader, GPUShaderConfig sh_cfg)
 {
   BLI_assert(shader < GPU_SHADER_BUILTIN_LEN);
 
@@ -236,7 +236,7 @@ static void gpu_shader_warm_builtin_shader_async(eGPUBuiltinShader shader, eGPUS
   (*sh_p)->ensure_compile_async();
 }
 
-blender::gpu::Shader *GPU_shader_get_builtin_shader(eGPUBuiltinShader shader)
+blender::gpu::Shader *GPU_shader_get_builtin_shader(GPUBuiltinShader shader)
 {
   return GPU_shader_get_builtin_shader_with_config(shader, GPU_SHADER_CFG_DEFAULT);
 }

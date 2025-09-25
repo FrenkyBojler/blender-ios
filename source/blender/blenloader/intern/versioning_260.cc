@@ -8,15 +8,15 @@
 
 #include <algorithm>
 
-#include "BKE_idprop.hh"
-#include "BLI_listbase.h"
-#include "BLI_utildefines.h"
-
 /* allow readfile to use deprecated functionality */
 #define DNA_DEPRECATED_ALLOW
 
 /* Define macros in `DNA_genfile.h`. */
 #define DNA_GENFILE_VERSIONING_MACROS
+
+#include "BKE_idprop.hh"
+#include "BLI_listbase.h"
+#include "BLI_utildefines.h"
 
 #include "DNA_anim_types.h"
 #include "DNA_brush_types.h"
@@ -347,7 +347,7 @@ static bNodeSocket *ntreeCompositOutputFileAddSocket(bNodeTree *ntree,
     }
   }
   else {
-    BKE_image_format_init(&sockdata->format, false);
+    BKE_image_format_init(&sockdata->format);
   }
   BKE_image_format_update_color_space_for_type(&sockdata->format);
 
@@ -1143,7 +1143,7 @@ static bool strip_colorbalance_update_cb(Strip *strip, void * /*user_data*/)
 
   if (data && data->color_balance_legacy) {
     StripModifierData *smd = blender::seq::modifier_new(
-        strip, nullptr, seqModifierType_ColorBalance);
+        strip, nullptr, eSeqModifierType_ColorBalance);
     ColorBalanceModifierData *cbmd = (ColorBalanceModifierData *)smd;
 
     cbmd->color_balance = *data->color_balance_legacy;
@@ -1564,7 +1564,7 @@ void blo_do_versions_260(FileData *fd, Library * /*lib*/, Main *bmain)
         ToolSettings *ts = scene->toolsettings;
         UnifiedPaintSettings *ups = &ts->unified_paint_settings;
         ups->size = ts->sculpt_paint_unified_size;
-        ups->unprojected_radius = ts->sculpt_paint_unified_unprojected_radius;
+        ups->unprojected_size = ts->sculpt_paint_unified_unprojected_radius;
         ups->alpha = ts->sculpt_paint_unified_alpha;
         ups->flag = ts->sculpt_paint_settings;
       }
