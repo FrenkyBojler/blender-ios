@@ -101,7 +101,7 @@ namespace blender::ed::uv {
  * picking individual elements and basic selection actions should be supported.
  * Selection actions such as random or by vertex group... isn't so practical.
  */
-class UVSyncSelectFromView3D : NonCopyable {
+class UVSyncSelectFromMesh : NonCopyable {
  private:
   char uv_sticky_;
   BMesh &bm_;
@@ -115,10 +115,10 @@ class UVSyncSelectFromView3D : NonCopyable {
   blender::VectorList<BMFace *> bm_faces_deselect_;
 
  public:
-  UVSyncSelectFromView3D(BMesh &bm, char uv_sticky) : uv_sticky_(uv_sticky), bm_(bm) {}
-  UVSyncSelectFromView3D(const UVSyncSelectFromView3D &) = delete;
+  UVSyncSelectFromMesh(BMesh &bm, char uv_sticky) : uv_sticky_(uv_sticky), bm_(bm) {}
+  UVSyncSelectFromMesh(const UVSyncSelectFromMesh &) = delete;
 
-  static UVSyncSelectFromView3D *create_if_needed(const ToolSettings &ts, BMesh &bm);
+  static UVSyncSelectFromMesh *create_if_needed(const ToolSettings &ts, BMesh &bm);
   void apply();
 
   /* Select. */

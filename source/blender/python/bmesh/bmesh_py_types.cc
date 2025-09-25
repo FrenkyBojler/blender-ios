@@ -1625,15 +1625,15 @@ static PyObject *bpy_bmesh_uv_select_sync_from_mesh(BPy_BMesh *self, PyObject *a
         PyErr_SetString(PyExc_ValueError, "sticky_select_mode='SHARED_LOCATION' requires UV's");
         return nullptr;
       }
-      BM_mesh_uvselect_flush_from_v3d_sticky_location(bm, cd_loop_uv_offset);
+      BM_mesh_uvselect_flush_from_mesh_sticky_location(bm, cd_loop_uv_offset);
       break;
     }
     case SI_STICKY_DISABLE: {
-      BM_mesh_uvselect_flush_from_v3d_sticky_disabled(bm);
+      BM_mesh_uvselect_flush_from_mesh_sticky_disabled(bm);
       break;
     }
     case SI_STICKY_VERTEX: {
-      BM_mesh_uvselect_flush_from_v3d_sticky_vertex(bm);
+      BM_mesh_uvselect_flush_from_mesh_sticky_vertex(bm);
       break;
     }
   }
@@ -1684,7 +1684,7 @@ static PyObject *bpy_bmesh_uv_select_sync_to_mesh(BPy_BMesh *self, PyObject *arg
     return nullptr;
   }
 
-  BM_mesh_uvselect_flush_to_v3d(bm);
+  BM_mesh_uvselect_flush_to_mesh(bm);
 
   Py_RETURN_NONE;
 }
@@ -1951,12 +1951,12 @@ static PyObject *bpy_bmesh_uv_select_foreach_set_from_mesh(BPy_BMesh *self,
         /*cd_loop_uv_offset*/ cd_loop_uv_offset,
         /*shared*/ shared,
     };
-    BM_mesh_uvselect_set_elem_from_v3d(bm,
-                                       use_select,
-                                       uv_pick_params,
-                                       blender::Span(vert_array, vert_array_num),
-                                       blender::Span(edge_array, edge_array_num),
-                                       blender::Span(face_array, face_array_num));
+    BM_mesh_uvselect_set_elem_from_mesh(bm,
+                                        use_select,
+                                        uv_pick_params,
+                                        blender::Span(vert_array, vert_array_num),
+                                        blender::Span(edge_array, edge_array_num),
+                                        blender::Span(face_array, face_array_num));
   }
 
   MEM_SAFE_FREE(vert_array);

@@ -455,7 +455,7 @@ void BM_mesh_uvselect_set_elem_shared(BMesh *bm,
  * This is logical because the user cannot select a single vertex in face select mode.
  * As these functions are exposed publicly for picking, this makes some sense.
  *
- * Internally however, these functions are currently used by #BM_mesh_uvselect_set_elem_from_v3d,
+ * Internally however, these functions are currently used by #BM_mesh_uvselect_set_elem_from_mesh,
  * which corrects "isolated" elements which should not be selected based on the selection-mode.
  * \{ */
 
@@ -928,7 +928,7 @@ static void bm_mesh_uvselect_flush_mode_down_deselect_only(BMesh *bm,
   }
 }
 
-void BM_mesh_uvselect_set_elem_from_v3d_with_vector_list(
+void BM_mesh_uvselect_set_elem_from_mesh_with_vector_list(
     BMesh *bm,
     const bool select,
     const BMUVSelectPickParams &params,
@@ -956,12 +956,12 @@ void BM_mesh_uvselect_set_elem_from_v3d_with_vector_list(
       bm, bm->selectmode, params.cd_loop_uv_offset, params.shared, check_verts, check_edges);
 }
 
-void BM_mesh_uvselect_set_elem_from_v3d(BMesh *bm,
-                                        bool select,
-                                        const BMUVSelectPickParams &params,
-                                        const blender::Span<BMVert *> verts,
-                                        const blender::Span<BMEdge *> edges,
-                                        const blender::Span<BMFace *> faces)
+void BM_mesh_uvselect_set_elem_from_mesh(BMesh *bm,
+                                         bool select,
+                                         const BMUVSelectPickParams &params,
+                                         const blender::Span<BMVert *> verts,
+                                         const blender::Span<BMEdge *> edges,
+                                         const blender::Span<BMFace *> faces)
 {
   const bool check_verts = !verts.is_empty();
   const bool check_edges = !edges.is_empty();
@@ -1489,12 +1489,12 @@ void BM_mesh_uvselect_flush_post_subdivide(BMesh *bm, const int cd_loop_uv_offse
 /** \} */
 
 /* -------------------------------------------------------------------- */
-/** \name UV Selection Flushing (Viewport)
+/** \name UV Selection Flushing (From/To Mesh)
  * \{ */
 
 /* Sticky Vertex. */
 
-static void bm_mesh_uvselect_flush_from_v3d_sticky_vertex_for_vert_mode(BMesh *bm)
+static void bm_mesh_uvselect_flush_from_mesh_sticky_vertex_for_vert_mode(BMesh *bm)
 {
   BMIter iter;
   BMFace *f;
@@ -1517,7 +1517,7 @@ static void bm_mesh_uvselect_flush_from_v3d_sticky_vertex_for_vert_mode(BMesh *b
   bm->uv_sync_select_valid = true;
 }
 
-static void bm_mesh_uvselect_flush_from_v3d_sticky_vertex_for_edge_mode(BMesh *bm)
+static void bm_mesh_uvselect_flush_from_mesh_sticky_vertex_for_edge_mode(BMesh *bm)
 {
   BMIter iter;
   BMFace *f;
@@ -1551,7 +1551,7 @@ static void bm_mesh_uvselect_flush_from_v3d_sticky_vertex_for_edge_mode(BMesh *b
   bm->uv_sync_select_valid = true;
 }
 
-static void bm_mesh_uvselect_flush_from_v3d_sticky_vertex_for_face_mode(BMesh *bm)
+static void bm_mesh_uvselect_flush_from_mesh_sticky_vertex_for_face_mode(BMesh *bm)
 {
   BMIter iter;
   BMFace *f;
@@ -1581,7 +1581,7 @@ static void bm_mesh_uvselect_flush_from_v3d_sticky_vertex_for_face_mode(BMesh *b
 
 /* Sticky Location. */
 
-static void bm_mesh_uvselect_flush_from_v3d_sticky_location_for_vert_mode(
+static void bm_mesh_uvselect_flush_from_mesh_sticky_location_for_vert_mode(
     BMesh *bm, const int /*cd_loop_uv_offset*/)
 {
   /* In this particular case use the same logic for sticky vertices,
@@ -1593,10 +1593,10 @@ static void bm_mesh_uvselect_flush_from_v3d_sticky_location_for_vert_mode(
    * it would mean that de-selecting a face could suddenly cause the vertex
    * (attached to that face on another UV island) to become selected.
    * Since that would be unexpected for users - just use this simple logic here. */
-  bm_mesh_uvselect_flush_from_v3d_sticky_vertex_for_vert_mode(bm);
+  bm_mesh_uvselect_flush_from_mesh_sticky_vertex_for_vert_mode(bm);
 }
 
-static void bm_mesh_uvselect_flush_from_v3d_sticky_location_for_edge_mode(
+static void bm_mesh_uvselect_flush_from_mesh_sticky_location_for_edge_mode(
     BMesh *bm, const int cd_loop_uv_offset)
 {
   BMIter iter;
@@ -1630,7 +1630,7 @@ static void bm_mesh_uvselect_flush_from_v3d_sticky_location_for_edge_mode(
   bm->uv_sync_select_valid = true;
 }
 
-static void bm_mesh_uvselect_flush_from_v3d_sticky_location_for_face_mode(
+static void bm_mesh_uvselect_flush_from_mesh_sticky_location_for_face_mode(
     BMesh *bm, const int cd_loop_uv_offset)
 {
   BMIter iter;
@@ -1672,44 +1672,44 @@ static void bm_mesh_uvselect_flush_from_v3d_sticky_location_for_face_mode(
 
 /* Public API. */
 
-void BM_mesh_uvselect_flush_from_v3d_sticky_location(BMesh *bm, const int cd_loop_uv_offset)
+void BM_mesh_uvselect_flush_from_mesh_sticky_location(BMesh *bm, const int cd_loop_uv_offset)
 {
   if (bm->selectmode & SCE_SELECT_VERTEX) {
-    bm_mesh_uvselect_flush_from_v3d_sticky_location_for_vert_mode(bm, cd_loop_uv_offset);
+    bm_mesh_uvselect_flush_from_mesh_sticky_location_for_vert_mode(bm, cd_loop_uv_offset);
   }
   else if (bm->selectmode & SCE_SELECT_EDGE) {
-    bm_mesh_uvselect_flush_from_v3d_sticky_location_for_edge_mode(bm, cd_loop_uv_offset);
+    bm_mesh_uvselect_flush_from_mesh_sticky_location_for_edge_mode(bm, cd_loop_uv_offset);
   }
   else { /* `SCE_SELECT_FACE` */
-    bm_mesh_uvselect_flush_from_v3d_sticky_location_for_face_mode(bm, cd_loop_uv_offset);
+    bm_mesh_uvselect_flush_from_mesh_sticky_location_for_face_mode(bm, cd_loop_uv_offset);
   }
 
   BLI_assert(bm->uv_sync_select_valid);
 }
 
-void BM_mesh_uvselect_flush_from_v3d_sticky_disabled(BMesh *bm)
+void BM_mesh_uvselect_flush_from_mesh_sticky_disabled(BMesh *bm)
 {
   /* The mode is ignored when sticky selection is disabled,
    * Always use the selection from the mesh. */
-  bm_mesh_uvselect_flush_from_v3d_sticky_vertex_for_vert_mode(bm);
+  bm_mesh_uvselect_flush_from_mesh_sticky_vertex_for_vert_mode(bm);
   BLI_assert(bm->uv_sync_select_valid);
 }
 
-void BM_mesh_uvselect_flush_from_v3d_sticky_vertex(BMesh *bm)
+void BM_mesh_uvselect_flush_from_mesh_sticky_vertex(BMesh *bm)
 {
   if (bm->selectmode & SCE_SELECT_VERTEX) {
-    bm_mesh_uvselect_flush_from_v3d_sticky_vertex_for_vert_mode(bm);
+    bm_mesh_uvselect_flush_from_mesh_sticky_vertex_for_vert_mode(bm);
   }
   else if (bm->selectmode & SCE_SELECT_EDGE) {
-    bm_mesh_uvselect_flush_from_v3d_sticky_vertex_for_edge_mode(bm);
+    bm_mesh_uvselect_flush_from_mesh_sticky_vertex_for_edge_mode(bm);
   }
   else { /* `SCE_SELECT_FACE` */
-    bm_mesh_uvselect_flush_from_v3d_sticky_vertex_for_face_mode(bm);
+    bm_mesh_uvselect_flush_from_mesh_sticky_vertex_for_face_mode(bm);
   }
   BLI_assert(bm->uv_sync_select_valid);
 }
 
-void BM_mesh_uvselect_flush_to_v3d(BMesh *bm)
+void BM_mesh_uvselect_flush_to_mesh(BMesh *bm)
 {
   BLI_assert(bm->uv_sync_select_valid);
 

@@ -256,15 +256,15 @@ static void uvedit_sync_uvselect_flush_from_v3d(const ToolSettings *ts, BMesh *b
   switch (ts->uv_sticky) {
     case SI_STICKY_LOC: {
       const int cd_loop_uv_offset = CustomData_get_offset(&bm->ldata, CD_PROP_FLOAT2);
-      BM_mesh_uvselect_flush_from_v3d_sticky_location(bm, cd_loop_uv_offset);
+      BM_mesh_uvselect_flush_from_mesh_sticky_location(bm, cd_loop_uv_offset);
       break;
     }
     case SI_STICKY_DISABLE: {
-      BM_mesh_uvselect_flush_from_v3d_sticky_disabled(bm);
+      BM_mesh_uvselect_flush_from_mesh_sticky_disabled(bm);
       break;
     }
     case SI_STICKY_VERTEX: {
-      BM_mesh_uvselect_flush_from_v3d_sticky_vertex(bm);
+      BM_mesh_uvselect_flush_from_mesh_sticky_vertex(bm);
       break;
     }
   }
@@ -356,7 +356,7 @@ void ED_uvedit_select_sync_flush(const ToolSettings *ts, BMesh *bm, const bool s
         const int cd_loop_uv_offset = CustomData_get_offset(&bm->ldata, CD_PROP_FLOAT2);
         BM_mesh_uvselect_flush_shared_only_select(bm, cd_loop_uv_offset);
       }
-      BM_mesh_uvselect_flush_to_v3d(bm);
+      BM_mesh_uvselect_flush_to_mesh(bm);
     }
     else {
       if (ts->selectmode != SCE_SELECT_FACE) {
@@ -1796,7 +1796,7 @@ static void bm_clear_uv_vert_selection(const Scene *scene, BMesh *bm, const BMUV
 
 namespace blender::ed::uv {
 
-UVSyncSelectFromView3D *UVSyncSelectFromView3D::create_if_needed(const ToolSettings &ts, BMesh &bm)
+UVSyncSelectFromMesh *UVSyncSelectFromMesh::create_if_needed(const ToolSettings &ts, BMesh &bm)
 {
   if ((ts.uv_flag & UV_FLAG_SYNC_SELECT) == 0) {
     return nullptr;
@@ -1812,10 +1812,10 @@ UVSyncSelectFromView3D *UVSyncSelectFromView3D::create_if_needed(const ToolSetti
     return nullptr;
   }
 
-  return MEM_new<UVSyncSelectFromView3D>(__func__, bm, ts.uv_sticky);
+  return MEM_new<UVSyncSelectFromMesh>(__func__, bm, ts.uv_sticky);
 }
 
-void UVSyncSelectFromView3D::apply()
+void UVSyncSelectFromMesh::apply()
 {
   const int cd_loop_uv_offset = CustomData_get_active_layer(&bm_.ldata, CD_PROP_FLOAT2);
   BLI_assert(cd_loop_uv_offset != -1);
@@ -1826,46 +1826,46 @@ void UVSyncSelectFromView3D::apply()
       /*shared*/ shared,
   };
 
-  BM_mesh_uvselect_set_elem_from_v3d_with_vector_list(
+  BM_mesh_uvselect_set_elem_from_mesh_with_vector_list(
       &bm_, false, uv_pick_params, bm_verts_deselect_, bm_edges_deselect_, bm_faces_deselect_);
 
-  BM_mesh_uvselect_set_elem_from_v3d_with_vector_list(
+  BM_mesh_uvselect_set_elem_from_mesh_with_vector_list(
       &bm_, true, uv_pick_params, bm_verts_select_, bm_edges_select_, bm_faces_select_);
 }
 
 /* Select. */
 
-void UVSyncSelectFromView3D::vert_select_enable(BMVert *v)
+void UVSyncSelectFromMesh::vert_select_enable(BMVert *v)
 {
   bm_verts_select_.append(v);
 }
-void UVSyncSelectFromView3D::edge_select_enable(BMEdge *f)
+void UVSyncSelectFromMesh::edge_select_enable(BMEdge *f)
 {
   bm_edges_select_.append(f);
 }
-void UVSyncSelectFromView3D::face_select_enable(BMFace *f)
+void UVSyncSelectFromMesh::face_select_enable(BMFace *f)
 {
   bm_faces_select_.append(f);
 }
 
 /* De-Select. */
 
-void UVSyncSelectFromView3D::vert_select_disable(BMVert *v)
+void UVSyncSelectFromMesh::vert_select_disable(BMVert *v)
 {
   bm_verts_deselect_.append(v);
 }
-void UVSyncSelectFromView3D::edge_select_disable(BMEdge *f)
+void UVSyncSelectFromMesh::edge_select_disable(BMEdge *f)
 {
   bm_edges_deselect_.append(f);
 }
-void UVSyncSelectFromView3D::face_select_disable(BMFace *f)
+void UVSyncSelectFromMesh::face_select_disable(BMFace *f)
 {
   bm_faces_deselect_.append(f);
 }
 
 /* Select set. */
 
-void UVSyncSelectFromView3D::vert_select_set(BMVert *v, bool value)
+void UVSyncSelectFromMesh::vert_select_set(BMVert *v, bool value)
 {
   if (value) {
     bm_verts_select_.append(v);
@@ -1874,7 +1874,7 @@ void UVSyncSelectFromView3D::vert_select_set(BMVert *v, bool value)
     bm_verts_deselect_.append(v);
   }
 }
-void UVSyncSelectFromView3D::edge_select_set(BMEdge *f, bool value)
+void UVSyncSelectFromMesh::edge_select_set(BMEdge *f, bool value)
 {
   if (value) {
     bm_edges_select_.append(f);
@@ -1883,7 +1883,7 @@ void UVSyncSelectFromView3D::edge_select_set(BMEdge *f, bool value)
     bm_edges_deselect_.append(f);
   }
 }
-void UVSyncSelectFromView3D::face_select_set(BMFace *f, bool value)
+void UVSyncSelectFromMesh::face_select_set(BMFace *f, bool value)
 {
   if (value) {
     bm_faces_select_.append(f);
@@ -2700,7 +2700,7 @@ static void uv_select_linked_multi(Scene *scene,
           else {
             BM_mesh_uvselect_flush_from_faces_only_select(bm);
           }
-          BM_mesh_uvselect_flush_to_v3d(bm);
+          BM_mesh_uvselect_flush_to_mesh(bm);
         }
       }
     }
@@ -2903,7 +2903,7 @@ static wmOperatorStatus uv_select_more_less(bContext *C, const bool select)
         else {
           BM_mesh_uvselect_flush_from_loop_verts_only_deselect(bm);
         }
-        BM_mesh_uvselect_flush_to_v3d(bm);
+        BM_mesh_uvselect_flush_to_mesh(bm);
       }
 
       DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_SELECT);
@@ -3129,7 +3129,7 @@ static void uv_select_invert(const Scene *scene, BMEditMesh *em)
 
     /* NOTE: no need to run: #BM_mesh_uvselect_flush_shared_only_select
      * because inverting doesn't change the sticky state. */
-    BM_mesh_uvselect_flush_to_v3d(bm);
+    BM_mesh_uvselect_flush_to_mesh(bm);
     return;
   }
 
@@ -3514,7 +3514,7 @@ static bool uv_mouse_select_multi(bContext *C,
             BM_mesh_uvselect_flush_mode(bm);
           }
 
-          BM_mesh_uvselect_flush_to_v3d(bm);
+          BM_mesh_uvselect_flush_to_mesh(bm);
         }
         else {
           BM_mesh_select_mode_flush(bm);
@@ -5795,7 +5795,7 @@ static wmOperatorStatus uv_select_similar_vert_exec(bContext *C, wmOperator *op)
       if (ts->uv_flag & UV_FLAG_SYNC_SELECT) {
         if (bm->uv_sync_select_valid) {
           BM_mesh_uvselect_flush_from_loop_verts_only_select(bm);
-          BM_mesh_uvselect_flush_to_v3d(bm);
+          BM_mesh_uvselect_flush_to_mesh(bm);
         }
         else {
           BM_mesh_select_flush_from_verts(bm, true);
@@ -5922,7 +5922,7 @@ static wmOperatorStatus uv_select_similar_edge_exec(bContext *C, wmOperator *op)
       if (ts->uv_flag & UV_FLAG_SYNC_SELECT) {
         if (bm->uv_sync_select_valid) {
           BM_mesh_uvselect_flush_from_loop_verts_only_select(bm);
-          BM_mesh_uvselect_flush_to_v3d(bm);
+          BM_mesh_uvselect_flush_to_mesh(bm);
         }
         else {
           BM_mesh_select_flush_from_verts(bm, true);
@@ -6039,7 +6039,7 @@ static wmOperatorStatus uv_select_similar_face_exec(bContext *C, wmOperator *op)
       if (ts->uv_flag & UV_FLAG_SYNC_SELECT) {
         if (bm->uv_sync_select_valid) {
           BM_mesh_uvselect_flush_from_loop_verts_only_select(bm);
-          BM_mesh_uvselect_flush_to_v3d(bm);
+          BM_mesh_uvselect_flush_to_mesh(bm);
         }
         else {
           BM_mesh_select_flush_from_verts(bm, true);
@@ -6155,7 +6155,7 @@ static wmOperatorStatus uv_select_similar_island_exec(bContext *C, wmOperator *o
       if (ts->uv_flag & UV_FLAG_SYNC_SELECT) {
         if (bm->uv_sync_select_valid) {
           BM_mesh_uvselect_flush_from_loop_verts_only_select(bm);
-          BM_mesh_uvselect_flush_to_v3d(bm);
+          BM_mesh_uvselect_flush_to_mesh(bm);
         }
         else {
           BM_mesh_select_flush_from_verts(bm, true);

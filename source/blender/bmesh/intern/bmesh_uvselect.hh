@@ -26,7 +26,7 @@
  *
  * \note A short-hand term for vertex/edge/face selection used
  * in this file is View3D abbreviated to `v3d`, since this is the section
- * manipulated in the viewport, e.g. #BM_mesh_uvselect_flush_to_v3d.
+ * manipulated in the viewport, e.g. #BM_mesh_uvselect_flush_to_mesh.
  *
  * \note This is quite involved, as a last resort the UV selection can always be cleared
  * and re-set from the mesh (v3d) selection, however it's good to keep UV selection
@@ -214,14 +214,14 @@ void BM_face_uvselect_set_pick(BMesh *bm,
  * without clearing an re-initializing the synchronized state.
  * (likely to re-select islands bounds from a user-perspective).
  */
-void BM_mesh_uvselect_set_elem_from_v3d(BMesh *bm,
-                                        bool select,
-                                        const BMUVSelectPickParams &params,
-                                        const blender::Span<BMVert *> verts,
-                                        const blender::Span<BMEdge *> edges,
-                                        const blender::Span<BMFace *> faces);
-/** \copydoc #BM_mesh_uvselect_set_elem_from_v3d. */
-void BM_mesh_uvselect_set_elem_from_v3d_with_vector_list(
+void BM_mesh_uvselect_set_elem_from_mesh(BMesh *bm,
+                                         bool select,
+                                         const BMUVSelectPickParams &params,
+                                         const blender::Span<BMVert *> verts,
+                                         const blender::Span<BMEdge *> edges,
+                                         const blender::Span<BMFace *> faces);
+/** \copydoc #BM_mesh_uvselect_set_elem_from_mesh. */
+void BM_mesh_uvselect_set_elem_from_mesh_with_vector_list(
     BMesh *bm,
     bool select,
     const BMUVSelectPickParams &params,
@@ -331,21 +331,21 @@ void BM_mesh_uvselect_flush_post_subdivide(BMesh *bm, const int cd_loop_uv_offse
 /** \} */
 
 /* -------------------------------------------------------------------- */
-/** \name UV Selection Flushing (Viewport)
+/** \name UV Selection Flushing (From/To Mesh)
  * \{ */
 
 /* From 3D viewport to UV selection.
  *
  * These functions correspond to #ToolSettings::uv_sticky options. */
 
-void BM_mesh_uvselect_flush_from_v3d_sticky_location(BMesh *bm, const int cd_loop_uv_offset);
-void BM_mesh_uvselect_flush_from_v3d_sticky_disabled(BMesh *bm);
-void BM_mesh_uvselect_flush_from_v3d_sticky_vertex(BMesh *bm);
+void BM_mesh_uvselect_flush_from_mesh_sticky_location(BMesh *bm, const int cd_loop_uv_offset);
+void BM_mesh_uvselect_flush_from_mesh_sticky_disabled(BMesh *bm);
+void BM_mesh_uvselect_flush_from_mesh_sticky_vertex(BMesh *bm);
 
 /**
  * From the UV selection to the 3D viewport.
  */
-void BM_mesh_uvselect_flush_to_v3d(BMesh *bm);
+void BM_mesh_uvselect_flush_to_mesh(BMesh *bm);
 
 /** \} */
 

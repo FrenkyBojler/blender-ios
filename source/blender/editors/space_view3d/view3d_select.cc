@@ -106,7 +106,7 @@ using blender::Array;
 using blender::int2;
 using blender::Span;
 using blender::Vector;
-using blender::ed::uv::UVSyncSelectFromView3D;
+using blender::ed::uv::UVSyncSelectFromMesh;
 
 /* -------------------------------------------------------------------- */
 /** \name Public Utilities
@@ -252,7 +252,7 @@ static bool edbm_backbuf_check_and_select_verts(EditSelectBuf_Cache *esel,
                                                 Depsgraph *depsgraph,
                                                 Object *ob,
                                                 BMEditMesh *em,
-                                                UVSyncSelectFromView3D *uv_selctx,
+                                                UVSyncSelectFromMesh *uv_selctx,
                                                 const eSelectOp sel_op)
 {
   BMVert *eve;
@@ -289,7 +289,7 @@ static bool edbm_backbuf_check_and_select_edges(EditSelectBuf_Cache *esel,
                                                 Depsgraph *depsgraph,
                                                 Object *ob,
                                                 BMEditMesh *em,
-                                                UVSyncSelectFromView3D *uv_selctx,
+                                                UVSyncSelectFromMesh *uv_selctx,
                                                 const eSelectOp sel_op)
 {
   BMEdge *eed;
@@ -326,7 +326,7 @@ static bool edbm_backbuf_check_and_select_faces(EditSelectBuf_Cache *esel,
                                                 Depsgraph *depsgraph,
                                                 Object *ob,
                                                 BMEditMesh *em,
-                                                UVSyncSelectFromView3D *uv_selctx,
+                                                UVSyncSelectFromMesh *uv_selctx,
                                                 const eSelectOp sel_op)
 {
   BMFace *efa;
@@ -437,7 +437,7 @@ struct LassoSelectUserData {
   eBezTriple_Flag select_flag;
 
   /** Only for edit-mesh selection. */
-  UVSyncSelectFromView3D *uv_selctx = nullptr;
+  UVSyncSelectFromMesh *uv_selctx = nullptr;
 
   /* runtime */
   int pass;
@@ -859,7 +859,7 @@ static bool do_lasso_select_mesh(const ViewContext *vc,
     }
   }
 
-  data.uv_selctx = UVSyncSelectFromView3D::create_if_needed(*ts, *vc->em->bm);
+  data.uv_selctx = UVSyncSelectFromMesh::create_if_needed(*ts, *vc->em->bm);
 
   /* for non zbuf projections, don't change the GL state */
   ED_view3d_init_mats_rv3d(vc->obedit, vc->rv3d);
@@ -3736,7 +3736,7 @@ struct BoxSelectUserData {
   eBezTriple_Flag select_flag;
 
   /** Only for edit-mesh selection. */
-  UVSyncSelectFromView3D *uv_selctx;
+  UVSyncSelectFromMesh *uv_selctx;
 
   /* runtime */
   bool is_done;
@@ -4110,7 +4110,7 @@ static bool do_mesh_box_select(const ViewContext *vc,
     }
   }
 
-  data.uv_selctx = UVSyncSelectFromView3D::create_if_needed(*ts, *vc->em->bm);
+  data.uv_selctx = UVSyncSelectFromMesh::create_if_needed(*ts, *vc->em->bm);
 
   /* for non zbuf projections, don't change the GL state */
   ED_view3d_init_mats_rv3d(vc->obedit, vc->rv3d);
@@ -4722,7 +4722,7 @@ struct CircleSelectUserData {
   eBezTriple_Flag select_flag;
 
   /** Only for edit-mesh selection. */
-  UVSyncSelectFromView3D *uv_selctx = nullptr;
+  UVSyncSelectFromMesh *uv_selctx = nullptr;
 
   /* runtime */
   bool is_changed;
@@ -4821,7 +4821,7 @@ static bool mesh_circle_select(const ViewContext *vc,
     }
   }
 
-  data.uv_selctx = UVSyncSelectFromView3D::create_if_needed(*ts, *vc->em->bm);
+  data.uv_selctx = UVSyncSelectFromMesh::create_if_needed(*ts, *vc->em->bm);
 
   const bool select = (sel_op != SEL_OP_SUB);
 
