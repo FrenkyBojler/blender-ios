@@ -533,9 +533,9 @@ struct IDFilePathForeachData {
 const EnumPropertyItem rna_enum_file_path_foreach_flag_items[] = {
     /* BKE_BPATH_FOREACH_PATH_ABSOLUTE is not included here, as its only use is to initialize a
      * field in BPathForeachPathData that is not used by the callback. */
-    {BKE_BPATH_FOREACH_PATH_SKIP_LINKED, "SKIP_LINKED", 0, "Skip Linked"},
-    {BKE_BPATH_FOREACH_PATH_SKIP_PACKED, "SKIP_PACKED", 0, "Skip Packed"},
-    {BKE_BPATH_FOREACH_PATH_RESOLVE_TOKEN, "RESOLVE_TOKEN", 0, "Resolve Token"},
+    {BKE_BPATH_FOREACH_PATH_SKIP_LINKED, "SKIP_LINKED", 0, "Skip Linked", ""},
+    {BKE_BPATH_FOREACH_PATH_SKIP_PACKED, "SKIP_PACKED", 0, "Skip Packed", ""},
+    {BKE_BPATH_FOREACH_PATH_RESOLVE_TOKEN, "RESOLVE_TOKEN", 0, "Resolve Token", ""},
     {BKE_BPATH_TRAVERSE_SKIP_WEAK_REFERENCES,
      "SKIP_WEAK_REFERENCES",
      0,
