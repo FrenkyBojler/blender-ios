@@ -822,7 +822,7 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
     volume_biased: BoolProperty(
         name="Biased",
         description="Default volume rendering uses null scattering, which is unbiased and has less artifacts, "
-        "but could be noisier. Biased option uses ray marching, with controls of step sizes and max steps",
+        "but could be noisier. Biased option uses ray marching, with controls for steps size and max steps",
         default=False,
     )
 
