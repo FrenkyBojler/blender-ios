@@ -839,35 +839,40 @@ void BM_face_uvselect_set_pick(BMesh *bm,
 }
 
 /**
+ * Ensure isolated elements aren't selected which should be unselected based on `select_mode`.
+ *
+ * Regarding Picking
+ * =================
+ *
  * Run this when picking a vertex in edge selection mode or an edge in face select mode.
  *
  * This is not supported by individual picking, however when operating on many elements,
  * it's useful to be able to support this so users of the API can select vertices for example
  * Without it failing entirely because the users has the mesh in edge/face selection mode.
  */
-static void bm_mesh_uvselect_flush_for_picking_elem_in_unsupported_mode_if_needed(
-    BMesh *bm,
-    const BMUVSelectPickParams &params,
-    const bool has_verts,
-    const bool has_edges,
-    const bool has_faces)
+static void bm_mesh_uvselect_flush_mode_down_deselect_only(BMesh *bm,
+                                                           const short select_mode,
+                                                           const int cd_loop_uv_offset,
+                                                           const bool shared,
+                                                           const bool check_verts,
+                                                           const bool check_edges)
 {
-  if (!(has_verts || has_edges || has_faces)) {
+  if (!(check_verts || check_edges)) {
     return;
   }
 
   /* No additional work needed. */
   bool do_check = false;
-  if (bm->selectmode & SCE_SELECT_VERTEX) {
+  if (select_mode & SCE_SELECT_VERTEX) {
     /* Pass. */
   }
-  else if (bm->selectmode & SCE_SELECT_EDGE) {
-    if (has_verts) {
+  else if (select_mode & SCE_SELECT_EDGE) {
+    if (check_verts) {
       do_check = true;
     }
   }
-  else if (bm->selectmode & SCE_SELECT_FACE) {
-    if (has_verts || has_edges) {
+  else if (select_mode & SCE_SELECT_FACE) {
+    if (check_verts || check_edges) {
       do_check = true;
     }
   }
@@ -881,7 +886,7 @@ static void bm_mesh_uvselect_flush_for_picking_elem_in_unsupported_mode_if_neede
    * - Only select/deselect is needed.
    * Do this inline.
    */
-  if (bm->selectmode & SCE_SELECT_EDGE) {
+  if (select_mode & SCE_SELECT_EDGE) {
     /* Deselect isolated vertices. */
     BMIter iter;
     BMFace *f;
@@ -901,8 +906,8 @@ static void bm_mesh_uvselect_flush_for_picking_elem_in_unsupported_mode_if_neede
             !(BM_elem_flag_test(l_iter, BM_ELEM_SELECT_UV_EDGE) ||
               BM_elem_flag_test(l_iter->prev, BM_ELEM_SELECT_UV_EDGE)))
         {
-          if ((params.shared == false) || !BM_loop_vert_uvselect_check_other_edge(
-                                              l_iter, BM_ELEM_SELECT_UV, params.cd_loop_uv_offset))
+          if ((shared == false) || !BM_loop_vert_uvselect_check_other_edge(
+                                       l_iter, BM_ELEM_SELECT_UV, cd_loop_uv_offset))
           {
             BM_elem_flag_disable(l_iter, BM_ELEM_SELECT_UV);
           }
@@ -910,7 +915,7 @@ static void bm_mesh_uvselect_flush_for_picking_elem_in_unsupported_mode_if_neede
       } while ((l_iter = l_iter->next) != l_first);
     }
   }
-  else if (bm->selectmode & SCE_SELECT_FACE) {
+  else if (select_mode & SCE_SELECT_FACE) {
     /* Deselect isolated vertices & edges. */
     BMIter iter;
     BMFace *f;
@@ -927,25 +932,25 @@ static void bm_mesh_uvselect_flush_for_picking_elem_in_unsupported_mode_if_neede
       do {
         if (BM_elem_flag_test(l_iter, BM_ELEM_SELECT_UV_EDGE)) {
           if (!BM_loop_edge_uvselect_check_other_face(
-                  l_iter, BM_ELEM_SELECT_UV, params.cd_loop_uv_offset))
+                  l_iter, BM_ELEM_SELECT_UV, cd_loop_uv_offset))
           {
             BM_elem_flag_disable(l_iter, BM_ELEM_SELECT_UV_EDGE);
           }
         }
       } while ((l_iter = l_iter->next) != l_first);
+      bool e_prev_select = BM_elem_flag_test(l_iter->prev, BM_ELEM_SELECT_UV_EDGE);
       l_iter = l_first;
       do {
-        if (BM_elem_flag_test(l_iter, BM_ELEM_SELECT_UV) &&
-            /* Skip the UV check if either edge is selected. */
-            !(BM_elem_flag_test(l_iter, BM_ELEM_SELECT_UV_EDGE) ||
-              BM_elem_flag_test(l_iter->prev, BM_ELEM_SELECT_UV_EDGE)))
-        {
-          if ((params.shared == false) || !BM_loop_vert_uvselect_check_other_face(
-                                              l_iter, BM_ELEM_SELECT_UV, params.cd_loop_uv_offset))
+        const bool e_iter_select = BM_elem_flag_test(l_iter, BM_ELEM_SELECT_UV_EDGE);
+        /* Skip the UV check if either edge is selected. */
+        if (BM_elem_flag_test(l_iter, BM_ELEM_SELECT_UV) && !(e_prev_select || e_iter_select)) {
+          if ((shared == false) || !BM_loop_vert_uvselect_check_other_face(
+                                       l_iter, BM_ELEM_SELECT_UV, cd_loop_uv_offset))
           {
             BM_elem_flag_disable(l_iter, BM_ELEM_SELECT_UV);
           }
         }
+        e_prev_select = e_iter_select;
       } while ((l_iter = l_iter->next) != l_first);
     }
   }
@@ -959,9 +964,8 @@ void BM_mesh_uvselect_set_elem_from_v3d_with_vector_list(
     const blender::VectorList<BMEdge *> &edges,
     const blender::VectorList<BMFace *> &faces)
 {
-  const bool has_verts = !verts.is_empty();
-  const bool has_edges = !edges.is_empty();
-  const bool has_faces = !faces.is_empty();
+  const bool check_verts = !verts.is_empty();
+  const bool check_edges = !edges.is_empty();
 
   /* TODO(@ideasman42): select picking may be slow because it does flushing too.
    * Although in practice it seems fast-enough. This should be handled more efficiently. */
@@ -976,8 +980,8 @@ void BM_mesh_uvselect_set_elem_from_v3d_with_vector_list(
     bm_face_uvselect_set_pick(bm, f, select, params);
   }
 
-  bm_mesh_uvselect_flush_for_picking_elem_in_unsupported_mode_if_needed(
-      bm, params, has_verts, has_edges, has_faces);
+  bm_mesh_uvselect_flush_mode_down_deselect_only(
+      bm, bm->selectmode, params.cd_loop_uv_offset, params.shared, check_verts, check_edges);
 }
 
 void BM_mesh_uvselect_set_elem_from_v3d(BMesh *bm,
@@ -987,9 +991,8 @@ void BM_mesh_uvselect_set_elem_from_v3d(BMesh *bm,
                                         const blender::Span<BMEdge *> edges,
                                         const blender::Span<BMFace *> faces)
 {
-  const bool has_verts = !verts.is_empty();
-  const bool has_edges = !edges.is_empty();
-  const bool has_faces = !faces.is_empty();
+  const bool check_verts = !verts.is_empty();
+  const bool check_edges = !edges.is_empty();
 
   for (BMVert *v : verts) {
     BM_vert_uvselect_set_pick(bm, v, select, params);
@@ -1001,8 +1004,8 @@ void BM_mesh_uvselect_set_elem_from_v3d(BMesh *bm,
     BM_face_uvselect_set_pick(bm, f, select, params);
   }
 
-  bm_mesh_uvselect_flush_for_picking_elem_in_unsupported_mode_if_needed(
-      bm, params, has_verts, has_edges, has_faces);
+  bm_mesh_uvselect_flush_mode_down_deselect_only(
+      bm, bm->selectmode, params.cd_loop_uv_offset, params.shared, check_verts, check_edges);
 }
 
 /** \} */
@@ -1342,7 +1345,6 @@ void BM_mesh_uvselect_flush_mode_only_select(BMesh *bm)
 }
 
 void BM_mesh_uvselect_flush_mode_update(BMesh *bm,
-
                                         const short selectmode_old,
                                         const short selectmode_new,
                                         const int cd_loop_uv_offset)
@@ -1377,20 +1379,18 @@ void BM_mesh_uvselect_flush_mode_update(BMesh *bm,
     }
   }
 
-  /*
-   * FIXME: the following statement is *not* true,
-   * since an edge may be "isolated" in UV space but attached to a face in 3D space.
-   * These cases will need to be handled.
+  /* Perform two passes:
    *
-   * --- snip ---
+   * - De-select all elements where the underlying elements are not selected.
+   * - De select any isolated elements.
    *
-   * Rely on the selection mode switching to have de-selected isolated verts/edges,
-   * simply de-select elements where the underlying mesh is not selected.
-   *
-   * An alternative solution would be to apply the same flushing logic here,
-   * de-selecting isolated vertices when switching to edge/face select mode for e.g.
-   * however this is more involved. */
+   *   NOTE: As the mesh will have already had it's isolated elements de-selected,{
+   *   it may seem like this pass shouldn't be needed in UV space,
+   *   however a vert/edge may be isolated in UV space while being connected to a
+   *   selected edge/face in 3D space.
+   */
   if (do_flush_deselect_down) {
+    /* First pass: match underlying mesh. */
     BMIter iter;
     BMFace *f;
     BM_ITER_MESH (f, &iter, bm, BM_FACES_OF_MESH) {
@@ -1423,78 +1423,16 @@ void BM_mesh_uvselect_flush_mode_update(BMesh *bm,
       }
     }
 
-    /* Ensure isolated elements are not selected (can happen with disconnected islands).
+    /* Second Pass:
+     * Ensure isolated elements are not selected (can happen with disconnected islands).
      * Note that it's quite unlikely UV's are unset with a UV selection,
      * check all the same as this pass is mainly a cleanup operation that isn't essential. */
     if (cd_loop_uv_offset != -1) {
-      if (selectmode_new & SCE_SELECT_EDGE) {
-        BM_ITER_MESH (f, &iter, bm, BM_FACES_OF_MESH) {
-          if (BM_elem_flag_test(f, BM_ELEM_HIDDEN)) {
-            continue;
-          }
-
-          if (BM_elem_flag_test(f, BM_ELEM_SELECT_UV)) {
-            /* When faces are selected, no need to search for isolated vertices. */
-            continue;
-          }
-          BMLoop *l_iter, *l_first;
-          l_iter = l_first = BM_FACE_FIRST_LOOP(f);
-          bool e_prev_select = BM_elem_flag_test(l_iter->prev, BM_ELEM_SELECT_UV_EDGE);
-          do {
-            const bool e_iter_select = BM_elem_flag_test(l_iter, BM_ELEM_SELECT_UV_EDGE);
-            /* Avoid unnecessary checks by first looking at the underlying mesh. */
-            if (BM_elem_flag_test(l_iter->v, BM_ELEM_SELECT)) {
-              if (BM_elem_flag_test(l_iter, BM_ELEM_SELECT_UV)) {
-                if (!(e_prev_select || e_iter_select)) {
-                  if (!BM_loop_vert_uvselect_check_other_loop_edge(
-                          l_iter, BM_ELEM_SELECT_UV_EDGE, cd_loop_uv_offset))
-                  {
-                    BM_elem_flag_disable(l_iter, BM_ELEM_SELECT_UV);
-                  }
-                }
-              }
-            }
-            e_prev_select = e_iter_select;
-          } while ((l_iter = l_iter->next) != l_first);
-        }
-      }
-      else if (selectmode_new & SCE_SELECT_FACE) {
-        BM_ITER_MESH (f, &iter, bm, BM_FACES_OF_MESH) {
-          if (BM_elem_flag_test(f, BM_ELEM_HIDDEN)) {
-            continue;
-          }
-
-          if (BM_elem_flag_test(f, BM_ELEM_SELECT_UV)) {
-            /* When faces are selected, no need to search for isolated edges. */
-            continue;
-          }
-          BMLoop *l_iter, *l_first;
-          l_iter = l_first = BM_FACE_FIRST_LOOP(f);
-          do {
-            /* Avoid unnecessary checks by first looking at the underlying mesh. */
-            if (BM_elem_flag_test(l_iter->v, BM_ELEM_SELECT)) {
-              if (BM_elem_flag_test(l_iter, BM_ELEM_SELECT_UV)) {
-                if (!BM_loop_vert_uvselect_check_other_face(
-                        l_iter, BM_ELEM_SELECT_UV, cd_loop_uv_offset))
-                {
-                  BM_elem_flag_disable(l_iter, BM_ELEM_SELECT_UV);
-                }
-              }
-            }
-
-            /* Avoid unnecessary checks by first looking at the underlying mesh. */
-            if (BM_elem_flag_test(l_iter->e, BM_ELEM_SELECT)) {
-              if (BM_elem_flag_test(l_iter, BM_ELEM_SELECT_UV_EDGE)) {
-                if (!BM_loop_edge_uvselect_check_other_face(
-                        l_iter, BM_ELEM_SELECT_UV, cd_loop_uv_offset))
-                {
-                  BM_elem_flag_disable(l_iter, BM_ELEM_SELECT_UV_EDGE);
-                }
-              }
-            }
-          } while ((l_iter = l_iter->next) != l_first);
-        }
-      }
+      const bool shared = true;
+      const bool check_verts = (bm->totvertsel != 0);
+      const bool check_edges = (bm->totedgesel != 0);
+      bm_mesh_uvselect_flush_mode_down_deselect_only(
+          bm, selectmode_new, cd_loop_uv_offset, shared, check_verts, check_edges);
     }
   }
 }
