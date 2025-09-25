@@ -575,6 +575,9 @@ static int bone_children_clear_transflag(bPose &pose, bPoseChannel &pose_bone)
 {
   int cleared = 0;
   animrig::pose_bone_descendent_iterator(pose, pose_bone, [&](bPoseChannel &child) {
+    if (&child == &pose_bone) {
+      return;
+    }
     if (child.runtime.flag & POSE_RUNTIME_TRANSFORM) {
       child.runtime.flag &= ~POSE_RUNTIME_TRANSFORM;
       cleared++;
