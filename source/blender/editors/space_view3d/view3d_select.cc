@@ -527,7 +527,7 @@ static void do_lasso_select_pose__do_tag(void *user_data,
   if (BLI_rctf_isect_segment(data->rect_fl, screen_co_a, screen_co_b) &&
       BLI_lasso_is_edge_inside(data->mcoords, UNPACK2(screen_co_a), UNPACK2(screen_co_b), INT_MAX))
   {
-    pchan->bone->flag |= BONE_DONE;
+    pchan->runtime.flag |= POSE_RUNTIME_IN_SELECTION_AREA;
     data->is_changed = true;
   }
 }
@@ -601,8 +601,7 @@ static blender::Vector<Base *> do_pose_tag_select_op_prepare(const ViewContext *
     Object *ob = base->object;
     bArmature *arm = static_cast<bArmature *>(ob->data);
     LISTBASE_FOREACH (bPoseChannel *, pchan, &ob->pose->chanbase) {
-      Bone *bone = pchan->bone;
-      bone->flag &= ~BONE_DONE;
+      pchan->runtime.flag &= ~POSE_RUNTIME_IN_SELECTION_AREA;
     }
     arm->id.tag |= ID_TAG_DOIT;
     ob->id.tag &= ~ID_TAG_DOIT;
@@ -651,20 +650,12 @@ static bool do_pose_tag_select_op_exec(blender::MutableSpan<Base *> bases, const
     Object *ob_iter = base_iter->object;
     bArmature *arm = static_cast<bArmature *>(ob_iter->data);
 
-    /* Don't handle twice. */
-    if (arm->id.tag & ID_TAG_DOIT) {
-      arm->id.tag &= ~ID_TAG_DOIT;
-    }
-    else {
-      continue;
-    }
-
     bool changed = true;
     LISTBASE_FOREACH (bPoseChannel *, pchan, &ob_iter->pose->chanbase) {
       Bone *bone = pchan->bone;
       if ((bone->flag & BONE_UNSELECTABLE) == 0) {
         const bool is_select = pchan->flag & POSE_SELECTED;
-        const bool is_inside = bone->flag & BONE_DONE;
+        const bool is_inside = pchan->runtime.flag & POSE_RUNTIME_IN_SELECTION_AREA;
         const int sel_op_result = ED_select_op_action_deselected(sel_op, is_select, is_inside);
         if (sel_op_result != -1) {
           SET_FLAG_FROM_TEST(pchan->flag, sel_op_result, POSE_SELECTED);
@@ -4369,8 +4360,8 @@ static bool do_pose_box_select(bContext *C,
          buf_iter < buf_end;
          buf_iter++)
     {
-      Bone *bone;
-      Base *base = ED_armature_base_and_bone_from_select_buffer(bases, buf_iter->id, &bone);
+      bPoseChannel *pose_bone;
+      Base *base = ED_armature_base_and_pchan_from_select_buffer(bases, buf_iter->id, &pose_bone);
 
       if (base == nullptr) {
         continue;
@@ -4379,9 +4370,9 @@ static bool do_pose_box_select(bContext *C,
       /* Loop over contiguous bone hits for 'base'. */
       for (; buf_iter != buf_end; buf_iter++) {
         /* should never fail */
-        if (bone != nullptr) {
+        if (pose_bone != nullptr) {
           base->object->id.tag |= ID_TAG_DOIT;
-          bone->flag |= BONE_DONE;
+          pose_bone->runtime.flag |= POSE_RUNTIME_IN_SELECTION_AREA;
         }
 
         /* Select the next bone if we're not switching bases. */
@@ -4392,12 +4383,12 @@ static bool do_pose_box_select(bContext *C,
           }
           if (base->object->pose != nullptr) {
             const uint hit_bone = (col_next->id & ~BONESEL_ANY) >> 16;
-            bPoseChannel *pchan = static_cast<bPoseChannel *>(
+            bPoseChannel *next = static_cast<bPoseChannel *>(
                 BLI_findlink(&base->object->pose->chanbase, hit_bone));
-            bone = pchan ? pchan->bone : nullptr;
+            pose_bone = next;
           }
           else {
-            bone = nullptr;
+            pose_bone = nullptr;
           }
         }
       }

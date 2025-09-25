@@ -253,6 +253,8 @@ typedef enum bPoseChannelRuntimeFlag {
   POSE_RUNTIME_HINGE_CHILD_TRANSFORM = (1 << 1),
   /** Indicates that a parent is also being transformed. */
   POSE_RUNTIME_TRANSFORM_CHILD = (1 << 2),
+  /* Set on bones during selection to tell following code that this bone should be operated on. */
+  POSE_RUNTIME_IN_SELECTION_AREA = (1 << 3),
 } bPoseChannelRuntimeFlag;
 
 typedef struct bPoseChannel_Runtime {
