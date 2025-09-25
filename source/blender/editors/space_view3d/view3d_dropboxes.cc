@@ -129,7 +129,7 @@ static void view3d_ob_drop_on_enter(wmDropBox *drop, wmDrag *drag)
     AssetMetaData *meta_data = WM_drag_get_asset_meta_data(drag, ID_OB);
     IDProperty *dimensions_prop = BKE_asset_metadata_idprop_find(meta_data, "dimensions");
     if (dimensions_prop) {
-      copy_v3_v3(dimensions, static_cast<float *>(IDP_Array(dimensions_prop)));
+      copy_v3_v3(dimensions, IDP_array_float_get(dimensions_prop));
     }
   }
 
@@ -308,7 +308,7 @@ static bool view3d_geometry_nodes_drop_poll(bContext *C, wmDrag *drag, const wmE
     }
     const AssetMetaData *metadata = &asset_data->asset->get_metadata();
     const IDProperty *tree_type = BKE_asset_metadata_idprop_find(metadata, "type");
-    if (!tree_type || IDP_Int(tree_type) != NTREE_GEOMETRY) {
+    if (!tree_type || IDP_int_get(tree_type) != NTREE_GEOMETRY) {
       return false;
     }
     if (wmDropBox *drop_box = drag->drop_state.active_dropbox) {
@@ -420,8 +420,17 @@ static void view3d_ob_drop_copy_external_asset(bContext *C, wmDrag *drag, wmDrop
   }
 }
 
-static void view3d_collection_drop_on_enter(wmDropBox *drop, wmDrag * /*drag*/)
+static void view3d_collection_drop_on_enter(wmDropBox *drop, wmDrag *drag)
 {
+  if (WM_drag_asset_will_import_linked(drag)) {
+    const wmDragAsset *asset_drag = WM_drag_get_asset_data(drag, 0);
+    /* Linked collections cannot be transformed except when using instancing. Don't enable
+     * snapping. */
+    if (!asset_drag->import_settings.use_instance_collections) {
+      return;
+    }
+  }
+
   view3d_drop_snap_init(drop);
 }
 

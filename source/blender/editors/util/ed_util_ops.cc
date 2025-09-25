@@ -78,13 +78,13 @@ static bool lib_id_preview_editing_poll_ex(const ID *id, const char **r_disabled
   }
   if (!ID_IS_EDITABLE(id)) {
     if (r_disabled_hint) {
-      *r_disabled_hint = "Can't edit external library data";
+      *r_disabled_hint = "Cannot edit external library data";
     }
     return false;
   }
   if (ID_IS_OVERRIDE_LIBRARY(id)) {
     if (r_disabled_hint) {
-      *r_disabled_hint = "Can't edit previews of overridden library data";
+      *r_disabled_hint = "Cannot edit previews of overridden library data";
     }
     return false;
   }
@@ -169,7 +169,7 @@ static void ED_OT_lib_id_load_custom_preview(wmOperatorType *ot)
   ot->description = "Choose an image to help identify the data-block visually";
   ot->idname = "ED_OT_lib_id_load_custom_preview";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->poll = lib_id_preview_editing_poll;
   ot->exec = lib_id_load_custom_preview_exec;
   ot->invoke = lib_id_load_custom_preview_invoke;
@@ -288,7 +288,7 @@ static void ED_OT_lib_id_generate_preview(wmOperatorType *ot)
   ot->description = "Create an automatic preview for the selected data-block";
   ot->idname = "ED_OT_lib_id_generate_preview";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->poll = lib_id_generate_preview_poll;
   ot->exec = lib_id_generate_preview_exec;
 
@@ -298,12 +298,24 @@ static void ED_OT_lib_id_generate_preview(wmOperatorType *ot)
 
 static bool lib_id_generate_preview_from_object_poll(bContext *C)
 {
+  /* This already checks if the IDs in context (e.g. selected in the Asset browser) can generate
+   * previews... */
   if (!lib_id_batch_editing_preview_poll(C)) {
     return false;
   }
-  if (CTX_data_active_object(C) == nullptr) {
+
+  /* ... but we also need to check this for the active object (since this is what is being
+   * rendered). */
+  Object *object_to_render = CTX_data_active_object(C);
+  if (object_to_render == nullptr) {
     return false;
   }
+  const char *disabled_hint = nullptr;
+  if (!ED_preview_id_is_supported(&object_to_render->id, &disabled_hint)) {
+    CTX_wm_operator_poll_msg_set(C, disabled_hint);
+    return false;
+  }
+
   return true;
 }
 
@@ -335,7 +347,7 @@ static void ED_OT_lib_id_generate_preview_from_object(wmOperatorType *ot)
   ot->description = "Create a preview for this asset by rendering the active object";
   ot->idname = "ED_OT_lib_id_generate_preview_from_object";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->poll = lib_id_generate_preview_from_object_poll;
   ot->exec = lib_id_generate_preview_from_object_exec;
 
@@ -380,7 +392,7 @@ static void ED_OT_lib_id_remove_preview(wmOperatorType *ot)
   ot->description = "Remove the preview of this data-block";
   ot->idname = "ED_OT_lib_id_remove_preview";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->poll = lib_id_remove_preview_poll;
   ot->exec = lib_id_remove_preview_exec;
 
@@ -437,7 +449,7 @@ static void ED_OT_lib_id_fake_user_toggle(wmOperatorType *ot)
   ot->description = "Save this data-block even if it has no users";
   ot->idname = "ED_OT_lib_id_fake_user_toggle";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = lib_id_fake_user_toggle_exec;
 
   /* flags */
@@ -475,7 +487,7 @@ static void ED_OT_lib_id_unlink(wmOperatorType *ot)
   ot->description = "Remove a usage of a data-block, clearing the assignment";
   ot->idname = "ED_OT_lib_id_unlink";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = lib_id_unlink_exec;
 
   /* flags */
@@ -521,7 +533,7 @@ static void ED_OT_lib_id_override_editable_toggle(wmOperatorType *ot)
   ot->description = "Set if this library override data-block can be edited";
   ot->idname = "ED_OT_lib_id_override_editable_toggle";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->poll = lib_id_override_editable_toggle_poll;
   ot->exec = lib_id_override_editable_toggle_exec;
 
@@ -549,7 +561,7 @@ static void ED_OT_flush_edits(wmOperatorType *ot)
   ot->description = "Flush edit data from active editing modes";
   ot->idname = "ED_OT_flush_edits";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = ed_flush_edits_exec;
 
   /* flags */

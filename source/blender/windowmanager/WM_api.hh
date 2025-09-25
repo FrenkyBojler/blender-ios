@@ -166,19 +166,31 @@ const char *WM_ghost_backend();
 enum eWM_CapabilitiesFlag {
   /** Ability to warp the cursor (set its location). */
   WM_CAPABILITY_CURSOR_WARP = (1 << 0),
-  /** Ability to access window positions & move them. */
+  /**
+   * Window position access, support for the following.
+   * - Getting window positions.
+   * - Setting window positions.
+   * - Setting positions for new windows.
+   *
+   * Currently there is no need to distinguish between these different cases
+   * so a single flag is used.
+   *
+   * When omitted, it isn't possible to know where windows are located in relation to each other.
+   * Operations such as applying events from one window to another or detecting the non-active
+   * window under the cursor are not supported.
+   */
   WM_CAPABILITY_WINDOW_POSITION = (1 << 1),
   /**
    * The windowing system supports a separate primary clipboard
    * (typically set when interactively selecting text).
    */
-  WM_CAPABILITY_PRIMARY_CLIPBOARD = (1 << 2),
+  WM_CAPABILITY_CLIPBOARD_PRIMARY = (1 << 2),
   /**
    * Reading from the back-buffer is supported.
    */
   WM_CAPABILITY_GPU_FRONT_BUFFER_READ = (1 << 3),
   /** Ability to copy/paste system clipboard images. */
-  WM_CAPABILITY_CLIPBOARD_IMAGES = (1 << 4),
+  WM_CAPABILITY_CLIPBOARD_IMAGE = (1 << 4),
   /** Ability to sample a color outside of Blender windows. */
   WM_CAPABILITY_DESKTOP_SAMPLE = (1 << 5),
   /** Support for IME input methods. */
@@ -187,6 +199,14 @@ enum eWM_CapabilitiesFlag {
   WM_CAPABILITY_TRACKPAD_PHYSICAL_DIRECTION = (1 << 7),
   /** Support for window decoration styles. */
   WM_CAPABILITY_WINDOW_DECORATION_STYLES = (1 << 8),
+  /** Support for the "Hyper" modifier key. */
+  WM_CAPABILITY_KEYBOARD_HYPER_KEY = (1 << 9),
+  /** Support for RGBA Cursors. */
+  WM_CAPABILITY_CURSOR_RGBA = (1 << 10),
+  /** Support on demand cursor generation. */
+  WM_CAPABILITY_CURSOR_GENERATOR = (1 << 11),
+  /** Ability to save/restore windows among multiple monitors. */
+  WM_CAPABILITY_MULTIMONITOR_PLACEMENT = (1 << 12),
   /** The initial value, indicates the value needs to be set by inspecting GHOST. */
   WM_CAPABILITY_INITIALIZED = (1u << 31),
 };
@@ -289,12 +309,17 @@ void WM_window_native_pixel_coords(const wmWindow *win, int *x, int *y);
 void WM_window_rect_calc(const wmWindow *win, rcti *r_rect);
 /**
  * Get boundaries usable by screen-layouts, excluding global areas.
- * \note Depends on #UI_SCALE_FAC. Should that be outdated, call #WM_window_set_dpi first.
+ * \note Depends on #UI_SCALE_FAC. Should that be outdated, call #WM_window_dpi_set_userdef first.
  */
 void WM_window_screen_rect_calc(const wmWindow *win, rcti *r_rect);
 bool WM_window_is_main_top_level(const wmWindow *win);
 bool WM_window_is_fullscreen(const wmWindow *win);
 bool WM_window_is_maximized(const wmWindow *win);
+
+/*
+ * Support for wide gamut and HDR colors.
+ */
+bool WM_window_support_hdr_color(const wmWindow *win);
 
 /**
  * Some editor data may need to be synced with scene data (3D View camera and layers).
@@ -373,7 +398,15 @@ wmWindow *WM_window_open(bContext *C,
                          void (*area_setup_fn)(bScreen *screen, ScrArea *area, void *user_data),
                          void *area_setup_user_data) ATTR_NONNULL(1, 3);
 
-void WM_window_set_dpi(const wmWindow *win);
+wmWindow *WM_window_open_temp(bContext *C, const char *title, int space_type, bool dialog);
+
+void WM_window_dpi_set_userdef(const wmWindow *win);
+/**
+ * Return the windows DPI as a scale, bypassing UI scale preference.
+ *
+ * \note Use for calculating cursor size which doesn't use the UI scale.
+ */
+float WM_window_dpi_get_scale(const wmWindow *win);
 
 /**
  * Give a title to a window. With "Title" unspecified or nullptr, it is generated
@@ -421,9 +454,20 @@ void WM_window_decoration_style_apply(const wmWindow *win, const bScreen *screen
 /* `wm_files.cc`. */
 
 void WM_file_autoexec_init(const char *filepath);
-bool WM_file_read(bContext *C, const char *filepath, ReportList *reports);
+/**
+ * \param use_scripts_autoexec_check: When true, script auto-execution checks excluded directories.
+ * Note that this is passed in as an argument because `filepath` may reference a path to recover.
+ * In this case the file-path used for exclusion is the recovery path which is only known once
+ * the file has been loaded.
+ */
+bool WM_file_read(bContext *C,
+                  const char *filepath,
+                  const bool use_scripts_autoexec_check,
+                  ReportList *reports);
 void WM_file_autosave_init(wmWindowManager *wm);
-bool WM_file_recover_last_session(bContext *C, ReportList *reports);
+bool WM_file_recover_last_session(bContext *C,
+                                  const bool use_scripts_autoexec_check,
+                                  ReportList *reports);
 void WM_file_tag_modified();
 
 /**
@@ -456,6 +500,16 @@ void WM_lib_reload(Library *lib, bContext *C, ReportList *reports);
 
 void WM_cursor_set(wmWindow *win, int curs);
 bool WM_cursor_set_from_tool(wmWindow *win, const ScrArea *area, const ARegion *region);
+/**
+ * Check the cursor isn't set elsewhere.
+ * When false setting the modal cursor can be done but may overwrite an existing cursor.
+ *
+ * Use this check for modal navigation operators that may be activated while other modal operators
+ * are running.
+ *
+ * \note A cursor "stack" would remove the need for this.
+ */
+bool WM_cursor_modal_is_set_ok(const wmWindow *win);
 void WM_cursor_modal_set(wmWindow *win, int val);
 void WM_cursor_modal_restore(wmWindow *win);
 /**
@@ -482,10 +536,15 @@ void WM_cursor_grab_disable(wmWindow *win, const int mouse_ungrab_xy[2]);
  */
 void WM_cursor_time(wmWindow *win, int nr);
 
+/**
+ * Show progress in the cursor (0.0..1.0 when complete).
+ */
+void WM_cursor_progress(wmWindow *win, float progress_factor);
+
 wmPaintCursor *WM_paint_cursor_activate(short space_type,
                                         short region_type,
                                         bool (*poll)(bContext *C),
-                                        void (*draw)(bContext *C, int, int, void *customdata),
+                                        wmPaintCursorDraw draw,
                                         void *customdata);
 
 bool WM_paint_cursor_end(wmPaintCursor *handle);
@@ -499,6 +558,17 @@ void WM_paint_cursor_tag_redraw(wmWindow *win, ARegion *region);
  * before relying on this functionality.
  */
 void WM_cursor_warp(wmWindow *win, int x, int y);
+
+/**
+ * The default size of a cursor without any DPI scaling.
+ */
+#define WM_CURSOR_DEFAULT_LOGICAL_SIZE 24
+
+/**
+ * \return the preferred logical size for the cursor
+ * (before DPI/Hi-DPI scaling is applied).
+ */
+uint WM_cursor_preferred_logical_size();
 
 /* Handlers. */
 
@@ -626,7 +696,7 @@ void WM_event_remove_ui_handler(ListBase *handlers,
                                 wmUIHandlerRemoveFunc remove_fn,
                                 void *user_data,
                                 bool postpone);
-void WM_event_remove_area_handler(ListBase *handlers, void *area);
+void WM_event_remove_handlers_by_area(ListBase *handlers, const ScrArea *area);
 void WM_event_free_ui_handler_all(bContext *C,
                                   ListBase *handlers,
                                   wmUIHandlerFunc handle_fn,
@@ -748,20 +818,16 @@ void wm_event_init_from_window(wmWindow *win, wmEvent *event);
 /**
  * At maximum, every time_step seconds it triggers `event_type` events.
  */
-wmTimer *WM_event_timer_add(wmWindowManager *wm, wmWindow *win, int event_type, double time_step);
+wmTimer *WM_event_timer_add(wmWindowManager *wm,
+                            wmWindow *win,
+                            wmEventType event_type,
+                            double time_step);
 wmTimer *WM_event_timer_add_notifier(wmWindowManager *wm,
                                      wmWindow *win,
                                      unsigned int type,
                                      double time_step);
 
 void WM_event_timer_free_data(wmTimer *timer);
-/**
- * Free all timers immediately.
- *
- * \note This should only be used on-exit,
- * in all other cases timers should be tagged for removal by #WM_event_timer_remove.
- */
-void WM_event_timers_free_all(wmWindowManager *wm);
 
 /**
  * Mark the given `timer` to be removed, actual removal and deletion is deferred and handled
@@ -797,12 +863,14 @@ int WM_operator_smooth_viewtx_get(const wmOperator *op);
 /**
  * Invoke callback, uses enum property named "type".
  */
-wmOperatorStatus WM_menu_invoke_ex(bContext *C, wmOperator *op, wmOperatorCallContext opcontext);
+wmOperatorStatus WM_menu_invoke_ex(bContext *C,
+                                   wmOperator *op,
+                                   blender::wm::OpCallContext opcontext);
 wmOperatorStatus WM_menu_invoke(bContext *C, wmOperator *op, const wmEvent *event);
 /**
  * Call an existent menu. The menu can be created in C or Python.
  */
-void WM_menu_name_call(bContext *C, const char *menu_name, short context);
+void WM_menu_name_call(bContext *C, const char *menu_name, blender::wm::OpCallContext context);
 
 wmOperatorStatus WM_enum_search_invoke(bContext *C, wmOperator *op, const wmEvent *event);
 
@@ -848,7 +916,8 @@ wmOperatorStatus WM_operator_props_popup_confirm_ex(
     const wmEvent *event,
     std::optional<std::string> title = std::nullopt,
     std::optional<std::string> confirm_text = std::nullopt,
-    bool cancel_default = false);
+    bool cancel_default = false,
+    std::optional<std::string> message = std::nullopt);
 
 /**
  * Same as #WM_operator_props_popup but call the operator first,
@@ -864,7 +933,8 @@ wmOperatorStatus WM_operator_props_dialog_popup(
     int width,
     std::optional<std::string> title = std::nullopt,
     std::optional<std::string> confirm_text = std::nullopt,
-    bool cancel_default = false);
+    bool cancel_default = false,
+    std::optional<std::string> message = std::nullopt);
 
 wmOperatorStatus WM_operator_redo_popup(bContext *C, wmOperator *op);
 wmOperatorStatus WM_operator_ui_popup(bContext *C, wmOperator *op, int width);
@@ -877,7 +947,7 @@ wmOperatorStatus WM_operator_confirm_message_ex(bContext *C,
                                                 const char *title,
                                                 int icon,
                                                 const char *message,
-                                                wmOperatorCallContext opcontext);
+                                                blender::wm::OpCallContext opcontext);
 wmOperatorStatus WM_operator_confirm_message(bContext *C, wmOperator *op, const char *message);
 
 /* Operator API. */
@@ -900,7 +970,7 @@ void WM_operator_stack_clear(wmWindowManager *wm);
 void WM_operator_handlers_clear(wmWindowManager *wm, wmOperatorType *ot);
 
 bool WM_operator_poll(bContext *C, wmOperatorType *ot);
-bool WM_operator_poll_context(bContext *C, wmOperatorType *ot, short context);
+bool WM_operator_poll_context(bContext *C, wmOperatorType *ot, blender::wm::OpCallContext context);
 /**
  * For running operators with frozen context (modal handlers, menus).
  *
@@ -943,22 +1013,23 @@ bool WM_operator_name_poll(bContext *C, const char *opstring);
  */
 wmOperatorStatus WM_operator_name_call_ptr(bContext *C,
                                            wmOperatorType *ot,
-                                           wmOperatorCallContext context,
+                                           blender::wm::OpCallContext context,
                                            PointerRNA *properties,
                                            const wmEvent *event);
 /** See #WM_operator_name_call_ptr. */
 wmOperatorStatus WM_operator_name_call(bContext *C,
                                        const char *opstring,
-                                       wmOperatorCallContext context,
+                                       blender::wm::OpCallContext context,
                                        PointerRNA *properties,
                                        const wmEvent *event);
 wmOperatorStatus WM_operator_name_call_with_properties(bContext *C,
                                                        const char *opstring,
-                                                       wmOperatorCallContext context,
+                                                       blender::wm::OpCallContext context,
                                                        IDProperty *properties,
                                                        const wmEvent *event);
 /**
- * Similar to #WM_operator_name_call called with #WM_OP_EXEC_DEFAULT context.
+ * Similar to #WM_operator_name_call called with #blender::wm::OpCallContext::ExecDefault
+ * context.
  *
  * - #wmOperatorType is used instead of operator name since python already has the operator type.
  * - `poll()` must be called by python before this runs.
@@ -966,14 +1037,14 @@ wmOperatorStatus WM_operator_name_call_with_properties(bContext *C,
  */
 wmOperatorStatus WM_operator_call_py(bContext *C,
                                      wmOperatorType *ot,
-                                     wmOperatorCallContext context,
+                                     blender::wm::OpCallContext context,
                                      PointerRNA *properties,
                                      ReportList *reports,
                                      bool is_undo);
 
 void WM_operator_name_call_ptr_with_depends_on_cursor(bContext *C,
                                                       wmOperatorType *ot,
-                                                      wmOperatorCallContext opcontext,
+                                                      blender::wm::OpCallContext opcontext,
                                                       PointerRNA *properties,
                                                       const wmEvent *event,
                                                       blender::StringRef drawstr);
@@ -1532,6 +1603,11 @@ wmDrag *WM_drag_data_create(
  */
 void WM_event_start_prepared_drag(bContext *C, wmDrag *drag);
 void WM_event_drag_image(wmDrag *drag, const ImBuf *imb, float scale);
+/**
+ * Overrides the `drag.poin` event to include all selected files in the space file where the event
+ * started.
+ */
+void WM_event_drag_path_override_poin_data_with_space_file_paths(const bContext *, wmDrag *drag);
 void WM_event_drag_preview_icon(wmDrag *drag, int icon_id);
 void WM_drag_free(wmDrag *drag);
 void WM_drag_data_free(eWM_DragDataType dragtype, void *poin);
@@ -1778,6 +1854,7 @@ void WM_jobs_callbacks_ex(wmJob *wm_job,
  *
  * If the new \a wm_job is flagged with #WM_JOB_PRIORITY, it will request other blocking jobs to
  * stop (using #WM_jobs_stop(), so this doesn't take immediate effect) rather than finish its work.
+ * Additionally, it will hint the operating system to use performance cores on hybrid CPUs.
  */
 void WM_jobs_start(wmWindowManager *wm, wmJob *wm_job);
 /**
@@ -1826,7 +1903,7 @@ void WM_job_main_thread_lock_release(wmJob *wm_job);
 
 /**
  * Return text from the clipboard.
- * \param selection: Use the "primary" clipboard, see: #WM_CAPABILITY_PRIMARY_CLIPBOARD.
+ * \param selection: Use the "primary" clipboard, see: #WM_CAPABILITY_CLIPBOARD_PRIMARY.
  * \param ensure_utf8: Ensure the resulting string does not contain invalid UTF8 encoding.
  */
 char *WM_clipboard_text_get(bool selection, bool ensure_utf8, int *r_len);
@@ -1873,7 +1950,7 @@ void WM_draw_cb_exit(wmWindow *win, void *handle);
  * because drawing relies on the event system & depsgraph preparing data for display.
  * An explicit call to draw is error prone since it may attempt to show stale data.
  *
- * With some rare exceptions which require a redraw (screen-shot & sample screen color for e.g.)
+ * With some rare exceptions which require a redraw (e.g. screen-shot & sample screen color)
  * explicitly redrawing should be avoided, see: #92704, #93950, #97627 & #98462.
  */
 void WM_redraw_windows(bContext *C);
@@ -1888,7 +1965,7 @@ void WM_draw_region_free(ARegion *region);
 GPUViewport *WM_draw_region_get_viewport(ARegion *region);
 GPUViewport *WM_draw_region_get_bound_viewport(ARegion *region);
 
-void WM_main_playanim(int argc, const char **argv);
+int WM_main_playanim(int argc, const char **argv);
 
 /**
  * Debugging only, convenience function to write on crash.
@@ -1902,8 +1979,10 @@ void WM_autosave_write(wmWindowManager *wm, Main *bmain);
 
 /**
  * Lock the interface for any communication.
+ * For #WM_locked_interface_set_with_flags, #lock_flags is #ARegionDrawLockFlags
  */
-void WM_set_locked_interface(wmWindowManager *wm, bool lock);
+void WM_locked_interface_set(wmWindowManager *wm, bool lock);
+void WM_locked_interface_set_with_flags(wmWindowManager *wm, short lock_flags);
 
 void WM_event_tablet_data_default_set(wmTabletData *tablet_data);
 
@@ -1990,11 +2069,18 @@ int WM_userdef_event_map(int kmitype);
 int WM_userdef_event_type_from_keymap_type(int kmitype);
 
 #ifdef WITH_INPUT_NDOF
-void WM_event_ndof_pan_get(const wmNDOFMotionData *ndof, float r_pan[3], bool use_zoom);
-void WM_event_ndof_rotate_get(const wmNDOFMotionData *ndof, float r_rot[3]);
+blender::float3 WM_event_ndof_translation_get_for_navigation(const wmNDOFMotionData &ndof);
+blender::float3 WM_event_ndof_rotation_get_for_navigation(const wmNDOFMotionData &ndof);
+float WM_event_ndof_rotation_get_axis_angle_for_navigation(const wmNDOFMotionData &ndof,
+                                                           float axis[3]);
 
-float WM_event_ndof_to_axis_angle(const wmNDOFMotionData *ndof, float axis[3]);
-void WM_event_ndof_to_quat(const wmNDOFMotionData *ndof, float q[4]);
+blender::float3 WM_event_ndof_translation_get(const wmNDOFMotionData &ndof);
+blender::float3 WM_event_ndof_rotation_get(const wmNDOFMotionData &ndof);
+float WM_event_ndof_rotation_get_axis_angle(const wmNDOFMotionData &ndof, float axis[3]);
+
+bool WM_event_ndof_translation_has_pan(const wmNDOFMotionData &ndof);
+bool WM_event_ndof_translation_has_zoom(const wmNDOFMotionData &ndof);
+
 #endif /* WITH_INPUT_NDOF */
 
 #ifdef WITH_XR_OPENXR

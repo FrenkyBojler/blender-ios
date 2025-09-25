@@ -31,7 +31,7 @@ char *BLI_strdupn(const char *str, const size_t len)
 {
   BLI_assert_msg(BLI_strnlen(str, len) == len, "strlen(str) must be greater or equal to 'len'!");
 
-  char *n = static_cast<char *>(MEM_mallocN(len + 1, "strdup"));
+  char *n = MEM_malloc_arrayN<char>(len + 1, "strdup");
   memcpy(n, str, len);
   n[len] = '\0';
 
@@ -50,7 +50,7 @@ char *BLI_strdup_null(const char *str)
 
 char *BLI_strdupcat(const char *__restrict str1, const char *__restrict str2)
 {
-  /* include the nullptr terminator of str2 only */
+  /* Include the null terminator of `str2` only. */
   const size_t str1_len = strlen(str1);
   const size_t str2_len = strlen(str2) + 1;
   char *str, *s;
@@ -158,15 +158,12 @@ size_t BLI_vsnprintf(char *__restrict dst,
 {
   BLI_string_debug_size(dst, dst_maxncpy);
 
-  size_t n;
-
   BLI_assert(dst != nullptr);
   BLI_assert(dst_maxncpy > 0);
   BLI_assert(format != nullptr);
 
-  n = size_t(vsnprintf(dst, dst_maxncpy, format, arg));
-
-  if (n != size_t(-1) && n < dst_maxncpy) {
+  const size_t n = size_t(vsnprintf(dst, dst_maxncpy, format, arg));
+  if (n < dst_maxncpy) {
     dst[n] = '\0';
   }
   else {
@@ -183,15 +180,12 @@ size_t BLI_vsnprintf_rlen(char *__restrict dst,
 {
   BLI_string_debug_size(dst, dst_maxncpy);
 
-  size_t n;
-
   BLI_assert(dst != nullptr);
   BLI_assert(dst_maxncpy > 0);
   BLI_assert(format != nullptr);
 
-  n = size_t(vsnprintf(dst, dst_maxncpy, format, arg));
-
-  if (n != size_t(-1) && n < dst_maxncpy) {
+  size_t n = size_t(vsnprintf(dst, dst_maxncpy, format, arg));
+  if (n < dst_maxncpy) {
     /* pass */
   }
   else {
@@ -206,11 +200,9 @@ size_t BLI_snprintf(char *__restrict dst, size_t dst_maxncpy, const char *__rest
 {
   BLI_string_debug_size(dst, dst_maxncpy);
 
-  size_t n;
   va_list arg;
-
   va_start(arg, format);
-  n = BLI_vsnprintf(dst, dst_maxncpy, format, arg);
+  const size_t n = BLI_vsnprintf(dst, dst_maxncpy, format, arg);
   va_end(arg);
 
   return n;
@@ -223,11 +215,9 @@ size_t BLI_snprintf_rlen(char *__restrict dst,
 {
   BLI_string_debug_size(dst, dst_maxncpy);
 
-  size_t n;
   va_list arg;
-
   va_start(arg, format);
-  n = BLI_vsnprintf_rlen(dst, dst_maxncpy, format, arg);
+  const size_t n = BLI_vsnprintf_rlen(dst, dst_maxncpy, format, arg);
   va_end(arg);
 
   return n;
@@ -256,11 +246,11 @@ char *BLI_sprintfN_with_buffer(
 
   /* `retval` doesn't include null terminator. */
   const size_t size = size_t(retval) + 1;
-  char *result = static_cast<char *>(MEM_mallocN(sizeof(char) * size, __func__));
+  char *result = MEM_malloc_arrayN<char>(size, __func__);
   va_start(args, format);
   retval = vsnprintf(result, size, format, args);
   va_end(args);
-  BLI_assert((size_t)(retval + 1) == size);
+  BLI_assert(size_t(retval + 1) == size);
   UNUSED_VARS_NDEBUG(retval);
   return result;
 }
@@ -291,9 +281,9 @@ char *BLI_vsprintfN_with_buffer(char *fixed_buf,
 
   /* `retval` doesn't include null terminator. */
   const size_t size = size_t(retval) + 1;
-  char *result = static_cast<char *>(MEM_mallocN(sizeof(char) * size, __func__));
+  char *result = MEM_malloc_arrayN<char>(size, __func__);
   retval = vsnprintf(result, size, format, args);
-  BLI_assert((size_t)(retval + 1) == size);
+  BLI_assert(size_t(retval + 1) == size);
   UNUSED_VARS_NDEBUG(retval);
   return result;
 }
@@ -311,7 +301,7 @@ char *BLI_sprintfN(const char *__restrict format, ...)
     return result;
   }
   size_t size = result_len + 1;
-  result = static_cast<char *>(MEM_mallocN(sizeof(char) * size, __func__));
+  result = MEM_malloc_arrayN<char>(size, __func__);
   memcpy(result, fixed_buf, size);
   return result;
 }
@@ -365,6 +355,19 @@ size_t BLI_str_escape(char *__restrict dst, const char *__restrict src, const si
   *dst = '\0';
 
   return len;
+}
+
+std::string BLI_str_escape(const char *str)
+{
+  if (!str) {
+    return {};
+  }
+  const size_t max_result_size = strlen(str) * 2 + 1;
+  std::string result;
+  result.resize(max_result_size);
+  const size_t result_size = BLI_str_escape(result.data(), str, max_result_size);
+  result.resize(result_size);
+  return result;
 }
 
 BLI_INLINE bool str_unescape_pair(char c_next, char *r_out)
@@ -505,8 +508,8 @@ char *BLI_str_quoted_substrN(const char *__restrict str, const char *__restrict 
   if (!BLI_str_quoted_substr_range(str, prefix, &start_match_ofs, &end_match_ofs)) {
     return nullptr;
   }
-  const size_t escaped_len = (size_t)(end_match_ofs - start_match_ofs);
-  char *result = MEM_mallocN(sizeof(char) * (escaped_len + 1), __func__);
+  const size_t escaped_len = size_t(end_match_ofs - start_match_ofs);
+  char *result = MEM_malloc_arrayN<char>(escaped_len + 1, __func__);
   const size_t unescaped_len = BLI_str_unescape(result, str + start_match_ofs, escaped_len);
   if (unescaped_len != escaped_len) {
     result = MEM_reallocN(result, sizeof(char) * (unescaped_len + 1));
@@ -883,7 +886,7 @@ bool BLI_strn_endswith(const char *__restrict str, const char *__restrict end, s
 {
   size_t end_len = strlen(end);
 
-  if (end_len < str_len) {
+  if (end_len <= str_len) {
     const char *iter = &str[str_len - end_len];
     while (*iter) {
       if (*iter++ != *end++) {
@@ -1059,7 +1062,7 @@ size_t BLI_str_partition_ex(const char *str,
         }
       }
       else {
-        tmp = (from_right) ? strrchr(str, *d) : strchr(str, *d);
+        tmp = strchr(str, *d);
         if (tmp >= end) {
           tmp = nullptr;
         }

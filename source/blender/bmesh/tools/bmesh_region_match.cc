@@ -27,6 +27,7 @@
 #include "BLI_linklist_stack.h"
 #include "BLI_listbase.h"
 #include "BLI_mempool.h"
+
 #include "MEM_guardedalloc.h"
 
 #include "bmesh.hh"
@@ -1265,10 +1266,8 @@ static UIDFashMatch *bm_vert_fasthash_create(BMesh *bm, const uint depth)
   BMVert *v;
   BMIter iter;
 
-  id_prev = static_cast<UIDFashMatch *>(
-      MEM_mallocN(sizeof(*id_prev) * uint(bm->totvert), __func__));
-  id_curr = static_cast<UIDFashMatch *>(
-      MEM_mallocN(sizeof(*id_curr) * uint(bm->totvert), __func__));
+  id_prev = MEM_malloc_arrayN<UIDFashMatch>(uint(bm->totvert), __func__);
+  id_curr = MEM_malloc_arrayN<UIDFashMatch>(uint(bm->totvert), __func__);
 
   BM_ITER_MESH_INDEX (v, &iter, bm, BM_VERTS_OF_MESH, i) {
     id_prev[i] = bm_vert_fasthash_single(v);

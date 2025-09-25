@@ -10,7 +10,7 @@
  * Dispatch 1 thread per surfel.
  */
 
-#include "infos/eevee_lightprobe_volume_info.hh"
+#include "infos/eevee_lightprobe_volume_infos.hh"
 
 COMPUTE_SHADER_CREATE_INFO(eevee_surfel_cluster_build)
 
@@ -23,9 +23,9 @@ void main()
     return;
   }
 
-  ivec3 cluster = surfel_cluster_index_get(imageSize(cluster_list_img),
-                                           capture_info_buf.irradiance_grid_world_to_local,
-                                           surfel_buf[surfel_index].position);
+  int3 cluster = surfel_cluster_index_get(imageSize(cluster_list_img),
+                                          capture_info_buf.irradiance_grid_world_to_local,
+                                          surfel_buf[surfel_index].position);
   /* For debugging. */
   surfel_buf[surfel_index].cluster_id = cluster.x + cluster.y * 1000 + cluster.z * 1000000;
   /* NOTE: We only need to init the `cluster_list_img` to -1 for the whole list to be valid since

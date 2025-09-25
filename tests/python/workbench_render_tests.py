@@ -25,6 +25,13 @@ except ImportError:
     # this script is run during preparation steps.
     pass
 
+BLOCKLIST_VULKAN = [
+    # Blocked due behavior differences. mix(0.05, INF, 0.0) will result a NaN in Vulkan, but INF in OpenGL.
+    # The INF is part of the EXR image.
+    "image_log.blend",
+    "image_log_osl.blend",
+]
+
 
 def setup():
     import bpy
@@ -82,7 +89,6 @@ def create_argparse():
     parser.add_argument("--outdir", required=True)
     parser.add_argument("--oiiotool", required=True)
     parser.add_argument('--batch', default=False, action='store_true')
-    parser.add_argument('--fail-silently', default=False, action='store_true')
     parser.add_argument('--gpu-backend')
     return parser
 
@@ -91,19 +97,25 @@ def main():
     parser = create_argparse()
     args = parser.parse_args()
 
-    report = WorkbenchReport("Workbench", args.outdir, args.oiiotool, variation=args.gpu_backend)
+    blocklist = []
+    if args.gpu_backend == "vulkan":
+        blocklist += BLOCKLIST_VULKAN
+
+    report = WorkbenchReport("Workbench", args.outdir, args.oiiotool, variation=args.gpu_backend, blocklist=blocklist)
     if args.gpu_backend == "vulkan":
         report.set_compare_engine('workbench', 'opengl')
     else:
-        report.set_compare_engine('eevee_next', 'opengl')
+        report.set_compare_engine('eevee', 'opengl')
     report.set_pixelated(True)
     report.set_reference_dir("workbench_renders")
 
     test_dir_name = Path(args.testdir).name
     if test_dir_name.startswith('hair') and platform.system() == "Darwin":
         report.set_fail_threshold(0.050)
+    if test_dir_name.startswith('openvdb'):
+        report.set_fail_threshold(0.04)
 
-    ok = report.run(args.testdir, args.blender, get_arguments, batch=args.batch, fail_silently=args.fail_silently)
+    ok = report.run(args.testdir, args.blender, get_arguments, batch=args.batch)
 
     sys.exit(not ok)
 

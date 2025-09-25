@@ -190,28 +190,26 @@ void BKE_color_managed_display_settings_copy(ColorManagedDisplaySettings *new_se
                                              const ColorManagedDisplaySettings *settings);
 
 /**
- * Initialize view settings to be best suitable for render type of viewing.
- * This will use default view transform from the OCIO configuration if none
- * is specified.
+ * Initialize view settings to the default.
  */
-void BKE_color_managed_view_settings_init_render(
-    ColorManagedViewSettings *view_settings,
-    const ColorManagedDisplaySettings *display_settings,
-    const char *view_transform);
-
-/**
- * Initialize view settings which are best suitable for viewing non-render images.
- * For example,s movie clips while tracking.
- */
-void BKE_color_managed_view_settings_init_default(
-    ColorManagedViewSettings *view_settings, const ColorManagedDisplaySettings *display_settings);
+void BKE_color_managed_view_settings_init(ColorManagedViewSettings *view_settings,
+                                          const ColorManagedDisplaySettings *display_settings,
+                                          const char *view_transform);
 
 void BKE_color_managed_view_settings_copy(ColorManagedViewSettings *new_settings,
                                           const ColorManagedViewSettings *settings);
+
+/**
+ * Copy view settings that are not related to the curve mapping. Keep the curve mapping unchanged
+ * in the new_settings.
+ */
+void BKE_color_managed_view_settings_copy_keep_curve_mapping(
+    ColorManagedViewSettings *new_settings, const ColorManagedViewSettings *settings);
+
 void BKE_color_managed_view_settings_free(ColorManagedViewSettings *settings);
 
 void BKE_color_managed_view_settings_blend_write(BlendWriter *writer,
-                                                 ColorManagedViewSettings *settings);
+                                                 const ColorManagedViewSettings *settings);
 void BKE_color_managed_view_settings_blend_read_data(BlendDataReader *reader,
                                                      ColorManagedViewSettings *settings);
 

@@ -11,7 +11,7 @@
  * means it is still very little (for example 256 bytes).
  *
  * Due to this size requirements we try to use push constants when it fits on the device. If it
- * doesn't fit we fallback to use an uniform buffer.
+ * doesn't fit we fall back to use an uniform buffer.
  *
  * Shader developers are responsible to fine-tune the performance of the shader. One way to do this
  * is to tailor what will be sent as a push constant to keep the push constants within the limits.
@@ -45,7 +45,7 @@ class VKDevice;
  * It should also keep track of the submissions in order to reuse the allocated
  * data.
  */
-class VKPushConstants : VKResourceTracker<VKUniformBuffer> {
+class VKPushConstants {
   friend class VKContext;
 
  public:
@@ -157,7 +157,9 @@ class VKPushConstants : VKResourceTracker<VKUniformBuffer> {
  private:
   const Layout *layout_ = nullptr;
   void *data_ = nullptr;
-  bool is_dirty_ = false;
+
+  /** Uniform buffer used to store the push constants when they don't fit. */
+  std::unique_ptr<VKUniformBuffer> uniform_buffer_;
 
  public:
   VKPushConstants();
@@ -176,11 +178,6 @@ class VKPushConstants : VKResourceTracker<VKUniformBuffer> {
   {
     return *layout_;
   }
-
-  /**
-   * Part of Resource Tracking API is called when new resource is needed.
-   */
-  std::unique_ptr<VKUniformBuffer> create_resource(VKContext &context) override;
 
   /**
    * Get the reference to the active data.
@@ -231,7 +228,6 @@ class VKPushConstants : VKResourceTracker<VKUniformBuffer> {
       BLI_assert_msg(push_constant_layout->offset + copy_size_in_bytes <= layout_->size_in_bytes(),
                      "Tried to write outside the push constant allocated memory.");
       memcpy(dst, input_data, copy_size_in_bytes);
-      is_dirty_ = true;
       return;
     }
 
@@ -258,8 +254,6 @@ class VKPushConstants : VKResourceTracker<VKUniformBuffer> {
         }
       }
     }
-
-    is_dirty_ = true;
   }
 
   /**

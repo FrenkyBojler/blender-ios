@@ -5,10 +5,11 @@
 #pragma once
 
 #include "eevee_bxdf_lib.glsl"
-#include "eevee_thickness_lib.glsl"
 #include "gpu_shader_codegen_lib.glsl"
-#include "gpu_shader_math_matrix_lib.glsl"
-#include "gpu_shader_math_vector_lib.glsl"
+#include "gpu_shader_math_base_lib.glsl"
+#include "gpu_shader_math_safe_lib.glsl"
+#include "gpu_shader_ray_lib.glsl"
+#include "gpu_shader_utildefines_lib.glsl"
 
 /* -------------------------------------------------------------------- */
 /** \name Diffuse BSDF
@@ -21,16 +22,16 @@
  *              The Z component can be biased towards 1.
  * \return pdf: the pdf of sampling the reflected/refracted ray. 0 if ray is invalid.
  */
-BsdfSample bxdf_diffuse_sample(vec3 rand)
+BsdfSample bxdf_diffuse_sample(float3 rand)
 {
   float cos_theta = safe_sqrt(rand.x);
   BsdfSample samp;
-  samp.direction = vec3(rand.yz * sin_from_cos(cos_theta), cos_theta);
+  samp.direction = float3(rand.yz * sin_from_cos(cos_theta), cos_theta);
   samp.pdf = cos_theta * M_1_PI;
   return samp;
 }
 
-BsdfEval bxdf_diffuse_eval(vec3 N, vec3 L)
+BsdfEval bxdf_diffuse_eval(float3 N, float3 L)
 {
   BsdfEval eval;
   eval.throughput = eval.pdf = saturate(dot(N, L));
@@ -39,10 +40,10 @@ BsdfEval bxdf_diffuse_eval(vec3 N, vec3 L)
 
 float bxdf_diffuse_perceived_roughness()
 {
-  return 1.0;
+  return 1.0f;
 }
 
-LightProbeRay bxdf_diffuse_lightprobe(vec3 N)
+LightProbeRay bxdf_diffuse_lightprobe(float3 N)
 {
   LightProbeRay probe;
   probe.perceptual_roughness = bxdf_diffuse_perceived_roughness();
@@ -50,18 +51,15 @@ LightProbeRay bxdf_diffuse_lightprobe(vec3 N)
   return probe;
 }
 
-#ifdef EEVEE_UTILITY_TX
-
 ClosureLight bxdf_diffuse_light(ClosureUndetermined cl)
 {
   ClosureLight light;
-  light.ltc_mat = vec4(1.0, 0.0, 0.0, 1.0); /* No transform, just plain cosine distribution. */
+  light.ltc_mat = float4(
+      1.0f, 0.0f, 0.0f, 1.0f); /* No transform, just plain cosine distribution. */
   light.N = cl.N;
   light.type = LIGHT_DIFFUSE;
   return light;
 }
-
-#endif
 
 /** \} */
 
@@ -77,14 +75,14 @@ ClosureLight bxdf_diffuse_light(ClosureUndetermined cl)
  * \param thickness: Thickness of the object. 0 is considered thin.
  * \return pdf: the pdf of sampling the reflected/refracted ray. 0 if ray is invalid.
  */
-BsdfSample bxdf_translucent_sample(vec3 rand, float thickness)
+BsdfSample bxdf_translucent_sample(float3 rand, float thickness)
 {
-  if (thickness > 0.0) {
+  if (thickness > 0.0f) {
     /* Two transmission events inside a sphere is a uniform sphere distribution. */
-    float cos_theta = rand.x * 2.0 - 1.0;
+    float cos_theta = rand.x * 2.0f - 1.0f;
     BsdfSample samp;
-    samp.direction = vec3(rand.yz * sin_from_cos(cos_theta), -cos_theta);
-    samp.pdf = 0.25 * M_1_PI;
+    samp.direction = float3(rand.yz * sin_from_cos(cos_theta), -cos_theta);
+    samp.pdf = 0.25f * M_1_PI;
     return samp;
   }
 
@@ -94,12 +92,12 @@ BsdfSample bxdf_translucent_sample(vec3 rand, float thickness)
   return samp;
 }
 
-BsdfEval bxdf_translucent_eval(vec3 N, vec3 L, float thickness)
+BsdfEval bxdf_translucent_eval(float3 N, float3 L, float thickness)
 {
-  if (thickness > 0.0) {
+  if (thickness > 0.0f) {
     /* Two transmission events inside a sphere is a uniform sphere distribution. */
     BsdfEval eval;
-    eval.throughput = eval.pdf = 0.25 * M_1_PI;
+    eval.throughput = eval.pdf = 0.25f * M_1_PI;
     return eval;
   }
 
@@ -110,31 +108,29 @@ BsdfEval bxdf_translucent_eval(vec3 N, vec3 L, float thickness)
 
 float bxdf_translucent_perceived_roughness()
 {
-  return 1.0;
+  return 1.0f;
 }
 
-LightProbeRay bxdf_translucent_lightprobe(vec3 N, float thickness)
+LightProbeRay bxdf_translucent_lightprobe(float3 N, float thickness)
 {
   LightProbeRay probe;
   probe.perceptual_roughness = bxdf_translucent_perceived_roughness();
   /* If using the spherical assumption, discard any directionality from the lighting. */
-  probe.dominant_direction = (thickness > 0.0) ? vec3(0.0) : -N;
+  probe.dominant_direction = (thickness > 0.0f) ? float3(0.0f) : -N;
   return probe;
 }
 
-Ray bxdf_translucent_ray_amend(ClosureUndetermined cl, vec3 V, Ray ray, float thickness)
+Ray bxdf_translucent_ray_amend(ClosureUndetermined cl, float3 V, Ray ray, float thickness)
 {
-  if (thickness > 0.0) {
+  if (thickness > 0.0f) {
     /* Ray direction is distributed on the whole sphere.
      * Move the ray origin to the sphere surface (with bias to avoid self-intersection). */
-    ray.origin += (ray.direction - cl.N) * thickness * 0.505;
+    ray.origin += (ray.direction - cl.N) * thickness * 0.505f;
   }
   return ray;
 }
 
-#ifdef EEVEE_UTILITY_TX
-
-ClosureLight bxdf_translucent_light(ClosureUndetermined cl, vec3 V, float thickness)
+ClosureLight bxdf_translucent_light(ClosureUndetermined cl, float3 V, float thickness)
 {
   /* A translucent sphere lit by a light outside the sphere transmits the
    * light uniformly over the sphere. To mimic this phenomenon, we use the light vector
@@ -144,12 +140,11 @@ ClosureLight bxdf_translucent_light(ClosureUndetermined cl, vec3 V, float thickn
    * only focusing the light a tiny bit. Using the flipped normal is good enough approximation.
    */
   ClosureLight light;
-  light.ltc_mat = vec4(1.0, 0.0, 0.0, 1.0); /* No transform, just plain cosine distribution. */
+  light.ltc_mat = float4(
+      1.0f, 0.0f, 0.0f, 1.0f); /* No transform, just plain cosine distribution. */
   light.N = -cl.N;
-  light.type = (thickness > 0.0) ? LIGHT_TRANSLUCENT_WITH_THICKNESS : LIGHT_DIFFUSE;
+  light.type = (thickness > 0.0f) ? LIGHT_TRANSLUCENT_WITH_THICKNESS : LIGHT_DIFFUSE;
   return light;
 }
-
-#endif
 
 /** \} */

@@ -21,6 +21,7 @@
 #include "DNA_key_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
+#include "DNA_object_types.h"
 
 #include "BKE_armature.hh"
 #include "BKE_deform.hh"
@@ -31,6 +32,7 @@
 #include "BKE_object_deform.h"
 #include "BKE_report.hh"
 
+#include "BLI_linear_allocator.hh"
 #include "BLI_listbase.h"
 #include "BLI_map.hh"
 #include "BLI_math_vector.h"
@@ -70,32 +72,6 @@ void resize_fcurve(FCurve *fcu, uint bezt_count)
   BKE_fcurve_bezt_resize(fcu, bezt_count);
 }
 
-/* Utility: create curve at the given array index and add it as a channel to a group. */
-FCurve *create_fcurve(blender::animrig::Channelbag &channelbag,
-                      const blender::animrig::FCurveDescriptor &fcurve_descriptor,
-                      const int totvert)
-{
-  FCurve *fcurve = channelbag.fcurve_create_unique(nullptr, fcurve_descriptor);
-  BLI_assert_msg(fcurve, "The same F-Curve is being created twice, this is unexpected.");
-  BKE_fcurve_bezt_resize(fcurve, totvert);
-  return fcurve;
-}
-
-/* Utility: add curve sample. */
-void add_bezt(FCurve *fcu,
-              uint bezt_index,
-              const float frame,
-              const float value,
-              const eBezTriple_Interpolation ipo = BEZT_IPO_LIN)
-{
-  BezTriple &bez = fcu->bezt[bezt_index];
-  bez.vec[1][0] = frame;
-  bez.vec[1][1] = value;
-  bez.ipo = ipo; /* use default interpolation mode here... */
-  bez.f1 = bez.f2 = bez.f3 = SELECT;
-  bez.h1 = bez.h2 = HD_AUTO;
-}
-
 /**
  * Import a USD skeleton animation as an action on the given armature object.
  * This assumes bones have already been created on the armature.
@@ -112,8 +88,9 @@ void import_skeleton_curves(Main *bmain,
                             const pxr::UsdSkelSkeletonQuery &skel_query,
                             const blender::Map<pxr::TfToken, std::string> &joint_to_bone_map,
                             ReportList *reports)
-
 {
+  using namespace blender::io::usd;
+
   if (!(bmain && arm_obj && skel_query)) {
     return;
   }
@@ -145,17 +122,14 @@ void import_skeleton_curves(Main *bmain,
   blender::animrig::Channelbag &channelbag = blender::animrig::action_channelbag_ensure(
       *act, arm_obj->id);
 
-  /* Create the curves. */
-
   /* Get the joint paths. */
   const pxr::VtTokenArray joint_order = skel_query.GetJointOrder();
 
-  blender::Vector<FCurve *> loc_curves;
-  blender::Vector<FCurve *> rot_curves;
-  blender::Vector<FCurve *> scale_curves;
-  loc_curves.reserve(joint_order.size() * 3);
-  rot_curves.reserve(joint_order.size() * 4);
-  scale_curves.reserve(joint_order.size() * 3);
+  /* Create the curves. */
+  constexpr int curves_per_joint = 10; /* 3 loc, 4 rot, 3 scale */
+  blender::LinearAllocator path_alloc;
+  blender::Vector<blender::animrig::FCurveDescriptor> curve_desc;
+  curve_desc.reserve(joint_order.size() * curves_per_joint);
 
   /* Iterate over the joints and create the corresponding curves for the bones. */
   for (const pxr::TfToken &joint : joint_order) {
@@ -163,46 +137,39 @@ void import_skeleton_curves(Main *bmain,
     if (name == nullptr) {
       /* This joint doesn't correspond to any bone we created.
        * Add null placeholders for the channel curves. */
-      loc_curves.append_n_times(nullptr, 3);
-      rot_curves.append_n_times(nullptr, 4);
-      scale_curves.append_n_times(nullptr, 3);
+      curve_desc.append_n_times({}, curves_per_joint);
       continue;
     }
 
-    /* Add translation curves. */
+    /* Translation curves. */
     std::string rna_path = "pose.bones[\"" + *name + "\"].location";
-    loc_curves.append(create_fcurve(channelbag, {rna_path, 0, {}, *name}, num_samples));
-    loc_curves.append(create_fcurve(channelbag, {rna_path, 1, {}, *name}, num_samples));
-    loc_curves.append(create_fcurve(channelbag, {rna_path, 2, {}, *name}, num_samples));
+    blender::StringRefNull path_desc = path_alloc.copy_string(rna_path);
+    curve_desc.append({path_desc, 0, {}, {}, *name});
+    curve_desc.append({path_desc, 1, {}, {}, *name});
+    curve_desc.append({path_desc, 2, {}, {}, *name});
 
-    /* Add rotation curves. */
+    /* Rotation curves. */
     rna_path = "pose.bones[\"" + *name + "\"].rotation_quaternion";
-    rot_curves.append(create_fcurve(channelbag, {rna_path, 0, {}, *name}, num_samples));
-    rot_curves.append(create_fcurve(channelbag, {rna_path, 1, {}, *name}, num_samples));
-    rot_curves.append(create_fcurve(channelbag, {rna_path, 2, {}, *name}, num_samples));
-    rot_curves.append(create_fcurve(channelbag, {rna_path, 3, {}, *name}, num_samples));
+    path_desc = path_alloc.copy_string(rna_path);
+    curve_desc.append({path_desc, 0, {}, {}, *name});
+    curve_desc.append({path_desc, 1, {}, {}, *name});
+    curve_desc.append({path_desc, 2, {}, {}, *name});
+    curve_desc.append({path_desc, 3, {}, {}, *name});
 
-    /* Add scale curves. */
+    /* Scale curves. */
     rna_path = "pose.bones[\"" + *name + "\"].scale";
-    scale_curves.append(create_fcurve(channelbag, {rna_path, 0, {}, *name}, num_samples));
-    scale_curves.append(create_fcurve(channelbag, {rna_path, 1, {}, *name}, num_samples));
-    scale_curves.append(create_fcurve(channelbag, {rna_path, 2, {}, *name}, num_samples));
+    path_desc = path_alloc.copy_string(rna_path);
+    curve_desc.append({path_desc, 0, {}, {}, *name});
+    curve_desc.append({path_desc, 1, {}, {}, *name});
+    curve_desc.append({path_desc, 2, {}, {}, *name});
   }
 
-  /* Sanity checks: make sure we have a curve entry for each joint. */
-  if (loc_curves.size() != joint_order.size() * 3) {
-    CLOG_ERROR(&LOG, "Location curve count mismatch");
-    return;
-  }
-
-  if (rot_curves.size() != joint_order.size() * 4) {
-    CLOG_ERROR(&LOG, "Rotation curve count mismatch");
-    return;
-  }
-
-  if (scale_curves.size() != joint_order.size() * 3) {
-    CLOG_ERROR(&LOG, "Scale curve count mismatch");
-    return;
+  blender::Vector<FCurve *> fcurves = channelbag.fcurve_create_many(nullptr, curve_desc.as_span());
+  BLI_assert_msg(fcurves.size() == curve_desc.size(), "USD: animation curve count mismatch");
+  for (FCurve *fcu : fcurves) {
+    if (fcu != nullptr) {
+      BKE_fcurve_bezt_resize(fcu, num_samples);
+    }
   }
 
   /* The curve for each joint represents the transform relative
@@ -228,11 +195,12 @@ void import_skeleton_curves(Main *bmain,
   }
 
   if (usd_bind_xforms.size() != joint_order.size()) {
-    BKE_reportf(reports,
-                RPT_WARNING,
-                "%s: Number of bind transforms doesn't match the number of joints for skeleton %s",
-                __func__,
-                skel_query.GetSkeleton().GetPrim().GetPath().GetAsString().c_str());
+    BKE_reportf(
+        reports,
+        RPT_WARNING,
+        "%s: Number of bind transforms does not match the number of joints for skeleton %s",
+        __func__,
+        skel_query.GetSkeleton().GetPrim().GetPath().GetAsString().c_str());
     return;
   }
 
@@ -255,6 +223,7 @@ void import_skeleton_curves(Main *bmain,
   }
 
   /* Set the curve samples. */
+  blender::Array<pxr::GfQuatf> prev_rot(joint_order.size());
   uint bezt_index = 0;
   for (const double frame : samples) {
     pxr::VtMatrix4dArray joint_local_xforms;
@@ -266,7 +235,7 @@ void import_skeleton_curves(Main *bmain,
     if (joint_local_xforms.size() != joint_order.size()) {
       CLOG_WARN(
           &LOG,
-          "Number of joint local transform entries %zu doesn't match the number of joints %zu",
+          "Number of joint local transform entries %zu does not match the number of joints %zu",
           joint_local_xforms.size(),
           joint_order.size());
       continue;
@@ -285,44 +254,55 @@ void import_skeleton_curves(Main *bmain,
         continue;
       }
 
+      if (bezt_index > 0) {
+        /* Quaternion "neighborhood" check to prevent most cases of discontinuous rotations.
+         * Note: An alternate method, comparing to the rotation of the rest position rather than
+         * to the previous rotation, was attempted but yielded much worse results for joints
+         * representing objects that are supposed to spin, like wheels and propellers. */
+        if (pxr::GfDot(prev_rot[i], qrot) < 0.0f) {
+          qrot = -qrot;
+        }
+      }
+      prev_rot[i] = qrot;
+
       const float re = qrot.GetReal();
       const pxr::GfVec3f &im = qrot.GetImaginary();
 
       for (int j = 0; j < 3; ++j) {
-        const int k = 3 * i + j;
-        if (k >= loc_curves.size()) {
+        const int k = curves_per_joint * i + j;
+        if (k >= fcurves.size()) {
           CLOG_ERROR(&LOG, "Out of bounds translation curve index %d", k);
           break;
         }
-        if (FCurve *fcu = loc_curves[k]) {
-          add_bezt(fcu, bezt_index, frame, t[j]);
+        if (FCurve *fcu = fcurves[k]) {
+          set_fcurve_sample(fcu, bezt_index, frame, t[j]);
         }
       }
 
       for (int j = 0; j < 4; ++j) {
-        const int k = 4 * i + j;
-        if (k >= rot_curves.size()) {
+        const int k = curves_per_joint * i + j + 3;
+        if (k >= fcurves.size()) {
           CLOG_ERROR(&LOG, "Out of bounds rotation curve index %d", k);
           break;
         }
-        if (FCurve *fcu = rot_curves[k]) {
+        if (FCurve *fcu = fcurves[k]) {
           if (j == 0) {
-            add_bezt(fcu, bezt_index, frame, re);
+            set_fcurve_sample(fcu, bezt_index, frame, re);
           }
           else {
-            add_bezt(fcu, bezt_index, frame, im[j - 1]);
+            set_fcurve_sample(fcu, bezt_index, frame, im[j - 1]);
           }
         }
       }
 
       for (int j = 0; j < 3; ++j) {
-        const int k = 3 * i + j;
-        if (k >= scale_curves.size()) {
+        const int k = curves_per_joint * i + j + 7;
+        if (k >= fcurves.size()) {
           CLOG_ERROR(&LOG, "Out of bounds scale curve index %d", k);
           break;
         }
-        if (FCurve *fcu = scale_curves[k]) {
-          add_bezt(fcu, bezt_index, frame, s[j]);
+        if (FCurve *fcu = fcurves[k]) {
+          set_fcurve_sample(fcu, bezt_index, frame, s[j]);
         }
       }
     }
@@ -331,13 +311,12 @@ void import_skeleton_curves(Main *bmain,
   }
 
   /* Recalculate curve handles. */
-  auto recalc_handles = [bezt_index](FCurve *fcu) {
-    resize_fcurve(fcu, bezt_index);
-    BKE_fcurve_handles_recalc(fcu);
-  };
-  std::for_each(loc_curves.begin(), loc_curves.end(), recalc_handles);
-  std::for_each(rot_curves.begin(), rot_curves.end(), recalc_handles);
-  std::for_each(scale_curves.begin(), scale_curves.end(), recalc_handles);
+  for (FCurve *fcu : fcurves) {
+    if (fcu != nullptr) {
+      resize_fcurve(fcu, bezt_index);
+      BKE_fcurve_handles_recalc(fcu);
+    }
+  }
 }
 
 /* Set the skeleton path and bind transform on the given mesh. */
@@ -433,11 +412,12 @@ void import_blendshapes(Main *bmain,
 
   /* Sanity check. */
   if (targets.size() != usd_blendshapes.size()) {
-    BKE_reportf(reports,
-                RPT_WARNING,
-                "%s: Number of blendshapes doesn't match number of blendshape targets for prim %s",
-                __func__,
-                prim.GetPath().GetAsString().c_str());
+    BKE_reportf(
+        reports,
+        RPT_WARNING,
+        "%s: Number of blendshapes does not match number of blendshape targets for prim %s",
+        __func__,
+        prim.GetPath().GetAsString().c_str());
     return;
   }
 
@@ -508,6 +488,10 @@ void import_blendshapes(Main *bmain,
     /* Add the key block. */
     kb = BKE_keyblock_add(key, blendshapes[i].GetString().c_str());
     BKE_keyblock_convert_from_mesh(mesh, key, kb);
+    if (!kb->data) {
+      /* Nothing to do. This can happen if the mesh has no vertices. */
+      continue;
+    }
 
     /* if authored, point indices are indices into the original mesh
      * that correspond to the values in the offsets array. */
@@ -660,7 +644,7 @@ void import_blendshapes(Main *bmain,
     if (usd_weights.size() != curves.size()) {
       CLOG_WARN(
           &LOG,
-          "Number of weight samples doesn't match number of shapekey curve entries for frame %f",
+          "Number of weight samples does not match number of shapekey curve entries for frame %f",
           frame);
       continue;
     }
@@ -668,7 +652,7 @@ void import_blendshapes(Main *bmain,
     Span<float> weights = Span(usd_weights.cdata(), usd_weights.size());
     for (int wi = 0; wi < weights.size(); ++wi) {
       if (curves[wi] != nullptr) {
-        add_bezt(curves[wi], bezt_index, frame, weights[wi]);
+        set_fcurve_sample(curves[wi], bezt_index, frame, weights[wi]);
       }
     }
 
@@ -681,6 +665,51 @@ void import_blendshapes(Main *bmain,
     BKE_fcurve_handles_recalc(fcu);
   };
   std::for_each(curves.begin(), curves.end(), recalc_handles);
+}
+
+static void set_rest_pose(Main *bmain,
+                          Object *arm_obj,
+                          bArmature *arm,
+                          const pxr::VtArray<pxr::GfMatrix4d> &bind_xforms,
+                          const pxr::VtTokenArray &joint_order,
+                          const blender::Map<pxr::TfToken, std::string> &joint_to_bone_map,
+                          const pxr::UsdSkelTopology &skel_topology,
+                          const pxr::UsdSkelSkeletonQuery &skel_query)
+{
+  if (!skel_query.HasRestPose()) {
+    return;
+  }
+
+  pxr::VtArray<pxr::GfMatrix4d> rest_xforms;
+  if (skel_query.ComputeJointLocalTransforms(&rest_xforms, pxr::UsdTimeCode::Default(), true)) {
+    BKE_pose_ensure(bmain, arm_obj, arm, false);
+
+    int64_t i = 0;
+    for (const pxr::TfToken &joint : joint_order) {
+      const std::string *name = joint_to_bone_map.lookup_ptr(joint);
+      if (name == nullptr) {
+        /* This joint doesn't correspond to any bone we created. Skip. */
+        continue;
+      }
+
+      bPoseChannel *pchan = BKE_pose_channel_find_name(arm_obj->pose, name->c_str());
+
+      pxr::GfMatrix4d xf = rest_xforms.AsConst()[i];
+      pxr::GfMatrix4d bind_xf = bind_xforms[i];
+
+      const int parent_id = skel_topology.GetParent(i);
+      if (parent_id >= 0) {
+        bind_xf = bind_xf * bind_xforms[parent_id].GetInverse();
+      }
+
+      xf = xf * bind_xf.GetInverse();
+
+      pxr::GfMatrix4f mat(xf);
+      BKE_pchan_apply_mat4(pchan, (float(*)[4])mat.data(), false);
+
+      i++;
+    }
+  }
 }
 
 void import_skeleton(Main *bmain,
@@ -717,6 +746,23 @@ void import_skeleton(Main *bmain,
     return;
   }
 
+  /* Each joint path should be valid and unique. */
+  blender::Set<pxr::TfToken> unique_joint_paths;
+  unique_joint_paths.reserve(joint_order.size());
+  const bool all_valid_paths = std::all_of(
+      joint_order.cbegin(), joint_order.cend(), [&unique_joint_paths](const pxr::TfToken &val) {
+        const bool is_valid = pxr::SdfPath::IsValidPathString(val);
+        return is_valid && unique_joint_paths.add(val);
+      });
+  if (!all_valid_paths) {
+    BKE_reportf(reports,
+                RPT_WARNING,
+                "%s: USD joint order array contains invalid or duplicated paths for skeleton %s",
+                __func__,
+                skel.GetPath().GetAsString().c_str());
+    return;
+  }
+
   bArmature *arm = static_cast<bArmature *>(arm_obj->data);
 
   /* Set the armature to edit mode when creating the bones. */
@@ -732,8 +778,9 @@ void import_skeleton(Main *bmain,
 
   /* Create the bones. */
   for (const pxr::TfToken &joint : joint_order) {
-    std::string name = pxr::SdfPath(joint).GetName();
-    EditBone *bone = ED_armature_ebone_add(arm, name.c_str());
+    pxr::SdfPath bone_path(joint);
+    const std::string &bone_name = bone_path.GetName();
+    EditBone *bone = ED_armature_ebone_add(arm, bone_name.c_str());
     if (!bone) {
       BKE_reportf(reports,
                   RPT_WARNING,
@@ -824,7 +871,7 @@ void import_skeleton(Main *bmain,
         RPT_WARNING,
         "USD Skeleton Import: bone matrices with negative determinants detected in prim %s. "
         "Such matrices may indicate negative scales, possibly due to mirroring operations, "
-        "and can't currently be converted to Blender's bone representation. "
+        "and cannot currently be converted to Blender's bone representation. "
         "The skeletal animation won't be imported",
         skel.GetPath().GetAsString().c_str());
   }
@@ -858,7 +905,7 @@ void import_skeleton(Main *bmain,
     }
   }
 
-  /* Use our custom bone length data if possible, otherwise fallback to estimated lengths. */
+  /* Use our custom bone length data if possible, otherwise fall back to estimated lengths. */
   const pxr::UsdGeomPrimvarsAPI pv_api = pxr::UsdGeomPrimvarsAPI(skel.GetPrim());
   const pxr::UsdGeomPrimvar pv_lengths = pv_api.GetPrimvar(BlenderBoneLengths);
   if (pv_lengths.HasValue()) {
@@ -943,6 +990,9 @@ void import_skeleton(Main *bmain,
   /* Get out of edit mode. */
   ED_armature_from_edit(bmain, arm);
   ED_armature_edit_free(arm);
+
+  set_rest_pose(
+      bmain, arm_obj, arm, bind_xforms, joint_order, joint_to_bone_map, skel_topology, skel_query);
 
   if (import_anim && valid_skeleton) {
     import_skeleton_curves(bmain, arm_obj, skel_query, joint_to_bone_map, reports);
@@ -1264,7 +1314,7 @@ void shape_key_export_chaser(pxr::UsdStageRefPtr stage,
 
 void export_deform_verts(const Mesh *mesh,
                          const pxr::UsdSkelBindingAPI &skel_api,
-                         const Span<std::string> bone_names)
+                         const Span<StringRef> bone_names)
 {
   BLI_assert(mesh);
   BLI_assert(skel_api);

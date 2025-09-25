@@ -12,6 +12,12 @@
 #include <cstring>
 #include <vector>
 
+/* Already suppressed in `intern/itasc/CMakeLists.txt` however that doesn't apply here. */
+#if defined(__GNUC__) && !defined(__clang__)
+#  pragma GCC diagnostic push
+#  pragma GCC diagnostic ignored "-Wdeprecated-copy"
+#endif
+
 /* iTaSC headers */
 #ifdef WITH_IK_ITASC
 #  include "Armature.hpp"
@@ -22,6 +28,10 @@
 #  include "Scene.hpp"
 #  include "WDLSSolver.hpp"
 #  include "WSDLSSolver.hpp"
+#endif
+
+#if defined(__GNUC__) && !defined(__clang__)
+#  pragma GCC diagnostic pop
 #endif
 
 #include "MEM_guardedalloc.h"
@@ -284,8 +294,8 @@ static int initialize_chain(Object * /*ob*/, bPoseChannel *pchan_tip, bConstrain
     tree->totchannel = segcount;
     tree->stretch = (data->flag & CONSTRAINT_IK_STRETCH);
 
-    tree->pchan = MEM_calloc_arrayN<bPoseChannel *>(size_t(segcount), "ik tree pchan");
-    tree->parent = MEM_calloc_arrayN<int>(size_t(segcount), "ik tree parent");
+    tree->pchan = MEM_calloc_arrayN<bPoseChannel *>(segcount, "ik tree pchan");
+    tree->parent = MEM_calloc_arrayN<int>(segcount, "ik tree parent");
     for (a = 0; a < segcount; a++) {
       tree->pchan[a] = chanlist[segcount - a - 1];
       tree->parent[a] = a - 1;
@@ -339,8 +349,8 @@ static int initialize_chain(Object * /*ob*/, bPoseChannel *pchan_tip, bConstrain
       oldchan = tree->pchan;
       oldparent = tree->parent;
 
-      tree->pchan = MEM_calloc_arrayN<bPoseChannel *>(size_t(newsize), "ik tree pchan");
-      tree->parent = MEM_calloc_arrayN<int>(size_t(newsize), "ik tree parent");
+      tree->pchan = MEM_calloc_arrayN<bPoseChannel *>(newsize, "ik tree pchan");
+      tree->parent = MEM_calloc_arrayN<int>(newsize, "ik tree parent");
       memcpy(tree->pchan, oldchan, sizeof(void *) * tree->totchannel);
       memcpy(tree->parent, oldparent, sizeof(int) * tree->totchannel);
       MEM_freeN(oldchan);

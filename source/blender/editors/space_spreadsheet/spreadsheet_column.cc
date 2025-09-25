@@ -5,6 +5,8 @@
 #include "DNA_meshdata_types.h"
 #include "DNA_space_types.h"
 
+#include "BLO_read_write.hh"
+
 #include "MEM_guardedalloc.h"
 
 #include "BLI_color.hh"
@@ -16,6 +18,8 @@
 
 #include "BKE_geometry_set.hh"
 #include "BKE_instances.hh"
+
+#include "NOD_geometry_nodes_bundle.hh"
 
 #include "spreadsheet_column.hh"
 #include "spreadsheet_column_values.hh"
@@ -63,6 +67,9 @@ eSpreadsheetColumnValueType cpp_type_to_column_type(const CPPType &type)
   if (type.is<float4x4>()) {
     return SPREADSHEET_VALUE_TYPE_FLOAT4X4;
   }
+  if (type.is<nodes::BundleItemValue>()) {
+    return SPREADSHEET_VALUE_TYPE_BUNDLE_ITEM;
+  }
 
   return SPREADSHEET_VALUE_TYPE_UNKNOWN;
 }
@@ -88,10 +95,22 @@ void spreadsheet_column_id_free(SpreadsheetColumnID *column_id)
   MEM_freeN(column_id);
 }
 
+void spreadsheet_column_id_blend_write(BlendWriter *writer, const SpreadsheetColumnID *column_id)
+{
+  BLO_write_struct(writer, SpreadsheetColumnID, column_id);
+  BLO_write_string(writer, column_id->name);
+}
+
+void spreadsheet_column_id_blend_read(BlendDataReader *reader, SpreadsheetColumnID *column_id)
+{
+  BLO_read_string(reader, &column_id->name);
+}
+
 SpreadsheetColumn *spreadsheet_column_new(SpreadsheetColumnID *column_id)
 {
   SpreadsheetColumn *column = MEM_callocN<SpreadsheetColumn>(__func__);
   column->id = column_id;
+  column->runtime = MEM_new<SpreadsheetColumnRuntime>(__func__);
   return column;
 }
 
@@ -111,6 +130,7 @@ SpreadsheetColumn *spreadsheet_column_copy(const SpreadsheetColumn *src_column)
   if (src_column->display_name != nullptr) {
     new_column->display_name = BLI_strdup(src_column->display_name);
   }
+  new_column->width = src_column->width;
   return new_column;
 }
 
@@ -118,7 +138,23 @@ void spreadsheet_column_free(SpreadsheetColumn *column)
 {
   spreadsheet_column_id_free(column->id);
   MEM_SAFE_FREE(column->display_name);
+  MEM_delete(column->runtime);
   MEM_freeN(column);
+}
+
+void spreadsheet_column_blend_write(BlendWriter *writer, const SpreadsheetColumn *column)
+{
+  BLO_write_struct(writer, SpreadsheetColumn, column);
+  spreadsheet_column_id_blend_write(writer, column->id);
+  BLO_write_string(writer, column->display_name);
+}
+
+void spreadsheet_column_blend_read(BlendDataReader *reader, SpreadsheetColumn *column)
+{
+  column->runtime = MEM_new<SpreadsheetColumnRuntime>(__func__);
+  BLO_read_struct(reader, SpreadsheetColumnID, &column->id);
+  spreadsheet_column_id_blend_read(reader, column->id);
+  BLO_read_string(reader, &column->display_name);
 }
 
 }  // namespace blender::ed::spreadsheet

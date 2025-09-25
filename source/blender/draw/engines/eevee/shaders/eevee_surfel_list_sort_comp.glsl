@@ -12,11 +12,9 @@
  * Dispatched as 1 thread per list.
  */
 
-#include "infos/eevee_lightprobe_volume_info.hh"
+#include "infos/eevee_lightprobe_volume_infos.hh"
 
 COMPUTE_SHADER_CREATE_INFO(eevee_surfel_list_sort)
-
-#include "gpu_shader_utildefines_lib.glsl"
 
 /**
  * A doubly-linked list implementation.
@@ -73,9 +71,9 @@ void list_insert_link_before(inout List list, int next_link, int new_link)
  */
 bool is_valid_surfel_link(int a, int b)
 {
-  vec3 link_vector = normalize(surfel_buf[b].position - surfel_buf[a].position);
+  float3 link_vector = normalize(surfel_buf[b].position - surfel_buf[a].position);
   float link_angle_cos = dot(surfel_buf[a].normal, link_vector);
-  bool is_coplanar = abs(link_angle_cos) < 1.0e-3;
+  bool is_coplanar = abs(link_angle_cos) < 1.0e-3f;
   return !is_coplanar;
 }
 

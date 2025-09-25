@@ -193,7 +193,7 @@ static void ghash_buckets_resize(GHash *gh, const uint nbuckets)
   gh->bucket_mask = nbuckets - 1;
 #endif
 
-  buckets_new = (Entry **)MEM_callocN(sizeof(*gh->buckets) * gh->nbuckets, __func__);
+  buckets_new = MEM_calloc_arrayN<Entry *>(gh->nbuckets, __func__);
 
   if (buckets_old) {
     if (nbuckets > nbuckets_old) {
@@ -859,7 +859,7 @@ void BLI_ghash_clear(GHash *gh, GHashKeyFreeFP keyfreefp, GHashValFreeFP valfree
 
 void BLI_ghash_free(GHash *gh, GHashKeyFreeFP keyfreefp, GHashValFreeFP valfreefp)
 {
-  BLI_assert((int)gh->nentries == BLI_mempool_len(gh->entrypool));
+  BLI_assert(int(gh->nentries) == BLI_mempool_len(gh->entrypool));
   if (keyfreefp || valfreefp) {
     ghash_free_cb(gh, keyfreefp, valfreefp);
   }

@@ -4,11 +4,12 @@
 
 #include "NOD_rna_define.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "RNA_enum_types.hh"
 
+#include "GEO_foreach_geometry.hh"
 #include "GEO_separate_geometry.hh"
 
 #include "node_geometry_util.hh"
@@ -19,7 +20,7 @@ NODE_STORAGE_FUNCS(NodeGeometrySeparateGeometry)
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Geometry>("Geometry");
+  b.add_input<decl::Geometry>("Geometry").description("Geometry to split into two parts");
   b.add_input<decl::Bool>("Selection")
       .default_value(true)
       .hide_value()
@@ -35,7 +36,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "domain", UI_ITEM_NONE, "", ICON_NONE);
+  layout->prop(ptr, "domain", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
@@ -68,7 +69,7 @@ static void node_geo_exec(GeoNodeExecParams params)
                                   is_error);
     }
     else {
-      geometry_set.modify_geometry_sets([&](GeometrySet &geometry_set) {
+      geometry::foreach_real_geometry(geometry_set, [&](GeometrySet &geometry_set) {
         geometry::separate_geometry(geometry_set,
                                     domain,
                                     GEO_NODE_DELETE_GEOMETRY_MODE_ALL,

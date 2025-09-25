@@ -25,7 +25,7 @@
 #include "BKE_object.hh"
 
 #include "BLI_listbase.h"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 
 #include "CLG_log.h"
 #include "testing/testing.h"
@@ -42,8 +42,7 @@ const float FRAME_STEP = 0.005;
 static void build_fcurve(FCurve &fcurve)
 {
   fcurve.totvert = 3;
-  fcurve.bezt = static_cast<BezTriple *>(
-      MEM_callocN(sizeof(BezTriple) * fcurve.totvert, "BezTriples"));
+  fcurve.bezt = MEM_calloc_arrayN<BezTriple>(fcurve.totvert, "BezTriples");
   fcurve.bezt[0].vec[1][0] = 10.0f;
   fcurve.bezt[0].vec[1][1] = 1.0f;
   fcurve.bezt[1].vec[1][0] = 20.0f;
@@ -155,6 +154,40 @@ TEST(keylist, find_exact)
   ED_keylist_free(keylist);
 }
 
+TEST(keylist, find_closest)
+{
+  AnimKeylist *keylist = create_test_keylist();
+
+  {
+    const ActKeyColumn *closest = ED_keylist_find_closest(keylist, -1);
+    EXPECT_EQ(closest->cfra, 10.0);
+  }
+
+  {
+    const ActKeyColumn *closest = ED_keylist_find_closest(keylist, 10);
+    EXPECT_EQ(closest->cfra, 10.0);
+  }
+
+  {
+    const ActKeyColumn *closest = ED_keylist_find_closest(keylist, 14.999);
+    EXPECT_EQ(closest->cfra, 10.0);
+  }
+  {
+    /* When the distance between key columns is equal, the previous column is chosen */
+    const ActKeyColumn *closest = ED_keylist_find_closest(keylist, 15);
+    EXPECT_EQ(closest->cfra, 10.0);
+  }
+  {
+    const ActKeyColumn *closest = ED_keylist_find_closest(keylist, 15.001);
+    EXPECT_EQ(closest->cfra, 20.0);
+  }
+  {
+    const ActKeyColumn *closest = ED_keylist_find_closest(keylist, 30.001);
+    EXPECT_EQ(closest->cfra, 30.0);
+  }
+  ED_keylist_free(keylist);
+}
+
 class KeylistSummaryTest : public testing::Test {
  public:
   Main *bmain;
@@ -187,14 +220,14 @@ class KeylistSummaryTest : public testing::Test {
     bmain = BKE_main_new();
     G_MAIN = bmain; /* For BKE_animdata_free(). */
 
-    action = &static_cast<bAction *>(BKE_id_new(bmain, ID_AC, "ACÄnimåtië"))->wrap();
+    action = &BKE_id_new<bAction>(bmain, "ACÄnimåtië")->wrap();
     cube = BKE_object_add_only_object(bmain, OB_EMPTY, "Küüübus");
 
     armature_data = BKE_armature_add(bmain, "ARArmature");
     bone1 = reinterpret_cast<Bone *>(MEM_callocN(sizeof(Bone), "KeylistSummaryTest"));
     bone2 = reinterpret_cast<Bone *>(MEM_callocN(sizeof(Bone), "KeylistSummaryTest"));
-    STRNCPY(bone1->name, "Bone.001");
-    STRNCPY(bone2->name, "Bone.002");
+    STRNCPY_UTF8(bone1->name, "Bone.001");
+    STRNCPY_UTF8(bone2->name, "Bone.002");
     BLI_addtail(&armature_data->bonebase, bone1);
     BLI_addtail(&armature_data->bonebase, bone2);
     BKE_armature_bone_hash_make(armature_data);
@@ -207,10 +240,9 @@ class KeylistSummaryTest : public testing::Test {
      * Fill in the common bits for the mock bAnimContext, for an Action editor.
      *
      * Tests should fill in:
-     * - saction.action_slot_handle
      * - ac.obact
+     * - ac.active_action_user (= &ac.obact.id)
      */
-    saction.action = action;
     saction.ads.filterflag = eDopeSheet_FilterFlag(0);
     ac.bmain = bmain;
     ac.datatype = ANIMCONT_ACTION;
@@ -218,12 +250,14 @@ class KeylistSummaryTest : public testing::Test {
     ac.spacetype = SPACE_ACTION;
     ac.sl = reinterpret_cast<SpaceLink *>(&saction);
     ac.ads = &saction.ads;
+    ac.active_action = action;
   }
 
   void TearDown() override
   {
-    saction.action_slot_handle = blender::animrig::Slot::unassigned;
     ac.obact = nullptr;
+    ac.active_action = nullptr;
+    ac.active_action_user = nullptr;
 
     BKE_main_free(bmain);
     G_MAIN = nullptr;
@@ -254,8 +288,8 @@ TEST_F(KeylistSummaryTest, slot_summary_simple)
 
   /* Generate slot summary keylist. */
   AnimKeylist *keylist = ED_keylist_create();
-  saction.action_slot_handle = slot_cube.handle;
   ac.obact = cube;
+  ac.active_action_user = &cube->id;
   action_slot_summary_to_keylist(
       &ac, &cube->id, *action, slot_cube.handle, keylist, 0, {0.0, 6.0});
   ED_keylist_prepare_for_direct_access(keylist);
@@ -299,9 +333,9 @@ TEST_F(KeylistSummaryTest, slot_summary_bone_selection)
   Channelbag &channelbag = action_channelbag_ensure(*action, armature->id);
 
   FCurve &bone1_loc_x = channelbag.fcurve_ensure(
-      bmain, {"pose.bones[\"Bone.001\"].location", 0, std::nullopt, "Bone.001"});
+      bmain, {"pose.bones[\"Bone.001\"].location", 0, {}, {}, "Bone.001"});
   FCurve &bone2_loc_x = channelbag.fcurve_ensure(
-      bmain, {"pose.bones[\"Bone.002\"].location", 0, std::nullopt, "Bone.002"});
+      bmain, {"pose.bones[\"Bone.002\"].location", 0, {}, {}, "Bone.002"});
 
   ASSERT_EQ(SingleKeyingResult::SUCCESS, insert_vert_fcurve(&bone1_loc_x, {1.0, 0.0}, {}, {}));
   ASSERT_EQ(SingleKeyingResult::SUCCESS, insert_vert_fcurve(&bone1_loc_x, {2.0, 1.0}, {}, {}));
@@ -315,8 +349,8 @@ TEST_F(KeylistSummaryTest, slot_summary_bone_selection)
   /* Generate slot summary keylist. */
   AnimKeylist *keylist = ED_keylist_create();
   saction.ads.filterflag = ADS_FILTER_ONLYSEL; /* Filter by selection. */
-  saction.action_slot_handle = slot_armature.handle;
   ac.obact = armature;
+  ac.active_action_user = &armature->id;
   action_slot_summary_to_keylist(
       &ac, &armature->id, *action, slot_armature.handle, keylist, 0, {0.0, 6.0});
   ED_keylist_prepare_for_direct_access(keylist);
