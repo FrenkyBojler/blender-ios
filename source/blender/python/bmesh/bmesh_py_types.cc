@@ -1452,7 +1452,7 @@ PyDoc_STRVAR(
     bpy_bmesh_select_flush_doc,
     ".. method:: select_flush(select)\n"
     "\n"
-    "   Flush selection, independent of the current selection mode.\n"
+    "   Flush selection from vertices, independent of the current selection mode.\n"
     "\n"
     "   :arg select: flush selection or de-selected elements.\n"
     "   :type select: bool\n");
@@ -1465,7 +1465,7 @@ static PyObject *bpy_bmesh_select_flush(BPy_BMesh *self, PyObject *value)
   if ((param = PyC_Long_AsBool(value)) == -1) {
     return nullptr;
   }
-  BM_mesh_select_flush(self->bm, param);
+  BM_mesh_select_flush_from_verts(self->bm, param);
   Py_RETURN_NONE;
 }
 
@@ -4387,7 +4387,7 @@ int bpy_bm_generic_valid_check(BPy_BMGeneric *self)
  * function where the actual error will be caused by
  * the previous action. */
 #if 0
-    if (BM_mesh_validate(self->bm) == false) {
+    if (BM_mesh_is_valid(self->bm) == false) {
       PyErr_Format(
           PyExc_ReferenceError, "BMesh used by %.200s has become invalid", Py_TYPE(self)->tp_name);
       return -1;
