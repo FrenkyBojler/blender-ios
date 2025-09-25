@@ -1872,7 +1872,7 @@ void BM_mesh_uvselect_flush_to_v3d(BMesh *bm)
 /* Asserting can be useful to inspect the values while debugging. */
 #if 0 /* Useful when debugging. */
 #  define MAYBE_ASSERT BLI_assert(0)
-#elif 1 /* Can also be useful. */
+#elif 0 /* Can also be useful. */
 #  define MAYBE_ASSERT printf(AT "\n")
 #else
 #  define MAYBE_ASSERT
