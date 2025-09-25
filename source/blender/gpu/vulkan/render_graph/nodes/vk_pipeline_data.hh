@@ -67,7 +67,7 @@ struct VKViewportData {
 
 struct VKPipelineDataGraphics {
   VKPipelineData pipeline_data;
-  VKViewportData viewport_data;
+  VKViewportData viewport;
   std::optional<float> line_width;
 };
 
@@ -149,7 +149,7 @@ static inline void vk_pipeline_data_copy(VKPipelineDataGraphics &dst, const VKPi
  * - line width
  */
 void vk_pipeline_dynamic_graphics_build_commands(VKCommandBufferInterface &command_buffer,
-                                                 const VKViewportData &viewport_data,
+                                                 const VKViewportData &viewport,
                                                  const std::optional<float> line_width,
                                                  VKBoundPipelines &r_bound_pipelines);
 
