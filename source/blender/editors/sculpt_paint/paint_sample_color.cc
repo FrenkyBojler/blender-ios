@@ -162,7 +162,7 @@ struct SampleColorData {
   bool show_cursor;
   short launch_event;
   float initcolor[3];
-  bool sample_palette;
+  bool use_palette;
   bool sample_texture;
 
   blender::float3 accum_color;
@@ -178,7 +178,7 @@ static void paint_set_color(bContext *C, SampleColorData *data, const blender::f
 
   Paint *paint = BKE_paint_get_active_from_context(C);
   Brush *br = BKE_paint_brush(paint);
-  if (data->sample_palette) {
+  if (data->use_palette) {
     Palette *palette = BKE_paint_palette(paint);
     PaletteColor *color = nullptr;
 
@@ -349,7 +349,7 @@ static void sample_color_update_header(SampleColorData *data, bContext *C)
   if (area) {
     SNPRINTF_UTF8(msg,
                   IFACE_("Sample color for %s"),
-                  !data->sample_palette ?
+                  !data->use_palette ?
                       IFACE_("Brush. Use Left Click to sample for palette instead") :
                       IFACE_("Palette. Use Left Click to sample more colors"));
     ED_workspace_status_text(C, msg);
@@ -372,7 +372,7 @@ static wmOperatorStatus sample_color_exec(bContext *C, wmOperator *op)
   WM_redraw_windows(C);
 
   RNA_int_get_array(op->ptr, "location", location);
-  data->sample_palette = RNA_boolean_get(op->ptr, "palette");
+  data->use_palette = RNA_boolean_get(op->ptr, "palette");
   paint_sample_color(C, data, location[0], location[1]);
 
   if (show_cursor) {
@@ -396,7 +396,7 @@ static wmOperatorStatus sample_color_invoke(bContext *C, wmOperator *op, const w
   data->launch_event = WM_userdef_event_type_from_keymap_type(event->type);
   data->show_cursor = ((paint->flags & PAINT_SHOW_BRUSH) != 0);
   copy_v3_v3(data->initcolor, BKE_brush_color_get(paint, brush));
-  data->sample_palette = false;
+  data->use_palette = false;
   op->customdata = data;
   paint->flags &= ~PAINT_SHOW_BRUSH;
 
@@ -435,7 +435,7 @@ static wmOperatorStatus sample_color_modal(bContext *C, wmOperator *op, const wm
       paint->flags |= PAINT_SHOW_BRUSH;
     }
 
-    if (data->sample_palette) {
+    if (data->use_palette) {
       BKE_brush_color_set(paint, brush, data->initcolor);
       RNA_boolean_set(op->ptr, "palette", true);
       WM_event_add_notifier(C, NC_BRUSH | NA_EDITED, brush);
@@ -450,7 +450,7 @@ static wmOperatorStatus sample_color_modal(bContext *C, wmOperator *op, const wm
   switch (event->type) {
     case MOUSEMOVE: {
       RNA_int_set_array(op->ptr, "location", event->mval);
-      data->sample_palette = false;
+      data->use_palette = false;
       paint_sample_color(C, data, event->mval[0], event->mval[1]);
       WM_event_add_notifier(C, NC_BRUSH | NA_EDITED, brush);
       break;
@@ -459,11 +459,11 @@ static wmOperatorStatus sample_color_modal(bContext *C, wmOperator *op, const wm
     case LEFTMOUSE:
       if (event->val == KM_PRESS) {
         RNA_int_set_array(op->ptr, "location", event->mval);
-        if (!data->sample_palette) {
+        if (!data->use_palette) {
           sample_color_update_header(data, C);
           BKE_report(op->reports, RPT_INFO, "Sampling color for palette");
         }
-        data->sample_palette = true;
+        data->use_palette = true;
         paint_sample_color(C, data, event->mval[0], event->mval[1]);
         WM_event_add_notifier(C, NC_BRUSH | NA_EDITED, brush);
       }
