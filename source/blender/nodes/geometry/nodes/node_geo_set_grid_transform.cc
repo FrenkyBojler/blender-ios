@@ -55,14 +55,16 @@ static void node_geo_exec(GeoNodeExecParams params)
   }
 
   const float4x4 transform = params.extract_input<float4x4>("Transform");
+  bool invertible;
+  const float4x4 inverse_transform = math::invert(transform, invertible);
 
-  try {
-    bke::VolumeGridData &grid_data = grid.get_for_write();
-    bke::volume_grid::set_transform_matrix(grid_data, transform);
-  }
-  catch (const openvdb::ArithmeticError & /*error*/) {
+  if (!invertible) {
     params.error_message_add(NodeWarningType::Error,
                              TIP_("Unable to set grid transform as it must be invertible."));
+  }
+  if (invertible) {
+    bke::VolumeGridData &grid_data = grid.get_for_write();
+    bke::volume_grid::set_transform_matrix(grid_data, transform);
   }
 
   params.set_output("Grid", std::move(grid));
