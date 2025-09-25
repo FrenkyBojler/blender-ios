@@ -309,14 +309,25 @@ class NODE_MT_shader_node_color_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "ShaderNodeHueSaturation")
         self.node_operator(layout, "ShaderNodeInvert")
         self.node_operator(layout, "ShaderNodeLightFalloff")
-        self.color_mix_node(context, layout)
         self.node_operator(layout, "ShaderNodeRGBCurve")
         layout.separator()
         self.node_operator(layout, "ShaderNodeRGBToBW")
-        self.node_operator(layout, "ShaderNodeShaderToRGB", poll=object_eevee_shader_nodes_poll(context)) # Color
+        self.node_operator(layout, "ShaderNodeShaderToRGB", poll=object_eevee_shader_nodes_poll(context))
 
         self.draw_assets_for_catalog(layout, self.bl_label)
 
+class NODE_MT_shader_node_color_mix_base(node_add_menu.NodeMenu):
+    bl_label = "Mix"
+    menu_path = "Color/Mix"
+
+    def draw(self, context):
+        layout = self.layout
+        self.node_operator(layout, "ShaderNodeCombineColor")
+        self.node_operator(layout, "ShaderNodeSeparateColor")
+        layout.separator()
+        self.color_mix_node(context, layout)
+
+        self.draw_assets_for_catalog(layout, self.menu_path)
 
 class NODE_MT_shader_node_texture_base(node_add_menu.NodeMenu):
     bl_label = "Texture"
@@ -398,16 +409,6 @@ class NODE_MT_shader_node_utilities_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "NodeCombineBundle")
         self.node_operator(layout, "NodeSeparateBundle")
 
-        self.draw_assets_for_catalog(layout, self.bl_label)
-
-class NODE_MT_shader_node_color_mix_base(node_add_menu.NodeMenu):
-    bl_label = "Mix"
-    menu_path = "Color/Mix"
-
-    def draw(self, _context):
-        layout = self.layout
-        self.node_operator(layout, "ShaderNodeCombineColor")
-        self.node_operator(layout, "ShaderNodeSeparateColor")
         self.draw_assets_for_catalog(layout, self.bl_label)
 
 class NODE_MT_shader_node_all_base(node_add_menu.NodeMenu):

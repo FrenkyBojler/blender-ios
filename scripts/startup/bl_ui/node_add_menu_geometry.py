@@ -31,17 +31,28 @@ class NODE_MT_gn_color_base(node_add_menu.NodeMenu):
 
     def draw(self, context):
         layout = self.layout
+
+        self.draw_menu(layout, "Color/Mix")
+        layout.separator()
         self.node_operator(layout, "ShaderNodeBlackbody")
         self.node_operator(layout, "ShaderNodeGamma")
         self.node_operator(layout, "ShaderNodeValToRGB")
         self.node_operator(layout, "ShaderNodeRGBCurve")
-        layout.separator()
-        self.node_operator(layout, "FunctionNodeCombineColor")
-        self.color_mix_node(context, layout)
-        self.node_operator(layout, "FunctionNodeSeparateColor")
 
         self.draw_assets_for_catalog(layout, self.bl_label)
 
+class NODE_MT_shader_node_color_mix_base(node_add_menu.NodeMenu):
+    bl_label = "Mix"
+    menu_path = "Color/Mix"
+
+    def draw(self, context):
+        layout = self.layout
+        layout.separator()
+        self.node_operator(layout, "FunctionNodeCombineColor")
+        self.node_operator(layout, "FunctionNodeSeparateColor")
+        self.color_mix_node(context, layout)
+
+        self.draw_assets_for_catalog(layout, self.menu_path)
 
 class NODE_MT_gn_curve_base(node_add_menu.NodeMenu):
     bl_label = "Curve"
@@ -944,7 +955,6 @@ class NODE_MT_gn_volume_primitives_base(node_add_menu.NodeMenu):
 
         self.draw_assets_for_catalog(layout, self.menu_path)
 
-
 class NODE_MT_gn_all_base(node_add_menu.NodeMenu):
     bl_label = ""
     menu_path = "Root"
@@ -1027,6 +1037,7 @@ add_menus = {
     "NODE_MT_category_GEO_TEXTURE": NODE_MT_gn_texture_base,
     "NODE_MT_category_GEO_UTILITIES": NODE_MT_gn_utilities_base,
     "NODE_MT_geometry_node_GEO_COLOR": NODE_MT_gn_color_base,
+    "NODE_MT_geometry_node_GEO_COLOR_MIX": NODE_MT_shader_node_color_mix_base,
     "NODE_MT_category_GEO_TEXT": NODE_MT_gn_utilities_text_base,
     "NODE_MT_category_GEO_VECTOR": NODE_MT_gn_utilities_vector_base,
     "NODE_MT_category_utilities_bundle": NODE_MT_category_utilities_bundle_base,
@@ -1093,6 +1104,7 @@ swap_menus = {
     "NODE_MT_gn_texture_swap": NODE_MT_gn_texture_base,
     "NODE_MT_gn_utilities_swap": NODE_MT_gn_utilities_base,
     "NODE_MT_gn_utilities_color_swap": NODE_MT_gn_color_base,
+    "NODE_MT_gn_utilities_color_mix_swap": NODE_MT_shader_node_color_mix_base,
     "NODE_MT_gn_utilities_text_swap": NODE_MT_gn_utilities_text_base,
     "NODE_MT_gn_utilities_vector_swap": NODE_MT_gn_utilities_vector_base,
     "NODE_MT_gn_utilities_bundle_swap": NODE_MT_category_utilities_bundle_base,
