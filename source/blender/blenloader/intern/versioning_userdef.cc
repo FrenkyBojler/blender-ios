@@ -367,7 +367,7 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
     FROM_DEFAULT_V4_UCHAR(regions.scrubbing.time_marker_selected);
   }
 
-  if (!USER_VERSION_ATLEAST(500, 100)) {
+  if (!USER_VERSION_ATLEAST(500, 91)) {
     FROM_DEFAULT_V4_UCHAR(space_view3d.bevel);
     FROM_DEFAULT_V4_UCHAR(space_view3d.seam);
     FROM_DEFAULT_V4_UCHAR(space_view3d.sharp);
