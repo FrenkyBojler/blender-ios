@@ -364,16 +364,14 @@ static bool node_swap_group_poll(bContext *C)
         C, "Adding node groups isn't supported for custom (Python defined) node trees");
     return false;
   }
-  blender::Vector<PointerRNA> selected_nodes;
+  Vector<PointerRNA> selected_nodes;
   selected_nodes = CTX_data_collection_get(C, "selected_nodes");
 
   if (selected_nodes.size() <= 0) {
     CTX_wm_operator_poll_msg_set(C, "No nodes selected.");
     return false;
   }
-  else {
-    return true;
-  }
+  return true;
 }
 
 static wmOperatorStatus node_add_group_invoke(bContext *C, wmOperator *op, const wmEvent *event)

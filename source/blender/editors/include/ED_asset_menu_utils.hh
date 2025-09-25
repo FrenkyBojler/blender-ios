@@ -30,8 +30,8 @@ void draw_menu_for_catalog(const asset_system::AssetCatalogTreeItem &item,
                            uiLayout &layout);
 
 void draw_node_menu_for_catalog(const asset_system::AssetCatalogTreeItem &item,
-                                const StringRefNull operator_id,
-                                const StringRefNull menu_name,
+                                StringRefNull operator_id,
+                                StringRefNull menu_name,
                                 uiLayout &layout);
 
 void operator_asset_reference_props_set(const asset_system::AssetRepresentation &asset,

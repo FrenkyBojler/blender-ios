@@ -2144,7 +2144,7 @@ void RNA_api_ui_layout(StructRNA *srna)
                       rna_enum_template_node_operator_type,
                       int(NodeAssetMenuOperatorType::Add),
                       "Operator",
-                      "Specifies the type of operator the asset menu will use");
+                      "The operator the asset menu will use");
 
   func = RNA_def_function(srna,
                           "template_modifier_asset_menu_items",

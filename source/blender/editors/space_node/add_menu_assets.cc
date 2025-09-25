@@ -374,7 +374,7 @@ void ui_template_node_asset_menu_items(uiLayout &layout,
 
   uiLayout *col = &layout.column(false);
   col->context_string_set("asset_catalog_path", item->catalog_path().str());
-  col->context_string_set("operator_id", StringRef(operator_id));
+  col->context_string_set("operator_id", operator_id);
   col->menu_contents("NODE_MT_node_catalog_assets");
 }
 
