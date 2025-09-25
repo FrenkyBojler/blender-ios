@@ -2658,6 +2658,22 @@ static void sequencer_remove_listbase_pointers(Scene &scene)
   blender::seq::meta_stack_set(&scene, last_meta_stack->parent_strip);
 }
 
+static void brush_mtex_to_mtex_accessor(Main *bmain)
+{
+  LISTBASE_FOREACH (Brush *, brush, &bmain->brushes) {
+    /* Sculpt brushes use mtex for their mask texture instead of mask_mtex. Because of this, sculpt
+     * brushes need to be handled differently.*/
+    if (brush->ob_mode == OB_MODE_SCULPT) {
+      brush->mtex_accessor.color = blender::dna::shallow_copy(brush->mask_mtex);
+      brush->mtex_accessor.mask = blender::dna::shallow_copy(brush->mtex);
+    }
+    else {
+      brush->mtex_accessor.color = blender::dna::shallow_copy(brush->mtex);
+      brush->mtex_accessor.mask = blender::dna::shallow_copy(brush->mask_mtex);
+    }
+  }
+}
+
 void blo_do_versions_500(FileData *fd, Library * /*lib*/, Main *bmain)
 {
   using namespace blender;
@@ -3623,6 +3639,10 @@ void blo_do_versions_500(FileData *fd, Library * /*lib*/, Main *bmain)
         }
       }
     }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 92)) {
+    brush_mtex_to_mtex_accessor(bmain);
   }
 
   /**
