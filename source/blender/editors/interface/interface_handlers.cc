@@ -3162,7 +3162,15 @@ static void ui_but_textbox_scroll_to_cursor(const ARegion *region, uiButTextBox 
 
   blender::Vector<blender::StringRef> lines = ui_but_textbox_wrap_lines(region, textbox);
   int line_cursor = 0;
-  const char *cursor = lines[0].begin() + textbox->pos;
+  int but_pos = textbox->pos;
+#ifdef WITH_INPUT_IME
+  const wmIMEData *ime_data = ui_but_ime_data_get(textbox);
+  if (ime_data && ime_data->composite.size() && ime_data->cursor_pos != -1) {
+    but_pos += ime_data->cursor_pos;
+  }
+#endif
+
+  const char *cursor = lines[0].begin() + but_pos;
   for (blender::StringRef line : lines) {
     if (line.begin() > cursor) {
       line_cursor = std::max(0, line_cursor - 1);
