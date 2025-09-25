@@ -7,7 +7,7 @@ from bpy.types import Context, Panel, UILayout
 from bpy.app.translations import contexts as i18n_contexts
 from bpy_extras.anim_utils import AutoKeying
 
-from .anim import get_relative_ob
+from bl_operators.copy_global_transform import get_relative_ob
 
 
 class GlobalTransformPanelMixin:

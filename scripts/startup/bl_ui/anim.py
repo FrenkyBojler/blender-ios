@@ -2,17 +2,7 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-from typing import Optional
-from bpy.types import Menu, Context, Object
-
-
-def get_relative_ob(context: Context) -> Optional[Object]:
-    """Get the 'relative' object for the "Copy Global Transform" operators.
-
-    This is the object that's configured, or if that's empty, the active scene camera.
-    """
-    rel_ob = context.scene.global_transform.relative_object
-    return rel_ob or context.scene.camera
+from bpy.types import Menu
 
 
 def draw_action_and_slot_selector_for_id(layout, animated_id):

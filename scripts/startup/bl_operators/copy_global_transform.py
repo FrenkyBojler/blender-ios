@@ -270,12 +270,12 @@ def _copy_matrix_to_clipboard(window_manager: bpy.types.WindowManager, matrix: M
     window_manager.clipboard = f"Matrix((\n{as_string}\n))"
 
 
-def _get_relative_ob(context: Context) -> Optional[Object]:
+def get_relative_ob(context: Context) -> Optional[Object]:
     """Get the 'relative' object.
 
     This is the object that's configured, or if that's empty, the active scene camera.
     """
-    rel_ob = context.scene.global_transform.relative_object
+    rel_ob = context.scene.tool_settings.anim_relative_object
     return rel_ob or context.scene.camera
 
 
@@ -317,13 +317,13 @@ class OBJECT_OT_copy_relative_transform(Operator):
 
     @classmethod
     def poll(cls, context: Context) -> bool:
-        rel_ob = _get_relative_ob(context)
+        rel_ob = get_relative_ob(context)
         if not rel_ob:
             return False
         return bool(context.active_pose_bone) or bool(context.active_object)
 
     def execute(self, context: Context) -> set[str]:
-        rel_ob = _get_relative_ob(context)
+        rel_ob = get_relative_ob(context)
         if not rel_ob:
             self.report(
                 {'ERROR'},
@@ -475,7 +475,7 @@ class OBJECT_OT_paste_transform(Operator):
         return matrix
 
     def _relative_to_world(self, context: Context, matrix: Matrix) -> Matrix:
-        rel_ob = _get_relative_ob(context)
+        rel_ob = get_relative_ob(context)
         if not rel_ob:
             return matrix
 
@@ -483,8 +483,8 @@ class OBJECT_OT_paste_transform(Operator):
         return rel_ob_eval.matrix_world @ matrix
 
     def _mirror_matrix(self, context: Context, matrix: Matrix) -> Matrix:
-        mirror_ob = context.scene.global_transform.mirror_object
-        mirror_bone = context.scene.global_transform.mirror_bone
+        mirror_ob = context.scene.tool_settings.anim_mirror_object
+        mirror_bone = context.scene.tool_settings.anim_mirror_bone
 
         # No mirror object means "current armature object".
         ctx_ob = context.object
