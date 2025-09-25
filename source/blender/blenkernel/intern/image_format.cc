@@ -28,19 +28,13 @@ namespace path_templates = blender::bke::path_templates;
 
 /* Init/Copy/Free */
 
-void BKE_image_format_init(ImageFormatData *imf, const bool render)
+void BKE_image_format_init(ImageFormatData *imf)
 {
   *imf = *DNA_struct_default_get(ImageFormatData);
 
   BKE_color_managed_display_settings_init(&imf->display_settings);
 
-  if (render) {
-    BKE_color_managed_view_settings_init_render(
-        &imf->view_settings, &imf->display_settings, "Filmic");
-  }
-  else {
-    BKE_color_managed_view_settings_init_untonemapped(&imf->view_settings, &imf->display_settings);
-  }
+  BKE_color_managed_view_settings_init(&imf->view_settings, &imf->display_settings, "AgX");
 
   BKE_color_managed_colorspace_settings_init(&imf->linear_colorspace_settings);
 }
@@ -931,7 +925,7 @@ void BKE_image_format_from_imbuf(ImageFormatData *im_format, const ImBuf *imbuf)
   char quality = imbuf->foptions.quality;
   bool is_depth_set = false;
 
-  BKE_image_format_init(im_format, false);
+  BKE_image_format_init(im_format);
   im_format->media_type = MEDIA_TYPE_IMAGE;
 
   /* file type */
@@ -1099,13 +1093,16 @@ void BKE_image_format_color_management_copy_from_scene(ImageFormatData *imf, con
 
 void BKE_image_format_init_for_write(ImageFormatData *imf,
                                      const Scene *scene_src,
-                                     const ImageFormatData *imf_src)
+                                     const ImageFormatData *imf_src,
+                                     const bool allow_video)
 {
   *imf = (imf_src) ? *imf_src : scene_src->r.im_format;
 
-  /* The source scene might be set to Video, so we default back to an image. */
-  if (scene_src && imf->media_type == MEDIA_TYPE_VIDEO) {
-    BKE_image_format_media_type_set(imf, const_cast<ID *>(&scene_src->id), MEDIA_TYPE_IMAGE);
+  /* For image saving we can not have use media type video. */
+  if (!allow_video) {
+    if (scene_src && imf->media_type == MEDIA_TYPE_VIDEO) {
+      BKE_image_format_media_type_set(imf, const_cast<ID *>(&scene_src->id), MEDIA_TYPE_IMAGE);
+    }
   }
 
   if (imf_src && imf_src->color_management == R_IMF_COLOR_MANAGEMENT_OVERRIDE) {

@@ -210,6 +210,8 @@ set(SRC_KERNEL_SVM_HEADERS
   svm/normal.h
   svm/ramp.h
   svm/ramp_util.h
+  svm/radial_tiling.h
+  svm/radial_tiling_shared.h
   svm/sepcomb_color.h
   svm/sepcomb_vector.h
   svm/sky.h
@@ -643,21 +645,6 @@ endif()
 
 # HIP module
 
-# Workaround for SDK 6.3.42560-881c2d702 compiler bug on RDNA2
-# Issue #136138
-function(get_hip_math_flag arch math_flag)
-  if(WIN32 AND (${arch} MATCHES "gfx1030|gfx1031|gfx1032|gfx1033|gfx1034|gfx1035|gfx1036"))
-    set(result
-      -fhip-fp32-correctly-rounded-divide-sqrt
-      -fno-gpu-approx-transcendentals
-      -fgpu-flush-denormals-to-zero
-      -ffp-contract=off)
-  else()
-    set(result "")
-  endif()
-  set(${math_flag} "${result}" PARENT_SCOPE)
-endfunction()
-
 if(WITH_CYCLES_HIP_BINARIES AND WITH_CYCLES_DEVICE_HIP)
   # build for each arch
   set(hip_sources device/hip/kernel.cpp
@@ -698,8 +685,6 @@ if(WITH_CYCLES_HIP_BINARIES AND WITH_CYCLES_DEVICE_HIP)
       set(hip_opt_flags)
     endif()
 
-    get_hip_math_flag(${arch} math_flag)
-
     set(hip_flags
       ${hip_flags}
       --offload-arch=${arch}
@@ -716,7 +701,6 @@ if(WITH_CYCLES_HIP_BINARIES AND WITH_CYCLES_DEVICE_HIP)
       -Wno-unused-value
       -ffast-math
       -std=c++17
-      ${math_flag}
       ${hip_opt_flags}
       -o ${CMAKE_CURRENT_BINARY_DIR}/${hip_file})
 
@@ -812,12 +796,10 @@ if(WITH_CYCLES_HIP_BINARIES AND WITH_CYCLES_DEVICE_HIPRT)
 
   set(hiprt_hipfb)
   foreach(arch ${CYCLES_HIP_BINARIES_ARCH})
-    get_hip_math_flag(${arch} math_flag)
     set(hiprt_file ${CMAKE_CURRENT_BINARY_DIR}/kernel_rt_${arch}.hipfb)
     set(hiprt_file_compressed ${hiprt_file}.zst)
     set(hiprt_flags
     ${hiprt_compile_flags}
-    ${math_flag}
     --offload-arch=${arch}
     -o ${hiprt_file})
 
@@ -879,7 +861,7 @@ if(WITH_CYCLES_CUDA_BINARIES AND WITH_CYCLES_DEVICE_OPTIX)
     set(cuda_version ${CUDA_VERSION})
     if("${CUDA_VERSION}" GREATER_EQUAL 130) # Support for Maxwell, Pascal and Volta was dropped in CUDA 13
       if(DEFINED CUDA11_NVCC_EXECUTABLE)
-        # Use CUDA 11 for the OptiX PTX kernel, to retain support for older achitectures
+        # Use CUDA 11 for the OptiX PTX kernel, to retain support for older architectures.
         set(cuda_nvcc_executable ${CUDA11_NVCC_EXECUTABLE})
         set(cuda_version 110)
       else()

@@ -155,12 +155,6 @@ typedef enum IMB_Ffmpeg_Codec_ID {
   FFMPEG_CODEC_ID_OPUS = 86076,
 } IMB_Ffmpeg_Codec_ID;
 
-typedef enum eFFMpegVideoHdr {
-  FFM_VIDEO_HDR_NONE = 0,
-  FFM_VIDEO_HDR_REC2100_HLG = 1,
-  FFM_VIDEO_HDR_REC2100_PQ = 2,
-} eFFMpegVideoHdr;
-
 typedef struct FFMpegCodecData {
   int type;
   int codec;       /* Use `codec_id_get()` instead! IMB_Ffmpeg_Codec_ID */
@@ -184,7 +178,7 @@ typedef struct FFMpegCodecData {
   int rc_buffer_size;
   int mux_packet_size;
   int mux_rate;
-  int video_hdr; /* eFFMpegVideoHdr */
+  int _pad;
 
 #ifdef __cplusplus
   IMB_Ffmpeg_Codec_ID codec_id_get() const
@@ -1078,11 +1072,11 @@ typedef struct TimeMarker {
 typedef struct UnifiedPaintSettings {
   DNA_DEFINE_CXX_METHODS(UnifiedPaintSettings)
 
-  /** Unified radius of brush in pixels. */
+  /** Unified diameter of brush in pixels. */
   int size;
 
-  /** Unified radius of brush in Blender units. */
-  float unprojected_radius;
+  /** Unified diameter of brush in Blender units. */
+  float unprojected_size;
 
   /** Unified strength of brush. */
   float alpha;
@@ -1184,10 +1178,6 @@ typedef struct Paint {
   /** Cavity curve. */
   struct CurveMapping *cavity_curve;
 
-  /** WM Paint cursor. */
-  void *paint_cursor;
-  unsigned char paint_cursor_col[4];
-
   /** Enum #ePaintFlags. */
   int flags;
 
@@ -1199,9 +1189,14 @@ typedef struct Paint {
 
   /** Flags used for symmetry. */
   int symmetry_flags;
+  /**
+   * Collapsed state of a given pressure curve
+   * See #PaintCurveVisibilityFlags
+   */
+  int curve_visibility_flags;
+  char _pad[4];
 
   float tile_offset[3];
-  char _pad2[4];
   struct UnifiedPaintSettings unified_paint_settings;
 
   PaintRuntimeHandle *runtime;
@@ -1695,6 +1690,8 @@ typedef struct ToolSettings {
   char uv_selectmode;
   char uv_sticky;
 
+  rctf uv_custom_region;
+
   float uvcalc_margin;
 
   int uvcalc_iterations;
@@ -2116,7 +2113,6 @@ typedef struct Scene {
   ListBase base DNA_DEPRECATED;
   /** Active base. */
   struct Base *basact DNA_DEPRECATED;
-  void *_pad1;
 
   /** 3d cursor location. */
   View3DCursor cursor;
@@ -2141,7 +2137,6 @@ typedef struct Scene {
 
   /** Default allocated now. */
   struct ToolSettings *toolsettings;
-  void *_pad4;
   struct DisplaySafeAreas safe_areas;
 
   /* Migrate or replace? depends on some internal things... */
@@ -2189,7 +2184,6 @@ typedef struct Scene {
   /** Physics simulation settings. */
   struct PhysicsSettings physics_settings;
 
-  void *_pad8;
   /**
    * XXX: runtime flag for drawing, actually belongs in the window,
    * only used by #BKE_object_handle_update()
@@ -2811,6 +2805,7 @@ enum {
    * selection should be used - since not all combinations of options support it.
    */
   UV_FLAG_ISLAND_SELECT = 1 << 2,
+  UV_FLAG_CUSTOM_REGION = 1 << 3,
 };
 
 /** #ToolSettings::uv_selectmode */
