@@ -691,7 +691,6 @@ PyDoc_STRVAR(
     "times\n"
     "               ``'RELOAD_EDITED'``\n"
     "                   Reload data when the path is edited\n");
-// TODO: document the flags.
 static PyObject *bpy_file_path_foreach(PyObject *self, PyObject *args, PyObject *kwds)
 {
   Main *bmain = pyrna_bmain_FromPyObject(self);
