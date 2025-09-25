@@ -2481,7 +2481,9 @@ static void sequencer_remove_speed_effects(Scene *scene, ListBase *seqbase)
   blender::seq::edit_remove_flagged_strips(scene, seqbase);
 }
 
-static void sequencer_remove_transform_effects(Scene *scene)
+/* Merge transform effect properties with strip transform. Because this effect could use modifiers,
+ * change its type to gaussian blur with 0 radius. */
+static void sequencer_substitute_transform_effects(Scene *scene)
 {
   blender::seq::for_each_callback(&scene->ed->seqbase, [&](Strip *strip) -> bool {
     if (strip->type == STRIP_TYPE_TRANSFORM_LEGACY && strip->effectdata != nullptr) {
@@ -2620,7 +2622,7 @@ void do_versions_after_linking_500(FileData *fd, Main *bmain)
     LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
       if (scene->ed != nullptr) {
         sequencer_remove_speed_effects(scene, &scene->ed->seqbase);
-        sequencer_remove_transform_effects(scene);
+        sequencer_substitute_transform_effects(scene);
       }
     }
   }
