@@ -1032,7 +1032,7 @@ void uiTemplateImageSettings(uiLayout *layout,
     }
   }
   if (imf->imtype == R_IMF_IMTYPE_MULTILAYER) {
-    col->prop(imfptr, "use_exr_multipart", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    col->prop(imfptr, "use_exr_interleave", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 
   if (is_render_out && ELEM(imf->imtype, R_IMF_IMTYPE_OPENEXR, R_IMF_IMTYPE_MULTILAYER)) {

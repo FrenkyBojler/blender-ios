@@ -771,7 +771,7 @@ bool imb_save_openexr(ImBuf *ibuf, const char *filepath, int flags)
 struct ExrChannel {
   /* Name and number of the part. */
   std::string part_name;
-  int part_number;
+  int part_number = 0;
 
   /* Full name of the chanel. */
   std::string name;
@@ -821,7 +821,7 @@ struct ExrHandle {
   OutputFile *ofile = nullptr;
 
   bool write_multipart = false;
-  bool write_multichannel = false;
+  bool has_layer_pass_names = false;
 
   int tilex = 0, tiley = 0;
   int width = 0, height = 0;
@@ -920,7 +920,7 @@ void IMB_exr_add_channels(ExrHandle *handle,
 
   /* If there are layer and pass names, we will write Blender multichannel metadata. */
   if (!layerpassname.is_empty()) {
-    handle->write_multichannel = true;
+    handle->has_layer_pass_names = true;
   }
 
   for (size_t channel = 0; channel < channelnames.size(); channel++) {
@@ -964,7 +964,7 @@ static void openexr_header_metadata_multi(ExrHandle *handle,
                                           const StampData *stamp)
 {
   openexr_header_metadata_global(&header, nullptr, ppm);
-  if (handle->write_multichannel) {
+  if (handle->has_layer_pass_names) {
     header.insert("BlenderMultiChannel", StringAttribute("Blender V2.55.1 and newer"));
   }
   if (!handle->write_multipart && !handle->views.empty() && !handle->views[0].empty()) {
@@ -1000,7 +1000,7 @@ bool IMB_exr_begin_write(ExrHandle *handle,
   blender::StringRefNull last_part_name;
 
   for (const ExrChannel &echan : handle->channels) {
-    if (part_headers.size() == 0 || last_part_name != echan.part_name) {
+    if (part_headers.is_empty() || last_part_name != echan.part_name) {
       Header part_header = header;
 
       /* When writing multipart, set name, view and type in each part. */
@@ -1014,7 +1014,7 @@ bool IMB_exr_begin_write(ExrHandle *handle,
 
       /* Store global metadata in the first header only. Large metadata like cryptomatte would
        * be bad to duplicate many times. */
-      if (part_headers.size() == 0) {
+      if (part_headers.is_empty()) {
         openexr_header_metadata_multi(handle, part_header, ppm, stamp);
       }
 
