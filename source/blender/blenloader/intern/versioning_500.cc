@@ -66,8 +66,10 @@
 
 #include "BLO_read_write.hh"
 
+#include "SEQ_edit.hh"
 #include "SEQ_iterator.hh"
 #include "SEQ_modifier.hh"
+#include "SEQ_relations.hh"
 #include "SEQ_sequencer.hh"
 
 #include "WM_api.hh"
@@ -2445,6 +2447,38 @@ static void do_version_bokeh_blur_pixel_size(bNodeTree &node_tree, bNode &node)
   }
 }
 
+/* This assumes, that strip is not refereced outside of `seqbase` it is placed in. Cases violating
+ * this assumption should never happen. */
+static void sequencer_remap_effects(ListBase *seqbase, Strip *effect)
+{
+  Strip *effect_input = effect->input1;
+
+  LISTBASE_FOREACH (Strip *, strip, seqbase) {
+    if (blender::seq::relation_is_effect_of_strip(strip, effect)) {
+      if (strip->input1 == effect) {
+        strip->input1 = effect_input;
+      }
+      if (strip->input2 == effect) {
+        strip->input2 = effect_input;
+      }
+    }
+  }
+}
+
+static void sequencer_remove_effects(Scene *scene, ListBase *seqbase)
+{
+  LISTBASE_FOREACH (Strip *, strip, seqbase) {
+    if (strip->type == STRIP_TYPE_TRANSFORM_REMOVED || strip->type == STRIP_TYPE_SPEED_REMOVED) {
+      strip->runtime.flag |= STRIP_MARK_FOR_DELETE;
+      sequencer_remap_effects(seqbase, strip);
+    }
+    if (strip->type == STRIP_TYPE_META) {
+      sequencer_remove_effects(scene, &strip->seqbase);
+    }
+  }
+  blender::seq::edit_remove_flagged_strips(scene, seqbase);
+}
+
 void do_versions_after_linking_500(FileData *fd, Main *bmain)
 {
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 9)) {
@@ -2539,6 +2573,14 @@ void do_versions_after_linking_500(FileData *fd, Main *bmain)
         Scene *scene = WM_window_get_active_scene(win);
         WorkSpace *workspace = WM_window_get_active_workspace(win);
         workspace->sequencer_scene = scene;
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 90)) {
+    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+      if (scene->ed != nullptr) {
+        sequencer_remove_effects(scene, &scene->ed->seqbase);
       }
     }
   }
