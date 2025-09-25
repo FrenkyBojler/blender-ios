@@ -2935,7 +2935,7 @@ static void node_draw_basis(const bContext &C,
     const rctf rect = {
         rct.xmin - padding,
         rct.xmax + padding,
-        rct.ymax - NODE_DY - padding - outline_width,
+        rct.ymax - NODE_DY - padding,
         rct.ymax + padding,
     };
 
