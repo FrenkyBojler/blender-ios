@@ -906,7 +906,7 @@ static void bm_mesh_uvselect_flush_mode_down_deselect_only(BMesh *bm,
             !(BM_elem_flag_test(l_iter, BM_ELEM_SELECT_UV_EDGE) ||
               BM_elem_flag_test(l_iter->prev, BM_ELEM_SELECT_UV_EDGE)))
         {
-          if ((shared == false) || !BM_loop_vert_uvselect_check_other_edge(
+          if ((shared == false) || !BM_loop_vert_uvselect_check_other_loop_edge(
                                        l_iter, BM_ELEM_SELECT_UV_EDGE, cd_loop_uv_offset))
           {
             BM_elem_flag_disable(l_iter, BM_ELEM_SELECT_UV);
