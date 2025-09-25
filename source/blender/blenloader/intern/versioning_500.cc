@@ -3663,7 +3663,7 @@ void blo_do_versions_500(FileData *fd, Library * /*lib*/, Main *bmain)
     }
   }
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 90)) {
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 92)) {
     do_version_adaptive_subdivision(bmain);
   }
 
