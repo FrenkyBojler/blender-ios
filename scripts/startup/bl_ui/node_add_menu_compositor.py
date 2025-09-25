@@ -308,6 +308,7 @@ class NODE_MT_compositor_node_vector_base(node_add_menu.NodeMenu):
 
         self.draw_assets_for_catalog(layout, self.menu_path)
 
+
 class NODE_MT_compositor_node_creative_base(node_add_menu.NodeMenu):
     bl_label = "Creative"
 
@@ -318,6 +319,7 @@ class NODE_MT_compositor_node_creative_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "CompositorNodePosterize")
 
         self.draw_assets_for_catalog(layout, self.bl_label)
+
 
 class NODE_MT_compositor_node_all_base(node_add_menu.NodeMenu):
     bl_label = ""
@@ -349,6 +351,7 @@ class NODE_MT_compositor_node_all_base(node_add_menu.NodeMenu):
         layout.separator()
         self.draw_menu(layout, "Group")
         self.draw_menu(layout, "Layout")
+
 
 add_menus = {
     # menu bl_idname: baseclass

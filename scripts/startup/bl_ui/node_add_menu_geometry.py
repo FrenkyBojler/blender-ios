@@ -41,6 +41,7 @@ class NODE_MT_gn_color_base(node_add_menu.NodeMenu):
 
         self.draw_assets_for_catalog(layout, self.bl_label)
 
+
 class NODE_MT_shader_node_color_mix_base(node_add_menu.NodeMenu):
     bl_label = "Mix"
     menu_path = "Color/Mix"
@@ -53,6 +54,7 @@ class NODE_MT_shader_node_color_mix_base(node_add_menu.NodeMenu):
         self.color_mix_node(context, layout)
 
         self.draw_assets_for_catalog(layout, self.menu_path)
+
 
 class NODE_MT_gn_curve_base(node_add_menu.NodeMenu):
     bl_label = "Curve"
@@ -955,6 +957,7 @@ class NODE_MT_gn_volume_primitives_base(node_add_menu.NodeMenu):
 
         self.draw_assets_for_catalog(layout, self.menu_path)
 
+
 class NODE_MT_gn_all_base(node_add_menu.NodeMenu):
     bl_label = ""
     menu_path = "Root"
@@ -987,7 +990,6 @@ class NODE_MT_gn_all_base(node_add_menu.NodeMenu):
         layout.separator()
         self.draw_menu(layout, "Group")
         self.draw_menu(layout, "Layout")
-
 
 
 add_menus = {
