@@ -135,7 +135,7 @@ static void read_typed_property_sample(const ICompoundProperty &parent,
     using SamplePtr = typename TArrayProperty::sample_ptr_type;
     using ValueType = typename TArrayProperty::value_type;
 
-    SamplePtr sample_ptr = array_prop.getValue(selector);
+    const SamplePtr sample_ptr = array_prop.getValue(selector);
     bke::SpanAttributeWriter<TWriteValue> writer =
         attribute_accessor.lookup_or_add_for_write_span<TWriteValue>(name, bke::AttrDomain::Point);
     MutableSpan<TWriteValue> span = writer.span;
@@ -151,19 +151,19 @@ static void read_point_arb_geom_params(const IPointsSchema &schema,
                                        const ISampleSelector &selector,
                                        bke::MutableAttributeAccessor &attribute_accessor)
 {
-  ICompoundProperty prop = schema.getArbGeomParams();
+  const ICompoundProperty prop = schema.getArbGeomParams();
   for (size_t i = 0; i < prop.getNumProperties(); i++) {
-    PropertyHeader header = prop.getPropertyHeader(i);
-    PropertyType property_type = header.getPropertyType();
+    const PropertyHeader header = prop.getPropertyHeader(i);
+    const PropertyType property_type = header.getPropertyType();
     if (property_type != kArrayProperty) {
       // currently unsupported
       continue;
     }
 
-    DataType data_type = header.getDataType();
-    MetaData metadata = header.getMetaData();
-    std::string interpretation = metadata.get("interpretation");
-    std::string name = header.getName();
+    const DataType data_type = header.getDataType();
+    const MetaData metadata = header.getMetaData();
+    const std::string interpretation = metadata.get("interpretation");
+    const std::string name = header.getName();
 
     if (data_type == DataType(kFloat32POD, 3)) {
       if (interpretation == C3fTPTraits::interpretation()) {
