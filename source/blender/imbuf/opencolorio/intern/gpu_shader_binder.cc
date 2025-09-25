@@ -136,7 +136,7 @@ bool GPUDisplayShader::matches(const GPUDisplayParameters &display_parameters) c
           this->look == display_parameters.look && this->use_curve_mapping == use_curve_mapping &&
           this->use_hdr_buffer == display_parameters.use_hdr_buffer &&
           this->use_hdr_display == display_parameters.use_hdr_display &&
-          this->use_display_emulation == display_parameters.use_display_emulation);
+          this->display_emulation == display_parameters.display_emulation);
 }
 
 bool GPUDisplayShader::initialize_common()
@@ -399,7 +399,7 @@ bool GPUShaderBinder::display_bind(const GPUDisplayParameters &display_parameter
     display_shader->use_curve_mapping = (display_parameters.curve_mapping != nullptr);
     display_shader->use_hdr_buffer = display_parameters.use_hdr_buffer;
     display_shader->use_hdr_display = display_parameters.use_hdr_display;
-    display_shader->use_display_emulation = display_parameters.use_display_emulation;
+    display_shader->display_emulation = display_parameters.display_emulation;
     display_shader->is_valid = false;
 
     if (display_parameters.curve_mapping) {

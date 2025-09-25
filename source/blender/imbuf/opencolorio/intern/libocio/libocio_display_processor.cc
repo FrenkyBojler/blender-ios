@@ -2,6 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "OCIO_display.hh"
 #if defined(WITH_OPENCOLORIO)
 
 #  include <cfloat>
@@ -29,8 +30,14 @@ static CLG_LogRef LOG = {"color_management"};
 namespace blender::ocio {
 
 static TransferFunction system_extended_srgb_transfer_function(const LibOCIOView *view,
-                                                               const bool use_hdr_buffer)
+                                                               const bool use_hdr_buffer,
+                                                               const DisplayEmulation emulation)
 {
+  /* Override transfer function. */
+  if (emulation == DisplayEmulation::Gamma22 && !(view && view->is_hdr())) {
+    return TransferFunction::Gamma22;
+  }
+
 #  ifdef __APPLE__
   /* The Metal backend always uses sRGB or extended sRGB buffer.
    *
@@ -41,7 +48,8 @@ static TransferFunction system_extended_srgb_transfer_function(const LibOCIOView
    *   function, this will be cancelled out, and linear values will be passed on
    *   effectively unmodified.
    */
-  UNUSED_VARS(use_hdr_buffer, view);
+
+  UNUSED_VARS(use_hdr_buffer);
   return TransferFunction::sRGB;
 #  elif defined(_WIN32)
   /* The Vulkan backend uses either sRGB for SDR, or linear extended sRGB for HDR.
@@ -56,7 +64,7 @@ static TransferFunction system_extended_srgb_transfer_function(const LibOCIOView
    * displayed the same in HDR mode off and on. However it is consistent with other
    * software. To match, gamma 2.2 would have to be used.
    */
-  UNUSED_VARS(use_hdr_buffer, view);
+  UNUSED_VARS(use_hdr_buffer);
   return TransferFunction::sRGB;
 #  else
   /* The Vulkan backend uses either sRGB for SDR, or linear extended sRGB for HDR.
@@ -100,7 +108,8 @@ static void display_as_extended_srgb(const LibOCIOConfig &config,
                                      OCIO_NAMESPACE::GroupTransformRcPtr &group,
                                      StringRefNull display_name,
                                      StringRefNull view_name,
-                                     const bool use_hdr_buffer)
+                                     const bool use_hdr_buffer,
+                                     const DisplayEmulation emulation)
 {
   /* Emulate the user specified display on an extended sRGB display, conceptually:
    * - Apply the view and display transform
@@ -128,7 +137,7 @@ static void display_as_extended_srgb(const LibOCIOConfig &config,
   }
 
   const TransferFunction target_transfer_function = system_extended_srgb_transfer_function(
-      view, use_hdr_buffer);
+      view, use_hdr_buffer, emulation);
 
   /* If we are already in the desired display colorspace, all we have to do is clamp. */
   if ((view->transfer_function() == target_transfer_function ||
@@ -339,7 +348,8 @@ static OCIO_NAMESPACE::TransformRcPtr create_untonemapped_ocio_display_transform
     const LibOCIOConfig &config,
     StringRefNull display_name,
     StringRefNull from_colorspace,
-    bool use_hdr_buffer)
+    const bool use_hdr_buffer,
+    const DisplayEmulation emulation)
 {
   /* Convert to extended sRGB without any tone mapping. */
   const auto group = OCIO_NAMESPACE::GroupTransform::Create();
@@ -359,7 +369,7 @@ static OCIO_NAMESPACE::TransformRcPtr create_untonemapped_ocio_display_transform
                                             display->get_untonemapped_view()) :
                                         nullptr;
   group->appendTransform(create_extended_srgb_transform(
-      system_extended_srgb_transfer_function(view, use_hdr_buffer)));
+      system_extended_srgb_transfer_function(view, use_hdr_buffer, emulation)));
   return group;
 }
 
@@ -418,18 +428,23 @@ OCIO_NAMESPACE::ConstProcessorRcPtr create_ocio_display_processor(
     }
 
     /* Convert to extended sRGB to match the system graphics buffer. */
-    if (display_parameters.use_display_emulation) {
+    if (display_parameters.display_emulation != DisplayEmulation::Off) {
       display_as_extended_srgb(config,
                                group,
                                display_parameters.display,
                                display_parameters.view,
-                               display_parameters.use_hdr_buffer);
+                               display_parameters.use_hdr_buffer,
+                               display_parameters.display_emulation);
     }
   }
   else {
     /* Untonemapped case, directly to extended sRGB. */
-    group->appendTransform(create_untonemapped_ocio_display_transform(
-        config, display_parameters.display, from_colorspace, display_parameters.use_hdr_buffer));
+    group->appendTransform(
+        create_untonemapped_ocio_display_transform(config,
+                                                   display_parameters.display,
+                                                   from_colorspace,
+                                                   display_parameters.use_hdr_buffer,
+                                                   display_parameters.display_emulation));
   }
 
   if (display_parameters.inverse) {

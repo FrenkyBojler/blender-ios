@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "libocio_display.hh"
+#include "OCIO_display.hh"
 
 #if defined(WITH_OPENCOLORIO)
 
@@ -73,6 +74,9 @@ LibOCIODisplay::LibOCIODisplay(const int index, const LibOCIOConfig &config) : c
     ocio_fallback_display_colorspace.reset();
   }
 
+  bool support_emulation = config.get_color_space(OCIO_NAMESPACE::ROLE_INTERCHANGE_DISPLAY) !=
+                           nullptr;
+
   views_.reserve(num_views);
   for (const int view_index : IndexRange(num_views)) {
     const char *view_name = ocio_config->getView(name_.c_str(), view_index);
@@ -113,6 +117,11 @@ LibOCIODisplay::LibOCIODisplay(const int index, const LibOCIOConfig &config) : c
       view_is_hdr = encoding == "hdr-video";
       is_hdr_ |= view_is_hdr;
     }
+
+    /* Detect if display emulation is supported. */
+    bool view_support_emulation = support_emulation && ocio_display_colorspace &&
+                                  ocio_display_colorspace->getReferenceSpaceType() ==
+                                      OCIO_NAMESPACE::REFERENCE_SPACE_DISPLAY;
 
     /* Detect gamut and transfer function through interop ID. When unknown, things
      * should still work correctly but may miss optimizations. */
@@ -179,6 +188,7 @@ LibOCIODisplay::LibOCIODisplay(const int index, const LibOCIOConfig &config) : c
                      view_name,
                      view_description,
                      view_is_hdr,
+                     view_support_emulation,
                      gamut,
                      transfer_function,
                      display_colorspace);
@@ -242,7 +252,7 @@ const View *LibOCIODisplay::get_view_by_index(const int index) const
 }
 
 std::unique_ptr<LibOCIOCPUProcessor> LibOCIODisplay::create_scene_linear_cpu_processor(
-    const bool use_display_emulation, const bool inverse) const
+    const DisplayEmulation display_emulation, const bool inverse) const
 {
   const View *view = get_untonemapped_view();
   if (view == nullptr) {
@@ -254,7 +264,7 @@ std::unique_ptr<LibOCIOCPUProcessor> LibOCIODisplay::create_scene_linear_cpu_pro
   display_parameters.view = view->name();
   display_parameters.display = name_;
   display_parameters.inverse = inverse;
-  display_parameters.use_display_emulation = use_display_emulation;
+  display_parameters.display_emulation = display_emulation;
   OCIO_NAMESPACE::ConstProcessorRcPtr ocio_processor = create_ocio_display_processor(
       *config_, display_parameters);
   if (!ocio_processor) {
@@ -271,30 +281,25 @@ std::unique_ptr<LibOCIOCPUProcessor> LibOCIODisplay::create_scene_linear_cpu_pro
 }
 
 const CPUProcessor *LibOCIODisplay::get_to_scene_linear_cpu_processor(
-    const bool use_display_emulation) const
+    const DisplayEmulation display_emulation) const
 {
-  const CPUProcessorCache &cache = (use_display_emulation) ?
-                                       to_scene_linear_emulation_cpu_processor_ :
-                                       to_scene_linear_cpu_processor_;
-  return cache.get([&] { return create_scene_linear_cpu_processor(use_display_emulation, true); });
+  const CPUProcessorCache &cache = to_scene_linear_cpu_processor_[int(display_emulation)];
+  return cache.get([&] { return create_scene_linear_cpu_processor(display_emulation, true); });
 }
 
 const CPUProcessor *LibOCIODisplay::get_from_scene_linear_cpu_processor(
-    const bool use_display_emulation) const
+    const DisplayEmulation display_emulation) const
 {
-  const CPUProcessorCache &cache = (use_display_emulation) ?
-                                       from_scene_linear_emulation_cpu_processor_ :
-                                       from_scene_linear_cpu_processor_;
-  return cache.get(
-      [&] { return create_scene_linear_cpu_processor(use_display_emulation, false); });
+  const CPUProcessorCache &cache = from_scene_linear_cpu_processor_[int(display_emulation)];
+  return cache.get([&] { return create_scene_linear_cpu_processor(display_emulation, false); });
 }
 
 void LibOCIODisplay::clear_caches()
 {
-  to_scene_linear_cpu_processor_ = CPUProcessorCache();
-  to_scene_linear_emulation_cpu_processor_ = CPUProcessorCache();
-  from_scene_linear_cpu_processor_ = CPUProcessorCache();
-  from_scene_linear_emulation_cpu_processor_ = CPUProcessorCache();
+  for (int i = 0; i < int(DisplayEmulation::Num); i++) {
+    to_scene_linear_cpu_processor_[i] = CPUProcessorCache();
+    from_scene_linear_cpu_processor_[i] = CPUProcessorCache();
+  }
 }
 
 }  // namespace blender::ocio

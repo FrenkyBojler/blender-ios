@@ -9,7 +9,8 @@
 #include "BLI_math_matrix_types.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_string_ref.hh"
-#include "DNA_windowmanager_types.h"
+
+#include "OCIO_display.hh"
 
 namespace blender::ocio {
 
@@ -37,7 +38,7 @@ struct DisplayParameters {
   bool use_hdr_display = false;
   /* Rather than outputting colors for the specified display, output extended
    * sRGB colors emulating the specified display. */
-  bool use_display_emulation = false;
+  DisplayEmulation display_emulation = DisplayEmulation::Off;
   /* Invert the entire transform. */
   bool inverse = false;
 };

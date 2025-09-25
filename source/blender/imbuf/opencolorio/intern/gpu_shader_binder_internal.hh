@@ -14,9 +14,10 @@
 
 #include <list>
 
-#include "BLI_string_ref.hh"
 #include "BLI_utility_mixins.hh"
 #include "BLI_vector.hh"
+
+#include "OCIO_display.hh"
 
 #include "ocio_shader_shared.hh"
 
@@ -131,7 +132,7 @@ class GPUDisplayShader : NonCopyable, NonMovable {
   bool use_curve_mapping = false;
   bool use_hdr_buffer = false;
   bool use_hdr_display = false;
-  bool use_display_emulation = false;
+  DisplayEmulation display_emulation = DisplayEmulation::Off;
 
   /* The shader is valid and can be bound.
    * Note that the cache might contain invalid shaders to prevent Blender from attempting to keep

@@ -35,10 +35,8 @@ class LibOCIODisplay : public Display {
   const LibOCIOView *untonemapped_view_ = nullptr;
   bool is_hdr_ = false;
 
-  CPUProcessorCache to_scene_linear_cpu_processor_;
-  CPUProcessorCache to_scene_linear_emulation_cpu_processor_;
-  CPUProcessorCache from_scene_linear_cpu_processor_;
-  CPUProcessorCache from_scene_linear_emulation_cpu_processor_;
+  CPUProcessorCache to_scene_linear_cpu_processor_[int(DisplayEmulation::Num)];
+  CPUProcessorCache from_scene_linear_cpu_processor_[int(DisplayEmulation::Num)];
 
  public:
   LibOCIODisplay(int index, const LibOCIOConfig &config);
@@ -78,9 +76,10 @@ class LibOCIODisplay : public Display {
   int get_num_views() const override;
   const View *get_view_by_index(int index) const override;
 
-  const CPUProcessor *get_to_scene_linear_cpu_processor(bool use_display_emulation) const override;
+  const CPUProcessor *get_to_scene_linear_cpu_processor(
+      DisplayEmulation display_emulation) const override;
   const CPUProcessor *get_from_scene_linear_cpu_processor(
-      bool use_display_emulation) const override;
+      DisplayEmulation display_emulation) const override;
 
   bool is_hdr() const override
   {
@@ -93,7 +92,7 @@ class LibOCIODisplay : public Display {
 
  protected:
   std::unique_ptr<LibOCIOCPUProcessor> create_scene_linear_cpu_processor(
-      const bool use_display_emulation, const bool inverse) const;
+      const DisplayEmulation display_emulation, const bool inverse) const;
 };
 
 }  // namespace blender::ocio
