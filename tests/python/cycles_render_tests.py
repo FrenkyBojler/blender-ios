@@ -153,7 +153,6 @@ class CyclesReport(render_report.Report):
         else:
             self.set_compare_engine('cycles', 'CPU')
 
-
     def _get_render_arguments(self, arguments_cb, filepath, base_output_filepath):
         return arguments_cb(filepath, base_output_filepath, self.use_hwrt, self.osl, self.ray_marching)
 
@@ -228,8 +227,9 @@ def create_argparse():
     parser.add_argument('--batch', default=False, action='store_true')
     return parser
 
-# Default volume rendering algorithm is null scattering, but we also want to test ray marching
+
 def test_volume_ray_marching(args, device, blocklist):
+    # Default volume rendering algorithm is null scattering, but we also want to test ray marching
     report = CyclesReport('Cycles', args.outdir, args.oiiotool, device, blocklist, args.osl == 'all', ray_marching=True)
     report.set_reference_dir("cycles_ray_marching_renders")
     return report.run(args.testdir, args.blender, get_arguments, batch=args.batch)
