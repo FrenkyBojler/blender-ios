@@ -262,11 +262,11 @@ class TOPBAR_MT_file_new(Menu):
             icon = 'FILE_NEW'
             # Set icon per template.
             if d == "2D_Animation":
-                icon = 'GREASEPENCIL'
+                icon = 'GREASEPENCIL_LAYER_GROUP'
             elif d == "Sculpting":
                 icon = 'SCULPTMODE_HLT'
             elif d == "Storyboarding":
-                icon = 'RENDER_ANIMATION'
+                icon = 'GREASEPENCIL'
             elif d == "VFX":
                 icon = 'TRACKER'
             elif d == "Video_Editing":
