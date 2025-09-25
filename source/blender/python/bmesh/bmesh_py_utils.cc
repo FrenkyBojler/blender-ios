@@ -842,7 +842,7 @@ static PyObject *bpy_bm_utils_uv_select_check(PyObject * /*self*/, PyObject *arg
   }
 
   UVSelectValidateInfo info = {};
-  const bool is_valid = BM_mesh_uvselect_check(
+  const bool is_valid = BM_mesh_uvselect_is_valid(
       bm, cd_loop_uv_offset, check_sync, check_flush, check_contiguous, &info);
   if (is_valid) {
     Py_RETURN_NONE;

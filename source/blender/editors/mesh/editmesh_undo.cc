@@ -864,7 +864,7 @@ static void *undomesh_from_editmesh(UndoMesh *um,
     /* This should check the sticky mode too (currently the scene isn't available). */
     bool check_contiguous = (cd_loop_uv_offset != -1);
     UVSelectValidateInfo info;
-    bool is_valid = BM_mesh_uvselect_check(
+    bool is_valid = BM_mesh_uvselect_is_valid(
         em->bm, cd_loop_uv_offset, true, check_flush, check_contiguous, &info);
     if (is_valid == false) {
       fprintf(stderr, "ERROR: UV sync check failed!\n");
