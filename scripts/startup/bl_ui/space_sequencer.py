@@ -2379,12 +2379,6 @@ class SEQUENCER_PT_time(SequencerButtonsPanel, Panel):
             str(round(frame_offset_end, 0)),
         )
 
-        if not is_effect:
-            length_list = length_list + (
-                str(round(strip.animation_offset_start, 0)),
-                str(round(strip.animation_offset_end, 0)),
-            )
-
         max_length = max(len(x) for x in length_list)
         max_factor = (1.9 - max_length) / 30
         factor = 0.45
@@ -2440,22 +2434,9 @@ class SEQUENCER_PT_time(SequencerButtonsPanel, Panel):
             split.label(text="End")
             split.prop(strip, "frame_offset_end", text=smpte_from_frame(frame_offset_end))
 
-            layout.alignment = 'RIGHT'
-            sub = layout.column(align=True)
-
-            split = sub.split(factor=factor + max_factor, align=True)
-            split.alignment = 'RIGHT'
-            split.label(text="Hold Offset Start")
-            split.prop(strip, "animation_offset_start", text=smpte_from_frame(strip.animation_offset_start))
-
-            split = sub.split(factor=factor + max_factor, align=True)
-            split.alignment = 'RIGHT'
-            split.label(text="End")
-            split.prop(strip, "animation_offset_end", text=smpte_from_frame(strip.animation_offset_end))
-
             if strip.type == 'SOUND':
-                sub2 = layout.column(align=True)
-                split = sub2.split(factor=factor + max_factor, align=True)
+                sub = layout.column(align=True)
+                split = sub.split(factor=factor + max_factor, align=True)
                 split.alignment = 'RIGHT'
                 split.label(text="Sound Offset", text_ctxt=i18n_contexts.id_sound)
                 split.prop(strip, "sound_offset", text="")
