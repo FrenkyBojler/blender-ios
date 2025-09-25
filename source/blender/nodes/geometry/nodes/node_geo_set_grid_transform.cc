@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Authors
+/* SPDX-FileCopyrightText: 2025 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -28,11 +28,12 @@ static void node_declare(NodeDeclarationBuilder &b)
   }
 
   const eNodeSocketDatatype data_type = eNodeSocketDatatype(node->custom1);
-  b.use_custom_socket_order();
+
   b.allow_any_socket_order();
+  b.use_custom_socket_order();
+  b.add_default_layout();
   b.add_input(data_type, "Grid").hide_value().structure_type(StructureType::Grid);
   b.add_output(data_type, "Grid").structure_type(StructureType::Grid).align_with_previous();
-
   b.add_input<decl::Matrix>("Transform")
       .description("Transform from grid index space to object space");
 }
@@ -55,8 +56,15 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   const float4x4 transform = params.extract_input<float4x4>("Transform");
 
-  bke::VolumeGridData &grid_data = grid.get_for_write();
-  bke::volume_grid::set_transform_matrix(grid_data, transform);
+  try {
+    bke::VolumeGridData &grid_data = grid.get_for_write();
+    bke::volume_grid::set_transform_matrix(grid_data, transform);
+  }
+  catch (const openvdb::ArithmeticError & /*error*/) {
+    params.error_message_add(
+        NodeWarningType::Error,
+        TIP_("Unable to set grid transform as it must be invertible (non-zero scale)."));
+  }
 
   params.set_output("Grid", std::move(grid));
 #else
@@ -89,8 +97,8 @@ static void node_register()
 
   geo_node_type_base(&ntype, "GeometryNodeSetGridTransform");
   ntype.ui_name = "Set Grid Transform";
-  ntype.ui_description = "Set the transform from grid index space into object space.";
-  ntype.nclass = NODE_CLASS_INPUT;
+  ntype.ui_description = "Set the transform for the grid from index space into object space.";
+  ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.initfunc = node_init;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.draw_buttons = node_layout;
