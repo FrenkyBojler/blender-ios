@@ -103,20 +103,12 @@ static void node_declare(blender::nodes::NodeDeclarationBuilder &b)
     }
   }
 
-  auto &output = b.add_output(data_type, "Output");
-  if (supports_fields) {
-    output.dependent_field().reference_pass_all();
-  }
-  else if (data_type == SOCK_GEOMETRY) {
-    output.propagate_all();
-  }
-  output.structure_type(value_structure_type);
-
   b.add_input<decl::Extend>("", "__extend__")
       .structure_type(StructureType::Dynamic)
       .custom_draw([](CustomSocketDrawParams &params) {
         uiLayout &layout = params.layout;
-        PointerRNA op_ptr = layout.op("node.enum_definition_item_add", IFACE_("Add"), ICON_ADD);
+        layout.emboss_set(ui::EmbossType::None);
+        PointerRNA op_ptr = layout.op("node.enum_definition_item_add", "", ICON_ADD);
         RNA_int_set(&op_ptr, "node_identifier", params.node.identifier);
       });
 }
