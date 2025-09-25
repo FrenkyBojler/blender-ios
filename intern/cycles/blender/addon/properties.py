@@ -1046,15 +1046,16 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
     )
 
     use_auto_tile: BoolProperty(
-        name="Use Tiling",
-        description="Render high resolution images in tiles to reduce memory usage, using the specified tile size. Tiles are cached to disk while rendering to save memory",
+        name="Auto Tile",
+        description="Deprecated, tiling is always enabled",
         default=True,
     )
     tile_size: IntProperty(
         name="Tile Size",
         default=2048,
-        description="",
-        min=8, max=8192,
+        description="Render high resolution images in tiles of this size, to reduce memory usage. Tiles are cached to disk while rendering to save memory",
+        min=8,
+        max=8192,
     )
 
     # Various fine-tuning debug flags
@@ -1476,6 +1477,12 @@ class CyclesRenderLayerSettings(bpy.types.PropertyGroup):
     pass_debug_sample_count: BoolProperty(
         name="Debug Sample Count",
         description="Number of samples per pixel taken, divided by the maximum number of samples. To analyze adaptive sampling",
+        default=False,
+        update=update_render_passes,
+    )
+    pass_render_time: BoolProperty(
+        name="Render Time",
+        description="Pass containing an estimate for how long each pixel took to render",
         default=False,
         update=update_render_passes,
     )

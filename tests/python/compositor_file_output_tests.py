@@ -60,7 +60,7 @@ class FileOutputTest(unittest.TestCase):
             ok = False
 
         # Compare Metadata
-        metadata_ignore = set(("Time", "File", "Date", "RenderTime"))
+        metadata_ignore = set(("Time", "File", "Date", "RenderTime", "Software"))
 
         ref_meta = ref_img.spec().extra_attribs
         out_meta = out_img.spec().extra_attribs
@@ -209,7 +209,7 @@ class FileOutputTest(unittest.TestCase):
         # Set output directory for all existing file output nodes.
         set_directory(bpy.data.scenes[0].compositing_node_group, f'{curr_out_dir}/')
         bpy.data.scenes[0].render.compositor_device = f'{self.execution_device}'
-        bpy.ops.render.render()
+        bpy.ops.render.render(animation=True, start_frame=1, end_frame=1)
 
 
 if __name__ == "__main__":
