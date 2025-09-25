@@ -412,6 +412,19 @@ typedef struct GlowVars {
   int bNoComp;
 } GlowVars;
 
+/* Removed in 5.0. Only used in versioning and blend reading. */
+typedef struct TransformVarsLegacy {
+  float ScalexIni;
+  float ScaleyIni;
+  float xIni;
+  float yIni;
+  float rotIni;
+  int percent;
+  int interpolation;
+  /** Preserve aspect/ratio when scaling. */
+  int uniform_scale;
+} TransformVarsLegacy;
+
 typedef struct SolidColorVars {
   float col[3];
   char _pad[4];
@@ -779,9 +792,9 @@ typedef enum StripType {
   /* STRIP_TYPE_PLUGIN = 24, */ /* Removed. */
   STRIP_TYPE_WIPE = 25,
   STRIP_TYPE_GLOW = 26,
-  STRIP_TYPE_TRANSFORM_REMOVED = 27,
+  STRIP_TYPE_TRANSFORM_LEGACY = 27, /* Removed in 5.0 */
   STRIP_TYPE_COLOR = 28,
-  STRIP_TYPE_SPEED_REMOVED = 29,
+  STRIP_TYPE_SPEED_LEGACY = 29, /* Removed in 5.0 */
   STRIP_TYPE_MULTICAM = 30,
   STRIP_TYPE_ADJUSTMENT = 31,
   STRIP_TYPE_GAUSSIAN_BLUR = 40,

@@ -67,6 +67,7 @@
 #include "BLO_read_write.hh"
 
 #include "SEQ_edit.hh"
+#include "SEQ_effects.hh"
 #include "SEQ_iterator.hh"
 #include "SEQ_modifier.hh"
 #include "SEQ_relations.hh"
@@ -2449,7 +2450,8 @@ static void do_version_bokeh_blur_pixel_size(bNodeTree &node_tree, bNode &node)
 
 /* This assumes, that strip is not refereced outside of `seqbase` it is placed in. Cases violating
  * this assumption should never happen. */
-static void sequencer_remap_effects(ListBase *seqbase, Strip *effect)
+
+static void sequencer_remap_speed_effect_users(ListBase *seqbase, Strip *effect)
 {
   Strip *effect_input = effect->input1;
 
@@ -2465,19 +2467,56 @@ static void sequencer_remap_effects(ListBase *seqbase, Strip *effect)
   }
 }
 
-static void sequencer_remove_effects(Scene *scene, ListBase *seqbase)
+static void sequencer_remove_speed_effects(Scene *scene, ListBase *seqbase)
 {
   LISTBASE_FOREACH (Strip *, strip, seqbase) {
-    if (strip->type == STRIP_TYPE_TRANSFORM_REMOVED || strip->type == STRIP_TYPE_SPEED_REMOVED) {
+    if (strip->type == STRIP_TYPE_SPEED_LEGACY) {
       strip->runtime.flag |= STRIP_MARK_FOR_DELETE;
-      sequencer_remap_effects(seqbase, strip);
+      sequencer_remap_speed_effect_users(seqbase, strip);
     }
     if (strip->type == STRIP_TYPE_META) {
-      sequencer_remove_effects(scene, &strip->seqbase);
+      sequencer_remove_speed_effects(scene, &strip->seqbase);
     }
   }
   blender::seq::edit_remove_flagged_strips(scene, seqbase);
 }
+
+static void sequencer_remove_transform_effects(Scene *scene)
+{
+  blender::seq::for_each_callback(&scene->ed->seqbase, [&](Strip *strip) -> bool {
+    if (strip->type == STRIP_TYPE_TRANSFORM_LEGACY && strip->effectdata != nullptr) {
+      TransformVarsLegacy *tv = static_cast<TransformVarsLegacy *>(strip->effectdata);
+
+      StripTransform *transform = strip->data->transform;
+
+      blender::float2 offset(tv->xIni, tv->yIni);
+
+      if (tv->percent == 1) {
+        blender::float2 scene_resolution(scene->r.xsch, scene->r.ysch);
+        offset *= scene_resolution;
+      }
+
+      transform->xofs += offset.x;
+      transform->yofs += offset.y;
+      transform->scale_x *= tv->ScalexIni;
+      transform->scale_y *= tv->ScaleyIni;
+      transform->rotation += tv->rotIni;
+
+      blender::seq::EffectHandle sh = blender::seq::strip_effect_handle_get(strip);
+      sh.free(strip, true);
+      strip->type = STRIP_TYPE_GAUSSIAN_BLUR;
+      sh = blender::seq::strip_effect_handle_get(strip);
+      sh.init(strip);
+
+      GaussianBlurVars *gv = static_cast<GaussianBlurVars *>(strip->effectdata);
+      gv->size_x = gv->size_y = 0.0f;
+    }
+    return true;
+  });
+}
+
+/* Transform effects may use modifiers and it is fairly easy to just change effect type and move
+ * transform values to strip transform properties. */
 
 void do_versions_after_linking_500(FileData *fd, Main *bmain)
 {
@@ -2580,7 +2619,8 @@ void do_versions_after_linking_500(FileData *fd, Main *bmain)
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 90)) {
     LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
       if (scene->ed != nullptr) {
-        sequencer_remove_effects(scene, &scene->ed->seqbase);
+        sequencer_remove_speed_effects(scene, &scene->ed->seqbase);
+        sequencer_remove_transform_effects(scene);
       }
     }
   }

@@ -882,8 +882,10 @@ static bool strip_read_data_cb(Strip *strip, void *user_data)
       case STRIP_TYPE_COLORMIX:
         BLO_read_struct(reader, ColorMixVars, &strip->effectdata);
         break;
-      case STRIP_TYPE_TRANSFORM_REMOVED:
-      case STRIP_TYPE_SPEED_REMOVED:
+      case STRIP_TYPE_TRANSFORM_LEGACY:
+        BLO_read_struct(reader, TransformVarsLegacy, &strip->effectdata);
+
+      case STRIP_TYPE_SPEED_LEGACY:
         break;
       default:
         BLI_assert_unreachable();
