@@ -440,6 +440,10 @@ static Vector<SocketInContext> find_origin_sockets_through_contexts(
         }
         continue;
       }
+      if (node->is_type("NodeJoinBundle")) {
+        add_if_new(node.input_socket(0), bundle_path);
+        continue;
+      }
       if (node->is_type("NodeEvaluateClosure")) {
         const auto &evaluate_storage = *static_cast<const NodeEvaluateClosure *>(node->storage);
         const StringRef key = evaluate_storage.output_items.items[socket->index()].name;
