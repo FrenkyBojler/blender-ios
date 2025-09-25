@@ -66,9 +66,9 @@ class VIEW3D_PT_copy_global_transform_fix_to_camera(GlobalTransformPanelMixin, P
         # Fix to Scene Camera:
         layout.use_property_split = True
         props_box = layout.column(heading="Fix", heading_ctxt=i18n_contexts.id_camera, align=True)
-        props_box.prop(scene.fix_camera, "use_location", text="Location")
-        props_box.prop(scene.fix_camera, "use_rotation", text="Rotation")
-        props_box.prop(scene.fix_camera, "use_scale", text="Scale")
+        props_box.prop(scene.tool_settings, "anim_fix_to_cam_use_loc", text="Location")
+        props_box.prop(scene.tool_settings, "anim_fix_to_cam_use_rot", text="Rotation")
+        props_box.prop(scene.tool_settings, "anim_fix_to_cam_use_scale", text="Scale")
 
         keyingset = AutoKeying.active_keyingset(context)
         if keyingset:
@@ -82,9 +82,9 @@ class VIEW3D_PT_copy_global_transform_fix_to_camera(GlobalTransformPanelMixin, P
 
         row = layout.row(align=True)
         props = row.operator("object.fix_to_camera")
-        props.use_location = scene.fix_camera.use_location
-        props.use_rotation = scene.fix_camera.use_rotation
-        props.use_scale = scene.fix_camera.use_scale
+        props.use_location = scene.tool_settings.anim_fix_to_cam_use_loc
+        props.use_rotation = scene.tool_settings.anim_fix_to_cam_use_rot
+        props.use_scale = scene.tool_settings.anim_fix_to_cam_use_scale
         row.operator("object.delete_fix_to_camera_keys", text="", icon='TRASH')
 
 
@@ -95,9 +95,9 @@ class VIEW3D_PT_copy_global_transform_mirror(GlobalTransformPanelMixin, Panel):
     def draw(self, context: Context) -> None:
         layout = self.layout
         scene = context.scene
-        layout.prop(scene.global_transform, "mirror_object", text="Object")
+        layout.prop(scene.tool_settings, "anim_mirror_object", text="Object")
 
-        mirror_ob = scene.global_transform.mirror_object
+        mirror_ob = scene.tool_settings.anim_mirror_object
         if mirror_ob is None:
             # No explicit mirror object means "the current armature", so then the bone name should be editable.
             if context.object and context.object.type == 'ARMATURE':
@@ -112,8 +112,8 @@ class VIEW3D_PT_copy_global_transform_mirror(GlobalTransformPanelMixin, Panel):
         assert armature_ob and armature_ob.type == 'ARMATURE'
 
         layout.prop_search(
-            scene.global_transform,
-            "mirror_bone",
+            scene.tool_settings,
+            "anim_mirror_bone",
             armature_ob.data,
             "edit_bones" if armature_ob.mode == 'EDIT' else "bones",
             text="Bone",
@@ -121,7 +121,7 @@ class VIEW3D_PT_copy_global_transform_mirror(GlobalTransformPanelMixin, Panel):
 
     def _bone_entry(self, layout: UILayout, scene: bpy.types.Scene) -> None:
         """Allow manual entry of a bone name."""
-        layout.prop(scene.global_transform, "mirror_bone", text="Bone")
+        layout.prop(scene.tool_settings, "anim_mirror_bone", text="Bone")
 
 
 class VIEW3D_PT_copy_global_transform_relative(GlobalTransformPanelMixin, Panel):
@@ -136,8 +136,8 @@ class VIEW3D_PT_copy_global_transform_relative(GlobalTransformPanelMixin, Panel)
         copy_paste_sub = layout.column(align=False)
         has_relative_ob = bool(get_relative_ob(context))
         copy_paste_sub.label(text="Work Relative to some Object")
-        copy_paste_sub.prop(scene.global_transform, 'relative_object', text="Object")
-        if not scene.global_transform.relative_object:
+        copy_paste_sub.prop(scene.tool_settings, 'anim_relative_object', text="Object")
+        if not scene.tool_settings.anim_relative_object:
             copy_paste_sub.label(text="Using Active Scene Camera")
 
         button_sub = copy_paste_sub.row(align=True)

@@ -752,52 +752,6 @@ class OBJECT_OT_delete_fix_to_camera_keys(Operator, FixToCameraCommon):
             t.remove_keys_of_type(self.keytype, frame_start=frame_start, frame_end=frame_end)
 
 
-class SCENE_PG_copy_global_transform(PropertyGroup):
-    # The mirror object & bone name are stored on the scene, and not on the
-    # operator. This makes it possible to set up the operator for use in a
-    # certain scene, while keeping hotkey assignments working as usual.
-    #
-    # The goal is to allow hotkeys for "copy", "paste", and "paste mirrored",
-    # while keeping the other choices in a more global place.
-
-    mirror_object: bpy.props.PointerProperty(
-        type=bpy.types.Object,
-        name="Mirror Object",
-        description="Object to mirror over. Leave empty and name a bone to always mirror "
-        "over that bone of the active armature",
-    )
-    mirror_bone: bpy.props.StringProperty(
-        name="Mirror Bone",
-        description="Bone to use for the mirroring",
-    )
-    relative_object: bpy.props.PointerProperty(
-        type=bpy.types.Object,
-        name="Relative Object",
-        description="Object to which matrices are made relative",
-    )
-
-
-class SCENE_PG_fix_to_camera(PropertyGroup):
-    use_location: bpy.props.BoolProperty(
-        name="Use Location for Camera Fix",
-        description="Create Location keys when fixing to the scene camera",
-        default=True,
-        options=set(),  # Remove ANIMATABLE default option.
-    )
-    use_rotation: bpy.props.BoolProperty(
-        name="Use Rotation for Camera Fix",
-        description="Create Rotation keys when fixing to the scene camera",
-        default=True,
-        options=set(),  # Remove ANIMATABLE default option.
-    )
-    use_scale: bpy.props.BoolProperty(
-        name="Use Scale for Camera Fix",
-        description="Create Scale keys when fixing to the scene camera",
-        default=True,
-        options=set(),  # Remove ANIMATABLE default option.
-    )
-
-
 # Messagebus subscription to monitor changes & refresh panels.
 _msgbus_owner = object()
 
@@ -807,8 +761,6 @@ classes = (
     OBJECT_OT_paste_transform,
     OBJECT_OT_fix_to_camera,
     OBJECT_OT_delete_fix_to_camera_keys,
-    SCENE_PG_copy_global_transform,
-    SCENE_PG_fix_to_camera,
 )
 
 
@@ -835,13 +787,7 @@ def _on_blendfile_load_post(none: Any, other_none: Any) -> None:
 def register():
     bpy.app.handlers.load_post.append(_on_blendfile_load_post)
 
-    bpy.types.Scene.global_transform = bpy.props.PointerProperty(type=SCENE_PG_copy_global_transform)
-    bpy.types.Scene.fix_camera = bpy.props.PointerProperty(type=SCENE_PG_fix_to_camera)
-
 
 def unregister():
     _unregister_message_bus()
     bpy.app.handlers.load_post.remove(_on_blendfile_load_post)
-
-    del bpy.types.Scene.global_transform
-    del bpy.types.Scene.fix_camera
