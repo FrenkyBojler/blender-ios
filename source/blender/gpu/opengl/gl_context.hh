@@ -33,7 +33,7 @@ class GLSharedOrphanLists {
     Vector<GLuint> handles_;
 
    public:
-    void clear(std::function<void(GLuint, GLuint *)> free_fn);
+    void clear(FunctionRef<void(GLuint, GLuint *)> free_fn);
     void append(GLuint handle);
   };
 

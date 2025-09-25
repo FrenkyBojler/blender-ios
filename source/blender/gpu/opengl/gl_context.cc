@@ -191,7 +191,7 @@ void GLContext::finish()
  * In this case we delay the deletion until the context is bound again.
  * \{ */
 
-void GLSharedOrphanLists::OrphanList::clear(std::function<void(GLuint, GLuint *)> free_fn)
+void GLSharedOrphanLists::OrphanList::clear(FunctionRef<void(GLuint, GLuint *)> free_fn)
 {
   std::scoped_lock lock(mutex_);
   if (!handles_.is_empty()) {
