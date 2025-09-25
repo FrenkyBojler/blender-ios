@@ -830,6 +830,10 @@ static wmOperatorStatus run_node_group_exec(bContext *C, wmOperator *op)
       return OPERATOR_CANCELLED;
     }
 
+    if (!result_geometry.gather_component_types(false, true).is_empty()) {
+      BKE_report(op->reports, RPT_INFO, "Realized non-instance geometry is ignored");
+    }
+
     Map<std::string, int> instance_names;
     instance_names.reserve(new_instances->instances_num());
     const Span<int> handles = new_instances->reference_handles();
