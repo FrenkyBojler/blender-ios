@@ -1410,7 +1410,10 @@ static const int CICP_MATRIX_REC2020_NCL = 9;
 /* Range */
 static const int CICP_RANGE_FULL = 1;
 
-bool IMB_colormanagement_space_to_cicp(const ColorSpace *colorspace, const bool video, int cicp[4])
+bool IMB_colormanagement_space_to_cicp(const ColorSpace *colorspace,
+                                       const bool video,
+                                       const bool rgb_matrix,
+                                       int cicp[4])
 {
   const StringRefNull interop_id = colorspace->interop_id();
   if (interop_id.is_empty()) {
@@ -1421,22 +1424,18 @@ bool IMB_colormanagement_space_to_cicp(const ColorSpace *colorspace, const bool 
    * ASWF Color Interop Forum defined display spaces.
    * https://en.wikipedia.org/wiki/Coding-independent_code_points
    * https://www.w3.org/TR/png-3/#cICP-chunk
-   *
-   * For images we always use RGB matrix as that is the only thing supported for PNG.
-   * For video we specify an appropriate matrix to YUV or similar. This should also
-   * be used for HEIF and AVIF which are based on video codecs. */
-
+   */
   if (interop_id == "pq_rec2020_display") {
     cicp[0] = CICP_PRI_REC2020;
     cicp[1] = CICP_TRC_PQ;
-    cicp[2] = (video) ? CICP_MATRIX_REC2020_NCL : CICP_MATRIX_RGB;
+    cicp[2] = (rgb_matrix) ? CICP_MATRIX_RGB : CICP_MATRIX_REC2020_NCL;
     cicp[3] = CICP_RANGE_FULL;
     return true;
   }
   if (interop_id == "hlg_rec2020_display") {
     cicp[0] = CICP_PRI_REC2020;
     cicp[1] = CICP_TRC_HLG;
-    cicp[2] = (video) ? CICP_MATRIX_REC2020_NCL : CICP_MATRIX_RGB;
+    cicp[2] = (rgb_matrix) ? CICP_MATRIX_RGB : CICP_MATRIX_REC2020_NCL;
     cicp[3] = CICP_RANGE_FULL;
     return true;
   }
@@ -1444,7 +1443,7 @@ bool IMB_colormanagement_space_to_cicp(const ColorSpace *colorspace, const bool 
     /* Rec.2020 matrix may seem odd, but follows Color Interop Forum recommendation. */
     cicp[0] = CICP_PRI_P3D65;
     cicp[1] = CICP_TRC_PQ;
-    cicp[2] = (video) ? CICP_MATRIX_REC2020_NCL : CICP_MATRIX_RGB;
+    cicp[2] = (rgb_matrix) ? CICP_MATRIX_RGB : CICP_MATRIX_REC2020_NCL;
     cicp[3] = CICP_RANGE_FULL;
     return true;
   }
@@ -1452,14 +1451,14 @@ bool IMB_colormanagement_space_to_cicp(const ColorSpace *colorspace, const bool 
     /* BT.709 matrix may seem odd, but follows Color Interop Forum recommendation. */
     cicp[0] = CICP_PRI_P3D65;
     cicp[1] = CICP_TRC_G26;
-    cicp[2] = (video) ? CICP_MATRIX_BT709 : CICP_MATRIX_RGB;
+    cicp[2] = (rgb_matrix) ? CICP_MATRIX_RGB : CICP_MATRIX_BT709;
     cicp[3] = CICP_RANGE_FULL;
     return true;
   }
   if (interop_id == "g22_rec709_display") {
     cicp[0] = CICP_PRI_REC709;
     cicp[1] = CICP_TRC_G22;
-    cicp[2] = (video) ? CICP_MATRIX_BT709 : CICP_MATRIX_RGB;
+    cicp[2] = (rgb_matrix) ? CICP_MATRIX_RGB : CICP_MATRIX_BT709;
     cicp[3] = CICP_RANGE_FULL;
     return true;
   }
@@ -1467,7 +1466,7 @@ bool IMB_colormanagement_space_to_cicp(const ColorSpace *colorspace, const bool 
     /* There is no gamma 2.4 trc, but BT.709 is close. */
     cicp[0] = CICP_PRI_REC2020;
     cicp[1] = CICP_TRC_BT709;
-    cicp[2] = (video) ? CICP_MATRIX_REC2020_NCL : CICP_MATRIX_RGB;
+    cicp[2] = (rgb_matrix) ? CICP_MATRIX_RGB : CICP_MATRIX_REC2020_NCL;
     cicp[3] = CICP_RANGE_FULL;
     return true;
   }
@@ -1475,7 +1474,7 @@ bool IMB_colormanagement_space_to_cicp(const ColorSpace *colorspace, const bool 
     /* There is no gamma 2.4 trc, but BT.709 is close. */
     cicp[0] = CICP_PRI_REC709;
     cicp[1] = CICP_TRC_BT709;
-    cicp[2] = (video) ? CICP_MATRIX_BT709 : CICP_MATRIX_RGB;
+    cicp[2] = (rgb_matrix) ? CICP_MATRIX_RGB : CICP_MATRIX_BT709;
     cicp[3] = CICP_RANGE_FULL;
     return true;
   }
@@ -1485,7 +1484,7 @@ bool IMB_colormanagement_space_to_cicp(const ColorSpace *colorspace, const bool 
      * "Quicktime gamma shift bug" that complicates things. */
     cicp[0] = CICP_PRI_P3D65;
     cicp[1] = (video) ? CICP_TRC_BT709 : CICP_TRC_SRGB;
-    cicp[2] = (video) ? CICP_MATRIX_BT709 : CICP_MATRIX_RGB;
+    cicp[2] = (rgb_matrix) ? CICP_MATRIX_RGB : CICP_MATRIX_BT709;
     cicp[3] = CICP_RANGE_FULL;
     return true;
   }
@@ -3140,6 +3139,12 @@ const ColorSpace *colormanage_colorspace_get_roled(const int role)
 
 int IMB_colormanagement_colorspace_get_named_index(const char *name)
 {
+  /* Roles. */
+  if (STREQ(name, OCIO_ROLE_SCENE_LINEAR)) {
+    return g_config->get_num_color_spaces();
+  }
+
+  /* Regular color spaces. */
   const ColorSpace *colorspace = colormanage_colorspace_get_named(name);
   if (colorspace) {
     return colorspace->index;
@@ -3149,6 +3154,12 @@ int IMB_colormanagement_colorspace_get_named_index(const char *name)
 
 const char *IMB_colormanagement_colorspace_get_indexed_name(const int index)
 {
+  /* Roles. */
+  if (index == g_config->get_num_color_spaces()) {
+    return OCIO_ROLE_SCENE_LINEAR;
+  }
+
+  /* Regular color spaces. */
   const ColorSpace *colorspace = g_config->get_color_space_by_index(index);
   if (colorspace) {
     return colorspace->name().c_str();
@@ -3747,6 +3758,7 @@ void IMB_colormanagement_look_items_add(EnumPropertyItem **items,
 
 void IMB_colormanagement_colorspace_items_add(EnumPropertyItem **items, int *totitem)
 {
+  /* Regular color spaces. */
   for (const int colorspace_index : blender::IndexRange(g_config->get_num_color_spaces())) {
     const ColorSpace *colorspace = g_config->get_sorted_color_space_by_index(colorspace_index);
     if (!colorspace->is_invertible()) {
@@ -3763,6 +3775,18 @@ void IMB_colormanagement_colorspace_items_add(EnumPropertyItem **items, int *tot
 
     RNA_enum_item_add(items, totitem, &item);
   }
+
+  /* Scene linear role. This is useful for example to create compositing convert colorspace
+   * nodes that work the same regardless of working space. */
+  EnumPropertyItem item;
+
+  item.value = g_config->get_num_color_spaces();
+  item.name = "Working Space";
+  item.identifier = OCIO_ROLE_SCENE_LINEAR;
+  item.icon = 0;
+  item.description = "Working color space of the current file";
+
+  RNA_enum_item_add(items, totitem, &item);
 }
 
 /** \} */
