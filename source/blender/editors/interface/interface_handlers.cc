@@ -3445,6 +3445,7 @@ static void ui_textedit_move(uiBut *but,
   const bool has_sel = (but->selend - but->selsta) > 0;
 
   ui_but_update(but);
+
   /* special case, quit selection and set cursor */
   if (has_sel && !select) {
     if (jump == STRCUR_JUMP_ALL) {

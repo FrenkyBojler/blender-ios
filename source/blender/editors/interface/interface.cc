@@ -3430,6 +3430,7 @@ bool ui_but_string_set(bContext *C, uiBut *but, const char *str)
     else {
       BLI_strncpy(but->poin, str, but->hardmax);
     }
+
     return true;
   }
   else if (but->type == ButType::SearchMenu) {
@@ -3440,7 +3441,6 @@ bool ui_but_string_set(bContext *C, uiBut *but, const char *str)
     else {
       BLI_strncpy(but->poin, str, but->hardmax);
     }
-
     return true;
   }
   else if (ui_but_anim_expression_set(but, str)) {
