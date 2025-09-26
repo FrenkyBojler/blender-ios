@@ -271,7 +271,7 @@ bool BM_face_uvselect_check_edges_all(BMFace *f)
 void BM_loop_vert_uvselect_set_noflush(BMesh *bm, BMLoop *l, bool select)
 {
   /* Only select if it's valid, otherwise the result wont be used. */
-  BLI_assert(bm->uv_sync_select_valid);
+  BLI_assert(bm->uv_select_sync_valid);
   UNUSED_VARS_NDEBUG(bm);
 
   /* Selecting when hidden must be prevented by the caller.
@@ -286,7 +286,7 @@ void BM_loop_vert_uvselect_set_noflush(BMesh *bm, BMLoop *l, bool select)
 void BM_loop_edge_uvselect_set_noflush(BMesh *bm, BMLoop *l, bool select)
 {
   /* Only select if it's valid, otherwise the result wont be used. */
-  BLI_assert(bm->uv_sync_select_valid);
+  BLI_assert(bm->uv_select_sync_valid);
   UNUSED_VARS_NDEBUG(bm);
 
   /* Selecting when hidden must be prevented by the caller.
@@ -309,7 +309,7 @@ void BM_loop_edge_uvselect_set(BMesh *bm, BMLoop *l, bool select)
 void BM_face_uvselect_set_noflush(BMesh *bm, BMFace *f, bool select)
 {
   /* Only select if it's valid, otherwise the result wont be used. */
-  BLI_assert(bm->uv_sync_select_valid);
+  BLI_assert(bm->uv_select_sync_valid);
   UNUSED_VARS_NDEBUG(bm);
 
   /* Selecting when hidden must be prevented by the caller.
@@ -334,10 +334,10 @@ void BM_face_uvselect_set(BMesh *bm, BMFace *f, bool select)
 
 bool BM_mesh_uvselect_clear(BMesh *bm)
 {
-  if (bm->uv_sync_select_valid == false) {
+  if (bm->uv_select_sync_valid == false) {
     return false;
   }
-  bm->uv_sync_select_valid = false;
+  bm->uv_select_sync_valid = false;
   return true;
 }
 
@@ -1514,7 +1514,7 @@ static void bm_mesh_uvselect_flush_from_mesh_sticky_vertex_for_vert_mode(BMesh *
     } while ((l_iter = l_iter->next) != l_first);
     BM_elem_flag_set(f, BM_ELEM_SELECT_UV, BM_elem_flag_test(f, BM_ELEM_SELECT));
   }
-  bm->uv_sync_select_valid = true;
+  bm->uv_select_sync_valid = true;
 }
 
 static void bm_mesh_uvselect_flush_from_mesh_sticky_vertex_for_edge_mode(BMesh *bm)
@@ -1548,7 +1548,7 @@ static void bm_mesh_uvselect_flush_from_mesh_sticky_vertex_for_edge_mode(BMesh *
       BM_elem_flag_enable(f, BM_ELEM_SELECT_UV);
     }
   }
-  bm->uv_sync_select_valid = true;
+  bm->uv_select_sync_valid = true;
 }
 
 static void bm_mesh_uvselect_flush_from_mesh_sticky_vertex_for_face_mode(BMesh *bm)
@@ -1576,7 +1576,7 @@ static void bm_mesh_uvselect_flush_from_mesh_sticky_vertex_for_face_mode(BMesh *
       BM_elem_flag_enable(f, BM_ELEM_SELECT_UV);
     }
   }
-  bm->uv_sync_select_valid = true;
+  bm->uv_select_sync_valid = true;
 }
 
 /* Sticky Location. */
@@ -1627,7 +1627,7 @@ static void bm_mesh_uvselect_flush_from_mesh_sticky_location_for_edge_mode(
     const bool f_select = BM_elem_flag_test(f, BM_ELEM_SELECT);
     BM_elem_flag_set(f, BM_ELEM_SELECT_UV, f_select);
   }
-  bm->uv_sync_select_valid = true;
+  bm->uv_select_sync_valid = true;
 }
 
 static void bm_mesh_uvselect_flush_from_mesh_sticky_location_for_face_mode(
@@ -1667,7 +1667,7 @@ static void bm_mesh_uvselect_flush_from_mesh_sticky_location_for_face_mode(
       BM_elem_flag_disable(f, BM_ELEM_SELECT_UV);
     }
   }
-  bm->uv_sync_select_valid = true;
+  bm->uv_select_sync_valid = true;
 }
 
 /* Public API. */
@@ -1684,7 +1684,7 @@ void BM_mesh_uvselect_flush_from_mesh_sticky_location(BMesh *bm, const int cd_lo
     bm_mesh_uvselect_flush_from_mesh_sticky_location_for_face_mode(bm, cd_loop_uv_offset);
   }
 
-  BLI_assert(bm->uv_sync_select_valid);
+  BLI_assert(bm->uv_select_sync_valid);
 }
 
 void BM_mesh_uvselect_flush_from_mesh_sticky_disabled(BMesh *bm)
@@ -1692,7 +1692,7 @@ void BM_mesh_uvselect_flush_from_mesh_sticky_disabled(BMesh *bm)
   /* The mode is ignored when sticky selection is disabled,
    * Always use the selection from the mesh. */
   bm_mesh_uvselect_flush_from_mesh_sticky_vertex_for_vert_mode(bm);
-  BLI_assert(bm->uv_sync_select_valid);
+  BLI_assert(bm->uv_select_sync_valid);
 }
 
 void BM_mesh_uvselect_flush_from_mesh_sticky_vertex(BMesh *bm)
@@ -1706,12 +1706,12 @@ void BM_mesh_uvselect_flush_from_mesh_sticky_vertex(BMesh *bm)
   else { /* `SCE_SELECT_FACE` */
     bm_mesh_uvselect_flush_from_mesh_sticky_vertex_for_face_mode(bm);
   }
-  BLI_assert(bm->uv_sync_select_valid);
+  BLI_assert(bm->uv_select_sync_valid);
 }
 
 void BM_mesh_uvselect_flush_to_mesh(BMesh *bm)
 {
-  BLI_assert(bm->uv_sync_select_valid);
+  BLI_assert(bm->uv_select_sync_valid);
 
   /* Prevent clearing the selection from removing all selection history.
    * This will be validated after flushing. */
@@ -2387,7 +2387,7 @@ bool BM_mesh_uvselect_is_valid(BMesh *bm,
 
   bool is_valid = true;
   if (check_sync) {
-    BLI_assert(bm->uv_sync_select_valid);
+    BLI_assert(bm->uv_select_sync_valid);
     if (!bm_mesh_uvselect_check_viewport_sync(bm, info.sync)) {
       is_valid = false;
     }

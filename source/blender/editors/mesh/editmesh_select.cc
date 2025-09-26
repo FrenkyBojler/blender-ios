@@ -2143,7 +2143,7 @@ static wmOperatorStatus edbm_select_all_exec(bContext *C, wmOperator *op)
         EDBM_flag_disable_all(em, BM_ELEM_SELECT);
         break;
       case SEL_INVERT:
-        if (em->bm->uv_sync_select_valid) {
+        if (em->bm->uv_select_sync_valid) {
           ED_uvedit_deselect_all(scene, obedit, SEL_INVERT);
         }
         else {
@@ -2287,7 +2287,7 @@ bool EDBM_select_pick(bContext *C, const int mval[2], const SelectPick_Params &p
           BM_face_select_set(bm, efa, false);
           BM_select_history_store(bm, efa);
           BM_face_select_set(bm, efa, true);
-          if (bm->uv_sync_select_valid) {
+          if (bm->uv_select_sync_valid) {
             BM_face_uvselect_set_pick(bm, efa, true, uv_pick_params);
           }
           break;
@@ -2302,14 +2302,14 @@ bool EDBM_select_pick(bContext *C, const int mval[2], const SelectPick_Params &p
           if (!BM_elem_flag_test(efa, BM_ELEM_SELECT)) {
             BM_select_history_store(bm, efa);
             BM_face_select_set(bm, efa, true);
-            if (bm->uv_sync_select_valid) {
+            if (bm->uv_select_sync_valid) {
               BM_face_uvselect_set_pick(bm, efa, true, uv_pick_params);
             }
           }
           else {
             BM_select_history_remove(bm, efa);
             BM_face_select_set(bm, efa, false);
-            if (bm->uv_sync_select_valid) {
+            if (bm->uv_select_sync_valid) {
               BM_face_uvselect_set_pick(bm, efa, false, uv_pick_params);
             }
           }
@@ -2340,7 +2340,7 @@ bool EDBM_select_pick(bContext *C, const int mval[2], const SelectPick_Params &p
           BM_edge_select_set(bm, eed, false);
           BM_select_history_store(bm, eed);
           BM_edge_select_set(bm, eed, true);
-          if (bm->uv_sync_select_valid) {
+          if (bm->uv_select_sync_valid) {
             BM_edge_uvselect_set_pick(bm, eed, true, uv_pick_params);
           }
           break;
@@ -2348,7 +2348,7 @@ bool EDBM_select_pick(bContext *C, const int mval[2], const SelectPick_Params &p
         case SEL_OP_SUB: {
           BM_select_history_remove(bm, eed);
           BM_edge_select_set(bm, eed, false);
-          if (bm->uv_sync_select_valid) {
+          if (bm->uv_select_sync_valid) {
             BM_edge_uvselect_set_pick(bm, eed, false, uv_pick_params);
           }
           break;
@@ -2357,14 +2357,14 @@ bool EDBM_select_pick(bContext *C, const int mval[2], const SelectPick_Params &p
           if (!BM_elem_flag_test(eed, BM_ELEM_SELECT)) {
             BM_select_history_store(bm, eed);
             BM_edge_select_set(bm, eed, true);
-            if (bm->uv_sync_select_valid) {
+            if (bm->uv_select_sync_valid) {
               BM_edge_uvselect_set_pick(bm, eed, true, uv_pick_params);
             }
           }
           else {
             BM_select_history_remove(bm, eed);
             BM_edge_select_set(bm, eed, false);
-            if (bm->uv_sync_select_valid) {
+            if (bm->uv_select_sync_valid) {
               BM_edge_uvselect_set_pick(bm, eed, false, uv_pick_params);
             }
           }
@@ -2392,7 +2392,7 @@ bool EDBM_select_pick(bContext *C, const int mval[2], const SelectPick_Params &p
           BM_vert_select_set(bm, eve, false);
           BM_select_history_store(bm, eve);
           BM_vert_select_set(bm, eve, true);
-          if (bm->uv_sync_select_valid) {
+          if (bm->uv_select_sync_valid) {
             BM_vert_uvselect_set_pick(bm, eve, true, uv_pick_params);
           }
           break;
@@ -2400,7 +2400,7 @@ bool EDBM_select_pick(bContext *C, const int mval[2], const SelectPick_Params &p
         case SEL_OP_SUB: {
           BM_select_history_remove(bm, eve);
           BM_vert_select_set(bm, eve, false);
-          if (bm->uv_sync_select_valid) {
+          if (bm->uv_select_sync_valid) {
             BM_vert_uvselect_set_pick(bm, eve, false, uv_pick_params);
           }
           break;
@@ -2409,14 +2409,14 @@ bool EDBM_select_pick(bContext *C, const int mval[2], const SelectPick_Params &p
           if (!BM_elem_flag_test(eve, BM_ELEM_SELECT)) {
             BM_select_history_store(bm, eve);
             BM_vert_select_set(bm, eve, true);
-            if (bm->uv_sync_select_valid) {
+            if (bm->uv_select_sync_valid) {
               BM_vert_uvselect_set_pick(bm, eve, true, uv_pick_params);
             }
           }
           else {
             BM_select_history_remove(bm, eve);
             BM_vert_select_set(bm, eve, false);
-            if (bm->uv_sync_select_valid) {
+            if (bm->uv_select_sync_valid) {
               BM_vert_uvselect_set_pick(bm, eve, false, uv_pick_params);
             }
           }
@@ -2556,7 +2556,7 @@ void EDBM_selectmode_set(BMEditMesh *em, const short selectmode)
     }
   }
 
-  if (em->bm->uv_sync_select_valid) {
+  if (em->bm->uv_select_sync_valid) {
     /* NOTE(@ideasman42): this could/should use the "sticky" tool setting.
      * Although in practice it's OK to assume "connected" sticky in this case. */
     const int cd_loop_uv_offset = CustomData_get_offset(&em->bm->ldata, CD_PROP_FLOAT2);

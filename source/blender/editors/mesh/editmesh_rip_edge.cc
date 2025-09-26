@@ -200,7 +200,7 @@ static wmOperatorStatus edbm_rip_edge_invoke(bContext *C,
           /* When UV sync select is enabled, the wrong UV's will be selected
            * because the existing loops will have the selection and the new ones won't.
            * transfer the selection state to the new loops. */
-          if (bm->uv_sync_select_valid) {
+          if (bm->uv_select_sync_valid) {
             if (e_best->l) {
               BMLoop *l_iter, *l_first;
               l_iter = l_first = e_best->l;

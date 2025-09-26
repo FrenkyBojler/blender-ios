@@ -857,7 +857,7 @@ static void *undomesh_from_editmesh(UndoMesh *um,
     BM_mesh_is_valid(em->bm);
 
     /* Ensure UV's are in a valid state. */
-    if (em->bm->uv_sync_select_valid) {
+    if (em->bm->uv_select_sync_valid) {
       const int cd_loop_uv_offset = CustomData_get_offset(&em->bm->ldata, CD_PROP_FLOAT2);
       bool check_flush = true;
       /* This should check the sticky mode too (currently the scene isn't available). */

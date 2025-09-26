@@ -611,7 +611,7 @@ static wmOperatorStatus uv_shortest_path_pick_invoke(bContext *C,
     else if (uv_selectmode & UV_SELECT_EDGE) {
       /* Edge selection. */
       BMLoop *l_src = nullptr;
-      if ((ts->uv_flag & UV_FLAG_SYNC_SELECT) && (bm->uv_sync_select_valid == false)) {
+      if ((ts->uv_flag & UV_FLAG_SYNC_SELECT) && (bm->uv_select_sync_valid == false)) {
         BMEdge *e_src = BM_mesh_active_edge_get(bm);
         if (e_src != nullptr) {
           l_src = uv_find_nearest_loop_from_edge(scene, obedit, e_src, co);
@@ -634,7 +634,7 @@ static wmOperatorStatus uv_shortest_path_pick_invoke(bContext *C,
     else {
       /* Vertex selection. */
       BMLoop *l_src = nullptr;
-      if ((ts->uv_flag & UV_FLAG_SYNC_SELECT) && (bm->uv_sync_select_valid == false)) {
+      if ((ts->uv_flag & UV_FLAG_SYNC_SELECT) && (bm->uv_select_sync_valid == false)) {
         BMVert *v_src = BM_mesh_active_vert_get(bm);
         if (v_src != nullptr) {
           l_src = uv_find_nearest_loop_from_vert(scene, obedit, v_src, co);

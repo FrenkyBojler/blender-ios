@@ -1395,7 +1395,7 @@ void BM_mesh_esubdivide(BMesh *bm,
      * We may want to change the resulting selection after a subdivision
      * to avoid this problem occurring. */
 
-    if (bm->uv_sync_select_valid) {
+    if (bm->uv_select_sync_valid) {
       const int cd_loop_uv_offset = CustomData_get_offset(&bm->ldata, CD_PROP_FLOAT2);
       BM_mesh_uvselect_flush_post_subdivide(bm, cd_loop_uv_offset);
     }

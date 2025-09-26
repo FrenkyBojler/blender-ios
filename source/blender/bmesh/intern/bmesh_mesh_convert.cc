@@ -595,7 +595,7 @@ void BM_mesh_bm_from_me(BMesh *bm, const Mesh *mesh, const BMeshFromMeshParams *
     bm->elem_index_dirty &= ~(BM_FACE | BM_LOOP); /* Added in order, clear dirty flag. */
   }
 
-  bm->uv_sync_select_valid = need_uv_select;
+  bm->uv_select_sync_valid = need_uv_select;
 
   /* -------------------------------------------------------------------- */
   /* MSelect clears the array elements (to avoid adding multiple times).
@@ -1486,7 +1486,7 @@ void BM_mesh_bm_to_me(Main *bmain, BMesh *bm, Mesh *mesh, const BMeshToMeshParam
   bool need_sharp_edge = false;
   bool need_sharp_face = false;
   bool need_uv_seams = false;
-  const bool need_uv_select = bm->uv_sync_select_valid;
+  const bool need_uv_select = bm->uv_select_sync_valid;
   Array<const BMVert *> vert_table;
   Array<const BMEdge *> edge_table;
   Array<const BMFace *> face_table;
@@ -1728,7 +1728,7 @@ void BM_mesh_bm_to_me_compact(BMesh &bm,
   bool need_sharp_edge = false;
   bool need_sharp_face = false;
   bool need_uv_seams = false;
-  const bool need_uv_select = bm.uv_sync_select_valid;
+  const bool need_uv_select = bm.uv_select_sync_valid;
 
   Array<const BMVert *> vert_table;
   Array<const BMEdge *> edge_table;

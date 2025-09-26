@@ -114,7 +114,7 @@ void ED_uvedit_active_vert_loop_set(BMesh *bm, BMLoop *l)
 BMLoop *ED_uvedit_active_vert_loop_get(const ToolSettings *ts, BMesh *bm)
 {
   BMEditSelection *ese = static_cast<BMEditSelection *>(bm->selected.last);
-  if ((ts->uv_flag & UV_FLAG_SYNC_SELECT) && bm->uv_sync_select_valid) {
+  if ((ts->uv_flag & UV_FLAG_SYNC_SELECT) && bm->uv_select_sync_valid) {
     if (ese && ese->htype == BM_VERT) {
       BMVert *v = (BMVert *)ese->ele;
 
@@ -184,7 +184,7 @@ void ED_uvedit_active_edge_loop_set(BMesh *bm, BMLoop *l)
 BMLoop *ED_uvedit_active_edge_loop_get(const ToolSettings *ts, BMesh *bm)
 {
   BMEditSelection *ese = static_cast<BMEditSelection *>(bm->selected.last);
-  if ((ts->uv_flag & UV_FLAG_SYNC_SELECT) && bm->uv_sync_select_valid) {
+  if ((ts->uv_flag & UV_FLAG_SYNC_SELECT) && bm->uv_select_sync_valid) {
     if (ese && ese->htype == BM_EDGE) {
       BMEdge *e = (BMEdge *)ese->ele;
 
@@ -245,12 +245,12 @@ bool ED_uvedit_sync_uvselect_ignore(const ToolSettings *ts)
 
 bool ED_uvedit_sync_uvselect_is_valid_or_ignore(const ToolSettings *ts, const BMesh *bm)
 {
-  return bm->uv_sync_select_valid || ED_uvedit_sync_uvselect_ignore(ts);
+  return bm->uv_select_sync_valid || ED_uvedit_sync_uvselect_ignore(ts);
 }
 
 static void uvedit_sync_uvselect_flush_from_v3d(const ToolSettings *ts, BMesh *bm)
 {
-  BLI_assert(!bm->uv_sync_select_valid);
+  BLI_assert(!bm->uv_select_sync_valid);
 
   /* Otherwise, ensure UV select is up to date. */
   switch (ts->uv_sticky) {
@@ -274,19 +274,19 @@ void ED_uvedit_sync_uvselect_ensure_if_needed(const ToolSettings *ts, BMesh *bm)
 {
   /* Select sync wont be needed when mode switching. */
   if (ED_uvedit_sync_uvselect_ignore(ts)) {
-    bm->uv_sync_select_valid = false;
+    bm->uv_select_sync_valid = false;
     return;
   }
 
   /* In most cases the caller will ensure this,
    * check here to allow for this to be called outside of the UV editor. */
   if (!CustomData_has_layer(&bm->ldata, CD_PROP_FLOAT2)) {
-    bm->uv_sync_select_valid = false;
+    bm->uv_select_sync_valid = false;
     return;
   }
 
   /* Select sync already calculated. */
-  if (bm->uv_sync_select_valid) {
+  if (bm->uv_select_sync_valid) {
     return;
   }
 
@@ -350,7 +350,7 @@ void ED_uvedit_select_sync_flush(const ToolSettings *ts, BMesh *bm, const bool s
 {
   /* bmesh API handles flushing but not on de-select */
   if (ts->uv_flag & UV_FLAG_SYNC_SELECT) {
-    if (bm->uv_sync_select_valid) {
+    if (bm->uv_select_sync_valid) {
       BM_mesh_uvselect_flush_mode(bm);
       if (ts->uv_sticky == SI_STICKY_LOC) {
         const int cd_loop_uv_offset = CustomData_get_offset(&bm->ldata, CD_PROP_FLOAT2);
@@ -420,7 +420,7 @@ bool uvedit_face_select_test_ex(const ToolSettings *ts,
   BLI_assert(offsets.select_vert >= 0);
   BLI_assert(offsets.select_edge >= 0);
   if (ts->uv_flag & UV_FLAG_SYNC_SELECT) {
-    if (bm->uv_sync_select_valid == false || ED_uvedit_sync_uvselect_ignore(ts)) {
+    if (bm->uv_select_sync_valid == false || ED_uvedit_sync_uvselect_ignore(ts)) {
       return BM_elem_flag_test(efa, BM_ELEM_SELECT);
     }
     /* Caller checks for visibility. */
@@ -619,7 +619,7 @@ bool uvedit_edge_select_test_ex(const ToolSettings *ts,
   BLI_assert(offsets.select_vert >= 0);
   BLI_assert(offsets.select_edge >= 0);
   if (ts->uv_flag & UV_FLAG_SYNC_SELECT) {
-    if ((bm->uv_sync_select_valid == false) && (ts->selectmode == SCE_SELECT_FACE)) {
+    if ((bm->uv_select_sync_valid == false) && (ts->selectmode == SCE_SELECT_FACE)) {
       /* Face only is a special case that can respect sticky modes. */
       switch (ts->uv_sticky) {
         case SI_STICKY_LOC: {
@@ -642,7 +642,7 @@ bool uvedit_edge_select_test_ex(const ToolSettings *ts,
       BLI_assert_unreachable();
     }
 
-    if (bm->uv_sync_select_valid == false || ED_uvedit_sync_uvselect_ignore(ts)) {
+    if (bm->uv_select_sync_valid == false || ED_uvedit_sync_uvselect_ignore(ts)) {
       if (ts->selectmode & SCE_SELECT_FACE) {
         return BM_elem_flag_test(l->f, BM_ELEM_SELECT);
       }
@@ -714,7 +714,7 @@ static bool UNUSED_FUNCTION(bm_loop_select_vert_check_internal)(const Scene *sce
 {
   const ToolSettings *ts = scene->toolsettings;
   if (ts->uv_flag & UV_FLAG_SYNC_SELECT) {
-    if (bm->uv_sync_select_valid == false || ED_uvedit_sync_uvselect_ignore(ts)) {
+    if (bm->uv_select_sync_valid == false || ED_uvedit_sync_uvselect_ignore(ts)) {
       /* Use mesh selection. */
       return BM_elem_flag_test_bool(l->v, BM_ELEM_SELECT);
     }
@@ -732,7 +732,7 @@ static bool bm_loop_select_edge_check_internal(const Scene *scene,
 {
   const ToolSettings *ts = scene->toolsettings;
   if (ts->uv_flag & UV_FLAG_SYNC_SELECT) {
-    if (bm->uv_sync_select_valid == false || ED_uvedit_sync_uvselect_ignore(ts)) {
+    if (bm->uv_select_sync_valid == false || ED_uvedit_sync_uvselect_ignore(ts)) {
       /* Use mesh selection. */
       return BM_elem_flag_test_bool(l->e, BM_ELEM_SELECT);
     }
@@ -919,7 +919,7 @@ bool uvedit_uv_select_test_ex(const ToolSettings *ts,
   BLI_assert(offsets.select_vert >= 0);
   if (ts->uv_flag & UV_FLAG_SYNC_SELECT) {
 
-    if ((bm->uv_sync_select_valid == false) && (ts->selectmode == SCE_SELECT_FACE)) {
+    if ((bm->uv_select_sync_valid == false) && (ts->selectmode == SCE_SELECT_FACE)) {
       /* Face only is a special case that can respect sticky modes. */
       switch (ts->uv_sticky) {
         case SI_STICKY_LOC: {
@@ -942,7 +942,7 @@ bool uvedit_uv_select_test_ex(const ToolSettings *ts,
       BLI_assert_unreachable();
     }
 
-    if (bm->uv_sync_select_valid) {
+    if (bm->uv_select_sync_valid) {
       /* Pass. */
     }
     else if ((ts->selectmode & ~SCE_SELECT_FACE) == SCE_SELECT_EDGE) {
@@ -969,7 +969,7 @@ bool uvedit_uv_select_test_ex(const ToolSettings *ts,
       BLI_assert_unreachable();
     }
 
-    if (bm->uv_sync_select_valid == false || ED_uvedit_sync_uvselect_ignore(ts)) {
+    if (bm->uv_select_sync_valid == false || ED_uvedit_sync_uvselect_ignore(ts)) {
       if (ts->selectmode & SCE_SELECT_FACE) {
         return BM_elem_flag_test_bool(l->f, BM_ELEM_SELECT);
       }
@@ -1201,7 +1201,7 @@ bool uvedit_loop_vert_select_get(const ToolSettings *ts,
                                  const BMUVOffsets &offsets)
 {
   if (ts->uv_flag & UV_FLAG_SYNC_SELECT) {
-    BLI_assert(bm->uv_sync_select_valid);
+    BLI_assert(bm->uv_select_sync_valid);
     UNUSED_VARS_NDEBUG(bm);
     return BM_elem_flag_test_bool(l, BM_ELEM_SELECT_UV);
   }
@@ -1214,7 +1214,7 @@ bool uvedit_loop_edge_select_get(const ToolSettings *ts,
                                  const BMUVOffsets &offsets)
 {
   if (ts->uv_flag & UV_FLAG_SYNC_SELECT) {
-    BLI_assert(bm->uv_sync_select_valid);
+    BLI_assert(bm->uv_select_sync_valid);
     UNUSED_VARS_NDEBUG(bm);
     /* Caller checks for visibility. */
     BLI_assert(!BM_elem_flag_test(l->f, BM_ELEM_HIDDEN));
@@ -1230,7 +1230,7 @@ void uvedit_loop_vert_select_set(const ToolSettings *ts,
                                  const BMUVOffsets &offsets)
 {
   if (ts->uv_flag & UV_FLAG_SYNC_SELECT) {
-    BLI_assert(bm->uv_sync_select_valid);
+    BLI_assert(bm->uv_select_sync_valid);
     UNUSED_VARS_NDEBUG(bm);
     BM_elem_flag_set(l, BM_ELEM_SELECT_UV, select);
     return;
@@ -1245,7 +1245,7 @@ void uvedit_loop_edge_select_set(const ToolSettings *ts,
                                  const BMUVOffsets &offsets)
 {
   if (ts->uv_flag & UV_FLAG_SYNC_SELECT) {
-    BLI_assert(bm->uv_sync_select_valid);
+    BLI_assert(bm->uv_select_sync_valid);
     UNUSED_VARS_NDEBUG(bm);
     BM_elem_flag_set(l, BM_ELEM_SELECT_UV_EDGE, select);
     return;
@@ -1804,7 +1804,7 @@ UVSyncSelectFromMesh *UVSyncSelectFromMesh::create_if_needed(const ToolSettings 
   if (ED_uvedit_sync_uvselect_ignore(&ts)) {
     return nullptr;
   }
-  if (bm.uv_sync_select_valid == false) {
+  if (bm.uv_select_sync_valid == false) {
     return nullptr;
   }
   const int cd_loop_uv_offset = CustomData_get_active_layer(&bm.ldata, CD_PROP_FLOAT2);
@@ -2436,7 +2436,7 @@ static void uv_select_linked_multi(Scene *scene,
   }
 
   const ToolSettings *ts = scene->toolsettings;
-  const bool uv_sync_select = (ts->uv_flag & UV_FLAG_SYNC_SELECT);
+  const bool uv_select_sync = (ts->uv_flag & UV_FLAG_SYNC_SELECT);
 
   /* loop over objects, or just use hit->ob */
   for (const int ob_index : objects.index_range()) {
@@ -2454,7 +2454,7 @@ static void uv_select_linked_multi(Scene *scene,
     char *flag;
     BMesh *bm = BKE_editmesh_from_object(obedit)->bm;
 
-    if (uv_sync_select) {
+    if (uv_select_sync) {
       uvedit_select_prepare_sync_select(scene, bm);
     }
     else {
@@ -2470,7 +2470,7 @@ static void uv_select_linked_multi(Scene *scene,
      *
      * Better solve this by having a delimit option for select-linked operator,
      * keeping island-select working as is. */
-    UvVertMap *vmap = BM_uv_vert_map_create(bm, !uv_sync_select);
+    UvVertMap *vmap = BM_uv_vert_map_create(bm, !uv_select_sync);
     if (vmap == nullptr) {
       continue;
     }
@@ -2493,7 +2493,7 @@ static void uv_select_linked_multi(Scene *scene,
             BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
               if (uvedit_uv_select_test(scene, bm, l, offsets)) {
                 bool add_to_stack = true;
-                if (uv_sync_select) {
+                if (uv_select_sync) {
                   /* Special case, vertex/edge & sync select being enabled.
                    *
                    * Without this, a second linked select will 'grow' each time as each new
@@ -2631,7 +2631,7 @@ static void uv_select_linked_multi(Scene *scene,
      * In this case it's important perform selection in two passes,
      * otherwise the final vertex/edge selection around UV island boundaries
      * will contain a mixed selection depending on the order of faces. */
-    const bool needs_multi_pass = uv_sync_select &&
+    const bool needs_multi_pass = uv_select_sync &&
                                   (scene->toolsettings->selectmode &
                                    (SCE_SELECT_VERTEX | SCE_SELECT_EDGE)) &&
                                   (deselect == false);
@@ -2680,7 +2680,7 @@ static void uv_select_linked_multi(Scene *scene,
     MEM_freeN(flag);
     BM_uv_vert_map_free(vmap);
 
-    if (uv_sync_select) {
+    if (uv_select_sync) {
       if (ED_uvedit_sync_uvselect_ignore(ts)) {
         if (deselect) {
           BM_mesh_select_flush_from_verts(bm, false);
@@ -2693,7 +2693,7 @@ static void uv_select_linked_multi(Scene *scene,
       }
       else {
         BLI_assert(ED_uvedit_sync_uvselect_is_valid_or_ignore(ts, bm));
-        if (bm->uv_sync_select_valid) {
+        if (bm->uv_select_sync_valid) {
           if (deselect) {
             BM_mesh_uvselect_flush_from_faces_only_deselect(bm);
           }
@@ -2785,7 +2785,7 @@ static wmOperatorStatus uv_select_more_less(bContext *C, const bool select)
     }
     const BMUVOffsets offsets = BM_uv_map_offsets_get(bm);
 
-    if ((ts->uv_flag & UV_FLAG_SYNC_SELECT) && (bm->uv_sync_select_valid == false)) {
+    if ((ts->uv_flag & UV_FLAG_SYNC_SELECT) && (bm->uv_select_sync_valid == false)) {
       BMEditMesh *em = BKE_editmesh_from_object(obedit);
       if (select) {
         EDBM_select_more(em, true);
@@ -2896,7 +2896,7 @@ static wmOperatorStatus uv_select_more_less(bContext *C, const bool select)
       }
 
       if (ts->uv_flag & UV_FLAG_SYNC_SELECT) {
-        BLI_assert(bm->uv_sync_select_valid); /* Already handled. */
+        BLI_assert(bm->uv_select_sync_valid); /* Already handled. */
         if (select) {
           BM_mesh_uvselect_flush_from_loop_verts_only_select(bm);
         }
@@ -3002,7 +3002,7 @@ static void uv_select_all(const Scene *scene, BMEditMesh *em, bool select_all)
 
   if (ts->uv_flag & UV_FLAG_SYNC_SELECT) {
     /* Clear all partial selection as there is no need for it. */
-    bm->uv_sync_select_valid = false;
+    bm->uv_select_sync_valid = false;
 
     if (select_all) {
       EDBM_flag_enable_all(em, BM_ELEM_SELECT);
@@ -3044,10 +3044,10 @@ static void uv_select_invert(const Scene *scene, BMEditMesh *em)
 
   if (ts->uv_flag & UV_FLAG_SYNC_SELECT) {
     if (ED_uvedit_sync_uvselect_ignore(ts)) {
-      bm->uv_sync_select_valid = false;
+      bm->uv_select_sync_valid = false;
     }
     /* If selection wasn't synced, there is no need to sync.  */
-    if (bm->uv_sync_select_valid == false) {
+    if (bm->uv_select_sync_valid == false) {
       EDBM_select_swap(em);
       EDBM_selectmode_flush(em);
       return;
@@ -3177,7 +3177,7 @@ void ED_uvedit_deselect_all(const Scene *scene, Object *obedit, int action)
   /* In the case of where the selection is all or none, there is no need to hold
    * a separate state for UV's and the mesh. */
   if (ts->uv_flag & UV_FLAG_SYNC_SELECT) {
-    if (em->bm->uv_sync_select_valid) {
+    if (em->bm->uv_select_sync_valid) {
       if (ELEM(action, SEL_SELECT, SEL_DESELECT)) {
         EDBM_uvselect_clear(em);
       }
@@ -3504,7 +3504,7 @@ static bool uv_mouse_select_multi(bContext *C,
 
     if (ts->uv_flag & UV_FLAG_SYNC_SELECT) {
       if (flush != 0) {
-        if (bm->uv_sync_select_valid) {
+        if (bm->uv_select_sync_valid) {
           /* TODO: the picking should edge deselection to faces for e.g. */
 
           /* NOTE: currently face selection handles all flushing itself.
@@ -4265,7 +4265,7 @@ static void uv_select_flush_from_tag_loop(const Scene *scene, Object *obedit, co
   BMIter iter, liter;
 
   const bool use_mesh_select = (ts->uv_flag & UV_FLAG_SYNC_SELECT) &&
-                               (bm->uv_sync_select_valid == false);
+                               (bm->uv_select_sync_valid == false);
 
   if (ts->uv_flag & UV_FLAG_SYNC_SELECT) {
     uvedit_select_prepare_sync_select(scene, bm);
@@ -5793,7 +5793,7 @@ static wmOperatorStatus uv_select_similar_vert_exec(bContext *C, wmOperator *op)
     }
     if (changed) {
       if (ts->uv_flag & UV_FLAG_SYNC_SELECT) {
-        if (bm->uv_sync_select_valid) {
+        if (bm->uv_select_sync_valid) {
           BM_mesh_uvselect_flush_from_loop_verts_only_select(bm);
           BM_mesh_uvselect_flush_to_mesh(bm);
         }
@@ -5920,7 +5920,7 @@ static wmOperatorStatus uv_select_similar_edge_exec(bContext *C, wmOperator *op)
     }
     if (changed) {
       if (ts->uv_flag & UV_FLAG_SYNC_SELECT) {
-        if (bm->uv_sync_select_valid) {
+        if (bm->uv_select_sync_valid) {
           BM_mesh_uvselect_flush_from_loop_verts_only_select(bm);
           BM_mesh_uvselect_flush_to_mesh(bm);
         }
@@ -6037,7 +6037,7 @@ static wmOperatorStatus uv_select_similar_face_exec(bContext *C, wmOperator *op)
     }
     if (changed) {
       if (ts->uv_flag & UV_FLAG_SYNC_SELECT) {
-        if (bm->uv_sync_select_valid) {
+        if (bm->uv_select_sync_valid) {
           BM_mesh_uvselect_flush_from_loop_verts_only_select(bm);
           BM_mesh_uvselect_flush_to_mesh(bm);
         }
@@ -6153,7 +6153,7 @@ static wmOperatorStatus uv_select_similar_island_exec(bContext *C, wmOperator *o
 
     if (changed) {
       if (ts->uv_flag & UV_FLAG_SYNC_SELECT) {
-        if (bm->uv_sync_select_valid) {
+        if (bm->uv_select_sync_valid) {
           BM_mesh_uvselect_flush_from_loop_verts_only_select(bm);
           BM_mesh_uvselect_flush_to_mesh(bm);
         }

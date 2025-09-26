@@ -432,7 +432,7 @@ static PyObject *bpy_bmesh_uv_select_sync_valid_get(BPy_BMesh *self, void * /*cl
 {
   BPY_BM_CHECK_OBJ(self);
 
-  return PyBool_FromLong(self->bm->uv_sync_select_valid);
+  return PyBool_FromLong(self->bm->uv_select_sync_valid);
 }
 
 static int bpy_bmesh_uv_select_sync_valid_set(BPy_BMesh *self, PyObject *value, void * /*closure*/)
@@ -443,7 +443,7 @@ static int bpy_bmesh_uv_select_sync_valid_set(BPy_BMesh *self, PyObject *value, 
   if ((param = PyC_Long_AsBool(value)) == -1) {
     return -1;
   }
-  self->bm->uv_sync_select_valid = param;
+  self->bm->uv_select_sync_valid = param;
   return 0;
 }
 
@@ -5068,7 +5068,7 @@ int bpy_bm_generic_valid_check_source(BMesh *bm_source,
 int bpy_bm_check_uv_select_sync_valid(BMesh *bm)
 {
   int ret = 0;
-  if (bm->uv_sync_select_valid == false) {
+  if (bm->uv_select_sync_valid == false) {
     PyErr_SetString(PyExc_ValueError, "bm.uv_select_sync_valid: must be true");
     ret = -1;
   }

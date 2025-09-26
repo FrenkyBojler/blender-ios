@@ -746,7 +746,7 @@ static bool uv_rip_object(Scene *scene, Object *obedit, const float co[2], const
 
   if (ts->uv_flag & UV_FLAG_SYNC_SELECT) {
     uvedit_select_prepare_sync_select(scene, bm);
-    BLI_assert(bm->uv_sync_select_valid);
+    BLI_assert(bm->uv_select_sync_valid);
   }
   else {
     uvedit_select_prepare_custom_data(scene, bm);

@@ -1751,7 +1751,7 @@ static bool uv_mesh_hide_sync_select(const ToolSettings *ts, Object *ob, BMEditM
   BMesh *bm = em->bm;
   bool changed = false;
 
-  if (bm->uv_sync_select_valid == false || ED_uvedit_sync_uvselect_ignore(ts)) {
+  if (bm->uv_select_sync_valid == false || ED_uvedit_sync_uvselect_ignore(ts)) {
     /* Simple case, no need to synchronize UV's, forward to mesh hide. */
     changed = EDBM_mesh_hide(em, swap);
   }

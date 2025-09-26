@@ -1624,7 +1624,7 @@ bool EDBM_mesh_reveal(BMEditMesh *em, bool select)
     }
   }
 
-  if (em->bm->uv_sync_select_valid) {
+  if (em->bm->uv_select_sync_valid) {
     BMesh *bm = em->bm;
     /* NOTE(@ideasman42): this could/should use the "sticky" tool setting.
      * Although in practice it's OK to assume "connected" sticky in this case. */
