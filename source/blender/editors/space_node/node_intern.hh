@@ -307,6 +307,7 @@ void NODE_OT_add_mask(wmOperatorType *ot);
 void NODE_OT_add_material(wmOperatorType *ot);
 void NODE_OT_add_color(wmOperatorType *ot);
 void NODE_OT_add_import_node(wmOperatorType *ot);
+void NODE_OT_swap_group_asset(wmOperatorType *ot);
 void NODE_OT_new_node_tree(wmOperatorType *ot);
 void NODE_OT_new_compositing_node_group(wmOperatorType *ot);
 void NODE_OT_new_compositor_sequencer_node_groupm(wmOperatorType *operator_type);
@@ -445,9 +446,11 @@ void invoke_node_link_drag_add_menu(bContext &C,
 
 /* `add_menu_assets.cc` */
 
-MenuType add_catalog_assets_menu_type();
-MenuType add_unassigned_assets_menu_type();
+MenuType catalog_assets_menu_type();
+MenuType unassigned_assets_menu_type();
 MenuType add_root_catalogs_menu_type();
+
+MenuType swap_root_catalogs_menu_type();
 
 /* `node_sync_sockets.cc` */
 
