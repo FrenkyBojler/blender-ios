@@ -34,8 +34,10 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_default_layout();
   b.add_input(data_type, "Grid").hide_value().structure_type(StructureType::Grid);
   b.add_output(data_type, "Grid").structure_type(StructureType::Grid).align_with_previous();
+  b.add_output<decl::Bool>("Is Valid")
+      .description("The new transform is valid and was successfully applied to the grid.");
   b.add_input<decl::Matrix>("Transform")
-      .description("Transform from grid index space to object space");
+      .description("The new transform from grid index space to object space.");
 }
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
@@ -55,16 +57,16 @@ static void node_geo_exec(GeoNodeExecParams params)
   }
 
   const float4x4 transform = params.extract_input<float4x4>("Transform");
-  bool invertible;
-  const float4x4 inverse_transform = math::invert(transform, invertible);
 
-  if (!invertible) {
-    params.error_message_add(NodeWarningType::Error,
-                             TIP_("Unable to set grid transform as it must be invertible."));
-  }
-  if (invertible) {
+  try {
     bke::VolumeGridData &grid_data = grid.get_for_write();
     bke::volume_grid::set_transform_matrix(grid_data, transform);
+    params.set_output("Is Valid", true);
+  }
+  catch (const openvdb::ArithmeticError & /*error*/) {
+    params.error_message_add(NodeWarningType::Error,
+                             TIP_("Failed to set the new grid transform."));
+    params.set_output("is Valid", false);
   }
 
   params.set_output("Grid", std::move(grid));
