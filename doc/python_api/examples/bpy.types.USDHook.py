@@ -254,15 +254,15 @@ class USDHookExample(bpy.types.USDHook):
         prim_map = import_context.get_prim_map()
 
         # Store prim path as a string on each data block created.
-        for prim, data_blocks in prim_map.items():
+        for prim_path, data_blocks in prim_map.items():
 
             # Type hints for prim map.
-            prim: Usd.Prim
+            prim_path: Sdf.Path
             data_blocks: list[bpy.types.ID]
 
             # Loop over mapped data blocks to store some metadata.
             for data_block in data_blocks:
-                data_block["prim_path"] = str(prim.GetPrimPath())
+                data_block["prim_path"] = str(prim_path)
 
         ###########################################################
         # Create a text object to display the stage's custom data.
