@@ -1610,7 +1610,7 @@ static void v3d_object_dimension_buts(bContext *C, uiLayout *layout, View3D *v3d
     copy_v3_v3(tfp->ob_scale_orig, ob->scale);
     copy_m4_m4(tfp->ob_obmat_orig, ob->object_to_world().ptr());
 
-     if (!is_editable) {
+    if (!is_editable) {
       sub_layout.enabled_set(false);
     }
 
