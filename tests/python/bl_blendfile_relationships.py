@@ -12,7 +12,6 @@ __all__ = (
 import bpy
 import os
 import sys
-import unittest
 from pathlib import Path
 
 from bpy.path import native_pathsep
@@ -20,7 +19,7 @@ from bpy.path import native_pathsep
 _my_dir = Path(__file__).resolve().parent
 sys.path.append(str(_my_dir))
 
-from bl_blendfile_utils import TestBlendLibLinkHelper
+from bl_blendfile_utils import TestBlendLibLinkHelper, TestHelper
 
 
 class TestBlendUserMap(TestBlendLibLinkHelper):
@@ -170,13 +169,15 @@ class TestBlendFilePathMap(TestBlendLibLinkHelper):
         self.assertRaises(TypeError, bpy.data.file_path_map, subset=[bpy.data.objects[0], bpy.data.images[0], "FooBar"])
 
 
-class TestBlendFilePathForeach(TestBlendLibLinkHelper):
+class TestBlendFilePathForeach(TestHelper):
+    testdir: Path
+
     def setUp(self) -> None:
         super().setUp()
 
         # File paths can get long, and thus also so can diffs when things go wrong.
         self.maxDiff = 10240
-        self.testdir = _my_dir.parent / "files/libraries_and_linking"
+        self.testdir = Path(self.args.src_test_dir) / "libraries_and_linking"
 
         bpy.ops.wm.open_mainfile(filepath=str(self.testdir / "library_test_scene.blend"))
 
@@ -196,12 +197,17 @@ class TestBlendFilePathForeach(TestBlendLibLinkHelper):
             (bpy.data.libraries['indirect_datablocks'], self.testdir / "libraries/indirect_datablocks.blend"),
         }, visited_paths)
 
-    def test_without_skip_packed(self) -> None:
-        """Test file_path_foreach() without the SKIP_PACKED flag."""
+    def test_with_nondefault_flag(self) -> None:
+        """Test file_path_foreach() with a non-default flag.
 
-        # If this works, it's enough as a test to assume the flags are parsed and
-        # passed to the C++ code correctly. There is no need to exhaustively test
-        # all the flags here.
+        If any non-default flag works, it's enough as a test to assume the flags
+        are parsed and passed to the C++ code correctly. There is no need to
+        exhaustively test all the flags here.
+        """
+
+        # The default value for `flags` is {'SKIP_PACKED',
+        # 'SKIP_WEAK_REFERENCES'}, so to also see the packed files, only pass
+        # `SKIP_WEAK_REFERENCES`.
         visited_paths = self._file_path_foreach(flags={'SKIP_WEAK_REFERENCES'})
         self.assertEqual({
             (bpy.data.libraries['direct_linked_A'], self.testdir / "libraries/direct_linked_A.blend"),
@@ -209,6 +215,20 @@ class TestBlendFilePathForeach(TestBlendLibLinkHelper):
             (bpy.data.libraries['indirect_datablocks'], self.testdir / "libraries/indirect_datablocks.blend"),
             (bpy.data.images['pack.png'], self.testdir / "libraries/pack.png"),
         }, visited_paths, "testing without SKIP_PACKED")
+
+    def test_filepath_rewriting(self) -> None:
+        def visit_path_fn(owner_id: bpy.types.ID, path: str) -> str | None:
+            return Path("//{}-rewritten.blend".format(owner_id.name)).as_posix()
+        bpy.data.file_path_foreach(visit_path_fn)
+
+        libs = bpy.data.libraries
+        self.assertEqual(libs['direct_linked_A'].filepath, "//direct_linked_A-rewritten.blend")
+        self.assertEqual(libs['direct_linked_B'].filepath, "//direct_linked_B-rewritten.blend")
+        self.assertEqual(libs['indirect_datablocks'].filepath, "//indirect_datablocks-rewritten.blend")
+        self.assertEqual(
+            bpy.data.images['pack.png'].filepath,
+            "//libraries/pack.png",
+            "Packed file should not have changed")
 
     @staticmethod
     def _file_path_foreach(

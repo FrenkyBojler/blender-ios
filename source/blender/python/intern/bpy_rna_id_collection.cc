@@ -510,7 +510,7 @@ struct IDFilePathForeachData {
   /**
    * Python callback function for visiting each path.
    *
-   * def visit_path_fn(owner_id: bpy.types.ID, path: str) -> str | None
+   * `def visit_path_fn(owner_id: bpy.types.ID, path: str) -> str | None`
    *
    * If the function returns a string, the path is replaced with the return
    * value.
@@ -525,45 +525,55 @@ struct IDFilePathForeachData {
   bool seen_error;
 };
 
-/**
- * Wraps eBPathForeachFlag from BKE_path.hh.
- *
- * No "tooltip" is set, because these are never shown in any documentation, UI, etc.
- */
+/** Wraps #eBPathForeachFlag from BKE_path.hh. */
 const EnumPropertyItem rna_enum_file_path_foreach_flag_items[] = {
     /* BKE_BPATH_FOREACH_PATH_ABSOLUTE is not included here, as its only use is to initialize a
      * field in BPathForeachPathData that is not used by the callback. */
-    {BKE_BPATH_FOREACH_PATH_SKIP_LINKED, "SKIP_LINKED", 0, "Skip Linked", ""},
-    {BKE_BPATH_FOREACH_PATH_SKIP_PACKED, "SKIP_PACKED", 0, "Skip Packed", ""},
-    {BKE_BPATH_FOREACH_PATH_RESOLVE_TOKEN, "RESOLVE_TOKEN", 0, "Resolve Token", ""},
+    {BKE_BPATH_FOREACH_PATH_SKIP_LINKED,
+     "SKIP_LINKED",
+     0,
+     "Skip Linked",
+     "Skip paths of linked IDs"},
+    {BKE_BPATH_FOREACH_PATH_SKIP_PACKED,
+     "SKIP_PACKED",
+     0,
+     "Skip Packed",
+     "Skip paths when their matching data is packed"},
+    {BKE_BPATH_FOREACH_PATH_RESOLVE_TOKEN,
+     "RESOLVE_TOKEN",
+     0,
+     "Resolve Token",
+     "Resolve tokens within a virtual filepath to a single, concrete, filepath. Currently only "
+     "used for UDIM tiles"},
     {BKE_BPATH_TRAVERSE_SKIP_WEAK_REFERENCES,
      "SKIP_WEAK_REFERENCES",
      0,
      "Skip Weak References",
-     ""},
-    {BKE_BPATH_FOREACH_PATH_SKIP_MULTIFILE, "SKIP_MULTIFILE", 0, "Skip Multifile", ""},
-    {BKE_BPATH_FOREACH_PATH_RELOAD_EDITED, "RELOAD_EDITED", 0, "Reload Edited", ""},
+     "Skip weak reference paths. Those paths are typically 'nice to have' extra information, but "
+     "are not used as actual source of data by the current .blend file"},
+    {BKE_BPATH_FOREACH_PATH_SKIP_MULTIFILE,
+     "SKIP_MULTIFILE",
+     0,
+     "Skip Multifile",
+     "Skip paths where a single dir is used with an array of files, eg. sequence strip images or "
+     "point-caches. In this case only the first file path is processed. This is needed for "
+     "directory manipulation callbacks which might otherwise modify the same directory multiple "
+     "times"},
+    {BKE_BPATH_FOREACH_PATH_RELOAD_EDITED,
+     "RELOAD_EDITED",
+     0,
+     "Reload Edited",
+     "Reload data when the path is edited"},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
 /** Wrapper for MEM_SAFE_FREE() as deallocator for std::unique_ptr. */
-struct MEM_freeN_destructor {
+struct MEM_freeN_smart_ptr_deleter {
   void operator()(void *pointer) const noexcept
   {
     MEM_SAFE_FREE(pointer);
   }
 };
-
-/** Python reference count decrementor for smart pointers. */
-struct PythonDecRef {
-  void operator()(PyObject *py_object) const noexcept
-  {
-    Py_XDECREF(py_object);
-  }
-};
-
-/** Unique pointer that decrements the reference count when going out of scope. */
-using PyObjectUniquePtr = std::unique_ptr<PyObject, PythonDecRef>;
 
 static bool foreach_id_file_path_foreach_callback(BPathForeachPathData *bpath_data,
                                                   char *path_dst,
@@ -584,47 +594,54 @@ static bool foreach_id_file_path_foreach_callback(BPathForeachPathData *bpath_da
 
   /* Construct the callback function parameters. */
   PointerRNA id_ptr = RNA_id_pointer_create(bpath_data->owner_id);
-  PyObjectUniquePtr args(PyTuple_New(2));
+  PyObject *args = PyTuple_New(2);
   PyObject *py_owner_id = pyrna_struct_CreatePyObject(&id_ptr);
   PyObject *py_path_src = PyUnicode_FromString(path_src);
-  PyTuple_SET_ITEMS(args.get(), py_owner_id, py_path_src);
+  PyTuple_SET_ITEMS(args, py_owner_id, py_path_src);
 
-  /* Call the callback function. */
-  PyObjectUniquePtr result_ptr(PyObject_CallObject(data.visit_path_fn, args.get()));
-  PyObject *result = result_ptr.get();
+  /* Call the Python callback function. */
+  PyObject *result = PyObject_CallObject(data.visit_path_fn, args);
+
+  /* Done with the function arguments. */
+  Py_DECREF(args);
+  args = nullptr;
 
   if (result == nullptr) {
     data.seen_error = true;
     return false;
   }
 
-  if (Py_IsNone(result)) {
+  if (result == Py_None) {
     /* Nothing to do. */
+    Py_DECREF(result);
     return false;
   }
 
   if (!PyUnicode_Check(result)) {
     PyErr_Format(PyExc_TypeError,
-                 "visit_path_fn() should return a string, but returned %R (%s) for "
+                 "visit_path_fn() should return a string or None, but returned %s for "
                  "owner_id=\"%s\" and file_path=\"%s\"",
-                 result,
                  Py_TYPE(result)->tp_name,
                  bpath_data->owner_id->name,
                  path_src);
     data.seen_error = true;
+    Py_DECREF(result);
     return false;
   }
 
   /* Copy the returned string back into the path. */
-  Py_ssize_t replacement_path_size = 0;
+  Py_ssize_t replacement_path_length = 0;
   PyObject *value_coerce = nullptr;
   const char *replacement_path = PyC_UnicodeAsBytesAndSize(
-      result, &replacement_path_size, &value_coerce);
+      result, &replacement_path_length, &value_coerce);
 
+  /* BLI_strncpy wants buffer size, but PyC_UnicodeAsBytesAndSize reports string
+   * length, hence the +1. */
   BLI_strncpy(
-      path_dst, replacement_path, std::min(path_dst_maxncpy, size_t(replacement_path_size)));
+      path_dst, replacement_path, std::min(path_dst_maxncpy, size_t(replacement_path_length + 1)));
 
   Py_XDECREF(value_coerce);
+  Py_DECREF(result);
   return true;
 }
 
@@ -643,33 +660,16 @@ PyDoc_STRVAR(
     "   :arg visit_path_fn: function that takes the data-block and a file path parameter, and "
     "returns either ``None`` or a ``str``. In the latter case, the visited file path will be "
     "replaced with the returned string.\n"
-    "   :type visit_path_fn: ``Callable[[bpy.types.ID, str], str|None]``\n"
+    "   :type visit_path_fn: Callable[[:class:`bpy.types.ID`, str], str|None]\n"
     "   :arg subset: When given, only these data-blocks and their used file paths "
     "will be visited.\n"
-    "   :type subset: ``set[str]``\n"
-    "   :arg visit_types: When given, only visit data-blocks of of these types. Ignored if "
+    "   :type subset: set[str]\n"
+    "   :arg visit_types: When given, only visit data-blocks of these types. Ignored if "
     "``subset`` is also given.\n"
-    "   :type visit_types: ``set[str]``\n"
-    "   :type flags: ``set[str]``\n"
-    "   :arg flags: Set of flags that influence which data-blocks are visited:\n"
-    "\n"
-    "               ``'SKIP_LINKED'``\n"
-    "                   Skip paths of linked IDs\n"
-    "               ``'SKIP_PACKED'``\n"
-    "                   Skip paths when their matching data is packed\n"
-    "               ``'RESOLVE_TOKEN'``\n"
-    "                   Resolve tokens within a virtual filepath to a single, concrete, filepath\n"
-    "               ``'SKIP_WEAK_REFERENCES'``\n"
-    "                   Skip weak reference paths. Those paths are typically 'nice to have' extra "
-    "information, but are not used as actual source of data by the current .blend file\n"
-    "               ``'SKIP_MULTIFILE'``\n"
-    "                   Skip paths where a single dir is used with an array of files, eg. "
-    "sequence strip images or point-caches. In this case only use the first file path is "
-    "processed. This is needed for "
-    "directory manipulation callbacks which might otherwise modify the same directory multiple "
-    "times\n"
-    "               ``'RELOAD_EDITED'``\n"
-    "                   Reload data when the path is edited\n");
+    "   :type visit_types: set[str]\n"
+    "   :type flags: set[str]\n"
+    "   :arg flags: Set of flags that influence which data-blocks are visited. See "
+    ":ref:`rna_enum_file_path_foreach_flag_items`.\n");
 static PyObject *bpy_file_path_foreach(PyObject *self, PyObject *args, PyObject *kwds)
 {
   Main *bmain = pyrna_bmain_FromPyObject(self);
@@ -680,7 +680,7 @@ static PyObject *bpy_file_path_foreach(PyObject *self, PyObject *args, PyObject 
   PyObject *visit_path_fn = nullptr;
   PyObject *subset = nullptr;
   PyObject *visit_types = nullptr;
-  std::unique_ptr<BLI_bitmap, MEM_freeN_destructor> visit_types_bitmap;
+  std::unique_ptr<BLI_bitmap, MEM_freeN_smart_ptr_deleter> visit_types_bitmap;
   PyObject *py_flags = nullptr;
 
   IDFilePathForeachData filepathforeach_data{};
@@ -742,20 +742,22 @@ static PyObject *bpy_file_path_foreach(PyObject *self, PyObject *args, PyObject 
 
   if (subset) {
     /* Visit the given subset of IDs. */
-    PyObjectUniquePtr subset_fast(PySequence_Fast(subset, "subset"));
+    PyObject *subset_fast = PySequence_Fast(subset, "subset");
     if (!subset_fast) {
       return nullptr;
     }
 
-    PyObject **subset_array = PySequence_Fast_ITEMS(subset_fast.get());
-    Py_ssize_t subset_len = PySequence_Fast_GET_SIZE(subset_fast.get());
+    PyObject **subset_array = PySequence_Fast_ITEMS(subset_fast);
+    const Py_ssize_t subset_len = PySequence_Fast_GET_SIZE(subset_fast);
+    for (Py_ssize_t index = 0; index < subset_len; index++) {
+      PyObject *subset_item = subset_array[index];
 
-    for (; subset_len; subset_array++, subset_len--) {
       ID *id;
-      if (!pyrna_id_FromPyObject(*subset_array, &id)) {
+      if (!pyrna_id_FromPyObject(subset_item, &id)) {
         PyErr_Format(PyExc_TypeError,
                      "Expected an ID type in `subset` iterable, not %.200s",
-                     Py_TYPE(*subset_array)->tp_name);
+                     Py_TYPE(subset_item)->tp_name);
+        Py_DECREF(subset_fast);
         return nullptr;
       }
 
@@ -763,9 +765,11 @@ static PyObject *bpy_file_path_foreach(PyObject *self, PyObject *args, PyObject 
       if (filepathforeach_data.seen_error) {
         /* Whatever triggered this error should have already set up the Python
          * interpreter for producing an exception. */
+        Py_DECREF(subset_fast);
         return nullptr;
       }
     }
+    Py_DECREF(subset_fast);
   }
   else {
     /* Visit all IDs, filtered by type if necessary. */

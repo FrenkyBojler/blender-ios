@@ -39,7 +39,10 @@ enum eBPathForeachFlag {
   BKE_BPATH_FOREACH_PATH_SKIP_LINKED = (1 << 1),
   /** Skip paths when their matching data is packed. */
   BKE_BPATH_FOREACH_PATH_SKIP_PACKED = (1 << 2),
-  /** Resolve tokens within a virtual filepath to a single, concrete, filepath. */
+  /**
+   * Resolve tokens within a virtual filepath to a single, concrete, filepath. Currently only used
+   * for UDIM tiles.
+   */
   BKE_BPATH_FOREACH_PATH_RESOLVE_TOKEN = (1 << 3),
   /**
    * Skip weak reference paths. Those paths are typically 'nice to have' extra information, but are
@@ -57,7 +60,7 @@ enum eBPathForeachFlag {
 
   /**
    * Skip paths where a single dir is used with an array of files, eg. sequence strip images or
-   * point-caches. In this case only use the first file path is processed.
+   * point-caches. In this case only the first file path is processed.
    *
    * This is needed for directory manipulation callbacks which might otherwise modify the same
    * directory multiple times.
