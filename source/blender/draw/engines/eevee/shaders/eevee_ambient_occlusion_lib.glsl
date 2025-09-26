@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "infos/eevee_common_info.hh"
+#include "infos/eevee_common_infos.hh"
 
 SHADER_LIBRARY_CREATE_INFO(eevee_global_ubo)
 SHADER_LIBRARY_CREATE_INFO(eevee_hiz_data)
@@ -15,6 +15,7 @@ SHADER_LIBRARY_CREATE_INFO(eevee_hiz_data)
 #include "eevee_utility_tx_lib.glsl"
 #include "gpu_shader_math_base_lib.glsl"
 #include "gpu_shader_math_fast_lib.glsl"
+#include "gpu_shader_math_vector_safe_lib.glsl"
 #include "gpu_shader_utildefines_lib.glsl"
 
 /* TODO(Miguel Pozo): Move this function somewhere else. */

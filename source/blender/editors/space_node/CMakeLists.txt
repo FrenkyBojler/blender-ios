@@ -12,6 +12,7 @@ set(INC
   ../../compositor/utilities
   ../../makesrna
   ../../nodes/geometry/include
+  ../../sequencer
   ../asset
 
   # RNA_prototypes.hh
@@ -70,6 +71,7 @@ set(LIB
   PRIVATE bf::nodes
   PRIVATE bf::render
   PRIVATE bf::windowmanager
+  PRIVATE bf::sequencer
 )
 
 if(WITH_OPENIMAGEDENOISE)

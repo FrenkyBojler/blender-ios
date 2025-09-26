@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.0.0 Alpha (b'29d18c45e4ed')\n"
+"Project-Id-Version: Blender 5.0.0 Alpha (b'fb3904ce45c6')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-09-10 07:24+0000\n"
+"POT-Creation-Date: 2025-09-22 08:45+0000\n"
 "PO-Revision-Date: 2025-09-04 22:59+0000\n"
 "Last-Translator: Dominic Iastrebschi <domjotebit@gmail.com>\n"
 "Language-Team: Romanian <https://translate.blender.org/projects/blender-ui/ui/ro/>\n"
@@ -1138,10 +1138,6 @@ msgid "Name of the Attribute"
 msgstr "Numele Atributului"
 
 
-msgid "Array"
-msgstr "Matrice"
-
-
 msgid "Byte Color Attribute"
 msgstr "Atributul Culorii Byte"
 
@@ -1864,6 +1860,10 @@ msgid "Gamma"
 msgstr "Gamma"
 
 
+msgid "View"
+msgstr "Vedere"
+
+
 msgid "Contrast"
 msgstr "Contrast"
 
@@ -1902,10 +1902,6 @@ msgstr "Manipulator Vector"
 
 msgid "Depth"
 msgstr "Adâncime"
-
-
-msgid "View"
-msgstr "Vedere"
 
 
 msgid "Radius"
@@ -2215,6 +2211,10 @@ msgstr "Ajutor"
 
 msgid "Polygon"
 msgstr "Poligon"
+
+
+msgid "Array"
+msgstr "Matrice"
 
 
 msgid "New"
@@ -3802,10 +3802,6 @@ msgstr "Relație"
 
 msgid "Modify"
 msgstr "Modificare"
-
-
-msgid "Color Space:"
-msgstr "Spațiu Culoare:"
 
 
 msgid "Master"
