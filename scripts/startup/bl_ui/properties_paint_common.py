@@ -655,7 +655,8 @@ class FalloffPanel(BrushPanel):
             col.prop(brush, "curve_distance_falloff_preset", text="")
 
         if brush.curve_distance_falloff_preset == 'CUSTOM':
-            layout.template_curve_mapping(brush, "curve_distance_falloff", brush=True, use_negative_slope=True, show_presets=True)
+            layout.template_curve_mapping(brush, "curve_distance_falloff", brush=True,
+                                          use_negative_slope=True, show_presets=True)
 
             col = layout.column(align=True)
             row = col.row(align=True)
