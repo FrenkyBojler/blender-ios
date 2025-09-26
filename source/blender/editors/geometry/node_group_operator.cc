@@ -984,7 +984,7 @@ static wmOperatorStatus run_node_group_exec(bContext *C, wmOperator *op)
       return OPERATOR_CANCELLED;
     }
 
-    if (!result_geometry.gather_component_types(false, true).is_empty()) {
+    if (result_geometry.has_realized_data()) {
       BKE_report(op->reports, RPT_INFO, "Realized non-instance geometry in output is ignored");
     }
 
