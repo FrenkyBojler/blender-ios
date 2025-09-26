@@ -8997,7 +8997,6 @@ class VIEW3D_PT_curves_sculpt_parameter_falloff(Panel):
             brush.curves_sculpt_settings,
             "curve_parameter_falloff",
             brush=True,
-            use_negative_slope=True,
             show_presets=True)
 
 
