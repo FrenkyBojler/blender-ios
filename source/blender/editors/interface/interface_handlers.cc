@@ -3152,14 +3152,12 @@ static blender::Vector<blender::StringRef> ui_but_textbox_wrap_lines(const ARegi
 
 static void ui_but_textbox_add_scroll(const ARegion *region, uiButTextBox *textbox, int step)
 {
-
   textbox->last_total_lines = ui_but_textbox_wrap_lines(region, textbox).size();
   textbox->line_scroll_set(textbox->line_scroll + step);
 }
 
 static void ui_but_textbox_scroll_to_cursor(const ARegion *region, uiButTextBox *textbox)
 {
-
   blender::Vector<blender::StringRef> lines = ui_but_textbox_wrap_lines(region, textbox);
   int line_cursor = 0;
   int but_pos = textbox->pos;
@@ -3169,7 +3167,6 @@ static void ui_but_textbox_scroll_to_cursor(const ARegion *region, uiButTextBox 
     but_pos += ime_data->cursor_pos;
   }
 #endif
-
   const char *cursor = lines[0].begin() + but_pos;
   for (blender::StringRef line : lines) {
     if (line.begin() > cursor) {
@@ -3370,17 +3367,16 @@ static bool ui_textedit_insert_ascii(uiBut *but, uiHandleButtonData *data, const
 
 static void ui_but_textbox_jump_line(ARegion *region,
                                      uiButTextBox *textbox,
-                                     uiTextEdit &text_edit,
+                                     uiTextEdit & /*text_edit*/,
                                      eStrCursorJumpDirection direction,
                                      const bool select)
 {
-  const char *str = text_edit.edit_string;
-  const int len = strlen(str);
   ui_but_update(textbox);
   if (textbox->selend == textbox->selsta) {
     textbox->selsta = textbox->selend = textbox->pos;
   }
   blender::Vector<blender::StringRef> lines = ui_but_textbox_wrap_lines(region, textbox);
+  const char *str = lines.first().begin();
   const bool append_selection = textbox->selend == textbox->pos;
   const char *cursor = str + textbox->pos;
   int line_cursor = 0;
@@ -3399,7 +3395,7 @@ static void ui_but_textbox_jump_line(ARegion *region,
   blender::StringRef dest_line = nullptr;
   if (direction == STRCUR_DIR_NEXT) {
     if (line_cursor == lines.size() - 1) {
-      textbox->pos = len;
+      textbox->pos = lines.last().end() - str;
     }
     else {
       dest_line = lines[line_cursor + 1];
@@ -4351,6 +4347,8 @@ static int ui_do_but_textedit(
   }
   else if (event->type == WM_IME_COMPOSITE_END) {
     changed = true;
+    ui_textedit_ime_end(win, but);
+    ui_textedit_ime_begin(win, but);
   }
 #endif
   if (textbox_but && (changed || orig_pos != but->pos) && data->state != BUTTON_STATE_EXIT) {

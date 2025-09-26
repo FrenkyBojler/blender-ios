@@ -2000,36 +2000,35 @@ static void widget_draw_text_ime_underline(const uiFontStyle *fstyle,
 
 blender::Vector<blender::StringRef> ui_but_textbox_wrap_lines(uiButTextBox *textbox, int width)
 {
-  if (textbox->drawstr.empty() && (!textbox->editstr || textbox->editstr[0] == 0)) {
-    textbox->last_total_lines = 1;
-    return {textbox->editstr ? blender::StringRef(textbox->editstr) :
-                               blender::StringRef(textbox->drawstr)};
-  }
+  using blender::StringRef;
   uiFontStyle fstyle = UI_style_get()->widget;
+  StringRef text = textbox->drawstr;
 #ifdef WITH_INPUT_IME
   const wmIMEData *ime_data = ui_but_ime_data_get(textbox);
-  if (textbox->editstr && ime_data && ime_data->composite.size()) {
-    textbox->drawstr = fmt::format("{}{}{}",
-                                   std::string_view(textbox->editstr, textbox->pos),
-                                   ime_data->composite,
-                                   textbox->editstr + textbox->pos);
+  if (ime_data && ime_data->composite.size() > 0) {
+    StringRef edit_str = textbox->editstr;
+    StringRef l = edit_str.is_empty() ? StringRef("") : edit_str.substr(0, textbox->pos);
+    StringRef r = edit_str.is_empty() ? StringRef("") : edit_str.substr(textbox->pos);
+    StringRef ime_str = ime_data->composite;
+    textbox->drawstr = fmt::format("{}{}{}", l, ime_str, r);
+    text = textbox->drawstr;
   }
-  else if (textbox->editstr) {
-    textbox->drawstr = textbox->editstr;
-  }
+  else
 #endif
-  blender::StringRef text = blender::StringRef(textbox->drawstr);
-  blender::Vector<blender::StringRef> lines = BLF_string_wrap(
+      if (textbox->editstr)
+  {
+    text = textbox->editstr;
+  }
+  blender::Vector<StringRef> lines = BLF_string_wrap(
       fstyle.uifont_id, text, width, BLFWrapMode::HardLimit);
   if (lines.is_empty()) {
     lines.append(text);
   }
   /* Add empty trailing line to put cursor in a new line. */
   if (text.endswith("\n")) {
-    lines.append(blender::StringRef(text.end(), text.end()));
+    lines.append(StringRef(text.end(), text.end()));
   }
-  /* Last line migth include null terminator, remove this to avoid crash with
-   * #BLI_str_utf8_as_unicode_step_or_error. */
+  /* Remove trailing null terminator. */
   if (lines.last().endswith(blender::StringRefNull("\0"))) {
     lines.last() = lines.last().drop_suffix(1);
   }
@@ -2056,7 +2055,6 @@ static void widget_draw_textbox(const uiFontStyle *fstyle,
   UI_fontstyle_set(fstyle);
   const blender::Vector<blender::StringRef> lines = ui_but_textbox_wrap_lines(
       textbox_but, BLI_rcti_size_x(rect));
-  const char *drawstr = but->drawstr.c_str();
 
   const int line_height = BLI_rcti_size_y(rect) / (visible_lines);
   textbox_but->line_scroll_set(textbox_but->line_scroll);
@@ -2095,7 +2093,10 @@ static void widget_draw_textbox(const uiFontStyle *fstyle,
         };
     selection_line_bounds_get(but->selsta, but->selend, line_select_start, line_select_end);
 #ifdef WITH_INPUT_IME
-    selection_line_bounds_get(but->pos, but_pos, ime_line_start, ime_line_end);
+    if (ime_data) {
+      selection_line_bounds_get(
+          but->pos, but->pos + ime_data->composite.size(), ime_line_start, ime_line_end);
+    }
 #endif
   }
 
@@ -2111,7 +2112,7 @@ static void widget_draw_textbox(const uiFontStyle *fstyle,
   }
 
   /* Text button selection, cursor, composite underline. */
-  if (but->editstr && but_pos != -1) {
+  if (but->editstr) {
 
 #ifdef WITH_INPUT_IME
     bool ime_reposition_window = false;
@@ -2171,20 +2172,26 @@ static void widget_draw_textbox(const uiFontStyle *fstyle,
       }
       immUnbindProgram();
       GPU_blend(GPU_BLEND_NONE);
-
-#ifdef WITH_INPUT_IME
-      /* IME candidate window uses selection position. */
-      if (!ime_reposition_window && boxes.size() > 0) {
-        ime_reposition_window = true;
-        ime_win_x = rect->xmin + boxes[0].min;
-        ime_win_y = rect->ymin + U.pixelsize;
-      }
-#endif
     }
+#ifdef WITH_INPUT_IME
+    /* IME candidate window uses selection position. */
+    if (!ime_reposition_window && lines_selection.size() > 0) {
+      ime_reposition_window = true;
+      ime_win_x = rect->xmin;
+      ime_win_y = rect->ymax -
+                  (line_height * (std::clamp(line_select_end, scroll, scroll + visible_lines - 1) -
+                                  scroll + 1)) +
+                  3;
+    }
+#endif
 
 #ifdef WITH_INPUT_IME
+    /* Composite underline. */
     blender::Vector<LineSelection> ime_underlying_selection = lines_selection_get(
-        but->pos, but_pos, ime_line_start, ime_line_end);
+        but->pos,
+        but->pos + (ime_data ? ime_data->composite.size() : 0),
+        ime_line_start,
+        ime_line_end);
     float fcol[4];
     GPU_blend(GPU_BLEND_ALPHA);
     UI_widgetbase_draw_cache_flush();
@@ -2213,7 +2220,7 @@ static void widget_draw_textbox(const uiFontStyle *fstyle,
 #endif
 
     /* Draw text cursor (caret). */
-    if (IN_RANGE((line_cursor - scroll), -1, visible_lines)) {
+    if (scroll <= line_cursor && line_cursor < scroll + visible_lines) {
       int t = BLF_str_offset_to_cursor(fstyle->uifont_id,
                                        lines[line_cursor].begin(),
                                        UI_MAX_DRAW_STR,
@@ -2239,13 +2246,15 @@ static void widget_draw_textbox(const uiFontStyle *fstyle,
                y - U.pixelsize);
 
       immUnbindProgram();
-
 #ifdef WITH_INPUT_IME
       /* IME candidate window uses cursor position. */
       if (!ime_reposition_window) {
         ime_reposition_window = true;
         ime_win_x = rect->xmin + t + 5;
-        ime_win_y = rect->ymin + 3;
+        ime_win_y = rect->ymax -
+                    (line_height *
+                     (std::clamp(line_cursor, scroll, scroll + visible_lines - 1) - scroll + 1)) +
+                    3;
       }
 #endif
     }
@@ -2254,10 +2263,6 @@ static void widget_draw_textbox(const uiFontStyle *fstyle,
     /* IME cursor following. */
     if (ime_reposition_window) {
       ui_but_ime_reposition(but, ime_win_x, ime_win_y, false);
-    }
-    if (ime_data && ime_data->composite.size()) {
-      /* Composite underline. */
-      widget_draw_text_ime_underline(fstyle, wcol, but, rect, ime_data, drawstr);
     }
 #endif
   }

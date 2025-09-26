@@ -2708,8 +2708,6 @@ uiBut *ui_but_add_search(uiBut *but,
   return but;
 }
 
-static uiLayoutItemBx *ui_layout_box(uiLayout *layout, ButType type);
-
 void uiLayout::prop_textbox(PointerRNA *ptr,
                             blender::StringRefNull propname,
                             PointerRNA *visible_lines_ptr,
