@@ -358,7 +358,7 @@ class NODE_MT_shader_node_vector_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "ShaderNodeSeparateXYZ")
         layout.separator()
         self.node_operator(layout, "ShaderNodeNormal")
-        self.node_operator(layout, "ShaderNodeNormalMap")
+        self.node_operator(layout, "ShaderNodeMapping")
         self.node_operator(layout, "ShaderNodeRadialTiling")
         self.node_operator(layout, "ShaderNodeVectorCurve")
         self.node_operator(layout, "ShaderNodeVectorRotate")
@@ -407,7 +407,7 @@ class NODE_MT_shader_node_displacement_base(node_add_menu.NodeMenu):
 
         self.node_operator(layout, "ShaderNodeBump")
         self.node_operator(layout, "ShaderNodeDisplacement")
-        self.node_operator(layout, "ShaderNodeMapping")
+        self.node_operator(layout, "ShaderNodeNormalMap")
         self.node_operator(layout, "ShaderNodeVectorDisplacement")
 
         self.draw_assets_for_catalog(layout, self.bl_label)
