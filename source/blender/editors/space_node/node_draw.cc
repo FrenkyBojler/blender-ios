@@ -1717,7 +1717,6 @@ static void node_draw_node_group_indicator(const SpaceNode &snode,
 
   /* How far it extends down and narrows. */
   const float offset = 2.8f * UI_SCALE_FAC;
-  const float outline_width = U.pixelsize;
   const float alpha_selected = is_selected ? .33f : .0f;
   const float shadow_width = 0.25f * U.widget_unit;
   const float shadow_alpha = 0.15f;
