@@ -74,18 +74,24 @@ class NODE_MT_compositor_node_output_base(node_add_menu.NodeMenu):
 class NODE_MT_compositor_node_color_base(node_add_menu.NodeMenu):
     bl_label = "Color"
 
-    def draw(self, _context):
+    def draw(self, context):
         layout = self.layout
         self.draw_menu(layout, path="Color/Adjust")
         layout.separator()
-        self.draw_menu(layout, path="Color/Mix")
-        layout.separator()
+        self.node_operator(layout, "CompositorNodeAlphaOver")
+        self.node_operator(layout, "CompositorNodeSetAlpha")
         self.node_operator(layout, "CompositorNodePremulKey")
+        layout.separator()
+        self.node_operator(layout, "CompositorNodeCombineColor")
+        self.node_operator(layout, "CompositorNodeSeparateColor")
+        layout.separator()
+        self.node_operator(layout, "CompositorNodeZcombine")
+        self.color_mix_node(context, layout)
+        layout.separator()
         self.node_operator(layout, "ShaderNodeBlackbody")
         self.node_operator(layout, "ShaderNodeValToRGB")
         self.node_operator(layout, "CompositorNodeConvertColorSpace")
         self.node_operator(layout, "CompositorNodeConvertToDisplay")
-        self.node_operator(layout, "CompositorNodeSetAlpha")
         layout.separator()
         self.node_operator(layout, "CompositorNodeInvert")
         self.node_operator(layout, "CompositorNodeRGBToBW")
@@ -118,13 +124,6 @@ class NODE_MT_compositor_node_color_mix_base(node_add_menu.NodeMenu):
 
     def draw(self, context):
         layout = self.layout
-        self.node_operator(layout, "CompositorNodeAlphaOver")
-        layout.separator()
-        self.node_operator(layout, "CompositorNodeCombineColor")
-        self.node_operator(layout, "CompositorNodeSeparateColor")
-        layout.separator()
-        self.node_operator(layout, "CompositorNodeZcombine")
-        self.color_mix_node(context, layout)
 
         self.draw_assets_for_catalog(layout, self.menu_path)
 
@@ -361,7 +360,6 @@ add_menus = {
     "NODE_MT_category_compositor_output": NODE_MT_compositor_node_output_base,
     "NODE_MT_category_compositor_color": NODE_MT_compositor_node_color_base,
     "NODE_MT_category_compositor_color_adjust": NODE_MT_compositor_node_color_adjust_base,
-    "NODE_MT_category_compositor_color_mix": NODE_MT_compositor_node_color_mix_base,
     "NODE_MT_category_compositor_filter": NODE_MT_compositor_node_filter_base,
     "NODE_MT_category_compositor_filter_blur": NODE_MT_compositor_node_filter_blur_base,
     "NODE_MT_category_compositor_creative": NODE_MT_compositor_node_creative_base,
@@ -389,7 +387,6 @@ swap_menus = {
     "NODE_MT_compositor_node_output_swap": NODE_MT_compositor_node_output_base,
     "NODE_MT_compositor_node_color_swap": NODE_MT_compositor_node_color_base,
     "NODE_MT_compositor_node_color_adjust_swap": NODE_MT_compositor_node_color_adjust_base,
-    "NODE_MT_compositor_node_color_mix_swap": NODE_MT_compositor_node_color_mix_base,
     "NODE_MT_compositor_node_filter_swap": NODE_MT_compositor_node_filter_base,
     "NODE_MT_compositor_node_filter_blur_swap": NODE_MT_compositor_node_filter_blur_base,
     "NODE_MT_category_compositor_creative_swap": NODE_MT_compositor_node_creative_base,
