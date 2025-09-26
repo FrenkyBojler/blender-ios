@@ -337,6 +337,7 @@ static void curvemap_buttons_layout(uiLayout *layout,
   uiBut *bt;
   const float dx = UI_UNIT_X;
   eButGradientType bg = UI_GRAD_NONE;
+  const bool presets = true
 
   uiBlock *block = layout->block();
 
@@ -764,6 +765,19 @@ static void curvemap_buttons_layout(uiLayout *layout,
 
       BKE_curvemapping_changed(cumap, false);
       rna_update_cb(C, cb);
+    });
+  }
+
+  if (presets) {
+    uiLayout *sub = &row->row(true);
+    sub->alignment_set(blender::ui::LayoutAlign::Left);
+    bt = uiDefIconBut(
+        block, ButType::Row, 0, ICON_SMOOTHCURVE, 0, 0, dx, dx, &cumap->cur, 0.0, 3.0, TIP_("Smooth preset"));
+    UI_but_func_set(bt, [cumap](bContext &C) {
+      cumap->flag &= ~CUMA_EXTEND_EXTRAPOLATE;
+      cumap->preset = CURVE_PRESET_SMOOTH;
+      BKE_curvemap_reset(cumap->cm, &cumap->clipr, cumap->preset, CURVEMAP_SLOPE_NEGATIVE);
+      BKE_curvemapping_changed(cumap, false);
     });
   }
 
