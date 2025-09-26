@@ -1801,7 +1801,7 @@ static wmOperatorStatus new_compositor_sequencer_node_group_exec(bContext *C, wm
   return OPERATOR_FINISHED;
 }
 
-void NODE_OT_new_compositor_sequencer_node_groupm(wmOperatorType *operator_type)
+void NODE_OT_new_compositor_sequencer_node_group(wmOperatorType *operator_type)
 {
   operator_type->name = "New Compositor Sequencer Node Group";
   operator_type->idname = "NODE_OT_new_compositor_sequencer_node_group";
