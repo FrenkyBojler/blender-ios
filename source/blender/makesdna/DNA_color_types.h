@@ -223,7 +223,6 @@ typedef struct ColorManagedColorspaceSettings {
 enum {
   COLORMANAGE_DISPLAY_EMULATION_AUTO = 0,
   COLORMANAGE_DISPLAY_EMULATION_OFF = 1,
-  COLORMANAGE_DISPLAY_EMULATION_GAMMA22 = 2
 };
 
 /** #ColorManagedViewSettings.flag */

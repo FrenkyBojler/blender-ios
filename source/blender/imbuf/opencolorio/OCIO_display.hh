@@ -11,8 +11,6 @@ namespace blender::ocio {
 class CPUProcessor;
 class View;
 
-enum class DisplayEmulation { Auto = 0, Off = 1, Gamma22 = 2, Num = 3 };
-
 class Display {
  public:
   virtual ~Display() = default;
@@ -68,13 +66,13 @@ class Display {
    * Quick access to processors that convert color space from the display to scene linear and vice
    * versa. The call is allowed to be caching from the color space implementation perspective.
    *
-   * With #display_emulation, rather than converting to the display space, this converts to
+   * With #use_display_emulation, rather than converting to the display space, this converts to
    * extended sRGB emulating the display space.
    */
   const virtual CPUProcessor *get_to_scene_linear_cpu_processor(
-      DisplayEmulation display_emulation) const = 0;
+      bool use_display_emulation) const = 0;
   const virtual CPUProcessor *get_from_scene_linear_cpu_processor(
-      DisplayEmulation display_emulation) const = 0;
+      bool use_display_emulation) const = 0;
 
   /**
    * Determine if the display supports HDR.

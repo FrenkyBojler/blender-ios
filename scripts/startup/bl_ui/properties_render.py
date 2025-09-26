@@ -117,8 +117,8 @@ class RENDER_PT_color_management_working_space(RenderButtonsPanel, Panel):
         col.prop(scene.sequencer_colorspace_settings, "name", text="Sequencer")
 
 
-class RENDER_PT_color_management_display_settings(RenderButtonsPanel, Panel):
-    bl_label = "Display"
+class RENDER_PT_color_management_advanced(RenderButtonsPanel, Panel):
+    bl_label = "Advanced"
     bl_parent_id = "RENDER_PT_color_management"
     bl_options = {'DEFAULT_CLOSED'}
     COMPAT_ENGINES = {
@@ -1161,11 +1161,11 @@ classes = (
     RENDER_PT_opengl_film,
     RENDER_PT_hydra_debug,
     RENDER_PT_color_management,
-    RENDER_PT_color_management_working_space,
-    RENDER_PT_color_management_display_settings,
     RENDER_PT_color_management_curves,
     RENDER_PT_color_management_white_balance_presets,
     RENDER_PT_color_management_white_balance,
+    RENDER_PT_color_management_working_space,
+    RENDER_PT_color_management_advanced,
 )
 
 if __name__ == "__main__":  # only for live edit.

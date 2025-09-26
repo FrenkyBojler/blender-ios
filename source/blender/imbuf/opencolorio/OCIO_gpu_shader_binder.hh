@@ -21,8 +21,6 @@
 #include "BLI_span.hh"
 #include "BLI_string_ref.hh"
 
-#include "OCIO_display.hh"
-
 struct CurveMapping;
 namespace blender::gpu {
 class Shader;
@@ -61,7 +59,7 @@ struct GPUDisplayParameters {
   bool use_hdr_display = false;
   /* Rather than outputting colors for the specified display, output extended
    * sRGB colors emulating the specified display. */
-  DisplayEmulation display_emulation = DisplayEmulation::Off;
+  bool use_display_emulation = false;
 };
 
 class GPUShaderBinder {

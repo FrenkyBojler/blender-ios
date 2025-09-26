@@ -252,7 +252,7 @@ const View *LibOCIODisplay::get_view_by_index(const int index) const
 }
 
 std::unique_ptr<LibOCIOCPUProcessor> LibOCIODisplay::create_scene_linear_cpu_processor(
-    const DisplayEmulation display_emulation, const bool inverse) const
+    const bool use_display_emulation, const bool inverse) const
 {
   const View *view = get_untonemapped_view();
   if (view == nullptr) {
@@ -264,7 +264,7 @@ std::unique_ptr<LibOCIOCPUProcessor> LibOCIODisplay::create_scene_linear_cpu_pro
   display_parameters.view = view->name();
   display_parameters.display = name_;
   display_parameters.inverse = inverse;
-  display_parameters.display_emulation = display_emulation;
+  display_parameters.use_display_emulation = use_display_emulation;
   OCIO_NAMESPACE::ConstProcessorRcPtr ocio_processor = create_ocio_display_processor(
       *config_, display_parameters);
   if (!ocio_processor) {
@@ -281,25 +281,30 @@ std::unique_ptr<LibOCIOCPUProcessor> LibOCIODisplay::create_scene_linear_cpu_pro
 }
 
 const CPUProcessor *LibOCIODisplay::get_to_scene_linear_cpu_processor(
-    const DisplayEmulation display_emulation) const
+    const bool use_display_emulation) const
 {
-  const CPUProcessorCache &cache = to_scene_linear_cpu_processor_[int(display_emulation)];
-  return cache.get([&] { return create_scene_linear_cpu_processor(display_emulation, true); });
+  const CPUProcessorCache &cache = (use_display_emulation) ?
+                                       to_scene_linear_emulation_cpu_processor_ :
+                                       to_scene_linear_cpu_processor_;
+  return cache.get([&] { return create_scene_linear_cpu_processor(use_display_emulation, true); });
 }
 
 const CPUProcessor *LibOCIODisplay::get_from_scene_linear_cpu_processor(
-    const DisplayEmulation display_emulation) const
+    const bool use_display_emulation) const
 {
-  const CPUProcessorCache &cache = from_scene_linear_cpu_processor_[int(display_emulation)];
-  return cache.get([&] { return create_scene_linear_cpu_processor(display_emulation, false); });
+  const CPUProcessorCache &cache = (use_display_emulation) ?
+                                       from_scene_linear_emulation_cpu_processor_ :
+                                       from_scene_linear_cpu_processor_;
+  return cache.get(
+      [&] { return create_scene_linear_cpu_processor(use_display_emulation, false); });
 }
 
 void LibOCIODisplay::clear_caches()
 {
-  for (int i = 0; i < int(DisplayEmulation::Num); i++) {
-    to_scene_linear_cpu_processor_[i] = CPUProcessorCache();
-    from_scene_linear_cpu_processor_[i] = CPUProcessorCache();
-  }
+  to_scene_linear_cpu_processor_ = CPUProcessorCache();
+  to_scene_linear_emulation_cpu_processor_ = CPUProcessorCache();
+  from_scene_linear_cpu_processor_ = CPUProcessorCache();
+  from_scene_linear_emulation_cpu_processor_ = CPUProcessorCache();
 }
 
 }  // namespace blender::ocio

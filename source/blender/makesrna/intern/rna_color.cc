@@ -1375,12 +1375,6 @@ static void rna_def_colormanage(BlenderRNA *brna)
        "Directly output image as produced by OpenColorIO. This is not correct in general, but "
        "may be used when the system configuration and actual display device is known to match "
        "the chosen display"},
-      {COLORMANAGE_DISPLAY_EMULATION_GAMMA22,
-       "GAMMA22",
-       0,
-       "Gamma 2.2",
-       "Output standard dynamic range images with a gamma 2.2 transform, as used by many "
-       "computer monitors. However, images display may not be consistent with other applications"},
       {COLORMANAGE_DISPLAY_EMULATION_AUTO,
        "AUTO",
        0,
@@ -1431,7 +1425,7 @@ static void rna_def_colormanage(BlenderRNA *brna)
   RNA_def_property_enum_items(prop, emulation_items);
   RNA_def_property_ui_text(
       prop,
-      "Emulation",
+      "Display Emulation",
       "Control how images in the chosen display are mapped to the physical display");
   RNA_def_property_update(
       prop, NC_WINDOW, "rna_ColorManagedDisplaySettings_display_device_update");

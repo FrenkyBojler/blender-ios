@@ -73,14 +73,14 @@ class FallbackDefaultDisplay : public Display {
   }
 
   const CPUProcessor *get_to_scene_linear_cpu_processor(
-      DisplayEmulation /*display_emulation*/) const override
+      bool /*use_display_emulation*/) const override
   {
     static FallbackSRGBToLinearRGBCPUProcessor processor;
     return &processor;
   }
 
   const CPUProcessor *get_from_scene_linear_cpu_processor(
-      DisplayEmulation /*display_emulation*/) const override
+      bool /*use_display_emulation*/) const override
   {
     static FallbackLinearRGBToSRGBCPUProcessor processor;
     return &processor;

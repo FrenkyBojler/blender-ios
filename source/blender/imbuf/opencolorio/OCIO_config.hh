@@ -10,8 +10,6 @@
 #include "BLI_math_vector_types.hh"
 #include "BLI_string_ref.hh"
 
-#include "OCIO_display.hh"
-
 namespace blender::ocio {
 
 class ColorSpace;
@@ -38,7 +36,7 @@ struct DisplayParameters {
   bool use_hdr_display = false;
   /* Rather than outputting colors for the specified display, output extended
    * sRGB colors emulating the specified display. */
-  DisplayEmulation display_emulation = DisplayEmulation::Off;
+  bool use_display_emulation = false;
   /* Invert the entire transform. */
   bool inverse = false;
 };
