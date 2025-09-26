@@ -330,7 +330,7 @@ static void add_preset_button(uiBlock *block,
     uiBut* bt = uiDefIconBut(
         block, ButType::Row, 0, icon, 0, 0, dx, dx, &cumap->cur, 0.0, 3.0, tip);
     UI_but_func_set(bt, [&, cumap, neg_slope, preset, cb](bContext &C) {
-      const int slope = neg_slope ? CURVEMAP_SLOPE_NEGATIVE : CURVEMAP_SLOPE_POSITIVE;
+      const CurveMapSlopeType slope = neg_slope ? CurveMapSlopeType::Negative : CurveMapSlopeType::Positive;
       cumap->flag &= ~CUMA_EXTEND_EXTRAPOLATE;
       cumap->preset = preset;
       BKE_curvemap_reset(cumap->cm, &cumap->clipr, cumap->preset, slope);
