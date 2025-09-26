@@ -562,20 +562,60 @@ typedef struct bTransformCacheConstraint {
   char reader_object_path[/*FILE_MAX*/ 1024];
 } bTransformCacheConstraint;
 
+/* bAttributeConstraint->flag */
+typedef enum eAttributeConstraint_Flags {
+  APPLY_TARGET_TRANSFORM = (1 << 0),
+  MIX_LOC = (1 << 1),
+  MIX_ROT = (1 << 2),
+  MIX_SCALE = (1 << 3),
+} eAttributeConstraint_Flags;
+
 /* Attribute Constraint */
 typedef struct bAttributeConstraint {
   struct Object *target;
-  int sample_index;
-  char apply_target_transform;
-  char mix_loc;
-  char mix_rot;
-  char mix_scl;
-  char mix_mode;
-  char _pad0[3];
-  short data_type;
-  short domain_type;
   char *attribute_name;
+  int32_t sample_index;
+  uint8_t apply_target_transform;
+  uint8_t mix_mode;
+  /* #Attribute_Domain */
+  uint8_t domain;
+  /* #Attribute_Data_Type */
+  uint8_t data_type;
+  /* #eAttributeConstraint_Flags */
+  uint8_t flags;
+  char _pad0[7];
 } bAttributeConstraint;
+
+/* Atrtibute Domain */
+typedef enum Attribute_Domain {
+  CON_ATTRIBUTE_DOMAIN_POINT = 0,
+  CON_ATTRIBUTE_DOMAIN_EDGE = 1,
+  CON_ATTRIBUTE_DOMAIN_FACE = 2,
+  CON_ATTRIBUTE_DOMAIN_FACE_CORNER = 3,
+  CON_ATTRIBUTE_DOMAIN_CURVE = 4,
+  CON_ATTRIBUTE_DOMAIN_INSTANCE = 5,
+} Attribute_Domain;
+
+/* Atrtibute Data Type*/
+typedef enum Attribute_Data_Type {
+  CON_ATTRIBUTE_VECTOR = 0,
+  CON_ATTRIBUTE_QUATERNION = 1,
+  CON_ATTRIBUTE_4X4MATRIX = 2,
+} Attribute_Data_Type;
+
+/** Attribute Component Mix Mode */
+typedef enum Attribute_MixMode {
+  /* Replace rotation channel values. */
+  CON_ATTRIBUTE_MIX_REPLACE = 0,
+  /* Multiply the copied transformation on the left, handling loc/rot/scale separately. */
+  CON_ATTRIBUTE_MIX_BEFORE_SPLIT = 1,
+  /* Multiply the copied transformation on the right, handling loc/rot/scale separately. */
+  CON_ATTRIBUTE_MIX_AFTER_SPLIT = 2,
+  /* Multiply the copied transformation on the left, using simple matrix multiplication. */
+  CON_ATTRIBUTE_MIX_BEFORE_FULL = 3,
+  /* Multiply the copied transformation on the right, using simple matrix multiplication. */
+  CON_ATTRIBUTE_MIX_AFTER_FULL = 4,
+} Attribute_MixMode;
 
 /* ------------------------------------------ */
 
@@ -1134,35 +1174,3 @@ typedef enum eStretchTo_Flags {
   STRETCHTOCON_USE_BULGE_MIN = (1 << 0),
   STRETCHTOCON_USE_BULGE_MAX = (1 << 1),
 } eStretchTo_Flags;
-
-/** Atrtibute Domain Mode */
-typedef enum Attribute_DomainMode {
-  CON_ATTRIBUTE_DOMAIN_POINT = 0,
-  CON_ATTRIBUTE_DOMAIN_EDGE = 1,
-  CON_ATTRIBUTE_DOMAIN_FACE = 2,
-  CON_ATTRIBUTE_DOMAIN_FACE_CORNER = 3,
-  CON_ATTRIBUTE_DOMAIN_CURVE = 4,
-  CON_ATTRIBUTE_DOMAIN_INSTANCE = 5,
-}
-Attribute_DomainMode;
-
-/* Atrtibute Data Type*/
-typedef enum Attribute_Data_Type {
-  CON_ATTRIBUTE_VECTOR = 0,
-  CON_ATTRIBUTE_QUATERNION = 1,
-  CON_ATTRIBUTE_4X4MATRIX = 2,
-} Attribute_Data_Type;
-
-/** Attribute Component Mix Mode */
-typedef enum Attribute_MixMode {
-  /* Replace rotation channel values. */
-  CON_ATTRIBUTE_MIX_REPLACE = 0,
-  /* Multiply the copied transformation on the left, handling loc/rot/scale separately. */
-  CON_ATTRIBUTE_MIX_BEFORE_SPLIT = 1,
-  /* Multiply the copied transformation on the right, handling loc/rot/scale separately. */
-  CON_ATTRIBUTE_MIX_AFTER_SPLIT = 2,
-  /* Multiply the copied transformation on the left, using simple matrix multiplication. */
-  CON_ATTRIBUTE_MIX_BEFORE_FULL = 3,
-  /* Multiply the copied transformation on the right, using simple matrix multiplication. */
-  CON_ATTRIBUTE_MIX_AFTER_FULL = 4,
-} Attribute_MixMode;

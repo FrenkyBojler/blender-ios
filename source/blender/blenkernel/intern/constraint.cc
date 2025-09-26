@@ -5448,9 +5448,9 @@ static bConstraintTypeInfo CTI_TRANSFORM_CACHE = {
 
 /* ---------- Attribute Transform Constraint ----------- */
 
-static blender::bke::AttrDomain domain_value_to_attribute(const int domain_mode)
+static blender::bke::AttrDomain domain_value_to_attribute(const int domain)
 {
-  switch (domain_mode) {
+  switch (domain) {
     case CON_ATTRIBUTE_DOMAIN_POINT:
       return blender::bke::AttrDomain::Point;
     case CON_ATTRIBUTE_DOMAIN_EDGE:
@@ -5567,9 +5567,7 @@ static void attribute_new_data(void *cdata)
 {
   bAttributeConstraint *data = static_cast<bAttributeConstraint *>(cdata);
   data->attribute_name = BLI_strdup("position");
-  data->mix_loc = true;
-  data->mix_rot = true;
-  data->mix_scl = true;
+  data->flags = MIX_LOC | MIX_ROT | MIX_SCALE;
 }
 
 static int attribute_get_tars(bConstraint *con, ListBase *list)
@@ -5610,7 +5608,7 @@ static bool attribute_get_tarmat(Depsgraph * /*depsgraph*/,
 
   unit_m4(ct->matrix);
 
-  const blender::bke::AttrDomain domain = domain_value_to_attribute(acon->domain_type);
+  const blender::bke::AttrDomain domain = domain_value_to_attribute(acon->domain);
   const blender::bke::AttrType sample_data_type = type_value_to_attribute(acon->data_type);
   const blender::bke::GeometrySet &target_eval = blender::bke::object_get_evaluated_geometry_set(
       *ct->tar);
@@ -5684,17 +5682,17 @@ static void attribute_evaluate(bConstraint *con, bConstraintOb *cob, ListBase *t
       break;
     }
     case CON_ATTRIBUTE_4X4MATRIX: {
-      if (data->mix_loc && data->mix_rot && data->mix_scl) {
+      if ((data->flags & MIX_LOC) && (data->flags & MIX_ROT) && (data->flags & MIX_SCALE)) {
         copy_m4_m4(target_mat, ct->matrix);
       }
       else {
-        if (data->mix_loc) {
+        if (data->flags & MIX_LOC) {
           copy_v3_v3(prev_location, next_location);
         }
-        if (data->mix_rot) {
+        if (data->flags & MIX_ROT) {
           copy_m3_m3(prev_rotation, next_rotation);
         }
-        if (data->mix_scl) {
+        if (data->flags & MIX_SCALE) {
           copy_v3_v3(prev_size, next_size);
         }
         loc_rot_size_to_mat4(target_mat, prev_location, prev_rotation, prev_size);

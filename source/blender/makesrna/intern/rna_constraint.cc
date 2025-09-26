@@ -3686,8 +3686,9 @@ static void rna_def_constraint_attribute(BlenderRNA *brna)
   };
 
   srna = RNA_def_struct(brna, "AttributeConstraint", "Constraint");
-  RNA_def_struct_ui_text(
-      srna, "Attribute Constraint", "Create a constraint-based relationship with an attribute from geometry");
+  RNA_def_struct_ui_text(srna,
+                         "Attribute Constraint",
+                         "Create a constraint-based relationship with an attribute from geometry");
   RNA_def_struct_sdna_from(srna, "bAttributeConstraint", "data");
   RNA_def_struct_ui_icon(srna, ICON_CON_ATTRIBUTE);
 
@@ -3702,19 +3703,23 @@ static void rna_def_constraint_attribute(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "attribute_name", PROP_STRING, PROP_NONE);
   RNA_def_property_string_sdna(prop, nullptr, "attribute_name");
-  RNA_def_property_ui_text(prop, "Attribute Name", "Name of the attribute to retrieve the transform from");
+  RNA_def_property_ui_text(
+      prop, "Attribute Name", "Name of the attribute to retrieve the transform from");
   RNA_def_property_flag(prop, PROP_EDITABLE);
   RNA_def_property_update(prop, NC_OBJECT | ND_CONSTRAINT, "rna_Constraint_update");
 
-  prop = RNA_def_property(srna, "domain_type", PROP_ENUM, PROP_NONE);
-  RNA_def_property_enum_sdna(prop, nullptr, "domain_type");
+  prop = RNA_def_property(srna, "domain", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "domain");
   RNA_def_property_enum_items(prop, domain_items);
   RNA_def_property_ui_text(prop, "Domain Type", "Attribute domain");
   RNA_def_property_update(prop, NC_OBJECT | ND_CONSTRAINT, "rna_Constraint_update");
 
   prop = RNA_def_property(srna, "apply_target_transform", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "apply_target_transform", 1);
-  RNA_def_property_ui_text(prop, "Target Transform", "Apply the target object's world transform on top of the attribute's transform");
+  RNA_def_property_ui_text(
+      prop,
+      "Target Transform",
+      "Apply the target object's world transform on top of the attribute's transform");
   RNA_def_property_update(prop, NC_OBJECT | ND_CONSTRAINT, "rna_Constraint_update");
 
   prop = RNA_def_property(srna, "data_type", PROP_ENUM, PROP_NONE);
@@ -3730,17 +3735,17 @@ static void rna_def_constraint_attribute(BlenderRNA *brna)
   RNA_def_property_update(prop, NC_OBJECT | ND_CONSTRAINT, "rna_Constraint_update");
 
   prop = RNA_def_property(srna, "mix_loc", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "mix_loc", 1);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flags", MIX_LOC);
   RNA_def_property_ui_text(prop, "Mix Location", "Mix Location");
   RNA_def_property_update(prop, NC_OBJECT | ND_CONSTRAINT, "rna_Constraint_update");
 
   prop = RNA_def_property(srna, "mix_rot", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "mix_rot", 1);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flags", MIX_ROT);
   RNA_def_property_ui_text(prop, "Mix Rotation", "Mix Rotation");
   RNA_def_property_update(prop, NC_OBJECT | ND_CONSTRAINT, "rna_Constraint_update");
 
   prop = RNA_def_property(srna, "mix_scl", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "mix_scl", 1);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flags", MIX_SCALE);
   RNA_def_property_ui_text(prop, "Mix Scale", "Mix Scale");
   RNA_def_property_update(prop, NC_OBJECT | ND_CONSTRAINT, "rna_Constraint_update");
 
