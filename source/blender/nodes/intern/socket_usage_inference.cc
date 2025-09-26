@@ -2,6 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include <optional>
 #include <regex>
 
 #include "NOD_geometry_nodes_execute.hh"
@@ -103,6 +104,16 @@ struct SocketUsageInferencer {
       }
     }
     return false;
+  }
+
+  bool group_output_has_default_value(const int output_i)
+  {
+    const bNode *group_output_node = root_tree_.group_output_node();
+    if (!group_output_node) {
+      return true;
+    }
+    const SocketInContext socket{nullptr, &group_output_node->input_socket(output_i)};
+    return this->socket_has_default_value(socket);
   }
 
   bool is_socket_used(const SocketInContext &socket)
@@ -668,14 +679,18 @@ Array<SocketUsage> infer_all_sockets_usage(const bNodeTree &tree)
   return all_usages;
 }
 
-void infer_group_interface_inputs_usage(const bNodeTree &group,
-                                        const Span<InferenceValue> group_input_values,
-                                        const MutableSpan<SocketUsage> r_input_usages)
+void infer_group_interface_usage(const bNodeTree &group,
+                                 const Span<InferenceValue> group_input_values,
+                                 const MutableSpan<SocketUsage> r_input_usages,
+                                 const std::optional<MutableSpan<SocketUsage>> r_output_usages)
 {
   SocketUsage default_usage;
   default_usage.is_used = false;
   default_usage.is_visible = true;
   r_input_usages.fill(default_usage);
+  if (r_output_usages) {
+    r_output_usages->fill({true, true});
+  }
 
   ResourceScope scope;
   bke::ComputeContextCache compute_context_cache;
@@ -689,14 +704,6 @@ void infer_group_interface_inputs_usage(const bNodeTree &group,
         r_input_usages[i].is_used |= inferencer.is_socket_used({nullptr, &socket});
       }
     }
-  }
-  if (std::all_of(r_input_usages.begin(), r_input_usages.end(), [](const SocketUsage &usage) {
-        return usage.is_used;
-      }))
-  {
-    /* If all inputs are used, there is no need to infer visibility because all inputs should be
-     * visible. */
-    return;
   }
   bool visibility_controlling_input_exists = false;
   Array<InferenceValue, 32> inputs_all_unknown(group_input_values.size(),
@@ -736,6 +743,19 @@ void infer_group_interface_inputs_usage(const bNodeTree &group,
     }
     r_input_usages[i].is_visible = false;
   }
+  if (r_output_usages) {
+    for (const int i : group.interface_outputs().index_range()) {
+      if (inferencer_all_unknown.group_output_has_default_value(i)) {
+        continue;
+      }
+      if (!inferencer_only_controllers.group_output_has_default_value(i)) {
+        continue;
+      }
+      SocketUsage &usage = (*r_output_usages)[i];
+      usage.is_used = false;
+      usage.is_visible = false;
+    }
+  }
 }
 
 void infer_group_interface_inputs_usage(const bNodeTree &group,
@@ -765,18 +785,19 @@ void infer_group_interface_inputs_usage(const bNodeTree &group,
     input_values[i] = InferenceValue::from_primitive(value);
   }
 
-  infer_group_interface_inputs_usage(group, input_values, r_input_usages);
+  infer_group_interface_usage(group, input_values, r_input_usages, {});  // TODO
 }
 
-void infer_group_interface_inputs_usage(const bNodeTree &group,
-                                        const IDProperty *properties,
-                                        MutableSpan<SocketUsage> r_input_usages)
+void infer_group_interface_usage(const bNodeTree &group,
+                                 const IDProperty *properties,
+                                 MutableSpan<SocketUsage> r_input_usages,
+                                 std::optional<MutableSpan<SocketUsage>> r_output_usages)
 {
   ResourceScope scope;
   const Vector<InferenceValue> group_input_values =
       nodes::get_geometry_nodes_input_inference_values(group, properties, scope);
-  nodes::socket_usage_inference::infer_group_interface_inputs_usage(
-      group, group_input_values, r_input_usages);
+  nodes::socket_usage_inference::infer_group_interface_usage(
+      group, group_input_values, r_input_usages, r_output_usages);
 }
 
 InputSocketUsageParams::InputSocketUsageParams(SocketUsageInferencer &inferencer,
