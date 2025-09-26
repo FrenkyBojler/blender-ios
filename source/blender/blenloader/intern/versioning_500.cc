@@ -3670,7 +3670,7 @@ void blo_do_versions_500(FileData *fd, Library * /*lib*/, Main *bmain)
     do_version_adaptive_subdivision(bmain);
   }
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 100)) {
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 95)) {
     const bTheme *btheme = static_cast<bTheme *>(U.themes.first);
     const uchar *col = btheme->space_view3d.view_overlay;
 
