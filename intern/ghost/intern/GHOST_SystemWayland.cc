@@ -3845,6 +3845,82 @@ static void data_device_handle_data_offer(void * /*data*/,
   wl_data_offer_add_listener(id, &data_offer_listener, data_offer);
 }
 
+static void read_drag_and_drop_data_fn(GWL_Seat *const seat,
+                                       GWL_DataOffer *data_offer,
+                                       wl_surface *wl_surface_window,
+                                       const char *mime_receive,
+                                       GHOST_TEventType event_type)
+{
+  const uint64_t event_ms = seat->system->getMilliSeconds();
+  const wl_fixed_t xy[2] = {UNPACK2(data_offer->dnd.xy)};
+
+  const bool nil_terminate = (mime_receive != ghost_wl_mime_text_uri_list);
+  size_t data_buf_len = 0;
+  const char *data_buf = read_buffer_from_data_offer(
+      data_offer, mime_receive, nullptr, nil_terminate, &data_buf_len);
+
+  CLOG_DEBUG(LOG, "read_drop_data mime_receive=%s, data_len=%zu", mime_receive, data_buf_len);
+  if (event_type == GHOST_kEventDraggingDropDone) {
+    wl_data_offer_finish(data_offer->wl.id);
+    wl_data_offer_destroy(data_offer->wl.id);
+
+    delete data_offer;
+    data_offer = nullptr;
+  }
+
+  /* Don't generate a drop event if the data could not be read,
+   * an error will have been logged. */
+  if (data_buf != nullptr) {
+    GHOST_TDragnDropTypes ghost_dnd_type = GHOST_kDragnDropTypeUnknown;
+    void *ghost_dnd_data = nullptr;
+
+    /* Failure to receive drop data. */
+    if (mime_receive == ghost_wl_mime_text_uri_list) {
+      std::vector<std::string_view> uris = gwl_clipboard_uri_ranges(data_buf, data_buf_len);
+
+      GHOST_TStringArray *flist = static_cast<GHOST_TStringArray *>(
+          malloc(sizeof(GHOST_TStringArray)));
+      flist->count = int(uris.size());
+      flist->strings = static_cast<uint8_t **>(malloc(uris.size() * sizeof(uint8_t *)));
+      for (size_t i = 0; i < uris.size(); i++) {
+        flist->strings[i] = reinterpret_cast<uint8_t *>(
+            GHOST_URL_decode_alloc(uris[i].data(), uris[i].size()));
+      }
+
+      CLOG_DEBUG(LOG, "read_drop_data file_count=%d", flist->count);
+      ghost_dnd_type = GHOST_kDragnDropTypeFilenames;
+      ghost_dnd_data = flist;
+    }
+    else if (ELEM(mime_receive, ghost_wl_mime_text_plain, ghost_wl_mime_text_utf8)) {
+      ghost_dnd_type = GHOST_kDragnDropTypeString;
+      ghost_dnd_data = (void *)data_buf; /* Move ownership to the event. */
+      data_buf = nullptr;
+    }
+
+    if (ghost_dnd_type != GHOST_kDragnDropTypeUnknown) {
+      GHOST_SystemWayland *const system = seat->system;
+      GHOST_WindowWayland *win = ghost_wl_surface_user_data(wl_surface_window);
+      const int event_xy[2] = {WL_FIXED_TO_INT_FOR_WINDOW_V2(win, xy)};
+
+      system->pushEvent_maybe_pending(new GHOST_EventDragnDrop(
+          event_ms, event_type, ghost_dnd_type, win, UNPACK2(event_xy), ghost_dnd_data));
+
+      wl_display_roundtrip(system->wl_display_get());
+    }
+    else {
+      if (event_type == GHOST_kEventDraggingEntered) {
+        dnd_events(seat, GHOST_kEventDraggingEntered, event_ms);
+      }
+      else {
+        dnd_events(seat, GHOST_kEventDraggingExited, event_ms);
+      }
+      CLOG_DEBUG(LOG, "read_drop_data, unhandled!");
+    }
+
+    free(const_cast<char *>(data_buf));
+  }
+};
+
 static void data_device_handle_enter(void *data,
                                      wl_data_device * /*wl_data_device*/,
                                      const uint32_t serial,
@@ -3895,7 +3971,21 @@ static void data_device_handle_enter(void *data,
 
   seat->system->seat_active_set(seat);
 
-  dnd_events(seat, GHOST_kEventDraggingEntered, event_ms);
+  const char *mime_receive = "";
+  for (size_t i = 0; i < ARRAY_SIZE(ghost_wl_mime_preference_order); i++) {
+    const char *type = ghost_wl_mime_preference_order[i];
+    if (data_offer->types.count(type)) {
+      mime_receive = type;
+      break;
+    }
+  }
+  std::thread read_thread(read_drag_and_drop_data_fn,
+                          seat,
+                          data_offer,
+                          seat->wl.surface_window_focus_dnd,
+                          mime_receive,
+                          GHOST_kEventDraggingEntered);
+  read_thread.detach();
 }
 
 static void data_device_handle_leave(void *data, wl_data_device * /*wl_data_device*/)
@@ -3972,6 +4062,7 @@ static void data_device_handle_drop(void *data, wl_data_device * /*wl_data_devic
 
   CLOG_DEBUG(LOG, "drop mime_recieve=%s", mime_receive);
 
+<<<<<<< HEAD
   auto read_drop_data_fn = [](GWL_Seat *const seat,
                               GWL_DataOffer *data_offer,
                               wl_surface *wl_surface_window,
@@ -4046,8 +4137,12 @@ static void data_device_handle_drop(void *data, wl_data_device * /*wl_data_devic
 
   /* Pass in `seat->wl_surface_window_focus_dnd` instead of accessing it from `seat` since the
    * leave callback (#data_device_handle_leave) will clear the value once this function starts. */
-  std::thread read_thread(
-      read_drop_data_fn, seat, data_offer, seat->wl.surface_window_focus_dnd, mime_receive);
+  std::thread read_thread(read_drag_and_drop_data_fn,
+                          seat,
+                          data_offer,
+                          seat->wl.surface_window_focus_dnd,
+                          mime_receive,
+                          GHOST_kEventDraggingDropDone);
   read_thread.detach();
 }
 
