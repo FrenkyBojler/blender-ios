@@ -225,9 +225,9 @@ PanelType *modifier_panel_register(ARegionType *region_type,
 
   modifier_type_panel_id(type, panel_type->idname);
   STRNCPY_UTF8(panel_type->label, "");
-  STRNCPY_UTF8(panel_type->category, "Modifiers");
   STRNCPY_UTF8(panel_type->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
   STRNCPY_UTF8(panel_type->active_property, "is_active");
+  STRNCPY_UTF8(panel_type->context, "strip_modifier");
 
   panel_type->draw_header = modifier_panel_header;
   panel_type->draw = draw;
