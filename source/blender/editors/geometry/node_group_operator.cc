@@ -1052,6 +1052,10 @@ static wmOperatorStatus run_node_group_exec(bContext *C, wmOperator *op)
       bke::GeometrySet new_geometry = nodes::execute_geometry_nodes_on_geometry(
           *node_tree, properties, compute_context, call_data, std::move(geometry_orig));
 
+      if (new_geometry.has_instances()) {
+        BKE_report(op->reports, RPT_INFO, "Instances in output are ignored");
+      }
+
       store_result_geometry(
           *C, *op, *depsgraph_active, *bmain, *scene, *object, rv3d, std::move(new_geometry));
       WM_event_add_notifier(C, NC_GEOM | ND_DATA, object->data);
