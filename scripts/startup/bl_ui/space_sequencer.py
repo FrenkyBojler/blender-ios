@@ -1482,8 +1482,8 @@ class SEQUENCER_MT_pivot_pie(Menu):
         layout = self.layout
         pie = layout.menu_pie()
 
-        if context.tool_settings:
-            sequencer_tool_settings = context.tool_settings.sequencer_tool_settings
+        if context.sequencer_scene:
+            sequencer_tool_settings = context.sequencer_scene.tool_settings.sequencer_tool_settings
 
             pie.prop_enum(sequencer_tool_settings, "pivot_point", value='CENTER')
             pie.prop_enum(sequencer_tool_settings, "pivot_point", value='CURSOR')
@@ -3116,7 +3116,7 @@ class SEQUENCER_PT_preview_snapping(Panel):
     @classmethod
     def poll(cls, context):
         st = context.space_data
-        return st.view_type in {'PREVIEW', 'SEQUENCER_PREVIEW'} and context.tool_settings
+        return st.view_type in {'PREVIEW', 'SEQUENCER_PREVIEW'} and context.sequencer_scene
 
     def draw(self, context):
         tool_settings = context.tool_settings
@@ -3141,7 +3141,7 @@ class SEQUENCER_PT_sequencer_snapping(Panel):
     @classmethod
     def poll(cls, context):
         st = context.space_data
-        return st.view_type in {'SEQUENCER', 'SEQUENCER_PREVIEW'} and context.tool_settings
+        return st.view_type in {'SEQUENCER', 'SEQUENCER_PREVIEW'} and context.sequencer_scene
 
     def draw(self, context):
         tool_settings = context.tool_settings
