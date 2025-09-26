@@ -838,6 +838,7 @@ void BM_mesh_calc_uvs_grid(BMesh *bm,
 void bmo_create_uvsphere_exec(BMesh *bm, BMOperator *op)
 {
   const float rad = BMO_slot_float_get(op->slots_in, "radius");
+  /* Defaults U and V segments value to 1 if it is unspecified (0) or negative. */
   const int seg = std::max(1, BMO_slot_int_get(op->slots_in, "u_segments"));
   const int tot = std::max(1, BMO_slot_int_get(op->slots_in, "v_segments"));
 
