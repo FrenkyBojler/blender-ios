@@ -103,7 +103,7 @@ displays:
     - !<View> {name: Raw, colorspace: Non-Color}
   Rec.2100-HLG:
     - !<View> {name: Standard, view_transform: Standard, display_colorspace: Rec.2100-HLG}
-    - !<View> {name: ACES 1.3 - HDR 1000 nits, view_transform: ACES 1.1 Rec.2100-HLG - HDR 1000 nits, display_colorspace: Rec.2100-HLG}
+    - !<View> {name: ACES 1.3 - HDR 1000 nits, view_transform: ACES 1.1 Rec.2100-PQ - HDR 1000 nits, display_colorspace: Rec.2100-HLG}
     - !<View> {name: ACES 1.3 - SDR, view_transform: ACES 1.3 Rec.1886, display_colorspace: Rec.2100-HLG}
     - !<View> {name: ACES 2.0 - HDR 1000 nits, view_transform: ACES 2.0 Rec.2100-PQ - HDR 1000 nits, display_colorspace: Rec.2100-HLG}
     - !<View> {name: ACES 2.0 - SDR, view_transform: ACES 2.0 Rec.1886, display_colorspace: Rec.2100-HLG}
@@ -421,17 +421,6 @@ view_transforms:
       children:
         - !<ColorSpaceTransform> {src: Linear CIE-XYZ E, dst: ACES2065-1}
         - !<BuiltinTransform> {style: ACES-OUTPUT - ACES2065-1_to_CIE-XYZ-D65 - HDR-VIDEO-4000nit-15nit-REC2020lim_1.1}
-
-  - !<ViewTransform>
-    name: ACES 1.1 Rec.2100-HLG - HDR 1000 nits
-    family: ACES
-    equalitygroup:
-    description: |
-      ACES Output Transform for 1000 nit HDR D65 video
-    from_scene_reference: !<GroupTransform>
-      children:
-        - !<ColorSpaceTransform> {src: Linear CIE-XYZ E, dst: ACES2065-1}
-        - !<BuiltinTransform> {style: ACES-OUTPUT - ACES2065-1_to_CIE-XYZ-D65 - HDR-VIDEO-1000nit-15nit-REC2020lim_1.1}
 
   - !<ViewTransform>
     name: ACES 2.0 Display P3
