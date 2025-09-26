@@ -1325,9 +1325,9 @@ void IrradianceBake::raylists_build()
   list_counter_buf_.resize(ceil_to_multiple_u(list_info_buf_.list_max, 4));
   list_range_buf_.resize(ceil_to_multiple_u(list_info_buf_.list_max * 2, 4));
 
-  list_item_distance_buf_.resize(ceil_to_multiple_u(capture_info_buf_.surfel_len, 4));
-  list_item_surfel_id_buf_.resize(ceil_to_multiple_u(capture_info_buf_.surfel_len, 4));
-  sorted_surfel_id_buf_.resize(ceil_to_multiple_u(capture_info_buf_.surfel_len, 4));
+  list_item_distance_buf_.resize(ceil_to_multiple_u(max_ii(1, capture_info_buf_.surfel_len), 4));
+  list_item_surfel_id_buf_.resize(ceil_to_multiple_u(max_ii(1, capture_info_buf_.surfel_len), 4));
+  sorted_surfel_id_buf_.resize(ceil_to_multiple_u(max_ii(1, capture_info_buf_.surfel_len), 4));
 
   GPU_storagebuf_clear(list_counter_buf_, 0);
   inst_.manager->submit(surfel_ray_build_ps_, ray_view_);
