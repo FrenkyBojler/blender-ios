@@ -66,7 +66,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   catch (const openvdb::ArithmeticError & /*error*/) {
     params.error_message_add(NodeWarningType::Error,
                              TIP_("Failed to set the new grid transform."));
-    params.set_output("is Valid", false);
+    params.set_output("Is Valid", false);
   }
 
   params.set_output("Grid", std::move(grid));
