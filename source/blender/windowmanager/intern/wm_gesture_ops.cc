@@ -38,6 +38,7 @@
 #include "ED_select_utils.hh"
 
 #include "RNA_access.hh"
+#include "wm_window.hh"
 
 using blender::Array;
 using blender::float2;
@@ -253,6 +254,25 @@ wmOperatorStatus WM_gesture_box_modal(bContext *C, wmOperator *op, const wmEvent
         wm_gesture_tag_redraw(win);
 
         break;
+      }
+      case EVT_TABKEY: {
+        if (event->val == KM_PRESS) {
+          int window_cursor_x, window_cursor_y;
+          if (wm_cursor_position_get(win, &window_cursor_x, &window_cursor_y)) {
+            const int diff_cursor_x = window_cursor_x - event->mval[0];
+            const int diff_cursor_y = window_cursor_y - event->mval[1];
+            WM_cursor_warp(win, rect->xmin + diff_cursor_x, rect->ymin + diff_cursor_y);
+            /* Rotate rect values */
+            int tmp = rect->xmin;
+            rect->xmin = rect->xmax;
+            rect->xmax = tmp;
+
+            tmp = rect->ymin;
+            rect->ymin = rect->ymax;
+            rect->ymax = tmp;
+            return OPERATOR_RUNNING_MODAL;
+          }
+        }
       }
 #ifdef WITH_INPUT_NDOF
       case NDOF_MOTION: {
