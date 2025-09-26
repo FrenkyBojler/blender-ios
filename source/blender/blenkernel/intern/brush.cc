@@ -1913,6 +1913,14 @@ bool supports_size_pressure(const Brush &brush)
 {
   return !is_grab_tool(brush);
 }
+bool supports_auto_smooth_pressure(const Brush &brush)
+{
+  return !is_grab_tool(brush);
+}
+bool supports_hardness_pressure(const Brush &brush)
+{
+  return !is_grab_tool(brush);
+}
 bool supports_inverted_direction(const Brush &brush)
 {
   return ELEM(brush.sculpt_brush_type,
