@@ -9,6 +9,7 @@ from bpy.types import Action, Mesh, Armature, ActionChannelbag
 from bpy.types import ActionSlot as BlenderActionSlot
 
 from bl_math import clamp
+from bpy_extras import anim_utils
 
 from .errors import MetarigError
 from .misc import MeshObject, IdPropSequence, verify_mesh_obj
@@ -53,10 +54,11 @@ class ActionSlotBase:
         """Return a list of bone names that have keyframes in the Action of this Slot."""
         keyed_bones = []
 
-        if not self.channelbag:
+        channelbag = anim_utils.action_get_channelbag_for_slot(self.action, self.action_slot)
+        if not channelbag:
             return []
 
-        for fc in self.channelbag.fcurves:
+        for fc in channelbag.fcurves:
             # Extracting bone name from fcurve data path
             if fc.data_path.startswith('pose.bones["'):
                 bone_name = fc.data_path[12:].split('"]')[0]
@@ -65,12 +67,6 @@ class ActionSlotBase:
                     keyed_bones.append(bone_name)
 
         return keyed_bones
-
-    @property
-    def channelbag(self) -> ActionChannelbag | None:
-        if not (self.action and self.action_slot):
-            return
-        return self.action.layers[0].strips[0].channelbag(self.action_slot)
 
     @property
     def do_symmetry(self) -> bool:
