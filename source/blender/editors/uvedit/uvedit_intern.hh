@@ -202,6 +202,7 @@ struct StitchStateContainer {
 int stitch_init_all(bContext *C,
                     wmOperator *op,
                     StitchStateContainer *ssc,
-                    const StitchModes stored_mode, const bool draw_preview);
+                    const StitchModes stored_mode,
+                    const bool draw_preview);
 int stitch_process_data_all(StitchStateContainer *ssc, Scene *scene, int final);
 void state_delete_all(StitchStateContainer *ssc);

@@ -58,7 +58,6 @@ using blender::Vector;
 
 /* ********************** smart stitch operator *********************** */
 
-
 /* object that stores display data for previewing before confirming stitching */
 struct StitchPreviewer {
   /* here we'll store the preview triangle indices of the mesh */
@@ -2242,7 +2241,7 @@ static StitchStateContainer *stitch_settings_init(bContext *C, wmOperator *op)
   ssc->clear_seams = RNA_boolean_get(op->ptr, "clear_seams");
   ssc->active_object_index = RNA_int_get(op->ptr, "active_object_index");
   ssc->static_island = 0;
-  ssc->ignore_seam_boundary = true;
+  ssc->ignore_seam_boundary = false;
 
   ssc->static_island = RNA_int_get(op->ptr, "static_island");
   if (RNA_struct_property_is_set(op->ptr, "mode")) {
@@ -2344,7 +2343,7 @@ int stitch_init_all(bContext *C,
     }
   }
 
-  MEM_SAFE_FREE(objs_selection_count);  
+  MEM_SAFE_FREE(objs_selection_count);
   MEM_SAFE_FREE(state_init);
 
   if (ssc->objects_len == 0) {
@@ -2382,7 +2381,7 @@ int stitch_init_all(bContext *C,
 static wmOperatorStatus stitch_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
   StitchStateContainer *ssc = stitch_settings_init(C, op);
-  
+
   if (!stitch_init_all(C, op, ssc, (StitchModes)RNA_enum_get(op->ptr, "stored_mode"), true)) {
     return OPERATOR_CANCELLED;
   }
@@ -2503,7 +2502,7 @@ static wmOperatorStatus stitch_exec(bContext *C, wmOperator *op)
   Scene *scene = CTX_data_scene(C);
 
   StitchStateContainer *ssc = stitch_settings_init(C, op);
-  if (!stitch_init_all(C, nullptr, ssc, (StitchModes)RNA_enum_get(op->ptr, "stored_mode"), true)) {
+  if (!stitch_init_all(C, op, ssc, (StitchModes)RNA_enum_get(op->ptr, "stored_mode"), true)) {
     return OPERATOR_CANCELLED;
   }
   if (stitch_process_data_all((StitchStateContainer *)op->customdata, scene, 1)) {
