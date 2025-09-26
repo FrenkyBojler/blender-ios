@@ -940,8 +940,10 @@ void Instance::light_bake_irradiance(
     context_wrapper([&]() {
       DebugScope debug_scope(debug_scope_irradiance_sample, "EEVEE.irradiance_sample");
 
+      /* In background mode, assume we don't need as much interactivity. */
+      int time_budget_ms = G.background ? 32 : 16;
       /* Batch ray cast. Avoids too much overhead of the context switch. */
-      int sample_count_in_batch = clamp_i(16 / time_per_sample_ms_smooth, 1, 100);
+      int sample_count_in_batch = clamp_i(time_budget_ms / time_per_sample_ms_smooth, 1, 100);
       CLOG_INFO(&Instance::log, "IrradianceBake: Casting %d rays.", sample_count_in_batch);
 
       double time_it_begin_ms = BLI_time_now_seconds() * 1000.0;
