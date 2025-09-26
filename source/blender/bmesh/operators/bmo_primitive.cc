@@ -838,8 +838,8 @@ void BM_mesh_calc_uvs_grid(BMesh *bm,
 void bmo_create_uvsphere_exec(BMesh *bm, BMOperator *op)
 {
   const float rad = BMO_slot_float_get(op->slots_in, "radius");
-  int seg = BMO_slot_int_get(op->slots_in, "u_segments");
-  int tot = BMO_slot_int_get(op->slots_in, "v_segments");
+  const int seg = std::max(1, BMO_slot_int_get(op->slots_in, "u_segments"));
+  const int tot = std::max(1, BMO_slot_int_get(op->slots_in, "v_segments"));
 
   const int cd_loop_uv_offset = CustomData_get_offset(&bm->ldata, CD_PROP_FLOAT2);
   const bool calc_uvs = (cd_loop_uv_offset != -1) && BMO_slot_bool_get(op->slots_in, "calc_uvs");
@@ -853,12 +853,6 @@ void bmo_create_uvsphere_exec(BMesh *bm, BMOperator *op)
   int a;
 
   BMO_slot_mat4_get(op->slots_in, "matrix", mat);
-
-  /* Default U and V segments value to 1 if it is unspecified (0) or negative. */
-  if (seg <= 0 || tot <= 0) {
-    seg = (seg > 0) ? seg : 1;
-    tot = (tot > 0) ? tot : 1;
-  }
 
   const float phid = float(M_PI) / tot;
   // const float phi = 0.25f * float(M_PI); /* UNUSED. */
