@@ -374,6 +374,21 @@ class NODE_MT_shader_node_vector_base(node_add_menu.NodeMenu):
 
         self.draw_assets_for_catalog(layout, self.menu_path)
 
+class NODE_MT_shader_node_math_base(node_add_menu.NodeMenu):
+    bl_label = "Math"
+    menu_path = "Utilities/Math"
+
+    def draw(self, context):
+        layout = self.layout
+
+        self.node_operator(layout, "ShaderNodeMapRange")
+        self.node_operator_with_searchable_enum(context, layout, "ShaderNodeMath", "operation")
+        self.node_operator(layout, "ShaderNodeMix")
+        self.node_operator(layout, "ShaderNodeClamp")
+        self.node_operator(layout, "ShaderNodeFloatCurve")
+
+        self.draw_assets_for_catalog(layout, self.menu_path)
+
 
 class NODE_MT_shader_node_script_base(node_add_menu.NodeMenu):
     bl_label = "Script"
@@ -406,12 +421,7 @@ class NODE_MT_shader_node_utilities_base(node_add_menu.NodeMenu):
         layout = self.layout
 
         self.draw_menu(layout, "Utilities/Vector")
-        layout.separator()
-        self.node_operator(layout, "ShaderNodeMapRange")
-        self.node_operator_with_searchable_enum(context, layout, "ShaderNodeMath", "operation")
-        self.node_operator(layout, "ShaderNodeMix")
-        self.node_operator(layout, "ShaderNodeClamp")
-        self.node_operator(layout, "ShaderNodeFloatCurve")
+        self.draw_menu(layout, "Utilities/Math")
         layout.separator()
         self.repeat_zone(layout, label="Repeat")
         layout.separator()
@@ -460,6 +470,7 @@ add_menus = {
     "NODE_MT_category_shader_texture": NODE_MT_shader_node_texture_base,
     "NODE_MT_category_shader_displacement": NODE_MT_shader_node_displacement_base,
     "NODE_MT_category_shader_vector": NODE_MT_shader_node_vector_base,
+    "NODE_MT_category_shader_math": NODE_MT_shader_node_math_base,
     "NODE_MT_category_shader_script": NODE_MT_shader_node_script_base,
     "NODE_MT_category_shader_utilities": NODE_MT_shader_node_utilities_base,
     "NODE_MT_shader_node_add_all": NODE_MT_shader_node_all_base,
@@ -481,6 +492,7 @@ swap_menus = {
     "NODE_MT_shader_node_texture_swap": NODE_MT_shader_node_texture_base,
     "NODE_MT_shader_node_displacement_swap": NODE_MT_shader_node_displacement_base,
     "NODE_MT_shader_node_vector_swap": NODE_MT_shader_node_vector_base,
+    "NODE_MT_shader_node_math_swap": NODE_MT_shader_node_math_base,
     "NODE_MT_shader_node_script_swap": NODE_MT_shader_node_script_base,
     "NODE_MT_shader_node_utilities_swap": NODE_MT_shader_node_utilities_base,
     "NODE_MT_shader_node_swap_all": NODE_MT_shader_node_all_base,
