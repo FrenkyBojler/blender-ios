@@ -2074,11 +2074,7 @@ void uiLayout::prop(PointerRNA *ptr,
 
   /* Split the label / property. */
   uiLayout *layout_parent = this;
-  uiLayout *layout = &this->absolute(false);
-
-  if (!RNA_property_editable(ptr, prop)) {
-    layout->enabled_set(false);
-  }
+  uiLayout *layout = this;
 
   if (use_prop_sep) {
     uiLayout *layout_row = nullptr;
@@ -2104,6 +2100,10 @@ void uiLayout::prop(PointerRNA *ptr,
       bool label_added = false;
       uiLayout *layout_sub = &layout_split->column(true);
       layout_sub->space_ = 0;
+
+      if (!RNA_property_editable(ptr, prop)) {
+        layout_split->enabled_set(false);
+      }
 
       if (!use_prop_sep_split_label) {
         /* Pass */
