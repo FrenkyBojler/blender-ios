@@ -2075,7 +2075,6 @@ void uiLayout::prop(PointerRNA *ptr,
   /* Split the label / property. */
   uiLayout *layout_parent = this;
   uiLayout *layout = this;
-
   if (use_prop_sep) {
     uiLayout *layout_row = nullptr;
 #ifdef UI_PROP_DECORATE
