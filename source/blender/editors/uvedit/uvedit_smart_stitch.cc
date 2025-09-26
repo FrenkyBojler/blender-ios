@@ -58,7 +58,6 @@ using blender::Vector;
 
 /* ********************** smart stitch operator *********************** */
 
-namespace {
 
 /* object that stores display data for previewing before confirming stitching */
 struct StitchPreviewer {
@@ -173,36 +172,6 @@ struct StitchState {
   StitchPreviewer *stitch_preview;
 };
 
-/* Stitch state container. */
-struct StitchStateContainer {
-  /* clear seams of stitched edges after stitch */
-  bool clear_seams;
-  /* use limit flag */
-  bool use_limit;
-  /* limit to operator, same as original operator */
-  float limit_dist;
-  /* snap uv islands together during stitching */
-  bool snap_islands;
-  /* stitch at midpoints or at islands */
-  bool midpoints;
-  /* vert or edge mode used for stitching */
-  char mode;
-  /* handle for drawing */
-  void *draw_handle;
-  /* island that stays in place */
-  int static_island;
-
-  /* Objects and states are aligned. */
-  int objects_len;
-  Object **objects;
-  StitchState **states;
-
-  int active_object_index;
-
-  bool ignore_seam_boundary;
-  bool only_selected_uvs;
-};
-
 struct PreviewPosition {
   int data_position;
   int polycount_position;
@@ -220,11 +189,6 @@ enum {
 
 #define STITCH_NO_PREVIEW -1
 
-enum StitchModes {
-  STITCH_VERT,
-  STITCH_EDGE,
-};
-
 /** #UvElement identification. */
 struct UvElementID {
   int faceIndex;
@@ -236,9 +200,6 @@ struct StitchStateInit {
   int uv_selected_count;
   UvElementID *to_select;
 };
-
-}  // namespace
-
 /* constructor */
 static StitchPreviewer *stitch_preview_init()
 {
@@ -648,7 +609,7 @@ static void state_delete(StitchState *state)
   }
 }
 
-static void state_delete_all(StitchStateContainer *ssc)
+void state_delete_all(StitchStateContainer *ssc)
 {
   if (ssc) {
     for (uint ob_index = 0; ob_index < ssc->objects_len; ob_index++) {
@@ -1533,7 +1494,7 @@ static int stitch_process_data(StitchStateContainer *ssc,
   return 1;
 }
 
-static int stitch_process_data_all(StitchStateContainer *ssc, Scene *scene, int final)
+int stitch_process_data_all(StitchStateContainer *ssc, Scene *scene, int final)
 {
   for (uint ob_index = 0; ob_index < ssc->objects_len; ob_index++) {
     if (!stitch_process_data(ssc, ssc->states[ob_index], scene, final)) {
@@ -1876,10 +1837,10 @@ static UvEdge *uv_edge_get(BMLoop *l, StitchState *state)
 }
 
 static StitchState *stitch_init(bContext *C,
-                                wmOperator *op,
                                 StitchStateContainer *ssc,
                                 Object *obedit,
-                                StitchStateInit *state_init)
+                                StitchStateInit *state_init,
+                                const StitchModes stored_mode)
 {
   /* for fast edge lookup... */
   GHash *edge_hash;
@@ -2067,7 +2028,6 @@ static StitchState *stitch_init(bContext *C,
   if (state_init != nullptr) {
     int faceIndex, elementIndex;
     UvElement *element;
-    enum StitchModes stored_mode = StitchModes(RNA_enum_get(op->ptr, "stored_mode"));
 
     BM_mesh_elem_table_ensure(em->bm, BM_FACE);
 
@@ -2229,73 +2189,9 @@ static bool goto_next_island(StitchStateContainer *ssc)
   return false;
 }
 
-static int stitch_init_all(bContext *C, wmOperator *op)
+static StitchStateInit *stitch_extract_rna_selection(wmOperator *op,
+                                                     const Vector<Object *> &objects)
 {
-  ARegion *region = CTX_wm_region(C);
-  if (!region) {
-    return 0;
-  }
-
-  Scene *scene = CTX_data_scene(C);
-  ToolSettings *ts = scene->toolsettings;
-
-  ViewLayer *view_layer = CTX_data_view_layer(C);
-  View3D *v3d = CTX_wm_view3d(C);
-  Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
-      scene, view_layer, v3d);
-
-  if (objects.is_empty()) {
-    BKE_report(op->reports, RPT_ERROR, "No objects selected");
-    return 0;
-  }
-
-  if (objects.size() > RNA_MAX_ARRAY_LENGTH) {
-    BKE_reportf(op->reports,
-                RPT_ERROR,
-                "Stitching only works with less than %i objects selected (%i selected)",
-                RNA_MAX_ARRAY_LENGTH,
-                int(objects.size()));
-    return 0;
-  }
-
-  StitchStateContainer *ssc = MEM_callocN<StitchStateContainer>("stitch collection");
-
-  op->customdata = ssc;
-
-  ssc->use_limit = RNA_boolean_get(op->ptr, "use_limit");
-  ssc->limit_dist = RNA_float_get(op->ptr, "limit");
-  ssc->snap_islands = RNA_boolean_get(op->ptr, "snap_islands");
-  ssc->midpoints = RNA_boolean_get(op->ptr, "midpoint_snap");
-  ssc->clear_seams = RNA_boolean_get(op->ptr, "clear_seams");
-  ssc->active_object_index = RNA_int_get(op->ptr, "active_object_index");
-  ssc->static_island = 0;
-  ssc->ignore_seam_boundary = true;
-  if (RNA_struct_property_is_set(op->ptr, "mode")) {
-    ssc->mode = RNA_enum_get(op->ptr, "mode");
-  }
-  else {
-    if (ts->uv_flag & UV_FLAG_SYNC_SELECT) {
-      if (ts->selectmode & SCE_SELECT_VERTEX) {
-        ssc->mode = STITCH_VERT;
-      }
-      else {
-        ssc->mode = STITCH_EDGE;
-      }
-    }
-    else {
-      if (ts->uv_selectmode & UV_SELECT_VERTEX) {
-        ssc->mode = STITCH_VERT;
-      }
-      else {
-        ssc->mode = STITCH_EDGE;
-      }
-    }
-  }
-
-  ssc->objects = MEM_calloc_arrayN<Object *>(objects.size(), "Object *ssc->objects");
-  ssc->states = MEM_calloc_arrayN<StitchState *>(objects.size(), "StitchState");
-  ssc->objects_len = 0;
-
   int *objs_selection_count = nullptr;
   UvElementID *selected_uvs_arr = nullptr;
   StitchStateInit *state_init = nullptr;
@@ -2303,9 +2199,6 @@ static int stitch_init_all(bContext *C, wmOperator *op)
   if (RNA_struct_property_is_set(op->ptr, "selection") &&
       RNA_struct_property_is_set(op->ptr, "objects_selection_count"))
   {
-    /* Retrieve list of selected UVs, one list contains all selected UVs
-     * for all objects. */
-
     objs_selection_count = static_cast<int *>(
         MEM_mallocN(sizeof(int *) * objects.size(), "objects_selection_count"));
     RNA_int_get_array(op->ptr, "objects_selection_count", objs_selection_count);
@@ -2330,17 +2223,116 @@ static int stitch_init_all(bContext *C, wmOperator *op)
     state_init = MEM_callocN<StitchStateInit>("UV_init_selected");
     state_init->to_select = selected_uvs_arr;
   }
+  MEM_SAFE_FREE(selected_uvs_arr);
+  return state_init;
+}
+
+static StitchStateContainer *stitch_settings_init(bContext *C, wmOperator *op)
+{
+  StitchStateContainer *ssc = MEM_callocN<StitchStateContainer>("stitch collection");
+
+  Scene *scene = CTX_data_scene(C);
+
+  ToolSettings *ts = scene->toolsettings;
+  op->customdata = ssc;
+  ssc->use_limit = RNA_boolean_get(op->ptr, "use_limit");
+  ssc->limit_dist = RNA_float_get(op->ptr, "limit");
+  ssc->snap_islands = RNA_boolean_get(op->ptr, "snap_islands");
+  ssc->midpoints = RNA_boolean_get(op->ptr, "midpoint_snap");
+  ssc->clear_seams = RNA_boolean_get(op->ptr, "clear_seams");
+  ssc->active_object_index = RNA_int_get(op->ptr, "active_object_index");
+  ssc->static_island = 0;
+  ssc->ignore_seam_boundary = true;
+
+  ssc->static_island = RNA_int_get(op->ptr, "static_island");
+  if (RNA_struct_property_is_set(op->ptr, "mode")) {
+    ssc->mode = RNA_enum_get(op->ptr, "mode");
+  }
+  else {
+    if (ts->uv_flag & UV_FLAG_SYNC_SELECT) {
+      if (ts->selectmode & SCE_SELECT_VERTEX) {
+        ssc->mode = STITCH_VERT;
+      }
+      else {
+        ssc->mode = STITCH_EDGE;
+      }
+    }
+    else {
+      if (ts->uv_selectmode & UV_SELECT_VERTEX) {
+        ssc->mode = STITCH_VERT;
+      }
+      else {
+        ssc->mode = STITCH_EDGE;
+      }
+    }
+  }
+  return ssc;
+}
+
+int stitch_init_all(bContext *C,
+                    wmOperator *op,
+                    StitchStateContainer *ssc,
+                    const StitchModes stored_mode,
+                    const bool draw_preview)
+{
+  ARegion *region = CTX_wm_region(C);
+  if (!region) {
+    return 0;
+  }
+
+  Scene *scene = CTX_data_scene(C);
+
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  View3D *v3d = CTX_wm_view3d(C);
+  Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
+      scene, view_layer, v3d);
+
+  if (objects.is_empty()) {
+    if (op) {
+      BKE_report(op->reports, RPT_ERROR, "No objects selected");
+    }
+    return 0;
+  }
+
+  if (objects.size() > RNA_MAX_ARRAY_LENGTH) {
+    if (op) {
+      BKE_reportf(op->reports,
+                  RPT_ERROR,
+                  "Stitching only works with less than %i objects selected (%i selected)",
+                  RNA_MAX_ARRAY_LENGTH,
+                  int(objects.size()));
+    }
+    return 0;
+  }
+
+  ssc->objects = MEM_calloc_arrayN<Object *>(objects.size(), "Object *ssc->objects");
+  ssc->states = MEM_calloc_arrayN<StitchState *>(objects.size(), "StitchState");
+  ssc->objects_len = 0;
+
+  int *objs_selection_count = nullptr;
+  StitchStateInit *state_init = nullptr;
+
+  /* Try RNA selection first, fallback to current selection */
+  if (op) {
+    if (RNA_struct_property_is_set(op->ptr, "selection") &&
+        RNA_struct_property_is_set(op->ptr, "objects_selection_count"))
+    {
+      state_init = stitch_extract_rna_selection(op, objects);
+      objs_selection_count = static_cast<int *>(
+          MEM_mallocN(sizeof(int *) * objects.size(), "objects_selection_count"));
+      RNA_int_get_array(op->ptr, "objects_selection_count", objs_selection_count);
+    }
+  }
 
   for (uint ob_index = 0; ob_index < objects.size(); ob_index++) {
     Object *obedit = objects[ob_index];
 
-    if (state_init != nullptr) {
+    if (state_init != nullptr && objs_selection_count != nullptr) {
       state_init->uv_selected_count = objs_selection_count[ob_index];
     }
+    StitchState *stitch_state_ob = stitch_init(C, ssc, obedit, state_init, stored_mode);
 
-    StitchState *stitch_state_ob = stitch_init(C, op, ssc, obedit, state_init);
-
-    if (state_init != nullptr) {
+    if (state_init != nullptr && objs_selection_count != nullptr) {
       /* Move pointer to beginning of next object's data. */
       state_init->to_select += state_init->uv_selected_count;
     }
@@ -2352,8 +2344,7 @@ static int stitch_init_all(bContext *C, wmOperator *op)
     }
   }
 
-  MEM_SAFE_FREE(selected_uvs_arr);
-  MEM_SAFE_FREE(objs_selection_count);
+  MEM_SAFE_FREE(objs_selection_count);  
   MEM_SAFE_FREE(state_init);
 
   if (ssc->objects_len == 0) {
@@ -2363,8 +2354,6 @@ static int stitch_init_all(bContext *C, wmOperator *op)
   }
 
   ssc->active_object_index %= ssc->objects_len;
-
-  ssc->static_island = RNA_int_get(op->ptr, "static_island");
 
   StitchState *state = ssc->states[ssc->active_object_index];
   ssc->static_island %= state->element_map->total_islands;
@@ -2382,15 +2371,19 @@ static int stitch_init_all(bContext *C, wmOperator *op)
 
   stitch_update_header(ssc, C);
 
-  ssc->draw_handle = ED_region_draw_cb_activate(
-      region->runtime->type, stitch_draw, ssc, REGION_DRAW_POST_VIEW);
+  if (draw_preview) {
+    ssc->draw_handle = ED_region_draw_cb_activate(
+        region->runtime->type, stitch_draw, ssc, REGION_DRAW_POST_VIEW);
+  }
 
   return 1;
 }
 
 static wmOperatorStatus stitch_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
-  if (!stitch_init_all(C, op)) {
+  StitchStateContainer *ssc = stitch_settings_init(C, op);
+  
+  if (!stitch_init_all(C, op, ssc, (StitchModes)RNA_enum_get(op->ptr, "stored_mode"), true)) {
     return OPERATOR_CANCELLED;
   }
 
@@ -2399,8 +2392,6 @@ static wmOperatorStatus stitch_invoke(bContext *C, wmOperator *op, const wmEvent
   Scene *scene = CTX_data_scene(C);
   ToolSettings *ts = scene->toolsettings;
   const bool synced_selection = (ts->uv_flag & UV_FLAG_SYNC_SELECT) != 0;
-
-  StitchStateContainer *ssc = (StitchStateContainer *)op->customdata;
 
   for (uint ob_index = 0; ob_index < ssc->objects_len; ob_index++) {
     StitchState *state = ssc->states[ob_index];
@@ -2511,7 +2502,8 @@ static wmOperatorStatus stitch_exec(bContext *C, wmOperator *op)
 {
   Scene *scene = CTX_data_scene(C);
 
-  if (!stitch_init_all(C, op)) {
+  StitchStateContainer *ssc = stitch_settings_init(C, op);
+  if (!stitch_init_all(C, nullptr, ssc, (StitchModes)RNA_enum_get(op->ptr, "stored_mode"), true)) {
     return OPERATOR_CANCELLED;
   }
   if (stitch_process_data_all((StitchStateContainer *)op->customdata, scene, 1)) {

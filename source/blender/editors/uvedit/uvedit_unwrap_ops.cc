@@ -2897,6 +2897,27 @@ static wmOperatorStatus unwrap_exec(bContext *C, wmOperator *op)
   int count_changed = 0;
   int count_failed = 0;
 
+  if (options.uniform_bounding_box) {
+    StitchStateContainer *ssc = MEM_callocN<StitchStateContainer>("stitch collection");
+    Scene *scene = CTX_data_scene(C);
+
+    ssc->use_limit = false;
+    ssc->snap_islands = true;
+    ssc->midpoints = true;
+    ssc->clear_seams = false;
+    ssc->static_island = 1;
+    ssc->ignore_seam_boundary = true;
+    ssc->mode = STITCH_EDGE;
+    ssc->only_selected_uvs = true;
+    ssc->ignore_seam_boundary = true;
+    if (!stitch_init_all(C, op, ssc, STITCH_VERT, false)) {
+      BKE_report(op->reports, RPT_ERROR, "Could not initialize stitching");
+      return OPERATOR_CANCELLED;
+    }
+
+    stitch_process_data_all(ssc, scene, true);
+    state_delete_all(ssc);
+  }
   uvedit_unwrap_multi(scene, objects, &options, &count_changed, &count_failed);
   blender::geometry::UVPackIsland_Params pack_island_params;
   pack_island_params.setFromUnwrapOptions(options);
