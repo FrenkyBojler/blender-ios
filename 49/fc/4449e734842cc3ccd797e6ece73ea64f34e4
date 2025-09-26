@@ -3,3 +3,4 @@ Referenced by issue #97300, Scale gizmo impossible to click on (line is fine, bo
 Referenced by issue #97120, Regression: Gizmos became significantly harder to use (in orthographic view)
 Referenced by issue #96357, Issue clicking on stem of arrow gizmos to scale on axis
 Referenced by issue #96241, 3.1: Potential candidates for corrective releases
+Referenced by issue blender/blender-manual#103176, Regression: 3D shader 3D_POLYLINE_UNIFORM_COLOR draw error (the need to set all shader uniforms need to be documented)
