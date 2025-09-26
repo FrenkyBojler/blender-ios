@@ -171,6 +171,7 @@ static void node_register()
   ntype.ui_name = "Enable Output";
   ntype.ui_description = "Either pass through the input value or output the fallback value";
   ntype.nclass = NODE_CLASS_INTERFACE;
+  ntype.ignore_inferred_input_socket_visibility = true;
   ntype.initfunc = node_init;
   ntype.draw_buttons = node_layout;
   ntype.declare = node_declare;
