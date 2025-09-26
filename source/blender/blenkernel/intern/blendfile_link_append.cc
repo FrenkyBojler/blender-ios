@@ -930,7 +930,7 @@ static bool foreach_libblock_link_append_common_processing(
     /* While we do not want to add non-linkable ID (shape keys...) to the list of linked items,
      * unfortunately they can use fully linkable valid IDs too, like actions. Those need to be
      * processed, so we need to recursively deal with them here. */
-    /* NOTE: Since we are by-passing checks in `BKE_library_foreach_ID_link` by manually calling it
+    /* NOTE: Since we are bypassing checks in `BKE_library_foreach_ID_link` by manually calling it
      * recursively, we need to take care of potential recursion cases ourselves (e.g.anim-data of
      * shape-key referencing the shape-key itself). */
     /* NOTE: in case both IDs (owner and 'used' ones) are non-linkable, we can assume we can break
@@ -945,6 +945,51 @@ static bool foreach_libblock_link_append_common_processing(
   }
 
   return true;
+}
+
+/** \} */
+
+/** \name Library embedding code.
+ * \{ */
+
+void BKE_blendfile_link_pack(BlendfileLinkAppendContext *lapp_context, ReportList * /*reports*/)
+{
+  Main *bmain = lapp_context->params->bmain;
+
+  /* Delete newly linked data-blocks after they have been packed. */
+  blender::Vector<ID *> linked_ids_to_delete;
+  {
+    ID *id;
+    FOREACH_MAIN_ID_BEGIN (bmain, id) {
+      if (ID_IS_LINKED(id) && !ID_IS_PACKED(id)) {
+        if (!(id->tag & ID_TAG_PRE_EXISTING)) {
+          linked_ids_to_delete.append(id);
+        }
+      }
+    }
+    FOREACH_MAIN_ID_END;
+  }
+
+  for (BlendfileLinkAppendContextItem &item : lapp_context->items) {
+    ID *id = item.new_id;
+    BLI_assert(ID_IS_LINKED(id));
+    if (!(ID_IS_PACKED(id) || (id->newid && ID_IS_PACKED(id->newid)))) {
+      /* No yet packed. */
+      blender::bke::library::pack_linked_id_hierarchy(*bmain, *id);
+    }
+    /* Calling code may want to access newly packed embedded IDs from the link/append context
+     * items. */
+    if (id->newid) {
+      item.new_id = id->newid;
+    }
+  }
+  BKE_main_id_newptr_and_tag_clear(bmain);
+
+  BKE_main_id_tag_all(bmain, ID_TAG_DOIT, false);
+  for (ID *id : linked_ids_to_delete) {
+    id->tag |= ID_TAG_DOIT;
+  }
+  BKE_id_multi_tagged_delete(bmain);
 }
 
 /** \} */
@@ -1853,6 +1898,18 @@ static void blendfile_library_relocate_id_remap(BlendfileLinkAppendContext &lapp
       continue;
     }
     ID *new_id = item.new_id;
+    if (!new_id) {
+      if (do_reload) {
+        /* Since we asked for placeholders in case of missing IDs, we expect to always get a valid
+         * one. */
+        BLI_assert_msg(false,
+                       "On library reload, placeholders should be generated when a linked ID is "
+                       "missing, so there should never be a nullptr 'new_id' here");
+      }
+      /* If finding a valid matching ID for `old_id` in the searched library(-ies) failed, do not
+       * clear references to the current 'old_id' placeholder. */
+      continue;
+    }
     blendfile_library_relocate_id_remap_finalize(
         bmain, old_owner_id_to_shapekey, old_id, new_id, reports, do_reload);
   }

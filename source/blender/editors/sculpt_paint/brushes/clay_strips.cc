@@ -169,8 +169,11 @@ static void calc_faces(const Depsgraph &depsgraph,
   calc_brush_cube_distances<float2>(brush, xy_positions, distances);
   filter_distances_with_radius(1.0f, distances, factors);
   apply_hardness_to_distances(1.0f, cache.hardness, distances);
-  BKE_brush_calc_curve_factors(
-      eBrushCurvePreset(brush.curve_preset), brush.curve, distances, 1.0f, factors);
+  BKE_brush_calc_curve_factors(eBrushCurvePreset(brush.curve_distance_falloff_preset),
+                               brush.curve_distance_falloff,
+                               distances,
+                               1.0f,
+                               factors);
 
   auto_mask::calc_vert_factors(depsgraph, object, cache.automasking.get(), node, verts, factors);
 
@@ -221,8 +224,11 @@ static void calc_grids(const Depsgraph &depsgraph,
   calc_brush_cube_distances<float2>(brush, xy_positions, distances);
   filter_distances_with_radius(1.0f, distances, factors);
   apply_hardness_to_distances(1.0f, cache.hardness, distances);
-  BKE_brush_calc_curve_factors(
-      eBrushCurvePreset(brush.curve_preset), brush.curve, distances, 1.0f, factors);
+  BKE_brush_calc_curve_factors(eBrushCurvePreset(brush.curve_distance_falloff_preset),
+                               brush.curve_distance_falloff,
+                               distances,
+                               1.0f,
+                               factors);
 
   auto_mask::calc_grids_factors(depsgraph, object, cache.automasking.get(), node, grids, factors);
 
@@ -272,8 +278,11 @@ static void calc_bmesh(const Depsgraph &depsgraph,
   calc_brush_cube_distances<float2>(brush, xy_positions, distances);
   filter_distances_with_radius(1.0f, distances, factors);
   apply_hardness_to_distances(1.0f, cache.hardness, distances);
-  BKE_brush_calc_curve_factors(
-      eBrushCurvePreset(brush.curve_preset), brush.curve, distances, 1.0f, factors);
+  BKE_brush_calc_curve_factors(eBrushCurvePreset(brush.curve_distance_falloff_preset),
+                               brush.curve_distance_falloff,
+                               distances,
+                               1.0f,
+                               factors);
 
   auto_mask::calc_vert_factors(depsgraph, object, cache.automasking.get(), node, verts, factors);
 
@@ -468,8 +477,8 @@ CursorSampleResult calc_node_mask(const Depsgraph &depsgraph,
   const SculptSession &ss = *object.sculpt;
 
   const bool flip = (ss.cache->bstrength < 0.0f);
-  const float offset = brush_plane_offset_get(brush, ss);
-  const float displace = ss.cache->radius * (0.18f + offset) * (flip ? -1.0f : 1.0f);
+  const float displace = ss.cache->radius * brush_plane_offset_get(brush, ss) *
+                         (flip ? -1.0f : 1.0f);
 
   /* TODO: Test to see if the sqrt2 extra factor can be removed */
   const float initial_radius_squared = math::square(ss.cache->radius * math::numbers::sqrt2);

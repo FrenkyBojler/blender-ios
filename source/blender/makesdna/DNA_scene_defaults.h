@@ -23,6 +23,7 @@
     .depth = R_IMF_CHAN_DEPTH_8, \
     .quality = 90, \
     .compress = 15, \
+    .exr_flag = R_IMF_EXR_FLAG_MULTIPART, \
   }
 
 #define _DNA_DEFAULT_BakeData \
@@ -300,9 +301,9 @@
 
 #define _DNA_DEFAULTS_UnifiedPaintSettings \
   { \
-    .size = 50, \
+    .size = 100, \
     .input_samples = 1, \
-    .unprojected_radius = 0.29, \
+    .unprojected_size = 0.58, \
     .alpha = 0.5f, \
     .weight = 0.5f, \
     .color = {0.0f, 0.0f, 0.0f}, \
@@ -350,6 +351,13 @@
  \
     .sharp_min = DEG2RADF(90.0f), \
     .sharp_max = DEG2RADF(180.0f), \
+  }
+
+#define _DNA_DEFAULTS_UvSculpt \
+  { \
+    .size = 100, \
+    .strength = 1.0f, \
+    .curve_preset = BRUSH_CURVE_SMOOTH, \
   }
 
 #define _DNA_DEFAULT_ToolSettings \
@@ -418,6 +426,7 @@
     .gpencil_v2d_align = GP_PROJECT_VIEWSPACE, \
  \
     /* UV painting */ \
+    .uvsculpt = _DNA_DEFAULTS_UvSculpt, \
     .uv_sculpt_settings = 0, \
  \
     /* Placement */ \

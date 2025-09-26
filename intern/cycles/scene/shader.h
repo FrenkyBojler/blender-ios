@@ -83,9 +83,12 @@ class Shader : public Node {
   NODE_SOCKET_API(bool, use_bump_map_correction)
   NODE_SOCKET_API(VolumeSampling, volume_sampling_method)
   NODE_SOCKET_API(int, volume_interpolation_method)
+  NODE_SOCKET_API(float, volume_step_rate)
 
   /* displacement */
   NODE_SOCKET_API(DisplacementMethod, displacement_method)
+
+  float prev_volume_step_rate;
 
   /* synchronization */
   bool need_update_uvs;
@@ -212,6 +215,13 @@ class ShaderManager {
 
   void init_xyz_transforms();
 
+  enum class SceneLinearSpace { Rec709, Rec2020, ACEScg, Unknown };
+
+  SceneLinearSpace get_scene_linear_space()
+  {
+    return scene_linear_space;
+  }
+
  protected:
   ShaderManager();
 
@@ -235,7 +245,7 @@ class ShaderManager {
   float3 rec709_to_r;
   float3 rec709_to_g;
   float3 rec709_to_b;
-  bool is_rec709;
+  SceneLinearSpace scene_linear_space;
   vector<float> thin_film_table;
 
   template<std::size_t n>
