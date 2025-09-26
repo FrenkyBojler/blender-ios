@@ -432,7 +432,7 @@ class OUTLINER_PT_filter(Panel):
 
         if display_mode != 'DATA_API':
             col = layout.column()
-            col.prop(space, "sort_method", text="Sort By:")
+            col.prop(space, "sort_method", text="Sort By")
             layout.separator()
 
         if display_mode != 'LIBRARY_OVERRIDES':
