@@ -977,7 +977,7 @@ class ConstraintButtonsPanel:
 
         self.draw_influence(layout, con)
 
-    def draw_attribute(self, context):
+    def draw_attribute_transform(self, context):
         layout = self.layout
         con = self.get_constraint(context)
         layout.use_property_split = True
@@ -1710,16 +1710,16 @@ class BONE_PT_bKinematicConstraint(BoneConstraintPanel, ConstraintButtonsPanel, 
     def draw(self, context):
         self.draw_kinematic(context)
 
- # Attribute Constraint.
+ # Attribute Transform Constraint.
 
-class OBJECT_PT_bAttributeConstraint(ObjectConstraintPanel, ConstraintButtonsPanel, Panel):
+class OBJECT_PT_bAttributeTransformConstraint(ObjectConstraintPanel, ConstraintButtonsPanel, Panel):
     def draw(self, context):
-        self.draw_attribute(context)
+        self.draw_attribute_transform(context)
 
 
-class BONE_PT_bAttributeConstraint(BoneConstraintPanel, ConstraintButtonsPanel, Panel):
+class BONE_PT_bAttributeTransformConstraint(BoneConstraintPanel, ConstraintButtonsPanel, Panel):
     def draw(self, context):
-        self.draw_attribute(context)
+        self.draw_attribute_transform(context)
 
 classes = (
     # Object Panels
@@ -1761,7 +1761,7 @@ classes = (
     OBJECT_PT_bTransformCacheConstraint_layers,
     OBJECT_PT_bArmatureConstraint,
     OBJECT_PT_bArmatureConstraint_bones,
-    OBJECT_PT_bAttributeConstraint,
+    OBJECT_PT_bAttributeTransformConstraint,
 
     # Bone panels
     BONE_PT_bChildOfConstraint,
@@ -1803,7 +1803,7 @@ classes = (
     BONE_PT_bTransformCacheConstraint_layers,
     BONE_PT_bArmatureConstraint,
     BONE_PT_bArmatureConstraint_bones,
-    BONE_PT_bAttributeConstraint,
+    BONE_PT_bAttributeTransformConstraint,
 )
 
 if __name__ == "__main__":  # only for live edit.

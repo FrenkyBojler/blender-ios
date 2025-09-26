@@ -562,16 +562,16 @@ typedef struct bTransformCacheConstraint {
   char reader_object_path[/*FILE_MAX*/ 1024];
 } bTransformCacheConstraint;
 
-/* bAttributeConstraint->flag */
-typedef enum eAttributeConstraint_Flags {
+/* bAttributeTransformConstraint->flag */
+typedef enum eAttributeTransformConstraint_Flags {
   APPLY_TARGET_TRANSFORM = (1 << 0),
   MIX_LOC = (1 << 1),
   MIX_ROT = (1 << 2),
   MIX_SCALE = (1 << 3),
-} eAttributeConstraint_Flags;
+} eAttributeTransformConstraint_Flags;
 
 /* Attribute Constraint */
-typedef struct bAttributeConstraint {
+typedef struct bAttributeTransformConstraint {
   struct Object *target;
   char *attribute_name;
   int32_t sample_index;
@@ -581,10 +581,10 @@ typedef struct bAttributeConstraint {
   uint8_t domain;
   /* #Attribute_Data_Type */
   uint8_t data_type;
-  /* #eAttributeConstraint_Flags */
+  /* #eAttributeTransformConstraint_Flags */
   uint8_t flags;
   char _pad0[7];
-} bAttributeConstraint;
+} bAttributeTransformConstraint;
 
 /* Atrtibute Domain */
 typedef enum Attribute_Domain {
@@ -662,7 +662,7 @@ typedef enum eBConstraint_Types {
   CONSTRAINT_TYPE_OBJECTSOLVER = 28,
   CONSTRAINT_TYPE_TRANSFORM_CACHE = 29,
   CONSTRAINT_TYPE_ARMATURE = 30,
-  CONSTRAINT_TYPE_ATTRIBUTE = 31,
+  CONSTRAINT_TYPE_ATTRIBUTE_TRANS = 31,
 
   /* This should be the last entry in this list. */
   NUM_CONSTRAINT_TYPES,

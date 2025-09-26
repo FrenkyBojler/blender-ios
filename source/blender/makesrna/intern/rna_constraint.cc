@@ -165,10 +165,10 @@ const EnumPropertyItem rna_enum_constraint_type_items[] = {
      ICON_CON_SHRINKWRAP,
      "Shrinkwrap",
      "Restrict movements to surface of target mesh"},
-    {CONSTRAINT_TYPE_ATTRIBUTE,
-     "ATTRIBUTE",
-     ICON_CON_ATTRIBUTE,
-     "Attribute",
+    {CONSTRAINT_TYPE_ATTRIBUTE_TRANS,
+     "ATTRIBUTE_TRANSFORM",
+     ICON_CON_ATTRIBUTETRANSFORM,
+     "Attribute Transform",
      "Retrieve transform from target geometry attribute data"},
     {0, nullptr, 0, nullptr, nullptr},
 };
@@ -386,8 +386,8 @@ static StructRNA *rna_ConstraintType_refine(PointerRNA *ptr)
       return &RNA_ObjectSolverConstraint;
     case CONSTRAINT_TYPE_TRANSFORM_CACHE:
       return &RNA_TransformCacheConstraint;
-    case CONSTRAINT_TYPE_ATTRIBUTE:
-      return &RNA_AttributeConstraint;
+    case CONSTRAINT_TYPE_ATTRIBUTE_TRANS:
+      return &RNA_AttributeTransformConstraint;
     default:
       return &RNA_UnknownType;
   }
@@ -3618,7 +3618,7 @@ static void rna_def_constraint_transform_cache(BlenderRNA *brna)
   RNA_define_lib_overridable(false);
 }
 
-static void rna_def_constraint_attribute(BlenderRNA *brna)
+static void rna_def_constraint_attribute_transform(BlenderRNA *brna)
 {
   StructRNA *srna;
   PropertyRNA *prop;
@@ -3685,12 +3685,12 @@ static void rna_def_constraint_attribute(BlenderRNA *brna)
       {0, nullptr, 0, nullptr, nullptr},
   };
 
-  srna = RNA_def_struct(brna, "AttributeConstraint", "Constraint");
+  srna = RNA_def_struct(brna, "AttributeTransformConstraint", "Constraint");
   RNA_def_struct_ui_text(srna,
-                         "Attribute Constraint",
+                         "Attribute Transform Constraint",
                          "Create a constraint-based relationship with an attribute from geometry");
-  RNA_def_struct_sdna_from(srna, "bAttributeConstraint", "data");
-  RNA_def_struct_ui_icon(srna, ICON_CON_ATTRIBUTE);
+  RNA_def_struct_sdna_from(srna, "bAttributeTransformConstraint", "data");
+  RNA_def_struct_ui_icon(srna, ICON_CON_ATTRIBUTETRANSFORM);
 
   RNA_define_lib_overridable(true);
 
@@ -3916,7 +3916,7 @@ void RNA_def_constraint(BlenderRNA *brna)
   rna_def_constraint_camera_solver(brna);
   rna_def_constraint_object_solver(brna);
   rna_def_constraint_transform_cache(brna);
-  rna_def_constraint_attribute(brna);
+  rna_def_constraint_attribute_transform(brna);
 }
 
 #endif

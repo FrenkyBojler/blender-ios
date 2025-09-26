@@ -2744,8 +2744,8 @@ TreeElementIcon tree_element_get_icon(TreeStoreElem *tselem, TreeElement *te)
           case CONSTRAINT_TYPE_SHRINKWRAP:
             data.icon = ICON_CON_SHRINKWRAP;
             break;
-          case CONSTRAINT_TYPE_ATTRIBUTE:
-            data.icon = ICON_CON_ATTRIBUTE;
+          case CONSTRAINT_TYPE_ATTRIBUTE_TRANS:
+            data.icon = ICON_CON_ATTRIBUTETRANSFORM;
             break;
 
           default:
