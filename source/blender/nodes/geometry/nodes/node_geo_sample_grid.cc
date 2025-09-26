@@ -109,11 +109,6 @@ static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
   layout->prop(ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
 }
 
-static void node_init(bNodeTree * /*tree*/, bNode *node)
-{
-  node->custom1 = SOCK_FLOAT;
-}
-
 #ifdef WITH_OPENVDB
 
 template<typename T>
@@ -249,16 +244,9 @@ static void node_geo_exec(GeoNodeExecParams params)
 #endif
 }
 
-static const EnumPropertyItem *data_type_filter_fn(bContext * /*C*/,
-                                                   PointerRNA * /*ptr*/,
-                                                   PropertyRNA * /*prop*/,
-                                                   bool *r_free)
+static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  *r_free = true;
-  return enum_items_filter(
-      rna_enum_node_socket_data_type_items, [](const EnumPropertyItem &item) -> bool {
-        return ELEM(item.value, SOCK_FLOAT, SOCK_INT, SOCK_BOOLEAN, SOCK_VECTOR);
-      });
+  node->custom1 = SOCK_FLOAT;
 }
 
 static void node_rna(StructRNA *srna)
@@ -270,7 +258,7 @@ static void node_rna(StructRNA *srna)
                     rna_enum_node_socket_data_type_items,
                     NOD_inline_enum_accessors(custom1),
                     SOCK_FLOAT,
-                    data_type_filter_fn);
+                    grid_socket_type_items_filter_fn);
 }
 
 static void node_register()
@@ -279,6 +267,7 @@ static void node_register()
 
   geo_node_type_base(&ntype, "GeometryNodeSampleGrid", GEO_NODE_SAMPLE_GRID);
   ntype.ui_name = "Sample Grid";
+  ntype.ui_description = "Retrieve values from the specified volume grid";
   ntype.enum_name_legacy = "SAMPLE_GRID";
   ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.initfunc = node_init;

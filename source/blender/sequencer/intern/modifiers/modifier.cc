@@ -19,6 +19,7 @@
 
 #include "DNA_mask_types.h"
 #include "DNA_sequence_types.h"
+#include "DNA_space_types.h"
 
 #include "BKE_colortools.hh"
 #include "BKE_screen.hh"
@@ -180,6 +181,12 @@ bool modifier_ui_poll(const bContext *C, PanelType * /*pt*/)
   Scene *sequencer_scene = CTX_data_sequencer_scene(C);
   if (!sequencer_scene) {
     return false;
+  }
+  if (const SpaceSeq *sseq = CTX_wm_space_seq(C)) {
+    /* Only show modifiers in the sequencer view types, not the preview. */
+    if (sseq->view == SEQ_VIEW_PREVIEW) {
+      return false;
+    }
   }
   Strip *active_strip = seq::select_active_get(sequencer_scene);
   return active_strip != nullptr;
@@ -364,6 +371,7 @@ static void modifier_types_init(StripModifierTypeInfo *types[])
   INIT_TYPE(None);
   INIT_TYPE(BrightContrast);
   INIT_TYPE(ColorBalance);
+  INIT_TYPE(Compositor);
   INIT_TYPE(Curves);
   INIT_TYPE(HueCorrect);
   INIT_TYPE(Mask);
@@ -521,7 +529,7 @@ void modifier_apply_stack(const RenderData *context,
       }
 
       ImBuf *mask = modifier_mask_get(smd, context, timeline_frame, frame_offset);
-      smti->apply(quad, smd, ibuf, mask);
+      smti->apply(context, quad, smd, ibuf, mask);
       if (mask) {
         IMB_freeImBuf(mask);
       }

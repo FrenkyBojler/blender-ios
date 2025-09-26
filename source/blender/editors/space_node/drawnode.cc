@@ -1494,7 +1494,9 @@ void draw_nodespace_back_pix(const bContext &C,
   GPU_matrix_pop_projection();
   GPU_matrix_pop();
 
-  if (!(snode.flag & SNODE_BACKDRAW) || !ED_node_is_compositor(&snode)) {
+  if (!(snode.flag & SNODE_BACKDRAW) || !ED_node_is_compositor(&snode) ||
+      snode.node_tree_sub_type != SNODE_COMPOSITOR_SCENE)
+  {
     return;
   }
 
@@ -1506,7 +1508,7 @@ void draw_nodespace_back_pix(const bContext &C,
   GPU_matrix_push();
 
   /* The draw manager is used to draw the backdrop image. */
-  GPUFrameBuffer *old_fb = GPU_framebuffer_active_get();
+  blender::gpu::FrameBuffer *old_fb = GPU_framebuffer_active_get();
   GPU_framebuffer_restore();
   BLI_thread_lock(LOCK_DRAW_IMAGE);
   DRW_draw_view(&C);
@@ -1914,6 +1916,7 @@ static void nodelink_batch_init()
 
   /* Instances data */
   g_batch_link.link_buf = GPU_storagebuf_create(sizeof(NodeLinkData) * NODELINK_GROUP_SIZE);
+  gpu_batch_storage_buffer_register(g_batch_link.link_buf);
 
   nodelink_batch_reset();
 }

@@ -72,7 +72,7 @@ static bool wm_set_working_space_check_safe(bContext *C, wmOperator *op)
 
   if (WM_jobs_test(wm, scene, WM_JOB_TYPE_ANY)) {
     BKE_report(
-        op->reports, RPT_WARNING, RPT_("Can't change working space while josb are running"));
+        op->reports, RPT_WARNING, RPT_("Can't change working space while jobs are running"));
     return false;
   }
 
@@ -162,6 +162,13 @@ static wmOperatorStatus wm_set_working_color_space_invoke(bContext *C,
                  "working_space",
                  IMB_colormanagement_working_space_get_named_index(
                      IMB_colormanagement_working_space_get_default()));
+  }
+
+  const Main *bmain = CTX_data_main(C);
+  const char *working_space = IMB_colormanagement_working_space_get_indexed_name(
+      RNA_enum_get(op->ptr, "working_space"));
+  if (STREQ(working_space, bmain->colorspace.scene_linear_name)) {
+    return OPERATOR_CANCELLED;
   }
 
   return WM_operator_props_popup_confirm_ex(
