@@ -35,7 +35,7 @@
 
 namespace blender::ed::spreadsheet {
 
-static const std::string format_matrix_to_grid(const float4x4 &matrix)
+static std::string format_matrix_to_grid(const float4x4 &matrix)
 {
   auto format_element = [](float value) {
     if (math::abs(value) < 1e-4f) {
