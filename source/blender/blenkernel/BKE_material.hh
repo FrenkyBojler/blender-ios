@@ -52,6 +52,12 @@ void BKE_object_material_remap_calc(Object *ob_dst, Object *ob_src, short *remap
  * Copy materials from evaluated geometry to the original geometry of an object.
  */
 void BKE_object_material_from_eval_data(Main *bmain, Object *ob_orig, const ID *data_eval);
+/**
+ * Copy materials from evaluated geometry to original geometry. The length of the potential
+ * corresponding object material array lengths must be synced separately.
+ */
+void BKE_id_material_from_eval_data(ID *data_orig, const ID *data_eval);
+
 Material *BKE_material_add(Main *bmain, const char *name);
 Material *BKE_gpencil_material_add(Main *bmain, const char *name);
 void BKE_gpencil_material_attr_init(Material *ma);

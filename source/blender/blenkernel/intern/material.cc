@@ -1307,10 +1307,8 @@ void BKE_object_material_remap_calc(Object *ob_dst, Object *ob_src, short *remap
   BLI_ghash_free(gh_mat_map, nullptr, nullptr);
 }
 
-void BKE_object_material_from_eval_data(Main *bmain, Object *ob_orig, const ID *data_eval)
+void BKE_id_material_from_eval_data(ID *data_orig, const ID *data_eval)
 {
-  ID *data_orig = static_cast<ID *>(ob_orig->data);
-
   short *orig_totcol = BKE_id_material_len_p(data_orig);
   Material ***orig_mat = BKE_id_material_array_p(data_orig);
 
@@ -1339,6 +1337,12 @@ void BKE_object_material_from_eval_data(Main *bmain, Object *ob_orig, const ID *
       id_us_plus(&material_orig->id);
     }
   }
+}
+
+void BKE_object_material_from_eval_data(Main *bmain, Object *ob_orig, const ID *data_eval)
+{
+  ID *data_orig = static_cast<ID *>(ob_orig->data);
+  BKE_id_material_from_eval_data(data_orig, data_eval);
   BKE_object_materials_sync_length(bmain, ob_orig, data_orig);
 }
 

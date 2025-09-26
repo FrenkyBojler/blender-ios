@@ -672,52 +672,40 @@ static Vector<Object *> gather_supported_objects(const bContext &C,
   return objects;
 }
 
-static Vector<Object *> add_objects_from_geometry_eval(Main *bmain,
-                                                       bke::GeometrySet geometry,
-                                                       const StringRefNull name)
+static Vector<ID *> add_ids_for_geometry_eval(Main *bmain,
+                                              bke::GeometrySet geometry,
+                                              const StringRefNull name)
 {
   geometry.ensure_owns_direct_data();
-  Vector<Object *> new_objects;
+  Vector<ID *> new_ids;
   if (Mesh *src_mesh = geometry.get_component_for_write<bke::MeshComponent>().release()) {
     Mesh *new_mesh = BKE_id_new<Mesh>(bmain, name.c_str());
-    Object *object = BKE_object_add_only_object(bmain, OB_MESH, name.c_str());
-    object->data = new_mesh;
-
-    BKE_object_material_from_eval_data(bmain, object, &src_mesh->id);
+    BKE_id_material_from_eval_data(&new_mesh->id, &src_mesh->id);
     BKE_mesh_nomain_to_mesh(src_mesh, new_mesh, nullptr, false);
     new_mesh->attributes_for_write().remove_anonymous();
-    new_objects.append(object);
+    new_ids.append(&new_mesh->id);
   }
   if (Curves *src_curves = geometry.get_curves_for_write()) {
     Curves *new_curves = BKE_id_new<Curves>(bmain, name.c_str());
-    Object *object = BKE_object_add_only_object(bmain, OB_CURVES, name.c_str());
-    object->data = new_curves;
-
-    BKE_object_material_from_eval_data(bmain, object, &src_curves->id);
+    BKE_id_material_from_eval_data(&new_curves->id, &src_curves->id);
     new_curves->geometry.wrap() = std::move(src_curves->geometry.wrap());
     new_curves->geometry.wrap().attributes_for_write().remove_anonymous();
-    new_objects.append(object);
+    new_ids.append(&new_curves->id);
   }
   if (PointCloud *src_pointcloud =
           geometry.get_component_for_write<bke::PointCloudComponent>().release())
   {
     PointCloud *new_pointcloud = BKE_id_new<PointCloud>(bmain, name.c_str());
-    Object *object = BKE_object_add_only_object(bmain, OB_POINTCLOUD, name.c_str());
-    object->data = new_pointcloud;
-
-    BKE_object_material_from_eval_data(bmain, object, &src_pointcloud->id);
+    BKE_id_material_from_eval_data(&new_pointcloud->id, &src_pointcloud->id);
     BKE_pointcloud_nomain_to_pointcloud(src_pointcloud, new_pointcloud);
     new_pointcloud->attributes_for_write().remove_anonymous();
-    new_objects.append(object);
+    new_ids.append(&new_pointcloud->id);
   }
   if (GreasePencil *src_grease_pencil =
           geometry.get_component_for_write<bke::GreasePencilComponent>().release())
   {
     GreasePencil *new_grease_pencil = BKE_id_new<GreasePencil>(bmain, name.c_str());
-    Object *object = BKE_object_add_only_object(bmain, OB_GREASE_PENCIL, name.c_str());
-    object->data = new_grease_pencil;
-
-    BKE_object_material_from_eval_data(bmain, object, &src_grease_pencil->id);
+    BKE_id_material_from_eval_data(&new_grease_pencil->id, &src_grease_pencil->id);
     BKE_grease_pencil_nomain_to_grease_pencil(src_grease_pencil, new_grease_pencil);
     new_grease_pencil->attributes_for_write().remove_anonymous();
     for (GreasePencilDrawingBase *base : new_grease_pencil->drawings()) {
@@ -727,9 +715,12 @@ static Vector<Object *> add_objects_from_geometry_eval(Main *bmain,
       bke::greasepencil::Drawing &drawing = reinterpret_cast<GreasePencilDrawing *>(base)->wrap();
       drawing.strokes_for_write().attributes_for_write().remove_anonymous();
     }
-    new_objects.append(object);
+    new_ids.append(&new_grease_pencil->id);
   }
-  return new_objects;
+  if (new_ids.is_empty()) {
+    new_ids.append(nullptr);
+  }
+  return new_ids;
 }
 
 static wmOperatorStatus run_node_group_exec(bContext *C, wmOperator *op)
@@ -839,6 +830,9 @@ static wmOperatorStatus run_node_group_exec(bContext *C, wmOperator *op)
     operator_eval_data.active_object_instance_index = objects.first_index_of(active_object);
     call_data.socket_log_contexts = &socket_log_contexts;
 
+    // Map<StringRef, Object *> object_by_name;
+    // object_by_name.res
+
     auto instances = std::make_unique<bke::Instances>();
     instances->resize(objects.size());
 
@@ -872,31 +866,36 @@ static wmOperatorStatus run_node_group_exec(bContext *C, wmOperator *op)
     }
 
     if (!result_geometry.gather_component_types(false, true).is_empty()) {
-      BKE_report(op->reports, RPT_INFO, "Realized non-instance geometry is ignored");
+      BKE_report(op->reports, RPT_INFO, "Realized non-instance geometry in output is ignored");
     }
 
-    Map<std::string, int> instance_names;
-    instance_names.reserve(new_instances->instances_num());
-    const Span<int> handles = new_instances->reference_handles();
     const Span<bke::InstanceReference> references = new_instances->references();
-    for (const int i : handles.index_range()) {
-      const StringRef reference_name = references[handles[i]].name();
-      const StringRef name = reference_name.is_empty() ? DATA_("Object") : reference_name;
-      instance_names.add_new(
-          BLI_uniquename_cb(
-              [&](const StringRef name) { return instance_names.contains(name); }, '.', name),
-          i);
-    }
-
+    const Span<int> handles = new_instances->reference_handles();
     const Span<float4x4> transforms = new_instances->transforms();
 
+    Map<StringRef, int> instance_names;
+    instance_names.reserve(handles.size());
+    for (const int i : handles.index_range()) {
+      const StringRef name = references[handles[i]].name();
+      if (name.is_empty()) {
+        continue;
+      }
+      instance_names.add(name, i);
+    }
+
+    Array<bool> instance_processed(handles.size(), false);
+    Map<int, ID *> reference_to_updated_data;
+    reference_to_updated_data.reserve(references.size());
     Set<ID *> objects_to_delete;
     for (Object *object : objects) {
-      const std::optional<int> instance_index = instance_names.pop_try_as(BKE_id_name(object->id));
+      const std::optional<int> instance_index = instance_names.lookup_try_as(
+          BKE_id_name(object->id));
       if (!instance_index) {
         objects_to_delete.add_new(&object->id);
         continue;
       }
+
+      instance_processed[*instance_index] = true;
 
       const float4x4 &transform = transforms[*instance_index];
       if (!math::is_equal(transform, object->object_to_world(), 1e-6f)) {
@@ -904,53 +903,56 @@ static wmOperatorStatus run_node_group_exec(bContext *C, wmOperator *op)
         DEG_id_tag_update(&object->id, ID_RECALC_TRANSFORM);
       }
 
+      const int reference_index = handles[*instance_index];
+
+      if (ID *data = reference_to_updated_data.lookup_default(reference_index, nullptr)) {
+        if (data != object->data) {
+          ID *old_data = static_cast<ID *>(object->data);
+          id_us_min(old_data);
+          object->data = data;
+          id_us_plus(data);
+          BLI_assert(BKE_object_obdata_to_type(data) == object->type);
+        }
+        BKE_object_materials_sync_length(bmain, object, data);
+        continue;
+      }
+
       bke::GeometrySet geometry;
       references[handles[*instance_index]].to_geometry_set(geometry);
       store_result_geometry(
           *C, *op, *depsgraph_active, *bmain, *scene, *object, rv3d, std::move(geometry));
+      reference_to_updated_data.add_new(reference_index, static_cast<ID *>(object->data));
 
       WM_event_add_notifier(C, NC_GEOM | ND_DATA, object->data);
     }
 
     BKE_id_multi_delete(bmain, objects_to_delete);
 
-    if (!instance_names.is_empty()) {
+    IndexMaskMemory memory;
+    const IndexMask instances_to_add = IndexMask::from_bools_inverse(instance_processed, memory);
+
+    if (!instances_to_add.is_empty()) {
       Vector<Object *> new_objects;
-      new_objects.reserve(instance_names.size());
-      Map<int, Vector<ID *>> reference_index_to_new_object_data;
-      for (const auto &item : instance_names.items()) {
-        const StringRefNull name = item.key;
-        const int instance_index = item.value;
-        reference_index_to_new_object_data.add_or_modify(
-            handles[instance_index],
-            [&](Vector<ID *> *ids_for_geometry) {
+      new_objects.reserve(instances_to_add.size());
+      Map<int, Vector<ID *>> reference_to_object_data;
+      instances_to_add.foreach_index([&](const int instance_index) {
+        const StringRefNull name = references[handles[instance_index]].name();
+        const Span<ID *> new_ids = reference_to_object_data.lookup_or_add_cb(
+            handles[instance_index], [&]() {
               bke::GeometrySet geometry;
               references[handles[instance_index]].to_geometry_set(geometry);
-              Vector<Object *> objects = add_objects_from_geometry_eval(
-                  bmain, std::move(geometry), name);
-              new_objects.extend(objects);
-
-              if (objects.is_empty()) {
-                objects.append(BKE_object_add_only_object(bmain, OB_EMPTY, name.c_str()));
-              }
-
-              new (ids_for_geometry) Vector<ID *>();
-              for (Object *object : objects) {
-                BKE_object_apply_mat4(object, transforms[instance_index].ptr(), false, false);
-                ids_for_geometry->append(static_cast<ID *>(object->data));
-              }
-            },
-            [&](Vector<ID *> *ids_for_geometry) {
-              for (ID *data : *ids_for_geometry) {
-                const int type = data ? BKE_object_obdata_to_type(data) : OB_EMPTY;
-                Object *new_object = BKE_object_add_only_object(bmain, type, name.c_str());
-                new_object->data = data;
-                id_us_plus(data);
-                new_objects.append(new_object);
-                BKE_object_apply_mat4(new_object, transforms[instance_index].ptr(), false, false);
-              }
+              return add_ids_for_geometry_eval(bmain, std::move(geometry), name);
             });
-      }
+        for (ID *data : new_ids) {
+          const int type = data ? BKE_object_obdata_to_type(data) : OB_EMPTY;
+          Object *new_object = BKE_object_add_only_object(bmain, type, name.c_str());
+          new_object->data = data;
+          id_us_plus(data);
+          BKE_object_materials_sync_length(bmain, new_object, data);
+          BKE_object_apply_mat4(new_object, transforms[instance_index].ptr(), false, false);
+          new_objects.append(new_object);
+        }
+      });
 
       Collection *collection = BKE_layer_collection_get_active(view_layer)->collection;
       for (Object *new_object : new_objects) {
