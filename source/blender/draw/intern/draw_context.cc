@@ -1855,8 +1855,7 @@ void DRW_draw_select_loop(Depsgraph *depsgraph,
   Object *obedit = use_obedit_skip ? nullptr : OBEDIT_FROM_OBACT(obact);
 
   bool use_obedit = false;
-  const ToolSettings *ts = scene ? scene->toolsettings : nullptr;
-  const bool lock_object_modes = ts && (ts->object_flag & SCE_OBJECT_MODE_LOCK);
+  const ToolSettings *ts = scene->toolsettings;
 
   /* obedit_ctx_mode is used for selecting the right draw engines */
   // eContextObjectMode obedit_ctx_mode;
@@ -1879,7 +1878,7 @@ void DRW_draw_select_loop(Depsgraph *depsgraph,
   /* Only restrict selection to bones when the user turns on Lock Object Modes.
    * If the lock is off, we skip this so other objects can still be selected. */
   if ((v3d->overlay.flag & V3D_OVERLAY_BONE_SELECT) && !(v3d->flag2 & V3D_HIDE_OVERLAYS) &&
-      lock_object_modes)
+      (ts->object_flag & SCE_OBJECT_MODE_LOCK))
   {
     /* NOTE: don't use "BKE_object_pose_armature_get" here, it breaks selection. */
     Object *obpose = OBPOSE_FROM_OBACT(obact);
