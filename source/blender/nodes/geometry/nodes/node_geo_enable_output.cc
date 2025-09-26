@@ -22,15 +22,14 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.use_custom_socket_order();
   b.allow_any_socket_order();
 
+  b.add_default_layout();
+  b.add_input<decl::Bool>("Enable").default_value(false).structure_type(StructureType::Single);
+
   const bNode *node = b.node_or_null();
   if (!node) {
     return;
   }
-
   const eNodeSocketDatatype data_type = eNodeSocketDatatype(node->custom1);
-
-  b.add_default_layout();
-  b.add_input<decl::Bool>("Enable").default_value(false).structure_type(StructureType::Single);
   b.add_input(data_type, "Value").hide_value().structure_type(StructureType::Dynamic);
   b.add_output(data_type, "Value").align_with_previous().structure_type(StructureType::Dynamic);
 }
