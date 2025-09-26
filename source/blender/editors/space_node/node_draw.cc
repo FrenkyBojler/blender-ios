@@ -2946,7 +2946,7 @@ static void node_draw_basis(const bContext &C,
       UI_GetThemeColorShade4fv(TH_REDALERT, -20, color_header);
     }
     else if (node.is_muted()) {
-      UI_GetThemeColorBlend4f(TH_BACK, color_id, 0.1f, color_header);
+      UI_GetThemeColorBlendShade4fv(TH_BACK, color_id, 0.4f, 0, color_header);
     }
     else {
       UI_GetThemeColor4fv(color_id, color_header);
@@ -3239,6 +3239,9 @@ static void node_draw_basis(const bContext &C,
     if (node_undefined_or_unsupported(ntree, node)) {
       UI_GetThemeColorShade4fv(TH_REDALERT, -40, color_body);
     }
+    else if (node.is_muted()) {
+      UI_GetThemeColorBlendShade4fv(TH_NODE, color_id, 0.4f, 20, color_header);
+    }
     else {
       UI_GetThemeColorShade4fv(TH_NODE, 20, color_body);
     }
@@ -3325,7 +3328,7 @@ static void node_draw_collapsed(const bContext &C,
     }
     else if (node.is_muted()) {
       /* Muted nodes get a mix of the background with the node color. */
-      UI_GetThemeColorBlendShade4fv(TH_BACK, color_id, 0.1f, 0, color);
+      UI_GetThemeColorBlendShade4fv(TH_BACK, color_id, 0.4f, 0, color);
     }
     else if (node.flag & NODE_CUSTOM_COLOR) {
       rgba_float_args_set(color, node.color[0], node.color[1], node.color[2], 1.0f);
@@ -3432,8 +3435,9 @@ static void node_draw_collapsed(const bContext &C,
       UI_GetThemeColor4fv(TH_REDALERT, color_outline);
     }
     else {
-      /* Use a slightly lighter version of the header color. */
-      UI_GetThemeColorShade4fv(color_id, 20, color_outline);
+      /* Use a mix of the backdrop and node type color, slightly lighter. */
+      UI_GetThemeColorBlendShade4fv(
+          TH_NODE, color_id, (node.is_muted()) ? .4f : .8f, 20, color_outline);
     }
 
     UI_draw_roundbox_corner_set(UI_CNR_ALL);
