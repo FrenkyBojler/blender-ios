@@ -358,20 +358,16 @@ class NODE_MT_shader_node_vector_base(node_add_menu.NodeMenu):
     bl_label = "Vector"
     menu_path = "Utilities/Vector"
 
-    def draw(self, _context):
+    def draw(self, context):
         layout = self.layout
 
         self.node_operator(layout, "ShaderNodeCombineXYZ")
         self.node_operator(layout, "ShaderNodeSeparateXYZ")
         layout.separator()
-        self.node_operator(layout, "ShaderNodeBump")
-        self.node_operator(layout, "ShaderNodeDisplacement")
-        self.node_operator(layout, "ShaderNodeMapping")
         self.node_operator(layout, "ShaderNodeNormal")
         self.node_operator(layout, "ShaderNodeNormalMap")
         self.node_operator(layout, "ShaderNodeRadialTiling")
         self.node_operator(layout, "ShaderNodeVectorCurve")
-        self.node_operator(layout, "ShaderNodeVectorDisplacement")
         self.node_operator(layout, "ShaderNodeVectorRotate")
         self.node_operator(layout, "ShaderNodeVectorTransform")
         self.node_operator_with_searchable_enum(context, layout, "ShaderNodeVectorMath", "operation")
@@ -386,6 +382,19 @@ class NODE_MT_shader_node_script_base(node_add_menu.NodeMenu):
         layout = self.layout
 
         self.node_operator(layout, "ShaderNodeScript")
+
+        self.draw_assets_for_catalog(layout, self.bl_label)
+
+class NODE_MT_shader_node_displacement_base(node_add_menu.NodeMenu):
+    bl_label = "Displacement"
+
+    def draw(self, _context):
+        layout = self.layout
+
+        self.node_operator(layout, "ShaderNodeBump")
+        self.node_operator(layout, "ShaderNodeDisplacement")
+        self.node_operator(layout, "ShaderNodeMapping")
+        self.node_operator(layout, "ShaderNodeVectorDisplacement")
 
         self.draw_assets_for_catalog(layout, self.bl_label)
 
@@ -430,6 +439,7 @@ class NODE_MT_shader_node_all_base(node_add_menu.NodeMenu):
         self.draw_menu(layout, "Color")
         self.draw_menu(layout, "Shader")
         self.draw_menu(layout, "Texture")
+        self.draw_menu(layout, "Displacement")
         self.draw_menu(layout, "Utilities")
         layout.separator()
         self.draw_menu(layout, "Script")
@@ -448,6 +458,7 @@ add_menus = {
     "NODE_MT_shader_node_color_mix": NODE_MT_shader_node_color_mix_base,
     "NODE_MT_category_shader_shader": NODE_MT_shader_node_shader_base,
     "NODE_MT_category_shader_texture": NODE_MT_shader_node_texture_base,
+    "NODE_MT_category_shader_displacement": NODE_MT_shader_node_displacement_base,
     "NODE_MT_category_shader_vector": NODE_MT_shader_node_vector_base,
     "NODE_MT_category_shader_script": NODE_MT_shader_node_script_base,
     "NODE_MT_category_shader_utilities": NODE_MT_shader_node_utilities_base,
@@ -468,6 +479,7 @@ swap_menus = {
     "NODE_MT_shader_node_color_mix_swap": NODE_MT_shader_node_color_mix_base,
     "NODE_MT_shader_node_shader_swap": NODE_MT_shader_node_shader_base,
     "NODE_MT_shader_node_texture_swap": NODE_MT_shader_node_texture_base,
+    "NODE_MT_shader_node_displacement_swap": NODE_MT_shader_node_displacement_base,
     "NODE_MT_shader_node_vector_swap": NODE_MT_shader_node_vector_base,
     "NODE_MT_shader_node_script_swap": NODE_MT_shader_node_script_base,
     "NODE_MT_shader_node_utilities_swap": NODE_MT_shader_node_utilities_base,
