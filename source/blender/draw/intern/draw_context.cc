@@ -1877,27 +1877,27 @@ void DRW_draw_select_loop(Depsgraph *depsgraph,
 
   /* Only restrict selection to bones when the user turns on Lock Object Modes.
    * If the lock is off, we skip this so other objects can still be selected. */
-  if ((v3d->overlay.flag & V3D_OVERLAY_BONE_SELECT) && !(v3d->flag2 & V3D_HIDE_OVERLAYS) &&
-      (ts->object_flag & SCE_OBJECT_MODE_LOCK))
-  {
-    /* NOTE: don't use "BKE_object_pose_armature_get" here, it breaks selection. */
-    Object *obpose = OBPOSE_FROM_OBACT(obact);
-    if (obpose == nullptr) {
-      Object *obweight = OBWEIGHTPAINT_FROM_OBACT(obact);
-      if (obweight) {
-        /* Only use Armature pose selection, when connected armature is in pose mode. */
-        Object *ob_armature = BKE_modifiers_is_deformed_by_armature(obweight);
-        if (ob_armature && ob_armature->mode == OB_MODE_POSE) {
-          obpose = ob_armature;
+  if (v3d->overlay.flag & V3D_OVERLAY_BONE_SELECT) {
+    if (!(v3d->flag2 & V3D_HIDE_OVERLAYS) && (ts->object_flag & SCE_OBJECT_MODE_LOCK)) {
+      /* NOTE: don't use "BKE_object_pose_armature_get" here, it breaks selection. */
+      Object *obpose = OBPOSE_FROM_OBACT(obact);
+      if (obpose == nullptr) {
+        Object *obweight = OBWEIGHTPAINT_FROM_OBACT(obact);
+        if (obweight) {
+          /* Only use Armature pose selection, when connected armature is in pose mode. */
+          Object *ob_armature = BKE_modifiers_is_deformed_by_armature(obweight);
+          if (ob_armature && ob_armature->mode == OB_MODE_POSE) {
+            obpose = ob_armature;
+          }
         }
       }
-    }
 
-    if (obpose) {
-      use_obedit = true;
-      object_type = obpose->type;
-      object_mode = eObjectMode(obpose->mode);
-      // obedit_ctx_mode = CTX_MODE_POSE;
+      if (obpose) {
+        use_obedit = true;
+        object_type = obpose->type;
+        object_mode = eObjectMode(obpose->mode);
+        // obedit_ctx_mode = CTX_MODE_POSE;
+      }
     }
   }
 
