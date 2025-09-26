@@ -143,6 +143,8 @@ struct State {
   bool is_viewport_image_render = false;
   /** Whether we are rendering for an image. */
   bool is_image_render = false;
+  /** Whether we are transforming. */
+  bool is_transforming = false;
   /** True if rendering only to query the depth. Can be for auto-depth rotation. */
   bool is_depth_only_drawing = false;
   /** Skip drawing particle systems. Prevents self-occlusion issues in Particle Edit mode. */
@@ -245,6 +247,10 @@ struct State {
   bool show_bones() const
   {
     return (this->overlay.flag & V3D_OVERLAY_HIDE_BONES) == 0;
+  }
+  bool isolate_bones() const
+  {
+    return (this->overlay.flag & V3D_OVERLAY_ISOLATE_BONES);
   }
   bool show_object_origins() const
   {

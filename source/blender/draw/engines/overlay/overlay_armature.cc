@@ -2064,7 +2064,9 @@ void Armatures::draw_armature_pose(Armatures::DrawContext *ctx)
                                             arm_drawtype :
                                             eArmature_Drawtype(bone->drawtype);
     bone_draw_update_display_matrix(drawtype, use_custom_shape, bone_ptr);
-    bone_draw(drawtype, use_custom_shape, ctx, bone_ptr, boneflag, select_id);
+    if (!(draw_ctx->is_transforming() && ctx->isolate_bones && !(bone->flag & BONE_SELECTED))) {
+      bone_draw(drawtype, use_custom_shape, ctx, bone_ptr, boneflag, select_id);
+    }
 
     /* Below this point nothing is used for selection queries. */
     if (is_pose_select) {

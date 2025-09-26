@@ -492,6 +492,7 @@ class Armatures : Overlay {
     float const_wire = 0.0f;
 
     bool do_relations = false;
+    bool isolate_bones = false;
     bool transparent = false;
     bool show_relations = false;
     bool draw_envelope_distance = false;
@@ -529,6 +530,7 @@ class Armatures : Overlay {
     ctx.is_filled = (!draw_transparent && !draw_as_wire) || is_edit_or_pose_mode;
     ctx.show_relations = show_relations;
     ctx.do_relations = show_relations && is_edit_or_pose_mode;
+    ctx.isolate_bones = state.isolate_bones() && draw_mode == ARM_DRAW_MODE_POSE;
     ctx.draw_envelope_distance = is_edit_or_pose_mode;
     ctx.draw_relation_from_head = (arm.flag & ARM_DRAW_RELATION_FROM_HEAD);
     ctx.show_text = state.show_text;

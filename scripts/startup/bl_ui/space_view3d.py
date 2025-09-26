@@ -7551,12 +7551,16 @@ class VIEW3D_PT_overlay_bones(Panel):
             sub = row.row()
             sub.active = display_all and overlay.show_xray_bone
             sub.prop(overlay, "xray_alpha_bone", text="Fade Geometry")
+            row = col.row()
+            row.prop(overlay, "isolate_bones", text="Isolate Bones")
         elif mode == 'PAINT_WEIGHT':
             row = col.row()
             row.prop(overlay, "show_xray_bone")
             row = col.row()
             row.active = shading.type == 'WIREFRAME'
             row.prop(overlay, "bone_wire_alpha")
+            row = col.row()
+            row.prop(overlay, "isolate_bones", text="Isolate Bones")
 
 
 class VIEW3D_PT_overlay_texture_paint(Panel):

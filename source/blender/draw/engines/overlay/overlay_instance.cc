@@ -41,6 +41,7 @@ void Instance::init()
   state.cfra = DEG_get_ctime(state.depsgraph);
   state.is_viewport_image_render = ctx->is_viewport_image_render();
   state.is_image_render = ctx->is_image_render();
+  state.is_transforming = ctx->is_transforming();
   state.is_depth_only_drawing = ctx->is_depth();
   state.skip_particles = ctx->mode == DRWContext::DEPTH_ACTIVE_OBJECT;
   state.is_material_select = ctx->is_material_select();
@@ -96,7 +97,7 @@ void Instance::init()
       state.v3d_gridflag = 0;
       state.overlay.flag = V3D_OVERLAY_HIDE_TEXT | V3D_OVERLAY_HIDE_MOTION_PATHS |
                            V3D_OVERLAY_HIDE_BONES | V3D_OVERLAY_HIDE_OBJECT_XTRAS |
-                           V3D_OVERLAY_HIDE_OBJECT_ORIGINS;
+                           V3D_OVERLAY_HIDE_OBJECT_ORIGINS | V3D_OVERLAY_ISOLATE_BONES;
       state.overlay.wireframe_threshold = state.v3d->overlay.wireframe_threshold;
       state.overlay.wireframe_opacity = state.v3d->overlay.wireframe_opacity;
     }
