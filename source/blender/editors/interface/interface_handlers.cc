@@ -4145,6 +4145,8 @@ static int ui_do_but_textedit(
     }
   }
   else if (event->type == WM_IME_COMPOSITE_END) {
+    /* Reset IME data once commited. */
+    *win->runtime->ime_data = {"", "", -1, -1, -1};
     changed = true;
   }
 #endif
