@@ -270,9 +270,9 @@ wmOperatorStatus WM_gesture_box_modal(bContext *C, wmOperator *op, const wmEvent
             tmp = rect->ymin;
             rect->ymin = rect->ymax;
             rect->ymax = tmp;
-            return OPERATOR_RUNNING_MODAL;
           }
         }
+        return OPERATOR_RUNNING_MODAL;
       }
 #ifdef WITH_INPUT_NDOF
       case NDOF_MOTION: {
