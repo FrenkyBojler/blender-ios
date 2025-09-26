@@ -1420,7 +1420,7 @@ static bool wm_xr_navigation_teleport_ground_plane(float points[XR_MAX_RAYCASTS 
   for (int i = 1; i < *num_points; ++i) {
     float *startpoint = points[i - 1], *endpoint = points[i];
 
-    if (startpoint[z] < 0 == endpoint[z] < 0) {
+    if ((startpoint[z] < 0) == (endpoint[z] < 0)) {
       continue;
     }
 
@@ -1632,19 +1632,18 @@ static wmOperatorStatus wm_xr_navigation_teleport_modal(bContext *C,
   wm_xr_raycast_update(op, xr, actiondata);
 
   XrRaycastData *data = static_cast<XrRaycastData *>(op->customdata);
-  bool selectable_only, teleport_axes[3];
-  float teleport_t, teleport_ofs, ray_dist, gravity, head_height, nav_scale, destination_dist,
-      nav_destination[3];
+  float nav_scale, ray_dist, destination_dist, nav_destination[3];
+  bool teleport_axes[3];
 
   WM_xr_session_state_nav_scale_get(xr, &nav_scale);
 
   RNA_boolean_get_array(op->ptr, "teleport_axes", teleport_axes);
-  teleport_t = RNA_float_get(op->ptr, "interpolation");
-  teleport_ofs = RNA_float_get(op->ptr, "offset") * nav_scale;
-  selectable_only = RNA_boolean_get(op->ptr, "selectable_only");
+  const float teleport_t = RNA_float_get(op->ptr, "interpolation");
+  const float teleport_ofs = RNA_float_get(op->ptr, "offset") * nav_scale;
+  const float gravity = RNA_float_get(op->ptr, "gravity");
+  const float head_height = xr->runtime->session_state.prev_local_pose.position[1] * nav_scale;
+  const bool selectable_only = RNA_boolean_get(op->ptr, "selectable_only");
   ray_dist = RNA_float_get(op->ptr, "distance") * nav_scale;
-  gravity = RNA_float_get(op->ptr, "gravity");
-  head_height = xr->runtime->session_state.prev_local_pose.position[1] * nav_scale;
 
   data->num_points = XR_MAX_RAYCASTS + 1;
   data->result = wm_xr_navigation_teleport(C,
