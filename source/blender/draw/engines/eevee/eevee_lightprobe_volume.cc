@@ -1136,7 +1136,8 @@ void IrradianceBake::surfels_create(const Object &probe_object)
   }
 
   if (capture_info_buf_.surfel_len > surfels_buf_.size()) {
-    printf("IrradianceBake: Allocating %u surfels.\n", capture_info_buf_.surfel_len);
+    CLOG_INFO(
+        &Instance::log, "IrradianceBake: Allocating %u surfels.", capture_info_buf_.surfel_len);
 
     size_t max_size = GPU_max_storage_buffer_size();
     if (GPU_mem_stats_supported()) {
@@ -1328,7 +1329,6 @@ void IrradianceBake::raylists_build()
   list_item_surfel_id_buf_.resize(ceil_to_multiple_u(capture_info_buf_.surfel_len, 4));
   sorted_surfel_id_buf_.resize(ceil_to_multiple_u(capture_info_buf_.surfel_len, 4));
 
-  GPU_storagebuf_clear(list_start_buf_, -1);
   GPU_storagebuf_clear(list_counter_buf_, 0);
   inst_.manager->submit(surfel_ray_build_ps_, ray_view_);
 }

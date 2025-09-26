@@ -8,6 +8,8 @@
  * An instance contains all structures needed to do a complete render.
  */
 
+#include "CLG_log.h"
+
 #include "BKE_global.hh"
 #include "BKE_object.hh"
 
@@ -18,7 +20,6 @@
 
 #include "DEG_depsgraph_query.hh"
 
-#include "DNA_ID.h"
 #include "DNA_lightprobe_types.h"
 #include "DNA_modifier_types.h"
 
@@ -30,16 +31,16 @@
 
 #include "RE_pipeline.h"
 
-#include "eevee_engine.h"
 #include "eevee_instance.hh"
 
 #include "DNA_particle_types.h"
 
-#include "draw_common.hh"
 #include "draw_context_private.hh"
 #include "draw_view_data.hh"
 
 namespace blender::eevee {
+
+CLG_LogRef Instance::log = {"eevee"};
 
 void *Instance::debug_scope_render_sample = nullptr;
 void *Instance::debug_scope_irradiance_setup = nullptr;
@@ -921,6 +922,9 @@ void Instance::light_bake_irradiance(
 
       DRW_submission_end();
     }
+
+    /* Avoid big setup job to be queued with the sampling commands. */
+    GPU_flush();
   });
 
   if (volume_probes.bake.should_break()) {
@@ -928,14 +932,20 @@ void Instance::light_bake_irradiance(
   }
 
   sampling.init(probe);
+
+  /* Start with 1 sample and progressively ramp up. */
+  float time_per_sample_ms_smooth = 16.0f;
+  double last_update_timestamp = BLI_time_now_seconds();
   while (!sampling.finished()) {
     context_wrapper([&]() {
       DebugScope debug_scope(debug_scope_irradiance_sample, "EEVEE.irradiance_sample");
 
-      /* Batch ray cast by pack of 16. Avoids too much overhead of the update function & context
-       * switch. */
-      /* TODO(fclem): Could make the number of iteration depend on the computation time. */
-      for (int i = 0; i < 16 && !sampling.finished(); i++) {
+      /* Batch ray cast. Avoids too much overhead of the context switch. */
+      int sample_count_in_batch = clamp_i(16 / time_per_sample_ms_smooth, 1, 100);
+      CLOG_INFO(&Instance::log, "IrradianceBake: Casting %d rays.", sample_count_in_batch);
+
+      double time_it_begin_ms = BLI_time_now_seconds() * 1000.0;
+      for (int i = 0; i < sample_count_in_batch && !sampling.finished(); i++) {
         sampling.step();
         {
           /* Critical section. Potential gpu::Shader concurrent usage. */
@@ -947,19 +957,27 @@ void Instance::light_bake_irradiance(
 
           DRW_submission_end();
         }
-      }
+      };
+      /* We use GPU_finish to take into account the GPU processing time. */
+      GPU_finish();
+      double time_it_end_ms = BLI_time_now_seconds() * 1000.0;
 
-      LightProbeGridCacheFrame *cache_frame;
+      float time_per_sample_ms = float(time_it_end_ms - time_it_begin_ms) / sample_count_in_batch;
+      /* Exponential average. */
+      time_per_sample_ms_smooth = interpolate(time_per_sample_ms_smooth, time_per_sample_ms, 0.7f);
+
       if (sampling.finished()) {
-        cache_frame = volume_probes.bake.read_result_packed();
+        result_update(volume_probes.bake.read_result_packed(), 1.0f);
       }
       else {
-        /* TODO(fclem): Only do this read-back if needed. But it might be tricky to know when. */
-        cache_frame = volume_probes.bake.read_result_unpacked();
+        double time_since_last_update_ms = BLI_time_now_seconds() - last_update_timestamp;
+        /* Only readback every 1 second. This readback is relatively expensive. */
+        if (time_since_last_update_ms > 1.0) {
+          float progress = sampling.sample_index() / float(sampling.sample_count());
+          result_update(volume_probes.bake.read_result_unpacked(), progress);
+          last_update_timestamp = BLI_time_now_seconds();
+        }
       }
-
-      float progress = sampling.sample_index() / float(sampling.sample_count());
-      result_update(cache_frame, progress);
     });
 
     if (stop()) {
