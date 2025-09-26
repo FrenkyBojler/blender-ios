@@ -1480,8 +1480,7 @@ void UI_panel_category_draw_all(ARegion *region, const char *category_id_active)
     rcti *rct = &pc_dyn->rect;
     const char *category_id = pc_dyn->idname;
     const char *category_id_draw = IFACE_(category_id);
-    const int category_width = round_fl_to_int(
-        BLF_width(fontid, category_id_draw, BLF_DRAW_STR_DUMMY_MAX));
+    const int category_width = round_fl_to_int(BLF_vertical_text_height(fontid, category_id_draw));
 
     rct->xmin = rct_xmin;
     rct->xmax = rct_xmax;
@@ -1633,7 +1632,10 @@ void UI_panel_category_draw_all(ARegion *region, const char *category_id_active)
       BLF_shadow_offset(fontid, fstyle->shadx, fstyle->shady);
     }
 
-    BLF_draw(fontid, category_id_draw, category_draw_len);
+    BLF_draw_vertical(fontid,
+                      blender::StringRef(category_id_draw, category_draw_len),
+                      rct->xmin + text_v_ofs - text_size_offset * 1.5,
+                      rct->ymax - tab_v_pad_text);
 
     if (fstyle->shadow) {
       BLF_disable(fontid, BLF_SHADOW);

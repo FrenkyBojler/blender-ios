@@ -24,6 +24,7 @@
 #include "BLI_math_rotation.h"
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 
 #include "BLF_api.hh"
 
@@ -601,6 +602,125 @@ void BLF_draw(int fontid, const char *str, const size_t str_len, ResultBLF *r_in
       blf_font_draw(font, str, str_len, r_info);
     }
     blf_draw_gpu__end(font);
+  }
+}
+
+enum class TextVerticalWriting {
+  None,
+  VerticalNative,
+  VerticalRotated,
+};
+
+struct VerticalTextSplit {
+  TextVerticalWriting vertical_writing;
+  blender::StringRef str;
+};
+
+static bool blf_unicode_vertical_native(uint charcode)
+{
+  /* Hiragana */
+  if (0x3040 <= charcode && charcode <= 0x309F) {
+    return true;
+  }
+  /* Katakana */
+  if (0x30A0 <= charcode && charcode <= 0x30FF) {
+    return true;
+  }
+  /* Symbols and punctuations */
+  if (0x3000 <= charcode && charcode <= 0x303F) {
+    return true;
+  }
+  return false;
+}
+
+static blender::Vector<VerticalTextSplit> blf_split_text_vertical_segments(blender::StringRef str)
+{
+  if (str.size() == 0 || str[0] == '\0') {
+    return {};
+  }
+  blender::Vector<VerticalTextSplit> splits;
+  const char *substr_begin = str.data();
+  const char *substr_end = str.data();
+
+  TextVerticalWriting vertical_writing = TextVerticalWriting::None;
+  size_t i = 0;
+  for (; i < str.size() && str[i] != '\0';) {
+    const char *current = str.data() + i;
+    uint charcode = BLI_str_utf8_as_unicode_step_safe(str.data(), str.size(), &i);
+    TextVerticalWriting code_writing = blf_unicode_vertical_native(charcode) ?
+                                           TextVerticalWriting::VerticalNative :
+                                           TextVerticalWriting::VerticalRotated;
+    if (current == str.data()) {
+      vertical_writing = code_writing;
+    }
+    if (vertical_writing != code_writing) {
+      splits.append({vertical_writing, blender::StringRef(substr_begin, substr_end)});
+      substr_begin = substr_end;
+    }
+    substr_end = str.data() + i;
+    vertical_writing = code_writing;
+  }
+  splits.append({vertical_writing, blender::StringRef(substr_begin, substr_end)});
+  return splits;
+}
+
+float BLF_vertical_text_height(int fontid, blender::StringRef str)
+{
+  auto splits = blf_split_text_vertical_segments(str);
+  float h = 0;
+  for (auto &substr : splits) {
+    if (substr.vertical_writing == TextVerticalWriting::VerticalRotated) {
+      h += BLF_width(fontid, substr.str.data(), substr.str.size());
+      h += 2;
+      continue;
+    }
+    for (size_t i = 0; i < substr.str.size();) {
+      int size = BLI_str_utf8_size_or_error(substr.str.data() + i);
+      float x, y;
+      BLF_width_and_height(fontid, substr.str.data() + i, size, &x, &y);
+      h += std::max(x, y);
+      i += size;
+    }
+    h += 3;
+  }
+  return h;
+}
+
+void BLF_draw_vertical(int fontid, blender::StringRef str, int xmin, int ymax)
+{
+  auto splits = blf_split_text_vertical_segments(str);
+  FontBLF *font = blf_get(fontid);
+
+  if (splits.size() == 1 &&
+      splits.first().vertical_writing == TextVerticalWriting::VerticalRotated)
+  {
+    BLF_disable(fontid, BLF_ROTATION);
+    blf_draw_gpu__start(font);
+    blf_font_draw(font, str.data(), str.size(), nullptr);
+    blf_draw_gpu__end(font);
+    return;
+  }
+  float voffset = 0;
+  for (auto &substr : splits) {
+    if (substr.vertical_writing == TextVerticalWriting::VerticalRotated) {
+      BLF_enable(fontid, BLF_ROTATION);
+      BLF_position(fontid, xmin, ymax - voffset, 0);
+      BLF_draw(fontid, substr.str.data(), substr.str.size());
+      voffset += BLF_width(fontid, substr.str.data(), substr.str.size()) + 2;
+      continue;
+    }
+    BLF_disable(fontid, BLF_ROTATION);
+    for (size_t i = 0; i < substr.str.size();) {
+      int size = BLI_str_utf8_size_or_error(substr.str.data() + i);
+      float w, h;
+      BLF_width_and_height(fontid, substr.str.data() + i, size, &w, &h);
+      voffset += std::max(w, h);
+      BLF_position(fontid, xmin, ymax - voffset, 0);
+      BLF_draw(fontid, substr.str.data() + i, size);
+      i += size;
+    }
+    BLF_disable(fontid, BLF_ROTATION);
+    voffset += 3;
   }
 }
 

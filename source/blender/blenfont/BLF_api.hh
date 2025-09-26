@@ -180,6 +180,8 @@ void BLF_batch_draw_end();
  */
 void BLF_draw(int fontid, const char *str, size_t str_len, ResultBLF *r_info = nullptr)
     ATTR_NONNULL(2);
+float BLF_vertical_text_height(int fontid, blender::StringRef str);
+void BLF_draw_vertical(int fontid, blender::StringRef, int xmin, int ymax);
 int BLF_draw_mono(int fontid, const char *str, size_t str_len, int cwidth, int tab_columns)
     ATTR_NONNULL(2);
 
