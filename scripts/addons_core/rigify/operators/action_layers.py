@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-import bpy
+import bpy, random
 
 from typing import Sequence, Any
 
@@ -50,6 +50,13 @@ def poll_trigger_action(_self, action):
     return False
 
 
+def get_first_compatible_action_slot(action: Action, id_type: str) -> ActionSlot | None:
+    for slot in action.slots:
+        if slot.target_id_type in ('UNSPECIFIED', id_type):
+            continue
+        return slot
+
+
 class ActionSlot(PropertyGroup, ActionSlotBase):
     def init(self, context):
         if not self.action:
@@ -61,11 +68,8 @@ class ActionSlot(PropertyGroup, ActionSlotBase):
         self.unique_id
 
         # Set the first compatible slot if none already set.
-        if self.action and self.action.slots and not self.action_slot:
-            compatible_slot = next(
-                (s for s in self.action.slots if s.target_id_type in ('UNSPECIFIED', 'OBJECT')), None
-            )
-            self.action_slot = compatible_slot
+        if self.action and not self.action_slot:
+            self.action_slot = get_first_compatible_action_slot(self.action, 'OBJECT')
         self['name'] = self.get_name_transform()
 
     action: PointerProperty(
@@ -112,7 +116,7 @@ class ActionSlot(PropertyGroup, ActionSlotBase):
         if unique_id:
             return unique_id
 
-        unique_id = self.as_pointer()
+        unique_id = random.randint(0, 2**63-1)
         self['unique_id'] = unique_id
         return unique_id
 
