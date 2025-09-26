@@ -672,6 +672,33 @@ static Vector<Object *> gather_supported_objects(const bContext &C,
   return objects;
 }
 
+static std::unique_ptr<bke::Instances> create_input_instances_for_objects(
+    Depsgraph &depsgraph,
+    const Span<Object *> objects,
+    nodes::GeoNodesOperatorData &operator_data,
+    Vector<MeshState> &orig_mesh_states)
+{
+  auto instances = std::make_unique<bke::Instances>();
+  instances->resize(objects.size());
+
+  Map<void *, int> object_data_to_reference;
+  MutableSpan<float4x4> transforms = instances->transforms_for_write();
+  MutableSpan<int> handles = instances->reference_handles_for_write();
+  for (const int i : objects.index_range()) {
+    Object &object = *objects[i];
+    transforms[i] = object.object_to_world();
+    const int reference_index = object_data_to_reference.lookup_or_add_cb(object.data, [&]() {
+      bke::GeometrySet geometry_orig = get_original_geometry_eval_copy(
+          depsgraph, object, operator_data, orig_mesh_states);
+      geometry_orig.name = BKE_id_name(object.id);
+      return instances->add_new_reference(std::move(geometry_orig));
+    });
+    handles[i] = reference_index;
+  }
+
+  return instances;
+}
+
 static Vector<ID *> add_ids_for_geometry_eval(Main *bmain,
                                               bke::GeometrySet geometry,
                                               const StringRefNull name)
@@ -721,6 +748,118 @@ static Vector<ID *> add_ids_for_geometry_eval(Main *bmain,
     new_ids.append(nullptr);
   }
   return new_ids;
+}
+
+static void update_selected_objects_from_instances(bContext *&C,
+                                                   wmOperator *op,
+                                                   Main *bmain,
+                                                   Scene *scene,
+                                                   const RegionView3D *rv3d,
+                                                   Depsgraph &depsgraph,
+                                                   const Span<Object *> selected_objects,
+                                                   const Span<bke::InstanceReference> references,
+                                                   const Span<int> handles,
+                                                   const Span<float4x4> transforms,
+                                                   const Map<std::string, int> &instance_names,
+                                                   MutableSpan<bool> instance_used_for_update,
+                                                   Map<int, ID *> &reference_to_updated_data,
+                                                   Set<ID *> &objects_to_delete)
+{
+  for (Object *object : selected_objects) {
+    const std::optional<int> instance_index = instance_names.lookup_try_as(
+        BKE_id_name(object->id));
+    if (!instance_index) {
+      objects_to_delete.add_new(&object->id);
+      continue;
+    }
+
+    instance_used_for_update[*instance_index] = true;
+
+    const float4x4 &transform = transforms[*instance_index];
+    if (!math::is_equal(transform, object->object_to_world(), 1e-6f)) {
+      BKE_object_apply_mat4(object, transform.ptr(), false, false);
+      DEG_id_tag_update(&object->id, ID_RECALC_TRANSFORM);
+    }
+
+    const int reference_index = handles[*instance_index];
+
+    if (ID *data = reference_to_updated_data.lookup_default(reference_index, nullptr)) {
+      if (data != object->data) {
+        ID *old_data = static_cast<ID *>(object->data);
+        id_us_min(old_data);
+        object->data = data;
+        id_us_plus(data);
+        BLI_assert(BKE_object_obdata_to_type(data) == object->type);
+      }
+      BKE_object_materials_sync_length(bmain, object, data);
+      continue;
+    }
+
+    bke::GeometrySet geometry;
+    references[handles[*instance_index]].to_geometry_set(geometry);
+    store_result_geometry(*C, *op, depsgraph, *bmain, *scene, *object, rv3d, std::move(geometry));
+    reference_to_updated_data.add_new(reference_index, static_cast<ID *>(object->data));
+  }
+
+  for (ID *data : reference_to_updated_data.values()) {
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, data);
+  }
+}
+
+static void add_new_objects_for_instances(bContext *C,
+                                          Main *bmain,
+                                          Scene *scene,
+                                          ViewLayer *view_layer,
+                                          const Span<bke::InstanceReference> references,
+                                          const Span<int> handles,
+                                          const Span<float4x4> transforms,
+                                          const IndexMask &instances_to_add,
+                                          const Map<int, ID *> &reference_to_updated_data)
+{
+  Vector<Object *> new_objects;
+  new_objects.reserve(instances_to_add.size());
+  Map<int, Vector<ID *>> reference_to_object_data;
+  instances_to_add.foreach_index([&](const int instance_index) {
+    const int reference_index = handles[instance_index];
+    const StringRefNull name = references[reference_index].name();
+    const Span<ID *> new_ids = reference_to_object_data.lookup_or_add_cb(reference_index, [&]() {
+      if (ID *data = reference_to_updated_data.lookup_default(reference_index, nullptr)) {
+        /* Prefer reusing existing object data that's already used by selected objects. */
+        return Vector<ID *>{data};
+      }
+      bke::GeometrySet geometry;
+      references[reference_index].to_geometry_set(geometry);
+      return add_ids_for_geometry_eval(bmain, std::move(geometry), name);
+    });
+    for (ID *data : new_ids) {
+      const int type = data ? BKE_object_obdata_to_type(data) : OB_EMPTY;
+      Object *new_object = BKE_object_add_only_object(bmain, type, name.c_str());
+      new_object->data = data;
+      id_us_plus(data);
+      BKE_object_materials_sync_length(bmain, new_object, data);
+      BKE_object_apply_mat4(new_object, transforms[instance_index].ptr(), false, false);
+      new_objects.append(new_object);
+    }
+  });
+
+  Collection *collection = BKE_layer_collection_get_active(view_layer)->collection;
+  for (Object *new_object : new_objects) {
+    BKE_collection_viewlayer_object_add(bmain, view_layer, collection, new_object);
+  }
+
+  BKE_view_layer_synced_ensure(scene, view_layer);
+  for (Object *new_object : new_objects) {
+    Base *base = BKE_view_layer_base_find(view_layer, new_object);
+    base->flag |= BASE_SELECTED;
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, new_object->data);
+  }
+
+  DEG_relations_tag_update(bmain);
+
+  WM_event_add_notifier(C, NC_SCENE | ND_LAYER_CONTENT, scene);
+  DEG_id_tag_update(&scene->id, ID_RECALC_BASE_FLAGS);
+
+  ED_outliner_select_sync_from_object_tag(C);
 }
 
 static wmOperatorStatus run_node_group_exec(bContext *C, wmOperator *op)
@@ -830,28 +969,8 @@ static wmOperatorStatus run_node_group_exec(bContext *C, wmOperator *op)
     operator_eval_data.active_object_instance_index = objects.first_index_of(active_object);
     call_data.socket_log_contexts = &socket_log_contexts;
 
-    // Map<StringRef, Object *> object_by_name;
-    // object_by_name.res
-
-    auto instances = std::make_unique<bke::Instances>();
-    instances->resize(objects.size());
-
-    {
-      Map<void *, int> object_data_to_reference;
-      MutableSpan<float4x4> transforms = instances->transforms_for_write();
-      MutableSpan<int> handles = instances->reference_handles_for_write();
-      for (const int i : objects.index_range()) {
-        Object &object = *objects[i];
-        transforms[i] = object.object_to_world();
-        const int reference_index = object_data_to_reference.lookup_or_add_cb(object.data, [&]() {
-          bke::GeometrySet geometry_orig = get_original_geometry_eval_copy(
-              *depsgraph_active, object, operator_eval_data, orig_mesh_states);
-          geometry_orig.name = BKE_id_name(object.id);
-          return instances->add_new_reference(std::move(geometry_orig));
-        });
-        handles[i] = reference_index;
-      }
-    }
+    std::unique_ptr<bke::Instances> instances = create_input_instances_for_objects(
+        *depsgraph_active, objects, operator_eval_data, orig_mesh_states);
 
     bke::GeometrySet result_geometry = nodes::execute_geometry_nodes_on_geometry(
         *node_tree,
@@ -884,95 +1003,40 @@ static wmOperatorStatus run_node_group_exec(bContext *C, wmOperator *op)
           i);
     }
 
-    Array<bool> instance_processed(handles.size(), false);
+    Array<bool> instance_used_for_update(handles.size(), false);
     Map<int, ID *> reference_to_updated_data;
     reference_to_updated_data.reserve(references.size());
     Set<ID *> objects_to_delete;
-    for (Object *object : objects) {
-      const std::optional<int> instance_index = instance_names.lookup_try_as(
-          BKE_id_name(object->id));
-      if (!instance_index) {
-        objects_to_delete.add_new(&object->id);
-        continue;
-      }
-
-      instance_processed[*instance_index] = true;
-
-      const float4x4 &transform = transforms[*instance_index];
-      if (!math::is_equal(transform, object->object_to_world(), 1e-6f)) {
-        BKE_object_apply_mat4(object, transform.ptr(), false, false);
-        DEG_id_tag_update(&object->id, ID_RECALC_TRANSFORM);
-      }
-
-      const int reference_index = handles[*instance_index];
-
-      if (ID *data = reference_to_updated_data.lookup_default(reference_index, nullptr)) {
-        if (data != object->data) {
-          ID *old_data = static_cast<ID *>(object->data);
-          id_us_min(old_data);
-          object->data = data;
-          id_us_plus(data);
-          BLI_assert(BKE_object_obdata_to_type(data) == object->type);
-        }
-        BKE_object_materials_sync_length(bmain, object, data);
-        continue;
-      }
-
-      bke::GeometrySet geometry;
-      references[handles[*instance_index]].to_geometry_set(geometry);
-      store_result_geometry(
-          *C, *op, *depsgraph_active, *bmain, *scene, *object, rv3d, std::move(geometry));
-      reference_to_updated_data.add_new(reference_index, static_cast<ID *>(object->data));
-
-      WM_event_add_notifier(C, NC_GEOM | ND_DATA, object->data);
-    }
+    update_selected_objects_from_instances(C,
+                                           op,
+                                           bmain,
+                                           scene,
+                                           rv3d,
+                                           *depsgraph_active,
+                                           objects,
+                                           references,
+                                           handles,
+                                           transforms,
+                                           instance_names,
+                                           instance_used_for_update,
+                                           reference_to_updated_data,
+                                           objects_to_delete);
 
     BKE_id_multi_delete(bmain, objects_to_delete);
 
     IndexMaskMemory memory;
-    const IndexMask instances_to_add = IndexMask::from_bools_inverse(instance_processed, memory);
-
+    const IndexMask instances_to_add = IndexMask::from_bools_inverse(instance_used_for_update,
+                                                                     memory);
     if (!instances_to_add.is_empty()) {
-      Vector<Object *> new_objects;
-      new_objects.reserve(instances_to_add.size());
-      Map<int, Vector<ID *>> reference_to_object_data;
-      instances_to_add.foreach_index([&](const int instance_index) {
-        const StringRefNull name = references[handles[instance_index]].name();
-        const Span<ID *> new_ids = reference_to_object_data.lookup_or_add_cb(
-            handles[instance_index], [&]() {
-              bke::GeometrySet geometry;
-              references[handles[instance_index]].to_geometry_set(geometry);
-              return add_ids_for_geometry_eval(bmain, std::move(geometry), name);
-            });
-        for (ID *data : new_ids) {
-          const int type = data ? BKE_object_obdata_to_type(data) : OB_EMPTY;
-          Object *new_object = BKE_object_add_only_object(bmain, type, name.c_str());
-          new_object->data = data;
-          id_us_plus(data);
-          BKE_object_materials_sync_length(bmain, new_object, data);
-          BKE_object_apply_mat4(new_object, transforms[instance_index].ptr(), false, false);
-          new_objects.append(new_object);
-        }
-      });
-
-      Collection *collection = BKE_layer_collection_get_active(view_layer)->collection;
-      for (Object *new_object : new_objects) {
-        BKE_collection_viewlayer_object_add(bmain, view_layer, collection, new_object);
-      }
-
-      BKE_view_layer_synced_ensure(scene, view_layer);
-      for (Object *new_object : new_objects) {
-        Base *base = BKE_view_layer_base_find(view_layer, new_object);
-        base->flag |= BASE_SELECTED;
-        WM_event_add_notifier(C, NC_GEOM | ND_DATA, new_object->data);
-      }
-
-      DEG_relations_tag_update(bmain);
-
-      WM_event_add_notifier(C, NC_SCENE | ND_LAYER_CONTENT, scene);
-      DEG_id_tag_update(&scene->id, ID_RECALC_BASE_FLAGS);
-
-      ED_outliner_select_sync_from_object_tag(C);
+      add_new_objects_for_instances(C,
+                                    bmain,
+                                    scene,
+                                    view_layer,
+                                    references,
+                                    handles,
+                                    transforms,
+                                    instances_to_add,
+                                    reference_to_updated_data);
     }
   }
   else {
