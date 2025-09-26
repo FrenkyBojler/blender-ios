@@ -1153,7 +1153,7 @@ typedef enum Attribute_Data_Type {
   CON_ATTRIBUTE_4X4MATRIX = 2,
 } Attribute_Data_Type;
 
-/** Atrtibute Component Mix Mode */
+/** Attribute Component Mix Mode */
 typedef enum Attribute_MixMode {
   /* Replace rotation channel values. */
   CON_ATTRIBUTE_MIX_REPLACE = 0,

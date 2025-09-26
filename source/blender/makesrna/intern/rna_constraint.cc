@@ -3624,12 +3624,12 @@ static void rna_def_constraint_attribute(BlenderRNA *brna)
   PropertyRNA *prop;
 
   static const EnumPropertyItem domain_items[] = {
-      {CON_ATTRIBUTE_DOMAIN_POINT, "POINT", 0, "Point", "Point Domain"},
-      {CON_ATTRIBUTE_DOMAIN_EDGE, "EDGE", 0, "Edge", "Edge Domain"},
-      {CON_ATTRIBUTE_DOMAIN_FACE, "FACE", 0, "Face", "Face Domain"},
-      {CON_ATTRIBUTE_DOMAIN_FACE_CORNER, "FACE_CORNER", 0, "Face Corner", "Face Corner Domain"},
-      {CON_ATTRIBUTE_DOMAIN_CURVE, "CURVE", 0, "Spline", "Spline Domain"},
-      {CON_ATTRIBUTE_DOMAIN_INSTANCE, "INSTANCE", 0, "Instance", "Instance Domain"},
+      {CON_ATTRIBUTE_DOMAIN_POINT, "POINT", 0, "Point"},
+      {CON_ATTRIBUTE_DOMAIN_EDGE, "EDGE", 0, "Edge"},
+      {CON_ATTRIBUTE_DOMAIN_FACE, "FACE", 0, "Face"},
+      {CON_ATTRIBUTE_DOMAIN_FACE_CORNER, "FACE_CORNER", 0, "Face Corner"},
+      {CON_ATTRIBUTE_DOMAIN_CURVE, "CURVE", 0, "Spline"},
+      {CON_ATTRIBUTE_DOMAIN_INSTANCE, "INSTANCE", 0, "Instance"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
@@ -3653,7 +3653,7 @@ static void rna_def_constraint_attribute(BlenderRNA *brna)
        "REPLACE",
        0,
        "Replace",
-       "Replace the original transformation with copied"},
+       "Replace the original transformation with the trasnform from the attribute"},
       RNA_ENUM_ITEM_SEPR,
       {CON_ATTRIBUTE_MIX_BEFORE_FULL,
        "BEFORE_FULL",
@@ -3687,7 +3687,7 @@ static void rna_def_constraint_attribute(BlenderRNA *brna)
 
   srna = RNA_def_struct(brna, "AttributeConstraint", "Constraint");
   RNA_def_struct_ui_text(
-      srna, "Attribute Constraint", "Create attribute constraint-based relationship");
+      srna, "Attribute Constraint", "Create a constraint-based relationship with an attribute from geometry");
   RNA_def_struct_sdna_from(srna, "bAttributeConstraint", "data");
   RNA_def_struct_ui_icon(srna, ICON_CON_ATTRIBUTE);
 
@@ -3696,13 +3696,13 @@ static void rna_def_constraint_attribute(BlenderRNA *brna)
   prop = RNA_def_property(srna, "target", PROP_POINTER, PROP_NONE);
   RNA_def_property_pointer_sdna(prop, nullptr, "target");
   RNA_def_property_pointer_funcs(prop, nullptr, nullptr, nullptr, nullptr);
-  RNA_def_property_ui_text(prop, "Target", "Target Mesh object");
+  RNA_def_property_ui_text(prop, "Target", "Target geometry object");
   RNA_def_property_flag(prop, PROP_EDITABLE);
   RNA_def_property_update(prop, NC_OBJECT | ND_CONSTRAINT, "rna_Constraint_dependency_update");
 
   prop = RNA_def_property(srna, "attribute_name", PROP_STRING, PROP_NONE);
   RNA_def_property_string_sdna(prop, nullptr, "attribute_name");
-  RNA_def_property_ui_text(prop, "Attribute Name", "Name of transform attribute");
+  RNA_def_property_ui_text(prop, "Attribute Name", "Name of the attribute to retrieve the transform from");
   RNA_def_property_flag(prop, PROP_EDITABLE);
   RNA_def_property_update(prop, NC_OBJECT | ND_CONSTRAINT, "rna_Constraint_update");
 
@@ -3714,7 +3714,7 @@ static void rna_def_constraint_attribute(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "apply_target_transform", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "apply_target_transform", 1);
-  RNA_def_property_ui_text(prop, "Target Transform", "Apply target transform");
+  RNA_def_property_ui_text(prop, "Target Transform", "Apply the target object's world transform on top of the attribute's transform");
   RNA_def_property_update(prop, NC_OBJECT | ND_CONSTRAINT, "rna_Constraint_update");
 
   prop = RNA_def_property(srna, "data_type", PROP_ENUM, PROP_NONE);
