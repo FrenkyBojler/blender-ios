@@ -229,12 +229,11 @@ static void scene_init_data(ID *id)
   colorspace_name = IMB_colormanagement_role_colorspace_name_get(COLOR_ROLE_DEFAULT_SEQUENCER);
 
   BKE_color_managed_display_settings_init(&scene->display_settings);
-  BKE_color_managed_view_settings_init_render(
-      &scene->view_settings, &scene->display_settings, "AgX");
+  BKE_color_managed_view_settings_init(&scene->view_settings, &scene->display_settings, "AgX");
   STRNCPY_UTF8(scene->sequencer_colorspace_settings.name, colorspace_name);
 
-  BKE_image_format_init(&scene->r.im_format, true);
-  BKE_image_format_init(&scene->r.bake.im_format, true);
+  BKE_image_format_init(&scene->r.im_format);
+  BKE_image_format_init(&scene->r.bake.im_format);
 
   /* Curve Profile */
   scene->toolsettings->custom_bevel_profile_preset = BKE_curveprofile_add(PROF_PRESET_LINE);
@@ -808,6 +807,10 @@ static bool strip_foreach_member_id_cb(Strip *strip, void *user_data)
   });
   LISTBASE_FOREACH (StripModifierData *, smd, &strip->modifiers) {
     FOREACHID_PROCESS_IDSUPER(data, smd->mask_id, IDWALK_CB_USER);
+    if (smd->type == eSeqModifierType_Compositor) {
+      auto *modifier_data = reinterpret_cast<SequencerCompositorModifierData *>(smd);
+      FOREACHID_PROCESS_IDSUPER(data, modifier_data->node_group, IDWALK_CB_USER);
+    }
   }
 
   if (strip->type == STRIP_TYPE_TEXT && strip->effectdata) {
@@ -2801,20 +2804,6 @@ enum eCyclesFeatureSet {
   CYCLES_FEATURES_SUPPORTED = 0,
   CYCLES_FEATURES_EXPERIMENTAL = 1,
 };
-
-bool BKE_scene_uses_cycles_experimental_features(Scene *scene)
-{
-  BLI_assert(BKE_scene_uses_cycles(scene));
-  PointerRNA scene_ptr = RNA_id_pointer_create(&scene->id);
-  PointerRNA cycles_ptr = RNA_pointer_get(&scene_ptr, "cycles");
-
-  if (RNA_pointer_is_null(&cycles_ptr)) {
-    /* The pointer only exists if Cycles is enabled. */
-    return false;
-  }
-
-  return RNA_enum_get(&cycles_ptr, "feature_set") == CYCLES_FEATURES_EXPERIMENTAL;
-}
 
 void BKE_scene_base_flag_to_objects(const Scene *scene, ViewLayer *view_layer)
 {
