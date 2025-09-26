@@ -116,7 +116,7 @@ struct CLogContext {
 /** \name Global LogRef Single Linked List
  * \{ */
 
-static CLG_LogRef **CLG_all_refs()
+static CLG_LogRef **clg_all_refs_p()
 {
   /* Inside a function for correct static initialization order, otherwise
    * all_refs might get null initialized only after logrefs are registered.*/
@@ -840,7 +840,7 @@ static void CLG_ctx_free(CLogContext *ctx)
     MEM_freeN(item);
   }
 
-  for (CLG_LogRef *ref = *CLG_all_refs(); ref; ref = ref->next) {
+  for (CLG_LogRef *ref = *clg_all_refs_p(); ref; ref = ref->next) {
     ref->type = nullptr;
   }
 
@@ -961,7 +961,7 @@ void CLG_logref_register(CLG_LogRef *clg_ref)
    * and so CLG_logref_list_all can be used to print all categories. */
   static std::mutex mutex;
   std::scoped_lock lock(mutex);
-  CLG_LogRef **all_refs = CLG_all_refs();
+  CLG_LogRef **all_refs = clg_all_refs_p();
   clg_ref->next = *all_refs;
   *all_refs = clg_ref;
 }
@@ -972,7 +972,7 @@ void CLG_logref_list_all(void (*callback)(const char *identifier, void *user_dat
   /* Generate sorted list of unique identifiers. */
   auto cmp = [](const char *a, const char *b) { return std::strcmp(a, b) < 0; };
   std::set<const char *, decltype(cmp)> identifiers(cmp);
-  for (CLG_LogRef *ref = *CLG_all_refs(); ref; ref = ref->next) {
+  for (CLG_LogRef *ref = *clg_all_refs_p(); ref; ref = ref->next) {
     identifiers.insert(ref->identifier);
   }
 
