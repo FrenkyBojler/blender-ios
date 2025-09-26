@@ -817,6 +817,10 @@ def register():
     # Add rig parameters
     register_rig_parameters()
 
+    # 5.0: Version metarigs to new Action Slot selector properties on file load.
+    from .utils.action_layers import versioning_5_0
+    bpy.app.handlers.load_post.append(versioning_5_0)
+
 
 def register_rig_parameters():
     for rig in rig_lists.rigs:
