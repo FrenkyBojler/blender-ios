@@ -854,10 +854,10 @@ void bmo_create_uvsphere_exec(BMesh *bm, BMOperator *op)
 
   BMO_slot_mat4_get(op->slots_in, "matrix", mat);
 
-  /* Default U and V segments value to 3 if it is unspecified(0) or negative. */
+  /* Default U and V segments value to 1 if it is unspecified (0) or negative. */
   if (seg <= 0 || tot <= 0) {
-    seg = (seg > 0) ? seg : 3;
-    tot = (tot > 0) ? tot : 3;
+    seg = (seg > 0) ? seg : 1;
+    tot = (tot > 0) ? tot : 1;
   }
 
   const float phid = float(M_PI) / tot;
