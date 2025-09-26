@@ -514,7 +514,7 @@ const EnumPropertyItem buttons_context_items[] = {
     {BCONTEXT_STRIP, "STRIP", ICON_SEQ_SEQUENCER, "Strip", "Strip Properties"},
     {BCONTEXT_STRIP_MODIFIER,
      "STRIP_MODIFIER",
-     ICON_QUESTION_LARGE,
+     ICON_MODIFIER,
      "Strip Modifier",
      "Strip Modifier Properties"},
     {0, nullptr, 0, nullptr, nullptr},
