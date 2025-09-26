@@ -386,6 +386,10 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
     btheme->tui.wcol_curve.roundness = U_theme_default.tui.wcol_curve.roundness;
   }
 
+  if (!USER_VERSION_ATLEAST(500, 95)) {
+    FROM_DEFAULT_V4_UCHAR(space_view3d.grid_major);
+  }
+
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a USER_VERSION_ATLEAST check.
