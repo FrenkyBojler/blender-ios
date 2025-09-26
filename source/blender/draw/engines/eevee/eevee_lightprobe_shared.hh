@@ -217,7 +217,8 @@ struct Surfel {
   uint receiver_light_set;
   /** List index this surfel is in. */
   int list_id;
-  int _pad1;
+  /** Index of this surfel inside the sorted list. Allow access to previous and next surfel id. */
+  int index_in_sorted_list;
   /** Surface radiance: Emission + Direct Lighting. */
   SurfelRadiance radiance_direct;
   /** Surface radiance: Indirect Lighting. Double buffered to avoid race conditions. */
