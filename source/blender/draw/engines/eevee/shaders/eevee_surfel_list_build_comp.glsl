@@ -35,8 +35,11 @@ void main()
     return;
   }
 
-  IndexRange list_range = IndexRange(list_range_buf[list_id * 2 + 0],
-                                     list_range_buf[list_id * 2 + 1]);
+  const IndexRange list_range = IndexRange(list_range_buf[list_id * 2 + 0],
+                                           list_range_buf[list_id * 2 + 1]);
+  if (list_range.size() == 0) {
+    return;
+  }
 
   const int first_item = list_range.start();
   const int last_item = list_range.last();
@@ -49,10 +52,9 @@ void main()
     int next = (i == last_item) ? -1 : sorted_surfel_id_buf[i + 1];
     surfel_buf[curr].next = next;
     surfel_buf[curr].prev = prev;
-    curr = next;
     prev = curr;
+    curr = next;
   }
-
   /* Update list start for irradiance sample capture. */
   list_start_buf[list_id] = sorted_list_first;
 

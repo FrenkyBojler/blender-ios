@@ -29,8 +29,8 @@ void main()
                                      list_range_buf[list_id * 2 + 1]);
   int prefix = 0;
   /* Prefix sum inside the list range. */
-  for (int i = list_range.start(); i < list_range.last(); i++) {
-    if (list_item_distance_buf[i] < ray_distance) {
+  for (int i = list_range.start(); i <= list_range.last(); i++) {
+    if (list_item_distance_buf[i] > ray_distance) {
       prefix++;
     }
     else if (list_item_distance_buf[i] == ray_distance) {

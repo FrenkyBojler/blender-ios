@@ -21,7 +21,7 @@ void main()
   }
 
   int list_id = surfel_buf[surfel_id].list_id;
-  int item_id = atomicAdd(list_counter_buf[list_id], -1);
+  int item_id = atomicAdd(list_counter_buf[list_id], -1) - 1;
   item_id += list_range_buf[list_id * 2 + 0];
 
   list_item_distance_buf[item_id] = surfel_buf[surfel_id].ray_distance;
