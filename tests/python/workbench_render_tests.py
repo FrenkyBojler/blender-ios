@@ -44,6 +44,7 @@ def setup():
         # Hair
         scene.render.hair_type = 'STRIP'
 
+
 # When run from inside Blender, render and exit.
 try:
     import bpy
