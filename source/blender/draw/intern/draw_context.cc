@@ -1876,7 +1876,8 @@ void DRW_draw_select_loop(Depsgraph *depsgraph,
   }
 
   /* Only restrict selection to bones when the user turns on Lock Object Modes.
-   * If the lock is off, we skip this so other objects can still be selected. */
+   * If the lock is off, we skip this so other objects can still be selected.
+   (see #125822) */
   if (v3d->overlay.flag & V3D_OVERLAY_BONE_SELECT) {
     if (!(v3d->flag2 & V3D_HIDE_OVERLAYS) && (ts->object_flag & SCE_OBJECT_MODE_LOCK)) {
       /* NOTE: don't use "BKE_object_pose_armature_get" here, it breaks selection. */
