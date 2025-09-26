@@ -873,14 +873,15 @@ static wmOperatorStatus run_node_group_exec(bContext *C, wmOperator *op)
     const Span<int> handles = new_instances->reference_handles();
     const Span<float4x4> transforms = new_instances->transforms();
 
-    Map<StringRef, int> instance_names;
+    Map<std::string, int> instance_names;
     instance_names.reserve(handles.size());
     for (const int i : handles.index_range()) {
-      const StringRef name = references[handles[i]].name();
-      if (name.is_empty()) {
-        continue;
-      }
-      instance_names.add(name, i);
+      const StringRef reference_name = references[handles[i]].name();
+      const StringRef name = reference_name.is_empty() ? DATA_("Object") : reference_name;
+      instance_names.add_new(
+          BLI_uniquename_cb(
+              [&](const StringRef name) { return instance_names.contains(name); }, '.', name),
+          i);
     }
 
     Array<bool> instance_processed(handles.size(), false);
