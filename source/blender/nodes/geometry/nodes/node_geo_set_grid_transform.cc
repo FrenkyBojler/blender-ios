@@ -29,8 +29,8 @@ static void node_declare(NodeDeclarationBuilder &b)
 
   const eNodeSocketDatatype data_type = eNodeSocketDatatype(node->custom1);
 
-  b.allow_any_socket_order();
   b.use_custom_socket_order();
+  b.allow_any_socket_order();
   b.add_default_layout();
   b.add_input(data_type, "Grid").hide_value().structure_type(StructureType::Grid);
   b.add_output(data_type, "Grid").structure_type(StructureType::Grid).align_with_previous();
