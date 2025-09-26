@@ -46,6 +46,7 @@ BLI_CPP_TYPE_MAKE(blender::bke::SocketValueVariant, CPPTypeFlags::Printable);
 BLI_VECTOR_CPP_TYPE_MAKE(blender::bke::SocketValueVariant);
 BLI_CPP_TYPE_MAKE(blender::nodes::GeoNodesMultiInput<blender::bke::SocketValueVariant>,
                   CPPTypeFlags::None);
+BLI_CPP_TYPE_MAKE(blender::nodes::BundleItemValue, CPPTypeFlags::None);
 
 void BKE_cpp_types_init()
 {
@@ -72,4 +73,5 @@ void BKE_cpp_types_init()
   BLI_CPP_TYPE_REGISTER(blender::bke::SocketValueVariant);
   BLI_VECTOR_CPP_TYPE_REGISTER(blender::bke::SocketValueVariant);
   BLI_CPP_TYPE_REGISTER(blender::nodes::GeoNodesMultiInput<blender::bke::SocketValueVariant>);
+  BLI_CPP_TYPE_REGISTER(blender::nodes::BundleItemValue);
 }

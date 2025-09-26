@@ -137,12 +137,12 @@ void EDBM_selectmode_flush_ex(BMEditMesh *em, short selectmode);
 void EDBM_selectmode_flush(BMEditMesh *em);
 
 /**
- * Mode independent selection/de-selection flush.
+ * Mode independent selection/de-selection flush from vertices.
  *
  * \param select: When true, flush the selection state to de-selected elements,
  * otherwise perform the opposite, flushing de-selection.
  */
-void EDBM_select_flush(BMEditMesh *em, bool select);
+void EDBM_select_flush_from_verts(BMEditMesh *em, bool select);
 
 bool EDBM_vert_color_check(BMEditMesh *em);
 
@@ -572,11 +572,17 @@ void EDBM_redo_state_restore_and_free(BMBackup *backup, BMEditMesh *em, bool rec
     ATTR_NONNULL(1, 2);
 void EDBM_redo_state_free(BMBackup *backup) ATTR_NONNULL(1);
 
+namespace blender::ed::mesh {
+
+wmOperatorStatus join_objects_exec(bContext *C, wmOperator *op);
+
+}
+
 /* `meshtools.cc` */
 
-wmOperatorStatus ED_mesh_join_objects_exec(bContext *C, wmOperator *op);
 wmOperatorStatus ED_mesh_shapes_join_objects_exec(bContext *C,
                                                   bool ensure_keys_exist,
+                                                  bool mirror,
                                                   ReportList *reports);
 
 /* Mirror lookup API. */
