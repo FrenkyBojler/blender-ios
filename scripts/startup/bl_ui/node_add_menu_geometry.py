@@ -919,6 +919,7 @@ class NODE_MT_gn_volume_sample_base(node_add_menu.NodeMenu):
     def draw(self, context):
         del context
         layout = self.layout
+        self.node_operator(layout, "GeometryNodeGridClosestPoint")
         self.node_operator(layout, "GeometryNodeGridCurl")
         self.node_operator(layout, "GeometryNodeGridDivergence")
         self.node_operator(layout, "GeometryNodeGridGradient")
