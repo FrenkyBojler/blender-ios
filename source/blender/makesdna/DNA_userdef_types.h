@@ -224,6 +224,7 @@ typedef struct UserDef_Experimental {
   char use_extensions_debug;
   char use_recompute_usercount_on_save_debug;
   char write_legacy_blend_file_format;
+  char no_data_block_packing;
   char SANITIZE_AFTER_HERE;
   /* The following options are automatically sanitized (set to 0)
    * when the release cycle is not alpha. */
@@ -233,7 +234,7 @@ typedef struct UserDef_Experimental {
   char use_new_volume_nodes;
   char use_shader_node_previews;
   char use_geometry_nodes_lists;
-  char _pad[6];
+  char _pad[5];
 } UserDef_Experimental;
 
 #define USER_EXPERIMENTAL_TEST(userdef, member) (((userdef)->experimental).member)
@@ -502,7 +503,7 @@ typedef struct UserDef {
 
   char _pad16[2];
 
-  /** #eGPUBackendType */
+  /** #GPUBackendType */
   short gpu_backend;
 
   /** Number of samples for FPS display calculations. */
@@ -827,7 +828,7 @@ typedef enum eUserpref_GPU_Flag {
 } eUserpref_GPU_Flag;
 
 /** #UserDef.gpu_backend
- * NOTE: Keep in sync with eGPUBackendType. */
+ * NOTE: Keep in sync with GPUBackendType. */
 enum eUserPref_GPUBackendType {
   USER_GPU_BACKEND_OPENGL = 1 << 0,
   USER_GPU_BACKEND_METAL = 1 << 1,

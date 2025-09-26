@@ -184,8 +184,8 @@ class GreasePencilBrushFalloff:
                 row = col.row(align=True)
                 col.prop(brush, "curve_preset", text="")
 
-            if brush.curve_preset == 'CUSTOM':
-                layout.template_curve_mapping(brush, "curve", brush=True, use_negative_slope=True)
+            if brush.curve_distance_falloff_preset == 'CUSTOM':
+                layout.template_curve_mapping(brush, "curve_distance_falloff", brush=True, use_negative_slope=True)
 
                 col = layout.column(align=True)
                 row = col.row(align=True)
@@ -358,7 +358,7 @@ class AnnotationDataPanel:
                 lock_label = iface_("Frame: {:d} ({:s})").format(gpl.active_frame.frame_number, lock_status)
             else:
                 lock_label = iface_("Lock Frame")
-            row.prop(gpl, "lock_frame", text=lock_label, icon='UNLOCKED')
+            row.prop(gpl, "lock_frame", text=lock_label, icon='UNLOCKED', translate=False)
             row.operator("gpencil.annotation_active_frame_delete", text="", icon='X')
 
 
