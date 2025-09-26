@@ -744,7 +744,7 @@ static void write_bhead(WriteData *wd, const BHead &bhead)
     return;
   }
   /* Write new #LargeBHead8 headers if enabled. Older Blender versions can't read those. */
-  if (!USER_EXPERIMENTAL_TEST(&U, write_legacy_blend_file_format)) {
+  if (!USER_DEVELOPER_TOOL_TEST(&U, write_legacy_blend_file_format)) {
     if (SYSTEM_SUPPORTS_WRITING_FILE_VERSION_1) {
       static_assert(sizeof(BHead) == sizeof(LargeBHead8));
       mywrite(wd, &bhead, sizeof(bhead));
@@ -786,7 +786,7 @@ static void writestruct_at_address_nr(WriteData *wd,
 
   const int64_t len_in_bytes = nr * DNA_struct_size(wd->sdna, struct_nr);
   if (!SYSTEM_SUPPORTS_WRITING_FILE_VERSION_1 ||
-      USER_EXPERIMENTAL_TEST(&U, write_legacy_blend_file_format))
+      USER_DEVELOPER_TOOL_TEST(&U, write_legacy_blend_file_format))
   {
     if (len_in_bytes > INT32_MAX) {
       CLOG_ERROR(&LOG, "Cannot write chunks bigger than INT_MAX.");
@@ -859,7 +859,7 @@ static void writedata(WriteData *wd, const int filecode, const size_t len, const
   }
 
   if ((!SYSTEM_SUPPORTS_WRITING_FILE_VERSION_1 ||
-       USER_EXPERIMENTAL_TEST(&U, write_legacy_blend_file_format)) &&
+       USER_DEVELOPER_TOOL_TEST(&U, write_legacy_blend_file_format)) &&
       len > INT_MAX)
   {
     BLI_assert_msg(0, "Cannot write chunks bigger than INT_MAX.");
@@ -1164,6 +1164,11 @@ static void write_libraries(WriteData *wd, Main *bmain)
       if (id->us == 0) {
         continue;
       }
+      if (ID_IS_PACKED(id)) {
+        BLI_assert(library.flag & LIBRARY_FLAG_IS_ARCHIVE);
+        ids_used_from_library.append(id);
+        continue;
+      }
       if (id->tag & ID_TAG_EXTERN) {
         ids_used_from_library.append(id);
         continue;
@@ -1176,6 +1181,15 @@ static void write_libraries(WriteData *wd, Main *bmain)
 
     bool should_write_library = false;
     if (library.packedfile) {
+      should_write_library = true;
+    }
+    else if (!library.runtime->archived_libraries.is_empty()) {
+      /* Reference 'real' blendfile library of archived 'copies' of it containing packed linked
+       * IDs should always be written. */
+      /* FIXME: A bit weak, as it could be that all archive libs are now empty (if all related
+       * packed linked IDs have been deleted e.g.)...
+       * Could be fixed by either adding more checks here, or ensuring empty archive libs are
+       * deleted when no ID uses them anymore? */
       should_write_library = true;
     }
     else if (wd->use_memfile) {
@@ -1194,16 +1208,22 @@ static void write_libraries(WriteData *wd, Main *bmain)
 
     write_id(wd, &library.id);
 
-    /* Write placeholders for linked data-blocks that are used. */
+    /* Write placeholders for linked data-blocks that are used, and real IDs for the packed linked
+     * ones. */
     for (ID *id : ids_used_from_library) {
-      if (!BKE_idtype_idcode_is_linkable(GS(id->name))) {
-        CLOG_ERROR(&LOG,
-                   "Data-block '%s' from lib '%s' is not linkable, but is flagged as "
-                   "directly linked",
-                   id->name,
-                   library.runtime->filepath_abs);
+      if (ID_IS_PACKED(id)) {
+        write_id(wd, id);
       }
-      write_id_placeholder(wd, id);
+      else {
+        if (!BKE_idtype_idcode_is_linkable(GS(id->name))) {
+          CLOG_ERROR(&LOG,
+                     "Data-block '%s' from lib '%s' is not linkable, but is flagged as "
+                     "directly linked",
+                     id->name,
+                     library.runtime->filepath_abs);
+        }
+        write_id_placeholder(wd, id);
+      }
     }
   }
 
@@ -1336,6 +1356,7 @@ BLO_Write_IDBuffer::BLO_Write_IDBuffer(ID &id, const bool is_undo, const bool is
   }
   temp_id->us = 0;
   temp_id->icon_id = 0;
+  temp_id->runtime = nullptr;
   /* Those listbase data change every time we add/remove an ID, and also often when
    * renaming one (due to re-sorting). This avoids generating a lot of false 'is changed'
    * detections between undo steps. */
@@ -1349,8 +1370,6 @@ BLO_Write_IDBuffer::BLO_Write_IDBuffer(ID &id, const bool is_undo, const bool is
    * when we need to re-read the ID into its original address, this is currently cleared in
    * #direct_link_id_common in `readfile.cc` anyway. */
   temp_id->py_instance = nullptr;
-  /* Clear runtime data struct. */
-  temp_id->runtime = ID_Runtime{};
 }
 
 BLO_Write_IDBuffer::BLO_Write_IDBuffer(ID &id, BlendWriter *writer)
@@ -1376,6 +1395,12 @@ static int write_id_direct_linked_data_process_cb(LibraryIDLinkCallbackData *cb_
     return IDWALK_RET_NOP;
   }
 
+  if (cb_flag & IDWALK_CB_WRITEFILE_IGNORE) {
+    /* Do not consider these ID usages (typically, from the Outliner e.g.) as making the ID
+     * directly linked. */
+    return IDWALK_RET_NOP;
+  }
+
   if (!BKE_idtype_idcode_is_linkable(GS(id->name))) {
     /* Usages of unlinkable IDs (aka ShapeKeys and some UI IDs) should never cause them to be
      * considered as directly linked. This can often happen e.g. from UI data (the Outliner will
@@ -1397,7 +1422,7 @@ static int write_id_direct_linked_data_process_cb(LibraryIDLinkCallbackData *cb_
 static std::string get_blend_file_header()
 {
   if (SYSTEM_SUPPORTS_WRITING_FILE_VERSION_1 &&
-      !USER_EXPERIMENTAL_TEST(&U, write_legacy_blend_file_format))
+      !USER_DEVELOPER_TOOL_TEST(&U, write_legacy_blend_file_format))
   {
     const int header_size_in_bytes = SIZEOFBLENDERHEADER_VERSION_1;
 
@@ -1530,7 +1555,7 @@ static bool write_file_handle(Main *mainvar,
     ID *id_iter;
     FOREACH_MAIN_ID_BEGIN (mainvar, id_iter) {
       if (ID_IS_LINKED(id_iter) && BKE_idtype_idcode_is_linkable(GS(id_iter->name))) {
-        if (USER_EXPERIMENTAL_TEST(&U, use_all_linked_data_direct)) {
+        if (USER_DEVELOPER_TOOL_TEST(&U, use_all_linked_data_direct)) {
           /* Forces all linked data to be considered as directly linked.
            * FIXME: Workaround some BAT tool limitations for Heist production, should be removed
            * asap afterward. */
@@ -1564,7 +1589,7 @@ static bool write_file_handle(Main *mainvar,
   /* Recompute all ID user-counts if requested. Allows to avoid skipping writing of IDs wrongly
    * detected as unused due to invalid user-count. */
   if (!wd->use_memfile) {
-    if (USER_EXPERIMENTAL_TEST(&U, use_recompute_usercount_on_save_debug)) {
+    if (USER_DEVELOPER_TOOL_TEST(&U, use_recompute_usercount_on_save_debug)) {
       BKE_main_id_refcount_recompute(mainvar, false);
     }
   }
