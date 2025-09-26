@@ -496,8 +496,26 @@ class ShapeTransfer(Operator):
 
     @classmethod
     def poll(cls, context):
-        obj = context.active_object
-        return (obj and obj.mode != 'EDIT')
+        ob_active = context.active_object
+        if not ob_active or ob_active.mode == 'EDIT':
+            return False
+
+        # Exactly one other selected object
+        others = [ob for ob in context.selected_editable_objects if ob != ob_active]
+        if len(others) != 1:
+            return False
+
+        ob_from = others[0]
+        # Both source and destination must be Mesh objects.
+        if ob_from.type != 'MESH':
+            return False
+        if ob_active.type != 'MESH':
+            return False
+        # The source must have an active Shape Key to copy.
+        if ob_from.active_shape_key is None:
+            return False
+
+        return True
 
     def execute(self, context):
         ob_act = context.active_object
