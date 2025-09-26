@@ -67,21 +67,37 @@ void main()
    * good rays by evaluating null radiance transfer between the coplanar surfels for rays that
    * are not directly perpendicular to the surface. */
 
+  /* Avoid this step to produce TDR in setup that contains very complex path.
+   * This creates overshadowing. */
+  int max_search = 10;
+  if (list_range.size() > 100) {
+    max_search = 5;
+  }
+  if (list_range.size() > 1000) {
+    max_search = 2;
+  }
+
   /* Mutable `foreach`. */
-  for (int i = sorted_list_first, next = 0; i > -1; i = next) {
+  for (int i = sorted_list_first, next = -1; i > -1; i = next) {
     next = surfel_buf[i].next;
 
     int valid_next = surfel_buf[i].next;
     int valid_prev = surfel_buf[i].prev;
 
     /* Search the list for the first valid next and previous surfel. */
-    while (valid_next > -1) {
+    for (int j = 0; j < max_search; j++) {
+      if (valid_next == -1) {
+        break;
+      }
       if (is_valid_surfel_link(i, valid_next)) {
         break;
       }
       valid_next = surfel_buf[valid_next].next;
     }
-    while (valid_prev > -1) {
+    for (int j = 0; j < max_search; j++) {
+      if (valid_prev == -1) {
+        break;
+      }
       if (is_valid_surfel_link(i, valid_prev)) {
         break;
       }
