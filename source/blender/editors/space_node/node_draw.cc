@@ -3211,6 +3211,23 @@ static void node_draw_basis(const bContext &C,
 
   /* Outlines. */
   {
+    /* Body outline. */
+    const rctf rect_body = {
+        rct.xmin - 0,
+        rct.xmax + 0,
+        rct.ymin,
+        rct.ymax - (NODE_DY),
+    };
+    float color_body[4];
+    if (node_undefined_or_unsupported(ntree, node)) {
+      UI_GetThemeColorShade4fv(TH_REDALERT, -40, color_body);
+    }
+    else {
+      UI_GetThemeColorShade4fv(TH_NODE, 20, color_body);
+    }
+    UI_draw_roundbox_corner_set(UI_CNR_BOTTOM_LEFT | UI_CNR_BOTTOM_RIGHT);
+    UI_draw_roundbox_4fv(&rect_body, false, BASIS_RAD, color_body);
+
     /* Header outline. */
     const rctf rect_header = {
         rct.xmin,
@@ -3222,31 +3239,14 @@ static void node_draw_basis(const bContext &C,
     if (node_undefined_or_unsupported(ntree, node)) {
       UI_GetThemeColorShade4fv(TH_REDALERT, -40, color_header);
     }
+    else if (node.is_muted()) {
+      UI_GetThemeColorBlendShade4fv(TH_NODE, color_id, 0.4f, 20, color_header);
+    }
     else {
       UI_GetThemeColorShade4fv(color_id, 20, color_header);
     }
     UI_draw_roundbox_corner_set(UI_CNR_TOP_LEFT | UI_CNR_TOP_RIGHT);
     UI_draw_roundbox_4fv(&rect_header, false, BASIS_RAD, color_header);
-
-    /* Body outline. */
-    const rctf rect_body = {
-        rct.xmin - 0,
-        rct.xmax + 0,
-        rct.ymin,
-        rct.ymax - (NODE_DY + outline_width),
-    };
-    float color_body[4];
-    if (node_undefined_or_unsupported(ntree, node)) {
-      UI_GetThemeColorShade4fv(TH_REDALERT, -40, color_body);
-    }
-    else if (node.is_muted()) {
-      UI_GetThemeColorBlendShade4fv(TH_NODE, color_id, 0.4f, 20, color_header);
-    }
-    else {
-      UI_GetThemeColorShade4fv(TH_NODE, 20, color_body);
-    }
-    UI_draw_roundbox_corner_set(UI_CNR_BOTTOM_LEFT | UI_CNR_BOTTOM_RIGHT);
-    UI_draw_roundbox_4fv(&rect_body, false, BASIS_RAD, color_body);
 
     /* Outline around the entire node to highlight selection, alert, or for simulation zones. */
     const rctf rect_node = {
