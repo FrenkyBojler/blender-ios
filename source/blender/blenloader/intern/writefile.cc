@@ -467,8 +467,8 @@ struct WriteData {
      */
     blender::Set<uint64_t> used_ids;
     /**
-     * The next potential stable address id. One still has to check if this id is already used.
-     * This is modified in two cases:
+     * The next stable address id is derived from this. This is modified in
+     * two cases:
      * - A new stable address is needed, in which case this is just incremented.
      * - A new "section" of the .blend file starts. In this case, this should be reinitialized with
      *   some hash of an identifier of the next section. This makes sure that if the number of
@@ -477,9 +477,10 @@ struct WriteData {
      *   data-block starts. In the future, an API could be added that allows sections to start
      *   within a data-block which could isolate stable pointer ids even more.
      *
-     * This starts at 1 because 0 is reserved for the null pointer.
+     * When creating the new address id, keep in mind that this may be 0 and it may collide with
+     * previous hints.
      */
-    uint64_t next_id_hint = 1;
+    uint64_t next_id_hint = 0;
   } stable_address_ids;
 
   /**
@@ -818,14 +819,29 @@ static void write_bhead(WriteData *wd, const BHead &bhead)
   mywrite(wd, &bh, sizeof(bh));
 }
 
+static uint64_t stable_id_from_hint(const uint64_t hint)
+{
+  /* Add a stride. This is not strictly necessary but may help with debugging later on because it's
+   * easier to identify bad ids. */
+  uint64_t stable_id = hint << 4;
+  if (stable_id == 0) {
+    /* Null values are reserved for nullptr. */
+    stable_id = (1 << 4);
+  }
+  return stable_id;
+}
+
 static uint64_t get_next_stable_address_id(WriteData &wd)
 {
-  /* Increment until an unused identifier is found. Collisions are generally expected to be very
-   * rare here. */
-  while (!wd.stable_address_ids.used_ids.add(wd.stable_address_ids.next_id_hint)) {
-    wd.stable_address_ids.next_id_hint++;
+  uint64_t stable_id = stable_id_from_hint(wd.stable_address_ids.next_id_hint);
+  while (!wd.stable_address_ids.used_ids.add(stable_id)) {
+    /* Generate a new hint because there is a collision. Collisions are generally expected to be
+     * very rare. It can happen when #get_stable_pointer_hint_for_id produces values that are very
+     * close for different IDs. */
+    wd.stable_address_ids.next_id_hint = XXH3_64bits(&wd.stable_address_ids.next_id_hint,
+                                                     sizeof(uint64_t));
+    stable_id = stable_id_from_hint(wd.stable_address_ids.next_id_hint);
   }
-  const uint64_t stable_id = wd.stable_address_ids.next_id_hint;
   wd.stable_address_ids.next_id_hint++;
   return stable_id;
 }
