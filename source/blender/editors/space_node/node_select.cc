@@ -1390,7 +1390,16 @@ static void node_find_update_fn(const bContext *C,
         search.add(search_str, &scope.construct<Item>(Item{node, search_str}));
       }
     }
-    add_data_block_item(*node, node->id);
+    if (node->id) {
+      /* Avoid showing referenced node group data-blocks twice. */
+      const bool skip_data_block =
+          node->is_group() &&
+          StringRef(bke::node_label(ntree, *node)).find(BKE_id_name(*node->id)) !=
+              StringRef::not_found;
+      if (!skip_data_block) {
+        add_data_block_item(*node, node->id);
+      }
+    }
 
     for (const bNodeSocket *socket : node->input_sockets()) {
       switch (socket->type) {
