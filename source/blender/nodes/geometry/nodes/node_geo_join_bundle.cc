@@ -46,7 +46,7 @@ static void node_register()
   geo_node_type_base(&ntype, "NodeJoinBundle");
   ntype.ui_name = "Join Bundle";
   ntype.ui_description = "Join multiple bundles together";
-  ntype.nclass = NODE_CLASS_GEOMETRY;
+  ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
   blender::bke::node_register_type(ntype);
