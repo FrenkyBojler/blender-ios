@@ -2,10 +2,6 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "BKE_mesh.hh"
-
-#include "BLI_math_vector_types.hh"
-
 #include "NOD_geometry_nodes_bundle.hh"
 
 #include "node_geometry_util.hh"
