@@ -16,14 +16,12 @@
 #include "NOD_socket_items_blend.hh"
 #include "NOD_socket_items_ops.hh"
 #include "NOD_socket_search_link.hh"
-#include "NOD_trace_values.hh"
 
 #include "RNA_enum_types.hh"
 #include "RNA_prototypes.hh"
 
 #include "BLO_read_write.hh"
 
-#include "BKE_compute_context_cache.hh"
 #include "BKE_node_socket_value.hh"
 
 namespace blender::nodes::node_geo_index_switch_cc {
