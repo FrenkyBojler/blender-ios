@@ -58,7 +58,10 @@ struct WhiteBalanceApplyOp {
   }
 };
 
-static void whiteBalance_apply(StripModifierData *smd, ImBuf *ibuf, ImBuf *mask)
+static void whiteBalance_apply(const RenderData * /*render_data*/,
+                               StripModifierData *smd,
+                               ImBuf *ibuf,
+                               ImBuf *mask)
 {
   const WhiteBalanceModifierData *data = (const WhiteBalanceModifierData *)smd;
 

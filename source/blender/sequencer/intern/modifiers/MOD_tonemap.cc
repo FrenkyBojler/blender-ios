@@ -261,7 +261,10 @@ static AreaLuminance tonemap_calc_input_luminance(const ImBuf *ibuf)
   return lum;
 }
 
-static void tonemapmodifier_apply(StripModifierData *smd, ImBuf *ibuf, ImBuf *mask)
+static void tonemapmodifier_apply(const RenderData * /*render_data*/,
+                                  StripModifierData *smd,
+                                  ImBuf *ibuf,
+                                  ImBuf *mask)
 {
   const SequencerTonemapModifierData *tmmd = (const SequencerTonemapModifierData *)smd;
 

@@ -369,6 +369,7 @@ static void modifier_types_init(StripModifierTypeInfo *types[])
   INIT_TYPE(None);
   INIT_TYPE(BrightContrast);
   INIT_TYPE(ColorBalance);
+  INIT_TYPE(Compositor);
   INIT_TYPE(Curves);
   INIT_TYPE(HueCorrect);
   INIT_TYPE(Mask);
@@ -531,7 +532,7 @@ void modifier_apply_stack(const RenderData *context,
                                                smd->mask_id,
                                                timeline_frame,
                                                frame_offset);
-      smti->apply(smd, ibuf, mask);
+      smti->apply(context, smd, ibuf, mask);
       if (mask) {
         IMB_freeImBuf(mask);
       }

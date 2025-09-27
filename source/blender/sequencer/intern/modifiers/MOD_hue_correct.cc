@@ -35,7 +35,7 @@ static void hue_correct_init_data(StripModifierData *smd)
   for (c = 0; c < 3; c++) {
     CurveMap *cuma = &hcmd->curve_mapping.cm[c];
     BKE_curvemap_reset(
-        cuma, &hcmd->curve_mapping.clipr, hcmd->curve_mapping.preset, CURVEMAP_SLOPE_POSITIVE);
+        cuma, &hcmd->curve_mapping.clipr, hcmd->curve_mapping.preset, CurveMapSlopeType::Positive);
   }
   /* use wrapping for all hue correct modifiers */
   hcmd->curve_mapping.flag |= CUMA_USE_WRAPPING;
@@ -100,7 +100,10 @@ struct HueCorrectApplyOp {
   }
 };
 
-static void hue_correct_apply(StripModifierData *smd, ImBuf *ibuf, ImBuf *mask)
+static void hue_correct_apply(const RenderData * /*render_data*/,
+                              StripModifierData *smd,
+                              ImBuf *ibuf,
+                              ImBuf *mask)
 {
   HueCorrectModifierData *hcmd = (HueCorrectModifierData *)smd;
 

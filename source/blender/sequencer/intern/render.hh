@@ -9,6 +9,7 @@
  */
 
 #include "BLI_math_vector_types.hh"
+#include "BLI_set.hh"
 #include "BLI_vector.hh"
 
 struct Depsgraph;
@@ -25,6 +26,7 @@ namespace blender::seq {
 /* Mutable state while rendering one sequencer frame. */
 struct SeqRenderState {
   LinkNode *scene_parents = nullptr;
+  Set<Strip *> strips_rendering_seqbase;
 };
 
 /* Strip corner coordinates in screen pixel space. Note that they might not be
@@ -39,6 +41,7 @@ struct StripScreenQuad {
 };
 
 ImBuf *seq_render_give_ibuf_seqbase(const RenderData *context,
+                                    SeqRenderState *state,
                                     float timeline_frame,
                                     int chan_shown,
                                     ListBase *channels,

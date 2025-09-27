@@ -52,7 +52,7 @@ struct StripModifierTypeInfo {
   void (*copy_data)(StripModifierData *smd, StripModifierData *target);
 
   /* Apply modifier on an image buffer. */
-  void (*apply)(StripModifierData *smd, ImBuf *ibuf, ImBuf *mask);
+  void (*apply)(const RenderData *render_data, StripModifierData *smd, ImBuf *ibuf, ImBuf *mask);
 
   /** Register the panel types for the modifier's UI. */
   void (*panel_register)(ARegionType *region_type);

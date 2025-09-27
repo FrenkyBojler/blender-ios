@@ -48,7 +48,10 @@ struct BrightContrastApplyOp {
   }
 };
 
-static void brightcontrast_apply(StripModifierData *smd, ImBuf *ibuf, ImBuf *mask)
+static void brightcontrast_apply(const RenderData * /*render_data*/,
+                                 StripModifierData *smd,
+                                 ImBuf *ibuf,
+                                 ImBuf *mask)
 {
   const BrightContrastModifierData *bcmd = (BrightContrastModifierData *)smd;
 
