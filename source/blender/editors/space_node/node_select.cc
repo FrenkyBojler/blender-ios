@@ -17,6 +17,7 @@
 #include "BLI_listbase.h"
 #include "BLI_math_vector.h"
 #include "BLI_rect.h"
+#include "BLI_resource_scope.hh"
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
@@ -1334,19 +1335,35 @@ static void node_find_update_fn(const bContext *C,
 {
   SpaceNode *snode = CTX_wm_space_node(C);
 
-  ui::string_search::StringSearch<bNode> search;
+  struct Item {
+    bNode *node;
+    std::string search_str;
+  };
+
+  ui::string_search::StringSearch<Item> search;
+  blender::ResourceScope scope;
 
   const bNodeTree &ntree = *snode->edittree;
   for (bNode *node : snode->edittree->all_nodes()) {
-    const std::string name = node_find_create_label(ntree, *node);
-    search.add(name, node);
+    const StringRef name = scope.allocator().copy_string(node_find_create_label(ntree, *node));
+    search.add(name, &scope.construct<Item>(Item{node, name}));
+    for (const bNodeSocket *socket : node->input_sockets()) {
+      if (socket->type == SOCK_STRING) {
+        const bNodeSocketValueString *value =
+            socket->default_value_typed<bNodeSocketValueString>();
+        const StringRef value_str = value->value;
+        if (!value_str.is_empty()) {
+          const StringRef search_str = fmt::format("\"{}\" ({})", value_str, node->name);
+          search.add(search_str, &scope.construct<Item>(Item{node, search_str}));
+        }
+      }
+    }
   }
 
-  const Vector<bNode *> filtered_nodes = search.query(str);
+  const Vector<Item *> filtered_items = search.query(str);
 
-  for (bNode *node : filtered_nodes) {
-    const std::string name = node_find_create_label(ntree, *node);
-    if (!UI_search_item_add(items, name, node, ICON_NONE, 0, 0)) {
+  for (const Item *item : filtered_items) {
+    if (!UI_search_item_add(items, item->search_str, item->node, ICON_NONE, 0, 0)) {
       break;
     }
   }
