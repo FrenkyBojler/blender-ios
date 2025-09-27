@@ -255,7 +255,7 @@ wmOperatorStatus WM_gesture_box_modal(bContext *C, wmOperator *op, const wmEvent
 
         break;
       }
-      case EVT_TABKEY: {
+      case EVT_FKEY: {
         if (event->val == KM_PRESS) {
           int window_cursor_x, window_cursor_y;
           if (wm_cursor_position_get(win, &window_cursor_x, &window_cursor_y)) {
