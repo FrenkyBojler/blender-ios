@@ -881,6 +881,14 @@ void RE_InitState(Render *re,
   /* if preview render, we try to keep old result */
   BLI_rw_mutex_lock(&re->resultmutex, THREAD_LOCK_WRITE);
 
+  bool resolution_changed = (re->result != nullptr &&
+                             (re->result->rectx != rd->xsch || re->result->recty != rd->ysch));
+  bool init_render_result = ((re->result == nullptr) || resolution_changed ||
+                             !(re->r.mode & R_BORDER_STAMP));
+  printf("RE_InitState: re->result %p, resolution_changed %d, init_render_result %d\n",
+         re->result,
+         int(resolution_changed),
+         int(init_render_result));
   if (re->r.scemode & R_BUTS_PREVIEW) {
     if (had_freestyle || (re->r.mode & R_EDGE_FRS)) {
       /* freestyle manipulates render layers so always have to free */
@@ -912,18 +920,21 @@ void RE_InitState(Render *re,
       }
     }
   }
-  else if (re->result != nullptr &&
-           (re->result->rectx != rd->xsch || re->result->recty != rd->ysch))
-  {
-    /* make empty render result, so display callbacks can initialize */
+  else if (init_render_result) {
+    /* when using stamp border, we need to clear old result */
     render_result_free(re->result);
     re->result = nullptr;
 
-    // re->result = MEM_callocN<RenderResult>("new render result");
-    // re->result->rectx = re->rectx;
-    // re->result->recty = re->recty;
-    // BKE_scene_ppm_get(&re->r, re->result->ppm);
-    // render_result_view_new(re->result, "");
+    re->result = MEM_callocN<RenderResult>("new render result");
+    re->result->rectx = re->r.xsch;
+    re->result->recty = re->r.ysch;
+    BKE_scene_ppm_get(&re->r, re->result->ppm);
+    render_result_view_new(re->result, "");
+
+    // Free again, so that in engine.cc the result can be properly initialized. The initialization
+    // here is only needed to be able to create a render_result_view.
+    render_result_free(re->result);
+    re->result = nullptr;
   }
 
   BLI_rw_mutex_unlock(&re->resultmutex);
@@ -2066,13 +2077,14 @@ void RE_RenderFrame(Render *re,
     /* Reduce GPU memory usage so renderer has more space. */
     RE_FreeGPUTextureCaches();
 
-    if (re->result) {
-      BLI_rw_mutex_lock(&re->resultmutex, THREAD_LOCK_WRITE);
-      rcti tmp = rcti{0, re->result->rectx, 0, re->result->recty};
-      re->display_init(re->result);
-      re->display_update(re->result, &tmp);
-      BLI_rw_mutex_unlock(&re->resultmutex);
-    }
+    // Tried to fix only stamp visible when rendering, but no changes.
+    // if (re->result) {
+    // BLI_rw_mutex_lock(&re->resultmutex, THREAD_LOCK_WRITE);
+    // rcti tmp = rcti{0, re->result->rectx, 0, re->result->recty};
+    // re->display_init(re->result);
+    // re->display_update(re->result, &tmp);
+    // BLI_rw_mutex_unlock(&re->resultmutex);
+    // }
 
     render_init_depsgraph(re);
 

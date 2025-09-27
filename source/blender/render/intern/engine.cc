@@ -971,7 +971,16 @@ static void engine_render_add_result_pass_cb(void *user_data,
 
 static RenderResult *engine_render_create_result(Render *re)
 {
-  RenderResult *rr = render_result_new(re, &re->disprect, RR_ALL_LAYERS, RR_ALL_VIEWS);
+  // If in border stamp mode, we need a render result in the size of the full canvas.
+  RenderResult *rr = nullptr;
+  if (re->r.mode & R_BORDER_STAMP) {
+    rcti disprect = {0, re->winx, 0, re->winy};
+    rr = render_result_new(re, &disprect, RR_ALL_LAYERS, RR_ALL_VIEWS);
+  }
+  else {
+
+    rr = render_result_new(re, &re->disprect, RR_ALL_LAYERS, RR_ALL_VIEWS);
+  }
   if (rr == nullptr) {
     return nullptr;
   }
@@ -1030,8 +1039,7 @@ bool RE_engine_render(Render *re, bool do_all)
   /* Create render result. Do this before acquiring lock, to avoid lock
    * inversion as this calls python to get the render passes, while python UI
    * code can also hold a lock on the render result. */
-  const bool create_new_result = (re->result ==
-                                  nullptr);  // || !(re->r.scemode & R_BUTS_PREVIEW));
+  const bool create_new_result = (re->result == nullptr) || !(re->r.mode & R_BORDER_STAMP);
   RenderResult *new_result = (create_new_result) ? engine_render_create_result(re) : nullptr;
 
   BLI_rw_mutex_lock(&re->resultmutex, THREAD_LOCK_WRITE);
