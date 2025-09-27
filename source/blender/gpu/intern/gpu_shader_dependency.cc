@@ -546,9 +546,10 @@ GPUFunction *gpu_material_library_get_function(const char *name)
 void gpu_material_library_use_function(blender::Set<blender::StringRefNull> &used_libraries,
                                        const char *name)
 {
-  GPUFunction *function = g_functions->lookup_default(name, nullptr);
-  GPUSource *source = reinterpret_cast<GPUSource *>(function->source);
-  used_libraries.add(source->filename.c_str());
+  if (GPUFunction *function = g_functions->lookup_default(name, nullptr)) {
+    GPUSource *source = reinterpret_cast<GPUSource *>(function->source);
+    used_libraries.add(source->filename.c_str());
+  }
 }
 
 namespace blender::gpu::shader {
