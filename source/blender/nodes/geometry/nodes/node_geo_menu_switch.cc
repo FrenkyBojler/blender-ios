@@ -88,15 +88,17 @@ static void node_declare(blender::nodes::NodeDeclarationBuilder &b)
     auto &input = b.add_input(data_type, enum_item.name, identifier)
                       .socket_name_ptr(
                           &ntree->id, MenuSwitchItemsAccessor::item_srna, &enum_item, "name")
-                      .compositor_realization_mode(CompositorInputRealizationMode::None);
+                      .compositor_realization_mode(CompositorInputRealizationMode::None)
+                      .description("Becomes the output value if it is chosen by the menu input");
     if (supports_fields) {
       input.supports_field();
     }
     /* Labels are ugly in combination with data-block pickers and are usually disabled. */
     input.hide_label(ELEM(data_type, SOCK_OBJECT, SOCK_IMAGE, SOCK_COLLECTION, SOCK_MATERIAL));
     input.structure_type(value_structure_type);
-    auto &item_output =
-        b.add_output<decl::Bool>(enum_item.name, std::move(identifier)).align_with_previous();
+    auto &item_output = b.add_output<decl::Bool>(enum_item.name, std::move(identifier))
+                            .align_with_previous()
+                            .description("True if this item is chosen by the menu input");
     if (supports_fields) {
       item_output.dependent_field({menu.index()});
       item_output.structure_type(menu_structure_type);
@@ -506,14 +508,17 @@ static void node_blend_read(bNodeTree & /*ntree*/, bNode &node, BlendDataReader 
 
 static const bNodeSocket *node_internally_linked_input(const bNodeTree & /*tree*/,
                                                        const bNode &node,
-                                                       const bNodeSocket & /*output_socket*/)
+                                                       const bNodeSocket &output_socket)
 {
   const NodeMenuSwitch &storage = node_storage(node);
   if (storage.enum_definition.items_num == 0) {
     return nullptr;
   }
-  /* Default to the first enum item input. */
-  return &node.input_socket(1);
+  if (&output_socket == node.outputs.first) {
+    /* Default to the first enum item input. */
+    return &node.input_socket(1);
+  }
+  return nullptr;
 }
 
 static const EnumPropertyItem *data_type_items_callback(bContext * /*C*/,
