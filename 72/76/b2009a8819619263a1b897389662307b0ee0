@@ -7,3 +7,4 @@ Referenced by issue #142009, Preferences - Extensions/Addon Tags - Not showing a
 Referenced by commit d15e7b17aa4c91e1281fa833d595040075d47635, Fix #142009: Extensions/Addon Tags not showing (property not found)
 Referenced by issue #143148, Material attributes referencing custom properties not working in some situations
 Referenced by commit 1ea87081538e30fbda49053d1c22131946face58, Fix (unreported) wrong handling of system-defined IDProperties in RNA.
+Referenced by issue #146675, Rigify not longer draws side panel buttons
