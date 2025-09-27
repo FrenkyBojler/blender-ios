@@ -53,7 +53,7 @@ class ClosureSignature {
 struct LinkedClosureSignatures {
   struct Item {
     ClosureSignature signature;
-    bool is_type_definition = false;
+    bool define_signature = false;
     SocketInContext socket;
   };
   Vector<Item> items;

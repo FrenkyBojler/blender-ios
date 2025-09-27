@@ -126,7 +126,7 @@ ClosureSignature ClosureSignature::from_evaluate_closure_node(const bNode &node,
 bool LinkedClosureSignatures::has_type_definition() const
 {
   for (const Item &item : this->items) {
-    if (item.is_type_definition) {
+    if (item.define_signature) {
       return true;
     }
   }

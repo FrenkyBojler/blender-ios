@@ -260,7 +260,7 @@ BundleSignature BundleSignature::from_separate_bundle_node(const bNode &node,
 bool LinkedBundleSignatures::has_type_definition() const
 {
   for (const Item &item : this->items) {
-    if (item.is_type_definition) {
+    if (item.is_signature_definition) {
       return true;
     }
   }

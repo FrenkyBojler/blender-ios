@@ -2330,7 +2330,7 @@ typedef struct NodeClosureOutputItems {
 } NodeClosureOutputItems;
 
 typedef enum NodeClosureFlag {
-  NODE_CLOSURE_FLAG_TYPE_DEFINITION = (1 << 0),
+  NODE_CLOSURE_FLAG_DEFINE_SIGNATURE = (1 << 0),
 } NodeClosureFlag;
 
 typedef struct NodeClosureOutput {
@@ -2362,7 +2362,7 @@ typedef struct NodeEvaluateClosureOutputItem {
 } NodeEvaluateClosureOutputItem;
 
 typedef enum NodeEvaluateClosureFlag {
-  NODE_EVALUATE_CLOSURE_FLAG_TYPE_DEFINITION = (1 << 0),
+  NODE_EVALUATE_CLOSURE_FLAG_DEFINE_SIGNATURE = (1 << 0),
 } NodeEvaluateClosureFlag;
 
 typedef struct NodeEvaluateClosureInputItems {
@@ -2513,7 +2513,7 @@ typedef struct NodeCombineBundleItem {
 } NodeCombineBundleItem;
 
 typedef enum NodeCombineBundleFlag {
-  NODE_COMBINE_BUNDLE_FLAG_TYPE_DEFINITION = (1 << 0),
+  NODE_COMBINE_BUNDLE_FLAG_DEFINE_SIGNATURE = (1 << 0),
 } NodeCombineBundleFlag;
 
 typedef struct NodeCombineBundle {
@@ -2536,7 +2536,7 @@ typedef struct NodeSeparateBundleItem {
 } NodeSeparateBundleItem;
 
 typedef enum NodeSeparateBundleFlag {
-  NODE_SEPARATE_BUNDLE_FLAG_TYPE_DEFINITION = (1 << 0),
+  NODE_SEPARATE_BUNDLE_FLAG_DEFINE_SIGNATURE = (1 << 0),
 } NodeSeparateBundleFlag;
 
 typedef struct NodeSeparateBundle {

@@ -584,7 +584,7 @@ LinkedBundleSignatures gather_linked_target_bundle_signatures(
         if (socket->is_input() && node.is_type("NodeSeparateBundle")) {
           const auto &storage = *static_cast<const NodeSeparateBundle *>(node.storage);
           result.items.append({BundleSignature::from_separate_bundle_node(node, false),
-                               bool(storage.flag & NODE_SEPARATE_BUNDLE_FLAG_TYPE_DEFINITION),
+                               bool(storage.flag & NODE_SEPARATE_BUNDLE_FLAG_DEFINE_SIGNATURE),
                                socket});
           return true;
         }
@@ -608,7 +608,7 @@ LinkedBundleSignatures gather_linked_origin_bundle_signatures(
         if (socket->is_output() && node.is_type("NodeCombineBundle")) {
           const auto &storage = *static_cast<const NodeCombineBundle *>(node.storage);
           result.items.append({BundleSignature::from_combine_bundle_node(node, false),
-                               bool(storage.flag & NODE_COMBINE_BUNDLE_FLAG_TYPE_DEFINITION),
+                               bool(storage.flag & NODE_COMBINE_BUNDLE_FLAG_DEFINE_SIGNATURE),
                                socket});
           return true;
         }
@@ -632,7 +632,7 @@ LinkedClosureSignatures gather_linked_target_closure_signatures(
         if (is_evaluate_closure_node_input(socket)) {
           const auto &storage = *static_cast<const NodeEvaluateClosure *>(node.storage);
           result.items.append({ClosureSignature::from_evaluate_closure_node(node, false),
-                               bool(storage.flag & NODE_EVALUATE_CLOSURE_FLAG_TYPE_DEFINITION),
+                               bool(storage.flag & NODE_EVALUATE_CLOSURE_FLAG_DEFINE_SIGNATURE),
                                socket});
           return true;
         }
@@ -656,7 +656,7 @@ LinkedClosureSignatures gather_linked_origin_closure_signatures(
         if (is_closure_zone_output_socket(socket)) {
           const auto &storage = *static_cast<const NodeClosureOutput *>(node.storage);
           result.items.append({ClosureSignature::from_closure_output_node(node, false),
-                               bool(storage.flag & NODE_CLOSURE_FLAG_TYPE_DEFINITION),
+                               bool(storage.flag & NODE_CLOSURE_FLAG_DEFINE_SIGNATURE),
                                socket});
           return true;
         }

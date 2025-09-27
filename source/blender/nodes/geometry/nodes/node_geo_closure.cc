@@ -45,7 +45,7 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *current_no
   PointerRNA output_node_ptr = RNA_pointer_create_discrete(&ntree.id, &RNA_Node, &output_node);
 
   layout->op("node.sockets_sync", "Sync", ICON_FILE_REFRESH);
-  layout->prop(&output_node_ptr, "is_type_definition", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout->prop(&output_node_ptr, "define_signature", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   if (current_node->type_legacy == NODE_CLOSURE_INPUT) {
     if (uiLayout *panel = layout->panel(C, "input_items", false, TIP_("Input Items"))) {
       socket_items::ui::draw_items_list_with_operators<ClosureInputItemsAccessor>(

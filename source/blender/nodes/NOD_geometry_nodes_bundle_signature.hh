@@ -47,7 +47,7 @@ struct BundleSignature {
 struct LinkedBundleSignatures {
   struct Item {
     BundleSignature signature;
-    bool is_type_definition = false;
+    bool is_signature_definition = false;
     SocketInContext source_socket;
   };
   Vector<Item> items;
