@@ -1393,7 +1393,6 @@ static void node_find_update_fn(const bContext *C,
     add_data_block_item(*node, node->id);
 
     for (const bNodeSocket *socket : node->input_sockets()) {
-
       switch (socket->type) {
         case SOCK_STRING: {
           if (socket->is_logically_linked()) {
@@ -1436,7 +1435,6 @@ static void node_find_update_fn(const bContext *C,
   }
 
   const Vector<Item *> filtered_items = search.query(str);
-
   for (const Item *item : filtered_items) {
     if (!UI_search_item_add(items, item->search_str, item->node, ICON_NONE, 0, 0)) {
       break;
