@@ -16,6 +16,7 @@
 #include "BLT_translation.hh"
 
 #include "RNA_access.hh"
+#include "RNA_enum_types.hh"
 
 #include "interface_intern.hh"
 
@@ -53,27 +54,17 @@ static std::string format_scale(float value)
   return fmt::format("{:.{}f}", value, RNA_SCALE_PREC_DEFAULT);
 }
 
-struct RotationModeInfo {
-  int value;
-  const char *name;
-};
-
-const RotationModeInfo rotation_modes[] = {
-    {EULER_ORDER_XYZ, "XYZ Euler"},
-    {EULER_ORDER_XZY, "XZY Euler"},
-    {EULER_ORDER_YXZ, "YXZ Euler"},
-    {EULER_ORDER_YZX, "YZX Euler"},
-    {EULER_ORDER_ZXY, "ZXY Euler"},
-    {EULER_ORDER_ZYX, "ZYX Euler"},
-};
-
-/* Static variable to store rotation mode button state at runtime. */
-static int rotation_mode_index = 0;
+/* Static variable to store rotation mode button state at runtime.
+   Defaults to XYZ Euler. */
+static int rotation_mode_index = 1;
 
 static void rotation_mode_menu_callback(bContext *, uiLayout *layout, void *)
 {
-  for (size_t i = 0; i < std::size(rotation_modes); i++) {
-    const RotationModeInfo &mode_info = rotation_modes[i];
+  for (size_t i = 0; i < RNA_enum_items_count(rna_enum_object_rotation_mode_items); i++) {
+    const EnumPropertyItem &mode_info = rna_enum_object_rotation_mode_items[i];
+    if (mode_info.value < ROT_MODE_XYZ || mode_info.value > ROT_MODE_ZYX) {
+      continue;
+    }
     int yco = -1.5f * UI_UNIT_Y;
     int width = 180.0f * UI_SCALE_FAC;
     uiBut *but = uiDefButI(layout->block(),
@@ -87,7 +78,7 @@ static void rotation_mode_menu_callback(bContext *, uiLayout *layout, void *)
                            &rotation_mode_index,
                            i,
                            i,
-                           std::nullopt);
+                           mode_info.description);
     UI_but_flag_disable(but, UI_BUT_UNDO);
     if (i == rotation_mode_index) {
       UI_but_flag_enable(but, UI_SELECT_DRAW);
@@ -133,7 +124,7 @@ static void draw_matrix_template(uiLayout &layout, PointerRNA &ptr, PropertyRNA 
 
   /* Rotation. */
   float eul[3];
-  const RotationModeInfo &mode_info = rotation_modes[rotation_mode_index];
+  const EnumPropertyItem &mode_info = rna_enum_object_rotation_mode_items[rotation_mode_index];
   quat_to_eulO(eul, mode_info.value, quat);
   split = &layout_->split(0.5, false);
 
