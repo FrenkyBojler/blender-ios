@@ -1851,7 +1851,7 @@ void NODE_OT_activate_viewer(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-static wmOperatorStatus test_inline_shader_nodes_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus test_inline_shader_nodes_exec(bContext *C, wmOperator *op)
 {
   SpaceNode &snode = *CTX_wm_space_node(C);
   bNodeTree &ntree = *snode.edittree;
@@ -1861,8 +1861,7 @@ static wmOperatorStatus test_inline_shader_nodes_exec(bContext *C, wmOperator * 
       &bmain, (StringRef(ntree.id.name) + " Inlined").c_str(), ntree.idname);
 
   nodes::InlineShaderNodeTreeParams params;
-  // TODO: Set back to false or make optional.
-  params.allow_preserving_repeat_zones = true;
+  params.allow_preserving_repeat_zones = RNA_boolean_get(op->ptr, "preserve_repeat_zones");
   nodes::inline_shader_node_tree(ntree, *new_tree, params);
   bNode *group_node = bke::node_add_node(C, ntree, ntree.typeinfo->group_idname);
   group_node->id = &new_tree->id;
@@ -1885,6 +1884,12 @@ void NODE_OT_test_inlining_shader_nodes(wmOperatorType *ot)
   ot->poll = ED_operator_node_active;
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+  RNA_def_boolean(ot->srna,
+                  "preserve_repeat_zones",
+                  false,
+                  "Preserve repeat zones",
+                  "Whether the output is allowed to contain repeat zones");
 }
 
 static wmOperatorStatus node_deactivate_viewer_exec(bContext *C, wmOperator * /*op*/)

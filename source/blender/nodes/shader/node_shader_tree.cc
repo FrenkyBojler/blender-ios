@@ -790,10 +790,7 @@ static void ntree_shader_shader_to_rgba_branches(bNodeTree *ntree)
   }
 }
 
-static void iter_shader_to_rgba_depth_count(bNodeTree &tree,
-                                            bNode *start_node,
-                                            int16_t &max_depth,
-                                            int64_t depth_level = 0)
+static void iter_shader_to_rgba_depth_count(bNodeTree &tree, bNode *start_node, int16_t &max_depth)
 {
   struct StackNode {
     bNode *node;
@@ -831,7 +828,6 @@ static void iter_shader_to_rgba_depth_count(bNodeTree &tree,
         continue;
       }
       stack.push({link->fromnode, depth_level});
-      iter_shader_to_rgba_depth_count(tree, link->fromnode, max_depth, depth_level);
     }
 
     /* Zone input nodes are linked to their corresponding zone output nodes, even if there is no
@@ -841,7 +837,7 @@ static void iter_shader_to_rgba_depth_count(bNodeTree &tree,
     {
       if (zone_type->output_type == node->type_legacy) {
         if (bNode *zone_input_node = zone_type->get_corresponding_input(tree, *node)) {
-          iter_shader_to_rgba_depth_count(tree, zone_input_node, max_depth, depth_level);
+          stack.push({zone_input_node, depth_level});
         }
       }
     }
