@@ -10,7 +10,11 @@
 #include <cstdlib>
 #include <fmt/format.h>
 
+#include "DNA_collection_types.h"
+#include "DNA_image_types.h"
+#include "DNA_material_types.h"
 #include "DNA_node_types.h"
+#include "DNA_object_types.h"
 #include "DNA_windowmanager_types.h"
 
 #include "BLI_lasso_2d.hh"
@@ -23,6 +27,7 @@
 #include "BLI_utildefines.h"
 
 #include "BKE_context.hh"
+#include "BKE_lib_id.hh"
 #include "BKE_main.hh"
 #include "BKE_main_invariants.hh"
 #include "BKE_node.hh"
@@ -49,6 +54,8 @@
 #include "UI_view2d.hh"
 
 #include "DEG_depsgraph.hh"
+
+#include "BLT_translation.hh"
 
 #include "node_intern.hh" /* own include */
 
@@ -1348,13 +1355,46 @@ static void node_find_update_fn(const bContext *C,
     const StringRef name = scope.allocator().copy_string(node_find_create_label(ntree, *node));
     search.add(name, &scope.construct<Item>(Item{node, name}));
     for (const bNodeSocket *socket : node->input_sockets()) {
-      if (socket->type == SOCK_STRING) {
-        const bNodeSocketValueString *value =
-            socket->default_value_typed<bNodeSocketValueString>();
-        const StringRef value_str = value->value;
-        if (!value_str.is_empty()) {
-          const StringRef search_str = fmt::format("\"{}\" ({})", value_str, node->name);
-          search.add(search_str, &scope.construct<Item>(Item{node, search_str}));
+      auto add_id_socket_item = [&](const ID *id) {
+        if (!id) {
+          return;
+        }
+        const StringRef id_name = BKE_id_name(*id);
+        const StringRef search_str = fmt::format(
+            "{}: \"{}\" ({})", IFACE_(socket->typeinfo->label), id_name, node->name);
+        search.add(search_str, &scope.construct<Item>(Item{node, search_str}));
+      };
+
+      switch (socket->type) {
+        case SOCK_STRING: {
+          const bNodeSocketValueString *value =
+              socket->default_value_typed<bNodeSocketValueString>();
+          const StringRef value_str = value->value;
+          if (!value_str.is_empty()) {
+            const StringRef search_str = fmt::format("String: \"{}\" ({})", value_str, node->name);
+            search.add(search_str, &scope.construct<Item>(Item{node, search_str}));
+          }
+          break;
+        }
+        case SOCK_OBJECT: {
+          add_id_socket_item(
+              id_cast<ID *>(socket->default_value_typed<bNodeSocketValueObject>()->value));
+          break;
+        }
+        case SOCK_MATERIAL: {
+          add_id_socket_item(
+              id_cast<ID *>(socket->default_value_typed<bNodeSocketValueMaterial>()->value));
+          break;
+        }
+        case SOCK_COLLECTION: {
+          add_id_socket_item(
+              id_cast<ID *>(socket->default_value_typed<bNodeSocketValueCollection>()->value));
+          break;
+        }
+        case SOCK_IMAGE: {
+          add_id_socket_item(
+              id_cast<ID *>(socket->default_value_typed<bNodeSocketValueImage>()->value));
+          break;
         }
       }
     }
