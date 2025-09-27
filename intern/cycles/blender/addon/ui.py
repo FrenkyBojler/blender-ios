@@ -1193,6 +1193,8 @@ class CYCLES_CAMERA_PT_lens_custom_parameters(CyclesButtonsPanel, Panel):
     bl_label = "Parameters"
     bl_parent_id = "DATA_PT_lens"
 
+    osl_parameter_label_cache = {}
+
     @classmethod
     def poll(cls, context):
         cam = context.camera
@@ -1201,16 +1203,59 @@ class CYCLES_CAMERA_PT_lens_custom_parameters(CyclesButtonsPanel, Panel):
                 cam.type == 'CUSTOM' and
                 len(cam.cycles_custom.keys()) > 0)
 
-    def draw(self, context):
-        layout = self.layout
-        layout.use_property_split = True
+    @classmethod
+    def update_parameter_labels(cls, cam):
+        # Shader has failed before, or not been evaluated yet.
+        if not cam.custom_bytecode_hash:
+            return {}
 
+        import os
+        import tempfile
+        import oslquery
+
+        if cam.custom_mode == 'INTERNAL' and not cam.custom_shader:
+            return {}
+        elif cam.custom_mode == 'EXTERNAL' and not os.path.isfile(cam.custom_filepath):
+            return {}
+        with tempfile.NamedTemporaryFile(mode='w', suffix=".oso", delete=False) as oso_file:
+            oso_file.write(cam.custom_bytecode)
+            oso_path = oso_file.name
+        if not os.path.isfile(oso_path):
+            return {}
+
+        query = oslquery.OSLQuery(oso_path)
+        os.remove(oso_path)
+
+        if not query:
+            return {}
+
+        parameter_labels = {}
+        for param in query.parameters:
+            label = None
+            for meta in param.metadata:
+                if meta.name == "label":
+                    label = meta.value
+                    break
+            parameter_labels[param.name] = label or bpy.path.display_name(param.name)
+
+        cls.osl_parameter_label_cache[cam.custom_bytecode_hash] = parameter_labels
+        return parameter_labels
+
+    def draw(self, context):
         cam = context.camera
         ccam = cam.cycles_custom
 
+        parameter_labels = self.osl_parameter_label_cache.get(cam.custom_bytecode_hash)
+        if parameter_labels is None:
+            parameter_labels = self.update_parameter_labels(cam)
+
+        layout = self.layout
+        layout.use_property_split = True
+
         col = layout.column()
-        for key in ccam.keys():
-            col.prop(ccam, f'["{key}"]', text=bpy.path.display_name(key))
+        for param in ccam.keys():
+            text = parameter_labels.get(param, bpy.path.display_name(param))
+            col.prop(ccam, f'["{param}"]', text=text)
 
 
 class CYCLES_PT_context_material(CyclesButtonsPanel, Panel):
