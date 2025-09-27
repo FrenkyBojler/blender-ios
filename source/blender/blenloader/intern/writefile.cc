@@ -476,6 +476,8 @@ struct WriteData {
      *   affected. A "section" can be anything, but currently a section simply starts when a new
      *   data-block starts. In the future, an API could be added that allows sections to start
      *   within a data-block which could isolate stable pointer ids even more.
+     *
+     * This starts at 1 because 0 is reserved for the null pointer.
      */
     uint64_t next_id_hint = 1;
   } stable_address_ids;
