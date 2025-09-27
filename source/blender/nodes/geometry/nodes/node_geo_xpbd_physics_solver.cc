@@ -2652,6 +2652,7 @@ PROFILE_FUNCTION static Array<GeometrySet> gather_applied_geometries(
 {
   Array<GeometrySet> applied_geometries(world_bundles.geometries.size());
   const int points_num = state.total_points_num();
+  // TODO bytes estimate is only correct if there are no rotations
   threading::memory_bandwidth_bound_task(points_num * sizeof(float3), [&]() {
     for (const int bundle_i : world_bundles.geometries.index_range()) {
       const XPBDGeometryBundle &geometry_bundle = world_bundles.geometries[bundle_i];
