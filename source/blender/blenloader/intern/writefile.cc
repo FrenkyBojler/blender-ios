@@ -469,7 +469,7 @@ struct WriteData {
     /**
      * The next potential stable address id. One still has to check if this id is already used.
      * This is modified in two cases:
-     * - A new stable address is is needed, in which case this is just incremented.
+     * - A new stable address is needed, in which case this is just incremented.
      * - A new "section" of the .blend file starts. In this case, this should be reinitialized with
      *   some hash of an identifier of the next section. This makes sure that if the number of
      *   pointers in the previous section is modified, the pointers in the new section are not
