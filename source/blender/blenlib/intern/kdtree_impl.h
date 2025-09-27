@@ -909,6 +909,7 @@ int BLI_kdtree_nd_(calc_duplicates_cb)(const KDTree *tree,
     return 0;
   }
 
+  const float effective_range = (range > 0.0f) ? range : FLT_MIN;
   /* Use `index_to_node_index` so coordinates are looked up in order first to last. */
   const uint nodes_len = tree->nodes_len;
   blender::Array<int> index_to_node_index(tree->max_node_index + 1);
@@ -923,7 +924,8 @@ int BLI_kdtree_nd_(calc_duplicates_cb)(const KDTree *tree,
   int found = 0;
   for (uint i = 0; i < nodes_len; i++) {
     const int node_index = tree->nodes[i].index;
-    if ((duplicates[node_index] != -1) || visited[node_index]) {
+    const bool is_keep_seed = (duplicates[node_index] == node_index);
+    if (((duplicates[node_index] != -1) && !is_keep_seed) || visited[node_index]) {
       continue;
     }
 
@@ -933,14 +935,15 @@ int BLI_kdtree_nd_(calc_duplicates_cb)(const KDTree *tree,
     auto accumulate_neighbors_fn = [&duplicates, &visited, &cluster](int neighbor_index,
                                                                      const float * /*co*/,
                                                                      float /*dist_sq*/) -> bool {
-      if ((duplicates[neighbor_index] == -1) && !visited[neighbor_index]) {
+      const bool neigh_is_keep = (duplicates[neighbor_index] == neighbor_index);
+      if (!visited[neighbor_index] && (duplicates[neighbor_index] == -1 || neigh_is_keep)) {
         cluster.append(neighbor_index);
         visited[neighbor_index].set();
       }
       return true;
     };
 
-    BLI_kdtree_nd_(range_search_cb_cpp)(tree, search_co, range, accumulate_neighbors_fn);
+    BLI_kdtree_nd_(range_search_cb_cpp)(tree, search_co, effective_range, accumulate_neighbors_fn);
     if (cluster.is_empty()) {
       continue;
     }
@@ -949,9 +952,21 @@ int BLI_kdtree_nd_(calc_duplicates_cb)(const KDTree *tree,
 
     const int cluster_index = duplicates_cb(user_data, cluster.data(), int(cluster.size()));
     BLI_assert(uint(cluster_index) < uint(cluster.size()));
-    const int target_index = cluster[cluster_index];
+    int target_index = cluster[cluster_index];
+    int keep_target = -1;
     for (const int cluster_node_index : cluster) {
-      duplicates[cluster_node_index] = target_index;
+      if (duplicates[cluster_node_index] == cluster_node_index) {
+        keep_target = (keep_target == -1) ? cluster_node_index :
+                                            std::min(keep_target, cluster_node_index);
+      }
+    }
+    if (keep_target != -1) {
+      target_index = keep_target;
+    }
+    for (const int cluster_node_index : cluster) {
+      if (duplicates[cluster_node_index] == -1) {
+        duplicates[cluster_node_index] = target_index;
+      }
     }
     cluster.clear();
   }
