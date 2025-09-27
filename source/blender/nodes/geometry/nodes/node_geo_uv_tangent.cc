@@ -12,19 +12,19 @@
 namespace blender::nodes::node_geo_uv_tangent_cc {
 
 enum class Method {
-  Smoothed = 0,
-  Mikktspace = 1,
+  Exact = 0,
+  Fast = 1,
 };
 
 static EnumPropertyItem method_items[] = {
-    {int(Method::Mikktspace),
-     "MIKKTSPACE",
+    {int(Method::Exact),
+     "EXACT",
      0,
      "Exact",
      "Calculation using the MikkTSpace library, consistent with tangents used elsewhere in "
      "Blender"},
-    {int(Method::Smoothed),
-     "SMOOTHED",
+    {int(Method::Fast),
+     "FAST",
      0,
      "Fast",
      "Significantly faster method that approximates tangents interpolated across face corners "
@@ -143,7 +143,7 @@ class TangentFieldInput final : public bke::MeshFieldInput {
 
   GVArray get_varray_for_context(const Mesh &mesh,
                                  const AttrDomain domain,
-                                 const IndexMask & /*mask*/) const final
+                                 const IndexMask & /*mask*/) const override
   {
     const bke::AttributeAccessor attributes = mesh.attributes();
 
@@ -155,7 +155,7 @@ class TangentFieldInput final : public bke::MeshFieldInput {
 
     Array<float3> corner_tangents(mesh.corners_num);
     switch (method_) {
-      case Method::Smoothed: {
+      case Method::Fast: {
         calc_uv_tangents_simple(mesh.vert_positions(),
                                 mesh.corner_verts(),
                                 mesh.corner_tris(),
@@ -164,7 +164,7 @@ class TangentFieldInput final : public bke::MeshFieldInput {
                                 corner_tangents);
         break;
       }
-      case Method::Mikktspace: {
+      case Method::Exact: {
         const VArraySpan sharp_faces = *attributes.lookup<bool>("sharp_face",
                                                                 bke::AttrDomain::Face);
         Array<float2> uvs_float2(uvs.size());
