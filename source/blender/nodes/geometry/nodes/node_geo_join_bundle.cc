@@ -25,11 +25,28 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
 
-  BundlePtr output_bundle = Bundle::create();
-
+  BundlePtr output_bundle;
+  int bundle_i = 0;
+  for (; bundle_i < bundles.values.size(); bundle_i++) {
+    BundlePtr &bundle = bundles.values[bundle_i];
+    if (bundle) {
+      output_bundle = std::move(bundle);
+      break;
+    }
+  }
+  if (!output_bundle) {
+    output_bundle = Bundle::create();
+  }
+  else if (!output_bundle->is_mutable()) {
+    output_bundle = output_bundle->copy();
+  }
+  else {
+    output_bundle->tag_ensured_mutable();
+  }
   Bundle &mutable_output_bundle = const_cast<Bundle &>(*output_bundle);
 
-  for (BundlePtr &bundle : bundles.values) {
+  for (; bundle_i < bundles.values.size(); bundle_i++) {
+    BundlePtr &bundle = bundles.values[bundle_i];
     if (!bundle) {
       continue;
     }
