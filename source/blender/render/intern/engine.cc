@@ -323,6 +323,9 @@ RenderResult *RE_engine_begin_result(
   }
 
   Render *re = engine->re;
+  if ((engine->re->r.mode & R_BORDER) && (engine->re->r.mode & R_BORDER_STAMP)) {
+    return re->result;
+  }
   RenderResult *result;
   rcti disprect;
 
@@ -978,7 +981,6 @@ static RenderResult *engine_render_create_result(Render *re)
     rr = render_result_new(re, &disprect, RR_ALL_LAYERS, RR_ALL_VIEWS);
   }
   else {
-
     rr = render_result_new(re, &re->disprect, RR_ALL_LAYERS, RR_ALL_VIEWS);
   }
   if (rr == nullptr) {
@@ -1039,7 +1041,8 @@ bool RE_engine_render(Render *re, bool do_all)
   /* Create render result. Do this before acquiring lock, to avoid lock
    * inversion as this calls python to get the render passes, while python UI
    * code can also hold a lock on the render result. */
-  const bool create_new_result = (re->result == nullptr) || !(re->r.mode & R_BORDER_STAMP);
+  const bool create_new_result = (re->result == nullptr) ||
+                                 !(re->r.mode & R_BORDER && re->r.mode & R_BORDER_STAMP);
   RenderResult *new_result = (create_new_result) ? engine_render_create_result(re) : nullptr;
 
   BLI_rw_mutex_lock(&re->resultmutex, THREAD_LOCK_WRITE);
