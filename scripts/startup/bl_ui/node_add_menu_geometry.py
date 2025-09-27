@@ -924,9 +924,7 @@ class NODE_MT_gn_volume_sample_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "GeometryNodeGridDivergence")
         self.node_operator(layout, "GeometryNodeGridGradient")
         self.node_operator(layout, "GeometryNodeGridLaplacian")
-        self.node_operator(layout, "GeometryNodeGridMagnitude")
         self.node_operator(layout, "GeometryNodeGridMeanCurvature")
-        self.node_operator(layout, "GeometryNodeGridNormalize")
         self.node_operator(layout, "GeometryNodeSampleGrid")
         self.node_operator(layout, "GeometryNodeSampleGridIndex")
 

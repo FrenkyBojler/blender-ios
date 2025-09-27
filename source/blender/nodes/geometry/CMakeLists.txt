@@ -100,9 +100,7 @@ set(SRC
   nodes/node_geo_grid_gradient.cc
   nodes/node_geo_grid_info.cc
   nodes/node_geo_grid_laplacian.cc
-  nodes/node_geo_grid_magnitude.cc
   nodes/node_geo_grid_mean_curvature.cc
-  nodes/node_geo_grid_normalize.cc
   nodes/node_geo_grid_to_mesh.cc
   nodes/node_geo_image.cc
   nodes/node_geo_image_info.cc
