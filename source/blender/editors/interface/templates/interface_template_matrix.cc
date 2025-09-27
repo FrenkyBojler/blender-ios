@@ -73,7 +73,7 @@ static int rotation_mode_index = 0;
 static void rotation_mode_menu_callback(bContext *, uiLayout *layout, void *)
 {
   for (size_t i = 0; i < std::size(rotation_modes); i++) {
-    RotationModeInfo mode_info = rotation_modes[i];
+    const RotationModeInfo &mode_info = rotation_modes[i];
     int yco = -1.5f * UI_UNIT_Y;
     int width = 180.0f * UI_SCALE_FAC;
     uiBut *but = uiDefButI(layout->block(),
@@ -133,7 +133,7 @@ static void draw_matrix_template(uiLayout &layout, PointerRNA &ptr, PropertyRNA 
 
   /* Rotation. */
   float eul[3];
-  RotationModeInfo mode_info = rotation_modes[rotation_mode_index];
+  const RotationModeInfo &mode_info = rotation_modes[rotation_mode_index];
   quat_to_eulO(eul, mode_info.value, quat);
   split = &layout_->split(0.5, false);
 
