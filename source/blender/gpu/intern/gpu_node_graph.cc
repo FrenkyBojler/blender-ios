@@ -65,7 +65,7 @@ static GPUNode *gpu_node_create(const char *name)
   return node;
 }
 
-static void gpu_node_input_link(GPUNode *node, GPUNodeLink *link, const eGPUType type)
+static void gpu_node_input_link(GPUNode *node, GPUNodeLink *link, const GPUType type)
 {
   GPUInput *input;
   GPUNode *outnode;
@@ -248,7 +248,7 @@ static void gpu_node_input_socket(
   }
 }
 
-static void gpu_node_output(GPUNode *node, const eGPUType type, GPUNodeLink **link)
+static void gpu_node_output(GPUNode *node, const GPUType type, GPUNodeLink **link)
 {
   GPUOutput *output = MEM_callocN<GPUOutput>("GPUOutput");
 
@@ -607,7 +607,7 @@ GPUNodeLink *GPU_attribute_hair_intercept(GPUMaterial *mat)
 GPUNodeLink *GPU_attribute_with_default(GPUMaterial *mat,
                                         const eCustomDataType type,
                                         const char *name,
-                                        eGPUDefaultValue default_value)
+                                        GPUDefaultValue default_value)
 {
   GPUNodeLink *link = GPU_attribute(mat, type, name);
   if (link->link_type == GPU_NODE_LINK_ATTR) {
@@ -749,7 +749,7 @@ bool GPU_link(GPUMaterial *mat, const char *name, ...)
   va_list params;
   int i;
 
-  function = gpu_material_library_use_function(graph->used_libraries, name);
+  function = gpu_material_library_get_function(name);
   if (!function) {
     fprintf(stderr, "GPU failed to find function %s\n", name);
     return false;
@@ -788,7 +788,7 @@ static bool gpu_stack_link_v(GPUMaterial *material,
   GPUNodeLink *link, **linkptr;
   int i, totin, totout;
 
-  function = gpu_material_library_use_function(graph->used_libraries, name);
+  function = gpu_material_library_get_function(name);
   if (!function) {
     fprintf(stderr, "GPU failed to find function %s\n", name);
     return false;
@@ -1011,16 +1011,11 @@ void gpu_node_graph_free(GPUNodeGraph *graph)
   BLI_freelistN(&graph->attributes);
   GPU_uniform_attr_list_free(&graph->uniform_attrs);
   BLI_freelistN(&graph->layer_attrs);
-
-  if (graph->used_libraries) {
-    BLI_gset_free(graph->used_libraries, nullptr);
-    graph->used_libraries = nullptr;
-  }
 }
 
 /* Prune Unused Nodes */
 
-static void tag_node_and_inputs(GPUNode &node, eGPUNodeTag tag)
+static void tag_node_and_inputs(GPUNode &node, GPUNodeTag tag)
 {
   if (node.tag & tag) {
     return;
@@ -1036,7 +1031,7 @@ static void tag_node_and_inputs(GPUNode &node, eGPUNodeTag tag)
   }
 }
 
-void gpu_nodes_tag(GPUNodeLink *link, eGPUNodeTag tag)
+void gpu_nodes_tag(GPUNodeLink *link, GPUNodeTag tag)
 {
   GPUNode *node;
 

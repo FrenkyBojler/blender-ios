@@ -457,6 +457,17 @@ class SEQUENCER_MT_proxy(Menu):
         layout.prop(st, "proxy_render_size", text="")
 
 
+class SEQUENCER_MT_view_render(Menu):
+    bl_label = "Render Preview"
+
+    def draw(self, _context):
+        layout = self.layout
+        layout.operator("render.opengl", text="Render Sequencer Image", icon='RENDER_STILL').sequencer = True
+        props = layout.operator("render.opengl", text="Render Sequencer Animation", icon='RENDER_ANIMATION')
+        props.animation = True
+        props.sequencer = True
+
+
 class SEQUENCER_MT_view(Menu):
     bl_label = "View"
 
@@ -481,7 +492,7 @@ class SEQUENCER_MT_view(Menu):
             layout.prop(st, "show_region_hud")
         if is_sequencer_only:
             layout.prop(st, "show_region_channels")
-        layout.prop(st, "show_region_footer")
+        layout.prop(st, "show_region_footer", text="Playback Controls")
         layout.separator()
 
         if is_preview:
@@ -536,10 +547,11 @@ class SEQUENCER_MT_view(Menu):
             layout.menu("SEQUENCER_MT_range")
             layout.separator()
 
-        layout.operator("render.opengl", text="Sequence Render Image", icon='RENDER_STILL').sequencer = True
-        props = layout.operator("render.opengl", text="Sequence Render Animation", icon='RENDER_ANIMATION')
+        layout.operator("render.opengl", text="Render Still Preview", icon='RENDER_STILL').sequencer = True
+        props = layout.operator("render.opengl", text="Render Sequence Preview", icon='RENDER_ANIMATION')
         props.animation = True
         props.sequencer = True
+
         layout.separator()
 
         layout.operator("sequencer.export_subtitles", text="Export Subtitles", icon='EXPORT')
@@ -788,36 +800,6 @@ class SEQUENCER_MT_add(Menu):
         col = layout.column()
         col.operator_menu_enum("sequencer.fades_add", "type", text="Fade", icon='IPO_EASE_IN_OUT')
         col.enabled = total >= 1
-
-
-class SEQUENCER_MT_add_scene(Menu):
-    bl_label = "Scene"
-    bl_translation_context = i18n_contexts.operator_default
-
-    def draw(self, context):
-
-        layout = self.layout
-        layout.operator_context = 'INVOKE_REGION_WIN'
-        layout.operator("sequencer.scene_strip_add_new", text="Empty Scene", icon='ADD').type = 'EMPTY'
-
-        layout.menu_contents("SEQUENCER_MT_scene_add_root_catalogs")
-
-        bpy_data_scenes_len = len(bpy.data.scenes)
-        if bpy_data_scenes_len > 10:
-            layout.label(text="Scenes", icon='NONE')
-            layout.operator_context = 'INVOKE_DEFAULT'
-            layout.operator("sequencer.scene_strip_add", text="Scene...", icon='SCENE_DATA')
-        elif bpy_data_scenes_len > 1:
-            layout.label(text="Scenes", icon='NONE')
-            scene = context.sequencer_scene
-            for sc_item in bpy.data.scenes:
-                if sc_item == scene:
-                    continue
-
-                layout.operator_context = 'INVOKE_REGION_WIN'
-                layout.operator("sequencer.scene_strip_add", text=sc_item.name, translate=False).scene = sc_item.name
-
-        del bpy_data_scenes_len
 
 
 class SEQUENCER_MT_add_empty(Menu):
@@ -1145,9 +1127,9 @@ class SEQUENCER_MT_strip_retiming(Menu):
         layout = self.layout
 
         is_retiming = (
-            context.sequencer_scene and
+            context.sequencer_scene is not None and
             context.sequencer_scene.sequence_editor is not None and
-            context.sequencer_scene.sequence_editor.selected_retiming_keys
+            context.sequencer_scene.sequence_editor.selected_retiming_keys is not None
         )
         strip = context.active_strip
 
@@ -1212,10 +1194,10 @@ class SEQUENCER_MT_strip(Menu):
             layout.separator()
 
             with operator_context(layout, 'EXEC_REGION_WIN'):
-                props = layout.operator("sequencer.split", text="Split")
+                props = layout.operator("sequencer.split", text="Split", text_ctxt=i18n_contexts.id_sequence)
                 props.type = 'SOFT'
 
-                props = layout.operator("sequencer.split", text="Hold Split")
+                props = layout.operator("sequencer.split", text="Hold Split", text_ctxt=i18n_contexts.id_sequence)
                 props.type = 'HARD'
 
             layout.separator()
@@ -1368,7 +1350,7 @@ class SEQUENCER_MT_context_menu(Menu):
 
         layout.operator_context = 'INVOKE_REGION_WIN'
 
-        layout.operator("sequencer.split", text="Split").type = 'SOFT'
+        layout.operator("sequencer.split", text="Split", text_ctxt=i18n_contexts.id_sequence).type = 'SOFT'
 
         layout.separator()
 
@@ -1584,15 +1566,17 @@ class SEQUENCER_MT_modifier_add(Menu):
 
         layout.operator_context = 'INVOKE_REGION_WIN'
 
-        self.operator_modifier_add(layout, 'BRIGHT_CONTRAST')
-        self.operator_modifier_add(layout, 'COLOR_BALANCE')
-        self.operator_modifier_add(layout, 'CURVES')
-        self.operator_modifier_add(layout, 'HUE_CORRECT')
-        self.operator_modifier_add(layout, 'MASK')
-        self.operator_modifier_add(layout, 'TONEMAP')
-        self.operator_modifier_add(layout, 'WHITE_BALANCE')
         if strip.type == 'SOUND':
             self.operator_modifier_add(layout, 'SOUND_EQUALIZER')
+        else:
+            self.operator_modifier_add(layout, 'BRIGHT_CONTRAST')
+            self.operator_modifier_add(layout, 'COLOR_BALANCE')
+            self.operator_modifier_add(layout, 'COMPOSITOR')
+            self.operator_modifier_add(layout, 'CURVES')
+            self.operator_modifier_add(layout, 'HUE_CORRECT')
+            self.operator_modifier_add(layout, 'MASK')
+            self.operator_modifier_add(layout, 'TONEMAP')
+            self.operator_modifier_add(layout, 'WHITE_BALANCE')
 
 
 class SequencerButtonsPanel:
@@ -3199,7 +3183,6 @@ classes = (
     SEQUENCER_MT_marker,
     SEQUENCER_MT_navigation,
     SEQUENCER_MT_add,
-    SEQUENCER_MT_add_scene,
     SEQUENCER_MT_add_effect,
     SEQUENCER_MT_add_transitions,
     SEQUENCER_MT_add_empty,

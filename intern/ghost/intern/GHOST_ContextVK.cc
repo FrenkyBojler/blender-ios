@@ -21,6 +21,12 @@
 
 #include "vulkan/vk_ghost_api.hh"
 
+#if !defined(_WIN32) or defined(_M_ARM64)
+/* Silence compilation warning on non-windows x64 systems. */
+#  define VMA_EXTERNAL_MEMORY_WIN32 0
+#endif
+#include "vk_mem_alloc.h"
+
 #include "CLG_log.h"
 
 #include <array>
@@ -136,7 +142,7 @@ void GHOST_Frame::destroy(VkDevice vk_device)
   discard_pile.destroy(vk_device);
 }
 
-/* \} */
+/** \} */
 
 /* -------------------------------------------------------------------- */
 /** \name Extension list
@@ -207,7 +213,7 @@ struct GHOST_ExtensionsVK {
   }
 };
 
-/* \} */
+/** \} */
 
 /* -------------------------------------------------------------------- */
 /** \name Vulkan Device
@@ -222,6 +228,7 @@ class GHOST_DeviceVK {
 
   uint32_t generic_queue_family = 0;
   VkQueue generic_queue = VK_NULL_HANDLE;
+  VmaAllocator vma_allocator = VK_NULL_HANDLE;
 
   VkPhysicalDeviceProperties2 properties = {
       VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2,
@@ -261,8 +268,13 @@ class GHOST_DeviceVK {
     vkGetPhysicalDeviceFeatures2(vk_physical_device, &features);
     init_extensions();
   }
+
   ~GHOST_DeviceVK()
   {
+    if (vma_allocator != VK_NULL_HANDLE) {
+      vmaDestroyAllocator(vma_allocator);
+      vma_allocator = VK_NULL_HANDLE;
+    }
     if (vk_device != VK_NULL_HANDLE) {
       vkDestroyDevice(vk_device, nullptr);
       vk_device = VK_NULL_HANDLE;
@@ -316,7 +328,26 @@ class GHOST_DeviceVK {
   {
     vkGetDeviceQueue(vk_device, generic_queue_family, 0, &generic_queue);
   }
+
+  void init_memory_allocator(VkInstance vk_instance)
+  {
+    VmaAllocatorCreateInfo vma_allocator_create_info = {};
+    vma_allocator_create_info.vulkanApiVersion = VK_API_VERSION_1_2;
+    vma_allocator_create_info.physicalDevice = vk_physical_device;
+    vma_allocator_create_info.device = vk_device;
+    vma_allocator_create_info.instance = vk_instance;
+    vma_allocator_create_info.flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
+    if (extensions.is_enabled(VK_EXT_MEMORY_PRIORITY_EXTENSION_NAME)) {
+      vma_allocator_create_info.flags |= VMA_ALLOCATOR_CREATE_EXT_MEMORY_PRIORITY_BIT;
+    }
+    if (extensions.is_enabled(VK_KHR_MAINTENANCE_4_EXTENSION_NAME)) {
+      vma_allocator_create_info.flags |= VMA_ALLOCATOR_CREATE_KHR_MAINTENANCE4_BIT;
+    }
+    vmaCreateAllocator(&vma_allocator_create_info, &vma_allocator);
+  }
 };
+
+/** \} */
 
 /* -------------------------------------------------------------------- */
 /** \name Vulkan Instance
@@ -485,6 +516,7 @@ struct GHOST_InstanceVK {
     device_features.drawIndirectFirstInstance = VK_TRUE;
     device_features.fragmentStoresAndAtomics = VK_TRUE;
     device_features.samplerAnisotropy = device.features.features.samplerAnisotropy;
+    device_features.wideLines = device.features.features.wideLines;
 
     VkDeviceCreateInfo device_create_info = {};
     device_create_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
@@ -612,11 +644,12 @@ struct GHOST_InstanceVK {
     VK_CHECK(vkCreateDevice(vk_physical_device, &device_create_info, nullptr, &device.vk_device),
              GHOST_kFailure);
     device.init_generic_queue();
+    device.init_memory_allocator(vk_instance);
     return true;
   }
 };
 
-/* \} */
+/** \} */
 
 /**
  * A shared device between multiple contexts.
@@ -729,7 +762,8 @@ GHOST_TSuccess GHOST_ContextVK::swapBufferAcquire()
   }
   submission_frame_data.discard_pile.destroy(vk_device);
 
-  const bool use_hdr_swapchain = hdr_info_ && hdr_info_->hdr_enabled &&
+  const bool use_hdr_swapchain = hdr_info_ &&
+                                 (hdr_info_->wide_gamut_enabled || hdr_info_->hdr_enabled) &&
                                  device_vk.use_vk_ext_swapchain_colorspace;
   if (use_hdr_swapchain != use_hdr_swapchain_) {
     /* Re-create swapchain if HDR mode was toggled in the system settings. */
@@ -898,6 +932,7 @@ GHOST_TSuccess GHOST_ContextVK::getVulkanHandles(GHOST_VulkanHandles &r_handles)
       0,              /* queue_family */
       VK_NULL_HANDLE, /* queue */
       nullptr,        /* queue_mutex */
+      VK_NULL_HANDLE, /* vma_allocator */
   };
 
   if (vulkan_instance.has_value() && vulkan_instance.value().device.has_value()) {
@@ -910,6 +945,7 @@ GHOST_TSuccess GHOST_ContextVK::getVulkanHandles(GHOST_VulkanHandles &r_handles)
         device_vk.generic_queue_family,
         device_vk.generic_queue,
         &device_vk.queue_mutex,
+        device_vk.vma_allocator,
     };
   }
 

@@ -79,6 +79,7 @@ set(SRC
   nodes/node_geo_edge_paths_to_selection.cc
   nodes/node_geo_edge_split.cc
   nodes/node_geo_edges_to_face_groups.cc
+  nodes/node_geo_enable_output.cc
   nodes/node_geo_evaluate_at_index.cc
   nodes/node_geo_evaluate_closure.cc
   nodes/node_geo_evaluate_on_domain.cc
@@ -257,6 +258,7 @@ set(SRC
   include/NOD_geo_menu_switch.hh
   include/NOD_geo_repeat.hh
   include/NOD_geo_simulation.hh
+  include/NOD_geo_viewer.hh
 
   node_geometry_tree.cc
   node_geometry_util.cc
