@@ -1343,7 +1343,11 @@ static std::string node_find_create_data_block_value(const bNode &node, const ID
 {
   const IDTypeInfo *type = BKE_idtype_get_info_from_id(&id);
   BLI_assert(type);
-  return fmt::format("{}: \"{}\" ({})", TIP_(type->name), BKE_id_name(id), node.name);
+  StringRef type_name = TIP_(type->name);
+  if (GS(id.name) == ID_NT) {
+    type_name = TIP_("Node Group");
+  }
+  return fmt::format("{}: \"{}\" ({})", type_name, BKE_id_name(id), node.name);
 }
 
 /* Generic search invoke. */
