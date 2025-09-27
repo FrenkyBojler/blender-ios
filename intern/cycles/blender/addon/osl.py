@@ -189,12 +189,31 @@ def osl_param_ensure_property(ccam, param):
     return name
 
 
+def get_oso_bytecode(oso_path):
+    import pathlib
+    import hashlib
+
+    try:
+        bytecode = pathlib.Path(oso_path).read_text()
+        md5 = hashlib.md5(usedforsecurity=False)
+        md5.update(bytecode.encode())
+        bytecode_hash = md5.hexdigest()
+        return bytecode, bytecode_hash
+    except:
+        import traceback
+        traceback.print_exc()
+    return None, None
+
+
 def update_external_script(report, filepath, library):
     """compile and update OSL script"""
     import os
     import shutil
 
     oso_file_remove = False
+    oso_path = None
+    bytecode = None
+    bytecode_hash = None
 
     script_path = bpy.path.abspath(filepath, library=library)
     script_path_noext, script_ext = os.path.splitext(script_path)
@@ -223,15 +242,19 @@ def update_external_script(report, filepath, library):
         report({'ERROR'}, "External shader script must have .osl or .oso extension, or be a module name")
         ok = False
 
-    return ok, oso_path, oso_file_remove
+    if ok:
+        bytecode, bytecode_hash = get_oso_bytecode(oso_path)
+        if bytecode_hash is None:
+            report({'ERROR'}, "Cannot read OSO bytecode to store in node at {!r}".format(oso_path))
+            ok = False
+
+    return ok, oso_path, oso_file_remove, bytecode, bytecode_hash
 
 
 def update_internal_script(report, script):
     """compile and update shader script node"""
     import os
     import tempfile
-    import pathlib
-    import hashlib
 
     bytecode = None
     bytecode_hash = None
@@ -252,16 +275,8 @@ def update_internal_script(report, script):
         ok, oso_path = osl_compile(osl_path, report)
 
     if ok:
-        # read bytecode
-        try:
-            bytecode = pathlib.Path(oso_path).read_text()
-            md5 = hashlib.md5(usedforsecurity=False)
-            md5.update(bytecode.encode())
-            bytecode_hash = md5.hexdigest()
-        except:
-            import traceback
-            traceback.print_exc()
-
+        bytecode, bytecode_hash = get_oso_bytecode(oso_path)
+        if bytecode_hash is None:
             report({'ERROR'}, "Cannot read OSO bytecode to store in node at {!r}".format(oso_path))
             ok = False
 
@@ -277,24 +292,18 @@ def update_script_node(node, report):
 
     if node.mode == 'EXTERNAL':
         # compile external script file
-        ok, oso_path, oso_file_remove = update_external_script(report, node.filepath, node.id_data.library)
-        if ok:
-            # Clear old internal bytecode, and also trigger node update if it was already cleared.
-            node.bytecode = ""
-            node.bytecode_hash = ""
-
+        ok, oso_path, oso_file_remove, bytecode, bytecode_hash = update_external_script(report, node.filepath, node.id_data.library)
     elif node.mode == 'INTERNAL' and node.script:
-        # internal script, we will store bytecode in the node
+        # internal script
         ok, oso_path, bytecode, bytecode_hash = update_internal_script(report, node.script)
-        if bytecode:
-            node.bytecode = bytecode
-            node.bytecode_hash = bytecode_hash
-
     else:
         report({'WARNING'}, "No text or file specified in node, nothing to compile")
         return
 
     if ok:
+        node.bytecode = bytecode
+        node.bytecode_hash = bytecode_hash
+
         if query := oslquery.OSLQuery(oso_path):
             # Ensure that all parameters have a matching socket
             used_sockets = set()
@@ -333,21 +342,19 @@ def update_custom_camera_shader(cam, report):
     custom_props = cam.cycles_custom
     if cam.custom_mode == 'EXTERNAL':
         # compile external script file
-        ok, oso_path, oso_file_remove = update_external_script(report, cam.custom_filepath, cam.library)
-
+        ok, oso_path, oso_file_remove, bytecode, bytecode_hash = update_external_script(report, cam.custom_filepath, cam.library)
     elif cam.custom_mode == 'INTERNAL' and cam.custom_shader:
-        # internal script, we will store bytecode in the node
+        # internal script
         ok, oso_path, bytecode, bytecode_hash = update_internal_script(report, cam.custom_shader)
-        if bytecode:
-            cam.custom_bytecode = bytecode
-            cam.custom_bytecode_hash = bytecode_hash
-            cam.update_tag()
-
     else:
         report({'WARNING'}, "No text or file specified in node, nothing to compile")
         return
 
     if ok:
+        cam.custom_bytecode = bytecode
+        cam.custom_bytecode_hash = bytecode_hash
+        cam.update_tag()
+
         if query := oslquery.OSLQuery(oso_path):
             # Ensure that all parameters have a matching property
             used_params = set()
