@@ -324,6 +324,9 @@ void MTLShaderInterface::prepare_common_shader_inputs(const shader::ShaderCreate
   ssbo_len_ = this->get_total_storage_blocks();
   constant_len_ = this->get_total_constants();
 
+  /* TODO(fclem): Mask depending on other buffer usage. */
+  vertex_buffer_mask_ = ~((~0u) << 16u);
+
   /* Calculate total inputs and allocate #ShaderInput array. */
   /* NOTE: We use the existing `name_buffer_` allocated for internal input structs. */
   int input_tot_len = attr_len_ + ubo_len_ + uniform_len_ + ssbo_len_ + constant_len_;
@@ -510,6 +513,11 @@ uint32_t MTLShaderInterface::get_total_vertex_stride() const
 uint32_t MTLShaderInterface::get_enabled_attribute_mask() const
 {
   return enabled_attribute_mask_;
+}
+
+uint32_t MTLShaderInterface::get_available_vertex_buffer_slots_mask() const
+{
+  return vertex_buffer_mask_;
 }
 
 /* Uniforms. */

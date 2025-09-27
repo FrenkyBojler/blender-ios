@@ -74,6 +74,18 @@ enum GPUFrontFace {
   GPU_COUNTERCLOCKWISE,
 };
 
+namespace blender::gpu {
+
+enum class ShaderStage : uint8_t {
+  VERTEX = 1 << 0,
+  FRAGMENT = 1 << 1,
+  COMPUTE = 2 << 1,
+  ANY = (ShaderStage::VERTEX | ShaderStage::FRAGMENT | ShaderStage::COMPUTE),
+};
+ENUM_OPERATORS(ShaderStage, ShaderStage::ANY);
+
+}  // namespace blender::gpu
+
 namespace blender::gpu::shader {
 
 enum class Type : int8_t {

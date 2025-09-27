@@ -56,16 +56,18 @@ struct MTLVertexBufferLayoutDescriptorPSO {
   MTLVertexStepFunction step_function;
   int step_rate;
   int stride;
+  int buffer_slot;
 
   bool operator==(const MTLVertexBufferLayoutDescriptorPSO &other) const
   {
     return (step_function == other.step_function) && (step_rate == other.step_rate) &&
-           (stride == other.stride);
+           (stride == other.stride) && (buffer_slot == other.buffer_slot);
   }
 
   uint64_t hash() const
   {
-    return uint64_t(uint64_t(this->step_function) ^ (this->step_rate << 4) ^ (this->stride << 8));
+    return uint64_t(uint64_t(this->step_function) ^ (this->step_rate << 4) ^ (this->stride << 8) ^
+                    (uint64_t(this->buffer_slot) << 32));
   }
 
   void reset()
@@ -104,7 +106,7 @@ struct MTLVertexDescriptor {
       }
     }
 
-    for (const int b : IndexRange(this->num_vert_buffers)) {
+    for (const int b : IndexRange(ARRAY_SIZE(this->buffer_layouts))) {
       if (!(this->buffer_layouts[b] == other.buffer_layouts[b])) {
         return false;
       }

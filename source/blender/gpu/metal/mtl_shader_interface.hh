@@ -67,14 +67,6 @@ namespace blender::gpu {
  * information to a specified buffer, and is unique to the shader's resource interface.
  */
 
-enum class ShaderStage : uint8_t {
-  VERTEX = 1 << 0,
-  FRAGMENT = 1 << 1,
-  COMPUTE = 2 << 1,
-  ANY = (ShaderStage::VERTEX | ShaderStage::FRAGMENT | ShaderStage::COMPUTE),
-};
-ENUM_OPERATORS(ShaderStage, ShaderStage::ANY);
-
 inline uint get_shader_stage_index(ShaderStage stage)
 {
   switch (stage) {
@@ -214,6 +206,10 @@ class MTLShaderInterface : public ShaderInterface {
   /* Attribute Mask. */
   uint32_t enabled_attribute_mask_;
 
+  /* Bit Mask representing the free buffer slots from this interface.
+   * Used to bind the vertex and index buffers. */
+  uint32_t vertex_buffer_mask_ = 0;
+
   /* Debug. */
   char name[256];
 
@@ -296,6 +292,7 @@ class MTLShaderInterface : public ShaderInterface {
   uint32_t get_total_attributes() const;
   uint32_t get_total_vertex_stride() const;
   uint32_t get_enabled_attribute_mask() const;
+  uint32_t get_available_vertex_buffer_slots_mask() const;
 
   /* Name buffer fetching. */
   const char *get_name_at_offset(uint32_t offset) const;
