@@ -300,7 +300,6 @@ class NODE_MT_shader_node_color_base(node_add_menu.NodeMenu):
         layout = self.layout
 
         layout.separator()
-        self.color_mix_node(context, layout)
         self.node_operator(layout, "ShaderNodeBlackbody")
         self.node_operator(layout, "ShaderNodeWavelength")
         self.node_operator(layout, "ShaderNodeValToRGB")
@@ -310,6 +309,7 @@ class NODE_MT_shader_node_color_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "ShaderNodeInvert")
         self.node_operator(layout, "ShaderNodeLightFalloff")
         self.node_operator(layout, "ShaderNodeRGBCurve")
+        self.color_mix_node(context, layout)
         layout.separator()
         self.node_operator(layout, "ShaderNodeCombineColor")
         self.node_operator(layout, "ShaderNodeSeparateColor")
@@ -357,8 +357,8 @@ class NODE_MT_shader_node_vector_base(node_add_menu.NodeMenu):
         ops.value = "'VECTOR'"
         self.node_operator(layout, "ShaderNodeSeparateXYZ")
         layout.separator()
-        self.node_operator(layout, "ShaderNodeNormal")
         self.node_operator(layout, "ShaderNodeMapping")
+        self.node_operator(layout, "ShaderNodeNormal")
         self.node_operator(layout, "ShaderNodeRadialTiling")
         self.node_operator(layout, "ShaderNodeVectorCurve")
         self.node_operator(layout, "ShaderNodeVectorRotate")
@@ -379,11 +379,11 @@ class NODE_MT_shader_node_math_base(node_add_menu.NodeMenu):
     def draw(self, context):
         layout = self.layout
 
+        self.node_operator(layout, "ShaderNodeClamp")
+        self.node_operator(layout, "ShaderNodeFloatCurve")
         self.node_operator(layout, "ShaderNodeMapRange")
         self.node_operator_with_searchable_enum(context, layout, "ShaderNodeMath", "operation")
         self.node_operator(layout, "ShaderNodeMix")
-        self.node_operator(layout, "ShaderNodeClamp")
-        self.node_operator(layout, "ShaderNodeFloatCurve")
 
         self.draw_assets_for_catalog(layout, self.menu_path)
 
@@ -419,8 +419,8 @@ class NODE_MT_shader_node_utilities_base(node_add_menu.NodeMenu):
     def draw(self, context):
         layout = self.layout
 
-        self.draw_menu(layout, "Utilities/Vector")
         self.draw_menu(layout, "Utilities/Math")
+        self.draw_menu(layout, "Utilities/Vector")
         layout.separator()
         self.repeat_zone(layout, label="Repeat")
         layout.separator()
@@ -446,9 +446,9 @@ class NODE_MT_shader_node_all_base(node_add_menu.NodeMenu):
         self.draw_menu(layout, "Output")
         layout.separator()
         self.draw_menu(layout, "Color")
+        self.draw_menu(layout, "Displacement")
         self.draw_menu(layout, "Shader")
         self.draw_menu(layout, "Texture")
-        self.draw_menu(layout, "Displacement")
         self.draw_menu(layout, "Utilities")
         layout.separator()
         self.draw_menu(layout, "Script")

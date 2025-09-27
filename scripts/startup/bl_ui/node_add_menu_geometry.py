@@ -32,11 +32,11 @@ class NODE_MT_gn_color_base(node_add_menu.NodeMenu):
     def draw(self, context):
         layout = self.layout
 
-        self.color_mix_node(context, layout)
         self.node_operator(layout, "ShaderNodeBlackbody")
         self.node_operator(layout, "ShaderNodeGamma")
         self.node_operator(layout, "ShaderNodeValToRGB")
         self.node_operator(layout, "ShaderNodeRGBCurve")
+        self.color_mix_node(context, layout)
         layout.separator()
         self.node_operator(layout, "FunctionNodeCombineColor")
         self.node_operator(layout, "FunctionNodeSeparateColor")
@@ -219,8 +219,8 @@ class NODE_MT_gn_geometry_base(node_add_menu.NodeMenu):
         self.draw_menu(layout, path="Geometry/Sample")
         self.draw_menu(layout, path="Geometry/Write")
         layout.separator()
-        self.draw_menu(layout, path="Geometry/Operations")
         self.draw_menu(layout, path="Geometry/Material")
+        self.draw_menu(layout, path="Geometry/Operations")
         layout.separator()
         self.node_operator(layout, "GeometryNodeGeometryToInstance")
         self.node_operator(layout, "GeometryNodeJoinGeometry", search_weight=1.0)
