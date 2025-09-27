@@ -1687,7 +1687,7 @@ void blo_do_versions_userdef(UserDef *userdef)
   if (!USER_VERSION_ATLEAST(500, 96)) {
     /* Increase the number of recently-used files if using the old default value. */
     if (userdef->recent_files == 20) {
-      userdef->recent_files = 100;
+      userdef->recent_files = 200;
     }
   }
 
