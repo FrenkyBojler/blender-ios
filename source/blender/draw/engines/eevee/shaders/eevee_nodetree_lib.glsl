@@ -809,6 +809,6 @@ float4 attr_load_uniform(float4 attr, const uint attr_hash)
 /** \} */
 
 #define REPEAT_BEGIN(count, var) \
-  for (var = 0.0; round(var) < round(count); var += 1.0) {
+  for (int i = 0; i < count; i++) { var = float(i);
 
 #define REPEAT_END() }
