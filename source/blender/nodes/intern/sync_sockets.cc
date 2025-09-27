@@ -464,7 +464,7 @@ static std::string get_bundle_sync_tooltip(const nodes::BundleSignature &old_sig
   if (order_changed) {
     fmt::format_to(buf, "\u2022 {}", TIP_("Reorder"));
   }
-  fmt::format_to(buf, TIP_("\nUpdate based on linked bundle signature"));
+  fmt::format_to(buf, "\n{}", TIP_("Update based on linked bundle signature"));
 
   return fmt::to_string(string_buffer);
 }
@@ -553,7 +553,7 @@ static std::string get_closure_sync_tooltip(const nodes::ClosureSignature &old_s
   if (output_order) {
     fmt::format_to(buf, "\u2022 {}\n", TIP_("Reorder Outputs"));
   }
-  fmt::format_to(buf, TIP_("\nUpdate based on linked closure signature"));
+  fmt::format_to(buf, "\n{}", TIP_("Update based on linked closure signature"));
 
   return fmt::to_string(string_buffer);
 }
