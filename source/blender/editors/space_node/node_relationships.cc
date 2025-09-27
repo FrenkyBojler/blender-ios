@@ -2333,7 +2333,7 @@ static wmOperatorStatus node_join_nodes_exec(bContext *C, wmOperator *op)
 void NODE_OT_join_nodes(wmOperatorType *ot)
 {
   ot->name = "Join Nodes";
-  ot->description = "Combine selected nodes if possible";
+  ot->description = "Merge selected group input nodes into one if possible";
   ot->idname = "NODE_OT_join_nodes";
 
   ot->exec = node_join_nodes_exec;
