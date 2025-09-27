@@ -200,6 +200,7 @@ void MTLImmediate::end()
     desc.vertex_descriptor.buffer_layouts[0].step_function = MTLVertexStepFunctionPerVertex;
     desc.vertex_descriptor.buffer_layouts[0].step_rate = 1;
     desc.vertex_descriptor.buffer_layouts[0].stride = this->vertex_format.stride;
+    desc.vertex_descriptor.buffer_layouts[0].buffer_slot = 0;
     BLI_assert(this->vertex_format.stride > 0);
 
     /* Emulate LineLoop using LineStrip. */

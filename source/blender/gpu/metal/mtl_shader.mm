@@ -1046,7 +1046,8 @@ MTLRenderPipelineStateInstance *MTLShader::bake_pipeline_state(
         /* Copy metal back-end buffer layout state into PSO descriptor.
          * NOTE: need to copy each element due to copying from internal
          * back-end descriptor to Metal API descriptor. */
-        MTLVertexBufferLayoutDescriptor *mtl_buf_layout = desc.vertexDescriptor.layouts[i];
+        MTLVertexBufferLayoutDescriptor *mtl_buf_layout =
+            desc.vertexDescriptor.layouts[buf_layout.buffer_slot];
 
         mtl_buf_layout.stepFunction = buf_layout.step_function;
         mtl_buf_layout.stepRate = buf_layout.step_rate;
