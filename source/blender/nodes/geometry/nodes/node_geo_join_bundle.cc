@@ -31,6 +31,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     BundlePtr &bundle = bundles.values[bundle_i];
     if (bundle) {
       output_bundle = std::move(bundle);
+      bundle_i++;
       break;
     }
   }
