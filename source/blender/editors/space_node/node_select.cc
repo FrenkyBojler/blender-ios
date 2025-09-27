@@ -10,7 +10,6 @@
 #include <cstdlib>
 #include <fmt/format.h>
 
-#include "BKE_idtype.hh"
 #include "DNA_collection_types.h"
 #include "DNA_image_types.h"
 #include "DNA_material_types.h"
@@ -28,6 +27,7 @@
 #include "BLI_utildefines.h"
 
 #include "BKE_context.hh"
+#include "BKE_idtype.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
 #include "BKE_main_invariants.hh"
