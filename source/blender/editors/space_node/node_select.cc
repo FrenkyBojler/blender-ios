@@ -10,6 +10,7 @@
 #include <cstdlib>
 #include <fmt/format.h>
 
+#include "BKE_idtype.hh"
 #include "DNA_collection_types.h"
 #include "DNA_image_types.h"
 #include "DNA_material_types.h"
@@ -1324,13 +1325,25 @@ void NODE_OT_select_same_type_step(wmOperatorType *ot)
 /** \name Find Node by Name Operator
  * \{ */
 
-static std::string node_find_create_label(const bNodeTree &ntree, const bNode &node)
+static std::string node_find_create_node_label(const bNodeTree &ntree, const bNode &node)
 {
   std::string label = bke::node_label(ntree, node);
   if (label == node.name) {
     return label;
   }
   return fmt::format("{} ({})", label, node.name);
+}
+
+static std::string node_find_create_string_value(const bNode &node, const StringRef str)
+{
+  return fmt::format("{}: \"{}\" ({})", TIP_("String"), str, node.name);
+}
+
+static std::string node_find_create_data_block_value(const bNode &node, const ID &id)
+{
+  const IDTypeInfo *type = BKE_idtype_get_info_from_id(&id);
+  BLI_assert(type);
+  return fmt::format("{}: \"{}\" ({})", TIP_(type->name), BKE_id_name(id), node.name);
 }
 
 /* Generic search invoke. */
@@ -1350,21 +1363,32 @@ static void node_find_update_fn(const bContext *C,
   ui::string_search::StringSearch<Item> search;
   blender::ResourceScope scope;
 
+  auto add_data_block_item = [&](bNode &node, const ID *id) {
+    if (!id) {
+      return;
+    }
+    const StringRef search_str = scope.add_value(node_find_create_data_block_value(node, *id));
+    search.add(search_str, &scope.construct<Item>(Item{&node, search_str}));
+  };
+
   const bNodeTree &ntree = *snode->edittree;
   ntree.ensure_topology_cache();
   for (bNode *node : snode->edittree->all_nodes()) {
-    const StringRef name = scope.allocator().copy_string(node_find_create_label(ntree, *node));
+    const StringRef name = scope.add_value(node_find_create_node_label(ntree, *node));
     search.add(name, &scope.construct<Item>(Item{node, name}));
-    for (const bNodeSocket *socket : node->input_sockets()) {
-      auto add_id_socket_item = [&](const ID *id) {
-        if (!id) {
-          return;
-        }
-        const StringRef id_name = BKE_id_name(*id);
-        const StringRef search_str = fmt::format(
-            "{}: \"{}\" ({})", IFACE_(socket->typeinfo->label), id_name, node->name);
+
+    if (node->is_type("FunctionNodeInputString")) {
+      const auto *storage = static_cast<const NodeInputString *>(node->storage);
+      const StringRef value_str = storage->string;
+      if (!value_str.is_empty()) {
+        const StringRef search_str = scope.add_value(
+            node_find_create_string_value(*node, value_str));
         search.add(search_str, &scope.construct<Item>(Item{node, search_str}));
-      };
+      }
+    }
+    add_data_block_item(*node, node->id);
+
+    for (const bNodeSocket *socket : node->input_sockets()) {
 
       switch (socket->type) {
         case SOCK_STRING: {
@@ -1375,29 +1399,32 @@ static void node_find_update_fn(const bContext *C,
               socket->default_value_typed<bNodeSocketValueString>();
           const StringRef value_str = value->value;
           if (!value_str.is_empty()) {
-            const StringRef search_str = fmt::format("String: \"{}\" ({})", value_str, node->name);
+            const StringRef search_str = scope.add_value(
+                node_find_create_string_value(*node, value_str));
             search.add(search_str, &scope.construct<Item>(Item{node, search_str}));
           }
           break;
         }
         case SOCK_OBJECT: {
-          add_id_socket_item(
-              id_cast<ID *>(socket->default_value_typed<bNodeSocketValueObject>()->value));
+          add_data_block_item(
+              *node, id_cast<ID *>(socket->default_value_typed<bNodeSocketValueObject>()->value));
           break;
         }
         case SOCK_MATERIAL: {
-          add_id_socket_item(
+          add_data_block_item(
+              *node,
               id_cast<ID *>(socket->default_value_typed<bNodeSocketValueMaterial>()->value));
           break;
         }
         case SOCK_COLLECTION: {
-          add_id_socket_item(
+          add_data_block_item(
+              *node,
               id_cast<ID *>(socket->default_value_typed<bNodeSocketValueCollection>()->value));
           break;
         }
         case SOCK_IMAGE: {
-          add_id_socket_item(
-              id_cast<ID *>(socket->default_value_typed<bNodeSocketValueImage>()->value));
+          add_data_block_item(
+              *node, id_cast<ID *>(socket->default_value_typed<bNodeSocketValueImage>()->value));
           break;
         }
       }
