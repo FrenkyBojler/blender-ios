@@ -6,6 +6,7 @@
 
 #include "node_geometry_util.hh"
 
+#include "UI_interface_c.hh"
 #include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
@@ -117,7 +118,12 @@ static void node_declare(NodeDeclarationBuilder &b)
   }
   output.structure_type(structure_type);
 
-  b.add_input<decl::Extend>("", "__extend__");
+  b.add_input<decl::Extend>("", "__extend__").custom_draw([](CustomSocketDrawParams &params) {
+    uiLayout &layout = params.layout;
+    layout.emboss_set(ui::EmbossType::None);
+    PointerRNA op_ptr = layout.op("node.index_switch_item_add", IFACE_(""), ICON_ADD);
+    RNA_int_set(&op_ptr, "node_identifier", params.node.identifier);
+  });
 }
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
