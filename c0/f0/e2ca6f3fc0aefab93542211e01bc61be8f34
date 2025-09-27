@@ -1,2 +1,3 @@
 Referenced by issue #124452, Blender LTS: Maintenance Task 4.2
 Referenced by pull request #146859, Fix #129596: Always use multithreaded BVH building in Cycles again
+Referenced by commit d36eea7fa7c1ec8a82e7bbaeea6c017d5e434022, Fix #129596: Always use multithreaded BVH building in Cycles again
