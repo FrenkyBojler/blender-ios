@@ -1700,7 +1700,7 @@ void RNA_api_ui_layout(StructRNA *srna)
   func = RNA_def_function(srna, "template_matrix", "uiTemplateMatrix");
   RNA_def_function_ui_description(
       func,
-      "Insert a common readonly Matrix UI. "
+      "Insert a readonly Matrix UI. "
       "The UI displays the matrix components - translation, rotation and scale. "
       "The **property** argument must be the identifier of an existing 4x4 float vector "
       "property of subtype 'MATRIX'.");
