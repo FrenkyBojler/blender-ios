@@ -877,21 +877,26 @@ class ShaderNodesInliner {
     const std::optional<PrimitiveSocketValue> menu_value_opt = menu_socket_value->to_primitive(
         *menu_input->typeinfo);
     if (!menu_value_opt) {
+      /* This limitation may be lifted in the future. Menu Switch nodes could be supported natively
+       * by render engines or we convert them to a bunch of mix nodes. */
       this->store_socket_value_fallback(socket);
       params_.r_error_messages.append({node.node, TIP_("Menu value has to be a constant value")});
       return;
     }
     const MenuValue menu_value = std::get<MenuValue>(menu_value_opt->value);
+    /* Find the selected item index. */
     std::optional<int> selected_index;
     for (const int item_i : IndexRange(storage.enum_definition.items_num)) {
       const NodeEnumItem &item = storage.enum_definition.items_array[item_i];
-      if (MenuValue(item.identifier) != menu_value) {
-        continue;
+      if (MenuValue(item.identifier) == menu_value) {
+        selected_index = item_i;
+        break;
       }
-      selected_index = item_i;
     }
     if (!selected_index.has_value()) {
+      /* The input value does not exist in the menu. */
       this->store_socket_value_fallback(socket);
+      return;
     }
     if (socket->index() == 0) {
       /* Handle forwarding the selected value. */
