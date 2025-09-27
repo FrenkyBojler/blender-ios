@@ -1,12 +1,17 @@
 /* SPDX-FileCopyrightText: 2025 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
+
 #include "BKE_mesh.hh"
+
 #include "BLI_math_vector_types.hh"
+
 #include "NOD_geometry_nodes_bundle.hh"
+
 #include "node_geometry_util.hh"
 
 namespace blender::nodes::node_geo_join_bundle {
+
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.use_custom_socket_order();
@@ -15,6 +20,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       "Bundles to join together on the top level for each bundle.");
   b.add_output<decl::Bundle>("Bundle").align_with_previous();
 }
+
 static void node_geo_exec(GeoNodeExecParams params)
 {
   GeoNodesMultiInput<BundlePtr> bundles = params.extract_input<GeoNodesMultiInput<BundlePtr>>(
@@ -58,6 +64,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   params.set_output("Bundle", output_bundle);
 }
+
 static void node_register()
 {
   static blender::bke::bNodeType ntype;
@@ -70,4 +77,5 @@ static void node_register()
   blender::bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
+
 }  // namespace blender::nodes::node_geo_join_bundle
