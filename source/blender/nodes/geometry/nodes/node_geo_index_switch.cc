@@ -54,31 +54,23 @@ static void node_declare(NodeDeclarationBuilder &b)
     const std::string identifier = IndexSwitchItemsAccessor::socket_identifier_for_item(items[i]);
     auto &input = b.add_input(data_type, std::to_string(i), std::move(identifier));
     input.custom_draw([index = i](CustomSocketDrawParams &params) {
-      const SpaceNode *snode = CTX_wm_space_node(&params.C);
-      if (!snode) {
+      if (!params.menu_switch_source_by_index_switch) {
         params.draw_standard(params.layout);
         return;
       }
-      bke::ComputeContextCache compute_context_cache;
-      const ComputeContext *compute_context = ed::space_node::compute_context_for_edittree_socket(
-          *snode, compute_context_cache, params.socket);
-      if (!compute_context) {
-        params.draw_standard(params.layout);
-        return;
-      }
-      const std::optional<NodeInContext> menu_switch = find_origin_index_menu_switch(
-          {compute_context, &params.node.input_socket(0)}, compute_context_cache);
-      if (!menu_switch.has_value()) {
+      const bNode *menu_switch_node = params.menu_switch_source_by_index_switch->lookup_default(
+          &params.node, nullptr);
+      if (!menu_switch_node) {
         params.draw_standard(params.layout);
         return;
       }
       const auto &menu_switch_storage = *static_cast<const NodeMenuSwitch *>(
-          menu_switch->node->storage);
+          menu_switch_node->storage);
       BLI_assert(menu_switch_storage.data_type == SOCK_INT);
       const NodeEnumItem *found_item = nullptr;
       for (const int i : IndexRange(menu_switch_storage.enum_definition.items_num)) {
         const NodeEnumItem &item = menu_switch_storage.enum_definition.items_array[i];
-        const bNodeSocket &menu_switch_input_socket = menu_switch->node->input_socket(1 + i);
+        const bNodeSocket &menu_switch_input_socket = menu_switch_node->input_socket(1 + i);
         if (menu_switch_input_socket.is_directly_linked()) {
           params.draw_standard(params.layout);
           return;

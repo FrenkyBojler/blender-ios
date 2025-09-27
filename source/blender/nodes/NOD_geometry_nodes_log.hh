@@ -49,8 +49,6 @@
 
 #include "FN_field.hh"
 
-#include "NOD_geometry_nodes_log_fwd.hh"
-
 #include "DNA_node_types.h"
 
 struct SpaceNode;
