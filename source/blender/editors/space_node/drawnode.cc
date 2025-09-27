@@ -1134,6 +1134,12 @@ static void std_node_socket_draw(
     draw_node_socket_without_value(layout, sock, text);
     return;
   }
+  if (tree->type == NTREE_GEOMETRY &&
+      ELEM(sock->display_shape, SOCK_DISPLAY_SHAPE_LIST, SOCK_DISPLAY_SHAPE_VOLUME_GRID))
+  {
+    draw_node_socket_without_value(layout, sock, text);
+    return;
+  }
 
   const StringRefNull label = text;
   text = (sock->flag & SOCK_HIDE_LABEL) ? "" : text;
@@ -1452,7 +1458,7 @@ void ED_init_standard_node_socket_type(blender::bke::bNodeSocketType *stype)
 void ED_init_node_socket_type_virtual(blender::bke::bNodeSocketType *stype)
 {
   using namespace blender::ed::space_node;
-  stype->draw = node_socket_button_label;
+  stype->draw = std_node_socket_draw;
   stype->draw_color = node_socket_virtual_draw_color;
   stype->draw_color_simple = node_socket_virtual_draw_color_simple;
 }
