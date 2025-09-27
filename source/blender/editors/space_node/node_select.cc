@@ -1351,6 +1351,7 @@ static void node_find_update_fn(const bContext *C,
   blender::ResourceScope scope;
 
   const bNodeTree &ntree = *snode->edittree;
+  ntree.ensure_topology_cache();
   for (bNode *node : snode->edittree->all_nodes()) {
     const StringRef name = scope.allocator().copy_string(node_find_create_label(ntree, *node));
     search.add(name, &scope.construct<Item>(Item{node, name}));
@@ -1367,6 +1368,9 @@ static void node_find_update_fn(const bContext *C,
 
       switch (socket->type) {
         case SOCK_STRING: {
+          if (socket->is_logically_linked()) {
+            continue;
+          }
           const bNodeSocketValueString *value =
               socket->default_value_typed<bNodeSocketValueString>();
           const StringRef value_str = value->value;
