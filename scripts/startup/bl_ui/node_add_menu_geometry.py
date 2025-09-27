@@ -595,6 +595,7 @@ class NODE_MT_gn_output_base(node_add_menu.NodeMenu):
 
     def draw(self, context):
         layout = self.layout
+        self.node_operator(layout, "NodeEnableOutput")
         self.node_operator(layout, "NodeGroupOutput")
         self.node_operator(layout, "GeometryNodeViewer")
         self.node_operator_with_searchable_enum(context, layout, "GeometryNodeWarning", "warning_type")
@@ -845,6 +846,7 @@ class NODE_MT_gn_mesh_uv_base(node_add_menu.NodeMenu):
     def draw(self, _context):
         layout = self.layout
         self.node_operator(layout, "GeometryNodeUVPackIslands")
+        self.node_operator(layout, "GeometryNodeUVTangent")
         self.node_operator(layout, "GeometryNodeUVUnwrap")
 
         self.draw_assets_for_catalog(layout, self.menu_path)

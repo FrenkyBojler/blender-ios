@@ -1094,13 +1094,6 @@ static void std_node_socket_draw(
   // int subtype = sock->typeinfo->subtype;
 
   const nodes::SocketDeclaration *socket_decl = sock->runtime->declaration;
-  if (socket_decl) {
-    if (socket_decl->custom_draw_fn) {
-      nodes::CustomSocketDrawParams params{*C, *layout, *tree, *node, *sock, *node_ptr, *ptr};
-      (*socket_decl->custom_draw_fn)(params);
-      return;
-    }
-  }
 
   if (sock->is_inactive()) {
     layout->active_set(false);
@@ -1130,6 +1123,12 @@ static void std_node_socket_draw(
   }
 
   if ((sock->in_out == SOCK_OUT) || (sock->flag & SOCK_HIDE_VALUE) || sock->is_logically_linked())
+  {
+    draw_node_socket_without_value(layout, sock, text);
+    return;
+  }
+  if (tree->type == NTREE_GEOMETRY &&
+      ELEM(sock->display_shape, SOCK_DISPLAY_SHAPE_LIST, SOCK_DISPLAY_SHAPE_VOLUME_GRID))
   {
     draw_node_socket_without_value(layout, sock, text);
     return;
@@ -1452,7 +1451,7 @@ void ED_init_standard_node_socket_type(blender::bke::bNodeSocketType *stype)
 void ED_init_node_socket_type_virtual(blender::bke::bNodeSocketType *stype)
 {
   using namespace blender::ed::space_node;
-  stype->draw = node_socket_button_label;
+  stype->draw = std_node_socket_draw;
   stype->draw_color = node_socket_virtual_draw_color;
   stype->draw_color_simple = node_socket_virtual_draw_color_simple;
 }
