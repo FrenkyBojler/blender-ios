@@ -111,7 +111,7 @@ static void draw_matrix_template(uiLayout &layout, PointerRNA &ptr, PropertyRNA 
   float m3[3][3];
   copy_m3_m4(m3, m4);
   if (!is_orthogonal_m3(m3)) {
-    layout_->label(StringRef("Matrix Has a Shear"), ICON_ERROR);
+    layout_->label("Matrix Has a Shear", ICON_ERROR);
   }
 
   float loc[3], quat[4], size[3];
@@ -122,14 +122,14 @@ static void draw_matrix_template(uiLayout &layout, PointerRNA &ptr, PropertyRNA 
 
   left_col = &split->column(true);
   left_col->alignment_set(blender::ui::LayoutAlign::Right);
-  left_col->label(StringRef("Location X"), ICON_NONE);
-  left_col->label(StringRef("Y"), ICON_NONE);
-  left_col->label(StringRef("Z"), ICON_NONE);
+  left_col->label("Location X", ICON_NONE);
+  left_col->label("Y", ICON_NONE);
+  left_col->label("Z", ICON_NONE);
 
   right_col = &split->column(true);
-  right_col->label(StringRef(format_unit_value(loc[0], PROP_TRANSLATION, layout_)), ICON_NONE);
-  right_col->label(StringRef(format_unit_value(loc[1], PROP_TRANSLATION, layout_)), ICON_NONE);
-  right_col->label(StringRef(format_unit_value(loc[2], PROP_TRANSLATION, layout_)), ICON_NONE);
+  right_col->label(format_unit_value(loc[0], PROP_TRANSLATION, layout_), ICON_NONE);
+  right_col->label(format_unit_value(loc[1], PROP_TRANSLATION, layout_), ICON_NONE);
+  right_col->label(format_unit_value(loc[2], PROP_TRANSLATION, layout_), ICON_NONE);
 
   /* Rotation. */
   float eul[3];
@@ -139,21 +139,21 @@ static void draw_matrix_template(uiLayout &layout, PointerRNA &ptr, PropertyRNA 
 
   left_col = &split->column(true);
   left_col->alignment_set(blender::ui::LayoutAlign::Right);
-  left_col->label(StringRef("Rotation X"), ICON_NONE);
-  left_col->label(StringRef("Y"), ICON_NONE);
-  left_col->label(StringRef("Z"), ICON_NONE);
-  left_col->label(StringRef("Rotation Mode"), ICON_NONE);
+  left_col->label("Rotation X", ICON_NONE);
+  left_col->label("Y", ICON_NONE);
+  left_col->label("Z", ICON_NONE);
+  left_col->label("Rotation Mode", ICON_NONE);
 
   right_col = &split->column(true);
-  right_col->label(StringRef(format_unit_value(eul[0], PROP_EULER, layout_)), ICON_NONE);
-  right_col->label(StringRef(format_unit_value(eul[1], PROP_EULER, layout_)), ICON_NONE);
-  right_col->label(StringRef(format_unit_value(eul[2], PROP_EULER, layout_)), ICON_NONE);
+  right_col->label(format_unit_value(eul[0], PROP_EULER, layout_), ICON_NONE);
+  right_col->label(format_unit_value(eul[1], PROP_EULER, layout_), ICON_NONE);
+  right_col->label(format_unit_value(eul[2], PROP_EULER, layout_), ICON_NONE);
   /* Mirror RNA enum property dropdown UI - with menu triangle an dropdown items. */
   uiBlock *block = right_col->block();
   uiBut *but = uiDefBut(block,
                         ButType::Menu,
                         0,
-                        StringRef(mode_info.name),
+                        mode_info.name,
                         0,
                         0,
                         200,
@@ -173,14 +173,14 @@ static void draw_matrix_template(uiLayout &layout, PointerRNA &ptr, PropertyRNA 
 
   left_col = &split->column(true);
   left_col->alignment_set(blender::ui::LayoutAlign::Right);
-  left_col->label(StringRef("Scale X"), ICON_NONE);
-  left_col->label(StringRef("Y"), ICON_NONE);
-  left_col->label(StringRef("Z"), ICON_NONE);
+  left_col->label("Scale X", ICON_NONE);
+  left_col->label("Y", ICON_NONE);
+  left_col->label("Z", ICON_NONE);
 
   right_col = &split->column(true);
-  right_col->label(StringRef(format_scale(size[0])), ICON_NONE);
-  right_col->label(StringRef(format_scale(size[1])), ICON_NONE);
-  right_col->label(StringRef(format_scale(size[2])), ICON_NONE);
+  right_col->label(format_scale(size[0]), ICON_NONE);
+  right_col->label(format_scale(size[1]), ICON_NONE);
+  right_col->label(format_scale(size[2]), ICON_NONE);
 }
 
 void uiTemplateMatrix(uiLayout *layout, PointerRNA *ptr, const StringRefNull propname)
