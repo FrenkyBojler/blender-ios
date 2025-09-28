@@ -162,6 +162,13 @@ ccl_device_inline bool light_sample(KernelGlobals kg,
   }
   else if (type == LIGHT_DOME) {
     /* dome light (illuminates inward from all directions) */
+    /* NEVER sample dome light via NEE - always use background evaluation for consistency.
+     * This prevents the slow, noisy progressive sampling behavior in viewport. */
+    if (!in_volume_segment) {
+      /* For surface interactions, dome light is handled via background evaluation only */
+      return false;
+    }
+    
     const float3 D = dome_light_sample(kg, klight, rand, &ls->pdf);
 
     ls->P = D;

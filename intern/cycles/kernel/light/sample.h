@@ -90,12 +90,19 @@ light_sample_shader_eval(KernelGlobals kg,
 
     /* Apply HDR texture multiplication for dome lights */
     if (ls->type == LIGHT_DOME) {
-      const float3 hdr_multiplier = dome_light_hdr_eval(kg, klight, ls->D);
-      /* Physically correct HDR application: scale strength by HDR luminance, apply HDR color */
-      const float hdr_luminance = linear_rgb_to_gray(kg, hdr_multiplier);
-      const float3 hdr_color = (hdr_luminance > 1e-8f) ? hdr_multiplier / hdr_luminance :
-                                                         make_float3(1.0f, 1.0f, 1.0f);
-      eval *= rgb_to_spectrum(strength * hdr_luminance * hdr_color);
+      /* Only evaluate HDR if we have an HDR texture, otherwise use constant strength */
+      if (klight->dome.dome_hdr_tex != -1) {
+        const float3 hdr_multiplier = dome_light_hdr_eval(kg, klight, ls->D);
+        /* Physically correct HDR application: scale strength by HDR luminance, apply HDR color */
+        const float hdr_luminance = linear_rgb_to_gray(kg, hdr_multiplier);
+        const float3 hdr_color = (hdr_luminance > 1e-8f) ? hdr_multiplier / hdr_luminance :
+                                                           make_float3(1.0f, 1.0f, 1.0f);
+        eval *= rgb_to_spectrum(strength * hdr_luminance * hdr_color);
+      }
+      else {
+        /* Fast path for dome lights without HDR texture - same as other lights */
+        eval *= rgb_to_spectrum(strength);
+      }
     }
     else {
       eval *= rgb_to_spectrum(strength);
@@ -547,6 +554,42 @@ ccl_device_inline float light_sample_mis_weight_forward_background(KernelGlobals
     const uint light = kernel_data_fetch(light_to_tree, kernel_data.background.light_index);
     pdf *= light_tree_pdf(
         kg, ray_P, N, dt, path_flag, 0, light, light_link_receiver_forward(kg, state));
+  }
+  else
+#endif
+  {
+    pdf *= light_distribution_pdf_lamp(kg);
+  }
+
+  return light_sample_mis_weight_forward(kg, mis_ray_pdf, pdf);
+}
+
+ccl_device_inline float light_sample_mis_weight_forward_dome(KernelGlobals kg,
+                                                            IntegratorState state,
+                                                            const uint32_t path_flag,
+                                                            const ccl_private LightSample *ls)
+{
+  if (path_flag & PATH_RAY_MIS_SKIP) {
+    return 1.0f;
+  }
+
+  const float3 ray_P = INTEGRATOR_STATE(state, ray, P);
+  const float mis_ray_pdf = INTEGRATOR_STATE(state, path, mis_ray_pdf);
+  float pdf = ls->pdf;
+
+  /* Light selection pdf. */
+#ifdef __LIGHT_TREE__
+  if (kernel_data.integrator.use_light_tree) {
+    const float3 N = INTEGRATOR_STATE(state, path, mis_origin_n);
+    const float dt = INTEGRATOR_STATE(state, ray, previous_dt);
+    pdf *= light_tree_pdf(kg,
+                          ray_P,
+                          N,
+                          dt,
+                          path_flag,
+                          0,
+                          kernel_data_fetch(light_to_tree, ls->prim),
+                          light_link_receiver_forward(kg, state));
   }
   else
 #endif

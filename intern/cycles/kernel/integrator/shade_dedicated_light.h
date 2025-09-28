@@ -43,6 +43,9 @@ ccl_device_inline float shadow_linking_light_sample_mis_weight(KernelGlobals kg,
   if (ls->type == LIGHT_DISTANT) {
     return light_sample_mis_weight_forward_distant(kg, state, path_flag, ls);
   }
+  else if (ls->type == LIGHT_DOME) {
+    return light_sample_mis_weight_forward_dome(kg, state, path_flag, ls);
+  }
 
   return light_sample_mis_weight_forward_lamp(kg, state, path_flag, ls, P);
 }

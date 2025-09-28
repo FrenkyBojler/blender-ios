@@ -55,7 +55,13 @@ ccl_device_inline void integrate_light(KernelGlobals kg,
   }
 
   /* MIS weighting. */
-  const float mis_weight = light_sample_mis_weight_forward_lamp(kg, state, path_flag, &ls, ray_P);
+  float mis_weight;
+  if (ls.type == LIGHT_DOME) {
+    mis_weight = light_sample_mis_weight_forward_dome(kg, state, path_flag, &ls);
+  }
+  else {
+    mis_weight = light_sample_mis_weight_forward_lamp(kg, state, path_flag, &ls, ray_P);
+  }
 
   /* Write to render buffer. */
   guiding_record_surface_emission(kg, state, light_eval, mis_weight);

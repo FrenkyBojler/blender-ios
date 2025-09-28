@@ -7,6 +7,8 @@
 #include "DNA_light_types.h"
 
 #include "IMB_colormanagement.hh"
+#include "BLI_path_utils.hh"
+#include "BLI_string.h"
 
 #include "blender/image.h"
 #include "blender/sync.h"
@@ -89,8 +91,26 @@ void BlenderSync::sync_light(BObjectInfo &b_ob_info, Light *light)
       /* Set up HDRI image if available - focus on safe image handling during live updates */
       BL::Image b_image = b_dome_light.dome_image();
       if (b_image) {
-        /* Get image filepath like other lights do */
+        /* Get image filepath and resolve relative paths using Blender's BLI_path_abs */
         string image_filename = b_image.filepath();
+        
+        /* Use Blender's official path resolution function */
+        if (!image_filename.empty()) {
+          char resolved_path[FILE_MAX];
+          BLI_strncpy(resolved_path, image_filename.c_str(), FILE_MAX);
+          
+          /* Get the .blend file path for resolving relative paths */
+          string blend_filepath = b_data.filepath();
+          
+          /* Use BLI_path_abs to resolve // prefixed paths */
+          if (BLI_path_abs(resolved_path, blend_filepath.c_str())) {
+            image_filename = resolved_path;
+          }
+          else {
+            image_filename = resolved_path;
+          }
+        }
+        
         if (image_filename.empty() && b_image.packed_file()) {
           /* Handle packed images by using a unique identifier */
           image_filename = b_image.name();
@@ -100,41 +120,77 @@ void BlenderSync::sync_light(BObjectInfo &b_ob_info, Light *light)
           light->set_dome_image(ustring(image_filename));
           light->set_dome_hdr_strength(b_dome_light.dome_hdr_strength());
 
-          /* The key fix: Only reload HDR texture if the image actually changed
-           * This prevents crashes during live property updates */
-          ustring current_image = light->get_dome_image();
-          if (current_image != ustring(image_filename) || light->dome_hdr_handle.empty()) {
+          /* Validate that the image data is valid before attempting to load */
+          bool valid_image_data = false;
+          if (b_image.ptr.data != nullptr) {
+            /* Check if image has valid data */
+            ::Image *image_data = static_cast<::Image *>(b_image.ptr.data);
+            if (image_data != nullptr) {
+              /* For packed files, always valid */
+              if (b_image.packed_file()) {
+                valid_image_data = true;
+              }
+              /* For external files, let Blender's image system handle path resolution */
+              else if (!image_filename.empty()) {
+                /* Trust Blender's image system to resolve paths correctly */
+                /* The warning about missing files will be handled by Blender's image loader */
+                /* but we still attempt to load - this allows for network paths, asset libraries, etc. */
+                valid_image_data = (image_data->source != IMA_SRC_VIEWER && 
+                                   image_data->source != IMA_SRC_GENERATED);
+              }
+            }
+          }
 
-            /* Clear old HDR texture handle before loading new one to prevent crashes */
-            light->clear_dome_hdr_texture();
+          /* Only load HDR texture if image data is valid */
+          if (valid_image_data) {
+            /* The key fix: Only reload HDR texture if the image actually changed
+             * This prevents crashes during live property updates */
+            ustring current_image = light->get_dome_image();
+            if (current_image != ustring(image_filename) || light->dome_hdr_handle.empty()) {
 
-            /* Load HDR texture using BlenderImageLoader */
-            ImageParams params;
-            params.interpolation = INTERPOLATION_LINEAR;
-            params.extension = EXTENSION_REPEAT;
-            params.alpha_type = IMAGE_ALPHA_AUTO;
-            params.colorspace =
-                u_colorspace_raw; /* HDR images are already in linear space, no transform needed */
+              /* Clear old HDR texture handle before loading new one to prevent crashes */
+              light->clear_dome_hdr_texture();
 
-            /* Create a default ImageUser for now */
-            ImageUser image_user = {nullptr};
+              /* Load HDR texture using BlenderImageLoader */
+              ImageParams params;
+              params.interpolation = INTERPOLATION_LINEAR;
+              params.extension = EXTENSION_REPEAT;
+              params.alpha_type = IMAGE_ALPHA_AUTO;
+              params.colorspace =
+                  u_colorspace_raw; /* HDR images are already in linear space, no transform needed */
 
-            light->dome_hdr_handle = scene->image_manager->add_image(
-                make_unique<BlenderImageLoader>(static_cast<::Image *>(b_image.ptr.data),
-                                                &image_user,
-                                                0, /* frame */
-                                                0, /* tile */
-                                                b_engine.is_preview()),
-                params);
+              /* Create a default ImageUser for now */
+              ImageUser image_user = {nullptr};
+
+              /* Safely attempt to load the image */
+              try {
+                light->dome_hdr_handle = scene->image_manager->add_image(
+                    make_unique<BlenderImageLoader>(static_cast<::Image *>(b_image.ptr.data),
+                                                    &image_user,
+                                                    0, /* frame */
+                                                    0, /* tile */
+                                                    b_engine.is_preview()),
+                    params);
+              }
+              catch (...) {
+                /* If loading fails, clear the handle and continue without HDR */
+                light->clear_dome_hdr_texture();
+                light->dome_hdr_handle = ImageHandle();
+              }
+            }
+
+            /* Enable MIS for dome light with image */
+            light->set_use_mis(true);
+
+            /* Use the user-specified map resolution for image sampling */
+            light->set_map_resolution(b_dome_light.dome_map_resolution());
           }
           else {
+            /* Invalid image data - treat as dome light without image */
+            light->clear_dome_hdr_texture();
+            light->dome_hdr_handle = ImageHandle();
+            light->set_use_mis(true); /* Still enable MIS for dome light without image */
           }
-
-          /* Enable MIS for dome light with image */
-          light->set_use_mis(true);
-
-          /* Use the user-specified map resolution for image sampling */
-          light->set_map_resolution(b_dome_light.dome_map_resolution());
         }
       }
       else {

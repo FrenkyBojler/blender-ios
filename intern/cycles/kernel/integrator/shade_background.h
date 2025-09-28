@@ -129,7 +129,32 @@ ccl_device_inline void integrate_distant_lights(KernelGlobals kg,
   const float ray_time = INTEGRATOR_STATE(state, ray, time);
   LightSample ls ccl_optional_struct_init;
   for (int lamp = 0; lamp < kernel_data.integrator.num_lights; lamp++) {
-    if (distant_light_sample_from_intersection(kg, ray_D, lamp, &ls)) {
+    const ccl_global KernelLight *klight = &kernel_data_fetch(lights, lamp);
+    
+    /* Handle dome lights like distant lights in background evaluation */
+    bool light_matches = false;
+    if (klight->type == LIGHT_DISTANT) {
+      light_matches = distant_light_sample_from_intersection(kg, ray_D, lamp, &ls);
+    }
+    else if (klight->type == LIGHT_DOME) {
+      /* Dome lights are evaluated directly in background, similar to distant lights */
+      ls.type = LIGHT_DOME;
+      ls.shader = klight->shader_id;
+      ls.object = klight->object_id;
+      ls.prim = lamp;
+      ls.u = 0.0f;
+      ls.v = 0.0f;
+      ls.group = object_lightgroup(kg, ls.object);
+      ls.P = ray_D;
+      ls.Ng = -ray_D;  /* Normal points inward for dome lights */
+      ls.D = ray_D;    /* Light direction points inward */
+      ls.t = FLT_MAX;
+      ls.eval_fac = 1.0f;
+      ls.pdf = 1.0f;   /* Will be computed properly in MIS */
+      light_matches = true;
+    }
+    
+    if (light_matches) {
       /* Use visibility flag to skip lights. */
 #ifdef __PASSES__
       const uint32_t path_flag = INTEGRATOR_STATE(state, path, flag);
@@ -174,7 +199,13 @@ ccl_device_inline void integrate_distant_lights(KernelGlobals kg,
       }
 
       /* MIS weighting. */
-      const float mis_weight = light_sample_mis_weight_forward_distant(kg, state, path_flag, &ls);
+      float mis_weight;
+      if (ls.type == LIGHT_DOME) {
+        mis_weight = light_sample_mis_weight_forward_dome(kg, state, path_flag, &ls);
+      }
+      else {
+        mis_weight = light_sample_mis_weight_forward_distant(kg, state, path_flag, &ls);
+      }
 
       /* Write to render buffer. */
       guiding_record_background(kg, state, light_eval, mis_weight);

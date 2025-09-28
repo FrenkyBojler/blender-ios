@@ -101,38 +101,50 @@ ccl_device_inline float3 dome_light_sample(KernelGlobals kg,
     const int res_y = klight->dome.map_res_y;
     const int cdf_width = res_x + 1;
 
-    /* Sample row (V direction) using marginal CDF */
-    int v = 0;
-    for (v = 0; v < res_y; v++) {
-      if (kernel_data_fetch(light_dome_marginal_cdf, v).y >= rand.x) {
-        break;
+    /* Sample row (V direction) using marginal CDF - use exact same method as background */
+    int first = 0;
+    int count = res_y;
+    while (count > 0) {
+      const int step = count >> 1;
+      const int middle = first + step;
+      if (kernel_data_fetch(light_dome_marginal_cdf, middle).y < rand.y) {
+        first = middle + 1;
+        count -= step + 1;
+      }
+      else {
+        count = step;
       }
     }
-    v = min(v, res_y - 1);
+    const int index_v = max(0, first - 1);
 
-    /* Sample column (U direction) using conditional CDF for this row */
-    int u = 0;
-    for (u = 0; u < res_x; u++) {
-      if (kernel_data_fetch(light_dome_conditional_cdf, v * cdf_width + u).y >= rand.y) {
-        break;
+    /* Sample column (U direction) using conditional CDF - use exact same method as background */
+    first = 0;
+    count = res_x;
+    while (count > 0) {
+      const int step = count >> 1;
+      const int middle = first + step;
+      if (kernel_data_fetch(light_dome_conditional_cdf, index_v * cdf_width + middle).y < rand.x) {
+        first = middle + 1;
+        count -= step + 1;
+      }
+      else {
+        count = step;
       }
     }
-    u = min(u, res_x - 1);
+    const int index_u = max(0, first - 1);
 
     /* Convert discrete coordinates to continuous UV coordinates */
-    const float du =
-        (u > 0) ?
-            (rand.y - kernel_data_fetch(light_dome_conditional_cdf, v * cdf_width + u - 1).y) /
-                (kernel_data_fetch(light_dome_conditional_cdf, v * cdf_width + u).y -
-                 kernel_data_fetch(light_dome_conditional_cdf, v * cdf_width + u - 1).y) :
-            rand.y;
-    const float dv = (v > 0) ? (rand.x - kernel_data_fetch(light_dome_marginal_cdf, v - 1).y) /
-                                   (kernel_data_fetch(light_dome_marginal_cdf, v).y -
-                                    kernel_data_fetch(light_dome_marginal_cdf, v - 1).y) :
-                               rand.x;
+    const float2 cdf_u = kernel_data_fetch(light_dome_conditional_cdf, index_v * cdf_width + index_u);
+    const float2 cdf_next_u = kernel_data_fetch(light_dome_conditional_cdf, index_v * cdf_width + index_u + 1);
+    const float2 cdf_v = kernel_data_fetch(light_dome_marginal_cdf, index_v);
+    const float2 cdf_next_v = kernel_data_fetch(light_dome_marginal_cdf, index_v + 1);
 
-    const float pu = (u + du) / res_x;
-    const float pv = (v + dv) / res_y;
+    /* importance-sampled U and V directions using inverse lerp - same order as background */
+    const float du = inverse_lerp(cdf_u.y, cdf_next_u.y, rand.x);
+    const float dv = inverse_lerp(cdf_v.y, cdf_next_v.y, rand.y);
+
+    const float pu = (index_u + du) / res_x;
+    const float pv = (index_v + dv) / res_y;
 
     /* Convert UV to spherical coordinates (similar to environment texture) */
     const float phi = M_2PI_F * pu;
@@ -149,10 +161,17 @@ ccl_device_inline float3 dome_light_sample(KernelGlobals kg,
                                       -klight->dome.dome_rotation.z);
     D = dome_light_apply_rotation(D, inv_rotation);
 
-    /* Compute PDF from CDF values */
-    const float pdf_u = kernel_data_fetch(light_dome_conditional_cdf, v * cdf_width + u).x;
-    const float pdf_v = kernel_data_fetch(light_dome_marginal_cdf, v).x;
-    *pdf = (pdf_u * pdf_v * res_x * res_y) / (M_2PI_F * M_PI_F * sin_theta);
+    /* Compute PDF from CDF values - use same approach as background shader */
+    const float2 cdf_last_u = kernel_data_fetch(light_dome_conditional_cdf, index_v * cdf_width + res_x);
+    const float2 cdf_last_v = kernel_data_fetch(light_dome_marginal_cdf, res_y);
+
+    const float denom = (M_2PI_F * M_PI_F * sin_theta) * cdf_last_u.x * cdf_last_v.x;
+    if (denom == 0.0f) {
+      *pdf = 0.0f;
+    }
+    else {
+      *pdf = (cdf_u.x * cdf_v.x) / denom;
+    }
 
     /* Ensure PDF is positive */
     *pdf = max(*pdf, 1e-6f);
@@ -207,22 +226,25 @@ ccl_device_inline float dome_light_pdf(KernelGlobals kg,
     const int u = min((int)(pu * res_x), res_x - 1);
     const int v = min((int)(pv * res_y), res_y - 1);
 
-    /* Get PDF values from CDF arrays */
-    const float pdf_u = kernel_data_fetch(light_dome_conditional_cdf, v * cdf_width + u).x;
-    const float pdf_v = kernel_data_fetch(light_dome_marginal_cdf, v).x;
-
-    /* Convert from discrete to continuous PDF */
-    const float theta = M_PI_F * pv;
-    const float sin_theta = sinf(theta);
-
-    /* Ensure we don't divide by zero */
-    if (sin_theta < 1e-6f) {
+    /* Use same optimized approach as background shader */
+    const float sin_theta = sinf(pv * M_PI_F);
+    if (sin_theta == 0.0f) {
       return 0.0f;
     }
 
-    const float pdf = (pdf_u * pdf_v * res_x * res_y) / (M_2PI_F * M_PI_F * sin_theta);
+    /* Get PDF values from CDF arrays - same approach as background */
+    const float2 cdf_last_u = kernel_data_fetch(light_dome_conditional_cdf, v * cdf_width + res_x);
+    const float2 cdf_last_v = kernel_data_fetch(light_dome_marginal_cdf, res_y);
 
-    return max(pdf, 1e-6f);
+    const float denom = (M_2PI_F * M_PI_F * sin_theta) * cdf_last_u.x * cdf_last_v.x;
+    if (denom == 0.0f) {
+      return 0.0f;
+    }
+
+    const float2 cdf_u = kernel_data_fetch(light_dome_conditional_cdf, v * cdf_width + u);
+    const float2 cdf_v = kernel_data_fetch(light_dome_marginal_cdf, v);
+
+    return max((cdf_u.x * cdf_v.x) / denom, 1e-6f);
   }
   else {
     /* Uniform sphere sampling PDF */
