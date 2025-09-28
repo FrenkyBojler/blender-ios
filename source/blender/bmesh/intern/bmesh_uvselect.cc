@@ -1671,7 +1671,7 @@ static void bm_mesh_uvselect_flush_from_mesh_sticky_location_for_face_mode(
 
 /* Public API. */
 
-void BM_mesh_uvselect_flush_from_mesh_sticky_location(BMesh *bm, const int cd_loop_uv_offset)
+void BM_mesh_uvselect_sync_from_mesh_sticky_location(BMesh *bm, const int cd_loop_uv_offset)
 {
   if (bm->selectmode & SCE_SELECT_VERTEX) {
     bm_mesh_uvselect_flush_from_mesh_sticky_location_for_vert_mode(bm, cd_loop_uv_offset);
@@ -1686,7 +1686,7 @@ void BM_mesh_uvselect_flush_from_mesh_sticky_location(BMesh *bm, const int cd_lo
   BLI_assert(bm->uv_select_sync_valid);
 }
 
-void BM_mesh_uvselect_flush_from_mesh_sticky_disabled(BMesh *bm)
+void BM_mesh_uvselect_sync_from_mesh_sticky_disabled(BMesh *bm)
 {
   /* The mode is ignored when sticky selection is disabled,
    * Always use the selection from the mesh. */
@@ -1694,7 +1694,7 @@ void BM_mesh_uvselect_flush_from_mesh_sticky_disabled(BMesh *bm)
   BLI_assert(bm->uv_select_sync_valid);
 }
 
-void BM_mesh_uvselect_flush_from_mesh_sticky_vertex(BMesh *bm)
+void BM_mesh_uvselect_sync_from_mesh_sticky_vert(BMesh *bm)
 {
   if (bm->selectmode & SCE_SELECT_VERTEX) {
     bm_mesh_uvselect_flush_from_mesh_sticky_vertex_for_vert_mode(bm);
@@ -1708,7 +1708,7 @@ void BM_mesh_uvselect_flush_from_mesh_sticky_vertex(BMesh *bm)
   BLI_assert(bm->uv_select_sync_valid);
 }
 
-void BM_mesh_uvselect_flush_to_mesh(BMesh *bm)
+void BM_mesh_uvselect_sync_to_mesh(BMesh *bm)
 {
   BLI_assert(bm->uv_select_sync_valid);
 

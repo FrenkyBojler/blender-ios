@@ -256,15 +256,15 @@ static void uvedit_sync_uvselect_flush_from_v3d(const ToolSettings *ts, BMesh *b
   switch (ts->uv_sticky) {
     case SI_STICKY_LOC: {
       const int cd_loop_uv_offset = CustomData_get_offset(&bm->ldata, CD_PROP_FLOAT2);
-      BM_mesh_uvselect_flush_from_mesh_sticky_location(bm, cd_loop_uv_offset);
+      BM_mesh_uvselect_sync_from_mesh_sticky_location(bm, cd_loop_uv_offset);
       break;
     }
     case SI_STICKY_DISABLE: {
-      BM_mesh_uvselect_flush_from_mesh_sticky_disabled(bm);
+      BM_mesh_uvselect_sync_from_mesh_sticky_disabled(bm);
       break;
     }
     case SI_STICKY_VERTEX: {
-      BM_mesh_uvselect_flush_from_mesh_sticky_vertex(bm);
+      BM_mesh_uvselect_sync_from_mesh_sticky_vert(bm);
       break;
     }
   }
@@ -356,7 +356,7 @@ void ED_uvedit_select_sync_flush(const ToolSettings *ts, BMesh *bm, const bool s
         const int cd_loop_uv_offset = CustomData_get_offset(&bm->ldata, CD_PROP_FLOAT2);
         BM_mesh_uvselect_flush_shared_only_select(bm, cd_loop_uv_offset);
       }
-      BM_mesh_uvselect_flush_to_mesh(bm);
+      BM_mesh_uvselect_sync_to_mesh(bm);
     }
     else {
       if (ts->selectmode != SCE_SELECT_FACE) {
@@ -2700,7 +2700,7 @@ static void uv_select_linked_multi(Scene *scene,
           else {
             BM_mesh_uvselect_flush_from_faces_only_select(bm);
           }
-          BM_mesh_uvselect_flush_to_mesh(bm);
+          BM_mesh_uvselect_sync_to_mesh(bm);
         }
       }
     }
@@ -2903,7 +2903,7 @@ static wmOperatorStatus uv_select_more_less(bContext *C, const bool select)
         else {
           BM_mesh_uvselect_flush_from_loop_verts_only_deselect(bm);
         }
-        BM_mesh_uvselect_flush_to_mesh(bm);
+        BM_mesh_uvselect_sync_to_mesh(bm);
       }
 
       DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_SELECT);
@@ -3129,7 +3129,7 @@ static void uv_select_invert(const Scene *scene, BMEditMesh *em)
 
     /* NOTE: no need to run: #BM_mesh_uvselect_flush_shared_only_select
      * because inverting doesn't change the sticky state. */
-    BM_mesh_uvselect_flush_to_mesh(bm);
+    BM_mesh_uvselect_sync_to_mesh(bm);
     return;
   }
 
@@ -3514,7 +3514,7 @@ static bool uv_mouse_select_multi(bContext *C,
             BM_mesh_uvselect_flush_mode(bm);
           }
 
-          BM_mesh_uvselect_flush_to_mesh(bm);
+          BM_mesh_uvselect_sync_to_mesh(bm);
         }
         else {
           BM_mesh_select_mode_flush(bm);
@@ -5795,7 +5795,7 @@ static wmOperatorStatus uv_select_similar_vert_exec(bContext *C, wmOperator *op)
       if (ts->uv_flag & UV_FLAG_SYNC_SELECT) {
         if (bm->uv_select_sync_valid) {
           BM_mesh_uvselect_flush_from_loop_verts_only_select(bm);
-          BM_mesh_uvselect_flush_to_mesh(bm);
+          BM_mesh_uvselect_sync_to_mesh(bm);
         }
         else {
           BM_mesh_select_flush_from_verts(bm, true);
@@ -5922,7 +5922,7 @@ static wmOperatorStatus uv_select_similar_edge_exec(bContext *C, wmOperator *op)
       if (ts->uv_flag & UV_FLAG_SYNC_SELECT) {
         if (bm->uv_select_sync_valid) {
           BM_mesh_uvselect_flush_from_loop_verts_only_select(bm);
-          BM_mesh_uvselect_flush_to_mesh(bm);
+          BM_mesh_uvselect_sync_to_mesh(bm);
         }
         else {
           BM_mesh_select_flush_from_verts(bm, true);
@@ -6039,7 +6039,7 @@ static wmOperatorStatus uv_select_similar_face_exec(bContext *C, wmOperator *op)
       if (ts->uv_flag & UV_FLAG_SYNC_SELECT) {
         if (bm->uv_select_sync_valid) {
           BM_mesh_uvselect_flush_from_loop_verts_only_select(bm);
-          BM_mesh_uvselect_flush_to_mesh(bm);
+          BM_mesh_uvselect_sync_to_mesh(bm);
         }
         else {
           BM_mesh_select_flush_from_verts(bm, true);
@@ -6155,7 +6155,7 @@ static wmOperatorStatus uv_select_similar_island_exec(bContext *C, wmOperator *o
       if (ts->uv_flag & UV_FLAG_SYNC_SELECT) {
         if (bm->uv_select_sync_valid) {
           BM_mesh_uvselect_flush_from_loop_verts_only_select(bm);
-          BM_mesh_uvselect_flush_to_mesh(bm);
+          BM_mesh_uvselect_sync_to_mesh(bm);
         }
         else {
           BM_mesh_select_flush_from_verts(bm, true);

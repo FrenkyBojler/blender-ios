@@ -1625,15 +1625,15 @@ static PyObject *bpy_bmesh_uv_select_sync_from_mesh(BPy_BMesh *self, PyObject *a
         PyErr_SetString(PyExc_ValueError, "sticky_select_mode='SHARED_LOCATION' requires UV's");
         return nullptr;
       }
-      BM_mesh_uvselect_flush_from_mesh_sticky_location(bm, cd_loop_uv_offset);
+      BM_mesh_uvselect_sync_from_mesh_sticky_location(bm, cd_loop_uv_offset);
       break;
     }
     case SI_STICKY_DISABLE: {
-      BM_mesh_uvselect_flush_from_mesh_sticky_disabled(bm);
+      BM_mesh_uvselect_sync_from_mesh_sticky_disabled(bm);
       break;
     }
     case SI_STICKY_VERTEX: {
-      BM_mesh_uvselect_flush_from_mesh_sticky_vertex(bm);
+      BM_mesh_uvselect_sync_from_mesh_sticky_vert(bm);
       break;
     }
   }
@@ -1684,7 +1684,7 @@ static PyObject *bpy_bmesh_uv_select_sync_to_mesh(BPy_BMesh *self, PyObject *arg
     return nullptr;
   }
 
-  BM_mesh_uvselect_flush_to_mesh(bm);
+  BM_mesh_uvselect_sync_to_mesh(bm);
 
   Py_RETURN_NONE;
 }

@@ -26,7 +26,7 @@
  *
  * \note A short-hand term for vertex/edge/face selection used
  * in this file is View3D abbreviated to `v3d`, since this is the section
- * manipulated in the viewport, e.g. #BM_mesh_uvselect_flush_to_mesh.
+ * manipulated in the viewport, e.g. #BM_mesh_uvselect_sync_to_mesh.
  *
  * \note This is quite involved, as a last resort the UV selection can always be cleared
  * and re-set from the mesh (v3d) selection, however it's good to keep UV selection
@@ -421,14 +421,16 @@ void BM_mesh_uvselect_flush_post_subdivide(BMesh *bm, const int cd_loop_uv_offse
  *
  * These functions correspond to #ToolSettings::uv_sticky options. */
 
-void BM_mesh_uvselect_flush_from_mesh_sticky_location(BMesh *bm, const int cd_loop_uv_offset);
-void BM_mesh_uvselect_flush_from_mesh_sticky_disabled(BMesh *bm);
-void BM_mesh_uvselect_flush_from_mesh_sticky_vertex(BMesh *bm);
+void BM_mesh_uvselect_sync_from_mesh_sticky_location(BMesh *bm, const int cd_loop_uv_offset);
+void BM_mesh_uvselect_sync_from_mesh_sticky_disabled(BMesh *bm);
+void BM_mesh_uvselect_sync_from_mesh_sticky_vert(BMesh *bm);
 
 /**
- * From the UV selection to the 3D viewport.
+ * Synchronize selection: from the UV selection to the 3D viewport.
+ *
+ * \note #BMesh::uv_select_sync_valid must be true.
  */
-void BM_mesh_uvselect_flush_to_mesh(BMesh *bm);
+void BM_mesh_uvselect_sync_to_mesh(BMesh *bm);
 
 /** \} */
 
