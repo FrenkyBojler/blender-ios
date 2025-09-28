@@ -1286,14 +1286,26 @@ static void std_node_socket_draw(
     case SOCK_COLLECTION:
     case SOCK_OBJECT:
     case SOCK_MATERIAL: {
-      layout->prop(ptr,
-                   RNA_struct_find_property(ptr, "default_value"),
-                   -1,
-                   0,
-                   DEFAULT_FLAGS,
-                   label_or_empty,
-                   ICON_NONE,
-                   optional_label ? std::optional(label) : std::nullopt);
+      if (optional_label) {
+        layout->prop(ptr,
+                     RNA_struct_find_property(ptr, "default_value"),
+                     -1,
+                     0,
+                     DEFAULT_FLAGS,
+                     "",
+                     ICON_NONE,
+                     std::optional(label));
+      }
+      else {
+        layout->prop(ptr,
+                     RNA_struct_find_property(ptr, "default_value"),
+                     -1,
+                     0,
+                     DEFAULT_FLAGS,
+                     label,
+                     ICON_NONE);
+      }
+
       break;
     }
     case SOCK_IMAGE: {
