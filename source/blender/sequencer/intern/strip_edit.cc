@@ -425,9 +425,6 @@ Strip *edit_strip_split(Main *bmain,
                       ignore_connections ? query_strip_effect_chain :
                                          query_strip_connected_and_effect_chain);
 
-  /* All connected strips (that are selected and at the cut frame) must also be duplicated. */
-  blender::VectorSet<Strip *> strips_old(strips);
-
   if (!seq_edit_split_operation_permitted_check(scene, strips, timeline_frame, r_error)) {
     return nullptr;
   }
