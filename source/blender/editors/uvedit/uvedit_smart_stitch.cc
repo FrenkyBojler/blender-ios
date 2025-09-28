@@ -673,22 +673,24 @@ static void stitch_uv_edge_generate_linked_edges(GHash *edge_hash, StitchState *
           /* get the edge from the hash */
           edge2 = static_cast<UvEdge *>(BLI_ghash_lookup(edge_hash, &edgetmp));
 
-          /* more iteration to make sure non-manifold case is handled nicely */
-          for (eiter = edge; eiter; eiter = eiter->next) {
-            if (edge2 == eiter) {
-              valid = false;
-              break;
+          if (edge2) {
+            /* more iteration to make sure non-manifold case is handled nicely */
+            for (eiter = edge; eiter; eiter = eiter->next) {
+              if (edge2 == eiter) {
+                valid = false;
+                break;
+              }
             }
-          }
 
-          if (valid) {
-            /* here I am taking care of non manifold case, assuming more than two matching edges.
-             * I am not too sure we want this though */
-            last_set->next = edge2;
-            last_set = edge2;
-            /* set first, similarly to uv elements.
-             * Now we can iterate among common edges easily */
-            edge2->first = edge;
+            if (valid) {
+              /* here I am taking care of non manifold case, assuming more than two matching edges.
+               * I am not too sure we want this though */
+              last_set->next = edge2;
+              last_set = edge2;
+              /* set first, similarly to uv elements.
+               * Now we can iterate among common edges easily */
+              edge2->first = edge;
+            }
           }
         }
       }
@@ -1870,8 +1872,7 @@ static StitchState *stitch_init(bContext *C,
    * for stitch this isn't useful behavior, see #86924. */
   const int selectmode_orig = scene->toolsettings->selectmode;
   scene->toolsettings->selectmode = SCE_SELECT_VERTEX;
-  state->element_map = BM_uv_element_map_create(
-      state->em->bm, scene, ssc->only_selected_uvs, true, true, true);
+  state->element_map = BM_uv_element_map_create(state->em->bm, scene, false, true, true, true);
   scene->toolsettings->selectmode = selectmode_orig;
 
   if (!state->element_map) {
@@ -1880,6 +1881,22 @@ static StitchState *stitch_init(bContext *C,
   }
 
   state->aspect = ED_uvedit_get_aspect_y(obedit);
+
+  blender::Vector<bool> island_has_selected;
+  /* Mark islands that have at least one selected UV */
+  if (ssc->only_selected_uvs) {
+    island_has_selected.resize(state->element_map->total_islands, false);
+    BM_ITER_MESH (efa, &iter, em->bm, BM_FACES_OF_MESH) {
+      BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
+        if (uvedit_uv_select_test(scene, l, offsets)) {
+          UvElement *element = BM_uv_element_get(state->element_map, l);
+          if (element) {
+            island_has_selected[element->island] = true;
+          }
+        }
+      }
+    }
+  }
 
   int unique_uvs = state->element_map->total_unique_uvs;
   state->total_separate_uvs = unique_uvs;
@@ -1927,13 +1944,13 @@ static StitchState *stitch_init(bContext *C,
     if (face_selected && !BM_elem_flag_test(efa, BM_ELEM_SELECT)) {
       continue;
     }
+    /* Only process faces from islands that have at least one selected face */
+    UvElement *face_element = BM_uv_element_get(state->element_map, BM_FACE_FIRST_LOOP(efa));
+    if (!face_element || (ssc->only_selected_uvs && !island_has_selected[face_element->island])) {
+      continue;
+    }
 
     BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
-      if (ssc->only_selected_uvs) {
-        if (!uvedit_uv_select_test(scene, l, offsets)) {
-          continue;
-        }
-      }
       UvElement *element = BM_uv_element_get(state->element_map, l);
       int itmp1 = element - state->element_map->storage;
       int itmp2 = BM_uv_element_get(state->element_map, l->next) - state->element_map->storage;
