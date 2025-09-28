@@ -27,7 +27,6 @@
 
 namespace blender::nodes::node_geo_cube_grid_cc {
 
-
 static void node_declare(NodeDeclarationBuilder &b)
 {
   const bNode *node = b.node_or_null();

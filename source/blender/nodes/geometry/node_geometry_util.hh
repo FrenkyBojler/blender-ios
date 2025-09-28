@@ -19,8 +19,8 @@
 
 #include "node_util.hh"  // IWYU pragma: export
 
-#include "BLI_task.hh"
 #include "BKE_attribute.hh"
+#include "BLI_task.hh"
 
 namespace blender {
 namespace bke {
@@ -89,10 +89,10 @@ void draw_data_blocks(const bContext *C, uiLayout *layout, PointerRNA &bake_rna)
 
 /* Utility for grid-based field evaluation. */
 float grid_map_coordinate(const float x,
-                         const float in_min,
-                         const float in_max,
-                         const float out_min,
-                         const float out_max);
+                          const float in_min,
+                          const float in_max,
+                          const float out_min,
+                          const float out_max);
 
 class Grid3DFieldContext : public FieldContext {
  private:
@@ -130,11 +130,14 @@ class Grid3DFieldContext : public FieldContext {
       /* Start indexing at current X slice. */
       int64_t index = x_range.start() * resolution_.y * resolution_.z;
       for (const int64_t x_i : x_range) {
-        const float x = grid_map_coordinate(x_i, 0.0f, resolution_.x - 1, bounds_min_.x, bounds_max_.x);
+        const float x = grid_map_coordinate(
+            x_i, 0.0f, resolution_.x - 1, bounds_min_.x, bounds_max_.x);
         for (const int64_t y_i : IndexRange(resolution_.y)) {
-          const float y = grid_map_coordinate(y_i, 0.0f, resolution_.y - 1, bounds_min_.y, bounds_max_.y);
+          const float y = grid_map_coordinate(
+              y_i, 0.0f, resolution_.y - 1, bounds_min_.y, bounds_max_.y);
           for (const int64_t z_i : IndexRange(resolution_.z)) {
-            const float z = grid_map_coordinate(z_i, 0.0f, resolution_.z - 1, bounds_min_.z, bounds_max_.z);
+            const float z = grid_map_coordinate(
+                z_i, 0.0f, resolution_.z - 1, bounds_min_.z, bounds_max_.z);
             positions[index] = float3(x, y, z);
             index++;
           }

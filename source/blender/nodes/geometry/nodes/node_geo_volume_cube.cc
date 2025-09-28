@@ -51,7 +51,6 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Geometry>("Volume").translation_context(BLT_I18NCONTEXT_ID_ID);
 }
 
-
 static void node_geo_exec(GeoNodeExecParams params)
 {
 #ifdef WITH_OPENVDB

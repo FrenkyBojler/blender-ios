@@ -157,10 +157,10 @@ void geo_cmp_node_type_base(blender::bke::bNodeType *ntype,
 namespace blender::nodes {
 
 float grid_map_coordinate(const float x,
-                         const float in_min,
-                         const float in_max,
-                         const float out_min,
-                         const float out_max)
+                          const float in_min,
+                          const float in_max,
+                          const float out_min,
+                          const float out_max)
 {
   return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
 }

@@ -25,7 +25,6 @@
 
 namespace blender::nodes::node_geo_evaluate_on_grid_cc {
 
-
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.use_custom_socket_order();
