@@ -16,6 +16,7 @@
 #include "NOD_socket_items_blend.hh"
 #include "NOD_socket_items_ops.hh"
 #include "NOD_socket_search_link.hh"
+#include "NOD_sync_sockets.hh"
 
 #include "RNA_enum_types.hh"
 #include "RNA_prototypes.hh"
@@ -190,6 +191,9 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
       params.add_item(IFACE_("Index"), [](LinkSearchOpParams &params) {
         bNode &node = params.add_node("GeometryNodeIndexSwitch");
         params.update_and_connect_available_socket(node, "Index");
+
+        SpaceNode &snode = *CTX_wm_space_node(&params.C);
+        sync_sockets_index_switch(snode, node, nullptr);
       });
     }
   }

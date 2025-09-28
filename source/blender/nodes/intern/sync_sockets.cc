@@ -53,6 +53,71 @@ struct ClosureSyncState {
   std::optional<nodes::ClosureSignature> source_signature;
 };
 
+struct IndexSwitchSyncState {
+  NodeSyncState state;
+  std::optional<int> num_inputs;
+};
+
+static std::optional<int> get_index_based_menu_switch_count(const bNode &menu_switch_node)
+{
+  const auto &menu_switch_storage = *static_cast<const NodeMenuSwitch *>(menu_switch_node.storage);
+  if (menu_switch_storage.data_type != SOCK_INT) {
+    return std::nullopt;
+  }
+  Array<bool, 16> found_indices(menu_switch_storage.enum_definition.items_num, false);
+  for (const int item_i : IndexRange(menu_switch_storage.enum_definition.items_num)) {
+    const bNodeSocket &socket = menu_switch_node.input_socket(item_i + 1);
+    if (socket.is_directly_linked()) {
+      return std::nullopt;
+    }
+    const int socket_value = socket.default_value_typed<bNodeSocketValueInt>()->value;
+    if (socket_value < 0 || socket_value >= menu_switch_storage.enum_definition.items_num) {
+      return std::nullopt;
+    }
+    if (found_indices[socket_value]) {
+      /* Duplicate index found. */
+      return std::nullopt;
+    }
+    found_indices[socket_value] = true;
+  }
+  return menu_switch_storage.enum_definition.items_num;
+}
+
+static IndexSwitchSyncState get_sync_state_index_switch(
+    const SpaceNode &snode,
+    const bNode &index_switch_node,
+    const bNodeSocket *src_index_socket = nullptr)
+{
+  BLI_assert(index_switch_node.is_type("GeometryNodeIndexSwitch"));
+  snode.edittree->ensure_topology_cache();
+  if (!src_index_socket) {
+    src_index_socket = &index_switch_node.input_socket(0);
+  }
+  BLI_assert(src_index_socket->type == SOCK_INT);
+
+  bke::ComputeContextCache compute_context_cache;
+  const ComputeContext *current_context = ed::space_node::compute_context_for_edittree_socket(
+      snode, compute_context_cache, *src_index_socket);
+  if (!current_context) {
+    return {NodeSyncState::NoSyncSource};
+  }
+  std::optional<NodeInContext> menu_switch_node = find_origin_index_menu_switch(
+      {current_context, src_index_socket}, compute_context_cache);
+  if (!menu_switch_node) {
+    return {NodeSyncState::NoSyncSource};
+  }
+  const std::optional<int> num_inputs = get_index_based_menu_switch_count(*menu_switch_node->node);
+  if (!num_inputs) {
+    return {NodeSyncState::NoSyncSource};
+  }
+  const auto &index_switch_storage = *static_cast<const NodeIndexSwitch *>(
+      index_switch_node.storage);
+  if (index_switch_storage.items_num != *num_inputs) {
+    return {NodeSyncState::CanBeSynced, num_inputs};
+  }
+  return {NodeSyncState::Synced};
+}
+
 static BundleSyncState get_sync_state_separate_bundle(
     const SpaceNode &snode,
     const bNode &separate_bundle_node,
@@ -189,6 +254,31 @@ static ClosureSyncState get_sync_state_evaluate_closure(
     return {NodeSyncState::CanBeSynced, merged_signature};
   }
   return {NodeSyncState::Synced};
+}
+
+void sync_sockets_index_switch(SpaceNode &snode,
+                               bNode &index_switch_node,
+                               ReportList *reports,
+                               const bNodeSocket *src_index_socket)
+{
+  const IndexSwitchSyncState sync_state = get_sync_state_index_switch(
+      snode, index_switch_node, src_index_socket);
+  switch (sync_state.state) {
+    case NodeSyncState::Synced:
+      return;
+    case NodeSyncState::NoSyncSource:
+      BKE_report(reports, RPT_INFO, "No sync source found");
+      return;
+    case NodeSyncState::ConflictingSyncSources:
+      BKE_report(reports, RPT_INFO, "Found conflicting sync sources");
+      return;
+    case NodeSyncState::CanBeSynced:
+      break;
+  }
+
+  auto &storage = *static_cast<NodeIndexSwitch *>(index_switch_node.storage);
+  storage.items_num = *sync_state.num_inputs;
+  BKE_ntree_update_tag_node_property(snode.edittree, &index_switch_node);
 }
 
 void sync_sockets_separate_bundle(SpaceNode &snode,
@@ -563,6 +653,16 @@ static std::string get_closure_sync_tooltip(const nodes::ClosureSignature &old_s
   return fmt::to_string(string_buffer);
 }
 
+static std::string get_index_switch_sync_tooltip(const int old_num, const int new_num)
+{
+  if (new_num > old_num) {
+    const int num_added = new_num - old_num;
+    return fmt::format("{}: {}", TIP_("Add Inputs"), num_added);
+  }
+  const int num_removed = old_num - new_num;
+  return fmt::format("{}: {}", TIP_("Remove Inputs"), num_removed);
+}
+
 void sync_node(bContext &C, bNode &node, ReportList *reports)
 {
   const bke::bNodeZoneType &closure_zone_type = *bke::zone_type_by_node_type(NODE_CLOSURE_OUTPUT);
@@ -591,6 +691,9 @@ void sync_node(bContext &C, bNode &node, ReportList *reports)
     {
       sync_sockets_closure(snode, *closure_input_node, closure_output_node, reports);
     }
+  }
+  else if (node.is_type("GeometryNodeIndexSwitch")) {
+    sync_sockets_index_switch(snode, node, reports);
   }
 }
 
@@ -637,6 +740,12 @@ std::string sync_node_description_get(const bContext &C, const bNode &node)
       return get_closure_sync_tooltip(old_signature, *new_signature);
     }
   }
+  else if (node.is_type("GeometryNodeIndexSwitch")) {
+    const auto &storage = *static_cast<const NodeIndexSwitch *>(node.storage);
+    if (const std::optional<int> new_num = get_sync_state_index_switch(*snode, node).num_inputs) {
+      return get_index_switch_sync_tooltip(storage.items_num, *new_num);
+    }
+  }
   return "";
 }
 
@@ -659,6 +768,9 @@ bool node_can_sync_sockets(const bContext &C, const bNodeTree & /*tree*/, const 
     }
     if (node.is_type("NodeSeparateBundle")) {
       return get_sync_state_separate_bundle(*snode, node).source_signature.has_value();
+    }
+    if (node.is_type("GeometryNodeIndexSwitch")) {
+      return get_sync_state_index_switch(*snode, node).state == NodeSyncState::CanBeSynced;
     }
     return false;
   });

@@ -48,5 +48,9 @@ void sync_sockets_closure(SpaceNode &snode,
                           bNode &closure_output_node,
                           ReportList *reports,
                           const bNodeSocket *src_closure_socket = nullptr);
+void sync_sockets_index_switch(SpaceNode &snode,
+                               bNode &index_switch_node,
+                               ReportList *reports,
+                               const bNodeSocket *src_index_socket = nullptr);
 
 }  // namespace blender::nodes
