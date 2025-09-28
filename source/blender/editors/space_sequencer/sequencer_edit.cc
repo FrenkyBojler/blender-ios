@@ -1950,7 +1950,7 @@ void SEQUENCER_OT_split(wmOperatorType *ot)
       ot->srna,
       "ignore_connections",
       false,
-      "Ignore Connected",
+      "Ignore Connections",
       "Don't propagate split to connected strips");
 }
 
