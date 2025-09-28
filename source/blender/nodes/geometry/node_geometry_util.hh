@@ -87,18 +87,21 @@ void node_geo_exec_with_missing_openvdb(GeoNodeExecParams &params);
 
 void draw_data_blocks(const bContext *C, uiLayout *layout, PointerRNA &bake_rna);
 
-/* Utility for grid-based field evaluation. */
-float grid_map_coordinate(const float x,
-                          const float in_min,
-                          const float in_max,
-                          const float out_min,
-                          const float out_max);
 
 class Grid3DFieldContext : public FieldContext {
  private:
   int3 resolution_;
   float3 bounds_min_;
   float3 bounds_max_;
+
+  static float grid_map_coordinate(const float x,
+                                   const float in_min,
+                                   const float in_max,
+                                   const float out_min,
+                                   const float out_max)
+  {
+    return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
+  }
 
  public:
   Grid3DFieldContext(const int3 resolution, const float3 bounds_min, const float3 bounds_max)
