@@ -35,7 +35,7 @@
  * Terms
  * =====
  *
- * - Synchronized Selection (#BMesh::uv_select_sync_valid)
+ * - Synchronized Selection (abbreviated to "sync"). See #BMesh::uv_select_sync_valid.
  *   When the UV synchronized data is valid, it means there is a valid relationship
  *   between the UV selection flags (#BM_ELEM_SELECT_UV & #BM_ELEM_SELECT_UV_EDGE)
  *   and the meshes selection (#BM_ELEM_SELECT_UV).
@@ -47,7 +47,7 @@
  *     Synchronizing in this direction may be lossy, although (depending on the operation),
  *     support for maintaining a synchronized selection may be possible.
  *
- * - Flushing Selection
+ * - Flushing Selection ("flush")
  *   When an element of selected or de-selected, the selection state
  *   of connected geometry may change too.
  *   So, de-selecting a vertex must de-select all faces that use that vertex.
@@ -85,8 +85,8 @@
  * since UV's are part of the faces (there is no such thing as a hidden face-corner)
  * and any hidden edge or vertex causes connected faces to be hidden.
  *
- * Flushing
- * ========
+ * UV Selection Flushing
+ * =====================
  *
  * Selection setting functions flush down (unless the `_noflush(...)` version is used),
  * this means selecting a face also selects all verts & edges,
