@@ -204,7 +204,7 @@ void BM_loop_vert_uvselect_set_noflush(BMesh *bm, BMLoop *l, bool select);
  *   NOTE(@ideasman42): It's worth noting that in this case clearing the selection is "lossy",
  *   users may wish that all selection operations would handle UV selection data too.
  *   Supporting additional operations is always possible, at the time of writing it's
- *   practical to do so, see: #131642 design task for details.
+ *   impractical to do so, see: #131642 design task for details.
  *
  * Internally this mark the UV selection data as invalid,
  * using the mesh selection as the "source-of-truth".
