@@ -109,7 +109,7 @@ class Grid3DFieldContext : public FieldContext {
   {
   }
 
-  int64_t points_num() const
+  int64_t voxel_num() const
   {
     return int64_t(resolution_.x) * int64_t(resolution_.y) * int64_t(resolution_.z);
   }
@@ -127,7 +127,7 @@ class Grid3DFieldContext : public FieldContext {
       return {};
     }
 
-    Array<float3> positions(this->points_num());
+    Array<float3> positions(this->voxel_num());
 
     threading::parallel_for(IndexRange(resolution_.x), 1, [&](const IndexRange x_range) {
       /* Start indexing at current X slice. */
