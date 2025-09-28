@@ -8,6 +8,7 @@
 
 #include "BKE_attribute_math.hh"
 #include "BKE_volume_grid.hh"
+#include "BKE_volume_grid_fields.hh"
 #include "BKE_volume_openvdb.hh"
 
 #include "NOD_geo_field_to_grid.hh"
@@ -15,6 +16,11 @@
 #include "NOD_socket.hh"
 #include "NOD_socket_items_blend.hh"
 #include "NOD_socket_items_ops.hh"
+
+#include "FN_multi_function.hh"
+#include "FN_multi_function_builder.hh"
+
+#include "../intern/volume_grid_function_eval.hh"
 
 #include "UI_interface_layout.hh"
 #include "UI_resources.hh"
@@ -123,15 +129,16 @@ static void node_geo_exec(GeoNodeExecParams params)
 #ifdef WITH_OPENVDB
   const NodeFieldToGrid &storage = node_storage(params.node());
   const eNodeSocketDatatype data_type = eNodeSocketDatatype(storage.data_type);
+  const Span<FieldToGridItem> items = storage.items_span();
 
-  // Handle different data types using template dispatch
+  /* Handle different data types using template dispatch. */
   bke::attribute_math::convert_to_static_type(
       *bke::socket_type_to_geo_nodes_base_cpp_type(data_type), [&](auto type_tag) {
         using ValueT = decltype(type_tag);
         using type_traits = typename bke::VolumeGridTraits<ValueT>;
 
         if constexpr (!std::is_same_v<typename type_traits::BlenderType, void>) {
-          // Get input grid for topology and transform
+          /* Get input grid for topology and transform. */
           const auto input_grid = params.extract_input<bke::VolumeGrid<ValueT>>("Grid");
           if (!input_grid) {
             params.set_default_remaining_outputs();
@@ -141,76 +148,47 @@ static void node_geo_exec(GeoNodeExecParams params)
           bke::VolumeTreeAccessToken token;
           const auto &source_grid = input_grid.grid(token);
 
-          // Get grid bounds and resolution from the source grid
-          const openvdb::math::CoordBBox bbox = source_grid.evalActiveVoxelBoundingBox();
-          if (bbox.empty()) {
-            params.set_default_remaining_outputs();
-            return;
-          }
-
-          const int3 resolution = int3(bbox.dim().x(), bbox.dim().y(), bbox.dim().z());
-          const openvdb::math::Vec3d min_world = source_grid.transform().indexToWorld(bbox.min());
-          const openvdb::math::Vec3d max_world = source_grid.transform().indexToWorld(bbox.max());
-          const float3 bounds_min = float3(min_world.x(), min_world.y(), min_world.z());
-          const float3 bounds_max = float3(max_world.x(), max_world.y(), max_world.z());
-
-          /* Evaluate fields on the grid topology for each item. */
-          blender::nodes::Grid3DFieldContext context(resolution, bounds_min, bounds_max);
-          
-          const Span<FieldToGridItem> items = storage.items_span();
+          /* For each field item, evaluate the field using the grid's topology. */
           for (const int i : items.index_range()) {
             const FieldToGridItem &item = items[i];
             const std::string identifier = FieldToGridItemsAccessor::socket_identifier_for_item(item);
             const std::string field_identifier = identifier + "_field";
             const std::string grid_identifier = identifier + "_grid";
 
+            /* Get the field input for this item. */
             Field<typename type_traits::BlenderType> input_field =
                 params.extract_input<Field<typename type_traits::BlenderType>>(field_identifier);
 
-            FieldEvaluator evaluator(context, context.points_num());
-            Array<typename type_traits::BlenderType> values(context.points_num());
-            evaluator.add_with_destination(std::move(input_field), values.as_mutable_span());
-            evaluator.evaluate();
-
-            /* Store resulting values in openvdb grid. */
+            /* Create output grid with same transform and topology as input. */
             using OutputTreeType = typename type_traits::TreeType;
             using OutputGridType = openvdb::Grid<OutputTreeType>;
             auto output_grid = OutputGridType::create(
                 type_traits::to_openvdb(typename type_traits::BlenderType{}));
             output_grid->setTransform(source_grid.transform().copy());
+            output_grid->tree().topologyUnion(source_grid.tree());
 
-            Array<typename type_traits::PrimitiveType> openvdb_values(values.size());
-            for (int64_t j = 0; j < values.size(); j++) {
-              openvdb_values[j] = type_traits::to_openvdb(values[j]);
-            }
-
-            using DenseType = openvdb::tools::Dense<typename type_traits::PrimitiveType,
-                                                    openvdb::tools::LayoutZYX>;
-            DenseType dense_grid{bbox, openvdb_values.data()};
-
-            /* Force all voxels to be active. OpenVDB only stores non-background values,
-             * so use extreme tolerance values to ensure all field values are considered "different".
-             */
-            if constexpr (std::is_same_v<typename type_traits::BlenderType, float>) {
-              openvdb::tools::copyFromDense(
-                  dense_grid, *output_grid, std::numeric_limits<float>::lowest());
-            }
-            else if constexpr (std::is_same_v<typename type_traits::BlenderType, int>) {
-              openvdb::tools::copyFromDense(
-                  dense_grid, *output_grid, std::numeric_limits<int>::lowest());
-            }
-            else if constexpr (std::is_same_v<typename type_traits::BlenderType, bool>) {
-              openvdb::tools::copyFromDense(dense_grid, *output_grid, false);
-              /* Boolean grids need manual activation since there are only two possible values. */
-              output_grid->tree().sparseFill(bbox, output_grid->background(), /*active=*/true);
-            }
-            else if constexpr (std::is_same_v<typename type_traits::BlenderType, float3>) {
-              openvdb::tools::copyFromDense(
-                  dense_grid, *output_grid, openvdb::Vec3f(std::numeric_limits<float>::lowest()));
+            /* Evaluate field on active voxels using VoxelFieldContext. */
+            Vector<openvdb::Coord> voxel_coords;
+            for (auto iter = source_grid.tree().cbeginValueOn(); iter; ++iter) {
+              voxel_coords.append(iter.getCoord());
             }
 
-            bke::VolumeGrid<ValueT> volume_grid(std::move(output_grid));
-            params.set_output(grid_identifier, std::move(volume_grid));
+            if (!voxel_coords.is_empty()) {
+              bke::VoxelFieldContext field_context{source_grid.transform(), voxel_coords};
+              FieldEvaluator evaluator{field_context, voxel_coords.size()};
+              Array<typename type_traits::BlenderType> values(voxel_coords.size());
+              evaluator.add_with_destination(input_field, values.as_mutable_span());
+              evaluator.evaluate();
+
+              /* Write values to output grid. */
+              auto accessor = output_grid->getAccessor();
+              for (int64_t j = 0; j < voxel_coords.size(); j++) {
+                accessor.setValue(voxel_coords[j], type_traits::to_openvdb(values[j]));
+              }
+            }
+
+            bke::VolumeGrid<ValueT> result_grid(std::move(output_grid));
+            params.set_output(grid_identifier, std::move(result_grid));
           }
         }
       });
