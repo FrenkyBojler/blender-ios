@@ -651,6 +651,7 @@ static const EnumPropertyItem node_cryptomatte_layer_name_items[] = {
 #  include "NOD_geo_bundle.hh"
 #  include "NOD_geo_capture_attribute.hh"
 #  include "NOD_geo_closure.hh"
+#  include "NOD_geo_field_to_grid.hh"
 #  include "NOD_geo_foreach_geometry_element.hh"
 #  include "NOD_geo_index_switch.hh"
 #  include "NOD_geo_menu_switch.hh"
@@ -685,6 +686,7 @@ using blender::nodes::CombineBundleItemsAccessor;
 using blender::nodes::EvaluateClosureInputItemsAccessor;
 using blender::nodes::EvaluateClosureOutputItemsAccessor;
 using blender::nodes::FileOutputItemsAccessor;
+using blender::nodes::FieldToGridItemsAccessor;
 using blender::nodes::ForeachGeometryElementGenerationItemsAccessor;
 using blender::nodes::ForeachGeometryElementInputItemsAccessor;
 using blender::nodes::ForeachGeometryElementMainItemsAccessor;
@@ -3835,6 +3837,19 @@ static const EnumPropertyItem *rna_Node_ItemArray_structure_type_itemf(bContext 
 static IndexSwitchItem *rna_NodeIndexSwitchItems_new(ID *id, bNode *node, Main *bmain)
 {
   IndexSwitchItem *new_item = blender::nodes::socket_items::add_item<IndexSwitchItemsAccessor>(
+      *node);
+
+  bNodeTree *ntree = reinterpret_cast<bNodeTree *>(id);
+  BKE_ntree_update_tag_node_property(ntree, node);
+  BKE_main_ensure_invariants(*bmain, ntree->id);
+  WM_main_add_notifier(NC_NODE | NA_EDITED, ntree);
+
+  return new_item;
+}
+
+static FieldToGridItem *rna_NodeFieldToGridItems_new(ID *id, bNode *node, Main *bmain)
+{
+  FieldToGridItem *new_item = blender::nodes::socket_items::add_item<FieldToGridItemsAccessor>(
       *node);
 
   bNodeTree *ntree = reinterpret_cast<bNodeTree *>(id);
@@ -8082,6 +8097,45 @@ static void rna_def_geo_index_switch_items(BlenderRNA *brna)
   rna_def_node_item_array_common_functions(srna, "IndexSwitchItem", "IndexSwitchItemsAccessor");
 }
 
+static void rna_def_field_to_grid_item(BlenderRNA *brna)
+{
+  PropertyRNA *prop;
+
+  StructRNA *srna = RNA_def_struct(brna, "FieldToGridItem", nullptr);
+  RNA_def_struct_ui_text(srna, "Field to Grid Item", "");
+  RNA_def_struct_sdna(srna, "FieldToGridItem");
+
+  prop = RNA_def_property(srna, "identifier", PROP_INT, PROP_NONE);
+  RNA_def_property_ui_range(prop, 0, INT32_MAX, 1, -1);
+  RNA_def_property_ui_text(prop, "Identifier", "Consistent identifier used for the item");
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_update(prop, NC_NODE, "rna_Node_update");
+
+  prop = RNA_def_property(srna, "name", PROP_STRING, PROP_NONE);
+  RNA_def_property_ui_text(prop, "Name", "Name of the field to evaluate");
+  RNA_def_property_update(prop, NC_NODE, "rna_Node_update");
+}
+
+static void rna_def_geo_field_to_grid_items(BlenderRNA *brna)
+{
+  StructRNA *srna;
+  FunctionRNA *func;
+  PropertyRNA *parm;
+
+  srna = RNA_def_struct(brna, "NodeFieldToGridItems", nullptr);
+  RNA_def_struct_sdna(srna, "bNode");
+  RNA_def_struct_ui_text(srna, "Items", "Collection of Field to Grid items");
+
+  func = RNA_def_function(srna, "new", "rna_NodeFieldToGridItems_new");
+  RNA_def_function_ui_description(func, "Add an item at the end");
+  RNA_def_function_flag(func, FUNC_USE_SELF_ID | FUNC_USE_MAIN);
+  /* Return value. */
+  parm = RNA_def_pointer(func, "item", "FieldToGridItem", "Item", "New item");
+  RNA_def_function_return(func, parm);
+
+  rna_def_node_item_array_common_functions(srna, "FieldToGridItem", "FieldToGridItemsAccessor");
+}
+
 static void def_geo_index_switch(BlenderRNA *brna, StructRNA *srna)
 {
   PropertyRNA *prop;
@@ -8096,6 +8150,22 @@ static void def_geo_index_switch(BlenderRNA *brna, StructRNA *srna)
   RNA_def_property_struct_type(prop, "IndexSwitchItem");
   RNA_def_property_ui_text(prop, "Items", "");
   RNA_def_property_srna(prop, "NodeIndexSwitchItems");
+}
+
+static void def_geo_field_to_grid(BlenderRNA *brna, StructRNA *srna)
+{
+  PropertyRNA *prop;
+
+  rna_def_field_to_grid_item(brna);
+  rna_def_geo_field_to_grid_items(brna);
+
+  RNA_def_struct_sdna_from(srna, "NodeFieldToGrid", "storage");
+
+  prop = RNA_def_property(srna, "field_to_grid_items", PROP_COLLECTION, PROP_NONE);
+  RNA_def_property_collection_sdna(prop, nullptr, "items", "items_num");
+  RNA_def_property_struct_type(prop, "FieldToGridItem");
+  RNA_def_property_ui_text(prop, "Items", "");
+  RNA_def_property_srna(prop, "NodeFieldToGridItems");
 }
 
 static void rna_def_fn_format_string_item(BlenderRNA *brna)
@@ -10063,7 +10133,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("GeometryNode", "GeometryNodeFieldAverage");
   define("GeometryNode", "GeometryNodeFieldMinAndMax");
   define("GeometryNode", "GeometryNodeFieldOnDomain");
-  define("GeometryNode", "GeometryNodeEvaluateOnGrid");
+  define("GeometryNode", "GeometryNodeFieldToGrid", def_geo_field_to_grid);
   define("GeometryNode", "GeometryNodeFieldVariance");
   define("GeometryNode", "GeometryNodeFillCurve");
   define("GeometryNode", "GeometryNodeFilletCurve");

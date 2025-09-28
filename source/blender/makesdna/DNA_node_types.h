@@ -2408,6 +2408,29 @@ typedef struct NodeIndexSwitch {
 #endif
 } NodeIndexSwitch;
 
+typedef struct FieldToGridItem {
+  /** Generated unique identifier which stays the same even when the item order or names change. */
+  int identifier;
+  /** Name for the field input and grid output. */
+  char name[64];
+} FieldToGridItem;
+
+typedef struct NodeFieldToGrid {
+  FieldToGridItem *items;
+  int items_num;
+
+  /** #eNodeSocketDatatype. */
+  int data_type;
+  /** Identifier to give to the next item. */
+  int next_identifier;
+
+  char _pad[4];
+#ifdef __cplusplus
+  blender::Span<FieldToGridItem> items_span() const;
+  blender::MutableSpan<FieldToGridItem> items_span();
+#endif
+} NodeFieldToGrid;
+
 typedef struct NodeGeometryDistributePointsInVolume {
   /** #GeometryNodePointDistributeVolumeMode. */
   uint8_t mode;
