@@ -457,6 +457,12 @@ struct WriteData {
     std::unique_ptr<blender::dna::pointers::PointersInDNA> sdna_pointers;
     /**
      * Maps each runtime-pointer to a unique identifier that's written in the .blend file.
+     *
+     * Currently, no pointers are ever removed from this map during writing of a single file.
+     * Correctness wise, this is fine. However, when some data-blocks write temporary addresses,
+     * those may be reused across IDs while actually pointing to different data. This can break
+     * address id stability in some situations. In the future this could be improved by clearing
+     * such temporary pointers before writing the next data-block.
      */
     blender::Map<const void *, uint64_t> pointer_map;
     /**
