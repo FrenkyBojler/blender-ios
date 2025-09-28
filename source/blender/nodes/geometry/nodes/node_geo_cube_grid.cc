@@ -114,23 +114,23 @@ static void node_geo_exec(GeoNodeExecParams params)
         using GridType = openvdb::Grid<TreeType>;
 
         if constexpr (!std::is_same_v<typename type_traits::BlenderType, void>) {
-          const typename type_traits::BlenderType background =
-              params.extract_input<typename type_traits::BlenderType>("Background");
+          using BlenderType = typename type_traits::BlenderType;
+          
+          const BlenderType background = params.extract_input<BlenderType>("Background");
 
-          Field<typename type_traits::BlenderType> input_field =
-              params.extract_input<Field<typename type_traits::BlenderType>>("Value");
+          Field<BlenderType> input_field = params.extract_input<Field<BlenderType>>("Value");
 
           /* Evaluate input field on a 3D grid. */
           blender::nodes::Grid3DFieldContext context(resolution, bounds_min, bounds_max);
           FieldEvaluator evaluator(context, context.voxel_num());
-          Array<typename type_traits::BlenderType> values(context.voxel_num());
+          Array<BlenderType> values(context.voxel_num());
           evaluator.add_with_destination(std::move(input_field), values.as_mutable_span());
           evaluator.evaluate();
 
           /* Store resulting values in openvdb grid. */
           Array<typename type_traits::PrimitiveType> openvdb_values(values.size());
-          for (int64_t i = 0; i < values.size(); i++) {
-            openvdb_values[i] = type_traits::to_openvdb(values[i]);
+          for (const int64_t index : values.index_range()) {
+            openvdb_values[index] = type_traits::to_openvdb(values[index]);
           }
 
           auto openvdb_grid = GridType::create(type_traits::to_openvdb(background));
@@ -144,15 +144,15 @@ static void node_geo_exec(GeoNodeExecParams params)
           /* Force all voxels to be active. OpenVDB only stores non-background values,
            * so use extreme tolerance values to ensure all field values are considered "different".
            */
-          if constexpr (std::is_same_v<typename type_traits::BlenderType, float>) {
+          if constexpr (std::is_same_v<BlenderType, float>) {
             openvdb::tools::copyFromDense(
                 dense_grid, *openvdb_grid, std::numeric_limits<float>::lowest());
           }
-          else if constexpr (std::is_same_v<typename type_traits::BlenderType, int>) {
+          else if constexpr (std::is_same_v<BlenderType, int>) {
             openvdb::tools::copyFromDense(
                 dense_grid, *openvdb_grid, std::numeric_limits<int>::lowest());
           }
-          else if constexpr (std::is_same_v<typename type_traits::BlenderType, bool>) {
+          else if constexpr (std::is_same_v<BlenderType, bool>) {
             openvdb::tools::copyFromDense(dense_grid, *openvdb_grid, false);
             /* Boolean grids need manual activation since there are only two possible values. */
             openvdb_grid->tree().sparseFill(
@@ -161,7 +161,7 @@ static void node_geo_exec(GeoNodeExecParams params)
                 openvdb_grid->background(),
                 /*active=*/true);
           }
-          else if constexpr (std::is_same_v<typename type_traits::BlenderType, float3>) {
+          else if constexpr (std::is_same_v<BlenderType, float3>) {
             openvdb::tools::copyFromDense(
                 dense_grid, *openvdb_grid, openvdb::Vec3f(std::numeric_limits<float>::lowest()));
           }
