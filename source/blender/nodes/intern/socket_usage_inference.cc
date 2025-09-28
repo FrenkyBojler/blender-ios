@@ -49,14 +49,21 @@ struct SocketUsageInferencer {
    */
   Stack<SocketInContext> usage_tasks_;
 
-  Stack<SocketInContext> disabled_output_tasks_;
-  Map<SocketInContext, bool> all_socket_disable_states_;
-
   /**
    * If the usage of a socket is known, it is added to this map. Sockets not in this map are not
    * known yet.
    */
   Map<SocketInContext, bool> all_socket_usages_;
+
+  /**
+   * Stack of tasks that allows depth-first traversal of the tree to check if outputs are disabled.
+   */
+  Stack<SocketInContext> disabled_output_tasks_;
+
+  /**
+   * Contains whether a socket is disabled. Sockets not in this map are not known yet.
+   */
+  Map<SocketInContext, bool> all_socket_disable_states_;
 
   /**
    * Treat top-level nodes as if they are never muted for usage-inferencing. This is used when
