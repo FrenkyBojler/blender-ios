@@ -17,6 +17,7 @@
 
 #include "DNA_ID.h"
 #include "DNA_brush_types.h"
+#include "DNA_camera_types.h"
 #include "DNA_curves_types.h"
 #include "DNA_genfile.h"
 #include "DNA_grease_pencil_types.h"
@@ -71,6 +72,8 @@
 #include "SEQ_sequencer.hh"
 
 #include "WM_api.hh"
+
+#include "AS_asset_library.hh"
 
 #include "readfile.hh"
 
@@ -3667,6 +3670,13 @@ void blo_do_versions_500(FileData *fd, Library * /*lib*/, Main *bmain)
     do_version_adaptive_subdivision(bmain);
   }
 
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 95)) {
+    LISTBASE_FOREACH (Camera *, camera, &bmain->cameras) {
+      float default_col[4] = {0.5f, 0.5f, 0.5f, 1.0f};
+      copy_v4_v4(camera->composition_guide_color, default_col);
+    }
+  }
+
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a MAIN_VERSION_FILE_ATLEAST check.
@@ -3679,4 +3689,7 @@ void blo_do_versions_500(FileData *fd, Library * /*lib*/, Main *bmain)
   LISTBASE_FOREACH (Mesh *, mesh, &bmain->meshes) {
     bke::mesh_freestyle_marks_to_generic(*mesh);
   }
+
+  /* TODO: Can be moved to subversion bump. */
+  AS_asset_library_import_method_ensure_valid(*bmain);
 }
