@@ -998,7 +998,7 @@ static void rna_def_udim_tile(BlenderRNA *brna)
       0,
       0,
       "Size",
-      "Width and height of the tile buffer in pixels, zero when image data can't be loaded",
+      "Width and height of the tile buffer in pixels, zero when image data cannot be loaded",
       0,
       0);
   RNA_def_property_subtype(prop, PROP_PIXEL);
@@ -1163,7 +1163,7 @@ static void rna_def_image(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "File Name", "Image/Movie file name (without data refreshing)");
 
   prop = RNA_def_property(srna, "file_format", PROP_ENUM, PROP_NONE);
-  RNA_def_property_enum_items(prop, rna_enum_image_type_items);
+  RNA_def_property_enum_items(prop, rna_enum_image_type_all_items);
   RNA_def_property_enum_funcs(
       prop, "rna_Image_file_format_get", "rna_Image_file_format_set", nullptr);
   RNA_def_property_ui_text(prop, "File Format", "Format used for re-saving this file");
@@ -1319,7 +1319,7 @@ static void rna_def_image(BlenderRNA *brna)
       0,
       0,
       "Size",
-      "Width and height of the image buffer in pixels, zero when image data can't be loaded",
+      "Width and height of the image buffer in pixels, zero when image data cannot be loaded",
       0,
       0);
   RNA_def_property_subtype(prop, PROP_PIXEL);

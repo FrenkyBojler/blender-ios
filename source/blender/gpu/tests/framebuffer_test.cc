@@ -27,7 +27,7 @@ static void test_framebuffer_clear_color_single_attachment()
   blender::gpu::Texture *texture = GPU_texture_create_2d(
       __func__, UNPACK2(size), 1, TextureFormat::SFLOAT_32_32_32_32, usage, nullptr);
 
-  GPUFrameBuffer *framebuffer = GPU_framebuffer_create(__func__);
+  gpu::FrameBuffer *framebuffer = GPU_framebuffer_create(__func__);
   GPU_framebuffer_ensure_config(&framebuffer,
                                 {GPU_ATTACHMENT_NONE, GPU_ATTACHMENT_TEXTURE(texture)});
   GPU_framebuffer_bind(framebuffer);
@@ -56,7 +56,7 @@ static void test_framebuffer_clear_color_multiple_attachments()
   blender::gpu::Texture *texture2 = GPU_texture_create_2d(
       __func__, UNPACK2(size), 1, TextureFormat::UINT_32_32_32_32, usage, nullptr);
 
-  GPUFrameBuffer *framebuffer = GPU_framebuffer_create(__func__);
+  gpu::FrameBuffer *framebuffer = GPU_framebuffer_create(__func__);
   GPU_framebuffer_ensure_config(
       &framebuffer,
       {GPU_ATTACHMENT_NONE, GPU_ATTACHMENT_TEXTURE(texture1), GPU_ATTACHMENT_TEXTURE(texture2)});
@@ -97,7 +97,7 @@ static void test_framebuffer_clear_multiple_color_multiple_attachments()
   blender::gpu::Texture *texture2 = GPU_texture_create_2d(
       __func__, UNPACK2(size), 1, TextureFormat::SFLOAT_32_32_32_32, usage, nullptr);
 
-  GPUFrameBuffer *framebuffer = GPU_framebuffer_create(__func__);
+  gpu::FrameBuffer *framebuffer = GPU_framebuffer_create(__func__);
   GPU_framebuffer_ensure_config(
       &framebuffer,
       {GPU_ATTACHMENT_NONE, GPU_ATTACHMENT_TEXTURE(texture1), GPU_ATTACHMENT_TEXTURE(texture2)});
@@ -133,7 +133,7 @@ static void test_framebuffer_clear_depth()
   blender::gpu::Texture *texture = GPU_texture_create_2d(
       __func__, UNPACK2(size), 1, TextureFormat::SFLOAT_32_DEPTH, usage, nullptr);
 
-  GPUFrameBuffer *framebuffer = GPU_framebuffer_create(__func__);
+  gpu::FrameBuffer *framebuffer = GPU_framebuffer_create(__func__);
   GPU_framebuffer_ensure_config(&framebuffer, {GPU_ATTACHMENT_TEXTURE(texture)});
   GPU_framebuffer_bind(framebuffer);
 
@@ -161,7 +161,7 @@ static void test_framebuffer_scissor_test()
   blender::gpu::Texture *texture = GPU_texture_create_2d(
       __func__, UNPACK2(size), 1, TextureFormat::SFLOAT_32_32_32_32, usage, nullptr);
 
-  GPUFrameBuffer *framebuffer = GPU_framebuffer_create(__func__);
+  gpu::FrameBuffer *framebuffer = GPU_framebuffer_create(__func__);
   GPU_framebuffer_ensure_config(&framebuffer,
                                 {GPU_ATTACHMENT_NONE, GPU_ATTACHMENT_TEXTURE(texture)});
   GPU_framebuffer_bind(framebuffer);
@@ -212,7 +212,7 @@ static void test_framebuffer_cube()
       {0.0f, 0.0f, 0.5f, 1.0f},
       {0.0f, 0.0f, 1.0f, 1.0f},
   };
-  GPUFrameBuffer *framebuffers[6] = {nullptr};
+  gpu::FrameBuffer *framebuffers[6] = {nullptr};
 
   for (int i : IndexRange(6)) {
     GPU_framebuffer_ensure_config(&framebuffers[i],
@@ -263,7 +263,7 @@ static void test_framebuffer_multi_viewport()
   blender::gpu::Texture *texture = GPU_texture_create_2d_array(
       __func__, UNPACK2(size), layers, 1, TextureFormat::SINT_32_32, usage, nullptr);
 
-  GPUFrameBuffer *framebuffer = GPU_framebuffer_create(__func__);
+  gpu::FrameBuffer *framebuffer = GPU_framebuffer_create(__func__);
   GPU_framebuffer_ensure_config(&framebuffer,
                                 {GPU_ATTACHMENT_NONE, GPU_ATTACHMENT_TEXTURE(texture)});
   GPU_framebuffer_bind(framebuffer);
@@ -286,20 +286,16 @@ static void test_framebuffer_multi_viewport()
   create_info.builtins(BuiltinBits::VIEWPORT_INDEX | BuiltinBits::LAYER);
   create_info.fragment_out(0, Type::int2_t, "out_value");
 
-  GPUShader *shader = GPU_shader_create_from_info(
+  gpu::Shader *shader = GPU_shader_create_from_info(
       reinterpret_cast<GPUShaderCreateInfo *>(&create_info));
 
-  /* TODO(fclem): remove this boilerplate. */
-  GPUVertFormat format{};
-  GPU_vertformat_attr_add(&format, "dummy", VertAttrType::UINT_32);
-  VertBuf *verts = GPU_vertbuf_create_with_format(format);
-  GPU_vertbuf_data_alloc(*verts, 3);
-  Batch *batch = GPU_batch_create_ex(GPU_PRIM_TRIS, verts, nullptr, GPU_BATCH_OWNS_VBO);
+  int tri_count = size.x * size.y * layers;
+
+  Batch *batch = GPU_batch_create_procedural(GPU_PRIM_TRIS, tri_count * 3);
 
   GPU_batch_set_shader(batch, shader);
 
-  int tri_count = size.x * size.y * layers;
-  GPU_batch_draw_advanced(batch, 0, tri_count * 3, 0, 1);
+  GPU_batch_draw(batch);
 
   GPU_batch_discard(batch);
 
@@ -342,7 +338,7 @@ static void test_framebuffer_subpass_input()
   blender::gpu::Texture *texture_b = GPU_texture_create_2d(
       __func__, UNPACK2(size), 1, TextureFormat::SINT_32, usage, nullptr);
 
-  GPUFrameBuffer *framebuffer = GPU_framebuffer_create(__func__);
+  gpu::FrameBuffer *framebuffer = GPU_framebuffer_create(__func__);
   GPU_framebuffer_ensure_config(
       &framebuffer,
       {GPU_ATTACHMENT_NONE, GPU_ATTACHMENT_TEXTURE(texture_a), GPU_ATTACHMENT_TEXTURE(texture_b)});
@@ -357,7 +353,7 @@ static void test_framebuffer_subpass_input()
   create_info_write.fragment_source("gpu_framebuffer_subpass_input_test.glsl");
   create_info_write.fragment_out(0, Type::int_t, "out_value", DualBlend::NONE, 0);
 
-  GPUShader *shader_write = GPU_shader_create_from_info(
+  gpu::Shader *shader_write = GPU_shader_create_from_info(
       reinterpret_cast<GPUShaderCreateInfo *>(&create_info_write));
 
   ShaderCreateInfo create_info_read("");
@@ -367,15 +363,10 @@ static void test_framebuffer_subpass_input()
   create_info_read.subpass_in(0, Type::int_t, ImageType::Int2D, "in_value", 0);
   create_info_read.fragment_out(1, Type::int_t, "out_value");
 
-  GPUShader *shader_read = GPU_shader_create_from_info(
+  gpu::Shader *shader_read = GPU_shader_create_from_info(
       reinterpret_cast<GPUShaderCreateInfo *>(&create_info_read));
 
-  /* TODO(fclem): remove this boilerplate. */
-  GPUVertFormat format{};
-  GPU_vertformat_attr_add(&format, "dummy", VertAttrType::UINT_32);
-  VertBuf *verts = GPU_vertbuf_create_with_format(format);
-  GPU_vertbuf_data_alloc(*verts, 3);
-  Batch *batch = GPU_batch_create_ex(GPU_PRIM_TRIS, verts, nullptr, GPU_BATCH_OWNS_VBO);
+  Batch *batch = GPU_batch_create_procedural(GPU_PRIM_TRIS, 3);
 
   /* Metal Raster Order Group does not need that. */
   GPU_framebuffer_subpass_transition(

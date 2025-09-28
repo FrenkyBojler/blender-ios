@@ -106,7 +106,7 @@ bool WM_platform_support_perform_checks()
 
   bool result = true;
 
-  eGPUSupportLevel support_level = GPU_platform_support_level();
+  GPUSupportLevel support_level = GPU_platform_support_level();
   const char *platform_key = GPU_platform_support_level_key();
 
   CLOG_INFO(&LOG, "Using GPU \"%s\"", GPU_platform_gpu_name());
@@ -119,6 +119,16 @@ bool WM_platform_support_perform_checks()
   {
     /* If it matches the user has confirmed and wishes to use it. */
     return result;
+  }
+
+  bool backend_detected = GPU_backend_get_type() != GPU_BACKEND_NONE;
+  bool show_message = ELEM(
+      support_level, GPU_SUPPORT_LEVEL_LIMITED, GPU_SUPPORT_LEVEL_UNSUPPORTED);
+  bool show_continue = backend_detected && support_level != GPU_SUPPORT_LEVEL_UNSUPPORTED;
+  bool show_link = backend_detected;
+  link[0] = '\0';
+  if (show_link) {
+    wm_platform_support_create_link(link);
   }
 
   /* Update the message and link based on the found support level. */
@@ -138,9 +148,10 @@ bool WM_platform_support_perform_checks()
       STR_CONCAT(
           message,
           slen,
-          CTX_IFACE_(BLT_I18NCONTEXT_ID_WINDOWMANAGER,
-                     "Your graphics card or driver has limited support. It may work, but with "
-                     "issues."));
+          CTX_IFACE_(
+              BLT_I18NCONTEXT_ID_WINDOWMANAGER,
+              "Your graphics card or driver version has limited support. It may work, but with "
+              "issues."));
 
       /* TODO: Extra space is needed for the split function in GHOST_SystemX11. We should change
        * the behavior in GHOST_SystemX11. */
@@ -148,8 +159,9 @@ bool WM_platform_support_perform_checks()
       STR_CONCAT(
           message,
           slen,
-          CTX_IFACE_(BLT_I18NCONTEXT_ID_WINDOWMANAGER,
-                     "Newer graphics drivers may be available to improve Blender support."));
+          CTX_IFACE_(
+              BLT_I18NCONTEXT_ID_WINDOWMANAGER,
+              "Newer graphics drivers might be available with better Blender compatibility."));
       STR_CONCAT(message, slen, "\n \n");
       STR_CONCAT(message, slen, CTX_IFACE_(BLT_I18NCONTEXT_ID_WINDOWMANAGER, "Graphics card:\n"));
       STR_CONCAT(message, slen, GPU_platform_gpu_name());
@@ -189,13 +201,14 @@ bool WM_platform_support_perform_checks()
       STR_CONCAT(message,
                  slen,
                  CTX_IFACE_(BLT_I18NCONTEXT_ID_WINDOWMANAGER,
-                            "Your graphics card or driver is not supported."));
+                            "Your graphics card or driver version is not supported."));
       STR_CONCAT(message, slen, "\n \n");
       STR_CONCAT(
           message,
           slen,
-          CTX_IFACE_(BLT_I18NCONTEXT_ID_WINDOWMANAGER,
-                     "Newer graphics drivers may be available to improve Blender support."));
+          CTX_IFACE_(
+              BLT_I18NCONTEXT_ID_WINDOWMANAGER,
+              "Newer graphics drivers might be available with better Blender compatibility."));
 
       STR_CONCAT(message, slen, "\n \n");
       STR_CONCAT(message, slen, CTX_IFACE_(BLT_I18NCONTEXT_ID_WINDOWMANAGER, "Graphics card:\n"));
@@ -203,23 +216,15 @@ bool WM_platform_support_perform_checks()
 #endif
       STR_CONCAT(message, slen, "\n \n");
 
-      STR_CONCAT(message,
-                 slen,
-                 CTX_IFACE_(BLT_I18NCONTEXT_ID_WINDOWMANAGER, "The program will now close."));
-      dialog_options = GHOST_DialogError;
-      result = false;
+      if (!show_continue) {
+        STR_CONCAT(message,
+                   slen,
+                   CTX_IFACE_(BLT_I18NCONTEXT_ID_WINDOWMANAGER, "Blender will now close."));
+        dialog_options = GHOST_DialogError;
+        result = false;
+      }
       break;
     }
-  }
-
-  bool backend_detected = GPU_backend_get_type() != GPU_BACKEND_NONE;
-  bool show_message = ELEM(
-      support_level, GPU_SUPPORT_LEVEL_LIMITED, GPU_SUPPORT_LEVEL_UNSUPPORTED);
-  bool show_continue = backend_detected;
-  bool show_link = backend_detected;
-  link[0] = '\0';
-  if (show_link) {
-    wm_platform_support_create_link(link);
   }
 
   if (show_message) {

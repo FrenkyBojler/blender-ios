@@ -23,11 +23,13 @@
 #include "BLI_math_vector.h"
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_string_utils.hh"
 #include "BLI_utildefines.h"
 
 #include "BLT_translation.hh"
 
+#include "BKE_action.hh"
 #include "BKE_armature.hh"
 #include "BKE_context.hh"
 #include "BKE_curve.hh"
@@ -48,6 +50,7 @@
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
 
+#include "ANIM_armature.hh"
 #include "ANIM_bone_collections.hh"
 #include "ANIM_keyframing.hh"
 
@@ -176,12 +179,20 @@ static void restrictbutton_r_lay_fn(bContext *C, void *poin, void * /*poin2*/)
   WM_event_add_notifier(C, NC_SCENE | ND_RENDER_OPTIONS, poin);
 }
 
-static void restrictbutton_bone_visibility_fn(bContext *C, void *poin, void * /*poin2*/)
+static void restrictbutton_bone_visibility_fn(bContext *C, void *poin, void *poin2)
 {
-  Bone *bone = (Bone *)poin;
-
+  const Object *ob = (Object *)poin;
+  bPoseChannel *pchan = (bPoseChannel *)poin2;
   if (CTX_wm_window(C)->eventstate->modifier & KM_SHIFT) {
-    restrictbutton_recursive_bone(bone, BONE_HIDDEN_P, (bone->flag & BONE_HIDDEN_P) != 0);
+    blender::animrig::pose_bone_descendent_iterator(
+        *ob->pose, *pchan, [&](bPoseChannel &descendent) {
+          if (pchan->drawflag & PCHAN_DRAW_HIDDEN) {
+            descendent.drawflag |= PCHAN_DRAW_HIDDEN;
+          }
+          else {
+            descendent.drawflag &= ~PCHAN_DRAW_HIDDEN;
+          }
+        });
   }
 }
 
@@ -710,7 +721,7 @@ static void namebutton_fn(bContext *C, void *tsep, char *oldname)
    * acceptable solution for now. */
   auto id_rename_helper = [bmain, tselem, oldname]() -> bool {
     std::string new_name = tselem->id->name + 2;
-    BLI_strncpy(tselem->id->name + 2, oldname, sizeof(tselem->id->name) - 2);
+    BLI_strncpy_utf8(tselem->id->name + 2, oldname, sizeof(tselem->id->name) - 2);
     return ED_id_rename(*bmain, *tselem->id, new_name);
   };
 
@@ -806,8 +817,8 @@ static void namebutton_fn(bContext *C, void *tsep, char *oldname)
             char newname[sizeof(ebone->name)];
 
             /* restore bone name */
-            STRNCPY(newname, ebone->name);
-            STRNCPY(ebone->name, oldname);
+            STRNCPY_UTF8(newname, ebone->name);
+            STRNCPY_UTF8(ebone->name, oldname);
             ED_armature_bone_rename(bmain, arm, oldname, newname);
             WM_msg_publish_rna_prop(mbus, &arm->id, ebone, EditBone, name);
             WM_event_add_notifier(C, NC_OBJECT | ND_POSE, nullptr);
@@ -829,8 +840,8 @@ static void namebutton_fn(bContext *C, void *tsep, char *oldname)
           tree_element_activate(C, tvc, te, OL_SETSEL_NORMAL, true);
 
           /* restore bone name */
-          STRNCPY(newname, bone->name);
-          STRNCPY(bone->name, oldname);
+          STRNCPY_UTF8(newname, bone->name);
+          STRNCPY_UTF8(bone->name, oldname);
           ED_armature_bone_rename(bmain, arm, oldname, newname);
           WM_msg_publish_rna_prop(mbus, &arm->id, bone, Bone, name);
           WM_event_add_notifier(C, NC_OBJECT | ND_POSE, nullptr);
@@ -853,8 +864,8 @@ static void namebutton_fn(bContext *C, void *tsep, char *oldname)
           BLI_assert(ob->type == OB_ARMATURE);
 
           /* restore bone name */
-          STRNCPY(newname, pchan->name);
-          STRNCPY(pchan->name, oldname);
+          STRNCPY_UTF8(newname, pchan->name);
+          STRNCPY_UTF8(pchan->name, oldname);
           ED_armature_bone_rename(bmain, static_cast<bArmature *>(ob->data), oldname, newname);
           WM_msg_publish_rna_prop(mbus, &arm->id, pchan->bone, Bone, name);
           WM_event_add_notifier(C, NC_OBJECT | ND_POSE, nullptr);
@@ -903,8 +914,8 @@ static void namebutton_fn(bContext *C, void *tsep, char *oldname)
 
           /* Restore old name. */
           char newname[sizeof(view_layer->name)];
-          STRNCPY(newname, view_layer->name);
-          STRNCPY(view_layer->name, oldname);
+          STRNCPY_UTF8(newname, view_layer->name);
+          STRNCPY_UTF8(view_layer->name, oldname);
 
           /* Rename, preserving animation and compositing data. */
           BKE_view_layer_rename(bmain, scene, view_layer, newname);
@@ -1036,10 +1047,8 @@ static void outliner_restrict_properties_enable_layer_collection_set(
         layer_collection_ptr, props->layer_collection_holdout);
   }
 
-  if (props_active->layer_collection_indirect_only) {
-    props_active->layer_collection_indirect_only = RNA_property_boolean_get(
-        layer_collection_ptr, props->layer_collection_indirect_only);
-  }
+  props_active->layer_collection_indirect_only = RNA_property_boolean_get(
+      layer_collection_ptr, props->layer_collection_indirect_only);
 
   if (props_active->layer_collection_hide_viewport) {
     props_active->layer_collection_hide_viewport = !RNA_property_boolean_get(
@@ -1134,7 +1143,7 @@ static void outliner_draw_restrictbuts(uiBlock *block,
 
     props.constraint_enable = RNA_struct_type_find_property(&RNA_Constraint, "mute");
 
-    props.bone_hide_viewport = RNA_struct_type_find_property(&RNA_Bone, "hide");
+    props.bone_hide_viewport = RNA_struct_type_find_property(&RNA_PoseBone, "hide");
 
     props.initialized = true;
   }
@@ -1400,7 +1409,7 @@ static void outliner_draw_restrictbuts(uiBlock *block,
         Object *ob = (Object *)tselem->id;
         bArmature *arm = static_cast<bArmature *>(ob->data);
 
-        PointerRNA ptr = RNA_pointer_create_discrete(&arm->id, &RNA_Bone, bone);
+        PointerRNA ptr = RNA_pointer_create_discrete(&arm->id, &RNA_PoseBone, pchan);
 
         if (space_outliner->show_restrict_flags & SO_RESTRICT_VIEWPORT) {
           bt = uiDefIconButR_prop(block,
@@ -1418,7 +1427,7 @@ static void outliner_draw_restrictbuts(uiBlock *block,
                                   0,
                                   TIP_("Restrict visibility in the 3D View\n"
                                        " \u2022 Shift to set children"));
-          UI_but_func_set(bt, restrictbutton_bone_visibility_fn, bone, nullptr);
+          UI_but_func_set(bt, restrictbutton_bone_visibility_fn, ob, pchan);
           UI_but_flag_enable(bt, UI_BUT_DRAG_LOCK);
           UI_but_drawflag_enable(bt, UI_BUT_ICON_REVERSE);
         }
@@ -2040,8 +2049,14 @@ static void outliner_draw_overrides_restrictbuts(Main *bmain,
                                UI_UNIT_X,
                                UI_UNIT_Y,
                                "");
+    /* "id" is used by the operator #ED_OT_lib_id_override_editable_toggle. */
+    PointerRNA idptr = RNA_id_pointer_create(&id);
+    UI_but_context_ptr_set(block, but, "id", &idptr);
+
+    /* "session_uid" is used to compare buttons (in redraws). */
     UI_but_context_int_set(block, but, "session_uid", id.session_uid);
     UI_but_func_identity_compare_set(but, outliner_but_identity_cmp_context_id_fn);
+
     UI_but_flag_enable(but, UI_BUT_DRAG_LOCK);
   }
 }
@@ -2318,7 +2333,7 @@ static void outliner_draw_mode_column_toggle(uiBlock *block,
       (ID_IS_OVERRIDE_LIBRARY_REAL(ob) &&
        (ob->id.override_library->flag & LIBOVERRIDE_FLAG_SYSTEM_DEFINED) != 0))
   {
-    UI_but_disable(but, "Can't edit library or non-editable override data");
+    UI_but_disable(but, "Cannot edit library or non-editable override data");
   }
 }
 
@@ -2555,6 +2570,9 @@ static BIFIconID tree_element_get_icon_from_id(const ID *id)
     case ID_LI:
       if (id->tag & ID_TAG_MISSING) {
         return ICON_LIBRARY_DATA_BROKEN;
+      }
+      else if (reinterpret_cast<const Library *>(id)->flag & LIBRARY_FLAG_IS_ARCHIVE) {
+        return ICON_PACKAGE;
       }
       else if (((Library *)id)->runtime->parent) {
         return ICON_LIBRARY_DATA_INDIRECT;
@@ -2860,8 +2878,16 @@ TreeElementIcon tree_element_get_icon(TreeStoreElem *tselem, TreeElement *te)
         const PointerRNA &ptr = te_rna_struct->get_pointer_rna();
 
         if (RNA_struct_is_ID(ptr.type)) {
-          data.drag_id = static_cast<ID *>(ptr.data);
-          data.icon = RNA_struct_ui_icon(ptr.type);
+          ID *id = static_cast<ID *>(ptr.data);
+          data.drag_id = id;
+          if (id && GS(id->name) == ID_LI &&
+              id_cast<Library *>(id)->flag & LIBRARY_FLAG_IS_ARCHIVE)
+          {
+            data.icon = ICON_PACKAGE;
+          }
+          else {
+            data.icon = RNA_struct_ui_icon(ptr.type);
+          }
         }
         else {
           data.icon = RNA_struct_ui_icon(ptr.type);
@@ -4003,6 +4029,7 @@ static void outliner_update_viewable_area(ARegion *region,
 void draw_outliner(const bContext *C, bool do_rebuild)
 {
   Main *mainvar = CTX_data_main(C);
+  WorkSpace *workspace = CTX_wm_workspace(C);
   ARegion *region = CTX_wm_region(C);
   View2D *v2d = &region->v2d;
   SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
@@ -4021,7 +4048,8 @@ void draw_outliner(const bContext *C, bool do_rebuild)
    * See `USE_OUTLINER_DRAW_CLAMPS_SCROLL_HACK` & #128346 for a full description. */
 
   if (do_rebuild) {
-    outliner_build_tree(mainvar, tvc.scene, tvc.view_layer, space_outliner, region); /* Always. */
+    outliner_build_tree(
+        mainvar, workspace, tvc.scene, tvc.view_layer, space_outliner, region); /* Always. */
 
     /* If global sync select is dirty, flag other outliners. */
     if (ED_outliner_select_sync_is_dirty(C)) {

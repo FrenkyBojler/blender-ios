@@ -145,6 +145,8 @@ struct State {
   bool is_image_render = false;
   /** True if rendering only to query the depth. Can be for auto-depth rotation. */
   bool is_depth_only_drawing = false;
+  /** Skip drawing particle systems. Prevents self-occlusion issues in Particle Edit mode. */
+  bool skip_particles = false;
   /** When drag-dropping material onto objects to assignment. */
   bool is_material_select = false;
   /** Whether we should render the background or leave it transparent. */
@@ -604,8 +606,8 @@ struct Resources : public select::SelectMap {
 
   /* Render Frame-buffers. Only used for multiplicative blending on top of the render. */
   /* TODO(fclem): Remove the usage of these somehow. This is against design. */
-  GPUFrameBuffer *render_fb = nullptr;
-  GPUFrameBuffer *render_in_front_fb = nullptr;
+  gpu::FrameBuffer *render_fb = nullptr;
+  gpu::FrameBuffer *render_in_front_fb = nullptr;
 
   /* Target containing line direction and data for line expansion and anti-aliasing. */
   TextureFromPool line_tx = {"line_tx"};

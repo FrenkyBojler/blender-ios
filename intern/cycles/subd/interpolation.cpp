@@ -75,7 +75,6 @@ void SubdAttributeInterpolation::setup()
 
 bool SubdAttributeInterpolation::support_interp_attribute(const Attribute &attr) const
 {
-  // TODO: Recompute UV tangent
   switch (attr.std) {
     /* Smooth normals are computed from derivatives, for linear interpolate. */
     case ATTR_STD_VERTEX_NORMAL:
@@ -478,7 +477,7 @@ template<typename T>
 void SubdAttributeInterpolation::setup_attribute_face(const Attribute &subd_attr,
                                                       Attribute &mesh_attr)
 {
-  /* Copy value from face to triangle .*/
+  /* Copy value from face to triangle. */
   SubdAttribute attr;
   const typename T::Type *subd_data = reinterpret_cast<const typename T::Type *>(subd_attr.data());
   typename T::Type *mesh_data = reinterpret_cast<typename T::Type *>(mesh_attr.data());

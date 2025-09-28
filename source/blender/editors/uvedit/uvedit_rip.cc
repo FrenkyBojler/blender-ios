@@ -884,7 +884,7 @@ static bool uv_rip_object(Scene *scene, Object *obedit, const float co[2], const
     }
   }
   if (changed) {
-    uvedit_deselect_flush(scene, bm);
+    uvedit_select_flush_from_verts(scene, bm, false);
   }
   return changed;
 }
@@ -916,7 +916,7 @@ static wmOperatorStatus uv_rip_exec(bContext *C, wmOperator *op)
 
   float aspx, aspy;
   {
-    /* Note that we only want to run this on the. */
+    /* Note that we only want to run this on the active object as this defines the UV image. */
     Object *obedit = CTX_data_edit_object(C);
     ED_uvedit_get_aspect(obedit, &aspx, &aspy);
   }
