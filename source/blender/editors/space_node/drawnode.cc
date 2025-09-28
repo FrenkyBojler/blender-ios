@@ -1094,13 +1094,6 @@ static void std_node_socket_draw(
   // int subtype = sock->typeinfo->subtype;
 
   const nodes::SocketDeclaration *socket_decl = sock->runtime->declaration;
-  if (socket_decl) {
-    if (socket_decl->custom_draw_fn) {
-      nodes::CustomSocketDrawParams params{*C, *layout, *tree, *node, *sock, *node_ptr, *ptr};
-      (*socket_decl->custom_draw_fn)(params);
-      return;
-    }
-  }
 
   if (sock->is_inactive()) {
     layout->active_set(false);
@@ -1142,7 +1135,7 @@ static void std_node_socket_draw(
   }
 
   const StringRefNull label = text;
-  text = (sock->flag & SOCK_HIDE_LABEL) ? "" : text;
+  text = (socket_decl && socket_decl->optional_label) ? "" : text;
 
   /* Some socket types draw the gizmo icon in a special way to look better. All others use a
    * fallback default code path. */
@@ -1155,7 +1148,7 @@ static void std_node_socket_draw(
       layout->prop(ptr, "default_value", DEFAULT_FLAGS, text, ICON_NONE);
       break;
     case SOCK_VECTOR:
-      if (sock->flag & SOCK_COMPACT) {
+      if (socket_decl && socket_decl->compact) {
         uiTemplateComponentMenu(layout, ptr, "default_value", text);
       }
       else {
@@ -1458,7 +1451,7 @@ void ED_init_standard_node_socket_type(blender::bke::bNodeSocketType *stype)
 void ED_init_node_socket_type_virtual(blender::bke::bNodeSocketType *stype)
 {
   using namespace blender::ed::space_node;
-  stype->draw = node_socket_button_label;
+  stype->draw = std_node_socket_draw;
   stype->draw_color = node_socket_virtual_draw_color;
   stype->draw_color_simple = node_socket_virtual_draw_color_simple;
 }
