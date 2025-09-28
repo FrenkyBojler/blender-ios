@@ -1486,7 +1486,11 @@ void BM_mesh_bm_to_me(Main *bmain, BMesh *bm, Mesh *mesh, const BMeshToMeshParam
   bool need_sharp_edge = false;
   bool need_sharp_face = false;
   bool need_uv_seams = false;
-  const bool need_uv_select = bm->uv_select_sync_valid;
+  const bool need_uv_select = (bm->uv_select_sync_valid &&
+                               /* Avoid redundant layer creation if there is no selection,
+                                * although a "Select All" / "De-select All" clears
+                                * #BMesh::uv_select_sync_valid so it's often not needed. */
+                               (bm->totvertsel != 0));
   Array<const BMVert *> vert_table;
   Array<const BMEdge *> edge_table;
   Array<const BMFace *> face_table;
