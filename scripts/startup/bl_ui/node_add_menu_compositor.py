@@ -100,6 +100,7 @@ class NODE_MT_compositor_node_color_adjust_base(node_add_menu.NodeMenu):
 
     def draw(self, _context):
         layout = self.layout
+        self.node_operator(layout, "CompositorNodeAgXViewTransform")
         self.node_operator(layout, "CompositorNodeBrightContrast")
         self.node_operator(layout, "CompositorNodeColorBalance")
         self.node_operator(layout, "CompositorNodeColorCorrection")

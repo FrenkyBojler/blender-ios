@@ -371,6 +371,7 @@ set(GLSL_SRC
   shaders/library/gpu_shader_compositor_summed_area_table_lib.glsl
   shaders/library/gpu_shader_compositor_texture_utilities.glsl
   shaders/library/gpu_shader_compositor_type_conversion.glsl
+  shaders/library/gpu_shader_compositor_agx_view_transform.glsl
 )
 
 set(GLSL_C)

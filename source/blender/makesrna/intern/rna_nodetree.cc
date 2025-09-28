@@ -9927,6 +9927,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("CompositorNode", "CompositorNodeVecBlur");
   define("CompositorNode", "CompositorNodeViewer", def_cmp_viewer);
   define("CompositorNode", "CompositorNodeZcombine");
+  define("CompositorNode", "CompositorNodeAgXViewTransform");
 
   define("TextureNode", "TextureNodeAt");
   define("TextureNode", "TextureNodeBricks", def_tex_bricks);
