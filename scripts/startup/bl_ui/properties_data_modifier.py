@@ -28,7 +28,7 @@ class ModifierAddMenu:
     MODIFIER_TYPES_I18N_CONTEXT = bpy.types.Modifier.bl_rna.properties["type"].translation_context
 
     @classmethod
-    def operator_modifier_add(cls, layout, mod_type, text=None):
+    def operator_modifier_add(cls, layout, mod_type, text=None, no_icon=False):
         label = text if text else cls.MODIFIER_TYPES_TO_LABELS[mod_type]
         layout.operator(
             "object.modifier_add",
@@ -36,16 +36,16 @@ class ModifierAddMenu:
             # Although these are operators, the label actually comes from an (enum) property,
             # so the property's translation context must be used here.
             text_ctxt=cls.MODIFIER_TYPES_I18N_CONTEXT,
-            icon=cls.MODIFIER_TYPES_TO_ICONS[mod_type],
+            icon='NONE' if no_icon else cls.MODIFIER_TYPES_TO_ICONS[mod_type],
         ).type = mod_type
 
     @classmethod
-    def operator_modifier_add_asset(cls, layout, name):
+    def operator_modifier_add_asset(cls, layout, name, icon='NONE'):
         props = layout.operator(
             "object.modifier_add_node_group",
             text=name,
             text_ctxt=cls.MODIFIER_TYPES_I18N_CONTEXT,
-            icon='NONE',
+            icon=icon,
         )
         props.asset_library_type = 'ESSENTIALS'
         props.asset_library_identifier = ""
@@ -147,15 +147,15 @@ class OBJECT_MT_modifier_add_generate(ModifierAddMenu, Menu):
         layout = self.layout
         ob_type = context.object.type
         if ob_type in {'MESH', 'CURVE', 'FONT', 'SURFACE'}:
-            self.operator_modifier_add_asset(layout, 'Array')
-            self.operator_modifier_add(layout, 'ARRAY', text=n_("Array (Legacy)"))
+            self.operator_modifier_add_asset(layout, 'Array', icon='MOD_ARRAY')
+            self.operator_modifier_add(layout, 'ARRAY', text=n_("Array (Legacy)"), no_icon=True)
             self.operator_modifier_add(layout, 'BEVEL')
         if ob_type == 'MESH':
             self.operator_modifier_add(layout, 'BOOLEAN')
         if ob_type in {'MESH', 'CURVE', 'FONT', 'SURFACE'}:
             self.operator_modifier_add(layout, 'BUILD')
-            self.operator_modifier_add(layout, 'DECIMATE')
             self.operator_modifier_add_asset(layout, n_('Curve to Tube'))
+            self.operator_modifier_add(layout, 'DECIMATE')
             self.operator_modifier_add(layout, 'EDGE_SPLIT')
         if ob_type == 'MESH':
             self.operator_modifier_add(layout, 'MASK')
@@ -167,11 +167,11 @@ class OBJECT_MT_modifier_add_generate(ModifierAddMenu, Menu):
             self.operator_modifier_add(layout, 'MULTIRES')
         if ob_type in {'MESH', 'CURVE', 'FONT', 'SURFACE'}:
             self.operator_modifier_add(layout, 'REMESH')
+            self.operator_modifier_add_asset(layout, n_('Scatter on Surface'))
             self.operator_modifier_add(layout, 'SCREW')
         if ob_type == 'MESH':
             self.operator_modifier_add(layout, 'SKIN')
         if ob_type in {'MESH', 'CURVE', 'FONT', 'SURFACE'}:
-            self.operator_modifier_add_asset(layout, n_('Scatter on Surface'))
             self.operator_modifier_add(layout, 'SOLIDIFY')
             self.operator_modifier_add(layout, 'SUBSURF')
             self.operator_modifier_add(layout, 'TRIANGULATE')
