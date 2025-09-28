@@ -83,8 +83,6 @@ PyC_FlagSet bpy_bm_hflag_all_flags[] = {
     {0, nullptr},
 };
 
-#define BPY_BM_UV_STICKY_SELECT_MODE_TYPE "Literal['SHARED_LOCATION', 'DISABLED', 'SHARED_VERTEX']"
-
 /* This could/should be shared with `scene.toolsettings.uv_sticky_select_mode`.
  * however it relies on using the RNA API. */
 static PyC_StringEnumItems bpy_bm_uv_select_sticky_items[] = {
@@ -1559,12 +1557,17 @@ PyDoc_STRVAR(
     bpy_bmesh_uv_select_flush_doc,
     ".. method:: uv_select_flush(select)\n"
     "\n"
-    "   Flush selection, independent of the current selection mode.\n"
+    "   Flush selection from UV vertices to edges & faces independent of the selection mode.\n"
     "\n"
-    "   :arg select: flush selection or de-selected elements.\n"
-    "   :type select: bool\n");
+    "   :arg select: Flush selection or de-selected elements.\n"
+    "   :type select: bool\n"
+    "\n"
+    "   .. note::\n"
+    "\n"
+    "      - |UV_SELECT_SYNC_TO_MESH_NEEDED|\n");
 static PyObject *bpy_bmesh_uv_select_flush(BPy_BMesh *self, PyObject *value)
 {
+  const char *error_prefix = "uv_select_flush(...)";
   int param;
 
   BPY_BM_CHECK_OBJ(self);
@@ -1575,7 +1578,7 @@ static PyObject *bpy_bmesh_uv_select_flush(BPy_BMesh *self, PyObject *value)
   BMesh *bm = self->bm;
   /* While sync doesn't need to be valid,
    * failing to make it valid causes selection functions to assert, so require it to be valid. */
-  if (bpy_bm_check_uv_select_sync_valid(bm) == -1) {
+  if (bpy_bm_check_uv_select_sync_valid(bm, error_prefix) == -1) {
     return nullptr;
   }
   BM_mesh_uvselect_flush_from_verts(bm, param);
@@ -1591,9 +1594,13 @@ PyDoc_STRVAR(
     "   Sync selection from mesh to UVs.\n"
     "\n"
     "   :arg sticky_select_mode: Behavior when flushing from the mesh to UV selection "
-    "(:class:`bpy.types.Scene.uv_sticky_select_mode` may be passed in directly). "
+    "|UV_STICKY_SELECT_MODE_REF|. "
     "This should only be used when preparing to create a UV selection.\n"
-    "   :type sticky_select_mode: " BPY_BM_UV_STICKY_SELECT_MODE_TYPE "\n");
+    "   :type sticky_select_mode: |UV_STICKY_SELECT_MODE_TYPE|\n"
+    "\n"
+    "   .. note::\n"
+    "\n"
+    "      - |UV_SELECT_SYNC_TO_MESH_NEEDED|\n");
 static PyObject *bpy_bmesh_uv_select_sync_from_mesh(BPy_BMesh *self, PyObject *args, PyObject *kw)
 {
   static const char *kwlist[] = {
@@ -1644,48 +1651,20 @@ static PyObject *bpy_bmesh_uv_select_sync_from_mesh(BPy_BMesh *self, PyObject *a
 PyDoc_STRVAR(
     /* Wrap. */
     bpy_bmesh_uv_select_sync_to_mesh_doc,
-    ".. method:: uv_select_sync_to_mesh(/, *, "
-    "force=False)\n"
+    ".. method:: uv_select_sync_to_mesh()\n"
     "\n"
-    "   Sync selection from mesh to UVs.\n"
-    "\n"
-    "   :arg mesh: The mesh data to load.\n"
-    "   :type mesh: :class:`Mesh`\n"
-    "   :arg force: Force initialization of UV selection even in situations where it's not needed "
-    "(when all or none are selected for example). "
-    "This should only be used when preparing to create a UV selection.\n"
-    "   :type force: bool\n"
-    "   :type vertex_normals: bool\n");
-static PyObject *bpy_bmesh_uv_select_sync_to_mesh(BPy_BMesh *self, PyObject *args, PyObject *kw)
+    "   Sync selection from UVs to the mesh.\n");
+static PyObject *bpy_bmesh_uv_select_sync_to_mesh(BPy_BMesh *self)
 {
-  static const char *kwlist[] = {
-      "force",
-      nullptr,
-  };
-  BMesh *bm;
-  bool use_force = false;
+  const char *error_prefix = "uv_select_sync_to_mesh(...)";
 
   BPY_BM_CHECK_OBJ(self);
 
-  if (!PyArg_ParseTupleAndKeywords(args,
-                                   kw,
-                                   "|$" /* Optional keyword only arguments. */
-                                   "O&" /* `force` */
-                                   ":uv_select_sync_to_mesh",
-                                   (char **)kwlist,
-                                   PyC_ParseBool,
-                                   &use_force))
-  {
+  BMesh *bm = self->bm;
+  if (bpy_bm_check_uv_select_sync_valid(bm, error_prefix) == -1) {
     return nullptr;
   }
-
-  bm = self->bm;
-  if (bpy_bm_check_uv_select_sync_valid(bm) == -1) {
-    return nullptr;
-  }
-
   BM_mesh_uvselect_sync_to_mesh(bm);
-
   Py_RETURN_NONE;
 }
 
@@ -1695,19 +1674,25 @@ PyDoc_STRVAR(
     ".. method:: uv_select_foreach_set(select, /, *, "
     "loop_verts=(), loop_edges=(), faces=(), sticky_select_mode='SHARED_LOCATION')\n"
     "\n"
-    "   Set the selection state for loop-vertices, loop-edges & faces.\n"
+    "   Set the UV selection state for loop-vertices, loop-edges & faces.\n"
+    "\n"
+    "   This is a close equivalent to selecting in the UV editor.\n"
     "\n"
     "   :arg select: The selection state to set.\n"
     "   :type select: bool\n"
-    "   :arg loop_verts: Verts to operate on.\n"
-    "   :type loop_verts: Iterable[:class:`BMLoop`]\n"
-    "   :arg loop_edges: Edges to operate on.\n"
-    "   :type loop_edges: Iterable[:class:`BMLoop`]\n"
+    "   :arg loop_verts: Loop verts to operate on.\n"
+    "   :type loop_verts: Iterable[:class:`bmesh.types.BMLoop`]\n"
+    "   :arg loop_edges: Loop edges to operate on.\n"
+    "   :type loop_edges: Iterable[:class:`bmesh.types.BMLoop`]\n"
     "   :arg faces: Faces to operate on.\n"
-    "   :type faces: Iterable[:class:`BMFace`]\n"
-    "   :arg sticky_select_mode: See "
-    "(:class:`bpy.types.Scene.uv_sticky_select_mode` which may be passed).\n"
-    "   :type sticky_select_mode: " BPY_BM_UV_STICKY_SELECT_MODE_TYPE "\n");
+    "   :type faces: Iterable[:class:`bmesh.types.BMFace`]\n"
+    "   :arg sticky_select_mode: See |UV_STICKY_SELECT_MODE_REF|.\n"
+    "   :type sticky_select_mode: |UV_STICKY_SELECT_MODE_TYPE|\n"
+    "\n"
+    "   .. note::\n"
+    "\n"
+    "      - |UV_SELECT_FLUSH_MODE_NEEDED|\n"
+    "      - |UV_SELECT_SYNC_TO_MESH_NEEDED|\n");
 static PyObject *bpy_bmesh_uv_select_foreach_set(BPy_BMesh *self, PyObject *args, PyObject *kw)
 {
   const char *error_prefix = "uv_select_foreach_set(...)";
@@ -1735,6 +1720,7 @@ static PyObject *bpy_bmesh_uv_select_foreach_set(BPy_BMesh *self, PyObject *args
                                    "|$" /* Optional keyword only arguments. */
                                    "O"  /* `loop_verts` */
                                    "O"  /* `faces` */
+                                   "O&" /* `sticky_select_mode` */
                                    ":uv_select_foreach_set",
                                    (char **)kwlist,
                                    PyC_ParseBool,
@@ -1749,7 +1735,7 @@ static PyObject *bpy_bmesh_uv_select_foreach_set(BPy_BMesh *self, PyObject *args
   }
 
   bm = self->bm;
-  if (bpy_bm_check_uv_select_sync_valid(bm) == -1) {
+  if (bpy_bm_check_uv_select_sync_valid(bm, error_prefix) == -1) {
     return nullptr;
   }
   const bool shared = uv_sticky_select_mode.value_found == UV_STICKY_LOCATION;
@@ -1841,17 +1827,19 @@ PyDoc_STRVAR(
     "\n"
     "   Select or de-select mesh elements, updating the UV selection.\n"
     "\n"
+    "   An equivalent to selecting from the 3D viewport "
+    "for selection operations that support maintaining a synchronized UV selection.\n"
+    "\n"
     "   :arg select: The selection state to set.\n"
     "   :type select: bool\n"
     "   :arg verts: Verts to operate on.\n"
-    "   :type verts: Iterable[:class:`BMVert`]\n"
+    "   :type verts: Iterable[:class:`bmesh.types.BMVert`]\n"
     "   :arg edges: Edges to operate on.\n"
-    "   :type edges: Iterable[:class:`BMEdge`]\n"
+    "   :type edges: Iterable[:class:`bmesh.types.BMEdge`]\n"
     "   :arg faces: Faces to operate on.\n"
-    "   :type faces: Iterable[:class:`BMFace`]\n"
-    "   :arg sticky_select_mode: See "
-    "(:class:`bpy.types.Scene.uv_sticky_select_mode` which may be passed).\n"
-    "   :type sticky_select_mode: " BPY_BM_UV_STICKY_SELECT_MODE_TYPE "\n");
+    "   :type faces: Iterable[:class:`bmesh.types.BMFace`]\n"
+    "   :arg sticky_select_mode: See |UV_STICKY_SELECT_MODE_REF|.\n"
+    "   :type sticky_select_mode: |UV_STICKY_SELECT_MODE_TYPE|\n");
 static PyObject *bpy_bmesh_uv_select_foreach_set_from_mesh(BPy_BMesh *self,
                                                            PyObject *args,
                                                            PyObject *kw)
@@ -1881,6 +1869,7 @@ static PyObject *bpy_bmesh_uv_select_foreach_set_from_mesh(BPy_BMesh *self,
                                    "O"  /* `verts` */
                                    "O"  /* `edges` */
                                    "O"  /* `faces` */
+                                   "O&" /* `sticky_select_mode` */
                                    ":uv_select_foreach_set_from_mesh",
                                    (char **)kwlist,
                                    PyC_ParseBool,
@@ -1895,7 +1884,7 @@ static PyObject *bpy_bmesh_uv_select_foreach_set_from_mesh(BPy_BMesh *self,
   }
 
   BMesh *bm = self->bm;
-  if (bpy_bm_check_uv_select_sync_valid(bm) == -1) {
+  if (bpy_bm_check_uv_select_sync_valid(bm, error_prefix) == -1) {
     return nullptr;
   }
   const bool shared = uv_sticky_select_mode.value_found == UV_STICKY_LOCATION;
@@ -2936,7 +2925,7 @@ PyDoc_STRVAR(
     "      Currently this only flushes down, so selecting an edge will select all its "
     "vertices but de-selecting a vertex "
     "      won't de-select the edges & faces that use it, before finishing with a mesh "
-    "typically flushing with :class:`BMesh.uv_select_flush_mode` is still needed.\n");
+    "typically flushing with :class:`bmesh.types.BMesh.uv_select_flush_mode` is still needed.\n");
 static PyObject *bpy_bmloop_uv_select_vert_set(BPy_BMLoop *self, PyObject *value)
 {
   BMesh *bm = self->bm;
@@ -2957,17 +2946,17 @@ PyDoc_STRVAR(
     bpy_bmloop_uv_select_edge_set_doc,
     ".. method:: uv_select_edge_set(select)\n"
     "\n"
-    "   Select the UV edge.\n"
+    "   Set the UV edge selection state.\n"
     "\n"
     "   :arg select: Select or de-select.\n"
     "   :type select: bool\n"
     "\n"
     "   .. note::\n"
     "\n"
-    "      Currently this only flushes down, so selecting an edge will select all its "
+    "      This only flushes down, so selecting an edge will select all its "
     "vertices but de-selecting a vertex "
-    "      won't de-select the faces that use it, before finishing with a mesh "
-    "typically flushing with :class:`BMesh.uv_select_flush_mode` is still needed.\n");
+    "won't de-select the faces that use it, before finishing with a mesh "
+    "typically flushing with :class:`bmesh.types.BMesh.uv_select_flush_mode` is still needed.\n");
 static PyObject *bpy_bmloop_uv_select_edge_set(BPy_BMLoop *self, PyObject *value)
 {
   BMesh *bm = self->bm;
@@ -3771,7 +3760,7 @@ static PyMethodDef bpy_bmesh_methods[] = {
      bpy_bmesh_uv_select_sync_from_mesh_doc},
     {"uv_select_sync_to_mesh",
      (PyCFunction)bpy_bmesh_uv_select_sync_to_mesh,
-     METH_VARARGS | METH_KEYWORDS,
+     METH_NOARGS,
      bpy_bmesh_uv_select_sync_to_mesh_doc},
     {"uv_select_foreach_set",
      (PyCFunction)bpy_bmesh_uv_select_foreach_set,
@@ -4750,10 +4739,28 @@ void BPy_BM_init_types()
 /* bmesh.types submodule
  * ********************* */
 
+/* This exists to declare substitutions. */
+PyDoc_STRVAR(
+    /* Wrap. */
+    BPy_BM_types_module_doc,
+    "\n"
+    ".. |UV_STICKY_SELECT_MODE_REF| replace:: "
+    "(:class:`bpy.types.ToolSettings.uv_sticky_select_mode` which may be passed in directly).\n"
+    "\n"
+    ".. |UV_STICKY_SELECT_MODE_TYPE| replace:: "
+    "Literal['SHARED_LOCATION', 'DISABLED', 'SHARED_VERTEX']\n"
+    "\n"
+    ".. |UV_SELECT_FLUSH_MODE_NEEDED| replace:: "
+    "This function selection-mode independent, "
+    "typically :class:`bmesh.types.BMesh.uv_select_flush_mode` should be called afterwards.\n"
+    "\n"
+    ".. |UV_SELECT_SYNC_TO_MESH_NEEDED| replace:: "
+    "This function doesn't flush the selection to the mesh, "
+    "typically :class:`bmesh.types.BMesh.uv_select_sync_to_mesh` should be called afterwards.\n");
 static PyModuleDef BPy_BM_types_module_def = {
     /*m_base*/ PyModuleDef_HEAD_INIT,
     /*m_name*/ "bmesh.types",
-    /*m_doc*/ nullptr,
+    /*m_doc*/ BPy_BM_types_module_doc,
     /*m_size*/ 0,
     /*m_methods*/ nullptr,
     /*m_slots*/ nullptr,
@@ -5065,11 +5072,11 @@ int bpy_bm_generic_valid_check_source(BMesh *bm_source,
   return ret;
 }
 
-int bpy_bm_check_uv_select_sync_valid(BMesh *bm)
+int bpy_bm_check_uv_select_sync_valid(BMesh *bm, const char *error_prefix)
 {
   int ret = 0;
   if (bm->uv_select_sync_valid == false) {
-    PyErr_SetString(PyExc_ValueError, "bm.uv_select_sync_valid: must be true");
+    PyErr_Format(PyExc_ValueError, "%s: bm.uv_select_sync_valid: must be true", error_prefix);
     ret = -1;
   }
   return ret;

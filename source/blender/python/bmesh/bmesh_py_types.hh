@@ -228,7 +228,7 @@ enum {
                                                     const char *error_prefix,
                                                     void **args,
                                                     uint args_tot) ATTR_NONNULL(1, 2);
-[[nodiscard]] int bpy_bm_check_uv_select_sync_valid(BMesh *bm);
+[[nodiscard]] int bpy_bm_check_uv_select_sync_valid(BMesh *bm, const char *error_prefix);
 [[nodiscard]] int bpy_bm_uv_layer_offset_or_error(BMesh *bm, const char *error_prefix);
 [[nodiscard]] int bpy_bm_check_bm_match_or_error(BMesh *bm_a,
                                                  BMesh *bm_b,

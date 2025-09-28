@@ -784,6 +784,7 @@ PyDoc_STRVAR(
     "   :rtype: dict[str, int] | None\n");
 static PyObject *bpy_bm_utils_uv_select_check(PyObject * /*self*/, PyObject *args, PyObject *kwds)
 {
+  const char *error_prefix = "uv_select_check(...)";
   BPy_BMesh *py_bm;
   bool check_sync = true;
   bool check_contiguous = false;
@@ -826,7 +827,7 @@ static PyObject *bpy_bm_utils_uv_select_check(PyObject * /*self*/, PyObject *arg
 
   BMesh *bm = py_bm->bm;
   if (check_sync) {
-    if (bpy_bm_check_uv_select_sync_valid(bm) == -1) {
+    if (bpy_bm_check_uv_select_sync_valid(bm, error_prefix) == -1) {
       return nullptr;
     }
   }
