@@ -351,7 +351,7 @@ void ED_uvedit_select_sync_flush(const ToolSettings *ts, BMesh *bm, const bool s
   /* bmesh API handles flushing but not on de-select */
   if (ts->uv_flag & UV_FLAG_SELECT_SYNC) {
     if (bm->uv_select_sync_valid) {
-      BM_mesh_uvselect_flush_mode(bm);
+      BM_mesh_uvselect_mode_flush(bm);
       if (ts->uv_sticky == UV_STICKY_LOCATION) {
         const int cd_loop_uv_offset = CustomData_get_offset(&bm->ldata, CD_PROP_FLOAT2);
         BM_mesh_uvselect_flush_shared_only_select(bm, cd_loop_uv_offset);
@@ -3069,7 +3069,7 @@ static void uv_select_invert(const Scene *scene, BMEditMesh *em)
         }
       }
       /* Flush vertices to edges & faces. */
-      BM_mesh_uvselect_flush_mode(bm);
+      BM_mesh_uvselect_mode_flush(bm);
     }
     else if (em->selectmode & SCE_SELECT_EDGE) {
       const BMUVOffsets offsets = BM_uv_map_offsets_get(bm);
@@ -3511,7 +3511,7 @@ static bool uv_mouse_select_multi(bContext *C,
            * Flushing face mode will dis-connect the shared vertices unless
            * shared locations are re-applied afterwards. */
           if (selectmode != UV_SELECT_FACE) {
-            BM_mesh_uvselect_flush_mode(bm);
+            BM_mesh_uvselect_mode_flush(bm);
           }
 
           BM_mesh_uvselect_sync_to_mesh(bm);

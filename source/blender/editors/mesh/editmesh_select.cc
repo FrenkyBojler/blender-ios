@@ -2560,7 +2560,7 @@ void EDBM_selectmode_set(BMEditMesh *em, const short selectmode)
     /* NOTE(@ideasman42): this could/should use the "sticky" tool setting.
      * Although in practice it's OK to assume "connected" sticky in this case. */
     const int cd_loop_uv_offset = CustomData_get_offset(&em->bm->ldata, CD_PROP_FLOAT2);
-    BM_mesh_uvselect_flush_mode_update(em->bm, selectmode_prev, selectmode, cd_loop_uv_offset);
+    BM_mesh_uvselect_mode_flush_update(em->bm, selectmode_prev, selectmode, cd_loop_uv_offset);
   }
 }
 

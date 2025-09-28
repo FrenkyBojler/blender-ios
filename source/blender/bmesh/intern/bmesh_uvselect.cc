@@ -822,7 +822,7 @@ void BM_face_uvselect_set_pick(BMesh *bm,
  * it's useful to be able to support this so users of the API can select vertices for example
  * Without it failing entirely because the users has the mesh in edge/face selection mode.
  */
-static void bm_mesh_uvselect_flush_mode_down_deselect_only(BMesh *bm,
+static void bm_mesh_uvselect_mode_flush_down_deselect_only(BMesh *bm,
                                                            const short select_mode,
                                                            const int cd_loop_uv_offset,
                                                            const bool shared,
@@ -951,7 +951,7 @@ void BM_mesh_uvselect_set_elem_from_mesh(BMesh *bm,
     bm_face_uvselect_set_pick(bm, f, select, params);
   }
 
-  bm_mesh_uvselect_flush_mode_down_deselect_only(
+  bm_mesh_uvselect_mode_flush_down_deselect_only(
       bm, bm->selectmode, params.cd_loop_uv_offset, params.shared, check_verts, check_edges);
 }
 
@@ -975,7 +975,7 @@ void BM_mesh_uvselect_set_elem_from_mesh(BMesh *bm,
     BM_face_uvselect_set_pick(bm, f, select, params);
   }
 
-  bm_mesh_uvselect_flush_mode_down_deselect_only(
+  bm_mesh_uvselect_mode_flush_down_deselect_only(
       bm, bm->selectmode, params.cd_loop_uv_offset, params.shared, check_verts, check_edges);
 }
 
@@ -1289,7 +1289,7 @@ void BM_mesh_uvselect_flush_from_verts(BMesh *bm, const bool select)
 /** \name UV Selection Flushing (Selection Mode Aware)
  * \{ */
 
-void BM_mesh_uvselect_flush_mode(BMesh *bm)
+void BM_mesh_uvselect_mode_flush(BMesh *bm)
 {
   if (bm->selectmode & SCE_SELECT_VERTEX) {
     BM_mesh_uvselect_flush_from_loop_verts(bm);
@@ -1302,7 +1302,7 @@ void BM_mesh_uvselect_flush_mode(BMesh *bm)
   }
 }
 
-void BM_mesh_uvselect_flush_mode_only_select(BMesh *bm)
+void BM_mesh_uvselect_mode_flush_only_select(BMesh *bm)
 {
   if (bm->selectmode & SCE_SELECT_VERTEX) {
     BM_mesh_uvselect_flush_from_loop_verts_only_select(bm);
@@ -1315,7 +1315,7 @@ void BM_mesh_uvselect_flush_mode_only_select(BMesh *bm)
   }
 }
 
-void BM_mesh_uvselect_flush_mode_update(BMesh *bm,
+void BM_mesh_uvselect_mode_flush_update(BMesh *bm,
                                         const short selectmode_old,
                                         const short selectmode_new,
                                         const int cd_loop_uv_offset)
@@ -1403,7 +1403,7 @@ void BM_mesh_uvselect_flush_mode_update(BMesh *bm,
     const bool shared = true;
     const bool check_verts = (bm->totvertsel != 0);
     const bool check_edges = (bm->totedgesel != 0);
-    bm_mesh_uvselect_flush_mode_down_deselect_only(
+    bm_mesh_uvselect_mode_flush_down_deselect_only(
         bm, selectmode_new, cd_loop_uv_offset, shared, check_verts, check_edges);
   }
 }
@@ -1482,7 +1482,7 @@ void BM_mesh_uvselect_flush_post_subdivide(BMesh *bm, const int cd_loop_uv_offse
 
   /* It's possible selecting a vertex or edge will cause other elements to have become selected.
    * Flush up if necessary. */
-  BM_mesh_uvselect_flush_mode_only_select(bm);
+  BM_mesh_uvselect_mode_flush_only_select(bm);
 }
 
 /** \} */

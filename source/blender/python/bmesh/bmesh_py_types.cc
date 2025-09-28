@@ -1550,7 +1550,7 @@ static PyObject *bpy_bmesh_uv_select_flush_mode(BPy_BMesh *self)
 {
   BPY_BM_CHECK_OBJ(self);
   BMesh *bm = self->bm;
-  BM_mesh_uvselect_flush_mode(bm);
+  BM_mesh_uvselect_mode_flush(bm);
   Py_RETURN_NONE;
 }
 

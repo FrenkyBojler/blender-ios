@@ -374,7 +374,7 @@ void BM_mesh_uvselect_flush_from_verts(BMesh *bm, const bool select);
 /** \name UV Selection Flushing (Selection Mode Aware)
  * \{ */
 
-void BM_mesh_uvselect_flush_mode(BMesh *bm);
+void BM_mesh_uvselect_mode_flush(BMesh *bm);
 
 /**
  * Select elements based on the selection mode.
@@ -386,7 +386,7 @@ void BM_mesh_uvselect_flush_mode(BMesh *bm);
  *
  * \note An "only deselect" version function could be added, it's not needed at the moment.a
  */
-void BM_mesh_uvselect_flush_mode_only_select(BMesh *bm);
+void BM_mesh_uvselect_mode_flush_only_select(BMesh *bm);
 
 /**
  * When the select mode changes, update to ensure the selection is valid.
@@ -394,7 +394,7 @@ void BM_mesh_uvselect_flush_mode_only_select(BMesh *bm);
  *
  * The mesh selection flushing must have already run.
  */
-void BM_mesh_uvselect_flush_mode_update(BMesh *bm,
+void BM_mesh_uvselect_mode_flush_update(BMesh *bm,
                                         const short selectmode_old,
                                         const short selectmode_new,
                                         const int cd_loop_uv_offset);

@@ -1667,7 +1667,7 @@ bool EDBM_mesh_reveal(BMEditMesh *em, bool select)
         }
       }
 
-      BM_mesh_uvselect_flush_mode(bm);
+      BM_mesh_uvselect_mode_flush(bm);
     }
   }
 
