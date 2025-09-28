@@ -118,7 +118,7 @@ class UVSyncSelectFromMesh : NonCopyable {
   UVSyncSelectFromMesh(BMesh &bm, char uv_sticky) : uv_sticky_(uv_sticky), bm_(bm) {}
   UVSyncSelectFromMesh(const UVSyncSelectFromMesh &) = delete;
 
-  static UVSyncSelectFromMesh *create_if_needed(const ToolSettings &ts, BMesh &bm);
+  static std::unique_ptr<UVSyncSelectFromMesh> create_if_needed(const ToolSettings &ts, BMesh &bm);
   void apply();
 
   /* Select. */

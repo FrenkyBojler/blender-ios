@@ -1796,7 +1796,8 @@ static void bm_clear_uv_vert_selection(const Scene *scene, BMesh *bm, const BMUV
 
 namespace blender::ed::uv {
 
-UVSyncSelectFromMesh *UVSyncSelectFromMesh::create_if_needed(const ToolSettings &ts, BMesh &bm)
+std::unique_ptr<UVSyncSelectFromMesh> UVSyncSelectFromMesh::create_if_needed(
+    const ToolSettings &ts, BMesh &bm)
 {
   if ((ts.uv_flag & UV_FLAG_SELECT_SYNC) == 0) {
     return nullptr;
@@ -1811,8 +1812,7 @@ UVSyncSelectFromMesh *UVSyncSelectFromMesh::create_if_needed(const ToolSettings 
   if (cd_loop_uv_offset == -1) {
     return nullptr;
   }
-
-  return MEM_new<UVSyncSelectFromMesh>(__func__, bm, ts.uv_sticky);
+  return std::make_unique<UVSyncSelectFromMesh>(bm, ts.uv_sticky);
 }
 
 void UVSyncSelectFromMesh::apply()

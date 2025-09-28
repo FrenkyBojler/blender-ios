@@ -859,7 +859,9 @@ static bool do_lasso_select_mesh(const ViewContext *vc,
     }
   }
 
-  data.uv_selctx = UVSyncSelectFromMesh::create_if_needed(*ts, *vc->em->bm);
+  std::unique_ptr<UVSyncSelectFromMesh> uv_selctx = UVSyncSelectFromMesh::create_if_needed(
+      *ts, *vc->em->bm);
+  data.uv_selctx = uv_selctx.get();
 
   /* for non zbuf projections, don't change the GL state */
   ED_view3d_init_mats_rv3d(vc->obedit, vc->rv3d);
@@ -929,7 +931,6 @@ static bool do_lasso_select_mesh(const ViewContext *vc,
 
   if (data.uv_selctx) {
     data.uv_selctx->apply();
-    MEM_delete(data.uv_selctx);
   }
 
   return data.is_changed;
@@ -4110,7 +4111,9 @@ static bool do_mesh_box_select(const ViewContext *vc,
     }
   }
 
-  data.uv_selctx = UVSyncSelectFromMesh::create_if_needed(*ts, *vc->em->bm);
+  std::unique_ptr<UVSyncSelectFromMesh> uv_selctx = UVSyncSelectFromMesh::create_if_needed(
+      *ts, *vc->em->bm);
+  data.uv_selctx = uv_selctx.get();
 
   /* for non zbuf projections, don't change the GL state */
   ED_view3d_init_mats_rv3d(vc->obedit, vc->rv3d);
@@ -4180,7 +4183,6 @@ static bool do_mesh_box_select(const ViewContext *vc,
 
   if (data.uv_selctx) {
     data.uv_selctx->apply();
-    MEM_delete(data.uv_selctx);
   }
 
   return data.is_changed;
@@ -4821,7 +4823,9 @@ static bool mesh_circle_select(const ViewContext *vc,
     }
   }
 
-  data.uv_selctx = UVSyncSelectFromMesh::create_if_needed(*ts, *vc->em->bm);
+  std::unique_ptr<UVSyncSelectFromMesh> uv_selctx = UVSyncSelectFromMesh::create_if_needed(
+      *ts, *vc->em->bm);
+  data.uv_selctx = uv_selctx.get();
 
   const bool select = (sel_op != SEL_OP_SUB);
 
@@ -4906,7 +4910,6 @@ static bool mesh_circle_select(const ViewContext *vc,
 
   if (data.uv_selctx) {
     data.uv_selctx->apply();
-    MEM_delete(data.uv_selctx);
   }
 
   return changed;
