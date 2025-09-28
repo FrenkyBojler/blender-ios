@@ -708,7 +708,8 @@ class ShaderNodesInliner {
     const ClosureZoneValue *closure_zone_value = std::get_if<ClosureZoneValue>(
         &closure_input_value->value);
     if (!closure_zone_value) {
-      this->store_socket_value_fallback(socket);
+      /* If the closure is null, the node behaves as if it is muted. */
+      this->handle_output_socket__muted(socket);
       return;
     }
     const auto *evaluate_closure_storage = static_cast<const NodeEvaluateClosure *>(
@@ -723,7 +724,8 @@ class ShaderNodesInliner {
         closure_output_node.identifier,
         closure_zone_value->closure_creation_context ?
             closure_zone_value->closure_creation_context->hash() :
-            ComputeContextHash{}};
+            ComputeContextHash{},
+        closure_zone_value->closure_creation_context};
     const bke::EvaluateClosureComputeContext &closure_eval_context =
         compute_context_cache_.for_evaluate_closure(socket.context,
                                                     evaluate_closure_node->identifier,
