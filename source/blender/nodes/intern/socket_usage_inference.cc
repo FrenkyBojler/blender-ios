@@ -702,9 +702,8 @@ struct SocketUsageInferencer {
     const SocketInContext enable_socket = node.input_socket(0);
     const InferenceValue enable_value = this->get_socket_value(enable_socket);
     const std::optional<bool> is_enabled_opt = enable_value.get_if_primitive<bool>();
-    /* Nullopt state means that it is enabled. */
-    const bool is_disabled = is_enabled_opt == false;
-    all_socket_disable_states_.add_new(socket, is_disabled);
+    const bool is_enabled = is_enabled_opt.value_or(true);
+    all_socket_disable_states_.add_new(socket, !is_enabled);
   }
 
   void disabled_output_task__with_origin_socket(const SocketInContext &socket,
