@@ -197,6 +197,9 @@ struct StitchStateContainer {
 
   bool ignore_seam_boundary;
   bool only_selected_uvs;
+
+  /* Track which islands have selected faces */
+  blender::Vector<bool> island_has_selected;
 };
 
 int stitch_init_all(bContext *C,

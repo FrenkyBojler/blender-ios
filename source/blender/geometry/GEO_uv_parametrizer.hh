@@ -150,7 +150,10 @@ bool uv_parametrizer_is_slim(const ParamHandle *phandle);
  *
  * \{ */
 
-void uv_parametrizer_lscm_begin(ParamHandle *handle, bool live, bool abf, const bool original_bounds);
+void uv_parametrizer_lscm_begin(ParamHandle *handle,
+                                bool live,
+                                bool abf,
+                                const bool original_bounds);
 void uv_parametrizer_lscm_solve(ParamHandle *handle, int *count_changed, int *count_failed);
 void uv_parametrizer_lscm_end(ParamHandle *handle);
 

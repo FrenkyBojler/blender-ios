@@ -2898,7 +2898,7 @@ static wmOperatorStatus unwrap_exec(bContext *C, wmOperator *op)
   int count_failed = 0;
 
   if (options.original_bounds) {
-    StitchStateContainer *ssc = MEM_callocN<StitchStateContainer>("stitch collection");
+    StitchStateContainer *ssc = MEM_new<StitchStateContainer>("stitch collection");
     Scene *scene = CTX_data_scene(C);
 
     ssc->use_limit = false;

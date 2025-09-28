@@ -604,7 +604,7 @@ static void state_delete(StitchState *state)
     if (state->edge_hash) {
       BLI_ghash_free(state->edge_hash, nullptr, nullptr);
     }
-    MEM_freeN(state);
+    MEM_delete(state);
   }
 }
 
@@ -616,7 +616,7 @@ void state_delete_all(StitchStateContainer *ssc)
     }
     MEM_freeN(ssc->states);
     MEM_freeN(ssc->objects);
-    MEM_freeN(ssc);
+    MEM_delete(ssc);
   }
 }
 
@@ -636,7 +636,6 @@ static void stitch_uv_edge_generate_linked_edges(GHash *edge_hash, StitchState *
     if (edge->flag & STITCH_BOUNDARY) {
       UvElement *element1 = state->uvs[edge->uv1];
       UvElement *element2 = state->uvs[edge->uv2];
-
       /* Now iterate through all faces and try to find edges sharing the same vertices */
       UvElement *iter1 = BM_uv_element_get_head(state->element_map, element1);
       UvEdge *last_set = edge;
@@ -723,6 +722,13 @@ static void determine_uv_stitchability(const int cd_loop_uv_offset,
         }
       }
 
+      if (!ssc->island_has_selected.is_empty() &&
+          (!ssc->island_has_selected[element_iter->island] ||
+           !ssc->island_has_selected[element->island]))
+      {
+        continue;
+      }
+
       if (stitch_check_uvs_stitchable(cd_loop_uv_offset, element, element_iter, ssc)) {
         island_stitch_data[element_iter->island].stitchableCandidate = 1;
         island_stitch_data[element->island].stitchableCandidate = 1;
@@ -738,6 +744,10 @@ static void determine_uv_edge_stitchability(const int cd_loop_uv_offset,
                                             StitchState *state,
                                             IslandStitchData *island_stitch_data)
 {
+  if (!edge->first) {
+    return;
+  }
+
   UvEdge *edge_iter = edge->first;
   for (; edge_iter; edge_iter = edge_iter->next) {
     if (ssc->ignore_seam_boundary) {
@@ -748,6 +758,12 @@ static void determine_uv_edge_stitchability(const int cd_loop_uv_offset,
       {
         continue;
       }
+    }
+    if (!ssc->island_has_selected.is_empty() &&
+        (!ssc->island_has_selected[edge_iter->element->island] ||
+         !ssc->island_has_selected[edge->element->island]))
+    {
+      continue;
     }
     if (stitch_check_edges_stitchable(cd_loop_uv_offset, edge, edge_iter, ssc, state)) {
       island_stitch_data[edge_iter->element->island].stitchableCandidate = 1;
@@ -1533,6 +1549,10 @@ static void stitch_select_edge(UvEdge *edge, StitchState *state, int always_sele
   UvEdge *eiter;
   UvEdge **selection_stack = (UvEdge **)state->selection_stack;
 
+  if (!edge->first) {
+    return;
+  }
+
   for (eiter = edge->first; eiter; eiter = eiter->next) {
     if (eiter->flag & STITCH_SELECTED) {
       int i;
@@ -1862,7 +1882,7 @@ static StitchState *stitch_init(bContext *C,
   BMEditMesh *em = BKE_editmesh_from_object(obedit);
   const BMUVOffsets offsets = BM_uv_map_offsets_get(em->bm);
 
-  state = MEM_callocN<StitchState>("stitch state obj");
+  state = MEM_new<StitchState>("stitch state obj");
 
   /* initialize state */
   state->obedit = obedit;
@@ -1882,22 +1902,20 @@ static StitchState *stitch_init(bContext *C,
 
   state->aspect = ED_uvedit_get_aspect_y(obedit);
 
-  blender::Vector<bool> island_has_selected;
-  /* Mark islands that have at least one selected UV loop as selected. */
-  if (ssc->only_selected_uvs) {
-    island_has_selected.resize(state->element_map->total_islands, false);
+  /* Mark islands that have at least one selected UV face as selected. */
+  if (ssc->only_selected_uvs && ssc->island_has_selected.is_empty()) {
+    ssc->island_has_selected.resize(state->element_map->total_islands, false);
     BM_ITER_MESH (efa, &iter, em->bm, BM_FACES_OF_MESH) {
       BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
         if (uvedit_uv_select_test(scene, l, offsets)) {
           UvElement *element = BM_uv_element_get(state->element_map, l);
           if (element) {
-            island_has_selected[element->island] = true;
+            ssc->island_has_selected[element->island] = true;
           }
         }
       }
     }
   }
-
   int unique_uvs = state->element_map->total_unique_uvs;
   state->total_separate_uvs = unique_uvs;
 
@@ -1944,12 +1962,6 @@ static StitchState *stitch_init(bContext *C,
     if (face_selected && !BM_elem_flag_test(efa, BM_ELEM_SELECT)) {
       continue;
     }
-    /* Only process faces from islands that have at least one selected vertex */
-    UvElement *face_element = BM_uv_element_get(state->element_map, BM_FACE_FIRST_LOOP(efa));
-    if (!face_element || (ssc->only_selected_uvs && !island_has_selected[face_element->island])) {
-      continue;
-    }
-
     BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
       UvElement *element = BM_uv_element_get(state->element_map, l);
       int itmp1 = element - state->element_map->storage;
@@ -2245,7 +2257,7 @@ static StitchStateInit *stitch_extract_rna_selection(wmOperator *op,
 
 static StitchStateContainer *stitch_settings_init(bContext *C, wmOperator *op)
 {
-  StitchStateContainer *ssc = MEM_callocN<StitchStateContainer>("stitch collection");
+  StitchStateContainer *ssc = MEM_new<StitchStateContainer>("stitch collection");
 
   Scene *scene = CTX_data_scene(C);
 
@@ -2259,6 +2271,7 @@ static StitchStateContainer *stitch_settings_init(bContext *C, wmOperator *op)
   ssc->active_object_index = RNA_int_get(op->ptr, "active_object_index");
   ssc->static_island = 0;
   ssc->ignore_seam_boundary = false;
+  ssc->only_selected_uvs = true;
 
   ssc->static_island = RNA_int_get(op->ptr, "static_island");
   if (RNA_struct_property_is_set(op->ptr, "mode")) {

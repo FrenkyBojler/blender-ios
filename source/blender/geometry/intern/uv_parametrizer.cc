@@ -4074,7 +4074,10 @@ void uv_parametrizer_construct_end(ParamHandle *phandle,
   phandle->state = PHANDLE_STATE_CONSTRUCTED;
 }
 
-void uv_parametrizer_lscm_begin(ParamHandle *phandle, bool live, bool abf, const bool original_bounds)
+void uv_parametrizer_lscm_begin(ParamHandle *phandle,
+                                bool live,
+                                bool abf,
+                                const bool original_bounds)
 {
   BLI_assert(phandle->state == PHANDLE_STATE_CONSTRUCTED);
   phandle->state = PHANDLE_STATE_LSCM;
