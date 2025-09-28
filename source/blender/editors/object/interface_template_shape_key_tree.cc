@@ -69,15 +69,15 @@ class ShapeKeyDragController : public ui::AbstractViewItemDragController {
 
   void *create_drag_data() const override
   {
-    auto count_selected = [&]() -> int {
+    const int selected_count = [&]() -> int {
       int count = 0;
       LISTBASE_FOREACH (KeyBlock *, kb, &drag_key_.key->block) {
-        count += (kb->flag & KEYBLOCK_SEL);
+        count += (kb->flag & KEYBLOCK_SEL) != 0;
       }
       return count;
-    };
+    }();
 
-    KeyBlock **selected_keys_ = MEM_calloc_arrayN<KeyBlock *>(count_selected(),
+    KeyBlock **selected_keys_ = MEM_calloc_arrayN<KeyBlock *>(selected_count,
                                                               "Selected Key Blocks");
 
     int index = 0;
@@ -126,7 +126,7 @@ class ShapeKeyDropTarget : public ui::TreeViewItemDropTarget {
   std::string drop_tooltip(const ui::DragInfo &drag_info) const override
   {
     const KeyBlock **drag_shapekey = static_cast<const KeyBlock **>(drag_info.drag_data.poin);
-    const StringRef drag_name = "Selected Keys";
+    const StringRef drag_name = TIP_("Selected Keys");
     const StringRef drop_name = drop_kb_.name;
 
     switch (drag_info.drop_location) {
