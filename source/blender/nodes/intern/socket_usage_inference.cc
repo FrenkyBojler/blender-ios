@@ -109,16 +109,6 @@ struct SocketUsageInferencer {
     return false;
   }
 
-  bool group_output_has_default_value(const int output_i)
-  {
-    const bNode *group_output_node = root_tree_.group_output_node();
-    if (!group_output_node) {
-      return true;
-    }
-    const SocketInContext socket{nullptr, &group_output_node->input_socket(output_i)};
-    return this->socket_has_default_value(socket);
-  }
-
   bool is_socket_used(const SocketInContext &socket)
   {
     const std::optional<bool> is_used = all_socket_usages_.lookup_try(socket);
@@ -151,19 +141,6 @@ struct SocketUsageInferencer {
   InferenceValue get_socket_value(const SocketInContext &socket)
   {
     return value_inferencer_.get_socket_value(socket);
-  }
-
-  bool socket_has_default_value(const SocketInContext &socket)
-  {
-    const InferenceValue value = this->get_socket_value(socket);
-    if (!value.is_primitive_value()) {
-      return false;
-    }
-    const CPPType &type = *socket->typeinfo->base_cpp_type;
-    if (!type.is_equality_comparable()) {
-      return false;
-    }
-    return type.is_equal(value.get_primitive_ptr(), type.default_value());
   }
 
   bool is_disabled_group_output(const int output_i)
