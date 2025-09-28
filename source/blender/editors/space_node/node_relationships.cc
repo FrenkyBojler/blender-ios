@@ -2255,6 +2255,13 @@ static void join_group_inputs(bNodeTree &tree, VectorSet<bNode *> group_inputs, 
   }
   else {
     main_node = group_inputs[0];
+    /* Move main node to average of all group inputs. */
+    float2 location{};
+    for (const bNode *node : group_inputs) {
+      location += node->location;
+    }
+    location /= float(group_inputs.size());
+    copy_v2_v2(main_node->location, location);
   }
   tree.ensure_topology_cache();
   MultiValueMap<bNodeSocket *, bNodeLink *> old_link_map;
