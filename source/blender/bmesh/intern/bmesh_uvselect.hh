@@ -100,6 +100,19 @@
  * There are also situations that shouldn't be allowed such as a single selected vertex in face
  * select mode.
  *
+ * Flushing & Synchronizing
+ * ========================
+ *
+ * Properly handling the selection state is important for operators that adjust the UV selection.
+ * This typically involves the following steps:
+ *
+ * - The UV selection changes.
+ * - The UV selection must be flushed between elements to ensure the selection is valid,
+ *   (see: `BM_mesh_uvselect_flush_*` & `BM_mesh_uvselect_mode_flush_*` functions).
+ * - The UV selection must be synchronized to the mesh selection
+ *   (see #BM_mesh_uvselect_sync_to_mesh).
+ * - The mesh must then flush selection to it's elements
+ *   (see: `BM_mesh_select_flush_*` & `BM_mesh_select_mode_flush_*` functions).
  *
  * Valid State
  * ===========
