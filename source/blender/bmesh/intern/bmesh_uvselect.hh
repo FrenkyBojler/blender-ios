@@ -221,13 +221,12 @@ void BM_mesh_uvselect_set_elem_from_mesh(BMesh *bm,
                                          blender::Span<BMEdge *> edges,
                                          blender::Span<BMFace *> faces);
 /** \copydoc #BM_mesh_uvselect_set_elem_from_mesh. */
-void BM_mesh_uvselect_set_elem_from_mesh_with_vector_list(
-    BMesh *bm,
-    bool select,
-    const BMUVSelectPickParams &params,
-    const blender::VectorList<BMVert *> &verts,
-    const blender::VectorList<BMEdge *> &edges,
-    const blender::VectorList<BMFace *> &faces);
+void BM_mesh_uvselect_set_elem_from_mesh(BMesh *bm,
+                                         bool select,
+                                         const BMUVSelectPickParams &params,
+                                         const blender::VectorList<BMVert *> &verts,
+                                         const blender::VectorList<BMEdge *> &edges,
+                                         const blender::VectorList<BMFace *> &faces);
 
 /** \} */
 

@@ -1826,10 +1826,10 @@ void UVSyncSelectFromMesh::apply()
       /*shared*/ shared,
   };
 
-  BM_mesh_uvselect_set_elem_from_mesh_with_vector_list(
+  BM_mesh_uvselect_set_elem_from_mesh(
       &bm_, false, uv_pick_params, bm_verts_deselect_, bm_edges_deselect_, bm_faces_deselect_);
 
-  BM_mesh_uvselect_set_elem_from_mesh_with_vector_list(
+  BM_mesh_uvselect_set_elem_from_mesh(
       &bm_, true, uv_pick_params, bm_verts_select_, bm_edges_select_, bm_faces_select_);
 }
 

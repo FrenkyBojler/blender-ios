@@ -928,13 +928,12 @@ static void bm_mesh_uvselect_flush_mode_down_deselect_only(BMesh *bm,
   }
 }
 
-void BM_mesh_uvselect_set_elem_from_mesh_with_vector_list(
-    BMesh *bm,
-    const bool select,
-    const BMUVSelectPickParams &params,
-    const blender::VectorList<BMVert *> &verts,
-    const blender::VectorList<BMEdge *> &edges,
-    const blender::VectorList<BMFace *> &faces)
+void BM_mesh_uvselect_set_elem_from_mesh(BMesh *bm,
+                                         const bool select,
+                                         const BMUVSelectPickParams &params,
+                                         const blender::VectorList<BMVert *> &verts,
+                                         const blender::VectorList<BMEdge *> &edges,
+                                         const blender::VectorList<BMFace *> &faces)
 {
   const bool check_verts = !verts.is_empty();
   const bool check_edges = !edges.is_empty();
