@@ -1557,7 +1557,7 @@ static wmOperatorStatus edbm_select_mode_invoke(bContext *C, wmOperator *op, con
   /* Bypass when in UV non sync-select mode, fall through to keymap that edits. */
   if (CTX_wm_space_image(C)) {
     ToolSettings *ts = CTX_data_tool_settings(C);
-    if ((ts->uv_flag & UV_FLAG_SYNC_SELECT) == 0) {
+    if ((ts->uv_flag & UV_FLAG_SELECT_SYNC) == 0) {
       return OPERATOR_PASS_THROUGH;
     }
     /* Bypass when no action is needed. */
@@ -2273,7 +2273,7 @@ bool EDBM_select_pick(bContext *C, const int mval[2], const SelectPick_Params &p
     const int cd_loop_uv_offset = CustomData_get_offset(&bm->ldata, CD_PROP_FLOAT2);
     const BMUVSelectPickParams uv_pick_params = {
         /*cd_loop_uv_offset*/ cd_loop_uv_offset,
-        /*shared*/ vc.scene->toolsettings->uv_sticky == SI_STICKY_LOC,
+        /*shared*/ vc.scene->toolsettings->uv_sticky == UV_STICKY_LOCATION,
     };
 
     if (efa) {
@@ -2767,7 +2767,7 @@ bool EDBM_selectmode_toggle_multi(bContext *C,
 
   /* Only do this when sync-select is enabled so users can have better
    * performance when editing high poly meshes. */
-  if (ts->uv_flag & UV_FLAG_SYNC_SELECT) {
+  if (ts->uv_flag & UV_FLAG_SELECT_SYNC) {
     /* Only when flushing down. */
     if ((bitscan_forward_i(selectmode_new) < bitscan_forward_i(selectmode_old))) {
       use_uv_select_ensure = true;

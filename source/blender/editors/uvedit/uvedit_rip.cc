@@ -744,7 +744,7 @@ static bool uv_rip_object(Scene *scene, Object *obedit, const float co[2], const
   BMEditMesh *em = BKE_editmesh_from_object(obedit);
   BMesh *bm = em->bm;
 
-  if (ts->uv_flag & UV_FLAG_SYNC_SELECT) {
+  if (ts->uv_flag & UV_FLAG_SELECT_SYNC) {
     uvedit_select_prepare_sync_select(scene, bm);
     BLI_assert(bm->uv_select_sync_valid);
   }
@@ -892,7 +892,7 @@ static bool uv_rip_object(Scene *scene, Object *obedit, const float co[2], const
     }
   }
   if (changed) {
-    if (ts->uv_flag & UV_FLAG_SYNC_SELECT) {
+    if (ts->uv_flag & UV_FLAG_SELECT_SYNC) {
       BM_mesh_uvselect_flush_from_loop_verts(bm);
     }
     else {
@@ -915,7 +915,7 @@ static wmOperatorStatus uv_rip_exec(bContext *C, wmOperator *op)
   const ToolSettings *ts = scene->toolsettings;
   ViewLayer *view_layer = CTX_data_view_layer(C);
 
-  if (ts->uv_sticky == SI_STICKY_VERTEX) {
+  if (ts->uv_sticky == UV_STICKY_VERT) {
     /* "Rip" is logically incompatible with sync-select.
      * Report an error instead of "poll" so this is reported when the tool is used,
      * with #131642 implemented, this can be made to work. */
@@ -923,7 +923,7 @@ static wmOperatorStatus uv_rip_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  if (ts->uv_flag & UV_FLAG_SYNC_SELECT) {
+  if (ts->uv_flag & UV_FLAG_SELECT_SYNC) {
     /* Important because in sync selection we *must* be able to de-select individual loops. */
     if (ED_uvedit_sync_uvselect_ignore(ts)) {
       BKE_report(op->reports,
@@ -949,7 +949,7 @@ static wmOperatorStatus uv_rip_exec(bContext *C, wmOperator *op)
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
       scene, view_layer, nullptr);
 
-  if (ts->uv_flag & UV_FLAG_SYNC_SELECT) {
+  if (ts->uv_flag & UV_FLAG_SELECT_SYNC) {
     /* While this is almost always true, any mis-match (from multiple scenes for example).
      * Will not work properly. */
     EDBM_selectmode_set_multi_ex(scene, objects, ts->selectmode);

@@ -88,9 +88,9 @@ PyC_FlagSet bpy_bm_hflag_all_flags[] = {
 /* This could/should be shared with `scene.toolsettings.uv_sticky_select_mode`.
  * however it relies on using the RNA API. */
 static PyC_StringEnumItems bpy_bm_uv_select_sticky_items[] = {
-    {SI_STICKY_LOC, "SHARED_LOCATION"},
-    {SI_STICKY_DISABLE, "DISABLED"},
-    {SI_STICKY_VERTEX, "SHARED_VERTEX"},
+    {UV_STICKY_LOCATION, "SHARED_LOCATION"},
+    {UV_STICKY_DISABLE, "DISABLED"},
+    {UV_STICKY_VERT, "SHARED_VERTEX"},
     {0, nullptr},
 };
 
@@ -1603,7 +1603,7 @@ static PyObject *bpy_bmesh_uv_select_sync_from_mesh(BPy_BMesh *self, PyObject *a
 
   BPY_BM_CHECK_OBJ(self);
 
-  PyC_StringEnum uv_sticky_select_mode = {bpy_bm_uv_select_sticky_items, SI_STICKY_LOC};
+  PyC_StringEnum uv_sticky_select_mode = {bpy_bm_uv_select_sticky_items, UV_STICKY_LOCATION};
 
   if (!PyArg_ParseTupleAndKeywords(args,
                                    kw,
@@ -1619,7 +1619,7 @@ static PyObject *bpy_bmesh_uv_select_sync_from_mesh(BPy_BMesh *self, PyObject *a
 
   BMesh *bm = self->bm;
   switch (uv_sticky_select_mode.value_found) {
-    case SI_STICKY_LOC: {
+    case UV_STICKY_LOCATION: {
       const int cd_loop_uv_offset = CustomData_get_offset(&bm->ldata, CD_PROP_FLOAT2);
       if (cd_loop_uv_offset == -1) {
         PyErr_SetString(PyExc_ValueError, "sticky_select_mode='SHARED_LOCATION' requires UV's");
@@ -1628,11 +1628,11 @@ static PyObject *bpy_bmesh_uv_select_sync_from_mesh(BPy_BMesh *self, PyObject *a
       BM_mesh_uvselect_sync_from_mesh_sticky_location(bm, cd_loop_uv_offset);
       break;
     }
-    case SI_STICKY_DISABLE: {
+    case UV_STICKY_DISABLE: {
       BM_mesh_uvselect_sync_from_mesh_sticky_disabled(bm);
       break;
     }
-    case SI_STICKY_VERTEX: {
+    case UV_STICKY_VERT: {
       BM_mesh_uvselect_sync_from_mesh_sticky_vert(bm);
       break;
     }
@@ -1725,7 +1725,7 @@ static PyObject *bpy_bmesh_uv_select_foreach_set(BPy_BMesh *self, PyObject *args
   PyObject *py_loop_verts = nullptr;
   PyObject *py_loop_edges = nullptr;
   PyObject *py_faces = nullptr;
-  PyC_StringEnum uv_sticky_select_mode = {bpy_bm_uv_select_sticky_items, SI_STICKY_LOC};
+  PyC_StringEnum uv_sticky_select_mode = {bpy_bm_uv_select_sticky_items, UV_STICKY_LOCATION};
 
   BPY_BM_CHECK_OBJ(self);
 
@@ -1752,7 +1752,7 @@ static PyObject *bpy_bmesh_uv_select_foreach_set(BPy_BMesh *self, PyObject *args
   if (bpy_bm_check_uv_select_sync_valid(bm) == -1) {
     return nullptr;
   }
-  const bool shared = uv_sticky_select_mode.value_found == SI_STICKY_LOC;
+  const bool shared = uv_sticky_select_mode.value_found == UV_STICKY_LOCATION;
   const int cd_loop_uv_offset = shared ? bpy_bm_uv_layer_offset_or_error(bm, error_prefix) : -1;
   if (shared && (cd_loop_uv_offset == -1)) {
     return nullptr;
@@ -1870,7 +1870,7 @@ static PyObject *bpy_bmesh_uv_select_foreach_set_from_mesh(BPy_BMesh *self,
   PyObject *py_verts = nullptr;
   PyObject *py_edges = nullptr;
   PyObject *py_faces = nullptr;
-  PyC_StringEnum uv_sticky_select_mode = {bpy_bm_uv_select_sticky_items, SI_STICKY_LOC};
+  PyC_StringEnum uv_sticky_select_mode = {bpy_bm_uv_select_sticky_items, UV_STICKY_LOCATION};
 
   BPY_BM_CHECK_OBJ(self);
 
@@ -1898,7 +1898,7 @@ static PyObject *bpy_bmesh_uv_select_foreach_set_from_mesh(BPy_BMesh *self,
   if (bpy_bm_check_uv_select_sync_valid(bm) == -1) {
     return nullptr;
   }
-  const bool shared = uv_sticky_select_mode.value_found == SI_STICKY_LOC;
+  const bool shared = uv_sticky_select_mode.value_found == UV_STICKY_LOCATION;
   const int cd_loop_uv_offset = shared ? bpy_bm_uv_layer_offset_or_error(bm, error_prefix) : -1;
   if (shared && (cd_loop_uv_offset == -1)) {
     return nullptr;

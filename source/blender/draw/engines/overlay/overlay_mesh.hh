@@ -606,9 +606,9 @@ class MeshUVs : Overlay {
 
         /* FIXME: Always showing verts in edge mode when `uv_select_sync_valid`.
          * needs investigation. */
-        if (tool_setting->uv_flag & UV_FLAG_SYNC_SELECT) {
+        if (tool_setting->uv_flag & UV_FLAG_SELECT_SYNC) {
           const char sel_mode_3d = tool_setting->selectmode;
-          if (tool_setting->uv_sticky == SI_STICKY_VERTEX) {
+          if (tool_setting->uv_sticky == UV_STICKY_VERT) {
             /* NOTE: Ignore #SCE_SELECT_VERTEX because a single selected edge
              * on the mesh may cause single UV vertices to be selected. */
             select_vert_ = true;
