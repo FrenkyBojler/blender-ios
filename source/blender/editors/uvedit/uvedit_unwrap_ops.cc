@@ -210,7 +210,7 @@ struct UnwrapOptions {
   bool use_abf;
   bool use_subsurf;
   bool use_weights;
-  bool fixed_bounds;
+  bool original_bounds;
 
   ParamSlimOptions slim;
   char weight_group[MAX_VGROUP_NAME];
@@ -268,7 +268,7 @@ static UnwrapOptions unwrap_options_get(wmOperator *op, Object *ob, const ToolSe
   options.pin_unselected = false;
 
   options.slim.skip_init = false;
-  options.fixed_bounds = false;
+  options.original_bounds = false;
 
   if (ts) {
     options.method = ts->unwrapper;
@@ -288,7 +288,7 @@ static UnwrapOptions unwrap_options_get(wmOperator *op, Object *ob, const ToolSe
     options.correct_aspect = RNA_boolean_get(op->ptr, "correct_aspect");
     options.fill_holes = RNA_boolean_get(op->ptr, "fill_holes");
     options.use_subsurf = RNA_boolean_get(op->ptr, "use_subsurf_data");
-    options.fixed_bounds = RNA_boolean_get(op->ptr, "fixed_bounds");
+    options.original_bounds = RNA_boolean_get(op->ptr, "original_bounds");
 
     options.use_weights = RNA_boolean_get(op->ptr, "use_weights");
     RNA_string_get(op->ptr, "weight_group", options.weight_group);
@@ -2755,16 +2755,16 @@ static void uvedit_unwrap(const Scene *scene,
 
   if (options->use_slim) {
     uv_parametrizer_slim_solve(
-        handle, &options->slim, options->fixed_bounds, r_count_changed, r_count_failed);
+        handle, &options->slim, options->original_bounds, r_count_changed, r_count_failed);
   }
   else {
     blender::geometry::uv_parametrizer_lscm_begin(
-        handle, false, options->use_abf, options->fixed_bounds);
+        handle, false, options->use_abf, options->original_bounds);
     blender::geometry::uv_parametrizer_lscm_solve(handle, r_count_changed, r_count_failed);
     blender::geometry::uv_parametrizer_lscm_end(handle);
   }
-  if (options->fixed_bounds) {
-    blender::geometry::uv_parametrizer_fixed_bounds(handle);
+  if (options->original_bounds) {
+    blender::geometry::uv_parametrizer_original_bounds(handle);
   }
   else {
     blender::geometry::uv_parametrizer_average(handle, true, false, false);
@@ -2897,7 +2897,7 @@ static wmOperatorStatus unwrap_exec(bContext *C, wmOperator *op)
   int count_changed = 0;
   int count_failed = 0;
 
-  if (options.fixed_bounds) {
+  if (options.original_bounds) {
     StitchStateContainer *ssc = MEM_callocN<StitchStateContainer>("stitch collection");
     Scene *scene = CTX_data_scene(C);
 
@@ -2927,7 +2927,7 @@ static wmOperatorStatus unwrap_exec(bContext *C, wmOperator *op)
       RNA_enum_get(op->ptr, "margin_method"));
   pack_island_params.margin = RNA_float_get(op->ptr, "margin");
 
-  if (!options.fixed_bounds) {
+  if (!options.original_bounds) {
     uvedit_pack_islands_multi(
         scene, objects, nullptr, nullptr, false, true, nullptr, &pack_island_params);
   }
@@ -2983,8 +2983,8 @@ static void unwrap_draw(bContext * /*C*/, wmOperator *op)
 
   col->separator();
   col->prop(&ptr, "use_subsurf_data", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  col->prop(&ptr, "fixed_bounds", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  if (!RNA_boolean_get(op->ptr, "fixed_bounds")) {
+  col->prop(&ptr, "original_bounds", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  if (!RNA_boolean_get(op->ptr, "original_bounds")) {
     col->separator();
     col->prop(&ptr, "correct_aspect", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     col->separator();
@@ -3042,7 +3042,7 @@ void UV_OT_unwrap(wmOperatorType *ot)
       "Use Subdivision Surface",
       "Map UVs taking vertex position after Subdivision Surface modifier has been applied");
   RNA_def_boolean(ot->srna,
-                  "fixed_bounds",
+                  "original_bounds",
                   false,
                   "Fixed Bounds",
                   "Pack islands in fixed bounds of original islands");
