@@ -1357,7 +1357,7 @@ ShapeCache::ShapeCache()
     for (int i = 0; i < 3; i++) {
       float3 axis(0.0f);
       axis[i] = 1.0f;
-      UI_GetThemeColorShade3fv(axis_theme[i], 0, crosshair_color);
+      UI_GetThemeColor3fv(axis_theme[i], crosshair_color);
       verts.append({f5 * axis, crosshair_color});
       verts.append({f20 * axis, crosshair_color});
 
