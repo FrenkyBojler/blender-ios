@@ -19,6 +19,9 @@
 
 #include "node_util.hh"  // IWYU pragma: export
 
+#include "BLI_task.hh"
+#include "BKE_attribute.hh"
+
 namespace blender {
 namespace bke {
 struct BVHTreeFromMesh;
@@ -83,5 +86,63 @@ const EnumPropertyItem *grid_socket_type_items_filter_fn(bContext *C,
 void node_geo_exec_with_missing_openvdb(GeoNodeExecParams &params);
 
 void draw_data_blocks(const bContext *C, uiLayout *layout, PointerRNA &bake_rna);
+
+/* Utility for grid-based field evaluation. */
+float grid_map_coordinate(const float x,
+                         const float in_min,
+                         const float in_max,
+                         const float out_min,
+                         const float out_max);
+
+class Grid3DFieldContext : public FieldContext {
+ private:
+  int3 resolution_;
+  float3 bounds_min_;
+  float3 bounds_max_;
+
+ public:
+  Grid3DFieldContext(const int3 resolution, const float3 bounds_min, const float3 bounds_max)
+      : resolution_(resolution), bounds_min_(bounds_min), bounds_max_(bounds_max)
+  {
+  }
+
+  int64_t points_num() const
+  {
+    return int64_t(resolution_.x) * int64_t(resolution_.y) * int64_t(resolution_.z);
+  }
+
+  GVArray get_varray_for_input(const FieldInput &field_input,
+                               const IndexMask & /*mask*/,
+                               ResourceScope & /*scope*/) const override
+  {
+    const bke::AttributeFieldInput *attribute_field_input =
+        dynamic_cast<const bke::AttributeFieldInput *>(&field_input);
+    if (attribute_field_input == nullptr) {
+      return {};
+    }
+    if (attribute_field_input->attribute_name() != "position") {
+      return {};
+    }
+
+    Array<float3> positions(this->points_num());
+
+    threading::parallel_for(IndexRange(resolution_.x), 1, [&](const IndexRange x_range) {
+      /* Start indexing at current X slice. */
+      int64_t index = x_range.start() * resolution_.y * resolution_.z;
+      for (const int64_t x_i : x_range) {
+        const float x = grid_map_coordinate(x_i, 0.0f, resolution_.x - 1, bounds_min_.x, bounds_max_.x);
+        for (const int64_t y_i : IndexRange(resolution_.y)) {
+          const float y = grid_map_coordinate(y_i, 0.0f, resolution_.y - 1, bounds_min_.y, bounds_max_.y);
+          for (const int64_t z_i : IndexRange(resolution_.z)) {
+            const float z = grid_map_coordinate(z_i, 0.0f, resolution_.z - 1, bounds_min_.z, bounds_max_.z);
+            positions[index] = float3(x, y, z);
+            index++;
+          }
+        }
+      }
+    });
+    return VArray<float3>::from_container(std::move(positions));
+  }
+};
 
 }  // namespace blender::nodes

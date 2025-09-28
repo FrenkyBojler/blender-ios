@@ -153,3 +153,16 @@ void geo_cmp_node_type_base(blender::bke::bNodeType *ntype,
   ntype->insert_link = node_insert_link_default;
   ntype->gather_link_search_ops = blender::nodes::search_link_ops_for_basic_node;
 }
+
+namespace blender::nodes {
+
+float grid_map_coordinate(const float x,
+                         const float in_min,
+                         const float in_max,
+                         const float out_min,
+                         const float out_max)
+{
+  return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
+}
+
+}  // namespace blender::nodes
