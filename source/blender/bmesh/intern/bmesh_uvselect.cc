@@ -959,9 +959,9 @@ void BM_mesh_uvselect_set_elem_from_mesh_with_vector_list(
 void BM_mesh_uvselect_set_elem_from_mesh(BMesh *bm,
                                          bool select,
                                          const BMUVSelectPickParams &params,
-                                         const blender::Span<BMVert *> verts,
-                                         const blender::Span<BMEdge *> edges,
-                                         const blender::Span<BMFace *> faces)
+                                         blender::Span<BMVert *> verts,
+                                         blender::Span<BMEdge *> edges,
+                                         blender::Span<BMFace *> faces)
 {
   const bool check_verts = !verts.is_empty();
   const bool check_edges = !edges.is_empty();

@@ -217,9 +217,9 @@ void BM_face_uvselect_set_pick(BMesh *bm,
 void BM_mesh_uvselect_set_elem_from_mesh(BMesh *bm,
                                          bool select,
                                          const BMUVSelectPickParams &params,
-                                         const blender::Span<BMVert *> verts,
-                                         const blender::Span<BMEdge *> edges,
-                                         const blender::Span<BMFace *> faces);
+                                         blender::Span<BMVert *> verts,
+                                         blender::Span<BMEdge *> edges,
+                                         blender::Span<BMFace *> faces);
 /** \copydoc #BM_mesh_uvselect_set_elem_from_mesh. */
 void BM_mesh_uvselect_set_elem_from_mesh_with_vector_list(
     BMesh *bm,
