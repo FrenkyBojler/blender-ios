@@ -122,8 +122,8 @@ static void node_geo_exec(GeoNodeExecParams params)
 
           /* Evaluate input field on a 3D grid. */
           blender::nodes::Grid3DFieldContext context(resolution, bounds_min, bounds_max);
-          FieldEvaluator evaluator(context, context.points_num());
-          Array<typename type_traits::BlenderType> values(context.points_num());
+          FieldEvaluator evaluator(context, context.voxel_num());
+          Array<typename type_traits::BlenderType> values(context.voxel_num());
           evaluator.add_with_destination(std::move(input_field), values.as_mutable_span());
           evaluator.evaluate();
 

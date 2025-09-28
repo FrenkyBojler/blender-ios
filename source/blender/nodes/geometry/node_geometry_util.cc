@@ -156,4 +156,50 @@ void geo_cmp_node_type_base(blender::bke::bNodeType *ntype,
 
 namespace blender::nodes {
 
+Grid3DFieldContext::Grid3DFieldContext(const int3 resolution, const float3 bounds_min, const float3 bounds_max)
+    : resolution_(resolution), bounds_min_(bounds_min), bounds_max_(bounds_max)
+{
+}
+
+int64_t Grid3DFieldContext::voxel_num() const
+{
+  return int64_t(resolution_.x) * int64_t(resolution_.y) * int64_t(resolution_.z);
+}
+
+GVArray Grid3DFieldContext::get_varray_for_input(const FieldInput &field_input,
+                                                  const IndexMask & /*mask*/,
+                                                  ResourceScope & /*scope*/) const
+{
+  const bke::AttributeFieldInput *attribute_field_input =
+      dynamic_cast<const bke::AttributeFieldInput *>(&field_input);
+  if (attribute_field_input == nullptr) {
+    return {};
+  }
+  if (attribute_field_input->attribute_name() != "position") {
+    return {};
+  }
+
+  Array<float3> positions(this->voxel_num());
+
+  threading::parallel_for(IndexRange(resolution_.x), 1, [&](const IndexRange x_range) {
+    /* Start indexing at current X slice. */
+    int64_t index = x_range.start() * resolution_.y * resolution_.z;
+    for (const int64_t x_i : x_range) {
+      const float x = grid_map_coordinate(
+          x_i, 0.0f, resolution_.x - 1, bounds_min_.x, bounds_max_.x);
+      for (const int64_t y_i : IndexRange(resolution_.y)) {
+        const float y = grid_map_coordinate(
+            y_i, 0.0f, resolution_.y - 1, bounds_min_.y, bounds_max_.y);
+        for (const int64_t z_i : IndexRange(resolution_.z)) {
+          const float z = grid_map_coordinate(
+              z_i, 0.0f, resolution_.z - 1, bounds_min_.z, bounds_max_.z);
+          positions[index] = float3(x, y, z);
+          index++;
+        }
+      }
+    }
+  });
+  return VArray<float3>::from_container(std::move(positions));
+}
+
 }  // namespace blender::nodes
