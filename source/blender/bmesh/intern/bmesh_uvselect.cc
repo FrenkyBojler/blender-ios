@@ -1493,7 +1493,7 @@ void BM_mesh_uvselect_flush_post_subdivide(BMesh *bm, const int cd_loop_uv_offse
 
 /* Sticky Vertex. */
 
-static void bm_mesh_uvselect_flush_from_mesh_sticky_vertex_for_vert_mode(BMesh *bm)
+static void bm_mesh_uvselect_flush_from_mesh_sticky_vert_for_vert_mode(BMesh *bm)
 {
   BMIter iter;
   BMFace *f;
@@ -1516,7 +1516,7 @@ static void bm_mesh_uvselect_flush_from_mesh_sticky_vertex_for_vert_mode(BMesh *
   bm->uv_select_sync_valid = true;
 }
 
-static void bm_mesh_uvselect_flush_from_mesh_sticky_vertex_for_edge_mode(BMesh *bm)
+static void bm_mesh_uvselect_flush_from_mesh_sticky_vert_for_edge_mode(BMesh *bm)
 {
   BMIter iter;
   BMFace *f;
@@ -1550,7 +1550,7 @@ static void bm_mesh_uvselect_flush_from_mesh_sticky_vertex_for_edge_mode(BMesh *
   bm->uv_select_sync_valid = true;
 }
 
-static void bm_mesh_uvselect_flush_from_mesh_sticky_vertex_for_face_mode(BMesh *bm)
+static void bm_mesh_uvselect_flush_from_mesh_sticky_vert_for_face_mode(BMesh *bm)
 {
   BMIter iter;
   BMFace *f;
@@ -1592,7 +1592,7 @@ static void bm_mesh_uvselect_flush_from_mesh_sticky_location_for_vert_mode(
    * it would mean that de-selecting a face could suddenly cause the vertex
    * (attached to that face on another UV island) to become selected.
    * Since that would be unexpected for users - just use this simple logic here. */
-  bm_mesh_uvselect_flush_from_mesh_sticky_vertex_for_vert_mode(bm);
+  bm_mesh_uvselect_flush_from_mesh_sticky_vert_for_vert_mode(bm);
 }
 
 static void bm_mesh_uvselect_flush_from_mesh_sticky_location_for_edge_mode(
@@ -1690,20 +1690,20 @@ void BM_mesh_uvselect_sync_from_mesh_sticky_disabled(BMesh *bm)
 {
   /* The mode is ignored when sticky selection is disabled,
    * Always use the selection from the mesh. */
-  bm_mesh_uvselect_flush_from_mesh_sticky_vertex_for_vert_mode(bm);
+  bm_mesh_uvselect_flush_from_mesh_sticky_vert_for_vert_mode(bm);
   BLI_assert(bm->uv_select_sync_valid);
 }
 
 void BM_mesh_uvselect_sync_from_mesh_sticky_vert(BMesh *bm)
 {
   if (bm->selectmode & SCE_SELECT_VERTEX) {
-    bm_mesh_uvselect_flush_from_mesh_sticky_vertex_for_vert_mode(bm);
+    bm_mesh_uvselect_flush_from_mesh_sticky_vert_for_vert_mode(bm);
   }
   else if (bm->selectmode & SCE_SELECT_EDGE) {
-    bm_mesh_uvselect_flush_from_mesh_sticky_vertex_for_edge_mode(bm);
+    bm_mesh_uvselect_flush_from_mesh_sticky_vert_for_edge_mode(bm);
   }
   else { /* `SCE_SELECT_FACE` */
-    bm_mesh_uvselect_flush_from_mesh_sticky_vertex_for_face_mode(bm);
+    bm_mesh_uvselect_flush_from_mesh_sticky_vert_for_face_mode(bm);
   }
   BLI_assert(bm->uv_select_sync_valid);
 }
