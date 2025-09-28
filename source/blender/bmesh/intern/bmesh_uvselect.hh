@@ -130,10 +130,19 @@ bool BM_face_uvselect_check_edges_all(BMFace *f);
 /** \name UV Selection Functions
  * \{ */
 
+/** Set the UV selection flag for `f` without flushing down to edges & vertices. */
 void BM_face_uvselect_set_noflush(BMesh *bm, BMFace *f, bool select);
+/** Set the UV selection flag for `f` & flush down to edges & vertices. */
 void BM_face_uvselect_set(BMesh *bm, BMFace *f, bool select);
+
+/** Set the UV selection flag for `e` without flushing down to vertices. */
 void BM_loop_edge_uvselect_set_noflush(BMesh *bm, BMLoop *l, bool select);
+/** Set the UV selection flag for `e` & flush down to vertices. */
 void BM_loop_edge_uvselect_set(BMesh *bm, BMLoop *l, bool select);
+/**
+ * Set the UV selection flag for `v` without flushing down.
+ * since there is nothing to flush down to.
+ */
 void BM_loop_vert_uvselect_set_noflush(BMesh *bm, BMLoop *l, bool select);
 
 /**
@@ -289,27 +298,41 @@ void BM_mesh_uvselect_flush_shared_only_select(BMesh *bm, const int cd_loop_uv_o
 /* -------------------------------------------------------------------- */
 /** \name UV Selection Flushing (Between Elements)
  *
- * \note In most cases flushing assuming selection has already been flushed down.
+ * Regarding the `flush_down` argument.
  *
- * This means:
- * - A selected edge must have both UV vertices selected.
- * - A selected faces has all it's edges & vertices selected.
+ * Primitive UV selection functions always flush down:
+ * - #BM_face_uvselect_set
+ * - #BM_loop_edge_uvselect_set
+ * - #BM_loop_vert_uvselect_set
+ *
+ * This means it's often only necessary to flush up after the selection has been changed.
  * \{ */
-
-/** \note The caller may need to run #BM_mesh_uvselect_flush_shared_only_select. */
-void BM_mesh_uvselect_flush_from_loop_verts(BMesh *bm);
-/** \note The caller may need to run #BM_mesh_uvselect_flush_shared_only_select. */
-void BM_mesh_uvselect_flush_from_loop_edges(BMesh *bm, bool flush_down);
-/** \note The caller may need to run #BM_mesh_uvselect_flush_shared_only_select. */
-void BM_mesh_uvselect_flush_from_faces(BMesh *bm, bool flush_down);
 
 /**
  * Mode independent UV selection/de-selection flush from UV vertices.
  *
  * \param select: When true, flush the selection state to de-selected elements,
  * otherwise perform the opposite, flushing de-selection.
+ *
+ * \note The caller may need to run #BM_mesh_uvselect_flush_shared_only_select afterwards.
  */
-void BM_mesh_uvselect_flush_from_loop_verts(BMesh *bm, bool select);
+void BM_mesh_uvselect_flush_from_loop_verts(BMesh *bm);
+/**
+ * Mode independent UV selection/de-selection flush from UV edges.
+ *
+ * Flush from loop edges up to faces and optionally down to vertices (when `flush_down` is true).
+ *
+ * \note The caller may need to run #BM_mesh_uvselect_flush_shared_only_select afterwards.
+ */
+void BM_mesh_uvselect_flush_from_loop_edges(BMesh *bm, bool flush_down);
+/**
+ * Mode independent UV selection/de-selection flush from UV faces.
+ *
+ * Flush from faces down to edges & vertices (when `flush_down` is true).
+ *
+ * \note The caller may need to run #BM_mesh_uvselect_flush_shared_only_select afterwards.
+ */
+void BM_mesh_uvselect_flush_from_faces(BMesh *bm, bool flush_down);
 
 /**
  * Mode independent UV selection/de-selection flush from UV vertices.
