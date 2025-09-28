@@ -4303,6 +4303,7 @@ def km_grease_pencil_vertex_paint(params):
          {"properties": [("data_path", "scene.tool_settings.use_gpencil_vertex_select_mask_segment")]}),
         # Flip primary and secondary color
         ("paint.brush_colors_flip", {"type": 'X', "value": 'PRESS'}, None),
+        ("paint.sample_color", {"type": 'X', "value": 'PRESS', "shift": True}, None),
 
         # Edit Lines overlay
         ("wm.context_toggle", {"type": 'Q', "value": 'PRESS', "shift": True},
