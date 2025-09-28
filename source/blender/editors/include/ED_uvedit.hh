@@ -89,13 +89,13 @@ bool ED_uvedit_test(Object *obedit);
 namespace blender::ed::uv {
 
 /**
- * Abstract away the details of syncing selection form the mesh (viewport)
+ * Abstract away the details of syncing selection from the mesh (viewport)
  * to a UV state which is "synchronized".
  *
  * Where practical (see note below) this is a preferred alternative to clearing the
  * UV selection state and re-initializing it from the mesh, because there may be be UV's
  * selected on one UV island and not another, even though the vertices are shared.
- * Flushing and re-initializing will set both, loosing the users selection.
+ * Flushing and re-initializing will set both, losing the users selection.
  *
  * Note that what is considered practical is open to interpretation,
  * picking individual elements and basic selection actions should be supported.

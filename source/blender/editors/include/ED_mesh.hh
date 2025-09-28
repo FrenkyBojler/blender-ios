@@ -212,19 +212,7 @@ UvVertMap *BM_uv_vert_map_create(BMesh *bm, bool use_select);
 void EDBM_flag_enable_all(BMEditMesh *em, char hflag);
 void EDBM_flag_disable_all(BMEditMesh *em, char hflag);
 
-/**
- * Mark the UV selection data as invalid,
- * using the mesh selection as the "source-of-truth".
- *
- * By convention call this immediately after flushing.
- *
- * \note In many cases the UV selection can be maintained and this function removed,
- * although it adds some complexity & overhead.
- * See #UVSyncSelectFromMesh.
- *
- * \note If this call should *not* be removed in favor of supporting UV selection,
- * this should be mentioned in a code-comment, making it clear this is not a limitation to *fix*.
- */
+/** \copydoc #BM_uvselect_clear */
 bool EDBM_uvselect_clear(BMEditMesh *em);
 
 bool BMBVH_EdgeVisible(const BMBVHTree *tree,

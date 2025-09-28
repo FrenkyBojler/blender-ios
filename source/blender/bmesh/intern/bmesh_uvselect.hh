@@ -140,9 +140,36 @@ void BM_loop_vert_uvselect_set_noflush(BMesh *bm, BMLoop *l, bool select);
  * Call this function when selecting mesh elements in the viewport and
  * the relationship with UV's is lost.
  *
- * By convention place this immediately after selection flushing.
- *
  * \return True if UV select is cleared (a change was made).
+ *
+ * This has two purposes:
+ *
+ * - Maintaining the UV selection isn't needed:
+ *   Some operations such as adding a new mesh primitive clear the selection,
+ *   selecting all geometry from the new primitive.
+ *   In this case a UV selection is redundant & should be cleared.
+ *
+ * - Maintaining the UV selection isn't supported:
+ *   Some selection operations don't support maintaining a valid UV selection,
+ *   in that case it's necessary to clear the UV selection otherwise tools may
+ *   seem to be broken if they aren't operating on the selection properly.
+ *
+ *   NOTE(@ideasman42): It's worth noting that in this case clearing the selection is "lossy",
+ *   users may wish that all selection operations would handle UV selection data too.
+ *   Supporting additional operations is always possible, at the time of writing it's
+ *   practical to do so, see: #131642 design task for details.
+ *
+ * Internally this mark the UV selection data as invalid,
+ * using the mesh selection as the "source-of-truth".
+ *
+ * \note By convention call this immediately after flushing.
+ *
+ * \note In many cases the UV selection can be maintained and this function removed,
+ * although it adds some complexity & overhead.
+ * See #UVSyncSelectFromMesh.
+ *
+ * \note Calls to this function that should *not* be removed in favor of supporting UV selection,
+ * this should be mentioned in a code-comment, making it clear this is not a limitation to *fix*.
  */
 bool BM_mesh_uvselect_clear(BMesh *bm);
 
@@ -233,11 +260,11 @@ void BM_mesh_uvselect_set_elem_from_mesh(BMesh *bm,
 /* -------------------------------------------------------------------- */
 /** \name UV Selection Flushing (Only Select/De-Select)
  *
- * \note In most cases flushing assuming selection has already been flushed down.
+ * \note In most cases flushing assumes selection has already been flushed down.
  *
  * This means:
  * - A selected edge must have both UV vertices selected.
- * - A selected faces has all it's edges & vertices selected.
+ * - A selected faces has all its edges & vertices selected.
  *
  * It's often useful to call #BM_mesh_uvselect_flush_shared_only_select
  * after using these non-UV-coordinate aware flushing functions.
@@ -283,6 +310,15 @@ void BM_mesh_uvselect_flush_from_faces(BMesh *bm, bool flush_down);
  * otherwise perform the opposite, flushing de-selection.
  */
 void BM_mesh_uvselect_flush_from_loop_verts(BMesh *bm, bool select);
+
+/**
+ * Mode independent UV selection/de-selection flush from UV vertices.
+ *
+ * Use this when it's know geometry was only selected/de-selected.
+ *
+ * \note An equivalent to #BM_mesh_select_flush_from_verts for the UV selection.
+ */
+void BM_mesh_uvselect_flush_from_verts(BMesh *bm, const bool select);
 
 /** \} */
 

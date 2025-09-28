@@ -1578,7 +1578,7 @@ static PyObject *bpy_bmesh_uv_select_flush(BPy_BMesh *self, PyObject *value)
   if (bpy_bm_check_uv_select_sync_valid(bm) == -1) {
     return nullptr;
   }
-  BM_mesh_uvselect_flush_from_loop_verts(bm, param);
+  BM_mesh_uvselect_flush_from_verts(bm, param);
   Py_RETURN_NONE;
 }
 
