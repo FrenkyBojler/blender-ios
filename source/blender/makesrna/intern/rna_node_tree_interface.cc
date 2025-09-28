@@ -1211,7 +1211,8 @@ static void rna_def_node_interface_socket(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop,
       "Optional Label",
-      "Indicate that the label of this socket is not necessary to understand its meaning");
+      "Indicate that the label of this socket is not necessary to understand its meaning. This "
+      "may result in the label being skipped in some cases");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_NodeTreeInterfaceItem_update");
 
   prop = RNA_def_property(srna, "attribute_domain", PROP_ENUM, PROP_NONE);
