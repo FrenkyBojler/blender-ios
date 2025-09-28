@@ -1329,16 +1329,16 @@ ShapeCache::ShapeCache()
   }
   /* cursor circle */
   {
-    const int segments = 16;
-
-    const float red[3] = {1.0f, 0.0f, 0.0f};
-    const float white[3] = {1.0f, 1.0f, 1.0f};
+    const int segments = 12;
+    const float primary[3] = {0.2f, 0.2f, 0.2f};
+    const float secondary[3] = {0.8f, 0.8f, 0.8f};
 
     Vector<VertexWithColor> verts;
 
     for (int i = 0; i < segments + 1; i++) {
       float angle = float(2 * M_PI) * (float(i) / float(segments));
-      verts.append({0.5f * float3(cosf(angle), sinf(angle), 0.0f), (i % 2 == 0) ? red : white});
+      verts.append(
+          {0.33f * float3(cosf(angle), sinf(angle), 0.0f), (i % 2 == 0) ? primary : secondary});
     }
 
     cursor_circle = BatchPtr(GPU_batch_create_ex(
@@ -1346,8 +1346,8 @@ ShapeCache::ShapeCache()
   }
   /* cursor lines */
   {
-    const float f5 = 0.25f;
-    const float f20 = 1.0f;
+    const float f5 = 1.0f;
+    const float f20 = .6f;
     const std::array<int, 3> axis_theme = {TH_AXIS_X, TH_AXIS_Y, TH_AXIS_Z};
 
     float crosshair_color[3];
@@ -1356,11 +1356,14 @@ ShapeCache::ShapeCache()
 
     for (int i = 0; i < 3; i++) {
       float3 axis(0.0f);
-      UI_GetThemeColor3fv(axis_theme[i], crosshair_color);
       axis[i] = 1.0f;
+      UI_GetThemeColorShade3fv(axis_theme[i], 0, crosshair_color);
       verts.append({f5 * axis, crosshair_color});
       verts.append({f20 * axis, crosshair_color});
+
+      /* Draw the negative axis a little darker. */
       axis[i] = -1.0f;
+      UI_GetThemeColorShade3fv(axis_theme[i], -60, crosshair_color);
       verts.append({f5 * axis, crosshair_color});
       verts.append({f20 * axis, crosshair_color});
     }
