@@ -1000,21 +1000,24 @@ static wmOperatorStatus screen_render_invoke(bContext *C, wmOperator *op, const 
 {
   /* new render clears all callbacks */
   Main *bmain = CTX_data_main(C);
-  Scene *scene = CTX_data_scene(C);
-  ViewLayer *active_layer = CTX_data_view_layer(C);
   ViewLayer *single_layer = nullptr;
-  RenderEngineType *re_type = RE_engines_find(scene->r.engine);
   Render *re;
   wmJob *wm_job;
   RenderJob *rj;
   Image *ima;
+  ScrArea *area;
+
   const bool is_animation = RNA_boolean_get(op->ptr, "animation");
   const bool is_write_still = RNA_boolean_get(op->ptr, "write_still");
   const bool use_viewport = RNA_boolean_get(op->ptr, "use_viewport");
+  const bool use_sequencer_scene = RNA_boolean_get(op->ptr, "use_sequencer_scene");
+
   View3D *v3d = use_viewport ? CTX_wm_view3d(C) : nullptr;
+  Scene *scene = use_sequencer_scene ? CTX_data_sequencer_scene(C) : CTX_data_scene(C);
+  ViewLayer *active_layer = use_sequencer_scene ? BKE_view_layer_default_render(scene) :
+                                                  CTX_data_view_layer(C);
+  RenderEngineType *re_type = RE_engines_find(scene->r.engine);
   Object *camera_override = v3d ? V3D_CAMERA_LOCAL(v3d) : nullptr;
-  const char *name;
-  ScrArea *area;
 
   /* Cannot do render if there is not this function. */
   if (re_type->render == nullptr) {
@@ -1088,7 +1091,7 @@ static wmOperatorStatus screen_render_invoke(bContext *C, wmOperator *op, const 
   rj->main = bmain;
   rj->scene = scene;
   rj->current_scene = rj->scene;
-  rj->view_layer = CTX_data_view_layer(C);
+  rj->view_layer = active_layer;
   rj->single_layer = single_layer;
   rj->camera_override = camera_override;
   rj->anim = is_animation;
@@ -1134,6 +1137,7 @@ static wmOperatorStatus screen_render_invoke(bContext *C, wmOperator *op, const 
   }
 
   /* setup job */
+  const char *name;
   if (RE_seq_render_active(scene, &scene->r)) {
     name = RPT_("Rendering sequence...");
   }
@@ -1232,6 +1236,12 @@ void RENDER_OT_render(wmOperatorType *ot)
                          false,
                          "Use 3D Viewport",
                          "When inside a 3D viewport, use layers and camera of the viewport");
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+  prop = RNA_def_boolean(ot->srna,
+                         "use_sequencer_scene",
+                         false,
+                         "Use Sequencer Scene",
+                         "Render the sequencer scene instead of the active scene");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
   prop = RNA_def_string(ot->srna,
                         "layer",

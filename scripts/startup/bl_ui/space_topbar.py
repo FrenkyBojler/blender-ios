@@ -460,6 +460,18 @@ class TOPBAR_MT_file_previews(Menu):
         layout.operator("wm.previews_batch_clear", text="Batch-Clear Previews...")
 
 
+class TOPBAR_MT_render_scene(Menu):
+    bl_label = "Render Scene"
+
+    def draw(self, context):
+        layout = self.layout
+        op = layout.operator("render.render", text="Render Image", icon='RENDER_STILL')
+        op.use_viewport = True
+        props = layout.operator("render.render", text="Render Animation", icon='RENDER_ANIMATION')
+        props.animation = True
+        props.use_viewport = True
+
+
 class TOPBAR_MT_render(Menu):
     bl_label = "Render"
 
@@ -468,10 +480,26 @@ class TOPBAR_MT_render(Menu):
 
         rd = context.scene.render
 
-        layout.operator("render.render", text="Render Image", icon='RENDER_STILL').use_viewport = True
+        win = context.window
+        screen = win.screen if win else None
+        areas = screen.areas if screen else ()
+        has_sequencer = any(a.type == 'SEQUENCE_EDITOR' for a in areas)
+
+        props = layout.operator("render.render", text="Render Image", icon='RENDER_STILL')
+        props.use_viewport = True
+        if has_sequencer:
+            props.use_sequencer_scene = True
+
         props = layout.operator("render.render", text="Render Animation", icon='RENDER_ANIMATION')
         props.animation = True
         props.use_viewport = True
+        if has_sequencer:
+            props.use_sequencer_scene = True
+
+        layout.separator()
+
+        if has_sequencer:
+            layout.menu("TOPBAR_MT_render_scene", text="Render Scene", icon='SCENE_DATA')
 
         layout.separator()
 
@@ -850,6 +878,7 @@ classes = (
     TOPBAR_MT_file_cleanup,
     TOPBAR_MT_file_previews,
     TOPBAR_MT_edit,
+    TOPBAR_MT_render_scene,
     TOPBAR_MT_render,
     TOPBAR_MT_window,
     TOPBAR_MT_help,
