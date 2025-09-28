@@ -1348,14 +1348,15 @@ ShapeCache::ShapeCache()
   {
     const float f5 = 0.25f;
     const float f20 = 1.0f;
+    const std::array<int, 3> axis_theme = {TH_AXIS_X, TH_AXIS_Y, TH_AXIS_Z};
 
     float crosshair_color[3];
-    UI_GetThemeColor3fv(TH_VIEW_OVERLAY, crosshair_color);
 
     Vector<VertexWithColor> verts;
 
     for (int i = 0; i < 3; i++) {
       float3 axis(0.0f);
+      UI_GetThemeColor3fv(axis_theme[i], crosshair_color);
       axis[i] = 1.0f;
       verts.append({f5 * axis, crosshair_color});
       verts.append({f20 * axis, crosshair_color});
