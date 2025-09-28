@@ -162,6 +162,7 @@ struct PChart {
 
   float origin[2];
 
+  /* orig_bounds only used with fixed_bounds */
   Bounds<float2> orig_bounds;
 
   LinearSolver *context;
@@ -3056,14 +3057,14 @@ static void p_chart_extrema_verts(PChart *chart, PVert **pin1, PVert **pin2)
   p_chart_pin_positions(chart, pin1, pin2);
 }
 
-static void p_chart_lscm_begin(PChart *chart, bool live, bool abf, const bool uniform_bounding_box)
+static void p_chart_lscm_begin(PChart *chart, bool live, bool abf, const bool fixed_bounds)
 {
   BLI_assert(chart->context == nullptr);
 
   bool select = false;
   bool deselect = false;
   int npins = 0;
-  if (uniform_bounding_box) {
+  if (fixed_bounds) {
     p_chart_uv_bbox(chart, chart->orig_bounds.min, chart->orig_bounds.max);
   }
   /* Give vertices matrix indices, count pins and check selections. */
@@ -4073,10 +4074,7 @@ void uv_parametrizer_construct_end(ParamHandle *phandle,
   phandle->state = PHANDLE_STATE_CONSTRUCTED;
 }
 
-void uv_parametrizer_lscm_begin(ParamHandle *phandle,
-                                bool live,
-                                bool abf,
-                                const bool uniform_bounding_box)
+void uv_parametrizer_lscm_begin(ParamHandle *phandle, bool live, bool abf, const bool fixed_bounds)
 {
   BLI_assert(phandle->state == PHANDLE_STATE_CONSTRUCTED);
   phandle->state = PHANDLE_STATE_LSCM;
@@ -4085,7 +4083,7 @@ void uv_parametrizer_lscm_begin(ParamHandle *phandle,
     for (PFace *f = phandle->charts[i]->faces; f; f = f->nextlink) {
       p_face_backup_uvs(f);
     }
-    p_chart_lscm_begin(phandle->charts[i], live, abf, uniform_bounding_box);
+    p_chart_lscm_begin(phandle->charts[i], live, abf, fixed_bounds);
   }
 }
 
@@ -4234,7 +4232,7 @@ void uv_parametrizer_pack(ParamHandle *handle, const UVPackIsland_Params &params
 
   uv_parametrizer_scale_x(handle, handle->aspect_y);
 }
-void uv_parametrizer_unwrap_uniform(ParamHandle *phandle)
+void uv_parametrizer_fixed_bounds(ParamHandle *phandle)
 {
   int i;
 
@@ -5123,7 +5121,7 @@ static void slim_transfer_faces(const PChart *chart, slim::MatrixTransferChart *
  */
 static void slim_convert_blender(ParamHandle *phandle,
                                  slim::MatrixTransfer *mt,
-                                 const bool uniform_bounding_box)
+                                 const bool fixed_bounds)
 {
   static const float SLIM_CORR_MIN_AREA = 1.0e-8;
   static const float SLIM_CORR_MIN_ANGLE = DEG2RADF(1.0f);
@@ -5132,7 +5130,7 @@ static void slim_convert_blender(ParamHandle *phandle,
 
   for (int i = 0; i < phandle->ncharts; i++) {
     PChart *chart = phandle->charts[i];
-    if (uniform_bounding_box) {
+    if (fixed_bounds) {
       p_chart_uv_bbox(chart, chart->orig_bounds.min, chart->orig_bounds.max);
     }
     slim::MatrixTransferChart *mt_chart = &mt->charts[i];
@@ -5168,11 +5166,11 @@ static void slim_convert_blender(ParamHandle *phandle,
 
 static void slim_transfer_data_to_slim(ParamHandle *phandle,
                                        const ParamSlimOptions *slim_options,
-                                       const bool uniform_bounding_box)
+                                       const bool fixed_bounds)
 {
   slim::MatrixTransfer *mt = slim_matrix_transfer(slim_options);
 
-  slim_convert_blender(phandle, mt, uniform_bounding_box);
+  slim_convert_blender(phandle, mt, fixed_bounds);
   phandle->slim_mt = mt;
 }
 
@@ -5293,12 +5291,12 @@ static void slim_get_pinned_vertex_data(ParamHandle *phandle,
 
 void uv_parametrizer_slim_solve(ParamHandle *phandle,
                                 const ParamSlimOptions *slim_options,
-                                bool uniform_bounding_box,
+                                bool fixed_bounds,
                                 int *count_changed,
                                 int *count_failed)
 {
 #ifdef WITH_UV_SLIM
-  slim_transfer_data_to_slim(phandle, slim_options, uniform_bounding_box);
+  slim_transfer_data_to_slim(phandle, slim_options, fixed_bounds);
   slim::MatrixTransfer *mt = phandle->slim_mt;
 
   mt->parametrize();
@@ -5308,7 +5306,7 @@ void uv_parametrizer_slim_solve(ParamHandle *phandle,
 #else
   *count_changed = 0;
   *count_failed = 0;
-  UNUSED_VARS(phandle, slim_options, uniform_bounding_box, count_changed, count_failed);
+  UNUSED_VARS(phandle, slim_options, fixed_bounds, count_changed, count_failed);
 #endif /* !WITH_UV_SLIM */
 }
 

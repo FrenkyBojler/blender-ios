@@ -1883,7 +1883,7 @@ static StitchState *stitch_init(bContext *C,
   state->aspect = ED_uvedit_get_aspect_y(obedit);
 
   blender::Vector<bool> island_has_selected;
-  /* Mark islands that have at least one selected UV */
+  /* Mark islands that have at least one selected UV loop as selected. */
   if (ssc->only_selected_uvs) {
     island_has_selected.resize(state->element_map->total_islands, false);
     BM_ITER_MESH (efa, &iter, em->bm, BM_FACES_OF_MESH) {
@@ -1944,7 +1944,7 @@ static StitchState *stitch_init(bContext *C,
     if (face_selected && !BM_elem_flag_test(efa, BM_ELEM_SELECT)) {
       continue;
     }
-    /* Only process faces from islands that have at least one selected face */
+    /* Only process faces from islands that have at least one selected vertex */
     UvElement *face_element = BM_uv_element_get(state->element_map, BM_FACE_FIRST_LOOP(efa));
     if (!face_element || (ssc->only_selected_uvs && !island_has_selected[face_element->island])) {
       continue;
