@@ -16,7 +16,7 @@
 
 namespace blender::gpu {
 
-enum eGPUTextureFormatFlag {
+enum GPUTextureFormatFlag {
   /* The format has a depth component and can be used as depth attachment. */
   GPU_FORMAT_DEPTH = (1 << 0),
   /* The format has a stencil component and can be used as stencil attachment. */
@@ -37,9 +37,9 @@ enum eGPUTextureFormatFlag {
   GPU_FORMAT_DEPTH_STENCIL = (GPU_FORMAT_DEPTH | GPU_FORMAT_STENCIL),
 };
 
-ENUM_OPERATORS(eGPUTextureFormatFlag, GPU_FORMAT_SIGNED)
+ENUM_OPERATORS(GPUTextureFormatFlag, GPU_FORMAT_SIGNED)
 
-enum eGPUTextureType {
+enum GPUTextureType {
   GPU_TEXTURE_1D = (1 << 0),
   GPU_TEXTURE_2D = (1 << 1),
   GPU_TEXTURE_3D = (1 << 2),
@@ -52,11 +52,11 @@ enum eGPUTextureType {
   GPU_TEXTURE_CUBE_ARRAY = (GPU_TEXTURE_CUBE | GPU_TEXTURE_ARRAY),
 };
 
-ENUM_OPERATORS(eGPUTextureType, GPU_TEXTURE_BUFFER)
+ENUM_OPERATORS(GPUTextureType, GPU_TEXTURE_BUFFER)
 
 /* Format types for samplers within the shader.
  * This covers the sampler format type permutations within GLSL/MSL. */
-enum eGPUSamplerFormat {
+enum GPUSamplerFormat {
   GPU_SAMPLER_TYPE_FLOAT = 0,
   GPU_SAMPLER_TYPE_INT = 1,
   GPU_SAMPLER_TYPE_UINT = 2,
@@ -65,13 +65,16 @@ enum eGPUSamplerFormat {
   GPU_SAMPLER_TYPE_MAX = 4
 };
 
-ENUM_OPERATORS(eGPUSamplerFormat, GPU_SAMPLER_TYPE_UINT)
+ENUM_OPERATORS(GPUSamplerFormat, GPU_SAMPLER_TYPE_UINT)
 
 #ifndef NDEBUG
 #  define DEBUG_NAME_LEN 64
 #else
 #  define DEBUG_NAME_LEN 8
 #endif
+
+/* Maximum number of image units. */
+#define GPU_MAX_IMAGE 8
 
 /* Maximum number of FBOs a texture can be attached to. */
 #define GPU_TEX_MAX_FBO_ATTACHED 32
@@ -103,9 +106,9 @@ class Texture {
   /** Internal data format. */
   TextureFormat format_;
   /** Format characteristics. */
-  eGPUTextureFormatFlag format_flag_;
+  GPUTextureFormatFlag format_flag_;
   /** Texture type. */
-  eGPUTextureType type_;
+  GPUTextureType type_;
   /** Texture usage flags. */
   eGPUTextureUsage gpu_image_usage_flags_;
 
@@ -134,7 +137,7 @@ class Texture {
   bool init_buffer(VertBuf *vbo, TextureFormat format);
   bool init_view(Texture *src,
                  TextureFormat format,
-                 eGPUTextureType type,
+                 GPUTextureType type,
                  int mip_start,
                  int mip_len,
                  int layer_start,
@@ -162,8 +165,6 @@ class Texture {
                           eGPUDataFormat format,
                           GPUPixelBuffer *pixbuf) = 0;
 
-  /* TODO(fclem): Legacy. Should be removed at some point. */
-  virtual uint gl_bindcode_get() const = 0;
   int width_get() const
   {
     return w_;
@@ -255,11 +256,11 @@ class Texture {
   {
     return format_;
   }
-  eGPUTextureFormatFlag format_flag_get() const
+  GPUTextureFormatFlag format_flag_get() const
   {
     return format_flag_;
   }
-  eGPUTextureType type_get() const
+  GPUTextureType type_get() const
   {
     return type_;
   }
@@ -350,113 +351,7 @@ static inline const PixelBuffer *unwrap(const GPUPixelBuffer *pixbuf)
 
 inline size_t to_bytesize(TextureFormat format)
 {
-  switch (format) {
-    /* Formats texture & render-buffer */
-    case TextureFormat::UINT_8_8_8_8:
-    case TextureFormat::SINT_8_8_8_8:
-    case TextureFormat::UNORM_8_8_8_8:
-      return (4 * 8) / 8;
-    case TextureFormat::UINT_32_32_32_32:
-    case TextureFormat::SINT_32_32_32_32:
-    case TextureFormat::SFLOAT_32_32_32_32:
-      return (4 * 32) / 8;
-    case TextureFormat::UINT_16_16_16_16:
-    case TextureFormat::SINT_16_16_16_16:
-    case TextureFormat::SFLOAT_16_16_16_16:
-    case TextureFormat::UNORM_16_16_16_16:
-      return (4 * 16) / 8;
-    case TextureFormat::UINT_8_8:
-    case TextureFormat::SINT_8_8:
-    case TextureFormat::UNORM_8_8:
-      return (2 * 8) / 8;
-    case TextureFormat::UINT_32_32:
-    case TextureFormat::SINT_32_32:
-    case TextureFormat::SFLOAT_32_32:
-      return (2 * 32) / 8;
-    case TextureFormat::UINT_16_16:
-    case TextureFormat::SINT_16_16:
-    case TextureFormat::SFLOAT_16_16:
-    case TextureFormat::UNORM_16_16:
-      return (2 * 16) / 8;
-    case TextureFormat::UINT_8:
-    case TextureFormat::SINT_8:
-    case TextureFormat::UNORM_8:
-      return 8 / 8;
-    case TextureFormat::UINT_32:
-    case TextureFormat::SINT_32:
-    case TextureFormat::SFLOAT_32:
-      return 32 / 8;
-    case TextureFormat::UINT_16:
-    case TextureFormat::SINT_16:
-    case TextureFormat::SFLOAT_16:
-    case TextureFormat::UNORM_16:
-      return 16 / 8;
-
-    /* Special formats texture & render-buffer */
-    case TextureFormat::UNORM_10_10_10_2:
-    case TextureFormat::UINT_10_10_10_2:
-      return (3 * 10 + 2) / 8;
-    case TextureFormat::UFLOAT_11_11_10:
-      return (11 + 11 + 10) / 8;
-    case TextureFormat::SFLOAT_32_DEPTH_UINT_8:
-      /* 32-bit depth, 8 bits stencil, and 24 unused bits. */
-      return (32 + 8 + 24) / 8;
-    case TextureFormat::SRGBA_8_8_8_8:
-      return (3 * 8 + 8) / 8;
-
-    /* Texture only formats. */
-    case TextureFormat::SFLOAT_16_16_16:
-    case TextureFormat::SNORM_16_16_16:
-    case TextureFormat::SINT_16_16_16:
-    case TextureFormat::UINT_16_16_16:
-    case TextureFormat::UNORM_16_16_16:
-      return (3 * 16) / 8;
-    case TextureFormat::SNORM_16_16_16_16:
-      return (4 * 16) / 8;
-    case TextureFormat::SNORM_8_8_8_8:
-      return (4 * 8) / 8;
-    case TextureFormat::SFLOAT_32_32_32:
-    case TextureFormat::SINT_32_32_32:
-    case TextureFormat::UINT_32_32_32:
-      return (3 * 32) / 8;
-    case TextureFormat::SNORM_8_8_8:
-    case TextureFormat::UNORM_8_8_8:
-    case TextureFormat::SINT_8_8_8:
-    case TextureFormat::UINT_8_8_8:
-      return (3 * 8) / 8;
-    case TextureFormat::SNORM_16_16:
-      return (2 * 16) / 8;
-    case TextureFormat::SNORM_8_8:
-      return (2 * 8) / 8;
-    case TextureFormat::SNORM_16:
-      return (1 * 16) / 8;
-    case TextureFormat::SNORM_8:
-      return (1 * 8) / 8;
-
-    /* Special formats, texture only. */
-    case TextureFormat::SRGB_DXT1:
-    case TextureFormat::SRGB_DXT3:
-    case TextureFormat::SRGB_DXT5:
-    case TextureFormat::SNORM_DXT1:
-    case TextureFormat::SNORM_DXT3:
-    case TextureFormat::SNORM_DXT5:
-      /* Incorrect but actual size is fractional. */
-      return 1;
-    case TextureFormat::SRGBA_8_8_8:
-      return (3 * 8) / 8;
-    case TextureFormat::UFLOAT_9_9_9_EXP_5:
-      return (3 * 9 + 5) / 8;
-
-    /* Depth Formats. */
-    case TextureFormat::SFLOAT_32_DEPTH:
-      return 32 / 8;
-    case TextureFormat::UNORM_16_DEPTH:
-      return 16 / 8;
-    case TextureFormat::Invalid:
-      BLI_assert_unreachable();
-  }
-  BLI_assert_unreachable();
-  return 0;
+  return to_bytesize(DataFormat(format));
 }
 
 inline size_t to_block_size(TextureFormat data_type)
@@ -476,7 +371,7 @@ inline size_t to_block_size(TextureFormat data_type)
   }
 }
 
-inline eGPUTextureFormatFlag to_format_flag(TextureFormat format)
+inline GPUTextureFormatFlag to_format_flag(TextureFormat format)
 {
   switch (format) {
     /* Formats texture & render-buffer */
@@ -615,101 +510,7 @@ inline eGPUTextureFormatFlag to_format_flag(TextureFormat format)
 
 inline int to_component_len(TextureFormat format)
 {
-  switch (format) {
-    /* Formats texture & render-buffer */
-    case TextureFormat::UINT_8_8_8_8:
-    case TextureFormat::SINT_8_8_8_8:
-    case TextureFormat::UNORM_8_8_8_8:
-    case TextureFormat::UINT_32_32_32_32:
-    case TextureFormat::SINT_32_32_32_32:
-    case TextureFormat::SFLOAT_32_32_32_32:
-    case TextureFormat::UINT_16_16_16_16:
-    case TextureFormat::SINT_16_16_16_16:
-    case TextureFormat::SFLOAT_16_16_16_16:
-    case TextureFormat::UNORM_16_16_16_16:
-      return 4;
-    case TextureFormat::UINT_8_8:
-    case TextureFormat::SINT_8_8:
-    case TextureFormat::UNORM_8_8:
-    case TextureFormat::UINT_32_32:
-    case TextureFormat::SINT_32_32:
-    case TextureFormat::SFLOAT_32_32:
-    case TextureFormat::UINT_16_16:
-    case TextureFormat::SINT_16_16:
-    case TextureFormat::SFLOAT_16_16:
-    case TextureFormat::UNORM_16_16:
-      return 2;
-    case TextureFormat::UINT_8:
-    case TextureFormat::SINT_8:
-    case TextureFormat::UNORM_8:
-    case TextureFormat::UINT_32:
-    case TextureFormat::SINT_32:
-    case TextureFormat::SFLOAT_32:
-    case TextureFormat::UINT_16:
-    case TextureFormat::SINT_16:
-    case TextureFormat::SFLOAT_16:
-    case TextureFormat::UNORM_16:
-      return 1;
-
-    /* Special formats texture & render-buffer */
-    case TextureFormat::UNORM_10_10_10_2:
-    case TextureFormat::UINT_10_10_10_2:
-      return 4;
-    case TextureFormat::UFLOAT_11_11_10:
-      return 3;
-    case TextureFormat::SFLOAT_32_DEPTH_UINT_8:
-      /* Only count depth component. */
-      return 1;
-    case TextureFormat::SRGBA_8_8_8_8:
-      return 4;
-
-    /* Texture only formats. */
-    case TextureFormat::SFLOAT_16_16_16:
-    case TextureFormat::SNORM_16_16_16:
-    case TextureFormat::SINT_16_16_16:
-    case TextureFormat::UINT_16_16_16:
-    case TextureFormat::UNORM_16_16_16:
-      return 3;
-    case TextureFormat::SNORM_16_16_16_16:
-    case TextureFormat::SNORM_8_8_8_8:
-      return 4;
-    case TextureFormat::SFLOAT_32_32_32:
-    case TextureFormat::SINT_32_32_32:
-    case TextureFormat::UINT_32_32_32:
-    case TextureFormat::SNORM_8_8_8:
-    case TextureFormat::UNORM_8_8_8:
-    case TextureFormat::SINT_8_8_8:
-    case TextureFormat::UINT_8_8_8:
-      return 3;
-    case TextureFormat::SNORM_16_16:
-    case TextureFormat::SNORM_8_8:
-      return 2;
-    case TextureFormat::SNORM_16:
-    case TextureFormat::SNORM_8:
-      return 1;
-
-    /* Special formats, texture only. */
-    case TextureFormat::SRGB_DXT1:
-    case TextureFormat::SRGB_DXT3:
-    case TextureFormat::SRGB_DXT5:
-    case TextureFormat::SNORM_DXT1:
-    case TextureFormat::SNORM_DXT3:
-    case TextureFormat::SNORM_DXT5:
-      return 4;
-    case TextureFormat::SRGBA_8_8_8:
-    case TextureFormat::UFLOAT_9_9_9_EXP_5:
-      return 3;
-
-    /* Depth Formats. */
-    case TextureFormat::SFLOAT_32_DEPTH:
-    case TextureFormat::UNORM_16_DEPTH:
-      return 1;
-
-    case TextureFormat::Invalid:
-      BLI_assert_unreachable();
-  }
-  BLI_assert_unreachable();
-  return 1;
+  return format_component_len(DataFormat(format));
 }
 
 inline size_t to_bytesize(eGPUDataFormat data_format)
@@ -972,7 +773,7 @@ inline eGPUDataFormat to_texture_data_format(TextureFormat tex_format)
   return GPU_DATA_FLOAT;
 }
 
-inline eGPUFrameBufferBits to_framebuffer_bits(TextureFormat tex_format)
+inline GPUFrameBufferBits to_framebuffer_bits(TextureFormat tex_format)
 {
   switch (tex_format) {
     /* Formats texture & render-buffer */

@@ -300,7 +300,7 @@ static void displaceModifier_do(DisplaceModifierData *dmd,
     data.vert_normals = mesh->vert_normals_true();
   }
   else if (direction == MOD_DISP_DIR_CLNOR) {
-    data.vert_normals = mesh->corner_normals();
+    data.vert_normals = mesh->vert_normals();
   }
   else if (ELEM(direction, MOD_DISP_DIR_X, MOD_DISP_DIR_Y, MOD_DISP_DIR_Z, MOD_DISP_DIR_RGB_XYZ) &&
            use_global_direction)
@@ -435,4 +435,5 @@ ModifierTypeInfo modifierType_Displace = {
     /*blend_write*/ nullptr,
     /*blend_read*/ nullptr,
     /*foreach_cache*/ nullptr,
+    /*foreach_working_space_color*/ nullptr,
 };

@@ -17,6 +17,7 @@
 #include "BLI_listbase.h"
 #include "BLI_math_rotation.h"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 #include "BLT_translation.hh"
@@ -460,7 +461,8 @@ void collection_hide_menu_draw(const bContext *C, uiLayout *layout)
   ViewLayer *view_layer = CTX_data_view_layer(C);
   LayerCollection *lc_scene = static_cast<LayerCollection *>(view_layer->layer_collections.first);
 
-  layout->operator_context_set(wm::OpCallContext::ExecRegionWin);
+  /* Use the "invoke" operator context so the "Shift" modifier is used to extend. */
+  layout->operator_context_set(wm::OpCallContext::InvokeRegionWin);
 
   LISTBASE_FOREACH (LayerCollection *, lc, &lc_scene->layer_collections) {
     int index = BKE_layer_collection_findindex(view_layer, lc);
@@ -1399,7 +1401,7 @@ void OBJECT_OT_paths_calculate(wmOperatorType *ot)
                "display_type",
                rna_enum_motionpath_display_type_items,
                MOTIONPATH_TYPE_RANGE,
-               "Display type",
+               "Display Type",
                "");
   RNA_def_enum(ot->srna,
                "range",
@@ -1703,7 +1705,7 @@ static wmOperatorStatus shade_smooth_exec(bContext *C, wmOperator *op)
   }
 
   if (has_linked_data) {
-    BKE_report(op->reports, RPT_WARNING, "Can't edit linked mesh or curve data");
+    BKE_report(op->reports, RPT_WARNING, "Cannot edit linked mesh or curve data");
   }
 
   return (changed_multi) ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
@@ -1888,18 +1890,19 @@ static wmOperatorStatus shade_auto_smooth_exec(bContext *C, wmOperator *op)
         smooth_by_angle_nmd->node_group = node_group;
         id_us_plus(&node_group->id);
         MOD_nodes_update_interface(object, smooth_by_angle_nmd);
-        smooth_by_angle_nmd->flag |= NODES_MODIFIER_HIDE_DATABLOCK_SELECTOR;
-        STRNCPY(smooth_by_angle_nmd->modifier.name, DATA_(node_group->id.name + 2));
+        smooth_by_angle_nmd->flag |= NODES_MODIFIER_HIDE_DATABLOCK_SELECTOR |
+                                     NODES_MODIFIER_HIDE_MANAGE_PANEL;
+        STRNCPY_UTF8(smooth_by_angle_nmd->modifier.name, DATA_(node_group->id.name + 2));
         BKE_modifier_unique_name(&object->modifiers, &smooth_by_angle_nmd->modifier);
       }
 
       IDProperty *angle_prop = IDP_GetPropertyFromGroup(smooth_by_angle_nmd->settings.properties,
                                                         angle_identifier.c_str());
       if (angle_prop->type == IDP_FLOAT) {
-        IDP_Float(angle_prop) = angle;
+        IDP_float_set(angle_prop, angle);
       }
       else if (angle_prop->type == IDP_DOUBLE) {
-        IDP_Double(angle_prop) = angle;
+        IDP_double_set(angle_prop, angle);
       }
 
       DEG_id_tag_update(&object->id, ID_RECALC_GEOMETRY);
@@ -2399,41 +2402,41 @@ static void move_to_collection_menu_draw(const bContext *C, Menu *menu)
   move_to_collection_menu_draw(menu, scene->master_collection, ICON_SCENE_DATA);
 }
 
-void move_to_colletion_menu_register()
+void move_to_collection_menu_register()
 {
   /* Add recursive sub-menu type, to avoid each sub-menu from showing the main menu shortcut. */
   MenuType *mt = MEM_callocN<MenuType>("OBJECT_MT_move_to_collection_recursive");
-  STRNCPY(mt->idname, "OBJECT_MT_move_to_collection_recursive");
-  STRNCPY(mt->label, N_("Move to Collection Recursive"));
-  STRNCPY(mt->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
+  STRNCPY_UTF8(mt->idname, "OBJECT_MT_move_to_collection_recursive");
+  STRNCPY_UTF8(mt->label, N_("Move to Collection Recursive"));
+  STRNCPY_UTF8(mt->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
   mt->draw = move_to_collection_recursive_menu_draw;
   mt->flag = MenuTypeFlag::ContextDependent;
   WM_menutype_add(mt);
 
   mt = MEM_callocN<MenuType>("OBJECT_MT_move_to_collection");
-  STRNCPY(mt->idname, "OBJECT_MT_move_to_collection");
-  STRNCPY(mt->label, N_("Move to Collection"));
-  STRNCPY(mt->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
+  STRNCPY_UTF8(mt->idname, "OBJECT_MT_move_to_collection");
+  STRNCPY_UTF8(mt->label, N_("Move to Collection"));
+  STRNCPY_UTF8(mt->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
   mt->draw = move_to_collection_menu_draw;
   mt->flag = MenuTypeFlag::SearchOnKeyPress;
   WM_menutype_add(mt);
 }
 
-void link_to_colletion_menu_register()
+void link_to_collection_menu_register()
 {
   /* Add recursive sub-menu type, to avoid each sub-menu from showing the main menu shortcut. */
   MenuType *mt = MEM_callocN<MenuType>("OBJECT_MT_link_to_collection_recursive");
-  STRNCPY(mt->idname, "OBJECT_MT_link_to_collection_recursive");
-  STRNCPY(mt->label, N_("Link to Collection Recursive"));
-  STRNCPY(mt->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
+  STRNCPY_UTF8(mt->idname, "OBJECT_MT_link_to_collection_recursive");
+  STRNCPY_UTF8(mt->label, N_("Link to Collection Recursive"));
+  STRNCPY_UTF8(mt->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
   mt->draw = move_to_collection_recursive_menu_draw;
   mt->flag = MenuTypeFlag::ContextDependent;
   WM_menutype_add(mt);
 
   mt = MEM_callocN<MenuType>("OBJECT_MT_link_to_collection");
-  STRNCPY(mt->idname, "OBJECT_MT_link_to_collection");
-  STRNCPY(mt->label, N_("Link to Collection"));
-  STRNCPY(mt->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
+  STRNCPY_UTF8(mt->idname, "OBJECT_MT_link_to_collection");
+  STRNCPY_UTF8(mt->label, N_("Link to Collection"));
+  STRNCPY_UTF8(mt->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
   mt->draw = move_to_collection_menu_draw;
   mt->flag = MenuTypeFlag::SearchOnKeyPress;
   WM_menutype_add(mt);

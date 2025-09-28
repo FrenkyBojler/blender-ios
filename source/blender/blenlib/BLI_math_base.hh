@@ -86,6 +86,16 @@ template<typename T> inline T safe_mod(const T &a, const T &b)
   return (b != 0) ? std::fmod(a, b) : 0;
 }
 
+template<typename T> inline T floored_mod(const T &a, const T &b)
+{
+  return a - std::floor(a / b) * b;
+}
+
+template<typename T> inline T safe_floored_mod(const T &a, const T &b)
+{
+  return (b != 0) ? a - std::floor(a / b) * b : 0;
+}
+
 template<typename T> inline void min_max(const T &value, T &min, T &max)
 {
   static_assert(std::is_arithmetic_v<T>,
@@ -199,6 +209,11 @@ template<typename T> inline T fallback_pow(const T &x, const T &power, const T &
 template<typename T> inline T square(const T &a)
 {
   return a * a;
+}
+
+template<typename T> inline T cube(const T &a)
+{
+  return a * a * a;
 }
 
 template<typename T> inline T exp(const T &x)

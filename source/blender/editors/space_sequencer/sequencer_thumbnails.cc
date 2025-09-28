@@ -126,7 +126,7 @@ static void get_seq_strip_thumbnails(const View2D *v2d,
     return;
   }
 
-  /* No thumbnails is height of the strip is too small. */
+  /* No thumbnails if height of the strip is too small. */
   const float thumb_height = strip.strip_content_top - strip.bottom;
   if (thumb_height / pixely <= 20 * UI_SCALE_FAC) {
     return;
@@ -208,16 +208,16 @@ static void get_seq_strip_thumbnails(const View2D *v2d,
 struct ThumbsDrawBatch {
   StripsDrawBatch &strips_batch_;
   Array<SeqStripThumbData> thumbs_;
-  GPUUniformBuf *ubo_thumbs_ = nullptr;
-  GPUShader *shader_ = nullptr;
+  gpu::UniformBuf *ubo_thumbs_ = nullptr;
+  gpu::Shader *shader_ = nullptr;
   gpu::Batch *batch_ = nullptr;
-  blender::gpu::Texture *atlas_ = nullptr;
+  gpu::Texture *atlas_ = nullptr;
   int binding_context_ = 0;
   int binding_thumbs_ = 0;
   int binding_image_ = 0;
   int thumbs_count_ = 0;
 
-  ThumbsDrawBatch(StripsDrawBatch &strips_batch, blender::gpu::Texture *atlas)
+  ThumbsDrawBatch(StripsDrawBatch &strips_batch, gpu::Texture *atlas)
       : strips_batch_(strips_batch), thumbs_(GPU_SEQ_STRIP_DRAW_DATA_LEN), atlas_(atlas)
   {
     shader_ = GPU_shader_get_builtin_shader(GPU_SHADER_SEQUENCER_THUMBS);

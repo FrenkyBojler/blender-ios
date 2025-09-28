@@ -93,12 +93,16 @@ VkImageAspectFlags to_vk_image_aspect_flag_bits(const TextureFormat format)
     case TextureFormat::SRGBA_8_8_8:
     case TextureFormat::UFLOAT_9_9_9_EXP_5:
       return VK_IMAGE_ASPECT_COLOR_BIT;
+
+    case TextureFormat::Invalid:
+      BLI_assert_unreachable();
+      break;
   }
   BLI_assert_unreachable();
   return 0;
 }
 
-VkImageAspectFlags to_vk_image_aspect_flag_bits(const eGPUFrameBufferBits buffers)
+VkImageAspectFlags to_vk_image_aspect_flag_bits(const GPUFrameBufferBits buffers)
 {
   VkImageAspectFlags result = 0;
   if (buffers & GPU_COLOR_BIT) {
@@ -131,143 +135,16 @@ TextureFormat to_gpu_format(const VkFormat format)
 
 VkFormat to_vk_format(const TextureFormat format)
 {
+#define CASE(a, b, c, blender_enum, vk_enum, e, f, g, h) \
+  case TextureFormat::blender_enum: \
+    return VK_FORMAT_##vk_enum;
+
   switch (format) {
-    /* Formats texture & render-buffer */
-    case TextureFormat::UINT_32_32_32_32:
-      return VK_FORMAT_R32G32B32A32_UINT;
-    case TextureFormat::UINT_32_32:
-      return VK_FORMAT_R32G32_UINT;
-    case TextureFormat::UINT_32:
-      return VK_FORMAT_R32_UINT;
-    case TextureFormat::UINT_16_16_16_16:
-      return VK_FORMAT_R16G16B16A16_UINT;
-    case TextureFormat::UINT_16_16:
-      return VK_FORMAT_R16G16_UINT;
-    case TextureFormat::UINT_16:
-      return VK_FORMAT_R16_UINT;
-    case TextureFormat::UINT_8_8_8_8:
-      return VK_FORMAT_R8G8B8A8_UINT;
-    case TextureFormat::UINT_8_8:
-      return VK_FORMAT_R8G8_UINT;
-    case TextureFormat::UINT_8:
-      return VK_FORMAT_R8_UINT;
-    case TextureFormat::SINT_32_32_32_32:
-      return VK_FORMAT_R32G32B32A32_SINT;
-    case TextureFormat::SINT_32_32:
-      return VK_FORMAT_R32G32_SINT;
-    case TextureFormat::SINT_32:
-      return VK_FORMAT_R32_SINT;
-    case TextureFormat::SINT_16_16_16_16:
-      return VK_FORMAT_R16G16B16A16_SINT;
-    case TextureFormat::SINT_16_16:
-      return VK_FORMAT_R16G16_SINT;
-    case TextureFormat::SINT_16:
-      return VK_FORMAT_R16_SINT;
-    case TextureFormat::SINT_8_8_8_8:
-      return VK_FORMAT_R8G8B8A8_SINT;
-    case TextureFormat::SINT_8_8:
-      return VK_FORMAT_R8G8_SINT;
-    case TextureFormat::SINT_8:
-      return VK_FORMAT_R8_SINT;
-    case TextureFormat::SFLOAT_32_32_32_32:
-      return VK_FORMAT_R32G32B32A32_SFLOAT;
-    case TextureFormat::SFLOAT_32_32:
-      return VK_FORMAT_R32G32_SFLOAT;
-    case TextureFormat::SFLOAT_32:
-      return VK_FORMAT_R32_SFLOAT;
-    case TextureFormat::SFLOAT_16_16_16_16:
-      return VK_FORMAT_R16G16B16A16_SFLOAT;
-    case TextureFormat::SFLOAT_16_16:
-      return VK_FORMAT_R16G16_SFLOAT;
-    case TextureFormat::SFLOAT_16:
-      return VK_FORMAT_R16_SFLOAT;
-    case TextureFormat::UNORM_16_16_16_16:
-      return VK_FORMAT_R16G16B16A16_UNORM;
-    case TextureFormat::UNORM_16_16:
-      return VK_FORMAT_R16G16_UNORM;
-    case TextureFormat::UNORM_16:
-      return VK_FORMAT_R16_UNORM;
-    case TextureFormat::UNORM_8_8_8_8:
-      return VK_FORMAT_R8G8B8A8_UNORM;
-    case TextureFormat::UNORM_8_8:
-      return VK_FORMAT_R8G8_UNORM;
-    case TextureFormat::UNORM_8:
-      return VK_FORMAT_R8_UNORM;
-
-    /* Special formats texture & render-buffer */
-    case TextureFormat::UNORM_10_10_10_2:
-      return VK_FORMAT_A2B10G10R10_UNORM_PACK32;
-    case TextureFormat::UINT_10_10_10_2:
-      return VK_FORMAT_A2B10G10R10_UINT_PACK32;
-    case TextureFormat::UFLOAT_11_11_10:
-      return VK_FORMAT_B10G11R11_UFLOAT_PACK32;
-    case TextureFormat::SRGBA_8_8_8_8:
-      return VK_FORMAT_R8G8B8A8_SRGB;
-    case TextureFormat::SFLOAT_32_DEPTH_UINT_8:
-      return VK_FORMAT_D32_SFLOAT_S8_UINT;
-
-    /* Depth Formats. */
-    case TextureFormat::SFLOAT_32_DEPTH:
-      return VK_FORMAT_D32_SFLOAT;
-    case TextureFormat::UNORM_16_DEPTH:
-      return VK_FORMAT_D16_UNORM;
-
-    /* Texture only formats. */
-    case TextureFormat::UINT_32_32_32:
-      return VK_FORMAT_R32G32B32_UINT;
-    case TextureFormat::UINT_16_16_16:
-      return VK_FORMAT_R16G16B16_UINT;
-    case TextureFormat::UINT_8_8_8:
-      return VK_FORMAT_R8G8B8_UINT;
-    case TextureFormat::SINT_32_32_32:
-      return VK_FORMAT_R32G32B32_SINT;
-    case TextureFormat::SINT_16_16_16:
-      return VK_FORMAT_R16G16B16_SINT;
-    case TextureFormat::SINT_8_8_8:
-      return VK_FORMAT_R8G8B8_SINT;
-    case TextureFormat::UNORM_16_16_16:
-      return VK_FORMAT_R16G16B16_UNORM;
-    case TextureFormat::UNORM_8_8_8:
-      return VK_FORMAT_R8G8B8_UNORM;
-    case TextureFormat::SNORM_16_16_16_16:
-      return VK_FORMAT_R16G16B16A16_SNORM;
-    case TextureFormat::SNORM_16_16_16:
-      return VK_FORMAT_R16G16B16_SNORM;
-    case TextureFormat::SNORM_16_16:
-      return VK_FORMAT_R16G16_SNORM;
-    case TextureFormat::SNORM_16:
-      return VK_FORMAT_R16_SNORM;
-    case TextureFormat::SNORM_8_8_8_8:
-      return VK_FORMAT_R8G8B8A8_SNORM;
-    case TextureFormat::SNORM_8_8_8:
-      return VK_FORMAT_R8G8B8_SNORM;
-    case TextureFormat::SNORM_8_8:
-      return VK_FORMAT_R8G8_SNORM;
-    case TextureFormat::SNORM_8:
-      return VK_FORMAT_R8_SNORM;
-    case TextureFormat::SFLOAT_32_32_32:
-      return VK_FORMAT_R32G32B32_SFLOAT;
-    case TextureFormat::SFLOAT_16_16_16:
-      return VK_FORMAT_R16G16B16_SFLOAT;
-
-    /* Special formats, texture only. */
-    case TextureFormat::SRGB_DXT1:
-      return VK_FORMAT_BC1_RGBA_SRGB_BLOCK;
-    case TextureFormat::SRGB_DXT3:
-      return VK_FORMAT_BC2_SRGB_BLOCK;
-    case TextureFormat::SRGB_DXT5:
-      return VK_FORMAT_BC3_SRGB_BLOCK;
-    case TextureFormat::SNORM_DXT1:
-      return VK_FORMAT_BC1_RGBA_UNORM_BLOCK;
-    case TextureFormat::SNORM_DXT3:
-      return VK_FORMAT_BC2_UNORM_BLOCK;
-    case TextureFormat::SNORM_DXT5:
-      return VK_FORMAT_BC3_UNORM_BLOCK;
-    case TextureFormat::SRGBA_8_8_8:
-      return VK_FORMAT_R8G8B8_SRGB;
-    case TextureFormat::UFLOAT_9_9_9_EXP_5:
-      return VK_FORMAT_E5B9G9R9_UFLOAT_PACK32;
+    GPU_TEXTURE_FORMAT_EXPAND(CASE)
+    case TextureFormat::Invalid:
+      break;
   }
+#undef CASE
   return VK_FORMAT_UNDEFINED;
 }
 
@@ -595,7 +472,7 @@ VkQueryType to_vk_query_type(const GPUQueryType query_type)
   return VK_QUERY_TYPE_OCCLUSION;
 }
 
-VkImageType to_vk_image_type(const eGPUTextureType type)
+VkImageType to_vk_image_type(const GPUTextureType type)
 {
   /* See
    * https://vulkan.lunarg.com/doc/view/1.3.243.0/linux/1.3-extensions/vkspec.html#resources-image-views-compatibility
@@ -624,7 +501,7 @@ VkImageType to_vk_image_type(const eGPUTextureType type)
   return VK_IMAGE_TYPE_1D;
 }
 
-VkImageViewType to_vk_image_view_type(const eGPUTextureType type,
+VkImageViewType to_vk_image_view_type(const GPUTextureType type,
                                       const eImageViewUsage view_type,
                                       VKImageViewArrayed arrayed)
 {
@@ -799,7 +676,7 @@ VkPrimitiveTopology to_vk_primitive_topology(const GPUPrimType prim_type)
   return VK_PRIMITIVE_TOPOLOGY_POINT_LIST;
 }
 
-VkCullModeFlags to_vk_cull_mode_flags(const eGPUFaceCullTest cull_test)
+VkCullModeFlags to_vk_cull_mode_flags(const GPUFaceCullTest cull_test)
 {
   switch (cull_test) {
     case GPU_CULL_FRONT:

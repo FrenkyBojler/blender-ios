@@ -19,6 +19,7 @@
 #include "BLI_span.hh"
 #include "BLI_string.h"
 #include "BLI_string_ref.hh"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_context.hh"
@@ -156,7 +157,10 @@ static void buttons_main_region_init(wmWindowManager *wm, ARegion *region)
 
   ED_region_panels_init(wm, region);
 
-  keymap = WM_keymap_ensure(wm->defaultconf, "Property Editor", SPACE_PROPERTIES, RGN_TYPE_WINDOW);
+  region->flag |= RGN_FLAG_INDICATE_OVERFLOW;
+
+  keymap = WM_keymap_ensure(
+      wm->runtime->defaultconf, "Property Editor", SPACE_PROPERTIES, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler(&region->runtime->handlers, keymap);
 }
 
@@ -338,7 +342,7 @@ int ED_buttons_search_string_length(SpaceProperties *sbuts)
 void ED_buttons_search_string_set(SpaceProperties *sbuts, const char *value)
 {
   if (sbuts->runtime) {
-    STRNCPY(sbuts->runtime->search_string, value);
+    STRNCPY_UTF8(sbuts->runtime->search_string, value);
   }
 }
 
@@ -671,7 +675,7 @@ static void buttons_header_region_message_subscribe(const wmRegionMessageSubscri
 
 static void buttons_navigation_bar_region_init(wmWindowManager *wm, ARegion *region)
 {
-  region->flag |= RGN_FLAG_NO_USER_RESIZE;
+  region->flag |= RGN_FLAG_NO_USER_RESIZE | RGN_FLAG_INDICATE_OVERFLOW;
 
   ED_region_panels_init(wm, region);
   region->v2d.keepzoom |= V2D_LOCKZOOM_X | V2D_LOCKZOOM_Y;
@@ -1080,7 +1084,7 @@ void ED_spacetype_buttons()
   ARegionType *art;
 
   st->spaceid = SPACE_PROPERTIES;
-  STRNCPY(st->name, "Buttons");
+  STRNCPY_UTF8(st->name, "Buttons");
 
   st->create = buttons_create;
   st->free = buttons_free;

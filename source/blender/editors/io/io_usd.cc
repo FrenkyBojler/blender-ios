@@ -15,7 +15,7 @@
 #  include "BKE_report.hh"
 
 #  include "BLI_path_utils.hh"
-#  include "BLI_string.h"
+#  include "BLI_string_utf8.h"
 
 #  include "BLT_translation.hh"
 
@@ -280,34 +280,32 @@ static wmOperatorStatus wm_usd_export_exec(bContext *C, wmOperator *op)
   char filepath[FILE_MAX];
   RNA_string_get(op->ptr, "filepath", filepath);
 
-  /* When the texture export settings were moved into an enum this bit
-   * became more involved, but it needs to stick around for API backwards
-   * compatibility until Blender 5.0. */
-
   const eUSDTexExportMode textures_mode = eUSDTexExportMode(
       RNA_enum_get(op->ptr, "export_textures_mode"));
-  bool export_textures = RNA_boolean_get(op->ptr, "export_textures");
+  bool export_textures = false;
   bool use_original_paths = false;
 
-  if (!export_textures) {
-    switch (textures_mode) {
-      case eUSDTexExportMode::USD_TEX_EXPORT_PRESERVE:
-        export_textures = false;
-        use_original_paths = true;
-        break;
-      case eUSDTexExportMode::USD_TEX_EXPORT_NEW_PATH:
-        export_textures = true;
-        use_original_paths = false;
-        break;
-      default:
-        use_original_paths = false;
-    }
+  switch (textures_mode) {
+    case eUSDTexExportMode::USD_TEX_EXPORT_PRESERVE:
+      export_textures = false;
+      use_original_paths = true;
+      break;
+    case eUSDTexExportMode::USD_TEX_EXPORT_NEW_PATH:
+      export_textures = true;
+      use_original_paths = false;
+      break;
+    case eUSDTexExportMode::USD_TEX_EXPORT_KEEP:
+      export_textures = false;
+      use_original_paths = false;
+      break;
+    default:
+      BLI_assert_unreachable();
+      break;
   }
 
   USDExportParams params;
   params.export_animation = RNA_boolean_get(op->ptr, "export_animation");
   params.selected_objects_only = RNA_boolean_get(op->ptr, "selected_objects_only");
-  params.visible_objects_only = RNA_boolean_get(op->ptr, "visible_objects_only");
 
   params.export_meshes = RNA_boolean_get(op->ptr, "export_meshes");
   params.export_lights = RNA_boolean_get(op->ptr, "export_lights");
@@ -386,7 +384,6 @@ static void wm_usd_export_draw(bContext *C, wmOperator *op)
     uiLayout *sub = &col->column(true, IFACE_("Include"));
     if (CTX_wm_space_file(C)) {
       sub->prop(ptr, "selected_objects_only", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-      sub->prop(ptr, "visible_objects_only", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     }
     sub->prop(ptr, "export_animation", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
@@ -571,13 +568,6 @@ void WM_OT_usd_export(wmOperatorType *ot)
                   "Only export selected objects. Unselected parents of selected objects are "
                   "exported as empty transform");
 
-  RNA_def_boolean(ot->srna,
-                  "visible_objects_only",
-                  true,
-                  "Visible Only",
-                  "Only export visible objects. Invisible parents of exported objects are "
-                  "exported as empty transforms");
-
   prop = RNA_def_string(ot->srna, "collection", nullptr, MAX_ID_NAME - 2, "Collection", nullptr);
   RNA_def_property_flag(prop, PROP_HIDDEN);
 
@@ -683,13 +673,6 @@ void WM_OT_usd_export(wmOperatorType *ot)
       ot->srna, "export_global_up_selection", io_transform_axis, IO_AXIS_Y, "Up Axis", "");
   RNA_def_property_update_runtime(prop, up_axis_update);
 
-  RNA_def_boolean(ot->srna,
-                  "export_textures",
-                  false,
-                  "Export Textures",
-                  "If exporting materials, export textures referenced by material nodes "
-                  "to a 'textures' directory in the same directory as the USD file");
-
   RNA_def_enum(ot->srna,
                "export_textures_mode",
                rna_enum_usd_tex_export_mode_items,
@@ -761,7 +744,7 @@ void WM_OT_usd_export(wmOperatorType *ot)
   RNA_def_boolean(
       ot->srna,
       "allow_unicode",
-      false,
+      true,
       "Allow Unicode",
       "Preserve UTF-8 encoded characters when writing USD prim and property names "
       "(requires software utilizing USD 24.03 or greater when opening the resulting files)");
@@ -894,6 +877,7 @@ static wmOperatorStatus wm_usd_import_exec(bContext *C, wmOperator *op)
   params.is_sequence = false;
   params.sequence_len = 1;
   params.offset = 0;
+  params.relative_path = RNA_boolean_get(op->ptr, "relative_path");
 
   params.import_visible_only = RNA_boolean_get(op->ptr, "import_visible_only");
   params.import_defined_only = RNA_boolean_get(op->ptr, "import_defined_only");
@@ -1288,11 +1272,11 @@ namespace blender::ed::io {
 void usd_file_handler_add()
 {
   auto fh = std::make_unique<blender::bke::FileHandlerType>();
-  STRNCPY(fh->idname, "IO_FH_usd");
-  STRNCPY(fh->import_operator, "WM_OT_usd_import");
-  STRNCPY(fh->export_operator, "WM_OT_usd_export");
-  STRNCPY(fh->label, "Universal Scene Description");
-  STRNCPY(fh->file_extensions_str, ".usd;.usda;.usdc;.usdz");
+  STRNCPY_UTF8(fh->idname, "IO_FH_usd");
+  STRNCPY_UTF8(fh->import_operator, "WM_OT_usd_import");
+  STRNCPY_UTF8(fh->export_operator, "WM_OT_usd_export");
+  STRNCPY_UTF8(fh->label, "Universal Scene Description");
+  STRNCPY_UTF8(fh->file_extensions_str, ".usd;.usda;.usdc;.usdz");
   fh->poll_drop = poll_file_object_drop;
   bke::file_handler_add(std::move(fh));
 }

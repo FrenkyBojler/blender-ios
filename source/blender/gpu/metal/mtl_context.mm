@@ -98,13 +98,13 @@ void MTLContext::set_ghost_context(GHOST_ContextHandle ghostCtxHandle)
   mtl_front_left->remove_all_attachments();
   mtl_back_left->remove_all_attachments();
 
-  GHOST_ContextCGL *ghost_cgl_ctx = dynamic_cast<GHOST_ContextCGL *>(ghost_ctx);
-  if (ghost_cgl_ctx != nullptr) {
-    default_fbo_mtltexture_ = ghost_cgl_ctx->metalOverlayTexture();
+  GHOST_ContextMTL *ghost_mtl_ctx = dynamic_cast<GHOST_ContextMTL *>(ghost_ctx);
+  if (ghost_mtl_ctx != nullptr) {
+    default_fbo_mtltexture_ = ghost_mtl_ctx->metalOverlayTexture();
 
     MTL_LOG_DEBUG(
-        "Binding GHOST context CGL %p to GPU context %p. (Device: %p, queue: %p, texture: %p)",
-        ghost_cgl_ctx,
+        "Binding GHOST context MTL %p to GPU context %p. (Device: %p, queue: %p, texture: %p)",
+        ghost_mtl_ctx,
         this,
         this->device,
         this->queue,
@@ -154,7 +154,7 @@ void MTLContext::set_ghost_context(GHOST_ContextHandle ghostCtxHandle)
       MTL_LOG_DEBUG(
           "-- Bound context %p for GPU context: %p is offscreen and does not have a default "
           "framebuffer",
-          ghost_cgl_ctx,
+          ghost_mtl_ctx,
           this);
 #ifndef NDEBUG
       this->label = @"Offscreen Metal Context";
@@ -163,10 +163,10 @@ void MTLContext::set_ghost_context(GHOST_ContextHandle ghostCtxHandle)
   }
   else {
     MTL_LOG_DEBUG(
-        " Failed to bind GHOST context to MTLContext -- GHOST_ContextCGL is null "
-        "(GhostContext: %p, GhostContext_CGL: %p)",
+        " Failed to bind GHOST context to MTLContext -- GHOST_ContextMTL is null "
+        "(GhostContext: %p, GhostContext_MTL: %p)",
         ghost_ctx,
-        ghost_cgl_ctx);
+        ghost_mtl_ctx);
     BLI_assert(false);
   }
 }
@@ -221,7 +221,7 @@ MTLContext::MTLContext(void *ghost_window, void *ghost_context)
     ghost_context = (ghostWin ? ghostWin->getContext() : nullptr);
   }
   BLI_assert(ghost_context);
-  this->ghost_context_ = static_cast<GHOST_ContextCGL *>(ghost_context);
+  this->ghost_context_ = static_cast<GHOST_ContextMTL *>(ghost_context);
   this->queue = (id<MTLCommandQueue>)this->ghost_context_->metalCommandQueue();
   this->device = (id<MTLDevice>)this->ghost_context_->metalDevice();
   BLI_assert(this->queue);
@@ -320,8 +320,7 @@ MTLContext::~MTLContext()
     if (this->pipeline_state.ubo_bindings[i].bound &&
         this->pipeline_state.ubo_bindings[i].ubo != nullptr)
     {
-      GPUUniformBuf *ubo = wrap(
-          static_cast<UniformBuf *>(this->pipeline_state.ubo_bindings[i].ubo));
+      gpu::UniformBuf *ubo = this->pipeline_state.ubo_bindings[i].ubo;
       GPU_uniformbuf_unbind(ubo);
     }
   }
@@ -610,8 +609,8 @@ id<MTLBuffer> MTLContext::get_null_attribute_buffer()
   return null_attribute_buffer_;
 }
 
-gpu::MTLTexture *MTLContext::get_dummy_texture(eGPUTextureType type,
-                                               eGPUSamplerFormat sampler_format)
+gpu::MTLTexture *MTLContext::get_dummy_texture(GPUTextureType type,
+                                               GPUSamplerFormat sampler_format)
 {
   /* Decrement 1 from texture type as they start from 1 and go to 32 (inclusive). Remap to 0..31 */
   gpu::MTLTexture *dummy_tex = dummy_textures_[sampler_format][type - 1];
@@ -1301,7 +1300,7 @@ bool MTLContext::ensure_buffer_bindings(
     }
   }
 
-  /* Bind Global GPUStorageBuf's */
+  /* Bind Global StorageBuf's */
   /* Iterate through expected SSBOs in the shader interface, and check if the globally bound ones
    * match. This is used to support the gpu_uniformbuffer module, where the uniform data is global,
    * and not owned by the shader instance. */
@@ -2409,7 +2408,9 @@ void MTLContext::sampler_bind(MTLSamplerState sampler_state, uint sampler_unit)
   this->pipeline_state.sampler_bindings[sampler_unit] = {true, sampler_state};
 }
 
-void MTLContext::texture_unbind(gpu::MTLTexture *mtl_texture, bool is_image)
+void MTLContext::texture_unbind(gpu::MTLTexture *mtl_texture,
+                                bool is_image,
+                                StateManager *state_manager)
 {
   BLI_assert(mtl_texture);
 
@@ -2423,6 +2424,9 @@ void MTLContext::texture_unbind(gpu::MTLTexture *mtl_texture, bool is_image)
     if (resource_bind_table[i].texture_resource == mtl_texture) {
       resource_bind_table[i].texture_resource = nullptr;
       resource_bind_table[i].used = false;
+      if (is_image) {
+        state_manager->image_formats[i] = TextureWriteFormat::Invalid;
+      }
     }
   }
 

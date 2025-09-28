@@ -8,6 +8,7 @@
  * Instead of transforming the selection, move the 2D/3D cursor.
  */
 
+#include "DNA_screen_types.h"
 #include "DNA_space_types.h"
 
 #include "MEM_guardedalloc.h"
@@ -127,7 +128,7 @@ static void createTransCursor_view3d(bContext * /*C*/, TransInfo *t)
 
   Scene *scene = t->scene;
   if (!ID_IS_EDITABLE(scene)) {
-    BKE_report(t->reports, RPT_ERROR, "Linked data can't text-space transform");
+    BKE_report(t->reports, RPT_ERROR, "Cannot create transform on linked data");
     return;
   }
 

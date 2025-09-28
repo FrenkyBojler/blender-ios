@@ -64,7 +64,7 @@ bool ED_uvedit_center_multi(const Scene *scene,
                             float r_cent[2],
                             char mode);
 
-bool ED_uvedit_center_from_pivot_ex(SpaceImage *sima,
+bool ED_uvedit_center_from_pivot_ex(const SpaceImage *sima,
                                     Scene *scene,
                                     ViewLayer *view_layer,
                                     float r_center[2],
@@ -220,13 +220,12 @@ void ED_uvedit_sticky_selectmode_update(bContext *C);
 void ED_uvedit_selectmode_flush(const Scene *scene, BMesh *bm);
 
 /**
- * Mode independent UV de-selection flush.
+ * Mode independent UV selection/de-selection flush from vertices.
+ *
+ * \param select: When true, flush the selection state to de-selected elements,
+ * otherwise perform the opposite, flushing de-selection.
  */
-void uvedit_deselect_flush(const Scene *scene, BMesh *bm);
-/**
- * Mode independent UV selection flush.
- */
-void uvedit_select_flush(const Scene *scene, BMesh *bm);
+void uvedit_select_flush_from_verts(const Scene *scene, BMesh *bm, bool select);
 
 bool ED_uvedit_nearest_uv_multi(const View2D *v2d,
                                 const Scene *scene,

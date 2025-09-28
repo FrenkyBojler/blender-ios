@@ -12,7 +12,7 @@
 
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 
 #include "BLT_translation.hh"
 
@@ -86,19 +86,19 @@ static void edbm_inset_update_header(wmOperator *op, bContext *C)
       BKE_unit_value_as_string(flts_str,
                                NUM_STR_REP_LEN,
                                RNA_float_get(op->ptr, "thickness"),
-                               4,
+                               -4,
                                B_UNIT_LENGTH,
                                sce->unit,
                                true);
       BKE_unit_value_as_string(flts_str + NUM_STR_REP_LEN,
                                NUM_STR_REP_LEN,
                                RNA_float_get(op->ptr, "depth"),
-                               4,
+                               -4,
                                B_UNIT_LENGTH,
                                sce->unit,
                                true);
     }
-    SNPRINTF(msg, IFACE_("Thickness: %s, Depth: %s"), flts_str, flts_str + NUM_STR_REP_LEN);
+    SNPRINTF_UTF8(msg, IFACE_("Thickness: %s, Depth: %s"), flts_str, flts_str + NUM_STR_REP_LEN);
     ED_area_status_text(area, msg);
   }
 

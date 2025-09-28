@@ -84,8 +84,8 @@ static void render_init_buffers(const DRWContext *draw_ctx,
   float *pix_col = (rpass_col_src) ? rpass_col_src->ibuf->float_buffer.data : nullptr;
 
   if (!pix_z || !pix_col) {
-    RE_engine_set_error_message(engine,
-                                "Warning: To render Grease Pencil, enable Combined and Z passes.");
+    RE_engine_set_error_message(
+        engine, "Warning: To render Grease Pencil, enable Combined and Depth passes.");
   }
 
   if (pix_z) {
@@ -392,8 +392,8 @@ static void render_frame(RenderEngine *engine,
       /* Render the gpencil object and merge the result to the underlying render. */
       inst.draw(manager);
 
-      /* Weight of this render SSAA sample. The sum of previous samples is weighted by `1 -
-       * weight`. This diminishes after each new sample as we want all samples to be equally
+      /* Weight of this render SSAA sample. The sum of previous samples is weighted by
+       * `1 - weight`. This diminishes after each new sample as we want all samples to be equally
        * weighted inside the final result (inside the combined buffer). This weighting scheme
        * allows to always store the resolved result making it ready for in-progress display or
        * read-back. */

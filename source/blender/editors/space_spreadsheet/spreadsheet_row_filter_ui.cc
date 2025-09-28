@@ -5,8 +5,8 @@
 #include <cstring>
 
 #include "BLI_listbase.h"
-#include "BLI_string.h"
 #include "BLI_string_ref.hh"
+#include "BLI_string_utf8.h"
 
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
@@ -37,7 +37,7 @@ namespace blender::ed::spreadsheet {
 static void filter_panel_id_fn(void * /*row_filter_v*/, char *r_name)
 {
   /* All row filters use the same panel ID. */
-  BLI_strncpy(r_name, "SPREADSHEET_PT_filter", BKE_ST_MAXNAME);
+  BLI_strncpy_utf8(r_name, "SPREADSHEET_PT_filter", BKE_ST_MAXNAME);
 }
 
 static std::string operation_string(const eSpreadsheetColumnValueType data_type,
@@ -111,6 +111,7 @@ static std::string value_string(const SpreadsheetRowFilter &row_filter,
       return row_filter.value_string;
     case SPREADSHEET_VALUE_TYPE_QUATERNION:
     case SPREADSHEET_VALUE_TYPE_FLOAT4X4:
+    case SPREADSHEET_VALUE_TYPE_BUNDLE_ITEM:
     case SPREADSHEET_VALUE_TYPE_UNKNOWN:
       return "";
   }
@@ -260,6 +261,7 @@ static void spreadsheet_filter_panel_draw(const bContext *C, Panel *panel)
     case SPREADSHEET_VALUE_TYPE_UNKNOWN:
     case SPREADSHEET_VALUE_TYPE_QUATERNION:
     case SPREADSHEET_VALUE_TYPE_FLOAT4X4:
+    case SPREADSHEET_VALUE_TYPE_BUNDLE_ITEM:
       layout->label(IFACE_("Unsupported column type"), ICON_ERROR);
       break;
   }
@@ -351,10 +353,10 @@ void register_row_filter_panels(ARegionType &region_type)
 {
   {
     PanelType *panel_type = MEM_callocN<PanelType>(__func__);
-    STRNCPY(panel_type->idname, "SPREADSHEET_PT_row_filters");
-    STRNCPY(panel_type->label, N_("Filters"));
-    STRNCPY(panel_type->category, "Filters");
-    STRNCPY(panel_type->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
+    STRNCPY_UTF8(panel_type->idname, "SPREADSHEET_PT_row_filters");
+    STRNCPY_UTF8(panel_type->label, N_("Filters"));
+    STRNCPY_UTF8(panel_type->category, "Filters");
+    STRNCPY_UTF8(panel_type->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
     panel_type->flag = PANEL_TYPE_NO_HEADER;
     panel_type->draw = spreadsheet_row_filters_layout;
     BLI_addtail(&region_type.paneltypes, panel_type);
@@ -362,10 +364,10 @@ void register_row_filter_panels(ARegionType &region_type)
 
   {
     PanelType *panel_type = MEM_callocN<PanelType>(__func__);
-    STRNCPY(panel_type->idname, "SPREADSHEET_PT_filter");
-    STRNCPY(panel_type->label, "");
-    STRNCPY(panel_type->category, "Filters");
-    STRNCPY(panel_type->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
+    STRNCPY_UTF8(panel_type->idname, "SPREADSHEET_PT_filter");
+    STRNCPY_UTF8(panel_type->label, "");
+    STRNCPY_UTF8(panel_type->category, "Filters");
+    STRNCPY_UTF8(panel_type->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
     panel_type->flag = PANEL_TYPE_INSTANCED | PANEL_TYPE_HEADER_EXPAND;
     panel_type->draw_header = spreadsheet_filter_panel_draw_header;
     panel_type->draw = spreadsheet_filter_panel_draw;

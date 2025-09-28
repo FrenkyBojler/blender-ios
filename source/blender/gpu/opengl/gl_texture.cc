@@ -40,7 +40,7 @@ GLTexture::GLTexture(const char *name) : Texture(name)
 GLTexture::~GLTexture()
 {
   if (framebuffer_) {
-    GPU_framebuffer_free(wrap(framebuffer_));
+    GPU_framebuffer_free(framebuffer_);
   }
   GLContext *ctx = GLContext::get();
   if (ctx != nullptr && is_bound_) {
@@ -48,7 +48,7 @@ GLTexture::~GLTexture()
     ctx->state_manager->texture_unbind(this);
     ctx->state_manager->image_unbind(this);
   }
-  GLContext::tex_free(tex_id_);
+  GLContext::texture_free(tex_id_);
 }
 
 bool GLTexture::init_internal()
@@ -295,8 +295,7 @@ void GLTexture::generate_mipmap()
 
   /* Some drivers have bugs when using #glGenerateMipmap with depth textures (see #56789).
    * In this case we just create a complete texture with mipmaps manually without
-   * down-sampling. You must initialize the texture levels using other methods like
-   * #GPU_framebuffer_recursive_downsample(). */
+   * down-sampling. You must initialize the texture levels using other methods. */
   if (format_flag_ & GPU_FORMAT_DEPTH) {
     return;
   }
@@ -332,7 +331,7 @@ void GLTexture::clear(eGPUDataFormat data_format, const void *data)
    * "pixel data" to exist which is then uploaded CPU -> GPU at bind
    * time. */
 
-  GPUFrameBuffer *prev_fb = GPU_framebuffer_active_get();
+  gpu::FrameBuffer *prev_fb = GPU_framebuffer_active_get();
 
   FrameBuffer *fb = this->framebuffer_get();
   fb->bind(true);
@@ -457,7 +456,7 @@ FrameBuffer *GLTexture::framebuffer_get()
     return framebuffer_;
   }
   BLI_assert(!(type_ & GPU_TEXTURE_1D));
-  framebuffer_ = unwrap(GPU_framebuffer_create(name_));
+  framebuffer_ = GPU_framebuffer_create(name_);
   framebuffer_->attachment_set(this->attachment_type(0), GPU_ATTACHMENT_TEXTURE(this));
   has_pixels_ = true;
   return framebuffer_;
@@ -717,11 +716,6 @@ bool GLTexture::proxy_check(int mip)
 
 void GLTexture::check_feedback_loop()
 {
-  /* Recursive down sample workaround break this check.
-   * See #recursive_downsample() for more information. */
-  if (GPU_mip_render_workaround()) {
-    return;
-  }
   /* Do not check if using compute shader. */
   GLShader *sh = dynamic_cast<GLShader *>(Context::get()->shader);
   if (sh && sh->is_compute()) {
@@ -751,13 +745,6 @@ void GLTexture::check_feedback_loop()
       return;
     }
   }
-}
-
-uint GLTexture::gl_bindcode_get() const
-{
-  /* TODO(fclem): Legacy. Should be removed at some point. */
-
-  return tex_id_;
 }
 
 /* -------------------------------------------------------------------- */
