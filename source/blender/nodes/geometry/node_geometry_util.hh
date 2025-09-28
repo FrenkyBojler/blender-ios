@@ -87,7 +87,6 @@ void node_geo_exec_with_missing_openvdb(GeoNodeExecParams &params);
 
 void draw_data_blocks(const bContext *C, uiLayout *layout, PointerRNA &bake_rna);
 
-
 class Grid3DFieldContext : public FieldContext {
  private:
   int3 resolution_;

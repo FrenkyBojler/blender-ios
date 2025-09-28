@@ -156,7 +156,9 @@ void geo_cmp_node_type_base(blender::bke::bNodeType *ntype,
 
 namespace blender::nodes {
 
-Grid3DFieldContext::Grid3DFieldContext(const int3 resolution, const float3 bounds_min, const float3 bounds_max)
+Grid3DFieldContext::Grid3DFieldContext(const int3 resolution,
+                                       const float3 bounds_min,
+                                       const float3 bounds_max)
     : resolution_(resolution), bounds_min_(bounds_min), bounds_max_(bounds_max)
 {
 }
@@ -167,8 +169,8 @@ int64_t Grid3DFieldContext::voxel_num() const
 }
 
 GVArray Grid3DFieldContext::get_varray_for_input(const FieldInput &field_input,
-                                                  const IndexMask & /*mask*/,
-                                                  ResourceScope & /*scope*/) const
+                                                 const IndexMask & /*mask*/,
+                                                 ResourceScope & /*scope*/) const
 {
   const bke::AttributeFieldInput *attribute_field_input =
       dynamic_cast<const bke::AttributeFieldInput *>(&field_input);

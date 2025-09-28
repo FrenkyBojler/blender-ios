@@ -115,7 +115,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 
         if constexpr (!std::is_same_v<typename type_traits::BlenderType, void>) {
           using BlenderType = typename type_traits::BlenderType;
-          
+
           const BlenderType background = params.extract_input<BlenderType>("Background");
 
           Field<BlenderType> input_field = params.extract_input<Field<BlenderType>>("Value");

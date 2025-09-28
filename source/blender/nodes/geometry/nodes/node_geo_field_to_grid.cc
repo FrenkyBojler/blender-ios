@@ -43,7 +43,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   b.use_custom_socket_order();
   b.allow_any_socket_order();
-  
+
   const bNode *node = b.node_or_null();
   if (!node) {
     return;
@@ -63,7 +63,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   for (const int i : items.index_range()) {
     const FieldToGridItem &item = items[i];
     const std::string identifier = FieldToGridItemsAccessor::socket_identifier_for_item(item);
-    
+
     auto &input = b.add_input(data_type, item.name, identifier + "_field");
     if (supports_fields) {
       input.supports_field();
@@ -72,8 +72,8 @@ static void node_declare(NodeDeclarationBuilder &b)
 
     auto &output = b.add_output(data_type, item.name, identifier + "_grid");
     output.structure_type(StructureType::Grid)
-          .align_with_previous()
-          .description("Output grid with evaluated field values");
+        .align_with_previous()
+        .description("Output grid with evaluated field values");
   }
 
   b.add_input<decl::Extend>("", "__extend__").custom_draw([](CustomSocketDrawParams &params) {
@@ -109,7 +109,8 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *ptr)
 
 static void NODE_OT_field_to_grid_item_add(wmOperatorType *ot)
 {
-  socket_items::ops::add_item<FieldToGridItemsAccessor>(ot, "Add Field", __func__, "Add field to evaluate");
+  socket_items::ops::add_item<FieldToGridItemsAccessor>(
+      ot, "Add Field", __func__, "Add field to evaluate");
 }
 
 static void NODE_OT_field_to_grid_item_remove(wmOperatorType *ot)
@@ -151,7 +152,8 @@ static void node_geo_exec(GeoNodeExecParams params)
           /* For each field item, evaluate the field using the grid's topology. */
           for (const int i : items.index_range()) {
             const FieldToGridItem &item = items[i];
-            const std::string identifier = FieldToGridItemsAccessor::socket_identifier_for_item(item);
+            const std::string identifier = FieldToGridItemsAccessor::socket_identifier_for_item(
+                item);
             const std::string field_identifier = identifier + "_field";
             const std::string grid_identifier = identifier + "_grid";
 
