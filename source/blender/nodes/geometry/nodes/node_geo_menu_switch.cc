@@ -3,7 +3,9 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BLI_array_utils.hh"
+
 #include "node_geometry_util.hh"
+#include "shader/node_shader_util.hh"
 
 #include "DNA_node_types.h"
 
@@ -82,6 +84,7 @@ static void node_declare(blender::nodes::NodeDeclarationBuilder &b)
     menu.supports_field();
   }
   menu.structure_type(menu_structure_type);
+  menu.optional_label();
 
   for (const NodeEnumItem &enum_item : storage.enum_definition.items()) {
     const std::string identifier = MenuSwitchItemsAccessor::socket_identifier_for_item(enum_item);
@@ -94,7 +97,7 @@ static void node_declare(blender::nodes::NodeDeclarationBuilder &b)
       input.supports_field();
     }
     /* Labels are ugly in combination with data-block pickers and are usually disabled. */
-    input.hide_label(ELEM(data_type, SOCK_OBJECT, SOCK_IMAGE, SOCK_COLLECTION, SOCK_MATERIAL));
+    input.optional_label(ELEM(data_type, SOCK_OBJECT, SOCK_IMAGE, SOCK_COLLECTION, SOCK_MATERIAL));
     input.structure_type(value_structure_type);
     auto &item_output = b.add_output<decl::Bool>(enum_item.name, std::move(identifier))
                             .align_with_previous()
@@ -552,7 +555,7 @@ static void register_node()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_cmp_node_type_base(&ntype, "GeometryNodeMenuSwitch", GEO_NODE_MENU_SWITCH);
+  common_node_type_base(&ntype, "GeometryNodeMenuSwitch", GEO_NODE_MENU_SWITCH);
   ntype.ui_name = "Menu Switch";
   ntype.ui_description = "Select from multiple inputs by name";
   ntype.enum_name_legacy = "MENU_SWITCH";
