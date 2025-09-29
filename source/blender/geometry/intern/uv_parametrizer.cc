@@ -3862,7 +3862,7 @@ static void p_add_ngon(ParamHandle *handle,
   uint nfilltri = nverts - 2;
   uint(*tris)[3] = static_cast<uint(*)[3]>(
       BLI_memarena_alloc(arena, sizeof(*tris) * size_t(nfilltri)));
-  float(*projverts)[2] = static_cast<float(*)[2]>(
+  float (*projverts)[2] = static_cast<float (*)[2]>(
       BLI_memarena_alloc(arena, sizeof(*projverts) * size_t(nverts)));
 
   /* Calc normal, flipped: to get a positive 2d cross product. */
@@ -4245,11 +4245,24 @@ void uv_parametrizer_original_bounds(ParamHandle *phandle)
 
   float trans[2], minv[2], maxv[2], new_size[2];
   for (i = 0; i < phandle->ncharts; i++) {
+
     PChart *chart = phandle->charts[i];
+    bool all_selected = true;
+    for (PVert *v = chart->verts; v; v = v->nextlink) {
+      if (!(v->flag & PVERT_SELECT)) {
+        all_selected = false;
+        break;
+      }
+    }
+    if (!all_selected) {
+      continue;
+    }
     p_chart_uv_bbox(chart, minv, maxv);
     sub_v2_v2v2(new_size, maxv, minv);
-    int axis = (chart->orig_bounds.size().x > chart->orig_bounds.size().y) ? 0 : 1;
-    float scale = chart->orig_bounds.size()[axis] / std::max(new_size[0], new_size[1]);
+    float size = (chart->orig_bounds.size().x > chart->orig_bounds.size().y) ?
+                     chart->orig_bounds.size()[0] :
+                     chart->orig_bounds.size()[1];
+    float scale = size / std::max(new_size[0], new_size[1]);
     p_chart_uv_scale(chart, scale);
     p_chart_uv_bbox(chart, minv, maxv);
 
