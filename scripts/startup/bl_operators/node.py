@@ -24,6 +24,7 @@ from mathutils import (
 
 from bpy.app.translations import (
     pgettext_tip as tip_,
+    pgettext_data as data_,
     pgettext_rpt as rpt_,
 )
 
@@ -362,13 +363,12 @@ class NodeSwapOperator(NodeOperator):
                             if new_socket.hide or not new_socket.enabled:
                                 continue
 
+                            is_multi_input = link.to_socket.is_multi_input
+
                             new_link = tree.links.new(new_socket, link.to_socket)
 
-                            try:
-                                if link.to_socket.is_multi_input:
-                                    new_link.swap_multi_input_sort_id(link)
-                            except AttributeError:
-                                pass
+                            if is_multi_input:
+                                new_link.swap_multi_input_sort_id(link)
 
                         except KeyError:
                             pass
@@ -480,9 +480,10 @@ class NODE_OT_swap_node(NodeSwapOperator, Operator):
 
     def execute(self, context):
         tree = context.space_data.edit_tree
+        nodes_to_delete = set()
 
         for old_node in context.selected_nodes[:]:
-            if tree.nodes.get(old_node.name) is None:
+            if old_node in nodes_to_delete:
                 continue
 
             if old_node.bl_idname == self.type:
@@ -518,7 +519,7 @@ class NODE_OT_swap_node(NodeSwapOperator, Operator):
                 self.transfer_links(tree, output_node, new_node, is_input=False)
 
                 for node in zone_pair:
-                    tree.nodes.remove(node)
+                    nodes_to_delete.add(node)
             else:
                 if (old_node.bl_idname in switch_nodes) and (new_node.bl_idname in switch_nodes):
                     self.transfer_switch_data(old_node, new_node)
@@ -528,7 +529,10 @@ class NODE_OT_swap_node(NodeSwapOperator, Operator):
                 self.transfer_links(tree, old_node, new_node, is_input=True)
                 self.transfer_links(tree, old_node, new_node, is_input=False)
 
-                tree.nodes.remove(old_node)
+                nodes_to_delete.add(old_node)
+
+        for node in nodes_to_delete:
+            tree.nodes.remove(node)
 
         return {'FINISHED'}
 
@@ -557,7 +561,7 @@ class NODE_OT_add_empty_group(NodeAddOperator, bpy.types.Operator):
 
     @staticmethod
     def create_empty_group(idname):
-        group = bpy.data.node_groups.new(name="NodeGroup", type=idname)
+        group = bpy.data.node_groups.new(name=data_("NodeGroup"), type=idname)
         input_node = group.nodes.new('NodeGroupInput')
         input_node.select = False
         input_node.location.x = -200 - input_node.width
@@ -733,9 +737,10 @@ class NODE_OT_swap_zone(ZoneOperator, NodeSwapOperator, Operator):
 
     def execute(self, context):
         tree = context.space_data.edit_tree
+        nodes_to_delete = set()
 
         for old_node in context.selected_nodes[:]:
-            if tree.nodes.get(old_node.name) is None:
+            if old_node in nodes_to_delete:
                 continue
 
             zone_pair = self.get_zone_pair(tree, old_node)
@@ -782,7 +787,7 @@ class NODE_OT_swap_zone(ZoneOperator, NodeSwapOperator, Operator):
                 self.transfer_links(tree, old_output_node, output_node, is_input=False)
 
                 for node in zone_pair:
-                    tree.nodes.remove(node)
+                    nodes_to_delete.add(node)
             else:
                 with temporary_unframe((old_node,)):
                     input_node.location = old_node.location
@@ -799,7 +804,7 @@ class NODE_OT_swap_zone(ZoneOperator, NodeSwapOperator, Operator):
                 self.transfer_links(tree, old_node, input_node, is_input=True)
                 self.transfer_links(tree, old_node, output_node, is_input=False)
 
-                tree.nodes.remove(old_node)
+                nodes_to_delete.add(old_node)
 
             if tree.type == "GEOMETRY" and self.add_default_geometry_link:
                 # Connect geometry sockets by default if available.
@@ -809,6 +814,9 @@ class NODE_OT_swap_zone(ZoneOperator, NodeSwapOperator, Operator):
 
                 if not (from_socket.is_linked or to_socket.is_linked):
                     tree.links.new(to_socket, from_socket)
+
+        for node in nodes_to_delete:
+            tree.nodes.remove(node)
 
         return {'FINISHED'}
 
