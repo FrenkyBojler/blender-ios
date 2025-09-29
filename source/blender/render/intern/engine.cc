@@ -323,9 +323,9 @@ RenderResult *RE_engine_begin_result(
   }
 
   Render *re = engine->re;
-  if ((engine->re->r.mode & R_BORDER) && (engine->re->r.mode & R_BORDER_STAMP)) {
-    return re->result;
-  }
+  // if ((engine->re->r.mode & R_BORDER) && (engine->re->r.mode & R_BORDER_STAMP)) {
+  //   return re->result;
+  // }
   RenderResult *result;
   rcti disprect;
 
@@ -1280,6 +1280,13 @@ void RE_engine_tile_highlight_set(
   if (!tile_highlight) {
     /* The renderer itself does not support tiles highlight. */
     return;
+  }
+
+  if ((engine->re->r.mode & R_BORDER) && (engine->re->r.mode & R_BORDER_STAMP)) {
+    /* In border stamp mode, the coordinates are in the full image space, need to convert to
+     * border space. */
+    x += engine->re->r.border.xmin * engine->re->winx;
+    y += engine->re->r.border.ymin * engine->re->winy;
   }
 
   if (highlight) {
