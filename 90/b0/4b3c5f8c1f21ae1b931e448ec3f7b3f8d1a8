@@ -11,3 +11,4 @@ Referenced by issue #142738, WORKBENCH with MATCAPS Rendering Issues in Blender 
 Referenced by issue #144254, VSE proxies for image sequences do not work (since 4.5)
 Referenced by issue #144760, Value Node not changeable in Properties Window
 Referenced by issue #145544, Illegal address when rendering with a custom camera in 4.5
+Referenced by issue #146949, Geometry Nodes Modifier - vertical scrolling very laggy when large node tree with many unused sockets
