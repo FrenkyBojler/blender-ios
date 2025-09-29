@@ -440,7 +440,7 @@ typedef struct ScrArea {
   /** If area==full, this is the parent. */
   bScreen *full;
 
-  /** Rect bound by v1 v2 v3 v4. */
+  /** Rect bound by v1 v2 v3 v4 (but shrunk by area borders, see #area_calc_totrct). */
   rcti totrct;
 
   /** eSpace_Type (SPACE_FOO). */

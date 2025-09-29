@@ -3804,21 +3804,6 @@ static bool wm_event_inside_rect(const wmEvent *event, const rcti *rect)
   return false;
 }
 
-static ScrArea *area_event_inside(bContext *C, const int xy[2])
-{
-  wmWindow *win = CTX_wm_window(C);
-  bScreen *screen = CTX_wm_screen(C);
-
-  if (screen) {
-    ED_screen_areas_iter (win, screen, area) {
-      if (BLI_rcti_isect_pt_v(&area->totrct, xy)) {
-        return area;
-      }
-    }
-  }
-  return nullptr;
-}
-
 static ARegion *region_event_inside(bContext *C, const int xy[2])
 {
   bScreen *screen = CTX_wm_screen(C);
@@ -3872,7 +3857,7 @@ static void wm_paintcursor_test(bContext *C, const wmEvent *event)
       ScrArea *prev_area = CTX_wm_area(C);
       ARegion *prev_region = CTX_wm_region(C);
 
-      CTX_wm_area_set(C, area_event_inside(C, event->prev_xy));
+      CTX_wm_area_set(C, BKE_screen_find_area_xy_totrect(C, event->prev_xy));
       CTX_wm_region_set(C, region_event_inside(C, event->prev_xy));
 
       wm_paintcursor_tag(C, wm, CTX_wm_region(C));
@@ -4200,7 +4185,7 @@ void wm_event_do_handlers(bContext *C)
       }
 
       /* We let modal handlers get active area/region, also wm_paintcursor_test needs it. */
-      CTX_wm_area_set(C, area_event_inside(C, event->xy));
+      CTX_wm_area_set(C, BKE_screen_find_area_xy_totrect(C, event->xy));
       CTX_wm_region_set(C, region_event_inside(C, event->xy));
 
       /* MVC demands to not draw in event handlers...
@@ -4289,7 +4274,7 @@ void wm_event_do_handlers(bContext *C)
 
         if ((action & WM_HANDLER_BREAK) == 0) {
           /* Also some non-modal handlers need active area/region. */
-          CTX_wm_area_set(C, area_event_inside(C, event->xy));
+          CTX_wm_area_set(C, BKE_screen_find_area_xy_totrect(C, event->xy));
           CTX_wm_region_set(C, region_event_inside(C, event->xy));
 
           wm_region_mouse_co(C, event);

@@ -511,8 +511,7 @@ static wmDropBox *dropbox_active(bContext *C,
 static wmDropBox *wm_dropbox_active(bContext *C, wmDrag *drag, const wmEvent *event)
 {
   wmWindow *win = CTX_wm_window(C);
-  bScreen *screen = WM_window_get_active_screen(win);
-  ScrArea *area = BKE_screen_find_area_xy(screen, SPACE_TYPE_ANY, event->xy);
+  ScrArea *area = BKE_screen_find_area_xy_totrect(C, event->xy);
   wmDropBox *drop = nullptr;
 
   if (area) {
@@ -1262,10 +1261,9 @@ void wm_drags_draw(bContext *C, wmWindow *win)
     xy = xy_buf;
   }
 
-  bScreen *screen = CTX_wm_screen(C);
   /* To start with, use the area and region under the mouse cursor, just like event handling. The
    * operator context may still override it. */
-  ScrArea *area = BKE_screen_find_area_xy(screen, SPACE_TYPE_ANY, xy);
+  ScrArea *area = BKE_screen_find_area_xy_totrect(C, xy);
   ARegion *region = ED_area_find_region_xy_visual(area, RGN_TYPE_ANY, xy);
   /* Will be overridden and unset eventually. */
   BLI_assert(!CTX_wm_area(C) && !CTX_wm_region(C));

@@ -51,6 +51,8 @@
  * a #ARegionType callback. */
 #include "../editors/asset/ED_asset_shelf.hh"
 
+#include "../editors/include/ED_screen.hh"
+
 #ifdef WITH_PYTHON
 #  include "BPY_extern.hh"
 #endif
@@ -981,6 +983,30 @@ ScrArea *BKE_screen_area_map_find_area_xy(const ScrAreaMap *areamap,
 ScrArea *BKE_screen_find_area_xy(const bScreen *screen, const int spacetype, const int xy[2])
 {
   return BKE_screen_area_map_find_area_xy(AREAMAP_FROM_SCREEN(screen), spacetype, xy);
+}
+
+ScrArea *BKE_screen_find_area_xy_totrect_ex(const wmWindow *win,
+                                            const bScreen *screen,
+                                            const int xy[2])
+{
+  if (win && screen) {
+    ED_screen_areas_iter (win, screen, area) {
+      /* Test area's inner `area->totrct`, not outer screen verts. */
+      if (BLI_rcti_isect_pt_v(&area->totrct, xy)) {
+        return area;
+      }
+    }
+  }
+
+  return nullptr;
+}
+
+ScrArea *BKE_screen_find_area_xy_totrect(const bContext *C, const int xy[2])
+{
+  wmWindow *win = CTX_wm_window(C);
+  bScreen *screen = CTX_wm_screen(C);
+
+  return BKE_screen_find_area_xy_totrect_ex(win, screen, xy);
 }
 
 void BKE_screen_view3d_sync(View3D *v3d, Scene *scene)

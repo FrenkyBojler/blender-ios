@@ -815,11 +815,18 @@ std::optional<std::string> BKE_screen_path_from_screen_to_space(const PointerRNA
  * using the context when you can - campbell
  */
 ScrArea *BKE_screen_find_big_area(const bScreen *screen, int spacetype, short min);
+
+/* Find an are based on area's outer screen verts, not inner `area->totrct`. */
 ScrArea *BKE_screen_area_map_find_area_xy(const ScrAreaMap *areamap,
                                           int spacetype,
                                           const int xy[2]) ATTR_NONNULL(1, 3);
 ScrArea *BKE_screen_find_area_xy(const bScreen *screen, int spacetype, const int xy[2])
     ATTR_NONNULL(1, 3);
+/* Find an are based on area's inner `area->totrct`, not outer screen verts. */
+ScrArea *BKE_screen_find_area_xy_totrect(const bContext *C, const int xy[2]);
+ScrArea *BKE_screen_find_area_xy_totrect_ex(const wmWindow *win,
+                                            const bScreen *screen,
+                                            const int xy[2]);
 
 void BKE_screen_gizmo_tag_refresh(bScreen *screen);
 
