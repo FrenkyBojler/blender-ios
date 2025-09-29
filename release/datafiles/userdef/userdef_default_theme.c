@@ -413,7 +413,6 @@ const bTheme U_theme_default = {
     .time_gp_keyframe = RGBA(0x7a9b14ff),
     .nurb_uline = RGBA(0x909000ff),
     .nurb_vline = RGBA(0x803060ff),
-    .act_spline = RGBA(0xdb2512ff),
     .nurb_sel_uline = RGBA(0xf0ff40ff),
     .nurb_sel_vline = RGBA(0xf090a0ff),
     .vertex_size = 3,
@@ -429,8 +428,6 @@ const bTheme U_theme_default = {
     .gp_vertex = RGBA(0x000000ff),
     .gp_vertex_select = RGBA(0xff8500ff),
     .skin_root = RGBA(0xb44d4dff),
-    .paint_curve_pivot = RGBA(0xff7f7f7f),
-    .paint_curve_handle = RGBA(0x7fff7f7f),
   },
   .space_file = {
     .back = RGBA(0x28282800),
@@ -602,8 +599,6 @@ const bTheme U_theme_default = {
     .preview_stitch_unstitchable = RGBA(0xff0000ff),
     .preview_stitch_active = RGBA(0xe1d2c323),
     .uv_shadow = RGBA(0x707070ff),
-    .paint_curve_pivot = RGBA(0xff7f7f7f),
-    .paint_curve_handle = RGBA(0x7fff7f7f),
     .metadatatext = RGBA(0xffffffff),
   },
   .space_text = {
