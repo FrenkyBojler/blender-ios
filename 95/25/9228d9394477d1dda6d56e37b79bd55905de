@@ -3,3 +3,4 @@ Referenced by pull request #141919, Fix #141911: Geo Nodes Input Panel crashing 
 Referenced by commit 154195eeb0efd866eb7d60a26a0cde844279e8f0, Fix #141911: Geo Nodes Input Panel crashing when name is deleted
 Referenced by issue #146413, Regression: Socket name is truncated when nested in a panel
 Referenced by pull request #146973, Fix #146413: Truncate socket names only if space is present after prefix
+Referenced by commit 5cde024fc9e5c112578621eeeed54eeb85ebd7ab, Fix #146413: Truncate socket names only if space is present after prefix
