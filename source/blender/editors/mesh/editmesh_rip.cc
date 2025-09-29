@@ -520,7 +520,7 @@ static void edbm_tagged_loop_pairs_do_fill_faces(BMesh *bm, UnorderedLoopPair *u
 /**
  * This is the main vert ripping function (rip when one vertex is selected)
  */
-static int edbm_rip_invoke__vert(bContext *C, const wmEvent *event, Object *obedit, bool do_fill)
+static int edbm_rip_invoke__vert(bContext *C, const float fmval[2], Object *obedit, bool do_fill)
 {
   UnorderedLoopPair *fill_uloop_pairs = nullptr;
   ARegion *region = CTX_wm_region(C);
@@ -533,7 +533,6 @@ static int edbm_rip_invoke__vert(bContext *C, const wmEvent *event, Object *obed
   BMVert *v;
   const int totvert_orig = bm->totvert;
   int i;
-  float fmval[3] = {float(event->mval[0]), float(event->mval[1])};
   float dist_sq = FLT_MAX;
   float d;
   bool is_wire, is_manifold_region;
@@ -886,7 +885,7 @@ static int edbm_rip_invoke__vert(bContext *C, const wmEvent *event, Object *obed
 /**
  * This is the main edge ripping function
  */
-static int edbm_rip_invoke__edge(bContext *C, const wmEvent *event, Object *obedit, bool do_fill)
+static int edbm_rip_invoke__edge(bContext *C, const float fmval[2], Object *obedit, bool do_fill)
 {
   UnorderedLoopPair *fill_uloop_pairs = nullptr;
   ARegion *region = CTX_wm_region(C);
@@ -899,7 +898,6 @@ static int edbm_rip_invoke__edge(bContext *C, const wmEvent *event, Object *obed
   BMVert *v;
   const int totvert_orig = bm->totvert;
   const int totedge_orig = bm->totedge;
-  float fmval[3] = {float(event->mval[0]), float(event->mval[1])};
 
   const blender::float4x4 projectMat = ED_view3d_ob_project_mat_get(rv3d, obedit);
 
@@ -1018,14 +1016,16 @@ static int edbm_rip_invoke__edge(bContext *C, const wmEvent *event, Object *obed
 /** \name Rip Operator
  * \{ */
 
-/* based on mouse cursor position, it defines how is being ripped */
-static wmOperatorStatus edbm_rip_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus edbm_rip_exec(bContext *C, wmOperator *op)
 {
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   const Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
       scene, view_layer, CTX_wm_view3d(C));
   const bool do_fill = RNA_boolean_get(op->ptr, "use_fill");
+
+  float fmval[2];
+  RNA_float_get_array(op->ptr, "mval", fmval);
 
   bool no_vertex_selected = true;
   bool error_face_selected = true;
@@ -1041,7 +1041,7 @@ static wmOperatorStatus edbm_rip_invoke(bContext *C, wmOperator *op, const wmEve
     const bool singlesel = (bm->totvertsel == 1 && bm->totedgesel == 0 && bm->totfacesel == 0);
     int ret;
 
-    if (em->bm->totvertsel == 0) {
+    if (bm->totvertsel == 0) {
       continue;
     }
     no_vertex_selected = false;
@@ -1081,10 +1081,10 @@ static wmOperatorStatus edbm_rip_invoke(bContext *C, wmOperator *op, const wmEve
 
     /* split 2 main parts of this operator out into vertex and edge ripping */
     if (singlesel) {
-      ret = edbm_rip_invoke__vert(C, event, obedit, do_fill);
+      ret = edbm_rip_invoke__vert(C, fmval, obedit, do_fill);
     }
     else {
-      ret = edbm_rip_invoke__edge(C, event, obedit, do_fill);
+      ret = edbm_rip_invoke__edge(C, fmval, obedit, do_fill);
     }
 
     if (ret != OPERATOR_FINISHED) {
@@ -1127,6 +1127,13 @@ static wmOperatorStatus edbm_rip_invoke(bContext *C, wmOperator *op, const wmEve
   return OPERATOR_FINISHED;
 }
 
+static wmOperatorStatus edbm_rip_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+{
+  const float mval[2] = {float(event->mval[0]), float(event->mval[1])};
+  RNA_float_set_array(op->ptr, "mval", mval);
+  return edbm_rip_exec(C, op);
+}
+
 void MESH_OT_rip(wmOperatorType *ot)
 {
   PropertyRNA *prop;
@@ -1138,6 +1145,7 @@ void MESH_OT_rip(wmOperatorType *ot)
 
   /* API callbacks. */
   ot->invoke = edbm_rip_invoke;
+  ot->exec = edbm_rip_exec;
   ot->poll = EDBM_view3d_poll;
 
   /* flags */
@@ -1147,6 +1155,18 @@ void MESH_OT_rip(wmOperatorType *ot)
   blender::ed::transform::properties_register(ot, P_PROPORTIONAL | P_MIRROR_DUMMY);
   prop = RNA_def_boolean(ot->srna, "use_fill", false, "Fill", "Fill the ripped region");
   RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_MESH);
+
+  prop = RNA_def_float_vector(ot->srna,
+                              "mval",
+                              2,
+                              nullptr,
+                              -FLT_MAX,
+                              FLT_MAX,
+                              "Mouse",
+                              "Mouse position in region space at invoke time",
+                              -10000.0f,
+                              10000.0f);
+  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 }
 
 /** \} */
