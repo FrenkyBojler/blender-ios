@@ -62,9 +62,6 @@ static void rotation_mode_menu_callback(bContext *, uiLayout *layout, void *)
 {
   for (size_t i = 0; i < RNA_enum_items_count(rna_enum_object_rotation_mode_items); i++) {
     const EnumPropertyItem &mode_info = rna_enum_object_rotation_mode_items[i];
-    if (mode_info.value > ROT_MODE_ZYX) {
-      continue;
-    }
     int yco = -1.5f * UI_UNIT_Y;
     int width = 180.0f * UI_SCALE_FAC;
     uiBut *but = uiDefButI(layout->block(),
@@ -123,7 +120,8 @@ static void draw_matrix_template(uiLayout &layout, PointerRNA &ptr, PropertyRNA 
   right_col->label(format_unit_value(loc[2], PROP_TRANSLATION, layout_), ICON_NONE);
 
   /* Rotation. */
-  float eul[3];
+  float eul[3], axis[3];
+  float angle;
   const EnumPropertyItem &mode_info = rna_enum_object_rotation_mode_items[rotation_mode_index];
 
   split = &layout_->split(0.5, false);
@@ -141,6 +139,23 @@ static void draw_matrix_template(uiLayout &layout, PointerRNA &ptr, PropertyRNA 
     right_col->label(format_coefficient(quat[1]), ICON_NONE);
     right_col->label(format_coefficient(quat[2]), ICON_NONE);
     right_col->label(format_coefficient(quat[3]), ICON_NONE);
+  }
+  else if (mode_info.value == ROT_MODE_AXISANGLE) {
+    quat_to_axis_angle(axis, &angle, quat);
+
+    left_col = &split->column(true);
+    left_col->alignment_set(blender::ui::LayoutAlign::Right);
+    left_col->label("Rotation W", ICON_NONE);
+    left_col->label("X", ICON_NONE);
+    left_col->label("Y", ICON_NONE);
+    left_col->label("Z", ICON_NONE);
+    left_col->label("Mode", ICON_NONE);
+
+    right_col = &split->column(true);
+    right_col->label(format_unit_value(angle, PROP_EULER, layout_), ICON_NONE);
+    right_col->label(format_coefficient(axis[0]), ICON_NONE);
+    right_col->label(format_coefficient(axis[1]), ICON_NONE);
+    right_col->label(format_coefficient(axis[2]), ICON_NONE);
   }
   else {
     quat_to_eulO(eul, mode_info.value, quat);
