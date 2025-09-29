@@ -83,7 +83,6 @@ class ShapeKeyDragController : public ui::AbstractViewItemDragController {
     selected_count = 0;
     int index = 0;
     LISTBASE_FOREACH_INDEX (KeyBlock *, kb, &drag_key_.key->block, index) {
-
       if (index == 0) {
         /* Prevent basis shape key from dragging. */
         continue;
@@ -95,10 +94,6 @@ class ShapeKeyDragController : public ui::AbstractViewItemDragController {
       }
     }
     return selected_keys_;
-  }
-  void on_drag_start(bContext & /*C*/) override
-  {
-    drag_key_.object->shapenr = drag_key_.index + 1;
   }
 };
 
