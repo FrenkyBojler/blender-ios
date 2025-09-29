@@ -1,2 +1,3 @@
 Referenced by issue #146966, Blender crash while joining 2 objects with CTRL+J (also tested with Blender 5.0.0 Alpha fc5c6ab374bb)
 Referenced by pull request #146982, Fix #146966: Crash joining mesh objects
+Referenced by commit c58a789673fc8c636424f44267f234aeaa613a3f, Fix #146966: Crash joining mesh objects
