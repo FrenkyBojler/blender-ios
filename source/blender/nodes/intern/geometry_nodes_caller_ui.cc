@@ -564,11 +564,7 @@ static void draw_property_for_socket(DrawGroupInputsContext &ctx,
           uiLayout &menu_row = row->row(true);
           menu_row.use_property_split_set(false);
           menu_row.prop(ctx.properties_ptr, rna_path, UI_ITEM_R_EXPAND, " ", ICON_NONE);
-          /* Add spacing where the attribute button is for other inputs. */
-          menu_row.label("", ICON_BLANK1);
-          menu_row.decorator(ctx.properties_ptr,
-                             RNA_struct_find_property(ctx.properties_ptr, rna_path.c_str()),
-                             -1);
+          /* Don't draw decorator in this case. */
           return;
         }
         row->prop(ctx.properties_ptr,
