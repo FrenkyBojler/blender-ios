@@ -268,7 +268,7 @@ class ShaderNodesInliner {
   Vector<SocketInContext> find_final_output_sockets()
   {
     Vector<TreeInContext> trees;
-    this->find_trees_potentially_containing_shader_outputs(nullptr, src_tree_, trees);
+    this->find_trees_potentially_containing_shader_outputs_recursive(nullptr, src_tree_, trees);
 
     Vector<SocketInContext> output_sockets;
     auto add_output_type = [&](const char *output_type) {
@@ -310,9 +310,9 @@ class ShaderNodesInliner {
     return output_sockets;
   }
 
-  void find_trees_potentially_containing_shader_outputs(const ComputeContext *context,
-                                                        const bNodeTree &tree,
-                                                        Vector<TreeInContext> &r_trees)
+  void find_trees_potentially_containing_shader_outputs_recursive(const ComputeContext *context,
+                                                                  const bNodeTree &tree,
+                                                                  Vector<TreeInContext> &r_trees)
   {
     const bke::bNodeTreeZones *zones = src_tree_.zones();
     if (!zones) {
@@ -338,7 +338,8 @@ class ShaderNodesInliner {
       }
       const ComputeContext &group_context = compute_context_cache_.for_group_node(
           context, group_node->identifier, &tree);
-      this->find_trees_potentially_containing_shader_outputs(&group_context, *group, r_trees);
+      this->find_trees_potentially_containing_shader_outputs_recursive(
+          &group_context, *group, r_trees);
     }
   }
 
