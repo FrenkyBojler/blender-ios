@@ -44,8 +44,8 @@ static std::string format_unit_value(float value, PropertySubType subtype, uiLay
   return std::string(new_str);
 }
 
-/* Format scale value as a string. */
-static std::string format_scale(float value)
+/* Format unitless value as a string. */
+static std::string format_coefficient(float value)
 {
   /* Change negative zero to regular zero, without altering anything else. */
   value += +0.0f;
@@ -62,7 +62,7 @@ static void rotation_mode_menu_callback(bContext *, uiLayout *layout, void *)
 {
   for (size_t i = 0; i < RNA_enum_items_count(rna_enum_object_rotation_mode_items); i++) {
     const EnumPropertyItem &mode_info = rna_enum_object_rotation_mode_items[i];
-    if (mode_info.value < ROT_MODE_XYZ || mode_info.value > ROT_MODE_ZYX) {
+    if (mode_info.value > ROT_MODE_ZYX) {
       continue;
     }
     int yco = -1.5f * UI_UNIT_Y;
@@ -125,20 +125,39 @@ static void draw_matrix_template(uiLayout &layout, PointerRNA &ptr, PropertyRNA 
   /* Rotation. */
   float eul[3];
   const EnumPropertyItem &mode_info = rna_enum_object_rotation_mode_items[rotation_mode_index];
-  quat_to_eulO(eul, mode_info.value, quat);
+
   split = &layout_->split(0.5, false);
+  if (mode_info.value == ROT_MODE_QUAT) {
+    left_col = &split->column(true);
+    left_col->alignment_set(blender::ui::LayoutAlign::Right);
+    left_col->label("Rotation W", ICON_NONE);
+    left_col->label("X", ICON_NONE);
+    left_col->label("Y", ICON_NONE);
+    left_col->label("Z", ICON_NONE);
+    left_col->label("Mode", ICON_NONE);
 
-  left_col = &split->column(true);
-  left_col->alignment_set(blender::ui::LayoutAlign::Right);
-  left_col->label("Rotation X", ICON_NONE);
-  left_col->label("Y", ICON_NONE);
-  left_col->label("Z", ICON_NONE);
-  left_col->label("Rotation Mode", ICON_NONE);
+    right_col = &split->column(true);
+    right_col->label(format_coefficient(quat[0]), ICON_NONE);
+    right_col->label(format_coefficient(quat[1]), ICON_NONE);
+    right_col->label(format_coefficient(quat[2]), ICON_NONE);
+    right_col->label(format_coefficient(quat[3]), ICON_NONE);
+  }
+  else {
+    quat_to_eulO(eul, mode_info.value, quat);
 
-  right_col = &split->column(true);
-  right_col->label(format_unit_value(eul[0], PROP_EULER, layout_), ICON_NONE);
-  right_col->label(format_unit_value(eul[1], PROP_EULER, layout_), ICON_NONE);
-  right_col->label(format_unit_value(eul[2], PROP_EULER, layout_), ICON_NONE);
+    left_col = &split->column(true);
+    left_col->alignment_set(blender::ui::LayoutAlign::Right);
+    left_col->label("Rotation X", ICON_NONE);
+    left_col->label("Y", ICON_NONE);
+    left_col->label("Z", ICON_NONE);
+    left_col->label("Mode", ICON_NONE);
+
+    right_col = &split->column(true);
+    right_col->label(format_unit_value(eul[0], PROP_EULER, layout_), ICON_NONE);
+    right_col->label(format_unit_value(eul[1], PROP_EULER, layout_), ICON_NONE);
+    right_col->label(format_unit_value(eul[2], PROP_EULER, layout_), ICON_NONE);
+  }
+
   /* Mirror RNA enum property dropdown UI - with menu triangle an dropdown items. */
   uiBlock *block = right_col->block();
   uiBut *but = uiDefBut(block,
@@ -152,7 +171,7 @@ static void draw_matrix_template(uiLayout &layout, PointerRNA &ptr, PropertyRNA 
                         nullptr,
                         0,
                         0,
-                        TIP_("Euler rotation mode.\n\nOnly affects the way "
+                        TIP_("Rotation mode.\n\nOnly affects the way "
                              "rotation is displayed, rotation itself is unaffected."));
   /* Replicating `ui_but_submenu_enable`. */
   UI_but_flag_enable(but, UI_BUT_ICON_SUBMENU);
@@ -169,9 +188,9 @@ static void draw_matrix_template(uiLayout &layout, PointerRNA &ptr, PropertyRNA 
   left_col->label("Z", ICON_NONE);
 
   right_col = &split->column(true);
-  right_col->label(format_scale(size[0]), ICON_NONE);
-  right_col->label(format_scale(size[1]), ICON_NONE);
-  right_col->label(format_scale(size[2]), ICON_NONE);
+  right_col->label(format_coefficient(size[0]), ICON_NONE);
+  right_col->label(format_coefficient(size[1]), ICON_NONE);
+  right_col->label(format_coefficient(size[2]), ICON_NONE);
 }
 
 void uiTemplateMatrix(uiLayout *layout, PointerRNA *ptr, const StringRefNull propname)
