@@ -265,28 +265,23 @@ class ShaderNodesInliner {
     return true;
   }
 
-  struct TopLevelTree {
-    const ComputeContext *context = nullptr;
-    const bNodeTree *tree = nullptr;
-  };
-
   Vector<SocketInContext> find_final_output_sockets()
   {
-    Vector<TopLevelTree> top_level_trees;
-    this->find_top_level_trees_recursive(nullptr, src_tree_, top_level_trees);
+    Vector<TreeInContext> trees;
+    this->find_trees_potentially_containing_shader_outputs(nullptr, src_tree_, trees);
 
     Vector<SocketInContext> output_sockets;
     auto add_output_type = [&](const char *output_type) {
-      for (const TopLevelTree &top_level_tree : top_level_trees) {
-        const bke::bNodeTreeZones &zones = *top_level_tree.tree->zones();
-        for (const bNode *node : top_level_tree.tree->nodes_by_type(output_type)) {
+      for (const TreeInContext &tree : trees) {
+        const bke::bNodeTreeZones &zones = *tree->zones();
+        for (const bNode *node : tree->nodes_by_type(output_type)) {
           const bke::bNodeTreeZone *zone = zones.get_zone_by_node(node->identifier);
           if (zone) {
             params_.r_error_messages.append({node, TIP_("Output node must not be in zone")});
             continue;
           }
           for (const bNodeSocket *socket : node->input_sockets()) {
-            output_sockets.append({top_level_tree.context, socket});
+            output_sockets.append({tree.context, socket});
           }
         }
       }
@@ -315,9 +310,9 @@ class ShaderNodesInliner {
     return output_sockets;
   }
 
-  void find_top_level_trees_recursive(const ComputeContext *context,
-                                      const bNodeTree &tree,
-                                      Vector<TopLevelTree> &r_trees)
+  void find_trees_potentially_containing_shader_outputs(const ComputeContext *context,
+                                                        const bNodeTree &tree,
+                                                        Vector<TreeInContext> &r_trees)
   {
     const bke::bNodeTreeZones *zones = src_tree_.zones();
     if (!zones) {
@@ -343,7 +338,7 @@ class ShaderNodesInliner {
       }
       const ComputeContext &group_context = compute_context_cache_.for_group_node(
           context, group_node->identifier, &tree);
-      this->find_top_level_trees_recursive(&group_context, *group, r_trees);
+      this->find_trees_potentially_containing_shader_outputs(&group_context, *group, r_trees);
     }
   }
 
