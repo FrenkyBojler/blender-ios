@@ -558,15 +558,8 @@ static void draw_property_for_socket(DrawGroupInputsContext &ctx,
     }
     case SOCK_MENU: {
       if (socket.flag & NODE_INTERFACE_SOCKET_MENU_EXPANDED) {
-        /* Use a single space when the name is empty to work around a bug with expanded enums.
-         * Also see #ui_item_enum_expand_exec. */
-        if (socket.flag & NODE_INTERFACE_SOCKET_OPTIONAL_LABEL) {
-          uiLayout &menu_row = row->row(true);
-          menu_row.use_property_split_set(false);
-          menu_row.prop(ctx.properties_ptr, rna_path, UI_ITEM_R_EXPAND, " ", ICON_NONE);
-          /* Don't draw decorator in this case. */
-          return;
-        }
+        /* Use a single space when the name is empty to work around a bug with expanded enums. Also
+         * see #ui_item_enum_expand_exec. */
         row->prop(ctx.properties_ptr,
                   rna_path,
                   UI_ITEM_R_EXPAND,
