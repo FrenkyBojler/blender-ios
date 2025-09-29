@@ -2762,7 +2762,7 @@ ImBuf *IMB_colormanagement_imbuf_for_write(ImBuf *ibuf,
 
     const char *to_colorspace = image_format->linear_colorspace_settings.name;
 
-    /* to colorspace may need to modified to compensate for 100 vs 203 nits conventions. */
+    /* to_colorspace may need to modified to compensate for 100 vs 203 nits conventions. */
     if (image_format->media_type != MEDIA_TYPE_VIDEO) {
       const ColorSpace *image_colorspace = g_config->get_color_space_for_hdr_image(to_colorspace);
       if (image_colorspace) {
