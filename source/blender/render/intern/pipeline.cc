@@ -1095,26 +1095,37 @@ static void render_result_uncrop(Render *re)
   if (re->result && (re->r.mode & R_BORDER) && !(re->r.mode & R_BORDER_OVERLAY)) {
     if ((re->r.mode & R_CROP) == 0) {
       RenderResult *rres;
+
       /* backup */
       const rcti orig_disprect = re->disprect;
       const int orig_rectx = re->rectx, orig_recty = re->recty;
+
       BLI_rw_mutex_lock(&re->resultmutex, THREAD_LOCK_WRITE);
+
       /* sub-rect for merge call later on */
       re->result->tilerect = re->disprect;
+
       /* weak is: it chances disprect from border */
       render_result_disprect_to_full_resolution(re);
+
       rres = render_result_new(re, &re->disprect, RR_ALL_LAYERS, RR_ALL_VIEWS);
       rres->stamp_data = BKE_stamp_data_copy(re->result->stamp_data);
+
       render_result_clone_passes(re, rres, nullptr);
       render_result_passes_allocated_ensure(rres);
+
       render_result_merge(rres, re->result);
       render_result_free(re->result);
       re->result = rres;
+
       /* Weak, the display callback wants an active render-layer pointer. */
       re->result->renlay = render_get_single_layer(re, re->result);
+
       BLI_rw_mutex_unlock(&re->resultmutex);
+
       re->display_init(re->result);
       re->display_update(re->result, nullptr);
+
       /* restore the disprect from border */
       re->disprect = orig_disprect;
       re->rectx = orig_rectx;
