@@ -1946,12 +1946,11 @@ void SEQUENCER_OT_split(wmOperatorType *ot)
 
   RNA_def_property_flag(prop, PROP_HIDDEN);
 
-  RNA_def_boolean(
-      ot->srna,
-      "ignore_connections",
-      false,
-      "Ignore Connections",
-      "Don't propagate split to connected strips");
+  RNA_def_boolean(ot->srna,
+                  "ignore_connections",
+                  false,
+                  "Ignore Connections",
+                  "Don't propagate split to connected strips");
 }
 
 /** \} */

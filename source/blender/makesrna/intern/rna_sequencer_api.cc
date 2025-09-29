@@ -101,13 +101,13 @@ static Strip *rna_Strip_split(ID *id,
 
   const char *error_msg = nullptr;
   Strip *strip_split = blender::seq::edit_strip_split(bmain,
-                                                scene,
-                                                seqbase,
-                                                strip,
-                                                frame,
-                                                blender::seq::eSplitMethod(split_method),
-                                                ignore_connections,
-                                                &error_msg);
+                                                      scene,
+                                                      seqbase,
+                                                      strip,
+                                                      frame,
+                                                      blender::seq::eSplitMethod(split_method),
+                                                      ignore_connections,
+                                                      &error_msg);
   if (error_msg != nullptr) {
     BKE_report(reports, RPT_ERROR, error_msg);
   }

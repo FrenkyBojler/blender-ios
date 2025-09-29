@@ -423,7 +423,7 @@ Strip *edit_strip_split(Main *bmain,
                       seqbase,
                       strips,
                       ignore_connections ? query_strip_effect_chain :
-                                         query_strip_connected_and_effect_chain);
+                                           query_strip_connected_and_effect_chain);
 
   if (!seq_edit_split_operation_permitted_check(scene, strips, timeline_frame, r_error)) {
     return nullptr;
