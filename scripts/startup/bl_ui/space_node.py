@@ -274,16 +274,12 @@ class NODE_MT_editor_menus(Menu):
     bl_idname = "NODE_MT_editor_menus"
     bl_label = ""
 
-    def draw(self, context):
+    def draw(self, _context):
         layout = self.layout
         layout.menu("NODE_MT_view")
         layout.menu("NODE_MT_select")
         layout.menu("NODE_MT_add")
         layout.menu("NODE_MT_node")
-
-        # This is to make the "Swap" operators show up in the same level as the "Add" operators during search.
-        if getattr(context, "is_menu_search", False):
-            layout.menu("NODE_MT_swap")
 
 
 class NODE_MT_add(node_add_menu.AddNodeMenu):
