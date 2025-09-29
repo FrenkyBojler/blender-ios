@@ -493,7 +493,7 @@ class SEQUENCER_MT_view(Menu):
             layout.prop(st, "show_region_hud")
         if is_sequencer_only:
             layout.prop(st, "show_region_channels")
-        layout.prop(st, "show_region_footer")
+        layout.prop(st, "show_region_footer", text="Playback Controls")
         layout.separator()
 
         if is_preview:
@@ -548,7 +548,11 @@ class SEQUENCER_MT_view(Menu):
             layout.menu("SEQUENCER_MT_range")
             layout.separator()
 
-        layout.menu("SEQUENCER_MT_view_render")
+        layout.operator("render.opengl", text="Render Still Preview", icon='RENDER_STILL').sequencer = True
+        props = layout.operator("render.opengl", text="Render Sequence Preview", icon='RENDER_ANIMATION')
+        props.animation = True
+        props.sequencer = True
+
         layout.separator()
 
         layout.operator("sequencer.export_subtitles", text="Export Subtitles", icon='EXPORT')
@@ -1568,6 +1572,7 @@ class SEQUENCER_MT_modifier_add(Menu):
         else:
             self.operator_modifier_add(layout, 'BRIGHT_CONTRAST')
             self.operator_modifier_add(layout, 'COLOR_BALANCE')
+            self.operator_modifier_add(layout, 'COMPOSITOR')
             self.operator_modifier_add(layout, 'CURVES')
             self.operator_modifier_add(layout, 'HUE_CORRECT')
             self.operator_modifier_add(layout, 'MASK')
@@ -3170,7 +3175,6 @@ classes = (
     SEQUENCER_HT_playback_controls,
     SEQUENCER_MT_editor_menus,
     SEQUENCER_MT_range,
-    SEQUENCER_MT_view_render,
     SEQUENCER_MT_view,
     SEQUENCER_MT_preview_zoom,
     SEQUENCER_MT_proxy,
