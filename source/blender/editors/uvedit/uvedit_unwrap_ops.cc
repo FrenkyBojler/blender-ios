@@ -3042,8 +3042,8 @@ void UV_OT_unwrap(wmOperatorType *ot)
   RNA_def_boolean(ot->srna,
                   "original_bounds",
                   false,
-                  "Fixed Bounds",
-                  "Pack islands in fixed bounds of original islands");
+                  "Original Bounds",
+                  "Pack islands in original bounds of stitched islands");
 
   RNA_def_enum(ot->srna,
                "margin_method",
