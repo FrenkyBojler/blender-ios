@@ -284,7 +284,7 @@ const EnumPropertyItem rna_enum_space_action_mode_items[] = {
 
 #define SI_ITEM_VIEW(identifier, name, icon) \
   { \
-    SI_MODE_VIEW, identifier, icon, name, "Inspect images or render result" \
+    SI_MODE_VIEW, identifier, icon, name, "Inspect images or render results" \
   }
 #define SI_ITEM_UV \
   { \
