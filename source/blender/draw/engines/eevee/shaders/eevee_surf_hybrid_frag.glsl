@@ -9,7 +9,7 @@
  * Some render-pass are written during this pass.
  */
 
-#include "infos/eevee_material_info.hh"
+#include "infos/eevee_material_infos.hh"
 
 FRAGMENT_SHADER_CREATE_INFO(eevee_node_tree)
 FRAGMENT_SHADER_CREATE_INFO(eevee_geom_mesh)
@@ -19,7 +19,6 @@ FRAGMENT_SHADER_CREATE_INFO(eevee_cryptomatte_out)
 
 #include "draw_curves_lib.glsl"
 #include "draw_view_lib.glsl"
-#include "eevee_ambient_occlusion_lib.glsl"
 #include "eevee_forward_lib.glsl"
 #include "eevee_gbuffer_write_lib.glsl"
 #include "eevee_nodetree_frag_lib.glsl"

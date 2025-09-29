@@ -117,6 +117,11 @@ ccl_device_inline float3 make_float3(const int3 i)
 #endif
 }
 
+ccl_device_inline float3 make_float3(const float3 a)
+{
+  return a;
+}
+
 #if defined __METAL_PRINTF__
 #  define print_float3(label, a) \
     metal::os_log_default.log_debug(label ":  %.8f %.8f %.8f", a.x, a.y, a.z)
