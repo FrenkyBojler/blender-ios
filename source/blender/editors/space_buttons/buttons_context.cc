@@ -39,8 +39,8 @@
 #include "BKE_particle.h"
 #include "BKE_screen.hh"
 
-#include "SEQ_select.hh"
 #include "SEQ_modifier.hh"
+#include "SEQ_select.hh"
 
 #include "RNA_access.hh"
 #include "RNA_prototypes.hh"
@@ -557,7 +557,8 @@ static bool buttons_context_path_strip_modifier(Scene *sequencer_scene, ButsCont
 
     StripModifierData *smd = blender::seq::modifier_get_active(active_strip);
     if (smd) {
-      path->ptr[path->len] = RNA_pointer_create_discrete(&sequencer_scene->id, &RNA_StripModifier, smd);
+      path->ptr[path->len] = RNA_pointer_create_discrete(
+          &sequencer_scene->id, &RNA_StripModifier, smd);
       path->len++;
     }
     return true;
@@ -1275,7 +1276,9 @@ static void buttons_panel_context_draw(const bContext *C, Panel *panel)
               BCONTEXT_OUTPUT,
               BCONTEXT_SCENE,
               BCONTEXT_VIEW_LAYER,
-              BCONTEXT_WORLD) &&
+              BCONTEXT_WORLD,
+              BCONTEXT_STRIP,
+              BCONTEXT_STRIP_MODIFIER) &&
         ptr->type == &RNA_Scene)
     {
       continue;
