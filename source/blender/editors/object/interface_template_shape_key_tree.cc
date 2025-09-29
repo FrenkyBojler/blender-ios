@@ -125,7 +125,6 @@ class ShapeKeyDropTarget : public ui::TreeViewItemDropTarget {
 
   std::string drop_tooltip(const ui::DragInfo &drag_info) const override
   {
-    const KeyBlock **drag_shapekey = static_cast<const KeyBlock **>(drag_info.drag_data.poin);
     const StringRef drag_name = TIP_("Selected Keys");
     const StringRef drop_name = drop_kb_.name;
 
@@ -153,7 +152,6 @@ class ShapeKeyDropTarget : public ui::TreeViewItemDropTarget {
     Object *ob = CTX_data_active_object(C);
     Key *key = BKE_key_from_object(ob);
     const KeyBlock **drag_shapekey = static_cast<const KeyBlock **>(drag_info.drag_data.poin);
-    int drop_index = drop_index_;
 
     for (int8_t i = 0; drag_shapekey[i] != nullptr; i++) {
       const int drag_index = BLI_findindex(&key->block, drag_shapekey[i]);
