@@ -162,8 +162,10 @@ struct PChart {
 
   float origin[2];
 
-  /* orig_bounds only used with original_bounds */
+  /* Only used with original_bounds */
   Bounds<float2> orig_bounds;
+  PVert *orig_uv_verts[3];
+  float old_angle;
 
   LinearSolver *context;
   float *abf_alpha;
@@ -476,6 +478,21 @@ static void uv_parametrizer_scale_x(ParamHandle *phandle, const float scale_x)
     for (PVert *v = chart->verts; v; v = v->nextlink) {
       v->uv[0] *= scale_x; /* Only scale x axis. */
     }
+  }
+}
+
+static void p_chart_uv_rotate(PChart *chart, float angle)
+{
+  if (angle == 0.0f) {
+    return;
+  }
+  for (PVert *v = chart->verts; v; v = v->nextlink) {
+    float x = v->uv[0] - chart->origin[0];
+    float y = v->uv[1] - chart->origin[1];
+    float x_rot = cosf(angle) * x - sinf(angle) * y;
+    float y_rot = sinf(angle) * x + cosf(angle) * y;
+    v->uv[0] = x_rot + chart->origin[0];
+    v->uv[1] = y_rot + chart->origin[1];
   }
 }
 
@@ -3065,6 +3082,14 @@ static void p_chart_lscm_begin(PChart *chart, bool live, bool abf, const bool or
   bool deselect = false;
   int npins = 0;
   if (original_bounds) {
+    int idx = 0;
+    for (PVert *v = chart->verts; v && idx < 3; v = v->nextlink, idx++) {
+      chart->orig_uv_verts[idx] = v;
+    }
+    if (idx >= 3) {
+      chart->old_angle = angle_v2v2v2(
+          chart->orig_uv_verts[0]->uv, chart->orig_uv_verts[1]->uv, chart->orig_uv_verts[2]->uv);
+    }
     p_chart_uv_bbox(chart, chart->orig_bounds.min, chart->orig_bounds.max);
   }
   /* Give vertices matrix indices, count pins and check selections. */
@@ -3862,7 +3887,7 @@ static void p_add_ngon(ParamHandle *handle,
   uint nfilltri = nverts - 2;
   uint(*tris)[3] = static_cast<uint(*)[3]>(
       BLI_memarena_alloc(arena, sizeof(*tris) * size_t(nfilltri)));
-  float(*projverts)[2] = static_cast<float(*)[2]>(
+  float (*projverts)[2] = static_cast<float (*)[2]>(
       BLI_memarena_alloc(arena, sizeof(*projverts) * size_t(nverts)));
 
   /* Calc normal, flipped: to get a positive 2d cross product. */
@@ -4252,6 +4277,10 @@ void uv_parametrizer_original_bounds(ParamHandle *phandle)
     if (!all_verts_selected) {
       continue;
     }
+    float new_angle = angle_v2v2v2(
+        chart->orig_uv_verts[0]->uv, chart->orig_uv_verts[1]->uv, chart->orig_uv_verts[2]->uv);
+    p_chart_uv_rotate(chart, chart->old_angle - new_angle);
+
     p_chart_uv_bbox(chart, minv, maxv);
     sub_v2_v2v2(new_size, maxv, minv);
     float size = (chart->orig_bounds.size().x > chart->orig_bounds.size().y) ?
@@ -5142,6 +5171,14 @@ static void slim_convert_blender(ParamHandle *phandle,
   for (int i = 0; i < phandle->ncharts; i++) {
     PChart *chart = phandle->charts[i];
     if (original_bounds) {
+      int idx = 0;
+      for (PVert *v = chart->verts; v && idx < 3; v = v->nextlink, idx++) {
+        chart->orig_uv_verts[idx] = v;
+      }
+      if (idx >= 3) {
+        chart->old_angle = angle_v2v2v2(
+            chart->orig_uv_verts[0]->uv, chart->orig_uv_verts[1]->uv, chart->orig_uv_verts[2]->uv);
+      }
       p_chart_uv_bbox(chart, chart->orig_bounds.min, chart->orig_bounds.max);
     }
     slim::MatrixTransferChart *mt_chart = &mt->charts[i];
