@@ -1936,7 +1936,7 @@ static StitchState *stitch_init(bContext *C,
 
   counter = 0;
   /* Now, on to generate our uv connectivity data */
-  const bool face_selected = !(ts->uv_flag & UV_FLAG_SYNC_SELECT);
+  const bool face_selected = !(ts->uv_flag & UV_FLAG_SELECT_SYNC);
   BM_ITER_MESH (efa, &iter, em->bm, BM_FACES_OF_MESH) {
     if (BM_elem_flag_test(efa, BM_ELEM_HIDDEN)) {
       continue;
@@ -2124,7 +2124,7 @@ static StitchState *stitch_init(bContext *C,
                       "uv_stitch_selection_stack"));
 
       BM_ITER_MESH (efa, &iter, em->bm, BM_FACES_OF_MESH) {
-        if (!(ts->uv_flag & UV_FLAG_SYNC_SELECT) &&
+        if (!(ts->uv_flag & UV_FLAG_SELECT_SYNC) &&
             (BM_elem_flag_test(efa, BM_ELEM_HIDDEN) || !BM_elem_flag_test(efa, BM_ELEM_SELECT)))
         {
           continue;
@@ -2277,7 +2277,7 @@ static StitchStateContainer *stitch_operator_settings_init(bContext *C, wmOperat
     ssc->mode = RNA_enum_get(op->ptr, "mode");
   }
   else {
-    if (ts->uv_flag & UV_FLAG_SYNC_SELECT) {
+    if (ts->uv_flag & UV_FLAG_SELECT_SYNC) {
       if (ts->selectmode & SCE_SELECT_VERTEX) {
         ssc->mode = STITCH_VERT;
       }
@@ -2286,7 +2286,7 @@ static StitchStateContainer *stitch_operator_settings_init(bContext *C, wmOperat
       }
     }
     else {
-      if (ts->uv_selectmode & UV_SELECT_VERTEX) {
+      if (ts->uv_selectmode & UV_SELECT_VERT) {
         ssc->mode = STITCH_VERT;
       }
       else {
@@ -2389,7 +2389,7 @@ static wmOperatorStatus stitch_invoke(bContext *C, wmOperator *op, const wmEvent
 
   Scene *scene = CTX_data_scene(C);
   ToolSettings *ts = scene->toolsettings;
-  const bool synced_selection = (ts->uv_flag & UV_FLAG_SYNC_SELECT) != 0;
+  const bool synced_selection = (ts->uv_flag & UV_FLAG_SELECT_SYNC) != 0;
 
   for (uint ob_index = 0; ob_index < ssc->objects_len; ob_index++) {
     StitchState *state = ssc->states[ob_index];
@@ -2471,7 +2471,7 @@ static void stitch_exit(bContext *C, wmOperator *op, int finished)
   ED_region_draw_cb_exit(CTX_wm_region(C)->runtime->type, ssc->draw_handle);
 
   ToolSettings *ts = scene->toolsettings;
-  const bool synced_selection = (ts->uv_flag & UV_FLAG_SYNC_SELECT) != 0;
+  const bool synced_selection = (ts->uv_flag & UV_FLAG_SELECT_SYNC) != 0;
 
   for (uint ob_index = 0; ob_index < ssc->objects_len; ob_index++) {
     StitchState *state = ssc->states[ob_index];

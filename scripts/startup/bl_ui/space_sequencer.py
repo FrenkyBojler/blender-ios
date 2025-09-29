@@ -174,7 +174,8 @@ class SEQUENCER_HT_header(Header):
 
         layout.separator_spacer()
 
-        tool_settings = context.tool_settings
+        scene = context.sequencer_scene
+        tool_settings = scene.tool_settings if scene else None
         sequencer_tool_settings = tool_settings.sequencer_tool_settings if tool_settings else None
 
         if st.view_type == 'SEQUENCER':
@@ -492,7 +493,7 @@ class SEQUENCER_MT_view(Menu):
             layout.prop(st, "show_region_hud")
         if is_sequencer_only:
             layout.prop(st, "show_region_channels")
-        layout.prop(st, "show_region_footer")
+        layout.prop(st, "show_region_footer", text="Playback Controls")
         layout.separator()
 
         if is_preview:
@@ -547,7 +548,11 @@ class SEQUENCER_MT_view(Menu):
             layout.menu("SEQUENCER_MT_range")
             layout.separator()
 
-        layout.menu("SEQUENCER_MT_view_render")
+        layout.operator("render.opengl", text="Render Still Preview", icon='RENDER_STILL').sequencer = True
+        props = layout.operator("render.opengl", text="Render Sequence Preview", icon='RENDER_ANIMATION')
+        props.animation = True
+        props.sequencer = True
+
         layout.separator()
 
         layout.operator("sequencer.export_subtitles", text="Export Subtitles", icon='EXPORT')
@@ -796,36 +801,6 @@ class SEQUENCER_MT_add(Menu):
         col = layout.column()
         col.operator_menu_enum("sequencer.fades_add", "type", text="Fade", icon='IPO_EASE_IN_OUT')
         col.enabled = total >= 1
-
-
-class SEQUENCER_MT_add_scene(Menu):
-    bl_label = "Scene"
-    bl_translation_context = i18n_contexts.operator_default
-
-    def draw(self, context):
-
-        layout = self.layout
-        layout.operator_context = 'INVOKE_REGION_WIN'
-        layout.operator("sequencer.scene_strip_add_new", text="Empty Scene", icon='ADD').type = 'EMPTY'
-
-        layout.menu_contents("SEQUENCER_MT_scene_add_root_catalogs")
-
-        bpy_data_scenes_len = len(bpy.data.scenes)
-        if bpy_data_scenes_len > 10:
-            layout.label(text="Scenes", icon='NONE')
-            layout.operator_context = 'INVOKE_DEFAULT'
-            layout.operator("sequencer.scene_strip_add", text="Scene...", icon='SCENE_DATA')
-        elif bpy_data_scenes_len > 1:
-            layout.label(text="Scenes", icon='NONE')
-            scene = context.sequencer_scene
-            for sc_item in bpy.data.scenes:
-                if sc_item == scene:
-                    continue
-
-                layout.operator_context = 'INVOKE_REGION_WIN'
-                layout.operator("sequencer.scene_strip_add", text=sc_item.name, translate=False).scene = sc_item.name
-
-        del bpy_data_scenes_len
 
 
 class SEQUENCER_MT_add_empty(Menu):
@@ -1153,9 +1128,9 @@ class SEQUENCER_MT_strip_retiming(Menu):
         layout = self.layout
 
         is_retiming = (
-            context.sequencer_scene and
+            context.sequencer_scene is not None and
             context.sequencer_scene.sequence_editor is not None and
-            context.sequencer_scene.sequence_editor.selected_retiming_keys
+            context.sequencer_scene.sequence_editor.selected_retiming_keys is not None
         )
         strip = context.active_strip
 
@@ -1511,8 +1486,8 @@ class SEQUENCER_MT_pivot_pie(Menu):
         layout = self.layout
         pie = layout.menu_pie()
 
-        if context.tool_settings:
-            sequencer_tool_settings = context.tool_settings.sequencer_tool_settings
+        if context.sequencer_scene:
+            sequencer_tool_settings = context.sequencer_scene.tool_settings.sequencer_tool_settings
 
             pie.prop_enum(sequencer_tool_settings, "pivot_point", value='CENTER')
             pie.prop_enum(sequencer_tool_settings, "pivot_point", value='CURSOR')
@@ -1597,6 +1572,7 @@ class SEQUENCER_MT_modifier_add(Menu):
         else:
             self.operator_modifier_add(layout, 'BRIGHT_CONTRAST')
             self.operator_modifier_add(layout, 'COLOR_BALANCE')
+            self.operator_modifier_add(layout, 'COMPOSITOR')
             self.operator_modifier_add(layout, 'CURVES')
             self.operator_modifier_add(layout, 'HUE_CORRECT')
             self.operator_modifier_add(layout, 'MASK')
@@ -3145,7 +3121,7 @@ class SEQUENCER_PT_preview_snapping(Panel):
     @classmethod
     def poll(cls, context):
         st = context.space_data
-        return st.view_type in {'PREVIEW', 'SEQUENCER_PREVIEW'} and context.tool_settings
+        return st.view_type in {'PREVIEW', 'SEQUENCER_PREVIEW'} and context.sequencer_scene
 
     def draw(self, context):
         tool_settings = context.tool_settings
@@ -3170,7 +3146,7 @@ class SEQUENCER_PT_sequencer_snapping(Panel):
     @classmethod
     def poll(cls, context):
         st = context.space_data
-        return st.view_type in {'SEQUENCER', 'SEQUENCER_PREVIEW'} and context.tool_settings
+        return st.view_type in {'SEQUENCER', 'SEQUENCER_PREVIEW'} and context.sequencer_scene
 
     def draw(self, context):
         tool_settings = context.tool_settings
@@ -3199,7 +3175,6 @@ classes = (
     SEQUENCER_HT_playback_controls,
     SEQUENCER_MT_editor_menus,
     SEQUENCER_MT_range,
-    SEQUENCER_MT_view_render,
     SEQUENCER_MT_view,
     SEQUENCER_MT_preview_zoom,
     SEQUENCER_MT_proxy,
@@ -3209,7 +3184,6 @@ classes = (
     SEQUENCER_MT_marker,
     SEQUENCER_MT_navigation,
     SEQUENCER_MT_add,
-    SEQUENCER_MT_add_scene,
     SEQUENCER_MT_add_effect,
     SEQUENCER_MT_add_transitions,
     SEQUENCER_MT_add_empty,
