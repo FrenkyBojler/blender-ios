@@ -649,10 +649,10 @@ class FalloffPanel(BrushPanel):
 
         col = layout.column(align=True)
         if context.region.type == 'TOOL_HEADER':
-            col.prop(brush, "curve_preset", expand=True)
+            col.prop(brush, "curve_distance_falloff_preset", expand=True)
         else:
             row = col.row(align=True)
-            col.prop(brush, "curve_preset", text="")
+            col.prop(brush, "curve_distance_falloff_preset", text="")
 
         if brush.curve_distance_falloff_preset == 'CUSTOM':
             layout.template_curve_mapping(brush, "curve_distance_falloff", brush=True, use_negative_slope=True)
@@ -783,17 +783,19 @@ def brush_settings(layout, context, brush, popover=False):
 
         row = layout.row(align=True)
         row.prop(brush, "hardness", slider=True)
-        row.prop(brush, "invert_hardness_pressure", text="")
-        row.prop(brush, "use_hardness_pressure", text="")
+        if capabilities.has_hardness_pressure:
+            row.prop(brush, "invert_hardness_pressure", text="")
+            row.prop(brush, "use_hardness_pressure", text="")
 
         # auto_smooth_factor and use_inverse_smooth_pressure
         if capabilities.has_auto_smooth:
+            pressure_name = "use_inverse_smooth_pressure" if capabilities.has_auto_smooth_pressure else None
             UnifiedPaintPanel.prop_unified(
                 layout,
                 context,
                 brush,
                 "auto_smooth_factor",
-                pressure_name="use_inverse_smooth_pressure",
+                pressure_name=pressure_name,
                 slider=True,
             )
 
@@ -1081,6 +1083,7 @@ def brush_shared_settings(layout, context, brush, popover=False):
     size_pressure = False
     strength = False
     strength_pressure = False
+    size_pressure = False
     weight = False
     direction = False
 
@@ -1100,7 +1103,7 @@ def brush_shared_settings(layout, context, brush, popover=False):
             strength = True
             strength_pressure = brush.sculpt_capabilities.has_strength_pressure
             direction = brush.sculpt_capabilities.has_direction
-            size_pressure = True
+            size_pressure = brush.sculpt_capabilities.has_size_pressure
 
     # Vertex Paint #
     if mode == 'PAINT_VERTEX':
