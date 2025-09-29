@@ -202,6 +202,7 @@ struct StitchStateContainer {
   /* Track which islands have selected faces */
   blender::Vector<bool> island_has_selected;
 
+  /* Only used during init, null afterwards */
   int *objs_selection_count = nullptr;
   StitchStateInit *state_init = nullptr;
 };

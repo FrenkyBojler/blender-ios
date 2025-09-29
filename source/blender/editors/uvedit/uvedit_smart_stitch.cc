@@ -104,7 +104,6 @@ struct IslandStitchData {
   bool use_edge_rotation;
   /* boundary seam checking */
   bool all_boundaries_are_seams;
-  bool has_boundary;
 };
 
 /* just for averaging UVs */
@@ -710,22 +709,20 @@ static void determine_uv_stitchability(const int cd_loop_uv_offset,
   UvElement *element_iter = BM_uv_element_get_head(state->element_map, element);
   for (; element_iter; element_iter = element_iter->next) {
     if (element_iter->separate) {
-      /* Skip if target island has all boundary seams */
       if (ssc->ignore_seam_boundary) {
-        if ((island_stitch_data[element_iter->island].has_boundary &&
-             island_stitch_data[element_iter->island].all_boundaries_are_seams) ||
-            (island_stitch_data[element->island].has_boundary &&
-             island_stitch_data[element->island].all_boundaries_are_seams))
+        if (island_stitch_data[element_iter->island].all_boundaries_are_seams ||
+            island_stitch_data[element->island].all_boundaries_are_seams)
         {
           continue;
         }
       }
 
-      if (!ssc->island_has_selected.is_empty() &&
-          (!ssc->island_has_selected[element_iter->island] ||
-           !ssc->island_has_selected[element->island]))
-      {
-        continue;
+      if (ssc->only_selected_uvs) {
+        if (!ssc->island_has_selected[element_iter->island] ||
+            !ssc->island_has_selected[element->island])
+        {
+          continue;
+        }
       }
 
       if (stitch_check_uvs_stitchable(cd_loop_uv_offset, element, element_iter, ssc)) {
@@ -746,10 +743,8 @@ static void determine_uv_edge_stitchability(const int cd_loop_uv_offset,
   UvEdge *edge_iter = edge->first;
   for (; edge_iter; edge_iter = edge_iter->next) {
     if (ssc->ignore_seam_boundary) {
-      if ((island_stitch_data[edge->element->island].has_boundary &&
-           island_stitch_data[edge->element->island].all_boundaries_are_seams) ||
-          (island_stitch_data[edge_iter->element->island].has_boundary &&
-           island_stitch_data[edge_iter->element->island].all_boundaries_are_seams))
+      if (island_stitch_data[edge->element->island].all_boundaries_are_seams ||
+          island_stitch_data[edge_iter->element->island].all_boundaries_are_seams)
       {
         continue;
       }
@@ -995,7 +990,6 @@ static int stitch_process_data(StitchStateContainer *ssc,
   if (ssc->ignore_seam_boundary) {
     for (int i = 0; i < state->element_map->total_islands; i++) {
       island_stitch_data[i].all_boundaries_are_seams = true;
-      island_stitch_data[i].has_boundary = false;
     }
 
     for (int edge_idx = 0; edge_idx < state->total_separate_edges; edge_idx++) {
@@ -1005,10 +999,6 @@ static int stitch_process_data(StitchStateContainer *ssc,
         int island1 = state->uvs[edge->uv1]->island;
         int island2 = state->uvs[edge->uv2]->island;
 
-        island_stitch_data[island1].has_boundary = true;
-        if (island1 != island2) {
-          island_stitch_data[island2].has_boundary = true;
-        }
         if (!BM_elem_flag_test(edge->element->l->e, BM_ELEM_SEAM)) {
           island_stitch_data[island1].all_boundaries_are_seams = false;
           if (island1 != island2) {
@@ -1851,7 +1841,6 @@ static UvEdge *uv_edge_get(BMLoop *l, StitchState *state)
 static StitchState *stitch_init(bContext *C,
                                 StitchStateContainer *ssc,
                                 Object *obedit,
-                                StitchStateInit *state_init,
                                 const StitchModes stored_mode)
 {
   /* for fast edge lookup... */
@@ -1893,7 +1882,7 @@ static StitchState *stitch_init(bContext *C,
 
   state->aspect = ED_uvedit_get_aspect_y(obedit);
 
-  /* Mark islands that have at least one selected UV face as selected. */
+  /* Mark islands that have at least one selected UV edge as selected. */
   if (ssc->only_selected_uvs && ssc->island_has_selected.is_empty()) {
     ssc->island_has_selected.resize(state->element_map->total_islands, false);
     BM_ITER_MESH (efa, &iter, em->bm, BM_FACES_OF_MESH) {
@@ -2047,13 +2036,13 @@ static StitchState *stitch_init(bContext *C,
   state->selection_size = 0;
 
   /* Load old selection if redoing operator with different settings */
-  if (state_init != nullptr) {
+  if (ssc->state_init != nullptr) {
     int faceIndex, elementIndex;
     UvElement *element;
 
     BM_mesh_elem_table_ensure(em->bm, BM_FACE);
 
-    int selected_count = state_init->uv_selected_count;
+    int selected_count = ssc->state_init->uv_selected_count;
 
     if (stored_mode == STITCH_VERT) {
       state->selection_stack = static_cast<void **>(
@@ -2061,8 +2050,8 @@ static StitchState *stitch_init(bContext *C,
                       "uv_stitch_selection_stack"));
 
       while (selected_count--) {
-        faceIndex = state_init->to_select[selected_count].faceIndex;
-        elementIndex = state_init->to_select[selected_count].elementIndex;
+        faceIndex = ssc->state_init->to_select[selected_count].faceIndex;
+        elementIndex = ssc->state_init->to_select[selected_count].elementIndex;
         efa = BM_face_at_index(em->bm, faceIndex);
         element = BM_uv_element_get(
             state->element_map,
@@ -2078,8 +2067,8 @@ static StitchState *stitch_init(bContext *C,
       while (selected_count--) {
         UvEdge tmp_edge, *edge;
         int uv1, uv2;
-        faceIndex = state_init->to_select[selected_count].faceIndex;
-        elementIndex = state_init->to_select[selected_count].elementIndex;
+        faceIndex = ssc->state_init->to_select[selected_count].faceIndex;
+        elementIndex = ssc->state_init->to_select[selected_count].elementIndex;
         efa = BM_face_at_index(em->bm, faceIndex);
         element = BM_uv_element_get(
             state->element_map,
@@ -2345,7 +2334,7 @@ int stitch_init_all(bContext *C,
     if (ssc->state_init != nullptr && ssc->objs_selection_count != nullptr) {
       ssc->state_init->uv_selected_count = ssc->objs_selection_count[ob_index];
     }
-    StitchState *stitch_state_ob = stitch_init(C, ssc, obedit, ssc->state_init, stored_mode);
+    StitchState *stitch_state_ob = stitch_init(C, ssc, obedit, stored_mode);
 
     if (ssc->state_init != nullptr && ssc->objs_selection_count != nullptr) {
       /* Move pointer to beginning of next object's data. */
