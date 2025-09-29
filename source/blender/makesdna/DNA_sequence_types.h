@@ -927,6 +927,7 @@ typedef enum eStripModifierFlag {
   STRIP_MODIFIER_FLAG_MUTE = (1 << 0),
   STRIP_MODIFIER_FLAG_EXPANDED = (1 << 1),
   STRIP_MODIFIER_FLAG_ACTIVE = (1 << 2),
+  STRIP_MODIFIER_FLAG_SHOW_PREVIEW = (1 << 3),
 } eStripModifierFlag;
 
 typedef enum eModMaskInput {

@@ -118,6 +118,12 @@ static void modifier_panel_header(const bContext * /*C*/, Panel *panel)
   int buttons_number = 0;
   name_row = &row->row(true);
 
+  if (smd->type != eSeqModifierType_SoundEqualizer) {
+    sub = &row->row(true);
+    sub->prop(ptr, "show_preview", UI_ITEM_NONE, "", ICON_NONE);
+    buttons_number++;
+  }
+
   sub = &row->row(true);
   sub->prop(ptr, "enable", UI_ITEM_NONE, "", ICON_NONE);
   buttons_number++;
@@ -361,7 +367,7 @@ StripModifierData *modifier_new(Strip *strip, const char *name, int type)
   smd = static_cast<StripModifierData *>(MEM_callocN(smti->struct_size, "sequence modifier"));
 
   smd->type = type;
-  smd->flag |= STRIP_MODIFIER_FLAG_EXPANDED;
+  smd->flag |= STRIP_MODIFIER_FLAG_EXPANDED | STRIP_MODIFIER_FLAG_SHOW_PREVIEW;
   smd->ui_expand_flag |= UI_PANEL_DATA_EXPAND_ROOT;
 
   if (!name || !name[0]) {
@@ -472,8 +478,14 @@ void modifier_apply_stack(ModifierApplyContext &context, int timeline_frame)
       continue;
     }
 
-    /* modifier is muted, do nothing */
-    if (smd->flag & STRIP_MODIFIER_FLAG_MUTE) {
+    const bool show_preview = (smd->flag & STRIP_MODIFIER_FLAG_SHOW_PREVIEW) != 0;
+    const bool show_render = (smd->flag & STRIP_MODIFIER_FLAG_MUTE) == 0;
+
+    if (context.render_data.render && !show_render) {
+      continue;
+    }
+
+    if (!context.render_data.render && !show_preview) {
       continue;
     }
 

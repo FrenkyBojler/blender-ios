@@ -1780,9 +1780,15 @@ ImBuf *seq_render_strip(const RenderData *context,
   bool use_preprocess = false;
   bool is_proxy_image = false;
 
-  ImBuf *ibuf = intra_frame_cache_get_preprocessed(context->scene, strip);
-  if (ibuf != nullptr) {
-    return ibuf;
+  ImBuf *ibuf = nullptr;
+  /* Cache is skipped for render contexts of sequencer-type scene strips and final renders where
+   * some strip's modifier visibility differs between preview and render. In the latter case, the
+   * sequencer should not use the intra-frame cache result produced by the render. */
+  if (!context->skip_cache) {
+    ibuf = intra_frame_cache_get_preprocessed(context->scene, strip);
+    if (ibuf != nullptr) {
+      return ibuf;
+    }
   }
 
   /* Proxies are not stored in cache. */
@@ -1798,7 +1804,9 @@ ImBuf *seq_render_strip(const RenderData *context,
     use_preprocess = seq_input_have_to_preprocess(context, strip, timeline_frame);
     ibuf = seq_render_preprocess_ibuf(
         context, state, strip, ibuf, timeline_frame, use_preprocess, is_proxy_image);
-    intra_frame_cache_put_preprocessed(context->scene, strip, ibuf);
+    if (!context->skip_cache) {
+      intra_frame_cache_put_preprocessed(context->scene, strip, ibuf);
+    }
   }
 
   if (ibuf == nullptr) {
@@ -1860,7 +1868,7 @@ static ImBuf *seq_render_strip_stack_apply_effect(
   return out;
 }
 
-static bool is_opaque_alpha_over(const Strip *strip)
+static bool is_opaque_alpha_over(const Strip *strip, const RenderData *context)
 {
   if (strip->blend_mode != STRIP_BLEND_ALPHAOVER) {
     return false;
@@ -1872,11 +1880,12 @@ static bool is_opaque_alpha_over(const Strip *strip)
     return false;
   }
   LISTBASE_FOREACH (StripModifierData *, smd, &strip->modifiers) {
+    const bool modifier_enabled = (context->render && !(smd->flag & STRIP_MODIFIER_FLAG_MUTE)) ||
+                                  (!context->render &&
+                                   (smd->flag & STRIP_MODIFIER_FLAG_SHOW_PREVIEW));
     /* Assume result is not opaque if there is an enabled Mask or Compositor modifiers, which could
      * introduce alpha. */
-    if ((smd->flag & STRIP_MODIFIER_FLAG_MUTE) == 0 &&
-        ELEM(smd->type, eSeqModifierType_Mask, eSeqModifierType_Compositor))
-    {
+    if (modifier_enabled && ELEM(smd->type, eSeqModifierType_Mask, eSeqModifierType_Compositor)) {
       return false;
     }
   }
@@ -1923,7 +1932,9 @@ static ImBuf *seq_render_strip_stack(const RenderData *context,
      * - Likewise, if we are at the bottom of the stack; the input can be used as-is.
      * - If we are rendering a strip that is known to be opaque, we mark it as an occluder,
      *   so that strips below can check if they are completely hidden. */
-    if (out == nullptr && early_out == StripEarlyOut::DoEffect && is_opaque_alpha_over(strip)) {
+    if (out == nullptr && early_out == StripEarlyOut::DoEffect &&
+        is_opaque_alpha_over(strip, context))
+    {
       ImBuf *test = seq_render_strip(context, state, strip, timeline_frame);
       if (ELEM(test->planes, R_IMF_PLANES_BW, R_IMF_PLANES_RGB) || i == 0) {
         early_out = StripEarlyOut::UseInput2;
