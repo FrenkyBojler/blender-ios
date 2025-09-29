@@ -407,11 +407,6 @@ bool GPU_stack_link(GPUMaterial *mat,
                     GPUNodeStack *out,
                     ...);
 
-struct GPUZoneConstant {
-  GPUNodeLink *link;
-  eGPUType type;
-};
-
 bool GPU_stack_link_zone(GPUMaterial *material,
                          const bNode *bnode,
                          const char *name,
