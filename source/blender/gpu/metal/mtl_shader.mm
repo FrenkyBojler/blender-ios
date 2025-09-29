@@ -1475,7 +1475,6 @@ MTLComputePipelineStateInstance *MTLShader::bake_compute_pipeline_state(
       if ([[error localizedDescription] rangeOfString:@"Compilation succeeded"].location ==
           NSNotFound)
       {
-        BLI_assert(false);
         return nullptr;
       }
     }
@@ -1538,13 +1537,11 @@ MTLComputePipelineStateInstance *MTLShader::bake_compute_pipeline_state(
 
     if (error) {
       NSLog(@"Failed to create PSO for compute shader: %s error %@\n", this->name, error);
-      BLI_assert(false);
       return nullptr;
     }
     else if (!pso) {
       NSLog(@"Failed to create PSO for compute shader: %s, but no error was provided!\n",
             this->name);
-      BLI_assert(false);
       return nullptr;
     }
     else {
