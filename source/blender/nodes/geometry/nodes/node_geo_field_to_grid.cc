@@ -16,6 +16,7 @@
 #include "NOD_socket.hh"
 #include "NOD_socket_items_blend.hh"
 #include "NOD_socket_items_ops.hh"
+#include "NOD_socket_items_ui.hh"
 
 #include "FN_multi_function.hh"
 #include "FN_multi_function_builder.hh"
@@ -58,29 +59,32 @@ static void node_declare(NodeDeclarationBuilder &b)
       .structure_type(StructureType::Grid)
       .description("Input grid to use for topology and transform information");
 
-  const Span<FieldToGridItem> items = storage.items_span();
+  const Span<NodeEnumItem> items = storage.enum_definition.items();
   for (const int i : items.index_range()) {
-    const FieldToGridItem &item = items[i];
-    const std::string identifier = FieldToGridItemsAccessor::socket_identifier_for_item(item);
+    const NodeEnumItem &item = items[i];
+    const std::string input_identifier = FieldToGridItemsAccessor::input_socket_identifier_for_item(item);
+    const std::string output_identifier = FieldToGridItemsAccessor::output_socket_identifier_for_item(item);
 
-    auto &input = b.add_input(data_type, item.name, identifier + "_field");
+    auto &input = b.add_input(data_type, item.name, input_identifier);
     if (supports_fields) {
       input.supports_field();
     }
     input.description("Field value to evaluate at each grid point");
 
-    auto &output = b.add_output(data_type, item.name, identifier + "_grid");
+    auto &output = b.add_output(data_type, item.name, output_identifier);
     output.structure_type(StructureType::Grid)
         .align_with_previous()
         .description("Output grid with evaluated field values");
   }
 
-  b.add_input<decl::Extend>("", "__extend__").custom_draw([](CustomSocketDrawParams &params) {
-    uiLayout &layout = params.layout;
-    layout.emboss_set(ui::EmbossType::None);
-    PointerRNA op_ptr = layout.op("node.field_to_grid_item_add", IFACE_(""), ICON_ADD);
-    RNA_int_set(&op_ptr, "node_identifier", params.node.identifier);
-  });
+  b.add_input<decl::Extend>("", "__extend__")
+      .structure_type(StructureType::Dynamic)
+      .custom_draw([](CustomSocketDrawParams &params) {
+        uiLayout &layout = params.layout;
+        layout.emboss_set(ui::EmbossType::None);
+        PointerRNA op_ptr = layout.op("node.enum_definition_item_add", "", ICON_ADD);
+        RNA_int_set(&op_ptr, "node_identifier", params.node.identifier);
+      });
 }
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
@@ -92,36 +96,12 @@ static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 
 static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *ptr)
 {
+  bNodeTree &tree = *reinterpret_cast<bNodeTree *>(ptr->owner_id);
   bNode &node = *static_cast<bNode *>(ptr->data);
-  NodeFieldToGrid &storage = node_storage(node);
   if (uiLayout *panel = layout->panel(C, "field_to_grid_items", false, IFACE_("Fields"))) {
-    panel->op("node.field_to_grid_item_add", IFACE_("Add Field"), ICON_ADD);
-    uiLayout *col = &panel->column(false);
-    for (const int i : IndexRange(storage.items_num)) {
-      uiLayout *row = &col->row(false);
-      row->label(storage.items[i].name, ICON_NONE);
-      PointerRNA op_ptr = row->op("node.field_to_grid_item_remove", "", ICON_REMOVE);
-      RNA_int_set(&op_ptr, "index", i);
-    }
+    socket_items::ui::draw_items_list_with_operators<FieldToGridItemsAccessor>(
+        C, panel, tree, node);
   }
-}
-
-static void NODE_OT_field_to_grid_item_add(wmOperatorType *ot)
-{
-  socket_items::ops::add_item<FieldToGridItemsAccessor>(
-      ot, "Add Field", __func__, "Add field to evaluate");
-}
-
-static void NODE_OT_field_to_grid_item_remove(wmOperatorType *ot)
-{
-  socket_items::ops::remove_item_by_index<FieldToGridItemsAccessor>(
-      ot, "Remove Field", __func__, "Remove a field from the evaluation");
-}
-
-static void node_operators()
-{
-  WM_operatortype_append(NODE_OT_field_to_grid_item_add);
-  WM_operatortype_append(NODE_OT_field_to_grid_item_remove);
 }
 
 static std::optional<eNodeSocketDatatype> node_type_for_socket_type(const bNodeSocket &socket)
@@ -178,7 +158,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 #ifdef WITH_OPENVDB
   const NodeFieldToGrid &storage = node_storage(params.node());
   const eNodeSocketDatatype data_type = eNodeSocketDatatype(storage.data_type);
-  const Span<FieldToGridItem> items = storage.items_span();
+  const Span<NodeEnumItem> items = storage.enum_definition.items();
 
   /* Handle different data types using template dispatch. */
   bke::attribute_math::convert_to_static_type(
@@ -199,11 +179,9 @@ static void node_geo_exec(GeoNodeExecParams params)
 
           /* For each field item, evaluate the field using the grid's topology. */
           for (const int i : items.index_range()) {
-            const FieldToGridItem &item = items[i];
-            const std::string identifier = FieldToGridItemsAccessor::socket_identifier_for_item(
-                item);
-            const std::string field_identifier = identifier + "_field";
-            const std::string grid_identifier = identifier + "_grid";
+            const NodeEnumItem &item = items[i];
+            const std::string field_identifier = FieldToGridItemsAccessor::input_socket_identifier_for_item(item);
+            const std::string grid_identifier = FieldToGridItemsAccessor::output_socket_identifier_for_item(item);
 
             /* Get the field input for this item. */
             Field<typename type_traits::BlenderType> input_field =
@@ -251,16 +229,11 @@ static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
   NodeFieldToGrid *data = MEM_callocN<NodeFieldToGrid>(__func__);
   data->data_type = SOCK_FLOAT;
-  data->next_identifier = 0;
-
-  BLI_assert(data->items == nullptr);
-  const int default_items_num = 1;
-  data->items = MEM_calloc_arrayN<FieldToGridItem>(default_items_num, __func__);
-  data->items[0].identifier = data->next_identifier++;
-  STRNCPY(data->items[0].name, "Value");
-  data->items_num = default_items_num;
+  data->enum_definition.next_identifier = 0;
 
   node->storage = data;
+
+  socket_items::add_item_with_name<FieldToGridItemsAccessor>(*node, "Value");
 }
 
 static void node_rna(StructRNA *srna)
@@ -284,10 +257,15 @@ static void node_free_storage(bNode *node)
 static void node_copy_storage(bNodeTree * /*dst_tree*/, bNode *dst_node, const bNode *src_node)
 {
   const NodeFieldToGrid &src_storage = node_storage(*src_node);
-  auto *dst_storage = MEM_dupallocN<NodeFieldToGrid>(__func__, src_storage);
+  NodeFieldToGrid *dst_storage = MEM_dupallocN<NodeFieldToGrid>(__func__, src_storage);
   dst_node->storage = dst_storage;
 
   socket_items::copy_array<FieldToGridItemsAccessor>(*src_node, *dst_node);
+}
+
+static void node_operators()
+{
+  socket_items::ops::make_common_operators<FieldToGridItemsAccessor>();
 }
 
 static bool node_insert_link(bke::NodeInsertLinkParams &params)
@@ -306,6 +284,32 @@ static void node_blend_read(bNodeTree & /*tree*/, bNode &node, BlendDataReader &
   socket_items::blend_read_data<FieldToGridItemsAccessor>(&reader, node);
 }
 
+static const bNodeSocket *node_internally_linked_input(const bNodeTree & /*tree*/,
+                                                       const bNode &node,
+                                                       const bNodeSocket &output_socket)
+{
+  const NodeFieldToGrid &storage = node_storage(node);
+  if (storage.enum_definition.items_num == 0) {
+    return nullptr;
+  }
+
+  /* Find the corresponding field input for each grid output */
+  const Span<NodeEnumItem> items = storage.enum_definition.items();
+  for (const int i : items.index_range()) {
+    const NodeEnumItem &item = items[i];
+    const std::string grid_identifier = FieldToGridItemsAccessor::output_socket_identifier_for_item(item);
+
+    /* Check if this output socket matches this item's grid output */
+    if (output_socket.identifier == grid_identifier) {
+      const std::string field_identifier = FieldToGridItemsAccessor::input_socket_identifier_for_item(item);
+      /* Find and return the corresponding field input socket */
+      return node.input_by_identifier(field_identifier);
+    }
+  }
+
+  return nullptr;
+}
+
 static void node_register()
 {
   static blender::bke::bNodeType ntype;
@@ -316,13 +320,15 @@ static void node_register()
   ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.declare = node_declare;
   ntype.initfunc = node_init;
-  ntype.insert_link = node_insert_link;
   blender::bke::node_type_storage(ntype, "NodeFieldToGrid", node_free_storage, node_copy_storage);
   ntype.geometry_node_execute = node_geo_exec;
   ntype.draw_buttons = node_layout;
   ntype.draw_buttons_ex = node_layout_ex;
   ntype.register_operators = node_operators;
+  ntype.insert_link = node_insert_link;
+  ntype.ignore_inferred_input_socket_visibility = true;
   ntype.gather_link_search_ops = node_gather_link_search_ops;
+  ntype.internally_linked_input = node_internally_linked_input;
   ntype.blend_write_storage_content = node_blend_write;
   ntype.blend_data_read_storage_content = node_blend_read;
   blender::bke::node_register_type(ntype);
@@ -337,22 +343,16 @@ namespace blender::nodes {
 
 StructRNA *FieldToGridItemsAccessor::item_srna = &RNA_FieldToGridItem;
 
-void FieldToGridItemsAccessor::blend_write_item(BlendWriter * /*writer*/, const ItemT & /*item*/)
+void FieldToGridItemsAccessor::blend_write_item(BlendWriter *writer, const ItemT &item)
 {
+  BLO_write_string(writer, item.name);
+  BLO_write_string(writer, item.description);
 }
 
-void FieldToGridItemsAccessor::blend_read_data_item(BlendDataReader * /*reader*/, ItemT & /*item*/)
+void FieldToGridItemsAccessor::blend_read_data_item(BlendDataReader *reader, ItemT &item)
 {
+  BLO_read_string(reader, &item.name);
+  BLO_read_string(reader, &item.description);
 }
 
 }  // namespace blender::nodes
-
-blender::Span<FieldToGridItem> NodeFieldToGrid::items_span() const
-{
-  return blender::Span<FieldToGridItem>(items, items_num);
-}
-
-blender::MutableSpan<FieldToGridItem> NodeFieldToGrid::items_span()
-{
-  return blender::MutableSpan<FieldToGridItem>(items, items_num);
-}
