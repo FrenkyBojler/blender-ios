@@ -371,32 +371,47 @@ class AttributeTexts : Overlay {
                                           const float4x4 &object_to_world,
                                           const float offset_scale = 1.0f)
   {
+    float pre_edge_len, next_edge_len;
     const float3 prev_edge_vec = prev_corner_pos - corner_pos;
     const float3 next_edge_vec = next_corner_pos - corner_pos;
-    const float3 prev_edge_dir = math::normalize(prev_edge_vec);
-    const float3 next_edge_dir = math::normalize(next_edge_vec);
-
-    const float pre_edge_len = math::length(prev_edge_vec);
-    const float next_edge_len = math::length(next_edge_vec);
-    const float max_offset = math::min(pre_edge_len, next_edge_len) / 2;
+    const float3 prev_edge_dir = math::normalize_and_get_length(prev_edge_vec, pre_edge_len);
+    const float3 next_edge_dir = math::normalize_and_get_length(next_edge_vec, next_edge_len);
 
     const float3 corner_normal = math::cross(next_edge_dir, prev_edge_dir);
-    const float concavity_check = math::dot(corner_normal, face_normal);
-    const float direction_correct = concavity_check > 0.0f ? 1.0f : -1.0f;
-    const float3 bisector_dir = (prev_edge_dir + next_edge_dir) / 2 * direction_correct;
+    const bool is_convex = (math::dot(corner_normal, face_normal) >= 0.0f);
 
-    const float sharp_factor = std::clamp(math::dot(prev_edge_dir, next_edge_dir), 0.0f, 1.0f);
-    const float sharp_multiplier = math::pow(sharp_factor, 4.0f) * 2 + 1;
+    float3 bisector_dir = prev_edge_dir + next_edge_dir;
+    if (math::is_zero(bisector_dir)) {
+      bisector_dir = math::cross(prev_edge_dir, face_normal);
+    }
+    else {
+      const float direction_correct = is_convex ? 1.0f : -1.0f;
+      bisector_dir = math::normalize(bisector_dir) * direction_correct;
+    }
+
+    const float sharp_factor = math::dot(prev_edge_dir, next_edge_dir);
+    const float sharp_factor_exp = math::pow(sharp_factor, 4.0f);
+
+    float sharp_scale;
+    if (is_convex) {
+      const float sharp_weight = (sharp_factor > 0) ? 2.0f : -0.4f;
+      sharp_scale = 1.0f + sharp_factor_exp * sharp_weight;
+    }
+    else {
+      sharp_scale = 0.6f;
+    }
 
     const float3 pos_o_world = math::transform_point(object_to_world, corner_pos);
     const float pixel_size = ED_view3d_pixel_size(rv3d, pos_o_world);
     const float pixel_offset = UI_style_get()->widget.points * 7.0f * UI_SCALE_FAC;
     const float screen_space_offset = pixel_size * pixel_offset;
 
+    const float max_offset = math::min(pre_edge_len, next_edge_len) * 0.5f;
     const float offset_distance = std::clamp(
-        screen_space_offset * sharp_multiplier * offset_scale, 0.0f, max_offset);
+        screen_space_offset * sharp_scale * offset_scale, 0.0f, max_offset);
 
-    return corner_pos + bisector_dir * offset_distance;
+    const float convexity_factor = is_convex ? (sharp_factor * 0.3f + 0.7f) : 0.4f;
+    return corner_pos + bisector_dir * offset_distance * convexity_factor;
   }
 };
 
