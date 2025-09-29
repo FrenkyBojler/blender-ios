@@ -1,3 +1,4 @@
 Referenced by issue #141911, Geo Nodes Input Panel crashing when name is deleted
 Referenced by pull request #141919, Fix #141911: Geo Nodes Input Panel crashing when name is deleted
 Referenced by commit 154195eeb0efd866eb7d60a26a0cde844279e8f0, Fix #141911: Geo Nodes Input Panel crashing when name is deleted
+Referenced by issue #146413, Regression: Socket name is truncated when nested in a panel
