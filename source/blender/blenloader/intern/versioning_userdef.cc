@@ -386,7 +386,7 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
     btheme->tui.wcol_curve.roundness = U_theme_default.tui.wcol_curve.roundness;
   }
 
-  if (!USER_VERSION_ATLEAST(500, 95)) {
+  if (!USER_VERSION_ATLEAST(500, 97)) {
     FROM_DEFAULT_V4_UCHAR(space_view3d.grid_major);
   }
 
@@ -1686,6 +1686,13 @@ void blo_do_versions_userdef(UserDef *userdef)
   if (!USER_VERSION_ATLEAST(500, 94)) {
     /* Force-reset file compression to ON, see #135735. */
     userdef->flag |= USER_FILECOMPRESS;
+  }
+
+  if (!USER_VERSION_ATLEAST(500, 96)) {
+    /* Increase the number of recently-used files if using the old default value. */
+    if (userdef->recent_files == 20) {
+      userdef->recent_files = 200;
+    }
   }
 
   /**
