@@ -39,6 +39,10 @@ class StorageBuf {
   StorageBuf(size_t size, const char *name);
   virtual ~StorageBuf();
   void usage_size_set(size_t size);
+  size_t usage_size_get() const
+  {
+    return usage_size_in_bytes_;
+  }
   virtual void update(const void *data) = 0;
   virtual void bind(int slot) = 0;
   virtual void unbind() = 0;
