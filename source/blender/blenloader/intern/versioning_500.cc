@@ -67,8 +67,11 @@
 
 #include "BLO_read_write.hh"
 
+#include "SEQ_edit.hh"
+#include "SEQ_effects.hh"
 #include "SEQ_iterator.hh"
 #include "SEQ_modifier.hh"
+#include "SEQ_relations.hh"
 #include "SEQ_sequencer.hh"
 
 #include "WM_api.hh"
@@ -2448,6 +2451,36 @@ static void do_version_bokeh_blur_pixel_size(bNodeTree &node_tree, bNode &node)
   }
 }
 
+/* Merge transform effect properties with strip transform. Because this effect could use modifiers,
+ * change its type to gaussian blur with 0 radius. */
+static void sequencer_substitute_transform_effects(Scene *scene)
+{
+  blender::seq::for_each_callback(&scene->ed->seqbase, [&](Strip *strip) -> bool {
+    if (strip->type == STRIP_TYPE_TRANSFORM_LEGACY && strip->effectdata != nullptr) {
+      TransformVarsLegacy *tv = static_cast<TransformVarsLegacy *>(strip->effectdata);
+      StripTransform *transform = strip->data->transform;
+      blender::float2 offset(tv->xIni, tv->yIni);
+      if (tv->percent == 1) {
+        blender::float2 scene_resolution(scene->r.xsch, scene->r.ysch);
+        offset *= scene_resolution;
+      }
+      transform->xofs += offset.x;
+      transform->yofs += offset.y;
+      transform->scale_x *= tv->ScalexIni;
+      transform->scale_y *= tv->ScaleyIni;
+      transform->rotation += tv->rotIni;
+      blender::seq::EffectHandle sh = blender::seq::strip_effect_handle_get(strip);
+      sh.free(strip, true);
+      strip->type = STRIP_TYPE_GAUSSIAN_BLUR;
+      sh = blender::seq::strip_effect_handle_get(strip);
+      sh.init(strip);
+      GaussianBlurVars *gv = static_cast<GaussianBlurVars *>(strip->effectdata);
+      gv->size_x = gv->size_y = 0.0f;
+    }
+    return true;
+  });
+}
+
 void do_versions_after_linking_500(FileData *fd, Main *bmain)
 {
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 9)) {
@@ -2542,6 +2575,14 @@ void do_versions_after_linking_500(FileData *fd, Main *bmain)
         Scene *scene = WM_window_get_active_scene(win);
         WorkSpace *workspace = WM_window_get_active_workspace(win);
         workspace->sequencer_scene = scene;
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 97)) {
+    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+      if (scene->ed != nullptr) {
+        sequencer_substitute_transform_effects(scene);
       }
     }
   }
