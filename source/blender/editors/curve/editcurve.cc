@@ -5754,7 +5754,7 @@ static wmOperatorStatus add_vertex_invoke(bContext *C, wmOperator *op, const wmE
 void CURVE_OT_vertex_add(wmOperatorType *ot)
 {
   /* identifiers */
-  ot->name = "Extrude to Cursor or Add";
+  ot->name = "Extrude to Mouse Cursor or Add Control Point";
   ot->idname = "CURVE_OT_vertex_add";
   ot->description = "Add a new control point (linked to only selected end-curve one, if any)";
 

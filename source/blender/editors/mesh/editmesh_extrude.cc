@@ -902,10 +902,10 @@ static wmOperatorStatus edbm_dupli_extrude_cursor_invoke(bContext *C,
 void MESH_OT_dupli_extrude_cursor(wmOperatorType *ot)
 {
   /* identifiers */
-  ot->name = "Extrude to Cursor or Add";
+  ot->name = "Extrude to Mouse Cursor or Add Vertex";
   ot->idname = "MESH_OT_dupli_extrude_cursor";
   ot->description =
-      "Duplicate and extrude selected vertices, edges or faces towards the mouse cursor";
+      "Extrudes selection to the mouse cursor, or adds a vertex there if nothing is selected";
 
   /* API callbacks. */
   ot->invoke = edbm_dupli_extrude_cursor_invoke;

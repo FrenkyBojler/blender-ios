@@ -273,7 +273,7 @@ static wmOperatorStatus armature_click_extrude_invoke(bContext *C,
 void ARMATURE_OT_click_extrude(wmOperatorType *ot)
 {
   /* identifiers */
-  ot->name = "Extrude to Cursor";
+  ot->name = "Extrude to Mouse Cursor";
   ot->idname = "ARMATURE_OT_click_extrude";
   ot->description = "Create a new bone going from the last selected joint to the mouse position";
 
