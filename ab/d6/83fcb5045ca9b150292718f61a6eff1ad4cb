@@ -1,1 +1,2 @@
 Referenced by issue #146221, IDProperties: Heisenbug in unittests since change to IDP_Group to add a map
+Referenced by pull request #146990, Fix #146221: Concurrent access to IDPropertyGroup in liboverride code.
