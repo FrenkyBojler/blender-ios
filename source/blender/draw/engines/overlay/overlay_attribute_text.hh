@@ -397,7 +397,7 @@ class AttributeTexts : Overlay {
     if (is_convex) {
       const float sharp_weight = (corner_dot > 0) ? 2.0f : -0.4f;
       /* Adjust text offset to give more space for sharp corners. */
-      sharp_scale = 1.0f + math::pow(corner_dot, 1.0f) * sharp_weight;
+      sharp_scale = 1.0f + math::pow(corner_dot, 4.0f) * sharp_weight;
     }
     else {
       sharp_scale = 0.6f;
