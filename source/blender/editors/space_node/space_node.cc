@@ -1432,7 +1432,7 @@ static int /*eContextResult*/ node_context(const bContext *C,
         }
       }
     }
-    CTX_data_type_set(result, CTX_DATA_TYPE_COLLECTION);
+    CTX_data_type_set(result, ContextDataType::Collection);
     return CTX_RESULT_OK;
   }
   if (CTX_data_equals(member, "active_node")) {
@@ -1441,7 +1441,7 @@ static int /*eContextResult*/ node_context(const bContext *C,
       CTX_data_pointer_set(result, &snode->edittree->id, &RNA_Node, node);
     }
 
-    CTX_data_type_set(result, CTX_DATA_TYPE_POINTER);
+    CTX_data_type_set(result, ContextDataType::Pointer);
     return CTX_RESULT_OK;
   }
   if (CTX_data_equals(member, "node_previews")) {
@@ -1452,7 +1452,7 @@ static int /*eContextResult*/ node_context(const bContext *C,
                            &snode->nodetree->runtime->previews);
     }
 
-    CTX_data_type_set(result, CTX_DATA_TYPE_POINTER);
+    CTX_data_type_set(result, ContextDataType::Pointer);
     return CTX_RESULT_OK;
   }
   if (CTX_data_equals(member, "material")) {
@@ -1884,9 +1884,10 @@ void ED_spacetype_node()
   art->draw = node_toolbar_region_draw;
   BLI_addhead(&st->regiontypes, art);
 
-  WM_menutype_add(MEM_dupallocN<MenuType>(__func__, add_catalog_assets_menu_type()));
-  WM_menutype_add(MEM_dupallocN<MenuType>(__func__, add_unassigned_assets_menu_type()));
+  WM_menutype_add(MEM_dupallocN<MenuType>(__func__, catalog_assets_menu_type()));
+  WM_menutype_add(MEM_dupallocN<MenuType>(__func__, unassigned_assets_menu_type()));
   WM_menutype_add(MEM_dupallocN<MenuType>(__func__, add_root_catalogs_menu_type()));
+  WM_menutype_add(MEM_dupallocN<MenuType>(__func__, swap_root_catalogs_menu_type()));
 
   BKE_spacetype_register(std::move(st));
 }
