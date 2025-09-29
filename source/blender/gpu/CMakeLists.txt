@@ -351,6 +351,7 @@ set(METAL_SRC
   metal/mtl_memory.mm
   metal/mtl_query.mm
   metal/mtl_shader.mm
+  metal/mtl_shader_generate.cc
   metal/mtl_shader_generator.mm
   metal/mtl_shader_interface.mm
   metal/mtl_shader_log.mm
@@ -375,6 +376,7 @@ set(METAL_SRC
   metal/mtl_pso_descriptor_state.hh
   metal/mtl_query.hh
   metal/mtl_shader.hh
+  metal/mtl_shader_generate.hh
   metal/mtl_shader_generator.hh
   metal/mtl_shader_interface.hh
   metal/mtl_shader_interface_type.hh

@@ -12,6 +12,7 @@
 
 #include "BLI_string.h"
 #include <algorithm>
+#include <fmt/format.h>
 #include <fstream>
 #include <iostream>
 #include <map>
@@ -31,6 +32,7 @@
 #include "mtl_context.hh"
 #include "mtl_debug.hh"
 #include "mtl_shader.hh"
+#include "mtl_shader_generate.hh"
 #include "mtl_shader_generator.hh"
 #include "mtl_shader_interface.hh"
 #include "mtl_texture.hh"
@@ -243,6 +245,38 @@ static void print_resource(std::ostream &os, const ShaderCreateInfo::Resource &r
 
 std::string MTLShader::resources_declare(const ShaderCreateInfo &info) const
 {
+  NSFileManager *sharedFM = [NSFileManager defaultManager];
+  NSURL *app_bundle_url = [[NSBundle mainBundle] bundleURL];
+  NSURL *shader_dir = [[app_bundle_url URLByDeletingLastPathComponent]
+      URLByAppendingPathComponent:@"Shaders/"
+                      isDirectory:YES];
+  [sharedFM createDirectoryAtURL:shader_dir
+      withIntermediateDirectories:YES
+                       attributes:nil
+                            error:nil];
+  const char *path_cstr = [shader_dir fileSystemRepresentation];
+
+  std::ofstream fs;
+  fs.open(std::string(path_cstr) + "/" + this->name + ".msl");
+
+  shader::GeneratedSource defines_src{"gpu_shader_msl_defines.msl", {}, ""};
+  shader::GeneratedSourceList generated_sources{defines_src};
+
+  /* Concatenate common source. */
+  Vector<StringRefNull> compatibility_src = gpu_shader_dependency_get_resolved_source(
+      "gpu_shader_compat_msl.msl", generated_sources);
+  std::string compatibility_concat = fmt::to_string(fmt::join(compatibility_src, ""));
+  fs << compatibility_concat;
+
+  if (info.compute_source_.is_empty()) {
+    fs << generate_entry_point(info, ShaderStage::VERTEX, info.name_);
+    // fs << generate_entry_point(info, ShaderStage::FRAGMENT, info.name_);
+  }
+  else {
+    fs << generate_entry_point(info, ShaderStage::COMPUTE, info.name_);
+  }
+  fs.close();
+
   /* NOTE(Metal): We only use the upfront preparation functions to populate members which
    * would exist in the original non-create-info variant.
    *
@@ -868,23 +902,22 @@ bool MTLShader::generate_msl_from_glsl(const shader::ShaderCreateInfo *info)
       (std::string(path_cstr) + std::string(this->name) + "_GeneratedFragmentShader.msl").c_str());
 #endif
 
+  std::string vert_entry_fn = info->name_ + "_vert_fn_";
+  std::string frag_entry_fn = info->name_ + "_frag_fn_";
+
+  std::string vertex_src = generate_entry_point(*info, ShaderStage::VERTEX, vert_entry_fn);
+  std::string fragment_src = generate_entry_point(*info, ShaderStage::FRAGMENT, frag_entry_fn);
+
   /* Set MSL source NSString's. Required by Metal API. */
-  NSString *msl_final_vert = [NSString stringWithUTF8String:ss_vertex.str().c_str()];
-  NSString *msl_final_frag = [NSString stringWithUTF8String:ss_fragment.str().c_str()];
+  NSString *msl_final_vert = [NSString stringWithUTF8String:vertex_src.c_str()];
+  NSString *msl_final_frag = [NSString stringWithUTF8String:fragment_src.c_str()];
 
   this->shader_source_from_msl(msl_final_vert, msl_final_frag);
 
-#ifndef NDEBUG
   /* In debug mode, we inject the name of the shader into the entry-point function
    * name, as these are what show up in the Xcode GPU debugger. */
-  this->set_vertex_function_name(
-      [[NSString stringWithFormat:@"vertex_function_entry_%s", this->name] retain]);
-  this->set_fragment_function_name(
-      [[NSString stringWithFormat:@"fragment_function_entry_%s", this->name] retain]);
-#else
-  this->set_vertex_function_name(@"vertex_function_entry");
-  this->set_fragment_function_name(@"fragment_function_entry");
-#endif
+  this->set_vertex_function_name([NSString stringWithUTF8String:vert_entry_fn.c_str()]);
+  this->set_fragment_function_name([NSString stringWithUTF8String:frag_entry_fn.c_str()]);
 
   /* Bake shader interface. */
   this->set_interface(msl_iface.bake_shader_interface(this->name, info));
@@ -1030,15 +1063,6 @@ bool MTLShader::generate_msl_from_glsl_compute(const shader::ShaderCreateInfo *i
   /* Generate Vertex shader entry-point function containing resource bindings. */
   ss_compute << msl_iface.generate_msl_compute_entry_stub(*info);
 
-#ifndef NDEBUG
-  /* In debug mode, we inject the name of the shader into the entry-point function
-   * name, as these are what show up in the Xcode GPU debugger. */
-  this->set_compute_function_name(
-      [[NSString stringWithFormat:@"compute_function_entry_%s", this->name] retain]);
-#else
-  this->set_compute_function_name(@"compute_function_entry");
-#endif
-
   /* DEBUG: Export source to file for manual verification. */
 #if MTL_SHADER_DEBUG_EXPORT_SOURCE
   NSFileManager *sharedFM = [NSFileManager defaultManager];
@@ -1064,8 +1088,16 @@ bool MTLShader::generate_msl_from_glsl_compute(const shader::ShaderCreateInfo *i
       (std::string(path_cstr) + std::string(this->name) + "_GeneratedComputeShader.msl").c_str());
 #endif
 
-  NSString *msl_final_compute = [NSString stringWithUTF8String:ss_compute.str().c_str()];
-  this->shader_compute_source_from_msl(msl_final_compute);
+  std::string comp_entry_fn = info->name_ + "_comp_fn_";
+
+  std::string compute_src = generate_entry_point(*info, ShaderStage::COMPUTE, comp_entry_fn);
+
+  /* Set MSL source NSString's. Required by Metal API. */
+  NSString *msl_final_comp = [NSString stringWithUTF8String:compute_src.c_str()];
+
+  this->shader_compute_source_from_msl(msl_final_comp);
+
+  this->set_compute_function_name([NSString stringWithUTF8String:comp_entry_fn.c_str()]);
 
   /* Bake shader interface. */
   this->set_interface(msl_iface.bake_shader_interface(this->name, info));

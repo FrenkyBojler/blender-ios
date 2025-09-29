@@ -623,11 +623,45 @@ enum class PrimitiveOut {
   TRIANGLES,
 };
 
+/* Same as StringRefNull but with a few extra member functions. */
+struct ResourceString : public StringRefNull {
+  constexpr ResourceString() : StringRefNull() {}
+  constexpr ResourceString(const char *str, int64_t size) : StringRefNull(str, size) {}
+  ResourceString(std::nullptr_t) = delete;
+  constexpr ResourceString(const char *str) : StringRefNull(str) {}
+  ResourceString(const std::string &str) : StringRefNull(str) {}
+  ResourceString(const StringRefNull &str) : StringRefNull(str) {}
+
+  int64_t array_offset() const
+  {
+    return this->find_first_of("[");
+  }
+
+  bool is_array() const
+  {
+    return array_offset() != -1;
+  }
+
+  StringRef str_no_array() const
+  {
+    int64_t offset = this->array_offset();
+    if (offset == -1) {
+      return *this;
+    }
+    return StringRef(this->c_str(), offset);
+  }
+
+  StringRef str_only_array() const
+  {
+    return this->substr(this->array_offset());
+  }
+};
+
 struct StageInterfaceInfo {
   struct InOut {
     Interpolation interp;
     Type type;
-    StringRefNull name;
+    ResourceString name;
   };
 
   StringRefNull name;
@@ -717,36 +751,6 @@ struct ShaderCreateInfo {
   Vector<StringRefNull, 0> dependencies_generated;
 
   GeneratedSourceList generated_sources;
-
-  /* Same as StringRefNull but with a few extra member functions. */
-  struct ResourceString : public StringRefNull {
-    constexpr ResourceString() : StringRefNull() {}
-    constexpr ResourceString(const char *str, int64_t size) : StringRefNull(str, size) {}
-    ResourceString(std::nullptr_t) = delete;
-    constexpr ResourceString(const char *str) : StringRefNull(str) {}
-    ResourceString(const std::string &str) : StringRefNull(str) {}
-    ResourceString(const StringRefNull &str) : StringRefNull(str) {}
-
-    int64_t array_offset() const
-    {
-      return this->find_first_of("[");
-    }
-
-    bool is_array() const
-    {
-      return array_offset() != -1;
-    }
-
-    StringRef str_no_array() const
-    {
-      return StringRef(this->c_str(), this->array_offset());
-    }
-
-    StringRef str_only_array() const
-    {
-      return this->substr(this->array_offset());
-    }
-  };
 
 #  define TEST_EQUAL(a, b, _member) \
     if (!((a)._member == (b)._member)) { \

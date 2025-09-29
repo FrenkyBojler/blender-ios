@@ -625,11 +625,7 @@ bool gpu_shader_create_info_compile(const char *name_starts_with_filter)
   Vector<blender::gpu::Shader *> result = GPU_shader_batch_finalize(batch);
 
   for (int i : result.index_range()) {
-    const ShaderCreateInfo *info = reinterpret_cast<const ShaderCreateInfo *>(infos[i]);
-    if (result[i] == nullptr) {
-      std::cerr << "Compilation " << info->name_.c_str() << " Failed\n";
-    }
-    else {
+    if (result[i]) {
       success++;
 #if 0 /* TODO(fclem): This is too verbose for now. Make it a cmake option. */
         /* Test if any resource is optimized out and print a warning if that's the case. */
