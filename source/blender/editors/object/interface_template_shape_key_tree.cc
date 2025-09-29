@@ -69,7 +69,7 @@ class ShapeKeyDragController : public ui::AbstractViewItemDragController {
 
   void *create_drag_data() const override
   {
-    const int selected_count = [&]() -> int {
+    int selected_count = [&]() -> int {
       int count = 0;
       LISTBASE_FOREACH (KeyBlock *, kb, &drag_key_.key->block) {
         count += (kb->flag & KEYBLOCK_SEL) != 0;
@@ -80,11 +80,18 @@ class ShapeKeyDragController : public ui::AbstractViewItemDragController {
     KeyBlock **selected_keys_ = MEM_calloc_arrayN<KeyBlock *>(selected_count,
                                                               "Selected Key Blocks");
 
+    selected_count = 0;
     int index = 0;
-    LISTBASE_FOREACH (KeyBlock *, kb, &drag_key_.key->block) {
+    LISTBASE_FOREACH_INDEX (KeyBlock *, kb, &drag_key_.key->block, index) {
+
+      if (index == 0) {
+        /* Prevent basis shape key from dragging. */
+        continue;
+      }
+
       if (kb->flag & KEYBLOCK_SEL) {
-        selected_keys_[index] = kb;
-        index++;
+        selected_keys_[selected_count] = kb;
+        selected_count++;
       }
     }
     return selected_keys_;
@@ -166,6 +173,9 @@ class ShapeKeyDropTarget : public ui::TreeViewItemDropTarget {
           BLI_assert_unreachable();
           break;
         case ui::DropLocation::Before:
+          if (drop_index == 0) {
+            return false;
+          }
           drop_index -= int(drag_index < drop_index);
           break;
         case ui::DropLocation::After:
@@ -280,10 +290,6 @@ class ShapeKeyItem : public ui::AbstractTreeViewItem {
 
   std::unique_ptr<ui::AbstractViewItemDragController> create_drag_controller() const override
   {
-    if (shape_key_.index == 0) {
-      /* Prevent basis shape key from dragging. */
-      return nullptr;
-    }
     return std::make_unique<ShapeKeyDragController>(
         static_cast<ShapeKeyTreeView &>(get_tree_view()), shape_key_);
   }
