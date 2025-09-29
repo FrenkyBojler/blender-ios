@@ -636,6 +636,7 @@ static void stitch_uv_edge_generate_linked_edges(GHash *edge_hash, StitchState *
     if (edge->flag & STITCH_BOUNDARY) {
       UvElement *element1 = state->uvs[edge->uv1];
       UvElement *element2 = state->uvs[edge->uv2];
+
       /* Now iterate through all faces and try to find edges sharing the same vertices */
       UvElement *iter1 = BM_uv_element_get_head(state->element_map, element1);
       UvEdge *last_set = edge;
@@ -672,24 +673,22 @@ static void stitch_uv_edge_generate_linked_edges(GHash *edge_hash, StitchState *
           /* get the edge from the hash */
           edge2 = static_cast<UvEdge *>(BLI_ghash_lookup(edge_hash, &edgetmp));
 
-          if (edge2) {
-            /* more iteration to make sure non-manifold case is handled nicely */
-            for (eiter = edge; eiter; eiter = eiter->next) {
-              if (edge2 == eiter) {
-                valid = false;
-                break;
-              }
+          /* more iteration to make sure non-manifold case is handled nicely */
+          for (eiter = edge; eiter; eiter = eiter->next) {
+            if (edge2 == eiter) {
+              valid = false;
+              break;
             }
+          }
 
-            if (valid) {
-              /* here I am taking care of non manifold case, assuming more than two matching edges.
-               * I am not too sure we want this though */
-              last_set->next = edge2;
-              last_set = edge2;
-              /* set first, similarly to uv elements.
-               * Now we can iterate among common edges easily */
-              edge2->first = edge;
-            }
+          if (valid) {
+            /* here I am taking care of non manifold case, assuming more than two matching edges.
+             * I am not too sure we want this though */
+            last_set->next = edge2;
+            last_set = edge2;
+            /* set first, similarly to uv elements.
+             * Now we can iterate among common edges easily */
+            edge2->first = edge;
           }
         }
       }
@@ -744,10 +743,6 @@ static void determine_uv_edge_stitchability(const int cd_loop_uv_offset,
                                             StitchState *state,
                                             IslandStitchData *island_stitch_data)
 {
-  if (!edge->first) {
-    return;
-  }
-
   UvEdge *edge_iter = edge->first;
   for (; edge_iter; edge_iter = edge_iter->next) {
     if (ssc->ignore_seam_boundary) {
@@ -1549,10 +1544,6 @@ static void stitch_select_edge(UvEdge *edge, StitchState *state, int always_sele
   UvEdge *eiter;
   UvEdge **selection_stack = (UvEdge **)state->selection_stack;
 
-  if (!edge->first) {
-    return;
-  }
-
   for (eiter = edge->first; eiter; eiter = eiter->next) {
     if (eiter->flag & STITCH_SELECTED) {
       int i;
@@ -1964,6 +1955,7 @@ static StitchState *stitch_init(bContext *C,
     if (face_selected && !BM_elem_flag_test(efa, BM_ELEM_SELECT)) {
       continue;
     }
+
     BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
       UvElement *element = BM_uv_element_get(state->element_map, l);
       int itmp1 = element - state->element_map->storage;
@@ -2220,39 +2212,37 @@ static bool goto_next_island(StitchStateContainer *ssc)
 }
 
 static StitchStateInit *stitch_extract_rna_selection(wmOperator *op,
-                                                     const Vector<Object *> &objects)
+                                                     const Vector<Object *> &objects,
+                                                     StitchStateContainer *ssc)
 {
-  int *objs_selection_count = nullptr;
   UvElementID *selected_uvs_arr = nullptr;
   StitchStateInit *state_init = nullptr;
 
-  if (RNA_struct_property_is_set(op->ptr, "selection") &&
-      RNA_struct_property_is_set(op->ptr, "objects_selection_count"))
-  {
-    objs_selection_count = static_cast<int *>(
-        MEM_mallocN(sizeof(int *) * objects.size(), "objects_selection_count"));
-    RNA_int_get_array(op->ptr, "objects_selection_count", objs_selection_count);
+  /* Retrieve list of selected UVs, one list contains all selected UVs
+   * for all objects. */
+  ssc->objs_selection_count = static_cast<int *>(
+      MEM_mallocN(sizeof(int *) * objects.size(), "objects_selection_count"));
+  RNA_int_get_array(op->ptr, "objects_selection_count", ssc->objs_selection_count);
 
-    int total_selected = 0;
-    for (uint ob_index = 0; ob_index < objects.size(); ob_index++) {
-      total_selected += objs_selection_count[ob_index];
-    }
-
-    selected_uvs_arr = MEM_calloc_arrayN<UvElementID>(total_selected, "selected_uvs_arr");
-    int sel_idx = 0;
-    RNA_BEGIN (op->ptr, itemptr, "selection") {
-      BLI_assert(sel_idx < total_selected);
-      selected_uvs_arr[sel_idx].faceIndex = RNA_int_get(&itemptr, "face_index");
-      selected_uvs_arr[sel_idx].elementIndex = RNA_int_get(&itemptr, "element_index");
-      sel_idx++;
-    }
-    RNA_END;
-
-    RNA_collection_clear(op->ptr, "selection");
-
-    state_init = MEM_callocN<StitchStateInit>("UV_init_selected");
-    state_init->to_select = selected_uvs_arr;
+  int total_selected = 0;
+  for (uint ob_index = 0; ob_index < objects.size(); ob_index++) {
+    total_selected += ssc->objs_selection_count[ob_index];
   }
+
+  selected_uvs_arr = MEM_calloc_arrayN<UvElementID>(total_selected, "selected_uvs_arr");
+  int sel_idx = 0;
+  RNA_BEGIN (op->ptr, itemptr, "selection") {
+    BLI_assert(sel_idx < total_selected);
+    selected_uvs_arr[sel_idx].faceIndex = RNA_int_get(&itemptr, "face_index");
+    selected_uvs_arr[sel_idx].elementIndex = RNA_int_get(&itemptr, "element_index");
+    sel_idx++;
+  }
+  RNA_END;
+
+  RNA_collection_clear(op->ptr, "selection");
+
+  state_init = MEM_callocN<StitchStateInit>("UV_init_selected");
+  state_init->to_select = selected_uvs_arr;
   MEM_SAFE_FREE(selected_uvs_arr);
   return state_init;
 }
@@ -2319,10 +2309,7 @@ static StitchStateContainer *stitch_operator_settings_init(bContext *C, wmOperat
   if (RNA_struct_property_is_set(op->ptr, "selection") &&
       RNA_struct_property_is_set(op->ptr, "objects_selection_count"))
   {
-    ssc->state_init = stitch_extract_rna_selection(op, objects);
-    ssc->objs_selection_count = static_cast<int *>(
-        MEM_mallocN(sizeof(int *) * objects.size(), "objects_selection_count"));
-    RNA_int_get_array(op->ptr, "objects_selection_count", ssc->objs_selection_count);
+    ssc->state_init = stitch_extract_rna_selection(op, objects, ssc);
   }
 
   return ssc;

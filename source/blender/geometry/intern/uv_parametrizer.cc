@@ -4235,26 +4235,21 @@ void uv_parametrizer_pack(ParamHandle *handle, const UVPackIsland_Params &params
 
   uv_parametrizer_scale_x(handle, handle->aspect_y);
 }
+
 void uv_parametrizer_original_bounds(ParamHandle *phandle)
 {
-  int i;
-
-  if (phandle->ncharts == 0) {
-    return;
-  }
-
   float trans[2], minv[2], maxv[2], new_size[2];
-  for (i = 0; i < phandle->ncharts; i++) {
+  for (int index = 0; index < phandle->ncharts; index++) {
 
-    PChart *chart = phandle->charts[i];
-    bool all_selected = true;
+    PChart *chart = phandle->charts[index];
+    bool all_verts_selected = true;
     for (PVert *v = chart->verts; v; v = v->nextlink) {
       if (!(v->flag & PVERT_SELECT)) {
-        all_selected = false;
+        all_verts_selected = false;
         break;
       }
     }
-    if (!all_selected) {
+    if (!all_verts_selected) {
       continue;
     }
     p_chart_uv_bbox(chart, minv, maxv);
