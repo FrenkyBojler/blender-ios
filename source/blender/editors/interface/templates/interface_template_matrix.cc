@@ -99,7 +99,7 @@ static void draw_matrix_template(uiLayout &layout, PointerRNA &ptr, PropertyRNA 
   float m3[3][3];
   copy_m3_m4(m3, m4);
   if (!is_orthogonal_m3(m3)) {
-    layout_->label("Matrix Has a Shear", ICON_ERROR);
+    layout_->label(RPT_("Matrix Has a Shear"), ICON_ERROR);
   }
 
   float loc[3], quat[4], size[3];
@@ -110,9 +110,9 @@ static void draw_matrix_template(uiLayout &layout, PointerRNA &ptr, PropertyRNA 
 
   left_col = &split->column(true);
   left_col->alignment_set(blender::ui::LayoutAlign::Right);
-  left_col->label("Location X", ICON_NONE);
-  left_col->label("Y", ICON_NONE);
-  left_col->label("Z", ICON_NONE);
+  left_col->label(IFACE_("Location X"), ICON_NONE);
+  left_col->label(IFACE_("Y"), ICON_NONE);
+  left_col->label(IFACE_("Z"), ICON_NONE);
 
   right_col = &split->column(true);
   right_col->label(format_unit_value(loc[0], PROP_TRANSLATION, layout_), ICON_NONE);
@@ -128,11 +128,11 @@ static void draw_matrix_template(uiLayout &layout, PointerRNA &ptr, PropertyRNA 
   if (mode_info.value == ROT_MODE_QUAT) {
     left_col = &split->column(true);
     left_col->alignment_set(blender::ui::LayoutAlign::Right);
-    left_col->label("Rotation W", ICON_NONE);
-    left_col->label("X", ICON_NONE);
-    left_col->label("Y", ICON_NONE);
-    left_col->label("Z", ICON_NONE);
-    left_col->label("Mode", ICON_NONE);
+    left_col->label(IFACE_("Rotation W"), ICON_NONE);
+    left_col->label(IFACE_("X"), ICON_NONE);
+    left_col->label(IFACE_("Y"), ICON_NONE);
+    left_col->label(IFACE_("Z"), ICON_NONE);
+    left_col->label(IFACE_("Mode"), ICON_NONE);
 
     right_col = &split->column(true);
     right_col->label(format_coefficient(quat[0]), ICON_NONE);
@@ -145,11 +145,11 @@ static void draw_matrix_template(uiLayout &layout, PointerRNA &ptr, PropertyRNA 
 
     left_col = &split->column(true);
     left_col->alignment_set(blender::ui::LayoutAlign::Right);
-    left_col->label("Rotation W", ICON_NONE);
-    left_col->label("X", ICON_NONE);
-    left_col->label("Y", ICON_NONE);
-    left_col->label("Z", ICON_NONE);
-    left_col->label("Mode", ICON_NONE);
+    left_col->label(IFACE_("Rotation W"), ICON_NONE);
+    left_col->label(IFACE_("X"), ICON_NONE);
+    left_col->label(IFACE_("Y"), ICON_NONE);
+    left_col->label(IFACE_("Z"), ICON_NONE);
+    left_col->label(IFACE_("Mode"), ICON_NONE);
 
     right_col = &split->column(true);
     right_col->label(format_unit_value(angle, PROP_EULER, layout_), ICON_NONE);
@@ -162,10 +162,10 @@ static void draw_matrix_template(uiLayout &layout, PointerRNA &ptr, PropertyRNA 
 
     left_col = &split->column(true);
     left_col->alignment_set(blender::ui::LayoutAlign::Right);
-    left_col->label("Rotation X", ICON_NONE);
-    left_col->label("Y", ICON_NONE);
-    left_col->label("Z", ICON_NONE);
-    left_col->label("Mode", ICON_NONE);
+    left_col->label(IFACE_("Rotation X"), ICON_NONE);
+    left_col->label(IFACE_("Y"), ICON_NONE);
+    left_col->label(IFACE_("Z"), ICON_NONE);
+    left_col->label(IFACE_("Mode"), ICON_NONE);
 
     right_col = &split->column(true);
     right_col->label(format_unit_value(eul[0], PROP_EULER, layout_), ICON_NONE);
@@ -198,9 +198,9 @@ static void draw_matrix_template(uiLayout &layout, PointerRNA &ptr, PropertyRNA 
 
   left_col = &split->column(true);
   left_col->alignment_set(blender::ui::LayoutAlign::Right);
-  left_col->label("Scale X", ICON_NONE);
-  left_col->label("Y", ICON_NONE);
-  left_col->label("Z", ICON_NONE);
+  left_col->label(IFACE_("Scale X"), ICON_NONE);
+  left_col->label(IFACE_("Y"), ICON_NONE);
+  left_col->label(IFACE_("Z"), ICON_NONE);
 
   right_col = &split->column(true);
   right_col->label(format_coefficient(size[0]), ICON_NONE);
