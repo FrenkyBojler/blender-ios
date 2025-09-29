@@ -5447,18 +5447,17 @@ uiLayout &block_layout(uiBlock *block,
   root->block = block;
   root->padding = padding;
   root->opcontext = wm::OpCallContext::InvokeRegionWin;
-
-  uiLayout *layout = [type, root]() -> uiLayout * {
+  const char *func = __func__;
+  uiLayout *layout = [&]() -> uiLayout * {
     switch (type) {
       case LayoutType::VerticalBar:
-        return MEM_new<LayoutColumn>(__func__, root);
+        return MEM_new<LayoutColumn>(func, root);
       case LayoutType::PieMenu:
-        return MEM_new<LayoutRootPieMenu>(__func__, root);
+        return MEM_new<LayoutRootPieMenu>(func, root);
       case LayoutType::Header:
-        return MEM_new<LayoutRow>(__func__, uiItemType::LayoutRoot, root);
+        return MEM_new<LayoutRow>(func, uiItemType::LayoutRoot, root);
       default:
-        return MEM_new<LayoutColumn>(__func__, uiItemType::LayoutRoot, root);
-        break;
+        return MEM_new<LayoutColumn>(func, uiItemType::LayoutRoot, root);
     }
   }();
 
