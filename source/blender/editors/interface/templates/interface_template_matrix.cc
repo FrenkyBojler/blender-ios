@@ -175,23 +175,17 @@ static void draw_matrix_template(uiLayout &layout, PointerRNA &ptr, PropertyRNA 
 
   /* Mirror RNA enum property dropdown UI - with menu triangle an dropdown items. */
   uiBlock *block = right_col->block();
-  uiBut *but = uiDefBut(block,
-                        ButType::Menu,
-                        0,
-                        mode_info.name,
-                        0,
-                        0,
-                        UI_UNIT_X * 10,
-                        UI_UNIT_Y,
-                        nullptr,
-                        0,
-                        0,
-                        TIP_("Rotation mode.\n\nOnly affects the way "
-                             "rotation is displayed, rotation itself is unaffected."));
-  /* Replicating `ui_but_submenu_enable`. */
-  UI_but_flag_enable(but, UI_BUT_ICON_SUBMENU);
-  block->content_hints |= UI_BLOCK_CONTAINS_SUBMENU_BUT;
-  but->menu_create_func = rotation_mode_menu_callback;
+  uiBut *but = uiDefMenuBut(block,
+                            rotation_mode_menu_callback,
+                            nullptr,
+                            mode_info.name,
+                            0,
+                            0,
+                            UI_UNIT_X * 10,
+                            UI_UNIT_Y,
+                            TIP_("Rotation mode.\n\nOnly affects the way "
+                                 "rotation is displayed, rotation itself is unaffected."));
+  UI_but_type_set_menu_from_pulldown(but);
 
   /* Scale. */
   split = &layout_->split(0.5, false);
