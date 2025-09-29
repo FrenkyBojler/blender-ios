@@ -131,13 +131,14 @@ ccl_device_inline void integrate_distant_lights(KernelGlobals kg,
   for (int lamp = 0; lamp < kernel_data.integrator.num_lights; lamp++) {
     const ccl_global KernelLight *klight = &kernel_data_fetch(lights, lamp);
     
-    /* Handle dome lights like distant lights in background evaluation */
+    /* Handle dome lights and distant lights in background evaluation */
     bool light_matches = false;
     if (klight->type == LIGHT_DISTANT) {
       light_matches = distant_light_sample_from_intersection(kg, ray_D, lamp, &ls);
     }
     else if (klight->type == LIGHT_DOME) {
-      /* Dome lights are evaluated directly in background, similar to distant lights */
+      /* Dome lights are evaluated here for direct background hits
+       * They are also intersectable for reflections/refractions */
       ls.type = LIGHT_DOME;
       ls.shader = klight->shader_id;
       ls.object = klight->object_id;
@@ -146,11 +147,11 @@ ccl_device_inline void integrate_distant_lights(KernelGlobals kg,
       ls.v = 0.0f;
       ls.group = object_lightgroup(kg, ls.object);
       ls.P = ray_D;
-      ls.Ng = -ray_D;  /* Normal points inward for dome lights */
-      ls.D = ray_D;    /* Light direction points inward */
+      ls.Ng = -ray_D;
+      ls.D = ray_D;  /* For background shader setup, D should be the ray direction */
       ls.t = FLT_MAX;
       ls.eval_fac = 1.0f;
-      ls.pdf = 1.0f;   /* Will be computed properly in MIS */
+      ls.pdf = 1.0f;
       light_matches = true;
     }
     
@@ -201,7 +202,7 @@ ccl_device_inline void integrate_distant_lights(KernelGlobals kg,
       /* MIS weighting. */
       float mis_weight;
       if (ls.type == LIGHT_DOME) {
-        mis_weight = light_sample_mis_weight_forward_dome(kg, state, path_flag, &ls);
+        mis_weight = light_sample_mis_weight_forward_background(kg, state, path_flag);
       }
       else {
         mis_weight = light_sample_mis_weight_forward_distant(kg, state, path_flag, &ls);

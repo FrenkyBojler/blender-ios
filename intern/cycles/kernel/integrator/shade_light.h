@@ -57,7 +57,7 @@ ccl_device_inline void integrate_light(KernelGlobals kg,
   /* MIS weighting. */
   float mis_weight;
   if (ls.type == LIGHT_DOME) {
-    mis_weight = light_sample_mis_weight_forward_dome(kg, state, path_flag, &ls);
+    mis_weight = light_sample_mis_weight_forward_background(kg, state, path_flag);
   }
   else {
     mis_weight = light_sample_mis_weight_forward_lamp(kg, state, path_flag, &ls, ray_P);

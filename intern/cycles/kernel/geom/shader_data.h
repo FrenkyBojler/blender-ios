@@ -403,6 +403,50 @@ ccl_device_inline void shader_setup_from_background(KernelGlobals kg,
 #endif
 }
 
+/* ShaderData setup from ray into background with custom shader ID */
+
+ccl_device_inline void shader_setup_from_background_with_shader(KernelGlobals kg,
+                                                                ccl_private ShaderData *ccl_restrict sd,
+                                                                const float3 ray_P,
+                                                                const float3 ray_D,
+                                                                const float ray_time,
+                                                                const int shader_id)
+{
+  /* for NDC coordinates */
+  sd->ray_P = ray_P;
+
+  /* vectors */
+  sd->P = ray_D;
+  sd->N = -ray_D;
+  sd->Ng = -ray_D;
+  sd->wi = -ray_D;
+  sd->shader = shader_id;
+  sd->flag = kernel_data_fetch(shaders, (sd->shader & SHADER_MASK)).flags;
+  sd->object_flag = 0;
+  sd->time = ray_time;
+  sd->ray_length = FLT_MAX;
+
+  sd->object = OBJECT_NONE;
+  sd->prim = PRIM_NONE;
+  sd->type = PRIMITIVE_NONE;
+  sd->u = 0.0f;
+  sd->v = 0.0f;
+
+#ifdef __DPDU__
+  /* dPdu/dPdv */
+  sd->dPdu = zero_float3();
+  sd->dPdv = zero_float3();
+#endif
+
+#ifdef __RAY_DIFFERENTIALS__
+  /* differentials */
+  sd->dP = differential_zero_compact(); /* TODO: ray->dP */
+  sd->dI = differential_zero_compact();
+  sd->du = differential_zero();
+  sd->dv = differential_zero();
+#endif
+}
+
 /* ShaderData setup from point inside volume */
 
 #ifdef __VOLUME__

@@ -161,19 +161,11 @@ ccl_device_inline bool light_sample(KernelGlobals kg,
     ls->eval_fac = 1.0f;
   }
   else if (type == LIGHT_DOME) {
-    /* dome light (illuminates inward from all directions) */
-    /* NEVER sample dome light via NEE - always use background evaluation for consistency.
-     * This prevents the slow, noisy progressive sampling behavior in viewport. */
-    if (!in_volume_segment) {
-      /* For surface interactions, dome light is handled via background evaluation only */
-      return false;
-    }
-    
-    const float3 D = dome_light_sample(kg, klight, rand, &ls->pdf);
-
+    /* dome light (use background sampling for now) */
+    const float3 D = -background_light_sample(kg, P, rand, &ls->pdf);
     ls->P = D;
-    ls->Ng = -D; /* Normal points inward for dome lights */
-    ls->D = D;   /* Light direction points inward */
+    ls->Ng = D;
+    ls->D = -D;
     ls->t = FLT_MAX;
     ls->eval_fac = 1.0f;
   }
@@ -375,6 +367,16 @@ ccl_device_forceinline int lights_intersect_impl(KernelGlobals kg,
         continue;
       }
     }
+    else if (type == LIGHT_DOME) {
+      /* Dome lights can be intersected like distant lights (at infinity) */
+      if (is_main_path || ray->tmax != FLT_MAX) {
+        continue;
+      }
+      /* Dome lights are always "hit" at infinity in the ray direction */
+      t = FLT_MAX;
+      u = 0.0f;
+      v = 0.0f;
+    }
     else {
       continue;
     }
@@ -507,6 +509,24 @@ ccl_device bool light_sample_from_intersection(KernelGlobals kg,
     if (!area_light_sample_from_intersection(klight, isect, ray_P, ray_D, ls)) {
       return false;
     }
+  }
+  else if (type == LIGHT_DISTANT) {
+    if (!distant_light_sample_from_intersection(kg, ray_D, isect->prim, ls)) {
+      return false;
+    }
+  }
+  else if (type == LIGHT_DOME) {
+    /* Dome light sample from intersection - treat like background */
+    /* For dome/background lights, P contains the direction towards the light */
+    ls->P = ray_D;      /* Direction towards the dome light (ray direction) */
+    ls->Ng = -ray_D;    /* Normal pointing back towards the surface */
+    ls->D = ray_D;      /* For background shader setup, D should be the ray direction */
+    ls->t = FLT_MAX;
+    ls->u = isect->u;
+    ls->v = isect->v;
+    /* Compute PDF based on background sampling */
+    ls->pdf = background_light_pdf(kg, ray_P, ray_D);
+    ls->eval_fac = 1.0f;
   }
   else {
     kernel_assert(!"Invalid lamp type in light_sample_from_intersection");

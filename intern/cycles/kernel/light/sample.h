@@ -45,6 +45,11 @@ light_sample_shader_eval(KernelGlobals kg,
     if (ls->type == LIGHT_BACKGROUND) {
       shader_setup_from_background(kg, emission_sd, ls->P, ls->D, time);
     }
+    else if (ls->type == LIGHT_DOME) {
+      /* Try to use custom shader ID for dome lights to maintain proper intensity */
+      const ccl_global KernelLight *klight = &kernel_data_fetch(lights, ls->prim);
+      shader_setup_from_background_with_shader(kg, emission_sd, ls->P, ls->D, time, klight->shader_id);
+    }
     else {
       shader_setup_from_sample(kg,
                                emission_sd,
@@ -73,7 +78,7 @@ light_sample_shader_eval(KernelGlobals kg,
         kg, state, emission_sd, nullptr, PATH_RAY_EMISSION);
 
     /* Evaluate closures. */
-    if (ls->type == LIGHT_BACKGROUND) {
+    if (ls->type == LIGHT_BACKGROUND || ls->type == LIGHT_DOME) {
       eval = surface_shader_background(emission_sd);
     }
     else {
@@ -563,41 +568,4 @@ ccl_device_inline float light_sample_mis_weight_forward_background(KernelGlobals
 
   return light_sample_mis_weight_forward(kg, mis_ray_pdf, pdf);
 }
-
-ccl_device_inline float light_sample_mis_weight_forward_dome(KernelGlobals kg,
-                                                            IntegratorState state,
-                                                            const uint32_t path_flag,
-                                                            const ccl_private LightSample *ls)
-{
-  if (path_flag & PATH_RAY_MIS_SKIP) {
-    return 1.0f;
-  }
-
-  const float3 ray_P = INTEGRATOR_STATE(state, ray, P);
-  const float mis_ray_pdf = INTEGRATOR_STATE(state, path, mis_ray_pdf);
-  float pdf = ls->pdf;
-
-  /* Light selection pdf. */
-#ifdef __LIGHT_TREE__
-  if (kernel_data.integrator.use_light_tree) {
-    const float3 N = INTEGRATOR_STATE(state, path, mis_origin_n);
-    const float dt = INTEGRATOR_STATE(state, ray, previous_dt);
-    pdf *= light_tree_pdf(kg,
-                          ray_P,
-                          N,
-                          dt,
-                          path_flag,
-                          0,
-                          kernel_data_fetch(light_to_tree, ls->prim),
-                          light_link_receiver_forward(kg, state));
-  }
-  else
-#endif
-  {
-    pdf *= light_distribution_pdf_lamp(kg);
-  }
-
-  return light_sample_mis_weight_forward(kg, mis_ray_pdf, pdf);
-}
-
 CCL_NAMESPACE_END
