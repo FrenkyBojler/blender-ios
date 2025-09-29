@@ -336,7 +336,7 @@ typedef struct ThemeSpace {
 
   unsigned char nurb_uline[4], nurb_vline[4];
   unsigned char nurb_sel_uline[4], nurb_sel_vline[4];
-  char _pad7[4];
+  char _pad5[4];
 
   /** Dope-sheet. */
   unsigned char ds_ipoline[4];
