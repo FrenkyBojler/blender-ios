@@ -300,7 +300,7 @@ void BKE_curvemap_reset(CurveMap *cuma, const rctf *clipr, int preset, CurveMapS
       cuma->totpoint = 6;
       break;
     case CURVE_PRESET_ROOT:
-      cuma->totpoint = 4;
+      cuma->totpoint = 6;
       break;
     case CURVE_PRESET_GAUSS:
       cuma->totpoint = 7;
@@ -396,11 +396,15 @@ void BKE_curvemap_reset(CurveMap *cuma, const rctf *clipr, int preset, CurveMapS
       cuma->curve[0].x = 0;
       cuma->curve[0].y = 1;
       cuma->curve[1].x = 0.25;
-      cuma->curve[1].y = 0.95;
-      cuma->curve[2].x = 0.75;
-      cuma->curve[2].y = 0.44;
-      cuma->curve[3].x = 1;
-      cuma->curve[3].y = 0;
+      cuma->curve[1].y = 0.866;
+      cuma->curve[2].x = 0.5;
+      cuma->curve[2].y = 0.707;
+      cuma->curve[3].x = 0.75;
+      cuma->curve[3].y = 0.5;
+      cuma->curve[4].x = 0.9375;
+      cuma->curve[4].y = 0.25;
+      cuma->curve[5].x = 1;
+      cuma->curve[5].y = 0;
       break;
     case CURVE_PRESET_GAUSS:
       cuma->curve[0].x = 0;
