@@ -1,1 +1,2 @@
 Referenced by pull request #146896, Shader Nodes: support Menu Switch node
+Referenced by commit 1cb373e980e143f7d35e53f3e46c085c12941274, Fix: EEVEE: Reversed condition in metallic BSDF optimization
