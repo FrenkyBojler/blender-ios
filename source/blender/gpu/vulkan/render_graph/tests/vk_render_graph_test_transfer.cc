@@ -341,4 +341,26 @@ TEST_F(VKRenderGraphTestTransfer, clear_blit_copy_and_read_back)
       log[5]);
 }
 
+/**
+ * Modify a previous added copy buffer command.
+ */
+TEST_F(VKRenderGraphTestTransfer, copy_buffer_modify_data)
+{
+  VkHandle<VkBuffer> buffer_src(1u);
+  VkHandle<VkBuffer> buffer_dst(2u);
+
+  resources.add_buffer(buffer_src);
+  resources.add_buffer(buffer_dst);
+  VKCopyBufferNode::CreateInfo copy_buffer = {buffer_src, buffer_dst, {0, 0, 32}};
+  NodeHandle copy_buffer_handle = render_graph->add_node(copy_buffer);
+  VkCopyBufferNode::Data &copy_buffer_data = render_graph->get_node_data(copy_buffer_handle);
+  copy_buffer_data.region.size = 64;
+  submit(render_graph, command_buffer);
+
+  EXPECT_EQ(1, log.size());
+  EXPECT_EQ("copy_buffer(src_buffer=0x1, dst_buffer=0x2" + endl() +
+                " - region(src_offset=0, dst_offset=0, size=64)" + endl() + ")",
+            log[0]);
+}
+
 }  // namespace blender::gpu::render_graph
