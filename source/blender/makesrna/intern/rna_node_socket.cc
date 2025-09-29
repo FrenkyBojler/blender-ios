@@ -279,15 +279,8 @@ static void rna_NodeSocket_type_set(PointerRNA *ptr, int value)
 
 static int rna_NodeSocket_inferred_structure_type_get(PointerRNA *ptr)
 {
-  bNodeTree *tree = reinterpret_cast<bNodeTree *>(ptr->owner_id);
   bNodeSocket *socket = ptr->data_as<bNodeSocket>();
-  tree->ensure_topology_cache();
-  if (tree->runtime->inferred_structure_types.size() != tree->all_sockets().size()) {
-    /* This cache is outdated or not available on this tree type. */
-    return int(blender::nodes::StructureType::Dynamic);
-  }
-  const int index = socket->index_in_tree();
-  return int(tree->runtime->inferred_structure_types[index]);
+  return int(socket->runtime->inferred_structure_type);
 }
 
 static void rna_NodeSocket_bl_idname_get(PointerRNA *ptr, char *value)
@@ -1902,8 +1895,6 @@ static const bNodeSocketStaticTypeInfo node_socket_subtypes[] = {
     {"NodeSocketIntPercentage", "NodeTreeInterfaceSocketIntPercentage", SOCK_INT, PROP_PERCENTAGE},
     {"NodeSocketIntFactor", "NodeTreeInterfaceSocketIntFactor", SOCK_INT, PROP_FACTOR},
     {"NodeSocketBool", "NodeTreeInterfaceSocketBool", SOCK_BOOLEAN, PROP_NONE},
-    {"NodeSocketRotation", "NodeTreeInterfaceSocketRotation", SOCK_ROTATION, PROP_NONE},
-    {"NodeSocketMatrix", "NodeTreeInterfaceSocketMatrix", SOCK_MATRIX, PROP_NONE},
 
     {"NodeSocketVector", "NodeTreeInterfaceSocketVector", SOCK_VECTOR, PROP_NONE},
     {"NodeSocketVectorFactor", "NodeTreeInterfaceSocketVectorFactor", SOCK_VECTOR, PROP_FACTOR},
@@ -1985,6 +1976,9 @@ static const bNodeSocketStaticTypeInfo node_socket_subtypes[] = {
      PROP_ACCELERATION},
     {"NodeSocketVectorEuler4D", "NodeTreeInterfaceSocketVectorEuler4D", SOCK_VECTOR, PROP_EULER},
     {"NodeSocketVectorXYZ4D", "NodeTreeInterfaceSocketVectorXYZ4D", SOCK_VECTOR, PROP_XYZ},
+
+    {"NodeSocketRotation", "NodeTreeInterfaceSocketRotation", SOCK_ROTATION, PROP_NONE},
+    {"NodeSocketMatrix", "NodeTreeInterfaceSocketMatrix", SOCK_MATRIX, PROP_NONE},
 
     {"NodeSocketColor", "NodeTreeInterfaceSocketColor", SOCK_RGBA, PROP_NONE},
     {"NodeSocketString", "NodeTreeInterfaceSocketString", SOCK_STRING, PROP_NONE},
