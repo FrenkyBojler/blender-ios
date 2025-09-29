@@ -72,6 +72,74 @@ static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
   layout->prop(ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
 }
 
+static std::optional<eNodeSocketDatatype> node_type_for_socket_type(const bNodeSocket &socket)
+{
+  switch (socket.type) {
+    case SOCK_FLOAT:
+      return SOCK_FLOAT;
+    case SOCK_BOOLEAN:
+      return SOCK_BOOLEAN;
+    case SOCK_INT:
+      return SOCK_INT;
+    case SOCK_VECTOR:
+    case SOCK_RGBA:
+      return SOCK_VECTOR;
+    default:
+      return std::nullopt;
+  }
+}
+
+static void node_gather_link_search_ops(GatherLinkSearchOpParams &params)
+{
+  if (!USER_EXPERIMENTAL_TEST(&U, use_new_volume_nodes)) {
+    return;
+  }
+  const std::optional<eNodeSocketDatatype> node_type = node_type_for_socket_type(
+      params.other_socket());
+  if (!node_type) {
+    return;
+  }
+  if (params.in_out() == SOCK_IN) {
+    params.add_item(IFACE_("Grid"), [node_type](LinkSearchOpParams &params) {
+      bNode &node = params.add_node("GeometryNodeCubeGrid");
+      node.custom1 = *node_type;
+      params.update_and_connect_available_socket(node, "Grid");
+    });
+    const eNodeSocketDatatype other_type = eNodeSocketDatatype(params.other_socket().type);
+    if (params.node_tree().typeinfo->validate_link(other_type, SOCK_INT)) {
+      params.add_item(IFACE_("Resolution X"), [](LinkSearchOpParams &params) {
+        bNode &node = params.add_node("GeometryNodeCubeGrid");
+        params.update_and_connect_available_socket(node, "Resolution X");
+      });
+      params.add_item(IFACE_("Resolution Y"), [](LinkSearchOpParams &params) {
+        bNode &node = params.add_node("GeometryNodeCubeGrid");
+        params.update_and_connect_available_socket(node, "Resolution Y");
+      });
+      params.add_item(IFACE_("Resolution Z"), [](LinkSearchOpParams &params) {
+        bNode &node = params.add_node("GeometryNodeCubeGrid");
+        params.update_and_connect_available_socket(node, "Resolution Z");
+      });
+    }
+  }
+  else {
+    params.add_item(IFACE_("Value"), [node_type](LinkSearchOpParams &params) {
+      bNode &node = params.add_node("GeometryNodeCubeGrid");
+      node.custom1 = *node_type;
+      params.update_and_connect_available_socket(node, "Value");
+    });
+    params.add_item(IFACE_("Min"), [node_type](LinkSearchOpParams &params) {
+      bNode &node = params.add_node("GeometryNodeCubeGrid");
+      node.custom1 = *node_type;
+      params.update_and_connect_available_socket(node, "Min");
+    });
+    params.add_item(IFACE_("Max"), [node_type](LinkSearchOpParams &params) {
+      bNode &node = params.add_node("GeometryNodeCubeGrid");
+      node.custom1 = *node_type;
+      params.update_and_connect_available_socket(node, "Max");
+    });
+  }
+}
+
 static void node_geo_exec(GeoNodeExecParams params)
 {
 #ifdef WITH_OPENVDB
@@ -208,6 +276,7 @@ static void node_register()
   ntype.geometry_node_execute = node_geo_exec;
   ntype.draw_buttons = node_layout;
   ntype.declare = node_declare;
+  ntype.gather_link_search_ops = node_gather_link_search_ops;
   blender::bke::node_register_type(ntype);
 
   node_rna(ntype.rna_ext.srna);

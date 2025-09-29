@@ -125,6 +125,50 @@ static void node_operators()
   WM_operatortype_append(NODE_OT_field_to_grid_item_remove);
 }
 
+static std::optional<eNodeSocketDatatype> node_type_for_socket_type(const bNodeSocket &socket)
+{
+  switch (socket.type) {
+    case SOCK_FLOAT:
+      return SOCK_FLOAT;
+    case SOCK_BOOLEAN:
+      return SOCK_BOOLEAN;
+    case SOCK_INT:
+      return SOCK_INT;
+    case SOCK_VECTOR:
+    case SOCK_RGBA:
+      return SOCK_VECTOR;
+    default:
+      return std::nullopt;
+  }
+}
+
+static void node_gather_link_search_ops(GatherLinkSearchOpParams &params)
+{
+  if (!USER_EXPERIMENTAL_TEST(&U, use_new_volume_nodes)) {
+    return;
+  }
+  const std::optional<eNodeSocketDatatype> node_type = node_type_for_socket_type(
+      params.other_socket());
+  if (!node_type) {
+    return;
+  }
+  if (params.in_out() == SOCK_IN) {
+    params.add_item(IFACE_("Grid"), [node_type](LinkSearchOpParams &params) {
+      bNode &node = params.add_node("GeometryNodeFieldToGrid");
+      node_storage(node).data_type = *node_type;
+      params.update_and_connect_available_socket(node, "Grid");
+    });
+  }
+  else {
+    params.add_item(IFACE_("Field to Grid"), [node_type](LinkSearchOpParams &params) {
+      bNode &node = params.add_node("GeometryNodeFieldToGrid");
+      node_storage(node).data_type = *node_type;
+      /* Connect to the first dynamic field output */
+      params.update_and_connect_available_socket(node, "item_0_grid");
+    });
+  }
+}
+
 static void node_geo_exec(GeoNodeExecParams params)
 {
 #ifdef WITH_OPENVDB
@@ -274,6 +318,7 @@ static void node_register()
   ntype.draw_buttons = node_layout;
   ntype.draw_buttons_ex = node_layout_ex;
   ntype.register_operators = node_operators;
+  ntype.gather_link_search_ops = node_gather_link_search_ops;
   ntype.blend_write_storage_content = node_blend_write;
   ntype.blend_data_read_storage_content = node_blend_read;
   blender::bke::node_register_type(ntype);
