@@ -231,6 +231,23 @@ wmOperatorStatus WM_gesture_box_modal(bContext *C, wmOperator *op, const wmEvent
         gesture_modal_end(C, op);
         return OPERATOR_CANCELLED;
       }
+      case GESTURE_MODAL_SWITCH_CORNER: {
+        int window_cursor_x, window_cursor_y;
+        if (wm_cursor_position_get(win, &window_cursor_x, &window_cursor_y)) {
+          const int diff_cursor_x = window_cursor_x - event->mval[0];
+          const int diff_cursor_y = window_cursor_y - event->mval[1];
+          WM_cursor_warp(win, rect->xmin + diff_cursor_x, rect->ymin + diff_cursor_y);
+          /* Rotate rect values. */
+          int tmp = rect->xmin;
+          rect->xmin = rect->xmax;
+          rect->xmax = tmp;
+
+          tmp = rect->ymin;
+          rect->ymin = rect->ymax;
+          rect->ymax = tmp;
+        }
+        break;
+      }
     }
   }
   else {

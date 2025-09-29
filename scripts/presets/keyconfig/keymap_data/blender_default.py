@@ -6128,6 +6128,7 @@ def km_gesture_border(_params):
         ("BEGIN", {"type": 'MIDDLEMOUSE', "value": 'PRESS'}, None),
         ("DESELECT", {"type": 'MIDDLEMOUSE', "value": 'RELEASE'}, None),
         ("MOVE", {"type": 'SPACE', "value": 'ANY', "any": True}, None),
+        ("SWITCH_CORNER", {"type": 'F', "value": 'PRESS', "any": True}, None),
     ])
 
     return keymap
