@@ -265,23 +265,29 @@ class ShaderNodesInliner {
     return true;
   }
 
-  Vector<SocketInContext> find_final_output_sockets() const
+  struct TopLevelTree {
+    const ComputeContext *context = nullptr;
+    const bNodeTree *tree = nullptr;
+  };
+
+  Vector<SocketInContext> find_final_output_sockets()
   {
-    const bke::bNodeTreeZones *zones = src_tree_.zones();
-    if (!zones) {
-      return {};
-    }
+    Vector<TopLevelTree> top_level_trees;
+    this->find_top_level_trees_recursive(nullptr, src_tree_, top_level_trees);
 
     Vector<SocketInContext> output_sockets;
     auto add_output_type = [&](const char *output_type) {
-      for (const bNode *node : src_tree_.nodes_by_type(output_type)) {
-        const bke::bNodeTreeZone *zone = zones->get_zone_by_node(node->identifier);
-        if (zone) {
-          params_.r_error_messages.append({node, TIP_("Output node must not be in zone")});
-          continue;
-        }
-        for (const bNodeSocket *socket : node->input_sockets()) {
-          output_sockets.append({nullptr, socket});
+      for (const TopLevelTree &top_level_tree : top_level_trees) {
+        const bke::bNodeTreeZones &zones = *top_level_tree.tree->zones();
+        for (const bNode *node : top_level_tree.tree->nodes_by_type(output_type)) {
+          const bke::bNodeTreeZone *zone = zones.get_zone_by_node(node->identifier);
+          if (zone) {
+            params_.r_error_messages.append({node, TIP_("Output node must not be in zone")});
+            continue;
+          }
+          for (const bNodeSocket *socket : node->input_sockets()) {
+            output_sockets.append({top_level_tree.context, socket});
+          }
         }
       }
     };
@@ -307,6 +313,38 @@ class ShaderNodesInliner {
     }
 
     return output_sockets;
+  }
+
+  void find_top_level_trees_recursive(const ComputeContext *context,
+                                      const bNodeTree &tree,
+                                      Vector<TopLevelTree> &r_trees)
+  {
+    const bke::bNodeTreeZones *zones = src_tree_.zones();
+    if (!zones) {
+      return;
+    }
+    if (tree.has_available_link_cycle()) {
+      return;
+    }
+    r_trees.append({context, &tree});
+    for (const bNode *group_node : tree.group_nodes()) {
+      if (group_node->is_muted()) {
+        continue;
+      }
+      const bNodeTree *group = id_cast<const bNodeTree *>(group_node->id);
+      if (!group || ID_MISSING(&group->id)) {
+        continue;
+      }
+      group->ensure_topology_cache();
+      const bke::bNodeTreeZone *zone = zones->get_zone_by_node(group_node->identifier);
+      if (zone) {
+        /* Node groups in zones are ignored. */
+        continue;
+      }
+      const ComputeContext &group_context = compute_context_cache_.for_group_node(
+          context, group_node->identifier, &tree);
+      this->find_top_level_trees_recursive(&group_context, *group, r_trees);
+    }
   }
 
   void handle_socket(const SocketInContext &socket)
