@@ -35,10 +35,13 @@ static void node_declare(NodeDeclarationBuilder &b)
   }
 
   const eNodeSocketDatatype data_type = eNodeSocketDatatype(node->custom1);
-
+  b.use_custom_socket_order();
+  b.allow_any_socket_order();
+  b.add_default_layout();
   b.add_input(data_type, "Value")
       .description("Value field to evaluate at each grid point")
       .supports_field();
+  b.add_output(data_type, "Grid").structure_type(StructureType::Grid).align_with_previous();
   b.add_input(data_type, "Background")
       .description("Default value for grid voxels outside the filled region");
 
@@ -61,8 +64,6 @@ static void node_declare(NodeDeclarationBuilder &b)
       .default_value(32)
       .min(2)
       .description("Number of voxels in the Z axis");
-
-  b.add_output(data_type, "Grid").structure_type(StructureType::Grid);
 }
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
@@ -99,12 +100,14 @@ static void node_gather_link_search_ops(GatherLinkSearchOpParams &params)
   if (!node_type) {
     return;
   }
-  if (params.in_out() == SOCK_IN) {
+  if (params.in_out() == SOCK_OUT) {
     params.add_item(IFACE_("Grid"), [node_type](LinkSearchOpParams &params) {
       bNode &node = params.add_node("GeometryNodeCubeGrid");
       node.custom1 = *node_type;
       params.update_and_connect_available_socket(node, "Grid");
     });
+  }
+  else {
     const eNodeSocketDatatype other_type = eNodeSocketDatatype(params.other_socket().type);
     if (params.node_tree().typeinfo->validate_link(other_type, SOCK_INT)) {
       params.add_item(IFACE_("Resolution X"), [](LinkSearchOpParams &params) {
@@ -120,12 +123,15 @@ static void node_gather_link_search_ops(GatherLinkSearchOpParams &params)
         params.update_and_connect_available_socket(node, "Resolution Z");
       });
     }
-  }
-  else {
     params.add_item(IFACE_("Value"), [node_type](LinkSearchOpParams &params) {
       bNode &node = params.add_node("GeometryNodeCubeGrid");
       node.custom1 = *node_type;
       params.update_and_connect_available_socket(node, "Value");
+    });
+    params.add_item(IFACE_("Background"), [node_type](LinkSearchOpParams &params) {
+      bNode &node = params.add_node("GeometryNodeCubeGrid");
+      node.custom1 = *node_type;
+      params.update_and_connect_available_socket(node, "Background");
     });
     params.add_item(IFACE_("Min"), [node_type](LinkSearchOpParams &params) {
       bNode &node = params.add_node("GeometryNodeCubeGrid");

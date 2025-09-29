@@ -52,12 +52,11 @@ static void node_declare(NodeDeclarationBuilder &b)
   const eNodeSocketDatatype data_type = eNodeSocketDatatype(storage.data_type);
   const bool supports_fields = socket_type_supports_fields(data_type);
 
+  b.add_default_layout();
   b.add_input(data_type, "Grid")
       .hide_value()
       .structure_type(StructureType::Grid)
       .description("Input grid to use for topology and transform information");
-
-  b.add_default_layout();
 
   const Span<FieldToGridItem> items = storage.items_span();
   for (const int i : items.index_range()) {
@@ -158,13 +157,18 @@ static void node_gather_link_search_ops(GatherLinkSearchOpParams &params)
       node_storage(node).data_type = *node_type;
       params.update_and_connect_available_socket(node, "Grid");
     });
+    params.add_item(IFACE_("Field"), [node_type](LinkSearchOpParams &params) {
+      bNode &node = params.add_node("GeometryNodeFieldToGrid");
+      node_storage(node).data_type = *node_type;
+      params.update_and_connect_available_socket(node, "Value");
+    });
   }
   else {
-    params.add_item(IFACE_("Field to Grid"), [node_type](LinkSearchOpParams &params) {
+    params.add_item(IFACE_("Grid"), [node_type](LinkSearchOpParams &params) {
       bNode &node = params.add_node("GeometryNodeFieldToGrid");
       node_storage(node).data_type = *node_type;
       /* Connect to the first dynamic field output */
-      params.update_and_connect_available_socket(node, "item_0_grid");
+      params.update_and_connect_available_socket(node, "Value");
     });
   }
 }
