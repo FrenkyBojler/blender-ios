@@ -83,7 +83,7 @@ static void node_socket_button_label(bContext * /*C*/,
                                      uiLayout *layout,
                                      PointerRNA * /*ptr*/,
                                      PointerRNA * /*node_ptr*/,
-                                     const StringRefNull text)
+                                     const StringRef text)
 {
   layout->label(text, ICON_NONE);
 }
@@ -868,7 +868,7 @@ static void node_socket_undefined_draw(bContext * /*C*/,
                                        uiLayout *layout,
                                        PointerRNA * /*ptr*/,
                                        PointerRNA * /*node_ptr*/,
-                                       StringRefNull /*text*/)
+                                       StringRef /*text*/)
 {
   layout->label(IFACE_("Undefined Socket Type"), ICON_ERROR);
 }
@@ -1071,7 +1071,7 @@ static void draw_node_socket_without_value(uiLayout *layout,
 }
 
 static void std_node_socket_draw(
-    bContext *C, uiLayout *layout, PointerRNA *ptr, PointerRNA *node_ptr, StringRefNull label)
+    bContext *C, uiLayout *layout, PointerRNA *ptr, PointerRNA *node_ptr, StringRef label)
 {
   bNode *node = (bNode *)node_ptr->data;
   bNodeSocket *sock = (bNodeSocket *)ptr->data;
@@ -1086,7 +1086,7 @@ static void std_node_socket_draw(
   }
 
   const bool optional_label = (socket_decl && socket_decl->optional_label) || label.is_empty();
-  const StringRefNull label_or_empty = optional_label ? "" : label;
+  const StringRef label_or_empty = optional_label ? "" : label;
 
   const bool has_gizmo = tree->runtime->gizmo_propagation ?
                              tree->runtime->gizmo_propagation->gizmo_endpoint_sockets.contains(
@@ -1420,6 +1420,9 @@ static void std_node_socket_interface_draw(ID *id,
     }
   }
 
+  if (interface_socket->flag & NODE_INTERFACE_SOCKET_INPUT) {
+    col->prop(&ptr, "optional_label", DEFAULT_FLAGS, std::nullopt, ICON_NONE);
+  }
   {
     uiLayout *sub = &col->column(false);
     sub->active_set(interface_socket->default_input == NODE_DEFAULT_INPUT_VALUE);
