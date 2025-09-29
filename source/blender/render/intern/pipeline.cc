@@ -881,10 +881,11 @@ void RE_InitState(Render *re,
   /* if preview render, we try to keep old result */
   BLI_rw_mutex_lock(&re->resultmutex, THREAD_LOCK_WRITE);
 
-  bool resolution_changed = (re->result != nullptr &&
-                             (re->result->rectx != rd->xsch || re->result->recty != rd->ysch));
-  bool border_overlay = re->r.mode & R_BORDER && re->r.mode & R_BORDER_OVERLAY;
-  bool init_render_result = ((re->result == nullptr) || resolution_changed || !border_overlay);
+  const bool resolution_changed = (re->result != nullptr && (re->result->rectx != rd->xsch ||
+                                                             re->result->recty != rd->ysch));
+  const bool border_overlay = re->r.mode & R_BORDER && re->r.mode & R_BORDER_OVERLAY;
+  const bool init_render_result = ((re->result == nullptr) || resolution_changed ||
+                                   !border_overlay);
 
   if (re->r.scemode & R_BUTS_PREVIEW) {
     if (had_freestyle || (re->r.mode & R_EDGE_FRS)) {

@@ -658,7 +658,6 @@ static void image_main_region_draw(const bContext *C, ARegion *region)
                                   (sima->overlay.flag & SI_OVERLAY_SHOW_OVERLAYS &&
                                    sima->overlay.flag & SI_OVERLAY_DRAW_RENDER_REGION &&
                                    ELEM(sima->mode, SI_MODE_MASK, SI_MODE_VIEW));
-
   const bool show_render_border = ((sima->overlay.flag & SI_OVERLAY_SHOW_OVERLAYS &&
                                     ELEM(sima->mode, SI_MODE_MASK, SI_MODE_VIEW)) &&
                                    (scene->r.border.xmin != 0 || scene->r.border.xmax != 1 ||
