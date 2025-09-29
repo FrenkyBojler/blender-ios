@@ -157,6 +157,10 @@ class ShapeKeyDropTarget : public ui::TreeViewItemDropTarget {
       const int drag_index = BLI_findindex(&key->block, drag_shapekey[i]);
       int drop_index = BLI_findindex(&key->block, &drop_kb_);
 
+      if (drag_index == -1) {
+        continue;
+      }
+
       switch (drag_info.drop_location) {
         case ui::DropLocation::Into:
           BLI_assert_unreachable();
