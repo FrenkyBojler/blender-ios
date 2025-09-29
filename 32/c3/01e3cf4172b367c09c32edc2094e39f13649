@@ -1,3 +1,4 @@
 Referenced by issue #146020, Compositor: Assert after link drag search
 Referenced by pull request #146068, WIP: EEVEE: support repeat zones natively
 Referenced by issue #146409, CYCLES - Shader AOV output nodes no longer write to AOV's when inside a group
+Referenced by pull request #146983, Fix #146409: nested shader node outputs are ignored
