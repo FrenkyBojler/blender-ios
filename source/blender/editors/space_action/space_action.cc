@@ -72,6 +72,8 @@ static SpaceLink *action_create(const ScrArea *area, const Scene *scene)
                            TIME_CACHE_CLOTH | TIME_CACHE_SMOKE | TIME_CACHE_DYNAMICPAINT |
                            TIME_CACHE_RIGIDBODY | TIME_CACHE_SIMULATION_NODES;
 
+  saction->overlays.flag |= (ADS_OVERLAY_SHOW_OVERLAYS | ADS_SHOW_SCENE_STRIP_FRAME_RANGE);
+
   /* header */
   region = BKE_area_region_new();
 
