@@ -86,7 +86,7 @@ static void rotation_mode_menu_callback(bContext *, uiLayout *layout, void *)
 static void draw_matrix_template(uiLayout &layout, PointerRNA &ptr, PropertyRNA &prop)
 {
   /* Matrix template UI is mirroring Object's Transform UI for better UX. */
-  uiLayout *left_col, *right_col, *split;
+  uiLayout *row, *col;
   uiLayout *layout_ = &layout.box();
 
   float m4[4][4];
@@ -106,75 +106,85 @@ static void draw_matrix_template(uiLayout &layout, PointerRNA &ptr, PropertyRNA 
   mat4_decompose(loc, quat, size, m4);
 
   /* Translation. */
-  split = &layout_->split(0.5, false);
+  col = &layout_->column(true);
+  col->use_property_split_set(true);
+  uiPropertySplitWrapper split_wrapper = uiItemPropertySplitWrapperCreate(col);
 
-  left_col = &split->column(true);
-  left_col->alignment_set(blender::ui::LayoutAlign::Right);
-  left_col->label(IFACE_("Location X"), ICON_NONE);
-  left_col->label(IFACE_("Y"), ICON_NONE);
-  left_col->label(IFACE_("Z"), ICON_NONE);
+  row = &col->row(true);
+  uiItemL_respect_property_split(row, IFACE_("Location X"), ICON_NONE);
+  row->label(format_unit_value(loc[0], PROP_TRANSLATION, layout_), ICON_NONE);
 
-  right_col = &split->column(true);
-  right_col->label(format_unit_value(loc[0], PROP_TRANSLATION, layout_), ICON_NONE);
-  right_col->label(format_unit_value(loc[1], PROP_TRANSLATION, layout_), ICON_NONE);
-  right_col->label(format_unit_value(loc[2], PROP_TRANSLATION, layout_), ICON_NONE);
+  row = &col->row(true);
+  uiItemL_respect_property_split(row, IFACE_("Y"), ICON_NONE);
+  row->label(format_unit_value(loc[1], PROP_TRANSLATION, layout_), ICON_NONE);
+
+  row = &col->row(true);
+  uiItemL_respect_property_split(row, IFACE_("Z"), ICON_NONE);
+  row->label(format_unit_value(loc[2], PROP_TRANSLATION, layout_), ICON_NONE);
 
   /* Rotation. */
   float eul[3], axis[3];
   float angle;
   const EnumPropertyItem &mode_info = rna_enum_object_rotation_mode_items[rotation_mode_index];
+  col = &layout_->column(true);
+  col->use_property_split_set(true);
 
-  split = &layout_->split(0.5, false);
   if (mode_info.value == ROT_MODE_QUAT) {
-    left_col = &split->column(true);
-    left_col->alignment_set(blender::ui::LayoutAlign::Right);
-    left_col->label(IFACE_("Rotation W"), ICON_NONE);
-    left_col->label(IFACE_("X"), ICON_NONE);
-    left_col->label(IFACE_("Y"), ICON_NONE);
-    left_col->label(IFACE_("Z"), ICON_NONE);
-    left_col->label(IFACE_("Mode"), ICON_NONE);
+    row = &col->row(true);
+    uiItemL_respect_property_split(row, IFACE_("Rotation W"), ICON_NONE);
+    row->label(format_coefficient(quat[0]), ICON_NONE);
 
-    right_col = &split->column(true);
-    right_col->label(format_coefficient(quat[0]), ICON_NONE);
-    right_col->label(format_coefficient(quat[1]), ICON_NONE);
-    right_col->label(format_coefficient(quat[2]), ICON_NONE);
-    right_col->label(format_coefficient(quat[3]), ICON_NONE);
+    row = &col->row(true);
+    uiItemL_respect_property_split(row, IFACE_("X"), ICON_NONE);
+    row->label(format_coefficient(quat[1]), ICON_NONE);
+
+    row = &col->row(true);
+    uiItemL_respect_property_split(row, IFACE_("Y"), ICON_NONE);
+    row->label(format_coefficient(quat[2]), ICON_NONE);
+
+    row = &col->row(true);
+    uiItemL_respect_property_split(row, IFACE_("Z"), ICON_NONE);
+    row->label(format_coefficient(quat[3]), ICON_NONE);
   }
   else if (mode_info.value == ROT_MODE_AXISANGLE) {
     quat_to_axis_angle(axis, &angle, quat);
 
-    left_col = &split->column(true);
-    left_col->alignment_set(blender::ui::LayoutAlign::Right);
-    left_col->label(IFACE_("Rotation W"), ICON_NONE);
-    left_col->label(IFACE_("X"), ICON_NONE);
-    left_col->label(IFACE_("Y"), ICON_NONE);
-    left_col->label(IFACE_("Z"), ICON_NONE);
-    left_col->label(IFACE_("Mode"), ICON_NONE);
+    row = &col->row(true);
+    uiItemL_respect_property_split(row, IFACE_("Rotation W"), ICON_NONE);
+    row->label(format_unit_value(angle, PROP_ANGLE, layout_), ICON_NONE);
 
-    right_col = &split->column(true);
-    right_col->label(format_unit_value(angle, PROP_EULER, layout_), ICON_NONE);
-    right_col->label(format_coefficient(axis[0]), ICON_NONE);
-    right_col->label(format_coefficient(axis[1]), ICON_NONE);
-    right_col->label(format_coefficient(axis[2]), ICON_NONE);
+    row = &col->row(true);
+    uiItemL_respect_property_split(row, IFACE_("X"), ICON_NONE);
+    row->label(format_coefficient(axis[0]), ICON_NONE);
+
+    row = &col->row(true);
+    uiItemL_respect_property_split(row, IFACE_("Y"), ICON_NONE);
+    row->label(format_coefficient(axis[1]), ICON_NONE);
+
+    row = &col->row(true);
+    uiItemL_respect_property_split(row, IFACE_("Z"), ICON_NONE);
+    row->label(format_coefficient(axis[2]), ICON_NONE);
   }
-  else {
+  else {  // Euler modes.
     quat_to_eulO(eul, mode_info.value, quat);
 
-    left_col = &split->column(true);
-    left_col->alignment_set(blender::ui::LayoutAlign::Right);
-    left_col->label(IFACE_("Rotation X"), ICON_NONE);
-    left_col->label(IFACE_("Y"), ICON_NONE);
-    left_col->label(IFACE_("Z"), ICON_NONE);
-    left_col->label(IFACE_("Mode"), ICON_NONE);
+    row = &col->row(true);
+    uiItemL_respect_property_split(row, IFACE_("Rotation X"), ICON_NONE);
+    row->label(format_unit_value(eul[0], PROP_ANGLE, layout_), ICON_NONE);
 
-    right_col = &split->column(true);
-    right_col->label(format_unit_value(eul[0], PROP_EULER, layout_), ICON_NONE);
-    right_col->label(format_unit_value(eul[1], PROP_EULER, layout_), ICON_NONE);
-    right_col->label(format_unit_value(eul[2], PROP_EULER, layout_), ICON_NONE);
+    row = &col->row(true);
+    uiItemL_respect_property_split(row, IFACE_("Y"), ICON_NONE);
+    row->label(format_unit_value(eul[1], PROP_ANGLE, layout_), ICON_NONE);
+
+    row = &col->row(true);
+    uiItemL_respect_property_split(row, IFACE_("Z"), ICON_NONE);
+    row->label(format_unit_value(eul[2], PROP_ANGLE, layout_), ICON_NONE);
   }
 
   /* Mirror RNA enum property dropdown UI - with menu triangle an dropdown items. */
-  uiBlock *block = right_col->block();
+  row = &layout_->row(true);
+  uiItemL_respect_property_split(row, IFACE_("Mode"), ICON_NONE);
+  uiBlock *block = row->block();
   uiBut *but = uiDefMenuBut(block,
                             rotation_mode_menu_callback,
                             nullptr,
@@ -188,18 +198,20 @@ static void draw_matrix_template(uiLayout &layout, PointerRNA &ptr, PropertyRNA 
   UI_but_type_set_menu_from_pulldown(but);
 
   /* Scale. */
-  split = &layout_->split(0.5, false);
+  col = &layout_->column(true);
+  col->use_property_split_set(true);
 
-  left_col = &split->column(true);
-  left_col->alignment_set(blender::ui::LayoutAlign::Right);
-  left_col->label(IFACE_("Scale X"), ICON_NONE);
-  left_col->label(IFACE_("Y"), ICON_NONE);
-  left_col->label(IFACE_("Z"), ICON_NONE);
+  row = &col->row(true);
+  uiItemL_respect_property_split(row, IFACE_("Scale X"), ICON_NONE);
+  row->label(format_coefficient(size[0]), ICON_NONE);
 
-  right_col = &split->column(true);
-  right_col->label(format_coefficient(size[0]), ICON_NONE);
-  right_col->label(format_coefficient(size[1]), ICON_NONE);
-  right_col->label(format_coefficient(size[2]), ICON_NONE);
+  row = &col->row(true);
+  uiItemL_respect_property_split(row, IFACE_("Y"), ICON_NONE);
+  row->label(format_coefficient(size[1]), ICON_NONE);
+
+  row = &col->row(true);
+  uiItemL_respect_property_split(row, IFACE_("Z"), ICON_NONE);
+  row->label(format_coefficient(size[2]), ICON_NONE);
 }
 
 void uiTemplateMatrix(uiLayout *layout, PointerRNA *ptr, const StringRefNull propname)
