@@ -1907,7 +1907,9 @@ static StitchState *stitch_init(bContext *C,
     ssc->island_has_selected.resize(state->element_map->total_islands, false);
     BM_ITER_MESH (efa, &iter, em->bm, BM_FACES_OF_MESH) {
       BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
-        if (uvedit_uv_select_test(scene, l, offsets) && uvedit_uv_select_test(scene, l->next, offsets)) {
+        if (uvedit_uv_select_test(scene, l, offsets) &&
+            uvedit_uv_select_test(scene, l->next, offsets))
+        {
           UvElement *element = BM_uv_element_get(state->element_map, l);
           if (element) {
             ssc->island_has_selected[element->island] = true;
@@ -2255,12 +2257,30 @@ static StitchStateInit *stitch_extract_rna_selection(wmOperator *op,
   return state_init;
 }
 
-static StitchStateContainer *stitch_settings_init(bContext *C, wmOperator *op)
+static StitchStateContainer *stitch_operator_settings_init(bContext *C, wmOperator *op)
 {
-  StitchStateContainer *ssc = MEM_new<StitchStateContainer>("stitch collection");
 
   Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  View3D *v3d = CTX_wm_view3d(C);
+  Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
+      scene, view_layer, v3d);
 
+  if (objects.is_empty()) {
+    BKE_report(op->reports, RPT_ERROR, "No objects selected");
+    return nullptr;
+  }
+
+  if (objects.size() > RNA_MAX_ARRAY_LENGTH) {
+    BKE_reportf(op->reports,
+                RPT_ERROR,
+                "Stitching only works with less than %i objects selected (%i selected)",
+                RNA_MAX_ARRAY_LENGTH,
+                int(objects.size()));
+    return nullptr;
+  }
+
+  StitchStateContainer *ssc = MEM_new<StitchStateContainer>("stitch collection");
   ToolSettings *ts = scene->toolsettings;
   op->customdata = ssc;
   ssc->use_limit = RNA_boolean_get(op->ptr, "use_limit");
@@ -2271,7 +2291,7 @@ static StitchStateContainer *stitch_settings_init(bContext *C, wmOperator *op)
   ssc->active_object_index = RNA_int_get(op->ptr, "active_object_index");
   ssc->static_island = 0;
   ssc->ignore_seam_boundary = false;
-  ssc->only_selected_uvs = true;
+  ssc->only_selected_uvs = false;
 
   ssc->static_island = RNA_int_get(op->ptr, "static_island");
   if (RNA_struct_property_is_set(op->ptr, "mode")) {
@@ -2295,11 +2315,20 @@ static StitchStateContainer *stitch_settings_init(bContext *C, wmOperator *op)
       }
     }
   }
+
+  if (RNA_struct_property_is_set(op->ptr, "selection") &&
+      RNA_struct_property_is_set(op->ptr, "objects_selection_count"))
+  {
+    ssc->state_init = stitch_extract_rna_selection(op, objects);
+    ssc->objs_selection_count = static_cast<int *>(
+        MEM_mallocN(sizeof(int *) * objects.size(), "objects_selection_count"));
+    RNA_int_get_array(op->ptr, "objects_selection_count", ssc->objs_selection_count);
+  }
+
   return ssc;
 }
 
 int stitch_init_all(bContext *C,
-                    wmOperator *op,
                     StitchStateContainer *ssc,
                     const StitchModes stored_mode,
                     const bool draw_preview)
@@ -2315,22 +2344,7 @@ int stitch_init_all(bContext *C,
   View3D *v3d = CTX_wm_view3d(C);
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
       scene, view_layer, v3d);
-
-  if (objects.is_empty()) {
-    if (op) {
-      BKE_report(op->reports, RPT_ERROR, "No objects selected");
-    }
-    return 0;
-  }
-
-  if (objects.size() > RNA_MAX_ARRAY_LENGTH) {
-    if (op) {
-      BKE_reportf(op->reports,
-                  RPT_ERROR,
-                  "Stitching only works with less than %i objects selected (%i selected)",
-                  RNA_MAX_ARRAY_LENGTH,
-                  int(objects.size()));
-    }
+  if (objects.is_empty() || objects.size() > RNA_MAX_ARRAY_LENGTH) {
     return 0;
   }
 
@@ -2338,32 +2352,17 @@ int stitch_init_all(bContext *C,
   ssc->states = MEM_calloc_arrayN<StitchState *>(objects.size(), "StitchState");
   ssc->objects_len = 0;
 
-  int *objs_selection_count = nullptr;
-  StitchStateInit *state_init = nullptr;
-
-  /* Try RNA selection first, fallback to current selection */
-  if (op) {
-    if (RNA_struct_property_is_set(op->ptr, "selection") &&
-        RNA_struct_property_is_set(op->ptr, "objects_selection_count"))
-    {
-      state_init = stitch_extract_rna_selection(op, objects);
-      objs_selection_count = static_cast<int *>(
-          MEM_mallocN(sizeof(int *) * objects.size(), "objects_selection_count"));
-      RNA_int_get_array(op->ptr, "objects_selection_count", objs_selection_count);
-    }
-  }
-
   for (uint ob_index = 0; ob_index < objects.size(); ob_index++) {
     Object *obedit = objects[ob_index];
 
-    if (state_init != nullptr && objs_selection_count != nullptr) {
-      state_init->uv_selected_count = objs_selection_count[ob_index];
+    if (ssc->state_init != nullptr && ssc->objs_selection_count != nullptr) {
+      ssc->state_init->uv_selected_count = ssc->objs_selection_count[ob_index];
     }
-    StitchState *stitch_state_ob = stitch_init(C, ssc, obedit, state_init, stored_mode);
+    StitchState *stitch_state_ob = stitch_init(C, ssc, obedit, ssc->state_init, stored_mode);
 
-    if (state_init != nullptr && objs_selection_count != nullptr) {
+    if (ssc->state_init != nullptr && ssc->objs_selection_count != nullptr) {
       /* Move pointer to beginning of next object's data. */
-      state_init->to_select += state_init->uv_selected_count;
+      ssc->state_init->to_select += ssc->state_init->uv_selected_count;
     }
 
     if (stitch_state_ob) {
@@ -2373,14 +2372,8 @@ int stitch_init_all(bContext *C,
     }
   }
 
-  MEM_SAFE_FREE(objs_selection_count);
-  MEM_SAFE_FREE(state_init);
-
-  if (ssc->objects_len == 0) {
-    state_delete_all(ssc);
-    BKE_report(op->reports, RPT_ERROR, "Could not initialize stitching on any selected object");
-    return 0;
-  }
+  MEM_SAFE_FREE(ssc->objs_selection_count);
+  MEM_SAFE_FREE(ssc->state_init);
 
   ssc->active_object_index %= ssc->objects_len;
 
@@ -2410,9 +2403,9 @@ int stitch_init_all(bContext *C,
 
 static wmOperatorStatus stitch_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
-  StitchStateContainer *ssc = stitch_settings_init(C, op);
+  StitchStateContainer *ssc = stitch_operator_settings_init(C, op);
 
-  if (!stitch_init_all(C, op, ssc, (StitchModes)RNA_enum_get(op->ptr, "stored_mode"), true)) {
+  if (!stitch_init_all(C, ssc, (StitchModes)RNA_enum_get(op->ptr, "stored_mode"), true)) {
     return OPERATOR_CANCELLED;
   }
 
@@ -2531,8 +2524,8 @@ static wmOperatorStatus stitch_exec(bContext *C, wmOperator *op)
 {
   Scene *scene = CTX_data_scene(C);
 
-  StitchStateContainer *ssc = stitch_settings_init(C, op);
-  if (!stitch_init_all(C, op, ssc, (StitchModes)RNA_enum_get(op->ptr, "stored_mode"), true)) {
+  StitchStateContainer *ssc = stitch_operator_settings_init(C, op);
+  if (!stitch_init_all(C, ssc, (StitchModes)RNA_enum_get(op->ptr, "stored_mode"), true)) {
     return OPERATOR_CANCELLED;
   }
   if (stitch_process_data_all((StitchStateContainer *)op->customdata, scene, 1)) {

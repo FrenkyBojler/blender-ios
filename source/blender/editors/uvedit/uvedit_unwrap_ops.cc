@@ -2905,12 +2905,10 @@ static wmOperatorStatus unwrap_exec(bContext *C, wmOperator *op)
     ssc->snap_islands = true;
     ssc->midpoints = false;
     ssc->clear_seams = false;
-    ssc->static_island = 1;
-    ssc->ignore_seam_boundary = true;
     ssc->mode = STITCH_VERT;
     ssc->only_selected_uvs = true;
     ssc->ignore_seam_boundary = true;
-    if (!stitch_init_all(C, op, ssc, STITCH_VERT, false)) {
+    if (!stitch_init_all(C, ssc, STITCH_VERT, false)) {
       BKE_report(op->reports, RPT_ERROR, "Could not initialize stitching");
       return OPERATOR_CANCELLED;
     }
@@ -4278,7 +4276,7 @@ static wmOperatorStatus cube_project_exec(bContext *C, wmOperator *op)
     }
 
     float bounds[2][3];
-    float(*bounds_buf)[3] = nullptr;
+    float (*bounds_buf)[3] = nullptr;
 
     if (!RNA_property_is_set(op->ptr, prop_cube_size)) {
       bounds_buf = bounds;

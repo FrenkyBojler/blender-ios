@@ -163,7 +163,8 @@ void UV_OT_custom_region_set(wmOperatorType *ot);
 void UV_OT_select_mode(wmOperatorType *ot);
 
 struct StitchState;
-
+struct StitchStateInit;
+struct bContext;
 enum StitchModes {
   STITCH_VERT,
   STITCH_EDGE,
@@ -200,10 +201,12 @@ struct StitchStateContainer {
 
   /* Track which islands have selected faces */
   blender::Vector<bool> island_has_selected;
+
+  int *objs_selection_count = nullptr;
+  StitchStateInit *state_init = nullptr;
 };
 
 int stitch_init_all(bContext *C,
-                    wmOperator *op,
                     StitchStateContainer *ssc,
                     const StitchModes stored_mode,
                     const bool draw_preview);
